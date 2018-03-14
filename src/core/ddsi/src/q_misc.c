@@ -55,6 +55,12 @@ int vendor_is_opensplice (nn_vendorid_t vid)
   return (vid.id[0] == pt1.id[0] && vid.id[1] == pt1.id[1]);
 }
 
+int vendor_is_lite (nn_vendorid_t vid)
+{
+  const nn_vendorid_t pt1 = NN_VENDORID_PRISMTECH_LITE;
+  return (vid.id[0] == pt1.id[0] && vid.id[1] == pt1.id[1]);
+}
+
 int is_own_vendor (nn_vendorid_t vendor)
 {
   const nn_vendorid_t ownid = MY_VENDOR_ID;

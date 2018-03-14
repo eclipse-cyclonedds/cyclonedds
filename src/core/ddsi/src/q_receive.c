@@ -2864,7 +2864,7 @@ static int handle_submsg_sequence
         break;
 
       case SMID_PT_INFO_CONTAINER:
-        if (is_own_vendor (rst->vendor))
+        if (is_own_vendor (rst->vendor) || vendor_is_lite(rst->vendor))
         {
           state = "parse:pt_info_container";
           TRACE (("PT_INFO_CONTAINER("));
