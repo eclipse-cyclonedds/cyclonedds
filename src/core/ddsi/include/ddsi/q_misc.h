@@ -21,6 +21,7 @@ extern "C" {
 struct v_gid_s;
 struct nn_guid;
 
+int vendor_is_lite (nn_vendorid_t vendor);
 int vendor_is_opensplice (nn_vendorid_t vid);
 int vendor_is_rti (nn_vendorid_t vendor);
 int vendor_is_twinoaks (nn_vendorid_t vendor);
