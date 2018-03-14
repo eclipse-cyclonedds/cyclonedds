@@ -565,7 +565,7 @@ static const struct cfgelem unsupp_cfgelems[] = {
 "<p>Forward all messages from a writer, rather than trying to forward each sample only once. The default of trying to forward each sample only once filters out duplicates for writers in multiple partitions under nearly all circumstances, but may still publish the odd duplicate. Note: the current implementation also can lose in contrived test cases, that publish more than 2**32 samples using a single data writer in conjunction with carefully controlled management of the writer history via cooperating local readers.</p>" },
 { LEAF("RetryOnRejectBestEffort"), 1, "false", ABSOFF(retry_on_reject_besteffort), 0, uf_boolean, 0, pf_boolean,
 "<p>Whether or not to locally retry pushing a received best-effort sample into the reader caches when resource limits are reached.</p>" },
-{ LEAF("GenerateKeyhash"), 1, "true", ABSOFF(generate_keyhash), 0, uf_boolean, 0, pf_boolean,
+{ LEAF("GenerateKeyhash"), 1, "false", ABSOFF(generate_keyhash), 0, uf_boolean, 0, pf_boolean,
 "<p>When true, include keyhashes in outgoing data for topics with keys.</p>" },
 { LEAF("MaxSampleSize"), 1, "2147483647 B", ABSOFF(max_sample_size), 0, uf_memsize, 0, pf_memsize,
 "<p>This setting controls the maximum (CDR) serialised size of samples that DDSI2E will forward in either direction. Samples larger than this are discarded with a warning.</p>" },

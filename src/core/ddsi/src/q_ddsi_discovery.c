@@ -1074,6 +1074,7 @@ static struct proxy_participant *implicitly_create_proxypp (const nn_guid_t *ppg
 
   if (vendor_is_cloud (vendorid))
   {
+    nn_vendorid_t actual_vendorid;
     /* Some endpoint that we discovered through the DS, but then it must have at least some locators */
     TRACE ((" from-DS %x:%x:%x:%x", PGUID (privguid)));
     /* avoid "no address" case, so we never create the proxy participant for nothing (FIXME: rework some of this) */
@@ -1083,7 +1084,19 @@ static struct proxy_participant *implicitly_create_proxypp (const nn_guid_t *ppg
       goto err;
     }
     nn_log (LC_DISCOVERY, " new-proxypp %x:%x:%x:%x\n", PGUID (*ppguid));
-    new_proxy_participant(ppguid, 0, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, T_NEVER, vendorid, CF_IMPLICITLY_CREATED_PROXYPP, timestamp);
+    /* We need to handle any source of entities, but we really want to try to keep the GIDs (and
+       certainly the systemId component) unchanged for OSPL.  The new proxy participant will take
+       the GID from the GUID if it is from a "modern" OSPL that advertises it includes all GIDs in
+       the endpoint discovery; else if it is OSPL it will take at the systemId and fake the rest.
+       However, (1) Cloud filters out the GIDs from the discovery, and (2) DDSI2 deliberately
+       doesn't include the GID for internally generated endpoints (such as the fictitious transient
+       data readers) to signal that these are internal and have no GID (and not including a GID if
+       there is none is quite a reasonable approach).  Point (2) means we have no reliable way of
+       determining whether GIDs are included based on the first endpoint, and so there is no point
+       doing anything about (1).  That means we fall back to the legacy mode of locally generating
+       GIDs but leaving the system id unchanged if the remote is OSPL.  */
+    actual_vendorid = (datap->present & PP_VENDORID) ?  datap->vendorid : vendorid;
+    new_proxy_participant(ppguid, 0, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, T_NEVER, actual_vendorid, CF_IMPLICITLY_CREATED_PROXYPP, timestamp);
   }
   else if (ppguid->prefix.u[0] == src_guid_prefix->u[0] && vendor_is_opensplice (vendorid))
   {
