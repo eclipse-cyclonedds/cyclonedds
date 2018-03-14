@@ -146,6 +146,7 @@ struct cdrstring {
 /* Only one specific version is grokked */
 #define RTPS_MAJOR 2
 #define RTPS_MINOR 1
+#define RTPS_MINOR_MINIMUM 1
 
 typedef struct Header {
   nn_protocolid_t protocol;

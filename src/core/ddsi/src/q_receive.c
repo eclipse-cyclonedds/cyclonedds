@@ -2922,7 +2922,7 @@ static int handle_submsg_sequence
              malformed message. */
           if (rst->protocol_version.major < RTPS_MAJOR ||
               (rst->protocol_version.major == RTPS_MAJOR &&
-               rst->protocol_version.minor <= RTPS_MINOR))
+               rst->protocol_version.minor < RTPS_MINOR_MINIMUM))
             goto malformed;
         }
         else if (is_own_vendor (rst->vendor))
@@ -3048,9 +3048,12 @@ static bool do_packet
     (
       (size_t) sz < RTPS_MESSAGE_HEADER_SIZE ||
       buff[0] != 'R' || buff[1] != 'T' || buff[2] != 'P' || buff[3] != 'S' ||
-      hdr->version.major != RTPS_MAJOR || hdr->version.minor != RTPS_MINOR
+      hdr->version.major != RTPS_MAJOR || (hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM) 
     )
     {
+        if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
+            TRACE (("HDR("PGIDFMT" vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
+        PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor));
       if (NN_PEDANTIC_P)
         malformed_packet_received_nosubmsg (buff, sz, "header", hdr->vendorid);
     }
