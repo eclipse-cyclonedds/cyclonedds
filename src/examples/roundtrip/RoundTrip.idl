@@ -1,0 +1,8 @@
+module RoundTripModule
+{
+  struct DataType
+  {
+    sequence<octet> payload;
+  };
+  #pragma keylist DataType
+};

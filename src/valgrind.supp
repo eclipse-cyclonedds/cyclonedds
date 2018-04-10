@@ -1,0 +1,10 @@
+{
+   Criterion memory leak
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:__fopen_internal
+   fun:process_all_output
+   fun:criterion_run_all_tests
+   fun:main
+}

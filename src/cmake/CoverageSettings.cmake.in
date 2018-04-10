@@ -1,0 +1,31 @@
+#
+# Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License v. 2.0 which is available at
+# http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+# v. 1.0 which is available at
+# http://www.eclipse.org/org/documents/edl-v10.php.
+#
+# SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+#
+cmake_minimum_required(VERSION 3.5)
+
+set(COVERAGE_SOURCE_DIR "@PROJECT_SOURCE_DIR@")
+set(COVERAGE_RUN_DIR    "@CMAKE_BINARY_DIR@")
+set(COVERAGE_OUTPUT_DIR "@CMAKE_BINARY_DIR@/coverage")
+
+# TODO: Make this a list instead of separate variables when more directories
+#       need to be excluded. Currently there's actually only one directory to
+#       be excluded, but when the test(s) are moved, more directories will be
+#       added. I just added two directories to indicate how the coverage
+#       generators handle multiple exclusion directories.
+#
+# Do not include the various test directories.
+set(COVERAGE_EXCLUDE_TESTS "tests")
+set(COVERAGE_EXCLUDE_EXAMPLES "examples")
+set(COVERAGE_EXCLUDE_BUILD_SUPPORT "cmake")
+
+# Add this flag when you want to suppress LCOV and ctest outputs during coverage collecting.
+#set(COVERAGE_QUIET_FLAG "--quiet")
+

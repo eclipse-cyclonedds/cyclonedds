@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+
+  This program and the accompanying materials are made available under the
+  terms of the Eclipse Public License v. 2.0 which is available at
+  http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+  v. 1.0 which is available at
+  http://www.eclipse.org/org/documents/edl-v10.php.
+
+  SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="attributeLong">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element minOccurs="0" name="minimum" type="xs:long"/>
+                <xs:element minOccurs="0" name="maximum" type="xs:long"/>
+                <xs:element name="default" type="xs:long"/>
+            </xs:all>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="required" type="xs:boolean" use="required"/>
+        </xs:complexType>
+    </xs:element>
+     <xs:element name="attributeSize">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element minOccurs="0" name="minimum" type="xs:string"/>
+                <xs:element minOccurs="0" name="maximum" type="xs:string"/>
+                <xs:element name="default" type="xs:string"/>
+            </xs:all>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="required" type="xs:boolean" use="required"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="attributeString">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element name="maxLength" type="xs:unsignedInt"/>
+                <xs:element name="default" type="xs:string"/>
+            </xs:all>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="required" type="xs:boolean" use="required"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="attributeBoolean">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element name="default" type="xs:boolean"/>
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="attributeEnum">
+        <xs:complexType>
+            <xs:choice maxOccurs="unbounded">
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element maxOccurs="unbounded" name="value" type="xs:string"/>
+                <xs:element name="default" type="xs:string"/>
+            </xs:choice>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="attributeDouble">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element minOccurs="0" name="minimum" type="xs:double"/>
+                <xs:element minOccurs="0" name="maximum" type="xs:double"/>
+                <xs:element name="default" type="xs:double"/>
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="attributeFloat">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element minOccurs="0" name="minimum" type="xs:float"/>
+                <xs:element minOccurs="0" name="maximum" type="xs:float"/>
+                <xs:element name="default" type="xs:float"/>
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="attributeInt">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element minOccurs="0" name="minimum" type="xs:int"/>
+                <xs:element minOccurs="0" name="maximum" type="xs:int"/>
+                <xs:element name="default" type="xs:int"/>
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="comment" type="xs:string"/>
+    <xs:element name="element">
+        <xs:complexType>
+            <xs:choice maxOccurs="unbounded">
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element ref="attributeString"/>
+                <xs:element ref="leafSize"/>
+                <xs:element ref="leafEmpty"/>
+                <xs:element ref="leafString"/>
+                <xs:element ref="leafEnum"/>
+                <xs:element ref="leafBoolean"/>
+                <xs:element ref="leafInt"/>
+                <xs:element ref="element"/>
+                <xs:element ref="leafFloat"/>
+            </xs:choice>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="minOccurrences" type="xs:unsignedInt" use="optional"/>
+            <xs:attribute name="maxOccurrences" type="xs:unsignedInt" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="leafBoolean">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element name="default" type="xs:boolean"/>
+            </xs:all>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="minOccurrences" type="xs:unsignedInt" use="optional"/>
+            <xs:attribute name="maxOccurrences" type="xs:unsignedInt" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="leafEmpty">
+        <xs:complexType>
+            <xs:choice maxOccurs="unbounded">
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element ref="attributeLong"/>
+                <xs:element ref="attributeString"/>
+                <xs:element ref="attributeBoolean"/>
+                <xs:element ref="attributeDouble"/>
+                <xs:element ref="attributeEnum"/>
+                <xs:element ref="attributeFloat"/>
+                <xs:element ref="attributeInt"/>
+                <xs:element ref="attributeSize"/>
+            </xs:choice>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="minOccurrences" type="xs:unsignedInt" use="optional"/>
+            <xs:attribute name="maxOccurrences" type="xs:unsignedInt" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="leafEnum">
+        <xs:complexType>
+            <xs:choice maxOccurs="unbounded">
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element maxOccurs="unbounded" name="value" type="xs:string"/>
+                <xs:element name="default" type="xs:string"/>
+            </xs:choice>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="minOccurrences" type="xs:unsignedInt" use="optional"/>
+            <xs:attribute name="maxOccurrences" type="xs:unsignedInt" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="leafFloat">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element minOccurs="0" name="minimum" type="xs:decimal"/>
+                <xs:element minOccurs="0" name="maximum" type="xs:decimal"/>
+                <xs:element name="default" type="xs:decimal"/>
+            </xs:all>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="minOccurrences" type="xs:unsignedInt" use="optional"/>
+            <xs:attribute name="maxOccurrences" type="xs:unsignedInt" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="leafDouble">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element minOccurs="0" name="minimum" type="xs:double"/>
+                <xs:element minOccurs="0" name="maximum" type="xs:double"/>
+                <xs:element name="default" type="xs:double"/>
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="leafLong">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element minOccurs="0" name="minimum" type="xs:long"/>
+                <xs:element minOccurs="0" name="maximum" type="xs:long"/>
+                <xs:element name="default" type="xs:long"/>
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="leafSize">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element minOccurs="0" name="minimum" type="xs:string"/>
+                <xs:element minOccurs="0" name="maximum" type="xs:string"/>
+                <xs:element name="default" type="xs:string"/>
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="leafInt">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element minOccurs="0" name="minimum" type="xs:unsignedInt"/>
+                <xs:element minOccurs="0" name="maximum" type="xs:unsignedInt"/>
+                <xs:element name="default" type="xs:unsignedInt"/>
+            </xs:all>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="minOccurrences" type="xs:unsignedInt" use="optional"/>
+            <xs:attribute name="maxOccurrences" type="xs:unsignedInt" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="leafString">
+        <xs:complexType>
+            <xs:all>
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element name="maxLength" type="xs:unsignedInt"/>
+                <xs:element name="default" type="xs:string"/>
+            </xs:all>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="minOccurrences" type="xs:unsignedInt" use="optional"/>
+            <xs:attribute name="maxOccurrences" type="xs:unsignedInt" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="rootElement">
+        <xs:complexType>
+            <xs:all minOccurs="1" maxOccurs="1">
+                <xs:element ref="element"/>
+            </xs:all>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="service">
+        <xs:complexType>
+            <xs:choice maxOccurs="unbounded">
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element ref="attributeLong"/>
+                <xs:element ref="attributeString"/>
+                <xs:element ref="leafInt"/>
+                <xs:element ref="leafFloat"/>
+                <xs:element ref="leafString"/>
+                <xs:element ref="leafEnum"/>
+                <xs:element ref="leafEmpty"/>
+                <xs:element ref="leafSize"/>
+                <xs:element ref="element"/>
+            </xs:choice>
+            <xs:attribute name="type" use="required">
+                <xs:simpleType>
+                    <xs:restriction base="xs:NMTOKEN">
+                        <xs:enumeration value="CMSOAPService"/>
+                        <xs:enumeration value="DurabilityService"/>
+                        <xs:enumeration value="NetworkingService"/>
+                        <xs:enumeration value="SpliceService"/>
+                        <xs:enumeration value="UserClockService"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:attribute>
+            <xs:attribute name="minOccurrences" type="xs:unsignedInt" use="optional"/>
+            <xs:attribute name="maxOccurrences" type="xs:unsignedInt" use="optional"/>
+            <xs:attribute name="isRootService" type="xs:boolean"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="serviceCommon">
+        <xs:complexType>
+            <xs:choice maxOccurs="unbounded">
+                <xs:element minOccurs="0" ref="comment"/>
+                <xs:element ref="attributeLong"/>
+                <xs:element ref="attributeString"/>
+                <xs:element ref="leafInt"/>
+                <xs:element ref="leafFloat"/>
+                <xs:element ref="leafString"/>
+                <xs:element ref="leafEnum"/>
+                <xs:element ref="leafEmpty"/>
+                <xs:element ref="leafSize"/>
+                <xs:element ref="element"/>
+            </xs:choice>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="splice_meta_config">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="rootElement"/>
+                <xs:element ref="serviceCommon"/>
+                <xs:element maxOccurs="unbounded" ref="service"/>
+            </xs:sequence>
+            <xs:attribute name="version" type="xs:decimal" use="required"/>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

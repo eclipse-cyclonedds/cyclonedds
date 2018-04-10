@@ -1,0 +1,199 @@
+#!/bin/sh
+#
+# Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License v. 2.0 which is available at
+# http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+# v. 1.0 which is available at
+# http://www.eclipse.org/org/documents/edl-v10.php.
+#
+# SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+#
+
+OUTPUT_DIR=
+SCRIPT_DIR=
+EXAMPLES_DIR=
+EXPLICIT_YES=false
+HELP_SHOWN=false
+
+
+show_help() {
+# Show help only once.
+if [ $HELP_SHOWN = false ]; then
+cat << EOF
+Usage: ${0##*/} [-h] [-y] [-d OUTDIR]
+
+The @CMAKE_PROJECT_NAME@ examples are probably installed in a read-only location.
+By executing this script, the examples can be (re)installed to a writable
+location. That could be helpful when trying to experiment with the examples.
+
+    -d|--dir OUTDIR  Install the examples in OUTDIR.
+                     This directory should not be a sub-directory of the
+                     examples location.
+                     If not set, an output dir will be asked for. When asking
+                     for an output dir, the current directory is used as
+                     suggestion.
+    -h|--help        This text.
+    -y|--yes         Use 'yes' for every question.
+EOF
+HELP_SHOWN=true
+fi
+}
+
+
+#
+# Parse command line arguments.
+#
+if [ -z "$1" ]; then
+    show_help
+    printf '\n'
+else
+    while :; do
+        case $1 in
+            -h|-\?|--help)
+                show_help
+                exit
+                ;;
+            -d|--dir)
+                if [ "$2" ]; then
+                    OUTPUT_DIR=$2
+                    shift
+                else
+                    show_help
+                    printf '\nERROR: "-d|--dir" requires a non-empty option argument.\n' "$1" >&2
+                    exit 1
+                fi
+                ;;
+            -y|--yes)
+                EXPLICIT_YES=true
+                ;;
+            -?*)
+                printf 'WARN: Unknown option (ignored): %s\n' "$1" >&2
+                ;;
+            *)
+                break
+        esac
+        shift
+    done
+fi
+
+
+#
+# Get the location of the script.
+#
+SCRIPT=`readlink -f "$0"`
+SCRIPT_DIR=`dirname "$SCRIPT"`
+
+
+#
+# Try a few locations where the examples probably are.
+#
+EXAMPLES_DIR_DEFAULT="/usr/share/@CMAKE_PROJECT_NAME@/examples"
+EXAMPLES_DIR_RELATIVE="$SCRIPT_DIR/../share/@CMAKE_PROJECT_NAME@/examples"
+EXAMPLES_DIR_CURRENT=`pwd`
+
+if [ -d "$EXAMPLES_DIR_DEFAULT" ]; then
+    EXAMPLES_DIR="$EXAMPLES_DIR_DEFAULT"
+elif [ -d "$EXAMPLES_DIR_RELATIVE" ]; then
+    EXAMPLES_DIR="$EXAMPLES_DIR_RELATIVE"
+elif [ -d "$EXAMPLES_DIR_CURRENT" ]; then
+    case "$EXAMPLES_DIR_CURRENT" in
+        *@CMAKE_PROJECT_NAME@/examples) EXAMPLES_DIR="$EXAMPLES_DIR_CURRENT"
+    esac
+fi
+
+if [ -z "$EXAMPLES_DIR" ]; then
+    show_help
+    printf '\nERROR: Could not find the @CMAKE_PROJECT_NAME@ examples at any of these locations:\n' >&2
+    printf '    - [Default ] - %s\n' "$EXAMPLES_DIR_DEFAULT" >&2
+    printf '    - [Relative] - %s\n' "$EXAMPLES_DIR_RELATIVE" >&2
+    printf '    - [Current ] - %s\n' "$EXAMPLES_DIR_CURRENT" >&2
+    exit 1
+fi
+
+
+#
+# Only get the output dir ourselves when it wasn't already set by the
+# command line arguments.
+#
+if [ -z "$OUTPUT_DIR" ]; then
+    # Assume the examples should be installed in the current directory.
+    OUTPUT_DIR=`pwd`
+
+    # When explicit 'yes' is provided as a command line argument, then
+    # don't ask if the assumption is correct.
+    if [ $EXPLICIT_YES = false ]; then
+
+        # Keep pestering the user until we have a proper answer.
+        while true; do
+            YNC=
+            if [ "$OUTPUT_DIR" = "$EXAMPLES_DIR" ]; then
+                YNC="N"
+            elif [ ! -w "$OUTPUT_DIR" ]; then
+                YNC="N"
+            else
+                read -p "Do you wish to install the @CMAKE_PROJECT_NAME@ examples in \"$OUTPUT_DIR\"? [Yes|No|Cancel] " YNC
+            fi
+            case $YNC in
+                [Yy]* ) break;;
+                [Nn]* ) read -p "New examples install directory> " OUTPUT_DIR; break;;
+                [Cc]* ) exit;;
+                * ) echo "Please answer yes, no or cancel.";;
+            esac
+        done
+    elif [ "$OUTPUT_DIR" = "$EXAMPLES_DIR" ]; then
+        show_help
+        printf '\nERROR: Destination is same as source.\n'
+        exit 1
+    fi
+fi
+
+
+#
+# Check if the output dir is valid.
+#
+if [ ! -d "$OUTPUT_DIR" ]; then
+    # Only ask for permission if an explicit yes wasn't part of
+    # the command line arguments.
+    if [ $EXPLICIT_YES = false ]; then
+        while true; do
+            read -p "Do you wish to create directory \"$OUTPUT_DIR\"? [Yes|No] " YN
+            case $YN in
+                [Yy]* ) break;;
+                [Nn]* ) exit;;
+                * ) echo "Please answer yes or no.";;
+            esac
+        done
+    fi
+    mkdir -p "$OUTPUT_DIR"
+    if [ $? -ne 0 ]; then
+        printf 'ERROR: Could not create directory "%s"\n' "$OUTPUT_DIR"
+        exit 1
+    fi
+fi
+# If the directory still doesn't exist, exit.
+if [ ! -d "$OUTPUT_DIR" ]; then
+    show_help
+    printf '\nERROR: Directory "%s" does not exist.\n' "$OUTPUT_DIR" >&2
+    exit 1
+fi
+# If the directory isn't writable, exit.
+if [ ! -w "$OUTPUT_DIR" ]; then
+    show_help
+    printf '\nERROR: Directory "%s" does not have write permission.\n' "$OUTPUT_DIR" >&2
+    exit 1
+fi
+
+
+#
+# Copy the examples.
+#
+cp -Rf "$EXAMPLES_DIR" "$OUTPUT_DIR"
+if [ $? -ne 0 ]; then
+    printf 'ERROR: Could not install examples\n'
+    exit 1
+else
+    printf 'Installed @CMAKE_PROJECT_NAME@ examples into "%s"\n' "$OUTPUT_DIR"
+fi
+

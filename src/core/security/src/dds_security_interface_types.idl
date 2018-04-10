@@ -1,0 +1,133 @@
+/*
+ * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+
+#include "dds_security_builtintopics.idl"
+
+
+#define DOMAINID_TYPE_NATIVE            long
+#define HANDLE_TYPE_NATIVE              long long
+
+
+module DDS {
+
+    /**
+    * DDs types that should be defined for security. These can be moved to another DDS idl other than builtin types idl
+    */
+
+    module Security {
+
+        typedef long DynamicData;
+
+        typedef MessageToken AuthRequestMessageToken;
+        typedef MessageToken HandshakeMessageToken;
+
+        typedef Token  AuthenticatedPeerCredentialToken;
+        typedef Token  PermissionsCredentialToken;
+
+        typedef Token  CryptoToken;
+        typedef sequence<CryptoToken>  CryptoTokenSeq;
+
+        typedef Token  ParticipantCryptoToken;
+        typedef Token  DatawriterCryptoToken;
+        typedef Token  DatareaderCryptoToken;
+
+        typedef CryptoTokenSeq  ParticipantCryptoTokenSeq;
+        typedef CryptoTokenSeq  DatawriterCryptoTokenSeq;
+        typedef CryptoTokenSeq  DatareaderCryptoTokenSeq;
+
+
+        // From DDS-RTPS [2] clauses 8.4.2.1 and 9.3.1
+        typedef octet GuidPrefix_t[12];
+        
+        struct EntityId_t {
+            octet entityKey[3];
+            octet entityKind;
+        };
+
+
+        struct GUID_t {
+            GuidPrefix_t prefix;
+            EntityId_t   entityId;
+        };
+
+
+        struct MessageIdentity {
+            GUID_t     source_guid;
+            long long  sequence_number;
+        };
+
+
+        typedef long SecurityExceptionCode;
+
+        struct SecurityException {
+            string  message;
+
+            long    minor_code;
+        };
+
+        enum ValidationResult_t {
+            VALIDATION_OK,
+            VALIDATION_FAILED,
+            VALIDATION_PENDING_RETRY,
+            VALIDATION_PENDING_HANDSHAKE_REQUEST,
+            VALIDATION_PENDING_HANDSHAKE_MESSAGE,
+            VALIDATION_OK_FINAL_MESSAGE
+        };
+
+         typedef long IdentityHandle;
+         //native IdentityHandle;
+         typedef long HandshakeHandle;
+         //native HandshakeHandle;
+         typedef long SharedSecretHandle;
+         //native SharedSecretHandle;
+         typedef long PermissionsHandle;
+         //native PermissionsHandle;
+         typedef long ParticipantCryptoHandle;
+         //native ParticipantCryptoHandle;
+         typedef long ParticipantCryptoHandleSeq;
+         //native ParticipantCryptoHandleSeq;
+         typedef long DatawriterCryptoHandle;
+         //native DatawriterCryptoHandle;
+         typedef long DatawriterCryptoHandleSeq;
+         //native DatawriterCryptoHandleSeq;
+         typedef long DatareaderCryptoHandle;
+         //native DatareaderCryptoHandle;
+         typedef long DatareaderCryptoHandleSeq;
+         //native DatareaderCryptoHandleSeq;
+
+        enum AuthStatusKind {
+            IDENTITY_STATUS /*@VALUE(1)*/
+        };
+
+
+
+
+        struct TopicSecurityAttributes {
+            boolean  is_read_protected;
+            boolean  is_write_protected;
+            boolean  is_discovery_protected;
+            boolean  is_liveliness_protected;
+        };
+
+
+        enum SecureSubmessageCategory_t {
+            INFO_SUBMESSAGE,
+            DATAWRITER_SUBMESSAGE,
+            DATAREADER_SUBMESSAGE
+        };
+    };
+
+
+};
+
+

@@ -1,0 +1,81 @@
+/*
+ * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+module TypesArrayKey {
+    struct long_arraytypekey {
+        long key[20]; //@Key
+    };
+#pragma keylist long_arraytypekey key
+
+    typedef long long longlong;
+    struct longlong_arraytypekey {
+        longlong key[20]; //@Key
+    };
+#pragma keylist longlong_arraytypekey key
+
+    typedef unsigned short unsignedshort;
+    struct unsignedshort_arraytypekey {
+        unsignedshort key[20]; //@Key
+    };
+#pragma keylist unsignedshort_arraytypekey key
+
+    typedef unsigned long unsignedlong;
+    struct unsignedlong_arraytypekey {
+        unsignedlong key[20]; //@Key
+    };
+#pragma keylist unsignedlong_arraytypekey key
+
+    typedef unsigned long long unsignedlonglong;
+    struct unsignedlonglong_arraytypekey {
+        unsignedlonglong key[20]; //@Key
+    };
+#pragma keylist unsignedlonglong_arraytypekey key
+
+    struct float_arraytypekey {
+        float key[20]; //@Key
+    };
+#pragma keylist float_arraytypekey key
+
+    struct double_arraytypekey {
+        double key[20]; //@Key
+    };
+#pragma keylist double_arraytypekey key
+
+    struct char_arraytypekey {
+        char key[128]; //@Key
+    };
+#pragma keylist char_arraytypekey key
+
+    struct boolean_arraytypekey {
+        boolean key[128]; //@Key
+    };
+#pragma keylist boolean_arraytypekey key
+
+    struct octet_arraytypekey {
+        octet key[128]; //@Key
+    };
+#pragma keylist octet_arraytypekey key
+
+    struct alltypeskey {
+        long                l;
+        long long           ll;
+        unsigned short      us;
+        unsigned long       ul;
+        unsigned long long  ull;
+        float               f;
+        double              d;
+        char                c;
+        boolean             b;
+        octet               o;
+        string              s; //@Key
+    };
+#pragma keylist alltypeskey l ll us ul ull f d c b o s
+};

@@ -1,0 +1,228 @@
+<!--
+  Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+
+  This program and the accompanying materials are made available under the
+  terms of the Eclipse Public License v. 2.0 which is available at
+  http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+  v. 1.0 which is available at
+  http://www.eclipse.org/org/documents/edl-v10.php.
+
+  SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+-->
+<!--
+  Installing the Hello World! example at the USERPROFILE directory.
+-->
+
+<CPackWiXPatch>
+  <CPackWiXFragment Id="#PRODUCT">
+
+    <DirectoryRef Id="TARGETDIR">
+      <Directory Id="PersonalFolder">
+        <Directory Id="CYCLONEUSERDIR" Name="Cyclone DDS">
+          <Directory Id="CM_DP_dev.usr.CycloneDDS.examples" Name="examples">
+              <Directory Id="CM_DP_dev.usr.CycloneDDS.examples.helloworld" Name="helloworld">
+                  <Directory Id="CM_DP_dev.usr.CycloneDDS.examples.helloworld.vs" Name="vs"/>
+                  <Directory Id="CM_DP_dev.usr.CycloneDDS.examples.helloworld.generated" Name="generated"/>
+              </Directory>
+              <Directory Id="CM_DP_dev.usr.CycloneDDS.examples.roundtrip" Name="roundtrip" />
+              <Directory Id="CM_DP_dev.usr.CycloneDDS.examples.throughput" Name="throughput" />
+          </Directory>
+        </Directory>
+      </Directory>
+    </DirectoryRef>
+
+    <Feature Id="UserWritableExampleFeature" Display="expand" Absent="disallow"  ConfigurableDirectory="CYCLONEUSERDIR" Title="Cyclone DDS Examples" Description="Example code to getting started with DDS development." Level="1">
+      <Feature Id="CM_C_usr" Title="Cyclone DDS Development Examples" Description="Example Development files for use with Cyclone DDS. Typically installed in the users 'Document' directory.">
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.Launcher.ApplicationShortcut" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.environment" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.cmake.prefix.path" />
+        <!-- helloworld -->
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.remove" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldData.idl" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldData.sln" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldPublisher.vcxproj" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldSubscriber.vcxproj" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldType.vcxproj" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldData.c" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldData.h" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.directories.props" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.publisher.c" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.subscriber.c" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.CMakeLists.txt" />
+        <!-- roundtrip -->
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.RoundTrip.idl" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.ping.c" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.pong.c" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.CMakeLists.txt" />
+        <!-- throughput -->
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.throughput.Throughput.idl" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.throughput.publisher.c" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.throughput.subscriber.c" />
+        <ComponentRef Id="CM_CP_dev.usr.CycloneDDS.examples.throughput.CMakeLists.txt" />
+      </Feature>
+    </Feature>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.remove" Directory="CYCLONEUSERDIR" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="Remove.CM_CP_dev.usr.CycloneDDS.examples" Value="Remove.CM_CP_dev.usr.CycloneDDS.examples" KeyPath="yes" />
+
+      <!-- helloworld -->
+      <RemoveFolder Id="Remove.CM_DP_dev.usr.CycloneDDS.examples.helloworld.vs" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld.vs" On="uninstall"/>
+      <RemoveFolder Id="Remove.CM_DP_dev.usr.CycloneDDS.examples.helloworld.generated" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld.generated" On="uninstall"/>
+      <RemoveFolder Id="Remove.CM_DP_dev.usr.CycloneDDS.examples.helloworld" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld" On="uninstall"/>
+      <!-- roundtrip -->
+      <RemoveFolder Id="Remove.CM_DP_dev.usr.CycloneDDS.examples.roundtrip" Directory="CM_DP_dev.usr.CycloneDDS.examples.roundtrip" On="uninstall"/>
+      <!-- throughput -->
+      <RemoveFolder Id="Remove.CM_DP_dev.usr.CycloneDDS.examples.throughput" Directory="CM_DP_dev.usr.CycloneDDS.examples.throughput" On="uninstall"/>
+
+      <RemoveFolder Id="Remove.CM_DP_dev.usr.CycloneDDS.examples" Directory="CM_DP_dev.usr.CycloneDDS.examples" On="uninstall"/>
+      <RemoveFolder Id="Remove.CM_DP_dev.usr.CycloneDDS" Directory="CYCLONEUSERDIR" On="uninstall"/>
+    </Component>
+
+    <!-- Hello World - files -->
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldData.idl" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_FP_usr.usr.CycloneDDS.examples.helloworld.HelloWorldData.idl" Value="CM_FP_usr.usr.CycloneDDS.examples.helloworld.HelloWorldData.idl" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.helloworld.HelloWorldData.idl" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/helloworld/HelloWorldData.idl" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldData.sln" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_FP_usr.usr.CycloneDDS.examples.helloworld.HelloWorld.sln" Value="CM_FP_usr.usr.CycloneDDS.examples.helloworld.HelloWorld.sln" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.helloworld.HelloWorld.sln" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/helloworld/HelloWorld.sln" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldPublisher.vcxproj" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld.vs" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldPublisher.vcxproj" Value="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldPublisher.vcxproj" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.helloworld.HelloWorldPublisher.vcxproj" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/helloworld/vs/HelloWorldPublisher.vcxproj" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldSubscriber.vcxproj" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld.vs" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldSubscriber.vcxproj" Value="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldSubscriber.vcxproj" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.helloworld.HelloWorldSubscriber.vcxproj" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/helloworld/vs/HelloWorldSubscriber.vcxproj" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldType.vcxproj" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld.vs" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldType.vcxproj" Value="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldType.vcxproj" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.helloworld.HelloWorldType.vcxproj" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/helloworld/vs/HelloWorldType.vcxproj" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.directories.props" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld.vs" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.helloworld.directories.props" Value="CM_CP_dev.usr.CycloneDDS.examples.helloworld.directories.props" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.helloworld.directories.props" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/helloworld/vs/directories.props" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldData.c" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld.generated" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldData.c" Value="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldData.c" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.helloworld.HelloWorldData.c" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/helloworld/generated/HelloWorldData.c" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldData.h" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld.generated" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldData.h" Value="CM_CP_dev.usr.CycloneDDS.examples.helloworld.HelloWorldData.h" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.helloworld.HelloWorldData.h" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/helloworld/generated/HelloWorldData.h" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.publisher.c" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.helloworld.publisher.c" Value="CM_CP_dev.usr.CycloneDDS.examples.helloworld.publisher.c" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.helloworld.publisher.c" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/helloworld/publisher.c" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.subscriber.c" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.helloworld.subscriber.c" Value="CM_CP_dev.usr.CycloneDDS.examples.helloworld.subscriber.c" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.helloworld.subscriber.c" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/helloworld/subscriber.c" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.helloworld.CMakeLists.txt" Directory="CM_DP_dev.usr.CycloneDDS.examples.helloworld" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.helloworld.CMakeLists.txt" Value="CM_CP_dev.usr.CycloneDDS.examples.helloworld.CMakeLists.txt" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.helloworld.CMakeLists.txt" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/helloworld/CMakeLists.txt" KeyPath="no"/>
+    </Component>
+
+    <!-- RoundTrip - files -->
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.CMakeLists.txt" Directory="CM_DP_dev.usr.CycloneDDS.examples.roundtrip" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.CMakeLists.txt" Value="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.CMakeLists.txt" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.roundtrip.CMakeLists.txt" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/roundtrip/CMakeLists.txt" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.RoundTrip.idl" Directory="CM_DP_dev.usr.CycloneDDS.examples.roundtrip" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.RoundTrip.idl" Value="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.RoundTrip.idl" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.roundtrip.RoundTrip.idl" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/roundtrip/RoundTrip.idl" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.ping.c" Directory="CM_DP_dev.usr.CycloneDDS.examples.roundtrip" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.ping.c" Value="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.ping.c" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.roundtrip.ping.c" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/roundtrip/ping.c" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.pong.c" Directory="CM_DP_dev.usr.CycloneDDS.examples.roundtrip" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.pong.c" Value="CM_CP_dev.usr.CycloneDDS.examples.roundtrip.pong.c" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.roundtrip.pong.c" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/roundtrip/pong.c" KeyPath="no"/>
+    </Component>
+
+    <!-- Throughput - files -->
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.throughput.CMakeLists.txt" Directory="CM_DP_dev.usr.CycloneDDS.examples.throughput" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.throughput.CMakeLists.txt" Value="CM_CP_dev.usr.CycloneDDS.examples.throughput.CMakeLists.txt" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.throughput.CMakeLists.txt" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/throughput/CMakeLists.txt" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.throughput.Throughput.idl" Directory="CM_DP_dev.usr.CycloneDDS.examples.throughput" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.throughput.Throughput.idl" Value="CM_CP_dev.usr.CycloneDDS.examples.throughput.Throughput.idl" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.throughput.Throughput.idl" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/throughput/Throughput.idl" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.throughput.publisher.c" Directory="CM_DP_dev.usr.CycloneDDS.examples.throughput" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.throughput.publisher.c" Value="CM_CP_dev.usr.CycloneDDS.examples.throughput.publisher.c" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.throughput.publisher.c" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/throughput/publisher.c" KeyPath="no"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.throughput.subscriber.c" Directory="CM_DP_dev.usr.CycloneDDS.examples.throughput" Guid="">
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.examples.throughput.subscriber.c" Value="CM_CP_dev.usr.CycloneDDS.examples.throughput.subscriber.c" KeyPath="yes" />
+      <File Id="CM_FP_usr.usr.CycloneDDS.examples.throughput.subscriber.c" Source="$(sys.SOURCEFILEDIR)/$(var.CPACK_PACKAGE_NAME)-$(var.CPACK_PACKAGE_VERSION)-win64/dev/share/CycloneDDS/examples/throughput/subscriber.c" KeyPath="no"/>
+    </Component>
+
+    <!-- Add the location of the ddsc.dll to the system path -->
+    <Component Id="CM_CP_dev.usr.CycloneDDS.examples.environment" Directory="CYCLONEUSERDIR" Guid="">
+      <!-- CreateFolder and RegistryValue are needed to keep Wix happy -->
+      <CreateFolder Directory="CYCLONEUSERDIR"/>
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.environment" Value="CM_CP_dev.usr.CycloneDDS.environment" KeyPath="yes" />
+      <Environment Action="set" Id="CycloneDDSPath" Name="PATH" Part="last" Permanent="yes" System="yes" Value="[INSTALL_ROOT]bin"/>
+    </Component>
+
+    <Component Id="CM_CP_dev.usr.CycloneDDS.cmake.prefix.path" Directory="CYCLONEUSERDIR" Guid="">
+      <!-- CreateFolder and RegistryValue are needed to keep Wix happy -->
+      <CreateFolder Directory="CYCLONEUSERDIR"/>
+      <RegistryValue Type="string" Root="HKCU" Key="Software\$(var.CPACK_PACKAGE_VENDOR)\$(var.CPACK_PACKAGE_NAME)" Name="CM_CP_dev.usr.CycloneDDS.cmake.prefix.path" Value="CM_CP_dev.usr.CycloneDDS.cmake.prefix.path" KeyPath="yes" />
+      <Environment Action="set" Id="CMakePrefixPath" Name="CMAKE_PREFIX_PATH" Permanent="no" Value="[INSTALL_ROOT]share/CycloneDDS"/>
+    </Component>
+
+    <!-- Offer the user the ability the start the launcher -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="After clicking Finish, the Vortex DDS Launcher will start (if indicated below). The Vortex DDS Laucher will help to get started with Cyclone DDS." />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1"/>
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Start the Vortex DDS Launcher" />
+    <Property Id="WixShellExecTarget" Value="[INSTALL_ROOT]/bin/vortexddslauncher.exe" />
+    <CustomAction Id="CM_CA_dev.user.CycloneDDS.Launcher.Launch" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
+
+    <UI>
+        <UIRef Id="$(var.CPACK_WIX_UI_REF)" />
+        <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="CM_CA_dev.user.CycloneDDS.Launcher.Launch">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
+    </UI>
+
+    <!-- Create start-menu -->
+    <DirectoryRef Id="TARGETDIR">
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Cyclone DDS"/>
+      </Directory>
+    </DirectoryRef>
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="CM_CP_dev.usr.CycloneDDS.Launcher.ApplicationShortcut" Guid="C21831A3-FBCE-44D0-A098-A1F21FD4846F">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Name="CycloneDDS Launcher"
+                  Directory="ApplicationProgramsFolder"
+                  Description="My Application Description"
+                  Target="[INSTALL_ROOT]/bin/vortexddslauncher.exe"
+                  Icon="ShortcutIcon"
+                  IconIndex="0">
+          <Icon Id="ShortcutIcon" SourceFile="$(var.CPACK_WIX_PRODUCT_ICON)" />
+        </Shortcut>
+        <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\AdLink" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+  </CPackWiXFragment>
+</CPackWiXPatch>

@@ -1,0 +1,304 @@
+/*
+ * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+package org.eclipse.cyclonedds;
+
+import com.reprisesoftware.rlm.RlmHandle;
+import com.reprisesoftware.rlm.RlmLicense;
+import com.reprisesoftware.rlm.RlmException;
+
+import java.util.Properties;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.File;
+
+class LicenseMgr
+{
+  private static final String FS = System.getProperty ("file.separator");
+
+  private static final String LIC_PROPS_FILE      = "license.properties";
+  private static final String LIC_FEATURE         = Project.nameCaps + "_IDLC";
+  private static final String LIC_VERSION         = "#VERSION#";
+  private static final String LIC_REL_PATH        = "etc";
+  private static final String LIC_FILE_NAME       = "license.lic";
+  private static final String PROJECT_HOME_PROP   = Project.nameCaps + "_HOME";
+
+  private static final String LIC_RLM_PROP   = "RLM_LICENSE";
+  private static final String LIC_LOC_PROP    = "prismtech_LICENSE";
+
+  private static RlmLicense license = null;
+  private static RlmHandle handle = null;
+
+  private static String vlHome = System.getProperty (PROJECT_HOME_PROP);
+  private static String licPropsPath;
+  private static String defaultLic;
+  private static String licRelPath;
+  private static String licLoc = null;         // Final var that contains where it is
+
+  private LicenseMgr ()
+  {
+  }
+
+  private static boolean getProjectHome()
+  {
+    // Use the property, if null then fall back to the env
+    if (vlHome == null)
+    {
+      vlHome = System.getenv(Project.nameCaps + "_HOME");
+      if (vlHome == null)
+      {
+        System.err.println (Project.nameCaps + "_HOME environment variable or property must be set");
+        return false;
+      }
+    }
+    // Need to re-ajust each time we get osplHome
+    setupGlobals();
+    return true;
+  }
+
+  private static void setupGlobals()
+  {
+    licRelPath = vlHome + FS + LIC_REL_PATH + FS;
+    licPropsPath  = licRelPath + LIC_PROPS_FILE;
+    defaultLic  = licRelPath + LIC_FILE_NAME;
+  }
+
+
+  /* Locations for license:
+     1 : ${PROJECTNAME}_HOME/etc/ANY.lic
+     2 : ../../../license/ANY.lic
+     3 : Read from environment variable prismtech_LICENSE or RLM_LICENSE
+  */
+
+  static boolean checkout (String feature)
+  {
+    try
+    {
+      String licLocProp = System.getProperty (LIC_LOC_PROP);
+      if (licLocProp == null)
+      {
+        licLocProp = System.getenv(LIC_LOC_PROP);
+      }
+
+      if (licLocProp != null && licLocProp.length() != 0)
+      {
+        File f = new File(licLocProp);
+        if (f.exists())
+        {
+          // Property pointed at a license file directly
+          licLoc = licLocProp;
+        }
+        else
+        {
+          String licFileLoc = licLocProp+FS+LIC_FILE_NAME;
+          f = new File(licFileLoc);
+          if (f.exists())
+          {
+            // Property pointed at the directory containing
+            // a license.lic
+            licLoc = licFileLoc;
+          }
+          else
+          {
+             // Try whatever they put on the property as it could
+             // be the server setting
+             licLoc = licLocProp;
+          }
+        }
+      }
+      else
+      {
+        // check RLM_LICENSE
+        String licRlmProp = System.getProperty (LIC_RLM_PROP);
+
+        if (licRlmProp == null)
+        {
+          licRlmProp = System.getenv(LIC_RLM_PROP);
+        }
+
+        if (licRlmProp != null && licRlmProp.length() != 0)
+        {
+          File f = new File(licRlmProp);
+          if (f.exists())
+          {
+            // Property pointed at a license file directly
+            licLoc = licRlmProp;
+          }
+          else
+          {
+            String licFileLoc = licRlmProp+FS+LIC_FILE_NAME;
+            f = new File(licFileLoc);
+            if (f.exists())
+            {
+              // Property pointed at the directory containing
+              // a license.lic
+              licLoc = licFileLoc;
+            }
+            else
+            {
+               // Try whatever they put on the property as it could
+               // be the server setting
+               licLoc = licRlmProp;
+            }
+          }
+        }
+      }
+
+
+      // NOTE: VortexLite - This section is not used??
+      if (licLoc == null)
+      {
+        // No Property set lets check for a properties file
+        FileInputStream fis  = null;
+        Properties licProps  = null;
+
+        if (!getProjectHome())
+        {
+          return false;
+        }
+
+        // check for license file location in properties file
+        File f = new File(licPropsPath);
+        if (f.exists())
+        {
+          licProps = new Properties ();
+          try
+          {
+            fis = new FileInputStream (licPropsPath);
+            licProps.load (fis);
+          }
+          catch (FileNotFoundException ex)
+          {} // Ignore
+          finally
+          {
+            fis.close();
+          }
+          String licFileLoc = licProps.getProperty (LIC_LOC_PROP);
+          if (licFileLoc == null)
+          {
+            licFileLoc = System.getenv(LIC_LOC_PROP);
+          }
+          if (licFileLoc != null)
+          {
+             // Property pointed at the directory containing it
+             licLoc = licFileLoc;
+          }
+        }
+      }
+
+      if (licLoc == null)
+      {
+        // No valid source set or found use the default as
+        // ${PROJECTNAME}_HOME/etc/license.lic as fall back
+        if (!getProjectHome())
+        {
+          return false;
+        }
+
+        File f = new File(defaultLic);
+        if (f.exists())
+        {
+          // Property pointed at the directory containing a license.lic
+          licLoc = defaultLic;
+        }
+        else
+        {
+          // Try whatever they put on the property
+          licLoc = licRelPath;
+        }
+      }
+
+      handle = new RlmHandle(licLoc, "", "");
+      license = new RlmLicense(handle, feature, LIC_VERSION, 1);
+      return true;
+    }
+    catch (Exception ex)
+    {
+       // From Vortex_v2 there will be a license directory under Vortex_v2 where
+       // a license can be installed for use by all products.  If a valid license
+       // is not found in the normal locations then we check this directory for a
+       // valid license.  The location of the Vortex_v2 directory will be set by
+       // the release.com/release.bat file.
+
+       String altLicRelPath = vlHome + FS + ".." + FS + ".." + FS + ".." + FS + "license";
+       String altDefaultLic = null;
+
+       if (altLicRelPath != null)
+       {
+          try
+          {
+             altDefaultLic = altLicRelPath + FS + "license" + FS + LIC_FILE_NAME;
+             File f = new File(altDefaultLic);
+             if (f.exists())
+             {
+               // Property pointed at the directory containing a license.lic
+               licLoc = altDefaultLic;
+             }
+             else
+             {
+               // Try whatever they put on the property
+               licLoc = altLicRelPath;
+             }
+             handle = new RlmHandle(licLoc, "", "");
+             license = new RlmLicense(handle, feature, LIC_VERSION, 1);
+             return true;
+          }
+          catch (Exception ex2)
+          {
+            System.err.println ("dds_idlc: License checkout failed!");
+            System.err.print ("  Caught " + ex2.getClass().getName() + ": ");
+            System.err.println (ex2.getMessage());
+          }
+       }
+       else
+       {
+          System.err.println ("dds_idlc: License checkout failed!");
+          System.err.print ("  Caught " + ex.getClass().getName() + ": ");
+          System.err.println (ex.getMessage());
+       }
+
+       // If we get here then we have not found a valid license
+       if (license != null)
+       {
+          license.checkin ();
+       }
+       if (handle != null)
+       {
+          handle.close();
+       }
+    }
+    return false;
+  }
+
+  static boolean checkin ()
+  {
+    if (license != null)
+    {
+      try
+      {
+        license.checkin ();
+        if (handle != null)
+        {
+          handle.close ();
+        }
+        return true;
+      }
+      catch (Exception ex)
+      {
+        System.err.println ("dds_idlc: License checkin failed!");
+        System.err.print ("  Caught " + ex.getClass().getName() + ": ");
+        System.err.println (ex.getMessage());
+      }
+    }
+
+    return false;
+  }
+}

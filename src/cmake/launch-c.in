@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License v. 2.0 which is available at
+# http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+# v. 1.0 which is available at
+# http://www.eclipse.org/org/documents/edl-v10.php.
+#
+# SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+#
+
+# VxWorks toolchain requires WIND_BASE to be exported, should the user be
+# compiling for VxWorks and not have WIND_BASE exported, to that here before
+# invoking the compiler.
+if [ -z "${WIND_BASE}" ] && [ -n "@WIND_BASE@" ]; then
+    WIND_BASE="@WIND_BASE@"
+    export WIND_BASE
+fi
+
+if [ -n "@WIND_LMAPI@" ]; then
+    if [ -z "${LD_LIBRARY_PATH}" ]; then
+        LD_LIBRARY_PATH="@WIND_LMAPI@"
+        export LD_LIBRARY_PATH
+    elif [[ "${LD_LIBRARY_PATH}" == ?(*:)"@WIND_LMAPI@"?(:*) ]]; then
+        LD_LIBRARY_PATH="@WIND_LMAPI@:${LD_LIBRARY_PATH}"
+        export LD_LIBRARY_PATH
+    fi
+fi
+
+# Strip C compiler from command line arguments for compatibility because this
+# launcher may also be used from an integrated development environment at some
+# point.
+if [ "$1" = "@CMAKE_C_COMPILER@" ]; then
+    shift
+fi
+
+exec "@CMAKE_C_COMPILER@" "$@"
+
