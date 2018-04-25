@@ -70,8 +70,15 @@ add_subdirectory(util)
 add_subdirectory(core)
 add_subdirectory(tools)
 add_subdirectory(scripts)
-#add_subdirectory(examples)
-#add_subdirectory(docs)
+
+option(USE_DOCS "Enable documentation." OFF)
+if(USE_DOCS)
+    add_subdirectory(docs)
+else()
+    message(STATUS "${CMAKE_PROJECT_NAME} documentation: disabled (-DUSE_DOCS=1 to enable)")
+endif()
+
+add_subdirectory(examples)
 
 # Pull-in CPack and support for generating <Package>Config.cmake and packages.
 include(Packaging)
