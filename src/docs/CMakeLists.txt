@@ -86,8 +86,8 @@ if (DOWNLOAD_DOCS)
     else()
         message(STATUS "Unable to find wget. Download docs now.")
         # Just try to download the docs straight away.
-        file(DOWNLOAD ${PROJECT_HTML_URI} ${CMAKE_PROJECT_NAME}HTML.tar.gz)
-        file(DOWNLOAD ${PROJECT_PDF_URI} ${CMAKE_PROJECT_NAME}.pdf)
+        file(DOWNLOAD ${PROJECT_HTML_URI} ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}HTML.tar.gz)
+        file(DOWNLOAD ${PROJECT_PDF_URI} ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.pdf)
     endif()
 
     add_custom_command(TARGET docs
