@@ -47,6 +47,7 @@
 #include "ddsi/q_pcap.h"
 #include "ddsi/q_feature_check.h"
 #include "ddsi/q_debmon.h"
+#include "ddsi/q_init.h"
 
 #include "ddsi/sysdeps.h"
 
@@ -54,6 +55,8 @@
 #include "ddsi/ddsi_tran.h"
 #include "ddsi/ddsi_udp.h"
 #include "ddsi/ddsi_tcp.h"
+#include "ddsi/ddsi_raweth.h"
+#include "ddsi/ddsi_mcgroup.h"
 
 #include "dds__tkmap.h"
 
@@ -68,6 +71,17 @@ static void add_peer_addresses (struct addrset *as, const struct config_peer_lis
 
 static int make_uc_sockets (uint32_t * pdisc, uint32_t * pdata, int ppid)
 {
+  if (config.many_sockets_mode == MSM_NO_UNICAST)
+  {
+    assert (ppid == PARTICIPANT_INDEX_NONE);
+    *pdata = *pdisc = (uint32_t) (config.port_base + config.port_dg * config.domainId);
+    if (config.allowMulticast)
+    {
+      /* FIXME: ugly hack - but we'll fix up after creating the multicast sockets */
+      return 0;
+    }
+  }
+
   if (ppid >= 0)
   {
     /* FIXME: verify port numbers are in range instead of truncating them like this */
@@ -172,13 +186,13 @@ static int set_recvips (void)
       int i, have_selected = 0, have_others = 0;
       for (i = 0; config.networkRecvAddressStrings[i] != NULL; i++)
       {
-        os_sockaddr_storage parsedaddr;
-        if (!os_sockaddrStringToAddress (config.networkRecvAddressStrings[i], (os_sockaddr *) &parsedaddr, !config.useIpv6))
+        nn_locator_t loc;
+        if (ddsi_locator_from_string(&loc, config.networkRecvAddressStrings[i]) != AFSR_OK)
         {
-          NN_ERROR ("%s: not a valid IP address\n", config.networkRecvAddressStrings[i]);
+          NN_ERROR ("%s: not a valid address in DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses\n", config.networkRecvAddressStrings[i]);
           return -1;
         }
-        if (os_sockaddrIPAddressEqual ((os_sockaddr *) &gv.interfaces[gv.selected_interface].addr, (os_sockaddr *) &parsedaddr))
+        if (compare_locators(&loc, &gv.interfaces[gv.selected_interface].loc) == 0)
           have_selected = 1;
         else
           have_others = 1;
@@ -197,25 +211,24 @@ static int set_recvips (void)
       gv.recvips_mode = RECVIPS_MODE_SOME;
       for (i = 0; config.networkRecvAddressStrings[i] != NULL; i++)
       {
-        os_sockaddr_storage parsedaddr;
-        if (!os_sockaddrStringToAddress (config.networkRecvAddressStrings[i], (os_sockaddr *) &parsedaddr, !config.useIpv6))
+        nn_locator_t loc;
+        if (ddsi_locator_from_string(&loc, config.networkRecvAddressStrings[i]) != AFSR_OK)
         {
-          NN_ERROR ("%s: not a valid IP address\n", config.networkRecvAddressStrings[i]);
+          NN_ERROR ("%s: not a valid address in DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses\n", config.networkRecvAddressStrings[i]);
           return -1;
         }
         for (j = 0; j < gv.n_interfaces; j++)
         {
-          if (os_sockaddrIPAddressEqual ((os_sockaddr *) &gv.interfaces[j].addr, (os_sockaddr *) &parsedaddr))
+          if (compare_locators(&loc, &gv.interfaces[j].loc) == 0)
             break;
         }
         if (j == gv.n_interfaces)
         {
-          NN_ERROR ("No interface bound to requested address '%s'\n",
-                     config.networkRecvAddressStrings[i]);
+          NN_ERROR ("No interface bound to requested address '%s'\n", config.networkRecvAddressStrings[i]);
           return -1;
         }
         *recvnode = os_malloc (sizeof (struct ospl_in_addr_node));
-        (*recvnode)->addr = parsedaddr;
+        (*recvnode)->loc = loc;
         recvnode = &(*recvnode)->next;
         *recvnode = NULL;
       }
@@ -232,61 +245,54 @@ static int set_recvips (void)
  * The return 0 means that the possible changes in 'loc' can be ignored. */
 static int string_to_default_locator (nn_locator_t *loc, const char *string, uint32_t port, int mc, const char *tag)
 {
-  os_sockaddr_storage addr;
   if (strspn (string, " \t") == strlen (string))
   {
     /* string consisting of just spaces and/or tabs (that includes the empty string) is ignored */
     return 0;
   }
-  else if (!os_sockaddrStringToAddress (string, (os_sockaddr *) &addr, !config.useIpv6))
+  switch (ddsi_locator_from_string(loc, string))
   {
-    NN_ERROR ("%s: not a valid IP address (%s)\n", string, tag);
-    return -1;
+    case AFSR_OK:
+      break;
+    case AFSR_INVALID:
+      NN_ERROR ("%s: not a valid address (%s)\n", string, tag);
+      return -1;
+    case AFSR_UNKNOWN:
+      NN_ERROR ("%s: address name resolution failure (%s)\n", string, tag);
+      return -1;
+    case AFSR_MISMATCH:
+      NN_ERROR ("%s: invalid address kind (%s)\n", string, tag);
+      return -1;
   }
-  else if (!config.useIpv6 && addr.ss_family != AF_INET)
-  {
-    NN_ERROR ("%s: not a valid IPv4 address (%s)\n", string, tag);
-    return -1;
-  }
-#if OS_SOCKET_HAS_IPV6
-  else if (config.useIpv6 && addr.ss_family != AF_INET6)
-  {
-    NN_ERROR ("%s: not a valid IPv6 address (%s)\n", string, tag);
-    return -1;
-  }
-#endif
+  if (port != 0 && !is_unspec_locator(loc))
+    loc->port = port;
   else
+    loc->port = NN_LOCATOR_PORT_INVALID;
+  assert (mc == -1 || mc == 0 || mc == 1);
+  if (mc >= 0)
   {
-    nn_address_to_loc (loc, &addr, config.useIpv6 ? NN_LOCATOR_KIND_UDPv6 : NN_LOCATOR_KIND_UDPv4);
-    if (port != 0 && !is_unspec_locator(loc))
-      loc->port = port;
-    assert (mc == -1 || mc == 0 || mc == 1);
-    if (mc >= 0)
+    const char *rel = mc ? "must" : "may not";
+    const int ismc = is_unspec_locator (loc) || ddsi_is_mcaddr (loc);
+    if (mc != ismc)
     {
-      const char *unspecstr = config.useIpv6 ? "the IPv6 unspecified address (::0)" : "IPv4 ANY (0.0.0.0)";
-      const char *rel = mc ? "must" : "may not";
-      const int ismc = is_unspec_locator (loc) || is_mcaddr (loc);
-      if (mc != ismc)
-      {
-        NN_ERROR ("%s: %s %s be %s or a multicast address\n", string, tag, rel, unspecstr);
-        return -1;
-      }
+      NN_ERROR ("%s: %s %s be the unspecified address or a multicast address\n", string, tag, rel);
+      return -1;
     }
-
-    return 1;
   }
+  return 1;
 }
 
 static int set_spdp_address (void)
 {
   const uint32_t port = (uint32_t) (config.port_base + config.port_dg * config.domainId + config.port_d0);
   int rc = 0;
+  /* FIXME: FIXME: FIXME: */
   if (strcmp (config.spdpMulticastAddressString, "239.255.0.1") != 0)
   {
     if ((rc = string_to_default_locator (&gv.loc_spdp_mc, config.spdpMulticastAddressString, port, 1, "SPDP address")) < 0)
       return rc;
   }
-  if (rc == 0)
+  if (rc == 0 && gv.m_factory->m_connless) /* FIXME: connless the right one? */
   {
     /* There isn't a standard IPv6 multicast group for DDSI. For
        some reason, node-local multicast addresses seem to be
@@ -294,12 +300,11 @@ static int set_spdp_address (void)
        instead do link-local. I suppose we could use the hop limit
        to make it node-local.  If other hosts reach us in some way,
        we'll of course respond. */
-    const char *def = config.useIpv6 ? "ff02::ffff:239.255.0.1" : "239.255.0.1";
-    rc = string_to_default_locator (&gv.loc_spdp_mc, def, port, 1, "SPDP address");
+    rc = string_to_default_locator (&gv.loc_spdp_mc, gv.m_factory->m_default_spdp_address, port, 1, "SPDP address");
     assert (rc > 0);
   }
 #ifdef DDSI_INCLUDE_SSM
-  if (is_ssm_mcaddr (&gv.loc_spdp_mc))
+  if (ddsi_is_ssm_mcaddr (&gv.loc_spdp_mc))
   {
     NN_ERROR ("%s: SPDP address may not be an SSM address\n", config.spdpMulticastAddressString);
     return -1;
@@ -338,31 +343,31 @@ static int set_ext_address_and_mask (void)
   int rc;
 
   if (!config.externalAddressString)
-    gv.extip = gv.ownip;
+    gv.extloc = gv.ownloc;
   else if ((rc = string_to_default_locator (&loc, config.externalAddressString, 0, 0, "external address")) < 0)
     return rc;
   else if (rc == 0) {
     NN_WARNING ("Ignoring ExternalNetworkAddress %s\n", config.externalAddressString);
-    gv.extip = gv.ownip;
+    gv.extloc = gv.ownloc;
   } else {
-    nn_loc_to_address (&gv.extip, &loc);
+    gv.extloc = loc;
   }
 
   if (!config.externalMaskString || strcmp (config.externalMaskString, "0.0.0.0") == 0)
-    gv.extmask.s_addr = 0;
-  else if (config.useIpv6)
+  {
+    memset(&gv.extmask.address, 0, sizeof(gv.extmask.address));
+    gv.extmask.kind = NN_LOCATOR_KIND_INVALID;
+    gv.extmask.port = NN_LOCATOR_PORT_INVALID;
+  }
+  else if (config.transport_selector != TRANS_UDP)
   {
     NN_ERROR ("external network masks only supported in IPv4 mode\n");
     return -1;
   }
   else
   {
-    os_sockaddr_storage addr;
-    if ((rc = string_to_default_locator (&loc, config.externalMaskString, 0, -1, "external mask")) < 0)
+    if ((rc = string_to_default_locator (&gv.extmask, config.externalMaskString, 0, -1, "external mask")) < 0)
       return rc;
-    nn_loc_to_address(&addr, &loc);
-    assert (addr.ss_family == AF_INET);
-    gv.extmask = ((const os_sockaddr_in *) &addr)->sin_addr;
   }
   return 0;
 }
@@ -477,7 +482,7 @@ int rtps_config_prep (struct cfgst *cfgst)
     goto err_config_late_error;
   }
 
-  if (config.besmode == BESMODE_MINIMAL && config.many_sockets_mode)
+  if (config.besmode == BESMODE_MINIMAL && config.many_sockets_mode == MSM_MANY_UNICAST)
   {
     /* These two are incompatible because minimal bes mode can result
        in implicitly creating proxy participants inheriting the
@@ -491,7 +496,7 @@ int rtps_config_prep (struct cfgst *cfgst)
 
   /* Dependencies between default values is not handled
    automatically by the config processing (yet) */
-  if (config.many_sockets_mode)
+  if (config.many_sockets_mode == MSM_MANY_UNICAST)
   {
     if (config.max_participants == 0)
       config.max_participants = 100;
@@ -559,7 +564,7 @@ int rtps_config_prep (struct cfgst *cfgst)
       num_channels++;
       num_channel_threads += 2; /* xmit and dqueue */
 
-      if (config.useIpv6 && chptr->diffserv_field != 0)
+      if (config.transport_selector != TRANS_UDP && chptr->diffserv_field != 0)
       {
         NN_ERROR ("channel %s specifies IPv4 DiffServ settings which is incompatible with IPv6 use\n",
                    chptr->name);
@@ -611,28 +616,6 @@ int rtps_config_prep (struct cfgst *cfgst)
 
   /* Now the per-thread-log-buffers are set up, so print the configuration */
   config_print_cfgst (cfgst);
-
-#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  /* Convert address sets in partition mappings from string to address sets */
-  {
-    const int port = config.port_base + config.port_dg * config.domainId + config.port_d2;
-    struct config_networkpartition_listelem *np;
-    for (np = config.networkPartitions; np; np = np->next)
-    {
-      static const char msgtag_fixed[] = ": partition address";
-      size_t slen = strlen (np->name) + sizeof (msgtag_fixed);
-      char * msgtag = os_malloc (slen);
-      int rc;
-      (void) snprintf (msgtag, slen, "%s%s", np->name, msgtag_fixed);
-      np->as = new_addrset ();
-      rc = add_addresses_to_addrset (np->as, np->address_string, port, msgtag, 1);
-      os_free (msgtag);
-      if (rc < 0)
-        goto err_config_late_error;
-    }
-  }
-#endif
-
   return 0;
 
 err_config_late_error:
@@ -647,23 +630,23 @@ struct joinleave_spdp_defmcip_helper_arg {
 static void joinleave_spdp_defmcip_helper (const nn_locator_t *loc, void *varg)
 {
   struct joinleave_spdp_defmcip_helper_arg *arg = varg;
-  if (!is_mcaddr (loc))
+  if (!ddsi_is_mcaddr (loc))
     return;
 #ifdef DDSI_INCLUDE_SSM
   /* Can't join SSM until we actually have a source */
-  if (is_ssm_mcaddr (loc))
+  if (ddsi_is_ssm_mcaddr (loc))
     return;
 #endif
   if (arg->dojoin) {
-    if (ddsi_conn_join_mc (gv.disc_conn_mc, NULL, loc) < 0 || ddsi_conn_join_mc (gv.data_conn_mc, NULL, loc) < 0)
+    if (ddsi_join_mc (gv.disc_conn_mc, NULL, loc) < 0 || ddsi_join_mc (gv.data_conn_mc, NULL, loc) < 0)
       arg->errcount++;
   } else {
-    if (ddsi_conn_leave_mc (gv.disc_conn_mc, NULL, loc) < 0 || ddsi_conn_leave_mc (gv.data_conn_mc, NULL, loc) < 0)
+    if (ddsi_leave_mc (gv.disc_conn_mc, NULL, loc) < 0 || ddsi_leave_mc (gv.data_conn_mc, NULL, loc) < 0)
       arg->errcount++;
   }
 }
 
-static int joinleave_spdp_defmcip (int dojoin)
+int joinleave_spdp_defmcip (int dojoin)
 {
   /* Addrset provides an easy way to filter out duplicates */
   struct joinleave_spdp_defmcip_helper_arg arg;
@@ -681,6 +664,43 @@ static int joinleave_spdp_defmcip (int dojoin)
     NN_ERROR ("rtps_init: failed to join multicast groups for domain %d participant %d\n", config.domainId, config.participantIndex);
     return -1;
   }
+  return 0;
+}
+
+int create_multicast_sockets(void)
+{
+  ddsi_tran_qos_t qos = ddsi_tran_create_qos ();
+  ddsi_tran_conn_t disc, data;
+  uint32_t port;
+  qos->m_multicast = 1;
+
+  /* FIXME: should check for overflow */
+  port = (uint32_t) (config.port_base + config.port_dg * config.domainId + config.port_d0);
+  if ((disc = ddsi_factory_create_conn (gv.m_factory, port, qos)) == NULL)
+    goto err_disc;
+  if (config.many_sockets_mode == MSM_NO_UNICAST)
+  {
+    /* FIXME: not quite logical to tie this to "no unicast" */
+    data = disc;
+  }
+  else
+  {
+    port = (uint32_t) (config.port_base + config.port_dg * config.domainId + config.port_d2);
+    if ((data = ddsi_factory_create_conn (gv.m_factory, port, qos)) == NULL)
+      goto err_data;
+  }
+  ddsi_tran_free_qos (qos);
+
+  gv.disc_conn_mc = disc;
+  gv.data_conn_mc = data;
+  TRACE (("Multicast Ports: discovery %d data %d \n",
+          ddsi_tran_port (gv.disc_conn_mc), ddsi_tran_port (gv.data_conn_mc)));
+  return 1;
+
+err_data:
+  ddsi_conn_free (disc);
+err_disc:
+  ddsi_tran_free_qos (qos);
   return 0;
 }
 
@@ -726,25 +746,39 @@ int rtps_init (void)
   }
 
   /* Initialize UDP or TCP transport and resolve factory */
-
-  if (!config.tcp_enable)
+  switch (config.transport_selector)
   {
-    config.publish_uc_locators = true;
-    if (ddsi_udp_init () < 0)
-      goto err_udp_tcp_init;
-    gv.m_factory = ddsi_factory_find ("udp");
-  }
-  else
-  {
-    config.publish_uc_locators = (config.tcp_port == -1) ? false : true;
-    /* TCP affects what features are supported/required */
-    config.suppress_spdp_multicast = true;
-    config.many_sockets_mode = false;
-    config.allowMulticast = AMC_FALSE;
-
-    if (ddsi_tcp_init () < 0)
-      goto err_udp_tcp_init;
-    gv.m_factory = ddsi_factory_find ("tcp");
+    case TRANS_DEFAULT:
+      assert(0);
+    case TRANS_UDP:
+    case TRANS_UDP6:
+      config.publish_uc_locators = 1;
+      config.enable_uc_locators = 1;
+      if (ddsi_udp_init () < 0)
+        goto err_udp_tcp_init;
+      gv.m_factory = ddsi_factory_find (config.transport_selector == TRANS_UDP ? "udp" : "udp6");
+      break;
+    case TRANS_TCP:
+    case TRANS_TCP6:
+      config.publish_uc_locators = (config.tcp_port != -1);
+      config.enable_uc_locators = 1;
+      /* TCP affects what features are supported/required */
+      config.suppress_spdp_multicast = 1;
+      config.many_sockets_mode = MSM_SINGLE_UNICAST;
+      config.allowMulticast = AMC_FALSE;
+      if (ddsi_tcp_init () < 0)
+        goto err_udp_tcp_init;
+      gv.m_factory = ddsi_factory_find (config.transport_selector == TRANS_TCP ? "tcp" : "tcp6");
+      break;
+    case TRANS_RAWETH:
+      config.publish_uc_locators = 1;
+      config.enable_uc_locators = 0;
+      config.participantIndex = PARTICIPANT_INDEX_NONE;
+      config.many_sockets_mode = MSM_NO_UNICAST;
+      if (ddsi_raweth_init () < 0)
+        goto err_udp_tcp_init;
+      gv.m_factory = ddsi_factory_find ("raweth");
+      break;
   }
 
   if (!find_own_ip (config.networkAddressString))
@@ -777,21 +811,42 @@ int rtps_init (void)
     goto err_set_ext_address;
 
   {
-    char buf[INET6_ADDRSTRLEN_EXTENDED];
-    nn_log (LC_CONFIG, "ownip: %s\n", sockaddr_to_string_no_port (buf, &gv.ownip));
-    nn_log (LC_CONFIG, "extip: %s\n", sockaddr_to_string_no_port (buf, &gv.extip));
-    (void)inet_ntop(AF_INET, &gv.extmask, buf, sizeof(buf));
-    nn_log (LC_CONFIG, "extmask: %s%s\n", buf, config.useIpv6 ? " (not applicable)" : "");
+    char buf[DDSI_LOCSTRLEN];
+    /* the "ownip", "extip" labels in the trace have been there for so long, that it seems worthwhile to retain them even though they need not be IP any longer */
+    nn_log (LC_CONFIG, "ownip: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv.ownloc));
+    nn_log (LC_CONFIG, "extip: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv.extloc));
+    nn_log (LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv.extmask), gv.m_factory->m_kind != NN_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
     nn_log (LC_CONFIG, "networkid: 0x%lx\n", (unsigned long) gv.myNetworkId);
-    nn_log (LC_CONFIG, "SPDP MC: %s\n", locator_to_string_no_port (buf, &gv.loc_spdp_mc));
-    nn_log (LC_CONFIG, "default MC: %s\n", locator_to_string_no_port (buf, &gv.loc_default_mc));
+    nn_log (LC_CONFIG, "SPDP MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv.loc_spdp_mc));
+    nn_log (LC_CONFIG, "default MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv.loc_default_mc));
 #ifdef DDSI_INCLUDE_SSM
     nn_log (LC_CONFIG, "SSM support included\n");
 #endif
   }
 
-  if (gv.ownip.ss_family != gv.extip.ss_family)
+  if (gv.ownloc.kind != gv.extloc.kind)
     NN_FATAL ("mismatch between network address kinds\n");
+
+#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+  /* Convert address sets in partition mappings from string to address sets */
+  {
+    const int port = config.port_base + config.port_dg * config.domainId + config.port_d2;
+    struct config_networkpartition_listelem *np;
+    for (np = config.networkPartitions; np; np = np->next)
+    {
+      static const char msgtag_fixed[] = ": partition address";
+      size_t slen = strlen (np->name) + sizeof (msgtag_fixed);
+      char * msgtag = os_malloc (slen);
+      int rc;
+      snprintf (msgtag, slen, "%s%s", np->name, msgtag_fixed);
+      np->as = new_addrset ();
+      rc = add_addresses_to_addrset (np->as, np->address_string, port, msgtag, 1);
+      os_free (msgtag);
+      if (rc < 0)
+        goto err_network_partition_addrset;
+    }
+  }
+#endif
 
   gv.startup_mode = (config.startup_mode_duration > 0) ? 1 : 0;
   nn_log (LC_CONFIG, "startup-mode: %s\n", gv.startup_mode ? "enabled" : "disabled");
@@ -831,7 +886,7 @@ int rtps_init (void)
   gv.privileged_pp = NULL;
 
   /* Template PP guid -- protected by privileged_pp_lock for simplicity */
-  gv.next_ppguid.prefix.u[0] = sockaddr_to_hopefully_unique_uint32 (&gv.ownip);
+  gv.next_ppguid.prefix.u[0] = locator_to_hopefully_unique_uint32 (&gv.ownloc);
   gv.next_ppguid.prefix.u[1] = (unsigned) os_procIdSelf ();
   gv.next_ppguid.prefix.u[2] = 1;
   gv.next_ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
@@ -901,32 +956,23 @@ int rtps_init (void)
     gv.pcap_fp = NULL;
   }
 
+  gv.mship = new_group_membership();
+
   if (gv.m_factory->m_connless)
   {
-    uint32_t port;
-
-    TRACE (("Unicast Ports: discovery %u data %u \n",
-      ddsi_tran_port (gv.disc_conn_uc), ddsi_tran_port (gv.data_conn_uc)));
+    if (!(config.many_sockets_mode == MSM_NO_UNICAST && config.allowMulticast))
+      TRACE (("Unicast Ports: discovery %d data %d\n", ddsi_tran_port (gv.disc_conn_uc), ddsi_tran_port (gv.data_conn_uc)));
 
     if (config.allowMulticast)
     {
-      ddsi_tran_qos_t qos = ddsi_tran_create_qos ();
-      qos->m_multicast = true;
-
-      /* FIXME: should check for overflow */
-      port = (uint32_t) (config.port_base + config.port_dg * config.domainId + config.port_d0);
-      gv.disc_conn_mc = ddsi_factory_create_conn (gv.m_factory, port, qos);
-
-      port = (uint32_t) (config.port_base + config.port_dg * config.domainId + config.port_d2);
-      gv.data_conn_mc = ddsi_factory_create_conn (gv.m_factory, port, qos);
-
-      ddsi_tran_free_qos (qos);
-
-      if (gv.disc_conn_mc == NULL || gv.data_conn_mc == NULL)
+      if (!create_multicast_sockets())
         goto err_mc_conn;
 
-      TRACE (("Multicast Ports: discovery %u data %u \n",
-        ddsi_tran_port (gv.disc_conn_mc), ddsi_tran_port (gv.data_conn_mc)));
+      if (config.many_sockets_mode == MSM_NO_UNICAST)
+      {
+        gv.data_conn_uc = gv.data_conn_mc;
+        gv.disc_conn_uc = gv.disc_conn_mc;
+      }
 
       /* Set multicast locators */
       if (!is_unspec_locator(&gv.loc_spdp_mc))
@@ -1122,18 +1168,16 @@ int rtps_init (void)
 err_mc_conn:
   if (gv.disc_conn_mc)
     ddsi_conn_free (gv.disc_conn_mc);
-  if (gv.data_conn_mc)
+  if (gv.data_conn_mc && gv.data_conn_mc != gv.disc_conn_mc)
     ddsi_conn_free (gv.data_conn_mc);
   if (gv.pcap_fp)
     os_mutexDestroy (&gv.pcap_lock);
   os_sockWaitsetFree (gv.waitset);
-  if (gv.disc_conn_uc == gv.data_conn_uc)
+  if (gv.disc_conn_uc != gv.disc_conn_mc)
     ddsi_conn_free (gv.data_conn_uc);
-  else
-  {
+  if (gv.data_conn_uc != gv.disc_conn_uc)
     ddsi_conn_free (gv.data_conn_uc);
-    ddsi_conn_free (gv.disc_conn_uc);
-  }
+  free_group_membership(gv.mship);
 err_unicast_sockets:
   dds_tkmap_free (gv.m_tkmap);
   nn_reorder_free (gv.spdp_reorder);
@@ -1164,6 +1208,9 @@ err_unicast_sockets:
   ddsi_serstatepool_free (gv.serpool);
   nn_xmsgpool_free (gv.xmsgpool);
   (ddsi_plugin.fini_fn) ();
+#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+err_network_partition_addrset:
+#endif
 err_set_ext_address:
   while (gv.recvips)
   {
@@ -1404,6 +1451,7 @@ void rtps_term (void)
 
   /* Not freeing gv.tev_conn: it aliases data_conn_uc */
 
+  free_group_membership(gv.mship);
   ddsi_tran_factories_fini ();
 
   if (gv.pcap_fp)

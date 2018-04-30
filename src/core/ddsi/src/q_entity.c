@@ -39,6 +39,7 @@
 #include "ddsi/q_error.h"
 #include "ddsi/q_builtin_topic.h"
 #include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_mcgroup.h"
 
 #include "ddsi/sysdeps.h"
 
@@ -345,18 +346,30 @@ static void remove_deleted_participant_guid (const struct nn_guid *guid, unsigne
 
 /* PARTICIPANT ------------------------------------------------------ */
 
-int pp_allocate_entityid (nn_entityid_t *id, unsigned kind, struct participant *pp)
+int pp_allocate_entityid(nn_entityid_t *id, unsigned kind, struct participant *pp)
+{
+  uint32_t id1;
+  int ret = 0;
+  os_mutexLock (&pp->e.lock);
+  if (inverse_uint32_set_alloc(&id1, &pp->avail_entityids.x))
+  {
+    *id = to_entityid (id1 * NN_ENTITYID_ALLOCSTEP + kind);
+    ret = 0;
+  }
+  else
+  {
+    NN_ERROR("pp_allocate_entityid(%x:%x:%x:%x): all ids in use\n", PGUID(pp->e.guid));
+    ret = ERR_OUT_OF_IDS;
+  }
+  os_mutexUnlock (&pp->e.lock);
+  return ret;
+}
+
+void pp_release_entityid(struct participant *pp, nn_entityid_t id)
 {
   os_mutexLock (&pp->e.lock);
-  if (pp->next_entityid + NN_ENTITYID_ALLOCSTEP < pp->next_entityid)
-  {
-    os_mutexUnlock (&pp->e.lock);
-    return ERR_OUT_OF_IDS;
-  }
-  *id = to_entityid (pp->next_entityid | kind);
-  pp->next_entityid += NN_ENTITYID_ALLOCSTEP;
+  inverse_uint32_set_free(&pp->avail_entityids.x, id.u / NN_ENTITYID_ALLOCSTEP);
   os_mutexUnlock (&pp->e.lock);
-  return 0;
 }
 
 int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plist_t *plist)
@@ -411,7 +424,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
   pp->builtins_deleted = 0;
   pp->is_ddsi2_pp = (flags & (RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP)) ? 1 : 0;
   os_mutexInit (&pp->refc_lock);
-  pp->next_entityid = NN_ENTITYID_ALLOCSTEP;
+  inverse_uint32_set_init(&pp->avail_entityids.x, 1, UINT32_MAX / NN_ENTITYID_ALLOCSTEP);
   pp->lease_duration = config.lease_duration;
   pp->plist = os_malloc (sizeof (*pp->plist));
   nn_plist_copy (pp->plist, plist);
@@ -424,10 +437,14 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
     nn_log (LC_DISCOVERY, "}\n");
   }
 
-  if (config.many_sockets_mode)
+  if (config.many_sockets_mode == MSM_MANY_UNICAST)
   {
     pp->m_conn = ddsi_factory_create_conn (gv.m_factory, 0, NULL);
     ddsi_conn_locator (pp->m_conn, &pp->m_locator);
+  }
+  else
+  {
+    pp->m_conn = NULL;
   }
 
   /* Before we create endpoints -- and may call unref_participant if
@@ -573,7 +590,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
      necessary. Must do in this order, or the receive thread won't
      find the new participant */
 
-  if (config.many_sockets_mode)
+  if (config.many_sockets_mode == MSM_MANY_UNICAST)
   {
     os_atomic_fence ();
     os_atomic_inc32 (&gv.participant_set_generation);
@@ -778,7 +795,7 @@ static void unref_participant (struct participant *pp, const struct nn_guid *gui
     if (--gv.nparticipants == 0)
       os_condBroadcast (&gv.participant_set_cond);
     os_mutexUnlock (&gv.participant_set_lock);
-    if (config.many_sockets_mode)
+    if (config.many_sockets_mode == MSM_MANY_UNICAST)
     {
       os_atomic_fence_rel ();
       os_atomic_inc32 (&gv.participant_set_generation);
@@ -794,6 +811,7 @@ static void unref_participant (struct participant *pp, const struct nn_guid *gui
     os_mutexDestroy (&pp->refc_lock);
     entity_common_fini (&pp->e);
     remove_deleted_participant_guid (&pp->e.guid, DPG_LOCAL);
+    inverse_uint32_set_fini(&pp->avail_entityids.x);
     os_free (pp);
   }
   else
@@ -1069,7 +1087,7 @@ static void rebuild_trace_covered(int nreaders, int nlocs, const nn_locator_t *l
   for (i = 0; i < nlocs; i++)
   {
     char buf[INET6_ADDRSTRLEN_EXTENDED];
-    locator_to_string_with_port(buf, &locs[i]);
+    ddsi_locator_to_string(buf, sizeof(buf), &locs[i]);
     nn_log(LC_DISCOVERY, "  loc %2d = %-20s %2d {", i, buf, locs_nrds[i]);
     for (j = 0; j < nreaders; j++)
       if (covered[j * nlocs + i] >= 0)
@@ -1090,10 +1108,10 @@ static int rebuild_select(int nlocs, const nn_locator_t *locs, const int *locs_n
       j = i; /* better coverage */
     else if (locs_nrds[i] == locs_nrds[j])
     {
-      if (locs_nrds[i] == 1 && !is_mcaddr(&locs[i]))
+      if (locs_nrds[i] == 1 && !ddsi_is_mcaddr(&locs[i]))
         j = i; /* prefer unicast for single nodes */
 #if DDSI_INCLUDE_SSM
-      else if (is_ssm_mcaddr(&locs[i]))
+      else if (ddsi_is_ssm_mcaddr(&locs[i]))
         j = i; /* "reader favours SSM": all else being equal, use SSM */
 #endif
     }
@@ -1106,7 +1124,7 @@ static void rebuild_add(struct addrset *newas, int locidx, int nreaders, int nlo
   char str[INET6_ADDRSTRLEN_EXTENDED];
   if (locs[locidx].kind != NN_LOCATOR_KIND_UDPv4MCGEN)
   {
-    locator_to_string_with_port(str, &locs[locidx]);
+    ddsi_locator_to_string(str, sizeof(str), &locs[locidx]);
     nn_log(LC_DISCOVERY, "  simple %s\n", str);
     add_to_addrset(newas, &locs[locidx]);
   }
@@ -1125,7 +1143,7 @@ static void rebuild_add(struct addrset *newas, int locidx, int nreaders, int nlo
         iph |= 1u << covered[i * nlocs + locidx];
     ipn = htonl(iph);
     memcpy(l.address + 12, &ipn, 4);
-    locator_to_string_with_port(str, &l);
+    ddsi_locator_to_string(str, sizeof(str), &l);
     nn_log(LC_DISCOVERY, "  mcgen %s\n", str);
     add_to_addrset(newas, &l);
   }
@@ -1202,6 +1220,41 @@ static void rebuild_writer_addrset (struct writer *wr)
   nn_log (LC_DISCOVERY, "\n");
 }
 
+void rebuild_or_clear_writer_addrsets(int rebuild)
+{
+  struct ephash_enum_writer est;
+  struct writer *wr;
+  struct addrset *empty = rebuild ? NULL : new_addrset();
+  nn_log (LC_DISCOVERY, "rebuild_or_delete_writer_addrsets(%d)\n", rebuild);
+  ephash_enum_writer_init (&est);
+  os_rwlockRead (&gv.qoslock);
+  while ((wr = ephash_enum_writer_next (&est)) != NULL)
+  {
+    os_mutexLock (&wr->e.lock);
+    if (wr->e.guid.entityid.u != NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
+    {
+      if (rebuild)
+        rebuild_writer_addrset(wr);
+      else
+        addrset_purge(wr->as);
+    }
+    else
+    {
+      /* SPDP writers have no matched readers, instead they all use the same address space,
+         gv.as_disc. Keep as_disc unchanged, and instead make the participants point to the
+         empty one. */
+      unref_addrset(wr->as);
+      if (rebuild)
+        wr->as = ref_addrset(gv.as_disc);
+      else
+        wr->as = ref_addrset(empty);
+    }
+    os_mutexUnlock (&wr->e.lock);
+  }
+  os_rwlockUnlock (&gv.qoslock);
+  ephash_enum_writer_fini (&est);
+  nn_log (LC_DISCOVERY, "rebuild_or_delete_writer_addrsets(%d) done\n", rebuild);
+}
 
 static void free_wr_prd_match (struct wr_prd_match *m)
 {
@@ -1219,9 +1272,9 @@ static void free_rd_pwr_match (struct rd_pwr_match *m)
 #ifdef DDSI_INCLUDE_SSM
     if (!is_unspec_locator (&m->ssm_mc_loc))
     {
-      assert (is_mcaddr (&m->ssm_mc_loc));
+      assert (ddsi_is_mcaddr (&m->ssm_mc_loc));
       assert (!is_unspec_locator (&m->ssm_src_loc));
-      if (ddsi_conn_leave_mc (gv.data_conn_mc, &m->ssm_src_loc, &m->ssm_mc_loc) < 0)
+      if (ddsi_leave_mc (gv.data_conn_mc, &m->ssm_src_loc, &m->ssm_mc_loc) < 0)
         nn_log (LC_WARNING, "failed to leave network partition ssm group\n");
     }
 #endif
@@ -1666,7 +1719,7 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
     /* FIXME: for now, assume that the ports match for datasock_mc --
        't would be better to dynamically create and destroy sockets on
        an as needed basis. */
-    ddsi_conn_join_mc (gv.data_conn_mc, &m->ssm_src_loc, &m->ssm_mc_loc);
+    ddsi_join_mc (gv.data_conn_mc, &m->ssm_src_loc, &m->ssm_mc_loc);
   }
   else
   {
@@ -2335,6 +2388,8 @@ static void endpoint_common_init
 
 static void endpoint_common_fini (struct entity_common *e, struct endpoint_common *c)
 {
+  if (!is_builtin_entityid(e->guid.entityid, ownvendorid))
+    pp_release_entityid(c->pp, e->guid.entityid);
   unref_participant (c->pp, &e->guid);
   entity_common_fini (e);
 }
@@ -2691,7 +2746,7 @@ static struct writer * new_writer_guid
     int have_loc = 0;
     if (wr->partition_id == 0)
     {
-      if (is_ssm_mcaddr (&gv.loc_default_mc))
+      if (ddsi_is_ssm_mcaddr (&gv.loc_default_mc))
       {
         loc = gv.loc_default_mc;
         have_loc = 1;
@@ -3070,11 +3125,11 @@ static struct addrset * get_as_from_mapping (const char *partition, const char *
 static void join_mcast_helper (const nn_locator_t *n, void * varg)
 {
   ddsi_tran_conn_t conn = (ddsi_tran_conn_t) varg;
-  if (is_mcaddr (n))
+  if (ddsi_is_mcaddr (n))
   {
     if (n->kind != NN_LOCATOR_KIND_UDPv4MCGEN)
     {
-      if (ddsi_conn_join_mc (conn, NULL, n) < 0)
+      if (ddsi_join_mc (conn, NULL, n) < 0)
       {
         nn_log (LC_WARNING, "failed to join network partition multicast group\n");
       }
@@ -3098,7 +3153,7 @@ static void join_mcast_helper (const nn_locator_t *n, void * varg)
             iph1 |= (i << l1.base);
             ipn = htonl(iph1);
             memcpy(l.address + 12, &ipn, 4);
-            if (ddsi_conn_join_mc (conn, NULL, &l) < 0)
+            if (ddsi_join_mc (conn, NULL, &l) < 0)
             {
               nn_log (LC_WARNING, "failed to join network partition multicast group\n");
             }
@@ -3112,11 +3167,11 @@ static void join_mcast_helper (const nn_locator_t *n, void * varg)
 static void leave_mcast_helper (const nn_locator_t *n, void * varg)
 {
   ddsi_tran_conn_t conn = (ddsi_tran_conn_t) varg;
-  if (is_mcaddr (n))
+  if (ddsi_is_mcaddr (n))
   {
     if (n->kind != NN_LOCATOR_KIND_UDPv4MCGEN)
     {
-      if (ddsi_conn_leave_mc (conn, NULL, n) < 0)
+      if (ddsi_leave_mc (conn, NULL, n) < 0)
       {
         nn_log (LC_WARNING, "failed to leave network partition multicast group\n");
       }
@@ -3140,7 +3195,7 @@ static void leave_mcast_helper (const nn_locator_t *n, void * varg)
             iph1 |= (i << l1.base);
             ipn = htonl(iph1);
             memcpy(l.address + 12, &ipn, 4);
-            if (ddsi_conn_leave_mc (conn, NULL, &l) < 0)
+            if (ddsi_leave_mc (conn, NULL, &l) < 0)
             {
               nn_log (LC_WARNING, "failed to leave network partition multicast group\n");
             }
@@ -3267,7 +3322,7 @@ static struct reader * new_reader_guid
       /* Note: SSM requires NETWORK_PARTITIONS; if network partitions
          do not override the default, we should check whether the
          default is an SSM address. */
-      if (is_ssm_mcaddr (&gv.loc_default_mc) && config.allowMulticast & AMC_SSM)
+      if (ddsi_is_ssm_mcaddr (&gv.loc_default_mc) && config.allowMulticast & AMC_SSM)
         rd->favours_ssm = 1;
     }
 #endif

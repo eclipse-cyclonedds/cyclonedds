@@ -132,11 +132,26 @@ extern "C" {
 #define ASSERT_WRLOCK_HELD(x) ((void) 0)
 #define ASSERT_MUTEX_HELD(x) ((void) 0)
 
-#if ! SYSDEPS_HAVE_IOVEC
-struct iovec {
+#if SYSDEPS_HAVE_IOVEC
+typedef struct iovec ddsi_iovec_t;
+#elif defined _WIN32 && !defined WINCE
+typedef struct ddsi_iovec {
+  unsigned iov_len;
+  void *iov_base;
+} ddsi_iovec_t;
+#define DDSI_IOVEC_MATCHES_WSABUF do { \
+  struct ddsi_iovec_matches_WSABUF { \
+    char sizeof_matches[sizeof(struct ddsi_iovec) == sizeof(WSABUF) ? 1 : -1]; \
+    char base_off_matches[offsetof(struct ddsi_iovec, iov_base) == offsetof(WSABUF, buf) ? 1 : -1]; \
+    char base_size_matches[sizeof(((struct ddsi_iovec *)8)->iov_base) == sizeof(((WSABUF *)8)->buf) ? 1 : -1]; \
+    char len_off_matches[offsetof(struct ddsi_iovec, iov_len) == offsetof(WSABUF, len) ? 1 : -1]; \
+    char len_size_matches[sizeof(((struct ddsi_iovec *)8)->iov_len) == sizeof(((WSABUF *)8)->len) ? 1 : -1]; \
+  }; } while (0)
+#else
+typedef struct ddsi_iovec {
   void *iov_base;
   size_t iov_len;
-};
+} ddsi_iovec_t;
 #endif
 
 #if ! SYSDEPS_HAVE_MSGHDR
@@ -144,7 +159,7 @@ struct msghdr
 {
   void *msg_name;
   socklen_t msg_namelen;
-  struct iovec *msg_iov;
+  ddsi_iovec_t *msg_iov;
   size_t msg_iovlen;
   void *msg_control;
   size_t msg_controllen;

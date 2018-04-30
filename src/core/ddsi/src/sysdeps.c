@@ -148,10 +148,11 @@ ssize_t sendmsg (os_handle fd, const struct msghdr *message, int flags)
 #else /* _WIN32 && !WINCE */
 ssize_t sendmsg (os_handle fd, const struct msghdr *message, int flags)
 {
-  WSABUF stbufs[128], *bufs;
   DWORD sent;
   unsigned i;
   ssize_t ret;
+
+  DDSI_IOVEC_MATCHES_WSABUF;
 
 #if SYSDEPS_MSGHDR_ACCRIGHTS
   assert (message->msg_accrightslen == 0);
@@ -159,16 +160,7 @@ ssize_t sendmsg (os_handle fd, const struct msghdr *message, int flags)
   assert (message->msg_controllen == 0);
 #endif
 
-  if (message->msg_iovlen <= (int)(sizeof(stbufs) / sizeof(*stbufs)))
-    bufs = stbufs;
-  else
-    bufs = os_malloc (message->msg_iovlen * sizeof (*bufs));
-  for (i = 0; i < message->msg_iovlen; i++)
-  {
-    bufs[i].buf = (void *) message->msg_iov[i].iov_base;
-    bufs[i].len = (unsigned) message->msg_iov[i].iov_len;
-  }
-  if (WSASendTo (fd, bufs, (DWORD)message->msg_iovlen, &sent, (DWORD)flags, (SOCKADDR *) message->msg_name, message->msg_namelen, NULL, NULL) == 0) /* Type casting to silence the warning of conversion from 'size_t' to 'DWORD', which may cause possible loss of data */
+  if (WSASendTo (fd, (const WSABUF *) message->msg_iov, message->msg_iovlen, &sent, flags, (SOCKADDR *) message->msg_name, message->msg_namelen, NULL, NULL) == 0)
     ret = (ssize_t) sent;
   else
     ret = -1;

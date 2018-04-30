@@ -167,6 +167,14 @@ static uint32_t lease_renewal_thread (struct nn_servicelease *sl)
     /* We are never active in a way that matters for the garbage
        collection of old writers, &c. */
     thread_state_asleep (self);
+
+    /* While deaf, we need to make sure the receive thread wakes up
+       every now and then to try recreating sockets & rejoining multicast
+       groups */
+    if (gv.deaf)
+    {
+      os_sockWaitsetTrigger(gv.waitset);
+    }
   }
   os_mutexUnlock (&sl->lock);
   return 0;

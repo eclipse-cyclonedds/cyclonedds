@@ -47,6 +47,8 @@
 #include "ddsi/q_transmit.h"
 #include "ddsi/q_globals.h"
 #include "ddsi/q_static_assert.h"
+#include "ddsi/q_init.h"
+#include "ddsi/ddsi_mcgroup.h"
 
 #include "ddsi/sysdeps.h"
 
@@ -2658,6 +2660,7 @@ static struct receiver_state *rst_cow_if_needed (int *rst_live, struct nn_rmsg *
 static int handle_submsg_sequence
 (
   ddsi_tran_conn_t conn,
+  const nn_locator_t *srcloc,
   struct thread_state1 * const self,
   nn_wctime_t tnowWC,
   nn_etime_t tnowE,
@@ -2700,6 +2703,7 @@ static int handle_submsg_sequence
   rst->forme = 1;
   rst->vendor = hdr->vendorid;
   rst->protocol_version = hdr->version;
+  rst->srcloc = *srcloc;
   rst_live = 0;
   ts_for_latmeas = 0;
   timestamp = invalid_ddsi_timestamp;
@@ -2883,7 +2887,7 @@ static int handle_submsg_sequence
                 size_t len2 = decode_container (submsg1, len1);
                 if ( len2 != 0 ) {
                   TRACE ((")\n"));
-                  if (handle_submsg_sequence (conn, self, tnowWC, tnowE, src_prefix, dst_prefix, msg, (size_t) (submsg1 - msg) + len2, submsg1, rmsg) < 0)
+                  if (handle_submsg_sequence (conn, srcloc, self, tnowWC, tnowE, src_prefix, dst_prefix, msg, (size_t) (submsg1 - msg) + len2, submsg1, rmsg) < 0)
                     goto malformed;
                 }
                 TRACE (("PT_INFO_CONTAINER END"));
@@ -2977,6 +2981,7 @@ static bool do_packet
   unsigned char * buff;
   size_t buff_len = maxsz;
   Header_t * hdr;
+  nn_locator_t srcloc;
 
   if (rmsg == NULL)
   {
@@ -2996,7 +3001,7 @@ static bool do_packet
 
     /* Read in DDSI header plus MSG_LEN sub message that follows it */
 
-    sz = ddsi_conn_read (conn, buff, stream_hdr_size);
+    sz = ddsi_conn_read (conn, buff, stream_hdr_size, &srcloc);
 
     /* Read in remainder of packet */
 
@@ -3024,7 +3029,7 @@ static bool do_packet
       }
       else
       {
-        sz = ddsi_conn_read (conn, buff + stream_hdr_size, ml->length - stream_hdr_size);
+        sz = ddsi_conn_read (conn, buff + stream_hdr_size, ml->length - stream_hdr_size, NULL);
         if (sz > 0)
         {
           sz = (ssize_t) ml->length;
@@ -3036,7 +3041,7 @@ static bool do_packet
   {
     /* Get next packet */
 
-    sz = ddsi_conn_read (conn, buff, buff_len);
+    sz = ddsi_conn_read (conn, buff, buff_len, &srcloc);
   }
 
   if (sz > 0 && !gv.deaf)
@@ -3048,11 +3053,11 @@ static bool do_packet
     (
       (size_t) sz < RTPS_MESSAGE_HEADER_SIZE ||
       buff[0] != 'R' || buff[1] != 'T' || buff[2] != 'P' || buff[3] != 'S' ||
-      hdr->version.major != RTPS_MAJOR || (hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM) 
+      hdr->version.major != RTPS_MAJOR || (hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM)
     )
     {
         if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
-            TRACE (("HDR("PGIDFMT" vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
+            TRACE (("HDR(%x:%x:%x vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
         PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor));
       if (NN_PEDANTIC_P)
         malformed_packet_received_nosubmsg (buff, sz, "header", hdr->vendorid);
@@ -3061,13 +3066,19 @@ static bool do_packet
     {
       hdr->guid_prefix = nn_ntoh_guid_prefix (hdr->guid_prefix);
 
-      TRACE (("HDR(%x:%x:%x vendor %u.%u) len %lu\n",
-        PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz));
+      if (config.enabled_logcats & LC_TRACE)
+      {
+        char addrstr[DDSI_LOCSTRLEN];
+        ddsi_locator_to_string(addrstr, sizeof(addrstr), &srcloc);
+        nn_log (LC_TRACE, "HDR(%x:%x:%x vendor %d.%d) len %lu from %s\n",
+                PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
+      }
 
       {
         handle_submsg_sequence
         (
           conn,
+          &srcloc,
           self,
           now (),
           now_et (),
@@ -3228,6 +3239,95 @@ uint32_t listen_thread (struct ddsi_tran_listener * listener)
   return 0;
 }
 
+enum local_deaf_state_recover {
+  LDSR_NORMAL    = 0, /* matches gv.deaf for normal operation */
+  LDSR_DEAF      = 1, /* matches gv.deaf for "deaf" state */
+  LDSR_REJOIN    = 2
+};
+
+struct local_deaf_state {
+  enum local_deaf_state_recover state;
+  nn_mtime_t tnext;
+};
+
+static int check_and_handle_deafness_recover(struct local_deaf_state *st)
+{
+  int rebuildws = 0;
+  if (now_mt().v < st->tnext.v)
+  {
+    TRACE(("check_and_handle_deafness_recover: state %d too early\n", (int)st->state));
+    return 0;
+  }
+  switch (st->state)
+  {
+    case LDSR_NORMAL:
+      assert(0);
+      break;
+    case LDSR_DEAF: {
+      ddsi_tran_conn_t disc = gv.disc_conn_mc, data = gv.data_conn_mc;
+      TRACE(("check_and_handle_deafness_recover: state %d create new sockets\n", (int)st->state));
+      if (!create_multicast_sockets())
+        goto error;
+      TRACE(("check_and_handle_deafness_recover: state %d transfer group membership admin\n", (int)st->state));
+      ddsi_transfer_group_membership(disc, gv.disc_conn_mc);
+      ddsi_transfer_group_membership(data, gv.data_conn_mc);
+      TRACE(("check_and_handle_deafness_recover: state %d drop from waitset and add new\n", (int)st->state));
+      /* see waitset construction code in recv_thread */
+      os_sockWaitsetPurge (gv.waitset, 1 + (gv.disc_conn_uc != gv.data_conn_uc));
+      os_sockWaitsetAdd (gv.waitset, gv.disc_conn_mc);
+      os_sockWaitsetAdd (gv.waitset, gv.data_conn_mc);
+      TRACE(("check_and_handle_deafness_recover: state %d close sockets\n", (int)st->state));
+      ddsi_conn_free(disc);
+      ddsi_conn_free(data);
+      rebuildws = 1;
+      st->state = LDSR_REJOIN;
+      /* FALLS THROUGH */
+    }
+    case LDSR_REJOIN:
+      TRACE(("check_and_handle_deafness_recover: state %d rejoin on disc socket\n", (int)st->state));
+      if (ddsi_rejoin_transferred_mcgroups(gv.disc_conn_mc) < 0)
+        goto error;
+      TRACE(("check_and_handle_deafness_recover: state %d rejoin on data socket\n", (int)st->state));
+      if (ddsi_rejoin_transferred_mcgroups(gv.data_conn_mc) < 0)
+        goto error;
+      TRACE(("check_and_handle_deafness_recover: state %d done\n", (int)st->state));
+      st->state = LDSR_NORMAL;
+      break;
+  }
+  TRACE(("check_and_handle_deafness_recover: state %d returning %d\n", (int)st->state, rebuildws));
+  return rebuildws;
+error:
+  TRACE(("check_and_handle_deafness_recover: state %d failed, returning %d\n", (int)st->state, rebuildws));
+  st->state = LDSR_DEAF;
+  st->tnext = add_duration_to_mtime(now_mt(), T_SECOND);
+  return rebuildws;
+}
+
+static int check_and_handle_deafness(struct local_deaf_state *st)
+{
+  const int gv_deaf = gv.deaf;
+  assert (gv_deaf == 0 || gv_deaf == 1);
+  if (gv_deaf == (int)st->state)
+    return 0;
+  else if (gv_deaf)
+  {
+    TRACE(("check_and_handle_deafness: going deaf (%d -> %d)\n", (int)st->state, (int)LDSR_DEAF));
+    st->state = LDSR_DEAF;
+    st->tnext = now_mt();
+    return 0;
+  }
+  else if (!config.allowMulticast)
+  {
+    TRACE(("check_and_handle_deafness: no longer deaf (multicast disabled)\n"));
+    st->state = LDSR_NORMAL;
+    return 0;
+  }
+  else
+  {
+    return check_and_handle_deafness_recover(st);
+  }
+}
+
 uint32_t recv_thread (struct nn_rbufpool * rbpool)
 {
   struct thread_state1 *self = lookup_thread_state ();
@@ -3236,39 +3336,58 @@ uint32_t recv_thread (struct nn_rbufpool * rbpool)
   nn_mtime_t next_thread_cputime = { 0 };
   os_sockWaitsetCtx ctx;
   unsigned i;
+  struct local_deaf_state lds;
+
+  lds.state = gv.deaf ? LDSR_DEAF : LDSR_NORMAL;
+  lds.tnext = now_mt();
 
   local_participant_set_init (&lps);
   nn_rbufpool_setowner (rbpool, os_threadIdSelf ());
 
   if (gv.m_factory->m_connless)
   {
-    os_sockWaitsetAdd (gv.waitset, gv.disc_conn_uc);
-    os_sockWaitsetAdd (gv.waitset, gv.data_conn_uc);
-    num_fixed = 2;
-    if (config.allowMulticast)
+    if (config.many_sockets_mode == MSM_NO_UNICAST)
     {
-      os_sockWaitsetAdd (gv.waitset, gv.disc_conn_mc);
-      os_sockWaitsetAdd (gv.waitset, gv.data_conn_mc);
-      num_fixed += 2;
+      /* we only have one - disc, data, uc and mc all alias each other */
+      os_sockWaitsetAdd (gv.waitset, gv.disc_conn_uc);
+      num_fixed = 1;
+    }
+    else
+    {
+      os_sockWaitsetAdd (gv.waitset, gv.disc_conn_uc);
+      os_sockWaitsetAdd (gv.waitset, gv.data_conn_uc);
+      num_fixed = 1 + (gv.disc_conn_uc != gv.data_conn_uc);
+      if (config.allowMulticast)
+      {
+        os_sockWaitsetAdd (gv.waitset, gv.disc_conn_mc);
+        os_sockWaitsetAdd (gv.waitset, gv.data_conn_mc);
+        num_fixed += 2;
+      }
     }
   }
 
   while (gv.rtps_keepgoing)
   {
+    int rebuildws;
+
     LOG_THREAD_CPUTIME (next_thread_cputime);
 
-    if (! config.many_sockets_mode)
+    rebuildws = check_and_handle_deafness(&lds);
+
+    if (config.many_sockets_mode != MSM_MANY_UNICAST)
     {
       /* no other sockets to check */
     }
     else if (os_atomic_ld32 (&gv.participant_set_generation) != lps.gen)
     {
-      /* rebuild local participant set */
+      rebuildws = 1;
+    }
 
+    if (rebuildws && config.many_sockets_mode == MSM_MANY_UNICAST)
+    {
+      /* first rebuild local participant set - unless someone's toggling "deafness", this
+         only happens when the participant set has changed, so might as well rebuild it */
       rebuild_local_participant_set (self, &lps);
-
-      /* and rebuild waitset */
-
       os_sockWaitsetPurge (gv.waitset, num_fixed);
       for (i = 0; i < lps.nps; i++)
       {
@@ -3288,7 +3407,7 @@ uint32_t recv_thread (struct nn_rbufpool * rbpool)
       while ((idx = os_sockWaitsetNextEvent (ctx, &conn)) >= 0)
       {
         bool ret;
-        if (((unsigned)idx < num_fixed) || ! config.many_sockets_mode)
+        if (((unsigned)idx < num_fixed) || config.many_sockets_mode != MSM_MANY_UNICAST)
         {
           ret = do_packet (self, conn, NULL, rbpool);
         }

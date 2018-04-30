@@ -64,24 +64,16 @@ static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...)
     return 0;
   else
   {
-    os_sockaddr_storage addr;
     va_list ap;
-    struct msghdr msg;
     struct iovec iov;
     char buf[4096];
     int n;
-    nn_loc_to_address(&addr, &loc);
     va_start (ap, fmt);
     n = os_vsnprintf (buf, sizeof (buf), fmt, ap);
     va_end (ap);
     iov.iov_base = buf;
     iov.iov_len = (size_t) n;
-    memset (&msg, 0, sizeof (msg));
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
-    msg.msg_name = &addr;
-    msg.msg_namelen = (socklen_t) os_sockaddrSizeof ((os_sockaddr*) &addr);
-    return ddsi_conn_write (conn, &msg, iov.iov_len, 0) < 0 ? -1 : 0;
+    return ddsi_conn_write (conn, &loc, 1, &iov, 0) < 0 ? -1 : 0;
   }
 }
 
@@ -93,8 +85,8 @@ struct print_address_arg {
 static void print_address (const nn_locator_t *n, void *varg)
 {
   struct print_address_arg *arg = varg;
-  char buf[INET6_ADDRSTRLEN_EXTENDED];
-  arg->count += cpf (arg->conn, " %s", locator_to_string_with_port (buf, n));
+  char buf[DDSI_LOCSTRLEN];
+  arg->count += cpf (arg->conn, " %s", ddsi_locator_to_string (buf, sizeof(buf), n));
 }
 
 static int print_addrset (ddsi_tran_conn_t conn, const char *prefix, struct addrset *as, const char *suffix)
@@ -357,7 +349,8 @@ struct debug_monitor *new_debug_monitor (int port)
   dm = os_malloc (sizeof (*dm));
 
   dm->plugins = NULL;
-  dm->tran_factory = ddsi_factory_find ("tcp");
+  if ((dm->tran_factory = ddsi_factory_find ("tcp")) == NULL)
+    dm->tran_factory = ddsi_factory_find ("tcp6");
   dm->servsock = ddsi_factory_create_listener (dm->tran_factory, port, NULL);
   if (dm->servsock == NULL)
   {
@@ -367,11 +360,9 @@ struct debug_monitor *new_debug_monitor (int port)
 
   {
     nn_locator_t loc;
-    os_sockaddr_storage addr;
-    char buf[INET6_ADDRSTRLEN_EXTENDED];
+    char buf[DDSI_LOCSTRLEN];
     (void) ddsi_listener_locator(dm->servsock, &loc);
-    nn_loc_to_address (&addr, &loc);
-    nn_log (LC_CONFIG, "debmon at %s\n", sockaddr_to_string_with_port (buf, &addr));
+    nn_log (LC_CONFIG, "debmon at %s\n", ddsi_locator_to_string (buf, sizeof(buf), &loc));
   }
 
   os_mutexInit (&dm->lock);

@@ -56,7 +56,7 @@ static int get_locator (nn_locator_t *loc, const nn_locators_t *locs, int uc_sam
   memset (&samenet, 0, sizeof (samenet));
 
   /* Special case UDPv4 MC address generators - there is a bit of an type mismatch between an address generator (i.e., a set of addresses) and an address ... Whoever uses them is supposed to know that that is what he wants, so we simply given them priority. */
-  if (!config.tcp_enable && !config.useIpv6)
+  if (ddsi_factory_supports (gv.m_factory, NN_LOCATOR_KIND_UDPv4))
   {
     for (l = locs->first; l != NULL; l = l->next)
     {
@@ -73,9 +73,6 @@ static int get_locator (nn_locator_t *loc, const nn_locators_t *locs, int uc_sam
      match, so the first one will be used. */
   for (l = locs->first; l != NULL; l = l->next)
   {
-    os_sockaddr_storage tmp;
-    int i;
-
     /* Skip locators of the wrong kind */
 
     if (! ddsi_factory_supports (gv.m_factory, l->loc.kind))
@@ -83,24 +80,23 @@ static int get_locator (nn_locator_t *loc, const nn_locators_t *locs, int uc_sam
       continue;
     }
 
-    nn_loc_to_address (&tmp, &l->loc);
-
-    if (l->loc.kind == NN_LOCATOR_KIND_UDPv4 && gv.extmask.s_addr != 0)
+    if (l->loc.kind == NN_LOCATOR_KIND_UDPv4 && gv.extmask.kind != NN_LOCATOR_KIND_INVALID)
     {
       /* If the examined locator is in the same subnet as our own
          external IP address, this locator will be translated into one
          in the same subnet as our own local ip and selected. */
-      os_sockaddr_in *tmp4 = (os_sockaddr_in *) &tmp;
-      const os_sockaddr_in *ownip = (os_sockaddr_in *) &gv.ownip;
-      const os_sockaddr_in *extip = (os_sockaddr_in *) &gv.extip;
+      struct in_addr tmp4 = *((struct in_addr *) (l->loc.address + 12));
+      const struct in_addr ownip = *((struct in_addr *) (gv.ownloc.address + 12));
+      const struct in_addr extip = *((struct in_addr *) (gv.extloc.address + 12));
+      const struct in_addr extmask = *((struct in_addr *) (gv.extmask.address + 12));
 
-      if ((tmp4->sin_addr.s_addr & gv.extmask.s_addr) == (extip->sin_addr.s_addr & gv.extmask.s_addr))
+      if ((tmp4.s_addr & extmask.s_addr) == (extip.s_addr & extmask.s_addr))
       {
         /* translate network part of the IP address from the external
            one to the internal one */
-        tmp4->sin_addr.s_addr =
-          (tmp4->sin_addr.s_addr & ~gv.extmask.s_addr) | (ownip->sin_addr.s_addr & gv.extmask.s_addr);
-        nn_address_to_loc (loc, &tmp, l->loc.kind);
+        tmp4.s_addr = (tmp4.s_addr & ~extmask.s_addr) | (ownip.s_addr & extmask.s_addr);
+        memcpy (loc, &l->loc, sizeof (*loc));
+        memcpy (loc->address + 12, &tmp4, 4);
         return 1;
       }
     }
@@ -111,7 +107,8 @@ static int get_locator (nn_locator_t *loc, const nn_locators_t *locs, int uc_sam
       /* We (cowardly) refuse to accept advertised link-local
          addresses unles we're in "link-local" mode ourselves.  Then
          we just hope for the best.  */
-      if (!gv.ipv6_link_local && IN6_IS_ADDR_LINKLOCAL (&((os_sockaddr_in6 *) &tmp)->sin6_addr))
+      const struct in6_addr *ip6 = (const struct in6_addr *) l->loc.address;
+      if (!gv.ipv6_link_local && IN6_IS_ADDR_LINKLOCAL (ip6))
         continue;
     }
 #endif
@@ -121,23 +118,23 @@ static int get_locator (nn_locator_t *loc, const nn_locators_t *locs, int uc_sam
       first = l->loc;
       first_set = 1;
     }
-    for (i = 0; i < gv.n_interfaces; i++)
+
+    switch (ddsi_is_nearby_address(&l->loc, (size_t)gv.n_interfaces, gv.interfaces))
     {
-      if (os_sockaddrSameSubnet ((os_sockaddr *) &tmp, (os_sockaddr *) &gv.interfaces[i].addr, (os_sockaddr *) &gv.interfaces[i].netmask))
-      {
-        if (os_sockaddrIPAddressEqual ((os_sockaddr*) &gv.interfaces[i].addr, (os_sockaddr*) &gv.ownip))
-        {
-          /* matches the preferred interface -> the very best situation */
-          *loc = l->loc;
-          return 1;
-        }
-        else if (!samenet_set)
+      case DNAR_DISTANT:
+        break;
+      case DNAR_LOCAL:
+        if (!samenet_set)
         {
           /* on a network we're connected to */
           samenet = l->loc;
           samenet_set = 1;
         }
-      }
+        break;
+      case DNAR_SAME:
+        /* matches the preferred interface -> the very best situation */
+        *loc = l->loc;
+        return 1;
     }
   }
   if (!uc_same_subnet)
@@ -237,7 +234,7 @@ int spdp_write (struct participant *pp)
   def_uni_loc_one.next = NULL;
   meta_uni_loc_one.next = NULL;
 
-  if (config.many_sockets_mode)
+  if (config.many_sockets_mode == MSM_MANY_UNICAST)
   {
     def_uni_loc_one.loc = pp->m_locator;
     meta_uni_loc_one.loc = pp->m_locator;
@@ -262,7 +259,7 @@ int spdp_write (struct participant *pp)
        we will simply advertise it. The recipients better understand
        it means the writers will publish to address and the readers
        favour SSM. */
-    if (is_ssm_mcaddr (&gv.loc_default_mc))
+    if (ddsi_is_ssm_mcaddr (&gv.loc_default_mc))
       include = (config.allowMulticast & AMC_SSM) != 0;
     else
       include = (config.allowMulticast & AMC_ASM) != 0;
@@ -457,18 +454,18 @@ static int handle_SPDP_dead (const struct receiver_state *rst, nn_wctime_t times
 static void allowmulticast_aware_add_to_addrset (struct addrset *as, const nn_locator_t *loc)
 {
 #if DDSI_INCLUDE_SSM
-  if (is_ssm_mcaddr (loc))
+  if (ddsi_is_ssm_mcaddr (loc))
   {
     if (!(config.allowMulticast & AMC_SSM))
       return;
   }
-  else if (is_mcaddr (loc))
+  else if (ddsi_is_mcaddr (loc))
   {
     if (!(config.allowMulticast & AMC_ASM))
       return;
   }
 #else
-  if (is_mcaddr (loc) && !(config.allowMulticast & AMC_ASM))
+  if (ddsi_is_mcaddr (loc) && !(config.allowMulticast & AMC_ASM))
     return;
 #endif
   add_to_addrset (as, loc);
@@ -720,15 +717,15 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
     }
 
     /* If unicast locators not present, then try to obtain from connection */
-    if ((datap->present & PP_DEFAULT_UNICAST_LOCATOR) && (get_locator (&loc, &datap->default_unicast_locators, uc_same_subnet)))
+    if (!config.tcp_use_peeraddr_for_unicast && (datap->present & PP_DEFAULT_UNICAST_LOCATOR) && (get_locator (&loc, &datap->default_unicast_locators, uc_same_subnet)))
       add_to_addrset (as_default, &loc);
-    else if (ddsi_conn_peer_locator (rst->conn, &loc))
-      add_to_addrset (as_default, &loc);
+    else
+      nn_log (LC_DISCOVERY, " (srclocD)"), add_to_addrset (as_default, &rst->srcloc);
 
-    if ((datap->present & PP_METATRAFFIC_UNICAST_LOCATOR) && (get_locator (&loc, &datap->metatraffic_unicast_locators, uc_same_subnet)))
+    if (!config.tcp_use_peeraddr_for_unicast && (datap->present & PP_METATRAFFIC_UNICAST_LOCATOR) && (get_locator (&loc, &datap->metatraffic_unicast_locators, uc_same_subnet)))
       add_to_addrset (as_meta, &loc);
-    else if (ddsi_conn_peer_locator (rst->conn, &loc))
-      add_to_addrset (as_meta, &loc);
+    else
+      nn_log (LC_DISCOVERY, " (srclocM)"), add_to_addrset (as_meta, &rst->srcloc);
 
     nn_log_addrset (LC_DISCOVERY, " (data", as_default);
     nn_log_addrset (LC_DISCOVERY, " meta", as_meta);
@@ -844,7 +841,7 @@ static void handle_SPDP (const struct receiver_state *rst, nn_wctime_t timestamp
   }
 }
 
-static void add_sockaddr_to_ps (const nn_locator_t *loc, void *arg)
+static void add_locator_to_ps (const nn_locator_t *loc, void *arg)
 {
   nn_plist_t *ps = (nn_plist_t *) arg;
   struct nn_locators_one *elem = os_malloc (sizeof (struct nn_locators_one));
@@ -854,7 +851,7 @@ static void add_sockaddr_to_ps (const nn_locator_t *loc, void *arg)
   elem->loc = *loc;
   elem->next = NULL;
 
-  if (is_mcaddr (loc)) {
+  if (ddsi_is_mcaddr (loc)) {
     locs = &ps->multicast_locators;
     present_flag = PP_MULTICAST_LOCATOR;
   } else {
@@ -956,7 +953,7 @@ static int sedp_write_endpoint
 
     if (as)
     {
-      addrset_forall (as, add_sockaddr_to_ps, &ps);
+      addrset_forall (as, add_locator_to_ps, &ps);
     }
   }
 
@@ -1139,7 +1136,7 @@ static struct proxy_participant *implicitly_create_proxypp (const nn_guid_t *ppg
   return ephash_lookup_proxy_participant_guid (ppguid);
 }
 
-static void handle_SEDP_alive (nn_plist_t *datap /* note: potentially modifies datap */, const nn_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp)
+static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *datap /* note: potentially modifies datap */, const nn_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp)
 {
 #define E(msg, lbl) do { nn_log (LC_DISCOVERY, (msg)); goto lbl; } while (0)
   struct proxy_participant *pp;
@@ -1260,8 +1257,10 @@ static void handle_SEDP_alive (nn_plist_t *datap /* note: potentially modifies d
   {
     nn_locator_t loc;
     as = new_addrset ();
-    if ((datap->present & PP_UNICAST_LOCATOR) && get_locator (&loc, &datap->unicast_locators, 0))
+    if (!config.tcp_use_peeraddr_for_unicast && (datap->present & PP_UNICAST_LOCATOR) && get_locator (&loc, &datap->unicast_locators, 0))
       add_to_addrset (as, &loc);
+    else if (config.tcp_use_peeraddr_for_unicast)
+      nn_log (LC_DISCOVERY, " (srcloc)"), add_to_addrset (as, &rst->srcloc);
     else
       copy_addrset_into_addrset_uc (as, pp->as_default);
     if ((datap->present & PP_MULTICAST_LOCATOR) && get_locator (&loc, &datap->multicast_locators, 0))
@@ -1386,7 +1385,7 @@ static void handle_SEDP (const struct receiver_state *rst, nn_wctime_t timestamp
     switch (statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
     {
       case 0:
-        handle_SEDP_alive (&decoded_data, &rst->src_guid_prefix, rst->vendor, timestamp);
+        handle_SEDP_alive (rst, &decoded_data, &rst->src_guid_prefix, rst->vendor, timestamp);
         break;
 
       case NN_STATUSINFO_DISPOSE:

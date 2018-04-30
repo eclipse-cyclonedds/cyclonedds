@@ -869,7 +869,7 @@ void nn_xmsg_addpar_octetseq (struct nn_xmsg *m, unsigned pid, const nn_octetseq
 
 void nn_xmsg_addpar_stringseq (struct nn_xmsg *m, unsigned pid, const nn_stringseq_t *sseq)
 {
-  char *tmp;
+  unsigned char *tmp;
   unsigned i, len = 0;
 
   for (i = 0; i < sseq->n; i++)
@@ -1294,42 +1294,15 @@ void nn_xpack_free (struct nn_xpack *xp)
   os_free (xp);
 }
 
-
-static socklen_t sockaddr_size (const os_sockaddr_storage *a)
-{
-  switch (a->ss_family)
-  {
-    case AF_INET: return sizeof (os_sockaddr_in);
-#if OS_SOCKET_HAS_IPV6
-    case AF_INET6: return sizeof (os_sockaddr_in6);
-#endif
-    default: assert (0); return 0;
-  }
-}
-
-/* Turns out Darwin uses "int" for msg_iovlen, but glibc uses "size_t". The simplest
-   way out is to do the assignment with the conversion warnings disabled */
-OS_WARNING_GNUC_OFF(conversion)
-static void set_msghdr_iov (struct msghdr *mhdr, struct iovec *iov, size_t iovlen)
-{
-  mhdr->msg_iov = iov;
-  mhdr->msg_iovlen = iovlen;
-}
-OS_WARNING_GNUC_ON(conversion)
-
 static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
 {
-  struct iovec iov[NN_XMSG_MAX_MESSAGE_IOVECS];
   struct nn_xpack * xp = varg;
-  struct msghdr mhdr;
   ssize_t nbytes = 0;
-  os_sockaddr_storage addr;
 
-  nn_loc_to_address(&addr, loc);
   if (config.enabled_logcats & LC_TRACE)
   {
-    char buf[INET6_ADDRSTRLEN_EXTENDED];
-    TRACE ((" %s", sockaddr_to_string_with_port (buf, &addr)));
+    char buf[DDSI_LOCSTRLEN];
+    TRACE ((" %s", ddsi_locator_to_string (buf, sizeof(buf), loc)));
   }
 
   if (config.xmit_lossiness > 0)
@@ -1344,24 +1317,18 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
     }
   }
 
-  /* Set target data/address in message */
-
-  memcpy (iov, xp->iov, sizeof (iov));
-  memset (&mhdr, 0, sizeof (mhdr));
-  set_msghdr_iov (&mhdr, iov, xp->niov);
-  mhdr.msg_name = &addr;
-  mhdr.msg_namelen = sockaddr_size (&addr);
-
 #ifdef DDSI_INCLUDE_ENCRYPTION
   if (q_security_plugin.send_encoded && xp->encoderId != 0 && (q_security_plugin.encoder_type) (xp->codec, xp->encoderId) != Q_CIPHER_NONE)
   {
-    nbytes = (q_security_plugin.send_encoded) (xp->conn, &mhdr, &xp->codec, xp->encoderId, xp->call_flags);
+    struct iovec iov[NN_XMSG_MAX_MESSAGE_IOVECS];
+    memcpy (iov, xp->iov, sizeof (iov));
+    nbytes = (q_security_plugin.send_encoded) (xp->conn, loc, xp->niov, iov, &xp->codec, xp->encoderId, xp->call_flags);
   }
   else
 #endif
   {
     if (!gv.mute)
-      nbytes = ddsi_conn_write (xp->conn, &mhdr, xp->msg_len.length, xp->call_flags);
+      nbytes = ddsi_conn_write (xp->conn, loc, xp->niov, xp->iov, xp->call_flags);
     else
     {
       TRACE (("(dropped)"));

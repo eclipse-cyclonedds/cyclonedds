@@ -106,6 +106,7 @@ struct receiver_state {
   nn_vendorid_t vendor;                   /* 2 */
   nn_protocol_version_t protocol_version; /* 2 => 44/48 */
   ddsi_tran_conn_t conn;                  /* Connection for request */
+  nn_locator_t srcloc;
 };
 
 struct proxy_writer_info

@@ -50,7 +50,7 @@ struct debug_monitor;
 struct tkmap;
 
 typedef struct ospl_in_addr_node {
-   os_sockaddr_storage addr;
+   nn_locator_t loc;
    struct ospl_in_addr_node *next;
 } ospl_in_addr_node;
 
@@ -160,10 +160,10 @@ struct q_globals {
      a NAT may be advertised), and the DDSI multi-cast address. */
   enum recvips_mode recvips_mode;
   struct ospl_in_addr_node *recvips;
-  struct in_addr extmask;
+  nn_locator_t extmask;
 
-  os_sockaddr_storage ownip;
-  os_sockaddr_storage extip;
+  nn_locator_t ownloc;
+  nn_locator_t extloc;
 
   /* InterfaceNo that the OwnIP is tied to */
   unsigned interfaceNo;
@@ -292,6 +292,8 @@ struct q_globals {
 
   /* Data structure to capture power events */
   os_timePowerEvents powerEvents;
+
+  struct nn_group_membership *mship;
 
   /* Static log buffer, for those rare cases a thread calls nn_vlogb
      without having its own log buffer (happens during config file

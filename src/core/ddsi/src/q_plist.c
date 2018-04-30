@@ -1546,7 +1546,7 @@ static int do_locator
       break;
     case NN_LOCATOR_KIND_UDPv4MCGEN: {
       const nn_udpv4mcgen_address_t *x = (const nn_udpv4mcgen_address_t *) loc.address;
-      if (config.useIpv6 || config.tcp_enable)
+      if (!ddsi_factory_supports(gv.m_factory, NN_LOCATOR_KIND_UDPv4))
         return 0;
       if (loc.port <= 0 || loc.port > 65536)
       {

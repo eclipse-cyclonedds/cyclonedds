@@ -20,6 +20,7 @@
 #include "ddsi/q_ephash.h"
 #include "ddsi/q_hbcontrol.h"
 #include "ddsi/q_feature_check.h"
+#include "ddsi/q_inverse_uint32_set.h"
 
 #include "ddsi/ddsi_tran.h"
 
@@ -145,6 +146,10 @@ struct local_reader_ary {
   struct reader **rdary; /* for efficient delivery, null-pointer terminated */
 };
 
+struct avail_entityid_set {
+  struct inverse_uint32_set x;
+};
+
 struct participant
 {
   struct entity_common e;
@@ -157,7 +162,7 @@ struct participant
   struct xevent *pmd_update_xevent; /* timed event for periodically publishing ParticipantMessageData */
   nn_locator_t m_locator;
   ddsi_tran_conn_t m_conn;
-  unsigned next_entityid; /* next available entity id [e.lock] */
+  struct avail_entityid_set avail_entityids; /* available entity ids [e.lock] */
   os_mutex refc_lock;
   int32_t user_refc; /* number of non-built-in endpoints in this participant [refc_lock] */
   int32_t builtin_refc; /* number of built-in endpoints in this participant [refc_lock] */
@@ -390,6 +395,7 @@ int is_writer_entityid (nn_entityid_t id);
 int is_reader_entityid (nn_entityid_t id);
 
 int pp_allocate_entityid (nn_entityid_t *id, unsigned kind, struct participant *pp);
+void pp_release_entityid(struct participant *pp, nn_entityid_t id);
 
 /* Interface for glue code between the OpenSplice kernel and the DDSI
    entities. These all return 0 iff successful. All GIDs supplied
@@ -571,6 +577,9 @@ void delete_proxy_group (const struct nn_guid *guid, nn_wctime_t timestamp, int 
 void writer_exit_startup_mode (struct writer *wr);
 uint64_t writer_instance_id (const struct nn_guid *guid);
 
+/* Call this to empty all address sets of all writers to stop all outgoing traffic, or to
+   rebuild them all (which only makes sense after previously having emptied them all). */
+void rebuild_or_clear_writer_addrsets(int rebuild);
 
 #if defined (__cplusplus)
 }
