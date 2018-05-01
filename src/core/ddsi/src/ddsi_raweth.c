@@ -25,6 +25,9 @@
 #include <linux/if_packet.h>
 #include <sys/types.h>
 #include <ifaddrs.h>
+#include <string.h>
+#include <assert.h>
+#include <stdlib.h>
 
 typedef struct ddsi_tran_factory * ddsi_raweth_factory_t;
 
@@ -44,7 +47,7 @@ typedef struct ddsi_raweth_conn
 
 static struct ddsi_raweth_config ddsi_raweth_config_g;
 static struct ddsi_tran_factory ddsi_raweth_factory_g;
-static pa_uint32_t init_g = PA_UINT32_INIT(0);
+static os_atomic_uint32_t init_g = OS_ATOMIC_UINT32_INIT(0);
 
 static char *ddsi_raweth_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
 {
@@ -195,7 +198,7 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (uint32_t port, ddsi_tran_qos_t 
   int rc;
   ddsi_raweth_conn_t uc = NULL;
   struct sockaddr_ll addr;
-  bool mcast = (bool) (qos ? qos->m_multicast : FALSE);
+  bool mcast = (bool) (qos ? qos->m_multicast : 0);
 
   /* If port is zero, need to create dynamic port */
 
@@ -337,7 +340,7 @@ static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (dds
 
 static void ddsi_raweth_deinit(void)
 {
-  if (pa_dec32_nv(&init_g) == 0) {
+  if (os_atomic_dec32_nv(&init_g) == 0) {
     if (ddsi_raweth_config_g.mship)
       free_group_membership(ddsi_raweth_config_g.mship);
     nn_log (LC_INFO | LC_CONFIG, "raweth de-initialized\n");
@@ -385,13 +388,13 @@ static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t factory, int ma
 
 int ddsi_raweth_init (void)
 {
-  if (pa_inc32_nv(&init_g) == 1) {
+  if (os_atomic_inc32_nv(&init_g) == 1) {
     memset (&ddsi_raweth_factory_g, 0, sizeof (ddsi_raweth_factory_g));
     ddsi_raweth_factory_g.m_free_fn = ddsi_raweth_deinit;
     ddsi_raweth_factory_g.m_kind = NN_LOCATOR_KIND_RAWETH;
     ddsi_raweth_factory_g.m_typename = "raweth";
     ddsi_raweth_factory_g.m_default_spdp_address = "raweth/ff:ff:ff:ff:ff:ff";
-    ddsi_raweth_factory_g.m_connless = TRUE;
+    ddsi_raweth_factory_g.m_connless = 1;
     ddsi_raweth_factory_g.m_supports_fn = ddsi_raweth_supports;
     ddsi_raweth_factory_g.m_create_conn_fn = ddsi_raweth_create_conn;
     ddsi_raweth_factory_g.m_release_conn_fn = ddsi_raweth_release_conn;
