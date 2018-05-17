@@ -1008,14 +1008,15 @@ static void rebuild_make_locs(int *p_nlocs, nn_locator_t **p_locs, struct addrse
   *p_locs = locs;
 }
 
-static void rebuild_make_covered(char **covered, const struct writer *wr, int *nreaders, int nlocs, const nn_locator_t *locs)
+static void rebuild_make_covered(int8_t **covered, const struct writer *wr, int *nreaders, int nlocs, const nn_locator_t *locs)
 {
   struct rebuild_flatten_locs_arg flarg;
   struct wr_prd_match *m;
   ut_avlIter_t it;
   int rdidx, i, j;
-  char *cov = os_malloc((size_t) *nreaders * (size_t) nlocs);
-  memset(cov, 0xff, (size_t) *nreaders * (size_t) nlocs);
+  int8_t *cov = os_malloc((size_t) *nreaders * (size_t) nlocs * sizeof (*covered));
+  for (i = 0; i < *nreaders * nlocs; i++)
+    cov[i] = -1;
   rdidx = 0;
   flarg.locs = os_malloc((size_t) nlocs * sizeof(*flarg.locs));
 #ifndef NDEBUG
@@ -1041,7 +1042,7 @@ static void rebuild_make_covered(char **covered, const struct writer *wr, int *n
         /* all addresses should be in the combined set of addresses -- FIXME: this doesn't hold if the address sets can change */
         const nn_locator_t *l = bsearch(&flarg.locs[j], locs, (size_t) nlocs, sizeof(*locs), rebuild_compare_locs);
         int lidx;
-        char x;
+        int8_t x;
         assert(l != NULL);
         lidx = (int) (l - locs);
         if (l->kind != NN_LOCATOR_KIND_UDPv4MCGEN)
@@ -1050,7 +1051,7 @@ static void rebuild_make_covered(char **covered, const struct writer *wr, int *n
         {
           const nn_udpv4mcgen_address_t *l1 = (const nn_udpv4mcgen_address_t *) flarg.locs[j].address;
           assert(l1->base + l1->idx <= 127);
-          x = (char) (l1->base + l1->idx);
+          x = (int8_t) (l1->base + l1->idx);
         }
         cov[rdidx * nlocs + lidx] = x;
       }
@@ -1062,7 +1063,7 @@ static void rebuild_make_covered(char **covered, const struct writer *wr, int *n
   *nreaders = rdidx;
 }
 
-static void rebuild_make_locs_nrds(int **locs_nrds, int nreaders, int nlocs, const char *covered)
+static void rebuild_make_locs_nrds(int **locs_nrds, int nreaders, int nlocs, const int8_t *covered)
 {
   int i, j;
   int *ln = os_malloc((size_t) nlocs * sizeof(*ln));
@@ -1081,7 +1082,7 @@ OS_WARNING_MSVC_ON(6386);
   *locs_nrds = ln;
 }
 
-static void rebuild_trace_covered(int nreaders, int nlocs, const nn_locator_t *locs, const int *locs_nrds, const char *covered)
+static void rebuild_trace_covered(int nreaders, int nlocs, const nn_locator_t *locs, const int *locs_nrds, const int8_t *covered)
 {
   int i, j;
   for (i = 0; i < nlocs; i++)
@@ -1119,7 +1120,7 @@ static int rebuild_select(int nlocs, const nn_locator_t *locs, const int *locs_n
   return (locs_nrds[j] > 0) ? j : -1;
 }
 
-static void rebuild_add(struct addrset *newas, int locidx, int nreaders, int nlocs, const nn_locator_t *locs, const char *covered)
+static void rebuild_add(struct addrset *newas, int locidx, int nreaders, int nlocs, const nn_locator_t *locs, const int8_t *covered)
 {
   char str[INET6_ADDRSTRLEN_EXTENDED];
   if (locs[locidx].kind != NN_LOCATOR_KIND_UDPv4MCGEN)
@@ -1149,7 +1150,7 @@ static void rebuild_add(struct addrset *newas, int locidx, int nreaders, int nlo
   }
 }
 
-static void rebuild_drop(int locidx, int nreaders, int nlocs, int *locs_nrds, char *covered)
+static void rebuild_drop(int locidx, int nreaders, int nlocs, int *locs_nrds, int8_t *covered)
 {
   /* readers covered by this locator no longer matter */
   int i, j;
@@ -1173,7 +1174,7 @@ static void rebuild_writer_addrset_setcover(struct addrset *newas, struct writer
   int nreaders, nlocs;
   nn_locator_t *locs;
   int *locs_nrds;
-  char *covered;
+  int8_t *covered;
   int best;
   if ((all_addrs = rebuild_make_all_addrs(&nreaders, wr)) == NULL)
     return;
