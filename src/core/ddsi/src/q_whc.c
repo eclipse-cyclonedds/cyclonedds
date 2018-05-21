@@ -677,8 +677,21 @@ static unsigned whc_remove_acked_messages_noidx (struct whc *whc, seqno_t max_dr
      the highest available sequence number (which then must be less) */
   if ((whcn = whc_findseq (whc, max_drop_seq)) == NULL)
   {
-    whcn = whc->maxseq_node;
-    assert (whcn->seq < max_drop_seq);
+    if (max_drop_seq < intv->min)
+    {
+      /* at startup, whc->max_drop_seq = 0 and reader states have max ack'd seq taken from wr->seq;
+         so if multiple readers are matched and the writer runs ahead of the readers, for the first
+         ack, whc->max_drop_seq < max_drop_seq = MIN(readers max ack) < intv->min */
+      if (max_drop_seq > whc->max_drop_seq)
+        whc->max_drop_seq = max_drop_seq;
+      *deferred_free_list = NULL;
+      return 0;
+    }
+    else
+    {
+      whcn = whc->maxseq_node;
+      assert (whcn->seq < max_drop_seq);
+    }
   }
 
   *deferred_free_list = intv->first;
