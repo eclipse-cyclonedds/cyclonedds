@@ -616,6 +616,7 @@ static int parse_element (struct ut_xmlpState *st, uintptr_t parentinfo)
                 }
             } else {
                 /* text */
+                static const char *cdata_magic = "<![CDATA[";
                 char *content;
                 int cmt = 0;
                 rewind_to_input_marker (st);
@@ -629,7 +630,7 @@ static int parse_element (struct ut_xmlpState *st, uintptr_t parentinfo)
                     }
                     /* if the mark-up happens to be a CDATA, consume it, and gobble up characters
                        until the closing marker is reached, which then also gets consumed */
-                    if (peek_chars (st, "<![CDATA[", 1)) {
+                    if (peek_chars (st, cdata_magic, 1)) {
                         while (!peek_chars (st, "]]>", 1) && peek_char (st) != TOK_EOF) {
                             if (append_to_payload (st, next_char (st), 1) < 0) {
                                 PE_LOCAL_ERROR ("invalid character sequence", 0);
@@ -637,7 +638,7 @@ static int parse_element (struct ut_xmlpState *st, uintptr_t parentinfo)
                         }
                     }
                     /* then, if the markup is a comment, skip it and try again */
-                } while (peek_char (st) != '<' || (cmt = skip_comment (st)) > 0);
+                } while ((peek_char (st) != '<' || (cmt = skip_comment (st)) > 0) && make_chars_available (st, sizeof(cdata_magic) - 1));
                 if (cmt == TOK_ERROR) {
                     discard_payload (st);
                     PE_LOCAL_ERROR ("invalid comment", 0);
