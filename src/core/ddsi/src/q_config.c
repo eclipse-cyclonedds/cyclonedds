@@ -85,7 +85,8 @@ struct cfgst_node {
 struct cfgst {
     ut_avlTree_t found;
     struct config *cfg;
-
+    /* error flag set so that we can continue parsing for some errors and still fail properly */
+    int error;
 
     /* path_depth, isattr and path together control the formatting of
     error messages by cfg_error() */
@@ -1030,6 +1031,10 @@ static size_t cfg_note(struct cfgst *cfgst, logcat_t cat, size_t bsz, const char
     struct cfg_note_buf bb;
     int i, sidx;
     size_t r;
+
+    if (cat & LC_ERROR) {
+        cfgst->error = 1;
+    }
 
     bb.bufpos = 0;
     bb.bufsize = (bsz == 0) ? 1024 : bsz;
@@ -2681,6 +2686,7 @@ struct cfgst * config_init
 
     ut_avlInit(&cfgst_found_treedef, &cfgst->found);
     cfgst->cfg = &config;
+    cfgst->error = 0;
 
     /* configfile == NULL will get you the default configuration */
     if ( configfile ) {
@@ -2713,7 +2719,7 @@ struct cfgst * config_init
             }
             cfgst_push(cfgst, 0, &root_cfgelem, &config);
 
-            ok = (ut_xmlpParse(qx) >= 0);
+            ok = (ut_xmlpParse(qx) >= 0) && !cfgst->error;
             /* Pop until stack empty: error handling is rather brutal */
             assert(!ok || cfgst->path_depth == 1);
             while ( cfgst->path_depth > 0 )
