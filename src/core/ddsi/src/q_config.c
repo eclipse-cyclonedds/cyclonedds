@@ -2482,9 +2482,10 @@ static int proc_elem_open(void *varg, UNUSED_ARG(uintptr_t parentinfo), UNUSED_A
             break;
         }
     }
-    if ( cfg_subelem == NULL || cfg_subelem->name == NULL )
+    if ( cfg_subelem == NULL || cfg_subelem->name == NULL ) {
+        cfgst_push(cfgst, 0, NULL, NULL);
         return cfg_error(cfgst, "%s: unknown element", name);
-    else if ( strcmp(cfg_subelem->name, "*") == 0 ) {
+    } else if ( strcmp(cfg_subelem->name, "*") == 0 ) {
         /* Push a marker that we are to ignore this part of the DOM tree */
         cfgst_push(cfgst, 0, NULL, NULL);
         return 1;
