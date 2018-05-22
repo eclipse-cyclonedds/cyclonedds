@@ -110,6 +110,7 @@ dds_init(void)
   os_mutexInit (&gv.static_logbuf_lock);
   gv.static_logbuf_lock_inited = 1;
   os_mutexInit (&dds_global.m_mutex);
+  thread_states_init_static();
 
   uri = os_getenv (DDSC_PROJECT_NAME_NOSPACE_CAPS"_URI");
   dds_cfgst = config_init (uri);

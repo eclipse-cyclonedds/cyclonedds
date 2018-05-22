@@ -86,6 +86,7 @@ struct thread_states {
 extern struct thread_states thread_states;
 extern os_threadLocal struct thread_state1 *tsd_thread_state;
 
+void thread_states_init_static (void);
 void thread_states_init (_In_ unsigned maxthreads);
 void thread_states_fini (void);
 
