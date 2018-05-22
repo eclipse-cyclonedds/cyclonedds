@@ -194,6 +194,7 @@ DI(if_thread_properties);
 #define END_MARKER { NULL, NULL, NULL, NODATA, NULL }
 #define WILDCARD { "*", NULL, NULL, NODATA, NULL }
 #define LEAF(name) name, NULL, NULL
+#define DEPRECATED_LEAF(name) "|" name, NULL, NULL
 #define LEAF_W_ATTRS(name, attrs) name, NULL, attrs
 #define GROUP(name, children) name, children, NULL, 1, NULL, 0, 0, 0, 0, 0, 0
 #define GROUP_W_ATTRS(name, children, attrs) name, children, attrs, 1, NULL, 0, 0, 0, 0, 0, 0
@@ -243,7 +244,7 @@ static const struct cfgelem general_cfgelems[] = {
 "<p>This element allows selecting the transport to be used (udp, udp6, tcp, tcp6, raweth)</p>" },
 { LEAF("EnableMulticastLoopback"), 1, "true", ABSOFF(enableMulticastLoopback), 0, uf_boolean, 0, pf_boolean,
 "<p>This element specifies whether DDSI2E allows IP multicast packets to be visible to all DDSI participants in the same node, including itself. It must be \"true\" for intra-node multicast communications, but if a node runs only a single DDSI2E service and does not host any other DDSI-capable programs, it should be set to \"false\" for improved performance.</p>" },
-{ LEAF("EnableLoopback"), 1, "false", ABSOFF(enableLoopback), 0, uf_boolean, 0, pf_boolean,
+{ DEPRECATED_LEAF("EnableLoopback"), 1, "false", ABSOFF(enableLoopback), 0, uf_boolean, 0, pf_boolean,
 "<p>This element specifies whether DDSI packets are visible to all DDSI participants in the same process. It must be \"true\" for intra-process communications, i.e. a reader and writer communicating in the same address space. If enabled and using multicast then EnableMulticastLoopback must also be enabled.</p>" },
 { LEAF("StartupModeDuration"), 1, "2 s", ABSOFF(startup_mode_duration), 0, uf_duration_ms_1hr, 0, pf_duration,
 "<p>This element specifies how long the DDSI2E remains in its \"startup\" mode. While in \"startup\" mode all volatile reliable data published on the local node is retained as-if it were transient-local data, allowing existing readers on remote nodes to obtain the data even though discovering them takes some time. Best-effort data by definition need not arrive, and transient and persistent data are covered by the durability service.</p>\n\
@@ -2462,9 +2463,14 @@ static int proc_elem_open(void *varg, UNUSED_ARG(uintptr_t parentinfo), UNUSED_A
         idx = matching_name_index(csename, name);
 #if WARN_DEPRECATED_ALIAS
         if ( idx > 0 ) {
-            int n = (int) (strchr(csename, '|') - csename);
-            if ( csename[n + 1] != '|' )
-                cfg_warning(cfgst, "'%s': deprecated alias for '%*.*s'", name, n, n, csename);
+            if (csename[0] == '|') {
+                cfg_warning(cfgst, "'%s': deprecated setting", name);
+            } else {
+                int n = (int) (strchr(csename, '|') - csename);
+                if ( csename[n + 1] != '|' ) {
+                    cfg_warning(cfgst, "'%s': deprecated alias for '%*.*s'", name, n, n, csename);
+                }
+            }
         }
 #endif
         if ( idx >= 0 ) {

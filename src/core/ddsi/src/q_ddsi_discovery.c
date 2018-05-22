@@ -595,7 +595,6 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
     return 1;
   }
 
-  if (!config.enableLoopback)
   {
     int islocal = 0;
     if (ephash_lookup_participant_guid (&datap->participant_guid))
@@ -1162,11 +1161,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
   if (is_deleted_participant_guid (&ppguid, DPG_REMOTE))
     E (" local dead pp?\n", err);
 
-  if
-  (
-    (! config.enableLoopback) &&
-    (ephash_lookup_participant_guid (&ppguid) != NULL)
-  )
+  if (ephash_lookup_participant_guid (&ppguid) != NULL)
     E (" local pp?\n", err);
 
   if (is_builtin_entityid (datap->endpoint_guid.entityid, vendorid))
