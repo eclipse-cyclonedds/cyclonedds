@@ -20,12 +20,7 @@ What's next?
 ############
 
 Want to know more about CycloneDDS? Please consider following a tutorial or
-visit some of the pages listed below. The Vortex DDS Launcher (provided with
-this installation) is also a good starting point.
-
-:Windows:  The Vortex DDS Launcher can be started from within the Windows Start Menu
-:Linux:  Type 'vortexddslauncher' in a console window
-
+visit some of the pages listed below.
 
 *************************
 The OMG DDS Specification
