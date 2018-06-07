@@ -749,18 +749,13 @@ static os_handle ddsi_tcp_conn_handle (ddsi_tran_base_t base)
 
 static bool ddsi_tcp_supports (int32_t kind)
 {
-  return
-  (
-    (config.transport_selector == TRANS_TCP && kind == NN_LOCATOR_KIND_TCPv4)
-#if OS_SOCKET_HAS_IPV6
-    || (config.transport_selector == TRANS_TCP6 && kind == NN_LOCATOR_KIND_TCPv6)
-#endif
-  );
+  return kind == ddsi_tcp_factory_g.m_kind;
 }
 
 static int ddsi_tcp_locator (ddsi_tran_base_t base, nn_locator_t *loc)
 {
-  *loc = gv.extloc;
+  loc->kind = ddsi_tcp_factory_g.m_kind;
+  memcpy(loc->address, gv.extloc.address, sizeof(loc->address));
   loc->port = base->m_port;
   return 0;
 }

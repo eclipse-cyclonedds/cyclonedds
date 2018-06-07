@@ -173,12 +173,8 @@ static os_handle ddsi_udp_conn_handle (ddsi_tran_base_t base)
 static bool ddsi_udp_supports (int32_t kind)
 {
   return
-  (
-    (config.transport_selector == TRANS_UDP && (kind == NN_LOCATOR_KIND_UDPv4 || kind == NN_LOCATOR_KIND_UDPv4MCGEN))
-#if OS_SOCKET_HAS_IPV6
-    || (config.transport_selector == TRANS_UDP6 && kind == NN_LOCATOR_KIND_UDPv6)
-#endif
-  );
+    kind == ddsi_udp_factory_g.m_kind ||
+    (kind == NN_LOCATOR_KIND_UDPv4MCGEN && ddsi_udp_factory_g.m_kind == NN_LOCATOR_KIND_UDPv4);
 }
 
 static int ddsi_udp_conn_locator (ddsi_tran_base_t base, nn_locator_t *loc)
