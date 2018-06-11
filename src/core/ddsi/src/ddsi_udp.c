@@ -53,7 +53,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
   ssize_t ret;
   struct msghdr msghdr;
   os_sockaddr_storage src;
-  struct iovec msg_iov;
+  ddsi_iovec_t msg_iov;
   socklen_t srclen = (socklen_t) sizeof (src);
 
   msg_iov.iov_base = (void*) buf;

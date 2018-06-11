@@ -74,7 +74,7 @@ struct nn_xmsg {
   size_t sz;
   int have_params;
   struct serdata *refd_payload;
-  struct iovec refd_payload_iov;
+  ddsi_iovec_t refd_payload_iov;
   int64_t maxdelay;
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   uint32_t encoderid;
@@ -199,7 +199,7 @@ struct nn_xpack
   ddsi_tran_conn_t conn;
   os_sem_t sem;
   size_t niov;
-  struct iovec iov[NN_XMSG_MAX_MESSAGE_IOVECS];
+  ddsi_iovec_t iov[NN_XMSG_MAX_MESSAGE_IOVECS];
   enum nn_xmsg_dstmode dstmode;
 
   union

@@ -149,7 +149,6 @@ ssize_t sendmsg (os_handle fd, const struct msghdr *message, int flags)
 ssize_t sendmsg (os_handle fd, const struct msghdr *message, int flags)
 {
   DWORD sent;
-  unsigned i;
   ssize_t ret;
 
   DDSI_IOVEC_MATCHES_WSABUF;
@@ -160,12 +159,10 @@ ssize_t sendmsg (os_handle fd, const struct msghdr *message, int flags)
   assert (message->msg_controllen == 0);
 #endif
 
-  if (WSASendTo (fd, (const WSABUF *) message->msg_iov, message->msg_iovlen, &sent, flags, (SOCKADDR *) message->msg_name, message->msg_namelen, NULL, NULL) == 0)
+  if (WSASendTo (fd, (WSABUF *) message->msg_iov, message->msg_iovlen, &sent, flags, (SOCKADDR *) message->msg_name, message->msg_namelen, NULL, NULL) == 0)
     ret = (ssize_t) sent;
   else
     ret = -1;
-  if (bufs != stbufs)
-    os_free (bufs);
   return ret;
 }
 #endif

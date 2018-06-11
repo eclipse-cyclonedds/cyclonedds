@@ -65,7 +65,7 @@ static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...)
   else
   {
     va_list ap;
-    struct iovec iov;
+    ddsi_iovec_t iov;
     char buf[4096];
     int n;
     va_start (ap, fmt);
