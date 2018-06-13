@@ -287,6 +287,7 @@ static int set_spdp_address (void)
   const uint32_t port = (uint32_t) (config.port_base + config.port_dg * config.domainId + config.port_d0);
   int rc = 0;
   /* FIXME: FIXME: FIXME: */
+  gv.loc_spdp_mc.kind = NN_LOCATOR_KIND_INVALID;
   if (strcmp (config.spdpMulticastAddressString, "239.255.0.1") != 0)
   {
     if ((rc = string_to_default_locator (&gv.loc_spdp_mc, config.spdpMulticastAddressString, port, 1, "SPDP address")) < 0)
@@ -304,7 +305,7 @@ static int set_spdp_address (void)
     assert (rc > 0);
   }
 #ifdef DDSI_INCLUDE_SSM
-  if (ddsi_is_ssm_mcaddr (&gv.loc_spdp_mc))
+  if (gv.loc_spdp_mc.kind != NN_LOCATOR_KIND_INVALID && ddsi_is_ssm_mcaddr (&gv.loc_spdp_mc))
   {
     NN_ERROR ("%s: SPDP address may not be an SSM address\n", config.spdpMulticastAddressString);
     return -1;
