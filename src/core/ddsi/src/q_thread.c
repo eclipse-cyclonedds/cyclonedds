@@ -56,6 +56,13 @@ static void os_free_aligned ( _Pre_maybenull_ _Post_invalid_ void *ptr)
   }
 }
 
+void thread_states_init_static (void)
+{
+    static struct thread_state1 ts =
+        { .state = THREAD_STATE_ALIVE, .vtime = 1, .watchdog = 1, .lb = NULL, .name = "(anon)" };
+    tsd_thread_state = &ts;
+}
+
 void thread_states_init (_In_ unsigned maxthreads)
 {
   unsigned i;
@@ -324,7 +331,7 @@ void downgrade_main_thread (void)
   logbuf_free (ts1->lb);
   /* no need to sync with service lease: already stopped */
   reap_thread_state (ts1, 0);
-  tsd_thread_state = NULL;
+  thread_states_init_static ();
 }
 
 struct thread_state1 *get_thread_state (_In_ os_threadId id)

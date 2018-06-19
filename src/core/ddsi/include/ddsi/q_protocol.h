@@ -119,6 +119,7 @@ struct cdrstring {
 #define NN_LOCATOR_KIND_UDPv6 2
 #define NN_LOCATOR_KIND_TCPv4 4
 #define NN_LOCATOR_KIND_TCPv6 8
+#define NN_LOCATOR_KIND_RAWETH 0x8000 /* proposed vendor-specific */
 #define NN_LOCATOR_KIND_UDPv4MCGEN 0x4fff0000
 #define NN_LOCATOR_PORT_INVALID 0
 
@@ -146,6 +147,7 @@ struct cdrstring {
 /* Only one specific version is grokked */
 #define RTPS_MAJOR 2
 #define RTPS_MINOR 1
+#define RTPS_MINOR_MINIMUM 1
 
 typedef struct Header {
   nn_protocolid_t protocol;

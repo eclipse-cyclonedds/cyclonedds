@@ -85,7 +85,8 @@ struct cfgst_node {
 struct cfgst {
     ut_avlTree_t found;
     struct config *cfg;
-
+    /* error flag set so that we can continue parsing for some errors and still fail properly */
+    int error;
 
     /* path_depth, isattr and path together control the formatting of
     error messages by cfg_error() */
@@ -120,6 +121,7 @@ DUPF(networkAddresses);
 DU(ipv4);
 DUPF(allow_multicast);
 DUPF(boolean);
+DUPF(boolean_default);
 DUPF(negated_boolean);
 DUPF(string);
 DU(tracingOutputFileName);
@@ -158,6 +160,9 @@ DUPF(bandwidth);
 #endif
 DU(domainId);
 DUPF(durability_cdr);
+DUPF(transport_selector);
+DUPF(many_sockets_mode);
+DU(deaf_mute);
 #undef DUPF
 #undef DU
 #undef PF
@@ -190,8 +195,10 @@ DI(if_thread_properties);
 #define END_MARKER { NULL, NULL, NULL, NODATA, NULL }
 #define WILDCARD { "*", NULL, NULL, NODATA, NULL }
 #define LEAF(name) name, NULL, NULL
+#define DEPRECATED_LEAF(name) "|" name, NULL, NULL
 #define LEAF_W_ATTRS(name, attrs) name, NULL, attrs
 #define GROUP(name, children) name, children, NULL, 1, NULL, 0, 0, 0, 0, 0, 0
+#define GROUP_W_ATTRS(name, children, attrs) name, children, attrs, 1, NULL, 0, 0, 0, 0, 0, 0
 #define MGROUP(name, children, attrs) name, children, attrs
 #define ATTR(name) name, NULL, NULL
 /* MOVED: whereto must be a path relative to DDSI2Service, may not be used in/for lists and only for elements, may not be chained */
@@ -232,11 +239,13 @@ static const struct cfgelem general_cfgelems[] = {
 "<p>This element specifies the time-to-live setting for outgoing multicast packets.</p>" },
 { LEAF("DontRoute"), 1, "false", ABSOFF(dontRoute), 0, uf_boolean, 0, pf_boolean,
 "<p>This element allows setting the SO_DONTROUTE option for outgoing packets, to bypass the local routing tables. This is generally useful only when the routing tables cannot be trusted, which is highly unusual.</p>" },
-{ LEAF("UseIPv6"), 1, "false", ABSOFF(useIpv6), 0, uf_boolean, 0, pf_boolean ,
-"<p>This element can be used to DDSI2E use IPv6 instead of IPv4. This is currently an either/or switch.</p>" },
+{ LEAF ("UseIPv6"), 1, "default", ABSOFF (compat_use_ipv6), 0, uf_boolean_default, 0, pf_nop,
+"<p>Deprecated (use Transport instead)</p>" },
+{ LEAF ("Transport"), 1, "default", ABSOFF (transport_selector), 0, uf_transport_selector, 0, pf_transport_selector,
+"<p>This element allows selecting the transport to be used (udp, udp6, tcp, tcp6, raweth)</p>" },
 { LEAF("EnableMulticastLoopback"), 1, "true", ABSOFF(enableMulticastLoopback), 0, uf_boolean, 0, pf_boolean,
 "<p>This element specifies whether DDSI2E allows IP multicast packets to be visible to all DDSI participants in the same node, including itself. It must be \"true\" for intra-node multicast communications, but if a node runs only a single DDSI2E service and does not host any other DDSI-capable programs, it should be set to \"false\" for improved performance.</p>" },
-{ LEAF("EnableLoopback"), 1, "false", ABSOFF(enableLoopback), 0, uf_boolean, 0, pf_boolean,
+{ DEPRECATED_LEAF("EnableLoopback"), 1, "false", ABSOFF(enableLoopback), 0, uf_boolean, 0, pf_boolean,
 "<p>This element specifies whether DDSI packets are visible to all DDSI participants in the same process. It must be \"true\" for intra-process communications, i.e. a reader and writer communicating in the same address space. If enabled and using multicast then EnableMulticastLoopback must also be enabled.</p>" },
 { LEAF("StartupModeDuration"), 1, "2 s", ABSOFF(startup_mode_duration), 0, uf_duration_ms_1hr, 0, pf_duration,
 "<p>This element specifies how long the DDSI2E remains in its \"startup\" mode. While in \"startup\" mode all volatile reliable data published on the local node is retained as-if it were transient-local data, allowing existing readers on remote nodes to obtain the data even though discovering them takes some time. Best-effort data by definition need not arrive, and transient and persistent data are covered by the durability service.</p>\n\
@@ -418,7 +427,7 @@ static const struct cfgelem compatibility_cfgelems[] = {
 { LEAF("ExplicitlyPublishQosSetToDefault"), 1, "false", ABSOFF(explicitly_publish_qos_set_to_default), 0, uf_boolean, 0, pf_boolean,
 "<p>This element specifies whether QoS settings set to default values are explicitly published in the discovery protocol. Implementations are to use the default value for QoS settings not published, which allows a significant reduction of the amount of data that needs to be exchanged for the discovery protocol, but this requires all implementations to adhere to the default values specified by the specifications.</p>\n\
 <p>When interoperability is required with an implementation that does not follow the specifications in this regard, setting this option to true will help.</p>" },
-{ LEAF("ManySocketsMode"), 1, "false", ABSOFF(many_sockets_mode), 0, uf_boolean, 0, pf_boolean,
+{ LEAF ("ManySocketsMode"), 1, "single", ABSOFF (many_sockets_mode), 0, uf_many_sockets_mode, 0, pf_many_sockets_mode,
 "<p>This option specifies whether a network socket will be created for each domain participant on a host. The specification seems to assume that each participant has a unique address, and setting this option will ensure this to be the case. This is not the defeault.</p>\n\
 <p>Disabling it slightly improves performance and reduces network traffic somewhat. It also causes the set of port numbers needed by DDSI2E to become predictable, which may be useful for firewall and NAT configuration.</p>" },
 { LEAF("ArrivalOfDataAssertsPpAndEpLiveliness"), 1, "true", ABSOFF(arrival_of_data_asserts_pp_and_ep_liveliness), 0, uf_boolean, 0, pf_boolean,
@@ -459,8 +468,10 @@ static const struct cfgelem control_topic_cfgattrs[] = {
 };
 
 static const struct cfgelem control_topic_cfgelems[] = {
-    { LEAF("Deaf"), 1, "false", ABSOFF(initial_deaf), 0, uf_boolean, 0, pf_boolean },
-    { LEAF("Mute"), 1, "false", ABSOFF(initial_mute), 0, uf_boolean, 0, pf_boolean },
+    { LEAF ("Deaf"), 1, "false", ABSOFF (initial_deaf), 0, uf_deaf_mute, 0, pf_boolean,
+    "<p>This element controls whether DDSI2E defaults to deaf mode or to normal mode. This controls both the initial behaviour and what behaviour it auto-reverts to.</p>" },
+    { LEAF ("Mute"), 1, "false", ABSOFF (initial_mute), 0, uf_deaf_mute, 0, pf_boolean,
+    "<p>This element controls whether DDSI2E defaults to mute mode or to normal mode. This controls both the initial behaviour and what behaviour it auto-reverts to.</p>" },
     END_MARKER
 };
 
@@ -471,9 +482,12 @@ static const struct cfgelem rediscovery_blacklist_duration_attrs[] = {
 };
 
 static const struct cfgelem heartbeat_interval_attrs[] = {
-    { ATTR("min"), 1, "5 ms", ABSOFF(const_hb_intv_min), 0, uf_duration_inf, 0, pf_duration },
-    { ATTR("minsched"), 1, "20 ms", ABSOFF(const_hb_intv_sched_min), 0, uf_duration_inf, 0, pf_duration },
-    { ATTR("max"), 1, "8 s", ABSOFF(const_hb_intv_sched_max), 0, uf_duration_inf, 0, pf_duration },
+    { ATTR ("min"), 1, "5 ms", ABSOFF (const_hb_intv_min), 0, uf_duration_inf, 0, pf_duration,
+    "<p>This attribute sets the minimum interval that must have passed since the most recent heartbeat from a writer, before another asynchronous (not directly related to writing) will be sent.</p>" },
+    { ATTR ("minsched"), 1, "20 ms", ABSOFF (const_hb_intv_sched_min), 0, uf_duration_inf, 0, pf_duration,
+    "<p>This attribute sets the minimum interval for periodic heartbeats. Other events may still cause heartbeats to go out.</p>" },
+    { ATTR ("max"), 1, "8 s", ABSOFF (const_hb_intv_sched_max), 0, uf_duration_inf, 0, pf_duration,
+    "<p>This attribute sets the maximum interval for periodic heartbeats.</p>" },
     END_MARKER
 };
 
@@ -565,7 +579,7 @@ static const struct cfgelem unsupp_cfgelems[] = {
 "<p>Forward all messages from a writer, rather than trying to forward each sample only once. The default of trying to forward each sample only once filters out duplicates for writers in multiple partitions under nearly all circumstances, but may still publish the odd duplicate. Note: the current implementation also can lose in contrived test cases, that publish more than 2**32 samples using a single data writer in conjunction with carefully controlled management of the writer history via cooperating local readers.</p>" },
 { LEAF("RetryOnRejectBestEffort"), 1, "false", ABSOFF(retry_on_reject_besteffort), 0, uf_boolean, 0, pf_boolean,
 "<p>Whether or not to locally retry pushing a received best-effort sample into the reader caches when resource limits are reached.</p>" },
-{ LEAF("GenerateKeyhash"), 1, "true", ABSOFF(generate_keyhash), 0, uf_boolean, 0, pf_boolean,
+{ LEAF("GenerateKeyhash"), 1, "false", ABSOFF(generate_keyhash), 0, uf_boolean, 0, pf_boolean,
 "<p>When true, include keyhashes in outgoing data for topics with keys.</p>" },
 { LEAF("MaxSampleSize"), 1, "2147483647 B", ABSOFF(max_sample_size), 0, uf_memsize, 0, pf_memsize,
 "<p>This setting controls the maximum (CDR) serialised size of samples that DDSI2E will forward in either direction. Samples larger than this are discarded with a warning.</p>" },
@@ -622,8 +636,8 @@ static const struct cfgelem discovery_ports_cfgelems[] = {
 };
 
 static const struct cfgelem tcp_cfgelems[] = {
-    { LEAF("Enable"), 1, "false", ABSOFF(tcp_enable), 0, uf_boolean, 0, pf_boolean,
-    "<p>This element enables the optional TCP transport.</p>" },
+    { LEAF ("Enable"), 1, "default", ABSOFF (compat_tcp_enable), 0, uf_boolean_default, 0, pf_nop,
+    "<p>This element enables the optional TCP transport - deprecated, use General/Transport instead.</p>" },
     { LEAF("NoDelay"), 1, "true", ABSOFF(tcp_nodelay), 0, uf_boolean, 0, pf_boolean,
     "<p>This element enables the TCP_NODELAY socket option, preventing multiple DDSI messages being sent in the same TCP request. Setting this option typically optimises latency over throughput.</p>" },
     { LEAF("Port"), 1, "-1", ABSOFF(tcp_port), 0, uf_dyn_port, 0, pf_int,
@@ -632,6 +646,8 @@ static const struct cfgelem tcp_cfgelems[] = {
     "<p>This element specifies the timeout for blocking TCP read operations. If this timeout expires then the connection is closed.</p>" },
     { LEAF("WriteTimeout"), 1, "2 s", ABSOFF(tcp_write_timeout), 0, uf_duration_ms_1hr, 0, pf_duration,
     "<p>This element specifies the timeout for blocking TCP write operations. If this timeout expires then the connection is closed.</p>" },
+    { LEAF ("AlwaysUsePeeraddrForUnicast"), 1, "false", ABSOFF (tcp_use_peeraddr_for_unicast), 0, uf_boolean, 0, pf_boolean,
+    "<p>Setting this to true means the unicast addresses in SPDP packets will be ignored and the peer address from the TCP connection will be used instead. This may help work around incorrectly advertised addresses when using TCP.</p>" },
     END_MARKER
 };
 
@@ -1016,6 +1032,10 @@ static size_t cfg_note(struct cfgst *cfgst, logcat_t cat, size_t bsz, const char
     int i, sidx;
     size_t r;
 
+    if (cat & LC_ERROR) {
+        cfgst->error = 1;
+    }
+
     bb.bufpos = 0;
     bb.bufsize = (bsz == 0) ? 1024 : bsz;
     if ( (bb.buf = os_malloc(bb.bufsize)) == NULL )
@@ -1271,6 +1291,33 @@ static int uf_negated_boolean(struct cfgst *cfgst, void *parent, struct cfgelem 
     }
 }
 
+static int uf_boolean_default (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  static const char *vs[] = { "default", "false", "true", NULL };
+  static const enum boolean_default ms[] = {
+    BOOLDEF_DEFAULT, BOOLDEF_FALSE, BOOLDEF_TRUE, 0,
+  };
+  int *elem = cfg_address (cfgst, parent, cfgelem);
+  int idx = list_index (vs, value);
+  assert (sizeof (vs) / sizeof (*vs) == sizeof (ms) / sizeof (*ms));
+  if (idx < 0)
+    return cfg_error (cfgst, "'%s': undefined value", value);
+  *elem = ms[idx];
+  return 1;
+}
+
+static void pf_boolean_default (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
+{
+  enum besmode *p = cfg_address (cfgst, parent, cfgelem);
+  const char *str = "INVALID";
+  switch (*p)
+  {
+    case BOOLDEF_DEFAULT: str = "default"; break;
+    case BOOLDEF_FALSE: str = "false"; break;
+    case BOOLDEF_TRUE: str = "true"; break;
+  }
+  cfg_log (cfgst, "%s%s", str, is_default ? " [def]" : "");
+}
 
 static int uf_logcat(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
 {
@@ -1871,6 +1918,70 @@ static int uf_natint_255(struct cfgst *cfgst, void *parent, struct cfgelem const
     return uf_int_min_max(cfgst, parent, cfgelem, first, value, 0, 255);
 }
 
+static int uf_transport_selector (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  static const char *vs[] = { "default", "udp", "udp6", "tcp", "tcp6", "raweth", NULL };
+  static const enum transport_selector ms[] = {
+    TRANS_DEFAULT, TRANS_UDP, TRANS_UDP6, TRANS_TCP, TRANS_TCP6, TRANS_RAWETH, 0,
+  };
+  enum transport_selector *elem = cfg_address (cfgst, parent, cfgelem);
+  int idx = list_index (vs, value);
+  assert (sizeof (vs) / sizeof (*vs) == sizeof (ms) / sizeof (*ms));
+  if (idx < 0)
+    return cfg_error (cfgst, "'%s': undefined value", value);
+  *elem = ms[idx];
+  return 1;
+}
+
+static void pf_transport_selector (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
+{
+  enum transport_selector *p = cfg_address (cfgst, parent, cfgelem);
+  const char *str = "INVALID";
+  switch (*p)
+  {
+    case TRANS_DEFAULT: str = "default"; break;
+    case TRANS_UDP: str = "udp"; break;
+    case TRANS_UDP6: str = "udp6"; break;
+    case TRANS_TCP: str = "tcp"; break;
+    case TRANS_TCP6: str = "tcp6"; break;
+    case TRANS_RAWETH: str = "raweth"; break;
+  }
+  cfg_log (cfgst, "%s%s", str, is_default ? " [def]" : "");
+}
+
+static int uf_many_sockets_mode (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  static const char *vs[] = { "false", "true", "single", "none", "many", NULL };
+  static const enum many_sockets_mode ms[] = {
+    MSM_SINGLE_UNICAST, MSM_MANY_UNICAST, MSM_SINGLE_UNICAST, MSM_NO_UNICAST, MSM_MANY_UNICAST, 0,
+  };
+  enum many_sockets_mode *elem = cfg_address (cfgst, parent, cfgelem);
+  int idx = list_index (vs, value);
+  assert (sizeof (vs) / sizeof (*vs) == sizeof (ms) / sizeof (*ms));
+  if (idx < 0)
+    return cfg_error (cfgst, "'%s': undefined value", value);
+  *elem = ms[idx];
+  return 1;
+}
+
+static void pf_many_sockets_mode (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
+{
+  enum many_sockets_mode *p = cfg_address (cfgst, parent, cfgelem);
+  const char *str = "INVALID";
+  switch (*p)
+  {
+    case MSM_SINGLE_UNICAST: str = "single"; break;
+    case MSM_MANY_UNICAST: str = "many"; break;
+    case MSM_NO_UNICAST: str = "none"; break;
+  }
+  cfg_log (cfgst, "%s%s", str, is_default ? " [def]" : "");
+}
+
+static int uf_deaf_mute (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
+{
+  return uf_boolean (cfgst, parent, cfgelem, first, value);
+}
+
 static int do_update(struct cfgst *cfgst, update_fun_t upd, void *parent, struct cfgelem const * const cfgelem, const char *value, int is_default)
 {
     struct cfgst_node *n;
@@ -2357,18 +2468,24 @@ static int proc_elem_open(void *varg, UNUSED_ARG(uintptr_t parentinfo), UNUSED_A
         idx = matching_name_index(csename, name);
 #if WARN_DEPRECATED_ALIAS
         if ( idx > 0 ) {
-            int n = (int) (strchr(csename, '|') - csename);
-            if ( csename[n + 1] != '|' )
-                cfg_warning(cfgst, "'%s': deprecated alias for '%*.*s'", name, n, n, csename);
+            if (csename[0] == '|') {
+                cfg_warning(cfgst, "'%s': deprecated setting", name);
+            } else {
+                int n = (int) (strchr(csename, '|') - csename);
+                if ( csename[n + 1] != '|' ) {
+                    cfg_warning(cfgst, "'%s': deprecated alias for '%*.*s'", name, n, n, csename);
+                }
+            }
         }
 #endif
         if ( idx >= 0 ) {
             break;
         }
     }
-    if ( cfg_subelem == NULL || cfg_subelem->name == NULL )
+    if ( cfg_subelem == NULL || cfg_subelem->name == NULL ) {
+        cfgst_push(cfgst, 0, NULL, NULL);
         return cfg_error(cfgst, "%s: unknown element", name);
-    else if ( strcmp(cfg_subelem->name, "*") == 0 ) {
+    } else if ( strcmp(cfg_subelem->name, "*") == 0 ) {
         /* Push a marker that we are to ignore this part of the DOM tree */
         cfgst_push(cfgst, 0, NULL, NULL);
         return 1;
@@ -2570,6 +2687,7 @@ struct cfgst * config_init
 
     ut_avlInit(&cfgst_found_treedef, &cfgst->found);
     cfgst->cfg = &config;
+    cfgst->error = 0;
 
     /* configfile == NULL will get you the default configuration */
     if ( configfile ) {
@@ -2602,7 +2720,7 @@ struct cfgst * config_init
             }
             cfgst_push(cfgst, 0, &root_cfgelem, &config);
 
-            ok = (ut_xmlpParse(qx) >= 0);
+            ok = (ut_xmlpParse(qx) >= 0) && !cfgst->error;
             /* Pop until stack empty: error handling is rather brutal */
             assert(!ok || cfgst->path_depth == 1);
             while ( cfgst->path_depth > 0 )
@@ -2619,6 +2737,42 @@ struct cfgst * config_init
         int ok1 = set_defaults(cfgst, cfgst->cfg, 0, root_cfgelems, 0);
         ok = ok && ok1;
     }
+
+
+  /* Compatibility settings of IPv6, TCP -- a bit too complicated for
+     the poor framework */
+  {
+    int ok1 = 1;
+    switch (cfgst->cfg->transport_selector)
+    {
+      case TRANS_DEFAULT:
+        if (cfgst->cfg->compat_tcp_enable == BOOLDEF_TRUE)
+          cfgst->cfg->transport_selector = (config.compat_use_ipv6 == BOOLDEF_TRUE) ? TRANS_TCP6 : TRANS_TCP;
+        else
+          cfgst->cfg->transport_selector = (config.compat_use_ipv6 == BOOLDEF_TRUE) ? TRANS_UDP6 : TRANS_UDP;
+        break;
+      case TRANS_TCP:
+        ok1 = !(cfgst->cfg->compat_tcp_enable == BOOLDEF_FALSE || cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE);
+        break;
+      case TRANS_TCP6:
+        ok1 = !(cfgst->cfg->compat_tcp_enable == BOOLDEF_FALSE || cfgst->cfg->compat_use_ipv6 == BOOLDEF_FALSE);
+        break;
+      case TRANS_UDP:
+        ok1 = !(cfgst->cfg->compat_tcp_enable == BOOLDEF_TRUE || cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE);
+        break;
+      case TRANS_UDP6:
+        ok1 = !(cfgst->cfg->compat_tcp_enable == BOOLDEF_TRUE || cfgst->cfg->compat_use_ipv6 == BOOLDEF_FALSE);
+        break;
+      case TRANS_RAWETH:
+        ok1 = !(cfgst->cfg->compat_tcp_enable == BOOLDEF_TRUE || cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE);
+        break;
+    }
+    if (!ok1)
+      NN_ERROR ("config: invalid combination of Transport, IPv6, TCP\n");
+    ok = ok && ok1;
+    cfgst->cfg->compat_use_ipv6 = (cfgst->cfg->transport_selector == TRANS_UDP6 || cfgst->cfg->transport_selector == TRANS_TCP6) ? BOOLDEF_TRUE : BOOLDEF_FALSE;
+    cfgst->cfg->compat_tcp_enable = (cfgst->cfg->transport_selector == TRANS_TCP || cfgst->cfg->transport_selector == TRANS_TCP6) ? BOOLDEF_TRUE : BOOLDEF_FALSE;
+  }
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
     /* Default channel gets set outside set_defaults -- a bit too
@@ -2761,8 +2915,9 @@ void config_fini(_In_ struct cfgst *cfgst)
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 static char *get_partition_search_pattern(const char *partition, const char *topic)
 {
-    char *pt = os_malloc(strlen(partition) + strlen(topic) + 2);
-    os_sprintf(pt, "%s.%s", partition, topic);
+    size_t sz = strlen(partition) + strlen(topic) + 2;
+    char *pt = os_malloc(sz);
+    snprintf(pt, sz, "%s.%s", partition, topic);
     return pt;
 }
 

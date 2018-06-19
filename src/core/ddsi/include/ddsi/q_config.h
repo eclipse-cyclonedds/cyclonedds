@@ -85,7 +85,7 @@ struct q_security_plugins
   q_securityDecoderSet (*new_decoder) (void);
   c_bool (*free_encoder) (q_securityEncoderSet);
   c_bool (*free_decoder) (q_securityDecoderSet);
-  ssize_t (*send_encoded) (ddsi_tran_conn_t, struct msghdr *, q_securityEncoderSet *, uint32_t, uint32_t);
+  ssize_t (*send_encoded) (ddsi_tran_conn_t, const nn_locator_t *dst, size_t niov, ddsi_iovec_t *iov, q_securityEncoderSet *, uint32_t, uint32_t);
   char * (*cipher_type) (q_cipherType);
   c_bool (*cipher_type_from_string) (const char *, q_cipherType *);
   uint32_t (*header_size) (q_securityEncoderSet, uint32_t);
@@ -196,6 +196,22 @@ struct prune_deleted_ppant {
 #define AMC_TRUE (AMC_SPDP | AMC_ASM)
 #endif
 
+/* FIXME: this should be fully dynamic ... but this is easier for a quick hack */
+enum transport_selector {
+  TRANS_DEFAULT, /* actually UDP, but this is so we can tell what has been set */
+  TRANS_UDP,
+  TRANS_UDP6,
+  TRANS_TCP,
+  TRANS_TCP6,
+  TRANS_RAWETH
+};
+
+enum many_sockets_mode {
+  MSM_NO_UNICAST,
+  MSM_SINGLE_UNICAST,
+  MSM_MANY_UNICAST
+};
+
 struct config
 {
   int valid;
@@ -213,7 +229,9 @@ struct config
   int tracingRelativeTimestamps;
   int tracingAppendToFile;
   unsigned allowMulticast;
-  int useIpv6;
+  enum transport_selector transport_selector;
+  enum boolean_default compat_use_ipv6;
+  enum boolean_default compat_tcp_enable;
   int dontRoute;
   int enableMulticastLoopback;
   int domainId;
@@ -259,14 +277,14 @@ struct config
   uint32_t fragment_size;
 
   int publish_uc_locators; /* Publish discovery unicast locators */
+  int enable_uc_locators; /* If false, don't even try to create a unicast socket */
 
   /* TCP transport configuration */
-
-  int tcp_enable;
   int tcp_nodelay;
   int tcp_port;
   int64_t tcp_read_timeout;
   int64_t tcp_write_timeout;
+  int tcp_use_peeraddr_for_unicast;
 
 #ifdef DDSI_INCLUDE_SSL
 
@@ -357,7 +375,7 @@ struct config
   /* compability options */
   enum nn_standards_conformance standards_conformance;
   int explicitly_publish_qos_set_to_default;
-  int many_sockets_mode;
+  enum many_sockets_mode many_sockets_mode;
   int arrival_of_data_asserts_pp_and_ep_liveliness;
   int acknack_numbits_emptyset;
   int respond_to_rti_init_zero_ack_with_invalid_heartbeat;

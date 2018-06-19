@@ -34,6 +34,8 @@ else()
   add_library(ddsc "")
 endif()
 
+add_definitions(-DDDSI_INCLUDE_NETWORK_PARTITIONS -DDDSI_INCLUDE_SSM)
+
 include(ddsi/CMakeLists.txt)
 include(ddsc/CMakeLists.txt)
 include(security/CMakeLists.txt)

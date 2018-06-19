@@ -1661,30 +1661,28 @@ static c_bool q_securityDecodeInPlace
 static os_ssize_t q_security_sendmsg
 (
   ddsi_tran_conn_t conn,
-  struct msghdr *message,
+  const nn_locator_t *dst,
+  size_t niov, ddsi_iovec_t *iov,
   q_securityEncoderSet *codec,
   os_uint32 encoderId,
   os_uint32 flags
 )
 {
   char stbuf[2048], *buf;
-  os_uint32 sz, data_size;
-  os_ssize_t ret = ERR_UNSPECIFIED;
-  PT_InfoContainer_t * securityHeader = (PT_InfoContainer_t*) message->msg_iov[1].iov_base;
+  size_t sz, data_size;
+  uint32_t sz32, data_size32;
+  ssize_t ret = ERR_UNSPECIFIED;
+  PT_InfoContainer_t * securityHeader;
   unsigned i;
 
-#if SYSDEPS_MSGHDR_ACCRIGHTS
-  assert (message->msg_accrightslen == 0);
-#else
-  assert (message->msg_controllen == 0);
-#endif
-  assert (message->msg_iovlen > 2);
+  assert (niov > 2);
+  securityHeader = iov[1].iov_base;
   /* first determine the size of the message, then select the
      on-stack buffer or allocate one on the heap ... */
   sz = q_securityEncoderSetHeaderSize (*codec); /* reserve appropriate headersize */
-  for (i = 2; i < (unsigned) message->msg_iovlen; i++)
+  for (i = 2; i < niov; i++)
   {
-    sz += (os_uint32) message->msg_iov[i].iov_len;
+    sz += iov[i].iov_len;
   }
   if (sz <= sizeof (stbuf))
   {
@@ -1696,23 +1694,26 @@ static os_ssize_t q_security_sendmsg
   }
   /* ... then copy data into buffer */
   data_size = 0;
-  for (i = 2; i < (unsigned) message->msg_iovlen; i++)
+  for (i = 2; i < niov; i++)
   {
-    memcpy (buf + data_size, message->msg_iov[i].iov_base, message->msg_iov[i].iov_len);
-    data_size += (os_uint32) message->msg_iov[i].iov_len;
+    memcpy (buf + data_size, iov[i].iov_base, iov[i].iov_len);
+    data_size += iov[i].iov_len;
   }
   sz = data_size + q_securityEncoderSetHeaderSize (*codec);
+  assert(sz <= UINT32_MAX);
+  sz32 = (uint32_t) sz;
+  data_size32 = (uint32_t) data_size;
 
   /* Encrypt the buf in place with the given encoder */
 
-  if (q_securityEncodeInPlace (*codec, encoderId, buf, sz, &data_size))
+  if (q_securityEncodeInPlace (*codec, encoderId, buf, sz32, &data_size32))
   {
     os_size_t nbytes;
     /* replace encrypted buffer into iov */
 
-    message->msg_iov[2].iov_base = buf;
-    message->msg_iov[2].iov_len = data_size;
-    message->msg_iovlen = 3;
+    iov[2].iov_base = buf;
+    iov[2].iov_len = data_size;
+    niov = 3;
     /* correct size in security header */
     securityHeader->smhdr.octetsToNextHeader = (unsigned short) (data_size + 4);
 
@@ -1720,11 +1721,11 @@ static os_ssize_t q_security_sendmsg
 
     nbytes = message->msg_iov[0].iov_len + message->msg_iov[1].iov_len + message->msg_iov[2].iov_len;
     if (!gv.mute)
-      ret = ddsi_conn_write (conn, message, nbytes, flags);
+      ret = ddsi_conn_write (conn, dst, niov, iov, flags);
     else
     {
       TRACE (("(dropped)"));
-      ret = (os_ssize_t) nbytes;
+      ret = (ssize_t) (iov[0].iov_len + iov[1].iov_len + iov[2].iov_len);
     }
   }
 

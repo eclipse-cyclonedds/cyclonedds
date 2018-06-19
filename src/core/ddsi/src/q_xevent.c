@@ -82,7 +82,7 @@ struct xevent
     struct {
       nn_guid_t pp_guid;
       nn_guid_prefix_t dest_proxypp_guid_prefix; /* only if "directed" */
-      int directed;
+      int directed; /* if 0, undirected; if > 0, number of directed ones to send in reasonably short succession */
     } spdp;
     struct {
       nn_guid_t pp_guid;
@@ -1057,7 +1057,17 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   {
     /* Directed events are used to send SPDP packets to newly
        discovered peers, and used just once. */
-    delete_xevent (ev);
+    if (--ev->u.spdp.directed == 0 || config.spdp_interval < T_SECOND || pp->lease_duration < T_SECOND)
+      delete_xevent (ev);
+    else
+    {
+      nn_mtime_t tnext = add_duration_to_mtime (tnow, T_SECOND);
+      TRACE (("xmit spdp %x:%x:%x:%x to %x:%x:%x:%x (resched %gs)\n",
+              PGUID (pp->e.guid),
+              PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+              (double)(tnext.v - tnow.v) / 1e9));
+      resched_xevent_if_earlier (ev, tnext);
+    }
   }
   else
   {
@@ -1077,6 +1087,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
       intv = ldur - 2 * T_SECOND;
     if (intv > config.spdp_interval)
       intv = config.spdp_interval;
+
     tnext = add_duration_to_mtime (tnow, intv);
     TRACE (("xmit spdp %x:%x:%x:%x to %x:%x:%x:%x (resched %gs)\n",
             PGUID (pp->e.guid),
@@ -1542,7 +1553,7 @@ struct xevent *qxev_spdp (nn_mtime_t tsched, const nn_guid_t *pp_guid, const nn_
   else
   {
     ev->u.spdp.dest_proxypp_guid_prefix = dest_proxypp_guid->prefix;
-    ev->u.spdp.directed = 1;
+    ev->u.spdp.directed = 4;
   }
   qxev_insert (ev);
   os_mutexUnlock (&gv.xevents->lock);

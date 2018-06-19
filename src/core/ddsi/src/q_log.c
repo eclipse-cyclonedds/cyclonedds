@@ -93,7 +93,7 @@ static void nn_vlogb (struct thread_state1 *self, const char *fmt, va_list ap)
   logbuf_t lb;
   if (*fmt == 0)
     return;
-  if (self && self->lb)
+  if (self->lb)
     lb = self->lb;
   else
   {

@@ -70,14 +70,12 @@ void nn_log_addrset (logcat_t tf, const char *prefix, const struct addrset *as);
    trylock B fails */
 int addrset_eq_onesidederr (const struct addrset *a, const struct addrset *b);
 
-int is_mcaddr (const nn_locator_t *loc);
 int is_unspec_locator (const nn_locator_t *loc);
 void set_unspec_locator (nn_locator_t *loc);
 
 int add_addresses_to_addrset (struct addrset *as, const char *addrs, int port_mode, const char *msgtag, int req_mc);
 
 #ifdef DDSI_INCLUDE_SSM
-int is_ssm_mcaddr (const nn_locator_t *loc);
 int addrset_contains_ssm (const struct addrset *as);
 int addrset_any_ssm (const struct addrset *as, nn_locator_t *dst);
 int addrset_any_non_ssm_mc (const struct addrset *as, nn_locator_t *dst);
