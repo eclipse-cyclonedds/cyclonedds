@@ -1,0 +1,745 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xl="http://www.w3.org/1999/xlink" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="3.5 3.62656 552.188 773.3154" width="552.188" height="773.3154">
+  <defs>
+    <filter id="Shadow" filterUnits="userSpaceOnUse" x="3.5" y="3.62656">
+      <feGaussianBlur in="SourceAlpha" result="blur" stdDeviation="1.308"/>
+      <feOffset in="blur" result="offset" dx="0" dy="2"/>
+      <feFlood flood-color="black" flood-opacity=".5" result="flood"/>
+      <feComposite in="flood" in2="offset" operator="in"/>
+    </filter>
+    <radialGradient cx="0" cy="0" r="1" id="Gradient" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="white"/>
+      <stop offset="1" stop-color="#b9b9b9"/>
+    </radialGradient>
+    <radialGradient id="Obj_Gradient" xl:href="#Gradient" gradientTransform="translate(40.56155 234.29126) scale(43.81581)"/>
+    <radialGradient id="Obj_Gradient_2" xl:href="#Gradient" gradientTransform="translate(515.99976 234.29025) scale(43.81581)"/>
+    <radialGradient id="Obj_Gradient_3" xl:href="#Gradient" gradientTransform="translate(515.9997 148.67415) scale(43.81581)"/>
+    <font-face font-family="Gill Sans" font-size="9" panose-1="2 11 5 2 2 1 4 9 2 3" units-per-em="1000" underline-position="-75.19531" underline-thickness="49.80469" slope="-888.8889" x-height="456.0547" cap-height="686.5234" ascent="909.1797" descent="-229.98047" font-style="italic" font-weight="400">
+      <font-face-src>
+        <font-face-name name="GillSans-Italic"/>
+      </font-face-src>
+    </font-face>
+    <marker orient="auto" overflow="visible" markerUnits="strokeWidth" id="FilledArrow_Marker" stroke-linejoin="miter" stroke-miterlimit="10" viewBox="-1 -2 4 4" markerWidth="4" markerHeight="4" color="#929292">
+      <g>
+        <path d="M 1.44 0 L 0 -.54 L 0 .54 Z" fill="currentColor" stroke="currentColor" stroke-width="1"/>
+      </g>
+    </marker>
+    <font-face font-family="Gill Sans" font-size="9" panose-1="2 11 5 2 2 1 4 2 2 3" units-per-em="1000" underline-position="-75.19531" underline-thickness="49.80469" slope="0" x-height="449.70703" cap-height="687.0117" ascent="917.9688" descent="-230.46875" font-weight="400">
+      <font-face-src>
+        <font-face-name name="GillSans"/>
+      </font-face-src>
+    </font-face>
+    <marker orient="auto" overflow="visible" markerUnits="strokeWidth" id="FilledArrow_Marker_2" stroke-linejoin="miter" stroke-miterlimit="10" viewBox="-1 -4 10 8" markerWidth="10" markerHeight="8" color="#929292">
+      <g>
+        <path d="M 8 0 L 0 -3 L 0 3 Z" fill="currentColor" stroke="currentColor" stroke-width="1"/>
+      </g>
+    </marker>
+    <marker orient="auto" overflow="visible" markerUnits="strokeWidth" id="FilledArrow_Marker_3" stroke-linejoin="miter" stroke-miterlimit="10" viewBox="-1 -4 10 8" markerWidth="10" markerHeight="8" color="black">
+      <g>
+        <path d="M 8 0 L 0 -3 L 0 3 Z" fill="currentColor" stroke="currentColor" stroke-width="1"/>
+      </g>
+    </marker>
+    <radialGradient id="Obj_Gradient_4" xl:href="#Gradient" gradientTransform="translate(40.56155 234.29126) scale(43.81581)"/>
+    <font-face font-family="Gill Sans" font-size="5" panose-1="2 11 5 2 2 1 4 2 2 3" units-per-em="1000" underline-position="-75.19531" underline-thickness="49.80469" slope="0" x-height="449.70703" cap-height="687.0117" ascent="917.9688" descent="-230.46875" font-weight="400">
+      <font-face-src>
+        <font-face-name name="GillSans"/>
+      </font-face-src>
+    </font-face>
+    <marker orient="auto" overflow="visible" markerUnits="strokeWidth" id="FilledArrow_Marker_4" stroke-linejoin="miter" stroke-miterlimit="10" viewBox="-1 -2 4 4" markerWidth="4" markerHeight="4" color="#929292">
+      <g>
+        <path d="M 1.12 0 L 0 -.42 L 0 .42 Z" fill="currentColor" stroke="currentColor" stroke-width="1"/>
+      </g>
+    </marker>
+    <font-face font-family="Gill Sans" font-size="9" panose-1="2 11 9 2 3 0 4 2 2 3" units-per-em="1000" underline-position="-75.19531" underline-thickness="49.80469" slope="0" x-height="501.46484" cap-height="681.6406" ascent="922.8516" descent="-234.86328" font-weight="700">
+      <font-face-src>
+        <font-face-name name="GillSans-Bold"/>
+      </font-face-src>
+    </font-face>
+    <font-face font-family="Gill Sans" font-size="7" panose-1="2 11 5 2 2 1 4 2 2 3" units-per-em="1000" underline-position="-75.19531" underline-thickness="49.80469" slope="0" x-height="449.70703" cap-height="687.0117" ascent="917.9688" descent="-230.46875" font-weight="400">
+      <font-face-src>
+        <font-face-name name="GillSans"/>
+      </font-face-src>
+    </font-face>
+    <radialGradient id="Obj_Gradient_5" xl:href="#Gradient" gradientTransform="translate(515.99976 234.29025) scale(43.81581)"/>
+    <radialGradient id="Obj_Gradient_6" xl:href="#Gradient" gradientTransform="translate(515.9997 148.67415) scale(43.81581)"/>
+    <font-face font-family="Gill Sans" font-size="7" panose-1="2 11 9 2 3 0 4 2 2 3" units-per-em="1000" underline-position="-75.19531" underline-thickness="49.80469" slope="0" x-height="501.46484" cap-height="681.6406" ascent="922.8516" descent="-234.86328" font-weight="700">
+      <font-face-src>
+        <font-face-name name="GillSans-Bold"/>
+      </font-face-src>
+    </font-face>
+  </defs>
+  <metadata> Produced by OmniGraffle 7.7.1 
+    <dc:date>2018-07-04 12:39:41 +0000</dc:date>
+  </metadata>
+  <g id="receive_path" fill-opacity="1" stroke-dasharray="none" stroke="none" stroke-opacity="1" fill="none">
+    <title>receive path</title>
+    <rect fill="white" x="3.5" y="3.62656" width="552.188" height="773.3154"/>
+    <g id="receive_path: Layer 1">
+      <title>Layer 1</title>
+      <g id="Graphic_86_shadow" filter="url(#Shadow)">
+        <rect x="128.343" y="389.813" width="143.495" height="45.3333" fill="white"/>
+        <rect x="128.343" y="389.813" width="143.495" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_84_shadow" filter="url(#Shadow)">
+        <circle cx="40.5615" cy="412.48" r="27.0000431433512" fill="white"/>
+        <circle cx="40.5615" cy="412.48" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_83_shadow" filter="url(#Shadow)">
+        <rect x="117.956" y="211.624" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="117.956" y="211.624" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_82_shadow" filter="url(#Shadow)">
+        <rect x="227.423" y="211.624" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="227.423" y="211.624" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_81_shadow" filter="url(#Shadow)">
+        <rect x="227.423" y="265.96" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="227.423" y="265.96" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_78_shadow" filter="url(#Shadow)">
+        <rect x="227.423" y="331.441" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="227.423" y="331.441" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_76_shadow" filter="url(#Shadow)">
+        <rect x="169.179" y="272.557" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="169.179" y="272.557" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_74_shadow" filter="url(#Shadow)">
+        <rect x="133.343" y="396.479" width="31.3335" height="16" fill="white"/>
+        <rect x="133.343" y="396.479" width="31.3335" height="16" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_73_shadow" filter="url(#Shadow)">
+        <rect x="199.883" y="396.922" width="31.3335" height="16" fill="white"/>
+        <rect x="199.883" y="396.922" width="31.3335" height="16" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_72_shadow" filter="url(#Shadow)">
+        <rect x="233.587" y="396.922" width="31.3335" height="16" fill="white"/>
+        <rect x="233.587" y="396.922" width="31.3335" height="16" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_68_shadow" filter="url(#Shadow)">
+        <rect x="17.8948" y="196.794" width="45.3335" height="74.9945" fill="url(#Obj_Gradient)"/>
+        <rect x="17.8948" y="196.794" width="45.3335" height="74.9945" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_66_shadow" filter="url(#Shadow)">
+        <rect x="389.465" y="212.24" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="389.465" y="212.24" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_62_shadow" filter="url(#Shadow)">
+        <rect x="389.465" y="132.159" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="389.465" y="132.159" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_60_shadow" filter="url(#Shadow)">
+        <rect x="117.956" y="143.599" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="117.956" y="143.599" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_57_shadow" filter="url(#Shadow)">
+        <circle cx="363.231" cy="627.66675" r="27.0000431433512" fill="white"/>
+        <circle cx="363.231" cy="627.66675" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_56_shadow" filter="url(#Shadow)">
+        <circle cx="471.226" cy="627.66675" r="27.0000431433512" fill="white"/>
+        <circle cx="471.226" cy="627.66675" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_55_shadow" filter="url(#Shadow)">
+        <circle cx="471.226" cy="728.3328" r="27.0000431433512" fill="white"/>
+        <circle cx="471.226" cy="728.3328" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_47_shadow" filter="url(#Shadow)">
+        <rect x="169.179" y="143.599" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="169.179" y="143.599" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_44_shadow" filter="url(#Shadow)">
+        <circle cx="275" cy="652.5" r="27.0000431433512" fill="white"/>
+        <circle cx="275" cy="652.5" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_43_shadow" filter="url(#Shadow)">
+        <rect x="158.345" y="629.833" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="158.345" y="629.833" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_41_shadow" filter="url(#Shadow)">
+        <circle cx="217.461" cy="739.5" r="27.0000431433512" fill="white"/>
+        <circle cx="217.461" cy="739.5" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_40_shadow" filter="url(#Shadow)">
+        <rect x="99.3061" y="716.833" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="99.3061" y="716.833" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_38_shadow" filter="url(#Shadow)">
+        <circle cx="40.5615" cy="706.45435" r="27.0000431433512" fill="white"/>
+        <circle cx="40.5615" cy="706.45435" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_37_shadow" filter="url(#Shadow)">
+        <rect x="17.8948" y="601.9997" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="17.8948" y="601.9997" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_27_shadow" filter="url(#Shadow)">
+        <rect x="166.179" y="396.479" width="31.3335" height="16" fill="white"/>
+        <rect x="166.179" y="396.479" width="31.3335" height="16" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_26_shadow" filter="url(#Shadow)">
+        <rect x="117.956" y="325.333" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="117.956" y="325.333" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_19_shadow" filter="url(#Shadow)">
+        <rect x="297.723" y="212.292" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="297.723" y="212.292" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_10_shadow" filter="url(#Shadow)">
+        <rect x="493.333" y="196.793" width="45.3335" height="74.9945" fill="url(#Obj_Gradient_2)"/>
+        <rect x="493.333" y="196.793" width="45.3335" height="74.9945" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_8_shadow" filter="url(#Shadow)">
+        <rect x="493.333" y="111.1769" width="45.3335" height="74.9945" fill="url(#Obj_Gradient_3)"/>
+        <rect x="493.333" y="111.1769" width="45.3335" height="74.9945" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_89">
+        <path d="M 18 593.333 L 74.3333 593.333 C 80.960715 593.333 86.3333 598.7056 86.3333 605.333 L 86.3333 762.442 C 86.3333 769.0694 80.960715 774.442 74.3333 774.442 L 18 774.442 C 11.372583 774.442 6 769.0694 6 762.442 L 6 605.333 C 6 598.7056 11.372583 593.333 18 593.333 Z" stroke="#ebebeb" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="10.0,10.0" stroke-width="5"/>
+        <text transform="translate(11 739.942)" fill="#929292">
+          <tspan font-family="Gill Sans" font-size="9" font-style="italic" font-weight="400" fill="#929292" x="5.894676" y="8">NIY: done by recv </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-style="italic" font-weight="400" fill="#929292" x="7.99746" y="18">and timed-event </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-style="italic" font-weight="400" fill="#929292" x="22.640038" y="28">threads</tspan>
+        </text>
+      </g>
+      <g id="Line_88">
+        <line x1="40.561506" y1="439.98" x2="40.56154" y2="586.7997" marker-end="url(#FilledArrow_Marker)" stroke="#929292" stroke-linecap="butt" stroke-linejoin="round" stroke-width="5"/>
+      </g>
+      <g id="Graphic_87">
+        <path d="M 159.14098 617.4479 L 297.64098 617.4479 C 304.2684 617.4479 309.64098 622.8205 309.64098 629.4479 L 309.64098 675.5517 C 309.64098 682.17915 304.2684 687.5517 297.64098 687.5517 L 159.14098 687.5517 C 152.51356 687.5517 147.14098 682.17915 147.14098 675.5517 L 147.14098 629.4479 C 147.14098 622.8205 152.51356 617.4479 159.14098 617.4479 Z" stroke="#ebebeb" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="10.0,10.0" stroke-width="5"/>
+      </g>
+      <g id="Graphic_86">
+        <rect x="128.343" y="389.813" width="143.495" height="45.3333" fill="white"/>
+        <rect x="128.343" y="389.813" width="143.495" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(133.343 420.6463)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="118.68104" y="8">rbuf</tspan>
+        </text>
+      </g>
+      <g id="Line_85">
+        <path d="M 150.46324 395.98617 C 158.90464 346.66238 169.65168 282.42376 175.79 248 C 180.77737 220.0307 182.7247 211.7302 185.33672 199.12874" marker-end="url(#FilledArrow_Marker_2)" stroke="#929292" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_84">
+        <circle cx="40.5615" cy="412.48" r="27.0000431433512" fill="white"/>
+        <circle cx="40.5615" cy="412.48" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(23.9615 402.48)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="8.810693" y="8">recv</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x=".14907227" y="18">thread(s)</tspan>
+        </text>
+      </g>
+      <g id="Graphic_83">
+        <rect x="117.956" y="211.624" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="117.956" y="211.624" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(122.956 224.29064)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="7.111086" y="8">proxy</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.225588" y="18">writer</tspan>
+        </text>
+      </g>
+      <g id="Graphic_82">
+        <rect x="227.423" y="211.624" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="227.423" y="211.624" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(232.423 219.29064)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="5.6674824" y="8">reader</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.557375" y="18">match</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="2.347414" y="28">(in sync)</tspan>
+        </text>
+      </g>
+      <g id="Graphic_81">
+        <rect x="227.423" y="265.96" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="227.423" y="265.96" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(232.423 268.62664)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="5.6674824" y="8">reader</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.557375" y="18">match</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="5.4938984" y="28">(not in </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="8.28882" y="38">sync)</tspan>
+        </text>
+      </g>
+      <g id="Line_80">
+        <line x1="163.7895" y1="234.29064" x2="217.523" y2="234.29064" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Line_79">
+        <path d="M 198.48438 234.29064 C 204.15235 235.74928 211.71728 232.9382 215.49 238.667 C 219.26274 244.39583 219.13437 260.34122 221.123 268.667 C 222.11576 272.82337 223.1641 276.14625 224.22633 279.25966" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_78">
+        <rect x="227.423" y="331.441" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="227.423" y="331.441" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(229.423 344.10766)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="1.9746113" y="8">secondary </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.391115" y="18">reorder</tspan>
+        </text>
+      </g>
+      <g id="Line_77">
+        <line x1="250.08975" y1="311.2933" x2="250.08975" y2="321.041" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_76">
+        <rect x="169.179" y="272.557" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="169.179" y="272.557" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(174.179 285.22366)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="3.37134" y="8">primary </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="3.3911152" y="18">reorder</tspan>
+        </text>
+      </g>
+      <g id="Line_75">
+        <line x1="159.99908" y1="257.34002" x2="166.09895" y2="264.5962" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_74">
+        <rect x="133.343" y="396.479" width="31.3335" height="16" fill="white"/>
+        <rect x="133.343" y="396.479" width="31.3335" height="16" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(138.343 399.479)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="1.7634297" y="8">rmsg</tspan>
+        </text>
+      </g>
+      <g id="Graphic_73">
+        <rect x="199.883" y="396.922" width="31.3335" height="16" fill="white"/>
+        <rect x="199.883" y="396.922" width="31.3335" height="16" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(204.883 399.922)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="1.319582" y="8">rdata</tspan>
+        </text>
+      </g>
+      <g id="Graphic_72">
+        <rect x="233.587" y="396.922" width="31.3335" height="16" fill="white"/>
+        <rect x="233.587" y="396.922" width="31.3335" height="16" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(238.587 399.922)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="1.319582" y="8">rdata</tspan>
+        </text>
+      </g>
+      <g id="Line_71">
+        <line x1="196.84924" y1="318.37903" x2="211.6245" y2="386.7566" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Line_70">
+        <line x1="249.70862" y1="377.27424" x2="249.55645" y2="386.5234" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Line_69">
+        <line x1="158.05976" y1="211.22514" x2="168.63969" y2="197.23012" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_68">
+        <rect x="17.8948" y="196.794" width="45.3335" height="74.9945" fill="url(#Obj_Gradient_4)"/>
+        <rect x="17.8948" y="196.794" width="45.3335" height="74.9945" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(22.8948 219.29126)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="10.215822" y="8">guid</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="9.514895" y="18">hash </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="8.855715" y="28">table</tspan>
+        </text>
+      </g>
+      <g id="Line_67">
+        <line x1="63.7283" y1="234.29112" x2="107.556" y2="234.29085" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_66">
+        <rect x="389.465" y="212.24" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="389.465" y="212.24" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(394.465 229.90666)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="5.6674824" y="8">reader</tspan>
+        </text>
+      </g>
+      <g id="Graphic_65">
+        <rect x="6" y="276.631" width="98.4011" height="94" fill="#ebebeb"/>
+        <text transform="translate(8 278.631)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="8">guid hash table maps all  </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="18">(local &amp; proxy) endpoint </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="28">and participant guids to </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="38">the corresponding object. </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="48">Pointers to such objects </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="58">must be derived from the </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="68">guid hash, and may not be </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="78">retained across thread </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="88">liveliness state updates.</tspan>
+        </text>
+      </g>
+      <g id="Graphic_64">
+        <rect x="177.16536" y="23.140272" width="188.277" height="114" fill="#ebebeb"/>
+        <text transform="translate(179.16536 25.140272)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="8">discovery maintains the set of readers that match </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="18">the proxy writer and an array of reader pointers </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="28">that the data from this proxy writer must be </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="38">delivered to.  This should be versioned, so </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="48">partition changes are (can be) precise. Currently </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="58">there is no versioning.</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="78">implementation: possibly by using the sequence </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="88">number of the writer data as a version number: </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="98">that allows for a very simple, parallel, garbage </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="108">collector for these sets.</tspan>
+        </text>
+      </g>
+      <g id="Graphic_63">
+        <rect x="289.334" y="298.8" width="262.712" height="64" fill="#ebebeb"/>
+        <text transform="translate(291.334 300.8)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="8">proxy-writer – reader matches switch between not-in-sync and in-</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="18">sync; the general idea being that the in-sync ones are only relevant to </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="28">heartbeat processing and need not be touched by Data(Frag) </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="38">processing. (&quot;Too new&quot; data always gets stored in the primary reorder </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="48">admin, whereas the not-in-sync ones are generally interested in old </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="58">data and track old data in the secondary reorder admins.)</tspan>
+        </text>
+      </g>
+      <g id="Graphic_62">
+        <rect x="389.465" y="132.159" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="389.465" y="132.159" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(394.465 149.82565)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="8.196535" y="8">QOS</tspan>
+        </text>
+      </g>
+      <g id="Line_61">
+        <line x1="412.13174" y1="211.74" x2="412.13174" y2="187.8923" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_60">
+        <rect x="117.956" y="143.599" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="117.956" y="143.599" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(122.956 161.26565)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="8.196535" y="8">QOS</tspan>
+        </text>
+      </g>
+      <g id="Line_59">
+        <line x1="140.62276" y1="211.124" x2="140.62276" y2="199.3323" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_58">
+        <rect x="18.017" y="128.304" width="87.4385" height="64" fill="#ebebeb"/>
+        <text transform="translate(20.017 130.304)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="8">&quot;reader&quot; is a DDSI </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="18">reader, which is a </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="28">proxy for a local </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="38">DCPS reader; &quot;proxy </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="48">writer&quot; is a proxy for </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="58">a remote DDSI writer.</tspan>
+        </text>
+      </g>
+      <g id="Graphic_57">
+        <circle cx="363.231" cy="627.66675" r="27.0000431433512" fill="white"/>
+        <circle cx="363.231" cy="627.66675" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(346.631 622.66675)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="8.118555" y="8">INIT</tspan>
+        </text>
+      </g>
+      <g id="Graphic_56">
+        <circle cx="471.226" cy="627.66675" r="27.0000431433512" fill="white"/>
+        <circle cx="471.226" cy="627.66675" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(454.626 617.66675)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x=".17324219" y="8">NOT-IN-</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="5.1214844" y="18">SYNC</tspan>
+        </text>
+      </g>
+      <g id="Graphic_55">
+        <circle cx="471.226" cy="728.3328" r="27.0000431433512" fill="white"/>
+        <circle cx="471.226" cy="728.3328" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(454.626 718.3328)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="10.506982" y="8">IN-</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="5.1214844" y="18">SYNC</tspan>
+        </text>
+      </g>
+      <g id="Line_54">
+        <line x1="390.731" y1="627.66674" x2="433.826" y2="627.66674" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Line_53">
+        <line x1="383.34723" y1="646.4178" x2="443.868" y2="702.8314" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Line_52">
+        <path d="M 457.8112 704.31875 C 453.28325 696.2132 444.09224 688.7 444.226 679.9998 C 444.3198 673.8994 448.9981 667.21296 453.43886 660.5573" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Line_51">
+        <path d="M 485.2489 651.33034 C 491.24066 661.4415 502.9707 672.6146 503.226 681.66675 C 503.39934 687.8123 498.2839 692.9829 493.2658 698.1709" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_50">
+        <text transform="translate(387.77764 653.1469) rotate(42.98837)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="8">not trans. local conn.</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="18">or proxy writer has</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="28">no old msgs</tspan>
+        </text>
+      </g>
+      <g id="Graphic_49">
+        <text transform="translate(446.56 670.5217)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="1.4763203" y="8">rejects </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.033449" y="18">data</tspan>
+        </text>
+      </g>
+      <g id="Graphic_48">
+        <text transform="translate(546.7041 632.1206) rotate(90)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.994972" y="8">next-to-be-delivered</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="4.4505385" y="18">for this conn. matches</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.994972" y="28">next-to-be-delivered</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="14.452492" y="38">for proxy-writer</tspan>
+        </text>
+      </g>
+      <g id="Graphic_47">
+        <rect x="169.179" y="143.599" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="169.179" y="143.599" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(171.179 151.26565)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="10.851564" y="8">rdary</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-style="italic" font-weight="400" fill="#929292" x="4.064211" y="18">versioning </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-style="italic" font-weight="400" fill="#929292" x="14.283693" y="28">NIY</tspan>
+        </text>
+      </g>
+      <g id="Line_46">
+        <path d="M 215.0125 166.11568 L 343.0565 165.28677 L 392.7294 205.67865" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_45">
+        <rect x="404.3573" y="619.66674" width="19" height="16" fill="white"/>
+        <text transform="translate(406.3573 622.66674)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x=".47094727" y="8">else</tspan>
+        </text>
+      </g>
+      <g id="Graphic_44">
+        <circle cx="275" cy="652.5" r="27.0000431433512" fill="white"/>
+        <circle cx="275" cy="652.5" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(258.4 636.5)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="2.2540527" y="8">delivery </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="4.789697" y="18">thread</tspan>
+          <tspan font-family="Gill Sans" font-size="5" font-weight="400" fill="black" x="1.435205" y="25">store in reader </tspan>
+          <tspan font-family="Gill Sans" font-size="5" font-weight="400" fill="black" x="3.0697266" y="31">history cache</tspan>
+        </text>
+      </g>
+      <g id="Graphic_43">
+        <rect x="158.345" y="629.833" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="158.345" y="629.833" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(163.345 632.49966)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="4.959963" y="8">regular </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="10.033449" y="18">data </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="3.3208027" y="28">delivery </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.605715" y="38">queue</tspan>
+        </text>
+      </g>
+      <g id="Line_42">
+        <line x1="204.1785" y1="652.49974" x2="221.79999" y2="652.4998" marker-end="url(#FilledArrow_Marker_4)" stroke="#929292" stroke-linecap="butt" stroke-linejoin="round" stroke-width="10"/>
+      </g>
+      <g id="Graphic_41">
+        <circle cx="217.461" cy="739.5" r="27.0000431433512" fill="white"/>
+        <circle cx="217.461" cy="739.5" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(197.861 724.5)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="7.12832" y="8">builtin/</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="2.2547852" y="18">discovery </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.058252" y="28">threads</tspan>
+        </text>
+      </g>
+      <g id="Graphic_40">
+        <rect x="99.3061" y="716.833" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="99.3061" y="716.833" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(101.3061 719.4997)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="8.19507" y="8">builtin/</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="3.321535" y="18">discovery </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.320803" y="28">delivery </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="7.87427" y="38">queues</tspan>
+        </text>
+      </g>
+      <g id="Line_39">
+        <line x1="145.1396" y1="739.4997" x2="164.26099" y2="739.4998" marker-end="url(#FilledArrow_Marker_4)" stroke="#929292" stroke-linecap="butt" stroke-linejoin="round" stroke-width="10"/>
+      </g>
+      <g id="Graphic_38">
+        <circle cx="40.5615" cy="706.45435" r="27.0000431433512" fill="white"/>
+        <circle cx="40.5615" cy="706.45435" r="27.0000431433512" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(20.9615 686.45435)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="9.490381" y="8">ack &amp; </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="2.079004" y="18">heartbeat </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="10.6" y="28">proc. </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="7.789697" y="38">thread</tspan>
+        </text>
+      </g>
+      <g id="Graphic_37">
+        <rect x="17.8948" y="601.9997" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="17.8948" y="601.9997" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(19.8948 614.66634)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="3.145754" y="8">heartbeat </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="9.605715" y="18">queue</tspan>
+        </text>
+      </g>
+      <g id="Line_36">
+        <line x1="40.561536" y1="647.833" x2="40.561536" y2="664.2543" marker-end="url(#FilledArrow_Marker)" stroke="#929292" stroke-linecap="butt" stroke-linejoin="round" stroke-width="5"/>
+      </g>
+      <g id="Line_35">
+        <line x1="181.08965" y1="629.333" x2="181.78388" y2="422.87894" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_34">
+        <rect x="251.7911" y="710.442" width="144.33299" height="64" fill="#ebebeb"/>
+        <text transform="translate(253.7911 712.442)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="8">delivery queues are filled by recv </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="18">thread (by shuffling rdata references </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="28">around); heartbeats and acks are a </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="38">special case: they have no associated </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="48">rdata and are processed as quickly as </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="58">possible</tspan>
+        </text>
+      </g>
+      <g id="Line_33">
+        <path d="M 336.71404 593.2246 C 335.14285 598.14925 336.4519 601.6301 332 608 C 327.5481 614.3699 313.3227 627.629 310 631.448 C 306.6773 635.267 311.37456 631.0934 312.06173 630.91616" stroke="#ebebeb" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"/>
+      </g>
+      <g id="Graphic_32">
+        <rect x="289.334" y="381.146" width="266.354" height="54" fill="#515151"/>
+        <text transform="translate(291.334 383.146)" fill="#cbcbcb">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="#cbcbcb" x="0" y="8">Major differences from current implementation:</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="#cbcbcb" x="0" y="18">- proxy writer stores all its reader matches currently in a single tree, </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="#cbcbcb" x="0" y="28">not discriminating between sync/not-in-sync</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="#cbcbcb" x="0" y="38">- all recv processing currently in a single thread</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="#cbcbcb" x="0" y="48">- no QoS changes yet, no versioning of QoS&apos;s</tspan>
+        </text>
+      </g>
+      <g id="Graphic_31">
+        <rect x="494.688" y="3.62656" width="61" height="16" fill="#515151"/>
+        <text transform="translate(496.688 6.62656)" fill="#cbcbcb">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="700" fill="#cbcbcb" x=".8818359" y="8">receive path</tspan>
+        </text>
+      </g>
+      <g id="Group_28">
+        <g id="Graphic_30">
+          <rect x="297.723" y="529.2246" width="98.4011" height="64" fill="#ebebeb"/>
+          <text transform="translate(299.723 531.2246)" fill="black">
+            <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="8">potentially many delivery </tspan>
+            <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="18">threads: if a writer always </tspan>
+            <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="28">delivers via the same </tspan>
+            <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="38">queue, all expected </tspan>
+            <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="48">ordering properties are </tspan>
+            <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="58">retained </tspan>
+          </text>
+        </g>
+        <g id="Graphic_29">
+          <rect x="396.124" y="529.2246" width="98.4011" height="64" fill="#ebebeb"/>
+          <text transform="translate(398.124 531.2246)" fill="black">
+            <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="8">given that the kernel can </tspan>
+            <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="18">only do groupWrite, and </tspan>
+            <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="28">not deliver data to an </tspan>
+            <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="38">individual reader, might as </tspan>
+            <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="48">well design to that </tspan>
+            <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="58">behaviour</tspan>
+          </text>
+        </g>
+      </g>
+      <g id="Graphic_27">
+        <rect x="166.179" y="396.479" width="31.3335" height="16" fill="white"/>
+        <rect x="166.179" y="396.479" width="31.3335" height="16" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(171.179 399.479)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="1.319582" y="8">rdata</tspan>
+        </text>
+      </g>
+      <g id="Graphic_26">
+        <rect x="117.956" y="325.333" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="117.956" y="325.333" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(122.956 342.99966)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.469484" y="8">defrag</tspan>
+        </text>
+      </g>
+      <g id="Line_25">
+        <line x1="140.62276" y1="257.4573" x2="140.62276" y2="314.933" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Line_24">
+        <line x1="157.4614" y1="371.0702" x2="169.87544" y2="388.07857" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Line_23">
+        <path d="M 75.66665 412.47993 C 79.22184 421.8747 80.29301 405.9726 86.3333 440.667 C 92.37359 475.36136 99.98693 587.1401 111.912 620.667 C 117.52051 636.4351 124.63402 640.49495 132.19055 641.10625" marker-end="url(#FilledArrow_Marker_4)" stroke="#929292" stroke-linecap="butt" stroke-linejoin="round" stroke-width="10"/>
+      </g>
+      <g id="Line_22">
+        <path d="M 106.66374 599.9968 C 108.4129 610.5231 111.96686 616.9879 111.91174 631.57895 C 111.85662 646.17 105.8176 673.4242 106.333 687.552 C 106.39159 689.1579 106.51156 690.6469 106.68244 692.0388" marker-end="url(#FilledArrow_Marker_4)" stroke="#929292" stroke-linecap="butt" stroke-linejoin="round" stroke-width="10"/>
+      </g>
+      <g id="Line_21">
+        <path d="M 122.31713 716.3331 L 123.667 625.5 L 181.1809 602.19506" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_20">
+        <rect x="7.39499" y="448.185" width="278.001" height="134" fill="#eaeaea" fill-opacity=".89"/>
+        <text transform="translate(9.39499 450.185)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="8">the receive thread requests the O/S kernel to dump the data in large rbufs, </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="18">each containing any number of messages; the decoding appends some </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="28">information, both for Data and DataFrag sub-messages (the </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-style="italic" font-weight="400" fill="black" y="28">rdata</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" y="28"> </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="38">elements), and for the embedded QoS lists.</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="58">Each </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-style="italic" font-weight="400" fill="black" y="58">rdata</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" y="58"> contains all that is necessary to track it in defragmenting and </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="68">reordering admins, and to link it into the delivery queue. This ensures no </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="78">(heap) memory allocations are necessary to track an arbitrary number of </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="88">messages/fragments in the normal case.</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="108">The deserializer operates from the </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-style="italic" font-weight="400" fill="black" y="108">rdata</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" y="108"> elements, it gets a little bit nasty </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="118">when a primitive is split over mulitple fragments, but so be it.  </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-style="italic" font-weight="400" fill="#929292" y="118">NIY: currently </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-style="italic" font-weight="400" fill="#929292" x="0" y="128">malloc + memcpy</tspan>
+        </text>
+      </g>
+      <g id="Graphic_19">
+        <rect x="297.723" y="212.292" width="45.3335" height="45.3333" fill="white"/>
+        <rect x="297.723" y="212.292" width="45.3335" height="45.3333" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(302.723 214.95866)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="7.111086" y="8">proxy </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.225588" y="18">writer</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.557375" y="28">match</tspan>
+        </text>
+      </g>
+      <g id="Graphic_18">
+        <rect x="194.88436" y="229.13047" width="11" height="11" fill="white"/>
+        <text transform="translate(195.88436 230.63047)" fill="black">
+          <tspan font-family="Gill Sans" font-size="7" font-weight="400" fill="black" x=".3112793" y="6">set</tspan>
+        </text>
+      </g>
+      <g id="Line_17">
+        <path d="M 272.7565 234.29064 L 284.6565 234.29064 L 285.396 234.29064 L 285.396 258 L 285.396 275.333 L 404.357 275.333 L 412.13175 275.333 L 412.13175 269.4733 L 412.13175 267.4733" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.0,2.0" stroke-width="1"/>
+      </g>
+      <g id="Line_16">
+        <path d="M 272.7565 288.62664 L 279.7565 288.62664 L 285.396 288.62664 L 285.396 280.9991 L 285.396 273.9991" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.0,2.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_15">
+        <rect x="389.82868" y="269.833" width="14" height="11" fill="white"/>
+        <text transform="translate(390.82868 271.333)" fill="black">
+          <tspan font-family="Gill Sans" font-size="7" font-weight="400" fill="black" x=".20483398" y="6">guid</tspan>
+        </text>
+      </g>
+      <g id="Line_14">
+        <line x1="389.465" y1="234.90666" x2="352.9565" y2="234.94757" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_13">
+        <text transform="translate(366.55264 227.55205) rotate(-.064198986)" fill="black">
+          <tspan font-family="Gill Sans" font-size="7" font-weight="400" fill="black" x=".3112793" y="6">set</tspan>
+        </text>
+      </g>
+      <g id="Line_12">
+        <path d="M 320.38974 212.292 L 320.38974 200.392 L 203.678 200.392 L 203.678 214 L 203.678 226.8435 L 175.66546 226.8435 L 173.66546 226.8435" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.0,2.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_11">
+        <rect x="183.48657" y="221.3435" width="14" height="11" fill="white"/>
+        <text transform="translate(184.48657 222.8435)" fill="black">
+          <tspan font-family="Gill Sans" font-size="7" font-weight="400" fill="black" x=".20483398" y="6">guid</tspan>
+        </text>
+      </g>
+      <g id="Graphic_10">
+        <rect x="493.333" y="196.793" width="45.3335" height="74.9945" fill="url(#Obj_Gradient_5)"/>
+        <rect x="493.333" y="196.793" width="45.3335" height="74.9945" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(498.333 219.29025)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="10.215822" y="8">guid</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="9.514895" y="18">hash</tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="8.855715" y="28">table</tspan>
+        </text>
+      </g>
+      <g id="Line_9">
+        <path d="M 492.833 234.4661 L 480.933 234.4661 L 446.6985 234.90666 L 444.6985 234.90666" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_8">
+        <rect x="493.333" y="111.1769" width="45.3335" height="74.9945" fill="url(#Obj_Gradient_6)"/>
+        <rect x="493.333" y="111.1769" width="45.3335" height="74.9945" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(498.333 133.67415)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="6.750734" y="8">DCPS </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="5.6674824" y="18">reader </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="7.306643" y="28">entity</tspan>
+        </text>
+      </g>
+      <g id="Line_7">
+        <line x1="492.96545" y1="169.92073" x2="442.07555" y2="216.86104" marker-end="url(#FilledArrow_Marker_3)" stroke="black" stroke-linecap="butt" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_6">
+        <rect x="456.96417" y="35.27039" width="81.70233" height="54" fill="#ebebeb"/>
+        <text transform="translate(458.96417 37.27039)" fill="black">
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="8">DCPS reader entity </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="18">owns the DDSI </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="28">reader and stores a </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="38">pointer and the </tspan>
+          <tspan font-family="Gill Sans" font-size="9" font-weight="400" fill="black" x="0" y="48">GUID</tspan>
+        </text>
+      </g>
+      <g id="Line_5">
+        <line x1="68.06151" y1="412.47995" x2="102.143" y2="412.47987" marker-end="url(#FilledArrow_Marker_4)" stroke="#929292" stroke-linecap="butt" stroke-linejoin="round" stroke-width="10"/>
+      </g>
+      <g id="Graphic_4">
+        <text transform="translate(70.91174 408.4799)" fill="black">
+          <tspan font-family="Gill Sans" font-size="7" font-weight="700" fill="black" x=".10498047" y="6">rmsg, rdata</tspan>
+        </text>
+      </g>
+      <g id="Graphic_3">
+        <text transform="translate(380.9639 193.7023) rotate(40)" fill="black">
+          <tspan font-family="Gill Sans" font-size="7" font-weight="400" fill="black" x=".3112793" y="6">set</tspan>
+        </text>
+      </g>
+    </g>
+  </g>
+</svg>
