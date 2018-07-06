@@ -100,7 +100,7 @@ struct serdata_base
   serstate_t st;        /* back pointer to (opaque) serstate so RTPS impl only needs serdata */
   struct serdata_msginfo msginfo;
   int hash_valid;       /* whether hash is valid or must be computed from key/data */
-  uint32_t hash;       /* cached serdata hash, valid only if hash_valid != 0 */
+  uint32_t hash;        /* cached serdata hash, valid only if hash_valid != 0 */
   dds_key_hash_t keyhash;
   bool bswap;           /* Whether state is native endian or requires swapping */
 };

@@ -25,8 +25,6 @@ struct rhc;
 struct nn_xqos;
 struct serdata;
 struct tkmap_instance;
-struct tkmap;
-struct nn_rsample_info;
 struct proxy_writer_info;
 
 struct rhc * dds_rhc_new (dds_reader * reader, const struct sertopic * topic);
@@ -37,7 +35,7 @@ uint32_t dds_rhc_lock_samples (struct rhc * rhc);
 
 DDS_EXPORT bool dds_rhc_store
 (
-  struct rhc * __restrict rhc, const struct nn_rsample_info * __restrict sampleinfo,
+  struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info,
   struct serdata * __restrict sample, struct tkmap_instance * __restrict tk
 );
 void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info);

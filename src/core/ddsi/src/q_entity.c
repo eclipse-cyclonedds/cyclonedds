@@ -1379,12 +1379,8 @@ static void reader_drop_connection (const struct nn_guid *rd_guid, const struct 
     if (rd->rhc)
     {
       struct proxy_writer_info pwr_info;
-      pwr_info.guid = pwr->e.guid;
-      pwr_info.ownership_strength = pwr->c.xqos->ownership_strength.value;
-      pwr_info.auto_dispose = pwr->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
-      pwr_info.iid = pwr->e.iid;
-
-      (ddsi_plugin.rhc_unregister_wr_fn) (rd->rhc, &pwr_info);
+      make_proxy_writer_info(&pwr_info, &pwr->e, pwr->c.xqos);
+      (ddsi_plugin.rhc_plugin.rhc_unregister_wr_fn) (rd->rhc, &pwr_info);
     }
     if (rd->status_cb)
     {
@@ -1418,12 +1414,8 @@ static void reader_drop_local_connection (const struct nn_guid *rd_guid, const s
     {
       /* FIXME: */
       struct proxy_writer_info pwr_info;
-      pwr_info.guid = wr->e.guid;
-      pwr_info.ownership_strength = wr->xqos->ownership_strength.value;
-      pwr_info.auto_dispose = wr->xqos->writer_data_lifecycle.autodispose_unregistered_instances;
-      pwr_info.iid = wr->e.iid;
-
-      (ddsi_plugin.rhc_unregister_wr_fn) (rd->rhc, &pwr_info);
+      make_proxy_writer_info(&pwr_info, &wr->e, wr->xqos);
+      (ddsi_plugin.rhc_plugin.rhc_unregister_wr_fn) (rd->rhc, &pwr_info);
     }
     if (rd->status_cb)
     {
@@ -1605,26 +1597,6 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
   }
 }
 
-static void
-init_sampleinfo(
-        _Out_ struct nn_rsample_info *sampleinfo,
-        _In_  struct writer *wr,
-        _In_  int64_t seq,
-        _In_  serdata_t payload)
-{
-    memset(sampleinfo, 0, sizeof(*sampleinfo));
-    sampleinfo->bswap = 0;
-    sampleinfo->complex_qos = 0;
-    sampleinfo->hashash = 0;
-    sampleinfo->seq = seq;
-    sampleinfo->reception_timestamp = payload->v.msginfo.timestamp;
-    sampleinfo->statusinfo = payload->v.msginfo.statusinfo;
-    sampleinfo->pwr_info.iid = 1;
-    sampleinfo->pwr_info.auto_dispose = 0;
-    sampleinfo->pwr_info.guid = wr->e.guid;
-    sampleinfo->pwr_info.ownership_strength = 0;
-}
-
 static void writer_add_local_connection (struct writer *wr, struct reader *rd)
 {
   struct wr_rd_match *m = os_malloc (sizeof (*m));
@@ -1652,11 +1624,11 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
     struct whc_node *n;
     while ((n = whc_next_node(wr->whc, seq)) != NULL)
     {
-      struct nn_rsample_info sampleinfo;
+      struct proxy_writer_info pwr_info;
       serdata_t payload = n->serdata;
-      struct tkmap_instance *tk = (ddsi_plugin.rhc_lookup_fn) (payload);
-      init_sampleinfo(&sampleinfo, wr, n->seq, payload);
-      (void)(ddsi_plugin.rhc_store_fn) (rd->rhc, &sampleinfo, payload, tk);
+      struct tkmap_instance *tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (payload);
+      make_proxy_writer_info(&pwr_info, &wr->e, wr->xqos);
+      (void)(ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk);
       seq = n->seq;
     }
   }
@@ -3272,7 +3244,7 @@ static struct reader * new_reader_guid
   /* set rhc qos for reader */
   if (rhc)
   {
-    (ddsi_plugin.rhc_set_qos_fn) (rd->rhc, rd->xqos);
+    (ddsi_plugin.rhc_plugin.rhc_set_qos_fn) (rd->rhc, rd->xqos);
   }
   assert (rd->xqos->present & QP_LIVELINESS);
   if (rd->xqos->liveliness.kind != NN_AUTOMATIC_LIVELINESS_QOS ||
@@ -3402,7 +3374,7 @@ static void gc_delete_reader (struct gcreq *gcreq)
 #endif
   if (rd->rhc)
   {
-    (ddsi_plugin.rhc_free_fn) (rd->rhc);
+    (ddsi_plugin.rhc_plugin.rhc_free_fn) (rd->rhc);
   }
   if (rd->status_cb)
   {
@@ -3431,7 +3403,7 @@ int delete_reader (const struct nn_guid *guid)
   }
   if (rd->rhc)
   {
-    (ddsi_plugin.rhc_fini_fn) (rd->rhc);
+    (ddsi_plugin.rhc_plugin.rhc_fini_fn) (rd->rhc);
   }
   nn_log (LC_DISCOVERY, "delete_reader_guid(guid %x:%x:%x:%x) ...\n", PGUID (*guid));
   ephash_remove_reader_guid (rd);

@@ -1576,6 +1576,14 @@ static uint32_t dds_stream_get_keyhash
   return (uint32_t) (dst - origin);
 }
 
+#ifndef NDEBUG
+static bool keyhash_is_reset(const dds_key_hash_t *kh)
+{
+  static const char nullhash[sizeof(kh->m_hash)];
+  return kh->m_flags == 0 && memcmp(kh->m_hash, nullhash, sizeof(nullhash)) == 0;
+}
+#endif
+
 void dds_stream_read_keyhash
 (
   dds_stream_t * is,
@@ -1586,14 +1594,19 @@ void dds_stream_read_keyhash
 {
   char * dst;
 
-  assert (desc->m_keys);
+  assert (keyhash_is_reset(kh));
+
+  if (desc->m_nkeys == 0)
+  {
+    kh->m_flags = DDS_KEY_SET | DDS_KEY_HASH_SET | DDS_KEY_IS_HASH;
+    return;
+  }
 
   /* Select key buffer to use */
 
   kh->m_flags = DDS_KEY_SET | DDS_KEY_HASH_SET;
   if (desc->m_flagset & DDS_TOPIC_FIXED_KEY)
   {
-    memset (kh->m_hash, 0, 16);
     kh->m_flags |= DDS_KEY_IS_HASH;
     dst = kh->m_hash;
   }
@@ -1616,7 +1629,6 @@ void dds_stream_read_keyhash
   else
   {
     /* Hash is md5 of key */
-
     dds_key_md5 (kh);
   }
 }

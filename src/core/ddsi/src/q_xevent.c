@@ -1131,9 +1131,9 @@ static void write_pmd_message (struct nn_xpack *xp, struct participant *pp, unsi
      encoding. */
   serdata->hdr.identifier = PLATFORM_IS_LITTLE_ENDIAN ? CDR_LE : CDR_BE;
 
-  tk = (ddsi_plugin.rhc_lookup_fn) (serdata);
+  tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (serdata);
   write_sample_nogc (xp, wr, serdata, tk);
-  (ddsi_plugin.rhc_unref_fn) (tk);
+  (ddsi_plugin.rhc_plugin.rhc_unref_fn) (tk);
 #undef PMD_DATA_LENGTH
 }
 

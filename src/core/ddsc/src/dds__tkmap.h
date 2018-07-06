@@ -38,7 +38,6 @@ void dds_tkmap_instance_ref (_In_ struct tkmap_instance *tk);
 uint64_t dds_tkmap_lookup (_In_ struct tkmap *tkmap, _In_ const struct serdata *serdata);
 _Check_return_ bool dds_tkmap_get_key (_In_ struct tkmap * map, _In_ uint64_t iid, _Out_ void * sample);
 _Check_return_ struct tkmap_instance * dds_tkmap_find(
-        _In_opt_ const struct dds_topic * topic,
         _In_ struct serdata * sd,
         _In_ const bool rd,
         _In_ const bool create);

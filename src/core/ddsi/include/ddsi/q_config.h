@@ -22,6 +22,7 @@
 #include "ddsi/q_xqos.h"
 #include "ddsi/ddsi_tran.h"
 #include "ddsi/q_feature_check.h"
+#include "ddsi/ddsi_rhc_plugin.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -404,35 +405,13 @@ struct config
   q__schedPrioClass watchdog_sched_priority_class;
 };
 
-struct rhc;
-struct nn_xqos;
-struct tkmap_instance;
-struct nn_rsample_info;
-struct serdata;
-struct sertopic;
-struct proxy_writer;
-struct proxy_writer_info;
-
 struct ddsi_plugin
 {
   int (*init_fn) (void);
   void (*fini_fn) (void);
 
-
   /* Read cache */
-
-  void (*rhc_free_fn) (struct rhc *rhc);
-  void (*rhc_fini_fn) (struct rhc *rhc);
-  bool (*rhc_store_fn)
-    (struct rhc * __restrict rhc, const struct nn_rsample_info * __restrict sampleinfo,
-     struct serdata * __restrict sample, struct tkmap_instance * __restrict tk);
-  void (*rhc_unregister_wr_fn)
-    (struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info);
-  void (*rhc_relinquish_ownership_fn)
-    (struct rhc * __restrict rhc, const uint64_t wr_iid);
-  void (*rhc_set_qos_fn) (struct rhc * rhc, const struct nn_xqos * qos);
-  struct tkmap_instance * (*rhc_lookup_fn) (struct serdata *serdata);
-  void (*rhc_unref_fn) (struct tkmap_instance *tk);
+  struct ddsi_rhc_plugin rhc_plugin;
 
   /* IID generator */
 
