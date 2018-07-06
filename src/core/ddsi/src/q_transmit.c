@@ -1138,9 +1138,9 @@ int write_sample_gc_notk (struct nn_xpack *xp, struct writer *wr, serdata_t serd
 {
   struct tkmap_instance *tk;
   int res;
-  tk = (ddsi_plugin.rhc_lookup_fn) (serdata);
+  tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (serdata);
   res = write_sample_eot (xp, wr, NULL, serdata, tk, 0, 1);
-  (ddsi_plugin.rhc_unref_fn) (tk);
+  (ddsi_plugin.rhc_plugin.rhc_unref_fn) (tk);
   return res;
 }
 
@@ -1148,9 +1148,9 @@ int write_sample_nogc_notk (struct nn_xpack *xp, struct writer *wr, serdata_t se
 {
   struct tkmap_instance *tk;
   int res;
-  tk = (ddsi_plugin.rhc_lookup_fn) (serdata);
+  tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (serdata);
   res = write_sample_eot (xp, wr, NULL, serdata, tk, 0, 0);
-  (ddsi_plugin.rhc_unref_fn) (tk);
+  (ddsi_plugin.rhc_plugin.rhc_unref_fn) (tk);
   return res;
 }
 

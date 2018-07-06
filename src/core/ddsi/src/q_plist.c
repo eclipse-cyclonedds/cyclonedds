@@ -3123,16 +3123,6 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
     {
       case PID_PAD:
         break;
-      case PID_KEYHASH:
-      if (length < sizeof (dest->keyhash))
-      {
-        TRACE (("plist(vendor %u.%u): quickscan(PID_KEYHASH): buffer too small\n",
-          src->vendorid.id[0], src->vendorid.id[1]));
-        return NULL;
-      }
-      memcpy (&dest->keyhash, pl, sizeof (dest->keyhash));
-      dest->hashash = 1;
-        break;
       case PID_STATUSINFO:
         if (length < 4)
         {

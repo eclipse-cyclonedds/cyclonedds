@@ -17,6 +17,14 @@
 #include "ddsi/q_bswap.h"
 #include "ddsi/q_md5.h"
 
+#ifndef NDEBUG
+static bool keyhash_is_reset(const dds_key_hash_t *kh)
+{
+  static const char nullhash[sizeof(kh->m_hash)];
+  return kh->m_flags == 0 && memcmp(kh->m_hash, nullhash, sizeof(nullhash)) == 0;
+}
+#endif
+
 void dds_key_md5 (dds_key_hash_t * kh)
 {
   md5_state_t md5st;
@@ -43,8 +51,14 @@ void dds_key_gen
   uint32_t len = 0;
   char * dst;
 
-  assert (desc->m_nkeys);
-  assert (kh->m_hash[0] == 0 && kh->m_hash[15] == 0);
+  assert(keyhash_is_reset(kh));
+
+  if (desc->m_nkeys == 0)
+  {
+    kh->m_flags = DDS_KEY_SET | DDS_KEY_HASH_SET | DDS_KEY_IS_HASH;
+    kh->m_key_len = sizeof (kh->m_hash);
+    return;
+  }
 
   kh->m_flags = DDS_KEY_SET | DDS_KEY_HASH_SET;
 

@@ -71,7 +71,7 @@ dds_instance_find(
         _In_ const bool create)
 {
     serdata_t sd = serialize_key (gv.serpool, topic->m_stopic, data);
-    struct tkmap_instance * inst = dds_tkmap_find (topic, sd, false, create);
+    struct tkmap_instance * inst = dds_tkmap_find (sd, false, create);
     ddsi_serdata_unref (sd);
     return inst;
 }

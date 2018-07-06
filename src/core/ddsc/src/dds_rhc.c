@@ -210,6 +210,13 @@ static int lwregs_delete (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
   return ut_ehhRemove (rt->regs, &dummy);
 }
 
+void lwregs_dump (struct lwregs *rt)
+{
+  struct ut_ehhIter it;
+  for (struct lwreg *r = ut_ehhIterFirst(rt->regs, &it); r; r = ut_ehhIterNext(&it))
+    printf("iid=%"PRIu64" wr_iid=%"PRIu64"\n", r->iid, r->wr_iid);
+}
+
 /*************************
  ******     RHC     ******
  *************************/
@@ -219,7 +226,6 @@ struct rhc_sample
   struct serdata *sample;      /* serialised data (either just_key or real data) */
   struct rhc_sample *next;     /* next sample in time ordering, or oldest sample if most recent */
   uint64_t wr_iid;             /* unique id for writer of this sample (perhaps better in serdata) */
-  nn_wctime_t rtstamp;         /* reception timestamp (not really required; perhaps better in serdata) */
   bool isread;                 /* READ or NOT_READ sample state */
   unsigned disposed_gen;       /* snapshot of instance counter at time of insertion */
   unsigned no_writers_gen;     /* __/ */
@@ -228,15 +234,16 @@ struct rhc_sample
 struct rhc_instance
 {
   uint64_t iid;                /* unique instance id, key of table, also serves as instance handle */
-  uint64_t wr_iid;             /* unique of id of writer of latest sample or 0 */
+  uint64_t wr_iid;             /* unique of id of writer of latest sample or 0; if wrcount = 0 it is the wr_iid that caused  */
   struct rhc_sample *latest;   /* latest received sample; circular list old->new; null if no sample */
   unsigned nvsamples;          /* number of "valid" samples in instance */
   unsigned nvread;             /* number of READ "valid" samples in instance (0 <= nvread <= nvsamples) */
   uint32_t wrcount;            /* number of live writers */
-  bool isnew;                  /* NEW or NOT_NEW view state */
-  bool a_sample_free;          /* whether or not a_sample is in use */
-  bool isdisposed;             /* DISPOSED or NOT_DISPOSED (if not disposed, wrcount determines ALIVE/NOT_ALIVE_NO_WRITERS) */
-  bool has_changed;            /* To track changes in an instance - if number of samples are added or data is overwritten */
+  unsigned isnew : 1;          /* NEW or NOT_NEW view state */
+  unsigned a_sample_free : 1;  /* whether or not a_sample is in use */
+  unsigned isdisposed : 1;     /* DISPOSED or NOT_DISPOSED (if not disposed, wrcount determines ALIVE/NOT_ALIVE_NO_WRITERS) */
+  unsigned has_changed : 1;    /* To track changes in an instance - if number of samples are added or data is overwritten */
+  unsigned wr_iid_islive : 1;  /* whether wr_iid is of a live writer */
   unsigned inv_exists : 1;     /* whether or not state change occurred since last sample (i.e., must return invalid sample) */
   unsigned inv_isread : 1;     /* whether or not that state change has been read before */
   unsigned disposed_gen;       /* bloody generation counters - worst invention of mankind */
@@ -312,9 +319,7 @@ struct trigger_info
 #define INST_HAS_UNREAD(i) (INST_NREAD (i) < INST_NSAMPLES (i))
 
 static unsigned qmask_of_inst (const struct rhc_instance *inst);
-static bool update_conditions_locked
-(struct rhc *rhc, const struct trigger_info *pre, const struct trigger_info *post, const struct serdata *sample);
-static void signal_conditions (struct rhc *rhc);
+static bool update_conditions_locked (struct rhc *rhc, const struct trigger_info *pre, const struct trigger_info *post, const struct serdata *sample);
 #ifndef NDEBUG
 static int rhc_check_counts_locked (struct rhc *rhc, bool check_conds);
 #endif
@@ -415,7 +420,7 @@ static struct rhc_sample * alloc_sample (struct rhc_instance *inst)
 {
   if (inst->a_sample_free)
   {
-    inst->a_sample_free = false;
+    inst->a_sample_free = 0;
 #if USE_VALGRIND
     VALGRIND_MAKE_MEM_UNDEFINED (&inst->a_sample, sizeof (inst->a_sample));
 #endif
@@ -439,7 +444,7 @@ static void free_sample (struct rhc_instance *inst, struct rhc_sample *s)
 #if USE_VALGRIND
     VALGRIND_MAKE_MEM_NOACCESS (&inst->a_sample, sizeof (inst->a_sample));
 #endif
-    inst->a_sample_free = true;
+    inst->a_sample_free = 1;
   }
   else
   {
@@ -556,7 +561,7 @@ static void get_trigger_info (struct trigger_info *info, struct rhc_instance *in
   /* reset instance has_changed before adding/overwriting a sample */
   if (pre)
   {
-    inst->has_changed = false;
+    inst->has_changed = 0;
   }
   info->has_changed = inst->has_changed;
 }
@@ -571,13 +576,12 @@ static bool add_sample
 (
   struct rhc * rhc,
   struct rhc_instance * inst,
-  const struct nn_rsample_info * sampleinfo,
+  const struct proxy_writer_info * pwr_info,
   const struct serdata * sample,
   status_cb_data_t * cb_data
 )
 {
   struct rhc_sample *s;
-  assert (sample->v.bswap == sampleinfo->bswap);
 
   /* Adding a sample always clears an invalid sample (because the information
      contained in the invalid sample - the instance state and the generation
@@ -604,7 +608,7 @@ static bool add_sample
     }
 
     /* set a flag to indicate instance has changed to notify data_available since the sample is overwritten */
-    inst->has_changed = true;
+    inst->has_changed = 1;
   }
   else
   {
@@ -648,8 +652,7 @@ static bool add_sample
   }
 
   s->sample = ddsi_serdata_ref ((serdata_t) sample); /* drops const (tho refcount does change) */
-  s->wr_iid = sampleinfo->pwr_info.iid;
-  s->rtstamp = sampleinfo->reception_timestamp;
+  s->wr_iid = pwr_info->iid;
   s->isread = false;
   s->disposed_gen = inst->disposed_gen;
   s->no_writers_gen = inst->no_writers_gen;
@@ -670,16 +673,15 @@ static bool content_filter_accepts (const struct sertopic * topic, const struct 
   return ret;
 }
 
-static int inst_accepts_sample_by_writer_guid (const struct rhc_instance *inst, const struct nn_rsample_info *sampleinfo)
+static int inst_accepts_sample_by_writer_guid (const struct rhc_instance *inst, const struct proxy_writer_info *pwr_info)
 {
-  return inst->wr_iid == sampleinfo->pwr_info.iid ||
-    memcmp (&sampleinfo->pwr_info.guid, &inst->wr_guid, sizeof (inst->wr_guid)) < 0;
+  return (inst->wr_iid_islive && inst->wr_iid == pwr_info->iid) || memcmp (&pwr_info->guid, &inst->wr_guid, sizeof (inst->wr_guid)) < 0;
 }
 
 static int inst_accepts_sample
 (
   const struct rhc *rhc, const struct rhc_instance *inst,
-  const struct nn_rsample_info *sampleinfo,
+  const struct proxy_writer_info *pwr_info,
   const struct serdata *sample, const bool has_data
 )
 {
@@ -693,7 +695,7 @@ static int inst_accepts_sample
     {
       return 0;
     }
-    else if (inst_accepts_sample_by_writer_guid (inst, sampleinfo))
+    else if (inst_accepts_sample_by_writer_guid (inst, pwr_info))
     {
       /* ok */
     }
@@ -702,14 +704,14 @@ static int inst_accepts_sample
       return 0;
     }
   }
-  if (rhc->exclusive_ownership && inst->wr_iid != sampleinfo->pwr_info.iid)
+  if (rhc->exclusive_ownership && inst->wr_iid_islive && inst->wr_iid != pwr_info->iid)
   {
-    uint32_t strength = sampleinfo->pwr_info.ownership_strength;
+    uint32_t strength = pwr_info->ownership_strength;
     if (strength > inst->strength) {
       /* ok */
     } else if (strength < inst->strength) {
       return 0;
-    } else if (inst_accepts_sample_by_writer_guid (inst, sampleinfo)) {
+    } else if (inst_accepts_sample_by_writer_guid (inst, pwr_info)) {
       /* ok */
     } else {
       return 0;
@@ -725,14 +727,16 @@ static int inst_accepts_sample
 static void update_inst
 (
   const struct rhc *rhc, struct rhc_instance *inst,
-  const struct proxy_writer_info * __restrict pwr_info, nn_wctime_t tstamp)
+  const struct proxy_writer_info * __restrict pwr_info, bool wr_iid_valid, nn_wctime_t tstamp)
 {
-  if (inst->wr_iid != pwr_info->iid)
-  {
-    inst->wr_guid = pwr_info->guid;
-  }
   inst->tstamp = tstamp;
-  inst->wr_iid = (inst->wrcount == 0) ? 0 : pwr_info->iid;
+  inst->wr_iid_islive = wr_iid_valid;
+  if (wr_iid_valid)
+  {
+    inst->wr_iid = pwr_info->iid;
+    if (inst->wr_iid != pwr_info->iid)
+      inst->wr_guid = pwr_info->guid;
+  }
   inst->strength = pwr_info->ownership_strength;
 }
 
@@ -752,6 +756,8 @@ static void drop_instance_noupdate_no_writers (struct rhc *rhc, struct rhc_insta
 
 static void dds_rhc_register (struct rhc *rhc, struct rhc_instance *inst, uint64_t wr_iid, bool iid_update)
 {
+  const uint64_t inst_wr_iid = inst->wr_iid_islive ? inst->wr_iid : 0;
+
   TRACE ((" register:"));
 
   /* Is an implicitly registering dispose semantically equivalent to
@@ -762,7 +768,7 @@ static void dds_rhc_register (struct rhc *rhc, struct rhc_instance *inst, uint64
 
      Is a dispose a sample?  I don't think so (though a write dispose
      is).  Is a pure register a sample?  Don't think so either. */
-  if (inst->wr_iid == wr_iid)
+  if (inst_wr_iid == wr_iid)
   {
     /* Same writer as last time => we know it is registered already.
        This is the fast path -- we don't have to check anything
@@ -775,12 +781,13 @@ static void dds_rhc_register (struct rhc *rhc, struct rhc_instance *inst, uint64
   if (inst->wrcount == 0)
   {
     /* Currently no writers at all */
-    assert (inst->wr_iid == 0);
+    assert (!inst->wr_iid_islive);
 
     /* to avoid wr_iid update when register is called for sample rejected */
     if (iid_update)
     {
       inst->wr_iid = wr_iid;
+      inst->wr_iid_islive = 1;
     }
     inst->wrcount++;
     inst->no_writers_gen++;
@@ -789,7 +796,7 @@ static void dds_rhc_register (struct rhc *rhc, struct rhc_instance *inst, uint64
     if (!INST_IS_EMPTY (inst) && !inst->isdisposed)
       rhc->n_not_alive_no_writers--;
   }
-  else if (inst->wr_iid == 0 && inst->wrcount == 1)
+  else if (inst_wr_iid == 0 && inst->wrcount == 1)
   {
     /* Writers exist, but wr_iid is null => someone unregistered.
 
@@ -822,6 +829,7 @@ static void dds_rhc_register (struct rhc *rhc, struct rhc_instance *inst, uint64
     if (iid_update)
     {
       inst->wr_iid = wr_iid;
+      inst->wr_iid_islive = 1;
     }
   }
   else
@@ -833,7 +841,7 @@ static void dds_rhc_register (struct rhc *rhc, struct rhc_instance *inst, uint64
       /* 2nd writer => properly register the one we knew about */
       TRACE (("rescue1"));
       int x;
-      x = lwregs_add (&rhc->registrations, inst->iid, inst->wr_iid);
+      x = lwregs_add (&rhc->registrations, inst->iid, inst_wr_iid);
       assert (x);
       (void) x;
     }
@@ -855,6 +863,7 @@ static void dds_rhc_register (struct rhc *rhc, struct rhc_instance *inst, uint64
     if (iid_update)
     {
       inst->wr_iid = wr_iid;
+      inst->wr_iid_islive = 1;
     }
   }
 }
@@ -863,10 +872,7 @@ static void account_for_empty_to_nonempty_transition (struct rhc *rhc, struct rh
 {
   assert (INST_NSAMPLES (inst) == 1);
   add_inst_to_nonempty_list (rhc, inst);
-  if (inst->isnew)
-  {
-    rhc->n_new++;
-  }
+  rhc->n_new += inst->isnew;
   if (inst->isdisposed)
     rhc->n_not_alive_disposed++;
   else if (inst->wrcount == 0)
@@ -881,8 +887,9 @@ static int rhc_unregister_isreg_w_sideeffects (struct rhc *rhc, const struct rhc
     TRACE (("unknown(#0)"));
     return 0;
   }
-  else if (inst->wrcount == 1 && inst->wr_iid != 0)
+  else if (inst->wrcount == 1 && inst->wr_iid_islive)
   {
+    assert(inst->wr_iid != 0);
     if (wr_iid != inst->wr_iid)
     {
       TRACE (("unknown(cache)"));
@@ -907,7 +914,7 @@ static int rhc_unregister_isreg_w_sideeffects (struct rhc *rhc, const struct rhc
        afterward there will be 1 writer, it will be cached, and its
        registration record must go (invariant that with wrcount = 1
        and wr_iid != 0 the wr_iid is not in "registrations") */
-    if (inst->wrcount == 2 && inst->wr_iid != wr_iid)
+    if (inst->wrcount == 2 && inst->wr_iid_islive && inst->wr_iid != wr_iid)
     {
       TRACE ((",delreg(remain)"));
       lwregs_delete (&rhc->registrations, inst->iid, inst->wr_iid);
@@ -923,56 +930,62 @@ static int rhc_unregister_updateinst
 {
   assert (inst->wrcount > 0);
 
-  if (pwr_info->iid == inst->wr_iid)
-  {
-    /* Next register will have to do real work before we have a cached
-       wr_iid again */
-    inst->wr_iid = 0;
-
-    /* Reset the ownership strength to allow samples to be read from other
-     writer(s) */
-    inst->strength = 0;
-    TRACE ((",clearcache"));
-  }
-
   if (--inst->wrcount > 0)
-    return 0;
-  else if (!INST_IS_EMPTY (inst))
   {
-    /* Instance still has content - do not drop until application
+    if (inst->wr_iid_islive && pwr_info->iid == inst->wr_iid)
+    {
+      /* Next register will have to do real work before we have a cached
+       wr_iid again */
+      inst->wr_iid_islive = 0;
+
+      /* Reset the ownership strength to allow samples to be read from other
+       writer(s) */
+      inst->strength = 0;
+      TRACE ((",clearcache"));
+    }
+    return 0;
+  }
+  else
+  {
+    if (!INST_IS_EMPTY (inst))
+    {
+      /* Instance still has content - do not drop until application
        takes the last sample.  Set the invalid sample if the latest
        sample has been read already, so that the application can
        read the change to not-alive.  (If the latest sample is still
        unread, we don't bother, even though it means the application
        won't see the timestamp for the unregister event. It shouldn't
        care.) */
-    if (inst->latest == NULL /*|| inst->latest->isread*/)
+      if (inst->latest == NULL || inst->latest->isread)
+      {
+        inst_set_invsample (rhc, inst);
+        update_inst (rhc, inst, pwr_info, false, tstamp);
+      }
+      if (!inst->isdisposed)
+      {
+        rhc->n_not_alive_no_writers++;
+      }
+      inst->wr_iid_islive = 0;
+      return 0;
+    }
+    else if (inst->isdisposed)
     {
+      /* No content left, no registrations left, so drop */
+      TRACE ((",#0,empty,disposed,drop"));
+      drop_instance_noupdate_no_writers (rhc, inst);
+      return 1;
+    }
+    else
+    {
+      /* Add invalid samples for transition to no-writers */
+      TRACE ((",#0,empty,nowriters"));
+      assert (INST_IS_EMPTY (inst));
       inst_set_invsample (rhc, inst);
-      update_inst (rhc, inst, pwr_info, tstamp);
+      update_inst (rhc, inst, pwr_info, false, tstamp);
+      account_for_empty_to_nonempty_transition (rhc, inst);
+      inst->wr_iid_islive = 0;
+      return 0;
     }
-    if (!inst->isdisposed)
-    {
-      rhc->n_not_alive_no_writers++;
-    }
-    return 0;
-  }
-  else if (inst->isdisposed)
-  {
-    /* No content left, no registrations left, so drop */
-    TRACE ((",#0,empty,disposed,drop"));
-    drop_instance_noupdate_no_writers (rhc, inst);
-    return 1;
-  }
-  else
-  {
-    /* Add invalid samples for transition to no-writers */
-    TRACE ((",#0,empty,nowriters"));
-    assert (INST_IS_EMPTY (inst));
-    inst_set_invsample (rhc, inst);
-    update_inst (rhc, inst, pwr_info, tstamp);
-    account_for_empty_to_nonempty_transition (rhc, inst);
-    return 0;
   }
 }
 
@@ -1004,7 +1017,7 @@ static void dds_rhc_unregister
 static struct rhc_instance * alloc_new_instance
 (
   const struct rhc *rhc,
-  const struct nn_rsample_info *sampleinfo,
+  const struct proxy_writer_info *pwr_info,
   struct serdata *serdata,
   struct tkmap_instance *tk
 )
@@ -1017,11 +1030,15 @@ static struct rhc_instance * alloc_new_instance
   inst->tk = tk;
   inst->wrcount = (serdata->v.msginfo.statusinfo & NN_STATUSINFO_UNREGISTER) ? 0 : 1;
   inst->isdisposed = (serdata->v.msginfo.statusinfo & NN_STATUSINFO_DISPOSE);
-  inst->isnew = true;
+  inst->isnew = 1;
   inst->inv_exists = 0;
   inst->inv_isread = 0; /* don't care */
-  inst->a_sample_free = true;
-  update_inst (rhc, inst, &sampleinfo->pwr_info, serdata->v.msginfo.timestamp);
+  inst->a_sample_free = 1;
+  inst->wr_iid = pwr_info->iid;
+  inst->wr_iid_islive = (inst->wrcount != 0);
+  inst->wr_guid = pwr_info->guid;
+  inst->tstamp = serdata->v.msginfo.timestamp;
+  inst->strength = pwr_info->ownership_strength;
   return inst;
 }
 
@@ -1029,7 +1046,7 @@ static rhc_store_result_t rhc_store_new_instance
 (
   struct trigger_info * post,
   struct rhc *rhc,
-  const struct nn_rsample_info *sampleinfo,
+  const struct proxy_writer_info *pwr_info,
   struct serdata *sample,
   struct tkmap_instance *tk,
   const bool has_data,
@@ -1069,10 +1086,10 @@ static rhc_store_result_t rhc_store_new_instance
     return RHC_REJECTED;
   }
 
-  inst = alloc_new_instance (rhc, sampleinfo, sample, tk);
+  inst = alloc_new_instance (rhc, pwr_info, sample, tk);
   if (has_data)
   {
-    if (!add_sample (rhc, inst, sampleinfo, sample, cb_data))
+    if (!add_sample (rhc, inst, pwr_info, sample, cb_data))
     {
       free_instance (inst, rhc);
       return RHC_REJECTED;
@@ -1102,11 +1119,11 @@ static rhc_store_result_t rhc_store_new_instance
 
 bool dds_rhc_store
 (
-  struct rhc * __restrict rhc, const struct nn_rsample_info * __restrict sampleinfo,
+  struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info,
   struct serdata * __restrict sample, struct tkmap_instance * __restrict tk
 )
 {
-  const uint64_t wr_iid = sampleinfo->pwr_info.iid;
+  const uint64_t wr_iid = pwr_info->iid;
   const unsigned statusinfo = sample->v.msginfo.statusinfo;
   const bool has_data = (sample->v.st->kind == STK_DATA);
   const int is_dispose = (statusinfo & NN_STATUSINFO_DISPOSE) != 0;
@@ -1150,7 +1167,7 @@ bool dds_rhc_store
     else
     {
       TRACE ((" new instance"));
-      stored = rhc_store_new_instance (&post, rhc, sampleinfo, sample, tk, has_data, &cb_data);
+      stored = rhc_store_new_instance (&post, rhc, pwr_info, sample, tk, has_data, &cb_data);
       if (stored != RHC_STORED)
       {
         goto error_or_nochange;
@@ -1158,7 +1175,7 @@ bool dds_rhc_store
       init_trigger_info_nonmatch (&pre);
     }
   }
-  else if (!inst_accepts_sample (rhc, inst, sampleinfo, sample, has_data))
+  else if (!inst_accepts_sample (rhc, inst, pwr_info, sample, has_data))
   {
     /* Rejected samples (and disposes) should still register the writer;
        unregister *must* be processed, or we have a memory leak. (We
@@ -1175,7 +1192,7 @@ bool dds_rhc_store
     }
     if (statusinfo & NN_STATUSINFO_UNREGISTER)
     {
-      dds_rhc_unregister (&post, rhc, inst, &sampleinfo->pwr_info, sample->v.msginfo.timestamp);
+      dds_rhc_unregister (&post, rhc, inst, pwr_info, sample->v.msginfo.timestamp);
     }
     else
     {
@@ -1194,6 +1211,8 @@ bool dds_rhc_store
   else
   {
     get_trigger_info (&pre, inst, true);
+
+    TRACE ((" wc %"PRIu32, inst->wrcount));
 
     if (has_data || is_dispose)
     {
@@ -1222,7 +1241,7 @@ bool dds_rhc_store
       if (has_data && not_alive)
       {
         TRACE ((" notalive->alive"));
-        inst->isnew = true;
+        inst->isnew = 1;
       }
 
       /* Desired effect on instance state and disposed_gen:
@@ -1235,12 +1254,12 @@ bool dds_rhc_store
       if (has_data && inst->isdisposed)
       {
         TRACE ((" disposed->notdisposed"));
-        inst->isdisposed = false;
+        inst->isdisposed = 0;
         inst->disposed_gen++;
       }
       if (is_dispose)
       {
-        inst->isdisposed = true;
+        inst->isdisposed = 1;
         inst_became_disposed = !old_isdisposed;
         TRACE ((" dispose(%d)", inst_became_disposed));
       }
@@ -1250,7 +1269,7 @@ bool dds_rhc_store
       if (has_data)
       {
         TRACE ((" add_sample"));
-        if (! add_sample (rhc, inst, sampleinfo, sample, &cb_data))
+        if (! add_sample (rhc, inst, pwr_info, sample, &cb_data))
         {
           TRACE (("(reject)"));
           stored = RHC_REJECTED;
@@ -1262,7 +1281,7 @@ bool dds_rhc_store
       if (inst_became_disposed && (inst->latest == NULL ))
         inst_set_invsample (rhc, inst);
 
-      update_inst (rhc, inst, &sampleinfo->pwr_info, sample->v.msginfo.timestamp);
+      update_inst (rhc, inst, pwr_info, true, sample->v.msginfo.timestamp);
 
       /* Can only add samples => only need to give special treatment
          to instances that were empty before.  It is, however, not
@@ -1280,7 +1299,7 @@ bool dds_rhc_store
         else
         {
           rhc->n_not_alive_disposed += inst->isdisposed - old_isdisposed;
-          rhc->n_new += (inst->isnew ? 1 : 0) - (old_isnew ? 1 : 0);
+          rhc->n_new += inst->isnew - old_isnew;
         }
       }
       else
@@ -1306,7 +1325,7 @@ bool dds_rhc_store
          mean an application reading "x" after the write and reading it
          again after the unregister will see a change in the
          no_writers_generation field? */
-      dds_rhc_unregister (&post, rhc, inst, &sampleinfo->pwr_info, sample->v.msginfo.timestamp);
+      dds_rhc_unregister (&post, rhc, inst, pwr_info, sample->v.msginfo.timestamp);
     }
     else
     {
@@ -1390,7 +1409,7 @@ void dds_rhc_unregister_wr
   TRACE (("rhc_unregister_wr_iid(%"PRIx64",%d:\n", wr_iid, auto_dispose));
   for (inst = ut_hhIterFirst (rhc->instances, &iter); inst; inst = ut_hhIterNext (&iter))
   {
-    if (inst->wr_iid == wr_iid || lwregs_contains (&rhc->registrations, inst->iid, wr_iid))
+    if ((inst->wr_iid_islive && inst->wr_iid == wr_iid) || lwregs_contains (&rhc->registrations, inst->iid, wr_iid))
     {
       struct trigger_info pre, post;
       get_trigger_info (&pre, inst, true);
@@ -1400,7 +1419,7 @@ void dds_rhc_unregister_wr
       assert (inst->wrcount > 0);
       if (auto_dispose && !inst->isdisposed)
       {
-        inst->isdisposed = true;
+        inst->isdisposed = 1;
 
         /* Set invalid sample for disposing it (unregister may also set it for unregistering) */
         if (inst->latest)
@@ -1412,7 +1431,6 @@ void dds_rhc_unregister_wr
         {
           const bool was_empty = INST_IS_EMPTY (inst);
           inst_set_invsample (rhc, inst);
-          update_inst (rhc, inst, pwr_info, inst->tstamp);
           if (was_empty)
             account_for_empty_to_nonempty_transition (rhc, inst);
           else
@@ -1452,9 +1470,9 @@ void dds_rhc_relinquish_ownership (struct rhc * __restrict rhc, const uint64_t w
   TRACE (("rhc_relinquish_ownership(%"PRIx64":\n", wr_iid));
   for (inst = ut_hhIterFirst (rhc->instances, &iter); inst; inst = ut_hhIterNext (&iter))
   {
-    if (inst->wr_iid == wr_iid)
+    if (inst->wr_iid_islive && inst->wr_iid == wr_iid)
     {
-      inst->wr_iid = 0;
+      inst->wr_iid_islive = 0;
     }
   }
   TRACE ((")\n"));
@@ -1564,7 +1582,6 @@ static void set_sample_info (dds_sample_info_t *si, const struct rhc_instance *i
   si->absolute_generation_rank = (inst->disposed_gen + inst->no_writers_gen) - (sample->disposed_gen + sample->no_writers_gen);
   si->valid_data = true;
   si->source_timestamp = sample->sample->v.msginfo.timestamp.v;
-  si->reception_timestamp = sample->rtstamp.v;
 }
 
 static void set_sample_info_invsample (dds_sample_info_t *si, const struct rhc_instance *inst)
@@ -1581,9 +1598,6 @@ static void set_sample_info_invsample (dds_sample_info_t *si, const struct rhc_i
   si->absolute_generation_rank = 0;
   si->valid_data = false;
   si->source_timestamp = inst->tstamp.v;
-
-  /* Not storing the underlying "sample" so the reception time is lost */
-  si->reception_timestamp = 0;
 }
 
 static void patch_generations (dds_sample_info_t *si, uint32_t last_of_inst)
@@ -1692,7 +1706,7 @@ static int dds_rhc_read_w_qminv
 
           if (n > n_first && inst->isnew)
           {
-            inst->isnew = false;
+            inst->isnew = 0;
             rhc->n_new--;
           }
           if (nread != INST_NREAD (inst))
@@ -1834,7 +1848,7 @@ static int dds_rhc_take_w_qminv
 
           if (n > n_first && inst->isnew)
           {
-            inst->isnew = false;
+            inst->isnew = 0;
             rhc->n_new--;
           }
 
@@ -1983,7 +1997,7 @@ static int dds_rhc_takecdr_w_qminv
 
           if (n > n_first && inst->isnew)
           {
-            inst->isnew = false;
+            inst->isnew = 0;
             rhc->n_new--;
           }
 

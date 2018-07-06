@@ -22,11 +22,7 @@ serdata_t serialize (serstatepool_t pool, const struct sertopic * tp, const void
 {
   dds_stream_t os;
   serstate_t st = ddsi_serstate_new (pool, tp);
-
-  if (tp->nkeys)
-  {
-    dds_key_gen ((const dds_topic_descriptor_t*) tp->type, &st->data->v.keyhash, (char*) sample);
-  }
+  dds_key_gen ((const dds_topic_descriptor_t*) tp->type, &st->data->v.keyhash, (char*) sample);
   dds_stream_from_serstate (&os, st);
   dds_stream_write_sample (&os, sample, tp);
   dds_stream_add_to_serstate (&os, st);
@@ -65,21 +61,14 @@ int serdata_cmp (const struct serdata *a, const struct serdata *b)
 serdata_t serialize_key (serstatepool_t pool, const struct sertopic * tp, const void * sample)
 {
   serdata_t sd;
-  if (tp->nkeys)
-  {
-    dds_stream_t os;
-    dds_topic_descriptor_t * desc = (dds_topic_descriptor_t*) tp->type;
-    serstate_t st = ddsi_serstate_new (pool, tp);
-    dds_key_gen (desc, &st->data->v.keyhash, (char*) sample);
-    dds_stream_from_serstate (&os, st);
-    dds_stream_write_key (&os, sample, desc);
-    dds_stream_add_to_serstate (&os, st);
-    sd = st->data;
-  }
-  else
-  {
-    sd = serialize (pool, tp, sample);
-  }
+  dds_stream_t os;
+  dds_topic_descriptor_t * desc = (dds_topic_descriptor_t*) tp->type;
+  serstate_t st = ddsi_serstate_new (pool, tp);
+  dds_key_gen (desc, &st->data->v.keyhash, (char*) sample);
+  dds_stream_from_serstate (&os, st);
+  dds_stream_write_key (&os, sample, desc);
+  dds_stream_add_to_serstate (&os, st);
+  sd = st->data;
   sd->v.st->kind = STK_KEY;
   return sd;
 }

@@ -173,8 +173,6 @@ typedef struct dds_sample_info
   uint32_t generation_rank;
   /** difference in generations between the sample and most recent sample of the same instance when read/take was called */
   uint32_t absolute_generation_rank;
-  /** timestamp of a data instance when it is added to a read queue */
-  dds_time_t reception_timestamp; /* NOTE: VLite extension */
 }
 dds_sample_info_t;
 

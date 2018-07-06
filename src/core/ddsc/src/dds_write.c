@@ -16,6 +16,7 @@
 #include "ddsi/q_error.h"
 #include "ddsi/q_thread.h"
 #include "q__osplser.h"
+#include "dds__stream.h"
 #include "dds__err.h"
 #include "ddsi/q_transmit.h"
 #include "ddsi/q_ephash.h"
@@ -25,14 +26,6 @@
 #include "ddsi/q_radmin.h"
 #include <string.h>
 
-
-#if OS_ATOMIC64_SUPPORT
-typedef os_atomic_uint64_t fake_seq_t;
-uint64_t fake_seq_next (fake_seq_t *x) { return os_atomic_inc64_nv (x); }
-#else /* HACK */
-typedef os_atomic_uint32_t fake_seq_t;
-uint64_t fake_seq_next (fake_seq_t *x) { return os_atomic_inc32_nv (x); }
-#endif
 
 _Pre_satisfies_((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)
 dds_return_t
@@ -118,30 +111,9 @@ err:
     return ret;
 }
 
-static void
-init_sampleinfo(
-        _Out_ struct nn_rsample_info *sampleinfo,
-        _In_  struct writer *wr,
-        _In_  int64_t seq,
-        _In_  serdata_t payload)
-{
-    memset(sampleinfo, 0, sizeof(*sampleinfo));
-    sampleinfo->bswap = 0;
-    sampleinfo->complex_qos = 0;
-    sampleinfo->hashash = 0;
-    sampleinfo->seq = seq;
-    sampleinfo->reception_timestamp = payload->v.msginfo.timestamp;
-    sampleinfo->statusinfo = payload->v.msginfo.statusinfo;
-    sampleinfo->pwr_info.iid = 1;
-    sampleinfo->pwr_info.auto_dispose = 0;
-    sampleinfo->pwr_info.guid = wr->e.guid;
-    sampleinfo->pwr_info.ownership_strength = 0;
-}
-
 static int
 deliver_locally(
         _In_ struct writer *wr,
-        _In_ int64_t seq,
         _In_ serdata_t payload,
         _In_ struct tkmap_instance *tk)
 {
@@ -150,15 +122,15 @@ deliver_locally(
     if (wr->rdary.fastpath_ok) {
         struct reader ** const rdary = wr->rdary.rdary;
         if (rdary[0]) {
-            struct nn_rsample_info sampleinfo;
+            struct proxy_writer_info pwr_info;
             unsigned i;
-            init_sampleinfo(&sampleinfo, wr, seq, payload);
+            make_proxy_writer_info(&pwr_info, &wr->e, wr->xqos);
             for (i = 0; rdary[i]; i++) {
                 bool stored;
                 TRACE (("reader %x:%x:%x:%x\n", PGUID (rdary[i]->e.guid)));
                 dds_duration_t max_block_ms = nn_from_ddsi_duration(wr->xqos->reliability.max_blocking_time) / DDS_NSECS_IN_MSEC;
                 do {
-                    stored = (ddsi_plugin.rhc_store_fn) (rdary[i]->rhc, &sampleinfo, payload, tk);
+                    stored = (ddsi_plugin.rhc_plugin.rhc_store_fn) (rdary[i]->rhc, &pwr_info, payload, tk);
                     if (!stored) {
                         if (max_block_ms <= 0) {
                             ret = DDS_ERRNO(DDS_RETCODE_TIMEOUT, "The writer could not deliver data on time, probably due to a local reader resources being full.");
@@ -185,16 +157,16 @@ deliver_locally(
            reliable samples that are rejected are simply discarded. */
         ut_avlIter_t it;
         struct pwr_rd_match *m;
-        struct nn_rsample_info sampleinfo;
+        struct proxy_writer_info pwr_info;
         os_mutexUnlock (&wr->rdary.rdary_lock);
-        init_sampleinfo(&sampleinfo, wr, seq, payload);
+        make_proxy_writer_info(&pwr_info, &wr->e, wr->xqos);
         os_mutexLock (&wr->e.lock);
         for (m = ut_avlIterFirst (&wr_local_readers_treedef, &wr->local_readers, &it); m != NULL; m = ut_avlIterNext (&it)) {
             struct reader *rd;
             if ((rd = ephash_lookup_reader_guid (&m->rd_guid)) != NULL) {
                 TRACE (("reader-via-guid %x:%x:%x:%x\n", PGUID (rd->e.guid)));
                 /* Copied the return value ignore from DDSI deliver_user_data() function. */
-                (void)(ddsi_plugin.rhc_store_fn) (rd->rhc, &sampleinfo, payload, tk);
+                (void)(ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk);
             }
         }
         os_mutexUnlock (&wr->e.lock);
@@ -209,7 +181,6 @@ dds_write_impl(
         _In_ dds_time_t tstamp,
         _In_ dds_write_action action)
 {
-    static fake_seq_t fake_seq;
     dds_return_t ret = DDS_RETCODE_OK;
     int w_rc;
 
@@ -252,7 +223,7 @@ dds_write_impl(
     d->v.msginfo.timestamp.v = tstamp;
     os_mutexLock (&writer->m_call_lock);
     ddsi_serdata_ref(d);
-    tk = (ddsi_plugin.rhc_lookup_fn) (d);
+    tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (d);
     w_rc = write_sample_gc (writer->m_xp, ddsi_wr, d, tk);
 
     if (w_rc >= 0) {
@@ -271,10 +242,10 @@ dds_write_impl(
     os_mutexUnlock (&writer->m_call_lock);
 
     if (ret == DDS_RETCODE_OK) {
-        ret = deliver_locally (ddsi_wr, fake_seq_next(&fake_seq), d, tk);
+        ret = deliver_locally (ddsi_wr, d, tk);
     }
     ddsi_serdata_unref(d);
-    (ddsi_plugin.rhc_unref_fn) (tk);
+    (ddsi_plugin.rhc_plugin.rhc_unref_fn) (tk);
 
     if (asleep) {
         thread_state_asleep (thr);
@@ -292,7 +263,6 @@ dds_writecdr_impl(
         _In_ dds_time_t tstamp,
         _In_ dds_write_action action)
 {
-    static fake_seq_t fake_seq;
     int ret = DDS_RETCODE_OK;
     int w_rc;
 
@@ -316,17 +286,16 @@ dds_writecdr_impl(
     }
 
     /* Serialize and write data or key */
-    if (writekey) {
-        abort();
-        //d = serialize_key (gv.serpool, ddsi_wr->topic, data);
-    } else {
-        serstate_t st = ddsi_serstate_new (gv.serpool, ddsi_wr->topic);
-        if (ddsi_wr->topic->nkeys) {
-            abort();
-            //dds_key_gen ((const dds_topic_descriptor_t*) tp->type, &st->data->v.keyhash, (char*) sample);
-        }
-        ddsi_serstate_append_blob(st, 1, sz, cdr);
-        d = ddsi_serstate_fix(st);
+    {
+      serstate_t st = ddsi_serstate_new (gv.serpool, ddsi_wr->topic);
+      dds_stream_t is;
+      ddsi_serstate_append_blob(st, 1, sz, cdr);
+      d = ddsi_serstate_fix(st);
+      assert(d->v.keyhash.m_flags == 0);
+      assert(!d->v.bswap);
+      dds_stream_from_serstate (&is, d->v.st);
+      d->v.st->kind = writekey ? STK_KEY : STK_DATA;
+      dds_stream_read_keyhash (&is, &d->v.keyhash, ddsi_wr->topic->status_cb_entity->m_descriptor, d->v.st->kind == STK_KEY);
     }
 
     /* Set if disposing or unregistering */
@@ -335,7 +304,7 @@ dds_writecdr_impl(
     d->v.msginfo.timestamp.v = tstamp;
     os_mutexLock (&wr->m_call_lock);
     ddsi_serdata_ref(d);
-    tk = (ddsi_plugin.rhc_lookup_fn) (d);
+    tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (d);
     w_rc = write_sample_gc (wr->m_xp, ddsi_wr, d, tk);
 
     if (w_rc >= 0) {
@@ -354,10 +323,10 @@ dds_writecdr_impl(
     os_mutexUnlock (&wr->m_call_lock);
 
     if (ret == DDS_RETCODE_OK) {
-        ret = deliver_locally (ddsi_wr, fake_seq_next(&fake_seq), d, tk);
+        ret = deliver_locally (ddsi_wr, d, tk);
     }
     ddsi_serdata_unref(d);
-    (ddsi_plugin.rhc_unref_fn) (tk);
+    (ddsi_plugin.rhc_plugin.rhc_unref_fn) (tk);
 
     if (asleep) {
         thread_state_asleep (thr);

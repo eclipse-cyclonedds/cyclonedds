@@ -20,6 +20,7 @@
 #include "ddsi/q_md5.h"
 #include "util/ut_avl.h"
 #include "q__osplser.h"
+#include "dds__stream.h"
 #include "ddsi/q_protocol.h"
 #include "ddsi/q_rtps.h"
 #include "ddsi/q_misc.h"
@@ -320,13 +321,6 @@ static void set_sampleinfo_proxy_writer (struct nn_rsample_info *sampleinfo, nn_
 {
   struct proxy_writer * pwr = ephash_lookup_proxy_writer_guid (pwr_guid);
   sampleinfo->pwr = pwr;
-  if (pwr)
-  {
-    sampleinfo->pwr_info.guid = pwr->e.guid;
-    sampleinfo->pwr_info.ownership_strength = pwr->c.xqos->ownership_strength.value;
-    sampleinfo->pwr_info.auto_dispose = pwr->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
-    sampleinfo->pwr_info.iid = pwr->e.iid;
-  }
 }
 
 static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, Data_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp)
@@ -1818,6 +1812,18 @@ static serstate_t make_raw_serstate
   return st;
 }
 
+static serdata_t ddsi_serstate_fix_with_key (serstate_t st, const struct sertopic *topic, bool bswap)
+{
+  serdata_t sample = ddsi_serstate_fix(st);
+  dds_stream_t is;
+  assert(sample->v.keyhash.m_flags == 0);
+  sample->v.bswap = bswap;
+  dds_stream_from_serstate (&is, sample->v.st);
+  /* FIXME: the relationship between dds_topic, topic_descriptor and sertopic clearly needs some work */
+  dds_stream_read_keyhash (&is, &sample->v.keyhash, topic->status_cb_entity->m_descriptor, sample->v.st->kind == STK_KEY);
+  return sample;
+}
+
 static serdata_t extract_sample_from_data
 (
   const struct nn_rsample_info *sampleinfo, unsigned char data_smhdr_flags,
@@ -1845,7 +1851,7 @@ static serdata_t extract_sample_from_data
       return NULL;
     }
     st = make_raw_serstate (topic, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
-    sample = ddsi_serstate_fix (st);
+    sample = ddsi_serstate_fix_with_key (st, topic, sampleinfo->bswap);
   }
   else if (sampleinfo->size)
   {
@@ -1856,13 +1862,13 @@ static serdata_t extract_sample_from_data
     if (data_smhdr_flags & DATA_FLAG_KEYFLAG)
     {
       st = make_raw_serstate (topic, fragchain, sampleinfo->size, 1, statusinfo, tstamp);
-      sample = ddsi_serstate_fix (st);
+      sample = ddsi_serstate_fix_with_key (st, topic, sampleinfo->bswap);
     }
     else
     {
       assert (data_smhdr_flags & DATA_FLAG_DATAFLAG);
       st = make_raw_serstate (topic, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
-      sample = ddsi_serstate_fix (st);
+      sample = ddsi_serstate_fix_with_key (st, topic, sampleinfo->bswap);
     }
   }
   else if (data_smhdr_flags & DATA_FLAG_INLINE_QOS)
@@ -1880,7 +1886,7 @@ static serdata_t extract_sample_from_data
       ddsi_serstate_set_msginfo (st, statusinfo, tstamp, NULL);
       st->kind = STK_KEY;
       ddsi_serstate_append_blob (st, 1, sizeof (qos->keyhash), qos->keyhash.value);
-      sample = ddsi_serstate_fix (st);
+      sample = ddsi_serstate_fix_with_key (st, topic, sampleinfo->bswap);
     }
   }
   else
@@ -1900,10 +1906,6 @@ static serdata_t extract_sample_from_data
       topic->name, topic->typename,
       failmsg ? failmsg : "for reasons unknown"
     );
-  }
-  else
-  {
-    sample->v.bswap = sampleinfo->bswap;
   }
   return sample;
 }
@@ -2036,16 +2038,12 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
    us */
   {
     struct tkmap_instance * tk;
-
-    if (sampleinfo->hashash)
-    {
-      payload->v.keyhash.m_flags = DDS_KEY_HASH_SET;
-      memcpy (&payload->v.keyhash.m_hash, &sampleinfo->keyhash, sizeof (payload->v.keyhash.m_hash));
-    }
-    tk = (ddsi_plugin.rhc_lookup_fn) (payload);
-
+    tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (payload);
     if (tk)
     {
+      struct proxy_writer_info pwr_info;
+      make_proxy_writer_info(&pwr_info, &pwr->e, pwr->c.xqos);
+
       if (rdguid == NULL)
       {
         TRACE ((" %"PRId64"=>EVERYONE\n", sampleinfo->seq));
@@ -2069,7 +2067,7 @@ retry:
           for (i = 0; rdary[i]; i++)
           {
             TRACE (("reader %x:%x:%x:%x\n", PGUID (rdary[i]->e.guid)));
-            if (! (ddsi_plugin.rhc_store_fn) (rdary[i]->rhc, sampleinfo, payload, tk))
+            if (! (ddsi_plugin.rhc_plugin.rhc_store_fn) (rdary[i]->rhc, &pwr_info, payload, tk))
             {
               if (pwr_locked) os_mutexUnlock (&pwr->e.lock);
               os_mutexUnlock (&pwr->rdary.rdary_lock);
@@ -2100,7 +2098,7 @@ retry:
             if ((rd = ephash_lookup_reader_guid (&m->rd_guid)) != NULL)
             {
               TRACE (("reader-via-guid %x:%x:%x:%x\n", PGUID (rd->e.guid)));
-              (void) (ddsi_plugin.rhc_store_fn) (rd->rhc, sampleinfo, payload, tk);
+              (void) (ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk);
             }
           }
           if (!pwr_locked) os_mutexUnlock (&pwr->e.lock);
@@ -2112,14 +2110,14 @@ retry:
       {
         struct reader *rd = ephash_lookup_reader_guid (rdguid);;
         TRACE ((" %"PRId64"=>%x:%x:%x:%x%s\n", sampleinfo->seq, PGUID (*rdguid), rd ? "" : "?"));
-        while (rd && ! (ddsi_plugin.rhc_store_fn) (rd->rhc, sampleinfo, payload, tk) && ephash_lookup_proxy_writer_guid (&pwr->e.guid))
+        while (rd && ! (ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk) && ephash_lookup_proxy_writer_guid (&pwr->e.guid))
         {
           if (pwr_locked) os_mutexUnlock (&pwr->e.lock);
           dds_sleepfor (DDS_MSECS (1));
           if (pwr_locked) os_mutexLock (&pwr->e.lock);
         }
       }
-      (ddsi_plugin.rhc_unref_fn) (tk);
+      (ddsi_plugin.rhc_plugin.rhc_unref_fn) (tk);
     }
   }
   ddsi_serdata_unref (payload);
@@ -2837,7 +2835,6 @@ static int handle_submsg_sequence
         {
           struct nn_rsample_info sampleinfo;
           unsigned char *datap;
-          sampleinfo.hashash = 0;
           /* valid_DataFrag does not validate the payload */
           if (!valid_DataFrag (rst, rmsg, &sm->datafrag, submsg_size, byteswap, &sampleinfo, &datap))
             goto malformed;
@@ -2853,7 +2850,6 @@ static int handle_submsg_sequence
         {
           struct nn_rsample_info sampleinfo;
           unsigned char *datap;
-          sampleinfo.hashash = 0;
           /* valid_Data does not validate the payload */
           if (!valid_Data (rst, rmsg, &sm->data, submsg_size, byteswap, &sampleinfo, &datap))
           {

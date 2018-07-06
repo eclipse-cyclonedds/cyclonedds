@@ -263,14 +263,14 @@ void ddsi_plugin_init (void)
 
   /* Register read cache functions */
 
-  ddsi_plugin.rhc_free_fn = dds_rhc_free;
-  ddsi_plugin.rhc_fini_fn = dds_rhc_fini;
-  ddsi_plugin.rhc_store_fn = dds_rhc_store;
-  ddsi_plugin.rhc_unregister_wr_fn = dds_rhc_unregister_wr;
-  ddsi_plugin.rhc_relinquish_ownership_fn = dds_rhc_relinquish_ownership;
-  ddsi_plugin.rhc_set_qos_fn = dds_rhc_set_qos;
-  ddsi_plugin.rhc_lookup_fn = dds_tkmap_lookup_instance_ref;
-  ddsi_plugin.rhc_unref_fn = dds_tkmap_instance_unref;
+  ddsi_plugin.rhc_plugin.rhc_free_fn = dds_rhc_free;
+  ddsi_plugin.rhc_plugin.rhc_fini_fn = dds_rhc_fini;
+  ddsi_plugin.rhc_plugin.rhc_store_fn = dds_rhc_store;
+  ddsi_plugin.rhc_plugin.rhc_unregister_wr_fn = dds_rhc_unregister_wr;
+  ddsi_plugin.rhc_plugin.rhc_relinquish_ownership_fn = dds_rhc_relinquish_ownership;
+  ddsi_plugin.rhc_plugin.rhc_set_qos_fn = dds_rhc_set_qos;
+  ddsi_plugin.rhc_plugin.rhc_lookup_fn = dds_tkmap_lookup_instance_ref;
+  ddsi_plugin.rhc_plugin.rhc_unref_fn = dds_tkmap_instance_unref;
 
   /* Register iid generator */
 
