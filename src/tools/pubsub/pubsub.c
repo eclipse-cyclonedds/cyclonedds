@@ -52,11 +52,10 @@ enum readermode { MODE_PRINT, MODE_CHECK, MODE_ZEROLOAD, MODE_DUMP, MODE_NONE };
 #define PM_IHANDLE 8u
 #define PM_PHANDLE 16u
 #define PM_STIME 32u
-#define PM_RTIME 64u
-#define PM_DGEN 128u
-#define PM_NWGEN 256u
-#define PM_RANKS 512u
-#define PM_STATE 1024u
+#define PM_DGEN 64u
+#define PM_NWGEN 128u
+#define PM_RANKS 256u
+#define PM_STATE 512u
 
 static volatile sig_atomic_t termflag = 0;
 static int pid;
@@ -818,8 +817,6 @@ static void print_sampleinfo(dds_time_t *tstart, dds_time_t tnow, const dds_samp
     sep = " : ";
     if (print_metadata & PM_STIME)
         n += printf ("%s%lld.%09lld", n > 0 ? sep : "", (si->source_timestamp/DDS_NSECS_IN_SEC), (si->source_timestamp%DDS_NSECS_IN_SEC)), sep = " ";
-    if (print_metadata & PM_RTIME)
-        n += printf ("%s%lld.%09lld", n > 0 ? sep : "", (si->reception_timestamp/DDS_NSECS_IN_SEC), (si->reception_timestamp%DDS_NSECS_IN_SEC));
     sep = " : ";
     if (print_metadata & PM_DGEN)
         n += printf ("%s%"PRIu32, n > 0 ? sep : "", si->disposed_generation_count), sep = " ";
@@ -2102,7 +2099,6 @@ static void set_print_mode(const char *optarg) {
                     { "phandle", PM_PHANDLE },
                     { "ihandle", PM_IHANDLE },
                     { "stime", PM_STIME },
-                    { "rtime", PM_RTIME },
                     { "dgen", PM_DGEN },
                     { "nwgen", PM_NWGEN },
                     { "ranks", PM_RANKS },

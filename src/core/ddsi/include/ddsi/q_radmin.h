@@ -109,14 +109,6 @@ struct receiver_state {
   nn_locator_t srcloc;
 };
 
-struct proxy_writer_info
-{
-  nn_guid_t guid;
-  bool auto_dispose;
-  int32_t ownership_strength;
-  uint64_t iid;
-};
-
 struct nn_rsample_info {
   seqno_t seq;
   struct receiver_state *rst;
@@ -129,9 +121,6 @@ struct nn_rsample_info {
   unsigned pt_wr_info_zoff: 16; /* PrismTech writer info offset */
   unsigned bswap: 1;            /* so we can extract well formatted writer info quicker */
   unsigned complex_qos: 1;      /* includes QoS other than keyhash, 2-bit statusinfo, PT writer info */
-  unsigned hashash: 1;          /* Do we have a key hash */
-  nn_keyhash_t keyhash;         /* Key hash. Not currently used by OSPL */
-  struct proxy_writer_info pwr_info;
 };
 
 struct nn_rdata {

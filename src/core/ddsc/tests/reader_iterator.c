@@ -63,6 +63,7 @@
 #define MAX_SAMPLES                 21
 
 #define RDR_NOT_READ_CNT            11
+#define RDR_INV_READ_CNT             1
 int rdr_expected_long_2[RDR_NOT_READ_CNT] = { 0, 1, 2, 6, 7, 9, 11, 13, 14, 16, 19 };
 
 /* Because we only read one sample at a time, only the first sample of an instance
@@ -344,13 +345,13 @@ samples_cnt(void)
 /*************************************************************************************************/
 Test(ddsc_read_next, reader, .init=reader_iterator_init, .fini=reader_iterator_fini)
 {
-    dds_return_t cnt = 0;
+    dds_return_t cnt = 0, cntinv = 0;
     dds_return_t ret = 1;
 
     while (ret == 1){
       ret = dds_read_next(g_reader, g_samples, g_info);
       cr_assert_geq(ret, 0 , "# read %d", ret);
-      if(ret == 1){
+      if(ret == 1 && g_info[0].valid_data){
         Space_Type1 *sample = (Space_Type1*)g_samples[0];
         PRINT_SAMPLE("ddsc_read_next::reader: Read", (*sample));
 
@@ -373,10 +374,13 @@ Test(ddsc_read_next, reader, .init=reader_iterator_init, .fini=reader_iterator_f
         cr_assert_eq(g_info[0].view_state,     expected_vst);
         cr_assert_eq(g_info[0].instance_state, expected_ist);
         cnt ++;
+      } else if (ret == 1 && !g_info[0].valid_data) {
+        cntinv ++;
       }
     }
 
     cr_assert_eq(cnt, RDR_NOT_READ_CNT);
+    cr_assert_eq(cntinv, RDR_INV_READ_CNT);
 
     /* All samples should still be available. */
     ret = samples_cnt();
@@ -453,13 +457,13 @@ Theory((void **buf, dds_sample_info_t *si), ddsc_read_next, invalid_buffers, .in
 /*************************************************************************************************/
 Test(ddsc_read_next_wl, reader, .init=reader_iterator_init, .fini=reader_iterator_fini)
 {
-    dds_return_t cnt = 0;
+    dds_return_t cnt = 0, cntinv = 0;
     dds_return_t ret = 1;
 
     while (ret == 1){
       ret = dds_read_next_wl(g_reader, g_loans, g_info);
       cr_assert_geq(ret, 0 , "# read %d", ret);
-      if(ret == 1){
+      if(ret == 1 && g_info[0].valid_data){
         Space_Type1 *sample = (Space_Type1*)g_loans[0];
         PRINT_SAMPLE("ddsc_read_next_wl::reader: Read", (*sample));
 
@@ -482,10 +486,13 @@ Test(ddsc_read_next_wl, reader, .init=reader_iterator_init, .fini=reader_iterato
         cr_assert_eq(g_info[0].view_state,     expected_vst);
         cr_assert_eq(g_info[0].instance_state, expected_ist);
         cnt ++;
+      } else if (ret == 1 && !g_info[0].valid_data) {
+        cntinv ++;
       }
     }
 
     cr_assert_eq(cnt, RDR_NOT_READ_CNT);
+    cr_assert_eq(cntinv, RDR_INV_READ_CNT);
 
     ret = dds_return_loan(g_reader, g_loans, ret);
     cr_assert_eq (ret, DDS_RETCODE_OK);
@@ -564,13 +571,13 @@ Theory((void **buf, dds_sample_info_t *si), ddsc_read_next_wl, invalid_buffers, 
 /*************************************************************************************************/
 Test(ddsc_take_next, reader, .init=reader_iterator_init, .fini=reader_iterator_fini)
 {
-    dds_return_t cnt = 0;
+    dds_return_t cnt = 0, cntinv = 0;
     dds_return_t ret = 1;
 
     while (ret == 1){
       ret = dds_take_next(g_reader, g_samples, g_info);
       cr_assert_geq(ret, 0 , "# read %d", ret);
-      if(ret == 1){
+      if(ret == 1 && g_info[0].valid_data){
         Space_Type1 *sample = (Space_Type1*)g_samples[0];
         PRINT_SAMPLE("ddsc_take_next::reader: Read", (*sample));
 
@@ -593,10 +600,13 @@ Test(ddsc_take_next, reader, .init=reader_iterator_init, .fini=reader_iterator_f
         cr_assert_eq(g_info[0].view_state,     expected_vst);
         cr_assert_eq(g_info[0].instance_state, expected_ist);
         cnt ++;
+      } else if (ret == 1 && !g_info[0].valid_data) {
+        cntinv ++;
       }
     }
 
     cr_assert_eq(cnt, RDR_NOT_READ_CNT);
+    cr_assert_eq(cntinv, RDR_INV_READ_CNT);
 
     /* All samples should still be available. */
     ret = samples_cnt();
@@ -671,13 +681,13 @@ Theory((void **buf, dds_sample_info_t *si), ddsc_take_next, invalid_buffers, .in
 /*************************************************************************************************/
 Test(ddsc_take_next_wl, reader, .init=reader_iterator_init, .fini=reader_iterator_fini)
 {
-    dds_return_t cnt = 0;
+    dds_return_t cnt = 0, cntinv = 0;
     dds_return_t ret = 1;
 
     while (ret == 1){
       ret = dds_take_next_wl(g_reader, g_loans, g_info);
       cr_assert_geq(ret, 0 , "# read %d", ret);
-      if(ret == 1){
+      if(ret == 1 && g_info[0].valid_data){
         Space_Type1 *sample = (Space_Type1*)g_loans[0];
         PRINT_SAMPLE("ddsc_read_next_wl::reader: Read", (*sample));
 
@@ -700,10 +710,13 @@ Test(ddsc_take_next_wl, reader, .init=reader_iterator_init, .fini=reader_iterato
         cr_assert_eq(g_info[0].view_state,     expected_vst);
         cr_assert_eq(g_info[0].instance_state, expected_ist);
         cnt ++;
+      } else if (ret == 1 && !g_info[0].valid_data) {
+        cntinv ++;
       }
     }
 
     cr_assert_eq(cnt, RDR_NOT_READ_CNT);
+    cr_assert_eq(cntinv, RDR_INV_READ_CNT);
 
     ret = dds_return_loan(g_reader, g_loans, ret);
     cr_assert_eq (ret, DDS_RETCODE_OK);

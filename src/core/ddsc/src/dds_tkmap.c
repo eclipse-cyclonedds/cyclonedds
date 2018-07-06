@@ -243,7 +243,6 @@ struct tkmap_instance * dds_tkmap_find_by_id (_In_ struct tkmap * map, _In_ uint
 
 _Check_return_
 struct tkmap_instance * dds_tkmap_find(
-        _In_opt_ const struct dds_topic * topic,
         _In_ struct serdata * sd,
         _In_ const bool rd,
         _In_ const bool create)
@@ -252,45 +251,8 @@ struct tkmap_instance * dds_tkmap_find(
   struct tkmap_instance * tk;
   struct tkmap * map = gv.m_tkmap;
 
+  assert(sd->v.keyhash.m_flags & DDS_KEY_HASH_SET);
   dummy.m_sample = sd;
-
-  /* Generate key hash if required and not provided */
-
-  if (topic && topic->m_descriptor->m_nkeys)
-  {
-    if ((sd->v.keyhash.m_flags & DDS_KEY_HASH_SET) == 0)
-    {
-      dds_stream_t is;
-      dds_stream_from_serstate (&is, sd->v.st);
-      dds_stream_read_keyhash (&is, &sd->v.keyhash, topic->m_descriptor, sd->v.st->kind == STK_KEY);
-    }
-    else
-    {
-      if (topic->m_descriptor->m_flagset & DDS_TOPIC_FIXED_KEY)
-      {
-        sd->v.keyhash.m_flags |= DDS_KEY_IS_HASH;
-      }
-
-#if DDS_DEBUG_KEYHASH
-
-      {
-        dds_stream_t is;
-        dds_key_hash_t kh;
-
-        /* Check that we generate same keyhash as provided */
-
-        memset (&kh, 0, sizeof (kh));
-        dds_stream_from_serstate (&is, sd->v.st);
-        dds_stream_read_keyhash (&is, &kh, topic->m_descriptor, sd->v.st->kind == STK_KEY);
-        assert (memcmp (kh.m_hash, sd->v.keyhash.m_hash, 16) == 0);
-        if (kh.m_key_buff_size)
-        {
-          dds_free (kh.m_key_buff);
-        }
-      }
-#endif
-    }
-  }
 
 retry:
   if ((tk = ut_chhLookup(map->m_hh, &dummy)) != NULL)
@@ -340,19 +302,15 @@ retry:
 _Check_return_
 struct tkmap_instance * dds_tkmap_lookup_instance_ref (_In_ struct serdata * sd)
 {
-  dds_topic * topic = sd->v.st->topic ? sd->v.st->topic->status_cb_entity : NULL;
-
   assert (vtime_awake_p (lookup_thread_state ()->vtime));
-
 #if 0
   /* Topic might have been deleted -- FIXME: no way the topic may be deleted when there're still users out there */
-  if (topic == NULL)
+  if (sd->v.st->topic == NULL)
   {
     return NULL;
   }
 #endif
-
-  return dds_tkmap_find (topic, sd, true, true);
+  return dds_tkmap_find (sd, true, true);
 }
 
 void dds_tkmap_instance_ref (_In_ struct tkmap_instance *tk)
