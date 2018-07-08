@@ -38,7 +38,6 @@ add_definitions(-DDDSI_INCLUDE_NETWORK_PARTITIONS -DDDSI_INCLUDE_SSM)
 
 include(ddsi/CMakeLists.txt)
 include(ddsc/CMakeLists.txt)
-include(security/CMakeLists.txt)
 
 target_link_libraries(ddsc PRIVATE util)
 target_link_libraries(ddsc PRIVATE OSAPI)
@@ -66,5 +65,3 @@ install(
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
 )
-
-

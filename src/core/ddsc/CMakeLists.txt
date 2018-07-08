@@ -118,7 +118,6 @@ target_sources(ddsc
 target_include_directories(ddsc
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>"
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../security/include>"
     PRIVATE
         "${CMAKE_CURRENT_LIST_DIR}/src")
 
