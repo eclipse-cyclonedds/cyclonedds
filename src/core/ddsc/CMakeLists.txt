@@ -122,6 +122,8 @@ target_include_directories(ddsc
     PRIVATE
         "${CMAKE_CURRENT_LIST_DIR}/src")
 
+target_include_directories(ddsc INTERFACE $<INSTALL_INTERFACE:include>)
+
 install(
   DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/ddsc"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
