@@ -12,7 +12,7 @@
 #ifndef OS_PLATFORM_THREAD_H
 #define OS_PLATFORM_THREAD_H
 
-#include "os/os_defs.h"
+#include "os_defs.h"
 
 #if defined (__cplusplus)
 extern "C" {

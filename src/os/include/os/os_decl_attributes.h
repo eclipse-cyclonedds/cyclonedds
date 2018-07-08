@@ -123,7 +123,7 @@
 # endif
 #endif
 
-#include "os/os_decl_attributes_sal.h"
+#include "os_decl_attributes_sal.h"
 
 #undef OS_GNUC_VERSION
 #endif
