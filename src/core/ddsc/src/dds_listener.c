@@ -85,6 +85,7 @@ dds_listener_copy(_Out_ dds_listener_t * __restrict dst, _In_ const dds_listener
     dstl->on_sample_lost = srcl->on_sample_lost;
     dstl->on_sample_rejected = srcl->on_sample_rejected;
     dstl->on_subscription_matched = srcl->on_subscription_matched;
+    dstl->arg = srcl->arg;
 }
 
 void
