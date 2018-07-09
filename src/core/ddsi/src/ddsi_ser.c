@@ -140,6 +140,21 @@ uint32_t ddsi_serdata_size (const struct serdata *serdata)
     return (uint32_t) (sizeof (struct CDRHeader) + st->pos);
 }
 
+void ddsi_serdata_getblob (void **raw, size_t *sz, serdata_t serdata)
+{
+  const struct serstate *st = serdata->v.st;
+  if (serdata->v.st->kind == STK_EMPTY)
+  {
+    *sz = 0;
+    *raw = NULL;
+  }
+  else
+  {
+    *sz = sizeof (struct CDRHeader) + st->pos;
+    *raw = &serdata->hdr;
+  }
+}
+
 int ddsi_serdata_is_key (const struct serdata * serdata)
 {
   return serdata->v.st->kind == STK_KEY;

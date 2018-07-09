@@ -189,4 +189,6 @@ void * ddsi_serstate_append (serstate_t st, size_t n);
 void * ddsi_serstate_append_align (serstate_t st, size_t a);
 void * ddsi_serstate_append_aligned (serstate_t st, size_t n, size_t a);
 
+OSAPI_EXPORT void ddsi_serdata_getblob (void **raw, size_t *sz, serdata_t serdata);
+
 #endif
