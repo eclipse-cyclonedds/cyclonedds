@@ -62,10 +62,11 @@ is_valid_name(
      *  |     '0', ..., '9',
      *  |     '-' but may not start with a digit.
      * It is considered that '-' is an error in the spec and should say '_'. So, that's what we'll check for.
+     *  |     '/' got added for ROS2
      */
     assert(name);
     if ((name[0] != '\0') && (!isdigit((unsigned char)name[0]))) {
-        while (isalnum((unsigned char)*name) || (*name == '_')) {
+        while (isalnum((unsigned char)*name) || (*name == '_') || (*name == '/')) {
             name++;
         }
         if (*name == '\0') {
