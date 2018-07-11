@@ -24,7 +24,6 @@
       <NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress>
       <AllowMulticast>true</AllowMulticast>
       <EnableMulticastLoopback>true</EnableMulticastLoopback>
-      <EnableLoopback>false</EnableLoopback>
     </General>
     <Compatibility>
       <StandardsConformance>lax</StandardsConformance>

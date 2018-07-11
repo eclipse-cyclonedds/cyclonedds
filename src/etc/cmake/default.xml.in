@@ -18,7 +18,6 @@
       <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>
       <AllowMulticast>true</AllowMulticast>
       <EnableMulticastLoopback>true</EnableMulticastLoopback>
-      <EnableLoopback>true</EnableLoopback>
     </General>
     <Compatibility>
       <StandardsConformance>lax</StandardsConformance>

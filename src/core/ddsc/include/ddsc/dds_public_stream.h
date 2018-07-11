@@ -56,6 +56,7 @@ dds_stream_t;
 #define DDS_STREAM_LE true
 
 DDS_EXPORT dds_stream_t * dds_stream_create (size_t size);
+DDS_EXPORT dds_stream_t * dds_stream_from_buffer (const void *buf, size_t sz, int bswap);
 DDS_EXPORT void dds_stream_delete (dds_stream_t * st);
 DDS_EXPORT void dds_stream_fini (dds_stream_t * st);
 DDS_EXPORT void dds_stream_reset (dds_stream_t * st);
@@ -63,6 +64,8 @@ DDS_EXPORT void dds_stream_init (dds_stream_t * st, size_t size);
 DDS_EXPORT void dds_stream_grow (dds_stream_t * st, size_t size);
 DDS_EXPORT bool dds_stream_endian (void);
 
+struct dds_topic_descriptor;
+DDS_EXPORT void dds_stream_read_sample_w_desc (dds_stream_t * is, void * data, const struct dds_topic_descriptor * desc);
 DDS_EXPORT bool dds_stream_read_bool (dds_stream_t * is);
 DDS_EXPORT uint8_t dds_stream_read_uint8 (dds_stream_t * is);
 DDS_EXPORT uint16_t dds_stream_read_uint16 (dds_stream_t * is);
