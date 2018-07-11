@@ -196,6 +196,21 @@ void dds_qos_merge
 );
 
 /**
+ * @brief Copy all QoS-policies from one structure to another, unless already set
+ *
+ * Policies are copied from src to dst, unless src already has the policy set to a non-default value.
+ *
+ * @param[in,out] dst - Pointer to the destination qos structure
+ * @param[in] src - Pointer to the source qos structure
+ */
+DDS_EXPORT
+bool dds_qos_equal
+(
+    _In_ const dds_qos_t * __restrict a,
+    _In_ const dds_qos_t * __restrict b
+);
+
+/**
  * @brief Set the userdata of a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the userdata

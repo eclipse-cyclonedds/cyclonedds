@@ -244,14 +244,28 @@ void dds_qos_merge (
 {
     if(!src){
         DDS_ERROR(DDS_RETCODE_BAD_PARAMETER, "Argument source(src) is NULL");
-        return ;
+        return;
     }
     if(!dst){
         DDS_ERROR(DDS_RETCODE_BAD_PARAMETER, "Argument destination(dst) is NULL");
-        return ;
+        return;
     }
     /* Copy qos from source to destination unless already set */
     nn_xqos_mergein_missing (dst, src);
+}
+
+bool dds_qos_equal (
+    _In_opt_ const dds_qos_t * __restrict a,
+    _In_opt_ const dds_qos_t * __restrict b)
+{
+    /* FIXME: a bit of a hack - and I am not so sure I like accepting null pointers here anyway */
+    if (a == NULL && b == NULL) {
+        return true;
+    } else if (a == NULL || b == NULL) {
+        return false;
+    } else {
+        return nn_xqos_delta(a, b, ~(uint64_t)0) != 0;
+    }
 }
 
 void dds_qset_userdata(

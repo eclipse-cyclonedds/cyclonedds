@@ -125,9 +125,12 @@ Test(ddsc_topic_create, non_participants, .init=ddsc_topic_init, .fini=ddsc_topi
 Test(ddsc_topic_create, duplicate, .init=ddsc_topic_init, .fini=ddsc_topic_fini)
 {
     dds_entity_t topic;
-    /* Creating the same topic should fail.  */
+    dds_return_t ret;
+    /* Creating the same topic should succeed.  */
     topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, g_topicRtmDataTypeName, NULL, NULL);
-    cr_assert_eq(dds_err_nr(topic), DDS_RETCODE_PRECONDITION_NOT_MET, "returned %s", dds_err_str(topic));
+    cr_assert_gt(topic, 0, "returned %s", dds_err_str(topic));
+    ret = dds_delete(topic);
+    cr_assert_eq(ret, DDS_RETCODE_OK);
 }
 /*************************************************************************************************/
 
