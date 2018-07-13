@@ -38,6 +38,7 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_waitset.c
     dds_log.c
     dds_readcond.c
+    dds_guardcond.c
     dds_subscriber.c
     dds_write.c
 )
@@ -68,6 +69,7 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__qos.h
     dds__querycond.h
     dds__readcond.h
+    dds__guardcond.h
     dds__reader.h
     dds__report.h
     dds__rhc.h

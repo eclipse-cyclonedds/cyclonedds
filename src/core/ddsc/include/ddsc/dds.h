@@ -1822,6 +1822,83 @@ dds_create_querycondition(
         _In_ dds_querycondition_filter_fn filter);
 
 /**
+ * @brief Creates a guardcondition.
+ *
+ * Waitsets allow waiting for an event on some of any set of entities.
+ * This means that the guardcondition can be used to wake up a waitset when
+ * data is in the reader history with states that matches the given mask.
+ *
+ * @returns A valid condition handle or an error code.
+ *
+ * @retval >0
+ *             A valid condition handle
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ */
+_Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_PARTICIPANT)
+DDS_EXPORT _Must_inspect_result_ dds_entity_t
+dds_create_guardcondition(
+        _In_ dds_entity_t participant);
+
+/**
+ * @brief Sets the trigger status of a guardcondition.
+ *
+ * @retval DDS_RETCODE_OK
+ *             Operation successful
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ */
+_Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_COND_GUARD)
+DDS_EXPORT dds_return_t
+dds_set_guardcondition(
+        _In_ dds_entity_t guardcond,
+        _In_ bool triggered);
+
+/**
+ * @brief Reads the trigger status of a guardcondition.
+ *
+ * @retval DDS_RETCODE_OK
+ *             Operation successful
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ */
+_Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_COND_GUARD)
+DDS_EXPORT dds_return_t
+dds_read_guardcondition(
+        _In_ dds_entity_t guardcond,
+        _Out_ bool *triggered);
+
+/**
+ * @brief Reads and resets the trigger status of a guardcondition.
+ *
+ * @retval DDS_RETCODE_OK
+ *             Operation successful
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ */
+_Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_COND_GUARD)
+DDS_EXPORT dds_return_t
+dds_take_guardcondition(
+        _In_ dds_entity_t guardcond,
+        _Out_ bool *triggered);
+
+/**
  * @brief Waitset attachment argument.
  *
  * Every entity that is attached to the waitset can be accompanied by such

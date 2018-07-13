@@ -36,6 +36,7 @@ struct dds_subscriber;
 struct dds_topic;
 struct dds_readcond;
 struct dds_guardcond;
+struct dds_statuscond;
 
 struct sertopic;
 struct rhc;
@@ -226,6 +227,12 @@ typedef struct dds_readcond
   } m_query;
 }
 dds_readcond;
+
+typedef struct dds_guardcond
+{
+  dds_entity m_entity;
+}
+dds_guardcond;
 
 typedef struct dds_attachment
 {

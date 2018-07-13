@@ -30,3 +30,4 @@
 68  src/dds_write.c
 69  src/dds_report.c
 70  src/dds_builtin.c
+72  src/dds_guardcond.c
