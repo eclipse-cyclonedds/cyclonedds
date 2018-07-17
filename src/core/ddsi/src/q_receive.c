@@ -1783,7 +1783,7 @@ static serstate_t make_raw_serstate
   unsigned statusinfo, nn_wctime_t tstamp
 )
 {
-  serstate_t st = ddsi_serstate_new (gv.serpool, topic);
+  serstate_t st = ddsi_serstate_new (topic);
   ddsi_serstate_set_msginfo (st, statusinfo, tstamp, NULL);
   st->kind = justkey ? STK_KEY : STK_DATA;
   /* the CDR header is always fully contained in the first fragment
@@ -1882,7 +1882,7 @@ static serdata_t extract_sample_from_data
     else
     {
       serstate_t st;
-      st = ddsi_serstate_new (gv.serpool, topic);
+      st = ddsi_serstate_new (topic);
       ddsi_serstate_set_msginfo (st, statusinfo, tstamp, NULL);
       st->kind = STK_KEY;
       ddsi_serstate_append_blob (st, 1, sizeof (qos->keyhash), qos->keyhash.value);

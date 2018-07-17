@@ -1001,7 +1001,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   }
 
   /* Look up data in (transient-local) WHC by key value */
-  if ((st = ddsi_serstate_new (gv.serpool, NULL)) == NULL)
+  if ((st = ddsi_serstate_new (NULL)) == NULL)
   {
     TRACE (("xmit spdp: skip %x:%x:%x:%x: out of memory\n", PGUID (ev->u.spdp.pp_guid)));
     goto skip;
@@ -1120,7 +1120,7 @@ static void write_pmd_message (struct nn_xpack *xp, struct participant *pp, unsi
   u.pmd.length = PMD_DATA_LENGTH;
   memset (u.pmd.value, 0, u.pmd.length);
 
-  serstate = ddsi_serstate_new (gv.serpool, NULL);
+  serstate = ddsi_serstate_new (NULL);
   ddsi_serstate_append_blob (serstate, 4, sizeof (u.pad), &u.pmd);
   serstate_set_key (serstate, 0, &u.pmd);
   ddsi_serstate_set_msginfo (serstate, 0, now (), NULL);

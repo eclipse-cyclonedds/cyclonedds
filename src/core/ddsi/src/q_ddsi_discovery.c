@@ -320,7 +320,7 @@ int spdp_write (struct participant *pp)
 
   /* A NULL topic implies a parameter list, now that we do PMD through
      the serializer */
-  serstate = ddsi_serstate_new (gv.serpool, NULL);
+  serstate = ddsi_serstate_new (NULL);
   payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
   ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
   kh = nn_hton_guid (pp->e.guid);
@@ -357,7 +357,7 @@ int spdp_dispose_unregister (struct participant *pp)
   nn_plist_addtomsg (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0);
   nn_xmsg_addpar_sentinel (mpayload);
 
-  serstate = ddsi_serstate_new (gv.serpool, NULL);
+  serstate = ddsi_serstate_new (NULL);
   payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
   ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
   kh = nn_hton_guid (pp->e.guid);
@@ -968,7 +968,7 @@ static int sedp_write_endpoint
 
   /* Then we take the payload from the message and turn it into a
      serdata, and then we can write it as normal data */
-  serstate = ddsi_serstate_new (gv.serpool, NULL);
+  serstate = ddsi_serstate_new (NULL);
   payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
   ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
   kh = nn_hton_guid (*epguid);
@@ -1430,7 +1430,7 @@ int sedp_write_topic (struct participant *pp, const struct nn_plist *datap)
   nn_plist_addtomsg (mpayload, datap, ~(uint64_t)0, delta);
   nn_xmsg_addpar_sentinel (mpayload);
 
-  serstate = ddsi_serstate_new (gv.serpool, NULL);
+  serstate = ddsi_serstate_new (NULL);
   payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
   ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
 
@@ -1500,7 +1500,7 @@ int sedp_write_cm_participant (struct participant *pp, int alive)
 
   /* Then we take the payload from the message and turn it into a
    serdata, and then we can write it as normal data */
-  serstate = ddsi_serstate_new (gv.serpool, NULL);
+  serstate = ddsi_serstate_new (NULL);
   payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
   ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
   kh = nn_hton_guid (pp->e.guid);
@@ -1610,7 +1610,7 @@ int sedp_write_cm_publisher (const struct nn_plist *datap, int alive)
 
   /* Then we take the payload from the message and turn it into a
    serdata, and then we can write it as normal data */
-  serstate = ddsi_serstate_new (gv.serpool, NULL);
+  serstate = ddsi_serstate_new (NULL);
   payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
   ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
   kh = nn_hton_guid (datap->group_guid);
@@ -1665,7 +1665,7 @@ int sedp_write_cm_subscriber (const struct nn_plist *datap, int alive)
 
   /* Then we take the payload from the message and turn it into a
    serdata, and then we can write it as normal data */
-  serstate = ddsi_serstate_new (gv.serpool, NULL);
+  serstate = ddsi_serstate_new (NULL);
   payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
   ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
   kh = nn_hton_guid (datap->group_guid);

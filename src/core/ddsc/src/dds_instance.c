@@ -70,7 +70,7 @@ dds_instance_find(
         _In_ const void *data,
         _In_ const bool create)
 {
-    serdata_t sd = serialize_key (gv.serpool, topic->m_stopic, data);
+    serdata_t sd = serialize_key (topic->m_stopic, data);
     struct tkmap_instance * inst = dds_tkmap_find (sd, false, create);
     ddsi_serdata_unref (sd);
     return inst;
@@ -419,7 +419,7 @@ dds_instance_lookup(
 
     topic = dds_instance_info_by_hdl (entity);
     if (topic) {
-        sd = serialize_key (gv.serpool, topic->m_stopic, data);
+        sd = serialize_key (topic->m_stopic, data);
         ih = dds_tkmap_lookup (map, sd);
         ddsi_serdata_unref (sd);
         ret = DDS_RETCODE_OK;

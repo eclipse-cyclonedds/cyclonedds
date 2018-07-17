@@ -18,10 +18,10 @@
 #include "ddsi/q_bswap.h"
 #include "q__osplser.h"
 
-serdata_t serialize (serstatepool_t pool, const struct sertopic * tp, const void * sample)
+serdata_t serialize (const struct sertopic * tp, const void * sample)
 {
   dds_stream_t os;
-  serstate_t st = ddsi_serstate_new (pool, tp);
+  serstate_t st = ddsi_serstate_new (tp);
   dds_key_gen ((const dds_topic_descriptor_t*) tp->type, &st->data->v.keyhash, (char*) sample);
   dds_stream_from_serstate (&os, st);
   dds_stream_write_sample (&os, sample, tp);
@@ -58,12 +58,12 @@ int serdata_cmp (const struct serdata *a, const struct serdata *b)
   return memcmp (a->v.keyhash.m_hash, b->v.keyhash.m_hash, 16);
 }
 
-serdata_t serialize_key (serstatepool_t pool, const struct sertopic * tp, const void * sample)
+serdata_t serialize_key (const struct sertopic * tp, const void * sample)
 {
   serdata_t sd;
   dds_stream_t os;
   dds_topic_descriptor_t * desc = (dds_topic_descriptor_t*) tp->type;
-  serstate_t st = ddsi_serstate_new (pool, tp);
+  serstate_t st = ddsi_serstate_new (tp);
   dds_key_gen (desc, &st->data->v.keyhash, (char*) sample);
   dds_stream_from_serstate (&os, st);
   dds_stream_write_key (&os, sample, desc);

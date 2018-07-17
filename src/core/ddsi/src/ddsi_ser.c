@@ -55,8 +55,8 @@ static void serstate_free_wrap (void *elem)
 
 void ddsi_serstatepool_free (serstatepool_t pool)
 {
-  nn_freelist_fini (&pool->freelist, serstate_free_wrap);
   TRACE (("ddsi_serstatepool_free(%p)\n", pool));
+  nn_freelist_fini (&pool->freelist, serstate_free_wrap);
   os_free (pool);
 }
 
@@ -86,13 +86,13 @@ void ddsi_serdata_set_twrite (serdata_t serdata, nn_mtime_t twrite)
   ddsi_serstate_set_twrite (serdata->v.st, twrite);
 }
 
-serstate_t ddsi_serstate_new (serstatepool_t pool, const struct sertopic * topic)
+serstate_t ddsi_serstate_new (const struct sertopic * topic)
 {
   serstate_t st;
-  if ((st = nn_freelist_pop (&pool->freelist)) != NULL)
+  if ((st = nn_freelist_pop (&gv.serpool->freelist)) != NULL)
     serstate_init (st, topic);
   else
-    st = serstate_allocnew (pool, topic);
+    st = serstate_allocnew (gv.serpool, topic);
   return st;
 }
 

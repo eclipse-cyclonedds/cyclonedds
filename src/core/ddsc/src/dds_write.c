@@ -212,9 +212,9 @@ dds_write_impl(
 
     /* Serialize and write data or key */
     if (writekey) {
-        d = serialize_key (gv.serpool, ddsi_wr->topic, data);
+        d = serialize_key (ddsi_wr->topic, data);
     } else {
-        d = serialize (gv.serpool, ddsi_wr->topic, data);
+        d = serialize (ddsi_wr->topic, data);
     }
 
     /* Set if disposing or unregistering */
@@ -287,7 +287,7 @@ dds_writecdr_impl(
 
     /* Serialize and write data or key */
     {
-      serstate_t st = ddsi_serstate_new (gv.serpool, ddsi_wr->topic);
+      serstate_t st = ddsi_serstate_new (ddsi_wr->topic);
       dds_stream_t is;
       ddsi_serstate_append_blob(st, 1, sz, cdr);
       d = ddsi_serstate_fix(st);
