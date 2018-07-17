@@ -133,6 +133,7 @@ typedef struct dds_entity
   os_cond m_cond;
   c_listener_t m_listener;
   uint32_t m_trigger;
+  os_mutex m_observers_lock;
   dds_entity_observer *m_observers;
   struct ut_handlelink *m_hdllink;
 }

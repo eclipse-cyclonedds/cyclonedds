@@ -237,6 +237,7 @@ dds_entity_init(
     e->m_status_enable = mask | DDS_INTERNAL_STATUS_MASK;
 
     os_mutexInit (&e->m_mutex);
+    os_mutexInit (&e->m_observers_lock);
     os_condInit (&e->m_cond, &e->m_mutex);
 
     if (parent) {
@@ -428,6 +429,7 @@ dds_delete_impl(
         dds_qos_delete (e->m_qos);
         os_condDestroy (&e->m_cond);
         os_mutexDestroy (&e->m_mutex);
+        os_mutexDestroy (&e->m_observers_lock);
         dds_free (e);
     }
 
@@ -1104,6 +1106,7 @@ dds_entity_observer_register_nl(
     o->m_cb = cb;
     o->m_observer = observer;
     o->m_next = NULL;
+    os_mutexLock(&observed->m_observers_lock);
     if (observed->m_observers == NULL) {
         observed->m_observers = o;
     } else {
@@ -1122,6 +1125,7 @@ dds_entity_observer_register_nl(
             last->m_next = o;
         }
     }
+    os_mutexUnlock(&observed->m_observers_lock);
     return rc;
 }
 
@@ -1155,7 +1159,9 @@ dds_entity_observer_unregister_nl(
 {
     dds__retcode_t rc = DDS_RETCODE_PRECONDITION_NOT_MET;
     dds_entity_observer *prev = NULL;
-    dds_entity_observer *idx  = observed->m_observers;
+    dds_entity_observer *idx;
+    os_mutexLock(&observed->m_observers_lock);
+    idx = observed->m_observers;
     while (idx != NULL) {
         if (idx->m_observer == observer) {
             if (prev == NULL) {
@@ -1171,6 +1177,7 @@ dds_entity_observer_unregister_nl(
             idx = idx->m_next;
         }
     }
+    os_mutexUnlock(&observed->m_observers_lock);
     return rc;
 }
 
@@ -1201,13 +1208,16 @@ dds_entity_observers_delete(
         _In_ dds_entity *observed)
 {
     dds_entity_observer *next;
-    dds_entity_observer *idx = observed->m_observers;
+    dds_entity_observer *idx;
+    os_mutexLock(&observed->m_observers_lock);
+    idx = observed->m_observers;
     while (idx != NULL) {
         next = idx->m_next;
         os_free(idx);
         idx = next;
     }
     observed->m_observers = NULL;
+    os_mutexUnlock(&observed->m_observers_lock);
 }
 
 
@@ -1217,11 +1227,14 @@ dds_entity_observers_signal(
         _In_ dds_entity *observed,
         _In_ uint32_t status)
 {
-    dds_entity_observer *idx = observed->m_observers;
+    dds_entity_observer *idx;
+    os_mutexLock(&observed->m_observers_lock);
+    idx = observed->m_observers;
     while (idx != NULL) {
         idx->m_cb(idx->m_observer, observed->m_hdl, status);
         idx = idx->m_next;
     }
+    os_mutexUnlock(&observed->m_observers_lock);
 }
 
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
