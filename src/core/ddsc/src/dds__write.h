@@ -39,11 +39,9 @@ dds_write_impl(
 int
 dds_writecdr_impl(
         _In_ dds_writer *wr,
-        _In_ const void *cdr,
-        _In_ size_t sz,
+        _Inout_ struct serdata *d,
         _In_ dds_time_t tstamp,
         _In_ dds_write_action action);
-
 
 #if defined (__cplusplus)
 }

@@ -55,6 +55,9 @@ typedef _Return_type_success_(return >  0) int32_t dds_entity_t;
 extern "C" {
 #endif
 
+/* FIXME: rename serdata, abstract it properly, etc */
+struct serdata;
+
 /**
  * @brief Returns the default domain identifier.
  *
@@ -1707,8 +1710,7 @@ _Pre_satisfies_((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)
 DDS_EXPORT int
 dds_writecdr(
         dds_entity_t writer,
-        const void *cdr,
-        size_t size);
+        struct serdata *serdata);
 
 /**
  * @brief Write the value of a data instance along with the source timestamp passed.
@@ -2716,8 +2718,6 @@ dds_take_mask_wl(
         _Out_ dds_sample_info_t *si,
         _In_ uint32_t maxs,
         _In_ uint32_t mask);
-
-struct serdata;
 
 DDS_EXPORT int
 dds_takecdr(

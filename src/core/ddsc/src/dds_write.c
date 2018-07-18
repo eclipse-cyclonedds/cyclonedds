@@ -26,7 +26,6 @@
 #include "ddsi/q_radmin.h"
 #include <string.h>
 
-
 _Pre_satisfies_((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)
 dds_return_t
 dds_write(
@@ -58,16 +57,15 @@ _Pre_satisfies_((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)
 int
 dds_writecdr(
         dds_entity_t writer,
-        const void *cdr,
-        size_t size)
+        struct serdata *serdata)
 {
     dds_return_t ret;
     dds__retcode_t rc;
     dds_writer *wr;
-    if (cdr != NULL) {
+    if (serdata != NULL) {
         rc = dds_writer_lock(writer, &wr);
         if (rc == DDS_RETCODE_OK) {
-            ret = dds_writecdr_impl (wr, cdr, size, dds_time (), 0);
+            ret = dds_writecdr_impl (wr, serdata, dds_time (), 0);
             dds_writer_unlock(wr);
         } else {
             ret = DDS_ERRNO(rc, "Error occurred on locking writer");
@@ -257,24 +255,21 @@ filtered:
 
 int
 dds_writecdr_impl(
-        _In_ dds_writer *wr,
-        _In_ const void *cdr,
-        _In_ size_t sz,
-        _In_ dds_time_t tstamp,
-        _In_ dds_write_action action)
+    _In_ dds_writer *wr,
+    _Inout_ serdata_t d,
+    _In_ dds_time_t tstamp,
+    _In_ dds_write_action action)
 {
     int ret = DDS_RETCODE_OK;
     int w_rc;
 
     assert (wr);
-    assert (cdr);
 
     struct thread_state1 * const thr = lookup_thread_state ();
     const bool asleep = !vtime_awake_p (thr->vtime);
     const bool writekey = action & DDS_WR_KEY_BIT;
     struct writer * ddsi_wr = wr->m_wr;
     struct tkmap_instance * tk;
-    serdata_t d;
 
     /* Check for topic filter */
     if (ddsi_wr->topic->filter_fn && ! writekey) {
@@ -285,22 +280,10 @@ dds_writecdr_impl(
         thread_state_awake (thr);
     }
 
-    /* Serialize and write data or key */
-    {
-      serstate_t st = ddsi_serstate_new (ddsi_wr->topic);
-      dds_stream_t is;
-      ddsi_serstate_append_blob(st, 1, sz, cdr);
-      d = ddsi_serstate_fix(st);
-      assert(d->v.keyhash.m_flags == 0);
-      assert(!d->v.bswap);
-      dds_stream_from_serstate (&is, d->v.st);
-      d->v.st->kind = writekey ? STK_KEY : STK_DATA;
-      dds_stream_read_keyhash (&is, &d->v.keyhash, ddsi_wr->topic->status_cb_entity->m_descriptor, d->v.st->kind == STK_KEY);
-    }
-
     /* Set if disposing or unregistering */
-    d->v.msginfo.statusinfo = ((action & DDS_WR_DISPOSE_BIT   ) ? NN_STATUSINFO_DISPOSE    : 0) |
-                              ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0) ;
+    d->v.msginfo.statusinfo =
+        ((action & DDS_WR_DISPOSE_BIT   ) ? NN_STATUSINFO_DISPOSE    : 0) |
+        ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0) ;
     d->v.msginfo.timestamp.v = tstamp;
     os_mutexLock (&wr->m_call_lock);
     ddsi_serdata_ref(d);

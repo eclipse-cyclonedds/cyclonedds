@@ -46,6 +46,12 @@ dds_entity_add_ref(_In_ dds_entity * e)
     os_mutexUnlock (&e->m_mutex);
 }
 
+dds_domain *
+dds__entity_domain(_In_ dds_entity* e)
+{
+    return e->m_domain;
+}
+
 static void
 dds_set_explicit(
         _In_ dds_entity_t entity);

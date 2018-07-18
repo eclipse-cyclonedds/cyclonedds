@@ -108,6 +108,10 @@ const char *
 dds__entity_kind_str(
         _In_ dds_entity_t e);
 
+dds_domain *
+dds__entity_domain(
+        _In_ dds_entity* e);
+
 #if defined (__cplusplus)
 }
 #endif
