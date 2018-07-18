@@ -72,22 +72,6 @@ os_procName(
     _Out_writes_z_(procNameSize) char *procName,
     _In_ size_t procNameSize);
 
-
-/** \brief Register an process exit handler
- *
- * Register an process exit handler. Multiple handlers may be
- * registered. The handlers are called in reverse order of
- * registration.
- *
- * Possible Results:
- * - os_resultSuccess: function registered
- * - os_resultFail: function could not be registered
- * - assertion failure: function = NULL
- */
-OSAPI_EXPORT os_result
-os_procAtExit(
-    _In_ void (*function)(void));
-
 #if defined (__cplusplus)
 }
 #endif

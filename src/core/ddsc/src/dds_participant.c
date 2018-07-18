@@ -145,9 +145,6 @@ dds_create_participant(
     struct thread_state1 * thr;
     bool asleep;
 
-    /* Be sure the DDS lifecycle resources are initialized. */
-    dds__startup();
-
     /* Make sure DDS instance is initialized. */
     ret = dds_init();
     if (ret != DDS_RETCODE_OK) {
@@ -243,9 +240,11 @@ dds_lookup_participant(
         _In_        size_t size)
 {
     dds_return_t ret = 0;
+    os_mutex *init_mutex;
 
     /* Be sure the DDS lifecycle resources are initialized. */
-    dds__startup();
+    os_osInit();
+    init_mutex = os_getSingletonMutex();
 
     DDS_REPORT_STACK();
 
@@ -262,7 +261,7 @@ dds_lookup_participant(
         participants[0] = 0;
     }
 
-    os_mutexLock (&dds__init_mutex);
+    os_mutexLock (init_mutex);
 
     /* Check if dds is intialized. */
     if (dds_global.m_init_count > 0) {
@@ -281,9 +280,10 @@ dds_lookup_participant(
         os_mutexUnlock (&dds_global.m_mutex);
     }
 
-    os_mutexUnlock (&dds__init_mutex);
+    os_mutexUnlock (init_mutex);
 
 err:
     DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
+    os_osExit();
     return ret;
 }

@@ -45,36 +45,6 @@ dds_globals dds_global =
 
 static struct cfgst * dds_cfgst = NULL;
 
-
-
-
-os_mutex dds__init_mutex;
-
-static void
-dds__fini_once(void)
-{
-  os_mutexDestroy(&dds__init_mutex);
-  os_osExit();
-}
-
-static void
-dds__init_once(void)
-{
-  os_osInit();
-  os_mutexInit(&dds__init_mutex);
-  os_procAtExit(dds__fini_once);
-}
-
-
-
-void
-dds__startup(void)
-{
-    static os_once_t dds__init_control = OS_ONCE_T_STATIC_INIT;
-    os_once(&dds__init_control, dds__init_once);
-}
-
-
 dds_return_t
 dds_init(void)
 {
@@ -83,13 +53,15 @@ dds_init(void)
   char progname[50];
   char hostname[64];
   uint32_t len;
+  os_mutex *init_mutex;
 
   /* Be sure the DDS lifecycle resources are initialized. */
-  dds__startup();
+  os_osInit();
+  init_mutex = os_getSingletonMutex();
 
   DDS_REPORT_STACK();
 
-  os_mutexLock(&dds__init_mutex);
+  os_mutexLock(init_mutex);
 
   dds_global.m_init_count++;
   if (dds_global.m_init_count > 1)
@@ -181,7 +153,7 @@ dds_init(void)
   gv.default_plist_pp.present |= PP_ENTITY_NAME;
 
 skip:
-  os_mutexUnlock(&dds__init_mutex);
+  os_mutexUnlock(init_mutex);
   DDS_REPORT_FLUSH(false);
   return DDS_RETCODE_OK;
 
@@ -203,8 +175,9 @@ fail_config:
   ut_handleserver_fini();
 fail_handleserver:
   dds_global.m_init_count--;
-  os_mutexUnlock(&dds__init_mutex);
+  os_mutexUnlock(init_mutex);
   DDS_REPORT_FLUSH(true);
+  os_osExit();
   return ret;
 }
 
@@ -212,7 +185,9 @@ fail_handleserver:
 
 extern void dds_fini (void)
 {
-  os_mutexLock(&dds__init_mutex);
+  os_mutex *init_mutex;
+  init_mutex = os_getSingletonMutex();
+  os_mutexLock(init_mutex);
   assert(dds_global.m_init_count > 0);
   dds_global.m_init_count--;
   if (dds_global.m_init_count == 0)
@@ -232,7 +207,8 @@ extern void dds_fini (void)
     os_mutexDestroy (&dds_global.m_mutex);
     dds_global.m_default_domain = DDS_DOMAIN_DEFAULT;
   }
-  os_mutexUnlock(&dds__init_mutex);
+  os_mutexUnlock(init_mutex);
+  os_osExit();
 }
 
 

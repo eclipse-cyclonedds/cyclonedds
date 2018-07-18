@@ -110,7 +110,7 @@ cleanup_thread_state(
     assert(ts->state == THREAD_STATE_ALIVE);
     assert(vtime_asleep_p(ts->vtime));
     reset_thread_state(ts);
-    os_reportExit(); /* FIXME: Should not be here! */
+    os_osExit();
 }
 
 _Ret_valid_ struct thread_state1 *
@@ -133,6 +133,7 @@ lookup_thread_state(
             os_mutexLock(&thread_states.lock);
             ts1 = init_thread_state(tname);
             if (ts1 != NULL) {
+                os_osInit();
                 ts1->lb = 0;
                 ts1->extTid = tid;
                 ts1->tid = tid;

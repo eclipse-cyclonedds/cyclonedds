@@ -15,4 +15,8 @@
 void os_osInit(void);
 void os_osExit(void);
 
+/* implemented by the platform-specific code */
+void os_osPlatformInit (void);
+void os_osPlatformExit (void);
+
 #endif

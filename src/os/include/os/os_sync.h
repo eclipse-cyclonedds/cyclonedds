@@ -360,6 +360,10 @@ extern "C" {
         _Inout_ os_once_t *control,
         _In_ os_once_fn init_fn);
 
+    OSAPI_EXPORT os_mutex *
+    os_getSingletonMutex(
+        void);
+
 #if defined (__cplusplus)
 }
 #endif
