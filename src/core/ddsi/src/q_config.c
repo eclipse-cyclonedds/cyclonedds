@@ -491,6 +491,12 @@ static const struct cfgelem heartbeat_interval_attrs[] = {
     END_MARKER
 };
 
+static const struct cfgelem liveliness_monitoring_attrs[] = {
+  { LEAF("StackTraces"), 1, "true", ABSOFF(noprogress_log_stacktraces), 0, uf_boolean, 0, pf_boolean,
+    "<p>This element controls whether or not to write stack traces to the DDSI2 trace when a thread fails to make progress (on select platforms only).</p>" },
+  END_MARKER
+};
+
 static const struct cfgelem unsupp_cfgelems[] = {
     { MOVED("MaxMessageSize", "General/MaxMessageSize") },
     { MOVED("FragmentSize", "General/FragmentSize") },
@@ -585,8 +591,8 @@ static const struct cfgelem unsupp_cfgelems[] = {
 "<p>This setting controls the maximum (CDR) serialised size of samples that DDSI2E will forward in either direction. Samples larger than this are discarded with a warning.</p>" },
 { LEAF("WriteBatch"), 1, "false", ABSOFF(whc_batch), 0, uf_boolean, 0, pf_boolean,
 "<p>This element enables the batching of write operations. By default each write operation writes through the write cache and out onto the transport. Enabling write batching causes multiple small write operations to be aggregated within the write cache into a single larger write. This gives greater throughput at the expense of latency. Currently there is no mechanism for the write cache to automatically flush itself, so that if write batching is enabled, the application may havee to use the dds_write_flush function to ensure thta all samples are written.</p>" },
-{ LEAF("LogStackTraces"), 1, "true", ABSOFF(noprogress_log_stacktraces), 0, uf_boolean, 0, pf_boolean,
-"<p>This element controls whether or not to write stack traces to the DDSI2 trace when a thread fails to make progress (on select platforms only).</p>" },
+{ LEAF_W_ATTRS("LivelinessMonitoring", liveliness_monitoring_attrs), 1, "false", ABSOFF(liveliness_monitoring), 0, uf_boolean, 0, pf_boolean,
+"<p>This element controls whether or not implementation should internally monitor its own liveliness. If liveliness monitoring is enabled, stack traces can be dumped automatically when some thread appears to have stopped making progress.</p>" },
 { LEAF("MonitorPort"), 1, "-1", ABSOFF(monitor_port), 0, uf_int, 0, pf_int,
 "<p>This element allows configuring a service that dumps a text description of part the internal state to TCP clients. By default (-1), this is disabled; specifying 0 means a kernel-allocated port is used; a positive number is used as the TCP port number.</p>" },
 { LEAF("AssumeMulticastCapable"), 1, "", ABSOFF(assumeMulticastCapable), 0, uf_string, ff_free, pf_string,

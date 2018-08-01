@@ -256,6 +256,7 @@ struct config
   int squash_participants;
   int startup_mode_full;
   int forward_all_messages;
+  int liveliness_monitoring;
   int noprogress_log_stacktraces;
   int prioritize_retransmit;
   int xpack_send_async;

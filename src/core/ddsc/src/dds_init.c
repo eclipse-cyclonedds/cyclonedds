@@ -105,19 +105,22 @@ dds_init(void)
 
   ut_avlInit(&dds_domaintree_def, &dds_global.m_domains);
 
-  /* Start monitoring the liveliness of all threads and renewing the
-     service lease if everything seems well. */
-
-  gv.servicelease = nn_servicelease_new(0, 0);
-  if (gv.servicelease == NULL)
+  /* Start monitoring the liveliness of all threads. */
+  if (!config.liveliness_monitoring)
+    gv.servicelease = NULL;
+  else
   {
-    ret = DDS_ERRNO(DDS_RETCODE_OUT_OF_RESOURCES, "Failed to create a servicelease.");
-    goto fail_servicelease_new;
-  }
-  if (nn_servicelease_start_renewing(gv.servicelease) < 0)
-  {
-    ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Failed to start the servicelease.");
-    goto fail_servicelease_start;
+    gv.servicelease = nn_servicelease_new(0, 0);
+    if (gv.servicelease == NULL)
+    {
+      ret = DDS_ERRNO(DDS_RETCODE_OUT_OF_RESOURCES, "Failed to create a servicelease.");
+      goto fail_servicelease_new;
+    }
+    if (nn_servicelease_start_renewing(gv.servicelease) < 0)
+    {
+      ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Failed to start the servicelease.");
+      goto fail_servicelease_start;
+    }
   }
 
   if (rtps_init() < 0)
@@ -159,7 +162,8 @@ skip:
 
 fail_rtps_init:
 fail_servicelease_start:
-  nn_servicelease_free (gv.servicelease);
+  if (gv.servicelease)
+    nn_servicelease_free (gv.servicelease);
   gv.servicelease = NULL;
 fail_servicelease_new:
   thread_states_fini();
@@ -195,7 +199,8 @@ extern void dds_fini (void)
     dds__builtin_fini();
 
     rtps_term ();
-    nn_servicelease_free (gv.servicelease);
+    if (gv.servicelease)
+      nn_servicelease_free (gv.servicelease);
     gv.servicelease = NULL;
     downgrade_main_thread ();
     thread_states_fini ();

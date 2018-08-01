@@ -295,7 +295,7 @@ static void reap_thread_state (_Inout_ struct thread_state1 *ts1, _In_ int sync_
 {
   os_mutexLock (&thread_states.lock);
   ts1->state = THREAD_STATE_ZERO;
-  if (sync_with_servicelease)
+  if (sync_with_servicelease && gv.servicelease)
     nn_servicelease_statechange_barrier (gv.servicelease);
   if (ts1->name != main_thread_name)
     os_free (ts1->name);
