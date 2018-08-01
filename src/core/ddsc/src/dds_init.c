@@ -194,7 +194,6 @@ extern void dds_fini (void)
   {
     dds__builtin_fini();
 
-    ut_handleserver_fini();
     rtps_term ();
     nn_servicelease_free (gv.servicelease);
     gv.servicelease = NULL;
@@ -205,6 +204,7 @@ extern void dds_fini (void)
     dds_cfgst = NULL;
     os_mutexDestroy (&gv.static_logbuf_lock);
     os_mutexDestroy (&dds_global.m_mutex);
+    ut_handleserver_fini();
     dds_global.m_default_domain = DDS_DOMAIN_DEFAULT;
   }
   os_mutexUnlock(init_mutex);
