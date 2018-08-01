@@ -22,7 +22,6 @@
 #include "ddsi/q_misc.h"
 #include "ddsi/q_log.h"
 #include "util/ut_avl.h"
-#include "ddsi/q_whc.h"
 #include "ddsi/q_plist.h"
 #include "ddsi/q_lease.h"
 #include "q__osplser.h"
@@ -42,6 +41,7 @@
 #include "ddsi/ddsi_mcgroup.h"
 
 #include "ddsi/sysdeps.h"
+#include "dds__whc.h"
 
 struct deleted_participant {
   ut_avlNode_t avlnode;
@@ -84,27 +84,8 @@ static const unsigned prismtech_builtin_writers_besmask =
   NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER |
   NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
 
-static struct writer * new_writer_guid
-(
-  const struct nn_guid *guid,
-  const struct nn_guid *group_guid,
-  struct participant *pp,
-  const struct sertopic *topic,
-  const struct nn_xqos *xqos,
-  status_cb_t status_cb,
-  void *status_cbarg
-);
-static struct reader * new_reader_guid
-(
-  const struct nn_guid *guid,
-  const struct nn_guid *group_guid,
-  struct participant *pp,
-  const struct sertopic *topic,
-  const struct nn_xqos *xqos,
-  struct rhc *rhc,
-  status_cb_t status_cb,
-  void *status_cbarg
-);
+static struct writer * new_writer_guid (const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct sertopic *topic, const struct nn_xqos *xqos, struct whc *whc, status_cb_t status_cb, void *status_cbarg);
+static struct reader * new_reader_guid (const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct sertopic *topic, const struct nn_xqos *xqos, struct rhc *rhc, status_cb_t status_cb, void *status_cbarg);
 static struct participant *ref_participant (struct participant *pp, const struct nn_guid *guid_of_refing_entity);
 static void unref_participant (struct participant *pp, const struct nn_guid *guid_of_refing_entity);
 static void delete_proxy_group_locked (struct proxy_group *pgroup, nn_wctime_t timestamp, int isimplicit);
@@ -466,7 +447,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     subguid.entityid = to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
-    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.spdp_endpoint_xqos, LAST_WR_PARAMS);
+    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.spdp_endpoint_xqos, whc_new(1, 1, 1), LAST_WR_PARAMS);
     /* But we need the as_disc address set for SPDP, because we need to
        send it to everyone regardless of the existence of readers. */
     {
@@ -489,23 +470,23 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER);
-    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, LAST_WR_PARAMS);
+    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, whc_new(1, 1, 1), LAST_WR_PARAMS);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER;
 
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER);
-    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, LAST_WR_PARAMS);
+    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, whc_new(1, 1, 1), LAST_WR_PARAMS);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
 
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER);
-    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, LAST_WR_PARAMS);
+    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, whc_new(1, 1, 1), LAST_WR_PARAMS);
     pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_WRITER;
 
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER);
-    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, LAST_WR_PARAMS);
+    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, whc_new(1, 1, 1), LAST_WR_PARAMS);
     pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER;
 
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER);
-    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, LAST_WR_PARAMS);
+    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, whc_new(1, 1, 1), LAST_WR_PARAMS);
     pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
   }
 
@@ -513,7 +494,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
   {
     /* TODO: make this one configurable, we don't want all participants to publish all topics (or even just those that they use themselves) */
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER);
-    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, LAST_WR_PARAMS);
+    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, whc_new(1, 1, 1), LAST_WR_PARAMS);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_TOPIC_ANNOUNCER;
   }
 
@@ -521,7 +502,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     subguid.entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, LAST_WR_PARAMS);
+    new_writer_guid (&subguid, &group_guid, pp, NULL, &gv.builtin_endpoint_xqos_wr, whc_new(1, 1, 1), LAST_WR_PARAMS);
     pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
   }
 
@@ -1311,17 +1292,18 @@ static void free_wr_rd_match (struct wr_rd_match *m)
 
 static void writer_drop_connection (const struct nn_guid * wr_guid, const struct proxy_reader * prd)
 {
-  struct whc_node *deferred_free_list;
   struct writer *wr;
   if ((wr = ephash_lookup_writer_guid (wr_guid)) != NULL)
   {
+    struct whc_node *deferred_free_list = NULL;
     struct wr_prd_match *m;
     os_mutexLock (&wr->e.lock);
     if ((m = ut_avlLookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
     {
+      struct whc_state whcst;
       ut_avlDelete (&wr_readers_treedef, &wr->readers, m);
       rebuild_writer_addrset (wr);
-      remove_acked_messages (wr, &deferred_free_list);
+      remove_acked_messages (wr, &whcst, &deferred_free_list);
       wr->num_reliable_readers -= m->is_reliable;
       if (wr->status_cb)
       {
@@ -1333,6 +1315,7 @@ static void writer_drop_connection (const struct nn_guid * wr_guid, const struct
       }
     }
     os_mutexUnlock (&wr->e.lock);
+    wr->whc->ops->free_deferred_free_list (wr->whc, deferred_free_list);
     free_wr_prd_match (m);
   }
 }
@@ -1616,20 +1599,23 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
   ut_avlInsertIPath (&wr_local_readers_treedef, &wr->local_readers, m, &path);
   local_reader_ary_insert (&wr->rdary, rd);
 
-  /* Store available data into the late joining reader when it is reliable. */
-  if ((rd->xqos->reliability.kind > NN_BEST_EFFORT_RELIABILITY_QOS) /* transient reader */ &&
-      (!whc_empty(wr->whc))                                         /* data available   */ )
+  /* Store available data into the late joining reader when it is reliable (we don't do
+     historical data for best-effort data over the wire, so also not locally).
+     FIXME: should limit ourselves to what it is available because of durability history,
+     not writer history */
+  if (rd->xqos->reliability.kind > NN_BEST_EFFORT_RELIABILITY_QOS && rd->xqos->durability.kind > NN_VOLATILE_DURABILITY_QOS)
   {
-    seqno_t seq = -1;
-    struct whc_node *n;
-    while ((n = whc_next_node(wr->whc, seq)) != NULL)
+    struct whc_sample_iter it;
+    struct whc_borrowed_sample sample;
+    wr->whc->ops->sample_iter_init(wr->whc, &it);
+    while (wr->whc->ops->sample_iter_borrow_next(&it, &sample))
     {
       struct proxy_writer_info pwr_info;
-      serdata_t payload = n->serdata;
+      serdata_t payload = sample.serdata;
+      /* FIXME: whc has tk reference in its index nodes, which is what we really should be iterating over anyway, and so we don't really have to look them up anymore */
       struct tkmap_instance *tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (payload);
       make_proxy_writer_info(&pwr_info, &wr->e, wr->xqos);
       (void)(ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk);
-      seq = n->seq;
     }
   }
 
@@ -1645,7 +1631,6 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
     data.handle = rd->e.iid;
     (wr->status_cb) (wr->status_cb_entity, &data);
   }
-
 }
 
 static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, nn_count_t *init_count)
@@ -2502,9 +2487,9 @@ seqno_t writer_max_drop_seq (const struct writer *wr)
   return (n->min_seq == MAX_SEQ_NUMBER) ? wr->seq : n->min_seq;
 }
 
-int writer_must_have_hb_scheduled (const struct writer *wr)
+int writer_must_have_hb_scheduled (const struct writer *wr, const struct whc_state *whcst)
 {
-  if (ut_avlIsEmpty (&wr->readers) || whc_empty (wr->whc))
+  if (ut_avlIsEmpty (&wr->readers) || whcst->max_seq < 0)
   {
     /* Can't transmit a valid heartbeat if there is no data; and it
        wouldn't actually be sent anywhere if there are no readers, so
@@ -2528,7 +2513,7 @@ int writer_must_have_hb_scheduled (const struct writer *wr)
        requiring a non-empty whc_seq: if it is transient_local,
        whc_seq usually won't be empty even when all msgs have been
        ack'd. */
-    return writer_max_drop_seq (wr) < whc_max_seq (wr->whc);
+    return writer_max_drop_seq (wr) < whcst->max_seq;
   }
 }
 
@@ -2550,21 +2535,19 @@ void writer_clear_retransmitting (struct writer *wr)
   os_condBroadcast (&wr->throttle_cond);
 }
 
-unsigned remove_acked_messages (struct writer *wr, struct whc_node **deferred_free_list)
+unsigned remove_acked_messages (struct writer *wr, struct whc_state *whcst, struct whc_node **deferred_free_list)
 {
   unsigned n;
-  size_t n_unacked;
   assert (wr->e.guid.entityid.u != NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
   ASSERT_MUTEX_HELD (&wr->e.lock);
-  n = whc_remove_acked_messages (wr->whc, writer_max_drop_seq (wr), deferred_free_list);
+  n = wr->whc->ops->remove_acked_messages (wr->whc, writer_max_drop_seq (wr), whcst, deferred_free_list);
   /* when transitioning from >= low-water to < low-water, signal
      anyone waiting in throttle_writer() */
-  n_unacked = whc_unacked_bytes (wr->whc);
-  if (wr->throttling && n_unacked <= wr->whc_low)
+  if (wr->throttling && whcst->unacked_bytes <= wr->whc_low)
     os_condBroadcast (&wr->throttle_cond);
-  if (wr->retransmitting && whc_unacked_bytes (wr->whc) == 0)
+  if (wr->retransmitting && whcst->unacked_bytes == 0)
     writer_clear_retransmitting (wr);
-  if (wr->state == WRST_LINGERING && n_unacked == 0)
+  if (wr->state == WRST_LINGERING && whcst->unacked_bytes == 0)
   {
     nn_log (LC_DISCOVERY, "remove_acked_messages: deleting lingering writer %x:%x:%x:%x\n", PGUID (wr->e.guid));
     delete_writer_nolinger_locked (wr);
@@ -2572,26 +2555,8 @@ unsigned remove_acked_messages (struct writer *wr, struct whc_node **deferred_fr
   return n;
 }
 
-unsigned remove_acked_messages_and_free (struct writer *wr)
+static struct writer * new_writer_guid (const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct sertopic *topic, const struct nn_xqos *xqos, struct whc *whc, status_cb_t status_cb, void * status_entity)
 {
-  struct whc_node *deferred_free_list;
-  unsigned n = remove_acked_messages (wr, &deferred_free_list);
-  whc_free_deferred_free_list (wr->whc, deferred_free_list);
-  return n;
-}
-
-static struct writer * new_writer_guid
-(
-  const struct nn_guid *guid,
-  const struct nn_guid *group_guid,
-  struct participant *pp,
-  const struct sertopic *topic,
-  const struct nn_xqos *xqos,
-  status_cb_t status_cb,
-  void * status_entity
-)
-{
-  const size_t sample_overhead = 80; /* INFO_TS + DATA (approximate figure) + inline QoS */
   struct writer *wr;
   nn_mtime_t tnow = now_mt ();
 
@@ -2782,46 +2747,21 @@ static struct writer * new_writer_guid
   }
   wr->lease_duration = T_NEVER; /* FIXME */
 
-  /* Construct WHC -- if aggressive_keep_last1 is set, the WHC will
-     drop all samples for which a later update is available.  This
-     forces it to maintain a tlidx.  */
+  wr->whc = whc;
+  if (wr->xqos->history.kind == NN_KEEP_LAST_HISTORY_QOS && wr->aggressive_keep_last)
   {
-    unsigned hdepth, tldepth;
-    if (!wr->aggressive_keep_last || wr->xqos->history.kind == NN_KEEP_ALL_HISTORY_QOS)
-      hdepth = 0;
-    else
-      hdepth = (unsigned)wr->xqos->history.depth;
-    if (wr->handle_as_transient_local) {
-      if (wr->xqos->durability_service.history.kind == NN_KEEP_ALL_HISTORY_QOS)
-        tldepth = 0;
-      else
-        tldepth = (unsigned)wr->xqos->durability_service.history.depth;
-    } else if (wr->startup_mode) {
-      tldepth = hdepth;
-    } else {
-      tldepth = 0;
-    }
-    if (hdepth == 0 && tldepth == 0)
-    {
-      /* no index at all - so no need to bother with startup mode */
-      wr->startup_mode = 0;
-    }
-    wr->whc = whc_new (wr->handle_as_transient_local, hdepth, tldepth, sample_overhead);
-    if (hdepth > 0)
-    {
-      /* hdepth > 0 => "aggressive keep last", and in that case: why
-         bother blocking for a slow receiver when the entire point of
-         KEEP_LAST is to keep going (at least in a typical interpretation
-         of the spec. */
-      wr->whc_low = wr->whc_high = INT32_MAX;
-    }
-    else
-    {
-      wr->whc_low = config.whc_lowwater_mark;
-      wr->whc_high = config.whc_init_highwater_mark.value;
-    }
-    assert (!is_builtin_entityid(wr->e.guid.entityid, ownvendorid) || (wr->whc_low == wr->whc_high && wr->whc_low == INT32_MAX));
+    /* hdepth > 0 => "aggressive keep last", and in that case: why
+       bother blocking for a slow receiver when the entire point of
+       KEEP_LAST is to keep going (at least in a typical interpretation
+       of the spec. */
+    wr->whc_low = wr->whc_high = INT32_MAX;
   }
+  else
+  {
+    wr->whc_low = config.whc_lowwater_mark;
+    wr->whc_high = config.whc_init_highwater_mark.value;
+  }
+  assert (!is_builtin_entityid(wr->e.guid.entityid, ownvendorid) || (wr->whc_low == wr->whc_high && wr->whc_low == INT32_MAX));
 
   /* Connection admin */
   ut_avlInit (&wr_readers_treedef, &wr->readers);
@@ -2855,16 +2795,7 @@ static struct writer * new_writer_guid
   return wr;
 }
 
-struct writer * new_writer
-(
-  struct nn_guid *wrguid,
-  const struct nn_guid *group_guid,
-  const struct nn_guid *ppguid,
-  const struct sertopic *topic,
-  const struct nn_xqos *xqos,
-  status_cb_t status_cb,
-  void * status_cb_arg
-)
+struct writer * new_writer (struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct sertopic *topic, const struct nn_xqos *xqos, struct whc * whc, status_cb_t status_cb, void * status_cb_arg)
 {
   struct participant *pp;
   struct writer * wr;
@@ -2882,7 +2813,7 @@ struct writer * new_writer
   wrguid->prefix = pp->e.guid.prefix;
   if (pp_allocate_entityid (&wrguid->entityid, entity_kind, pp) < 0)
     return NULL;
-  wr = new_writer_guid (wrguid, group_guid, pp, topic, xqos, status_cb, status_cb_arg);
+  wr = new_writer_guid (wrguid, group_guid, pp, topic, xqos, whc, status_cb, status_cb_arg);
   return wr;
 }
 
@@ -2929,7 +2860,7 @@ static void gc_delete_writer (struct gcreq *gcreq)
     (wr->status_cb) (wr->status_cb_entity, NULL);
   }
 
-  whc_free (wr->whc);
+  wr->whc->ops->free (wr->whc);
 #ifdef DDSI_INCLUDE_SSM
   if (wr->ssm_as)
     unref_addrset (wr->ssm_as);
@@ -3012,6 +2943,7 @@ int delete_writer_nolinger (const struct nn_guid *guid)
 int delete_writer (const struct nn_guid *guid)
 {
   struct writer *wr;
+  struct whc_state whcst;
   if ((wr = ephash_lookup_writer_guid (guid)) == NULL)
   {
     nn_log (LC_DISCOVERY, "delete_writer(guid %x:%x:%x:%x) - unknown guid\n", PGUID (*guid));
@@ -3024,7 +2956,8 @@ int delete_writer (const struct nn_guid *guid)
      be the usual case), do it immediately.  If more data is still
      coming in (which can't really happen at the moment, but might
      again in the future) it'll potentially be discarded.  */
-  if (whc_unacked_bytes (wr->whc) == 0)
+  wr->whc->ops->get_state(wr->whc, &whcst);
+  if (whcst.unacked_bytes == 0)
   {
     nn_log (LC_DISCOVERY, "delete_writer(guid %x:%x:%x:%x) - no unack'ed samples\n", PGUID (*guid));
     delete_writer_nolinger_locked (wr);
@@ -3047,22 +2980,20 @@ int delete_writer (const struct nn_guid *guid)
 
 void writer_exit_startup_mode (struct writer *wr)
 {
+  struct whc_node *deferred_free_list = NULL;
   os_mutexLock (&wr->e.lock);
-  /* startup mode and handle_as_transient_local may not both be set */
-  assert (!(wr->startup_mode && wr->handle_as_transient_local));
-  if (!wr->startup_mode)
-    nn_log (LC_DISCOVERY, "  wr %x:%x:%x:%x skipped\n", PGUID (wr->e.guid));
-  else
+  if (wr->startup_mode)
   {
-    unsigned n;
-    assert (wr->e.guid.entityid.u != NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
+    unsigned cnt = 0;
+    struct whc_state whcst;
     wr->startup_mode = 0;
-    whc_downgrade_to_volatile (wr->whc);
-    n = remove_acked_messages_and_free (wr);
+    cnt += remove_acked_messages (wr, &whcst, &deferred_free_list);
+    cnt += wr->whc->ops->downgrade_to_volatile (wr->whc, &whcst);
     writer_clear_retransmitting (wr);
-    nn_log (LC_DISCOVERY, "  wr %x:%x:%x:%x dropped %u entr%s\n", PGUID (wr->e.guid), n, n == 1 ? "y" : "ies");
+    nn_log (LC_DISCOVERY, "  %x:%x:%x:%x: dropped %u samples\n", PGUID(wr->e.guid), cnt);
   }
   os_mutexUnlock (&wr->e.lock);
+  wr->whc->ops->free_deferred_free_list (wr->whc, deferred_free_list);
 }
 
 uint64_t writer_instance_id (const struct nn_guid *guid)
@@ -4379,16 +4310,19 @@ static void proxy_reader_set_delete_and_ack_all_messages (struct proxy_reader *p
     os_mutexUnlock (&prd->e.lock);
     if ((wr = ephash_lookup_writer_guid (&wrguid)) != NULL)
     {
+      struct whc_node *deferred_free_list = NULL;
       struct wr_prd_match *m_wr;
       os_mutexLock (&wr->e.lock);
       if ((m_wr = ut_avlLookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
       {
+        struct whc_state whcst;
         m_wr->seq = MAX_SEQ_NUMBER;
         ut_avlAugmentUpdate (&wr_readers_treedef, m_wr);
-        remove_acked_messages_and_free (wr);
+        (void)remove_acked_messages (wr, &whcst, &deferred_free_list);
         writer_clear_retransmitting (wr);
       }
       os_mutexUnlock (&wr->e.lock);
+      wr->whc->ops->free_deferred_free_list (wr->whc, deferred_free_list);
     }
 
     wrguid = wrguid_next;

@@ -17,9 +17,94 @@
 #include "ddsi/ddsi_ser.h"
 #include "ddsi/q_unused.h"
 #include "ddsi/q_config.h"
-#include "ddsi/q_whc.h"
 #include "q__osplser.h"
+#include "dds__whc.h"
 #include "dds__tkmap.h"
+
+#include "util/ut_avl.h"
+#include "util/ut_hopscotch.h"
+#include "ddsi/q_time.h"
+#include "ddsi/q_rtps.h"
+#include "ddsi/q_freelist.h"
+
+#define USE_EHH 0
+
+struct whc_node {
+  struct whc_node *next_seq; /* next in this interval */
+  struct whc_node *prev_seq; /* prev in this interval */
+  struct whc_idxnode *idxnode; /* NULL if not in index */
+  unsigned idxnode_pos; /* index in idxnode.hist */
+  seqno_t seq;
+  uint64_t total_bytes; /* cumulative number of bytes up to and including this node */
+  size_t size;
+  struct nn_plist *plist; /* 0 if nothing special */
+  unsigned unacked: 1; /* counted in whc::unacked_bytes iff 1 */
+  unsigned borrowed: 1; /* at most one can borrow it at any time */
+  nn_mtime_t last_rexmit_ts;
+  unsigned rexmit_count;
+  struct serdata *serdata;
+};
+
+struct whc_intvnode {
+  ut_avlNode_t avlnode;
+  seqno_t min;
+  seqno_t maxp1;
+  struct whc_node *first; /* linked list of seqs with contiguous sequence numbers [min,maxp1) */
+  struct whc_node *last; /* valid iff first != NULL */
+};
+
+struct whc_idxnode {
+  int64_t iid;
+  seqno_t prune_seq;
+  struct tkmap_instance *tk;
+  unsigned headidx;
+#if __STDC_VERSION__ >= 199901L
+  struct whc_node *hist[];
+#else
+  struct whc_node *hist[1];
+#endif
+};
+
+#if USE_EHH
+struct whc_seq_entry {
+  seqno_t seq;
+  struct whc_node *whcn;
+};
+#endif
+
+struct whc_impl {
+  struct whc common;
+  os_mutex lock;
+  unsigned seq_size;
+  size_t unacked_bytes;
+  size_t sample_overhead;
+  uint64_t total_bytes; /* total number of bytes pushed in */
+  unsigned is_transient_local: 1;
+  unsigned hdepth; /* 0 = unlimited */
+  unsigned tldepth; /* 0 = disabled/unlimited (no need to maintain an index if KEEP_ALL <=> is_transient_local + tldepth=0) */
+  unsigned idxdepth; /* = max(hdepth, tldepth) */
+  seqno_t max_drop_seq; /* samples in whc with seq <= max_drop_seq => transient-local */
+  struct whc_intvnode *open_intv; /* interval where next sample will go (usually) */
+  struct whc_node *maxseq_node; /* NULL if empty; if not in open_intv, open_intv is empty */
+  struct nn_freelist freelist; /* struct whc_node *; linked via whc_node::next_seq */
+#if USE_EHH
+  struct ut_ehh *seq_hash;
+#else
+  struct ut_hh *seq_hash;
+#endif
+  struct ut_hh *idx_hash;
+  ut_avlTree_t seq;
+};
+
+struct whc_sample_iter_impl {
+  struct whc_impl *whc;
+  bool first;
+};
+
+/* check that our definition of whc_sample_iter fits in the type that callers allocate */
+struct whc_sample_iter_sizecheck {
+  char fits_in_generic_type[sizeof(struct whc_sample_iter_impl) <= sizeof(struct whc_sample_iter) ? 1 : -1];
+};
 
 /* Avoiding all nn_log-related activities when LC_WHC is not set
    (and it hardly ever is, as it is not even included in "trace")
@@ -47,13 +132,44 @@ static int trace_whc (const char *fmt, ...)
  * - cleaning up after ACKs has additional pruning stage for same case
  */
 
-static void insert_whcn_in_hash (struct whc *whc, struct whc_node *whcn);
-static void whc_delete_one (struct whc *whc, struct whc_node *whcn);
+static struct whc_node *whc_findseq (const struct whc_impl *whc, seqno_t seq);
+static void insert_whcn_in_hash (struct whc_impl *whc, struct whc_node *whcn);
+static void whc_delete_one (struct whc_impl *whc, struct whc_node *whcn);
 static int compare_seq (const void *va, const void *vb);
-static unsigned whc_remove_acked_messages_full (struct whc *whc, seqno_t max_drop_seq, struct whc_node **deferred_free_list);
+static unsigned whc_remove_acked_messages_full (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_node **deferred_free_list);
+static void free_deferred_free_list (struct whc_impl *whc, struct whc_node *deferred_free_list);
+static void get_state_locked(const struct whc_impl *whc, struct whc_state *st);
+
+static unsigned whc_remove_acked_messages (struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list);
+static void whc_free_deferred_free_list (struct whc *whc, struct whc_node *deferred_free_list);
+static void whc_get_state(const struct whc *whc, struct whc_state *st);
+static int whc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, serdata_t serdata, struct tkmap_instance *tk);
+static seqno_t whc_next_seq (const struct whc *whc, seqno_t seq);
+static bool whc_borrow_sample (const struct whc *whc, seqno_t seq, struct whc_borrowed_sample *sample);
+static bool whc_borrow_sample_key (const struct whc *whc, const struct serdata *serdata_key, struct whc_borrowed_sample *sample);
+static void whc_return_sample (struct whc *whc, struct whc_borrowed_sample *sample, bool update_retransmit_info);
+static unsigned whc_downgrade_to_volatile (struct whc *whc, struct whc_state *st);
+static void whc_sample_iter_init (const struct whc *whc, struct whc_sample_iter *opaque_it);
+static bool whc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, struct whc_borrowed_sample *sample);
+static void whc_free (struct whc *whc);
 
 static const ut_avlTreedef_t whc_seq_treedef =
   UT_AVL_TREEDEF_INITIALIZER (offsetof (struct whc_intvnode, avlnode), offsetof (struct whc_intvnode, min), compare_seq, 0);
+
+static const struct whc_ops whc_ops = {
+  .insert = whc_insert,
+  .remove_acked_messages = whc_remove_acked_messages,
+  .free_deferred_free_list = whc_free_deferred_free_list,
+  .get_state = whc_get_state,
+  .next_seq = whc_next_seq,
+  .borrow_sample = whc_borrow_sample,
+  .borrow_sample_key = whc_borrow_sample_key,
+  .return_sample = whc_return_sample,
+  .sample_iter_init = whc_sample_iter_init,
+  .sample_iter_borrow_next = whc_sample_iter_borrow_next,
+  .downgrade_to_volatile = whc_downgrade_to_volatile,
+  .free = whc_free
+};
 
 #if USE_EHH
 static uint32_t whc_seq_entry_hash (const void *vn)
@@ -111,7 +227,7 @@ static int compare_seq (const void *va, const void *vb)
   return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
 }
 
-static struct whc_node *whc_findmax_procedurally (const struct whc *whc)
+static struct whc_node *whc_findmax_procedurally (const struct whc_impl *whc)
 {
   if (whc->seq_size == 0)
     return NULL;
@@ -128,7 +244,7 @@ static struct whc_node *whc_findmax_procedurally (const struct whc *whc)
   }
 }
 
-static void check_whc (const struct whc *whc)
+static void check_whc (const struct whc_impl *whc)
 {
   /* there's much more we can check, but it gets expensive quite
      quickly: all nodes but open_intv non-empty, non-overlapping and
@@ -155,7 +271,7 @@ static void check_whc (const struct whc *whc)
   }
   assert (whc->maxseq_node == whc_findmax_procedurally (whc));
 
-#if 1 && !defined(NDEBUG)
+#if !defined(NDEBUG)
   {
     struct whc_intvnode *firstintv;
     struct whc_node *cur;
@@ -174,7 +290,7 @@ static void check_whc (const struct whc *whc)
 #endif
 }
 
-static void insert_whcn_in_hash (struct whc *whc, struct whc_node *whcn)
+static void insert_whcn_in_hash (struct whc_impl *whc, struct whc_node *whcn)
 {
   /* precondition: whcn is not in hash */
 #if USE_EHH
@@ -187,7 +303,7 @@ static void insert_whcn_in_hash (struct whc *whc, struct whc_node *whcn)
 #endif
 }
 
-static void remove_whcn_from_hash (struct whc *whc, struct whc_node *whcn)
+static void remove_whcn_from_hash (struct whc_impl *whc, struct whc_node *whcn)
 {
   /* precondition: whcn is in hash */
 #if USE_EHH
@@ -200,7 +316,7 @@ static void remove_whcn_from_hash (struct whc *whc, struct whc_node *whcn)
 #endif
 }
 
-struct whc_node *whc_findseq (const struct whc *whc, seqno_t seq)
+static struct whc_node *whc_findseq (const struct whc_impl *whc, seqno_t seq)
 {
 #if USE_EHH
   struct whc_seq_entry e = { .seq = seq }, *r;
@@ -215,15 +331,36 @@ struct whc_node *whc_findseq (const struct whc *whc, seqno_t seq)
 #endif
 }
 
-
-struct whc *whc_new (int is_transient_local, unsigned hdepth, unsigned tldepth, size_t sample_overhead)
+static struct whc_node *whc_findkey (const struct whc_impl *whc, const struct serdata *serdata_key)
 {
-  struct whc *whc;
+  union {
+    struct whc_idxnode idxn;
+    char pad[sizeof(struct whc_idxnode) + sizeof(struct whc_node *)];
+  } template;
+  struct whc_idxnode *n;
+  check_whc (whc);
+  template.idxn.iid = dds_tkmap_lookup(gv.m_tkmap, serdata_key);
+  n = ut_hhLookup (whc->idx_hash, &template.idxn);
+  if (n == NULL)
+    return NULL;
+  else
+  {
+    assert (n->hist[n->headidx]);
+    return n->hist[n->headidx];
+  }
+}
+
+struct whc *whc_new (int is_transient_local, unsigned hdepth, unsigned tldepth)
+{
+  size_t sample_overhead = 80; /* INFO_TS, DATA (estimate), inline QoS */
+  struct whc_impl *whc;
   struct whc_intvnode *intv;
 
   assert((hdepth == 0 || tldepth <= hdepth) || is_transient_local);
 
   whc = os_malloc (sizeof (*whc));
+  whc->common.ops = &whc_ops;
+  os_mutexInit (&whc->lock);
   whc->is_transient_local = is_transient_local ? 1 : 0;
   whc->hdepth = hdepth;
   whc->tldepth = tldepth;
@@ -257,10 +394,10 @@ struct whc *whc_new (int is_transient_local, unsigned hdepth, unsigned tldepth, 
   nn_freelist_init (&whc->freelist, UINT32_MAX, offsetof (struct whc_node, next_seq));
 
   check_whc (whc);
-  return whc;
+  return (struct whc *)whc;
 }
 
-static void free_whc_node_contents (struct whc *whc, struct whc_node *whcn)
+static void free_whc_node_contents (struct whc_node *whcn)
 {
   ddsi_serdata_unref (whcn->serdata);
   if (whcn->plist) {
@@ -269,9 +406,10 @@ static void free_whc_node_contents (struct whc *whc, struct whc_node *whcn)
   }
 }
 
-void whc_free (struct whc *whc)
+void whc_free (struct whc *whc_generic)
 {
   /* Freeing stuff without regards for maintaining data structures */
+  struct whc_impl * const whc = (struct whc_impl *)whc_generic;
   check_whc (whc);
 
   if (whc->idx_hash)
@@ -292,7 +430,7 @@ void whc_free (struct whc *whc)
 OS_WARNING_MSVC_OFF(6001);
       whcn = whcn->prev_seq;
 OS_WARNING_MSVC_ON(6001);
-      free_whc_node_contents (whc, tmp);
+      free_whc_node_contents (tmp);
       os_free (tmp);
     }
   }
@@ -305,45 +443,41 @@ OS_WARNING_MSVC_ON(6001);
 #else
   ut_hhFree (whc->seq_hash);
 #endif
+  os_mutexDestroy (&whc->lock);
   os_free (whc);
 }
 
-int whc_empty (const struct whc *whc)
+static void get_state_locked(const struct whc_impl *whc, struct whc_state *st)
 {
-  return whc->seq_size == 0;
-}
-
-seqno_t whc_min_seq (const struct whc *whc)
-{
-  /* precond: whc not empty */
-  const struct whc_intvnode *intv;
-  check_whc (whc);
-  assert (!whc_empty (whc));
-  intv = ut_avlFindMin (&whc_seq_treedef, &whc->seq);
-  assert (intv);
-  /* not empty, open node may be anything but is (by definition)
+  if (whc->seq_size == 0)
+  {
+    st->min_seq = st->max_seq = -1;
+    st->unacked_bytes = 0;
+  }
+  else
+  {
+    const struct whc_intvnode *intv;
+    intv = ut_avlFindMin (&whc_seq_treedef, &whc->seq);
+    /* not empty, open node may be anything but is (by definition)
      findmax, and whc is claimed to be non-empty, so min interval
      can't be empty */
-  assert (intv->maxp1 > intv->min);
-  return intv->min;
+    assert (intv->maxp1 > intv->min);
+    st->min_seq = intv->min;
+    st->max_seq = whc->maxseq_node->seq;
+    st->unacked_bytes = whc->unacked_bytes;
+  }
 }
 
-struct whc_node *whc_findmax (const struct whc *whc)
+static void whc_get_state(const struct whc *whc_generic, struct whc_state *st)
 {
+  const struct whc_impl * const whc = (const struct whc_impl *)whc_generic;
+  os_mutexLock ((struct os_mutex *)&whc->lock);
   check_whc (whc);
-  return (struct whc_node *) whc->maxseq_node;
+  get_state_locked(whc, st);
+  os_mutexUnlock ((struct os_mutex *)&whc->lock);
 }
 
-seqno_t whc_max_seq (const struct whc *whc)
-{
-  /* precond: whc not empty */
-  check_whc (whc);
-  assert (!whc_empty (whc));
-  assert (whc->maxseq_node != NULL);
-  return whc->maxseq_node->seq;
-}
-
-static struct whc_node *find_nextseq_intv (struct whc_intvnode **p_intv, const struct whc *whc, seqno_t seq)
+static struct whc_node *find_nextseq_intv (struct whc_intvnode **p_intv, const struct whc_impl *whc, seqno_t seq)
 {
   struct whc_node *n;
   struct whc_intvnode *intv;
@@ -385,25 +519,23 @@ static struct whc_node *find_nextseq_intv (struct whc_intvnode **p_intv, const s
   }
 }
 
-seqno_t whc_next_seq (const struct whc *whc, seqno_t seq)
+static seqno_t whc_next_seq (const struct whc *whc_generic, seqno_t seq)
 {
+  const struct whc_impl * const whc = (const struct whc_impl *)whc_generic;
   struct whc_node *n;
   struct whc_intvnode *intv;
+  seqno_t nseq;
+  os_mutexLock ((struct os_mutex *)&whc->lock);
   check_whc (whc);
   if ((n = find_nextseq_intv (&intv, whc, seq)) == NULL)
-    return MAX_SEQ_NUMBER;
+    nseq = MAX_SEQ_NUMBER;
   else
-    return n->seq;
+    nseq = n->seq;
+  os_mutexUnlock ((struct os_mutex *)&whc->lock);
+  return nseq;
 }
 
-struct whc_node* whc_next_node(const struct whc *whc, seqno_t seq)
-{
-    struct whc_intvnode *intv;
-    check_whc (whc);
-    return find_nextseq_intv(&intv, whc, seq);
-}
-
-static void delete_one_sample_from_idx (struct whc *whc, struct whc_node *whcn)
+static void delete_one_sample_from_idx (struct whc_impl *whc, struct whc_node *whcn)
 {
   struct whc_idxnode * const idxn = whcn->idxnode;
   assert (idxn != NULL);
@@ -426,7 +558,7 @@ static void delete_one_sample_from_idx (struct whc *whc, struct whc_node *whcn)
   whcn->idxnode = NULL;
 }
 
-static void free_one_instance_from_idx (struct whc *whc, seqno_t max_drop_seq, struct whc_idxnode *idxn)
+static void free_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_idxnode *idxn)
 {
   unsigned i;
   for (i = 0; i < whc->idxdepth; i++)
@@ -446,14 +578,14 @@ static void free_one_instance_from_idx (struct whc *whc, seqno_t max_drop_seq, s
   os_free(idxn);
 }
 
-static void delete_one_instance_from_idx (struct whc *whc, seqno_t max_drop_seq, struct whc_idxnode *idxn)
+static void delete_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_idxnode *idxn)
 {
   if (!ut_hhRemove (whc->idx_hash, idxn))
     assert (0);
   free_one_instance_from_idx (whc, max_drop_seq, idxn);
 }
 
-static int whcn_in_tlidx (const struct whc *whc, const struct whc_idxnode *idxn, unsigned pos)
+static int whcn_in_tlidx (const struct whc_impl *whc, const struct whc_idxnode *idxn, unsigned pos)
 {
   if (idxn == NULL)
     return 0;
@@ -465,19 +597,24 @@ static int whcn_in_tlidx (const struct whc *whc, const struct whc_idxnode *idxn,
   }
 }
 
-void whc_downgrade_to_volatile (struct whc *whc)
+static unsigned whc_downgrade_to_volatile (struct whc *whc_generic, struct whc_state *st)
 {
+  struct whc_impl * const whc = (struct whc_impl *)whc_generic;
   seqno_t old_max_drop_seq;
   struct whc_node *deferred_free_list;
+  unsigned cnt;
 
   /* We only remove them from whc->tlidx: we don't remove them from
      whc->seq yet.  That'll happen eventually.  */
+  os_mutexLock (&whc->lock);
   check_whc (whc);
 
   if (whc->idxdepth == 0)
   {
     /* if not maintaining an index at all, this is nonsense */
-    return;
+    get_state_locked(whc, st);
+    os_mutexUnlock (&whc->lock);
+    return 0;
   }
 
   assert (!whc->is_transient_local);
@@ -502,18 +639,21 @@ void whc_downgrade_to_volatile (struct whc *whc)
      them all. */
   old_max_drop_seq = whc->max_drop_seq;
   whc->max_drop_seq = 0;
-  whc_remove_acked_messages_full (whc, old_max_drop_seq, &deferred_free_list);
-  whc_free_deferred_free_list (whc, deferred_free_list);
+  cnt = whc_remove_acked_messages_full (whc, old_max_drop_seq, &deferred_free_list);
+  whc_free_deferred_free_list (whc_generic, deferred_free_list);
   assert (whc->max_drop_seq == old_max_drop_seq);
+  get_state_locked(whc, st);
+  os_mutexUnlock (&whc->lock);
+  return cnt;
 }
 
-static size_t whcn_size (const struct whc *whc, const struct whc_node *whcn)
+static size_t whcn_size (const struct whc_impl *whc, const struct whc_node *whcn)
 {
   size_t sz = ddsi_serdata_size (whcn->serdata);
   return sz + ((sz + config.fragment_size - 1) / config.fragment_size) * whc->sample_overhead;
 }
 
-static void whc_delete_one_intv (struct whc *whc, struct whc_intvnode **p_intv, struct whc_node **p_whcn)
+static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_intv, struct whc_node **p_whcn)
 {
   /* Removes *p_whcn, possibly deleting or splitting *p_intv, as the
      case may be.  Does *NOT* update whc->seq_size.  *p_intv must be
@@ -612,7 +752,7 @@ static void whc_delete_one_intv (struct whc *whc, struct whc_intvnode **p_intv, 
   }
 }
 
-static void whc_delete_one (struct whc *whc, struct whc_node *whcn)
+static void whc_delete_one (struct whc_impl *whc, struct whc_node *whcn)
 {
   struct whc_intvnode *intv;
   struct whc_node *whcn_tmp = whcn;
@@ -624,11 +764,11 @@ static void whc_delete_one (struct whc *whc, struct whc_node *whcn)
   if (whcn_tmp->next_seq)
     whcn_tmp->next_seq->prev_seq = whcn_tmp->prev_seq;
   whcn_tmp->next_seq = NULL;
-  whc_free_deferred_free_list (whc, whcn_tmp);
+  free_deferred_free_list (whc, whcn_tmp);
   whc->seq_size--;
 }
 
-void whc_free_deferred_free_list (struct whc *whc, struct whc_node *deferred_free_list)
+static void free_deferred_free_list (struct whc_impl *whc, struct whc_node *deferred_free_list)
 {
   if (deferred_free_list)
   {
@@ -637,7 +777,8 @@ void whc_free_deferred_free_list (struct whc *whc, struct whc_node *deferred_fre
     for (cur = deferred_free_list, last = NULL; cur; last = cur, cur = cur->next_seq)
     {
       n++;
-      free_whc_node_contents (whc, cur);
+      if (!cur->borrowed)
+        free_whc_node_contents (cur);
     }
     cur = nn_freelist_pushmany (&whc->freelist, deferred_free_list, last, n);
     while (cur)
@@ -649,7 +790,13 @@ void whc_free_deferred_free_list (struct whc *whc, struct whc_node *deferred_fre
   }
 }
 
-static unsigned whc_remove_acked_messages_noidx (struct whc *whc, seqno_t max_drop_seq, struct whc_node **deferred_free_list)
+static void whc_free_deferred_free_list (struct whc *whc_generic, struct whc_node *deferred_free_list)
+{
+  struct whc_impl * const whc = (struct whc_impl *)whc_generic;
+  free_deferred_free_list(whc, deferred_free_list);
+}
+
+static unsigned whc_remove_acked_messages_noidx (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_node **deferred_free_list)
 {
   struct whc_intvnode *intv;
   struct whc_node *whcn;
@@ -725,7 +872,7 @@ static unsigned whc_remove_acked_messages_noidx (struct whc *whc, seqno_t max_dr
   return ndropped;
 }
 
-static unsigned whc_remove_acked_messages_full (struct whc *whc, seqno_t max_drop_seq, struct whc_node **deferred_free_list)
+static unsigned whc_remove_acked_messages_full (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_node **deferred_free_list)
 {
   struct whc_intvnode *intv;
   struct whc_node *whcn;
@@ -859,49 +1006,36 @@ static unsigned whc_remove_acked_messages_full (struct whc *whc, seqno_t max_dro
   return ndropped;
 }
 
-unsigned whc_remove_acked_messages (struct whc *whc, seqno_t max_drop_seq, struct whc_node **deferred_free_list)
+static unsigned whc_remove_acked_messages (struct whc *whc_generic, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list)
 {
+  struct whc_impl * const whc = (struct whc_impl *)whc_generic;
+  unsigned cnt;
+
+  os_mutexLock (&whc->lock);
   assert (max_drop_seq < MAX_SEQ_NUMBER);
   assert (max_drop_seq >= whc->max_drop_seq);
 
-  TRACE_WHC(("whc_remove_acked_messages(%p max_drop_seq %"PRId64")\n", (void *)whc, max_drop_seq));
-  TRACE_WHC(("  whc: [%"PRId64",%"PRId64"] max_drop_seq %"PRId64" h %u tl %u\n",
-             whc_empty(whc) ? (seqno_t)-1 : whc_min_seq(whc),
-             whc_empty(whc) ? (seqno_t)-1 : whc_max_seq(whc),
-             whc->max_drop_seq, whc->hdepth, whc->tldepth));
+  if (config.enabled_logcats & LC_WHC)
+  {
+    struct whc_state whcst;
+    get_state_locked(whc, &whcst);
+    TRACE_WHC(("whc_remove_acked_messages(%p max_drop_seq %"PRId64")\n", (void *)whc, max_drop_seq));
+    TRACE_WHC(("  whc: [%"PRId64",%"PRId64"] max_drop_seq %"PRId64" h %u tl %u\n",
+               whcst.min_seq, whcst.max_seq, whc->max_drop_seq, whc->hdepth, whc->tldepth));
+  }
 
   check_whc (whc);
 
   if (whc->idxdepth == 0)
-  {
-    return whc_remove_acked_messages_noidx (whc, max_drop_seq, deferred_free_list);
-  }
+    cnt = whc_remove_acked_messages_noidx (whc, max_drop_seq, deferred_free_list);
   else
-  {
-    return whc_remove_acked_messages_full (whc, max_drop_seq, deferred_free_list);
-  }
+    cnt = whc_remove_acked_messages_full (whc, max_drop_seq, deferred_free_list);
+  get_state_locked(whc, whcst);
+  os_mutexUnlock (&whc->lock);
+  return cnt;
 }
 
-struct whc_node *whc_findkey (const struct whc *whc, const struct serdata *serdata_key)
-{
-  union {
-    struct whc_idxnode idxn;
-    char pad[sizeof(struct whc_idxnode) + sizeof(struct whc_node *)];
-  } template;
-  struct whc_idxnode *n;
-  check_whc (whc);
-  template.idxn.iid = dds_tkmap_lookup(gv.m_tkmap, serdata_key);
-  n = ut_hhLookup (whc->idx_hash, &template.idxn);
-  if (n == NULL)
-    return NULL;
-  else
-  {
-    assert (n->hist[n->headidx]);
-    return n->hist[n->headidx];
-  }
-}
-
-static struct whc_node *whc_insert_seq (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, serdata_t serdata)
+static struct whc_node *whc_insert_seq (struct whc_impl *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, serdata_t serdata)
 {
   struct whc_node *newn = NULL;
 
@@ -910,6 +1044,7 @@ static struct whc_node *whc_insert_seq (struct whc *whc, seqno_t max_drop_seq, s
   newn->seq = seq;
   newn->plist = plist;
   newn->unacked = (seq > max_drop_seq);
+  newn->borrowed = 0;
   newn->idxnode = NULL; /* initial state, may be changed */
   newn->idxnode_pos = 0;
   newn->last_rexmit_ts.v = 0;
@@ -961,21 +1096,27 @@ static struct whc_node *whc_insert_seq (struct whc *whc, seqno_t max_drop_seq, s
   return newn;
 }
 
-int whc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, serdata_t serdata, struct tkmap_instance *tk)
+static int whc_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, serdata_t serdata, struct tkmap_instance *tk)
 {
+  struct whc_impl * const whc = (struct whc_impl *)whc_generic;
   struct whc_node *newn = NULL;
   struct whc_idxnode *idxn;
   union {
     struct whc_idxnode idxn;
     char pad[sizeof(struct whc_idxnode) + sizeof(struct whc_node *)];
   } template;
+
+  os_mutexLock (&whc->lock);
   check_whc (whc);
 
-  TRACE_WHC(("whc_insert(%p max_drop_seq %"PRId64" seq %"PRId64" plist %p serdata %p:%x)\n", (void *)whc, max_drop_seq, seq, (void*)plist, (void*)serdata, *(unsigned *)serdata->v.keyhash.m_hash));
-  TRACE_WHC(("  whc: [%"PRId64",%"PRId64"] max_drop_seq %"PRId64" h %u tl %u\n",
-             whc_empty(whc) ? (seqno_t)-1 : whc_min_seq(whc),
-             whc_empty(whc) ? (seqno_t)-1 : whc_max_seq(whc),
-             whc->max_drop_seq, whc->hdepth, whc->tldepth));
+  if (config.enabled_logcats & LC_WHC)
+  {
+    struct whc_state whcst;
+    get_state_locked(whc, &whcst);
+    TRACE_WHC(("whc_insert(%p max_drop_seq %"PRId64" seq %"PRId64" plist %p serdata %p:%x)\n", (void *)whc, max_drop_seq, seq, (void*)plist, (void*)serdata, *(unsigned *)serdata->v.keyhash.m_hash));
+    TRACE_WHC(("  whc: [%"PRId64",%"PRId64"] max_drop_seq %"PRId64" h %u tl %u\n",
+               whcst.min_seq, whcst.max_seq, whc->max_drop_seq, whc->hdepth, whc->tldepth));
+  }
 
   assert (max_drop_seq < MAX_SEQ_NUMBER);
   assert (max_drop_seq >= whc->max_drop_seq);
@@ -983,7 +1124,7 @@ int whc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_pl
   /* Seq must be greater than what is currently stored. Usually it'll
      be the next sequence number, but if there are no readers
      temporarily, a gap may be among the possibilities */
-  assert (whc_empty (whc) || seq > whc_max_seq (whc));
+  assert (whc->seq_size == 0 || seq > whc->maxseq_node->seq);
 
   /* Always insert in seq admin */
   newn = whc_insert_seq (whc, max_drop_seq, seq, plist, serdata);
@@ -994,6 +1135,7 @@ int whc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_pl
   if (ddsi_serdata_is_empty(serdata) || whc->idxdepth == 0)
   {
     TRACE_WHC((" empty or no hist\n"));
+    os_mutexUnlock (&whc->lock);
     return 0;
   }
 
@@ -1089,10 +1231,123 @@ int whc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_pl
     }
     TRACE_WHC(("\n"));
   }
+  os_mutexUnlock (&whc->lock);
   return 0;
 }
 
-size_t whc_unacked_bytes (struct whc *whc)
+static void make_borrowed_sample(struct whc_borrowed_sample *sample, struct whc_node *whcn)
 {
-  return whc->unacked_bytes;
+  assert(!whcn->borrowed);
+  whcn->borrowed = 1;
+  sample->seq = whcn->seq;
+  sample->plist = whcn->plist;
+  sample->serdata = whcn->serdata;
+  sample->unacked = whcn->unacked;
+  sample->rexmit_count = whcn->rexmit_count;
+  sample->last_rexmit_ts = whcn->last_rexmit_ts;
+}
+
+static bool whc_borrow_sample (const struct whc *whc_generic, seqno_t seq, struct whc_borrowed_sample *sample)
+{
+  const struct whc_impl * const whc = (const struct whc_impl *)whc_generic;
+  struct whc_node *whcn;
+  bool found;
+  os_mutexLock ((os_mutex *)&whc->lock);
+  if ((whcn = whc_findseq(whc, seq)) == NULL)
+    found = false;
+  else
+  {
+    make_borrowed_sample(sample, whcn);
+    found = true;
+  }
+  os_mutexUnlock ((os_mutex *)&whc->lock);
+  return found;
+}
+
+static bool whc_borrow_sample_key (const struct whc *whc_generic, const struct serdata *serdata_key, struct whc_borrowed_sample *sample)
+{
+  const struct whc_impl * const whc = (const struct whc_impl *)whc_generic;
+  struct whc_node *whcn;
+  bool found;
+  os_mutexLock ((os_mutex *)&whc->lock);
+  if ((whcn = whc_findkey(whc, serdata_key)) == NULL)
+    found = false;
+  else
+  {
+    make_borrowed_sample(sample, whcn);
+    found = true;
+  }
+  os_mutexUnlock ((os_mutex *)&whc->lock);
+  return found;
+}
+
+static void return_sample_locked (struct whc_impl *whc, struct whc_borrowed_sample *sample, bool update_retransmit_info)
+{
+  struct whc_node *whcn;
+  if ((whcn = whc_findseq (whc, sample->seq)) == NULL)
+  {
+    /* data no longer present in WHC - that means ownership for serdata, plist shifted to the borrowed copy and "returning" it really becomes "destroying" it */
+    ddsi_serdata_unref (sample->serdata);
+    if (sample->plist) {
+      nn_plist_fini (sample->plist);
+      os_free (sample->plist);
+    }
+  }
+  else
+  {
+    assert(whcn->borrowed);
+    whcn->borrowed = 0;
+    if (update_retransmit_info)
+    {
+      whcn->rexmit_count = sample->rexmit_count;
+      whcn->last_rexmit_ts = sample->last_rexmit_ts;
+    }
+  }
+}
+
+static void whc_return_sample (struct whc *whc_generic, struct whc_borrowed_sample *sample, bool update_retransmit_info)
+{
+  struct whc_impl * const whc = (struct whc_impl *)whc_generic;
+  os_mutexLock (&whc->lock);
+  return_sample_locked (whc, sample, update_retransmit_info);
+  os_mutexUnlock (&whc->lock);
+}
+
+static void whc_sample_iter_init (const struct whc *whc_generic, struct whc_sample_iter *opaque_it)
+{
+  const struct whc_impl * const whc = (const struct whc_impl *)whc_generic;
+  struct whc_sample_iter_impl *it = (struct whc_sample_iter_impl *)opaque_it->opaque.opaque;
+  it->whc = (struct whc_impl *)whc;
+  it->first = true;
+}
+
+static bool whc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, struct whc_borrowed_sample *sample)
+{
+  struct whc_sample_iter_impl * const it = (struct whc_sample_iter_impl *)opaque_it->opaque.opaque;
+  struct whc_impl * const whc = it->whc;
+  struct whc_node *whcn;
+  struct whc_intvnode *intv;
+  seqno_t seq;
+  bool valid;
+  os_mutexLock (&whc->lock);
+  check_whc (whc);
+  if (!it->first)
+  {
+    seq = sample->seq;
+    return_sample_locked(whc, sample, false);
+  }
+  else
+  {
+    it->first = false;
+    seq = 0;
+  }
+  if ((whcn = find_nextseq_intv (&intv, whc, seq)) == NULL)
+    valid = false;
+  else
+  {
+    make_borrowed_sample(sample, whcn);
+    valid = true;
+  }
+  os_mutexUnlock (&whc->lock);
+  return valid;
 }

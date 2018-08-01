@@ -22,6 +22,7 @@ extern "C" {
 struct nn_xpack;
 struct nn_xmsg;
 struct writer;
+struct whc_state;
 struct proxy_reader;
 struct serdata;
 struct tkmap_instance;
@@ -41,7 +42,7 @@ int write_sample_nogc_notk (struct nn_xpack *xp, struct writer *wr, struct serda
 /* When calling the following functions, wr->lock must be held */
 int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_plist *plist, struct serdata *serdata, unsigned fragnum, struct proxy_reader *prd,struct nn_xmsg **msg, int isnew);
 int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct nn_plist *plist, struct serdata *serdata, struct proxy_reader *prd, int isnew);
-void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, int hbansreq, nn_entityid_t dst, int issync);
+void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, nn_entityid_t dst, int issync);
 
 #if defined (__cplusplus)
 }

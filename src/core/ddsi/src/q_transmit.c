@@ -15,7 +15,6 @@
 #include "os/os.h"
 
 #include "util/ut_avl.h"
-#include "ddsi/q_whc.h"
 #include "ddsi/q_entity.h"
 #include "ddsi/q_addrset.h"
 #include "ddsi/q_xmsg.h"
@@ -36,6 +35,7 @@
 #include "ddsi/ddsi_ser.h"
 
 #include "ddsi/sysdeps.h"
+#include "dds__whc.h"
 
 #if __STDC_VERSION__ >= 199901L
 #define POS_INFINITY_DOUBLE INFINITY
@@ -84,7 +84,7 @@ static void writer_hbcontrol_note_hb (struct writer *wr, nn_mtime_t tnow, int an
   hbc->hbs_since_last_write++;
 }
 
-int64_t writer_hbcontrol_intv (const struct writer *wr, UNUSED_ARG (nn_mtime_t tnow))
+int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *whcst, UNUSED_ARG (nn_mtime_t tnow))
 {
   struct hbcontrol const * const hbc = &wr->hbcontrol;
   int64_t ret = config.const_hb_intv_sched;
@@ -97,7 +97,7 @@ int64_t writer_hbcontrol_intv (const struct writer *wr, UNUSED_ARG (nn_mtime_t t
       ret *= 2;
   }
 
-  n_unacked = whc_unacked_bytes (wr->whc);
+  n_unacked = whcst->unacked_bytes;
   if (n_unacked >= wr->whc_low + 3 * (wr->whc_high - wr->whc_low) / 4)
     ret /= 2;
   if (n_unacked >= wr->whc_low + (wr->whc_high - wr->whc_low) / 2)
@@ -109,7 +109,7 @@ int64_t writer_hbcontrol_intv (const struct writer *wr, UNUSED_ARG (nn_mtime_t t
   return ret;
 }
 
-void writer_hbcontrol_note_asyncwrite (struct writer *wr, nn_mtime_t tnow)
+void writer_hbcontrol_note_asyncwrite (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow)
 {
   struct hbcontrol * const hbc = &wr->hbcontrol;
   nn_mtime_t tnext;
@@ -131,13 +131,13 @@ void writer_hbcontrol_note_asyncwrite (struct writer *wr, nn_mtime_t tnow)
   }
 }
 
-int writer_hbcontrol_must_send (const struct writer *wr, nn_mtime_t tnow /* monotonic */)
+int writer_hbcontrol_must_send (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow /* monotonic */)
 {
   struct hbcontrol const * const hbc = &wr->hbcontrol;
-  return (tnow.v >= hbc->t_of_last_hb.v + writer_hbcontrol_intv (wr, tnow));
+  return (tnow.v >= hbc->t_of_last_hb.v + writer_hbcontrol_intv (wr, whcst, tnow));
 }
 
-struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, nn_mtime_t tnow, int hbansreq, int issync)
+struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, int hbansreq, int issync)
 {
   struct nn_xmsg *msg;
   const nn_guid_t *prd_guid;
@@ -200,7 +200,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, nn_mtime_t
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     nn_xmsg_setencoderid (msg, wr->partition_id);
 #endif
-    add_Heartbeat (msg, wr, hbansreq, to_entityid (NN_ENTITYID_UNKNOWN), issync);
+    add_Heartbeat (msg, wr, whcst, hbansreq, to_entityid (NN_ENTITYID_UNKNOWN), issync);
   }
   else
   {
@@ -221,14 +221,14 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, nn_mtime_t
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     nn_xmsg_setencoderid (msg, wr->partition_id);
 #endif
-    add_Heartbeat (msg, wr, hbansreq, prd_guid->entityid, issync);
+    add_Heartbeat (msg, wr, whcst, hbansreq, prd_guid->entityid, issync);
   }
 
   writer_hbcontrol_note_hb (wr, tnow, hbansreq);
   return msg;
 }
 
-static int writer_hbcontrol_ack_required_generic (const struct writer *wr, nn_mtime_t tlast, nn_mtime_t tnow, int piggyback)
+static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tlast, nn_mtime_t tnow, int piggyback)
 {
   struct hbcontrol const * const hbc = &wr->hbcontrol;
   const int64_t hb_intv_ack = config.const_hb_intv_sched;
@@ -251,7 +251,7 @@ static int writer_hbcontrol_ack_required_generic (const struct writer *wr, nn_mt
       return 2;
   }
 
-  if (whc_unacked_bytes (wr->whc) >= wr->whc_low + (wr->whc_high - wr->whc_low) / 2)
+  if (whcst->unacked_bytes >= wr->whc_low + (wr->whc_high - wr->whc_low) / 2)
   {
     if (tnow.v >= hbc->t_of_last_ackhb.v + config.const_hb_intv_sched_min)
       return 2;
@@ -262,13 +262,13 @@ static int writer_hbcontrol_ack_required_generic (const struct writer *wr, nn_mt
   return 0;
 }
 
-int writer_hbcontrol_ack_required (const struct writer *wr, nn_mtime_t tnow)
+int writer_hbcontrol_ack_required (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow)
 {
   struct hbcontrol const * const hbc = &wr->hbcontrol;
-  return writer_hbcontrol_ack_required_generic (wr, hbc->t_of_last_write, tnow, 0);
+  return writer_hbcontrol_ack_required_generic (wr, whcst, hbc->t_of_last_write, tnow, 0);
 }
 
-struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, nn_mtime_t tnow, unsigned packetid, int *hbansreq)
+struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, unsigned packetid, int *hbansreq)
 {
   struct hbcontrol * const hbc = &wr->hbcontrol;
   unsigned last_packetid;
@@ -284,20 +284,20 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, nn_mtime_t tnow, 
   /* Update statistics, intervals, scheduling of heartbeat event,
      &c. -- there's no real difference between async and sync so we
      reuse the async version. */
-  writer_hbcontrol_note_asyncwrite (wr, tnow);
+  writer_hbcontrol_note_asyncwrite (wr, whcst, tnow);
 
-  *hbansreq = writer_hbcontrol_ack_required_generic (wr, tlast, tnow, 1);
+  *hbansreq = writer_hbcontrol_ack_required_generic (wr, whcst, tlast, tnow, 1);
   if (*hbansreq >= 2) {
     /* So we force a heartbeat in - but we also rely on our caller to
        send the packet out */
-    msg = writer_hbcontrol_create_heartbeat (wr, tnow, *hbansreq, 1);
+    msg = writer_hbcontrol_create_heartbeat (wr, whcst, tnow, *hbansreq, 1);
   } else if (last_packetid != packetid) {
     /* If we crossed a packet boundary since the previous write,
        piggyback a heartbeat, with *hbansreq determining whether or
        not an ACK is needed.  We don't force the packet out either:
        this is just to ensure a regular flow of ACKs for cleaning up
        the WHC & for allowing readers to NACK missing samples. */
-    msg = writer_hbcontrol_create_heartbeat (wr, tnow, *hbansreq, 1);
+    msg = writer_hbcontrol_create_heartbeat (wr, whcst, tnow, *hbansreq, 1);
   } else {
     *hbansreq = 0;
     msg = NULL;
@@ -311,13 +311,13 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, nn_mtime_t tnow, 
             (hbc->tsched.v == T_NEVER) ? POS_INFINITY_DOUBLE : (double) (hbc->tsched.v - tnow.v) / 1e9,
             ut_avlIsEmpty (&wr->readers) ? -1 : root_rdmatch (wr)->min_seq,
             ut_avlIsEmpty (&wr->readers) || root_rdmatch (wr)->all_have_replied_to_hb ? "" : "!",
-            whc_empty (wr->whc) ? -1 : whc_max_seq (wr->whc), READ_SEQ_XMIT(wr)));
+            whcst->max_seq, READ_SEQ_XMIT(wr)));
   }
 
   return msg;
 }
 
-void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, int hbansreq, nn_entityid_t dst, int issync)
+void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, nn_entityid_t dst, int issync)
 {
   struct nn_xmsg_marker sm_marker;
   Heartbeat_t * hb;
@@ -343,7 +343,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, int hbansreq, nn_ent
 
   hb->readerId = nn_hton_entityid (dst);
   hb->writerId = nn_hton_entityid (wr->e.guid.entityid);
-  if (whc_empty (wr->whc))
+  if (WHCST_ISEMPTY(whcst))
   {
     /* Really don't have data.  Fake one at the current wr->seq.
        We're not really allowed to generate heartbeats when the WHC is
@@ -360,7 +360,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, int hbansreq, nn_ent
   else
   {
     seqno_t seq_xmit;
-    min = whc_min_seq (wr->whc);
+    min = whcst->min_seq;
     max = wr->seq;
     seq_xmit = READ_SEQ_XMIT(wr);
     assert (min <= max);
@@ -669,7 +669,7 @@ static int must_skip_frag (const char *frags_to_skip, unsigned frag)
 }
 #endif
 
-static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *wr, seqno_t seq, const struct nn_plist *plist, serdata_t serdata, struct proxy_reader *prd, int isnew, unsigned nfrags)
+static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct nn_plist *plist, serdata_t serdata, struct proxy_reader *prd, int isnew, unsigned nfrags)
 {
   unsigned i;
 #if 0
@@ -714,8 +714,7 @@ static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *
     struct nn_xmsg *msg = NULL;
     int hbansreq;
     os_mutexLock (&wr->e.lock);
-    msg = writer_hbcontrol_piggyback
-      (wr, ddsi_serdata_twrite (serdata), nn_xpack_packetid (xp), &hbansreq);
+    msg = writer_hbcontrol_piggyback (wr, whcst, ddsi_serdata_twrite (serdata), nn_xpack_packetid (xp), &hbansreq);
     os_mutexUnlock (&wr->e.lock);
     if (msg)
     {
@@ -726,7 +725,7 @@ static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *
   }
 }
 
-static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, seqno_t seq, const struct nn_plist *plist, serdata_t serdata, struct proxy_reader *prd, int isnew)
+static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct nn_plist *plist, serdata_t serdata, struct proxy_reader *prd, int isnew)
 {
   /* on entry: &wr->e.lock held; on exit: lock no longer held */
   struct nn_xmsg *fmsg;
@@ -739,7 +738,7 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, 
     unsigned nfrags;
     os_mutexUnlock (&wr->e.lock);
     nfrags = (sz + config.fragment_size - 1) / config.fragment_size;
-    transmit_sample_lgmsg_unlocked (xp, wr, seq, plist, serdata, prd, isnew, nfrags);
+    transmit_sample_lgmsg_unlocked (xp, wr, whcst, seq, plist, serdata, prd, isnew, nfrags);
     return;
   }
   else if (create_fragment_message_simple (wr, seq, serdata, &fmsg) < 0)
@@ -754,7 +753,7 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, 
 
     /* Note: wr->heartbeat_xevent != NULL <=> wr is reliable */
     if (wr->heartbeat_xevent)
-      hmsg = writer_hbcontrol_piggyback (wr, ddsi_serdata_twrite (serdata), nn_xpack_packetid (xp), &hbansreq);
+      hmsg = writer_hbcontrol_piggyback (wr, whcst, ddsi_serdata_twrite (serdata), nn_xpack_packetid (xp), &hbansreq);
     else
       hmsg = NULL;
 
@@ -855,7 +854,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
 
   if (!do_insert)
     res = 0;
-  else if ((insres = whc_insert (wr->whc, writer_max_drop_seq (wr), seq, plist, serdata, tk)) < 0)
+  else if ((insres = wr->whc->ops->insert (wr->whc, writer_max_drop_seq (wr), seq, plist, serdata, tk)) < 0)
     res = insres;
   else
     res = 1;
@@ -863,16 +862,18 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
 #ifndef NDEBUG
   if (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
   {
-    if (whc_findmax (wr->whc) == NULL)
+    struct whc_state whcst;
+    wr->whc->ops->get_state(wr->whc, &whcst);
+    if (WHCST_ISEMPTY(&whcst))
       assert (wr->c.pp->builtins_deleted);
   }
 #endif
   return res;
 }
 
-static int writer_may_continue (const struct writer *wr)
+static int writer_may_continue (const struct writer *wr, const struct whc_state *whcst)
 {
-  return (whc_unacked_bytes (wr->whc) <= wr->whc_low && !wr->retransmitting) || (wr->state != WRST_OPERATIONAL);
+  return (whcst->unacked_bytes <= wr->whc_low && !wr->retransmitting) || (wr->state != WRST_OPERATIONAL);
 }
 
 
@@ -915,7 +916,8 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
   os_result result = os_resultSuccess;
   nn_mtime_t tnow = now_mt ();
   const nn_mtime_t abstimeout = add_duration_to_mtime (tnow, nn_from_ddsi_duration (wr->xqos->reliability.max_blocking_time));
-  size_t n_unacked = whc_unacked_bytes (wr->whc);
+  struct whc_state whcst;
+  wr->whc->ops->get_state(wr->whc, &whcst);
 
   {
     nn_vendorid_t ownvendorid = MY_VENDOR_ID;
@@ -925,7 +927,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
     assert (!is_builtin_entityid(wr->e.guid.entityid, ownvendorid));
   }
 
-  nn_log (LC_THROTTLE, "writer %x:%x:%x:%x waiting for whc to shrink below low-water mark (whc %"PRIuSIZE" low=%u high=%u)\n", PGUID (wr->e.guid), n_unacked, wr->whc_low, wr->whc_high);
+  nn_log (LC_THROTTLE, "writer %x:%x:%x:%x waiting for whc to shrink below low-water mark (whc %"PRIuSIZE" low=%u high=%u)\n", PGUID (wr->e.guid), whcst.unacked_bytes, wr->whc_low, wr->whc_high);
   wr->throttling = 1;
   wr->throttle_count++;
 
@@ -934,7 +936,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
      things the wrong way round ... */
   if (xp)
   {
-    struct nn_xmsg *hbmsg = writer_hbcontrol_create_heartbeat (wr, tnow, 1, 1);
+    struct nn_xmsg *hbmsg = writer_hbcontrol_create_heartbeat (wr, &whcst, tnow, 1, 1);
     os_mutexUnlock (&wr->e.lock);
     if (hbmsg)
     {
@@ -944,7 +946,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
     os_mutexLock (&wr->e.lock);
   }
 
-  while (gv.rtps_keepgoing && !writer_may_continue (wr))
+  while (gv.rtps_keepgoing && !writer_may_continue (wr, &whcst))
   {
     int64_t reltimeout;
     tnow = now_mt ();
@@ -958,6 +960,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
       thread_state_asleep (lookup_thread_state());
       result = os_condTimedWait (&wr->throttle_cond, &wr->e.lock, &timeout);
       thread_state_awake (lookup_thread_state());
+      wr->whc->ops->get_state(wr->whc, &whcst);
     }
     if (result == os_resultTimeout)
     {
@@ -972,8 +975,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
     os_condBroadcast (&wr->throttle_cond);
   }
 
-  n_unacked = whc_unacked_bytes (wr->whc);
-  nn_log (LC_THROTTLE, "writer %x:%x:%x:%x done waiting for whc to shrink below low-water mark (whc %"PRIuSIZE" low=%u high=%u)\n", PGUID (wr->e.guid), n_unacked, wr->whc_low, wr->whc_high);
+  nn_log (LC_THROTTLE, "writer %x:%x:%x:%x done waiting for whc to shrink below low-water mark (whc %"PRIuSIZE" low=%u high=%u)\n", PGUID (wr->e.guid), whcst.unacked_bytes, wr->whc_low, wr->whc_high);
   return result;
 }
 
@@ -1028,8 +1030,9 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
 
   /* If WHC overfull, block. */
   {
-    size_t unacked_bytes = whc_unacked_bytes (wr->whc);
-    if (unacked_bytes > wr->whc_high)
+    struct whc_state whcst;
+    wr->whc->ops->get_state(wr->whc, &whcst);
+    if (whcst.unacked_bytes > wr->whc_high)
     {
       os_result ores;
       assert(gc_allowed); /* also see beginning of the function */
@@ -1038,7 +1041,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
       else
       {
         maybe_grow_whc (wr);
-        if (unacked_bytes <= wr->whc_high)
+        if (whcst.unacked_bytes <= wr->whc_high)
           ores = os_resultSuccess;
         else
           ores = throttle_writer (xp, wr);
@@ -1081,6 +1084,10 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
   }
   else
   {
+    struct whc_state whcst;
+    if (wr->heartbeat_xevent)
+      wr->whc->ops->get_state(wr->whc, &whcst);
+
     /* Note the subtlety of enqueueing with the lock held but
        transmitting without holding the lock. Still working on
        cleaning that up. */
@@ -1098,14 +1105,14 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
         plist_copy = &plist_stk;
         nn_plist_copy (plist_copy, plist);
       }
-      transmit_sample_unlocks_wr (xp, wr, seq, plist_copy, serdata, NULL, 1);
+      transmit_sample_unlocks_wr (xp, wr, &whcst, seq, plist_copy, serdata, NULL, 1);
       if (plist_copy)
         nn_plist_fini (plist_copy);
     }
     else
     {
       if (wr->heartbeat_xevent)
-        writer_hbcontrol_note_asyncwrite (wr, tnow);
+        writer_hbcontrol_note_asyncwrite (wr, &whcst, tnow);
       enqueue_sample_wrlock_held (wr, seq, plist, serdata, NULL, 1);
       os_mutexUnlock (&wr->e.lock);
     }

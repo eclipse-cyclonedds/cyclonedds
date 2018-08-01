@@ -21,6 +21,7 @@
 #include "dds__err.h"
 #include "dds__init.h"
 #include "dds__tkmap.h"
+#include "dds__whc.h"
 #include "dds__report.h"
 #include "ddsc/ddsc_project.h"
 
@@ -233,6 +234,8 @@ dds_writer_delete(
     assert(e);
     assert(thr);
 
+    /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
+
     if (asleep) {
         thread_state_awake(thr);
     }
@@ -338,6 +341,62 @@ dds_writer_qos_set(
     return ret;
 }
 
+static struct whc *make_whc(const dds_qos_t *qos)
+{
+  bool startup_mode;
+  bool handle_as_transient_local;
+  unsigned hdepth, tldepth;
+  /* Startup mode causes the writer to treat data in its WHC as if
+   transient-local, for the first few seconds after startup of the
+   DDSI service. It is done for volatile reliable writers only
+   (which automatically excludes all builtin writers) or for all
+   writers except volatile best-effort & transient-local ones.
+
+   Which one to use depends on whether merge policies are in effect
+   in durability. If yes, then durability will take care of all
+   transient & persistent data; if no, DDSI discovery usually takes
+   too long and this'll save you.
+
+   Note: may still be cleared, if it turns out we are not maintaining
+   an index at all (e.g., volatile KEEP_ALL) */
+  if (config.startup_mode_full) {
+    startup_mode = gv.startup_mode &&
+      (qos->durability.kind >= DDS_DURABILITY_TRANSIENT ||
+       (qos->durability.kind == DDS_DURABILITY_VOLATILE &&
+        qos->reliability.kind != DDS_RELIABILITY_BEST_EFFORT));
+  } else {
+    startup_mode = gv.startup_mode &&
+      (qos->durability.kind == DDS_DURABILITY_VOLATILE &&
+       qos->reliability.kind != DDS_RELIABILITY_BEST_EFFORT);
+  }
+
+  /* Construct WHC -- if aggressive_keep_last1 is set, the WHC will
+    drop all samples for which a later update is available.  This
+    forces it to maintain a tlidx.  */
+  handle_as_transient_local = (qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
+  if (!config.aggressive_keep_last_whc || qos->history.kind == DDS_HISTORY_KEEP_ALL)
+    hdepth = 0;
+  else
+    hdepth = (unsigned)qos->history.depth;
+  if (handle_as_transient_local) {
+    if (qos->durability_service.history.kind == DDS_HISTORY_KEEP_ALL)
+      tldepth = 0;
+    else
+      tldepth = (unsigned)qos->durability_service.history.depth;
+  } else if (startup_mode) {
+    tldepth = (hdepth == 0) ? 1 : hdepth;
+  } else {
+    tldepth = 0;
+  }
+  if (hdepth == 0 && tldepth == 0)
+  {
+    /* no index at all - so no need to bother with startup mode */
+    startup_mode = 0;
+  }
+
+  return whc_new (handle_as_transient_local, hdepth, tldepth);
+}
+
 
 _Pre_satisfies_(((participant_or_publisher & DDS_ENTITY_KIND_MASK) == DDS_KIND_PUBLISHER) || \
                 ((participant_or_publisher & DDS_ENTITY_KIND_MASK) == DDS_KIND_PARTICIPANT))
@@ -426,6 +485,7 @@ dds_create_writer(
     wr->m_entity.m_deriver.set_qos = dds_writer_qos_set;
     wr->m_entity.m_deriver.validate_status = dds_writer_status_validate;
     wr->m_entity.m_deriver.get_instance_hdl = dds_writer_instance_hdl;
+    wr->m_whc = make_whc (wqos);
 
     /* Extra claim of this writer to make sure that the delete waits until DDSI
      * has deleted its writer as well. This can be known through the callback. */
@@ -439,8 +499,7 @@ dds_create_writer(
     if (asleep) {
         thread_state_awake(thr);
     }
-    wr->m_wr = new_writer(&wr->m_entity.m_guid, NULL, &pub->m_participant->m_guid, ((dds_topic*)tp)->m_stopic,
-                          wqos, dds_writer_status_cb, wr);
+    wr->m_wr = new_writer(&wr->m_entity.m_guid, NULL, &pub->m_participant->m_guid, ((dds_topic*)tp)->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
     os_mutexLock(&pub->m_mutex);
     os_mutexLock(&tp->m_mutex);
     assert(wr->m_wr);

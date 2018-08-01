@@ -33,7 +33,6 @@
 32  src/q_thread_inlines.c
 33  src/q_time.c
 34  src/q_transmit.c
-35  src/q_whc.c
 36  src/q_xevent.c
 37  src/q_xmsg.c
 38  src/q_freelist.c

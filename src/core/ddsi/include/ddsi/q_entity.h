@@ -474,34 +474,15 @@ struct writer *get_builtin_writer (const struct participant *pp, unsigned entity
    GUID "ppguid". May return NULL if participant unknown or
    writer/reader already known. */
 
-struct writer * new_writer
-(
-  struct nn_guid *wrguid,
-  const struct nn_guid *group_guid,
-  const struct nn_guid *ppguid,
-  const struct sertopic *topic,
-  const struct nn_xqos *xqos,
-  status_cb_t status_cb,
-  void * status_cb_arg
-);
+struct writer * new_writer (struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct sertopic *topic, const struct nn_xqos *xqos, struct whc * whc, status_cb_t status_cb, void * status_cb_arg);
 
-struct reader * new_reader
-(
-  struct nn_guid *rdguid,
-  const struct nn_guid *group_guid,
-  const struct nn_guid *ppguid,
-  const struct sertopic *topic,
-  const struct nn_xqos *xqos,
-  struct rhc * rhc,
-  status_cb_t status_cb,
-  void * status_cb_arg
-);
+struct reader * new_reader (struct nn_guid *rdguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct sertopic *topic, const struct nn_xqos *xqos, struct rhc * rhc, status_cb_t status_cb, void * status_cb_arg);
 
 struct whc_node;
-unsigned remove_acked_messages (struct writer *wr, struct whc_node **deferred_free_list);
-unsigned remove_acked_messages_and_free (struct writer *wr);
+struct whc_state;
+unsigned remove_acked_messages (struct writer *wr, struct whc_state *whcst, struct whc_node **deferred_free_list);
 seqno_t writer_max_drop_seq (const struct writer *wr);
-int writer_must_have_hb_scheduled (const struct writer *wr);
+int writer_must_have_hb_scheduled (const struct writer *wr, const struct whc_state *whcst);
 void writer_set_retransmitting (struct writer *wr);
 void writer_clear_retransmitting (struct writer *wr);
 

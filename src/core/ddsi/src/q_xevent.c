@@ -21,7 +21,6 @@
 #include "ddsi/q_log.h"
 #include "ddsi/q_addrset.h"
 #include "ddsi/q_xmsg.h"
-#include "ddsi/q_whc.h"
 #include "ddsi/q_xevent.h"
 #include "ddsi/q_thread.h"
 #include "ddsi/q_config.h"
@@ -39,6 +38,7 @@
 #include "ddsi/q_xmsg.h"
 #include "q__osplser.h"
 #include "ddsi/ddsi_ser.h"
+#include "dds__whc.h"
 
 #include "ddsi/sysdeps.h"
 
@@ -596,6 +596,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
   struct writer *wr;
   nn_mtime_t t_next;
   int hbansreq = 0;
+  struct whc_state whcst;
 
   if ((wr = ephash_lookup_writer_guid (&ev->u.heartbeat.wr_guid)) == NULL)
   {
@@ -606,23 +607,24 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
 
   assert (wr->reliable);
   os_mutexLock (&wr->e.lock);
-  if (!writer_must_have_hb_scheduled (wr))
+  wr->whc->ops->get_state(wr->whc, &whcst);
+  if (!writer_must_have_hb_scheduled (wr, &whcst))
   {
     hbansreq = 1; /* just for trace */
     msg = NULL; /* Need not send it now, and no need to schedule it for the future */
     t_next.v = T_NEVER;
   }
-  else if (!writer_hbcontrol_must_send (wr, tnow))
+  else if (!writer_hbcontrol_must_send (wr, &whcst, tnow))
   {
     hbansreq = 1; /* just for trace */
     msg = NULL;
-    t_next.v = tnow.v + writer_hbcontrol_intv (wr, tnow);
+    t_next.v = tnow.v + writer_hbcontrol_intv (wr, &whcst, tnow);
   }
   else
   {
-    hbansreq = writer_hbcontrol_ack_required (wr, tnow);
-    msg = writer_hbcontrol_create_heartbeat (wr, tnow, hbansreq, 0);
-    t_next.v = tnow.v + writer_hbcontrol_intv (wr, tnow);
+    hbansreq = writer_hbcontrol_ack_required (wr, &whcst, tnow);
+    msg = writer_hbcontrol_create_heartbeat (wr, &whcst, tnow, hbansreq, 0);
+    t_next.v = tnow.v + writer_hbcontrol_intv (wr, &whcst, tnow);
   }
 
   TRACE (("heartbeat(wr %x:%x:%x:%x%s) %s, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRId64", xmit %"PRId64")\n",
@@ -632,7 +634,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
           (t_next.v == T_NEVER) ? POS_INFINITY_DOUBLE : (double)(t_next.v - tnow.v) / 1e9,
           ut_avlIsEmpty (&wr->readers) ? (seqno_t) -1 : ((struct wr_prd_match *) ut_avlRootNonEmpty (&wr_readers_treedef, &wr->readers))->min_seq,
           ut_avlIsEmpty (&wr->readers) || ((struct wr_prd_match *) ut_avlRootNonEmpty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
-          whc_empty (wr->whc) ? (seqno_t) -1 : whc_max_seq (wr->whc), READ_SEQ_XMIT(wr)));
+          whcst.max_seq, READ_SEQ_XMIT(wr)));
   resched_xevent_if_earlier (ev, t_next);
   wr->hbcontrol.tsched = t_next;
   os_mutexUnlock (&wr->e.lock);
@@ -963,10 +965,13 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   struct participant *pp;
   struct proxy_reader *prd;
   struct writer *spdp_wr;
-  struct whc_node *whcn;
+  struct whc_borrowed_sample sample;
   serstate_t st;
   serdata_t sd;
   nn_guid_t kh;
+#ifndef NDEBUG
+  bool sample_found;
+#endif
 
   if ((pp = ephash_lookup_participant_guid (&ev->u.spdp.pp_guid)) == NULL)
   {
@@ -1011,21 +1016,31 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   sd = ddsi_serstate_fix (st);
 
   os_mutexLock (&spdp_wr->e.lock);
-  if ((whcn = whc_findkey (spdp_wr->whc, sd)) != NULL)
+  if (spdp_wr->whc->ops->borrow_sample_key (spdp_wr->whc, sd, &sample))
   {
     /* Claiming it is new rather than a retransmit so that the rexmit
        limiting won't kick in.  It is best-effort and therefore the
        updating of the last transmitted sequence number won't take
        place anyway.  Nor is it necessary to fiddle with heartbeat
        control stuff. */
-    enqueue_sample_wrlock_held (spdp_wr, whcn->seq, whcn->plist, whcn->serdata, prd, 1);
+    enqueue_sample_wrlock_held (spdp_wr, sample.seq, sample.plist, sample.serdata, prd, 1);
+    spdp_wr->whc->ops->return_sample(spdp_wr->whc, &sample, false);
+#ifndef NDEBUG
+    sample_found = true;
+#endif
   }
+#ifndef NDEBUG
+  else
+  {
+    sample_found = false;
+  }
+#endif
   os_mutexUnlock (&spdp_wr->e.lock);
 
   ddsi_serdata_unref (sd);
 
 #ifndef NDEBUG
-  if (whcn == NULL)
+  if (!sample_found)
   {
     /* If undirected, it is pp->spdp_xevent, and that one must never
        run into an empty WHC unless it is already marked for deletion.

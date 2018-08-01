@@ -38,7 +38,6 @@
 #include "ddsi/q_ephash.h"
 #include "ddsi/q_lease.h"
 #include "ddsi/q_gc.h"
-#include "ddsi/q_whc.h"
 #include "ddsi/q_entity.h"
 #include "ddsi/q_nwif.h"
 #include "ddsi/q_globals.h"
@@ -59,6 +58,7 @@
 #include "ddsi/ddsi_mcgroup.h"
 
 #include "dds__tkmap.h"
+#include "dds__whc.h"
 
 static void add_peer_addresses (struct addrset *as, const struct config_peer_listelem *list)
 {

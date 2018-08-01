@@ -41,7 +41,6 @@
 #include "ddsi/q_ephash.h"
 #include "ddsi/q_lease.h"
 #include "ddsi/q_gc.h"
-#include "ddsi/q_whc.h"
 #include "ddsi/q_entity.h"
 #include "ddsi/q_xmsg.h"
 #include "ddsi/q_receive.h"
@@ -52,6 +51,7 @@
 #include "ddsi/ddsi_mcgroup.h"
 
 #include "ddsi/sysdeps.h"
+#include "dds__whc.h"
 
 /*
 Notes:
@@ -588,7 +588,7 @@ static int add_Gap (struct nn_xmsg *msg, struct writer *wr, struct proxy_reader 
   return 0;
 }
 
-static void force_heartbeat_to_peer (struct writer *wr, struct proxy_reader *prd, int hbansreq)
+static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *whcst, struct proxy_reader *prd, int hbansreq)
 {
   struct nn_xmsg *m;
 
@@ -603,7 +603,7 @@ static void force_heartbeat_to_peer (struct writer *wr, struct proxy_reader *prd
     return;
   }
 
-  if (whc_empty (wr->whc) && !config.respond_to_rti_init_zero_ack_with_invalid_heartbeat)
+  if (WHCST_ISEMPTY(whcst) && !config.respond_to_rti_init_zero_ack_with_invalid_heartbeat)
   {
     /* If WHC is empty, we send a Gap combined with a Heartbeat.  The
        Gap reuses the latest sequence number (or consumes a new one if
@@ -622,14 +622,14 @@ static void force_heartbeat_to_peer (struct writer *wr, struct proxy_reader *prd
       UPDATE_SEQ_XMIT_LOCKED(wr, 1);
     }
     add_Gap (m, wr, prd, seq, seq+1, 1, &bits);
-    add_Heartbeat (m, wr, hbansreq, prd->e.guid.entityid, 1);
+    add_Heartbeat (m, wr, whcst, hbansreq, prd->e.guid.entityid, 1);
     TRACE (("force_heartbeat_to_peer: %x:%x:%x:%x -> %x:%x:%x:%x - whc empty, queueing gap #%"PRId64" + heartbeat for transmit\n",
             PGUID (wr->e.guid), PGUID (prd->e.guid), seq));
   }
   else
   {
     /* Send a Heartbeat just to this peer */
-    add_Heartbeat (m, wr, hbansreq, prd->e.guid.entityid, 0);
+    add_Heartbeat (m, wr, whcst, hbansreq, prd->e.guid.entityid, 0);
     TRACE (("force_heartbeat_to_peer: %x:%x:%x:%x -> %x:%x:%x:%x - queue for transmit\n",
             PGUID (wr->e.guid), PGUID (prd->e.guid)));
   }
@@ -638,7 +638,7 @@ static void force_heartbeat_to_peer (struct writer *wr, struct proxy_reader *prd
 
 static seqno_t grow_gap_to_next_seq (const struct writer *wr, seqno_t seq)
 {
-  seqno_t next_seq = whc_next_seq (wr->whc, seq - 1);
+  seqno_t next_seq = wr->whc->ops->next_seq (wr->whc, seq - 1);
   seqno_t seq_xmit = READ_SEQ_XMIT(wr);
   if (next_seq == MAX_SEQ_NUMBER) /* no next sample */
     return seq_xmit + 1;
@@ -715,6 +715,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   uint32_t msgs_sent, msgs_lost;
   seqno_t max_seq_in_reply;
   struct whc_node *deferred_free_list = NULL;
+  struct whc_state whcst;
   unsigned i;
   int hb_sent_in_response = 0;
   memset (gapbits, 0, sizeof (gapbits));
@@ -828,8 +829,13 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
       rn->seq = wr->seq;
     }
     ut_avlAugmentUpdate (&wr_readers_treedef, rn);
-    n = remove_acked_messages (wr, &deferred_free_list);
+    n = remove_acked_messages (wr, &whcst, &deferred_free_list);
     TRACE ((" ACK%"PRId64" RM%u", n_ack, n));
+  }
+  else
+  {
+    /* There's actually no guarantee that we need this information */
+    wr->whc->ops->get_state(wr->whc, &whcst);
   }
 
   /* If this reader was marked as "non-responsive" in the past, it's now responding again,
@@ -837,10 +843,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   if (rn->seq == MAX_SEQ_NUMBER && prd->c.xqos->reliability.kind == NN_RELIABLE_RELIABILITY_QOS)
   {
     seqno_t oldest_seq;
-    if (whc_empty (wr->whc))
-      oldest_seq = wr->seq;
-    else
-      oldest_seq = whc_max_seq (wr->whc);
+    oldest_seq = WHCST_ISEMPTY(&whcst) ? wr->seq : whcst.max_seq;
     rn->has_replied_to_hb = 1; /* was temporarily cleared to ensure heartbeats went out */
     rn->seq = seqbase - 1;
     if (oldest_seq > rn->seq) {
@@ -880,19 +883,19 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
        data in our WHC, we start sending it regardless of whether the
        remote reader asked for it */
     TRACE ((" preemptive-nack"));
-    if (whc_empty (wr->whc))
+    if (WHCST_ISEMPTY(&whcst))
     {
       TRACE ((" whc-empty "));
-      force_heartbeat_to_peer (wr, prd, 0);
+      force_heartbeat_to_peer (wr, &whcst, prd, 0);
       hb_sent_in_response = 1;
     }
     else
     {
       TRACE ((" rebase "));
-      force_heartbeat_to_peer (wr, prd, 0);
+      force_heartbeat_to_peer (wr, &whcst, prd, 0);
       hb_sent_in_response = 1;
       numbits = config.accelerate_rexmit_block_size;
-      seqbase = whc_min_seq (wr->whc);
+      seqbase = whcst.min_seq;
     }
   }
   else if (!rn->assumed_in_sync)
@@ -940,25 +943,25 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     if (i >= msg->readerSNState.numbits || nn_bitset_isset (numbits, msg->readerSNState.bits, i))
     {
       seqno_t seq = seqbase + i;
-      struct whc_node *whcn;
-      if ((whcn = whc_findseq (wr->whc, seq)) != NULL)
+      struct whc_borrowed_sample sample;
+      if (wr->whc->ops->borrow_sample (wr->whc, seq, &sample))
       {
-        if (!wr->retransmitting && whcn->unacked)
+        if (!wr->retransmitting && sample.unacked)
           writer_set_retransmitting (wr);
 
         if (config.retransmit_merging != REXMIT_MERGE_NEVER && rn->assumed_in_sync)
         {
           /* send retransmit to all receivers, but skip if recently done */
           nn_mtime_t tstamp = now_mt ();
-          if (tstamp.v > whcn->last_rexmit_ts.v + config.retransmit_merging_period)
+          if (tstamp.v > sample.last_rexmit_ts.v + config.retransmit_merging_period)
           {
             TRACE ((" RX%"PRId64, seqbase + i));
-            enqueued = (enqueue_sample_wrlock_held (wr, seq, whcn->plist, whcn->serdata, NULL, 0) >= 0);
+            enqueued = (enqueue_sample_wrlock_held (wr, seq, sample.plist, sample.serdata, NULL, 0) >= 0);
             if (enqueued)
             {
               max_seq_in_reply = seqbase + i;
               msgs_sent++;
-              whcn->last_rexmit_ts = tstamp;
+              sample.last_rexmit_ts = tstamp;
             }
           }
           else
@@ -970,14 +973,16 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
         {
           /* no merging, send directed retransmit */
           TRACE ((" RX%"PRId64"", seqbase + i));
-          enqueued = (enqueue_sample_wrlock_held (wr, seq, whcn->plist, whcn->serdata, prd, 0) >= 0);
+          enqueued = (enqueue_sample_wrlock_held (wr, seq, sample.plist, sample.serdata, prd, 0) >= 0);
           if (enqueued)
           {
             max_seq_in_reply = seqbase + i;
             msgs_sent++;
-            whcn->rexmit_count++;
+            sample.rexmit_count++;
           }
         }
+
+        wr->whc->ops->return_sample(wr->whc, &sample, true);
       }
       else if (gapstart == -1)
       {
@@ -1054,7 +1059,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   if (msgs_sent && max_seq_in_reply < seq_xmit)
   {
     TRACE ((" rexmit#%"PRIu32" maxseq:%"PRId64"<%"PRId64"<=%"PRId64"", msgs_sent, max_seq_in_reply, seq_xmit, wr->seq));
-    force_heartbeat_to_peer (wr, prd, 1);
+    force_heartbeat_to_peer (wr, &whcst, prd, 1);
     hb_sent_in_response = 1;
 
     /* The primary purpose of hbcontrol_note_asyncwrite is to ensure
@@ -1062,16 +1067,16 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
        gradually lowering rate.  If we just got a request for a
        retransmit, and there is more to be retransmitted, surely the
        rate should be kept up for now */
-    writer_hbcontrol_note_asyncwrite (wr, now_mt ());
+    writer_hbcontrol_note_asyncwrite (wr, &whcst, now_mt ());
   }
   /* If "final" flag not set, we must respond with a heartbeat. Do it
      now if we haven't done so already */
   if (!(msg->smhdr.flags & ACKNACK_FLAG_FINAL) && !hb_sent_in_response)
-    force_heartbeat_to_peer (wr, prd, 0);
+    force_heartbeat_to_peer (wr, &whcst, prd, 0);
   TRACE ((")"));
  out:
   os_mutexUnlock (&wr->e.lock);
-  whc_free_deferred_free_list (wr->whc, deferred_free_list);
+  wr->whc->ops->free_deferred_free_list (wr->whc, deferred_free_list);
   return 1;
 }
 
@@ -1428,7 +1433,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
   struct proxy_reader *prd;
   struct wr_prd_match *rn;
   struct writer *wr;
-  struct whc_node *whcn;
+  struct whc_borrowed_sample sample;
   nn_guid_t src, dst;
   nn_count_t *countp;
   seqno_t seq = fromSN (msg->writerSN);
@@ -1493,7 +1498,25 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
 
   /* Resend the requested fragments if we still have the sample, send
      a Gap if we don't have them anymore. */
-  if ((whcn = whc_findseq (wr->whc, seq)) == NULL)
+  if (wr->whc->ops->borrow_sample (wr->whc, seq, &sample))
+  {
+    const unsigned base = msg->fragmentNumberState.bitmap_base - 1;
+    int enqueued = 1;
+    TRACE ((" scheduling requested frags ...\n"));
+    for (i = 0; i < msg->fragmentNumberState.numbits && enqueued; i++)
+    {
+      if (nn_bitset_isset (msg->fragmentNumberState.numbits, msg->fragmentNumberState.bits, i))
+      {
+        struct nn_xmsg *reply;
+        if (create_fragment_message (wr, seq, sample.plist, sample.serdata, base + i, prd, &reply, 0) < 0)
+          enqueued = 0;
+        else
+          enqueued = qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0);
+      }
+    }
+    wr->whc->ops->return_sample (wr->whc, &sample, false);
+  }
+  else
   {
     static unsigned zero = 0;
     struct nn_xmsg *m;
@@ -1512,30 +1535,15 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
       qxev_msg (wr->evq, m);
     }
   }
-  else
-  {
-    const unsigned base = msg->fragmentNumberState.bitmap_base - 1;
-    int enqueued = 1;
-    TRACE ((" scheduling requested frags ...\n"));
-    for (i = 0; i < msg->fragmentNumberState.numbits && enqueued; i++)
-    {
-      if (nn_bitset_isset (msg->fragmentNumberState.numbits, msg->fragmentNumberState.bits, i))
-      {
-        struct nn_xmsg *reply;
-        if (create_fragment_message (wr, seq, whcn->plist, whcn->serdata, base + i, prd, &reply, 0) < 0)
-          enqueued = 0;
-        else
-          enqueued = qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0);
-      }
-    }
-  }
   if (seq < READ_SEQ_XMIT(wr))
   {
     /* Not everything was retransmitted yet, so force a heartbeat out
        to give the reader a chance to nack the rest and make sure
        hearbeats will go out at a reasonably high rate for a while */
-    force_heartbeat_to_peer (wr, prd, 1);
-    writer_hbcontrol_note_asyncwrite (wr, now_mt ());
+    struct whc_state whcst;
+    wr->whc->ops->get_state(wr->whc, &whcst);
+    force_heartbeat_to_peer (wr, &whcst, prd, 1);
+    writer_hbcontrol_note_asyncwrite (wr, &whcst, now_mt ());
   }
 
  out:

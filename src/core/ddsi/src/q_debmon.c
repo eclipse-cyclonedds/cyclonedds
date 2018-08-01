@@ -22,7 +22,6 @@
 #include "ddsi/q_time.h"
 #include "ddsi/q_misc.h"
 #include "ddsi/q_log.h"
-#include "ddsi/q_whc.h"
 #include "ddsi/q_plist.h"
 #include "q__osplser.h"
 #include "ddsi/q_ephash.h"
@@ -39,7 +38,7 @@
 #include "ddsi/ddsi_tcp.h"
 
 #include "ddsi/sysdeps.h"
-
+#include "dds__whc.h"
 
 struct plugin {
   debug_monitor_plugin_t fn;
@@ -185,14 +184,14 @@ static int print_participants (struct thread_state1 *self, ddsi_tran_conn_t conn
       {
         ut_avlIter_t rdit;
         struct wr_prd_match *m;
+        struct whc_state whcst;
         if (w->c.pp != p)
           continue;
         os_mutexLock (&w->e.lock);
         print_endpoint_common (conn, "wr", &w->e, &w->c, w->xqos, w->topic);
+        w->whc->ops->get_state(w->whc, &whcst);
         x += cpf (conn, "    whc [%lld,%lld] unacked %"PRIuSIZE"%s [%u,%u] seq %lld seq_xmit %lld cs_seq %lld\n",
-                  whc_empty (w->whc) ? -1 : whc_min_seq (w->whc),
-                  whc_empty (w->whc) ? -1 : whc_max_seq (w->whc),
-                  whc_unacked_bytes (w->whc),
+                  whcst.min_seq, whcst.max_seq, whcst.unacked_bytes,
                   w->throttling ? " THROTTLING" : "",
                   w->whc_low, w->whc_high,
                   w->seq, READ_SEQ_XMIT(w), w->cs_seq);

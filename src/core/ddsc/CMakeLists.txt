@@ -41,6 +41,7 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_guardcond.c
     dds_subscriber.c
     dds_write.c
+    dds_whc.c
 )
  
 PREPEND(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/ddsc>$<INSTALL_INTERFACE:include/ddsc>"
@@ -80,6 +81,7 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__types.h
     dds__write.h
     dds__writer.h
+    dds__whc.h
     q__osplser.h
 )
 
