@@ -219,7 +219,6 @@ dds_write_impl(
     d->v.msginfo.statusinfo = ((action & DDS_WR_DISPOSE_BIT   ) ? NN_STATUSINFO_DISPOSE    : 0) |
                               ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0) ;
     d->v.msginfo.timestamp.v = tstamp;
-    os_mutexLock (&writer->m_call_lock);
     ddsi_serdata_ref(d);
     tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (d);
     w_rc = write_sample_gc (writer->m_xp, ddsi_wr, d, tk);
@@ -237,8 +236,6 @@ dds_write_impl(
     } else {
         ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Internal error");
     }
-    os_mutexUnlock (&writer->m_call_lock);
-
     if (ret == DDS_RETCODE_OK) {
         ret = deliver_locally (ddsi_wr, d, tk);
     }
@@ -285,11 +282,9 @@ dds_writecdr_impl(
         ((action & DDS_WR_DISPOSE_BIT   ) ? NN_STATUSINFO_DISPOSE    : 0) |
         ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0) ;
     d->v.msginfo.timestamp.v = tstamp;
-    os_mutexLock (&wr->m_call_lock);
     ddsi_serdata_ref(d);
     tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (d);
     w_rc = write_sample_gc (wr->m_xp, ddsi_wr, d, tk);
-
     if (w_rc >= 0) {
         /* Flush out write unless configured to batch */
         if (! config.whc_batch) {
@@ -303,7 +298,6 @@ dds_writecdr_impl(
     } else {
         ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Internal error");
     }
-    os_mutexUnlock (&wr->m_call_lock);
 
     if (ret == DDS_RETCODE_OK) {
         ret = deliver_locally (ddsi_wr, d, tk);

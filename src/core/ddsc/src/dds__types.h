@@ -189,7 +189,6 @@ typedef struct dds_writer
   const struct dds_topic * m_topic;
   struct nn_xpack * m_xp;
   struct writer * m_wr;
-  os_mutex m_call_lock;
   struct whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
 
   /* Status metrics */

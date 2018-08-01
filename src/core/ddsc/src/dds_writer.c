@@ -252,7 +252,6 @@ dds_writer_delete(
             ret = DDS_RETCODE_OK;
         }
     }
-    os_mutexDestroy(&wr->m_call_lock);
     return ret;
 }
 
@@ -263,7 +262,6 @@ dds_writer_qos_validate(
         bool enabled)
 {
     dds_return_t ret = DDS_RETCODE_OK;
-    bool consistent = true;
 
     assert(qos);
 
@@ -320,11 +318,12 @@ dds_writer_qos_set(
                     thread_state_awake (thr);
                 }
 
-                os_mutexLock (&((dds_writer*)e)->m_call_lock);
+                /* FIXME: with QoS changes being unsupported by the underlying stack I wonder what will happen; locking the underlying DDSI writer is of doubtful value as well */
+                os_mutexLock (&ddsi_wr->e.lock);
                 if (qos->ownership_strength.value != ddsi_wr->xqos->ownership_strength.value) {
                     ddsi_wr->xqos->ownership_strength.value = qos->ownership_strength.value;
                 }
-                os_mutexUnlock (&((dds_writer*)e)->m_call_lock);
+                os_mutexUnlock (&ddsi_wr->e.lock);
 
                 if (asleep) {
                     thread_state_asleep (thr);
@@ -479,7 +478,6 @@ dds_create_writer(
     wr->m_topic = (dds_topic*)tp;
     dds_entity_add_ref_nolock(tp);
     wr->m_xp = nn_xpack_new(conn, get_bandwidth_limit(wqos->transport_priority), config.xpack_send_async);
-    os_mutexInit (&wr->m_call_lock);
     wr->m_entity.m_deriver.close = dds_writer_close;
     wr->m_entity.m_deriver.delete = dds_writer_delete;
     wr->m_entity.m_deriver.set_qos = dds_writer_qos_set;
