@@ -2300,7 +2300,7 @@ static void print_configitems(struct cfgst *cfgst, void *parent, int isattr, str
     for ( ce = cfgelem; ce && ce->name; ce++ ) {
         struct cfgst_nodekey key;
         struct cfgst_node *n;
-        if ( ce->name[0] == '>' ) /* moved, so don't care */
+        if ( ce->name[0] == '>' || ce->name[0] == '|') /* moved or deprecated, so don't care */
             continue;
         key.e = ce;
         cfgst_push(cfgst, isattr, ce, parent);
