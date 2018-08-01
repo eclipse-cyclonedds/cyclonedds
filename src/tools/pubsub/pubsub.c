@@ -1640,7 +1640,6 @@ static uint32_t subthread(void *vspec) {
         void **mseq = (void **) dds_alloc(sizeof(void*) * (spec->read_maxsamples));
 
         dds_sample_info_t *iseq = (dds_sample_info_t *) dds_alloc(sizeof(dds_sample_info_t) * spec->read_maxsamples);
-        dds_duration_t timeout = (uint64_t)100000000;
         dds_attach_t *xs = dds_alloc(sizeof(dds_attach_t) * nxs);
 
         dds_time_t tstart = 0, tfirst = 0, tprint = 0;
@@ -1661,7 +1660,7 @@ static uint32_t subthread(void *vspec) {
             if (spec->polling) {
                 dds_sleepfor(DDS_MSECS(1)); /* 1ms sleep interval, so a bit less than 1kHz poll freq */
             } else {
-                rc = dds_waitset_wait(ws, xs, nxs, timeout);
+                rc = dds_waitset_wait(ws, xs, nxs, DDS_INFINITY);
                 if (rc < DDS_RETCODE_OK) {
                     printf ("wait: error %d\n", (int) rc);
                     break;
