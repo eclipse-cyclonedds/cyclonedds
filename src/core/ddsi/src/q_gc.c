@@ -80,22 +80,33 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
 {
   struct thread_state1 *self = lookup_thread_state ();
   nn_mtime_t next_thread_cputime = { 0 };
-  struct os_time to = { 0, 100 * T_MILLISECOND };
   struct os_time shortsleep = { 0, 1 * T_MILLISECOND };
+  int64_t delay = T_MILLISECOND; /* force evaluation after startup */
   struct gcreq *gcreq = NULL;
   int trace_shortsleep = 1;
   os_mutexLock (&q->lock);
   while (!(q->terminate && q->count == 0))
   {
     LOG_THREAD_CPUTIME (next_thread_cputime);
+
     /* If we are waiting for a gcreq to become ready, don't bother
        looking at the queue; if we aren't, wait for a request to come
        in.  We can't really wait until something came in because we're
        also checking lease expirations. */
     if (gcreq == NULL)
     {
+      assert (trace_shortsleep);
       if (q->first == NULL)
-        os_condTimedWait (&q->cond, &q->lock, &to);
+      {
+        if (delay == T_NEVER)
+          os_condWait (&q->cond, &q->lock);
+        else
+        {
+          /* FIXME: fix os_time and use absolute timeouts */
+          struct os_time to = { delay / T_SECOND, delay % T_SECOND };
+          os_condTimedWait (&q->cond, &q->lock, &to);
+        }
+      }
       if (q->first)
       {
         gcreq = q->first;
@@ -112,7 +123,7 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
        burden on the system than having a separate thread or adding it
        to the workload of the data handling threads. */
     thread_state_awake (self);
-    check_and_handle_lease_expiration (self, now_et ());
+    delay = check_and_handle_lease_expiration (self, now_et ());
     thread_state_asleep (self);
 
     if (gcreq)

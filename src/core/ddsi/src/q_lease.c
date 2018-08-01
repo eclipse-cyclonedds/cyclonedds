@@ -36,6 +36,7 @@
 #include "ddsi/q_bswap.h"
 #include "ddsi/q_transmit.h"
 #include "ddsi/q_lease.h"
+#include "ddsi/q_gc.h"
 
 #include "ddsi/sysdeps.h"
 
@@ -54,6 +55,11 @@ struct lease {
 static int compare_lease_tsched (const void *va, const void *vb);
 
 static const ut_fibheapDef_t lease_fhdef = UT_FIBHEAPDEF_INITIALIZER(offsetof (struct lease, heapnode), compare_lease_tsched);
+
+static void force_lease_check (void)
+{
+  gcreq_enqueue(gcreq_new(gv.gcreq_queue, gcreq_free));
+}
 
 static int compare_lease_tsched (const void *va, const void *vb)
 {
@@ -124,6 +130,9 @@ void lease_register (struct lease *l)
   }
   unlock_lease (l);
   os_mutexUnlock (&gv.leaseheap_lock);
+
+  /* check_and_handle_lease_expiration runs on GC thread and the only way to be sure that it wakes up in time is by forcing re-evaluation (strictly speaking only needed if this is the first lease to expire, but this operation is quite rare anyway) */
+  force_lease_check();
 }
 
 void lease_free (struct lease *l)
@@ -134,6 +143,9 @@ void lease_free (struct lease *l)
     ut_fibheapDelete (&lease_fhdef, &gv.leaseheap, l);
   os_mutexUnlock (&gv.leaseheap_lock);
   os_free (l);
+
+  /* see lease_register() */
+  force_lease_check();
 }
 
 void lease_renew (struct lease *l, nn_etime_t tnowE)
@@ -166,6 +178,7 @@ void lease_renew (struct lease *l, nn_etime_t tnowE)
 
 void lease_set_expiry (struct lease *l, nn_etime_t when)
 {
+  bool trigger = false;
   assert (when.v >= 0);
   os_mutexLock (&gv.leaseheap_lock);
   lock_lease (l);
@@ -176,21 +189,27 @@ void lease_set_expiry (struct lease *l, nn_etime_t when)
        TSCHED_NOT_ON_HEAP == INT64_MIN) */
     l->tsched = l->tend;
     ut_fibheapDecreaseKey (&lease_fhdef, &gv.leaseheap, l);
+    trigger = true;
   }
   else if (l->tsched.v == TSCHED_NOT_ON_HEAP && l->tend.v < T_NEVER)
   {
     /* not currently scheduled, with a finite new expiry time */
     l->tsched = l->tend;
     ut_fibheapInsert (&lease_fhdef, &gv.leaseheap, l);
+    trigger = true;
   }
   unlock_lease (l);
   os_mutexUnlock (&gv.leaseheap_lock);
+
+  /* see lease_register() */
+  if (trigger)
+    force_lease_check();
 }
 
-void check_and_handle_lease_expiration (UNUSED_ARG (struct thread_state1 *self), nn_etime_t tnowE)
+int64_t check_and_handle_lease_expiration (UNUSED_ARG (struct thread_state1 *self), nn_etime_t tnowE)
 {
   struct lease *l;
-  const nn_wctime_t tnow = now();
+  int64_t delay;
   os_mutexLock (&gv.leaseheap_lock);
   while ((l = ut_fibheapMin (&lease_fhdef, &gv.leaseheap)) != NULL && l->tsched.v <= tnowE.v)
   {
@@ -268,25 +287,28 @@ void check_and_handle_lease_expiration (UNUSED_ARG (struct thread_state1 *self),
         delete_participant (&g);
         break;
       case EK_PROXY_PARTICIPANT:
-        delete_proxy_participant_by_guid (&g, tnow, 1);
+        delete_proxy_participant_by_guid (&g, now(), 1);
         break;
       case EK_WRITER:
         delete_writer_nolinger (&g);
         break;
       case EK_PROXY_WRITER:
-        delete_proxy_writer (&g, tnow, 1);
+        delete_proxy_writer (&g, now(), 1);
         break;
       case EK_READER:
         (void)delete_reader (&g);
         break;
       case EK_PROXY_READER:
-        delete_proxy_reader (&g, tnow, 1);
+        delete_proxy_reader (&g, now(), 1);
         break;
     }
 
     os_mutexLock (&gv.leaseheap_lock);
   }
+
+  delay = (l == NULL) ? T_NEVER : (l->tsched.v - tnowE.v);
   os_mutexUnlock (&gv.leaseheap_lock);
+  return delay;
 }
 
 /******/

@@ -31,7 +31,7 @@ void lease_register (struct lease *l);
 void lease_free (struct lease *l);
 void lease_renew (struct lease *l, nn_etime_t tnow);
 void lease_set_expiry (struct lease *l, nn_etime_t when);
-void check_and_handle_lease_expiration (struct thread_state1 *self, nn_etime_t tnow);
+int64_t check_and_handle_lease_expiration (struct thread_state1 *self, nn_etime_t tnow);
 
 void handle_PMD (const struct receiver_state *rst, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len);
 
