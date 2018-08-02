@@ -302,7 +302,7 @@ static int joinleave_asm_mcgroup (os_socket socket, int join, const nn_locator_t
   {
     os_ipv6_mreq ipv6mreq;
     memset (&ipv6mreq, 0, sizeof (ipv6mreq));
-    memcpy (&ipv6mreq.ipv6mr_multiaddr, &((os_sockaddr_in6 *) &mcloc)->sin6_addr, sizeof (ipv6mreq.ipv6mr_multiaddr));
+    memcpy (&ipv6mreq.ipv6mr_multiaddr, &((os_sockaddr_in6 *) &mcip)->sin6_addr, sizeof (ipv6mreq.ipv6mr_multiaddr));
     ipv6mreq.ipv6mr_interface = interf ? interf->if_index : 0;
     rc = os_sockSetsockopt (socket, IPPROTO_IPV6, join ? IPV6_JOIN_GROUP : IPV6_LEAVE_GROUP, &ipv6mreq, sizeof (ipv6mreq));
   }
