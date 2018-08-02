@@ -275,6 +275,8 @@ __pragma (warning(pop))
     /* VxWorks 7 supports __thread for both GCC and DIAB, older versions may
        support it as well, but that is not verified. */
 #define os_threadLocal __thread
+#elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+#define os_threadLocal __thread
 #else
 #error "os_threadLocal is not supported"
 #endif

@@ -20,6 +20,8 @@
   #include "os/windows/os_platform_public.h"
 #elif defined __APPLE__
   #include "os/posix/os_platform_public.h"
+#elif defined __sun
+  #include "os/posix/os_platform_public.h"
 #else
   #error "Platform missing from os_public.h list"
 #endif

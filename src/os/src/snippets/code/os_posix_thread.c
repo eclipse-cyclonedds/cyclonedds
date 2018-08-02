@@ -26,7 +26,7 @@
 #include <stdio.h>
 #include <signal.h>
 /* TODO: should introduce a HAVE_PRCTL define rather than blacklisting some platforms */
-#if !defined __VXWORKS__ && !defined __APPLE__
+#if !defined __VXWORKS__ && !defined __APPLE__ && !defined __sun
 #include <sys/prctl.h>
 #endif
 #include <limits.h>
@@ -159,7 +159,7 @@ os_startRoutineWrapper (
 
     resultValue = 0;
 
-#if !defined(__VXWORKS__) && !defined(__APPLE__)
+#if !defined(__VXWORKS__) && !defined(__APPLE__) && !defined(__sun)
     prctl(PR_SET_NAME, context->threadName);
 #endif
 

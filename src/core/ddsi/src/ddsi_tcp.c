@@ -588,7 +588,9 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
   set_msghdr_iov (&msg, (ddsi_iovec_t *) iov, niov);
   msg.msg_name = &dstaddr;
   msg.msg_namelen = (socklen_t) os_sockaddrSizeof((os_sockaddr *) &dstaddr);
+#if SYSDEPS_MSGHDR_FLAGS
   msg.msg_flags = (int) flags;
+#endif
   len = iovlen_sum (niov, iov);
   (void) base;
 

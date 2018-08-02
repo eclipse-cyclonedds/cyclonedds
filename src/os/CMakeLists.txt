@@ -12,7 +12,7 @@
 string(TOLOWER ${CMAKE_SYSTEM_NAME} platform)
 
 # For posix platforms include the files in the posix/ directory.
-set (posix_platforms darwin linux)
+set (posix_platforms darwin linux sunos)
 IF(${platform} IN_LIST posix_platforms)
   set(platform posix)
 ENDIF()
@@ -38,6 +38,11 @@ target_include_directories(OSAPI
 
 if(BUILD_TESTING)
   add_subdirectory(tests)
+endif()
+
+if(${CMAKE_C_COMPILER_ID} STREQUAL "SunPro")
+  target_link_libraries(OSAPI INTERFACE -lsocket -lnsl)
+  add_definitions(-KPIC)
 endif()
 
 install(
