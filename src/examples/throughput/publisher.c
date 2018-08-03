@@ -47,7 +47,6 @@ static void CtrlHandler (int fdwCtrlType)
 
 int main (int argc, char **argv)
 {
-  int result = EXIT_SUCCESS;
   uint32_t payloadSize = 8192;
   unsigned int burstInterval = 0;
   unsigned int burstSize = 1;
@@ -101,7 +100,7 @@ int main (int argc, char **argv)
 
   /* Cleanup */
   finalize_dds(participant, writer, sample);
-
+  return EXIT_SUCCESS;
 }
 
 static int parse_args(

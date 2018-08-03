@@ -98,7 +98,6 @@ dds_topic_status_cb(
 {
     dds_topic *topic;
     dds__retcode_t rc;
-    void *metrics = NULL;
 
     DDS_REPORT_STACK();
 

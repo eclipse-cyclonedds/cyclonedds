@@ -121,7 +121,10 @@ DUPF(networkAddresses);
 DU(ipv4);
 DUPF(allow_multicast);
 DUPF(boolean);
-DUPF(boolean_default);
+DU(boolean_default);
+#if 0
+PF(boolean_default);
+#endif
 DUPF(negated_boolean);
 DUPF(string);
 DU(tracingOutputFileName);
@@ -1312,6 +1315,7 @@ static int uf_boolean_default (struct cfgst *cfgst, void *parent, struct cfgelem
   return 1;
 }
 
+#if 0
 static void pf_boolean_default (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
 {
   enum besmode *p = cfg_address (cfgst, parent, cfgelem);
@@ -1324,6 +1328,7 @@ static void pf_boolean_default (struct cfgst *cfgst, void *parent, struct cfgele
   }
   cfg_log (cfgst, "%s%s", str, is_default ? " [def]" : "");
 }
+#endif
 
 static int uf_logcat(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
 {
