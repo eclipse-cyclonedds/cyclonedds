@@ -1794,11 +1794,11 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
 
   /* Append submessage; can possibly be merged with preceding iovec */
   if ((char *) xp->iov[niov-1].iov_base + xp->iov[niov-1].iov_len == (char *) m->data->payload)
-    xp->iov[niov-1].iov_len += m->sz;
+    xp->iov[niov-1].iov_len += (ddsi_iov_len_t)m->sz;
   else
   {
     xp->iov[niov].iov_base = m->data->payload;
-    xp->iov[niov].iov_len = m->sz;
+    xp->iov[niov].iov_len = (ddsi_iov_len_t)m->sz;
     niov++;
   }
   sz += m->sz;

@@ -134,9 +134,11 @@ extern "C" {
 
 #if SYSDEPS_HAVE_IOVEC
 typedef struct iovec ddsi_iovec_t;
+typedef size_t ddsi_iov_len_t;
 #elif defined _WIN32 && !defined WINCE
+typedef unsigned ddsi_iov_len_t;
 typedef struct ddsi_iovec {
-  unsigned iov_len;
+  ddsi_iov_len_t iov_len;
   void *iov_base;
 } ddsi_iovec_t;
 #define DDSI_IOVEC_MATCHES_WSABUF do { \
@@ -148,9 +150,10 @@ typedef struct ddsi_iovec {
     char len_size_matches[sizeof(((struct ddsi_iovec *)8)->iov_len) == sizeof(((WSABUF *)8)->len) ? 1 : -1]; \
   }; } while (0)
 #else
+typedef size_t ddsi_iov_len_t;
 typedef struct ddsi_iovec {
   void *iov_base;
-  size_t iov_len;
+  ddsi_iov_len_t iov_len;
 } ddsi_iovec_t;
 #endif
 

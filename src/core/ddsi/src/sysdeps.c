@@ -159,7 +159,7 @@ ssize_t sendmsg (os_handle fd, const struct msghdr *message, int flags)
   assert (message->msg_controllen == 0);
 #endif
 
-  if (WSASendTo (fd, (WSABUF *) message->msg_iov, message->msg_iovlen, &sent, flags, (SOCKADDR *) message->msg_name, message->msg_namelen, NULL, NULL) == 0)
+  if (WSASendTo (fd, (WSABUF *) message->msg_iov, (DWORD)message->msg_iovlen, &sent, flags, (SOCKADDR *) message->msg_name, message->msg_namelen, NULL, NULL) == 0)
     ret = (ssize_t) sent;
   else
     ret = -1;

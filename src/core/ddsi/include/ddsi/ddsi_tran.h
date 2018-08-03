@@ -220,7 +220,7 @@ int ddsi_conn_rejoin_transferred_mcgroups (ddsi_tran_conn_t conn);
 
 int ddsi_is_mcaddr (const nn_locator_t *loc);
 int ddsi_is_ssm_mcaddr (const nn_locator_t *loc);
-enum ddsi_nearby_address_result ddsi_is_nearby_address (const nn_locator_t *loc, const size_t ninterf, const struct nn_interface interf[]);
+enum ddsi_nearby_address_result ddsi_is_nearby_address (const nn_locator_t *loc, size_t ninterf, const struct nn_interface interf[]);
 enum ddsi_locator_from_string_result ddsi_locator_from_string (nn_locator_t *loc, const char *str);
 
 /*  8 for transport/

@@ -57,7 +57,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
   socklen_t srclen = (socklen_t) sizeof (src);
 
   msg_iov.iov_base = (void*) buf;
-  msg_iov.iov_len = len;
+  msg_iov.iov_len = (ddsi_iov_len_t)len; /* windows uses unsigned, POISX size_t */
 
   memset (&msghdr, 0, sizeof (msghdr));
 

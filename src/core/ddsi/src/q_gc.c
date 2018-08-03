@@ -98,14 +98,17 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
       assert (trace_shortsleep);
       if (q->first == NULL)
       {
-        if (delay == T_NEVER)
-          os_condWait (&q->cond, &q->lock);
-        else
-        {
-          /* FIXME: fix os_time and use absolute timeouts */
-          struct os_time to = { delay / T_SECOND, delay % T_SECOND };
-          os_condTimedWait (&q->cond, &q->lock, &to);
+        /* FIXME: fix os_time and use absolute timeouts */
+        struct os_time to;
+        if (delay >= 1000 * T_SECOND) {
+          /* avoid overflow */
+          to.tv_sec = 1000;
+          to.tv_nsec = 0;
+        } else {
+          to.tv_sec = (os_timeSec)(delay / T_SECOND);
+          to.tv_nsec = (int32_t)(delay % T_SECOND);
         }
+        os_condTimedWait (&q->cond, &q->lock, &to);
       }
       if (q->first)
       {
