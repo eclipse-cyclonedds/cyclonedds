@@ -10,7 +10,7 @@ static dds_entity_t waitSet;
 #define MAX_SAMPLES 10
 
 /* Forward declarations */
-static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_entity_t *readCond);
+static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_entity_t *readCond, dds_listener_t *listener);
 static void finalize_dds(dds_entity_t participant, dds_entity_t readCond, RoundTripModule_DataType data[MAX_SAMPLES]);
 
 #ifdef _WIN32
@@ -27,21 +27,58 @@ static void CtrlHandler (int fdwCtrlType)
 }
 #endif
 
+static RoundTripModule_DataType data[MAX_SAMPLES];
+static void * samples[MAX_SAMPLES];
+static dds_sample_info_t info[MAX_SAMPLES];
+
+static dds_entity_t participant;
+static dds_entity_t reader;
+static dds_entity_t writer;
+static dds_entity_t readCond;
+
+static void data_available(dds_entity_t reader, void *arg)
+{
+  int status, samplecount;
+  (void)arg;
+  samplecount = dds_take (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
+  DDS_ERR_CHECK (samplecount, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  for (int j = 0; !dds_triggered (waitSet) && j < samplecount; j++)
+  {
+    /* If writer has been disposed terminate pong */
+
+    if (info[j].instance_state == DDS_IST_NOT_ALIVE_DISPOSED)
+    {
+      printf ("Received termination request. Terminating.\n");
+      dds_waitset_set_trigger (waitSet, true);
+      break;
+    }
+    else if (info[j].valid_data)
+    {
+      /* If sample is valid, send it back to ping */
+      RoundTripModule_DataType * valid_sample = &data[j];
+      status = dds_write_ts (writer, valid_sample, info[j].source_timestamp);
+      DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+    }
+  }
+}
+
 int main (int argc, char *argv[])
 {
   dds_duration_t waitTimeout = DDS_INFINITY;
   unsigned int i;
-  int status, samplecount, j;
+  int status;
   dds_attach_t wsresults[1];
   size_t wsresultsize = 1U;
-  dds_entity_t participant;
-  dds_entity_t reader;
-  dds_entity_t writer;
-  dds_entity_t readCond;
 
-  RoundTripModule_DataType data[MAX_SAMPLES];
-  void * samples[MAX_SAMPLES];
-  dds_sample_info_t info[MAX_SAMPLES];
+  dds_listener_t *listener = NULL;
+  bool use_listener = false;
+  int argidx = 1;
+
+  if (argc > argidx && strcmp(argv[argidx], "-l") == 0)
+  {
+    argidx++;
+    use_listener = true;
+  }
 
   /* Register handler for Ctrl-C */
 
@@ -55,14 +92,23 @@ int main (int argc, char *argv[])
   sigaction (SIGINT, &sat, &oldAction);
 #endif
 
-  participant = prepare_dds(&writer, &reader, &readCond);
-
   /* Initialize sample data */
   memset (data, 0, sizeof (data));
   for (i = 0; i < MAX_SAMPLES; i++)
   {
     samples[i] = &data[i];
   }
+
+  participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  DDS_ERR_CHECK (participant, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+
+  if (use_listener)
+  {
+    listener = dds_listener_create(NULL);
+    dds_lset_data_available(listener, data_available);
+  }
+
+  (void)prepare_dds(&writer, &reader, &readCond, listener);
 
   while (!dds_triggered (waitSet))
   {
@@ -72,25 +118,8 @@ int main (int argc, char *argv[])
     DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 
     /* Take samples */
-    samplecount = dds_take (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
-    DDS_ERR_CHECK (samplecount, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-    for (j = 0; !dds_triggered (waitSet) && j < samplecount; j++)
-    {
-      /* If writer has been disposed terminate pong */
-
-      if (info[j].instance_state == DDS_IST_NOT_ALIVE_DISPOSED)
-      {
-        printf ("Received termination request. Terminating.\n");
-        dds_waitset_set_trigger (waitSet, true);
-        break;
-      }
-      else if (info[j].valid_data)
-      {
-        /* If sample is valid, send it back to ping */
-        RoundTripModule_DataType * valid_sample = &data[j];
-        status = dds_write (writer, valid_sample);
-        DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-      }
+    if (listener == NULL) {
+      data_available (reader, 0);
     }
   }
 
@@ -108,12 +137,11 @@ int main (int argc, char *argv[])
 
 static void finalize_dds(dds_entity_t participant, dds_entity_t readCond, RoundTripModule_DataType data[MAX_SAMPLES])
 {
-  dds_return_t status = dds_waitset_detach (waitSet, readCond);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  dds_return_t status;
+  (void)dds_waitset_detach (waitSet, readCond);
   status = dds_waitset_detach (waitSet, waitSet);
   DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  status = dds_delete (readCond);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  (void)dds_delete (readCond);
   status = dds_delete (waitSet);
   DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   status = dds_delete (participant);
@@ -125,7 +153,7 @@ static void finalize_dds(dds_entity_t participant, dds_entity_t readCond, RoundT
   }
 }
 
-static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_entity_t *readCond)
+static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_entity_t *readCond, dds_listener_t *listener)
 {
   const char *pubPartitions[] = { "pong" };
   const char *subPartitions[] = { "ping" };
@@ -134,9 +162,6 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_
   dds_entity_t publisher;
   dds_entity_t topic;
   dds_return_t status;
-
-  dds_entity_t participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-  DDS_ERR_CHECK (participant, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 
   /* A DDS Topic is created for our sample type on the domain participant. */
 
@@ -174,14 +199,18 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_
 
   qos = dds_qos_create ();
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
-  *reader = dds_create_reader (subscriber, topic, qos, NULL);
+  *reader = dds_create_reader (subscriber, topic, qos, listener);
   DDS_ERR_CHECK (*reader, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   dds_qos_delete (qos);
 
   waitSet = dds_create_waitset (participant);
-  *readCond = dds_create_readcondition (*reader, DDS_ANY_STATE);
-  status = dds_waitset_attach (waitSet, *readCond, *reader);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (listener == NULL) {
+    *readCond = dds_create_readcondition (*reader, DDS_ANY_STATE);
+    status = dds_waitset_attach (waitSet, *readCond, *reader);
+    DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  } else {
+    *readCond = 0;
+  }
   status = dds_waitset_attach (waitSet, waitSet, waitSet);
   DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 
