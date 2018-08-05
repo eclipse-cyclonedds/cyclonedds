@@ -190,11 +190,6 @@ struct q_globals {
 
   os_mutex lock;
 
-  /* guarantees serialisation of attach/detach operations on waitsets
-     -- a single global lock is a bit coarse, but these operations are
-     rare and at initialisation time anyway */
-  os_mutex attach_lock;
-
   /* Receive thread. (We can only has one for now, cos of the signal
      trigger socket.) Receive buffer pool is per receive thread,
      practical considerations led to it being a global variable
