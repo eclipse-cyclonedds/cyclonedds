@@ -247,13 +247,13 @@ int ddsi_is_mcaddr (const nn_locator_t *loc)
 {
   /* FIXME: should set m_is_mcaddr_fn to a function returning false if transport doesn't provide an implementation, and get rid of the test */
   ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind(loc->kind);
-  return tran->m_is_mcaddr_fn ? tran->m_is_mcaddr_fn (tran, loc) : 0;
+  return tran && tran->m_is_mcaddr_fn ? tran->m_is_mcaddr_fn (tran, loc) : 0;
 }
 
 int ddsi_is_ssm_mcaddr (const nn_locator_t *loc)
 {
   ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind(loc->kind);
-  return tran->m_is_ssm_mcaddr_fn ? tran->m_is_ssm_mcaddr_fn (tran, loc) : 0;
+  return tran && tran->m_is_ssm_mcaddr_fn ? tran->m_is_ssm_mcaddr_fn (tran, loc) : 0;
 }
 
 enum ddsi_nearby_address_result ddsi_is_nearby_address (const nn_locator_t *loc, size_t ninterf, const struct nn_interface interf[])
