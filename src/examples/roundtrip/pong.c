@@ -11,7 +11,7 @@ static dds_entity_t waitSet;
 
 /* Forward declarations */
 static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_entity_t *readCond, dds_listener_t *listener);
-static void finalize_dds(dds_entity_t participant, dds_entity_t readCond, RoundTripModule_DataType data[MAX_SAMPLES]);
+static void finalize_dds(dds_entity_t participant, RoundTripModule_DataType data[MAX_SAMPLES]);
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -131,23 +131,16 @@ int main (int argc, char *argv[])
 #endif
 
   /* Clean up */
-  finalize_dds(participant, readCond, data);
+  finalize_dds(participant, data);
 
   return EXIT_SUCCESS;
 }
 
-static void finalize_dds(dds_entity_t participant, dds_entity_t readCond, RoundTripModule_DataType data[MAX_SAMPLES])
+static void finalize_dds(dds_entity_t participant, RoundTripModule_DataType data[MAX_SAMPLES])
 {
   dds_return_t status;
-  (void)dds_waitset_detach (waitSet, readCond);
-  status = dds_waitset_detach (waitSet, waitSet);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  (void)dds_delete (readCond);
-  status = dds_delete (waitSet);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   status = dds_delete (participant);
   DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-
   for (unsigned int i = 0; i < MAX_SAMPLES; i++)
   {
     RoundTripModule_DataType_free (&data[i], DDS_FREE_CONTENTS);
