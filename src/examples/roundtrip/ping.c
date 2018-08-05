@@ -13,7 +13,7 @@
 /* Forward declaration */
 
 static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_entity_t *readCond, dds_listener_t *listener);
-static void finalize_dds(dds_entity_t participant, dds_entity_t reader, dds_entity_t readCond);
+static void finalize_dds(dds_entity_t participant);
 
 typedef struct ExampleTimeStats
 {
@@ -402,7 +402,7 @@ done:
   sigaction (SIGINT, &oldAction, 0);
 #endif
 
-  finalize_dds(participant, reader, readCond);
+  finalize_dds(participant);
 
   /* Clean up */
   exampleDeleteTimeStats (&roundTrip);
@@ -484,19 +484,9 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   return participant;
 }
 
-static void finalize_dds(dds_entity_t ppant, dds_entity_t rd, dds_entity_t rdcond)
+static void finalize_dds(dds_entity_t ppant)
 {
   dds_return_t status;
-
-  /* Disable callbacks */
-  dds_set_enabled_status (rd, 0);
-
-  (void) dds_waitset_detach (waitSet, rdcond);
-  status = dds_waitset_detach (waitSet, waitSet);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  (void) dds_delete (rdcond);
-  status = dds_delete (waitSet);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   status = dds_delete (ppant);
   DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 }
