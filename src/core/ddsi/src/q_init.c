@@ -924,15 +924,9 @@ int rtps_init (void)
   }
   if (config.allowMulticast)
   {
-    int i;
-    for (i = 0; i < gv.n_interfaces; i++)
+    if (!gv.interfaces[gv.selected_interface].mc_capable)
     {
-      if (gv.interfaces[i].mc_capable)
-        break;
-    }
-    if (i == gv.n_interfaces)
-    {
-      NN_WARNING ("No multicast capable interfaces: disabling multicast\n");
+      NN_WARNING ("selected interface is not multicast-capable: disabling multicast\n");
       config.suppress_spdp_multicast = 1;
       config.allowMulticast = AMC_FALSE;
     }
