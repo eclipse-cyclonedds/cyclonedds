@@ -1,0 +1,74 @@
+language: c
+
+# Platform descriptions
+# NOTE: These can be used in creating the build matrix by making use of the
+#       anchor/alias YAML features.
+linux_gcc8: &linux_gcc8
+  os: linux
+  compiler: gcc
+  addons:
+    apt:
+      update: true
+      sources: [ ubuntu-toolchain-r-test ]
+      packages: [ gcc-8 g++-8 oracle-java8-set-default maven ]
+
+linux_clang60: &linux_clang60
+  os: linux
+  compiler: clang
+  addons:
+    apt:
+      update: true
+      sources: [ llvm-toolchain-trusty-6.0, ubuntu-toolchain-r-test ]
+      packages: [ clang-6.0 oracle-java8-set-default maven ]
+
+osx_xcode94: &osx_xcode94
+  os: osx
+  osx_image: xcode94
+  compiler: clang
+
+
+matrix:
+  include:
+    - <<: *linux_gcc8
+      env: [ BUILD_TYPE=Debug, C_COMPILER=gcc-8, CXX_COMPILER=g++-8 ]
+    - <<: *linux_gcc8
+      env: [ BUILD_TYPE=Release, C_COMPILER=gcc-8, CXX_COMPILER=g++-8 ]
+    - <<: *linux_clang60
+      env: [ BUILD_TYPE=Debug, C_COMPILER=clang-6.0, CXX_COMPILER=clang++-6.0 ]
+    - <<: *linux_clang60
+      env: [ BUILT_TYPE=Release, C_COMPILER=clang-6.0, CXX_COMPILER=clang++-6.0 ]
+    - <<: *osx_xcode94
+      env: [ BUILD_TYPE=Debug, C_COMPILER=clang, CXX_COMPILER=clang++ ]
+    - <<: *osx_xcode94
+      env: [ BUILD_TYPE=Release, C_COMPILER=clang, CXX_COMPILER=clang++ ]
+
+
+before_install:
+  - eval "export CC=${C_COMPILER}";
+  - eval "export CXX=${CXX_COMPILER}";
+
+install:
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+      brew install pyenv-virtualenv;
+      eval "$(pyenv init -)";
+      pyenv virtualenv conan;
+      pyenv rehash;
+      pyenv activate conan;
+      pip install conan --upgrade;
+    else
+      pip install conan --upgrade --user;
+    fi
+  - conan user
+
+before_script:
+  - conan remote add atolab https://api.bintray.com/conan/atolab/public-conan
+  - conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
+
+script:
+  - mkdir build
+  - cd build
+  - conan install ..
+  - cmake -DBUILD_TESTING=on -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ../src
+  - cmake --build .
+  - ctest -T test
+
