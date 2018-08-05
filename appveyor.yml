@@ -1,0 +1,45 @@
+# FIXME: Add ARM at some point in the future.
+platform:
+  - x86
+  - x64
+
+configuration:
+  - Debug
+  - Release
+
+matrix:
+  fast_finish: true
+
+environment:
+  PYTHON: "C:\\Python27"
+
+  matrix:
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+      GENERATOR: Visual Studio 14 2015
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+      GENERATOR: Visual Studio 15 2017
+
+init:
+  - set PATH=%PATH%;%PYTHON%/Scripts/
+  - set ARCH=x86
+  - if %PLATFORM%==x64 (set GENERATOR=%GENERATOR% Win64)
+  - if %PLATFORM%==x64 (set ARCH=x86_64)
+
+install:
+  - pip.exe install conan --upgrade
+  - conan user # Creates the conan data directory
+
+before_build:
+  - conan remote add atolab https://api.bintray.com/conan/atolab/public-conan
+  - conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
+
+build_script:
+  - mkdir build
+  - cd build
+  - conan install -s arch=%ARCH% -s build_type=%CONFIGURATION% ..
+  - cmake -DBUILD_TESTING=on -DCMAKE_BUILD_TYPE=%CONFIGURATION% -G "%GENERATOR%" ../src
+  - cmake --build .
+
+test_script:
+  - ctest --test-action test --build-config %CONFIGURATION%
+
