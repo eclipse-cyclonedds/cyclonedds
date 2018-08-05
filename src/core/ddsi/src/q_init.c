@@ -1516,4 +1516,5 @@ OS_WARNING_MSVC_ON(6001);
   ddsi_serstatepool_free (gv.serpool);
   nn_xmsgpool_free (gv.xmsgpool);
   (ddsi_plugin.fini_fn) ();
+  nn_log (LC_CONFIG, "Finis.\n");
 }
