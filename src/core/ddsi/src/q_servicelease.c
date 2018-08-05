@@ -21,6 +21,7 @@
 #include "ddsi/q_unused.h"
 #include "ddsi/q_error.h"
 #include "ddsi/q_globals.h" /* for mattr, cattr */
+#include "ddsi/q_receive.h"
 
 #include "ddsi/sysdeps.h" /* for getrusage() */
 
@@ -172,9 +173,7 @@ static uint32_t lease_renewal_thread (struct nn_servicelease *sl)
        every now and then to try recreating sockets & rejoining multicast
        groups */
     if (gv.deaf)
-    {
-      os_sockWaitsetTrigger(gv.waitset);
-    }
+      trigger_recv_threads ();
   }
   os_mutexUnlock (&sl->lock);
   return 0;

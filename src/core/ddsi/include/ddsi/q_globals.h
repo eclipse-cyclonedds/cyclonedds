@@ -65,6 +65,25 @@ enum recvips_mode {
 #define N_LEASE_LOCKS_LG2 4
 #define N_LEASE_LOCKS ((int) (1 << N_LEASE_LOCKS_LG2))
 
+enum recv_thread_mode {
+  RTM_SINGLE,
+  RTM_MANY
+};
+
+struct recv_thread_arg {
+  enum recv_thread_mode mode;
+  struct nn_rbufpool *rbpool;
+  union {
+    struct {
+      const nn_locator_t *loc;
+      struct ddsi_tran_conn *conn;
+    } single;
+    struct {
+      os_sockWaitset ws;
+    } many;
+  } u;
+};
+
 struct q_globals {
   volatile int terminate;
   volatile int exception;
@@ -112,13 +131,6 @@ struct q_globals {
   /* Thread pool */
 
   struct ut_thread_pool_s * thread_pool;
-
-  /* Receive thread triggering: must have a socket per receive thread
-     because all receive threads must be triggered, even though each
-     receive thread takes the trigger message from the socket. With one
-     trigger socket, we can only have one receive thread (which enables
-     other optimisations that we don't currently do). */
-  os_sockWaitset waitset;
 
   /* In many sockets mode, the receive threads maintain a local array
      with participant GUIDs and sockets, participant_set_generation is
@@ -192,10 +204,15 @@ struct q_globals {
 
   /* Receive thread. (We can only has one for now, cos of the signal
      trigger socket.) Receive buffer pool is per receive thread,
-     practical considerations led to it being a global variable
-     TEMPORARILY. */
-  struct thread_state1 *recv_ts;
-  struct nn_rbufpool *rbufpool;
+     it is only a global variable because it needs to be freed way later
+     than the receive thread itself terminates */
+#define MAX_RECV_THREADS 3
+  unsigned n_recv_threads;
+  struct recv_thread {
+    const char *name;
+    struct thread_state1 *ts;
+    struct recv_thread_arg arg;
+  } recv_threads[MAX_RECV_THREADS];
 
   /* Listener thread for connection based transports */
   struct thread_state1 *listen_ts;

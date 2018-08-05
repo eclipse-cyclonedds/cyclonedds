@@ -263,8 +263,11 @@ static void ddsi_tcp_conn_connect (ddsi_tcp_conn_t conn, const struct msghdr * m
     /* Also may need to receive on connection so add to waitset */
 
     os_sockSetNonBlocking (conn->m_sock, true);
-    os_sockWaitsetAdd (gv.waitset, &conn->m_base);
-    os_sockWaitsetTrigger (gv.waitset);
+
+    assert (gv.n_recv_threads > 0);
+    assert (gv.recv_threads[0].arg.mode == RTM_MANY);
+    os_sockWaitsetAdd (gv.recv_threads[0].arg.u.many.ws, &conn->m_base);
+    os_sockWaitsetTrigger (gv.recv_threads[0].arg.u.many.ws);
   }
 }
 

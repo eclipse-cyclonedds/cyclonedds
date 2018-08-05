@@ -260,6 +260,8 @@ struct config
   int noprogress_log_stacktraces;
   int prioritize_retransmit;
   int xpack_send_async;
+  int multiple_recv_threads;
+  unsigned recv_thread_stop_maxretries;
 
   unsigned primary_reorder_maxsamples;
   unsigned secondary_reorder_maxsamples;

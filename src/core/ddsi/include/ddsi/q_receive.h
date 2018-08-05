@@ -20,8 +20,10 @@ struct nn_rbufpool;
 struct nn_rsample_info;
 struct nn_rdata;
 struct ddsi_tran_listener;
+struct recv_thread_arg;
 
-uint32_t recv_thread (struct nn_rbufpool *rbpool);
+void trigger_recv_threads (void);
+uint32_t recv_thread (void *vrecv_thread_arg);
 uint32_t listen_thread (struct ddsi_tran_listener * listener);
 int user_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const nn_guid_t *rdguid, void *qarg);
 
