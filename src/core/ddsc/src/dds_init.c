@@ -217,7 +217,6 @@ extern void dds_fini (void)
 
 static int dds__init_plugin (void)
 {
-  os_mutexInit (&gv.attach_lock);
   dds_iid_init ();
   if (dds_global.m_dur_init) (dds_global.m_dur_init) ();
   return 0;
@@ -225,7 +224,6 @@ static int dds__init_plugin (void)
 
 static void dds__fini_plugin (void)
 {
-  os_mutexDestroy (&gv.attach_lock);
   if (dds_global.m_dur_fini) (dds_global.m_dur_fini) ();
   dds_iid_fini ();
 }
