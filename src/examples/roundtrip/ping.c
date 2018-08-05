@@ -182,10 +182,10 @@ static void data_available(dds_entity_t rd, void *arg)
       printf("%9" PRIi64 " %9lu %8.0f %8" PRIi64 " %8" PRIi64 " %8" PRIi64 " %10lu %8.0f %8" PRIi64 " %10lu %8.0f %8" PRIi64 "\n",
              elapsed + 1,
              roundTrip.count,
-             exampleGetMedianFromTimeStats (&roundTrip),
-             roundTrip.min,
-             exampleGet99PercentileFromTimeStats (&roundTrip),
-             roundTrip.max,
+             exampleGetMedianFromTimeStats (&roundTrip) / 2,
+             roundTrip.min / 2,
+             exampleGet99PercentileFromTimeStats (&roundTrip) / 2,
+             roundTrip.max / 2,
              writeAccess.count,
              exampleGetMedianFromTimeStats (&writeAccess),
              writeAccess.min,
@@ -352,8 +352,8 @@ int main (int argc, char *argv[])
     warmUp = false;
     printf("# Warm up complete.\n\n");
 
-    printf("# Round trip measurements (in us)\n");
-    printf("#             Round trip time [us]                           Write-access time [us]       Read-access time [us]\n");
+    printf("# Latency measurements (in us)\n");
+    printf("#             Latency [us]                                   Write-access time [us]       Read-access time [us]\n");
     printf("# Seconds     Count   median      min      99%%      max      Count   median      min      Count   median      min\n");
 
   }
@@ -380,11 +380,13 @@ int main (int argc, char *argv[])
   {
     printf
     (
-      "\n%9s %9lu %8.0f %8" PRIi64 " %10lu %8.0f %8" PRIi64 " %10lu %8.0f %8" PRIi64 "\n",
+      "\n%9s %9lu %8.0f %8" PRIi64 " %8" PRIi64 " %8" PRIi64 " %10lu %8.0f %8" PRIi64 " %10lu %8.0f %8" PRIi64 "\n",
       "# Overall",
       roundTripOverall.count,
-      exampleGetMedianFromTimeStats (&roundTripOverall),
-      roundTripOverall.min,
+      exampleGetMedianFromTimeStats (&roundTripOverall) / 2,
+      roundTripOverall.min / 2,
+      exampleGet99PercentileFromTimeStats (&roundTripOverall) / 2,
+      roundTripOverall.max / 2,
       writeAccessOverall.count,
       exampleGetMedianFromTimeStats (&writeAccessOverall),
       writeAccessOverall.min,
