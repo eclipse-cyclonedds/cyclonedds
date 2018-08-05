@@ -62,8 +62,10 @@ void os_sockWaitsetTrigger (os_sockWaitset ws);
 
   Closing a connection associated with a waitset is handled gracefully: no
   operations will signal errors because of it.
+
+  Returns < 0 on error, 0 if already present, 1 if added
 */
-void os_sockWaitsetAdd (os_sockWaitset ws, struct ddsi_tran_conn * conn);
+int os_sockWaitsetAdd (os_sockWaitset ws, struct ddsi_tran_conn * conn);
 
 /*
   Drops all connections from the waitset from index onwards. Index
