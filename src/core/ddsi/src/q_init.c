@@ -1440,8 +1440,6 @@ void rtps_term (void)
 
   ut_thread_pool_free (gv.thread_pool);
 
-  os_sockWaitsetFree (gv.waitset);
-
   (void) joinleave_spdp_defmcip (0);
 
   ddsi_conn_free (gv.disc_conn_mc);
@@ -1460,6 +1458,7 @@ void rtps_term (void)
 
   free_group_membership(gv.mship);
   ddsi_tran_factories_fini ();
+  os_sockWaitsetFree (gv.waitset);
 
   if (gv.pcap_fp)
   {
