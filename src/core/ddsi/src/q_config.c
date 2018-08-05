@@ -2927,7 +2927,7 @@ void config_fini(_In_ struct cfgst *cfgst)
     assert(config.valid);
 
     free_all_elements(cfgst, cfgst->cfg, root_cfgelems);
-    if ( config.tracingOutputFile ) {
+    if ( config.tracingOutputFile && config.tracingOutputFile != stdout && config.tracingOutputFile != stderr) {
         fclose(config.tracingOutputFile);
     }
     memset(&config, 0, sizeof(config));
