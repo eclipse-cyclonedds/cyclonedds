@@ -29,6 +29,7 @@
 #include "q__osplser.h"
 
 #define MAX_POOL_SIZE 16384
+#define CLEAR_PADDING 0
 
 #ifndef NDEBUG
 static int ispowerof2_size (size_t x)
@@ -175,7 +176,7 @@ static serstate_t serstate_allocnew (serstatepool_t pool, const struct sertopic 
 
   size = offsetof (struct serdata, data) + st->size;
   st->data = os_malloc (size);
-  memset (st->data, 0, size);
+  memset (st->data, 0, sizeof (*st->data));
   st->data->v.st = st;
   serstate_init (st, topic);
   return st;
@@ -219,13 +220,17 @@ void * ddsi_serstate_append_aligned (serstate_t st, size_t n, size_t a)
      buffer: ddsi_serstate_append() is called immediately afterward and will
      grow the buffer as soon as the end of the requested space no
      longer fits. */
+#if CLEAR_PADDING
   size_t pos0 = st->pos;
+#endif
   char *p;
   assert (ispowerof2_size (a));
   st->pos = alignup_size (st->pos, a);
   p = ddsi_serstate_append (st, n);
+#if CLEAR_PADDING
   if (p && st->pos > pos0)
     memset (st->data->data + pos0, 0, st->pos - pos0);
+#endif
   return p;
 }
 
