@@ -39,6 +39,7 @@
 #include "ddsi/q_builtin_topic.h"
 #include "ddsi/ddsi_ser.h"
 #include "ddsi/ddsi_mcgroup.h"
+#include "ddsi/q_receive.h"
 
 #include "ddsi/sysdeps.h"
 #include "dds__whc.h"
@@ -575,7 +576,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
   {
     os_atomic_fence ();
     os_atomic_inc32 (&gv.participant_set_generation);
-    os_sockWaitsetTrigger (gv.waitset);
+    trigger_recv_threads ();
   }
 
   /* SPDP periodic broadcast uses the retransmit path, so the initial
@@ -784,7 +785,6 @@ static void unref_participant (struct participant *pp, const struct nn_guid *gui
       /* Deleting the socket will usually suffice to wake up the
          receiver threads, but in general, no one cares if it takes a
          while longer for it to wakeup. */
-
       ddsi_conn_free (pp->m_conn);
     }
     nn_plist_fini (pp->plist);

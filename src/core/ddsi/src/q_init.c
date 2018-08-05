@@ -596,10 +596,10 @@ int rtps_config_prep (struct cfgst *cfgst)
   }
 
   /* Thread admin: need max threads, which is currently (2 or 3) for each
-   configured channel plus 7: main, recv, dqueue.builtin,
-   lease, gc, debmon; once thread state admin has been inited, upgrade the
-   main thread one participating in the thread tracking stuff as
-   if it had been created using create_thread(). */
+     configured channel plus 9: main, recv (up to 3x), dqueue.builtin,
+     lease, gc, debmon; once thread state admin has been inited, upgrade the
+     main thread one participating in the thread tracking stuff as
+     if it had been created using create_thread(). */
 
   {
   /* For Lite - Temporary
@@ -608,9 +608,9 @@ int rtps_config_prep (struct cfgst *cfgst)
 #define USER_MAX_THREADS 50
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-    const unsigned max_threads = 7 + USER_MAX_THREADS + num_channel_threads + config.ddsi2direct_max_threads;
+    const unsigned max_threads = 9 + USER_MAX_THREADS + num_channel_threads + config.ddsi2direct_max_threads;
 #else
-    const unsigned max_threads = 9 + USER_MAX_THREADS + config.ddsi2direct_max_threads;
+    const unsigned max_threads = 11 + USER_MAX_THREADS + config.ddsi2direct_max_threads;
 #endif
     thread_states_init (max_threads);
   }
@@ -703,6 +703,141 @@ err_data:
 err_disc:
   ddsi_tran_free_qos (qos);
   return 0;
+}
+
+static void rtps_term_prep (void)
+{
+  /* Stop all I/O */
+  os_mutexLock (&gv.lock);
+  if (gv.rtps_keepgoing)
+  {
+    gv.rtps_keepgoing = 0; /* so threads will stop once they get round to checking */
+    os_atomic_fence ();
+    /* can't wake up throttle_writer, currently, but it'll check every few seconds */
+    trigger_recv_threads ();
+  }
+  os_mutexUnlock (&gv.lock);
+}
+
+struct wait_for_receive_threads_helper_arg {
+  unsigned count;
+};
+
+static void wait_for_receive_threads_helper (struct xevent *xev, void *varg, nn_mtime_t tnow)
+{
+  struct wait_for_receive_threads_helper_arg * const arg = varg;
+  if (arg->count++ == config.recv_thread_stop_maxretries)
+    abort ();
+  trigger_recv_threads ();
+  resched_xevent_if_earlier (xev, add_duration_to_mtime (tnow, T_SECOND));
+}
+
+static void wait_for_receive_threads (void)
+{
+  struct xevent *trigev;
+  unsigned i;
+  struct wait_for_receive_threads_helper_arg cbarg;
+  cbarg.count = 0;
+  if ((trigev = qxev_callback (add_duration_to_mtime (now_mt (), T_SECOND), wait_for_receive_threads_helper, &cbarg)) == NULL)
+  {
+    /* retrying is to deal a packet geting lost because the socket buffer is full or because the
+       macOS firewall (and perhaps others) likes to ask if the process is allowed to receive data,
+       dropping the packets until the user approves. */
+    NN_WARNING ("wait_for_receive_threads: failed to schedule periodic triggering of the receive threads to deal with packet loss\n");
+  }
+  for (i = 0; i < gv.n_recv_threads; i++)
+  {
+    if (gv.recv_threads[i].ts)
+    {
+      join_thread (gv.recv_threads[i].ts);
+      /* setting .ts to NULL helps in sanity checking */
+      gv.recv_threads[i].ts = NULL;
+    }
+  }
+  if (trigev)
+  {
+    delete_xevent (trigev);
+  }
+}
+
+static int setup_and_start_recv_threads (void)
+{
+  unsigned i;
+  for (i = 0; i < MAX_RECV_THREADS; i++)
+  {
+    gv.recv_threads[i].ts = NULL;
+    gv.recv_threads[i].arg.mode = RTM_SINGLE;
+    gv.recv_threads[i].arg.rbpool = NULL;
+    gv.recv_threads[i].arg.u.single.loc = NULL;
+    gv.recv_threads[i].arg.u.single.conn = NULL;
+  }
+
+  /* First thread always uses a waitset and gobbles up all sockets not handled by dedicated threads - FIXME: MSM_NO_UNICAST mode with UDP probably doesn't even need this one to use a waitset */
+  gv.n_recv_threads = 1;
+  gv.recv_threads[0].name = "recv";
+  gv.recv_threads[0].arg.mode = RTM_MANY;
+  if (gv.m_factory->m_connless && config.many_sockets_mode != MSM_NO_UNICAST && config.multiple_recv_threads)
+  {
+    if (ddsi_is_mcaddr (&gv.loc_default_mc) && !ddsi_is_ssm_mcaddr (&gv.loc_default_mc))
+    {
+      /* Multicast enabled, but it isn't an SSM address => handle data multicasts on a separate thread (the trouble with SSM addresses is that we only join matching writers, which our own sockets typically would not be) */
+      gv.recv_threads[gv.n_recv_threads].name = "recvMC";
+      gv.recv_threads[gv.n_recv_threads].arg.mode = RTM_SINGLE;
+      gv.recv_threads[gv.n_recv_threads].arg.u.single.conn = gv.data_conn_mc;
+      gv.recv_threads[gv.n_recv_threads].arg.u.single.loc = &gv.loc_default_mc;
+      gv.n_recv_threads++;
+    }
+    if (config.many_sockets_mode == MSM_SINGLE_UNICAST)
+    {
+      /* No per-participant sockets => handle data unicasts on a separate thread as well */
+      gv.recv_threads[gv.n_recv_threads].name = "recvUC";
+      gv.recv_threads[gv.n_recv_threads].arg.mode = RTM_SINGLE;
+      gv.recv_threads[gv.n_recv_threads].arg.u.single.conn = gv.data_conn_uc;
+      gv.recv_threads[gv.n_recv_threads].arg.u.single.loc = &gv.loc_default_uc;
+      gv.n_recv_threads++;
+    }
+  }
+  assert (gv.n_recv_threads <= MAX_RECV_THREADS);
+
+  /* For each thread, create rbufpool and waitset if needed, then start it */
+  for (i = 0; i < gv.n_recv_threads; i++)
+  {
+    /* We create the rbufpool for the receive thread, and so we'll
+       become the initial owner thread. The receive thread will change
+       it before it does anything with it. */
+    if ((gv.recv_threads[i].arg.rbpool = nn_rbufpool_new (config.rbuf_size, config.rmsg_chunk_size)) == NULL)
+    {
+      NN_ERROR ("rtps_init: can't allocate receive buffer pool for thread %s\n", gv.recv_threads[i].name);
+      goto fail;
+    }
+    if (gv.recv_threads[i].arg.mode == RTM_MANY)
+    {
+      if ((gv.recv_threads[i].arg.u.many.ws = os_sockWaitsetNew ()) == NULL)
+      {
+        NN_ERROR ("rtps_init: can't allocate sock waitset for thread %s\n", gv.recv_threads[i].name);
+        goto fail;
+      }
+    }
+    if ((gv.recv_threads[i].ts = create_thread (gv.recv_threads[i].name, recv_thread, &gv.recv_threads[i].arg)) == NULL)
+    {
+      NN_ERROR ("rtps_init: failed to start thread %s\n", gv.recv_threads[i].name);
+      goto fail;
+    }
+  }
+  return 0;
+
+fail:
+  /* to trigger any threads we already started to stop - xevent thread has already been started */
+  rtps_term_prep ();
+  wait_for_receive_threads ();
+  for (i = 0; i < gv.n_recv_threads; i++)
+  {
+    if (gv.recv_threads[i].arg.mode == RTM_MANY && gv.recv_threads[i].arg.u.many.ws)
+      os_sockWaitsetFree (gv.recv_threads[i].arg.u.many.ws);
+    if (gv.recv_threads[i].arg.rbpool)
+      nn_rbufpool_free (gv.recv_threads[i].arg.rbpool);
+  }
+  return -1;
 }
 
 int rtps_init (void)
@@ -942,8 +1077,6 @@ int rtps_init (void)
   }
   nn_log (LC_CONFIG, "rtps_init: domainid %d participantid %d\n", config.domainId, config.participantIndex);
 
-  gv.waitset = os_sockWaitsetNew ();
-
   if (config.pcap_file && *config.pcap_file)
   {
     gv.pcap_fp = new_pcap_file (config.pcap_file);
@@ -1105,14 +1238,6 @@ int rtps_init (void)
 
   gv.gcreq_queue = gcreq_queue_new ();
 
-  /* We create the rbufpool for the receive thread, and so we'll
-     become the initial owner thread. The receive thread will change
-     it before it does anything with it. */
-  if ((gv.rbufpool = nn_rbufpool_new (config.rbuf_size, config.rmsg_chunk_size)) == NULL)
-  {
-    NN_FATAL ("rtps_init: can't allocate receive buffer pool\n");
-  }
-
   gv.rtps_keepgoing = 1;
   os_rwlockInit (&gv.qoslock);
 
@@ -1151,7 +1276,11 @@ int rtps_init (void)
   gv.user_dqueue = nn_dqueue_new ("user", config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
 #endif
 
-  gv.recv_ts = create_thread ("recv", (uint32_t (*) (void *)) recv_thread, gv.rbufpool);
+  if (setup_and_start_recv_threads () < 0)
+  {
+    NN_FATAL ("failed to start receive threads\n");
+  }
+
   if (gv.listener)
   {
     gv.listen_ts = create_thread ("listen", (uint32_t (*) (void *)) listen_thread, gv.listener);
@@ -1176,7 +1305,6 @@ err_mc_conn:
     ddsi_conn_free (gv.data_conn_mc);
   if (gv.pcap_fp)
     os_mutexDestroy (&gv.pcap_lock);
-  os_sockWaitsetFree (gv.waitset);
   if (gv.disc_conn_uc != gv.disc_conn_mc)
     ddsi_conn_free (gv.data_conn_uc);
   if (gv.data_conn_uc != gv.disc_conn_uc)
@@ -1251,20 +1379,6 @@ static void builtins_dqueue_ready_cb (void *varg)
   os_mutexUnlock (&arg->lock);
 }
 
-void rtps_term_prep (void)
-{
-  /* Stop all I/O */
-  os_mutexLock (&gv.lock);
-  if (gv.rtps_keepgoing)
-  {
-    gv.rtps_keepgoing = 0; /* so threads will stop once they get round to checking */
-    os_atomic_fence ();
-    /* can't wake up throttle_writer, currently, but it'll check every few seconds */
-    os_sockWaitsetTrigger (gv.waitset);
-  }
-  os_mutexUnlock (&gv.lock);
-}
-
 void rtps_term (void)
 {
   struct thread_state1 *self = lookup_thread_state ();
@@ -1280,7 +1394,7 @@ void rtps_term (void)
 
   /* Stop all I/O */
   rtps_term_prep ();
-  join_thread (gv.recv_ts);
+  wait_for_receive_threads ();
 
   if (gv.listener)
   {
@@ -1443,22 +1557,17 @@ void rtps_term (void)
   (void) joinleave_spdp_defmcip (0);
 
   ddsi_conn_free (gv.disc_conn_mc);
-  ddsi_conn_free (gv.data_conn_mc);
-  if (gv.disc_conn_uc == gv.data_conn_uc)
-  {
-    ddsi_conn_free (gv.data_conn_uc);
-  }
-  else
-  {
-    ddsi_conn_free (gv.data_conn_uc);
+  if (gv.data_conn_mc != gv.disc_conn_mc)
+    ddsi_conn_free (gv.data_conn_mc);
+  if (gv.disc_conn_uc != gv.disc_conn_mc)
     ddsi_conn_free (gv.disc_conn_uc);
-  }
+  if (gv.data_conn_uc != gv.disc_conn_uc)
+    ddsi_conn_free (gv.data_conn_uc);
 
   /* Not freeing gv.tev_conn: it aliases data_conn_uc */
 
   free_group_membership(gv.mship);
   ddsi_tran_factories_fini ();
-  os_sockWaitsetFree (gv.waitset);
 
   if (gv.pcap_fp)
   {
@@ -1473,7 +1582,16 @@ void rtps_term (void)
      been dropped, which only happens once all receive threads have
      stopped, defrags and reorders have been freed, and all delivery
      queues been drained.  I.e., until very late in the game. */
-  nn_rbufpool_free (gv.rbufpool);
+  {
+    unsigned i;
+    for (i = 0; i < gv.n_recv_threads; i++)
+    {
+      if (gv.recv_threads[i].arg.mode == RTM_MANY)
+        os_sockWaitsetFree (gv.recv_threads[i].arg.u.many.ws);
+      nn_rbufpool_free (gv.recv_threads[i].arg.rbpool);
+    }
+  }
+
   dds_tkmap_free (gv.m_tkmap);
 
   ephash_free (gv.guid_hash);

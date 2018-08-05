@@ -505,6 +505,12 @@ static const struct cfgelem liveliness_monitoring_attrs[] = {
   END_MARKER
 };
 
+static const struct cfgelem multiple_recv_threads_attrs[] = {
+  { ATTR("maxretries"), 1, "4294967295", ABSOFF(recv_thread_stop_maxretries), 0, uf_uint, 0, pf_uint,
+    "<p>Receive threads dedicated to a single socket can only be triggered for termination by sending a packet. Reception of any packet will do, so termination failure due to packet loss is exceedingly unlikely, but to eliminate all risks, it will retry as many times as specified by this attribute before aborting.</p>" },
+  END_MARKER
+};
+
 static const struct cfgelem unsupp_cfgelems[] = {
     { MOVED("MaxMessageSize", "General/MaxMessageSize") },
     { MOVED("FragmentSize", "General/FragmentSize") },
@@ -614,6 +620,8 @@ static const struct cfgelem unsupp_cfgelems[] = {
 "<p>This element controls whether the actual sending of packets occurs on the same thread that prepares them, or is done asynchronously by another thread.</p>" },
 { LEAF_W_ATTRS("RediscoveryBlacklistDuration", rediscovery_blacklist_duration_attrs), 1, "10s", ABSOFF(prune_deleted_ppant.delay), 0, uf_duration_inf, 0, pf_duration,
 "<p>This element controls for how long a remote participant that was previously deleted will remain on a blacklist to prevent rediscovery, giving the software on a node time to perform any cleanup actions it needs to do. To some extent this delay is required internally by DDSI2E, but in the default configuration with the 'enforce' attribute set to false, DDSI2E will reallow rediscovery as soon as it has cleared its internal administration. Setting it to too small a value may result in the entry being pruned from the blacklist before DDSI2E is ready, it is therefore recommended to set it to at least several seconds.</p>" },
+  { LEAF_W_ATTRS("MultipleReceiveThreads", multiple_recv_threads_attrs), 1, "true", ABSOFF(multiple_recv_threads), 0, uf_boolean, 0, pf_boolean,
+         "<p>This element controls whether all traffic is handled by a single receive thread or whether multiple receive threads may be used to improve latency. Currently multiple receive threads are only used for connectionless transport (e.g., UDP) and ManySocketsMode not set to single (the default).</p>" },
 { MGROUP("ControlTopic", control_topic_cfgelems, control_topic_cfgattrs), 1, 0, 0, 0, 0, 0, 0, 0,
 "<p>The ControlTopic element allows configured whether DDSI2E provides a special control interface via a predefined topic or not.<p>" },
 { GROUP("Test", unsupp_test_cfgelems),

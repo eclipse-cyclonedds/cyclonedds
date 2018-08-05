@@ -98,7 +98,27 @@ void ddsi_conn_free (ddsi_tran_conn_t conn)
       conn->m_closed = true;
       /* FIXME: rethink the socket waitset & the deleting of entries; the biggest issue is TCP handling that can open & close sockets at will and yet expects the waitset to wake up at the apprioriate times.  (This pretty much works with the select-based version, but not the kqueue-based one.)  TCP code can also have connections without a socket ...  Calling sockWaitsetRemove here (where there shouldn't be any knowledge of it) at least ensures that it is removed in time and that there can't be aliasing of connections and sockets.   */
       if (ddsi_conn_handle (conn) != Q_INVALID_SOCKET)
-        os_sockWaitsetRemove (gv.waitset, conn);
+      {
+        unsigned i;
+        for (i = 0; i < gv.n_recv_threads; i++)
+        {
+          if (!gv.recv_threads[i].ts)
+            assert (!gv.rtps_keepgoing);
+          else
+          {
+            switch (gv.recv_threads[i].arg.mode)
+            {
+              case RTM_MANY:
+                os_sockWaitsetRemove (gv.recv_threads[i].arg.u.many.ws, conn);
+                break;
+              case RTM_SINGLE:
+                if (gv.recv_threads[i].arg.u.single.conn == conn)
+                  abort();
+                break;
+            }
+          }
+        }
+      }
       if (conn->m_factory->m_close_conn_fn)
       {
         (conn->m_factory->m_close_conn_fn) (conn);

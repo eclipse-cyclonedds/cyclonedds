@@ -3237,11 +3237,22 @@ uint32_t listen_thread (struct ddsi_tran_listener * listener)
     conn = ddsi_listener_accept (listener);
     if (conn)
     {
-      os_sockWaitsetAdd (gv.waitset, conn);
-      os_sockWaitsetTrigger (gv.waitset);
+      os_sockWaitsetAdd (gv.recv_threads[0].arg.u.many.ws, conn);
+      os_sockWaitsetTrigger (gv.recv_threads[0].arg.u.many.ws);
     }
   }
   return 0;
+}
+
+static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t conn)
+{
+  unsigned i;
+  if (conn == NULL)
+    return 0;
+  for (i = 0; i < gv.n_recv_threads; i++)
+    if (gv.recv_threads[i].arg.mode == RTM_SINGLE && gv.recv_threads[i].arg.u.single.conn == conn)
+      return 0;
+  return os_sockWaitsetAdd (ws, conn);
 }
 
 enum local_deaf_state_recover {
@@ -3255,7 +3266,7 @@ struct local_deaf_state {
   nn_mtime_t tnext;
 };
 
-static int check_and_handle_deafness_recover(struct local_deaf_state *st)
+static int check_and_handle_deafness_recover(struct local_deaf_state *st, unsigned num_fixed_uc)
 {
   int rebuildws = 0;
   if (now_mt().v < st->tnext.v)
@@ -3278,9 +3289,11 @@ static int check_and_handle_deafness_recover(struct local_deaf_state *st)
       ddsi_transfer_group_membership(data, gv.data_conn_mc);
       TRACE(("check_and_handle_deafness_recover: state %d drop from waitset and add new\n", (int)st->state));
       /* see waitset construction code in recv_thread */
-      os_sockWaitsetPurge (gv.waitset, 1 + (gv.disc_conn_uc != gv.data_conn_uc));
-      os_sockWaitsetAdd (gv.waitset, gv.disc_conn_mc);
-      os_sockWaitsetAdd (gv.waitset, gv.data_conn_mc);
+      os_sockWaitsetPurge (gv.recv_threads[0].arg.u.many.ws, num_fixed_uc);
+      if (recv_thread_waitset_add_conn (gv.recv_threads[0].arg.u.many.ws, gv.disc_conn_mc) < 0)
+        NN_FATAL("check_and_handle_deafness_recover: failed to add disc_conn_mc to waitset\n");
+      if (recv_thread_waitset_add_conn (gv.recv_threads[0].arg.u.many.ws, gv.data_conn_mc) < 0)
+        NN_FATAL("check_and_handle_deafness_recover: failed to add data_conn_mc to waitset\n");
       TRACE(("check_and_handle_deafness_recover: state %d close sockets\n", (int)st->state));
       ddsi_conn_free(disc);
       ddsi_conn_free(data);
@@ -3308,7 +3321,7 @@ error:
   return rebuildws;
 }
 
-static int check_and_handle_deafness(struct local_deaf_state *st)
+static int check_and_handle_deafness(struct local_deaf_state *st, unsigned num_fixed_uc)
 {
   const int gv_deaf = gv.deaf;
   assert (gv_deaf == 0 || gv_deaf == 1);
@@ -3329,108 +3342,129 @@ static int check_and_handle_deafness(struct local_deaf_state *st)
   }
   else
   {
-    return check_and_handle_deafness_recover(st);
+    return check_and_handle_deafness_recover(st, num_fixed_uc);
   }
 }
 
-uint32_t recv_thread (struct nn_rbufpool * rbpool)
+void trigger_recv_threads (void)
 {
-  struct thread_state1 *self = lookup_thread_state ();
-  struct local_participant_set lps;
-  unsigned num_fixed = 0;
-  nn_mtime_t next_thread_cputime = { 0 };
-  os_sockWaitsetCtx ctx;
   unsigned i;
-  struct local_deaf_state lds;
+  for (i = 0; i < gv.n_recv_threads; i++)
+  {
+    if (gv.recv_threads[i].ts == NULL)
+      continue;
+    switch (gv.recv_threads[i].arg.mode)
+    {
+      case RTM_SINGLE: {
+        char buf[DDSI_LOCSTRLEN];
+        char dummy = 0;
+        const nn_locator_t *dst = gv.recv_threads[i].arg.u.single.loc;
+        ddsi_iovec_t iov;
+        iov.iov_base = &dummy;
+        iov.iov_len = 1;
+        TRACE(("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst)));
+        ddsi_conn_write (gv.data_conn_uc, dst, 1, &iov, 0);
+        break;
+      }
+      case RTM_MANY: {
+        TRACE(("trigger_recv_threads: %d many %p\n", i, gv.recv_threads[i].arg.u.many.ws));
+        os_sockWaitsetTrigger (gv.recv_threads[i].arg.u.many.ws);
+        break;
+      }
+    }
+  }
+}
 
-  lds.state = gv.deaf ? LDSR_DEAF : LDSR_NORMAL;
-  lds.tnext = now_mt();
+uint32_t recv_thread (void *vrecv_thread_arg)
+{
+  struct recv_thread_arg *recv_thread_arg = vrecv_thread_arg;
+  struct thread_state1 *self = lookup_thread_state ();
+  struct nn_rbufpool *rbpool = recv_thread_arg->rbpool;
+  os_sockWaitset waitset = recv_thread_arg->mode == RTM_MANY ? recv_thread_arg->u.many.ws : NULL;
+  nn_mtime_t next_thread_cputime = { 0 };
 
-  local_participant_set_init (&lps);
   nn_rbufpool_setowner (rbpool, os_threadIdSelf ());
-
-  if (gv.m_factory->m_connless)
+  if (waitset == NULL)
   {
-    if (config.many_sockets_mode == MSM_NO_UNICAST)
+    while (gv.rtps_keepgoing)
     {
-      /* we only have one - disc, data, uc and mc all alias each other */
-      os_sockWaitsetAdd (gv.waitset, gv.disc_conn_uc);
-      num_fixed = 1;
-    }
-    else
-    {
-      os_sockWaitsetAdd (gv.waitset, gv.disc_conn_uc);
-      os_sockWaitsetAdd (gv.waitset, gv.data_conn_uc);
-      num_fixed = 1 + (gv.disc_conn_uc != gv.data_conn_uc);
-      if (config.allowMulticast)
-      {
-        os_sockWaitsetAdd (gv.waitset, gv.disc_conn_mc);
-        os_sockWaitsetAdd (gv.waitset, gv.data_conn_mc);
-        num_fixed += 2;
-      }
+      LOG_THREAD_CPUTIME (next_thread_cputime);
+      (void) do_packet (self, recv_thread_arg->u.single.conn, NULL, rbpool);
     }
   }
-
-  while (gv.rtps_keepgoing)
+  else
   {
-    int rebuildws;
-
-    LOG_THREAD_CPUTIME (next_thread_cputime);
-
-    rebuildws = check_and_handle_deafness(&lds);
-
-    if (config.many_sockets_mode != MSM_MANY_UNICAST)
+    struct local_participant_set lps;
+    unsigned num_fixed = 0, num_fixed_uc = 0;
+    os_sockWaitsetCtx ctx;
+    unsigned i;
+    struct local_deaf_state lds;
+    lds.state = gv.deaf ? LDSR_DEAF : LDSR_NORMAL;
+    lds.tnext = now_mt();
+    local_participant_set_init (&lps);
+    if (gv.m_factory->m_connless)
     {
-      /* no other sockets to check */
+      int rc;
+      if ((rc = recv_thread_waitset_add_conn (waitset, gv.disc_conn_uc)) < 0)
+        NN_FATAL ("recv_thread: failed to add disc_conn_uc to waitset\n");
+      num_fixed_uc += (unsigned)rc;
+      if ((rc = recv_thread_waitset_add_conn (waitset, gv.data_conn_uc)) < 0)
+        NN_FATAL ("recv_thread: failed to add data_conn_uc to waitset\n");
+      num_fixed_uc += (unsigned)rc;
+      num_fixed += num_fixed_uc;
+      if ((rc = recv_thread_waitset_add_conn (waitset, gv.disc_conn_mc)) < 0)
+        NN_FATAL ("recv_thread: failed to add disc_conn_mc to waitset\n");
+      num_fixed += (unsigned)rc;
+      if ((rc = recv_thread_waitset_add_conn (waitset, gv.data_conn_mc)) < 0)
+        NN_FATAL ("recv_thread: failed to add data_conn_mc to waitset\n");
+      num_fixed += (unsigned)rc;
     }
-    else if (os_atomic_ld32 (&gv.participant_set_generation) != lps.gen)
-    {
-      rebuildws = 1;
-    }
 
-    if (rebuildws && config.many_sockets_mode == MSM_MANY_UNICAST)
+    while (gv.rtps_keepgoing)
     {
-      /* first rebuild local participant set - unless someone's toggling "deafness", this
+      int rebuildws;
+      LOG_THREAD_CPUTIME (next_thread_cputime);
+      rebuildws = check_and_handle_deafness(&lds, num_fixed_uc);
+      if (config.many_sockets_mode != MSM_MANY_UNICAST)
+      {
+        /* no other sockets to check */
+      }
+      else if (os_atomic_ld32 (&gv.participant_set_generation) != lps.gen)
+      {
+        rebuildws = 1;
+      }
+
+      if (rebuildws && waitset && config.many_sockets_mode == MSM_MANY_UNICAST)
+      {
+        /* first rebuild local participant set - unless someone's toggling "deafness", this
          only happens when the participant set has changed, so might as well rebuild it */
-      rebuild_local_participant_set (self, &lps);
-      os_sockWaitsetPurge (gv.waitset, num_fixed);
-      for (i = 0; i < lps.nps; i++)
-      {
-        if (lps.ps[i].m_conn)
+        rebuild_local_participant_set (self, &lps);
+        os_sockWaitsetPurge (waitset, num_fixed);
+        for (i = 0; i < lps.nps; i++)
         {
-          os_sockWaitsetAdd (gv.waitset, lps.ps[i].m_conn);
+          if (lps.ps[i].m_conn)
+            os_sockWaitsetAdd (waitset, lps.ps[i].m_conn);
+        }
+      }
+
+      if ((ctx = os_sockWaitsetWait (waitset)) != NULL)
+      {
+        int idx;
+        ddsi_tran_conn_t conn;
+        while ((idx = os_sockWaitsetNextEvent (ctx, &conn)) >= 0)
+        {
+          const nn_guid_prefix_t *guid_prefix;
+          if (((unsigned)idx < num_fixed) || config.many_sockets_mode != MSM_MANY_UNICAST)
+            guid_prefix = NULL;
+          else
+            guid_prefix = &lps.ps[(unsigned)idx - num_fixed].guid_prefix;
+          /* Process message and clean out connection if failed or closed */
+          if (!do_packet (self, conn, guid_prefix, rbpool) && !conn->m_connless)
+            ddsi_conn_free (conn);
         }
       }
     }
-
-    ctx = os_sockWaitsetWait (gv.waitset);
-    if (ctx)
-    {
-      int idx;
-      ddsi_tran_conn_t conn;
-
-      while ((idx = os_sockWaitsetNextEvent (ctx, &conn)) >= 0)
-      {
-        bool ret;
-        if (((unsigned)idx < num_fixed) || config.many_sockets_mode != MSM_MANY_UNICAST)
-        {
-          ret = do_packet (self, conn, NULL, rbpool);
-        }
-        else
-        {
-          ret = do_packet (self, conn, &lps.ps[(unsigned)idx - num_fixed].guid_prefix, rbpool);
-        }
-
-        /* Clean out connection if failed or closed */
-
-        if (! ret && ! conn->m_connless)
-        {
-          os_sockWaitsetRemove (gv.waitset, conn);
-          ddsi_conn_free (conn);
-        }
-      }
-    }
+    local_participant_set_fini (&lps);
   }
-  local_participant_set_fini (&lps);
   return 0;
 }
