@@ -80,6 +80,7 @@ function(add_criterion_executable _target)
     add_test(
       NAME "Criterion_${_suite}_${_name}"
       COMMAND ${_target} --suite ${_suite} --test ${_name} --cunit=${_suite}-${_name} --quiet)
+    set_tests_properties("Criterion_${_suite}_${_name}" PROPERTIES TIMEOUT 10)
     if(APPLE)
       set_property(
         TEST "Criterion_${_suite}_${_name}"

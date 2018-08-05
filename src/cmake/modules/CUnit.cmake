@@ -122,6 +122,7 @@ function(add_cunit_executable target)
     add_test(
       NAME "CUnit_${suite}_${test}"
       COMMAND ${target} -a -r "${suite}-${test}" -s ${suite} -t ${test})
+    set_tests_properties("CUnit_${suite}_${test}" PROPERTIES TIMEOUT 10)
     if(APPLE)
       set_property(
         TEST "CUnit_${suite}_${test}"
