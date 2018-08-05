@@ -417,7 +417,7 @@ dds_create_writer(
     dds_entity_t publisher;
     struct thread_state1 * const thr = lookup_thread_state();
     const bool asleep = !vtime_awake_p(thr->vtime);
-    ddsi_tran_conn_t conn = gv.data_conn_mc ? gv.data_conn_mc : gv.data_conn_uc;
+    ddsi_tran_conn_t conn = gv.data_conn_uc;
     dds_return_t ret;
 
     DDS_REPORT_STACK();
