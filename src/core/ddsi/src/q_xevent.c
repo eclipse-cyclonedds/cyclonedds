@@ -984,7 +984,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   {
     TRACE (("handle_xevk_spdp %x:%x:%x:%x - spdp writer of participant not found\n",
             PGUID (ev->u.spdp.pp_guid)));
-    goto skip;
+    return;
   }
 
   if (!ev->u.spdp.directed)
