@@ -195,7 +195,9 @@ cu_runner_run(
         }
 
         if (runner.junit) {
+#if defined(HAVE_ENABLE_JUNIT_XML)
             CU_automated_enable_junit_xml(CU_TRUE);
+#endif
         } else {
             CU_list_tests_to_file();
         }

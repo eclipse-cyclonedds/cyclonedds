@@ -12,8 +12,23 @@
 find_path(CUNIT_INC CUnit/CUnit.h)
 find_library(CUNIT_LIB cunit)
 
+if(CUNIT_INC AND EXISTS "${CUNIT_INC}/CUnit/CUnit.h")
+  set(PATTERN "^#define CU_VERSION \"([0-9]+)\.([0-9]+)\-([0-9]+)\"$")
+  file(STRINGS "${CUNIT_INC}/CUnit/CUnit.h" CUNIT_H REGEX "${PATTERN}")
+
+  string(REGEX REPLACE "${PATTERN}" "\\1" CUNIT_VERSION_MAJOR "${CUNIT_H}")
+  string(REGEX REPLACE "${PATTERN}" "\\2" CUNIT_VERSION_MINOR "${CUNIT_H}")
+  string(REGEX REPLACE "${PATTERN}" "\\3" CUNIT_VERSION_PATCH "${CUNIT_H}")
+
+  set(CUNIT_VERSION "${CUNIT_VERSION_MAJOR}.${CUNIT_VERSION_MINOR}-${CUNIT_VERSION_PATCH}")
+endif()
+
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(CUnit DEFAULT_MSG CUNIT_LIB CUNIT_INC)
+find_package_handle_standard_args(
+  CUnit
+  REQUIRED_VARS
+    CUNIT_LIB CUNIT_INC
+  VERSION_VAR CUNIT_VERSION)
 
 if(CUNIT_FOUND AND NOT TARGET CUnit)
   add_library(CUnit INTERFACE IMPORTED)

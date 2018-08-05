@@ -124,5 +124,10 @@ function(add_cunit_executable target)
   add_executable(${target} "${runner}.c" "${root}/src/runner.c" ${sources})
   target_link_libraries(${target} CUnit)
   target_include_directories(${target} PRIVATE "${root}/include")
+  if("2.1.3" VERSION_LESS_EQUAL
+       "${CUNIT_VERSION_MAJOR}.${CUNIT_VERSION_MINOR}.${CUNIT_VERSION_PATCH}")
+    set_source_files_properties(
+      "${root}/src/runner.c" PROPERTIES COMPILE_DEFINITIONS HAVE_ENABLE_JUNIT_XML)
+  endif()
 endfunction()
 
