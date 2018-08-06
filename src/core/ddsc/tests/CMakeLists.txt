@@ -20,14 +20,18 @@ target_include_directories(criterion_ddsc PRIVATE
 target_link_libraries(criterion_ddsc RoundTrip Space TypesArrayKey ddsc OSAPI)
 
 # Setup environment for config-tests
-get_test_property(Criterion_ddsc_config_simple_udp ENVIRONMENT ENVIRON)
-set(CONFIG_FILE "${CMAKE_CURRENT_LIST_DIR}/config_simple_udp.xml")
-set(ENVIRON "${CMAKE_PROJECT_NAME_CAPS}_URI=file://${CONFIG_FILE};MAX_PARTICIPANTS=0;${ENVIRON}")
+get_test_property(Criterion_ddsc_config_simple_udp ENVIRONMENT Criterion_ddsc_config_simple_udp_env)
+set(Criterion_ddsc_config_simple_udp_file "${CMAKE_CURRENT_LIST_DIR}/config_simple_udp.xml")
+set(Criterion_ddsc_config_simple_udp_uri "file://${Criterion_ddsc_config_simple_udp_file}")
+set(Criterion_ddsc_config_simple_udp_max_participants "0")
+set(Criterion_ddsc_config_simple_udp_env "${CMAKE_PROJECT_NAME_CAPS}_URI=${Criterion_ddsc_config_simple_udp_uri};MAX_PARTICIPANTS=${Criterion_ddsc_config_simple_udp_max_participants};${Criterion_ddsc_config_simple_udp_env}")
+
+message(STATUS "ENV: ${Criterion_ddsc_config_simple_udp_env}")
 
 set_tests_properties(
 	Criterion_ddsc_config_simple_udp
 	PROPERTIES
-		REQUIRED_FILES ${CONFIG_FILE}
-		ENVIRONMENT "${ENVIRON}")
+		REQUIRED_FILES ${Criterion_ddsc_config_simple_udp_file}
+		ENVIRONMENT "${Criterion_ddsc_config_simple_udp_env}")
 
 configure_file("config_env.h.in" "config_env.h")
