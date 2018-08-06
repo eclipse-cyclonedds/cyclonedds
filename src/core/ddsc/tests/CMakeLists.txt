@@ -24,8 +24,6 @@ get_test_property(Criterion_ddsc_config_simple_udp ENVIRONMENT ENVIRON)
 set(CONFIG_FILE "${CMAKE_CURRENT_LIST_DIR}/config_simple_udp.xml")
 set(ENVIRON "${CMAKE_PROJECT_NAME_CAPS}_URI=file://${CONFIG_FILE};MAX_PARTICIPANTS=0;${ENVIRON}")
 
-message(STATUS "Environment for Criterion_ddsc_config_simple_udp: ${ENVIRON}")
-
 set_tests_properties(
 	Criterion_ddsc_config_simple_udp
 	PROPERTIES
