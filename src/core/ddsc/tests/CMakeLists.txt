@@ -19,28 +19,17 @@ target_include_directories(criterion_ddsc PRIVATE
 		"$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>")
 target_link_libraries(criterion_ddsc RoundTrip Space TypesArrayKey ddsc OSAPI)
 
-if(WIN32)
-# FIXME: Is this a valid unit test?!
-get_target_property(CRITERION_LIBRARY_TYPE Criterion TYPE)
-get_target_property(CRITERION_IMPORTED_LOCATION Criterion IMPORTED_LOCATION)
-get_filename_component(CRITERION_LIBRARY_DIR "${CRITERION_IMPORTED_LOCATION}" PATH)
-endif()
-
 # Setup environment for config-tests
-set(Criterion_ddsc_config_simple_udp_file "${CMAKE_CURRENT_LIST_DIR}/config_simple_udp.xml")
-set(Criterion_ddsc_config_simple_udp_uri "file://${Criterion_ddsc_config_simple_udp_file}")
-set(Criterion_ddsc_config_simple_udp_max_participants "0")
-if(WIN32)
+get_test_property(Criterion_ddsc_config_simple_udp ENVIRONMENT ENVIRON)
+set(CONFIG_FILE "${CMAKE_CURRENT_LIST_DIR}/config_simple_udp.xml")
+set(ENVIRON "${CMAKE_PROJECT_NAME_CAPS}_URI=file://${CONFIG_FILE};MAX_PARTICIPANTS=0;${ENVIRON}")
+
+message(STATUS "Environment for Criterion_ddsc_config_simple_udp: ${ENVIRON}")
+
 set_tests_properties(
 	Criterion_ddsc_config_simple_udp
 	PROPERTIES
-		REQUIRED_FILES ${Criterion_ddsc_config_simple_udp_file}
-		ENVIRONMENT "${CMAKE_PROJECT_NAME_CAPS}_URI=${Criterion_ddsc_config_simple_udp_uri};MAX_PARTICIPANTS=${Criterion_ddsc_config_simple_udp_max_participants};PATH=${CRITERION_LIBRARY_DIR};$ENV{PATH}")
-else()
-set_tests_properties(
-	Criterion_ddsc_config_simple_udp
-	PROPERTIES
-		REQUIRED_FILES ${Criterion_ddsc_config_simple_udp_file}
-		ENVIRONMENT "${CMAKE_PROJECT_NAME_CAPS}_URI=${Criterion_ddsc_config_simple_udp_uri};MAX_PARTICIPANTS=${Criterion_ddsc_config_simple_udp_max_participants}")
-endif()
+		REQUIRED_FILES ${CONFIG_FILE}
+		ENVIRONMENT "${ENVIRON}")
+
 configure_file("config_env.h.in" "config_env.h")
