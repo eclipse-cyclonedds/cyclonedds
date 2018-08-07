@@ -207,6 +207,7 @@ dds_readcdr_impl(
   assert (si);
   assert (hand == DDS_HANDLE_NIL);
   assert (maxs > 0);
+  (void)take;
 
   if (asleep)
   {
@@ -817,7 +818,7 @@ _Must_inspect_result_ dds_return_t
 dds_return_loan(
         _In_ dds_entity_t reader_or_condition,
         _Inout_updates_(bufsz) void **buf,
-        _In_ size_t bufsz)
+        _In_ int32_t bufsz)
 {
     dds__retcode_t rc;
     const dds_topic_descriptor_t * desc;
@@ -845,7 +846,7 @@ dds_return_loan(
 
     /* Only free sample contents if they have been allocated */
     if (desc->m_flagset & DDS_TOPIC_NO_OPTIMIZE) {
-        size_t i = 0;
+        int32_t i = 0;
         for (i = 0; i < bufsz; i++) {
             dds_sample_free(buf[i], desc, DDS_FREE_CONTENTS);
         }

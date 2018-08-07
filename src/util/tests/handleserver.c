@@ -248,7 +248,6 @@ os_result
 thread_reached_state(thread_state_t *actual, thread_state_t expected, int32_t msec)
 {
     /* Convenience function. */
-    bool stopped = false;
     os_time msec10 = { 0, 10000000 };
     while ((msec > 0) && (*actual != expected)) {
         os_nanoSleep(msec10);
@@ -259,7 +258,6 @@ thread_reached_state(thread_state_t *actual, thread_state_t expected, int32_t ms
 
 Test(util_handleserver, wakeup)
 {
-    const os_time zero  = {  0, 0 };
     int32_t kind = 0x10000000;
     ut_handle_retcode_t ret;
     ut_handle_t hdl;

@@ -25,8 +25,8 @@ dds_subscriber_instance_hdl(
         dds_entity *e,
         dds_instance_handle_t *i)
 {
-    assert(e);
-    assert(i);
+    (void)e;
+    (void)i;
     /* TODO: Get/generate proper handle. */
     return DDS_ERRNO(DDS_RETCODE_UNSUPPORTED, "Generating subscriber instance handle is not supported");
 }
@@ -67,6 +67,7 @@ dds_subscriber_qos_set(
         bool enabled)
 {
     dds_return_t ret = dds__subscriber_qos_validate(qos, enabled);
+    (void)e;
     if (ret == DDS_RETCODE_OK) {
         if (enabled) {
             /* TODO: CHAM-95: DDSI does not support changing QoS policies. */
@@ -210,6 +211,7 @@ dds_subscriber_begin_coherent(
         _In_ dds_entity_t e)
 {
     /* TODO: CHAM-124 Currently unsupported. */
+    (void)e;
     return DDS_ERRNO(DDS_RETCODE_UNSUPPORTED, "Using coherency to get a coherent data set is not currently being supported");
 }
 
@@ -218,6 +220,7 @@ dds_subscriber_end_coherent(
         _In_ dds_entity_t e)
 {
     /* TODO: CHAM-124 Currently unsupported. */
+    (void)e;
     return DDS_ERRNO(DDS_RETCODE_UNSUPPORTED, "Using coherency to get a coherent data set is not currently being supported");
 }
 

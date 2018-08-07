@@ -22,7 +22,7 @@ struct os_iterNode_s {
 };
 
 struct os_iter_s {
-    uint32_t length;
+    int32_t length;
     os_iterNode *head;
     os_iterNode *tail;
 };
@@ -40,13 +40,13 @@ os__iterIndex(
         idx = iter->length;
     } else if (index < 0) {
         index *= -1;
-        if ((uint32_t)index > iter->length) {
+        if (index > iter->length) {
             idx = -1;
         } else {
             idx = iter->length - index;
         }
     } else {
-        if ((uint32_t)index > iter->length) {
+        if (index > iter->length) {
             idx = iter->length;
         } else {
             idx = index;
@@ -97,6 +97,7 @@ os_iterInsert(
     int32_t cnt, idx = -1;
     os_iterNode *node, *prev;
 
+    assert(iter->length < INT32_MAX);
     node = os_malloc_0(sizeof *node);
     node->object = object;
 
@@ -147,7 +148,7 @@ os_iterObject(
     assert(iter != NULL);
 
     idx = os__iterIndex(iter, index);
-    if (idx >= 0 && (uint32_t)idx < iter->length) {
+    if (idx >= 0 && idx < iter->length) {
         if (idx == (iter->length - 1)) {
             node = iter->tail;
         } else {
@@ -174,7 +175,7 @@ os_iterTake(
     assert(iter != NULL);
 
     idx = os__iterIndex(iter, index);
-    if (idx >= 0 && (uint32_t)idx < iter->length) {
+    if (idx >= 0 && idx < iter->length) {
         prev = NULL;
         node = iter->head;
         for (cnt = 0; cnt < idx; cnt++) {
@@ -204,7 +205,7 @@ os_iterLength(
     _In_ const os_iter *__restrict iter)
 {
     assert(iter != NULL);
-    return iter->length;
+    return (uint32_t)iter->length;
 }
 
 void

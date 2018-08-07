@@ -63,7 +63,7 @@ typedef struct nn_ipaddress_params_tmp {
 
 struct dd {
   const unsigned char *buf;
-  unsigned bufsz;
+  size_t bufsz;
   unsigned bswap: 1;
   nn_protocol_version_t protocol_version;
   nn_vendorid_t vendorid;
@@ -90,9 +90,9 @@ static int trace_plist (const char *fmt, ...)
 
 static void log_octetseq (logcat_t cat, unsigned n, const unsigned char *xs);
 
-static unsigned align4u (unsigned x)
+static size_t align4u (size_t x)
 {
-  return (x + 3u) & (unsigned)-4;
+  return (x + 3u) & ~(size_t)3;
 }
 
 static int protocol_version_is_newer (nn_protocol_version_t pv)
@@ -101,7 +101,7 @@ static int protocol_version_is_newer (nn_protocol_version_t pv)
   return (pv.major < mv.major) ? 0 : (pv.major > mv.major) ? 1 : (pv.minor > mv.minor);
 }
 
-static int validate_string (const struct dd *dd, unsigned *len)
+static int validate_string (const struct dd *dd, size_t *len)
 {
   const struct cdrstring *x = (const struct cdrstring *) dd->buf;
   if (dd->bufsz < sizeof (struct cdrstring))
@@ -112,7 +112,7 @@ static int validate_string (const struct dd *dd, unsigned *len)
   *len = dd->bswap ? bswap4u (x->length) : x->length;
   if (*len < 1 || *len > dd->bufsz - offsetof (struct cdrstring, contents))
   {
-    TRACE (("plist/validate_string: length %u out of range\n", *len));
+    TRACE (("plist/validate_string: length %" PRIuSIZE " out of range\n", *len));
     return ERR_INVALID;
   }
   if (x->contents[*len-1] != 0)
@@ -123,7 +123,7 @@ static int validate_string (const struct dd *dd, unsigned *len)
   return 0;
 }
 
-static int alias_string (const unsigned char **ptr, const struct dd *dd, unsigned *len)
+static int alias_string (const unsigned char **ptr, const struct dd *dd, size_t *len)
 {
   int rc;
   if ((rc = validate_string (dd, len)) < 0)
@@ -153,7 +153,7 @@ static void unalias_string (char **str, int bswap)
   memcpy (*str, alias, len);
 }
 
-static int validate_octetseq (const struct dd *dd, unsigned *len)
+static int validate_octetseq (const struct dd *dd, size_t *len)
 {
   const struct cdroctetseq *x = (const struct cdroctetseq *) dd->buf;
   if (dd->bufsz < offsetof (struct cdroctetseq, value))
@@ -166,14 +166,15 @@ static int validate_octetseq (const struct dd *dd, unsigned *len)
 
 static int alias_octetseq (nn_octetseq_t *oseq, const struct dd *dd)
 {
-  unsigned len;
+  size_t len;
   int rc;
   if ((rc = validate_octetseq (dd, &len)) < 0)
     return rc;
   else
   {
     const struct cdroctetseq *x = (const struct cdroctetseq *) dd->buf;
-    oseq->length = len;
+    assert(len <= UINT32_MAX); /* it really is an uint32_t on the wire */
+    oseq->length = (uint32_t)len;
     oseq->value = (len == 0) ? NULL : (unsigned char *) x->value;
     return 0;
   }
@@ -181,7 +182,8 @@ static int alias_octetseq (nn_octetseq_t *oseq, const struct dd *dd)
 
 static int alias_blob (nn_octetseq_t *oseq, const struct dd *dd)
 {
-  oseq->length = dd->bufsz;
+  assert (dd->bufsz <= UINT32_MAX);
+  oseq->length = (uint32_t)dd->bufsz;
   oseq->value = (oseq->length == 0) ? NULL : (unsigned char *) dd->buf;
   return 0;
 }
@@ -225,16 +227,16 @@ static int validate_stringseq (const struct dd *dd)
   {
     for (i = 0; i < n && seq <= seqend; i++)
     {
-      unsigned len1;
+      size_t len1;
       int rc;
       dd1.buf = seq;
-      dd1.bufsz = (unsigned) (seqend - seq);
+      dd1.bufsz = (size_t) (seqend - seq);
       if ((rc = validate_string (&dd1, &len1)) < 0)
       {
         TRACE (("plist/validate_stringseq: invalid string\n"));
         return rc;
       }
-      seq += sizeof (unsigned) + align4u (len1);
+      seq += sizeof (uint32_t) + align4u (len1);
     }
     if (i < n)
     {
@@ -266,7 +268,7 @@ static int alias_stringseq (nn_stringseq_t *strseq, const struct dd *dd)
   memcpy (&strseq->n, seq, sizeof (strseq->n));
   if (dd->bswap)
     strseq->n = bswap4u (strseq->n);
-  seq += sizeof (unsigned);
+  seq += sizeof (uint32_t);
   if (strseq->n >= UINT_MAX / sizeof(*strs))
   {
     TRACE (("plist/alias_stringseq: length %u out of range\n", strseq->n));
@@ -281,9 +283,9 @@ static int alias_stringseq (nn_stringseq_t *strseq, const struct dd *dd)
     strs = os_malloc (strseq->n * sizeof (*strs));
     for (i = 0; i < strseq->n && seq <= seqend; i++)
     {
-      unsigned len1;
+      size_t len1;
       dd1.buf = seq;
-      dd1.bufsz = (unsigned) (seqend - seq);
+      dd1.bufsz = (size_t)(seqend - seq);
       /* (const char **) to silence the compiler, unfortunately strseq
          can't have a const char **strs, that would require a const
          and a non-const version of it. */
@@ -292,7 +294,7 @@ static int alias_stringseq (nn_stringseq_t *strseq, const struct dd *dd)
         TRACE (("plist/alias_stringseq: invalid string\n"));
         goto fail;
       }
-      seq += sizeof (unsigned) + align4u (len1);
+      seq += sizeof (uint32_t) + align4u (len1);
     }
     if (i != strseq->n)
     {
@@ -358,11 +360,11 @@ assert (dest->strs == NULL);
 }
 
 _Success_(return == 0)
-static int validate_property (_In_ const struct dd *dd, _Out_ unsigned *len)
+static int validate_property (_In_ const struct dd *dd, _Out_ size_t *len)
 {
   struct dd ddV = *dd;
-  unsigned lenN;
-  unsigned lenV;
+  size_t lenN;
+  size_t lenV;
   int rc;
 
   /* Check name. */
@@ -372,7 +374,7 @@ static int validate_property (_In_ const struct dd *dd, _Out_ unsigned *len)
     TRACE (("plist/validate_property: name validation failed\n"));
     return rc;
   }
-  lenN = sizeof(unsigned) + /* cdr string len arg + */
+  lenN = sizeof(uint32_t) + /* cdr string len arg + */
          align4u(lenN);     /* strlen + possible padding */
 
 
@@ -385,7 +387,7 @@ static int validate_property (_In_ const struct dd *dd, _Out_ unsigned *len)
     TRACE (("plist/validate_property: value validation failed\n"));
     return rc;
   }
-  lenV = sizeof(unsigned) + /* cdr string len arg + */
+  lenV = sizeof(uint32_t) + /* cdr string len arg + */
          align4u(lenV);     /* strlen + possible padding */
 
   *len = lenN + lenV;
@@ -394,11 +396,11 @@ static int validate_property (_In_ const struct dd *dd, _Out_ unsigned *len)
 }
 
 _Success_(return == 0)
-static int alias_property (_Out_ nn_property_t *prop, _In_ const struct dd *dd, _Out_ unsigned *len)
+static int alias_property (_Out_ nn_property_t *prop, _In_ const struct dd *dd, _Out_ size_t *len)
 {
   struct dd ddV = *dd;
-  unsigned lenN;
-  unsigned lenV;
+  size_t lenN;
+  size_t lenV;
   int rc;
 
   /* Get name */
@@ -408,7 +410,7 @@ static int alias_property (_Out_ nn_property_t *prop, _In_ const struct dd *dd, 
     TRACE (("plist/alias_property: invalid name buffer\n"));
     return rc;
   }
-  lenN = sizeof(unsigned) + /* cdr string len arg + */
+  lenN = sizeof(uint32_t) + /* cdr string len arg + */
          align4u(lenN);     /* strlen + possible padding */
 
   /* Get value */
@@ -420,7 +422,7 @@ static int alias_property (_Out_ nn_property_t *prop, _In_ const struct dd *dd, 
     TRACE (("plist/validate_property: invalid value buffer\n"));
     return rc;
   }
-  lenV = sizeof(unsigned) + /* cdr string len arg + */
+  lenV = sizeof(uint32_t) + /* cdr string len arg + */
          align4u (lenV);    /* strlen + possible padding */
 
   /* We got this from the wire; so it has been propagated. */
@@ -453,7 +455,7 @@ static void duplicate_property (_Out_ nn_property_t *dest, _In_ const nn_propert
 }
 
 _Success_(return == 0)
-static int validate_propertyseq (_In_ const struct dd *dd, _Out_ unsigned *len)
+static int validate_propertyseq (_In_ const struct dd *dd, _Out_ size_t *len)
 {
   const unsigned char *seq = dd->buf;
   const unsigned char *seqend = seq + dd->bufsz;
@@ -481,10 +483,10 @@ static int validate_propertyseq (_In_ const struct dd *dd, _Out_ unsigned *len)
   {
     for (i = 0; i < n && seq <= seqend; i++)
     {
-      unsigned len1;
+      size_t len1;
       int rc;
       dd1.buf = seq;
-      dd1.bufsz = (unsigned) (seqend - seq);
+      dd1.bufsz = (size_t) (seqend - seq);
       if ((rc = validate_property (&dd1, &len1)) != 0)
       {
         TRACE (("plist/validate_propertyseq: invalid property\n"));
@@ -498,12 +500,12 @@ static int validate_propertyseq (_In_ const struct dd *dd, _Out_ unsigned *len)
       return ERR_INVALID;
     }
   }
-  *len = align4u((unsigned)(seq - dd->buf));
+  *len = align4u((size_t)(seq - dd->buf));
   return 0;
 }
 
 _Success_(return == 0)
-static int alias_propertyseq (_Out_ nn_propertyseq_t *pseq, _In_ const struct dd *dd, _Out_ unsigned *len)
+static int alias_propertyseq (_Out_ nn_propertyseq_t *pseq, _In_ const struct dd *dd, _Out_ size_t *len)
 {
   /* Not truly an alias: it allocates an array of pointers that alias
      the individual components. Also: see validate_propertyseq */
@@ -522,7 +524,7 @@ static int alias_propertyseq (_Out_ nn_propertyseq_t *pseq, _In_ const struct dd
   memcpy (&pseq->n, seq, sizeof (pseq->n));
   if (dd->bswap)
       pseq->n = bswap4u (pseq->n);
-  seq += sizeof (unsigned);
+  seq += sizeof (uint32_t);
   if (pseq->n >= UINT_MAX / sizeof(*props))
   {
     TRACE (("plist/alias_propertyseq: length %u out of range\n", pseq->n));
@@ -537,9 +539,9 @@ static int alias_propertyseq (_Out_ nn_propertyseq_t *pseq, _In_ const struct dd
     props = os_malloc (pseq->n * sizeof (*props));
     for (i = 0; i < pseq->n && seq <= seqend; i++)
     {
-      unsigned len1;
+      size_t len1;
       dd1.buf = seq;
-      dd1.bufsz = (unsigned) (seqend - seq);
+      dd1.bufsz = (size_t) (seqend - seq);
       if ((result = alias_property (&props[i], &dd1, &len1)) != 0)
       {
         TRACE (("plist/alias_propertyseq: invalid property\n"));
@@ -555,7 +557,7 @@ static int alias_propertyseq (_Out_ nn_propertyseq_t *pseq, _In_ const struct dd
     }
     pseq->props = props;
   }
-  *len = align4u((unsigned)(seq - dd->buf));
+  *len = align4u((size_t)(seq - dd->buf));
   return 0;
  fail:
   os_free (props);
@@ -608,11 +610,11 @@ static void duplicate_propertyseq (_Out_ nn_propertyseq_t *dest, _In_ const nn_p
 }
 
 _Success_(return == 0)
-static int validate_binaryproperty (_In_ const struct dd *dd, _Out_ unsigned *len)
+static int validate_binaryproperty (_In_ const struct dd *dd, _Out_ size_t *len)
 {
   struct dd ddV = *dd;
-  unsigned lenN;
-  unsigned lenV;
+  size_t lenN;
+  size_t lenV;
   int rc;
 
   /* Check name. */
@@ -622,7 +624,7 @@ static int validate_binaryproperty (_In_ const struct dd *dd, _Out_ unsigned *le
     TRACE (("plist/validate_property: name validation failed\n"));
     return rc;
   }
-  lenN = sizeof(unsigned) + /* cdr string len arg + */
+  lenN = sizeof(uint32_t) + /* cdr string len arg + */
          align4u(lenN);     /* strlen + possible padding */
 
   /* Check value. */
@@ -634,7 +636,7 @@ static int validate_binaryproperty (_In_ const struct dd *dd, _Out_ unsigned *le
     TRACE (("plist/validate_property: value validation failed\n"));
     return rc;
   }
-  lenV = sizeof(unsigned) + /* cdr sequence len arg + */
+  lenV = sizeof(uint32_t) + /* cdr sequence len arg + */
          align4u(lenV);     /* seqlen + possible padding */
 
   *len = lenN + lenV;
@@ -643,11 +645,11 @@ static int validate_binaryproperty (_In_ const struct dd *dd, _Out_ unsigned *le
 }
 
 _Success_(return == 0)
-static int alias_binaryproperty (_Out_ nn_binaryproperty_t *prop, _In_ const struct dd *dd, _Out_ unsigned *len)
+static int alias_binaryproperty (_Out_ nn_binaryproperty_t *prop, _In_ const struct dd *dd, _Out_ size_t *len)
 {
   struct dd ddV = *dd;
-  unsigned lenN;
-  unsigned lenV;
+  size_t lenN;
+  size_t lenV;
   int rc;
 
   /* Get name */
@@ -657,7 +659,7 @@ static int alias_binaryproperty (_Out_ nn_binaryproperty_t *prop, _In_ const str
     TRACE (("plist/alias_property: invalid name buffer\n"));
     return rc;
   }
-  lenN = sizeof(unsigned) + /* cdr string len arg + */
+  lenN = sizeof(uint32_t) + /* cdr string len arg + */
          align4u(lenN);     /* strlen + possible padding */
 
   /* Get value */
@@ -669,7 +671,7 @@ static int alias_binaryproperty (_Out_ nn_binaryproperty_t *prop, _In_ const str
     TRACE (("plist/validate_property: invalid value buffer\n"));
     return rc;
   }
-  lenV = sizeof(unsigned) +           /* cdr sequence len arg + */
+  lenV = sizeof(uint32_t) +           /* cdr sequence len arg + */
          align4u(prop->value.length); /* seqlen + possible padding */
 
   /* We got this from the wire; so it has been propagated. */
@@ -703,7 +705,7 @@ static void duplicate_binaryproperty (_Out_ nn_binaryproperty_t *dest, _In_ cons
 }
 
 _Success_(return == 0)
-static int validate_binarypropertyseq (_In_ const struct dd *dd, _Out_ unsigned *len)
+static int validate_binarypropertyseq (_In_ const struct dd *dd, _Out_ size_t *len)
 {
   const unsigned char *seq = dd->buf;
   const unsigned char *seqend = seq + dd->bufsz;
@@ -731,10 +733,10 @@ static int validate_binarypropertyseq (_In_ const struct dd *dd, _Out_ unsigned 
   {
     for (i = 0; i < n && seq <= seqend; i++)
     {
-      unsigned len1;
+      size_t len1;
       int rc;
       dd1.buf = seq;
-      dd1.bufsz = (unsigned) (seqend - seq);
+      dd1.bufsz = (size_t) (seqend - seq);
       if ((rc = validate_binaryproperty (&dd1, &len1)) != 0)
       {
         TRACE (("plist/validate_binarypropertyseq: invalid property\n"));
@@ -748,12 +750,12 @@ static int validate_binarypropertyseq (_In_ const struct dd *dd, _Out_ unsigned 
       return ERR_INVALID;
     }
   }
-  *len = align4u((unsigned)(seq - dd->buf));
+  *len = align4u((size_t)(seq - dd->buf));
   return 0;
 }
 
 _Success_(return == 0)
-static int alias_binarypropertyseq (_Out_ nn_binarypropertyseq_t *pseq, _In_ const struct dd *dd, _Out_ unsigned *len)
+static int alias_binarypropertyseq (_Out_ nn_binarypropertyseq_t *pseq, _In_ const struct dd *dd, _Out_ size_t *len)
 {
   /* Not truly an alias: it allocates an array of pointers that alias
      the individual components. Also: see validate_binarypropertyseq */
@@ -772,7 +774,7 @@ static int alias_binarypropertyseq (_Out_ nn_binarypropertyseq_t *pseq, _In_ con
   memcpy (&pseq->n, seq, sizeof (pseq->n));
   if (dd->bswap)
       pseq->n = bswap4u (pseq->n);
-  seq += sizeof (unsigned);
+  seq += sizeof (uint32_t);
   if (pseq->n >= UINT_MAX / sizeof(*props))
   {
     TRACE (("plist/alias_binarypropertyseq: length %u out of range\n", pseq->n));
@@ -787,9 +789,9 @@ static int alias_binarypropertyseq (_Out_ nn_binarypropertyseq_t *pseq, _In_ con
     props = os_malloc (pseq->n * sizeof (*props));
     for (i = 0; i < pseq->n && seq <= seqend; i++)
     {
-      unsigned len1;
+      size_t len1;
       dd1.buf = seq;
-      dd1.bufsz = (unsigned) (seqend - seq);
+      dd1.bufsz = (size_t) (seqend - seq);
       if ((result = alias_binaryproperty (&props[i], &dd1, &len1)) != 0)
       {
         TRACE (("plist/alias_binarypropertyseq: invalid property\n"));
@@ -805,7 +807,7 @@ static int alias_binarypropertyseq (_Out_ nn_binarypropertyseq_t *pseq, _In_ con
     }
     pseq->props = props;
   }
-  *len = align4u((unsigned)(seq - dd->buf));
+  *len = align4u((size_t)(seq - dd->buf));
   return 0;
  fail:
   os_free (props);
@@ -1012,7 +1014,7 @@ void nn_plist_unalias (nn_plist_t *ps)
 static int do_octetseq (nn_octetseq_t *dst, uint64_t *present, uint64_t *aliased, uint64_t wanted, uint64_t fl, const struct dd *dd)
 {
   int res;
-  unsigned len;
+  size_t len;
   if (!(wanted & fl))
     return NN_STRICT_P ? validate_octetseq (dd, &len) : 0;
   if ((res = alias_octetseq (dst, dd)) >= 0)
@@ -1039,7 +1041,7 @@ static int do_blob (nn_octetseq_t *dst, uint64_t *present, uint64_t *aliased, ui
 static int do_string (char **dst, uint64_t *present, uint64_t *aliased, uint64_t wanted, uint64_t fl, const struct dd *dd)
 {
   int res;
-  unsigned len;
+  size_t len;
   if (!(wanted & fl))
     return NN_STRICT_P ? validate_string (dd, &len) : 0;
   if ((res = alias_string ((const unsigned char **) dst, dd, &len)) >= 0)
@@ -1321,7 +1323,7 @@ int validate_liveliness_qospolicy (const nn_liveliness_qospolicy_t *q)
 
 static void bswap_external_reliability_qospolicy (nn_external_reliability_qospolicy_t *qext)
 {
-  qext->kind = bswap4 (qext->kind);
+  qext->kind = bswap4u (qext->kind);
   bswap_duration (&qext->max_blocking_time);
 }
 
@@ -1915,9 +1917,9 @@ static int do_prismtech_participant_version_info (nn_prismtech_participant_versi
   else
   {
     int res;
-    unsigned sz = NN_PRISMTECH_PARTICIPANT_VERSION_INFO_FIXED_CDRSIZE - sizeof(unsigned);
-    unsigned *pu = (unsigned *)dd->buf;
-    unsigned len;
+    unsigned sz = NN_PRISMTECH_PARTICIPANT_VERSION_INFO_FIXED_CDRSIZE - sizeof(uint32_t);
+    uint32_t *pu = (uint32_t *)dd->buf;
+    size_t len;
     struct dd dd1 = *dd;
 
     memcpy (pvi, dd->buf, sz);
@@ -2069,7 +2071,7 @@ _Success_(return == 0)
 static int do_dataholder (_Out_ nn_dataholder_t *dh, _Inout_ uint64_t *present, _Inout_ uint64_t *aliased, _In_ uint64_t wanted, _In_ uint64_t fl, _In_ const struct dd *dd)
 {
   struct dd ddtmp = *dd;
-  unsigned len;
+  size_t len;
   int res;
 
   memset(dh, 0, sizeof(nn_dataholder_t));
@@ -2082,7 +2084,7 @@ static int do_dataholder (_Out_ nn_dataholder_t *dh, _Inout_ uint64_t *present, 
       /* check class_id */
       if ((res = validate_string (&ddtmp, &len)) == 0)
       {
-        len = sizeof(unsigned) + /* cdr string len arg + */
+        len = sizeof(uint32_t) + /* cdr string len arg + */
               align4u(len);      /* strlen + possible padding */
         /* check properties */
         ddtmp.buf = &(dd->buf[len]);
@@ -2117,7 +2119,7 @@ static int do_dataholder (_Out_ nn_dataholder_t *dh, _Inout_ uint64_t *present, 
     TRACE (("plist/do_dataholder: invalid class_id\n"));
     return res;
   }
-  len = sizeof(unsigned) + /* cdr string len arg + */
+  len = sizeof(uint32_t) + /* cdr string len arg + */
         align4u(len);      /* strlen + possible padding */
 
   /* get properties */
@@ -3046,7 +3048,7 @@ int nn_plist_init_frommsg
     }
 
     dd.buf = (const unsigned char *) (par + 1);
-    dd.bufsz = (unsigned) length;
+    dd.bufsz = length;
     if ((res = init_one_parameter (dest, &dest_tmp, pwanted, qwanted, pid, &dd)) < 0)
     {
       /* make sure we print a trace message on error */
@@ -3070,7 +3072,7 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
      following parameter list, or NULL on error.  Most errors will go
      undetected, unlike nn_plist_init_frommsg(). */
   const unsigned char *pl;
-
+  (void)rmsg;
   dest->statusinfo = 0;
   dest->pt_wr_info_zoff = NN_OFF_TO_ZOFF (0);
   dest->complex_qos = 0;

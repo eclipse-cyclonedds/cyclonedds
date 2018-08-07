@@ -83,17 +83,17 @@ static dds_entity_t    cb_writer     = 0;
 static dds_entity_t    cb_reader     = 0;
 static dds_entity_t    cb_subscriber = 0;
 
-static dds_inconsistent_topic_status_t          cb_inconsistent_topic_status        = { 0 };
-static dds_liveliness_lost_status_t             cb_liveliness_lost_status           = { 0 };
-static dds_offered_deadline_missed_status_t     cb_offered_deadline_missed_status   = { 0 };
-static dds_offered_incompatible_qos_status_t    cb_offered_incompatible_qos_status  = { 0 };
-static dds_sample_lost_status_t                 cb_sample_lost_status               = { 0 };
-static dds_sample_rejected_status_t             cb_sample_rejected_status           = { 0 };
-static dds_liveliness_changed_status_t          cb_liveliness_changed_status        = { 0 };
-static dds_requested_deadline_missed_status_t   cb_requested_deadline_missed_status = { 0 };
-static dds_requested_incompatible_qos_status_t  cb_requested_incompatible_qos_status= { 0 };
-static dds_publication_matched_status_t         cb_publication_matched_status       = { 0 };
-static dds_subscription_matched_status_t        cb_subscription_matched_status      = { 0 };
+static dds_inconsistent_topic_status_t          cb_inconsistent_topic_status;
+static dds_liveliness_lost_status_t             cb_liveliness_lost_status;
+static dds_offered_deadline_missed_status_t     cb_offered_deadline_missed_status;
+static dds_offered_incompatible_qos_status_t    cb_offered_incompatible_qos_status;
+static dds_sample_lost_status_t                 cb_sample_lost_status;
+static dds_sample_rejected_status_t             cb_sample_rejected_status;
+static dds_liveliness_changed_status_t          cb_liveliness_changed_status;
+static dds_requested_deadline_missed_status_t   cb_requested_deadline_missed_status;
+static dds_requested_incompatible_qos_status_t  cb_requested_incompatible_qos_status;
+static dds_publication_matched_status_t         cb_publication_matched_status;
+static dds_subscription_matched_status_t        cb_subscription_matched_status;
 
 
 static void
@@ -101,6 +101,7 @@ inconsistent_topic_cb(
         dds_entity_t topic,
         const dds_inconsistent_topic_status_t status, void* arg)
 {
+    (void)arg;
     os_mutexLock(&g_mutex);
     cb_topic = topic;
     cb_inconsistent_topic_status = status;
@@ -115,6 +116,7 @@ liveliness_lost_cb(
         const dds_liveliness_lost_status_t status,
         void* arg)
 {
+    (void)arg;
     os_mutexLock(&g_mutex);
     cb_writer = writer;
     cb_liveliness_lost_status = status;
@@ -129,6 +131,7 @@ offered_deadline_missed_cb(
         const dds_offered_deadline_missed_status_t status,
         void* arg)
 {
+    (void)arg;
     os_mutexLock(&g_mutex);
     cb_writer = writer;
     cb_offered_deadline_missed_status = status;
@@ -143,6 +146,7 @@ offered_incompatible_qos_cb(
         const dds_offered_incompatible_qos_status_t status,
         void* arg)
 {
+    (void)arg;
     os_mutexLock(&g_mutex);
     cb_writer = writer;
     cb_offered_incompatible_qos_status = status;
@@ -156,6 +160,7 @@ data_on_readers_cb(
         dds_entity_t subscriber,
         void* arg)
 {
+    (void)arg;
     os_mutexLock(&g_mutex);
     cb_subscriber = subscriber;
     cb_called |= DDS_DATA_ON_READERS_STATUS;
@@ -169,6 +174,7 @@ sample_lost_cb(
         const dds_sample_lost_status_t status,
         void* arg)
 {
+    (void)arg;
     os_mutexLock(&g_mutex);
     cb_reader = reader;
     cb_sample_lost_status = status;
@@ -182,6 +188,7 @@ data_available_cb(
         dds_entity_t reader,
         void* arg)
 {
+    (void)arg;
     os_mutexLock(&g_mutex);
     cb_reader = reader;
     cb_called |= DDS_DATA_AVAILABLE_STATUS;
@@ -195,6 +202,7 @@ sample_rejected_cb(
         const dds_sample_rejected_status_t status,
         void* arg)
 {
+    (void)arg;
     os_mutexLock(&g_mutex);
     cb_reader = reader;
     cb_sample_rejected_status = status;
@@ -209,6 +217,7 @@ liveliness_changed_cb(
         const dds_liveliness_changed_status_t status,
         void* arg)
 {
+    (void)arg;
     os_mutexLock(&g_mutex);
     cb_reader = reader;
     cb_liveliness_changed_status = status;
@@ -223,6 +232,7 @@ requested_deadline_missed_cb(
         const dds_requested_deadline_missed_status_t status,
         void* arg)
 {
+    (void)arg;
     os_mutexLock(&g_mutex);
     cb_reader = reader;
     cb_requested_deadline_missed_status = status;
@@ -237,6 +247,7 @@ requested_incompatible_qos_cb(
         const dds_requested_incompatible_qos_status_t status,
         void* arg)
 {
+    (void)arg;
     os_mutexLock(&g_mutex);
     cb_reader = reader;
     cb_requested_incompatible_qos_status = status;
@@ -251,6 +262,7 @@ publication_matched_cb(
         const dds_publication_matched_status_t status,
         void* arg)
 {
+    (void)arg;
     os_mutexLock(&g_mutex);
     cb_writer = writer;
     cb_publication_matched_status = status;
@@ -265,6 +277,7 @@ subscription_matched_cb(
         const dds_subscription_matched_status_t status,
         void* arg)
 {
+    (void)arg;
     os_mutexLock(&g_mutex);
     cb_reader = reader;
     cb_subscription_matched_status = status;
@@ -584,12 +597,13 @@ Test(ddsc_listener, getters_setters)
  ****************************************************************************/
 Test(ddsc_listener, propagation, .init=init_triggering_base, .fini=fini_triggering_base)
 {
-    RoundTripModule_DataType sample = { 0 };
     dds_listener_t *listener_par = NULL;
     dds_listener_t *listener_pub = NULL;
     dds_listener_t *listener_sub = NULL;
     uint32_t triggered;
     dds_return_t ret;
+    RoundTripModule_DataType sample;
+    memset (&sample, 0, sizeof (sample));
 
     /* Let participant be interested in data. */
     listener_par = dds_listener_create(NULL);
@@ -807,7 +821,8 @@ Test(ddsc_listener, data_available, .init=init_triggering_test, .fini=fini_trigg
     dds_return_t ret;
     uint32_t triggered;
     uint32_t status;
-    RoundTripModule_DataType sample = { 0 };
+    RoundTripModule_DataType sample;
+    memset (&sample, 0, sizeof (sample));
 
     /* We are interested in data available notifications. */
     dds_lset_data_available(g_listener, data_available_cb);
@@ -837,7 +852,8 @@ Test(ddsc_listener, data_on_readers, .init=init_triggering_test, .fini=fini_trig
     dds_return_t ret;
     uint32_t triggered;
     uint32_t status;
-    RoundTripModule_DataType sample = { 0 };
+    RoundTripModule_DataType sample;
+    memset (&sample, 0, sizeof (sample));
 
     /* We are interested in data available notifications. */
     dds_lset_data_on_readers(g_listener, data_on_readers_cb);
@@ -875,7 +891,8 @@ Test(ddsc_listener, sample_lost, .init=init_triggering_test, .fini=fini_triggeri
     uint32_t triggered;
     dds_time_t the_past;
     uint32_t status;
-    RoundTripModule_DataType sample = { 0 };
+    RoundTripModule_DataType sample;
+    memset (&sample, 0, sizeof (sample));
 
     /* Get a time that should be historic on all platforms.*/
     the_past = dds_time() - 1000000;
@@ -911,7 +928,8 @@ Test(ddsc_listener, sample_rejected, .init=init_triggering_test, .fini=fini_trig
     dds_return_t ret;
     uint32_t triggered;
     uint32_t status;
-    RoundTripModule_DataType sample = { 0 };
+    RoundTripModule_DataType sample;
+    memset (&sample, 0, sizeof (sample));
 
     /* We are interested in sample rejected notifications. */
     dds_lset_sample_rejected(g_listener, sample_rejected_cb);

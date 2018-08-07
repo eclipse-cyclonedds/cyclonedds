@@ -179,7 +179,7 @@ CUnit_Test(os_iter, object_indices)
     OS_WARNING_MSVC_ON(28020);
 
     CU_ASSERT_PTR_NULL(num);
-    num = os_iterObject(iter, os_iterLength(iter));
+    num = os_iterObject(iter, (int32_t)os_iterLength(iter));
     CU_ASSERT_PTR_NULL(num);
     num = os_iterObject(iter, -6);
     CU_ASSERT_PTR_NULL(num);
@@ -187,7 +187,7 @@ CUnit_Test(os_iter, object_indices)
     CU_ASSERT_PTR_EQUAL(num, &one);
     num = os_iterObject(iter, -5);
     CU_ASSERT_PTR_EQUAL(num, &one);
-    num = os_iterObject(iter, os_iterLength(iter) - 1);
+    num = os_iterObject(iter, (int32_t)os_iterLength(iter) - 1);
     CU_ASSERT_PTR_EQUAL(num, &five);
     num = os_iterObject(iter, -1);
     CU_ASSERT_PTR_EQUAL(num, &five);
@@ -210,7 +210,7 @@ CUnit_Test(os_iter, take_indices)
     num = os_iterTake(iter, OS_ITER_LENGTH);
     OS_WARNING_MSVC_ON(28020);
     CU_ASSERT_PTR_NULL(num);
-    num = os_iterTake(iter, os_iterLength(iter));
+    num = os_iterTake(iter, (int32_t)os_iterLength(iter));
     CU_ASSERT_PTR_NULL(num);
     num = os_iterTake(iter, -6);
     CU_ASSERT_PTR_NULL(num);

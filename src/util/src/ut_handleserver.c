@@ -326,6 +326,7 @@ ut_handle_get_link(
     ret = lookup_handle(hdl, UT_HANDLE_DONTCARE_KIND, &info);
     assert(((ret == UT_HANDLE_OK) && (info != NULL)) ||
            ((ret != UT_HANDLE_OK) && (info == NULL)) );
+    (void)ret;
     os_mutexUnlock(&hs->mutex);
 
     return info;

@@ -175,11 +175,7 @@ int ddsi_serdata_is_key (const struct serdata * serdata);
 int ddsi_serdata_is_empty (const struct serdata * serdata);
 
 OSAPI_EXPORT void ddsi_serstate_append_blob (serstate_t st, size_t align, size_t sz, const void *data);
-OSAPI_EXPORT void ddsi_serstate_set_msginfo
-(
-  serstate_t st, unsigned statusinfo, nn_wctime_t timestamp,
-  void * dummy
-);
+OSAPI_EXPORT void ddsi_serstate_set_msginfo (serstate_t st, unsigned statusinfo, nn_wctime_t timestamp);
 OSAPI_EXPORT serstate_t ddsi_serstate_new (const struct sertopic * topic);
 OSAPI_EXPORT serdata_t ddsi_serstate_fix (serstate_t st);
 nn_mtime_t ddsi_serstate_twrite (const struct serstate *serstate);

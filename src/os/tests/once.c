@@ -117,7 +117,7 @@ os_once_parallel_thr(
         case OS_ONCE_STATE_GO:
             os_once(&state->init1, &once1_func);
             os_once(&state->init2, &once2_func);
-            /* Fallthrough intentional */
+            /* FALLS THROUGH */
         default:
             done = true;
             break;

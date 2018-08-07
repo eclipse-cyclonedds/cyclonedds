@@ -197,7 +197,7 @@ void local_reader_ary_insert (struct local_reader_ary *x, struct reader *rd)
 
 void local_reader_ary_remove (struct local_reader_ary *x, struct reader *rd)
 {
-  int i;
+  unsigned i;
   os_mutexLock (&x->rdary_lock);
   for (i = 0; i < x->n_readers; i++)
   {
@@ -1943,7 +1943,7 @@ static nn_entityid_t builtin_entityid_match (nn_entityid_t x)
   return res;
 }
 
-static void writer_qos_mismatch (struct writer * wr, int32_t reason)
+static void writer_qos_mismatch (struct writer * wr, uint32_t reason)
 {
   /* When the reason is DDS_INVALID_QOS_POLICY_ID, it means that we compared
    * readers/writers from different topics: ignore that. */
@@ -1963,7 +1963,7 @@ static void writer_qos_mismatch (struct writer * wr, int32_t reason)
   }
 }
 
-static void reader_qos_mismatch (struct reader * rd, int32_t reason)
+static void reader_qos_mismatch (struct reader * rd, uint32_t reason)
 {
   /* When the reason is DDS_INVALID_QOS_POLICY_ID, it means that we compared
    * readers/writers from different topics: ignore that. */
@@ -1996,7 +1996,7 @@ static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_re
     return;
   if (!isb0 && (reason = qos_match_p (prd->c.xqos, wr->xqos)) >= 0)
   {
-    writer_qos_mismatch (wr, reason);
+    writer_qos_mismatch (wr, (uint32_t)reason);
     return;
   }
   proxy_reader_add_connection (prd, wr);
@@ -2015,7 +2015,7 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
     return;
   if (!isb0 && (reason = qos_match_p (rd->xqos, pwr->c.xqos)) >= 0)
   {
-    reader_qos_mismatch (rd, reason);
+    reader_qos_mismatch (rd, (uint32_t)reason);
     return;
   }
   reader_add_connection (rd, pwr, &init_count);
@@ -2025,12 +2025,13 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
 static void connect_writer_with_reader (struct writer *wr, struct reader *rd, nn_mtime_t tnow)
 {
   int32_t reason;
+  (void)tnow;
   if (is_builtin_entityid (wr->e.guid.entityid, ownvendorid) || is_builtin_entityid (rd->e.guid.entityid, ownvendorid))
     return;
   if ((reason = qos_match_p (rd->xqos, wr->xqos)) >= 0)
   {
-    writer_qos_mismatch (wr, reason);
-    reader_qos_mismatch (rd, reason);
+    writer_qos_mismatch (wr, (uint32_t)reason);
+    reader_qos_mismatch (rd, (uint32_t)reason);
     return;
   }
   reader_add_local_connection (rd, wr);
@@ -3882,10 +3883,11 @@ uint64_t participant_instance_id (const struct nn_guid *guid)
 
 /* PROXY-GROUP --------------------------------------------------- */
 
-int new_proxy_group (const struct nn_guid *guid, const struct v_gid_s *gid, const char *name, const struct nn_xqos *xqos, nn_wctime_t timestamp)
+int new_proxy_group (const struct nn_guid *guid, const char *name, const struct nn_xqos *xqos, nn_wctime_t timestamp)
 {
   struct proxy_participant *proxypp;
   nn_guid_t ppguid;
+  (void)timestamp;
   ppguid.prefix = guid->prefix;
   ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
   if ((proxypp = ephash_lookup_proxy_participant_guid (&ppguid)) == NULL)
@@ -3948,6 +3950,8 @@ int new_proxy_group (const struct nn_guid *guid, const struct v_gid_s *gid, cons
 static void delete_proxy_group_locked (struct proxy_group *pgroup, nn_wctime_t timestamp, int isimplicit)
 {
   struct proxy_participant *proxypp = pgroup->proxypp;
+  (void)timestamp;
+  (void)isimplicit;
   assert ((pgroup->xqos != NULL) == (pgroup->name != NULL));
   nn_log (LC_DISCOVERY, "delete_proxy_group_locked %x:%x:%x:%x\n", PGUID (pgroup->guid));
   ut_avlDelete (&proxypp_groups_treedef, &proxypp->groups, pgroup);
@@ -4032,7 +4036,7 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   struct proxy_writer *pwr;
   int isreliable;
   nn_mtime_t tnow = now_mt ();
-
+  (void)timestamp;
   assert (is_writer_entityid (guid->entityid));
   assert (ephash_lookup_proxy_writer_guid (guid) == NULL);
 
@@ -4224,6 +4228,8 @@ static void gc_delete_proxy_writer (struct gcreq *gcreq)
 int delete_proxy_writer (const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit)
 {
   struct proxy_writer *pwr;
+  (void)timestamp;
+  (void)isimplicit;
   nn_log (LC_DISCOVERY, "delete_proxy_writer (%x:%x:%x:%x) ", PGUID (*guid));
   os_mutexLock (&gv.lock);
   if ((pwr = ephash_lookup_proxy_writer_guid (guid)) == NULL)
@@ -4255,6 +4261,7 @@ int new_proxy_reader (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   struct proxy_participant *proxypp;
   struct proxy_reader *prd;
   nn_mtime_t tnow = now_mt ();
+  (void)timestamp;
 
   assert (!is_writer_entityid (guid->entityid));
   assert (ephash_lookup_proxy_reader_guid (guid) == NULL);
@@ -4352,6 +4359,8 @@ static void gc_delete_proxy_reader (struct gcreq *gcreq)
 int delete_proxy_reader (const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit)
 {
   struct proxy_reader *prd;
+  (void)timestamp;
+  (void)isimplicit;
   nn_log (LC_DISCOVERY, "delete_proxy_reader (%x:%x:%x:%x) ", PGUID (*guid));
   os_mutexLock (&gv.lock);
   if ((prd = ephash_lookup_proxy_reader_guid (guid)) == NULL)

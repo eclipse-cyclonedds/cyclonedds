@@ -297,6 +297,7 @@ dds_topic_qos_set(
         bool enabled)
 {
     dds_return_t ret = dds_topic_qos_validate(qos, enabled);
+    (void)e;
     if (ret == DDS_RETCODE_OK) {
         if (enabled) {
             /* TODO: CHAM-95: DDSI does not support changing QoS policies. */
@@ -426,9 +427,9 @@ dds_create_topic(
         st->id = next_topicid++;
 
 #ifdef VXWORKS_RTP
-        st->hash = (st->id * UINT64_C (12844332200329132887UL)) >> 32;
+        st->hash = (uint32_t)((st->id * UINT64_C (12844332200329132887UL)) >> 32);
 #else
-        st->hash = (st->id * UINT64_C (12844332200329132887)) >> 32;
+        st->hash = (uint32_t)((st->id * UINT64_C (12844332200329132887)) >> 32);
 #endif
 
         /* Check if topic cannot be optimised (memcpy marshal) */
@@ -518,6 +519,9 @@ dds_topic_mod_filter(
             *ctx = t->m_stopic->filter_ctx;
         }
         dds_topic_unlock(t);
+    } else {
+        *filter = 0;
+        *ctx = NULL;
     }
 }
 
@@ -541,7 +545,7 @@ dds_topic_get_filter(
     void *ctx;
     dds_topic_mod_filter (topic, &filter, &ctx, false);
     return
-      (filter == dds_topic_chaining_filter) ? (dds_topic_filter_fn)ctx : NULL;
+      (filter == dds_topic_chaining_filter) ? (dds_topic_filter_fn)ctx : 0;
 }
 
 void
@@ -560,7 +564,7 @@ dds_topic_get_filter_with_ctx(
   dds_topic_intern_filter_fn filter;
   void *ctx;
   dds_topic_mod_filter (topic, &filter, &ctx, false);
-  return (filter == dds_topic_chaining_filter) ? NULL : filter;
+  return (filter == dds_topic_chaining_filter) ? 0 : filter;
 }
 
 _Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)

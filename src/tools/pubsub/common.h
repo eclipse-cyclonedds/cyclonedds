@@ -74,11 +74,11 @@ void hist_record(struct hist *h, uint64_t x, unsigned weight);
 void hist_print(struct hist *h, dds_time_t dt, int reset);
 
 void error(const char *fmt, ...);
-#define error_abort(rc, fmt, ...) if (rc < DDS_SUCCESS) { error(fmt); DDS_ERR_CHECK(rc, DDS_CHECK_FAIL); }
-#define error_report(rc, fmt, ...) if (rc < DDS_SUCCESS) { error(fmt); DDS_ERR_CHECK(rc, DDS_CHECK_REPORT); }
-#define error_return(rc, fmt, ...) if (rc < DDS_SUCCESS) { error_report(rc, fmt); return; }
-#define error_exit(fmt, ...) { error(fmt); exit(2); }
-#define os_error_exit(osres, fmt, ...) if (osres != os_resultSuccess) { error(fmt); exit(2); }
+#define error_abort(rc, ...) if (rc < DDS_SUCCESS) { error(__VA_ARGS__); DDS_ERR_CHECK(rc, DDS_CHECK_FAIL); }
+#define error_report(rc, ...) if (rc < DDS_SUCCESS) { error(__VA_ARGS__); DDS_ERR_CHECK(rc, DDS_CHECK_REPORT); }
+#define error_return(rc, ...) if (rc < DDS_SUCCESS) { error_report(rc, __VA_ARGS__); return; }
+#define error_exit(...) { error(__VA_ARGS__); exit(2); }
+#define os_error_exit(osres, ...) if (osres != os_resultSuccess) { error(__VA_ARGS__); exit(2); }
 
 void save_argv0(const char *argv0);
 int common_init(const char *argv0);

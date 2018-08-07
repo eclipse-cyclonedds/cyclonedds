@@ -158,16 +158,25 @@ typedef struct ddsi_iovec {
 #endif
 
 #if ! SYSDEPS_HAVE_MSGHDR
+#if defined _WIN32
+typedef DWORD ddsi_msg_iovlen_t;
+#else
+typedef int ddsi_msg_iovlen_t;
+#endif
 struct msghdr
 {
   void *msg_name;
   socklen_t msg_namelen;
   ddsi_iovec_t *msg_iov;
-  size_t msg_iovlen;
+  ddsi_msg_iovlen_t msg_iovlen;
   void *msg_control;
   size_t msg_controllen;
   int msg_flags;
 };
+#elif defined __linux
+typedef size_t ddsi_msg_iovlen_t;
+#else /* POSIX says int (which macOS, FreeBSD, Solaris do) */
+typedef int ddsi_msg_iovlen_t;
 #endif
 
 #ifndef MSG_TRUNC

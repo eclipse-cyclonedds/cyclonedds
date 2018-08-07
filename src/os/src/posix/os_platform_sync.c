@@ -271,7 +271,7 @@ os_result os_condTimedWait (os_cond *cond, os_mutex *mutex, const os_time *time)
   (void) gettimeofday (&tv, NULL);
 
   rt.tv_sec = (os_timeSec) tv.tv_sec;
-  rt.tv_nsec = tv.tv_usec*1000;
+  rt.tv_nsec = (int32_t) tv.tv_usec * 1000;
 
   wakeup_time = os_timeAdd (rt, *time);
   t.tv_sec = wakeup_time.tv_sec;

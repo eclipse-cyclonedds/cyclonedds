@@ -17,11 +17,23 @@
 
 /* We are deliberately testing some bad arguments that SAL will complain about.
  * So, silence SAL regarding these issues. */
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 6387 28020)
+#endif
 
-static void on_data_available(dds_entity_t reader, void* arg) {}
-static void on_publication_matched(dds_entity_t writer, const dds_publication_matched_status_t status, void* arg) {}
+static void on_data_available(dds_entity_t reader, void* arg)
+{
+  (void)reader;
+  (void)arg;
+}
+
+static void on_publication_matched(dds_entity_t writer, const dds_publication_matched_status_t status, void* arg)
+{
+  (void)writer;
+  (void)status;
+  (void)arg;
+}
 
 Test(ddsc_subscriber, notify_readers) {
   dds_entity_t participant;
@@ -108,4 +120,6 @@ Test(ddsc_subscriber, create) {
   dds_delete(participant);
 }
 
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif

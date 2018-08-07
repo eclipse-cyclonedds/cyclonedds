@@ -20,7 +20,7 @@
 #ifndef NDEBUG
 static bool keyhash_is_reset(const dds_key_hash_t *kh)
 {
-  static const char nullhash[sizeof(kh->m_hash)];
+  static const char nullhash[sizeof(kh->m_hash)] = { 0 };
   return kh->m_flags == 0 && memcmp(kh->m_hash, nullhash, sizeof(nullhash)) == 0;
 }
 #endif
@@ -33,7 +33,7 @@ void dds_key_md5 (dds_key_hash_t * kh)
   md5_finish (&md5st, (unsigned char *) kh->m_hash);
 }
 
-/* 
+/*
   dds_key_gen: Generates key and keyhash for a sample.
   See section 9.6.3.3 of DDSI spec.
 */
@@ -85,9 +85,13 @@ void dds_key_gen
         case DDS_OP_VAL_2BY: len += 2; break;
         case DDS_OP_VAL_4BY: len += 4; break;
         case DDS_OP_VAL_8BY: len += 8; break;
-        case DDS_OP_VAL_STR: src = *((char**) src); /* Fall-through intentional */
-        case DDS_OP_VAL_BST: len += (uint32_t) (5 + strlen (src)); break;
-        case DDS_OP_VAL_ARR: 
+        case DDS_OP_VAL_STR:
+          src = *((char**) src);
+          /* FALLS THROUGH */
+        case DDS_OP_VAL_BST:
+          len += (uint32_t) (5 + strlen (src));
+          break;
+        case DDS_OP_VAL_ARR:
           len += op[2] * dds_op_size[DDS_OP_SUBTYPE (*op)];
           break;
         default: assert (0);
@@ -143,7 +147,8 @@ void dds_key_gen
       case DDS_OP_VAL_STR:
       {
         src = *((char**) src);
-      } /* Fall-through intentional */
+      }
+        /* FALLS THROUGH */
       case DDS_OP_VAL_BST:
       {
         uint32_t u32;
@@ -173,7 +178,7 @@ void dds_key_gen
 
   /* Hash is md5 of key */
 
-  if ((kh->m_flags & DDS_KEY_IS_HASH) == 0) 
+  if ((kh->m_flags & DDS_KEY_IS_HASH) == 0)
   {
     dds_key_md5 (kh);
   }

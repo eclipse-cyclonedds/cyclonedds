@@ -73,7 +73,7 @@ os_lcNumericGet(void)
         /* There could be multiple threads here, but it is still save and works.
          * Only side effect is that possibly multiple os_reports are traced. */
         char num[] = { '\0', '\0', '\0', '\0' };
-        (void) snprintf(num, 4, "%3f", 2.2);
+        (void) snprintf(num, 4, "%3.1f", 2.2);
         lcNumeric = num [1];
         if (lcNumeric != '.') {
             OS_WARNING("os_stdlib", 0,

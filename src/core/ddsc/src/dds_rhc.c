@@ -248,7 +248,7 @@ struct rhc_instance
   unsigned inv_isread : 1;     /* whether or not that state change has been read before */
   unsigned disposed_gen;       /* bloody generation counters - worst invention of mankind */
   unsigned no_writers_gen;     /* __/ */
-  uint32_t strength;           /* "current" ownership strength */
+  int32_t strength;            /* "current" ownership strength */
   nn_guid_t wr_guid;           /* guid of last writer (if wr_iid != 0 then wr_guid is the corresponding guid, else undef) */
   nn_wctime_t tstamp;          /* source time stamp of last update */
   struct rhc_instance *next;   /* next non-empty instance in arbitrary ordering */
@@ -313,7 +313,7 @@ struct trigger_info
 #define QMASK_OF_SAMPLE(s) ((s)->isread ? DDS_READ_SAMPLE_STATE : DDS_NOT_READ_SAMPLE_STATE)
 #define QMASK_OF_INVSAMPLE(i) ((i)->inv_isread ? DDS_READ_SAMPLE_STATE : DDS_NOT_READ_SAMPLE_STATE)
 #define INST_NSAMPLES(i) ((i)->nvsamples + (i)->inv_exists)
-#define INST_NREAD(i) ((i)->nvread + ((i)->inv_exists & (i)->inv_isread))
+#define INST_NREAD(i) ((i)->nvread + (unsigned)((i)->inv_exists & (i)->inv_isread))
 #define INST_IS_EMPTY(i) (INST_NSAMPLES (i) == 0)
 #define INST_HAS_READ(i) (INST_NREAD (i) > 0)
 #define INST_HAS_UNREAD(i) (INST_NREAD (i) < INST_NSAMPLES (i))
@@ -413,7 +413,8 @@ void dds_rhc_set_qos (struct rhc * rhc, const nn_xqos_t * qos)
   rhc->by_source_ordering = (qos->destination_order.kind == NN_BY_SOURCE_TIMESTAMP_DESTINATIONORDER_QOS);
   rhc->exclusive_ownership = (qos->ownership.kind == NN_EXCLUSIVE_OWNERSHIP_QOS);
   rhc->reliable = (qos->reliability.kind == NN_RELIABLE_RELIABILITY_QOS);
-  rhc->history_depth = (qos->history.kind == NN_KEEP_LAST_HISTORY_QOS) ? qos->history.depth : ~0u;
+  assert(qos->history.kind != NN_KEEP_LAST_HISTORY_QOS || qos->history.depth > 0);
+  rhc->history_depth = (qos->history.kind == NN_KEEP_LAST_HISTORY_QOS) ? (uint32_t)qos->history.depth : ~0u;
 }
 
 static struct rhc_sample * alloc_sample (struct rhc_instance *inst)
@@ -706,7 +707,7 @@ static int inst_accepts_sample
   }
   if (rhc->exclusive_ownership && inst->wr_iid_islive && inst->wr_iid != pwr_info->iid)
   {
-    uint32_t strength = pwr_info->ownership_strength;
+    int32_t strength = pwr_info->ownership_strength;
     if (strength > inst->strength) {
       /* ok */
     } else if (strength < inst->strength) {
@@ -729,6 +730,7 @@ static void update_inst
   const struct rhc *rhc, struct rhc_instance *inst,
   const struct proxy_writer_info * __restrict pwr_info, bool wr_iid_valid, nn_wctime_t tstamp)
 {
+  (void)rhc;
   inst->tstamp = tstamp;
   inst->wr_iid_islive = wr_iid_valid;
   if (wr_iid_valid)
@@ -1016,7 +1018,6 @@ static void dds_rhc_unregister
 
 static struct rhc_instance * alloc_new_instance
 (
-  const struct rhc *rhc,
   const struct proxy_writer_info *pwr_info,
   struct serdata *serdata,
   struct tkmap_instance *tk
@@ -1086,7 +1087,7 @@ static rhc_store_result_t rhc_store_new_instance
     return RHC_REJECTED;
   }
 
-  inst = alloc_new_instance (rhc, pwr_info, sample, tk);
+  inst = alloc_new_instance (pwr_info, sample, tk);
   if (has_data)
   {
     if (!add_sample (rhc, inst, pwr_info, sample, cb_data))
@@ -1298,8 +1299,8 @@ bool dds_rhc_store
         }
         else
         {
-          rhc->n_not_alive_disposed += inst->isdisposed - old_isdisposed;
-          rhc->n_new += inst->isnew - old_isnew;
+          rhc->n_not_alive_disposed += (uint32_t)(inst->isdisposed - old_isdisposed);
+          rhc->n_new += (uint32_t)(inst->isnew - old_isnew);
         }
       }
       else
@@ -1740,7 +1741,8 @@ static int dds_rhc_read_w_qminv
       dds_entity_status_signal((dds_entity*)(rhc->reader));
   }
 
-  return n;
+  assert (n <= INT_MAX);
+  return (int)n;
 }
 
 static int dds_rhc_take_w_qminv
@@ -1904,7 +1906,8 @@ static int dds_rhc_take_w_qminv
       dds_entity_status_signal((dds_entity*)(rhc->reader));
   }
 
-  return n;
+  assert (n <= INT_MAX);
+  return (int)n;
 }
 
 static int dds_rhc_takecdr_w_qminv
@@ -1916,6 +1919,7 @@ static int dds_rhc_takecdr_w_qminv
   bool trigger_waitsets = false;
   uint64_t iid;
   uint32_t n = 0;
+  (void)cond;
 
   if (lock)
   {
@@ -2053,7 +2057,8 @@ static int dds_rhc_takecdr_w_qminv
       dds_entity_status_signal((dds_entity*)(rhc->reader));
   }
 
-  return n;
+  assert (n <= INT_MAX);
+  return (int)n;
 }
 
 /*************************

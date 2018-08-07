@@ -919,6 +919,12 @@ static void print_seq_OU(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd __
 }
 
 static void print_seq_ARB(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd __attribute__ ((unused)), const char *tag, const dds_sample_info_t *iseq, const void **mseq, const struct tgtopic *tgtp) {
+    (void)tnow;
+    (void)tstart;
+    (void)tag;
+    (void)iseq;
+    (void)mseq;
+    (void)tgtp;
 // TODO ARB type support
 //    unsigned i;
 //    for (i = 0; i < mseq->_length; i++)
@@ -1047,6 +1053,7 @@ static void wr_on_publication_matched(dds_entity_t wr __attribute__((unused)), c
 
 static int register_instance_wrapper(dds_entity_t wr, const void *d, const dds_time_t tstamp) {
     dds_instance_handle_t handle;
+    (void)tstamp;
     return dds_register_instance(wr, &handle, d);
 }
 
@@ -1221,7 +1228,7 @@ static void pub_do_auto(const struct writerspec *spec) {
                     t = dds_time();
                 }
                 if (++bi == spec->burstsize) {
-                    while (((ntot / spec->burstsize) / ((t - tfirst0) / 1e9 + 5e-3)) > spec->writerate && !termflag) {
+                    while (((double)(ntot / spec->burstsize) / ((double)(t - tfirst0) / 1e9 + 5e-3)) > spec->writerate && !termflag) {
                         /* FIXME: only doing this manually because batching is not yet implemented properly */
                         dds_write_flush(spec->wr);
                         dds_sleepfor(DDS_MSECS(10));
@@ -1236,7 +1243,7 @@ static void pub_do_auto(const struct writerspec *spec) {
     tlast = dds_time();
     hist_print(hist, tlast - tfirst, 0);
     hist_free(hist);
-    printf ("total writes: %" PRId64 " (%e/s)\n", ntot, ntot * 1e9 / (tlast - tfirst0));
+    printf ("total writes: %" PRId64 " (%e/s)\n", ntot, (double)ntot * 1e9 / (double)(tlast - tfirst0));
     if (spec->topicsel == KS) {
         dds_free(d.ks.baggage._buffer);
     }
@@ -1592,7 +1599,7 @@ static uint32_t subthread(void *vspec) {
     dds_entity_t stcond = 0;
     dds_return_t rc;
     uintptr_t exitcode = 0;
-    char tag[256];
+    char tag[270];
     char tn[256];
     size_t nxs = 0;
 
@@ -1680,6 +1687,7 @@ static uint32_t subthread(void *vspec) {
             tnow = dds_time();
             for (gi = 0; gi < (spec->polling ? 1 : nxs); gi++) {
                 dds_entity_t cond = !spec->polling && xs[gi] != 0 ? (dds_entity_t) xs[gi] : 0;
+                dds_return_t nread;
                 int32_t i;
 
                 if (cond == termcond)
@@ -1724,22 +1732,22 @@ static uint32_t subthread(void *vspec) {
 //                    error ("DDS_Subscriber_begin_access: %d (%s)\n", (int) result, dds_err_str(result));
 
                 if (spec->mode == MODE_CHECK || (spec->mode == MODE_DUMP && spec->use_take) || spec->polling) {
-                    rc = dds_take_mask(rd, mseq, iseq, spec->read_maxsamples, spec->read_maxsamples, DDS_ANY_STATE);
+                    nread = dds_take_mask(rd, mseq, iseq, spec->read_maxsamples, spec->read_maxsamples, DDS_ANY_STATE);
                 } else if (spec->mode == MODE_DUMP) {
-                    rc = dds_read_mask(rd, mseq, iseq, spec->read_maxsamples, spec->read_maxsamples, DDS_ANY_STATE);
+                    nread = dds_read_mask(rd, mseq, iseq, spec->read_maxsamples, spec->read_maxsamples, DDS_ANY_STATE);
                 } else if (spec->use_take || cond == rdcondD) {
-                    rc = dds_take(cond, mseq, iseq, spec->read_maxsamples, spec->read_maxsamples);
+                    nread = dds_take(cond, mseq, iseq, spec->read_maxsamples, spec->read_maxsamples);
                 } else {
-                    rc = dds_read(cond, mseq, iseq, spec->read_maxsamples, spec->read_maxsamples);
+                    nread = dds_read(cond, mseq, iseq, spec->read_maxsamples, spec->read_maxsamples);
                 }
 
-                if (rc < 1) {
-                    if (spec->polling && rc == 0) {
+                if (nread < 1) {
+                    if (spec->polling && nread == 0) {
                         ; /* expected */
                     } else if (spec->mode == MODE_CHECK || spec->mode == MODE_DUMP || spec->polling) {
-                        printf ("%s: %d (%s) on %s\n", (!spec->use_take && spec->mode == MODE_DUMP) ? "read" : "take", (int) rc, dds_err_str(rc), spec->polling ? "poll" : "stcond");
+                        printf ("%s: %d (%s) on %s\n", (!spec->use_take && spec->mode == MODE_DUMP) ? "read" : "take", (int) nread, dds_err_str(nread), spec->polling ? "poll" : "stcond");
                     } else {
-                        printf ("%s: %d (%s) on rdcond%s\n", spec->use_take ? "take" : "read", (int) rc, dds_err_str(rc), (cond == rdcondA) ? "A" : (cond == rdcondD) ? "D" : "?");
+                        printf ("%s: %d (%s) on rdcond%s\n", spec->use_take ? "take" : "read", (int) nread, dds_err_str(nread), (cond == rdcondA) ? "A" : (cond == rdcondD) ? "D" : "?");
                     }
                     continue;
                 }
@@ -1753,18 +1761,18 @@ static uint32_t subthread(void *vspec) {
                 case MODE_DUMP:
                     switch (spec->topicsel) {
                     case UNSPEC: assert(0);
-                    case KS:   print_seq_KS(&tstart, tnow, rd, tag, iseq, (KeyedSeq **)mseq, rc); break;
-                    case K32:  print_seq_K32(&tstart, tnow, rd, tag, iseq, (Keyed32 **)mseq, rc); break;
-                    case K64:  print_seq_K64(&tstart, tnow, rd, tag, iseq, (Keyed64 **)mseq, rc); break;
-                    case K128: print_seq_K128(&tstart, tnow, rd, tag, iseq, (Keyed128 **)mseq, rc); break;
-                    case K256: print_seq_K256(&tstart, tnow, rd, tag, iseq, (Keyed256 **)mseq, rc); break;
-                    case OU:   print_seq_OU(&tstart, tnow, rd, tag, iseq, (const OneULong **)mseq, rc); break;
+                    case KS:   print_seq_KS(&tstart, tnow, rd, tag, iseq, (KeyedSeq **)mseq, nread); break;
+                    case K32:  print_seq_K32(&tstart, tnow, rd, tag, iseq, (Keyed32 **)mseq, nread); break;
+                    case K64:  print_seq_K64(&tstart, tnow, rd, tag, iseq, (Keyed64 **)mseq, nread); break;
+                    case K128: print_seq_K128(&tstart, tnow, rd, tag, iseq, (Keyed128 **)mseq, nread); break;
+                    case K256: print_seq_K256(&tstart, tnow, rd, tag, iseq, (Keyed256 **)mseq, nread); break;
+                    case OU:   print_seq_OU(&tstart, tnow, rd, tag, iseq, (const OneULong **)mseq, nread); break;
                     case ARB:  print_seq_ARB(&tstart, tnow, rd, tag, iseq, (const void **)mseq, spec->tgtp); break;
                     }
                     break;
 
                 case MODE_CHECK:
-                    for (i = 0; i < rc; i++) {
+                    for (i = 0; i < nread; i++) {
                         int keyval = 0;
                         unsigned seq = 0;
                         unsigned size = 0;
@@ -1793,7 +1801,7 @@ static uint32_t subthread(void *vspec) {
                             const dds_time_t tdelta_s = tdelta_ns / DDS_NSECS_IN_SEC;
                             const dds_time_t tdelta_ms = ((tdelta_ns % DDS_NSECS_IN_SEC) + 500000) / DDS_NSECS_IN_MSEC;
                             const long long ndelta = nreceived - last_nreceived;
-                            const double rate_Mbps = (nreceived_bytes - last_nreceived_bytes) * 8 / 1e6;
+                            const double rate_Mbps = (double)(nreceived_bytes - last_nreceived_bytes) * 8 / 1e6;
                             printf ("%"PRId64".%03"PRId64" ntot %lld nseq %lld ndelta %lld rate %.2f Mb/s\n",
                                     tdelta_s, tdelta_ms, nreceived, out_of_seq, ndelta, rate_Mbps);
                             last_nreceived = nreceived;
@@ -1807,7 +1815,7 @@ static uint32_t subthread(void *vspec) {
                 case MODE_ZEROLOAD:
                     break;
                 }
-                rc = dds_return_loan(rd, mseq, spec->read_maxsamples);
+                rc = dds_return_loan(rd, mseq, nread);
                 error_report(rc, "dds_return_loan failed");
                 if (spec->sleep_ns) {
                     dds_sleepfor(spec->sleep_ns);
@@ -1822,13 +1830,14 @@ static uint32_t subthread(void *vspec) {
 //                error ("DDS_Subscriber_begin_access: %d (%s)\n", (int) result, dds_err_str (result));
 
             /* This is the final Read/Take */
-            rc = dds_take_mask(rd, mseq, iseq, spec->read_maxsamples, spec->read_maxsamples, DDS_ANY_STATE);
-            if (rc == 0) {
+            dds_return_t nread;
+            nread = dds_take_mask(rd, mseq, iseq, spec->read_maxsamples, spec->read_maxsamples, DDS_ANY_STATE);
+            if (nread == 0) {
                 if (!once_mode)
                     printf ("-- final take: data reader empty --\n");
                 else
                     exitcode = 1;
-            } else if (rc < DDS_SUCCESS) {
+            } else if (nread < DDS_SUCCESS) {
                 if (!once_mode) {
                     error_report(rc, "-- final take --\n");
                 } else {
@@ -1840,12 +1849,12 @@ static uint32_t subthread(void *vspec) {
                 if (spec->mode == MODE_PRINT || spec->mode == MODE_DUMP) {
                     switch (spec->topicsel) {
                     case UNSPEC: assert(0);
-                    case KS:   print_seq_KS(&tstart, dds_time(), rd, tag, iseq, (KeyedSeq **) mseq, rc); break;
-                    case K32:  print_seq_K32(&tstart, dds_time(), rd, tag, iseq, (Keyed32 **) mseq, rc); break;
-                    case K64:  print_seq_K64(&tstart, dds_time(), rd, tag, iseq, (Keyed64 **) mseq, rc); break;
-                    case K128: print_seq_K128(&tstart, dds_time(), rd, tag, iseq, (Keyed128 **) mseq, rc); break;
-                    case K256: print_seq_K256(&tstart, dds_time(), rd, tag, iseq, (Keyed256 **) mseq, rc); break;
-                    case OU:   print_seq_OU(&tstart, dds_time(), rd, tag, iseq, (const OneULong **) mseq, rc); break;
+                    case KS:   print_seq_KS(&tstart, dds_time(), rd, tag, iseq, (KeyedSeq **) mseq, nread); break;
+                    case K32:  print_seq_K32(&tstart, dds_time(), rd, tag, iseq, (Keyed32 **) mseq, nread); break;
+                    case K64:  print_seq_K64(&tstart, dds_time(), rd, tag, iseq, (Keyed64 **) mseq, nread); break;
+                    case K128: print_seq_K128(&tstart, dds_time(), rd, tag, iseq, (Keyed128 **) mseq, nread); break;
+                    case K256: print_seq_K256(&tstart, dds_time(), rd, tag, iseq, (Keyed256 **) mseq, nread); break;
+                    case OU:   print_seq_OU(&tstart, dds_time(), rd, tag, iseq, (const OneULong **) mseq, nread); break;
                     case ARB:  print_seq_ARB(&tstart, dds_time(), rd, tag, iseq, (const void **) mseq, spec->tgtp); break;
                     }
                 }
@@ -1853,7 +1862,7 @@ static uint32_t subthread(void *vspec) {
             // TODO coherency support
 //            if (need_access && (result = DDS_Subscriber_end_access(sub)) != DDS_RETCODE_OK)
 //                error ("DDS_Subscriber_end_access: %d (%s)\n", (int) result, dds_err_str(result));
-            rc = dds_return_loan(rd, mseq, spec->read_maxsamples);
+            rc = dds_return_loan(rd, mseq, nread);
             error_report(rc, "dds_return_loan failed");
         }
         dds_free(iseq);
@@ -1973,6 +1982,7 @@ static int get_metadata(char **metadata, char **typename, char **keylist, const 
 
 static dds_entity_t find_topic(dds_entity_t dpFindTopic, const char *name, const dds_duration_t *timeout) {
     dds_entity_t tp;
+    (void)timeout;
 //    TODO ARB type support
 //    int isbuiltin = 0;
 
@@ -2077,8 +2087,8 @@ static void addspec(unsigned whatfor, unsigned *specsofar, unsigned *specidx, st
     *specsofar |= whatfor;
 }
 
-static void set_print_mode(const char *optarg) {
-    char *copy = dds_string_dup(optarg), *cursor = copy, *tok;
+static void set_print_mode(const char *modestr) {
+    char *copy = dds_string_dup(modestr), *cursor = copy, *tok;
     while ((tok = os_strsep(&cursor, ",")) != NULL) {
         int enable;
         if (strncmp(tok, "no", 2) == 0)
@@ -2121,7 +2131,7 @@ static void set_print_mode(const char *optarg) {
                 else
                     print_metadata &= ~tab[i].flag;
             } else {
-                fprintf (stderr, "-P %s: invalid print mode\n", optarg);
+                fprintf (stderr, "-P %s: invalid print mode\n", modestr);
                 exit(2);
             }
         }
@@ -2136,11 +2146,11 @@ int MAIN(int argc, char *argv[]) {
     dds_listener_t *wrlistener = dds_listener_create(NULL);
 
     dds_qos_t *qos;
-    const char **qtopic = (const char **) dds_alloc(sizeof(char *) * argc);
-    const char **qreader = (const char **) dds_alloc(sizeof(char *) * (2+argc));
-    const char **qwriter = (const char **) dds_alloc(sizeof(char *) * (2+argc));
-    const char **qpublisher = (const char **) dds_alloc(sizeof(char *) * (2+argc));
-    const char **qsubscriber = (const char **) dds_alloc(sizeof(char *) * (2+argc));
+    const char **qtopic = (const char **) dds_alloc(sizeof(char *) * (unsigned)argc);
+    const char **qreader = (const char **) dds_alloc(sizeof(char *) * (2+(unsigned)argc));
+    const char **qwriter = (const char **) dds_alloc(sizeof(char *) * (2+(unsigned)argc));
+    const char **qpublisher = (const char **) dds_alloc(sizeof(char *) * (2+(unsigned)argc));
+    const char **qsubscriber = (const char **) dds_alloc(sizeof(char *) * (2+(unsigned)argc));
     int nqtopic = 0, nqreader = 0, nqwriter = 0;
     int nqpublisher = 0, nqsubscriber = 0;
     int opt, pos;
@@ -2344,7 +2354,7 @@ int MAIN(int argc, char *argv[]) {
             break;
         }
         case 'n':
-            spec[specidx].rd.read_maxsamples = atoi(os_get_optarg());
+            spec[specidx].rd.read_maxsamples = (uint32_t)atoi(os_get_optarg());
             break;
         case 'O':
             once_mode = 1;
@@ -2503,7 +2513,7 @@ int MAIN(int argc, char *argv[]) {
     dds_write_set_batch(true); // FIXME: hack (the global batching flag is a hack anyway)
 
     {
-        char **ps = (char **) dds_alloc(sizeof(char *) * (argc - os_get_optind()));
+        char **ps = (char **) dds_alloc(sizeof(char *) * (uint32_t)(argc - os_get_optind()));
         for (i = 0; i < (unsigned) (argc - os_get_optind()); i++)
             ps[i] = expand_envvars(argv[(unsigned) os_get_optind() + i]);
         if (want_reader) {

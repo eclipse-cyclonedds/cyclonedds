@@ -18,9 +18,9 @@
 #include "ddsi/q_rtps.h" /* for nn_guid_t, nn_guid_prefix_t */
 #include "ddsi/q_protocol.h" /* for nn_sequence_number_t */
 
-#define bswap2(x) ((short) bswap2u ((unsigned short) (x)))
-#define bswap4(x) ((int) bswap4u ((unsigned) (x)))
-#define bswap8(x) ((long long) bswap8u ((unsigned long long) (x)))
+#define bswap2(x) ((int16_t) bswap2u ((uint16_t) (x)))
+#define bswap4(x) ((int32_t) bswap4u ((uint32_t) (x)))
+#define bswap8(x) ((int64_t) bswap8u ((uint64_t) (x)))
 
 #if NN_HAVE_C99_INLINE && !defined SUPPRESS_BSWAP_INLINES
 #include "q_bswap_template.h"
@@ -28,9 +28,9 @@
 #if defined (__cplusplus)
 extern "C" {
 #endif
-unsigned short bswap2u (unsigned short x);
-unsigned bswap4u (unsigned x);
-unsigned long long bswap8u (unsigned long long x);
+uint16_t bswap2u (uint16_t x);
+uint32_t bswap4u (uint32_t x);
+uint64_t bswap8u (uint64_t x);
 void bswapSN (nn_sequence_number_t *sn);
 #if defined (__cplusplus)
 }

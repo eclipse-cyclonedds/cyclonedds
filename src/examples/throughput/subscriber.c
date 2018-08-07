@@ -31,7 +31,7 @@ typedef struct HandleMap
   HandleEntry *entries;
 } HandleMap;
 
-static unsigned long pollingDelay = 0;
+static long pollingDelay = 0;
 
 static HandleMap * imap;
 static unsigned long long outOfOrder = 0;
@@ -75,8 +75,9 @@ static int CtrlHandler (DWORD fdwCtrlType)
 }
 #else
 struct sigaction oldAction;
-static void CtrlHandler (int fdwCtrlType)
+static void CtrlHandler (int sig)
 {
+  (void)sig;
   dds_waitset_set_trigger (waitSet, true);
   done = true;
 }
@@ -194,6 +195,7 @@ static void data_available_handler (dds_entity_t reader, void *arg)
   dds_sample_info_t info [MAX_SAMPLES];
   dds_instance_handle_t ph = 0;
   HandleEntry * current = NULL;
+  (void)arg;
 
   if (startTime == 0)
   {
@@ -256,7 +258,7 @@ static int parse_args(int argc, char **argv, unsigned long long *maxCycles, char
 
   if (argc > 1)
   {
-    *maxCycles = atoi (argv[1]); /* The number of times to output statistics before terminating */
+    *maxCycles = (unsigned long long) atoi (argv[1]); /* The number of times to output statistics before terminating */
   }
   if (argc > 2)
   {
@@ -309,8 +311,8 @@ static void process_samples(unsigned long long maxCycles)
         "=== [Subscriber] Payload size: %lu | Total received: %llu samples, %llu bytes | Out of order: %llu samples "
         "Transfer rate: %.2lf samples/s, %.2lf Mbit/s\n",
         payloadSize, total_samples, total_bytes, outOfOrder,
-        (deltaTime) ? ((total_samples - prev_samples) / deltaTime) : 0,
-        (deltaTime) ? (((total_bytes - prev_bytes) / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime) : 0
+        (deltaTime != 0.0) ? ((double)(total_samples - prev_samples) / deltaTime) : 0,
+        (deltaTime != 0.0) ? ((double)((total_bytes - prev_bytes) / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime) : 0
       );
       cycles++;
     }
@@ -331,8 +333,8 @@ static void process_samples(unsigned long long maxCycles)
   deltaTime = (double) (deltaTv / DDS_NSECS_IN_SEC);
   printf ("\nTotal received: %llu samples, %llu bytes\n", total_samples, total_bytes);
   printf ("Out of order: %llu samples\n", outOfOrder);
-  printf ("Average transfer rate: %.2lf samples/s, ", total_samples / deltaTime);
-  printf ("%.2lf Mbit/s\n", (total_bytes / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime);
+  printf ("Average transfer rate: %.2lf samples/s, ", (double)total_samples / deltaTime);
+  printf ("%.2lf Mbit/s\n", (double)(total_bytes / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime);
 }
 
 static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
@@ -343,7 +345,7 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
   dds_listener_t *rd_listener;
   dds_entity_t participant;
 
-  uint32_t maxSamples = 400;
+  int32_t maxSamples = 400;
   const char *subParts[1];
   dds_qos_t *subQos = dds_qos_create ();
   dds_qos_t *drQos = dds_qos_create ();

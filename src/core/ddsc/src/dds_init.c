@@ -37,12 +37,7 @@ char *os_environ[] = { NULL };
 
 struct q_globals gv;
 
-dds_globals dds_global =
-{
-  DDS_DOMAIN_DEFAULT, 0,
-  NULL, NULL, NULL, NULL
-};
-
+dds_globals dds_global = { .m_default_domain = DDS_DOMAIN_DEFAULT };
 static struct cfgst * dds_cfgst = NULL;
 
 dds_return_t

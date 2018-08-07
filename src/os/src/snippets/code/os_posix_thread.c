@@ -155,7 +155,6 @@ os_startRoutineWrapper (
 {
     os_threadContext *context = threadContext;
     uintptr_t resultValue;
-    os_threadId id;
 
     resultValue = 0;
 
@@ -173,7 +172,6 @@ os_startRoutineWrapper (
     /* allocate an array to store thread private memory references */
     os_threadMemInit ();
 
-    id.v = pthread_self();
     /* Call the user routine */
     resultValue = context->startRoutine (context->arguments);
 
@@ -312,7 +310,7 @@ os_threadCreate (
           /* Take over the thread context: name, start routine and argument */
           threadContext = os_malloc (sizeof (os_threadContext));
           threadContext->threadName = os_malloc (strlen (name)+1);
-          strncpy (threadContext->threadName, name, strlen (name)+1);
+          strcpy (threadContext->threadName, name);
           threadContext->startRoutine = start_routine;
           threadContext->arguments = arg;
 

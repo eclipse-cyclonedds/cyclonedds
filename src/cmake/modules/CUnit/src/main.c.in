@@ -26,6 +26,6 @@ int main (int argc, char *argv[])
     err = cu_runner_run();
     cu_runner_fini();
 err_init:
-    return err;
+    return (int)err;
 }
 

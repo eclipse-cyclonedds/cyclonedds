@@ -82,7 +82,7 @@ create_topic_name(const char *prefix, char *name, size_t size)
 static void
 readcondition_init(void)
 {
-    Space_Type1 sample = { 0 };
+    Space_Type1 sample = { 0, 0, 0 };
     dds_qos_t *qos = dds_qos_create ();
     dds_attach_t triggered;
     dds_return_t ret;

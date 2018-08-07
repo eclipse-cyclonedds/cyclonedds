@@ -15,8 +15,10 @@
 
 /* We are deliberately testing some bad arguments that SAL will complain about.
  * So, silence SAL regarding these issues. */
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 6387 28020)
+#endif
 
 /* Add --verbose command line argument to get the cr_log_info traces (if there are any). */
 
@@ -320,13 +322,13 @@ Test(ddsc_entity, get_entities, .init = create_entity, .fini = delete_entity)
     /* Get Children, of which there are currently none. */
     status = dds_get_children (entity, NULL, 0);
     if (status > 0) {
-        cr_assert("dds_get_children(entity, NULL, 0) un-expectantly found children");
+        cr_assert(false, "dds_get_children(entity, NULL, 0) un-expectantly found children");
     } else {
         cr_assert_eq(status, 0, "dds_get_children(entity, NULL, 0) failed");
     }
     status = dds_get_children (entity, &child, 1);
     if (status > 0) {
-        cr_assert("dds_get_children(entity, child, 1) un-expectantly returned children");
+        cr_assert(false, "dds_get_children(entity, child, 1) un-expectantly returned children");
     } else {
         cr_assert_eq(status, 0, "dds_get_children(entity, child, 1) failed");
     }
@@ -362,4 +364,6 @@ Test(ddsc_entity, delete, .init = create_entity)
     entity = 0;
 }
 
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif

@@ -664,11 +664,10 @@ TheoryDataPoints(ddsc_waitset_wait, invalid_params) = {
 };
 Theory((dds_attach_t *a, size_t size, int msec), ddsc_waitset_wait, invalid_params, .init=ddsc_waitset_basic_init, .fini=ddsc_waitset_basic_fini)
 {
-    dds_return_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     /* Only test when the combination of parameters is actually invalid. */
-    cr_assume(((a == NULL) && (size != 0)) || ((a != NULL) && (size == 0)) || (size < 0) || (msec < 0));
+    cr_assume(((a == NULL) && (size != 0)) || ((a != NULL) && (size == 0)) || (msec < 0));
 
     ret = dds_waitset_wait(waitset, a, size, DDS_MSECS(msec));
     cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "returned %d != expected %d", dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
@@ -722,11 +721,10 @@ TheoryDataPoints(ddsc_waitset_wait_until, invalid_params) = {
 };
 Theory((dds_attach_t *a, size_t size), ddsc_waitset_wait_until, invalid_params, .init=ddsc_waitset_basic_init, .fini=ddsc_waitset_basic_fini)
 {
-    dds_return_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     /* Only test when the combination of parameters is actually invalid. */
-    cr_assume(((a == NULL) && (size != 0)) || ((a != NULL) && (size == 0)) || (size < 0));
+    cr_assume(((a == NULL) && (size != 0)) || ((a != NULL) && (size == 0)));
 
     ret = dds_waitset_wait_until(waitset, a, size, dds_time());
     cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "returned %d != expected %d", dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
@@ -820,7 +818,7 @@ Theory((size_t size), ddsc_waitset_get_entities, array_sizes, .init=ddsc_waitset
     }
 
     /* Every found entity should be a known one. */
-    cr_assert_eq(NumberOfSetBits(found), ret, "Not all found entities are known");
+    cr_assert_eq((dds_return_t)NumberOfSetBits(found), ret, "Not all found entities are known");
 }
 /*************************************************************************************************/
 
@@ -839,7 +837,6 @@ Test(ddsc_waitset_get_entities, no_array, .init=ddsc_waitset_attached_init, .fin
 /*************************************************************************************************/
 Test(ddsc_waitset_get_entities, deleted_waitset, .init=ddsc_waitset_attached_init, .fini=ddsc_waitset_attached_fini)
 {
-    uint32_t found = 0;
     dds_return_t ret;
     dds_entity_t entities[MAX_ENTITIES_CNT];
     dds_delete(waitset);
@@ -1078,7 +1075,6 @@ static os_result
 thread_reached_state(thread_state_t *actual, thread_state_t expected, int32_t msec)
 {
     /* Convenience function. */
-    bool stopped = false;
     os_time msec10 = { 0, 10000000 };
     while ((msec > 0) && (*actual != expected)) {
         os_nanoSleep(msec10);

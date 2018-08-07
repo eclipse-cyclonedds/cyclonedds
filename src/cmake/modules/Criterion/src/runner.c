@@ -392,7 +392,7 @@ main(int argc, char *argv[])
     /* Before handing over argc and argv over to criterion, go over the list to
        extract the custom options. Note that these are meant to be "hidden" */
     cr_argc = 0;
-    if ((cr_argv = calloc(argc, sizeof(*cr_argv))) == NULL) {
+    if ((cr_argv = calloc((unsigned)argc, sizeof(*cr_argv))) == NULL) {
         result = 1;
     } else {
         for (argno = 0; argno < argc; argno++) {
@@ -408,13 +408,14 @@ main(int argc, char *argv[])
                 }
 
                 sz = snprintf(runfn, sizeof(runfn), runfmt, pfx);
-                assert(sz > 0 && sz < sizeof(runfn));
+                assert(sz > 0 && sz < (int)sizeof(runfn));
                 sz = snprintf(listfn, sizeof(listfn), listfmt, pfx);
-                assert(sz > 0 && sz < sizeof(listfn));
+                assert(sz > 0 && sz < (int)sizeof(listfn));
                 now = time(NULL);
                 sz = (int)strftime(
                     stamp, sizeof(stamp), stampfmt, localtime(&now));
                 assert(sz != 0);
+                (void)sz;
             } else if (strncmp(argv[argno], "--suite", 7) == 0) {
                 if ((argno + 1) == argc) {
                     fprintf(stderr, "--suite requires an argument\n");

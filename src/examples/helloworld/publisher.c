@@ -10,6 +10,8 @@ int main (int argc, char ** argv)
     dds_entity_t writer;
     dds_return_t ret;
     HelloWorldData_Msg msg;
+    (void)argc;
+    (void)argv;
 
     /* Create a Participant. */
     participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);

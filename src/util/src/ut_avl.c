@@ -91,7 +91,7 @@ static const char *conode_from_node (const ut_avlTreedef_t *td, const ut_avlNode
     }
 }
 
-static void treedef_init_common (ut_avlTreedef_t *td, size_t avlnodeoffset, size_t keyoffset, int (*cmp) (void), ut_avlAugment_t augment, uint32_t flags)
+static void treedef_init_common (ut_avlTreedef_t *td, size_t avlnodeoffset, size_t keyoffset, int (*cmp) (), ut_avlAugment_t augment, uint32_t flags)
 {
     assert (avlnodeoffset <= 0x7fffffff);
     assert (keyoffset <= 0x7fffffff);
@@ -104,13 +104,13 @@ static void treedef_init_common (ut_avlTreedef_t *td, size_t avlnodeoffset, size
 
 void ut_avlTreedefInit (_Out_ ut_avlTreedef_t *td, size_t avlnodeoffset, size_t keyoffset, _In_ ut_avlCompare_t comparekk, _In_opt_ ut_avlAugment_t augment, uint32_t flags)
 {
-    treedef_init_common (td, avlnodeoffset, keyoffset, (int (*) (void)) comparekk, augment, flags);
+    treedef_init_common (td, avlnodeoffset, keyoffset, (int (*) ()) comparekk, augment, flags);
 }
 
 void ut_avlTreedefInit_r (_Out_ ut_avlTreedef_t *td, size_t avlnodeoffset, size_t keyoffset, _In_ ut_avlCompare_r_t comparekk_r, _Inout_opt_ void *cmp_arg, ut_avlAugment_t augment, uint32_t flags)
 {
     td->cmp_arg = cmp_arg;
-    treedef_init_common (td, avlnodeoffset, keyoffset, (int (*) (void)) comparekk_r, augment, flags | UT_AVL_TREEDEF_FLAG_R);
+    treedef_init_common (td, avlnodeoffset, keyoffset, (int (*) ()) comparekk_r, augment, flags | UT_AVL_TREEDEF_FLAG_R);
 }
 
 void ut_avlInit (_In_ const ut_avlTreedef_t *td, _Out_ ut_avlTree_t *tree)
@@ -948,13 +948,13 @@ _Ret_notnull_ void *ut_avlRootNonEmpty (_In_ const ut_avlTreedef_t *td, _In_ con
 
 void ut_avlCTreedefInit (_Out_ ut_avlCTreedef_t *td, size_t avlnodeoffset, size_t keyoffset, _In_ ut_avlCompare_t comparekk, _In_opt_ ut_avlAugment_t augment, uint32_t flags)
 {
-    treedef_init_common (&td->t, avlnodeoffset, keyoffset, (int (*) (void)) comparekk, augment, flags);
+    treedef_init_common (&td->t, avlnodeoffset, keyoffset, (int (*) ()) comparekk, augment, flags);
 }
 
 void ut_avlCTreedefInit_r (_Out_ ut_avlCTreedef_t *td, size_t avlnodeoffset, size_t keyoffset, _In_ ut_avlCompare_r_t comparekk_r, _Inout_opt_ void *cmp_arg, _In_opt_ ut_avlAugment_t augment, uint32_t flags)
 {
     td->t.cmp_arg = cmp_arg;
-    treedef_init_common (&td->t, avlnodeoffset, keyoffset, (int (*) (void)) comparekk_r, augment, flags | UT_AVL_TREEDEF_FLAG_R);
+    treedef_init_common (&td->t, avlnodeoffset, keyoffset, (int (*) ()) comparekk_r, augment, flags | UT_AVL_TREEDEF_FLAG_R);
 }
 
 void ut_avlCInit (_In_ const ut_avlCTreedef_t *td, _Out_ ut_avlCTree_t *tree)

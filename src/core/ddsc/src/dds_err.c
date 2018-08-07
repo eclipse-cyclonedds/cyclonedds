@@ -37,7 +37,7 @@ static const char * dds_err_code_array[DDS_ERR_CODE_NUM] =
 
 const char * dds_err_str (dds_return_t err)
 {
-  unsigned index = DDS_ERR_NR_INDEX (err);
+  unsigned index = (unsigned)DDS_ERR_NR_INDEX (err);
   if (err >= 0)
   {
     return "Success";

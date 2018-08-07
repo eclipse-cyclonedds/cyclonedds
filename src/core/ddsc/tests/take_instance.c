@@ -67,7 +67,6 @@ static Space_Type1        g_data[MAX_SAMPLES];
 static dds_sample_info_t  g_info[MAX_SAMPLES];
 
 static dds_instance_handle_t   g_hdl_valid;
-static dds_instance_handle_t   g_hdl_nil = DDS_HANDLE_NIL;
 
 static bool
 filter_mod2(const void * sample)
@@ -89,7 +88,7 @@ create_topic_name(const char *prefix, char *name, size_t size)
 static void
 take_instance_init(void)
 {
-    Space_Type1 sample = { 0 };
+    Space_Type1 sample = { 0, 0, 0 };
     dds_attach_t triggered;
     dds_return_t ret;
     char name[100];
@@ -180,6 +179,7 @@ take_instance_init(void)
     for(int i = 0; i < ret; i++) {
         Space_Type1 *s = (Space_Type1*)g_samples[i];
         PRINT_SAMPLE("INIT: Read      ", (*s));
+        (void)s;
     }
     /*  | long_1 | long_2 | long_3 |    sst   | vst |    ist     |
      *  ----------------------------------------------------------

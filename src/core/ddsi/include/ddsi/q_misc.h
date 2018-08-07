@@ -18,7 +18,6 @@
 extern "C" {
 #endif
 
-struct v_gid_s;
 struct nn_guid;
 
 int vendor_is_lite (nn_vendorid_t vendor);
@@ -40,7 +39,7 @@ int WildcardOverlap(char * p1, char * p2);
 int ddsi2_patmatch (const char *pat, const char *str);
 
 
-uint32_t crc32_calc (const void *buf, uint32_t length);
+uint32_t crc32_calc (const void *buf, size_t length);
 
 #if defined (__cplusplus)
 }

@@ -57,8 +57,7 @@ uint32_t get_threadExit_thread (void *args)
 {
     os_threadId * threadId = args;
     uint32_t id;
-    os_result ret = os_threadWaitExit (*threadId, &id);
-
+    (void)os_threadWaitExit (*threadId, &id);
     return id;
 }
 
@@ -66,14 +65,6 @@ uint32_t threadIdentity_thread (_In_ void *args)
 {
     char *identity = args;
     os_threadFigureIdentity (identity, 512);
-    return 0;
-}
-
-static uint32_t threadMain(_In_opt_ void *args)
-{
-    OS_UNUSED_ARG(args);
-    threadCalled = 1;
-    sleepMsec(500);
     return 0;
 }
 
@@ -137,6 +128,7 @@ CUnit_Suite_Cleanup(os_thread)
 CUnit_Test(os_thread, create)
 {
     int result;
+    os_result osResult;
     os_threadId   thread_os_threadId;
     os_threadAttr thread_os_threadAttr;
 #ifndef WIN32
@@ -147,16 +139,16 @@ CUnit_Test(os_thread, create)
        (check thread creation and check argument passing) */
     printf ("Starting os_thread_create_001\n");
     os_threadAttrInit (&thread_os_threadAttr);
-    result = os_threadCreate (&thread_os_threadId, "ThreadCreate1", &thread_os_threadAttr, &new_thread, "os_threadCreate");
-    CU_ASSERT (result == os_resultSuccess);
-    if (result == os_resultSuccess) {
+    osResult = os_threadCreate (&thread_os_threadId, "ThreadCreate1", &thread_os_threadAttr, &new_thread, "os_threadCreate");
+    CU_ASSERT (osResult == os_resultSuccess);
+    if (osResult == os_resultSuccess) {
 #ifdef _WRS_KERNEL
         taskDelay(1 * sysClkRateGet());
 #endif
-        result = os_threadWaitExit (thread_os_threadId, NULL);
-        CU_ASSERT (result == os_resultSuccess);
+        osResult = os_threadWaitExit (thread_os_threadId, NULL);
+        CU_ASSERT (osResult == os_resultSuccess);
 
-        if (result == os_resultSuccess) {
+        if (osResult == os_resultSuccess) {
             result = strcmp (arg_result, "os_threadCreate");
             CU_ASSERT (result == 0);
             if (result == 0)
@@ -176,11 +168,11 @@ CUnit_Test(os_thread, create)
     printf ("Starting s_thread_create_003\n");
     os_threadAttrInit (&thread_os_threadAttr);
     thread_os_threadAttr.schedClass = OS_SCHED_DEFAULT;
-    result = os_threadCreate (&thread_os_threadId, "ThreadCreate3", &thread_os_threadAttr, &new_thread, "os_threadCreate");
-    CU_ASSERT (result == os_resultSuccess);
+    osResult = os_threadCreate (&thread_os_threadId, "ThreadCreate3", &thread_os_threadAttr, &new_thread, "os_threadCreate");
+    CU_ASSERT (osResult == os_resultSuccess);
 
 #if !(defined _WRS_KERNEL || defined WIN32)
-    if (result == os_resultSuccess) {
+    if (osResult == os_resultSuccess) {
         int policy;
         struct sched_param sched_param;
 
@@ -192,8 +184,8 @@ CUnit_Test(os_thread, create)
         } else {
             CU_ASSERT (policy == SCHED_OTHER);
         }
-        result = os_threadWaitExit (thread_os_threadId, NULL);
-        CU_ASSERT (result == os_resultSuccess);
+        osResult = os_threadWaitExit (thread_os_threadId, NULL);
+        CU_ASSERT (osResult == os_resultSuccess);
     } else {
         printf ("os_threadCreate failed.\n");
     }
@@ -205,9 +197,9 @@ CUnit_Test(os_thread, create)
     printf ("Starting os_thread_create_004\n");
     os_threadAttrInit (&thread_os_threadAttr);
     thread_os_threadAttr.schedClass = OS_SCHED_TIMESHARE;
-    result = os_threadCreate (&thread_os_threadId, "ThreadCreate4", &thread_os_threadAttr, &new_thread, "os_threadCreate");
-    CU_ASSERT (result == os_resultSuccess);
-    if (result == os_resultSuccess) {
+    osResult = os_threadCreate (&thread_os_threadId, "ThreadCreate4", &thread_os_threadAttr, &new_thread, "os_threadCreate");
+    CU_ASSERT (osResult == os_resultSuccess);
+    if (osResult == os_resultSuccess) {
 #ifndef WIN32
         int policy;
         struct sched_param sched_param;
@@ -222,7 +214,7 @@ CUnit_Test(os_thread, create)
         }
 #endif /* WIN32 */
 
-        result = os_threadWaitExit (thread_os_threadId, NULL);
+        osResult = os_threadWaitExit (thread_os_threadId, NULL);
     } else {
         printf ("os_threadCreate failed.\n");
     }
@@ -241,9 +233,9 @@ CUnit_Test(os_thread, create)
         os_threadAttrInit (&thread_os_threadAttr);
         thread_os_threadAttr.schedClass = OS_SCHED_REALTIME;
         thread_os_threadAttr.schedPriority = sched_get_priority_min (SCHED_FIFO);
-        result = os_threadCreate (&thread_os_threadId, "ThreadCreate5", &thread_os_threadAttr, &new_thread, "os_threadCreate");
-        CU_ASSERT (result == os_resultSuccess);
-        if (result == os_resultSuccess) {
+        osResult = os_threadCreate (&thread_os_threadId, "ThreadCreate5", &thread_os_threadAttr, &new_thread, "os_threadCreate");
+        CU_ASSERT (osResult == os_resultSuccess);
+        if (osResult == os_resultSuccess) {
             int policy;
             struct sched_param sched_param;
 
@@ -255,7 +247,7 @@ CUnit_Test(os_thread, create)
             } else {
                 printf ("pthread_getschedparam failed\n");
             }
-            result = os_threadWaitExit (thread_os_threadId, NULL);
+            osResult = os_threadWaitExit (thread_os_threadId, NULL);
         } else {
             printf ("os_threadCreate failed\n");
         }
@@ -274,16 +266,16 @@ CUnit_Test(os_thread, create)
 #else
       thread_os_threadAttr.schedPriority = sched_get_priority_min (SCHED_OTHER);
 #endif
-    result = os_threadCreate (&thread_os_threadId, "ThreadCreate6", &thread_os_threadAttr, &new_thread, "os_threadCreate");
+    osResult = os_threadCreate (&thread_os_threadId, "ThreadCreate6", &thread_os_threadAttr, &new_thread, "os_threadCreate");
 #ifdef _WRS_KERNEL
-    if (result == os_resultSuccess)
+    if (osResult == os_resultSuccess)
         printf ("os_threadCreate failed - Expected failure from VXWORKS\n");
     else
         printf ("OS_SCHED_TIMESHARE not supported\n");
 #else
-    CU_ASSERT (result == os_resultSuccess);
+    CU_ASSERT (osResult == os_resultSuccess);
 
-    if (result == os_resultSuccess) {
+    if (osResult == os_resultSuccess) {
         int policy;
         struct sched_param sched_param;
 
@@ -295,7 +287,7 @@ CUnit_Test(os_thread, create)
         } else {
             printf ("pthread_getschedparam failed\n");
         }
-        result = os_threadWaitExit (thread_os_threadId, NULL);
+        osResult = os_threadWaitExit (thread_os_threadId, NULL);
     } else {
         printf ("os_threadCreate failed.\n");
     }
@@ -314,17 +306,17 @@ CUnit_Test(os_thread, create)
 #else
         thread_os_threadAttr.schedPriority = sched_get_priority_max (SCHED_OTHER);
 #endif
-    result = os_threadCreate (&thread_os_threadId, "ThreadCreate7", &thread_os_threadAttr, &new_thread, "os_threadCreate");
+    osResult = os_threadCreate (&thread_os_threadId, "ThreadCreate7", &thread_os_threadAttr, &new_thread, "os_threadCreate");
 #ifdef _WRS_KERNEL
-    if (result == os_resultSuccess) {
+    if (osResult == os_resultSuccess) {
         printf ("os_threadCreate failed - Expected failure from VXWORKS\n");
     } else {
         printf ("OS_SCHED_TIMESHARE not supported\n");
     }
 #else
-    CU_ASSERT (result == os_resultSuccess);
+    CU_ASSERT (osResult == os_resultSuccess);
 
-    if (result == os_resultSuccess) {
+    if (osResult == os_resultSuccess) {
         int policy;
         struct sched_param sched_param;
 
@@ -336,7 +328,7 @@ CUnit_Test(os_thread, create)
         } else {
             printf ("pthread_getschedparam failed\n");
         }
-        result = os_threadWaitExit (thread_os_threadId, NULL);
+        osResult = os_threadWaitExit (thread_os_threadId, NULL);
     } else {
         printf ("os_threadCreate failed.\n");
     }
@@ -363,10 +355,10 @@ CUnit_Test(os_thread, create)
 #else
         thread_os_threadAttr.schedPriority = sched_get_priority_min (SCHED_FIFO);
 #endif
-        result = os_threadCreate (&thread_os_threadId, "ThreadCreate8", &thread_os_threadAttr, &new_thread, "os_threadCreate");
-        CU_ASSERT (result == os_resultSuccess);
+        osResult = os_threadCreate (&thread_os_threadId, "ThreadCreate8", &thread_os_threadAttr, &new_thread, "os_threadCreate");
+        CU_ASSERT (osResult == os_resultSuccess);
 
-        if (result == os_resultSuccess) {
+        if (osResult == os_resultSuccess) {
 #ifdef _WRS_KERNEL
             TASK_ID id;
             int pri;
@@ -390,7 +382,7 @@ CUnit_Test(os_thread, create)
                 printf ("pthread_getschedparam failed.\n");
              }
 #endif /* _WRS_KERNEL */
-            result = os_threadWaitExit (thread_os_threadId, NULL);
+            osResult = os_threadWaitExit (thread_os_threadId, NULL);
         } else {
             printf ("os_threadCreate failed.\n");
         }
@@ -417,10 +409,10 @@ CUnit_Test(os_thread, create)
 #else
         thread_os_threadAttr.schedPriority = sched_get_priority_max (SCHED_FIFO);
 #endif
-        result = os_threadCreate (&thread_os_threadId, "ThreadCreate9", &thread_os_threadAttr, &new_thread, "os_threadCreate");
-        CU_ASSERT (result == os_resultSuccess);
+        osResult = os_threadCreate (&thread_os_threadId, "ThreadCreate9", &thread_os_threadAttr, &new_thread, "os_threadCreate");
+        CU_ASSERT (osResult == os_resultSuccess);
 
-        if (result == os_resultSuccess) {
+        if (osResult == os_resultSuccess) {
 #ifdef _WRS_KERNEL
             int status;
             sleepSeconds (2);
@@ -440,7 +432,7 @@ CUnit_Test(os_thread, create)
                 printf ("pthread_getschedparam failed.\n");
             }
 #endif
-            result = os_threadWaitExit (thread_os_threadId, NULL);
+            osResult = os_threadWaitExit (thread_os_threadId, NULL);
         } else {
             printf ("os_threadCreate failed.\n");
         }
@@ -464,23 +456,23 @@ CUnit_Test(os_thread, idself)
 {
     os_threadId   thread_os_threadId;
     os_threadAttr thread_os_threadAttr;
-    int result;
+    os_result osResult;
     uint32_t result_from_thread;
 
     /* Check if own thread ID is correctly provided */
     printf ("Starting tc_os_threadIdSelf_001\n");
     os_threadAttrInit (&thread_os_threadAttr);
-    result = os_threadCreate (&thread_os_threadId, "OwnThreadId", &thread_os_threadAttr, &threadId_thread, NULL);
-    CU_ASSERT (result == os_resultSuccess);
+    osResult = os_threadCreate (&thread_os_threadId, "OwnThreadId", &thread_os_threadAttr, &threadId_thread, NULL);
+    CU_ASSERT (osResult == os_resultSuccess);
 
-    if (result == os_resultSuccess) {
+    if (osResult == os_resultSuccess) {
 #ifdef _WRS_KERNEL
         sleepSeconds(1);
 #endif
-        result = os_threadWaitExit (thread_os_threadId, &result_from_thread);
-        CU_ASSERT (result == os_resultSuccess);
+        osResult = os_threadWaitExit (thread_os_threadId, &result_from_thread);
+        CU_ASSERT (osResult == os_resultSuccess);
 
-        if (result == os_resultSuccess) {
+        if (osResult == os_resultSuccess) {
             uintmax_t tmp_thread_os_threadId = os_threadIdToInteger(thread_os_threadId);
             CU_ASSERT (thread_id_from_thread == tmp_thread_os_threadId);
             CU_ASSERT (result_from_thread == (uint32_t)tmp_thread_os_threadId);
@@ -498,24 +490,24 @@ CUnit_Test(os_thread, join)
 {
     os_threadId   thread_os_threadId;
     os_threadAttr thread_os_threadAttr;
-    int result;
+    os_result osResult;
     uint32_t result_from_thread;
 
     /* Wait for thread to terminate and get the return value with Success result,
        while thread is still running */
     printf("Starting os_thread_join_001\n");
     os_threadAttrInit (&thread_os_threadAttr);
-    result = os_threadCreate (&thread_os_threadId, "threadWaitExit", &thread_os_threadAttr, &threadId_thread, (void *)1);
-    CU_ASSERT (result == os_resultSuccess);
+    osResult = os_threadCreate (&thread_os_threadId, "threadWaitExit", &thread_os_threadAttr, &threadId_thread, (void *)1);
+    CU_ASSERT (osResult == os_resultSuccess);
 
-    if (result == os_resultSuccess) {
+    if (osResult == os_resultSuccess) {
 #ifdef _WRS_KERNEL
         sleepSeconds(1);
 #endif
-        result = os_threadWaitExit (thread_os_threadId, &result_from_thread);
-        CU_ASSERT (result == os_resultSuccess);
+        osResult = os_threadWaitExit (thread_os_threadId, &result_from_thread);
+        CU_ASSERT (osResult == os_resultSuccess);
 
-        if (result == os_resultSuccess) {
+        if (osResult == os_resultSuccess) {
             CU_ASSERT (thread_id_from_thread == os_threadIdToInteger(thread_os_threadId));
             CU_ASSERT (result_from_thread == (uint32_t)thread_id_from_thread);
         } else {
@@ -529,17 +521,17 @@ CUnit_Test(os_thread, join)
        while thread is already terminated */
     printf ("Starting os_thread_join_002\n");
     os_threadAttrInit (&thread_os_threadAttr);
-    result = os_threadCreate (&thread_os_threadId, "threadWaitExit", &thread_os_threadAttr, &threadId_thread, NULL);
-    CU_ASSERT (result == os_resultSuccess);
+    osResult = os_threadCreate (&thread_os_threadId, "threadWaitExit", &thread_os_threadAttr, &threadId_thread, NULL);
+    CU_ASSERT (osResult == os_resultSuccess);
 
-    if (result == os_resultSuccess) {
+    if (osResult == os_resultSuccess) {
 #ifdef _WRS_KERNEL
         sleepSeconds(1);
 #endif
-        result = os_threadWaitExit (thread_os_threadId, &result_from_thread);
-        CU_ASSERT(result == os_resultSuccess);
+        osResult = os_threadWaitExit (thread_os_threadId, &result_from_thread);
+        CU_ASSERT(osResult == os_resultSuccess);
 
-        if (result == os_resultSuccess) {
+        if (osResult == os_resultSuccess) {
             CU_ASSERT (thread_id_from_thread == os_threadIdToInteger(thread_os_threadId));
             CU_ASSERT (result_from_thread == (uint32_t)thread_id_from_thread);
         } else {
@@ -552,15 +544,15 @@ CUnit_Test(os_thread, join)
     /* Get thread return value with Fail result because result is already read */
     printf ("Starting tc_os_thread_join_003\n");
     os_threadAttrInit (&thread_os_threadAttr);
-    result = os_threadCreate (&thread_os_threadId, "threadWaitExit", &thread_os_threadAttr, &threadId_thread, NULL);
-    CU_ASSERT (result == os_resultSuccess);
+    osResult = os_threadCreate (&thread_os_threadId, "threadWaitExit", &thread_os_threadAttr, &threadId_thread, NULL);
+    CU_ASSERT (osResult == os_resultSuccess);
 
-    if (result == os_resultSuccess) {
+    if (osResult == os_resultSuccess) {
 #ifdef _WRS_KERNEL
         sleepSeconds(1);
 #endif
-        result = os_threadWaitExit (thread_os_threadId, NULL);
-        CU_ASSERT (result == os_resultSuccess);
+        osResult = os_threadWaitExit (thread_os_threadId, NULL);
+        CU_ASSERT (osResult == os_resultSuccess);
     } else {
         printf ("os_threadCreate failed.\n");
     }
@@ -572,23 +564,23 @@ CUnit_Test(os_thread, join)
     os_threadAttrInit (&thread_os_threadAttr);
     {
         os_threadId threadWait1;
-        os_result result1;
+        os_result osResult1;
 
-        result = os_threadCreate (&thread_os_threadId, "threadToWaitFor", &thread_os_threadAttr, &threadId_thread, (void*) 1);
-        CU_ASSERT (result == os_resultSuccess);
-        result1 = os_threadCreate (&threadWait1, "waitingThread1", &thread_os_threadAttr, &get_threadExit_thread, &thread_os_threadId);
-        CU_ASSERT (result1 == os_resultSuccess);
+        osResult = os_threadCreate (&thread_os_threadId, "threadToWaitFor", &thread_os_threadAttr, &threadId_thread, (void*) 1);
+        CU_ASSERT (osResult == os_resultSuccess);
+        osResult1 = os_threadCreate (&threadWait1, "waitingThread1", &thread_os_threadAttr, &get_threadExit_thread, &thread_os_threadId);
+        CU_ASSERT (osResult1 == os_resultSuccess);
 
-        if (result == os_resultSuccess && result1 == os_resultSuccess)
+        if (osResult == os_resultSuccess && osResult1 == os_resultSuccess)
         {
 #ifdef _WRS_KERNEL
             sleepSeconds(1);
 #endif
-            result1 = os_threadWaitExit (threadWait1, NULL);
+            osResult1 = os_threadWaitExit (threadWait1, NULL);
 
-            if (result1 != os_resultSuccess) {
+            if (osResult1 != os_resultSuccess) {
                 printf ("os_threadWaitExit 1 failed\n");
-                CU_ASSERT (result1 == os_resultSuccess);
+                CU_ASSERT (osResult1 == os_resultSuccess);
             }
         } else {
             printf ("os_threadCreate failed.\n");
@@ -602,16 +594,16 @@ CUnit_Test(os_thread, join)
        return value address - not interrested */
     printf ("Starting tc_os_threadWaitExit_005\n");
     os_threadAttrInit (&thread_os_threadAttr);
-    result = os_threadCreate (&thread_os_threadId, "threadWaitExit", &thread_os_threadAttr, &threadId_thread, NULL);
-    CU_ASSERT  (result == os_resultSuccess);
+    osResult = os_threadCreate (&thread_os_threadId, "threadWaitExit", &thread_os_threadAttr, &threadId_thread, NULL);
+    CU_ASSERT  (osResult == os_resultSuccess);
 
-    if (result == os_resultSuccess) {
+    if (osResult == os_resultSuccess) {
 #ifdef _WRS_KERNEL
         sleepSeconds(1);
 #endif
-        result = os_threadWaitExit (thread_os_threadId, NULL);
-        CU_ASSERT (result == os_resultSuccess);
-        if (result != os_resultSuccess)
+        osResult = os_threadWaitExit (thread_os_threadId, NULL);
+        CU_ASSERT (osResult == os_resultSuccess);
+        if (osResult != os_resultSuccess)
             printf ("os_threadWaitExit failed.\n");
     } else {
         printf ("os_threadCreate failed.\n");
@@ -627,7 +619,7 @@ CUnit_Test(os_thread, figure_identity)
     os_threadAttr thread_os_threadAttr;
     char threadId[512];
     char thread_name[512];
-    int result;
+    os_result osResult;
 #endif /* WIN32 */
 
     /* Figure out the identity of the thread, where it's name is known */
@@ -636,17 +628,17 @@ CUnit_Test(os_thread, figure_identity)
     /* Untested because the identifier does not contain the name on Windows */
 #else
     os_threadAttrInit (&thread_os_threadAttr);
-    result = os_threadCreate (&thread_os_threadId, "threadFigureIdentity", &thread_os_threadAttr, &threadIdentity_thread, threadId);
-    CU_ASSERT (result == os_resultSuccess);
+    osResult = os_threadCreate (&thread_os_threadId, "threadFigureIdentity", &thread_os_threadAttr, &threadIdentity_thread, threadId);
+    CU_ASSERT (osResult == os_resultSuccess);
 
-    if (result == os_resultSuccess) {
+    if (osResult == os_resultSuccess) {
 #ifdef _WRS_KERNEL
         sleepSeconds(1);
 #endif
-        result = os_threadWaitExit (thread_os_threadId, NULL);
-        CU_ASSERT (result == os_resultSuccess);
+        osResult = os_threadWaitExit (thread_os_threadId, NULL);
+        CU_ASSERT (osResult == os_resultSuccess);
 
-        if (result == os_resultSuccess) {
+        if (osResult == os_resultSuccess) {
             uintmax_t threadNumeric = 0;
 #ifdef _WRS_KERNEL
             int dum;
@@ -714,12 +706,12 @@ CUnit_Test(os_thread, figure_identity)
    {
        char threadId[512];
        char threadIdString[512];
-       unsigned int threadIdLen;
+       int32_t threadIdLen;
 
        (void)snprintf (threadIdString, sizeof(threadIdString), "0x%"PRIxMAX, os_threadIdToInteger(os_threadIdSelf()));
        threadIdLen = os_threadFigureIdentity (threadId, sizeof(threadId));
 
-       CU_ASSERT (threadIdLen == strlen(threadIdString));
+       CU_ASSERT (threadIdLen == (int32_t)strlen(threadIdString));
    }
 #endif
 

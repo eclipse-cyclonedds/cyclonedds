@@ -30,7 +30,7 @@ struct hbcontrol {
 
 void writer_hbcontrol_init (struct hbcontrol *hbc);
 int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow);
-void writer_hbcontrol_note_asyncwrite (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow);
+void writer_hbcontrol_note_asyncwrite (struct writer *wr, nn_mtime_t tnow);
 int writer_hbcontrol_ack_required (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow);
 struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, unsigned packetid, int *hbansreq);
 int writer_hbcontrol_must_send (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow);

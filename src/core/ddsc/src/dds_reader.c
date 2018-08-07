@@ -134,6 +134,7 @@ dds_reader_qos_set(
         bool enabled)
 {
     dds_return_t ret = dds_reader_qos_validate(qos, enabled);
+    (void)e;
     if (ret == DDS_RETCODE_OK) {
         if (enabled) {
             /* TODO: CHAM-95: DDSI does not support changing QoS policies. */
@@ -517,7 +518,7 @@ dds_reader_ddsi2direct(
       else
       {
         memset (&pwrguid_next, 0xff, sizeof (pwrguid_next));
-        pwrguid_next.entityid.u = (pwrguid_next.entityid.u & ~0xff) | NN_ENTITYID_KIND_WRITER_NO_KEY;
+        pwrguid_next.entityid.u = (pwrguid_next.entityid.u & ~(uint32_t)0xff) | NN_ENTITYID_KIND_WRITER_NO_KEY;
       }
       os_mutexUnlock (&rd->e.lock);
       if ((pwr = ephash_lookup_proxy_writer_guid (&pwrguid)) != NULL)
@@ -541,9 +542,7 @@ dds_reader_lock_samples(
 {
     uint32_t ret = 0;
     dds_reader *rd;
-
-    ret = dds_reader_lock(reader, &rd);
-    if (ret == DDS_RETCODE_OK) {
+    if (dds_reader_lock(reader, &rd) == DDS_RETCODE_OK) {
         ret = dds_rhc_lock_samples(rd->m_rd->rhc);
         dds_reader_unlock(rd);
     } else {

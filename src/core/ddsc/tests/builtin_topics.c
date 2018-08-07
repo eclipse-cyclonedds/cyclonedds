@@ -104,7 +104,7 @@ qos_init(void)
     g_pol_liveliness.lease_duration.sec = 40000;
     g_pol_liveliness.lease_duration.nanosec = 44000;
 
-    g_pol_time_based_filter.minimum_separation.sec = 50000;
+    g_pol_time_based_filter.minimum_separation.sec = 12000;
     g_pol_time_based_filter.minimum_separation.nanosec = 55000;
 
     g_pol_partition.name._buffer = (char**)c_partitions;
@@ -127,7 +127,7 @@ qos_init(void)
 
     g_pol_durability_service.history_depth = 1;
     g_pol_durability_service.history_kind = DDS_KEEP_LAST_HISTORY_QOS;
-    g_pol_durability_service.max_samples = 2;
+    g_pol_durability_service.max_samples = 12;
     g_pol_durability_service.max_instances = 3;
     g_pol_durability_service.max_samples_per_instance = 4;
     g_pol_durability_service.service_cleanup_delay.sec = 90000;
@@ -170,7 +170,7 @@ teardown(void)
 int64_t from_ddsi_duration (DDS_Duration_t x)
 {
   int64_t t;
-  t = x.sec * 10^9 + x.nanosec;
+  t = (int64_t)x.sec * T_SECOND + x.nanosec;
   return t;
 }
 
@@ -627,12 +627,13 @@ Test(ddsc_builtin_topics, datareader_qos, .init = setup, .fini = teardown)
   dds_qset_destination_order(g_qos, (dds_destination_order_kind_t)g_pol_destination_order.kind);
   dds_qset_userdata(g_qos, g_pol_userdata.value._buffer, g_pol_userdata.value._length);
   dds_qset_time_based_filter(g_qos, from_ddsi_duration(g_pol_time_based_filter.minimum_separation));
-  dds_qset_presentation(g_qos, g_pol_presentation.access_scope, g_pol_presentation.coherent_access, g_pol_presentation.ordered_access);
+  dds_qset_presentation(g_qos, (dds_presentation_access_scope_kind_t)g_pol_presentation.access_scope, g_pol_presentation.coherent_access, g_pol_presentation.ordered_access);
   dds_qset_partition(g_qos, g_pol_partition.name._length, c_partitions);
   dds_qset_topicdata(g_qos, g_pol_topicdata.value._buffer, g_pol_topicdata.value._length);
   dds_qset_groupdata(g_qos, g_pol_groupdata.value._buffer, g_pol_groupdata.value._length);
 
   rdr = dds_create_reader(g_subscriber, g_topic, g_qos, NULL);
+  cr_assert_gt(rdr, 0, "Failed to create a data reader.");
 
   subscription_samples[0] = DDS_SubscriptionBuiltinTopicData__alloc();
 
@@ -693,7 +694,7 @@ Test(ddsc_builtin_topics, datawriter_qos, .init = setup, .fini = teardown)
   void * publication_samples[MAX_SAMPLES];
 
 
-  dds_qset_durability(g_qos, g_pol_durability.kind);
+  dds_qset_durability(g_qos, (dds_durability_kind_t)g_pol_durability.kind);
   dds_qset_deadline(g_qos, from_ddsi_duration(g_pol_deadline.period));
   dds_qset_latency_budget(g_qos, from_ddsi_duration(g_pol_latency_budget.duration));
   dds_qset_liveliness(g_qos, (dds_liveliness_kind_t)g_pol_liveliness.kind, from_ddsi_duration(g_pol_liveliness.lease_duration));
@@ -703,11 +704,12 @@ Test(ddsc_builtin_topics, datawriter_qos, .init = setup, .fini = teardown)
   dds_qset_userdata(g_qos, g_pol_userdata.value._buffer, g_pol_userdata.value._length);
   dds_qset_ownership(g_qos, (dds_ownership_kind_t)g_pol_ownership.kind);
   dds_qset_ownership_strength(g_qos, g_pol_ownership_strength.value);
-  dds_qset_presentation(g_qos, g_pol_presentation.access_scope, g_pol_presentation.coherent_access, g_pol_presentation.ordered_access);
+  dds_qset_presentation(g_qos, (dds_presentation_access_scope_kind_t)g_pol_presentation.access_scope, g_pol_presentation.coherent_access, g_pol_presentation.ordered_access);
   dds_qset_partition(g_qos, g_pol_partition.name._length, c_partitions);
   dds_qset_topicdata(g_qos, g_pol_topicdata.value._buffer, g_pol_topicdata.value._length);
 
   wrtr = dds_create_writer(g_publisher, g_topic, g_qos, NULL);
+  cr_assert_gt(wrtr, 0, "Failed to create a data writer.");
 
   publication_samples[0] = DDS_PublicationBuiltinTopicData__alloc();
 
@@ -771,7 +773,7 @@ Test(ddsc_builtin_topics, topic_qos, .init = setup, .fini = teardown)
 
   void * topic_samples[MAX_SAMPLES];
 
-  dds_qset_durability(g_qos, g_pol_durability.kind);
+  dds_qset_durability(g_qos, (dds_durability_kind_t)g_pol_durability.kind);
   dds_qset_durability_service(g_qos,
                               from_ddsi_duration(g_pol_durability_service.service_cleanup_delay),
                               (dds_history_kind_t)g_pol_durability_service.history_kind,
@@ -794,6 +796,7 @@ Test(ddsc_builtin_topics, topic_qos, .init = setup, .fini = teardown)
 
 
   tpc = dds_create_topic(g_participant, &Space_Type1_desc, "SpaceType1", g_qos, NULL);
+  cr_assert_gt(tpc, 0, "Failed to create a topic.");
 
   topic_samples[0] = DDS_PublicationBuiltinTopicData__alloc();
 

@@ -325,7 +325,7 @@ int spdp_write (struct participant *pp)
   ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
   kh = nn_hton_guid (pp->e.guid);
   serstate_set_key (serstate, 0, &kh);
-  ddsi_serstate_set_msginfo (serstate, 0, now (), NULL);
+  ddsi_serstate_set_msginfo (serstate, 0, now ());
   serdata = ddsi_serstate_fix (serstate);
   nn_plist_fini(&ps);
   nn_xmsg_free (mpayload);
@@ -362,7 +362,7 @@ int spdp_dispose_unregister (struct participant *pp)
   ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
   kh = nn_hton_guid (pp->e.guid);
   serstate_set_key (serstate, 1, &kh);
-  ddsi_serstate_set_msginfo (serstate, NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER, now (), NULL);
+  ddsi_serstate_set_msginfo (serstate, NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER, now ());
   serdata = ddsi_serstate_fix (serstate);
   nn_xmsg_free (mpayload);
 
@@ -977,7 +977,7 @@ static int sedp_write_endpoint
     statusinfo = NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
   else
     statusinfo = 0;
-  ddsi_serstate_set_msginfo (serstate, statusinfo, now (), NULL);
+  ddsi_serstate_set_msginfo (serstate, statusinfo, now ());
   serdata = ddsi_serstate_fix (serstate);
   nn_xmsg_free (mpayload);
 
@@ -1443,7 +1443,7 @@ int sedp_write_topic (struct participant *pp, const struct nn_plist *datap)
   md5_finish (&md5st, digest);
 
   serstate_set_key (serstate, 0, digest);
-  ddsi_serstate_set_msginfo (serstate, 0, now (), NULL);
+  ddsi_serstate_set_msginfo (serstate, 0, now ());
   serdata = ddsi_serstate_fix (serstate);
   nn_xmsg_free (mpayload);
 
@@ -1509,7 +1509,7 @@ int sedp_write_cm_participant (struct participant *pp, int alive)
     statusinfo = NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
   else
     statusinfo = 0;
-  ddsi_serstate_set_msginfo (serstate, statusinfo, now (), NULL);
+  ddsi_serstate_set_msginfo (serstate, statusinfo, now ());
   serdata = ddsi_serstate_fix (serstate);
   nn_xmsg_free (mpayload);
 
@@ -1619,7 +1619,7 @@ int sedp_write_cm_publisher (const struct nn_plist *datap, int alive)
     statusinfo = NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
   else
     statusinfo = 0;
-  ddsi_serstate_set_msginfo (serstate, statusinfo, now (), NULL);
+  ddsi_serstate_set_msginfo (serstate, statusinfo, now ());
   serdata = ddsi_serstate_fix (serstate);
   nn_xmsg_free (mpayload);
 
@@ -1674,7 +1674,7 @@ int sedp_write_cm_subscriber (const struct nn_plist *datap, int alive)
     statusinfo = NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
   else
     statusinfo = 0;
-  ddsi_serstate_set_msginfo (serstate, statusinfo, now (), NULL);
+  ddsi_serstate_set_msginfo (serstate, statusinfo, now ());
   serdata = ddsi_serstate_fix (serstate);
   nn_xmsg_free (mpayload);
 
@@ -1698,10 +1698,8 @@ static void handle_SEDP_GROUP_alive (nn_plist_t *datap /* note: potentially modi
   nn_log (LC_DISCOVERY, " alive\n");
 
   {
-    struct v_gid_s *gid = NULL;
-    char *name;
-    name = (datap->present & PP_ENTITY_NAME) ? datap->entity_name : "";
-    new_proxy_group (&datap->group_guid, gid, name, &datap->qos, timestamp);
+    char *name = (datap->present & PP_ENTITY_NAME) ? datap->entity_name : "";
+    new_proxy_group (&datap->group_guid, name, &datap->qos, timestamp);
   }
 err:
   return;

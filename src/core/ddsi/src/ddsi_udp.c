@@ -97,15 +97,11 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
   return ret;
 }
 
-/* Turns out Darwin uses "int" for msg_iovlen, but glibc uses "size_t". The simplest
- way out is to do the assignment with the conversion warnings disabled */
-//OSPL_DIAG_OFF(conversion)
 static void set_msghdr_iov (struct msghdr *mhdr, ddsi_iovec_t *iov, size_t iovlen)
 {
   mhdr->msg_iov = iov;
-  mhdr->msg_iovlen = iovlen;
+  mhdr->msg_iovlen = (ddsi_msg_iovlen_t)iovlen;
 }
-//OSPL_DIAG_ON(conversion)
 
 static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsi_iovec_t *iov, uint32_t flags)
 {
@@ -296,7 +292,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
 
 static int joinleave_asm_mcgroup (os_socket socket, int join, const nn_locator_t *mcloc, const struct nn_interface *interf)
 {
-  int rc;
+  os_result rc;
   os_sockaddr_storage mcip;
   ddsi_ipaddr_from_loc(&mcip, mcloc);
 #if OS_SOCKET_HAS_IPV6
@@ -319,13 +315,13 @@ static int joinleave_asm_mcgroup (os_socket socket, int join, const nn_locator_t
       mreq.imr_interface.s_addr = htonl (INADDR_ANY);
     rc = os_sockSetsockopt (socket, IPPROTO_IP, join ? IP_ADD_MEMBERSHIP : IP_DROP_MEMBERSHIP, (char *) &mreq, sizeof (mreq));
   }
-  return (rc == -1) ? os_getErrno() : 0;
+  return (rc != os_resultSuccess) ? os_getErrno() : 0;
 }
 
 #ifdef DDSI_INCLUDE_SSM
 static int joinleave_ssm_mcgroup (os_socket socket, int join, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
 {
-  int rc;
+  os_result rc;
   os_sockaddr_storage mcip, srcip;
   ddsi_ipaddr_from_loc(&mcip, mcloc);
   ddsi_ipaddr_from_loc(&srcip, srcloc);
@@ -352,7 +348,7 @@ static int joinleave_ssm_mcgroup (os_socket socket, int join, const nn_locator_t
       mreq.imr_interface.s_addr = INADDR_ANY;
     rc = os_sockSetsockopt (socket, IPPROTO_IP, join ? IP_ADD_SOURCE_MEMBERSHIP : IP_DROP_SOURCE_MEMBERSHIP, &mreq, sizeof (mreq));
   }
-  return (rc == -1) ? os_getErrno() : 0;
+  return (rc != os_resultSuccess) ? os_getErrno() : 0;
 }
 #endif
 

@@ -78,7 +78,7 @@ typedef struct nn_udpv4mcgen_address {
 
 
 struct cdrstring {
-  unsigned length;
+  uint32_t length;
   unsigned char contents[1]; /* C90 does not support flex. array members */
 };
 

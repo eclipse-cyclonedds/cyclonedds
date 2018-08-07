@@ -37,7 +37,6 @@ struct sertopic;
 struct whc;
 struct nn_xqos;
 struct nn_plist;
-struct v_gid_s;
 
 struct proxy_group;
 struct proxy_endpoint_common;
@@ -142,7 +141,7 @@ struct local_reader_ary {
   os_mutex rdary_lock;
   unsigned valid: 1; /* always true until (proxy-)writer is being deleted; !valid => !fastpath_ok */
   unsigned fastpath_ok: 1; /* if not ok, fall back to using GUIDs (gives access to the reader-writer match data for handling readers that bumped into resource limits, hence can flip-flop, unlike "valid") */
-  int n_readers;
+  unsigned n_readers;
   struct reader **rdary; /* for efficient delivery, null-pointer terminated */
 };
 
@@ -552,7 +551,7 @@ int delete_proxy_reader (const struct nn_guid *guid, nn_wctime_t timestamp, int 
 void update_proxy_reader (struct proxy_reader * prd, struct addrset *as);
 void update_proxy_writer (struct proxy_writer * pwr, struct addrset *as);
 
-int new_proxy_group (const struct nn_guid *guid, const struct v_gid_s *gid, const char *name, const struct nn_xqos *xqos, nn_wctime_t timestamp);
+int new_proxy_group (const struct nn_guid *guid, const char *name, const struct nn_xqos *xqos, nn_wctime_t timestamp);
 void delete_proxy_group (const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit);
 
 void writer_exit_startup_mode (struct writer *wr);

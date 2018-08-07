@@ -23,9 +23,9 @@ static bool done = false;
 /* Forward declarations */
 static dds_return_t wait_for_reader(dds_entity_t writer, dds_entity_t participant);
 static void start_writing(dds_entity_t writer, ThroughputModule_DataType *sample,
-    unsigned int burstInterval, unsigned int burstSize, unsigned int timeOut);
-static int parse_args(int argc, char **argv, uint32_t *payloadSize, unsigned int *burstInterval,
-    unsigned int *burstSize, unsigned int *timeOut, char **partitionName);
+    int burstInterval, uint32_t burstSize, int timeOut);
+static int parse_args(int argc, char **argv, uint32_t *payloadSize, int *burstInterval,
+    uint32_t *burstSize, int *timeOut, char **partitionName);
 static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName);
 static void finalize_dds(dds_entity_t participant, dds_entity_t writer, ThroughputModule_DataType sample);
 
@@ -39,8 +39,9 @@ static int CtrlHandler (DWORD fdwCtrlType)
 }
 #else
 struct sigaction oldAction;
-static void CtrlHandler (int fdwCtrlType)
+static void CtrlHandler (int sig)
 {
+  (void)sig;
   done = true;
 }
 #endif
@@ -48,9 +49,9 @@ static void CtrlHandler (int fdwCtrlType)
 int main (int argc, char **argv)
 {
   uint32_t payloadSize = 8192;
-  unsigned int burstInterval = 0;
-  unsigned int burstSize = 1;
-  unsigned int timeOut = 0;
+  int burstInterval = 0;
+  uint32_t burstSize = 1;
+  int timeOut = 0;
   char * partitionName = "Throughput example";
   dds_entity_t participant;
   dds_entity_t writer;
@@ -107,9 +108,9 @@ static int parse_args(
     int argc,
     char **argv,
     uint32_t *payloadSize,
-    unsigned int *burstInterval,
-    unsigned int *burstSize,
-    unsigned int *timeOut,
+    int *burstInterval,
+    uint32_t *burstSize,
+    int *timeOut,
     char **partitionName)
 {
   int result = EXIT_SUCCESS;
@@ -127,7 +128,7 @@ static int parse_args(
   }
   if (argc > 1)
   {
-    *payloadSize = atoi (argv[1]); /* The size of the payload in bytes */
+    *payloadSize = (uint32_t) atoi (argv[1]); /* The size of the payload in bytes */
   }
   if (argc > 2)
   {
@@ -135,7 +136,7 @@ static int parse_args(
   }
   if (argc > 3)
   {
-    *burstSize = atoi (argv[3]); /* The number of samples to send each burst */
+    *burstSize = (uint32_t) atoi (argv[3]); /* The number of samples to send each burst */
   }
   if (argc > 4)
   {
@@ -217,9 +218,9 @@ static dds_return_t wait_for_reader(dds_entity_t writer, dds_entity_t participan
 static void start_writing(
     dds_entity_t writer,
     ThroughputModule_DataType *sample,
-    unsigned int burstInterval,
-    unsigned int burstSize,
-    unsigned int timeOut)
+    int burstInterval,
+    uint32_t burstSize,
+    int timeOut)
 {
   bool timedOut = false;
   dds_time_t pubStart = dds_time ();

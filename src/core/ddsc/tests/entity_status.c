@@ -130,7 +130,7 @@ Test(ddsc_entity_status, publication_matched, .init=init_entity_status, .fini=fi
 
     /* Wait for publication matched status */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
     ret = dds_get_publication_matched_status(wri, &publication_matched);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
     cr_assert_eq(publication_matched.current_count,        1);
@@ -149,7 +149,7 @@ Test(ddsc_entity_status, publication_matched, .init=init_entity_status, .fini=fi
 
     /* Wait for publication matched status */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
     ret = dds_get_publication_matched_status(wri, &publication_matched);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
     cr_assert_eq(publication_matched.current_count,         0);
@@ -167,7 +167,7 @@ Test(ddsc_entity_status, subscription_matched, .init=init_entity_status, .fini=f
 
     /* Wait for subscription  matched status */
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
     ret = dds_get_subscription_matched_status(rea, &subscription_matched);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
     cr_assert_eq(subscription_matched.current_count,        1);
@@ -186,7 +186,7 @@ Test(ddsc_entity_status, subscription_matched, .init=init_entity_status, .fini=f
 
     /* Wait for subscription  matched status */
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
     ret = dds_get_subscription_matched_status(rea, &subscription_matched);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
     cr_assert_eq(subscription_matched.current_count,         0);
@@ -199,8 +199,10 @@ Test(ddsc_entity_status, subscription_matched, .init=init_entity_status, .fini=f
 Test(ddsc_entity, incompatible_qos, .init=init_entity_status, .fini=fini_entity_status)
 {
     dds_entity_t reader2;
-    dds_requested_incompatible_qos_status_t req_incompatible_qos = {0};
-    dds_offered_incompatible_qos_status_t off_incompatible_qos = {0};
+    dds_requested_incompatible_qos_status_t req_incompatible_qos;
+    dds_offered_incompatible_qos_status_t off_incompatible_qos;
+    memset (&req_incompatible_qos, 0, sizeof (req_incompatible_qos));
+    memset (&off_incompatible_qos, 0, sizeof (off_incompatible_qos));
     dds_qset_durability (qos, DDS_DURABILITY_PERSISTENT);
 
     /* Create a reader with persistent durability */
@@ -236,7 +238,7 @@ Test(ddsc_entity, incompatible_qos, .init=init_entity_status, .fini=fini_entity_
 
     /* Wait for offered incompatible QoS status */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
     ret = dds_get_offered_incompatible_qos_status (wri, &off_incompatible_qos);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
     cr_assert_eq(off_incompatible_qos.total_count,           1);
@@ -267,7 +269,7 @@ Test(ddsc_entity, liveliness_changed, .init=init_entity_status, .fini=fini_entit
 
     /* wait for LIVELINESS_CHANGED status */
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
 
     ret = dds_get_liveliness_changed_status (rea, &liveliness_changed);
     cr_assert_eq(ret, DDS_RETCODE_OK);
@@ -288,7 +290,7 @@ Test(ddsc_entity, liveliness_changed, .init=init_entity_status, .fini=fini_entit
 
     /* wait for LIVELINESS_CHANGED when a writer is deleted */
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
 
     ret = dds_get_liveliness_changed_status (rea, &liveliness_changed);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
@@ -301,10 +303,12 @@ Test(ddsc_entity, liveliness_changed, .init=init_entity_status, .fini=fini_entit
 
 Test(ddsc_entity, sample_rejected, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_sample_rejected_status_t sample_rejected = {0};
+    dds_sample_rejected_status_t sample_rejected;
 
     /* Topic instance */
-    RoundTripModule_DataType sample = { 0 };
+    RoundTripModule_DataType sample;
+    memset (&sample_rejected, 0, sizeof (sample_rejected));
+    memset (&sample, 0, sizeof (sample));
 
     ret = dds_set_enabled_status(wri, DDS_PUBLICATION_MATCHED_STATUS);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
@@ -313,9 +317,9 @@ Test(ddsc_entity, sample_rejected, .init=init_entity_status, .fini=fini_entity_s
 
     /* Wait for subscription matched and publication matched */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
 
     ret = dds_set_enabled_status(rea, DDS_SAMPLE_REJECTED_STATUS);
     cr_assert_eq(ret, DDS_RETCODE_OK);
@@ -329,7 +333,7 @@ Test(ddsc_entity, sample_rejected, .init=init_entity_status, .fini=fini_entity_s
 
     /* wait for sample rejected status */
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
     ret = dds_get_sample_rejected_status (rea, &sample_rejected);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
     cr_assert_eq(sample_rejected.total_count,        4);
@@ -360,7 +364,7 @@ Test(ddsc_entity, inconsistent_topic)
 
     /* Wait for pub inconsistent topic status callback */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
     ret = dds_get_inconsistent_topic_status (top, &topic_status);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
     cr_assert_gt(topic_status.total_count, 0);
@@ -387,10 +391,12 @@ Test(ddsc_entity, inconsistent_topic)
 Test(ddsc_entity, sample_lost, .init=init_entity_status, .fini=fini_entity_status)
 {
 
-    dds_sample_lost_status_t sample_lost = {0};
+    dds_sample_lost_status_t sample_lost;
     dds_time_t time1;
     /* Topic instance */
-    RoundTripModule_DataType sample = { 0 };
+    RoundTripModule_DataType sample;
+    memset (&sample_lost, 0, sizeof (sample_lost));
+    memset (&sample, 0, sizeof (sample));
 
     ret = dds_set_enabled_status(wri, DDS_PUBLICATION_MATCHED_STATUS);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
@@ -399,9 +405,9 @@ Test(ddsc_entity, sample_lost, .init=init_entity_status, .fini=fini_entity_statu
 
     /* Wait for subscription matched and publication matched */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
 
     ret = dds_set_enabled_status(rea, DDS_SAMPLE_LOST_STATUS);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
@@ -418,7 +424,7 @@ Test(ddsc_entity, sample_lost, .init=init_entity_status, .fini=fini_entity_statu
 
     /* wait for sample lost status */
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
     ret = dds_get_sample_lost_status (rea, &sample_lost);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
     cr_assert_eq(sample_lost.total_count,          1);
@@ -432,7 +438,8 @@ Test(ddsc_entity, sample_lost, .init=init_entity_status, .fini=fini_entity_statu
 
 Test(ddsc_entity, data_available, .init=init_entity_status, .fini=fini_entity_status)
 {
-    RoundTripModule_DataType sample = { 0 };
+    RoundTripModule_DataType sample;
+    memset (&sample, 0, sizeof (sample));
 
     ret = dds_set_enabled_status(wri, DDS_PUBLICATION_MATCHED_STATUS);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
@@ -441,9 +448,9 @@ Test(ddsc_entity, data_available, .init=init_entity_status, .fini=fini_entity_st
 
     /* Wait for subscription and publication matched status */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
     ret = dds_waitset_wait(waitSetrd, wsresults2, wsresultsize2, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
 
     /* Write the sample */
     ret = dds_write (wri, &sample);
@@ -455,7 +462,7 @@ Test(ddsc_entity, data_available, .init=init_entity_status, .fini=fini_entity_st
     cr_assert_eq(sta, DDS_SUBSCRIPTION_MATCHED_STATUS);
 
     ret = dds_waitset_wait(waitSetrd, wsresults2, wsresultsize2, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
 
     ret = dds_get_status_changes (rea, &sta);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
@@ -477,10 +484,11 @@ Test(ddsc_entity, all_data_available, .init=init_entity_status, .fini=fini_entit
     dds_sample_info_t info;
 
     /* Topic instance */
-    RoundTripModule_DataType p_sample = { 0 };
+    RoundTripModule_DataType p_sample;
     void * s_samples[1];
     RoundTripModule_DataType s_sample;
 
+    memset (&p_sample, 0, sizeof (p_sample));
     memset (&s_sample, 0, sizeof (s_sample));
     s_samples[0] = &s_sample;
 
@@ -500,13 +508,13 @@ Test(ddsc_entity, all_data_available, .init=init_entity_status, .fini=fini_entit
 
     /* Wait for publication matched status */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
 
     /* Wait for subscription matched status on both readers */
     ret = dds_waitset_wait(waitSetrd, wsresults2, wsresultsize2, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
     ret = dds_waitset_wait(waitSetrd2, wsresults2, wsresultsize2, waitTimeout);
-    cr_assert_eq(ret, wsresultsize);
+    cr_assert_eq(ret, (dds_return_t)wsresultsize);
 
     ret = dds_write (wri, &p_sample);
     cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);

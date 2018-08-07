@@ -92,19 +92,27 @@ Test(ddsc_reader, return_loan_bad_params, .init = create_entities, .fini = delet
         DDS_TO_STRING(DDS_RETCODE_BAD_PARAMETER),
         dds_err_str(result));
 
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 6387)
+#endif
     result = dds_return_loan(reader, buf, 10);
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif
     cr_expect_eq(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER, "Invalid buffer size, Expected(%s) Returned(%s)",
         DDS_TO_STRING(DDS_RETCODE_BAD_PARAMETER),
         dds_err_str(result));
 
     buf = create_loan_buf(10, false);
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 28020)
+#endif
     result = dds_return_loan(0, buf, 10);
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif
     cr_expect_eq(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER, "Invalid entity, Expected(%s) Returned(%s)",
         DDS_TO_STRING(DDS_RETCODE_BAD_PARAMETER),
         dds_err_str(result));

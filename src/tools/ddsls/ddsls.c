@@ -59,7 +59,6 @@ static struct topictab{
 
 const unsigned int MAX_SAMPLES = 10;
 unsigned int states = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
-int status = 0;
 int reader_wait = 0;
 dds_entity_t participant;
 dds_entity_t subscriber;
@@ -68,8 +67,8 @@ dds_sample_info_t info[10];
 dds_qos_t* tqos;
 dds_qos_t* sqos;
 
-void _zero(void ** samples, int size) {
-    int i;
+void _zero(void ** samples, size_t size) {
+    size_t i;
     for(i = 0; i < size;i++) {
         samples[i] = NULL;
     }
@@ -416,6 +415,7 @@ void print_dcps_topic(FILE *fp){
     reader_wait = dds_reader_wait_for_historical_data(dcps_topic_reader, DDS_SECS(5));
     PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
     while(true){
+        int status = 0;
         zero(dcps_topic_samples, MAX_SAMPLES);
         status = dds_take_mask(dcps_topic_reader, (void**)dcps_topic_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
         PRINTD("DDS reading samples returns %d \n", status);
@@ -457,6 +457,7 @@ void print_dcps_participant(FILE *fp){
     reader_wait = dds_reader_wait_for_historical_data(dcps_participant_reader, DDS_SECS(5));
     PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
     while(true){
+        int status = 0;
         zero(dcps_participant_samples, MAX_SAMPLES);
         status = dds_take_mask(dcps_participant_reader, (void**)dcps_participant_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
         PRINTD("DDS reading samples returns %d \n", status);
@@ -484,6 +485,7 @@ void print_dcps_subscription(FILE *fp){
     reader_wait = dds_reader_wait_for_historical_data(dcps_subscription_reader, DDS_SECS(5));
     PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
     while(true){
+        int status = 0;
         zero(dcps_subscription_samples, MAX_SAMPLES);
         status = dds_take_mask(dcps_subscription_reader, (void**)dcps_subscription_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
         PRINTD("DDS reading samples returns %d \n", status);
@@ -526,6 +528,7 @@ void print_dcps_publication(FILE *fp){
     reader_wait = dds_reader_wait_for_historical_data(dcps_publication_reader, DDS_SECS(5));
     PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
     while(true){
+        int status = 0;
         zero(dcps_publication_samples, MAX_SAMPLES);
         status = dds_take_mask(dcps_publication_reader, (void**)dcps_publication_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
         PRINTD("DDS reading samples returns %d \n", status);
@@ -569,6 +572,7 @@ void print_cm_participant(FILE *fp){
     reader_wait = dds_reader_wait_for_historical_data(cm_participant_reader, DDS_SECS(5));
     PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
     while(true){
+        int status = 0;
         zero(cm_participant_samples, MAX_SAMPLES);
         status = dds_take_mask(cm_participant_reader, (void**)cm_participant_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
         PRINTD("DDS reading samples returns %d \n", status);
@@ -596,6 +600,7 @@ void print_cm_publisher(FILE *fp){
     reader_wait = dds_reader_wait_for_historical_data(cm_publisher_reader, DDS_SECS(5));
     PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
     while(true){
+        int status = 0;
         zero(cm_publisher_samples, MAX_SAMPLES);
         status = dds_take_mask(cm_publisher_reader, (void**)cm_publisher_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
         PRINTD("DDS reading samples returns %d \n", status);
@@ -627,7 +632,8 @@ void print_cm_subscriber(FILE *fp){
     reader_wait = dds_reader_wait_for_historical_data(cm_subscriber_reader, DDS_SECS(5));
     PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
     while(true){
-        zero(cm_subscriber_samples, MAX_SAMPLES);
+         int status = 0;
+       zero(cm_subscriber_samples, MAX_SAMPLES);
         status = dds_take_mask(cm_subscriber_reader, (void**)cm_subscriber_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
         PRINTD("DDS reading samples returns %d \n", status);
         for(i = 0; i < status; i++) {
@@ -659,6 +665,7 @@ void print_cm_datawriter(FILE *fp){
     reader_wait = dds_reader_wait_for_historical_data(cm_datawriter_reader, DDS_SECS(5));
     PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
     while(true){
+        int status = 0;
         zero(cm_datawriter_samples, MAX_SAMPLES);
         status = dds_take_mask(cm_datawriter_reader, (void**)cm_datawriter_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
         PRINTD("DDS reading samples returns %d \n", status);
@@ -691,6 +698,7 @@ void print_cm_datareader(FILE *fp){
     reader_wait = dds_reader_wait_for_historical_data(cm_datareader_reader, DDS_SECS(5));
     PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
     while(true){
+        int status = 0;
         zero(cm_datareader_samples, MAX_SAMPLES);
         status = dds_take_mask(cm_datareader_reader, (void**)cm_datareader_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
         PRINTD("DDS reading samples returns %d \n", status);
@@ -719,7 +727,7 @@ void print_cm_datareader(FILE *fp){
 
 void usage(){
     /*describe the default options*/
-    int tpindex;
+    size_t tpindex;
     printf("\n OPTIONS:\n");
     printf("-f <filename> <topics>    -- write to file\n");
     printf("-a             -- all topics\n");
@@ -733,7 +741,7 @@ int main(int argc, char **argv){
     FILE *fp = NULL;
     int flags = 0;
     int j;
-    int index;
+    size_t index;
     char *fname = NULL;
     if(argc == 1){
         usage();
@@ -777,7 +785,7 @@ int main(int argc, char **argv){
             // it's an option, don't process it...
             continue;
         }
-        int k;
+        size_t k;
         bool matched = false;
         for(k = 0; k < TOPICTAB_SIZE; k++) {
             if(os_strcasecmp(argv[j], topictab[k].name) == 0) {
