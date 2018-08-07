@@ -38,7 +38,7 @@ build_script:
   - cd build
   - conan install -s arch=%ARCH% -s build_type=%CONFIGURATION% ..
   - cmake -DBUILD_TESTING=on -DCMAKE_BUILD_TYPE=%CONFIGURATION% -G "%GENERATOR%" ../src
-  - cmake --build .
+  - cmake --build . --config %CONFIGURATION%
 
 test_script:
   - ctest --test-action test --build-config %CONFIGURATION%
