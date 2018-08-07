@@ -16,6 +16,14 @@ include(Glob)
 set(CUNIT_DIR "${CMAKE_CURRENT_LIST_DIR}/CUnit")
 
 function(add_cunit_executable target)
+  # Retrieve location of shared libary, which is need to extend the PATH
+  # environment variable on Microsoft Windows, so that the operating
+  # system can locate the .dll that it was linked against.
+  # On macOS, this mechanism is used to set the DYLD_LIBRARY_PATH.
+  get_target_property(CUNIT_LIBRARY_TYPE CUnit TYPE)
+  get_target_property(CUNIT_IMPORTED_LOCATION CUnit IMPORTED_LOCATION)
+  get_filename_component(CUNIT_LIBRARY_DIR "${CUNIT_IMPORTED_LOCATION}" PATH)
+
   # Generate semi-random filename to store the generated code in to avoid
   # possible naming conflicts.
   string(RANDOM random)
@@ -114,6 +122,17 @@ function(add_cunit_executable target)
     add_test(
       NAME "CUnit_${suite}_${test}"
       COMMAND ${target} -a -r "${suite}-${test}" -s ${suite} -t ${test})
+    set_tests_properties("CUnit_${suite}_${test}" PROPERTIES TIMEOUT 10)
+    if(APPLE)
+      set_property(
+        TEST "CUnit_${suite}_${test}"
+        PROPERTY ENVIRONMENT "DYLD_LIBRARY_PATH=${CUNIT_LIBRARY_DIR}:$ENV{DYLD_LIBRARY_PATH}")
+    endif()
+    if(WIN32 AND ${CUNIT_LIBRARY_TYPE} STREQUAL "SHARED_LIBRARY")
+      set_property(
+        TEST "CUnit_${suite}_${test}"
+        PROPERTY ENVIRONMENT "PATH=${CUNIT_LIBRARY_DIR};$ENV{PATH}")
+    endif()
   endforeach()
 
   set(root "${CUNIT_DIR}")
@@ -124,5 +143,10 @@ function(add_cunit_executable target)
   add_executable(${target} "${runner}.c" "${root}/src/runner.c" ${sources})
   target_link_libraries(${target} CUnit)
   target_include_directories(${target} PRIVATE "${root}/include")
+  if("2.1.3" VERSION_LESS_EQUAL
+       "${CUNIT_VERSION_MAJOR}.${CUNIT_VERSION_MINOR}.${CUNIT_VERSION_PATCH}")
+    set_source_files_properties(
+      "${root}/src/runner.c" PROPERTIES COMPILE_DEFINITIONS HAVE_ENABLE_JUNIT_XML)
+  endif()
 endfunction()
 

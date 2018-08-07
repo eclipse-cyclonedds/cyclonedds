@@ -426,6 +426,9 @@ void os_reportExit(void)
 {
     char *name;
     os_reportStack reports;
+    if (!inited) {
+        return;
+    }
 
     reports = os_threadMemGet(OS_THREAD_REPORT_STACK);
     if (reports) {

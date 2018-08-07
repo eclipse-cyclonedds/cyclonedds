@@ -16,6 +16,13 @@ include(Glob)
 set(_criterion_dir "${CMAKE_CURRENT_LIST_DIR}/Criterion")
 
 function(add_criterion_executable _target)
+  # Retrieve location of shared libary, which is need to extend the PATH
+  # environment variable on Microsoft Windows, so that the operating
+  # system can locate the .dll that it was linked against.
+  get_target_property(CRITERION_LIBRARY_TYPE Criterion TYPE)
+  get_target_property(CRITERION_IMPORTED_LOCATION Criterion IMPORTED_LOCATION)
+  get_filename_component(CRITERION_LIBRARY_DIR "${CRITERION_IMPORTED_LOCATION}" PATH)
+
   set(s "[ \t\r\n]") # space
   set(w "[0-9a-zA-Z_]") # word
   set(b "[^0-9a-zA-Z_]") # boundary
@@ -72,7 +79,18 @@ function(add_criterion_executable _target)
 
     add_test(
       NAME "Criterion_${_suite}_${_name}"
-      COMMAND ${_target} --suite ${_suite} --test ${_name} --cunit=${_suite}-${_name} --quiet)
+      COMMAND ${_target} -j1 --suite ${_suite} --test ${_name} --cunit=${_suite}-${_name} --quiet)
+    set_tests_properties("Criterion_${_suite}_${_name}" PROPERTIES TIMEOUT 10)
+    if(APPLE)
+      set_property(
+        TEST "Criterion_${_suite}_${_name}"
+        PROPERTY ENVIRONMENT "DYLD_LIBRARY_PATH=${CRITERION_LIBRARY_DIR}:$ENV{DYLD_LIBRARY_PATH}")
+    endif()
+    if(WIN32 AND ${CRITERION_LIBRARY_TYPE} STREQUAL "SHARED_LIBRARY")
+      set_property(
+        TEST "Criterion_${_suite}_${_name}"
+        PROPERTY ENVIRONMENT "PATH=${CRITERION_LIBRARY_DIR};$ENV{PATH}")
+    endif()
   endforeach()
 endfunction()
 
