@@ -40,6 +40,7 @@ static dds_entity_t g_querycond   = 0;
 static bool
 accept_all(const void * sample)
 {
+    (void)sample;
     return true;
 }
 
@@ -840,7 +841,7 @@ Test(ddsc_entity_explicit_subscriber, invalid_topic)
 Test(ddsc_entity_get_children, implicit_publisher)
 {
     dds_entity_t participant;
-    dds_entity_t publisher;
+    dds_entity_t publisher = 0;
     dds_entity_t writer;
     dds_entity_t topic;
     dds_entity_t child[2], child2[2];
@@ -885,7 +886,7 @@ Test(ddsc_entity_get_children, implicit_publisher)
 Test(ddsc_entity_get_children, implicit_subscriber)
 {
     dds_entity_t participant;
-    dds_entity_t subscriber;
+    dds_entity_t subscriber = 0;
     dds_entity_t reader;
     dds_entity_t topic;
     dds_entity_t child[2], child2[2];

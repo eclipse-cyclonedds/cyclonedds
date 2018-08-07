@@ -199,11 +199,12 @@ static const uint32_t crc32_table[] = {
   0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4
 };
 
-uint32_t crc32_calc (const void *buf, uint32_t length)
+uint32_t crc32_calc (const void *buf, size_t length)
 {
   const uint8_t *vptr = buf;
-  uint32_t i, reg = 0;
+  uint32_t reg = 0;
   uint8_t top;
+  size_t i;
   for (i = 0; i < length; i++)
   {
     top = (uint8_t) (reg >> 24);

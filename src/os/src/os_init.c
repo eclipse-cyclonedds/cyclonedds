@@ -47,7 +47,7 @@ retry:
     os_atomic_or32(&osinit_status, OSINIT_STATUS_OK);
   } else {
     while (v > 1 && !(v & OSINIT_STATUS_OK)) {
-      os_nanoSleep((os_time){10000000});
+      os_nanoSleep((os_time){0, 10000000});
       v = os_atomic_ld32(&osinit_status);
     }
     goto retry;

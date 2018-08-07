@@ -1067,7 +1067,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
        gradually lowering rate.  If we just got a request for a
        retransmit, and there is more to be retransmitted, surely the
        rate should be kept up for now */
-    writer_hbcontrol_note_asyncwrite (wr, &whcst, now_mt ());
+    writer_hbcontrol_note_asyncwrite (wr, now_mt ());
   }
   /* If "final" flag not set, we must respond with a heartbeat. Do it
      now if we haven't done so already */
@@ -1543,7 +1543,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
     struct whc_state whcst;
     wr->whc->ops->get_state(wr->whc, &whcst);
     force_heartbeat_to_peer (wr, &whcst, prd, 1);
-    writer_hbcontrol_note_asyncwrite (wr, &whcst, now_mt ());
+    writer_hbcontrol_note_asyncwrite (wr, now_mt ());
   }
 
  out:
@@ -1792,11 +1792,12 @@ static serstate_t make_raw_serstate
 )
 {
   serstate_t st = ddsi_serstate_new (topic);
-  ddsi_serstate_set_msginfo (st, statusinfo, tstamp, NULL);
+  ddsi_serstate_set_msginfo (st, statusinfo, tstamp);
   st->kind = justkey ? STK_KEY : STK_DATA;
   /* the CDR header is always fully contained in the first fragment
      (see valid_DataFrag), so extracting it is easy */
   assert (fragchain->min == 0);
+  (void)sz;
 
   /* alignment at head-of-stream is guaranteed, requesting 1 byte
      alignment is therefore fine for pasting together fragments of
@@ -1891,7 +1892,7 @@ static serdata_t extract_sample_from_data
     {
       serstate_t st;
       st = ddsi_serstate_new (topic);
-      ddsi_serstate_set_msginfo (st, statusinfo, tstamp, NULL);
+      ddsi_serstate_set_msginfo (st, statusinfo, tstamp);
       st->kind = STK_KEY;
       ddsi_serstate_append_blob (st, 1, sizeof (qos->keyhash), qos->keyhash.value);
       sample = ddsi_serstate_fix_with_key (st, topic, sampleinfo->bswap);
@@ -3285,8 +3286,8 @@ static int check_and_handle_deafness_recover(struct local_deaf_state *st)
       ddsi_conn_free(data);
       rebuildws = 1;
       st->state = LDSR_REJOIN;
-      /* FALLS THROUGH */
     }
+      /* FALLS THROUGH */
     case LDSR_REJOIN:
       TRACE(("check_and_handle_deafness_recover: state %d rejoin on disc socket\n", (int)st->state));
       if (ddsi_rejoin_transferred_mcgroups(gv.disc_conn_mc) < 0)

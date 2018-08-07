@@ -16,21 +16,21 @@
 #define VDDS_INLINE
 #endif
 
-VDDS_INLINE unsigned short bswap2u (unsigned short x)
+VDDS_INLINE uint16_t bswap2u (uint16_t x)
 {
   return (unsigned short) ((x >> 8) | (x << 8));
 }
 
-VDDS_INLINE unsigned bswap4u (unsigned x)
+VDDS_INLINE uint32_t bswap4u (uint32_t x)
 {
   return (x >> 24) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | (x << 24);
 }
 
-VDDS_INLINE unsigned long long bswap8u (unsigned long long x)
+VDDS_INLINE uint64_t bswap8u (uint64_t x)
 {
-  const unsigned newhi = bswap4u ((unsigned) x);
-  const unsigned newlo = bswap4u ((unsigned) (x >> 32));
-  return ((unsigned long long) newhi << 32) | (unsigned long long) newlo;
+  const uint32_t newhi = bswap4u ((uint32_t) x);
+  const uint32_t newlo = bswap4u ((uint32_t) (x >> 32));
+  return ((uint64_t) newhi << 32) | (uint64_t) newlo;
 }
 
 VDDS_INLINE void bswapSN (nn_sequence_number_t *sn)

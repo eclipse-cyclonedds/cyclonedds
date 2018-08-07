@@ -204,6 +204,7 @@ DI(if_thread_properties);
 #define GROUP_W_ATTRS(name, children, attrs) name, children, attrs, 1, NULL, 0, 0, 0, 0, 0, 0
 #define MGROUP(name, children, attrs) name, children, attrs
 #define ATTR(name) name, NULL, NULL
+#define DEPRECATED_ATTR(name) "|" name, NULL, NULL
 /* MOVED: whereto must be a path relative to DDSI2Service, may not be used in/for lists and only for elements, may not be chained */
 #define MOVED(name, whereto) ">" name, NULL, NULL, 0, whereto, 0, 0, 0, 0, 0, 0, NULL
 static const struct cfgelem timestamp_cfgattrs[] = {
@@ -465,15 +466,19 @@ static const struct cfgelem unsupp_watermarks_cfgelems[] = {
 };
 
 static const struct cfgelem control_topic_cfgattrs[] = {
-    { ATTR("Enable"), 1, "false", ABSOFF(enable_control_topic), 0, uf_boolean, 0, pf_boolean },
-    { ATTR("InitialReset"), 1, "inf", ABSOFF(initial_deaf_mute_reset), 0, uf_duration_inf, 0, pf_duration },
+    { DEPRECATED_ATTR("Enable"), 1, "false", ABSOFF(enable_control_topic), 0, uf_boolean, 0, pf_boolean,
+      "<p>This element controls whether DDSI2E should create a topic to control DDSI2E's behaviour dynamically.<p>"
+    },
+    { DEPRECATED_ATTR("InitialReset"), 1, "inf", ABSOFF(initial_deaf_mute_reset), 0, uf_duration_inf, 0, pf_duration,
+      "<p>This element controls after how much time an initial deaf/mute state will automatically reset.<p>"
+    },
     END_MARKER
 };
 
 static const struct cfgelem control_topic_cfgelems[] = {
-    { LEAF ("Deaf"), 1, "false", ABSOFF (initial_deaf), 0, uf_deaf_mute, 0, pf_boolean,
+    { DEPRECATED_LEAF ("Deaf"), 1, "false", ABSOFF (initial_deaf), 0, uf_deaf_mute, 0, pf_boolean,
     "<p>This element controls whether DDSI2E defaults to deaf mode or to normal mode. This controls both the initial behaviour and what behaviour it auto-reverts to.</p>" },
-    { LEAF ("Mute"), 1, "false", ABSOFF (initial_mute), 0, uf_deaf_mute, 0, pf_boolean,
+    { DEPRECATED_LEAF ("Mute"), 1, "false", ABSOFF (initial_mute), 0, uf_deaf_mute, 0, pf_boolean,
     "<p>This element controls whether DDSI2E defaults to mute mode or to normal mode. This controls both the initial behaviour and what behaviour it auto-reverts to.</p>" },
     END_MARKER
 };
@@ -548,7 +553,8 @@ static const struct cfgelem unsupp_cfgelems[] = {
 { LEAF("RetransmitMergingPeriod"), 1, "5 ms", ABSOFF(retransmit_merging_period), 0, uf_duration_us_1s, 0, pf_duration,
 "<p>This setting determines the size of the time window in which a NACK of some sample is ignored because a retransmit of that sample has been multicasted too recently. This setting has no effect on unicasted retransmits.</p>\n\
 <p>See also Internal/RetransmitMerging.</p>" },
-{ LEAF_W_ATTRS("HeartbeatInterval", heartbeat_interval_attrs), 1, "100 ms", ABSOFF(const_hb_intv_sched), 0, uf_duration_inf, 0, pf_duration },
+{ LEAF_W_ATTRS("HeartbeatInterval", heartbeat_interval_attrs), 1, "100 ms", ABSOFF(const_hb_intv_sched), 0, uf_duration_inf, 0, pf_duration,
+  "<p>This elemnents allows configuring the base interval for sending writer heartbeats and the bounds within it can vary.</p>" },
 { LEAF("MaxQueuedRexmitBytes"), 1, "50 kB", ABSOFF(max_queued_rexmit_bytes), 0, uf_memsize, 0, pf_memsize,
 "<p>This setting limits the maximum number of bytes queued for retransmission. The default value of 0 is unlimited unless an AuxiliaryBandwidthLimit has been set, in which case it becomes NackDelay * AuxiliaryBandwidthLimit. It must be large enough to contain the largest sample that may need to be retransmitted.</p>" },
 { LEAF("MaxQueuedRexmitMessages"), 1, "200", ABSOFF(max_queued_rexmit_msgs), 0, uf_uint, 0, pf_uint,
@@ -1306,7 +1312,7 @@ static int uf_boolean_default (struct cfgst *cfgst, void *parent, struct cfgelem
   static const enum boolean_default ms[] = {
     BOOLDEF_DEFAULT, BOOLDEF_FALSE, BOOLDEF_TRUE, 0,
   };
-  int *elem = cfg_address (cfgst, parent, cfgelem);
+  enum boolean_default *elem = cfg_address (cfgst, parent, cfgelem);
   int idx = list_index (vs, value);
   assert (sizeof (vs) / sizeof (*vs) == sizeof (ms) / sizeof (*ms));
   if (idx < 0)
@@ -2857,7 +2863,7 @@ struct cfgst * config_init
             forces us to include a crc32 routine when we have md5
             available anyway */
             p->partitionId = config.nof_networkPartitions; /* starting at 1 */
-            p->partitionHash = crc32_calc(p->name, (int) strlen(p->name));
+            p->partitionHash = crc32_calc(p->name, strlen(p->name));
             p = p->next;
         }
     }

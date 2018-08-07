@@ -89,9 +89,6 @@ static void*              g_samples[MAX_SAMPLES];
 static Space_Type1        g_data[MAX_SAMPLES];
 static dds_sample_info_t  g_info[MAX_SAMPLES];
 
-static dds_instance_handle_t   g_hdl_valid;
-static dds_instance_handle_t   g_hdl_nil = DDS_HANDLE_NIL;
-
 static char*
 create_topic_name(const char *prefix, char *name, size_t size)
 {
@@ -128,7 +125,7 @@ filter_mod2(const void * sample)
 static void
 reader_iterator_init(void)
 {
-    Space_Type1 sample = { 0 };
+    Space_Type1 sample = { 0, 0, 0 };
     dds_attach_t triggered;
     dds_return_t ret;
     char name[100];
@@ -364,9 +361,9 @@ Test(ddsc_read_next, reader, .init=reader_iterator_init, .fini=reader_iterator_f
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1 );
-        cr_assert_eq(sample->long_2, expected_long_2   );
-        cr_assert_eq(sample->long_3, expected_long_2 *2);
+        cr_assert_eq(sample->long_1, expected_long_1);
+        cr_assert_eq(sample->long_2, expected_long_2);
+        cr_assert_eq(sample->long_3, expected_long_3);
 
         /* Check states. */
         cr_assert_eq(g_info[0].valid_data,     true);
@@ -399,7 +396,7 @@ Theory((dds_entity_t rdr), ddsc_read_next, invalid_readers, .init=reader_iterato
     dds_return_t ret;
 
     ret = dds_read_next(rdr, g_samples, g_info);
-    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_str(ret), dds_err_nr(exp));
+    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
 
@@ -476,9 +473,9 @@ Test(ddsc_read_next_wl, reader, .init=reader_iterator_init, .fini=reader_iterato
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_2/3 );
-        cr_assert_eq(sample->long_2, expected_long_2   );
-        cr_assert_eq(sample->long_3, expected_long_2 *2);
+        cr_assert_eq(sample->long_1, expected_long_1);
+        cr_assert_eq(sample->long_2, expected_long_2);
+        cr_assert_eq(sample->long_3, expected_long_3);
 
         /* Check states. */
         cr_assert_eq(g_info[0].valid_data,     true);
@@ -590,9 +587,9 @@ Test(ddsc_take_next, reader, .init=reader_iterator_init, .fini=reader_iterator_f
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1 );
-        cr_assert_eq(sample->long_2, expected_long_2   );
-        cr_assert_eq(sample->long_3, expected_long_2 *2);
+        cr_assert_eq(sample->long_1, expected_long_1);
+        cr_assert_eq(sample->long_2, expected_long_2);
+        cr_assert_eq(sample->long_3, expected_long_3);
 
         /* Check states. */
         cr_assert_eq(g_info[0].valid_data,     true);
@@ -700,9 +697,9 @@ Test(ddsc_take_next_wl, reader, .init=reader_iterator_init, .fini=reader_iterato
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_2/3 );
-        cr_assert_eq(sample->long_2, expected_long_2   );
-        cr_assert_eq(sample->long_3, expected_long_2 *2);
+        cr_assert_eq(sample->long_1, expected_long_1);
+        cr_assert_eq(sample->long_2, expected_long_2);
+        cr_assert_eq(sample->long_3, expected_long_3);
 
         /* Check states. */
         cr_assert_eq(g_info[0].valid_data,     true);

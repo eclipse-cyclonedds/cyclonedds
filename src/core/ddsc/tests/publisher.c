@@ -15,14 +15,19 @@
 
 /* We are deliberately testing some bad arguments that SAL will complain about.
  * So, silence SAL regarding these issues. */
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 28020)
-
+#endif
 
 #define cr_assert_status_eq(s1, s2, ...) cr_assert_eq(dds_err_nr(s1), s2, __VA_ARGS__)
 
 /* Dummy callback */
-static void data_available_cb(dds_entity_t reader, void* arg) {}
+static void data_available_cb(dds_entity_t reader, void* arg)
+{
+  (void)reader;
+  (void)arg;
+}
 
 
 Test(ddsc_publisher, create)
@@ -62,8 +67,10 @@ Test(ddsc_publisher, create)
   dds_delete(publisher);
 
 /* Somehow, the compiler thinks the char arrays might not be zero-terminated... */
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 6054)
+#endif
 
   /* Use qos with single partition */
   dds_qset_partition (qos, 1, singlePartitions);
@@ -83,7 +90,9 @@ Test(ddsc_publisher, create)
   cr_assert_gt(publisher, 0, "dds_create_publisher(participant,qos,NULL) where qos with duplicate partitions");
   dds_delete(publisher);
 
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif
 
   /* Use listener(NULL) */
   listener = dds_listener_create(NULL);
@@ -265,4 +274,6 @@ Test(ddsc_publisher, coherency)
   return;
 }
 
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif

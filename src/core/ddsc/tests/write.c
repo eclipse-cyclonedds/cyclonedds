@@ -20,8 +20,8 @@
 /* Tests in this file only concern themselves with very basic api tests of
    dds_write and dds_write_ts */
 
-static const int payloadSize = 32;
-static RoundTripModule_DataType data = { 0 };
+static const uint32_t payloadSize = 32;
+static RoundTripModule_DataType data;
 
 static dds_entity_t participant = 0;
 static dds_entity_t topic = 0;

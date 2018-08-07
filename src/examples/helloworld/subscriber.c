@@ -17,6 +17,8 @@ int main (int argc, char ** argv)
     dds_sample_info_t infos[MAX_SAMPLES];
     dds_return_t ret;
     dds_qos_t *qos;
+    (void)argc;
+    (void)argv;
 
     /* Create a Participant. */
     participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);

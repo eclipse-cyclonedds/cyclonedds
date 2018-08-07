@@ -132,7 +132,7 @@ static const ut_avlTreedef_t ddsi_tcp_treedef = UT_AVL_TREEDEF_INITIALIZER_INDKE
 (
   offsetof (struct ddsi_tcp_node, m_avlnode),
   offsetof (struct ddsi_tcp_node, m_conn),
-  (ut_avlCompare_t) ddsi_tcp_cmp_conn,
+  ddsi_tcp_cmp_conn,
   0
 );
 
@@ -559,15 +559,11 @@ static size_t iovlen_sum (size_t niov, const ddsi_iovec_t *iov)
   return tot;
 }
 
-/* Turns out Darwin uses "int" for msg_iovlen, but glibc uses "size_t". The simplest
- way out is to do the assignment with the conversion warnings disabled */
-//OSPL_DIAG_OFF(conversion)
 static void set_msghdr_iov (struct msghdr *mhdr, ddsi_iovec_t *iov, size_t iovlen)
 {
   mhdr->msg_iov = iov;
-  mhdr->msg_iovlen = iovlen;
+  mhdr->msg_iovlen = (ddsi_msg_iovlen_t)iovlen;
 }
-//OSPL_DIAG_ON(conversion)
 
 static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *dst, size_t niov, const ddsi_iovec_t *iov, uint32_t flags)
 {

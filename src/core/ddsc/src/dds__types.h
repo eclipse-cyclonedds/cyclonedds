@@ -43,10 +43,10 @@ struct rhc;
 
 /* Internal entity status flags */
 
-#define DDS_INTERNAL_STATUS_MASK     (0xFF000000)
+#define DDS_INTERNAL_STATUS_MASK     (0xFF000000u)
 
-#define DDS_WAITSET_TRIGGER_STATUS   (0x01000000)
-#define DDS_DELETING_STATUS          (0x02000000)
+#define DDS_WAITSET_TRIGGER_STATUS   (0x01000000u)
+#define DDS_DELETING_STATUS          (0x02000000u)
 
 /* This can be used when polling for various states.
  * Obviously, it is encouraged to use condition variables and such. But
@@ -78,8 +78,8 @@ typedef struct c_listener {
 
 /* Entity flag values */
 
-#define DDS_ENTITY_ENABLED      0x0001
-#define DDS_ENTITY_IMPLICIT     0x0002
+#define DDS_ENTITY_ENABLED      0x0001u
+#define DDS_ENTITY_IMPLICIT     0x0002u
 
 typedef struct dds_domain
 {

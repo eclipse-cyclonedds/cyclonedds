@@ -133,7 +133,7 @@ void hist_print(struct hist *h, dds_time_t dt, int reset) {
     const size_t hist_size = sizeof(char) * h->nbins + 1;
     char *l = (char *) dds_alloc(l_size);
     char *hist = (char *) dds_alloc(hist_size);
-    double dt_s = dt / 1e9, avg;
+    double dt_s = (double)dt / 1e9, avg;
     uint64_t peak = 0, cnt = h->under + h->over;
     size_t p = 0;
     hist[h->nbins] = 0;
@@ -160,7 +160,7 @@ void hist_print(struct hist *h, dds_time_t dt, int reset) {
         else hist[i] = '@';
     }
 
-    avg = cnt / dt_s;
+    avg = (double)cnt / dt_s;
     if (avg < 999.5)
         xsnprintf(l, l_size, &p, "%5.3g", avg);
     else if (avg < 1e6)
@@ -172,9 +172,9 @@ void hist_print(struct hist *h, dds_time_t dt, int reset) {
     if (cnt < (uint64_t) 10e3)
         xsnprintf(l, l_size, &p, "%5"PRIu64" ", cnt);
     else if (cnt < (uint64_t) 1e6)
-        xsnprintf(l, l_size, &p, "%5.1fk", cnt / 1e3);
+        xsnprintf(l, l_size, &p, "%5.1fk", (double)cnt / 1e3);
     else
-        xsnprintf(l, l_size, &p, "%5.1fM", cnt / 1e6);
+        xsnprintf(l, l_size, &p, "%5.1fM", (double)cnt / 1e6);
 
     xsnprintf(l, l_size, &p, " in %.1fs) ", dt_s);
 
@@ -395,13 +395,13 @@ static void inapplicable_qos(dds_entity_kind_t qt, const char *n) {
     fprintf(stderr, "warning: %s entity ignoring inapplicable QoS \"%s\"\n", en, n);
 }
 
-#define   get_qos_T(qt, q, n) ((qt == DDS_KIND_TOPIC)                                                               ? q : (inapplicable_qos((qt), n), NULL))
-#define   get_qos_R(qt, q, n) ((qt == DDS_KIND_READER)                                                              ? q : (inapplicable_qos((qt), n), NULL))
-#define   get_qos_W(qt, q, n) ((qt == DDS_KIND_WRITER)                                                              ? q : (inapplicable_qos((qt), n), NULL))
-#define  get_qos_TW(qt, q, n) ((qt == DDS_KIND_TOPIC)     || (qt == DDS_KIND_WRITER)                                ? q : (inapplicable_qos((qt), n), NULL))
-#define  get_qos_RW(qt, q, n) ((qt == DDS_KIND_READER)    || (qt == DDS_KIND_WRITER)                                ? q : (inapplicable_qos((qt), n), NULL))
-#define  get_qos_PS(qt, q, n) ((qt == DDS_KIND_PUBLISHER) || (qt == DDS_KIND_SUBSCRIBER)                            ? q : (inapplicable_qos((qt), n), NULL))
-#define get_qos_TRW(qt, q, n) ((qt == DDS_KIND_TOPIC)     || (qt == DDS_KIND_READER)     || (qt == DDS_KIND_WRITER) ? q : (inapplicable_qos((qt), n), NULL))
+#define   get_qos_T(qt, q, n) ((qt == DDS_KIND_TOPIC)                                                               ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
+#define   get_qos_R(qt, q, n) ((qt == DDS_KIND_READER)                                                              ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
+#define   get_qos_W(qt, q, n) ((qt == DDS_KIND_WRITER)                                                              ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
+#define  get_qos_TW(qt, q, n) ((qt == DDS_KIND_TOPIC)     || (qt == DDS_KIND_WRITER)                                ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
+#define  get_qos_RW(qt, q, n) ((qt == DDS_KIND_READER)    || (qt == DDS_KIND_WRITER)                                ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
+#define  get_qos_PS(qt, q, n) ((qt == DDS_KIND_PUBLISHER) || (qt == DDS_KIND_SUBSCRIBER)                            ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
+#define get_qos_TRW(qt, q, n) ((qt == DDS_KIND_TOPIC)     || (qt == DDS_KIND_READER)     || (qt == DDS_KIND_WRITER) ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
 
 void qos_durability(dds_entity_kind_t qt, dds_qos_t *q, const char *arg) {
     dds_qos_t *qp = get_qos_TRW(qt, q, "durability");
@@ -484,15 +484,15 @@ static unsigned char gethexchar(const char **str) {
         switch (**str) {
         case '0': case '1': case '2': case '3': case '4':
         case '5': case '6': case '7': case '8': case '9':
-            v = 16 * v + (unsigned char) **str - '0';
+            v = (unsigned char) (16 * v + (unsigned char) **str - '0');
             (*str)++;
             break;
         case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
-            v = 16 * v + (unsigned char) **str - 'a' + 10;
+            v = (unsigned char) (16 * v + (unsigned char) **str - 'a' + 10);
             (*str)++;
             break;
         case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
-            v = 16 * v + (unsigned char) **str - 'A' + 10;
+            v = (unsigned char) (16 * v + (unsigned char) **str - 'A' + 10);
             (*str)++;
             break;
         default:
@@ -511,7 +511,7 @@ static unsigned char getoctchar(const char **str) {
     int nseen = 0;
     while (**str && nseen < 3) {
         if (**str >= '0' && **str <= '7') {
-            v = 8 * v + (unsigned char) **str - '0';
+            v = (unsigned char) (8 * v + (unsigned char) **str - '0');
             (*str)++;
             nseen++;
         } else {
@@ -859,6 +859,7 @@ QOS (not all are universally applicable):\n\
 
 void set_qosprovider(const char *arg) {
     //Todo: There is no qosprovider_create in dds.h, yet
+    (void)arg;
 //    int result = DDS_RETCODE_OK;
 //    const char *p = strchr(arg, ',');
 //    const char *xs = strstr(arg, "://");

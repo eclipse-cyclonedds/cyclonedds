@@ -230,9 +230,9 @@ struct nn_xpack
 #endif /* DDSI_INCLUDE_ENCRYPTION */
 };
 
-static unsigned align4u (unsigned x)
+static size_t align4u (size_t x)
 {
-  return (x + 3u) & (unsigned)-4;
+  return (x + 3) & ~(size_t)3;
 }
 
 /* XMSGPOOL ------------------------------------------------------------
@@ -472,7 +472,7 @@ void nn_xmsg_submsg_init (struct nn_xmsg *msg, struct nn_xmsg_marker marker, Sub
 {
   SubmessageHeader_t *hdr = (SubmessageHeader_t *) (msg->data->payload + marker.offset);
   assert (submsg_is_compatible (msg, smkind));
-  hdr->submessageId = smkind;
+  hdr->submessageId = (unsigned char)smkind;
   hdr->flags = PLATFORM_IS_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0;
   hdr->octetsToNextHeader = 0;
 }
@@ -554,15 +554,15 @@ void nn_xmsg_add_entityid (struct nn_xmsg * m)
   nn_xmsg_submsg_setnext (m, sm);
 }
 
-void nn_xmsg_serdata (struct nn_xmsg *m, serdata_t serdata, unsigned off, unsigned len)
+void nn_xmsg_serdata (struct nn_xmsg *m, serdata_t serdata, size_t off, size_t len)
 {
   if (!ddsi_serdata_is_empty (serdata))
   {
-    unsigned len4 = align4u (len);
+    size_t len4 = align4u (len);
     assert (m->refd_payload == NULL);
     m->refd_payload = ddsi_serdata_ref (serdata);
     m->refd_payload_iov.iov_base = (char *) &m->refd_payload->hdr + off;
-    m->refd_payload_iov.iov_len = len4;
+    m->refd_payload_iov.iov_len = (ddsi_iov_len_t) len4;
   }
 }
 
@@ -752,13 +752,14 @@ void nn_xmsg_setwriterseq_fragid (struct nn_xmsg *msg, const nn_guid_t *wrguid, 
   msg->kindspecific.data.wrfragid = wrfragid;
 }
 
-unsigned nn_xmsg_add_string_padded(_Inout_opt_ unsigned char *buf, _In_ char *str)
+size_t nn_xmsg_add_string_padded(_Inout_opt_ unsigned char *buf, _In_ char *str)
 {
-  unsigned len = (unsigned) strlen (str) + 1;
+  size_t len = strlen (str) + 1;
+  assert (len <= UINT32_MAX);
   if (buf) {
     /* Add cdr string */
     struct cdrstring *p = (struct cdrstring *) buf;
-    p->length = len;
+    p->length = (uint32_t)len;
     memcpy (p->contents, str, len);
     /* clear padding */
     if (len < align4u (len)) {
@@ -770,7 +771,7 @@ unsigned nn_xmsg_add_string_padded(_Inout_opt_ unsigned char *buf, _In_ char *st
   return len;
 }
 
-unsigned nn_xmsg_add_octseq_padded(_Inout_opt_ unsigned char *buf, _In_ nn_octetseq_t *seq)
+size_t nn_xmsg_add_octseq_padded(_Inout_opt_ unsigned char *buf, _In_ nn_octetseq_t *seq)
 {
   unsigned len = seq->length;
   if (buf) {
@@ -783,15 +784,15 @@ unsigned nn_xmsg_add_octseq_padded(_Inout_opt_ unsigned char *buf, _In_ nn_octet
       memset (buf + len, 0, align4u (len) - len);
     }
   }
-  len = 4 +           /* cdr sequence len arg + */
-        align4u(len); /* seqlen + possible padding */
-  return len;
+  return 4 +           /* cdr sequence len arg + */
+         align4u(len); /* seqlen + possible padding */
 }
 
 
-unsigned nn_xmsg_add_dataholder_padded (_Inout_opt_ unsigned char *buf, const struct nn_dataholder *dh)
+size_t nn_xmsg_add_dataholder_padded (_Inout_opt_ unsigned char *buf, const struct nn_dataholder *dh)
 {
-  unsigned i, len;
+  unsigned i;
+  size_t len;
   unsigned dummy = 0;
   unsigned *cnt = &dummy;
 
@@ -870,7 +871,8 @@ void nn_xmsg_addpar_octetseq (struct nn_xmsg *m, unsigned pid, const nn_octetseq
 void nn_xmsg_addpar_stringseq (struct nn_xmsg *m, unsigned pid, const nn_stringseq_t *sseq)
 {
   unsigned char *tmp;
-  unsigned i, len = 0;
+  uint32_t i;
+  size_t len = 0;
 
   for (i = 0; i < sseq->n; i++)
   {
@@ -879,8 +881,8 @@ void nn_xmsg_addpar_stringseq (struct nn_xmsg *m, unsigned pid, const nn_strings
 
   tmp = nn_xmsg_addpar (m, pid, 4 + len);
 
-  *((unsigned *) tmp) = sseq->n;
-  tmp += sizeof (int);
+  *((uint32_t *) tmp) = sseq->n;
+  tmp += sizeof (uint32_t);
   for (i = 0; i < sseq->n; i++)
   {
     tmp += nn_xmsg_add_string_padded(tmp, sseq->strs[i]);
@@ -995,11 +997,12 @@ void nn_xmsg_addpar_share (struct nn_xmsg *m, unsigned pid, const struct nn_shar
 void nn_xmsg_addpar_subscription_keys (struct nn_xmsg *m, unsigned pid, const struct nn_subscription_keys_qospolicy *q)
 {
   unsigned char *tmp;
-  unsigned i, len = 8; /* use_key_list, length of key_list */
+  size_t len = 8; /* use_key_list, length of key_list */
+  unsigned i;
 
   for (i = 0; i < q->key_list.n; i++)
   {
-    unsigned len1 = (unsigned) strlen (q->key_list.strs[i]) + 1;
+    size_t len1 = strlen (q->key_list.strs[i]) + 1;
     len += 4 + align4u (len1);
   }
 
@@ -1011,13 +1014,14 @@ void nn_xmsg_addpar_subscription_keys (struct nn_xmsg *m, unsigned pid, const st
       tmp[i] = 0;
   }
   tmp += sizeof (int);
-  *((unsigned *) tmp) = q->key_list.n;
-  tmp += sizeof (unsigned);
+  *((uint32_t *) tmp) = q->key_list.n;
+  tmp += sizeof (uint32_t);
   for (i = 0; i < q->key_list.n; i++)
   {
     struct cdrstring *p = (struct cdrstring *) tmp;
-    unsigned len1 = (unsigned) strlen (q->key_list.strs[i]) + 1;
-    p->length = len1;
+    size_t len1 = strlen (q->key_list.strs[i]) + 1;
+    assert (len1 <= UINT32_MAX);
+    p->length = (uint32_t)len1;
     memcpy (p->contents, q->key_list.strs[i], len1);
     if (len1 < align4u (len1))
       memset (p->contents + len1, 0, align4u (len1) - len1);
@@ -1077,7 +1081,7 @@ void nn_xmsg_addpar_eotinfo (struct nn_xmsg *m, unsigned pid, const struct nn_pr
 void nn_xmsg_addpar_dataholder (_In_ struct nn_xmsg *m, _In_ unsigned pid, _In_ const struct nn_dataholder *dh)
 {
     unsigned char *tmp;
-    unsigned len;
+    size_t len;
 
     /* Get total payload length. */
     len = nn_xmsg_add_dataholder_padded(NULL, dh);

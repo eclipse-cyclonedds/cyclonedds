@@ -54,7 +54,7 @@ struct whc_intvnode {
 };
 
 struct whc_idxnode {
-  int64_t iid;
+  uint64_t iid;
   seqno_t prune_seq;
   struct tkmap_instance *tk;
   unsigned headidx;
@@ -1017,11 +1017,11 @@ static unsigned whc_remove_acked_messages (struct whc *whc_generic, seqno_t max_
 
   if (config.enabled_logcats & LC_WHC)
   {
-    struct whc_state whcst;
-    get_state_locked(whc, &whcst);
+    struct whc_state tmp;
+    get_state_locked(whc, &tmp);
     TRACE_WHC(("whc_remove_acked_messages(%p max_drop_seq %"PRId64")\n", (void *)whc, max_drop_seq));
     TRACE_WHC(("  whc: [%"PRId64",%"PRId64"] max_drop_seq %"PRId64" h %u tl %u\n",
-               whcst.min_seq, whcst.max_seq, whc->max_drop_seq, whc->hdepth, whc->tldepth));
+               tmp.min_seq, tmp.max_seq, whc->max_drop_seq, whc->hdepth, whc->tldepth));
   }
 
   check_whc (whc);

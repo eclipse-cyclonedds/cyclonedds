@@ -38,11 +38,11 @@ static const uint64_t unihashconsts[] = {
 static uint32_t hash_entity_guid (const struct entity_common *c)
 {
   return
-    (int) (((((uint32_t) c->guid.prefix.u[0] + unihashconsts[0]) *
-             ((uint32_t) c->guid.prefix.u[1] + unihashconsts[1])) +
-            (((uint32_t) c->guid.prefix.u[2] + unihashconsts[2]) *
-             ((uint32_t) c->guid.entityid.u  + unihashconsts[3])))
-           >> 32);
+    (uint32_t) (((((uint32_t) c->guid.prefix.u[0] + unihashconsts[0]) *
+                  ((uint32_t) c->guid.prefix.u[1] + unihashconsts[1])) +
+                 (((uint32_t) c->guid.prefix.u[2] + unihashconsts[2]) *
+                  ((uint32_t) c->guid.entityid.u  + unihashconsts[3])))
+                >> 32);
 }
 
 static uint32_t hash_entity_guid_wrapper (const void *c)
@@ -121,6 +121,7 @@ static void *ephash_lookup_guid_int (const struct ephash *ephash, const struct n
   /* FIXME: could (now) require guid to be first in entity_common; entity_common already is first in entity */
   struct entity_common e;
   struct entity_common *res;
+  (void)ephash;
   e.guid = *guid;
   res = ut_chhLookup (gv.guid_hash->hash, &e);
   if (res && res->kind == kind)
@@ -287,7 +288,7 @@ void *ephash_enum_next (struct ephash_enum *st)
   if (st->cur)
   {
     st->cur = ut_chhIterNext (&st->it);
-    while (st->cur && (int)st->cur->kind != st->kind)
+    while (st->cur && st->cur->kind != st->kind)
       st->cur = ut_chhIterNext (&st->it);
   }
   return res;

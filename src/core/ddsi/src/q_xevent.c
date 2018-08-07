@@ -1138,7 +1138,7 @@ static void write_pmd_message (struct nn_xpack *xp, struct participant *pp, unsi
   serstate = ddsi_serstate_new (NULL);
   ddsi_serstate_append_blob (serstate, 4, sizeof (u.pad), &u.pmd);
   serstate_set_key (serstate, 0, &u.pmd);
-  ddsi_serstate_set_msginfo (serstate, 0, now (), NULL);
+  ddsi_serstate_set_msginfo (serstate, 0, now ());
   serdata = ddsi_serstate_fix (serstate);
 
   /* HORRIBLE HACK ALERT -- serstate/serdata looks at whether topic is

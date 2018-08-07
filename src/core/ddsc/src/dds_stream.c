@@ -46,7 +46,7 @@ static void dds_stream_read
   (dds_stream_t * is, char * data, const uint32_t * ops);
 
 #define DDS_SWAP16(v) \
-  (((v) >> 8) | ((v) << 8))
+  ((uint16_t)(((v) >> 8) | ((v) << 8)))
 #define DDS_SWAP32(v) \
   (((v) >> 24) | \
   (((v) & 0x00ff0000) >> 8) | \
@@ -207,12 +207,12 @@ void dds_stream_grow (dds_stream_t * st, size_t size)
 
   /* Reallocate on 4k boundry */
 
-  size_t newSize = (needed & ~0xfff) + 0x1000;
+  size_t newSize = (needed & ~(size_t)0xfff) + 0x1000;
   uint8_t * old = st->m_buffer.p8;
 
   st->m_buffer.p8 = dds_realloc (old, newSize);
   memset (st->m_buffer.p8 + st->m_size, 0, newSize - st->m_size);
-  st->m_size = (int32_t) newSize;
+  st->m_size = newSize;
 }
 
 bool dds_stream_read_bool (dds_stream_t * is)
@@ -280,12 +280,12 @@ double dds_stream_read_double (dds_stream_t * is)
   return val;
 }
 
-char * dds_stream_reuse_string 
+char * dds_stream_reuse_string
   (dds_stream_t * is, char * str, const uint32_t bound)
 {
   uint32_t length;
   void * src;
-  
+
   DDS_CDR_ALIGN4 (is);
   if (DDS_IS_OK (is, 4))
   {
@@ -356,7 +356,7 @@ void dds_stream_swap (void * buff, uint32_t size, uint32_t num)
   }
 }
 
-static void dds_stream_read_fixed_buffer 
+static void dds_stream_read_fixed_buffer
   (dds_stream_t * is, void * buff, uint32_t len, const uint32_t size, const bool swap)
 {
   if (size && len)
@@ -423,12 +423,16 @@ void dds_stream_write_uint64 (dds_stream_t * os, uint64_t val)
 
 void dds_stream_write_float (dds_stream_t * os, float val)
 {
-  DDS_OS_PUT4 (os, val, float);
+  union { float f; uint32_t u; } u;
+  u.f = val;
+  dds_stream_write_uint32 (os, u.u);
 }
 
 void dds_stream_write_double (dds_stream_t * os, double val)
 {
-  DDS_OS_PUT8 (os, val, double);
+  union { double f; uint64_t u; } u;
+  u.f = val;
+  dds_stream_write_uint64 (os, u.u);
 }
 
 void dds_stream_write_string (dds_stream_t * os, const char * val)
@@ -457,7 +461,7 @@ void dds_stream_write_buffer (dds_stream_t * os, uint32_t len, uint8_t * buffer)
   DDS_OS_PUT_BYTES (os, buffer, len);
 }
 
-static void dds_stream_write 
+static void dds_stream_write
 (
   dds_stream_t * os,
   const char * data,
@@ -633,7 +637,7 @@ static void dds_stream_write
                 const uint32_t * jsr_ops = ops + DDS_OP_ADR_JSR (*ops) - 3;
                 const uint32_t jmp = DDS_OP_ADR_JMP (*ops);
                 const uint32_t elem_size = ops[1];
-                
+
                 while (num--)
                 {
                   dds_stream_write (os, addr, jsr_ops);
@@ -1225,7 +1229,8 @@ void dds_stream_write_key
         DDS_OS_PUT8 (os, *((uint64_t*) src), uint64_t);
         break;
       case DDS_OP_VAL_STR:
-        src = *(char**) src; /* drop through */
+        src = *(char**) src;
+        /* FALLS THROUGH */
       case DDS_OP_VAL_BST:
         dds_stream_write_string (os, src);
         break;
@@ -1243,14 +1248,14 @@ void dds_stream_write_key
   }
 }
 
-/* 
+/*
   dds_stream_get_keyhash: Extract key values from a stream and generate
   keyhash used for instance identification. Non key fields are skipped.
   Key hash data is big endian CDR encoded with no padding. Returns length
   of key hash. Input stream may contain full sample of just key data.
 */
 
-static uint32_t dds_stream_get_keyhash 
+static uint32_t dds_stream_get_keyhash
 (
   dds_stream_t * is,
   char * dst,
@@ -1308,7 +1313,7 @@ static uint32_t dds_stream_get_keyhash
         {
           case DDS_OP_VAL_1BY:
           {
-            *dst++ = DDS_IS_GET1 (is);
+            *dst++ = (char) DDS_IS_GET1 (is);
             break;
           }
           case DDS_OP_VAL_2BY:
@@ -1523,7 +1528,7 @@ static uint32_t dds_stream_get_keyhash
                 if ((jeq_op[1] == disc) || (has_default && (num == 0)))
                 {
                   subtype = DDS_JEQ_TYPE (jeq_op[0]);
-  
+
                   switch (subtype)
                   {
                     case DDS_OP_VAL_1BY:
@@ -1579,7 +1584,7 @@ static uint32_t dds_stream_get_keyhash
 #ifndef NDEBUG
 static bool keyhash_is_reset(const dds_key_hash_t *kh)
 {
-  static const char nullhash[sizeof(kh->m_hash)];
+  static const char nullhash[sizeof(kh->m_hash)] = { 0 };
   return kh->m_flags == 0 && memcmp(kh->m_hash, nullhash, sizeof(nullhash)) == 0;
 }
 #endif

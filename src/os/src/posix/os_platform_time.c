@@ -37,7 +37,7 @@ os_time os__timeDefaultTimeGet(void)
   (void) clock_gettime (CLOCK_REALTIME, &t);
 
   rt.tv_sec = (os_timeSec) t.tv_sec + timeshift;
-  rt.tv_nsec = t.tv_nsec;
+  rt.tv_nsec = (int32_t) t.tv_nsec;
 
   return rt;
 }
@@ -49,7 +49,7 @@ os_time os_timeGetMonotonic (void)
   (void) clock_gettime (CLOCK_MONOTONIC, &t);
 
   rt.tv_sec = (os_timeSec) t.tv_sec;
-  rt.tv_nsec = t.tv_nsec;
+  rt.tv_nsec = (int32_t) t.tv_nsec;
 
   return rt;
 }

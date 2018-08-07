@@ -21,8 +21,9 @@ static bool CtrlHandler (DWORD fdwCtrlType)
   return true; //Don't let other handlers handle this key
 }
 #else
-static void CtrlHandler (int fdwCtrlType)
+static void CtrlHandler (int sig)
 {
+  (void)sig;
   dds_waitset_set_trigger (waitSet, true);
 }
 #endif

@@ -109,7 +109,7 @@ int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *
   return ret;
 }
 
-void writer_hbcontrol_note_asyncwrite (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow)
+void writer_hbcontrol_note_asyncwrite (struct writer *wr, nn_mtime_t tnow)
 {
   struct hbcontrol * const hbc = &wr->hbcontrol;
   nn_mtime_t tnext;
@@ -284,7 +284,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
   /* Update statistics, intervals, scheduling of heartbeat event,
      &c. -- there's no real difference between async and sync so we
      reuse the async version. */
-  writer_hbcontrol_note_asyncwrite (wr, whcst, tnow);
+  writer_hbcontrol_note_asyncwrite (wr, tnow);
 
   *hbansreq = writer_hbcontrol_ack_required_generic (wr, whcst, tlast, tnow, 1);
   if (*hbansreq >= 2) {
@@ -467,6 +467,7 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
   unsigned fragstart, fraglen;
   enum nn_xmsg_kind xmsg_kind = isnew ? NN_XMSG_KIND_DATA : NN_XMSG_KIND_DATA_REXMIT;
   int ret = 0;
+  (void)plist;
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
@@ -920,7 +921,9 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
   wr->whc->ops->get_state(wr->whc, &whcst);
 
   {
+#ifndef NDEBUG
     nn_vendorid_t ownvendorid = MY_VENDOR_ID;
+#endif
     ASSERT_MUTEX_HELD (&wr->e.lock);
     assert (wr->throttling == 0);
     assert (vtime_awake_p (lookup_thread_state ()->vtime));
@@ -1004,6 +1007,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
 
   /* If GC not allowed, we must be sure to never block when writing.  That is only the case for (true, aggressive) KEEP_LAST writers, and also only if there is no limit to how much unacknowledged data the WHC may contain. */
   assert(gc_allowed || (wr->xqos->history.kind == NN_KEEP_LAST_HISTORY_QOS && wr->aggressive_keep_last && wr->whc_low == INT32_MAX));
+  (void)gc_allowed;
 
   if (ddsi_serdata_size (serdata) > config.max_sample_size)
   {
@@ -1112,7 +1116,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
     else
     {
       if (wr->heartbeat_xevent)
-        writer_hbcontrol_note_asyncwrite (wr, &whcst, tnow);
+        writer_hbcontrol_note_asyncwrite (wr, tnow);
       enqueue_sample_wrlock_held (wr, seq, plist, serdata, NULL, 1);
       os_mutexUnlock (&wr->e.lock);
     }

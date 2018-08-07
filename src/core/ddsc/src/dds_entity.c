@@ -990,7 +990,7 @@ dds_valid_hdl(
     /* When the given handle already contains an error, then return that
      * same error to retain the original information. */
     if (hdl >= 0) {
-        utr = ut_handle_status(hdl, NULL, kind);
+        utr = ut_handle_status(hdl, NULL, (int32_t)kind);
         if(utr == UT_HANDLE_OK){
             rc = DDS_RETCODE_OK;
         } else if(utr == UT_HANDLE_UNEQUAL_KIND){
@@ -1029,7 +1029,7 @@ dds_entity_lock(
     /* When the given handle already contains an error, then return that
      * same error to retain the original information. */
     if (hdl >= 0) {
-        utr = ut_handle_claim(hdl, NULL, kind, (void**)e);
+        utr = ut_handle_claim(hdl, NULL, (int32_t)kind, (void**)e);
         if (utr == UT_HANDLE_OK) {
             os_mutexLock(&((*e)->m_mutex));
             /* The handle could have been closed while we were waiting for the mutex. */
@@ -1195,14 +1195,13 @@ dds_entity_observer_unregister(
         _In_ dds_entity_t observer)
 {
     dds__retcode_t rc;
-    dds_return_t ret;
     dds_entity *e;
     rc = dds_entity_lock(observed, DDS_KIND_DONTCARE, &e);
     if (rc == DDS_RETCODE_OK) {
         rc = dds_entity_observer_unregister_nl(e, observer);
         dds_entity_unlock(e);
     } else{
-        ret = DDS_ERRNO(rc, "Error occurred on locking entity");
+        rc = DDS_ERRNO(rc, "Error occurred on locking entity");
     }
     return rc;
 }

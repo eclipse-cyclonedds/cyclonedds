@@ -27,7 +27,7 @@ dds_time_t dds_time (void)
  
 void dds_sleepfor (dds_duration_t n)
 {
-  os_time interval = { (os_timeSec) (n / DDS_NSECS_IN_SEC), (uint32_t) (n % DDS_NSECS_IN_SEC) };
+  os_time interval = { (os_timeSec) (n / DDS_NSECS_IN_SEC), (int32_t) (n % DDS_NSECS_IN_SEC) };
   os_nanoSleep (interval);
 }
 

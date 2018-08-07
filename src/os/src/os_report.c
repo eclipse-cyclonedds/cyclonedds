@@ -802,16 +802,11 @@ os__report_stack_unwind(
     if (valid && (_this->typeset != 0)) {
         char proc[256], procid[256];
         char thr[64], thrid[64];
-        os_procId pid;
-        uintmax_t tid;
 
         assert (context != NULL);
         assert (path != NULL);
 
         file = (char *)path;
-
-        pid = os_procIdSelf ();
-        tid = os_threadIdToInteger (os_threadIdSelf ());
 
         os_procNamePid (procid, sizeof (procid));
         os_procName (proc, sizeof (proc));

@@ -3043,7 +3043,7 @@ DDS_EXPORT _Must_inspect_result_ dds_return_t
 dds_return_loan(
         _In_ dds_entity_t reader_or_condition,
         _Inout_updates_(bufsz) void **buf,
-        _In_ size_t bufsz);
+        _In_ int32_t bufsz);
 
 /*
   Instance handle <=> key value mapping.

@@ -15,13 +15,12 @@
 #include <criterion/logging.h>
 
 
-#if 0
-#else
 /* We are deliberately testing some bad arguments that SAL will complain about.
  * So, silence SAL regarding these issues. */
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 6387 28020)
-
+#endif
 
 
 /****************************************************************************
@@ -243,7 +242,7 @@ qos_fini(void)
  ****************************************************************************/
 Test(ddsc_qos, userdata, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_userdata p = { 0 };
+    struct pol_userdata p = { NULL, 0 };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_userdata(NULL, g_pol_userdata.value, g_pol_userdata.sz);
@@ -261,7 +260,7 @@ Test(ddsc_qos, userdata, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, topicdata, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_topicdata p = { 0 };
+    struct pol_topicdata p = { NULL, 0 };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_topicdata(NULL, g_pol_topicdata.value, g_pol_topicdata.sz);
@@ -279,7 +278,7 @@ Test(ddsc_qos, topicdata, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, groupdata, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_groupdata p = { 0 };
+    struct pol_groupdata p = { NULL, 0 };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_groupdata(NULL, g_pol_groupdata.value, g_pol_groupdata.sz);
@@ -297,7 +296,7 @@ Test(ddsc_qos, groupdata, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, durability, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_durability p = { 0 };
+    struct pol_durability p = { DDS_DURABILITY_VOLATILE };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_durability(NULL, g_pol_durability.kind);
@@ -312,7 +311,7 @@ Test(ddsc_qos, durability, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, history, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_history p = { 0 };
+    struct pol_history p = { DDS_HISTORY_KEEP_ALL, 0 };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_history(NULL, g_pol_history.kind, g_pol_history.depth);
@@ -328,7 +327,7 @@ Test(ddsc_qos, history, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, resource_limits, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_resource_limits p = { 0 };
+    struct pol_resource_limits p = { 0, 0, 0 };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_resource_limits(NULL, g_pol_resource_limits.max_samples, g_pol_resource_limits.max_instances, g_pol_resource_limits.max_samples_per_instance);
@@ -345,7 +344,7 @@ Test(ddsc_qos, resource_limits, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, presentation, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_presentation p = { 0 };
+    struct pol_presentation p = { DDS_PRESENTATION_INSTANCE, false, false };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_presentation(NULL, g_pol_presentation.access_scope, g_pol_presentation.coherent_access, g_pol_presentation.ordered_access);
@@ -407,7 +406,7 @@ Test(ddsc_qos, latency_budget, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, ownership, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_ownership p = { 0 };
+    struct pol_ownership p = { DDS_OWNERSHIP_SHARED };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_ownership(NULL, g_pol_ownership.kind);
@@ -437,7 +436,7 @@ Test(ddsc_qos, ownership_strength, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, liveliness, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_liveliness p = { 0 };
+    struct pol_liveliness p = { DDS_LIVELINESS_AUTOMATIC, 0 };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_liveliness(NULL, g_pol_liveliness.kind, g_pol_liveliness.lease_duration);
@@ -468,7 +467,7 @@ Test(ddsc_qos, time_base_filter, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, partition, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_partition p = { 0 };
+    struct pol_partition p = { 0, NULL };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_partition(NULL, g_pol_partition.n, c_partitions);
@@ -490,7 +489,7 @@ Test(ddsc_qos, partition, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, reliability, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_reliability p = { 0 };
+    struct pol_reliability p = { DDS_RELIABILITY_BEST_EFFORT, 0 };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_reliability(NULL, g_pol_reliability.kind, g_pol_reliability.max_blocking_time);
@@ -521,7 +520,7 @@ Test(ddsc_qos, transport_priority, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, destination_order, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_destination_order p = { 0 };
+    struct pol_destination_order p = { DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_destination_order(NULL, g_pol_destination_order.kind);
@@ -536,7 +535,7 @@ Test(ddsc_qos, destination_order, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, writer_data_lifecycle, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_writer_data_lifecycle p = { 0 };
+    struct pol_writer_data_lifecycle p = { false };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_writer_data_lifecycle(NULL, g_pol_writer_data_lifecycle.autodispose);
@@ -551,7 +550,7 @@ Test(ddsc_qos, writer_data_lifecycle, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, reader_data_lifecycle, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_reader_data_lifecycle p = { 0 };
+    struct pol_reader_data_lifecycle p = { 0, 0 };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_reader_data_lifecycle(NULL, g_pol_reader_data_lifecycle.autopurge_nowriter_samples_delay, g_pol_reader_data_lifecycle.autopurge_disposed_samples_delay);
@@ -567,7 +566,7 @@ Test(ddsc_qos, reader_data_lifecycle, .init=qos_init, .fini=qos_fini)
 
 Test(ddsc_qos, durability_service, .init=qos_init, .fini=qos_fini)
 {
-    struct pol_durability_service p = { 0 };
+    struct pol_durability_service p = { 0, DDS_HISTORY_KEEP_LAST, 0, 0, 0, 0 };
 
     /* NULLs shouldn't crash and be a noops. */
     dds_qset_durability_service(NULL,
@@ -615,7 +614,6 @@ Test(ddsc_qos, durability_service, .init=qos_init, .fini=qos_fini)
     cr_assert_eq(p.max_samples_per_instance, g_pol_durability_service.max_samples_per_instance);
 }
 
-#endif
-
-
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif

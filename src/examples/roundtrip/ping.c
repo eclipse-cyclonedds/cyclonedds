@@ -65,7 +65,7 @@ static ExampleTimeStats *exampleAddTimingToTimeStats
   {
     stats->values[stats->valuesSize++] = timing;
   }
-  stats->average = (stats->count * stats->average + timing) / (stats->count + 1);
+  stats->average = ((double)stats->count * stats->average + (double)timing) / (double)(stats->count + 1);
   stats->min = (stats->count == 0 || timing < stats->min) ? timing : stats->min;
   stats->max = (stats->count == 0 || timing > stats->max) ? timing : stats->max;
   stats->count++;
@@ -117,8 +117,9 @@ static bool CtrlHandler (DWORD fdwCtrlType)
   return true; //Don't let other handlers handle this key
 }
 #else
-static void CtrlHandler (int fdwCtrlType)
+static void CtrlHandler (int sig)
 {
+  (void)sig;
   dds_waitset_set_trigger (waitSet, true);
 }
 #endif
@@ -149,14 +150,14 @@ static dds_time_t elapsed = 0;
 
 static bool warmUp = true;
 
-static void data_available(dds_entity_t reader, void *arg)
+static void data_available(dds_entity_t rd, void *arg)
 {
   dds_time_t difference = 0;
   int status;
   (void)arg;
   /* Take sample and check that it is valid */
   preTakeTime = dds_time ();
-  status = dds_take (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
+  status = dds_take (rd, samples, info, MAX_SAMPLES, MAX_SAMPLES);
   DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   postTakeTime = dds_time ();
 
@@ -218,8 +219,8 @@ static void usage(void)
 
 int main (int argc, char *argv[])
 {
-  unsigned long payloadSize = 0;
-  unsigned long long numSamples = 0;
+  uint32_t payloadSize = 0;
+  uint64_t numSamples = 0;
   bool invalidargs = false;
   dds_time_t timeOut = 0;
   dds_time_t time;
@@ -271,9 +272,11 @@ int main (int argc, char *argv[])
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   DDS_ERR_CHECK (participant, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 
-  listener = dds_listener_create(NULL);
-  dds_lset_data_available(listener, data_available);
-
+  if (use_listener)
+  {
+    listener = dds_listener_create(NULL);
+    dds_lset_data_available(listener, data_available);
+  }
   prepare_dds(&writer, &reader, &readCond, listener);
 
   setvbuf(stdout, NULL, _IONBF, 0);
@@ -300,7 +303,7 @@ int main (int argc, char *argv[])
   }
   if (argc - argidx >= 1)
   {
-    payloadSize = atol (argv[argidx]);
+    payloadSize = (uint32_t) atol (argv[argidx]);
 
     if (payloadSize > 100 * 1048576)
     {
@@ -309,7 +312,7 @@ int main (int argc, char *argv[])
   }
   if (argc - argidx >= 2)
   {
-    numSamples = atol (argv[argidx+1]);
+    numSamples = (uint64_t) atol (argv[argidx+1]);
   }
   if (argc - argidx >= 3)
   {
@@ -317,7 +320,7 @@ int main (int argc, char *argv[])
   }
   if (invalidargs || (argc - argidx == 1 && (strcmp (argv[argidx], "-h") == 0 || strcmp (argv[argidx], "--help") == 0)))
     usage();
-  printf ("# payloadSize: %lu | numSamples: %llu | timeOut: %" PRIi64 "\n\n", payloadSize, numSamples, timeOut);
+  printf ("# payloadSize: %" PRIu32 " | numSamples: %" PRIu64 " | timeOut: %" PRIi64 "\n\n", payloadSize, numSamples, timeOut);
 
   pub_data.payload._length = payloadSize;
   pub_data.payload._buffer = payloadSize ? dds_alloc (payloadSize) : NULL;
@@ -418,7 +421,7 @@ done:
   return EXIT_SUCCESS;
 }
 
-static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_entity_t *readCond, dds_listener_t *listener)
+static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t *rdcond, dds_listener_t *listener)
 {
   dds_return_t status;
   dds_entity_t topic;
@@ -448,8 +451,8 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_
   dwQos = dds_qos_create ();
   dds_qset_reliability (dwQos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
   dds_qset_writer_data_lifecycle (dwQos, false);
-  *writer = dds_create_writer (publisher, topic, dwQos, NULL);
-  DDS_ERR_CHECK (*writer, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  *wr = dds_create_writer (publisher, topic, dwQos, NULL);
+  DDS_ERR_CHECK (*wr, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   dds_qos_delete (dwQos);
 
   /* A DDS_Subscriber is created on the domain participant. */
@@ -463,17 +466,17 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_
   /* A DDS_DataReader is created on the Subscriber & Topic with a modified QoS. */
   drQos = dds_qos_create ();
   dds_qset_reliability (drQos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
-  *reader = dds_create_reader (subscriber, topic, drQos, listener);
-  DDS_ERR_CHECK (*reader, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  *rd = dds_create_reader (subscriber, topic, drQos, listener);
+  DDS_ERR_CHECK (*rd, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   dds_qos_delete (drQos);
 
   waitSet = dds_create_waitset (participant);
   if (listener == NULL) {
-    *readCond = dds_create_readcondition (*reader, DDS_ANY_STATE);
-    status = dds_waitset_attach (waitSet, *readCond, *reader);
+    *rdcond = dds_create_readcondition (*rd, DDS_ANY_STATE);
+    status = dds_waitset_attach (waitSet, *rdcond, *rd);
     DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   } else {
-    *readCond = 0;
+    *rdcond = 0;
   }
   status = dds_waitset_attach (waitSet, waitSet, waitSet);
   DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
@@ -481,19 +484,19 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_
   return participant;
 }
 
-static void finalize_dds(dds_entity_t participant, dds_entity_t reader, dds_entity_t readCond)
+static void finalize_dds(dds_entity_t ppant, dds_entity_t rd, dds_entity_t rdcond)
 {
   dds_return_t status;
 
   /* Disable callbacks */
-  dds_set_enabled_status (reader, 0);
+  dds_set_enabled_status (rd, 0);
 
-  (void) dds_waitset_detach (waitSet, readCond);
+  (void) dds_waitset_detach (waitSet, rdcond);
   status = dds_waitset_detach (waitSet, waitSet);
   DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  (void) dds_delete (readCond);
+  (void) dds_delete (rdcond);
   status = dds_delete (waitSet);
   DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  status = dds_delete (participant);
+  status = dds_delete (ppant);
   DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 }

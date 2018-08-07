@@ -222,7 +222,7 @@ static int set_reuse_options (os_socket socket)
 
 static int bind_socket (os_socket socket, unsigned short port)
 {
-  int rc;
+  os_result rc;
 
 #if OS_SOCKET_HAS_IPV6
   if (config.transport_selector == TRANS_TCP6 || config.transport_selector == TRANS_UDP6)

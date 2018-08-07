@@ -106,7 +106,7 @@ cleanup_thread_state(
     _In_opt_ void *data)
 {
     struct thread_state1 *ts = get_thread_state(os_threadIdSelf());
-
+    (void)data;
     assert(ts->state == THREAD_STATE_ALIVE);
     assert(vtime_asleep_p(ts->vtime));
     reset_thread_state(ts);

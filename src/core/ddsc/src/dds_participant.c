@@ -21,7 +21,7 @@
 #include "dds__err.h"
 #include "dds__report.h"
 
-#define DDS_PARTICIPANT_STATUS_MASK    0
+#define DDS_PARTICIPANT_STATUS_MASK    0u
 
 /* List of created participants */
 
@@ -101,6 +101,7 @@ dds_participant_qos_validate(
 {
     dds_return_t ret = DDS_RETCODE_OK;
     assert(qos);
+    (void)enabled;
 
     /* Check consistency. */
     if ((qos->present & QP_USER_DATA) && !validate_octetseq(&qos->user_data)) {
@@ -120,6 +121,7 @@ dds_participant_qos_set(
         bool enabled)
 {
     dds_return_t ret = dds_participant_qos_validate(qos, enabled);
+    (void)e;
     if (ret == DDS_RETCODE_OK) {
         if (enabled) {
             /* TODO: CHAM-95: DDSI does not support changing QoS policies. */

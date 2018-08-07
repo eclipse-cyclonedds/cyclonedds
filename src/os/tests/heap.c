@@ -36,8 +36,8 @@ static const size_t nof_allocsizes = sizeof allocsizes / sizeof *allocsizes;
 
 CUnit_Test(os_heap, os_malloc)
 {
-    for(int i = 0; i < nof_allocsizes; i++) {
-        for(int j = 0; j < nof_allocsizes; j++) {
+    for(size_t i = 0; i < nof_allocsizes; i++) {
+        for(size_t j = 0; j < nof_allocsizes; j++) {
             size_t s = allocsizes[i] * allocsizes[j]; /* Allocates up to 1MB */
             void *ptr = os_malloc(s);
             CU_ASSERT_PTR_NOT_EQUAL(ptr, NULL); /* os_malloc is supposed to abort on failure */
@@ -50,8 +50,8 @@ CUnit_Test(os_heap, os_malloc)
 
 CUnit_Test(os_heap, os_malloc_0)
 {
-    for(int i = 0; i < nof_allocsizes; i++) {
-        for(int j = 0; j < nof_allocsizes; j++) {
+    for(size_t i = 0; i < nof_allocsizes; i++) {
+        for(size_t j = 0; j < nof_allocsizes; j++) {
             size_t s = allocsizes[i] * allocsizes[j]; /* Allocates up to 1MB */
             char *ptr = os_malloc_0(s);
             CU_ASSERT_PTR_NOT_EQUAL(ptr, NULL); /* os_malloc_0 is supposed to abort on failure */
@@ -66,11 +66,11 @@ CUnit_Test(os_heap, os_malloc_0)
 
 CUnit_Test(os_heap, os_calloc)
 {
-    for(int i = 0; i < nof_allocsizes; i++) {
-        for(int j = 0; j < nof_allocsizes; j++) {
+    for(size_t i = 0; i < nof_allocsizes; i++) {
+        for(size_t j = 0; j < nof_allocsizes; j++) {
             char *ptr = os_calloc(allocsizes[i], allocsizes[j]);
             CU_ASSERT_PTR_NOT_EQUAL(ptr, NULL); /* os_calloc is supposed to abort on failure */
-            if(allocsizes[i] * allocsizes[j]) {
+            if(allocsizes[i] * allocsizes[j] > 0) {
                 CU_ASSERT (ptr[0] == 0 && !memcmp(ptr, ptr + 1, (allocsizes[i] * allocsizes[j]) - 1)); /* os_calloc should memset properly */
             }
             os_free(ptr);
@@ -84,8 +84,8 @@ CUnit_Test(os_heap, os_realloc)
     char *ptr = NULL;
     size_t unchanged, s, prevs = 0;
 
-    for(int i = 0; i < nof_allocsizes; i++) {
-        for(int j = 0; j < nof_allocsizes; j++) {
+    for(size_t i = 0; i < nof_allocsizes; i++) {
+        for(size_t j = 0; j < nof_allocsizes; j++) {
             s = allocsizes[i] * allocsizes[j]; /* Allocates up to 1MB */
             printf("os_realloc(%p) %zu -> %zu\n", ptr, prevs, s);
             ptr = os_realloc(ptr, s);
@@ -107,8 +107,8 @@ static const size_t nof_allocsizes_s = sizeof allocsizes_s / sizeof *allocsizes_
 
 CUnit_Test(os_heap, os_malloc_s)
 {
-    for(int i = 0; i < nof_allocsizes_s; i++) {
-        for(int j = 0; j < nof_allocsizes_s; j++) {
+    for(size_t i = 0; i < nof_allocsizes_s; i++) {
+        for(size_t j = 0; j < nof_allocsizes_s; j++) {
             size_t s = allocsizes_s[i] * allocsizes_s[j]; /* Allocates up to 8MB */
             void *ptr = os_malloc_s(s); /* If s == 0, os_malloc_s should still return a pointer */
             if(ptr) {
@@ -126,8 +126,8 @@ CUnit_Test(os_heap, os_malloc_s)
 
 CUnit_Test(os_heap, os_malloc_0_s)
 {
-    for(int i = 0; i < nof_allocsizes_s; i++) {
-        for(int j = 0; j < nof_allocsizes_s; j++) {
+    for(size_t i = 0; i < nof_allocsizes_s; i++) {
+        for(size_t j = 0; j < nof_allocsizes_s; j++) {
             size_t s = allocsizes_s[i] * allocsizes_s[j]; /* Allocates up to 8MB */
             char *ptr = os_malloc_0_s(s); /* If s == 0, os_malloc_0_s should still return a pointer */
             if(ptr) {
@@ -147,8 +147,8 @@ CUnit_Test(os_heap, os_malloc_0_s)
 
 CUnit_Test(os_heap, os_calloc_s)
 {
-    for(int i = 0; i < nof_allocsizes_s; i++) {
-        for(int j = 0; j < nof_allocsizes_s; j++) {
+    for(size_t i = 0; i < nof_allocsizes_s; i++) {
+        for(size_t j = 0; j < nof_allocsizes_s; j++) {
             size_t s = allocsizes_s[i] * allocsizes_s[j];
             char *ptr = os_calloc_s(allocsizes_s[i], allocsizes_s[j]); /* If either one is 0, os_calloc_s should still return a pointer */
             if(ptr) {
@@ -171,8 +171,8 @@ CUnit_Test(os_heap, os_realloc_s)
     char *newptr, *ptr = NULL;
     size_t unchanged, s, prevs = 0;
 
-    for(int i = 0; i < nof_allocsizes_s; i++) {
-        for(int j = 0; j < nof_allocsizes_s; j++) {
+    for(size_t i = 0; i < nof_allocsizes_s; i++) {
+        for(size_t j = 0; j < nof_allocsizes_s; j++) {
             s = allocsizes_s[i] * allocsizes_s[j]; /* Allocates up to 8MB */
             newptr = os_realloc_s(ptr, s);
             printf("%p = os_realloc_s(%p) %zu -> %zu\n", newptr, ptr, prevs, s);

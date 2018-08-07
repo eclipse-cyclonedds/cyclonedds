@@ -43,6 +43,8 @@ static void check(const struct inverse_uint32_set *set)
     assert(n->max <= set->max);
     assert(pn == NULL || n->min > pn->max+1);
   }
+#else
+  (void)set;
 #endif
 }
 

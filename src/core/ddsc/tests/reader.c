@@ -84,7 +84,7 @@ create_topic_name(const char *prefix, char *name, size_t size)
 static void
 reader_init(void)
 {
-    Space_Type1 sample = { 0 };
+    Space_Type1 sample = { 0, 0, 0 };
     dds_attach_t triggered;
     dds_return_t ret;
     char name[100];
@@ -174,6 +174,7 @@ reader_init(void)
     for(int i = 0; i < ret; i++) {
         Space_Type1 *s = (Space_Type1*)g_samples[i];
         PRINT_SAMPLE("INIT: Read      ", (*s));
+        (void)s;
     }
 
     /* Re-write the samples that should be not_read&old_view. */
@@ -2499,7 +2500,7 @@ Test(ddsc_take_mask, take_instance_last_sample)
     int expected_long_3 = 2;
 #endif
     dds_return_t expected_cnt = 1;
-    Space_Type1 sample = { 0 };
+    Space_Type1 sample = { 0, 0, 0 };
     dds_attach_t triggered;
     dds_return_t ret;
     char name[100];

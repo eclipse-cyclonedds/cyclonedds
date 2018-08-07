@@ -26,10 +26,10 @@ typedef struct {
 } nn_protocol_version_t;
 typedef union nn_guid_prefix {
   unsigned char s[12];
-  unsigned u[3];
+  uint32_t u[3];
 } nn_guid_prefix_t;
 typedef union nn_entityid {
-  unsigned u;
+  uint32_t u;
 } nn_entityid_t;
 typedef struct nn_guid {
   nn_guid_prefix_t prefix;

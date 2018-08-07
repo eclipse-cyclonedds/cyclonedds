@@ -96,7 +96,7 @@ cu_runner_init(
 
     for (i = 1; e == CUE_SUCCESS && i < argc; i++) {
         c = (argv[i][0] == '-') ? argv[i][1] : -1;
-        switch (argv[i][1]) {
+        switch (c) {
             case 'a':
                 runner.automated = true;
                 break;
@@ -111,19 +111,19 @@ cu_runner_init(
                     runner.results = argv[++i];
                     break;
                 }
-                /* no break */
+                /* FALLS THROUGH */
             case 's':
                 if ((i+1) < argc) {
                     runner.suite = argv[++i];
                     break;
                 }
-                /* no break */
+                /* FALLS THROUGH */
             case 't':
                 if ((i+1) < argc) {
                     runner.test = argv[++i];
                     break;
                 }
-                /* no break */
+                /* FALLS THROUGH */
             default:
                 e = (CU_ErrorCode)256;
                 CU_set_error(e); /* Will print as "Undefined Errpr" */

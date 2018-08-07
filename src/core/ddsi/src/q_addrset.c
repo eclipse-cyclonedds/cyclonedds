@@ -233,7 +233,7 @@ void set_unspec_locator (nn_locator_t *loc)
 
 int is_unspec_locator (const nn_locator_t *loc)
 {
-  static const nn_locator_t zloc;
+  static const nn_locator_t zloc = { .kind = 0 };
   return (loc->kind == NN_LOCATOR_KIND_INVALID &&
           loc->port == NN_LOCATOR_PORT_INVALID &&
           memcmp (&zloc.address, loc->address, sizeof (zloc.address)) == 0);

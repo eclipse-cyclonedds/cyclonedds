@@ -125,7 +125,7 @@ dds_waitset_wait_impl(
                     to.tv_nsec = DDS_NSECS_IN_SEC - 1;
                 } else {
                     to.tv_sec = (os_timeSec) (dt / DDS_NSECS_IN_SEC);
-                    to.tv_nsec = (uint32_t) (dt % DDS_NSECS_IN_SEC);
+                    to.tv_nsec = (int32_t) (dt % DDS_NSECS_IN_SEC);
                 }
                 (void)os_condTimedWait(&ws->m_entity.m_cond, &ws->m_entity.m_mutex, &to);
                 tnow = dds_time();

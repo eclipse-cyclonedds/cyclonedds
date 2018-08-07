@@ -19,7 +19,7 @@
 #define MAX_SAMPLES  (7)
 Test(ddsc_transient_local, late_joiner)
 {
-    Space_Type1 sample = { 0 };
+    Space_Type1 sample = { 0, 0, 0 };
     dds_return_t ret;
     dds_entity_t par;
     dds_entity_t pub;

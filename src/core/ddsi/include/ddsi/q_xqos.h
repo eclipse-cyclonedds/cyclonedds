@@ -25,7 +25,7 @@ extern "C" {
 #define NN_DDS_LENGTH_UNLIMITED -1
 
 typedef struct nn_octetseq {
-  unsigned length;
+  uint32_t length;
   unsigned char *value;
 } nn_octetseq_t;
 
@@ -40,7 +40,7 @@ typedef struct nn_property {
 } nn_property_t;
 
 typedef struct nn_propertyseq {
-  unsigned n;
+  uint32_t n;
   nn_property_t *props;
 } nn_propertyseq_t;
 
@@ -51,7 +51,7 @@ typedef struct nn_binaryproperty {
 } nn_binaryproperty_t;
 
 typedef struct nn_binarypropertyseq {
-  unsigned n;
+  uint32_t n;
   nn_binaryproperty_t *props;
 } nn_binarypropertyseq_t;
 
@@ -78,13 +78,13 @@ typedef enum nn_history_kind {
 
 typedef struct nn_history_qospolicy {
   nn_history_kind_t kind;
-  int depth;
+  int32_t depth;
 } nn_history_qospolicy_t;
 
 typedef struct nn_resource_limits_qospolicy {
-  int max_samples;
-  int max_instances;
-  int max_samples_per_instance;
+  int32_t max_samples;
+  int32_t max_instances;
+  int32_t max_samples_per_instance;
 } nn_resource_limits_qospolicy_t;
 
 typedef struct nn_durability_service_qospolicy {
@@ -123,7 +123,7 @@ typedef struct nn_ownership_qospolicy {
 } nn_ownership_qospolicy_t;
 
 typedef struct nn_ownership_strength_qospolicy {
-  int value;
+  int32_t value;
 } nn_ownership_strength_qospolicy_t;
 
 typedef enum nn_liveliness_kind {
@@ -142,7 +142,7 @@ typedef struct nn_time_based_filter_qospolicy {
 } nn_time_based_filter_qospolicy_t;
 
 typedef struct nn_stringseq {
-  unsigned n;
+  uint32_t n;
   char **strs;
 } nn_stringseq_t;
 
@@ -159,7 +159,7 @@ typedef struct nn_reliability_qospolicy {
 } nn_reliability_qospolicy_t;
 
 typedef struct nn_external_reliability_qospolicy {
-  int kind;
+  uint32_t kind;
   nn_duration_t max_blocking_time;
 } nn_external_reliability_qospolicy_t;
 
@@ -169,7 +169,7 @@ typedef struct nn_external_reliability_qospolicy {
 #define NN_INTEROP_RELIABLE_RELIABILITY_QOS     2
 
 typedef struct nn_transport_priority_qospolicy {
-  int value;
+  int32_t value;
 } nn_transport_priority_qospolicy_t;
 
 typedef struct nn_lifespan_qospolicy {

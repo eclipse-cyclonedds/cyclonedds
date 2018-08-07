@@ -17,7 +17,7 @@ This file was the one orginally in ./src/api/dcps/saj/code/.
 (and therefore by implication ./src/api/dcps/cj/java/code).
 */
 
-#define BUILTIN_TOPIC_KEY_TYPE_NATIVE   long
+#define BUILTIN_TOPIC_KEY_TYPE_NATIVE   unsigned long
 
 module DDS {
 
