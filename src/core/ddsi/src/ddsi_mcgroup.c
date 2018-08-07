@@ -50,9 +50,9 @@ static int cmp_group_membership (const void *va, const void *vb)
     return -1;
   else if (a->conn > b->conn)
     return 1;
-  else if ((c = memcmp (&a->srcloc, &b->srcloc, sizeof(a->srcloc))) != 0)
+  else if ((c = locator_compare_no_port (&a->srcloc, &b->srcloc)) != 0)
     return c;
-  else if ((c = memcmp (&a->mcloc, &b->mcloc, sizeof(a->mcloc))) != 0)
+  else if ((c = locator_compare_no_port (&a->mcloc, &b->mcloc)) != 0)
     return c;
   else
     return 0;
