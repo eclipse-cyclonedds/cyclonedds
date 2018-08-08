@@ -1201,7 +1201,7 @@ dds_entity_observer_unregister(
         rc = dds_entity_observer_unregister_nl(e, observer);
         dds_entity_unlock(e);
     } else{
-        rc = DDS_ERRNO(rc, "Error occurred on locking entity");
+        (void)DDS_ERRNO(rc, "Error occurred on locking entity");
     }
     return rc;
 }
