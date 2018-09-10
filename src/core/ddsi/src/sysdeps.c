@@ -285,15 +285,20 @@ void log_stacktrace (const char *name, os_threadId tid)
       os_nanoSleep (d);
     sigaction (SIGXCPU, &act, &oact);
     pthread_kill (tid.v, SIGXCPU);
-    while (!os_atomic_cas32 (&log_stacktrace_flag, 2, 3))
+    while (!os_atomic_cas32 (&log_stacktrace_flag, 2, 3) && pthread_kill (tid.v, 0) == 0)
       os_nanoSleep (d);
     sigaction (SIGXCPU, &oact, NULL);
-    nn_log (~0u, "-- stack trace follows --\n");
-    strs = backtrace_symbols (log_stacktrace_stk.stk, log_stacktrace_stk.depth);
-    for (i = 0; i < log_stacktrace_stk.depth; i++)
-      nn_log (~0u, "%s\n", strs[i]);
-    free (strs);
-    nn_log (~0u, "-- end of stack trace --\n");
+    if (pthread_kill (tid.v, 0) != 0)
+      nn_log (~0u, "-- thread exited --\n");
+    else
+    {
+      nn_log (~0u, "-- stack trace follows --\n");
+      strs = backtrace_symbols (log_stacktrace_stk.stk, log_stacktrace_stk.depth);
+      for (i = 0; i < log_stacktrace_stk.depth; i++)
+        nn_log (~0u, "%s\n", strs[i]);
+      free (strs);
+      nn_log (~0u, "-- end of stack trace --\n");
+    }
     os_atomic_st32 (&log_stacktrace_flag, 0);
   }
 }
