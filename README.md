@@ -49,16 +49,20 @@ On another terminal, start the application that will be sending the ping.
     # Waiting for startup jitter to stabilise
     # Warm up complete.
     # Round trip measurements (in us)
-    #.          Round trip time [us]         Write-access time [us]      Read-access time [us]
-    # Seconds Count     Median    Min      Count     Median    Min     Count     Median      Min
-    
-        1     13476       70       66      13476       14       12      13476        2        1
-        2     11972       73       66      11972       14       13      11972        2        1
-        3     13109       71       67      13109       14       12      13109        2        1
-        4     12259       72       67      12259       14       12      12259        2        1
-        5     12928       71       67      12928       14       12      12928        2        1
-
-The number above were measure on a 13' MacBook pro running a 3,1 GHz Intel Core i5. From these number you can see how the roundtrip is incredibly stable and the minimal latency is slightly over 30 micro-seconds (on this HW).
+    #             Round trip time [us]                           Write-access time [us]       Read-access time [us]
+    # Seconds     Count   median      min      99%      max      Count   median      min      Count   median      min
+            1     17382       56       50       77      269      17382       10        9      17382        1        1
+            2     17502       55       50       75      137      17502       10        9      17502        1        1
+            3     17482       56       50       73      165      17482       10        9      17482        1        1
+            4     17429       56       50       73      135      17429       10        9      17429        1        1
+            5     17514       56       50       73      146      17514       10        9      17514        1        1
+            6     17566       55       50       74      256      17566       10        9      17566        1        1
+            7     17555       55       51       74      119      17555       10        9      17555        1        1
+            8     17551       55       51       74      137      17551       10        9      17551        1        1
+            9     17562       55       50       72      193      17562       10        9      17562        1        1
+           10     17461       56       50       74      143      17461       10        9      17461        1        1
+           
+The number above were measure on Mac running a 4,2 GHz Intel Core i7. From these number you can see how the roundtrip is incredibly stable and the minimal latency is about 25 micro-seconds (on this HW).
 
 ## Documentation
 The Cyclone DDS documentation is available [here](http://cdds.io/docs).
