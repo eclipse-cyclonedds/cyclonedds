@@ -20,6 +20,8 @@
 #include "../snippets/code/os_stdlib_strtok_r.c"
 #include "../snippets/code/os_stdlib_strsep.c"
 #include "../snippets/code/os_stdlib_strdup.c"
+#include "../snippets/code/os_stdlib_memdup.c"
+#include "../snippets/code/os_stdlib_asprintf.c"
 #include "../snippets/code/os_stdlib_rindex.c"
 #include "../snippets/code/os_stdlib_strcasecmp.c"
 #include "../snippets/code/os_stdlib_strncasecmp.c"

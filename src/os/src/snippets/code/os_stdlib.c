@@ -22,7 +22,9 @@
 #include <ctype.h>
 
 #include "os_stdlib_strsep.c"
+#include "os_stdlib_memdup.c"
 #include "os_stdlib_rindex.c"
+#include "os_stdlib_asprintf.c"
 #include "os_stdlib_strcasecmp.c"
 #include "os_stdlib_strncasecmp.c"
 #include "os_stdlib_strdup.c"

@@ -79,7 +79,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
   if (ret > 0)
   {
     if (srcloc)
-      ddsi_ipaddr_to_loc(srcloc, &src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
+      ddsi_ipaddr_to_loc(srcloc, (os_sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
 
     /* Check for udp packet truncation */
     if ((((size_t) ret) > len)
@@ -90,7 +90,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
     {
       char addrbuf[DDSI_LOCSTRLEN];
       nn_locator_t tmp;
-      ddsi_ipaddr_to_loc(&tmp, &src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
+      ddsi_ipaddr_to_loc(&tmp, (os_sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
       ddsi_locator_to_string(addrbuf, sizeof(addrbuf), &tmp);
       NN_WARNING ("%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
     }

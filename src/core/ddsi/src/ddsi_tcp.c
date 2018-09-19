@@ -145,7 +145,7 @@ static ddsi_tcp_conn_t ddsi_tcp_new_conn (os_socket, bool, os_sockaddr_storage *
 static char *sockaddr_to_string_with_port (char *dst, size_t sizeof_dst, const os_sockaddr_storage *src)
 {
   nn_locator_t loc;
-  ddsi_ipaddr_to_loc(&loc, src, src->ss_family == AF_INET ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6);
+  ddsi_ipaddr_to_loc(&loc, (const os_sockaddr *)src, src->ss_family == AF_INET ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6);
   ddsi_locator_to_string(dst, sizeof_dst, &loc);
   return dst;
 }
@@ -452,7 +452,7 @@ static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
       {
         if (srcloc)
         {
-          ddsi_ipaddr_to_loc(srcloc, &tcp->m_peer_addr, tcp->m_peer_addr.ss_family == AF_INET ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6);
+          ddsi_ipaddr_to_loc(srcloc, (os_sockaddr *)&tcp->m_peer_addr, tcp->m_peer_addr.ss_family == AF_INET ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6);
         }
         return (ssize_t) pos;
       }
@@ -869,7 +869,7 @@ static void ddsi_tcp_conn_peer_locator (ddsi_tran_conn_t conn, nn_locator_t * lo
   char buff[DDSI_LOCSTRLEN];
   ddsi_tcp_conn_t tc = (ddsi_tcp_conn_t) conn;
   assert (tc->m_sock != Q_INVALID_SOCKET);
-  ddsi_ipaddr_to_loc (loc, &tc->m_peer_addr, tc->m_peer_addr.ss_family == AF_INET ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6);
+  ddsi_ipaddr_to_loc (loc, (os_sockaddr *)&tc->m_peer_addr, tc->m_peer_addr.ss_family == AF_INET ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6);
   ddsi_locator_to_string(buff, sizeof(buff), loc);
   TRACE (("(%s EP:%s)", ddsi_name, buff));
 }
@@ -976,7 +976,7 @@ static void ddsi_tcp_close_conn (ddsi_tran_conn_t tc)
     sockaddr_to_string_with_port(buff, sizeof(buff), &conn->m_peer_addr);
     nn_log (LC_INFO, "%s close %s connnection on socket %"PRIsock" to %s\n", ddsi_name, conn->m_base.m_server ? "server" : "client", conn->m_sock, buff);
     (void) shutdown (conn->m_sock, 2);
-    ddsi_ipaddr_to_loc(&loc, &conn->m_peer_addr, conn->m_peer_addr.ss_family == AF_INET ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6);
+    ddsi_ipaddr_to_loc(&loc, (os_sockaddr *)&conn->m_peer_addr, conn->m_peer_addr.ss_family == AF_INET ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6);
     loc.port = conn->m_peer_port;
     purge_proxy_participants (&loc, conn->m_base.m_server);
   }

@@ -347,42 +347,23 @@ static void ddsi_raweth_deinit(void)
   }
 }
 
-static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t factory, int max, struct os_ifAttributes_s *interfs)
+static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t factory, os_ifaddrs_t **interfs)
 {
-  struct ifaddrs *ifaddr, *ifa;
+  int err = 0;
   int cnt = 0;
+  os_ifaddrs_t *ifa;
+  os_ifaddr_filter_t filt = { .af_packet = 1 };
+
   (void)factory;
-  if (getifaddrs (&ifaddr) == -1)
-    return -errno;
-  for (ifa = ifaddr; ifa && cnt < max; ifa = ifa->ifa_next)
-  {
-    struct os_ifAttributes_s *f = &interfs[cnt];
-    struct sockaddr_ll *x;
-    if (ifa->ifa_addr == NULL)
-      continue;
-    if (ifa->ifa_addr->sa_family != AF_PACKET)
-      continue;
-    if ((ifa->ifa_flags & (IFF_UP | IFF_BROADCAST)) != (IFF_UP | IFF_BROADCAST))
-      continue;
-    strncpy(f->name, ifa->ifa_name, sizeof(f->name));
-    f->name[sizeof(f->name)-1] = 0;
-    f->flags = ifa->ifa_flags;
-    f->interfaceIndexNo = if_nametoindex(f->name);
-    x = (struct sockaddr_ll *)&f->address;
-    memcpy(x, ifa->ifa_addr, sizeof (*x));
-    x = (struct sockaddr_ll *)&f->network_mask;
-    if (ifa->ifa_netmask)
-      memcpy(x, ifa->ifa_netmask, sizeof (*x));
-    else
-      memset(x, 0, sizeof(*x));
-    x = (struct sockaddr_ll *)&f->broadcast_address;
-    if (ifa->ifa_broadaddr)
-      memcpy(x, ifa->ifa_broadaddr, sizeof (*x));
-    else
-      memset(x, 0, sizeof(*x));
-    cnt++;
+
+  if ((err = os_getifaddrs(interfs, &filt)) == 0) {
+    for (ifa = *interfs; ifa != NULL; ifa = ifa->next, cnt++) {
+      /* do nothing */
+    }
+  } else {
+    return -err;
   }
-  freeifaddrs (ifaddr);
+
   return cnt;
 }
 
