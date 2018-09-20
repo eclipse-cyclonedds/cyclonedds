@@ -27,9 +27,11 @@ copy_ifaddrs(os_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
 
     assert(ifap != NULL);
     assert(sys_ifa != NULL);
-    assert(sys_ifa->ifa_addr->sa_family == AF_INET ||
-           sys_ifa->ifa_addr->sa_family == AF_INET6 ||
-           sys_ifa->ifa_addr->sa_family == AF_PACKET);
+    assert(sys_ifa->ifa_addr->sa_family == AF_INET
+#ifdef __linux
+        || sys_ifa->ifa_addr->sa_family == AF_PACKET
+#endif /* __linux */
+        || sys_ifa->ifa_addr->sa_family == AF_INET6);
 
     ifa = os_malloc(sizeof(*ifa));
     if (ifa == NULL) {
@@ -49,9 +51,11 @@ copy_ifaddrs(os_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
         } else {
             if (sys_ifa->ifa_addr->sa_family == AF_INET) {
                 size = sizeof(struct sockaddr_in);
+#ifdef __linux
             } else {
                 assert(sys_ifa->ifa_addr->sa_family == AF_PACKET);
                 size = sizeof(struct sockaddr_ll);
+#endif /* __linux */
             }
 
             if (!(ifa->addr = os_memdup(sys_ifa->ifa_addr, size)) ||
@@ -97,8 +101,10 @@ os_getifaddrs(
              sys_ifa = sys_ifa->ifa_next)
         {
             addr = sys_ifa->ifa_addr;
-            if ((addr->sa_family == AF_PACKET && ifltr->af_packet)
-             || (addr->sa_family == AF_INET && ifltr->af_inet)
+            if ((addr->sa_family == AF_INET && ifltr->af_inet)
+#ifdef __linux
+             || (addr->sa_family == AF_PACKET && ifltr->af_packet)
+#endif /* __linux */
              || (addr->sa_family == AF_INET6 && ifltr->af_inet6 &&
                  !IN6_IS_ADDR_UNSPECIFIED(
                      &((struct sockaddr_in6 *)addr)->sin6_addr)))
