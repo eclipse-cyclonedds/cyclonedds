@@ -1,6 +1,6 @@
-# Cyclone DDS
+# Eclipse Cyclone DDS
 
-Cyclone DDS is by far the most performant and robust DDS implementation available on the market. 
+Eclipse Cyclone DDS is by far the most performant and robust DDS implementation available on the market. 
 
 Beside, Cyclone DDS is developed completely in the open and is undergoing the acceptance process to become part of Eclipse IoT (see  [eclipse-cyclone-dds](https://projects.eclipse.org/proposals/eclipse-cyclone-dds)).
 
