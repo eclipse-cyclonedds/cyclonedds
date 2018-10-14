@@ -57,17 +57,6 @@ int main (int argc, char **argv)
   dds_entity_t writer;
   ThroughputModule_DataType sample;
 
-  /* Register handler for Ctrl-C */
-#ifdef _WIN32
-  SetConsoleCtrlHandler ((PHANDLER_ROUTINE) CtrlHandler, true);
-#else
-  struct sigaction sat;
-  sat.sa_handler = CtrlHandler;
-  sigemptyset (&sat.sa_mask);
-  sat.sa_flags = 0;
-  sigaction (SIGINT, &sat, &oldAction);
-#endif
-
   if (parse_args(argc, argv, &payloadSize, &burstInterval, &burstSize, &timeOut, &partitionName) == EXIT_FAILURE) {
     return EXIT_FAILURE;
   }
@@ -89,6 +78,17 @@ int main (int argc, char **argv)
   for (uint32_t i = 0; i < payloadSize; i++) {
     sample.payload._buffer[i] = 'a';
   }
+
+  /* Register handler for Ctrl-C */
+#ifdef _WIN32
+  SetConsoleCtrlHandler ((PHANDLER_ROUTINE) CtrlHandler, true);
+#else
+  struct sigaction sat;
+  sat.sa_handler = CtrlHandler;
+  sigemptyset (&sat.sa_mask);
+  sat.sa_flags = 0;
+  sigaction (SIGINT, &sat, &oldAction);
+#endif
 
   /* Register the sample instance and write samples repeatedly or until time out */
   start_writing(writer, &sample, burstInterval, burstSize, timeOut);
