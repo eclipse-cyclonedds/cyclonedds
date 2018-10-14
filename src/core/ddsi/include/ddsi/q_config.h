@@ -235,11 +235,10 @@ struct config
   enum boolean_default compat_tcp_enable;
   int dontRoute;
   int enableMulticastLoopback;
-  int domainId;
+  struct config_maybe_int32 domainId;
   int participantIndex;
   int maxAutoParticipantIndex;
   int port_base;
-  struct config_maybe_int32 discoveryDomainId;
   char *spdpMulticastAddressString;
   char *defaultMulticastAddressString;
   char *assumeMulticastCapable;

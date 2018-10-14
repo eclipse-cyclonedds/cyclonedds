@@ -32,7 +32,7 @@ dds__check_domain(
  *-# Returns 0 on success or a non-zero error status
  **/
 dds_return_t
-dds_init(void);
+dds_init(dds_domainid_t domain);
 
 /* Finalization function, called from main */
 

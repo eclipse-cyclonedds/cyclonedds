@@ -148,7 +148,7 @@ dds_create_participant(
     bool asleep;
 
     /* Make sure DDS instance is initialized. */
-    ret = dds_init();
+    ret = dds_init(domain);
     if (ret != DDS_RETCODE_OK) {
         e = (dds_entity_t)ret;
         goto fail_dds_init;

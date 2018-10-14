@@ -161,7 +161,7 @@ DUPF(cipher);
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
 DUPF(bandwidth);
 #endif
-DU(domainId);
+DUPF(domainId);
 DUPF(durability_cdr);
 DUPF(transport_selector);
 DUPF(many_sockets_mode);
@@ -727,8 +727,6 @@ static const struct cfgelem discovery_peers_cfgelems[] = {
 };
 
 static const struct cfgelem discovery_cfgelems[] = {
-    { LEAF("DomainId"), 1, "default", ABSOFF(discoveryDomainId), 0, uf_maybe_int32, 0, pf_maybe_int32,
-    "<p>This element allows overriding of the DDS Domain Id that is used for DDSI2E.</p>" },
     { LEAF("AdvertiseBuiltinTopicWriters"), 1, "true", ABSOFF(advertise_builtin_topic_writers), 0, uf_boolean, 0, pf_boolean,
     "<p>This element controls whether or not DDSI2E advertises writers for the built-in topics from its discovery for backwards compatibility with older OpenSplice versions.</p>" },
     { LEAF("DSGracePeriod"), 1, "30 s", ABSOFF(ds_grace_period), 0, uf_duration_inf, 0, pf_duration,
@@ -873,7 +871,7 @@ static const struct cfgelem lease_cfgelems[] = {
 
 static const struct cfgelem domain_cfgelems[] = {
     { GROUP("Lease", lease_cfgelems), NULL },
-    { LEAF("Id"), 1, "0", ABSOFF(domainId), 0, uf_domainId, 0, pf_int, NULL },
+    { LEAF("Id"), 1, "any", ABSOFF(domainId), 0, uf_domainId, 0, pf_domainId, NULL },
     WILDCARD,
     END_MARKER
 };
@@ -1904,9 +1902,20 @@ static int uf_int_min_max(struct cfgst *cfgst, void *parent, struct cfgelem cons
         return 1;
 }
 
-static int uf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
+static int uf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
-    return uf_int_min_max(cfgst, parent, cfgelem, first, value, 0, 230);
+  struct config_maybe_int32 *elem = cfg_address(cfgst, parent, cfgelem);
+  int pos;
+  if (os_strcasecmp(value, "any") == 0) {
+    elem->isdefault = 1;
+    elem->value = 0;
+    return 1;
+  } else if (sscanf(value, "%d%n", &elem->value, &pos) == 1 && value[pos] == 0 && elem->value >= 0 && elem->value <= 230) {
+    elem->isdefault = 0;
+    return 1;
+  } else {
+    return cfg_error(cfgst, "'%s': neither 'any' nor a decimal integer in 0 .. 230\n", value);
+  }
 }
 
 static int uf_participantIndex(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
@@ -2213,11 +2222,11 @@ static void pf_uint32(struct cfgst *cfgst, void *parent, struct cfgelem const * 
 
 static void pf_maybe_int32(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
 {
-    struct config_maybe_int32 *p = cfg_address(cfgst, parent, cfgelem);
-    if ( p->isdefault )
-        cfg_log(cfgst, "default%s", is_default ? " [def]" : "");
-    else
-        cfg_log(cfgst, "%d%s", p->value, is_default ? " [def]" : "");
+  struct config_maybe_int32 *p = cfg_address(cfgst, parent, cfgelem);
+  if ( p->isdefault )
+    cfg_log(cfgst, "default%s", is_default ? " [def]" : "");
+  else
+    cfg_log(cfgst, "%d%s", p->value, is_default ? " [def]" : "");
 }
 
 static void pf_maybe_memsize(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
@@ -2229,6 +2238,14 @@ static void pf_maybe_memsize(struct cfgst *cfgst, void *parent, struct cfgelem c
         pf_int64_unit(cfgst, p->value, is_default, unittab_memsize, "B");
 }
 
+static void pf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
+{
+  struct config_maybe_int32 *p = cfg_address(cfgst, parent, cfgelem);
+  if ( p->isdefault )
+    cfg_log(cfgst, "any (%d)%s", p->value, is_default ? " [def]" : "");
+  else
+    cfg_log(cfgst, "%d%s", p->value, is_default ? " [def]" : "");
+}
 
 static void pf_float(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
 {
@@ -2706,6 +2723,12 @@ struct cfgst * config_init
 
     config.tracingOutputFile = stderr;
     config.enabled_logcats = LC_ERROR | LC_WARNING;
+
+    /* eventually, we domainId.value will be the real domain id selected, even if it was configured
+       to the default of "any" and has "isdefault" set; initializing it to the default-default
+       value of 0 means "any" in the config & DDS_DOMAIN_DEFAULT in create participant automatically
+       ends up on the right value */
+    config.domainId.value = 0;
 
     cfgst = os_malloc(sizeof(*cfgst));
     memset(cfgst, 0, sizeof(*cfgst));

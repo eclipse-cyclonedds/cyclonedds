@@ -101,7 +101,7 @@ static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int p
       int i;
       for (i = 0; i <= config.maxAutoParticipantIndex; i++)
       {
-        int port = config.port_base + config.port_dg * config.domainId + i * config.port_pg + config.port_d1;
+        int port = config.port_base + config.port_dg * config.domainId.value + i * config.port_pg + config.port_d1;
         loc.port = (unsigned) port;
         if (i == 0)
           nn_log (LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
@@ -114,7 +114,7 @@ static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int p
     {
       int port = port_mode;
       if (port == -1)
-        port = config.port_base + config.port_dg * config.domainId + config.port_d0;
+        port = config.port_base + config.port_dg * config.domainId.value + config.port_d0;
       loc.port = (unsigned) port;
       nn_log (LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
       add_to_addrset (as, &loc);

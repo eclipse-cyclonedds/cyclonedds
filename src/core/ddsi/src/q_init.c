@@ -74,7 +74,7 @@ static int make_uc_sockets (uint32_t * pdisc, uint32_t * pdata, int ppid)
   if (config.many_sockets_mode == MSM_NO_UNICAST)
   {
     assert (ppid == PARTICIPANT_INDEX_NONE);
-    *pdata = *pdisc = (uint32_t) (config.port_base + config.port_dg * config.domainId);
+    *pdata = *pdisc = (uint32_t) (config.port_base + config.port_dg * config.domainId.value);
     if (config.allowMulticast)
     {
       /* FIXME: ugly hack - but we'll fix up after creating the multicast sockets */
@@ -85,7 +85,7 @@ static int make_uc_sockets (uint32_t * pdisc, uint32_t * pdata, int ppid)
   if (ppid >= 0)
   {
     /* FIXME: verify port numbers are in range instead of truncating them like this */
-    int base = config.port_base + (config.port_dg * config.domainId) + (ppid * config.port_pg);
+    int base = config.port_base + (config.port_dg * config.domainId.value) + (ppid * config.port_pg);
     *pdisc = (uint32_t) (base + config.port_d1);
     *pdata = (uint32_t) (base + config.port_d3);
   }
@@ -284,7 +284,7 @@ static int string_to_default_locator (nn_locator_t *loc, const char *string, uin
 
 static int set_spdp_address (void)
 {
-  const uint32_t port = (uint32_t) (config.port_base + config.port_dg * config.domainId + config.port_d0);
+  const uint32_t port = (uint32_t) (config.port_base + config.port_dg * config.domainId.value + config.port_d0);
   int rc = 0;
   /* FIXME: FIXME: FIXME: */
   gv.loc_spdp_mc.kind = NN_LOCATOR_KIND_INVALID;
@@ -321,7 +321,7 @@ static int set_spdp_address (void)
 
 static int set_default_mc_address (void)
 {
-  const uint32_t port = (uint32_t) (config.port_base + config.port_dg * config.domainId + config.port_d2);
+  const uint32_t port = (uint32_t) (config.port_base + config.port_dg * config.domainId.value + config.port_d2);
   int rc;
   if (!config.defaultMulticastAddressString)
     gv.loc_default_mc = gv.loc_spdp_mc;
@@ -464,15 +464,7 @@ int rtps_config_prep (struct cfgst *cfgst)
   unsigned num_channel_threads = 0;
 #endif
 
-  /* if the discovery domain id was explicitly set, override the default here */
-  if (!config.discoveryDomainId.isdefault)
-  {
-    config.domainId = config.discoveryDomainId.value;
-  }
-
   /* retry_on_reject_duration default is dependent on late_ack_mode and responsiveness timeout, so fix up */
-
-
   if (config.whc_init_highwater_mark.isdefault)
     config.whc_init_highwater_mark.value = config.whc_lowwater_mark;
   if (config.whc_highwater_mark < config.whc_lowwater_mark ||
@@ -662,7 +654,7 @@ int joinleave_spdp_defmcip (int dojoin)
   unref_addrset (as);
   if (arg.errcount)
   {
-    NN_ERROR ("rtps_init: failed to join multicast groups for domain %d participant %d\n", config.domainId, config.participantIndex);
+    NN_ERROR ("rtps_init: failed to join multicast groups for domain %d participant %d\n", config.domainId.value, config.participantIndex);
     return -1;
   }
   return 0;
@@ -676,7 +668,7 @@ int create_multicast_sockets(void)
   qos->m_multicast = 1;
 
   /* FIXME: should check for overflow */
-  port = (uint32_t) (config.port_base + config.port_dg * config.domainId + config.port_d0);
+  port = (uint32_t) (config.port_base + config.port_dg * config.domainId.value + config.port_d0);
   if ((disc = ddsi_factory_create_conn (gv.m_factory, port, qos)) == NULL)
     goto err_disc;
   if (config.many_sockets_mode == MSM_NO_UNICAST)
@@ -686,7 +678,7 @@ int create_multicast_sockets(void)
   }
   else
   {
-    port = (uint32_t) (config.port_base + config.port_dg * config.domainId + config.port_d2);
+    port = (uint32_t) (config.port_base + config.port_dg * config.domainId.value + config.port_d2);
     if ((data = ddsi_factory_create_conn (gv.m_factory, port, qos)) == NULL)
       goto err_data;
   }
@@ -960,7 +952,7 @@ int rtps_init (void)
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   /* Convert address sets in partition mappings from string to address sets */
   {
-    const int port = config.port_base + config.port_dg * config.domainId + config.port_d2;
+    const int port = config.port_base + config.port_dg * config.domainId.value + config.port_d2;
     struct config_networkpartition_listelem *np;
     for (np = config.networkPartitions; np; np = np->next)
     {
@@ -1034,7 +1026,7 @@ int rtps_init (void)
     {
       if (make_uc_sockets (&port_disc_uc, &port_data_uc, config.participantIndex) < 0)
       {
-        NN_ERROR ("rtps_init: failed to create unicast sockets for domain %d participant %d\n", config.domainId, config.participantIndex);
+        NN_ERROR ("rtps_init: failed to create unicast sockets for domain %d participant %d\n", config.domainId.value, config.participantIndex);
         goto err_unicast_sockets;
       }
     }
@@ -1052,13 +1044,13 @@ int rtps_init (void)
           continue;
         else /* Oops! */
         {
-          NN_ERROR ("rtps_init: failed to create unicast sockets for domain %d participant %d\n", config.domainId, ppid);
+          NN_ERROR ("rtps_init: failed to create unicast sockets for domain %d participant %d\n", config.domainId.value, ppid);
           goto err_unicast_sockets;
         }
       }
       if (ppid > config.maxAutoParticipantIndex)
       {
-        NN_ERROR ("rtps_init: failed to find a free participant index for domain %d\n", config.domainId);
+        NN_ERROR ("rtps_init: failed to find a free participant index for domain %d\n", config.domainId.value);
         goto err_unicast_sockets;
       }
       config.participantIndex = ppid;
@@ -1069,7 +1061,7 @@ int rtps_init (void)
     }
     nn_log (LC_CONFIG, "rtps_init: uc ports: disc %u data %u\n", port_disc_uc, port_data_uc);
   }
-  nn_log (LC_CONFIG, "rtps_init: domainid %d participantid %d\n", config.domainId, config.participantIndex);
+  nn_log (LC_CONFIG, "rtps_init: domainid %d participantid %d\n", config.domainId.value, config.participantIndex);
 
   if (config.pcap_file && *config.pcap_file)
   {
