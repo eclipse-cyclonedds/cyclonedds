@@ -1,6 +1,0 @@
-@startuml
-(*) --> "Create diagrams.plantuml"
--->[Execute PlantUML] "PlantUML generates dot file"
--->[PlantUML executes Graphviz] "Graphviz generates png from dot file"
---> (*)
-@enduml

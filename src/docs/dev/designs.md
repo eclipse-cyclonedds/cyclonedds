@@ -12,8 +12,6 @@ how, be concise and easily accessible. After all, if no one is able to find or
 read it, it serves no purpose. There are some guidelines when it comes to
 tooling and the directory structure.
 
-capturing and explaining the underlying ideas.
-
 
 ## Documentation file format
 
@@ -21,7 +19,7 @@ As previously stated, the most important part about design documentation is
 the fact that people can find it and read it. Therefore, the documentation
 should be in a non-propriatary, well supported format. Since most repository
 managers, GitHub included, support rendering Markdown on the fly and it is
-easy to write and read in any text editor, it seems like a very good choice.
+easy to write and read in any text editor, it seems like a good choice.
 
 The added benefit of on the fly rendering in GitHub makes that the source is
 also the artifact, which allows any contributer to consult up-to-date
@@ -43,12 +41,15 @@ most popular and supports the most types of diagrams. Strictly speaking,
 PlantUML is a tool, not just a format, that generates so-called *dot* files,
 which are turned into an image by [Graphviz](https://www.graphviz.org/).
 While there are wiki and forum software packages that directly support
-rendering PlantUML diagrams, GitHub does (currently) not. Luckily
-[Gravizo](http://www.gravizo.com/) supports on the fly rendering of graphs
-in PlantUML syntax.
+rendering PlantUML diagrams, GitHub does (currently) not. While there are
+services like [Gravizo](http://www.gravizo.com/) that support on the fly
+rendering of graphs in PlantUML syntax, using them is not recommended for now.
+While they work, GitHub does not allow you to specify repository, user, and
+branch information, so the links will be *static*. For now, please include the
+diagram in PlantUML and SVG format until live rendering is supported. The
+images can be presented in Markdown documents by using image links.
 
-A simple activity diagram describing how a PlantUML model is converted into an
-image by Graphviz should be displayed below this text as an example.
-
-![alt text](https://g.gravizo.com/source/g?./diagrams.plantuml)
+> PlantUML may not be the best tool to design models, but as previously noted,
+> the fact that anyone can consult the information is more important than the
+> one time benefit of easily dragging shapes around.
 
