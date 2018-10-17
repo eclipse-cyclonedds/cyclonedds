@@ -8,9 +8,10 @@ target audience, etc. The committer should act as a gatekeeper in this case.
 Currently there is no one policy that covers what exactly a good design
 document must contain, how it is formatted or what diagrams it must contain
 at a minimum. Common sense dictates that it should explain why, rather than
-how, be concise and easily accessible. After all, if no one is able to find or
-read it, it serves no purpose. There are some guidelines when it comes to
-tooling and the directory structure.
+how, contains relevant implementation specifics, be concise and easily
+accessible. After all, if no one is able to find or read it, it serves no
+purpose. There are some guidelines when it comes to tooling and the directory
+structure.
 
 
 ## Documentation file format
@@ -26,13 +27,13 @@ also the artifact, which allows any contributer to consult up-to-date
 design documentation at any time.
 
 
-## UML Diagrams
+## Diagrams
 
 Often a clear description of the problem that is addressed by a given
 component is enough, but as the saying goes, a picture is worth a thousand
-words. There will be scenarios where a UML diagram (e.g. a class diagram,
-or a sequence diagram) is a much better way to explain how components are
-tied together or a given protocol works.
+words. There will be scenarios where a diagram (e.g. a class diagram, or a
+sequence diagram) is a much better way to explain how components are tied
+together or a given protocol works.
 
 The arguments for a documentation file format hold up equally well for the
 format in which UML models are expressed. There are a number of so-called
