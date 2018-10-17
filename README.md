@@ -66,3 +66,8 @@ The number above were measure on Mac running a 4,2 GHz Intel Core i7. From these
 
 ## Documentation
 The Cyclone DDS documentation is available [here](http://cdds.io/docs).
+
+## Contributing
+If you want to add new features or submit a bugfix, please read the
+[contribution](src/docs/dev/contributing.md) guidelines.
+
