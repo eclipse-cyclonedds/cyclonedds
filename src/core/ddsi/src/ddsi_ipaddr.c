@@ -29,7 +29,7 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (ddsi_tran_factory
     ddsi_ipaddr_from_loc(&ownip, &gv.ownloc);
     if (os_sockaddrSameSubnet ((os_sockaddr *) &tmp, (os_sockaddr *) &iftmp, (os_sockaddr *) &nmtmp))
     {
-      if (os_sockaddrIPAddressEqual ((os_sockaddr*) &iftmp, (os_sockaddr*) &ownip))
+      if (os_sockaddr_compare((os_sockaddr *)&iftmp, (os_sockaddr *)&ownip) == 0)
         return DNAR_SAME;
       else
         return DNAR_LOCAL;

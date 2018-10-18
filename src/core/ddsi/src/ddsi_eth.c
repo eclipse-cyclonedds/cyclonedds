@@ -9,15 +9,22 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "os/os.h"
+#include "ddsi_eth.h"
 
-_Ret_z_
-_Check_return_
-char *
-os_strdup(
-    _In_z_ const char *str)
+int ddsi_eth_enumerate_interfaces(ddsi_tran_factory_t fact, os_ifaddrs_t **ifs)
 {
-    assert(str != NULL);
+    int err;
+    int afs[] = { AF_INET, 0 };
 
-    return os_memdup(str, strlen(str) + 1);
+    (void)fact;
+
+#if OS_SOCKET_HAVE_IPV6
+    if (config.transport_selector == TRANS_TCP6 ||
+        config.transport_selector == TRANS_UDP6)
+    {
+      afs[0] = AF_INET6;
+    }
+#endif /* OS_SOCKET_HAVE_IPV6 */
+
+    return -os_getifaddrs(ifs, afs);
 }

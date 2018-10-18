@@ -263,7 +263,7 @@ extern "C" {
     __attribute_warn_unused_result__;
 
     void *
-    os_memdup(void *src, size_t n);
+    os_memdup(const void *src, size_t n);
 
     /** \brief os_strsep wrapper
      *

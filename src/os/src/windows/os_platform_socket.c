@@ -19,9 +19,6 @@
 
 #include <assert.h>
 
-#define WORKING_BUFFER_SIZE 15000
-#define MAX_TRIES 3
-
 typedef BOOL (WINAPI *qwaveQOSCreateHandleFuncT) (_In_ PQOS_VERSION Version, _Out_ PHANDLE QOSHandle);
 typedef BOOL (WINAPI *qwaveQOSCloseHandleFuncT) (_In_ HANDLE QOSHandle);
 typedef BOOL (WINAPI *qwaveQOSAddSocketToFlowFuncT) (

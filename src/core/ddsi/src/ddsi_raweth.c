@@ -350,21 +350,11 @@ static void ddsi_raweth_deinit(void)
 static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t factory, os_ifaddrs_t **interfs)
 {
   int err = 0;
-  int cnt = 0;
-  os_ifaddrs_t *ifa;
-  os_ifaddr_filter_t filt = { .af_packet = 1 };
+  int afs[] = { AF_PACKET, 0 };
 
   (void)factory;
 
-  if ((err = os_getifaddrs(interfs, &filt)) == 0) {
-    for (ifa = *interfs; ifa != NULL; ifa = ifa->next, cnt++) {
-      /* do nothing */
-    }
-  } else {
-    return -err;
-  }
-
-  return cnt;
+  return -os_getifaddrs(interfs, afs);
 }
 
 int ddsi_raweth_init (void)

@@ -36,9 +36,9 @@ CUnit_Test(os_getifaddrs, ipv4)
     int err;
     int seen = 0;
     os_ifaddrs_t *ifa_root, *ifa;
-    os_ifaddr_filter_t ifltr = { .af_inet = 1 };
+    const int afs[] = { AF_INET, 0 };
 
-    err = os_getifaddrs(&ifa_root, &ifltr);
+    err = os_getifaddrs(&ifa_root, afs);
     CU_ASSERT_EQUAL_FATAL(err, 0);
     for (ifa = ifa_root; ifa; ifa = ifa->next) {
         CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET);
@@ -62,9 +62,9 @@ CUnit_Test(os_getifaddrs, non_local_ipv6)
 {
     int err;
     os_ifaddrs_t *ifa_root, *ifa;
-    os_ifaddr_filter_t ifltr = { .af_inet6 = 1 };
+    const int afs[] = { AF_INET6, 0 };
 
-    err = os_getifaddrs(&ifa_root, &ifltr);
+    err = os_getifaddrs(&ifa_root, afs);
     CU_ASSERT_EQUAL_FATAL(err, 0);
     for (ifa = ifa_root; ifa; ifa = ifa->next) {
         CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET6);

@@ -466,28 +466,10 @@ int find_own_ip (const char *requested_address)
   nn_log (LC_CONFIG, "interfaces:");
 
   {
-    int retcode;
-    retcode = ddsi_enumerate_interfaces(gv.m_factory, &ifa_root);
-    if (retcode < 0) {
-      NN_ERROR("ddsi_enumerate_interfaces(%s): %d\n", gv.m_factory->m_typename, retcode);
-    } else if (retcode == 0) {
-      int err;
-      const os_ifaddr_filter_t fltr = {
-        .af_inet = (config.transport_selector == TRANS_TCP  || config.transport_selector == TRANS_UDP),
-        .af_inet6 = (config.transport_selector == TRANS_TCP6 || config.transport_selector == TRANS_UDP6)
-      };
-
-      if ((err = os_getifaddrs(&ifa_root, &fltr)) != 0) {
-        NN_ERROR("os_getifaddrs: %s\n", os_strerror(err));
-        retcode = -1;
-      } else if (ifa_root == NULL) {
-        NN_ERROR("ddsi_enumerate_interfaces(%s): no go but neither UDP[46] nor TCP[46]\n", gv.m_factory->m_typename);
-        retcode = -1;
-      }
-    }
-
-    if (retcode < 0) {
-      os_freeifaddrs(ifa_root);
+    int ret;
+    ret = ddsi_enumerate_interfaces(gv.m_factory, &ifa_root);
+    if (ret < 0) {
+      NN_ERROR("ddsi_enumerate_interfaces(%s): %d\n", gv.m_factory->m_typename, ret);
       return 0;
     }
   }
@@ -507,9 +489,11 @@ int find_own_ip (const char *requested_address)
     strcpy (last_if_name, if_name);
 
     /* interface must be up */
-    if ((ifa->flags & IFF_UP) == 0)
-    {
+    if ((ifa->flags & IFF_UP) == 0) {
       nn_log (LC_CONFIG, " (interface down)");
+      continue;
+    } else if (os_sockaddr_is_unspecified(ifa->addr)) {
+      nn_log (LC_CONFIG, " (address unspecified)");
       continue;
     }
 

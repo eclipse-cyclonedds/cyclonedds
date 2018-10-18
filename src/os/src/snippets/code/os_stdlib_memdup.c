@@ -12,11 +12,11 @@
 #include "os/os.h"
 
 void *
-os_memdup(void *src, size_t n)
+os_memdup(const void *src, size_t n)
 {
-    void *dest;
+    void *dest = NULL;
 
-    if ((dest = os_malloc_s(n)) != NULL) {
+    if (n != 0 && (dest = os_malloc_s(n)) != NULL) {
         memcpy(dest, src, n);
     }
 

@@ -9,15 +9,12 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#ifndef DDSI_ETH_H
+#define DDSI_ETH_H
+
+#include "ddsi/ddsi_tran.h"
 #include "os/os.h"
 
-_Ret_z_
-_Check_return_
-char *
-os_strdup(
-    _In_z_ const char *str)
-{
-    assert(str != NULL);
+int ddsi_eth_enumerate_interfaces(ddsi_tran_factory_t fact, os_ifaddrs_t **ifs);
 
-    return os_memdup(str, strlen(str) + 1);
-}
+#endif /* DDSI_ETH_H */

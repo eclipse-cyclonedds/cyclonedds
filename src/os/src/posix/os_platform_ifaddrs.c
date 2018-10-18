@@ -12,57 +12,37 @@
 #include <assert.h>
 #include <string.h>
 
-#if defined(__linux)
-#include <linux/if_packet.h> /* sockaddr_ll */
-#endif /* __linux */
-
 #include "os/os.h"
 
 static int
-copy_ifaddrs(os_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
+copyaddr(os_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
 {
     int err = 0;
     os_ifaddrs_t *ifa;
-    size_t size;
+    ssize_t sz;
 
     assert(ifap != NULL);
     assert(sys_ifa != NULL);
-    assert(sys_ifa->ifa_addr->sa_family == AF_INET
-#ifdef __linux
-        || sys_ifa->ifa_addr->sa_family == AF_PACKET
-#endif /* __linux */
-        || sys_ifa->ifa_addr->sa_family == AF_INET6);
 
-    ifa = os_malloc(sizeof(*ifa));
+    sz = os_sockaddr_size(sys_ifa->ifa_addr);
+    ifa = os_calloc_s(1, sizeof(*ifa));
     if (ifa == NULL) {
         err = errno;
     } else {
-        (void)memset(ifa, 0, sizeof(*ifa));
-
         ifa->index = if_nametoindex(sys_ifa->ifa_name);
         ifa->flags = sys_ifa->ifa_flags;
         if ((ifa->name = os_strdup(sys_ifa->ifa_name)) == NULL) {
             err = errno;
         } else if (sys_ifa->ifa_addr->sa_family == AF_INET6) {
-          size = sizeof(struct sockaddr_in6);
-          if (!(ifa->addr = os_memdup(sys_ifa->ifa_addr, size))) {
-              err = errno;
-          }
-        } else {
-            if (sys_ifa->ifa_addr->sa_family == AF_INET) {
-                size = sizeof(struct sockaddr_in);
-#ifdef __linux
-            } else {
-                assert(sys_ifa->ifa_addr->sa_family == AF_PACKET);
-                size = sizeof(struct sockaddr_ll);
-#endif /* __linux */
+            if (!(ifa->addr = os_memdup(sys_ifa->ifa_addr, sz))) {
+                err = errno;
             }
-
-            if (!(ifa->addr = os_memdup(sys_ifa->ifa_addr, size)) ||
-                (sys_ifa->ifa_netmask &&
-                  !(ifa->netmask = os_memdup(sys_ifa->ifa_netmask, size))) ||
-                (sys_ifa->ifa_broadaddr &&
-                  !(ifa->broadaddr = os_memdup(sys_ifa->ifa_broadaddr, size))))
+        } else {
+            assert(sys_ifa->ifa_netmask != NULL);
+            if (!(ifa->addr = os_memdup(sys_ifa->ifa_addr, sz)) ||
+                !(ifa->netmask = os_memdup(sys_ifa->ifa_netmask, sz)) ||
+                ((sys_ifa->ifa_flags & IFF_BROADCAST) &&
+                  !(ifa->broadaddr = os_memdup(sys_ifa->ifa_broadaddr, sz))))
             {
                 err = errno;
             }
@@ -81,15 +61,15 @@ copy_ifaddrs(os_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
 _Success_(return == 0) int
 os_getifaddrs(
     _Inout_ os_ifaddrs_t **ifap,
-    _In_opt_ const os_ifaddr_filter_t *ifltr)
+    _In_opt_ const int *const afs)
 {
     int err = 0;
+    int use;
     os_ifaddrs_t *ifa, *ifa_root, *ifa_next;
     struct ifaddrs *sys_ifa, *sys_ifa_root;
-    struct sockaddr *addr;
+    struct sockaddr *sa;
 
     assert(ifap != NULL);
-    assert(ifltr != NULL);
 
     if (getifaddrs(&sys_ifa_root) == -1) {
         err = errno;
@@ -97,19 +77,17 @@ os_getifaddrs(
         ifa = ifa_root = NULL;
 
         for (sys_ifa = sys_ifa_root;
-             sys_ifa != NULL && err == 0;
+             sys_ifa != NULL && sys_ifa->ifa_addr != NULL && err == 0;
              sys_ifa = sys_ifa->ifa_next)
         {
-            addr = sys_ifa->ifa_addr;
-            if ((addr->sa_family == AF_INET && ifltr->af_inet)
-#ifdef __linux
-             || (addr->sa_family == AF_PACKET && ifltr->af_packet)
-#endif /* __linux */
-             || (addr->sa_family == AF_INET6 && ifltr->af_inet6 &&
-                 !IN6_IS_ADDR_UNSPECIFIED(
-                     &((struct sockaddr_in6 *)addr)->sin6_addr)))
-            {
-                err = copy_ifaddrs(&ifa_next, sys_ifa);
+            sa = sys_ifa->ifa_addr;
+            use = (afs == NULL);
+            for (int i = 0; !use && afs[i] != 0; i++) {
+                use = (sa->sa_family == afs[i]);
+            }
+
+            if (use) {
+                err = copyaddr(&ifa_next, sys_ifa);
                 if (err == 0) {
                     if (ifa == NULL) {
                         ifa = ifa_root = ifa_next;

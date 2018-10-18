@@ -23,7 +23,7 @@ getifaces(PIP_ADAPTER_ADDRESSES *ptr)
     ULONG ret;
     size_t i;
 
-    static const size_t max = 3;
+    static const size_t max = 2;
     static const ULONG filter = GAA_FLAG_INCLUDE_PREFIX |
                                 GAA_FLAG_SKIP_ANYCAST |
                                 GAA_FLAG_SKIP_MULTICAST |
@@ -207,9 +207,10 @@ copyaddr(
 _Success_(return == 0) int
 os_getifaddrs(
     _Inout_ os_ifaddrs_t **ifap,
-    _In_opt_ const os_ifaddr_filter_t *ifltr)
+    _In_opt_ const int *const afs)
 {
     int err = 0;
+    int use;
     PIP_ADAPTER_ADDRESSES ifaces = NULL, iface;
     PIP_ADAPTER_UNICAST_ADDRESS addr = NULL;
     PMIB_IPADDRTABLE addrtable = NULL;
@@ -217,7 +218,6 @@ os_getifaddrs(
     struct sockaddr *sa;
 
     assert(ifap != NULL);
-    assert(ifltr != NULL);
 
     ifa = ifa_root = ifa_next = NULL;
 
@@ -230,9 +230,12 @@ os_getifaddrs(
                  addr = addr->Next)
             {
                 sa = (struct sockaddr *)addr->Address.lpSockaddr;
-                if ((sa->sa_family == AF_INET && ifltr->af_inet) ||
-                    (sa->sa_family == AF_INET6 && ifltr->af_inet6))
-                {
+                use = (afs == NULL);
+                for (int i = 0; !use && afs[i] != 0; i++) {
+                    use = (afs[i] == sa->sa_family);
+                }
+
+                if (use) {
                     err = copyaddr(&ifa_next, iface, addrtable, addr);
                     if (err == 0) {
                         if (ifa == NULL) {
