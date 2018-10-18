@@ -11,7 +11,7 @@
 -->
 <@CMAKE_PROJECT_NAME@>
   <Domain>
-    <Id>0</Id>
+    <Id>any</Id>
   </Domain>
   <DDSI2E>
     <General>

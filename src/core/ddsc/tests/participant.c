@@ -45,13 +45,13 @@ Test(ddsc_participant, create_with_no_conf_no_env) {
   dds_entity_t participant, participant2, participant3;
   dds_return_t status;
   dds_domainid_t domain_id;
-  dds_domainid_t valid_domain=0;
+  dds_domainid_t valid_domain=3;
 
   const char * env_uri = os_getenv(DDSC_PROJECT_NAME_NOSPACE_CAPS"_URI");
   cr_assert_eq(env_uri, NULL, DDSC_PROJECT_NAME_NOSPACE_CAPS"_URI must be NULL");
 
   //invalid domain
-  participant = dds_create_participant (1, NULL, NULL);
+  participant = dds_create_participant (-2, NULL, NULL);
   cr_assert_lt(participant, 0, "Error must be received for invalid domain value");
 
   //valid specific domain value

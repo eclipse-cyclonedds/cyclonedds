@@ -137,8 +137,8 @@ dds__create_builtin_participant(
     }
 
     pp->m_entity.m_guid = guid;
-    pp->m_entity.m_domain = dds_domain_create (config.domainId);
-    pp->m_entity.m_domainid = config.domainId;
+    pp->m_entity.m_domain = dds_domain_create (config.domainId.value);
+    pp->m_entity.m_domainid = config.domainId.value;
     pp->m_entity.m_deriver.delete = dds__delete_builtin_participant;
 
 fail:

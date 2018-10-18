@@ -41,7 +41,7 @@ dds_globals dds_global = { .m_default_domain = DDS_DOMAIN_DEFAULT };
 static struct cfgst * dds_cfgst = NULL;
 
 dds_return_t
-dds_init(void)
+dds_init(dds_domainid_t domain)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   const char * uri;
@@ -86,9 +86,29 @@ dds_init(void)
     ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Failed to parse configuration XML file %s", uri);
     goto fail_config;
   }
+
+  /* if a domain id was explicitly given, check & fix up the configuration */
+  if (domain != DDS_DOMAIN_DEFAULT)
+  {
+    if (domain < 0 || domain > 230)
+    {
+      ret = DDS_ERRNO(DDS_RETCODE_ERROR, "requested domain id %d is out of range", domain);
+      goto fail_config;
+    }
+    else if (config.domainId.isdefault)
+    {
+      config.domainId.value = domain;
+    }
+    else if (domain != config.domainId.value)
+    {
+      ret = DDS_ERRNO(DDS_RETCODE_ERROR, "requested domain id %d is inconsistent with configured value %d", domain, config.domainId.value);
+      goto fail_config;
+    }
+  }
+
   /* The config.domainId can change internally in DDSI. So, remember what the
    * main configured domain id is. */
-  dds_global.m_default_domain = config.domainId;
+  dds_global.m_default_domain = config.domainId.value;
 
   dds__builtin_init();
 
