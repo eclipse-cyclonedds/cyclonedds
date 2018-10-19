@@ -250,33 +250,37 @@ extern "C" {
 #endif /* WIN32 */
 
     /**
-     * Returns sizeof(sa) based on the family of the actual content.
-     * @param sa the sockaddr to get the actual size for
-     * @return The actual size sa based on the family. If the family is
-     * unknown 0 will be returned.
-     * @pre sa is a valid sockaddr pointer
+     * Returns size of socket address.
+     * @param sa Socket address to return the size for.
+     * @return Size of the socket address based on the address family, or 0 if
+     *         the address family is unknown.
+     * @pre sa is a valid os_sockaddr pointer.
      */
     OSAPI_EXPORT size_t
     os_sockaddr_size(
         const os_sockaddr *const sa) __nonnull_all__;
 
     /**
-     * Retrieves the port number from the supplied sockaddr.
-     * @param sa the sockaddr to retrieve the port from
-     * @return The port number stored in the supplied sockaddr convert to host order
-     * @pre sa is a valid sockaddr pointer
+     * Retrieve port number from the given socket address.
+     * @param sa Socket address to retrieve the port from.
+     * @return Port number in host order.
+     * @pre sa is a valid os_sockaddr pointer.
      */
     OSAPI_EXPORT uint16_t
     os_sockaddr_get_port(const os_sockaddr *const sa) __nonnull_all__;
 
     /**
-    * Compare two socket IP host addresses for equality - does not consider the port number.
-    * This is a 'straight' equal i.e. family must match and address bytes
-    * must correspond. So it will not consider the possibility of IPv6 mapped
+    * Compare two IP addresses for equality - does not consider port number.
+    * This is a 'straight' compare i.e. family must match and address bytes
+    * must correspond. It does not consider the possibility of IPv6 mapped
     * IPv4 addresses or anything arcane like that.
-    * @param thisSock First address
-    * @param thatSock Second address.
+    * @param sa1 First socket address
+    * @param sa2 Second socket address.
     * @return true if equal, false otherwise.
+    * @return Integer less than, equal to, or greater than zero if sa1 is
+    *         found, respectively, to be less than, to match, or be greater
+    *         than sa2.
+    * @pre both sa1 and sa2 are valid os_sockaddr pointers.
     */
     OSAPI_EXPORT int
     os_sockaddr_compare(
@@ -284,7 +288,10 @@ extern "C" {
         const os_sockaddr *const sa2) __nonnull_all__ __attribute_pure__;
 
     /**
-     * FIXME: comment
+     * Check if IP address of given socket address is unspecified.
+     * @param sa Socket address
+     * @return true if unspecified, false otherwise.
+     * @pre sa is a valid os_sockaddr pointer.
      */
     OSAPI_EXPORT int
     os_sockaddr_is_unspecified(
