@@ -19,7 +19,7 @@ copyaddr(os_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
 {
     int err = 0;
     os_ifaddrs_t *ifa;
-    ssize_t sz;
+    size_t sz;
 
     assert(ifap != NULL);
     assert(sys_ifa != NULL);
@@ -31,21 +31,15 @@ copyaddr(os_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
     } else {
         ifa->index = if_nametoindex(sys_ifa->ifa_name);
         ifa->flags = sys_ifa->ifa_flags;
-        if ((ifa->name = os_strdup(sys_ifa->ifa_name)) == NULL) {
+        if ((ifa->name = os_strdup(sys_ifa->ifa_name)) == NULL ||
+            (ifa->addr = os_memdup(sys_ifa->ifa_addr, sz)) == NULL ||
+              (sys_ifa->ifa_netmask != NULL &&
+            (ifa->netmask = os_memdup(sys_ifa->ifa_netmask, sz)) == NULL) ||
+              (sys_ifa->ifa_broadaddr != NULL &&
+              (sys_ifa->ifa_flags & IFF_BROADCAST) &&
+            (ifa->broadaddr = os_memdup(sys_ifa->ifa_broadaddr, sz)) == NULL))
+        {
             err = errno;
-        } else if (sys_ifa->ifa_addr->sa_family == AF_INET6) {
-            if (!(ifa->addr = os_memdup(sys_ifa->ifa_addr, sz))) {
-                err = errno;
-            }
-        } else {
-            assert(sys_ifa->ifa_netmask != NULL);
-            if (!(ifa->addr = os_memdup(sys_ifa->ifa_addr, sz)) ||
-                !(ifa->netmask = os_memdup(sys_ifa->ifa_netmask, sz)) ||
-                ((sys_ifa->ifa_flags & IFF_BROADCAST) &&
-                  !(ifa->broadaddr = os_memdup(sys_ifa->ifa_broadaddr, sz))))
-            {
-                err = errno;
-            }
         }
     }
 
