@@ -71,23 +71,25 @@ os_getifaddrs(
         ifa = ifa_root = NULL;
 
         for (sys_ifa = sys_ifa_root;
-             sys_ifa != NULL && sys_ifa->ifa_addr != NULL && err == 0;
+             sys_ifa != NULL && err == 0;
              sys_ifa = sys_ifa->ifa_next)
         {
             sa = sys_ifa->ifa_addr;
-            use = (afs == NULL);
-            for (int i = 0; !use && afs[i] != 0; i++) {
-                use = (sa->sa_family == afs[i]);
-            }
+            if (sa != NULL) {
+                use = (afs == NULL);
+                for (int i = 0; !use && afs[i] != 0; i++) {
+                    use = (sa->sa_family == afs[i]);
+                }
 
-            if (use) {
-                err = copyaddr(&ifa_next, sys_ifa);
-                if (err == 0) {
-                    if (ifa == NULL) {
-                        ifa = ifa_root = ifa_next;
-                    } else {
-                        ifa->next = ifa_next;
-                        ifa = ifa_next;
+                if (use) {
+                    err = copyaddr(&ifa_next, sys_ifa);
+                    if (err == 0) {
+                        if (ifa == NULL) {
+                            ifa = ifa_root = ifa_next;
+                        } else {
+                            ifa->next = ifa_next;
+                            ifa = ifa_next;
+                        }
                     }
                 }
             }
