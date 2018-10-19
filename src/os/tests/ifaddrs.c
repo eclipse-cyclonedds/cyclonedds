@@ -28,7 +28,7 @@ CUnit_Suite_Cleanup(os_getifaddrs)
     return 0;
 }
 
-/* Assume every test machine has at least one non-loopback IPv4 address. This
+/* Assume every test machine has at least one IPv4 enabled interface. This
    simple test verifies an interface can at least be found and that the
    IFF_LOOPBACK flags are properly set. */
 CUnit_Test(os_getifaddrs, ipv4)

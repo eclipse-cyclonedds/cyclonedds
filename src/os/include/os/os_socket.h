@@ -280,8 +280,8 @@ extern "C" {
     */
     OSAPI_EXPORT int
     os_sockaddr_compare(
-        const os_sockaddr *sa1,
-        const os_sockaddr *sa2) __nonnull_all__ __attribute_pure__;
+        const os_sockaddr *const sa1,
+        const os_sockaddr *const sa2) __nonnull_all__ __attribute_pure__;
 
     /**
      * FIXME: comment

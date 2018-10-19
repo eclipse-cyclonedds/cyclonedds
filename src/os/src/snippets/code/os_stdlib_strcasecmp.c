@@ -11,7 +11,9 @@
  */
 #include "os/os.h"
 
+#ifdef _MSC_VER
 #pragma warning( default : 4996 )
+#endif /* _MSC_VER */
 int
 os_strcasecmp(
     const char *s1,

@@ -46,7 +46,7 @@ const os_in6_addr os_in6addr_loopback = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } 
 #endif
 
 size_t
-os_sockaddr_size(const os_sockaddr *sa)
+os_sockaddr_size(const os_sockaddr *const sa)
 {
     size_t sz;
 
@@ -72,7 +72,7 @@ os_sockaddr_size(const os_sockaddr *sa)
     return sz;
 }
 
-uint16_t os_sockaddr_get_port(const os_sockaddr *sa)
+uint16_t os_sockaddr_get_port(const os_sockaddr *const sa)
 {
     unsigned short port = 0;
 
@@ -91,7 +91,9 @@ uint16_t os_sockaddr_get_port(const os_sockaddr *sa)
     return port;
 }
 
-int os_sockaddr_compare(const os_sockaddr *sa1, const os_sockaddr *sa2)
+int os_sockaddr_compare(
+    const os_sockaddr *const sa1,
+    const os_sockaddr *const sa2)
 {
     int eq;
     size_t sz;

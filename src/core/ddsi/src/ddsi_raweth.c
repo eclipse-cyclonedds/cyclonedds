@@ -349,7 +349,6 @@ static void ddsi_raweth_deinit(void)
 
 static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t factory, os_ifaddrs_t **interfs)
 {
-  int err = 0;
   int afs[] = { AF_PACKET, 0 };
 
   (void)factory;
