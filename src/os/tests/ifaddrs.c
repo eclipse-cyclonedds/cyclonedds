@@ -57,8 +57,38 @@ CUnit_Test(os_getifaddrs, ipv4)
     os_freeifaddrs(ifa_root);
 }
 
+CUnit_Test(os_getifaddrs, null_filter)
+{
+    int err;
+    int cnt = 0;
+    os_ifaddrs_t *ifa_root, *ifa;
+
+    err = os_getifaddrs(&ifa_root, NULL);
+    CU_ASSERT_EQUAL_FATAL(err, 0);
+    for (ifa = ifa_root; ifa; ifa = ifa->next) {
+        cnt++;
+    }
+
+    CU_ASSERT(cnt > 0);
+
+    os_freeifaddrs(ifa_root);
+}
+
+CUnit_Test(os_getifaddrs, empty_filter)
+{
+    int err;
+    os_ifaddrs_t *ifa_root;
+    const int afs[] = { 0 };
+
+    err = os_getifaddrs(&ifa_root, afs);
+    CU_ASSERT_EQUAL_FATAL(err, 0);
+    CU_ASSERT_PTR_EQUAL(ifa_root, NULL);
+
+    os_freeifaddrs(ifa_root);
+}
+
 #ifdef OS_SOCKET_HAS_IPV6
-CUnit_Test(os_getifaddrs, non_local_ipv6)
+CUnit_Test(os_getifaddrs, ipv6)
 {
     int err;
     os_ifaddrs_t *ifa_root, *ifa;
@@ -79,5 +109,33 @@ CUnit_Test(os_getifaddrs, non_local_ipv6)
 
     os_freeifaddrs(ifa_root);
 }
-#endif /* OS_SOCKET_HAS_IPV6 */
 
+/* Assume at least one IPv4 and one IPv6 interface are available when IPv6 is
+   available on the platform. */
+CUnit_Test(os_getifaddrs, ipv4_n_ipv6)
+{
+    int err;
+    int have_ipv4 = 0;
+    int have_ipv6 = 0;
+    os_ifaddrs_t *ifa_root, *ifa;
+    const int afs[] = { AF_INET, AF_INET6, 0 };
+
+    err = os_getifaddrs(&ifa_root, afs);
+    CU_ASSERT_EQUAL_FATAL(err, 0);
+    for (ifa = ifa_root; ifa; ifa = ifa->next) {
+      CU_ASSERT(ifa->addr->sa_family == AF_INET ||
+                ifa->addr->sa_family == AF_INET6);
+      if (ifa->addr->sa_family == AF_INET) {
+        have_ipv4 = 1;
+      } else if (ifa->addr->sa_family == AF_INET6) {
+        have_ipv6 = 1;
+      }
+    }
+
+    CU_ASSERT_EQUAL(have_ipv4, 1);
+    CU_ASSERT_EQUAL(have_ipv6, 1);
+
+    os_freeifaddrs(ifa_root);
+}
+
+#endif /* OS_SOCKET_HAS_IPV6 */
