@@ -46,14 +46,14 @@ const os_in6_addr os_in6addr_loopback = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } 
 #endif
 
 size_t
-os_sockaddr_size(const os_sockaddr *const sa)
+os_sockaddr_get_size(const os_sockaddr *const sa)
 {
     size_t sz;
 
     assert(sa != NULL);
 
     switch(sa->sa_family) {
-#if (OS_SOCKET_HAS_IPV6 == 1)
+#if OS_SOCKET_HAS_IPV6
         case AF_INET6:
             sz = sizeof(os_sockaddr_in6);
             break;

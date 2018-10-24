@@ -121,7 +121,7 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
   ddsi_ipaddr_from_loc(&dstaddr, dst);
   set_msghdr_iov (&msg, (ddsi_iovec_t *) iov, niov);
   msg.msg_name = &dstaddr;
-  msg.msg_namelen = (socklen_t) os_sockaddr_size((os_sockaddr *) &dstaddr);
+  msg.msg_namelen = (socklen_t) os_sockaddr_get_size((os_sockaddr *) &dstaddr);
 #if !defined(__sun) || defined(_XPG4_2)
   msg.msg_control = NULL;
   msg.msg_controllen = 0;

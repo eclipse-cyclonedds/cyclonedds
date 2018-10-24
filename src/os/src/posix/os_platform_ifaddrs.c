@@ -24,7 +24,7 @@ copyaddr(os_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
     assert(ifap != NULL);
     assert(sys_ifa != NULL);
 
-    sz = os_sockaddr_size(sys_ifa->ifa_addr);
+    sz = os_sockaddr_get_size(sys_ifa->ifa_addr);
     ifa = os_calloc_s(1, sizeof(*ifa));
     if (ifa == NULL) {
         err = errno;

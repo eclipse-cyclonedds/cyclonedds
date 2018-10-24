@@ -257,7 +257,7 @@ extern "C" {
      * @pre sa is a valid os_sockaddr pointer.
      */
     OSAPI_EXPORT size_t
-    os_sockaddr_size(
+    os_sockaddr_get_size(
         const os_sockaddr *const sa) __nonnull_all__;
 
     /**

@@ -560,7 +560,7 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
   memset(&msg, 0, sizeof(msg));
   set_msghdr_iov (&msg, (ddsi_iovec_t *) iov, niov);
   msg.msg_name = &dstaddr;
-  msg.msg_namelen = (socklen_t) os_sockaddr_size((os_sockaddr *) &dstaddr);
+  msg.msg_namelen = (socklen_t) os_sockaddr_get_size((os_sockaddr *) &dstaddr);
 #if SYSDEPS_MSGHDR_FLAGS
   msg.msg_flags = (int) flags;
 #endif
@@ -867,7 +867,7 @@ static ddsi_tcp_conn_t ddsi_tcp_new_conn (os_socket sock, bool server, os_sockad
   ddsi_tcp_base_init (&conn->m_base);
   os_mutexInit (&conn->m_mutex);
   conn->m_sock = Q_INVALID_SOCKET;
-  (void)memcpy(&conn->m_peer_addr, peer, os_sockaddr_size(peer));
+  (void)memcpy(&conn->m_peer_addr, peer, os_sockaddr_get_size(peer));
   conn->m_peer_port = os_sockaddr_get_port (peer);
   conn->m_base.m_server = server;
   conn->m_base.m_base.m_port = INVALID_PORT;
@@ -1009,7 +1009,7 @@ static void ddsi_tcp_unblock_listener (ddsi_tran_listener_t listener)
       }
       do
       {
-        ret = connect (sock, (struct sockaddr *) &addr, (unsigned) os_sockaddr_size((os_sockaddr *)&addr));
+        ret = connect (sock, (struct sockaddr *) &addr, (unsigned) os_sockaddr_get_size((os_sockaddr *)&addr));
       }
       while ((ret == -1) && (os_getErrno() == os_sockEINTR));
       if (ret == -1)
