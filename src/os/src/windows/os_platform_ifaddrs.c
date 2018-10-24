@@ -14,6 +14,8 @@
 
 #include "os/os.h"
 
+extern const int *const os_supp_afs;
+
 static int
 getifaces(PIP_ADAPTER_ADDRESSES *ptr)
 {
@@ -207,7 +209,7 @@ copyaddr(
 _Success_(return == 0) int
 os_getifaddrs(
     _Inout_ os_ifaddrs_t **ifap,
-    _In_opt_ const int *const afs)
+    _In_opt_ const int *afs)
 {
     int err = 0;
     int use;
@@ -218,6 +220,10 @@ os_getifaddrs(
     struct sockaddr *sa;
 
     assert(ifap != NULL);
+
+    if (afs == NULL) {
+        afs = os_supp_afs;
+    }
 
     ifa = ifa_root = ifa_next = NULL;
 
@@ -230,7 +236,7 @@ os_getifaddrs(
                  addr = addr->Next)
             {
                 sa = (struct sockaddr *)addr->Address.lpSockaddr;
-                use = (afs == NULL);
+                use = 0;
                 for (int i = 0; !use && afs[i] != 0; i++) {
                     use = (afs[i] == sa->sa_family);
                 }

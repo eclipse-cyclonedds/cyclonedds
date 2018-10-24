@@ -45,6 +45,18 @@ const os_in6_addr os_in6addr_loopback = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } 
 #define OS_INET_PTON inet_pton
 #endif
 
+const int afs[] = {
+#ifdef __linux
+    AF_PACKET,
+#endif /* __linux */
+#if OS_SOCKET_HAS_IPV6
+    AF_INET6,
+#endif /* OS_SOCKET_HAS_IPV6 */
+    AF_INET
+};
+
+const int *const os_supp_afs = afs;
+
 size_t
 os_sockaddr_get_size(const os_sockaddr *const sa)
 {

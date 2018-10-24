@@ -14,6 +14,8 @@
 
 #include "os/os.h"
 
+extern const int *const os_supp_afs;
+
 static int
 copyaddr(os_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
 {
@@ -55,7 +57,7 @@ copyaddr(os_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
 _Success_(return == 0) int
 os_getifaddrs(
     _Inout_ os_ifaddrs_t **ifap,
-    _In_opt_ const int *const afs)
+    _In_opt_ const int *afs)
 {
     int err = 0;
     int use;
@@ -64,6 +66,10 @@ os_getifaddrs(
     struct sockaddr *sa;
 
     assert(ifap != NULL);
+
+    if (afs == NULL) {
+        afs = os_supp_afs;
+    }
 
     if (getifaddrs(&sys_ifa_root) == -1) {
         err = errno;
@@ -76,7 +82,7 @@ os_getifaddrs(
         {
             sa = sys_ifa->ifa_addr;
             if (sa != NULL) {
-                use = (afs == NULL);
+                use = 0;
                 for (int i = 0; !use && afs[i] != 0; i++) {
                     use = (sa->sa_family == afs[i]);
                 }

@@ -141,7 +141,7 @@ extern "C" {
     OSAPI_EXPORT _Success_(return == 0) int
     os_getifaddrs(
         _Inout_ os_ifaddrs_t **ifap,
-        _In_opt_ const int *const afs);
+        _In_opt_ const int *afs);
 
     /**
      * @brief Free os_ifaddrs_t structure list allocated by os_getifaddrs()
