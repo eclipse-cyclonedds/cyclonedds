@@ -52,7 +52,8 @@ const int afs[] = {
 #if OS_SOCKET_HAS_IPV6
     AF_INET6,
 #endif /* OS_SOCKET_HAS_IPV6 */
-    AF_INET
+    AF_INET,
+    OS_AF_NULL /* Terminator */
 };
 
 const int *const os_supp_afs = afs;

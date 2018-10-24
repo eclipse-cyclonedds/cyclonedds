@@ -110,6 +110,8 @@ extern "C" {
 
 #define SD_FLAG_IS_SET(flags, flag) ((((uint32_t)(flags) & (uint32_t)(flag))) != 0U)
 
+#define OS_AF_NULL (-1)
+
     /** Network interface attributes */
     typedef struct os_ifaddrs_s {
         struct os_ifaddrs_s *next;
@@ -134,7 +136,7 @@ extern "C" {
      * @param[in] afs NULL-terminated array of address families (AF_xyz) to
      *                restrict resulting set of network interfaces too. NULL to
      *                return all network interfaces for all supported address
-     *                families.
+     *                families. Terminate the array with OS_AF_NULL.
      *
      * @returns Returns zero on success or a valid errno value on error.
      */

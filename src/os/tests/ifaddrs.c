@@ -65,7 +65,7 @@ CUnit_Test(os_getifaddrs, ipv4)
     int err;
     int seen = 0;
     os_ifaddrs_t *ifa_root, *ifa;
-    const int afs[] = { AF_INET, 0 };
+    const int afs[] = { AF_INET, OS_AF_NULL };
 
     err = os_getifaddrs(&ifa_root, afs);
     CU_ASSERT_EQUAL_FATAL(err, 0);
@@ -109,7 +109,7 @@ CUnit_Test(os_getifaddrs, empty_filter)
 {
     int err;
     os_ifaddrs_t *ifa_root;
-    const int afs[] = { 0 };
+    const int afs[] = { OS_AF_NULL };
 
     err = os_getifaddrs(&ifa_root, afs);
     CU_ASSERT_EQUAL_FATAL(err, 0);
@@ -125,7 +125,7 @@ CUnit_Test(os_getifaddrs, ipv6)
         int err;
         int have_ipv6 = 0;
         os_ifaddrs_t *ifa_root, *ifa;
-        const int afs[] = { AF_INET6, 0 };
+        const int afs[] = { AF_INET6, OS_AF_NULL };
 
         err = os_getifaddrs(&ifa_root, afs);
         CU_ASSERT_EQUAL_FATAL(err, 0);
@@ -161,7 +161,7 @@ CUnit_Test(os_getifaddrs, ipv4_n_ipv6)
         int have_ipv4 = 0;
         int have_ipv6 = 0;
         os_ifaddrs_t *ifa_root, *ifa;
-        const int afs[] = { AF_INET, AF_INET6, 0 };
+        const int afs[] = { AF_INET, AF_INET6, OS_AF_NULL };
 
         err = os_getifaddrs(&ifa_root, afs);
         CU_ASSERT_EQUAL_FATAL(err, 0);

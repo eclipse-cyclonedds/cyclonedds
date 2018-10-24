@@ -13,7 +13,7 @@
 
 int ddsi_eth_enumerate_interfaces(ddsi_tran_factory_t fact, os_ifaddrs_t **ifs)
 {
-    int afs[] = { AF_INET, 0 };
+    int afs[] = { AF_INET, OS_AF_NULL };
 
     (void)fact;
 

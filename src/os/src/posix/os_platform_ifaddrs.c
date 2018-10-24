@@ -83,7 +83,7 @@ os_getifaddrs(
             sa = sys_ifa->ifa_addr;
             if (sa != NULL) {
                 use = 0;
-                for (int i = 0; !use && afs[i] != 0; i++) {
+                for (int i = 0; !use && afs[i] != OS_AF_NULL; i++) {
                     use = (sa->sa_family == afs[i]);
                 }
 
