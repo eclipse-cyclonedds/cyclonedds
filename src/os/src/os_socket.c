@@ -110,9 +110,6 @@ int os_sockaddr_compare(
     int eq;
     size_t sz;
 
-    assert(sa1 != 0);
-    assert(sa2 != 0);
-
     if ((eq = sa1->sa_family - sa2->sa_family) == 0) {
         switch(sa1->sa_family) {
 #if (OS_SOCKET_HAS_IPV6 == 1)
