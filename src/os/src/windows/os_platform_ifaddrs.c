@@ -161,7 +161,7 @@ copyaddr(
 
         if (ifa->name == NULL) {
             err = ENOMEM;
-        } else if (ifa->flags & IFF_UP) {
+        } else {
             ifa->addr = os_memdup(sa, addr->Address.iSockaddrLength);
             if (ifa->addr == NULL) {
                 err = ENOMEM;

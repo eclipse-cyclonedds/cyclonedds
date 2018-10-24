@@ -70,6 +70,7 @@ CUnit_Test(os_getifaddrs, ipv4)
     err = os_getifaddrs(&ifa_root, afs);
     CU_ASSERT_EQUAL_FATAL(err, 0);
     for (ifa = ifa_root; ifa; ifa = ifa->next) {
+        CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
         CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET);
         if (ifa->addr->sa_family == AF_INET) {
             if (ifa->flags & IFF_LOOPBACK) {
@@ -95,6 +96,7 @@ CUnit_Test(os_getifaddrs, null_filter)
     err = os_getifaddrs(&ifa_root, NULL);
     CU_ASSERT_EQUAL_FATAL(err, 0);
     for (ifa = ifa_root; ifa; ifa = ifa->next) {
+        CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
         cnt++;
     }
 
@@ -128,6 +130,7 @@ CUnit_Test(os_getifaddrs, ipv6)
         err = os_getifaddrs(&ifa_root, afs);
         CU_ASSERT_EQUAL_FATAL(err, 0);
         for (ifa = ifa_root; ifa; ifa = ifa->next) {
+            CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
             CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET6);
             if (ifa->addr->sa_family == AF_INET6) {
                 have_ipv6 = 1;
@@ -163,6 +166,7 @@ CUnit_Test(os_getifaddrs, ipv4_n_ipv6)
         err = os_getifaddrs(&ifa_root, afs);
         CU_ASSERT_EQUAL_FATAL(err, 0);
         for (ifa = ifa_root; ifa; ifa = ifa->next) {
+            CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
             CU_ASSERT(ifa->addr->sa_family == AF_INET ||
                       ifa->addr->sa_family == AF_INET6);
             if (ifa->addr->sa_family == AF_INET) {
