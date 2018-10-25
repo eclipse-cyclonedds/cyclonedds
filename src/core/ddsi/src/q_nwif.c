@@ -455,63 +455,33 @@ int find_own_ip (const char *requested_address)
   const char *sep = " ";
   char last_if_name[80] = "";
   int quality = -1;
-  os_result res;
   int i;
-  unsigned int nif;
-  os_ifAttributes *ifs;
+  os_ifaddrs_t *ifa, *ifa_root = NULL;
   int maxq_list[MAX_INTERFACES];
   int maxq_count = 0;
   size_t maxq_strlen = 0;
   int selected_idx = -1;
   char addrbuf[DDSI_LOCSTRLEN];
 
-  ifs = os_malloc (MAX_INTERFACES * sizeof (*ifs));
-
   nn_log (LC_CONFIG, "interfaces:");
 
   {
-    int retcode;
-    nif = 0;
-    retcode = ddsi_enumerate_interfaces(gv.m_factory, (int)(MAX_INTERFACES - nif), ifs);
-    if (retcode > 0)
-    {
-      nif = (unsigned)retcode;
-      res = os_resultSuccess;
-    }
-    else if (retcode < 0)
-    {
-      NN_ERROR ("ddsi_enumerate_interfaces(%s): %d\n", gv.m_factory->m_typename, retcode);
-      res = os_resultFail;
-    }
-    else
-    {
-      if (config.transport_selector == TRANS_TCP6 || config.transport_selector == TRANS_UDP6)
-        res = os_sockQueryIPv6Interfaces (ifs, MAX_INTERFACES, &nif);
-      else if (config.transport_selector == TRANS_TCP || config.transport_selector == TRANS_UDP)
-        res = os_sockQueryInterfaces (ifs, MAX_INTERFACES, &nif);
-      else
-      {
-        NN_ERROR ("ddsi_enumerate_interfaces(%s): no go but neither UDP[46] nor TCP[46]\n", gv.m_factory->m_typename);
-        res = os_resultFail;
-      }
-    }
-    if (res != os_resultSuccess)
-    {
-      NN_ERROR ("os_sockQueryInterfaces: %d\n", (int) res);
-      os_free (ifs);
+    int ret;
+    ret = ddsi_enumerate_interfaces(gv.m_factory, &ifa_root);
+    if (ret < 0) {
+      NN_ERROR("ddsi_enumerate_interfaces(%s): %d\n", gv.m_factory->m_typename, ret);
       return 0;
     }
   }
 
   gv.n_interfaces = 0;
   last_if_name[0] = 0;
-  for (i = 0; i < (int) nif; i++, sep = ", ")
+  for (ifa = ifa_root; ifa != NULL; ifa = ifa->next)
   {
-    os_sockaddr_storage tmpip, tmpmask;
     char if_name[sizeof (last_if_name)];
     int q = 0;
 
-    strncpy (if_name, ifs[i].name, sizeof (if_name) - 1);
+    strncpy (if_name, ifa->name, sizeof (if_name) - 1);
     if_name[sizeof (if_name) - 1] = 0;
 
     if (strcmp (if_name, last_if_name))
@@ -519,46 +489,46 @@ int find_own_ip (const char *requested_address)
     strcpy (last_if_name, if_name);
 
     /* interface must be up */
-    if ((ifs[i].flags & IFF_UP) == 0)
-    {
+    if ((ifa->flags & IFF_UP) == 0) {
       nn_log (LC_CONFIG, " (interface down)");
+      continue;
+    } else if (os_sockaddr_is_unspecified(ifa->addr)) {
+      nn_log (LC_CONFIG, " (address unspecified)");
       continue;
     }
 
-    tmpip = ifs[i].address;
-    tmpmask = ifs[i].network_mask;
 #ifdef __linux
-    if (tmpip.ss_family == AF_PACKET)
+    if (ifa->addr->sa_family == AF_PACKET)
     {
       /* FIXME: weirdo warning warranted */
       nn_locator_t *l = &gv.interfaces[gv.n_interfaces].loc;
       l->kind = NN_LOCATOR_KIND_RAWETH;
       l->port = NN_LOCATOR_PORT_INVALID;
       memset(l->address, 0, 10);
-      memcpy(l->address + 10, ((struct sockaddr_ll *)&tmpip)->sll_addr, 6);
+      memcpy(l->address + 10, ((struct sockaddr_ll *)ifa->addr)->sll_addr, 6);
     }
     else
 #endif
     {
-      ddsi_ipaddr_to_loc(&gv.interfaces[gv.n_interfaces].loc, &tmpip, gv.m_factory->m_kind);
+      ddsi_ipaddr_to_loc(&gv.interfaces[gv.n_interfaces].loc, ifa->addr, gv.m_factory->m_kind);
     }
     ddsi_locator_to_string_no_port(addrbuf, sizeof(addrbuf), &gv.interfaces[gv.n_interfaces].loc);
     nn_log (LC_CONFIG, " %s(", addrbuf);
 
-    if (!(ifs[i].flags & IFF_MULTICAST) && multicast_override (if_name))
+    if (!(ifa->flags & IFF_MULTICAST) && multicast_override (if_name))
     {
       nn_log (LC_CONFIG, "assume-mc:");
-      ifs[i].flags |= IFF_MULTICAST;
+      ifa->flags |= IFF_MULTICAST;
     }
 
-    if (ifs[i].flags & IFF_LOOPBACK)
+    if (ifa->flags & IFF_LOOPBACK)
     {
       /* Loopback device has the lowest priority of every interface
          available, because the other interfaces at least in principle
          allow communicating with other machines. */
       q += 0;
 #if OS_SOCKET_HAS_IPV6
-      if (!(tmpip.ss_family == AF_INET6 && IN6_IS_ADDR_LINKLOCAL (&((os_sockaddr_in6 *) &tmpip)->sin6_addr)))
+      if (!(ifa->addr->sa_family == AF_INET6 && IN6_IS_ADDR_LINKLOCAL (&((os_sockaddr_in6 *)ifa->addr)->sin6_addr)))
         q += 1;
 #endif
     }
@@ -575,16 +545,16 @@ int find_own_ip (const char *requested_address)
          which it was received.  But that means proper multi-homing
          support and has quite an impact in various places, not least of
          which is the abstraction layer. */
-      if (!(tmpip.ss_family == AF_INET6 && IN6_IS_ADDR_LINKLOCAL (&((os_sockaddr_in6 *) &tmpip)->sin6_addr)))
+      if (!(ifa->addr->sa_family == AF_INET6 && IN6_IS_ADDR_LINKLOCAL (&((os_sockaddr_in6 *)ifa->addr)->sin6_addr)))
         q += 5;
 #endif
 
       /* We strongly prefer a multicast capable interface, if that's
          not available anything that's not point-to-point, or else we
          hope IP routing will take care of the issues. */
-      if (ifs[i].flags & IFF_MULTICAST)
+      if (ifa->flags & IFF_MULTICAST)
         q += 4;
-      else if (!(ifs[i].flags & IFF_POINTOPOINT))
+      else if (!(ifa->flags & IFF_POINTOPOINT))
         q += 3;
       else
         q += 2;
@@ -604,10 +574,9 @@ int find_own_ip (const char *requested_address)
 
     /* FIXME: HACK HACK */
     //ddsi_ipaddr_to_loc(&gv.interfaces[gv.n_interfaces].loc, &tmpip, gv.m_factory->m_kind);
-    if (tmpip.ss_family == AF_INET || tmpip.ss_family == AF_INET6)
+    if (ifa->addr->sa_family == AF_INET || ifa->addr->sa_family == AF_INET6)
     {
-      tmpmask.ss_family = tmpip.ss_family;
-      ddsi_ipaddr_to_loc(&gv.interfaces[gv.n_interfaces].netmask, &tmpmask, gv.m_factory->m_kind);
+      ddsi_ipaddr_to_loc(&gv.interfaces[gv.n_interfaces].netmask, ifa->netmask, gv.m_factory->m_kind);
     }
     else
     {
@@ -615,14 +584,14 @@ int find_own_ip (const char *requested_address)
       gv.interfaces[gv.n_interfaces].netmask.port = NN_LOCATOR_PORT_INVALID;
       memset(&gv.interfaces[gv.n_interfaces].netmask.address, 0, sizeof(gv.interfaces[gv.n_interfaces].netmask.address));
     }
-    gv.interfaces[gv.n_interfaces].mc_capable = ((ifs[i].flags & IFF_MULTICAST) != 0);
-    gv.interfaces[gv.n_interfaces].point_to_point = ((ifs[i].flags & IFF_POINTOPOINT) != 0);
-    gv.interfaces[gv.n_interfaces].if_index = ifs[i].interfaceIndexNo;
+    gv.interfaces[gv.n_interfaces].mc_capable = ((ifa->flags & IFF_MULTICAST) != 0);
+    gv.interfaces[gv.n_interfaces].point_to_point = ((ifa->flags & IFF_POINTOPOINT) != 0);
+    gv.interfaces[gv.n_interfaces].if_index = ifa->index;
     gv.interfaces[gv.n_interfaces].name = os_strdup (if_name);
     gv.n_interfaces++;
   }
   nn_log (LC_CONFIG, "\n");
-  os_free (ifs);
+  os_freeifaddrs (ifa_root);
 
   if (requested_address == NULL)
   {

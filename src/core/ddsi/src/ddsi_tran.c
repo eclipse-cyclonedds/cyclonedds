@@ -332,10 +332,7 @@ char *ddsi_locator_to_string_no_port (char *dst, size_t sizeof_dst, const nn_loc
   return dst;
 }
 
-int ddsi_enumerate_interfaces (ddsi_tran_factory_t factory, int max, struct os_ifAttributes_s *interfs)
+int ddsi_enumerate_interfaces (ddsi_tran_factory_t factory, os_ifaddrs_t **interfs)
 {
-  /* FIXME: HACK */
-  if (factory->m_enumerate_interfaces_fn == 0)
-    return 0;
-  return factory->m_enumerate_interfaces_fn (factory, max, interfs);
+  return factory->m_enumerate_interfaces_fn (factory, interfs);
 }

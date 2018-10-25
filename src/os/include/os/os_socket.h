@@ -15,12 +15,6 @@
 #ifndef OS_SOCKET_HAS_IPV6
 #error "OS_SOCKET_HAS_IPV6 should have been defined by os_platform_socket.h"
 #endif
-#ifndef OS_IFNAMESIZE
-#error "OS_IFNAMESIZE should have been defined by os_platform_socket.h"
-#endif
-#ifndef OS_SOCKET_HAS_SA_LEN
-#error "OS_SOCKET_HAS_SA_LEN should have been defined by os_platform_socket.h"
-#endif
 #ifndef OS_NO_SIOCGIFINDEX
 #error "OS_NO_SIOCGIFINDEX should have been defined by os_platform_socket.h"
 #endif
@@ -94,11 +88,7 @@ extern "C" {
     typedef struct ipv6_mreq os_ipv6_mreq;
     typedef struct in6_addr os_in6_addr;
 
-#if defined (OSPL_VXWORKS653)
-    typedef struct sockaddr_in os_sockaddr_storage;
-#else
     typedef struct sockaddr_storage os_sockaddr_storage;
-#endif
 
     typedef struct sockaddr_in6 os_sockaddr_in6;
 #endif
@@ -120,59 +110,49 @@ extern "C" {
 
 #define SD_FLAG_IS_SET(flags, flag) ((((uint32_t)(flags) & (uint32_t)(flag))) != 0U)
 
-    /**
-     * Structure to hold a network interface's attributes
-     */
-    typedef struct os_ifAttributes_s {
-        /**
-         * The network interface name (or at least OS_IFNAMESIZE - 1 charcaters thereof)
-         */
-        char name[OS_IFNAMESIZE];
-        /**
-         * Iff the interface is IPv4 holds the ioctl query result flags for this interface.
-         */
+#define OS_AF_NULL (-1)
+
+    /** Network interface attributes */
+    typedef struct os_ifaddrs_s {
+        struct os_ifaddrs_s *next;
+        char *name;
+        uint32_t index;
         uint32_t flags;
-        /**
-         * The network interface address of this interface.
-         */
-        os_sockaddr_storage address;
-        /**
-         * Iff this is an IPv4 interface, holds the broadcast address for the sub-network this
-         * interface is connected to.
-         */
-        os_sockaddr_storage broadcast_address;
-        /**
-         * Iff this is an IPv4 interface, holds the subnet mast for this interface
-         */
-        os_sockaddr_storage network_mask;
-        /**
-         * Holds the interface index for this interface.
-         */
-        unsigned interfaceIndexNo;
-    } os_ifAttributes;
-
-    OSAPI_EXPORT os_result
-    os_sockQueryInterfaces(
-            os_ifAttributes *ifList,
-            uint32_t listSize,
-            uint32_t *validElements);
+        os_sockaddr *addr;
+        os_sockaddr *netmask;
+        os_sockaddr *broadaddr;
+    } os_ifaddrs_t;
 
     /**
-     * Fill-in a pre-allocated list of os_ifAttributes_s with details of
-     * the available IPv6 network interfaces.
-     * @param listSize Number of elements there is space for in the list.
-     * @param ifList Pointer to head of list
-     * @param validElements Out param to hold the number of interfaces found
-     * whose detauils have been returned.
-     * @return os_resultSuccess if 0 or more interfaces were found, os_resultFail if
-     * an error occurred.
-     * @see os_sockQueryInterfaces
+     * @brief Get interface addresses
+     *
+     * Retrieve network interfaces available on the local system and store
+     * them in a linked list of os_ifaddrs_t structures.
+     *
+     * The data returned by os_getifaddrs() is dynamically allocated and should
+     * be freed using os_freeifaddrs when no longer needed.
+     *
+     * @param[in,out] ifap Address of first os_ifaddrs_t structure in the list.
+     * @param[in] afs NULL-terminated array of address families (AF_xyz) to
+     *                restrict resulting set of network interfaces too. NULL to
+     *                return all network interfaces for all supported address
+     *                families. Terminate the array with OS_AF_NULL.
+     *
+     * @returns Returns zero on success or a valid errno value on error.
      */
-    OSAPI_EXPORT os_result
-    os_sockQueryIPv6Interfaces(
-            os_ifAttributes *ifList,
-            uint32_t listSize,
-            uint32_t *validElements);
+    OSAPI_EXPORT _Success_(return == 0) int
+    os_getifaddrs(
+        _Inout_ os_ifaddrs_t **ifap,
+        _In_opt_ const int *afs);
+
+    /**
+     * @brief Free os_ifaddrs_t structure list allocated by os_getifaddrs()
+     *
+     * @param[in] Address of first os_ifaddrs_t structure in the list.
+     */
+    OSAPI_EXPORT void
+    os_freeifaddrs(
+        _Pre_maybenull_ _Post_ptr_invalid_ os_ifaddrs_t *ifa);
 
     OSAPI_EXPORT os_socket
     os_sockNew(
@@ -271,20 +251,53 @@ extern "C" {
             os_time *timeout);
 #endif /* WIN32 */
 
-    /* docced in implementation file */
-    OSAPI_EXPORT os_result
-    os_sockaddrInit(os_sockaddr* sa,
-                    bool isIPv4); /* IPvX is poorly abstracted; this is temporary */
+    /**
+     * Returns size of socket address.
+     * @param sa Socket address to return the size for.
+     * @return Size of the socket address based on the address family, or 0 if
+     *         the address family is unknown.
+     * @pre sa is a valid os_sockaddr pointer.
+     */
+    OSAPI_EXPORT size_t
+    os_sockaddr_get_size(
+        const os_sockaddr *const sa) __nonnull_all__;
 
-    /* docced in implementation file */
-    OSAPI_EXPORT bool
-    os_sockaddrIPAddressEqual(const os_sockaddr* this_sock,
-                              const os_sockaddr* that_sock);
+    /**
+     * Retrieve port number from the given socket address.
+     * @param sa Socket address to retrieve the port from.
+     * @return Port number in host order.
+     * @pre sa is a valid os_sockaddr pointer.
+     */
+    OSAPI_EXPORT uint16_t
+    os_sockaddr_get_port(const os_sockaddr *const sa) __nonnull_all__;
 
+    /**
+    * Compare two IP addresses for equality - does not consider port number.
+    * This is a 'straight' compare i.e. family must match and address bytes
+    * must correspond. It does not consider the possibility of IPv6 mapped
+    * IPv4 addresses or anything arcane like that.
+    * @param sa1 First socket address
+    * @param sa2 Second socket address.
+    * @return true if equal, false otherwise.
+    * @return Integer less than, equal to, or greater than zero if sa1 is
+    *         found, respectively, to be less than, to match, or be greater
+    *         than sa2.
+    * @pre both sa1 and sa2 are valid os_sockaddr pointers.
+    */
     OSAPI_EXPORT int
-    os_sockaddrIpAddressCompare(const os_sockaddr* addr1,
-                                const os_sockaddr* addr2) __nonnull_all__
-        __attribute_pure__;
+    os_sockaddr_compare(
+        const os_sockaddr *const sa1,
+        const os_sockaddr *const sa2) __nonnull_all__ __attribute_pure__;
+
+    /**
+     * Check if IP address of given socket address is unspecified.
+     * @param sa Socket address
+     * @return true if unspecified, false otherwise.
+     * @pre sa is a valid os_sockaddr pointer.
+     */
+    OSAPI_EXPORT int
+    os_sockaddr_is_unspecified(
+        const os_sockaddr *const sa) __nonnull_all__;
 
     /* docced in implementation file */
     OSAPI_EXPORT bool
@@ -302,20 +315,6 @@ extern "C" {
     OSAPI_EXPORT char*
     os_sockaddrAddressToString(const os_sockaddr* sa,
                                char* buffer, size_t buflen);
-
-    /**
-     * Convert a socket address to a string format representation including the
-     * portnumber.
-     * @param sa The socket address struct.
-     * @param buffer A character buffer to hold the string rep of the address.
-     * @param buflen The (max) size of the buffer
-     * @return Pointer to start of string
-     */
-    OSAPI_EXPORT char*
-    os_sockaddrAddressPortToString(
-            const os_sockaddr* sa,
-            char* buffer,
-            size_t buflen);
 
     /**
     * Convert the provided addressString into a os_sockaddr.
@@ -343,16 +342,6 @@ extern "C" {
     os_sockaddrIsLoopback(const os_sockaddr* thisSock);
 
     /**
-     * Returns sizeof(sa) based on the family of the actual content.
-     * @param sa the sockaddr to get the actual size for
-     * @return The actual size sa based on the family. If the family is
-     * unknown 0 will be returned.
-     * @pre sa is a valid sockaddr pointer
-     */
-    OSAPI_EXPORT size_t
-    os_sockaddrSizeof(const os_sockaddr* sa);
-
-    /**
      * Sets the address of the sockaddr to the special IN_ADDR_ANY value.
      * @param sa the sockaddr to set the address for
      * @pre sa is a valid sockaddr pointer
@@ -360,26 +349,6 @@ extern "C" {
      */
     OSAPI_EXPORT void
     os_sockaddrSetInAddrAny(os_sockaddr* sa);
-
-    /**
-     * Sets the port number in the supplied sockaddr.
-     * @param sa the sockaddr to set the port in
-     * @param port the port number to be set in network byte order
-     * @pre sa is a valid sockaddr pointer
-     * @post Port number of sa is set to port
-     */
-    OSAPI_EXPORT void
-    os_sockaddrSetPort(os_sockaddr* sa, uint16_t port);
-
-    /**
-     * Retrieves the port number from the supplied sockaddr.
-     * @param sa the sockaddr to retrieve the port from
-     * @return The port number stored in the supplied sockaddr (hence in network byte order)
-     * @pre sa is a valid sockaddr pointer
-     */
-    OSAPI_EXPORT uint16_t
-    os_sockaddrGetPort(const os_sockaddr* const sa);
-
 
     /**
      * @}

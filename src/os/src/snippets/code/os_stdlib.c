@@ -21,8 +21,13 @@
 #include <string.h>
 #include <ctype.h>
 
-
 #include "os_stdlib_strsep.c"
+#include "os_stdlib_memdup.c"
+#include "os_stdlib_rindex.c"
+#include "os_stdlib_asprintf.c"
+#include "os_stdlib_strcasecmp.c"
+#include "os_stdlib_strncasecmp.c"
+#include "os_stdlib_strdup.c"
 
 _Ret_opt_z_ const char *
 os_getenv(
@@ -79,38 +84,6 @@ os_access(
     return result;
 }
 
-char *
-os_rindex(
-    const char *s,
-    int c)
-{
-    char *last = NULL;
-
-    while (*s) {
-        if (*s == c) {
-            last = (char *)s;
-        }
-        s++;
-    }
-    return last;
-}
-
-_Ret_z_
-_Check_return_
-char *
-os_strdup(
-    _In_z_ const char *s1)
-{
-    size_t len;
-    char *dup;
-
-    len = strlen(s1) + 1;
-    dup = os_malloc(len);
-    memcpy(dup, s1, len);
-
-    return dup;
-}
-
 int
 os_vsnprintf(
    char *str,
@@ -155,48 +128,6 @@ os_vfprintfnosigpipe(
    }
    pthread_sigmask(SIG_SETMASK, &sset_omask, NULL);
    return result;
-}
-
-int
-os_strcasecmp(
-    const char *s1,
-    const char *s2)
-{
-    int cr;
-
-    while (*s1 && *s2) {
-        cr = tolower(*s1) - tolower(*s2);
-        if (cr) {
-            return cr;
-        }
-        s1++;
-        s2++;
-    }
-    cr = tolower(*s1) - tolower(*s2);
-    return cr;
-}
-
-int
-os_strncasecmp(
-    const char *s1,
-    const char *s2,
-    size_t n)
-{
-    int cr = 0;
-
-    while (*s1 && *s2 && n) {
-        cr = tolower(*s1) - tolower(*s2);
-        if (cr) {
-            return cr;
-        }
-        s1++;
-        s2++;
-        n--;
-    }
-    if (n) {
-        cr = tolower(*s1) - tolower(*s2);
-    }
-    return cr;
 }
 
 os_result

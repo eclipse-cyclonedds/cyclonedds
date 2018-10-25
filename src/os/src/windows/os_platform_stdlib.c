@@ -18,7 +18,13 @@
 #include "../snippets/code/os_stdlib_strtod.c"
 #include "../snippets/code/os_stdlib_strtol.c"
 #include "../snippets/code/os_stdlib_strtok_r.c"
-
+#include "../snippets/code/os_stdlib_strsep.c"
+#include "../snippets/code/os_stdlib_strdup.c"
+#include "../snippets/code/os_stdlib_memdup.c"
+#include "../snippets/code/os_stdlib_asprintf.c"
+#include "../snippets/code/os_stdlib_rindex.c"
+#include "../snippets/code/os_stdlib_strcasecmp.c"
+#include "../snippets/code/os_stdlib_strncasecmp.c"
 
 static int32_t
 os__ensurePathExists(
@@ -140,55 +146,6 @@ os_access(
         return result;
 }
 
-char *
-os_rindex(
-        const char *s,
-        int c)
-{
-        char *last = NULL;
-
-        while (*s) {
-                if (*s == c) {
-                        last = (char *)s;
-                }
-                s++;
-        }
-        return last;
-}
-
-_Ret_z_
-_Check_return_
-char *
-os_strdup(
-    _In_z_ const char *s1)
-{
-    size_t len;
-    char *dup;
-
-    len = strlen(s1) + 1;
-    dup = os_malloc(len);
-    memcpy(dup, s1, len);
-
-    return dup;
-}
-
-char *
-os_strsep(char **str, const char *sep)
-{
-        char *ret;
-        if (**str == '\0')
-                return 0;
-        ret = *str;
-        while (**str && strchr(sep, **str) == 0)
-                (*str)++;
-        if (**str != '\0')
-        {
-                **str = '\0';
-                (*str)++;
-        }
-        return ret;
-}
-
 #pragma warning( disable : 4996 )
 int
 os_vfprintfnosigpipe(
@@ -197,49 +154,6 @@ os_vfprintfnosigpipe(
         va_list args)
 {
         return vfprintf(file, format, args);
-}
-
-#pragma warning( default : 4996 )
-int
-os_strcasecmp(
-        const char *s1,
-        const char *s2)
-{
-        int cr;
-
-        while (*s1 && *s2) {
-                cr = tolower(*s1) - tolower(*s2);
-                if (cr) {
-                        return cr;
-                }
-                s1++;
-                s2++;
-        }
-        cr = tolower(*s1) - tolower(*s2);
-        return cr;
-}
-
-int
-os_strncasecmp(
-        const char *s1,
-        const char *s2,
-        size_t n)
-{
-        int cr = 0;
-
-        while (*s1 && *s2 && n) {
-                cr = tolower(*s1) - tolower(*s2);
-                if (cr) {
-                        return cr;
-                }
-                s1++;
-                s2++;
-                n--;
-        }
-        if (n) {
-                cr = tolower(*s1) - tolower(*s2);
-        }
-        return cr;
 }
 
 os_result

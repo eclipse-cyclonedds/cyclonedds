@@ -262,6 +262,9 @@ extern "C" {
     __attribute_returns_nonnull__
     __attribute_warn_unused_result__;
 
+    void *
+    os_memdup(const void *src, size_t n);
+
     /** \brief os_strsep wrapper
      *
      * See strsep()
@@ -270,6 +273,14 @@ extern "C" {
     os_strsep(
               char **stringp,
               const char *delim);
+
+    /** \brief write a formatted string to a newly allocated buffer
+     */
+    OSAPI_EXPORT int
+    os_asprintf(
+        char **strp,
+        const char *fmt,
+        ...);
 
     /** \brief os_vsnprintf wrapper
      *

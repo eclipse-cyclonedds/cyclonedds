@@ -29,7 +29,7 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (ddsi_tran_factory
     ddsi_ipaddr_from_loc(&ownip, &gv.ownloc);
     if (os_sockaddrSameSubnet ((os_sockaddr *) &tmp, (os_sockaddr *) &iftmp, (os_sockaddr *) &nmtmp))
     {
-      if (os_sockaddrIPAddressEqual ((os_sockaddr*) &iftmp, (os_sockaddr*) &ownip))
+      if (os_sockaddr_compare((os_sockaddr *)&iftmp, (os_sockaddr *)&ownip) == 0)
         return DNAR_SAME;
       else
         return DNAR_LOCAL;
@@ -49,7 +49,7 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_
     return AFSR_INVALID;
   if ((ipv4 && tmpaddr.ss_family != AF_INET) || (!ipv4 && tmpaddr.ss_family != AF_INET6))
     return AFSR_MISMATCH;
-  ddsi_ipaddr_to_loc (loc, &tmpaddr, kind);
+  ddsi_ipaddr_to_loc (loc, (os_sockaddr *)&tmpaddr, kind);
   /* This is just an address, so there is no valid value for port, other than INVALID.
      Without a guarantee that tmpaddr has port 0, best is to set it explicitly here */
   loc->port = NN_LOCATOR_PORT_INVALID;
@@ -94,10 +94,10 @@ char *ddsi_ipaddr_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_
   return dst;
 }
 
-void ddsi_ipaddr_to_loc (nn_locator_t *dst, const os_sockaddr_storage *src, int32_t kind)
+void ddsi_ipaddr_to_loc (nn_locator_t *dst, const os_sockaddr *src, int32_t kind)
 {
   dst->kind = kind;
-  switch (src->ss_family)
+  switch (src->sa_family)
   {
     case AF_INET:
     {
@@ -137,7 +137,7 @@ void ddsi_ipaddr_to_loc (nn_locator_t *dst, const os_sockaddr_storage *src, int3
     }
 #endif
     default:
-      NN_FATAL ("nn_address_to_loc: family %d unsupported\n", (int) src->ss_family);
+      NN_FATAL ("nn_address_to_loc: family %d unsupported\n", (int) src->sa_family);
   }
 }
 

@@ -13,6 +13,7 @@
 #include <string.h>
 #include "os/os.h"
 #include "os/os_atomics.h"
+#include "ddsi_eth.h"
 #include "ddsi/ddsi_tran.h"
 #include "ddsi/ddsi_udp.h"
 #include "ddsi/ddsi_ipaddr.h"
@@ -79,7 +80,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
   if (ret > 0)
   {
     if (srcloc)
-      ddsi_ipaddr_to_loc(srcloc, &src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
+      ddsi_ipaddr_to_loc(srcloc, (os_sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
 
     /* Check for udp packet truncation */
     if ((((size_t) ret) > len)
@@ -90,7 +91,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
     {
       char addrbuf[DDSI_LOCSTRLEN];
       nn_locator_t tmp;
-      ddsi_ipaddr_to_loc(&tmp, &src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
+      ddsi_ipaddr_to_loc(&tmp, (os_sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
       ddsi_locator_to_string(addrbuf, sizeof(addrbuf), &tmp);
       NN_WARNING ("%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
     }
@@ -120,7 +121,7 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
   ddsi_ipaddr_from_loc(&dstaddr, dst);
   set_msghdr_iov (&msg, (ddsi_iovec_t *) iov, niov);
   msg.msg_name = &dstaddr;
-  msg.msg_namelen = (socklen_t) os_sockaddrSizeof((os_sockaddr *) &dstaddr);
+  msg.msg_namelen = (socklen_t) os_sockaddr_get_size((os_sockaddr *) &dstaddr);
 #if !defined(__sun) || defined(_XPG4_2)
   msg.msg_control = NULL;
   msg.msg_controllen = 0;
@@ -200,16 +201,6 @@ static int ddsi_udp_conn_locator (ddsi_tran_base_t base, nn_locator_t *loc)
   return ret;
 }
 
-static unsigned short sockaddr_get_port (const os_sockaddr_storage *addr)
-{
-  if (addr->ss_family == AF_INET)
-    return ntohs (((os_sockaddr_in *) addr)->sin_port);
-#if OS_SOCKET_HAS_IPV6
-  else
-    return ntohs (((os_sockaddr_in6 *) addr)->sin6_port);
-#endif
-}
-
 static unsigned short get_socket_port (os_socket socket)
 {
   os_sockaddr_storage addr;
@@ -220,7 +211,8 @@ static unsigned short get_socket_port (os_socket socket)
     NN_ERROR ("ddsi_udp_get_socket_port: getsockname errno %d\n", err);
     return 0;
   }
-  return sockaddr_get_port(&addr);
+
+  return os_sockaddr_get_port((os_sockaddr *)&addr);
 }
 
 static ddsi_tran_conn_t ddsi_udp_create_conn
@@ -531,6 +523,7 @@ int ddsi_udp_init (void)
     ddsi_udp_factory_g.m_is_nearby_address_fn = ddsi_ipaddr_is_nearby_address;
     ddsi_udp_factory_g.m_locator_from_string_fn = ddsi_udp_address_from_string;
     ddsi_udp_factory_g.m_locator_to_string_fn = ddsi_udp_locator_to_string;
+    ddsi_udp_factory_g.m_enumerate_interfaces_fn = ddsi_eth_enumerate_interfaces;
 #if OS_SOCKET_HAS_IPV6
     if (config.transport_selector == TRANS_UDP6)
     {

@@ -25,7 +25,6 @@ extern "C" {
 
 /* Keep defines before common header */
 #define OS_SOCKET_HAS_IPV6      1
-#define OS_IFNAMESIZE           128
 #define OS_SOCKET_HAS_SA_LEN    0
 #define OS_NO_SIOCGIFINDEX      1
 #define OS_NO_NETLINK           1
