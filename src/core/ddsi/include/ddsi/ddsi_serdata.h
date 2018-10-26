@@ -132,7 +132,7 @@ inline struct ddsi_serdata *ddsi_serdata_from_sample (const struct ddsi_sertopic
 }
 
 inline void ddsi_serdata_to_ser (const struct ddsi_serdata *d, size_t off, size_t sz, void *buf) {
-  return d->ops->to_ser (d, off, sz, buf);
+  d->ops->to_ser (d, off, sz, buf);
 }
 
 inline struct ddsi_serdata *ddsi_serdata_to_ser_ref (const struct ddsi_serdata *d, size_t off, size_t sz, ddsi_iovec_t *ref) {
