@@ -14,10 +14,9 @@
 #include <string.h>
 
 #include "os/os.h"
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata.h"
 #include "ddsi/q_unused.h"
 #include "ddsi/q_config.h"
-#include "q__osplser.h"
 #include "dds__whc.h"
 #include "dds__tkmap.h"
 
@@ -42,7 +41,7 @@ struct whc_node {
   unsigned borrowed: 1; /* at most one can borrow it at any time */
   nn_mtime_t last_rexmit_ts;
   unsigned rexmit_count;
-  struct serdata *serdata;
+  struct ddsi_serdata *serdata;
 };
 
 struct whc_intvnode {
@@ -143,10 +142,10 @@ static void get_state_locked(const struct whc_impl *whc, struct whc_state *st);
 static unsigned whc_remove_acked_messages (struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list);
 static void whc_free_deferred_free_list (struct whc *whc, struct whc_node *deferred_free_list);
 static void whc_get_state(const struct whc *whc, struct whc_state *st);
-static int whc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, serdata_t serdata, struct tkmap_instance *tk);
+static int whc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct tkmap_instance *tk);
 static seqno_t whc_next_seq (const struct whc *whc, seqno_t seq);
 static bool whc_borrow_sample (const struct whc *whc, seqno_t seq, struct whc_borrowed_sample *sample);
-static bool whc_borrow_sample_key (const struct whc *whc, const struct serdata *serdata_key, struct whc_borrowed_sample *sample);
+static bool whc_borrow_sample_key (const struct whc *whc, const struct ddsi_serdata *serdata_key, struct whc_borrowed_sample *sample);
 static void whc_return_sample (struct whc *whc, struct whc_borrowed_sample *sample, bool update_retransmit_info);
 static unsigned whc_downgrade_to_volatile (struct whc *whc, struct whc_state *st);
 static void whc_sample_iter_init (const struct whc *whc, struct whc_sample_iter *opaque_it);
@@ -331,7 +330,7 @@ static struct whc_node *whc_findseq (const struct whc_impl *whc, seqno_t seq)
 #endif
 }
 
-static struct whc_node *whc_findkey (const struct whc_impl *whc, const struct serdata *serdata_key)
+static struct whc_node *whc_findkey (const struct whc_impl *whc, const struct ddsi_serdata *serdata_key)
 {
   union {
     struct whc_idxnode idxn;
@@ -1035,7 +1034,7 @@ static unsigned whc_remove_acked_messages (struct whc *whc_generic, seqno_t max_
   return cnt;
 }
 
-static struct whc_node *whc_insert_seq (struct whc_impl *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, serdata_t serdata)
+static struct whc_node *whc_insert_seq (struct whc_impl *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata)
 {
   struct whc_node *newn = NULL;
 
@@ -1096,7 +1095,7 @@ static struct whc_node *whc_insert_seq (struct whc_impl *whc, seqno_t max_drop_s
   return newn;
 }
 
-static int whc_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, serdata_t serdata, struct tkmap_instance *tk)
+static int whc_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct tkmap_instance *tk)
 {
   struct whc_impl * const whc = (struct whc_impl *)whc_generic;
   struct whc_node *newn = NULL;
@@ -1113,7 +1112,7 @@ static int whc_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t se
   {
     struct whc_state whcst;
     get_state_locked(whc, &whcst);
-    TRACE_WHC(("whc_insert(%p max_drop_seq %"PRId64" seq %"PRId64" plist %p serdata %p:%x)\n", (void *)whc, max_drop_seq, seq, (void*)plist, (void*)serdata, *(unsigned *)serdata->v.keyhash.m_hash));
+    TRACE_WHC(("whc_insert(%p max_drop_seq %"PRId64" seq %"PRId64" plist %p serdata %p:%"PRIx32")\n", (void *)whc, max_drop_seq, seq, (void*)plist, (void*)serdata, serdata->hash));
     TRACE_WHC(("  whc: [%"PRId64",%"PRId64"] max_drop_seq %"PRId64" h %u tl %u\n",
                whcst.min_seq, whcst.max_seq, whc->max_drop_seq, whc->hdepth, whc->tldepth));
   }
@@ -1132,7 +1131,7 @@ static int whc_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t se
   TRACE_WHC(("  whcn %p:", (void*)newn));
 
   /* Special case of empty data (such as commit messages) can't go into index, and if we're not maintaining an index, we're done, too */
-  if (ddsi_serdata_is_empty(serdata) || whc->idxdepth == 0)
+  if (serdata->kind == SDK_EMPTY || whc->idxdepth == 0)
   {
     TRACE_WHC((" empty or no hist\n"));
     os_mutexUnlock (&whc->lock);
@@ -1144,7 +1143,7 @@ static int whc_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t se
   {
     /* Unregisters cause deleting of index entry, non-unregister of adding/overwriting in history */
     TRACE_WHC((" idxn %p", (void *)idxn));
-    if (serdata->v.msginfo.statusinfo & NN_STATUSINFO_UNREGISTER)
+    if (serdata->statusinfo & NN_STATUSINFO_UNREGISTER)
     {
       TRACE_WHC((" unreg:delete\n"));
       delete_one_instance_from_idx (whc, max_drop_seq, idxn);
@@ -1200,7 +1199,7 @@ static int whc_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t se
   {
     TRACE_WHC((" newkey"));
     /* Ignore unregisters, but insert everything else */
-    if (!(serdata->v.msginfo.statusinfo & NN_STATUSINFO_UNREGISTER))
+    if (!(serdata->statusinfo & NN_STATUSINFO_UNREGISTER))
     {
       unsigned i;
       idxn = os_malloc (sizeof (*idxn) + whc->idxdepth * sizeof (idxn->hist[0]));
@@ -1264,7 +1263,7 @@ static bool whc_borrow_sample (const struct whc *whc_generic, seqno_t seq, struc
   return found;
 }
 
-static bool whc_borrow_sample_key (const struct whc *whc_generic, const struct serdata *serdata_key, struct whc_borrowed_sample *sample)
+static bool whc_borrow_sample_key (const struct whc *whc_generic, const struct ddsi_serdata *serdata_key, struct whc_borrowed_sample *sample)
 {
   const struct whc_impl * const whc = (const struct whc_impl *)whc_generic;
   struct whc_node *whcn;

@@ -147,7 +147,7 @@ size_t dds_stream_check_optimize (_In_ const dds_topic_descriptor_t * desc)
   void * sample = dds_alloc (desc->m_size);
   uint8_t * ptr1;
   uint8_t * ptr2;
-  size_t size = desc->m_size;
+  uint32_t size = desc->m_size;
   uint8_t val = 1;
 
   dds_stream_init (&os, size);
@@ -169,7 +169,7 @@ size_t dds_stream_check_optimize (_In_ const dds_topic_descriptor_t * desc)
   return size;
 }
 
-dds_stream_t * dds_stream_create (size_t size)
+dds_stream_t * dds_stream_create (uint32_t size)
 {
   dds_stream_t * stream = (dds_stream_t*) dds_alloc (sizeof (*stream));
   dds_stream_init (stream, size);
@@ -190,7 +190,7 @@ void dds_stream_fini (dds_stream_t * st)
   }
 }
 
-void dds_stream_init (dds_stream_t * st, size_t size)
+void dds_stream_init (dds_stream_t * st, uint32_t size)
 {
   memset (st, 0, sizeof (*st));
   DDS_CDR_REINIT (st, size);
@@ -201,13 +201,13 @@ void dds_stream_reset (dds_stream_t * st)
   DDS_CDR_RESET (st);
 }
 
-void dds_stream_grow (dds_stream_t * st, size_t size)
+void dds_stream_grow (dds_stream_t * st, uint32_t size)
 {
-  size_t needed = size + st->m_index;
+  uint32_t needed = size + st->m_index;
 
   /* Reallocate on 4k boundry */
 
-  size_t newSize = (needed & ~(size_t)0xfff) + 0x1000;
+  uint32_t newSize = (needed & ~(uint32_t)0xfff) + 0x1000;
   uint8_t * old = st->m_buffer.p8;
 
   st->m_buffer.p8 = dds_realloc (old, newSize);
@@ -378,21 +378,17 @@ void dds_stream_read_buffer (dds_stream_t * is, uint8_t * buffer, uint32_t len)
   }
 }
 
-void dds_stream_read_sample (dds_stream_t * is, void * data, const struct sertopic * topic)
+void dds_stream_read_sample (dds_stream_t * is, void * data, const struct ddsi_sertopic_default * topic)
 {
   const struct dds_topic_descriptor * desc = (const struct dds_topic_descriptor *) topic->type;
-
+  /* Check if can copy directly from stream buffer */
+  if (topic->opt_size && DDS_IS_OK (is, desc->m_size) && (is->m_endian == DDS_ENDIAN))
   {
-    /* Check if can copy directly from stream buffer */
-
-    if (topic->opt_size && DDS_IS_OK (is, desc->m_size) && (is->m_endian == DDS_ENDIAN))
-    {
-      DDS_IS_GET_BYTES (is, data, desc->m_size);
-    }
-    else
-    {
-      dds_stream_read (is, data, desc->m_ops);
-    }
+    DDS_IS_GET_BYTES (is, data, desc->m_size);
+  }
+  else
+  {
+    dds_stream_read (is, data, desc->m_ops);
   }
 }
 
@@ -1162,7 +1158,7 @@ static void dds_stream_read (dds_stream_t * is, char * data, const uint32_t * op
 #endif
 }
 
-void dds_stream_write_sample (dds_stream_t * os, const void * data, const struct sertopic * topic)
+void dds_stream_write_sample (dds_stream_t * os, const void * data, const struct ddsi_sertopic_default * topic)
 {
   const struct dds_topic_descriptor * desc = (const struct dds_topic_descriptor *) topic->type;
 
@@ -1176,16 +1172,16 @@ void dds_stream_write_sample (dds_stream_t * os, const void * data, const struct
   }
 }
 
-void dds_stream_from_serstate (_Out_ dds_stream_t * s, _In_ const serstate_t st)
+void dds_stream_from_serdata_default (_Out_ dds_stream_t * s, _In_ const struct ddsi_serdata_default *d)
 {
   s->m_failed = false;
-  s->m_buffer.p8 = (uint8_t*) st->data;
-  s->m_size = st->size + offsetof (struct serdata, data);
-  s->m_index = offsetof (struct serdata, data);
-  s->m_endian = (st->data->v.bswap) ? (! DDS_ENDIAN) : DDS_ENDIAN;
+  s->m_buffer.p8 = (uint8_t*) d;
+  s->m_index = (uint32_t) offsetof (struct ddsi_serdata_default, data);
+  s->m_size = d->size + s->m_index;
+  s->m_endian = (d->bswap) ? (! DDS_ENDIAN) : DDS_ENDIAN;
 }
 
-void dds_stream_add_to_serstate (_Inout_ dds_stream_t * s, _Inout_ serstate_t st)
+void dds_stream_add_to_serdata_default (dds_stream_t * s, struct ddsi_serdata_default **d)
 {
   /* DDSI requires 4 byte alignment */
 
@@ -1193,18 +1189,14 @@ void dds_stream_add_to_serstate (_Inout_ dds_stream_t * s, _Inout_ serstate_t st
 
   /* Reset data pointer as stream may have reallocated */
 
-  st->data = s->m_buffer.pv;
-  st->pos += (s->m_index - offsetof (struct serdata, data));
-  st->size = (s->m_size - offsetof(struct serdata, data));
+  (*d) = s->m_buffer.pv;
+  (*d)->pos = (s->m_index - (uint32_t)offsetof (struct ddsi_serdata_default, data));
+  (*d)->size = (s->m_size - (uint32_t)offsetof(struct ddsi_serdata_default, data));
 }
 
-void dds_stream_write_key
-(
-  dds_stream_t * os,
-  const char * sample,
-  const dds_topic_descriptor_t * desc
-)
+void dds_stream_write_key (dds_stream_t * os, const char * sample, const struct ddsi_sertopic_default * topic)
 {
+  const struct dds_topic_descriptor * desc = (const struct dds_topic_descriptor *) topic->type;
   uint32_t i;
   const char * src;
   const uint32_t * op;

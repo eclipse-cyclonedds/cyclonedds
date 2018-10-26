@@ -50,12 +50,12 @@
 
 #include "ddsi/sysdeps.h"
 
-#include "ddsi/ddsi_ser.h"
 #include "ddsi/ddsi_tran.h"
 #include "ddsi/ddsi_udp.h"
 #include "ddsi/ddsi_tcp.h"
 #include "ddsi/ddsi_raweth.h"
 #include "ddsi/ddsi_mcgroup.h"
+#include "ddsi/ddsi_serdata_default.h"
 
 #include "dds__tkmap.h"
 #include "dds__whc.h"
@@ -752,6 +752,39 @@ static void wait_for_receive_threads (void)
   }
 }
 
+static struct ddsi_sertopic *make_special_topic (uint16_t enc_id, const struct ddsi_serdata_ops *ops)
+{
+  /* FIXME: two things (at least)
+     - it claims there is a key, but the underlying type description is missing
+       that only works as long as it ends up comparing the keyhash field ...
+       the keyhash field should be eliminated; but this can simply be moved over to an alternate
+       topic class, it need not use the "default" one, that's mere expediency
+     - initialising/freeing them here, in this manner, is not very clean
+       it should be moved to somewhere in the topic implementation
+       (kinda natural if they stop being "default" ones) */
+  struct ddsi_sertopic_default *st = os_malloc (sizeof (*st));
+  memset (st, 0, sizeof (*st));
+  os_atomic_st32 (&st->c.refc, 1);
+  st->c.ops = &ddsi_sertopic_ops_default;
+  st->c.serdata_ops = ops;
+  st->native_encoding_identifier = enc_id;
+  st->c.iid = ddsi_plugin.iidgen_fn();
+  st->nkeys = 1;
+  return (struct ddsi_sertopic *)st;
+}
+
+static void make_special_topics (void)
+{
+  gv.plist_topic = make_special_topic (PLATFORM_IS_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE, &ddsi_serdata_ops_plist);
+  gv.rawcdr_topic = make_special_topic (PLATFORM_IS_LITTLE_ENDIAN ? CDR_LE : CDR_BE, &ddsi_serdata_ops_rawcdr);
+}
+
+static void free_special_topics (void)
+{
+  ddsi_sertopic_unref (gv.plist_topic);
+  ddsi_sertopic_unref (gv.rawcdr_topic);
+}
+
 static int setup_and_start_recv_threads (void)
 {
   unsigned i;
@@ -997,6 +1030,8 @@ int rtps_init (void)
   gv.spdp_endpoint_xqos.durability.kind = NN_TRANSIENT_LOCAL_DURABILITY_QOS;
   make_builtin_endpoint_xqos (&gv.builtin_endpoint_xqos_rd, &gv.default_xqos_rd);
   make_builtin_endpoint_xqos (&gv.builtin_endpoint_xqos_wr, &gv.default_xqos_wr);
+
+  make_special_topics (); /* FIXME: leaking these for now */
 
   os_mutexInit (&gv.participant_set_lock);
   os_condInit (&gv.participant_set_cond, &gv.participant_set_lock);
@@ -1309,6 +1344,7 @@ err_unicast_sockets:
   lease_management_term ();
   os_condDestroy (&gv.participant_set_cond);
   os_mutexDestroy (&gv.participant_set_lock);
+  free_special_topics ();
 #ifdef DDSI_INCLUDE_ENCRYPTION
   if (q_security_plugin.free_decoder)
     q_security_plugin.free_decoder (gv.recvSecurityCodec);
@@ -1586,6 +1622,7 @@ void rtps_term (void)
   lease_management_term ();
   os_mutexDestroy (&gv.participant_set_lock);
   os_condDestroy (&gv.participant_set_cond);
+  free_special_topics ();
 
   nn_xqos_fini (&gv.builtin_endpoint_xqos_wr);
   nn_xqos_fini (&gv.builtin_endpoint_xqos_rd);

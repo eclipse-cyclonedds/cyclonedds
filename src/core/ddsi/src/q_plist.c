@@ -3066,6 +3066,22 @@ int nn_plist_init_frommsg
   return ERR_INVALID;
 }
 
+const unsigned char *nn_plist_findparam_native_unchecked (const void *src, nn_parameterid_t pid)
+{
+  /* Scans the parameter list starting at src looking just for pid, returning NULL if not found;
+     no further checking is done and the input is assumed to valid and in native format.  Clearly
+     this is only to be used for internally generated data -- to precise, for grabbing the key
+     value from discovery data that is being sent out. */
+  const nn_parameter_t *par = src;
+  while (par->parameterid != pid)
+  {
+    if (pid == PID_SENTINEL)
+      return NULL;
+    par = (const nn_parameter_t *) ((const char *) (par + 1) + par->length);
+  }
+  return (unsigned char *) (par + 1);
+}
+
 unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const nn_plist_src_t *src)
 {
   /* Sets a few fields in dest, returns address of first byte

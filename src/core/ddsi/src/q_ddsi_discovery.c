@@ -18,7 +18,6 @@
 #include "os/os.h"
 
 #include "util/ut_avl.h"
-#include "ddsi/ddsi_ser.h"
 #include "ddsi/q_protocol.h"
 #include "ddsi/q_rtps.h"
 #include "ddsi/q_misc.h"
@@ -39,7 +38,7 @@
 #include "ddsi/q_lease.h"
 #include "ddsi/q_error.h"
 #include "ddsi/q_builtin_topic.h"
-#include "q__osplser.h"
+#include "ddsi/ddsi_serdata_default.h"
 #include "ddsi/q_md5.h"
 #include "ddsi/q_feature_check.h"
 
@@ -173,21 +172,28 @@ static void maybe_add_pp_as_meta_to_as_disc (const struct addrset *as_meta)
   }
 }
 
+static int write_mpayload (struct writer *wr, int alive, nn_parameterid_t keyparam, struct nn_xmsg *mpayload)
+{
+  struct ddsi_plist_sample plist_sample;
+  struct ddsi_serdata *serdata;
+  nn_xmsg_payload_to_plistsample (&plist_sample, keyparam, mpayload);
+  serdata = ddsi_serdata_from_sample (gv.plist_topic, alive ? SDK_DATA : SDK_KEY, &plist_sample);
+  serdata->statusinfo = alive ? 0 : NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
+  serdata->timestamp = now ();
+  return write_sample_nogc_notk (NULL, wr, serdata);
+}
+
 int spdp_write (struct participant *pp)
 {
   static const nn_vendorid_t myvendorid = MY_VENDOR_ID;
-  serdata_t serdata;
-  serstate_t serstate;
   struct nn_xmsg *mpayload;
-  size_t payload_sz;
-  char *payload_blob;
   struct nn_locators_one def_uni_loc_one, def_multi_loc_one, meta_uni_loc_one, meta_multi_loc_one;
   nn_plist_t ps;
-  nn_guid_t kh;
   struct writer *wr;
   size_t size;
   char node[64];
   uint64_t qosdiff;
+  int ret;
 
   if (pp->e.onlylocal) {
       /* This topic is only locally available. */
@@ -317,32 +323,19 @@ int spdp_write (struct participant *pp)
   nn_plist_addtomsg (mpayload, &ps, ~(uint64_t)0, 0);
   nn_plist_addtomsg (mpayload, pp->plist, 0, qosdiff);
   nn_xmsg_addpar_sentinel (mpayload);
+  nn_plist_fini (&ps);
 
-  /* A NULL topic implies a parameter list, now that we do PMD through
-     the serializer */
-  serstate = ddsi_serstate_new (NULL);
-  payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
-  ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
-  kh = nn_hton_guid (pp->e.guid);
-  serstate_set_key (serstate, 0, &kh);
-  ddsi_serstate_set_msginfo (serstate, 0, now ());
-  serdata = ddsi_serstate_fix (serstate);
-  nn_plist_fini(&ps);
+  ret = write_mpayload (wr, 1, PID_PARTICIPANT_GUID, mpayload);
   nn_xmsg_free (mpayload);
-
-  return write_sample_nogc_notk (NULL, wr, serdata);
+  return ret;
 }
 
 int spdp_dispose_unregister (struct participant *pp)
 {
   struct nn_xmsg *mpayload;
-  size_t payload_sz;
-  char *payload_blob;
   nn_plist_t ps;
-  serdata_t serdata;
-  serstate_t serstate;
-  nn_guid_t kh;
   struct writer *wr;
+  int ret;
 
   if ((wr = get_builtin_writer (pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)) == NULL)
   {
@@ -356,17 +349,11 @@ int spdp_dispose_unregister (struct participant *pp)
   ps.participant_guid = pp->e.guid;
   nn_plist_addtomsg (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0);
   nn_xmsg_addpar_sentinel (mpayload);
+  nn_plist_fini (&ps);
 
-  serstate = ddsi_serstate_new (NULL);
-  payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
-  ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
-  kh = nn_hton_guid (pp->e.guid);
-  serstate_set_key (serstate, 1, &kh);
-  ddsi_serstate_set_msginfo (serstate, NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER, now ());
-  serdata = ddsi_serstate_fix (serstate);
+  ret = write_mpayload (wr, 0, PID_PARTICIPANT_GUID, mpayload);
   nn_xmsg_free (mpayload);
-
-  return write_sample_nogc_notk (NULL, wr, serdata);
+  return ret;
 }
 
 static unsigned pseudo_random_delay (const nn_guid_t *x, const nn_guid_t *y, nn_mtime_t tnow)
@@ -718,13 +705,17 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
     /* If unicast locators not present, then try to obtain from connection */
     if (!config.tcp_use_peeraddr_for_unicast && (datap->present & PP_DEFAULT_UNICAST_LOCATOR) && (get_locator (&loc, &datap->default_unicast_locators, uc_same_subnet)))
       add_to_addrset (as_default, &loc);
-    else
-      nn_log (LC_DISCOVERY, " (srclocD)"), add_to_addrset (as_default, &rst->srcloc);
+    else {
+      nn_log (LC_DISCOVERY, " (srclocD)");
+      add_to_addrset (as_default, &rst->srcloc);
+    }
 
     if (!config.tcp_use_peeraddr_for_unicast && (datap->present & PP_METATRAFFIC_UNICAST_LOCATOR) && (get_locator (&loc, &datap->metatraffic_unicast_locators, uc_same_subnet)))
       add_to_addrset (as_meta, &loc);
-    else
-      nn_log (LC_DISCOVERY, " (srclocM)"), add_to_addrset (as_meta, &rst->srcloc);
+    else {
+      nn_log (LC_DISCOVERY, " (srclocM)");
+      add_to_addrset (as_meta, &rst->srcloc);
+    }
 
     nn_log_addrset (LC_DISCOVERY, " (data", as_default);
     nn_log_addrset (LC_DISCOVERY, " meta", as_meta);
@@ -880,22 +871,16 @@ static void add_locator_to_ps (const nn_locator_t *loc, void *arg)
 
 static int sedp_write_endpoint
 (
-   struct writer *wr, int end_of_life, const nn_guid_t *epguid,
+   struct writer *wr, int alive, const nn_guid_t *epguid,
    const struct entity_common *common, const struct endpoint_common *epcommon,
    const nn_xqos_t *xqos, struct addrset *as)
 {
   const nn_xqos_t *defqos = is_writer_entityid (epguid->entityid) ? &gv.default_xqos_wr : &gv.default_xqos_rd;
   const nn_vendorid_t my_vendor_id = MY_VENDOR_ID;
-  const int just_key = end_of_life;
   struct nn_xmsg *mpayload;
   uint64_t qosdiff;
-  nn_guid_t kh;
   nn_plist_t ps;
-  serstate_t serstate;
-  serdata_t serdata;
-  void *payload_blob;
-  size_t payload_sz;
-  unsigned statusinfo;
+  int ret;
 
   nn_plist_init_empty (&ps);
   ps.present |= PP_ENDPOINT_GUID;
@@ -908,7 +893,7 @@ static int sedp_write_endpoint
     ps.entity_name = common->name;
   }
 
-  if (end_of_life)
+  if (!alive)
   {
     assert (xqos == NULL);
     assert (epcommon == NULL);
@@ -966,23 +951,10 @@ static int sedp_write_endpoint
   nn_xmsg_addpar_sentinel (mpayload);
   nn_plist_fini (&ps);
 
-  /* Then we take the payload from the message and turn it into a
-     serdata, and then we can write it as normal data */
-  serstate = ddsi_serstate_new (NULL);
-  payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
-  ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
-  kh = nn_hton_guid (*epguid);
-  serstate_set_key (serstate, just_key, &kh);
-  if (end_of_life)
-    statusinfo = NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
-  else
-    statusinfo = 0;
-  ddsi_serstate_set_msginfo (serstate, statusinfo, now ());
-  serdata = ddsi_serstate_fix (serstate);
-  nn_xmsg_free (mpayload);
-
   TRACE (("sedp: write for %x:%x:%x:%x via %x:%x:%x:%x\n", PGUID (*epguid), PGUID (wr->e.guid)));
-  return write_sample_nogc_notk (NULL, wr, serdata);
+  ret = write_mpayload (wr, alive, PID_ENDPOINT_GUID, mpayload);
+  nn_xmsg_free (mpayload);
+  return ret;
 }
 
 static struct writer *get_sedp_writer (const struct participant *pp, unsigned entityid)
@@ -1003,7 +975,7 @@ int sedp_write_writer (struct writer *wr)
 #else
     struct addrset *as = NULL;
 #endif
-    return sedp_write_endpoint (sedp_wr, 0, &wr->e.guid, &wr->e, &wr->c, wr->xqos, as);
+    return sedp_write_endpoint (sedp_wr, 1, &wr->e.guid, &wr->e, &wr->c, wr->xqos, as);
   }
   return 0;
 }
@@ -1018,7 +990,7 @@ int sedp_write_reader (struct reader *rd)
 #else
     struct addrset *as = NULL;
 #endif
-    return sedp_write_endpoint (sedp_wr, 0, &rd->e.guid, &rd->e, &rd->c, rd->xqos, as);
+    return sedp_write_endpoint (sedp_wr, 1, &rd->e.guid, &rd->e, &rd->c, rd->xqos, as);
   }
   return 0;
 }
@@ -1028,7 +1000,7 @@ int sedp_dispose_unregister_writer (struct writer *wr)
   if ((!is_builtin_entityid(wr->e.guid.entityid, ownvendorid)) && (!wr->e.onlylocal))
   {
     struct writer *sedp_wr = get_sedp_writer (wr->c.pp, NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER);
-    return sedp_write_endpoint (sedp_wr, 1, &wr->e.guid, NULL, NULL, NULL, NULL);
+    return sedp_write_endpoint (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL);
   }
   return 0;
 }
@@ -1038,7 +1010,7 @@ int sedp_dispose_unregister_reader (struct reader *rd)
   if ((!is_builtin_entityid(rd->e.guid.entityid, ownvendorid)) && (!rd->e.onlylocal))
   {
     struct writer *sedp_wr = get_sedp_writer (rd->c.pp, NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER);
-    return sedp_write_endpoint (sedp_wr, 1, &rd->e.guid, NULL, NULL, NULL, NULL);
+    return sedp_write_endpoint (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL);
   }
   return 0;
 }
@@ -1255,9 +1227,14 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
     if (!config.tcp_use_peeraddr_for_unicast && (datap->present & PP_UNICAST_LOCATOR) && get_locator (&loc, &datap->unicast_locators, 0))
       add_to_addrset (as, &loc);
     else if (config.tcp_use_peeraddr_for_unicast)
-      nn_log (LC_DISCOVERY, " (srcloc)"), add_to_addrset (as, &rst->srcloc);
+    {
+      nn_log (LC_DISCOVERY, " (srcloc)");
+      add_to_addrset (as, &rst->srcloc);
+    }
     else
+    {
       copy_addrset_into_addrset_uc (as, pp->as_default);
+    }
     if ((datap->present & PP_MULTICAST_LOCATOR) && get_locator (&loc, &datap->multicast_locators, 0))
       allowmulticast_aware_add_to_addrset (as, &loc);
     else
@@ -1404,15 +1381,8 @@ int sedp_write_topic (struct participant *pp, const struct nn_plist *datap)
 {
   struct writer *sedp_wr;
   struct nn_xmsg *mpayload;
-  serstate_t serstate;
-  serdata_t serdata;
-  void *payload_blob;
-  size_t payload_sz;
-  uint32_t topic_name_sz;
-  uint32_t topic_name_sz_BE;
   uint64_t delta;
-  unsigned char digest[16];
-  md5_state_t md5st;
+  int ret;
 
   assert (datap->qos.present & QP_TOPIC_NAME);
 
@@ -1430,25 +1400,10 @@ int sedp_write_topic (struct participant *pp, const struct nn_plist *datap)
   nn_plist_addtomsg (mpayload, datap, ~(uint64_t)0, delta);
   nn_xmsg_addpar_sentinel (mpayload);
 
-  serstate = ddsi_serstate_new (NULL);
-  payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
-  ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
-
-  topic_name_sz = (uint32_t) strlen (datap->qos.topic_name) + 1;
-  topic_name_sz_BE = toBE4u (topic_name_sz);
-
-  md5_init (&md5st);
-  md5_append (&md5st, (const md5_byte_t *) &topic_name_sz_BE, sizeof (topic_name_sz_BE));
-  md5_append (&md5st, (const md5_byte_t *) datap->qos.topic_name, topic_name_sz);
-  md5_finish (&md5st, digest);
-
-  serstate_set_key (serstate, 0, digest);
-  ddsi_serstate_set_msginfo (serstate, 0, now ());
-  serdata = ddsi_serstate_fix (serstate);
-  nn_xmsg_free (mpayload);
-
   TRACE (("sedp: write topic %s via %x:%x:%x:%x\n", datap->qos.topic_name, PGUID (sedp_wr->e.guid)));
-  return write_sample_nogc_notk (NULL, sedp_wr, serdata);
+  ret = write_mpayload (sedp_wr, 1, PID_TOPIC_NAME, mpayload);
+  nn_xmsg_free (mpayload);
+  return ret;
 }
 
 
@@ -1462,13 +1417,8 @@ int sedp_write_cm_participant (struct participant *pp, int alive)
 {
   struct writer * sedp_wr;
   struct nn_xmsg *mpayload;
-  serstate_t serstate;
-  serdata_t serdata;
   nn_plist_t ps;
-  nn_guid_t kh;
-  void *payload_blob;
-  size_t payload_sz;
-  unsigned statusinfo;
+  int ret;
 
   if (pp->e.onlylocal) {
       /* This topic is only locally available. */
@@ -1487,9 +1437,10 @@ int sedp_write_cm_participant (struct participant *pp, int alive)
   nn_plist_init_empty (&ps);
   ps.present = PP_PARTICIPANT_GUID;
   ps.participant_guid = pp->e.guid;
+  nn_plist_addtomsg (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0);
+  nn_plist_fini (&ps);
   if (alive)
   {
-    nn_plist_addtomsg (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0);
     nn_plist_addtomsg (mpayload, pp->plist,
                        PP_PRISMTECH_NODE_NAME | PP_PRISMTECH_EXEC_NAME | PP_PRISMTECH_PROCESS_ID |
                        PP_PRISMTECH_WATCHDOG_SCHEDULING | PP_PRISMTECH_LISTENER_SCHEDULING |
@@ -1498,23 +1449,11 @@ int sedp_write_cm_participant (struct participant *pp, int alive)
   }
   nn_xmsg_addpar_sentinel (mpayload);
 
-  /* Then we take the payload from the message and turn it into a
-   serdata, and then we can write it as normal data */
-  serstate = ddsi_serstate_new (NULL);
-  payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
-  ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
-  kh = nn_hton_guid (pp->e.guid);
-  serstate_set_key (serstate, !alive, &kh);
-  if (!alive)
-    statusinfo = NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
-  else
-    statusinfo = 0;
-  ddsi_serstate_set_msginfo (serstate, statusinfo, now ());
-  serdata = ddsi_serstate_fix (serstate);
+  TRACE (("sedp: write CMParticipant ST%x for %x:%x:%x:%x via %x:%x:%x:%x\n",
+          alive ? 0 : NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER, PGUID (pp->e.guid), PGUID (sedp_wr->e.guid)));
+  ret = write_mpayload (sedp_wr, alive, PID_PARTICIPANT_GUID, mpayload);
   nn_xmsg_free (mpayload);
-
-  TRACE (("sedp: write CMParticipant ST%x for %x:%x:%x:%x via %x:%x:%x:%x\n", statusinfo, PGUID (pp->e.guid), PGUID (sedp_wr->e.guid)));
-  return write_sample_nogc_notk (NULL, sedp_wr, serdata);
+  return ret;
 }
 
 static void handle_SEDP_CM (const struct receiver_state *rst, nn_entityid_t wr_entity_id, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len)
@@ -1576,13 +1515,8 @@ int sedp_write_cm_publisher (const struct nn_plist *datap, int alive)
   struct participant *pp;
   struct writer *sedp_wr;
   struct nn_xmsg *mpayload;
-  serstate_t serstate;
-  serdata_t serdata;
-  nn_guid_t kh;
-  void *payload_blob;
-  size_t payload_sz;
-  unsigned statusinfo;
   uint64_t delta;
+  int ret;
 
   if ((pp = group_guid_to_participant (&datap->group_guid)) == NULL)
   {
@@ -1607,23 +1541,9 @@ int sedp_write_cm_publisher (const struct nn_plist *datap, int alive)
   }
   nn_plist_addtomsg (mpayload, datap, ~(uint64_t)0, delta);
   nn_xmsg_addpar_sentinel (mpayload);
-
-  /* Then we take the payload from the message and turn it into a
-   serdata, and then we can write it as normal data */
-  serstate = ddsi_serstate_new (NULL);
-  payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
-  ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
-  kh = nn_hton_guid (datap->group_guid);
-  serstate_set_key (serstate, !alive, &kh);
-  if (!alive)
-    statusinfo = NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
-  else
-    statusinfo = 0;
-  ddsi_serstate_set_msginfo (serstate, statusinfo, now ());
-  serdata = ddsi_serstate_fix (serstate);
+  ret = write_mpayload (sedp_wr, alive, PID_GROUP_GUID ,mpayload);
   nn_xmsg_free (mpayload);
-
-  return write_sample_nogc_notk (NULL, sedp_wr, serdata);
+  return ret;
 }
 
 int sedp_write_cm_subscriber (const struct nn_plist *datap, int alive)
@@ -1631,13 +1551,8 @@ int sedp_write_cm_subscriber (const struct nn_plist *datap, int alive)
   struct participant *pp;
   struct writer *sedp_wr;
   struct nn_xmsg *mpayload;
-  serstate_t serstate;
-  serdata_t serdata;
-  nn_guid_t kh;
-  void *payload_blob;
-  size_t payload_sz;
-  unsigned statusinfo;
   uint64_t delta;
+  int ret;
 
   if ((pp = group_guid_to_participant (&datap->group_guid)) == NULL)
   {
@@ -1662,23 +1577,9 @@ int sedp_write_cm_subscriber (const struct nn_plist *datap, int alive)
   }
   nn_plist_addtomsg (mpayload, datap, ~(uint64_t)0, delta);
   nn_xmsg_addpar_sentinel (mpayload);
-
-  /* Then we take the payload from the message and turn it into a
-   serdata, and then we can write it as normal data */
-  serstate = ddsi_serstate_new (NULL);
-  payload_blob = nn_xmsg_payload (&payload_sz, mpayload);
-  ddsi_serstate_append_blob (serstate, 4, payload_sz, payload_blob);
-  kh = nn_hton_guid (datap->group_guid);
-  serstate_set_key (serstate, !alive, &kh);
-  if (!alive)
-    statusinfo = NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
-  else
-    statusinfo = 0;
-  ddsi_serstate_set_msginfo (serstate, statusinfo, now ());
-  serdata = ddsi_serstate_fix (serstate);
+  ret = write_mpayload (sedp_wr, alive, PID_GROUP_GUID, mpayload);
   nn_xmsg_free (mpayload);
-
-  return write_sample_nogc_notk (NULL, sedp_wr, serdata);
+  return ret;
 }
 
 static void handle_SEDP_GROUP_alive (nn_plist_t *datap /* note: potentially modifies datap */, nn_wctime_t timestamp)

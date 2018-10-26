@@ -16,10 +16,8 @@
 
 #include "os/os.h"
 
-
 #include "ddsi/q_md5.h"
 #include "util/ut_avl.h"
-#include "q__osplser.h"
 #include "dds__stream.h"
 #include "ddsi/q_protocol.h"
 #include "ddsi/q_rtps.h"
@@ -49,6 +47,8 @@
 #include "ddsi/q_static_assert.h"
 #include "ddsi/q_init.h"
 #include "ddsi/ddsi_mcgroup.h"
+#include "ddsi/ddsi_serdata.h"
+#include "ddsi/ddsi_serdata_default.h" /* FIXME: get rid of this */
 
 #include "ddsi/sysdeps.h"
 #include "dds__whc.h"
@@ -1784,70 +1784,28 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
   return 1;
 }
 
-static serstate_t make_raw_serstate
-(
-  struct sertopic const * const topic,
-  const struct nn_rdata *fragchain, uint32_t sz, int justkey,
-  unsigned statusinfo, nn_wctime_t tstamp
-)
+static struct ddsi_serdata *get_serdata (struct ddsi_sertopic const * const topic, const struct nn_rdata *fragchain, uint32_t sz, int justkey, unsigned statusinfo, nn_wctime_t tstamp)
 {
-  serstate_t st = ddsi_serstate_new (topic);
-  ddsi_serstate_set_msginfo (st, statusinfo, tstamp);
-  st->kind = justkey ? STK_KEY : STK_DATA;
-  /* the CDR header is always fully contained in the first fragment
-     (see valid_DataFrag), so extracting it is easy */
-  assert (fragchain->min == 0);
-  (void)sz;
-
-  /* alignment at head-of-stream is guaranteed, requesting 1 byte
-     alignment is therefore fine for pasting together fragments of
-     data */
-  {
-    uint32_t off = 4; /* must skip the CDR header */
-    while (fragchain)
-    {
-      assert (fragchain->min <= off);
-      assert (fragchain->maxp1 <= sz);
-      if (fragchain->maxp1 > off)
-      {
-        /* only copy if this fragment adds data */
-        const unsigned char *payload = NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain));
-        ddsi_serstate_append_blob (st, 1, fragchain->maxp1 - off, payload + off - fragchain->min);
-        off = fragchain->maxp1;
-      }
-      fragchain = fragchain->nextfrag;
-    }
-  }
-  return st;
+  struct ddsi_serdata *sd = ddsi_serdata_from_ser (topic, justkey ? SDK_KEY : SDK_DATA, fragchain, sz);
+  sd->statusinfo = statusinfo;
+  sd->timestamp = tstamp;
+  return sd;
 }
 
-static serdata_t ddsi_serstate_fix_with_key (serstate_t st, const struct sertopic *topic, bool bswap)
-{
-  serdata_t sample = ddsi_serstate_fix(st);
-  dds_stream_t is;
-  assert(sample->v.keyhash.m_flags == 0);
-  sample->v.bswap = bswap;
-  dds_stream_from_serstate (&is, sample->v.st);
-  /* FIXME: the relationship between dds_topic, topic_descriptor and sertopic clearly needs some work */
-  dds_stream_read_keyhash (&is, &sample->v.keyhash, topic->status_cb_entity->m_descriptor, sample->v.st->kind == STK_KEY);
-  return sample;
-}
-
-static serdata_t extract_sample_from_data
+static struct ddsi_serdata *extract_sample_from_data
 (
   const struct nn_rsample_info *sampleinfo, unsigned char data_smhdr_flags,
   const nn_plist_t *qos, const struct nn_rdata *fragchain, unsigned statusinfo,
-  nn_wctime_t tstamp, struct sertopic const * const topic
+  nn_wctime_t tstamp, struct ddsi_sertopic const * const topic
 )
 {
   static const nn_guid_t null_guid = {{{0,0,0,0,0,0,0,0,0,0,0,0}},{0}};
   const char *failmsg = NULL;
-  serdata_t sample = NULL;
+  struct ddsi_serdata * sample = NULL;
 
   if (statusinfo == 0)
   {
     /* normal write */
-    serstate_t st;
     if (!(data_smhdr_flags & DATA_FLAG_DATAFLAG) || sampleinfo->size == 0)
     {
       const struct proxy_writer *pwr = sampleinfo->pwr;
@@ -1859,25 +1817,21 @@ static serdata_t extract_sample_from_data
               data_smhdr_flags, sampleinfo->size));
       return NULL;
     }
-    st = make_raw_serstate (topic, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
-    sample = ddsi_serstate_fix_with_key (st, topic, sampleinfo->bswap);
+    sample = get_serdata (topic, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
   }
   else if (sampleinfo->size)
   {
     /* dispose or unregister with included serialized key or data
        (data is a PrismTech extension) -- i.e., dispose or unregister
        as one would expect to receive */
-    serstate_t st;
     if (data_smhdr_flags & DATA_FLAG_KEYFLAG)
     {
-      st = make_raw_serstate (topic, fragchain, sampleinfo->size, 1, statusinfo, tstamp);
-      sample = ddsi_serstate_fix_with_key (st, topic, sampleinfo->bswap);
+      sample = get_serdata (topic, fragchain, sampleinfo->size, 1, statusinfo, tstamp);
     }
     else
     {
       assert (data_smhdr_flags & DATA_FLAG_DATAFLAG);
-      st = make_raw_serstate (topic, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
-      sample = ddsi_serstate_fix_with_key (st, topic, sampleinfo->bswap);
+      sample = get_serdata (topic, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
     }
   }
   else if (data_smhdr_flags & DATA_FLAG_INLINE_QOS)
@@ -1890,12 +1844,9 @@ static serdata_t extract_sample_from_data
       failmsg = "qos present but without keyhash";
     else
     {
-      serstate_t st;
-      st = ddsi_serstate_new (topic);
-      ddsi_serstate_set_msginfo (st, statusinfo, tstamp);
-      st->kind = STK_KEY;
-      ddsi_serstate_append_blob (st, 1, sizeof (qos->keyhash), qos->keyhash.value);
-      sample = ddsi_serstate_fix_with_key (st, topic, sampleinfo->bswap);
+      sample = ddsi_serdata_from_keyhash (topic, &qos->keyhash);
+      sample->statusinfo = statusinfo;
+      sample->timestamp = tstamp;
     }
   }
   else
@@ -1943,20 +1894,17 @@ unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr, in
   }
 }
 
-
-
-
 static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const nn_guid_t *rdguid, int pwr_locked)
 {
   struct receiver_state const * const rst = sampleinfo->rst;
   struct proxy_writer * const pwr = sampleinfo->pwr;
-  struct sertopic const * const topic = pwr->c.topic;
+  struct ddsi_sertopic const * const topic = pwr->c.topic;
   unsigned statusinfo;
   Data_DataFrag_common_t *msg;
   unsigned char data_smhdr_flags;
   nn_plist_t qos;
   int need_keyhash;
-  serdata_t payload;
+  struct ddsi_serdata * payload;
 
   if (pwr->ddsi2direct_cb)
   {

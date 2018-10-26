@@ -38,7 +38,7 @@ struct dds_readcond;
 struct dds_guardcond;
 struct dds_statuscond;
 
-struct sertopic;
+struct ddsi_sertopic;
 struct rhc;
 
 /* Internal entity status flags */
@@ -203,7 +203,7 @@ dds_writer;
 typedef struct dds_topic
 {
   struct dds_entity m_entity;
-  struct sertopic * m_stopic;
+  struct ddsi_sertopic * m_stopic;
   const dds_topic_descriptor_t * m_descriptor;
 
   /* Status metrics */

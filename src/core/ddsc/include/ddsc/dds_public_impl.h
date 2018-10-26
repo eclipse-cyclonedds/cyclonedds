@@ -56,7 +56,7 @@ dds_key_descriptor_t;
 
 typedef struct dds_topic_descriptor
 {
-  const size_t m_size;                 /* Size of topic type */
+  const uint32_t m_size;               /* Size of topic type */
   const uint32_t m_align;              /* Alignment of topic type */
   const uint32_t m_flagset;            /* Flags */
   const uint32_t m_nkeys;              /* Number of keys (can be 0) */

@@ -18,10 +18,9 @@
 #include "dds__rhc.h"
 #include "dds__tkmap.h"
 #include "dds__err.h"
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata.h"
 #include "ddsi/q_entity.h"
 #include "ddsi/q_thread.h"
-#include "q__osplser.h"
 #include "dds__report.h"
 
 
@@ -70,7 +69,7 @@ dds_instance_find(
         _In_ const void *data,
         _In_ const bool create)
 {
-    serdata_t sd = serialize_key (topic->m_stopic, data);
+    struct ddsi_serdata *sd = ddsi_serdata_from_sample (topic->m_stopic, SDK_KEY, data);
     struct tkmap_instance * inst = dds_tkmap_find (sd, false, create);
     ddsi_serdata_unref (sd);
     return inst;
@@ -407,7 +406,7 @@ dds_instance_lookup(
     dds_instance_handle_t ih = DDS_HANDLE_NIL;
     const dds_topic * topic;
     struct tkmap * map = gv.m_tkmap;
-    serdata_t sd;
+    struct ddsi_serdata *sd;
     dds_return_t ret;
 
     DDS_REPORT_STACK();
@@ -419,7 +418,7 @@ dds_instance_lookup(
 
     topic = dds_instance_info_by_hdl (entity);
     if (topic) {
-        sd = serialize_key (topic->m_stopic, data);
+        sd = ddsi_serdata_from_sample (topic->m_stopic, SDK_KEY, data);
         ih = dds_tkmap_lookup (map, sd);
         ddsi_serdata_unref (sd);
         ret = DDS_RETCODE_OK;

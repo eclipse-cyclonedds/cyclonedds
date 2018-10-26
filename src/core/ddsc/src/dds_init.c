@@ -22,7 +22,7 @@
 #include "dds__err.h"
 #include "dds__builtin.h"
 #include "dds__report.h"
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata.h"
 #include "ddsi/q_servicelease.h"
 #include "ddsi/q_entity.h"
 #include <ddsi/q_config.h>

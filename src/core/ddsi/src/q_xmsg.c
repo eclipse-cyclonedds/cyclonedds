@@ -24,7 +24,6 @@
 #include "util/ut_avl.h"
 #include "util/ut_thread_pool.h"
 
-#include "ddsi/ddsi_ser.h"
 #include "ddsi/q_protocol.h"
 #include "ddsi/q_xqos.h"
 #include "ddsi/q_bswap.h"
@@ -41,7 +40,7 @@
 #include "ddsi/q_globals.h"
 #include "ddsi/q_ephash.h"
 #include "ddsi/q_freelist.h"
-#include "q__osplser.h"
+#include "ddsi/ddsi_serdata_default.h"
 
 #include "ddsi/sysdeps.h"
 
@@ -73,7 +72,7 @@ struct nn_xmsg {
   size_t maxsz;
   size_t sz;
   int have_params;
-  struct serdata *refd_payload;
+  struct ddsi_serdata *refd_payload;
   ddsi_iovec_t refd_payload_iov;
   int64_t maxdelay;
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -345,16 +344,16 @@ void nn_xmsg_free (struct nn_xmsg *m)
 {
   struct nn_xmsgpool *pool = m->pool;
   if (m->refd_payload)
-  {
-    ddsi_serdata_unref (m->refd_payload);
-  }
+    ddsi_serdata_to_ser_unref (m->refd_payload, &m->refd_payload_iov);
   if (m->dstmode == NN_XMSG_DST_ALL)
   {
     unref_addrset (m->dstaddr.all.as);
     unref_addrset (m->dstaddr.all.as_group);
   }
   if (!nn_freelist_push (&pool->freelist, m))
+  {
     nn_xmsg_realfree (m);
+  }
 }
 
 /************************************************/
@@ -468,6 +467,13 @@ void *nn_xmsg_payload (size_t *sz, struct nn_xmsg *m)
   return m->data->payload;
 }
 
+void nn_xmsg_payload_to_plistsample (struct ddsi_plist_sample *dst, nn_parameterid_t keyparam, const struct nn_xmsg *m)
+{
+  dst->blob = m->data->payload;
+  dst->size = m->sz;
+  dst->keyparam = keyparam;
+}
+
 void nn_xmsg_submsg_init (struct nn_xmsg *msg, struct nn_xmsg_marker marker, SubmessageKind_t smkind)
 {
   SubmessageHeader_t *hdr = (SubmessageHeader_t *) (msg->data->payload + marker.offset);
@@ -554,15 +560,13 @@ void nn_xmsg_add_entityid (struct nn_xmsg * m)
   nn_xmsg_submsg_setnext (m, sm);
 }
 
-void nn_xmsg_serdata (struct nn_xmsg *m, serdata_t serdata, size_t off, size_t len)
+void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t off, size_t len)
 {
-  if (!ddsi_serdata_is_empty (serdata))
+  if (serdata->kind != SDK_EMPTY)
   {
     size_t len4 = align4u (len);
     assert (m->refd_payload == NULL);
-    m->refd_payload = ddsi_serdata_ref (serdata);
-    m->refd_payload_iov.iov_base = (char *) &m->refd_payload->hdr + off;
-    m->refd_payload_iov.iov_len = (ddsi_iov_len_t) len4;
+    m->refd_payload = ddsi_serdata_to_ser_ref (serdata, off, len4, &m->refd_payload_iov);
   }
 }
 
@@ -889,12 +893,13 @@ void nn_xmsg_addpar_stringseq (struct nn_xmsg *m, unsigned pid, const nn_strings
   }
 }
 
-void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct serdata *serdata)
+void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serdata)
 {
-  if (!ddsi_serdata_is_empty (serdata))
+  if (serdata->kind != SDK_EMPTY)
   {
+    const struct ddsi_serdata_default *serdata_def = (const struct ddsi_serdata_default *)serdata;
     char *p = nn_xmsg_addpar (m, PID_KEYHASH, 16);
-    memcpy (p, serdata->v.keyhash.m_hash, 16);
+    memcpy (p, serdata_def->keyhash.m_hash, 16);
   }
 }
 

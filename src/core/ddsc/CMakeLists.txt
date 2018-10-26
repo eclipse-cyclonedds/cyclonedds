@@ -21,7 +21,6 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_publisher.c
     dds_rhc.c
     dds_time.c
-    q_osplser.c
     dds_domain.c
     dds_instance.c
     dds_qos.c
@@ -82,7 +81,6 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__write.h
     dds__writer.h
     dds__whc.h
-    q__osplser.h
 )
 
 configure_file(

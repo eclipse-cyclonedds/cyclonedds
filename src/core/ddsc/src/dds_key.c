@@ -13,7 +13,7 @@
 #include <string.h>
 #include "dds__key.h"
 #include "dds__stream.h"
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata.h"
 #include "ddsi/q_bswap.h"
 #include "ddsi/q_md5.h"
 

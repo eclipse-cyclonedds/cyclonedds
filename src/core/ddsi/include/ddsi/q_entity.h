@@ -33,7 +33,7 @@ struct nn_reorder;
 struct nn_defrag;
 struct nn_dqueue;
 struct addrset;
-struct sertopic;
+struct ddsi_sertopic;
 struct whc;
 struct nn_xqos;
 struct nn_plist;
@@ -234,7 +234,7 @@ struct writer
   unsigned supports_ssm: 1;
   struct addrset *ssm_as;
 #endif
-  const struct sertopic * topic; /* topic, but may be NULL for built-ins */
+  const struct ddsi_sertopic * topic; /* topic, but may be NULL for built-ins */
   struct addrset *as; /* set of addresses to publish to */
   struct addrset *as_group; /* alternate case, used for SPDP, when using Cloud with multiple bootstrap locators */
   struct xevent *heartbeat_xevent; /* timed event for "periodically" publishing heartbeats when unack'd data present, NULL <=> unreliable */
@@ -276,7 +276,7 @@ struct reader
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   struct addrset *as;
 #endif
-  const struct sertopic * topic; /* topic is NULL for built-in readers */
+  const struct ddsi_sertopic * topic; /* topic is NULL for built-in readers */
   ut_avlTree_t writers; /* all matching PROXY writers, see struct rd_pwr_match */
   ut_avlTree_t local_writers; /* all matching LOCAL writers, see struct rd_wr_match */
   ddsi2direct_directread_cb_t ddsi2direct_cb;
@@ -328,7 +328,7 @@ struct proxy_endpoint_common
   struct proxy_endpoint_common *next_ep; /* next \ endpoint belonging to this proxy participant */
   struct proxy_endpoint_common *prev_ep; /* prev / -- this is in arbitrary ordering */
   struct nn_xqos *xqos; /* proxy endpoint QoS lives here; FIXME: local ones should have it moved to common as well */
-  const struct sertopic * topic; /* topic may be NULL: for built-ins, but also for never-yet matched proxies (so we don't have to know the topic; when we match, we certainly do know) */
+  const struct ddsi_sertopic * topic; /* topic may be NULL: for built-ins, but also for never-yet matched proxies (so we don't have to know the topic; when we match, we certainly do know) */
   struct addrset *as; /* address set to use for communicating with this endpoint */
   nn_guid_t group_guid; /* 0:0:0:0 if not available */
   nn_vendorid_t vendor; /* cached from proxypp->vendor */
@@ -473,9 +473,9 @@ struct writer *get_builtin_writer (const struct participant *pp, unsigned entity
    GUID "ppguid". May return NULL if participant unknown or
    writer/reader already known. */
 
-struct writer * new_writer (struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct sertopic *topic, const struct nn_xqos *xqos, struct whc * whc, status_cb_t status_cb, void * status_cb_arg);
+struct writer * new_writer (struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc * whc, status_cb_t status_cb, void * status_cb_arg);
 
-struct reader * new_reader (struct nn_guid *rdguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct sertopic *topic, const struct nn_xqos *xqos, struct rhc * rhc, status_cb_t status_cb, void * status_cb_arg);
+struct reader * new_reader (struct nn_guid *rdguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct rhc * rhc, status_cb_t status_cb, void * status_cb_arg);
 
 struct whc_node;
 struct whc_state;

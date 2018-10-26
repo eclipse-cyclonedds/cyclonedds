@@ -188,7 +188,7 @@ static dds_return_t
 dds_readcdr_impl(
         _In_  bool take,
         _In_  dds_entity_t reader_or_condition,
-        _Out_ struct serdata ** buf,
+        _Out_ struct ddsi_serdata ** buf,
         _In_  uint32_t maxs,
         _Out_ dds_sample_info_t * si,
         _In_  uint32_t mask,
@@ -630,7 +630,7 @@ dds_take_mask_wl(
 int
 dds_takecdr(
         dds_entity_t rd_or_cnd,
-        struct serdata **buf,
+        struct ddsi_serdata **buf,
         uint32_t maxs,
         dds_sample_info_t *si,
         uint32_t mask)

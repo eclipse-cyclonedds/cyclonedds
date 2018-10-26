@@ -13,7 +13,6 @@
 #include "ddsi/q_entity.h"
 #include "ddsi/q_thread.h"
 #include "ddsi/q_config.h"
-#include "q__osplser.h"
 #include "dds__init.h"
 #include "dds__qos.h"
 #include "dds__domain.h"

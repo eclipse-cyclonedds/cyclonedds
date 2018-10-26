@@ -24,7 +24,6 @@
 #include "util/ut_avl.h"
 #include "ddsi/q_plist.h"
 #include "ddsi/q_lease.h"
-#include "q__osplser.h"
 #include "ddsi/q_qosmatch.h"
 #include "ddsi/q_ephash.h"
 #include "ddsi/q_globals.h"
@@ -37,7 +36,7 @@
 #include "ddsi/q_unused.h"
 #include "ddsi/q_error.h"
 #include "ddsi/q_builtin_topic.h"
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata_default.h"
 #include "ddsi/ddsi_mcgroup.h"
 #include "ddsi/q_receive.h"
 
@@ -85,8 +84,8 @@ static const unsigned prismtech_builtin_writers_besmask =
   NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER |
   NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
 
-static struct writer * new_writer_guid (const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct sertopic *topic, const struct nn_xqos *xqos, struct whc *whc, status_cb_t status_cb, void *status_cbarg);
-static struct reader * new_reader_guid (const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct sertopic *topic, const struct nn_xqos *xqos, struct rhc *rhc, status_cb_t status_cb, void *status_cbarg);
+static struct writer * new_writer_guid (const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc *whc, status_cb_t status_cb, void *status_cbarg);
+static struct reader * new_reader_guid (const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct rhc *rhc, status_cb_t status_cb, void *status_cbarg);
 static struct participant *ref_participant (struct participant *pp, const struct nn_guid *guid_of_refing_entity);
 static void unref_participant (struct participant *pp, const struct nn_guid *guid_of_refing_entity);
 static void delete_proxy_group_locked (struct proxy_group *pgroup, nn_wctime_t timestamp, int isimplicit);
@@ -1611,7 +1610,7 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
     while (wr->whc->ops->sample_iter_borrow_next(&it, &sample))
     {
       struct proxy_writer_info pwr_info;
-      serdata_t payload = sample.serdata;
+      struct ddsi_serdata *payload = sample.serdata;
       /* FIXME: whc has tk reference in its index nodes, which is what we really should be iterating over anyway, and so we don't really have to look them up anymore */
       struct tkmap_instance *tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (payload);
       make_proxy_writer_info(&pwr_info, &wr->e, wr->xqos);
@@ -2297,7 +2296,7 @@ static void match_proxy_reader_with_writers (struct proxy_reader *prd, nn_mtime_
 
 /* ENDPOINT --------------------------------------------------------- */
 
-static void new_reader_writer_common (const struct nn_guid *guid, const struct sertopic * topic, const struct nn_xqos *xqos)
+static void new_reader_writer_common (const struct nn_guid *guid, const struct ddsi_sertopic * topic, const struct nn_xqos *xqos)
 {
   const char *partition = "(default)";
   const char *partition_suffix = "";
@@ -2353,7 +2352,7 @@ static void endpoint_common_fini (struct entity_common *e, struct endpoint_commo
   entity_common_fini (e);
 }
 
-static int set_topic_type_name (nn_xqos_t *xqos, const struct sertopic * topic)
+static int set_topic_type_name (nn_xqos_t *xqos, const struct ddsi_sertopic * topic)
 {
   if (!(xqos->present & QP_TYPE_NAME) && topic)
   {
@@ -2556,7 +2555,7 @@ unsigned remove_acked_messages (struct writer *wr, struct whc_state *whcst, stru
   return n;
 }
 
-static struct writer * new_writer_guid (const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct sertopic *topic, const struct nn_xqos *xqos, struct whc *whc, status_cb_t status_cb, void * status_entity)
+static struct writer * new_writer_guid (const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc *whc, status_cb_t status_cb, void * status_entity)
 {
   struct writer *wr;
   nn_mtime_t tnow = now_mt ();
@@ -2651,11 +2650,7 @@ static struct writer * new_writer_guid (const struct nn_guid *guid, const struct
       (wr->xqos->durability.kind == NN_VOLATILE_DURABILITY_QOS &&
        wr->xqos->reliability.kind != NN_BEST_EFFORT_RELIABILITY_QOS);
   }
-  if (topic)
-  {
-    os_atomic_inc32 (&((struct sertopic *)topic)->refcount);
-  }
-  wr->topic = topic;
+  wr->topic = ddsi_sertopic_ref (topic);
   wr->as = new_addrset ();
   wr->as_group = NULL;
 
@@ -2796,11 +2791,10 @@ static struct writer * new_writer_guid (const struct nn_guid *guid, const struct
   return wr;
 }
 
-struct writer * new_writer (struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct sertopic *topic, const struct nn_xqos *xqos, struct whc * whc, status_cb_t status_cb, void * status_cb_arg)
+struct writer * new_writer (struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc * whc, status_cb_t status_cb, void * status_cb_arg)
 {
   struct participant *pp;
   struct writer * wr;
-  unsigned entity_kind;
 
   if ((pp = ephash_lookup_participant_guid (ppguid)) == NULL)
   {
@@ -2810,9 +2804,8 @@ struct writer * new_writer (struct nn_guid *wrguid, const struct nn_guid *group_
   /* participant can't be freed while we're mucking around cos we are
      awake and do not touch the thread's vtime (ephash_lookup already
      verifies we're awake) */
-  entity_kind = (topic->nkeys ? NN_ENTITYID_KIND_WRITER_WITH_KEY : NN_ENTITYID_KIND_WRITER_NO_KEY);
   wrguid->prefix = pp->e.guid.prefix;
-  if (pp_allocate_entityid (&wrguid->entityid, entity_kind, pp) < 0)
+  if (pp_allocate_entityid (&wrguid->entityid, NN_ENTITYID_KIND_WRITER_WITH_KEY, pp) < 0)
     return NULL;
   wr = new_writer_guid (wrguid, group_guid, pp, topic, xqos, whc, status_cb, status_cb_arg);
   return wr;
@@ -2872,7 +2865,7 @@ static void gc_delete_writer (struct gcreq *gcreq)
   local_reader_ary_fini (&wr->rdary);
   os_condDestroy (&wr->throttle_cond);
 
-  sertopic_free ((struct sertopic *) wr->topic);
+  ddsi_sertopic_unref ((struct ddsi_sertopic *) wr->topic);
   endpoint_common_fini (&wr->e, &wr->c);
   os_free (wr);
 }
@@ -3117,7 +3110,7 @@ static struct reader * new_reader_guid
   const struct nn_guid *guid,
   const struct nn_guid *group_guid,
   struct participant *pp,
-  const struct sertopic *topic,
+  const struct ddsi_sertopic *topic,
   const struct nn_xqos *xqos,
   struct rhc *rhc,
   status_cb_t status_cb,
@@ -3155,11 +3148,7 @@ static struct reader * new_reader_guid
   rd->reliable = (rd->xqos->reliability.kind != NN_BEST_EFFORT_RELIABILITY_QOS);
   assert (rd->xqos->present & QP_DURABILITY);
   rd->handle_as_transient_local = (rd->xqos->durability.kind == NN_TRANSIENT_LOCAL_DURABILITY_QOS);
-  if (topic)
-  {
-    os_atomic_inc32 (&((struct sertopic *)topic)->refcount);
-  }
-  rd->topic = topic;
+  rd->topic = ddsi_sertopic_ref (topic);
   rd->ddsi2direct_cb = 0;
   rd->ddsi2direct_cbarg = 0;
   rd->init_acknack_count = 0;
@@ -3253,7 +3242,7 @@ struct reader * new_reader
   struct nn_guid *rdguid,
   const struct nn_guid *group_guid,
   const struct nn_guid *ppguid,
-  const struct sertopic *topic,
+  const struct ddsi_sertopic *topic,
   const struct nn_xqos *xqos,
   struct rhc * rhc,
   status_cb_t status_cb,
@@ -3262,16 +3251,14 @@ struct reader * new_reader
 {
   struct participant * pp;
   struct reader * rd;
-  unsigned entity_kind;
 
   if ((pp = ephash_lookup_participant_guid (ppguid)) == NULL)
   {
     nn_log (LC_DISCOVERY, "new_reader - participant %x:%x:%x:%x not found\n", PGUID (*ppguid));
     return NULL;
   }
-  entity_kind = (topic->nkeys ? NN_ENTITYID_KIND_READER_WITH_KEY : NN_ENTITYID_KIND_READER_NO_KEY);
   rdguid->prefix = pp->e.guid.prefix;
-  if (pp_allocate_entityid (&rdguid->entityid, entity_kind, pp) < 0)
+  if (pp_allocate_entityid (&rdguid->entityid, NN_ENTITYID_KIND_READER_WITH_KEY, pp) < 0)
     return NULL;
   rd = new_reader_guid (rdguid, group_guid, pp, topic, xqos, rhc, status_cb, status_cbarg);
   return rd;
@@ -3312,7 +3299,7 @@ static void gc_delete_reader (struct gcreq *gcreq)
   {
     (rd->status_cb) (rd->status_cb_entity, NULL);
   }
-  sertopic_free ((struct sertopic *) rd->topic);
+  ddsi_sertopic_unref ((struct ddsi_sertopic *) rd->topic);
 
   nn_xqos_fini (rd->xqos);
   os_free (rd->xqos);

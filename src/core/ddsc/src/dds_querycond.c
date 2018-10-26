@@ -16,7 +16,8 @@
 #include "dds__querycond.h"
 #include "dds__readcond.h"
 #include "dds__err.h"
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata.h"
+#include "ddsi/ddsi_sertopic.h"
 #include "dds__report.h"
 
 _Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)
@@ -44,9 +45,12 @@ dds_create_querycondition(
         dds_reader_unlock(r);
         rc = dds_topic_lock(topic, &t);
         if (rc == DDS_RETCODE_OK) {
+            abort();
+#if 0
             if (t->m_stopic->filter_sample == NULL) {
                 t->m_stopic->filter_sample = dds_alloc(t->m_descriptor->m_size);
             }
+#endif
             dds_topic_unlock(t);
         } else {
             (void)dds_delete(hdl);
