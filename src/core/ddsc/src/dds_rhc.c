@@ -670,11 +670,12 @@ static bool content_filter_accepts (const struct ddsi_sertopic * sertopic, const
   if (tp->filter_fn)
   {
     const dds_topic_descriptor_t * desc = tp->m_descriptor;
-    char tmp[desc->m_size];
-    memset (tmp, 0, sizeof (tmp));
+    char *tmp = os_malloc (desc->m_size);
+    memset (tmp, 0, desc->m_size);
     ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
     ret = (tp->filter_fn) (tmp, tp->filter_ctx);
     dds_sample_free(tmp, desc, DDS_FREE_CONTENTS_BIT);
+    os_free (tmp);
   }
   return ret;
 }
@@ -2182,9 +2183,8 @@ static bool update_conditions_locked
   dds_readcond * iter;
   int m_pre;
   int m_post;
-  bool deserialised = (rhc->topic->status_cb_entity->filter_fn != 0);
   const struct dds_topic_descriptor *desc = rhc->topic->status_cb_entity->m_descriptor;
-  char tmp[desc->m_size];
+  char *tmp = NULL;
 
   TRACE (("update_conditions_locked(%p) - inst %u nonempty %u disp %u nowr %u new %u samples %u read %u\n",
           (void *) rhc, rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
@@ -2227,11 +2227,11 @@ static bool update_conditions_locked
     }
     else if (m_pre < m_post)
     {
-      if (sample && !deserialised && (dds_entity_kind(iter->m_entity.m_hdl) == DDS_KIND_COND_QUERY))
+      if (sample && tmp == NULL && (dds_entity_kind(iter->m_entity.m_hdl) == DDS_KIND_COND_QUERY))
       {
-        memset (tmp, 0, sizeof (tmp));
+        tmp = os_malloc (desc->m_size);
+        memset (tmp, 0, desc->m_size);
         ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
-        deserialised = true;
       }
       if
       (
@@ -2264,8 +2264,11 @@ static bool update_conditions_locked
     iter = iter->m_rhc_next;
   }
 
-  if (deserialised)
+  if (tmp)
+  {
     dds_sample_free (tmp, desc, DDS_FREE_CONTENTS_BIT);
+    os_free (tmp);
+  }
   return trigger;
 }
 
