@@ -78,11 +78,6 @@ static size_t alignup_size (size_t x, size_t a)
   return (x+m) & ~m;
 }
 
-static size_t alignup4 (size_t x)
-{
-  return alignup_size (x, 4);
-}
-
 void * ddsi_serstate_append (struct serstate * st, size_t n)
 {
   char *p;
@@ -378,7 +373,7 @@ static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi
 
   /* if we're it is supposed to be just a key, rawkey must be be the first field and followed only by a sentinel */
   assert (kind != SDK_KEY || rawkey == (const unsigned char *)sample->blob + sizeof (nn_parameter_t));
-  assert (kind != SDK_KEY || sample->size == sizeof (nn_parameter_t) + alignup4 (keysize) + sizeof (nn_parameter_t));
+  assert (kind != SDK_KEY || sample->size == sizeof (nn_parameter_t) + alignup_size (keysize, 4) + sizeof (nn_parameter_t));
   return fix_serdata_default (d, tp->c.iid);
 }
 
@@ -404,7 +399,7 @@ static void serdata_default_to_ser (const struct ddsi_serdata *serdata_common, s
 {
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
   assert (off < d->pos + sizeof(struct CDRHeader));
-  assert (sz <= alignup4 (d->pos + sizeof(struct CDRHeader)) - off);
+  assert (sz <= alignup_size (d->pos + sizeof(struct CDRHeader), 4) - off);
   /* FIXME: maybe I should pull the header out ... */
   memcpy (buf, (char *)&d->hdr + off, sz);
 }
@@ -413,7 +408,7 @@ static struct ddsi_serdata *serdata_default_to_ser_ref (const struct ddsi_serdat
 {
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
   assert (off < d->pos + sizeof(struct CDRHeader));
-  assert (sz <= alignup4 (d->pos + sizeof(struct CDRHeader)) - off);
+  assert (sz <= alignup_size (d->pos + sizeof(struct CDRHeader), 4) - off);
   ref->iov_base = (char *)&d->hdr + off;
   ref->iov_len = sz;
   return ddsi_serdata_ref(serdata_common);

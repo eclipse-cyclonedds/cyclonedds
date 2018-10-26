@@ -663,16 +663,19 @@ static bool add_sample
   return true;
 }
 
-static bool content_filter_accepts (const struct ddsi_sertopic * topic, const struct ddsi_serdata *sample)
+static bool content_filter_accepts (const struct ddsi_sertopic * sertopic, const struct ddsi_serdata *sample)
 {
   bool ret = true;
-#if 0 /* FIXME: content filter */
-  if (topic->filter_fn)
+  const struct dds_topic *tp = sertopic->status_cb_entity;
+  if (tp->filter_fn)
   {
-    deserialize_into ((char*) topic->filter_sample, sample);
-    ret = (topic->filter_fn) (topic->filter_sample, topic->filter_ctx);
+    const dds_topic_descriptor_t * desc = tp->m_descriptor;
+    char tmp[desc->m_size];
+    memset (tmp, 0, sizeof (tmp));
+    ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
+    ret = (tp->filter_fn) (tmp, tp->filter_ctx);
+    dds_sample_free(tmp, desc, DDS_FREE_CONTENTS_BIT);
   }
-#endif
   return ret;
 }
 
@@ -2179,9 +2182,9 @@ static bool update_conditions_locked
   dds_readcond * iter;
   int m_pre;
   int m_post;
-#if 0 /* FIXME: content filter, query cond */
-  bool deserialised = (rhc->topic->filter_fn != NULL);
-#endif
+  bool deserialised = (rhc->topic->status_cb_entity->filter_fn != 0);
+  const struct dds_topic_descriptor *desc = rhc->topic->status_cb_entity->m_descriptor;
+  char tmp[desc->m_size];
 
   TRACE (("update_conditions_locked(%p) - inst %u nonempty %u disp %u nowr %u new %u samples %u read %u\n",
           (void *) rhc, rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
@@ -2224,17 +2227,17 @@ static bool update_conditions_locked
     }
     else if (m_pre < m_post)
     {
-#if 0 /* FIXME: content filter, query cond */
       if (sample && !deserialised && (dds_entity_kind(iter->m_entity.m_hdl) == DDS_KIND_COND_QUERY))
       {
-        deserialize_into ((char*)rhc->topic->filter_sample, sample);
+        memset (tmp, 0, sizeof (tmp));
+        ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
         deserialised = true;
       }
       if
       (
         (sample == NULL)
         || (dds_entity_kind(iter->m_entity.m_hdl) != DDS_KIND_COND_QUERY)
-        || (iter->m_query.m_filter != NULL && iter->m_query.m_filter (rhc->topic->filter_sample))
+        || (iter->m_query.m_filter != NULL && iter->m_query.m_filter (tmp))
       )
       {
         TRACE (("now matches"));
@@ -2244,18 +2247,6 @@ static bool update_conditions_locked
           trigger = true;
         }
       }
-#else
-      assert (dds_entity_kind(iter->m_entity.m_hdl) != DDS_KIND_COND_QUERY);
-      if (sample == NULL)
-      {
-        TRACE (("now matches"));
-        if (iter->m_entity.m_trigger++ == 0)
-        {
-          TRACE ((" (cond now triggers)"));
-          trigger = true;
-        }
-      }
-#endif
     }
     else
     {
@@ -2273,6 +2264,8 @@ static bool update_conditions_locked
     iter = iter->m_rhc_next;
   }
 
+  if (deserialised)
+    dds_sample_free (tmp, desc, DDS_FREE_CONTENTS_BIT);
   return trigger;
 }
 

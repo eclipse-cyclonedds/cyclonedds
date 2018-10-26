@@ -502,28 +502,20 @@ dds_topic_mod_filter(
         void **ctx,
         bool set)
 {
-#if 0 /* FIXME: content filter */
     dds_topic *t;
     if (dds_topic_lock(topic, &t) == DDS_RETCODE_OK) {
         if (set) {
-            t->m_stopic->filter_fn = *filter;
-            t->m_stopic->filter_ctx = *ctx;
-
-            /* Create sample for read filtering */
-
-            if (t->m_stopic->filter_sample == NULL) {
-                t->m_stopic->filter_sample = dds_alloc (t->m_descriptor->m_size);
-            }
+            t->filter_fn = *filter;
+            t->filter_ctx = *ctx;
         } else {
-            *filter = t->m_stopic->filter_fn;
-            *ctx = t->m_stopic->filter_ctx;
+            *filter = t->filter_fn;
+            *ctx = t->filter_ctx;
         }
         dds_topic_unlock(t);
     } else {
         *filter = 0;
         *ctx = NULL;
     }
-#endif
 }
 
 _Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
@@ -545,8 +537,7 @@ dds_topic_get_filter(
     dds_topic_intern_filter_fn filter;
     void *ctx;
     dds_topic_mod_filter (topic, &filter, &ctx, false);
-    return
-      (filter == dds_topic_chaining_filter) ? (dds_topic_filter_fn)ctx : 0;
+    return (filter == dds_topic_chaining_filter) ? (dds_topic_filter_fn)ctx : 0;
 }
 
 void

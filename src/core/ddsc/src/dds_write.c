@@ -198,14 +198,12 @@ dds_write_impl(
         return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "No data buffer provided");
     }
 
-#if 0 /* FIXME: content filter */
     /* Check for topic filter */
-    if (ddsi_wr->topic->filter_fn && ! writekey) {
-        if (!(ddsi_wr->topic->filter_fn) (data, ddsi_wr->topic->filter_ctx)) {
-            return DDS_RECTODE_OK;
+    if (wr->m_topic->filter_fn && ! writekey) {
+        if (!(wr->m_topic->filter_fn) (data, wr->m_topic->filter_ctx)) {
+            return DDS_RETCODE_OK;
         }
     }
-#endif
 
     if (asleep) {
         thread_state_awake (thr);
@@ -265,12 +263,9 @@ dds_writecdr_impl(
     struct writer * ddsi_wr = wr->m_wr;
     struct tkmap_instance * tk;
 
-#if 0 /* FIXME: content filter */
-    /* Check for topic filter */
-    if (ddsi_wr->topic->filter_fn && ! writekey) {
+    if (wr->m_topic->filter_fn) {
         abort();
     }
-#endif
 
     if (asleep) {
         thread_state_awake (thr);
