@@ -29,19 +29,19 @@ extern "C" {
 #endif
 
 typedef struct {
-  unsigned char id[4];
+  uint8_t id[4];
 } nn_protocolid_t;
 typedef struct {
-  int high;
-  unsigned low;
+  int32_t high;
+  uint32_t low;
 } nn_sequence_number_t;
 #define NN_SEQUENCE_NUMBER_UNKNOWN_HIGH -1
 #define NN_SEQUENCE_NUMBER_UNKNOWN_LOW 0
 #define NN_SEQUENCE_NUMBER_UNKNOWN ((seqno_t) (((uint64_t)NN_SEQUENCE_NUMBER_UNKNOWN_HIGH << 32) | NN_SEQUENCE_NUMBER_UNKNOWN_LOW))
 typedef struct nn_sequence_number_set {
   nn_sequence_number_t bitmap_base;
-  unsigned numbits;
-  unsigned bits[1];
+  uint32_t numbits;
+  uint32_t bits[1];
 } nn_sequence_number_set_t; /* Why strict C90? zero-length/flexible array members are far nicer */
 /* SequenceNumberSet size is base (2 words) + numbits (1 word) +
    bitmap ((numbits+31)/32 words), and this at 4 bytes/word */
@@ -50,30 +50,30 @@ typedef struct nn_sequence_number_set {
 typedef unsigned nn_fragment_number_t;
 typedef struct nn_fragment_number_set {
   nn_fragment_number_t bitmap_base;
-  unsigned numbits;
-  unsigned bits[1];
+  uint32_t numbits;
+  uint32_t bits[1];
 } nn_fragment_number_set_t;
 /* FragmentNumberSet size is base (2 words) + numbits (1 word) +
    bitmap ((numbits+31)/32 words), and this at 4 bytes/word */
 #define NN_FRAGMENT_NUMBER_SET_BITS_SIZE(numbits) ((unsigned) (4 * (((numbits) + 31) / 32)))
 #define NN_FRAGMENT_NUMBER_SET_SIZE(numbits) (offsetof (nn_fragment_number_set_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits))
-typedef int nn_count_t;
+typedef int32_t nn_count_t;
 #define DDSI_COUNT_MIN (-2147483647 - 1)
 #define DDSI_COUNT_MAX (2147483647)
 /* address field in locator maintained in network byte order, the rest
    in host (yes: that's a FIXME)  */
 typedef struct {
   int32_t kind;
-  unsigned port;
+  uint32_t port;
   unsigned char address[16];
 } nn_locator_t;
 
 typedef struct nn_udpv4mcgen_address {
   /* base IPv4 MC address is ipv4, host bits are bits base .. base+count-1, this machine is bit idx */
   struct in_addr ipv4;
-  unsigned char base;
-  unsigned char count;
-  unsigned char idx; /* must be last: then sorting will put them consecutively */
+  uint8_t base;
+  uint8_t count;
+  uint8_t idx; /* must be last: then sorting will put them consecutively */
 } nn_udpv4mcgen_address_t;
 
 
@@ -162,9 +162,9 @@ typedef struct Header {
 #define RTPS_MESSAGE_HEADER_SIZE (sizeof (Header_t))
 
 typedef struct SubmessageHeader {
-  unsigned char submessageId;
-  unsigned char flags;
-  unsigned short octetsToNextHeader;
+  uint8_t submessageId;
+  uint8_t flags;
+  uint16_t octetsToNextHeader;
 } SubmessageHeader_t;
 #define RTPS_SUBMESSAGE_HEADER_SIZE (sizeof (SubmessageHeader_t))
 #define SMFLAG_ENDIANNESS 0x01u
@@ -223,14 +223,14 @@ typedef struct InfoSRC {
 typedef unsigned short nn_parameterid_t; /* spec says short */
 typedef struct nn_parameter {
   nn_parameterid_t parameterid;
-  unsigned short length; /* spec says short */
+  uint16_t length; /* spec says signed short */
   /* char value[]; O! how I long for C99 */
 } nn_parameter_t;
 
 typedef struct Data_DataFrag_common {
   SubmessageHeader_t smhdr;
-  unsigned short extraFlags;
-  unsigned short octetsToInlineQos;
+  uint16_t extraFlags;
+  uint16_t octetsToInlineQos;
   nn_entityid_t readerId;
   nn_entityid_t writerId;
   nn_sequence_number_t writerSN;
@@ -246,9 +246,9 @@ typedef struct Data {
 typedef struct DataFrag {
   Data_DataFrag_common_t x;
   nn_fragment_number_t fragmentStartingNum;
-  unsigned short fragmentsInSubmessage;
-  unsigned short fragmentSize;
-  unsigned sampleSize;
+  uint16_t fragmentsInSubmessage;
+  uint16_t fragmentSize;
+  uint32_t sampleSize;
 } DataFrag_t;
 #define DATAFRAG_FLAG_INLINE_QOS 0x02u
 #define DATAFRAG_FLAG_KEYFLAG 0x04u
@@ -339,8 +339,8 @@ typedef union Submessage {
 
 typedef struct ParticipantMessageData {
   nn_guid_prefix_t participantGuidPrefix;
-  unsigned kind; /* really 4 octets */
-  unsigned length;
+  uint32_t kind; /* really 4 octets */
+  uint32_t length;
   char value[1 /* length */];
 } ParticipantMessageData_t;
 #define PARTICIPANT_MESSAGE_DATA_KIND_UNKNOWN 0x0u
