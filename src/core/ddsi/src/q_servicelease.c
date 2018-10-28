@@ -230,7 +230,7 @@ void nn_servicelease_statechange_barrier (struct nn_servicelease *sl)
   os_mutexUnlock (&sl->lock);
 }
 
-void nn_servicelease_free (struct nn_servicelease *sl)
+void nn_servicelease_stop_renewing (struct nn_servicelease *sl)
 {
   if (sl->keepgoing != -1)
   {
@@ -240,6 +240,10 @@ void nn_servicelease_free (struct nn_servicelease *sl)
     os_mutexUnlock (&sl->lock);
     join_thread (sl->ts);
   }
+}
+
+void nn_servicelease_free (struct nn_servicelease *sl)
+{
   os_condDestroy (&sl->cond);
   os_mutexDestroy (&sl->lock);
   os_free (sl->av_ary);

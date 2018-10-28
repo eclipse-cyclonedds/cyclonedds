@@ -478,7 +478,7 @@ static bool serdata_default_topicless_to_sample_cdr (const struct ddsi_sertopic 
 
 static bool serdata_default_topicless_to_sample_cdr_nokey (const struct ddsi_sertopic *topic, const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
-  (void)topic; (void)sample; (void)bufptr; (void)buflim;
+  (void)topic; (void)sample; (void)bufptr; (void)buflim; (void)serdata_common;
   assert (serdata_common->topic == NULL);
   assert (serdata_common->kind == SDK_KEY);
   return true;
