@@ -90,7 +90,9 @@ DDS_EXPORT void dds_stream_write_uint64 (dds_stream_t * os, uint64_t val);
 DDS_EXPORT void dds_stream_write_float (dds_stream_t * os, float val);
 DDS_EXPORT void dds_stream_write_double (dds_stream_t * os, double val);
 DDS_EXPORT void dds_stream_write_string (dds_stream_t * os, const char * val);
-DDS_EXPORT void dds_stream_write_buffer (dds_stream_t * os, uint32_t len, uint8_t * buffer);
+DDS_EXPORT void dds_stream_write_buffer (dds_stream_t * os, uint32_t len, const uint8_t * buffer);
+DDS_EXPORT void *dds_stream_address (dds_stream_t * s);
+DDS_EXPORT void *dds_stream_alignto (dds_stream_t * s, uint32_t a);
 
 #define dds_stream_write_char(s,v) (dds_stream_write_uint8 ((s), (uint8_t)(v)))
 #define dds_stream_write_int8(s,v) (dds_stream_write_uint8 ((s), (uint8_t)(v)))

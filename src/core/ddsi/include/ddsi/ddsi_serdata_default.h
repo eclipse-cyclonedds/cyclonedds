@@ -47,26 +47,16 @@ struct CDRHeader
   unsigned short options;
 };
 
-struct serstatepool /* FIXME: now a serdatapool */
+struct serdatapool /* FIXME: now a serdatapool */
 {
   struct nn_freelist freelist;
 };
 
-struct serstate {
-  struct ddsi_serdata_default *data;
-};
-
-#define DDS_KEY_SET 0x0001
-#define DDS_KEY_HASH_SET 0x0002
-#define DDS_KEY_IS_HASH 0x0004
-
 typedef struct dds_key_hash
 {
   char m_hash [16];          /* Key hash value. Also possibly key. Suitably aligned for accessing as uint32_t's */
-  uint32_t m_key_len;        /* Length of key (may be in m_hash or m_key_buff) */
-  uint32_t m_key_buff_size;  /* Size of allocated key buffer (m_key_buff) */
-  char * m_key_buff;         /* Key buffer */
-  uint32_t m_flags;          /* State of key/hash (see DDS_KEY_XXX) */
+  unsigned m_set : 1;        /* has it been initialised? */
+  unsigned m_iskey : 1;      /* m_hash is key value */
 }
 dds_key_hash_t;
 
@@ -75,13 +65,12 @@ struct ddsi_serdata_default
   struct ddsi_serdata c;
   uint32_t pos;
   uint32_t size;
-  bool bswap;
 #ifndef NDEBUG
   bool fixed;
 #endif
   dds_key_hash_t keyhash;
 
-  struct serstatepool *pool;
+  struct serdatapool *pool;
   struct ddsi_serdata_default *next; /* in pool->freelist */
 
   /* padding to ensure CDRHeader is at an offset 4 mod 8 from the
@@ -144,14 +133,11 @@ struct ddsi_rawcdr_sample {
 extern const struct ddsi_sertopic_ops ddsi_sertopic_ops_default;
 
 extern const struct ddsi_serdata_ops ddsi_serdata_ops_cdr;
+extern const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey;
 extern const struct ddsi_serdata_ops ddsi_serdata_ops_plist;
 extern const struct ddsi_serdata_ops ddsi_serdata_ops_rawcdr;
 
-struct serstatepool * ddsi_serstatepool_new (void);
-void ddsi_serstatepool_free (struct serstatepool * pool);
-
-OSAPI_EXPORT void ddsi_serstate_append_blob (struct serstate * st, size_t align, size_t sz, const void *data);
-void * ddsi_serstate_append (struct serstate * st, size_t n);
-void * ddsi_serstate_append_aligned (struct serstate * st, size_t n, size_t a);
+struct serdatapool * ddsi_serdatapool_new (void);
+void ddsi_serdatapool_free (struct serdatapool * pool);
 
 #endif

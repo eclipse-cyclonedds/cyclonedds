@@ -55,6 +55,9 @@ typedef struct ddsi_serdata * (*ddsi_serdata_from_keyhash_t) (const struct ddsi_
 /* Construct a serdata from an application sample */
 typedef struct ddsi_serdata * (*ddsi_serdata_from_sample_t) (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, const void *sample);
 
+/* Construct a topic-less serdata with a keyvalue given a normal serdata (either key or data) - used for tkmap */
+typedef struct ddsi_serdata * (*ddsi_serdata_to_topicless_t) (const struct ddsi_serdata *d);
+
 /* Fill buffer with 'size' bytes of serialised data, starting from 'off'; 0 <= off < off+sz <=
    alignup4(size(d)) */
 typedef void (*ddsi_serdata_to_ser_t) (const struct ddsi_serdata *d, size_t off, size_t sz, void *buf);
@@ -79,16 +82,14 @@ typedef void (*ddsi_serdata_to_ser_unref_t) (struct ddsi_serdata *d, const ddsi_
    otherwise malloc() is to be used for those.  (This allows read/take to be given a block of memory
    by the caller.) */
 typedef bool (*ddsi_serdata_to_sample_t) (const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
-
-/* Compare key values of two serdatas (with the same ddsi_serdata_ops, but not necessarily of the
-   same topic) (FIXME: not sure I need this one) */
-typedef int (*ddsi_serdata_cmpkey_t) (const struct ddsi_serdata *a, const struct ddsi_serdata *b);
+typedef bool (*ddsi_serdata_topicless_to_sample_t) (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
 
 /* Test key values of two serdatas for equality (with the same ddsi_serdata_ops, but not necessarily
    of the same topic) */
 typedef bool (*ddsi_serdata_eqkey_t) (const struct ddsi_serdata *a, const struct ddsi_serdata *b);
 
 struct ddsi_serdata_ops {
+  ddsi_serdata_eqkey_t eqkey;
   ddsi_serdata_size_t get_size;
   ddsi_serdata_from_ser_t from_ser;
   ddsi_serdata_from_keyhash_t from_keyhash;
@@ -97,8 +98,8 @@ struct ddsi_serdata_ops {
   ddsi_serdata_to_ser_ref_t to_ser_ref;
   ddsi_serdata_to_ser_unref_t to_ser_unref;
   ddsi_serdata_to_sample_t to_sample;
-  ddsi_serdata_cmpkey_t cmpkey;
-  ddsi_serdata_eqkey_t eqkey;
+  ddsi_serdata_to_topicless_t to_topicless;
+  ddsi_serdata_topicless_to_sample_t topicless_to_sample;
   ddsi_serdata_free_t free;
 };
 
@@ -131,6 +132,10 @@ inline struct ddsi_serdata *ddsi_serdata_from_sample (const struct ddsi_sertopic
   return topic->serdata_ops->from_sample (topic, kind, sample);
 }
 
+inline struct ddsi_serdata *ddsi_serdata_to_topicless (const struct ddsi_serdata *d) {
+  return d->ops->to_topicless (d);
+}
+
 inline void ddsi_serdata_to_ser (const struct ddsi_serdata *d, size_t off, size_t sz, void *buf) {
   d->ops->to_ser (d, off, sz, buf);
 }
@@ -147,8 +152,8 @@ inline bool ddsi_serdata_to_sample (const struct ddsi_serdata *d, void *sample, 
   return d->ops->to_sample (d, sample, bufptr, buflim);
 }
 
-inline int ddsi_serdata_cmpkey (const struct ddsi_serdata *a, const struct ddsi_serdata *b) {
-  return a->ops->cmpkey (a, b);
+inline bool ddsi_serdata_topicless_to_sample (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim) {
+  return d->ops->topicless_to_sample (topic, d, sample, bufptr, buflim);
 }
 
 inline bool ddsi_serdata_eqkey (const struct ddsi_serdata *a, const struct ddsi_serdata *b) {

@@ -397,6 +397,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
 
 static int create_fragment_message_simple (struct writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct nn_xmsg **pmsg)
 {
+#define TEST_KEYHASH 0
   const size_t expected_inline_qos_size = 4+8+20+4 + 32;
   struct nn_xmsg_marker sm_marker;
   unsigned char contentflag;
@@ -408,7 +409,11 @@ static int create_fragment_message_simple (struct writer *wr, seqno_t seq, struc
       contentflag = 0;
       break;
     case SDK_KEY:
+#if TEST_KEYHASH
+      contentflag = wr->include_keyhash ? 0 : DATA_FLAG_KEYFLAG;
+#else
       contentflag = DATA_FLAG_KEYFLAG;
+#endif
       break;
     case SDK_DATA:
       contentflag = DATA_FLAG_DATAFLAG;
@@ -452,7 +457,12 @@ static int create_fragment_message_simple (struct writer *wr, seqno_t seq, struc
     data->x.smhdr.flags |= DATAFRAG_FLAG_INLINE_QOS;
   }
 
+#if TEST_KEYHASH
+  if (serdata->kind != SDK_KEY || !wr->include_keyhash)
+    nn_xmsg_serdata (*pmsg, serdata, 0, ddsi_serdata_size (serdata));
+#else
   nn_xmsg_serdata (*pmsg, serdata, 0, ddsi_serdata_size (serdata));
+#endif
   nn_xmsg_submsg_setnext (*pmsg, sm_marker);
   return 0;
 }

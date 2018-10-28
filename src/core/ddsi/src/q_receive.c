@@ -1842,9 +1842,10 @@ static struct ddsi_serdata *extract_sample_from_data
       failmsg = "no content";
     else if (!(qos->present & PP_KEYHASH))
       failmsg = "qos present but without keyhash";
+    else if ((sample = ddsi_serdata_from_keyhash (topic, &qos->keyhash)) == NULL)
+      failmsg = "keyhash is MD5 and can't be converted to key value";
     else
     {
-      sample = ddsi_serdata_from_keyhash (topic, &qos->keyhash);
       sample->statusinfo = statusinfo;
       sample->timestamp = tstamp;
     }

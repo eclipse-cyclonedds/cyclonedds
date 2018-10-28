@@ -36,7 +36,7 @@ struct tkmap * dds_tkmap_new (void);
 void dds_tkmap_free (_Inout_ _Post_invalid_ struct tkmap *tkmap);
 void dds_tkmap_instance_ref (_In_ struct tkmap_instance *tk);
 uint64_t dds_tkmap_lookup (_In_ struct tkmap *tkmap, _In_ const struct ddsi_serdata *serdata);
-_Check_return_ bool dds_tkmap_get_key (_In_ struct tkmap * map, _In_ uint64_t iid, _Out_ void * sample);
+_Check_return_ bool dds_tkmap_get_key (_In_ struct tkmap * map, const struct ddsi_sertopic *topic, _In_ uint64_t iid, _Out_ void * sample);
 _Check_return_ struct tkmap_instance * dds_tkmap_find(
         _In_ struct ddsi_serdata * sd,
         _In_ const bool rd,

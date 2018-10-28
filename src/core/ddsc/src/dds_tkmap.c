@@ -118,6 +118,7 @@ uint64_t dds_tkmap_lookup (_In_ struct tkmap * map, _In_ const struct ddsi_serda
 
 typedef struct
 {
+  const struct ddsi_sertopic *topic;
   uint64_t m_iid;
   void * m_sample;
   bool m_ret;
@@ -130,15 +131,15 @@ static void dds_tkmap_get_key_fn (void * vtk, void * varg)
   tkmap_get_key_arg * arg = (tkmap_get_key_arg*) varg;
   if (tk->m_iid == arg->m_iid)
   {
-    ddsi_serdata_to_sample (tk->m_sample, arg->m_sample, 0, 0);
+    ddsi_serdata_topicless_to_sample (arg->topic, tk->m_sample, arg->m_sample, 0, 0);
     arg->m_ret = true;
   }
 }
 
 _Check_return_
-bool dds_tkmap_get_key (_In_ struct tkmap * map, _In_ uint64_t iid, _Out_ void * sample)
+bool dds_tkmap_get_key (_In_ struct tkmap * map, const struct ddsi_sertopic *topic, _In_ uint64_t iid, _Out_ void * sample)
 {
-  tkmap_get_key_arg arg = { iid, sample, false };
+  tkmap_get_key_arg arg = { topic, iid, sample, false };
   os_mutexLock (&map->m_lock);
   ut_chhEnumUnsafe (map->m_hh, dds_tkmap_get_key_fn, &arg);
   os_mutexUnlock (&map->m_lock);
@@ -192,12 +193,7 @@ struct tkmap_instance * dds_tkmap_find(
   struct tkmap_instance * tk;
   struct tkmap * map = gv.m_tkmap;
 
-  /* FIXME: check this */
-#if 0
-  assert(sd->v.keyhash.m_flags & DDS_KEY_HASH_SET);
-#endif
   dummy.m_sample = sd;
-
 retry:
   if ((tk = ut_chhLookup(map->m_hh, &dummy)) != NULL)
   {
@@ -223,7 +219,7 @@ retry:
     if ((tk = dds_alloc (sizeof (*tk))) == NULL)
       return NULL;
 
-    tk->m_sample = ddsi_serdata_ref (sd);
+    tk->m_sample = ddsi_serdata_to_topicless (sd);
     tk->m_map = map;
     os_atomic_st32 (&tk->m_refc, 1);
     tk->m_iid = dds_iid_gen ();
@@ -238,7 +234,7 @@ retry:
 
   if (tk && rd)
   {
-    TRACE (("tk=%p iid=%"PRIx64"", &tk, tk->m_iid));
+    TRACE (("tk=%p iid=%"PRIx64" ", &tk, tk->m_iid));
   }
   return tk;
 }
@@ -247,13 +243,6 @@ _Check_return_
 struct tkmap_instance * dds_tkmap_lookup_instance_ref (_In_ struct ddsi_serdata * sd)
 {
   assert (vtime_awake_p (lookup_thread_state ()->vtime));
-#if 0
-  /* Topic might have been deleted -- FIXME: no way the topic may be deleted when there're still users out there */
-  if (sd->v.st->topic == NULL)
-  {
-    return NULL;
-  }
-#endif
   return dds_tkmap_find (sd, true, true);
 }
 

@@ -26,6 +26,7 @@ struct ddsi_sertopic {
   ut_avlNode_t avlnode; /* index on name_typename */
   const struct ddsi_sertopic_ops *ops;
   const struct ddsi_serdata_ops *serdata_ops;
+  uint32_t serdata_basehash;
   char *name_typename;
   char *name;
   char *typename;
@@ -44,5 +45,6 @@ struct ddsi_sertopic_ops {
 
 struct ddsi_sertopic *ddsi_sertopic_ref (const struct ddsi_sertopic *tp);
 void ddsi_sertopic_unref (struct ddsi_sertopic *tp);
+uint32_t ddsi_sertopic_compute_serdata_basehash (const struct ddsi_serdata_ops *ops);
 
 #endif

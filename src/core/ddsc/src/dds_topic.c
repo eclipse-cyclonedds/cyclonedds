@@ -424,7 +424,8 @@ dds_create_topic(
         st->c.typename = dds_alloc (strlen (typename) + 1);
         strcpy (st->c.typename, typename);
         st->c.ops = &ddsi_sertopic_ops_default;
-        st->c.serdata_ops = &ddsi_serdata_ops_cdr;
+        st->c.serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey;
+        st->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (st->c.serdata_ops);
         st->native_encoding_identifier = (PLATFORM_IS_LITTLE_ENDIAN ? CDR_LE : CDR_BE);
 
         st->type = (void*) desc;

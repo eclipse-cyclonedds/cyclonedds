@@ -41,15 +41,15 @@ static int ispowerof2_size (size_t x)
 
 static size_t alignup_size (size_t x, size_t a);
 
-struct serstatepool * ddsi_serstatepool_new (void)
+struct serdatapool * ddsi_serdatapool_new (void)
 {
-  struct serstatepool * pool;
+  struct serdatapool * pool;
   pool = os_malloc (sizeof (*pool));
   nn_freelist_init (&pool->freelist, MAX_POOL_SIZE, offsetof (struct ddsi_serdata_default, next));
   return pool;
 }
 
-static void serstate_free_wrap (void *elem)
+static void serdata_free_wrap (void *elem)
 {
 #ifndef NDEBUG
   struct ddsi_serdata_default *d = elem;
@@ -58,17 +58,11 @@ static void serstate_free_wrap (void *elem)
   ddsi_serdata_unref(elem);
 }
 
-void ddsi_serstatepool_free (struct serstatepool * pool)
+void ddsi_serdatapool_free (struct serdatapool * pool)
 {
-  TRACE (("ddsi_serstatepool_free(%p)\n", pool));
-  nn_freelist_fini (&pool->freelist, serstate_free_wrap);
+  TRACE (("ddsi_serdatapool_free(%p)\n", pool));
+  nn_freelist_fini (&pool->freelist, serdata_free_wrap);
   os_free (pool);
-}
-
-void ddsi_serstate_append_blob (struct serstate * st, size_t align, size_t sz, const void *data)
-{
-  char *p = ddsi_serstate_append_aligned (st, sz, align);
-  memcpy (p, data, sz);
 }
 
 static size_t alignup_size (size_t x, size_t a)
@@ -78,40 +72,41 @@ static size_t alignup_size (size_t x, size_t a)
   return (x+m) & ~m;
 }
 
-void * ddsi_serstate_append (struct serstate * st, size_t n)
+static void *serdata_default_append (struct ddsi_serdata_default **d, size_t n)
 {
   char *p;
-  if (st->data->pos + n > st->data->size)
+  if ((*d)->pos + n > (*d)->size)
   {
-    size_t size1 = alignup_size (st->data->pos + n, 128);
-    struct ddsi_serdata_default * data1 = os_realloc (st->data, offsetof (struct ddsi_serdata_default, data) + size1);
-    st->data = data1;
-    st->data->size = (uint32_t)size1;
+    size_t size1 = alignup_size ((*d)->pos + n, 128);
+    *d = os_realloc (*d, offsetof (struct ddsi_serdata_default, data) + size1);
+    (*d)->size = (uint32_t)size1;
   }
-  assert (st->data->pos + n <= st->data->size);
-  p = st->data->data + st->data->pos;
-  st->data->pos += (uint32_t)n;
+  assert ((*d)->pos + n <= (*d)->size);
+  p = (*d)->data + (*d)->pos;
+  (*d)->pos += (uint32_t)n;
   return p;
 }
 
-void * ddsi_serstate_append_aligned (struct serstate * st, size_t n, size_t a)
+static void *serdata_default_append_aligned (struct ddsi_serdata_default **d, size_t n, size_t a)
 {
-  /* Simply align st->pos, without verifying it fits in the allocated
-     buffer: ddsi_serstate_append() is called immediately afterward and will
-     grow the buffer as soon as the end of the requested space no
-     longer fits. */
 #if CLEAR_PADDING
   size_t pos0 = st->pos;
 #endif
   char *p;
   assert (ispowerof2_size (a));
-  st->data->pos = (uint32_t) alignup_size (st->data->pos, a);
-  p = ddsi_serstate_append (st, n);
+  (*d)->pos = (uint32_t) alignup_size ((*d)->pos, a);
+  p = serdata_default_append (d, n);
 #if CLEAR_PADDING
-  if (p && st->pos > pos0)
-    memset (st->data->data + pos0, 0, st->pos - pos0);
+  if (p && (*d)->pos > pos0)
+    memset ((*d)->data + pos0, 0, (*d)->pos - pos0);
 #endif
   return p;
+}
+
+static void serdata_default_append_blob (struct ddsi_serdata_default **d, size_t align, size_t sz, const void *data)
+{
+  char *p = serdata_default_append_aligned (d, sz, align);
+  memcpy (p, data, sz);
 }
 
 /* Fixed seed and length */
@@ -163,12 +158,12 @@ static uint32_t dds_mh3 (const void * key)
   return h1;
 }
 
-static struct ddsi_serdata *fix_serdata_default(struct ddsi_serdata_default *d, uint64_t tp_iid)
+static struct ddsi_serdata *fix_serdata_default(struct ddsi_serdata_default *d, uint32_t basehash)
 {
-  if (d->keyhash.m_flags & DDS_KEY_IS_HASH)
-    d->c.hash = dds_mh3 (d->keyhash.m_hash) ^ (uint32_t)tp_iid;
+  if (d->keyhash.m_iskey)
+    d->c.hash = dds_mh3 (d->keyhash.m_hash) ^ basehash;
   else
-    d->c.hash = *((uint32_t *)d->keyhash.m_hash) ^ (uint32_t)tp_iid;
+    d->c.hash = *((uint32_t *)d->keyhash.m_hash) ^ basehash;
   return &d->c;
 }
 
@@ -182,23 +177,29 @@ static bool serdata_default_eqkey(const struct ddsi_serdata *acmn, const struct 
 {
   const struct ddsi_serdata_default *a = (const struct ddsi_serdata_default *)acmn;
   const struct ddsi_serdata_default *b = (const struct ddsi_serdata_default *)bcmn;
-  const struct ddsi_sertopic_default *tp;
-
-  assert(a->c.ops == b->c.ops);
-  tp = (struct ddsi_sertopic_default *)a->c.topic;
-  if (tp->nkeys == 0)
-    return true;
-  else
-  {
-    assert (a->keyhash.m_flags & DDS_KEY_HASH_SET);
-    return memcmp (a->keyhash.m_hash, b->keyhash.m_hash, 16) == 0;
+  assert (a->keyhash.m_set);
+#if 0
+  char astr[50], bstr[50];
+  for (int i = 0; i < 16; i++) {
+    sprintf (astr + 3*i, ":%02x", (unsigned char)a->keyhash.m_hash[i]);
   }
+  for (int i = 0; i < 16; i++) {
+    sprintf (bstr + 3*i, ":%02x", (unsigned char)b->keyhash.m_hash[i]);
+  }
+  printf("serdata_default_eqkey: %s %s\n", astr+1, bstr+1);
+#endif
+  return memcmp (a->keyhash.m_hash, b->keyhash.m_hash, 16) == 0;
+}
+
+static bool serdata_default_eqkey_nokey (const struct ddsi_serdata *acmn, const struct ddsi_serdata *bcmn)
+{
+  (void)acmn; (void)bcmn;
+  return true;
 }
 
 static void serdata_default_free(struct ddsi_serdata *dcmn)
 {
   struct ddsi_serdata_default *d = (struct ddsi_serdata_default *)dcmn;
-  dds_free (d->keyhash.m_key_buff);
   dds_free (d);
 }
 
@@ -211,15 +212,12 @@ static void serdata_default_init(struct ddsi_serdata_default *d, const struct dd
 #endif
   d->hdr.identifier = tp->native_encoding_identifier;
   d->hdr.options = 0;
-  d->bswap = false;
   memset (d->keyhash.m_hash, 0, sizeof (d->keyhash.m_hash));
-  d->keyhash.m_key_len = 0;
-  d->keyhash.m_flags = 0;
-  d->keyhash.m_key_buff = NULL;
-  d->keyhash.m_key_buff_size = 0;
+  d->keyhash.m_set = 0;
+  d->keyhash.m_iskey = 0;
 }
 
-static struct ddsi_serdata_default *serdata_default_allocnew(struct serstatepool *pool)
+static struct ddsi_serdata_default *serdata_default_allocnew(struct serdatapool *pool)
 {
   const uint32_t init_size = 128;
   struct ddsi_serdata_default *d = os_malloc(offsetof (struct ddsi_serdata_default, data) + init_size);
@@ -243,26 +241,13 @@ static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertopic
   const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
   struct ddsi_serdata_default *d = serdata_default_new(tp, kind);
   uint32_t off = 4; /* must skip the CDR header */
-  struct serstate st = { .data = d };
 
   assert (fragchain->min == 0);
   assert (fragchain->maxp1 >= off); /* CDR header must be in first fragment */
   (void)size;
 
   memcpy (&d->hdr, NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)), sizeof (d->hdr));
-  switch (d->hdr.identifier) {
-    case CDR_LE:
-    case PL_CDR_LE:
-      d->bswap = ! PLATFORM_IS_LITTLE_ENDIAN;
-      break;
-    case CDR_BE:
-    case PL_CDR_BE:
-      d->bswap = PLATFORM_IS_LITTLE_ENDIAN;
-      break;
-    default:
-      /* must not ever try to use a serdata format for an unsupported encoding */
-      abort ();
-  }
+  assert (d->hdr.identifier == CDR_LE || d->hdr.identifier == CDR_BE);
 
   while (fragchain)
   {
@@ -272,31 +257,48 @@ static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertopic
     {
       /* only copy if this fragment adds data */
       const unsigned char *payload = NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain));
-      ddsi_serstate_append_blob (&st, 1, fragchain->maxp1 - off, payload + off - fragchain->min);
+      serdata_default_append_blob (&d, 1, fragchain->maxp1 - off, payload + off - fragchain->min);
       off = fragchain->maxp1;
     }
     fragchain = fragchain->nextfrag;
   }
 
-  /* FIXME: assignment here is because of reallocs, but doing it this way is a bit hacky */
-  d = st.data;
-
   dds_stream_t is;
   dds_stream_from_serdata_default (&is, d);
   dds_stream_read_keyhash (&is, &d->keyhash, (const dds_topic_descriptor_t *)tp->type, kind == SDK_KEY);
-  return fix_serdata_default (d, tp->c.iid);
+  return fix_serdata_default (d, tp->c.serdata_basehash);
 }
 
 struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
 {
+  /* FIXME: not quite sure this is correct, though a check against a specially hacked OpenSplice suggests it is */
+  if (!(tpcmn->status_cb_entity->m_descriptor->m_flagset & DDS_TOPIC_FIXED_KEY))
+  {
+    /* keyhash is MD5 of a key value, so impossible to turn into a key value */
+    return NULL;
+  }
+  else
+  {
+    const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
+    struct ddsi_serdata_default *d = serdata_default_new(tp, SDK_KEY);
+    d->hdr.identifier = CDR_BE;
+    serdata_default_append_blob (&d, 1, sizeof (keyhash->value), keyhash->value);
+    memcpy (d->keyhash.m_hash, keyhash->value, sizeof (d->keyhash.m_hash));
+    d->keyhash.m_set = 1;
+    d->keyhash.m_iskey = 1;
+    return fix_serdata_default(d, tp->c.serdata_basehash);
+  }
+}
+
+struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr_nokey (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
+{
   const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
   struct ddsi_serdata_default *d = serdata_default_new(tp, SDK_KEY);
-  struct serstate st = { .data = d };
-  /* FIXME: not quite sure this is correct */
-  ddsi_serstate_append_blob (&st, 1, sizeof (keyhash->value), keyhash->value);
-  /* FIXME: assignment here is because of reallocs, but doing it this way is a bit hacky */
-  d = st.data;
-  return fix_serdata_default(d, tp->c.iid);
+  (void)keyhash;
+  d->keyhash.m_set = 1;
+  d->keyhash.m_iskey = 1;
+  d->c.hash = tp->c.serdata_basehash;
+  return (struct ddsi_serdata *)d;
 }
 
 static struct ddsi_serdata *serdata_default_from_sample_cdr (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
@@ -318,7 +320,7 @@ static struct ddsi_serdata *serdata_default_from_sample_cdr (const struct ddsi_s
       break;
   }
   dds_stream_add_to_serdata_default (&os, &d);
-  return fix_serdata_default (d, tp->c.iid);
+  return fix_serdata_default (d, tp->c.serdata_basehash);
 }
 
 static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *vsample)
@@ -327,9 +329,7 @@ static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi
   const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
   const struct ddsi_plist_sample *sample = vsample;
   struct ddsi_serdata_default *d = serdata_default_new(tp, kind);
-  struct serstate st = { .data = d };
-  ddsi_serstate_append_blob (&st, 1, sample->size, sample->blob);
-  d = st.data;
+  serdata_default_append_blob (&d, 1, sample->size, sample->blob);
   const unsigned char *rawkey = nn_plist_findparam_native_unchecked (sample->blob, sample->keyparam);
 #ifndef NDEBUG
   size_t keysize;
@@ -339,11 +339,11 @@ static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi
     case PID_PARTICIPANT_GUID:
     case PID_ENDPOINT_GUID:
     case PID_GROUP_GUID:
-      d->keyhash.m_flags = DDS_KEY_SET | DDS_KEY_HASH_SET | DDS_KEY_IS_HASH;
-      d->keyhash.m_key_len = 16;
-      memcpy (&d->keyhash.m_hash, rawkey, d->keyhash.m_key_len);
+      d->keyhash.m_set = 1;
+      d->keyhash.m_iskey = 1;
+      memcpy (&d->keyhash.m_hash, rawkey, 16);
 #ifndef NDEBUG
-      keysize = d->keyhash.m_key_len;
+      keysize = 16;
 #endif
       break;
 
@@ -354,13 +354,13 @@ static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi
       md5_state_t md5st;
       md5_byte_t digest[16];
       topic_name_sz = (uint32_t) strlen (topic_name) + 1;
-      d->keyhash.m_flags = DDS_KEY_SET | DDS_KEY_HASH_SET;
-      d->keyhash.m_key_len = 16;
+      d->keyhash.m_set = 1;
+      d->keyhash.m_iskey = 0;
       md5_init (&md5st);
       md5_append (&md5st, (const md5_byte_t *) &topic_name_sz_BE, sizeof (topic_name_sz_BE));
       md5_append (&md5st, (const md5_byte_t *) topic_name, topic_name_sz);
       md5_finish (&md5st, digest);
-      memcpy (&d->keyhash.m_hash, digest, d->keyhash.m_key_len);
+      memcpy (&d->keyhash.m_hash, digest, 16);
 #ifndef NDEBUG
       keysize = sizeof (uint32_t) + topic_name_sz;
 #endif
@@ -371,10 +371,10 @@ static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi
       abort();
   }
 
-  /* if we're it is supposed to be just a key, rawkey must be be the first field and followed only by a sentinel */
+  /* if it is supposed to be just a key, rawkey must be be the first field and followed only by a sentinel */
   assert (kind != SDK_KEY || rawkey == (const unsigned char *)sample->blob + sizeof (nn_parameter_t));
   assert (kind != SDK_KEY || sample->size == sizeof (nn_parameter_t) + alignup_size (keysize, 4) + sizeof (nn_parameter_t));
-  return fix_serdata_default (d, tp->c.iid);
+  return fix_serdata_default (d, tp->c.serdata_basehash);
 }
 
 static struct ddsi_serdata *serdata_default_from_sample_rawcdr (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *vsample)
@@ -383,15 +383,46 @@ static struct ddsi_serdata *serdata_default_from_sample_rawcdr (const struct dds
   const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
   const struct ddsi_rawcdr_sample *sample = vsample;
   struct ddsi_serdata_default *d = serdata_default_new(tp, kind);
-  struct serstate st = { .data = d };
   assert (sample->keysize <= 16);
-  ddsi_serstate_append_blob (&st, 1, sample->size, sample->blob);
-  d = st.data;
-  d->keyhash.m_flags = DDS_KEY_SET | DDS_KEY_HASH_SET | DDS_KEY_IS_HASH;
-  d->keyhash.m_key_len = (uint32_t) sample->keysize;
+  serdata_default_append_blob (&d, 1, sample->size, sample->blob);
+  d->keyhash.m_set = 1;
+  d->keyhash.m_iskey = 1;
   if (sample->keysize > 0)
     memcpy (&d->keyhash.m_hash, sample->key, sample->keysize);
-  return fix_serdata_default (d, tp->c.iid);
+  return fix_serdata_default (d, tp->c.serdata_basehash);
+}
+
+static struct ddsi_serdata *serdata_default_to_topicless (const struct ddsi_serdata *serdata_common)
+{
+  const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
+  const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)d->c.topic;
+  struct ddsi_serdata_default *d_tl = serdata_default_new(tp, SDK_KEY);
+  d_tl->c.topic = NULL;
+  d_tl->c.hash = d->c.hash;
+  d_tl->c.timestamp.v = INT64_MIN;
+  d_tl->keyhash = d->keyhash;
+  /* These things are used for the key-to-instance map and only subject to eq, free and conversion to an invalid
+     sample of some topic for topics that can end up in a RHC, so, of the four kinds we have, only for CDR-with-key
+     the payload is of interest. */
+  if (d->c.ops == &ddsi_serdata_ops_cdr)
+  {
+    if (d->c.kind == SDK_KEY)
+    {
+      d_tl->hdr.identifier = d->hdr.identifier;
+      serdata_default_append_blob (&d_tl, 1, d->pos, d->data);
+    }
+    else
+    {
+      /* One big hack ... read_sample_write_key goes via keyhash generation ... */
+      dds_stream_t is, os;
+      dds_stream_from_serdata_default (&is, d);
+      dds_stream_from_serdata_default (&os, d_tl);
+      dds_stream_read_sample_write_key (&os, &is, tp);
+      dds_stream_add_to_serdata_default (&os, &d_tl);
+      d_tl->hdr.identifier = os.m_endian ? CDR_LE : CDR_BE;
+    }
+  }
+  return (struct ddsi_serdata *)d_tl;
 }
 
 /* Fill buffer with 'size' bytes of serialised data, starting from 'off'; 0 <= off < off+sz <= alignup4(size(d)) */
@@ -400,7 +431,6 @@ static void serdata_default_to_ser (const struct ddsi_serdata *serdata_common, s
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
   assert (off < d->pos + sizeof(struct CDRHeader));
   assert (sz <= alignup_size (d->pos + sizeof(struct CDRHeader), 4) - off);
-  /* FIXME: maybe I should pull the header out ... */
   memcpy (buf, (char *)&d->hdr + off, sz);
 }
 
@@ -410,7 +440,7 @@ static struct ddsi_serdata *serdata_default_to_ser_ref (const struct ddsi_serdat
   assert (off < d->pos + sizeof(struct CDRHeader));
   assert (sz <= alignup_size (d->pos + sizeof(struct CDRHeader), 4) - off);
   ref->iov_base = (char *)&d->hdr + off;
-  ref->iov_len = sz;
+  ref->iov_len = (ddsi_iov_len_t)sz;
   return ddsi_serdata_ref(serdata_common);
 }
 
@@ -433,38 +463,29 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
   return true; /* FIXME: can't conversion to sample fail? */
 }
 
-static bool serdata_default_to_sample_plist (const struct ddsi_serdata *serdata_common, void *vsample, void **bufptr, void *buflim)
+static bool serdata_default_topicless_to_sample_cdr (const struct ddsi_sertopic *topic, const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
-#if 0
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
-  struct ddsi_plist_sample *sample = vsample;
-  /* output of to_sample for normal samples is a copy, and so it should be for this one; only for native format (like the inverse) */
+  dds_stream_t is;
+  assert (d->c.topic == NULL);
+  assert (d->c.kind == SDK_KEY);
+  assert (d->c.ops == topic->serdata_ops);
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
-  assert (d->hdr.identifier == PLATFORM_IS_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE);
-  sample->size = d->pos;
-  sample->blob = os_malloc (sample->size);
-  memcpy (sample->blob, (char *)&d->hdr + sizeof(struct CDRHeader), sample->size);
-  sample->keyparam = PID_PAD;
-  return true;
-#else
-  /* I don't think I need this */
-  (void)serdata_common; (void)vsample; (void)bufptr; (void)buflim;
-  abort();
-  return false;
-#endif
+  dds_stream_from_serdata_default(&is, d);
+  dds_stream_read_key (&is, sample, (const dds_topic_descriptor_t*) ((struct ddsi_sertopic_default *)topic)->type);
+  return true; /* FIXME: can't conversion to sample fail? */
 }
 
-static bool serdata_default_to_sample_rawcdr (const struct ddsi_serdata *serdata_common, void *vsample, void **bufptr, void *buflim)
+static bool serdata_default_topicless_to_sample_cdr_nokey (const struct ddsi_sertopic *topic, const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
-  /* I don't think I need this */
-  (void)serdata_common; (void)vsample; (void)bufptr; (void)buflim;
-  abort();
-  return false;
+  (void)topic; (void)sample; (void)bufptr; (void)buflim;
+  assert (serdata_common->topic == NULL);
+  assert (serdata_common->kind == SDK_KEY);
+  return true;
 }
 
 const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
   .get_size = serdata_default_get_size,
-  .cmpkey = 0,
   .eqkey = serdata_default_eqkey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser,
@@ -473,33 +494,52 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
   .to_ser = serdata_default_to_ser,
   .to_sample = serdata_default_to_sample_cdr,
   .to_ser_ref = serdata_default_to_ser_ref,
-  .to_ser_unref = serdata_default_to_ser_unref
+  .to_ser_unref = serdata_default_to_ser_unref,
+  .to_topicless = serdata_default_to_topicless,
+  .topicless_to_sample = serdata_default_topicless_to_sample_cdr
+};
+
+const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey = {
+  .get_size = serdata_default_get_size,
+  .eqkey = serdata_default_eqkey_nokey,
+  .free = serdata_default_free,
+  .from_ser = serdata_default_from_ser,
+  .from_keyhash = ddsi_serdata_from_keyhash_cdr_nokey,
+  .from_sample = serdata_default_from_sample_cdr,
+  .to_ser = serdata_default_to_ser,
+  .to_sample = serdata_default_to_sample_cdr,
+  .to_ser_ref = serdata_default_to_ser_ref,
+  .to_ser_unref = serdata_default_to_ser_unref,
+  .to_topicless = serdata_default_to_topicless,
+  .topicless_to_sample = serdata_default_topicless_to_sample_cdr_nokey
 };
 
 const struct ddsi_serdata_ops ddsi_serdata_ops_plist = {
   .get_size = serdata_default_get_size,
-  .cmpkey = 0,
   .eqkey = serdata_default_eqkey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser,
-  .from_keyhash = 0, /* q_ddsi_discovery.c takes care of it internally */
+  .from_keyhash = 0,
   .from_sample = serdata_default_from_sample_plist,
   .to_ser = serdata_default_to_ser,
-  .to_sample = serdata_default_to_sample_plist,
+  .to_sample = 0,
   .to_ser_ref = serdata_default_to_ser_ref,
-  .to_ser_unref = serdata_default_to_ser_unref
+  .to_ser_unref = serdata_default_to_ser_unref,
+  .to_topicless = serdata_default_to_topicless,
+  .topicless_to_sample = 0
 };
 
 const struct ddsi_serdata_ops ddsi_serdata_ops_rawcdr = {
   .get_size = serdata_default_get_size,
-  .cmpkey = 0,
   .eqkey = serdata_default_eqkey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser,
-  .from_keyhash = 0, /* q_ddsi_discovery.c takes care of it internally */
+  .from_keyhash = 0,
   .from_sample = serdata_default_from_sample_rawcdr,
   .to_ser = serdata_default_to_ser,
-  .to_sample = serdata_default_to_sample_rawcdr,
+  .to_sample = 0,
   .to_ser_ref = serdata_default_to_ser_ref,
-  .to_ser_unref = serdata_default_to_ser_unref
+  .to_ser_unref = serdata_default_to_ser_unref,
+  .to_topicless = serdata_default_to_topicless,
+  .topicless_to_sample = 0
 };

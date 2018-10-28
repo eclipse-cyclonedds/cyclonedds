@@ -767,8 +767,9 @@ static struct ddsi_sertopic *make_special_topic (uint16_t enc_id, const struct d
   os_atomic_st32 (&st->c.refc, 1);
   st->c.ops = &ddsi_sertopic_ops_default;
   st->c.serdata_ops = ops;
-  st->native_encoding_identifier = enc_id;
+  st->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (st->c.serdata_ops);
   st->c.iid = ddsi_plugin.iidgen_fn();
+  st->native_encoding_identifier = enc_id;
   st->nkeys = 1;
   return (struct ddsi_sertopic *)st;
 }
@@ -1009,7 +1010,7 @@ int rtps_init (void)
   (ddsi_plugin.init_fn) ();
 
   gv.xmsgpool = nn_xmsgpool_new ();
-  gv.serpool = ddsi_serstatepool_new ();
+  gv.serpool = ddsi_serdatapool_new ();
 
 #ifdef DDSI_INCLUDE_ENCRYPTION
   if (q_security_plugin.new_decoder)
@@ -1359,7 +1360,7 @@ err_unicast_sockets:
   nn_xqos_fini (&gv.default_xqos_wr);
   nn_xqos_fini (&gv.default_xqos_rd);
   nn_plist_fini (&gv.default_plist_pp);
-  ddsi_serstatepool_free (gv.serpool);
+  ddsi_serdatapool_free (gv.serpool);
   nn_xmsgpool_free (gv.xmsgpool);
   (ddsi_plugin.fini_fn) ();
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -1654,7 +1655,7 @@ OS_WARNING_MSVC_ON(6001);
       os_free (gv.interfaces[i].name);
   }
 
-  ddsi_serstatepool_free (gv.serpool);
+  ddsi_serdatapool_free (gv.serpool);
   nn_xmsgpool_free (gv.xmsgpool);
   (ddsi_plugin.fini_fn) ();
   nn_log (LC_CONFIG, "Finis.\n");

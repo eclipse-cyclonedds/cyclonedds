@@ -149,11 +149,11 @@
 
 static const status_cb_data_t dds_rhc_data_avail_cb_data = { DDS_DATA_AVAILABLE_STATUS, 0, 0, true };
 
-/* FIXME: populate tkmap with key-only derived serdata, with timestamp
-   set to invalid.  An invalid timestamp is (logically) unordered with
-   respect to valid timestamps, and that would mean BY_SOURCE order
-   would be respected even when generating an invalid sample for an
-   unregister message using the tkmap data. */
+/* FIXME: tkmap should perhaps retain data with timestamp set to invalid
+   An invalid timestamp is (logically) unordered with respect to valid
+   timestamps, and that would mean BY_SOURCE order could be respected
+   even when generating an invalid sample for an unregister message using
+   the tkmap data. */
 
 /******************************
  ******   LIVE WRITERS   ******
@@ -1632,12 +1632,7 @@ static int dds_rhc_read_w_qminv
 {
   bool trigger_waitsets = false;
   uint32_t n = 0;
-#if 0
-  const struct dds_topic_descriptor * desc = (const struct dds_topic_descriptor *) rhc->topic->type;
-#else /* FIXME: hack hack -- deserialize_into */
-  const struct ddsi_sertopic_default *sertopic_def = (const struct ddsi_sertopic_default *)rhc->topic;
-  const struct dds_topic_descriptor * desc = sertopic_def->type;
-#endif
+  const struct dds_topic_descriptor * desc = rhc->topic->status_cb_entity->m_descriptor;
 
   if (lock)
   {
@@ -1707,7 +1702,7 @@ static int dds_rhc_read_w_qminv
           if (inst->inv_exists && n < max_samples && (QMASK_OF_INVSAMPLE (inst) & qminv) == 0)
           {
             set_sample_info_invsample (info_seq + n, inst);
-            ddsi_serdata_to_sample (inst->tk->m_sample, values[n], 0, 0);
+            ddsi_serdata_topicless_to_sample (rhc->topic, inst->tk->m_sample, values[n], 0, 0);
             if (!inst->inv_isread)
             {
               inst->inv_isread = 1;
@@ -1765,12 +1760,7 @@ static int dds_rhc_take_w_qminv
   bool trigger_waitsets = false;
   uint64_t iid;
   uint32_t n = 0;
-#if 0
-  const struct dds_topic_descriptor * desc = (const struct dds_topic_descriptor *) rhc->topic->type;
-#else /* FIXME: hack hack -- deserialize_into */
-  const struct ddsi_sertopic_default *sertopic_def = (const struct ddsi_sertopic_default *)rhc->topic;
-  const struct dds_topic_descriptor * desc = sertopic_def->type;
-#endif
+  const struct dds_topic_descriptor * desc = rhc->topic->status_cb_entity->m_descriptor;
 
   if (lock)
   {
@@ -1859,7 +1849,7 @@ static int dds_rhc_take_w_qminv
           if (inst->inv_exists && n < max_samples && (QMASK_OF_INVSAMPLE (inst) & qminv) == 0)
           {
             set_sample_info_invsample (info_seq + n, inst);
-            ddsi_serdata_to_sample (inst->tk->m_sample, values[n], 0, 0);
+            ddsi_serdata_topicless_to_sample (rhc->topic, inst->tk->m_sample, values[n], 0, 0);
             inst_clear_invsample (rhc, inst);
             ++n;
           }
