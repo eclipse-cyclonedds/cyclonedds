@@ -91,8 +91,7 @@ static int ddsi_tcp_cmp_conn (const ddsi_tcp_conn_t c1, const ddsi_tcp_conn_t c2
    return (a1s->sa_family < a2s->sa_family) ? -1 : 1;
   else if (c1->m_peer_port != c2->m_peer_port)
     return (c1->m_peer_port < c2->m_peer_port) ? -1 : 1;
-
-  return os_sockaddr_compare(a1s, a2s);
+  return ddsi_ipaddr_compare (a1s, a2s);
 }
 
 typedef struct ddsi_tcp_node

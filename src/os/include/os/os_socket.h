@@ -272,24 +272,6 @@ extern "C" {
     os_sockaddr_get_port(const os_sockaddr *const sa) __nonnull_all__;
 
     /**
-    * Compare two IP addresses for equality - does not consider port number.
-    * This is a 'straight' compare i.e. family must match and address bytes
-    * must correspond. It does not consider the possibility of IPv6 mapped
-    * IPv4 addresses or anything arcane like that.
-    * @param sa1 First socket address
-    * @param sa2 Second socket address.
-    * @return true if equal, false otherwise.
-    * @return Integer less than, equal to, or greater than zero if sa1 is
-    *         found, respectively, to be less than, to match, or be greater
-    *         than sa2.
-    * @pre both sa1 and sa2 are valid os_sockaddr pointers.
-    */
-    OSAPI_EXPORT int
-    os_sockaddr_compare(
-        const os_sockaddr *const sa1,
-        const os_sockaddr *const sa2) __nonnull_all__ __attribute_pure__;
-
-    /**
      * Check if IP address of given socket address is unspecified.
      * @param sa Socket address
      * @return true if unspecified, false otherwise.
