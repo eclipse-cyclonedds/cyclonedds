@@ -82,6 +82,7 @@ typedef void (*ddsi_serdata_to_ser_unref_t) (struct ddsi_serdata *d, const ddsi_
    otherwise malloc() is to be used for those.  (This allows read/take to be given a block of memory
    by the caller.) */
 typedef bool (*ddsi_serdata_to_sample_t) (const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
+
 typedef bool (*ddsi_serdata_topicless_to_sample_t) (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
 
 /* Test key values of two serdatas for equality (with the same ddsi_serdata_ops, but not necessarily

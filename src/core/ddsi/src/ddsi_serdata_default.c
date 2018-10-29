@@ -272,14 +272,14 @@ static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertopic
 struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
 {
   /* FIXME: not quite sure this is correct, though a check against a specially hacked OpenSplice suggests it is */
-  if (!(tpcmn->status_cb_entity->m_descriptor->m_flagset & DDS_TOPIC_FIXED_KEY))
+  const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
+  if (!(tp->type->m_flagset & DDS_TOPIC_FIXED_KEY))
   {
     /* keyhash is MD5 of a key value, so impossible to turn into a key value */
     return NULL;
   }
   else
   {
-    const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
     struct ddsi_serdata_default *d = serdata_default_new(tp, SDK_KEY);
     d->hdr.identifier = CDR_BE;
     serdata_default_append_blob (&d, 1, sizeof (keyhash->value), keyhash->value);

@@ -13,6 +13,7 @@
 #define DDSI_SERTOPIC_H
 
 #include "util/ut_avl.h"
+#include "ddsc/dds_public_alloc.h"
 
 struct ddsi_serdata;
 struct ddsi_serdata_ops;
@@ -39,12 +40,23 @@ struct ddsi_sertopic {
 
 typedef void (*ddsi_sertopic_deinit_t) (struct ddsi_sertopic *tp);
 
+/* Release any memory allocated by ddsi_sertopic_to_sample */
+typedef void (*ddsi_sertopic_free_sample_t) (const struct ddsi_sertopic *d, void *sample, dds_free_op_t op);
+
 struct ddsi_sertopic_ops {
   ddsi_sertopic_deinit_t deinit;
+  ddsi_sertopic_free_sample_t free_sample;
 };
 
 struct ddsi_sertopic *ddsi_sertopic_ref (const struct ddsi_sertopic *tp);
 void ddsi_sertopic_unref (struct ddsi_sertopic *tp);
 uint32_t ddsi_sertopic_compute_serdata_basehash (const struct ddsi_serdata_ops *ops);
+
+inline void ddsi_sertopic_deinit (struct ddsi_sertopic *tp) {
+  tp->ops->deinit (tp);
+}
+inline void ddsi_sertopic_free_sample (const struct ddsi_sertopic *tp, void *sample, dds_free_op_t op) {
+  tp->ops->free_sample (tp, sample, op);
+}
 
 #endif

@@ -38,7 +38,7 @@ void ddsi_sertopic_unref (struct ddsi_sertopic *sertopic)
   {
     if (os_atomic_dec32_ov (&sertopic->refc) == 1)
     {
-      sertopic->ops->deinit (sertopic);
+      ddsi_sertopic_deinit (sertopic);
       os_free (sertopic->name_typename);
       os_free (sertopic->name);
       os_free (sertopic->typename);
@@ -59,3 +59,6 @@ uint32_t ddsi_sertopic_compute_serdata_basehash (const struct ddsi_serdata_ops *
   memcpy (&res, digest, sizeof (res));
   return res;
 }
+
+extern inline void ddsi_sertopic_deinit (struct ddsi_sertopic *tp);
+extern inline void ddsi_sertopic_free_sample (const struct ddsi_sertopic *tp, void *sample, dds_free_op_t op);

@@ -41,27 +41,23 @@
 #define CDR_LE 0x0001
 #endif
 
-struct CDRHeader
-{
+struct CDRHeader {
   unsigned short identifier;
   unsigned short options;
 };
 
-struct serdatapool /* FIXME: now a serdatapool */
-{
+struct serdatapool {
   struct nn_freelist freelist;
 };
 
-typedef struct dds_key_hash
-{
+typedef struct dds_key_hash {
   char m_hash [16];          /* Key hash value. Also possibly key. Suitably aligned for accessing as uint32_t's */
   unsigned m_set : 1;        /* has it been initialised? */
   unsigned m_iskey : 1;      /* m_hash is key value */
 }
 dds_key_hash_t;
 
-struct ddsi_serdata_default
-{
+struct ddsi_serdata_default {
   struct ddsi_serdata c;
   uint32_t pos;
   uint32_t size;
@@ -82,18 +78,18 @@ struct ddsi_serdata_default
 };
 
 struct dds_key_descriptor;
+struct dds_topic_descriptor;
 
 #ifndef DDS_TOPIC_INTERN_FILTER_FN_DEFINED
 #define DDS_TOPIC_INTERN_FILTER_FN_DEFINED
 typedef bool (*dds_topic_intern_filter_fn) (const void * sample, void *ctx);
 #endif
 
-struct ddsi_sertopic_default
-{
+struct ddsi_sertopic_default {
   struct ddsi_sertopic c;
   uint16_t native_encoding_identifier; /* (PL_)?CDR_(LE|BE) */
 
-  void * type;
+  struct dds_topic_descriptor * type;
   unsigned nkeys;
 
   uint32_t flags;

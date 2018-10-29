@@ -25,11 +25,18 @@
 
 /* FIXME: sertopic /= ddstopic so a lot of stuff needs to be moved here from dds_topic.c and the free function needs to be implemented properly */
 
-static void deinit_sertopic_default (struct ddsi_sertopic *tp)
+static void sertopic_default_deinit (struct ddsi_sertopic *tp)
 {
   (void)tp;
 }
 
+static void sertopic_default_free_sample (const struct ddsi_sertopic *sertopic_common, void *sample, dds_free_op_t op)
+{
+  const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)sertopic_common;
+  dds_sample_free (sample, tp->type, op);
+}
+
 const struct ddsi_sertopic_ops ddsi_sertopic_ops_default = {
-  .deinit = deinit_sertopic_default
+  .deinit = sertopic_default_deinit,
+  .free_sample = sertopic_default_free_sample
 };

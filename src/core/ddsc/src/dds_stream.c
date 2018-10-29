@@ -380,7 +380,7 @@ void dds_stream_read_buffer (dds_stream_t * is, uint8_t * buffer, uint32_t len)
 
 void dds_stream_read_sample (dds_stream_t * is, void * data, const struct ddsi_sertopic_default * topic)
 {
-  const struct dds_topic_descriptor * desc = (const struct dds_topic_descriptor *) topic->type;
+  const struct dds_topic_descriptor * desc = topic->type;
   /* Check if can copy directly from stream buffer */
   if (topic->opt_size && DDS_IS_OK (is, desc->m_size) && (is->m_endian == DDS_ENDIAN))
   {
@@ -1171,7 +1171,7 @@ static void dds_stream_read (dds_stream_t * is, char * data, const uint32_t * op
 
 void dds_stream_write_sample (dds_stream_t * os, const void * data, const struct ddsi_sertopic_default * topic)
 {
-  const struct dds_topic_descriptor * desc = (const struct dds_topic_descriptor *) topic->type;
+  const struct dds_topic_descriptor * desc = topic->type;
 
   if (topic->opt_size && DDS_CDR_ALIGNED (os, desc->m_align))
   {

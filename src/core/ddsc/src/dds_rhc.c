@@ -653,7 +653,7 @@ static bool add_sample
     rhc->n_vsamples++;
   }
 
-  s->sample = ddsi_serdata_ref ((struct ddsi_serdata *) sample); /* drops const (tho refcount does change) */
+  s->sample = ddsi_serdata_ref (sample); /* drops const (tho refcount does change) */
   s->wr_iid = pwr_info->iid;
   s->isread = false;
   s->disposed_gen = inst->disposed_gen;
@@ -663,19 +663,17 @@ static bool add_sample
   return true;
 }
 
-static bool content_filter_accepts (const struct ddsi_sertopic * sertopic, const struct ddsi_serdata *sample)
+static bool content_filter_accepts (const struct ddsi_sertopic *sertopic, const struct ddsi_serdata *sample)
 {
   bool ret = true;
   const struct dds_topic *tp = sertopic->status_cb_entity;
   if (tp->filter_fn)
   {
     const dds_topic_descriptor_t * desc = tp->m_descriptor;
-    char *tmp = os_malloc (desc->m_size);
-    memset (tmp, 0, desc->m_size);
+    char *tmp = dds_alloc (desc->m_size);
     ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
     ret = (tp->filter_fn) (tmp, tp->filter_ctx);
-    dds_sample_free(tmp, desc, DDS_FREE_CONTENTS_BIT);
-    os_free (tmp);
+    ddsi_sertopic_free_sample (tp->m_stopic, tmp, DDS_FREE_ALL);
   }
   return ret;
 }
@@ -1632,7 +1630,6 @@ static int dds_rhc_read_w_qminv
 {
   bool trigger_waitsets = false;
   uint32_t n = 0;
-  const struct dds_topic_descriptor * desc = rhc->topic->status_cb_entity->m_descriptor;
 
   if (lock)
   {
@@ -1691,7 +1688,7 @@ static int dds_rhc_read_w_qminv
                 else
                 {
                   /* The filter didn't match, so free the deserialised copy. */
-                  dds_sample_free(values[n], desc, DDS_FREE_CONTENTS);
+                  ddsi_sertopic_free_sample (rhc->topic, values[n], DDS_FREE_CONTENTS);
                 }
               }
               sample = sample->next;
@@ -1760,7 +1757,6 @@ static int dds_rhc_take_w_qminv
   bool trigger_waitsets = false;
   uint64_t iid;
   uint32_t n = 0;
-  const struct dds_topic_descriptor * desc = rhc->topic->status_cb_entity->m_descriptor;
 
   if (lock)
   {
@@ -1839,7 +1835,7 @@ static int dds_rhc_take_w_qminv
                 else
                 {
                   /* The filter didn't match, so free the deserialised copy. */
-                  dds_sample_free(values[n], desc, DDS_FREE_CONTENTS);
+                  ddsi_sertopic_free_sample (rhc->topic, values[n], DDS_FREE_CONTENTS);
                 }
               }
               sample = sample1;
@@ -2256,7 +2252,7 @@ static bool update_conditions_locked
 
   if (tmp)
   {
-    dds_sample_free (tmp, desc, DDS_FREE_CONTENTS_BIT);
+    ddsi_sertopic_free_sample (rhc->topic, tmp, DDS_FREE_CONTENTS);
     os_free (tmp);
   }
   return trigger;
