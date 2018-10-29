@@ -83,10 +83,15 @@ typedef void (*ddsi_serdata_to_ser_unref_t) (struct ddsi_serdata *d, const ddsi_
    by the caller.) */
 typedef bool (*ddsi_serdata_to_sample_t) (const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
 
+/* Create a sample from a topicless serdata, as returned by serdata_to_topicless. This sample
+   obviously has just the key fields filled in, and is used for generating invalid samples. */
 typedef bool (*ddsi_serdata_topicless_to_sample_t) (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
 
-/* Test key values of two serdatas for equality (with the same ddsi_serdata_ops, but not necessarily
-   of the same topic) */
+/* Test key values of two serdatas for equality. The two will have the same ddsi_serdata_ops,
+   but are not necessarily of the same topic (one can decide to never consider them equal if they
+   are of different topics, of course; but the nice thing about _not_ doing that is that all
+   instances with a certain key value with have the same instance id, and that in turn makes
+   computing equijoins across topics much simpler). */
 typedef bool (*ddsi_serdata_eqkey_t) (const struct ddsi_serdata *a, const struct ddsi_serdata *b);
 
 struct ddsi_serdata_ops {
