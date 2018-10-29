@@ -1434,6 +1434,7 @@ uint32_t dds_stream_extract_key (dds_stream_t *is, dds_stream_t *os, const uint3
                   {
                     char *dst;
                     DDS_CDR_ALIGNTO (os, align);
+                    DDS_CDR_RESIZE (os, num * align);
                     dst = DDS_CDR_ADDRESS(os, char);
                     dds_stream_read_fixed_buffer (is, dst, num, align, is->m_endian);
                     os->m_index += num * align;
