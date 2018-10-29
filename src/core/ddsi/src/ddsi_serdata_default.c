@@ -411,15 +411,26 @@ static struct ddsi_serdata *serdata_default_to_topicless (const struct ddsi_serd
       d_tl->hdr.identifier = d->hdr.identifier;
       serdata_default_append_blob (&d_tl, 1, d->pos, d->data);
     }
+    else if (d->keyhash.m_iskey)
+    {
+      d_tl->hdr.identifier = CDR_BE;
+      serdata_default_append_blob (&d_tl, 1, sizeof (d->keyhash.m_hash), d->keyhash.m_hash);
+    }
     else
     {
-      /* One big hack ... read_sample_write_key goes via keyhash generation ... */
+      const struct dds_topic_descriptor *desc = tp->type;
       dds_stream_t is, os;
+      uint32_t nbytes;
       dds_stream_from_serdata_default (&is, d);
       dds_stream_from_serdata_default (&os, d_tl);
-      dds_stream_read_sample_write_key (&os, &is, tp);
+      nbytes = dds_stream_extract_key (&is, &os, desc->m_ops, false);
+      os.m_index += nbytes;
+      if (os.m_index < os.m_size)
+      {
+        os.m_buffer.p8 = dds_realloc (os.m_buffer.p8, os.m_index);
+        os.m_size = os.m_index;
+      }
       dds_stream_add_to_serdata_default (&os, &d_tl);
-      d_tl->hdr.identifier = os.m_endian ? CDR_LE : CDR_BE;
     }
   }
   return (struct ddsi_serdata *)d_tl;

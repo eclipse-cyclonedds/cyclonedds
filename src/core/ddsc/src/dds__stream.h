@@ -37,7 +37,7 @@ void dds_stream_from_serdata_default (dds_stream_t * s, const struct ddsi_serdat
 void dds_stream_add_to_serdata_default (dds_stream_t * s, struct ddsi_serdata_default **d);
 
 void dds_stream_write_key (dds_stream_t * os, const char * sample, const struct ddsi_sertopic_default * topic);
-void dds_stream_read_sample_write_key (dds_stream_t *os, dds_stream_t *is, const struct ddsi_sertopic_default *topic);
+uint32_t dds_stream_extract_key (dds_stream_t *is, dds_stream_t *os, const uint32_t *ops, const bool just_key);
 void dds_stream_read_key
 (
   dds_stream_t * is,

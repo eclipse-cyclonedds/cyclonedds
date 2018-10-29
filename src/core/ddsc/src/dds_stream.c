@@ -1259,13 +1259,7 @@ void dds_stream_write_key (dds_stream_t * os, const char * sample, const struct 
   of key hash. Input stream may contain full sample of just key data.
 */
 
-static uint32_t dds_stream_get_keyhash
-(
-  dds_stream_t * is,
-  dds_stream_t * os,
-  const uint32_t * ops,
-  const bool just_key
-)
+uint32_t dds_stream_extract_key (dds_stream_t *is, dds_stream_t *os, const uint32_t *ops, const bool just_key)
 {
   uint32_t align;
   uint32_t op;
@@ -1404,7 +1398,7 @@ static uint32_t dds_stream_get_keyhash
                   const uint32_t jmp = DDS_OP_ADR_JMP (ops[1]);
                   while (num--)
                   {
-                    dds_stream_get_keyhash (is, NULL, jsr_ops, just_key);
+                    dds_stream_extract_key (is, NULL, jsr_ops, just_key);
                   }
                   ops += jmp ? (jmp - 2) : 2;
                   break;
@@ -1464,7 +1458,7 @@ static uint32_t dds_stream_get_keyhash
                 const uint32_t jmp = DDS_OP_ADR_JMP (*ops);
                 while (num--)
                 {
-                  dds_stream_get_keyhash (is, NULL, jsr_ops, just_key);
+                  dds_stream_extract_key (is, NULL, jsr_ops, just_key);
                 }
                 ops += jmp ? (jmp - 3) : 2;
                 break;
@@ -1540,7 +1534,7 @@ static uint32_t dds_stream_get_keyhash
                     }
                     default:
                     {
-                      dds_stream_get_keyhash (is, NULL, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), just_key);
+                      dds_stream_extract_key (is, NULL, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), just_key);
                       break;
                     }
                   }
@@ -1561,7 +1555,7 @@ static uint32_t dds_stream_get_keyhash
       }
       case DDS_OP_JSR: /* Implies nested type */
       {
-        dds_stream_get_keyhash (is, os, ops + DDS_OP_JUMP (op), just_key);
+        dds_stream_extract_key (is, os, ops + DDS_OP_JUMP (op), just_key);
         ops++;
         break;
       }
@@ -1569,25 +1563,6 @@ static uint32_t dds_stream_get_keyhash
     }
   }
   return os->m_index - origin;
-}
-
-void dds_stream_read_sample_write_key (dds_stream_t *os, dds_stream_t *is, const struct ddsi_sertopic_default *topic)
-{
-  const struct dds_topic_descriptor *desc = (const struct dds_topic_descriptor *) topic->type;
-  uint32_t nbytes;
-  os->m_endian = 0;
-  if (os->m_size < is->m_size)
-  {
-    os->m_buffer.p8 = dds_realloc (os->m_buffer.p8, is->m_size);
-    os->m_size = is->m_size;
-  }
-  nbytes = dds_stream_get_keyhash (is, os, desc->m_ops, false);
-  os->m_index += nbytes;
-  if (os->m_index < os->m_size)
-  {
-    os->m_buffer.p8 = dds_realloc (os->m_buffer.p8, os->m_index);
-    os->m_size = os->m_index;
-  }
 }
 
 #ifndef NDEBUG
@@ -1619,7 +1594,7 @@ void dds_stream_read_keyhash
     os.m_buffer.pv = kh->m_hash;
     os.m_size = 16;
     os.m_endian = 0;
-    ncheck = dds_stream_get_keyhash (is, &os, desc->m_ops, just_key);
+    ncheck = dds_stream_extract_key (is, &os, desc->m_ops, just_key);
     assert(ncheck <= 16);
     (void)ncheck;
   }
@@ -1630,7 +1605,7 @@ void dds_stream_read_keyhash
     kh->m_iskey = 0;
     dds_stream_init (&os, 0);
     os.m_endian = 0;
-    dds_stream_get_keyhash (is, &os, desc->m_ops, just_key);
+    dds_stream_extract_key (is, &os, desc->m_ops, just_key);
     md5_init (&md5st);
     md5_append (&md5st, os.m_buffer.p8, os.m_index);
     md5_finish (&md5st, (unsigned char *) kh->m_hash);
