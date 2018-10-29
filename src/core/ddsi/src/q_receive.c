@@ -638,7 +638,7 @@ static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *
 
 static seqno_t grow_gap_to_next_seq (const struct writer *wr, seqno_t seq)
 {
-  seqno_t next_seq = wr->whc->ops->next_seq (wr->whc, seq - 1);
+  seqno_t next_seq = whc_next_seq (wr->whc, seq - 1);
   seqno_t seq_xmit = READ_SEQ_XMIT(wr);
   if (next_seq == MAX_SEQ_NUMBER) /* no next sample */
     return seq_xmit + 1;
@@ -835,7 +835,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   else
   {
     /* There's actually no guarantee that we need this information */
-    wr->whc->ops->get_state(wr->whc, &whcst);
+    whc_get_state(wr->whc, &whcst);
   }
 
   /* If this reader was marked as "non-responsive" in the past, it's now responding again,
@@ -944,7 +944,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     {
       seqno_t seq = seqbase + i;
       struct whc_borrowed_sample sample;
-      if (wr->whc->ops->borrow_sample (wr->whc, seq, &sample))
+      if (whc_borrow_sample (wr->whc, seq, &sample))
       {
         if (!wr->retransmitting && sample.unacked)
           writer_set_retransmitting (wr);
@@ -982,7 +982,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
           }
         }
 
-        wr->whc->ops->return_sample(wr->whc, &sample, true);
+        whc_return_sample(wr->whc, &sample, true);
       }
       else if (gapstart == -1)
       {
@@ -1076,7 +1076,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   TRACE ((")"));
  out:
   os_mutexUnlock (&wr->e.lock);
-  wr->whc->ops->free_deferred_free_list (wr->whc, deferred_free_list);
+  whc_free_deferred_free_list (wr->whc, deferred_free_list);
   return 1;
 }
 
@@ -1498,7 +1498,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
 
   /* Resend the requested fragments if we still have the sample, send
      a Gap if we don't have them anymore. */
-  if (wr->whc->ops->borrow_sample (wr->whc, seq, &sample))
+  if (whc_borrow_sample (wr->whc, seq, &sample))
   {
     const unsigned base = msg->fragmentNumberState.bitmap_base - 1;
     int enqueued = 1;
@@ -1514,7 +1514,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
           enqueued = qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0);
       }
     }
-    wr->whc->ops->return_sample (wr->whc, &sample, false);
+    whc_return_sample (wr->whc, &sample, false);
   }
   else
   {
@@ -1541,7 +1541,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
        to give the reader a chance to nack the rest and make sure
        hearbeats will go out at a reasonably high rate for a while */
     struct whc_state whcst;
-    wr->whc->ops->get_state(wr->whc, &whcst);
+    whc_get_state(wr->whc, &whcst);
     force_heartbeat_to_peer (wr, &whcst, prd, 1);
     writer_hbcontrol_note_asyncwrite (wr, now_mt ());
   }

@@ -1314,7 +1314,7 @@ static void writer_drop_connection (const struct nn_guid * wr_guid, const struct
       }
     }
     os_mutexUnlock (&wr->e.lock);
-    wr->whc->ops->free_deferred_free_list (wr->whc, deferred_free_list);
+    whc_free_deferred_free_list (wr->whc, deferred_free_list);
     free_wr_prd_match (m);
   }
 }
@@ -1606,8 +1606,8 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
   {
     struct whc_sample_iter it;
     struct whc_borrowed_sample sample;
-    wr->whc->ops->sample_iter_init(wr->whc, &it);
-    while (wr->whc->ops->sample_iter_borrow_next(&it, &sample))
+    whc_sample_iter_init(wr->whc, &it);
+    while (whc_sample_iter_borrow_next(&it, &sample))
     {
       struct proxy_writer_info pwr_info;
       struct ddsi_serdata *payload = sample.serdata;
@@ -2540,7 +2540,7 @@ unsigned remove_acked_messages (struct writer *wr, struct whc_state *whcst, stru
   unsigned n;
   assert (wr->e.guid.entityid.u != NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
   ASSERT_MUTEX_HELD (&wr->e.lock);
-  n = wr->whc->ops->remove_acked_messages (wr->whc, writer_max_drop_seq (wr), whcst, deferred_free_list);
+  n = whc_remove_acked_messages (wr->whc, writer_max_drop_seq (wr), whcst, deferred_free_list);
   /* when transitioning from >= low-water to < low-water, signal
      anyone waiting in throttle_writer() */
   if (wr->throttling && whcst->unacked_bytes <= wr->whc_low)
@@ -2854,7 +2854,7 @@ static void gc_delete_writer (struct gcreq *gcreq)
     (wr->status_cb) (wr->status_cb_entity, NULL);
   }
 
-  wr->whc->ops->free (wr->whc);
+  whc_free (wr->whc);
 #ifdef DDSI_INCLUDE_SSM
   if (wr->ssm_as)
     unref_addrset (wr->ssm_as);
@@ -2950,7 +2950,7 @@ int delete_writer (const struct nn_guid *guid)
      be the usual case), do it immediately.  If more data is still
      coming in (which can't really happen at the moment, but might
      again in the future) it'll potentially be discarded.  */
-  wr->whc->ops->get_state(wr->whc, &whcst);
+  whc_get_state(wr->whc, &whcst);
   if (whcst.unacked_bytes == 0)
   {
     nn_log (LC_DISCOVERY, "delete_writer(guid %x:%x:%x:%x) - no unack'ed samples\n", PGUID (*guid));
@@ -2982,12 +2982,12 @@ void writer_exit_startup_mode (struct writer *wr)
     struct whc_state whcst;
     wr->startup_mode = 0;
     cnt += remove_acked_messages (wr, &whcst, &deferred_free_list);
-    cnt += wr->whc->ops->downgrade_to_volatile (wr->whc, &whcst);
+    cnt += whc_downgrade_to_volatile (wr->whc, &whcst);
     writer_clear_retransmitting (wr);
     nn_log (LC_DISCOVERY, "  %x:%x:%x:%x: dropped %u samples\n", PGUID(wr->e.guid), cnt);
   }
   os_mutexUnlock (&wr->e.lock);
-  wr->whc->ops->free_deferred_free_list (wr->whc, deferred_free_list);
+  whc_free_deferred_free_list (wr->whc, deferred_free_list);
 }
 
 uint64_t writer_instance_id (const struct nn_guid *guid)
@@ -4316,7 +4316,7 @@ static void proxy_reader_set_delete_and_ack_all_messages (struct proxy_reader *p
         writer_clear_retransmitting (wr);
       }
       os_mutexUnlock (&wr->e.lock);
-      wr->whc->ops->free_deferred_free_list (wr->whc, deferred_free_list);
+      whc_free_deferred_free_list (wr->whc, deferred_free_list);
     }
 
     wrguid = wrguid_next;

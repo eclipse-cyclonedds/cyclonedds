@@ -188,7 +188,7 @@ static int print_participants (struct thread_state1 *self, ddsi_tran_conn_t conn
           continue;
         os_mutexLock (&w->e.lock);
         print_endpoint_common (conn, "wr", &w->e, &w->c, w->xqos, w->topic);
-        w->whc->ops->get_state(w->whc, &whcst);
+        whc_get_state(w->whc, &whcst);
         x += cpf (conn, "    whc [%lld,%lld] unacked %"PRIuSIZE"%s [%u,%u] seq %lld seq_xmit %lld cs_seq %lld\n",
                   whcst.min_seq, whcst.max_seq, whcst.unacked_bytes,
                   w->throttling ? " THROTTLING" : "",

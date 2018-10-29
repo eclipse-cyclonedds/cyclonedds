@@ -54,6 +54,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_time.c
     q_transmit.c
     q_inverse_uint32_set.c
+    q_whc.c
     q_xevent.c
     q_xmsg.c
     q_freelist.c

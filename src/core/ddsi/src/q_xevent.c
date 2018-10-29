@@ -607,7 +607,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
 
   assert (wr->reliable);
   os_mutexLock (&wr->e.lock);
-  wr->whc->ops->get_state(wr->whc, &whcst);
+  whc_get_state(wr->whc, &whcst);
   if (!writer_must_have_hb_scheduled (wr, &whcst))
   {
     hbansreq = 1; /* just for trace */
@@ -1023,7 +1023,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   nn_xmsg_free (mpayload);
 
   os_mutexLock (&spdp_wr->e.lock);
-  if (spdp_wr->whc->ops->borrow_sample_key (spdp_wr->whc, sd, &sample))
+  if (whc_borrow_sample_key (spdp_wr->whc, sd, &sample))
   {
     /* Claiming it is new rather than a retransmit so that the rexmit
        limiting won't kick in.  It is best-effort and therefore the
@@ -1031,7 +1031,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
        place anyway.  Nor is it necessary to fiddle with heartbeat
        control stuff. */
     enqueue_sample_wrlock_held (spdp_wr, sample.seq, sample.plist, sample.serdata, prd, 1);
-    spdp_wr->whc->ops->return_sample(spdp_wr->whc, &sample, false);
+    whc_return_sample(spdp_wr->whc, &sample, false);
 #ifndef NDEBUG
     sample_found = true;
 #endif

@@ -884,7 +884,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
 
   if (!do_insert)
     res = 0;
-  else if ((insres = wr->whc->ops->insert (wr->whc, writer_max_drop_seq (wr), seq, plist, serdata, tk)) < 0)
+  else if ((insres = whc_insert (wr->whc, writer_max_drop_seq (wr), seq, plist, serdata, tk)) < 0)
     res = insres;
   else
     res = 1;
@@ -893,7 +893,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
   if (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
   {
     struct whc_state whcst;
-    wr->whc->ops->get_state(wr->whc, &whcst);
+    whc_get_state(wr->whc, &whcst);
     if (WHCST_ISEMPTY(&whcst))
       assert (wr->c.pp->builtins_deleted);
   }
@@ -947,7 +947,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
   nn_mtime_t tnow = now_mt ();
   const nn_mtime_t abstimeout = add_duration_to_mtime (tnow, nn_from_ddsi_duration (wr->xqos->reliability.max_blocking_time));
   struct whc_state whcst;
-  wr->whc->ops->get_state(wr->whc, &whcst);
+  whc_get_state(wr->whc, &whcst);
 
   {
 #ifndef NDEBUG
@@ -992,7 +992,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
       thread_state_asleep (lookup_thread_state());
       result = os_condTimedWait (&wr->throttle_cond, &wr->e.lock, &timeout);
       thread_state_awake (lookup_thread_state());
-      wr->whc->ops->get_state(wr->whc, &whcst);
+      whc_get_state(wr->whc, &whcst);
     }
     if (result == os_resultTimeout)
     {
@@ -1064,7 +1064,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
   /* If WHC overfull, block. */
   {
     struct whc_state whcst;
-    wr->whc->ops->get_state(wr->whc, &whcst);
+    whc_get_state(wr->whc, &whcst);
     if (whcst.unacked_bytes > wr->whc_high)
     {
       os_result ores;
@@ -1119,7 +1119,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
   {
     struct whc_state whcst;
     if (wr->heartbeat_xevent)
-      wr->whc->ops->get_state(wr->whc, &whcst);
+      whc_get_state(wr->whc, &whcst);
 
     /* Note the subtlety of enqueueing with the lock held but
        transmitting without holding the lock. Still working on
