@@ -269,7 +269,7 @@ function(add_cunit_executable TARGET)
         if(APPLE)
           set_property(
             TEST ${ctest}
-            PROPERTIES ENVIRONMENT
+            PROPERTY ENVIRONMENT
               "DYLD_LIBRARY_PATH=${CUNIT_LIBRARY_DIR}:$ENV{DYLD_LIBRARY_PATH}")
         elseif(WIN32 AND ${CUNIT_LIBRARY_TYPE} STREQUAL "SHARED_LIBRARY")
           set_property(
