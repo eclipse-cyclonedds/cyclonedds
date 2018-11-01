@@ -13,15 +13,15 @@
 #include <stdint.h>
 
 #include "os/os.h"
-#include "CUnit/Runner.h"
+#include "CUnit/Test.h"
 
-CUnit_Suite_Initialize(os_thread_cleanup)
+CU_Init(os_thread_cleanup)
 {
     os_osInit();
     return 0;
 }
 
-CUnit_Suite_Cleanup(os_thread_cleanup)
+CU_Clean(os_thread_cleanup)
 {
     os_osExit();
     return 0;
@@ -137,7 +137,7 @@ setup(
 }
 
 /* verify the cleanup routine is called */
-CUnit_Test(os_thread_cleanup, push_one)
+CU_Test(os_thread_cleanup, push_one)
 {
     int flags = THREAD_RESET_1;
     struct thread_argument *targ = make_thread_argument(flags, 0, 1, 2);
@@ -152,7 +152,7 @@ CUnit_Test(os_thread_cleanup, push_one)
 }
 
 /* verify all cleanup routines are called if multiple are registered */
-CUnit_Test(os_thread_cleanup, push_two)
+CU_Test(os_thread_cleanup, push_two)
 {
     int flags = THREAD_RESET_1 | THREAD_RESET_2;
     struct thread_argument *targ = make_thread_argument(flags, 0, 1, 2);
@@ -167,7 +167,7 @@ CUnit_Test(os_thread_cleanup, push_two)
 }
 
 /* verify the first cleanup routine is still called if second got popped */
-CUnit_Test(os_thread_cleanup, push_two_pop_one_no_exec)
+CU_Test(os_thread_cleanup, push_two_pop_one_no_exec)
 {
     int flags = THREAD_RESET_1 | THREAD_RESET_2;
     struct thread_argument *targ = make_thread_argument(flags, 1, 1, 2);
@@ -181,7 +181,7 @@ CUnit_Test(os_thread_cleanup, push_two_pop_one_no_exec)
     free(targ);
 }
 
-CUnit_Test(os_thread_cleanup, push_two_pop_one_exec)
+CU_Test(os_thread_cleanup, push_two_pop_one_exec)
 {
     int flags = THREAD_RESET_1 | THREAD_RESET_2 | THREAD_RUN_1;
     struct thread_argument *targ = make_thread_argument(flags, 1, 1, 2);
@@ -196,7 +196,7 @@ CUnit_Test(os_thread_cleanup, push_two_pop_one_exec)
 }
 
 /* verify no cleanup routines are called if all got popped */
-CUnit_Test(os_thread_cleanup, push_two_pop_two_no_exec)
+CU_Test(os_thread_cleanup, push_two_pop_two_no_exec)
 {
     int flags = THREAD_RESET_1 | THREAD_RESET_2;
     struct thread_argument *targ = make_thread_argument(flags, 2, 1, 2);
@@ -210,7 +210,7 @@ CUnit_Test(os_thread_cleanup, push_two_pop_two_no_exec)
     free(targ);
 }
 
-CUnit_Test(os_thread_cleanup, push_two_pop_two_exec_one)
+CU_Test(os_thread_cleanup, push_two_pop_two_exec_one)
 {
     int flags = THREAD_RESET_1 | THREAD_RESET_2 | THREAD_RUN_1;
     struct thread_argument *targ = make_thread_argument(flags, 2, 1, 2);
@@ -224,7 +224,7 @@ CUnit_Test(os_thread_cleanup, push_two_pop_two_exec_one)
     free(targ);
 }
 
-CUnit_Test(os_thread_cleanup, push_two_pop_two_exec_both)
+CU_Test(os_thread_cleanup, push_two_pop_two_exec_both)
 {
     int flags = THREAD_RESET_1 | THREAD_RESET_2 | THREAD_RUN_1 | THREAD_RUN_2;
     struct thread_argument *targ = make_thread_argument(flags, 2, 1, 2);
@@ -238,7 +238,7 @@ CUnit_Test(os_thread_cleanup, push_two_pop_two_exec_both)
     free(targ);
 }
 
-CUnit_Test(os_thread_cleanup, no_interference)
+CU_Test(os_thread_cleanup, no_interference)
 {
     int flags = THREAD_RESET_1 | THREAD_RESET_2;
     struct thread_argument *targ1 = make_thread_argument(flags, 0, 1, 2);

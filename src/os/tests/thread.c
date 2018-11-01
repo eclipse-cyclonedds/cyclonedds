@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Runner.h"
+#include "CUnit/Test.h"
 #include "os/os.h"
 #include "assert.h"
 
@@ -107,7 +107,7 @@ uint32_t threadMemory_thread (_In_opt_ void *args)
     return 0;
 }
 
-CUnit_Suite_Initialize(os_thread)
+CU_Init(os_thread)
 {
     int result = 0;
     os_osInit();
@@ -116,7 +116,7 @@ CUnit_Suite_Initialize(os_thread)
     return result;
 }
 
-CUnit_Suite_Cleanup(os_thread)
+CU_Clean(os_thread)
 {
     int result = 0;
 
@@ -125,7 +125,7 @@ CUnit_Suite_Cleanup(os_thread)
     return result;
 }
 
-CUnit_Test(os_thread, create)
+CU_Test(os_thread, create)
 {
     int result;
     os_result osResult;
@@ -452,7 +452,7 @@ CUnit_Test(os_thread, create)
     printf ("Ending os_thread_create\n");
 }
 
-CUnit_Test(os_thread, idself)
+CU_Test(os_thread, idself)
 {
     os_threadId   thread_os_threadId;
     os_threadAttr thread_os_threadAttr;
@@ -486,7 +486,7 @@ CUnit_Test(os_thread, idself)
     printf ("Ending tc_threadIdSelf\n");
 }
 
-CUnit_Test(os_thread, join)
+CU_Test(os_thread, join)
 {
     os_threadId   thread_os_threadId;
     os_threadAttr thread_os_threadAttr;
@@ -612,7 +612,7 @@ CUnit_Test(os_thread, join)
     printf ("Ending tc_threadWaitExit\n");
 }
 
-CUnit_Test(os_thread, figure_identity)
+CU_Test(os_thread, figure_identity)
 {
 #if !defined(_WIN32)
     os_threadId thread_os_threadId;
@@ -718,7 +718,7 @@ CUnit_Test(os_thread, figure_identity)
    printf ("Ending os_thread_figure_identity\n");
 }
 
-CUnit_Test(os_thread, attr_init)
+CU_Test(os_thread, attr_init)
 {
     os_threadAttr thread_os_threadAttr;
     /* Check default attributes: schedClass */
@@ -744,7 +744,7 @@ CUnit_Test(os_thread, attr_init)
     printf ("Ending os_thread_attr_init\n");
 }
 
-CUnit_Test(os_thread, memmalloc)
+CU_Test(os_thread, memmalloc)
 {
     /* Check os_threadMemMalloc with success result for main thread */
     printf ("Starting os_thread_memmalloc_001\n");
@@ -772,7 +772,7 @@ CUnit_Test(os_thread, memmalloc)
     printf ("Ending tc_thread_memmalloc\n");
 }
 
-CUnit_Test(os_thread, memget)
+CU_Test(os_thread, memget)
 {
     /* Check os_threadMemGet for main thread and non allocated index */
     printf ("Starting os_thread_memget_001\n");
@@ -793,7 +793,7 @@ CUnit_Test(os_thread, memget)
     printf ("Ending tc_thread_memget\n");
 }
 
-CUnit_Test(os_thread, memfree)
+CU_Test(os_thread, memfree)
 {
     /* Check os_threadMemFree for main thread and non allocated index */
     printf ("Starting os_thread_memfree_001\n");
@@ -814,7 +814,7 @@ CUnit_Test(os_thread, memfree)
     printf ("Ending os_thread_memfree\n");
 }
 
-CUnit_Test(os_thread, module)
+CU_Test(os_thread, module)
 {
     os_threadId tid;
     os_threadAttr tattr;

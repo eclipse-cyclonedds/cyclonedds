@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Runner.h"
+#include "CUnit/Test.h"
 #include "os/os.h"
 #include "assert.h"
 
@@ -19,7 +19,7 @@ static int32_t three = 3;
 static int32_t four = 4;
 static int32_t five = 5;
 
-CUnit_Test(os_iter, create)
+CU_Test(os_iter, create)
 {
     os_iter *iter;
 
@@ -31,7 +31,7 @@ CUnit_Test(os_iter, create)
     os_iterFree(iter, NULL);
 }
 
-CUnit_Test(os_iter, prepend)
+CU_Test(os_iter, prepend)
 {
     os_iter *iter;
     int32_t idx;
@@ -51,7 +51,7 @@ CUnit_Test(os_iter, prepend)
     os_iterFree(iter, NULL);
 }
 
-CUnit_Test(os_iter, append)
+CU_Test(os_iter, append)
 {
     os_iter *iter;
     int32_t idx;
@@ -71,7 +71,7 @@ CUnit_Test(os_iter, append)
     os_iterFree(iter, NULL);
 }
 
-CUnit_Test(os_iter, insert)
+CU_Test(os_iter, insert)
 {
     os_iter *iter;
     int32_t idx;
@@ -104,7 +104,7 @@ iter_free_callback(
     (*(int32_t *)ptr)++;
 }
 
-CUnit_Test(os_iter, free)
+CU_Test(os_iter, free)
 {
     os_iter *iter;
     int32_t cnt = 0;
@@ -126,7 +126,7 @@ iter_walk_callback(
     (*(int32_t *)arg)++;
 }
 
-CUnit_Test(os_iter, walk)
+CU_Test(os_iter, walk)
 {
     os_iter *iter;
     int32_t cnt = 0;
@@ -166,7 +166,7 @@ iter_new(
     return iter;
 }
 
-CUnit_Test(os_iter, object_indices)
+CU_Test(os_iter, object_indices)
 {
     os_iter *iter;
     int32_t *num;
@@ -198,7 +198,7 @@ CUnit_Test(os_iter, object_indices)
     os_iterFree(iter, NULL);
 }
 
-CUnit_Test(os_iter, take_indices)
+CU_Test(os_iter, take_indices)
 {
     os_iter *iter;
     int32_t *num, cnt = 0;
