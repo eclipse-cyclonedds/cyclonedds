@@ -24,11 +24,14 @@
 
 #include <assert.h>
 
-#if defined(_WIN32_WINNT) && _WIN32_WINNT > 0x0603
-#define UseGetSystemTimePreciseAsFileTime
+/* GetSystemTimePreciseAsFileTime was introduced with Windows 8, so
+   starting from _WIN32_WINNET = 0x0602.  When building for an older
+   version we can still check dynamically. */
 
-/* GetSystemTimeAsFileTimeFunc is set when available (on Windows 8 and later). */
-static VOID (WINAPI *GetSystemTimePreciseAsFileTimeFunc) (_Out_ LPFILTETIME);
+#if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0602
+#define UseGetSystemTimePreciseAsFileTime
+#else
+static VOID (WINAPI *GetSystemTimeAsFileTimeFunc) (_Out_ LPFILTETIME) = GetSystemTimeAsFileTime;
 static HANDLE Kernel32ModuleHandle;
 #endif
 
@@ -60,13 +63,9 @@ os__timeDefaultTimeGet(void)
      * GetSystemTimeAdjustment. See for example OSPL-4394.
      */
 #ifdef UseGetSystemTimePreciseAsFileTime
-	if (GetSystemTimePreciseAsFileTimeFunc) {
-		GetSystemTimePreciseAsFileTimeFunc(&ft);
-	} else {
-		GetSystemTimeAsFileTime(&ft);
-	}
+    GetSystemTimePreciseAsFileTime(&ft);
 #else
-	GetSystemTimeAsFileTime(&ft);
+    GetSystemTimeAsFileTimeFunc(&ft);
 #endif
     ns100.LowPart = ft.dwLowDateTime;
     ns100.HighPart = ft.dwHighDateTime;
@@ -79,8 +78,9 @@ os__timeDefaultTimeGet(void)
 void
 os_timeModuleInit(void)
 {
-#ifdef UseGetSystemTimePreciseAsFileTime
+#ifndef UseGetSystemTimePreciseAsFileTime
     /* Resolve the time-functions from the Kernel32-library. */
+    VOID (WINAPI *f) (_Out_ LPFILTETIME);
 
     /* This os_timeModuleInit is currently called from DllMain. This means
      * we're not allowed to do LoadLibrary. One exception is "Kernel32.DLL",
@@ -90,16 +90,19 @@ os_timeModuleInit(void)
     Kernel32ModuleHandle = LoadLibrary("Kernel32.DLL");
     assert(Kernel32ModuleHandle);
 
-    GetSystemTimePreciseAsFileTimeFunc = GetProcAddress(Kernel32ModuleHandle, "GetSystemTimePreciseAsFileTime");
+    f = GetProcAddress(Kernel32ModuleHandle, "GetSystemTimePreciseAsFileTime");
+    if (f != 0) {
+        GetSystemTimeAsFileTimeFunc = f;
+    }
 #endif
 }
 
 void
 os_timeModuleExit(void)
 {
-#ifdef UseGetSystemTimePreciseAsFileTime
+#ifndef UseGetSystemTimePreciseAsFileTime
     if (Kernel32ModuleHandle) {
-        GetSystemTimePreciseAsFileTimeFunc = NULL;
+        GetSystemTimeAsFileTimeFunc = GetSystemTimeAsFileTime;
         FreeLibrary(Kernel32ModuleHandle);
         Kernel32ModuleHandle = NULL;
     }
