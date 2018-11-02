@@ -46,7 +46,7 @@ extern "C" {
   static void CU_TestName(suite, test) signature;                         \
                                                                           \
   void CU_TestProxyName(suite, test)(void) {                              \
-    static const cu_test_data_t data = { __VA_ARGS__ };                   \
+    cu_data_t data = CU_Fixture(__VA_ARGS__);                             \
     size_t i, n;                                                          \
                                                                           \
     if (data.init != NULL) {                                              \
