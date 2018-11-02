@@ -224,6 +224,16 @@ function(add_cunit_executable TARGET)
           PROPERTY COMPILE_DEFINITIONS CU_THEORY_INCLUDE_FILE=\"${header}\")
       endif()
 
+      # Disable missing-field-initializers warnings as not having to specify
+      # every member, aka fixture, is intended behavior.
+      if(${CMAKE_C_COMPILER_ID} STREQUAL "Clang" OR
+         ${CMAKE_C_COMPILER_ID} STREQUAL "AppleClang" OR
+         ${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
+        set_property(
+          SOURCE "${source}"
+          PROPERTY COMPILE_FLAGS -Wno-missing-field-initializers)
+      endif()
+
       foreach(suite ${suites})
         string(REPLACE ":" ";" suite ${suite})
         list(GET suite 2 clean)
