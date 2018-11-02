@@ -185,7 +185,7 @@ int main(int argc, char *argv[])
 
     if ((err = parse_options(argc, argv)) != CUE_SUCCESS) {
         usage(argv[0]);
-        return err;
+        return (int)err;
     } else if (opts.print_help) {
         help(argv[0]);
         return CUE_SUCCESS;
@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
 
     if ((err = CU_initialize_registry()) != CUE_SUCCESS) {
       fprintf(stderr, "CU_initialize_registry: %s\n", CU_get_error_msg());
-      return err;
+      return (int)err;
     }
 
 /* CMake will expand the macro below to register all suites and tests. */
@@ -227,6 +227,6 @@ int main(int argc, char *argv[])
 
     CU_cleanup_registry();
 
-    return err;
+    return (int)err;
 }
 
