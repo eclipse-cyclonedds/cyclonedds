@@ -857,6 +857,7 @@ static void ddsi_tcp_base_init (struct ddsi_tran_conn * base)
   base->m_read_fn = ddsi_tcp_conn_read;
   base->m_write_fn = ddsi_tcp_conn_write;
   base->m_peer_locator_fn = ddsi_tcp_conn_peer_locator;
+  base->m_disable_multiplexing_fn = 0;
 }
 
 static ddsi_tcp_conn_t ddsi_tcp_new_conn (os_socket sock, bool server, os_sockaddr * peer)

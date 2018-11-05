@@ -170,6 +170,13 @@ ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t 
   return ret;
 }
 
+void ddsi_conn_disable_multiplexing (ddsi_tran_conn_t conn)
+{
+  if (conn->m_disable_multiplexing_fn) {
+    (conn->m_disable_multiplexing_fn) (conn);
+  }
+}
+
 bool ddsi_conn_peer_locator (ddsi_tran_conn_t conn, nn_locator_t * loc)
 {
   if (conn->m_peer_locator_fn)

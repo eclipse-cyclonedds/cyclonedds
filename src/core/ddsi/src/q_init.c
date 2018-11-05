@@ -777,6 +777,7 @@ static int setup_and_start_recv_threads (void)
       gv.recv_threads[gv.n_recv_threads].arg.mode = RTM_SINGLE;
       gv.recv_threads[gv.n_recv_threads].arg.u.single.conn = gv.data_conn_mc;
       gv.recv_threads[gv.n_recv_threads].arg.u.single.loc = &gv.loc_default_mc;
+      ddsi_conn_disable_multiplexing (gv.data_conn_mc);
       gv.n_recv_threads++;
     }
     if (config.many_sockets_mode == MSM_SINGLE_UNICAST)
@@ -786,6 +787,7 @@ static int setup_and_start_recv_threads (void)
       gv.recv_threads[gv.n_recv_threads].arg.mode = RTM_SINGLE;
       gv.recv_threads[gv.n_recv_threads].arg.u.single.conn = gv.data_conn_uc;
       gv.recv_threads[gv.n_recv_threads].arg.u.single.loc = &gv.loc_default_uc;
+      ddsi_conn_disable_multiplexing (gv.data_conn_uc);
       gv.n_recv_threads++;
     }
   }
