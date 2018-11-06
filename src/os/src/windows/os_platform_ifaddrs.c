@@ -112,24 +112,27 @@ getflags(const PIP_ADAPTER_ADDRESSES iface)
     if (iface->OperStatus == IfOperStatusUp) {
         flags |= IFF_UP;
     }
-    if (iface->IfType == IF_TYPE_SOFTWARE_LOOPBACK) {
-        flags |= IFF_LOOPBACK;
-    }
-    if (!(iface->Flags & IP_ADAPTER_NO_MULTICAST)) {
+    if (!(iface->Flags & IP_ADAPTER_NO_MULTICAST) && iface->IfType != IF_TYPE_SOFTWARE_LOOPBACK) {
+        /* multicast over loopback doesn't seem to work despite the NO_MULTICAST flag being clear
+           assuming an interface is multicast-capable when in fact it isn't is disastrous, so it
+           makes more sense to err by assuming it won't work as there is always the
+           AssumeMulticastCapable setting to overrule it */
         flags |= IFF_MULTICAST;
     }
 
-    /* FIXME: Shouldn't IFF_LOOPBACK be included here? */
     switch (iface->IfType) {
-      case IF_TYPE_ETHERNET_CSMACD:
-      case IF_TYPE_IEEE80211:
-      case IF_TYPE_IEEE1394:
-      case IF_TYPE_ISO88025_TOKENRING:
-          flags |= IFF_BROADCAST;
-          break;
-      default:
-          flags |= IFF_POINTTOPOINT;
-          break;
+        case IF_TYPE_SOFTWARE_LOOPBACK:
+            flags |= IFF_LOOPBACK;
+            break;
+        case IF_TYPE_ETHERNET_CSMACD:
+        case IF_TYPE_IEEE80211:
+        case IF_TYPE_IEEE1394:
+        case IF_TYPE_ISO88025_TOKENRING:
+            flags |= IFF_BROADCAST;
+            break;
+        default:
+            flags |= IFF_POINTTOPOINT;
+            break;
     }
 
     return flags;
