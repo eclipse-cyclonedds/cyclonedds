@@ -175,6 +175,18 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
   return ret;
 }
 
+static void ddsi_udp_disable_multiplexing (ddsi_tran_conn_t base)
+{
+#if defined _WIN32 && !defined WINCE
+  ddsi_udp_conn_t uc = (ddsi_udp_conn_t) base;
+  uint32_t zero = 0, dummy;
+  WSAEventSelect(uc->m_sock, 0, 0);
+  WSAIoctl(uc->m_sock, FIONBIO, &zero,sizeof(zero), NULL,0, &dummy, NULL,NULL);
+#else
+  (void)base;
+#endif
+}
+
 static os_handle ddsi_udp_conn_handle (ddsi_tran_base_t base)
 {
   return ((ddsi_udp_conn_t) base)->m_sock;
@@ -257,6 +269,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
 
     uc->m_base.m_read_fn = ddsi_udp_conn_read;
     uc->m_base.m_write_fn = ddsi_udp_conn_write;
+    uc->m_base.m_disable_multiplexing_fn = ddsi_udp_disable_multiplexing;
 
     nn_log
     (

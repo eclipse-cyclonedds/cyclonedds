@@ -240,6 +240,7 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (uint32_t port, ddsi_tran_qos_t 
   uc->m_base.m_base.m_locator_fn = ddsi_raweth_conn_locator;
   uc->m_base.m_read_fn = ddsi_raweth_conn_read;
   uc->m_base.m_write_fn = ddsi_raweth_conn_write;
+  uc->m_base.m_disable_multiplexing_fn = 0;
 
   nn_log(LC_INFO, "ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sock, uc->m_base.m_base.m_port);
   return uc ? &uc->m_base : NULL;
