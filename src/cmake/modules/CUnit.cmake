@@ -20,9 +20,8 @@ function(get_cunit_header_file SOURCE_FILE HEADER_FILE)
   # located in the same relative directory, using the basename of the source
   # file postfixed with .h. e.g. <project>/foo/bar.h would be converted to
   # <project>/build/foo/bar.h.
-  if(IS_ABSOLUTE "${SOURCE_FILE}")
-    file(RELATIVE_PATH SOURCE_FILE "${PROJECT_SOURCE_DIR}" "${SOURCE_FILE}")
-  endif()
+  get_filename_component(SOURCE_FILE "${SOURCE_FILE}" ABSOLUTE)
+  file(RELATIVE_PATH SOURCE_FILE "${PROJECT_SOURCE_DIR}" "${SOURCE_FILE}")
   get_filename_component(basename "${SOURCE_FILE}" NAME_WE)
   get_filename_component(dir "${SOURCE_FILE}" DIRECTORY)
   set(${HEADER_FILE} "${CMAKE_BINARY_DIR}/${dir}/${basename}.h" PARENT_SCOPE)
