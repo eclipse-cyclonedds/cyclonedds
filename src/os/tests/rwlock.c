@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Runner.h"
+#include "CUnit/Test.h"
 #include "os/os.h"
 
 #ifdef __VXWORKS__
@@ -256,7 +256,7 @@ uint32_t concurrent_tryread_thread (_In_ void *arg)
     return 0;
 }
 
-CUnit_Suite_Initialize(os_rwlock)
+CU_Init(os_rwlock)
 {
     int result = 0;
     os_osInit();
@@ -270,7 +270,7 @@ CUnit_Suite_Initialize(os_rwlock)
     return result;
 }
 
-CUnit_Suite_Cleanup(os_rwlock)
+CU_Clean(os_rwlock)
 {
     int result = 0;
 
@@ -279,7 +279,7 @@ CUnit_Suite_Cleanup(os_rwlock)
     return result;
 }
 
-CUnit_Test(os_rwlock, init)
+CU_Test(os_rwlock, init)
 {
     /* Initilalize reader/writer lock with PRIVATE scope and Success result */
     printf ("Starting os_rwlock_init_001\n");
@@ -292,7 +292,7 @@ CUnit_Test(os_rwlock, init)
     printf ("Ending os_rwlock_init\n");
 }
 
-CUnit_Test(os_rwlock, read, false)
+CU_Test(os_rwlock, read, false)
 {
     os_time rdelay = { 3, 0 };
     struct Par par[RWLOCK_THREADS];
@@ -438,7 +438,7 @@ CUnit_Test(os_rwlock, read, false)
     printf ("Ending os_rwlock_read\n");
 }
 
-CUnit_Test(os_rwlock, write, false)
+CU_Test(os_rwlock, write, false)
 {
     /* Test critical section WRITE access with locking and PRIVATE scope */
     printf ("Starting os_rwlock_write_001\n");
@@ -458,7 +458,7 @@ CUnit_Test(os_rwlock, write, false)
     printf ("Ending tc_rwlockWrite\n");
 }
 
-CUnit_Test(rwlock, tryread, false)
+CU_Test(rwlock, tryread, false)
 {
     os_result result;
     /* Test critical section READ access with trylocking and PRIVATE scope */
@@ -488,7 +488,7 @@ CUnit_Test(rwlock, tryread, false)
     printf ("Ending os_rwlock_tryread\n");
 }
 
-CUnit_Test(os_rwlock, trywrite, false)
+CU_Test(os_rwlock, trywrite, false)
 {
     os_result result;
     /* Test critical section WRITE access with trylocking and PRIVATE scope */
@@ -518,7 +518,7 @@ CUnit_Test(os_rwlock, trywrite, false)
     printf ("Ending os_rwlock_trywrite\n");
 }
 
-CUnit_Test(os_rwlock, unlock, false)
+CU_Test(os_rwlock, unlock, false)
 {
     os_result result;
     /* Unlock rwlock with PRIVATE scope and Success result and claimed with read */
@@ -550,7 +550,7 @@ CUnit_Test(os_rwlock, unlock, false)
     printf ("Ending tc_rwlockUnlock\n");
 }
 
-CUnit_Test(os_rwlock, destroy, false)
+CU_Test(os_rwlock, destroy, false)
 {
     /* Deinitialize rwlock with PRIVATE scope and Success result */
     printf ("Starting os_rwlock_destroy_001\n");
@@ -563,7 +563,7 @@ CUnit_Test(os_rwlock, destroy, false)
     printf ("Ending tc_rwlockDestroy\n");
 }
 
-CUnit_Test(os_rwlock, destroy_shared)
+CU_Test(os_rwlock, destroy_shared)
 {
     os_rwlock mylock;
 

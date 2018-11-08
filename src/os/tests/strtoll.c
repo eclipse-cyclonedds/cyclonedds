@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Runner.h"
+#include "CUnit/Test.h"
 #include "os/os.h"
 
 long long ll;
@@ -31,7 +31,7 @@ long long llmin = OS_MIN_INTEGER(long long);
 long long llmax = OS_MAX_INTEGER(long long);
 unsigned long long ullmax = OS_MAX_INTEGER(unsigned long long);
 
-CUnit_Suite_Initialize(os_str_convert)
+CU_Init(os_str_convert)
 {
     int result = 0;
     os_osInit();
@@ -48,7 +48,7 @@ CUnit_Suite_Initialize(os_str_convert)
     return result;
 }
 
-CUnit_Suite_Cleanup(os_str_convert)
+CU_Clean(os_str_convert)
 {
     int result = 0;
 
@@ -57,7 +57,7 @@ CUnit_Suite_Cleanup(os_str_convert)
     return result;
 }
 
-CUnit_Test(os_str_convert, strtoll)
+CU_Test(os_str_convert, strtoll)
 {
     printf ("Starting os_strtoll_001a\n");
     str = "gibberish";
@@ -223,7 +223,7 @@ CUnit_Test(os_str_convert, strtoll)
     printf ("Ending os_strtoll\n");
 }
 
-CUnit_Test(os_str_convert, strtoull)
+CU_Test(os_str_convert, strtoull)
 {
     printf ("Starting os_strtoull_001a\n");
     str = "0xffffffffffffffff";
@@ -243,7 +243,7 @@ CUnit_Test(os_str_convert, strtoull)
     printf ("Ending os_strtoull\n");
 }
 
-CUnit_Test(os_str_convert, atoll)
+CU_Test(os_str_convert, atoll)
 {
     printf ("Starting os_atoll_001\n");
     str = "10";
@@ -253,7 +253,7 @@ CUnit_Test(os_str_convert, atoll)
     printf ("Ending os_atoll\n");
 }
 
-CUnit_Test(os_str_convert, atoull)
+CU_Test(os_str_convert, atoull)
 {
     printf ("Starting os_atoull_001\n");
     str = "10";
@@ -263,7 +263,7 @@ CUnit_Test(os_str_convert, atoull)
     printf ("Ending tc_os_atoull\n");
 }
 
-CUnit_Test(os_str_convert, lltostr)
+CU_Test(os_str_convert, lltostr)
 {
     printf ("Starting os_lltostr_001\n");
     ll = llmax;
@@ -304,7 +304,7 @@ CUnit_Test(os_str_convert, lltostr)
     printf ("Ending os_lltostr\n");
 }
 
-CUnit_Test(os_str_convert, ulltostr)
+CU_Test(os_str_convert, ulltostr)
 {
     printf ("Starting os_ulltostr_001\n");
     ull = ullmax;

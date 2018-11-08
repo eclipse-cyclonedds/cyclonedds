@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Runner.h"
+#include "CUnit/Test.h"
 #include "os/os.h"
 
 #ifndef WINCE
@@ -283,14 +283,14 @@ vsnprintfTest(
     return result;
 }
 
-CUnit_Suite_Initialize(os_stdlib)
+CU_Init(os_stdlib)
 {
     int result = 0;
     os_osInit();
     return result;
 }
 
-CUnit_Suite_Cleanup(os_stdlib)
+CU_Clean(os_stdlib)
 {
   /* Remove files used to test permissions */
   remove ("exec_only");
@@ -303,119 +303,7 @@ CUnit_Suite_Cleanup(os_stdlib)
   return 0;
 }
 
-CUnit_Test(os_stdlib, strcasecmp)
-{
-    int res;
-    char *s1, *s2;
-
-    s1 = "a";
-    s2 = "a";
-    printf ("Starting os_stdlib_strcasecmp_001\n");
-    res = os_strcasecmp (s1,s2);
-    CU_ASSERT (res == 0);
-
-    printf ("Starting os_stdlib_strcasecmp_002\n");
-    s1 = "aa";
-    s2 = "a";
-    res = os_strcasecmp (s1,s2);
-    CU_ASSERT (res > 0);
-
-    printf ("Starting os_stdlib_strcasecmp_003\n");
-    s1 = "a";
-    s2 = "aa";
-    res = os_strcasecmp (s1,s2);
-    CU_ASSERT (res < 0);
-
-    printf ("Starting os_stdlib_strcasecmp_004\n");
-    s1 = "a";
-    s2 = "A";
-    res = os_strcasecmp (s1,s2);
-    CU_ASSERT (res == 0);
-
-    printf ("Starting os_stdlib_strcasecmp_005\n");
-    s1 = "A";
-    s2 = "a";
-    res = os_strcasecmp (s1,s2);
-    CU_ASSERT (res == 0);
-
-    printf ("Starting os_stdlib_strcasecmp_006\n");
-    s1 = "a";
-    s2 = "b";
-    res = os_strcasecmp (s1,s2);
-    CU_ASSERT (res < 0);
-
-    printf ("Starting os_stdlib_strcasecmp_007\n");
-    s1 = "b";
-    s2 = "a";
-    res = os_strcasecmp (s1,s2);
-    CU_ASSERT (res > 0);
-
-    printf ("Ending os_stdlib_strcasecmp\n");
-}
-
-CUnit_Test(os_stdlib, strncasecmp)
-{
-    int res;
-    char *s1, *s2;
-
-    s1 = "a";
-    s2 = "a";
-    printf ("Starting os_stdlib_strncasecmp_001\n");
-    res = os_strncasecmp (s1,s2,2);
-    CU_ASSERT (res == 0);
-
-    s1 = "aa";
-    s2 = "a";
-    printf ("Starting os_stdlib_strncasecmp_002\n");
-    res = os_strncasecmp (s1,s2,2);
-    CU_ASSERT (res > 0);
-
-    s1 = "a";
-    s2 = "aa";
-    printf ("Starting os_stdlib_strncasecmp_003\n");
-    res = os_strncasecmp (s1,s2,2);
-    CU_ASSERT (res < 0);
-
-    s1 = "a";
-    s2 = "A";
-    printf ("Starting os_stdlib_strncasecmp_004\n");
-    res = os_strncasecmp (s1,s2,2);
-    CU_ASSERT (res == 0);
-
-    s1 = "A";
-    s2 = "a";
-    printf ("Starting os_stdlib_strncasecmp_005\n");
-    res = os_strncasecmp (s1,s2,2);
-    CU_ASSERT (res == 0);
-
-    s1 = "a";
-    s2 = "b";
-    printf ("Starting os_stdlib_strncasecmp_006\n");
-    res = os_strncasecmp (s1,s2,2);
-    CU_ASSERT (res < 0);
-
-    s1 = "b";
-    s2 = "a";
-    printf ("Starting os_stdlib_strncasecmp_007\n");
-    res = os_strncasecmp (s1,s2,2);
-    CU_ASSERT (res > 0);
-
-    s1 = "abcdefghijkl";
-    s2 = "AbCdEaGhIjKl";
-    printf ("Starting os_stdlib_strncasecmp_008\n");
-    res = os_strncasecmp (s1,s2,5);
-    CU_ASSERT (res == 0);
-
-    s1 = "abcdefghijkl";
-    s2 = "AbCdEaGhIjKl";
-    printf ("Starting os_stdlib_strncasecmp_009\n");
-    res = os_strncasecmp (s1,s2,6);
-    CU_ASSERT (res > 0);
-
-    printf ("Ending os_stdlib_strncasecmp\n");
-}
-
-CUnit_Test(os_stdlib, gethostname)
+CU_Test(os_stdlib, gethostname)
 {
     int res;
     os_result os_res;
@@ -437,7 +325,7 @@ CUnit_Test(os_stdlib, gethostname)
     printf ("Ending os_stdlib_gethostname\n");
 }
 
-CUnit_Test(os_stdlib, putenv)
+CU_Test(os_stdlib, putenv)
 {
     os_result os_res;
 
@@ -448,7 +336,7 @@ CUnit_Test(os_stdlib, putenv)
     printf ("Ending os_stdlib_putenv\n");
 }
 
-CUnit_Test(os_stdlib, getenv)
+CU_Test(os_stdlib, getenv)
 {
     const char *env;
     os_result res;
@@ -468,7 +356,7 @@ CUnit_Test(os_stdlib, getenv)
     printf ("Ending os_stdlib_getenv\n");
 }
 
-CUnit_Test(os_stdlib, fileSep)
+CU_Test(os_stdlib, fileSep)
 {
   #if defined WIN32
     const char *wanted= "\\";
@@ -480,7 +368,7 @@ CUnit_Test(os_stdlib, fileSep)
     printf ("Ending os_stdlib_fileSep\n");
 }
 
-CUnit_Test(os_stdlib, access)
+CU_Test(os_stdlib, access)
 {
     os_result os_res;
     os_result wanted;
@@ -716,7 +604,7 @@ CUnit_Test(os_stdlib, access)
     printf ("Ending stdlib_os_access\n");
 }
 
-CUnit_Test(os_stdlib, vsnprintf)
+CU_Test(os_stdlib, vsnprintf)
 {
     printf ("Starting os_stdlib_vsnprintf_001\n");
     CU_ASSERT (vsnprintfTest("%s","test") == 4);
@@ -726,7 +614,7 @@ CUnit_Test(os_stdlib, vsnprintf)
     printf ("Ending os_stdlib_vsnprintf\n");
 }
 
-CUnit_Test(os_stdlib, strtok_r)
+CU_Test(os_stdlib, strtok_r)
 {
     char * res;
     char *strtok_r_ts1;
@@ -781,7 +669,7 @@ CUnit_Test(os_stdlib, strtok_r)
     printf ("Ending os_stdlib_strtok_r\n");
 }
 
-CUnit_Test(os_stdlib, index)
+CU_Test(os_stdlib, index)
 {
     char * res;
     char *index_ts1;
@@ -806,7 +694,7 @@ CUnit_Test(os_stdlib, index)
     printf ("Ending os_stdlib_index\n");
 }
 
-CUnit_Test(os_stdlib, flockfile)
+CU_Test(os_stdlib, flockfile)
 {
         bool result = false;
 
@@ -827,7 +715,7 @@ CUnit_Test(os_stdlib, flockfile)
         os_osExit();
 }
 
-CUnit_Test(os_stdlib, getopt)
+CU_Test(os_stdlib, getopt)
 {
         int c = 0;
         int argc = 3;

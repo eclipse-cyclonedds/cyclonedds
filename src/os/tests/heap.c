@@ -9,11 +9,11 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Runner.h"
+#include "CUnit/Test.h"
 #include "os/os.h"
 
 
-CUnit_Suite_Initialize(os_heap)
+CU_Init(os_heap)
 {
     int result = 0;
     os_osInit();
@@ -22,7 +22,7 @@ CUnit_Suite_Initialize(os_heap)
     return result;
 }
 
-CUnit_Suite_Cleanup(os_heap)
+CU_Clean(os_heap)
 {
     int result = 0;
     os_osExit();
@@ -34,7 +34,7 @@ CUnit_Suite_Cleanup(os_heap)
 static const size_t allocsizes[] = {0, 1, 2, 3, 4, 5, 10, 20, 257, 1024};
 static const size_t nof_allocsizes = sizeof allocsizes / sizeof *allocsizes;
 
-CUnit_Test(os_heap, os_malloc)
+CU_Test(os_heap, os_malloc)
 {
     for(size_t i = 0; i < nof_allocsizes; i++) {
         for(size_t j = 0; j < nof_allocsizes; j++) {
@@ -48,7 +48,7 @@ CUnit_Test(os_heap, os_malloc)
     CU_PASS("os_malloc");
 }
 
-CUnit_Test(os_heap, os_malloc_0)
+CU_Test(os_heap, os_malloc_0)
 {
     for(size_t i = 0; i < nof_allocsizes; i++) {
         for(size_t j = 0; j < nof_allocsizes; j++) {
@@ -64,7 +64,7 @@ CUnit_Test(os_heap, os_malloc_0)
     CU_PASS("os_malloc_0");
 }
 
-CUnit_Test(os_heap, os_calloc)
+CU_Test(os_heap, os_calloc)
 {
     for(size_t i = 0; i < nof_allocsizes; i++) {
         for(size_t j = 0; j < nof_allocsizes; j++) {
@@ -79,7 +79,7 @@ CUnit_Test(os_heap, os_calloc)
     CU_PASS("os_calloc");
 }
 
-CUnit_Test(os_heap, os_realloc)
+CU_Test(os_heap, os_realloc)
 {
     char *ptr = NULL;
     size_t unchanged, s, prevs = 0;
@@ -105,7 +105,7 @@ CUnit_Test(os_heap, os_realloc)
 static const size_t allocsizes_s[] = {0, 1, 2, 3, 4, 5, 10, 20, 257, 1024, 8192};
 static const size_t nof_allocsizes_s = sizeof allocsizes_s / sizeof *allocsizes_s;
 
-CUnit_Test(os_heap, os_malloc_s)
+CU_Test(os_heap, os_malloc_s)
 {
     for(size_t i = 0; i < nof_allocsizes_s; i++) {
         for(size_t j = 0; j < nof_allocsizes_s; j++) {
@@ -124,7 +124,7 @@ CUnit_Test(os_heap, os_malloc_s)
     CU_PASS("os_malloc_s");
 }
 
-CUnit_Test(os_heap, os_malloc_0_s)
+CU_Test(os_heap, os_malloc_0_s)
 {
     for(size_t i = 0; i < nof_allocsizes_s; i++) {
         for(size_t j = 0; j < nof_allocsizes_s; j++) {
@@ -145,7 +145,7 @@ CUnit_Test(os_heap, os_malloc_0_s)
     CU_PASS("os_malloc_0_s");
 }
 
-CUnit_Test(os_heap, os_calloc_s)
+CU_Test(os_heap, os_calloc_s)
 {
     for(size_t i = 0; i < nof_allocsizes_s; i++) {
         for(size_t j = 0; j < nof_allocsizes_s; j++) {
@@ -166,7 +166,7 @@ CUnit_Test(os_heap, os_calloc_s)
     CU_PASS("os_calloc_s");
 }
 
-CUnit_Test(os_heap, os_realloc_s)
+CU_Test(os_heap, os_realloc_s)
 {
     char *newptr, *ptr = NULL;
     size_t unchanged, s, prevs = 0;

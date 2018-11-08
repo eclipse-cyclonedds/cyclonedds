@@ -11,11 +11,194 @@
 #
 find_package(CUnit REQUIRED)
 
-include(Glob)
-
 set(CUNIT_DIR "${CMAKE_CURRENT_LIST_DIR}/CUnit")
 
-function(add_cunit_executable target)
+
+function(get_cunit_header_file SOURCE_FILE HEADER_FILE)
+  # Return a unique (but consistent) filename where Theory macros can be
+  # written. The path that will be returned is the location to a header file
+  # located in the same relative directory, using the basename of the source
+  # file postfixed with .h. e.g. <project>/foo/bar.h would be converted to
+  # <project>/build/foo/bar.h.
+  get_filename_component(SOURCE_FILE "${SOURCE_FILE}" ABSOLUTE)
+  file(RELATIVE_PATH SOURCE_FILE "${PROJECT_SOURCE_DIR}" "${SOURCE_FILE}")
+  get_filename_component(basename "${SOURCE_FILE}" NAME_WE)
+  get_filename_component(dir "${SOURCE_FILE}" DIRECTORY)
+  set(${HEADER_FILE} "${CMAKE_BINARY_DIR}/${dir}/${basename}.h" PARENT_SCOPE)
+endfunction()
+
+function(parse_cunit_fixtures INPUT TEST_DISABLED TEST_TIMEOUT)
+  if(INPUT MATCHES ".disabled${s}*=${s}*([tT][rR][uU][eE]|[0-9]+)")
+    set(${TEST_DISABLED} "TRUE" PARENT_SCOPE)
+  else()
+    set(${TEST_DISABLED} "FALSE" PARENT_SCOPE)
+  endif()
+
+  if(INPUT MATCHES ".timeout${s}*=${s}*([0-9]+)")
+    set(${TEST_TIMEOUT} "${CMAKE_MATCH_1}" PARENT_SCOPE)
+  else()
+    set(${TEST_TIMEOUT} "0" PARENT_SCOPE)
+  endif()
+endfunction()
+
+# Parse a single source file, generate a header file with theory definitions
+# (if applicable) and return suite and test definitions.
+function(process_cunit_source_file SOURCE_FILE HEADER_FILE SUITES TESTS)
+  set(x "\\*")
+  set(s "[ \t\r\n]")
+  set(s_or_x "[ \t\r\n\\*]")
+  set(w "[_a-zA-Z0-9]")
+  set(ident_expr "(${s}*${w}+${s}*)")
+  # Very basic type recognition, only things that contain word characters and
+  # pointers are handled. And since this script does not actually have to
+  # compile any code, type checking is left to the compiler. An error (or
+  # warning) will be thrown if something is off.
+  #
+  # The "type" regular expression below will match things like:
+  #  - <word> <word>
+  #  - <word> *<word>
+  #  - <word>* <word> *<word>
+  set(type_expr "(${s}*${w}+${x}*${s}+${s_or_x}*)+")
+  set(param_expr "${type_expr}${ident_expr}")
+  # Test fixture support (based on test fixtures as implemented in Criterion),
+  # to enable per-test (de)initializers, which is very different from
+  # per-suite (de)initializers, and timeouts.
+  #
+  # The following fixtures are supported:
+  #  - init
+  #  - fini
+  #  - disabled
+  #  - timeout
+  set(data_expr "(${s}*,${s}*\\.${w}+${s}*=[^,]+)*")
+
+  set(suites_wo_init_n_clean)
+  set(suites_w_init)
+  set(suites_w_clean)
+
+  file(READ "${SOURCE_FILE}" content)
+
+  # CU_Init and CU_Clean
+  #
+  # Extract all suite initializers and deinitializers so that the list of
+  # suites can be probably populated when tests and theories are parsed. Suites
+  # are only registered if it contains at least one test or theory.
+  set(suite_expr "CU_(Init|Clean)${s}*\\(${ident_expr}\\)")
+  string(REGEX MATCHALL "${suite_expr}" matches "${content}")
+  foreach(match ${matches})
+    string(REGEX REPLACE "${suite_expr}" "\\2" suite "${match}")
+
+    if("${match}" MATCHES "CU_Init")
+      list(APPEND suites_w_init ${suite})
+    elseif("${match}" MATCHES "CU_Clean")
+      list(APPEND suites_w_deinit ${suite})
+    endif()
+  endforeach()
+
+  # CU_Test
+  set(test_expr "CU_Test${s}*\\(${ident_expr},${ident_expr}${data_expr}\\)")
+  string(REGEX MATCHALL "${test_expr}" matches "${content}")
+  foreach(match ${matches})
+    string(REGEX REPLACE "${test_expr}" "\\1" suite "${match}")
+    string(REGEX REPLACE "${test_expr}" "\\2" test "${match}")
+    # Remove leading and trailing whitespace
+    string(STRIP "${suite}" suite)
+    string(STRIP "${test}" test)
+
+    # Extract fixtures that must be handled by CMake (.disabled and .timeout).
+    parse_cunit_fixtures("${match}" disabled timeout)
+    list(APPEND suites_wo_init_n_clean "${suite}")
+    list(APPEND tests "${suite}:${test}:${disabled}:${timeout}")
+  endforeach()
+
+  # CU_Theory
+  #
+  # CU_Theory signatures must be recognized in order to generate structures to
+  # hold the CU_DataPoints declarations. The generated type is added to the
+  # compile definitions and inserted by the preprocessor when CU_TheoryDataPoints
+  # is expanded.
+  #
+  # NOTE: Since not all compilers support pushing function-style definitions
+  #       from the command line (CMake will generate a warning too), a header
+  #       file is generated instead. A define is pushed and expanded at
+  #       compile time. It is included by CUnit/Theory.h.
+  get_cunit_header_file("${SOURCE_FILE}" header)
+
+  set(theory_expr "CU_Theory${s}*\\(${s}*\\((${param_expr}(,${param_expr})*)\\)${s}*,${ident_expr},${ident_expr}${data_expr}\\)")
+  string(REGEX MATCHALL "${theory_expr}" matches "${content}")
+  foreach(match ${matches})
+    if(NOT theories)
+      # Ensure generated header is truncated before anything is written.
+      file(WRITE "${header}" "")
+    endif()
+    string(REGEX REPLACE "${theory_expr}" "\\1" params "${match}")
+    string(REGEX REPLACE "${theory_expr}" "\\7" suite "${match}")
+    string(REGEX REPLACE "${theory_expr}" "\\8" test "${match}")
+    # Remove leading and trailing whitespace
+    string(STRIP "${params}" params)
+    string(STRIP "${suite}" suite)
+    string(STRIP "${test}" test)
+    # Convert parameters from a string to a list
+    string(REGEX REPLACE "${s}*,${s}*" ";" params "${params}")
+
+    # Extract fixtures that must be handled by CMake (.disabled and .timeout)
+    parse_cunit_fixtures("${match}" disabled timeout)
+    list(APPEND suites_wo_init_n_clean "${suite}")
+    list(APPEND theories "${suite}:${test}:${disabled}:${timeout}")
+
+    set(sep)
+    set(size "CU_TheoryDataPointsSize_${suite}_${test}(datapoints) (")
+    set(slice "CU_TheoryDataPointsSlice_${suite}_${test}(datapoints, index) (")
+    set(typedef "CU_TheoryDataPointsTypedef_${suite}_${test}() {")
+    foreach(param ${params})
+      string(
+        REGEX REPLACE "(${type_expr})${ident_expr}" "\\3" name "${param}")
+      string(
+        REGEX REPLACE "(${type_expr})${ident_expr}" "\\1" type "${param}")
+      string(STRIP "${name}" name)
+      string(STRIP "${type}" type)
+
+      set(slice "${slice}${sep} datapoints.${name}.p[index]")
+      if (NOT sep)
+        set(size "${size} datapoints.${name}.n")
+        set(sep ",")
+      endif()
+      set(typedef "${typedef} struct { size_t n; ${type} *p; } ${name};")
+    endforeach()
+    set(typedef "${typedef} }")
+    set(slice "${slice} )")
+    set(size "${size} )")
+
+    file(APPEND "${header}" "#define ${size}\n")
+    file(APPEND "${header}" "#define ${slice}\n")
+    file(APPEND "${header}" "#define ${typedef}\n")
+  endforeach()
+
+  # Propagate suites, tests and theories extracted from the source file.
+  list(REMOVE_DUPLICATES suites_wo_init_n_clean)
+  list(SORT suites_wo_init_n_clean)
+  foreach(suite ${suites_wo_init_n_clean})
+    set(init "FALSE")
+    set(clean "FALSE")
+    if(${suite} IN_LIST suites_w_init)
+      set(init "TRUE")
+    endif()
+    if(${suite} IN_LIST suites_w_deinit)
+      set(clean "TRUE")
+    endif()
+
+    list(APPEND suites "${suite}:${init}:${clean}")
+  endforeach()
+
+  if(theories)
+    set(${HEADER_FILE} "${header}" PARENT_SCOPE)
+  else()
+    unset(${HEADER_FILE} PARENT_SCOPE)
+  endif()
+  set(${SUITES} ${suites} PARENT_SCOPE)
+  set(${TESTS} ${tests};${theories} PARENT_SCOPE)
+endfunction()
+
+function(add_cunit_executable TARGET)
   # Retrieve location of shared libary, which is need to extend the PATH
   # environment variable on Microsoft Windows, so that the operating
   # system can locate the .dll that it was linked against.
@@ -24,129 +207,103 @@ function(add_cunit_executable target)
   get_target_property(CUNIT_IMPORTED_LOCATION CUnit IMPORTED_LOCATION)
   get_filename_component(CUNIT_LIBRARY_DIR "${CUNIT_IMPORTED_LOCATION}" PATH)
 
-  # Generate semi-random filename to store the generated code in to avoid
-  # possible naming conflicts.
-  string(RANDOM random)
-  set(runner "${target}_${random}")
+  set(decls)
+  set(defns)
+  set(sources)
 
-  set(s "[ \t\r\n]") # space
-  set(w "[0-9a-zA-Z_]") # word
-  set(param "${s}*(${w}+)${s}*")
-  set(pattern "CUnit_${w}+${s}*\\(${param}(,${param}(,${param})?)?\\)")
+  foreach(source ${ARGN})
+    if((EXISTS "${source}" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${source}"))
+      unset(suites)
+      unset(tests)
 
-  glob(filenames "c" ${ARGN})
+      process_cunit_source_file("${source}" header suites tests)
+      if(header)
+        set_property(
+          SOURCE "${source}"
+          PROPERTY COMPILE_DEFINITIONS CU_THEORY_INCLUDE_FILE=\"${header}\")
+      endif()
 
-  foreach(filename ${filenames})
-    file(READ "${filename}" contents)
-    string(REGEX MATCHALL "${pattern}" captures "${contents}")
+      # Disable missing-field-initializers warnings as not having to specify
+      # every member, aka fixture, is intended behavior.
+      if(${CMAKE_C_COMPILER_ID} STREQUAL "Clang" OR
+         ${CMAKE_C_COMPILER_ID} STREQUAL "AppleClang" OR
+         ${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
+        set_property(
+          SOURCE "${source}"
+          PROPERTY COMPILE_FLAGS -Wno-missing-field-initializers)
+      endif()
 
-    list(APPEND sources "${filename}")
-    list(LENGTH captures length)
-    if(length)
-      foreach(capture ${captures})
-        string(REGEX REPLACE "${pattern}" "\\1" suite "${capture}")
+      foreach(suite ${suites})
+        string(REPLACE ":" ";" suite ${suite})
+        list(GET suite 2 clean)
+        list(GET suite 1 init)
+        list(GET suite 0 suite)
+        set(init_func "NULL")
+        set(clean_func "NULL")
+        if(init)
+          set(decls "${decls}\nCU_InitDecl(${suite});")
+          set(init_func "CU_InitName(${suite})")
+        endif()
+        if(clean)
+          set(decls "${decls}\nCU_CleanDecl(${suite});")
+          set(clean_func "CU_CleanName(${suite})")
+        endif()
+        set(defns "${defns}\nADD_SUITE(${suite}, ${init_func}, ${clean_func});")
+      endforeach()
 
-        if("${capture}" MATCHES "CUnit_Suite_Initialize")
-          list(APPEND suites ${suite})
-          list(APPEND suites_w_init ${suite})
-        elseif("${capture}" MATCHES "CUnit_Suite_Cleanup")
-          list(APPEND suites ${suite})
-          list(APPEND suites_w_deinit ${suite})
-        elseif("${capture}" MATCHES "CUnit_Test")
-          list(APPEND suites ${suite})
+      foreach(test ${tests})
+        string(REPLACE ":" ";" test ${test})
+        list(GET test 3 timeout)
+        list(GET test 2 disabled)
+        list(GET test 0 suite)
+        list(GET test 1 test)
 
-          # Specifying a test name is mandatory
-          if("${capture}" MATCHES ",")
-            string(REGEX REPLACE "${pattern}" "\\3" test "${capture}")
-          else()
-            message(FATAL_ERROR "Bad CUnit_Test signature in ${filename}")
-          endif()
+        set(enable "true")
+        if(disabled)
+          set(enable "false")
+        endif()
+        if(NOT timeout)
+          set(timeout 10)
+        endif()
 
-          # Specifying if a test is enabled is optional
-          set(enable "true")
-          if("${capture}" MATCHES ",${param},")
-            string(REGEX REPLACE "${pattern}" "\\5" enable "${capture}")
-          endif()
+        set(decls "${decls}\nCU_TestDecl(${suite}, ${test});")
+        set(defns "${defns}\nADD_TEST(${suite}, ${test}, ${enable});")
+        set(ctest "CUnit_${suite}_${test}")
 
-          if((NOT "${enable}" STREQUAL "true") AND
-             (NOT "${enable}" STREQUAL "false"))
-            message(FATAL_ERROR "Bad CUnit_Test signature in ${filename}")
-          endif()
-
-          list(APPEND tests "${suite}:${test}:${enable}")
-        else()
-          message(FATAL_ERROR "Bad CUnit signature in ${filename}")
+        add_test(
+          NAME ${ctest}
+          COMMAND ${TARGET} -a -r "${suite}-${test}" -s ${suite} -t ${test})
+        set_property(TEST ${ctest} PROPERTY TIMEOUT ${timeout})
+        set_property(TEST ${ctest} PROPERTY DISABLED ${disabled})
+        if(APPLE)
+          set_property(
+            TEST ${ctest}
+            PROPERTY ENVIRONMENT
+              "DYLD_LIBRARY_PATH=${CUNIT_LIBRARY_DIR}:$ENV{DYLD_LIBRARY_PATH}")
+        elseif(WIN32 AND ${CUNIT_LIBRARY_TYPE} STREQUAL "SHARED_LIBRARY")
+          set_property(
+            TEST ${ctest}
+            PROPERTY ENVIRONMENT
+              "PATH=${CUNIT_LIBRARY_DIR};$ENV{PATH}")
         endif()
       endforeach()
+
+      list(APPEND sources "${source}")
     endif()
   endforeach()
 
-  # Test suite signatures can be decided on only after everything is parsed.
-  set(lf "\n")
-  set(declf "")
-  set(deflf "")
-
-  list(REMOVE_DUPLICATES suites)
-  list(SORT suites)
-  foreach(suite ${suites})
-    set(init "NULL")
-    set(deinit "NULL")
-    if(${suite} IN_LIST suites_w_init)
-      set(init "CUnit_Suite_Initialize__(${suite})")
-      set(decls "${decls}${declf}CUnit_Suite_Initialize_Decl__(${suite});")
-      set(declf "${lf}")
-    endif()
-    if(${suite} IN_LIST suites_w_deinit)
-      set(deinit "CUnit_Suite_Cleanup__(${suite})")
-      set(decls "${decls}${declf}CUnit_Suite_Cleanup_Decl__(${suite});")
-      set(declf "${lf}")
-    endif()
-
-    set(defs "${defs}${deflf}CUnit_Suite__(${suite}, ${init}, ${deinit});")
-    set(deflf "${lf}")
-  endforeach()
-
-  list(REMOVE_DUPLICATES tests)
-  list(SORT tests)
-  foreach(entry ${tests})
-    string(REPLACE ":" ";" entry ${entry})
-    list(GET entry 0 suite)
-    list(GET entry 1 test)
-    list(GET entry 2 enable)
-
-    set(decls "${decls}${declf}CUnit_Test_Decl__(${suite}, ${test});")
-    set(declf "${lf}")
-    set(defs "${defs}${deflf}CUnit_Test__(${suite}, ${test}, ${enable});")
-    set(deflf "${lf}")
-
-    add_test(
-      NAME "CUnit_${suite}_${test}"
-      COMMAND ${target} -a -r "${suite}-${test}" -s ${suite} -t ${test})
-    set_tests_properties("CUnit_${suite}_${test}" PROPERTIES TIMEOUT 10)
-    if(APPLE)
-      set_property(
-        TEST "CUnit_${suite}_${test}"
-        PROPERTY ENVIRONMENT "DYLD_LIBRARY_PATH=${CUNIT_LIBRARY_DIR}:$ENV{DYLD_LIBRARY_PATH}")
-    endif()
-    if(WIN32 AND ${CUNIT_LIBRARY_TYPE} STREQUAL "SHARED_LIBRARY")
-      set_property(
-        TEST "CUnit_${suite}_${test}"
-        PROPERTY ENVIRONMENT "PATH=${CUNIT_LIBRARY_DIR};$ENV{PATH}")
-    endif()
-  endforeach()
-
-  set(root "${CUNIT_DIR}")
-  set(CUnit_Decls "${decls}")
-  set(CUnit_Defs "${defs}")
-
-  configure_file("${root}/src/main.c.in" "${runner}.c" @ONLY)
-  add_executable(${target} "${runner}.c" "${root}/src/runner.c" ${sources})
-  target_link_libraries(${target} CUnit)
-  target_include_directories(${target} PRIVATE "${root}/include")
+  configure_file(
+    "${CUNIT_DIR}/src/main.c.in" "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.c" @ONLY)
   if("2.1.3" VERSION_LESS_EQUAL
        "${CUNIT_VERSION_MAJOR}.${CUNIT_VERSION_MINOR}.${CUNIT_VERSION_PATCH}")
-    set_source_files_properties(
-      "${root}/src/runner.c" PROPERTIES COMPILE_DEFINITIONS HAVE_ENABLE_JUNIT_XML)
+    set_property(
+      SOURCE "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.c"
+      PROPERTY COMPILE_DEFINITIONS HAVE_ENABLE_JUNIT_XML)
   endif()
+
+  add_executable(
+    ${TARGET} "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.c" ${sources})
+  target_link_libraries(${TARGET} CUnit)
+  target_include_directories(${TARGET} PRIVATE "${CUNIT_DIR}/include")
 endfunction()
 

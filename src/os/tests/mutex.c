@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Runner.h"
+#include "CUnit/Test.h"
 #include "os/os.h"
 
 #ifdef __VXWORKS__
@@ -157,7 +157,7 @@ uint32_t concurrent_trylock_thread (_In_opt_ void *arg)
     return 0;
 }
 
-CUnit_Suite_Initialize(os_mutex)
+CU_Init(os_mutex)
 {
     printf ( "Run os_mutex_Initialize\n" );
 
@@ -166,7 +166,7 @@ CUnit_Suite_Initialize(os_mutex)
     return 0;
 }
 
-CUnit_Suite_Cleanup(os_mutex)
+CU_Clean(os_mutex)
 {
     printf("Run os_mutex_Cleanup\n");
 
@@ -176,7 +176,7 @@ CUnit_Suite_Cleanup(os_mutex)
 }
 
 /* This test only checks a single-threaded use-case; just API availability.*/
-CUnit_Test(os_mutex, basic)
+CU_Test(os_mutex, basic)
 {
     os_mutex m;
     os_result r;
@@ -227,7 +227,7 @@ os_mutex_init_thr(
     return r != os_resultSuccess; /* Return true on faulure */
 }
 
-CUnit_Test(os_mutex, init_stress)
+CU_Test(os_mutex, init_stress)
 {
     struct os_mutex_stress threads[NUM_THREADS];
     os_threadAttr tattr;
@@ -259,7 +259,7 @@ CUnit_Test(os_mutex, init_stress)
     printf("Ending os_mutex_init_stress\n");
 }
 
-CUnit_Test(os_mutex, lock, false)
+CU_Test(os_mutex, lock, false)
 {
     /* Test critical section access with locking and PRIVATE scope  */
     printf ("Starting tc_os_mutex_lock_001\n");
@@ -330,7 +330,7 @@ CUnit_Test(os_mutex, lock, false)
     printf ("Ending os_mutex_lock\n");
 }
 
-CUnit_Test(os_mutex, trylock, false)
+CU_Test(os_mutex, trylock, false)
 {
     os_result result;
 
@@ -355,7 +355,7 @@ CUnit_Test(os_mutex, trylock, false)
     printf ("Ending os_mutex_trylock\n");
 }
 
-CUnit_Test(os_mutex, destroy, false)
+CU_Test(os_mutex, destroy, false)
 {
     /* Deinitialize mutex with PRIVATE scope and Success result */
     printf ("Starting os_mutex_destroy_001\n");

@@ -9,13 +9,13 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Runner.h"
+#include "CUnit/Test.h"
 #include "os/os.h"
 #include "os/os_project.h"
 
 #include <stdio.h>
 
-CUnit_Suite_Initialize(os_report)
+CU_Init(os_report)
 {
   os_putenv(OS_PROJECT_NAME_NOSPACE_CAPS"_ERRORFILE=vdds_test_error");
   os_putenv(OS_PROJECT_NAME_NOSPACE_CAPS"_INFOFILE=vdds_test_info");
@@ -42,7 +42,7 @@ void check_existence(os_result error_log_existence, os_result info_log_existence
   CU_ASSERT(os_access(info_file_name, OS_ROK) == info_log_existence);
 }
 
-CUnit_Suite_Cleanup(os_report)
+CU_Clean(os_report)
 {
   remove_logs();
 
@@ -50,7 +50,7 @@ CUnit_Suite_Cleanup(os_report)
 }
 
 
-CUnit_Test(os_report, re_init)
+CU_Test(os_report, re_init)
 {
   os_reportInit(true);
 
@@ -72,7 +72,7 @@ CUnit_Test(os_report, re_init)
 }
 
 
-CUnit_Test(os_report, stack_critical)
+CU_Test(os_report, stack_critical)
 {
   os_reportInit(true);
 
@@ -93,7 +93,7 @@ CUnit_Test(os_report, stack_critical)
 }
 
 
-CUnit_Test(os_report, stack_non_critical)
+CU_Test(os_report, stack_non_critical)
 {
   os_reportInit(true);
 
@@ -114,7 +114,7 @@ CUnit_Test(os_report, stack_non_critical)
 }
 
 
-CUnit_Test(os_report, error_file_creation_critical)
+CU_Test(os_report, error_file_creation_critical)
 {
   os_reportInit(true);
 
@@ -128,7 +128,7 @@ CUnit_Test(os_report, error_file_creation_critical)
 }
 
 
-CUnit_Test(os_report, error_file_creation_fatal)
+CU_Test(os_report, error_file_creation_fatal)
 {
   os_reportInit(true);
 
@@ -142,7 +142,7 @@ CUnit_Test(os_report, error_file_creation_fatal)
 }
 
 
-CUnit_Test(os_report, info_file_creation_warning)
+CU_Test(os_report, info_file_creation_warning)
 {
   os_reportInit(true);
 
@@ -156,7 +156,7 @@ CUnit_Test(os_report, info_file_creation_warning)
 }
 
 
-CUnit_Test(os_report, info_file_creation_info)
+CU_Test(os_report, info_file_creation_info)
 {
   os_reportInit(true);
 
@@ -170,7 +170,7 @@ CUnit_Test(os_report, info_file_creation_info)
 }
 
 
-CUnit_Test(os_report, verbosity_low)
+CU_Test(os_report, verbosity_low)
 {
   os_reportInit(true);
   check_existence(os_resultFail, os_resultFail);
@@ -187,7 +187,7 @@ CUnit_Test(os_report, verbosity_low)
 }
 
 
-CUnit_Test(os_report, verbosity_high)
+CU_Test(os_report, verbosity_high)
 {
   os_reportInit(true);
   check_existence(os_resultFail, os_resultFail);
@@ -205,7 +205,7 @@ CUnit_Test(os_report, verbosity_high)
 
 
 
-CUnit_Test(os_report, verbosity_equal)
+CU_Test(os_report, verbosity_equal)
 {
   os_reportInit(true);
   check_existence(os_resultFail, os_resultFail);
@@ -222,7 +222,7 @@ CUnit_Test(os_report, verbosity_equal)
 }
 
 
-CUnit_Test(os_report, stack_verbosity_low)
+CU_Test(os_report, stack_verbosity_low)
 {
   os_reportInit(true);
   check_existence(os_resultFail, os_resultFail);
@@ -241,7 +241,7 @@ CUnit_Test(os_report, stack_verbosity_low)
 }
 
 
-CUnit_Test(os_report, stack_verbosity_high)
+CU_Test(os_report, stack_verbosity_high)
 {
   os_reportInit(true);
   check_existence(os_resultFail, os_resultFail);
@@ -261,7 +261,7 @@ CUnit_Test(os_report, stack_verbosity_high)
 
 
 
-CUnit_Test(os_report, stack_verbosity_equal)
+CU_Test(os_report, stack_verbosity_equal)
 {
   os_reportInit(true);
   check_existence(os_resultFail, os_resultFail);
@@ -280,7 +280,7 @@ CUnit_Test(os_report, stack_verbosity_equal)
 }
 
 
-CUnit_Test(os_report, no_log_append)
+CU_Test(os_report, no_log_append)
 {
   os_reportInit(true);
   check_existence(os_resultFail, os_resultFail);
@@ -305,7 +305,7 @@ CUnit_Test(os_report, no_log_append)
 }
 
 
-CUnit_Test(os_report, log_dir)
+CU_Test(os_report, log_dir)
 {
   os_putenv(OS_PROJECT_NAME_NOSPACE_CAPS"_LOGPATH=.");
 
@@ -324,7 +324,7 @@ CUnit_Test(os_report, log_dir)
 }
 
 
-CUnit_Test(os_report, verbosity_env_value_info)
+CU_Test(os_report, verbosity_env_value_info)
 {
   os_putenv(OS_PROJECT_NAME_NOSPACE_CAPS"_VERBOSITY=0");
   os_reportInit(true);
@@ -344,7 +344,7 @@ CUnit_Test(os_report, verbosity_env_value_info)
 }
 
 
-CUnit_Test(os_report, verbosity_env_value_error)
+CU_Test(os_report, verbosity_env_value_error)
 {
   os_putenv(OS_PROJECT_NAME_NOSPACE_CAPS"_VERBOSITY=3");
   os_reportInit(true);
@@ -364,7 +364,7 @@ CUnit_Test(os_report, verbosity_env_value_error)
 }
 
 
-CUnit_Test(os_report, verbosity_env_value_error_as_string)
+CU_Test(os_report, verbosity_env_value_error_as_string)
 {
   os_putenv(OS_PROJECT_NAME_NOSPACE_CAPS"_VERBOSITY=ERROR");
   os_reportInit(true);
@@ -384,7 +384,7 @@ CUnit_Test(os_report, verbosity_env_value_error_as_string)
 }
 
 
-CUnit_Test(os_report, verbosity_wrong_env_value)
+CU_Test(os_report, verbosity_wrong_env_value)
 {
   os_putenv(OS_PROJECT_NAME_NOSPACE_CAPS"_VERBOSITY=WRONG");
   os_reportInit(true);

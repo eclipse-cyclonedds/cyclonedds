@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Runner.h"
+#include "CUnit/Test.h"
 #include "os/os.h"
 
 /* FIXME: It's not possible to predict what network interfaces are available
@@ -24,7 +24,7 @@
 static int ipv6_enabled = 1;
 #endif
 
-CUnit_Suite_Initialize(os_getifaddrs)
+CU_Init(os_getifaddrs)
 {
     os_osInit();
 
@@ -51,7 +51,7 @@ CUnit_Suite_Initialize(os_getifaddrs)
     return 0;
 }
 
-CUnit_Suite_Cleanup(os_getifaddrs)
+CU_Clean(os_getifaddrs)
 {
     os_osExit();
     return 0;
@@ -60,7 +60,7 @@ CUnit_Suite_Cleanup(os_getifaddrs)
 /* Assume every test machine has at least one IPv4 enabled interface. This
    simple test verifies an interface can at least be found and that the
    IFF_LOOPBACK flags are properly set. */
-CUnit_Test(os_getifaddrs, ipv4)
+CU_Test(os_getifaddrs, ipv4)
 {
     int err;
     int seen = 0;
@@ -87,7 +87,7 @@ CUnit_Test(os_getifaddrs, ipv4)
     os_freeifaddrs(ifa_root);
 }
 
-CUnit_Test(os_getifaddrs, null_filter)
+CU_Test(os_getifaddrs, null_filter)
 {
     int err;
     int cnt = 0;
@@ -105,7 +105,7 @@ CUnit_Test(os_getifaddrs, null_filter)
     os_freeifaddrs(ifa_root);
 }
 
-CUnit_Test(os_getifaddrs, empty_filter)
+CU_Test(os_getifaddrs, empty_filter)
 {
     int err;
     os_ifaddrs_t *ifa_root;
@@ -119,7 +119,7 @@ CUnit_Test(os_getifaddrs, empty_filter)
 }
 
 #ifdef OS_SOCKET_HAS_IPV6
-CUnit_Test(os_getifaddrs, ipv6)
+CU_Test(os_getifaddrs, ipv6)
 {
     if (ipv6_enabled == 1) {
         int err;
@@ -154,7 +154,7 @@ CUnit_Test(os_getifaddrs, ipv6)
 
 /* Assume at least one IPv4 and one IPv6 interface are available when IPv6 is
    available on the platform. */
-CUnit_Test(os_getifaddrs, ipv4_n_ipv6)
+CU_Test(os_getifaddrs, ipv4_n_ipv6)
 {
     if (ipv6_enabled == 1) {
         int err;

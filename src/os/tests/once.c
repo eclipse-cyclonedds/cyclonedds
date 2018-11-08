@@ -9,11 +9,11 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Runner.h"
+#include "CUnit/Test.h"
 #include "os/os.h"
 
 /* Suite os_once*/
-CUnit_Suite_Initialize(os_once)
+CU_Init(os_once)
 {
     printf("Run os_once_Initialize\n");
 
@@ -22,7 +22,7 @@ CUnit_Suite_Initialize(os_once)
     return 0;
 }
 
-CUnit_Suite_Cleanup(os_once)
+CU_Clean(os_once)
 {
     printf("Run os_once_Cleanup\n");
 
@@ -40,7 +40,7 @@ static void once_func(void)
 }
 
 /* This test only checks a single-threaded use-case; mostly API availability and mere basics.*/
-CUnit_Test(os_once, basic)
+CU_Test(os_once, basic)
 {
     static os_once_t init = OS_ONCE_T_STATIC_INIT;
 
@@ -127,7 +127,7 @@ os_once_parallel_thr(
     return 0;
 }
 
-CUnit_Test(os_once, parallel)
+CU_Test(os_once, parallel)
 {
     os_threadId threads[OS_ONCE_NUM_THREADS];
     struct os_once_parallel state = {

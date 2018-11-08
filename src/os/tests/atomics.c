@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "os/os.h"
-#include "CUnit/Runner.h"
+#include "CUnit/Test.h"
 
 uint32_t _osuint32 = 0;
 uint64_t _osuint64 = 0;
@@ -19,7 +19,7 @@ uintptr_t _osaddress = 0;
 ptrdiff_t _ptrdiff = 0;
 void * _osvoidp = (uintptr_t *)0;
 
-CUnit_Test(os_atomics, load_store)
+CU_Test(os_atomics, load_store)
 {
    volatile os_atomic_uint32_t uint32 = OS_ATOMIC_UINT32_INIT(5);
 #if OS_ATOMIC64_SUPPORT
@@ -57,7 +57,7 @@ CUnit_Test(os_atomics, load_store)
    printf ("Ending atomics_load_store\n");
 }
 
-CUnit_Test(os_atomics, compare_and_swap)
+CU_Test(os_atomics, compare_and_swap)
 {
    /* Compare and Swap
     * if (ptr == expected) { ptr = newval; }
@@ -115,7 +115,7 @@ CUnit_Test(os_atomics, compare_and_swap)
    printf ("Ending atomics_compare_and_swap\n");
 }
 
-CUnit_Test(os_atomics, increment)
+CU_Test(os_atomics, increment)
 {
    volatile os_atomic_uint32_t uint32 = OS_ATOMIC_UINT32_INIT(0);
 #if OS_ATOMIC64_SUPPORT
@@ -164,7 +164,7 @@ CUnit_Test(os_atomics, increment)
    printf ("Ending atomics_increment\n");
 }
 
-CUnit_Test(os_atomics, decrement)
+CU_Test(os_atomics, decrement)
 {
    volatile os_atomic_uint32_t uint32 = OS_ATOMIC_UINT32_INIT(1);
 #if OS_ATOMIC64_SUPPORT
@@ -213,7 +213,7 @@ CUnit_Test(os_atomics, decrement)
    printf ("Ending atomics_decrement\n");
 }
 
-CUnit_Test(os_atomics, add)
+CU_Test(os_atomics, add)
 {
    volatile os_atomic_uint32_t uint32 = OS_ATOMIC_UINT32_INIT(1);
 #if OS_ATOMIC64_SUPPORT
@@ -273,7 +273,7 @@ CUnit_Test(os_atomics, add)
    printf ("Ending atomics_add\n");
 }
 
-CUnit_Test(os_atomics, subtract)
+CU_Test(os_atomics, subtract)
 {
    volatile os_atomic_uint32_t uint32 = OS_ATOMIC_UINT32_INIT(5);
 #if OS_ATOMIC64_SUPPORT
@@ -333,7 +333,7 @@ CUnit_Test(os_atomics, subtract)
    printf ("Ending atomics_subtract\n");
 }
 
-CUnit_Test(os_atomics, and)
+CU_Test(os_atomics, and)
 {
    /* AND Operation:
 
@@ -399,7 +399,7 @@ CUnit_Test(os_atomics, and)
    printf ("Ending atomics_and\n");
 }
 
-CUnit_Test(os_atomics, or)
+CU_Test(os_atomics, or)
 {
    /* OR Operation:
 

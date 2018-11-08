@@ -11,6 +11,22 @@
 #
 include(CUnit)
 
-add_cunit_executable(abstraction .)
+set(sources
+  "atomics.c"
+  "error_no.c"
+  "heap.c"
+  "ifaddrs.c"
+  "iter.c"
+  "mutex.c"
+  "once.c"
+  "report.c"
+  "rwlock.c"
+  "stdlib.c"
+  "strtoll.c"
+  "thread.c"
+  "thread_cleanup.c"
+  "strcasecmp.c")
+
+add_cunit_executable(abstraction ${sources})
 target_link_libraries(abstraction OSAPI)
 

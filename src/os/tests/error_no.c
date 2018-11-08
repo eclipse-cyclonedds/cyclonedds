@@ -9,11 +9,11 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Runner.h"
+#include "CUnit/Test.h"
 #include "os/os.h"
 
 
-CUnit_Suite_Initialize(os_errno)
+CU_Init(os_errno)
 {
     int result = 0;
     os_osInit();
@@ -22,7 +22,7 @@ CUnit_Suite_Initialize(os_errno)
     return result;
 }
 
-CUnit_Suite_Cleanup(os_errno)
+CU_Clean(os_errno)
 {
     int result = 0;
     os_osExit();
@@ -31,7 +31,7 @@ CUnit_Suite_Cleanup(os_errno)
     return result;
 }
 
-CUnit_Test(os_errno, get_and_set)
+CU_Test(os_errno, get_and_set)
 {
     printf ("Starting os_errno_get_and_set_001\n");
     os_setErrno (0);
