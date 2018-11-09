@@ -104,7 +104,7 @@ uint16_t os_sockaddr_get_port(const os_sockaddr *const sa)
     return port;
 }
 
-int os_sockaddr_compare(
+static int os_sockaddr_compare(
     const os_sockaddr *const sa1,
     const os_sockaddr *const sa2)
 {
@@ -142,7 +142,7 @@ int os_sockaddr_compare(
                 sin1 = (os_sockaddr_in *)sa1;
                 sin2 = (os_sockaddr_in *)sa2;
                 sz = sizeof(sin1->sin_addr);
-                eq = memcmp(sin1, sin2, sizeof(*sin1));
+                eq = memcmp(&sin1->sin_addr, &sin2->sin_addr, sizeof(sz));
             }
                 break;
         }

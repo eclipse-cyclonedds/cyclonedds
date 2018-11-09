@@ -23,7 +23,6 @@
 #include "ddsi/q_misc.h"
 #include "ddsi/q_log.h"
 #include "ddsi/q_plist.h"
-#include "q__osplser.h"
 #include "ddsi/q_ephash.h"
 #include "ddsi/q_globals.h"
 #include "ddsi/q_addrset.h"
@@ -33,7 +32,7 @@
 #include "ddsi/q_unused.h"
 #include "ddsi/q_error.h"
 #include "ddsi/q_debmon.h"
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata.h"
 #include "ddsi/ddsi_tran.h"
 #include "ddsi/ddsi_tcp.h"
 
@@ -107,7 +106,7 @@ static int print_addrset_if_notempty (ddsi_tran_conn_t conn, const char *prefix,
 }
 
 static int print_any_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e,
-                                      const struct nn_xqos *xqos, const struct sertopic *topic)
+                                      const struct nn_xqos *xqos, const struct ddsi_sertopic *topic)
 {
   int x = 0;
   x += cpf (conn, "  %s %x:%x:%x:%x ", label, PGUID (e->guid));
@@ -126,7 +125,7 @@ static int print_any_endpoint_common (ddsi_tran_conn_t conn, const char *label, 
   return x;
 }
 
-static int print_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e, const struct endpoint_common *c, const struct nn_xqos *xqos, const struct sertopic *topic)
+static int print_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e, const struct endpoint_common *c, const struct nn_xqos *xqos, const struct ddsi_sertopic *topic)
 {
   OS_UNUSED_ARG (c);
   return print_any_endpoint_common (conn, label, e, xqos, topic);
@@ -189,7 +188,7 @@ static int print_participants (struct thread_state1 *self, ddsi_tran_conn_t conn
           continue;
         os_mutexLock (&w->e.lock);
         print_endpoint_common (conn, "wr", &w->e, &w->c, w->xqos, w->topic);
-        w->whc->ops->get_state(w->whc, &whcst);
+        whc_get_state(w->whc, &whcst);
         x += cpf (conn, "    whc [%lld,%lld] unacked %"PRIuSIZE"%s [%u,%u] seq %lld seq_xmit %lld cs_seq %lld\n",
                   whcst.min_seq, whcst.max_seq, whcst.unacked_bytes,
                   w->throttling ? " THROTTLING" : "",

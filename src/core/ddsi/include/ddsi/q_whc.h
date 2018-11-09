@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-struct serdata;
+struct ddsi_serdata;
 struct nn_plist;
 struct tkmap_instance;
 struct whc_node; /* opaque, but currently used for deferred free lists */
@@ -24,7 +24,7 @@ struct whc;
 
 struct whc_borrowed_sample {
   seqno_t seq;
-  struct serdata *serdata;
+  struct ddsi_serdata *serdata;
   struct nn_plist *plist;
   bool unacked;
   nn_mtime_t last_rexmit_ts;
@@ -42,8 +42,12 @@ struct whc_state {
    an iter on the stack without specifying an implementation. If future changes or
    implementations require more, these can be adjusted.  An implementation should check
    things fit at compile time. */
-#define WHC_SAMPLE_ITER_SIZE (2*sizeof(void *))
+#define WHC_SAMPLE_ITER_SIZE (1*sizeof(void *))
+struct whc_sample_iter_base {
+  struct whc *whc;
+};
 struct whc_sample_iter {
+  struct whc_sample_iter_base c;
   union {
     char opaque[WHC_SAMPLE_ITER_SIZE];
     /* cover alignment requirements: */
@@ -56,7 +60,7 @@ struct whc_sample_iter {
 typedef seqno_t (*whc_next_seq_t)(const struct whc *whc, seqno_t seq);
 typedef void (*whc_get_state_t)(const struct whc *whc, struct whc_state *st);
 typedef bool (*whc_borrow_sample_t)(const struct whc *whc, seqno_t seq, struct whc_borrowed_sample *sample);
-typedef bool (*whc_borrow_sample_key_t)(const struct whc *whc, const struct serdata *serdata_key, struct whc_borrowed_sample *sample);
+typedef bool (*whc_borrow_sample_key_t)(const struct whc *whc, const struct ddsi_serdata *serdata_key, struct whc_borrowed_sample *sample);
 typedef void (*whc_return_sample_t)(struct whc *whc, struct whc_borrowed_sample *sample, bool update_retransmit_info);
 typedef void (*whc_sample_iter_init_t)(const struct whc *whc, struct whc_sample_iter *it);
 typedef bool (*whc_sample_iter_borrow_next_t)(struct whc_sample_iter *it, struct whc_borrowed_sample *sample);
@@ -66,7 +70,7 @@ typedef void (*whc_free_t)(struct whc *whc);
    reliable readers that have not acknowledged all data */
 /* max_drop_seq must go soon, it's way too ugly. */
 /* plist may be NULL or os_malloc'd, WHC takes ownership of plist */
-typedef int (*whc_insert_t)(struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct serdata *serdata, struct tkmap_instance *tk);
+typedef int (*whc_insert_t)(struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct tkmap_instance *tk);
 typedef unsigned (*whc_downgrade_to_volatile_t)(struct whc *whc, struct whc_state *st);
 typedef unsigned (*whc_remove_acked_messages_t)(struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list);
 typedef void (*whc_free_deferred_free_list_t)(struct whc *whc, struct whc_node *deferred_free_list);
@@ -89,6 +93,43 @@ struct whc_ops {
 struct whc {
   const struct whc_ops *ops;
 };
+
+inline seqno_t whc_next_seq (const struct whc *whc, seqno_t seq) {
+  return whc->ops->next_seq (whc, seq);
+}
+inline void whc_get_state (const struct whc *whc, struct whc_state *st) {
+  whc->ops->get_state (whc, st);
+}
+inline bool whc_borrow_sample (const struct whc *whc, seqno_t seq, struct whc_borrowed_sample *sample) {
+  return whc->ops->borrow_sample (whc, seq, sample);
+}
+inline bool whc_borrow_sample_key (const struct whc *whc, const struct ddsi_serdata *serdata_key, struct whc_borrowed_sample *sample) {
+  return whc->ops->borrow_sample_key (whc, serdata_key, sample);
+}
+inline void whc_return_sample (struct whc *whc, struct whc_borrowed_sample *sample, bool update_retransmit_info) {
+  whc->ops->return_sample (whc, sample, update_retransmit_info);
+}
+inline void whc_sample_iter_init (const struct whc *whc, struct whc_sample_iter *it) {
+  whc->ops->sample_iter_init (whc, it);
+}
+inline bool whc_sample_iter_borrow_next (struct whc_sample_iter *it, struct whc_borrowed_sample *sample) {
+  return it->c.whc->ops->sample_iter_borrow_next (it, sample);
+}
+inline void whc_free (struct whc *whc) {
+  whc->ops->free (whc);
+}
+inline int whc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct tkmap_instance *tk) {
+  return whc->ops->insert (whc, max_drop_seq, seq, plist, serdata, tk);
+}
+inline unsigned whc_downgrade_to_volatile (struct whc *whc, struct whc_state *st) {
+  return whc->ops->downgrade_to_volatile (whc, st);
+}
+inline unsigned whc_remove_acked_messages (struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list) {
+  return whc->ops->remove_acked_messages (whc, max_drop_seq, whcst, deferred_free_list);
+}
+inline void whc_free_deferred_free_list (struct whc *whc, struct whc_node *deferred_free_list) {
+  whc->ops->free_deferred_free_list (whc, deferred_free_list);
+}
 
 #if defined (__cplusplus)
 }

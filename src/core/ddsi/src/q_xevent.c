@@ -36,8 +36,8 @@
 #include "ddsi/q_bitset.h"
 #include "ddsi/q_lease.h"
 #include "ddsi/q_xmsg.h"
-#include "q__osplser.h"
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata.h"
+#include "ddsi/ddsi_serdata_default.h"
 #include "dds__whc.h"
 
 #include "ddsi/sysdeps.h"
@@ -607,7 +607,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
 
   assert (wr->reliable);
   os_mutexLock (&wr->e.lock);
-  wr->whc->ops->get_state(wr->whc, &whcst);
+  whc_get_state(wr->whc, &whcst);
   if (!writer_must_have_hb_scheduled (wr, &whcst))
   {
     hbansreq = 1; /* just for trace */
@@ -966,9 +966,6 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   struct proxy_reader *prd;
   struct writer *spdp_wr;
   struct whc_borrowed_sample sample;
-  serstate_t st;
-  serdata_t sd;
-  nn_guid_t kh;
 #ifndef NDEBUG
   bool sample_found;
 #endif
@@ -977,6 +974,8 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   {
     TRACE (("handle_xevk_spdp %x:%x:%x:%x - unknown guid\n",
             PGUID (ev->u.spdp.pp_guid)));
+    if (ev->u.spdp.directed)
+      delete_xevent (ev);
     return;
   }
 
@@ -984,6 +983,8 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   {
     TRACE (("handle_xevk_spdp %x:%x:%x:%x - spdp writer of participant not found\n",
             PGUID (ev->u.spdp.pp_guid)));
+    if (ev->u.spdp.directed)
+      delete_xevent (ev);
     return;
   }
 
@@ -1005,18 +1006,24 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     }
   }
 
-  /* Look up data in (transient-local) WHC by key value */
-  if ((st = ddsi_serstate_new (NULL)) == NULL)
-  {
-    TRACE (("xmit spdp: skip %x:%x:%x:%x: out of memory\n", PGUID (ev->u.spdp.pp_guid)));
-    goto skip;
-  }
-  kh = nn_hton_guid (ev->u.spdp.pp_guid);
-  serstate_set_key (st, 1, &kh);
-  sd = ddsi_serstate_fix (st);
+  /* Look up data in (transient-local) WHC by key value -- FIXME: clearly
+     a slightly more efficient and elegant way of looking up the key value
+     is to be preferred */
+  nn_plist_t ps;
+  nn_plist_init_empty (&ps);
+  ps.present |= PP_PARTICIPANT_GUID;
+  ps.participant_guid = ev->u.spdp.pp_guid;
+  struct nn_xmsg *mpayload = nn_xmsg_new (gv.xmsgpool, &ev->u.spdp.pp_guid.prefix, 0, NN_XMSG_KIND_DATA);
+  nn_plist_addtomsg (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0);
+  nn_xmsg_addpar_sentinel (mpayload);
+  nn_plist_fini (&ps);
+  struct ddsi_plist_sample plist_sample;
+  nn_xmsg_payload_to_plistsample (&plist_sample, PID_PARTICIPANT_GUID, mpayload);
+  struct ddsi_serdata *sd = ddsi_serdata_from_sample (gv.plist_topic, SDK_KEY, &plist_sample);
+  nn_xmsg_free (mpayload);
 
   os_mutexLock (&spdp_wr->e.lock);
-  if (spdp_wr->whc->ops->borrow_sample_key (spdp_wr->whc, sd, &sample))
+  if (whc_borrow_sample_key (spdp_wr->whc, sd, &sample))
   {
     /* Claiming it is new rather than a retransmit so that the rexmit
        limiting won't kick in.  It is best-effort and therefore the
@@ -1024,7 +1031,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
        place anyway.  Nor is it necessary to fiddle with heartbeat
        control stuff. */
     enqueue_sample_wrlock_held (spdp_wr, sample.seq, sample.plist, sample.serdata, prd, 1);
-    spdp_wr->whc->ops->return_sample(spdp_wr->whc, &sample, false);
+    whc_return_sample(spdp_wr->whc, &sample, false);
 #ifndef NDEBUG
     sample_found = true;
 #endif
@@ -1120,8 +1127,7 @@ static void write_pmd_message (struct nn_xpack *xp, struct participant *pp, unsi
     ParticipantMessageData_t pmd;
     char pad[offsetof (ParticipantMessageData_t, value) + PMD_DATA_LENGTH];
   } u;
-  serdata_t serdata;
-  serstate_t serstate;
+  struct ddsi_serdata *serdata;
   struct tkmap_instance *tk;
 
   if ((wr = get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER)) == NULL)
@@ -1135,16 +1141,14 @@ static void write_pmd_message (struct nn_xpack *xp, struct participant *pp, unsi
   u.pmd.length = PMD_DATA_LENGTH;
   memset (u.pmd.value, 0, u.pmd.length);
 
-  serstate = ddsi_serstate_new (NULL);
-  ddsi_serstate_append_blob (serstate, 4, sizeof (u.pad), &u.pmd);
-  serstate_set_key (serstate, 0, &u.pmd);
-  ddsi_serstate_set_msginfo (serstate, 0, now ());
-  serdata = ddsi_serstate_fix (serstate);
-
-  /* HORRIBLE HACK ALERT -- serstate/serdata looks at whether topic is
-     a null pointer to choose PL_CDR_x encoding or regular CDR_x
-     encoding. */
-  serdata->hdr.identifier = PLATFORM_IS_LITTLE_ENDIAN ? CDR_LE : CDR_BE;
+  struct ddsi_rawcdr_sample raw = {
+    .blob = &u,
+    .size = offsetof (ParticipantMessageData_t, value) + PMD_DATA_LENGTH,
+    .key = &u.pmd,
+    .keysize = 16
+  };
+  serdata = ddsi_serdata_from_sample (gv.rawcdr_topic, SDK_DATA, &raw);
+  serdata->timestamp = now ();
 
   tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (serdata);
   write_sample_nogc (xp, wr, serdata, tk);

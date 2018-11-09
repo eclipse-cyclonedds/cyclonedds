@@ -16,6 +16,40 @@
 #include "ddsi/q_nwif.h"
 #include "ddsi/q_config.h"
 
+int ddsi_ipaddr_compare (const os_sockaddr *const sa1, const os_sockaddr *const sa2)
+{
+  int eq;
+  size_t sz;
+
+  if ((eq = sa1->sa_family - sa2->sa_family) == 0) {
+    switch(sa1->sa_family) {
+#if (OS_SOCKET_HAS_IPV6 == 1)
+      case AF_INET6: {
+        os_sockaddr_in6 *sin61, *sin62;
+        sin61 = (os_sockaddr_in6 *)sa1;
+        sin62 = (os_sockaddr_in6 *)sa2;
+        sz = sizeof(sin61->sin6_addr);
+        eq = memcmp(&sin61->sin6_addr, &sin62->sin6_addr, sz);
+        break;
+      }
+#endif /* OS_SOCKET_HAS_IPV6 */
+      case AF_INET: {
+        os_sockaddr_in *sin1, *sin2;
+        sin1 = (os_sockaddr_in *)sa1;
+        sin2 = (os_sockaddr_in *)sa2;
+        sz = sizeof(sin1->sin_addr);
+        eq = memcmp(&sin1->sin_addr, &sin2->sin_addr, sizeof(sz));
+        break;
+      }
+      default: {
+        assert(0);
+      }
+    }
+  }
+
+  return eq;
+}
+
 enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (ddsi_tran_factory_t tran, const nn_locator_t *loc, size_t ninterf, const struct nn_interface interf[])
 {
   os_sockaddr_storage tmp, iftmp, nmtmp, ownip;
@@ -29,7 +63,7 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (ddsi_tran_factory
     ddsi_ipaddr_from_loc(&ownip, &gv.ownloc);
     if (os_sockaddrSameSubnet ((os_sockaddr *) &tmp, (os_sockaddr *) &iftmp, (os_sockaddr *) &nmtmp))
     {
-      if (os_sockaddr_compare((os_sockaddr *)&iftmp, (os_sockaddr *)&ownip) == 0)
+      if (ddsi_ipaddr_compare((os_sockaddr *)&iftmp, (os_sockaddr *)&ownip) == 0)
         return DNAR_SAME;
       else
         return DNAR_LOCAL;

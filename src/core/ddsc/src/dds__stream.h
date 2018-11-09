@@ -12,7 +12,8 @@
 #ifndef _DDS_STREAM_H_
 #define _DDS_STREAM_H_
 
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata.h"
+#include "ddsi/ddsi_serdata_default.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -22,25 +23,21 @@ void dds_stream_write_sample
 (
   dds_stream_t * os,
   const void * data,
-  const struct sertopic * topic
+  const struct ddsi_sertopic_default * topic
 );
 void dds_stream_read_sample
 (
   dds_stream_t * is,
   void * data,
-  const struct sertopic * topic
+  const struct ddsi_sertopic_default * topic
 );
 
 size_t dds_stream_check_optimize (_In_ const dds_topic_descriptor_t * desc);
-void dds_stream_from_serstate (_Out_ dds_stream_t * s, _In_ const serstate_t st);
-void dds_stream_add_to_serstate (_Inout_ dds_stream_t * s, _Inout_ serstate_t st);
+void dds_stream_from_serdata_default (dds_stream_t * s, const struct ddsi_serdata_default *d);
+void dds_stream_add_to_serdata_default (dds_stream_t * s, struct ddsi_serdata_default **d);
 
-void dds_stream_write_key
-(
-  dds_stream_t * os,
-  const char * sample,
-  const dds_topic_descriptor_t * desc
-);
+void dds_stream_write_key (dds_stream_t * os, const char * sample, const struct ddsi_sertopic_default * topic);
+uint32_t dds_stream_extract_key (dds_stream_t *is, dds_stream_t *os, const uint32_t *ops, const bool just_key);
 void dds_stream_read_key
 (
   dds_stream_t * is,

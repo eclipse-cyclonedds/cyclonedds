@@ -21,8 +21,8 @@ extern "C" {
 #define dds_topic_lock(hdl, obj) dds_entity_lock(hdl, DDS_KIND_TOPIC, (dds_entity**)obj)
 #define dds_topic_unlock(obj)    dds_entity_unlock((dds_entity*)obj);
 
-extern struct sertopic * dds_topic_lookup (dds_domain * domain, const char * name);
-extern void dds_topic_free (dds_domainid_t domainid, struct sertopic * st);
+extern struct ddsi_sertopic * dds_topic_lookup (dds_domain * domain, const char * name);
+extern void dds_topic_free (dds_domainid_t domainid, struct ddsi_sertopic * st);
 
 #ifndef DDS_TOPIC_INTERN_FILTER_FN_DEFINED
 #define DDS_TOPIC_INTERN_FILTER_FN_DEFINED

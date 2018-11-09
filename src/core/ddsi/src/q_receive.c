@@ -16,10 +16,8 @@
 
 #include "os/os.h"
 
-
 #include "ddsi/q_md5.h"
 #include "util/ut_avl.h"
-#include "q__osplser.h"
 #include "dds__stream.h"
 #include "ddsi/q_protocol.h"
 #include "ddsi/q_rtps.h"
@@ -49,6 +47,8 @@
 #include "ddsi/q_static_assert.h"
 #include "ddsi/q_init.h"
 #include "ddsi/ddsi_mcgroup.h"
+#include "ddsi/ddsi_serdata.h"
+#include "ddsi/ddsi_serdata_default.h" /* FIXME: get rid of this */
 
 #include "ddsi/sysdeps.h"
 #include "dds__whc.h"
@@ -638,7 +638,7 @@ static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *
 
 static seqno_t grow_gap_to_next_seq (const struct writer *wr, seqno_t seq)
 {
-  seqno_t next_seq = wr->whc->ops->next_seq (wr->whc, seq - 1);
+  seqno_t next_seq = whc_next_seq (wr->whc, seq - 1);
   seqno_t seq_xmit = READ_SEQ_XMIT(wr);
   if (next_seq == MAX_SEQ_NUMBER) /* no next sample */
     return seq_xmit + 1;
@@ -835,7 +835,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   else
   {
     /* There's actually no guarantee that we need this information */
-    wr->whc->ops->get_state(wr->whc, &whcst);
+    whc_get_state(wr->whc, &whcst);
   }
 
   /* If this reader was marked as "non-responsive" in the past, it's now responding again,
@@ -944,7 +944,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     {
       seqno_t seq = seqbase + i;
       struct whc_borrowed_sample sample;
-      if (wr->whc->ops->borrow_sample (wr->whc, seq, &sample))
+      if (whc_borrow_sample (wr->whc, seq, &sample))
       {
         if (!wr->retransmitting && sample.unacked)
           writer_set_retransmitting (wr);
@@ -982,7 +982,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
           }
         }
 
-        wr->whc->ops->return_sample(wr->whc, &sample, true);
+        whc_return_sample(wr->whc, &sample, true);
       }
       else if (gapstart == -1)
       {
@@ -1076,7 +1076,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   TRACE ((")"));
  out:
   os_mutexUnlock (&wr->e.lock);
-  wr->whc->ops->free_deferred_free_list (wr->whc, deferred_free_list);
+  whc_free_deferred_free_list (wr->whc, deferred_free_list);
   return 1;
 }
 
@@ -1498,7 +1498,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
 
   /* Resend the requested fragments if we still have the sample, send
      a Gap if we don't have them anymore. */
-  if (wr->whc->ops->borrow_sample (wr->whc, seq, &sample))
+  if (whc_borrow_sample (wr->whc, seq, &sample))
   {
     const unsigned base = msg->fragmentNumberState.bitmap_base - 1;
     int enqueued = 1;
@@ -1514,7 +1514,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
           enqueued = qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0);
       }
     }
-    wr->whc->ops->return_sample (wr->whc, &sample, false);
+    whc_return_sample (wr->whc, &sample, false);
   }
   else
   {
@@ -1541,7 +1541,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
        to give the reader a chance to nack the rest and make sure
        hearbeats will go out at a reasonably high rate for a while */
     struct whc_state whcst;
-    wr->whc->ops->get_state(wr->whc, &whcst);
+    whc_get_state(wr->whc, &whcst);
     force_heartbeat_to_peer (wr, &whcst, prd, 1);
     writer_hbcontrol_note_asyncwrite (wr, now_mt ());
   }
@@ -1784,70 +1784,28 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
   return 1;
 }
 
-static serstate_t make_raw_serstate
-(
-  struct sertopic const * const topic,
-  const struct nn_rdata *fragchain, uint32_t sz, int justkey,
-  unsigned statusinfo, nn_wctime_t tstamp
-)
+static struct ddsi_serdata *get_serdata (struct ddsi_sertopic const * const topic, const struct nn_rdata *fragchain, uint32_t sz, int justkey, unsigned statusinfo, nn_wctime_t tstamp)
 {
-  serstate_t st = ddsi_serstate_new (topic);
-  ddsi_serstate_set_msginfo (st, statusinfo, tstamp);
-  st->kind = justkey ? STK_KEY : STK_DATA;
-  /* the CDR header is always fully contained in the first fragment
-     (see valid_DataFrag), so extracting it is easy */
-  assert (fragchain->min == 0);
-  (void)sz;
-
-  /* alignment at head-of-stream is guaranteed, requesting 1 byte
-     alignment is therefore fine for pasting together fragments of
-     data */
-  {
-    uint32_t off = 4; /* must skip the CDR header */
-    while (fragchain)
-    {
-      assert (fragchain->min <= off);
-      assert (fragchain->maxp1 <= sz);
-      if (fragchain->maxp1 > off)
-      {
-        /* only copy if this fragment adds data */
-        const unsigned char *payload = NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain));
-        ddsi_serstate_append_blob (st, 1, fragchain->maxp1 - off, payload + off - fragchain->min);
-        off = fragchain->maxp1;
-      }
-      fragchain = fragchain->nextfrag;
-    }
-  }
-  return st;
+  struct ddsi_serdata *sd = ddsi_serdata_from_ser (topic, justkey ? SDK_KEY : SDK_DATA, fragchain, sz);
+  sd->statusinfo = statusinfo;
+  sd->timestamp = tstamp;
+  return sd;
 }
 
-static serdata_t ddsi_serstate_fix_with_key (serstate_t st, const struct sertopic *topic, bool bswap)
-{
-  serdata_t sample = ddsi_serstate_fix(st);
-  dds_stream_t is;
-  assert(sample->v.keyhash.m_flags == 0);
-  sample->v.bswap = bswap;
-  dds_stream_from_serstate (&is, sample->v.st);
-  /* FIXME: the relationship between dds_topic, topic_descriptor and sertopic clearly needs some work */
-  dds_stream_read_keyhash (&is, &sample->v.keyhash, topic->status_cb_entity->m_descriptor, sample->v.st->kind == STK_KEY);
-  return sample;
-}
-
-static serdata_t extract_sample_from_data
+static struct ddsi_serdata *extract_sample_from_data
 (
   const struct nn_rsample_info *sampleinfo, unsigned char data_smhdr_flags,
   const nn_plist_t *qos, const struct nn_rdata *fragchain, unsigned statusinfo,
-  nn_wctime_t tstamp, struct sertopic const * const topic
+  nn_wctime_t tstamp, struct ddsi_sertopic const * const topic
 )
 {
   static const nn_guid_t null_guid = {{{0,0,0,0,0,0,0,0,0,0,0,0}},{0}};
   const char *failmsg = NULL;
-  serdata_t sample = NULL;
+  struct ddsi_serdata * sample = NULL;
 
   if (statusinfo == 0)
   {
     /* normal write */
-    serstate_t st;
     if (!(data_smhdr_flags & DATA_FLAG_DATAFLAG) || sampleinfo->size == 0)
     {
       const struct proxy_writer *pwr = sampleinfo->pwr;
@@ -1859,25 +1817,21 @@ static serdata_t extract_sample_from_data
               data_smhdr_flags, sampleinfo->size));
       return NULL;
     }
-    st = make_raw_serstate (topic, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
-    sample = ddsi_serstate_fix_with_key (st, topic, sampleinfo->bswap);
+    sample = get_serdata (topic, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
   }
   else if (sampleinfo->size)
   {
     /* dispose or unregister with included serialized key or data
        (data is a PrismTech extension) -- i.e., dispose or unregister
        as one would expect to receive */
-    serstate_t st;
     if (data_smhdr_flags & DATA_FLAG_KEYFLAG)
     {
-      st = make_raw_serstate (topic, fragchain, sampleinfo->size, 1, statusinfo, tstamp);
-      sample = ddsi_serstate_fix_with_key (st, topic, sampleinfo->bswap);
+      sample = get_serdata (topic, fragchain, sampleinfo->size, 1, statusinfo, tstamp);
     }
     else
     {
       assert (data_smhdr_flags & DATA_FLAG_DATAFLAG);
-      st = make_raw_serstate (topic, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
-      sample = ddsi_serstate_fix_with_key (st, topic, sampleinfo->bswap);
+      sample = get_serdata (topic, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
     }
   }
   else if (data_smhdr_flags & DATA_FLAG_INLINE_QOS)
@@ -1888,14 +1842,12 @@ static serdata_t extract_sample_from_data
       failmsg = "no content";
     else if (!(qos->present & PP_KEYHASH))
       failmsg = "qos present but without keyhash";
+    else if ((sample = ddsi_serdata_from_keyhash (topic, &qos->keyhash)) == NULL)
+      failmsg = "keyhash is MD5 and can't be converted to key value";
     else
     {
-      serstate_t st;
-      st = ddsi_serstate_new (topic);
-      ddsi_serstate_set_msginfo (st, statusinfo, tstamp);
-      st->kind = STK_KEY;
-      ddsi_serstate_append_blob (st, 1, sizeof (qos->keyhash), qos->keyhash.value);
-      sample = ddsi_serstate_fix_with_key (st, topic, sampleinfo->bswap);
+      sample->statusinfo = statusinfo;
+      sample->timestamp = tstamp;
     }
   }
   else
@@ -1943,20 +1895,17 @@ unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr, in
   }
 }
 
-
-
-
 static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const nn_guid_t *rdguid, int pwr_locked)
 {
   struct receiver_state const * const rst = sampleinfo->rst;
   struct proxy_writer * const pwr = sampleinfo->pwr;
-  struct sertopic const * const topic = pwr->c.topic;
+  struct ddsi_sertopic const * const topic = pwr->c.topic;
   unsigned statusinfo;
   Data_DataFrag_common_t *msg;
   unsigned char data_smhdr_flags;
   nn_plist_t qos;
   int need_keyhash;
-  serdata_t payload;
+  struct ddsi_serdata * payload;
 
   if (pwr->ddsi2direct_cb)
   {

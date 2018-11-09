@@ -20,6 +20,8 @@ extern "C" {
 #define DDS_WR_DISPOSE_BIT 0x02
 #define DDS_WR_UNREGISTER_BIT 0x04
 
+struct ddsi_serdata;
+
 typedef enum
 {
   DDS_WR_ACTION_WRITE = 0,
@@ -39,7 +41,7 @@ dds_write_impl(
 int
 dds_writecdr_impl(
         _In_ dds_writer *wr,
-        _Inout_ struct serdata *d,
+        _Inout_ struct ddsi_serdata *d,
         _In_ dds_time_t tstamp,
         _In_ dds_write_action action);
 

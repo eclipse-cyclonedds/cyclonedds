@@ -20,12 +20,12 @@ extern "C" {
 #endif
 
 struct tkmap;
-struct serdata;
+struct ddsi_serdata;
 struct dds_topic;
 
 struct tkmap_instance
 {
-  struct serdata * m_sample;
+  struct ddsi_serdata * m_sample;
   struct tkmap * m_map;
   uint64_t m_iid;
   os_atomic_uint32_t m_refc;
@@ -35,15 +35,15 @@ struct tkmap_instance
 struct tkmap * dds_tkmap_new (void);
 void dds_tkmap_free (_Inout_ _Post_invalid_ struct tkmap *tkmap);
 void dds_tkmap_instance_ref (_In_ struct tkmap_instance *tk);
-uint64_t dds_tkmap_lookup (_In_ struct tkmap *tkmap, _In_ const struct serdata *serdata);
-_Check_return_ bool dds_tkmap_get_key (_In_ struct tkmap * map, _In_ uint64_t iid, _Out_ void * sample);
+uint64_t dds_tkmap_lookup (_In_ struct tkmap *tkmap, _In_ const struct ddsi_serdata *serdata);
+_Check_return_ bool dds_tkmap_get_key (_In_ struct tkmap * map, const struct ddsi_sertopic *topic, _In_ uint64_t iid, _Out_ void * sample);
 _Check_return_ struct tkmap_instance * dds_tkmap_find(
-        _In_ struct serdata * sd,
+        _In_ struct ddsi_serdata * sd,
         _In_ const bool rd,
         _In_ const bool create);
 _Check_return_ struct tkmap_instance * dds_tkmap_find_by_id (_In_ struct tkmap * map, _In_ uint64_t iid);
 
-DDS_EXPORT _Check_return_ struct tkmap_instance * dds_tkmap_lookup_instance_ref (_In_ struct serdata * sd);
+DDS_EXPORT _Check_return_ struct tkmap_instance * dds_tkmap_lookup_instance_ref (_In_ struct ddsi_serdata * sd);
 DDS_EXPORT void dds_tkmap_instance_unref (_In_ struct tkmap_instance * tk);
 
 #if defined (__cplusplus)

@@ -18,10 +18,9 @@
 #include "dds__rhc.h"
 #include "dds__tkmap.h"
 #include "dds__err.h"
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata.h"
 #include "ddsi/q_entity.h"
 #include "ddsi/q_thread.h"
-#include "q__osplser.h"
 #include "dds__report.h"
 
 
@@ -70,7 +69,7 @@ dds_instance_find(
         _In_ const void *data,
         _In_ const bool create)
 {
-    serdata_t sd = serialize_key (topic->m_stopic, data);
+    struct ddsi_serdata *sd = ddsi_serdata_from_sample (topic->m_stopic, SDK_KEY, data);
     struct tkmap_instance * inst = dds_tkmap_find (sd, false, create);
     ddsi_serdata_unref (sd);
     return inst;
@@ -286,7 +285,7 @@ dds_unregister_instance_ih_ts(
     map = gv.m_tkmap;
     topic = dds_instance_info((dds_entity*)wr);
     sample = dds_alloc (topic->m_descriptor->m_size);
-    if (dds_tkmap_get_key (map, handle, sample)) {
+    if (dds_tkmap_get_key (map, topic->m_stopic, handle, sample)) {
         ret = dds_write_impl ((dds_writer*)wr, sample, timestamp, action);
     } else{
         ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET, "No instance related with the provided handle is found");
@@ -384,7 +383,7 @@ dds_dispose_ih_ts(
         struct tkmap *map = gv.m_tkmap;
         const dds_topic *topic = dds_instance_info((dds_entity*)wr);
         void *sample = dds_alloc (topic->m_descriptor->m_size);
-        if (dds_tkmap_get_key (map, handle, sample)) {
+        if (dds_tkmap_get_key (map, topic->m_stopic, handle, sample)) {
             ret = dds_dispose_impl(wr, sample, handle, timestamp);
         } else {
             ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET, "No instance related with the provided handle is found");
@@ -407,7 +406,7 @@ dds_instance_lookup(
     dds_instance_handle_t ih = DDS_HANDLE_NIL;
     const dds_topic * topic;
     struct tkmap * map = gv.m_tkmap;
-    serdata_t sd;
+    struct ddsi_serdata *sd;
     dds_return_t ret;
 
     DDS_REPORT_STACK();
@@ -419,7 +418,7 @@ dds_instance_lookup(
 
     topic = dds_instance_info_by_hdl (entity);
     if (topic) {
-        sd = serialize_key (topic->m_stopic, data);
+        sd = ddsi_serdata_from_sample (topic->m_stopic, SDK_KEY, data);
         ih = dds_tkmap_lookup (map, sd);
         ddsi_serdata_unref (sd);
         ret = DDS_RETCODE_OK;
@@ -456,7 +455,7 @@ dds_instance_get_key(
     }
     memset (data, 0, topic->m_descriptor->m_size);
 
-    if (dds_tkmap_get_key (map, inst, data)) {
+    if (dds_tkmap_get_key (map, topic->m_stopic, inst, data)) {
         ret = DDS_RETCODE_OK;
     } else{
         ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET, "No instance related with the provided entity is found");

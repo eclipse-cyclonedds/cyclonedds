@@ -33,7 +33,7 @@ extern "C" {
 #endif
 
 struct nn_xmsgpool;
-struct serstatepool;
+struct serdatapool;
 struct nn_dqueue;
 struct nn_reorder;
 struct nn_defrag;
@@ -275,8 +275,10 @@ struct q_globals {
 
   /* Transmit side: pools for the serializer & transmit messages and a
      transmit queue*/
-  struct serstatepool *serpool;
+  struct serdatapool *serpool;
   struct nn_xmsgpool *xmsgpool;
+  struct ddsi_sertopic *plist_topic; /* used for all discovery data */
+  struct ddsi_sertopic *rawcdr_topic; /* used for participant message data */
 
   /* Network ID needed by v_groupWrite -- FIXME: might as well pass it
      to the receive thread instead of making it global (and that would

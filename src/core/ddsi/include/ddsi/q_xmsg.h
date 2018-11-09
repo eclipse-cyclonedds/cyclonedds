@@ -22,7 +22,7 @@
 extern "C" {
 #endif
 
-struct serdata;
+struct ddsi_serdata;
 struct addrset;
 struct proxy_reader;
 struct proxy_writer;
@@ -33,6 +33,7 @@ struct nn_xmsgpool;
 struct nn_xmsg_data;
 struct nn_xmsg;
 struct nn_xpack;
+struct ddsi_plist_sample;
 
 struct nn_xmsg_marker {
   size_t offset;
@@ -107,13 +108,14 @@ int nn_xmsg_compare_fragid (const struct nn_xmsg *a, const struct nn_xmsg *b);
 void nn_xmsg_free (struct nn_xmsg *msg);
 size_t nn_xmsg_size (const struct nn_xmsg *m);
 void *nn_xmsg_payload (size_t *sz, struct nn_xmsg *m);
+void nn_xmsg_payload_to_plistsample (struct ddsi_plist_sample *dst, nn_parameterid_t keyparam, const struct nn_xmsg *m);
 enum nn_xmsg_kind nn_xmsg_kind (const struct nn_xmsg *m);
 void nn_xmsg_guid_seq_fragid (const struct nn_xmsg *m, nn_guid_t *wrguid, seqno_t *wrseq, nn_fragment_number_t *wrfragid);
 
 void *nn_xmsg_submsg_from_marker (struct nn_xmsg *msg, struct nn_xmsg_marker marker);
 void *nn_xmsg_append (struct nn_xmsg *m, struct nn_xmsg_marker *marker, size_t sz);
 void nn_xmsg_shrink (struct nn_xmsg *m, struct nn_xmsg_marker marker, size_t sz);
-void nn_xmsg_serdata (struct nn_xmsg *m, struct serdata *serdata, size_t off, size_t len);
+void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t off, size_t len);
 void nn_xmsg_submsg_setnext (struct nn_xmsg *msg, struct nn_xmsg_marker marker);
 void nn_xmsg_submsg_init (struct nn_xmsg *msg, struct nn_xmsg_marker marker, SubmessageKind_t smkind);
 void nn_xmsg_add_timestamp (struct nn_xmsg *m, nn_wctime_t t);
@@ -125,7 +127,7 @@ void nn_xmsg_addpar_stringseq (struct nn_xmsg *m, unsigned pid, const nn_strings
 void nn_xmsg_addpar_guid (struct nn_xmsg *m, unsigned pid, const nn_guid_t *guid);
 void nn_xmsg_addpar_BE4u (struct nn_xmsg *m, unsigned pid, unsigned x);
 void nn_xmsg_addpar_4u (struct nn_xmsg *m, unsigned pid, unsigned x);
-void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct serdata *serdata);
+void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serdata);
 void nn_xmsg_addpar_statusinfo (struct nn_xmsg *m, unsigned statusinfo);
 void nn_xmsg_addpar_reliability (struct nn_xmsg *m, unsigned pid, const struct nn_reliability_qospolicy *rq);
 void nn_xmsg_addpar_share (struct nn_xmsg *m, unsigned pid, const struct nn_share_qospolicy *rq);

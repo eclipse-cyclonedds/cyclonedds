@@ -22,7 +22,7 @@
 #include "dds__err.h"
 #include "dds__builtin.h"
 #include "dds__report.h"
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata.h"
 #include "ddsi/q_servicelease.h"
 #include "ddsi/q_entity.h"
 #include <ddsi/q_config.h>
@@ -131,11 +131,6 @@ dds_init(dds_domainid_t domain)
       ret = DDS_ERRNO(DDS_RETCODE_OUT_OF_RESOURCES, "Failed to create a servicelease.");
       goto fail_servicelease_new;
     }
-    if (nn_servicelease_start_renewing(gv.servicelease) < 0)
-    {
-      ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Failed to start the servicelease.");
-      goto fail_servicelease_start;
-    }
   }
 
   if (rtps_init() < 0)
@@ -143,6 +138,13 @@ dds_init(dds_domainid_t domain)
     ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Failed to initialize RTPS.");
     goto fail_rtps_init;
   }
+
+  if (gv.servicelease && nn_servicelease_start_renewing(gv.servicelease) < 0)
+  {
+    ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Failed to start the servicelease.");
+    goto fail_servicelease_start;
+  }
+
   upgrade_main_thread();
 
   /* Set additional default participant properties */
@@ -175,11 +177,16 @@ skip:
   DDS_REPORT_FLUSH(false);
   return DDS_RETCODE_OK;
 
-fail_rtps_init:
 fail_servicelease_start:
   if (gv.servicelease)
+    nn_servicelease_stop_renewing (gv.servicelease);
+  rtps_term ();
+fail_rtps_init:
+  if (gv.servicelease)
+  {
     nn_servicelease_free (gv.servicelease);
-  gv.servicelease = NULL;
+    gv.servicelease = NULL;
+  }
 fail_servicelease_new:
   thread_states_fini();
 fail_rtps_config:
@@ -200,8 +207,6 @@ fail_handleserver:
   return ret;
 }
 
-
-
 extern void dds_fini (void)
 {
   os_mutex *init_mutex;
@@ -213,6 +218,8 @@ extern void dds_fini (void)
   {
     dds__builtin_fini();
 
+    if (gv.servicelease)
+      nn_servicelease_stop_renewing (gv.servicelease);
     rtps_term ();
     if (gv.servicelease)
       nn_servicelease_free (gv.servicelease);

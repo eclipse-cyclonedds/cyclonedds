@@ -200,7 +200,7 @@ typedef struct nn_plist_src {
   nn_protocol_version_t protocol_version;
   nn_vendorid_t vendorid;
   int encoding;
-  unsigned char *buf;
+  const unsigned char *buf;
   size_t bufsz;
 } nn_plist_src_t;
 
@@ -233,6 +233,7 @@ struct nn_rsample_info;
 struct nn_rdata;
 
 unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const nn_plist_src_t *src);
+const unsigned char *nn_plist_findparam_native_unchecked (const void *src, nn_parameterid_t pid);
 
 #if defined (__cplusplus)
 }

@@ -13,101 +13,28 @@
 #include <string.h>
 #include "dds__key.h"
 #include "dds__stream.h"
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata.h"
 #include "ddsi/q_bswap.h"
 #include "ddsi/q_md5.h"
 
 #ifndef NDEBUG
 static bool keyhash_is_reset(const dds_key_hash_t *kh)
 {
-  static const char nullhash[sizeof(kh->m_hash)] = { 0 };
-  return kh->m_flags == 0 && memcmp(kh->m_hash, nullhash, sizeof(nullhash)) == 0;
+  return !kh->m_set;
 }
 #endif
-
-void dds_key_md5 (dds_key_hash_t * kh)
-{
-  md5_state_t md5st;
-  md5_init (&md5st);
-  md5_append (&md5st, (md5_byte_t*) kh->m_key_buff, kh->m_key_len);
-  md5_finish (&md5st, (unsigned char *) kh->m_hash);
-}
 
 /*
   dds_key_gen: Generates key and keyhash for a sample.
   See section 9.6.3.3 of DDSI spec.
 */
 
-void dds_key_gen
-(
-  const dds_topic_descriptor_t * const desc,
-  dds_key_hash_t * kh,
-  const char * sample
-)
+static void dds_key_gen_stream (const dds_topic_descriptor_t * const desc, dds_stream_t *os, const char *sample)
 {
   const char * src;
   const uint32_t * op;
   uint32_t i;
   uint32_t len = 0;
-  char * dst;
-
-  assert(keyhash_is_reset(kh));
-
-  if (desc->m_nkeys == 0)
-  {
-    kh->m_flags = DDS_KEY_SET | DDS_KEY_HASH_SET | DDS_KEY_IS_HASH;
-    kh->m_key_len = sizeof (kh->m_hash);
-    return;
-  }
-
-  kh->m_flags = DDS_KEY_SET | DDS_KEY_HASH_SET;
-
-  /* Select key buffer to use */
-
-  if (desc->m_flagset & DDS_TOPIC_FIXED_KEY)
-  {
-    kh->m_flags |= DDS_KEY_IS_HASH;
-    kh->m_key_len = sizeof (kh->m_hash);
-    dst = kh->m_hash;
-  }
-  else
-  {
-    /* Calculate key length */
-
-    for (i = 0; i < desc->m_nkeys; i++)
-    {
-      op = desc->m_ops + desc->m_keys[i].m_index;
-      src = sample + op[1];
-
-      switch (DDS_OP_TYPE (*op))
-      {
-        case DDS_OP_VAL_1BY: len += 1; break;
-        case DDS_OP_VAL_2BY: len += 2; break;
-        case DDS_OP_VAL_4BY: len += 4; break;
-        case DDS_OP_VAL_8BY: len += 8; break;
-        case DDS_OP_VAL_STR:
-          src = *((char**) src);
-          /* FALLS THROUGH */
-        case DDS_OP_VAL_BST:
-          len += (uint32_t) (5 + strlen (src));
-          break;
-        case DDS_OP_VAL_ARR:
-          len += op[2] * dds_op_size[DDS_OP_SUBTYPE (*op)];
-          break;
-        default: assert (0);
-      }
-    }
-
-    kh->m_key_len = len;
-    if (len > kh->m_key_buff_size)
-    {
-      kh->m_key_buff = dds_realloc_zero (kh->m_key_buff, len);
-      kh->m_key_buff_size = len;
-    }
-    dst = kh->m_key_buff;
-  }
-
-  /* Write keys to buffer (Big Endian CDR encoded with no padding) */
 
   for (i = 0; i < desc->m_nkeys; i++)
   {
@@ -119,29 +46,22 @@ void dds_key_gen
     {
       case DDS_OP_VAL_1BY:
       {
-        *dst = *src;
-        dst++;
+        dds_stream_write_uint8 (os, *((const uint8_t *) src));
         break;
       }
       case DDS_OP_VAL_2BY:
       {
-        uint16_t u16 = toBE2u (*((const uint16_t*) src));
-        memcpy (dst, &u16, sizeof (u16));
-        dst += sizeof (u16);
+        dds_stream_write_uint16 (os, *((const uint16_t *) src));
         break;
       }
       case DDS_OP_VAL_4BY:
       {
-        uint32_t u32 = toBE4u (*((const uint32_t*) src));
-        memcpy (dst, &u32, sizeof (u32));
-        dst += sizeof (u32);
+        dds_stream_write_uint32 (os, *((const uint32_t *) src));
         break;
       }
       case DDS_OP_VAL_8BY:
       {
-        uint64_t u64 = toBE8u (*((const uint64_t*) src));
-        memcpy (dst, &u64, sizeof (u64));
-        dst += sizeof (u64);
+        dds_stream_write_uint64 (os, *((const uint64_t *) src));
         break;
       }
       case DDS_OP_VAL_STR:
@@ -151,35 +71,55 @@ void dds_key_gen
         /* FALLS THROUGH */
       case DDS_OP_VAL_BST:
       {
-        uint32_t u32;
         len = (uint32_t) (strlen (src) + 1);
-        u32 = toBE4u (len);
-        memcpy (dst, &u32, sizeof (u32));
-        dst += sizeof (u32);
-        memcpy (dst, src, len);
-        dst += len;
+        dds_stream_write_uint32 (os, len);
+        dds_stream_write_buffer (os, len, (const uint8_t *) src);
         break;
       }
       case DDS_OP_VAL_ARR:
       {
         uint32_t size = dds_op_size[DDS_OP_SUBTYPE (*op)];
+        char *dst;
         len = size * op[2];
-        memcpy (dst, src, len);
+        dst = dds_stream_alignto (os, op[2]);
+        dds_stream_write_buffer (os, len, (const uint8_t *) src);
         if (dds_stream_endian () && (size != 1u))
-        {
           dds_stream_swap (dst, size, op[2]);
-        }
-        dst += len;
         break;
       }
       default: assert (0);
     }
   }
+}
 
-  /* Hash is md5 of key */
+void dds_key_gen (const dds_topic_descriptor_t * const desc, dds_key_hash_t * kh, const char * sample)
+{
+  assert(keyhash_is_reset(kh));
 
-  if ((kh->m_flags & DDS_KEY_IS_HASH) == 0)
+  kh->m_set = 1;
+  if (desc->m_nkeys == 0)
+    kh->m_iskey = 1;
+  else if (desc->m_flagset & DDS_TOPIC_FIXED_KEY)
   {
-    dds_key_md5 (kh);
+    dds_stream_t os;
+    kh->m_iskey = 1;
+    dds_stream_init(&os, 0);
+    os.m_endian = 0;
+    os.m_buffer.pv = kh->m_hash;
+    os.m_size = 16;
+    dds_key_gen_stream (desc, &os, sample);
+  }
+  else
+  {
+    dds_stream_t os;
+    md5_state_t md5st;
+    kh->m_iskey = 0;
+    dds_stream_init(&os, 64);
+    os.m_endian = 0;
+    dds_key_gen_stream (desc, &os, sample);
+    md5_init (&md5st);
+    md5_append (&md5st, os.m_buffer.p8, os.m_index);
+    md5_finish (&md5st, (unsigned char *) kh->m_hash);
+    dds_stream_fini (&os);
   }
 }

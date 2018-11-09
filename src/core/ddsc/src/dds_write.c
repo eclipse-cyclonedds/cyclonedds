@@ -15,7 +15,8 @@
 #include "dds__tkmap.h"
 #include "ddsi/q_error.h"
 #include "ddsi/q_thread.h"
-#include "q__osplser.h"
+#include "ddsi/q_xmsg.h"
+#include "ddsi/ddsi_serdata.h"
 #include "dds__stream.h"
 #include "dds__err.h"
 #include "ddsi/q_transmit.h"
@@ -57,7 +58,7 @@ _Pre_satisfies_((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)
 int
 dds_writecdr(
         dds_entity_t writer,
-        struct serdata *serdata)
+        struct ddsi_serdata *serdata)
 {
     dds_return_t ret;
     dds__retcode_t rc;
@@ -112,7 +113,7 @@ err:
 static int
 deliver_locally(
         _In_ struct writer *wr,
-        _In_ serdata_t payload,
+        _In_ struct ddsi_serdata *payload,
         _In_ struct tkmap_instance *tk)
 {
     dds_return_t ret = DDS_RETCODE_OK;
@@ -191,16 +192,16 @@ dds_write_impl(
     dds_writer * writer = (dds_writer*) wr;
     struct writer * ddsi_wr = writer->m_wr;
     struct tkmap_instance * tk;
-    serdata_t d;
+    struct ddsi_serdata *d;
 
     if (data == NULL) {
         return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "No data buffer provided");
     }
 
     /* Check for topic filter */
-    if (ddsi_wr->topic->filter_fn && ! writekey) {
-        if (!(ddsi_wr->topic->filter_fn) (data, ddsi_wr->topic->filter_ctx)) {
-            goto filtered;
+    if (wr->m_topic->filter_fn && ! writekey) {
+        if (!(wr->m_topic->filter_fn) (data, wr->m_topic->filter_ctx)) {
+            return DDS_RETCODE_OK;
         }
     }
 
@@ -209,16 +210,12 @@ dds_write_impl(
     }
 
     /* Serialize and write data or key */
-    if (writekey) {
-        d = serialize_key (ddsi_wr->topic, data);
-    } else {
-        d = serialize (ddsi_wr->topic, data);
-    }
+    d = ddsi_serdata_from_sample (ddsi_wr->topic, writekey ? SDK_KEY : SDK_DATA, data);
 
     /* Set if disposing or unregistering */
-    d->v.msginfo.statusinfo = ((action & DDS_WR_DISPOSE_BIT   ) ? NN_STATUSINFO_DISPOSE    : 0) |
-                              ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0) ;
-    d->v.msginfo.timestamp.v = tstamp;
+    d->statusinfo = ((action & DDS_WR_DISPOSE_BIT   ) ? NN_STATUSINFO_DISPOSE    : 0) |
+                    ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0) ;
+    d->timestamp.v = tstamp;
     ddsi_serdata_ref(d);
     tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (d);
     w_rc = write_sample_gc (writer->m_xp, ddsi_wr, d, tk);
@@ -246,14 +243,13 @@ dds_write_impl(
         thread_state_asleep (thr);
     }
 
-filtered:
     return ret;
 }
 
 int
 dds_writecdr_impl(
     _In_ dds_writer *wr,
-    _Inout_ serdata_t d,
+    _Inout_ struct ddsi_serdata *d,
     _In_ dds_time_t tstamp,
     _In_ dds_write_action action)
 {
@@ -264,12 +260,10 @@ dds_writecdr_impl(
 
     struct thread_state1 * const thr = lookup_thread_state ();
     const bool asleep = !vtime_awake_p (thr->vtime);
-    const bool writekey = action & DDS_WR_KEY_BIT;
     struct writer * ddsi_wr = wr->m_wr;
     struct tkmap_instance * tk;
 
-    /* Check for topic filter */
-    if (ddsi_wr->topic->filter_fn && ! writekey) {
+    if (wr->m_topic->filter_fn) {
         abort();
     }
 
@@ -278,10 +272,10 @@ dds_writecdr_impl(
     }
 
     /* Set if disposing or unregistering */
-    d->v.msginfo.statusinfo =
+    d->statusinfo =
         ((action & DDS_WR_DISPOSE_BIT   ) ? NN_STATUSINFO_DISPOSE    : 0) |
         ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0) ;
-    d->v.msginfo.timestamp.v = tstamp;
+    d->timestamp.v = tstamp;
     ddsi_serdata_ref(d);
     tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (d);
     w_rc = write_sample_gc (wr->m_xp, ddsi_wr, d, tk);

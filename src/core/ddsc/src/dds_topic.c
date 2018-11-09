@@ -21,19 +21,19 @@
 #include "dds__err.h"
 #include "ddsi/q_entity.h"
 #include "ddsi/q_thread.h"
-#include "q__osplser.h"
+#include "ddsi/ddsi_sertopic.h"
 #include "ddsi/q_ddsi_discovery.h"
 #include "os/os_atomics.h"
 #include "dds__report.h"
-
+#include "dds__iid.h"
 
 #define DDS_TOPIC_STATUS_MASK                                    \
                         DDS_INCONSISTENT_TOPIC_STATUS
 
 const ut_avlTreedef_t dds_topictree_def = UT_AVL_TREEDEF_INITIALIZER_INDKEY
 (
-  offsetof (struct sertopic, avlnode),
-  offsetof (struct sertopic, name_typename),
+  offsetof (struct ddsi_sertopic, avlnode),
+  offsetof (struct ddsi_sertopic, name_typename),
   (int (*) (const void *, const void *)) strcmp,
   0
 );
@@ -151,12 +151,12 @@ dds_topic_status_cb(
     DDS_REPORT_FLUSH(rc != DDS_RETCODE_OK);
 }
 
-sertopic_t
+struct ddsi_sertopic *
 dds_topic_lookup_locked(
         dds_domain *domain,
         const char *name)
 {
-    sertopic_t st = NULL;
+    struct ddsi_sertopic *st = NULL;
     ut_avlIter_t iter;
 
     assert (domain);
@@ -172,12 +172,12 @@ dds_topic_lookup_locked(
     return st;
 }
 
-sertopic_t
+struct ddsi_sertopic *
 dds_topic_lookup(
         dds_domain *domain,
         const char *name)
 {
-    sertopic_t st;
+    struct ddsi_sertopic *st;
     os_mutexLock (&dds_global.m_mutex);
     st = dds_topic_lookup_locked(domain, name);
     os_mutexUnlock (&dds_global.m_mutex);
@@ -187,7 +187,7 @@ dds_topic_lookup(
 void
 dds_topic_free(
         dds_domainid_t domainid,
-        struct sertopic *st)
+        struct ddsi_sertopic *st)
 {
     dds_domain *domain;
 
@@ -200,13 +200,13 @@ dds_topic_free(
     }
     os_mutexUnlock (&dds_global.m_mutex);
     st->status_cb_entity = NULL;
-    sertopic_free (st);
+    ddsi_sertopic_unref (st);
 }
 
 static void
 dds_topic_add_locked(
         dds_domainid_t id,
-        sertopic_t st)
+        struct ddsi_sertopic *st)
 {
     dds_domain * dom;
     dom = dds_domain_find_locked (id);
@@ -222,7 +222,7 @@ dds_find_topic(
 {
     dds_entity_t tp;
     dds_entity *p = NULL;
-    sertopic_t st;
+    struct ddsi_sertopic *st;
     dds__retcode_t rc;
 
     DDS_REPORT_STACK();
@@ -307,7 +307,7 @@ dds_topic_qos_set(
     return ret;
 }
 
-static bool dupdef_qos_ok(const dds_qos_t *qos, const struct sertopic *st)
+static bool dupdef_qos_ok(const dds_qos_t *qos, const struct ddsi_sertopic *st)
 {
     if ((qos == NULL) != (st->status_cb_entity->m_entity.m_qos == NULL)) {
         return false;
@@ -327,10 +327,9 @@ dds_create_topic(
         _In_opt_ const dds_qos_t *qos,
         _In_opt_ const dds_listener_t *listener)
 {
-    static uint32_t next_topicid = 0;
-
     char *key = NULL;
-    sertopic_t st;
+    struct ddsi_sertopic *stgeneric;
+    struct ddsi_sertopic_default *st;
     const char *typename;
     dds__retcode_t rc;
     dds_entity *par;
@@ -378,16 +377,17 @@ dds_create_topic(
 
     /* Check if topic already exists with same name */
     os_mutexLock (&dds_global.m_mutex);
-    if ((st = dds_topic_lookup_locked (par->m_domain, name)) != NULL) {
+    if ((stgeneric = dds_topic_lookup_locked (par->m_domain, name)) != NULL) {
+        st = (struct ddsi_sertopic_default *)stgeneric;
         if (st->type != desc) {
             /* FIXME: should copy the type, perhaps? but then the pointers will no longer be the same */
             hdl = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET, "Create topic with mismatching type.");
-        } else if (!dupdef_qos_ok(qos, st)) {
+        } else if (!dupdef_qos_ok(qos, stgeneric)) {
             /* FIXME: should copy the type, perhaps? but then the pointers will no longer be the same */
             hdl = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY, "Create topic with mismatching qos.");
         } else {
-            dds_entity_add_ref (&st->status_cb_entity->m_entity);
-            hdl = st->status_cb_entity->m_entity.m_hdl;
+            dds_entity_add_ref (&st->c.status_cb_entity->m_entity);
+            hdl = st->c.status_cb_entity->m_entity.m_hdl;
         }
         os_mutexUnlock (&dds_global.m_mutex);
     } else {
@@ -413,34 +413,34 @@ dds_create_topic(
         top->m_entity.m_deriver.validate_status = dds_topic_status_validate;
 
         st = dds_alloc (sizeof (*st));
+
+        os_atomic_st32 (&st->c.refc, 1);
+        st->c.iid = dds_iid_gen ();
+        st->c.status_cb = dds_topic_status_cb;
+        st->c.status_cb_entity = top;
+        st->c.name_typename = key;
+        st->c.name = dds_alloc (strlen (name) + 1);
+        strcpy (st->c.name, name);
+        st->c.typename = dds_alloc (strlen (typename) + 1);
+        strcpy (st->c.typename, typename);
+        st->c.ops = &ddsi_sertopic_ops_default;
+        st->c.serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey;
+        st->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (st->c.serdata_ops);
+        st->native_encoding_identifier = (PLATFORM_IS_LITTLE_ENDIAN ? CDR_LE : CDR_BE);
+
         st->type = (void*) desc;
-        os_atomic_st32 (&st->refcount, 1);
-        st->status_cb = dds_topic_status_cb;
-        st->status_cb_entity = top;
-        st->name_typename = key;
-        st->name = dds_alloc (strlen (name) + 1);
-        strcpy (st->name, name);
-        st->typename = dds_alloc (strlen (typename) + 1);
-        strcpy (st->typename, typename);
         st->nkeys = desc->m_nkeys;
         st->keys = desc->m_keys;
-        st->id = next_topicid++;
-
-#ifdef VXWORKS_RTP
-        st->hash = (uint32_t)((st->id * UINT64_C (12844332200329132887UL)) >> 32);
-#else
-        st->hash = (uint32_t)((st->id * UINT64_C (12844332200329132887)) >> 32);
-#endif
 
         /* Check if topic cannot be optimised (memcpy marshal) */
 
         if ((desc->m_flagset & DDS_TOPIC_NO_OPTIMIZE) == 0) {
             st->opt_size = dds_stream_check_optimize (desc);
         }
-        top->m_stopic = st;
+        top->m_stopic = &st->c;
 
         /* Add topic to extent */
-        dds_topic_add_locked (par->m_domainid, st);
+        dds_topic_add_locked (par->m_domainid, &st->c);
         os_mutexUnlock (&dds_global.m_mutex);
 
         nn_plist_init_empty (&plist);
@@ -449,8 +449,8 @@ dds_create_topic(
         }
 
         /* Set Topic meta data (for SEDP publication) */
-        plist.qos.topic_name = dds_string_dup (st->name);
-        plist.qos.type_name = dds_string_dup (st->typename);
+        plist.qos.topic_name = dds_string_dup (st->c.name);
+        plist.qos.type_name = dds_string_dup (st->c.typename);
         plist.qos.present |= (QP_TOPIC_NAME | QP_TYPE_NAME);
         if (desc->m_meta) {
             plist.type_description = dds_string_dup (desc->m_meta);
@@ -506,17 +506,11 @@ dds_topic_mod_filter(
     dds_topic *t;
     if (dds_topic_lock(topic, &t) == DDS_RETCODE_OK) {
         if (set) {
-            t->m_stopic->filter_fn = *filter;
-            t->m_stopic->filter_ctx = *ctx;
-
-            /* Create sample for read filtering */
-
-            if (t->m_stopic->filter_sample == NULL) {
-                t->m_stopic->filter_sample = dds_alloc (t->m_descriptor->m_size);
-            }
+            t->filter_fn = *filter;
+            t->filter_ctx = *ctx;
         } else {
-            *filter = t->m_stopic->filter_fn;
-            *ctx = t->m_stopic->filter_ctx;
+            *filter = t->filter_fn;
+            *ctx = t->filter_ctx;
         }
         dds_topic_unlock(t);
     } else {
@@ -544,8 +538,7 @@ dds_topic_get_filter(
     dds_topic_intern_filter_fn filter;
     void *ctx;
     dds_topic_mod_filter (topic, &filter, &ctx, false);
-    return
-      (filter == dds_topic_chaining_filter) ? (dds_topic_filter_fn)ctx : 0;
+    return (filter == dds_topic_chaining_filter) ? (dds_topic_filter_fn)ctx : 0;
 }
 
 void

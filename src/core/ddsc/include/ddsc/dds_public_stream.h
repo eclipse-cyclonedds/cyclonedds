@@ -45,8 +45,8 @@ dds_uptr_t;
 typedef struct dds_stream
 {
   dds_uptr_t m_buffer;  /* Union of pointers to start of buffer */
-  size_t m_size;      /* Buffer size */
-  size_t m_index;     /* Read/write offset from start of buffer */
+  uint32_t m_size;      /* Buffer size */
+  uint32_t m_index;     /* Read/write offset from start of buffer */
   bool m_endian;        /* Endian: big (false) or little (true) */
   bool m_failed;        /* Attempt made to read beyond end of buffer */
 }
@@ -55,13 +55,13 @@ dds_stream_t;
 #define DDS_STREAM_BE false
 #define DDS_STREAM_LE true
 
-DDS_EXPORT dds_stream_t * dds_stream_create (size_t size);
+DDS_EXPORT dds_stream_t * dds_stream_create (uint32_t size);
 DDS_EXPORT dds_stream_t * dds_stream_from_buffer (const void *buf, size_t sz, int bswap);
 DDS_EXPORT void dds_stream_delete (dds_stream_t * st);
 DDS_EXPORT void dds_stream_fini (dds_stream_t * st);
 DDS_EXPORT void dds_stream_reset (dds_stream_t * st);
-DDS_EXPORT void dds_stream_init (dds_stream_t * st, size_t size);
-DDS_EXPORT void dds_stream_grow (dds_stream_t * st, size_t size);
+DDS_EXPORT void dds_stream_init (dds_stream_t * st, uint32_t size);
+DDS_EXPORT void dds_stream_grow (dds_stream_t * st, uint32_t size);
 DDS_EXPORT bool dds_stream_endian (void);
 
 struct dds_topic_descriptor;
@@ -90,7 +90,9 @@ DDS_EXPORT void dds_stream_write_uint64 (dds_stream_t * os, uint64_t val);
 DDS_EXPORT void dds_stream_write_float (dds_stream_t * os, float val);
 DDS_EXPORT void dds_stream_write_double (dds_stream_t * os, double val);
 DDS_EXPORT void dds_stream_write_string (dds_stream_t * os, const char * val);
-DDS_EXPORT void dds_stream_write_buffer (dds_stream_t * os, uint32_t len, uint8_t * buffer);
+DDS_EXPORT void dds_stream_write_buffer (dds_stream_t * os, uint32_t len, const uint8_t * buffer);
+DDS_EXPORT void *dds_stream_address (dds_stream_t * s);
+DDS_EXPORT void *dds_stream_alignto (dds_stream_t * s, uint32_t a);
 
 #define dds_stream_write_char(s,v) (dds_stream_write_uint8 ((s), (uint8_t)(v)))
 #define dds_stream_write_int8(s,v) (dds_stream_write_uint8 ((s), (uint8_t)(v)))

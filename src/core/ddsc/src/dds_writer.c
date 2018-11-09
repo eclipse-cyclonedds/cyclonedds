@@ -14,7 +14,7 @@
 #include "ddsi/q_config.h"
 #include "ddsi/q_entity.h"
 #include "ddsi/q_thread.h"
-#include "q__osplser.h"
+#include "ddsi/q_xmsg.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
 #include "dds__qos.h"

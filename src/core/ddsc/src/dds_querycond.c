@@ -16,7 +16,8 @@
 #include "dds__querycond.h"
 #include "dds__readcond.h"
 #include "dds__err.h"
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata.h"
+#include "ddsi/ddsi_sertopic.h"
 #include "dds__report.h"
 
 _Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)
@@ -26,11 +27,9 @@ dds_create_querycondition(
         _In_ uint32_t mask,
         _In_ dds_querycondition_filter_fn filter)
 {
-    dds_entity_t topic;
     dds_entity_t hdl;
     dds__retcode_t rc;
     dds_reader *r;
-    dds_topic  *t;
 
     DDS_REPORT_STACK();
 
@@ -40,18 +39,7 @@ dds_create_querycondition(
         assert(cond);
         hdl = cond->m_entity.m_hdl;
         cond->m_query.m_filter = filter;
-        topic = r->m_topic->m_entity.m_hdl;
         dds_reader_unlock(r);
-        rc = dds_topic_lock(topic, &t);
-        if (rc == DDS_RETCODE_OK) {
-            if (t->m_stopic->filter_sample == NULL) {
-                t->m_stopic->filter_sample = dds_alloc(t->m_descriptor->m_size);
-            }
-            dds_topic_unlock(t);
-        } else {
-            (void)dds_delete(hdl);
-            hdl = DDS_ERRNO(rc, "Error occurred on locking topic");
-        }
     } else {
         hdl = DDS_ERRNO(rc, "Error occurred on locking reader");
     }

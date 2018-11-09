@@ -32,7 +32,8 @@
 #include "ddsi/q_hbcontrol.h"
 #include "ddsi/q_static_assert.h"
 
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata.h"
+#include "ddsi/ddsi_sertopic.h"
 
 #include "ddsi/sysdeps.h"
 #include "dds__whc.h"
@@ -394,12 +395,30 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
   nn_xmsg_submsg_setnext (msg, sm_marker);
 }
 
-static int create_fragment_message_simple (struct writer *wr, seqno_t seq, struct serdata *serdata, struct nn_xmsg **pmsg)
+static int create_fragment_message_simple (struct writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct nn_xmsg **pmsg)
 {
+#define TEST_KEYHASH 0
   const size_t expected_inline_qos_size = 4+8+20+4 + 32;
   struct nn_xmsg_marker sm_marker;
-  const unsigned char contentflag = (ddsi_serdata_is_empty (serdata) ? 0 : ddsi_serdata_is_key (serdata) ? DATA_FLAG_KEYFLAG : DATA_FLAG_DATAFLAG);
+  unsigned char contentflag;
   Data_t *data;
+
+  switch (serdata->kind)
+  {
+    case SDK_EMPTY:
+      contentflag = 0;
+      break;
+    case SDK_KEY:
+#if TEST_KEYHASH
+      contentflag = wr->include_keyhash ? 0 : DATA_FLAG_KEYFLAG;
+#else
+      contentflag = DATA_FLAG_KEYFLAG;
+#endif
+      break;
+    case SDK_DATA:
+      contentflag = DATA_FLAG_DATAFLAG;
+      break;
+  }
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
@@ -413,7 +432,7 @@ static int create_fragment_message_simple (struct writer *wr, seqno_t seq, struc
 
   nn_xmsg_setdstN (*pmsg, wr->as, wr->as_group);
   nn_xmsg_setmaxdelay (*pmsg, nn_from_ddsi_duration (wr->xqos->latency_budget.duration));
-  nn_xmsg_add_timestamp (*pmsg, serdata->v.msginfo.timestamp);
+  nn_xmsg_add_timestamp (*pmsg, serdata->timestamp);
   data = nn_xmsg_append (*pmsg, &sm_marker, sizeof (Data_t));
 
   nn_xmsg_submsg_init (*pmsg, sm_marker, SMID_DATA);
@@ -430,20 +449,25 @@ static int create_fragment_message_simple (struct writer *wr, seqno_t seq, struc
   /* Adding parameters means potential reallocing, so sm, ddcmn now likely become invalid */
   if (wr->include_keyhash)
     nn_xmsg_addpar_keyhash (*pmsg, serdata);
-  if (serdata->v.msginfo.statusinfo)
-    nn_xmsg_addpar_statusinfo (*pmsg, serdata->v.msginfo.statusinfo);
+  if (serdata->statusinfo)
+    nn_xmsg_addpar_statusinfo (*pmsg, serdata->statusinfo);
   if (nn_xmsg_addpar_sentinel_ifparam (*pmsg) > 0)
   {
     data = nn_xmsg_submsg_from_marker (*pmsg, sm_marker);
     data->x.smhdr.flags |= DATAFRAG_FLAG_INLINE_QOS;
   }
 
+#if TEST_KEYHASH
+  if (serdata->kind != SDK_KEY || !wr->include_keyhash)
+    nn_xmsg_serdata (*pmsg, serdata, 0, ddsi_serdata_size (serdata));
+#else
   nn_xmsg_serdata (*pmsg, serdata, 0, ddsi_serdata_size (serdata));
+#endif
   nn_xmsg_submsg_setnext (*pmsg, sm_marker);
   return 0;
 }
 
-int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_plist *plist, struct serdata *serdata, unsigned fragnum, struct proxy_reader *prd, struct nn_xmsg **pmsg, int isnew)
+int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, unsigned fragnum, struct proxy_reader *prd, struct nn_xmsg **pmsg, int isnew)
 {
   /* We always fragment into FRAGMENT_SIZEd fragments, which are near
      the smallest allowed fragment size & can't be bothered (yet) to
@@ -464,14 +488,15 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
   void *sm;
   Data_DataFrag_common_t *ddcmn;
   int fragging;
-  unsigned fragstart, fraglen;
+  uint32_t fragstart, fraglen;
   enum nn_xmsg_kind xmsg_kind = isnew ? NN_XMSG_KIND_DATA : NN_XMSG_KIND_DATA_REXMIT;
+  const uint32_t size = ddsi_serdata_size (serdata);
   int ret = 0;
   (void)plist;
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
-  if (fragnum * config.fragment_size >= ddsi_serdata_size (serdata) && ddsi_serdata_size (serdata) > 0)
+  if (fragnum * config.fragment_size >= size && size > 0)
   {
     /* This is the first chance to detect an attempt at retransmitting
        an non-existent fragment, which a malicious (or buggy) remote
@@ -480,7 +505,7 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
     return ERR_INVALID;
   }
 
-  fragging = (config.fragment_size < ddsi_serdata_size (serdata));
+  fragging = (config.fragment_size < size);
 
   if ((*pmsg = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (DataFrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
     return ERR_OUT_OF_MEMORY;
@@ -509,7 +534,7 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
   /* Timestamp only needed once, for the first fragment */
   if (fragnum == 0)
   {
-    nn_xmsg_add_timestamp (*pmsg, serdata->v.msginfo.timestamp);
+    nn_xmsg_add_timestamp (*pmsg, serdata->timestamp);
   }
 
   sm = nn_xmsg_append (*pmsg, &sm_marker, fragging ? sizeof (DataFrag_t) : sizeof (Data_t));
@@ -517,13 +542,19 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
 
   if (!fragging)
   {
-    const unsigned char contentflag = (ddsi_serdata_is_empty (serdata) ? 0 : ddsi_serdata_is_key (serdata) ? DATA_FLAG_KEYFLAG : DATA_FLAG_DATAFLAG);
+    unsigned char contentflag = 0;
     Data_t *data = sm;
+    switch (serdata->kind)
+    {
+      case SDK_EMPTY: contentflag = 0; break;
+      case SDK_KEY:   contentflag = DATA_FLAG_KEYFLAG; break;
+      case SDK_DATA:  contentflag = DATA_FLAG_DATAFLAG; break;
+    }
     nn_xmsg_submsg_init (*pmsg, sm_marker, SMID_DATA);
     ddcmn->smhdr.flags = (unsigned char) (ddcmn->smhdr.flags | contentflag);
 
     fragstart = 0;
-    fraglen = ddsi_serdata_size (serdata);
+    fraglen = size;
     ddcmn->octetsToInlineQos = (unsigned short) ((char*) (data+1) - ((char*) &ddcmn->octetsToInlineQos + 2));
 
     if (wr->reliable)
@@ -533,18 +564,18 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
   {
     const unsigned char contentflag =
       set_smhdr_flags_asif_data
-      ? (ddsi_serdata_is_key (serdata) ? DATA_FLAG_KEYFLAG : DATA_FLAG_DATAFLAG)
-      : (ddsi_serdata_is_key (serdata) ? DATAFRAG_FLAG_KEYFLAG : 0);
+      ? (serdata->kind == SDK_KEY ? DATA_FLAG_KEYFLAG : DATA_FLAG_DATAFLAG)
+      : (serdata->kind == SDK_KEY ? DATAFRAG_FLAG_KEYFLAG : 0);
     DataFrag_t *frag = sm;
     /* empty means size = 0, which means it never needs fragmenting */
-    assert (!ddsi_serdata_is_empty (serdata));
+    assert (serdata->kind != SDK_EMPTY);
     nn_xmsg_submsg_init (*pmsg, sm_marker, SMID_DATA_FRAG);
     ddcmn->smhdr.flags = (unsigned char) (ddcmn->smhdr.flags | contentflag);
 
     frag->fragmentStartingNum = fragnum + 1;
     frag->fragmentsInSubmessage = 1;
     frag->fragmentSize = (unsigned short) config.fragment_size;
-    frag->sampleSize = ddsi_serdata_size (serdata);
+    frag->sampleSize = (uint32_t)size;
 
     fragstart = fragnum * config.fragment_size;
 #if MULTIPLE_FRAGS_IN_SUBMSG /* ugly hack for testing only */
@@ -555,8 +586,8 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
 #endif
 
     fraglen = config.fragment_size * frag->fragmentsInSubmessage;
-    if (fragstart + fraglen > ddsi_serdata_size (serdata))
-      fraglen = ddsi_serdata_size (serdata) - fragstart;
+    if (fragstart + fraglen > size)
+      fraglen = (uint32_t)(size - fragstart);
     ddcmn->octetsToInlineQos = (unsigned short) ((char*) (frag+1) - ((char*) &ddcmn->octetsToInlineQos + 2));
 
     if (wr->reliable && (!isnew || fragstart + fraglen == ddsi_serdata_size (serdata)))
@@ -588,9 +619,9 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
     {
       nn_xmsg_addpar_keyhash (*pmsg, serdata);
     }
-    if (serdata->v.msginfo.statusinfo)
+    if (serdata->statusinfo)
     {
-      nn_xmsg_addpar_statusinfo (*pmsg, serdata->v.msginfo.statusinfo);
+      nn_xmsg_addpar_statusinfo (*pmsg, serdata->statusinfo);
     }
     rc = nn_xmsg_addpar_sentinel_ifparam (*pmsg);
     if (rc > 0)
@@ -670,7 +701,7 @@ static int must_skip_frag (const char *frags_to_skip, unsigned frag)
 }
 #endif
 
-static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct nn_plist *plist, serdata_t serdata, struct proxy_reader *prd, int isnew, unsigned nfrags)
+static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew, unsigned nfrags)
 {
   unsigned i;
 #if 0
@@ -715,7 +746,7 @@ static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *
     struct nn_xmsg *msg = NULL;
     int hbansreq;
     os_mutexLock (&wr->e.lock);
-    msg = writer_hbcontrol_piggyback (wr, whcst, ddsi_serdata_twrite (serdata), nn_xpack_packetid (xp), &hbansreq);
+    msg = writer_hbcontrol_piggyback (wr, whcst, serdata->twrite, nn_xpack_packetid (xp), &hbansreq);
     os_mutexUnlock (&wr->e.lock);
     if (msg)
     {
@@ -726,17 +757,17 @@ static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *
   }
 }
 
-static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct nn_plist *plist, serdata_t serdata, struct proxy_reader *prd, int isnew)
+static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
 {
   /* on entry: &wr->e.lock held; on exit: lock no longer held */
   struct nn_xmsg *fmsg;
-  unsigned sz;
+  uint32_t sz;
   assert(xp);
 
   sz = ddsi_serdata_size (serdata);
   if (sz > config.fragment_size || !isnew || plist != NULL || prd != NULL)
   {
-    unsigned nfrags;
+    uint32_t nfrags;
     os_mutexUnlock (&wr->e.lock);
     nfrags = (sz + config.fragment_size - 1) / config.fragment_size;
     transmit_sample_lgmsg_unlocked (xp, wr, whcst, seq, plist, serdata, prd, isnew, nfrags);
@@ -754,7 +785,7 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, 
 
     /* Note: wr->heartbeat_xevent != NULL <=> wr is reliable */
     if (wr->heartbeat_xevent)
-      hmsg = writer_hbcontrol_piggyback (wr, whcst, ddsi_serdata_twrite (serdata), nn_xpack_packetid (xp), &hbansreq);
+      hmsg = writer_hbcontrol_piggyback (wr, whcst, serdata->twrite, nn_xpack_packetid (xp), &hbansreq);
     else
       hmsg = NULL;
 
@@ -767,9 +798,9 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, 
   }
 }
 
-int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct nn_plist *plist, serdata_t serdata, struct proxy_reader *prd, int isnew)
+int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
 {
-  unsigned i, sz, nfrags;
+  uint32_t i, sz, nfrags;
   int enqueued = 1;
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
@@ -821,7 +852,7 @@ int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct nn_
   return enqueued ? 0 : -1;
 }
 
-static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist *plist, serdata_t serdata, struct tkmap_instance *tk)
+static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct tkmap_instance *tk)
 {
   /* returns: < 0 on error, 0 if no need to insert in whc, > 0 if inserted */
   int do_insert, insres, res;
@@ -839,9 +870,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
     nn_log (LC_TRACE, "write_sample %x:%x:%x:%x #%"PRId64"", PGUID (wr->e.guid), seq);
     if (plist != 0 && (plist->present & PP_COHERENT_SET))
       nn_log (LC_TRACE, " C#%"PRId64"", fromSN (plist->coherent_set_seqno));
-    nn_log (LC_TRACE, ": ST%u %s/%s:%s%s\n",
-            serdata->v.msginfo.statusinfo, tname, ttname,
-            ppbuf, tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
+    nn_log (LC_TRACE, ": ST%u %s/%s:%s%s\n", serdata->statusinfo, tname, ttname, ppbuf, tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
   }
 
   assert (wr->reliable || have_reliable_subs (wr) == 0);
@@ -855,7 +884,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
 
   if (!do_insert)
     res = 0;
-  else if ((insres = wr->whc->ops->insert (wr->whc, writer_max_drop_seq (wr), seq, plist, serdata, tk)) < 0)
+  else if ((insres = whc_insert (wr->whc, writer_max_drop_seq (wr), seq, plist, serdata, tk)) < 0)
     res = insres;
   else
     res = 1;
@@ -864,7 +893,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
   if (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
   {
     struct whc_state whcst;
-    wr->whc->ops->get_state(wr->whc, &whcst);
+    whc_get_state(wr->whc, &whcst);
     if (WHCST_ISEMPTY(&whcst))
       assert (wr->c.pp->builtins_deleted);
   }
@@ -918,7 +947,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
   nn_mtime_t tnow = now_mt ();
   const nn_mtime_t abstimeout = add_duration_to_mtime (tnow, nn_from_ddsi_duration (wr->xqos->reliability.max_blocking_time));
   struct whc_state whcst;
-  wr->whc->ops->get_state(wr->whc, &whcst);
+  whc_get_state(wr->whc, &whcst);
 
   {
 #ifndef NDEBUG
@@ -963,7 +992,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
       thread_state_asleep (lookup_thread_state());
       result = os_condTimedWait (&wr->throttle_cond, &wr->e.lock, &timeout);
       thread_state_awake (lookup_thread_state());
-      wr->whc->ops->get_state(wr->whc, &whcst);
+      whc_get_state(wr->whc, &whcst);
     }
     if (result == os_resultTimeout)
     {
@@ -999,7 +1028,7 @@ static int maybe_grow_whc (struct writer *wr)
   return 0;
 }
 
-static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_plist *plist, serdata_t serdata, struct tkmap_instance *tk, int end_of_txn, int gc_allowed)
+static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_plist *plist, struct ddsi_serdata *serdata, struct tkmap_instance *tk, int end_of_txn, int gc_allowed)
 {
   int r;
   seqno_t seq;
@@ -1035,7 +1064,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
   /* If WHC overfull, block. */
   {
     struct whc_state whcst;
-    wr->whc->ops->get_state(wr->whc, &whcst);
+    whc_get_state(wr->whc, &whcst);
     if (whcst.unacked_bytes > wr->whc_high)
     {
       os_result ores;
@@ -1061,7 +1090,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
 
   /* Always use the current monotonic time */
   tnow = now_mt ();
-  ddsi_serdata_set_twrite (serdata, tnow);
+  serdata->twrite = tnow;
 
   seq = ++wr->seq;
   if (wr->cs_seq != 0)
@@ -1090,7 +1119,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
   {
     struct whc_state whcst;
     if (wr->heartbeat_xevent)
-      wr->whc->ops->get_state(wr->whc, &whcst);
+      whc_get_state(wr->whc, &whcst);
 
     /* Note the subtlety of enqueueing with the lock held but
        transmitting without holding the lock. Still working on
@@ -1135,17 +1164,17 @@ drop:
   return r;
 }
 
-int write_sample_gc (struct nn_xpack *xp, struct writer *wr, serdata_t serdata, struct tkmap_instance *tk)
+int write_sample_gc (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct tkmap_instance *tk)
 {
   return write_sample_eot (xp, wr, NULL, serdata, tk, 0, 1);
 }
 
-int write_sample_nogc (struct nn_xpack *xp, struct writer *wr, serdata_t serdata, struct tkmap_instance *tk)
+int write_sample_nogc (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct tkmap_instance *tk)
 {
   return write_sample_eot (xp, wr, NULL, serdata, tk, 0, 0);
 }
 
-int write_sample_gc_notk (struct nn_xpack *xp, struct writer *wr, serdata_t serdata)
+int write_sample_gc_notk (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
 {
   struct tkmap_instance *tk;
   int res;
@@ -1155,7 +1184,7 @@ int write_sample_gc_notk (struct nn_xpack *xp, struct writer *wr, serdata_t serd
   return res;
 }
 
-int write_sample_nogc_notk (struct nn_xpack *xp, struct writer *wr, serdata_t serdata)
+int write_sample_nogc_notk (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
 {
   struct tkmap_instance *tk;
   int res;

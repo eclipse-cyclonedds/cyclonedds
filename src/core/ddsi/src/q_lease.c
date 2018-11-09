@@ -17,7 +17,7 @@
 
 #include "util/ut_fibheap.h"
 
-#include "ddsi/ddsi_ser.h"
+#include "ddsi/ddsi_serdata_default.h"
 #include "ddsi/q_protocol.h"
 #include "ddsi/q_rtps.h"
 #include "ddsi/q_misc.h"

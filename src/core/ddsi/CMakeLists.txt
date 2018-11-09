@@ -11,7 +11,6 @@
 #
 PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_eth.c
-    ddsi_ser.c
     ddsi_ssl.c
     ddsi_tcp.c
     ddsi_tran.c
@@ -19,6 +18,10 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_raweth.c
     ddsi_ipaddr.c
     ddsi_mcgroup.c
+    ddsi_serdata.c
+    ddsi_serdata_default.c
+    ddsi_sertopic.c
+    ddsi_sertopic_default.c
     ddsi_rhc_plugin.c
     q_addrset.c
     q_bitset_inlines.c
@@ -51,6 +54,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_time.c
     q_transmit.c
     q_inverse_uint32_set.c
+    q_whc.c
     q_xevent.c
     q_xmsg.c
     q_freelist.c
@@ -60,7 +64,6 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
 # The includes should reside close to the code. As long as that's not the case,
 # pull them in from this CMakeLists.txt.
 PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/ddsi"
-    ddsi_ser.h
     ddsi_ssl.h
     ddsi_tcp.h
     ddsi_tran.h
@@ -68,6 +71,9 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/ddsi"
     ddsi_raweth.h
     ddsi_ipaddr.h
     ddsi_mcgroup.h
+    ddsi_serdata.h
+    ddsi_sertopic.h
+    ddsi_serdata_default.h
     ddsi_rhc_plugin.h
     probes-constants.h
     q_addrset.h

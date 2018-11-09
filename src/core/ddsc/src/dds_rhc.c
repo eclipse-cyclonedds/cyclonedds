@@ -31,11 +31,12 @@
 #include "ddsi/q_xqos.h"
 #include "ddsi/q_error.h"
 #include "ddsi/q_unused.h"
-#include "q__osplser.h"
 #include "ddsi/q_config.h"
 #include "ddsi/q_globals.h"
 #include "ddsi/q_radmin.h" /* sampleinfo */
 #include "ddsi/q_entity.h" /* proxy_writer_info */
+#include "ddsi/ddsi_serdata.h"
+#include "ddsi/ddsi_serdata_default.h"
 #include "ddsi/sysdeps.h"
 #include "dds__report.h"
 
@@ -148,11 +149,11 @@
 
 static const status_cb_data_t dds_rhc_data_avail_cb_data = { DDS_DATA_AVAILABLE_STATUS, 0, 0, true };
 
-/* FIXME: populate tkmap with key-only derived serdata, with timestamp
-   set to invalid.  An invalid timestamp is (logically) unordered with
-   respect to valid timestamps, and that would mean BY_SOURCE order
-   would be respected even when generating an invalid sample for an
-   unregister message using the tkmap data. */
+/* FIXME: tkmap should perhaps retain data with timestamp set to invalid
+   An invalid timestamp is (logically) unordered with respect to valid
+   timestamps, and that would mean BY_SOURCE order could be respected
+   even when generating an invalid sample for an unregister message using
+   the tkmap data. */
 
 /******************************
  ******   LIVE WRITERS   ******
@@ -223,7 +224,7 @@ void lwregs_dump (struct lwregs *rt)
 
 struct rhc_sample
 {
-  struct serdata *sample;      /* serialised data (either just_key or real data) */
+  struct ddsi_serdata *sample; /* serialised data (either just_key or real data) */
   struct rhc_sample *next;     /* next sample in time ordering, or oldest sample if most recent */
   uint64_t wr_iid;             /* unique id for writer of this sample (perhaps better in serdata) */
   bool isread;                 /* READ or NOT_READ sample state */
@@ -293,7 +294,7 @@ struct rhc
   bool reliable;                    /* true if reliability RELIABLE */
 
   dds_reader * reader;              /* reader */
-  const struct sertopic * topic;    /* topic description */
+  const struct ddsi_sertopic * topic;    /* topic description */
   unsigned history_depth;           /* depth, 1 for KEEP_LAST_1, 2**32-1 for KEEP_ALL */
 
   os_mutex lock;
@@ -319,7 +320,7 @@ struct trigger_info
 #define INST_HAS_UNREAD(i) (INST_NREAD (i) < INST_NSAMPLES (i))
 
 static unsigned qmask_of_inst (const struct rhc_instance *inst);
-static bool update_conditions_locked (struct rhc *rhc, const struct trigger_info *pre, const struct trigger_info *post, const struct serdata *sample);
+static bool update_conditions_locked (struct rhc *rhc, const struct trigger_info *pre, const struct trigger_info *post, const struct ddsi_serdata *sample);
 #ifndef NDEBUG
 static int rhc_check_counts_locked (struct rhc *rhc, bool check_conds);
 #endif
@@ -389,7 +390,7 @@ static void remove_inst_from_nonempty_list (struct rhc *rhc, struct rhc_instance
   rhc->n_nonempty_instances--;
 }
 
-struct rhc * dds_rhc_new (dds_reader * reader, const struct sertopic * topic)
+struct rhc * dds_rhc_new (dds_reader * reader, const struct ddsi_sertopic * topic)
 {
   struct rhc * rhc = dds_alloc (sizeof (*rhc));
 
@@ -578,7 +579,7 @@ static bool add_sample
   struct rhc * rhc,
   struct rhc_instance * inst,
   const struct proxy_writer_info * pwr_info,
-  const struct serdata * sample,
+  const struct ddsi_serdata * sample,
   status_cb_data_t * cb_data
 )
 {
@@ -652,7 +653,7 @@ static bool add_sample
     rhc->n_vsamples++;
   }
 
-  s->sample = ddsi_serdata_ref ((serdata_t) sample); /* drops const (tho refcount does change) */
+  s->sample = ddsi_serdata_ref (sample); /* drops const (tho refcount does change) */
   s->wr_iid = pwr_info->iid;
   s->isread = false;
   s->disposed_gen = inst->disposed_gen;
@@ -662,14 +663,17 @@ static bool add_sample
   return true;
 }
 
-static bool content_filter_accepts (const struct sertopic * topic, const struct serdata *sample)
+static bool content_filter_accepts (const struct ddsi_sertopic *sertopic, const struct ddsi_serdata *sample)
 {
   bool ret = true;
-
-  if (topic->filter_fn)
+  const struct dds_topic *tp = sertopic->status_cb_entity;
+  if (tp->filter_fn)
   {
-    deserialize_into ((char*) topic->filter_sample, sample);
-    ret = (topic->filter_fn) (topic->filter_sample, topic->filter_ctx);
+    const dds_topic_descriptor_t * desc = tp->m_descriptor;
+    char *tmp = dds_alloc (desc->m_size);
+    ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
+    ret = (tp->filter_fn) (tmp, tp->filter_ctx);
+    ddsi_sertopic_free_sample (tp->m_stopic, tmp, DDS_FREE_ALL);
   }
   return ret;
 }
@@ -683,16 +687,16 @@ static int inst_accepts_sample
 (
   const struct rhc *rhc, const struct rhc_instance *inst,
   const struct proxy_writer_info *pwr_info,
-  const struct serdata *sample, const bool has_data
+  const struct ddsi_serdata *sample, const bool has_data
 )
 {
   if (rhc->by_source_ordering)
   {
-    if (sample->v.msginfo.timestamp.v > inst->tstamp.v)
+    if (sample->timestamp.v > inst->tstamp.v)
     {
       /* ok */
     }
-    else if (sample->v.msginfo.timestamp.v < inst->tstamp.v)
+    else if (sample->timestamp.v < inst->tstamp.v)
     {
       return 0;
     }
@@ -1019,7 +1023,7 @@ static void dds_rhc_unregister
 static struct rhc_instance * alloc_new_instance
 (
   const struct proxy_writer_info *pwr_info,
-  struct serdata *serdata,
+  struct ddsi_serdata *serdata,
   struct tkmap_instance *tk
 )
 {
@@ -1029,8 +1033,8 @@ static struct rhc_instance * alloc_new_instance
   inst = dds_alloc (sizeof (*inst));
   inst->iid = tk->m_iid;
   inst->tk = tk;
-  inst->wrcount = (serdata->v.msginfo.statusinfo & NN_STATUSINFO_UNREGISTER) ? 0 : 1;
-  inst->isdisposed = (serdata->v.msginfo.statusinfo & NN_STATUSINFO_DISPOSE);
+  inst->wrcount = (serdata->statusinfo & NN_STATUSINFO_UNREGISTER) ? 0 : 1;
+  inst->isdisposed = (serdata->statusinfo & NN_STATUSINFO_DISPOSE);
   inst->isnew = 1;
   inst->inv_exists = 0;
   inst->inv_isread = 0; /* don't care */
@@ -1038,7 +1042,7 @@ static struct rhc_instance * alloc_new_instance
   inst->wr_iid = pwr_info->iid;
   inst->wr_iid_islive = (inst->wrcount != 0);
   inst->wr_guid = pwr_info->guid;
-  inst->tstamp = serdata->v.msginfo.timestamp;
+  inst->tstamp = serdata->timestamp;
   inst->strength = pwr_info->ownership_strength;
   return inst;
 }
@@ -1048,7 +1052,7 @@ static rhc_store_result_t rhc_store_new_instance
   struct trigger_info * post,
   struct rhc *rhc,
   const struct proxy_writer_info *pwr_info,
-  struct serdata *sample,
+  struct ddsi_serdata *sample,
   struct tkmap_instance *tk,
   const bool has_data,
   status_cb_data_t * cb_data
@@ -1121,12 +1125,12 @@ static rhc_store_result_t rhc_store_new_instance
 bool dds_rhc_store
 (
   struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info,
-  struct serdata * __restrict sample, struct tkmap_instance * __restrict tk
+  struct ddsi_serdata * __restrict sample, struct tkmap_instance * __restrict tk
 )
 {
   const uint64_t wr_iid = pwr_info->iid;
-  const unsigned statusinfo = sample->v.msginfo.statusinfo;
-  const bool has_data = (sample->v.st->kind == STK_DATA);
+  const unsigned statusinfo = sample->statusinfo;
+  const bool has_data = (sample->kind == SDK_DATA);
   const int is_dispose = (statusinfo & NN_STATUSINFO_DISPOSE) != 0;
   struct rhc_instance dummy_instance;
   struct rhc_instance *inst;
@@ -1193,7 +1197,7 @@ bool dds_rhc_store
     }
     if (statusinfo & NN_STATUSINFO_UNREGISTER)
     {
-      dds_rhc_unregister (&post, rhc, inst, pwr_info, sample->v.msginfo.timestamp);
+      dds_rhc_unregister (&post, rhc, inst, pwr_info, sample->timestamp);
     }
     else
     {
@@ -1282,7 +1286,7 @@ bool dds_rhc_store
       if (inst_became_disposed && (inst->latest == NULL ))
         inst_set_invsample (rhc, inst);
 
-      update_inst (rhc, inst, pwr_info, true, sample->v.msginfo.timestamp);
+      update_inst (rhc, inst, pwr_info, true, sample->timestamp);
 
       /* Can only add samples => only need to give special treatment
          to instances that were empty before.  It is, however, not
@@ -1326,7 +1330,7 @@ bool dds_rhc_store
          mean an application reading "x" after the write and reading it
          again after the unregister will see a change in the
          no_writers_generation field? */
-      dds_rhc_unregister (&post, rhc, inst, pwr_info, sample->v.msginfo.timestamp);
+      dds_rhc_unregister (&post, rhc, inst, pwr_info, sample->timestamp);
     }
     else
     {
@@ -1582,7 +1586,7 @@ static void set_sample_info (dds_sample_info_t *si, const struct rhc_instance *i
   si->generation_rank = 0; /* __/ */
   si->absolute_generation_rank = (inst->disposed_gen + inst->no_writers_gen) - (sample->disposed_gen + sample->no_writers_gen);
   si->valid_data = true;
-  si->source_timestamp = sample->sample->v.msginfo.timestamp.v;
+  si->source_timestamp = sample->sample->timestamp.v;
 }
 
 static void set_sample_info_invsample (dds_sample_info_t *si, const struct rhc_instance *inst)
@@ -1626,7 +1630,6 @@ static int dds_rhc_read_w_qminv
 {
   bool trigger_waitsets = false;
   uint32_t n = 0;
-  const struct dds_topic_descriptor * desc = (const struct dds_topic_descriptor *) rhc->topic->type;
 
   if (lock)
   {
@@ -1664,7 +1667,7 @@ static int dds_rhc_read_w_qminv
               {
                 /* sample state matches too */
                 set_sample_info (info_seq + n, inst, sample);
-                deserialize_into ((char*) values[n], sample->sample);
+                ddsi_serdata_to_sample (sample->sample, values[n], 0, 0);
                 if (cond == NULL
                     || (dds_entity_kind(cond->m_entity.m_hdl) != DDS_KIND_COND_QUERY)
                     || (cond->m_query.m_filter != NULL && cond->m_query.m_filter(values[n])))
@@ -1685,7 +1688,7 @@ static int dds_rhc_read_w_qminv
                 else
                 {
                   /* The filter didn't match, so free the deserialised copy. */
-                  dds_sample_free(values[n], desc, DDS_FREE_CONTENTS);
+                  ddsi_sertopic_free_sample (rhc->topic, values[n], DDS_FREE_CONTENTS);
                 }
               }
               sample = sample->next;
@@ -1696,7 +1699,7 @@ static int dds_rhc_read_w_qminv
           if (inst->inv_exists && n < max_samples && (QMASK_OF_INVSAMPLE (inst) & qminv) == 0)
           {
             set_sample_info_invsample (info_seq + n, inst);
-            deserialize_into ((char*) values[n], inst->tk->m_sample);
+            ddsi_serdata_topicless_to_sample (rhc->topic, inst->tk->m_sample, values[n], 0, 0);
             if (!inst->inv_isread)
             {
               inst->inv_isread = 1;
@@ -1754,7 +1757,6 @@ static int dds_rhc_take_w_qminv
   bool trigger_waitsets = false;
   uint64_t iid;
   uint32_t n = 0;
-  const struct dds_topic_descriptor * desc = (const struct dds_topic_descriptor *) rhc->topic->type;
 
   if (lock)
   {
@@ -1799,7 +1801,7 @@ static int dds_rhc_take_w_qminv
               else
               {
                 set_sample_info (info_seq + n, inst, sample);
-                deserialize_into ((char*) values[n], sample->sample);
+                ddsi_serdata_to_sample (sample->sample, values[n], 0, 0);
                 if (cond == NULL
                     || (dds_entity_kind(cond->m_entity.m_hdl) != DDS_KIND_COND_QUERY)
                     || ( cond->m_query.m_filter != NULL && cond->m_query.m_filter(values[n])))
@@ -1833,7 +1835,7 @@ static int dds_rhc_take_w_qminv
                 else
                 {
                   /* The filter didn't match, so free the deserialised copy. */
-                  dds_sample_free(values[n], desc, DDS_FREE_CONTENTS);
+                  ddsi_sertopic_free_sample (rhc->topic, values[n], DDS_FREE_CONTENTS);
                 }
               }
               sample = sample1;
@@ -1843,7 +1845,7 @@ static int dds_rhc_take_w_qminv
           if (inst->inv_exists && n < max_samples && (QMASK_OF_INVSAMPLE (inst) & qminv) == 0)
           {
             set_sample_info_invsample (info_seq + n, inst);
-            deserialize_into ((char*) values[n], inst->tk->m_sample);
+            ddsi_serdata_topicless_to_sample (rhc->topic, inst->tk->m_sample, values[n], 0, 0);
             inst_clear_invsample (rhc, inst);
             ++n;
           }
@@ -1912,7 +1914,7 @@ static int dds_rhc_take_w_qminv
 
 static int dds_rhc_takecdr_w_qminv
 (
- struct rhc *rhc, bool lock, struct serdata ** values, dds_sample_info_t *info_seq,
+ struct rhc *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq,
  uint32_t max_samples, unsigned qminv, dds_instance_handle_t handle, dds_readcond *cond
  )
 {
@@ -2159,7 +2161,7 @@ static bool update_conditions_locked
 (
   struct rhc *rhc, const struct trigger_info *pre,
   const struct trigger_info *post,
-  const struct serdata *sample
+  const struct ddsi_serdata *sample
 )
 {
   /* Pre: rhc->lock held; returns 1 if triggering required, else 0. */
@@ -2167,7 +2169,8 @@ static bool update_conditions_locked
   dds_readcond * iter;
   int m_pre;
   int m_post;
-  bool deserialised = (rhc->topic->filter_fn != NULL);
+  const struct dds_topic_descriptor *desc = rhc->topic->status_cb_entity->m_descriptor;
+  char *tmp = NULL;
 
   TRACE (("update_conditions_locked(%p) - inst %u nonempty %u disp %u nowr %u new %u samples %u read %u\n",
           (void *) rhc, rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
@@ -2210,16 +2213,17 @@ static bool update_conditions_locked
     }
     else if (m_pre < m_post)
     {
-      if (sample && !deserialised && (dds_entity_kind(iter->m_entity.m_hdl) == DDS_KIND_COND_QUERY))
+      if (sample && tmp == NULL && (dds_entity_kind(iter->m_entity.m_hdl) == DDS_KIND_COND_QUERY))
       {
-        deserialize_into ((char*)rhc->topic->filter_sample, sample);
-        deserialised = true;
+        tmp = os_malloc (desc->m_size);
+        memset (tmp, 0, desc->m_size);
+        ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
       }
       if
       (
         (sample == NULL)
         || (dds_entity_kind(iter->m_entity.m_hdl) != DDS_KIND_COND_QUERY)
-        || (iter->m_query.m_filter != NULL && iter->m_query.m_filter (rhc->topic->filter_sample))
+        || (iter->m_query.m_filter != NULL && iter->m_query.m_filter (tmp))
       )
       {
         TRACE (("now matches"));
@@ -2246,6 +2250,11 @@ static bool update_conditions_locked
     iter = iter->m_rhc_next;
   }
 
+  if (tmp)
+  {
+    ddsi_sertopic_free_sample (rhc->topic, tmp, DDS_FREE_CONTENTS);
+    os_free (tmp);
+  }
   return trigger;
 }
 
@@ -2286,7 +2295,7 @@ dds_rhc_take(
 
 int dds_rhc_takecdr
 (
- struct rhc *rhc, bool lock, struct serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples,
+ struct rhc *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples,
  unsigned sample_states, unsigned view_states, unsigned instance_states, dds_instance_handle_t handle)
 {
   unsigned qminv = qmask_from_dcpsquery (sample_states, view_states, instance_states);
