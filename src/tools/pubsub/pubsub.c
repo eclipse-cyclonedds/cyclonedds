@@ -797,39 +797,55 @@ static void print_sampleinfo(dds_time_t *tstart, dds_time_t tnow, const dds_samp
     char isc = si2isc(si), ssc = si2ssc(si), vsc = si2vsc(si);
     const char *sep;
     int n = 0;
-    if (*tstart == 0)
+    if (*tstart == 0) {
         *tstart = tnow;
+    }
     relt = tnow - *tstart;
 //    instancehandle_to_id(&ihSystemId, &ihLocalId, si->instance_handle);
 //    instancehandle_to_id(&phSystemId, &phLocalId, si->publication_handle);
     sep = "";
-    if (print_metadata & PM_PID)
+    if (print_metadata & PM_PID) {
         n += printf ("%d", pid);
-    if (print_metadata & PM_TOPIC)
+    }
+    if (print_metadata & PM_TOPIC) {
         n += printf ("%s", tag);
-    if (print_metadata & PM_TIME)
+    }
+    if (print_metadata & PM_TIME) {
         n += printf ("%s%lld.%09lld", n > 0 ? " " : "", (relt / DDS_NSECS_IN_SEC), (relt % DDS_NSECS_IN_SEC));
+    }
     sep = " : ";
-    if (print_metadata & PM_PHANDLE)
-        n += printf ("%s%" PRIu64, n > 0 ? sep : "", si->publication_handle), sep = " ";
-    if (print_metadata & PM_IHANDLE)
+    if (print_metadata & PM_PHANDLE) {
+        n += printf ("%s%" PRIu64, n > 0 ? sep : "", si->publication_handle);
+        sep = " ";
+    }
+    if (print_metadata & PM_IHANDLE) {
         n += printf ("%s%" PRIu64, n > 0 ? sep : "", si->instance_handle);
+    }
     sep = " : ";
-    if (print_metadata & PM_STIME)
-        n += printf ("%s%lld.%09lld", n > 0 ? sep : "", (si->source_timestamp/DDS_NSECS_IN_SEC), (si->source_timestamp%DDS_NSECS_IN_SEC)), sep = " ";
+    if (print_metadata & PM_STIME) {
+        n += printf ("%s%lld.%09lld", n > 0 ? sep : "", (si->source_timestamp/DDS_NSECS_IN_SEC), (si->source_timestamp%DDS_NSECS_IN_SEC));
+        sep = " ";
+    }
     sep = " : ";
-    if (print_metadata & PM_DGEN)
-        n += printf ("%s%"PRIu32, n > 0 ? sep : "", si->disposed_generation_count), sep = " ";
-    if (print_metadata & PM_NWGEN)
+    if (print_metadata & PM_DGEN) {
+        n += printf ("%s%"PRIu32, n > 0 ? sep : "", si->disposed_generation_count);
+        sep = " ";
+    }
+    if (print_metadata & PM_NWGEN) {
         n += printf ("%s%"PRIu32, n > 0 ? sep : "", si->no_writers_generation_count);
+    }
     sep = " : ";
-    if (print_metadata & PM_RANKS)
+    if (print_metadata & PM_RANKS) {
         n += printf ("%s%"PRIu32" %"PRIu32" %"PRIu32, n > 0 ? sep : "", si->sample_rank, si->generation_rank, si->absolute_generation_rank);
+    }
     sep = " : ";
-    if (print_metadata & PM_STATE)
-        n += printf ("%s%c%c%c", n > 0 ? sep : "", isc, ssc, vsc), sep = " ";
-    if (n > 0)
+    if (print_metadata & PM_STATE) {
+        n += printf ("%s%c%c%c", n > 0 ? sep : "", isc, ssc, vsc);
+        sep = " ";
+    }
+    if (n > 0) {
         printf(" : ");
+    }
 }
 
 static void print_K(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd, const char *tag, const dds_sample_info_t *si, int32_t keyval, uint32_t seq, int (*getkeyval) (dds_entity_t rd, int32_t *key, dds_instance_handle_t ih)) {
@@ -1489,9 +1505,9 @@ static uint32_t pubthread(void *vwrspecs) {
             char *tmp = nextspec + strlen(nextspec);
             while (tmp > nextspec && isspace((unsigned char)tmp[-1]))
                 *--tmp = 0;
-            if ((sscanf(nextspec, "+%d%n", &cnt, &pos) == 1 && nextspec[pos] == 0) || (cnt = 1, strcmp(nextspec, "+") == 0)) {
+            if ((sscanf(nextspec, "+%d%n", &cnt, &pos) == 1 && nextspec[pos] == 0) || ((void)(cnt = 1), strcmp(nextspec, "+") == 0)) {
                 while (cnt--) cursor = cursor->next;
-            } else if ((sscanf(nextspec, "-%d%n", &cnt, &pos) == 1 && nextspec[pos] == 0) || (cnt = 1, strcmp(nextspec, "-") == 0)) {
+            } else if ((sscanf(nextspec, "-%d%n", &cnt, &pos) == 1 && nextspec[pos] == 0) || ((void)(cnt = 1), strcmp(nextspec, "-") == 0)) {
                 while (cnt--) cursor = cursor->prev;
             } else if (sscanf(nextspec, "%d%n", &cnt, &pos) == 1 && nextspec[pos] == 0) {
                 cursor = wrspecs; while (cnt--) cursor = cursor->next;
@@ -2091,10 +2107,11 @@ static void set_print_mode(const char *modestr) {
     char *copy = dds_string_dup(modestr), *cursor = copy, *tok;
     while ((tok = os_strsep(&cursor, ",")) != NULL) {
         int enable;
-        if (strncmp(tok, "no", 2) == 0)
-            enable = 0, tok += 2;
-        else
+        if (strncmp(tok, "no", 2) == 0) {
+            enable = 0; tok += 2;
+        } else {
             enable = 1;
+        }
         if (strcmp(tok, "type") == 0)
             printtype = enable;
         else if (strcmp(tok, "dense") == 0)
@@ -2304,27 +2321,27 @@ int MAIN(int argc, char *argv[]) {
             break;
         case 'm':
             spec[specidx].rd.polling = 0;
-            if (strcmp(os_get_optarg(), "0") == 0)
+            if (strcmp(os_get_optarg(), "0") == 0) {
                 spec[specidx].rd.mode = MODE_NONE;
-            else if (strcmp(os_get_optarg(), "p") == 0)
+            } else if (strcmp(os_get_optarg(), "p") == 0) {
                 spec[specidx].rd.mode = MODE_PRINT;
-            else if (strcmp(os_get_optarg(), "pp") == 0)
-                spec[specidx].rd.mode = MODE_PRINT, spec[specidx].rd.polling = 1;
-            else if (strcmp(os_get_optarg(), "c") == 0)
+            } else if (strcmp(os_get_optarg(), "pp") == 0) {
+                spec[specidx].rd.mode = MODE_PRINT; spec[specidx].rd.polling = 1;
+            } else if (strcmp(os_get_optarg(), "c") == 0) {
                 spec[specidx].rd.mode = MODE_CHECK;
-            else if (sscanf(os_get_optarg(), "c:%u%n", &nkeyvals, &pos) == 1 && os_get_optarg()[pos] == 0)
+            } else if (sscanf(os_get_optarg(), "c:%u%n", &nkeyvals, &pos) == 1 && os_get_optarg()[pos] == 0) {
                 spec[specidx].rd.mode = MODE_CHECK;
-            else if (strcmp(os_get_optarg(), "cp") == 0)
-                spec[specidx].rd.mode = MODE_CHECK, spec[specidx].rd.polling = 1;
-            else if (sscanf(os_get_optarg(), "cp:%u%n", &nkeyvals, &pos) == 1 && os_get_optarg()[pos] == 0)
-                spec[specidx].rd.mode = MODE_CHECK, spec[specidx].rd.polling = 1;
-            else if (strcmp(os_get_optarg(), "z") == 0)
+            } else if (strcmp(os_get_optarg(), "cp") == 0) {
+                spec[specidx].rd.mode = MODE_CHECK; spec[specidx].rd.polling = 1;
+            } else if (sscanf(os_get_optarg(), "cp:%u%n", &nkeyvals, &pos) == 1 && os_get_optarg()[pos] == 0) {
+                spec[specidx].rd.mode = MODE_CHECK; spec[specidx].rd.polling = 1;
+            } else if (strcmp(os_get_optarg(), "z") == 0) {
                 spec[specidx].rd.mode = MODE_ZEROLOAD;
-            else if (strcmp(os_get_optarg(), "d") == 0)
+            } else if (strcmp(os_get_optarg(), "d") == 0) {
                 spec[specidx].rd.mode = MODE_DUMP;
-            else if (strcmp(os_get_optarg(), "dp") == 0)
-                spec[specidx].rd.mode = MODE_DUMP, spec[specidx].rd.polling = 1;
-            else {
+            } else if (strcmp(os_get_optarg(), "dp") == 0) {
+                spec[specidx].rd.mode = MODE_DUMP; spec[specidx].rd.polling = 1;
+            } else {
                 fprintf (stderr, "-m %s: invalid mode\n", os_get_optarg());
                 exit(2);
             }
