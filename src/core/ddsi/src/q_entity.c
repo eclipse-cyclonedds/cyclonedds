@@ -1618,6 +1618,7 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
       struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref(payload);
       make_proxy_writer_info(&pwr_info, &wr->e, wr->xqos);
       (void)(ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk);
+      ddsi_tkmap_instance_unref(tk);
     }
   }
 
