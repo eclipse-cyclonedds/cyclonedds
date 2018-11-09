@@ -42,6 +42,8 @@
 
 #include "ddsi/sysdeps.h"
 #include "dds__whc.h"
+#include "ddsi/ddsi_iid.h"
+#include "ddsi/ddsi_tkmap.h"
 
 struct deleted_participant {
   ut_avlNode_t avlnode;
@@ -158,7 +160,7 @@ static void entity_common_init (struct entity_common *e, const struct nn_guid *g
   e->guid = *guid;
   e->kind = kind;
   e->name = os_strdup (name ? name : "");
-  e->iid = (ddsi_plugin.iidgen_fn) ();
+  e->iid = ddsi_iid_gen ();
   os_mutexInit (&e->lock);
   e->onlylocal = onlylocal;
 }
@@ -1613,7 +1615,7 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
       struct proxy_writer_info pwr_info;
       struct ddsi_serdata *payload = sample.serdata;
       /* FIXME: whc has tk reference in its index nodes, which is what we really should be iterating over anyway, and so we don't really have to look them up anymore */
-      struct tkmap_instance *tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (payload);
+      struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref(payload);
       make_proxy_writer_info(&pwr_info, &wr->e, wr->xqos);
       (void)(ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk);
     }

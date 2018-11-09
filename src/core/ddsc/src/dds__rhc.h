@@ -24,7 +24,7 @@ extern "C" {
 struct rhc;
 struct nn_xqos;
 struct ddsi_serdata;
-struct tkmap_instance;
+struct ddsi_tkmap_instance;
 struct proxy_writer_info;
 
 struct rhc * dds_rhc_new (dds_reader * reader, const struct ddsi_sertopic * topic);
@@ -36,7 +36,7 @@ uint32_t dds_rhc_lock_samples (struct rhc * rhc);
 DDS_EXPORT bool dds_rhc_store
 (
   struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info,
-  struct ddsi_serdata * __restrict sample, struct tkmap_instance * __restrict tk
+  struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk
 );
 void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info);
 void dds_rhc_relinquish_ownership (struct rhc * __restrict rhc, const uint64_t wr_iid);

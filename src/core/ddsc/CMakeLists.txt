@@ -13,7 +13,6 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_alloc.c
     dds_builtin.c
     dds_coherent.c
-    dds_iid.c
     dds_participant.c
     dds_reader.c
     dds_writer.c
@@ -24,7 +23,6 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_domain.c
     dds_instance.c
     dds_qos.c
-    dds_tkmap.c
     dds_entity.c
     dds_key.c
     dds_querycond.c
@@ -57,7 +55,6 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__builtin.h
     dds__domain.h
     dds__entity.h
-    dds__iid.h
     dds__init.h
     dds__key.h
     dds__listener.h
@@ -71,7 +68,6 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__rhc.h
     dds__stream.h
     dds__subscriber.h
-    dds__tkmap.h
     dds__topic.h
     dds__types.h
     dds__write.h

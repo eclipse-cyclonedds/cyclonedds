@@ -15,11 +15,11 @@
 #include "os/os.h"
 #include "dds__init.h"
 #include "dds__rhc.h"
-#include "dds__tkmap.h"
-#include "dds__iid.h"
 #include "dds__domain.h"
 #include "dds__err.h"
 #include "dds__builtin.h"
+#include "ddsi/ddsi_iid.h"
+#include "ddsi/ddsi_tkmap.h"
 #include "ddsi/ddsi_serdata.h"
 #include "ddsi/q_servicelease.h"
 #include "ddsi/q_entity.h"
@@ -239,7 +239,6 @@ extern void dds_fini (void)
 
 static int dds__init_plugin (void)
 {
-  dds_iid_init ();
   if (dds_global.m_dur_init) (dds_global.m_dur_init) ();
   return 0;
 }
@@ -247,7 +246,6 @@ static int dds__init_plugin (void)
 static void dds__fini_plugin (void)
 {
   if (dds_global.m_dur_fini) (dds_global.m_dur_fini) ();
-  dds_iid_fini ();
 }
 
 void ddsi_plugin_init (void)
@@ -265,12 +263,6 @@ void ddsi_plugin_init (void)
   ddsi_plugin.rhc_plugin.rhc_unregister_wr_fn = dds_rhc_unregister_wr;
   ddsi_plugin.rhc_plugin.rhc_relinquish_ownership_fn = dds_rhc_relinquish_ownership;
   ddsi_plugin.rhc_plugin.rhc_set_qos_fn = dds_rhc_set_qos;
-  ddsi_plugin.rhc_plugin.rhc_lookup_fn = dds_tkmap_lookup_instance_ref;
-  ddsi_plugin.rhc_plugin.rhc_unref_fn = dds_tkmap_instance_unref;
-
-  /* Register iid generator */
-
-  ddsi_plugin.iidgen_fn = dds_iid_gen;
 }
 
 

@@ -13,7 +13,7 @@
 #include <string.h>
 #include "dds__entity.h"
 #include "dds__reader.h"
-#include "dds__tkmap.h"
+#include "ddsi/ddsi_tkmap.h"
 #include "dds__rhc.h"
 #include "dds__err.h"
 #include "ddsi/q_thread.h"
@@ -137,7 +137,7 @@ dds_read_impl(
         goto fail;
     }
     if (hand != DDS_HANDLE_NIL) {
-        if (dds_tkmap_find_by_id(gv.m_tkmap, hand) == NULL) {
+        if (ddsi_tkmap_find_by_id(gv.m_tkmap, hand) == NULL) {
             DDS_ERROR("Could not find instance\n");
             ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
             dds_read_unlock(rd, cond);

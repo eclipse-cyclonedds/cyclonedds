@@ -57,8 +57,9 @@
 #include "ddsi/ddsi_mcgroup.h"
 #include "ddsi/ddsi_serdata_default.h"
 
-#include "dds__tkmap.h"
+#include "ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
+#include "ddsi/ddsi_iid.h"
 
 static void add_peer_addresses (struct addrset *as, const struct config_peer_listelem *list)
 {
@@ -772,7 +773,7 @@ static struct ddsi_sertopic *make_special_topic (uint16_t enc_id, const struct d
   st->c.ops = &ddsi_sertopic_ops_default;
   st->c.serdata_ops = ops;
   st->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (st->c.serdata_ops);
-  st->c.iid = ddsi_plugin.iidgen_fn();
+  st->c.iid = ddsi_iid_gen ();
   st->native_encoding_identifier = enc_id;
   st->nkeys = 1;
   return (struct ddsi_sertopic *)st;
@@ -880,6 +881,7 @@ int rtps_init (void)
   /* Initialize implementation (Lite or OSPL) */
 
   ddsi_plugin_init ();
+  ddsi_iid_init ();
 
   gv.tstart = now ();    /* wall clock time, used in logs */
 
@@ -1060,7 +1062,7 @@ int rtps_init (void)
   gv.spdp_defrag = nn_defrag_new (NN_DEFRAG_DROP_OLDEST, config.defrag_unreliable_maxsamples);
   gv.spdp_reorder = nn_reorder_new (NN_REORDER_MODE_ALWAYS_DELIVER, config.primary_reorder_maxsamples);
 
-  gv.m_tkmap = dds_tkmap_new ();
+  gv.m_tkmap = ddsi_tkmap_new ();
 
   if (gv.m_factory->m_connless)
   {
@@ -1339,7 +1341,7 @@ err_mc_conn:
     ddsi_conn_free (gv.data_conn_uc);
   free_group_membership(gv.mship);
 err_unicast_sockets:
-  dds_tkmap_free (gv.m_tkmap);
+  ddsi_tkmap_free (gv.m_tkmap);
   nn_reorder_free (gv.spdp_reorder);
   nn_defrag_free (gv.spdp_defrag);
   os_mutexDestroy (&gv.spdp_lock);
@@ -1368,6 +1370,7 @@ err_unicast_sockets:
   nn_plist_fini (&gv.default_plist_pp);
   ddsi_serdatapool_free (gv.serpool);
   nn_xmsgpool_free (gv.xmsgpool);
+  ddsi_iid_fini ();
   (ddsi_plugin.fini_fn) ();
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 err_network_partition_addrset:
@@ -1621,7 +1624,7 @@ void rtps_term (void)
     }
   }
 
-  dds_tkmap_free (gv.m_tkmap);
+  ddsi_tkmap_free (gv.m_tkmap);
 
   ephash_free (gv.guid_hash);
   gv.guid_hash = NULL;
@@ -1663,6 +1666,7 @@ OS_WARNING_MSVC_ON(6001);
 
   ddsi_serdatapool_free (gv.serpool);
   nn_xmsgpool_free (gv.xmsgpool);
+  ddsi_iid_fini ();
   (ddsi_plugin.fini_fn) ();
   DDS_LOG(DDS_LC_CONFIG, "Finis.\n");
 }

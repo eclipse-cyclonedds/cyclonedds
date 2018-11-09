@@ -17,8 +17,8 @@
 #include "ddsi/q_globals.h"
 #include "ddsi/q_config.h"
 #include "ddsi/sysdeps.h"
-#include "dds__tkmap.h"
-#include "dds__iid.h"
+#include "ddsi/ddsi_iid.h"
+#include "ddsi/ddsi_tkmap.h"
 #include "util/ut_hopscotch.h"
 #include "dds__stream.h"
 #include "os/os.h"
@@ -27,7 +27,7 @@
 #define REFC_DELETE 0x80000000
 #define REFC_MASK   0x0fffffff
 
-struct tkmap
+struct ddsi_tkmap
 {
   struct ut_chh * m_hh;
   os_mutex m_lock;
@@ -49,20 +49,20 @@ static void gc_buckets (void *a)
 
 static void gc_tkmap_instance_impl (struct gcreq *gcreq)
 {
-  struct tkmap_instance *tk = gcreq->arg;
+  struct ddsi_tkmap_instance *tk = gcreq->arg;
   ddsi_serdata_unref (tk->m_sample);
   dds_free (tk);
   gcreq_free (gcreq);
 }
 
-static void gc_tkmap_instance (struct tkmap_instance *tk)
+static void gc_tkmap_instance (struct ddsi_tkmap_instance *tk)
 {
   struct gcreq *gcreq = gcreq_new (gv.gcreq_queue, gc_tkmap_instance_impl);
   gcreq->arg = tk;
   gcreq_enqueue (gcreq);
 }
 
-static uint32_t dds_tk_hash (const struct tkmap_instance * inst)
+static uint32_t dds_tk_hash (const struct ddsi_tkmap_instance * inst)
 {
   return inst->m_sample->hash;
 }
@@ -72,7 +72,7 @@ static uint32_t dds_tk_hash_void (const void * inst)
   return dds_tk_hash (inst);
 }
 
-static int dds_tk_equals (const struct tkmap_instance *a, const struct tkmap_instance *b)
+static int dds_tk_equals (const struct ddsi_tkmap_instance *a, const struct ddsi_tkmap_instance *b)
 {
   return (a->m_sample->ops == b->m_sample->ops) ? ddsi_serdata_eqkey (a->m_sample, b->m_sample) : 0;
 }
@@ -82,9 +82,9 @@ static int dds_tk_equals_void (const void *a, const void *b)
   return dds_tk_equals (a, b);
 }
 
-struct tkmap * dds_tkmap_new (void)
+struct ddsi_tkmap * ddsi_tkmap_new (void)
 {
-  struct tkmap *tkmap = dds_alloc (sizeof (*tkmap));
+  struct ddsi_tkmap *tkmap = dds_alloc (sizeof (*tkmap));
   tkmap->m_hh = ut_chhNew (1, dds_tk_hash_void, dds_tk_equals_void, gc_buckets);
   os_mutexInit (&tkmap->m_lock);
   os_condInit (&tkmap->m_cond, &tkmap->m_lock);
@@ -93,12 +93,12 @@ struct tkmap * dds_tkmap_new (void)
 
 static void free_tkmap_instance (void *vtk, UNUSED_ARG(void *f_arg))
 {
-  struct tkmap_instance *tk = vtk;
+  struct ddsi_tkmap_instance *tk = vtk;
   ddsi_serdata_unref (tk->m_sample);
   os_free (tk);
 }
 
-void dds_tkmap_free (_Inout_ _Post_invalid_ struct tkmap * map)
+void ddsi_tkmap_free (_Inout_ _Post_invalid_ struct ddsi_tkmap * map)
 {
   ut_chhEnumUnsafe (map->m_hh, free_tkmap_instance, NULL);
   ut_chhFree (map->m_hh);
@@ -107,10 +107,10 @@ void dds_tkmap_free (_Inout_ _Post_invalid_ struct tkmap * map)
   dds_free (map);
 }
 
-uint64_t dds_tkmap_lookup (_In_ struct tkmap * map, _In_ const struct ddsi_serdata * sd)
+uint64_t ddsi_tkmap_lookup (_In_ struct ddsi_tkmap * map, _In_ const struct ddsi_serdata * sd)
 {
-  struct tkmap_instance dummy;
-  struct tkmap_instance * tk;
+  struct ddsi_tkmap_instance dummy;
+  struct ddsi_tkmap_instance * tk;
   dummy.m_sample = (struct ddsi_serdata *) sd;
   tk = ut_chhLookup (map->m_hh, &dummy);
   return (tk) ? tk->m_iid : DDS_HANDLE_NIL;
@@ -127,7 +127,7 @@ tkmap_get_key_arg;
 
 static void dds_tkmap_get_key_fn (void * vtk, void * varg)
 {
-  struct tkmap_instance * tk = vtk;
+  struct ddsi_tkmap_instance * tk = vtk;
   tkmap_get_key_arg * arg = (tkmap_get_key_arg*) varg;
   if (tk->m_iid == arg->m_iid)
   {
@@ -137,7 +137,7 @@ static void dds_tkmap_get_key_fn (void * vtk, void * varg)
 }
 
 _Check_return_
-bool dds_tkmap_get_key (_In_ struct tkmap * map, const struct ddsi_sertopic *topic, _In_ uint64_t iid, _Out_ void * sample)
+bool ddsi_tkmap_get_key (_In_ struct ddsi_tkmap * map, const struct ddsi_sertopic *topic, _In_ uint64_t iid, _Out_ void * sample)
 {
   tkmap_get_key_arg arg = { topic, iid, sample, false };
   os_mutexLock (&map->m_lock);
@@ -149,13 +149,13 @@ bool dds_tkmap_get_key (_In_ struct tkmap * map, const struct ddsi_sertopic *top
 typedef struct
 {
   uint64_t m_iid;
-  struct tkmap_instance * m_inst;
+  struct ddsi_tkmap_instance * m_inst;
 }
 tkmap_get_inst_arg;
 
 static void dds_tkmap_get_inst_fn (void * vtk, void * varg)
 {
-  struct tkmap_instance * tk = vtk;
+  struct ddsi_tkmap_instance * tk = vtk;
   tkmap_get_inst_arg * arg = (tkmap_get_inst_arg*) varg;
   if (tk->m_iid == arg->m_iid)
   {
@@ -164,7 +164,7 @@ static void dds_tkmap_get_inst_fn (void * vtk, void * varg)
 }
 
 _Check_return_
-struct tkmap_instance * dds_tkmap_find_by_id (_In_ struct tkmap * map, _In_ uint64_t iid)
+struct ddsi_tkmap_instance * ddsi_tkmap_find_by_id (_In_ struct ddsi_tkmap * map, _In_ uint64_t iid)
 {
   tkmap_get_inst_arg arg = { iid, NULL };
   ut_chhEnumUnsafe (map->m_hh, dds_tkmap_get_inst_fn, &arg);
@@ -184,14 +184,14 @@ struct tkmap_instance * dds_tkmap_find_by_id (_In_ struct tkmap * map, _In_ uint
 #endif
 
 _Check_return_
-struct tkmap_instance * dds_tkmap_find(
+struct ddsi_tkmap_instance * ddsi_tkmap_find(
         _In_ struct ddsi_serdata * sd,
         _In_ const bool rd,
         _In_ const bool create)
 {
-  struct tkmap_instance dummy;
-  struct tkmap_instance * tk;
-  struct tkmap * map = gv.m_tkmap;
+  struct ddsi_tkmap_instance dummy;
+  struct ddsi_tkmap_instance * tk;
+  struct ddsi_tkmap * map = gv.m_tkmap;
 
   dummy.m_sample = sd;
 retry:
@@ -222,7 +222,7 @@ retry:
     tk->m_sample = ddsi_serdata_to_topicless (sd);
     tk->m_map = map;
     os_atomic_st32 (&tk->m_refc, 1);
-    tk->m_iid = dds_iid_gen ();
+    tk->m_iid = ddsi_iid_gen ();
     if (!ut_chhAdd (map->m_hh, tk))
     {
       /* Lost a race from another thread, retry */
@@ -240,18 +240,18 @@ retry:
 }
 
 _Check_return_
-struct tkmap_instance * dds_tkmap_lookup_instance_ref (_In_ struct ddsi_serdata * sd)
+struct ddsi_tkmap_instance * ddsi_tkmap_lookup_instance_ref (_In_ struct ddsi_serdata * sd)
 {
   assert (vtime_awake_p (lookup_thread_state ()->vtime));
-  return dds_tkmap_find (sd, true, true);
+  return ddsi_tkmap_find (sd, true, true);
 }
 
-void dds_tkmap_instance_ref (_In_ struct tkmap_instance *tk)
+void ddsi_tkmap_instance_ref (_In_ struct ddsi_tkmap_instance *tk)
 {
   os_atomic_inc32 (&tk->m_refc);
 }
 
-void dds_tkmap_instance_unref (_In_ struct tkmap_instance * tk)
+void ddsi_tkmap_instance_unref (_In_ struct ddsi_tkmap_instance * tk)
 {
   uint32_t old, new;
   assert (vtime_awake_p(lookup_thread_state()->vtime));
@@ -267,7 +267,7 @@ void dds_tkmap_instance_unref (_In_ struct tkmap_instance * tk)
   } while (!os_atomic_cas32(&tk->m_refc, old, new));
   if (new == REFC_DELETE)
   {
-    struct tkmap *map = tk->m_map;
+    struct ddsi_tkmap *map = tk->m_map;
 
     /* Remove from hash table */
     int removed = ut_chhRemove(map->m_hh, tk);

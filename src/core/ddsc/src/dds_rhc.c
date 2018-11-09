@@ -24,7 +24,7 @@
 #include "dds__entity.h"
 #include "dds__reader.h"
 #include "dds__rhc.h"
-#include "dds__tkmap.h"
+#include "ddsi/ddsi_tkmap.h"
 #include "util/ut_hopscotch.h"
 
 #include "util/ut_avl.h"
@@ -253,7 +253,7 @@ struct rhc_instance
   nn_wctime_t tstamp;          /* source time stamp of last update */
   struct rhc_instance *next;   /* next non-empty instance in arbitrary ordering */
   struct rhc_instance *prev;
-  struct tkmap_instance *tk;   /* backref into TK for unref'ing */
+  struct ddsi_tkmap_instance *tk;   /* backref into TK for unref'ing */
   struct rhc_sample a_sample;  /* pre-allocated storage for 1 sample */
 };
 
@@ -504,7 +504,7 @@ static void free_instance (void *vnode, void *varg)
   {
     remove_inst_from_nonempty_list (rhc, inst);
   }
-  dds_tkmap_instance_unref (inst->tk);
+  ddsi_tkmap_instance_unref (inst->tk);
   dds_free (inst);
 }
 
@@ -1023,12 +1023,12 @@ static struct rhc_instance * alloc_new_instance
 (
   const struct proxy_writer_info *pwr_info,
   struct ddsi_serdata *serdata,
-  struct tkmap_instance *tk
+  struct ddsi_tkmap_instance *tk
 )
 {
   struct rhc_instance *inst;
 
-  dds_tkmap_instance_ref (tk);
+  ddsi_tkmap_instance_ref (tk);
   inst = dds_alloc (sizeof (*inst));
   inst->iid = tk->m_iid;
   inst->tk = tk;
@@ -1052,7 +1052,7 @@ static rhc_store_result_t rhc_store_new_instance
   struct rhc *rhc,
   const struct proxy_writer_info *pwr_info,
   struct ddsi_serdata *sample,
-  struct tkmap_instance *tk,
+  struct ddsi_tkmap_instance *tk,
   const bool has_data,
   status_cb_data_t * cb_data
 )
@@ -1124,7 +1124,7 @@ static rhc_store_result_t rhc_store_new_instance
 bool dds_rhc_store
 (
   struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info,
-  struct ddsi_serdata * __restrict sample, struct tkmap_instance * __restrict tk
+  struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk
 )
 {
   const uint64_t wr_iid = pwr_info->iid;

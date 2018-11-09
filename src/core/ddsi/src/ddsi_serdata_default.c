@@ -24,7 +24,7 @@
 #include <string.h>
 #include "os/os.h"
 #include "dds__key.h"
-#include "dds__tkmap.h"
+#include "ddsi/ddsi_tkmap.h"
 #include "dds__stream.h"
 #include "ddsi/q_radmin.h"
 #include "ddsi/ddsi_serdata_default.h"

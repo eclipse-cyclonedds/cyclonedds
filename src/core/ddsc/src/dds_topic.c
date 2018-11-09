@@ -24,7 +24,7 @@
 #include "ddsi/ddsi_sertopic.h"
 #include "ddsi/q_ddsi_discovery.h"
 #include "os/os_atomics.h"
-#include "dds__iid.h"
+#include "ddsi/ddsi_iid.h"
 
 #define DDS_TOPIC_STATUS_MASK                                    \
                         DDS_INCONSISTENT_TOPIC_STATUS
@@ -423,7 +423,7 @@ dds_create_topic(
         st = dds_alloc (sizeof (*st));
 
         os_atomic_st32 (&st->c.refc, 1);
-        st->c.iid = dds_iid_gen ();
+        st->c.iid = ddsi_iid_gen ();
         st->c.status_cb = dds_topic_status_cb;
         st->c.status_cb_entity = top;
         st->c.name_typename = key;

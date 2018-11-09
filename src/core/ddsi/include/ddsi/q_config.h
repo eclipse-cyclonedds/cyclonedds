@@ -414,10 +414,6 @@ struct ddsi_plugin
 
   /* Read cache */
   struct ddsi_rhc_plugin rhc_plugin;
-
-  /* IID generator */
-
-  uint64_t (*iidgen_fn) (void);
 };
 
 extern struct config OSAPI_EXPORT config;

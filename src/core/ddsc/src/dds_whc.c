@@ -18,7 +18,7 @@
 #include "ddsi/q_unused.h"
 #include "ddsi/q_config.h"
 #include "dds__whc.h"
-#include "dds__tkmap.h"
+#include "ddsi/ddsi_tkmap.h"
 
 #include "util/ut_avl.h"
 #include "util/ut_hopscotch.h"
@@ -55,7 +55,7 @@ struct whc_intvnode {
 struct whc_idxnode {
   uint64_t iid;
   seqno_t prune_seq;
-  struct tkmap_instance *tk;
+  struct ddsi_tkmap_instance *tk;
   unsigned headidx;
 #if __STDC_VERSION__ >= 199901L
   struct whc_node *hist[];
@@ -128,7 +128,7 @@ static unsigned whc_default_remove_acked_messages_full (struct whc_impl *whc, se
 static unsigned whc_default_remove_acked_messages (struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list);
 static void whc_default_free_deferred_free_list (struct whc *whc, struct whc_node *deferred_free_list);
 static void whc_default_get_state(const struct whc *whc, struct whc_state *st);
-static int whc_default_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct tkmap_instance *tk);
+static int whc_default_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
 static seqno_t whc_default_next_seq (const struct whc *whc, seqno_t seq);
 static bool whc_default_borrow_sample (const struct whc *whc, seqno_t seq, struct whc_borrowed_sample *sample);
 static bool whc_default_borrow_sample_key (const struct whc *whc, const struct ddsi_serdata *serdata_key, struct whc_borrowed_sample *sample);
@@ -324,7 +324,7 @@ static struct whc_node *whc_findkey (const struct whc_impl *whc, const struct dd
   } template;
   struct whc_idxnode *n;
   check_whc (whc);
-  template.idxn.iid = dds_tkmap_lookup(gv.m_tkmap, serdata_key);
+  template.idxn.iid = ddsi_tkmap_lookup(gv.m_tkmap, serdata_key);
   n = ut_hhLookup (whc->idx_hash, &template.idxn);
   if (n == NULL)
     return NULL;
@@ -537,7 +537,7 @@ static void delete_one_sample_from_idx (struct whc_impl *whc, struct whc_node *w
 #endif
     if (!ut_hhRemove (whc->idx_hash, idxn))
       assert (0);
-    dds_tkmap_instance_unref(idxn->tk);
+    ddsi_tkmap_instance_unref(idxn->tk);
     os_free (idxn);
   }
   whcn->idxnode = NULL;
@@ -1081,7 +1081,7 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
   return newn;
 }
 
-static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct tkmap_instance *tk)
+static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   struct whc_impl * const whc = (struct whc_impl *)whc_generic;
   struct whc_node *newn = NULL;
@@ -1190,7 +1190,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
       unsigned i;
       idxn = os_malloc (sizeof (*idxn) + whc->idxdepth * sizeof (idxn->hist[0]));
       DDS_LOG(DDS_LC_WHC, " idxn %p", (void *)idxn);
-      dds_tkmap_instance_ref(tk);
+      ddsi_tkmap_instance_ref(tk);
       idxn->iid = tk->m_iid;
       idxn->tk = tk;
       idxn->prune_seq = 0;

@@ -259,13 +259,6 @@ typedef struct dds_waitset
 }
 dds_waitset;
 
-typedef struct dds_iid
-{
-  uint64_t counter;
-  uint32_t key[4];
-}
-dds_iid;
-
 /* Globals */
 
 typedef struct dds_globals

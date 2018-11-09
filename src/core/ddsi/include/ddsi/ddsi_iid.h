@@ -12,15 +12,25 @@
 #ifndef _DDS_IID_H_
 #define _DDS_IID_H_
 
-#include "dds__types.h"
+#include "os/os.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-void dds_iid_init (void);
-void dds_iid_fini (void);
-uint64_t dds_iid_gen (void);
+struct ddsi_iid {
+#if OS_ATOMIC64_SUPPORT
+  os_atomic_uint64_t counter;
+#else
+  os_mutex lock;
+  uint64_t counter;
+#endif
+  uint32_t key[4];
+};
+
+void ddsi_iid_init (void);
+void ddsi_iid_fini (void);
+uint64_t ddsi_iid_gen (void);
 
 #if defined (__cplusplus)
 }

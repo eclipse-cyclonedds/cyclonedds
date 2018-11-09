@@ -18,11 +18,11 @@
 
 #include "util/ut_fibheap.h"
 
-
 #include "ddsi/q_plist.h"
 #include "ddsi/q_protocol.h"
 #include "ddsi/q_nwif.h"
 #include "ddsi/q_sockwaitset.h"
+#include "ddsi/ddsi_iid.h"
 
 #ifdef DDSI_INCLUDE_ENCRYPTION
 #include "ddsi/q_security.h" /* for q_securityDecoderSet */
@@ -47,7 +47,7 @@ struct ddsi_tran_listener;
 struct ddsi_tran_factory;
 struct ut_thread_pool_s;
 struct debug_monitor;
-struct tkmap;
+struct ddsi_tkmap;
 
 typedef struct ospl_in_addr_node {
    nn_locator_t loc;
@@ -90,7 +90,8 @@ struct q_globals {
   volatile int deaf;
   volatile int mute;
 
-  struct tkmap * m_tkmap;
+  struct ddsi_tkmap * m_tkmap;
+  struct ddsi_iid dds_iid;
 
   /* Hash tables for participants, readers, writers, proxy
      participants, proxy readers and proxy writers by GUID
