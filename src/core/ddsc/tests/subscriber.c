@@ -97,25 +97,25 @@ Test(ddsc_subscriber, create) {
 
   /*** Verify listener parameter ***/
 
-  listener = dds_listener_create(NULL); /* Use defaults (all listeners unset) */
+  listener = dds_create_listener(NULL); /* Use defaults (all listeners unset) */
   subscriber = dds_create_subscriber(participant, NULL, listener);
   cr_assert_gt(subscriber, 0, "dds_create_subscriber: unset listeners");
   dds_delete(subscriber);
-  dds_listener_delete(listener);
+  dds_delete_listener(listener);
 
-  listener = dds_listener_create(NULL);
+  listener = dds_create_listener(NULL);
   dds_lset_data_available(listener, &on_data_available); /* Set on_data_available listener */
   subscriber = dds_create_subscriber(participant, NULL, listener);
   cr_assert_gt(subscriber, 0, "dds_create_subscriber: on_data_available listener");
   dds_delete(subscriber);
-  dds_listener_delete(listener);
+  dds_delete_listener(listener);
 
-  listener = dds_listener_create(NULL);
+  listener = dds_create_listener(NULL);
   dds_lset_publication_matched(listener, &on_publication_matched); /* Set on_publication_matched listener (ignored, not applicable for subscriber) */
   subscriber = dds_create_subscriber(participant, NULL, listener);
   cr_assert_gt(subscriber, 0, "dds_create_subscriber: on_publication_matched listener");
   dds_delete(subscriber);
-  dds_listener_delete(listener);
+  dds_delete_listener(listener);
 
   dds_delete(participant);
 }

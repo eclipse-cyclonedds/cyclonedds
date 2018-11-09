@@ -274,7 +274,7 @@ int main (int argc, char *argv[])
 
   if (use_listener)
   {
-    listener = dds_listener_create(NULL);
+    listener = dds_create_listener(NULL);
     dds_lset_data_available(listener, data_available);
   }
   prepare_dds(&writer, &reader, &readCond, listener);

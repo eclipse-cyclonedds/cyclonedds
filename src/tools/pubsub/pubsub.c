@@ -2159,8 +2159,8 @@ static void set_print_mode(const char *modestr) {
 int MAIN(int argc, char *argv[]) {
     dds_entity_t sub = 0;
     dds_entity_t pub = 0;
-    dds_listener_t *rdlistener = dds_listener_create(NULL);
-    dds_listener_t *wrlistener = dds_listener_create(NULL);
+    dds_listener_t *rdlistener = dds_create_listener(NULL);
+    dds_listener_t *wrlistener = dds_create_listener(NULL);
 
     dds_qos_t *qos;
     const char **qtopic = (const char **) dds_alloc(sizeof(char *) * (unsigned)argc);
@@ -2764,8 +2764,8 @@ int MAIN(int argc, char *argv[]) {
         }
     }
 
-    dds_listener_delete(wrlistener);
-    dds_listener_delete(rdlistener);
+    dds_delete_listener(wrlistener);
+    dds_delete_listener(rdlistener);
 
     dds_free((char **) qtopic);
     dds_free((char **) qpublisher);

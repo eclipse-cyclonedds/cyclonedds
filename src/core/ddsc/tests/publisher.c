@@ -95,13 +95,13 @@ Test(ddsc_publisher, create)
 #endif
 
   /* Use listener(NULL) */
-  listener = dds_listener_create(NULL);
-  cr_assert_neq(listener, NULL, "dds_listener_create(NULL)");
+  listener = dds_create_listener(NULL);
+  cr_assert_neq(listener, NULL, "dds_create_listener(NULL)");
   publisher = dds_create_publisher(participant, NULL, listener);
   cr_assert_gt(publisher, 0, "dds_create_publisher(participant,NULL,listener(NULL))");
   dds_delete(publisher);
 
-  dds_listener_reset(listener);
+  dds_reset_listener(listener);
 
   /* Use listener for data_available */
   dds_lset_data_available(listener, NULL);
@@ -109,7 +109,7 @@ Test(ddsc_publisher, create)
   cr_assert_gt(publisher, 0, "dds_create_publisher(participant,NULL,listener) with dds_lset_data_available(listener, NULL)");
   dds_delete(publisher);
 
-  dds_listener_reset(listener);
+  dds_reset_listener(listener);
 
   /* Use DDS_LUNSET for data_available */
   dds_lset_data_available(listener, DDS_LUNSET);
@@ -117,7 +117,7 @@ Test(ddsc_publisher, create)
   cr_assert_gt(publisher, 0, "dds_create_publisher(participant,NULL,listener) with dds_lset_data_available(listener, DDS_LUNSET)");
   dds_delete(publisher);
 
-  dds_listener_reset(listener);
+  dds_reset_listener(listener);
 
   /* Use callback for data_available */
   dds_lset_data_available(listener, data_available_cb);
@@ -131,7 +131,7 @@ Test(ddsc_publisher, create)
   cr_assert_gt(publisher, 0, "dds_create_publisher(participant,qos,listener) with dds_lset_data_available(listener, data_available_cb)");
   dds_delete(publisher);
 
-  dds_listener_delete(listener);
+  dds_delete_listener(listener);
   dds_delete_qos(qos);
   dds_delete (participant);
 }

@@ -90,7 +90,7 @@ reader_init(void)
     char name[100];
 
     g_qos = dds_create_qos();
-    g_listener = dds_listener_create(NULL);
+    g_listener = dds_create_listener(NULL);
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     cr_assert_gt(g_participant, 0, "Failed to create prerequisite g_participant");
@@ -206,7 +206,7 @@ static void
 reader_fini(void)
 {
     dds_delete_qos(g_qos);
-    dds_listener_delete(g_listener);
+    dds_delete_listener(g_listener);
     dds_delete(g_reader);
     dds_delete(g_writer);
     dds_delete(g_waitset);

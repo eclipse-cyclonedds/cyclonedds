@@ -125,8 +125,8 @@ Test(ddsc_entity, qos, .init = create_entity, .fini = delete_entity)
 Test(ddsc_entity, listener, .init = create_entity, .fini = delete_entity)
 {
     dds_return_t status;
-    dds_listener_t *l1 = dds_listener_create(NULL);
-    dds_listener_t *l2 = dds_listener_create(NULL);
+    dds_listener_t *l1 = dds_create_listener(NULL);
+    dds_listener_t *l2 = dds_create_listener(NULL);
     void *cb1;
     void *cb2;
 

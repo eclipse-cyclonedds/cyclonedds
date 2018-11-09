@@ -61,7 +61,7 @@ ddsc_topic_init(void)
     cr_assert_gt(g_topicRtmDataType, 0, "Failed to create prerequisite g_topicRtmDataType");
 
     g_qos = dds_create_qos();
-    g_listener = dds_listener_create(NULL);
+    g_listener = dds_create_listener(NULL);
 }
 
 
@@ -69,7 +69,7 @@ static void
 ddsc_topic_fini(void)
 {
     dds_delete_qos(g_qos);
-    dds_listener_delete(g_listener);
+    dds_delete_listener(g_listener);
     dds_delete(g_topicRtmDataType);
     dds_delete(g_topicRtmAddress);
     dds_delete(g_participant);

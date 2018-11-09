@@ -260,9 +260,9 @@ dds_entity_init(
     }
 
     if (listener) {
-        dds_listener_copy(&e->m_listener, listener);
+        dds_copy_listener(&e->m_listener, listener);
     } else {
-        dds_listener_reset(&e->m_listener);
+        dds_reset_listener(&e->m_listener);
     }
 
     e->m_hdllink = NULL;
@@ -332,7 +332,7 @@ dds_delete_impl(
 
     ut_handle_close(e->m_hdl, e->m_hdllink);
     e->m_status_enable = 0;
-    dds_listener_reset(&e->m_listener);
+    dds_reset_listener(&e->m_listener);
     e->m_trigger |= DDS_DELETING_STATUS;
 
     dds_entity_unlock(e);
@@ -643,7 +643,7 @@ dds_get_listener(
         rc = dds_entity_lock(entity, DDS_KIND_DONTCARE, &e);
         if (rc == DDS_RETCODE_OK) {
             dds_entity_cb_wait(e);
-            dds_listener_copy (listener, &e->m_listener);
+            dds_copy_listener (listener, &e->m_listener);
             dds_entity_unlock(e);
         } else {
               ret = DDS_ERRNO(rc, "Error occurred on locking entity");
@@ -676,9 +676,9 @@ dds_set_listener(
     }
     dds_entity_cb_wait(e);
     if (listener) {
-        dds_listener_copy(&e->m_listener, listener);
+        dds_copy_listener(&e->m_listener, listener);
     } else {
-        dds_listener_reset(&e->m_listener);
+        dds_reset_listener(&e->m_listener);
     }
     dds_entity_unlock(e);
 fail:

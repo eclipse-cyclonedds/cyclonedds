@@ -374,7 +374,7 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
   dds_qset_history (drQos, DDS_HISTORY_KEEP_ALL, 0);
   dds_qset_resource_limits (drQos, maxSamples, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
 
-  rd_listener = dds_listener_create(NULL);
+  rd_listener = dds_create_listener(NULL);
   dds_lset_data_available(rd_listener, data_available_handler);
 
   /* A Read Condition is created which is triggered when data is available to read */
@@ -401,7 +401,7 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
   *reader = dds_create_reader (subscriber, topic, drQos, rd_listener);
   DDS_ERR_CHECK (*reader, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   dds_delete_qos (drQos);
-  dds_listener_delete(rd_listener);
+  dds_delete_listener(rd_listener);
 
   return participant;
 }
