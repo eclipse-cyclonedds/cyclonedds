@@ -39,7 +39,7 @@ Test(ddsc_transient_local, late_joiner)
     }
 
     /* Use transient local with reliable. */
-    qos = dds_qos_create();
+    qos = dds_create_qos();
     dds_qset_durability(qos, DDS_DURABILITY_TRANSIENT_LOCAL);
     dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
 
@@ -101,5 +101,5 @@ Test(ddsc_transient_local, late_joiner)
     cr_assert_eq(ret, 4, "# read %d, expected 4", ret);
 
     dds_delete(par);
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 }

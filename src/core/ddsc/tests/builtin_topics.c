@@ -58,7 +58,7 @@ static dds_qos_t *g_qos = NULL;
 static void
 qos_init(void)
 {
-    g_qos = dds_qos_create();
+    g_qos = dds_create_qos();
     cr_assert_not_null(g_qos);
 
     g_pol_userdata.value._buffer = dds_alloc(strlen(c_userdata) + 1);
@@ -137,7 +137,7 @@ qos_init(void)
 static void
 qos_fini(void)
 {
-    dds_qos_delete(g_qos);
+    dds_delete_qos(g_qos);
     dds_free(g_pol_userdata.value._buffer);
     dds_free(g_pol_groupdata.value._buffer);
     dds_free(g_pol_topicdata.value._buffer);
@@ -196,7 +196,7 @@ check_default_qos_of_builtin_entity(dds_entity_t entity)
   char **partitions;
   uint32_t plen;
 
-  dds_qos_t *qos = dds_qos_create();
+  dds_qos_t *qos = dds_create_qos();
   cr_assert_not_null(qos);
 
   ret = dds_get_qos(entity, qos);
@@ -249,7 +249,7 @@ check_default_qos_of_builtin_entity(dds_entity_t entity)
       }
       dds_free(partitions);
   }
-  dds_qos_delete(qos);
+  dds_delete_qos(qos);
 }
 
 static dds_entity_t builtin_topic_handles[10];

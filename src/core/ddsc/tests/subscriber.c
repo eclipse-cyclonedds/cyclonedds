@@ -76,24 +76,24 @@ Test(ddsc_subscriber, create) {
 
   /*** Verify qos parameter ***/
 
-  sqos = dds_qos_create(); /* Use defaults (no user-defined policies) */
+  sqos = dds_create_qos(); /* Use defaults (no user-defined policies) */
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   cr_assert_gt(subscriber, 0, "dds_create_subscriber: default QoS parameter");
   dds_delete(subscriber);
-  dds_qos_delete(sqos);
+  dds_delete_qos(sqos);
 
-  sqos = dds_qos_create();
+  sqos = dds_create_qos();
   dds_qset_destination_order(sqos, 3); /* Set invalid dest. order (ignored, not applicable for subscriber) */
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   cr_assert_gt(subscriber, 0, "dds_create_subscriber: invalid non-applicable QoS parameter");
   dds_delete(subscriber);
-  dds_qos_delete(sqos);
+  dds_delete_qos(sqos);
 
-  sqos = dds_qos_create();
+  sqos = dds_create_qos();
   dds_qset_presentation(sqos, 123, 1, 1); /* Set invalid presentation policy */
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   cr_assert_eq(dds_err_nr(subscriber), DDS_RETCODE_INCONSISTENT_POLICY, "dds_create_subscriber: invalid presentation access_scope QoS parameter");
-  dds_qos_delete(sqos);
+  dds_delete_qos(sqos);
 
   /*** Verify listener parameter ***/
 

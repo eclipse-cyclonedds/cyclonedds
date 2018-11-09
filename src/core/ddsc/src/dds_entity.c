@@ -432,7 +432,7 @@ dds_delete_impl(
 
     if (ret == DDS_RETCODE_OK) {
         /* Destroy last few things. */
-        dds_qos_delete (e->m_qos);
+        dds_delete_qos (e->m_qos);
         os_condDestroy (&e->m_cond);
         os_mutexDestroy (&e->m_mutex);
         os_mutexDestroy (&e->m_observers_lock);
@@ -573,7 +573,7 @@ dds_get_qos(
         goto fail;
     }
     if (e->m_deriver.set_qos) {
-        rc = dds_qos_copy(qos, e->m_qos);
+        rc = dds_copy_qos(qos, e->m_qos);
     } else {
         rc = DDS_RETCODE_ILLEGAL_OPERATION;
         ret = DDS_ERRNO(rc, "QoS cannot be set on this entity");
@@ -609,9 +609,9 @@ dds_set_qos(
             if (ret == DDS_RETCODE_OK) {
                 /* Remember this QoS. */
                 if (e->m_qos == NULL) {
-                    e->m_qos = dds_qos_create();
+                    e->m_qos = dds_create_qos();
                 }
-                rc = dds_qos_copy(e->m_qos, qos);
+                rc = dds_copy_qos(e->m_qos, qos);
                 ret = DDS_ERRNO(rc, "QoS cannot be set on this entity");
             }
             dds_entity_unlock(e);

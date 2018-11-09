@@ -257,13 +257,13 @@ int change_publisher_partitions(dds_entity_t pub, unsigned npartitions, const ch
     dds_qos_t *qos;
     dds_return_t rc;
 
-    qos = dds_qos_create();
+    qos = dds_create_qos();
     rc = dds_get_qos(pub, qos);
     if (rc == DDS_SUCCESS) {
         dds_qset_partition(qos, npartitions, partitions);
         rc = dds_set_qos(pub, qos);
     }
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
     return rc;
 }
 
@@ -271,25 +271,25 @@ int change_subscriber_partitions(dds_entity_t sub, unsigned npartitions, const c
     dds_qos_t *qos;
     dds_return_t rc;
 
-    qos = dds_qos_create();
+    qos = dds_create_qos();
     rc = dds_get_qos(sub, qos);
     if (rc == DDS_SUCCESS) {
         dds_qset_partition(qos, npartitions, partitions);
         rc = dds_set_qos(sub, qos);
     }
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
     return rc;
 }
 
 static dds_qos_t *get_topic_qos(dds_entity_t tp) {
-    dds_qos_t *tQos = dds_qos_create();
+    dds_qos_t *tQos = dds_create_qos();
     dds_return_t rc = dds_get_qos(tp, tQos);
     error_abort(rc, "dds_qos_get_topic_qos");
     return tQos;
 }
 
 dds_qos_t *new_tqos(void) {
-    dds_qos_t *q = dds_qos_create();
+    dds_qos_t *q = dds_create_qos();
 
     /* Not all defaults are those of DCPS: */
     dds_qset_reliability(q, DDS_RELIABILITY_RELIABLE, DDS_SECS(1));
@@ -299,21 +299,21 @@ dds_qos_t *new_tqos(void) {
 
 dds_qos_t *new_rdqos(dds_entity_t tp) {
     dds_qos_t *tQos = get_topic_qos(tp);
-    dds_qos_t *qos = dds_qos_create();
+    dds_qos_t *qos = dds_create_qos();
 
-    dds_return_t rc = dds_qos_copy(qos, tQos);
-    error_abort(rc ,"new_rdqos: dds_qos_copy");
-    dds_qos_delete(tQos);
+    dds_return_t rc = dds_copy_qos(qos, tQos);
+    error_abort(rc ,"new_rdqos: dds_copy_qos");
+    dds_delete_qos(tQos);
     return qos;
 }
 
 dds_qos_t *new_wrqos(dds_entity_t tp) {
     dds_qos_t *tQos = get_topic_qos(tp);
-    dds_qos_t *qos = dds_qos_create();
+    dds_qos_t *qos = dds_create_qos();
 
-    dds_return_t rc = dds_qos_copy(qos, tQos);
-    error_abort(rc ,"new_wrqos: dds_qos_copy");
-    dds_qos_delete(tQos);
+    dds_return_t rc = dds_copy_qos(qos, tQos);
+    error_abort(rc ,"new_wrqos: dds_copy_qos");
+    dds_delete_qos(tQos);
 
     /* Not all defaults are those of DCPS: */
     dds_qset_writer_data_lifecycle(qos, false);
@@ -329,7 +329,7 @@ dds_entity_t new_topic(const char *name, const dds_topic_descriptor_t *topicDesc
 dds_entity_t new_publisher(dds_qos_t *q, unsigned npartitions, const char **partitions) {
     dds_qos_t *pQos;
     if (q == NULL) {
-        pQos = dds_qos_create();
+        pQos = dds_create_qos();
     } else {
         pQos = q;
     }
@@ -337,14 +337,14 @@ dds_entity_t new_publisher(dds_qos_t *q, unsigned npartitions, const char **part
     dds_entity_t pub = dds_create_publisher(dp, pQos, NULL);
     error_abort(pub, "new_publisher: dds_create_publisher");
     if (q == NULL)
-        dds_qos_delete(pQos);
+        dds_delete_qos(pQos);
     return pub;
 }
 
 dds_entity_t new_subscriber(dds_qos_t *q, unsigned npartitions, const char **partitions) {
     dds_qos_t *sQos;
     if (q == NULL) {
-        sQos = dds_qos_create();
+        sQos = dds_create_qos();
     } else {
         sQos = q;
     }
@@ -352,7 +352,7 @@ dds_entity_t new_subscriber(dds_qos_t *q, unsigned npartitions, const char **par
     dds_entity_t sub = dds_create_subscriber(dp, sQos, NULL);
     error_abort(sub, "new_subscriber: dds_create_subscriber");
     if (q == NULL)
-        dds_qos_delete(sQos);
+        dds_delete_qos(sQos);
     return sub;
 }
 

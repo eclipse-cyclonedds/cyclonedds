@@ -171,21 +171,21 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
   DDS_ERR_CHECK (topic, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 
   /* A publisher is created on the domain participant. */
-  pubQos = dds_qos_create ();
+  pubQos = dds_create_qos ();
   pubParts[0] = partitionName;
   dds_qset_partition (pubQos, 1, pubParts);
   publisher = dds_create_publisher (participant, pubQos, NULL);
   DDS_ERR_CHECK (publisher, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (pubQos);
+  dds_delete_qos (pubQos);
 
   /* A DataWriter is created on the publisher. */
-  dwQos = dds_qos_create ();
+  dwQos = dds_create_qos ();
   dds_qset_reliability (dwQos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
   dds_qset_history (dwQos, DDS_HISTORY_KEEP_ALL, 0);
   dds_qset_resource_limits (dwQos, MAX_SAMPLES, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
   *writer = dds_create_writer (publisher, topic, dwQos, NULL);
   DDS_ERR_CHECK (*writer, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (dwQos);
+  dds_delete_qos (dwQos);
 
   /* Enable write batching */
   dds_write_set_batch (true);

@@ -131,7 +131,7 @@ reader_iterator_init(void)
     char name[100];
     dds_qos_t *qos;
 
-    qos = dds_qos_create();
+    qos = dds_create_qos();
     cr_assert_not_null(qos, "Failed to create prerequisite qos");
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
@@ -308,7 +308,7 @@ reader_iterator_init(void)
      *    |    6   |   20   |   40   |     read | old | no_writers |
      */
 
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 }
 
 static void

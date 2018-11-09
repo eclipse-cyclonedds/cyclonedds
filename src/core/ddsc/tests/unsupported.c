@@ -175,8 +175,8 @@ ParameterizedTest(struct index_result *par, ddsc_unsupported, dds_set_qos, .init
     dds_return_t result;
     dds_qos_t *qos;
 
-    qos = dds_qos_create();
+    qos = dds_create_qos();
     result = dds_set_qos(e[par->index], qos);
     cr_expect_eq(dds_err_nr(result), par->exp_res, "Unexpected return code %d \"%s\" (expected %d \"%s\") from dds_set_qos(%s, qos): (%d)", dds_err_nr(result), dds_err_str(result), par->exp_res, dds_err_str(-par->exp_res), entity_kind_str(e[par->index]), result);
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 }

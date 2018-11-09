@@ -398,10 +398,10 @@ dds_create_topic(
         strcat (key, typename);
 
         if (qos) {
-            new_qos = dds_qos_create();
+            new_qos = dds_create_qos();
             /* Only returns failure when one of the qos args is NULL, which
              * is not the case here. */
-            (void)dds_qos_copy(new_qos, qos);
+            (void)dds_copy_qos(new_qos, qos);
         }
 
         /* Create topic */
@@ -445,7 +445,7 @@ dds_create_topic(
 
         nn_plist_init_empty (&plist);
         if (new_qos) {
-            dds_qos_merge (&plist.qos, new_qos);
+            dds_merge_qos (&plist.qos, new_qos);
         }
 
         /* Set Topic meta data (for SEDP publication) */

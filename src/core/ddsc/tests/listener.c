@@ -344,7 +344,7 @@ init_triggering_base(void)
     g_listener = dds_listener_create(NULL);
     cr_assert_not_null(g_listener, "Failed to create prerequisite g_listener");
 
-    g_qos = dds_qos_create();
+    g_qos = dds_create_qos();
     cr_assert_not_null(g_qos, "Failed to create prerequisite g_qos");
     dds_qset_reliability(g_qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(1));
     dds_qset_history(g_qos, DDS_HISTORY_KEEP_ALL, 0);
@@ -384,7 +384,7 @@ init_triggering_test(void)
 static void
 fini_triggering_base(void)
 {
-    dds_qos_delete(g_qos);
+    dds_delete_qos(g_qos);
     dds_listener_delete(g_listener);
     dds_delete(g_participant);
     os_condDestroy(&g_cond);
@@ -1019,7 +1019,7 @@ Test(ddsc_listener, inconsistent_topic, .init=init_triggering_base, .fini=fini_t
     os_mutexInit(&g_mutex);
     os_condInit(&g_cond, &g_mutex);
 
-    g_qos = dds_qos_create();
+    g_qos = dds_create_qos();
     cr_assert_not_null(g_qos, "Failed to create prerequisite g_qos");
 
     g_listener = dds_listener_create(NULL);
@@ -1056,7 +1056,7 @@ Test(ddsc_listener, inconsistent_topic, .init=init_triggering_base, .fini=fini_t
     dds_delete(g_participant);
 
     dds_listener_delete(g_listener);
-    dds_qos_delete(g_qos);
+    dds_delete_qos(g_qos);
 }
 #endif
 #endif

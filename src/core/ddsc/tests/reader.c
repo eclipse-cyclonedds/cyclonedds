@@ -89,7 +89,7 @@ reader_init(void)
     dds_return_t ret;
     char name[100];
 
-    g_qos = dds_qos_create();
+    g_qos = dds_create_qos();
     g_listener = dds_listener_create(NULL);
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
@@ -205,7 +205,7 @@ reader_init(void)
 static void
 reader_fini(void)
 {
-    dds_qos_delete(g_qos);
+    dds_delete_qos(g_qos);
     dds_listener_delete(g_listener);
     dds_delete(g_reader);
     dds_delete(g_writer);
@@ -249,14 +249,14 @@ Theory((dds_entity_t *ent, dds_qos_t **qos, dds_listener_t **listener), ddsc_rea
 Test(ddsc_reader_create, invalid_qos_participant, .init=reader_init, .fini=reader_fini)
 {
     dds_entity_t rdr;
-    dds_qos_t *qos = dds_qos_create();
+    dds_qos_t *qos = dds_create_qos();
     /* Set invalid reader data lifecycle policy */
     OS_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
     dds_qset_reader_data_lifecycle(qos, DDS_SECS(-1), DDS_SECS(-1));
     OS_WARNING_MSVC_ON(28020);
     rdr = dds_create_reader(g_participant, g_topic, qos, NULL);
     cr_assert_eq(dds_err_nr(rdr), DDS_RETCODE_INCONSISTENT_POLICY, "returned %d", dds_err_nr(rdr));
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 }
 /*************************************************************************************************/
 
@@ -264,14 +264,14 @@ Test(ddsc_reader_create, invalid_qos_participant, .init=reader_init, .fini=reade
 Test(ddsc_reader_create, invalid_qos_subscriber, .init=reader_init, .fini=reader_fini)
 {
     dds_entity_t rdr;
-    dds_qos_t *qos = dds_qos_create();
+    dds_qos_t *qos = dds_create_qos();
     /* Set invalid reader data lifecycle policy */
     OS_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
     dds_qset_reader_data_lifecycle(qos, DDS_SECS(-1), DDS_SECS(-1));
     OS_WARNING_MSVC_ON(28020);
     rdr = dds_create_reader(g_subscriber, g_topic, qos, NULL);
     cr_assert_eq(dds_err_nr(rdr), DDS_RETCODE_INCONSISTENT_POLICY, "returned %d", dds_err_nr(rdr));
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 }
 /*************************************************************************************************/
 
@@ -2506,7 +2506,7 @@ Test(ddsc_take_mask, take_instance_last_sample)
     char name[100];
 
     /* We need other readers/writers/data to force the crash. */
-    g_qos = dds_qos_create();
+    g_qos = dds_create_qos();
     dds_qset_history(g_qos, DDS_HISTORY_KEEP_ALL, DDS_LENGTH_UNLIMITED);
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     cr_assert_gt(g_participant, 0, "Failed to create prerequisite g_participant");
@@ -2606,7 +2606,7 @@ Test(ddsc_take_mask, take_instance_last_sample)
     dds_delete(g_waitset);
     dds_delete(g_topic);
     dds_delete(g_participant);
-    dds_qos_delete(g_qos);
+    dds_delete_qos(g_qos);
 }
 /*************************************************************************************************/
 

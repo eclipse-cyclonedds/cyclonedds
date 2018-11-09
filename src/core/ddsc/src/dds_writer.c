@@ -448,26 +448,26 @@ dds_create_writer(
     assert(pub->m_domain == tp->m_domain);
 
     /* Merge Topic & Publisher qos */
-    wqos = dds_qos_create();
+    wqos = dds_create_qos();
     if (qos) {
         /* Only returns failure when one of the qos args is NULL, which
          * is not the case here. */
-        (void)dds_qos_copy(wqos, qos);
+        (void)dds_copy_qos(wqos, qos);
     }
 
     if (pub->m_qos) {
-        dds_qos_merge(wqos, pub->m_qos);
+        dds_merge_qos(wqos, pub->m_qos);
     }
 
     if (tp->m_qos) {
         /* merge topic qos data to writer qos */
-        dds_qos_merge(wqos, tp->m_qos);
+        dds_merge_qos(wqos, tp->m_qos);
     }
     nn_xqos_mergein_missing(wqos, &gv.default_xqos_wr);
 
     ret = dds_writer_qos_validate(wqos, false);
     if (ret != 0) {
-        dds_qos_delete(wqos);
+        dds_delete_qos(wqos);
         writer = ret;
         goto err_bad_qos;
     }

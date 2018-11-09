@@ -54,7 +54,7 @@ static void
 unregistering_init(void)
 {
     Space_Type1 sample = { 0, 0, 0 };
-    dds_qos_t *qos = dds_qos_create ();
+    dds_qos_t *qos = dds_create_qos ();
     dds_attach_t triggered;
     dds_return_t ret;
     char name[100];
@@ -123,7 +123,7 @@ unregistering_init(void)
     g_present = dds_time();
     g_past    = g_present - DDS_SECS(1);
 
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 }
 
 static void

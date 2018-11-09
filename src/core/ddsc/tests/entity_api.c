@@ -72,7 +72,7 @@ Test(ddsc_entity, enable, .init = create_entity, .fini = delete_entity)
 void entity_qos_get_set(dds_entity_t e, const char* info)
 {
     dds_return_t status;
-    dds_qos_t *qos = dds_qos_create();
+    dds_qos_t *qos = dds_create_qos();
 
     /* Get QoS. */
     status = dds_get_qos (e, qos);
@@ -81,13 +81,13 @@ void entity_qos_get_set(dds_entity_t e, const char* info)
     status = dds_set_qos (e, qos); /* Doesn't change anything, so no need to forbid. But we return NOT_SUPPORTED anyway for now*/
     cr_assert_status_eq(status, DDS_RETCODE_UNSUPPORTED, "dds_set_qos(entity, qos) %s", info);
 
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 }
 
 Test(ddsc_entity, qos, .init = create_entity, .fini = delete_entity)
 {
     dds_return_t status;
-    dds_qos_t *qos = dds_qos_create();
+    dds_qos_t *qos = dds_create_qos();
 
     /* Don't check inconsistent and immutable policies. That's a job
      * for the specific entity children, not for the generic part. */
@@ -119,7 +119,7 @@ Test(ddsc_entity, qos, .init = create_entity, .fini = delete_entity)
     }
 
     /* Delete qos. */
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 }
 
 Test(ddsc_entity, listener, .init = create_entity, .fini = delete_entity)

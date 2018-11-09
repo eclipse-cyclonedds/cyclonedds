@@ -347,8 +347,8 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
 
   int32_t maxSamples = 400;
   const char *subParts[1];
-  dds_qos_t *subQos = dds_qos_create ();
-  dds_qos_t *drQos = dds_qos_create ();
+  dds_qos_t *subQos = dds_create_qos ();
+  dds_qos_t *drQos = dds_create_qos ();
 
   /* A Participant is created for the default domain. */
 
@@ -366,7 +366,7 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
   dds_qset_partition (subQos, 1, subParts);
   subscriber = dds_create_subscriber (participant, subQos, NULL);
   DDS_ERR_CHECK (subscriber, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (subQos);
+  dds_delete_qos (subQos);
 
   /* A Reader is created on the Subscriber & Topic with a modified Qos. */
 
@@ -400,7 +400,7 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
 
   *reader = dds_create_reader (subscriber, topic, drQos, rd_listener);
   DDS_ERR_CHECK (*reader, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (drQos);
+  dds_delete_qos (drQos);
   dds_listener_delete(rd_listener);
 
   return participant;

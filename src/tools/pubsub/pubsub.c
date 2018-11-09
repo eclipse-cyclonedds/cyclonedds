@@ -1589,7 +1589,7 @@ static int check_eseq(struct eseq_admin *ea, unsigned seq, unsigned keyval, cons
 //static int subscriber_needs_access(dds_entity_t sub) {
 //    dds_qos_t *qos;
 //    int x;
-//    if ((qos = dds_qos_create()) == NULL)
+//    if ((qos = dds_create_qos()) == NULL)
 //        return DDS_RETCODE_OUT_OF_RESOURCES;
 //    dds_qos_get(sub, qos);
 //    if (qos == NULL)
@@ -2534,16 +2534,16 @@ int MAIN(int argc, char *argv[]) {
         for (i = 0; i < (unsigned) (argc - os_get_optind()); i++)
             ps[i] = expand_envvars(argv[(unsigned) os_get_optind() + i]);
         if (want_reader) {
-            qos = dds_qos_create();
+            qos = dds_create_qos();
             setqos_from_args(DDS_KIND_SUBSCRIBER, qos, nqsubscriber, qsubscriber);
             sub = new_subscriber(qos, (unsigned) (argc - os_get_optind()), (const char **) ps);
-            dds_qos_delete(qos);
+            dds_delete_qos(qos);
         }
         if (want_writer) {
-            qos = dds_qos_create();
+            qos = dds_create_qos();
             setqos_from_args(DDS_KIND_PUBLISHER, qos, nqpublisher, qpublisher);
             pub = new_publisher(qos, (unsigned) (argc - os_get_optind()), (const char **) ps);
-            dds_qos_delete(qos);
+            dds_delete_qos(qos);
         }
         for (i = 0; i < (unsigned) (argc - os_get_optind()); i++)
             dds_free(ps[i]);
@@ -2582,7 +2582,7 @@ int MAIN(int argc, char *argv[]) {
         assert(spec[i].tp);
 //        assert(spec[i].rd.topicsel != ARB || spec[i].rd.tgtp != NULL);
 //        assert(spec[i].wr.topicsel != ARB || spec[i].wr.tgtp != NULL);
-        dds_qos_delete(qos);
+        dds_delete_qos(qos);
 
         if (spec[i].cftp_expr == NULL)
             spec[i].cftp = spec[i].tp;
@@ -2604,7 +2604,7 @@ int MAIN(int argc, char *argv[]) {
             setqos_from_args(DDS_KIND_READER, qos, nqreader, qreader);
             spec[i].rd.rd = new_datareader_listener(sub, spec[i].cftp, qos, rdlistener);
             spec[i].rd.sub = sub;
-            dds_qos_delete(qos);
+            dds_delete_qos(qos);
         }
 
         if (spec[i].wr.mode != WRM_NONE) {
@@ -2616,7 +2616,7 @@ int MAIN(int argc, char *argv[]) {
                 spec[i].wr.dupwr = dds_create_writer(pub, spec[i].tp, qos, NULL);
                 error_abort(spec[i].wr.dupwr, "dds_writer_create failed");
             }
-            dds_qos_delete(qos);
+            dds_delete_qos(qos);
         }
     }
 

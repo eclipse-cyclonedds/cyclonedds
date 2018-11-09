@@ -58,8 +58,8 @@ Test(ddsc_publisher, create)
   dds_delete(publisher);
 
   /* Create a non-null qos */
-  qos = dds_qos_create();
-  cr_assert_neq(qos, NULL, "dds_qos_create()");
+  qos = dds_create_qos();
+  cr_assert_neq(qos, NULL, "dds_create_qos()");
 
   /* Use qos without partition; in that case the default partition should be used */
   publisher = dds_create_publisher(participant, qos, NULL);
@@ -132,7 +132,7 @@ Test(ddsc_publisher, create)
   dds_delete(publisher);
 
   dds_listener_delete(listener);
-  dds_qos_delete(qos);
+  dds_delete_qos(qos);
   dds_delete (participant);
 }
 

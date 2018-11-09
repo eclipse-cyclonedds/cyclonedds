@@ -60,7 +60,7 @@ ddsc_topic_init(void)
     g_topicRtmDataType = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, g_topicRtmDataTypeName, NULL, NULL);
     cr_assert_gt(g_topicRtmDataType, 0, "Failed to create prerequisite g_topicRtmDataType");
 
-    g_qos = dds_qos_create();
+    g_qos = dds_create_qos();
     g_listener = dds_listener_create(NULL);
 }
 
@@ -68,7 +68,7 @@ ddsc_topic_init(void)
 static void
 ddsc_topic_fini(void)
 {
-    dds_qos_delete(g_qos);
+    dds_delete_qos(g_qos);
     dds_listener_delete(g_listener);
     dds_delete(g_topicRtmDataType);
     dds_delete(g_topicRtmAddress);
@@ -102,13 +102,13 @@ Theory((char *name, dds_qos_t **qos, dds_listener_t **listener), ddsc_topic_crea
 Test(ddsc_topic_create, invalid_qos, .init=ddsc_topic_init, .fini=ddsc_topic_fini)
 {
     dds_entity_t topic;
-    dds_qos_t *qos = dds_qos_create();
+    dds_qos_t *qos = dds_create_qos();
     OS_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
     dds_qset_lifespan(qos, DDS_SECS(-1));
     OS_WARNING_MSVC_OFF(28020);
     topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, "inconsistent", qos, NULL);
     cr_assert_eq(dds_err_nr(topic), DDS_RETCODE_INCONSISTENT_POLICY, "returned %s", dds_err_str(topic));
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 }
 /*************************************************************************************************/
 
