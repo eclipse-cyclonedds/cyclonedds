@@ -14,7 +14,6 @@
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
 
-
 /* We are deliberately testing some bad arguments that SAL will complain about.
  * So, silence SAL regarding these issues. */
 #ifdef _MSC_VER
@@ -164,10 +163,19 @@ static const char* c_partitions[] = {"Partition1", "Partition2"};
  * Test initializations and teardowns.
  ****************************************************************************/
 static dds_qos_t *g_qos = NULL;
+static dds_qos_t *g_qos_initialized_source = NULL;
+static dds_qos_t *g_qos_initialized_destination = NULL;
+static dds_qos_t *g_qos_NULL = NULL;
 
 static void
 qos_init(void)
 {
+    g_qos_initialized_source = dds_qos_create();
+    cr_assert_not_null(g_qos_initialized_source);
+
+    g_qos_initialized_destination = dds_qos_create();
+    cr_assert_not_null(g_qos_initialized_destination);
+
     g_qos = dds_qos_create();
     cr_assert_not_null(g_qos);
 
@@ -235,11 +243,56 @@ static void
 qos_fini(void)
 {
     dds_qos_delete(g_qos);
+    dds_qos_delete(g_qos_initialized_source);
+    dds_qos_delete(g_qos_initialized_destination);
+    dds_qos_delete(g_qos_NULL);
 }
 
 /****************************************************************************
  * API tests
  ****************************************************************************/
+Test(ddsc_qos, WillReturnBadParameterErrorWhenSourceIsNull, .init=qos_init, .fini=qos_fini)
+{
+	dds_return_t result= dds_qos_copy(g_qos_initialized_destination, g_qos_NULL);
+	cr_assert_neq(result, DDS_RETCODE_OK);
+
+	cr_assert_eq(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(result) );
+}
+
+Test(ddsc_qos, WillReturnBadParameterErrorWhenDestinationIsNull, .init=qos_init, .fini=qos_fini)
+{
+	dds_return_t result= dds_qos_copy(g_qos_NULL, g_qos_initialized_source);
+	cr_assert_neq(result, DDS_RETCODE_OK);
+
+	cr_assert_eq(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(result) );
+}
+
+Test(ddsc_qos, WillReturnOKWhenQosPartitionStrIsSetButIsNull, .init=qos_init, .fini=qos_fini)
+{
+	struct pol_partition p = { 0, NULL };
+
+	dds_qget_partition(g_qos_initialized_source, &p.n, &p.ps);
+	dds_return_t result= dds_qos_copy(g_qos_initialized_destination, g_qos_initialized_source);
+
+	cr_assert_eq(result, DDS_RETCODE_OK);
+}
+
+Test(ddsc_qos, WillReturnOKWhenQosPartitionStrIsSet, .init=qos_init, .fini=qos_fini)
+{
+	const char * srtList[]= {"str1", "str2", "str3"};
+
+	dds_qset_partition (g_qos_initialized_source, 3, srtList);
+	dds_return_t result= dds_qos_copy(g_qos_initialized_destination, g_qos_initialized_source);
+
+	cr_assert_eq(result, DDS_RETCODE_OK);
+}
+
+Test(ddsc_qos, WillReturn, .init=qos_init, .fini=qos_fini)
+{
+	dds_return_t result= dds_qos_copy(g_qos_initialized_destination, g_qos_initialized_source);
+	cr_assert_eq(result, DDS_RETCODE_OK);
+}
+
 Test(ddsc_qos, userdata, .init=qos_init, .fini=qos_fini)
 {
     struct pol_userdata p = { NULL, 0 };
