@@ -508,6 +508,7 @@ void dds_qset_partition
     for (i = 0; i < n; i++) {
         len = strlen (ps[i]) + 1;
         qos->partition.strs[i] = dds_alloc (len);
+        assert(ps[i] != NULL);
         strncpy (qos->partition.strs[i], ps[i], len);
     }
     qos->present |= QP_PARTITION;
