@@ -7,7 +7,7 @@
 #include <stdlib.h>
 
 
-Test(dds_time, createTime, setup, teardown)
+Test(dds_time, createTime)
 {
 	dds_time_t resultTime;
 	resultTime= dds_time();
