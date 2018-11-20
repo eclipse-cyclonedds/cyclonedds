@@ -17,6 +17,7 @@ IF(${platform} IN_LIST posix_platforms)
   set(platform posix)
 ENDIF()
 
+# For posix platforms include the files in the posix/ directory.
 PREPEND(srcs_platform ${platform} os_platform_errno.c os_platform_heap.c os_platform_init.c os_platform_process.c os_platform_ifaddrs.c os_platform_socket.c os_platform_stdlib.c os_platform_sync.c os_platform_thread.c os_platform_time.c)
 
 include (GenerateExportHeader)
