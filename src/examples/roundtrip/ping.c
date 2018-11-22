@@ -113,14 +113,14 @@ static dds_entity_t waitSet;
 #include <Windows.h>
 static bool CtrlHandler (DWORD fdwCtrlType)
 {
-  dds_waitset_set_trigger (waitSet, true);
+	dds_trigger_waitset (waitSet, true);
   return true; //Don't let other handlers handle this key
 }
 #else
 static void CtrlHandler (int sig)
 {
   (void)sig;
-  dds_waitset_set_trigger (waitSet, true);
+  dds_trigger_waitset (waitSet, true);
 }
 #endif
 

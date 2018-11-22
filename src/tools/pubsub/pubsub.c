@@ -150,7 +150,7 @@ static void terminate(void) {
 //    const char c = 0;
     termflag = 1;
 //    os_write(termpipe[1], &c, 1); // TODO: signal handling support; for abstraction layer
-    dds_waitset_set_trigger(termcond, true);
+    dds_trigger_waitset(termcond, true);
 }
 
 static void usage(const char *argv0) {

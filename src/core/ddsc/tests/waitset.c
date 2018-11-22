@@ -577,7 +577,7 @@ Test(ddsc_waitset_set_trigger, deleted_waitset, .init=ddsc_waitset_basic_init, .
 {
     dds_return_t ret;
     dds_delete(waitset);
-    ret = dds_waitset_set_trigger(waitset, true);
+    ret = dds_trigger_waitset(waitset, true);
     cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED, "returned %d", dds_err_nr(ret));
 }
 /*************************************************************************************************/
@@ -591,7 +591,7 @@ Theory((dds_entity_t ws), ddsc_waitset_set_trigger, invalid_params, .init=ddsc_w
     dds_return_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
-    ret = dds_waitset_set_trigger(ws, true);
+    ret = dds_trigger_waitset(ws, true);
     cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
@@ -603,7 +603,7 @@ TheoryDataPoints(ddsc_waitset_set_trigger, non_waitsets) = {
 Theory((dds_entity_t *ws), ddsc_waitset_set_trigger, non_waitsets, .init=ddsc_waitset_init, .fini=ddsc_waitset_fini)
 {
     dds_return_t ret;
-    ret = dds_waitset_set_trigger(*ws, true);
+    ret = dds_trigger_waitset(*ws, true);
     cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(ret));
 }
 /*************************************************************************************************/
@@ -781,7 +781,7 @@ Theory((size_t size), ddsc_waitset_get_entities, array_sizes, .init=ddsc_waitset
     dds_entity_t entities[MAX_ENTITIES_CNT];
 
     /* Make sure at least one entity is in the waitsets' internal triggered list. */
-    ret = dds_waitset_set_trigger(waitset, true);
+    ret = dds_trigger_waitset(waitset, true);
     cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to prerequisite trigger entity");
 
     /* Get the actual attached entities. */
@@ -887,7 +887,7 @@ Theory((dds_entity_t *ws), ddsc_waitset_get_entities, non_waitsets, .init=ddsc_w
  *    hasn't been triggered yet. We also want it to block to know for sure that it'll wake up.
  * 3) Trigger the waitset. This should unblock the other thread that was waiting on the waitset.
  * 4) A new dds_waitset_wait should return immediately because the trigger value hasn't been
- *    reset (dds_waitset_set_trigger(waitset, false)) after the waitset woke up.
+ *    reset (dds_trigger_waitset(waitset, false)) after the waitset woke up.
  *
  *************************************************************************************************/
 /*************************************************************************************************/
@@ -906,8 +906,8 @@ Test(ddsc_waitset_triggering, on_self, .init=ddsc_waitset_attached_init, .fini=d
     waiting_thread_start(&arg, waitset);
 
     /* Triggering of the waitset should unblock the thread. */
-    ret = dds_waitset_set_trigger(waitset, true);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_waitset_set_trigger(): returned %d", dds_err_nr(ret));
+    ret = dds_trigger_waitset(waitset, true);
+    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_trigger_waitset(): returned %d", dds_err_nr(ret));
     ret = waiting_thread_expect_exit(&arg);
     cr_assert_eq(ret, DDS_RETCODE_OK, "waiting thread did not unblock");
 
@@ -921,8 +921,8 @@ Test(ddsc_waitset_triggering, on_self, .init=ddsc_waitset_attached_init, .fini=d
     cr_assert_eq(waitset, (dds_entity_t)(intptr_t)triggered);
 
     /* Reset waitset trigger. */
-    ret = dds_waitset_set_trigger(waitset, false);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_waitset_set_trigger(): returned %d", dds_err_nr(ret));
+    ret = dds_trigger_waitset(waitset, false);
+    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_trigger_waitset(): returned %d", dds_err_nr(ret));
     ret = dds_triggered(waitset);
     cr_assert_eq(ret, 0, "dds_triggered(): returned %d", dds_err_nr(ret));
 }

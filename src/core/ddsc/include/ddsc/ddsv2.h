@@ -1697,7 +1697,7 @@ dds_waitset_get_entities(
  *  - WaitSet
  *      - Triggered when trigger value was set to true by the application.
  *        It stays triggered until application sets the trigger value to
- *        false (dds_waitset_set_trigger()). This can be used to wake up an
+ *        false (dds_trigger_waitset()). This can be used to wake up an
  *        waitset for different reasons (f.i. termination) than the 'normal'
  *        status change (like new data).
  *  - ReadCondition/QueryCondition
@@ -1792,7 +1792,7 @@ dds_waitset_detach(
  */
 _Pre_satisfies_((waitset & DDS_ENTITY_KIND_MASK) == DDS_KIND_WAITSET)
 DDS_EXPORT dds_return_t
-dds_waitset_set_trigger(
+dds_trigger_waitset(
         _In_ dds_entity_t waitset,
         _In_ bool trigger);
 
@@ -1809,7 +1809,7 @@ dds_waitset_set_trigger(
  *  - WaitSet
  *      - Triggered when trigger value was set to true by the application.
  *        It stays triggered until application sets the trigger value to
- *        false (dds_waitset_set_trigger()). This can be used to wake up an
+ *        false (dds_trigger_waitset()). This can be used to wake up an
  *        waitset for different reasons (f.i. termination) than the 'normal'
  *        status change (like new data).
  *  - ReadCondition/QueryCondition
@@ -1880,7 +1880,7 @@ dds_waitset_wait(
  *  - WaitSet
  *      - Triggered when trigger value was set to true by the application.
  *        It stays triggered until application sets the trigger value to
- *        false (dds_waitset_set_trigger()). This can be used to wake up an
+ *        false (dds_trigger_waitset()). This can be used to wake up an
  *        waitset for different reasons (f.i. termination) than the 'normal'
  *        status change (like new data).
  *  - ReadCondition/QueryCondition

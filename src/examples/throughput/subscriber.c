@@ -69,7 +69,7 @@ static void finalize_dds(dds_entity_t participant);
 #include <Windows.h>
 static int CtrlHandler (DWORD fdwCtrlType)
 {
-  dds_waitset_set_trigger (waitSet, true);
+	dds_trigger_waitset (waitSet, true);
   done = true;
   return true; /* Don't let other handlers handle this key */
 }
@@ -78,7 +78,7 @@ struct sigaction oldAction;
 static void CtrlHandler (int sig)
 {
   (void)sig;
-  dds_waitset_set_trigger (waitSet, true);
+  dds_trigger_waitset (waitSet, true);
   done = true;
 }
 #endif
@@ -237,7 +237,7 @@ static void data_available_handler (dds_entity_t reader, void *arg)
   time_now = dds_time ();
   if ((pollingDelay == 0) && (time_now > (prev_time + DDS_SECS (1))))
   {
-     dds_waitset_set_trigger (pollingWaitset, true);
+	  dds_trigger_waitset (pollingWaitset, true);
   }
 }
 
@@ -296,7 +296,7 @@ static void process_samples(unsigned long long maxCycles)
 
       if ((status > 0 ) && (dds_triggered (pollingWaitset)))
       {
-        dds_waitset_set_trigger (pollingWaitset, false);
+    	  dds_trigger_waitset (pollingWaitset, false);
       }
     }
 

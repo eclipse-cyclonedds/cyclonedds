@@ -480,7 +480,7 @@ dds_waitset_wait(
 
 _Pre_satisfies_((waitset & DDS_ENTITY_KIND_MASK) == DDS_KIND_WAITSET)
 dds_return_t
-dds_waitset_set_trigger(
+dds_trigger_waitset(
         _In_ dds_entity_t waitset,
         _In_ bool trigger)
 {
