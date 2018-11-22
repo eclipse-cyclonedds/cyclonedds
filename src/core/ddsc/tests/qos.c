@@ -14,7 +14,6 @@
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
 
-
 /* We are deliberately testing some bad arguments that SAL will complain about.
  * So, silence SAL regarding these issues. */
 #ifdef _MSC_VER
@@ -240,6 +239,45 @@ qos_fini(void)
 /****************************************************************************
  * API tests
  ****************************************************************************/
+Test(ddsc_qos, copy_bad_source, .init=qos_init, .fini=qos_fini)
+{
+    dds_return_t result;
+
+	result = dds_qos_copy(g_qos, NULL);
+	cr_assert_eq(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(result));
+}
+
+Test(ddsc_qos, copy_bad_destination, .init=qos_init, .fini=qos_fini)
+{
+	dds_return_t result;
+
+	result = dds_qos_copy(NULL, g_qos);
+	cr_assert_eq(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(result));
+}
+
+Test(ddsc_qos, copy_with_partition, .init=qos_init, .fini=qos_fini)
+{
+	dds_return_t result;
+	dds_qos_t *qos;
+	struct pol_partition p = { 0, NULL };
+
+	qos = dds_qos_create();
+	cr_assert_not_null(qos);
+
+	dds_qset_partition(g_qos, g_pol_partition.n, g_pol_partition.ps);
+	result = dds_qos_copy(qos, g_qos);
+
+	cr_assert_eq(result, DDS_RETCODE_OK);
+	dds_qget_partition(qos, &p.n, &p.ps);
+	cr_assert_eq(p.n, g_pol_partition.n);
+
+	for (uint32_t cnt = 0; cnt < p.n; cnt++) {
+	    cr_assert_str_eq(p.ps[cnt], g_pol_partition.ps[cnt]);
+	}
+
+	dds_qos_delete(qos);
+}
+
 Test(ddsc_qos, userdata, .init=qos_init, .fini=qos_fini)
 {
     struct pol_userdata p = { NULL, 0 };
