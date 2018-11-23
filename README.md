@@ -12,7 +12,7 @@ In order use Eclipse Cyclone DDS you need to have installed on your host [cmake]
 
 To obtain Eclipse Cyclone DDS, do
 
-    $ git clone https://github.com/eclipse/cyclonedds.git 
+    $ git clone https://github.com/eclipse-cyclonedds/cyclonedds.git 
     $ cd cyclonedds
     $ mkdir build
 
