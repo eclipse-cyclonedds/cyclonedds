@@ -152,12 +152,12 @@ dds__create_builtin_publisher(
     dds_qos_t *qos;
     const char *partition = "__BUILT-IN PARTITION__";
 
-    qos = dds_qos_create();
+    qos = dds_create_qos();
     dds_qset_partition(qos, 1, &partition);
 
     pub = dds_create_publisher(participant, qos, NULL);
 
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 
     return pub;
 }
@@ -170,12 +170,12 @@ dds__create_builtin_subscriber(
     dds_qos_t *qos;
     const char *partition = "__BUILT-IN PARTITION__";
 
-    qos = dds_qos_create();
+    qos = dds_create_qos();
     dds_qset_partition(qos, 1, &partition);
 
     /* Create builtin-subscriber */
     sub = dds__create_subscriber_l(participant, qos, NULL);
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 
     return sub;
 }
@@ -191,11 +191,11 @@ dds__create_builtin_writer(
         if (top > 0) {
             dds_qos_t *qos;
             // TODO: set builtin qos
-            qos = dds_qos_create();
+            qos = dds_create_qos();
             dds_qset_durability(qos, DDS_DURABILITY_TRANSIENT_LOCAL);
             dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_MSECS(100));
             wr = dds_create_writer(pub, top, qos, NULL);
-            dds_qos_delete(qos);
+            dds_delete_qos(qos);
             (void)dds_delete(top);
         } else {
             wr = top;
@@ -323,12 +323,12 @@ dds__get_builtin_topic(
             DDS_REPORT_FLUSH(0);
             DDS_REPORT_STACK();
 
-            tqos = dds_qos_create();
+            tqos = dds_create_qos();
             dds_qset_durability(tqos, DDS_DURABILITY_TRANSIENT_LOCAL);
             dds_qset_presentation(tqos, DDS_PRESENTATION_TOPIC, false, false);
             dds_qset_reliability(tqos, DDS_RELIABILITY_RELIABLE, DDS_MSECS(100));
             ret = dds_create_topic(participant, desc, name, tqos, NULL);
-            dds_qos_delete(tqos);
+            dds_delete_qos(tqos);
         }
 
     } else {

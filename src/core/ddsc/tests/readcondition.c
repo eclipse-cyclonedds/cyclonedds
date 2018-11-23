@@ -83,7 +83,7 @@ static void
 readcondition_init(void)
 {
     Space_Type1 sample = { 0, 0, 0 };
-    dds_qos_t *qos = dds_qos_create ();
+    dds_qos_t *qos = dds_create_qos ();
     dds_attach_t triggered;
     dds_return_t ret;
     char name[100];
@@ -191,7 +191,7 @@ readcondition_init(void)
         }
     }
 
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 }
 
 static void

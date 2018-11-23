@@ -274,7 +274,7 @@ int main (int argc, char *argv[])
 
   if (use_listener)
   {
-    listener = dds_listener_create(NULL);
+    listener = dds_create_listener(NULL);
     dds_lset_data_available(listener, data_available);
   }
   prepare_dds(&writer, &reader, &readCond, listener);
@@ -442,35 +442,35 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   DDS_ERR_CHECK (topic, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 
   /* A DDS_Publisher is created on the domain participant. */
-  pubQos = dds_qos_create ();
+  pubQos = dds_create_qos ();
   dds_qset_partition (pubQos, 1, pubPartitions);
 
   publisher = dds_create_publisher (participant, pubQos, NULL);
   DDS_ERR_CHECK (publisher, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (pubQos);
+  dds_delete_qos (pubQos);
 
   /* A DDS_DataWriter is created on the Publisher & Topic with a modified Qos. */
-  dwQos = dds_qos_create ();
+  dwQos = dds_create_qos ();
   dds_qset_reliability (dwQos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
   dds_qset_writer_data_lifecycle (dwQos, false);
   *wr = dds_create_writer (publisher, topic, dwQos, NULL);
   DDS_ERR_CHECK (*wr, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (dwQos);
+  dds_delete_qos (dwQos);
 
   /* A DDS_Subscriber is created on the domain participant. */
-  subQos = dds_qos_create ();
+  subQos = dds_create_qos ();
 
   dds_qset_partition (subQos, 1, subPartitions);
 
   subscriber = dds_create_subscriber (participant, subQos, NULL);
   DDS_ERR_CHECK (subscriber, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (subQos);
+  dds_delete_qos (subQos);
   /* A DDS_DataReader is created on the Subscriber & Topic with a modified QoS. */
-  drQos = dds_qos_create ();
+  drQos = dds_create_qos ();
   dds_qset_reliability (drQos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
   *rd = dds_create_reader (subscriber, topic, drQos, listener);
   DDS_ERR_CHECK (*rd, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (drQos);
+  dds_delete_qos (drQos);
 
   waitSet = dds_create_waitset (participant);
   if (listener == NULL) {

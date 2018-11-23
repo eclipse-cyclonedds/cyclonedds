@@ -94,7 +94,7 @@ take_instance_init(void)
     char name[100];
     dds_qos_t *qos;
 
-    qos = dds_qos_create();
+    qos = dds_create_qos();
     cr_assert_not_null(qos, "Failed to create prerequisite qos");
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
@@ -256,7 +256,7 @@ take_instance_init(void)
     g_hdl_valid = dds_instance_lookup(g_reader, &sample);
     cr_assert_neq(g_hdl_valid, DDS_HANDLE_NIL, "Failed prerequisite dds_instance_lookup");
 
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 }
 
 static void

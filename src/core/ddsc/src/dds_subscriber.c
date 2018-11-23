@@ -125,10 +125,10 @@ dds__create_subscriber_l(
         if ((ret = dds__subscriber_qos_validate(qos, false)) != DDS_RETCODE_OK) {
             goto err_param;
         }
-        new_qos = dds_qos_create();
+        new_qos = dds_create_qos();
         /* Only returns failure when one of the qos args is NULL, which
          * is not the case here. */
-        (void)dds_qos_copy(new_qos, qos);
+        (void)dds_copy_qos(new_qos, qos);
     } else {
         new_qos = NULL;
     }

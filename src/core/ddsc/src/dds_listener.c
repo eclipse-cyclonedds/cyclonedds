@@ -18,25 +18,37 @@
 
 _Ret_notnull_
 dds_listener_t*
-dds_listener_create(_In_opt_ void* arg)
+dds_create_listener(_In_opt_ void* arg)
 {
     c_listener_t *l = dds_alloc(sizeof(*l));
-    dds_listener_reset(l);
+    dds_reset_listener(l);
     l->arg = arg;
     return l;
 }
 
+_Ret_notnull_
+dds_listener_t*
+dds_listener_create(_In_opt_ void* arg)
+{
+    return dds_create_listener(arg);
+}
+
 void
-dds_listener_delete(_In_ _Post_invalid_ dds_listener_t * __restrict listener)
+dds_delete_listener(_In_ _Post_invalid_ dds_listener_t * __restrict listener)
 {
     if (listener) {
         dds_free(listener);
     }
 }
 
+void
+dds_listener_delete(_In_ _Post_invalid_ dds_listener_t * __restrict listener)
+{
+    dds_delete_listener(listener);
+}
 
 void
-dds_listener_reset(_Out_ dds_listener_t * __restrict listener)
+dds_reset_listener(_Out_ dds_listener_t * __restrict listener)
 {
     if (listener) {
         c_listener_t *l = listener;
@@ -59,7 +71,13 @@ dds_listener_reset(_Out_ dds_listener_t * __restrict listener)
 }
 
 void
-dds_listener_copy(_Out_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src)
+dds_listener_reset(_Out_ dds_listener_t * __restrict listener)
+{
+    dds_reset_listener(listener);
+}
+
+void
+dds_copy_listener(_Out_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src)
 {
     const c_listener_t *srcl = src;
     c_listener_t *dstl = dst;
@@ -89,7 +107,13 @@ dds_listener_copy(_Out_ dds_listener_t * __restrict dst, _In_ const dds_listener
 }
 
 void
-dds_listener_merge (_Inout_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src)
+dds_listener_copy(_Out_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src)
+{
+    dds_copy_listener(dst, src);
+}
+
+void
+dds_merge_listener (_Inout_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src)
 {
     const c_listener_t *srcl = src;
     c_listener_t *dstl = dst;
@@ -141,6 +165,12 @@ dds_listener_merge (_Inout_ dds_listener_t * __restrict dst, _In_ const dds_list
     if (dstl->on_subscription_matched == DDS_LUNSET) {
         dstl->on_subscription_matched = srcl->on_subscription_matched;
     }
+}
+
+void
+dds_listener_merge (_Inout_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src)
+{
+    dds_merge_listener(dst, src);
 }
 
 /************************************************************************************************

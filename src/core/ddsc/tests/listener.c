@@ -341,10 +341,10 @@ init_triggering_base(void)
     g_topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_listener_test", name, 100), NULL, NULL);
     cr_assert_gt(g_topic, 0, "Failed to create prerequisite g_topic");
 
-    g_listener = dds_listener_create(NULL);
+    g_listener = dds_create_listener(NULL);
     cr_assert_not_null(g_listener, "Failed to create prerequisite g_listener");
 
-    g_qos = dds_qos_create();
+    g_qos = dds_create_qos();
     cr_assert_not_null(g_qos, "Failed to create prerequisite g_qos");
     dds_qset_reliability(g_qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(1));
     dds_qset_history(g_qos, DDS_HISTORY_KEEP_ALL, 0);
@@ -384,8 +384,8 @@ init_triggering_test(void)
 static void
 fini_triggering_base(void)
 {
-    dds_qos_delete(g_qos);
-    dds_listener_delete(g_listener);
+    dds_delete_qos(g_qos);
+    dds_delete_listener(g_listener);
     dds_delete(g_participant);
     os_condDestroy(&g_cond);
     os_mutexDestroy(&g_mutex);
@@ -410,7 +410,7 @@ Test(ddsc_listener, create_and_delete)
 {
     /* Verify create doesn't return null */
     dds_listener_t *listener;
-    listener = dds_listener_create(NULL);
+    listener = dds_create_listener(NULL);
     cr_assert_not_null(listener);
 
     /* Check default cb's are set */
@@ -428,16 +428,16 @@ Test(ddsc_listener, create_and_delete)
     ASSERT_CALLBACK_EQUAL(subscription_matched, listener, DDS_LUNSET);
     ASSERT_CALLBACK_EQUAL(data_available, listener, DDS_LUNSET);
 
-    dds_listener_delete(listener);
+    dds_delete_listener(listener);
     OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
-    dds_listener_delete(NULL);
+    dds_delete_listener(NULL);
     OS_WARNING_MSVC_ON(6387);
 }
 
 Test(ddsc_listener, reset)
 {
     dds_listener_t *listener;
-    listener = dds_listener_create(NULL);
+    listener = dds_create_listener(NULL);
     cr_assert_not_null(listener);
 
     /* Set a listener cb to a non-default value */
@@ -445,20 +445,20 @@ Test(ddsc_listener, reset)
     ASSERT_CALLBACK_EQUAL(data_available, listener, NULL);
 
     /* Listener cb should revert to default after reset */
-    dds_listener_reset(listener);
+    dds_reset_listener(listener);
     ASSERT_CALLBACK_EQUAL(data_available, listener, DDS_LUNSET);
 
     /* Resetting a NULL listener should not crash */
-    dds_listener_reset(NULL);
+    dds_reset_listener(NULL);
 
-    dds_listener_delete(listener);
+    dds_delete_listener(listener);
 }
 
 Test(ddsc_listener, copy)
 {
     dds_listener_t *listener1 = NULL, *listener2 = NULL;
-    listener1 = dds_listener_create(NULL);
-    listener2 = dds_listener_create(NULL);
+    listener1 = dds_create_listener(NULL);
+    listener2 = dds_create_listener(NULL);
     cr_assert_not_null(listener1);
     cr_assert_not_null(listener2);
 
@@ -471,7 +471,7 @@ Test(ddsc_listener, copy)
     ASSERT_CALLBACK_EQUAL(sample_lost, listener2, DDS_LUNSET);
 
     /* Cb's should be copied to listener2 */
-    dds_listener_copy(listener2, listener1);
+    dds_copy_listener(listener2, listener1);
     ASSERT_CALLBACK_EQUAL(data_available, listener1, NULL);
     ASSERT_CALLBACK_EQUAL(data_available, listener2, NULL);
     ASSERT_CALLBACK_EQUAL(sample_lost, listener1, sample_lost_cb);
@@ -479,20 +479,20 @@ Test(ddsc_listener, copy)
 
     /* Calling copy with NULL should not crash and be noops. */
     OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
-    dds_listener_copy(listener2, NULL);
-    dds_listener_copy(NULL, listener1);
-    dds_listener_copy(NULL, NULL);
+    dds_copy_listener(listener2, NULL);
+    dds_copy_listener(NULL, listener1);
+    dds_copy_listener(NULL, NULL);
     OS_WARNING_MSVC_ON(6387);
 
-    dds_listener_delete(listener1);
-    dds_listener_delete(listener2);
+    dds_delete_listener(listener1);
+    dds_delete_listener(listener2);
 }
 
 Test(ddsc_listener, merge)
 {
     dds_listener_t *listener1 = NULL, *listener2 = NULL;
-    listener1 = dds_listener_create(NULL);
-    listener2 = dds_listener_create(NULL);
+    listener1 = dds_create_listener(NULL);
+    listener2 = dds_create_listener(NULL);
     cr_assert_not_null(listener1);
     cr_assert_not_null(listener2);
 
@@ -512,7 +512,7 @@ Test(ddsc_listener, merge)
     dds_lset_subscription_matched       (listener1, subscription_matched_cb);
 
     /* Merging listener1 into empty listener2 should act a bit like a copy. */
-    dds_listener_merge(listener2, listener1);
+    dds_merge_listener(listener2, listener1);
     ASSERT_CALLBACK_EQUAL(inconsistent_topic,           listener2, inconsistent_topic_cb);
     ASSERT_CALLBACK_EQUAL(liveliness_lost,              listener2, liveliness_lost_cb);
     ASSERT_CALLBACK_EQUAL(offered_deadline_missed,      listener2, offered_deadline_missed_cb);
@@ -541,7 +541,7 @@ Test(ddsc_listener, merge)
     dds_lset_requested_incompatible_qos (listener2, (dds_on_requested_incompatible_qos_fn)callback_dummy);
     dds_lset_publication_matched        (listener2, (dds_on_publication_matched_fn)callback_dummy);
     dds_lset_subscription_matched       (listener2, (dds_on_subscription_matched_fn)callback_dummy);
-    dds_listener_merge(listener2, listener1);
+    dds_merge_listener(listener2, listener1);
     ASSERT_CALLBACK_EQUAL(inconsistent_topic,           listener2, (dds_on_inconsistent_topic_fn)callback_dummy);
     ASSERT_CALLBACK_EQUAL(liveliness_lost,              listener2, (dds_on_liveliness_lost_fn)callback_dummy);
     ASSERT_CALLBACK_EQUAL(offered_deadline_missed,      listener2, (dds_on_offered_deadline_missed_fn)callback_dummy);
@@ -557,18 +557,18 @@ Test(ddsc_listener, merge)
     ASSERT_CALLBACK_EQUAL(subscription_matched,         listener2, (dds_on_subscription_matched_fn)callback_dummy);
 
     /* Using NULLs shouldn't crash and be noops. */
-    dds_listener_merge(listener2, NULL);
-    dds_listener_merge(NULL, listener1);
-    dds_listener_merge(NULL, NULL);
+    dds_merge_listener(listener2, NULL);
+    dds_merge_listener(NULL, listener1);
+    dds_merge_listener(NULL, NULL);
 
-    dds_listener_delete(listener1);
-    dds_listener_delete(listener2);
+    dds_delete_listener(listener1);
+    dds_delete_listener(listener2);
 }
 
 Test(ddsc_listener, getters_setters)
 {
     /* test all individual cb get/set methods */
-    dds_listener_t *listener = dds_listener_create(NULL);
+    dds_listener_t *listener = dds_create_listener(NULL);
     cr_assert_not_null(listener);
 
     OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */ \
@@ -587,7 +587,7 @@ Test(ddsc_listener, getters_setters)
     TEST_GET_SET(listener, data_available, data_available_cb);
     OS_WARNING_MSVC_ON(6387);
 
-    dds_listener_delete(listener);
+    dds_delete_listener(listener);
 }
 
 
@@ -606,28 +606,28 @@ Test(ddsc_listener, propagation, .init=init_triggering_base, .fini=fini_triggeri
     memset (&sample, 0, sizeof (sample));
 
     /* Let participant be interested in data. */
-    listener_par = dds_listener_create(NULL);
+    listener_par = dds_create_listener(NULL);
     cr_assert_not_null(listener_par, "Failed to create prerequisite listener_par");
     dds_lset_data_on_readers(listener_par, data_on_readers_cb);
     ret = dds_set_listener(g_participant, listener_par);
     cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite listener_par");
-    dds_listener_delete(listener_par);
+    dds_delete_listener(listener_par);
 
     /* Let publisher be interested in publication matched. */
-    listener_pub = dds_listener_create(NULL);
+    listener_pub = dds_create_listener(NULL);
     cr_assert_not_null(listener_pub, "Failed to create prerequisite listener_pub");
     dds_lset_publication_matched(listener_pub, publication_matched_cb);
     ret = dds_set_listener(g_publisher, listener_pub);
     cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite listener_pub");
-    dds_listener_delete(listener_pub);
+    dds_delete_listener(listener_pub);
 
     /* Let subscriber be interested in subscription matched. */
-    listener_sub = dds_listener_create(NULL);
+    listener_sub = dds_create_listener(NULL);
     cr_assert_not_null(listener_pub, "Failed to create prerequisite listener_sub");
     dds_lset_subscription_matched(listener_sub, subscription_matched_cb);
     ret = dds_set_listener(g_subscriber, listener_sub);
     cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite listener_sub");
-    dds_listener_delete(listener_sub);
+    dds_delete_listener(listener_sub);
 
     /* Create reader and writer without listeners. */
     g_reader = dds_create_reader(g_subscriber, g_topic, g_qos, NULL);
@@ -1019,10 +1019,10 @@ Test(ddsc_listener, inconsistent_topic, .init=init_triggering_base, .fini=fini_t
     os_mutexInit(&g_mutex);
     os_condInit(&g_cond, &g_mutex);
 
-    g_qos = dds_qos_create();
+    g_qos = dds_create_qos();
     cr_assert_not_null(g_qos, "Failed to create prerequisite g_qos");
 
-    g_listener = dds_listener_create(NULL);
+    g_listener = dds_create_listener(NULL);
     cr_assert_not_null(g_listener, "Failed to create prerequisite g_listener");
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
@@ -1055,8 +1055,8 @@ Test(ddsc_listener, inconsistent_topic, .init=init_triggering_base, .fini=fini_t
     dds_delete(wr_topic);
     dds_delete(g_participant);
 
-    dds_listener_delete(g_listener);
-    dds_qos_delete(g_qos);
+    dds_delete_listener(g_listener);
+    dds_delete_qos(g_qos);
 }
 #endif
 #endif

@@ -105,7 +105,7 @@ int main (int argc, char *argv[])
 
   if (use_listener)
   {
-    listener = dds_listener_create(NULL);
+    listener = dds_create_listener(NULL);
     dds_lset_data_available(listener, data_available);
   }
 
@@ -164,38 +164,38 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_
 
   /* A DDS Publisher is created on the domain participant. */
 
-  qos = dds_qos_create ();
+  qos = dds_create_qos ();
   dds_qset_partition (qos, 1, pubPartitions);
 
   publisher = dds_create_publisher (participant, qos, NULL);
   DDS_ERR_CHECK (publisher, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (qos);
+  dds_delete_qos (qos);
 
   /* A DDS DataWriter is created on the Publisher & Topic with a modififed Qos. */
 
-  qos = dds_qos_create ();
+  qos = dds_create_qos ();
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
   dds_qset_writer_data_lifecycle (qos, false);
   *writer = dds_create_writer (publisher, topic, qos, NULL);
   DDS_ERR_CHECK (*writer, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (qos);
+  dds_delete_qos (qos);
 
   /* A DDS Subscriber is created on the domain participant. */
 
-  qos = dds_qos_create ();
+  qos = dds_create_qos ();
   dds_qset_partition (qos, 1, subPartitions);
 
   subscriber = dds_create_subscriber (participant, qos, NULL);
   DDS_ERR_CHECK (subscriber, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (qos);
+  dds_delete_qos (qos);
 
   /* A DDS DataReader is created on the Subscriber & Topic with a modified QoS. */
 
-  qos = dds_qos_create ();
+  qos = dds_create_qos ();
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
   *reader = dds_create_reader (subscriber, topic, qos, listener);
   DDS_ERR_CHECK (*reader, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (qos);
+  dds_delete_qos (qos);
 
   waitSet = dds_create_waitset (participant);
   if (listener == NULL) {

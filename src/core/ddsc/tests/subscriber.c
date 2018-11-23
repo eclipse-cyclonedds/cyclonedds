@@ -76,46 +76,46 @@ Test(ddsc_subscriber, create) {
 
   /*** Verify qos parameter ***/
 
-  sqos = dds_qos_create(); /* Use defaults (no user-defined policies) */
+  sqos = dds_create_qos(); /* Use defaults (no user-defined policies) */
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   cr_assert_gt(subscriber, 0, "dds_create_subscriber: default QoS parameter");
   dds_delete(subscriber);
-  dds_qos_delete(sqos);
+  dds_delete_qos(sqos);
 
-  sqos = dds_qos_create();
+  sqos = dds_create_qos();
   dds_qset_destination_order(sqos, 3); /* Set invalid dest. order (ignored, not applicable for subscriber) */
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   cr_assert_gt(subscriber, 0, "dds_create_subscriber: invalid non-applicable QoS parameter");
   dds_delete(subscriber);
-  dds_qos_delete(sqos);
+  dds_delete_qos(sqos);
 
-  sqos = dds_qos_create();
+  sqos = dds_create_qos();
   dds_qset_presentation(sqos, 123, 1, 1); /* Set invalid presentation policy */
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   cr_assert_eq(dds_err_nr(subscriber), DDS_RETCODE_INCONSISTENT_POLICY, "dds_create_subscriber: invalid presentation access_scope QoS parameter");
-  dds_qos_delete(sqos);
+  dds_delete_qos(sqos);
 
   /*** Verify listener parameter ***/
 
-  listener = dds_listener_create(NULL); /* Use defaults (all listeners unset) */
+  listener = dds_create_listener(NULL); /* Use defaults (all listeners unset) */
   subscriber = dds_create_subscriber(participant, NULL, listener);
   cr_assert_gt(subscriber, 0, "dds_create_subscriber: unset listeners");
   dds_delete(subscriber);
-  dds_listener_delete(listener);
+  dds_delete_listener(listener);
 
-  listener = dds_listener_create(NULL);
+  listener = dds_create_listener(NULL);
   dds_lset_data_available(listener, &on_data_available); /* Set on_data_available listener */
   subscriber = dds_create_subscriber(participant, NULL, listener);
   cr_assert_gt(subscriber, 0, "dds_create_subscriber: on_data_available listener");
   dds_delete(subscriber);
-  dds_listener_delete(listener);
+  dds_delete_listener(listener);
 
-  listener = dds_listener_create(NULL);
+  listener = dds_create_listener(NULL);
   dds_lset_publication_matched(listener, &on_publication_matched); /* Set on_publication_matched listener (ignored, not applicable for subscriber) */
   subscriber = dds_create_subscriber(participant, NULL, listener);
   cr_assert_gt(subscriber, 0, "dds_create_subscriber: on_publication_matched listener");
   dds_delete(subscriber);
-  dds_listener_delete(listener);
+  dds_delete_listener(listener);
 
   dds_delete(participant);
 }

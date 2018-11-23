@@ -347,8 +347,8 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
 
   int32_t maxSamples = 400;
   const char *subParts[1];
-  dds_qos_t *subQos = dds_qos_create ();
-  dds_qos_t *drQos = dds_qos_create ();
+  dds_qos_t *subQos = dds_create_qos ();
+  dds_qos_t *drQos = dds_create_qos ();
 
   /* A Participant is created for the default domain. */
 
@@ -366,7 +366,7 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
   dds_qset_partition (subQos, 1, subParts);
   subscriber = dds_create_subscriber (participant, subQos, NULL);
   DDS_ERR_CHECK (subscriber, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (subQos);
+  dds_delete_qos (subQos);
 
   /* A Reader is created on the Subscriber & Topic with a modified Qos. */
 
@@ -374,7 +374,7 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
   dds_qset_history (drQos, DDS_HISTORY_KEEP_ALL, 0);
   dds_qset_resource_limits (drQos, maxSamples, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
 
-  rd_listener = dds_listener_create(NULL);
+  rd_listener = dds_create_listener(NULL);
   dds_lset_data_available(rd_listener, data_available_handler);
 
   /* A Read Condition is created which is triggered when data is available to read */
@@ -400,8 +400,8 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
 
   *reader = dds_create_reader (subscriber, topic, drQos, rd_listener);
   DDS_ERR_CHECK (*reader, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  dds_qos_delete (drQos);
-  dds_listener_delete(rd_listener);
+  dds_delete_qos (drQos);
+  dds_delete_listener(rd_listener);
 
   return participant;
 }

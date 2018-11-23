@@ -71,7 +71,7 @@ init_entity_status(void)
     top = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_status_test", topicName, 100), NULL, NULL);
     cr_assert_gt(top, 0, "Failed to create prerequisite topic");
 
-    qos = dds_qos_create();
+    qos = dds_create_qos();
     cr_assert_not_null(qos, "Failed to create prerequisite qos");
     dds_qset_resource_limits (qos, resource_limits.max_samples, resource_limits.max_instances, resource_limits.max_samples_per_instance);
     dds_qset_reliability(qos, DDS_RELIABILITY_BEST_EFFORT, DDS_MSECS(100));
@@ -113,7 +113,7 @@ fini_entity_status(void)
     dds_delete(wri);
     dds_delete(publisher);
     dds_delete(rea);
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
     dds_delete(top);
     dds_delete(subscriber);
     dds_delete(participant);

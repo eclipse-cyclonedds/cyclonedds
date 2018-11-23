@@ -168,7 +168,7 @@ static dds_qos_t *g_qos = NULL;
 static void
 qos_init(void)
 {
-    g_qos = dds_qos_create();
+    g_qos = dds_create_qos();
     cr_assert_not_null(g_qos);
 
     g_pol_userdata.value = (void*)c_userdata;
@@ -234,7 +234,7 @@ qos_init(void)
 static void
 qos_fini(void)
 {
-    dds_qos_delete(g_qos);
+    dds_delete_qos(g_qos);
 }
 
 /****************************************************************************

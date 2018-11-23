@@ -194,15 +194,21 @@ dds_qos_init_defaults (
 }
 
 _Ret_notnull_
-dds_qos_t * dds_qos_create (void)
+dds_qos_t * dds_create_qos (void)
 {
     dds_qos_t *qos = dds_alloc (sizeof (dds_qos_t));
     dds_qos_init_defaults (qos);
     return qos;
 }
 
+_Ret_notnull_
+dds_qos_t * dds_qos_create (void)
+{
+    return dds_create_qos ();
+}
+
 void
-dds_qos_reset(
+dds_reset_qos(
     _Out_ dds_qos_t * __restrict qos)
 {
     if (qos) {
@@ -214,17 +220,31 @@ dds_qos_reset(
 }
 
 void
-dds_qos_delete(
+dds_qos_reset(
+    _Out_ dds_qos_t * __restrict qos)
+{
+    dds_reset_qos (qos);
+}
+
+void
+dds_delete_qos(
     _In_ _Post_invalid_ dds_qos_t * __restrict qos)
 {
     if (qos) {
-        dds_qos_reset(qos);
+        dds_reset_qos(qos);
         dds_free(qos);
     }
 }
 
+void
+dds_qos_delete(
+    _In_ _Post_invalid_ dds_qos_t * __restrict qos)
+{
+    dds_delete_qos (qos);
+}
+
 dds_return_t
-dds_qos_copy (
+dds_copy_qos (
     _Out_ dds_qos_t * __restrict dst,
     _In_ const dds_qos_t * __restrict src)
 {
@@ -238,7 +258,15 @@ dds_qos_copy (
     return DDS_RETCODE_OK;
 }
 
-void dds_qos_merge (
+dds_return_t
+dds_qos_copy (
+    _Out_ dds_qos_t * __restrict dst,
+    _In_ const dds_qos_t * __restrict src)
+{
+    return dds_copy_qos (dst, src);
+}
+
+void dds_merge_qos (
     _Inout_ dds_qos_t * __restrict dst,
     _In_ const dds_qos_t * __restrict src)
 {
@@ -252,6 +280,13 @@ void dds_qos_merge (
     }
     /* Copy qos from source to destination unless already set */
     nn_xqos_mergein_missing (dst, src);
+}
+
+void dds_qos_merge (
+    _Inout_ dds_qos_t * __restrict dst,
+    _In_ const dds_qos_t * __restrict src)
+{
+    dds_merge_qos (dst, src);
 }
 
 bool dds_qos_equal (

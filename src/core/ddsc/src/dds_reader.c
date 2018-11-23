@@ -399,19 +399,19 @@ dds_create_reader(
     assert (sub->m_domain == tp->m_domain);
 
     /* Merge qos from topic and subscriber */
-    rqos = dds_qos_create ();
+    rqos = dds_create_qos ();
     if (qos) {
         /* Only returns failure when one of the qos args is NULL, which
          * is not the case here. */
-        (void)dds_qos_copy(rqos, qos);
+        (void)dds_copy_qos(rqos, qos);
     }
 
     if(sub->m_qos){
-        dds_qos_merge (rqos, sub->m_qos);
+        dds_merge_qos (rqos, sub->m_qos);
     }
 
     if (tp->m_qos) {
-        dds_qos_merge (rqos, tp->m_qos);
+        dds_merge_qos (rqos, tp->m_qos);
 
         /* reset the following qos policies if set during topic qos merge as they aren't applicable for reader */
         rqos->present &= ~(QP_DURABILITY_SERVICE | QP_TRANSPORT_PRIORITY | QP_LIFESPAN);
@@ -420,7 +420,7 @@ dds_create_reader(
 
     ret = dds_reader_qos_validate (rqos, false);
     if (ret != 0) {
-        dds_qos_delete(rqos);
+        dds_delete_qos(rqos);
         reader = ret;
         goto err_bad_qos;
     }

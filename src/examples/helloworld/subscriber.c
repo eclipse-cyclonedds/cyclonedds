@@ -30,11 +30,11 @@ int main (int argc, char ** argv)
     DDS_ERR_CHECK (topic, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 
     /* Create a reliable Reader. */
-    qos = dds_qos_create ();
+    qos = dds_create_qos ();
     dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
     reader = dds_create_reader (participant, topic, qos, NULL);
     DDS_ERR_CHECK (reader, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 
     printf ("\n=== [Subscriber] Waiting for a sample ...\n");
 

@@ -144,6 +144,9 @@ dds_presentation_access_scope_kind_t;
  */
 _Ret_notnull_
 DDS_EXPORT
+dds_qos_t * dds_create_qos (void);
+_Ret_notnull_
+DDS_DEPRECATED_EXPORT
 dds_qos_t * dds_qos_create (void);
 
 /**
@@ -152,6 +155,10 @@ dds_qos_t * dds_qos_create (void);
  * @param[in] qos - Pointer to dds_qos_t structure
  */
 DDS_EXPORT
+void dds_delete_qos (
+    _In_ _Post_invalid_ dds_qos_t * __restrict qos
+);
+DDS_DEPRECATED_EXPORT
 void dds_qos_delete (
     _In_ _Post_invalid_ dds_qos_t * __restrict qos
 );
@@ -161,7 +168,10 @@ void dds_qos_delete (
  *
  * @param[in,out] qos - Pointer to the dds_qos_t structure
  */
-DDS_EXPORT
+DDS_EXPORT void
+dds_reset_qos(
+    _Out_ dds_qos_t * __restrict qos);
+DDS_DEPRECATED_EXPORT
 void dds_qos_reset (
     _Out_ dds_qos_t * __restrict qos
 );
@@ -175,6 +185,11 @@ void dds_qos_reset (
  * @returns - Return-code indicating success or failure
  */
 DDS_EXPORT
+dds_return_t dds_copy_qos (
+    _Out_ dds_qos_t * __restrict dst,
+    _In_ const dds_qos_t * __restrict src
+);
+DDS_DEPRECATED_EXPORT
 dds_return_t dds_qos_copy (
     _Out_ dds_qos_t * __restrict dst,
     _In_ const dds_qos_t * __restrict src
@@ -189,6 +204,12 @@ dds_return_t dds_qos_copy (
  * @param[in] src - Pointer to the source qos structure
  */
 DDS_EXPORT
+void dds_merge_qos
+(
+    _Inout_ dds_qos_t * __restrict dst,
+    _In_ const dds_qos_t * __restrict src
+);
+DDS_DEPRECATED_EXPORT
 void dds_qos_merge
 (
     _Inout_ dds_qos_t * __restrict dst,

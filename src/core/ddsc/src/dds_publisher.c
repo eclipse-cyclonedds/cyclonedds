@@ -112,10 +112,10 @@ dds_create_publisher(
             hdl = ret;
             goto qos_err;
         }
-        new_qos = dds_qos_create ();
+        new_qos = dds_create_qos ();
         /* Only returns failure when one of the qos args is NULL, which
          * is not the case here. */
-        (void)dds_qos_copy(new_qos, qos);
+        (void)dds_copy_qos(new_qos, qos);
     }
 
     /* Create publisher */

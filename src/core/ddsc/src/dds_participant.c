@@ -170,18 +170,18 @@ dds_create_participant(
             e = (dds_entity_t)ret;
             goto fail_qos_validation;
         }
-        new_qos = dds_qos_create ();
+        new_qos = dds_create_qos ();
         /* Only returns failure when one of the qos args is NULL, which
          * is not the case here. */
-        (void)dds_qos_copy(new_qos, qos);
+        (void)dds_copy_qos(new_qos, qos);
     } else {
         /* Use default qos. */
-        new_qos = dds_qos_create ();
+        new_qos = dds_create_qos ();
     }
 
     /* Translate qos */
     nn_plist_init_empty(&plist);
-    dds_qos_merge (&plist.qos, new_qos);
+    dds_merge_qos (&plist.qos, new_qos);
 
     thr = lookup_thread_state ();
     asleep = !vtime_awake_p (thr->vtime);
@@ -225,7 +225,7 @@ dds_create_participant(
 fail_entity_init:
     dds_free(pp);
 fail_new_participant:
-    dds_qos_delete(new_qos);
+    dds_delete_qos(new_qos);
 fail_qos_validation:
 fail_domain_check:
     DDS_REPORT_FLUSH(true);

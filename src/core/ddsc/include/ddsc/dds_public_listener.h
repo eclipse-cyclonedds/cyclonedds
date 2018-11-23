@@ -63,21 +63,25 @@ typedef struct c_listener dds_listener_t;
  * @return Returns a pointer to the allocated memory for dds_listener_t structure.
  */
 _Ret_notnull_
-DDS_EXPORT dds_listener_t* dds_listener_create (_In_opt_ void* arg);
+DDS_EXPORT dds_listener_t* dds_create_listener (_In_opt_ void* arg);
+_Ret_notnull_
+DDS_DEPRECATED_EXPORT dds_listener_t* dds_listener_create (_In_opt_ void* arg);
 
 /**
  * @brief Delete the memory allocated to listener structure
  *
  * @param[in] listener pointer to the listener struct to delete
  */
-DDS_EXPORT void dds_listener_delete (_In_ _Post_invalid_ dds_listener_t * __restrict listener);
+DDS_EXPORT void dds_delete_listener (_In_ _Post_invalid_ dds_listener_t * __restrict listener);
+DDS_DEPRECATED_EXPORT void dds_listener_delete (_In_ _Post_invalid_ dds_listener_t * __restrict listener);
 
 /**
  * @brief Reset the listener structure contents to ::DDS_LUNSET
  *
  * @param[in,out] listener pointer to the listener struct to reset
  */
-DDS_EXPORT void dds_listener_reset (_Out_ dds_listener_t * __restrict listener);
+DDS_EXPORT void dds_reset_listener (_Out_ dds_listener_t * __restrict listener);
+DDS_DEPRECATED_EXPORT void dds_listener_reset (_Out_ dds_listener_t * __restrict listener);
 
 /**
  * @brief Copy the listener callbacks from source to destination
@@ -85,7 +89,8 @@ DDS_EXPORT void dds_listener_reset (_Out_ dds_listener_t * __restrict listener);
  * @param[in,out] dst The pointer to the destination listener structure, where the content is to copied
  * @param[in] src The pointer to the source listener structure to be copied
  */
-DDS_EXPORT void dds_listener_copy (_Out_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src);
+DDS_EXPORT void dds_copy_listener (_Out_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src);
+DDS_DEPRECATED_EXPORT void dds_listener_copy (_Out_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src);
 
 /**
  * @brief Copy the listener callbacks from source to destination, unless already set
@@ -96,7 +101,8 @@ DDS_EXPORT void dds_listener_copy (_Out_ dds_listener_t * __restrict dst, _In_ c
  * @param[in,out] dst The pointer to the destination listener structure, where the content is merged
  * @param[in] src The pointer to the source listener structure to be copied
  */
-DDS_EXPORT void dds_listener_merge (_Inout_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src);
+DDS_EXPORT void dds_merge_listener (_Inout_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src);
+DDS_DEPRECATED_EXPORT void dds_listener_merge (_Inout_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src);
 
 
 /************************************************************************************************

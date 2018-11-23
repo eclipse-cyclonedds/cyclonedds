@@ -260,9 +260,9 @@ dds_entity_init(
     }
 
     if (listener) {
-        dds_listener_copy(&e->m_listener, listener);
+        dds_copy_listener(&e->m_listener, listener);
     } else {
-        dds_listener_reset(&e->m_listener);
+        dds_reset_listener(&e->m_listener);
     }
 
     e->m_hdllink = NULL;
@@ -332,7 +332,7 @@ dds_delete_impl(
 
     ut_handle_close(e->m_hdl, e->m_hdllink);
     e->m_status_enable = 0;
-    dds_listener_reset(&e->m_listener);
+    dds_reset_listener(&e->m_listener);
     e->m_trigger |= DDS_DELETING_STATUS;
 
     dds_entity_unlock(e);
@@ -432,7 +432,7 @@ dds_delete_impl(
 
     if (ret == DDS_RETCODE_OK) {
         /* Destroy last few things. */
-        dds_qos_delete (e->m_qos);
+        dds_delete_qos (e->m_qos);
         os_condDestroy (&e->m_cond);
         os_mutexDestroy (&e->m_mutex);
         os_mutexDestroy (&e->m_observers_lock);
@@ -573,7 +573,7 @@ dds_get_qos(
         goto fail;
     }
     if (e->m_deriver.set_qos) {
-        rc = dds_qos_copy(qos, e->m_qos);
+        rc = dds_copy_qos(qos, e->m_qos);
     } else {
         rc = DDS_RETCODE_ILLEGAL_OPERATION;
         ret = DDS_ERRNO(rc, "QoS cannot be set on this entity");
@@ -609,9 +609,9 @@ dds_set_qos(
             if (ret == DDS_RETCODE_OK) {
                 /* Remember this QoS. */
                 if (e->m_qos == NULL) {
-                    e->m_qos = dds_qos_create();
+                    e->m_qos = dds_create_qos();
                 }
-                rc = dds_qos_copy(e->m_qos, qos);
+                rc = dds_copy_qos(e->m_qos, qos);
                 ret = DDS_ERRNO(rc, "QoS cannot be set on this entity");
             }
             dds_entity_unlock(e);
@@ -643,7 +643,7 @@ dds_get_listener(
         rc = dds_entity_lock(entity, DDS_KIND_DONTCARE, &e);
         if (rc == DDS_RETCODE_OK) {
             dds_entity_cb_wait(e);
-            dds_listener_copy (listener, &e->m_listener);
+            dds_copy_listener (listener, &e->m_listener);
             dds_entity_unlock(e);
         } else {
               ret = DDS_ERRNO(rc, "Error occurred on locking entity");
@@ -676,9 +676,9 @@ dds_set_listener(
     }
     dds_entity_cb_wait(e);
     if (listener) {
-        dds_listener_copy(&e->m_listener, listener);
+        dds_copy_listener(&e->m_listener, listener);
     } else {
-        dds_listener_reset(&e->m_listener);
+        dds_reset_listener(&e->m_listener);
     }
     dds_entity_unlock(e);
 fail:
