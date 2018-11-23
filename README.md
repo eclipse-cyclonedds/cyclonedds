@@ -8,37 +8,56 @@ Beside, Cyclone DDS is developed completely in the open and is undergoing the ac
 # Getting Started
 ## Building Cyclone DDS
 
-In order to build cyclone DDS you need to have installed on your host [cmake](https://cmake.org/download/) **v3.6.0** or higher, the [Java 8 JDK](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) or simply the [Java 8 RE](http://www.oracle.com/technetwork/java/javase/downloads/server-jre8-downloads-2133154.html), and [Apache Maven 3.5.x or higher](http://maven.apache.org/download.cgi).
+In order to use Eclipse Cyclone DDS you need to have installed on your host [cmake](https://cmake.org/download/) **v3.6.0** or higher, [git](https://git-scm.com/),  the [Java 8 JDK](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) or simply the [Java 8 RE](http://www.oracle.com/technetwork/java/javase/downloads/server-jre8-downloads-2133154.html), and [Apache Maven 3.5.x or higher](http://maven.apache.org/download.cgi).
 
-Assuming that **git** is also available on your machine then, simply do:
+To obtain Eclipse Cyclone DDS, do
 
-    $ git clone https://github.com/eclipse/cyclonedds.git 
+    $ git clone https://github.com/eclipse-cyclonedds/cyclonedds.git 
     $ cd cyclonedds
     $ mkdir build
+
+Depending on whether you want to develop applications using Eclipse Cyclone DDS or contribute to Eclipse Cyclone DDS you can follow different procedures
+
+### For application developers
+
+To build and install the required libraries needed to develop your own applications that use Eclipe Cyclone DDS
+
+On Linux:
+
     $ cd build
-    $ cmake ../src
-    $ make
-    $ make install
+    $ cmake -DCMAKE_BUILD_TYPE=<build-type> -DCMAKE_INSTALL_PREFIX=<install-location> ../src
+    $ cmake --build . --target install
 
-At this point you are ready to use **cyclonedds** for your next DDS project!
+On Windows:
+
+    $ cd build
+    $ cmake -DCMAKE_BUILD_TYPE=<build-type> -G "<generator-name>" -DCMAKE_INSTALL_PREFIX=<install-location> ../src
+    $ cmake --build . --target install
+
+### For contributors
+
+To contribute to the development of Eclipse Cyclone DDS you may need to provide test cases using [cunit](http://cunit.sourceforge.net/). Once cunit is installed do
+
+On Linux:
+
+    $ cd build
+    $ cmake -DCMAKE_BUILD_TYPE=<build-type> -DBUILD_TESTING=on -DCMAKE_INSTALL_PREFIX=<install-location> ../src
+    $ cmake --build . --target install
+
+On Windows:
+
+    $ cd build
+    $ cmake -DCMAKE_BUILD_TYPE=<build-type> -G "<generator-name>" -DBUILD_TESTING=on -DCMAKE_INSTALL_PREFIX=<install-location> ../src
+    $ cmake --build . --config Debug --target install
 
 
-## Performance
+where build type is Debug or Release, and '<generator name>' specifies the type of files to use (see [here](https://cmake.org/cmake/help/v3.0/manual/cmake-generators.7.html)).
 
-Median small message throughput measured using the Throughput example between two Intel(R) Xeon(R)
-CPU E3-1270 V2 @ 3.50GHz (that's 2012 hardware ...) running Linux 3.8.13-rt14.20.el6rt.x86_64,
-connected via a quiet GbE and when using gcc-6.2.0 for a RelWithDebInfo build is:
+Depending on the location where to install you may need administrator privileges. To uninstall use
 
-![Throughput](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/throughput-polling.png)
+    $ cmake --build . --target uninstall
 
-This is with the subscriber in polling mode. Listener mode is marginally slower; using a waitset the
-message rate for minimal size messages drops to 600k sample/s in synchronous delivery mode and about
-750k samples/s in asynchronous delivery mode. The configuration is an out-of-the-box configuration,
-tweaked only to increase the high-water mark for the reliability window on the writer side. For
-details, see the scripts in the ``performance`` directory and the [data](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/throughput.txt).
-
-There is some data on roundtrip latency below.
-
+You are now ready to use **cyclonedds** for your next DDS project!
 
 ## Examples
 Now that you have built and installed **cyclonecdds** it is time to experiment with some examples.
