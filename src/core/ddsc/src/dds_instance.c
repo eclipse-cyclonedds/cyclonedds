@@ -431,7 +431,7 @@ err:
 }
 
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
-int
+dds_return_t
 dds_instance_get_key(
         dds_entity_t entity,
         dds_instance_handle_t inst,
@@ -458,7 +458,7 @@ dds_instance_get_key(
     if (dds_tkmap_get_key (map, topic->m_stopic, inst, data)) {
         ret = DDS_RETCODE_OK;
     } else{
-        ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET, "No instance related with the provided entity is found");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "No instance related with the provided entity is found");
     }
 
 err:
