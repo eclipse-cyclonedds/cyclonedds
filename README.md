@@ -8,7 +8,7 @@ Beside, Cyclone DDS is developed completely in the open and is undergoing the ac
 # Getting Started
 ## Building Cyclone DDS
 
-In order use Eclipse Cyclone DDS you need to have installed on your host [cmake](https://cmake.org/download/) **v3.6.0** or higher, [git](https://git-scm.com/),  the [Java 8 JDK](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) or simply the [Java 8 RE](http://www.oracle.com/technetwork/java/javase/downloads/server-jre8-downloads-2133154.html), and [Apache Maven 3.5.x or higher](http://maven.apache.org/download.cgi).
+In order to use Eclipse Cyclone DDS you need to have installed on your host [cmake](https://cmake.org/download/) **v3.6.0** or higher, [git](https://git-scm.com/),  the [Java 8 JDK](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) or simply the [Java 8 RE](http://www.oracle.com/technetwork/java/javase/downloads/server-jre8-downloads-2133154.html), and [Apache Maven 3.5.x or higher](http://maven.apache.org/download.cgi).
 
 To obtain Eclipse Cyclone DDS, do
 
