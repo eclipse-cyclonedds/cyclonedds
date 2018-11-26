@@ -24,7 +24,8 @@ set(sources
   "strtoll.c"
   "thread.c"
   "thread_cleanup.c"
-  "strcasecmp.c")
+  "strcasecmp.c"
+  "log.c")
 
 add_cunit_executable(abstraction ${sources})
 target_link_libraries(abstraction OSAPI)
