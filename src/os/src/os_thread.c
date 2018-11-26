@@ -37,3 +37,32 @@ os_threadAttrInit (
     threadAttr->schedPriority = 0;
     threadAttr->stackSize = 0;
 }
+
+int32_t
+os_threadFigureIdentity(char *str, uint32_t size)
+{
+    int32_t cnt;
+    uintmax_t id;
+    char *fmt, *ptr, buf[1] = { '\0' };
+    uint32_t sz;
+
+    assert(str != NULL);
+    assert(size >= 1);
+
+    id = os_threadIdToInteger(os_threadIdSelf());
+    cnt = os_threadGetThreadName(str, size);
+    if (cnt >= 0) {
+        fmt = (cnt > 0 ? " 0x%"PRIxMAX : "0x%"PRIxMAX);
+        if ((uint32_t)cnt < size) {
+            ptr = str + (uint32_t)cnt;
+            sz = size - (uint32_t)cnt;
+        } else {
+            ptr = buf;
+            sz = sizeof(buf);
+        }
+
+        cnt += snprintf(ptr, sz, fmt, id);
+    }
+
+    return cnt;
+}

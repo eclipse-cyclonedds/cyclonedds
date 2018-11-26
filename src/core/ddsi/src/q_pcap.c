@@ -86,7 +86,7 @@ FILE *new_pcap_file (const char *name)
 
   if ((fp = fopen (name, "wb")) == NULL)
   {
-    NN_WARNING ("packet capture disabled: file %s could not be opened for writing\n", name);
+    DDS_WARNING ("packet capture disabled: file %s could not be opened for writing\n", name);
     return NULL;
   }
 

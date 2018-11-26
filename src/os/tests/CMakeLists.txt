@@ -19,7 +19,6 @@ set(sources
   "iter.c"
   "mutex.c"
   "once.c"
-  "report.c"
   "rwlock.c"
   "stdlib.c"
   "strtoll.c"

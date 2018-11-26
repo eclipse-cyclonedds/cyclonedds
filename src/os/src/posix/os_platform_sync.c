@@ -309,6 +309,7 @@ void os_rwlockRead(os_rwlock *rwlock)
 
     err = pthread_rwlock_rdlock(&rwlock->rwlock);
     assert(err == 0);
+    (void)err;
 }
 
 void os_rwlockWrite(os_rwlock *rwlock)
@@ -319,6 +320,7 @@ void os_rwlockWrite(os_rwlock *rwlock)
 
     err = pthread_rwlock_wrlock(&rwlock->rwlock);
     assert(err == 0);
+    (void)err;
 }
 
 os_result os_rwlockTryRead(os_rwlock *rwlock)
@@ -353,6 +355,7 @@ void os_rwlockUnlock(os_rwlock *rwlock)
 
     err = pthread_rwlock_unlock(&rwlock->rwlock);
     assert(err == 0);
+    (void)err;
 }
 
 void

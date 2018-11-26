@@ -49,12 +49,11 @@
 #include "os_socket.h"
 #include "os_heap.h"
 #include "os_stdlib.h"
-#include "os_report.h"
 #include "os_init.h"
 #include "os_process.h"
 #include "os_errno.h"
 #include "os_iter.h"
-
+#include "os_log.h"
 
 #define OSPL_VERSION_STR "aap"
 #define OSPL_HOST_STR "noot"

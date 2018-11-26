@@ -18,7 +18,6 @@
 #include "dds__err.h"
 #include "ddsi/ddsi_serdata.h"
 #include "ddsi/ddsi_sertopic.h"
-#include "dds__report.h"
 
 _Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)
 DDS_EXPORT dds_entity_t
@@ -31,8 +30,6 @@ dds_create_querycondition(
     dds__retcode_t rc;
     dds_reader *r;
 
-    DDS_REPORT_STACK();
-
     rc = dds_reader_lock(reader, &r);
     if (rc == DDS_RETCODE_OK) {
         dds_readcond *cond = dds_create_readcond(r, DDS_KIND_COND_QUERY, mask);
@@ -41,8 +38,9 @@ dds_create_querycondition(
         cond->m_query.m_filter = filter;
         dds_reader_unlock(r);
     } else {
-        hdl = DDS_ERRNO(rc, "Error occurred on locking reader");
+        DDS_ERROR("Error occurred on locking reader\n");
+        hdl = DDS_ERRNO(rc);
     }
-    DDS_REPORT_FLUSH(hdl <= 0);
+
     return hdl;
 }

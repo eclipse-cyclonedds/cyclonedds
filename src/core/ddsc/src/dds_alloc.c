@@ -103,7 +103,7 @@ void dds_sample_free_contents (char * data, const uint32_t * ops)
       {
         type = DDS_OP_TYPE (op);
 #ifdef OP_DEBUG_FREE
-        TRACE (("F-ADR: %s offset %d\n", stream_op_type[type], ops[1]));
+        DDS_TRACE("F-ADR: %s offset %d\n", stream_op_type[type], ops[1]);
 #endif
         addr = data + ops[1];
         ops += 2;
@@ -119,7 +119,7 @@ void dds_sample_free_contents (char * data, const uint32_t * ops)
           case DDS_OP_VAL_STR:
           {
 #ifdef OP_DEBUG_FREE
-            TRACE (("F-STR: @ %p %s\n", addr, *((char**) addr)));
+            DDS_TRACE("F-STR: @ %p %s\n", addr, *((char**) addr));
 #endif
             dds_free (*((char**) addr));
             *((char**) addr) = NULL;
@@ -132,7 +132,7 @@ void dds_sample_free_contents (char * data, const uint32_t * ops)
             num = (seq->_maximum > seq->_length) ? seq->_maximum : seq->_length;
 
 #ifdef OP_DEBUG_FREE
-            TRACE (("F-SEQ: of %s\n", stream_op_type[subtype]));
+            DDS_TRACE("F-SEQ: of %s\n", stream_op_type[subtype]);
 #endif
             if ((seq->_release && num) || (subtype > DDS_OP_VAL_STR))
             {
@@ -189,7 +189,7 @@ void dds_sample_free_contents (char * data, const uint32_t * ops)
             num = *ops++;
 
 #ifdef OP_DEBUG_FREE
-            TRACE (("F-ARR: of %s size %d\n", stream_op_type[subtype], num));
+            DDS_TRACE("F-ARR: of %s size %d\n", stream_op_type[subtype], num);
 #endif
             switch (subtype)
             {
@@ -242,7 +242,7 @@ void dds_sample_free_contents (char * data, const uint32_t * ops)
             assert (subtype <= DDS_OP_VAL_4BY);
 
 #ifdef OP_DEBUG_FREE
-            TRACE (("F-UNI: switch %s cases %d\n", stream_op_type[subtype], num));
+            DDS_TRACE("F-UNI: switch %s cases %d\n", stream_op_type[subtype], num);
 #endif
             /* Get discriminant */
 
@@ -320,7 +320,7 @@ void dds_sample_free_contents (char * data, const uint32_t * ops)
       case DDS_OP_JSR: /* Implies nested type */
       {
 #ifdef OP_DEBUG_FREE
-        TRACE (("F-JSR: %d\n", DDS_OP_JUMP (op)));
+        DDS_TRACE("F-JSR: %d\n", DDS_OP_JUMP (op));
 #endif
         dds_sample_free_contents (data, ops + DDS_OP_JUMP (op));
         ops++;
@@ -330,7 +330,7 @@ void dds_sample_free_contents (char * data, const uint32_t * ops)
     }
   }
 #ifdef OP_DEBUG_FREE
-  TRACE (("F-RTS:\n"));
+  DDS_TRACE("F-RTS:\n");
 #endif
 }
 

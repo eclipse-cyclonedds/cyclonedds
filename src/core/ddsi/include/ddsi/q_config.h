@@ -216,7 +216,7 @@ enum many_sockets_mode {
 struct config
 {
   int valid;
-  logcat_t enabled_logcats;
+  uint32_t enabled_logcats;
   char *servicename;
   char *pcap_file;
 

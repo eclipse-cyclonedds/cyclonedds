@@ -109,7 +109,7 @@ struct lease *lease_new (nn_etime_t texpire, int64_t tdur, struct entity_common 
   struct lease *l;
   if ((l = os_malloc (sizeof (*l))) == NULL)
     return NULL;
-  TRACE (("lease_new(tdur %"PRId64" guid %x:%x:%x:%x) @ %p\n", tdur, PGUID (e->guid), (void *) l));
+  DDS_TRACE("lease_new(tdur %"PRId64" guid %x:%x:%x:%x) @ %p\n", tdur, PGUID (e->guid), (void *) l);
   l->tdur = tdur;
   l->tend = texpire;
   l->tsched.v = TSCHED_NOT_ON_HEAP;
@@ -119,7 +119,7 @@ struct lease *lease_new (nn_etime_t texpire, int64_t tdur, struct entity_common 
 
 void lease_register (struct lease *l)
 {
-  TRACE (("lease_register(l %p guid %x:%x:%x:%x)\n", (void *) l, PGUID (l->entity->guid)));
+  DDS_TRACE("lease_register(l %p guid %x:%x:%x:%x)\n", (void *) l, PGUID (l->entity->guid));
   os_mutexLock (&gv.leaseheap_lock);
   lock_lease (l);
   assert (l->tsched.v == TSCHED_NOT_ON_HEAP);
@@ -137,7 +137,7 @@ void lease_register (struct lease *l)
 
 void lease_free (struct lease *l)
 {
-  TRACE (("lease_free(l %p guid %x:%x:%x:%x)\n", (void *) l, PGUID (l->entity->guid)));
+  DDS_TRACE("lease_free(l %p guid %x:%x:%x:%x)\n", (void *) l, PGUID (l->entity->guid));
   os_mutexLock (&gv.leaseheap_lock);
   if (l->tsched.v != TSCHED_NOT_ON_HEAP)
     ut_fibheapDelete (&lease_fhdef, &gv.leaseheap, l);
@@ -163,16 +163,16 @@ void lease_renew (struct lease *l, nn_etime_t tnowE)
   }
   unlock_lease (l);
 
-  if (did_update && (config.enabled_logcats & LC_TRACE))
+  if (did_update && (dds_get_log_mask() & DDS_LC_TRACE))
   {
     int tsec, tusec;
-    TRACE ((" L("));
+    DDS_TRACE(" L(");
     if (l->entity->guid.entityid.u == NN_ENTITYID_PARTICIPANT)
-      TRACE ((":%x", l->entity->guid.entityid.u));
+      DDS_TRACE(":%x", l->entity->guid.entityid.u);
     else
-      TRACE (("%x:%x:%x:%x", PGUID (l->entity->guid)));
+      DDS_TRACE("%x:%x:%x:%x", PGUID (l->entity->guid));
     etime_to_sec_usec (&tsec, &tusec, tend_new);
-    TRACE ((" %d.%06d)", tsec, tusec));
+    DDS_TRACE(" %d.%06d)", tsec, tusec);
   }
 }
 
@@ -234,7 +234,7 @@ int64_t check_and_handle_lease_expiration (UNUSED_ARG (struct thread_state1 *sel
       continue;
     }
 
-    nn_log (LC_DISCOVERY, "lease expired: l %p guid %x:%x:%x:%x tend %"PRId64" < now %"PRId64"\n", (void *) l, PGUID (g), l->tend.v, tnowE.v);
+    DDS_LOG(DDS_LC_DISCOVERY, "lease expired: l %p guid %x:%x:%x:%x tend %"PRId64" < now %"PRId64"\n", (void *) l, PGUID (g), l->tend.v, tnowE.v);
 
     /* If the proxy participant is relying on another participant for
        writing its discovery data (on the privileged participant,
@@ -267,7 +267,7 @@ int64_t check_and_handle_lease_expiration (UNUSED_ARG (struct thread_state1 *sel
       if ((proxypp = ephash_lookup_proxy_participant_guid (&g)) != NULL &&
           ephash_lookup_proxy_participant_guid (&proxypp->privileged_pp_guid) != NULL)
       {
-        nn_log (LC_DISCOVERY, "but postponing because privileged pp %x:%x:%x:%x is still live\n",
+        DDS_LOG(DDS_LC_DISCOVERY, "but postponing because privileged pp %x:%x:%x:%x is still live\n",
                 PGUID (proxypp->privileged_pp_guid));
         l->tsched = l->tend = add_duration_to_etime (tnowE, 200 * T_MILLISECOND);
         unlock_lease (l);
@@ -317,15 +317,15 @@ static void debug_print_rawdata (const char *msg, const void *data, size_t len)
 {
   const unsigned char *c = data;
   size_t i;
-  TRACE (("%s<", msg));
+  DDS_TRACE("%s<", msg);
   for (i = 0; i < len; i++)
   {
     if (32 < c[i] && c[i] <= 127)
-      TRACE (("%s%c", (i > 0 && (i%4) == 0) ? " " : "", c[i]));
+      DDS_TRACE("%s%c", (i > 0 && (i%4) == 0) ? " " : "", c[i]);
     else
-      TRACE (("%s\\x%02x", (i > 0 && (i%4) == 0) ? " " : "", c[i]));
+      DDS_TRACE("%s\\x%02x", (i > 0 && (i%4) == 0) ? " " : "", c[i]);
   }
-  TRACE ((">"));
+  DDS_TRACE(">");
 }
 
 void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len)
@@ -334,10 +334,10 @@ void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t time
   const int bswap = (data->identifier == CDR_LE) ^ PLATFORM_IS_LITTLE_ENDIAN;
   struct proxy_participant *pp;
   nn_guid_t ppguid;
-  TRACE ((" PMD ST%x", statusinfo));
+  DDS_TRACE(" PMD ST%x", statusinfo);
   if (data->identifier != CDR_LE && data->identifier != CDR_BE)
   {
-    TRACE ((" PMD data->identifier %u !?\n", ntohs (data->identifier)));
+    DDS_TRACE(" PMD data->identifier %u !?\n", ntohs (data->identifier));
     return;
   }
   switch (statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
@@ -351,7 +351,7 @@ void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t time
         nn_guid_prefix_t p = nn_ntoh_guid_prefix (pmd->participantGuidPrefix);
         unsigned kind = ntohl (pmd->kind);
         unsigned length = bswap ? bswap4u (pmd->length) : pmd->length;
-        TRACE ((" pp %x:%x:%x kind %u data %u", p.u[0], p.u[1], p.u[2], kind, length));
+        DDS_TRACE(" pp %x:%x:%x kind %u data %u", p.u[0], p.u[1], p.u[2], kind, length);
         if (len - sizeof (struct CDRHeader) - offsetof (ParticipantMessageData_t, value) < length)
           debug_print_rawdata (" SHORT2", pmd->value, len - sizeof (struct CDRHeader) - offsetof (ParticipantMessageData_t, value));
         else
@@ -359,7 +359,7 @@ void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t time
         ppguid.prefix = p;
         ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
         if ((pp = ephash_lookup_proxy_participant_guid (&ppguid)) == NULL)
-          TRACE ((" PPunknown"));
+          DDS_TRACE(" PPunknown");
         else
         {
           /* Renew lease if arrival of this message didn't already do so, also renew the lease
@@ -382,11 +382,11 @@ void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t time
         ppguid.prefix = nn_ntoh_guid_prefix (*((nn_guid_prefix_t *) (data + 1)));
         ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
         if (delete_proxy_participant_by_guid (&ppguid, timestamp, 0) < 0)
-          TRACE ((" unknown"));
+          DDS_TRACE(" unknown");
         else
-          TRACE ((" delete"));
+          DDS_TRACE(" delete");
       }
       break;
   }
-  TRACE (("\n"));
+  DDS_TRACE("\n");
 }

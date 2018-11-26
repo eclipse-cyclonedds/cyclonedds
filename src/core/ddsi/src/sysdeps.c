@@ -267,17 +267,17 @@ static void log_stacktrace_sigh (int sig __attribute__ ((unused)))
 
 void log_stacktrace (const char *name, os_threadId tid)
 {
-  if (config.enabled_logcats == 0)
+  if (dds_get_log_mask() == 0)
     ; /* no op if nothing logged */
   else if (!config.noprogress_log_stacktraces)
-    nn_log (~0u, "-- stack trace of %s requested, but traces disabled --\n", name);
+    DDS_LOG(~0u, "-- stack trace of %s requested, but traces disabled --\n", name);
   else
   {
     const os_time d = { 0, 1000000 };
     struct sigaction act, oact;
     char **strs;
     int i;
-    nn_log (~0u, "-- stack trace of %s requested --\n", name);
+    DDS_LOG(~0u, "-- stack trace of %s requested --\n", name);
     act.sa_handler = log_stacktrace_sigh;
     act.sa_flags = 0;
     sigfillset (&act.sa_mask);
@@ -289,15 +289,15 @@ void log_stacktrace (const char *name, os_threadId tid)
       os_nanoSleep (d);
     sigaction (SIGXCPU, &oact, NULL);
     if (pthread_kill (tid.v, 0) != 0)
-      nn_log (~0u, "-- thread exited --\n");
+      DDS_LOG(~0u, "-- thread exited --\n");
     else
     {
-      nn_log (~0u, "-- stack trace follows --\n");
+      DDS_LOG(~0u, "-- stack trace follows --\n");
       strs = backtrace_symbols (log_stacktrace_stk.stk, log_stacktrace_stk.depth);
       for (i = 0; i < log_stacktrace_stk.depth; i++)
-        nn_log (~0u, "%s\n", strs[i]);
+        DDS_LOG(~0u, "%s\n", strs[i]);
       free (strs);
-      nn_log (~0u, "-- end of stack trace --\n");
+      DDS_LOG(~0u, "-- end of stack trace --\n");
     }
     os_atomic_st32 (&log_stacktrace_flag, 0);
   }

@@ -21,7 +21,6 @@
 #include "dds__participant.h"
 #include "dds__err.h"
 #include "dds__types.h"
-#include "dds__report.h"
 #include "dds__builtin.h"
 #include "dds__subscriber.h"
 
@@ -125,7 +124,8 @@ dds__create_builtin_participant(
     }
 
     if (q_rc != 0) {
-        participant = DDS_ERRNO(DDS_RETCODE_ERROR, "Internal builtin error");
+        DDS_ERROR("Internal builtin error\n");
+        participant = DDS_ERRNO(DDS_RETCODE_ERROR);
         goto fail;
     }
 
@@ -311,17 +311,14 @@ dds__get_builtin_topic(
             desc = &DDS_CMDataReaderBuiltinTopicData_desc;
             name = "CMDataReader";
         } else {
-            ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Invalid builtin-topic handle(%d)", topic);
+            DDS_ERROR("Invalid builtin-topic handle(%d)\n", topic);
+            ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
             goto err_invalid_topic;
         }
 
         ret = dds_find_topic(participant, name);
         if (ret < 0 && dds_err_nr(ret) == DDS_RETCODE_PRECONDITION_NOT_MET) {
             dds_qos_t *tqos;
-
-            /* drop the precondition-no-met error */
-            DDS_REPORT_FLUSH(0);
-            DDS_REPORT_STACK();
 
             tqos = dds_create_qos();
             dds_qset_durability(tqos, DDS_DURABILITY_TRANSIENT_LOCAL);
@@ -358,7 +355,8 @@ dds__get_builtin_writer(
         }
         os_mutexUnlock(&g_builtin_mutex);
     } else {
-        wr = DDS_ERRNO(DDS_RETCODE_ERROR, "Given topic is not a builtin topic.");
+        DDS_ERROR("Given topic is not a builtin topic\n");
+        wr = DDS_ERRNO(DDS_RETCODE_ERROR);
     }
     return wr;
 }
@@ -420,10 +418,7 @@ forward_builtin_participant(
         _In_ nn_wctime_t timestamp,
         _In_ int alive)
 {
-    dds_return_t ret;
-    DDS_REPORT_STACK();
-    ret = dds__builtin_write(DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, data, timestamp.v, alive);
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
+    dds__builtin_write(DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, data, timestamp.v, alive);
 }
 
 void
@@ -432,8 +427,5 @@ forward_builtin_cmparticipant(
         _In_ nn_wctime_t timestamp,
         _In_ int alive)
 {
-    dds_return_t ret;
-    DDS_REPORT_STACK();
-    ret = dds__builtin_write(DDS_BUILTIN_TOPIC_CMPARTICIPANT, data, timestamp.v, alive);
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
+    dds__builtin_write(DDS_BUILTIN_TOPIC_CMPARTICIPANT, data, timestamp.v, alive);
 }

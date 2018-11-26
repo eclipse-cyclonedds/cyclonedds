@@ -31,9 +31,8 @@ extern "C" {
 #define DDS__FILE_ID__ (((__FILE_ID__ & 0x1ff)) << 22)
 #define DDS__LINE__ ((__LINE__ & 0x3fff) << 8)
 
-#define DDS_ERR_NO(err) -(DDS__FILE_ID__ + DDS__LINE__ + (err))
-
-#define DDS_ERRNO(e,msg,...) (assert(e > DDS_RETCODE_OK), os_report(OS_REPORT_ERROR, OS_FUNCTION, __FILE__, __LINE__, DDS_ERR_NO(e), (msg), ##__VA_ARGS__), DDS_ERR_NO(e))
+#define DDS_ERRNO(err) \
+    (assert(err > DDS_RETCODE_OK), -(DDS__FILE_ID__ + DDS__LINE__ + (err)))
 
 #if defined (__cplusplus)
 }

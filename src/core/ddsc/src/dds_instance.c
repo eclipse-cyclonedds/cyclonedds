@@ -21,7 +21,6 @@
 #include "ddsi/ddsi_serdata.h"
 #include "ddsi/q_entity.h"
 #include "ddsi/q_thread.h"
-#include "dds__report.h"
 
 
 _Pre_satisfies_((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)
@@ -30,11 +29,7 @@ dds_writedispose(
        _In_ dds_entity_t writer,
        _In_ const void *data)
 {
-    dds_return_t ret;
-    DDS_REPORT_STACK();
-    ret = dds_writedispose_ts(writer, data, dds_time());
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK );
-    return ret;
+    return dds_writedispose_ts(writer, data, dds_time());
 }
 
 _Pre_satisfies_((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)
@@ -43,11 +38,7 @@ dds_dispose(
        _In_ dds_entity_t writer,
        _In_ const void *data)
 {
-    dds_return_t ret;
-    DDS_REPORT_STACK();
-    ret =  dds_dispose_ts(writer, data, dds_time());
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK );
-    return ret;
+    return dds_dispose_ts(writer, data, dds_time());
 }
 
 _Pre_satisfies_((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)
@@ -56,11 +47,7 @@ dds_dispose_ih(
        _In_ dds_entity_t writer,
        _In_ dds_instance_handle_t handle)
 {
-    dds_return_t ret;
-    DDS_REPORT_STACK();
-    ret = dds_dispose_ih_ts(writer, handle, dds_time());
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK );
-    return ret;
+    return dds_dispose_ih_ts(writer, handle, dds_time());
 }
 
 static struct tkmap_instance*
@@ -133,9 +120,8 @@ static const dds_topic * dds_instance_info_by_hdl (dds_entity_t e)
     if (rc == DDS_RETCODE_OK) {
         topic = dds_instance_info(w_or_r);
         dds_entity_unlock(w_or_r);
-    }
-    else {
-        DDS_ERROR(rc, "Error occurred on locking entity");
+    } else {
+        DDS_ERROR("Error occurred on locking entity");
     }
     return topic;
 }
@@ -152,19 +138,20 @@ dds_register_instance(
     dds_return_t ret;
     dds__retcode_t rc;
 
-    DDS_REPORT_STACK();
-
     if(data == NULL){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Argument data is NULL");
+        DDS_ERROR("Argument data is NULL\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
     if(handle == NULL){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Argument handle is NULL");
+        DDS_ERROR("Argument handle is NULL\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
     rc = dds_entity_lock(writer, DDS_KIND_WRITER, &wr);
     if (rc != DDS_RETCODE_OK) {
-        ret = DDS_ERRNO(rc, "Error occurred on locking writer");
+        DDS_ERROR("Error occurred on locking writer\n");
+        ret = DDS_ERRNO(rc);
         goto err;
     }
     inst = dds_instance_find (((dds_writer*) wr)->m_topic, data, true);
@@ -172,11 +159,11 @@ dds_register_instance(
         *handle = inst->m_iid;
         ret = DDS_RETCODE_OK;
     } else{
-        ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Unable to create instance");
+        DDS_ERROR("Unable to create instance\n");
+        ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     }
     dds_entity_unlock(wr);
 err:
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
     return ret;
 }
 
@@ -186,11 +173,7 @@ dds_unregister_instance(
         _In_ dds_entity_t writer,
         _In_opt_ const void *data)
 {
-    dds_return_t ret;
-    DDS_REPORT_STACK();
-    ret = dds_unregister_instance_ts (writer, data, dds_time());
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK );
-    return ret;
+    return dds_unregister_instance_ts (writer, data, dds_time());
 }
 
 _Pre_satisfies_((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)
@@ -199,11 +182,7 @@ dds_unregister_instance_ih(
        _In_ dds_entity_t writer,
        _In_opt_ dds_instance_handle_t handle)
 {
-    dds_return_t ret;
-    DDS_REPORT_STACK();
-    ret = dds_unregister_instance_ih_ts(writer, handle, dds_time());
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK );
-    return ret;
+    return dds_unregister_instance_ih_ts(writer, handle, dds_time());
 }
 
 _Pre_satisfies_((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)
@@ -220,19 +199,20 @@ dds_unregister_instance_ts(
     void * sample = (void*) data;
     dds_entity *wr;
 
-    DDS_REPORT_STACK();
-
     if (data == NULL){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Argument data is NULL");
+        DDS_ERROR("Argument data is NULL\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
     if(timestamp < 0){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Argument timestamp has negative value");
+        DDS_ERROR("Argument timestamp has negative value\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
     rc = dds_entity_lock(writer, DDS_KIND_WRITER, &wr);
     if (rc != DDS_RETCODE_OK) {
-        ret =  DDS_ERRNO(rc, "Error occurred on locking writer");
+        DDS_ERROR("Error occurred on locking writer\n");
+        ret =  DDS_ERRNO(rc);
         goto err;
     }
 
@@ -246,7 +226,6 @@ dds_unregister_instance_ts(
     ret = dds_write_impl ((dds_writer*)wr, sample, timestamp, action);
     dds_entity_unlock(wr);
 err:
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
     return ret;
 }
 
@@ -266,11 +245,10 @@ dds_unregister_instance_ih_ts(
     const dds_topic *topic;
     void *sample;
 
-    DDS_REPORT_STACK();
-
     rc = dds_entity_lock(writer, DDS_KIND_WRITER, &wr);
     if (rc != DDS_RETCODE_OK) {
-        ret = DDS_ERRNO(rc, "Error occurred on locking writer");
+        DDS_ERROR("Error occurred on locking writer\n");
+        ret = DDS_ERRNO(rc);
         goto err;
     }
 
@@ -288,13 +266,13 @@ dds_unregister_instance_ih_ts(
     if (dds_tkmap_get_key (map, topic->m_stopic, handle, sample)) {
         ret = dds_write_impl ((dds_writer*)wr, sample, timestamp, action);
     } else{
-        ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET, "No instance related with the provided handle is found");
+        DDS_ERROR("No instance related with the provided handle is found\n");
+        ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
     }
     dds_sample_free (sample, topic->m_descriptor, DDS_FREE_ALL);
 
     dds_entity_unlock(wr);
 err:
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
     return ret;
 }
 
@@ -309,8 +287,6 @@ dds_writedispose_ts(
     dds__retcode_t rc;
     dds_writer *wr;
 
-    DDS_REPORT_STACK();
-
     rc = dds_writer_lock(writer, &wr);
     if (rc == DDS_RETCODE_OK) {
         ret = dds_write_impl (wr, data, timestamp, DDS_WR_ACTION_WRITE_DISPOSE);
@@ -319,9 +295,10 @@ dds_writedispose_ts(
         }
         dds_writer_unlock(wr);
     } else {
-        ret = DDS_ERRNO(rc, "Error occurred on locking writer");
+        DDS_ERROR("Error occurred on locking writer\n");
+        ret = DDS_ERRNO(rc);
     }
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
+
     return ret;
 }
 
@@ -352,16 +329,15 @@ dds_dispose_ts(
     dds__retcode_t rc;
     dds_writer *wr;
 
-    DDS_REPORT_STACK();
-
     rc = dds_writer_lock(writer, &wr);
     if (rc == DDS_RETCODE_OK) {
         ret = dds_dispose_impl(wr, data, DDS_HANDLE_NIL, timestamp);
         dds_writer_unlock(wr);
     } else {
-        ret = DDS_ERRNO(rc, "Error occurred on locking writer");
+        DDS_ERROR("Error occurred on locking writer\n");
+        ret = DDS_ERRNO(rc);
     }
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
+
     return ret;
 }
 
@@ -376,8 +352,6 @@ dds_dispose_ih_ts(
     dds__retcode_t rc;
     dds_writer *wr;
 
-    DDS_REPORT_STACK();
-
     rc = dds_writer_lock(writer, &wr);
     if (rc == DDS_RETCODE_OK) {
         struct tkmap *map = gv.m_tkmap;
@@ -386,14 +360,16 @@ dds_dispose_ih_ts(
         if (dds_tkmap_get_key (map, topic->m_stopic, handle, sample)) {
             ret = dds_dispose_impl(wr, sample, handle, timestamp);
         } else {
-            ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET, "No instance related with the provided handle is found");
+            DDS_ERROR("No instance related with the provided handle is found\n");
+            ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
         }
         dds_free(sample);
         dds_writer_unlock(wr);
     } else {
-        ret = DDS_ERRNO(rc, "Error occurred on locking writer");
+        DDS_ERROR("Error occurred on locking writer\n");
+        ret = DDS_ERRNO(rc);
     }
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
+
     return ret;
 }
 
@@ -407,12 +383,9 @@ dds_instance_lookup(
     const dds_topic * topic;
     struct tkmap * map = gv.m_tkmap;
     struct ddsi_serdata *sd;
-    dds_return_t ret;
-
-    DDS_REPORT_STACK();
 
     if(data == NULL){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Argument data is NULL");
+        DDS_ERROR("Argument data is NULL\n");
         goto err;
     }
 
@@ -421,12 +394,10 @@ dds_instance_lookup(
         sd = ddsi_serdata_from_sample (topic->m_stopic, SDK_KEY, data);
         ih = dds_tkmap_lookup (map, sd);
         ddsi_serdata_unref (sd);
-        ret = DDS_RETCODE_OK;
     } else {
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Acquired topic is NULL");
+        DDS_ERROR("Acquired topic is NULL\n");
     }
 err:
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
     return ih;
 }
 
@@ -441,16 +412,16 @@ dds_instance_get_key(
     const dds_topic * topic;
     struct tkmap * map = gv.m_tkmap;
 
-    DDS_REPORT_STACK();
-
     if(data == NULL){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Argument data is NULL");
+        DDS_ERROR("Argument data is NULL\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
 
     topic = dds_instance_info_by_hdl (entity);
     if(topic == NULL){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Could not find topic related to the given entity");
+        DDS_ERROR("Could not find topic related to the given entity\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
     memset (data, 0, topic->m_descriptor->m_size);
@@ -458,10 +429,10 @@ dds_instance_get_key(
     if (dds_tkmap_get_key (map, topic->m_stopic, inst, data)) {
         ret = DDS_RETCODE_OK;
     } else{
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "No instance related with the provided entity is found");
+        DDS_ERROR("No instance related with the provided entity is found\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
 
 err:
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
     return ret;
 }

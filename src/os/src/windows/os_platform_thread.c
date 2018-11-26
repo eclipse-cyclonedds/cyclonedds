@@ -188,8 +188,6 @@ os_startRoutineWrapper(
     /* Call the user routine */
     resultValue = context->startRoutine(context->arguments);
 
-    os_report_stack_free();
-
     /* Free the thread context resources, arguments is responsibility */
     /* for the caller of os_threadCreate                                */
     os_free (context->threadName);
@@ -236,7 +234,7 @@ os_threadCreate(
         (LPVOID)threadContext,
         (DWORD)0, &threadIdent);
     if (threadHandle == 0) {
-        OS_WARNING("os_threadCreate", os_getErrno(), "Failed with System Error Code: %i\n", os_getErrno ());
+        DDS_WARNING("Failed with System Error Code: %i\n", os_getErrno ());
         return os_resultFail;
     }
 
@@ -277,7 +275,7 @@ os_threadCreate(
         }
     }
     if (SetThreadPriority (threadHandle, effective_priority) == 0) {
-        OS_INFO("os_threadCreate", os_getErrno(), "SetThreadPriority failed with %i", os_getErrno());
+        DDS_INFO("SetThreadPriority failed with %i\n", os_getErrno());
     }
 
    /* ES: dds2086: Close handle should not be performed here. Instead the handle
@@ -356,29 +354,6 @@ os_threadWaitExit(
     CloseHandle(threadId.handle);
 
     return os_resultSuccess;
-}
-
-/** \brief Figure out the identity of the current thread
- *
- * Possible Results:
- * - returns the actual length of threadIdentity
- */
-int
-os_threadFigureIdentity(
-    char *threadIdentity,
-    uint32_t threadIdentitySize)
-{
-   int size;
-   char* threadName;
-
-   threadName = (char *)os_threadMemGet(OS_THREAD_NAME);
-   if (threadName != NULL) {
-       size = snprintf (threadIdentity, threadIdentitySize, "%s 0x%"PRIx32, threadName, GetCurrentThreadId());
-   } else {
-       size = snprintf (threadIdentity, threadIdentitySize, "0x%"PRIx32, GetCurrentThreadId());
-   }
-
-   return size;
 }
 
 int

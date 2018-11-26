@@ -17,7 +17,6 @@
 16  src/q_init.c
 17  src/q_lat_estim.c
 18  src/q_lease.c
-19  src/q_log.c
 20  src/q_md5.c
 21  src/q_misc.c
 22  src/q_nwif.c

@@ -171,7 +171,7 @@ void ddsi_ipaddr_to_loc (nn_locator_t *dst, const os_sockaddr *src, int32_t kind
     }
 #endif
     default:
-      NN_FATAL ("nn_address_to_loc: family %d unsupported\n", (int) src->sa_family);
+      DDS_FATAL("nn_address_to_loc: family %d unsupported\n", (int) src->sa_family);
   }
 }
 

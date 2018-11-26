@@ -31,7 +31,7 @@ static void ddsi_ssl_error (SSL * ssl, const char * str, int err)
 {
   char buff [128];
   ERR_error_string ((unsigned) SSL_get_error (ssl, err), buff);
-  nn_log (LC_ERROR, "tcp/ssl %s %s %d\n", str, buff, err);
+  DDS_ERROR("tcp/ssl %s %s %d\n", str, buff, err);
 }
 
 static int ddsi_ssl_verify (int ok, X509_STORE_CTX * store)
@@ -56,9 +56,8 @@ static int ddsi_ssl_verify (int ok, X509_STORE_CTX * store)
     else
     {
       X509_NAME_oneline (X509_get_issuer_name (cert), issuer, sizeof (issuer));
-      nn_log
+      DDS_ERROR
       (
-        LC_ERROR,
         "tcp/ssl failed to verify certificate from %s : %s\n",
         issuer,
         X509_verify_cert_error_string (err)
@@ -227,9 +226,9 @@ static SSL_CTX * ddsi_ssl_ctx_init (void)
 
   if (! SSL_CTX_use_certificate_file (ctx, config.ssl_keystore, SSL_FILETYPE_PEM))
   {
-    nn_log
+    DDS_LOG
     (
-      LC_ERROR | LC_CONFIG,
+      DDS_LC_ERROR | DDS_LC_CONFIG,
       "tcp/ssl failed to load certificate from file: %s\n",
       config.ssl_keystore
     );
@@ -244,9 +243,9 @@ static SSL_CTX * ddsi_ssl_ctx_init (void)
 
   if (! SSL_CTX_use_PrivateKey_file (ctx, config.ssl_keystore, SSL_FILETYPE_PEM))
   {
-    nn_log
+    DDS_LOG
     (
-      LC_ERROR | LC_CONFIG,
+      DDS_LC_ERROR | DDS_LC_CONFIG,
       "tcp/ssl failed to load private key from file: %s\n",
       config.ssl_keystore
     );
@@ -257,9 +256,9 @@ static SSL_CTX * ddsi_ssl_ctx_init (void)
 
   if (! SSL_CTX_load_verify_locations (ctx, config.ssl_keystore, 0))
   {
-    nn_log
+    DDS_LOG
     (
-      LC_ERROR | LC_CONFIG,
+      DDS_LC_ERROR | DDS_LC_CONFIG,
       "tcp/ssl failed to load CA from file: %s\n",
       config.ssl_keystore
     );
@@ -270,9 +269,9 @@ static SSL_CTX * ddsi_ssl_ctx_init (void)
 
   if (! SSL_CTX_set_cipher_list (ctx, config.ssl_ciphers))
   {
-    nn_log
+    DDS_LOG
     (
-      LC_ERROR | LC_CONFIG,
+      DDS_LC_ERROR | DDS_LC_CONFIG,
       "tcp/ssl failed to set ciphers: %s\n",
       config.ssl_ciphers
     );
@@ -285,9 +284,9 @@ static SSL_CTX * ddsi_ssl_ctx_init (void)
   {
     if (! RAND_load_file (config.ssl_rand_file, 4096))
     {
-      nn_log
+      DDS_LOG
       (
-        LC_ERROR | LC_CONFIG,
+        DDS_LC_ERROR | DDS_LC_CONFIG,
         "tcp/ssl failed to load random seed from file: %s\n",
         config.ssl_rand_file
       );

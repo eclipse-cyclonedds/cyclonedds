@@ -48,7 +48,6 @@ typedef _Return_type_success_(return >  0) int32_t dds_entity_t;
 #include "ddsc/dds_public_error.h"
 #include "ddsc/dds_public_status.h"
 #include "ddsc/dds_public_listener.h"
-#include "ddsc/dds_public_log.h"
 #include "dds_dcps_builtintopics.h"
 
 #if defined (__cplusplus)

@@ -165,7 +165,7 @@ size_t dds_stream_check_optimize (_In_ const dds_topic_descriptor_t * desc)
   dds_sample_free_contents (sample, desc->m_ops);
   dds_free (sample);
   dds_stream_fini (&os);
-  dds_log_info ("Marshalling for type: %s is%s optimised\n", desc->m_typename, size ? "" : " not");
+  DDS_INFO("Marshalling for type: %s is%s optimised\n", desc->m_typename, size ? "" : " not");
   return size;
 }
 
@@ -490,7 +490,7 @@ static void dds_stream_write
       {
         type = DDS_OP_TYPE (op);
 #ifdef OP_DEBUG_WRITE
-        TRACE (("W-ADR: %s offset %d\n", stream_op_type[type], ops[1]));
+        DDS_TRACE("W-ADR: %s offset %d\n", stream_op_type[type], ops[1]);
 #endif
         addr = data + ops[1];
         ops += 2;
@@ -519,7 +519,7 @@ static void dds_stream_write
           case DDS_OP_VAL_STR:
           {
 #ifdef OP_DEBUG_WRITE
-            TRACE (("W-STR: %s\n", *((char**) addr)));
+            DDS_TRACE("W-STR: %s\n", *((char**) addr));
 #endif
             dds_stream_write_string (os, *((char**) addr));
             break;
@@ -531,7 +531,7 @@ static void dds_stream_write
             num = seq->_length;
 
 #ifdef OP_DEBUG_WRITE
-            TRACE (("W-SEQ: %s <%d>\n", stream_op_type[subtype], num));
+            DDS_TRACE("W-SEQ: %s <%d>\n", stream_op_type[subtype], num);
 #endif
             DDS_OS_PUT4 (os, num, uint32_t);
             if (num || (subtype > DDS_OP_VAL_STR))
@@ -558,7 +558,7 @@ static void dds_stream_write
                   while (num--)
                   {
 #ifdef OP_DEBUG_WRITE
-                    TRACE (("W-SEQ STR: %s\n", *ptr));
+                    DDS_TRACE("W-SEQ STR: %s\n", *ptr);
 #endif
                     dds_stream_write_string (os, *ptr);
                     ptr++;
@@ -572,7 +572,7 @@ static void dds_stream_write
                   while (num--)
                   {
 #ifdef OP_DEBUG_WRITE
-                    TRACE (("W-SEQ BST[%d]: %s\n", align, ptr));
+                    DDS_TRACE("W-SEQ BST[%d]: %s\n", align, ptr);
 #endif
                     dds_stream_write_string (os, ptr);
                     ptr += align;
@@ -603,7 +603,7 @@ static void dds_stream_write
             num = *ops++;
 
 #ifdef OP_DEBUG_WRITE
-            TRACE (("W-ARR: %s [%d]\n", stream_op_type[subtype], num));
+            DDS_TRACE("W-ARR: %s [%d]\n", stream_op_type[subtype], num);
 #endif
             switch (subtype)
             {
@@ -693,7 +693,7 @@ static void dds_stream_write
               default: assert (0);
             }
 #ifdef OP_DEBUG_WRITE
-            TRACE (("W-UNI: switch %s case %d/%d\n", stream_op_type[subtype], disc, num));
+            DDS_TRACE("W-UNI: switch %s case %d/%d\n", stream_op_type[subtype], disc, num);
 #endif
 
             /* Write case matching discriminant */
@@ -710,7 +710,7 @@ static void dds_stream_write
                 addr = data + jeq_op[2];
 
 #ifdef OP_DEBUG_WRITE
-                TRACE (("W-UNI: case type %s\n", stream_op_type[subtype]));
+                DDS_TRACE("W-UNI: case type %s\n", stream_op_type[subtype]);
 #endif
                 switch (subtype)
                 {
@@ -753,7 +753,7 @@ static void dds_stream_write
           case DDS_OP_VAL_BST:
           {
 #ifdef OP_DEBUG_WRITE
-            TRACE (("W-BST: %s\n", (char*) addr));
+            DDS_TRACE("W-BST: %s\n", (char*) addr);
 #endif
             dds_stream_write_string (os, (char*) addr);
             ops++;
@@ -766,7 +766,7 @@ static void dds_stream_write
       case DDS_OP_JSR: /* Implies nested type */
       {
 #ifdef OP_DEBUG_WRITE
-        TRACE (("W-JSR: %d\n", DDS_OP_JUMP (op)));
+        DDS_TRACE("W-JSR: %d\n", DDS_OP_JUMP (op));
 #endif
         dds_stream_write (os, data, ops + DDS_OP_JUMP (op));
         ops++;
@@ -776,7 +776,7 @@ static void dds_stream_write
     }
   }
 #ifdef OP_DEBUG_WRITE
-  TRACE (("W-RTS:\n"));
+  DDS_TRACE("W-RTS:\n");
 #endif
 }
 
@@ -797,7 +797,7 @@ static void dds_stream_read (dds_stream_t * is, char * data, const uint32_t * op
       {
         type = DDS_OP_TYPE (op);
 #ifdef OP_DEBUG_READ
-        TRACE (("R-ADR: %s offset %d\n", stream_op_type[type], ops[1]));
+        DDS_TRACE("R-ADR: %s offset %d\n", stream_op_type[type], ops[1]);
 #endif
         addr = data + ops[1];
         ops += 2;
@@ -826,7 +826,7 @@ static void dds_stream_read (dds_stream_t * is, char * data, const uint32_t * op
           case DDS_OP_VAL_STR:
           {
 #ifdef OP_DEBUG_READ
-            TRACE (("R-STR: @ %p\n", addr));
+            DDS_TRACE("R-STR: @ %p\n", addr);
 #endif
             *(char**) addr = dds_stream_reuse_string (is, *((char**) addr), 0);
             break;
@@ -838,7 +838,7 @@ static void dds_stream_read (dds_stream_t * is, char * data, const uint32_t * op
             num = dds_stream_read_uint32 (is);
 
 #ifdef OP_DEBUG_READ
-            TRACE (("R-SEQ: %s <%d>\n", stream_op_type[subtype], num));
+            DDS_TRACE("R-SEQ: %s <%d>\n", stream_op_type[subtype], num);
 #endif
             /* Maintain max sequence length (may not have been set by caller) */
 
@@ -987,7 +987,7 @@ static void dds_stream_read (dds_stream_t * is, char * data, const uint32_t * op
             num = *ops++;
 
 #ifdef OP_DEBUG_READ
-            TRACE (("R-ARR: %s [%d]\n", stream_op_type[subtype], num));
+            DDS_TRACE("R-ARR: %s [%d]\n", stream_op_type[subtype], num);
 #endif
             switch (subtype)
             {
@@ -1080,7 +1080,7 @@ static void dds_stream_read (dds_stream_t * is, char * data, const uint32_t * op
             }
 
 #ifdef OP_DEBUG_READ
-            TRACE (("R-UNI: switch %s case %d/%d\n", stream_op_type[subtype], disc, num));
+            DDS_TRACE("R-UNI: switch %s case %d/%d\n", stream_op_type[subtype], disc, num);
 #endif
 
             /* Read case matching discriminant */
@@ -1094,7 +1094,7 @@ static void dds_stream_read (dds_stream_t * is, char * data, const uint32_t * op
                 addr = data + jeq_op[2];
 
 #ifdef OP_DEBUG_READ
-                TRACE (("R-UNI: case type %s\n", stream_op_type[subtype]));
+                DDS_TRACE("R-UNI: case type %s\n", stream_op_type[subtype]);
 #endif
                 switch (subtype)
                 {
@@ -1142,7 +1142,7 @@ static void dds_stream_read (dds_stream_t * is, char * data, const uint32_t * op
           case DDS_OP_VAL_BST:
           {
 #ifdef OP_DEBUG_READ
-            TRACE (("R-BST: @ %p\n", addr));
+            DDS_TRACE("R-BST: @ %p\n", addr);
 #endif
             dds_stream_reuse_string (is, (char*) addr, *ops);
             ops++;
@@ -1155,7 +1155,7 @@ static void dds_stream_read (dds_stream_t * is, char * data, const uint32_t * op
       case DDS_OP_JSR: /* Implies nested type */
       {
 #ifdef OP_DEBUG_READ
-        TRACE (("R-JSR: %d\n", DDS_OP_JUMP (op)));
+        DDS_TRACE("R-JSR: %d\n", DDS_OP_JUMP (op));
 #endif
         dds_stream_read (is, data, ops + DDS_OP_JUMP (op));
         ops++;
@@ -1165,7 +1165,7 @@ static void dds_stream_read (dds_stream_t * is, char * data, const uint32_t * op
     }
   }
 #ifdef OP_DEBUG_READ
-  TRACE (("R-RTS:\n"));
+  DDS_TRACE("R-RTS:\n");
 #endif
 }
 
@@ -1304,7 +1304,7 @@ uint32_t dds_stream_extract_key (dds_stream_t *is, dds_stream_t *os, const uint3
 #ifdef OP_DEBUG_KEY
         if (is_key)
         {
-          TRACE (("K-ADR: %s\n", stream_op_type[type]));
+          DDS_TRACE("K-ADR: %s\n", stream_op_type[type]);
         }
 #endif
         switch (type)
@@ -1347,7 +1347,7 @@ uint32_t dds_stream_extract_key (dds_stream_t *is, dds_stream_t *os, const uint3
                 DDS_OS_PUT4 (os, len, uint32_t);
                 DDS_OS_PUT_BYTES(os, DDS_CDR_ADDRESS (is, void), len);
 #ifdef OP_DEBUG_KEY
-                TRACE (("K-ADR: String/BString (%d)\n", len));
+                DDS_TRACE("K-ADR: String/BString (%d)\n", len);
 #endif
               }
               is->m_index += len;
@@ -1417,7 +1417,7 @@ uint32_t dds_stream_extract_key (dds_stream_t *is, dds_stream_t *os, const uint3
 #ifdef OP_DEBUG_KEY
             if (is_key)
             {
-              TRACE (("K-ADR: %s[%d]\n", stream_op_type[subtype], num));
+              DDS_TRACE("K-ADR: %s[%d]\n", stream_op_type[subtype], num);
             }
 #endif
             switch (subtype)
@@ -1479,7 +1479,7 @@ uint32_t dds_stream_extract_key (dds_stream_t *is, dds_stream_t *os, const uint3
             assert (! is_key);
 
 #ifdef OP_DEBUG_KEY
-            TRACE (("K-UNI: switch %s cases %d\n", stream_op_type[subtype], num));
+            DDS_TRACE("K-UNI: switch %s cases %d\n", stream_op_type[subtype], num);
 #endif
             /* Read discriminant */
 

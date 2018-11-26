@@ -26,14 +26,12 @@ void os_osPlatformInit (void)
   os_processModuleInit();
   os_threadModuleInit();
   os_timeModuleInit();
-  os_reportInit(false);
   os_socketModuleInit();
 }
 
 void os_osPlatformExit (void)
 {
   os_socketModuleExit();
-  os_reportExit();
   os_timeModuleExit();
   os_threadModuleExit();
   os_processModuleExit();

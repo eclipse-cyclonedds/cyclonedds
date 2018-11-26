@@ -37,7 +37,6 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_init.c
     q_lat_estim.c
     q_lease.c
-    q_log.c
     q_md5.c
     q_misc.c
     q_nwif.c

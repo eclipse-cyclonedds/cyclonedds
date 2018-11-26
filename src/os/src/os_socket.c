@@ -256,13 +256,13 @@ os_sockaddrStringToAddress(
     ret = getaddrinfo(addressString, NULL, &hints, &res);
     if (ret != 0) {
         fmt = "getaddrinfo(\"%s\") failed: %s";
-        OS_DEBUG(OS_FUNCTION, 0, fmt, addressString, os_gai_strerror(ret));
+        DDS_TRACE(fmt, addressString, os_gai_strerror(ret));
     } else if (res != NULL) {
         memcpy(addressOut, res->ai_addr, res->ai_addrlen);
         freeaddrinfo(res);
     } else {
         fmt = "getaddrinfo(\"%s\") did not return any results";
-        OS_DEBUG(OS_FUNCTION, 0, fmt, addressString);
+        DDS_TRACE(fmt, addressString);
     }
 
     return (ret == 0 && res != NULL);

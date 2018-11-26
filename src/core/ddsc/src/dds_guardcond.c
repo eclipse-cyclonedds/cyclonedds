@@ -18,7 +18,6 @@
 #include "ddsi/q_ephash.h"
 #include "ddsi/q_entity.h"
 #include "ddsi/q_thread.h"
-#include "dds__report.h"
 
 _Must_inspect_result_ dds_guardcond*
 dds_create_guardcond(
@@ -38,7 +37,6 @@ dds_create_guardcondition(
     dds_entity * pp;
     dds__retcode_t rc;
 
-    DDS_REPORT_STACK();
     rc = dds_entity_lock(participant, DDS_KIND_PARTICIPANT, &pp);
     if (rc == DDS_RETCODE_OK) {
         dds_guardcond *cond = dds_create_guardcond((dds_participant *)pp);
@@ -46,9 +44,10 @@ dds_create_guardcondition(
         hdl = cond->m_entity.m_hdl;
         dds_entity_unlock(pp);
     } else {
-        hdl = DDS_ERRNO(rc, "Error occurred on locking reader");
+        DDS_ERROR("Error occurred on locking reader\n");
+        hdl = DDS_ERRNO(rc);
     }
-    DDS_REPORT_FLUSH(hdl <= 0);
+
     return hdl;
 }
 
@@ -62,7 +61,6 @@ dds_set_guardcondition(
     dds_guardcond *gcond;
     dds__retcode_t rc;
 
-    DDS_REPORT_STACK();
     rc = dds_entity_lock(condition, DDS_KIND_COND_GUARD, (dds_entity**)&gcond);
     if (rc == DDS_RETCODE_OK) {
         if (triggered) {
@@ -74,9 +72,10 @@ dds_set_guardcondition(
         dds_entity_unlock(&gcond->m_entity);
         ret = DDS_RETCODE_OK;
     } else {
-        ret = DDS_ERRNO(dds_valid_hdl(condition, DDS_KIND_COND_GUARD), "Argument condition is not valid");
+        DDS_ERROR("Argument condition is not valid\n");
+        ret = DDS_ERRNO(dds_valid_hdl(condition, DDS_KIND_COND_GUARD));
     }
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
+
     return ret;
 }
 
@@ -90,7 +89,6 @@ dds_read_guardcondition(
     dds_guardcond *gcond;
     dds__retcode_t rc;
 
-    DDS_REPORT_STACK();
     if (triggered != NULL) {
         *triggered = false;
         rc = dds_entity_lock(condition, DDS_KIND_COND_GUARD, (dds_entity**)&gcond);
@@ -99,12 +97,14 @@ dds_read_guardcondition(
             dds_entity_unlock((dds_entity*)gcond);
             ret = DDS_RETCODE_OK;
         } else {
-            ret = DDS_ERRNO(dds_valid_hdl(condition, DDS_KIND_COND_GUARD), "Argument condition is not valid");
+            DDS_ERROR("Argument condition is not valid\n");
+            ret = DDS_ERRNO(dds_valid_hdl(condition, DDS_KIND_COND_GUARD));
         }
     } else {
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Argument triggered is NULL");
+        DDS_ERROR("Argument triggered is NULL\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
+
     return ret;
 }
 
@@ -118,7 +118,6 @@ dds_take_guardcondition(
     dds_guardcond *gcond;
     dds__retcode_t rc;
 
-    DDS_REPORT_STACK();
     if (triggered != NULL) {
         *triggered = false;
         rc = dds_entity_lock(condition, DDS_KIND_COND_GUARD, (dds_entity**)&gcond);
@@ -128,11 +127,13 @@ dds_take_guardcondition(
             dds_entity_unlock((dds_entity*)gcond);
             ret = DDS_RETCODE_OK;
         } else {
-            ret = DDS_ERRNO(dds_valid_hdl(condition, DDS_KIND_COND_GUARD), "Argument condition is not valid");
+            DDS_ERROR("Argument condition is not valid\n");
+            ret = DDS_ERRNO(dds_valid_hdl(condition, DDS_KIND_COND_GUARD));
         }
     } else {
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Argument triggered is NULL");
+        DDS_ERROR("Argument triggered is NULL\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
+
     return ret;
 }

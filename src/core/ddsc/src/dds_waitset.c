@@ -16,7 +16,6 @@
 #include "dds__readcond.h"
 #include "dds__rhc.h"
 #include "dds__err.h"
-#include "dds__report.h"
 
 
 #define dds_waitset_lock(hdl, obj) dds_entity_lock(hdl, DDS_KIND_WAITSET, (dds_entity**)obj)
@@ -72,10 +71,12 @@ dds_waitset_wait_impl(
     dds_attachment *prev;
 
     if ((xs == NULL) && (nxs != 0)){
-        return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "A size was given, but no array.");
+        DDS_ERROR("A size was given, but no array\n");
+        return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
     if ((xs != NULL) && (nxs == 0)){
-        return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Array is given with an invalid size");
+        DDS_ERROR("Array is given with an invalid size\n");
+        return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
 
     /* Locking the waitset here will delay a possible deletion until it is
@@ -152,12 +153,14 @@ dds_waitset_wait_impl(
         } else if (rc == DDS_RETCODE_TIMEOUT) {
             ret = 0;
         } else {
-            ret = DDS_ERRNO(rc, "Internal error");
+            DDS_ERROR("Internal error");
+            ret = DDS_ERRNO(rc);
         }
 
         dds_waitset_unlock(ws);
     } else {
-        ret = DDS_ERRNO(rc, "Error occurred on locking waitset");
+        DDS_ERROR("Error occurred on locking waitset\n");
+        ret = DDS_ERRNO(rc);
     }
 
     return ret;
@@ -229,8 +232,6 @@ dds_create_waitset(
     dds_entity *par;
     dds__retcode_t rc;
 
-    DDS_REPORT_STACK();
-
     rc = dds_entity_lock(participant, DDS_KIND_PARTICIPANT, &par);
     if (rc == DDS_RETCODE_OK) {
         dds_waitset *waitset = dds_alloc(sizeof(*waitset));
@@ -240,9 +241,10 @@ dds_create_waitset(
         waitset->triggered = NULL;
         dds_entity_unlock(par);
     } else {
-        hdl = DDS_ERRNO(rc, "Error occurred on locking entity");
+        DDS_ERROR("Error occurred on locking entity\n");
+        hdl = DDS_ERRNO(rc);
     }
-    DDS_REPORT_FLUSH(hdl <= 0);
+
     return hdl;
 }
 
@@ -257,8 +259,6 @@ dds_waitset_get_entities(
     dds_return_t ret = 0;
     dds__retcode_t rc;
     dds_waitset *ws;
-
-    DDS_REPORT_STACK();
 
     rc = dds_waitset_lock(waitset, &ws);
     if (rc == DDS_RETCODE_OK) {
@@ -283,9 +283,10 @@ dds_waitset_get_entities(
         }
         dds_waitset_unlock(ws);
     } else {
-        ret = DDS_ERRNO(rc, "Error occurred on locking waitset");
+        DDS_ERROR("Error occurred on locking waitset\n");
+        ret = DDS_ERRNO(rc);
     }
-    DDS_REPORT_FLUSH(ret < 0);
+
     return ret;
 }
 
@@ -359,8 +360,6 @@ dds_waitset_attach(
     dds__retcode_t rc;
     dds_return_t ret;
 
-    DDS_REPORT_STACK();
-
     rc = dds_waitset_lock(waitset, &ws);
     if (rc == DDS_RETCODE_OK) {
         if (waitset != entity) {
@@ -390,18 +389,21 @@ dds_waitset_attach(
             }
             ret = DDS_RETCODE_OK;
         } else if (rc != DDS_RETCODE_PRECONDITION_NOT_MET) {
-            ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Entity is not valid");
+            DDS_ERROR("Entity is not valid\n");
+            ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         } else {
-            ret = DDS_ERRNO(rc, "Entity is already attached.");
+            DDS_ERROR("Entity is already attached\n");
+            ret = DDS_ERRNO(rc);
         }
         if ((e != NULL) && (waitset != entity)) {
             dds_entity_unlock(e);
         }
         dds_waitset_unlock(ws);
     } else {
-        ret = DDS_ERRNO(rc, "Error occurred on locking waitset");
+        DDS_ERROR("Error occurred on locking waitset\n");
+        ret = DDS_ERRNO(rc);
     }
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK );
+
     return ret;
 }
 
@@ -415,8 +417,6 @@ dds_waitset_detach(
     dds__retcode_t rc;
     dds_return_t ret;
 
-    DDS_REPORT_STACK();
-
     rc = dds_waitset_lock(waitset, &ws);
     if (rc == DDS_RETCODE_OK) {
         /* Possibly fails when entity was not attached. */
@@ -429,15 +429,18 @@ dds_waitset_detach(
             dds_waitset_remove(ws, entity);
             ret = DDS_RETCODE_OK;
         } else if (rc != DDS_RETCODE_PRECONDITION_NOT_MET) {
-            ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "The given entity to detach is invalid.");
+            DDS_ERROR("The given entity to detach is invalid\n");
+            ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         } else {
-            ret = DDS_ERRNO(rc, "The given entity to detach was not attached previously.");
+            DDS_ERROR("The given entity to detach was not attached previously\n");
+            ret = DDS_ERRNO(rc);
         }
         dds_waitset_unlock(ws);
     } else {
-        ret = DDS_ERRNO(rc, "Error occurred on locking waitset");
+        DDS_ERROR("Error occurred on locking waitset\n");
+        ret = DDS_ERRNO(rc);
     }
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
+
     return ret;
 }
 
@@ -449,11 +452,7 @@ dds_waitset_wait_until(
         _In_ size_t nxs,
         _In_ dds_time_t abstimeout)
 {
-    dds_return_t ret;
-    DDS_REPORT_STACK();
-    ret = dds_waitset_wait_impl(waitset, xs, nxs, abstimeout, dds_time());
-    DDS_REPORT_FLUSH(ret <0 );
-    return ret;
+    return dds_waitset_wait_impl(waitset, xs, nxs, abstimeout, dds_time());
 }
 
 _Pre_satisfies_((waitset & DDS_ENTITY_KIND_MASK) == DDS_KIND_WAITSET)
@@ -465,16 +464,16 @@ dds_waitset_wait(
         _In_ dds_duration_t reltimeout)
 {
     dds_entity_t ret;
-    DDS_REPORT_STACK();
 
     if (reltimeout >= 0) {
         dds_time_t tnow = dds_time();
         dds_time_t abstimeout = (DDS_INFINITY - reltimeout <= tnow) ? DDS_NEVER : (tnow + reltimeout);
         ret = dds_waitset_wait_impl(waitset, xs, nxs, abstimeout, tnow);
     } else{
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Negative timeout");
+        DDS_ERROR("Negative timeout\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
-    DDS_REPORT_FLUSH(ret <0 );
+
     return ret;
 }
 
@@ -488,14 +487,13 @@ dds_waitset_set_trigger(
     dds__retcode_t rc;
     dds_return_t ret = DDS_RETCODE_OK;
 
-    DDS_REPORT_STACK();
-
     /* Locking the waitset here will delay a possible deletion until it is
      * unlocked. Even when the related mutex is unlocked when we want to send
      * a signal. */
     rc = dds_waitset_lock(waitset, &ws);
     if (rc != DDS_RETCODE_OK) {
-        ret = DDS_ERRNO(rc, "Error occurred on locking waitset");
+        DDS_ERROR("Error occurred on locking waitset\n");
+        ret = DDS_ERRNO(rc);
         goto fail;
     }
     if (trigger) {
@@ -506,7 +504,6 @@ dds_waitset_set_trigger(
     dds_waitset_signal_entity(ws);
     dds_waitset_unlock(ws);
 fail:
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
     return ret;
 }
 

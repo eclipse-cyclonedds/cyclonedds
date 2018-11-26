@@ -23,8 +23,6 @@
  * independent conversions.
  */
 
-#include "os/os_report.h"
-
 /*
  * Determine the maximum size that a string should have to be
  * able to contain a double.
@@ -76,9 +74,8 @@ os_lcNumericGet(void)
         (void) snprintf(num, 4, "%3.1f", 2.2);
         lcNumeric = num [1];
         if (lcNumeric != '.') {
-            OS_WARNING("os_stdlib", 0,
-                      "Locale with LC_NUMERIC \'%c\' detected, which is not '.'. This can decrease performance.",
-                      lcNumeric);
+            DDS_WARNING("Locale with LC_NUMERIC \'%c\' detected, which is not '.'. "
+                        "This can decrease performance.", lcNumeric);
         }
     }
 

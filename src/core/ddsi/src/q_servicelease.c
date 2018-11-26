@@ -84,7 +84,7 @@ static uint32_t lease_renewal_thread (struct nn_servicelease *sl)
 
     LOG_THREAD_CPUTIME (next_thread_cputime);
 
-    TRACE (("servicelease: tnow %"PRId64":", tnow.v));
+    DDS_TRACE("servicelease: tnow %"PRId64":", tnow.v);
 
     /* Check progress only if enough time has passed: there is no
        guarantee that os_cond_timedwait wont ever return early, and we
@@ -106,7 +106,7 @@ static uint32_t lease_renewal_thread (struct nn_servicelease *sl)
           vtime_t wd = thread_states.ts[i].watchdog;
           int alive = vtime_asleep_p (vt) || vtime_asleep_p (wd) || vtime_gt (wd, sl->av_ary[i].wd);
           n_alive += (unsigned) alive;
-          TRACE ((" %u(%s):%c:%u:%u->%u:", i, thread_states.ts[i].name, alive ? 'a' : 'd', vt, sl->av_ary[i].wd, wd));
+          DDS_TRACE(" %u(%s):%c:%u:%u->%u:", i, thread_states.ts[i].name, alive ? 'a' : 'd', vt, sl->av_ary[i].wd, wd);
           sl->av_ary[i].wd = wd;
           if (sl->av_ary[i].alive != alive)
           {
@@ -116,7 +116,7 @@ static uint32_t lease_renewal_thread (struct nn_servicelease *sl)
               msg = "failed to make progress";
             else
               msg = "once again made progress";
-            NN_WARNING ("thread %s %s\n", name ? name : "(anon)", msg);
+            DDS_WARNING("thread %s %s\n", name ? name : "(anon)", msg);
             sl->av_ary[i].alive = (char) alive;
           }
         }
@@ -129,7 +129,7 @@ static uint32_t lease_renewal_thread (struct nn_servicelease *sl)
        the DDSI2 service to be marked as dead. */
     if (n_alive == thread_states.nthreads)
     {
-      TRACE ((": [%u] renewing\n", n_alive));
+      DDS_TRACE(": [%u] renewing\n", n_alive);
       /* FIXME: perhaps it would be nice to control automatic
          liveliness updates from here.
          FIXME: should terminate failure of renew_cb() */
@@ -138,7 +138,7 @@ static uint32_t lease_renewal_thread (struct nn_servicelease *sl)
     }
     else
     {
-      TRACE ((": [%u] NOT renewing\n", n_alive));
+      DDS_TRACE(": [%u] NOT renewing\n", n_alive);
       if (was_alive)
         log_stack_traces ();
       was_alive = 0;
@@ -149,16 +149,16 @@ static uint32_t lease_renewal_thread (struct nn_servicelease *sl)
        statistics to the trace.  Getrusage() can't fail if the
        parameters are valid, and these are by the book.  Still we
        check. */
-    if (config.enabled_logcats & LC_TIMING)
+    if (dds_get_log_mask() & DDS_LC_TIMING)
     {
       struct rusage u;
       if (getrusage (RUSAGE_SELF, &u) == 0)
       {
-        nn_log (LC_TIMING,
-                "rusage: utime %d.%06d stime %d.%06d maxrss %ld data %ld vcsw %ld ivcsw %ld\n",
-                (int) u.ru_utime.tv_sec, (int) u.ru_utime.tv_usec,
-                (int) u.ru_stime.tv_sec, (int) u.ru_stime.tv_usec,
-                u.ru_maxrss, u.ru_idrss, u.ru_nvcsw, u.ru_nivcsw);
+        DDS_LOG(DDS_LC_TIMING,
+                  "rusage: utime %d.%06d stime %d.%06d maxrss %ld data %ld vcsw %ld ivcsw %ld\n",
+                  (int) u.ru_utime.tv_sec, (int) u.ru_utime.tv_usec,
+                  (int) u.ru_stime.tv_sec, (int) u.ru_stime.tv_usec,
+                  u.ru_maxrss, u.ru_idrss, u.ru_nvcsw, u.ru_nivcsw);
       }
     }
 #endif

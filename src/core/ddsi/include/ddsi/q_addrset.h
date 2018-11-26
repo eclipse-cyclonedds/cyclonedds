@@ -64,7 +64,7 @@ int addrset_any_mc (const struct addrset *as, nn_locator_t *dst);
 int addrset_forone (struct addrset *as, addrset_forone_fun_t f, void *arg);
 void addrset_forall (struct addrset *as, addrset_forall_fun_t f, void *arg);
 size_t addrset_forall_count (struct addrset *as, addrset_forall_fun_t f, void *arg);
-void nn_log_addrset (logcat_t tf, const char *prefix, const struct addrset *as);
+void nn_log_addrset (uint32_t tf, const char *prefix, const struct addrset *as);
 
 /* Tries to lock A then B for a decent check, returning false if
    trylock B fails */
