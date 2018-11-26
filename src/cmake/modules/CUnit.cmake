@@ -69,7 +69,7 @@ function(process_cunit_source_file SOURCE_FILE HEADER_FILE SUITES TESTS)
   #  - fini
   #  - disabled
   #  - timeout
-  set(data_expr "(${s}*,${s}*\\.${w}+${s}*=[^,]+)*")
+  set(data_expr "(${s}*,${s}*\\.${w}+${s}*=[^,\\)]+)*")
 
   set(suites_wo_init_n_clean)
   set(suites_w_init)
