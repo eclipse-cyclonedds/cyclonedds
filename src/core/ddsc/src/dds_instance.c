@@ -375,7 +375,7 @@ dds_dispose_ih_ts(
 
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
 dds_instance_handle_t
-dds_instance_lookup(
+dds_lookup_instance(
         dds_entity_t entity,
         const void *data)
 {
@@ -399,6 +399,15 @@ dds_instance_lookup(
     }
 err:
     return ih;
+}
+
+_Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
+dds_instance_handle_t
+dds_instance_lookup (
+        dds_entity_t entity,
+        const void *data)
+{
+    return dds_lookup_instance(entity, data);
 }
 
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)

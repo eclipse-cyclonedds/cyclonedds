@@ -237,7 +237,7 @@ take_instance_init(void)
     sample.long_1 = 0;
     sample.long_2 = 0;
     sample.long_3 = 0;
-    g_hdl_valid = dds_instance_lookup(g_reader, &sample);
+    g_hdl_valid = dds_lookup_instance(g_reader, &sample);
     CU_ASSERT_NOT_EQUAL_FATAL(g_hdl_valid, DDS_HANDLE_NIL);
 
     dds_delete_qos(qos);

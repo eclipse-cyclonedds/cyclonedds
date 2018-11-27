@@ -1611,7 +1611,7 @@ dds_dispose_ts(
  *
  * <b><i>Instance Handle</i></b><br>
  * The given instance handle must correspond to the value that was returned by either
- * the dds_register_instance operation, dds_register_instance_ts or dds_instance_lookup.
+ * the dds_register_instance operation, dds_register_instance_ts or dds_lookup_instance.
  * If there is no correspondence, then the result of the operation is unspecified.
  *
  * @param[in]  writer The writer to dispose the data instance from.
@@ -3051,7 +3051,7 @@ dds_return_loan(
     T x = { ... };
     T y;
     dds_instance_handle_t ih;
-    ih = dds_instance_lookup (e, &x);
+    ih = dds_lookup_instance (e, &x);
     dds_instance_get_key (e, ih, &y);
 */
 
@@ -3065,7 +3065,14 @@ dds_return_loan(
  */
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
 DDS_EXPORT dds_instance_handle_t
-dds_instance_lookup(
+dds_lookup_instance(
+        dds_entity_t entity,
+        const void *data);
+
+_Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
+DDS_EXPORT dds_instance_handle_t
+DDS_DEPRECATED_EXPORT
+dds_instance_lookup (
         dds_entity_t entity,
         const void *data);
 

@@ -199,23 +199,22 @@ CU_Test(ddsc_register_instance, registering_new_instance, .init=registering_init
     dds_instance_handle_t instHndl, instHndl2;
     dds_return_t ret;
     Space_Type1 newInstance = { INITIAL_SAMPLES, 0, 0 };
-    instHndl = dds_instance_lookup(g_writer, &newInstance);
+    instHndl = dds_lookup_instance(g_writer, &newInstance);
     CU_ASSERT_EQUAL_FATAL(instHndl, DDS_HANDLE_NIL);
     ret = dds_register_instance(g_writer, &instHndl2, &newInstance);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    instHndl = dds_instance_lookup(g_writer, &newInstance);
     CU_ASSERT_EQUAL_FATAL(instHndl, instHndl2);
+    instHndl = dds_lookup_instance(g_writer, &newInstance);
 }
 
 CU_Test(ddsc_register_instance, data_already_available, .init=registering_init, .fini=registering_fini)
 {
     dds_instance_handle_t instHndl, instHndl2;
     dds_return_t ret;
-    instHndl = dds_instance_lookup(g_writer, &g_data);
+    instHndl = dds_lookup_instance(g_writer, &g_data);
     CU_ASSERT_NOT_EQUAL_FATAL(instHndl, DDS_HANDLE_NIL);
     ret = dds_register_instance(g_writer, &instHndl2, &g_data);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(instHndl2, instHndl);
-
 }
 

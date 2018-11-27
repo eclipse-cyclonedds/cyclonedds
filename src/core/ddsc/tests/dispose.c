@@ -903,7 +903,7 @@ CU_Theory((dds_entity_t *writer), ddsc_dispose_ih, non_writers, .init=disposing_
 CU_Test(ddsc_dispose_ih, disposing_old_instance, .init=disposing_init, .fini=disposing_fini)
 {
     Space_Type1 oldInstance = { 0, 22, 22 };
-    dds_instance_handle_t hdl = dds_instance_lookup(g_writer, &oldInstance);
+    dds_instance_handle_t hdl = dds_lookup_instance(g_writer, &oldInstance);
     dds_return_t ret;
 
     ret = dds_dispose_ih(g_writer, hdl);
@@ -1001,7 +1001,7 @@ CU_Theory((dds_entity_t *writer), ddsc_dispose_ih_ts, non_writers, .init=disposi
 CU_Test(ddsc_dispose_ih_ts, disposing_old_instance, .init=disposing_init, .fini=disposing_fini)
 {
     Space_Type1 oldInstance = { 0, 22, 22 };
-    dds_instance_handle_t hdl = dds_instance_lookup(g_writer, &oldInstance);
+    dds_instance_handle_t hdl = dds_lookup_instance(g_writer, &oldInstance);
     dds_return_t ret;
 
     ret = dds_dispose_ih_ts(g_writer, hdl, g_present);
@@ -1043,7 +1043,7 @@ CU_Test(ddsc_dispose_ih_ts, disposing_old_instance, .init=disposing_init, .fini=
 CU_Test(ddsc_dispose_ih_ts, disposing_past_sample, .init=disposing_init, .fini=disposing_fini)
 {
     Space_Type1 oldInstance = { 0, 0, 0 };
-    dds_instance_handle_t hdl = dds_instance_lookup(g_writer, &oldInstance);
+    dds_instance_handle_t hdl = dds_lookup_instance(g_writer, &oldInstance);
     dds_return_t ret;
 
     /* Disposing a sample in the past should trigger a lost sample. */
