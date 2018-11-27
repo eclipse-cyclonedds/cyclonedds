@@ -261,10 +261,10 @@ a so called 'reliable' reader. Without going into details, the reader
 will be created like this
 ::
 
-    dds_qos_t *qos = dds_qos_create ();
+    dds_qos_t *qos = dds_create_qos ();
     dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
     reader = dds_create_reader (participant, topic, qos, NULL);
-    dds_qos_delete(qos);
+    dds_delete_qos(qos);
 
 We are almost able to read data. However, the read expects an
 array of pointers to valid memory locations. This means the
