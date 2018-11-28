@@ -9,11 +9,8 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-set(CMAKE_INSTALL_TOOLSDIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/tools")
-add_subdirectory(pubsub)
-add_subdirectory(ddsls)
-add_subdirectory(ddsconf)
-if(BUILD_IDLC)
-  add_subdirectory(ddsperf)
-endif()
-add_subdirectory(idlc)
+
+add_executable(idlpp "src/main.c")
+target_include_directories(idlpp PRIVATE "${CMAKE_SOURCE_DIR}/src/types/src")
+target_link_libraries(idlpp PRIVATE ddsrt types)
+
