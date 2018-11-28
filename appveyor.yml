@@ -26,7 +26,8 @@ init:
   - if %PLATFORM%==x64 (set ARCH=x86_64)
 
 install:
-  - pip.exe install conan --upgrade
+  - choco install winflexbison3
+  - pip install conan --upgrade
   - conan user # Creates the conan data directory
 
 before_build:
