@@ -120,13 +120,14 @@ macos1015_xcode11_5: &macos1015_xcode11_5
   compiler: clang
   addons:
     homebrew:
-      packages: [ python3 ]
+      packages: [ python3, bison, flex ]
   before_install:
     - eval "export CC=clang CXX=clang++"
     - eval "export COV_COMPTYPE=clang COV_PLATFORM=macOSX"
     - eval "export BUILD_TOOL_OPTIONS='-j 4'"
     - eval "export GENERATOR='Unix Makefiles'"
     - eval "export PATH=\"${PATH}:$(python3 -m site --user-base)/bin\""
+    - eval "export PATH=\"/usr/local/opt/bison/bin:${PATH}\""
   install:
     - python3 -m pip install conan --upgrade --user
 
