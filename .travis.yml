@@ -29,6 +29,8 @@ osx_xcode10_1: &osx_xcode10_1
     homebrew:
       packages:
       - pyenv-virtualenv
+      - bison
+      - flex
 
 windows_vs2017: &windows_vs2017
   os: windows
@@ -92,6 +94,9 @@ install:
       eval "export JAVA_HOME=\"${JAVA_HOME}\"";
       eval "export PATH=\"$(pwd)/app/conan:${PATH}\"";
     elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+      brew link --force bison flex;
+      export PATH="/usr/local/opt/bison/bin:$PATH";
+      export LDFLAGS="-L/usr/local/opt/bison/lib";
       eval "$(pyenv init -)";
       pyenv virtualenv conan;
       pyenv rehash;

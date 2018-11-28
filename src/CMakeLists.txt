@@ -178,6 +178,7 @@ add_subdirectory(util)
 add_subdirectory(core)
 add_subdirectory(tools)
 add_subdirectory(scripts)
+add_subdirectory(types)
 
 option(USE_DOCS "Enable documentation." OFF)
 if(USE_DOCS)
