@@ -528,11 +528,11 @@ void dds_qset_partition
     }
 
     if (qos->partition.strs != NULL){
-      for (i = 0; i < qos->partition.n; i++) {
-          dds_free(qos->partition.strs[i]);
-      }
-      dds_free(qos->partition.strs);
-      qos->partition.strs = NULL;
+        for (i = 0; i < qos->partition.n; i++) {
+            dds_free(qos->partition.strs[i]);
+        }
+        dds_free(qos->partition.strs);
+        qos->partition.strs = NULL;
     }
 
     qos->partition.n = n;
