@@ -24,7 +24,6 @@
 
 typedef struct {
     char buf[2048];
-    size_t bufsz;
     size_t pos;
 } log_buffer_t;
 
@@ -233,7 +232,7 @@ static void vlog(
         lb->pos = BUF_OFFSET;
         lb->buf[lb->pos] = 0;
     }
-    nrem = lb->bufsz - lb->pos;
+    nrem = sizeof (lb->buf) - lb->pos;
     if (nrem > 0) {
         n = os_vsnprintf(lb->buf + lb->pos, nrem, fmt, ap);
         if (n >= 0 && (size_t) n < nrem) {
@@ -245,7 +244,7 @@ static void vlog(
         if (trunc) {
             static const char msg[] = "(trunc)\n";
             const size_t msglen = sizeof (msg) - 1;
-            assert(lb->pos <= lb->bufsz);
+            assert(lb->pos <= sizeof (lb->buf));
             assert(lb->pos >= msglen);
             memcpy(lb->buf + lb->pos - msglen, msg, msglen);
         }
