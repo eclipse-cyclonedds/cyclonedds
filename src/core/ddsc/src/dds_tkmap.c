@@ -234,7 +234,7 @@ retry:
 
   if (tk && rd)
   {
-    TRACE (("tk=%p iid=%"PRIx64" ", &tk, tk->m_iid));
+    DDS_TRACE("tk=%p iid=%"PRIx64" ", &tk, tk->m_iid);
   }
   return tk;
 }

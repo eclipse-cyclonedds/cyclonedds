@@ -15,7 +15,6 @@
 #include "dds__qos.h"
 #include "dds__err.h"
 #include "ddsi/q_entity.h"
-#include "dds__report.h"
 #include "ddsc/ddsc_project.h"
 
 #define DDS_PUBLISHER_STATUS_MASK   0u
@@ -28,7 +27,8 @@ dds_publisher_instance_hdl(
     (void)e;
     (void)i;
     /* TODO: Get/generate proper handle. */
-    return DDS_ERRNO(DDS_RETCODE_UNSUPPORTED, "Getting publisher instance handle is not supported");
+    DDS_ERROR("Getting publisher instance handle is not supported\n");
+    return DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
 }
 
 static dds_return_t
@@ -41,20 +41,25 @@ dds_publisher_qos_validate(
 
     /* Check consistency. */
     if((qos->present & QP_GROUP_DATA) && !validate_octetseq(&qos->group_data)){
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY, "Group data policy is inconsistent and caused an error");
+        DDS_ERROR("Group data policy is inconsistent and caused an error\n");
+        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
     }
     if((qos->present & QP_PRESENTATION) && (validate_presentation_qospolicy(&qos->presentation) != 0)){
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY, "Presentation policy is inconsistent and caused an error");
+        DDS_ERROR("Presentation policy is inconsistent and caused an error\n");
+        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
     }
     if((qos->present & QP_PARTITION) && !validate_stringseq(&qos->partition)){
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY, "Partition policy is inconsistent and caused an error");
+        DDS_ERROR("Partition policy is inconsistent and caused an error\n");
+        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
     }
     if((qos->present & QP_PRISMTECH_ENTITY_FACTORY) && !validate_entityfactory_qospolicy(&qos->entity_factory)){
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY, "Prismtech entity factory policy is inconsistent and caused an error");
+        DDS_ERROR("Prismtech entity factory policy is inconsistent and caused an error\n");
+        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
     }
     if(ret == DDS_RETCODE_OK && enabled && (qos->present & QP_PRESENTATION)){
         /* TODO: Improve/check immutable check. */
-        ret = DDS_ERRNO(DDS_RETCODE_IMMUTABLE_POLICY, "Presentation policy is immutable");
+        DDS_ERROR("Presentation policy is immutable\n");
+        ret = DDS_ERRNO(DDS_RETCODE_IMMUTABLE_POLICY);
     }
     return ret;
 }
@@ -70,7 +75,8 @@ dds_publisher_qos_set(
     if (ret == DDS_RETCODE_OK) {
         if (enabled) {
             /* TODO: CHAM-95: DDSI does not support changing QoS policies. */
-            ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED, DDSC_PROJECT_NAME" does not support changing QoS policies yet");
+            DDS_ERROR(DDSC_PROJECT_NAME" does not support changing QoS policies yet\n");
+            ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
         }
     }
     return ret;
@@ -78,9 +84,14 @@ dds_publisher_qos_set(
 
 static dds_return_t dds_publisher_status_validate (uint32_t mask)
 {
-    return (mask & ~(DDS_PUBLISHER_STATUS_MASK)) ?
-                     DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Invalid status mask") :
-                     DDS_RETCODE_OK;
+    dds_return_t ret = DDS_RETCODE_OK;
+
+    if (mask & ~(DDS_PUBLISHER_STATUS_MASK)) {
+        DDS_ERROR("Invalid status mask\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+    }
+
+    return ret;
 }
 
 _Pre_satisfies_((participant & DDS_ENTITY_KIND_MASK) == DDS_KIND_PARTICIPANT)
@@ -97,11 +108,10 @@ dds_create_publisher(
     dds_return_t ret;
     dds__retcode_t rc;
 
-    DDS_REPORT_STACK();
-
     rc = dds_entity_lock(participant, DDS_KIND_PARTICIPANT, &par);
     if (rc != DDS_RETCODE_OK) {
-        hdl = DDS_ERRNO(rc, "Error occurred on locking participant");
+        DDS_ERROR("Error occurred on locking participant\n");
+        hdl = DDS_ERRNO(rc);
         goto lock_err;
     }
 
@@ -128,7 +138,6 @@ dds_create_publisher(
 qos_err:
     dds_entity_unlock(par);
 lock_err:
-    DDS_REPORT_FLUSH(hdl <= 0);
     return hdl;
 }
 
@@ -140,16 +149,15 @@ dds_suspend(
 {
     dds_return_t ret;
 
-    DDS_REPORT_STACK();
-
     if(dds_entity_kind(publisher) != DDS_KIND_PUBLISHER) {
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Provided entity is not a publisher kind");
+        DDS_ERROR("Provided entity is not a publisher kind\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
     /* TODO: CHAM-123 Currently unsupported. */
-    ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED, "Suspend publication operation does not being supported yet");
+    DDS_ERROR("Suspend publication operation does not being supported yet\n");
+    ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
 err:
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
     return ret;
 }
 
@@ -161,16 +169,15 @@ dds_resume(
 {
     dds_return_t ret = DDS_RETCODE_OK;
 
-    DDS_REPORT_STACK();
-
     if(dds_entity_kind(publisher) != DDS_KIND_PUBLISHER) {
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER,"Provided entity is not a publisher kind");
+        DDS_ERROR("Provided entity is not a publisher kind\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
     /* TODO: CHAM-123 Currently unsupported. */
-    ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED, "Suspend publication operation does not being supported yet");
+    DDS_ERROR("Suspend publication operation does not being supported yet\n");
+    ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
 err:
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
     return ret;
 }
 
@@ -183,23 +190,25 @@ dds_wait_for_acks(
         _In_ dds_duration_t timeout)
 {
     dds_return_t ret;
-    DDS_REPORT_STACK();
 
     /* TODO: CHAM-125 Currently unsupported. */
     OS_UNUSED_ARG(timeout);
 
     switch(dds_entity_kind(publisher_or_writer)) {
         case DDS_KIND_WRITER:
-            ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED, "Wait for acknowledgments on a writer is not being supported yet");
+            DDS_ERROR("Wait for acknowledgments on a writer is not being supported yet\n");
+            ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
             break;
         case DDS_KIND_PUBLISHER:
-            ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED, "Wait for acknowledgments on a publisher is not being supported yet");
+            DDS_ERROR("Wait for acknowledgments on a publisher is not being supported yet\n");
+            ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
             break;
         default:
-            ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Provided entity is not a publisher nor a writer");
+            DDS_ERROR("Provided entity is not a publisher nor a writer\n");
+            ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
             break;
     }
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
+
     return ret;
 }
 
@@ -209,7 +218,8 @@ dds_publisher_begin_coherent(
 {
     /* TODO: CHAM-124 Currently unsupported. */
     (void)e;
-    return DDS_ERRNO(DDS_RETCODE_UNSUPPORTED, "Using coherency to get a coherent data set is not being supported yet");
+    DDS_ERROR("Using coherency to get a coherent data set is not being supported yet\n");
+    return DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
 }
 
 dds_return_t
@@ -218,6 +228,7 @@ dds_publisher_end_coherent(
 {
     /* TODO: CHAM-124 Currently unsupported. */
     (void)e;
-    return DDS_ERRNO(DDS_RETCODE_UNSUPPORTED, "Using coherency to get a coherent data set is not being supported yet");
+    DDS_ERROR("Using coherency to get a coherent data set is not being supported yet\n");
+    return DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
 }
 

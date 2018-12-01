@@ -134,24 +134,24 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
       if (!threads_vtime_check (&gcreq->nvtimes, gcreq->vtimes))
       {
         /* Not all threads made enough progress => gcreq is not ready
-           yet => sleep for a bit and rety.  Note that we can't even
+           yet => sleep for a bit and retry.  Note that we can't even
            terminate while this gcreq is waiting and that there is no
            condition on which to wait, so a plain sleep is quite
            reasonable. */
         if (trace_shortsleep)
         {
-          TRACE (("gc %p: not yet, shortsleep\n", (void*)gcreq));
+          DDS_TRACE("gc %p: not yet, shortsleep\n", (void*)gcreq);
           trace_shortsleep = 0;
         }
         os_nanoSleep (shortsleep);
       }
       else
       {
-        /* Sufficent progress has been made: may now continue deleting
+        /* Sufficient progress has been made: may now continue deleting
            it; the callback is responsible for requeueing (if complex
            multi-phase delete) or freeing the delete request.  Reset
            the current gcreq as this one obviously is no more.  */
-        TRACE (("gc %p: deleting\n", (void*)gcreq));
+        DDS_TRACE("gc %p: deleting\n", (void*)gcreq);
         thread_state_awake (self);
         gcreq->cb (gcreq);
         thread_state_asleep (self);

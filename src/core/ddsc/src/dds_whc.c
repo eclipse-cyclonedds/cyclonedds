@@ -105,20 +105,6 @@ struct whc_sample_iter_sizecheck {
   char fits_in_generic_type[sizeof(struct whc_sample_iter_impl) <= sizeof(struct whc_sample_iter) ? 1 : -1];
 };
 
-/* Avoiding all nn_log-related activities when LC_WHC is not set
-   (and it hardly ever is, as it is not even included in "trace")
-   saves a couple of % CPU on a high-rate publisher - that's worth
-   it.  So we need a macro & a support function. */
-static int trace_whc (const char *fmt, ...)
-{
-  va_list ap;
-  va_start (ap, fmt);
-  nn_vlog (LC_WHC, fmt, ap);
-  va_end (ap);
-  return 0;
-}
-#define TRACE_WHC(args) ((config.enabled_logcats & LC_WHC) ? (trace_whc args) : 0)
-
 /* Hash + interval tree adminitration of samples-by-sequence number
  * - by definition contains all samples in WHC (unchanged from older versions)
  * Circular array of samples per instance, inited to all 0
@@ -568,7 +554,7 @@ static void free_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop_s
       oldn->idxnode = NULL;
       if (oldn->seq <= max_drop_seq)
       {
-        TRACE_WHC(("  prune tl whcn %p\n", (void *)oldn));
+        DDS_LOG(DDS_LC_WHC, "  prune tl whcn %p\n", (void *)oldn);
         assert(oldn != whc->maxseq_node);
         whc_delete_one (whc, oldn);
       }
@@ -882,7 +868,7 @@ static unsigned whc_default_remove_acked_messages_full (struct whc_impl *whc, se
   if (whc->is_transient_local && whc->tldepth == 0)
   {
     /* KEEP_ALL on transient local, so we can never ever delete anything */
-    TRACE_WHC(("  KEEP_ALL transient-local: do nothing\n"));
+    DDS_LOG(DDS_LC_WHC, "  KEEP_ALL transient-local: do nothing\n");
     *deferred_free_list = NULL;
     return 0;
   }
@@ -892,11 +878,11 @@ static unsigned whc_default_remove_acked_messages_full (struct whc_impl *whc, se
   prev_seq = whcn ? whcn->prev_seq : NULL;
   while (whcn && whcn->seq <= max_drop_seq)
   {
-    TRACE_WHC(("  whcn %p %"PRId64, (void *) whcn, whcn->seq));
+    DDS_LOG(DDS_LC_WHC, "  whcn %p %"PRId64, (void *) whcn, whcn->seq);
     if (whcn_in_tlidx(whc, whcn->idxnode, whcn->idxnode_pos))
     {
       /* quickly skip over samples in tlidx */
-      TRACE_WHC((" tl:keep"));
+      DDS_LOG(DDS_LC_WHC, " tl:keep");
       if (whcn->unacked)
       {
         assert (whc->unacked_bytes >= whcn->size);
@@ -914,13 +900,13 @@ static unsigned whc_default_remove_acked_messages_full (struct whc_impl *whc, se
     }
     else
     {
-      TRACE_WHC((" delete"));
+      DDS_LOG(DDS_LC_WHC, " delete");
       last_to_free->next_seq = whcn;
       last_to_free = last_to_free->next_seq;
       whc_delete_one_intv (whc, &intv, &whcn);
       ndropped++;
     }
-    TRACE_WHC(("\n"));
+    DDS_LOG(DDS_LC_WHC, "\n");
   }
   if (prev_seq)
     prev_seq->next_seq = whcn;
@@ -937,7 +923,7 @@ static unsigned whc_default_remove_acked_messages_full (struct whc_impl *whc, se
   if (whc->tldepth > 0 && whc->idxdepth > whc->tldepth)
   {
     assert(whc->hdepth == whc->idxdepth);
-    TRACE_WHC(("  idxdepth %u > tldepth %u > 0 -- must prune\n", whc->idxdepth, whc->tldepth));
+    DDS_LOG(DDS_LC_WHC, "  idxdepth %u > tldepth %u > 0 -- must prune\n", whc->idxdepth, whc->tldepth);
 
     /* Do a second pass over the sequence number range we just processed: this time we only
        encounter samples that were retained because of the transient-local durability setting
@@ -948,14 +934,14 @@ static unsigned whc_default_remove_acked_messages_full (struct whc_impl *whc, se
       struct whc_idxnode * const idxn = whcn->idxnode;
       unsigned cnt, idx;
 
-      TRACE_WHC(("  whcn %p %"PRId64" idxn %p prune_seq %"PRId64":", (void *)whcn, whcn->seq, (void *)idxn, idxn->prune_seq));
+      DDS_LOG(DDS_LC_WHC, "  whcn %p %"PRId64" idxn %p prune_seq %"PRId64":", (void *)whcn, whcn->seq, (void *)idxn, idxn->prune_seq);
 
       assert(whcn_in_tlidx(whc, idxn, whcn->idxnode_pos));
       assert (idxn->prune_seq <= max_drop_seq);
 
       if (idxn->prune_seq == max_drop_seq)
       {
-        TRACE_WHC((" already pruned\n"));
+        DDS_LOG(DDS_LC_WHC, " already pruned\n");
         whcn = whcn->next_seq;
         continue;
       }
@@ -983,7 +969,7 @@ static unsigned whc_default_remove_acked_messages_full (struct whc_impl *whc, se
           whcn_template.serdata = ddsi_serdata_ref(oldn->serdata);
           assert(oldn->seq < whcn->seq);
 #endif
-          TRACE_WHC((" del %p %"PRId64, (void *) oldn, oldn->seq));
+          DDS_LOG(DDS_LC_WHC, " del %p %"PRId64, (void *) oldn, oldn->seq);
           whc_delete_one (whc, oldn);
 #ifndef NDEBUG
           assert(ut_hhLookup(whc->idx_hash, &template) == idxn);
@@ -991,7 +977,7 @@ static unsigned whc_default_remove_acked_messages_full (struct whc_impl *whc, se
 #endif
         }
       }
-      TRACE_WHC(("\n"));
+      DDS_LOG(DDS_LC_WHC, "\n");
       whcn = whcn->next_seq;
     }
   }
@@ -1014,13 +1000,13 @@ static unsigned whc_default_remove_acked_messages (struct whc *whc_generic, seqn
   assert (max_drop_seq < MAX_SEQ_NUMBER);
   assert (max_drop_seq >= whc->max_drop_seq);
 
-  if (config.enabled_logcats & LC_WHC)
+  if (dds_get_log_mask() & DDS_LC_WHC)
   {
     struct whc_state tmp;
     get_state_locked(whc, &tmp);
-    TRACE_WHC(("whc_default_remove_acked_messages(%p max_drop_seq %"PRId64")\n", (void *)whc, max_drop_seq));
-    TRACE_WHC(("  whc: [%"PRId64",%"PRId64"] max_drop_seq %"PRId64" h %u tl %u\n",
-               tmp.min_seq, tmp.max_seq, whc->max_drop_seq, whc->hdepth, whc->tldepth));
+    DDS_LOG(DDS_LC_WHC, "whc_default_remove_acked_messages(%p max_drop_seq %"PRId64")\n", (void *)whc, max_drop_seq);
+    DDS_LOG(DDS_LC_WHC, "  whc: [%"PRId64",%"PRId64"] max_drop_seq %"PRId64" h %u tl %u\n",
+               tmp.min_seq, tmp.max_seq, whc->max_drop_seq, whc->hdepth, whc->tldepth);
   }
 
   check_whc (whc);
@@ -1108,13 +1094,13 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
   os_mutexLock (&whc->lock);
   check_whc (whc);
 
-  if (config.enabled_logcats & LC_WHC)
+  if (dds_get_log_mask() & DDS_LC_WHC)
   {
     struct whc_state whcst;
     get_state_locked(whc, &whcst);
-    TRACE_WHC(("whc_default_insert(%p max_drop_seq %"PRId64" seq %"PRId64" plist %p serdata %p:%"PRIx32")\n", (void *)whc, max_drop_seq, seq, (void*)plist, (void*)serdata, serdata->hash));
-    TRACE_WHC(("  whc: [%"PRId64",%"PRId64"] max_drop_seq %"PRId64" h %u tl %u\n",
-               whcst.min_seq, whcst.max_seq, whc->max_drop_seq, whc->hdepth, whc->tldepth));
+    DDS_LOG(DDS_LC_WHC, "whc_default_insert(%p max_drop_seq %"PRId64" seq %"PRId64" plist %p serdata %p:%"PRIx32")\n", (void *)whc, max_drop_seq, seq, (void*)plist, (void*)serdata, serdata->hash);
+    DDS_LOG(DDS_LC_WHC, "  whc: [%"PRId64",%"PRId64"] max_drop_seq %"PRId64" h %u tl %u\n",
+               whcst.min_seq, whcst.max_seq, whc->max_drop_seq, whc->hdepth, whc->tldepth);
   }
 
   assert (max_drop_seq < MAX_SEQ_NUMBER);
@@ -1128,12 +1114,12 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
   /* Always insert in seq admin */
   newn = whc_default_insert_seq (whc, max_drop_seq, seq, plist, serdata);
 
-  TRACE_WHC(("  whcn %p:", (void*)newn));
+  DDS_LOG(DDS_LC_WHC, "  whcn %p:", (void*)newn);
 
   /* Special case of empty data (such as commit messages) can't go into index, and if we're not maintaining an index, we're done, too */
   if (serdata->kind == SDK_EMPTY || whc->idxdepth == 0)
   {
-    TRACE_WHC((" empty or no hist\n"));
+    DDS_LOG(DDS_LC_WHC, " empty or no hist\n");
     os_mutexUnlock (&whc->lock);
     return 0;
   }
@@ -1142,15 +1128,15 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
   if ((idxn = ut_hhLookup (whc->idx_hash, &template)) != NULL)
   {
     /* Unregisters cause deleting of index entry, non-unregister of adding/overwriting in history */
-    TRACE_WHC((" idxn %p", (void *)idxn));
+    DDS_LOG(DDS_LC_WHC, " idxn %p", (void *)idxn);
     if (serdata->statusinfo & NN_STATUSINFO_UNREGISTER)
     {
-      TRACE_WHC((" unreg:delete\n"));
+      DDS_LOG(DDS_LC_WHC, " unreg:delete\n");
       delete_one_instance_from_idx (whc, max_drop_seq, idxn);
       if (newn->seq <= max_drop_seq)
       {
         struct whc_node *prev_seq = newn->prev_seq;
-        TRACE_WHC((" unreg:seq <= max_drop_seq: delete newn\n"));
+        DDS_LOG(DDS_LC_WHC, " unreg:seq <= max_drop_seq: delete newn\n");
         whc_delete_one (whc, newn);
         whc->maxseq_node = prev_seq;
       }
@@ -1162,7 +1148,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
         idxn->headidx = 0;
       if ((oldn = idxn->hist[idxn->headidx]) != NULL)
       {
-        TRACE_WHC((" overwrite whcn %p", (void *)oldn));
+        DDS_LOG(DDS_LC_WHC, " overwrite whcn %p", (void *)oldn);
         oldn->idxnode = NULL;
       }
       idxn->hist[idxn->headidx] = newn;
@@ -1171,7 +1157,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
 
       if (oldn && (whc->hdepth > 0 || oldn->seq <= max_drop_seq))
       {
-        TRACE_WHC((" prune whcn %p", (void *)oldn));
+        DDS_LOG(DDS_LC_WHC, " prune whcn %p", (void *)oldn);
         assert(oldn != whc->maxseq_node);
         whc_delete_one (whc, oldn);
       }
@@ -1187,23 +1173,23 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
           pos -= whc->idxdepth;
         if ((oldn = idxn->hist[pos]) != NULL)
         {
-          TRACE_WHC((" prune tl whcn %p", (void *)oldn));
+          DDS_LOG(DDS_LC_WHC, " prune tl whcn %p", (void *)oldn);
           assert(oldn != whc->maxseq_node);
           whc_delete_one (whc, oldn);
         }
       }
-      TRACE_WHC(("\n"));
+      DDS_LOG(DDS_LC_WHC, "\n");
     }
   }
   else
   {
-    TRACE_WHC((" newkey"));
+    DDS_LOG(DDS_LC_WHC, " newkey");
     /* Ignore unregisters, but insert everything else */
     if (!(serdata->statusinfo & NN_STATUSINFO_UNREGISTER))
     {
       unsigned i;
       idxn = os_malloc (sizeof (*idxn) + whc->idxdepth * sizeof (idxn->hist[0]));
-      TRACE_WHC((" idxn %p", (void *)idxn));
+      DDS_LOG(DDS_LC_WHC, " idxn %p", (void *)idxn);
       dds_tkmap_instance_ref(tk);
       idxn->iid = tk->m_iid;
       idxn->tk = tk;
@@ -1219,16 +1205,16 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
     }
     else
     {
-      TRACE_WHC((" unreg:skip"));
+      DDS_LOG(DDS_LC_WHC, " unreg:skip");
       if (newn->seq <= max_drop_seq)
       {
         struct whc_node *prev_seq = newn->prev_seq;
-        TRACE_WHC((" unreg:seq <= max_drop_seq: delete newn\n"));
+        DDS_LOG(DDS_LC_WHC, " unreg:seq <= max_drop_seq: delete newn\n");
         whc_delete_one (whc, newn);
         whc->maxseq_node = prev_seq;
       }
     }
-    TRACE_WHC(("\n"));
+    DDS_LOG(DDS_LC_WHC, "\n");
   }
   os_mutexUnlock (&whc->lock);
   return 0;

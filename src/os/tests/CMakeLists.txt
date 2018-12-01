@@ -19,13 +19,13 @@ set(sources
   "iter.c"
   "mutex.c"
   "once.c"
-  "report.c"
   "rwlock.c"
   "stdlib.c"
   "strtoll.c"
   "thread.c"
   "thread_cleanup.c"
-  "strcasecmp.c")
+  "strcasecmp.c"
+  "log.c")
 
 add_cunit_executable(abstraction ${sources})
 target_link_libraries(abstraction OSAPI)

@@ -74,21 +74,7 @@ struct cdroctetseq {
   unsigned char value[1];
 };
 
-/* Avoiding all nn_log-related activities when LC_PLIST is not set
-   (and it hardly ever is, as it is not even included in "trace")
-   saves a couple of % CPU on a high-rate subscriber - that's worth
-   it.  So we need a macro & a support function. */
-static int trace_plist (const char *fmt, ...)
-{
-  va_list ap;
-  va_start (ap, fmt);
-  nn_vlog (LC_PLIST, fmt, ap);
-  va_end (ap);
-  return 0;
-}
-#define TRACE_PLIST(args) ((config.enabled_logcats & LC_PLIST) ? (trace_plist args) : 0)
-
-static void log_octetseq (logcat_t cat, unsigned n, const unsigned char *xs);
+static void log_octetseq (uint32_t cat, unsigned n, const unsigned char *xs);
 
 static size_t align4u (size_t x)
 {
@@ -106,18 +92,18 @@ static int validate_string (const struct dd *dd, size_t *len)
   const struct cdrstring *x = (const struct cdrstring *) dd->buf;
   if (dd->bufsz < sizeof (struct cdrstring))
   {
-    TRACE (("plist/validate_string: buffer too small (header)\n"));
+    DDS_TRACE("plist/validate_string: buffer too small (header)\n");
     return ERR_INVALID;
   }
   *len = dd->bswap ? bswap4u (x->length) : x->length;
   if (*len < 1 || *len > dd->bufsz - offsetof (struct cdrstring, contents))
   {
-    TRACE (("plist/validate_string: length %" PRIuSIZE " out of range\n", *len));
+    DDS_TRACE("plist/validate_string: length %" PRIuSIZE " out of range\n", *len);
     return ERR_INVALID;
   }
   if (x->contents[*len-1] != 0)
   {
-    TRACE (("plist/validate_string: terminator missing\n"));
+    DDS_TRACE("plist/validate_string: terminator missing\n");
     return ERR_INVALID;
   }
   return 0;
@@ -207,7 +193,7 @@ static int validate_stringseq (const struct dd *dd)
   int i, n;
   if (dd->bufsz < sizeof (int))
   {
-    TRACE (("plist/validate_stringseq: buffer too small (header)\n"));
+    DDS_TRACE("plist/validate_stringseq: buffer too small (header)\n");
     return ERR_INVALID;
   }
   memcpy (&n, seq, sizeof (n));
@@ -216,7 +202,7 @@ static int validate_stringseq (const struct dd *dd)
   seq += sizeof (int);
   if (n < 0)
   {
-    TRACE (("plist/validate_stringseq: length %d out of range\n", n));
+    DDS_TRACE("plist/validate_stringseq: length %d out of range\n", n);
     return ERR_INVALID;
   }
   else if (n == 0)
@@ -233,14 +219,14 @@ static int validate_stringseq (const struct dd *dd)
       dd1.bufsz = (size_t) (seqend - seq);
       if ((rc = validate_string (&dd1, &len1)) < 0)
       {
-        TRACE (("plist/validate_stringseq: invalid string\n"));
+        DDS_TRACE("plist/validate_stringseq: invalid string\n");
         return rc;
       }
       seq += sizeof (uint32_t) + align4u (len1);
     }
     if (i < n)
     {
-      TRACE (("plist/validate_stringseq: buffer too small (contents)\n"));
+      DDS_TRACE("plist/validate_stringseq: buffer too small (contents)\n");
       return ERR_INVALID;
     }
   }
@@ -262,7 +248,7 @@ static int alias_stringseq (nn_stringseq_t *strseq, const struct dd *dd)
   int result;
   if (dd->bufsz < sizeof (int))
   {
-    TRACE (("plist/alias_stringseq: buffer too small (header)\n"));
+    DDS_TRACE("plist/alias_stringseq: buffer too small (header)\n");
     return ERR_INVALID;
   }
   memcpy (&strseq->n, seq, sizeof (strseq->n));
@@ -271,7 +257,7 @@ static int alias_stringseq (nn_stringseq_t *strseq, const struct dd *dd)
   seq += sizeof (uint32_t);
   if (strseq->n >= UINT_MAX / sizeof(*strs))
   {
-    TRACE (("plist/alias_stringseq: length %u out of range\n", strseq->n));
+    DDS_TRACE("plist/alias_stringseq: length %u out of range\n", strseq->n);
     return ERR_INVALID;
   }
   else if (strseq->n == 0)
@@ -291,14 +277,14 @@ static int alias_stringseq (nn_stringseq_t *strseq, const struct dd *dd)
          and a non-const version of it. */
       if ((result = alias_string ((const unsigned char **) &strs[i], &dd1, &len1)) < 0)
       {
-        TRACE (("plist/alias_stringseq: invalid string\n"));
+        DDS_TRACE("plist/alias_stringseq: invalid string\n");
         goto fail;
       }
       seq += sizeof (uint32_t) + align4u (len1);
     }
     if (i != strseq->n)
     {
-      TRACE (("plist/validate_stringseq: buffer too small (contents)\n"));
+      DDS_TRACE("plist/validate_stringseq: buffer too small (contents)\n");
       result = ERR_INVALID;
       goto fail;
     }
@@ -371,7 +357,7 @@ static int validate_property (_In_ const struct dd *dd, _Out_ size_t *len)
   rc = validate_string(dd, &lenN);
   if (rc != 0)
   {
-    TRACE (("plist/validate_property: name validation failed\n"));
+    DDS_TRACE("plist/validate_property: name validation failed\n");
     return rc;
   }
   lenN = sizeof(uint32_t) + /* cdr string len arg + */
@@ -384,7 +370,7 @@ static int validate_property (_In_ const struct dd *dd, _Out_ size_t *len)
   rc = validate_string(&ddV, &lenV);
   if (rc != 0)
   {
-    TRACE (("plist/validate_property: value validation failed\n"));
+    DDS_TRACE("plist/validate_property: value validation failed\n");
     return rc;
   }
   lenV = sizeof(uint32_t) + /* cdr string len arg + */
@@ -407,7 +393,7 @@ static int alias_property (_Out_ nn_property_t *prop, _In_ const struct dd *dd, 
   rc = alias_string((const unsigned char **)&(prop->name), dd, &lenN);
   if (rc != 0)
   {
-    TRACE (("plist/alias_property: invalid name buffer\n"));
+    DDS_TRACE("plist/alias_property: invalid name buffer\n");
     return rc;
   }
   lenN = sizeof(uint32_t) + /* cdr string len arg + */
@@ -419,7 +405,7 @@ static int alias_property (_Out_ nn_property_t *prop, _In_ const struct dd *dd, 
   rc = alias_string((const unsigned char **)&(prop->value), &ddV, &lenV);
   if (rc != 0)
   {
-    TRACE (("plist/validate_property: invalid value buffer\n"));
+    DDS_TRACE("plist/validate_property: invalid value buffer\n");
     return rc;
   }
   lenV = sizeof(uint32_t) + /* cdr string len arg + */
@@ -463,7 +449,7 @@ static int validate_propertyseq (_In_ const struct dd *dd, _Out_ size_t *len)
   int i, n;
   if (dd->bufsz < sizeof (int))
   {
-    TRACE (("plist/validate_propertyseq: buffer too small (header)\n"));
+    DDS_TRACE("plist/validate_propertyseq: buffer too small (header)\n");
     return ERR_INVALID;
   }
   memcpy (&n, seq, sizeof (n));
@@ -472,7 +458,7 @@ static int validate_propertyseq (_In_ const struct dd *dd, _Out_ size_t *len)
   seq += sizeof (int);
   if (n < 0)
   {
-    TRACE (("plist/validate_propertyseq: length %d out of range\n", n));
+    DDS_TRACE("plist/validate_propertyseq: length %d out of range\n", n);
     return ERR_INVALID;
   }
   else if (n == 0)
@@ -489,14 +475,14 @@ static int validate_propertyseq (_In_ const struct dd *dd, _Out_ size_t *len)
       dd1.bufsz = (size_t) (seqend - seq);
       if ((rc = validate_property (&dd1, &len1)) != 0)
       {
-        TRACE (("plist/validate_propertyseq: invalid property\n"));
+        DDS_TRACE("plist/validate_propertyseq: invalid property\n");
         return rc;
       }
       seq += len1;
     }
     if (i < n)
     {
-      TRACE (("plist/validate_propertyseq: buffer too small (contents)\n"));
+      DDS_TRACE("plist/validate_propertyseq: buffer too small (contents)\n");
       return ERR_INVALID;
     }
   }
@@ -517,7 +503,7 @@ static int alias_propertyseq (_Out_ nn_propertyseq_t *pseq, _In_ const struct dd
   int result;
   if (dd->bufsz < sizeof (int))
   {
-    TRACE (("plist/alias_propertyseq: buffer too small (header)\n"));
+    DDS_TRACE("plist/alias_propertyseq: buffer too small (header)\n");
     return ERR_INVALID;
   }
 
@@ -527,7 +513,7 @@ static int alias_propertyseq (_Out_ nn_propertyseq_t *pseq, _In_ const struct dd
   seq += sizeof (uint32_t);
   if (pseq->n >= UINT_MAX / sizeof(*props))
   {
-    TRACE (("plist/alias_propertyseq: length %u out of range\n", pseq->n));
+    DDS_TRACE("plist/alias_propertyseq: length %u out of range\n", pseq->n);
     return ERR_INVALID;
   }
   else if (pseq->n == 0)
@@ -544,14 +530,14 @@ static int alias_propertyseq (_Out_ nn_propertyseq_t *pseq, _In_ const struct dd
       dd1.bufsz = (size_t) (seqend - seq);
       if ((result = alias_property (&props[i], &dd1, &len1)) != 0)
       {
-        TRACE (("plist/alias_propertyseq: invalid property\n"));
+        DDS_TRACE("plist/alias_propertyseq: invalid property\n");
         goto fail;
       }
       seq += len1;
     }
     if (i != pseq->n)
     {
-      TRACE (("plist/alias_propertyseq: buffer too small (contents)\n"));
+      DDS_TRACE("plist/alias_propertyseq: buffer too small (contents)\n");
       result = ERR_INVALID;
       goto fail;
     }
@@ -621,7 +607,7 @@ static int validate_binaryproperty (_In_ const struct dd *dd, _Out_ size_t *len)
   rc = validate_string(dd, &lenN);
   if (rc != 0)
   {
-    TRACE (("plist/validate_property: name validation failed\n"));
+    DDS_TRACE("plist/validate_property: name validation failed\n");
     return rc;
   }
   lenN = sizeof(uint32_t) + /* cdr string len arg + */
@@ -633,7 +619,7 @@ static int validate_binaryproperty (_In_ const struct dd *dd, _Out_ size_t *len)
   rc = validate_octetseq(&ddV, &lenV);
   if (rc != 0)
   {
-    TRACE (("plist/validate_property: value validation failed\n"));
+    DDS_TRACE("plist/validate_property: value validation failed\n");
     return rc;
   }
   lenV = sizeof(uint32_t) + /* cdr sequence len arg + */
@@ -656,7 +642,7 @@ static int alias_binaryproperty (_Out_ nn_binaryproperty_t *prop, _In_ const str
   rc = alias_string((const unsigned char **)&(prop->name), dd, &lenN);
   if (rc != 0)
   {
-    TRACE (("plist/alias_property: invalid name buffer\n"));
+    DDS_TRACE("plist/alias_property: invalid name buffer\n");
     return rc;
   }
   lenN = sizeof(uint32_t) + /* cdr string len arg + */
@@ -668,7 +654,7 @@ static int alias_binaryproperty (_Out_ nn_binaryproperty_t *prop, _In_ const str
   rc = alias_octetseq(&(prop->value), &ddV);
   if (rc != 0)
   {
-    TRACE (("plist/validate_property: invalid value buffer\n"));
+    DDS_TRACE("plist/validate_property: invalid value buffer\n");
     return rc;
   }
   lenV = sizeof(uint32_t) +           /* cdr sequence len arg + */
@@ -713,7 +699,7 @@ static int validate_binarypropertyseq (_In_ const struct dd *dd, _Out_ size_t *l
   int i, n;
   if (dd->bufsz < sizeof (int))
   {
-    TRACE (("plist/validate_binarypropertyseq: buffer too small (header)\n"));
+    DDS_TRACE("plist/validate_binarypropertyseq: buffer too small (header)\n");
     return ERR_INVALID;
   }
   memcpy (&n, seq, sizeof (n));
@@ -722,7 +708,7 @@ static int validate_binarypropertyseq (_In_ const struct dd *dd, _Out_ size_t *l
   seq += sizeof (int);
   if (n < 0)
   {
-    TRACE (("plist/validate_binarypropertyseq: length %d out of range\n", n));
+    DDS_TRACE("plist/validate_binarypropertyseq: length %d out of range\n", n);
     return ERR_INVALID;
   }
   else if (n == 0)
@@ -739,14 +725,14 @@ static int validate_binarypropertyseq (_In_ const struct dd *dd, _Out_ size_t *l
       dd1.bufsz = (size_t) (seqend - seq);
       if ((rc = validate_binaryproperty (&dd1, &len1)) != 0)
       {
-        TRACE (("plist/validate_binarypropertyseq: invalid property\n"));
+        DDS_TRACE("plist/validate_binarypropertyseq: invalid property\n");
         return rc;
       }
       seq += len1;
     }
     if (i < n)
     {
-      TRACE (("plist/validate_binarypropertyseq: buffer too small (contents)\n"));
+      DDS_TRACE("plist/validate_binarypropertyseq: buffer too small (contents)\n");
       return ERR_INVALID;
     }
   }
@@ -767,7 +753,7 @@ static int alias_binarypropertyseq (_Out_ nn_binarypropertyseq_t *pseq, _In_ con
   int result;
   if (dd->bufsz < sizeof (int))
   {
-    TRACE (("plist/alias_binarypropertyseq: buffer too small (header)\n"));
+    DDS_TRACE("plist/alias_binarypropertyseq: buffer too small (header)\n");
     return ERR_INVALID;
   }
 
@@ -777,7 +763,7 @@ static int alias_binarypropertyseq (_Out_ nn_binarypropertyseq_t *pseq, _In_ con
   seq += sizeof (uint32_t);
   if (pseq->n >= UINT_MAX / sizeof(*props))
   {
-    TRACE (("plist/alias_binarypropertyseq: length %u out of range\n", pseq->n));
+    DDS_TRACE("plist/alias_binarypropertyseq: length %u out of range\n", pseq->n);
     return ERR_INVALID;
   }
   else if (pseq->n == 0)
@@ -794,14 +780,14 @@ static int alias_binarypropertyseq (_Out_ nn_binarypropertyseq_t *pseq, _In_ con
       dd1.bufsz = (size_t) (seqend - seq);
       if ((result = alias_binaryproperty (&props[i], &dd1, &len1)) != 0)
       {
-        TRACE (("plist/alias_binarypropertyseq: invalid property\n"));
+        DDS_TRACE("plist/alias_binarypropertyseq: invalid property\n");
         goto fail;
       }
       seq += len1;
     }
     if (i != pseq->n)
     {
-      TRACE (("plist/alias_binarypropertyseq: buffer too small (contents)\n"));
+      DDS_TRACE("plist/alias_binarypropertyseq: buffer too small (contents)\n");
       result = ERR_INVALID;
       goto fail;
     }
@@ -1081,7 +1067,7 @@ static int validate_time (const nn_ddsi_time_t *t)
     return 0;
   else
   {
-    TRACE (("plist/validate_time: invalid timestamp (%08x.%08x)\n", t->seconds, t->fraction));
+    DDS_TRACE("plist/validate_time: invalid timestamp (%08x.%08x)\n", t->seconds, t->fraction);
     return ERR_INVALID;
   }
 }
@@ -1108,7 +1094,7 @@ int validate_duration (const nn_duration_t *d)
     return 0;
   else
   {
-    TRACE (("plist/validate_time: invalid duration (%08x.%08x)\n", d->sec, d->nanosec));
+    DDS_TRACE("plist/validate_time: invalid duration (%08x.%08x)\n", d->sec, d->nanosec);
     return ERR_INVALID;
   }
 }
@@ -1129,7 +1115,7 @@ static int do_duration (nn_duration_t *q, uint64_t *present, uint64_t fl, const 
   int res;
   if (dd->bufsz < sizeof (*q))
   {
-    TRACE (("plist/do_duration: buffer too small\n"));
+    DDS_TRACE("plist/do_duration: buffer too small\n");
     return ERR_INVALID;
   }
   memcpy (q, dd->buf, sizeof (*q));
@@ -1156,7 +1142,7 @@ int validate_durability_qospolicy (const nn_durability_qospolicy_t *q)
     case NN_PERSISTENT_DURABILITY_QOS:
       break;
     default:
-      TRACE (("plist/validate_durability_qospolicy: invalid kind (%d)\n", (int) q->kind));
+      DDS_TRACE("plist/validate_durability_qospolicy: invalid kind (%d)\n", (int) q->kind);
       return ERR_INVALID;
   }
   return 0;
@@ -1183,7 +1169,7 @@ int validate_history_qospolicy (const nn_history_qospolicy_t *q)
     case NN_KEEP_ALL_HISTORY_QOS:
       break;
     default:
-      TRACE (("plist/validate_history_qospolicy: invalid kind (%d)\n", (int) q->kind));
+      DDS_TRACE("plist/validate_history_qospolicy: invalid kind (%d)\n", (int) q->kind);
       return ERR_INVALID;
   }
   /* Accept all values for depth if kind = ALL */
@@ -1191,7 +1177,7 @@ int validate_history_qospolicy (const nn_history_qospolicy_t *q)
   {
     if (q->depth < 1)
     {
-      TRACE (("plist/validate_history_qospolicy: invalid depth (%d)\n", (int) q->depth));
+      DDS_TRACE("plist/validate_history_qospolicy: invalid depth (%d)\n", (int) q->depth);
       return ERR_INVALID;
     }
   }
@@ -1213,17 +1199,17 @@ int validate_resource_limits_qospolicy (const nn_resource_limits_qospolicy_t *q)
      consistency of the resource limits. */
   if (q->max_samples < 1 && q->max_samples != unlimited)
   {
-    TRACE (("plist/validate_resource_limits_qospolicy: max_samples invalid (%d)\n", (int) q->max_samples));
+    DDS_TRACE("plist/validate_resource_limits_qospolicy: max_samples invalid (%d)\n", (int) q->max_samples);
     return ERR_INVALID;
   }
   if (q->max_instances < 1 && q->max_instances != unlimited)
   {
-    TRACE (("plist/validate_resource_limits_qospolicy: max_instances invalid (%d)\n", (int) q->max_instances));
+    DDS_TRACE("plist/validate_resource_limits_qospolicy: max_instances invalid (%d)\n", (int) q->max_instances);
     return ERR_INVALID;
   }
   if (q->max_samples_per_instance < 1 && q->max_samples_per_instance != unlimited)
   {
-    TRACE (("plist/validate_resource_limits_qospolicy: max_samples_per_instance invalid (%d)\n", (int) q->max_samples_per_instance));
+    DDS_TRACE("plist/validate_resource_limits_qospolicy: max_samples_per_instance invalid (%d)\n", (int) q->max_samples_per_instance);
     return ERR_INVALID;
   }
   if (q->max_samples != unlimited && q->max_samples_per_instance != unlimited)
@@ -1232,7 +1218,7 @@ int validate_resource_limits_qospolicy (const nn_resource_limits_qospolicy_t *q)
        care" and any conditions related to it must be ignored. */
     if (q->max_samples < q->max_samples_per_instance)
     {
-      TRACE (("plist/validate_resource_limits_qospolicy: max_samples (%d) and max_samples_per_instance (%d) incompatible\n", (int) q->max_samples, (int) q->max_samples_per_instance));
+      DDS_TRACE("plist/validate_resource_limits_qospolicy: max_samples (%d) and max_samples_per_instance (%d) incompatible\n", (int) q->max_samples, (int) q->max_samples_per_instance);
       return ERR_INVALID;
     }
   }
@@ -1245,12 +1231,12 @@ int validate_history_and_resource_limits (const nn_history_qospolicy_t *qh, cons
   int res;
   if ((res = validate_history_qospolicy (qh)) < 0)
   {
-    TRACE (("plist/validate_history_and_resource_limits: history policy invalid\n"));
+    DDS_TRACE("plist/validate_history_and_resource_limits: history policy invalid\n");
     return res;
   }
   if ((res = validate_resource_limits_qospolicy (qr)) < 0)
   {
-    TRACE (("plist/validate_history_and_resource_limits: resource_limits policy invalid\n"));
+    DDS_TRACE("plist/validate_history_and_resource_limits: resource_limits policy invalid\n");
     return res;
   }
   switch (qh->kind)
@@ -1259,7 +1245,7 @@ int validate_history_and_resource_limits (const nn_history_qospolicy_t *qh, cons
 #if 0 /* See comment in validate_resource_limits, ref'ing 7.1.3.19 */
       if (qr->max_samples_per_instance != unlimited)
       {
-        TRACE (("plist/validate_history_and_resource_limits: max_samples_per_instance (%d) incompatible with KEEP_ALL policy\n", (int) qr->max_samples_per_instance));
+        DDS_TRACE("plist/validate_history_and_resource_limits: max_samples_per_instance (%d) incompatible with KEEP_ALL policy\n", (int) qr->max_samples_per_instance);
         return ERR_INVALID;
       }
 #endif
@@ -1267,7 +1253,7 @@ int validate_history_and_resource_limits (const nn_history_qospolicy_t *qh, cons
     case NN_KEEP_LAST_HISTORY_QOS:
       if (qr->max_samples_per_instance != unlimited && qh->depth > qr->max_samples_per_instance)
       {
-        TRACE (("plist/validate_history_and_resource_limits: depth (%d) and max_samples_per_instance (%d) incompatible with KEEP_LAST policy\n", (int) qh->depth, (int) qr->max_samples_per_instance));
+        DDS_TRACE("plist/validate_history_and_resource_limits: depth (%d) and max_samples_per_instance (%d) incompatible with KEEP_LAST policy\n", (int) qh->depth, (int) qr->max_samples_per_instance);
         return ERR_INVALID;
       }
       break;
@@ -1287,12 +1273,12 @@ int validate_durability_service_qospolicy (const nn_durability_service_qospolicy
   int res;
   if ((res = validate_duration (&q->service_cleanup_delay)) < 0)
   {
-    TRACE (("plist/validate_durability_service_qospolicy: duration invalid\n"));
+    DDS_TRACE("plist/validate_durability_service_qospolicy: duration invalid\n");
     return res;
   }
   if ((res = validate_history_and_resource_limits (&q->history, &q->resource_limits)) < 0)
   {
-    TRACE (("plist/validate_durability_service_qospolicy: invalid history and/or resource limits\n"));
+    DDS_TRACE("plist/validate_durability_service_qospolicy: invalid history and/or resource limits\n");
     return res;
   }
   return 0;
@@ -1313,10 +1299,10 @@ int validate_liveliness_qospolicy (const nn_liveliness_qospolicy_t *q)
     case NN_MANUAL_BY_PARTICIPANT_LIVELINESS_QOS:
     case NN_MANUAL_BY_TOPIC_LIVELINESS_QOS:
       if ((res = validate_duration (&q->lease_duration)) < 0)
-        TRACE (("plist/validate_liveliness_qospolicy: invalid lease duration\n"));
+        DDS_TRACE("plist/validate_liveliness_qospolicy: invalid lease duration\n");
       return res;
     default:
-      TRACE (("plist/validate_liveliness_qospolicy: invalid kind (%d)\n", (int) q->kind));
+      DDS_TRACE("plist/validate_liveliness_qospolicy: invalid kind (%d)\n", (int) q->kind);
       return ERR_INVALID;
   }
 }
@@ -1341,10 +1327,10 @@ static int validate_xform_reliability_qospolicy (nn_reliability_qospolicy_t *qds
       case NN_PEDANTIC_RELIABLE_RELIABILITY_QOS:
         qdst->kind = NN_RELIABLE_RELIABILITY_QOS;
         if ((res = validate_duration (&qdst->max_blocking_time)) < 0)
-          TRACE (("plist/validate_xform_reliability_qospolicy[pedantic]: max_blocking_time invalid\n"));
+          DDS_TRACE("plist/validate_xform_reliability_qospolicy[pedantic]: max_blocking_time invalid\n");
         return res;
       default:
-        TRACE (("plist/validate_xform_reliability_qospolicy[pedantic]: invalid kind (%d)\n", (int) qext->kind));
+        DDS_TRACE("plist/validate_xform_reliability_qospolicy[pedantic]: invalid kind (%d)\n", (int) qext->kind);
         return ERR_INVALID;
     }
   }
@@ -1358,10 +1344,10 @@ static int validate_xform_reliability_qospolicy (nn_reliability_qospolicy_t *qds
       case NN_INTEROP_RELIABLE_RELIABILITY_QOS:
         qdst->kind = NN_RELIABLE_RELIABILITY_QOS;
         if ((res = validate_duration (&qdst->max_blocking_time)) < 0)
-          TRACE (("plist/validate_xform_reliability_qospolicy[!pedantic]: max_blocking time invalid\n"));
+          DDS_TRACE("plist/validate_xform_reliability_qospolicy[!pedantic]: max_blocking time invalid\n");
         return res;
       default:
-        TRACE (("plist/validate_xform_reliability_qospolicy[!pedantic]: invalid kind (%d)\n", (int) qext->kind));
+        DDS_TRACE("plist/validate_xform_reliability_qospolicy[!pedantic]: invalid kind (%d)\n", (int) qext->kind);
         return ERR_INVALID;
     }
   }
@@ -1380,7 +1366,7 @@ int validate_destination_order_qospolicy (const nn_destination_order_qospolicy_t
     case NN_BY_SOURCE_TIMESTAMP_DESTINATIONORDER_QOS:
       return 0;
     default:
-      TRACE (("plist/validate_destination_order_qospolicy: invalid kind (%d)\n", (int) q->kind));
+      DDS_TRACE("plist/validate_destination_order_qospolicy: invalid kind (%d)\n", (int) q->kind);
       return ERR_INVALID;
   }
 }
@@ -1398,7 +1384,7 @@ int validate_ownership_qospolicy (const nn_ownership_qospolicy_t *q)
     case NN_EXCLUSIVE_OWNERSHIP_QOS:
       return 0;
     default:
-      TRACE (("plist/validate_ownership_qospolicy: invalid kind (%d)\n", (int) q->kind));
+      DDS_TRACE("plist/validate_ownership_qospolicy: invalid kind (%d)\n", (int) q->kind);
       return ERR_INVALID;
   }
 }
@@ -1427,18 +1413,18 @@ int validate_presentation_qospolicy (const nn_presentation_qospolicy_t *q)
     case NN_GROUP_PRESENTATION_QOS:
       break;
     default:
-      TRACE (("plist/validate_presentation_qospolicy: invalid access_scope (%d)\n", (int) q->access_scope));
+      DDS_TRACE("plist/validate_presentation_qospolicy: invalid access_scope (%d)\n", (int) q->access_scope);
       return ERR_INVALID;
   }
   /* Bools must be 0 or 1, i.e., only the lsb may be set */
   if (q->coherent_access & ~1)
   {
-    TRACE (("plist/validate_presentation_qospolicy: coherent_access invalid (%d)\n", (int) q->coherent_access));
+    DDS_TRACE("plist/validate_presentation_qospolicy: coherent_access invalid (%d)\n", (int) q->coherent_access);
     return ERR_INVALID;
   }
   if (q->ordered_access & ~1)
   {
-    TRACE (("plist/validate_presentation_qospolicy: ordered_access invalid (%d)\n", (int) q->ordered_access));
+    DDS_TRACE("plist/validate_presentation_qospolicy: ordered_access invalid (%d)\n", (int) q->ordered_access);
     return ERR_INVALID;
   }
   /* coherent_access & ordered_access are a bit irrelevant for
@@ -1514,7 +1500,7 @@ static int do_locator
 
   if (dd->bufsz < sizeof (loc))
   {
-    TRACE (("plist/do_locator: buffer too small\n"));
+    DDS_TRACE("plist/do_locator: buffer too small\n");
     return ERR_INVALID;
   }
   memcpy (&loc, dd->buf, sizeof (loc));
@@ -1529,12 +1515,12 @@ static int do_locator
     case NN_LOCATOR_KIND_TCPv4:
       if (loc.port <= 0 || loc.port > 65535)
       {
-        TRACE (("plist/do_locator[kind=IPv4]: invalid port (%d)\n", (int) loc.port));
+        DDS_TRACE("plist/do_locator[kind=IPv4]: invalid port (%d)\n", (int) loc.port);
         return ERR_INVALID;
       }
       if (!locator_address_prefix12_zero (&loc))
       {
-        TRACE (("plist/do_locator[kind=IPv4]: junk in address prefix\n"));
+        DDS_TRACE("plist/do_locator[kind=IPv4]: junk in address prefix\n");
         return ERR_INVALID;
       }
       break;
@@ -1542,7 +1528,7 @@ static int do_locator
     case NN_LOCATOR_KIND_TCPv6:
       if (loc.port <= 0 || loc.port > 65535)
       {
-        TRACE (("plist/do_locator[kind=IPv6]: invalid port (%d)\n", (int) loc.port));
+        DDS_TRACE("plist/do_locator[kind=IPv6]: invalid port (%d)\n", (int) loc.port);
         return ERR_INVALID;
       }
       break;
@@ -1552,12 +1538,12 @@ static int do_locator
         return 0;
       if (loc.port <= 0 || loc.port > 65536)
       {
-        TRACE (("plist/do_locator[kind=IPv4MCGEN]: invalid port (%d)\n", (int) loc.port));
+        DDS_TRACE("plist/do_locator[kind=IPv4MCGEN]: invalid port (%d)\n", (int) loc.port);
         return ERR_INVALID;
       }
       if ((int)x->base + x->count >= 28 || x->count == 0 || x->idx >= x->count)
       {
-        TRACE (("plist/do_locator[kind=IPv4MCGEN]: invalid base/count/idx (%u,%u,%u)\n", x->base, x->count, x->idx));
+        DDS_TRACE("plist/do_locator[kind=IPv4MCGEN]: invalid base/count/idx (%u,%u,%u)\n", x->base, x->count, x->idx);
         return ERR_INVALID;
       }
       break;
@@ -1565,12 +1551,12 @@ static int do_locator
     case NN_LOCATOR_KIND_INVALID:
       if (!locator_address_zero (&loc))
       {
-        TRACE (("plist/do_locator[kind=INVALID]: junk in address\n"));
+        DDS_TRACE("plist/do_locator[kind=INVALID]: junk in address\n");
         return ERR_INVALID;
       }
       if (loc.port != 0)
       {
-        TRACE (("plist/do_locator[kind=INVALID]: junk in port\n"));
+        DDS_TRACE("plist/do_locator[kind=INVALID]: junk in port\n");
         return ERR_INVALID;
       }
       /* silently dropped correctly formatted "invalid" locators. */
@@ -1579,7 +1565,7 @@ static int do_locator
       /* silently dropped "reserved" locators. */
       return 0;
     default:
-      TRACE (("plist/do_locator: invalid kind (%d)\n", (int) loc.kind));
+      DDS_TRACE("plist/do_locator: invalid kind (%d)\n", (int) loc.kind);
       return NN_PEDANTIC_P ? ERR_INVALID : 0;
   }
   return add_locator (ls, present, wanted, fl, &loc);
@@ -1602,7 +1588,7 @@ static int do_ipv4address (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp
   uint64_t fldest;
   if (dd->bufsz < sizeof (*a))
   {
-    TRACE (("plist/do_ipv4address: buffer too small\n"));
+    DDS_TRACE("plist/do_ipv4address: buffer too small\n");
     return ERR_INVALID;
   }
   switch (fl_tmp)
@@ -1672,7 +1658,7 @@ static int do_port (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint6
   unsigned fl1_tmp;
   if (dd->bufsz < sizeof (*p))
   {
-    TRACE (("plist/do_port: buffer too small\n"));
+    DDS_TRACE("plist/do_port: buffer too small\n");
     return ERR_INVALID;
   }
   switch (fl_tmp)
@@ -1706,7 +1692,7 @@ static int do_port (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint6
     *p = bswap4u (*p);
   if (*p <= 0 || *p > 65535)
   {
-    TRACE (("plist/do_port: invalid port (%d)\n", (int) *p));
+    DDS_TRACE("plist/do_port: invalid port (%d)\n", (int) *p);
     return ERR_INVALID;
   }
   dest_tmp->present |= fl_tmp;
@@ -1735,7 +1721,7 @@ static int valid_participant_guid (const nn_guid_t *g, UNUSED_ARG (const struct 
       return 0;
     else
     {
-      TRACE (("plist/valid_participant_guid: prefix is 0 but entityid is not (%u)\n", g->entityid.u));
+      DDS_TRACE("plist/valid_participant_guid: prefix is 0 but entityid is not (%u)\n", g->entityid.u);
       return ERR_INVALID;
     }
   }
@@ -1745,7 +1731,7 @@ static int valid_participant_guid (const nn_guid_t *g, UNUSED_ARG (const struct 
   }
   else
   {
-    TRACE (("plist/valid_participant_guid: entityid not a participant entityid (%u)\n", g->entityid.u));
+    DDS_TRACE("plist/valid_participant_guid: entityid not a participant entityid (%u)\n", g->entityid.u);
     return ERR_INVALID;
   }
 }
@@ -1759,7 +1745,7 @@ static int valid_group_guid (const nn_guid_t *g, UNUSED_ARG (const struct dd *dd
       return 0;
     else
     {
-      TRACE (("plist/valid_group_guid: prefix is 0 but entityid is not (%u)\n", g->entityid.u));
+      DDS_TRACE("plist/valid_group_guid: prefix is 0 but entityid is not (%u)\n", g->entityid.u);
       return ERR_INVALID;
     }
   }
@@ -1770,7 +1756,7 @@ static int valid_group_guid (const nn_guid_t *g, UNUSED_ARG (const struct dd *dd
   }
   else
   {
-    TRACE (("plist/valid_group_guid: entityid is 0\n"));
+    DDS_TRACE("plist/valid_group_guid: entityid is 0\n");
     return ERR_INVALID;
   }
 }
@@ -1784,7 +1770,7 @@ static int valid_endpoint_guid (const nn_guid_t *g, const struct dd *dd)
       return 0;
     else
     {
-      TRACE (("plist/valid_endpoint_guid: prefix is 0 but entityid is not (%x)\n", g->entityid.u));
+      DDS_TRACE("plist/valid_endpoint_guid: prefix is 0 but entityid is not (%x)\n", g->entityid.u);
       return ERR_INVALID;
     }
   }
@@ -1803,9 +1789,9 @@ static int valid_endpoint_guid (const nn_guid_t *g, const struct dd *dd)
             return 0;
           else
           {
-            TRACE (("plist/valid_endpoint_guid[src=USER,proto=%u.%u]: invalid kind (%x)\n",
+            DDS_TRACE("plist/valid_endpoint_guid[src=USER,proto=%u.%u]: invalid kind (%x)\n",
                     dd->protocol_version.major, dd->protocol_version.minor,
-                    g->entityid.u & NN_ENTITYID_KIND_MASK));
+                    g->entityid.u & NN_ENTITYID_KIND_MASK);
             return ERR_INVALID;
           }
       }
@@ -1828,8 +1814,8 @@ static int valid_endpoint_guid (const nn_guid_t *g, const struct dd *dd)
             return 0;
           else
           {
-            TRACE (("plist/valid_endpoint_guid[src=BUILTIN,proto=%u.%u]: invalid entityid (%x)\n",
-                    dd->protocol_version.major, dd->protocol_version.minor, g->entityid.u));
+            DDS_TRACE("plist/valid_endpoint_guid[src=BUILTIN,proto=%u.%u]: invalid entityid (%x)\n",
+                    dd->protocol_version.major, dd->protocol_version.minor, g->entityid.u);
             return ERR_INVALID;
           }
       }
@@ -1855,14 +1841,14 @@ static int valid_endpoint_guid (const nn_guid_t *g, const struct dd *dd)
               return 0;
             else
             {
-              TRACE (("plist/valid_endpoint_guid[src=VENDOR,proto=%u.%u]: invalid entityid (%x)\n",
-                      dd->protocol_version.major, dd->protocol_version.minor, g->entityid.u));
+              DDS_TRACE("plist/valid_endpoint_guid[src=VENDOR,proto=%u.%u]: invalid entityid (%x)\n",
+                      dd->protocol_version.major, dd->protocol_version.minor, g->entityid.u);
               return 0;
             }
         }
       }
     default:
-      TRACE (("plist/valid_endpoint_guid: invalid source (%x)\n", g->entityid.u));
+      DDS_TRACE("plist/valid_endpoint_guid: invalid source (%x)\n", g->entityid.u);
       return ERR_INVALID;
   }
 }
@@ -1871,7 +1857,7 @@ static int do_guid (nn_guid_t *dst, uint64_t *present, uint64_t fl, int (*valid)
 {
   if (dd->bufsz < sizeof (*dst))
   {
-    TRACE (("plist/do_guid: buffer too small\n"));
+    DDS_TRACE("plist/do_guid: buffer too small\n");
     return ERR_INVALID;
   }
   memcpy (dst, dd->buf, sizeof (*dst));
@@ -1881,9 +1867,9 @@ static int do_guid (nn_guid_t *dst, uint64_t *present, uint64_t fl, int (*valid)
     if (fl == PP_PARTICIPANT_GUID && vendor_is_twinoaks (dd->vendorid) &&
         dst->entityid.u == 0 && ! NN_STRICT_P)
     {
-      NN_WARNING ("plist(vendor %u.%u): rewriting invalid participant guid %x:%x:%x:%x\n",
-                   dd->vendorid.id[0], dd->vendorid.id[1],
-                   dst->prefix.u[0], dst->prefix.u[1], dst->prefix.u[2], dst->entityid.u);
+      DDS_WARNING("plist(vendor %u.%u): rewriting invalid participant guid %x:%x:%x:%x\n",
+                  dd->vendorid.id[0], dd->vendorid.id[1],
+                  dst->prefix.u[0], dst->prefix.u[1], dst->prefix.u[2], dst->entityid.u);
       dst->entityid.u = NN_ENTITYID_PARTICIPANT;
     }
     else
@@ -1911,7 +1897,7 @@ static int do_prismtech_participant_version_info (nn_prismtech_participant_versi
     return 0;
   else if (dd->bufsz < NN_PRISMTECH_PARTICIPANT_VERSION_INFO_FIXED_CDRSIZE)
   {
-    TRACE (("plist/do_prismtech_participant_version_info[pid=PRISMTECH_PARTICIPANT_VERSION_INFO]: buffer too small\n"));
+    DDS_TRACE("plist/do_prismtech_participant_version_info[pid=PRISMTECH_PARTICIPANT_VERSION_INFO]: buffer too small\n");
     return ERR_INVALID;
   }
   else
@@ -1946,13 +1932,13 @@ static int do_subscription_keys_qospolicy (nn_subscription_keys_qospolicy_t *q, 
   int res;
   if (dd->bufsz < 4)
   {
-    TRACE (("plist/do_subscription_keys: buffer too small\n"));
+    DDS_TRACE("plist/do_subscription_keys: buffer too small\n");
     return ERR_INVALID;
   }
   q->use_key_list = (unsigned char) dd->buf[0];
   if (q->use_key_list != 0 && q->use_key_list != 1)
   {
-    TRACE (("plist/do_subscription_keys: invalid use_key_list (%d)\n", (int) q->use_key_list));
+    DDS_TRACE("plist/do_subscription_keys: invalid use_key_list (%d)\n", (int) q->use_key_list);
     return ERR_INVALID;
   }
   dd1 = *dd;
@@ -1976,7 +1962,7 @@ static int do_reader_lifespan_qospolicy (nn_reader_lifespan_qospolicy_t *q, uint
   int res;
   if (dd->bufsz < sizeof (*q))
   {
-    TRACE (("plist/do_reader_lifespan: buffer too small\n"));
+    DDS_TRACE("plist/do_reader_lifespan: buffer too small\n");
     return ERR_INVALID;
   }
   *q = *((nn_reader_lifespan_qospolicy_t *) dd->buf);
@@ -1984,7 +1970,7 @@ static int do_reader_lifespan_qospolicy (nn_reader_lifespan_qospolicy_t *q, uint
     bswap_duration (&q->duration);
   if (q->use_lifespan != 0 && q->use_lifespan != 1)
   {
-    TRACE (("plist/do_reader_lifespan: invalid use_lifespan (%d)\n", (int) q->use_lifespan));
+    DDS_TRACE("plist/do_reader_lifespan: invalid use_lifespan (%d)\n", (int) q->use_lifespan);
     return ERR_INVALID;
   }
   if ((res = validate_duration (&q->duration)) >= 0)
@@ -1996,13 +1982,13 @@ static int do_entity_factory_qospolicy (nn_entity_factory_qospolicy_t *q, uint64
 {
   if (dd->bufsz < sizeof (*q))
   {
-    TRACE (("plist/do_entity_factory: buffer too small\n"));
+    DDS_TRACE("plist/do_entity_factory: buffer too small\n");
     return ERR_INVALID;
   }
   q->autoenable_created_entities = dd->buf[0];
   if (q->autoenable_created_entities != 0 && q->autoenable_created_entities != 1)
   {
-    TRACE (("plist/do_entity_factory: invalid autoenable_created_entities (%d)\n", (int) q->autoenable_created_entities));
+    DDS_TRACE("plist/do_entity_factory: invalid autoenable_created_entities (%d)\n", (int) q->autoenable_created_entities);
     return ERR_INVALID;
   }
   *present |= fl;
@@ -2014,17 +2000,17 @@ int validate_reader_data_lifecycle (const nn_reader_data_lifecycle_qospolicy_t *
   if (validate_duration (&q->autopurge_nowriter_samples_delay) < 0 ||
       validate_duration (&q->autopurge_disposed_samples_delay) < 0)
   {
-    TRACE (("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: invalid autopurge_nowriter_sample_delay or autopurge_disposed_samples_delay\n"));
+    DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: invalid autopurge_nowriter_sample_delay or autopurge_disposed_samples_delay\n");
     return ERR_INVALID;
   }
   if (q->autopurge_dispose_all != 0 && q->autopurge_dispose_all != 1)
   {
-    TRACE (("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: invalid autopurge_dispose_all\n"));
+    DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: invalid autopurge_dispose_all\n");
     return ERR_INVALID;
   }
   if (q->enable_invalid_samples != 0 && q->enable_invalid_samples != 1)
   {
-    TRACE (("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: invalid enable_invalid_samples\n"));
+    DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: invalid enable_invalid_samples\n");
     return ERR_INVALID;
   }
   /* Don't check consistency between enable_invalid_samples and invalid_samples_mode (yet) */
@@ -2035,7 +2021,7 @@ int validate_reader_data_lifecycle (const nn_reader_data_lifecycle_qospolicy_t *
     case NN_ALL_INVALID_SAMPLE_VISIBILITY_QOS:
       break;
     default:
-      TRACE (("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: invalid invalid_sample_visibility\n"));
+      DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: invalid invalid_sample_visibility\n");
       return ERR_INVALID;
   }
   return 0;
@@ -2096,17 +2082,17 @@ static int do_dataholder (_Out_ nn_dataholder_t *dh, _Inout_ uint64_t *present, 
           ddtmp.bufsz = ddtmp.bufsz - len;
           if ((res = validate_binarypropertyseq (&ddtmp, &len)) != 0)
           {
-            TRACE (("plist/do_dataholder: invalid binary_property_seq\n"));
+            DDS_TRACE("plist/do_dataholder: invalid binary_property_seq\n");
           }
         }
         else
         {
-          TRACE (("plist/do_dataholder: invalid property_seq\n"));
+          DDS_TRACE("plist/do_dataholder: invalid property_seq\n");
         }
       }
       else
       {
-        TRACE (("plist/do_dataholder: invalid class_id\n"));
+        DDS_TRACE("plist/do_dataholder: invalid class_id\n");
       }
     }
     return res;
@@ -2116,7 +2102,7 @@ static int do_dataholder (_Out_ nn_dataholder_t *dh, _Inout_ uint64_t *present, 
   res = alias_string((const unsigned char **)&(dh->class_id), dd, &len /* strlen */);
   if (res != 0)
   {
-    TRACE (("plist/do_dataholder: invalid class_id\n"));
+    DDS_TRACE("plist/do_dataholder: invalid class_id\n");
     return res;
   }
   len = sizeof(uint32_t) + /* cdr string len arg + */
@@ -2128,7 +2114,7 @@ static int do_dataholder (_Out_ nn_dataholder_t *dh, _Inout_ uint64_t *present, 
   res = alias_propertyseq(&(dh->properties), &ddtmp, &len /* complete length */);
   if (res != 0)
   {
-    TRACE (("plist/do_dataholder: invalid property_seq\n"));
+    DDS_TRACE("plist/do_dataholder: invalid property_seq\n");
     return res;
   }
 
@@ -2138,7 +2124,7 @@ static int do_dataholder (_Out_ nn_dataholder_t *dh, _Inout_ uint64_t *present, 
   res = alias_binarypropertyseq(&(dh->binary_properties), &ddtmp, &len /* complete length */);
   if (res != 0)
   {
-    TRACE (("plist/do_dataholder: invalid binary_property_seq\n"));
+    DDS_TRACE("plist/do_dataholder: invalid binary_property_seq\n");
     return res;
   }
 
@@ -2169,7 +2155,7 @@ static int init_one_parameter
 #define Q(NAME_, name_) case PID_##NAME_:                               \
     if (dd->bufsz < sizeof (nn_##name_##_qospolicy_t))                  \
     {                                                                   \
-      TRACE (("plist/init_one_parameter[pid=%s]: buffer too small\n", #NAME_)); \
+      DDS_TRACE("plist/init_one_parameter[pid=%s]: buffer too small\n", #NAME_); \
       return ERR_INVALID;                                               \
     }                                                                   \
     else                                                                \
@@ -2203,7 +2189,7 @@ static int init_one_parameter
     case PID_RELIABILITY:
       if (dd->bufsz < sizeof (nn_external_reliability_qospolicy_t))
       {
-        TRACE (("plist/init_one_parameter[pid=RELIABILITY]: buffer too small\n"));
+        DDS_TRACE("plist/init_one_parameter[pid=RELIABILITY]: buffer too small\n");
         return ERR_INVALID;
       }
       else
@@ -2254,7 +2240,7 @@ static int init_one_parameter
           ret = do_reader_data_lifecycle_v0 (&dest->qos.reader_data_lifecycle, dd);
         else
         {
-          TRACE (("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: buffer too small\n"));
+          DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: buffer too small\n");
           ret = ERR_INVALID;
         }
         if (ret >= 0)
@@ -2269,7 +2255,7 @@ static int init_one_parameter
         nn_writer_data_lifecycle_qospolicy_t *q = &dest->qos.writer_data_lifecycle;
         if (dd->bufsz < 1)
         {
-          TRACE (("plist/init_one_parameter[pid=PRISMTECH_WRITER_DATA_LIFECYCLE]: buffer too small\n"));
+          DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_WRITER_DATA_LIFECYCLE]: buffer too small\n");
           return ERR_INVALID;
         }
         else if (dd->bufsz < sizeof (*q))
@@ -2290,13 +2276,13 @@ static int init_one_parameter
         }
         if (q->autodispose_unregistered_instances & ~1)
         {
-          TRACE (("plist/init_one_parameter[pid=PRISMTECH_WRITER_DATA_LIFECYCLE]: invalid autodispose_unregistered_instances (%d)\n", (int) q->autodispose_unregistered_instances));
+          DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_WRITER_DATA_LIFECYCLE]: invalid autodispose_unregistered_instances (%d)\n", (int) q->autodispose_unregistered_instances);
           return ERR_INVALID;
         }
         if (validate_duration (&q->autounregister_instance_delay) < 0 ||
             validate_duration (&q->autopurge_suspended_samples_delay) < 0)
         {
-          TRACE (("plist/init_one_parameter[pid=PRISMTECH_WRITER_DATA_LIFECYCLE]: invalid autounregister_instance_delay or autopurge_suspended_samples_delay\n"));
+          DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_WRITER_DATA_LIFECYCLE]: invalid autounregister_instance_delay or autopurge_suspended_samples_delay\n");
           return ERR_INVALID;
         }
         dest->qos.present |= QP_PRISMTECH_WRITER_DATA_LIFECYCLE;
@@ -2308,7 +2294,7 @@ static int init_one_parameter
         return 0;
       else if (dd->bufsz < sizeof (dest->qos.relaxed_qos_matching))
       {
-        TRACE (("plist/init_one_parameter[pid=PRISMTECH_RELAXED_QOS_MATCHING]: buffer too small\n"));
+        DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_RELAXED_QOS_MATCHING]: buffer too small\n");
         return ERR_INVALID;
       }
       else
@@ -2317,7 +2303,7 @@ static int init_one_parameter
         memcpy (rqm, dd->buf, sizeof (*rqm));
         if (rqm->value != 0 && rqm->value != 1)
         {
-          TRACE (("plist/init_one_parameter[pid=PRISMTECH_RELAXED_QOS_MATCHING]: invalid\n"));
+          DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_RELAXED_QOS_MATCHING]: invalid\n");
           return ERR_INVALID;
         }
         dest->qos.present |= QP_PRISMTECH_RELAXED_QOS_MATCHING;
@@ -2329,7 +2315,7 @@ static int init_one_parameter
         return 0;
       else if (dd->bufsz < sizeof (dest->qos.synchronous_endpoint))
       {
-        TRACE (("plist/init_one_parameter[pid=PRISMTECH_SYNCHRONOUS_ENDPOINT]: buffer too small\n"));
+        DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_SYNCHRONOUS_ENDPOINT]: buffer too small\n");
         return ERR_INVALID;
       }
       else
@@ -2338,7 +2324,7 @@ static int init_one_parameter
         memcpy (q, dd->buf, sizeof (*q));
         if (q->value != 0 && q->value != 1)
         {
-          TRACE (("plist/init_one_parameter[pid=PRISMTECH_SYNCHRONOUS_ENDPOINT]: invalid value for synchronous flag\n"));
+          DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_SYNCHRONOUS_ENDPOINT]: invalid value for synchronous flag\n");
           return ERR_INVALID;
         }
         dest->qos.present |= QP_PRISMTECH_SYNCHRONOUS_ENDPOINT;
@@ -2349,7 +2335,7 @@ static int init_one_parameter
     case PID_PROTOCOL_VERSION:
       if (dd->bufsz < sizeof (nn_protocol_version_t))
       {
-        TRACE (("plist/init_one_parameter[pid=PROTOCOL_VERSION]: buffer too small\n"));
+        DDS_TRACE("plist/init_one_parameter[pid=PROTOCOL_VERSION]: buffer too small\n");
         return ERR_INVALID;
       }
       memcpy (&dest->protocol_version, dd->buf, sizeof (dest->protocol_version));
@@ -2360,9 +2346,9 @@ static int init_one_parameter
         /* Not accepting a submessage advertising a protocol version
            other than that advertised by the message header, unless I
            have good reason to, at least not when being strict. */
-        TRACE (("plist/init_one_parameter[pid=PROTOCOL_VERSION,mode=STRICT]: version (%u.%u) mismatch with message (%u.%u)\n",
+        DDS_TRACE("plist/init_one_parameter[pid=PROTOCOL_VERSION,mode=STRICT]: version (%u.%u) mismatch with message (%u.%u)\n",
                 dest->protocol_version.major, dest->protocol_version.minor,
-                dd->protocol_version.major, dd->protocol_version.minor));
+                dd->protocol_version.major, dd->protocol_version.minor);
         return ERR_INVALID;
       }
       dest->present |= PP_PROTOCOL_VERSION;
@@ -2377,8 +2363,8 @@ static int init_one_parameter
            dest->vendorid.id[1] != dd->vendorid.id[1]))
       {
         /* see PROTOCOL_VERSION */
-        TRACE (("plist/init_one_parameter[pid=VENDORID,mode=STRICT]: vendor (%u.%u) mismatch with message (%u.%u)\n",
-                dest->vendorid.id[0], dest->vendorid.id[1], dd->vendorid.id[0], dd->vendorid.id[1]));
+        DDS_TRACE("plist/init_one_parameter[pid=VENDORID,mode=STRICT]: vendor (%u.%u) mismatch with message (%u.%u)\n",
+                dest->vendorid.id[0], dest->vendorid.id[1], dd->vendorid.id[0], dd->vendorid.id[1]);
         return ERR_INVALID;
       }
       dest->present |= PP_VENDORID;
@@ -2422,15 +2408,15 @@ static int init_one_parameter
     case PID_EXPECTS_INLINE_QOS:
       if (dd->bufsz < sizeof (dest->expects_inline_qos))
       {
-        TRACE (("plist/init_one_parameter[pid=EXPECTS_INLINE_QOS]: buffer too small\n"));
+        DDS_TRACE("plist/init_one_parameter[pid=EXPECTS_INLINE_QOS]: buffer too small\n");
         return ERR_INVALID;
       }
       dest->expects_inline_qos = dd->buf[0];
       /* boolean: only lsb may be set */
       if (dest->expects_inline_qos & ~1)
       {
-        TRACE (("plist/init_one_parameter[pid=EXPECTS_INLINE_QOS]: invalid expects_inline_qos (%d)\n",
-                (int) dest->expects_inline_qos));
+        DDS_TRACE("plist/init_one_parameter[pid=EXPECTS_INLINE_QOS]: invalid expects_inline_qos (%d)\n",
+                (int) dest->expects_inline_qos);
         return ERR_INVALID;
       }
       dest->present |= PP_EXPECTS_INLINE_QOS;
@@ -2442,7 +2428,7 @@ static int init_one_parameter
          simply accept any value. */
       if (dd->bufsz < sizeof (dest->participant_manual_liveliness_count))
       {
-        TRACE (("plist/init_one_parameter[pid=PARTICIPANT_MANUAL_LIVELINESS_COUNT]: buffer too small\n"));
+        DDS_TRACE("plist/init_one_parameter[pid=PARTICIPANT_MANUAL_LIVELINESS_COUNT]: buffer too small\n");
         return ERR_INVALID;
       }
       memcpy (&dest->participant_manual_liveliness_count, dd->buf, sizeof (dest->participant_manual_liveliness_count));
@@ -2476,7 +2462,7 @@ static int init_one_parameter
     case PID_BUILTIN_ENDPOINT_SET:
       if (dd->bufsz < sizeof (dest->builtin_endpoint_set))
       {
-        TRACE (("plist/init_one_parameter[pid=BUILTIN_ENDPOINT_SET(%u)]: buffer too small\n", pid));
+        DDS_TRACE("plist/init_one_parameter[pid=BUILTIN_ENDPOINT_SET(%u)]: buffer too small\n", pid);
         return ERR_INVALID;
       }
       memcpy (&dest->builtin_endpoint_set, dd->buf, sizeof (dest->builtin_endpoint_set));
@@ -2500,8 +2486,8 @@ static int init_one_parameter
                                           NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER |
                                           NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER)) != 0)
       {
-        TRACE (("plist/init_one_parameter[pid=BUILTIN_ENDPOINT_SET(%u),mode=STRICT,proto=%u.%u]: invalid set (0x%x)\n",
-                pid, dd->protocol_version.major, dd->protocol_version.minor, dest->builtin_endpoint_set));
+        DDS_TRACE("plist/init_one_parameter[pid=BUILTIN_ENDPOINT_SET(%u),mode=STRICT,proto=%u.%u]: invalid set (0x%x)\n",
+                pid, dd->protocol_version.major, dd->protocol_version.minor, dest->builtin_endpoint_set);
         return ERR_INVALID;
       }
       dest->present |= PP_BUILTIN_ENDPOINT_SET;
@@ -2512,7 +2498,7 @@ static int init_one_parameter
         return 0;
       else if (dd->bufsz < sizeof (dest->prismtech_builtin_endpoint_set))
       {
-        TRACE (("plist/init_one_parameter[pid=PRISMTECH_BUILTIN_ENDPOINT_SET(%u)]: buffer too small\n", pid));
+        DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_BUILTIN_ENDPOINT_SET(%u)]: buffer too small\n", pid);
         return ERR_INVALID;
       }
       else
@@ -2535,7 +2521,7 @@ static int init_one_parameter
     case PID_KEYHASH:
       if (dd->bufsz < sizeof (dest->keyhash))
       {
-        TRACE (("plist/init_one_parameter[pid=KEYHASH]: buffer too small\n"));
+        DDS_TRACE("plist/init_one_parameter[pid=KEYHASH]: buffer too small\n");
         return ERR_INVALID;
       }
       memcpy (&dest->keyhash, dd->buf, sizeof (dest->keyhash));
@@ -2545,7 +2531,7 @@ static int init_one_parameter
     case PID_STATUSINFO:
       if (dd->bufsz < sizeof (dest->statusinfo))
       {
-        TRACE (("plist/init_one_parameter[pid=STATUSINFO]: buffer too small\n"));
+        DDS_TRACE("plist/init_one_parameter[pid=STATUSINFO]: buffer too small\n");
         return ERR_INVALID;
       }
       memcpy (&dest->statusinfo, dd->buf, sizeof (dest->statusinfo));
@@ -2555,8 +2541,8 @@ static int init_one_parameter
       {
         /* Spec says I may not interpret the reserved bits. But no-one
            may use them in this version of the specification */
-        TRACE (("plist/init_one_parameter[pid=STATUSINFO,mode=STRICT,proto=%u.%u]: invalid statusinfo (0x%x)\n",
-                dd->protocol_version.major, dd->protocol_version.minor, dest->statusinfo));
+        DDS_TRACE("plist/init_one_parameter[pid=STATUSINFO,mode=STRICT,proto=%u.%u]: invalid statusinfo (0x%x)\n",
+                dd->protocol_version.major, dd->protocol_version.minor, dest->statusinfo);
         return ERR_INVALID;
       }
       /* Clear all bits we don't understand, then add the extended bits if present */
@@ -2576,7 +2562,7 @@ static int init_one_parameter
     case PID_COHERENT_SET:
       if (dd->bufsz < sizeof (dest->coherent_set_seqno))
       {
-        TRACE (("plist/init_one_parameter[pid=COHERENT_SET]: buffer too small\n"));
+        DDS_TRACE("plist/init_one_parameter[pid=COHERENT_SET]: buffer too small\n");
         return ERR_INVALID;
       }
       else
@@ -2592,7 +2578,7 @@ static int init_one_parameter
         seqno = fromSN(dest->coherent_set_seqno);
         if (seqno <= 0 && seqno != NN_SEQUENCE_NUMBER_UNKNOWN)
         {
-          TRACE (("plist/init_one_parameter[pid=COHERENT_SET]: invalid sequence number (%" PRId64 ")\n", seqno));
+          DDS_TRACE("plist/init_one_parameter[pid=COHERENT_SET]: invalid sequence number (%" PRId64 ")\n", seqno);
           return ERR_INVALID;
         }
         dest->present |= PP_COHERENT_SET;
@@ -2612,8 +2598,8 @@ static int init_one_parameter
            reject it: in (really) strict mode we do not accept
            undefined things, even though we are -arguably- supposed to
            ignore it. */
-        TRACE (("plist/init_one_parameter[pid=ENDPOINT_GUID,mode=PEDANTIC,proto=%u.%u]: undefined pid\n",
-                dd->protocol_version.major, dd->protocol_version.minor));
+        DDS_TRACE("plist/init_one_parameter[pid=ENDPOINT_GUID,mode=PEDANTIC,proto=%u.%u]: undefined pid\n",
+                dd->protocol_version.major, dd->protocol_version.minor);
         return ERR_INVALID;
       }
       return do_guid (&dest->endpoint_guid, &dest->present, PP_ENDPOINT_GUID, valid_endpoint_guid, dd);
@@ -2670,7 +2656,7 @@ static int init_one_parameter
         return 0;
       if (dd->bufsz < sizeof (dest->service_type))
       {
-        TRACE (("plist/init_one_parameter[pid=PRISMTECH_SERVICE_TYPE]: buffer too small\n"));
+        DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_SERVICE_TYPE]: buffer too small\n");
         return ERR_INVALID;
       }
       memcpy (&dest->service_type, dd->buf, sizeof (dest->service_type));
@@ -2684,7 +2670,7 @@ static int init_one_parameter
         return 0;
       if (dd->bufsz < sizeof (dest->process_id))
       {
-        TRACE (("plist/init_one_parameter[pid=PRISMTECH_PROCESS_ID]: buffer too small\n"));
+        DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_PROCESS_ID]: buffer too small\n");
         return ERR_INVALID;
       }
       memcpy (&dest->process_id, dd->buf, sizeof (dest->process_id));
@@ -2703,7 +2689,7 @@ static int init_one_parameter
         return 0;
       else if (dd->bufsz < 2*sizeof (uint32_t))
       {
-        TRACE (("plist/init_one_parameter[pid=PRISMTECH_EOTINFO]: buffer too small (1)\n"));
+        DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_EOTINFO]: buffer too small (1)\n");
         return ERR_INVALID;
       }
       else
@@ -2719,7 +2705,7 @@ static int init_one_parameter
         }
         if (q->n > (dd->bufsz - 2*sizeof (uint32_t)) / sizeof (nn_prismtech_eotgroup_tid_t))
         {
-          TRACE (("plist/init_one_parameter[pid=PRISMTECH_EOTINFO]: buffer too small (2)\n"));
+          DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_EOTINFO]: buffer too small (2)\n");
           return ERR_INVALID;
         }
         if (q->n == 0)
@@ -2734,12 +2720,12 @@ static int init_one_parameter
         }
         dest->present |= PP_PRISMTECH_EOTINFO;
         dest->aliased |= PP_PRISMTECH_EOTINFO;
-        if (config.enabled_logcats & LC_PLIST)
+        if (dds_get_log_mask() & DDS_LC_PLIST)
         {
-          TRACE_PLIST (("eotinfo: txn %u {", q->transactionId));
+          DDS_LOG(DDS_LC_PLIST, "eotinfo: txn %u {", q->transactionId);
           for (i = 0; i < q->n; i++)
-            TRACE_PLIST ((" %x:%u", q->tids[i].writer_entityid.u, q->tids[i].transactionId));
-          TRACE_PLIST ((" }\n"));
+            DDS_LOG(DDS_LC_PLIST, " %x:%u", q->tids[i].writer_entityid.u, q->tids[i].transactionId);
+          DDS_LOG(DDS_LC_PLIST, " }\n");
         }
         return 0;
       }
@@ -2748,7 +2734,7 @@ static int init_one_parameter
     case PID_READER_FAVOURS_SSM:
       if (dd->bufsz < sizeof (dest->reader_favours_ssm))
       {
-        TRACE (("plist/init_one_parameter[pid=READER_FAVOURS_SSM]: buffer too small\n"));
+        DDS_TRACE("plist/init_one_parameter[pid=READER_FAVOURS_SSM]: buffer too small\n");
         return ERR_INVALID;
       }
       else
@@ -2759,7 +2745,7 @@ static int init_one_parameter
           rfssm->state = bswap4u (rfssm->state);
         if (rfssm->state != 0 && rfssm->state != 1)
         {
-          TRACE (("plist/init_one_parameter[pid=READER_FAVOURS_SSM]: unsupported value: %u\n", rfssm->state));
+          DDS_TRACE("plist/init_one_parameter[pid=READER_FAVOURS_SSM]: unsupported value: %u\n", rfssm->state);
           rfssm->state = 0;
         }
         dest->present |= PP_READER_FAVOURS_SSM;
@@ -2799,8 +2785,8 @@ static int init_one_parameter
         return 0;
       else if (!protocol_version_is_newer (dd->protocol_version) && NN_STRICT_P)
       {
-        TRACE (("plist/init_one_parameter[pid=%u,mode=STRICT,proto=%u.%u]: undefined paramter id\n",
-                pid, dd->protocol_version.major, dd->protocol_version.minor));
+        DDS_TRACE("plist/init_one_parameter[pid=%u,mode=STRICT,proto=%u.%u]: undefined paramter id\n",
+                pid, dd->protocol_version.major, dd->protocol_version.minor);
         return ERR_INVALID;
       }
       else
@@ -2808,7 +2794,7 @@ static int init_one_parameter
   }
 
   assert (0);
-  TRACE (("plist/init_one_parameter: can't happen\n"));
+  DDS_TRACE("plist/init_one_parameter: can't happen\n");
   return ERR_INVALID;
 }
 
@@ -2985,7 +2971,7 @@ int nn_plist_init_frommsg
 #endif
       break;
     default:
-      NN_WARNING ("plist(vendor %u.%u): unknown encoding (%d)\n",
+      DDS_WARNING ("plist(vendor %u.%u): unknown encoding (%d)\n",
                    src->vendorid.id[0], src->vendorid.id[1], src->encoding);
       return ERR_INVALID;
   }
@@ -2993,7 +2979,7 @@ int nn_plist_init_frommsg
   dest->unalias_needs_bswap = dd.bswap;
   dest_tmp.present = 0;
 
-  TRACE_PLIST (("NN_PLIST_INIT (bswap %d)\n", dd.bswap));
+  DDS_LOG(DDS_LC_PLIST, "NN_PLIST_INIT (bswap %d)\n", dd.bswap);
 
   pl = src->buf;
   while (pl + sizeof (nn_parameter_t) <= src->buf + src->bufsz)
@@ -3011,7 +2997,7 @@ int nn_plist_init_frommsg
     {
       /* Sentinel terminates list, the length is ignored, DDSI
          9.4.2.11. */
-      TRACE_PLIST (("%4x PID %x\n", (unsigned) (pl - src->buf), pid));
+      DDS_LOG(DDS_LC_PLIST, "%4x PID %x\n", (unsigned) (pl - src->buf), pid);
       if ((res = final_validation (dest)) < 0)
       {
         nn_plist_fini (dest);
@@ -3027,24 +3013,24 @@ int nn_plist_init_frommsg
     }
     if (length > src->bufsz - sizeof (*par) - (unsigned) (pl - src->buf))
     {
-      NN_WARNING ("plist(vendor %u.%u): parameter length %u out of bounds\n",
-                   src->vendorid.id[0], src->vendorid.id[1], length);
+      DDS_WARNING("plist(vendor %u.%u): parameter length %u out of bounds\n",
+                  src->vendorid.id[0], src->vendorid.id[1], length);
       nn_plist_fini (dest);
       return ERR_INVALID;
     }
     if ((length % 4) != 0) /* DDSI 9.4.2.11 */
     {
-      NN_WARNING ("plist(vendor %u.%u): parameter length %u mod 4 != 0\n",
-                   src->vendorid.id[0], src->vendorid.id[1], length);
+      DDS_WARNING("plist(vendor %u.%u): parameter length %u mod 4 != 0\n",
+                  src->vendorid.id[0], src->vendorid.id[1], length);
       nn_plist_fini (dest);
       return ERR_INVALID;
     }
 
-    if (config.enabled_logcats & LC_PLIST)
+    if (dds_get_log_mask() & DDS_LC_PLIST)
     {
-      TRACE_PLIST (("%4x PID %x len %u ", (unsigned) (pl - src->buf), pid, length));
-      log_octetseq(LC_PLIST, length, (const unsigned char *) (par + 1));
-      TRACE_PLIST (("\n"));
+      DDS_LOG(DDS_LC_PLIST, "%4x PID %x len %u ", (unsigned) (pl - src->buf), pid, length);
+      log_octetseq(DDS_LC_PLIST, length, (const unsigned char *) (par + 1));
+      DDS_LOG(DDS_LC_PLIST, "\n");
     }
 
     dd.buf = (const unsigned char *) (par + 1);
@@ -3052,7 +3038,7 @@ int nn_plist_init_frommsg
     if ((res = init_one_parameter (dest, &dest_tmp, pwanted, qwanted, pid, &dd)) < 0)
     {
       /* make sure we print a trace message on error */
-      TRACE (("plist(vendor %u.%u): failed at pid=%u\n", src->vendorid.id[0], src->vendorid.id[1], pid));
+      DDS_TRACE("plist(vendor %u.%u): failed at pid=%u\n", src->vendorid.id[0], src->vendorid.id[1], pid);
       nn_plist_fini (dest);
       return res;
     }
@@ -3060,8 +3046,8 @@ int nn_plist_init_frommsg
   }
   /* If we get here, that means we reached the end of the message
      without encountering a sentinel. That is an error */
-  NN_WARNING ("plist(vendor %u.%u): invalid parameter list: sentinel missing\n",
-               src->vendorid.id[0], src->vendorid.id[1]);
+  DDS_WARNING("plist(vendor %u.%u): invalid parameter list: sentinel missing\n",
+              src->vendorid.id[0], src->vendorid.id[1]);
   nn_plist_fini (dest);
   return ERR_INVALID;
 }
@@ -3109,11 +3095,11 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
 #endif
       break;
     default:
-      NN_WARNING ("plist(vendor %u.%u): quickscan: unknown encoding (%d)\n",
-                   src->vendorid.id[0], src->vendorid.id[1], src->encoding);
+      DDS_WARNING("plist(vendor %u.%u): quickscan: unknown encoding (%d)\n",
+                  src->vendorid.id[0], src->vendorid.id[1], src->encoding);
       return NULL;
   }
-  TRACE_PLIST (("NN_PLIST_QUICKSCAN (bswap %d)\n", dest->bswap));
+  DDS_LOG(DDS_LC_PLIST, "NN_PLIST_QUICKSCAN (bswap %d)\n", dest->bswap);
   pl = src->buf;
   while (pl + sizeof (nn_parameter_t) <= src->buf + src->bufsz)
   {
@@ -3127,14 +3113,14 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
       return (unsigned char *) pl;
     if (length > src->bufsz - (size_t)(pl - src->buf))
     {
-      NN_WARNING ("plist(vendor %u.%u): quickscan: parameter length %u out of bounds\n",
+      DDS_WARNING("plist(vendor %u.%u): quickscan: parameter length %u out of bounds\n",
                   src->vendorid.id[0], src->vendorid.id[1], length);
       return NULL;
     }
     if ((length % 4) != 0) /* DDSI 9.4.2.11 */
     {
-      NN_WARNING ("plist(vendor %u.%u): quickscan: parameter length %u mod 4 != 0\n",
-                   src->vendorid.id[0], src->vendorid.id[1], length);
+      DDS_WARNING("plist(vendor %u.%u): quickscan: parameter length %u mod 4 != 0\n",
+                  src->vendorid.id[0], src->vendorid.id[1], length);
       return NULL;
     }
     switch (pid)
@@ -3144,8 +3130,8 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
       case PID_STATUSINFO:
         if (length < 4)
         {
-          TRACE (("plist(vendor %u.%u): quickscan(PID_STATUSINFO): buffer too small\n",
-                  src->vendorid.id[0], src->vendorid.id[1]));
+          DDS_TRACE("plist(vendor %u.%u): quickscan(PID_STATUSINFO): buffer too small\n",
+                    src->vendorid.id[0], src->vendorid.id[1]);
           return NULL;
         }
         else
@@ -3161,7 +3147,7 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
         }
         break;
       default:
-        TRACE_PLIST (("(pid=%x complex_qos=1)", pid));
+        DDS_LOG(DDS_LC_PLIST, "(pid=%x complex_qos=1)", pid);
         dest->complex_qos = 1;
         break;
     }
@@ -3169,8 +3155,8 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
   }
   /* If we get here, that means we reached the end of the message
      without encountering a sentinel. That is an error */
-  NN_WARNING ("plist(vendor %u.%u): quickscan: invalid parameter list: sentinel missing\n",
-               src->vendorid.id[0], src->vendorid.id[1]);
+  DDS_WARNING("plist(vendor %u.%u): quickscan: invalid parameter list: sentinel missing\n",
+              src->vendorid.id[0], src->vendorid.id[1]);
   return NULL;
 }
 
@@ -3441,7 +3427,7 @@ void nn_xqos_copy (nn_xqos_t *dst, const nn_xqos_t *src)
 
 void nn_xqos_unalias (nn_xqos_t *xqos)
 {
-  TRACE_PLIST (("NN_XQOS_UNALIAS\n"));
+  DDS_LOG(DDS_LC_PLIST, "NN_XQOS_UNALIAS\n");
 #define Q(name_, func_, field_) do {                                    \
     if ((xqos->present & QP_##name_) && (xqos->aliased & QP_##name_)) { \
       unalias_##func_ (&xqos->field_, -1);                              \
@@ -3472,13 +3458,13 @@ void nn_xqos_fini (nn_xqos_t *xqos)
     { QP_RTI_TYPECODE, offsetof (nn_xqos_t, rti_typecode.value) }
   };
   int i;
-  TRACE_PLIST (("NN_XQOS_FINI\n"));
+  DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI\n");
   for (i = 0; i < (int) (sizeof (qos_simple) / sizeof (*qos_simple)); i++)
   {
     if ((xqos->present & qos_simple[i].fl) && !(xqos->aliased & qos_simple[i].fl))
     {
       void **pp = (void **) ((char *) xqos + qos_simple[i].off);
-      TRACE_PLIST (("NN_XQOS_FINI free %p\n", *pp));
+      DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", *pp);
       os_free (*pp);
     }
   }
@@ -3491,7 +3477,7 @@ void nn_xqos_fini (nn_xqos_t *xqos)
     else
     {
       /* until proper message buffers arrive */
-      TRACE_PLIST (("NN_XQOS_FINI free %p\n", xqos->partition.strs));
+      DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", xqos->partition.strs);
       os_free (xqos->partition.strs);
     }
   }
@@ -3502,7 +3488,7 @@ void nn_xqos_fini (nn_xqos_t *xqos)
     else
     {
       /* until proper message buffers arrive */
-      TRACE_PLIST (("NN_XQOS_FINI free %p\n", xqos->subscription_keys.key_list.strs));
+      DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", xqos->subscription_keys.key_list.strs);
       os_free (xqos->subscription_keys.key_list.strs);
     }
   }
@@ -3962,7 +3948,7 @@ static unsigned isprint_runlen (unsigned n, const unsigned char *xs)
 }
 
 
-static void log_octetseq (logcat_t cat, unsigned n, const unsigned char *xs)
+static void log_octetseq (uint32_t cat, unsigned n, const unsigned char *xs)
 {
   unsigned i = 0;
   while (i < n)
@@ -3970,7 +3956,7 @@ static void log_octetseq (logcat_t cat, unsigned n, const unsigned char *xs)
     unsigned m = isprint_runlen(n - i, xs);
     if (m >= 4)
     {
-      nn_log (cat, "%s\"%*.*s\"", i == 0 ? "" : ",", m, m, xs);
+      DDS_LOG(cat, "%s\"%*.*s\"", i == 0 ? "" : ",", m, m, xs);
       xs += m;
       i += m;
     }
@@ -3980,23 +3966,23 @@ static void log_octetseq (logcat_t cat, unsigned n, const unsigned char *xs)
         m = 1;
       while (m--)
       {
-        nn_log (cat, "%s%u", i == 0 ? "" : ",", *xs++);
+        DDS_LOG(cat, "%s%u", i == 0 ? "" : ",", *xs++);
         i++;
       }
     }
   }
 }
 
-void nn_log_xqos (logcat_t cat, const nn_xqos_t *xqos)
+void nn_log_xqos (uint32_t cat, const nn_xqos_t *xqos)
 {
   uint64_t p = xqos->present;
   const char *prefix = "";
-#define LOGB0(fmt_) nn_log (cat, "%s" fmt_, prefix)
-#define LOGB1(fmt_, arg0_) nn_log (cat, "%s" fmt_, prefix, arg0_)
-#define LOGB2(fmt_, arg0_, arg1_) nn_log (cat, "%s" fmt_, prefix, arg0_, arg1_)
-#define LOGB3(fmt_, arg0_, arg1_, arg2_) nn_log (cat, "%s" fmt_, prefix, arg0_, arg1_, arg2_)
-#define LOGB4(fmt_, arg0_, arg1_, arg2_, arg3_) nn_log (cat, "%s" fmt_, prefix, arg0_, arg1_, arg2_, arg3_)
-#define LOGB5(fmt_, arg0_, arg1_, arg2_, arg3_, arg4_) nn_log (cat, "%s" fmt_, prefix, arg0_, arg1_, arg2_, arg3_, arg4_)
+#define LOGB0(fmt_) DDS_LOG(cat, "%s" fmt_, prefix)
+#define LOGB1(fmt_, arg0_) DDS_LOG(cat, "%s" fmt_, prefix, arg0_)
+#define LOGB2(fmt_, arg0_, arg1_) DDS_LOG(cat, "%s" fmt_, prefix, arg0_, arg1_)
+#define LOGB3(fmt_, arg0_, arg1_, arg2_) DDS_LOG(cat, "%s" fmt_, prefix, arg0_, arg1_, arg2_)
+#define LOGB4(fmt_, arg0_, arg1_, arg2_, arg3_) DDS_LOG(cat, "%s" fmt_, prefix, arg0_, arg1_, arg2_, arg3_)
+#define LOGB5(fmt_, arg0_, arg1_, arg2_, arg3_, arg4_) DDS_LOG(cat, "%s" fmt_, prefix, arg0_, arg1_, arg2_, arg3_, arg4_)
 #define DO(name_, body_) do { if (p & QP_##name_) { { body_ } prefix = ","; } } while (0)
 
 #if DDSI_DURATION_ACCORDING_TO_SPEC
@@ -4014,26 +4000,26 @@ void nn_log_xqos (logcat_t cat, const nn_xqos_t *xqos)
       unsigned i;
       LOGB0 ("partition={");
       for (i = 0; i < xqos->partition.n; i++) {
-        nn_log (cat, "%s%s", (i == 0) ? "" : ",", xqos->partition.strs[i]);
+        DDS_LOG(cat, "%s%s", (i == 0) ? "" : ",", xqos->partition.strs[i]);
       }
-      nn_log (cat, "}");
+      DDS_LOG(cat, "}");
     });
   DO (GROUP_DATA, {
     LOGB1 ("group_data=%u<", xqos->group_data.length);
     log_octetseq (cat, xqos->group_data.length, xqos->group_data.value);
-    nn_log (cat, ">");
+    DDS_LOG(cat, ">");
   });
   DO (TOPIC_DATA, {
     LOGB1 ("topic_data=%u<", xqos->topic_data.length);
     log_octetseq (cat, xqos->topic_data.length, xqos->topic_data.value);
-    nn_log (cat, ">");
+    DDS_LOG(cat, ">");
   });
   DO (DURABILITY, { LOGB1 ("durability=%d", xqos->durability.kind); });
   DO (DURABILITY_SERVICE, {
       LOGB0 ("durability_service=");
-      nn_log (cat, FMT_DUR, PRINTARG_DUR (xqos->durability_service.service_cleanup_delay));
-      nn_log (cat, ":{%d:%d}", xqos->durability_service.history.kind, xqos->durability_service.history.depth);
-      nn_log (cat, ":{%d:%d:%d}", xqos->durability_service.resource_limits.max_samples, xqos->durability_service.resource_limits.max_instances, xqos->durability_service.resource_limits.max_samples_per_instance);
+      DDS_LOG(cat, FMT_DUR, PRINTARG_DUR (xqos->durability_service.service_cleanup_delay));
+      DDS_LOG(cat, ":{%d:%d}", xqos->durability_service.history.kind, xqos->durability_service.history.depth);
+      DDS_LOG(cat, ":{%d:%d:%d}", xqos->durability_service.resource_limits.max_samples, xqos->durability_service.resource_limits.max_instances, xqos->durability_service.resource_limits.max_samples_per_instance);
     });
   DO (DEADLINE, { LOGB1 ("deadline="FMT_DUR, PRINTARG_DUR (xqos->deadline.deadline)); });
   DO (LATENCY_BUDGET, { LOGB1 ("latency_budget="FMT_DUR, PRINTARG_DUR (xqos->latency_budget.duration)); });
@@ -4047,7 +4033,7 @@ void nn_log_xqos (logcat_t cat, const nn_xqos_t *xqos)
   DO (USER_DATA, {
     LOGB1 ("user_data=%u<", xqos->user_data.length);
     log_octetseq (cat, xqos->user_data.length, xqos->user_data.value);
-    nn_log (cat, ">");
+    DDS_LOG(cat, ">");
   });
   DO (OWNERSHIP, { LOGB1 ("ownership=%d", xqos->ownership.kind); });
   DO (OWNERSHIP_STRENGTH, { LOGB1 ("ownership_strength=%d", xqos->ownership_strength.value); });
@@ -4064,9 +4050,9 @@ void nn_log_xqos (logcat_t cat, const nn_xqos_t *xqos)
     unsigned i;
     LOGB1 ("subscription_keys={%u,{", xqos->subscription_keys.use_key_list);
     for (i = 0; i < xqos->subscription_keys.key_list.n; i++) {
-      nn_log (cat, "%s%s", (i == 0) ? "" : ",", xqos->subscription_keys.key_list.strs[i]);
+      DDS_LOG(cat, "%s%s", (i == 0) ? "" : ",", xqos->subscription_keys.key_list.strs[i]);
     }
-    nn_log (cat, "}}");
+    DDS_LOG(cat, "}}");
   });
   DO (PRISMTECH_ENTITY_FACTORY, { LOGB1 ("entity_factory=%u", xqos->entity_factory.autoenable_created_entities); });
   DO (PRISMTECH_SYNCHRONOUS_ENDPOINT, { LOGB1 ("synchronous_endpoint=%u", xqos->synchronous_endpoint.value); });
@@ -4074,25 +4060,25 @@ void nn_log_xqos (logcat_t cat, const nn_xqos_t *xqos)
     unsigned i;
     LOGB0 ("property={{");
     for (i = 0; i < xqos->property.value.n; i++) {
-      nn_log (cat, "(\"%s\",\"%s\",%d)",
+      DDS_LOG(cat, "(\"%s\",\"%s\",%d)",
               xqos->property.value.props[i].name  ? xqos->property.value.props[i].name  : "nil",
               xqos->property.value.props[i].value ? xqos->property.value.props[i].value : "nil",
               (int)xqos->property.value.props[i].propagate);
     }
-    nn_log (cat, "},{");
+    DDS_LOG(cat, "},{");
     for (i = 0; i < xqos->property.binary_value.n; i++) {
-      nn_log (cat, "(\"%s\",<",
+      DDS_LOG(cat, "(\"%s\",<",
               xqos->property.binary_value.props[i].name  ? xqos->property.binary_value.props[i].name : "nil");
       log_octetseq (cat, xqos->property.binary_value.props[i].value.length, xqos->property.binary_value.props[i].value.value);
-      nn_log (cat, ">,%d)",
+      DDS_LOG(cat, ">,%d)",
               (int)xqos->property.binary_value.props[i].propagate);
     }
-    nn_log (cat, "}}");
+    DDS_LOG(cat, "}}");
   });
   DO (RTI_TYPECODE, {
     LOGB1 ("rti_typecode=%u<", xqos->rti_typecode.length);
     log_octetseq (cat, xqos->rti_typecode.length, xqos->rti_typecode.value);
-    nn_log (cat, ">");
+    DDS_LOG(cat, ">");
   });
 
 #undef PRINTARG_DUR

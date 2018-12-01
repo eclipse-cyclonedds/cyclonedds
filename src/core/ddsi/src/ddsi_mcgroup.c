@@ -154,13 +154,13 @@ static int joinleave_mcgroup (ddsi_tran_conn_t conn, int join, const nn_locator_
 {
   char buf[256];
   int err;
-  TRACE (("%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, 0)));
+  DDS_TRACE("%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, 0));
   if (join)
     err = ddsi_conn_join_mc(conn, srcloc, mcloc, interf);
   else
     err = ddsi_conn_leave_mc(conn, srcloc, mcloc, interf);
   if (err)
-    NN_WARNING ("%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, err));
+    DDS_WARNING("%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, err));
   return err ? -1 : 0;
 }
 
@@ -211,7 +211,7 @@ static int joinleave_mcgroups (ddsi_tran_conn_t conn, int join, const nn_locator
       if (fails > 0)
       {
         if (oks > 0)
-          TRACE (("multicast join failed for some but not all interfaces, proceeding\n"));
+          DDS_TRACE("multicast join failed for some but not all interfaces, proceeding\n");
         else
           return -2;
       }
@@ -228,7 +228,7 @@ int ddsi_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_lo
   if (!reg_group_membership (gv.mship, conn, srcloc, mcloc))
   {
     char buf[256];
-    TRACE (("%s: already joined\n", make_joinleave_msg (buf, sizeof(buf), conn, 1, srcloc, mcloc, NULL, 0)));
+    DDS_TRACE("%s: already joined\n", make_joinleave_msg (buf, sizeof(buf), conn, 1, srcloc, mcloc, NULL, 0));
     ret = 0;
   }
   else
@@ -246,7 +246,7 @@ int ddsi_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_l
   if (!unreg_group_membership (gv.mship, conn, srcloc, mcloc))
   {
     char buf[256];
-    TRACE (("%s: not leaving yet\n", make_joinleave_msg (buf, sizeof(buf), conn, 0, srcloc, mcloc, NULL, 0)));
+    DDS_TRACE("%s: not leaving yet\n", make_joinleave_msg (buf, sizeof(buf), conn, 0, srcloc, mcloc, NULL, 0));
     ret = 0;
   }
   else

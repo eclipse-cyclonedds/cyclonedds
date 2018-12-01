@@ -22,7 +22,6 @@
 #include "dds__init.h"
 #include "dds__tkmap.h"
 #include "dds__whc.h"
-#include "dds__report.h"
 #include "ddsc/ddsc_project.h"
 
 #define DDS_WRITER_STATUS_MASK                                   \
@@ -46,9 +45,14 @@ static dds_return_t
 dds_writer_status_validate(
         uint32_t mask)
 {
-    return (mask & ~(DDS_WRITER_STATUS_MASK)) ?
-                     DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Invalid status mask") :
-                     DDS_RETCODE_OK;
+    dds_return_t ret = DDS_RETCODE_OK;
+
+    if (mask & ~(DDS_WRITER_STATUS_MASK)) {
+        DDS_ERROR("Invalid status mask\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+    }
+
+    return ret;
 }
 
 /*
@@ -75,11 +79,8 @@ dds_writer_status_cb(
         return;
     }
 
-    DDS_REPORT_STACK();
-
     if (dds_writer_lock(((dds_entity*)entity)->m_hdl, &wr) != DDS_RETCODE_OK) {
         /* There's a deletion or closing going on. */
-        DDS_REPORT_FLUSH(false);
         return;
     }
     assert(wr == entity);
@@ -180,8 +181,6 @@ dds_writer_status_cb(
     } else {
         /* Something went wrong up the hierarchy. */
     }
-
-    DDS_REPORT_FLUSH(rc != DDS_RETCODE_OK);
 }
 
 static uint32_t
@@ -215,7 +214,8 @@ dds_writer_close(
         nn_xpack_send (wr->m_xp, false);
     }
     if (delete_writer (&e->m_guid) != 0) {
-        ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Internal error");
+        DDS_ERROR("Internal error");
+        ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     }
     if (asleep) {
         thread_state_asleep(thr);
@@ -268,19 +268,24 @@ dds_writer_qos_validate(
 
     /* Check consistency. */
     if(dds_qos_validate_common(qos) != true){
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY, "Provided inconsistent QoS policy");
+        DDS_ERROR("Provided inconsistent QoS policy\n");
+        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
     }
     if((qos->present & QP_USER_DATA) && validate_octetseq(&qos->user_data) != true){
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY, "User Data QoS policy is inconsistent and caused an error");
+        DDS_ERROR("User Data QoS policy is inconsistent and caused an error\n");
+        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
     }
     if ((qos->present & QP_DURABILITY_SERVICE) && validate_durability_service_qospolicy(&qos->durability_service) != 0){
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY, "Durability service QoS policy is inconsistent and caused an error");
+        DDS_ERROR("Durability service QoS policy is inconsistent and caused an error\n");
+        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
     }
     if ((qos->present & QP_LIFESPAN) && validate_duration(&qos->lifespan.duration) != 0){
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY, "Lifespan QoS policy is inconsistent and caused an error");
+        DDS_ERROR("Lifespan QoS policy is inconsistent and caused an error\n");
+        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
     }
     if ((qos->present & QP_HISTORY) && (qos->present & QP_RESOURCE_LIMITS) && (validate_history_and_resource_limits(&qos->history, &qos->resource_limits) != 0)){
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY, "Resource limits QoS policy is inconsistent and caused an error");
+        DDS_ERROR("Resource limits QoS policy is inconsistent and caused an error\n");
+        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
     }
     if(ret == DDS_RETCODE_OK && enabled) {
         ret = dds_qos_validate_mutable_common(qos);
@@ -330,11 +335,13 @@ dds_writer_qos_set(
                     thread_state_asleep (thr);
                 }
             } else {
-                ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Setting ownership strength doesn't make sense when the ownership is shared.");
+                DDS_ERROR("Setting ownership strength doesn't make sense when the ownership is shared\n");
+                ret = DDS_ERRNO(DDS_RETCODE_ERROR);
             }
         } else {
             if (enabled) {
-                ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED, DDSC_PROJECT_NAME" does not support changing QoS policies yet");
+                DDS_ERROR(DDSC_PROJECT_NAME" does not support changing QoS policies yet\n");
+                ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
             }
         }
     }
@@ -420,8 +427,6 @@ dds_create_writer(
     ddsi_tran_conn_t conn = gv.data_conn_uc;
     dds_return_t ret;
 
-    DDS_REPORT_STACK();
-
     /* Try claiming a participant. If that's not working, then it could be a subscriber. */
     if(dds_entity_kind(participant_or_publisher) == DDS_KIND_PARTICIPANT){
         publisher = dds_create_publisher(participant_or_publisher, qos, NULL);
@@ -431,7 +436,8 @@ dds_create_writer(
     rc = dds_entity_lock(publisher, DDS_KIND_PUBLISHER, &pub);
 
     if (rc != DDS_RETCODE_OK) {
-        writer = DDS_ERRNO(rc, "Error occurred on locking publisher");
+        DDS_ERROR("Error occurred on locking publisher\n");
+        writer = DDS_ERRNO(rc);
         goto err_pub_lock;
     }
 
@@ -441,7 +447,8 @@ dds_create_writer(
 
     rc = dds_entity_lock(topic, DDS_KIND_TOPIC, &tp);
     if (rc != DDS_RETCODE_OK) {
-        writer = DDS_ERRNO(rc, "Error occurred on locking topic");
+        DDS_ERROR("Error occurred on locking topic\n");
+        writer = DDS_ERRNO(rc);
         goto err_tp_lock;
     }
     assert(((dds_topic*)tp)->m_stopic);
@@ -507,7 +514,6 @@ dds_create_writer(
     }
     dds_entity_unlock(tp);
     dds_entity_unlock(pub);
-    DDS_REPORT_FLUSH(writer <= 0);
     return writer;
 
 err_bad_qos:
@@ -518,7 +524,6 @@ err_tp_lock:
         (void)dds_delete(publisher);
     }
 err_pub_lock:
-    DDS_REPORT_FLUSH(writer <= 0);
     return writer;
 }
 
@@ -531,15 +536,14 @@ dds_get_publisher(
 {
     dds_entity_t hdl = DDS_RETCODE_OK;
 
-    DDS_REPORT_STACK();
-
     hdl = dds_valid_hdl(writer, DDS_KIND_WRITER);
     if(hdl != DDS_RETCODE_OK){
-        hdl = DDS_ERRNO(hdl, "Provided handle is not writer kind, so it is not valid");
+        DDS_ERROR("Provided handle is not writer kind, so it is not valid\n");
+        hdl = DDS_ERRNO(hdl);
     } else{
         hdl = dds_get_parent(writer);
     }
-    DDS_REPORT_FLUSH(hdl <= 0);
+
     return hdl;
 }
 
@@ -553,11 +557,10 @@ dds_get_publication_matched_status (
     dds_writer *wr;
     dds_return_t ret = DDS_RETCODE_OK;
 
-    DDS_REPORT_STACK();
-
     rc = dds_writer_lock(writer, &wr);
     if (rc != DDS_RETCODE_OK) {
-        ret = DDS_ERRNO(rc, "Error occurred on locking writer");
+        DDS_ERROR("Error occurred on locking writer\n");
+        ret = DDS_ERRNO(rc);
         goto fail;
     }
     /* status = NULL, application do not need the status, but reset the counter & triggered bit */
@@ -571,7 +574,6 @@ dds_get_publication_matched_status (
     }
     dds_writer_unlock(wr);
 fail:
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
     return ret;
 }
 
@@ -585,11 +587,10 @@ dds_get_liveliness_lost_status (
     dds_writer *wr;
     dds_return_t ret = DDS_RETCODE_OK;
 
-    DDS_REPORT_STACK();
-
     rc = dds_writer_lock(writer, &wr);
     if (rc != DDS_RETCODE_OK) {
-        ret = DDS_ERRNO(rc, "Error occurred on locking writer");
+        DDS_ERROR("Error occurred on locking writer\n");
+        ret = DDS_ERRNO(rc);
         goto fail;
     }
     /* status = NULL, application do not need the status, but reset the counter & triggered bit */
@@ -602,7 +603,6 @@ dds_get_liveliness_lost_status (
     }
     dds_writer_unlock(wr);
 fail:
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
     return ret;
 }
 
@@ -616,11 +616,10 @@ dds_get_offered_deadline_missed_status(
     dds_writer *wr;
     dds_return_t ret = DDS_RETCODE_OK;
 
-    DDS_REPORT_STACK();
-
     rc = dds_writer_lock(writer, &wr);
     if (rc != DDS_RETCODE_OK) {
-        ret = DDS_ERRNO(rc, "Error occurred on locking writer");
+        DDS_ERROR("Error occurred on locking writer\n");
+        ret = DDS_ERRNO(rc);
         goto fail;
     }
     /* status = NULL, application do not need the status, but reset the counter & triggered bit */
@@ -633,7 +632,6 @@ dds_get_offered_deadline_missed_status(
     }
     dds_writer_unlock(wr);
 fail:
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
     return ret;
 }
 
@@ -647,11 +645,10 @@ dds_get_offered_incompatible_qos_status (
     dds_writer *wr;
     dds_return_t ret = DDS_RETCODE_OK;
 
-    DDS_REPORT_STACK();
-
     rc = dds_writer_lock(writer, &wr);
     if (rc != DDS_RETCODE_OK) {
-        ret = DDS_ERRNO(rc, "Error occurred on locking writer");
+        DDS_ERROR("Error occurred on locking writer\n");
+        ret = DDS_ERRNO(rc);
         goto fail;
     }
     /* status = NULL, application do not need the status, but reset the counter & triggered bit */
@@ -664,6 +661,5 @@ dds_get_offered_incompatible_qos_status (
     }
     dds_writer_unlock(wr);
 fail:
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
     return ret;
 }

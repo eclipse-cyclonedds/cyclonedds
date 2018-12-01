@@ -35,7 +35,7 @@ void nn_lat_estim_init (struct nn_lat_estim *le);
 void nn_lat_estim_fini (struct nn_lat_estim *le);
 void nn_lat_estim_update (struct nn_lat_estim *le, int64_t est);
 double nn_lat_estim_current (const struct nn_lat_estim *le);
-int nn_lat_estim_log (logcat_t logcat, const char *tag, const struct nn_lat_estim *le);
+int nn_lat_estim_log (uint32_t logcat, const char *tag, const struct nn_lat_estim *le);
 
 #if defined (__cplusplus)
 }

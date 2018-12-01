@@ -78,18 +78,13 @@ void os_mutexInit (os_mutex *mutex)
 {
   int shared;
   assert (mutex != NULL);
-#ifdef OSPL_STRICT_MEM
-  assert (mutex->signature != OS_MUTEX_MAGIC_SIG);
-#endif
+
   pthread_mutex_init (&mutex->mutex, NULL);
 #if HAVE_LKST
   if (ospl_lkst_enabled)
     lkst_track_init (mutex, shared ? LKST_MF_SHARED : 0);
 #else
   (void)shared;
-#endif
-#ifdef OSPL_STRICT_MEM
-  mutex->signature = OS_MUTEX_MAGIC_SIG;
 #endif
 }
 
@@ -100,22 +95,15 @@ void os_mutexDestroy (os_mutex *mutex)
   if (ospl_lkst_enabled)
     lkst_track_destroy (mutex);
 #endif
-#ifdef OSPL_STRICT_MEM
-  assert(mutex->signature == OS_MUTEX_MAGIC_SIG);
-#endif
+
   if (pthread_mutex_destroy (&mutex->mutex) != 0)
     abort();
-#ifdef OSPL_STRICT_MEM
-  mutex->signature = 0;
-#endif
 }
 
 void os_mutexLock (os_mutex *mutex)
 {
   assert (mutex != NULL);
-#ifdef OSPL_STRICT_MEM
-  assert(mutex->signature == OS_MUTEX_MAGIC_SIG);
-#endif
+
 #if HAVE_LKST
   if (!ospl_lkst_enabled)
 #endif
@@ -146,9 +134,7 @@ os_result os_mutexLock_s (os_mutex *mutex)
 {
   int result;
   assert (mutex != NULL);
-#ifdef OSPL_STRICT_MEM
-  assert(mutex->signature == OS_MUTEX_MAGIC_SIG);
-#endif
+
 #if HAVE_LKST
   if (!ospl_lkst_enabled)
 #endif
@@ -178,9 +164,7 @@ os_result os_mutexTryLock (os_mutex *mutex)
 {
   int result;
   assert (mutex != NULL);
-#ifdef OSPL_STRICT_MEM
-  assert(mutex->signature == OS_MUTEX_MAGIC_SIG);
-#endif
+
   result = pthread_mutex_trylock (&mutex->mutex);
   if (result != 0 && result != EBUSY)
     abort();
@@ -194,9 +178,7 @@ os_result os_mutexTryLock (os_mutex *mutex)
 void os_mutexUnlock (os_mutex *mutex)
 {
   assert (mutex != NULL);
-#ifdef OSPL_STRICT_MEM
-  assert(mutex->signature == OS_MUTEX_MAGIC_SIG);
-#endif
+
 #if HAVE_LKST
   if (ospl_lkst_enabled)
     lkst_track_op (mutex, LKST_UNLOCK, mach_absolute_time (), 0);
@@ -208,36 +190,23 @@ void os_mutexUnlock (os_mutex *mutex)
 void os_condInit (os_cond *cond, os_mutex *dummymtx __attribute__ ((unused)))
 {
   assert (cond != NULL);
-#ifdef OSPL_STRICT_MEM
-  assert(cond->signature != OS_COND_MAGIC_SIG);
-#endif
+
   pthread_cond_init (&cond->cond, NULL);
-#ifdef OSPL_STRICT_MEM
-  cond->signature = OS_COND_MAGIC_SIG;
-#endif
 }
 
 void os_condDestroy (os_cond *cond)
 {
   assert (cond != NULL);
-#ifdef OSPL_STRICT_MEM
-  assert(cond->signature == OS_COND_MAGIC_SIG);
-#endif
+
   if (pthread_cond_destroy (&cond->cond) != 0)
     abort();
-#ifdef OSPL_STRICT_MEM
-  cond->signature = 0;
-#endif
 }
 
 void os_condWait (os_cond *cond, os_mutex *mutex)
 {
   assert (cond != NULL);
   assert (mutex != NULL);
-#ifdef OSPL_STRICT_MEM
-  assert( cond->signature == OS_COND_MAGIC_SIG );
-  assert( mutex->signature == OS_MUTEX_MAGIC_SIG );
-#endif
+
 #if HAVE_LKST
   if (ospl_lkst_enabled)
     lkst_track_op (mutex, LKST_UNLOCK, mach_absolute_time (), 0);
@@ -263,10 +232,6 @@ os_result os_condTimedWait (os_cond *cond, os_mutex *mutex, const os_time *time)
   assert (cond != NULL);
   assert (mutex != NULL);
   assert (time != NULL);
-#ifdef OSPL_STRICT_MEM
-  assert( cond->signature == OS_COND_MAGIC_SIG );
-  assert( mutex->signature == OS_MUTEX_MAGIC_SIG );
-#endif
 
   (void) gettimeofday (&tv, NULL);
 
@@ -300,9 +265,7 @@ os_result os_condTimedWait (os_cond *cond, os_mutex *mutex, const os_time *time)
 void os_condSignal (os_cond *cond)
 {
   assert (cond != NULL);
-#ifdef OSPL_STRICT_MEM
-  assert( cond->signature == OS_COND_MAGIC_SIG );
-#endif
+
   if (pthread_cond_signal (&cond->cond) != 0)
     abort();
 }
@@ -310,47 +273,89 @@ void os_condSignal (os_cond *cond)
 void os_condBroadcast (os_cond *cond)
 {
   assert (cond != NULL);
-#ifdef OSPL_STRICT_MEM
-  assert( cond->signature == OS_COND_MAGIC_SIG );
-#endif
+
   if (pthread_cond_broadcast (&cond->cond) != 0)
     abort();
 }
 
-void os_rwlockInit (os_rwlock *rwlock)
+void os_rwlockInit(os_rwlock *rwlock)
 {
-  os_mutexInit (&rwlock->mutex);
+    int err = 0;
+
+    assert(rwlock != NULL);
+
+    /* process-shared attribute is set to PTHREAD_PROCESS_PRIVATE by default */
+    if ((err = pthread_rwlock_init(&rwlock->rwlock, NULL)) != 0) {
+        abort();
+    }
 }
 
-void os_rwlockDestroy (os_rwlock *rwlock)
+void os_rwlockDestroy(os_rwlock *rwlock)
 {
-  assert (rwlock != NULL);
-  os_mutexDestroy (&rwlock->mutex);
+    int err;
+
+    assert(rwlock != NULL);
+
+    if ((err = pthread_rwlock_destroy(&rwlock->rwlock)) != 0) {
+        abort();
+    }
 }
 
-void os_rwlockRead (os_rwlock *rwlock)
+void os_rwlockRead(os_rwlock *rwlock)
 {
-  os_mutexLock (&rwlock->mutex);
+    int err;
+
+    assert(rwlock != NULL);
+
+    err = pthread_rwlock_rdlock(&rwlock->rwlock);
+    assert(err == 0);
+    (void)err;
 }
 
-void os_rwlockWrite (os_rwlock *rwlock)
+void os_rwlockWrite(os_rwlock *rwlock)
 {
-  os_mutexLock (&rwlock->mutex);
+    int err;
+
+    assert(rwlock != NULL);
+
+    err = pthread_rwlock_wrlock(&rwlock->rwlock);
+    assert(err == 0);
+    (void)err;
 }
 
-os_result os_rwlockTryRead (os_rwlock *rwlock)
+os_result os_rwlockTryRead(os_rwlock *rwlock)
 {
-  return os_mutexTryLock (&rwlock->mutex);
+    int err;
+
+    assert(rwlock != NULL);
+
+    err = pthread_rwlock_tryrdlock(&rwlock->rwlock);
+    assert(err == 0 || err == EBUSY);
+
+    return err == 0 ? os_resultSuccess : os_resultBusy;
 }
 
-os_result os_rwlockTryWrite (os_rwlock *rwlock)
+os_result os_rwlockTryWrite(os_rwlock *rwlock)
 {
-  return os_mutexTryLock (&rwlock->mutex);
+    int err;
+
+    assert(rwlock != NULL);
+
+    err = pthread_rwlock_trywrlock(&rwlock->rwlock);
+    assert(err == 0 || err == EBUSY);
+
+    return err == 0 ? os_resultSuccess : os_resultBusy;
 }
 
-void os_rwlockUnlock (os_rwlock *rwlock)
+void os_rwlockUnlock(os_rwlock *rwlock)
 {
-  os_mutexUnlock (&rwlock->mutex);
+    int err;
+
+    assert(rwlock != NULL);
+
+    err = pthread_rwlock_unlock(&rwlock->rwlock);
+    assert(err == 0);
+    (void)err;
 }
 
 void

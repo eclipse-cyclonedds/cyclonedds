@@ -108,12 +108,12 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
       snprintf(addrbuf, sizeof(addrbuf), "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
                src.sll_addr[0], src.sll_addr[1], src.sll_addr[2],
                src.sll_addr[3], src.sll_addr[4], src.sll_addr[5], ntohs(src.sll_protocol));
-      NN_WARNING ("%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
+      DDS_WARNING("%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
     }
   }
   else if (err != os_sockENOTSOCK && err != os_sockECONNRESET)
   {
-    NN_ERROR ("UDP recvmsg sock %d: ret %d errno %d\n", (int) ((ddsi_raweth_conn_t) conn)->m_sock, (int) ret, err);
+    DDS_ERROR("UDP recvmsg sock %d: ret %d errno %d\n", (int) ((ddsi_raweth_conn_t) conn)->m_sock, (int) ret, err);
   }
   return ret;
 }
@@ -162,7 +162,7 @@ static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const nn_locator_t
 #endif
         break;
       default:
-        NN_ERROR("ddsi_raweth_conn_write failed with error code %d", err);
+        DDS_ERROR("ddsi_raweth_conn_write failed with error code %d", err);
     }
   }
   return ret;
@@ -204,14 +204,14 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (uint32_t port, ddsi_tran_qos_t 
 
   if (port == 0 || port > 65535)
   {
-    NN_ERROR("ddsi_raweth_create_conn %s port %u - using port number as ethernet type, %u won't do\n", mcast ? "multicast" : "unicast", port, port);
+    DDS_ERROR("ddsi_raweth_create_conn %s port %u - using port number as ethernet type, %u won't do\n", mcast ? "multicast" : "unicast", port, port);
     return NULL;
   }
 
   if ((sock = socket(PF_PACKET, SOCK_DGRAM, htons((uint16_t)port))) == -1)
   {
     rc = os_getErrno();
-    NN_ERROR("ddsi_raweth_create_conn %s port %u failed ... errno = %d\n", mcast ? "multicast" : "unicast", port, rc);
+    DDS_ERROR("ddsi_raweth_create_conn %s port %u failed ... errno = %d\n", mcast ? "multicast" : "unicast", port, rc);
     return NULL;
   }
 
@@ -224,7 +224,7 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (uint32_t port, ddsi_tran_qos_t 
   {
     rc = os_getErrno();
     close(sock);
-    NN_ERROR("ddsi_raweth_create_conn %s bind port %u failed ... errno = %d\n", mcast ? "multicast" : "unicast", port, rc);
+    DDS_ERROR("ddsi_raweth_create_conn %s bind port %u failed ... errno = %d\n", mcast ? "multicast" : "unicast", port, rc);
     return NULL;
   }
 
@@ -242,7 +242,7 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (uint32_t port, ddsi_tran_qos_t 
   uc->m_base.m_write_fn = ddsi_raweth_conn_write;
   uc->m_base.m_disable_multiplexing_fn = 0;
 
-  nn_log(LC_INFO, "ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sock, uc->m_base.m_base.m_port);
+  DDS_INFO("ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sock, uc->m_base.m_base.m_port);
   return uc ? &uc->m_base : NULL;
 }
 
@@ -294,9 +294,8 @@ static int ddsi_raweth_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcl
 static void ddsi_raweth_release_conn (ddsi_tran_conn_t conn)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
-  nn_log
+  DDS_INFO
   (
-    LC_INFO,
     "ddsi_raweth_release_conn %s socket %d port %d\n",
     conn->m_base.m_multicast ? "multicast" : "unicast",
     uc->m_sock,
@@ -344,7 +343,7 @@ static void ddsi_raweth_deinit(void)
   if (os_atomic_dec32_nv(&init_g) == 0) {
     if (ddsi_raweth_config_g.mship)
       free_group_membership(ddsi_raweth_config_g.mship);
-    nn_log (LC_INFO | LC_CONFIG, "raweth de-initialized\n");
+    DDS_LOG(DDS_LC_INFO | DDS_LC_CONFIG, "raweth de-initialized\n");
   }
 }
 
@@ -380,7 +379,7 @@ int ddsi_raweth_init (void)
 
     ddsi_raweth_config_g.mship = new_group_membership();
 
-    nn_log (LC_INFO | LC_CONFIG, "raweth initialized\n");
+    DDS_LOG(DDS_LC_INFO | DDS_LC_CONFIG, "raweth initialized\n");
   }
   return 0;
 }

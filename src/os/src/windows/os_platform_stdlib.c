@@ -26,32 +26,6 @@
 #include "../snippets/code/os_stdlib_strcasecmp.c"
 #include "../snippets/code/os_stdlib_strncasecmp.c"
 
-static int32_t
-os__ensurePathExists(
-        _In_z_ const char* dir_name);
-
-/**
-*  \brief create a directory with default
-*  security descriptor.  The mode parameter
-*  is ignored for this Operating System.
-*
-*/
-int32_t
-os_mkdir(
-        const char *path,
-        os_mode_t mode)
-{
-        int32_t result = 0;
-
-        if (CreateDirectory(path, NULL)) {
-                result = 0;
-        }
-        else {
-                result = -1;
-        }
-        return result;
-}
-
 os_result
 os_gethostname(
         char *hostname,
@@ -67,7 +41,7 @@ os_gethostname(
 
         err = WSAStartup(wVersionRequested, &wsaData);
         if (err != 0) {
-                OS_FATAL("os_gethostname", 0, "WSAStartup failed, no compatible socket implementation available");
+                DDS_FATAL("WSAStartup failed, no compatible socket implementation available\n");
                 /* Tell the user that we could not find a usable */
                 /* WinSock DLL.                                  */
                 return os_resultFail;
@@ -114,38 +88,6 @@ os_putenv(
         return result;
 }
 
-const char *
-os_fileSep(void)
-{
-        return "\\";
-}
-
-const char *
-os_pathSep(void)
-{
-        return ";";
-}
-
-os_result
-os_access(
-        const char *file_path,
-        int32_t permission)
-{
-        struct _stat statbuf;
-        os_result result;
-
-        result = os_resultFail;
-        if (file_path) {
-                if (_stat(file_path, &statbuf) == 0) {
-                        if ((statbuf.st_mode & permission) == permission) {
-                                result = os_resultSuccess;
-                        }
-                }
-        }
-
-        return result;
-}
-
 #pragma warning( disable : 4996 )
 int
 os_vfprintfnosigpipe(
@@ -154,184 +96,6 @@ os_vfprintfnosigpipe(
         va_list args)
 {
         return vfprintf(file, format, args);
-}
-
-os_result
-os_stat(
-        const char *path,
-struct os_stat *buf)
-{
-        os_result result;
-        struct _stat32 _buf;
-        int r;
-
-        r = _stat32(path, &_buf);
-        if (r == 0) {
-                buf->stat_mode = _buf.st_mode;
-                buf->stat_size = _buf.st_size;
-                buf->stat_mtime.tv_sec = _buf.st_mtime;
-                buf->stat_mtime.tv_nsec = 0;
-                result = os_resultSuccess;
-        }
-        else {
-                result = os_resultFail;
-        }
-
-        return result;
-}
-
-os_result os_remove(const char *pathname)
-{
-        return (remove(pathname) == 0) ? os_resultSuccess : os_resultFail;
-}
-
-os_result os_rename(const char *oldpath, const char *newpath)
-{
-        (void)os_remove(newpath);
-        return (rename(oldpath, newpath) == 0) ? os_resultSuccess : os_resultFail;
-}
-
-/* The result of os_fileNormalize should be freed with os_free */
-_Ret_z_
-_Must_inspect_result_
-char *
-os_fileNormalize(
-        _In_z_ const char *filepath)
-{
-    char *norm;
-    const char *fpPtr;
-    char *normPtr;
-
-    norm = os_malloc(strlen(filepath) + 1);
-    fpPtr = filepath;
-    normPtr = norm;
-    while (*fpPtr != '\0') {
-        *normPtr = *fpPtr;
-        if ((*fpPtr == '/') || (*fpPtr == '\\')) {
-            *normPtr = OS_FILESEPCHAR;
-            normPtr++;
-        } else {
-            if (*fpPtr != '\"') {
-                normPtr++;
-            }
-        }
-        fpPtr++;
-    }
-    *normPtr = '\0';
-
-    return norm;
-}
-
-os_result
-os_fsync(
-        FILE *fHandle)
-{
-        os_result r;
-
-        if (FlushFileBuffers((HANDLE)fHandle)) {
-                r = os_resultSuccess;
-        }
-        else {
-                r = os_resultFail;
-        }
-        return r;
-}
-
-_Ret_opt_z_ const char *
-os_getTempDir(void)
-{
-        const char * dir_name = NULL;
-
-        dir_name = os_getenv("OSPL_TEMP");
-
-        /* if OSPL_TEMP is not defined use the TEMP variable */
-        if (dir_name == NULL || (strcmp(dir_name, "") == 0)) {
-                dir_name = os_getenv("TEMP");
-        }
-
-        /* if TEMP is not defined use the TMP variable */
-        if (dir_name == NULL || (strcmp(dir_name, "") == 0)) {
-                dir_name = os_getenv("TMP");
-        }
-
-        /* Now we need to verify if we found a temp directory path, and if we did
-        * we have to make sure all the (sub)directories in the path exist.
-        * This is needed  to prevent any other operations from using the directory
-        * path while it doesn't exist and therefore running into errors.
-        */
-        if (dir_name == NULL || (strcmp(dir_name, "") == 0)) {
-                OS_ERROR("os_getTempDir", 0,
-                        "Could not retrieve temporary directory path - "
-                        "neither of environment variables TEMP, TMP, OSPL_TEMP were set");
-        }
-        else if (os__ensurePathExists(dir_name) != 0)
-        {
-                OS_ERROR("os_getTempDir", 0,
-                        "Could not ensure all (sub)directories of the temporary directory\n"
-                        "path '%s' exist.\n"
-                        "This has consequences for the ability of OpenSpliceDDS to run\n"
-                        "properly, as the directory path must be accessible to create\n"
-                        "database and key files in. Without this ability OpenSpliceDDS can\n"
-                        "not start.\n",
-                        dir_name);
-        }
-
-        return dir_name;
-}
-
-int32_t
-os__ensurePathExists(
-    _In_z_ const char* dir_name)
-{
-    char* tmp;
-    char* ptr;
-    char ptrTmp;
-    struct os_stat statBuf;
-    os_result status;
-    int32_t result = 0;
-    int32_t cont = 1;
-
-    tmp = os_strdup(dir_name);
-
-    for (ptr = tmp; cont; ptr++)
-    {
-        if (*ptr == '\\' || *ptr == '/' || *ptr == '\0')
-        {
-            ptrTmp = ptr[0];
-            ptr[0] = '\0';
-            status = os_stat(tmp, &statBuf);
-
-            if (status != os_resultSuccess)
-            {
-                os_mkdir(tmp, 0);
-                status = os_stat(tmp, &statBuf);
-            }
-
-            if (!OS_ISDIR(statBuf.stat_mode))
-            {
-                if ((strlen(tmp) == 2) && (tmp[1] == ':')) {
-                    /*This is a device like for instance: 'C:'*/
-                }
-                else
-                {
-                    OS_ERROR("os_ensurePathExists", 0,
-                        "Unable to create directory '%s' within path '%s'. Errorcode: %d",
-                        tmp,
-                        dir_name,
-                        os_getErrno());
-                    result = -1;
-                }
-            }
-            ptr[0] = ptrTmp;
-        }
-        if (*ptr == '\0' || result == -1)
-        {
-            cont = 0;
-        }
-    }
-    os_free(tmp);
-
-    return result;
 }
 
 #pragma warning( disable : 4996 )
@@ -402,16 +166,6 @@ ssize_t os_write(
         _In_ size_t count)
 {
         return _write(fd, buf, (unsigned int)count); /* Type casting is done for the warning of conversion from 'size_t' to 'unsigned int', which may cause possible loss of data */
-}
-
-void os_flockfile(FILE *file)
-{
-	_lock_file (file);
-}
-
-void os_funlockfile(FILE *file)
-{
-	_unlock_file (file);
 }
 
 int os_getopt(

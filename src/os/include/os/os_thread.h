@@ -37,7 +37,6 @@ extern "C" {
         OS_THREAD_WARNING,
         OS_THREAD_ALLOCATOR_STATE,
         OS_THREAD_NAME,
-        OS_THREAD_REPORT_STACK,
         OS_THREAD_PROCESS_INFO,
         OS_THREAD_STATE, /* Used for monitoring thread progress */
         OS_THREAD_STR_ERROR,

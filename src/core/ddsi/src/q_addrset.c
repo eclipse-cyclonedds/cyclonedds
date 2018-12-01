@@ -50,19 +50,19 @@ static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int p
     case AFSR_OK:
       break;
     case AFSR_INVALID:
-      NN_ERROR ("%s: %s: not a valid address\n", msgtag, ip);
+      DDS_ERROR("%s: %s: not a valid address\n", msgtag, ip);
       return -1;
     case AFSR_UNKNOWN:
-      NN_ERROR ("%s: %s: unknown address\n", msgtag, ip);
+      DDS_ERROR("%s: %s: unknown address\n", msgtag, ip);
       return -1;
     case AFSR_MISMATCH:
-      NN_ERROR ("%s: %s: address family mismatch\n", msgtag, ip);
+      DDS_ERROR("%s: %s: address family mismatch\n", msgtag, ip);
       return -1;
   }
 
   if (req_mc && !ddsi_is_mcaddr (&loc))
   {
-    NN_ERROR ("%s: %s: not a multicast address\n", msgtag, ip);
+    DDS_ERROR ("%s: %s: not a multicast address\n", msgtag, ip);
     return -1;
   }
 
@@ -82,20 +82,20 @@ static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int p
   }
   else
   {
-    NN_ERROR ("%s: %s,%d,%d,%d: IPv4 multicast address generator invalid or out of place\n",
-               msgtag, ip, mcgen_base, mcgen_count, mcgen_idx);
+    DDS_ERROR("%s: %s,%d,%d,%d: IPv4 multicast address generator invalid or out of place\n",
+              msgtag, ip, mcgen_base, mcgen_count, mcgen_idx);
     return -1;
   }
 
   if (port_mode >= 0)
   {
     loc.port = (unsigned) port_mode;
-    nn_log (LC_CONFIG, "%s: add %s", msgtag, ddsi_locator_to_string(buf, sizeof(buf), &loc));
+    DDS_LOG(DDS_LC_CONFIG, "%s: add %s", msgtag, ddsi_locator_to_string(buf, sizeof(buf), &loc));
     add_to_addrset (as, &loc);
   }
   else
   {
-    nn_log (LC_CONFIG, "%s: add ", msgtag);
+    DDS_LOG(DDS_LC_CONFIG, "%s: add ", msgtag);
     if (!ddsi_is_mcaddr (&loc))
     {
       int i;
@@ -104,9 +104,9 @@ static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int p
         int port = config.port_base + config.port_dg * config.domainId.value + i * config.port_pg + config.port_d1;
         loc.port = (unsigned) port;
         if (i == 0)
-          nn_log (LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
+          DDS_LOG(DDS_LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
         else
-          nn_log (LC_CONFIG, ", :%d", port);
+          DDS_LOG(DDS_LC_CONFIG, ", :%d", port);
         add_to_addrset (as, &loc);
       }
     }
@@ -116,12 +116,12 @@ static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int p
       if (port == -1)
         port = config.port_base + config.port_dg * config.domainId.value + config.port_d0;
       loc.port = (unsigned) port;
-      nn_log (LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
+      DDS_LOG(DDS_LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
       add_to_addrset (as, &loc);
     }
   }
 
-  nn_log (LC_CONFIG, "\n");
+  DDS_LOG(DDS_LC_CONFIG, "\n");
   return 0;
 }
 
@@ -168,7 +168,7 @@ int add_addresses_to_addrset (struct addrset *as, const char *addrs, int port_mo
       if (add_addresses_to_addrset_1 (as, ip, port, msgtag, req_mc, mcgen_base, mcgen_count, mcgen_idx) < 0)
         goto error;
     } else {
-      NN_ERROR ("%s: %s: port %d invalid\n", msgtag, a, port);
+      DDS_ERROR("%s: %s: port %d invalid\n", msgtag, a, port);
     }
   }
   retval = 0;
@@ -562,24 +562,24 @@ int addrset_forone (struct addrset *as, addrset_forone_fun_t f, void *arg)
 
 struct log_addrset_helper_arg
 {
-  logcat_t tf;
+  uint32_t tf;
 };
 
 static void log_addrset_helper (const nn_locator_t *n, void *varg)
 {
   const struct log_addrset_helper_arg *arg = varg;
   char buf[DDSI_LOCSTRLEN];
-  if (config.enabled_logcats & arg->tf)
-    nn_log (arg->tf, " %s", ddsi_locator_to_string(buf, sizeof(buf), n));
+  if (dds_get_log_mask() & arg->tf)
+    DDS_LOG(arg->tf, " %s", ddsi_locator_to_string(buf, sizeof(buf), n));
 }
 
-void nn_log_addrset (logcat_t tf, const char *prefix, const struct addrset *as)
+void nn_log_addrset (uint32_t tf, const char *prefix, const struct addrset *as)
 {
-  if (config.enabled_logcats & tf)
+  if (dds_get_log_mask() & tf)
   {
     struct log_addrset_helper_arg arg;
     arg.tf = tf;
-    nn_log (tf, "%s", prefix);
+    DDS_LOG(tf, "%s", prefix);
     addrset_forall ((struct addrset *) as, log_addrset_helper, &arg); /* drop const, we know it is */
   }
 }

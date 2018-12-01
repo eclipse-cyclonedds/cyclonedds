@@ -61,7 +61,6 @@ struct logbuf;
   os_threadId tid;                              \
   os_threadId extTid;                           \
   enum thread_state state;                      \
-  struct logbuf *lb;                            \
   char *name /* note: no semicolon! */
 
 struct thread_state_base {

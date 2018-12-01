@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <string.h>
 #include "dds__writer.h"
 #include "dds__write.h"
 #include "dds__tkmap.h"
@@ -23,9 +24,7 @@
 #include "ddsi/q_ephash.h"
 #include "ddsi/q_config.h"
 #include "ddsi/q_entity.h"
-#include "dds__report.h"
 #include "ddsi/q_radmin.h"
-#include <string.h>
 
 _Pre_satisfies_((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)
 dds_return_t
@@ -37,20 +36,20 @@ dds_write(
     dds__retcode_t rc;
     dds_writer *wr;
 
-    DDS_REPORT_STACK();
-
     if (data != NULL) {
         rc = dds_writer_lock(writer, &wr);
         if (rc == DDS_RETCODE_OK) {
             ret = dds_write_impl(wr, data, dds_time(), 0);
             dds_writer_unlock(wr);
         } else {
-            ret = DDS_ERRNO(rc, "Error occurred on locking entity");
+            DDS_ERROR("Error occurred on locking entity\n");
+            ret = DDS_ERRNO(rc);
         }
     } else {
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "No data buffer provided");
+        DDS_ERROR("No data buffer provided\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
+
     return ret;
 }
 
@@ -69,10 +68,12 @@ dds_writecdr(
             ret = dds_writecdr_impl (wr, serdata, dds_time (), 0);
             dds_writer_unlock(wr);
         } else {
-            ret = DDS_ERRNO(rc, "Error occurred on locking writer");
+            DDS_ERROR("Error occurred on locking writer\n");
+            ret = DDS_ERRNO(rc);
         }
     } else{
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Given cdr has NULL value");
+        DDS_ERROR("Given cdr has NULL value\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
     return ret;
 }
@@ -88,14 +89,14 @@ dds_write_ts(
     dds__retcode_t rc;
     dds_writer *wr;
 
-    DDS_REPORT_STACK();
-
     if(data == NULL){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Argument data has NULL value");
+        DDS_ERROR("Argument data has NULL value\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
     if(timestamp < 0){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Argument timestamp has negative value");
+        DDS_ERROR("Argument timestamp has negative value\n");
+        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
     rc = dds_writer_lock(writer, &wr);
@@ -103,10 +104,10 @@ dds_write_ts(
         ret = dds_write_impl(wr, data, timestamp, 0);
         dds_writer_unlock(wr);
     } else {
-        ret = DDS_ERRNO(rc, "Error occurred on locking writer");
+        DDS_ERROR("Error occurred on locking writer\n");
+        ret = DDS_ERRNO(rc);
     }
 err:
-    DDS_REPORT_FLUSH(ret != DDS_RETCODE_OK);
     return ret;
 }
 
@@ -126,13 +127,14 @@ deliver_locally(
             make_proxy_writer_info(&pwr_info, &wr->e, wr->xqos);
             for (i = 0; rdary[i]; i++) {
                 bool stored;
-                TRACE (("reader %x:%x:%x:%x\n", PGUID (rdary[i]->e.guid)));
+                DDS_TRACE("reader %x:%x:%x:%x\n", PGUID (rdary[i]->e.guid));
                 dds_duration_t max_block_ms = nn_from_ddsi_duration(wr->xqos->reliability.max_blocking_time) / DDS_NSECS_IN_MSEC;
                 do {
                     stored = (ddsi_plugin.rhc_plugin.rhc_store_fn) (rdary[i]->rhc, &pwr_info, payload, tk);
                     if (!stored) {
                         if (max_block_ms <= 0) {
-                            ret = DDS_ERRNO(DDS_RETCODE_TIMEOUT, "The writer could not deliver data on time, probably due to a local reader resources being full.");
+                            DDS_ERROR("The writer could not deliver data on time, probably due to a local reader resources being full\n");
+                            ret = DDS_ERRNO(DDS_RETCODE_TIMEOUT);
                         } else {
                             dds_sleepfor(DDS_MSECS(DDS_HEADBANG_TIMEOUT_MS));
                         }
@@ -163,7 +165,7 @@ deliver_locally(
         for (m = ut_avlIterFirst (&wr_local_readers_treedef, &wr->local_readers, &it); m != NULL; m = ut_avlIterNext (&it)) {
             struct reader *rd;
             if ((rd = ephash_lookup_reader_guid (&m->rd_guid)) != NULL) {
-                TRACE (("reader-via-guid %x:%x:%x:%x\n", PGUID (rd->e.guid)));
+                DDS_TRACE("reader-via-guid %x:%x:%x:%x\n", PGUID (rd->e.guid));
                 /* Copied the return value ignore from DDSI deliver_user_data() function. */
                 (void)(ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk);
             }
@@ -195,7 +197,8 @@ dds_write_impl(
     struct ddsi_serdata *d;
 
     if (data == NULL) {
-        return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "No data buffer provided");
+        DDS_ERROR("No data buffer provided\n");
+        return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
 
     /* Check for topic filter */
@@ -227,11 +230,14 @@ dds_write_impl(
         }
         ret = DDS_RETCODE_OK;
     } else if (w_rc == ERR_TIMEOUT) {
-        ret = DDS_ERRNO(DDS_RETCODE_TIMEOUT, "The writer could not deliver data on time, probably due to a reader resources being full.");
+        DDS_ERROR("The writer could not deliver data on time, probably due to a reader resources being full\n");
+        ret = DDS_ERRNO(DDS_RETCODE_TIMEOUT);
     } else if (w_rc == ERR_INVALID_DATA) {
-        ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Invalid data provided");
+        DDS_ERROR("Invalid data provided\n");
+        ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     } else {
-        ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Internal error");
+        DDS_ERROR("Internal error\n");
+        ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     }
     if (ret == DDS_RETCODE_OK) {
         ret = deliver_locally (ddsi_wr, d, tk);
@@ -286,11 +292,14 @@ dds_writecdr_impl(
         }
         ret = DDS_RETCODE_OK;
     } else if (w_rc == ERR_TIMEOUT) {
-        ret = DDS_ERRNO(DDS_RETCODE_TIMEOUT, "The writer could not deliver data on time, probably due to a reader resources being full.");
+        DDS_ERROR("The writer could not deliver data on time, probably due to a reader resources being full\n");
+        ret = DDS_ERRNO(DDS_RETCODE_TIMEOUT);
     } else if (w_rc == ERR_INVALID_DATA) {
-        ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Invalid data provided");
+        DDS_ERROR("Invalid data provided\n");
+        ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     } else {
-        ret = DDS_ERRNO(DDS_RETCODE_ERROR, "Internal error");
+        DDS_ERROR("Internal error\n");
+        ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     }
 
     if (ret == DDS_RETCODE_OK) {
@@ -318,9 +327,7 @@ void
 dds_write_flush(
         dds_entity_t writer)
 {
-    dds_return_t ret = DDS_RETCODE_OK;
     dds__retcode_t rc;
-    DDS_REPORT_STACK();
 
     struct thread_state1 * const thr = lookup_thread_state ();
     const bool asleep = !vtime_awake_p (thr->vtime);
@@ -333,14 +340,13 @@ dds_write_flush(
     if (rc == DDS_RETCODE_OK) {
         nn_xpack_send (wr->m_xp, true);
         dds_writer_unlock(wr);
-        ret = DDS_RETCODE_OK;
     } else{
-        ret = DDS_ERRNO(rc, "Error occurred on locking writer");
+        DDS_ERROR("Error occurred on locking writer\n");
     }
 
     if (asleep) {
         thread_state_asleep (thr);
     }
-    DDS_REPORT_FLUSH(ret < 0);
+
     return ;
 }

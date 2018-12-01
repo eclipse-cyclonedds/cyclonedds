@@ -59,7 +59,7 @@ static void os_free_aligned ( _Pre_maybenull_ _Post_invalid_ void *ptr)
 void thread_states_init_static (void)
 {
     static struct thread_state1 ts =
-        { .state = THREAD_STATE_ALIVE, .vtime = 1, .watchdog = 1, .lb = NULL, .name = "(anon)" };
+        { .state = THREAD_STATE_ALIVE, .vtime = 1, .watchdog = 1, .name = "(anon)" };
     tsd_thread_state = &ts;
 }
 
@@ -79,7 +79,6 @@ OS_WARNING_MSVC_OFF(6386);
     thread_states.ts[i].state = THREAD_STATE_ZERO;
     thread_states.ts[i].vtime = 1;
     thread_states.ts[i].watchdog = 1;
-    thread_states.ts[i].lb = NULL;
     thread_states.ts[i].name = NULL;
   }
 OS_WARNING_MSVC_ON(6386);
@@ -134,10 +133,9 @@ lookup_thread_state(
             ts1 = init_thread_state(tname);
             if (ts1 != NULL) {
                 os_osInit();
-                ts1->lb = 0;
                 ts1->extTid = tid;
                 ts1->tid = tid;
-                nn_log (LC_INFO, "started application thread %s\n", tname);
+                DDS_LOG(DDS_LC_INFO, "started application thread %s\n", tname);
                 os_threadCleanupPush(&cleanup_thread_state, NULL);
             }
             os_mutexUnlock(&thread_states.lock);
@@ -177,7 +175,6 @@ static uint32_t create_thread_wrapper (_In_ _Post_invalid_ struct thread_context
   uint32_t ret;
   ctxt->self->tid = os_threadIdSelf ();
   ret = ctxt->f (ctxt->arg);
-  logbuf_free (ctxt->self->lb);
   os_free (ctxt);
   return ret;
 }
@@ -194,7 +191,7 @@ static int find_free_slot (_In_z_ const char *name)
       break;
   }
   if (cand == -1)
-    NN_FATAL ("create_thread: %s: no free slot\n", name ? name : "(anon)");
+    DDS_FATAL("create_thread: %s: no free slot\n", name ? name : "(anon)");
   return cand;
 }
 
@@ -210,7 +207,6 @@ void upgrade_main_thread (void)
     assert (vtime_asleep_p (ts1->vtime));
   ts1->state = THREAD_STATE_ALIVE;
   ts1->tid = os_threadIdSelf ();
-  ts1->lb = logbuf_new ();
   ts1->name = main_thread_name;
   os_mutexUnlock (&thread_states.lock);
   tsd_thread_state = ts1;
@@ -259,7 +255,6 @@ struct thread_state1 *create_thread (_In_z_ const char *name, _In_ uint32_t (*f)
   if (ts1 == NULL)
     goto fatal;
 
-  ts1->lb = logbuf_new ();
   ctxt->self = ts1;
   ctxt->f = f;
   ctxt->arg = arg;
@@ -272,15 +267,15 @@ struct thread_state1 *create_thread (_In_z_ const char *name, _In_ uint32_t (*f)
     if (!tprops->stack_size.isdefault)
       tattr.stackSize = tprops->stack_size.value;
   }
-  TRACE (("create_thread: %s: class %d priority %d stack %u\n", name, (int) tattr.schedClass, tattr.schedPriority, tattr.stackSize));
+  DDS_TRACE("create_thread: %s: class %d priority %d stack %u\n", name, (int) tattr.schedClass, tattr.schedPriority, tattr.stackSize);
 
   if (os_threadCreate (&tid, name, &tattr, (os_threadRoutine)&create_thread_wrapper, ctxt) != os_resultSuccess)
   {
     ts1->state = THREAD_STATE_ZERO;
-    NN_FATAL ("create_thread: %s: os_threadCreate failed\n", name);
+    DDS_FATAL("create_thread: %s: os_threadCreate failed\n", name);
     goto fatal;
   }
-  nn_log (LC_INFO, "started new thread 0x%"PRIxMAX" : %s\n", os_threadIdToInteger (tid), name);
+  DDS_LOG(DDS_LC_INFO, "started new thread 0x%"PRIxMAX" : %s\n", os_threadIdToInteger (tid), name);
   ts1->extTid = tid; /* overwrite the temporary value with the correct external one */
   os_mutexUnlock (&thread_states.lock);
   return ts1;
@@ -329,7 +324,6 @@ void downgrade_main_thread (void)
 {
   struct thread_state1 *ts1 = lookup_thread_state ();
   thread_state_asleep (ts1);
-  logbuf_free (ts1->lb);
   /* no need to sync with service lease: already stopped */
   reap_thread_state (ts1, 0);
   thread_states_init_static ();

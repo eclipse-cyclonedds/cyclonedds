@@ -36,7 +36,7 @@
 static void print_sockerror (const char *msg)
 {
   int err = os_getErrno ();
-  NN_ERROR ("SOCKET %s errno %d\n", msg, err);
+  DDS_ERROR("SOCKET %s errno %d\n", msg, err);
 }
 
 unsigned locator_to_hopefully_unique_uint32 (const nn_locator_t *src)
@@ -141,15 +141,15 @@ static int set_rcvbuf (os_socket socket)
     }
     if (ReceiveBufferSize < socket_min_rcvbuf_size)
     {
-      /* NN_ERROR does more than just nn_log(LC_ERROR), hence the duplication */
+      /* NN_ERROR does more than just DDS_ERROR(), hence the duplication */
       if (config.socket_min_rcvbuf_size.isdefault)
-        nn_log (LC_CONFIG, "failed to increase socket receive buffer size to %u bytes, continuing with %u bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
+        DDS_LOG(DDS_LC_CONFIG, "failed to increase socket receive buffer size to %u bytes, continuing with %u bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
       else
-        NN_ERROR ("failed to increase socket receive buffer size to %u bytes, continuing with %u bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
+        DDS_ERROR("failed to increase socket receive buffer size to %u bytes, continuing with %u bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
     }
     else
     {
-      nn_log (LC_CONFIG, "socket receive buffer size set to %u bytes\n", ReceiveBufferSize);
+      DDS_LOG(DDS_LC_CONFIG, "socket receive buffer size set to %u bytes\n", ReceiveBufferSize);
     }
   }
   return 0;
@@ -463,13 +463,13 @@ int find_own_ip (const char *requested_address)
   int selected_idx = -1;
   char addrbuf[DDSI_LOCSTRLEN];
 
-  nn_log (LC_CONFIG, "interfaces:");
+  DDS_LOG(DDS_LC_CONFIG, "interfaces:");
 
   {
     int ret;
     ret = ddsi_enumerate_interfaces(gv.m_factory, &ifa_root);
     if (ret < 0) {
-      NN_ERROR("ddsi_enumerate_interfaces(%s): %d\n", gv.m_factory->m_typename, ret);
+      DDS_ERROR("ddsi_enumerate_interfaces(%s): %d\n", gv.m_factory->m_typename, ret);
       return 0;
     }
   }
@@ -485,15 +485,15 @@ int find_own_ip (const char *requested_address)
     if_name[sizeof (if_name) - 1] = 0;
 
     if (strcmp (if_name, last_if_name))
-      nn_log (LC_CONFIG, "%s%s", sep, if_name);
+      DDS_LOG(DDS_LC_CONFIG, "%s%s", sep, if_name);
     strcpy (last_if_name, if_name);
 
     /* interface must be up */
     if ((ifa->flags & IFF_UP) == 0) {
-      nn_log (LC_CONFIG, " (interface down)");
+      DDS_LOG(DDS_LC_CONFIG, " (interface down)");
       continue;
     } else if (os_sockaddr_is_unspecified(ifa->addr)) {
-      nn_log (LC_CONFIG, " (address unspecified)");
+      DDS_LOG(DDS_LC_CONFIG, " (address unspecified)");
       continue;
     }
 
@@ -513,11 +513,11 @@ int find_own_ip (const char *requested_address)
       ddsi_ipaddr_to_loc(&gv.interfaces[gv.n_interfaces].loc, ifa->addr, gv.m_factory->m_kind);
     }
     ddsi_locator_to_string_no_port(addrbuf, sizeof(addrbuf), &gv.interfaces[gv.n_interfaces].loc);
-    nn_log (LC_CONFIG, " %s(", addrbuf);
+    DDS_LOG(DDS_LC_CONFIG, " %s(", addrbuf);
 
     if (!(ifa->flags & IFF_MULTICAST) && multicast_override (if_name))
     {
-      nn_log (LC_CONFIG, "assume-mc:");
+      DDS_LOG(DDS_LC_CONFIG, "assume-mc:");
       ifa->flags |= IFF_MULTICAST;
     }
 
@@ -560,7 +560,7 @@ int find_own_ip (const char *requested_address)
         q += 2;
     }
 
-    nn_log (LC_CONFIG, "q%d)", q);
+    DDS_LOG(DDS_LC_CONFIG, "q%d)", q);
     if (q == quality) {
       maxq_list[maxq_count] = gv.n_interfaces;
       maxq_strlen += 2 + strlen (if_name);
@@ -590,7 +590,7 @@ int find_own_ip (const char *requested_address)
     gv.interfaces[gv.n_interfaces].name = os_strdup (if_name);
     gv.n_interfaces++;
   }
-  nn_log (LC_CONFIG, "\n");
+  DDS_LOG(DDS_LC_CONFIG, "\n");
   os_freeifaddrs (ifa_root);
 
   if (requested_address == NULL)
@@ -605,7 +605,7 @@ int find_own_ip (const char *requested_address)
       p = 0;
       for (i = 0; i < maxq_count && (size_t) p < maxq_strlen; i++)
         p += snprintf (names + p, maxq_strlen - (size_t) p, ", %s", gv.interfaces[maxq_list[i]].name);
-      NN_WARNING ("using network interface %s (%s) selected arbitrarily from: %s\n",
+      DDS_WARNING("using network interface %s (%s) selected arbitrarily from: %s\n",
                    gv.interfaces[idx].name, addrbuf, names + 2);
       os_free (names);
     }
@@ -613,7 +613,7 @@ int find_own_ip (const char *requested_address)
     if (maxq_count > 0)
       selected_idx = maxq_list[0];
     else
-      NN_ERROR ("failed to determine default own IP address\n");
+      DDS_ERROR("failed to determine default own IP address\n");
   }
   else
   {
@@ -660,7 +660,7 @@ int find_own_ip (const char *requested_address)
     if (i < gv.n_interfaces)
       selected_idx = i;
     else
-      NN_ERROR ("%s: does not match an available interface\n", config.networkAddressString);
+      DDS_ERROR("%s: does not match an available interface\n", config.networkAddressString);
   }
 
   if (selected_idx < 0)
@@ -682,7 +682,7 @@ int find_own_ip (const char *requested_address)
       gv.ipv6_link_local = 0;
     }
 #endif
-    nn_log (LC_CONFIG, "selected interface: %s (index %u)\n",
+    DDS_LOG(DDS_LC_CONFIG, "selected interface: %s (index %u)\n",
             gv.interfaces[selected_idx].name, gv.interfaceNo);
 
     return 1;

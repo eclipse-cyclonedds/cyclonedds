@@ -98,10 +98,10 @@ struct cfgst {
 
 /* "trace" is special: it enables (nearly) everything */
 static const char *logcat_names[] = {
-    "fatal", "error", "warning", "config", "info", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "trace", NULL
+    "fatal", "error", "warning", "info", "config", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "trace", NULL
 };
-static const logcat_t logcat_codes[] = {
-    LC_FATAL, LC_ERROR, LC_WARNING, LC_CONFIG, LC_INFO, LC_DISCOVERY, LC_DATA, LC_RADMIN, LC_TIMING, LC_TRAFFIC, LC_TOPIC, LC_TCP, LC_PLIST, LC_WHC, LC_THROTTLE, LC_ALLCATS
+static const uint32_t logcat_codes[] = {
+    DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_ALL
 };
 
 /* We want the tracing/verbosity settings to be fixed while parsing
@@ -785,7 +785,7 @@ static const struct cfgelem tracing_cfgelems[] = {
 <li><i>finest</i>: <i>finer</i> + trace</li></ul>\n\
 <p>While <i>none</i> prevents any message from being written to a DDSI2 log file.</p>\n\
 <p>The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are <i>config</i>, <i>fine</i> and <i>finest</i>.</p>" },
-{ LEAF("OutputFile"), 1, DDSC_PROJECT_NAME_NOSPACE_SMALL"-trace.log", ABSOFF(tracingOutputFileName), 0, uf_tracingOutputFileName, ff_free, pf_string,
+{ LEAF("OutputFile"), 1, DDSC_PROJECT_NAME_NOSPACE_SMALL".log", ABSOFF(tracingOutputFileName), 0, uf_tracingOutputFileName, ff_free, pf_string,
 "<p>This option specifies where the logging is printed to. Note that <i>stdout</i> and <i>stderr</i> are treated as special values, representing \"standard out\" and \"standard error\" respectively. No file is created unless logging categories are enabled using the Tracing/Verbosity or Tracing/EnabledCategory settings.</p>" },
 { LEAF_W_ATTRS("Timestamps", timestamp_cfgattrs), 1, "true", ABSOFF(tracingTimestamps), 0, uf_boolean, 0, pf_boolean,
 "<p>This option has no effect.</p>" },
@@ -1015,7 +1015,7 @@ static size_t cfg_note_vsnprintf(struct cfg_note_buf *bb, const char *fmt, va_li
         return nbufsize;
     }
     if ( x < 0 )
-        NN_FATAL("cfg_note_vsnprintf: os_vsnprintf failed\n");
+        DDS_FATAL("cfg_note_vsnprintf: os_vsnprintf failed\n");
     else
         bb->bufpos += (size_t) x;
     return 0;
@@ -1036,13 +1036,13 @@ static void cfg_note_snprintf(struct cfg_note_buf *bb, const char *fmt, ...)
         va_start(ap, fmt);
         s = os_vsnprintf(bb->buf + bb->bufpos, bb->bufsize - bb->bufpos, fmt, ap);
         if ( s < 0 || (size_t) s >= bb->bufsize - bb->bufpos )
-            NN_FATAL("cfg_note_snprintf: os_vsnprintf failed\n");
+            DDS_FATAL("cfg_note_snprintf: os_vsnprintf failed\n");
         va_end(ap);
         bb->bufpos += (size_t) s;
     }
 }
 
-static size_t cfg_note(struct cfgst *cfgst, logcat_t cat, size_t bsz, const char *fmt, va_list ap)
+static size_t cfg_note(struct cfgst *cfgst, uint32_t cat, size_t bsz, const char *fmt, va_list ap)
 {
     /* Have to snprintf our way to a single string so we can OS_REPORT
     as well as nn_log.  Otherwise configuration errors will be lost
@@ -1053,14 +1053,14 @@ static size_t cfg_note(struct cfgst *cfgst, logcat_t cat, size_t bsz, const char
     int i, sidx;
     size_t r;
 
-    if (cat & LC_ERROR) {
+    if (cat & DDS_LC_ERROR) {
         cfgst->error = 1;
     }
 
     bb.bufpos = 0;
     bb.bufsize = (bsz == 0) ? 1024 : bsz;
     if ( (bb.buf = os_malloc(bb.bufsize)) == NULL )
-        NN_FATAL("cfg_note: out of memory\n");
+        DDS_FATAL("cfg_note: out of memory\n");
 
     cfg_note_snprintf(&bb, "config: ");
 
@@ -1093,17 +1093,17 @@ static size_t cfg_note(struct cfgst *cfgst, logcat_t cat, size_t bsz, const char
     }
 
     switch ( cat ) {
-        case LC_CONFIG:
-            nn_log(cat, "%s\n", bb.buf);
+        case DDS_LC_CONFIG:
+            DDS_LOG(cat, "%s\n", bb.buf);
             break;
-        case LC_WARNING:
-            NN_WARNING("%s\n", bb.buf);
+        case DDS_LC_WARNING:
+            DDS_WARNING("%s\n", bb.buf);
             break;
-        case LC_ERROR:
-            NN_ERROR("%s\n", bb.buf);
+        case DDS_LC_ERROR:
+            DDS_ERROR("%s\n", bb.buf);
             break;
         default:
-            NN_FATAL("cfg_note unhandled category %u for message %s\n", (unsigned) cat, bb.buf);
+            DDS_FATAL("cfg_note unhandled category %u for message %s\n", (unsigned) cat, bb.buf);
             break;
     }
 
@@ -1118,7 +1118,7 @@ static void cfg_warning(struct cfgst *cfgst, const char *fmt, ...)
     size_t bsz = 0;
     do {
         va_start(ap, fmt);
-        bsz = cfg_note(cfgst, LC_WARNING, bsz, fmt, ap);
+        bsz = cfg_note(cfgst, DDS_LC_WARNING, bsz, fmt, ap);
         va_end(ap);
     } while ( bsz > 0 );
 }
@@ -1130,7 +1130,7 @@ static int cfg_error(struct cfgst *cfgst, const char *fmt, ...)
     size_t bsz = 0;
     do {
         va_start(ap, fmt);
-        bsz = cfg_note(cfgst, LC_ERROR, bsz, fmt, ap);
+        bsz = cfg_note(cfgst, DDS_LC_ERROR, bsz, fmt, ap);
         va_end(ap);
     } while ( bsz > 0 );
     return 0;
@@ -1142,7 +1142,7 @@ static int cfg_log(struct cfgst *cfgst, const char *fmt, ...)
     size_t bsz = 0;
     do {
         va_start(ap, fmt);
-        bsz = cfg_note(cfgst, LC_CONFIG, bsz, fmt, ap);
+        bsz = cfg_note(cfgst, DDS_LC_CONFIG, bsz, fmt, ap);
         va_end(ap);
     } while ( bsz > 0 );
     return 0;
@@ -1345,7 +1345,7 @@ static void pf_boolean_default (struct cfgst *cfgst, void *parent, struct cfgele
 static int uf_logcat(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
 {
     static const char **vs = logcat_names;
-    static const logcat_t *lc = logcat_codes;
+    static const uint32_t *lc = logcat_codes;
     char *copy = os_strdup(value), *cursor = copy, *tok;
     while ( (tok = os_strsep(&cursor, ",")) != NULL ) {
         int idx = list_index(vs, tok);
@@ -1365,8 +1365,8 @@ static int uf_verbosity(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_AR
     static const char *vs[] = {
         "finest", "finer", "fine", "config", "info", "warning", "severe", "none", NULL
     };
-    static const logcat_t lc[] = {
-        LC_ALLCATS, LC_TRAFFIC | LC_TIMING, LC_DISCOVERY | LC_THROTTLE, LC_CONFIG, LC_INFO, LC_WARNING, LC_ERROR | LC_FATAL, 0, 0
+    static const uint32_t lc[] = {
+        DDS_LC_ALL, DDS_LC_TRAFFIC | DDS_LC_TIMING, DDS_LC_DISCOVERY | DDS_LC_THROTTLE, DDS_LC_CONFIG, DDS_LC_INFO, DDS_LC_WARNING, DDS_LC_ERROR | DDS_LC_FATAL, 0, 0
     };
     int idx = list_index(vs, value);
     assert(sizeof(vs) / sizeof(*vs) == sizeof(lc) / sizeof(*lc));
@@ -2270,7 +2270,7 @@ static int uf_standards_conformance(struct cfgst *cfgst, void *parent, struct cf
     static const char *vs[] = {
         "pedantic", "strict", "lax", NULL
     };
-    static const logcat_t lc[] = {
+    static const uint32_t lc[] = {
         NN_SC_PEDANTIC, NN_SC_STRICT, NN_SC_LAX, 0
     };
     enum nn_standards_conformance *elem = cfg_address(cfgst, parent, cfgelem);
@@ -2298,7 +2298,7 @@ static void pf_standards_conformance(struct cfgst *cfgst, void *parent, struct c
 
 static void pf_logcat(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int is_default))
 {
-    logcat_t remaining = config.enabled_logcats;
+    uint32_t remaining = config.enabled_logcats;
     char res[256] = "", *resp = res;
     const char *prefix = "";
     size_t i;
@@ -2313,9 +2313,9 @@ static void pf_logcat(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(
     }
 #endif
     /* TRACE enables ALLCATS, all the others just one */
-    if ( (remaining & LC_ALLCATS) == LC_ALLCATS ) {
+    if ( (remaining & DDS_LC_ALL) == DDS_LC_ALL ) {
         resp += snprintf(resp, 256, "%strace", prefix);
-        remaining &= ~LC_ALLCATS;
+        remaining &= ~DDS_LC_ALL;
         prefix = ",";
     }
     for ( i = 0; i < sizeof(logcat_codes) / sizeof(*logcat_codes); i++ ) {
@@ -2692,7 +2692,7 @@ static int sort_channels_check_nodups(struct config *cfg)
     result = 0;
     for ( i = 0; i < n - 1; i++ ) {
         if ( ary[i]->priority == ary[i + 1]->priority ) {
-            NN_ERROR("config: duplicate channel definition for priority %u: channels %s and %s\n",
+            DDS_ERROR("config: duplicate channel definition for priority %u: channels %s and %s\n",
                      ary[i]->priority, ary[i]->name, ary[i + 1]->name);
             result = ERR_ENTITY_EXISTS;
         }
@@ -2722,7 +2722,7 @@ struct cfgst * config_init
     memset(&config, 0, sizeof(config));
 
     config.tracingOutputFile = stderr;
-    config.enabled_logcats = LC_ERROR | LC_WARNING;
+    config.enabled_logcats = DDS_LC_ERROR | DDS_LC_WARNING;
 
     /* eventually, we domainId.value will be the real domain id selected, even if it was configured
        to the default of "any" and has "isdefault" set; initializing it to the default-default
@@ -2747,7 +2747,7 @@ struct cfgst * config_init
 
             if ( (fp = fopen(tok, "r")) == NULL ) {
                 if ( strncmp(tok, "file://", 7) != 0 || (fp = fopen(tok + 7, "r")) == NULL ) {
-                    NN_ERROR("can't open configuration file %s\n", tok);
+                    DDS_ERROR("can't open configuration file %s\n", tok);
                     os_free(copy);
                     os_free(cfgst);
                     return NULL;
@@ -2816,7 +2816,7 @@ struct cfgst * config_init
         break;
     }
     if (!ok1)
-      NN_ERROR ("config: invalid combination of Transport, IPv6, TCP\n");
+      DDS_ERROR("config: invalid combination of Transport, IPv6, TCP\n");
     ok = ok && ok1;
     cfgst->cfg->compat_use_ipv6 = (cfgst->cfg->transport_selector == TRANS_UDP6 || cfgst->cfg->transport_selector == TRANS_TCP6) ? BOOLDEF_TRUE : BOOLDEF_FALSE;
     cfgst->cfg->compat_tcp_enable = (cfgst->cfg->transport_selector == TRANS_TCP || cfgst->cfg->transport_selector == TRANS_TCP6) ? BOOLDEF_TRUE : BOOLDEF_FALSE;
@@ -2844,17 +2844,17 @@ struct cfgst * config_init
                 case Q_CIPHER_NULL:
                     /* nop */
                     if ( s->key && strlen(s->key) > 0 ) {
-                        NN_ERROR("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s: cipher key not required\n", s->key);
+                        DDS_ERROR("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s: cipher key not required\n", s->key);
                     }
                     break;
 
                 default:
                     /* read the cipherkey if present */
                     if ( !s->key || strlen(s->key) == 0 ) {
-                        NN_ERROR("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: cipher key missing\n");
+                        DDS_ERROR("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: cipher key missing\n");
                         ok = 0;
                     } else if ( q_security_plugin.valid_uri && !(q_security_plugin.valid_uri) (s->cipher, s->key) ) {
-                        NN_ERROR("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s : incorrect key\n", s->key);
+                        DDS_ERROR("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s : incorrect key\n", s->key);
                         ok = 0;
                     }
             }
@@ -2883,7 +2883,7 @@ struct cfgst * config_init
                 if ( s )
                     p->securityProfile = s;
                 else {
-                    NN_ERROR("config: DDSI2Service/Partitioning/NetworkPartitions/NetworkPartition[@securityprofile]: %s: unknown securityprofile\n", p->profileName);
+                    DDS_ERROR("config: DDSI2Service/Partitioning/NetworkPartitions/NetworkPartition[@securityprofile]: %s: unknown securityprofile\n", p->profileName);
                     ok = 0;
                 }
             }
@@ -2911,7 +2911,7 @@ struct cfgst * config_init
             if ( p ) {
                 m->partition = p;
             } else {
-                NN_ERROR("config: DDSI2Service/Partitioning/PartitionMappings/PartitionMapping[@networkpartition]: %s: unknown partition\n", m->networkPartition);
+                DDS_ERROR("config: DDSI2Service/Partitioning/PartitionMappings/PartitionMapping[@networkpartition]: %s: unknown partition\n", m->networkPartition);
                 ok = 0;
             }
             m = m->next;
@@ -2950,7 +2950,9 @@ void config_fini(_In_ struct cfgst *cfgst)
     assert(config.valid);
 
     free_all_elements(cfgst, cfgst->cfg, root_cfgelems);
-    if ( config.tracingOutputFile && config.tracingOutputFile != stdout && config.tracingOutputFile != stderr) {
+    dds_set_log_file(stderr);
+    dds_set_trace_file(stderr);
+    if (config.tracingOutputFile && config.tracingOutputFile != stdout && config.tracingOutputFile != stderr) {
         fclose(config.tracingOutputFile);
     }
     memset(&config, 0, sizeof(config));

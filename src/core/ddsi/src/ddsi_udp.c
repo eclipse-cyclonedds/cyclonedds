@@ -93,12 +93,12 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
       nn_locator_t tmp;
       ddsi_ipaddr_to_loc(&tmp, (os_sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
       ddsi_locator_to_string(addrbuf, sizeof(addrbuf), &tmp);
-      NN_WARNING ("%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
+      DDS_WARNING("%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
     }
   }
   else if (err != os_sockENOTSOCK && err != os_sockECONNRESET)
   {
-    NN_ERROR ("UDP recvmsg sock %d: ret %d errno %d\n", (int) ((ddsi_udp_conn_t) conn)->m_sock, (int) ret, err);
+    DDS_ERROR("UDP recvmsg sock %d: ret %d errno %d\n", (int) ((ddsi_udp_conn_t) conn)->m_sock, (int) ret, err);
   }
   return ret;
 }
@@ -169,7 +169,7 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
 #endif
         break;
       default:
-        NN_ERROR("ddsi_udp_conn_write failed with error code %d", err);
+        DDS_ERROR("ddsi_udp_conn_write failed with error code %d", err);
     }
   }
   return ret;
@@ -220,7 +220,7 @@ static unsigned short get_socket_port (os_socket socket)
   if (getsockname (socket, (os_sockaddr *) &addr, &addrlen) < 0)
   {
     int err = os_getErrno();
-    NN_ERROR ("ddsi_udp_get_socket_port: getsockname errno %d\n", err);
+    DDS_ERROR("ddsi_udp_get_socket_port: getsockname errno %d\n", err);
     return 0;
   }
 
@@ -271,9 +271,8 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
     uc->m_base.m_write_fn = ddsi_udp_conn_write;
     uc->m_base.m_disable_multiplexing_fn = ddsi_udp_disable_multiplexing;
 
-    nn_log
+    DDS_INFO
     (
-      LC_INFO,
       "ddsi_udp_create_conn %s socket %"PRIsock" port %u\n",
       mcast ? "multicast" : "unicast",
       uc->m_sock,
@@ -285,7 +284,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
       if (os_sockSetsockopt (sock, IPPROTO_IP, IP_TOS, (char*) &uc->m_diffserv, sizeof (uc->m_diffserv)) != os_resultSuccess)
       {
         int err = os_getErrno();
-        NN_ERROR("ddsi_udp_create_conn: set diffserv error %d\n", err);
+        DDS_ERROR("ddsi_udp_create_conn: set diffserv error %d\n", err);
       }
     }
 #endif
@@ -294,7 +293,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
   {
     if (config.participantIndex != PARTICIPANT_INDEX_AUTO)
     {
-      NN_ERROR
+      DDS_ERROR
       (
         "UDP make_socket failed for %s port %u\n",
         mcast ? "multicast" : "unicast",
@@ -395,9 +394,8 @@ static int ddsi_udp_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc,
 static void ddsi_udp_release_conn (ddsi_tran_conn_t conn)
 {
   ddsi_udp_conn_t uc = (ddsi_udp_conn_t) conn;
-  nn_log
+  DDS_INFO
   (
-    LC_INFO,
     "ddsi_udp_release_conn %s socket %"PRIsock" port %u\n",
     conn->m_base.m_multicast ? "multicast" : "unicast",
     uc->m_sock,
@@ -415,7 +413,7 @@ void ddsi_udp_fini (void)
     if(os_atomic_dec32_nv (&ddsi_udp_init_g) == 0) {
         free_group_membership(ddsi_udp_config_g.mship);
         memset (&ddsi_udp_factory_g, 0, sizeof (ddsi_udp_factory_g));
-        nn_log (LC_INFO | LC_CONFIG, "udp finalized\n");
+        DDS_LOG(DDS_LC_INFO | DDS_LC_CONFIG, "udp finalized\n");
     }
 }
 
@@ -505,7 +503,7 @@ static void ddsi_udp_deinit(void)
   if (os_atomic_dec32_nv(&ddsi_udp_init_g) == 0) {
     if (ddsi_udp_config_g.mship)
       free_group_membership(ddsi_udp_config_g.mship);
-    nn_log (LC_INFO | LC_CONFIG, "udp de-initialized\n");
+    DDS_LOG(DDS_LC_INFO | DDS_LC_CONFIG, "udp de-initialized\n");
   }
 }
 
@@ -550,7 +548,7 @@ int ddsi_udp_init (void)
 
     ddsi_factory_add (&ddsi_udp_factory_g);
 
-    nn_log (LC_INFO | LC_CONFIG, "udp initialized\n");
+    DDS_LOG(DDS_LC_INFO | DDS_LC_CONFIG, "udp initialized\n");
   }
   return 0;
 }

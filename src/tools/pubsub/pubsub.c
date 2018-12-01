@@ -146,6 +146,8 @@ struct wrspeclist {
     struct wrspeclist *prev, *next; /* circular */
 };
 
+static os_mutex output_mutex;
+
 static void terminate(void) {
 //    const char c = 0;
     termflag = 1;
@@ -850,7 +852,7 @@ static void print_sampleinfo(dds_time_t *tstart, dds_time_t tnow, const dds_samp
 
 static void print_K(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd, const char *tag, const dds_sample_info_t *si, int32_t keyval, uint32_t seq, int (*getkeyval) (dds_entity_t rd, int32_t *key, dds_instance_handle_t ih)) {
     int result;
-    os_flockfile(stdout);
+    os_mutexLock(&output_mutex);
     print_sampleinfo(tstart, tnow, si, tag);
     if (si->valid_data) {
         if(printmode == TGPM_MULTILINE) {
@@ -880,7 +882,7 @@ static void print_K(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd, const 
         } else
             printf ("get_key_value: error (%s)\n", dds_err_str(result));
     }
-    os_funlockfile(stdout);
+    os_mutexUnlock(&output_mutex);
 }
 
 static void print_seq_KS(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd, const char *tag, const dds_sample_info_t *iseq, KeyedSeq **mseq, int count) {
@@ -917,7 +919,7 @@ static void print_seq_OU(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd __
     int i;
     for (i = 0; i < count; i++)
     {
-        os_flockfile(stdout);
+        os_mutexLock(&output_mutex);
         print_sampleinfo(tstart, tnow, si, tag);
         if (si->valid_data) {
             if(printmode == TGPM_MULTILINE) {
@@ -930,7 +932,7 @@ static void print_seq_OU(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd __
         } else {
             printf ("NA\n");
         }
-        os_funlockfile(stdout);
+        os_mutexUnlock(&output_mutex);
     }
 }
 
@@ -2190,6 +2192,7 @@ int MAIN(int argc, char *argv[]) {
     struct wrspeclist *wrspecs = NULL;
     memset (&sigtid, 0, sizeof(sigtid));
     memset (&inptid, 0, sizeof(inptid));
+    os_mutexInit(&output_mutex);
 
     if (os_strcasecmp(execname(argc, argv), "sub") == 0)
         want_writer = 0;
@@ -2795,5 +2798,6 @@ int MAIN(int argc, char *argv[]) {
     if (sleep_at_end) {
         dds_sleepfor(DDS_SECS(sleep_at_end));
     }
+    os_mutexDestroy(&output_mutex);
     return (int) exitcode;
 }

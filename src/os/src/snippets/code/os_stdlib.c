@@ -62,28 +62,6 @@ os_pathSep(void)
     return ":";
 }
 
-os_result
-os_access(
-    const char *file_path,
-    int32_t permission)
-{
-    os_result result;
-#ifdef VXWORKS_RTP
-    /* The access function is broken for vxworks RTP for some filesystems
-       so best ignore the result, and assume the user has correct permissions */
-    (void) file_path;
-    (void) permission;
-    result = os_resultSuccess;
-#else
-    if (access (file_path, permission) == 0) {
-        result = os_resultSuccess;
-    } else {
-        result = os_resultFail;
-    }
-#endif
-    return result;
-}
-
 int
 os_vsnprintf(
    char *str,
@@ -130,123 +108,9 @@ os_vfprintfnosigpipe(
    return result;
 }
 
-os_result
-os_stat(
-    const char *path,
-    struct os_stat *buf)
-{
-    os_result result;
-    struct stat _buf;
-    int r;
-
-    r = stat(path, &_buf);
-    if (r == 0) {
-        buf->stat_mode = _buf.st_mode;
-        buf->stat_size = (size_t) _buf.st_size;
-        buf->stat_mtime.tv_sec = (os_timeSec) _buf.st_mtime;
-        buf->stat_mtime.tv_nsec = 0;
-        result = os_resultSuccess;
-    } else {
-        result = os_resultFail;
-    }
-
-    return result;
-}
-
-os_result os_remove (const char *pathname)
-{
-    return (remove (pathname) == 0) ? os_resultSuccess : os_resultFail;
-}
-
-os_result os_rename (const char *oldpath, const char *newpath)
-{
-    return (rename (oldpath, newpath) == 0) ? os_resultSuccess : os_resultFail;
-}
-
-/* The result of os_fileNormalize should be freed with os_free */
-char *
-os_fileNormalize(
-    const char *filepath)
-{
-    char *norm;
-    const char *fpPtr;
-    char *normPtr;
-
-    norm = NULL;
-    if ((filepath != NULL) && (*filepath != '\0')) {
-        norm = os_malloc(strlen(filepath) + 1);
-        /* replace any / or \ by OS_FILESEPCHAR */
-        fpPtr = (char *) filepath;
-        normPtr = norm;
-        while (*fpPtr != '\0') {
-            *normPtr = *fpPtr;
-            if ((*fpPtr == '/') || (*fpPtr == '\\')) {
-                *normPtr = OS_FILESEPCHAR;
-                normPtr++;
-            } else {
-                if (*fpPtr != '\"') {
-                    normPtr++;
-                }
-            }
-            fpPtr++;
-        }
-        *normPtr = '\0';
-    }
-
-    return norm;
-}
-
-os_result
-os_fsync(
-    FILE *fHandle)
-{
-    os_result r;
-
-    if (fsync(fileno(fHandle)) == 0) {
-        r = os_resultSuccess;
-    } else {
-        r = os_resultFail;
-    }
-
-    return r;
-}
-
-_Ret_opt_z_ const char *
-os_getTempDir(void)
-{
-    const char * dir_name = NULL;
-
-    dir_name = os_getenv("OSPL_TEMP");
-
-    /* if OSPL_TEMP is not defined the default is /tmp */
-    if (dir_name == NULL || (strcmp (dir_name, "") == 0)) {
-       dir_name = "/tmp";
-    }
-
-    return dir_name;
-}
-
 ssize_t os_write(int fd, const void *buf, size_t count)
 {
     return write(fd, buf, count);
-}
-
-void os_flockfile(FILE *file)
-{
-        /* flockfile is not supported on the VxWorks DKM platform.
-         * Therefore, this function block is empty on the VxWorks platform. */
-#ifndef _WRS_KERNEL
-        flockfile (file);
-#endif
-}
-
-void os_funlockfile(FILE *file)
-{
-        /* funlockfile is not supported on the VxWorks DKM platform.
-         * Therefore, this function block is empty on the VxWorks platform. */
-#ifndef _WRS_KERNEL
-        funlockfile (file);
-#endif
 }
 
 int os_getopt(int argc, char **argv, const char *opts)

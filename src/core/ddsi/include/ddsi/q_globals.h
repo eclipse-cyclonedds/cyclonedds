@@ -308,13 +308,6 @@ struct q_globals {
   os_timePowerEvents powerEvents;
 
   struct nn_group_membership *mship;
-
-  /* Static log buffer, for those rare cases a thread calls nn_vlogb
-     without having its own log buffer (happens during config file
-     processing and for listeners, &c. */
-  int static_logbuf_lock_inited;
-  os_mutex static_logbuf_lock;
-  struct logbuf static_logbuf;
 };
 
 extern struct q_globals OSAPI_EXPORT gv;

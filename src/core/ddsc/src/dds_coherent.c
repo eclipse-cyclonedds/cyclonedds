@@ -16,7 +16,6 @@
 #include "dds__subscriber.h"
 #include "dds__publisher.h"
 #include "dds__err.h"
-#include "dds__report.h"
 
 _Pre_satisfies_(((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER    ) || \
                 ((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_SUBSCRIBER) || \
@@ -42,7 +41,8 @@ dds_begin_coherent(
             ret = dds_subscriber_begin_coherent(entity);
             break;
         default:
-            ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Given entity can not control coherency");
+            DDS_ERROR("Given entity can not control coherency\n");
+            ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
             break;
     }
     return ret;
@@ -72,7 +72,8 @@ dds_end_coherent(
             ret = dds_subscriber_end_coherent(entity);
             break;
         default:
-            ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER, "Given entity can not control coherency");
+            DDS_ERROR("Given entity can not control coherency\n");
+            ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
             break;
     }
     return ret;
