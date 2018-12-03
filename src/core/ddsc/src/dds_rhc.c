@@ -1401,7 +1401,15 @@ void dds_rhc_unregister_wr
      time a new WR_IID will be used for the same writer, then we have
      all the time in the world to scan the cache & clean up and that
      we don't have to keep it locked all the time (even if we do it
-     that way now).  */
+     that way now).
+
+     WR_IID was never reused while the built-in topics weren't getting
+     generated, but those really require the same instance id for the
+     same GUID if an instance still exists in some reader for that GUID.
+     So, if unregistration without locking the RHC is desired, entities
+     need to get two IIDs: the one visible to the application in the
+     built-in topics and in get_instance_handle, and one used internally
+     for tracking registrations and unregistrations. */
   bool trigger_waitsets = false;
   struct rhc_instance *inst;
   struct ut_hhIter iter;

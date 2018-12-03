@@ -250,12 +250,10 @@ static void dds__fini_plugin (void)
 
 void ddsi_plugin_init (void)
 {
-  /* Register initialization/clean functions */
-
   ddsi_plugin.init_fn = dds__init_plugin;
   ddsi_plugin.fini_fn = dds__fini_plugin;
 
-  /* Register read cache functions */
+  ddsi_plugin.builtin_write = dds__builtin_write;
 
   ddsi_plugin.rhc_plugin.rhc_free_fn = dds_rhc_free;
   ddsi_plugin.rhc_plugin.rhc_fini_fn = dds_rhc_fini;

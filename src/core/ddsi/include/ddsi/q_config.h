@@ -22,6 +22,7 @@
 #include "ddsi/q_xqos.h"
 #include "ddsi/ddsi_tran.h"
 #include "ddsi/q_feature_check.h"
+#include "ddsi/ddsi_serdata_builtin.h"
 #include "ddsi/ddsi_rhc_plugin.h"
 
 #if defined (__cplusplus)
@@ -411,6 +412,7 @@ struct ddsi_plugin
 {
   int (*init_fn) (void);
   void (*fini_fn) (void);
+  void (*builtin_write) (enum ddsi_sertopic_builtin_type type, const nn_guid_t *guid, nn_wctime_t timestamp, bool alive);
 
   /* Read cache */
   struct ddsi_rhc_plugin rhc_plugin;

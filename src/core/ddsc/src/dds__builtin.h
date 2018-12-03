@@ -13,14 +13,13 @@
 #define _DDS_BUILTIN_H_
 
 #include "ddsi/q_time.h"
-#include "dds_builtinTopics.h"
+#include "ddsi/ddsi_serdata_builtin.h"
 
 
 #if defined (__cplusplus)
 extern "C"
 {
 #endif
-
 
 
 /* Get actual topic in related participant related to topic 'id'. */
@@ -39,7 +38,8 @@ _Must_inspect_result_ dds_entity_t
 dds__get_builtin_subscriber(
     _In_ dds_entity_t e);
 
-
+/* Checks whether the reader QoS is valid for use with built-in topic TOPIC */
+bool dds__validate_builtin_reader_qos(dds_entity_t topic, const dds_qos_t *qos);
 
 /* Initialization and finalize functions. */
 void
@@ -50,19 +50,12 @@ void
 dds__builtin_fini(
         void);
 
-
-
-/* Callback functions that contain received builtin data. */
 void
-dds__builtin_participant_cb(
-        DDS_ParticipantBuiltinTopicData *data,
-        nn_wctime_t timestamp);
-
-void
-dds__builtin_cmparticipant_cb(
-        DDS_CMParticipantBuiltinTopicData *data,
-        nn_wctime_t timestamp);
-
+dds__builtin_write(
+    _In_ enum ddsi_sertopic_builtin_type type,
+    _In_ const nn_guid_t *guid,
+    _In_ nn_wctime_t timestamp,
+    _In_ bool alive);
 
 #if defined (__cplusplus)
 }

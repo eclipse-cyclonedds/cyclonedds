@@ -48,7 +48,6 @@ typedef _Return_type_success_(return >  0) int32_t dds_entity_t;
 #include "ddsc/dds_public_error.h"
 #include "ddsc/dds_public_status.h"
 #include "ddsc/dds_public_listener.h"
-#include "dds_dcps_builtintopics.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -74,15 +73,9 @@ DDS_EXPORT dds_domainid_t dds_domain_default (void);
  * @{
  */
 extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSPARTICIPANT;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_CMPARTICIPANT;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSTYPE;
 extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSTOPIC;
 extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSPUBLICATION;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_CMPUBLISHER;
 extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_CMSUBSCRIBER;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_CMDATAWRITER;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_CMDATAREADER;
 /** @}*/
 
 /** @name Communication Status definitions

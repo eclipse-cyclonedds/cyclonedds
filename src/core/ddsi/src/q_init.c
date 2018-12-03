@@ -56,6 +56,7 @@
 #include "ddsi/ddsi_raweth.h"
 #include "ddsi/ddsi_mcgroup.h"
 #include "ddsi/ddsi_serdata_default.h"
+#include "ddsi/ddsi_serdata_builtin.h"
 
 #include "ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
@@ -783,12 +784,18 @@ static void make_special_topics (void)
 {
   gv.plist_topic = make_special_topic (PLATFORM_IS_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE, &ddsi_serdata_ops_plist);
   gv.rawcdr_topic = make_special_topic (PLATFORM_IS_LITTLE_ENDIAN ? CDR_LE : CDR_BE, &ddsi_serdata_ops_rawcdr);
+  gv.builtin_participant_topic = new_sertopic_builtin (DSBT_PARTICIPANT, "DCPSParticipant", "org::eclipse::cyclonedds::builtin::DCPSParticipant");
+  gv.builtin_reader_topic = new_sertopic_builtin (DSBT_READER, "DCPSSubscription", "org::eclipse::cyclonedds::builtin::DCPSSubscription");
+  gv.builtin_writer_topic = new_sertopic_builtin (DSBT_WRITER, "DCPSPublication", "org::eclipse::cyclonedds::builtin::DCPSPublication");
 }
 
 static void free_special_topics (void)
 {
   ddsi_sertopic_unref (gv.plist_topic);
   ddsi_sertopic_unref (gv.rawcdr_topic);
+  ddsi_sertopic_unref (gv.builtin_participant_topic);
+  ddsi_sertopic_unref (gv.builtin_reader_topic);
+  ddsi_sertopic_unref (gv.builtin_writer_topic);
 }
 
 static int setup_and_start_recv_threads (void)

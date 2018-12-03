@@ -31,7 +31,6 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_bitset_inlines.c
     q_bswap.c
     q_bswap_inlines.c
-    q_builtin_topic.c
     q_config.c
     q_ddsi_discovery.c
     q_debmon.c
@@ -88,7 +87,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/ddsi"
     q_bitset_template.h
     q_bswap.h
     q_bswap_template.h
-    q_builtin_topic.h
     q_config.h
     q_ddsi_discovery.h
     q_debmon.h

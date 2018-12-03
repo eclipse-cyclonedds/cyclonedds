@@ -14,7 +14,6 @@
 #include "ddsi/q_entity.h"
 #include "ddsi/q_thread.h"
 #include "ddsi/q_config.h"
-#include "ddsi/q_builtin_topic.h"
 #include "dds__init.h"
 #include "dds__qos.h"
 #include "dds__domain.h"
@@ -23,7 +22,10 @@
 #include "dds__types.h"
 #include "dds__builtin.h"
 #include "dds__subscriber.h"
-
+#include "dds__write.h"
+#include "dds__writer.h"
+#include "ddsi/q_qosmatch.h"
+#include "ddsi/ddsi_serdata_builtin.h"
 
 static dds_return_t
 dds__delete_builtin_participant(
@@ -37,7 +39,7 @@ static _Must_inspect_result_ dds_entity_t
 dds__create_builtin_publisher(
     _In_ dds_entity_t participant);
 
-static _Must_inspect_result_ dds_entity_t
+static dds_entity_t
 dds__create_builtin_writer(
     _In_ dds_entity_t topic);
 
@@ -56,17 +58,23 @@ static dds_entity_t g_builtin_local_participant = 0;
 static dds_entity_t g_builtin_local_publisher = 0;
 static dds_entity_t g_builtin_local_writers[] = {
         0, /* index DDS_BUILTIN_TOPIC_DCPSPARTICIPANT  - DDS_KIND_INTERNAL - 1 */
-        0, /* index DDS_BUILTIN_TOPIC_CMPARTICIPANT    - DDS_KIND_INTERNAL - 1 */
-        0, /* index DDS_BUILTIN_TOPIC_DCPSTYPE         - DDS_KIND_INTERNAL - 1 */
         0, /* index DDS_BUILTIN_TOPIC_DCPSTOPIC        - DDS_KIND_INTERNAL - 1 */
         0, /* index DDS_BUILTIN_TOPIC_DCPSPUBLICATION  - DDS_KIND_INTERNAL - 1 */
-        0, /* index DDS_BUILTIN_TOPIC_CMPUBLISHER      - DDS_KIND_INTERNAL - 1 */
         0, /* index DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION - DDS_KIND_INTERNAL - 1 */
-        0, /* index DDS_BUILTIN_TOPIC_CMSUBSCRIBER     - DDS_KIND_INTERNAL - 1 */
-        0, /* index DDS_BUILTIN_TOPIC_CMDATAWRITER     - DDS_KIND_INTERNAL - 1 */
-        0, /* index DDS_BUILTIN_TOPIC_CMDATAREADER     - DDS_KIND_INTERNAL - 1 */
 };
 
+static _Must_inspect_result_ dds_qos_t *
+dds__create_builtin_qos(
+        void)
+{
+    const char *partition = "__BUILT-IN PARTITION__";
+    dds_qos_t *qos = dds_create_qos();
+    dds_qset_durability(qos, DDS_DURABILITY_TRANSIENT_LOCAL);
+    dds_qset_presentation(qos, DDS_PRESENTATION_TOPIC, false, false);
+    dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_MSECS(100));
+    dds_qset_partition(qos, 1, &partition);
+    return qos;
+}
 
 static dds_return_t
 dds__delete_builtin_participant(
@@ -148,17 +156,9 @@ static _Must_inspect_result_ dds_entity_t
 dds__create_builtin_publisher(
     _In_ dds_entity_t participant)
 {
-    dds_entity_t pub;
-    dds_qos_t *qos;
-    const char *partition = "__BUILT-IN PARTITION__";
-
-    qos = dds_create_qos();
-    dds_qset_partition(qos, 1, &partition);
-
-    pub = dds_create_publisher(participant, qos, NULL);
-
+    dds_qos_t *qos = dds__create_builtin_qos();
+    dds_entity_t pub = dds_create_publisher(participant, qos, NULL);
     dds_delete_qos(qos);
-
     return pub;
 }
 
@@ -166,21 +166,13 @@ static _Must_inspect_result_ dds_entity_t
 dds__create_builtin_subscriber(
     _In_ dds_entity *participant)
 {
-    dds_entity_t sub;
-    dds_qos_t *qos;
-    const char *partition = "__BUILT-IN PARTITION__";
-
-    qos = dds_create_qos();
-    dds_qset_partition(qos, 1, &partition);
-
-    /* Create builtin-subscriber */
-    sub = dds__create_subscriber_l(participant, qos, NULL);
+    dds_qos_t *qos = dds__create_builtin_qos();
+    dds_entity_t sub = dds__create_subscriber_l(participant, qos, NULL);
     dds_delete_qos(qos);
-
     return sub;
 }
 
-static _Must_inspect_result_ dds_entity_t
+static dds_entity_t
 dds__create_builtin_writer(
     _In_ dds_entity_t topic)
 {
@@ -189,13 +181,7 @@ dds__create_builtin_writer(
     if (pub > 0) {
         dds_entity_t top = dds__get_builtin_topic(pub, topic);
         if (top > 0) {
-            dds_qos_t *qos;
-            // TODO: set builtin qos
-            qos = dds_create_qos();
-            dds_qset_durability(qos, DDS_DURABILITY_TRANSIENT_LOCAL);
-            dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_MSECS(100));
-            wr = dds_create_writer(pub, top, qos, NULL);
-            dds_delete_qos(qos);
+            wr = dds_create_writer(pub, top, NULL, NULL);
             (void)dds_delete(top);
         } else {
             wr = top;
@@ -213,6 +199,9 @@ dds__get_builtin_participant(
 {
     if (g_builtin_local_participant == 0) {
         g_builtin_local_participant = dds__create_builtin_participant();
+        (void)dds__create_builtin_writer(DDS_BUILTIN_TOPIC_DCPSPARTICIPANT);
+        (void)dds__create_builtin_writer(DDS_BUILTIN_TOPIC_DCPSPUBLICATION);
+        (void)dds__create_builtin_writer(DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION);
     }
     return g_builtin_local_participant;
 }
@@ -277,57 +266,26 @@ dds__get_builtin_topic(
 
     participant = dds_get_participant(e);
     if (participant > 0) {
-        const dds_topic_descriptor_t *desc;
-        const char *name;
+        struct ddsi_sertopic *sertopic;
 
         if (topic == DDS_BUILTIN_TOPIC_DCPSPARTICIPANT) {
-            desc = &DDS_ParticipantBuiltinTopicData_desc;
-            name = "DCPSParticipant";
-        } else if (topic == DDS_BUILTIN_TOPIC_CMPARTICIPANT) {
-            desc = &DDS_CMParticipantBuiltinTopicData_desc;
-            name = "CMParticipant";
-        } else if (topic == DDS_BUILTIN_TOPIC_DCPSTYPE) {
-            desc = &DDS_TypeBuiltinTopicData_desc;
-            name = "DCPSType";
-        } else if (topic == DDS_BUILTIN_TOPIC_DCPSTOPIC) {
-            desc = &DDS_TopicBuiltinTopicData_desc;
-            name = "DCPSTopic";
+            sertopic = gv.builtin_participant_topic;
         } else if (topic == DDS_BUILTIN_TOPIC_DCPSPUBLICATION) {
-            desc = &DDS_PublicationBuiltinTopicData_desc;
-            name = "DCPSPublication";
-        } else if (topic == DDS_BUILTIN_TOPIC_CMPUBLISHER) {
-            desc = &DDS_CMPublisherBuiltinTopicData_desc;
-            name = "CMPublisher";
+            sertopic = gv.builtin_writer_topic;
         } else if (topic == DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION) {
-            desc = &DDS_SubscriptionBuiltinTopicData_desc;
-            name = "DCPSSubscription";
-        } else if (topic == DDS_BUILTIN_TOPIC_CMSUBSCRIBER) {
-            desc = &DDS_CMSubscriberBuiltinTopicData_desc;
-            name = "CMSubscriber";
-        } else if (topic == DDS_BUILTIN_TOPIC_CMDATAWRITER) {
-            desc = &DDS_CMDataWriterBuiltinTopicData_desc;
-            name = "CMDataWriter";
-        } else if (topic == DDS_BUILTIN_TOPIC_CMDATAREADER) {
-            desc = &DDS_CMDataReaderBuiltinTopicData_desc;
-            name = "CMDataReader";
+            sertopic = gv.builtin_reader_topic;
         } else {
             DDS_ERROR("Invalid builtin-topic handle(%d)\n", topic);
             ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
             goto err_invalid_topic;
         }
 
-        ret = dds_find_topic(participant, name);
+        ret = dds_find_topic (participant, sertopic->name);
         if (ret < 0 && dds_err_nr(ret) == DDS_RETCODE_PRECONDITION_NOT_MET) {
-            dds_qos_t *tqos;
-
-            tqos = dds_create_qos();
-            dds_qset_durability(tqos, DDS_DURABILITY_TRANSIENT_LOCAL);
-            dds_qset_presentation(tqos, DDS_PRESENTATION_TOPIC, false, false);
-            dds_qset_reliability(tqos, DDS_RELIABILITY_RELIABLE, DDS_MSECS(100));
-            ret = dds_create_topic(participant, desc, name, tqos, NULL);
-            dds_delete_qos(tqos);
+            dds_qos_t *qos = dds__create_builtin_qos();
+            ret = dds_create_topic_arbitrary(participant, sertopic, sertopic->name, qos, NULL, NULL);
+            dds_delete_qos(qos);
         }
-
     } else {
         /* Failed to get participant of provided entity */
         ret = participant;
@@ -343,7 +301,7 @@ dds__get_builtin_writer(
     _In_ dds_entity_t topic)
 {
     dds_entity_t wr;
-    if ((topic >= DDS_BUILTIN_TOPIC_DCPSPARTICIPANT) && (topic <= DDS_BUILTIN_TOPIC_CMDATAREADER)) {
+    if ((topic >= DDS_BUILTIN_TOPIC_DCPSPARTICIPANT) && (topic <= DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION)) {
         int index = (int)(topic - DDS_KIND_INTERNAL - 1);
         os_mutexLock(&g_builtin_mutex);
         wr = g_builtin_local_writers[index];
@@ -362,21 +320,40 @@ dds__get_builtin_writer(
 }
 
 static dds_return_t
-dds__builtin_write(
-        _In_ dds_entity_t topic,
-        _In_ const void *data,
-        _In_ dds_time_t timestamp,
-        _In_ int alive)
+dds__builtin_write_int(
+    _In_ dds_entity_t topic,
+    _In_ const nn_guid_t *guid,
+    _In_ dds_time_t timestamp,
+    _In_ bool alive)
 {
     dds_return_t ret = DDS_RETCODE_OK;
     if (os_atomic_inc32_nv(&m_call_count) > 1) {
         dds_entity_t wr;
         wr = dds__get_builtin_writer(topic);
         if (wr > 0) {
-            if (alive) {
-                ret = dds_write_ts(wr, data, timestamp);
+            struct ddsi_sertopic *sertopic;
+            struct ddsi_serdata *serdata;
+            struct nn_keyhash keyhash;
+            struct dds_writer *wraddr;
+
+            if (topic == DDS_BUILTIN_TOPIC_DCPSPARTICIPANT) {
+                sertopic = gv.builtin_participant_topic;
+            } else if (topic == DDS_BUILTIN_TOPIC_DCPSPUBLICATION) {
+                sertopic = gv.builtin_writer_topic;
+            } else if (topic == DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION) {
+                sertopic = gv.builtin_reader_topic;
             } else {
-                ret = dds_dispose_ts(wr, data, timestamp);
+                sertopic = NULL;
+                assert (0);
+            }
+
+            memcpy (&keyhash, guid, sizeof (keyhash));
+            serdata = ddsi_serdata_from_keyhash(sertopic, &keyhash);
+
+            ret = dds_writer_lock(wr, &wraddr);
+            if (ret == DDS_RETCODE_OK) {
+                ret = dds_writecdr_impl (wraddr, serdata, timestamp, alive ? 0 : (DDS_WR_DISPOSE_BIT | DDS_WR_UNREGISTER_BIT));
+                dds_writer_unlock(wraddr);
             }
         } else {
             ret = wr;
@@ -384,6 +361,56 @@ dds__builtin_write(
     }
     os_atomic_dec32(&m_call_count);
     return ret;
+}
+
+void
+dds__builtin_write(
+    _In_ enum ddsi_sertopic_builtin_type type,
+    _In_ const nn_guid_t *guid,
+    _In_ nn_wctime_t timestamp,
+    _In_ bool alive)
+{
+    dds_entity_t topic;
+    switch (type)
+    {
+        case DSBT_PARTICIPANT:
+            topic = DDS_BUILTIN_TOPIC_DCPSPARTICIPANT;
+            break;
+        case DSBT_WRITER:
+            topic = DDS_BUILTIN_TOPIC_DCPSPUBLICATION;
+            break;
+        case DSBT_READER:
+            topic = DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION;
+            break;
+    }
+    (void)dds__builtin_write_int(topic, guid, timestamp.v, alive);
+}
+
+bool dds__validate_builtin_reader_qos(dds_entity_t topic, const dds_qos_t *qos)
+{
+    if (qos == NULL) {
+        /* default QoS inherited from topic is ok by definition */
+        return true;
+    } else {
+        dds_entity_t wr = dds__get_builtin_writer(topic);
+        dds_qos_t *wrqos = dds_create_qos();
+        dds_return_t ret = dds_get_qos(wr, wrqos);
+        bool match;
+        assert (ret == DDS_RETCODE_OK);
+        (void)ret;
+        if (!qos_match_p (qos, wrqos)) {
+            match = false;
+        } else if (qos->resource_limits.max_samples != DDS_LENGTH_UNLIMITED ||
+                   qos->resource_limits.max_instances != DDS_LENGTH_UNLIMITED ||
+                   qos->resource_limits.max_samples_per_instance != DDS_LENGTH_UNLIMITED) {
+            /* this means a write on the built-in topic writer can't fail */
+            match = false;
+        } else {
+            match = true;
+        }
+        dds_delete_qos(wrqos);
+        return match;
+    }
 }
 
 void
@@ -409,23 +436,4 @@ dds__builtin_fini(
     g_builtin_local_publisher = 0;
     memset(g_builtin_local_writers, 0, sizeof(g_builtin_local_writers));
     os_mutexDestroy(&g_builtin_mutex);
-}
-
-
-void
-forward_builtin_participant(
-        _In_ DDS_ParticipantBuiltinTopicData *data,
-        _In_ nn_wctime_t timestamp,
-        _In_ int alive)
-{
-    dds__builtin_write(DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, data, timestamp.v, alive);
-}
-
-void
-forward_builtin_cmparticipant(
-        _In_ DDS_CMParticipantBuiltinTopicData *data,
-        _In_ nn_wctime_t timestamp,
-        _In_ int alive)
-{
-    dds__builtin_write(DDS_BUILTIN_TOPIC_CMPARTICIPANT, data, timestamp.v, alive);
 }

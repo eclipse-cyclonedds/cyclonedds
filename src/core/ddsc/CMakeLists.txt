@@ -89,12 +89,6 @@ target_include_directories(ddsc
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
 
-# Generate builtin-topic sources
-set(IDLC_ARGS "-dll" "FOO,ddsc/dds_export.h")
-idlc_generate(BuiltinTypes ddsc/src/dds_dcps_builtintopics.idl ddsc/src/dds_builtinTopics.idl)
-set(IDLC_ARGS)
-target_link_libraries(ddsc PRIVATE BuiltinTypes)
-
 target_include_directories(ddsc
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>")
@@ -124,13 +118,6 @@ install(
 
 install(
   FILES "${CMAKE_CURRENT_BINARY_DIR}/include/ddsc/dds_export.h"
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ddsc"
-  COMPONENT dev)
-
-install(
-  FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/dds_dcps_builtintopics.h"
-    "${CMAKE_CURRENT_BINARY_DIR}/dds_builtinTopics.h"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ddsc"
   COMPONENT dev)
 

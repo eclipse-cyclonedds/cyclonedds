@@ -11,836 +11,570 @@
  */
 #include "os/os.h"
 #include "ddsc/dds.h"
-#include "dds_builtinTopics.h"
-
-
-#define DURATION_INFINITE_SEC 0x7fffffff
-#define DURATION_INFINITE_NSEC 0x7fffffff
-#define zero(pp,sz) _zero((void**)pp,sz)
 
 // FIXME Temporary workaround for lack of wait_for_historical implementation. Remove this on completion of CHAM-268.
 #define dds_reader_wait_for_historical_data(a,b) DDS_SUCCESS; dds_sleepfor(DDS_MSECS(200));
 
-/* Enable DEBUG for printing debug statements*/
-//#define DEBUG
+// FIXME should fix read/take interface to allow simple unlimited take
+#define MAX_SAMPLES 10
 
-#ifdef DEBUG
-#define PRINTD printf
-#else
-#define PRINTD(...)
+#define MAX_DURATION_BUFSZ 21
+char *qp_duration_str (char *buf, size_t bufsz, dds_duration_t d)
+{
+  if (d == DDS_INFINITY)
+    snprintf (buf, bufsz, "infinite");
+  else
+    snprintf (buf, bufsz, "%u.%09u", (unsigned)(d / DDS_NSECS_IN_SEC), (unsigned)(d % DDS_NSECS_IN_SEC));
+  return buf;
+}
+
+size_t printable_seq_length (const unsigned char *as, size_t n)
+{
+  size_t i;
+  for (i = 0; i < n; i++) {
+    if (as[i] < 32 || as[i] >= 127)
+      break;
+  }
+  return i;
+}
+
+void print_octetseq (const unsigned char *v, size_t sz, FILE *fp)
+{
+  size_t i, n;
+  fprintf (fp, "%zu<", sz);
+  i = 0;
+  while (i < sz)
+  {
+    if ((n = printable_seq_length (v + i, sz - i)) < 4)
+    {
+      if (n == 0)
+        n = 1;
+      while (n--)
+      {
+        fprintf (fp, "%s%u", i == 0 ? "" : ",", v[i]);
+        i++;
+      }
+    }
+    else
+    {
+      fprintf (fp, "\"%*.*s\"", (int)n, (int)n, v + i);
+      i += n;
+    }
+  }
+  fprintf (fp, ">");
+}
+
+void qp_user_data (const dds_qos_t *q, FILE *fp)
+{
+  void *ud;
+  size_t udsz;
+  if (dds_qget_userdata(q, &ud, &udsz))
+  {
+    fprintf (fp, "  user_data: value = ");
+    print_octetseq (ud, udsz,fp);
+    fprintf (fp, "\n");
+    dds_free (ud);
+  }
+}
+
+void qp_topic_data (const dds_qos_t *q, FILE *fp)
+{
+  void *ud;
+  size_t udsz;
+  if (dds_qget_topicdata(q, &ud, &udsz))
+  {
+    fprintf (fp, "  topic_data: value = ");
+    print_octetseq (ud, udsz,fp);
+    fprintf (fp, "\n");
+    dds_free (ud);
+  }
+}
+
+void qp_group_data (const dds_qos_t *q, FILE *fp)
+{
+  void *ud;
+  size_t udsz;
+  if (dds_qget_groupdata(q, &ud, &udsz))
+  {
+    fprintf (fp, "  group_data: value = ");
+    print_octetseq (ud, udsz,fp);
+    fprintf (fp, "\n");
+    dds_free (ud);
+  }
+}
+
+void qp_durability (const dds_qos_t *q, FILE *fp)
+{
+  dds_durability_kind_t kind;
+  if (dds_qget_durability (q, &kind))
+  {
+    static const char *s = "?";
+    switch (kind)
+    {
+      case DDS_DURABILITY_VOLATILE: s = "volatile"; break;
+      case DDS_DURABILITY_TRANSIENT_LOCAL: s = "transient-local"; break;
+      case DDS_DURABILITY_TRANSIENT: s = "transient"; break;
+      case DDS_DURABILITY_PERSISTENT: s = "persistent"; break;
+    }
+    fprintf (fp, "  durability: kind = %s\n", s);
+  }
+}
+
+void qp_history (const dds_qos_t *q, FILE *fp)
+{
+  dds_history_kind_t kind;
+  int32_t depth;
+  if (dds_qget_history (q, &kind, &depth))
+  {
+    fprintf (fp, "  history: kind = ");
+    switch (kind)
+    {
+      case DDS_HISTORY_KEEP_LAST:
+        fprintf (fp, "keep-last, depth = %"PRId32"\n", depth);
+        break;
+      case DDS_HISTORY_KEEP_ALL:
+        fprintf (fp, "keep-all (depth = %"PRId32")\n", depth);
+        break;
+    }
+  }
+}
+
+void qp_resource_limits_1 (FILE *fp, int32_t max_samples, int32_t max_instances, int32_t max_samples_per_instance, int indent)
+{
+  fprintf (fp, "%*.*sresource_limits: max_samples = ", indent, indent, "");
+  if (max_samples == DDS_LENGTH_UNLIMITED)
+    fprintf (fp, "unlimited");
+  else
+    fprintf (fp, "%d", max_samples);
+  fprintf (fp, ", max_instances = ");
+  if (max_instances == DDS_LENGTH_UNLIMITED)
+    fprintf (fp, "unlimited");
+  else
+    fprintf (fp, "%d", max_instances);
+  fprintf (fp, ", max_samples_per_instance = ");
+  if (max_samples_per_instance == DDS_LENGTH_UNLIMITED)
+    fprintf (fp, "unlimited\n");
+  else
+    fprintf (fp, "%d\n", max_samples_per_instance);
+}
+
+void qp_resource_limits (const dds_qos_t *q, FILE *fp)
+{
+  int32_t max_samples, max_instances, max_samples_per_instance;
+  if (dds_qget_resource_limits (q, &max_samples, &max_instances, &max_samples_per_instance))
+    qp_resource_limits_1 (fp, max_samples, max_instances, max_samples_per_instance, 2);
+}
+
+void qp_presentation (const dds_qos_t *q, FILE *fp)
+{
+  dds_presentation_access_scope_kind_t access_scope;
+  bool coherent_access, ordered_access;
+  if (dds_qget_presentation (q, &access_scope, &coherent_access, &ordered_access))
+  {
+    static const char *s = "?";
+    switch (access_scope)
+    {
+      case DDS_PRESENTATION_INSTANCE: s = "instance"; break;
+      case DDS_PRESENTATION_TOPIC: s = "topic"; break;
+      case DDS_PRESENTATION_GROUP: s = "group"; break;
+    }
+    fprintf (fp, "  presentation: scope = %s, coherent_access = %s, ordered_access = %s\n", s, coherent_access ? "true" : "false", ordered_access ? "true" : "false");
+  }
+}
+
+void qp_duration_qos (const dds_qos_t *q, FILE *fp, const char *what, bool (*qget) (const dds_qos_t * __restrict qos, dds_duration_t *d))
+{
+  dds_duration_t d;
+  char buf[MAX_DURATION_BUFSZ];
+  if (qget (q, &d))
+    fprintf (fp, "  %s = %s\n", what, qp_duration_str (buf, sizeof (buf), d));
+}
+
+void qp_lifespan (const dds_qos_t *q, FILE *fp)
+{
+  qp_duration_qos (q, fp, "lifespan: duration = ", dds_qget_lifespan);
+}
+
+void qp_deadline (const dds_qos_t *q, FILE *fp)
+{
+  qp_duration_qos (q, fp, "deadline: period = ", dds_qget_deadline);
+}
+
+void qp_latency_budget (const dds_qos_t *q, FILE *fp)
+{
+  qp_duration_qos (q, fp, "latency_budget: duration = ", dds_qget_latency_budget);
+}
+
+void qp_time_based_filter (const dds_qos_t *q, FILE *fp)
+{
+  qp_duration_qos (q, fp, "time_based_filter: minimum_separation = ", dds_qget_time_based_filter);
+}
+
+void qp_ownership (const dds_qos_t *q, FILE *fp)
+{
+  dds_ownership_kind_t kind;
+  char *s = "?";
+  if (dds_qget_ownership (q, &kind))
+  {
+    switch (kind)
+    {
+      case DDS_OWNERSHIP_SHARED: s = "shared"; break;
+      case DDS_OWNERSHIP_EXCLUSIVE: s = "exclusive"; break;
+    }
+    fprintf (fp, "  ownership: kind = %s\n", s);
+  }
+}
+
+void qp_ownership_strength (const dds_qos_t *q, FILE *fp)
+{
+  int32_t value;
+  if (dds_qget_ownership_strength (q, &value))
+    fprintf (fp, "  ownership_strength: value = %"PRId32"\n", value);
+}
+
+void qp_liveliness (const dds_qos_t *q, FILE *fp)
+{
+  dds_liveliness_kind_t kind;
+  dds_duration_t lease_duration;
+  if (dds_qget_liveliness (q, &kind, &lease_duration))
+  {
+    char *s = "?";
+    char buf[MAX_DURATION_BUFSZ];
+    switch (kind)
+    {
+      case DDS_LIVELINESS_AUTOMATIC: s = "automatic"; break;
+      case DDS_LIVELINESS_MANUAL_BY_PARTICIPANT: s = "manual-by-participant"; break;
+      case DDS_LIVELINESS_MANUAL_BY_TOPIC: s = "manual-by-topic"; break;
+    }
+    fprintf (fp, "  liveliness: kind = %s, lease_duration = %s\n", s, qp_duration_str (buf, sizeof (buf), lease_duration));
+  }
+}
+
+void qp_reliability (const dds_qos_t *q, FILE *fp)
+{
+  dds_reliability_kind_t kind;
+  dds_duration_t max_blocking_time;
+  if (dds_qget_reliability (q, &kind, &max_blocking_time))
+  {
+    char *s = "?";
+    char buf[MAX_DURATION_BUFSZ];
+    switch (kind)
+    {
+      case DDS_RELIABILITY_BEST_EFFORT: s = "best-effort"; break;
+      case DDS_RELIABILITY_RELIABLE: s = "reliable"; break;
+    }
+    fprintf (fp, "  reliability: kind = %s, max_blocking_time = %s\n", s, qp_duration_str (buf, sizeof (buf), max_blocking_time));
+  }
+}
+
+void qp_transport_priority (const dds_qos_t *q, FILE *fp)
+{
+  int32_t value;
+  if (dds_qget_transport_priority (q, &value))
+    fprintf (fp, "  transport_priority: priority = %"PRId32"\n", value);
+}
+
+void qp_destination_order (const dds_qos_t *q, FILE *fp)
+{
+  dds_destination_order_kind_t kind;
+  if (dds_qget_destination_order (q, &kind))
+  {
+    static const char *s = "?";
+    switch (kind)
+    {
+      case DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP: s = "by-reception-timestamp"; break;
+      case DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP: s = "by-source-timestamp"; break;
+    }
+    fprintf (fp, "  destination_order: kind = %s\n", s);
+  }
+}
+
+void qp_writer_data_lifecycle (const dds_qos_t *q, FILE *fp)
+{
+  bool value;
+  if (dds_qget_writer_data_lifecycle (q, &value))
+    fprintf (fp, "  writer_data_lifecycle: autodispose_unregistered_instances = %s\n", value ? "true" : "false");
+}
+
+void qp_reader_data_lifecycle (const dds_qos_t *q, FILE *fp)
+{
+  dds_duration_t autopurge_nowriter_samples_delay, autopurge_disposed_samples_delay;
+  if (dds_qget_reader_data_lifecycle (q, &autopurge_nowriter_samples_delay, &autopurge_disposed_samples_delay))
+  {
+    char buf1[MAX_DURATION_BUFSZ], buf2[MAX_DURATION_BUFSZ];
+    fprintf (fp, "  reader_data_lifecycle: autopurge_nowriter_samples_delay = %s, autopurge_disposed_samples_delay = %s\n", qp_duration_str (buf1, sizeof (buf1), autopurge_nowriter_samples_delay), qp_duration_str (buf2, sizeof (buf2), autopurge_disposed_samples_delay));
+  }
+}
+
+void qp_durability_service (const dds_qos_t *q, FILE *fp)
+{
+  dds_duration_t service_cleanup_delay;
+  dds_history_kind_t history_kind;
+  int32_t history_depth;
+  int32_t max_samples, max_instances, max_samples_per_instance;
+  if (dds_qget_durability_service (q, &service_cleanup_delay, &history_kind, &history_depth, &max_samples, &max_instances, &max_samples_per_instance))
+  {
+    char buf[MAX_DURATION_BUFSZ];
+    fprintf (fp, "  durability_service:\n");
+    fprintf (fp, "    service_cleanup_delay: %s\n", qp_duration_str (buf, sizeof (buf), service_cleanup_delay));
+    switch (history_kind)
+    {
+      case DDS_HISTORY_KEEP_LAST:
+        fprintf (fp, "    history: kind = keep-last, depth = %"PRId32"\n", history_depth);
+        break;
+      case DDS_HISTORY_KEEP_ALL:
+        fprintf (fp, "    history: kind = keep-all (depth = %"PRId32")\n", history_depth);
+        break;
+    }
+    qp_resource_limits_1(fp, max_samples, max_instances, max_samples_per_instance, 4);
+  }
+}
+
+void qp_partition (const dds_qos_t *q, FILE *fp)
+{
+  uint32_t n;
+  char **ps;
+  if (dds_qget_partition (q, &n, &ps))
+  {
+    fprintf (fp, "  partition: name = ");
+    if (n == 0)
+      fprintf (fp, "(default)");
+    else if (n == 1)
+      fprintf (fp, "%s", ps[0]);
+    else
+    {
+      fprintf (fp, "{");
+      for (uint32_t i = 0; i < n; i++)
+        fprintf (fp, "%s%s", (i > 0) ? "," : "", ps[i]);
+      fprintf (fp, "}");
+    }
+    fprintf (fp, "\n");
+    for (uint32_t i = 0; i < n; i++)
+      dds_free (ps[i]);
+    dds_free (ps);
+  }
+}
+
+void qp_qos (const dds_qos_t *q, FILE *fp)
+{
+  qp_reliability (q, fp);
+  qp_durability (q, fp);
+  qp_destination_order (q, fp);
+  qp_partition (q, fp);
+  qp_history (q, fp);
+  qp_presentation (q, fp);
+  qp_resource_limits (q, fp);
+  qp_deadline (q, fp);
+  qp_latency_budget (q, fp);
+  qp_lifespan (q, fp);
+  qp_liveliness (q, fp);
+  qp_time_based_filter (q, fp);
+  qp_transport_priority (q, fp);
+  qp_writer_data_lifecycle (q, fp);
+  qp_reader_data_lifecycle (q, fp);
+  qp_durability_service (q, fp);
+  qp_ownership (q, fp);
+  qp_ownership_strength (q, fp);
+  qp_user_data (q, fp);
+  qp_topic_data (q, fp);
+  qp_group_data (q, fp);
+}
+
+void print_key(FILE *fp, const char *label, const dds_builtintopic_guid_t *key)
+{
+  fprintf(fp, "%s", label);
+  for(size_t j = 0; j < sizeof (key->v); j++) {
+    fprintf(fp, "%s%02x", (j == 0) ? " " : ":", key->v[j]);
+  }
+  fprintf(fp, "\n");
+}
+
+#if 0
+void print_dcps_topic (FILE *fp, dds_entity_t pp)
+{
+  dds_entity_t rd = dds_create_reader (pp, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
+  (void)dds_reader_wait_for_historical_data (rd, DDS_SECS (5));
+  while(true)
+  {
+    void *ptrs[MAX_SAMPLES] = { 0 };
+    dds_sample_info_t info[sizeof (ptrs) / sizeof (ptrs[0])];
+    int n = dds_take (rd, ptrs, info, sizeof (ptrs) / sizeof (ptrs[0]), sizeof (ptrs) / sizeof (ptrs[0]));
+    if (n <= 0)
+      break;
+    for (int i = 0; i < n; i++)
+    {
+      dds_builtintopic_topic_t *data = ptrs[i];
+      fprintf (fp,"TOPIC:\n");
+      print_key (fp, "  key =", &data->key);
+      if (info[i].valid_data)
+      {
+        qp_qos (data->qos, fp);
+      }
+    }
+    dds_return_loan (rd, ptrs, n);
+  }
+  dds_delete (rd);
+}
 #endif
+
+void print_dcps_participant (FILE *fp, dds_entity_t pp)
+{
+  dds_entity_t rd = dds_create_reader (pp, DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, NULL, NULL);
+  (void)dds_reader_wait_for_historical_data (rd, DDS_SECS (5));
+  while(true)
+  {
+    void *ptrs[MAX_SAMPLES] = { 0 };
+    dds_sample_info_t info[sizeof (ptrs) / sizeof (ptrs[0])];
+    int n = dds_take (rd, ptrs, info, sizeof (ptrs) / sizeof (ptrs[0]), sizeof (ptrs) / sizeof (ptrs[0]));
+    if (n <= 0)
+      break;
+    for (int i = 0; i < n; i++)
+    {
+      dds_builtintopic_participant_t *data = ptrs[i];
+      fprintf (fp,"PARTICIPANT:\n");
+      print_key (fp, "  key =", &data->key);
+      if (info[i].valid_data)
+      {
+        qp_qos (data->qos, fp);
+      }
+    }
+    dds_return_loan (rd, ptrs, n);
+  }
+  dds_delete (rd);
+}
+
+void print_dcps_endpoint (FILE *fp, dds_entity_t pp, const char *type, dds_entity_t topic)
+{
+  dds_entity_t rd = dds_create_reader (pp, topic, NULL, NULL);
+  (void)dds_reader_wait_for_historical_data (rd, DDS_SECS (5));
+  while(true)
+  {
+    void *ptrs[MAX_SAMPLES] = { 0 };
+    dds_sample_info_t info[sizeof (ptrs) / sizeof (ptrs[0])];
+    int n = dds_take (rd, ptrs, info, sizeof (ptrs) / sizeof (ptrs[0]), sizeof (ptrs) / sizeof (ptrs[0]));
+    if (n <= 0)
+      break;
+    for (int i = 0; i < n; i++)
+    {
+      dds_builtintopic_endpoint_t *data = ptrs[i];
+      fprintf (fp,"%s:\n", type);
+      print_key (fp, "  key =", &data->key);
+      if (info[i].valid_data)
+      {
+        print_key (fp, "  participant_key =", &data->participant_key);
+        fprintf (fp,"  topic_name = %s\n", data->topic_name);
+        fprintf (fp,"  type_name = %s\n", data->type_name);
+        qp_qos (data->qos,fp);
+      }
+    }
+    dds_return_loan (rd, ptrs, n);
+  }
+  dds_delete (rd);
+}
+
+void print_dcps_subscription (FILE *fp, dds_entity_t pp)
+{
+  print_dcps_endpoint (fp, pp, "SUBSCRIPTION", DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION);
+}
+
+void print_dcps_publication (FILE *fp, dds_entity_t pp)
+{
+  print_dcps_endpoint (fp, pp, "PUBLICATION", DDS_BUILTIN_TOPIC_DCPSPUBLICATION);
+}
 
 #define DCPSTOPIC_FLAG 1
 #define DCPSPARTICIPANT_FLAG (1<<1)
 #define DCPSSUBSCRIPTION_FLAG (1<<2)
 #define DCPSPUBLICATION_FLAG (1<<3)
-#define CMPARTICIPANT_FLAG (1<<4)
-#define CMPUBLISHER_FLAG (1<<5)
-#define CMSUBSCRIBER_FLAG (1<<6)
-#define CMDATAREADER_FLAG (1<<7)
-#define CMDATAWRITER_FLAG (1<<8)
 
-static struct topictab{
-    const char *name;
-    const int flag;
+static struct topictab {
+  const char *name;
+  const int flag;
+  void (*fun) (FILE *fp, dds_entity_t pp);
 } topictab[] = {
-        {"dcpstopic", DCPSTOPIC_FLAG},
-        {"dcpsparticipant", DCPSPARTICIPANT_FLAG},
-        {"dcpssubscription", DCPSSUBSCRIPTION_FLAG},
-        {"dcpspublication", DCPSPUBLICATION_FLAG},
-        {"cmparticipant", CMPARTICIPANT_FLAG},
-        {"cmpublisher", CMPUBLISHER_FLAG},
-        {"cmsubscriber", CMSUBSCRIBER_FLAG},
-        {"cmdatareader", CMDATAREADER_FLAG},
-        {"cmdatawriter", CMDATAWRITER_FLAG},
-
+  //{ "dcpstopic", DCPSTOPIC_FLAG, print_dcps_topic },
+  { "dcpsparticipant", DCPSPARTICIPANT_FLAG, print_dcps_participant },
+  { "dcpssubscription", DCPSSUBSCRIPTION_FLAG, print_dcps_subscription },
+  { "dcpspublication", DCPSPUBLICATION_FLAG, print_dcps_publication }
 };
 #define TOPICTAB_SIZE (sizeof(topictab)/sizeof(struct topictab))
 
-const unsigned int MAX_SAMPLES = 10;
-unsigned int states = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
-int reader_wait = 0;
-dds_entity_t participant;
-dds_entity_t subscriber;
-dds_domainid_t did = DDS_DOMAIN_DEFAULT;
-dds_sample_info_t info[10];
-dds_qos_t* tqos;
-dds_qos_t* sqos;
-
-void _zero(void ** samples, size_t size) {
-    size_t i;
-    for(i = 0; i < size;i++) {
-        samples[i] = NULL;
-    }
-}
-
-int duration_is_infinite(const DDS_Duration_t *d){
-    return d->sec == DURATION_INFINITE_SEC && d->nanosec == DURATION_INFINITE_NSEC;
-}
-
-void qp_durability (const DDS_DurabilityQosPolicy *q, FILE *fp)
+void usage (void)
 {
-    char buf[40];
-    char *k;
-    switch (q->kind)
+  fprintf (stderr, "Usage: ddsls [OPTIONS] TOPIC...  for specified topics\n\n");
+  fprintf (stderr, "   or: ddsls [OPTIONS] -a        for all topics\n");
+  fprintf (stderr, "\nOPTIONS:\n");
+  fprintf (stderr, "-f <filename> <topics>    -- write to file\n");
+  fprintf (stderr, "\nTOPICS\n");
+  for (size_t i = 0; i < TOPICTAB_SIZE; i++)
+    fprintf (stderr, "%s\n", topictab[i].name);
+  exit (1);
+}
+
+int main (int argc, char **argv)
+{
+  FILE *fp = stdout;
+  int flags = 0;
+  dds_entity_t pp;
+  int opt;
+  while ((opt = os_getopt (argc, argv, "f:a")) != EOF)
+  {
+    switch (opt)
     {
-    case DDS_VOLATILE_DURABILITY_QOS: k = "volatile"; break;
-    case DDS_TRANSIENT_LOCAL_DURABILITY_QOS: k = "transient-local"; break;
-    case DDS_TRANSIENT_DURABILITY_QOS: k = "transient"; break;
-    case DDS_PERSISTENT_DURABILITY_QOS: k = "persistent"; break;
-    default: (void) snprintf (buf, sizeof (buf), "invalid (%d)", (int) q->kind); k = buf; break;
-    }
-    fprintf (fp, "  durability: kind = %s\n", k);
-}
-
-void qp_deadline (const DDS_DeadlineQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  deadline: period = ");
-    if (duration_is_infinite(&q->period))
-        fprintf (fp, "infinite\n");
-    else
-        fprintf (fp,"%d.%09u\n", q->period.sec, q->period.nanosec);
-}
-
-void qp_latency_budget (const DDS_LatencyBudgetQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  latency_budget: duration = ");
-    if (duration_is_infinite (&q->duration))
-        fprintf (fp,"infinite\n");
-    else
-        fprintf (fp,"%d.%09u\n", q->duration.sec, q->duration.nanosec);
-}
-
-void qp_liveliness (const DDS_LivelinessQosPolicy *q, FILE *fp)
-{
-    char buf[40];
-    char *k;
-    switch (q->kind)
-    {
-    case DDS_AUTOMATIC_LIVELINESS_QOS: k = "automatic"; break;
-    case DDS_MANUAL_BY_PARTICIPANT_LIVELINESS_QOS: k = "manual-by-participant"; break;
-    case DDS_MANUAL_BY_TOPIC_LIVELINESS_QOS: k = "manual-by-topic"; break;
-    default: (void) snprintf (buf, sizeof (buf), "invalid (%d)", (int) q->kind); k = buf; break;
-    }
-    fprintf (fp,"  liveliness: kind = %s, lease_duration = ", k);
-    if (duration_is_infinite(&q->lease_duration))
-        fprintf (fp,"infinite\n");
-    else
-        fprintf (fp,"%d.%09u\n", q->lease_duration.sec, q->lease_duration.nanosec);
-}
-
-void qp_reliability (const DDS_ReliabilityQosPolicy *q, FILE *fp)
-{
-    char buf[40];
-    char *k;
-    switch (q->kind)
-    {
-    case DDS_BEST_EFFORT_RELIABILITY_QOS: k = "best-effort"; break;
-    case DDS_RELIABLE_RELIABILITY_QOS: k = "reliable"; break;
-    default: (void) snprintf (buf, sizeof (buf), "invalid (%d)", (int) q->kind); k = buf; break;
-    }
-    fprintf (fp,"  reliability: kind = %s, max_blocking_time = ", k);
-    if (duration_is_infinite(&q->max_blocking_time))
-        fprintf (fp,"infinite");
-    else
-        fprintf (fp,"%d.%09u", q->max_blocking_time.sec, q->max_blocking_time.nanosec);
-    fprintf (fp,", synchronous = %s\n", q->synchronous ? "true" : "false");
-}
-
-void qp_transport_priority (const DDS_TransportPriorityQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  transport_priority: priority = %d\n", q->value);
-}
-
-void qp_lifespan (const DDS_LifespanQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  lifespan: duration = ");
-    if (duration_is_infinite(&q->duration))
-        fprintf (fp, "infinite\n");
-    else
-        fprintf (fp, "%d.%09u\n", q->duration.sec, q->duration.nanosec);
-}
-
-void qp_destination_order (const DDS_DestinationOrderQosPolicy *q, FILE *fp)
-{
-    char buf[40];
-    char *k;
-    switch (q->kind)
-    {
-    case DDS_BY_RECEPTION_TIMESTAMP_DESTINATIONORDER_QOS: k = "by-reception-timestamp"; break;
-    case DDS_BY_SOURCE_TIMESTAMP_DESTINATIONORDER_QOS: k = "by-source-timestamp"; break;
-    default: (void) snprintf (buf, sizeof (buf), "invalid (%d)", (int) q->kind); k = buf; break;
-    }
-    fprintf (fp,"  destination_order: kind = %s\n", k);
-}
-
-void qp_history_kind_1 (DDS_HistoryQosPolicyKind kind, int indent, FILE *fp)
-{
-    char buf[40];
-    char *k;
-    switch (kind)
-    {
-    case DDS_KEEP_LAST_HISTORY_QOS: k = "keep-last"; break;
-    case DDS_KEEP_ALL_HISTORY_QOS: k = "keep-all"; break;
-    default: (void) snprintf (buf, sizeof (buf), "invalid (%d)", (int) kind); k = buf; break;
-    }
-    fprintf (fp,"%*.*shistory: kind = %s", indent, indent, "", k);
-}
-
-void qp_history (const DDS_HistoryQosPolicy *q, FILE *fp)
-{
-    qp_history_kind_1 (q->kind, 2,fp);
-    if (q->kind == DDS_KEEP_LAST_HISTORY_QOS)
-        fprintf (fp,", depth = %d\n", q->depth);
-    else
-        fprintf (fp,", (depth = %d)\n", q->depth);
-}
-
-void qp_resource_limits_1(int max_samples, int max_instances, int max_samples_per_instance, int indent, FILE *fp)
-{
-    fprintf (fp,"%*.*sresource_limits: max_samples = ", indent, indent, "");
-    if (max_samples == DDS_LENGTH_UNLIMITED)
-        fprintf (fp,"unlimited");
-    else
-        fprintf (fp, "%d", max_samples);
-    fprintf (fp, ", max_instances = ");
-    if (max_instances == DDS_LENGTH_UNLIMITED)
-        fprintf (fp, "unlimited");
-    else
-        fprintf (fp, "%d", max_instances);
-    fprintf (fp,", max_samples_per_instance = ");
-    if (max_samples_per_instance == DDS_LENGTH_UNLIMITED)
-        fprintf (fp,"unlimited\n");
-    else
-        fprintf (fp,"%d\n", max_samples_per_instance);
-}
-
-void qp_resource_limits (const DDS_ResourceLimitsQosPolicy *q, FILE *fp)
-{
-    qp_resource_limits_1 (q->max_samples, q->max_instances, q->max_samples_per_instance, 2,fp);
-}
-
-void qp_ownership (const DDS_OwnershipQosPolicy *q, FILE *fp)
-{
-    char buf[40];
-    char *k;
-    switch (q->kind)
-    {
-    case DDS_SHARED_OWNERSHIP_QOS: k = "shared"; break;
-    case DDS_EXCLUSIVE_OWNERSHIP_QOS: k = "exclusive"; break;
-    default: (void) snprintf (buf, sizeof (buf), "invalid (%d)", (int) q->kind); k = buf; break;
-    }
-    fprintf (fp,"  ownership: kind = %s\n", k);
-}
-
-unsigned printable_seq_length(const unsigned char *as, unsigned n)
-{
-    unsigned i;
-    for (i = 0; i < n; i++) {
-        if (as[i] < 32 || as[i] >= 127)
-            break;
-    }
-    return i;
-}
-
-void print_octetseq (const DDS_octSeq *v, FILE *fp)
-{
-
-    unsigned i, n;
-    const char *sep = "";
-    fprintf (fp, "%u<", v->_length);
-    i = 0;
-    while (i < v->_length)
-    {
-        if ((n = printable_seq_length (v->_buffer + i, v->_length - i)) < 4)
+      case 'f': {
+        char *fname = os_get_optarg ();
+        fp = fopen (fname, "w");
+        if (fp == NULL)
         {
-            while (n--)
-                fprintf (fp,"%s%u", sep, v->_buffer[i++]);
+          fprintf (stderr, "%s: can't open for writing\n", fname);
+          exit (1);
         }
-        else
-        {
-            fprintf (fp, "\"%*.*s\"", n, n, v->_buffer + i);
-            i += n;
-        }
-        sep = ",";
+        break;
+      }
+      case 'a':
+        for (size_t i = 0; i < TOPICTAB_SIZE; i++)
+          flags |= topictab[i].flag;
+        break;
+      default:
+        usage ();
+        break;
     }
-    fprintf (fp,">");
-}
+  }
 
-void qp_topic_data (const DDS_TopicDataQosPolicy *q, FILE *fp)
-{
-    fprintf (fp, "  topic_data: value = ");
-    print_octetseq (&q->value,fp);
-    fprintf (fp, "\n");
-}
+  if (argc == 1) {
+    usage();
+  }
 
-void qp_user_data (const DDS_UserDataQosPolicy *q, FILE *fp)
-{
-    fprintf (fp, "  user_data: value = ");
-    print_octetseq (&q->value,fp);
-    fprintf (fp, "\n");
-}
-
-void qp_time_based_filter (const DDS_TimeBasedFilterQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  time_based_filter: minimum_separation = ");
-    if (duration_is_infinite (&q->minimum_separation))
-        fprintf (fp,"infinite\n");
-    else
-        fprintf (fp,"%d.%09u\n", q->minimum_separation.sec, q->minimum_separation.nanosec);
-}
-
-void qp_presentation (const DDS_PresentationQosPolicy *q, FILE *fp)
-{
-    char buf[40];
-    char *k;
-    switch (q->access_scope)
+  for (int i = os_get_optind (); i < argc; i++)
+  {
+    size_t k;
+    for (k = 0; k < TOPICTAB_SIZE; k++)
     {
-    case DDS_INSTANCE_PRESENTATION_QOS: k = "instance"; break;
-    case DDS_TOPIC_PRESENTATION_QOS: k = "topic"; break;
-    case DDS_GROUP_PRESENTATION_QOS: k = "group"; break;
-    default: (void) snprintf (buf, sizeof (buf), "invalid (%d)", (int) q->access_scope); k = buf; break;
+      if (os_strcasecmp (argv[i], topictab[k].name) == 0)
+      {
+        flags |= topictab[k].flag;
+        break;
+      }
     }
-    fprintf (fp, "  presentation: scope = %s, coherent_access = %s, ordered_access = %s\n", k,
-            q->coherent_access ? "true" : "false",
-                    q->ordered_access ? "true" : "false");
-}
-
-void qp_partition (const DDS_PartitionQosPolicy *q, FILE *fp)
-{
-    const DDS_StringSeq *s = &q->name;
-    fprintf (fp, "  partition: name = ");
-    if (s->_length == 0)
-        fprintf (fp, "(default)");
-    else if (s->_length == 1)
-        fprintf (fp, "%s", s->_buffer[0]);
-    else
+    if (k == TOPICTAB_SIZE)
     {
-        unsigned i;
-        fprintf (fp,"{");
-        for (i = 0; i < s->_length; i++)
-            fprintf (fp, "%s%s", (i > 0) ? "," : "", s->_buffer[i]);
-        fprintf (fp,"}");
+      fprintf(stderr, "%s: topic unknown\n", argv[i]);
+      exit (1);
     }
-    fprintf (fp,"\n");
-}
+  }
 
-void qp_group_data (const DDS_GroupDataQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  group_data: value = ");
-    print_octetseq (&q->value,fp);
-    fprintf (fp,"\n");
-}
+  if ((pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL)) < 0)
+  {
+    fprintf (stderr, "failed to create participant: %s\n", dds_err_str (pp));
+    exit (1);
+  }
 
-void qp_ownership_strength (const DDS_OwnershipStrengthQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  ownership_strength: value = %d\n", q->value);
-}
-
-void qp_product_data (const DDS_ProductDataQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  product_data: value = %s\n", q->value);
-}
-
-void qp_entity_factory (const DDS_EntityFactoryQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  entity_factory: autoenable_created_entities = %s\n",
-            q->autoenable_created_entities ? "true" : "false");
-}
-
-void qp_share (const DDS_ShareQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  share: enable = %s", q->enable ? "true" : "false");
-    if (q->enable)
-        fprintf (fp,", name = %s", q->name);
-    fprintf (fp,"\n");
-}
-
-void qp_writer_data_lifecycle (const DDS_WriterDataLifecycleQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  writer_data_lifecycle: autodispose_unregistered_instances = %s, autopurge_suspended_samples_delay = ",
-            q->autodispose_unregistered_instances ? "true" : "false");
-    if (duration_is_infinite (&q->autopurge_suspended_samples_delay))
-        fprintf (fp,"infinite");
-    else
-        fprintf (fp,"%d.%09u", q->autopurge_suspended_samples_delay.sec, q->autopurge_suspended_samples_delay.nanosec);
-    fprintf (fp,", autounregister_instance_delay = ");
-    if (duration_is_infinite (&q->autounregister_instance_delay))
-        fprintf (fp,"infinite\n");
-    else
-        fprintf (fp,"%d.%09u\n", q->autounregister_instance_delay.sec, q->autounregister_instance_delay.nanosec);
-}
-
-void qp_reader_data_lifecycle (const DDS_ReaderDataLifecycleQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  reader_data_lifecycle: autopurge_nowriter_samples_delay = ");
-    if (duration_is_infinite (&q->autopurge_nowriter_samples_delay))
-        fprintf (fp,"infinite");
-    else
-        fprintf (fp,"%d.%09u", q->autopurge_nowriter_samples_delay.sec, q->autopurge_nowriter_samples_delay.nanosec);
-    fprintf (fp,", autopurge_disposed_samples_delay = ");
-    if (duration_is_infinite (&q->autopurge_disposed_samples_delay))
-        fprintf (fp,"infinite");
-    else
-        fprintf (fp,"%d.%09u", q->autopurge_disposed_samples_delay.sec, q->autopurge_disposed_samples_delay.nanosec);
-    fprintf (fp,", enable_invalid_samples = %s\n", q->enable_invalid_samples ? "true" : "false");
-}
-
-void qp_subscription_keys (const DDS_UserKeyQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  subscription_keys: enable = %s expression = %s\n", q->enable ? "true" : "false", q->expression);
-}
-
-void qp_reader_lifespan (const DDS_ReaderLifespanQosPolicy *q, FILE *fp)
-{
-    fprintf (fp,"  reader_lifespan: use_lifespan = %s, ", q->use_lifespan ? "true" : "false");
-    if (!q->use_lifespan)
-        fprintf (fp,"(");
-    fprintf (fp,"duration = ");
-    if (duration_is_infinite (&q->duration))
-        fprintf (fp,"infinite");
-    else
-        fprintf (fp,"%d.%09u", q->duration.sec, q->duration.nanosec);
-    if (!q->use_lifespan)
-        fprintf (fp,")");
-    fprintf (fp,"\n");
-}
-
-void print_dcps_topic(FILE *fp){
-    DDS_TopicBuiltinTopicData * dcps_topic_samples[10];
-    dds_entity_t dcps_topic_reader;
-    int i = 0;
-    dcps_topic_reader = dds_create_reader(participant, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
-    PRINTD("DCPSTopic Reader Create: %s\n", dds_err_str(dcps_topic_reader));
-    reader_wait = dds_reader_wait_for_historical_data(dcps_topic_reader, DDS_SECS(5));
-    PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
-    while(true){
-        int status = 0;
-        zero(dcps_topic_samples, MAX_SAMPLES);
-        status = dds_take_mask(dcps_topic_reader, (void**)dcps_topic_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
-        PRINTD("DDS reading samples returns %d \n", status);
-        for(i = 0; i < status; i++) {
-            DDS_TopicBuiltinTopicData * data = dcps_topic_samples[i];
-            fprintf(fp,"TOPIC:\n");
-            fprintf(fp," key = %u:%u:%u \n", (unsigned) data->key[0], (unsigned) data->key[1], (unsigned) data->key[2]);
-            fprintf(fp," name = %s\n", data->name);
-            fprintf(fp," type_name = %s\n", data->type_name);
-            qp_durability (&data->durability,fp);
-            qp_deadline (&data->deadline,fp);
-            qp_latency_budget (&data->latency_budget,fp);
-            qp_liveliness (&data->liveliness,fp);
-            qp_reliability (&data->reliability,fp);
-            qp_transport_priority (&data->transport_priority,fp);
-            qp_lifespan (&data->lifespan,fp);
-            qp_destination_order (&data->destination_order,fp);
-            qp_history (&data->history,fp);
-            qp_resource_limits (&data->resource_limits,fp);
-            qp_ownership (&data->ownership,fp);
-            qp_topic_data (&data->topic_data,fp);
-        }
-        if(status > 0) {
-            status = dds_return_loan(dcps_topic_reader, (void**)dcps_topic_samples, status);
-        }
-        if(status <= 0){
-            break;
-        }
-    }
-}
-
-void print_dcps_participant(FILE *fp){
-
-    DDS_ParticipantBuiltinTopicData * dcps_participant_samples[10];
-    dds_entity_t dcps_participant_reader;
-    int i = 0;
-    dcps_participant_reader = dds_create_reader(participant, DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, NULL, NULL);
-    PRINTD("DCPSSubscription Reader Create: %s\n", dds_err_str(dcps_participant_reader));
-    reader_wait = dds_reader_wait_for_historical_data(dcps_participant_reader, DDS_SECS(5));
-    PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
-    while(true){
-        int status = 0;
-        zero(dcps_participant_samples, MAX_SAMPLES);
-        status = dds_take_mask(dcps_participant_reader, (void**)dcps_participant_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
-        PRINTD("DDS reading samples returns %d \n", status);
-        for(i = 0; i < status; i++) {
-            DDS_ParticipantBuiltinTopicData *data = dcps_participant_samples[i];
-            fprintf(fp,"PARTICIPANT:\n");
-            fprintf(fp," key = %u:%u:%u \n", (unsigned) data->key[0], (unsigned) data->key[1], (unsigned) data->key[2]);
-            qp_user_data(&data->user_data,fp);
-        }
-        if(status > 0) {
-            status = dds_return_loan(dcps_participant_reader, (void**)dcps_participant_samples, status);
-        }
-        if(status <= 0){
-            break;
-        }
-    }
-}
-
-void print_dcps_subscription(FILE *fp){
-    DDS_SubscriptionBuiltinTopicData * dcps_subscription_samples[10];
-    dds_entity_t dcps_subscription_reader;
-    int i = 0;
-    dcps_subscription_reader = dds_create_reader(participant, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL);
-    PRINTD("DCPSParticipant Reader Create: %s\n", dds_err_str(dcps_subscription_reader));
-    reader_wait = dds_reader_wait_for_historical_data(dcps_subscription_reader, DDS_SECS(5));
-    PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
-    while(true){
-        int status = 0;
-        zero(dcps_subscription_samples, MAX_SAMPLES);
-        status = dds_take_mask(dcps_subscription_reader, (void**)dcps_subscription_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
-        PRINTD("DDS reading samples returns %d \n", status);
-        for(i = 0; i < status; i++) {
-            DDS_SubscriptionBuiltinTopicData *data = dcps_subscription_samples[i];
-            fprintf(fp,"SUBSCRIPTION:\n");
-            fprintf(fp," key = %u:%u:%u\n", (uint32_t) data->key[0], (uint32_t) data->key[1], (uint32_t) data->key[2]);
-            fprintf(fp," participant_key = %u:%u:%u\n", (uint32_t) data->participant_key[0], (uint32_t) data->participant_key[1], (uint32_t) data->participant_key[2]);
-            fprintf(fp," topic_name = %s\n", data->topic_name);
-            fprintf(fp," type_name = %s\n", data->type_name);
-            qp_durability(&data->durability,fp);
-            qp_deadline(&data->deadline,fp);
-            qp_latency_budget(&data->latency_budget,fp);
-            qp_liveliness(&data->liveliness,fp);
-            qp_reliability(&data->reliability,fp);
-            qp_ownership(&data->ownership,fp);
-            qp_destination_order(&data->destination_order,fp);
-            qp_user_data(&data->user_data,fp);
-            qp_time_based_filter(&data->time_based_filter,fp);
-            qp_presentation(&data->presentation,fp);
-            qp_partition(&data->partition,fp);
-            qp_topic_data(&data->topic_data,fp);
-            qp_group_data(&data->group_data,fp);
-        }
-        if(status > 0) {
-            status = dds_return_loan(dcps_subscription_reader, (void**)dcps_subscription_samples, status);
-        }
-        if(status <= 0){
-            break;
-        }
-    }
-}
-
-void print_dcps_publication(FILE *fp){
-    DDS_PublicationBuiltinTopicData * dcps_publication_samples[10];
-    dds_entity_t dcps_publication_reader;
-    int i = 0;
-    dcps_publication_reader = dds_create_reader(participant, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, NULL);
-    PRINTD("DCPSPublication Reader Create: %s\n", dds_err_str(dcps_publication_reader));
-    reader_wait = dds_reader_wait_for_historical_data(dcps_publication_reader, DDS_SECS(5));
-    PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
-    while(true){
-        int status = 0;
-        zero(dcps_publication_samples, MAX_SAMPLES);
-        status = dds_take_mask(dcps_publication_reader, (void**)dcps_publication_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
-        PRINTD("DDS reading samples returns %d \n", status);
-        for(i = 0; i < status; i++) {
-            DDS_PublicationBuiltinTopicData *data = dcps_publication_samples[i];
-            fprintf(fp,"PUBLICATION:\n");
-            fprintf(fp," key = %u:%u:%u\n", (uint32_t) data->key[0], (uint32_t) data->key[1], (uint32_t) data->key[2]);
-            fprintf(fp," participant_key = %u:%u:%u\n", (uint32_t) data->participant_key[0], (uint32_t) data->participant_key[1], (uint32_t) data->participant_key[2]);
-            fprintf(fp," topic_name = %s\n", data->topic_name);
-            fprintf(fp," type_name = %s\n", data->type_name);
-            qp_durability(&data->durability,fp);
-            qp_deadline(&data->deadline,fp);
-            qp_latency_budget(&data->latency_budget,fp);
-            qp_liveliness(&data->liveliness,fp);
-            qp_reliability(&data->reliability,fp);
-            qp_lifespan (&data->lifespan,fp);
-            qp_destination_order (&data->destination_order,fp);
-            qp_user_data (&data->user_data,fp);
-            qp_ownership (&data->ownership,fp);
-            qp_ownership_strength (&data->ownership_strength,fp);
-            qp_presentation (&data->presentation,fp);
-            qp_partition (&data->partition,fp);
-            qp_topic_data (&data->topic_data,fp);
-            qp_group_data (&data->group_data,fp);
-        }
-        if(status > 0) {
-            status = dds_return_loan(dcps_publication_reader, (void**)dcps_publication_samples, status);
-        }
-        if(status <= 0){
-            break;
-        }
-    }
-}
-
-void print_cm_participant(FILE *fp){
-    DDS_CMParticipantBuiltinTopicData * cm_participant_samples[10];
-    dds_entity_t cm_participant_reader;
-    int i = 0;
-    cm_participant_reader = dds_create_reader(participant, DDS_BUILTIN_TOPIC_CMPARTICIPANT, NULL, NULL);
-    PRINTD("CMParticipant Reader Create: %s\n", dds_err_str(cm_participant_reader));
-    reader_wait = dds_reader_wait_for_historical_data(cm_participant_reader, DDS_SECS(5));
-    PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
-    while(true){
-        int status = 0;
-        zero(cm_participant_samples, MAX_SAMPLES);
-        status = dds_take_mask(cm_participant_reader, (void**)cm_participant_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
-        PRINTD("DDS reading samples returns %d \n", status);
-        for(i = 0; i < status; i++) {
-            DDS_CMParticipantBuiltinTopicData *data = cm_participant_samples[i];
-            fprintf(fp,"CMPARTICIPANT:\n");
-            fprintf(fp," key = %u:%u:%u \n", (unsigned) data->key[0], (unsigned) data->key[1], (unsigned) data->key[2]);
-            qp_product_data(&data->product,fp);
-        }
-        if(status > 0) {
-            status = dds_return_loan(cm_participant_reader, (void**)cm_participant_samples, status);
-        }
-        if(status <= 0){
-            break;
-        }
-    }
-}
-
-void print_cm_publisher(FILE *fp){
-    DDS_CMPublisherBuiltinTopicData * cm_publisher_samples[10];
-    dds_entity_t cm_publisher_reader;
-    int i = 0;
-    cm_publisher_reader = dds_create_reader(participant, DDS_BUILTIN_TOPIC_CMPUBLISHER, NULL, NULL);
-    PRINTD("CMPublisher Reader Create: %s\n", dds_err_str(cm_publisher_reader));
-    reader_wait = dds_reader_wait_for_historical_data(cm_publisher_reader, DDS_SECS(5));
-    PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
-    while(true){
-        int status = 0;
-        zero(cm_publisher_samples, MAX_SAMPLES);
-        status = dds_take_mask(cm_publisher_reader, (void**)cm_publisher_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
-        PRINTD("DDS reading samples returns %d \n", status);
-        for(i = 0; i < status; i++) {
-            DDS_CMPublisherBuiltinTopicData *data = cm_publisher_samples[i];
-            fprintf(fp,"CMPUBLISHER:\n");
-            fprintf(fp," key = %u:%u:%u \n", (unsigned) data->key[0], (unsigned) data->key[1], (unsigned) data->key[2]);
-            fprintf(fp," participant_key = %u:%u:%u\n", (unsigned) data->key[0], (unsigned) data->key[1], (unsigned) data->key[2]);
-            fprintf(fp," name = %s\n", data->name);
-            qp_entity_factory(&data->entity_factory,fp);
-            qp_partition(&data->partition,fp);
-            qp_product_data(&data->product,fp);
-        }
-        if(status > 0) {
-            status = dds_return_loan(cm_publisher_reader, (void**)cm_publisher_samples, status);
-        }
-        if(status <= 0){
-            break;
-        }
-    }
-}
-
-void print_cm_subscriber(FILE *fp){
-    DDS_CMSubscriberBuiltinTopicData * cm_subscriber_samples[10];
-    dds_entity_t cm_subscriber_reader;
-    int i = 0;
-    cm_subscriber_reader = dds_create_reader(participant, DDS_BUILTIN_TOPIC_CMSUBSCRIBER, NULL, NULL);
-    PRINTD("CMSubscriber Reader Create: %s\n", dds_err_str(cm_subscriber_reader));
-    reader_wait = dds_reader_wait_for_historical_data(cm_subscriber_reader, DDS_SECS(5));
-    PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
-    while(true){
-         int status = 0;
-       zero(cm_subscriber_samples, MAX_SAMPLES);
-        status = dds_take_mask(cm_subscriber_reader, (void**)cm_subscriber_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
-        PRINTD("DDS reading samples returns %d \n", status);
-        for(i = 0; i < status; i++) {
-            DDS_CMSubscriberBuiltinTopicData *data = cm_subscriber_samples[i];
-            fprintf(fp,"CMSUBSCRIBER:\n");
-            fprintf(fp," key = %u:%u:%u \n", (unsigned) data->key[0], (unsigned) data->key[1], (unsigned) data->key[2]);
-            fprintf(fp," participant_key = %u:%u:%u\n", (unsigned) data->participant_key[0], (unsigned) data->participant_key[1], (unsigned) data->participant_key[2]);
-            fprintf(fp," name = %s\n", data->name);
-            qp_entity_factory(&data->entity_factory,fp);
-            qp_partition(&data->partition,fp);
-            qp_share(&data->share,fp);
-            qp_product_data(&data->product,fp);
-        }
-        if(status > 0) {
-            status = dds_return_loan(cm_subscriber_reader, (void**)cm_subscriber_samples, status);
-        }
-        if(status <= 0){
-            break;
-        }
-    }
-}
-
-void print_cm_datawriter(FILE *fp){
-    DDS_CMDataWriterBuiltinTopicData * cm_datawriter_samples[10];
-    dds_entity_t cm_datawriter_reader;
-    int i = 0;
-    cm_datawriter_reader = dds_create_reader(participant, DDS_BUILTIN_TOPIC_CMDATAWRITER, NULL, NULL);
-    PRINTD("CMDataWriter Reader Create: %s\n", dds_err_str(cm_datawriter_reader));
-    reader_wait = dds_reader_wait_for_historical_data(cm_datawriter_reader, DDS_SECS(5));
-    PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
-    while(true){
-        int status = 0;
-        zero(cm_datawriter_samples, MAX_SAMPLES);
-        status = dds_take_mask(cm_datawriter_reader, (void**)cm_datawriter_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
-        PRINTD("DDS reading samples returns %d \n", status);
-        for(i = 0; i < status; i++) {
-            DDS_CMDataWriterBuiltinTopicData *data = cm_datawriter_samples[i];
-            fprintf(fp,"CMDATAWRITER:\n");
-            fprintf(fp," key = %u:%u:%u \n", (unsigned) data->key[0], (unsigned) data->key[1], (unsigned) data->key[2]);
-            fprintf(fp," publisher_key = %u:%u:%u\n", (unsigned) data->publisher_key[0], (unsigned) data->publisher_key[1], (unsigned) data->publisher_key[2]);
-            fprintf(fp," name = %s\n", data->name);
-            qp_history (&data->history,fp);
-            qp_resource_limits (&data->resource_limits,fp);
-            qp_writer_data_lifecycle (&data->writer_data_lifecycle,fp);
-            qp_product_data (&data->product,fp);
-        }
-        if(status > 0) {
-            status = dds_return_loan(cm_datawriter_reader, (void**)cm_datawriter_samples, status);
-        }
-        if(status <= 0){
-            break;
-        }
-    }
-}
-
-void print_cm_datareader(FILE *fp){
-    DDS_CMDataReaderBuiltinTopicData * cm_datareader_samples[10];
-    dds_entity_t cm_datareader_reader;
-    int i = 0;
-    cm_datareader_reader = dds_create_reader(participant, DDS_BUILTIN_TOPIC_CMDATAREADER, NULL, NULL);
-    PRINTD("CMDataReader Reader Create: %s\n", dds_err_str(cm_datareader_reader));
-    reader_wait = dds_reader_wait_for_historical_data(cm_datareader_reader, DDS_SECS(5));
-    PRINTD("reader wait status: %d, %s \n", reader_wait, dds_err_str(reader_wait));
-    while(true){
-        int status = 0;
-        zero(cm_datareader_samples, MAX_SAMPLES);
-        status = dds_take_mask(cm_datareader_reader, (void**)cm_datareader_samples, info, MAX_SAMPLES, MAX_SAMPLES, states);
-        PRINTD("DDS reading samples returns %d \n", status);
-        for(i = 0; i < status; i++) {
-            DDS_CMDataReaderBuiltinTopicData *data = cm_datareader_samples[i];
-            fprintf(fp,"CMDATAREADER:\n");
-            fprintf(fp," key = %u:%u:%u \n", (unsigned) data->key[0], (unsigned) data->key[1], (unsigned) data->key[2]);
-            fprintf(fp," subscriber_key = %u:%u:%u\n", (unsigned) data->subscriber_key[0], (unsigned) data->subscriber_key[1], (unsigned) data->subscriber_key[2]);
-            fprintf(fp," name = %s\n", data->name);
-            qp_history (&data->history,fp);
-            qp_resource_limits (&data->resource_limits,fp);
-            qp_reader_data_lifecycle (&data->reader_data_lifecycle,fp);
-            qp_subscription_keys (&data->subscription_keys,fp);
-            qp_reader_lifespan (&data->reader_lifespan,fp);
-            qp_share (&data->share,fp);
-            qp_product_data (&data->product,fp);
-        }
-        if(status > 0) {
-            status = dds_return_loan(cm_datareader_reader, (void**)cm_datareader_samples, status);
-        }
-        if(status <= 0){
-            break;
-        }
-    }
-}
-
-void usage(){
-    /*describe the default options*/
-    size_t tpindex;
-    printf("\n OPTIONS:\n");
-    printf("-f <filename> <topics>    -- write to file\n");
-    printf("-a             -- all topics\n");
-    printf("\nTOPICS\n");
-    for(tpindex = 0; tpindex < TOPICTAB_SIZE; tpindex++){
-        printf("%s\n", topictab[tpindex].name);
-    }
-}
-
-int main(int argc, char **argv){
-    FILE *fp = NULL;
-    int flags = 0;
-    int j;
-    size_t index;
-    char *fname = NULL;
-    if(argc == 1){
-        usage();
-    }
-    int choice=0;
-    while((choice = os_getopt(argc,argv,"f:a")) != -1)
-    {
-        switch(choice)
-        {
-        case 'f':
-            fname = os_get_optarg();
-            if(fname != NULL){
-
-                PRINTD("opening file %s \n", fname);
-                fp = fopen(fname, "w");
-                if(fp == NULL)
-                {
-                    printf("file does not exist\n");
-                    exit(1);
-                }
-            }
-            break;
-        case 'a':
-            for(index=0; index<TOPICTAB_SIZE; index++){
-                        flags |= topictab[index].flag;
-            }
-            break;
-        default:
-            printf("%s Invalid option\n", argv[1]);
-            usage();
-            break;
-        }
-    }
-
-    if(fp == NULL){
-        fp = stdout;
-    }
-
-    for(j = os_get_optind(); j < argc; j++) {
-        if(argv[j][0] == '-') {
-            // it's an option, don't process it...
-            continue;
-        }
-        size_t k;
-        bool matched = false;
-        for(k = 0; k < TOPICTAB_SIZE; k++) {
-            if(os_strcasecmp(argv[j], topictab[k].name) == 0) {
-                // match
-                flags |= topictab[k].flag;
-                matched = true;
-                break;
-            }
-        }
-        if(!matched) {
-            printf("%s: topic unknown\n", argv[j]);
-        }
-    }
-
-    /* Create the participant with the default domain */
-    participant = dds_create_participant(did, NULL, NULL);
-    PRINTD("DDS Participant Create: %s\n", dds_err_str(status));
-
-    if(flags & DCPSTOPIC_FLAG) {
-        print_dcps_topic(fp);
-    }
-
-    if(flags & DCPSPARTICIPANT_FLAG) {
-        print_dcps_participant(fp);
-    }
-
-    if(flags & DCPSSUBSCRIPTION_FLAG){
-        print_dcps_subscription(fp);
-    }
-
-    if(flags & DCPSPUBLICATION_FLAG){
-        print_dcps_publication(fp);
-    }
-
-    if(flags & CMPARTICIPANT_FLAG){
-        print_cm_participant(fp);
-    }
-
-    if(flags & CMPUBLISHER_FLAG){
-        print_cm_publisher(fp);
-    }
-
-    if(flags & CMSUBSCRIBER_FLAG){
-        print_cm_subscriber(fp);
-    }
-
-    if(flags & CMDATAWRITER_FLAG){
-        print_cm_datawriter(fp);
-    }
-
-    if(flags & CMDATAREADER_FLAG){
-        print_cm_datareader(fp);
-    }
-
-    dds_delete(participant);
-    fclose(fp);
-    return 0;
+  for (size_t i = 0; i < TOPICTAB_SIZE; i++)
+  {
+    if (flags & topictab[i].flag)
+      topictab[i].fun (fp, pp);
+  }
+  dds_delete (pp);
+  fclose (fp);
+  return 0;
 }

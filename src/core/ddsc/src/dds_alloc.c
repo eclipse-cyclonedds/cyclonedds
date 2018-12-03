@@ -76,8 +76,9 @@ char * dds_string_dup (const char * str)
   char * ret = NULL;
   if (str)
   {
-    ret = dds_alloc (strlen (str) + 1);
-    strcpy (ret, str);
+    size_t sz = strlen (str) + 1;
+    ret = dds_alloc (sz);
+    memcpy (ret, str, sz);
   }
   return ret;
 }
