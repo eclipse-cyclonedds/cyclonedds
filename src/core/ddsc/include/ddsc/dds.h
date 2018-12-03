@@ -3070,7 +3070,7 @@ dds_read_next_wl(
 _Pre_satisfies_(((reader_or_condition & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER ) ||\
                 ((reader_or_condition & DDS_ENTITY_KIND_MASK) == DDS_KIND_COND_READ ) || \
                 ((reader_or_condition & DDS_ENTITY_KIND_MASK) == DDS_KIND_COND_QUERY ))
-DDS_EXPORT _Must_inspect_result_ dds_return_t
+DDS_EXPORT dds_return_t
 dds_return_loan(
         _In_ dds_entity_t reader_or_condition,
         _Inout_updates_(bufsz) void **buf,
