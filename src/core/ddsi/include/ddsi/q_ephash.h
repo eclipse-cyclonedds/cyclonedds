@@ -80,6 +80,7 @@ void ephash_remove_reader_guid (struct reader *rd);
 void ephash_remove_proxy_writer_guid (struct proxy_writer *pwr);
 void ephash_remove_proxy_reader_guid (struct proxy_reader *prd);
 
+void *ephash_lookup_guid_untyped (const struct nn_guid *guid);
 void *ephash_lookup_guid (const struct nn_guid *guid, enum entity_kind kind);
 
 struct participant *ephash_lookup_participant_guid (const struct nn_guid *guid);

@@ -177,6 +177,29 @@ typedef struct dds_sample_info
 }
 dds_sample_info_t;
 
+typedef struct dds_builtintopic_guid
+{
+  uint8_t v[16];
+}
+dds_builtintopic_guid_t;
+
+typedef struct dds_builtintopic_participant
+{
+  dds_builtintopic_guid_t key;
+  dds_qos_t *qos;
+}
+dds_builtintopic_participant_t;
+
+typedef struct dds_builtintopic_endpoint
+{
+  dds_builtintopic_guid_t key;
+  dds_builtintopic_guid_t participant_key;
+  char *topic_name;
+  char *type_name;
+  dds_qos_t *qos;
+}
+dds_builtintopic_endpoint_t;
+
 /*
   All entities are represented by a process-private handle, with one
   call to enable an entity when it was created disabled.
