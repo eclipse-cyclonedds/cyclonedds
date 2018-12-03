@@ -262,15 +262,14 @@ dds_unregister_instance_ih_ts(
 
     map = gv.m_tkmap;
     topic = dds_instance_info((dds_entity*)wr);
-    sample = dds_alloc (topic->m_descriptor->m_size);
+    sample = ddsi_sertopic_alloc_sample (topic->m_stopic);
     if (ddsi_tkmap_get_key (map, topic->m_stopic, handle, sample)) {
         ret = dds_write_impl ((dds_writer*)wr, sample, timestamp, action);
     } else{
         DDS_ERROR("No instance related with the provided handle is found\n");
         ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
     }
-    dds_sample_free (sample, topic->m_descriptor, DDS_FREE_ALL);
-
+    ddsi_sertopic_free_sample (topic->m_stopic, sample, DDS_FREE_ALL);
     dds_entity_unlock(wr);
 err:
     return ret;
@@ -356,14 +355,14 @@ dds_dispose_ih_ts(
     if (rc == DDS_RETCODE_OK) {
         struct ddsi_tkmap *map = gv.m_tkmap;
         const dds_topic *topic = dds_instance_info((dds_entity*)wr);
-        void *sample = dds_alloc (topic->m_descriptor->m_size);
+        void *sample = ddsi_sertopic_alloc_sample (topic->m_stopic);
         if (ddsi_tkmap_get_key (map, topic->m_stopic, handle, sample)) {
             ret = dds_dispose_impl(wr, sample, handle, timestamp);
         } else {
             DDS_ERROR("No instance related with the provided handle is found\n");
             ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
         }
-        dds_free(sample);
+        ddsi_sertopic_free_sample (topic->m_stopic, sample, DDS_FREE_ALL);
         dds_writer_unlock(wr);
     } else {
         DDS_ERROR("Error occurred on locking writer\n");
@@ -424,8 +423,7 @@ dds_instance_get_key(
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
-    memset (data, 0, topic->m_descriptor->m_size);
-
+    ddsi_sertopic_zero_sample (topic->m_stopic, data);
     if (ddsi_tkmap_get_key (map, topic->m_stopic, inst, data)) {
         ret = DDS_RETCODE_OK;
     } else{

@@ -169,7 +169,7 @@ typedef struct dds_reader
   struct reader * m_rd;
   bool m_data_on_readers;
   bool m_loan_out;
-  char * m_loan;
+  void * m_loan;
   uint32_t m_loan_size;
 
   /* Status metrics */
@@ -209,7 +209,6 @@ typedef struct dds_topic
 {
   struct dds_entity m_entity;
   struct ddsi_sertopic * m_stopic;
-  const dds_topic_descriptor_t * m_descriptor;
 
   dds_topic_intern_filter_fn filter_fn;
   void * filter_ctx;

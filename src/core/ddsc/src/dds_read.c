@@ -19,6 +19,7 @@
 #include "ddsi/q_thread.h"
 #include "ddsi/q_ephash.h"
 #include "ddsi/q_entity.h"
+#include "ddsi/ddsi_sertopic.h"
 
 
 static _Check_return_ dds__retcode_t
@@ -93,7 +94,6 @@ dds_read_impl(
         _In_  bool lock,
         _In_ bool only_reader)
 {
-    uint32_t i;
     dds_return_t ret = DDS_RETCODE_OK;
     dds__retcode_t rc;
     struct dds_reader * rd;
@@ -146,28 +146,24 @@ dds_read_impl(
     }
     /* Allocate samples if not provided (assuming all or none provided) */
     if (buf[0] == NULL) {
-        char * loan;
-        const size_t sz = rd->m_topic->m_descriptor->m_size;
-        const uint32_t loan_size = (uint32_t) (sz * maxs);
         /* Allocate, use or reallocate loan cached on reader */
         if (rd->m_loan_out) {
-            loan = dds_alloc (loan_size);
+            ddsi_sertopic_realloc_samples (buf, rd->m_topic->m_stopic, NULL, 0, maxs);
         } else {
             if (rd->m_loan) {
-                if (rd->m_loan_size < loan_size) {
-                    rd->m_loan = dds_realloc_zero (rd->m_loan, loan_size);
-                    rd->m_loan_size = loan_size;
+                if (rd->m_loan_size < maxs) {
+                    ddsi_sertopic_realloc_samples (buf, rd->m_topic->m_stopic, rd->m_loan, rd->m_loan_size, maxs);
+                    rd->m_loan = buf[0];
+                    rd->m_loan_size = maxs;
+                } else {
+                  buf[0] = rd->m_loan;
                 }
              } else {
-                 rd->m_loan = dds_alloc (loan_size);
-                 rd->m_loan_size = loan_size;
+                 ddsi_sertopic_realloc_samples (buf, rd->m_topic->m_stopic, NULL, 0, maxs);
+                 rd->m_loan = buf[0];
+                 rd->m_loan_size = maxs;
              }
-                 loan = rd->m_loan;
-                 rd->m_loan_out = true;
-        }
-        for (i = 0; i < maxs; i++) {
-            buf[i] = loan;
-            loan += sz;
+            rd->m_loan_out = true;
         }
     }
     if (take) {
@@ -759,7 +755,7 @@ dds_return_loan(
         _In_ int32_t bufsz)
 {
     dds__retcode_t rc;
-    const dds_topic_descriptor_t * desc;
+    const struct ddsi_sertopic *st;
     dds_reader *rd;
     dds_readcond *cond;
     dds_return_t ret = DDS_RETCODE_OK;
@@ -781,20 +777,16 @@ dds_return_loan(
         ret = DDS_ERRNO(rc);
         goto fail;
     }
-    desc = rd->m_topic->m_descriptor;
+    st = rd->m_topic->m_stopic;
 
-    /* Only free sample contents if they have been allocated */
-    if (desc->m_flagset & DDS_TOPIC_NO_OPTIMIZE) {
-        int32_t i = 0;
-        for (i = 0; i < bufsz; i++) {
-            dds_sample_free(buf[i], desc, DDS_FREE_CONTENTS);
-        }
+    for (int32_t i = 0; i < bufsz; i++) {
+        ddsi_sertopic_free_sample (st, buf[i], DDS_FREE_CONTENTS);
     }
 
     /* If possible return loan buffer to reader */
     if (rd->m_loan != 0 && (buf[0] == rd->m_loan)) {
         rd->m_loan_out = false;
-        memset (rd->m_loan, 0, rd->m_loan_size);
+        ddsi_sertopic_zero_samples (st, rd->m_loan, rd->m_loan_size);
         buf[0] = NULL;
     }
 

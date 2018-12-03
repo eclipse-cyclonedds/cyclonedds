@@ -1040,7 +1040,7 @@ int rtps_init (void)
   make_builtin_endpoint_xqos (&gv.builtin_endpoint_xqos_rd, &gv.default_xqos_rd);
   make_builtin_endpoint_xqos (&gv.builtin_endpoint_xqos_wr, &gv.default_xqos_wr);
 
-  make_special_topics (); /* FIXME: leaking these for now */
+  make_special_topics ();
 
   os_mutexInit (&gv.participant_set_lock);
   os_condInit (&gv.participant_set_cond, &gv.participant_set_lock);

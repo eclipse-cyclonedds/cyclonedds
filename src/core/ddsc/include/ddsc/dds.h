@@ -947,7 +947,7 @@ dds_lookup_participant(
         _In_        size_t size);
 
 /**
- * @brief Creates a new topic.
+ * @brief Creates a new topic with default type handling.
  *
  * The type name for the topic is taken from the generated descriptor. Topic
  * matching is done on a combination of topic name and type name.
@@ -974,6 +974,39 @@ dds_create_topic(
         _In_z_ const char *name,
         _In_opt_ const dds_qos_t *qos,
         _In_opt_ const dds_listener_t *listener);
+
+/**
+ * @brief Creates a new topic with arbitrary type handling.
+ *
+ * The type name for the topic is taken from the provided "sertopic" object. Topic
+ * matching is done on a combination of topic name and type name.
+ *
+ * @param[in]  participant  Participant on which to create the topic.
+ * @param[in]  sertopic     Internal description of the topic type.
+ * @param[in]  name         Name of the topic.
+ * @param[in]  qos          QoS to set on the new topic (can be NULL).
+ * @param[in]  listener     Any listener functions associated with the new topic (can be NULL).
+ * @param[in]  sedp_plist   Topic description to be published as part of discovery (if NULL, not published).
+ *
+ * @returns A valid topic handle or an error code.
+ *
+ * @retval >=0
+ *             A valid topic handle.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Either participant, descriptor, name or qos is invalid.
+ */
+/* TODO: Check list of retcodes is complete. */
+struct ddsi_sertopic;
+struct nn_plist;
+_Pre_satisfies_((participant & DDS_ENTITY_KIND_MASK) == DDS_KIND_PARTICIPANT)
+DDS_EXPORT dds_entity_t
+dds_create_topic_arbitrary (
+        _In_ dds_entity_t participant,
+        _In_ struct ddsi_sertopic *sertopic,
+        _In_z_ const char *name,
+        _In_opt_ const dds_qos_t *qos,
+        _In_opt_ const dds_listener_t *listener,
+        _In_opt_ const struct nn_plist *sedp_plist);
 
 /**
  * @brief Finds a named topic.

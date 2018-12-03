@@ -322,31 +322,42 @@ static bool dupdef_qos_ok(const dds_qos_t *qos, const struct ddsi_sertopic *st)
     }
 }
 
+static bool sertopic_equivalent (const struct ddsi_sertopic *a, const struct ddsi_sertopic *b)
+{
+  printf ("sertopic_equivalent %p %p (%s %s; %u %u; %p %p; %p %p)\n", a, b, a->name_typename, b->name_typename, a->serdata_basehash, b->serdata_basehash, a->ops, b->ops, a->serdata_ops, b->serdata_ops);
+
+  if (strcmp (a->name_typename, b->name_typename) != 0)
+    return false;
+  if (a->serdata_basehash != b->serdata_basehash)
+    return false;
+  if (a->ops != b->ops)
+    return false;
+  if (a->serdata_ops != b->serdata_ops)
+    return false;
+  return true;
+}
+
 _Pre_satisfies_((participant & DDS_ENTITY_KIND_MASK) == DDS_KIND_PARTICIPANT)
 DDS_EXPORT dds_entity_t
-dds_create_topic(
+dds_create_topic_arbitrary (
         _In_ dds_entity_t participant,
-        _In_ const dds_topic_descriptor_t *desc,
+        _In_ struct ddsi_sertopic *sertopic,
         _In_z_ const char *name,
         _In_opt_ const dds_qos_t *qos,
-        _In_opt_ const dds_listener_t *listener)
+        _In_opt_ const dds_listener_t *listener,
+        _In_opt_ const nn_plist_t *sedp_plist)
 {
-    char *key = NULL;
     struct ddsi_sertopic *stgeneric;
-    struct ddsi_sertopic_default *st;
-    const char *typename;
     dds__retcode_t rc;
     dds_entity *par;
     dds_topic *top;
     dds_qos_t *new_qos = NULL;
-    nn_plist_t plist;
     dds_entity_t hdl;
     struct participant *ddsi_pp;
     struct thread_state1 *const thr = lookup_thread_state ();
     const bool asleep = !vtime_awake_p (thr->vtime);
-    uint32_t index;
 
-    if (desc == NULL){
+    if (sertopic == NULL){
         DDS_ERROR("Topic description is NULL\n");
         hdl = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto bad_param_err;
@@ -384,8 +395,7 @@ dds_create_topic(
     /* Check if topic already exists with same name */
     os_mutexLock (&dds_global.m_mutex);
     if ((stgeneric = dds_topic_lookup_locked (par->m_domain, name)) != NULL) {
-        st = (struct ddsi_sertopic_default *)stgeneric;
-        if (st->type != desc) {
+        if (!sertopic_equivalent (stgeneric,sertopic)) {
             /* FIXME: should copy the type, perhaps? but then the pointers will no longer be the same */
             DDS_ERROR("Create topic with mismatching type\n");
             hdl = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
@@ -394,17 +404,11 @@ dds_create_topic(
             DDS_ERROR("Create topic with mismatching qos\n");
             hdl = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
         } else {
-            dds_entity_add_ref (&st->c.status_cb_entity->m_entity);
-            hdl = st->c.status_cb_entity->m_entity.m_hdl;
+            dds_entity_add_ref (&stgeneric->status_cb_entity->m_entity);
+            hdl = stgeneric->status_cb_entity->m_entity.m_hdl;
         }
         os_mutexUnlock (&dds_global.m_mutex);
     } else {
-        typename = desc->m_typename;
-        key = (char*) dds_alloc (strlen (name) + strlen (typename) + 2);
-        strcpy (key, name);
-        strcat (key, "/");
-        strcat (key, typename);
-
         if (qos) {
             new_qos = dds_create_qos();
             /* Only returns failure when one of the qos args is NULL, which
@@ -414,65 +418,16 @@ dds_create_topic(
 
         /* Create topic */
         top = dds_alloc (sizeof (*top));
-        top->m_descriptor = desc;
         hdl = dds_entity_init (&top->m_entity, par, DDS_KIND_TOPIC, new_qos, listener, DDS_TOPIC_STATUS_MASK);
         top->m_entity.m_deriver.delete = dds_topic_delete;
         top->m_entity.m_deriver.set_qos = dds_topic_qos_set;
         top->m_entity.m_deriver.validate_status = dds_topic_status_validate;
-
-        st = dds_alloc (sizeof (*st));
-
-        os_atomic_st32 (&st->c.refc, 1);
-        st->c.iid = ddsi_iid_gen ();
-        st->c.status_cb = dds_topic_status_cb;
-        st->c.status_cb_entity = top;
-        st->c.name_typename = key;
-        st->c.name = dds_alloc (strlen (name) + 1);
-        strcpy (st->c.name, name);
-        st->c.typename = dds_alloc (strlen (typename) + 1);
-        strcpy (st->c.typename, typename);
-        st->c.ops = &ddsi_sertopic_ops_default;
-        st->c.serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey;
-        st->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (st->c.serdata_ops);
-        st->native_encoding_identifier = (PLATFORM_IS_LITTLE_ENDIAN ? CDR_LE : CDR_BE);
-
-        st->type = (void*) desc;
-        st->nkeys = desc->m_nkeys;
-        st->keys = desc->m_keys;
-
-        /* Check if topic cannot be optimised (memcpy marshal) */
-
-        if ((desc->m_flagset & DDS_TOPIC_NO_OPTIMIZE) == 0) {
-            st->opt_size = dds_stream_check_optimize (desc);
-        }
-        top->m_stopic = &st->c;
+        top->m_stopic = ddsi_sertopic_ref (sertopic);
+        sertopic->status_cb_entity = top;
 
         /* Add topic to extent */
-        dds_topic_add_locked (par->m_domainid, &st->c);
+        dds_topic_add_locked (par->m_domainid, sertopic);
         os_mutexUnlock (&dds_global.m_mutex);
-
-        nn_plist_init_empty (&plist);
-        if (new_qos) {
-            dds_merge_qos (&plist.qos, new_qos);
-        }
-
-        /* Set Topic meta data (for SEDP publication) */
-        plist.qos.topic_name = dds_string_dup (st->c.name);
-        plist.qos.type_name = dds_string_dup (st->c.typename);
-        plist.qos.present |= (QP_TOPIC_NAME | QP_TYPE_NAME);
-        if (desc->m_meta) {
-            plist.type_description = dds_string_dup (desc->m_meta);
-            plist.present |= PP_PRISMTECH_TYPE_DESCRIPTION;
-        }
-        if (desc->m_nkeys) {
-            plist.qos.present |= QP_PRISMTECH_SUBSCRIPTION_KEYS;
-            plist.qos.subscription_keys.use_key_list = 1;
-            plist.qos.subscription_keys.key_list.n = desc->m_nkeys;
-            plist.qos.subscription_keys.key_list.strs = dds_alloc (desc->m_nkeys * sizeof (char*));
-            for (index = 0; index < desc->m_nkeys; index++) {
-                plist.qos.subscription_keys.key_list.strs[index] = dds_string_dup (desc->m_keys[index].m_name);
-            }
-        }
 
         /* Publish Topic */
         if (asleep) {
@@ -480,16 +435,114 @@ dds_create_topic(
         }
         ddsi_pp = ephash_lookup_participant_guid (&par->m_guid);
         assert (ddsi_pp);
-        sedp_write_topic (ddsi_pp, &plist);
+        if (sedp_plist) {
+            sedp_write_topic (ddsi_pp, sedp_plist);
+        }
         if (asleep) {
             thread_state_asleep (thr);
         }
-        nn_plist_fini (&plist);
     }
 
 qos_err:
     dds_entity_unlock(par);
 lock_err:
+bad_param_err:
+    return hdl;
+}
+
+_Pre_satisfies_((participant & DDS_ENTITY_KIND_MASK) == DDS_KIND_PARTICIPANT)
+DDS_EXPORT dds_entity_t
+dds_create_topic(
+                 _In_ dds_entity_t participant,
+                 _In_ const dds_topic_descriptor_t *desc,
+                 _In_z_ const char *name,
+                 _In_opt_ const dds_qos_t *qos,
+                 _In_opt_ const dds_listener_t *listener)
+{
+    char *key = NULL;
+    struct ddsi_sertopic_default *st;
+    const char *typename;
+    dds_qos_t *new_qos = NULL;
+    nn_plist_t plist;
+    dds_entity_t hdl;
+    uint32_t index;
+
+    if (desc == NULL){
+        DDS_ERROR("Topic description is NULL");
+        hdl = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        goto bad_param_err;
+    }
+
+    if (name == NULL) {
+        DDS_ERROR("Topic name is NULL");
+        hdl = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        goto bad_param_err;
+    }
+
+    if (!is_valid_name(name)) {
+        DDS_ERROR("Topic name contains characters that are not allowed.");
+        hdl = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        goto bad_param_err;
+    }
+
+    typename = desc->m_typename;
+    key = (char*) dds_alloc (strlen (name) + strlen (typename) + 2);
+    strcpy (key, name);
+    strcat (key, "/");
+    strcat (key, typename);
+
+    st = dds_alloc (sizeof (*st));
+
+    os_atomic_st32 (&st->c.refc, 1);
+    st->c.iid = ddsi_iid_gen ();
+    st->c.status_cb = dds_topic_status_cb;
+    st->c.status_cb_entity = NULL; /* set by dds_create_topic_arbitrary */
+    st->c.name_typename = key;
+    st->c.name = dds_alloc (strlen (name) + 1);
+    strcpy (st->c.name, name);
+    st->c.typename = dds_alloc (strlen (typename) + 1);
+    strcpy (st->c.typename, typename);
+    st->c.ops = &ddsi_sertopic_ops_default;
+    st->c.serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey;
+    st->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (st->c.serdata_ops);
+    st->native_encoding_identifier = (PLATFORM_IS_LITTLE_ENDIAN ? CDR_LE : CDR_BE);
+
+    st->type = (void*) desc;
+    st->nkeys = desc->m_nkeys;
+    st->keys = desc->m_keys;
+
+    /* Check if topic cannot be optimised (memcpy marshal) */
+    if ((desc->m_flagset & DDS_TOPIC_NO_OPTIMIZE) == 0) {
+        st->opt_size = dds_stream_check_optimize (desc);
+    }
+
+    nn_plist_init_empty (&plist);
+    if (new_qos) {
+        dds_merge_qos (&plist.qos, new_qos);
+    }
+
+    /* Set Topic meta data (for SEDP publication) */
+    plist.qos.topic_name = dds_string_dup (st->c.name);
+    plist.qos.type_name = dds_string_dup (st->c.typename);
+    plist.qos.present |= (QP_TOPIC_NAME | QP_TYPE_NAME);
+    if (desc->m_meta) {
+        plist.type_description = dds_string_dup (desc->m_meta);
+        plist.present |= PP_PRISMTECH_TYPE_DESCRIPTION;
+    }
+    if (desc->m_nkeys) {
+        plist.qos.present |= QP_PRISMTECH_SUBSCRIPTION_KEYS;
+        plist.qos.subscription_keys.use_key_list = 1;
+        plist.qos.subscription_keys.key_list.n = desc->m_nkeys;
+        plist.qos.subscription_keys.key_list.strs = dds_alloc (desc->m_nkeys * sizeof (char*));
+        for (index = 0; index < desc->m_nkeys; index++) {
+            plist.qos.subscription_keys.key_list.strs[index] = dds_string_dup (desc->m_keys[index].m_name);
+        }
+    }
+
+    hdl = dds_create_topic_arbitrary(participant, &st->c, name, qos, listener, &plist);
+    ddsi_sertopic_unref (&st->c);
+    nn_plist_fini (&plist);
+
 bad_param_err:
     return hdl;
 }

@@ -668,8 +668,7 @@ static bool content_filter_accepts (const struct ddsi_sertopic *sertopic, const 
   const struct dds_topic *tp = sertopic->status_cb_entity;
   if (tp->filter_fn)
   {
-    const dds_topic_descriptor_t * desc = tp->m_descriptor;
-    char *tmp = dds_alloc (desc->m_size);
+    char *tmp = ddsi_sertopic_alloc_sample (tp->m_stopic);
     ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
     ret = (tp->filter_fn) (tmp, tp->filter_ctx);
     ddsi_sertopic_free_sample (tp->m_stopic, tmp, DDS_FREE_ALL);
@@ -2168,7 +2167,6 @@ static bool update_conditions_locked
   dds_readcond * iter;
   int m_pre;
   int m_post;
-  const struct dds_topic_descriptor *desc = rhc->topic->status_cb_entity->m_descriptor;
   char *tmp = NULL;
 
   DDS_TRACE("update_conditions_locked(%p) - inst %u nonempty %u disp %u nowr %u new %u samples %u read %u\n",
@@ -2214,8 +2212,7 @@ static bool update_conditions_locked
     {
       if (sample && tmp == NULL && (dds_entity_kind(iter->m_entity.m_hdl) == DDS_KIND_COND_QUERY))
       {
-        tmp = os_malloc (desc->m_size);
-        memset (tmp, 0, desc->m_size);
+        tmp = ddsi_sertopic_alloc_sample (rhc->topic);
         ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
       }
       if
@@ -2251,8 +2248,7 @@ static bool update_conditions_locked
 
   if (tmp)
   {
-    ddsi_sertopic_free_sample (rhc->topic, tmp, DDS_FREE_CONTENTS);
-    os_free (tmp);
+    ddsi_sertopic_free_sample (rhc->topic, tmp, DDS_FREE_ALL);
   }
   return trigger;
 }
