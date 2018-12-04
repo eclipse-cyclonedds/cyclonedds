@@ -1,6 +1,5 @@
 [requires]
 cunit/2.1-3@bincrafters/stable
-criterion/2.3.2@atolab/stable
 
 [generators]
 cmake

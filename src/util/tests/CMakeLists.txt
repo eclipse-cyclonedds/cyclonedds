@@ -9,6 +9,7 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-include(Criterion)
-add_criterion_executable(criterion_util .)
-target_link_libraries(criterion_util util)
+include(CUnit)
+
+add_cunit_executable(CUnit_util "handleserver.c")
+target_link_libraries(CUnit_util util)

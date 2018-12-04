@@ -15,18 +15,8 @@
 #include "os/os.h"
 #include "Space.h"
 #include "RoundTrip.h"
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
-#include <criterion/theories.h>
-
-
-#if 0
-#define PRINT_SAMPLE(info, sample) cr_log_info("%s (%d, %d, %d)\n", info, sample.long_1, sample.long_2, sample.long_3);
-#else
-#define PRINT_SAMPLE(info, sample)
-#endif
-
-
+#include "CUnit/Test.h"
+#include "CUnit/Theory.h"
 
 /**************************************************************************************************
  *
@@ -93,48 +83,48 @@ reader_init(void)
     g_listener = dds_create_listener(NULL);
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    cr_assert_gt(g_participant, 0, "Failed to create prerequisite g_participant");
+    CU_ASSERT_FATAL(g_participant > 0);
 
     g_subscriber = dds_create_subscriber(g_participant, NULL, NULL);
-    cr_assert_gt(g_subscriber, 0, "Failed to create prerequisite g_subscriber");
+    CU_ASSERT_FATAL(g_subscriber > 0);
 
     g_waitset = dds_create_waitset(g_participant);
-    cr_assert_gt(g_waitset, 0, "Failed to create g_waitset");
+    CU_ASSERT_FATAL(g_waitset > 0);
 
     g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_topic_name("ddsc_reader_test", name, sizeof name), NULL, NULL);
-    cr_assert_gt(g_topic, 0, "Failed to create prerequisite g_topic");
+    CU_ASSERT_FATAL(g_topic > 0);
 
     /* Create a reader that keeps last sample of all instances. */
     dds_qset_history(g_qos, DDS_HISTORY_KEEP_LAST, 1);
     g_reader = dds_create_reader(g_participant, g_topic, g_qos, NULL);
-    cr_assert_gt(g_reader, 0, "Failed to create prerequisite g_reader");
+    CU_ASSERT_FATAL(g_reader > 0);
 
     /* Create a reader that will not automatically dispose unregistered samples. */
     dds_qset_writer_data_lifecycle(g_qos, false);
     g_writer = dds_create_writer(g_participant, g_topic, g_qos, NULL);
-    cr_assert_gt(g_writer, 0, "Failed to create prerequisite g_writer");
+    CU_ASSERT_FATAL(g_writer > 0);
 
     /* Sync g_reader to g_writer. */
     ret = dds_set_enabled_status(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite g_reader status");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to attach prerequisite g_reader");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    cr_assert_eq(ret, 1, "Failed prerequisite dds_waitset_wait g_reader r");
-    cr_assert_eq(g_reader, (dds_entity_t)(intptr_t)triggered, "Failed prerequisite dds_waitset_wait g_reader a");
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL_FATAL(g_reader, (dds_entity_t)(intptr_t)triggered);
     ret = dds_waitset_detach(g_waitset, g_reader);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to detach prerequisite g_reader");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Sync g_writer to g_reader. */
     ret = dds_set_enabled_status(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite g_writer status");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_writer, g_writer);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to attach prerequisite g_writer");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    cr_assert_eq(ret, 1, "Failed prerequisite dds_waitset_wait g_writer r");
-    cr_assert_eq(g_writer, (dds_entity_t)(intptr_t)triggered, "Failed prerequisite dds_waitset_wait g_writer a");
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL_FATAL(g_writer, (dds_entity_t)(intptr_t)triggered);
     ret = dds_waitset_detach(g_waitset, g_writer);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to detach prerequisite g_writer");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Initialize reading buffers. */
     memset (g_data, 0, sizeof (g_data));
@@ -152,28 +142,24 @@ reader_init(void)
         sample.long_2 = i/2;
         sample.long_3 = i/3;
 
-        PRINT_SAMPLE("INIT: Write     ", sample);
         ret = dds_write(g_writer, &sample);
-        cr_assert_eq(ret, DDS_RETCODE_OK, "Failed prerequisite write");
+        CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
         if (ist == DDS_IST_NOT_ALIVE_DISPOSED) {
-            PRINT_SAMPLE("INIT: Dispose   ", sample);
             ret = dds_dispose(g_writer, &sample);
-            cr_assert_eq(ret, DDS_RETCODE_OK, "Failed prerequisite dispose");
+            CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
         }
         if (ist == DDS_IST_NOT_ALIVE_NO_WRITERS) {
-            PRINT_SAMPLE("INIT: Unregister", sample);
             ret = dds_unregister_instance(g_writer, &sample);
-            cr_assert_eq(ret, DDS_RETCODE_OK, "Failed prerequisite unregister");
+            CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
         }
     }
 
     /* Read samples to get read&old_view states. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, SAMPLE_LAST_OLD_VST + 1);
-    cr_assert_eq(ret, SAMPLE_LAST_OLD_VST + 1, "Failed prerequisite read");
+    CU_ASSERT_EQUAL_FATAL(ret, SAMPLE_LAST_OLD_VST + 1);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *s = (Space_Type1*)g_samples[i];
-        PRINT_SAMPLE("INIT: Read      ", (*s));
         (void)s;
     }
 
@@ -184,19 +170,16 @@ reader_init(void)
         sample.long_2 = i/2;
         sample.long_3 = i/3;
 
-        PRINT_SAMPLE("INIT: Rewrite   ", sample);
         ret = dds_write(g_writer, &sample);
-        cr_assert_eq(ret, DDS_RETCODE_OK, "Failed prerequisite write");
+        CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
         if ((ist == DDS_IST_NOT_ALIVE_DISPOSED) && (i != 4)) {
-            PRINT_SAMPLE("INIT: Dispose   ", sample);
             ret = dds_dispose(g_writer, &sample);
-            cr_assert_eq(ret, DDS_RETCODE_OK, "Failed prerequisite dispose");
+            CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
         }
         if (ist == DDS_IST_NOT_ALIVE_NO_WRITERS) {
-            PRINT_SAMPLE("INIT: Unregister", sample);
             ret = dds_unregister_instance(g_writer, &sample);
-            cr_assert_eq(ret, DDS_RETCODE_OK, "Failed prerequisite unregister");
+            CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
         }
     }
 
@@ -219,7 +202,7 @@ samples_cnt(void)
 {
     dds_return_t ret;
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_geq(ret, 0, "Failed samples count read: %d", dds_err_nr(ret));
+    CU_ASSERT_FATAL(ret >= 0);
     return ret;
 }
 
@@ -229,24 +212,24 @@ samples_cnt(void)
  *
  *************************************************************************************************/
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_reader_create, valid) = {
-        DataPoints(dds_entity_t*,    &g_subscriber, &g_participant),
-        DataPoints(dds_qos_t**,      &g_qos_null,   &g_qos        ),
-        DataPoints(dds_listener_t**, &g_list_null,  &g_listener   ),
+CU_TheoryDataPoints(ddsc_reader_create, valid) = {
+        CU_DataPoints(dds_entity_t*,    &g_subscriber, &g_participant),
+        CU_DataPoints(dds_qos_t**,      &g_qos_null,   &g_qos        ),
+        CU_DataPoints(dds_listener_t**, &g_list_null,  &g_listener   ),
 };
-Theory((dds_entity_t *ent, dds_qos_t **qos, dds_listener_t **listener), ddsc_reader_create, valid, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t *ent, dds_qos_t **qos, dds_listener_t **listener), ddsc_reader_create, valid, .init=reader_init, .fini=reader_fini)
 {
     dds_entity_t rdr;
     dds_return_t ret;
     rdr = dds_create_reader(*ent, g_topic, *qos, *listener);
-    cr_assert_gt(rdr, 0, "Failed dds_create_reader(%p, %p, %p): %d", ent, *qos, *listener, dds_err_nr(rdr));
+    CU_ASSERT_FATAL(rdr > 0);
     ret = dds_delete(rdr);
-    cr_assert_eq(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_reader_create, invalid_qos_participant, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_reader_create, invalid_qos_participant, .init=reader_init, .fini=reader_fini)
 {
     dds_entity_t rdr;
     dds_qos_t *qos = dds_create_qos();
@@ -255,13 +238,13 @@ Test(ddsc_reader_create, invalid_qos_participant, .init=reader_init, .fini=reade
     dds_qset_reader_data_lifecycle(qos, DDS_SECS(-1), DDS_SECS(-1));
     OS_WARNING_MSVC_ON(28020);
     rdr = dds_create_reader(g_participant, g_topic, qos, NULL);
-    cr_assert_eq(dds_err_nr(rdr), DDS_RETCODE_INCONSISTENT_POLICY, "returned %d", dds_err_nr(rdr));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(rdr), DDS_RETCODE_INCONSISTENT_POLICY);
     dds_delete_qos(qos);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_reader_create, invalid_qos_subscriber, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_reader_create, invalid_qos_subscriber, .init=reader_init, .fini=reader_fini)
 {
     dds_entity_t rdr;
     dds_qos_t *qos = dds_create_qos();
@@ -270,24 +253,24 @@ Test(ddsc_reader_create, invalid_qos_subscriber, .init=reader_init, .fini=reader
     dds_qset_reader_data_lifecycle(qos, DDS_SECS(-1), DDS_SECS(-1));
     OS_WARNING_MSVC_ON(28020);
     rdr = dds_create_reader(g_subscriber, g_topic, qos, NULL);
-    cr_assert_eq(dds_err_nr(rdr), DDS_RETCODE_INCONSISTENT_POLICY, "returned %d", dds_err_nr(rdr));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(rdr), DDS_RETCODE_INCONSISTENT_POLICY);
     dds_delete_qos(qos);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_reader_create, non_participants_non_topics) = {
-        DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_reader, &g_waitset),
-        DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_reader, &g_waitset),
+CU_TheoryDataPoints(ddsc_reader_create, non_participants_non_topics) = {
+        CU_DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_reader, &g_waitset),
+        CU_DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_reader, &g_waitset),
 };
-Theory((dds_entity_t *par, dds_entity_t *top), ddsc_reader_create, non_participants_non_topics, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t *par, dds_entity_t *top), ddsc_reader_create, non_participants_non_topics, .init=reader_init, .fini=reader_fini)
 {
     dds_entity_t rdr;
     /* The only valid permutation is when par is actual the participant and top is
      * actually the topic. So, don't test that permutation. */
-    cr_assume((par != &g_participant) || (top != &g_topic));
+    CU_ASSERT_FATAL((par != &g_participant) || (top != &g_topic));
     rdr = dds_create_reader(*par, *top, NULL, NULL);
-    cr_assert_eq(dds_err_nr(rdr), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(rdr));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(rdr), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
@@ -301,74 +284,77 @@ Theory((dds_entity_t *par, dds_entity_t *top), ddsc_reader_create, non_participa
  *
  *************************************************************************************************/
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_read, invalid_buffers) = {
-        DataPoints(void**,             g_samples, g_loans, (void**)0),
-        DataPoints(dds_sample_info_t*, g_info,    (dds_sample_info_t*)0   ),
-        DataPoints(size_t,             0,        3,  MAX_SAMPLES   ),
-        DataPoints(uint32_t,           0,        3,  MAX_SAMPLES   ),
+CU_TheoryDataPoints(ddsc_read, invalid_buffers) = {
+        CU_DataPoints(void**,             g_samples, g_loans, (void**)0),
+        CU_DataPoints(dds_sample_info_t*, g_info,    NULL,    NULL),
+        CU_DataPoints(size_t,             0,         3,       MAX_SAMPLES),
+        CU_DataPoints(uint32_t,           0,         3,       MAX_SAMPLES),
 };
-Theory((void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs), ddsc_read, invalid_buffers, .init=reader_init, .fini=reader_fini)
+CU_Theory((void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs), ddsc_read, invalid_buffers, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     /* The only valid permutation is when non of the buffer values are
      * invalid. So, don't test that. */
-    cr_assume((buf != g_samples) || (si != g_info) || (bufsz == 0) || (maxs == 0) || (bufsz < maxs));
+    CU_ASSERT_FATAL((buf != g_samples) || (si != g_info) || (bufsz == 0) || (maxs == 0) || (bufsz < maxs));
     /* TODO: CHAM-306, currently, a buffer is automatically 'promoted' to a loan when a buffer is
      * provided with NULL pointers. So, in fact, there's currently no real difference between calling
      * dds_read() dds_read_wl() (except for the provided bufsz). This will change, which means that
      * the given buffer should contain valid pointers, which again means that 'loan intended' buffer
      * should result in bad_parameter.
      * However, that's not the case yet. So don't test it. */
-    cr_assume(buf != g_loans);
-    ret = dds_read(g_reader, buf, si, bufsz, maxs);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(ret));
+    if (buf != g_loans) {
+        ret = dds_read(g_reader, buf, si, bufsz, maxs);
+        CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
+    } else {
+        CU_PASS();
+    }
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_read, invalid_readers) = {
-        DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+CU_TheoryDataPoints(ddsc_read, invalid_readers) = {
+        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
 };
-Theory((dds_entity_t rdr), ddsc_read, invalid_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t rdr), ddsc_read, invalid_readers, .init=reader_init, .fini=reader_fini)
 {
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     ret = dds_read(rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_read, non_readers) = {
-        DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
+CU_TheoryDataPoints(ddsc_read, non_readers) = {
+        CU_DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
 };
-Theory((dds_entity_t *rdr), ddsc_read, non_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t *rdr), ddsc_read, non_readers, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     ret = dds_read(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read, already_deleted, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read, already_deleted, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     /* Try to read with a deleted reader. */
     dds_delete(g_reader);
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_expect_eq(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read, valid, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read, valid, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
 
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(ret, MAX_SAMPLES, "# read %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -383,7 +369,6 @@ Test(ddsc_read, valid, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_read::valid: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -392,20 +377,20 @@ Test(ddsc_read, valid, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
@@ -420,66 +405,66 @@ Test(ddsc_read, valid, .init=reader_init, .fini=reader_fini)
  *
  *************************************************************************************************/
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_read_wl, invalid_buffers) = {
-        DataPoints(void**,             g_loans, (void**)0),
-        DataPoints(dds_sample_info_t*, g_info,  (dds_sample_info_t*)0   ),
-        DataPoints(uint32_t,           0,        3,  MAX_SAMPLES   ),
+CU_TheoryDataPoints(ddsc_read_wl, invalid_buffers) = {
+        CU_DataPoints(void**,             g_loans, (void**)0),
+        CU_DataPoints(dds_sample_info_t*, g_info,  (dds_sample_info_t*)0   ),
+        CU_DataPoints(uint32_t,           0,        3,  MAX_SAMPLES   ),
 };
-Theory((void **buf, dds_sample_info_t *si, uint32_t maxs), ddsc_read_wl, invalid_buffers, .init=reader_init, .fini=reader_fini)
+CU_Theory((void **buf, dds_sample_info_t *si, uint32_t maxs), ddsc_read_wl, invalid_buffers, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     /* The only valid permutation is when non of the buffer values are
      * invalid. So, don't test that. */
-    cr_assume((buf != g_loans) || (si != g_info) || (maxs == 0));
+    CU_ASSERT_FATAL((buf != g_loans) || (si != g_info) || (maxs == 0));
     ret = dds_read_wl(g_reader, buf, si, maxs);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_read_wl, invalid_readers) = {
-        DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+CU_TheoryDataPoints(ddsc_read_wl, invalid_readers) = {
+        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
 };
-Theory((dds_entity_t rdr), ddsc_read_wl, invalid_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t rdr), ddsc_read_wl, invalid_readers, .init=reader_init, .fini=reader_fini)
 {
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     ret = dds_read_wl(rdr, g_loans, g_info, MAX_SAMPLES);
-    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_read_wl, non_readers) = {
-        DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
+CU_TheoryDataPoints(ddsc_read_wl, non_readers) = {
+        CU_DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
 };
-Theory((dds_entity_t *rdr), ddsc_read_wl, non_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t *rdr), ddsc_read_wl, non_readers, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     ret = dds_read_wl(*rdr, g_loans, g_info, MAX_SAMPLES);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_wl, already_deleted, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_wl, already_deleted, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     /* Try to read with a deleted reader. */
     dds_delete(g_reader);
     ret = dds_read_wl(g_reader, g_loans, g_info, MAX_SAMPLES);
-    cr_expect_eq(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_wl, valid, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_wl, valid, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
 
     ret = dds_read_wl(g_reader, g_loans, g_info, MAX_SAMPLES);
-    cr_assert_eq(ret, MAX_SAMPLES, "# read %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -494,7 +479,6 @@ Test(ddsc_read_wl, valid, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_read::valid: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -503,23 +487,23 @@ Test(ddsc_read_wl, valid, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
@@ -533,80 +517,83 @@ Test(ddsc_read_wl, valid, .init=reader_init, .fini=reader_fini)
  *
  *************************************************************************************************/
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_read_mask, invalid_buffers) = {
-        DataPoints(void**,             g_samples, g_loans, (void**)0),
-        DataPoints(dds_sample_info_t*, g_info,    (dds_sample_info_t*)0   ),
-        DataPoints(size_t,             0,        3,  MAX_SAMPLES   ),
-        DataPoints(uint32_t,           0,        3,  MAX_SAMPLES   ),
+CU_TheoryDataPoints(ddsc_read_mask, invalid_buffers) = {
+    CU_DataPoints(void**,             g_samples, g_loans, (void**)0),
+    CU_DataPoints(dds_sample_info_t*, g_info,    NULL,    NULL),
+    CU_DataPoints(size_t,             0,         3,       MAX_SAMPLES),
+    CU_DataPoints(uint32_t,           0,         3,       MAX_SAMPLES),
 };
-Theory((void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs), ddsc_read_mask, invalid_buffers, .init=reader_init, .fini=reader_fini)
+CU_Theory((void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs), ddsc_read_mask, invalid_buffers, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     /* The only valid permutation is when non of the buffer values are
      * invalid. So, don't test that. */
-    cr_assume((buf != g_samples) || (si != g_info) || (bufsz == 0) || (maxs == 0) || (bufsz < maxs));
+    CU_ASSERT_FATAL((buf != g_samples) || (si != g_info) || (bufsz == 0) || (maxs == 0) || (bufsz < maxs));
     /* TODO: CHAM-306, currently, a buffer is automatically 'promoted' to a loan when a buffer is
      * provided with NULL pointers. So, in fact, there's currently no real difference between calling
      * dds_read_mask() dds_read_mask_wl() (except for the provided bufsz). This will change, which means that
      * the given buffer should contain valid pointers, which again means that 'loan intended' buffer
      * should result in bad_parameter.
      * However, that's not the case yet. So don't test it. */
-    cr_assume(buf != g_loans);
-    ret = dds_read_mask(g_reader, buf, si, bufsz, maxs, mask);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(ret));
+    if (buf != g_loans) {
+        ret = dds_read_mask(g_reader, buf, si, bufsz, maxs, mask);
+        CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
+    } else {
+        CU_PASS();
+    }
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_read_mask, invalid_readers) = {
-        DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+CU_TheoryDataPoints(ddsc_read_mask, invalid_readers) = {
+        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
 };
-Theory((dds_entity_t rdr), ddsc_read_mask, invalid_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t rdr), ddsc_read_mask, invalid_readers, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     ret = dds_read_mask(rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_read_mask, non_readers) = {
-        DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
+CU_TheoryDataPoints(ddsc_read_mask, non_readers) = {
+        CU_DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
 };
-Theory((dds_entity_t *rdr), ddsc_read_mask, non_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t *rdr), ddsc_read_mask, non_readers, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     ret = dds_read_mask(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask, already_deleted, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask, already_deleted, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     /* Try to read with a deleted reader. */
     dds_delete(g_reader);
     ret = dds_read_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_expect_eq(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask, any, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask, any, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, MAX_SAMPLES, "# read %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -621,7 +608,6 @@ Test(ddsc_read_mask, any, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_read_mask::any: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -630,32 +616,32 @@ Test(ddsc_read_mask, any, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask, not_read_sample_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask, not_read_sample_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, MAX_SAMPLES - (SAMPLE_LAST_READ_SST + 1), "# read %d, expected %d", ret, MAX_SAMPLES - (SAMPLE_LAST_READ_SST + 1));
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - (SAMPLE_LAST_READ_SST + 1));
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -670,7 +656,6 @@ Test(ddsc_read_mask, not_read_sample_state, .init=reader_init, .fini=reader_fini
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_read_mask::not_read_sample_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_READ_SST + 1 + i;
@@ -679,32 +664,32 @@ Test(ddsc_read_mask, not_read_sample_state, .init=reader_init, .fini=reader_fini
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask, read_sample_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask, read_sample_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, SAMPLE_LAST_READ_SST + 1, "# read %d, expected %d", ret, SAMPLE_LAST_READ_SST + 1);
+    CU_ASSERT_EQUAL_FATAL(ret, SAMPLE_LAST_READ_SST + 1);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -719,7 +704,6 @@ Test(ddsc_read_mask, read_sample_state, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_read_mask::read_sample_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -728,32 +712,32 @@ Test(ddsc_read_mask, read_sample_state, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask, new_view_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask, new_view_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_NEW_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, MAX_SAMPLES - (SAMPLE_LAST_OLD_VST + 1), "# read %d, expected %d", ret, MAX_SAMPLES - (SAMPLE_LAST_OLD_VST + 1));
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - (SAMPLE_LAST_OLD_VST + 1));
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -768,7 +752,6 @@ Test(ddsc_read_mask, new_view_state, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_read_mask::new_view_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_OLD_VST + 1 + i;
@@ -777,32 +760,32 @@ Test(ddsc_read_mask, new_view_state, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask, not_new_view_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask, not_new_view_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, SAMPLE_LAST_OLD_VST + 1, "# read %d, expected %d", ret, SAMPLE_LAST_OLD_VST + 1);
+    CU_ASSERT_EQUAL_FATAL(ret, SAMPLE_LAST_OLD_VST + 1);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -817,7 +800,6 @@ Test(ddsc_read_mask, not_new_view_state, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_read_mask::not_new_view_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -826,32 +808,32 @@ Test(ddsc_read_mask, not_new_view_state, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask, alive_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask, alive_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, 3, "# read %d, expected %d", ret, 3);
+    CU_ASSERT_EQUAL_FATAL(ret, 3);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -866,7 +848,6 @@ Test(ddsc_read_mask, alive_instance_state, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_read_mask::alive_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i * 3;
@@ -875,32 +856,32 @@ Test(ddsc_read_mask, alive_instance_state, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask, not_alive_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask, not_alive_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, 4, "# read %d, expected %d", ret, 4);
+    CU_ASSERT_EQUAL_FATAL(ret, 4);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -915,7 +896,6 @@ Test(ddsc_read_mask, not_alive_instance_state, .init=reader_init, .fini=reader_f
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_read_mask::alive_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = (i <= 1) ? i + 1 : i + 2;
@@ -924,33 +904,33 @@ Test(ddsc_read_mask, not_alive_instance_state, .init=reader_init, .fini=reader_f
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,      true);
-        cr_assert_eq(g_info[i].sample_state,    expected_sst);
-        cr_assert_eq(g_info[i].view_state,      expected_vst);
-        cr_assert_eq(g_info[i].instance_state,  expected_ist);
-        cr_assert_neq(g_info[i].instance_state, DDS_IST_ALIVE);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,      true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,    expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,      expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state,  expected_ist);
+        CU_ASSERT_NOT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_ALIVE);
     }
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask, disposed_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask, disposed_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, 2, "# read %d, expected %d", ret, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -965,7 +945,6 @@ Test(ddsc_read_mask, disposed_instance_state, .init=reader_init, .fini=reader_fi
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_read_mask::disposed_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = (i * 3) + 1;
@@ -974,32 +953,32 @@ Test(ddsc_read_mask, disposed_instance_state, .init=reader_init, .fini=reader_fi
         dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_DISPOSED;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask, no_writers_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask, no_writers_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, 2, "# read %d, expected %d", ret, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -1014,7 +993,6 @@ Test(ddsc_read_mask, no_writers_instance_state, .init=reader_init, .fini=reader_
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_read_mask::no_writers_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = (i * 3) + 2;
@@ -1023,32 +1001,32 @@ Test(ddsc_read_mask, no_writers_instance_state, .init=reader_init, .fini=reader_
         dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_NO_WRITERS;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask, combination_of_states, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask, combination_of_states, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, 1, "# read %d, expected %d", ret, 1);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -1063,7 +1041,6 @@ Test(ddsc_read_mask, combination_of_states, .init=reader_init, .fini=reader_fini
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_read_mask::combination_of_states: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = 3;
@@ -1072,20 +1049,20 @@ Test(ddsc_read_mask, combination_of_states, .init=reader_init, .fini=reader_fini
         dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
@@ -1099,72 +1076,72 @@ Test(ddsc_read_mask, combination_of_states, .init=reader_init, .fini=reader_fini
  *
  *************************************************************************************************/
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_read_mask_wl, invalid_buffers) = {
-        DataPoints(void**,             g_loans, (void**)0),
-        DataPoints(dds_sample_info_t*, g_info,  (dds_sample_info_t*)0   ),
-        DataPoints(uint32_t,           0,        3,  MAX_SAMPLES   ),
+CU_TheoryDataPoints(ddsc_read_mask_wl, invalid_buffers) = {
+        CU_DataPoints(void**,             g_loans, (void**)0),
+        CU_DataPoints(dds_sample_info_t*, g_info,  (dds_sample_info_t*)0   ),
+        CU_DataPoints(uint32_t,           0,        3,  MAX_SAMPLES   ),
 };
-Theory((void **buf, dds_sample_info_t *si, uint32_t maxs), ddsc_read_mask_wl, invalid_buffers, .init=reader_init, .fini=reader_fini)
+CU_Theory((void **buf, dds_sample_info_t *si, uint32_t maxs), ddsc_read_mask_wl, invalid_buffers, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     /* The only valid permutation is when non of the buffer values are
      * invalid. So, don't test that. */
-    cr_assume((buf != g_loans) || (si != g_info) || (maxs == 0));
+    CU_ASSERT_FATAL((buf != g_loans) || (si != g_info) || (maxs == 0));
     ret = dds_read_mask_wl(g_reader, buf, si, maxs, mask);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_read_mask_wl, invalid_readers) = {
-        DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+CU_TheoryDataPoints(ddsc_read_mask_wl, invalid_readers) = {
+        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
 };
-Theory((dds_entity_t rdr), ddsc_read_mask_wl, invalid_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t rdr), ddsc_read_mask_wl, invalid_readers, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     ret = dds_read_mask_wl(rdr, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_read_mask_wl, non_readers) = {
-        DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
+CU_TheoryDataPoints(ddsc_read_mask_wl, non_readers) = {
+        CU_DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
 };
-Theory((dds_entity_t *rdr), ddsc_read_mask_wl, non_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t *rdr), ddsc_read_mask_wl, non_readers, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     ret = dds_read_mask_wl(*rdr, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask_wl, already_deleted, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask_wl, already_deleted, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     /* Try to read with a deleted reader. */
     dds_delete(g_reader);
     ret = dds_read_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_expect_eq(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask_wl, any, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask_wl, any, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, MAX_SAMPLES, "# read %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -1179,7 +1156,6 @@ Test(ddsc_read_mask_wl, any, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_read_mask_wl::any: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -1188,35 +1164,35 @@ Test(ddsc_read_mask_wl, any, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask_wl, not_read_sample_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask_wl, not_read_sample_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, MAX_SAMPLES - (SAMPLE_LAST_READ_SST + 1), "# read %d, expected %d", ret, MAX_SAMPLES - (SAMPLE_LAST_READ_SST + 1));
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - (SAMPLE_LAST_READ_SST + 1));
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -1231,7 +1207,6 @@ Test(ddsc_read_mask_wl, not_read_sample_state, .init=reader_init, .fini=reader_f
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_read_mask_wl::not_read_sample_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_READ_SST + 1 + i;
@@ -1240,35 +1215,35 @@ Test(ddsc_read_mask_wl, not_read_sample_state, .init=reader_init, .fini=reader_f
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask_wl, read_sample_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask_wl, read_sample_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, SAMPLE_LAST_READ_SST + 1, "# read %d, expected %d", ret, SAMPLE_LAST_READ_SST + 1);
+    CU_ASSERT_EQUAL_FATAL(ret, SAMPLE_LAST_READ_SST + 1);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -1283,7 +1258,6 @@ Test(ddsc_read_mask_wl, read_sample_state, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_read_mask_wl::read_sample_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -1292,35 +1266,35 @@ Test(ddsc_read_mask_wl, read_sample_state, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask_wl, new_view_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask_wl, new_view_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_NEW_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, MAX_SAMPLES - (SAMPLE_LAST_OLD_VST + 1), "# read %d, expected %d", ret, MAX_SAMPLES - (SAMPLE_LAST_OLD_VST + 1));
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - (SAMPLE_LAST_OLD_VST + 1));
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -1335,7 +1309,6 @@ Test(ddsc_read_mask_wl, new_view_state, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_read_mask_wl::new_view_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_OLD_VST + 1 + i;
@@ -1344,35 +1317,35 @@ Test(ddsc_read_mask_wl, new_view_state, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask_wl, not_new_view_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask_wl, not_new_view_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, SAMPLE_LAST_OLD_VST + 1, "# read %d, expected %d", ret, SAMPLE_LAST_OLD_VST + 1);
+    CU_ASSERT_EQUAL_FATAL(ret, SAMPLE_LAST_OLD_VST + 1);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -1387,7 +1360,6 @@ Test(ddsc_read_mask_wl, not_new_view_state, .init=reader_init, .fini=reader_fini
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_read_mask_wl::not_new_view_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -1396,35 +1368,35 @@ Test(ddsc_read_mask_wl, not_new_view_state, .init=reader_init, .fini=reader_fini
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask_wl, alive_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask_wl, alive_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, 3, "# read %d, expected %d", ret, 3);
+    CU_ASSERT_EQUAL_FATAL(ret, 3);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -1439,7 +1411,6 @@ Test(ddsc_read_mask_wl, alive_instance_state, .init=reader_init, .fini=reader_fi
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_read_mask_wl::alive_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i * 3;
@@ -1448,35 +1419,35 @@ Test(ddsc_read_mask_wl, alive_instance_state, .init=reader_init, .fini=reader_fi
         dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask_wl, not_alive_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask_wl, not_alive_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, 4, "# read %d, expected %d", ret, 4);
+    CU_ASSERT_EQUAL_FATAL(ret, 4);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -1491,7 +1462,6 @@ Test(ddsc_read_mask_wl, not_alive_instance_state, .init=reader_init, .fini=reade
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_read_mask_wl::alive_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = (i <= 1) ? i + 1 : i + 2;
@@ -1500,36 +1470,36 @@ Test(ddsc_read_mask_wl, not_alive_instance_state, .init=reader_init, .fini=reade
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,      true);
-        cr_assert_eq(g_info[i].sample_state,    expected_sst);
-        cr_assert_eq(g_info[i].view_state,      expected_vst);
-        cr_assert_eq(g_info[i].instance_state,  expected_ist);
-        cr_assert_neq(g_info[i].instance_state, DDS_IST_ALIVE);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,      true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,    expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,      expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state,  expected_ist);
+        CU_ASSERT_NOT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_ALIVE);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask_wl, disposed_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask_wl, disposed_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, 2, "# read %d, expected %d", ret, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -1544,7 +1514,6 @@ Test(ddsc_read_mask_wl, disposed_instance_state, .init=reader_init, .fini=reader
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_read_mask_wl::disposed_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = (i * 3) + 1;
@@ -1553,35 +1522,35 @@ Test(ddsc_read_mask_wl, disposed_instance_state, .init=reader_init, .fini=reader
         dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_DISPOSED;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask_wl, no_writers_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask_wl, no_writers_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, 2, "# read %d, expected %d", ret, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -1596,7 +1565,6 @@ Test(ddsc_read_mask_wl, no_writers_instance_state, .init=reader_init, .fini=read
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_read_mask_wl::no_writers_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = (i * 3) + 2;
@@ -1605,35 +1573,35 @@ Test(ddsc_read_mask_wl, no_writers_instance_state, .init=reader_init, .fini=read
         dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_NO_WRITERS;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_read_mask_wl, combination_of_states, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_read_mask_wl, combination_of_states, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE;
     dds_return_t ret;
 
     /* Read all samples that matches the mask. */
     ret = dds_read_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, 1, "# read %d, expected %d", ret, 1);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -1648,7 +1616,6 @@ Test(ddsc_read_mask_wl, combination_of_states, .init=reader_init, .fini=reader_f
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_read_mask_wl::combination_of_states: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = 3;
@@ -1657,23 +1624,23 @@ Test(ddsc_read_mask_wl, combination_of_states, .init=reader_init, .fini=reader_f
         dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES, "# samples %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
 }
 /*************************************************************************************************/
 
@@ -1687,75 +1654,78 @@ Test(ddsc_read_mask_wl, combination_of_states, .init=reader_init, .fini=reader_f
  *
  *************************************************************************************************/
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_take, invalid_buffers) = {
-        DataPoints(void**,             g_samples, g_loans, (void**)0),
-        DataPoints(dds_sample_info_t*, g_info,    (dds_sample_info_t*)0   ),
-        DataPoints(size_t,             0,        3,  MAX_SAMPLES   ),
-        DataPoints(uint32_t,           0,        3,  MAX_SAMPLES   ),
+CU_TheoryDataPoints(ddsc_take, invalid_buffers) = {
+        CU_DataPoints(void**,             g_samples, g_loans, (void**)0),
+        CU_DataPoints(dds_sample_info_t*, g_info,    NULL,    NULL),
+        CU_DataPoints(size_t,             0,         3,       MAX_SAMPLES),
+        CU_DataPoints(uint32_t,           0,         3,       MAX_SAMPLES),
 };
-Theory((void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs), ddsc_take, invalid_buffers, .init=reader_init, .fini=reader_fini)
+CU_Theory((void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs), ddsc_take, invalid_buffers, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     /* The only valid permutation is when non of the buffer values are
      * invalid. So, don't test that. */
-    cr_assume((buf != g_samples) || (si != g_info) || (bufsz == 0) || (maxs == 0) || (bufsz < maxs));
+    CU_ASSERT_FATAL((buf != g_samples) || (si != g_info) || (bufsz == 0) || (maxs == 0) || (bufsz < maxs));
     /* TODO: CHAM-306, currently, a buffer is automatically 'promoted' to a loan when a buffer is
      * provided with NULL pointers. So, in fact, there's currently no real difference between calling
      * dds_take() dds_take_wl() (except for the provided bufsz). This will change, which means that
      * the given buffer should contain valid pointers, which again means that 'loan intended' buffer
      * should result in bad_parameter.
      * However, that's not the case yet. So don't test it. */
-    cr_assume(buf != g_loans);
-    ret = dds_take(g_reader, buf, si, bufsz, maxs);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(ret));
+    if (buf != g_loans) {
+        ret = dds_take(g_reader, buf, si, bufsz, maxs);
+        CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
+    } else {
+        CU_PASS();
+    }
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_take, invalid_readers) = {
-        DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+CU_TheoryDataPoints(ddsc_take, invalid_readers) = {
+        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
 };
-Theory((dds_entity_t rdr), ddsc_take, invalid_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t rdr), ddsc_take, invalid_readers, .init=reader_init, .fini=reader_fini)
 {
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     ret = dds_take(rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_take, non_readers) = {
-        DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
+CU_TheoryDataPoints(ddsc_take, non_readers) = {
+        CU_DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
 };
-Theory((dds_entity_t *rdr), ddsc_take, non_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t *rdr), ddsc_take, non_readers, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     ret = dds_take(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take, already_deleted, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take, already_deleted, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     /* Try to take with a deleted reader. */
     dds_delete(g_reader);
     ret = dds_take(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_expect_eq(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take, valid, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take, valid, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t expected_cnt = MAX_SAMPLES;
     dds_return_t ret;
 
     ret = dds_take(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(ret, MAX_SAMPLES, "# read %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -1770,7 +1740,6 @@ Test(ddsc_take, valid, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_read::valid: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -1779,20 +1748,20 @@ Test(ddsc_take, valid, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
@@ -1806,67 +1775,67 @@ Test(ddsc_take, valid, .init=reader_init, .fini=reader_fini)
  *
  *************************************************************************************************/
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_take_wl, invalid_buffers) = {
-        DataPoints(void**,             g_loans, (void**)0),
-        DataPoints(dds_sample_info_t*, g_info,  (dds_sample_info_t*)0   ),
-        DataPoints(uint32_t,           0,        3,  MAX_SAMPLES   ),
+CU_TheoryDataPoints(ddsc_take_wl, invalid_buffers) = {
+        CU_DataPoints(void**,             g_loans, (void**)0),
+        CU_DataPoints(dds_sample_info_t*, g_info,  (dds_sample_info_t*)0   ),
+        CU_DataPoints(uint32_t,           0,        3,  MAX_SAMPLES   ),
 };
-Theory((void **buf, dds_sample_info_t *si, uint32_t maxs), ddsc_take_wl, invalid_buffers, .init=reader_init, .fini=reader_fini)
+CU_Theory((void **buf, dds_sample_info_t *si, uint32_t maxs), ddsc_take_wl, invalid_buffers, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     /* The only valid permutation is when non of the buffer values are
      * invalid. So, don't test that. */
-    cr_assume((buf != g_loans) || (si != g_info) || (maxs == 0));
+    CU_ASSERT_FATAL((buf != g_loans) || (si != g_info) || (maxs == 0));
     ret = dds_take_wl(g_reader, buf, si, maxs);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_take_wl, invalid_readers) = {
-        DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+CU_TheoryDataPoints(ddsc_take_wl, invalid_readers) = {
+        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
 };
-Theory((dds_entity_t rdr), ddsc_take_wl, invalid_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t rdr), ddsc_take_wl, invalid_readers, .init=reader_init, .fini=reader_fini)
 {
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     ret = dds_take_wl(rdr, g_loans, g_info, MAX_SAMPLES);
-    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_take_wl, non_readers) = {
-        DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
+CU_TheoryDataPoints(ddsc_take_wl, non_readers) = {
+        CU_DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
 };
-Theory((dds_entity_t *rdr), ddsc_take_wl, non_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t *rdr), ddsc_take_wl, non_readers, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     ret = dds_take_wl(*rdr, g_loans, g_info, MAX_SAMPLES);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_wl, already_deleted, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_wl, already_deleted, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t ret;
     /* Try to read with a deleted reader. */
     dds_delete(g_reader);
     ret = dds_take_wl(g_reader, g_loans, g_info, MAX_SAMPLES);
-    cr_expect_eq(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_wl, valid, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_wl, valid, .init=reader_init, .fini=reader_fini)
 {
     dds_return_t expected_cnt = MAX_SAMPLES;
     dds_return_t ret;
 
     ret = dds_take_wl(g_reader, g_loans, g_info, MAX_SAMPLES);
-    cr_assert_eq(ret, MAX_SAMPLES, "# read %d, expected %d", ret, MAX_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -1881,7 +1850,6 @@ Test(ddsc_take_wl, valid, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_take::valid: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -1890,23 +1858,23 @@ Test(ddsc_take_wl, valid, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
@@ -1920,73 +1888,76 @@ Test(ddsc_take_wl, valid, .init=reader_init, .fini=reader_fini)
  *
  *************************************************************************************************/
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_take_mask, invalid_buffers) = {
-        DataPoints(void**,             g_samples, g_loans, (void**)0),
-        DataPoints(dds_sample_info_t*, g_info,    (dds_sample_info_t*)0   ),
-        DataPoints(size_t,             0,        3,  MAX_SAMPLES   ),
-        DataPoints(uint32_t,           0,        3,  MAX_SAMPLES   ),
+CU_TheoryDataPoints(ddsc_take_mask, invalid_buffers) = {
+        CU_DataPoints(void**,             g_samples, g_loans, (void**)0),
+        CU_DataPoints(dds_sample_info_t*, g_info,    NULL,    NULL),
+        CU_DataPoints(size_t,             0,         3,       MAX_SAMPLES),
+        CU_DataPoints(uint32_t,           0,         3,       MAX_SAMPLES),
 };
-Theory((void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs), ddsc_take_mask, invalid_buffers, .init=reader_init, .fini=reader_fini)
+CU_Theory((void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs), ddsc_take_mask, invalid_buffers, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     /* The only valid permutation is when non of the buffer values are
      * invalid. So, don't test that. */
-    cr_assume((buf != g_samples) || (si != g_info) || (bufsz == 0) || (maxs == 0) || (bufsz < maxs));
+    CU_ASSERT_FATAL((buf != g_samples) || (si != g_info) || (bufsz == 0) || (maxs == 0) || (bufsz < maxs));
     /* TODO: CHAM-306, currently, a buffer is automatically 'promoted' to a loan when a buffer is
      * provided with NULL pointers. So, in fact, there's currently no real difference between calling
      * dds_take_mask() dds_take_mask_wl() (except for the provided bufsz). This will change, which means that
      * the given buffer should contain valid pointers, which again means that 'loan intended' buffer
      * should result in bad_parameter.
      * However, that's not the case yet. So don't test it. */
-    cr_assume(buf != g_loans);
-    ret = dds_take_mask(g_reader, buf, si, bufsz, maxs, mask);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(ret));
+    if (buf != g_loans) {
+        ret = dds_take_mask(g_reader, buf, si, bufsz, maxs, mask);
+        CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
+    } else {
+        CU_PASS();
+    }
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_take_mask, invalid_readers) = {
-        DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+CU_TheoryDataPoints(ddsc_take_mask, invalid_readers) = {
+        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
 };
-Theory((dds_entity_t rdr), ddsc_take_mask, invalid_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t rdr), ddsc_take_mask, invalid_readers, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     ret = dds_take_mask(rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
+    CU_ASSERT_EQUAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_take_mask, non_readers) = {
-        DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
+CU_TheoryDataPoints(ddsc_take_mask, non_readers) = {
+        CU_DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
 };
-Theory((dds_entity_t *rdr), ddsc_take_mask, non_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t *rdr), ddsc_take_mask, non_readers, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     ret = dds_take_mask(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask, already_deleted, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask, already_deleted, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     /* Try to read with a deleted reader. */
     dds_delete(g_reader);
     ret = dds_take_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_expect_eq(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask, any, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask, any, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t expected_cnt = MAX_SAMPLES;
@@ -1994,7 +1965,7 @@ Test(ddsc_take_mask, any, .init=reader_init, .fini=reader_fini)
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -2009,7 +1980,6 @@ Test(ddsc_take_mask, any, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_take_mask::any: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -2018,25 +1988,25 @@ Test(ddsc_take_mask, any, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask, not_read_sample_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask, not_read_sample_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t expected_cnt = 4;
@@ -2044,7 +2014,7 @@ Test(ddsc_take_mask, not_read_sample_state, .init=reader_init, .fini=reader_fini
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -2059,7 +2029,6 @@ Test(ddsc_take_mask, not_read_sample_state, .init=reader_init, .fini=reader_fini
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_take_mask::not_read_sample_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_READ_SST + 1 + i;
@@ -2068,25 +2037,25 @@ Test(ddsc_take_mask, not_read_sample_state, .init=reader_init, .fini=reader_fini
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask, read_sample_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask, read_sample_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t expected_cnt = 3;
@@ -2094,7 +2063,7 @@ Test(ddsc_take_mask, read_sample_state, .init=reader_init, .fini=reader_fini)
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -2109,7 +2078,6 @@ Test(ddsc_take_mask, read_sample_state, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_take_mask::read_sample_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -2118,25 +2086,25 @@ Test(ddsc_take_mask, read_sample_state, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask, new_view_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask, new_view_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_NEW_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t expected_cnt = 3;
@@ -2144,7 +2112,7 @@ Test(ddsc_take_mask, new_view_state, .init=reader_init, .fini=reader_fini)
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -2159,7 +2127,6 @@ Test(ddsc_take_mask, new_view_state, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_take_mask::new_view_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_OLD_VST + 1 + i;
@@ -2168,25 +2135,25 @@ Test(ddsc_take_mask, new_view_state, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask, not_new_view_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask, not_new_view_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t expected_cnt = 4;
@@ -2194,7 +2161,7 @@ Test(ddsc_take_mask, not_new_view_state, .init=reader_init, .fini=reader_fini)
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -2209,7 +2176,6 @@ Test(ddsc_take_mask, not_new_view_state, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_take_mask::not_new_view_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -2218,25 +2184,25 @@ Test(ddsc_take_mask, not_new_view_state, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask, alive_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask, alive_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE;
     dds_return_t expected_cnt = 3;
@@ -2244,7 +2210,7 @@ Test(ddsc_take_mask, alive_instance_state, .init=reader_init, .fini=reader_fini)
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -2259,7 +2225,6 @@ Test(ddsc_take_mask, alive_instance_state, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_take_mask::alive_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i * 3;
@@ -2268,25 +2233,25 @@ Test(ddsc_take_mask, alive_instance_state, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask, not_alive_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask, not_alive_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
     dds_return_t expected_cnt = 4;
@@ -2294,7 +2259,7 @@ Test(ddsc_take_mask, not_alive_instance_state, .init=reader_init, .fini=reader_f
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -2309,7 +2274,6 @@ Test(ddsc_take_mask, not_alive_instance_state, .init=reader_init, .fini=reader_f
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_take_mask::alive_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = (i <= 1) ? i + 1 : i + 2;
@@ -2318,26 +2282,26 @@ Test(ddsc_take_mask, not_alive_instance_state, .init=reader_init, .fini=reader_f
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,      true);
-        cr_assert_eq(g_info[i].sample_state,    expected_sst);
-        cr_assert_eq(g_info[i].view_state,      expected_vst);
-        cr_assert_eq(g_info[i].instance_state,  expected_ist);
-        cr_assert_neq(g_info[i].instance_state, DDS_IST_ALIVE);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,      true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,    expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,      expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state,  expected_ist);
+        CU_ASSERT_NOT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_ALIVE);
     }
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask, disposed_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask, disposed_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
     dds_return_t expected_cnt = 2;
@@ -2345,7 +2309,7 @@ Test(ddsc_take_mask, disposed_instance_state, .init=reader_init, .fini=reader_fi
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -2360,7 +2324,6 @@ Test(ddsc_take_mask, disposed_instance_state, .init=reader_init, .fini=reader_fi
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_take_mask::disposed_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = (i * 3) + 1;
@@ -2369,25 +2332,25 @@ Test(ddsc_take_mask, disposed_instance_state, .init=reader_init, .fini=reader_fi
         dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_DISPOSED;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask, no_writers_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask, no_writers_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
     dds_return_t expected_cnt = 2;
@@ -2395,7 +2358,7 @@ Test(ddsc_take_mask, no_writers_instance_state, .init=reader_init, .fini=reader_
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -2410,7 +2373,6 @@ Test(ddsc_take_mask, no_writers_instance_state, .init=reader_init, .fini=reader_
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_take_mask::no_writers_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = (i * 3) + 2;
@@ -2419,25 +2381,25 @@ Test(ddsc_take_mask, no_writers_instance_state, .init=reader_init, .fini=reader_
         dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_NO_WRITERS;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask, combination_of_states, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask, combination_of_states, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE;
     dds_return_t expected_cnt = 1;
@@ -2445,7 +2407,7 @@ Test(ddsc_take_mask, combination_of_states, .init=reader_init, .fini=reader_fini
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -2460,7 +2422,6 @@ Test(ddsc_take_mask, combination_of_states, .init=reader_init, .fini=reader_fini
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_take_mask::combination_of_states: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = 3;
@@ -2469,25 +2430,25 @@ Test(ddsc_take_mask, combination_of_states, .init=reader_init, .fini=reader_fini
         dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask, take_instance_last_sample)
+CU_Test(ddsc_take_mask, take_instance_last_sample)
 {
 #define WOULD_CRASH
 #ifdef WOULD_CRASH
@@ -2509,37 +2470,37 @@ Test(ddsc_take_mask, take_instance_last_sample)
     g_qos = dds_create_qos();
     dds_qset_history(g_qos, DDS_HISTORY_KEEP_ALL, DDS_LENGTH_UNLIMITED);
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    cr_assert_gt(g_participant, 0, "Failed to create prerequisite g_participant");
+    CU_ASSERT_FATAL(g_participant > 0);
     g_waitset = dds_create_waitset(g_participant);
-    cr_assert_gt(g_waitset, 0, "Failed to create g_waitset");
+    CU_ASSERT_FATAL(g_waitset > 0);
     g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_topic_name("ddsc_reader_test", name, 100), NULL, NULL);
-    cr_assert_gt(g_topic, 0, "Failed to create prerequisite g_topic");
+    CU_ASSERT_FATAL(g_topic > 0);
     g_reader = dds_create_reader(g_participant, g_topic, g_qos, NULL);
-    cr_assert_gt(g_reader, 0, "Failed to create prerequisite g_reader");
+    CU_ASSERT_FATAL(g_reader > 0);
     g_writer = dds_create_writer(g_participant, g_topic, NULL, NULL);
-    cr_assert_gt(g_writer, 0, "Failed to create prerequisite g_writer");
+    CU_ASSERT_FATAL(g_writer > 0);
 
     /* Sync g_reader to g_writer. */
     ret = dds_set_enabled_status(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite g_reader status");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to attach prerequisite g_reader");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    cr_assert_eq(ret, 1, "Failed prerequisite dds_waitset_wait g_reader r");
-    cr_assert_eq(g_reader, (dds_entity_t)(intptr_t)triggered, "Failed prerequisite dds_waitset_wait g_reader a");
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL_FATAL(g_reader, (dds_entity_t)(intptr_t)triggered);
     ret = dds_waitset_detach(g_waitset, g_reader);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to detach prerequisite g_reader");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Sync g_writer to g_reader. */
     ret = dds_set_enabled_status(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite g_writer status");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_writer, g_writer);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to attach prerequisite g_writer");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    cr_assert_eq(ret, 1, "Failed prerequisite dds_waitset_wait g_writer r");
-    cr_assert_eq(g_writer, (dds_entity_t)(intptr_t)triggered, "Failed prerequisite dds_waitset_wait g_writer a");
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL_FATAL(g_writer, (dds_entity_t)(intptr_t)triggered);
     ret = dds_waitset_detach(g_waitset, g_writer);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to detach prerequisite g_writer");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Initialize reading buffers. */
     memset (g_data, 0, sizeof (g_data));
@@ -2557,16 +2518,16 @@ Test(ddsc_take_mask, take_instance_last_sample)
     sample.long_2 = 1;
     sample.long_3 = 2;
     ret = dds_write(g_writer, &sample);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed prerequisite write");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(ret, 1, "Failed prerequisite read");
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
     sample.long_3 = 3;
     ret = dds_write(g_writer, &sample);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed prerequisite write");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Take just one sample of the instance (the last one). */
     ret = dds_take_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *s = (Space_Type1*)g_samples[i];
 
@@ -2576,23 +2537,22 @@ Test(ddsc_take_mask, take_instance_last_sample)
          *  |    0   |    1   |    2   |     read | old | alive      | <--- no worries
          *  |    0   |    1   |    3   | not_read | old | alive      | <--- crashed
          */
-        PRINT_SAMPLE("ddsc_take_mask::crash: Take", (*s));
 
         /* Check data. */
-        cr_assert_eq(s->long_1, 0);
-        cr_assert_eq(s->long_2, 1);
-        cr_assert_eq(s->long_3, expected_long_3);
+        CU_ASSERT_EQUAL_FATAL(s->long_1, 0);
+        CU_ASSERT_EQUAL_FATAL(s->long_2, 1);
+        CU_ASSERT_EQUAL_FATAL(s->long_3, expected_long_3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     DDS_VST_OLD);
-        cr_assert_eq(g_info[i].instance_state, DDS_IST_ALIVE);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_OLD);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_ALIVE);
     }
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, 1, "# samples %d, expected %d", ret,  1);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
 
     /*
      * So far so good.
@@ -2620,65 +2580,65 @@ Test(ddsc_take_mask, take_instance_last_sample)
  *
  *************************************************************************************************/
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_take_mask_wl, invalid_buffers) = {
-        DataPoints(void**,             g_loans, (void**)0),
-        DataPoints(dds_sample_info_t*, g_info,  (dds_sample_info_t*)0   ),
-        DataPoints(uint32_t,           0,        3,  MAX_SAMPLES   ),
+CU_TheoryDataPoints(ddsc_take_mask_wl, invalid_buffers) = {
+        CU_DataPoints(void**,             g_loans, (void**)0),
+        CU_DataPoints(dds_sample_info_t*, g_info,  (dds_sample_info_t*)0   ),
+        CU_DataPoints(uint32_t,           0,        3,  MAX_SAMPLES   ),
 };
-Theory((void **buf, dds_sample_info_t *si, uint32_t maxs), ddsc_take_mask_wl, invalid_buffers, .init=reader_init, .fini=reader_fini)
+CU_Theory((void **buf, dds_sample_info_t *si, uint32_t maxs), ddsc_take_mask_wl, invalid_buffers, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     /* The only valid permutation is when non of the buffer values are
      * invalid. So, don't test that. */
-    cr_assume((buf != g_loans) || (si != g_info) || (maxs == 0));
+    CU_ASSERT_FATAL((buf != g_loans) || (si != g_info) || (maxs == 0));
     ret = dds_take_mask_wl(g_reader, buf, si, maxs, mask);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_take_mask_wl, invalid_readers) = {
-        DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+CU_TheoryDataPoints(ddsc_take_mask_wl, invalid_readers) = {
+        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
 };
-Theory((dds_entity_t rdr), ddsc_take_mask_wl, invalid_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t rdr), ddsc_take_mask_wl, invalid_readers, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     ret = dds_take_mask_wl(rdr, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_take_mask_wl, non_readers) = {
-        DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
+CU_TheoryDataPoints(ddsc_take_mask_wl, non_readers) = {
+        CU_DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_waitset),
 };
-Theory((dds_entity_t *rdr), ddsc_take_mask_wl, non_readers, .init=reader_init, .fini=reader_fini)
+CU_Theory((dds_entity_t *rdr), ddsc_take_mask_wl, non_readers, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     ret = dds_take_mask_wl(*rdr, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask_wl, already_deleted, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask_wl, already_deleted, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     /* Try to read with a deleted reader. */
     dds_delete(g_reader);
     ret = dds_take_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_expect_eq(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask_wl, any, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask_wl, any, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t expected_cnt = MAX_SAMPLES;
@@ -2686,7 +2646,7 @@ Test(ddsc_take_mask_wl, any, .init=reader_init, .fini=reader_fini)
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -2701,7 +2661,6 @@ Test(ddsc_take_mask_wl, any, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_take_mask_wl::any: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -2710,28 +2669,28 @@ Test(ddsc_take_mask_wl, any, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask_wl, not_read_sample_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask_wl, not_read_sample_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t expected_cnt = 4;
@@ -2739,7 +2698,7 @@ Test(ddsc_take_mask_wl, not_read_sample_state, .init=reader_init, .fini=reader_f
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -2754,7 +2713,6 @@ Test(ddsc_take_mask_wl, not_read_sample_state, .init=reader_init, .fini=reader_f
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_take_mask_wl::not_read_sample_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_READ_SST + 1 + i;
@@ -2763,28 +2721,28 @@ Test(ddsc_take_mask_wl, not_read_sample_state, .init=reader_init, .fini=reader_f
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask_wl, read_sample_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask_wl, read_sample_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t expected_cnt = 3;
@@ -2792,7 +2750,7 @@ Test(ddsc_take_mask_wl, read_sample_state, .init=reader_init, .fini=reader_fini)
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -2807,7 +2765,6 @@ Test(ddsc_take_mask_wl, read_sample_state, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_take_mask_wl::read_sample_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -2816,28 +2773,28 @@ Test(ddsc_take_mask_wl, read_sample_state, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask_wl, new_view_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask_wl, new_view_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_NEW_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t expected_cnt = 3;
@@ -2845,7 +2802,7 @@ Test(ddsc_take_mask_wl, new_view_state, .init=reader_init, .fini=reader_fini)
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -2860,7 +2817,6 @@ Test(ddsc_take_mask_wl, new_view_state, .init=reader_init, .fini=reader_fini)
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_take_mask_wl::new_view_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_OLD_VST + 1 + i;
@@ -2869,28 +2825,28 @@ Test(ddsc_take_mask_wl, new_view_state, .init=reader_init, .fini=reader_fini)
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask_wl, not_new_view_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask_wl, not_new_view_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t expected_cnt = 4;
@@ -2898,7 +2854,7 @@ Test(ddsc_take_mask_wl, not_new_view_state, .init=reader_init, .fini=reader_fini
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -2913,7 +2869,6 @@ Test(ddsc_take_mask_wl, not_new_view_state, .init=reader_init, .fini=reader_fini
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_take_mask_wl::not_new_view_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i;
@@ -2922,28 +2877,28 @@ Test(ddsc_take_mask_wl, not_new_view_state, .init=reader_init, .fini=reader_fini
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask_wl, alive_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask_wl, alive_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE;
     dds_return_t expected_cnt = 3;
@@ -2951,7 +2906,7 @@ Test(ddsc_take_mask_wl, alive_instance_state, .init=reader_init, .fini=reader_fi
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -2966,7 +2921,6 @@ Test(ddsc_take_mask_wl, alive_instance_state, .init=reader_init, .fini=reader_fi
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      | <---
          */
-        PRINT_SAMPLE("ddsc_take_mask_wl::alive_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = i * 3;
@@ -2975,28 +2929,28 @@ Test(ddsc_take_mask_wl, alive_instance_state, .init=reader_init, .fini=reader_fi
         dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask_wl, not_alive_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask_wl, not_alive_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
     dds_return_t expected_cnt = 4;
@@ -3004,7 +2958,7 @@ Test(ddsc_take_mask_wl, not_alive_instance_state, .init=reader_init, .fini=reade
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -3019,7 +2973,6 @@ Test(ddsc_take_mask_wl, not_alive_instance_state, .init=reader_init, .fini=reade
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_take_mask_wl::alive_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = (i <= 1) ? i + 1 : i + 2;
@@ -3028,29 +2981,29 @@ Test(ddsc_take_mask_wl, not_alive_instance_state, .init=reader_init, .fini=reade
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,      true);
-        cr_assert_eq(g_info[i].sample_state,    expected_sst);
-        cr_assert_eq(g_info[i].view_state,      expected_vst);
-        cr_assert_eq(g_info[i].instance_state,  expected_ist);
-        cr_assert_neq(g_info[i].instance_state, DDS_IST_ALIVE);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,      true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,    expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,      expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state,  expected_ist);
+        CU_ASSERT_NOT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_ALIVE);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask_wl, disposed_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask_wl, disposed_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
     dds_return_t expected_cnt = 2;
@@ -3058,7 +3011,7 @@ Test(ddsc_take_mask_wl, disposed_instance_state, .init=reader_init, .fini=reader
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -3073,7 +3026,6 @@ Test(ddsc_take_mask_wl, disposed_instance_state, .init=reader_init, .fini=reader
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_take_mask_wl::disposed_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = (i * 3) + 1;
@@ -3082,28 +3034,28 @@ Test(ddsc_take_mask_wl, disposed_instance_state, .init=reader_init, .fini=reader
         dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_DISPOSED;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask_wl, no_writers_instance_state, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask_wl, no_writers_instance_state, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
     dds_return_t expected_cnt = 2;
@@ -3111,7 +3063,7 @@ Test(ddsc_take_mask_wl, no_writers_instance_state, .init=reader_init, .fini=read
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -3126,7 +3078,6 @@ Test(ddsc_take_mask_wl, no_writers_instance_state, .init=reader_init, .fini=read
          * |    5   |    2   |    1   | not_read | new | no_writers | <---
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_take_mask_wl::no_writers_instance_state: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = (i * 3) + 2;
@@ -3135,28 +3086,28 @@ Test(ddsc_take_mask_wl, no_writers_instance_state, .init=reader_init, .fini=read
         dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_NO_WRITERS;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_take_mask_wl, combination_of_states, .init=reader_init, .fini=reader_fini)
+CU_Test(ddsc_take_mask_wl, combination_of_states, .init=reader_init, .fini=reader_fini)
 {
     uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE;
     dds_return_t expected_cnt = 1;
@@ -3164,7 +3115,7 @@ Test(ddsc_take_mask_wl, combination_of_states, .init=reader_init, .fini=reader_f
 
     /* Read all samples that matches the mask. */
     ret = dds_take_mask_wl(g_reader, g_loans, g_info, MAX_SAMPLES, mask);
-    cr_assert_eq(ret, expected_cnt, "# read %d, expected %d", ret, expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_cnt);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_loans[i];
 
@@ -3179,7 +3130,6 @@ Test(ddsc_take_mask_wl, combination_of_states, .init=reader_init, .fini=reader_f
          * |    5   |    2   |    1   | not_read | new | no_writers |
          * |    6   |    3   |    2   | not_read | new | alive      |
          */
-        PRINT_SAMPLE("ddsc_take_mask_wl::combination_of_states: Read", (*sample));
 
         /* Expected states. */
         int                  expected_long_1 = 3;
@@ -3188,22 +3138,22 @@ Test(ddsc_take_mask_wl, combination_of_states, .init=reader_init, .fini=reader_f
         dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
 
         /* Check data. */
-        cr_assert_eq(sample->long_1, expected_long_1  );
-        cr_assert_eq(sample->long_2, expected_long_1/2);
-        cr_assert_eq(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
+        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        cr_assert_eq(g_info[i].valid_data,     true);
-        cr_assert_eq(g_info[i].sample_state,   expected_sst);
-        cr_assert_eq(g_info[i].view_state,     expected_vst);
-        cr_assert_eq(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
-    cr_assert_eq (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Only samples that weren't taken should be available. */
     ret = samples_cnt();
-    cr_assert_eq(ret, MAX_SAMPLES - expected_cnt, "# samples %d, expected %d", ret,  MAX_SAMPLES - expected_cnt);
+    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/

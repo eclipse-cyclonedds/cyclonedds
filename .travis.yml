@@ -61,7 +61,6 @@ install:
   - conan user
 
 before_script:
-  - conan remote add atolab https://api.bintray.com/conan/atolab/public-conan
   - conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
 
 script:

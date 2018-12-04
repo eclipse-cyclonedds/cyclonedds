@@ -9,10 +9,9 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include "CUnit/Test.h"
 #include "ddsc/dds.h"
 #include "os/os.h"
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
 
 /* We are deliberately testing some bad arguments that SAL will complain about.
  * So, silence SAL regarding these issues. */
@@ -168,7 +167,7 @@ static void
 qos_init(void)
 {
     g_qos = dds_create_qos();
-    cr_assert_not_null(g_qos);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(g_qos);
 
     g_pol_userdata.value = (void*)c_userdata;
     g_pol_userdata.sz = strlen((char*)g_pol_userdata.value) + 1;
@@ -239,46 +238,46 @@ qos_fini(void)
 /****************************************************************************
  * API tests
  ****************************************************************************/
-Test(ddsc_qos, copy_bad_source, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, copy_bad_source, .init=qos_init, .fini=qos_fini)
 {
     dds_return_t result;
 
         result = dds_copy_qos(g_qos, NULL);
-        cr_assert_eq(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(result));
+        CU_ASSERT_EQUAL_FATAL(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER);
 }
 
-Test(ddsc_qos, copy_bad_destination, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, copy_bad_destination, .init=qos_init, .fini=qos_fini)
 {
         dds_return_t result;
 
         result = dds_copy_qos(NULL, g_qos);
-        cr_assert_eq(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(result));
+        CU_ASSERT_EQUAL_FATAL(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER);
 }
 
-Test(ddsc_qos, copy_with_partition, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, copy_with_partition, .init=qos_init, .fini=qos_fini)
 {
         dds_return_t result;
         dds_qos_t *qos;
         struct pol_partition p = { 0, NULL };
 
         qos = dds_create_qos();
-        cr_assert_not_null(qos);
+        CU_ASSERT_PTR_NOT_NULL_FATAL(qos);
 
         dds_qset_partition(g_qos, g_pol_partition.n, (const char **)g_pol_partition.ps);
         result = dds_copy_qos(qos, g_qos);
 
-        cr_assert_eq(result, DDS_RETCODE_OK);
+        CU_ASSERT_EQUAL_FATAL(result, DDS_RETCODE_OK);
         dds_qget_partition(qos, &p.n, &p.ps);
-        cr_assert_eq(p.n, g_pol_partition.n);
+        CU_ASSERT_EQUAL_FATAL(p.n, g_pol_partition.n);
 
         for (uint32_t cnt = 0; cnt < p.n; cnt++) {
-            cr_assert_str_eq(p.ps[cnt], g_pol_partition.ps[cnt]);
+            CU_ASSERT_STRING_EQUAL_FATAL(p.ps[cnt], g_pol_partition.ps[cnt]);
         }
 
         dds_delete_qos(qos);
 }
 
-Test(ddsc_qos, userdata, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, userdata, .init=qos_init, .fini=qos_fini)
 {
     struct pol_userdata p = { NULL, 0 };
 
@@ -290,13 +289,13 @@ Test(ddsc_qos, userdata, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_userdata(g_qos, g_pol_userdata.value, g_pol_userdata.sz);
     dds_qget_userdata(g_qos, &p.value, &p.sz);
-    cr_assert_eq(p.sz, g_pol_userdata.sz);
-    cr_assert_str_eq(p.value, g_pol_userdata.value);
+    CU_ASSERT_EQUAL_FATAL(p.sz, g_pol_userdata.sz);
+    CU_ASSERT_STRING_EQUAL_FATAL(p.value, g_pol_userdata.value);
 
     dds_free(p.value);
 }
 
-Test(ddsc_qos, topicdata, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, topicdata, .init=qos_init, .fini=qos_fini)
 {
     struct pol_topicdata p = { NULL, 0 };
 
@@ -308,13 +307,13 @@ Test(ddsc_qos, topicdata, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_topicdata(g_qos, g_pol_topicdata.value, g_pol_topicdata.sz);
     dds_qget_topicdata(g_qos, &p.value, &p.sz);
-    cr_assert_eq(p.sz, g_pol_topicdata.sz);
-    cr_assert_str_eq(p.value, g_pol_topicdata.value);
+    CU_ASSERT_EQUAL_FATAL(p.sz, g_pol_topicdata.sz);
+    CU_ASSERT_STRING_EQUAL_FATAL(p.value, g_pol_topicdata.value);
 
     dds_free(p.value);
 }
 
-Test(ddsc_qos, groupdata, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, groupdata, .init=qos_init, .fini=qos_fini)
 {
     struct pol_groupdata p = { NULL, 0 };
 
@@ -326,13 +325,13 @@ Test(ddsc_qos, groupdata, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_groupdata(g_qos, g_pol_groupdata.value, g_pol_groupdata.sz);
     dds_qget_groupdata(g_qos, &p.value, &p.sz);
-    cr_assert_eq(p.sz, g_pol_groupdata.sz);
-    cr_assert_str_eq(p.value, g_pol_groupdata.value);
+    CU_ASSERT_EQUAL_FATAL(p.sz, g_pol_groupdata.sz);
+    CU_ASSERT_STRING_EQUAL_FATAL(p.value, g_pol_groupdata.value);
 
     dds_free(p.value);
 }
 
-Test(ddsc_qos, durability, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, durability, .init=qos_init, .fini=qos_fini)
 {
     struct pol_durability p = { DDS_DURABILITY_VOLATILE };
 
@@ -344,10 +343,10 @@ Test(ddsc_qos, durability, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_durability(g_qos, g_pol_durability.kind);
     dds_qget_durability(g_qos, &p.kind);
-    cr_assert_eq(p.kind, g_pol_durability.kind);
+    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_durability.kind);
 }
 
-Test(ddsc_qos, history, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, history, .init=qos_init, .fini=qos_fini)
 {
     struct pol_history p = { DDS_HISTORY_KEEP_ALL, 0 };
 
@@ -359,11 +358,11 @@ Test(ddsc_qos, history, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_history(g_qos, g_pol_history.kind, g_pol_history.depth);
     dds_qget_history(g_qos, &p.kind, &p.depth);
-    cr_assert_eq(p.kind, g_pol_history.kind);
-    cr_assert_eq(p.depth, g_pol_history.depth);
+    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_history.kind);
+    CU_ASSERT_EQUAL_FATAL(p.depth, g_pol_history.depth);
 }
 
-Test(ddsc_qos, resource_limits, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, resource_limits, .init=qos_init, .fini=qos_fini)
 {
     struct pol_resource_limits p = { 0, 0, 0 };
 
@@ -375,12 +374,12 @@ Test(ddsc_qos, resource_limits, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_resource_limits(g_qos, g_pol_resource_limits.max_samples, g_pol_resource_limits.max_instances, g_pol_resource_limits.max_samples_per_instance);
     dds_qget_resource_limits(g_qos, &p.max_samples, &p.max_instances, &p.max_samples_per_instance);
-    cr_assert_eq(p.max_samples, g_pol_resource_limits.max_samples);
-    cr_assert_eq(p.max_instances, g_pol_resource_limits.max_instances);
-    cr_assert_eq(p.max_samples_per_instance, g_pol_resource_limits.max_samples_per_instance);
+    CU_ASSERT_EQUAL_FATAL(p.max_samples, g_pol_resource_limits.max_samples);
+    CU_ASSERT_EQUAL_FATAL(p.max_instances, g_pol_resource_limits.max_instances);
+    CU_ASSERT_EQUAL_FATAL(p.max_samples_per_instance, g_pol_resource_limits.max_samples_per_instance);
 }
 
-Test(ddsc_qos, presentation, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, presentation, .init=qos_init, .fini=qos_fini)
 {
     struct pol_presentation p = { DDS_PRESENTATION_INSTANCE, false, false };
 
@@ -392,12 +391,12 @@ Test(ddsc_qos, presentation, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_presentation(g_qos, g_pol_presentation.access_scope, g_pol_presentation.coherent_access, g_pol_presentation.ordered_access);
     dds_qget_presentation(g_qos, &p.access_scope, &p.coherent_access, &p.ordered_access);
-    cr_assert_eq(p.access_scope, g_pol_presentation.access_scope);
-    cr_assert_eq(p.coherent_access, g_pol_presentation.coherent_access);
-    cr_assert_eq(p.ordered_access, g_pol_presentation.ordered_access);
+    CU_ASSERT_EQUAL_FATAL(p.access_scope, g_pol_presentation.access_scope);
+    CU_ASSERT_EQUAL_FATAL(p.coherent_access, g_pol_presentation.coherent_access);
+    CU_ASSERT_EQUAL_FATAL(p.ordered_access, g_pol_presentation.ordered_access);
 }
 
-Test(ddsc_qos, lifespan, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, lifespan, .init=qos_init, .fini=qos_fini)
 {
     struct pol_lifespan p = { 0 };
 
@@ -409,10 +408,10 @@ Test(ddsc_qos, lifespan, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_lifespan(g_qos, g_pol_lifespan.lifespan);
     dds_qget_lifespan(g_qos, &p.lifespan);
-    cr_assert_eq(p.lifespan, g_pol_lifespan.lifespan);
+    CU_ASSERT_EQUAL_FATAL(p.lifespan, g_pol_lifespan.lifespan);
 }
 
-Test(ddsc_qos, deadline, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, deadline, .init=qos_init, .fini=qos_fini)
 {
     struct pol_deadline p = { 0 };
 
@@ -424,10 +423,10 @@ Test(ddsc_qos, deadline, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_deadline(g_qos, g_pol_deadline.deadline);
     dds_qget_deadline(g_qos, &p.deadline);
-    cr_assert_eq(p.deadline, g_pol_deadline.deadline);
+    CU_ASSERT_EQUAL_FATAL(p.deadline, g_pol_deadline.deadline);
 }
 
-Test(ddsc_qos, latency_budget, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, latency_budget, .init=qos_init, .fini=qos_fini)
 {
     struct pol_latency_budget p = { 0 };
 
@@ -439,10 +438,10 @@ Test(ddsc_qos, latency_budget, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_latency_budget(g_qos, g_pol_latency_budget.duration);
     dds_qget_latency_budget(g_qos, &p.duration);
-    cr_assert_eq(p.duration, g_pol_latency_budget.duration);
+    CU_ASSERT_EQUAL_FATAL(p.duration, g_pol_latency_budget.duration);
 }
 
-Test(ddsc_qos, ownership, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, ownership, .init=qos_init, .fini=qos_fini)
 {
     struct pol_ownership p = { DDS_OWNERSHIP_SHARED };
 
@@ -454,10 +453,10 @@ Test(ddsc_qos, ownership, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_ownership(g_qos, g_pol_ownership.kind);
     dds_qget_ownership(g_qos, &p.kind);
-    cr_assert_eq(p.kind, g_pol_ownership.kind);
+    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_ownership.kind);
 }
 
-Test(ddsc_qos, ownership_strength, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, ownership_strength, .init=qos_init, .fini=qos_fini)
 {
     struct pol_ownership_strength p = { 0 };
 
@@ -469,10 +468,10 @@ Test(ddsc_qos, ownership_strength, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_ownership_strength(g_qos, g_pol_ownership_strength.value);
     dds_qget_ownership_strength(g_qos, &p.value);
-    cr_assert_eq(p.value, g_pol_ownership_strength.value);
+    CU_ASSERT_EQUAL_FATAL(p.value, g_pol_ownership_strength.value);
 }
 
-Test(ddsc_qos, liveliness, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, liveliness, .init=qos_init, .fini=qos_fini)
 {
     struct pol_liveliness p = { DDS_LIVELINESS_AUTOMATIC, 0 };
 
@@ -484,11 +483,11 @@ Test(ddsc_qos, liveliness, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_liveliness(g_qos, g_pol_liveliness.kind, g_pol_liveliness.lease_duration);
     dds_qget_liveliness(g_qos, &p.kind, &p.lease_duration);
-    cr_assert_eq(p.kind, g_pol_liveliness.kind);
-    cr_assert_eq(p.lease_duration, g_pol_liveliness.lease_duration);
+    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_liveliness.kind);
+    CU_ASSERT_EQUAL_FATAL(p.lease_duration, g_pol_liveliness.lease_duration);
 }
 
-Test(ddsc_qos, time_base_filter, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, time_base_filter, .init=qos_init, .fini=qos_fini)
 {
     struct pol_time_based_filter p = { 0 };
 
@@ -500,10 +499,10 @@ Test(ddsc_qos, time_base_filter, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_time_based_filter(g_qos, g_pol_time_based_filter.minimum_separation);
     dds_qget_time_based_filter(g_qos, &p.minimum_separation);
-    cr_assert_eq(p.minimum_separation, g_pol_time_based_filter.minimum_separation);
+    CU_ASSERT_EQUAL_FATAL(p.minimum_separation, g_pol_time_based_filter.minimum_separation);
 }
 
-Test(ddsc_qos, partition, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, partition, .init=qos_init, .fini=qos_fini)
 {
     struct pol_partition p = { 0, NULL };
 
@@ -515,17 +514,17 @@ Test(ddsc_qos, partition, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_partition(g_qos, g_pol_partition.n, c_partitions);
     dds_qget_partition(g_qos, &p.n, &p.ps);
-    cr_assert_eq(p.n, 2);
-    cr_assert_eq(p.n, g_pol_partition.n);
-    cr_assert_str_eq(p.ps[0], g_pol_partition.ps[0]);
-    cr_assert_str_eq(p.ps[1], g_pol_partition.ps[1]);
+    CU_ASSERT_EQUAL_FATAL(p.n, 2);
+    CU_ASSERT_EQUAL_FATAL(p.n, g_pol_partition.n);
+    CU_ASSERT_STRING_EQUAL_FATAL(p.ps[0], g_pol_partition.ps[0]);
+    CU_ASSERT_STRING_EQUAL_FATAL(p.ps[1], g_pol_partition.ps[1]);
 
     dds_free(p.ps[0]);
     dds_free(p.ps[1]);
     dds_free(p.ps);
 }
 
-Test(ddsc_qos, reliability, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, reliability, .init=qos_init, .fini=qos_fini)
 {
     struct pol_reliability p = { DDS_RELIABILITY_BEST_EFFORT, 0 };
 
@@ -537,11 +536,11 @@ Test(ddsc_qos, reliability, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_reliability(g_qos, g_pol_reliability.kind, g_pol_reliability.max_blocking_time);
     dds_qget_reliability(g_qos, &p.kind, &p.max_blocking_time);
-    cr_assert_eq(p.kind, g_pol_reliability.kind);
-    cr_assert_eq(p.max_blocking_time, g_pol_reliability.max_blocking_time);
+    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_reliability.kind);
+    CU_ASSERT_EQUAL_FATAL(p.max_blocking_time, g_pol_reliability.max_blocking_time);
 }
 
-Test(ddsc_qos, transport_priority, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, transport_priority, .init=qos_init, .fini=qos_fini)
 {
     struct pol_transport_priority p = { 0 };
 
@@ -553,10 +552,10 @@ Test(ddsc_qos, transport_priority, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_transport_priority(g_qos, g_pol_transport_priority.value);
     dds_qget_transport_priority(g_qos, &p.value);
-    cr_assert_eq(p.value, g_pol_transport_priority.value);
+    CU_ASSERT_EQUAL_FATAL(p.value, g_pol_transport_priority.value);
 }
 
-Test(ddsc_qos, destination_order, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, destination_order, .init=qos_init, .fini=qos_fini)
 {
     struct pol_destination_order p = { DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP };
 
@@ -568,10 +567,10 @@ Test(ddsc_qos, destination_order, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_destination_order(g_qos, g_pol_destination_order.kind);
     dds_qget_destination_order(g_qos, &p.kind);
-    cr_assert_eq(p.kind, g_pol_destination_order.kind);
+    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_destination_order.kind);
 }
 
-Test(ddsc_qos, writer_data_lifecycle, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, writer_data_lifecycle, .init=qos_init, .fini=qos_fini)
 {
     struct pol_writer_data_lifecycle p = { false };
 
@@ -583,10 +582,10 @@ Test(ddsc_qos, writer_data_lifecycle, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_writer_data_lifecycle(g_qos, g_pol_writer_data_lifecycle.autodispose);
     dds_qget_writer_data_lifecycle(g_qos, &p.autodispose);
-    cr_assert_eq(p.autodispose, g_pol_writer_data_lifecycle.autodispose);
+    CU_ASSERT_EQUAL_FATAL(p.autodispose, g_pol_writer_data_lifecycle.autodispose);
 }
 
-Test(ddsc_qos, reader_data_lifecycle, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, reader_data_lifecycle, .init=qos_init, .fini=qos_fini)
 {
     struct pol_reader_data_lifecycle p = { 0, 0 };
 
@@ -598,11 +597,11 @@ Test(ddsc_qos, reader_data_lifecycle, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_reader_data_lifecycle(g_qos, g_pol_reader_data_lifecycle.autopurge_nowriter_samples_delay, g_pol_reader_data_lifecycle.autopurge_disposed_samples_delay);
     dds_qget_reader_data_lifecycle(g_qos, &p.autopurge_nowriter_samples_delay, &p.autopurge_disposed_samples_delay);
-    cr_assert_eq(p.autopurge_nowriter_samples_delay, g_pol_reader_data_lifecycle.autopurge_nowriter_samples_delay);
-    cr_assert_eq(p.autopurge_disposed_samples_delay, g_pol_reader_data_lifecycle.autopurge_disposed_samples_delay);
+    CU_ASSERT_EQUAL_FATAL(p.autopurge_nowriter_samples_delay, g_pol_reader_data_lifecycle.autopurge_nowriter_samples_delay);
+    CU_ASSERT_EQUAL_FATAL(p.autopurge_disposed_samples_delay, g_pol_reader_data_lifecycle.autopurge_disposed_samples_delay);
 }
 
-Test(ddsc_qos, durability_service, .init=qos_init, .fini=qos_fini)
+CU_Test(ddsc_qos, durability_service, .init=qos_init, .fini=qos_fini)
 {
     struct pol_durability_service p = { 0, DDS_HISTORY_KEEP_LAST, 0, 0, 0, 0 };
 
@@ -644,12 +643,12 @@ Test(ddsc_qos, durability_service, .init=qos_init, .fini=qos_fini)
             &p.max_samples,
             &p.max_instances,
             &p.max_samples_per_instance);
-    cr_assert_eq(p.service_cleanup_delay, g_pol_durability_service.service_cleanup_delay);
-    cr_assert_eq(p.history_kind, g_pol_durability_service.history_kind);
-    cr_assert_eq(p.history_depth, g_pol_durability_service.history_depth);
-    cr_assert_eq(p.max_samples, g_pol_durability_service.max_samples);
-    cr_assert_eq(p.max_instances, g_pol_durability_service.max_instances);
-    cr_assert_eq(p.max_samples_per_instance, g_pol_durability_service.max_samples_per_instance);
+    CU_ASSERT_EQUAL_FATAL(p.service_cleanup_delay, g_pol_durability_service.service_cleanup_delay);
+    CU_ASSERT_EQUAL_FATAL(p.history_kind, g_pol_durability_service.history_kind);
+    CU_ASSERT_EQUAL_FATAL(p.history_depth, g_pol_durability_service.history_depth);
+    CU_ASSERT_EQUAL_FATAL(p.max_samples, g_pol_durability_service.max_samples);
+    CU_ASSERT_EQUAL_FATAL(p.max_instances, g_pol_durability_service.max_instances);
+    CU_ASSERT_EQUAL_FATAL(p.max_samples_per_instance, g_pol_durability_service.max_samples_per_instance);
 }
 
 #ifdef _MSC_VER

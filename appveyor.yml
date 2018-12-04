@@ -30,7 +30,6 @@ install:
   - conan user # Creates the conan data directory
 
 before_build:
-  - conan remote add atolab https://api.bintray.com/conan/atolab/public-conan
   - conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
 
 build_script:

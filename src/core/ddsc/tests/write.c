@@ -10,8 +10,8 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <stdio.h>
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include "CUnit/Test.h"
+#include "CUnit/Theory.h"
 #include "ddsc/dds.h"
 #include "RoundTrip.h"
 #include "Space.h"
@@ -32,13 +32,13 @@ static void
 setup(void)
 {
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    cr_assert_gt(participant, 0);
+    CU_ASSERT_FATAL(participant > 0);
     topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, "RoundTrip", NULL, NULL);
-    cr_assert_gt(topic, 0);
+    CU_ASSERT_FATAL(topic > 0);
     publisher = dds_create_publisher(participant, NULL, NULL);
-    cr_assert_gt(publisher, 0);
+    CU_ASSERT_FATAL(publisher > 0);
     writer = dds_create_writer(participant, topic, NULL, NULL);
-    cr_assert_gt(writer, 0);
+    CU_ASSERT_FATAL(writer > 0);
 
     memset(&data, 0, sizeof(data));
     data.payload._length = payloadSize;
@@ -60,15 +60,15 @@ teardown(void)
     dds_delete(participant);
 }
 
-Test(ddsc_write, basic, .init = setup, .fini = teardown)
+CU_Test(ddsc_write, basic, .init = setup, .fini = teardown)
 {
     dds_return_t status;
 
     status = dds_write(writer, &data);
-    cr_assert_eq(dds_err_nr(status), DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_OK);
 }
 
-Test(ddsc_write, null_writer, .init = setup, .fini = teardown)
+CU_Test(ddsc_write, null_writer, .init = setup, .fini = teardown)
 {
     dds_return_t status;
 
@@ -76,29 +76,29 @@ Test(ddsc_write, null_writer, .init = setup, .fini = teardown)
     OS_WARNING_MSVC_OFF(28020);
     status = dds_write(0, &data);
     OS_WARNING_MSVC_ON(28020);
-    cr_assert_eq(dds_err_nr(status), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_BAD_PARAMETER);
 }
 
-Test(ddsc_write, bad_writer, .init = setup, .fini = teardown)
+CU_Test(ddsc_write, bad_writer, .init = setup, .fini = teardown)
 {
     dds_return_t status;
 
     status = dds_write(publisher, &data);
-    cr_assert_eq(dds_err_nr(status), DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 
-Test(ddsc_write, closed_writer, .init = setup, .fini = teardown)
+CU_Test(ddsc_write, closed_writer, .init = setup, .fini = teardown)
 {
     dds_return_t status;
 
     status = dds_delete(writer);
-    cr_assert_eq(dds_err_nr(status), DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_OK);
     status = dds_write(writer, &data);
     writer = 0;
-    cr_assert_eq(dds_err_nr(status), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_ALREADY_DELETED);
 }
 
-Test(ddsc_write, null_sample, .init = setup, .fini = teardown)
+CU_Test(ddsc_write, null_sample, .init = setup, .fini = teardown)
 {
     dds_return_t status;
 
@@ -107,26 +107,26 @@ Test(ddsc_write, null_sample, .init = setup, .fini = teardown)
     status = dds_write(writer, NULL);
     OS_WARNING_MSVC_ON(6387);
 
-    cr_assert_eq(dds_err_nr(status), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_BAD_PARAMETER);
 }
 
-Test(ddsc_write_ts, basic, .init = setup, .fini = teardown)
+CU_Test(ddsc_write_ts, basic, .init = setup, .fini = teardown)
 {
     dds_return_t status;
 
     status = dds_write_ts(writer, &data, dds_time());
-    cr_assert_eq(dds_err_nr(status), DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_OK);
 }
 
-Test(ddsc_write_ts, bad_timestamp, .init = setup, .fini = teardown)
+CU_Test(ddsc_write_ts, bad_timestamp, .init = setup, .fini = teardown)
 {
     dds_return_t status;
 
     status = dds_write_ts(writer, &data, -1);
-    cr_assert_eq(dds_err_nr(status), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_BAD_PARAMETER);
 }
 
-Test(ddsc_write, simpletypes)
+CU_Test(ddsc_write, simpletypes)
 {
     dds_return_t status;
     dds_entity_t par, top, wri;
@@ -145,14 +145,14 @@ Test(ddsc_write, simpletypes)
     };
 
     par = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    cr_assert_gt(par, 0);
+    CU_ASSERT_FATAL(par > 0);
     top = dds_create_topic(par, &Space_simpletypes_desc, "SimpleTypes", NULL, NULL);
-    cr_assert_gt(top, 0);
+    CU_ASSERT_FATAL(top > 0);
     wri = dds_create_writer(par, top, NULL, NULL);
-    cr_assert_gt(wri, 0);
+    CU_ASSERT_FATAL(wri > 0);
 
     status = dds_write(wri, &st_data);
-    cr_assert_eq(dds_err_nr(status), DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_OK);
 
     dds_delete(wri);
     dds_delete(top);
