@@ -351,20 +351,20 @@ Test(ddsc_entity, inconsistent_topic)
     dds_inconsistent_topic_status_t topic_status;
 
     top = dds_create_topic(participant, &RoundTripModule_DataType_desc, "RoundTrip1", NULL, NULL);
-    cr_assert_gt(top, 0, "fails %d", dds_err_nr(top));
+    CU_ASSERT_FATAL(top > 0);
 
     /*Set reader topic and writer topic statuses enabled*/
     ret = dds_set_status_mask(top, DDS_INCONSISTENT_TOPIC_STATUS);
-    cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_set_status_mask(top, DDS_INCONSISTENT_TOPIC_STATUS);
-    cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Wait for pub inconsistent topic status callback */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, waitTimeout);
     CU_ASSERT_EQUAL_FATAL(ret, (dds_return_t)wsresultsize);
     ret = dds_get_inconsistent_topic_status (top, &topic_status);
-    cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
-    cr_assert_gt(topic_status.total_count, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_FATAL(topic_status.total_count > 0);
 
     /*Getting the status should have reset the trigger, waitset should timeout */
     status = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, shortTimeout);
@@ -374,8 +374,8 @@ Test(ddsc_entity, inconsistent_topic)
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, waitTimeout);
     CU_ASSERT_EQUAL_FATAL(status, wsresultsize);
     ret = dds_get_inconsistent_topic_status (top, &topic_status);
-    cr_assert_dds_return_t_eq(ret, DDS_RETCODE_OK);
-    cr_assert_gt(topic_status.total_count, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_FATAL(topic_status.total_count > 0);
 
     /*Getting the status should have reset the trigger, waitset should timeout */
     status = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, shortTimeout);

@@ -1061,6 +1061,13 @@ typedef bool (*dds_topic_filter_fn) (const void * sample);
  */
 _Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
 DDS_EXPORT void
+dds_set_topic_filter(
+        dds_entity_t topic,
+        dds_topic_filter_fn filter);
+
+_Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
+DDS_EXPORT void
+DDS_DEPRECATED_EXPORT
 dds_topic_set_filter(
         dds_entity_t topic,
         dds_topic_filter_fn filter);
@@ -1074,6 +1081,12 @@ dds_topic_set_filter(
  */
 _Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
 DDS_EXPORT dds_topic_filter_fn
+dds_get_topic_filter(
+        dds_entity_t topic);
+
+_Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
+DDS_EXPORT dds_topic_filter_fn
+DDS_DEPRECATED_EXPORT
 dds_topic_get_filter(
         dds_entity_t topic);
 

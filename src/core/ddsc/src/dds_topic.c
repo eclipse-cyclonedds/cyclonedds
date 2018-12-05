@@ -528,7 +528,7 @@ dds_topic_mod_filter(
 
 _Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
 void
-dds_topic_set_filter(
+dds_set_topic_filter(
         dds_entity_t topic,
         dds_topic_filter_fn filter)
 {
@@ -538,14 +538,31 @@ dds_topic_set_filter(
 }
 
 _Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
+void
+dds_topic_set_filter(
+        dds_entity_t topic,
+        dds_topic_filter_fn filter)
+{
+    dds_set_topic_filter(topic, filter);
+}
+
+_Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
 dds_topic_filter_fn
-dds_topic_get_filter(
+dds_get_topic_filter(
         dds_entity_t topic)
 {
     dds_topic_intern_filter_fn filter;
     void *ctx;
     dds_topic_mod_filter (topic, &filter, &ctx, false);
     return (filter == dds_topic_chaining_filter) ? (dds_topic_filter_fn)ctx : 0;
+}
+
+_Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
+dds_topic_filter_fn
+dds_topic_get_filter(
+        dds_entity_t topic)
+{
+    return dds_get_topic_filter(topic);
 }
 
 void
