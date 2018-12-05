@@ -105,7 +105,7 @@ reader_init(void)
     CU_ASSERT_FATAL(g_writer > 0);
 
     /* Sync g_reader to g_writer. */
-    ret = dds_set_enabled_status(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
+    ret = dds_set_status_mask(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -116,7 +116,7 @@ reader_init(void)
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Sync g_writer to g_reader. */
-    ret = dds_set_enabled_status(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
+    ret = dds_set_status_mask(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_writer, g_writer);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -2481,7 +2481,7 @@ CU_Test(ddsc_take_mask, take_instance_last_sample)
     CU_ASSERT_FATAL(g_writer > 0);
 
     /* Sync g_reader to g_writer. */
-    ret = dds_set_enabled_status(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
+    ret = dds_set_status_mask(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -2492,7 +2492,7 @@ CU_Test(ddsc_take_mask, take_instance_last_sample)
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Sync g_writer to g_reader. */
-    ret = dds_set_enabled_status(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
+    ret = dds_set_status_mask(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_writer, g_writer);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);

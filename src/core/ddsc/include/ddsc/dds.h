@@ -516,9 +516,15 @@ dds_get_status_changes(
  */
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
 DDS_EXPORT _Check_return_ dds_return_t
-dds_get_enabled_status(
+dds_get_status_mask(
         _In_  dds_entity_t entity,
-        _Out_ uint32_t *status);
+        _Out_ uint32_t *mask);
+
+_Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
+DDS_EXPORT _Check_return_ dds_return_t
+DDS_DEPRECATED_EXPORT dds_get_enabled_status(
+        _In_  dds_entity_t entity,
+        _Out_ uint32_t *mask);
 
 /**
  * @brief Set status enabled on entity
@@ -541,6 +547,13 @@ dds_get_enabled_status(
  */
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
 DDS_EXPORT dds_return_t
+dds_set_status_mask(
+        _In_ dds_entity_t entity,
+        _In_ uint32_t mask);
+
+_Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
+DDS_EXPORT dds_return_t
+DDS_DEPRECATED_EXPORT
 dds_set_enabled_status(
         _In_ dds_entity_t entity,
         _In_ uint32_t mask);

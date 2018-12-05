@@ -122,7 +122,7 @@ int main (int argc, char **argv)
   process_samples(maxCycles);
 
   /* Finished, disable callbacks */
-  dds_set_enabled_status (reader, 0);
+  dds_set_status_mask (reader, 0);
   HandleMap__free (imap);
 
 #ifdef _WIN32

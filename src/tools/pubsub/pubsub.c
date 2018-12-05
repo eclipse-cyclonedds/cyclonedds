@@ -1660,8 +1660,8 @@ static uint32_t subthread(void *vspec) {
     case MODE_DUMP:
         if (!spec->polling) {
             /* fastest trigger we have */
-            rc = dds_set_enabled_status(rd, DDS_DATA_AVAILABLE_STATUS);
-            error_abort(rc, "dds_set_enabled_status(stcond)");
+            rc = dds_set_status_mask(rd, DDS_DATA_AVAILABLE_STATUS);
+            error_abort(rc, "dds_set_status_mask(stcond)");
             rc = dds_waitset_attach(ws, rd, rd);
             error_abort(rc, "dds_waitset_attach(rd)");
             nxs++;

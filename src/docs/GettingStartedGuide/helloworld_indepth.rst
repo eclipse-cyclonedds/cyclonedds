@@ -395,7 +395,7 @@ To make this happen, the writer must be instructed to 'listen' for this status.
 The following line of code makes sure the writer does so.
 ::
 
-    dds_set_enabled_status(writer, DDS_PUBLICATION_MATCHED_STATUS);
+    dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
 
 Now the polling may start:
 ::

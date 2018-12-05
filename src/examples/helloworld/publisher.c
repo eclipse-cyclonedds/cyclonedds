@@ -27,7 +27,7 @@ int main (int argc, char ** argv)
 
     printf("=== [Publisher]  Waiting for a reader to be discovered ...\n");
 
-    ret = dds_set_enabled_status(writer, DDS_PUBLICATION_MATCHED_STATUS);
+    ret = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
     DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 
     while(true)
