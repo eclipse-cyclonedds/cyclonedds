@@ -1,8 +1,18 @@
+/*
+ * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include "CUnit/Test.h"
 
 #include "os/os.h"
 #include "ddsc/dds.h"
@@ -21,19 +31,19 @@ static RoundTripModule_Address data;
 static void setup(void)
 {
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    cr_assert_gt(participant, 0);
+    CU_ASSERT_FATAL(participant > 0);
     topic = dds_create_topic(participant, &RoundTripModule_Address_desc, "ddsc_instance_get_key", NULL, NULL);
-    cr_assert_gt(topic, 0);
+    CU_ASSERT_FATAL(topic > 0);
 
     publisher = dds_create_publisher(participant, NULL, NULL);
-    cr_assert_gt(publisher, 0);
+    CU_ASSERT_FATAL(publisher > 0);
 
     writer = dds_create_writer(publisher, topic, NULL, NULL);
-    cr_assert_gt(writer, 0);
+    CU_ASSERT_FATAL(writer > 0);
 
     memset(&data, 0, sizeof(data));
     data.ip = os_strdup("some data");
-    cr_assert_not_null(data.ip);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(data.ip);
     data.port = 1;
 }
 
@@ -48,48 +58,48 @@ static void teardown(void)
     dds_delete(participant);
 }
 
-Test(ddsc_instance_get_key, bad_entity, .init=setup, .fini=teardown)
+CU_Test(ddsc_instance_get_key, bad_entity, .init=setup, .fini=teardown)
 {
     dds_return_t ret;
 
     ret = dds_instance_get_key(participant, handle, &data);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 
-Test(ddsc_instance_get_key, null_data, .init=setup, .fini=teardown)
+CU_Test(ddsc_instance_get_key, null_data, .init=setup, .fini=teardown)
 {
     dds_return_t ret;
 
     ret = dds_register_instance(writer, &handle, NULL);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "Argument data is NULL");
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 
-Test(ddsc_instance_get_key, null_handle, .init=setup, .fini=teardown)
+CU_Test(ddsc_instance_get_key, null_handle, .init=setup, .fini=teardown)
 {
     dds_return_t ret;
     ret = dds_register_instance(writer, &handle, &data);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_register_instance succeeded (ret: %d)", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     ret = dds_instance_get_key(writer, DDS_HANDLE_NIL, &data);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "Argument data is not null, but handle is null");
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 
-Test(ddsc_instance_get_key, registered_instance, .init=setup, .fini=teardown)
+CU_Test(ddsc_instance_get_key, registered_instance, .init=setup, .fini=teardown)
 {
     dds_return_t ret;
     RoundTripModule_Address key_data;
 
     ret = dds_register_instance(writer, &handle, &data);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_register_instance succeeded (ret: %d)", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     memset(&key_data, 0, sizeof(key_data));
 
     ret = dds_instance_get_key(writer, handle, &key_data);
 
-    cr_assert_not_null(key_data.ip);
-    cr_assert_eq(strcmp(key_data.ip, data.ip) , 0);
-    cr_assert_eq(key_data.port, data.port);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_OK);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(key_data.ip);
+    CU_ASSERT_STRING_EQUAL_FATAL(key_data.ip, data.ip);
+    CU_ASSERT_EQUAL_FATAL(key_data.port, data.port);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_OK);
 
     RoundTripModule_Address_free(&key_data, DDS_FREE_CONTENTS);
 }

@@ -12,8 +12,7 @@
 #include "ddsc/dds.h"
 #include "os/os.h"
 #include "RoundTrip.h"
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include "CUnit/Test.h"
 
 /****************************************************************************
  * TODO: (CHAM-279) Add DDS_INCONSISTENT_TOPIC_STATUS test
@@ -31,7 +30,7 @@
     do { \
         dds_on_##fntype##_fn cb; \
         dds_lget_##fntype(listener, &cb); \
-        cr_expect_eq(cb, expected, "Callback 'on_" #fntype "' matched expected value '" #expected "'"); \
+        CU_ASSERT_EQUAL(cb, expected); \
     } while (0)
 
 #define STR(fntype) #fntype##_cb
@@ -46,7 +45,7 @@
         dds_lget_##fntype(NULL, NULL); \
         dds_lget_##fntype(listener, NULL); \
         dds_lget_##fntype(NULL, &dummy);  \
-        cr_expect_eq(dummy, NULL, "lget 'on_" #fntype "' with NULL listener was not a noop"); \
+        CU_ASSERT_EQUAL_FATAL(dummy, NULL); \
         /* Set to NULL, get to confirm it succeeds */ \
         dds_lset_##fntype(listener, NULL); \
         ASSERT_CALLBACK_EQUAL(fntype, listener, NULL); \
@@ -330,22 +329,22 @@ init_triggering_base(void)
     os_condInit(&g_cond, &g_mutex);
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    cr_assert_gt(g_participant, 0, "Failed to create prerequisite g_participant");
+    CU_ASSERT_FATAL(g_participant > 0);
 
     g_subscriber = dds_create_subscriber(g_participant, NULL, NULL);
-    cr_assert_gt(g_subscriber, 0, "Failed to create prerequisite g_subscriber");
+    CU_ASSERT_FATAL(g_subscriber > 0);
 
     g_publisher = dds_create_publisher(g_participant, NULL, NULL);
-    cr_assert_gt(g_publisher, 0, "Failed to create prerequisite g_publisher");
+    CU_ASSERT_FATAL(g_publisher > 0);
 
     g_topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_listener_test", name, 100), NULL, NULL);
-    cr_assert_gt(g_topic, 0, "Failed to create prerequisite g_topic");
+    CU_ASSERT_FATAL(g_topic > 0);
 
     g_listener = dds_create_listener(NULL);
-    cr_assert_not_null(g_listener, "Failed to create prerequisite g_listener");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(g_listener);
 
     g_qos = dds_create_qos();
-    cr_assert_not_null(g_qos, "Failed to create prerequisite g_qos");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(g_qos);
     dds_qset_reliability(g_qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(1));
     dds_qset_history(g_qos, DDS_HISTORY_KEEP_ALL, 0);
 }
@@ -370,15 +369,15 @@ init_triggering_test(void)
 
     /* Create reader and writer with proper listeners. */
     g_writer = dds_create_writer(g_publisher, g_topic, g_qos, g_listener);
-    cr_assert_gt(g_writer, 0, "Failed to create prerequisite writer");
+    CU_ASSERT(g_writer > 0);
     g_reader = dds_create_reader(g_subscriber, g_topic, g_qos, g_listener);
-    cr_assert_gt(g_reader, 0, "Failed to create prerequisite reader");
+    CU_ASSERT(g_reader > 0);
 
     /* Sync. */
     triggered = waitfor_cb(DDS_PUBLICATION_MATCHED_STATUS | DDS_SUBSCRIPTION_MATCHED_STATUS | DDS_LIVELINESS_CHANGED_STATUS);
-    cr_assert_eq(triggered & DDS_LIVELINESS_CHANGED_STATUS,    DDS_LIVELINESS_CHANGED_STATUS);
-    cr_assert_eq(triggered & DDS_PUBLICATION_MATCHED_STATUS,   DDS_PUBLICATION_MATCHED_STATUS);
-    cr_assert_eq(triggered & DDS_SUBSCRIPTION_MATCHED_STATUS,  DDS_SUBSCRIPTION_MATCHED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_LIVELINESS_CHANGED_STATUS,    DDS_LIVELINESS_CHANGED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_PUBLICATION_MATCHED_STATUS,   DDS_PUBLICATION_MATCHED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_SUBSCRIPTION_MATCHED_STATUS,  DDS_SUBSCRIPTION_MATCHED_STATUS);
 }
 
 static void
@@ -401,17 +400,15 @@ fini_triggering_test(void)
 }
 
 
-#if 0
-#else
 /****************************************************************************
  * API tests
  ****************************************************************************/
-Test(ddsc_listener, create_and_delete)
+CU_Test(ddsc_listener, create_and_delete)
 {
     /* Verify create doesn't return null */
     dds_listener_t *listener;
     listener = dds_create_listener(NULL);
-    cr_assert_not_null(listener);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(listener);
 
     /* Check default cb's are set */
     ASSERT_CALLBACK_EQUAL(inconsistent_topic, listener, DDS_LUNSET);
@@ -434,11 +431,11 @@ Test(ddsc_listener, create_and_delete)
     OS_WARNING_MSVC_ON(6387);
 }
 
-Test(ddsc_listener, reset)
+CU_Test(ddsc_listener, reset)
 {
     dds_listener_t *listener;
     listener = dds_create_listener(NULL);
-    cr_assert_not_null(listener);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(listener);
 
     /* Set a listener cb to a non-default value */
     dds_lset_data_available(listener, NULL);
@@ -454,13 +451,13 @@ Test(ddsc_listener, reset)
     dds_delete_listener(listener);
 }
 
-Test(ddsc_listener, copy)
+CU_Test(ddsc_listener, copy)
 {
     dds_listener_t *listener1 = NULL, *listener2 = NULL;
     listener1 = dds_create_listener(NULL);
     listener2 = dds_create_listener(NULL);
-    cr_assert_not_null(listener1);
-    cr_assert_not_null(listener2);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(listener1);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(listener2);
 
     /* Set some listener1 callbacks to non-default values */
     dds_lset_data_available(listener1, NULL);
@@ -488,13 +485,13 @@ Test(ddsc_listener, copy)
     dds_delete_listener(listener2);
 }
 
-Test(ddsc_listener, merge)
+CU_Test(ddsc_listener, merge)
 {
     dds_listener_t *listener1 = NULL, *listener2 = NULL;
     listener1 = dds_create_listener(NULL);
     listener2 = dds_create_listener(NULL);
-    cr_assert_not_null(listener1);
-    cr_assert_not_null(listener2);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(listener1);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(listener2);
 
     /* Set all listener1 callbacks to non-default values */
     dds_lset_inconsistent_topic         (listener1, inconsistent_topic_cb);
@@ -565,11 +562,11 @@ Test(ddsc_listener, merge)
     dds_delete_listener(listener2);
 }
 
-Test(ddsc_listener, getters_setters)
+CU_Test(ddsc_listener, getters_setters)
 {
     /* test all individual cb get/set methods */
     dds_listener_t *listener = dds_create_listener(NULL);
-    cr_assert_not_null(listener);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(listener);
 
     OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */ \
     TEST_GET_SET(listener, inconsistent_topic, inconsistent_topic_cb);
@@ -595,7 +592,7 @@ Test(ddsc_listener, getters_setters)
 /****************************************************************************
  * Triggering tests
  ****************************************************************************/
-Test(ddsc_listener, propagation, .init=init_triggering_base, .fini=fini_triggering_base)
+CU_Test(ddsc_listener, propagation, .init=init_triggering_base, .fini=fini_triggering_base)
 {
     dds_listener_t *listener_par = NULL;
     dds_listener_t *listener_pub = NULL;
@@ -607,57 +604,57 @@ Test(ddsc_listener, propagation, .init=init_triggering_base, .fini=fini_triggeri
 
     /* Let participant be interested in data. */
     listener_par = dds_create_listener(NULL);
-    cr_assert_not_null(listener_par, "Failed to create prerequisite listener_par");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(listener_par);
     dds_lset_data_on_readers(listener_par, data_on_readers_cb);
     ret = dds_set_listener(g_participant, listener_par);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite listener_par");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     dds_delete_listener(listener_par);
 
     /* Let publisher be interested in publication matched. */
     listener_pub = dds_create_listener(NULL);
-    cr_assert_not_null(listener_pub, "Failed to create prerequisite listener_pub");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(listener_pub);
     dds_lset_publication_matched(listener_pub, publication_matched_cb);
     ret = dds_set_listener(g_publisher, listener_pub);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite listener_pub");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     dds_delete_listener(listener_pub);
 
     /* Let subscriber be interested in subscription matched. */
     listener_sub = dds_create_listener(NULL);
-    cr_assert_not_null(listener_pub, "Failed to create prerequisite listener_sub");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(listener_pub);
     dds_lset_subscription_matched(listener_sub, subscription_matched_cb);
     ret = dds_set_listener(g_subscriber, listener_sub);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite listener_sub");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     dds_delete_listener(listener_sub);
 
     /* Create reader and writer without listeners. */
     g_reader = dds_create_reader(g_subscriber, g_topic, g_qos, NULL);
-    cr_assert_gt(g_reader, 0, "Failed to create prerequisite reader");
+    CU_ASSERT_FATAL(g_reader > 0);
     g_writer = dds_create_writer(g_publisher, g_topic, g_qos, NULL);
-    cr_assert_gt(g_writer, 0, "Failed to create prerequisite writer");
+    CU_ASSERT_FATAL(g_writer > 0);
 
     /* Publication and Subscription should be matched. */
     triggered = waitfor_cb(DDS_PUBLICATION_MATCHED_STATUS | DDS_SUBSCRIPTION_MATCHED_STATUS);
-    cr_assert_eq(triggered & DDS_SUBSCRIPTION_MATCHED_STATUS, DDS_SUBSCRIPTION_MATCHED_STATUS, "DDS_SUBSCRIPTION_MATCHED_STATUS not triggered");
-    cr_assert_eq(triggered & DDS_PUBLICATION_MATCHED_STATUS,  DDS_PUBLICATION_MATCHED_STATUS,  "DDS_PUBLICATION_MATCHED_STATUS not triggered");
-    cr_assert_eq(cb_writer, g_writer);
-    cr_assert_eq(cb_reader, g_reader);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_SUBSCRIPTION_MATCHED_STATUS, DDS_SUBSCRIPTION_MATCHED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_PUBLICATION_MATCHED_STATUS,  DDS_PUBLICATION_MATCHED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_writer, g_writer);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
 
     /* Write sample. */
     ret = dds_write(g_writer, &sample);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to write prerequisite data");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Data on readers should be triggered with the right status. */
     triggered = waitfor_cb(DDS_DATA_ON_READERS_STATUS);
-    cr_assert_eq(triggered & DDS_DATA_ON_READERS_STATUS, DDS_DATA_ON_READERS_STATUS, "DDS_DATA_ON_READERS_STATUS not triggered");
-    cr_assert_eq(cb_subscriber, g_subscriber);
-    cr_assert_neq(triggered & DDS_DATA_AVAILABLE_STATUS, DDS_DATA_AVAILABLE_STATUS, "DDS_DATA_AVAILABLE_STATUS triggered");
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_DATA_ON_READERS_STATUS, DDS_DATA_ON_READERS_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_subscriber, g_subscriber);
+    CU_ASSERT_NOT_EQUAL_FATAL(triggered & DDS_DATA_AVAILABLE_STATUS, DDS_DATA_AVAILABLE_STATUS);
 
     dds_delete(g_writer);
     dds_delete(g_reader);
 }
 
 
-Test(ddsc_listener, matched, .init=init_triggering_base, .fini=fini_triggering_base)
+CU_Test(ddsc_listener, matched, .init=init_triggering_base, .fini=fini_triggering_base)
 {
     uint32_t triggered;
 
@@ -672,22 +669,22 @@ Test(ddsc_listener, matched, .init=init_triggering_base, .fini=fini_triggering_b
     /* Create reader and writer with proper listeners.
      * The creation order is deliberately different from publication_matched and subscription_matched. */
     g_reader = dds_create_reader(g_participant, g_topic, g_qos, g_listener);
-    cr_assert_gt(g_reader, 0, "Failed to create prerequisite reader");
+    CU_ASSERT_FATAL(g_reader > 0);
     g_writer = dds_create_writer(g_participant, g_topic, g_qos, g_listener);
-    cr_assert_gt(g_writer, 0, "Failed to create prerequisite writer");
+    CU_ASSERT_FATAL(g_writer > 0);
 
     /* Both matched should be triggered on the right entities. */
     triggered = waitfor_cb(DDS_PUBLICATION_MATCHED_STATUS | DDS_SUBSCRIPTION_MATCHED_STATUS);
-    cr_assert_eq(triggered & DDS_SUBSCRIPTION_MATCHED_STATUS, DDS_SUBSCRIPTION_MATCHED_STATUS, "DDS_SUBSCRIPTION_MATCHED_STATUS not triggered");
-    cr_assert_eq(triggered & DDS_PUBLICATION_MATCHED_STATUS,  DDS_PUBLICATION_MATCHED_STATUS,  "DDS_PUBLICATION_MATCHED_STATUS not triggered");
-    cr_assert_eq(cb_writer, g_writer);
-    cr_assert_eq(cb_reader, g_reader);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_SUBSCRIPTION_MATCHED_STATUS, DDS_SUBSCRIPTION_MATCHED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_PUBLICATION_MATCHED_STATUS,  DDS_PUBLICATION_MATCHED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_writer, g_writer);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
 
     dds_delete(g_writer);
     dds_delete(g_reader);
 }
 
-Test(ddsc_listener, publication_matched, .init=init_triggering_test, .fini=fini_triggering_test)
+CU_Test(ddsc_listener, publication_matched, .init=init_triggering_test, .fini=fini_triggering_test)
 {
     dds_instance_handle_t reader_hdl;
     dds_return_t ret;
@@ -696,22 +693,22 @@ Test(ddsc_listener, publication_matched, .init=init_triggering_test, .fini=fini_
 
     /* Get reader handle that should be part of the status. */
     ret = dds_get_instance_handle(g_reader, &reader_hdl);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to get prerequisite reader_hdl");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Publication matched should be triggered with the right status. */
     triggered = waitfor_cb(DDS_PUBLICATION_MATCHED_STATUS);
-    cr_assert_eq(triggered & DDS_PUBLICATION_MATCHED_STATUS, DDS_PUBLICATION_MATCHED_STATUS, "DDS_PUBLICATION_MATCHED_STATUS not triggered");
-    cr_assert_eq(cb_writer, g_writer);
-    cr_assert_eq(cb_publication_matched_status.current_count, 1);
-    cr_assert_eq(cb_publication_matched_status.current_count_change, 1);
-    cr_assert_eq(cb_publication_matched_status.total_count, 1);
-    cr_assert_eq(cb_publication_matched_status.total_count_change, 1);
-    cr_assert_eq(cb_publication_matched_status.last_subscription_handle, reader_hdl);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_PUBLICATION_MATCHED_STATUS, DDS_PUBLICATION_MATCHED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_writer, g_writer);
+    CU_ASSERT_EQUAL_FATAL(cb_publication_matched_status.current_count, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_publication_matched_status.current_count_change, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_publication_matched_status.total_count, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_publication_matched_status.total_count_change, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_publication_matched_status.last_subscription_handle, reader_hdl);
 
     /* The listener should have swallowed the status. */
     ret = dds_read_status(g_writer, &status, DDS_PUBLICATION_MATCHED_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_read_status failed");
-    cr_assert_eq(status, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
 
     /* Reset the trigger flags. */
     cb_called = 0;
@@ -721,16 +718,16 @@ Test(ddsc_listener, publication_matched, .init=init_triggering_test, .fini=fini_
 
     /* Publication matched should be triggered with the right status. */
     triggered = waitfor_cb(DDS_PUBLICATION_MATCHED_STATUS);
-    cr_assert_eq(triggered & DDS_PUBLICATION_MATCHED_STATUS, DDS_PUBLICATION_MATCHED_STATUS, "DDS_PUBLICATION_MATCHED_STATUS not triggered");
-    cr_assert_eq(cb_writer, g_writer);
-    cr_assert_eq(cb_publication_matched_status.current_count, 0);
-    cr_assert_eq(cb_publication_matched_status.current_count_change, -1);
-    cr_assert_eq(cb_publication_matched_status.total_count, 1);
-    cr_assert_eq(cb_publication_matched_status.total_count_change, 0);
-    cr_assert_eq(cb_publication_matched_status.last_subscription_handle, reader_hdl);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_PUBLICATION_MATCHED_STATUS, DDS_PUBLICATION_MATCHED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_writer, g_writer);
+    CU_ASSERT_EQUAL_FATAL(cb_publication_matched_status.current_count, 0);
+    CU_ASSERT_EQUAL_FATAL(cb_publication_matched_status.current_count_change, -1);
+    CU_ASSERT_EQUAL_FATAL(cb_publication_matched_status.total_count, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_publication_matched_status.total_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(cb_publication_matched_status.last_subscription_handle, reader_hdl);
 }
 
-Test(ddsc_listener, subscription_matched, .init=init_triggering_test, .fini=fini_triggering_test)
+CU_Test(ddsc_listener, subscription_matched, .init=init_triggering_test, .fini=fini_triggering_test)
 {
     dds_instance_handle_t writer_hdl;
     dds_return_t ret;
@@ -739,22 +736,22 @@ Test(ddsc_listener, subscription_matched, .init=init_triggering_test, .fini=fini
 
     /* Get writer handle that should be part of the status. */
     ret = dds_get_instance_handle(g_writer, &writer_hdl);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to get prerequisite writer_hdl");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Subscription matched should be triggered with the right status. */
     triggered = waitfor_cb(DDS_SUBSCRIPTION_MATCHED_STATUS);
-    cr_assert_eq(triggered & DDS_SUBSCRIPTION_MATCHED_STATUS, DDS_SUBSCRIPTION_MATCHED_STATUS, "DDS_SUBSCRIPTION_MATCHED_STATUS not triggered");
-    cr_assert_eq(cb_reader, g_reader);
-    cr_assert_eq(cb_subscription_matched_status.current_count, 1);
-    cr_assert_eq(cb_subscription_matched_status.current_count_change, 1);
-    cr_assert_eq(cb_subscription_matched_status.total_count, 1);
-    cr_assert_eq(cb_subscription_matched_status.total_count_change, 1);
-    cr_assert_eq(cb_subscription_matched_status.last_publication_handle, writer_hdl);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_SUBSCRIPTION_MATCHED_STATUS, DDS_SUBSCRIPTION_MATCHED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
+    CU_ASSERT_EQUAL_FATAL(cb_subscription_matched_status.current_count, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_subscription_matched_status.current_count_change, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_subscription_matched_status.total_count, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_subscription_matched_status.total_count_change, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_subscription_matched_status.last_publication_handle, writer_hdl);
 
     /* The listener should have swallowed the status. */
     ret = dds_read_status(g_reader, &status, DDS_SUBSCRIPTION_MATCHED_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_read_status failed");
-    cr_assert_eq(status, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
 
     /* Reset the trigger flags. */
     cb_called = 0;
@@ -764,16 +761,16 @@ Test(ddsc_listener, subscription_matched, .init=init_triggering_test, .fini=fini
 
     /* Subscription matched should be triggered with the right status. */
     triggered = waitfor_cb(DDS_SUBSCRIPTION_MATCHED_STATUS);
-    cr_assert_eq(triggered & DDS_SUBSCRIPTION_MATCHED_STATUS, DDS_SUBSCRIPTION_MATCHED_STATUS, "DDS_SUBSCRIPTION_MATCHED_STATUS not triggered");
-    cr_assert_eq(cb_reader, g_reader);
-    cr_assert_eq(cb_subscription_matched_status.current_count, 0);
-    cr_assert_eq(cb_subscription_matched_status.current_count_change, -1);
-    cr_assert_eq(cb_subscription_matched_status.total_count, 1);
-    cr_assert_eq(cb_subscription_matched_status.total_count_change, 0);
-    cr_assert_eq(cb_subscription_matched_status.last_publication_handle, writer_hdl);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_SUBSCRIPTION_MATCHED_STATUS, DDS_SUBSCRIPTION_MATCHED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
+    CU_ASSERT_EQUAL_FATAL(cb_subscription_matched_status.current_count, 0);
+    CU_ASSERT_EQUAL_FATAL(cb_subscription_matched_status.current_count_change, -1);
+    CU_ASSERT_EQUAL_FATAL(cb_subscription_matched_status.total_count, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_subscription_matched_status.total_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(cb_subscription_matched_status.last_publication_handle, writer_hdl);
 }
 
-Test(ddsc_listener, incompatible_qos, .init=init_triggering_base, .fini=fini_triggering_base)
+CU_Test(ddsc_listener, incompatible_qos, .init=init_triggering_base, .fini=fini_triggering_base)
 {
     dds_return_t ret;
     uint32_t triggered;
@@ -786,37 +783,37 @@ Test(ddsc_listener, incompatible_qos, .init=init_triggering_base, .fini=fini_tri
     /* Create reader and writer with proper listeners.
      * But create reader with persistent durability to get incompatible qos. */
     g_writer = dds_create_writer(g_participant, g_topic, g_qos, g_listener);
-    cr_assert_gt(g_writer, 0, "Failed to create prerequisite writer");
+    CU_ASSERT_FATAL(g_writer > 0);
     dds_qset_durability (g_qos, DDS_DURABILITY_PERSISTENT);
     g_reader = dds_create_reader(g_participant, g_topic, g_qos, g_listener);
-    cr_assert_gt(g_reader, 0, "Failed to create prerequisite reader");
+    CU_ASSERT_FATAL(g_reader > 0);
 
     /* Incompatible QoS should be triggered with the right status. */
     triggered = waitfor_cb(DDS_OFFERED_INCOMPATIBLE_QOS_STATUS | DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS);
-    cr_assert_eq(triggered & DDS_OFFERED_INCOMPATIBLE_QOS_STATUS, DDS_OFFERED_INCOMPATIBLE_QOS_STATUS, "DDS_OFFERED_INCOMPATIBLE_QOS_STATUS not triggered");
-    cr_assert_eq(triggered & DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS, DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS, "DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS not triggered");
-    cr_assert_eq(cb_reader, g_reader);
-    cr_assert_eq(cb_writer, g_writer);
-    cr_assert_eq(cb_offered_incompatible_qos_status.total_count, 1, "cb_offered_incompatible_qos_status.total_count(%d) != 1", cb_offered_incompatible_qos_status.total_count);
-    cr_assert_eq(cb_offered_incompatible_qos_status.total_count_change, 1);
-    cr_assert_eq(cb_offered_incompatible_qos_status.last_policy_id, DDS_DURABILITY_QOS_POLICY_ID);
-    cr_assert_eq(cb_requested_incompatible_qos_status.total_count, 1, "cb_requested_incompatible_qos_status.total_count(%d) != 1", cb_requested_incompatible_qos_status.total_count);
-    cr_assert_eq(cb_requested_incompatible_qos_status.total_count_change, 1);
-    cr_assert_eq(cb_requested_incompatible_qos_status.last_policy_id, DDS_DURABILITY_QOS_POLICY_ID);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_OFFERED_INCOMPATIBLE_QOS_STATUS, DDS_OFFERED_INCOMPATIBLE_QOS_STATUS);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS, DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
+    CU_ASSERT_EQUAL_FATAL(cb_writer, g_writer);
+    CU_ASSERT_EQUAL_FATAL(cb_offered_incompatible_qos_status.total_count, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_offered_incompatible_qos_status.total_count_change, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_offered_incompatible_qos_status.last_policy_id, DDS_DURABILITY_QOS_POLICY_ID);
+    CU_ASSERT_EQUAL_FATAL(cb_requested_incompatible_qos_status.total_count, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_requested_incompatible_qos_status.total_count_change, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_requested_incompatible_qos_status.last_policy_id, DDS_DURABILITY_QOS_POLICY_ID);
 
     /* The listener should have swallowed the status. */
     ret = dds_read_status(g_writer, &status, DDS_OFFERED_INCOMPATIBLE_QOS_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_read_status failed");
-    cr_assert_eq(status, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
     ret = dds_read_status(g_reader, &status, DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_read_status failed");
-    cr_assert_eq(status, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
 
     dds_delete(g_writer);
     dds_delete(g_reader);
 }
 
-Test(ddsc_listener, data_available, .init=init_triggering_test, .fini=fini_triggering_test)
+CU_Test(ddsc_listener, data_available, .init=init_triggering_test, .fini=fini_triggering_test)
 {
     dds_return_t ret;
     uint32_t triggered;
@@ -827,27 +824,27 @@ Test(ddsc_listener, data_available, .init=init_triggering_test, .fini=fini_trigg
     /* We are interested in data available notifications. */
     dds_lset_data_available(g_listener, data_available_cb);
     ret = dds_set_listener(g_reader, g_listener);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set listener");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Write sample. */
     ret = dds_write(g_writer, &sample);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to write prerequisite data");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Data available should be triggered with the right status. */
     triggered = waitfor_cb(DDS_DATA_AVAILABLE_STATUS);
-    cr_assert_eq(triggered & DDS_DATA_AVAILABLE_STATUS, DDS_DATA_AVAILABLE_STATUS, "DDS_DATA_AVAILABLE_STATUS not triggered");
-    cr_assert_eq(cb_reader, g_reader);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_DATA_AVAILABLE_STATUS, DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
 
     /* The listener should have swallowed the status. */
     ret = dds_read_status(g_subscriber, &status, DDS_DATA_ON_READERS_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_read_status failed");
-    cr_assert_eq(status, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
     ret = dds_read_status(g_reader, &status, DDS_DATA_AVAILABLE_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_read_status failed");
-    cr_assert_eq(status, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
 }
 
-Test(ddsc_listener, data_on_readers, .init=init_triggering_test, .fini=fini_triggering_test)
+CU_Test(ddsc_listener, data_on_readers, .init=init_triggering_test, .fini=fini_triggering_test)
 {
     dds_return_t ret;
     uint32_t triggered;
@@ -858,34 +855,34 @@ Test(ddsc_listener, data_on_readers, .init=init_triggering_test, .fini=fini_trig
     /* We are interested in data available notifications. */
     dds_lset_data_on_readers(g_listener, data_on_readers_cb);
     ret = dds_set_listener(g_subscriber, g_listener);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set listener");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Setting data available notifications should not 'sabotage' the on_readers call. */
     dds_lset_data_available(g_listener, data_available_cb);
     ret = dds_set_listener(g_reader, g_listener);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set listener");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Write sample. */
     ret = dds_write(g_writer, &sample);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to write prerequisite data");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Data on readers should be triggered with the right status. */
     triggered = waitfor_cb(DDS_DATA_ON_READERS_STATUS);
-    cr_assert_eq(triggered & DDS_DATA_ON_READERS_STATUS, DDS_DATA_ON_READERS_STATUS, "DDS_DATA_ON_READERS_STATUS not triggered");
-    cr_assert_eq(cb_subscriber, g_subscriber);
-    cr_assert_neq(triggered & DDS_DATA_AVAILABLE_STATUS, DDS_DATA_AVAILABLE_STATUS, "DDS_DATA_AVAILABLE_STATUS triggered");
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_DATA_ON_READERS_STATUS, DDS_DATA_ON_READERS_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_subscriber, g_subscriber);
+    CU_ASSERT_NOT_EQUAL_FATAL(triggered & DDS_DATA_AVAILABLE_STATUS, DDS_DATA_AVAILABLE_STATUS);
 
     /* The listener should have swallowed the status. */
     ret = dds_read_status(g_subscriber, &status, DDS_DATA_ON_READERS_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_read_status failed");
-    cr_assert_eq(status, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
     ret = dds_read_status(g_reader, &status, DDS_DATA_AVAILABLE_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_read_status failed");
-    cr_assert_eq(status, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
 }
 
 
-Test(ddsc_listener, sample_lost, .init=init_triggering_test, .fini=fini_triggering_test)
+CU_Test(ddsc_listener, sample_lost, .init=init_triggering_test, .fini=fini_triggering_test)
 {
     dds_return_t ret;
     uint32_t triggered;
@@ -900,30 +897,30 @@ Test(ddsc_listener, sample_lost, .init=init_triggering_test, .fini=fini_triggeri
     /* We are interested in sample lost notifications. */
     dds_lset_sample_lost(g_listener, sample_lost_cb);
     ret = dds_set_listener(g_reader, g_listener);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set listener");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Write first sample with current timestamp. */
     ret = dds_write_ts(g_writer, &sample, dds_time());
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to write contemporary data");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Write second sample with older timestamp. */
     ret = dds_write_ts(g_writer, &sample, the_past);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to write pre-historic data");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Sample lost should be triggered with the right status. */
     triggered = waitfor_cb(DDS_SAMPLE_LOST_STATUS);
-    cr_assert_eq(triggered & DDS_SAMPLE_LOST_STATUS, DDS_SAMPLE_LOST_STATUS, "DDS_SAMPLE_LOST_STATUS not triggered");
-    cr_assert_eq(cb_reader, g_reader);
-    cr_assert_eq(cb_sample_lost_status.total_count, 1);
-    cr_assert_eq(cb_sample_lost_status.total_count_change, 1);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_SAMPLE_LOST_STATUS, DDS_SAMPLE_LOST_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
+    CU_ASSERT_EQUAL_FATAL(cb_sample_lost_status.total_count, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_sample_lost_status.total_count_change, 1);
 
     /* The listener should have swallowed the status. */
     ret = dds_read_status(g_reader, &status, DDS_SAMPLE_LOST_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_read_status failed");
-    cr_assert_eq(status, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
 }
 
-Test(ddsc_listener, sample_rejected, .init=init_triggering_test, .fini=fini_triggering_test)
+CU_Test(ddsc_listener, sample_rejected, .init=init_triggering_test, .fini=fini_triggering_test)
 {
     dds_return_t ret;
     uint32_t triggered;
@@ -934,30 +931,30 @@ Test(ddsc_listener, sample_rejected, .init=init_triggering_test, .fini=fini_trig
     /* We are interested in sample rejected notifications. */
     dds_lset_sample_rejected(g_listener, sample_rejected_cb);
     ret = dds_set_listener(g_reader, g_listener);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set listener");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Write more than resource limits set by the reader. */
     ret = dds_write(g_writer, &sample);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to write data 1");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_write(g_writer, &sample);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to write data 2");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_write(g_writer, &sample);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to write data 3");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Sample lost should be triggered with the right status. */
     triggered = waitfor_cb(DDS_SAMPLE_REJECTED_STATUS);
-    cr_assert_eq(triggered & DDS_SAMPLE_REJECTED_STATUS, DDS_SAMPLE_REJECTED_STATUS, "DDS_SAMPLE_REJECTED_STATUS not triggered");
-    cr_assert_eq(cb_reader, g_reader);
-    cr_assert_eq(cb_sample_rejected_status.total_count, 2);
-    cr_assert_eq(cb_sample_rejected_status.total_count_change, 1);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_SAMPLE_REJECTED_STATUS, DDS_SAMPLE_REJECTED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
+    CU_ASSERT_EQUAL_FATAL(cb_sample_rejected_status.total_count, 2);
+    CU_ASSERT_EQUAL_FATAL(cb_sample_rejected_status.total_count_change, 1);
 
     /* The listener should have swallowed the status. */
     ret = dds_read_status(g_reader, &status, DDS_SAMPLE_REJECTED_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_read_status failed");
-    cr_assert_eq(status, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
 }
 
-Test(ddsc_listener, liveliness_changed, .init=init_triggering_test, .fini=fini_triggering_base)
+CU_Test(ddsc_listener, liveliness_changed, .init=init_triggering_test, .fini=fini_triggering_base)
 {
     dds_instance_handle_t writer_hdl;
     dds_return_t ret;
@@ -968,22 +965,22 @@ Test(ddsc_listener, liveliness_changed, .init=init_triggering_test, .fini=fini_t
 
     /* Get writer handle that should be part of the status. */
     ret = dds_get_instance_handle(g_writer, &writer_hdl);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to get prerequisite writer_hdl");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Liveliness changed should be triggered with the right status. */
     triggered = waitfor_cb(DDS_LIVELINESS_CHANGED_STATUS);
-    cr_assert_eq(triggered & DDS_LIVELINESS_CHANGED_STATUS,  DDS_LIVELINESS_CHANGED_STATUS,  "DDS_LIVELINESS_CHANGED_STATUS not triggered");
-    cr_assert_eq(cb_reader, g_reader);
-    cr_assert_eq(cb_liveliness_changed_status.alive_count, 1);
-    cr_assert_eq(cb_liveliness_changed_status.alive_count_change, 1);
-    cr_assert_eq(cb_liveliness_changed_status.not_alive_count, 0);
-    cr_assert_eq(cb_liveliness_changed_status.not_alive_count_change, 0);
-    cr_assert_eq(cb_liveliness_changed_status.last_publication_handle, writer_hdl);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_LIVELINESS_CHANGED_STATUS,  DDS_LIVELINESS_CHANGED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
+    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.alive_count, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.alive_count_change, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.not_alive_count, 0);
+    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.not_alive_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.last_publication_handle, writer_hdl);
 
     /* The listener should have swallowed the status. */
     ret = dds_read_status(g_reader, &status, DDS_LIVELINESS_CHANGED_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "dds_read_status failed");
-    cr_assert_eq(status, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
 
     /* Reset the trigger flags. */
     cb_called = 0;
@@ -993,13 +990,13 @@ Test(ddsc_listener, liveliness_changed, .init=init_triggering_test, .fini=fini_t
 
     /* Liveliness changed should be triggered with the right status. */
     triggered = waitfor_cb(DDS_LIVELINESS_CHANGED_STATUS);
-    cr_assert_eq(triggered & DDS_LIVELINESS_CHANGED_STATUS,  DDS_LIVELINESS_CHANGED_STATUS,  "DDS_LIVELINESS_CHANGED_STATUS not triggered");
-    cr_assert_eq(cb_reader, g_reader);
-    cr_assert_eq(cb_liveliness_changed_status.alive_count, 0);
-    cr_assert_eq(cb_liveliness_changed_status.alive_count_change, 0);
-    cr_assert_eq(cb_liveliness_changed_status.not_alive_count, 1);
-    cr_assert_eq(cb_liveliness_changed_status.not_alive_count_change, 1);
-    cr_assert_eq(cb_liveliness_changed_status.last_publication_handle, writer_hdl);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_LIVELINESS_CHANGED_STATUS,  DDS_LIVELINESS_CHANGED_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
+    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.alive_count, 0);
+    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.alive_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.not_alive_count, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.not_alive_count_change, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.last_publication_handle, writer_hdl);
 }
 
 #if 0
@@ -1059,4 +1056,4 @@ Test(ddsc_listener, inconsistent_topic, .init=init_triggering_base, .fini=fini_t
     dds_delete_qos(g_qos);
 }
 #endif
-#endif
+

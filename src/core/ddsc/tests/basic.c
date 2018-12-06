@@ -10,19 +10,16 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "ddsc/dds.h"
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include "CUnit/Test.h"
 
-Test(ddsc_basic, test)
+CU_Test(ddsc_basic, test)
 {
-  dds_entity_t participant;
-  dds_return_t status;
+    dds_entity_t participant;
+    dds_return_t status;
 
-  participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-  cr_assert_gt(participant, 0);
+    participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+    CU_ASSERT_FATAL(participant > 0);
 
-  /* TODO: CHAM-108: Add some simple read/write test(s). */
-
-  status = dds_delete(participant);
-  cr_assert_eq(status, DDS_RETCODE_OK);
+    status = dds_delete(participant);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 }

@@ -13,9 +13,8 @@
 
 #include "ddsc/dds.h"
 #include "os/os.h"
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
-#include <criterion/theories.h>
+#include "CUnit/Test.h"
+#include "CUnit/Theory.h"
 #include "Space.h"
 
 
@@ -63,46 +62,46 @@ unregistering_init(void)
     dds_qset_destination_order(qos, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    cr_assert_gt(g_participant, 0, "Failed to create prerequisite g_participant");
+    CU_ASSERT_FATAL(g_participant > 0);
 
     g_waitset = dds_create_waitset(g_participant);
-    cr_assert_gt(g_waitset, 0, "Failed to create g_waitset");
+    CU_ASSERT_FATAL(g_waitset > 0);
 
     g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_topic_name("ddsc_unregistering_test", name, 100), qos, NULL);
-    cr_assert_gt(g_topic, 0, "Failed to create prerequisite g_topic");
+    CU_ASSERT_FATAL(g_topic > 0);
 
     /* Create a reader that keeps one sample on three instances. */
     dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_MSECS(100));
     dds_qset_resource_limits(qos, DDS_LENGTH_UNLIMITED, 3, 1);
     g_reader = dds_create_reader(g_participant, g_topic, qos, NULL);
-    cr_assert_gt(g_reader, 0, "Failed to create prerequisite g_reader");
+    CU_ASSERT_FATAL(g_reader > 0);
 
     /* Create a writer that will not automatically dispose unregistered samples. */
     dds_qset_writer_data_lifecycle(qos, false);
     g_writer = dds_create_writer(g_participant, g_topic, qos, NULL);
-    cr_assert_gt(g_writer, 0, "Failed to create prerequisite g_writer");
+    CU_ASSERT_FATAL(g_writer > 0);
 
     /* Sync g_writer to g_reader. */
     ret = dds_set_enabled_status(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite g_writer status");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_writer, g_writer);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to attach prerequisite g_writer");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    cr_assert_eq(ret, 1, "Failed prerequisite dds_waitset_wait g_writer r");
-    cr_assert_eq(g_writer, (dds_entity_t)(intptr_t)triggered, "Failed prerequisite dds_waitset_wait g_writer a");
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL_FATAL(g_writer, (dds_entity_t)(intptr_t)triggered);
     ret = dds_waitset_detach(g_waitset, g_writer);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to detach prerequisite g_writer");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Sync g_reader to g_writer. */
     ret = dds_set_enabled_status(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite g_reader status");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to attach prerequisite g_reader");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    cr_assert_eq(ret, 1, "Failed prerequisite dds_waitset_wait g_reader r");
-    cr_assert_eq(g_reader, (dds_entity_t)(intptr_t)triggered, "Failed prerequisite dds_waitset_wait g_reader a");
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL_FATAL(g_reader, (dds_entity_t)(intptr_t)triggered);
     ret = dds_waitset_detach(g_waitset, g_reader);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to detach prerequisite g_reader");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Write initial samples. */
     for (int i = 0; i < INITIAL_SAMPLES; i++) {
@@ -110,7 +109,7 @@ unregistering_init(void)
         sample.long_2 = i*2;
         sample.long_3 = i*3;
         ret = dds_write(g_writer, &sample);
-        cr_assert_eq(ret, DDS_RETCODE_OK, "Failed prerequisite write");
+        CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     }
 
     /* Initialize reading buffers. */
@@ -145,87 +144,87 @@ unregistering_fini(void)
  *
  *************************************************************************************************/
 /*************************************************************************************************/
-Test(ddsc_unregister_instance, deleted, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance, deleted, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
     dds_delete(g_writer);
 
     ret = dds_unregister_instance(g_writer, g_data);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_unregister_instance, null, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance, null, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
     ret = dds_unregister_instance(g_writer, NULL);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_unregister_instance, invalid_writers) = {
-        DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+CU_TheoryDataPoints(ddsc_unregister_instance, invalid_writers) = {
+        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
 };
-Theory((dds_entity_t writer), ddsc_unregister_instance, invalid_writers, .init=unregistering_init, .fini=unregistering_fini)
+CU_Theory((dds_entity_t writer), ddsc_unregister_instance, invalid_writers, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     ret = dds_unregister_instance(writer, g_data);
-    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_unregister_instance, non_writers) = {
-        DataPoints(dds_entity_t*, &g_waitset, &g_reader, &g_topic, &g_participant),
+CU_TheoryDataPoints(ddsc_unregister_instance, non_writers) = {
+        CU_DataPoints(dds_entity_t*, &g_waitset, &g_reader, &g_topic, &g_participant),
 };
-Theory((dds_entity_t *writer), ddsc_unregister_instance, non_writers, .init=unregistering_init, .fini=unregistering_fini)
+CU_Theory((dds_entity_t *writer), ddsc_unregister_instance, non_writers, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
     ret = dds_unregister_instance(*writer, g_data);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_unregister_instance, unregistering_old_instance, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance, unregistering_old_instance, .init=unregistering_init, .fini=unregistering_fini)
 {
     Space_Type1 oldInstance = { 0, 22, 22 };
     dds_return_t ret;
 
     ret = dds_unregister_instance(g_writer, &oldInstance);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Unregistering old instance returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(ret, 2, "# read %d, expected %d", ret, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if (sample->long_1 == 0) {
             /* Check data. */
-            cr_assert_eq(sample->long_2, 0);
-            cr_assert_eq(sample->long_3, 0);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, 0);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, 0);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
-            cr_assert_eq(g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
-            cr_assert_eq(sample->long_2, sample->long_1 * 2);
-            cr_assert_eq(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
-            cr_assert_eq(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
-            cr_assert(false, "Unknown sample read");
+            CU_FAIL_FATAL("Unknown sample read");
         }
     }
 }
@@ -240,93 +239,93 @@ Test(ddsc_unregister_instance, unregistering_old_instance, .init=unregistering_i
  *
  *************************************************************************************************/
 /*************************************************************************************************/
-Test(ddsc_unregister_instance_ts, deleted, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance_ts, deleted, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
     dds_delete(g_writer);
     ret = dds_unregister_instance_ts(g_writer, g_data, g_present);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_unregister_instance_ts, null, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance_ts, null, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
     ret = dds_unregister_instance_ts(g_writer, NULL, g_present);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_unregister_instance_ts, invalid_writers) = {
-        DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+CU_TheoryDataPoints(ddsc_unregister_instance_ts, invalid_writers) = {
+        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
 };
-Theory((dds_entity_t writer), ddsc_unregister_instance_ts, invalid_writers, .init=unregistering_init, .fini=unregistering_fini)
+CU_Theory((dds_entity_t writer), ddsc_unregister_instance_ts, invalid_writers, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     ret = dds_unregister_instance_ts(writer, g_data, g_present);
-    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_unregister_instance_ts, non_writers) = {
-        DataPoints(dds_entity_t*, &g_waitset, &g_reader, &g_topic, &g_participant),
+CU_TheoryDataPoints(ddsc_unregister_instance_ts, non_writers) = {
+        CU_DataPoints(dds_entity_t*, &g_waitset, &g_reader, &g_topic, &g_participant),
 };
-Theory((dds_entity_t *writer), ddsc_unregister_instance_ts, non_writers, .init=unregistering_init, .fini=unregistering_fini)
+CU_Theory((dds_entity_t *writer), ddsc_unregister_instance_ts, non_writers, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
     ret = dds_unregister_instance_ts(*writer, g_data, g_present);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_unregister_instance_ts, unregistering_old_instance, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance_ts, unregistering_old_instance, .init=unregistering_init, .fini=unregistering_fini)
 {
     Space_Type1 oldInstance = { 0, 22, 22 };
     dds_return_t ret;
 
     ret = dds_unregister_instance_ts(g_writer, &oldInstance, g_present);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Unregistering old instance returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(ret, 2, "# read %d, expected %d", ret, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if (sample->long_1 == 0) {
             /* Check data (data part of unregister is not used, only the key part). */
-            cr_assert_eq(sample->long_2, sample->long_1 * 2);
-            cr_assert_eq(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
-            cr_assert_eq(g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
-            cr_assert_eq(sample->long_2, sample->long_1 * 2);
-            cr_assert_eq(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
-            cr_assert_eq(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
-            cr_assert(false, "Unknown sample read");
+            CU_FAIL_FATAL( "Unknown sample read");
         }
     }
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_unregister_instance_ts, unregistering_past_sample, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance_ts, unregistering_past_sample, .init=unregistering_init, .fini=unregistering_fini)
 {
     Space_Type1 oldInstance = { 0, 0, 0 };
     dds_attach_t triggered;
@@ -334,34 +333,34 @@ Test(ddsc_unregister_instance_ts, unregistering_past_sample, .init=unregistering
 
     /* Unregistering a sample in the past should trigger a lost sample. */
     ret = dds_set_enabled_status(g_reader, DDS_SAMPLE_LOST_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite g_reader status");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to attach prerequisite g_reader");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Now, unregister a sample in the past. */
     ret = dds_unregister_instance_ts(g_writer, &oldInstance, g_past);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Unregistering old instance returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Wait for 'sample lost'. */
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    cr_assert_eq(ret, 1, "Unregistering past sample did not trigger 'sample lost'");
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(ret, 2, "# read %d, expected %d", ret, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if ((sample->long_1 == 0) || (sample->long_1 == 1)) {
             /* Check data. */
-            cr_assert_eq(sample->long_2, sample->long_1 * 2);
-            cr_assert_eq(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
         } else {
-            cr_assert(false, "Unknown sample read");
+            CU_FAIL_FATAL("Unknown sample read");
         }
     }
 
@@ -377,90 +376,90 @@ Test(ddsc_unregister_instance_ts, unregistering_past_sample, .init=unregistering
  *
  *************************************************************************************************/
 /*************************************************************************************************/
-Test(ddsc_unregister_instance_ih, deleted, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance_ih, deleted, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
     dds_delete(g_writer);
     ret = dds_unregister_instance_ih(g_writer, DDS_HANDLE_NIL);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_unregister_instance_ih, invalid_handles) = {
-        DataPoints(dds_instance_handle_t, DDS_HANDLE_NIL, 0, 1, 100, UINT64_MAX),
+CU_TheoryDataPoints(ddsc_unregister_instance_ih, invalid_handles) = {
+        CU_DataPoints(dds_instance_handle_t, DDS_HANDLE_NIL, 0, 1, 100, UINT64_MAX),
 };
-Theory((dds_instance_handle_t handle), ddsc_unregister_instance_ih, invalid_handles, .init=unregistering_init, .fini=unregistering_fini)
+CU_Theory((dds_instance_handle_t handle), ddsc_unregister_instance_ih, invalid_handles, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
     ret = dds_unregister_instance_ih(g_writer, handle);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_PRECONDITION_NOT_MET, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_PRECONDITION_NOT_MET);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_unregister_instance_ih, invalid_writers) = {
-        DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+CU_TheoryDataPoints(ddsc_unregister_instance_ih, invalid_writers) = {
+        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
 };
-Theory((dds_entity_t writer), ddsc_unregister_instance_ih, invalid_writers, .init=unregistering_init, .fini=unregistering_fini)
+CU_Theory((dds_entity_t writer), ddsc_unregister_instance_ih, invalid_writers, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     ret = dds_unregister_instance_ih(writer, DDS_HANDLE_NIL);
-    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_unregister_instance_ih, non_writers) = {
-        DataPoints(dds_entity_t*, &g_waitset, &g_reader, &g_topic, &g_participant),
+CU_TheoryDataPoints(ddsc_unregister_instance_ih, non_writers) = {
+        CU_DataPoints(dds_entity_t*, &g_waitset, &g_reader, &g_topic, &g_participant),
 };
-Theory((dds_entity_t *writer), ddsc_unregister_instance_ih, non_writers, .init=unregistering_init, .fini=unregistering_fini)
+CU_Theory((dds_entity_t *writer), ddsc_unregister_instance_ih, non_writers, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
     ret = dds_unregister_instance_ih(*writer, DDS_HANDLE_NIL);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_unregister_instance_ih, unregistering_old_instance, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance_ih, unregistering_old_instance, .init=unregistering_init, .fini=unregistering_fini)
 {
     Space_Type1 oldInstance = { 0, 22, 22 };
     dds_instance_handle_t hdl = dds_instance_lookup(g_writer, &oldInstance);
     dds_return_t ret;
 
     ret = dds_unregister_instance_ih(g_writer, hdl);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Unregistering old instance returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(ret, 2, "# read %d, expected %d", ret, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if (sample->long_1 == 0) {
             /* Check data. */
-            cr_assert_eq(sample->long_2, 0);
-            cr_assert_eq(sample->long_3, 0);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, 0);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, 0);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
-            cr_assert_eq(g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
-            cr_assert_eq(sample->long_2, sample->long_1 * 2);
-            cr_assert_eq(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
-            cr_assert_eq(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
-            cr_assert(false, "Unknown sample read");
+            CU_FAIL_FATAL("Unknown sample read");
         }
     }
 }
@@ -475,97 +474,97 @@ Test(ddsc_unregister_instance_ih, unregistering_old_instance, .init=unregisterin
  *
  *************************************************************************************************/
 /*************************************************************************************************/
-Test(ddsc_unregister_instance_ih_ts, deleted, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance_ih_ts, deleted, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
     dds_delete(g_writer);
     ret = dds_unregister_instance_ih_ts(g_writer, DDS_HANDLE_NIL, g_present);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_unregister_instance_ih_ts, invalid_handles) = {
-        DataPoints(dds_instance_handle_t, DDS_HANDLE_NIL, 0, 1, 100, UINT64_MAX),
+CU_TheoryDataPoints(ddsc_unregister_instance_ih_ts, invalid_handles) = {
+        CU_DataPoints(dds_instance_handle_t, DDS_HANDLE_NIL, 0, 1, 100, UINT64_MAX),
 };
-Theory((dds_instance_handle_t handle), ddsc_unregister_instance_ih_ts, invalid_handles, .init=unregistering_init, .fini=unregistering_fini)
+CU_Theory((dds_instance_handle_t handle), ddsc_unregister_instance_ih_ts, invalid_handles, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
     ret = dds_unregister_instance_ih_ts(g_writer, handle, g_present);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_PRECONDITION_NOT_MET, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_PRECONDITION_NOT_MET);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_unregister_instance_ih_ts, invalid_writers) = {
-        DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+CU_TheoryDataPoints(ddsc_unregister_instance_ih_ts, invalid_writers) = {
+        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
 };
-Theory((dds_entity_t writer), ddsc_unregister_instance_ih_ts, invalid_writers, .init=unregistering_init, .fini=unregistering_fini)
+CU_Theory((dds_entity_t writer), ddsc_unregister_instance_ih_ts, invalid_writers, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
     ret = dds_unregister_instance_ih_ts(writer, DDS_HANDLE_NIL, g_present);
-    cr_assert_eq(dds_err_nr(ret), dds_err_nr(exp), "returned %d != expected %d", dds_err_nr(ret), dds_err_nr(exp));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-TheoryDataPoints(ddsc_unregister_instance_ih_ts, non_writers) = {
-        DataPoints(dds_entity_t*, &g_waitset, &g_reader, &g_topic, &g_participant),
+CU_TheoryDataPoints(ddsc_unregister_instance_ih_ts, non_writers) = {
+        CU_DataPoints(dds_entity_t*, &g_waitset, &g_reader, &g_topic, &g_participant),
 };
-Theory((dds_entity_t *writer), ddsc_unregister_instance_ih_ts, non_writers, .init=unregistering_init, .fini=unregistering_fini)
+CU_Theory((dds_entity_t *writer), ddsc_unregister_instance_ih_ts, non_writers, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
     ret = dds_unregister_instance_ih_ts(*writer, DDS_HANDLE_NIL, g_present);
-    cr_assert_eq(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION, "returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_unregister_instance_ih_ts, unregistering_old_instance, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance_ih_ts, unregistering_old_instance, .init=unregistering_init, .fini=unregistering_fini)
 {
     Space_Type1 oldInstance = { 0, 22, 22 };
     dds_instance_handle_t hdl = dds_instance_lookup(g_writer, &oldInstance);
     dds_return_t ret;
 
     ret = dds_unregister_instance_ih_ts(g_writer, hdl, g_present);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Unregistering old instance returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(ret, 2, "# read %d, expected %d", ret, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if (sample->long_1 == 0) {
             /* Check data (data part of unregister is not used, only the key part). */
-            cr_assert_eq(sample->long_2, sample->long_1 * 2);
-            cr_assert_eq(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
-            cr_assert_eq(g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
-            cr_assert_eq(sample->long_2, sample->long_1 * 2);
-            cr_assert_eq(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
-            cr_assert_eq(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
-            cr_assert(false, "Unknown sample read");
+            CU_FAIL_FATAL("Unknown sample read");
         }
     }
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_unregister_instance_ih_ts, unregistering_past_sample, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance_ih_ts, unregistering_past_sample, .init=unregistering_init, .fini=unregistering_fini)
 {
     Space_Type1 oldInstance = { 0, 0, 0 };
     dds_instance_handle_t hdl = dds_instance_lookup(g_writer, &oldInstance);
@@ -574,34 +573,34 @@ Test(ddsc_unregister_instance_ih_ts, unregistering_past_sample, .init=unregister
 
     /* Unregistering a sample in the past should trigger a lost sample. */
     ret = dds_set_enabled_status(g_reader, DDS_SAMPLE_LOST_STATUS);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to set prerequisite g_reader status");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to attach prerequisite g_reader");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Now, unregister a sample in the past. */
     ret = dds_unregister_instance_ih_ts(g_writer, hdl, g_past);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Unregistering old instance returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Wait for 'sample lost'. */
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    cr_assert_eq(ret, 1, "Unregistering past sample did not trigger 'sample lost'");
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(ret, 2, "# read %d, expected %d", ret, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if ((sample->long_1 == 0) || (sample->long_1 == 1)) {
             /* Check data. */
-            cr_assert_eq(sample->long_2, sample->long_1 * 2);
-            cr_assert_eq(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
         } else {
-            cr_assert(false, "Unknown sample read");
+            CU_FAIL_FATAL("Unknown sample read");
         }
     }
 
@@ -609,48 +608,48 @@ Test(ddsc_unregister_instance_ih_ts, unregistering_past_sample, .init=unregister
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_unregister_instance, dispose_unregistered_sample, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance, dispose_unregistered_sample, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_entity_t writer;
     writer = dds_create_writer(g_participant, g_topic, NULL, NULL);
-    cr_assert_gt(g_writer, 0, "Failed to create writer");
+    CU_ASSERT_FATAL(g_writer > 0);
 
     Space_Type1 newInstance = { INITIAL_SAMPLES, 0, 0 };
     dds_return_t ret;
 
     ret = dds_write(writer, &newInstance);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed write");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     ret = dds_unregister_instance(writer, &newInstance);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Disposing unregistered sample returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(ret, 3, "# read %d, expected %d", ret, 3);
+    CU_ASSERT_EQUAL_FATAL(ret, 3);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if (sample->long_1 <= 1) {
             /* Check data. */
-            cr_assert_eq(sample->long_2, sample->long_1 * 2);
-            cr_assert_eq(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
-            cr_assert_eq(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else if (sample->long_1 == 2) {
             /* Check data. */
-            cr_assert_eq(sample->long_2, 0);
-            cr_assert_eq(sample->long_3, 0);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, 0);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, 0);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
-            cr_assert_eq(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else {
-            cr_assert(false, "Unknown sample read");
+            CU_FAIL_FATAL("Unknown sample read");
         }
     }
     dds_delete(writer);
@@ -658,48 +657,48 @@ Test(ddsc_unregister_instance, dispose_unregistered_sample, .init=unregistering_
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-Test(ddsc_unregister_instance_ts, dispose_unregistered_sample, .init=unregistering_init, .fini=unregistering_fini)
+CU_Test(ddsc_unregister_instance_ts, dispose_unregistered_sample, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_entity_t writer;
     writer = dds_create_writer(g_participant, g_topic, NULL, NULL);
-    cr_assert_gt(g_writer, 0, "Failed to create writer");
+    CU_ASSERT_FATAL(g_writer > 0);
 
     Space_Type1 newInstance = { INITIAL_SAMPLES, 0, 0 };
     dds_return_t ret;
 
     ret = dds_write(writer, &newInstance);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Failed write");
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     ret = dds_unregister_instance(writer, &newInstance);
-    cr_assert_eq(ret, DDS_RETCODE_OK, "Disposing unregistered sample returned %d", dds_err_nr(ret));
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    cr_assert_eq(ret, 3, "# read %d, expected %d", ret, 3);
+    CU_ASSERT_EQUAL_FATAL(ret, 3);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if (sample->long_1 <= 1) {
             /* Check data. */
-            cr_assert_eq(sample->long_2, sample->long_1 * 2);
-            cr_assert_eq(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
-            cr_assert_eq(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else if (sample->long_1 == 2) {
             /* Check data. */
-            cr_assert_eq(sample->long_2, 0);
-            cr_assert_eq(sample->long_3, 0);
+            CU_ASSERT_EQUAL_FATAL(sample->long_2, 0);
+            CU_ASSERT_EQUAL_FATAL(sample->long_3, 0);
 
             /* Check states. */
-            cr_assert_eq(g_info[i].valid_data,     true);
-            cr_assert_eq(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            cr_assert_eq(g_info[i].view_state,     DDS_VST_NEW);
-            cr_assert_eq(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else {
-            cr_assert(false, "Unknown sample read");
+            CU_FAIL_FATAL("Unknown sample read");
         }
     }
     dds_delete(writer);

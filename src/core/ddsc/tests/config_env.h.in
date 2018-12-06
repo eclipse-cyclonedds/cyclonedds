@@ -12,7 +12,7 @@
 #ifndef CONFIG_ENV_H
 #define CONFIG_ENV_H
 
-#define CONFIG_ENV_SIMPLE_UDP           "@Criterion_ddsc_config_simple_udp_uri@"
-#define CONFIG_ENV_MAX_PARTICIPANTS     "@Criterion_ddsc_config_simple_udp_max_participants@"
+#define CONFIG_ENV_SIMPLE_UDP           "@CUnit_ddsc_config_simple_udp_uri@"
+#define CONFIG_ENV_MAX_PARTICIPANTS     "@CUnit_ddsc_config_simple_udp_max_participants@"
 
 #endif /* CONFIG_ENV_H */

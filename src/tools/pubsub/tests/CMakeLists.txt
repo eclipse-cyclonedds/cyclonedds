@@ -9,6 +9,7 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-include(Criterion)
-add_criterion_executable(criterion_tools_pubsub . ../common.c ../testtype.c ../porting.c)
-target_link_libraries(criterion_tools_pubsub util CycloneDDS::ddsc)
+include(CUnit)
+
+add_cunit_executable(CUnit_tools_pubsub ../common.c ../testtype.c ../porting.c basic.c)
+target_link_libraries(CUnit_tools_pubsub util CycloneDDS::ddsc)

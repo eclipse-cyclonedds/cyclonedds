@@ -14,8 +14,8 @@
 #include "ddsc/dds.h"
 #include "os/os.h"
 #include "test-common.h"
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+
+#include "CUnit/Test.h"
 
 static dds_entity_t g_participant = 0;
 static dds_entity_t g_subscriber  = 0;
@@ -59,7 +59,7 @@ static void
 qos_init(void)
 {
     g_qos = dds_create_qos();
-    cr_assert_not_null(g_qos);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(g_qos);
 
     g_pol_userdata.value._buffer = dds_alloc(strlen(c_userdata) + 1);
     g_pol_userdata.value._length = (uint32_t)strlen(c_userdata) + 1;
@@ -149,13 +149,13 @@ setup(void)
     qos_init();
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    cr_assert_gt(g_participant, 0, "Failed to create prerequisite g_participant");
+    CU_ASSERT_FATAL(g_participant > 0);
     g_topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, "RoundTrip", NULL, NULL);
-    cr_assert_gt(g_topic, 0, "Failed to create prerequisite g_topic");
+    CU_ASSERT_FATAL(g_topic> 0);
     g_subscriber = dds_create_subscriber(g_participant, NULL, NULL);
-    cr_assert_gt(g_subscriber, 0, "Failed to create prerequisite g_subscriber");
+    CU_ASSERT_FATAL(g_subscriber> 0);
     g_publisher = dds_create_publisher(g_participant, NULL, NULL);
-    cr_assert_gt(g_publisher, 0, "Failed to create prerequisite g_publisher");
+    CU_ASSERT_FATAL(g_publisher> 0);
 }
 
 static void
@@ -197,10 +197,10 @@ check_default_qos_of_builtin_entity(dds_entity_t entity)
   uint32_t plen;
 
   dds_qos_t *qos = dds_create_qos();
-  cr_assert_not_null(qos);
+  CU_ASSERT_PTR_NOT_NULL_FATAL(qos);
 
   ret = dds_get_qos(entity, qos);
-  cr_assert_eq(ret, DDS_RETCODE_OK, "Failed to get QOS of builtin entity");
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
   dds_qget_durability(qos, &durability_kind);
   dds_qget_presentation(qos, &presentation_access_scope_kind, &g_pol_presentation.coherent_access, &g_pol_presentation.ordered_access);
@@ -217,31 +217,31 @@ check_default_qos_of_builtin_entity(dds_entity_t entity)
   // no getter for ENTITY_FACTORY
 
   if ((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_SUBSCRIBER) {
-      cr_expect_eq(plen, 1);
+      CU_ASSERT_EQUAL(plen, 1);
       if (plen > 0) {
-          cr_expect_str_eq(partitions[0], "__BUILT-IN PARTITION__");
+          CU_ASSERT_STRING_EQUAL(partitions[0], "__BUILT-IN PARTITION__");
       }
   } else if ((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER) {
-      cr_expect_eq(durability_kind, DDS_DURABILITY_TRANSIENT_LOCAL);
-      cr_expect_eq(presentation_access_scope_kind, DDS_PRESENTATION_TOPIC);
-      cr_expect_eq(g_pol_presentation.coherent_access, false);
-      cr_expect_eq(g_pol_presentation.ordered_access, false);
-      cr_expect_eq(deadline, DDS_INFINITY);
-      cr_expect_eq(ownership_kind, DDS_OWNERSHIP_SHARED);
-      cr_expect_eq(liveliness_kind, DDS_LIVELINESS_AUTOMATIC);
-      cr_expect_eq(minimum_separation, 0);
-      cr_expect_eq(reliability_kind, DDS_RELIABILITY_RELIABLE);
-      cr_expect_eq(max_blocking_time, DDS_MSECS(100));
-      cr_expect_eq(destination_order_kind, DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP);
-      cr_expect_eq(history_kind, DDS_HISTORY_KEEP_LAST);
-      cr_expect_eq(g_pol_history.depth, 1);
-      cr_expect_eq(g_pol_resource_limits.max_instances, DDS_LENGTH_UNLIMITED);
-      cr_expect_eq(g_pol_resource_limits.max_samples, DDS_LENGTH_UNLIMITED);
-      cr_expect_eq(g_pol_resource_limits.max_samples_per_instance, DDS_LENGTH_UNLIMITED);
-      cr_expect_eq(autopurge_nowriter_samples_delay, DDS_INFINITY);
-      cr_expect_eq(autopurge_disposed_samples_delay, DDS_INFINITY);
+      CU_ASSERT_EQUAL(durability_kind, DDS_DURABILITY_TRANSIENT_LOCAL);
+      CU_ASSERT_EQUAL(presentation_access_scope_kind, DDS_PRESENTATION_TOPIC);
+      CU_ASSERT_EQUAL(g_pol_presentation.coherent_access, false);
+      CU_ASSERT_EQUAL(g_pol_presentation.ordered_access, false);
+      CU_ASSERT_EQUAL(deadline, DDS_INFINITY);
+      CU_ASSERT_EQUAL(ownership_kind, DDS_OWNERSHIP_SHARED);
+      CU_ASSERT_EQUAL(liveliness_kind, DDS_LIVELINESS_AUTOMATIC);
+      CU_ASSERT_EQUAL(minimum_separation, 0);
+      CU_ASSERT_EQUAL(reliability_kind, DDS_RELIABILITY_RELIABLE);
+      CU_ASSERT_EQUAL(max_blocking_time, DDS_MSECS(100));
+      CU_ASSERT_EQUAL(destination_order_kind, DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP);
+      CU_ASSERT_EQUAL(history_kind, DDS_HISTORY_KEEP_LAST);
+      CU_ASSERT_EQUAL(g_pol_history.depth, 1);
+      CU_ASSERT_EQUAL(g_pol_resource_limits.max_instances, DDS_LENGTH_UNLIMITED);
+      CU_ASSERT_EQUAL(g_pol_resource_limits.max_samples, DDS_LENGTH_UNLIMITED);
+      CU_ASSERT_EQUAL(g_pol_resource_limits.max_samples_per_instance, DDS_LENGTH_UNLIMITED);
+      CU_ASSERT_EQUAL(autopurge_nowriter_samples_delay, DDS_INFINITY);
+      CU_ASSERT_EQUAL(autopurge_disposed_samples_delay, DDS_INFINITY);
   } else {
-      cr_assert_fail("Unsupported entity kind %s", entity_kind_str(entity));
+      CU_FAIL_FATAL("Unsupported entity kind");
   }
   if (plen > 0) {
       for (uint32_t i = 0; i < plen; i++) {
@@ -254,11 +254,11 @@ check_default_qos_of_builtin_entity(dds_entity_t entity)
 
 static dds_entity_t builtin_topic_handles[10];
 
-Test(ddsc_builtin_topics, types_allocation)
+CU_Test(ddsc_builtin_topics, types_allocation)
 {
 #define TEST_ALLOC(type) do { \
         DDS_##type##BuiltinTopicData *data = DDS_##type##BuiltinTopicData__alloc(); \
-        cr_expect_not_null(data, "Failed to allocate DDS_" #type "BuiltinTopicData"); \
+        CU_ASSERT_PTR_NOT_NULL(data); \
         DDS_##type##BuiltinTopicData_free(data, DDS_FREE_ALL); \
     } while(0)
 
@@ -275,28 +275,28 @@ Test(ddsc_builtin_topics, types_allocation)
 #undef TEST_ALLOC
 }
 
-Test(ddsc_builtin_topics, availability_builtin_topics, .init = setup, .fini = teardown)
+CU_Test(ddsc_builtin_topics, availability_builtin_topics, .init = setup, .fini = teardown)
 {
   dds_entity_t topic;
 
   topic = dds_find_topic(g_participant, "DCPSParticipant");
-  cr_assert_gt(topic, 0);
+  CU_ASSERT_FATAL(topic > 0);
   dds_delete(topic);
   topic = dds_find_topic(g_participant, "DCPSTopic");
-  cr_assert_lt(topic, 0);
+  CU_ASSERT_FATAL(topic < 0);
   //TODO CHAM-347: dds_delete(topic);
   topic = dds_find_topic(g_participant, "DCPSType");
-  cr_assert_lt(topic, 0);
+  CU_ASSERT_FATAL(topic < 0);
   //TODO CHAM-347: dds_delete(topic);
   topic = dds_find_topic(g_participant, "DCPSSubscription");
-  cr_assert_lt(topic, 0);
+  CU_ASSERT_FATAL(topic < 0);
   //TODO CHAM-347: dds_delete(topic);
   topic = dds_find_topic(g_participant, "DCSPPublication");
-  cr_assert_lt(topic, 0);
+  CU_ASSERT_FATAL(topic < 0);
   //TODO CHAM-347: dds_delete(topic);
 }
 
-Test(ddsc_builtin_topics, read_publication_data, .init = setup, .fini = teardown)
+CU_Test(ddsc_builtin_topics, read_publication_data, .init = setup, .fini = teardown)
 {
   dds_entity_t reader;
 #if 0 /* disabled pending CHAM-347 */
@@ -307,28 +307,28 @@ Test(ddsc_builtin_topics, read_publication_data, .init = setup, .fini = teardown
 
 
   reader = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, NULL);
-  cr_assert_gt(reader, 0, "Failed to create a data reader for DDS_BUILTIN_TOPIC_DCPSPUBLICATION.");
+  CU_ASSERT_FATAL(reader > 0);
 
   samples[0] = DDS_PublicationBuiltinTopicData__alloc();
 #if 0 /* disabled pending CHAM-347 */
   ret = dds_read(reader, samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-  cr_assert_gt(ret, 0, "Failed to read samples DCPSPublication");
+  CU_ASSERT_FATAL(ret > 0);
 
   data = (DDS_PublicationBuiltinTopicData *)samples;
-  cr_assert_str_eq(data->topic_name, "DCPSPublication");
+  CU_ASSERT_STRING_EQUAL_FATAL(data->topic_name, "DCPSPublication");
 #endif
 
   DDS_PublicationBuiltinTopicData_free(samples[0], DDS_FREE_ALL);
 }
 
-Test(ddsc_builtin_topics, create_reader)
+CU_Test(ddsc_builtin_topics, create_reader)
 {
     dds_entity_t participant;
     dds_entity_t t1;
 
     /* Create a participant */
     participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-    cr_assert_gt(participant, 0, "dds_participant_create");
+    CU_ASSERT_FATAL(participant > 0);
 
     /*
      * The topics are created by the middleware as soon as a participant
@@ -336,7 +336,7 @@ Test(ddsc_builtin_topics, create_reader)
      */
 #define TEST_FIND(p, t) do { \
         t1 = dds_find_topic(p, t); \
-        cr_expect_gt(t1, 0, "dds_find_topic(\"" t "\") returned a valid handle"); \
+        CU_ASSERT(t1 > 0); \
         dds_delete(t1); \
     } while(0);
 
@@ -350,7 +350,7 @@ Test(ddsc_builtin_topics, create_reader)
      */
 #define TEST_NOTFOUND(p, t) do { \
         t1 = dds_find_topic(p, t); \
-        cr_expect_lt(t1, 0, "dds_find_topic(\"" t "\") returned a valid handle"); \
+        CU_ASSERT(t1 < 0); \
     } while(0);
 
     /* A builtin-topic proxy is created 'on demand' and should not exist before a reader is created for it */
@@ -383,18 +383,18 @@ Test(ddsc_builtin_topics, create_reader)
 
         for (int i = 0; i < 10; i++) {
             readers[i] = dds_create_reader(participant, builtin_topic_handles[i], NULL, NULL);
-            cr_expect_gt(readers[i], 0, "Failed to created reader for builtin topic handle %d", builtin_topic_handles[i]);
+            CU_ASSERT(readers[i]> 0);
 
             if (i == 0) {
                 /* Check the parent of reader is a subscriber */
                 builtin_subscriber = dds_get_parent(readers[i]);
-                cr_assert_gt(builtin_subscriber, 0, "Failed to get parent of first builtin-reader (%s)", dds_err_str(builtin_subscriber));
-                cr_assert_eq(builtin_subscriber & DDS_ENTITY_KIND_MASK, DDS_KIND_SUBSCRIBER, "Parent is not a subscriber");
+                CU_ASSERT_FATAL(builtin_subscriber > 0);
+                CU_ASSERT_EQUAL_FATAL(builtin_subscriber & DDS_ENTITY_KIND_MASK, DDS_KIND_SUBSCRIBER);
             } else {
                 /* Check the parent of reader equals parent of first reader */
                 s = dds_get_parent(readers[i]);
-                cr_assert_gt(s, 0, "Failed to get parent of builtin-reader (%s)", dds_err_str(s));
-                cr_assert_eq(s, builtin_subscriber, "Parent subscriber of reader(%d) doesn't equal builtin-subscriber", i);
+                CU_ASSERT_FATAL(s > 0);
+                CU_ASSERT_EQUAL_FATAL(s, builtin_subscriber);
                 //dds_delete(s);
             }
         }
@@ -402,7 +402,7 @@ Test(ddsc_builtin_topics, create_reader)
 
 #define TEST_FOUND(p, t) do { \
         t1 = dds_find_topic(p, t); \
-        cr_expect_gt(t1, 0, "dds_find_topic(\"" t "\") returned an invalid handle (%s)", dds_err_str(t1)); \
+        CU_ASSERT(t1 > 0); \
         if (t1 > 0) { \
             dds_delete(t1); \
         } \
@@ -424,7 +424,7 @@ Test(ddsc_builtin_topics, create_reader)
     dds_delete(participant);
 }
 
-Test(ddsc_builtin_topics, read_subscription_data, .init = setup, .fini = teardown)
+CU_Test(ddsc_builtin_topics, read_subscription_data, .init = setup, .fini = teardown)
 {
   dds_entity_t reader;
 #if 0 /* not supported yet */
@@ -434,68 +434,66 @@ Test(ddsc_builtin_topics, read_subscription_data, .init = setup, .fini = teardow
   void * samples[MAX_SAMPLES];
 
   reader = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL);
-  cr_assert_gt(reader, 0, "Failed to create a data reader for DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION.");
+  CU_ASSERT_FATAL(reader> 0);
 
   samples[0] = DDS_SubscriptionBuiltinTopicData__alloc();
 
 #if 0 /* not supported yet */
   ret = dds_read(reader, samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-  cr_assert_gt(ret, 0, "Failed to read samples DCPSSubscription");
+  CU_ASSERT_FATAL(ret> 0);
 
   data = (DDS_SubscriptionBuiltinTopicData *)samples;
-  cr_assert_str_eq(data->topic_name, "DCPSSubscription");
+  CU_ASSERT_STRING_EQUAL_FATAL(data->topic_name, "DCPSSubscription");
 #endif
 
   DDS_SubscriptionBuiltinTopicData_free(samples[0], DDS_FREE_ALL);
 }
 
-Test(ddsc_builtin_topics, read_participant_data, .init = setup, .fini = teardown)
+CU_Test(ddsc_builtin_topics, read_participant_data, .init = setup, .fini = teardown)
 {
   dds_entity_t reader;
   dds_return_t ret;
   void * samples[MAX_SAMPLES];
 
   reader = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, NULL, NULL);
-  cr_assert_gt(reader, 0, "Failed to create a data reader for DDS_BUILTIN_TOPIC_DCPSPARTICIPANT.");
+  CU_ASSERT_FATAL(reader > 0);
 
   samples[0] = DDS_ParticipantBuiltinTopicData__alloc();
 
   ret = dds_read(reader, samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-  cr_assert_gt(ret, 0, "Failed to read samples DCPSParticipant");
-
+  CU_ASSERT_FATAL(ret > 0);
+#if 0
   {
       DDS_ParticipantBuiltinTopicData *data = (DDS_ParticipantBuiltinTopicData*)samples[0];
-      cr_log_info("Participant.key:      %x.%x.%x\n", data->key[0], data->key[1], data->key[2]);
-      cr_log_info("Participant.userdata: %s\n", data->user_data.value._buffer);
   }
+#endif
 
   DDS_ParticipantBuiltinTopicData_free(samples[0], DDS_FREE_ALL);
 }
 
-Test(ddsc_builtin_topics, read_cmparticipant_data, .init = setup, .fini = teardown)
+CU_Test(ddsc_builtin_topics, read_cmparticipant_data, .init = setup, .fini = teardown)
 {
   dds_entity_t reader;
   dds_return_t ret;
   void * samples[MAX_SAMPLES];
 
   reader = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_CMPARTICIPANT, NULL, NULL);
-  cr_assert_gt(reader, 0, "Failed to create a data reader for DDS_BUILTIN_TOPIC_DCPSPARTICIPANT.");
+  CU_ASSERT_FATAL(reader > 0);
 
   samples[0] = DDS_CMParticipantBuiltinTopicData__alloc();
 
   ret = dds_read(reader, samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-  cr_assert_gt(ret, 0, "Failed to read samples CMParticipant");
-
+  CU_ASSERT_FATAL(ret > 0);
+#if 0
   {
       DDS_CMParticipantBuiltinTopicData *data = (DDS_CMParticipantBuiltinTopicData*)samples[0];
-      cr_log_info("CMParticipant.key:     %x.%x.%x\n", data->key[0], data->key[1], data->key[2]);
-      cr_log_info("CMParticipant.product: %s\n", data->product.value);
   }
+#endif
 
   DDS_CMParticipantBuiltinTopicData_free(samples[0], DDS_FREE_ALL);
 }
 
-Test(ddsc_builtin_topics, read_topic_data, .init = setup, .fini = teardown)
+CU_Test(ddsc_builtin_topics, read_topic_data, .init = setup, .fini = teardown)
 {
   dds_entity_t reader;
 #if 0 /* disabled pending CHAM-347 */
@@ -506,20 +504,20 @@ Test(ddsc_builtin_topics, read_topic_data, .init = setup, .fini = teardown)
 
 
   reader = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
-  cr_assert_gt(reader, 0, "Failed to create a data reader for DDS_BUILTIN_TOPIC_DCPSTOPIC.");
+  CU_ASSERT_FATAL(reader > 0);
 
   samples[0] = DDS_TopicBuiltinTopicData__alloc();
 #if 0 /* disabled pending CHAM-347 */
   ret = dds_read(reader, samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-  cr_assert_gt(ret, 0, "Failed to read samples DCPSTopic");
+  CU_ASSERT_FATAL(ret> 0);
 
   data = (DDS_TopicBuiltinTopicData *)samples;
-  cr_assert_str_eq(data->name, "DCPSSubscription");
+  CU_ASSERT_STRING_EQUAL_FATAL(data->name, "DCPSSubscription");
 #endif
   DDS_ParticipantBuiltinTopicData_free(samples[0], DDS_FREE_ALL);
 }
 
-Test(ddsc_builtin_topics, read_type_data, .init = setup, .fini = teardown)
+CU_Test(ddsc_builtin_topics, read_type_data, .init = setup, .fini = teardown)
 {
   dds_entity_t reader;
 #if 0 /* disabled pending CHAM-347 */
@@ -529,20 +527,20 @@ Test(ddsc_builtin_topics, read_type_data, .init = setup, .fini = teardown)
   void * samples[MAX_SAMPLES];
 
   reader = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSTYPE, NULL, NULL);
-  cr_assert_gt(reader, 0, "Failed to create a data reader for DDS_BUILTIN_TOPIC_DCPSTYPE.");
+  CU_ASSERT_FATAL(reader > 0);
 
   samples[0] = DDS_TypeBuiltinTopicData__alloc();
 #if 0 /* disabled pending CHAM-347 */
   ret = dds_read(reader, samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-  cr_assert_gt(ret, 0, "Failed to read samples DCPSType");
+  CU_ASSERT_FATAL(ret > 0);
 
   data = (DDS_TypeBuiltinTopicData *)samples;
-  cr_assert_str_eq(data->name, "DCPSType");
+  CU_ASSERT_STRING_EQUAL_FATAL(data->name, "DCPSType");
 #endif
   DDS_TypeBuiltinTopicData_free(samples[0], DDS_FREE_ALL);
 }
 
-Test(ddsc_builtin_topics, same_subscriber, .init = setup, .fini = teardown)
+CU_Test(ddsc_builtin_topics, same_subscriber, .init = setup, .fini = teardown)
 {
   dds_entity_t subscription_rdr;
   dds_entity_t subscription_subscriber;
@@ -560,54 +558,54 @@ Test(ddsc_builtin_topics, same_subscriber, .init = setup, .fini = teardown)
   dds_entity_t type_subscriber;
 
   subscription_rdr = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL);
-  cr_assert_gt(subscription_rdr, 0, "Failed to create a data reader for DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION.");
+  CU_ASSERT_FATAL(subscription_rdr > 0);
   subscription_subscriber = dds_get_parent(subscription_rdr);
-  cr_assert_gt(subscription_subscriber, 0, "Could not find builtin subscriber for DSCPSSubscription-reader.");
+  CU_ASSERT_FATAL(subscription_subscriber > 0);
 
   publication_rdr = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, NULL);
-  cr_assert_gt(publication_rdr, 0, "Failed to create a data reader for DDS_BUILTIN_TOPIC_DCPSPUBLICATION.");
+  CU_ASSERT_FATAL(publication_rdr > 0);
   publication_subscriber = dds_get_parent(publication_rdr);
-  cr_assert_gt(publication_subscriber, 0, "Could not find builtin subscriber for DSCPSPublication-reader.");
+  CU_ASSERT_FATAL(publication_subscriber > 0);
 
-  cr_assert_eq(subscription_subscriber, publication_subscriber);
+  CU_ASSERT_EQUAL_FATAL(subscription_subscriber, publication_subscriber);
 
   participant_rdr = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, NULL, NULL);
-  cr_assert_gt(participant_rdr, 0, "Failed to create a data reader for DDS_BUILTIN_TOPIC_DCPSPARTICIPANT.");
+  CU_ASSERT_FATAL(participant_rdr > 0);
   participant_subscriber = dds_get_parent(participant_rdr);
-  cr_assert_gt(participant_subscriber, 0, "Could not find builtin subscriber for DSCPSParticipant-reader.");
+  CU_ASSERT_FATAL(participant_subscriber > 0);
 
-  cr_assert_eq(publication_subscriber, participant_subscriber);
+  CU_ASSERT_EQUAL_FATAL(publication_subscriber, participant_subscriber);
 
   topic_rdr = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
-  cr_assert_gt(topic_rdr, 0, "Failed to create a data reader for DDS_BUILTIN_TOPIC_DCPSTOPIC.");
+  CU_ASSERT_FATAL(topic_rdr > 0);
   topic_subscriber = dds_get_parent(topic_rdr);
-  cr_assert_gt(topic_subscriber, 0, "Could not find builtin subscriber for DSCPSTopic-reader.");
+  CU_ASSERT_FATAL(topic_subscriber > 0);
 
-  cr_assert_eq(participant_subscriber, topic_subscriber);
+  CU_ASSERT_EQUAL_FATAL(participant_subscriber, topic_subscriber);
 
   type_rdr = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSTYPE, NULL, NULL);
-  cr_assert_gt(type_rdr, 0, "Failed to create a data reader for DDS_BUILTIN_TOPIC_DCPSTYPE.");
+  CU_ASSERT_FATAL(type_rdr > 0);
   type_subscriber = dds_get_parent(type_rdr);
-  cr_assert_gt(type_subscriber, 0, "Could not find builtin subscriber for DSCPSType-reader.");
+  CU_ASSERT_FATAL(type_subscriber > 0);
 
-  cr_assert_eq(topic_subscriber, type_subscriber);
+  CU_ASSERT_EQUAL_FATAL(topic_subscriber, type_subscriber);
 }
 
-Test(ddsc_builtin_topics, builtin_qos, .init = setup, .fini = teardown)
+CU_Test(ddsc_builtin_topics, builtin_qos, .init = setup, .fini = teardown)
 {
   dds_entity_t dds_sub_rdr;
   dds_entity_t dds_sub_subscriber;
 
   dds_sub_rdr = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL);
-  cr_assert_gt(dds_sub_rdr, 0, "Failed to create a data reader for DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION.");
+  CU_ASSERT_FATAL(dds_sub_rdr > 0);
   check_default_qos_of_builtin_entity(dds_sub_rdr);
 
   dds_sub_subscriber = dds_get_parent(dds_sub_rdr);
-  cr_assert_gt(dds_sub_subscriber, 0, "Could not find builtin subscriber for DSCPSSubscription-reader.");
+  CU_ASSERT_FATAL(dds_sub_subscriber > 0);
   check_default_qos_of_builtin_entity(dds_sub_subscriber);
 }
 
-Test(ddsc_builtin_topics, datareader_qos, .init = setup, .fini = teardown)
+CU_Test(ddsc_builtin_topics, datareader_qos, .init = setup, .fini = teardown)
 {
   dds_entity_t rdr;
   dds_entity_t subscription_rdr;
@@ -633,57 +631,57 @@ Test(ddsc_builtin_topics, datareader_qos, .init = setup, .fini = teardown)
   dds_qset_groupdata(g_qos, g_pol_groupdata.value._buffer, g_pol_groupdata.value._length);
 
   rdr = dds_create_reader(g_subscriber, g_topic, g_qos, NULL);
-  cr_assert_gt(rdr, 0, "Failed to create a data reader.");
+  CU_ASSERT_FATAL(rdr > 0);
 
   subscription_samples[0] = DDS_SubscriptionBuiltinTopicData__alloc();
 
   subscription_rdr = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL);
-  cr_assert_gt(subscription_rdr, 0, "Failed to retrieve built-in datareader for DCPSSubscription");
+  CU_ASSERT_FATAL(subscription_rdr > 0);
 #if 0 /* disabled pending CHAM-347 */
   ret = dds_read(subscription_rdr, subscription_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-  cr_assert_gt(ret, 0, "Failed to read Subscription data");
+  CU_ASSERT_FATAL(ret > 0);
 
   // Check the QOS settings of the 'remote' qos'
   subscription_data = (DDS_SubscriptionBuiltinTopicData *)subscription_samples[0];
 
-  cr_assert_str_eq(subscription_data->topic_name, "RoundTrip");
-  cr_assert_str_eq(subscription_data->type_name, "RoundTripModule::DataType");
-  cr_assert_eq(subscription_data->durability.kind, g_pol_durability.kind);
-  cr_assert_eq(subscription_data->deadline.period.sec, g_pol_deadline.period.sec);
-  cr_assert_eq(subscription_data->deadline.period.nanosec, g_pol_deadline.period.nanosec);
-  cr_assert_eq(subscription_data->latency_budget.duration.sec, g_pol_latency_budget.duration.sec);
-  cr_assert_eq(subscription_data->latency_budget.duration.nanosec, g_pol_latency_budget.duration.nanosec);
-  cr_assert_eq(subscription_data->liveliness.kind, g_pol_liveliness.kind);
-  cr_assert_eq(subscription_data->liveliness.lease_duration.sec, g_pol_liveliness.lease_duration.sec);
-  cr_assert_eq(subscription_data->liveliness.lease_duration.nanosec, g_pol_liveliness.lease_duration.nanosec);
-  cr_assert_eq(subscription_data->reliability.kind, g_pol_reliability.kind);
-  cr_assert_eq(subscription_data->reliability.max_blocking_time.sec, g_pol_reliability.max_blocking_time.sec);
-  cr_assert_eq(subscription_data->reliability.max_blocking_time.nanosec, g_pol_reliability.max_blocking_time.nanosec);
-  cr_assert_eq(subscription_data->ownership.kind, g_pol_ownership.kind);
-  cr_assert_eq(subscription_data->destination_order.kind, g_pol_destination_order.kind);
-  cr_assert_eq(subscription_data->user_data.value._buffer, g_pol_userdata.value._buffer);
-  cr_assert_eq(subscription_data->user_data.value._length, g_pol_userdata.value._length);
-  cr_assert_eq(subscription_data->time_based_filter.minimum_separation.sec, g_pol_time_based_filter.minimum_separation.sec);
-  cr_assert_eq(subscription_data->time_based_filter.minimum_separation.nanosec, g_pol_time_based_filter.minimum_separation.nanosec);
-  cr_assert_eq(subscription_data->presentation.access_scope, g_pol_presentation.access_scope);
-  cr_assert_eq(subscription_data->presentation.coherent_access, g_pol_presentation.coherent_access);
-  cr_assert_eq(subscription_data->presentation.ordered_access, g_pol_presentation.ordered_access);
+  CU_ASSERT_STRING_EQUAL_FATAL(subscription_data->topic_name, "RoundTrip");
+  CU_ASSERT_STRING_EQUAL_FATAL(subscription_data->type_name, "RoundTripModule::DataType");
+  CU_ASSERT_EQUAL_FATAL(subscription_data->durability.kind, g_pol_durability.kind);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->deadline.period.sec, g_pol_deadline.period.sec);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->deadline.period.nanosec, g_pol_deadline.period.nanosec);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->latency_budget.duration.sec, g_pol_latency_budget.duration.sec);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->latency_budget.duration.nanosec, g_pol_latency_budget.duration.nanosec);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->liveliness.kind, g_pol_liveliness.kind);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->liveliness.lease_duration.sec, g_pol_liveliness.lease_duration.sec);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->liveliness.lease_duration.nanosec, g_pol_liveliness.lease_duration.nanosec);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->reliability.kind, g_pol_reliability.kind);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->reliability.max_blocking_time.sec, g_pol_reliability.max_blocking_time.sec);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->reliability.max_blocking_time.nanosec, g_pol_reliability.max_blocking_time.nanosec);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->ownership.kind, g_pol_ownership.kind);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->destination_order.kind, g_pol_destination_order.kind);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->user_data.value._buffer, g_pol_userdata.value._buffer);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->user_data.value._length, g_pol_userdata.value._length);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->time_based_filter.minimum_separation.sec, g_pol_time_based_filter.minimum_separation.sec);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->time_based_filter.minimum_separation.nanosec, g_pol_time_based_filter.minimum_separation.nanosec);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->presentation.access_scope, g_pol_presentation.access_scope);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->presentation.coherent_access, g_pol_presentation.coherent_access);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->presentation.ordered_access, g_pol_presentation.ordered_access);
 
-  cr_assert_eq(subscription_data->partition.name._length, g_pol_partition.name._length);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->partition.name._length, g_pol_partition.name._length);
   for (uint32_t i = 0; i < subscription_data->partition.name._length; ++i)
   {
-    cr_assert_str_eq(subscription_data->partition.name._buffer[i], c_partitions[i]);
+      CU_ASSERT_STRING_EQUAL_FATAL(subscription_data->partition.name._buffer[i], c_partitions[i]);
   }
 
-  cr_assert_str_eq(subscription_data->topic_data.value._buffer, g_pol_topicdata.value._buffer);
-  cr_assert_eq(subscription_data->topic_data.value._length, g_pol_topicdata.value._length);
-  cr_assert_str_eq(subscription_data->group_data.value._buffer, g_pol_groupdata.value._buffer);
-  cr_assert_eq(subscription_data->group_data.value._length, g_pol_groupdata.value._length);
+  CU_ASSERT_STRING_EQUAL_FATAL(subscription_data->topic_data.value._buffer, g_pol_topicdata.value._buffer);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->topic_data.value._length, g_pol_topicdata.value._length);
+  CU_ASSERT_STRING_EQUAL_FATAL(subscription_data->group_data.value._buffer, g_pol_groupdata.value._buffer);
+  CU_ASSERT_EQUAL_FATAL(subscription_data->group_data.value._length, g_pol_groupdata.value._length);
 #endif
   DDS_SubscriptionBuiltinTopicData_free(subscription_samples[0], DDS_FREE_ALL);
 }
 
-Test(ddsc_builtin_topics, datawriter_qos, .init = setup, .fini = teardown)
+CU_Test(ddsc_builtin_topics, datawriter_qos, .init = setup, .fini = teardown)
 {
   dds_entity_t wrtr;
   dds_entity_t publication_rdr;
@@ -709,59 +707,59 @@ Test(ddsc_builtin_topics, datawriter_qos, .init = setup, .fini = teardown)
   dds_qset_topicdata(g_qos, g_pol_topicdata.value._buffer, g_pol_topicdata.value._length);
 
   wrtr = dds_create_writer(g_publisher, g_topic, g_qos, NULL);
-  cr_assert_gt(wrtr, 0, "Failed to create a data writer.");
+  CU_ASSERT_FATAL(wrtr > 0);
 
   publication_samples[0] = DDS_PublicationBuiltinTopicData__alloc();
 
   publication_rdr = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, NULL);
-  cr_assert_gt(publication_rdr, 0, "Failed to retrieve built-in datareader for DCPSPublication");
+  CU_ASSERT_FATAL(publication_rdr > 0);
 
 #if 0 /* disabled pending CHAM-347 */
   ret = dds_read(publication_rdr, publication_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-  cr_assert_gt(ret, 0, "Failed to read Publication data");
+  CU_ASSERT_FATAL(ret> 0);
 
   // Check the QOS settings of the 'remote' qos'
   publication_data = (DDS_PublicationBuiltinTopicData *)publication_samples[0];
 
-  cr_assert_str_eq(publication_data->topic_name, "RoundTrip");
-  cr_assert_str_eq(publication_data->type_name, "RoundTripModule::DataType");
-  cr_assert_eq(publication_data->durability.kind, g_pol_durability.kind);
-  cr_assert_eq(publication_data->deadline.period.sec, g_pol_deadline.period.sec);
-  cr_assert_eq(publication_data->deadline.period.nanosec, g_pol_deadline.period.nanosec);
-  cr_assert_eq(publication_data->latency_budget.duration.sec, g_pol_latency_budget.duration.sec);
-  cr_assert_eq(publication_data->latency_budget.duration.nanosec, g_pol_latency_budget.duration.nanosec);
-  cr_assert_eq(publication_data->liveliness.kind, g_pol_liveliness.kind);
-  cr_assert_eq(publication_data->liveliness.lease_duration.sec, g_pol_liveliness.lease_duration.sec);
-  cr_assert_eq(publication_data->liveliness.lease_duration.nanosec, g_pol_liveliness.lease_duration.nanosec);
-  cr_assert_eq(publication_data->reliability.kind, g_pol_reliability.kind);
-  cr_assert_eq(publication_data->reliability.max_blocking_time.sec, g_pol_reliability.max_blocking_time.sec);
-  cr_assert_eq(publication_data->reliability.max_blocking_time.nanosec, g_pol_reliability.max_blocking_time.nanosec);
-  cr_assert_eq(publication_data->lifespan.duration.sec, g_pol_lifespan.duration.sec);
-  cr_assert_eq(publication_data->lifespan.duration.nanosec, g_pol_lifespan.duration.nanosec);
-  cr_assert_eq(publication_data->destination_order.kind, g_pol_destination_order.kind);
-  cr_assert_eq(publication_data->user_data.value._buffer, g_pol_userdata.value._buffer);
-  cr_assert_eq(publication_data->user_data.value._length, g_pol_userdata.value._length);
-  cr_assert_eq(publication_data->ownership.kind, g_pol_ownership.kind);
-  cr_assert_eq(publication_data->ownership_strength.value, g_pol_ownership_strength.value);
-  cr_assert_eq(publication_data->presentation.access_scope, g_pol_presentation.access_scope);
-  cr_assert_eq(publication_data->presentation.coherent_access, g_pol_presentation.coherent_access);
-  cr_assert_eq(publication_data->presentation.ordered_access, g_pol_presentation.ordered_access);
+  CU_ASSERT_STRING_EQUAL_FATAL(publication_data->topic_name, "RoundTrip");
+  CU_ASSERT_STRING_EQUAL_FATAL(publication_data->type_name, "RoundTripModule::DataType");
+  CU_ASSERT_EQUAL_FATAL(publication_data->durability.kind, g_pol_durability.kind);
+  CU_ASSERT_EQUAL_FATAL(publication_data->deadline.period.sec, g_pol_deadline.period.sec);
+  CU_ASSERT_EQUAL_FATAL(publication_data->deadline.period.nanosec, g_pol_deadline.period.nanosec);
+  CU_ASSERT_EQUAL_FATAL(publication_data->latency_budget.duration.sec, g_pol_latency_budget.duration.sec);
+  CU_ASSERT_EQUAL_FATAL(publication_data->latency_budget.duration.nanosec, g_pol_latency_budget.duration.nanosec);
+  CU_ASSERT_EQUAL_FATAL(publication_data->liveliness.kind, g_pol_liveliness.kind);
+  CU_ASSERT_EQUAL_FATAL(publication_data->liveliness.lease_duration.sec, g_pol_liveliness.lease_duration.sec);
+  CU_ASSERT_EQUAL_FATAL(publication_data->liveliness.lease_duration.nanosec, g_pol_liveliness.lease_duration.nanosec);
+  CU_ASSERT_EQUAL_FATAL(publication_data->reliability.kind, g_pol_reliability.kind);
+  CU_ASSERT_EQUAL_FATAL(publication_data->reliability.max_blocking_time.sec, g_pol_reliability.max_blocking_time.sec);
+  CU_ASSERT_EQUAL_FATAL(publication_data->reliability.max_blocking_time.nanosec, g_pol_reliability.max_blocking_time.nanosec);
+  CU_ASSERT_EQUAL_FATAL(publication_data->lifespan.duration.sec, g_pol_lifespan.duration.sec);
+  CU_ASSERT_EQUAL_FATAL(publication_data->lifespan.duration.nanosec, g_pol_lifespan.duration.nanosec);
+  CU_ASSERT_EQUAL_FATAL(publication_data->destination_order.kind, g_pol_destination_order.kind);
+  CU_ASSERT_EQUAL_FATAL(publication_data->user_data.value._buffer, g_pol_userdata.value._buffer);
+  CU_ASSERT_EQUAL_FATAL(publication_data->user_data.value._length, g_pol_userdata.value._length);
+  CU_ASSERT_EQUAL_FATAL(publication_data->ownership.kind, g_pol_ownership.kind);
+  CU_ASSERT_EQUAL_FATAL(publication_data->ownership_strength.value, g_pol_ownership_strength.value);
+  CU_ASSERT_EQUAL_FATAL(publication_data->presentation.access_scope, g_pol_presentation.access_scope);
+  CU_ASSERT_EQUAL_FATAL(publication_data->presentation.coherent_access, g_pol_presentation.coherent_access);
+  CU_ASSERT_EQUAL_FATAL(publication_data->presentation.ordered_access, g_pol_presentation.ordered_access);
 
-  cr_assert_eq(publication_data->partition.name._length, g_pol_partition.name._length);
+  CU_ASSERT_EQUAL_FATAL(publication_data->partition.name._length, g_pol_partition.name._length);
   for (uint32_t i = 0; i < publication_data->partition.name._length; ++i)
   {
-    cr_assert_str_eq(publication_data->partition.name._buffer[i], c_partitions[i]);
+      CU_ASSERT_STRING_EQUAL_FATAL(publication_data->partition.name._buffer[i], c_partitions[i]);
   }
 
-  cr_assert_str_eq(publication_data->topic_data.value._buffer, g_pol_topicdata.value._buffer);
-  cr_assert_eq(publication_data->topic_data.value._length, g_pol_topicdata.value._length);
-  cr_assert_str_eq(publication_data->group_data.value._buffer, g_pol_groupdata.value._buffer);
-  cr_assert_eq(publication_data->group_data.value._length, g_pol_groupdata.value._length);
+  CU_ASSERT_STRING_EQUAL_FATAL(publication_data->topic_data.value._buffer, g_pol_topicdata.value._buffer);
+  CU_ASSERT_EQUAL_FATAL(publication_data->topic_data.value._length, g_pol_topicdata.value._length);
+  CU_ASSERT_STRING_EQUAL_FATAL(publication_data->group_data.value._buffer, g_pol_groupdata.value._buffer);
+  CU_ASSERT_EQUAL_FATAL(publication_data->group_data.value._length, g_pol_groupdata.value._length);
 #endif
   DDS_PublicationBuiltinTopicData_free(publication_samples[0], DDS_FREE_ALL);
 }
 
-Test(ddsc_builtin_topics, topic_qos, .init = setup, .fini = teardown)
+CU_Test(ddsc_builtin_topics, topic_qos, .init = setup, .fini = teardown)
 {
   dds_entity_t tpc;
   dds_entity_t topic_rdr;
@@ -796,50 +794,50 @@ Test(ddsc_builtin_topics, topic_qos, .init = setup, .fini = teardown)
 
 
   tpc = dds_create_topic(g_participant, &Space_Type1_desc, "SpaceType1", g_qos, NULL);
-  cr_assert_gt(tpc, 0, "Failed to create a topic.");
+  CU_ASSERT_FATAL(tpc > 0);
 
   topic_samples[0] = DDS_PublicationBuiltinTopicData__alloc();
 
   topic_rdr = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
-  cr_assert_gt(topic_rdr, 0, "Failed to retrieve built-in datareader for DCPSPublication");
+  CU_ASSERT_FATAL(topic_rdr > 0 );
 #if 0 /* disabled pending CHAM-347 */
   ret = dds_read(topic_rdr, topic_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-  cr_assert_gt(ret, 0, "Failed to read Topic data");
+  CU_ASSERT_FATAL(ret > 0);
 
   topic_data = (DDS_TopicBuiltinTopicData *)topic_samples[0];
 
-  cr_assert_str_eq(topic_data->name, "SpaceType1");
-  cr_assert_str_eq(topic_data->type_name, "RoundTripModule::DataType");
-  cr_assert_eq(topic_data->durability.kind, g_pol_durability.kind);
-  cr_assert_eq(topic_data->durability_service.service_cleanup_delay.sec, g_pol_durability_service.service_cleanup_delay.sec);
-  cr_assert_eq(topic_data->durability_service.service_cleanup_delay.nanosec, g_pol_durability_service.service_cleanup_delay.nanosec);
-  cr_assert_eq(topic_data->durability_service.history_kind, g_pol_durability_service.history_kind);
-  cr_assert_eq(topic_data->durability_service.history_depth, g_pol_durability_service.history_depth);
-  cr_assert_eq(topic_data->durability_service.max_samples, g_pol_durability_service.max_samples);
-  cr_assert_eq(topic_data->durability_service.max_instances, g_pol_durability_service.max_instances);
-  cr_assert_eq(topic_data->durability_service.max_samples_per_instance, g_pol_durability_service.max_samples_per_instance);
-  cr_assert_eq(topic_data->deadline.period.sec, g_pol_deadline.period.sec);
-  cr_assert_eq(topic_data->deadline.period.nanosec, g_pol_deadline.period.nanosec);
-  cr_assert_eq(topic_data->latency_budget.duration.sec, g_pol_latency_budget.duration.sec);
-  cr_assert_eq(topic_data->latency_budget.duration.nanosec, g_pol_latency_budget.duration.nanosec);
-  cr_assert_eq(topic_data->liveliness.kind, g_pol_liveliness.kind);
-  cr_assert_eq(topic_data->liveliness.lease_duration.sec, g_pol_liveliness.lease_duration.sec);
-  cr_assert_eq(topic_data->liveliness.lease_duration.nanosec, g_pol_liveliness.lease_duration.nanosec);
-  cr_assert_eq(topic_data->reliability.kind, g_pol_reliability.kind);
-  cr_assert_eq(topic_data->reliability.max_blocking_time.sec, g_pol_reliability.max_blocking_time.sec);
-  cr_assert_eq(topic_data->reliability.max_blocking_time.nanosec, g_pol_reliability.max_blocking_time.nanosec);
-  cr_assert_eq(topic_data->transport_priority.value, g_pol_transport_priority.value);
-  cr_assert_eq(topic_data->lifespan.duration.sec, g_pol_lifespan.duration.sec);
-  cr_assert_eq(topic_data->lifespan.duration.nanosec, g_pol_lifespan.duration.nanosec);
-  cr_assert_eq(topic_data->destination_order.kind, g_pol_destination_order.kind);
-  cr_assert_eq(topic_data->history.kind, g_pol_history.kind);
-  cr_assert_eq(topic_data->history.depth, g_pol_history.depth);
-  cr_assert_eq(topic_data->resource_limits.max_samples, g_pol_resource_limits.max_samples);
-  cr_assert_eq(topic_data->resource_limits.max_instances, g_pol_resource_limits.max_instances);
-  cr_assert_eq(topic_data->resource_limits.max_samples_per_instance, g_pol_resource_limits.max_samples_per_instance);
-  cr_assert_eq(topic_data->ownership.kind, g_pol_ownership.kind);
-  cr_assert_str_eq(topic_data->topic_data.value._buffer, g_pol_topicdata.value._buffer);
-  cr_assert_eq(topic_data->topic_data.value._length, g_pol_topicdata.value._length);
+  CU_ASSERT_STRING_EQUAL_FATAL(topic_data->name, "SpaceType1");
+  CU_ASSERT_STRING_EQUAL_FATAL(topic_data->type_name, "RoundTripModule::DataType");
+  CU_ASSERT_EQUAL_FATAL(topic_data->durability.kind, g_pol_durability.kind);
+  CU_ASSERT_EQUAL_FATAL(topic_data->durability_service.service_cleanup_delay.sec, g_pol_durability_service.service_cleanup_delay.sec);
+  CU_ASSERT_EQUAL(topic_data->durability_service.service_cleanup_delay.nanosec, g_pol_durability_service.service_cleanup_delay.nanosec);
+  CU_ASSERT_EQUAL_FATAL(topic_data->durability_service.history_kind, g_pol_durability_service.history_kind);
+  CU_ASSERT_EQUAL_FATAL(topic_data->durability_service.history_depth, g_pol_durability_service.history_depth);
+  CU_ASSERT_EQUAL_FATAL(topic_data->durability_service.max_samples, g_pol_durability_service.max_samples);
+  CU_ASSERT_EQUAL_FATAL(topic_data->durability_service.max_instances, g_pol_durability_service.max_instances);
+  CU_ASSERT_EQUAL_FATAL(topic_data->durability_service.max_samples_per_instance, g_pol_durability_service.max_samples_per_instance);
+  CU_ASSERT_EQUAL_FATAL(topic_data->deadline.period.sec, g_pol_deadline.period.sec);
+  CU_ASSERT_EQUAL_FATAL(topic_data->deadline.period.nanosec, g_pol_deadline.period.nanosec);
+  CU_ASSERT_EQUAL_FATAL(topic_data->latency_budget.duration.sec, g_pol_latency_budget.duration.sec);
+  CU_ASSERT_EQUAL_FATAL(topic_data->latency_budget.duration.nanosec, g_pol_latency_budget.duration.nanosec);
+  CU_ASSERT_EQUAL_FATAL(topic_data->liveliness.kind, g_pol_liveliness.kind);
+  CU_ASSERT_EQUAL_FATAL(topic_data->liveliness.lease_duration.sec, g_pol_liveliness.lease_duration.sec);
+  CU_ASSERT_EQUAL_FATAL(topic_data->liveliness.lease_duration.nanosec, g_pol_liveliness.lease_duration.nanosec);
+  CU_ASSERT_EQUAL_FATAL(topic_data->reliability.kind, g_pol_reliability.kind);
+  CU_ASSERT_EQUAL_FATAL(topic_data->reliability.max_blocking_time.sec, g_pol_reliability.max_blocking_time.sec);
+  CU_ASSERT_EQUAL_FATAL(topic_data->reliability.max_blocking_time.nanosec, g_pol_reliability.max_blocking_time.nanosec);
+  CU_ASSERT_EQUAL_FATAL(topic_data->transport_priority.value, g_pol_transport_priority.value);
+  CU_ASSERT_EQUAL_FATAL(topic_data->lifespan.duration.sec, g_pol_lifespan.duration.sec);
+  CU_ASSERT_EQUAL_FATAL(topic_data->lifespan.duration.nanosec, g_pol_lifespan.duration.nanosec);
+  CU_ASSERT_EQUAL_FATAL(topic_data->destination_order.kind, g_pol_destination_order.kind);
+  CU_ASSERT_EQUAL_FATAL(topic_data->history.kind, g_pol_history.kind);
+  CU_ASSERT_EQUAL_FATAL(topic_data->history.depth, g_pol_history.depth);
+  CU_ASSERT_EQUAL_FATAL(topic_data->resource_limits.max_samples, g_pol_resource_limits.max_samples);
+  CU_ASSERT_EQUAL_FATAL(topic_data->resource_limits.max_instances, g_pol_resource_limits.max_instances);
+  CU_ASSERT_EQUAL_FATAL(topic_data->resource_limits.max_samples_per_instance, g_pol_resource_limits.max_samples_per_instance);
+  CU_ASSERT_EQUAL_FATAL(topic_data->ownership.kind, g_pol_ownership.kind);
+  CU_ASSERT_STRING_EQUAL_FATAL(topic_data->topic_data.value._buffer, g_pol_topicdata.value._buffer);
+  CU_ASSERT_EQUAL_FATAL(topic_data->topic_data.value._length, g_pol_topicdata.value._length);
 #endif
   DDS_TopicBuiltinTopicData_free(topic_samples[0], DDS_FREE_ALL);
 }
