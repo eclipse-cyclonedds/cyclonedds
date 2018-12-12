@@ -51,18 +51,19 @@ On another terminal, start the application that will be sending the ping.
     # Round trip measurements (in us)
     #             Round trip time [us]                           Write-access time [us]       Read-access time [us]
     # Seconds     Count   median      min      99%      max      Count   median      min      Count   median      min
-            1     17382       56       50       77      269      17382       10        9      17382        1        1
-            2     17502       55       50       75      137      17502       10        9      17502        1        1
-            3     17482       56       50       73      165      17482       10        9      17482        1        1
-            4     17429       56       50       73      135      17429       10        9      17429        1        1
-            5     17514       56       50       73      146      17514       10        9      17514        1        1
-            6     17566       55       50       74      256      17566       10        9      17566        1        1
-            7     17555       55       51       74      119      17555       10        9      17555        1        1
-            8     17551       55       51       74      137      17551       10        9      17551        1        1
-            9     17562       55       50       72      193      17562       10        9      17562        1        1
-           10     17461       56       50       74      143      17461       10        9      17461        1        1
+        1     28065       17       16       23       87      28065        8        6      28065        1        0
+        2     28115       17       16       23       46      28115        8        6      28115        1        0
+        3     28381       17       16       22       46      28381        8        6      28381        1        0
+        4     27928       17       16       24      127      27928        8        6      27928        1        0
+        5     28427       17       16       20       47      28427        8        6      28427        1        0
+        6     27685       17       16       26       51      27685        8        6      27685        1        0
+        7     28391       17       16       23       47      28391        8        6      28391        1        0
+        8     27938       17       16       24       63      27938        8        6      27938        1        0
+        9     28242       17       16       24      132      28242        8        6      28242        1        0
+       10     28075       17       16       23       46      28075        8        6      28075        1        0
+
            
-The number above were measure on Mac running a 4,2 GHz Intel Core i7. From these number you can see how the roundtrip is incredibly stable and the minimal latency is about 25 micro-seconds (on this HW).
+The number above were measure on Mac running a 4,2 GHz Intel Core i7 on December 12th 2018. From these number you can see how the roundtrip is incredibly stable and the minimal latency is now down to  17 micro-seconds (used to be 25 micro-seconds) on this HW.
 
 ## Documentation
 The Cyclone DDS documentation is available [here](http://cdds.io/docs).
