@@ -58,6 +58,8 @@ getifaces(PIP_ADAPTER_ADDRESSES *ptr)
 
     if (err == 0) {
         *ptr = buf;
+    } else {
+        os_free(buf);
     }
 
     return err;
@@ -146,56 +148,54 @@ copyaddr(
     const PIP_ADAPTER_UNICAST_ADDRESS addr)
 {
     int err = 0;
-    int eq = 0;
     os_ifaddrs_t *ifa;
-    DWORD i;
-    struct sockaddr *sa = (struct sockaddr *)addr->Address.lpSockaddr;
-    size_t size;
+    struct sockaddr *sa;
+    size_t sz;
 
     assert(iface != NULL);
     assert(addrtable != NULL);
     assert(addr != NULL);
 
+    sa = (struct sockaddr *)addr->Address.lpSockaddr;
+    sz = (size_t)addr->Address.iSockaddrLength;
+
     if ((ifa = os_calloc_s(1, sizeof(*ifa))) == NULL) {
         err = ENOMEM;
     } else {
         ifa->flags = getflags(iface);
+        ifa->addr = os_memdup(sa, sz);
         (void)os_asprintf(&ifa->name, "%wS", iface->FriendlyName);
-
-        if (ifa->name == NULL) {
+        if (ifa->addr == NULL || ifa->name == NULL) {
             err = ENOMEM;
-        } else {
-            ifa->addr = os_memdup(sa, addr->Address.iSockaddrLength);
-            if (ifa->addr == NULL) {
+        } else if (ifa->addr->sa_family == AF_INET6) {
+            ifa->index = iface->Ipv6IfIndex;
+
+        /* Address is not in addrtable if the interface is not connected. */
+        } else if (ifa->addr->sa_family == AF_INET && (ifa->flags & IFF_UP)) {
+            DWORD i = 0;
+            struct sockaddr_in nm, bc, *sin = (struct sockaddr_in *)sa;
+
+            assert(sz == sizeof(nm));
+            memset(&nm, 0, sz);
+            memset(&bc, 0, sz);
+            nm.sin_family = bc.sin_family = AF_INET;
+
+            for (; i < addrtable->dwNumEntries;  i++) {
+                if (sin->sin_addr.s_addr == addrtable->table[i].dwAddr) {
+                    ifa->index = addrtable->table[i].dwIndex;
+                    nm.sin_addr.s_addr = addrtable->table[i].dwMask;
+                    bc.sin_addr.s_addr =
+                        sin->sin_addr.s_addr | ~(nm.sin_addr.s_addr);
+                    break;
+                }
+            }
+
+            assert(i < addrtable->dwNumEntries);
+
+            if ((ifa->netmask = os_memdup(&nm, sz)) == NULL ||
+                (ifa->broadaddr = os_memdup(&bc, sz)) == NULL)
+            {
                 err = ENOMEM;
-            } else if (ifa->addr->sa_family == AF_INET) {
-                size = sizeof(struct sockaddr_in);
-                struct sockaddr_in netmask, broadaddr;
-
-                memset(&netmask, 0, size);
-                memset(&broadaddr, 0, size);
-                netmask.sin_family = broadaddr.sin_family = AF_INET;
-
-                for (i = 0; !eq && i < addrtable->dwNumEntries;  i++) {
-                    eq = (((struct sockaddr_in *)sa)->sin_addr.s_addr ==
-                        addrtable->table[i].dwAddr);
-                    if (eq) {
-                        ifa->index = addrtable->table[i].dwIndex;
-                        netmask.sin_addr.s_addr = addrtable->table[i].dwMask;
-                        broadaddr.sin_addr.s_addr =
-                            ((struct sockaddr_in *)sa)->sin_addr.s_addr | ~(netmask.sin_addr.s_addr);
-                    }
-                }
-
-                assert(eq != 0);
-
-                if ((ifa->netmask = os_memdup(&netmask, size)) == NULL ||
-                    (ifa->broadaddr = os_memdup(&broadaddr, size)) == NULL)
-                {
-                    err = ENOMEM;
-                }
-            } else {
-                ifa->index = iface->Ipv6IfIndex;
             }
         }
     }
@@ -203,7 +203,7 @@ copyaddr(
     if (err == 0) {
         *ifap = ifa;
     } else {
-        os_free(ifa);
+        os_freeifaddrs(ifa);
     }
 
     return err;

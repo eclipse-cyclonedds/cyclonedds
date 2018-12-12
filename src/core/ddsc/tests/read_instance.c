@@ -298,7 +298,7 @@ CU_Theory((dds_entity_t *ent, void **buf, dds_sample_info_t *si, size_t bufsz, u
         ret = dds_read_instance(*ent, buf, si, bufsz, maxs, g_hdl_valid);
         CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     } else {
-        CU_PASS();
+        CU_PASS("Skipped");
     }
 }
 /*************************************************************************************************/
@@ -319,7 +319,7 @@ CU_Theory((dds_entity_t *ent, void **buf, dds_sample_info_t *si, uint32_t maxs),
         ret = dds_read_instance_wl(*ent, buf, si, maxs, g_hdl_valid);
         CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     } else {
-        CU_PASS();
+        CU_PASS("Skipped");
     }
 }
 /*************************************************************************************************/
@@ -349,7 +349,7 @@ CU_Theory((dds_entity_t *ent, void **buf, dds_sample_info_t *si, size_t bufsz, u
         ret = dds_read_instance_mask(*ent, buf, si, bufsz, maxs, g_hdl_valid, mask);
         CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     } else {
-        CU_PASS();
+        CU_PASS("Skipped");
     }
 }
 /*************************************************************************************************/

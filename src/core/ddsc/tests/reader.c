@@ -306,7 +306,7 @@ CU_Theory((void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs), ddsc
         ret = dds_read(g_reader, buf, si, bufsz, maxs);
         CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     } else {
-        CU_PASS();
+        CU_PASS("Skipped");
     }
 }
 /*************************************************************************************************/
@@ -540,7 +540,7 @@ CU_Theory((void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs), ddsc
         ret = dds_read_mask(g_reader, buf, si, bufsz, maxs, mask);
         CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     } else {
-        CU_PASS();
+        CU_PASS("Skipped");
     }
 }
 /*************************************************************************************************/
@@ -1676,7 +1676,7 @@ CU_Theory((void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs), ddsc
         ret = dds_take(g_reader, buf, si, bufsz, maxs);
         CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     } else {
-        CU_PASS();
+        CU_PASS("Skipped");
     }
 }
 /*************************************************************************************************/
@@ -1911,7 +1911,7 @@ CU_Theory((void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs), ddsc
         ret = dds_take_mask(g_reader, buf, si, bufsz, maxs, mask);
         CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     } else {
-        CU_PASS();
+        CU_PASS("Skipped");
     }
 }
 /*************************************************************************************************/
