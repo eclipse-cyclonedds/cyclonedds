@@ -21,6 +21,7 @@ set(ddsc_test_sources
     "config.c"
     "dispose.c"
     "entity_api.c"
+    "entity_contains.c"
     "entity_hierarchy.c"
     "entity_status.c"
     "err.c"

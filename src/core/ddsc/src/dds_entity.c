@@ -1035,3 +1035,55 @@ const char *dds__entity_kind_str (dds_entity_t e)
     default:                    return "(INVALID_ENTITY)";
   }
 }
+
+dds_entity_t
+dds_contains(
+    _In_ dds_entity_t parent,
+    _In_ dds_entity_t entity)
+{
+    dds_entity_t hdl = DDS_ENTITY_NIL;
+    dds_entity* e;
+    dds__retcode_t rc;
+
+    if (!DDS_IS_ENTITY_KIND(parent) || !DDS_IS_ENTITY_KIND(entity)) {
+        return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+    } else if ((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_PARTICIPANT) {
+        return DDS_ERRNO(DDS_RETCODE_ILLEGAL_OPERATION);
+    }
+    switch (dds_entity_kind_from_handle (parent)) {
+        case DDS_KIND_PARTICIPANT:
+            hdl = dds_get_participant (entity);
+            break;
+        case DDS_KIND_PUBLISHER:
+            hdl = dds_get_publisher (entity);
+            break;
+        case DDS_KIND_SUBSCRIBER:
+            hdl = dds_get_subscriber (entity);
+            break;
+        case DDS_KIND_READER:
+            if (!(entity & (DDS_KIND_COND_READ | DDS_KIND_COND_QUERY))) {
+                return DDS_ERRNO(DDS_RETCODE_ILLEGAL_OPERATION);
+            } else {
+                hdl = dds_get_parent (entity);
+            }
+            break;
+        case DDS_KIND_WAITSET:
+            rc = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e);
+            if (rc != DDS_RETCODE_OK) {
+                return DDS_ERRNO(rc);
+            } else if (in_observer_list_p (e, parent)) {
+                hdl = parent;
+            }
+            dds_entity_unlock(e);
+            break;
+        default:
+            hdl = DDS_ERRNO(DDS_RETCODE_ILLEGAL_OPERATION);
+            break;
+    }
+
+    if (DDS_IS_ENTITY_KIND(hdl)) {
+        return (hdl == parent) ? entity : DDS_ENTITY_NIL;
+    }
+
+    return hdl;
+}

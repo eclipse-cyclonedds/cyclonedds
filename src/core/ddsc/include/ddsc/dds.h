@@ -3162,7 +3162,6 @@ DDS_DEPRECATED_EXPORT dds_instance_handle_t
 dds_instance_lookup (
         dds_entity_t entity,
         const void *data);
-
 /**
  * @brief This operation takes an instance handle and return a key-value corresponding to it.
  *
@@ -3304,6 +3303,35 @@ _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
 DDS_EXPORT dds_entity_t
 dds_get_topic(
         _In_ dds_entity_t entity);
+
+
+/**
+ * @brief Check if entity is contained or observed by the parent
+ *
+ * Check if the @p entity is contained by the @p parent entity, e.g. does a
+ * writer belong to the specified publisher, or is the @p entity observed by
+ * the @p parent entity, e.g. is an entity observed by the specified waitset.
+ *
+ * @param[in] parent The parent entity.
+ * @param[in] entity The entity.
+ *
+ * @returns The entity handle if parent contains the entity, DDS_ENTITY_NIL if
+ *          both the entities and their combination is valid but the parent
+ *          did not contain the entity, or an error if the input is invalid.
+ *
+ * @retval > 0
+ *             entity is contained in parent.
+ * @retval DDS_ENTITY_NIL
+ *             Entity is not contained in parent.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Entity or parent parameter is not a valid parameter.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The combination of entity and parent is not legal
+ */
+DDS_EXPORT dds_entity_t
+dds_contains (
+        _In_  dds_entity_t parent,
+        _In_  dds_entity_t entity);
 
 #if defined (__cplusplus)
 }
