@@ -1046,7 +1046,7 @@ dds_entity_lock(
         _Out_ dds_entity **e)
 {
     dds__retcode_t rc = hdl;
-    ut_handle_t utr;
+    ut_handle_retcode_t utr;
     assert(e);
     /* When the given handle already contains an error, then return that
      * same error to retain the original information. */
@@ -1326,4 +1326,67 @@ dds__entity_kind_str(_In_ dds_entity_t e)
         case DDS_KIND_WAITSET:      return "WaitSet";
         default:                    return "(INVALID_ENTITY)";
     }
+}
+
+static dds_return_t
+dds_contains_impl(
+        _In_   dds_entity_t parent,
+        _In_   dds_entity_t entity)
+{
+    dds__retcode_t rc;
+    dds_entity_t result = DDS_ENTITY_NIL;
+    dds_entity *p;
+
+    assert(parent > DDS_ENTITY_NIL);
+    assert(entity > DDS_ENTITY_NIL);
+
+    rc = dds_entity_lock(parent, DDS_KIND_DONTCARE, &p);
+    if (rc != DDS_RETCODE_OK) {
+        DDS_ERROR("Error on locking parent entity\n");
+        result = DDS_ERRNO(rc);
+    } else {
+        dds_entity *iter;
+
+        for (iter = p->m_children;
+             iter != NULL && result == DDS_ENTITY_NIL;
+             iter = iter->m_next)
+        {
+            if (iter->m_hdl == entity) {
+                result = entity;
+            } else if ( (((iter->m_hdl & DDS_ENTITY_KIND_MASK) == DDS_KIND_PUBLISHER) && ((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)) ||
+                     (((iter->m_hdl & DDS_ENTITY_KIND_MASK) == DDS_KIND_SUBSCRIBER) && ((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)) ||
+                     (((iter->m_hdl & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER) && ((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)) ||
+                     (((iter->m_hdl & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER) && ((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)) ||
+                     ((iter->m_hdl & DDS_ENTITY_KIND_MASK) == (entity & DDS_ENTITY_KIND_MASK)) ) {
+                printf("Error in entity type\n");
+                result = DDS_ENTITY_NIL;
+            } else {
+                result = dds_contains_impl(iter->m_hdl, entity);
+            }
+        }
+    }
+    dds_entity_unlock(p);
+
+    return result;
+}
+
+_Pre_satisfies_(parent & DDS_ENTITY_KIND_MASK)
+_Pre_satisfies_((entity & DDS_ENTITY_KIND_MASK) != DDS_KIND_PARTICIPANT)
+_Check_return_ dds_entity_t
+dds_contains (
+        _In_  const dds_entity_t parent,
+        _In_  const dds_entity_t entity)
+{
+
+    if (parent <= DDS_ENTITY_NIL) {
+        DDS_ERROR("Argument parent is NULL\n");
+        return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+    }
+
+    if (entity <= DDS_ENTITY_NIL) {
+        DDS_ERROR("Argument entity is NULL\n");
+        return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+    }
+
+    return dds_contains_impl(parent, entity);
 }

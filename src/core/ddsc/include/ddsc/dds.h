@@ -3146,7 +3146,6 @@ DDS_DEPRECATED_EXPORT dds_instance_handle_t
 dds_instance_lookup (
         dds_entity_t entity,
         const void *data);
-
 /**
  * @brief This operation takes an instance handle and return a key-value corresponding to it.
  *
@@ -3288,6 +3287,29 @@ _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
 DDS_EXPORT dds_entity_t
 dds_get_topic(
         _In_ dds_entity_t entity);
+
+
+/**
+ * @brief @Check if an entity is made through the factory of the parent entity
+ *
+ * @param[in] parent The parent entity.
+ * @param[in] entity The entity.
+ *
+ * @returns A dds_entity_t indicating the child entity in case of success or failure.
+ *
+ * @retval > 0
+ *             Entity is made through the factory of parent entity.
+ * @retval DDS_ENTITY_NIL
+ *             Entity is not made through the factory of parent entity.
+ *
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Entity or parent parameter is not a valid parameter.
+ */
+_Pre_satisfies_((entity & DDS_ENTITY_KIND_MASK) != DDS_KIND_PARTICIPANT)
+DDS_EXPORT _Check_return_ dds_entity_t
+dds_contains (
+        _In_  const dds_entity_t parent,
+        _In_  const  dds_entity_t entity);
 
 #if defined (__cplusplus)
 }
