@@ -24,7 +24,7 @@
 #include "dds__entity.h"
 #include "dds__reader.h"
 #include "dds__rhc.h"
-#include "dds__tkmap.h"
+#include "ddsi/ddsi_tkmap.h"
 #include "util/ut_hopscotch.h"
 
 #include "util/ut_avl.h"
@@ -253,7 +253,7 @@ struct rhc_instance
   nn_wctime_t tstamp;          /* source time stamp of last update */
   struct rhc_instance *next;   /* next non-empty instance in arbitrary ordering */
   struct rhc_instance *prev;
-  struct tkmap_instance *tk;   /* backref into TK for unref'ing */
+  struct ddsi_tkmap_instance *tk;   /* backref into TK for unref'ing */
   struct rhc_sample a_sample;  /* pre-allocated storage for 1 sample */
 };
 
@@ -504,7 +504,7 @@ static void free_instance (void *vnode, void *varg)
   {
     remove_inst_from_nonempty_list (rhc, inst);
   }
-  dds_tkmap_instance_unref (inst->tk);
+  ddsi_tkmap_instance_unref (inst->tk);
   dds_free (inst);
 }
 
@@ -668,8 +668,7 @@ static bool content_filter_accepts (const struct ddsi_sertopic *sertopic, const 
   const struct dds_topic *tp = sertopic->status_cb_entity;
   if (tp->filter_fn)
   {
-    const dds_topic_descriptor_t * desc = tp->m_descriptor;
-    char *tmp = dds_alloc (desc->m_size);
+    char *tmp = ddsi_sertopic_alloc_sample (tp->m_stopic);
     ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
     ret = (tp->filter_fn) (tmp, tp->filter_ctx);
     ddsi_sertopic_free_sample (tp->m_stopic, tmp, DDS_FREE_ALL);
@@ -1023,12 +1022,12 @@ static struct rhc_instance * alloc_new_instance
 (
   const struct proxy_writer_info *pwr_info,
   struct ddsi_serdata *serdata,
-  struct tkmap_instance *tk
+  struct ddsi_tkmap_instance *tk
 )
 {
   struct rhc_instance *inst;
 
-  dds_tkmap_instance_ref (tk);
+  ddsi_tkmap_instance_ref (tk);
   inst = dds_alloc (sizeof (*inst));
   inst->iid = tk->m_iid;
   inst->tk = tk;
@@ -1052,7 +1051,7 @@ static rhc_store_result_t rhc_store_new_instance
   struct rhc *rhc,
   const struct proxy_writer_info *pwr_info,
   struct ddsi_serdata *sample,
-  struct tkmap_instance *tk,
+  struct ddsi_tkmap_instance *tk,
   const bool has_data,
   status_cb_data_t * cb_data
 )
@@ -1124,7 +1123,7 @@ static rhc_store_result_t rhc_store_new_instance
 bool dds_rhc_store
 (
   struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info,
-  struct ddsi_serdata * __restrict sample, struct tkmap_instance * __restrict tk
+  struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk
 )
 {
   const uint64_t wr_iid = pwr_info->iid;
@@ -1402,7 +1401,15 @@ void dds_rhc_unregister_wr
      time a new WR_IID will be used for the same writer, then we have
      all the time in the world to scan the cache & clean up and that
      we don't have to keep it locked all the time (even if we do it
-     that way now).  */
+     that way now).
+
+     WR_IID was never reused while the built-in topics weren't getting
+     generated, but those really require the same instance id for the
+     same GUID if an instance still exists in some reader for that GUID.
+     So, if unregistration without locking the RHC is desired, entities
+     need to get two IIDs: the one visible to the application in the
+     built-in topics and in get_instance_handle, and one used internally
+     for tracking registrations and unregistrations. */
   bool trigger_waitsets = false;
   struct rhc_instance *inst;
   struct ut_hhIter iter;
@@ -2168,7 +2175,6 @@ static bool update_conditions_locked
   dds_readcond * iter;
   int m_pre;
   int m_post;
-  const struct dds_topic_descriptor *desc = rhc->topic->status_cb_entity->m_descriptor;
   char *tmp = NULL;
 
   DDS_TRACE("update_conditions_locked(%p) - inst %u nonempty %u disp %u nowr %u new %u samples %u read %u\n",
@@ -2214,8 +2220,7 @@ static bool update_conditions_locked
     {
       if (sample && tmp == NULL && (dds_entity_kind(iter->m_entity.m_hdl) == DDS_KIND_COND_QUERY))
       {
-        tmp = os_malloc (desc->m_size);
-        memset (tmp, 0, desc->m_size);
+        tmp = ddsi_sertopic_alloc_sample (rhc->topic);
         ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
       }
       if
@@ -2251,8 +2256,7 @@ static bool update_conditions_locked
 
   if (tmp)
   {
-    ddsi_sertopic_free_sample (rhc->topic, tmp, DDS_FREE_CONTENTS);
-    os_free (tmp);
+    ddsi_sertopic_free_sample (rhc->topic, tmp, DDS_FREE_ALL);
   }
   return trigger;
 }

@@ -20,7 +20,7 @@
 #include "dds__qos.h"
 #include "dds__err.h"
 #include "dds__init.h"
-#include "dds__tkmap.h"
+#include "ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
 #include "ddsc/ddsc_project.h"
 

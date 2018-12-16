@@ -116,15 +116,19 @@ static void ephash_guid_remove (struct entity_common *e)
   assert (x);
 }
 
-static void *ephash_lookup_guid_int (const struct ephash *ephash, const struct nn_guid *guid, enum entity_kind kind)
+void *ephash_lookup_guid_untyped (const struct nn_guid *guid)
 {
   /* FIXME: could (now) require guid to be first in entity_common; entity_common already is first in entity */
   struct entity_common e;
+  e.guid = *guid;
+  return ut_chhLookup (gv.guid_hash->hash, &e);
+}
+
+static void *ephash_lookup_guid_int (const struct ephash *ephash, const struct nn_guid *guid, enum entity_kind kind)
+{
   struct entity_common *res;
   (void)ephash;
-  e.guid = *guid;
-  res = ut_chhLookup (gv.guid_hash->hash, &e);
-  if (res && res->kind == kind)
+  if ((res = ephash_lookup_guid_untyped (guid)) != NULL && res->kind == kind)
     return res;
   else
     return NULL;
@@ -132,7 +136,7 @@ static void *ephash_lookup_guid_int (const struct ephash *ephash, const struct n
 
 void *ephash_lookup_guid (const struct nn_guid *guid, enum entity_kind kind)
 {
-  return ephash_lookup_guid_int (gv.guid_hash, guid, kind);
+  return ephash_lookup_guid_int (NULL, guid, kind);
 }
 
 void ephash_insert_participant_guid (struct participant *pp)

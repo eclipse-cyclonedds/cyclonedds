@@ -35,13 +35,14 @@
 #include "ddsi/q_protocol.h" /* NN_ENTITYID_... */
 #include "ddsi/q_unused.h"
 #include "ddsi/q_error.h"
-#include "ddsi/q_builtin_topic.h"
 #include "ddsi/ddsi_serdata_default.h"
 #include "ddsi/ddsi_mcgroup.h"
 #include "ddsi/q_receive.h"
 
 #include "ddsi/sysdeps.h"
 #include "dds__whc.h"
+#include "ddsi/ddsi_iid.h"
+#include "ddsi/ddsi_tkmap.h"
 
 struct deleted_participant {
   ut_avlNode_t avlnode;
@@ -153,14 +154,30 @@ static int is_builtin_endpoint (nn_entityid_t id, nn_vendorid_t vendorid)
   return is_builtin_entityid (id, vendorid) && id.u != NN_ENTITYID_PARTICIPANT;
 }
 
-static void entity_common_init (struct entity_common *e, const struct nn_guid *guid, const char *name, enum entity_kind kind, bool onlylocal)
+static void entity_common_init (struct entity_common *e, const struct nn_guid *guid, const char *name, enum entity_kind kind, nn_vendorid_t vendorid, bool onlylocal, struct ddsi_tkmap_instance **tk)
 {
   e->guid = *guid;
   e->kind = kind;
   e->name = os_strdup (name ? name : "");
-  e->iid = (ddsi_plugin.iidgen_fn) ();
-  os_mutexInit (&e->lock);
   e->onlylocal = onlylocal;
+  os_mutexInit (&e->lock);
+  if (onlylocal || is_builtin_entityid (guid->entityid, vendorid))
+  {
+    e->iid = ddsi_iid_gen ();
+    *tk = NULL;
+  }
+  else
+  {
+    struct ddsi_serdata *sd;
+    struct nn_keyhash kh;
+    memcpy (&kh, guid, sizeof (kh));
+    /* any random builtin topic will do (provided it has a GUID for a key), because what matters is the "class" of the topic, not the actual topic; also, this is called early in the initialisation of the entity with this GUID, which simply causes serdata_from_keyhash to create a key-only serdata because the key lookup fails. */
+    sd = ddsi_serdata_from_keyhash (gv.builtin_participant_topic, &kh);
+    /* FIXME: this makes the iid for a reincarnation of a proxy entity dependent on whether an application reader kept the corresponding built-in topic instance around, it may be attractive to reconsider and guarantee a new iid in these cases, at least for the publication handle */
+    *tk = ddsi_tkmap_find(sd, false, true);
+    ddsi_serdata_unref (sd);
+    e->iid = (*tk)->m_iid;
+  }
 }
 
 static void entity_common_fini (struct entity_common *e)
@@ -219,6 +236,36 @@ void local_reader_ary_setinvalid (struct local_reader_ary *x)
   x->valid = 0;
   x->fastpath_ok = 0;
   os_mutexUnlock (&x->rdary_lock);
+}
+
+static void write_builtin_topic_any (const struct entity_common *e, nn_wctime_t timestamp, bool alive, nn_vendorid_t vendorid, struct ddsi_tkmap_instance *tk)
+{
+  enum ddsi_sertopic_builtin_type type;
+  switch (e->kind)
+  {
+    case EK_PARTICIPANT:
+    case EK_PROXY_PARTICIPANT:
+      type = DSBT_PARTICIPANT;
+      break;
+    case EK_READER:
+    case EK_PROXY_READER:
+      type = DSBT_READER;
+      break;
+    case EK_WRITER:
+    case EK_PROXY_WRITER:
+      type = DSBT_WRITER;
+      break;
+  }
+  if (!(e->onlylocal || is_builtin_endpoint(e->guid.entityid, vendorid)))
+    ddsi_plugin.builtin_write (type, &e->guid, timestamp, alive);
+  /* tkmap instance only needs to be kept around until the first write of a built-in topic (if none ever happens, it needn't be kept at all): afterward, the WHC of the local built-in topic writer will keep the entry alive. FIXME: the SPDP/SEPD ones currently use default sertopics instead of builtin sertopics, and so use different mappings and different instnace ids. No-one ever sees those ids, so it doesn't matter, but it would nicer if it could actually be the same one.  FIXME: it would also be nicer if the local built-in topics and the SPDP/SEDP writers were the same, but I want the locally created endpoints visible in the built-in topics as well, and those don't exist in the discovery writers ... */
+  if (tk)
+    ddsi_tkmap_instance_unref (tk);
+}
+
+static void write_builtin_topic_local (const struct entity_common *e, nn_wctime_t timestamp, bool alive, struct ddsi_tkmap_instance *tk)
+{
+  write_builtin_topic_any(e, timestamp, alive, ownvendorid, tk);
 }
 
 /* DELETED PARTICIPANTS --------------------------------------------- */
@@ -357,6 +404,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
 {
   struct participant *pp;
   nn_guid_t subguid, group_guid;
+  struct ddsi_tkmap_instance *tk;
 
   /* no reserved bits may be set */
   assert ((flags & ~(RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS | RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP | RTPS_PF_ONLY_LOCAL)) == 0);
@@ -399,7 +447,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
 
   pp = os_malloc (sizeof (*pp));
 
-  entity_common_init (&pp->e, ppguid, "", EK_PARTICIPANT, ((flags & RTPS_PF_ONLY_LOCAL) != 0));
+  entity_common_init (&pp->e, ppguid, "", EK_PARTICIPANT, ownvendorid, ((flags & RTPS_PF_ONLY_LOCAL) != 0), &tk);
   pp->user_refc = 1;
   pp->builtin_refc = 0;
   pp->builtins_deleted = 0;
@@ -578,6 +626,8 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
     trigger_recv_threads ();
   }
 
+  write_builtin_topic_local(&pp->e, now(), true, tk);
+
   /* SPDP periodic broadcast uses the retransmit path, so the initial
      publication must be done differently. Must be later than making
      the participant globally visible, or the SPDP processing won't
@@ -604,7 +654,6 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
     tsched.v = (pp->lease_duration == T_NEVER) ? T_NEVER : 0;
     pp->pmd_update_xevent = qxev_pmd_update (tsched, &pp->e.guid);
   }
-
   return 0;
 }
 
@@ -813,11 +862,7 @@ int delete_participant (const struct nn_guid *ppguid)
   struct participant *pp;
   if ((pp = ephash_lookup_participant_guid (ppguid)) == NULL)
     return ERR_UNKNOWN_ENTITY;
-  if (!(pp->e.onlylocal))
-  {
-    propagate_builtin_topic_cmparticipant(&(pp->e), pp->plist, now(), false);
-    propagate_builtin_topic_participant(&(pp->e), pp->plist, now(), false);
-  }
+  write_builtin_topic_local(&pp->e, now(), false, NULL);
   remember_deleted_participant_guid (&pp->e.guid);
   ephash_remove_participant_guid (pp);
   gcreq_participant (pp);
@@ -1613,9 +1658,10 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
       struct proxy_writer_info pwr_info;
       struct ddsi_serdata *payload = sample.serdata;
       /* FIXME: whc has tk reference in its index nodes, which is what we really should be iterating over anyway, and so we don't really have to look them up anymore */
-      struct tkmap_instance *tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (payload);
+      struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref(payload);
       make_proxy_writer_info(&pwr_info, &wr->e, wr->xqos);
       (void)(ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk);
+      ddsi_tkmap_instance_unref(tk);
     }
   }
 
@@ -2330,10 +2376,11 @@ static void endpoint_common_init
   enum entity_kind kind,
   const struct nn_guid *guid,
   const struct nn_guid *group_guid,
-  struct participant *pp
+  struct participant *pp,
+  struct ddsi_tkmap_instance **tk
 )
 {
-  entity_common_init (e, guid, NULL, kind, pp->e.onlylocal);
+  entity_common_init (e, guid, NULL, kind, ownvendorid, pp->e.onlylocal, tk);
   c->pp = ref_participant (pp, &e->guid);
   if (group_guid)
   {
@@ -2560,6 +2607,7 @@ static struct writer * new_writer_guid (const struct nn_guid *guid, const struct
 {
   struct writer *wr;
   nn_mtime_t tnow = now_mt ();
+  struct ddsi_tkmap_instance *tk;
 
   assert (is_writer_entityid (guid->entityid));
   assert (ephash_lookup_writer_guid (guid) == NULL);
@@ -2572,7 +2620,7 @@ static struct writer * new_writer_guid (const struct nn_guid *guid, const struct
      delete_participant won't interfere with our ability to address
      the participant */
 
-  endpoint_common_init (&wr->e, &wr->c, EK_WRITER, guid, group_guid, pp);
+  endpoint_common_init (&wr->e, &wr->c, EK_WRITER, guid, group_guid, pp, &tk);
 
   os_condInit (&wr->throttle_cond, &wr->e.lock);
   wr->seq = 0;
@@ -2781,6 +2829,7 @@ static struct writer * new_writer_guid (const struct nn_guid *guid, const struct
      deleted while we do so */
   match_writer_with_proxy_readers (wr, tnow);
   match_writer_with_local_readers (wr, tnow);
+  write_builtin_topic_local(&wr->e, now(), true, tk);
   sedp_write_writer (wr);
 
   if (wr->lease_duration != T_NEVER)
@@ -2906,6 +2955,7 @@ int delete_writer_nolinger_locked (struct writer *wr)
 {
   DDS_LOG(DDS_LC_DISCOVERY, "delete_writer_nolinger(guid %x:%x:%x:%x) ...\n", PGUID (wr->e.guid));
   ASSERT_MUTEX_HELD (&wr->e.lock);
+  write_builtin_topic_local(&wr->e, now(), false, NULL);
   local_reader_ary_setinvalid (&wr->rdary);
   ephash_remove_writer_guid (wr);
   writer_set_state (wr, WRST_DELETING);
@@ -3122,6 +3172,7 @@ static struct reader * new_reader_guid
 
   struct reader * rd;
   nn_mtime_t tnow = now_mt ();
+  struct ddsi_tkmap_instance *tk;
 
   assert (!is_writer_entityid (guid->entityid));
   assert (ephash_lookup_reader_guid (guid) == NULL);
@@ -3130,7 +3181,7 @@ static struct reader * new_reader_guid
   new_reader_writer_common (guid, topic, xqos);
   rd = os_malloc (sizeof (*rd));
 
-  endpoint_common_init (&rd->e, &rd->c, EK_READER, guid, group_guid, pp);
+  endpoint_common_init (&rd->e, &rd->c, EK_READER, guid, group_guid, pp, &tk);
 
   /* Copy QoS, merging in defaults */
   rd->xqos = os_malloc (sizeof (*rd->xqos));
@@ -3234,6 +3285,7 @@ static struct reader * new_reader_guid
   ephash_insert_reader_guid (rd);
   match_reader_with_proxy_writers (rd, tnow);
   match_reader_with_local_writers (rd, tnow);
+  write_builtin_topic_local(&rd->e, now(), true, tk);
   sedp_write_reader (rd);
   return rd;
 }
@@ -3326,6 +3378,7 @@ int delete_reader (const struct nn_guid *guid)
     (ddsi_plugin.rhc_plugin.rhc_fini_fn) (rd->rhc);
   }
   DDS_LOG(DDS_LC_DISCOVERY, "delete_reader_guid(guid %x:%x:%x:%x) ...\n", PGUID (*guid));
+  write_builtin_topic_local(&rd->e, now(), false, NULL);
   ephash_remove_reader_guid (rd);
   gcreq_reader (rd);
   return 0;
@@ -3401,6 +3454,7 @@ void new_proxy_participant
      runs on a single thread, it can't go wrong. FIXME, maybe? The
      same holds for the other functions for creating entities. */
   struct proxy_participant *proxypp;
+  struct ddsi_tkmap_instance *tk;
 
   assert (ppguid->entityid.u == NN_ENTITYID_PARTICIPANT);
   assert (ephash_lookup_proxy_participant_guid (ppguid) == NULL);
@@ -3410,7 +3464,7 @@ void new_proxy_participant
 
   proxypp = os_malloc (sizeof (*proxypp));
 
-  entity_common_init (&proxypp->e, ppguid, "", EK_PROXY_PARTICIPANT, false);
+  entity_common_init (&proxypp->e, ppguid, "", EK_PROXY_PARTICIPANT, vendor, false, &tk);
   proxypp->refc = 1;
   proxypp->lease_expired = 0;
   proxypp->vendor = vendor;
@@ -3566,15 +3620,7 @@ void new_proxy_participant
   if (proxypp->owns_lease)
     lease_register (os_atomic_ldvoidp (&proxypp->lease));
 
-  if (proxypp->proxypp_have_spdp)
-  {
-    propagate_builtin_topic_participant(&(proxypp->e), proxypp->plist, timestamp, true);
-    if (proxypp->proxypp_have_cm)
-    {
-      propagate_builtin_topic_cmparticipant(&(proxypp->e), proxypp->plist, timestamp, true);
-    }
-  }
-
+  write_builtin_topic_any(&proxypp->e, timestamp, true, proxypp->vendor, tk);
   os_mutexUnlock (&proxypp->e.lock);
 }
 
@@ -3592,14 +3638,10 @@ int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, co
   switch (source)
   {
     case UPD_PROXYPP_SPDP:
-      propagate_builtin_topic_participant(&(proxypp->e), proxypp->plist, timestamp, true);
-      if (!proxypp->proxypp_have_spdp && proxypp->proxypp_have_cm)
-        propagate_builtin_topic_cmparticipant(&(proxypp->e), proxypp->plist, timestamp, true);
+      write_builtin_topic_any(&proxypp->e, timestamp, true, proxypp->vendor, NULL);
       proxypp->proxypp_have_spdp = 1;
       break;
     case UPD_PROXYPP_CM:
-      if (proxypp->proxypp_have_spdp)
-        propagate_builtin_topic_cmparticipant(&(proxypp->e), proxypp->plist, timestamp, true);
       proxypp->proxypp_have_cm = 1;
       break;
   }
@@ -3845,8 +3887,7 @@ int delete_proxy_participant_by_guid (const struct nn_guid * guid, nn_wctime_t t
     return ERR_UNKNOWN_ENTITY;
   }
   DDS_LOG(DDS_LC_DISCOVERY, "- deleting\n");
-  propagate_builtin_topic_cmparticipant(&(ppt->e), ppt->plist, timestamp, false);
-  propagate_builtin_topic_participant(&(ppt->e), ppt->plist, timestamp, false);
+  write_builtin_topic_any(&ppt->e, timestamp, false, ppt->vendor, NULL);
   remember_deleted_participant_guid (&ppt->e.guid);
   ephash_remove_proxy_participant_guid (ppt);
   os_mutexUnlock (&gv.lock);
@@ -3979,7 +4020,7 @@ static void proxy_endpoint_common_init
 (
   struct entity_common *e, struct proxy_endpoint_common *c,
   enum entity_kind kind, const struct nn_guid *guid, struct proxy_participant *proxypp,
-  struct addrset *as, const nn_plist_t *plist
+  struct addrset *as, const nn_plist_t *plist, struct ddsi_tkmap_instance **tk
 )
 {
   const char *name;
@@ -3990,7 +4031,7 @@ static void proxy_endpoint_common_init
     assert ((plist->qos.present & (QP_TOPIC_NAME | QP_TYPE_NAME)) == (QP_TOPIC_NAME | QP_TYPE_NAME));
 
   name = (plist->present & PP_ENTITY_NAME) ? plist->entity_name : "";
-  entity_common_init (e, guid, name, kind, false);
+  entity_common_init (e, guid, name, kind, proxypp->vendor, false, tk);
   c->xqos = nn_xqos_dup (&plist->qos);
   c->as = ref_addrset (as);
   c->topic = NULL; /* set from first matching reader/writer */
@@ -4024,6 +4065,7 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   struct proxy_writer *pwr;
   int isreliable;
   nn_mtime_t tnow = now_mt ();
+  struct ddsi_tkmap_instance *tk;
   (void)timestamp;
   assert (is_writer_entityid (guid->entityid));
   assert (ephash_lookup_proxy_writer_guid (guid) == NULL);
@@ -4035,7 +4077,7 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   }
 
   pwr = os_malloc (sizeof (*pwr));
-  proxy_endpoint_common_init (&pwr->e, &pwr->c, EK_PROXY_WRITER, guid, proxypp, as, plist);
+  proxy_endpoint_common_init (&pwr->e, &pwr->c, EK_PROXY_WRITER, guid, proxypp, as, plist, &tk);
 
   ut_avlInit (&pwr_readers_treedef, &pwr->readers);
   pwr->n_reliable_readers = 0;
@@ -4101,6 +4143,7 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   local_reader_ary_init (&pwr->rdary);
   ephash_insert_proxy_writer_guid (pwr);
   match_proxy_writer_with_readers (pwr, tnow);
+  write_builtin_topic_any(&pwr->e, timestamp, true, pwr->c.vendor, tk);
 
   os_mutexLock (&pwr->e.lock);
   pwr->local_matching_inprogress = 0;
@@ -4232,6 +4275,7 @@ int delete_proxy_writer (const struct nn_guid *guid, nn_wctime_t timestamp, int 
      from removing themselves from the proxy writer's rdary[]. */
   local_reader_ary_setinvalid (&pwr->rdary);
   DDS_LOG(DDS_LC_DISCOVERY, "- deleting\n");
+  write_builtin_topic_any(&pwr->e, timestamp, false, pwr->c.vendor, NULL);
   ephash_remove_proxy_writer_guid (pwr);
   os_mutexUnlock (&gv.lock);
   gcreq_proxy_writer (pwr);
@@ -4249,6 +4293,7 @@ int new_proxy_reader (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   struct proxy_participant *proxypp;
   struct proxy_reader *prd;
   nn_mtime_t tnow = now_mt ();
+  struct ddsi_tkmap_instance *tk;
   (void)timestamp;
 
   assert (!is_writer_entityid (guid->entityid));
@@ -4261,7 +4306,7 @@ int new_proxy_reader (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   }
 
   prd = os_malloc (sizeof (*prd));
-  proxy_endpoint_common_init (&prd->e, &prd->c, EK_PROXY_READER, guid, proxypp, as, plist);
+  proxy_endpoint_common_init (&prd->e, &prd->c, EK_PROXY_READER, guid, proxypp, as, plist, &tk);
 
   prd->deleting = 0;
 #ifdef DDSI_INCLUDE_SSM
@@ -4275,6 +4320,7 @@ int new_proxy_reader (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   ut_avlInit (&prd_writers_treedef, &prd->writers);
   ephash_insert_proxy_reader_guid (prd);
   match_proxy_reader_with_writers (prd, tnow);
+  write_builtin_topic_any(&prd->e, timestamp, true, prd->c.vendor, tk);
   return 0;
 }
 
@@ -4357,6 +4403,7 @@ int delete_proxy_reader (const struct nn_guid *guid, nn_wctime_t timestamp, int 
     DDS_LOG(DDS_LC_DISCOVERY, "- unknown\n");
     return ERR_UNKNOWN_ENTITY;
   }
+  write_builtin_topic_any(&prd->e, timestamp, false, prd->c.vendor, NULL);
   ephash_remove_proxy_reader_guid (prd);
   os_mutexUnlock (&gv.lock);
   DDS_LOG(DDS_LC_DISCOVERY, "- deleting\n");

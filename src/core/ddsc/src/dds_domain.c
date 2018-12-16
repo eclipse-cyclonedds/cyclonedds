@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds__domain.h"
-#include "dds__tkmap.h"
+#include "ddsi/ddsi_tkmap.h"
 
 static int dds_domain_compare (const int32_t * a, const int32_t * b)
 {

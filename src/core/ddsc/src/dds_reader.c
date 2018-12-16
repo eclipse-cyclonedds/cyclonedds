@@ -22,6 +22,7 @@
 #include "ddsi/q_entity.h"
 #include "ddsi/q_thread.h"
 #include "dds__builtin.h"
+#include "ddsi/ddsi_sertopic.h"
 #include "ddsc/ddsc_project.h"
 
 #include "os/os.h"
@@ -337,7 +338,6 @@ dds_reader_status_cb(
     }
 }
 
-
 _Pre_satisfies_(((participant_or_subscriber & DDS_ENTITY_KIND_MASK) == DDS_KIND_SUBSCRIBER ) ||\
                 ((participant_or_subscriber & DDS_ENTITY_KIND_MASK) == DDS_KIND_PARTICIPANT) )
 _Pre_satisfies_(((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC   ) ||\
@@ -371,7 +371,6 @@ dds_create_reader(
         }
         t = topic;
     } else {
-        /* TODO If qos is provided, we need to compare with writer qos to determine compatibility */
         subscriber = dds__get_builtin_subscriber(participant_or_subscriber);
         t = dds__get_builtin_topic(subscriber, topic);
     }
@@ -422,6 +421,14 @@ dds_create_reader(
     if (ret != 0) {
         dds_delete_qos(rqos);
         reader = ret;
+        goto err_bad_qos;
+    }
+
+    /* Additional checks required for built-in topics */
+    if (dds_entity_kind(topic) == DDS_KIND_INTERNAL && !dds__validate_builtin_reader_qos(topic, qos)) {
+        dds_delete_qos(rqos);
+        DDS_ERROR("Invalid QoS specified for built-in topic reader");
+        reader = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
         goto err_bad_qos;
     }
 
@@ -482,6 +489,11 @@ err_tp_lock:
         (void)dds_delete(subscriber);
     }
 err_sub_lock:
+    if (dds_entity_kind(topic) == DDS_KIND_INTERNAL) {
+        /* If topic is builtin, then the topic entity is local and should
+         * be deleted because the application won't. */
+        dds_delete(t);
+    }
     return reader;
 }
 

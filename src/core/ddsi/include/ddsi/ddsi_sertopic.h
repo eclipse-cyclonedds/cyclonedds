@@ -41,11 +41,19 @@ struct ddsi_sertopic {
 typedef void (*ddsi_sertopic_deinit_t) (struct ddsi_sertopic *tp);
 
 /* Release any memory allocated by ddsi_sertopic_to_sample */
-typedef void (*ddsi_sertopic_free_sample_t) (const struct ddsi_sertopic *d, void *sample, dds_free_op_t op);
+typedef void (*ddsi_sertopic_zero_samples_t) (const struct ddsi_sertopic *d, void *samples, size_t count);
+
+/* Release any memory allocated by ddsi_sertopic_to_sample */
+typedef void (*ddsi_sertopic_realloc_samples_t) (void **ptrs, const struct ddsi_sertopic *d, void *old, size_t oldcount, size_t count);
+
+/* Release any memory allocated by ddsi_sertopic_to_sample (also undo sertopic_alloc_sample if "op" so requests) */
+typedef void (*ddsi_sertopic_free_samples_t) (const struct ddsi_sertopic *d, void **ptrs, size_t count, dds_free_op_t op);
 
 struct ddsi_sertopic_ops {
   ddsi_sertopic_deinit_t deinit;
-  ddsi_sertopic_free_sample_t free_sample;
+  ddsi_sertopic_zero_samples_t zero_samples;
+  ddsi_sertopic_realloc_samples_t realloc_samples;
+  ddsi_sertopic_free_samples_t free_samples;
 };
 
 struct ddsi_sertopic *ddsi_sertopic_ref (const struct ddsi_sertopic *tp);
@@ -55,8 +63,26 @@ uint32_t ddsi_sertopic_compute_serdata_basehash (const struct ddsi_serdata_ops *
 inline void ddsi_sertopic_deinit (struct ddsi_sertopic *tp) {
   tp->ops->deinit (tp);
 }
+inline void ddsi_sertopic_zero_samples (const struct ddsi_sertopic *tp, void *samples, size_t count) {
+  tp->ops->zero_samples (tp, samples, count);
+}
+inline void ddsi_sertopic_realloc_samples (void **ptrs, const struct ddsi_sertopic *tp, void *old, size_t oldcount, size_t count)
+{
+  tp->ops->realloc_samples (ptrs, tp, old, oldcount, count);
+}
+inline void ddsi_sertopic_free_samples (const struct ddsi_sertopic *tp, void **ptrs, size_t count, dds_free_op_t op) {
+  tp->ops->free_samples (tp, ptrs, count, op);
+}
+inline void ddsi_sertopic_zero_sample (const struct ddsi_sertopic *tp, void *sample) {
+  ddsi_sertopic_zero_samples (tp, sample, 1);
+}
+inline void *ddsi_sertopic_alloc_sample (const struct ddsi_sertopic *tp) {
+  void *ptr;
+  ddsi_sertopic_realloc_samples (&ptr, tp, NULL, 0, 1);
+  return ptr;
+}
 inline void ddsi_sertopic_free_sample (const struct ddsi_sertopic *tp, void *sample, dds_free_op_t op) {
-  tp->ops->free_sample (tp, sample, op);
+  ddsi_sertopic_free_samples (tp, &sample, 1, op);
 }
 
 #endif

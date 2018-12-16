@@ -37,7 +37,6 @@
 #include "ddsi/q_transmit.h"
 #include "ddsi/q_lease.h"
 #include "ddsi/q_error.h"
-#include "ddsi/q_builtin_topic.h"
 #include "ddsi/ddsi_serdata_default.h"
 #include "ddsi/q_md5.h"
 #include "ddsi/q_feature_check.h"
@@ -199,8 +198,6 @@ int spdp_write (struct participant *pp)
       /* This topic is only locally available. */
       return 0;
   }
-
-  propagate_builtin_topic_participant(&(pp->e), pp->plist, now(), true);
 
   DDS_TRACE("spdp_write(%x:%x:%x:%x)\n", PGUID (pp->e.guid));
 
@@ -1424,8 +1421,6 @@ int sedp_write_cm_participant (struct participant *pp, int alive)
       /* This topic is only locally available. */
       return 0;
   }
-
-  propagate_builtin_topic_cmparticipant(&(pp->e), pp->plist, now(), alive);
 
   sedp_wr = get_sedp_writer (pp, NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER);
 

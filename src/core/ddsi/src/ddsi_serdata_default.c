@@ -24,7 +24,7 @@
 #include <string.h>
 #include "os/os.h"
 #include "dds__key.h"
-#include "dds__tkmap.h"
+#include "ddsi/ddsi_tkmap.h"
 #include "dds__stream.h"
 #include "ddsi/q_radmin.h"
 #include "ddsi/ddsi_serdata_default.h"
@@ -53,9 +53,9 @@ static void serdata_free_wrap (void *elem)
 {
 #ifndef NDEBUG
   struct ddsi_serdata_default *d = elem;
-  assert(os_atomic_ld32(&d->c.refc) == 1);
+  assert(os_atomic_ld32(&d->c.refc) == 0);
 #endif
-  ddsi_serdata_unref(elem);
+  dds_free(elem);
 }
 
 void ddsi_serdatapool_free (struct serdatapool * pool)
@@ -200,7 +200,9 @@ static bool serdata_default_eqkey_nokey (const struct ddsi_serdata *acmn, const 
 static void serdata_default_free(struct ddsi_serdata *dcmn)
 {
   struct ddsi_serdata_default *d = (struct ddsi_serdata_default *)dcmn;
-  dds_free (d);
+  assert(os_atomic_ld32(&d->c.refc) == 0);
+  if (!nn_freelist_push (&gv.serpool->freelist, d))
+    dds_free (d);
 }
 
 static void serdata_default_init(struct ddsi_serdata_default *d, const struct ddsi_sertopic_default *tp, enum ddsi_serdata_kind kind)
@@ -231,6 +233,8 @@ static struct ddsi_serdata_default *serdata_default_new(const struct ddsi_sertop
   struct ddsi_serdata_default *d;
   if ((d = nn_freelist_pop (&gv.serpool->freelist)) == NULL)
     d = serdata_default_allocnew(gv.serpool);
+  else
+    os_atomic_st32(&d->c.refc, 1);
   serdata_default_init(d, tp, kind);
   return d;
 }

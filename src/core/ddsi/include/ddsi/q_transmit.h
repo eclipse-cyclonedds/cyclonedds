@@ -25,7 +25,7 @@ struct writer;
 struct whc_state;
 struct proxy_reader;
 struct ddsi_serdata;
-struct tkmap_instance;
+struct ddsi_tkmap_instance;
 
 /* Writing new data; serdata_twrite (serdata) is assumed to be really
    recentish; serdata is unref'd.  If xp == NULL, data is queued, else
@@ -34,8 +34,8 @@ struct tkmap_instance;
    "nogc": no GC may occur, so it may not block to throttle the writer if the high water mark of the WHC is reached, which implies true KEEP_LAST behaviour.  This is true for all the DDSI built-in writers.
    "gc": GC may occur, which means the writer history and watermarks can be anything.  This must be used for all application data.
  */
-int write_sample_gc (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct tkmap_instance *tk);
-int write_sample_nogc (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct tkmap_instance *tk);
+int write_sample_gc (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
+int write_sample_nogc (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
 int write_sample_gc_notk (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata);
 int write_sample_nogc_notk (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata);
 

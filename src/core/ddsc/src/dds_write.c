@@ -13,7 +13,7 @@
 #include <string.h>
 #include "dds__writer.h"
 #include "dds__write.h"
-#include "dds__tkmap.h"
+#include "ddsi/ddsi_tkmap.h"
 #include "ddsi/q_error.h"
 #include "ddsi/q_thread.h"
 #include "ddsi/q_xmsg.h"
@@ -115,7 +115,7 @@ static int
 deliver_locally(
         _In_ struct writer *wr,
         _In_ struct ddsi_serdata *payload,
-        _In_ struct tkmap_instance *tk)
+        _In_ struct ddsi_tkmap_instance *tk)
 {
     dds_return_t ret = DDS_RETCODE_OK;
     os_mutexLock (&wr->rdary.rdary_lock);
@@ -193,7 +193,7 @@ dds_write_impl(
     const bool writekey = action & DDS_WR_KEY_BIT;
     dds_writer * writer = (dds_writer*) wr;
     struct writer * ddsi_wr = writer->m_wr;
-    struct tkmap_instance * tk;
+    struct ddsi_tkmap_instance * tk;
     struct ddsi_serdata *d;
 
     if (data == NULL) {
@@ -220,7 +220,7 @@ dds_write_impl(
                     ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0) ;
     d->timestamp.v = tstamp;
     ddsi_serdata_ref(d);
-    tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (d);
+    tk = ddsi_tkmap_lookup_instance_ref(d);
     w_rc = write_sample_gc (writer->m_xp, ddsi_wr, d, tk);
 
     if (w_rc >= 0) {
@@ -243,7 +243,7 @@ dds_write_impl(
         ret = deliver_locally (ddsi_wr, d, tk);
     }
     ddsi_serdata_unref(d);
-    (ddsi_plugin.rhc_plugin.rhc_unref_fn) (tk);
+    ddsi_tkmap_instance_unref(tk);
 
     if (asleep) {
         thread_state_asleep (thr);
@@ -267,7 +267,7 @@ dds_writecdr_impl(
     struct thread_state1 * const thr = lookup_thread_state ();
     const bool asleep = !vtime_awake_p (thr->vtime);
     struct writer * ddsi_wr = wr->m_wr;
-    struct tkmap_instance * tk;
+    struct ddsi_tkmap_instance * tk;
 
     if (wr->m_topic->filter_fn) {
         abort();
@@ -283,7 +283,7 @@ dds_writecdr_impl(
         ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0) ;
     d->timestamp.v = tstamp;
     ddsi_serdata_ref(d);
-    tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (d);
+    tk = ddsi_tkmap_lookup_instance_ref(d);
     w_rc = write_sample_gc (wr->m_xp, ddsi_wr, d, tk);
     if (w_rc >= 0) {
         /* Flush out write unless configured to batch */
@@ -306,7 +306,7 @@ dds_writecdr_impl(
         ret = deliver_locally (ddsi_wr, d, tk);
     }
     ddsi_serdata_unref(d);
-    (ddsi_plugin.rhc_plugin.rhc_unref_fn) (tk);
+    ddsi_tkmap_instance_unref(tk);
 
     if (asleep) {
         thread_state_asleep (thr);

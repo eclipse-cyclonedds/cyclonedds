@@ -48,7 +48,6 @@ typedef _Return_type_success_(return >  0) int32_t dds_entity_t;
 #include "ddsc/dds_public_error.h"
 #include "ddsc/dds_public_status.h"
 #include "ddsc/dds_public_listener.h"
-#include "dds_dcps_builtintopics.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -74,15 +73,9 @@ DDS_EXPORT dds_domainid_t dds_domain_default (void);
  * @{
  */
 extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSPARTICIPANT;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_CMPARTICIPANT;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSTYPE;
 extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSTOPIC;
 extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSPUBLICATION;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_CMPUBLISHER;
 extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_CMSUBSCRIBER;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_CMDATAWRITER;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_CMDATAREADER;
 /** @}*/
 
 /** @name Communication Status definitions
@@ -176,6 +169,29 @@ typedef struct dds_sample_info
   uint32_t absolute_generation_rank;
 }
 dds_sample_info_t;
+
+typedef struct dds_builtintopic_guid
+{
+  uint8_t v[16];
+}
+dds_builtintopic_guid_t;
+
+typedef struct dds_builtintopic_participant
+{
+  dds_builtintopic_guid_t key;
+  dds_qos_t *qos;
+}
+dds_builtintopic_participant_t;
+
+typedef struct dds_builtintopic_endpoint
+{
+  dds_builtintopic_guid_t key;
+  dds_builtintopic_guid_t participant_key;
+  char *topic_name;
+  char *type_name;
+  dds_qos_t *qos;
+}
+dds_builtintopic_endpoint_t;
 
 /*
   All entities are represented by a process-private handle, with one
@@ -947,7 +963,7 @@ dds_lookup_participant(
         _In_        size_t size);
 
 /**
- * @brief Creates a new topic.
+ * @brief Creates a new topic with default type handling.
  *
  * The type name for the topic is taken from the generated descriptor. Topic
  * matching is done on a combination of topic name and type name.
@@ -974,6 +990,39 @@ dds_create_topic(
         _In_z_ const char *name,
         _In_opt_ const dds_qos_t *qos,
         _In_opt_ const dds_listener_t *listener);
+
+/**
+ * @brief Creates a new topic with arbitrary type handling.
+ *
+ * The type name for the topic is taken from the provided "sertopic" object. Topic
+ * matching is done on a combination of topic name and type name.
+ *
+ * @param[in]  participant  Participant on which to create the topic.
+ * @param[in]  sertopic     Internal description of the topic type.
+ * @param[in]  name         Name of the topic.
+ * @param[in]  qos          QoS to set on the new topic (can be NULL).
+ * @param[in]  listener     Any listener functions associated with the new topic (can be NULL).
+ * @param[in]  sedp_plist   Topic description to be published as part of discovery (if NULL, not published).
+ *
+ * @returns A valid topic handle or an error code.
+ *
+ * @retval >=0
+ *             A valid topic handle.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Either participant, descriptor, name or qos is invalid.
+ */
+/* TODO: Check list of retcodes is complete. */
+struct ddsi_sertopic;
+struct nn_plist;
+_Pre_satisfies_((participant & DDS_ENTITY_KIND_MASK) == DDS_KIND_PARTICIPANT)
+DDS_EXPORT dds_entity_t
+dds_create_topic_arbitrary (
+        _In_ dds_entity_t participant,
+        _In_ struct ddsi_sertopic *sertopic,
+        _In_z_ const char *name,
+        _In_opt_ const dds_qos_t *qos,
+        _In_opt_ const dds_listener_t *listener,
+        _In_opt_ const struct nn_plist *sedp_plist);
 
 /**
  * @brief Finds a named topic.
@@ -3037,7 +3086,7 @@ dds_read_next_wl(
 _Pre_satisfies_(((reader_or_condition & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER ) ||\
                 ((reader_or_condition & DDS_ENTITY_KIND_MASK) == DDS_KIND_COND_READ ) || \
                 ((reader_or_condition & DDS_ENTITY_KIND_MASK) == DDS_KIND_COND_QUERY ))
-DDS_EXPORT _Must_inspect_result_ dds_return_t
+DDS_EXPORT dds_return_t
 dds_return_loan(
         _In_ dds_entity_t reader_or_condition,
         _Inout_updates_(bufsz) void **buf,

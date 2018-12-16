@@ -46,6 +46,7 @@
 #include "ddsi/q_globals.h"
 #include "ddsi/q_static_assert.h"
 #include "ddsi/q_init.h"
+#include "ddsi/ddsi_tkmap.h"
 #include "ddsi/ddsi_mcgroup.h"
 #include "ddsi/ddsi_serdata.h"
 #include "ddsi/ddsi_serdata_default.h" /* FIXME: get rid of this */
@@ -1995,8 +1996,8 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
    the PRISMTECH_WRITER_INFO thing is completely meaningless to
    us */
   {
-    struct tkmap_instance * tk;
-    tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (payload);
+    struct ddsi_tkmap_instance * tk;
+    tk = ddsi_tkmap_lookup_instance_ref(payload);
     if (tk)
     {
       struct proxy_writer_info pwr_info;
@@ -2075,7 +2076,7 @@ retry:
           if (pwr_locked) os_mutexLock (&pwr->e.lock);
         }
       }
-      (ddsi_plugin.rhc_plugin.rhc_unref_fn) (tk);
+      ddsi_tkmap_instance_unref (tk);
     }
   }
   ddsi_serdata_unref (payload);

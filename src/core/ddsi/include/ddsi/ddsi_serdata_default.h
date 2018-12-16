@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_SER_H
-#define DDSI_SER_H
+#ifndef DDSI_SERDATA_DEFAULT_H
+#define DDSI_SERDATA_DEFAULT_H
 
 #include "os/os.h"
 #include "ddsi/q_plist.h" /* for nn_prismtech_writer_info */

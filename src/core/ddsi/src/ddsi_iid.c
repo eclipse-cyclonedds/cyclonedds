@@ -9,12 +9,9 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds__iid.h"
+#include "ddsi/ddsi_iid.h"
 #include "ddsi/q_time.h"
 #include "ddsi/q_globals.h"
-
-static os_mutex dds_iid_lock_g;
-static dds_iid dds_iid_g;
 
 static void dds_tea_encrypt (uint32_t v[2], const uint32_t k[4])
 {
@@ -43,37 +40,50 @@ static void dds_tea_decrypt (uint32_t v[2], const uint32_t k[4])
   v[0]=v0; v[1]=v1;
 }
 
-uint64_t dds_iid_gen (void)
+uint64_t ddsi_iid_gen (void)
 {
   uint64_t iid;
   union { uint64_t u64; uint32_t u32[2]; } tmp;
 
-  os_mutexLock (&dds_iid_lock_g);
-  tmp.u64 = ++dds_iid_g.counter;
-  dds_tea_encrypt (tmp.u32, dds_iid_g.key);
+#if OS_ATOMIC64_SUPPORT
+  tmp.u64 = os_atomic_inc64_nv (&gv.dds_iid.counter);
+#else
+  os_mutexLock (&gv.dds_iid.lock);
+  tmp.u64 = ++gv.dds_iid.counter;
+  os_mutexUnlock (&gv.dds_iid.lock);
+#endif
+
+  dds_tea_encrypt (tmp.u32, gv.dds_iid.key);
   iid = tmp.u64;
-  os_mutexUnlock (&dds_iid_lock_g);
   return iid;
 }
 
-void dds_iid_init (void)
+void ddsi_iid_init (void)
 {
   union { uint64_t u64; uint32_t u32[2]; } tmp;
   nn_wctime_t tnow = now ();
 
-  os_mutexInit (&dds_iid_lock_g);
+#if ! OS_ATOMIC64_SUPPORT
+  os_mutexInit (&gv.dds_iid.lock);
+#endif
 
-  dds_iid_g.key[0] = (uint32_t) ((uintptr_t) &dds_iid_g);
-  dds_iid_g.key[1] = (uint32_t) tnow.v;
-  dds_iid_g.key[2] = (uint32_t) (tnow.v >> 32);
-  dds_iid_g.key[3] = 0xdeadbeef;
+  gv.dds_iid.key[0] = (uint32_t) os_procIdSelf();
+  gv.dds_iid.key[1] = (uint32_t) tnow.v;
+  gv.dds_iid.key[2] = (uint32_t) (tnow.v >> 32);
+  gv.dds_iid.key[3] = 0xdeadbeef;
 
   tmp.u64 = 0;
-  dds_tea_decrypt (tmp.u32, dds_iid_g.key);
-  dds_iid_g.counter = tmp.u64;
+  dds_tea_decrypt (tmp.u32, gv.dds_iid.key);
+#if OS_ATOMIC64_SUPPORT
+  os_atomic_st64 (&gv.dds_iid.counter, tmp.u64);
+#else
+  gv.dds_iid.counter = tmp.u64;
+#endif
 }
 
-void dds_iid_fini (void)
+void ddsi_iid_fini (void)
 {
-  os_mutexDestroy (&dds_iid_lock_g);
+#if ! OS_ATOMIC64_SUPPORT
+  os_mutexDestroy (&gv.dds_iid.lock);
+#endif
 }

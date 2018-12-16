@@ -31,7 +31,7 @@
 #include "ddsi/q_unused.h"
 #include "ddsi/q_hbcontrol.h"
 #include "ddsi/q_static_assert.h"
-
+#include "ddsi/ddsi_tkmap.h"
 #include "ddsi/ddsi_serdata.h"
 #include "ddsi/ddsi_sertopic.h"
 
@@ -851,7 +851,7 @@ int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct nn_
   return enqueued ? 0 : -1;
 }
 
-static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct tkmap_instance *tk)
+static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   /* returns: < 0 on error, 0 if no need to insert in whc, > 0 if inserted */
   int do_insert, insres, res;
@@ -1027,7 +1027,7 @@ static int maybe_grow_whc (struct writer *wr)
   return 0;
 }
 
-static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_plist *plist, struct ddsi_serdata *serdata, struct tkmap_instance *tk, int end_of_txn, int gc_allowed)
+static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
 {
   int r;
   seqno_t seq;
@@ -1163,33 +1163,33 @@ drop:
   return r;
 }
 
-int write_sample_gc (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct tkmap_instance *tk)
+int write_sample_gc (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   return write_sample_eot (xp, wr, NULL, serdata, tk, 0, 1);
 }
 
-int write_sample_nogc (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct tkmap_instance *tk)
+int write_sample_nogc (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   return write_sample_eot (xp, wr, NULL, serdata, tk, 0, 0);
 }
 
 int write_sample_gc_notk (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
 {
-  struct tkmap_instance *tk;
+  struct ddsi_tkmap_instance *tk;
   int res;
-  tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (serdata);
+  tk = ddsi_tkmap_lookup_instance_ref (serdata);
   res = write_sample_eot (xp, wr, NULL, serdata, tk, 0, 1);
-  (ddsi_plugin.rhc_plugin.rhc_unref_fn) (tk);
+  ddsi_tkmap_instance_unref (tk);
   return res;
 }
 
 int write_sample_nogc_notk (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
 {
-  struct tkmap_instance *tk;
+  struct ddsi_tkmap_instance *tk;
   int res;
-  tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (serdata);
+  tk = ddsi_tkmap_lookup_instance_ref (serdata);
   res = write_sample_eot (xp, wr, NULL, serdata, tk, 0, 0);
-  (ddsi_plugin.rhc_plugin.rhc_unref_fn) (tk);
+  ddsi_tkmap_instance_unref (tk);
   return res;
 }
 

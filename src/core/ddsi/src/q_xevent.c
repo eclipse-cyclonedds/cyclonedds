@@ -38,6 +38,7 @@
 #include "ddsi/q_xmsg.h"
 #include "ddsi/ddsi_serdata.h"
 #include "ddsi/ddsi_serdata_default.h"
+#include "ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
 
 #include "ddsi/sysdeps.h"
@@ -1128,7 +1129,7 @@ static void write_pmd_message (struct nn_xpack *xp, struct participant *pp, unsi
     char pad[offsetof (ParticipantMessageData_t, value) + PMD_DATA_LENGTH];
   } u;
   struct ddsi_serdata *serdata;
-  struct tkmap_instance *tk;
+  struct ddsi_tkmap_instance *tk;
 
   if ((wr = get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER)) == NULL)
   {
@@ -1150,9 +1151,9 @@ static void write_pmd_message (struct nn_xpack *xp, struct participant *pp, unsi
   serdata = ddsi_serdata_from_sample (gv.rawcdr_topic, SDK_DATA, &raw);
   serdata->timestamp = now ();
 
-  tk = (ddsi_plugin.rhc_plugin.rhc_lookup_fn) (serdata);
+  tk = ddsi_tkmap_lookup_instance_ref(serdata);
   write_sample_nogc (xp, wr, serdata, tk);
-  (ddsi_plugin.rhc_plugin.rhc_unref_fn) (tk);
+  ddsi_tkmap_instance_unref(tk);
 #undef PMD_DATA_LENGTH
 }
 
