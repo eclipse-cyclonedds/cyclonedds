@@ -88,7 +88,7 @@ dds_init(dds_domainid_t domain)
     {
       DDS_ERROR("requested domain id %d is out of range\n", domain);
       ret = DDS_ERRNO(DDS_RETCODE_ERROR);
-      goto fail_config;
+      goto fail_config_domainid;
     }
     else if (config.domainId.isdefault)
     {
@@ -98,7 +98,7 @@ dds_init(dds_domainid_t domain)
     {
       DDS_ERROR("requested domain id %d is inconsistent with configured value %d\n", domain, config.domainId.value);
       ret = DDS_ERRNO(DDS_RETCODE_ERROR);
-      goto fail_config;
+      goto fail_config_domainid;
     }
   }
 
@@ -190,6 +190,7 @@ fail_servicelease_new:
   thread_states_fini();
 fail_rtps_config:
   dds__builtin_fini();
+fail_config_domainid:
   dds_global.m_default_domain = DDS_DOMAIN_DEFAULT;
   config_fini (dds_cfgst);
   dds_cfgst = NULL;
