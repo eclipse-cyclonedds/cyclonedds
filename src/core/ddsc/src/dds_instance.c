@@ -250,9 +250,7 @@ dds_unregister_instance_ih_ts(
     bool autodispose = true;
     dds_write_action action = DDS_WR_ACTION_UNREGISTER;
     dds_entity *wr;
-    struct ddsi_tkmap *map;
-    const dds_topic *topic;
-    void *sample;
+    struct ddsi_tkmap_instance *tk;
 
     rc = dds_entity_lock(writer, DDS_KIND_WRITER, &wr);
     if (rc != DDS_RETCODE_OK) {
@@ -269,19 +267,21 @@ dds_unregister_instance_ih_ts(
         action |= DDS_WR_DISPOSE_BIT;
     }
 
-    map = gv.m_tkmap;
     if (asleep) {
         thread_state_awake(thr);
     }
-    topic = dds_instance_info((dds_entity*)wr);
-    sample = ddsi_sertopic_alloc_sample (topic->m_stopic);
-    if (ddsi_tkmap_get_key (map, topic->m_stopic, handle, sample)) {
+    tk = ddsi_tkmap_find_by_id (gv.m_tkmap, handle);
+    if (tk) {
+        struct ddsi_sertopic *tp = ((dds_writer*) wr)->m_topic->m_stopic;
+        void *sample = ddsi_sertopic_alloc_sample (tp);
+        ddsi_serdata_topicless_to_sample (tp, tk->m_sample, sample, NULL, NULL);
+        ddsi_tkmap_instance_unref (tk);
         ret = dds_write_impl ((dds_writer*)wr, sample, timestamp, action);
-    } else{
+        ddsi_sertopic_free_sample (tp, sample, DDS_FREE_ALL);
+    } else {
         DDS_ERROR("No instance related with the provided handle is found\n");
         ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
     }
-    ddsi_sertopic_free_sample (topic->m_stopic, sample, DDS_FREE_ALL);
     if (asleep) {
         thread_state_asleep(thr);
     }
@@ -387,14 +387,17 @@ dds_dispose_ih_ts(
     if (rc == DDS_RETCODE_OK) {
         struct thread_state1 * const thr = lookup_thread_state();
         const bool asleep = !vtime_awake_p(thr->vtime);
-        struct ddsi_tkmap *map = gv.m_tkmap;
-        const dds_topic *topic = dds_instance_info((dds_entity*)wr);
-        void *sample = ddsi_sertopic_alloc_sample (topic->m_stopic);
+        struct ddsi_tkmap_instance *tk;
         if (asleep) {
             thread_state_awake(thr);
         }
-        if (ddsi_tkmap_get_key (map, topic->m_stopic, handle, sample)) {
-            ret = dds_dispose_impl(wr, sample, handle, timestamp);
+        if ((tk = ddsi_tkmap_find_by_id (gv.m_tkmap, handle)) != NULL) {
+            struct ddsi_sertopic *tp = ((dds_writer*) wr)->m_topic->m_stopic;
+            void *sample = ddsi_sertopic_alloc_sample (tp);
+            ddsi_serdata_topicless_to_sample (tp, tk->m_sample, sample, NULL, NULL);
+            ddsi_tkmap_instance_unref (tk);
+            ret = dds_dispose_impl (wr, sample, handle, timestamp);
+            ddsi_sertopic_free_sample (tp, sample, DDS_FREE_ALL);
         } else {
             DDS_ERROR("No instance related with the provided handle is found\n");
             ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
@@ -402,7 +405,6 @@ dds_dispose_ih_ts(
         if (asleep) {
             thread_state_asleep(thr);
         }
-        ddsi_sertopic_free_sample (topic->m_stopic, sample, DDS_FREE_ALL);
         dds_writer_unlock(wr);
     } else {
         DDS_ERROR("Error occurred on locking writer\n");
@@ -461,14 +463,14 @@ _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
 dds_return_t
 dds_instance_get_key(
         dds_entity_t entity,
-        dds_instance_handle_t inst,
+        dds_instance_handle_t ih,
         void *data)
 {
     struct thread_state1 * const thr = lookup_thread_state();
     const bool asleep = !vtime_awake_p(thr->vtime);
     dds_return_t ret;
     const dds_topic * topic;
-    struct ddsi_tkmap * map = gv.m_tkmap;
+    struct ddsi_tkmap_instance * tk;
 
     if(data == NULL){
         DDS_ERROR("Argument data is NULL\n");
@@ -482,13 +484,15 @@ dds_instance_get_key(
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
-    ddsi_sertopic_zero_sample (topic->m_stopic, data);
     if (asleep) {
         thread_state_awake(thr);
     }
-    if (ddsi_tkmap_get_key (map, topic->m_stopic, inst, data)) {
+    if ((tk = ddsi_tkmap_find_by_id(gv.m_tkmap, ih)) != NULL) {
+        ddsi_sertopic_zero_sample (topic->m_stopic, data);
+        ddsi_serdata_topicless_to_sample (topic->m_stopic, tk->m_sample, data, NULL, NULL);
+        ddsi_tkmap_instance_unref (tk);
         ret = DDS_RETCODE_OK;
-    } else{
+    } else {
         DDS_ERROR("No instance related with the provided entity is found\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
