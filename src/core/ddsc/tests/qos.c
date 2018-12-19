@@ -274,6 +274,10 @@ CU_Test(ddsc_qos, copy_with_partition, .init=qos_init, .fini=qos_fini)
             CU_ASSERT_STRING_EQUAL_FATAL(p.ps[cnt], g_pol_partition.ps[cnt]);
         }
 
+        for (uint32_t cnt = 0; cnt < p.n; cnt++) {
+            dds_free (p.ps[cnt]);
+        }
+        dds_free (p.ps);
         dds_delete_qos(qos);
 }
 
