@@ -1276,6 +1276,12 @@ bool dds_rhc_store
         {
           DDS_TRACE("(reject)");
           stored = RHC_REJECTED;
+
+          /* FIXME: fix the bad rejection handling, probably put back in a proper rollback, until then a band-aid like this will have to do: */
+          inst->isnew = old_isnew;
+          inst->isdisposed = old_isdisposed;
+          if (old_isdisposed)
+            inst->disposed_gen--;
           goto error_or_nochange;
         }
       }
