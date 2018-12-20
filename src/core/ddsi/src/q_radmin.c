@@ -2509,6 +2509,7 @@ struct nn_dqueue *nn_dqueue_new (const char *name, uint32_t max_samples, nn_dque
 {
   struct nn_dqueue *q;
   char *thrname;
+  size_t thrnamesz;
 
   if ((q = os_malloc (sizeof (*q))) == NULL)
     goto fail_q;
@@ -2523,9 +2524,10 @@ struct nn_dqueue *nn_dqueue_new (const char *name, uint32_t max_samples, nn_dque
   os_mutexInit (&q->lock);
   os_condInit (&q->cond, &q->lock);
 
-  if ((thrname = os_malloc (3 + strlen (name) + 1)) == NULL)
+  thrnamesz = 3 + strlen (name) + 1;
+  if ((thrname = os_malloc (thrnamesz)) == NULL)
     goto fail_thrname;
-  sprintf (thrname, "dq.%s", name);
+  snprintf (thrname, thrnamesz, "dq.%s", name);
   if ((q->ts = create_thread (thrname, (uint32_t (*) (void *)) dqueue_thread, q)) == NULL)
     goto fail_thread;
   os_free (thrname);

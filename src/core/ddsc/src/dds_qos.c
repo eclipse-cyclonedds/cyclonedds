@@ -533,7 +533,6 @@ void dds_qset_partition
 )
 {
     uint32_t i;
-    size_t len;
 
     if(!qos) {
         DDS_ERROR("Argument qos may not be NULL\n");
@@ -558,9 +557,7 @@ void dds_qset_partition
     }
 
     for (i = 0; i < n; i++) {
-        len = strlen (ps[i]) + 1;
-        qos->partition.strs[i] = dds_alloc (len);
-        strncpy (qos->partition.strs[i], ps[i], len);
+        qos->partition.strs[i] = dds_string_dup (ps[i]);
     }
     qos->present |= QP_PARTITION;
 }

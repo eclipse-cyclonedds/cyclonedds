@@ -426,6 +426,7 @@ static int check_thread_properties (void)
   return ok;
 }
 
+OS_WARNING_MSVC_OFF(4996);
 int rtps_config_open (void)
 {
     int status;
@@ -462,6 +463,7 @@ int rtps_config_open (void)
 
     return status;
 }
+OS_WARNING_MSVC_ON(4996);
 
 int rtps_config_prep (struct cfgst *cfgst)
 {

@@ -1473,6 +1473,7 @@ static int uf_string(struct cfgst *cfgst, void *parent, struct cfgelem const * c
     return 1;
 }
 
+OS_WARNING_MSVC_OFF(4996);
 static int uf_natint64_unit(struct cfgst *cfgst, int64_t *elem, const char *value, const struct unit *unittab, int64_t def_mult, int64_t max)
 {
     int pos;
@@ -1502,6 +1503,7 @@ static int uf_natint64_unit(struct cfgst *cfgst, int64_t *elem, const char *valu
         return cfg_error(cfgst, "%s: invalid value", value);
     }
 }
+OS_WARNING_MSVC_ON(4996);
 
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
 static int uf_bandwidth(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
@@ -1761,6 +1763,7 @@ static void pf_sched_class(struct cfgst *cfgst, void *parent, struct cfgelem con
     cfg_log(cfgst, "%s%s", str, is_default ? " [def]" : "");
 }
 
+OS_WARNING_MSVC_OFF(4996);
 static int uf_maybe_int32(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
     struct config_maybe_int32 *elem = cfg_address(cfgst, parent, cfgelem);
@@ -1776,6 +1779,7 @@ static int uf_maybe_int32(struct cfgst *cfgst, void *parent, struct cfgelem cons
         return cfg_error(cfgst, "'%s': neither 'default' nor a decimal integer\n", value);
     }
 }
+OS_WARNING_MSVC_ON(4996);
 
 static int uf_maybe_memsize(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
@@ -1902,6 +1906,7 @@ static int uf_int_min_max(struct cfgst *cfgst, void *parent, struct cfgelem cons
         return 1;
 }
 
+OS_WARNING_MSVC_OFF(4996);
 static int uf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
   struct config_maybe_int32 *elem = cfg_address(cfgst, parent, cfgelem);
@@ -1917,6 +1922,7 @@ static int uf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const *
     return cfg_error(cfgst, "'%s': neither 'any' nor a decimal integer in 0 .. 230\n", value);
   }
 }
+OS_WARNING_MSVC_ON(4996);
 
 static int uf_participantIndex(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {
@@ -2745,6 +2751,7 @@ struct cfgst * config_init
             struct ut_xmlpState *qx;
             FILE *fp;
 
+            OS_WARNING_MSVC_OFF(4996);
             if ( (fp = fopen(tok, "r")) == NULL ) {
                 if ( strncmp(tok, "file://", 7) != 0 || (fp = fopen(tok + 7, "r")) == NULL ) {
                     DDS_ERROR("can't open configuration file %s\n", tok);
@@ -2753,6 +2760,7 @@ struct cfgst * config_init
                     return NULL;
                 }
             }
+            OS_WARNING_MSVC_ON(4996);
 
             cb.attr = proc_attr;
             cb.elem_close = proc_elem_close;

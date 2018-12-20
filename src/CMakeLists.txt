@@ -42,8 +42,6 @@ set(CMAKE_PROJECT_NAME_FULL "Cyclone DDS")
 string(REPLACE " " "" PROJECT_NAME "${CMAKE_PROJECT_NAME_FULL}")
 project(${PROJECT_NAME} VERSION 0.1.0)
 
-find_package(Abstraction REQUIRED)
-
 # Set some convenience variants of the project-name
 string(REPLACE " " "-" CMAKE_PROJECT_NAME_DASHED "${CMAKE_PROJECT_NAME_FULL}")
 string(TOUPPER ${CMAKE_PROJECT_NAME} CMAKE_PROJECT_NAME_CAPS)

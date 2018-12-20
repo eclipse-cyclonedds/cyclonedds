@@ -45,9 +45,10 @@ static void config__check_env(
         if ( !env_ok ) {
             os_result r;
             char *envstr;
+            size_t len = strlen(env_variable) + strlen("=") + strlen(expected_value) + 1;
 
-            envstr = os_malloc(strlen(env_variable) + strlen("=") + strlen(expected_value) + 1);
-            (void) sprintf(envstr, "%s=%s", env_variable, expected_value);
+            envstr = os_malloc(len);
+            (void)snprintf(envstr, len, "%s=%s", env_variable, expected_value);
 
             r = os_putenv(envstr);
             CU_ASSERT_EQUAL_FATAL(r, os_resultSuccess);

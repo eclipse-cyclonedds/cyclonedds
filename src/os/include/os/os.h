@@ -54,6 +54,7 @@
 #include "os_errno.h"
 #include "os_iter.h"
 #include "os_log.h"
+#include "os_strlcpy.h"
 
 #define OSPL_VERSION_STR "aap"
 #define OSPL_HOST_STR "noot"

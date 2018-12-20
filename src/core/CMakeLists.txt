@@ -9,8 +9,6 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-find_package(Abstraction REQUIRED)
-
 include (GenerateExportHeader)
 
 FUNCTION(PREPEND var prefix)

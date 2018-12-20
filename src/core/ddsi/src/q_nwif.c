@@ -481,12 +481,11 @@ int find_own_ip (const char *requested_address)
     char if_name[sizeof (last_if_name)];
     int q = 0;
 
-    strncpy (if_name, ifa->name, sizeof (if_name) - 1);
-    if_name[sizeof (if_name) - 1] = 0;
+    os_strlcpy(if_name, ifa->name, sizeof(if_name));
 
     if (strcmp (if_name, last_if_name))
       DDS_LOG(DDS_LC_CONFIG, "%s%s", sep, if_name);
-    strcpy (last_if_name, if_name);
+    os_strlcpy(last_if_name, if_name, sizeof(last_if_name));
 
     /* interface must be up */
     if ((ifa->flags & IFF_UP) == 0) {

@@ -458,6 +458,7 @@ dds_create_topic(
     nn_plist_t plist;
     dds_entity_t hdl;
     uint32_t index;
+    size_t keysz;
 
     if (desc == NULL){
         DDS_ERROR("Topic description is NULL");
@@ -478,10 +479,9 @@ dds_create_topic(
     }
 
     typename = desc->m_typename;
-    key = (char*) dds_alloc (strlen (name) + strlen (typename) + 2);
-    strcpy (key, name);
-    strcat (key, "/");
-    strcat (key, typename);
+    keysz = strlen (name) + strlen (typename) + 2;
+    key = (char*) dds_alloc (keysz);
+    (void) snprintf(key, keysz, "%s/%s", name, typename);
 
     st = dds_alloc (sizeof (*st));
 
@@ -490,10 +490,8 @@ dds_create_topic(
     st->c.status_cb = dds_topic_status_cb;
     st->c.status_cb_entity = NULL; /* set by dds_create_topic_arbitrary */
     st->c.name_typename = key;
-    st->c.name = dds_alloc (strlen (name) + 1);
-    strcpy (st->c.name, name);
-    st->c.typename = dds_alloc (strlen (typename) + 1);
-    strcpy (st->c.typename, typename);
+    st->c.name = dds_string_dup (name);
+    st->c.typename = dds_string_dup (typename);
     st->c.ops = &ddsi_sertopic_ops_default;
     st->c.serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey;
     st->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (st->c.serdata_ops);
