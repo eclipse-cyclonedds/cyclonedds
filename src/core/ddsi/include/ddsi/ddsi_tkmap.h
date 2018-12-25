@@ -36,7 +36,6 @@ struct ddsi_tkmap * ddsi_tkmap_new (void);
 void ddsi_tkmap_free (_Inout_ _Post_invalid_ struct ddsi_tkmap *tkmap);
 void ddsi_tkmap_instance_ref (_In_ struct ddsi_tkmap_instance *tk);
 uint64_t ddsi_tkmap_lookup (_In_ struct ddsi_tkmap *tkmap, _In_ const struct ddsi_serdata *serdata);
-_Check_return_ bool ddsi_tkmap_get_key (_In_ struct ddsi_tkmap * map, const struct ddsi_sertopic *topic, _In_ uint64_t iid, _Out_ void * sample);
 _Check_return_ struct ddsi_tkmap_instance * ddsi_tkmap_find(
         _In_ struct ddsi_serdata * sd,
         _In_ const bool rd,

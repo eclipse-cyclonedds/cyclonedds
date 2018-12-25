@@ -92,12 +92,6 @@ endif()
 # Enable coloured ouput if Ninja is used for building
 if(${CMAKE_C_COMPILER_ID} STREQUAL "Clang" OR ${CMAKE_C_COMPILER_ID} STREQUAL "AppleClang")
   add_definitions(-Wall -Wextra -Wconversion -Wunused)
-  message("${CMAKE_GENERATOR}")
-  #if (CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT(${CMAKE_GENERATOR} STREQUAL "Xcode"))
-  #  set (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
-  #  set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
-  #  set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
-  #endif()
   if(${CMAKE_GENERATOR} STREQUAL "Ninja")
     add_definitions(-Xclang -fcolor-diagnostics)
   endif()
@@ -108,6 +102,27 @@ elseif(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
   endif()
 elseif(${CMAKE_C_COMPILER_ID} STREQUAL "MSVC")
   add_definitions(/W3)
+endif()
+
+# Make it easy to enable one of Clang's/gcc's analyzers, and default to using
+# the address sanitizer for ordinary debug builds; gcc is giving some grief on
+# Travis, so don't enable it for gcc by default
+if(NOT USE_SANITIZER)
+  if(${CMAKE_BUILD_TYPE} STREQUAL "Debug" AND
+      NOT (${CMAKE_GENERATOR} STREQUAL "Xcode") AND
+      (${CMAKE_C_COMPILER_ID} STREQUAL "Clang"
+        OR ${CMAKE_C_COMPILER_ID} STREQUAL "AppleClang"))
+    message(STATUS "Enabling address sanitizer; set USE_SANITIZER=none to prevent this")
+    set(USE_SANITIZER address)
+  else()
+    set(USE_SANITIZER none)
+  endif()
+endif()
+if(NOT (${USE_SANITIZER} STREQUAL "none"))
+  message(STATUS "Sanitizer set to ${USE_SANITIZER}")
+  set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-omit-frame-pointer -fsanitize=${USE_SANITIZER}")
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=${USE_SANITIZER}")
+  set (CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=${USE_SANITIZER}")
 endif()
 
 include(FileIDs)
