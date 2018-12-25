@@ -753,22 +753,22 @@ dds_get_status_changes(
 
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
 _Check_return_ dds_return_t
-dds_get_enabled_status(
+dds_get_status_mask(
         _In_    dds_entity_t entity,
-        _Out_   uint32_t *status)
+        _Out_   uint32_t *mask)
 {
     dds_entity *e;
     dds__retcode_t rc;
     dds_return_t ret;
 
-    if (status != NULL) {
+    if (mask != NULL) {
         rc = dds_entity_lock(entity, DDS_KIND_DONTCARE, &e);
         if (rc == DDS_RETCODE_OK) {
             if (e->m_deriver.validate_status) {
-                *status = (e->m_status_enable & ~DDS_INTERNAL_STATUS_MASK);
+                *mask = (e->m_status_enable & ~DDS_INTERNAL_STATUS_MASK);
                 ret = DDS_RETCODE_OK;
             } else {
-                DDS_ERROR("This entity does not maintain a status\n");
+                DDS_ERROR("This entity does not maintain a status mask\n");
                 ret = DDS_ERRNO(DDS_RETCODE_ILLEGAL_OPERATION);
             }
             dds_entity_unlock(e);
@@ -777,18 +777,27 @@ dds_get_enabled_status(
             ret = DDS_ERRNO(rc);
         }
     } else{
-        DDS_ERROR("Argument status is NULL\n");
+        DDS_ERROR("Argument mask is NULL\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
 
     return ret;
 }
 
+_Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
+_Check_return_ dds_return_t
+dds_get_enabled_status(
+        _In_    dds_entity_t entity,
+        _Out_   uint32_t *status)
+{
+    return dds_get_status_mask(entity, status);
+}
+
 
 
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
 DDS_EXPORT dds_return_t
-dds_set_enabled_status(
+dds_set_status_mask(
         _In_ dds_entity_t entity,
         _In_ uint32_t mask)
 {
@@ -820,6 +829,15 @@ dds_set_enabled_status(
     }
 
     return ret;
+}
+
+_Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
+DDS_EXPORT dds_return_t
+dds_set_enabled_status(
+        _In_ dds_entity_t entity,
+        _In_ uint32_t mask)
+{
+    return dds_set_status_mask(entity, mask);
 }
 
 

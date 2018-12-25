@@ -214,26 +214,26 @@ CU_Test(ddsc_entity, status, .init = create_entity, .fini = delete_entity)
      * for the specific entity children, not for the generic part. */
 
     /* Check getting Status with bad parameters. */
-    status1 = dds_get_enabled_status (0, NULL);
+    status1 = dds_get_status_mask (0, NULL);
     cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
-    status1 = dds_get_enabled_status (entity, NULL);
+    status1 = dds_get_status_mask (entity, NULL);
     cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
-    status1 = dds_get_enabled_status (0, &s1);
+    status1 = dds_get_status_mask (0, &s1);
     cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
 
     /* Get Status, which should be 0 for a participant. */
-    status1 = dds_get_enabled_status (entity, &s1);
+    status1 = dds_get_status_mask (entity, &s1);
     cu_assert_status_eq(status1, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(s1, 0);
 
     /* Check setting Status with bad parameters. */
-    status1 = dds_set_enabled_status (0, 0);
+    status1 = dds_set_status_mask (0, 0);
     cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
 
     /* I shouldn't be able to set statuses on a participant. */
-    status1 = dds_set_enabled_status (entity, 0);
+    status1 = dds_set_status_mask (entity, 0);
     cu_assert_status_eq(status1, DDS_RETCODE_OK);
-    status1 = dds_set_enabled_status (entity, DDS_DATA_AVAILABLE_STATUS);
+    status1 = dds_set_status_mask (entity, DDS_DATA_AVAILABLE_STATUS);
     cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
 
     /* Check getting Status changes with bad parameters. */

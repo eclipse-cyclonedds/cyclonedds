@@ -532,9 +532,15 @@ dds_get_status_changes(
  */
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
 DDS_EXPORT _Check_return_ dds_return_t
-dds_get_enabled_status(
+dds_get_status_mask(
         _In_  dds_entity_t entity,
-        _Out_ uint32_t *status);
+        _Out_ uint32_t *mask);
+
+_Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
+DDS_EXPORT _Check_return_ dds_return_t
+DDS_DEPRECATED_EXPORT dds_get_enabled_status(
+        _In_  dds_entity_t entity,
+        _Out_ uint32_t *mask);
 
 /**
  * @brief Set status enabled on entity
@@ -557,6 +563,13 @@ dds_get_enabled_status(
  */
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
 DDS_EXPORT dds_return_t
+dds_set_status_mask(
+        _In_ dds_entity_t entity,
+        _In_ uint32_t mask);
+
+_Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
+DDS_EXPORT dds_return_t
+DDS_DEPRECATED_EXPORT
 dds_set_enabled_status(
         _In_ dds_entity_t entity,
         _In_ uint32_t mask);
@@ -1097,6 +1110,13 @@ typedef bool (*dds_topic_filter_fn) (const void * sample);
  */
 _Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
 DDS_EXPORT void
+dds_set_topic_filter(
+        dds_entity_t topic,
+        dds_topic_filter_fn filter);
+
+_Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
+DDS_EXPORT void
+DDS_DEPRECATED_EXPORT
 dds_topic_set_filter(
         dds_entity_t topic,
         dds_topic_filter_fn filter);
@@ -1110,6 +1130,12 @@ dds_topic_set_filter(
  */
 _Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
 DDS_EXPORT dds_topic_filter_fn
+dds_get_topic_filter(
+        dds_entity_t topic);
+
+_Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
+DDS_EXPORT dds_topic_filter_fn
+DDS_DEPRECATED_EXPORT
 dds_topic_get_filter(
         dds_entity_t topic);
 
@@ -1660,7 +1686,7 @@ dds_dispose_ts(
  *
  * <b><i>Instance Handle</i></b><br>
  * The given instance handle must correspond to the value that was returned by either
- * the dds_register_instance operation, dds_register_instance_ts or dds_instance_lookup.
+ * the dds_register_instance operation, dds_register_instance_ts or dds_lookup_instance.
  * If there is no correspondence, then the result of the operation is unspecified.
  *
  * @param[in]  writer The writer to dispose the data instance from.
@@ -3100,7 +3126,7 @@ dds_return_loan(
     T x = { ... };
     T y;
     dds_instance_handle_t ih;
-    ih = dds_instance_lookup (e, &x);
+    ih = dds_lookup_instance (e, &x);
     dds_instance_get_key (e, ih, &y);
 */
 
@@ -3114,7 +3140,14 @@ dds_return_loan(
  */
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
 DDS_EXPORT dds_instance_handle_t
-dds_instance_lookup(
+dds_lookup_instance(
+        dds_entity_t entity,
+        const void *data);
+
+_Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
+DDS_EXPORT dds_instance_handle_t
+DDS_DEPRECATED_EXPORT
+dds_instance_lookup (
         dds_entity_t entity,
         const void *data);
 

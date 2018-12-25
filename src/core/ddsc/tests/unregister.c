@@ -82,7 +82,7 @@ unregistering_init(void)
     CU_ASSERT_FATAL(g_writer > 0);
 
     /* Sync g_writer to g_reader. */
-    ret = dds_set_enabled_status(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
+    ret = dds_set_status_mask(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_writer, g_writer);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -93,7 +93,7 @@ unregistering_init(void)
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Sync g_reader to g_writer. */
-    ret = dds_set_enabled_status(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
+    ret = dds_set_status_mask(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -332,7 +332,7 @@ CU_Test(ddsc_unregister_instance_ts, unregistering_past_sample, .init=unregister
     dds_return_t ret;
 
     /* Unregistering a sample in the past should trigger a lost sample. */
-    ret = dds_set_enabled_status(g_reader, DDS_SAMPLE_LOST_STATUS);
+    ret = dds_set_status_mask(g_reader, DDS_SAMPLE_LOST_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -427,7 +427,7 @@ CU_Theory((dds_entity_t *writer), ddsc_unregister_instance_ih, non_writers, .ini
 CU_Test(ddsc_unregister_instance_ih, unregistering_old_instance, .init=unregistering_init, .fini=unregistering_fini)
 {
     Space_Type1 oldInstance = { 0, 22, 22 };
-    dds_instance_handle_t hdl = dds_instance_lookup(g_writer, &oldInstance);
+    dds_instance_handle_t hdl = dds_lookup_instance(g_writer, &oldInstance);
     dds_return_t ret;
 
     ret = dds_unregister_instance_ih(g_writer, hdl);
@@ -525,7 +525,7 @@ CU_Theory((dds_entity_t *writer), ddsc_unregister_instance_ih_ts, non_writers, .
 CU_Test(ddsc_unregister_instance_ih_ts, unregistering_old_instance, .init=unregistering_init, .fini=unregistering_fini)
 {
     Space_Type1 oldInstance = { 0, 22, 22 };
-    dds_instance_handle_t hdl = dds_instance_lookup(g_writer, &oldInstance);
+    dds_instance_handle_t hdl = dds_lookup_instance(g_writer, &oldInstance);
     dds_return_t ret;
 
     ret = dds_unregister_instance_ih_ts(g_writer, hdl, g_present);
@@ -567,12 +567,12 @@ CU_Test(ddsc_unregister_instance_ih_ts, unregistering_old_instance, .init=unregi
 CU_Test(ddsc_unregister_instance_ih_ts, unregistering_past_sample, .init=unregistering_init, .fini=unregistering_fini)
 {
     Space_Type1 oldInstance = { 0, 0, 0 };
-    dds_instance_handle_t hdl = dds_instance_lookup(g_writer, &oldInstance);
+    dds_instance_handle_t hdl = dds_lookup_instance(g_writer, &oldInstance);
     dds_attach_t triggered;
     dds_return_t ret;
 
     /* Unregistering a sample in the past should trigger a lost sample. */
-    ret = dds_set_enabled_status(g_reader, DDS_SAMPLE_LOST_STATUS);
+    ret = dds_set_status_mask(g_reader, DDS_SAMPLE_LOST_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);

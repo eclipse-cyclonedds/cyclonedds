@@ -121,7 +121,7 @@ take_instance_init(void)
     CU_ASSERT_FATAL(g_qcond > 0);
 
     /* Sync g_reader to g_writer. */
-    ret = dds_set_enabled_status(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
+    ret = dds_set_status_mask(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -132,7 +132,7 @@ take_instance_init(void)
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Sync g_writer to g_reader. */
-    ret = dds_set_enabled_status(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
+    ret = dds_set_status_mask(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_writer, g_writer);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -237,7 +237,7 @@ take_instance_init(void)
     sample.long_1 = 0;
     sample.long_2 = 0;
     sample.long_3 = 0;
-    g_hdl_valid = dds_instance_lookup(g_reader, &sample);
+    g_hdl_valid = dds_lookup_instance(g_reader, &sample);
     CU_ASSERT_NOT_EQUAL_FATAL(g_hdl_valid, DDS_HANDLE_NIL);
 
     dds_delete_qos(qos);

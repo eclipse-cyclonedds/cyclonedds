@@ -139,17 +139,17 @@ ddsc_waitset_attached_init(void)
     ddsc_waitset_init();
 
     /* Start with interest in nothing. */
-    ret = dds_set_enabled_status(participant, 0);
+    ret = dds_set_status_mask(participant, 0);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    ret = dds_set_enabled_status(writer, 0);
+    ret = dds_set_status_mask(writer, 0);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    ret = dds_set_enabled_status(reader, 0);
+    ret = dds_set_status_mask(reader, 0);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    ret = dds_set_enabled_status(topic, 0);
+    ret = dds_set_status_mask(topic, 0);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    ret = dds_set_enabled_status(publisher, 0);
+    ret = dds_set_status_mask(publisher, 0);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    ret = dds_set_enabled_status(subscriber, 0);
+    ret = dds_set_status_mask(subscriber, 0);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Attach all entities to the waitset. */
@@ -952,7 +952,7 @@ CU_Test(ddsc_waitset_triggering, on_reader, .init=ddsc_waitset_attached_init, .f
     memset(&sample, 0, sizeof(RoundTripModule_DataType));
 
     /* Only interested in data_available for this test. */
-    ret = dds_set_enabled_status(reader, DDS_DATA_AVAILABLE_STATUS);
+    ret = dds_set_status_mask(reader, DDS_DATA_AVAILABLE_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* The reader should not have been triggered. */

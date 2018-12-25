@@ -200,7 +200,7 @@ static dds_return_t wait_for_reader(dds_entity_t writer, dds_entity_t participan
   dds_return_t ret;
   dds_entity_t waitset;
 
-  ret = dds_set_enabled_status(writer, DDS_PUBLICATION_MATCHED_STATUS);
+  ret = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
   DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 
   waitset = dds_create_waitset(participant);
