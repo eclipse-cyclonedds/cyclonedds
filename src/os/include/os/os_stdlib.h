@@ -186,31 +186,6 @@ extern "C" {
                  const char *format,
                  va_list args);
 
-    /** \brief fprintf wrapper with disabled broken pipe signals
-     *
-     * A fprintf can cause an broken pipe signal that can result in a deadlock
-     * if the interrupted thread is holding recourses needed by for example the
-     * signal handler thread.
-     *
-     * Precondition:
-     *   None
-     * Postcondition:
-     *   None
-     *
-     * Possible results:
-     * - return
-     *   Upon successful completion will return the number of
-     *   bytes written to file
-     *   or a negative value if an error occurred.
-     *   errno will be set in such case
-     * - Writes formatted output to file.
-     */
-    int
-    os_vfprintfnosigpipe(
-                         FILE *file,
-                         const char *format,
-                         va_list args);
-
     /** \brief strtoll wrapper
      *
      * Translate string str to long long value considering base,

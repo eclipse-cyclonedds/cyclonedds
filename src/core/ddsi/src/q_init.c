@@ -535,18 +535,6 @@ int rtps_config_prep (struct cfgst *cfgst)
     goto err_config_late_error;
   }
 
-#if ! OS_SOCKET_HAS_IPV6
-  /* If the platform doesn't support IPv6, guarantee useIpv6 is
-   false. There are two ways of going about it, one is to do it
-   silently, the other to let the user fix his config. Clearly, we
-   have chosen the latter. */
-  if (config.useIpv6)
-  {
-    DDS_ERROR("IPv6 addressing requested but not supported on this platform\n");
-    goto err_config_late_error;
-  }
-#endif
-
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   {
     /* Determine number of configured channels to be able to

@@ -17,7 +17,6 @@
  *  \brief Initialization / Deinitialization
  */
 
-#include <sys/utsname.h>
 #include <assert.h>
 #include "os/os.h"
 

@@ -17,10 +17,6 @@
 
 #include "os/os.h"
 
-#ifndef _WIN32
-#include <netdb.h>
-#endif
-
 #include "ddsi/q_log.h"
 #include "ddsi/q_nwif.h"
 #include "ddsi/q_globals.h"
@@ -46,12 +42,16 @@ unsigned locator_to_hopefully_unique_uint32 (const nn_locator_t *src)
     memcpy (&id, src->address + 12, sizeof (id));
   else
   {
+#if OS_SOCKET_HAS_IPV6
     md5_state_t st;
     md5_byte_t digest[16];
     md5_init (&st);
     md5_append (&st, (const md5_byte_t *) ((const os_sockaddr_in6 *) src)->sin6_addr.s6_addr, 16);
     md5_finish (&st, digest);
     memcpy (&id, digest, sizeof (id));
+#else
+    DDS_FATAL("IPv6 unavailable\n");
+#endif
   }
   return id;
 }

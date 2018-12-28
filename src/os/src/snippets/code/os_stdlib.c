@@ -58,42 +58,6 @@ os_vsnprintf(
    return vsnprintf(str, size, format, args);
 }
 
-int
-os_vfprintfnosigpipe(
-    FILE *file,
-    const char *format,
-    va_list args)
-{
-   int result;
-
-   sigset_t sset_before, sset_omask, sset_pipe, sset_after;
-
-   sigemptyset(&sset_pipe);
-   sigaddset(&sset_pipe, SIGPIPE);
-   sigpending(&sset_before);
-   pthread_sigmask(SIG_BLOCK, &sset_pipe, &sset_omask);
-   result = vfprintf(file, format, args);
-   sigpending(&sset_after);
-   if (!sigismember(&sset_before, SIGPIPE) && sigismember(&sset_after, SIGPIPE)) {
-       /* sigtimedwait appears to be fairly well supported, just not by Mac OS. If other platforms prove to be a problem, we can do a proper indication of platform support in the os defs. The advantage of sigtimedwait is that it protects against a deadlock when SIGPIPE is sent from outside the program and all threads have it blocked. In any case, when SIGPIPE is sent in this manner and we consume the signal here, the signal is lost. Nobody should be abusing system-generated signals in this manner. */
-#ifndef __APPLE__
-       struct timespec timeout = { 0, 0 };
-       sigtimedwait(&sset_pipe, NULL, &timeout);
-#else
-       int sig;
-       sigwait(&sset_pipe, &sig);
-#endif
-#ifndef NDEBUG
-       sigpending(&sset_after);
-       assert(!sigismember(&sset_after, SIGPIPE));
-#endif
-       os_setErrno(EPIPE);
-       result = -1;
-   }
-   pthread_sigmask(SIG_SETMASK, &sset_omask, NULL);
-   return result;
-}
-
 ssize_t os_write(int fd, const void *buf, size_t count)
 {
     return write(fd, buf, count);
