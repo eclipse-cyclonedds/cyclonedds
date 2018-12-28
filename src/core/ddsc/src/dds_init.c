@@ -149,17 +149,10 @@ dds_init(dds_domainid_t domain)
 
   /* Set additional default participant properties */
 
-  gv.default_plist_pp.process_id = (unsigned)os_procIdSelf();
+  gv.default_plist_pp.process_id = (unsigned)os_getpid();
   gv.default_plist_pp.present |= PP_PRISMTECH_PROCESS_ID;
-  if (os_procName(progname, sizeof(progname)) > 0)
-  {
-    gv.default_plist_pp.exec_name = dds_string_dup(progname);
-  }
-  else
-  {
-    gv.default_plist_pp.exec_name = dds_string_alloc(32);
-    (void) snprintf(gv.default_plist_pp.exec_name, 32, "%s: %u", DDSC_PROJECT_NAME, gv.default_plist_pp.process_id);
-  }
+  gv.default_plist_pp.exec_name = dds_string_alloc(32);
+  (void) snprintf(gv.default_plist_pp.exec_name, 32, "%s: %u", DDSC_PROJECT_NAME, gv.default_plist_pp.process_id);
   len = (uint32_t) (13 + strlen(gv.default_plist_pp.exec_name));
   gv.default_plist_pp.present |= PP_PRISMTECH_EXEC_NAME;
   if (os_gethostname(hostname, sizeof(hostname)) == os_resultSuccess)

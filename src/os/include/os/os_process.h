@@ -32,45 +32,7 @@ extern "C" {
  * Possible Results:
  * - returns the process ID of the calling process
  */
-OSAPI_EXPORT os_procId os_procIdSelf(void);
-
-/** \brief Figure out the identity of the current process
- *
- * Possible Results:
- * - returns the actual length of procIdentity
- *
- * Postcondition:
- * - \b procIdentity is ""
- *     the process identity could not be determined
- * - \b procIdentity is "<decimal number>" | "0x<hexadecimal number>"
- *     only the process numeric identity could be determined
- * - \b procIdentity is "<process name> (<decimal number>)" | "<process name> (0x<hexadecimal number>)"
- *     the process name and numeric identity could be determined
- *
- * \b procIdentity will not be filled beyond the specified \b procIdentitySize
- */
-OSAPI_EXPORT int
-os_procNamePid(
-    _Out_writes_z_(procIdentitySize) char *procIdentity,
-    _In_ size_t procIdentitySize);
-
-/** \brief Figure out the name of the current process
- *
- * Possible Results:
- * - returns the actual length of procName
- *
- * Postcondition:
- * - \b procName is ""
- *     the process name could not be determined
- * - \b procName is "<process name>"
- *     the process name could be determined
- *
- * \b procName will not be filled beyond the specified \b procNameSize
- */
-OSAPI_EXPORT int
-os_procName(
-    _Out_writes_z_(procNameSize) char *procName,
-    _In_ size_t procNameSize);
+OSAPI_EXPORT os_procId os_getpid(void);
 
 #if defined (__cplusplus)
 }

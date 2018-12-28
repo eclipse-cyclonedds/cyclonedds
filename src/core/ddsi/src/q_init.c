@@ -1050,7 +1050,7 @@ int rtps_init (void)
 
   /* Template PP guid -- protected by privileged_pp_lock for simplicity */
   gv.next_ppguid.prefix.u[0] = locator_to_hopefully_unique_uint32 (&gv.ownloc);
-  gv.next_ppguid.prefix.u[1] = (unsigned) os_procIdSelf ();
+  gv.next_ppguid.prefix.u[1] = (unsigned) os_getpid ();
   gv.next_ppguid.prefix.u[2] = 1;
   gv.next_ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
 

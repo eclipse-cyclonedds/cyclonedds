@@ -30,14 +30,12 @@ void os_osPlatformInit (void)
 {
   os_syncModuleInit();
   os_threadModuleInit();
-  os_processModuleInit();
 }
 
 /** \brief OS layer deinitialization
  */
 void os_osPlatformExit (void)
 {
-  os_processModuleExit();
   os_threadModuleExit();
   os_syncModuleExit();
 }

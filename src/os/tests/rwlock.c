@@ -57,7 +57,6 @@ os_threadAttr       rwlock_os_threadAttr;
 os_threadId         rwlock_os_threadId[RWLOCK_THREADS];
 static int          i;
 char                buffer[512];
-os_procId           rwlock_os_procId;
 int                 supported_resultBusy;
 int                 loop;
 static shared_data sd;

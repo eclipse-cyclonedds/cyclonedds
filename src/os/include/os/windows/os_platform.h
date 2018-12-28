@@ -43,7 +43,6 @@ extern "C" {
 
 #include "os/windows/os_platform_socket.h"
 #include "os/windows/os_platform_sync.h"
-#include "os/windows/os_platform_process.h"
 #include "os/windows/os_platform_thread.h"
 #include "os/windows/os_platform_stdlib.h"
 #include "os/windows/os_platform_time.h"

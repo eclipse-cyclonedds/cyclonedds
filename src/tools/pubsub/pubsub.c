@@ -2196,7 +2196,7 @@ int MAIN(int argc, char *argv[]) {
         want_reader = 0;
 
     save_argv0 (argv[0]);
-    pid = (int) os_procIdSelf();
+    pid = (int) os_getpid();
 
     qreader[0] = "k=all";
     qreader[1] = "R=10000/inf/inf";

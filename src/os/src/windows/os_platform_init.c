@@ -23,7 +23,6 @@
 
 void os_osPlatformInit (void)
 {
-  os_processModuleInit();
   os_threadModuleInit();
   os_timeModuleInit();
   os_socketModuleInit();
@@ -34,7 +33,6 @@ void os_osPlatformExit (void)
   os_socketModuleExit();
   os_timeModuleExit();
   os_threadModuleExit();
-  os_processModuleExit();
 }
 
 /* We need this on windows to make sure the main thread of MFC applications
