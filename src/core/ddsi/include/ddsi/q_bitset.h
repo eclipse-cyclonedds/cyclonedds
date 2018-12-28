@@ -15,9 +15,9 @@
 #include <assert.h>
 #include <string.h>
 
-#include "ddsi/q_inline.h"
+#include "os/os_inline.h"
 
-#if NN_HAVE_C99_INLINE && !defined SUPPRESS_BITSET_INLINES
+#if OS_HAVE_INLINE && !defined SUPPRESS_BITSET_INLINES
 #include "q_bitset_template.h"
 #else
 #if defined (__cplusplus)

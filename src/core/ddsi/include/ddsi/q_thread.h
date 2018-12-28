@@ -14,8 +14,6 @@
 
 #include "os/os.h"
 
-#include "ddsi/q_inline.h"
-
 #if defined (__cplusplus)
 extern "C" {
 #endif

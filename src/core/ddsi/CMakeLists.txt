@@ -98,7 +98,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/ddsi"
     q_gc.h
     q_globals.h
     q_hbcontrol.h
-    q_inline.h
     q_lat_estim.h
     q_lease.h
     q_log.h

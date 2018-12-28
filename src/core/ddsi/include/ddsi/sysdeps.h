@@ -14,8 +14,6 @@
 
 #include "os/os.h"
 
-#include "ddsi/q_inline.h"
-
 #ifndef os_sockECONNRESET
 #ifdef WSAECONNRESET
 #define os_sockECONNRESET WSAECONNRESET

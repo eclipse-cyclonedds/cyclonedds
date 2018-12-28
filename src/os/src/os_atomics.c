@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #define OS_HAVE_INLINE 0 /* override automatic determination of inlining */
-#define VDDS_INLINE        /* no "inline" in function defs (not really needed) */
+#define OS_INLINE        /* no "inline" in function defs (not really needed) */
 #define OS_ATOMICS_OMIT_FUNCTIONS 0 /* force inclusion of functions defs */
 
 #include "os/os.h"

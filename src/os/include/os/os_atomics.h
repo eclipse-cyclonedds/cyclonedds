@@ -21,7 +21,7 @@
 extern "C" {
 #endif
 
-/* Note: os_atomics_inlines.c overrules OS_HAVE_INLINE, VDDS_INLINE and
+/* Note: os_atomics_inlines.c overrules OS_HAVE_INLINE, OS_INLINE and
    OS_ATOMICS_OMIT_FUNCTIONS */
 
 #if ! OS_HAVE_INLINE && ! defined OS_ATOMICS_OMIT_FUNCTIONS
@@ -37,8 +37,8 @@ extern "C" {
    because you can't include only a subset and later include the rest
 */
 #undef OS_HAVE_INLINE
-#undef VDDS_INLINE
-#define VDDS_INLINE
+#undef OS_INLINE
+#define OS_INLINE
 #include "os_atomics_win32.h"
 #endif
 

@@ -14,7 +14,6 @@
 
 #include "os/os.h"
 
-#include "ddsi/q_inline.h"
 #include "ddsi/q_rtps.h" /* for nn_guid_t, nn_guid_prefix_t */
 #include "ddsi/q_protocol.h" /* for nn_sequence_number_t */
 
