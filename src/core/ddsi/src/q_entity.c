@@ -1280,6 +1280,7 @@ void rebuild_or_clear_writer_addrsets(int rebuild)
   }
   os_rwlockUnlock (&gv.qoslock);
   ephash_enum_writer_fini (&est);
+  unref_addrset(empty);
   DDS_LOG(DDS_LC_DISCOVERY, "rebuild_or_delete_writer_addrsets(%d) done\n", rebuild);
 }
 
