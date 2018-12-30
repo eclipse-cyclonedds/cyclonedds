@@ -26,7 +26,6 @@ struct dds_topic;
 struct ddsi_tkmap_instance
 {
   struct ddsi_serdata * m_sample;
-  struct ddsi_tkmap * m_map;
   uint64_t m_iid;
   os_atomic_uint32_t m_refc;
 };
