@@ -799,14 +799,16 @@ static void handle_SPDP (const struct receiver_state *rst, nn_wctime_t timestamp
     nn_plist_t decoded_data;
     nn_plist_src_t src;
     int interesting = 0;
+    int plist_ret;
     src.protocol_version = rst->protocol_version;
     src.vendorid = rst->vendor;
     src.encoding = data->identifier;
     src.buf = (unsigned char *) data + 4;
     src.bufsz = len - 4;
-    if (nn_plist_init_frommsg (&decoded_data, NULL, ~(uint64_t)0, ~(uint64_t)0, &src) < 0)
+    if ((plist_ret = nn_plist_init_frommsg (&decoded_data, NULL, ~(uint64_t)0, ~(uint64_t)0, &src)) < 0)
     {
-      DDS_WARNING("SPDP (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
+      if (plist_ret != ERR_INCOMPATIBLE)
+        DDS_WARNING("SPDP (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
       return;
     }
 
@@ -1340,14 +1342,16 @@ static void handle_SEDP (const struct receiver_state *rst, nn_wctime_t timestamp
   {
     nn_plist_t decoded_data;
     nn_plist_src_t src;
+    int plist_ret;
     src.protocol_version = rst->protocol_version;
     src.vendorid = rst->vendor;
     src.encoding = data->identifier;
     src.buf = (unsigned char *) data + 4;
     src.bufsz = len - 4;
-    if (nn_plist_init_frommsg (&decoded_data, NULL, ~(uint64_t)0, ~(uint64_t)0, &src) < 0)
+    if ((plist_ret = nn_plist_init_frommsg (&decoded_data, NULL, ~(uint64_t)0, ~(uint64_t)0, &src)) < 0)
     {
-      DDS_WARNING("SEDP (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
+      if (plist_ret != ERR_INCOMPATIBLE)
+        DDS_WARNING("SEDP (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
       return;
     }
 
@@ -1466,14 +1470,16 @@ static void handle_SEDP_CM (const struct receiver_state *rst, nn_entityid_t wr_e
   {
     nn_plist_t decoded_data;
     nn_plist_src_t src;
+    int plist_ret;
     src.protocol_version = rst->protocol_version;
     src.vendorid = rst->vendor;
     src.encoding = data->identifier;
     src.buf = (unsigned char *) data + 4;
     src.bufsz = len - 4;
-    if (nn_plist_init_frommsg (&decoded_data, NULL, ~(uint64_t)0, ~(uint64_t)0, &src) < 0)
+    if ((plist_ret = nn_plist_init_frommsg (&decoded_data, NULL, ~(uint64_t)0, ~(uint64_t)0, &src)) < 0)
     {
-      DDS_WARNING("SEDP_CM (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
+      if (plist_ret != ERR_INCOMPATIBLE)
+        DDS_WARNING("SEDP_CM (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
       return;
     }
 
@@ -1626,14 +1632,16 @@ static void handle_SEDP_GROUP (const struct receiver_state *rst, nn_wctime_t tim
   {
     nn_plist_t decoded_data;
     nn_plist_src_t src;
+    int plist_ret;
     src.protocol_version = rst->protocol_version;
     src.vendorid = rst->vendor;
     src.encoding = data->identifier;
     src.buf = (unsigned char *) data + 4;
     src.bufsz = len - 4;
-    if (nn_plist_init_frommsg (&decoded_data, NULL, ~(uint64_t)0, ~(uint64_t)0, &src) < 0)
+    if ((plist_ret = nn_plist_init_frommsg (&decoded_data, NULL, ~(uint64_t)0, ~(uint64_t)0, &src)) < 0)
     {
-      DDS_WARNING("SEDP_GROUP (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
+      if (plist_ret != ERR_INCOMPATIBLE)
+        DDS_WARNING("SEDP_GROUP (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
       return;
     }
 
@@ -1747,15 +1755,17 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
   {
     nn_plist_src_t src;
     size_t qos_offset = NN_RDATA_SUBMSG_OFF (fragchain) + offsetof (Data_DataFrag_common_t, octetsToInlineQos) + sizeof (msg->octetsToInlineQos) + msg->octetsToInlineQos;
+    int plist_ret;
     src.protocol_version = sampleinfo->rst->protocol_version;
     src.vendorid = sampleinfo->rst->vendor;
     src.encoding = (msg->smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
     src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
-    if (nn_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH, 0, &src) < 0)
+    if ((plist_ret = nn_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH, 0, &src)) < 0)
     {
-      DDS_WARNING("data(builtin, vendor %u.%u): %x:%x:%x:%x #%"PRId64": invalid inline qos\n",
-                   src.vendorid.id[0], src.vendorid.id[1], PGUID (srcguid), sampleinfo->seq);
+      if (plist_ret != ERR_INCOMPATIBLE)
+        DDS_WARNING("data(builtin, vendor %u.%u): %x:%x:%x:%x #%"PRId64": invalid inline qos\n",
+                    src.vendorid.id[0], src.vendorid.id[1], PGUID (srcguid), sampleinfo->seq);
       goto done_upd_deliv;
     }
     /* Complex qos bit also gets set when statusinfo bits other than
