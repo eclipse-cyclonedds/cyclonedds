@@ -1039,7 +1039,7 @@ static void rebuild_make_covered(int8_t **covered, const struct writer *wr, int 
   struct wr_prd_match *m;
   ut_avlIter_t it;
   int rdidx, i, j;
-  int8_t *cov = os_malloc((size_t) *nreaders * (size_t) nlocs * sizeof (*covered));
+  int8_t *cov = os_malloc((size_t) *nreaders * (size_t) nlocs * sizeof (*cov));
   for (i = 0; i < *nreaders * nlocs; i++)
     cov[i] = -1;
   rdidx = 0;
