@@ -161,7 +161,7 @@ static void entity_common_init (struct entity_common *e, const struct nn_guid *g
   e->name = os_strdup (name ? name : "");
   e->onlylocal = onlylocal;
   os_mutexInit (&e->lock);
-  if (onlylocal || is_builtin_entityid (guid->entityid, vendorid))
+  if (onlylocal || is_builtin_endpoint (guid->entityid, vendorid))
   {
     e->iid = ddsi_iid_gen ();
     *tk = NULL;
