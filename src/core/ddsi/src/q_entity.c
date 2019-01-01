@@ -1351,16 +1351,16 @@ static void writer_drop_connection (const struct nn_guid * wr_guid, const struct
       rebuild_writer_addrset (wr);
       remove_acked_messages (wr, &whcst, &deferred_free_list);
       wr->num_reliable_readers -= m->is_reliable;
-      if (wr->status_cb)
-      {
-        status_cb_data_t data;
-        data.status = DDS_PUBLICATION_MATCHED_STATUS;
-        data.add = false;
-        data.handle = prd->e.iid;
-        (wr->status_cb) (wr->status_cb_entity, &data);
-      }
     }
     os_mutexUnlock (&wr->e.lock);
+    if (m != NULL && wr->status_cb)
+    {
+      status_cb_data_t data;
+      data.status = DDS_PUBLICATION_MATCHED_STATUS;
+      data.add = false;
+      data.handle = prd->e.iid;
+      (wr->status_cb) (wr->status_cb_entity, &data);
+    }
     whc_free_deferred_free_list (wr->whc, deferred_free_list);
     free_wr_prd_match (m);
   }
@@ -1380,7 +1380,8 @@ static void writer_drop_local_connection (const struct nn_guid *wr_guid, struct 
       ut_avlDelete (&wr_local_readers_treedef, &wr->local_readers, m);
     }
     local_reader_ary_remove (&wr->rdary, rd);
-    if (wr->status_cb)
+    os_mutexUnlock (&wr->e.lock);
+    if (m != NULL && wr->status_cb)
     {
       status_cb_data_t data;
       data.status = DDS_PUBLICATION_MATCHED_STATUS;
@@ -1388,7 +1389,6 @@ static void writer_drop_local_connection (const struct nn_guid *wr_guid, struct 
       data.handle = rd->e.iid;
       (wr->status_cb) (wr->status_cb_entity, &data);
     }
-    os_mutexUnlock (&wr->e.lock);
     free_wr_rd_match (m);
   }
 }
