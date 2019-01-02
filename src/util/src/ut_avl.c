@@ -91,26 +91,27 @@ static const char *conode_from_node (const ut_avlTreedef_t *td, const ut_avlNode
     }
 }
 
-static void treedef_init_common (ut_avlTreedef_t *td, size_t avlnodeoffset, size_t keyoffset, int (*cmp) (), ut_avlAugment_t augment, uint32_t flags)
+static void treedef_init_common (ut_avlTreedef_t *td, size_t avlnodeoffset, size_t keyoffset, ut_avlAugment_t augment, uint32_t flags)
 {
     assert (avlnodeoffset <= 0x7fffffff);
     assert (keyoffset <= 0x7fffffff);
     td->avlnodeoffset = avlnodeoffset;
     td->keyoffset = keyoffset;
-    td->u.cmp = cmp;
     td->augment = augment;
     td->flags = flags;
 }
 
 void ut_avlTreedefInit (_Out_ ut_avlTreedef_t *td, size_t avlnodeoffset, size_t keyoffset, _In_ ut_avlCompare_t comparekk, _In_opt_ ut_avlAugment_t augment, uint32_t flags)
 {
-    treedef_init_common (td, avlnodeoffset, keyoffset, (int (*) ()) comparekk, augment, flags);
+    treedef_init_common (td, avlnodeoffset, keyoffset, augment, flags);
+    td->u.comparekk = comparekk;
 }
 
 void ut_avlTreedefInit_r (_Out_ ut_avlTreedef_t *td, size_t avlnodeoffset, size_t keyoffset, _In_ ut_avlCompare_r_t comparekk_r, _Inout_opt_ void *cmp_arg, ut_avlAugment_t augment, uint32_t flags)
 {
+    treedef_init_common (td, avlnodeoffset, keyoffset, augment, flags | UT_AVL_TREEDEF_FLAG_R);
     td->cmp_arg = cmp_arg;
-    treedef_init_common (td, avlnodeoffset, keyoffset, (int (*) ()) comparekk_r, augment, flags | UT_AVL_TREEDEF_FLAG_R);
+    td->u.comparekk_r = comparekk_r;
 }
 
 void ut_avlInit (_In_ const ut_avlTreedef_t *td, _Out_ ut_avlTree_t *tree)
@@ -256,11 +257,11 @@ static ut_avlNode_t *rotate (const ut_avlTreedef_t *td, ut_avlNode_t **pnode, ut
        rotation, _ND_D means the grandchild that is the right child of
        the left child. */
     ut_avlNode_t * const node_ND = node->cs[1-dir];
+    assert (node_ND != NULL);
     ut_avlNode_t * const node_ND_ND = node_ND->cs[1-dir];
     ut_avlNode_t * const node_ND_D = node_ND->cs[dir];
     int height_ND_ND, height_ND_D;
     assert (dir == !!dir);
-    assert (node_ND != NULL);
     height_ND_ND = node_ND_ND ? node_ND_ND->height : 0;
     height_ND_D = node_ND_D ? node_ND_D->height : 0;
     if (height_ND_ND < height_ND_D) {
@@ -948,13 +949,15 @@ _Ret_notnull_ void *ut_avlRootNonEmpty (_In_ const ut_avlTreedef_t *td, _In_ con
 
 void ut_avlCTreedefInit (_Out_ ut_avlCTreedef_t *td, size_t avlnodeoffset, size_t keyoffset, _In_ ut_avlCompare_t comparekk, _In_opt_ ut_avlAugment_t augment, uint32_t flags)
 {
-    treedef_init_common (&td->t, avlnodeoffset, keyoffset, (int (*) ()) comparekk, augment, flags);
+    treedef_init_common (&td->t, avlnodeoffset, keyoffset, augment, flags);
+    td->t.u.comparekk = comparekk;
 }
 
 void ut_avlCTreedefInit_r (_Out_ ut_avlCTreedef_t *td, size_t avlnodeoffset, size_t keyoffset, _In_ ut_avlCompare_r_t comparekk_r, _Inout_opt_ void *cmp_arg, _In_opt_ ut_avlAugment_t augment, uint32_t flags)
 {
+    treedef_init_common (&td->t, avlnodeoffset, keyoffset, augment, flags | UT_AVL_TREEDEF_FLAG_R);
     td->t.cmp_arg = cmp_arg;
-    treedef_init_common (&td->t, avlnodeoffset, keyoffset, (int (*) ()) comparekk_r, augment, flags | UT_AVL_TREEDEF_FLAG_R);
+    td->t.u.comparekk_r = comparekk_r;
 }
 
 void ut_avlCInit (_In_ const ut_avlCTreedef_t *td, _Out_ ut_avlCTree_t *tree)

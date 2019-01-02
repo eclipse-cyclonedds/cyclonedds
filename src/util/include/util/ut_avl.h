@@ -190,7 +190,6 @@ typedef struct ut_avlTreedef {
     size_t avlnodeoffset;
     size_t keyoffset;
     union {
-        int (*cmp) ();
         ut_avlCompare_t comparekk;
         ut_avlCompare_r_t comparekk_r;
     } u;
@@ -239,14 +238,14 @@ typedef struct ut_avlCIter {
 } ut_avlCIter_t;
 
 /* avlnodeoffset and keyoffset must both be in [0,2**31-1] */
-#define UT_AVL_TREEDEF_INITIALIZER(avlnodeoffset, keyoffset, comparekk, augment) { (avlnodeoffset), (keyoffset), { (int (*) ()) (comparekk) }, (augment), 0, 0 }
-#define UT_AVL_TREEDEF_INITIALIZER_INDKEY(avlnodeoffset, keyoffset, comparekk, augment) { (avlnodeoffset), (keyoffset), { (int (*) ()) (comparekk) }, (augment), UT_AVL_TREEDEF_FLAG_INDKEY, 0 }
-#define UT_AVL_TREEDEF_INITIALIZER_ALLOWDUPS(avlnodeoffset, keyoffset, comparekk, augment) { (avlnodeoffset), (keyoffset), { (int (*) ()) (comparekk) }, (augment), UT_AVL_TREEDEF_FLAG_ALLOWDUPS, 0 }
-#define UT_AVL_TREEDEF_INITIALIZER_INDKEY_ALLOWDUPS(avlnodeoffset, keyoffset, comparekk, augment) { (avlnodeoffset), (keyoffset), { (int (*) ()) (comparekk) }, (augment), UT_AVL_TREEDEF_FLAG_INDKEY|UT_AVL_TREEDEF_FLAG_ALLOWDUPS, 0 }
-#define UT_AVL_TREEDEF_INITIALIZER_R(avlnodeoffset, keyoffset, comparekk, cmparg, augment) { (avlnodeoffset), (keyoffset), { (int (*) ()) (comparekk) }, (augment), UT_AVL_TREEDEF_FLAG_R, (cmparg) }
-#define UT_AVL_TREEDEF_INITIALIZER_INDKEY_R(avlnodeoffset, keyoffset, comparekk, cmparg, augment) { (avlnodeoffset), (keyoffset), { (int (*) ()) (comparekk) }, (augment), UT_AVL_TREEDEF_FLAG_INDKEY|UT_AVL_TREEDEF_FLAG_R, (cmparg) }
-#define UT_AVL_TREEDEF_INITIALIZER_R_ALLOWDUPS(avlnodeoffset, keyoffset, comparekk, cmparg, augment) { (avlnodeoffset), (keyoffset), { (int (*) ()) (comparekk) }, (augment), UT_AVL_TREEDEF_FLAG_R|UT_AVL_TREEDEF_FLAG_ALLOWDUPS, (cmparg) }
-#define UT_AVL_TREEDEF_INITIALIZER_INDKEY_R_ALLOWDUPS(avlnodeoffset, keyoffset, comparekk, cmparg, augment) { (avlnodeoffset), (keyoffset), { (int (*) ()) (comparekk) }, (augment), UT_AVL_TREEDEF_FLAG_INDKEY|UT_AVL_TREEDEF_FLAG_R|UT_AVL_TREEDEF_FLAG_ALLOWDUPS, (cmparg) }
+#define UT_AVL_TREEDEF_INITIALIZER(avlnodeoffset, keyoffset, comparekk_, augment) { (avlnodeoffset), (keyoffset), { .comparekk = (comparekk_) }, (augment), 0, 0 }
+#define UT_AVL_TREEDEF_INITIALIZER_INDKEY(avlnodeoffset, keyoffset, comparekk_, augment) { (avlnodeoffset), (keyoffset), { .comparekk = (comparekk_) }, (augment), UT_AVL_TREEDEF_FLAG_INDKEY, 0 }
+#define UT_AVL_TREEDEF_INITIALIZER_ALLOWDUPS(avlnodeoffset, keyoffset, comparekk_, augment) { (avlnodeoffset), (keyoffset), { .comparekk = (comparekk_) }, (augment), UT_AVL_TREEDEF_FLAG_ALLOWDUPS, 0 }
+#define UT_AVL_TREEDEF_INITIALIZER_INDKEY_ALLOWDUPS(avlnodeoffset, keyoffset, comparekk_, augment) { (avlnodeoffset), (keyoffset), { .comparekk = (comparekk_) }, (augment), UT_AVL_TREEDEF_FLAG_INDKEY|UT_AVL_TREEDEF_FLAG_ALLOWDUPS, 0 }
+#define UT_AVL_TREEDEF_INITIALIZER_R(avlnodeoffset, keyoffset, comparekk_, cmparg, augment) { (avlnodeoffset), (keyoffset), { .comparekk_r = (comparekk_) }, (augment), UT_AVL_TREEDEF_FLAG_R, (cmparg) }
+#define UT_AVL_TREEDEF_INITIALIZER_INDKEY_R(avlnodeoffset, keyoffset, comparekk_, cmparg, augment) { (avlnodeoffset), (keyoffset), { .comparekk_r = (comparekk_) }, (augment), UT_AVL_TREEDEF_FLAG_INDKEY|UT_AVL_TREEDEF_FLAG_R, (cmparg) }
+#define UT_AVL_TREEDEF_INITIALIZER_R_ALLOWDUPS(avlnodeoffset, keyoffset, comparekk_, cmparg, augment) { (avlnodeoffset), (keyoffset), { .comparekk_r = (comparekk_) }, (augment), UT_AVL_TREEDEF_FLAG_R|UT_AVL_TREEDEF_FLAG_ALLOWDUPS, (cmparg) }
+#define UT_AVL_TREEDEF_INITIALIZER_INDKEY_R_ALLOWDUPS(avlnodeoffset, keyoffset, comparekk_, cmparg, augment) { (avlnodeoffset), (keyoffset), { .comparekk_r = (comparekk_) }, (augment), UT_AVL_TREEDEF_FLAG_INDKEY|UT_AVL_TREEDEF_FLAG_R|UT_AVL_TREEDEF_FLAG_ALLOWDUPS, (cmparg) }
 
 /* Not maintaining # nodes */
 
