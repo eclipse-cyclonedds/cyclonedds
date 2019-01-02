@@ -3477,7 +3477,7 @@ void nn_xqos_fini (nn_xqos_t *xqos)
     else
     {
       /* until proper message buffers arrive */
-      DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", xqos->partition.strs);
+      DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", (void *) xqos->partition.strs);
       os_free (xqos->partition.strs);
     }
   }
@@ -3488,7 +3488,7 @@ void nn_xqos_fini (nn_xqos_t *xqos)
     else
     {
       /* until proper message buffers arrive */
-      DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", xqos->subscription_keys.key_list.strs);
+      DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", (void *) xqos->subscription_keys.key_list.strs);
       os_free (xqos->subscription_keys.key_list.strs);
     }
   }

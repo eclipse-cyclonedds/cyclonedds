@@ -207,7 +207,7 @@ static dds_return_t wait_for_reader(dds_entity_t writer, dds_entity_t participan
   DDS_ERR_CHECK (waitset, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 
   ret = dds_waitset_attach(waitset, writer, (dds_attach_t)NULL);
-  DDS_ERR_CHECK (waitset, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 
   ret = dds_waitset_wait(waitset, NULL, 0, DDS_SECS(30));
   DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);

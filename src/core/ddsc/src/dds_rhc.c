@@ -367,6 +367,7 @@ static void remove_inst_from_nonempty_list (struct rhc *rhc, struct rhc_instance
 #ifndef NDEBUG
   {
     const struct rhc_instance *x = rhc->nonempty_instances;
+    assert (x);
     do { if (x == inst) break; x = x->next; } while (x != rhc->nonempty_instances);
     assert (x == inst);
   }
@@ -2132,7 +2133,7 @@ void dds_rhc_add_readcondition (dds_readcond * cond)
 
   DDS_TRACE("add_readcondition(%p, %x, %x, %x) => %p qminv %x ; rhc %u conds\n",
     (void *) rhc, cond->m_sample_states, cond->m_view_states,
-    cond->m_instance_states, cond, cond->m_qminv, rhc->nconds);
+    cond->m_instance_states, (void *) cond, cond->m_qminv, rhc->nconds);
 
   os_mutexUnlock (&rhc->conds_lock);
   os_mutexUnlock (&rhc->lock);

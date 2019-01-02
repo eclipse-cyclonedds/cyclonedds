@@ -2703,7 +2703,7 @@ static int handle_submsg_sequence
 
     if (submsg + submsg_size > end)
     {
-      DDS_TRACE(" BREAK (%u %"PRIuSIZE": %p %u)\n", (unsigned) (submsg - msg), submsg_size, msg, (unsigned) len);
+      DDS_TRACE(" BREAK (%u %"PRIuSIZE": %p %u)\n", (unsigned) (submsg - msg), submsg_size, (void *) msg, (unsigned) len);
       break;
     }
 
@@ -2909,7 +2909,7 @@ static int handle_submsg_sequence
   {
     state = "parse:shortmsg";
     state_smkind = SMID_PAD;
-    DDS_TRACE("short (size %"PRIuSIZE" exp %p act %p)", submsg_size, submsg, end);
+    DDS_TRACE("short (size %"PRIuSIZE" exp %p act %p)", submsg_size, (void *) submsg, (void *) end);
     goto malformed;
   }
   return 0;
@@ -3319,7 +3319,7 @@ void trigger_recv_threads (void)
         break;
       }
       case RTM_MANY: {
-        DDS_TRACE("trigger_recv_threads: %d many %p\n", i, gv.recv_threads[i].arg.u.many.ws);
+        DDS_TRACE("trigger_recv_threads: %d many %p\n", i, (void *) gv.recv_threads[i].arg.u.many.ws);
         os_sockWaitsetTrigger (gv.recv_threads[i].arg.u.many.ws);
         break;
       }

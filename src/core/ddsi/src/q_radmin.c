@@ -425,7 +425,7 @@ static struct nn_rbuf *nn_rbuf_alloc_new (struct nn_rbufpool *rbufpool)
   rb->size = rbufpool->rbuf_size;
   rb->max_rmsg_size = rbufpool->max_rmsg_size;
   rb->freeptr = rb->u.raw;
-  DDS_LOG(DDS_LC_RADMIN, "rbuf_alloc_new(%p) = %p\n", rbufpool, rb);
+  DDS_LOG(DDS_LC_RADMIN, "rbuf_alloc_new(%p) = %p\n", (void *) rbufpool, (void *) rb);
   return rb;
 }
 
@@ -447,10 +447,10 @@ static struct nn_rbuf *nn_rbuf_new (struct nn_rbufpool *rbufpool)
 static void nn_rbuf_release (struct nn_rbuf *rbuf)
 {
   struct nn_rbufpool *rbp = rbuf->rbufpool;
-  DDS_LOG(DDS_LC_RADMIN, "rbuf_release(%p) pool %p current %p\n", rbuf, rbp, rbp->current);
+  DDS_LOG(DDS_LC_RADMIN, "rbuf_release(%p) pool %p current %p\n", (void *) rbuf, (void *) rbp, (void *) rbp->current);
   if (os_atomic_dec32_ov (&rbuf->n_live_rmsg_chunks) == 1)
   {
-    DDS_LOG(DDS_LC_RADMIN, "rbuf_release(%p) free\n", rbuf);
+    DDS_LOG(DDS_LC_RADMIN, "rbuf_release(%p) free\n", (void *) rbuf);
     os_free (rbuf);
   }
 }
@@ -513,7 +513,7 @@ struct nn_rmsg *nn_rmsg_new (struct nn_rbufpool *rbufpool)
 {
   /* Note: only one thread calls nn_rmsg_new on a pool */
   struct nn_rmsg *rmsg;
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_new(%p)\n", rbufpool);
+  DDS_LOG(DDS_LC_RADMIN, "rmsg_new(%p)\n", (void *) rbufpool);
 
   rmsg = nn_rbuf_alloc (rbufpool);
   if (rmsg == NULL)
@@ -526,14 +526,14 @@ struct nn_rmsg *nn_rmsg_new (struct nn_rbufpool *rbufpool)
   rmsg->lastchunk = &rmsg->chunk;
   /* Incrementing freeptr happens in commit(), so that discarding the
      message is really simple. */
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_new(%p) = %p\n", rbufpool, rmsg);
+  DDS_LOG(DDS_LC_RADMIN, "rmsg_new(%p) = %p\n", (void *) rbufpool, (void *) rmsg);
   return rmsg;
 }
 
 void nn_rmsg_setsize (struct nn_rmsg *rmsg, uint32_t size)
 {
   uint32_t size8 = align8uint32 (size);
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_setsize(%p, %u => %u)\n", rmsg, size, size8);
+  DDS_LOG(DDS_LC_RADMIN, "rmsg_setsize(%p, %u => %u)\n", (void *) rmsg, size, size8);
   ASSERT_RBUFPOOL_OWNER (rmsg->chunk.rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
   assert (os_atomic_ld32 (&rmsg->refcount) == RMSG_REFCOUNT_UNCOMMITTED_BIAS);
@@ -556,7 +556,7 @@ void nn_rmsg_free (struct nn_rmsg *rmsg)
      free() which we don't do currently.  And ideally, you'd use
      compare-and-swap for this. */
   struct nn_rmsg_chunk *c;
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_free(%p)\n", rmsg);
+  DDS_LOG(DDS_LC_RADMIN, "rmsg_free(%p)\n", (void *) rmsg);
   assert (os_atomic_ld32 (&rmsg->refcount) == 0);
   c = &rmsg->chunk;
   while (c)
@@ -579,7 +579,7 @@ void nn_rmsg_free (struct nn_rmsg *rmsg)
 static void commit_rmsg_chunk (struct nn_rmsg_chunk *chunk)
 {
   struct nn_rbuf *rbuf = chunk->rbuf;
-  DDS_LOG(DDS_LC_RADMIN, "commit_rmsg_chunk(%p)\n", chunk);
+  DDS_LOG(DDS_LC_RADMIN, "commit_rmsg_chunk(%p)\n", (void *) chunk);
   rbuf->freeptr = chunk->u.payload + chunk->size;
 }
 
@@ -595,7 +595,7 @@ void nn_rmsg_commit (struct nn_rmsg *rmsg)
      completed before we got to commit. */
   struct nn_rmsg_chunk *chunk = rmsg->lastchunk;
   DDS_LOG(DDS_LC_RADMIN, "rmsg_commit(%p) refcount 0x%x last-chunk-size %u\n",
-                 rmsg, rmsg->refcount.v, chunk->size);
+                 (void *) rmsg, rmsg->refcount.v, chunk->size);
   ASSERT_RBUFPOOL_OWNER (chunk->rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
   assert (chunk->size <= chunk->rbuf->max_rmsg_size);
@@ -610,7 +610,7 @@ void nn_rmsg_commit (struct nn_rmsg *rmsg)
   {
     /* Other references exist, so either stored in defrag, reorder
        and/or delivery queue */
-    DDS_LOG(DDS_LC_RADMIN, "rmsg_commit(%p) => keep\n", rmsg);
+    DDS_LOG(DDS_LC_RADMIN, "rmsg_commit(%p) => keep\n", (void *) rmsg);
     commit_rmsg_chunk (chunk);
   }
 }
@@ -623,7 +623,7 @@ static void nn_rmsg_addbias (struct nn_rmsg *rmsg)
 
      However, other threads (e.g., delivery threads) may have been
      triggered already, so the increment must be done atomically. */
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_addbias(%p)\n", rmsg);
+  DDS_LOG(DDS_LC_RADMIN, "rmsg_addbias(%p)\n", (void *) rmsg);
   ASSERT_RBUFPOOL_OWNER (rmsg->chunk.rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
   os_atomic_add32 (&rmsg->refcount, RMSG_REFCOUNT_RDATA_BIAS);
@@ -635,7 +635,7 @@ static void nn_rmsg_rmbias_and_adjust (struct nn_rmsg *rmsg, int adjust)
      progressing through the pipeline, but only by the receive
      thread.  Can't require it to be uncommitted. */
   uint32_t sub;
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_rmbias_and_adjust(%p, %d)\n", rmsg, adjust);
+  DDS_LOG(DDS_LC_RADMIN, "rmsg_rmbias_and_adjust(%p, %d)\n", (void *) rmsg, adjust);
   ASSERT_RBUFPOOL_OWNER (rmsg->chunk.rbuf->rbufpool);
   assert (adjust >= 0);
   assert ((uint32_t) adjust < RMSG_REFCOUNT_RDATA_BIAS);
@@ -649,14 +649,14 @@ static void nn_rmsg_rmbias_anythread (struct nn_rmsg *rmsg)
 {
   /* For removing garbage when freeing a nn_defrag. */
   uint32_t sub = RMSG_REFCOUNT_RDATA_BIAS;
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_rmbias_anythread(%p)\n", rmsg);
+  DDS_LOG(DDS_LC_RADMIN, "rmsg_rmbias_anythread(%p)\n", (void *) rmsg);
   assert (os_atomic_ld32 (&rmsg->refcount) >= sub);
   if (os_atomic_sub32_nv (&rmsg->refcount, sub) == 0)
     nn_rmsg_free (rmsg);
 }
 static void nn_rmsg_unref (struct nn_rmsg *rmsg)
 {
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_unref(%p)\n", rmsg);
+  DDS_LOG(DDS_LC_RADMIN, "rmsg_unref(%p)\n", (void *) rmsg);
   assert (os_atomic_ld32 (&rmsg->refcount) > 0);
   if (os_atomic_dec32_ov (&rmsg->refcount) == 1)
     nn_rmsg_free (rmsg);
@@ -668,7 +668,7 @@ void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
   struct nn_rbuf *rbuf = chunk->rbuf;
   uint32_t size8 = align8uint32 (size);
   void *ptr;
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_alloc(%p, %u => %u)\n", rmsg, size, size8);
+  DDS_LOG(DDS_LC_RADMIN, "rmsg_alloc(%p, %u => %u)\n", (void *) rmsg, size, size8);
   ASSERT_RBUFPOOL_OWNER (rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
   assert ((chunk->size % 8) == 0);
@@ -678,7 +678,7 @@ void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
   {
     struct nn_rbufpool *rbufpool = rbuf->rbufpool;
     struct nn_rmsg_chunk *newchunk;
-    DDS_LOG(DDS_LC_RADMIN, "rmsg_alloc(%p, %u) limit hit - new chunk\n", rmsg, size);
+    DDS_LOG(DDS_LC_RADMIN, "rmsg_alloc(%p, %u) limit hit - new chunk\n", (void *) rmsg, size);
     commit_rmsg_chunk (chunk);
     newchunk = nn_rbuf_alloc (rbufpool);
     if (newchunk == NULL)
@@ -693,7 +693,7 @@ void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
 
   ptr = chunk->u.payload + chunk->size;
   chunk->size += size8;
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_alloc(%p, %u) = %p\n", rmsg, size, ptr);
+  DDS_LOG(DDS_LC_RADMIN, "rmsg_alloc(%p, %u) = %p\n", (void *) rmsg, size, ptr);
 #if USE_VALGRIND
   if (chunk == &rmsg->chunk) {
     VALGRIND_MEMPOOL_CHANGE (rbuf->rbufpool, rmsg, rmsg, offsetof (struct nn_rmsg, chunk.u.payload) + chunk->size);
@@ -720,13 +720,13 @@ struct nn_rdata *nn_rdata_new (struct nn_rmsg *rmsg, uint32_t start, uint32_t en
 #ifndef NDEBUG
   os_atomic_st32 (&d->refcount_bias_added, 0);
 #endif
-  DDS_LOG(DDS_LC_RADMIN, "rdata_new(%p, bytes [%u,%u), submsg @ %u, payload @ %u) = %p\n", rmsg, start, endp1, NN_RDATA_SUBMSG_OFF (d), NN_RDATA_PAYLOAD_OFF (d), d);
+  DDS_LOG(DDS_LC_RADMIN, "rdata_new(%p, bytes [%u,%u), submsg @ %u, payload @ %u) = %p\n", (void *) rmsg, start, endp1, NN_RDATA_SUBMSG_OFF (d), NN_RDATA_PAYLOAD_OFF (d), (void *) d);
   return d;
 }
 
 static void nn_rdata_addbias (struct nn_rdata *rdata)
 {
-  DDS_LOG(DDS_LC_RADMIN, "rdata_addbias(%p)\n", rdata);
+  DDS_LOG(DDS_LC_RADMIN, "rdata_addbias(%p)\n", (void *) rdata);
 #ifndef NDEBUG
   ASSERT_RBUFPOOL_OWNER (rdata->rmsg->chunk.rbuf->rbufpool);
   if (os_atomic_inc32_nv (&rdata->refcount_bias_added) != 1)
@@ -737,7 +737,7 @@ static void nn_rdata_addbias (struct nn_rdata *rdata)
 
 static void nn_rdata_rmbias_and_adjust (struct nn_rdata *rdata, int adjust)
 {
-  DDS_LOG(DDS_LC_RADMIN, "rdata_rmbias_and_adjust(%p, %d)\n", rdata, adjust);
+  DDS_LOG(DDS_LC_RADMIN, "rdata_rmbias_and_adjust(%p, %d)\n", (void *) rdata, adjust);
 #ifndef NDEBUG
   if (os_atomic_dec32_ov (&rdata->refcount_bias_added) != 1)
     abort ();
@@ -747,7 +747,7 @@ static void nn_rdata_rmbias_and_adjust (struct nn_rdata *rdata, int adjust)
 
 static void nn_rdata_rmbias_anythread (struct nn_rdata *rdata)
 {
-  DDS_LOG(DDS_LC_RADMIN, "rdata_rmbias_anythread(%p)\n", rdata);
+  DDS_LOG(DDS_LC_RADMIN, "rdata_rmbias_anythread(%p)\n", (void *) rdata);
 #ifndef NDEBUG
   if (os_atomic_dec32_ov (&rdata->refcount_bias_added) != 1)
     abort ();
@@ -757,7 +757,7 @@ static void nn_rdata_rmbias_anythread (struct nn_rdata *rdata)
 
 static void nn_rdata_unref (struct nn_rdata *rdata)
 {
-  DDS_LOG(DDS_LC_RADMIN, "rdata_rdata_unref(%p)\n", rdata);
+  DDS_LOG(DDS_LC_RADMIN, "rdata_rdata_unref(%p)\n", (void *) rdata);
   nn_rmsg_unref (rdata->rmsg);
 }
 
@@ -894,7 +894,7 @@ struct nn_defrag *nn_defrag_new (enum nn_defrag_drop_mode drop_mode, uint32_t ma
 void nn_fragchain_adjust_refcount (struct nn_rdata *frag, int adjust)
 {
   struct nn_rdata *frag1;
-  DDS_LOG(DDS_LC_RADMIN, "fragchain_adjust_refcount(%p, %d)\n", frag, adjust);
+  DDS_LOG(DDS_LC_RADMIN, "fragchain_adjust_refcount(%p, %d)\n", (void *) frag, adjust);
   while (frag)
   {
     frag1 = frag->nextfrag;
@@ -906,7 +906,7 @@ void nn_fragchain_adjust_refcount (struct nn_rdata *frag, int adjust)
 static void nn_fragchain_rmbias_anythread (struct nn_rdata *frag, UNUSED_ARG (int adjust))
 {
   struct nn_rdata *frag1;
-  DDS_LOG(DDS_LC_RADMIN, "fragchain_rmbias_anythread(%p)\n", frag);
+  DDS_LOG(DDS_LC_RADMIN, "fragchain_rmbias_anythread(%p)\n", (void *) frag);
   while (frag)
   {
     frag1 = frag->nextfrag;
@@ -940,7 +940,7 @@ void nn_defrag_free (struct nn_defrag *defrag)
   s = ut_avlFindMin (&defrag_sampletree_treedef, &defrag->sampletree);
   while (s)
   {
-    DDS_LOG(DDS_LC_RADMIN, "defrag_free(%p, sample %p seq %"PRId64")\n", defrag, s, s->u.defrag.seq);
+    DDS_LOG(DDS_LC_RADMIN, "defrag_free(%p, sample %p seq %"PRId64")\n", (void *) defrag, (void *) s, s->u.defrag.seq);
     defrag_rsample_drop (defrag, s, nn_fragchain_rmbias_anythread);
     s = ut_avlFindMin (&defrag_sampletree_treedef, &defrag->sampletree);
   }
@@ -1161,6 +1161,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct
      concerns the message pointer to by sample */
   assert (min < maxp1);
   /* and it must concern this message */
+  assert (dfsample);
   assert (dfsample->seq == sampleinfo->seq);
   /* there must be a last fragment */
   assert (dfsample->lastfrag);
@@ -1357,7 +1358,7 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
   assert (defrag->max_sample == ut_avlFindMax (&defrag_sampletree_treedef, &defrag->sampletree));
   max_seq = defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0;
   DDS_LOG(DDS_LC_RADMIN, "defrag_rsample(%p, %p [%u..%u) msg %p, %p seq %"PRId64" size %u) max_seq %p %"PRId64":\n",
-          (void *) defrag, (void *) rdata, rdata->min, rdata->maxp1, rdata->rmsg,
+          (void *) defrag, (void *) rdata, rdata->min, rdata->maxp1, (void *) rdata->rmsg,
           (void *) sampleinfo, sampleinfo->seq, sampleinfo->size,
           (void *) defrag->max_sample, max_seq);
   /* fast path: rdata is part of message with the highest sequence

@@ -114,7 +114,7 @@ static void sertopic_builtin_free_samples (const struct ddsi_sertopic *sertopic_
 #endif
     if (op & DDS_FREE_CONTENTS_BIT)
     {
-      void (*f) (void *);
+      void (*f) (void *) = 0;
       char *ptr = ptrs[0];
       switch (tp->type)
       {
@@ -126,6 +126,7 @@ static void sertopic_builtin_free_samples (const struct ddsi_sertopic *sertopic_
           f = free_endpoint;
           break;
       }
+      assert (f != 0);
       for (size_t i = 0; i < count; i++)
       {
         f (ptr);
