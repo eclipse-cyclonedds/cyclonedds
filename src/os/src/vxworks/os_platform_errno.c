@@ -39,44 +39,49 @@ strerrorIf(
    details. NAME_MAX is defined in limits.h. */
 
 int
-os_strerror_r(int err, char *str, size_t len)
+os_strerror_r(int errnum, char *buf, size_t buflen)
 {
-    int res = EINVAL;
+    int err;
+    const char *str;
 
-    assert(str != NULL);
+    assert(buf != NULL);
 
-    if (len < (NAME_MAX + 1)) {
-        res = ERANGE;
-    } else if (strerrorIf(err) != NULL) {
-        (void)strerror_r(err, str);
+    if ((err = os_errstr(errnum, buf, buflen)) == EINVAL) {
+        err = 0;
+        if (buflen < (NAME_MAX + 1)) {
+            err = ERANGE;
+        } else if (strerrorIf(errnum) != NULL) {
+            (void)strerror_r(errnum, buf);
+        }
     }
 
-    return res;
+    return err;
 }
 
 #else
 
 int
-os_strerror_r(int err, char *str, size_t len)
+os_strerror_r(int errnum, char *buf, size_t buflen)
 {
-    int res = 0;
+    int err;
+    const char *str;
 
-    assert(str != NULL);
+    assert(buf != NULL);
 
-    /* VxWorks's strerror_r always returns 0 (zero), so the only way to decide
-       if the error was truncated is to check if the last position in the
-       buffer is overwritten by strerror_r. */
-    str[len - 1] = 'x';
-
-    (void)strerror_r (err, str, len);
-
-    if (str[len - 1] != 'x') {
-        res = ERANGE;
+    if ((err = os_errstr(errnum, buf, buflen)) == EINVAL) {
+        /* VxWorks's strerror_r always returns 0 (zero), so the only way to
+           decide if the error was truncated is to check if the last position
+           in the buffer is overwritten by strerror_r. */
+        err = 0;
+        buf[buflen - 1] = 'x';
+        (void)strerror_r(errnum, buf, buflen);
+        if (buf[buflen - 1] != 'x') {
+            err = ERANGE;
+        }
+        buf[buflen - 1] = '\0'; /* Always null terminate, just to be safe. */
     }
 
-    str[len - 1] = '\0'; /* always null terminate, just to be safe */
-
-    return res;
+    return err;
 }
 
 #endif /* _WRS_KERNEL */

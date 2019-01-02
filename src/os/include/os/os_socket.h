@@ -48,7 +48,7 @@ extern "C" {
     typedef struct sockaddr os_sockaddr;
     typedef struct sockaddr_storage os_sockaddr_storage;
 
-#if defined(OS_SOCKET_HAS_IPV6) && OS_SOCKET_HAS_IPV6 == 1
+#if OS_SOCKET_HAS_IPV6
     typedef struct ipv6_mreq os_ipv6_mreq;
     typedef struct in6_addr os_in6_addr;
 
@@ -243,37 +243,83 @@ extern "C" {
                           const os_sockaddr* thatSock,
                           const os_sockaddr* mask);
 
-    /**
-     * Convert a socket address to a string format presentation representation
-     * @param sa The socket address struct.
-     * @param buffer A character buffer to hold the string rep of the address.
-     * @param buflen The (max) size of the buffer
-     * @return Pointer to start of string
-     */
-    OSAPI_EXPORT char*
-    os_sockaddrAddressToString(const os_sockaddr* sa,
-                               char* buffer, size_t buflen);
+#ifdef OS_SOCKET_HAS_DNS
+
+    typedef struct {
+        size_t naddrs;
+        os_sockaddr_storage addrs[];
+    } os_hostent_t;
 
     /**
-    * Convert the provided addressString into a os_sockaddr.
-    *
-    * @param addressString The string representation of a network address.
-    * @param addressOut A pointer to an os_sockaddr. Must be big enough for
-    * the address type specified by the string. This implies it should
-    * generally be the address of an os_sockaddr_storage for safety's sake.
-    * @param isIPv4 If the addressString is a hostname specifies whether
-    * and IPv4 address should be returned. If false an Ipv6 address will be
-    * requested. If the address is in either valid decimal presentation format
-    * param will be ignored.
-    * @return true on successful conversion. false otherwise
-    */
-    _Success_(return) OSAPI_EXPORT bool
-    os_sockaddrStringToAddress(
-        _In_z_  const char *addressString,
-        _When_(isIPv4, _Out_writes_bytes_(sizeof(os_sockaddr_in)))
-        _When_(!isIPv4, _Out_writes_bytes_(sizeof(os_sockaddr_in6)))
-            os_sockaddr *addressOut,
-        _In_ bool isIPv4);
+     * Lookup addresses for given host name.
+     *
+     * @param[in]   name  Host name to resolve.
+     * @param[in]   af    Address family, either AF_INET, AF_INET6 or AF_UNSPEC.
+     * @param[out]  hent  Structure of type os_hostent_t.
+     *
+     * @returns 0 on success or valid error number on failure.
+     *
+     * @retval 0
+     *           Success. Host name successfully resolved to address(es).
+     * @retval OS_HOST_NOT_FOUND
+     *           Host not found.
+     * @retval OS_NO_DATA
+     *           Valid name, no data record of requested type.
+     * @retval OS_NO_RECOVERY
+     *           Nonrecoverable error.
+     * @retval OS_TRY_AGAIN
+     *           Nonauthoratitative host not found.
+     */
+    OSAPI_EXPORT _Success_(return == 0) int
+    os_gethostbyname(
+        _In_z_ const char *name,
+        _In_ int af,
+        _Out_ os_hostent_t **hent);
+
+#endif /* OS_SOCKET_HAS_DNS */
+
+    /**
+     * Convert IPv4 and IPv6 addresses from text to socket address.
+     *
+     * @param  af[in]   Address family, either AF_INET or AF_INET6.
+     * @param  str[in]  Network address in text form.
+     * @param  sa[out]  Pointer to a sufficiently large enough socket address
+     *                  structure. This implies it should generally be the
+     *                  address to a structure of type struct sockaddr_storage.
+     *
+     * @return 0 on success or a valid error number on failure.
+     */
+    OSAPI_EXPORT _Success_(return) int
+    os_sockaddrfromstr(
+        _In_ int af,
+        _In_z_  const char *str,
+        _When_(af == AF_INET, _Out_writes_bytes_(sizeof(os_sockaddr_in)))
+#if OS_SOCKET_HAS_IPV6
+        _When_(af == AF_INET6, _Out_writes_bytes_(sizeof(os_sockaddr_in6)))
+#endif
+            void *sa);
+
+    /**
+     * Convert a socket address to text form.
+     *
+     * @param[in]   sa    Socket address structure.
+     * @param[out]  buf   Buffer to which resulting string is copied.
+     * @param[in]   size  Number of bytes available in the buffer.
+     *
+     * @returns 0 on success or a valid error number on failure.
+     *
+     * @retval 0
+     *           Success. Socket address structure converted to text form.
+     * @retval EAFNOSUPPORT
+     *           Socket address structure of unsupported valid address family.
+     * @retval ENOSPC
+     *           Text form would exceed the size specified by size.
+     */
+    OSAPI_EXPORT _Success_(return == 0) int
+    os_sockaddrtostr(
+        _In_ const void *sa,
+        _Out_writes_z_(size) char *buf,
+        _In_ size_t size);
 
     /* docced in implementation file */
     OSAPI_EXPORT bool

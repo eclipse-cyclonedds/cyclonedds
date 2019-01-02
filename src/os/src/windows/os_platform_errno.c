@@ -51,43 +51,46 @@ os_setErrno(int err)
 
 int
 os_strerror_r(
-    _In_ int err,
-    _Out_writes_z_(len) char *str,
-    _In_ size_t len)
+    _In_ int errnum,
+    _Out_writes_z_(buflen) char *buf,
+    _In_ size_t buflen)
 {
-    int res = 0, errs[2];
+    int err = 0, errs[2];
     DWORD cnt;
 
-    assert(str != NULL);
-    assert(len > 0);
+    assert(buf != NULL);
+    assert(buflen > 0);
 
-    str[0] = '\0'; /* null-terminate in case nothing is written */
-    errs[0] = os_getErrno();
-    cnt = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
-        FORMAT_MESSAGE_IGNORE_INSERTS |
-        FORMAT_MESSAGE_MAX_WIDTH_MASK,
-        NULL,
-        err,
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (LPTSTR)str,
-        (DWORD)len,
-        NULL);
+    if ((err = os_errstr(errnum, buf, buflen)) == EINVAL) {
+        err = 0;
+        buf[0] = '\0'; /* Null-terminate in case nothing is written. */
+        errs[0] = os_getErrno();
+        cnt = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
+            FORMAT_MESSAGE_IGNORE_INSERTS |
+            FORMAT_MESSAGE_MAX_WIDTH_MASK,
+            NULL,
+            errnum,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPTSTR)buf,
+            (DWORD)buflen,
+            NULL);
 
-    errs[1] = os_getErrno();
-    if (cnt == 0) {
-        if (errs[1] == ERROR_MORE_DATA) {
-            res = ERANGE;
-        } else {
-            res = EINVAL;
+        errs[1] = os_getErrno();
+        if (cnt == 0) {
+            if (errs[1] == ERROR_MORE_DATA) {
+                err = ERANGE;
+            } else {
+                err = EINVAL;
+            }
         }
+
+        /* os_strerror_r should not modify errno itself. */
+        if (errs[0] != errs[1]) {
+            os_setErrno(errs[0]);
+        }
+
+        buf[buflen - 1] = '\0'; /* Always null-terminate, just to be safe. */
     }
 
-    /* os_strerror_r should not modify errno itself */
-    if (errs[0] != errs[1]) {
-        os_setErrno(errs[0]);
-    }
-
-    str[len - 1] = '\0'; /* always null-terminate, just to be safe */
-
-    return res;
+    return err;
 }

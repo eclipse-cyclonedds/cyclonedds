@@ -25,6 +25,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <net/if.h>
+#include <ifaddrs.h>
 
 #ifdef __APPLE__
 #include <sys/sockio.h>
@@ -36,6 +37,7 @@ extern "C" {
 #endif
 
 /* Keep defines before common header */
+#define OS_SOCKET_HAS_DNS       1
 #define OS_SOCKET_HAS_IPV6      1
 #define OS_SOCKET_HAS_SA_LEN    1
 #define OS_NO_SIOCGIFINDEX      1

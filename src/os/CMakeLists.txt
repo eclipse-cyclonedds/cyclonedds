@@ -25,7 +25,8 @@ set(sources
     src/os_time.c
     src/os_errno.c
     src/os_iter.c
-    src/os_strlcpy.c)
+    src/os_strlcpy.c
+    src/os_dns.c)
 
 string(TOLOWER ${CMAKE_SYSTEM_NAME} system_name)
 set(system_sources

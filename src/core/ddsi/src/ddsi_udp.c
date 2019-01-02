@@ -484,7 +484,7 @@ static char *ddsi_udp_locator_to_string (ddsi_tran_factory_t tran, char *dst, si
     memset (&src, 0, sizeof (src));
     src.sin_family = AF_INET;
     memcpy (&src.sin_addr.s_addr, &mcgen.ipv4, 4);
-    os_sockaddrAddressToString ((const os_sockaddr *) &src, dst, sizeof_dst);
+    os_sockaddrtostr ((const os_sockaddr *) &src, dst, sizeof_dst);
     pos = strlen (dst);
     assert (pos <= sizeof_dst);
     cnt = snprintf (dst + pos, sizeof_dst - pos, ";%u;%u;%u", mcgen.base, mcgen.count, mcgen.idx);

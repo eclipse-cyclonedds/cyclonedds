@@ -45,3 +45,23 @@ CU_Test(os_errno, get_and_set)
 
     printf ("Ending tc_os_errno\n");
 }
+
+CU_Test(os_errstr, no_space)
+{
+    int err;
+    char buf[1] = { 0 };
+    err = os_errstr(OS_HOST_NOT_FOUND, buf, sizeof(buf));
+    CU_ASSERT_EQUAL(err, ERANGE);
+}
+
+/* os_errstr only provides string representations for internal error codes. */
+CU_Test(os_errstr, bad_errno)
+{
+    int err;
+    char buf[128];
+    buf[0] = '\0';
+    err = os_errstr(OS_ERRBASE, buf, sizeof(buf));
+    CU_ASSERT_EQUAL(err, EINVAL);
+    err = os_errstr(EINVAL, buf, sizeof(buf));
+    CU_ASSERT_EQUAL(err, EINVAL);
+}
