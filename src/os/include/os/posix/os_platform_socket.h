@@ -19,19 +19,17 @@
 #endif /* __VXWORKS__ */
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <net/if.h>
 
-#include <sys/select.h>
 #ifdef __APPLE__
 #include <sys/sockio.h>
 #endif /* __APPLE__ */
 #include <unistd.h>
-
-#include <ifaddrs.h>
 
 #if defined (__cplusplus)
 extern "C" {

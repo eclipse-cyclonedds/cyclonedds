@@ -305,9 +305,9 @@ int spdp_write (struct participant *pp)
 
     os_gethostname(node, sizeof(node)-1);
     node[sizeof(node)-1] = '\0';
-    size = strlen(node) + strlen(OSPL_VERSION_STR) + strlen(OSPL_HOST_STR) + strlen(OSPL_TARGET_STR) + 4; /* + ///'\0' */
+    size = strlen(node) + strlen(OS_VERSION) + strlen(OS_HOST_NAME) + strlen(OS_TARGET_NAME) + 4; /* + ///'\0' */
     ps.prismtech_participant_version_info.internals = os_malloc(size);
-    (void) snprintf(ps.prismtech_participant_version_info.internals, size, "%s/%s/%s/%s", node, OSPL_VERSION_STR, OSPL_HOST_STR, OSPL_TARGET_STR);
+    (void) snprintf(ps.prismtech_participant_version_info.internals, size, "%s/%s/%s/%s", node, OS_VERSION, OS_HOST_NAME, OS_TARGET_NAME);
     DDS_TRACE("spdp_write(%x:%x:%x:%x) - internals: %s\n", PGUID (pp->e.guid), ps.prismtech_participant_version_info.internals);
   }
 

@@ -18,20 +18,14 @@
 #include "os/os.h"
 
 #include <sys/types.h>
-#ifndef OSPL_NO_VMEM
 #include <sys/mman.h>
-#endif
-#ifndef PIKEOS_POSIX
 #include <sys/wait.h>
-#endif
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <sched.h>
-#ifndef INTEGRITY
 #include <signal.h>
-#endif
 #include <stdio.h>
 #include <pthread.h>
 

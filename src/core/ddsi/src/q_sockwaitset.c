@@ -511,11 +511,7 @@ int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
 #ifndef _WIN32
 
 #ifndef __VXWORKS__
-#if defined (AIX) || defined (__Lynx__) || defined (__QNX__)
-#include <fcntl.h>
-#elif ! defined(INTEGRITY)
 #include <sys/fcntl.h>
-#endif
 #endif /* __VXWORKS__ */
 
 #ifndef _WRS_KERNEL

@@ -153,17 +153,22 @@ static int os_sockaddr_compare(
 
 int os_sockaddr_is_unspecified(const os_sockaddr *const sa)
 {
-  int unspec = 0;
+    int unspec = 0;
 
-  assert(sa != NULL);
+    assert(sa != NULL);
 
-  if (sa->sa_family == AF_INET6) {
-    unspec = IN6_IS_ADDR_UNSPECIFIED(&((os_sockaddr_in6 *)sa)->sin6_addr);
-  } else if (sa->sa_family == AF_INET) {
-    unspec = (((os_sockaddr_in *)sa)->sin_addr.s_addr == 0);
-  }
+    switch(sa->sa_family) {
+#if (OS_SOCKET_HAS_IPV6 == 1)
+        case AF_INET6:
+            unspec = IN6_IS_ADDR_UNSPECIFIED(&((os_sockaddr_in6*)sa)->sin6_addr);
+            break;
+#endif
+        case AF_INET:
+            unspec = (((os_sockaddr_in *)sa)->sin_addr.s_addr == 0);
+            break;
+    }
 
-  return unspec;
+    return unspec;
 }
 
 /**

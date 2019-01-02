@@ -18,21 +18,6 @@
 #if OS_ENDIANNESS != OS_LITTLE_ENDIAN && OS_ENDIANNESS != OS_BIG_ENDIAN
 #error "OS_ENDIANNESS not set correctly"
 #endif
-#ifndef OS_HAS_UCONTEXT_T
-#error "OS_HAS_UCONTEXT_T not set"
-#endif
-#ifndef OS_SOCKET_USE_FCNTL
-#error "OS_SOCKET_USE_FCNTL must be defined for this platform."
-#endif
-#ifndef OS_SOCKET_USE_IOCTL
-#error "OS_SOCKET_USE_IOCTL must be defined for this platform."
-#endif
-#if (OS_SOCKET_USE_IOCTL == 1) && (OS_SOCKET_USE_FCNTL == 1)
-#error "this platform must set only one of OS_SOCKET_USE_IOCTL and OS_SOCKET_USE_FCNTL to 1"
-#endif
-#ifndef OS_FILESEPCHAR
-#error "OS_FILESEPCHAR must be defined for this platform."
-#endif
 
 #include "os/os_decl_attributes.h"
 

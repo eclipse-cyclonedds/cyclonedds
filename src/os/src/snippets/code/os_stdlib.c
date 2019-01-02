@@ -15,9 +15,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
-#ifndef PIKEOS_POSIX
 #include <strings.h>
-#endif
 #include <string.h>
 #include <ctype.h>
 
@@ -48,18 +46,6 @@ os_putenv(
         result = os_resultFail;
     }
     return result;
-}
-
-const char *
-os_fileSep(void)
-{
-    return "/";
-}
-
-const char *
-os_pathSep(void)
-{
-    return ":";
 }
 
 int

@@ -130,7 +130,7 @@ extern "C" {
      os_condInit(
                 _Out_ os_cond *cond,
                 _In_ os_mutex *mutex)
-        __nonnull((1,2));
+        __nonnull_all__;
 
     /** \brief Destroy the condition variable
      */

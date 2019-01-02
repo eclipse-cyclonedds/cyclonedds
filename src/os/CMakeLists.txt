@@ -11,7 +11,9 @@
 #
 include(CheckCSourceCompiles)
 include(CheckLibraryExists)
+include(CheckTypeSize)
 include(GenerateExportHeader)
+include(TestBigEndian)
 
 set(sources
     src/os_atomics.c
@@ -93,6 +95,15 @@ if(${CMAKE_C_COMPILER_ID} STREQUAL "SunPro")
   target_compile_definitions(OSAPI PRIVATE -KPIC)
 endif()
 
+# Determine if platform is big or little endian.
+test_big_endian(BIG_ENDIAN)
+if(BIG_ENDIAN)
+  set(OS_ENDIANNESS_CODE "#define OS_ENDIANNESS OS_BIG_ENDIAN")
+else()
+  set(OS_ENDIANNESS_CODE "#define OS_ENDIANNESS OS_LITTLE_ENDIAN")
+endif()
+# Determine if platform is 32 or 64 bit.
+check_type_size("void*" OS_SIZEOF_VOID_P BUILTIN_TYPES_ONLY LANGUAGE C)
 configure_file("cmake/os_project.h.in" "include/os/os_project.h")
 target_sources(OSAPI PRIVATE "include/os/os_project.h")
 

@@ -46,67 +46,23 @@ extern "C" {
 
     typedef struct sockaddr_in os_sockaddr_in;
     typedef struct sockaddr os_sockaddr;
+    typedef struct sockaddr_storage os_sockaddr_storage;
 
-#ifdef OS_SOCKET_HAS_IPV6
-#if (OS_SOCKET_HAS_IPV6 == 0)
-    struct foo_in6_addr {
-        unsigned char   foo_s6_addr[16];
-    };
-    typedef struct foo_in6_addr os_in6_addr;
-
-    struct foo_sockaddr_in6 {
-        os_os_ushort sin6_family;
-        os_os_ushort sin6_port;
-        uint32_t sin6_flowinfo;
-        os_in6_addr sin6_addr;
-        uint32_t sin6_scope_id;
-    };
-    typedef struct foo_sockaddr_in6 os_sockaddr_in6;
-
-    struct foo_sockaddr_storage {
-#if (OS_SOCKET_HAS_SA_LEN == 1)
-        os_uchar   ss_len;
-        os_uchar   ss_family;
-#else
-        os_os_ushort  ss_family;
-#endif
-        /* Below aren't 'real' members. Just here for padding to make it big enough
-           for any possible IPv6 address. Not that IPv6 works on this OS. */
-        os_os_ushort sin6_port;
-        uint32_t sin6_flowinfo;
-        os_in6_addr sin6_addr;
-        uint32_t sin6_scope_id;
-    };
-    typedef struct foo_sockaddr_storage os_sockaddr_storage;
-
-    struct foo_ipv6_mreq {
-        os_in6_addr ipv6mr_multiaddr;
-        unsigned int    ipv6mr_interface;
-    };
-    typedef struct foo_ipv6_mreq os_ipv6_mreq;
-#else
+#if defined(OS_SOCKET_HAS_IPV6) && OS_SOCKET_HAS_IPV6 == 1
     typedef struct ipv6_mreq os_ipv6_mreq;
     typedef struct in6_addr os_in6_addr;
 
-    typedef struct sockaddr_storage os_sockaddr_storage;
-
     typedef struct sockaddr_in6 os_sockaddr_in6;
-#endif
-#else
-#error OS_SOCKET_HAS_IPV6 not defined
-#endif
 
     extern const os_in6_addr os_in6addr_any;
     extern const os_in6_addr os_in6addr_loopback;
+#endif /* OS_SOCKET_HAS_IPV6 */
+
 
 #ifndef INET6_ADDRSTRLEN
 #define INET6_ADDRSTRLEN 46 /* strlen("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255") + 1 */
 #endif
 #define INET6_ADDRSTRLEN_EXTENDED (INET6_ADDRSTRLEN + 8) /* + strlen("[]:12345") */
-
-    /* The maximum buffersize needed to safely store the output of
-     * os_sockaddrAddressPortToString or os_sockaddrAddressToString. */
-#define OS_SOCKET_MAX_ADDRSTRLEN INET6_ADDRSTRLEN_EXTENDED
 
 #define SD_FLAG_IS_SET(flags, flag) ((((uint32_t)(flags) & (uint32_t)(flag))) != 0U)
 

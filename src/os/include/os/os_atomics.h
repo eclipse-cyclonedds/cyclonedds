@@ -46,33 +46,6 @@ extern "C" {
 #include "os_atomics_solaris.h"
 #endif
 
-#if ! OS_ATOMIC_SUPPORT && defined __INTEGRITY
-#include "os_atomics_integrity.h"
-#endif
-
-#if ! OS_ATOMIC_SUPPORT && defined __VXWORKS__
-#include "os_atomics_vxworks.h"
-#endif
-
-#if ! OS_ATOMIC_SUPPORT && defined __GNUC__ && defined __i386
-#include "os_atomics_gcc_x86.h"
-#endif
-
-#if ! OS_ATOMIC_SUPPORT &&                                              \
-  ((defined __GNUC__ && defined __ppc) ||                               \
-   (defined __vxworks && defined __PPC__))
-/* VxWorks uses GCC but removed the __GNUC__ macro ... */
-#include "os_atomics_gcc_ppc.h"
-#endif
-
-#if ! OS_ATOMIC_SUPPORT && defined __GNUC__ && defined __sparc__
-#include "os_atomics_gcc_sparc.h"
-#endif
-
-#if ! OS_ATOMIC_SUPPORT && defined __GNUC__ && defined __arm__
-#include "os_atomics_gcc_arm.h"
-#endif
-
 #if ! OS_ATOMIC_SUPPORT
 #error "No support for atomic operations on this platform"
 #endif

@@ -19,12 +19,6 @@
 extern "C" {
 #endif
 
-#define OS_OS_FILESEPCHAR '\\'
-#define OS_OS_PATHSEPCHAR ';'
-#define OS_OS_EXESUFFIX   ".exe"
-#define OS_OS_BATSUFFIX   ".bat"
-#define OS_OS_LIB_LOAD_PATH_VAR "PATH"
-
 #define OS_ROK (_S_IREAD)
 #define OS_WOK (_S_IWRITE)
 #define OS_XOK (_S_IEXEC)
@@ -38,14 +32,6 @@ extern "C" {
 #define S_IRWXU 00700
 #define S_IRWXG 00070
 #define S_IRWXO 00007
-
-    /* The value _POSIX_PATH_MAX is defined in limits.h, however you have
-     * to define _POSIX_ during compilation.This again will remove the
-     * _read, _open and _close prototypes!
-     */
-#define OS_PATH_MAX 255
-
-    typedef HANDLE os_os_dirHandle;
 
 #define MAXHOSTNAMELEN MAX_HOSTNAME_LEN
 
