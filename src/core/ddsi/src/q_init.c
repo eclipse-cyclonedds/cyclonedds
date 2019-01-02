@@ -1381,6 +1381,8 @@ err_unicast_sockets:
   (ddsi_plugin.fini_fn) ();
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 err_network_partition_addrset:
+  for (struct config_networkpartition_listelem *np = config.networkPartitions; np; np = np->next)
+    unref_addrset (np->as);
 #endif
 err_set_ext_address:
   while (gv.recvips)
@@ -1614,6 +1616,10 @@ void rtps_term (void)
     fclose (gv.pcap_fp);
   }
 
+#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+  for (struct config_networkpartition_listelem *np = config.networkPartitions; np; np = np->next)
+    unref_addrset (np->as);
+#endif
   unref_addrset (gv.as_disc);
   unref_addrset (gv.as_disc_group);
 
