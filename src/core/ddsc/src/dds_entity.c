@@ -560,7 +560,7 @@ dds_get_qos(
 {
     dds_entity *e;
     dds__retcode_t rc;
-    dds_return_t ret = DDS_RETCODE_OK;
+    dds_return_t ret;
 
     if (qos == NULL) {
         DDS_ERROR("Argument qos is NULL\n");
@@ -574,11 +574,10 @@ dds_get_qos(
         goto fail;
     }
     if (e->m_deriver.set_qos) {
-        rc = dds_copy_qos(qos, e->m_qos);
+        ret = dds_copy_qos(qos, e->m_qos);
     } else {
-        rc = DDS_RETCODE_ILLEGAL_OPERATION;
         DDS_ERROR("QoS cannot be set on this entity\n");
-        ret = DDS_ERRNO(rc);
+        ret = DDS_ERRNO(DDS_RETCODE_ILLEGAL_OPERATION);
     }
     dds_entity_unlock(e);
 fail:
