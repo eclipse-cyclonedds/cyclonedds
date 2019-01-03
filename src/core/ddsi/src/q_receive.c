@@ -2115,14 +2115,17 @@ static void deliver_user_data_synchronously (struct nn_rsample_chain *sc)
 static void clean_defrag (struct proxy_writer *pwr)
 {
   seqno_t seq = nn_reorder_next_seq (pwr->reorder);
-  struct pwr_rd_match *wn;
-  for (wn = ut_avlFindMin (&pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ut_avlFindSucc (&pwr_readers_treedef, &pwr->readers, wn))
+  if (pwr->n_readers_out_of_sync > 0)
   {
-    if (wn->in_sync == PRMSS_OUT_OF_SYNC)
+    struct pwr_rd_match *wn;
+    for (wn = ut_avlFindMin (&pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ut_avlFindSucc (&pwr_readers_treedef, &pwr->readers, wn))
     {
-      seqno_t seq1 = nn_reorder_next_seq (wn->u.not_in_sync.reorder);
-      if (seq1 < seq)
-        seq = seq1;
+      if (wn->in_sync == PRMSS_OUT_OF_SYNC)
+      {
+        seqno_t seq1 = nn_reorder_next_seq (wn->u.not_in_sync.reorder);
+        if (seq1 < seq)
+          seq = seq1;
+      }
     }
   }
   nn_defrag_notegap (pwr->defrag, 1, seq);
