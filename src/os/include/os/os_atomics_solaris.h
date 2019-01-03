@@ -231,6 +231,9 @@ VDDS_INLINE void os_atomic_fence (void) {
   membar_exit ();
   membar_enter ();
 }
+VDDS_INLINE void os_atomic_fence_ldld (void) {
+  membar_enter ();
+}
 VDDS_INLINE void os_atomic_fence_acq (void) {
   membar_enter ();
 }

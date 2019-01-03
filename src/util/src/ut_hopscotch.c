@@ -34,11 +34,7 @@ struct ut_chhBucket {
 
 struct _Struct_size_bytes_(size) ut_chhBucketArray {
     uint32_t size; /* power of 2 */
-#if __STDC_VERSION__ >= 199901L
     struct ut_chhBucket bs[];
-#else
-    struct ut_chhBucket bs[1];
-#endif
 };
 
 struct ut_chhBackingLock {
@@ -91,9 +87,6 @@ static int ut_chhInit (struct ut_chh *rt, uint32_t init_size, ut_hhHash_fn hash,
     for (i = 0; i < N_BACKING_LOCKS; i++) {
         struct ut_chhBackingLock *s = &rt->backingLocks[i];
         os_mutexInit (&s->lock);
-    }
-    for (i = 0; i < N_BACKING_LOCKS; i++) {
-        struct ut_chhBackingLock *s = &rt->backingLocks[i];
         os_condInit (&s->cv, &s->lock);
     }
     for (i = 0; i < N_RESIZE_LOCKS; i++) {
@@ -205,7 +198,7 @@ static void *ut_chhLookupInternal (struct ut_chhBucketArray const * const bsary,
     do {
         uint32_t hopinfo;
         timestamp = os_atomic_ld32 (&bs[bucket].timestamp);
-        os_atomic_fence ();
+        os_atomic_fence_ldld ();
         hopinfo = os_atomic_ld32 (&bs[bucket].hopinfo);
         for (idx = 0; hopinfo != 0; hopinfo >>= 1, idx++) {
             const uint32_t bidx = (bucket + idx) & idxmask;
@@ -214,7 +207,7 @@ static void *ut_chhLookupInternal (struct ut_chhBucketArray const * const bsary,
                 return data;
             }
         }
-        os_atomic_fence ();
+        os_atomic_fence_ldld ();
     } while (timestamp != os_atomic_ld32 (&bs[bucket].timestamp) && ++try_counter < CHH_MAX_TRIES);
     if (try_counter == CHH_MAX_TRIES) {
         /* Note: try_counter would not have been incremented to
