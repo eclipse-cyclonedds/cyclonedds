@@ -1795,7 +1795,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
     goto already_matched;
 
   if (pwr->c.topic == NULL && rd->topic)
-    pwr->c.topic = rd->topic;
+    pwr->c.topic = ddsi_sertopic_ref (rd->topic);
   if (pwr->ddsi2direct_cb == 0 && rd->ddsi2direct_cb != 0)
   {
     pwr->ddsi2direct_cb = rd->ddsi2direct_cb;
@@ -1910,7 +1910,7 @@ static void proxy_reader_add_connection (struct proxy_reader *prd, struct writer
   m->wr_guid = wr->e.guid;
   os_mutexLock (&prd->e.lock);
   if (prd->c.topic == NULL)
-    prd->c.topic = wr->topic;
+    prd->c.topic = ddsi_sertopic_ref (wr->topic);
   if (ut_avlLookupIPath (&prd_writers_treedef, &prd->writers, &wr->e.guid, &path))
   {
     DDS_LOG(DDS_LC_DISCOVERY, "  proxy_reader_add_connection(wr %x:%x:%x:%x prd %x:%x:%x:%x) - already connected\n",
@@ -4055,6 +4055,7 @@ static void proxy_endpoint_common_fini (struct entity_common *e, struct proxy_en
 {
   unref_proxy_participant (c->proxypp, c);
 
+  ddsi_sertopic_unref (c->topic);
   nn_xqos_fini (c->xqos);
   os_free (c->xqos);
   unref_addrset (c->as);
