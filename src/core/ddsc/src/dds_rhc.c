@@ -392,7 +392,8 @@ static void remove_inst_from_nonempty_list (struct rhc *rhc, struct rhc_instance
 
 struct rhc * dds_rhc_new (dds_reader * reader, const struct ddsi_sertopic * topic)
 {
-  struct rhc * rhc = dds_alloc (sizeof (*rhc));
+  struct rhc * rhc = os_malloc (sizeof (*rhc));
+  memset (rhc, 0, sizeof (*rhc));
 
   lwregs_init (&rhc->registrations);
   os_mutexInit (&rhc->lock);
@@ -432,7 +433,7 @@ static struct rhc_sample * alloc_sample (struct rhc_instance *inst)
   {
     /* This instead of sizeof(rhc_sample) gets us type checking */
     struct rhc_sample *s;
-    s = dds_alloc (sizeof (*s));
+    s = os_malloc (sizeof (*s));
     return s;
   }
 }
@@ -450,7 +451,7 @@ static void free_sample (struct rhc_instance *inst, struct rhc_sample *s)
   }
   else
   {
-    dds_free (s);
+    os_free (s);
   }
 }
 
@@ -506,7 +507,7 @@ static void free_instance (void *vnode, void *varg)
     remove_inst_from_nonempty_list (rhc, inst);
   }
   ddsi_tkmap_instance_unref (inst->tk);
-  dds_free (inst);
+  os_free (inst);
 }
 
 uint32_t dds_rhc_lock_samples (struct rhc *rhc)
@@ -530,7 +531,7 @@ void dds_rhc_free (struct rhc *rhc)
   lwregs_fini (&rhc->registrations);
   os_mutexDestroy (&rhc->lock);
   os_mutexDestroy (&rhc->conds_lock);
-  dds_free (rhc);
+  os_free (rhc);
 }
 
 void dds_rhc_fini (struct rhc * rhc)
@@ -1029,14 +1030,13 @@ static struct rhc_instance * alloc_new_instance
   struct rhc_instance *inst;
 
   ddsi_tkmap_instance_ref (tk);
-  inst = dds_alloc (sizeof (*inst));
+  inst = os_malloc (sizeof (*inst));
+  memset (inst, 0, sizeof (*inst));
   inst->iid = tk->m_iid;
   inst->tk = tk;
   inst->wrcount = (serdata->statusinfo & NN_STATUSINFO_UNREGISTER) ? 0 : 1;
-  inst->isdisposed = (serdata->statusinfo & NN_STATUSINFO_DISPOSE);
+  inst->isdisposed = (serdata->statusinfo & NN_STATUSINFO_DISPOSE) != 0;
   inst->isnew = 1;
-  inst->inv_exists = 0;
-  inst->inv_isread = 0; /* don't care */
   inst->a_sample_free = 1;
   inst->wr_iid = pwr_info->iid;
   inst->wr_iid_islive = (inst->wrcount != 0);
