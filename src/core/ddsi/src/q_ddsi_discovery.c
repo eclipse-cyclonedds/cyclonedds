@@ -520,9 +520,6 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
   nn_duration_t lease_duration;
   unsigned custom_flags = 0;
 
-  if (!(dds_get_log_mask() & DDS_LC_DISCOVERY))
-    DDS_LOG(DDS_LC_DISCOVERY, "SPDP ST0");
-
   if (!(datap->present & PP_PARTICIPANT_GUID) || !(datap->present & PP_BUILTIN_ENDPOINT_SET))
   {
     DDS_WARNING("data (SPDP, vendor %u.%u): no/invalid payload\n", rst->vendor.id[0], rst->vendor.id[1]);
@@ -565,8 +562,6 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
         prismtech_builtin_endpoint_set |= NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER | NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
   }
 
-  DDS_LOG(DDS_LC_DISCOVERY, " %x:%x:%x:%x", PGUID (datap->participant_guid));
-
   /* Local SPDP packets may be looped back, and that may include ones
      currently being deleted.  The first thing that happens when
      deleting a participant is removing it from the hash table, and
@@ -575,7 +570,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
 
   if (is_deleted_participant_guid (&datap->participant_guid, DPG_REMOTE))
   {
-    DDS_LOG(DDS_LC_DISCOVERY, " (recently deleted)");
+    DDS_LOG(DDS_LC_TRACE, "SPDP ST0 %x:%x:%x:%x (recently deleted)", PGUID (datap->participant_guid));
     return 1;
   }
 
@@ -585,7 +580,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
       islocal = 1;
     if (islocal)
     {
-      DDS_LOG(DDS_LC_DISCOVERY, " (local %d)", islocal);
+      DDS_LOG(DDS_LC_TRACE, "SPDP ST0 %x:%x:%x:%x (local %d)", islocal, PGUID (datap->participant_guid));
       return 0;
     }
   }
@@ -596,7 +591,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
        are even skipping the automatic lease renewal.  Therefore do it
        regardless of
        config.arrival_of_data_asserts_pp_and_ep_liveliness. */
-    DDS_LOG(DDS_LC_DISCOVERY, " (known)");
+    DDS_LOG(DDS_LC_TRACE, "SPDP ST0 %x:%x:%x:%x (known)", PGUID (datap->participant_guid));
     lease_renew (os_atomic_ldvoidp (&proxypp->lease), now_et ());
     os_mutexLock (&proxypp->e.lock);
     if (proxypp->implicitly_created)
@@ -609,7 +604,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
     return 0;
   }
 
-  DDS_LOG(DDS_LC_DISCOVERY, " bes %x ptbes %x NEW", builtin_endpoint_set, prismtech_builtin_endpoint_set);
+  DDS_LOG(DDS_LC_DISCOVERY, "SPDP ST0 %x:%x:%x:%x bes %x ptbes %x NEW", PGUID (datap->participant_guid), builtin_endpoint_set, prismtech_builtin_endpoint_set);
 
   if (datap->present & PP_PARTICIPANT_LEASE_DURATION)
   {
