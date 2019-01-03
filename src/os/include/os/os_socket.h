@@ -237,7 +237,23 @@ extern "C" {
     os_sockaddr_is_unspecified(
         const os_sockaddr *const sa) __nonnull_all__;
 
-    /* docced in implementation file */
+    /**
+    * Check this address to see if it represents loopback.
+    * @return true if it does. false otherwise, or if unknown address type.
+    * @param thisSock A pointer to an os_sockaddr to be checked.
+    */
+    OSAPI_EXPORT int
+    os_sockaddr_is_loopback(
+        _In_ const os_sockaddr *__restrict sa) __nonnull_all__;
+
+    /**
+    * Checks two socket IP host addresses for be on the same subnet, considering the given subnetmask.
+    * It will not consider the possibility of IPv6 mapped IPv4 addresses or anything arcane like that.
+    * @param thisSock First address
+    * @param thatSock Second address.
+    * @param mask Subnetmask.
+    * @return true if equal, false otherwise.
+    */
     OSAPI_EXPORT bool
     os_sockaddrSameSubnet(const os_sockaddr* thisSock,
                           const os_sockaddr* thatSock,
@@ -320,19 +336,6 @@ extern "C" {
         _In_ const void *sa,
         _Out_writes_z_(size) char *buf,
         _In_ size_t size);
-
-    /* docced in implementation file */
-    OSAPI_EXPORT bool
-    os_sockaddrIsLoopback(const os_sockaddr* thisSock);
-
-    /**
-     * Sets the address of the sockaddr to the special IN_ADDR_ANY value.
-     * @param sa the sockaddr to set the address for
-     * @pre sa is a valid sockaddr pointer
-     * @post Address of sa is set to the special IN_ADDR_ANY value
-     */
-    OSAPI_EXPORT void
-    os_sockaddrSetInAddrAny(os_sockaddr* sa);
 
     /**
      * @}

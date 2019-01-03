@@ -96,81 +96,44 @@ uint16_t os_sockaddr_get_port(const os_sockaddr *const sa)
     return port;
 }
 
-static int os_sockaddr_compare(
-    const os_sockaddr *const sa1,
-    const os_sockaddr *const sa2)
+int
+os_sockaddr_is_unspecified(
+    _In_ const os_sockaddr *__restrict sa)
 {
-    int eq;
-    size_t sz;
-
-    if ((eq = sa1->sa_family - sa2->sa_family) == 0) {
-        switch(sa1->sa_family) {
-#if (OS_SOCKET_HAS_IPV6 == 1)
-            case AF_INET6:
-            {
-                os_sockaddr_in6 *sin61, *sin62;
-                sin61 = (os_sockaddr_in6 *)sa1;
-                sin62 = (os_sockaddr_in6 *)sa2;
-                sz = sizeof(sin61->sin6_addr);
-                eq = memcmp(&sin61->sin6_addr, &sin62->sin6_addr, sz);
-            }
-                break;
-#endif /* OS_SOCKET_HAS_IPV6 */
-#ifdef __linux
-            case AF_PACKET:
-            {
-                struct sockaddr_ll *sll1, *sll2;
-                sll1 = (struct sockaddr_ll *)sa1;
-                sll2 = (struct sockaddr_ll *)sa2;
-                sz = sizeof(sll1->sll_addr);
-                eq = memcmp(sll1->sll_addr, sll2->sll_addr, sz);
-            }
-                break;
-#endif /* __linux */
-            default:
-            {
-                assert(sa1->sa_family == AF_INET);
-                os_sockaddr_in *sin1, *sin2;
-                sin1 = (os_sockaddr_in *)sa1;
-                sin2 = (os_sockaddr_in *)sa2;
-                sz = sizeof(sin1->sin_addr);
-                eq = memcmp(&sin1->sin_addr, &sin2->sin_addr, sz);
-            }
-                break;
-        }
-    }
-
-    return eq;
-}
-
-int os_sockaddr_is_unspecified(const os_sockaddr *const sa)
-{
-    int unspec = 0;
-
     assert(sa != NULL);
 
     switch(sa->sa_family) {
-#if (OS_SOCKET_HAS_IPV6 == 1)
+#if OS_SOCKET_HAS_IPV6
         case AF_INET6:
-            unspec = IN6_IS_ADDR_UNSPECIFIED(&((os_sockaddr_in6*)sa)->sin6_addr);
-            break;
+            return IN6_IS_ADDR_UNSPECIFIED(&((os_sockaddr_in6*)sa)->sin6_addr);
 #endif
         case AF_INET:
-            unspec = (((os_sockaddr_in *)sa)->sin_addr.s_addr == 0);
-            break;
+            return (((os_sockaddr_in *)sa)->sin_addr.s_addr == 0);
     }
 
-    return unspec;
+    return 0;
 }
 
-/**
-* Checks two socket IP host addresses for be on the same subnet, considering the given subnetmask.
-* It will not consider the possibility of IPv6 mapped IPv4 addresses or anything arcane like that.
-* @param thisSock First address
-* @param thatSock Second address.
-* @param mask Subnetmask.
-* @return true if equal, false otherwise.
-*/
+int
+os_sockaddr_is_loopback(
+    _In_ const os_sockaddr *__restrict sa)
+{
+    assert(sa != NULL);
+
+    switch (sa->sa_family) {
+#if OS_SOCKET_HAS_IPV6
+        case AF_INET6:
+            return IN6_IS_ADDR_LOOPBACK(
+                ((const os_sockaddr_in6 *)sa)->sin6_addr);
+#endif /* OS_SOCKET_HAS_IPV6 */
+        case AF_INET:
+            return (((const os_sockaddr_in *)sa)->sin_addr.s_addr
+                        == htonl(INADDR_LOOPBACK));
+    }
+
+    return 0;
+}
+
 bool
 os_sockaddrSameSubnet(const os_sockaddr* thisSock,
                            const os_sockaddr* thatSock,
@@ -305,60 +268,4 @@ os_sockaddrtostr(
     }
 
     return err;
-}
-
-/**
-* Check this address to see if it represents loopback.
-* @return true if it does. false otherwise, or if unknown address type.
-* @param thisSock A pointer to an os_sockaddr to be checked.
-*/
-bool
-os_sockaddrIsLoopback(const os_sockaddr* thisSock)
-{
-    bool result = false;
-
-#if (OS_SOCKET_HAS_IPV6 == 1)
-    static os_sockaddr_storage linkLocalLoopback;
-    static os_sockaddr* linkLocalLoopbackPtr = NULL;
-
-    if (linkLocalLoopbackPtr == NULL)
-    {
-        /* Initialise once (where 'once' implies some small integer) */
-        os_sockaddrfromstr(AF_INET6, "fe80::1", (os_sockaddr*) &linkLocalLoopback);
-        linkLocalLoopbackPtr = (os_sockaddr*) &linkLocalLoopback;
-    }
-
-    if (thisSock->sa_family == AF_INET6)
-    {
-        result = IN6_IS_ADDR_LOOPBACK(&((os_sockaddr_in6*)thisSock)->sin6_addr) ||
-                 os_sockaddr_compare(thisSock, linkLocalLoopbackPtr) == 0 ? true : false;
-    }
-    else
-#endif
-    if (thisSock->sa_family == AF_INET)
-    {
-        result = (INADDR_LOOPBACK == ntohl(((os_sockaddr_in*)thisSock)->sin_addr.s_addr)) ? true : false;
-    }
-
-    return result;
-}
-
-void
-os_sockaddrSetInAddrAny(
-    os_sockaddr* sa)
-{
-    assert(sa);
-#if (OS_SOCKET_HAS_IPV6 == 1)
-    assert(sa->sa_family == AF_INET6 || sa->sa_family == AF_INET);
-    if (sa->sa_family == AF_INET6){
-        ((os_sockaddr_in6*)sa)->sin6_addr = os_in6addr_any;
-        ((os_sockaddr_in6*)sa)->sin6_scope_id = 0;
-    }
-    else
-#else
-    assert(sa->sa_family == AF_INET);
-#endif
-    if (sa->sa_family == AF_INET){
-        ((os_sockaddr_in*)sa)->sin_addr.s_addr = htonl(INADDR_ANY);
-    }
 }
