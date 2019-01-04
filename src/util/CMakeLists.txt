@@ -21,6 +21,10 @@ target_link_libraries(util PUBLIC OSAPI)
 target_include_directories(util PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>" "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/exports/>"
                                         "$<INSTALL_INTERFACE:${INSTALL_PREFIX}/include/>" "$<INSTALL_INTERFACE:${INSTALL_PREFIX}/exports/>")
 
+if(${CMAKE_C_COMPILER_ID} STREQUAL "SunPro")
+  add_definitions(-KPIC)
+endif()
+
 # TODO: improve test inclusion.
 if((BUILD_TESTING) AND ((NOT DEFINED MSVC_VERSION) OR (MSVC_VERSION GREATER "1800")))
   add_subdirectory(tests)
