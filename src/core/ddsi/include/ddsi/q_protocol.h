@@ -156,6 +156,11 @@ typedef struct Header {
   nn_guid_prefix_t guid_prefix;
 } Header_t;
 #define NN_PROTOCOLID_INITIALIZER {{ 'R','T','P','S' }}
+#if PLATFORM_IS_LITTLE_ENDIAN
+#define NN_PROTOCOLID_AS_UINT32 (((uint32_t)'R' << 0) | ((uint32_t)'T' << 8) | ((uint32_t)'P' << 16) | ((uint32_t)'S' << 24))
+#else
+#define NN_PROTOCOLID_AS_UINT32 (((uint32_t)'R' << 24) | ((uint32_t)'T' << 16) | ((uint32_t)'P' << 8) | ((uint32_t)'S' << 0))
+#endif
 #define NN_PROTOCOL_VERSION_INITIALIZER { RTPS_MAJOR, RTPS_MINOR }
 #define NN_VENDORID_INITIALIER MY_VENDOR_ID
 #define NN_HEADER_INITIALIZER { NN_PROTOCOLID_INITIALIZER, NN_PROTOCOL_VERSION_INITIALIZER, NN_VENDORID_INITIALIER, NN_GUID_PREFIX_UNKNOWN_INITIALIZER }

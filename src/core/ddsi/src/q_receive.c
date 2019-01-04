@@ -3009,16 +3009,15 @@ static bool do_packet
     nn_rmsg_setsize (rmsg, (uint32_t) sz);
     assert (vtime_asleep_p (self->vtime));
 
-    if
-    (
-      (size_t) sz < RTPS_MESSAGE_HEADER_SIZE ||
-      buff[0] != 'R' || buff[1] != 'T' || buff[2] != 'P' || buff[3] != 'S' ||
-      hdr->version.major != RTPS_MAJOR || (hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM)
-    )
+    if ((size_t)sz < RTPS_MESSAGE_HEADER_SIZE || *(uint32_t *)buff != NN_PROTOCOLID_AS_UINT32)
     {
-        if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
-          DDS_TRACE("HDR(%x:%x:%x vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
-                    PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
+      /* discard packets that are really too small or don't have magic cookie */
+    }
+    else if (hdr->version.major != RTPS_MAJOR || (hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
+    {
+      if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
+        DDS_TRACE("HDR(%x:%x:%x vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
+                  PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
       if (NN_PEDANTIC_P)
         malformed_packet_received_nosubmsg (buff, sz, "header", hdr->vendorid);
     }
@@ -3034,22 +3033,7 @@ static bool do_packet
                   PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
       }
 
-      {
-        handle_submsg_sequence
-        (
-          conn,
-          &srcloc,
-          self,
-          now (),
-          now_et (),
-          &hdr->guid_prefix,
-          guidprefix,
-          buff,
-          (size_t) sz,
-          buff + RTPS_MESSAGE_HEADER_SIZE,
-          rmsg
-        );
-      }
+      handle_submsg_sequence (conn, &srcloc, self, now (), now_et (), &hdr->guid_prefix, guidprefix, buff, (size_t) sz, buff + RTPS_MESSAGE_HEADER_SIZE, rmsg);
     }
     thread_state_asleep (self);
   }
