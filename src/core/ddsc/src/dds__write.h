@@ -22,28 +22,16 @@ extern "C" {
 
 struct ddsi_serdata;
 
-typedef enum
-{
+typedef enum {
   DDS_WR_ACTION_WRITE = 0,
   DDS_WR_ACTION_WRITE_DISPOSE = DDS_WR_DISPOSE_BIT,
   DDS_WR_ACTION_DISPOSE = DDS_WR_KEY_BIT | DDS_WR_DISPOSE_BIT,
   DDS_WR_ACTION_UNREGISTER = DDS_WR_KEY_BIT | DDS_WR_UNREGISTER_BIT
-}
-dds_write_action;
+} dds_write_action;
 
-int
-dds_write_impl(
-        _In_ dds_writer *wr,
-        _In_ const void *data,
-        _In_ dds_time_t tstamp,
-        _In_ dds_write_action action);
-
-int
-dds_writecdr_impl(
-        _In_ dds_writer *wr,
-        _Inout_ struct ddsi_serdata *d,
-        _In_ dds_time_t tstamp,
-        _In_ dds_write_action action);
+dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t tstamp, dds_write_action action);
+dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_serdata *d, dds_time_t tstamp, dds_write_action action);
+dds_return_t dds_writecdr_impl_lowlevel (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *d);
 
 #if defined (__cplusplus)
 }

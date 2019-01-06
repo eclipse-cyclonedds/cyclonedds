@@ -20,22 +20,22 @@
 #include "ddsi/q_config.h"
 #include "ddsi/q_freelist.h"
 #include "ddsi/ddsi_sertopic.h"
-#include "ddsi/ddsi_serdata_builtin.h"
 #include "ddsc/dds.h"
+#include "dds__serdata_builtintopic.h"
 
 /* FIXME: sertopic /= ddstopic so a lot of stuff needs to be moved here from dds_topic.c and the free function needs to be implemented properly */
 
-struct ddsi_sertopic *new_sertopic_builtin (enum ddsi_sertopic_builtin_type type, const char *name, const char *typename)
+struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic_type type, const char *name, const char *typename)
 {
-  struct ddsi_sertopic_builtin *tp = os_malloc (sizeof (*tp));
+  struct ddsi_sertopic_builtintopic *tp = os_malloc (sizeof (*tp));
   tp->c.iid = ddsi_iid_gen();
   tp->c.name = dds_string_dup (name);
   tp->c.typename = dds_string_dup (typename);
   const size_t name_typename_size = strlen (tp->c.name) + 1 + strlen (tp->c.typename) + 1;
   tp->c.name_typename = dds_alloc (name_typename_size);
   snprintf (tp->c.name_typename, name_typename_size, "%s/%s", tp->c.name, tp->c.typename);
-  tp->c.ops = &ddsi_sertopic_ops_builtin;
-  tp->c.serdata_ops = &ddsi_serdata_ops_builtin;
+  tp->c.ops = &ddsi_sertopic_ops_builtintopic;
+  tp->c.serdata_ops = &ddsi_serdata_ops_builtintopic;
   tp->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (tp->c.serdata_ops);
   tp->c.status_cb = 0;
   tp->c.status_cb_entity = NULL;
@@ -66,7 +66,7 @@ static void free_endpoint (void *vsample)
   sample->qos = NULL;
 }
 
-static size_t get_size (enum ddsi_sertopic_builtin_type type)
+static size_t get_size (enum ddsi_sertopic_builtintopic_type type)
 {
   switch (type)
   {
@@ -82,14 +82,14 @@ static size_t get_size (enum ddsi_sertopic_builtin_type type)
 
 static void sertopic_builtin_zero_samples (const struct ddsi_sertopic *sertopic_common, void *samples, size_t count)
 {
-  const struct ddsi_sertopic_builtin *tp = (const struct ddsi_sertopic_builtin *)sertopic_common;
+  const struct ddsi_sertopic_builtintopic *tp = (const struct ddsi_sertopic_builtintopic *)sertopic_common;
   size_t size = get_size (tp->type);
   memset (samples, 0, size * count);
 }
 
 static void sertopic_builtin_realloc_samples (void **ptrs, const struct ddsi_sertopic *sertopic_common, void *old, size_t oldcount, size_t count)
 {
-  const struct ddsi_sertopic_builtin *tp = (const struct ddsi_sertopic_builtin *)sertopic_common;
+  const struct ddsi_sertopic_builtintopic *tp = (const struct ddsi_sertopic_builtintopic *)sertopic_common;
   const size_t size = get_size (tp->type);
   char *new = dds_realloc (old, size * count);
   if (new && count > oldcount)
@@ -105,7 +105,7 @@ static void sertopic_builtin_free_samples (const struct ddsi_sertopic *sertopic_
 {
   if (count > 0)
   {
-    const struct ddsi_sertopic_builtin *tp = (const struct ddsi_sertopic_builtin *)sertopic_common;
+    const struct ddsi_sertopic_builtintopic *tp = (const struct ddsi_sertopic_builtintopic *)sertopic_common;
     const size_t size = get_size (tp->type);
 #ifndef NDEBUG
     for (size_t i = 0, off = 0; i < count; i++, off += size)
@@ -139,7 +139,7 @@ static void sertopic_builtin_free_samples (const struct ddsi_sertopic *sertopic_
   }
 }
 
-const struct ddsi_sertopic_ops ddsi_sertopic_ops_builtin = {
+const struct ddsi_sertopic_ops ddsi_sertopic_ops_builtintopic = {
   .deinit = sertopic_builtin_deinit,
   .zero_samples = sertopic_builtin_zero_samples,
   .realloc_samples = sertopic_builtin_realloc_samples,

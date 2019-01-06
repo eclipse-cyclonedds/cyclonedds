@@ -18,6 +18,7 @@
 #include "dds__domain.h"
 #include "dds__participant.h"
 #include "dds__err.h"
+#include "dds__builtin.h"
 
 #define DDS_PARTICIPANT_STATUS_MASK    0u
 

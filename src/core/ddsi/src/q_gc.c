@@ -180,6 +180,14 @@ struct gcreq_queue *gcreq_queue_new (void)
   return q;
 }
 
+void gcreq_queue_drain (struct gcreq_queue *q)
+{
+  os_mutexLock (&q->lock);
+  while (q->count != 0)
+    os_condWait (&q->cond, &q->lock);
+  os_mutexUnlock (&q->lock);
+}
+
 void gcreq_queue_free (struct gcreq_queue *q)
 {
   struct gcreq *gcreq;
@@ -191,7 +199,8 @@ void gcreq_queue_free (struct gcreq_queue *q)
   os_mutexLock (&q->lock);
   q->terminate = 1;
   /* Wait until there is only request in existence, the one we just
-     allocated. Then we know the gc system is quiet. */
+     allocated (this is also why we can't use "drain" here). Then
+     we know the gc system is quiet. */
   while (q->count != 1)
     os_condWait (&q->cond, &q->lock);
   os_mutexUnlock (&q->lock);
@@ -227,7 +236,7 @@ void gcreq_free (struct gcreq *gcreq)
   struct gcreq_queue *gcreq_queue = gcreq->queue;
   os_mutexLock (&gcreq_queue->lock);
   --gcreq_queue->count;
-  if (gcreq_queue->terminate && gcreq_queue->count <= 1)
+  if (gcreq_queue->count <= 1)
     os_condBroadcast (&gcreq_queue->cond);
   os_mutexUnlock (&gcreq_queue->lock);
   os_free (gcreq);
