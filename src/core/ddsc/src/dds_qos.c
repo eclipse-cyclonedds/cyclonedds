@@ -316,7 +316,7 @@ bool dds_qos_equal (
     } else if (a == NULL || b == NULL) {
         return false;
     } else {
-        return nn_xqos_delta(a, b, ~(uint64_t)0) != 0;
+        return nn_xqos_delta(a, b, ~(uint64_t)0) == 0;
     }
 }
 
