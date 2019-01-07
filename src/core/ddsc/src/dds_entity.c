@@ -560,7 +560,7 @@ dds_get_qos(
 {
     dds_entity *e;
     dds__retcode_t rc;
-    dds_return_t ret = DDS_RETCODE_OK;
+    dds_return_t ret;
 
     if (qos == NULL) {
         DDS_ERROR("Argument qos is NULL\n");
@@ -574,11 +574,10 @@ dds_get_qos(
         goto fail;
     }
     if (e->m_deriver.set_qos) {
-        rc = dds_copy_qos(qos, e->m_qos);
+        ret = dds_copy_qos(qos, e->m_qos);
     } else {
-        rc = DDS_RETCODE_ILLEGAL_OPERATION;
         DDS_ERROR("QoS cannot be set on this entity\n");
-        ret = DDS_ERRNO(rc);
+        ret = DDS_ERRNO(DDS_RETCODE_ILLEGAL_OPERATION);
     }
     dds_entity_unlock(e);
 fail:
@@ -1121,6 +1120,16 @@ dds_triggered(
 }
 
 
+static bool in_observer_list_p (const struct dds_entity *observed, const dds_entity_t observer)
+{
+    dds_entity_observer *cur;
+    for (cur = observed->m_observers; cur != NULL; cur = cur->m_next) {
+        if (cur->m_observer == observer) {
+            return true;
+        }
+    }
+    return false;
+}
 
 _Check_return_ dds__retcode_t
 dds_entity_observer_register_nl(
@@ -1128,30 +1137,19 @@ dds_entity_observer_register_nl(
         _In_ dds_entity_t observer,
         _In_ dds_entity_callback cb)
 {
-    dds__retcode_t rc = DDS_RETCODE_OK;
+    dds__retcode_t rc;
     dds_entity_observer *o = os_malloc(sizeof(dds_entity_observer));
     assert(observed);
     o->m_cb = cb;
     o->m_observer = observer;
-    o->m_next = NULL;
     os_mutexLock(&observed->m_observers_lock);
-    if (observed->m_observers == NULL) {
-        observed->m_observers = o;
+    if (in_observer_list_p (observed, observer)) {
+        rc = DDS_RETCODE_PRECONDITION_NOT_MET;
+        os_free (o);
     } else {
-        dds_entity_observer *last;
-        dds_entity_observer *idx = observed->m_observers;
-        while ((idx != NULL) && (o != NULL)) {
-            if (idx->m_observer == observer) {
-                os_free(o);
-                o = NULL;
-                rc = DDS_RETCODE_PRECONDITION_NOT_MET;
-            }
-            last = idx;
-            idx = idx->m_next;
-        }
-        if (o != NULL) {
-            last->m_next = o;
-        }
+        rc = DDS_RETCODE_OK;
+        o->m_next = observed->m_observers;
+        observed->m_observers = o;
     }
     os_mutexUnlock(&observed->m_observers_lock);
     return rc;

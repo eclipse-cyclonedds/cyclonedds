@@ -325,14 +325,12 @@ dds_reader_status_cb(
             /* There's a deletion or closing going on. */
         }
     } else if (rc == DDS_RETCODE_NO_DATA) {
-        /* Nobody was interested through a listener (NO_DATA == NO_CALL): set the status. */
+        /* Nobody was interested through a listener (NO_DATA == NO_CALL): set the status, consider successful. */
         dds_entity_status_set(entity, data->status);
         /* Notify possible interested observers. */
         dds_entity_status_signal(entity);
-        rc = DDS_RETCODE_OK;
     } else if (rc == DDS_RETCODE_ALREADY_DELETED) {
-        /* An entity up the hierarchy is being deleted. */
-        rc = DDS_RETCODE_OK;
+        /* An entity up the hierarchy is being deleted, consider successful. */
     } else {
         /* Something went wrong up the hierarchy. */
     }

@@ -22,5 +22,6 @@
 #define ERR_BUSY                -8
 #define ERR_NO_ADDRESS          -9
 #define ERR_TIMEOUT             -10
+#define ERR_INCOMPATIBLE        -11
 
 #endif /* NN_ERROR_H */

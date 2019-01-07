@@ -130,14 +130,12 @@ dds_topic_status_cb(
             dds_topic_unlock(topic);
         }
     } else if (rc == DDS_RETCODE_NO_DATA) {
-        /* Nobody was interested through a listener (NO_DATA == NO_CALL): set the status. */
+        /* Nobody was interested through a listener (NO_DATA == NO_CALL): set the status; consider it successful. */
         dds_entity_status_set((dds_entity*)topic, DDS_INCONSISTENT_TOPIC_STATUS);
         /* Notify possible interested observers. */
         dds_entity_status_signal((dds_entity*)topic);
-        rc = DDS_RETCODE_OK;
     } else if (rc == DDS_RETCODE_ALREADY_DELETED) {
-        /* An entity up the hierarchy is being deleted. */
-        rc = DDS_RETCODE_OK;
+        /* An entity up the hierarchy is being deleted; consider it successful. */
     } else {
         /* Something went wrong up the hierarchy. */
     }
@@ -318,7 +316,7 @@ static bool dupdef_qos_ok(const dds_qos_t *qos, const struct ddsi_sertopic *st)
 
 static bool sertopic_equivalent (const struct ddsi_sertopic *a, const struct ddsi_sertopic *b)
 {
-  printf ("sertopic_equivalent %p %p (%s %s; %u %u; %p %p; %p %p)\n", a, b, a->name_typename, b->name_typename, a->serdata_basehash, b->serdata_basehash, a->ops, b->ops, a->serdata_ops, b->serdata_ops);
+  printf ("sertopic_equivalent %p %p (%s %s; %u %u; %p %p; %p %p)\n", (void*)a, (void*)b, a->name_typename, b->name_typename, a->serdata_basehash, b->serdata_basehash, (void *)a->ops, (void *)b->ops, (void *)a->serdata_ops, (void *)b->serdata_ops);
 
   if (strcmp (a->name_typename, b->name_typename) != 0)
     return false;

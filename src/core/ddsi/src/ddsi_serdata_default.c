@@ -60,7 +60,7 @@ static void serdata_free_wrap (void *elem)
 
 void ddsi_serdatapool_free (struct serdatapool * pool)
 {
-  DDS_TRACE("ddsi_serdatapool_free(%p)\n", pool);
+  DDS_TRACE("ddsi_serdatapool_free(%p)\n", (void *) pool);
   nn_freelist_fini (&pool->freelist, serdata_free_wrap);
   os_free (pool);
 }
@@ -167,6 +167,12 @@ static struct ddsi_serdata *fix_serdata_default(struct ddsi_serdata_default *d, 
   return &d->c;
 }
 
+static struct ddsi_serdata *fix_serdata_default_nokey(struct ddsi_serdata_default *d, uint32_t basehash)
+{
+  d->c.hash = basehash;
+  return &d->c;
+}
+
 static uint32_t serdata_default_get_size(const struct ddsi_serdata *dcmn)
 {
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *) dcmn;
@@ -240,7 +246,7 @@ static struct ddsi_serdata_default *serdata_default_new(const struct ddsi_sertop
 }
 
 /* Construct a serdata from a fragchain received over the network */
-static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+static struct ddsi_serdata_default *serdata_default_from_ser_common (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
 {
   const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
   struct ddsi_serdata_default *d = serdata_default_new(tp, kind);
@@ -270,7 +276,17 @@ static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertopic
   dds_stream_t is;
   dds_stream_from_serdata_default (&is, d);
   dds_stream_read_keyhash (&is, &d->keyhash, (const dds_topic_descriptor_t *)tp->type, kind == SDK_KEY);
-  return fix_serdata_default (d, tp->c.serdata_basehash);
+  return d;
+}
+
+static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+{
+  return fix_serdata_default (serdata_default_from_ser_common (tpcmn, kind, fragchain, size), tpcmn->serdata_basehash);
+}
+
+static struct ddsi_serdata *serdata_default_from_ser_nokey (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+{
+  return fix_serdata_default_nokey (serdata_default_from_ser_common (tpcmn, kind, fragchain, size), tpcmn->serdata_basehash);
 }
 
 struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
@@ -301,11 +317,10 @@ struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr_nokey (const struct ddsi_sert
   (void)keyhash;
   d->keyhash.m_set = 1;
   d->keyhash.m_iskey = 1;
-  d->c.hash = tp->c.serdata_basehash;
-  return (struct ddsi_serdata *)d;
+  return fix_serdata_default_nokey(d, tp->c.serdata_basehash);
 }
 
-static struct ddsi_serdata *serdata_default_from_sample_cdr (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
+static struct ddsi_serdata_default *serdata_default_from_sample_cdr_common (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
 {
   const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
   struct ddsi_serdata_default *d = serdata_default_new(tp, kind);
@@ -324,7 +339,17 @@ static struct ddsi_serdata *serdata_default_from_sample_cdr (const struct ddsi_s
       break;
   }
   dds_stream_add_to_serdata_default (&os, &d);
-  return fix_serdata_default (d, tp->c.serdata_basehash);
+  return d;
+}
+
+static struct ddsi_serdata *serdata_default_from_sample_cdr (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
+{
+  return fix_serdata_default (serdata_default_from_sample_cdr_common (tpcmn, kind, sample), tpcmn->serdata_basehash);
+}
+
+static struct ddsi_serdata *serdata_default_from_sample_cdr_nokey (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
+{
+  return fix_serdata_default_nokey (serdata_default_from_sample_cdr_common (tpcmn, kind, sample), tpcmn->serdata_basehash);
 }
 
 static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const void *vsample)
@@ -345,7 +370,7 @@ static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi
     case PID_GROUP_GUID:
       d->keyhash.m_set = 1;
       d->keyhash.m_iskey = 1;
-      memcpy (&d->keyhash.m_hash, rawkey, 16);
+      memcpy (d->keyhash.m_hash, rawkey, 16);
 #ifndef NDEBUG
       keysize = 16;
 #endif
@@ -358,13 +383,14 @@ static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi
       md5_state_t md5st;
       md5_byte_t digest[16];
       topic_name_sz = (uint32_t) strlen (topic_name) + 1;
+      topic_name_sz_BE = toBE4u (topic_name_sz);
       d->keyhash.m_set = 1;
       d->keyhash.m_iskey = 0;
       md5_init (&md5st);
       md5_append (&md5st, (const md5_byte_t *) &topic_name_sz_BE, sizeof (topic_name_sz_BE));
       md5_append (&md5st, (const md5_byte_t *) topic_name, topic_name_sz);
       md5_finish (&md5st, digest);
-      memcpy (&d->keyhash.m_hash, digest, 16);
+      memcpy (d->keyhash.m_hash, digest, 16);
 #ifndef NDEBUG
       keysize = sizeof (uint32_t) + topic_name_sz;
 #endif
@@ -391,9 +417,13 @@ static struct ddsi_serdata *serdata_default_from_sample_rawcdr (const struct dds
   serdata_default_append_blob (&d, 1, sample->size, sample->blob);
   d->keyhash.m_set = 1;
   d->keyhash.m_iskey = 1;
-  if (sample->keysize > 0)
+  if (sample->keysize == 0)
+    return fix_serdata_default_nokey (d, tp->c.serdata_basehash);
+  else
+  {
     memcpy (&d->keyhash.m_hash, sample->key, sample->keysize);
-  return fix_serdata_default (d, tp->c.serdata_basehash);
+    return fix_serdata_default (d, tp->c.serdata_basehash);
+  }
 }
 
 static struct ddsi_serdata *serdata_default_to_topicless (const struct ddsi_serdata *serdata_common)
@@ -518,9 +548,9 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey = {
   .get_size = serdata_default_get_size,
   .eqkey = serdata_default_eqkey_nokey,
   .free = serdata_default_free,
-  .from_ser = serdata_default_from_ser,
+  .from_ser = serdata_default_from_ser_nokey,
   .from_keyhash = ddsi_serdata_from_keyhash_cdr_nokey,
-  .from_sample = serdata_default_from_sample_cdr,
+  .from_sample = serdata_default_from_sample_cdr_nokey,
   .to_ser = serdata_default_to_ser,
   .to_sample = serdata_default_to_sample_cdr,
   .to_ser_ref = serdata_default_to_ser_ref,

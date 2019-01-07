@@ -2779,18 +2779,18 @@ static int init_one_parameter
          one implemented, and fail it if it isn't. I know all RFPs say
          to be tolerant in what is accepted, but that is where the
          bugs & the buffer overflows originate! */
-      if (pid & PID_UNRECOGNIZED_INCOMPATIBLE_FLAG)
+      if (pid & PID_UNRECOGNIZED_INCOMPATIBLE_FLAG) {
         dest->present |= PP_INCOMPATIBLE;
-      else if (pid & PID_VENDORSPECIFIC_FLAG)
+        return ERR_INCOMPATIBLE;
+      } else if (pid & PID_VENDORSPECIFIC_FLAG) {
         return 0;
-      else if (!protocol_version_is_newer (dd->protocol_version) && NN_STRICT_P)
-      {
+      } else if (!protocol_version_is_newer (dd->protocol_version) && NN_STRICT_P) {
         DDS_TRACE("plist/init_one_parameter[pid=%u,mode=STRICT,proto=%u.%u]: undefined paramter id\n",
                 pid, dd->protocol_version.major, dd->protocol_version.minor);
         return ERR_INVALID;
-      }
-      else
+      } else {
         return 0;
+      }
   }
 
   assert (0);
@@ -3477,7 +3477,7 @@ void nn_xqos_fini (nn_xqos_t *xqos)
     else
     {
       /* until proper message buffers arrive */
-      DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", xqos->partition.strs);
+      DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", (void *) xqos->partition.strs);
       os_free (xqos->partition.strs);
     }
   }
@@ -3488,7 +3488,7 @@ void nn_xqos_fini (nn_xqos_t *xqos)
     else
     {
       /* until proper message buffers arrive */
-      DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", xqos->subscription_keys.key_list.strs);
+      DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", (void *) xqos->subscription_keys.key_list.strs);
       os_free (xqos->subscription_keys.key_list.strs);
     }
   }

@@ -1959,15 +1959,17 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   {
     nn_plist_src_t src;
     size_t qos_offset = NN_RDATA_SUBMSG_OFF (fragchain) + offsetof (Data_DataFrag_common_t, octetsToInlineQos) + sizeof (msg->octetsToInlineQos) + msg->octetsToInlineQos;
+    int plist_ret;
     src.protocol_version = rst->protocol_version;
     src.vendorid = rst->vendor;
     src.encoding = (msg->smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
     src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
-    if (nn_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET | PP_PRISMTECH_EOTINFO, 0, &src) < 0)
+    if ((plist_ret = nn_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET | PP_PRISMTECH_EOTINFO, 0, &src)) < 0)
     {
-      DDS_WARNING ("data(application, vendor %u.%u): %x:%x:%x:%x #%"PRId64": invalid inline qos\n",
-                   src.vendorid.id[0], src.vendorid.id[1], PGUID (pwr->e.guid), sampleinfo->seq);
+      if (plist_ret != ERR_INCOMPATIBLE)
+        DDS_WARNING ("data(application, vendor %u.%u): %x:%x:%x:%x #%"PRId64": invalid inline qos\n",
+                     src.vendorid.id[0], src.vendorid.id[1], PGUID (pwr->e.guid), sampleinfo->seq);
       return 0;
     }
     statusinfo = (qos.present & PP_STATUSINFO) ? qos.statusinfo : 0;
@@ -2113,14 +2115,17 @@ static void deliver_user_data_synchronously (struct nn_rsample_chain *sc)
 static void clean_defrag (struct proxy_writer *pwr)
 {
   seqno_t seq = nn_reorder_next_seq (pwr->reorder);
-  struct pwr_rd_match *wn;
-  for (wn = ut_avlFindMin (&pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ut_avlFindSucc (&pwr_readers_treedef, &pwr->readers, wn))
+  if (pwr->n_readers_out_of_sync > 0)
   {
-    if (wn->in_sync == PRMSS_OUT_OF_SYNC)
+    struct pwr_rd_match *wn;
+    for (wn = ut_avlFindMin (&pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ut_avlFindSucc (&pwr_readers_treedef, &pwr->readers, wn))
     {
-      seqno_t seq1 = nn_reorder_next_seq (wn->u.not_in_sync.reorder);
-      if (seq1 < seq)
-        seq = seq1;
+      if (wn->in_sync == PRMSS_OUT_OF_SYNC)
+      {
+        seqno_t seq1 = nn_reorder_next_seq (wn->u.not_in_sync.reorder);
+        if (seq1 < seq)
+          seq = seq1;
+      }
     }
   }
   nn_defrag_notegap (pwr->defrag, 1, seq);
@@ -2701,7 +2706,7 @@ static int handle_submsg_sequence
 
     if (submsg + submsg_size > end)
     {
-      DDS_TRACE(" BREAK (%u %"PRIuSIZE": %p %u)\n", (unsigned) (submsg - msg), submsg_size, msg, (unsigned) len);
+      DDS_TRACE(" BREAK (%u %"PRIuSIZE": %p %u)\n", (unsigned) (submsg - msg), submsg_size, (void *) msg, (unsigned) len);
       break;
     }
 
@@ -2907,7 +2912,7 @@ static int handle_submsg_sequence
   {
     state = "parse:shortmsg";
     state_smkind = SMID_PAD;
-    DDS_TRACE("short (size %"PRIuSIZE" exp %p act %p)", submsg_size, submsg, end);
+    DDS_TRACE("short (size %"PRIuSIZE" exp %p act %p)", submsg_size, (void *) submsg, (void *) end);
     goto malformed;
   }
   return 0;
@@ -3004,16 +3009,15 @@ static bool do_packet
     nn_rmsg_setsize (rmsg, (uint32_t) sz);
     assert (vtime_asleep_p (self->vtime));
 
-    if
-    (
-      (size_t) sz < RTPS_MESSAGE_HEADER_SIZE ||
-      buff[0] != 'R' || buff[1] != 'T' || buff[2] != 'P' || buff[3] != 'S' ||
-      hdr->version.major != RTPS_MAJOR || (hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM)
-    )
+    if ((size_t)sz < RTPS_MESSAGE_HEADER_SIZE || *(uint32_t *)buff != NN_PROTOCOLID_AS_UINT32)
     {
-        if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
-          DDS_TRACE("HDR(%x:%x:%x vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
-                    PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
+      /* discard packets that are really too small or don't have magic cookie */
+    }
+    else if (hdr->version.major != RTPS_MAJOR || (hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
+    {
+      if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
+        DDS_TRACE("HDR(%x:%x:%x vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
+                  PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
       if (NN_PEDANTIC_P)
         malformed_packet_received_nosubmsg (buff, sz, "header", hdr->vendorid);
     }
@@ -3029,22 +3033,7 @@ static bool do_packet
                   PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
       }
 
-      {
-        handle_submsg_sequence
-        (
-          conn,
-          &srcloc,
-          self,
-          now (),
-          now_et (),
-          &hdr->guid_prefix,
-          guidprefix,
-          buff,
-          (size_t) sz,
-          buff + RTPS_MESSAGE_HEADER_SIZE,
-          rmsg
-        );
-      }
+      handle_submsg_sequence (conn, &srcloc, self, now (), now_et (), &hdr->guid_prefix, guidprefix, buff, (size_t) sz, buff + RTPS_MESSAGE_HEADER_SIZE, rmsg);
     }
     thread_state_asleep (self);
   }
@@ -3317,7 +3306,7 @@ void trigger_recv_threads (void)
         break;
       }
       case RTM_MANY: {
-        DDS_TRACE("trigger_recv_threads: %d many %p\n", i, gv.recv_threads[i].arg.u.many.ws);
+        DDS_TRACE("trigger_recv_threads: %d many %p\n", i, (void *) gv.recv_threads[i].arg.u.many.ws);
         os_sockWaitsetTrigger (gv.recv_threads[i].arg.u.many.ws);
         break;
       }

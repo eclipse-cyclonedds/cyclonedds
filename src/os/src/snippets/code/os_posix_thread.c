@@ -155,8 +155,6 @@ os_startRoutineWrapper (
     os_threadContext *context = threadContext;
     uintptr_t resultValue;
 
-    resultValue = 0;
-
 #if !defined(__VXWORKS__) && !defined(__APPLE__) && !defined(__sun)
     prctl(PR_SET_NAME, context->threadName);
 #endif

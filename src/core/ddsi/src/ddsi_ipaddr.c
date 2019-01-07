@@ -38,7 +38,7 @@ int ddsi_ipaddr_compare (const os_sockaddr *const sa1, const os_sockaddr *const 
         sin1 = (os_sockaddr_in *)sa1;
         sin2 = (os_sockaddr_in *)sa2;
         sz = sizeof(sin1->sin_addr);
-        eq = memcmp(&sin1->sin_addr, &sin2->sin_addr, sizeof(sz));
+        eq = memcmp(&sin1->sin_addr, &sin2->sin_addr, sz);
         break;
       }
       default: {

@@ -233,6 +233,7 @@ static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const
 {
   struct hbcontrol const * const hbc = &wr->hbcontrol;
   const int64_t hb_intv_ack = config.const_hb_intv_sched;
+  assert(wr->heartbeat_xevent != NULL && whcst != NULL);
 
   if (piggyback)
   {
@@ -707,6 +708,7 @@ static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *
   const char *frags_to_skip = getenv ("SKIPFRAGS");
 #endif
   assert(xp);
+  assert((wr->heartbeat_xevent != NULL) == (whcst != NULL));
 
   for (i = 0; i < nfrags; i++)
   {
@@ -744,6 +746,7 @@ static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *
   {
     struct nn_xmsg *msg = NULL;
     int hbansreq;
+    assert (whcst != NULL);
     os_mutexLock (&wr->e.lock);
     msg = writer_hbcontrol_piggyback (wr, whcst, serdata->twrite, nn_xpack_packetid (xp), &hbansreq);
     os_mutexUnlock (&wr->e.lock);
@@ -762,6 +765,7 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, 
   struct nn_xmsg *fmsg;
   uint32_t sz;
   assert(xp);
+  assert((wr->heartbeat_xevent != NULL) == (whcst != NULL));
 
   sz = ddsi_serdata_size (serdata);
   if (sz > config.fragment_size || !isnew || plist != NULL || prd != NULL)
@@ -1116,10 +1120,6 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
   }
   else
   {
-    struct whc_state whcst;
-    if (wr->heartbeat_xevent)
-      whc_get_state(wr->whc, &whcst);
-
     /* Note the subtlety of enqueueing with the lock held but
        transmitting without holding the lock. Still working on
        cleaning that up. */
@@ -1130,6 +1130,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
        * plist's are only used for coherent sets, which is assumed to be rare,
        * which in turn means that an extra copy doesn't hurt too badly ... */
       nn_plist_t plist_stk, *plist_copy;
+      struct whc_state whcst, *whcstptr;
       if (plist == NULL)
         plist_copy = NULL;
       else
@@ -1137,7 +1138,14 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
         plist_copy = &plist_stk;
         nn_plist_copy (plist_copy, plist);
       }
-      transmit_sample_unlocks_wr (xp, wr, &whcst, seq, plist_copy, serdata, NULL, 1);
+      if (wr->heartbeat_xevent == NULL)
+        whcstptr = NULL;
+      else
+      {
+        whc_get_state(wr->whc, &whcst);
+        whcstptr = &whcst;
+      }
+      transmit_sample_unlocks_wr (xp, wr, whcstptr, seq, plist_copy, serdata, NULL, 1);
       if (plist_copy)
         nn_plist_fini (plist_copy);
     }

@@ -805,7 +805,6 @@ static void print_sampleinfo(dds_time_t *tstart, dds_time_t tnow, const dds_samp
     relt = tnow - *tstart;
 //    instancehandle_to_id(&ihSystemId, &ihLocalId, si->instance_handle);
 //    instancehandle_to_id(&phSystemId, &phLocalId, si->publication_handle);
-    sep = "";
     if (print_metadata & PM_PID) {
         n += printf ("%d", pid);
     }
@@ -826,7 +825,6 @@ static void print_sampleinfo(dds_time_t *tstart, dds_time_t tnow, const dds_samp
     sep = " : ";
     if (print_metadata & PM_STIME) {
         n += printf ("%s%lld.%09lld", n > 0 ? sep : "", (si->source_timestamp/DDS_NSECS_IN_SEC), (si->source_timestamp%DDS_NSECS_IN_SEC));
-        sep = " ";
     }
     sep = " : ";
     if (print_metadata & PM_DGEN) {
@@ -843,7 +841,6 @@ static void print_sampleinfo(dds_time_t *tstart, dds_time_t tnow, const dds_samp
     sep = " : ";
     if (print_metadata & PM_STATE) {
         n += printf ("%s%c%c%c", n > 0 ? sep : "", isc, ssc, vsc);
-        sep = " ";
     }
     if (n > 0) {
         printf(" : ");
@@ -1895,9 +1892,9 @@ static uint32_t subthread(void *vspec) {
     case MODE_ZEROLOAD:
         break;
     case MODE_PRINT:
-        rc = dds_waitset_detach(ws, rdcondA);
+        dds_waitset_detach(ws, rdcondA);
         dds_delete(rdcondA);
-        rc = dds_waitset_detach(ws, rdcondD);
+        dds_waitset_detach(ws, rdcondD);
         dds_delete(rdcondD);
         break;
     case MODE_CHECK:
@@ -1952,9 +1949,8 @@ static uint32_t autotermthread(void *varg __attribute__((unused))) {
         tnow = dds_time();
     }
 
-    rc = dds_waitset_detach(ws, termcond);
-    rc = dds_delete(ws);
-
+    dds_waitset_detach(ws, termcond);
+    dds_delete(ws);
     return 0;
 }
 

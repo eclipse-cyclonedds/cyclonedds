@@ -133,7 +133,7 @@ struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi_sertop
   const struct entity_common *entity = ephash_lookup_guid_untyped ((const nn_guid_t *) keyhash->value);
   struct ddsi_serdata_builtin *d = serdata_builtin_new(tp, entity ? SDK_DATA : SDK_KEY);
   memcpy (&d->key, keyhash->value, sizeof (d->key));
-  if (d->c.kind == SDK_DATA)
+  if (entity)
   {
     switch (entity->kind)
     {

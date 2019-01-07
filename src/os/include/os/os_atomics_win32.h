@@ -416,6 +416,11 @@ OS_ATOMIC_API_INLINE void os_atomic_fence (void) {
   InterlockedExchange (&tmp, 0);
 #pragma warning (pop)
 }
+OS_ATOMIC_API_INLINE void os_atomic_fence_ldld (void) {
+#if !(defined _M_IX86 || defined _M_X64)
+  os_atomic_fence ();
+#endif
+}
 OS_ATOMIC_API_INLINE void os_atomic_fence_acq (void) {
   os_atomic_fence ();
 }

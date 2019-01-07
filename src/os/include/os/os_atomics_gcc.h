@@ -331,6 +331,11 @@ VDDS_INLINE int os_atomic_casvoidp (volatile os_atomic_voidp_t *x, void *exp, vo
 VDDS_INLINE void os_atomic_fence (void) {
   __sync_synchronize ();
 }
+VDDS_INLINE void os_atomic_fence_ldld (void) {
+#if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
+  __sync_synchronize ();
+#endif
+}
 VDDS_INLINE void os_atomic_fence_acq (void) {
   os_atomic_fence ();
 }

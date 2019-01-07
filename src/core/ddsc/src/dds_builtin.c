@@ -370,7 +370,8 @@ dds__builtin_write(
     _In_ nn_wctime_t timestamp,
     _In_ bool alive)
 {
-    dds_entity_t topic;
+    /* initialize to avoid compiler warning ultimately caused by C's horrible type system */
+    dds_entity_t topic = 0;
     switch (type)
     {
         case DSBT_PARTICIPANT:
@@ -383,6 +384,7 @@ dds__builtin_write(
             topic = DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION;
             break;
     }
+    assert(topic != 0);
     (void)dds__builtin_write_int(topic, guid, timestamp.v, alive);
 }
 

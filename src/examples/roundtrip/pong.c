@@ -37,11 +37,11 @@ static dds_entity_t reader;
 static dds_entity_t writer;
 static dds_entity_t readCond;
 
-static void data_available(dds_entity_t reader, void *arg)
+static void data_available(dds_entity_t rd, void *arg)
 {
   int status, samplecount;
   (void)arg;
-  samplecount = dds_take (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
+  samplecount = dds_take (rd, samples, info, MAX_SAMPLES, MAX_SAMPLES);
   DDS_ERR_CHECK (samplecount, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   for (int j = 0; !dds_triggered (waitSet) && j < samplecount; j++)
   {
@@ -136,18 +136,18 @@ int main (int argc, char *argv[])
   return EXIT_SUCCESS;
 }
 
-static void finalize_dds(dds_entity_t participant, RoundTripModule_DataType data[MAX_SAMPLES])
+static void finalize_dds(dds_entity_t pp, RoundTripModule_DataType xs[MAX_SAMPLES])
 {
   dds_return_t status;
-  status = dds_delete (participant);
+  status = dds_delete (pp);
   DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   for (unsigned int i = 0; i < MAX_SAMPLES; i++)
   {
-    RoundTripModule_DataType_free (&data[i], DDS_FREE_CONTENTS);
+    RoundTripModule_DataType_free (&xs[i], DDS_FREE_CONTENTS);
   }
 }
 
-static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_entity_t *readCond, dds_listener_t *listener)
+static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t *rdcond, dds_listener_t *rdlist)
 {
   const char *pubPartitions[] = { "pong" };
   const char *subPartitions[] = { "ping" };
@@ -176,8 +176,8 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_
   qos = dds_create_qos ();
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
   dds_qset_writer_data_lifecycle (qos, false);
-  *writer = dds_create_writer (publisher, topic, qos, NULL);
-  DDS_ERR_CHECK (*writer, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  *wr = dds_create_writer (publisher, topic, qos, NULL);
+  DDS_ERR_CHECK (*wr, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   dds_delete_qos (qos);
 
   /* A DDS Subscriber is created on the domain participant. */
@@ -193,17 +193,17 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_
 
   qos = dds_create_qos ();
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
-  *reader = dds_create_reader (subscriber, topic, qos, listener);
-  DDS_ERR_CHECK (*reader, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  *rd = dds_create_reader (subscriber, topic, qos, rdlist);
+  DDS_ERR_CHECK (*rd, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   dds_delete_qos (qos);
 
   waitSet = dds_create_waitset (participant);
-  if (listener == NULL) {
-    *readCond = dds_create_readcondition (*reader, DDS_ANY_STATE);
-    status = dds_waitset_attach (waitSet, *readCond, *reader);
+  if (rdlist == NULL) {
+    *rdcond = dds_create_readcondition (*rd, DDS_ANY_STATE);
+    status = dds_waitset_attach (waitSet, *rdcond, *rd);
     DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
   } else {
-    *readCond = 0;
+    *rdcond = 0;
   }
   status = dds_waitset_attach (waitSet, waitSet, waitSet);
   DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);

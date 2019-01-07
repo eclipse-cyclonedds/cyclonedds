@@ -1343,7 +1343,7 @@ err_mc_conn:
   if (gv.pcap_fp)
     os_mutexDestroy (&gv.pcap_lock);
   if (gv.disc_conn_uc != gv.disc_conn_mc)
-    ddsi_conn_free (gv.data_conn_uc);
+    ddsi_conn_free (gv.disc_conn_uc);
   if (gv.data_conn_uc != gv.disc_conn_uc)
     ddsi_conn_free (gv.data_conn_uc);
   free_group_membership(gv.mship);
@@ -1381,6 +1381,8 @@ err_unicast_sockets:
   (ddsi_plugin.fini_fn) ();
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 err_network_partition_addrset:
+  for (struct config_networkpartition_listelem *np = config.networkPartitions; np; np = np->next)
+    unref_addrset (np->as);
 #endif
 err_set_ext_address:
   while (gv.recvips)
@@ -1614,6 +1616,10 @@ void rtps_term (void)
     fclose (gv.pcap_fp);
   }
 
+#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+  for (struct config_networkpartition_listelem *np = config.networkPartitions; np; np = np->next)
+    unref_addrset (np->as);
+#endif
   unref_addrset (gv.as_disc);
   unref_addrset (gv.as_disc_group);
 
