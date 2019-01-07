@@ -188,13 +188,22 @@ static char *dds_string_dup_reuse (char *old, const char *src)
 static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const nn_xqos_t *src)
 {
   if (old == NULL)
-    return nn_xqos_dup (src);
+  {
+    old = os_malloc (sizeof (*old));
+    nn_xqos_init_empty (old);
+    old->present |= QP_TOPIC_NAME | QP_TYPE_NAME;
+    nn_xqos_mergein_missing (old, src);
+    old->present &= ~(QP_TOPIC_NAME | QP_TYPE_NAME);
+  }
   else
   {
     nn_xqos_fini (old);
+    nn_xqos_init_empty (old);
+    old->present |= QP_TOPIC_NAME | QP_TYPE_NAME;
     nn_xqos_mergein_missing (old, src);
-    return old;
+    old->present &= ~(QP_TOPIC_NAME | QP_TYPE_NAME);
   }
+  return old;
 }
 
 static bool to_sample_pp (const struct ddsi_serdata_builtin *d, struct dds_builtintopic_participant *sample)
