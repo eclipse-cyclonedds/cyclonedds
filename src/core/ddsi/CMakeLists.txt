@@ -84,9 +84,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/ddsi"
     q_addrset.h
     q_align.h
     q_bitset.h
-    q_bitset_template.h
     q_bswap.h
-    q_bswap_template.h
     q_config.h
     q_ddsi_discovery.h
     q_debmon.h
@@ -116,7 +114,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/ddsi"
     q_sockwaitset.h
     q_static_assert.h
     q_thread.h
-    q_thread_template.h
     q_time.h
     q_transmit.h
     q_inverse_uint32_set.h

@@ -9,7 +9,14 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#define SUPPRESS_THREAD_INLINES
-
 #include "ddsi/q_thread.h"
-#include "ddsi/q_thread_template.h"
+
+extern inline int vtime_awake_p (_In_ vtime_t vtime);
+extern inline int vtime_asleep_p (_In_ vtime_t vtime);
+extern inline int vtime_gt (_In_ vtime_t vtime1, _In_ vtime_t vtime0);
+
+extern inline void thread_state_asleep (_Inout_ struct thread_state1 *ts1);
+extern inline void thread_state_awake (_Inout_ struct thread_state1 *ts1);
+extern inline void thread_state_blocked (_Inout_ struct thread_state1 *ts1);
+extern inline void thread_state_unblocked (_Inout_ struct thread_state1 *ts1);
+

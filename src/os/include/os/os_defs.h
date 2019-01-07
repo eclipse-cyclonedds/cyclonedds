@@ -19,7 +19,6 @@
 #error "OS_ENDIANNESS not set correctly"
 #endif
 
-#include "os/os_inline.h"
 #include "os/os_decl_attributes.h"
 
 #if defined (__cplusplus)

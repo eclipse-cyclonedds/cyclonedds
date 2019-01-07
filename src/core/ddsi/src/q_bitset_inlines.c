@@ -9,8 +9,11 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#define SUPPRESS_BITSET_INLINES
-
 #include "ddsi/q_bitset.h"
-#include "ddsi/q_bitset_template.h"
+
+extern inline int nn_bitset_isset (unsigned numbits, const unsigned *bits, unsigned idx);
+extern inline void nn_bitset_set (unsigned numbits, unsigned *bits, unsigned idx);
+extern inline void nn_bitset_clear (unsigned numbits, unsigned *bits, unsigned idx);
+extern inline void nn_bitset_zero (unsigned numbits, unsigned *bits);
+extern inline void nn_bitset_one (unsigned numbits, unsigned *bits);
 
