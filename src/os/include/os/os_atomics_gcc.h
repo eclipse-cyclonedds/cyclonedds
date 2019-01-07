@@ -25,6 +25,18 @@
 #endif
 #endif
 
+#if ( OS_ATOMIC64_SUPPORT && __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16) || \
+    (!OS_ATOMIC64_SUPPORT && __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)
+
+#define OS_ATOMIC_LIFO_SUPPORT 1
+
+#if OS_ATOMIC64_SUPPORT
+typedef union { __int128 x; struct { uintptr_t a, b; } s; } os_atomic_uintptr2_t;
+#else
+typedef union { uint64_t x; struct { uintptr_t a, b; } s; } os_atomic_uintptr2_t;
+#endif
+#endif
+
 #if ! OS_ATOMICS_OMIT_FUNCTIONS
 
 /* Eliminate C warnings */
@@ -73,6 +85,9 @@ OS_INLINE uintptr_t os_atomic_orptr_nv (volatile os_atomic_uintptr_t *x, uintptr
 OS_INLINE int os_atomic_cas32 (volatile os_atomic_uint32_t *x, uint32_t exp, uint32_t des);
 OS_INLINE int os_atomic_casptr (volatile os_atomic_uintptr_t *x, uintptr_t exp, uintptr_t des);
 OS_INLINE int os_atomic_casvoidp (volatile os_atomic_voidp_t *x, void *exp, void *des);
+#if OS_ATOMIC_LIFO_SUPPORT
+OS_INLINE int os_atomic_casvoidp2 (volatile os_atomic_uintptr2_t *x, uintptr_t a0, uintptr_t b0, uintptr_t a1, uintptr_t b1);
+#endif
 OS_INLINE void os_atomic_fence (void);
 OS_INLINE void os_atomic_fence_acq (void);
 OS_INLINE void os_atomic_fence_rel (void);
@@ -325,6 +340,14 @@ OS_INLINE int os_atomic_casptr (volatile os_atomic_uintptr_t *x, uintptr_t exp, 
 OS_INLINE int os_atomic_casvoidp (volatile os_atomic_voidp_t *x, void *exp, void *des) {
   return os_atomic_casptr (x, (uintptr_t) exp, (uintptr_t) des);
 }
+#if OS_ATOMIC_LIFO_SUPPORT
+OS_INLINE int os_atomic_casvoidp2 (volatile os_atomic_uintptr2_t *x, uintptr_t a0, uintptr_t b0, uintptr_t a1, uintptr_t b1) {
+  os_atomic_uintptr2_t o, n;
+  o.s.a = a0; o.s.b = b0;
+  n.s.a = a1; n.s.b = b1;
+  return __sync_bool_compare_and_swap (&x->x, o.x, n.x);
+}
+#endif /* OS_ATOMIC_LIFO_SUPPORT */
 
 /* FENCES */
 

@@ -41,8 +41,6 @@
 #include "ddsi/q_md5.h"
 #include "ddsi/q_feature_check.h"
 
-#include "ddsi/sysdeps.h"
-
 static const nn_vendorid_t ownvendorid = MY_VENDOR_ID;
 
 static int get_locator (nn_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)

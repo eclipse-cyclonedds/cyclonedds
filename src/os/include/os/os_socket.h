@@ -36,6 +36,7 @@ extern "C" {
      * @addtogroup OS_NET
      * @{
      */
+#define OS_VALID_SOCKET(s) ((s) != OS_INVALID_SOCKET)
 
     /**
      * Socket handle type. SOCKET on windows, int otherwise.
@@ -235,7 +236,7 @@ extern "C" {
      */
     OSAPI_EXPORT int
     os_sockaddr_is_unspecified(
-        const os_sockaddr *const sa) __nonnull_all__;
+        _In_ const os_sockaddr *__restrict sa) __nonnull_all__;
 
     /**
     * Check this address to see if it represents loopback.

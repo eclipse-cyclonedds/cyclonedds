@@ -19,7 +19,6 @@
 #include "ddsi/q_config.h"
 #include "ddsi/q_globals.h"
 #include "ddsi/q_bswap.h"
-#include "ddsi/sysdeps.h"
 #include "ddsi/q_pcap.h"
 
 /* pcap format info taken from http://wiki.wireshark.org/Development/LibpcapFileFormat */

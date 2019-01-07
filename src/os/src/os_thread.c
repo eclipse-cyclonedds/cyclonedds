@@ -37,3 +37,9 @@ os_threadAttrInit (
     threadAttr->schedPriority = 0;
     threadAttr->stackSize = 0;
 }
+
+int os_threadEqual (os_threadId a, os_threadId b)
+{
+  /* on pthreads boxes, pthread_equal (a, b); as a workaround: */
+  return os_threadIdToInteger (a) == os_threadIdToInteger (b);
+}

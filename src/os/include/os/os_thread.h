@@ -127,6 +127,8 @@ extern "C" {
     OSAPI_EXPORT os_threadId
     os_threadIdSelf(void);
 
+    int os_threadEqual (os_threadId a, os_threadId b);
+
     /** \brief Wait for the termination of the identified thread
      *
      * If the identified thread is still running, wait for its termination

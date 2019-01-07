@@ -12,7 +12,6 @@
 #include <stddef.h>
 
 #include "os/os.h"
-#include "ddsi/sysdeps.h"
 #include "ddsi/q_freelist.h"
 
 #if FREELIST_TYPE == FREELIST_ATOMIC_LIFO

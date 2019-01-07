@@ -157,10 +157,24 @@ OSAPI_EXPORT int os_atomic_cas64 (volatile os_atomic_uint64_t *x, uint64_t exp, 
 #endif
 OSAPI_EXPORT int os_atomic_casptr (volatile os_atomic_uintptr_t *x, uintptr_t exp, uintptr_t des);
 OSAPI_EXPORT int os_atomic_casvoidp (volatile os_atomic_voidp_t *x, void *exp, void *des);
+#if OS_ATOMIC_LIFO_SUPPORT
+OSAPI_EXPORT int os_atomic_casvoidp2 (volatile os_atomic_uintptr2_t *x, uintptr_t a0, uintptr_t b0, uintptr_t a1, uintptr_t b1);
+#endif
 /* FENCES */
 OSAPI_EXPORT void os_atomic_fence (void);
 OSAPI_EXPORT void os_atomic_fence_acq (void);
 OSAPI_EXPORT void os_atomic_fence_rel (void);
+/* LIFO */
+#if OS_ATOMIC_LIFO_SUPPORT
+typedef struct os_atomic_lifo {
+  os_atomic_uintptr2_t aba_head;
+} os_atomic_lifo_t;
+
+OSAPI_EXPORT void os_atomic_lifo_init (os_atomic_lifo_t *head);
+OSAPI_EXPORT void os_atomic_lifo_push (os_atomic_lifo_t *head, void *elem, size_t linkoff);
+OSAPI_EXPORT void *os_atomic_lifo_pop (os_atomic_lifo_t *head, size_t linkoff);
+OSAPI_EXPORT void os_atomic_lifo_pushmany (os_atomic_lifo_t *head, void *first, void *last, size_t linkoff);
+#endif /* OS_ATOMIC_LIFO_SUPPORT */
 
 #endif /* OS_HAVE_INLINE */
 

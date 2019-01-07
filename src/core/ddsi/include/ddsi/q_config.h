@@ -87,7 +87,7 @@ struct q_security_plugins
   q_securityDecoderSet (*new_decoder) (void);
   c_bool (*free_encoder) (q_securityEncoderSet);
   c_bool (*free_decoder) (q_securityDecoderSet);
-  ssize_t (*send_encoded) (ddsi_tran_conn_t, const nn_locator_t *dst, size_t niov, ddsi_iovec_t *iov, q_securityEncoderSet *, uint32_t, uint32_t);
+  ssize_t (*send_encoded) (ddsi_tran_conn_t, const nn_locator_t *dst, size_t niov, os_iovec_t *iov, q_securityEncoderSet *, uint32_t, uint32_t);
   char * (*cipher_type) (q_cipherType);
   c_bool (*cipher_type_from_string) (const char *, q_cipherType *);
   uint32_t (*header_size) (q_securityEncoderSet, uint32_t);

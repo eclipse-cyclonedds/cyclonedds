@@ -9,24 +9,19 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef SYSDEPS_H
-#define SYSDEPS_H
+#ifndef OS_RANDOM_H
+#define OS_RANDOM_H
 
-#include "os/os.h"
-
+#include "os/os_defs.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-#define ASSERT_RDLOCK_HELD(x) ((void) 0)
-#define ASSERT_WRLOCK_HELD(x) ((void) 0)
-#define ASSERT_MUTEX_HELD(x) ((void) 0)
-
-void log_stacktrace (const char *name, os_threadId tid);
+OSAPI_EXPORT long os_random(void);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* SYSDEPS_H */
+#endif /* OS_RANDOM_H */

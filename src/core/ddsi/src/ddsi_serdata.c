@@ -15,7 +15,6 @@
 #include <string.h>
 
 #include "os/os.h"
-#include "ddsi/sysdeps.h"
 #include "ddsi/q_md5.h"
 #include "ddsi/q_bswap.h"
 #include "ddsi/q_config.h"
@@ -42,8 +41,8 @@ extern inline struct ddsi_serdata *ddsi_serdata_from_keyhash (const struct ddsi_
 extern inline struct ddsi_serdata *ddsi_serdata_from_sample (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, const void *sample);
 extern inline struct ddsi_serdata *ddsi_serdata_to_topicless (const struct ddsi_serdata *d);
 extern inline void ddsi_serdata_to_ser (const struct ddsi_serdata *d, size_t off, size_t sz, void *buf);
-extern inline struct ddsi_serdata *ddsi_serdata_to_ser_ref (const struct ddsi_serdata *d, size_t off, size_t sz, ddsi_iovec_t *ref);
-extern inline void ddsi_serdata_to_ser_unref (struct ddsi_serdata *d, const ddsi_iovec_t *ref);
+extern inline struct ddsi_serdata *ddsi_serdata_to_ser_ref (const struct ddsi_serdata *d, size_t off, size_t sz, os_iovec_t *ref);
+extern inline void ddsi_serdata_to_ser_unref (struct ddsi_serdata *d, const os_iovec_t *ref);
 extern inline bool ddsi_serdata_to_sample (const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
 extern inline bool ddsi_serdata_topicless_to_sample (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
 extern inline bool ddsi_serdata_eqkey (const struct ddsi_serdata *a, const struct ddsi_serdata *b);

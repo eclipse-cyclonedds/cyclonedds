@@ -3051,8 +3051,8 @@ static int local_participant_cmp (const void *va, const void *vb)
 {
   const struct local_participant_desc *a = va;
   const struct local_participant_desc *b = vb;
-  os_handle h1 = ddsi_conn_handle (a->m_conn);
-  os_handle h2 = ddsi_conn_handle (b->m_conn);
+  os_socket h1 = ddsi_conn_handle (a->m_conn);
+  os_socket h2 = ddsi_conn_handle (b->m_conn);
   return (h1 == h2) ? 0 : (h1 < h2) ? -1 : 1;
 }
 
@@ -3298,7 +3298,7 @@ void trigger_recv_threads (void)
         char buf[DDSI_LOCSTRLEN];
         char dummy = 0;
         const nn_locator_t *dst = gv.recv_threads[i].arg.u.single.loc;
-        ddsi_iovec_t iov;
+        os_iovec_t iov;
         iov.iov_base = &dummy;
         iov.iov_len = 1;
         DDS_TRACE("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));

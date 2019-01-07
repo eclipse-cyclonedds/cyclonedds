@@ -13,7 +13,6 @@
 #include <assert.h>
 
 #include "os/os.h"
-#include "ddsi/sysdeps.h"
 
 #include "util/ut_hopscotch.h"
 #include "ddsi/q_ephash.h"

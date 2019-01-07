@@ -74,9 +74,9 @@ CU_Test(os_getifaddrs, ipv4)
         CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET);
         if (ifa->addr->sa_family == AF_INET) {
             if (ifa->flags & IFF_LOOPBACK) {
-                CU_ASSERT(os_sockaddrIsLoopback(ifa->addr));
+                CU_ASSERT(os_sockaddr_is_loopback(ifa->addr));
             } else {
-                CU_ASSERT(!os_sockaddrIsLoopback(ifa->addr));
+                CU_ASSERT(!os_sockaddr_is_loopback(ifa->addr));
             }
             seen = 1;
         }

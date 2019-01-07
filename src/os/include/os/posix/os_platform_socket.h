@@ -68,9 +68,24 @@ extern "C" {
     typedef int os_socket; /* signed */
     #define PRIsock "d"
 
-#define OS_SOCKET_INVALID (-1)
+#define OS_INVALID_SOCKET (-1)
 
+    typedef struct iovec os_iovec_t;
+    typedef size_t os_iov_len_t;
 
+#if defined(__sun) && !defined(_XPG4_2)
+#define msg_accrights msg_control
+#define msg_accrightslen msg_controllen
+#define OS_MSGHDR_FLAGS 0
+#else
+#define OS_MSGHDR_FLAGS 1
+#endif
+
+#if defined(__linux)
+typedef size_t os_msg_iovlen_t;
+#else /* POSIX says int (which macOS, FreeBSD, Solaris do) */
+typedef int os_msg_iovlen_t;
+#endif
 
 #if defined (__cplusplus)
 }

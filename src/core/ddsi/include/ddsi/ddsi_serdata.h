@@ -14,7 +14,6 @@
 
 #include "ddsi/q_time.h"
 #include "ddsi/ddsi_sertopic.h"
-#include "ddsi/sysdeps.h" /* for ddsi_iovec_t */
 
 struct nn_rdata;
 struct nn_keyhash;
@@ -67,11 +66,11 @@ typedef void (*ddsi_serdata_to_ser_t) (const struct ddsi_serdata *d, size_t off,
    calls to to_ser_ref() may be issued in parallel, the separate ref/unref bit is there to at least
    have the option of lazily creating the serialised representation and freeing it when no one needs
    it, while the sample itself remains valid */
-typedef struct ddsi_serdata * (*ddsi_serdata_to_ser_ref_t) (const struct ddsi_serdata *d, size_t off, size_t sz, ddsi_iovec_t *ref);
+typedef struct ddsi_serdata * (*ddsi_serdata_to_ser_ref_t) (const struct ddsi_serdata *d, size_t off, size_t sz, os_iovec_t *ref);
 
 /* Release a lock on serialised data, ref must be a pointer previously obtained by calling
    to_ser_ref(d, off, sz) for some offset off. */
-typedef void (*ddsi_serdata_to_ser_unref_t) (struct ddsi_serdata *d, const ddsi_iovec_t *ref);
+typedef void (*ddsi_serdata_to_ser_unref_t) (struct ddsi_serdata *d, const os_iovec_t *ref);
 
 /* Turn serdata into an application sample (or just the key values if only key values are
    available); return false on error (typically out-of-memory, but if from_ser doesn't do any
@@ -146,11 +145,11 @@ inline void ddsi_serdata_to_ser (const struct ddsi_serdata *d, size_t off, size_
   d->ops->to_ser (d, off, sz, buf);
 }
 
-inline struct ddsi_serdata *ddsi_serdata_to_ser_ref (const struct ddsi_serdata *d, size_t off, size_t sz, ddsi_iovec_t *ref) {
+inline struct ddsi_serdata *ddsi_serdata_to_ser_ref (const struct ddsi_serdata *d, size_t off, size_t sz, os_iovec_t *ref) {
   return d->ops->to_ser_ref (d, off, sz, ref);
 }
 
-inline void ddsi_serdata_to_ser_unref (struct ddsi_serdata *d, const ddsi_iovec_t *ref) {
+inline void ddsi_serdata_to_ser_unref (struct ddsi_serdata *d, const os_iovec_t *ref) {
   d->ops->to_ser_unref (d, ref);
 }
 

@@ -27,7 +27,8 @@ set(sources
     src/os_iter.c
     src/os_strlcpy.c
     src/os_dns.c
-    src/os_process.c)
+    src/os_process.c
+    src/os_random.c)
 
 string(TOLOWER ${CMAKE_SYSTEM_NAME} system_name)
 set(system_sources
@@ -39,7 +40,8 @@ set(system_sources
     os_platform_sync.c
     os_platform_thread.c
     os_platform_time.c
-    os_platform_init.c)
+    os_platform_init.c
+    os_platform_rusage.c)
 
 foreach(source ${system_sources})
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/${system_name}/${source}")

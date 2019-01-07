@@ -27,7 +27,6 @@
 #include "ddsi/q_addrset.h"
 #include "ddsi/q_nwif.h"
 #include "ddsi/q_error.h"
-#include "ddsi/sysdeps.h"
 
 #include "util/ut_xmlparser.h"
 #include "util/ut_expand_envvars.h"

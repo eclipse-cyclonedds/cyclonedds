@@ -97,7 +97,7 @@ void ddsi_conn_free (ddsi_tran_conn_t conn)
     {
       conn->m_closed = true;
       /* FIXME: rethink the socket waitset & the deleting of entries; the biggest issue is TCP handling that can open & close sockets at will and yet expects the waitset to wake up at the apprioriate times.  (This pretty much works with the select-based version, but not the kqueue-based one.)  TCP code can also have connections without a socket ...  Calling sockWaitsetRemove here (where there shouldn't be any knowledge of it) at least ensures that it is removed in time and that there can't be aliasing of connections and sockets.   */
-      if (ddsi_conn_handle (conn) != Q_INVALID_SOCKET)
+      if (ddsi_conn_handle (conn) != OS_INVALID_SOCKET)
       {
         unsigned i;
         for (i = 0; i < gv.n_recv_threads; i++)
@@ -149,7 +149,7 @@ ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, 
   return (conn->m_closed) ? -1 : (conn->m_read_fn) (conn, buf, len, srcloc);
 }
 
-ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsi_iovec_t *iov, uint32_t flags)
+ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const os_iovec_t *iov, uint32_t flags)
 {
   ssize_t ret = -1;
   if (! conn->m_closed)
@@ -202,7 +202,7 @@ int ddsi_conn_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const
   return conn->m_factory->m_leave_mc_fn (conn, srcloc, mcloc, interf);
 }
 
-os_handle ddsi_tran_handle (ddsi_tran_base_t base)
+os_socket ddsi_tran_handle (ddsi_tran_base_t base)
 {
   return (base->m_handle_fn) (base);
 }

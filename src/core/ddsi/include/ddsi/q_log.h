@@ -22,19 +22,22 @@ extern "C" {
 #endif
 
 /* LOG_THREAD_CPUTIME must be considered private. */
-#define LOG_THREAD_CPUTIME(guard)                                     \
-    do {                                                              \
-        if (dds_get_log_mask() & DDS_LC_TIMING) {                     \
-            nn_mtime_t tnowlt = now_mt();                             \
-            if (tnowlt.v >= (guard).v) {                              \
-                const char fmt[] = "thread_cputime %d.%09d\n";        \
-                int64_t ts = get_thread_cputime ();                   \
-                dds_log(                                              \
-                    DDS_LC_TIMING, __FILE__, __LINE__, OS_FUNCTION,   \
-                    fmt, (int)(ts / T_SECOND), (int)(ts % T_SECOND)); \
-                (guard).v = tnowlt.v + T_SECOND;                      \
-            }                                                         \
-        }                                                             \
+#define LOG_THREAD_CPUTIME(guard)                                  \
+    do {                                                           \
+        if (dds_get_log_mask() & DDS_LC_TIMING) {                  \
+            nn_mtime_t tnowlt = now_mt();                          \
+            if (tnowlt.v >= (guard).v) {                           \
+                os_rusage_t usage;                                 \
+                if (os_getrusage(OS_RUSAGE_THREAD, &usage) == 0) { \
+                    DDS_LOG(                                       \
+                        DDS_LC_TIMING,                             \
+                        "thread_cputime %d.%09d\n",                \
+                        (int)usage.stime.tv_sec,                   \
+                        (int)usage.stime.tv_nsec);                 \
+                    (guard).v = tnowlt.v + T_SECOND;               \
+                }                                                  \
+            }                                                      \
+        }                                                          \
     } while (0)
 
 #if defined (__cplusplus)

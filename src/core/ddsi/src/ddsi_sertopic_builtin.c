@@ -15,7 +15,6 @@
 #include <string.h>
 
 #include "os/os.h"
-#include "ddsi/sysdeps.h"
 #include "ddsi/q_md5.h"
 #include "ddsi/q_bswap.h"
 #include "ddsi/q_config.h"

@@ -548,3 +548,52 @@ os__sockSelect(
     return r;
 }
 
+ssize_t recvmsg (os_socket fd, struct msghdr *message, int flags)
+{
+  ssize_t ret;
+
+  assert (message->msg_iovlen == 1);
+  assert (message->msg_controllen == 0);
+
+  message->msg_flags = 0;
+
+  ret = recvfrom (fd, message->msg_iov[0].iov_base, (int)message->msg_iov[0].iov_len, flags,
+                  message->msg_name, &message->msg_namelen); /* To fix the warning of conversion from 'size_t' to 'int', which may cause possible loss of data, type casting is done*/
+
+  /* Windows returns an error for too-large messages, Unix expects
+     original size and the MSG_TRUNC flag.  MSDN says it is truncated,
+     which presumably means it returned as much of the message as it
+     could - so we return that the message was 1 byte larger than the
+     available space, and set MSG_TRUNC if we can. */
+  if (ret == -1 && GetLastError () == WSAEMSGSIZE) {
+    ret = message->msg_iov[0].iov_len + 1;
+    message->msg_flags |= MSG_TRUNC;
+  }
+
+  return ret;
+}
+
+#define ASSERT_IOVEC_MATCHES_WSABUF do { \
+  struct iovec_matches_WSABUF { \
+    char sizeof_matches[sizeof(struct os_iovec) == sizeof(WSABUF) ? 1 : -1]; \
+    char base_off_matches[offsetof(struct os_iovec, iov_base) == offsetof(WSABUF, buf) ? 1 : -1]; \
+    char base_size_matches[sizeof(((struct os_iovec *)8)->iov_base) == sizeof(((WSABUF *)8)->buf) ? 1 : -1]; \
+    char len_off_matches[offsetof(struct os_iovec, iov_len) == offsetof(WSABUF, len) ? 1 : -1]; \
+    char len_size_matches[sizeof(((struct os_iovec *)8)->iov_len) == sizeof(((WSABUF *)8)->len) ? 1 : -1]; \
+  }; } while (0)
+
+ssize_t sendmsg (os_socket fd, const struct msghdr *message, int flags)
+{
+  DWORD sent;
+  ssize_t ret;
+
+  ASSERT_IOVEC_MATCHES_WSABUF;
+
+  assert(message->msg_controllen == 0);
+
+  if (WSASendTo (fd, (WSABUF *) message->msg_iov, (DWORD)message->msg_iovlen, &sent, flags, (SOCKADDR *) message->msg_name, message->msg_namelen, NULL, NULL) == 0)
+    ret = (ssize_t) sent;
+  else
+    ret = -1;
+  return ret;
+}

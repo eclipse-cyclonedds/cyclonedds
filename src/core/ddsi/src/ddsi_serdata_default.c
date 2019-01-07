@@ -15,7 +15,6 @@
 #include <string.h>
 
 #include "os/os.h"
-#include "ddsi/sysdeps.h"
 #include "ddsi/q_md5.h"
 #include "ddsi/q_bswap.h"
 #include "ddsi/q_config.h"
@@ -479,17 +478,17 @@ static void serdata_default_to_ser (const struct ddsi_serdata *serdata_common, s
   memcpy (buf, (char *)&d->hdr + off, sz);
 }
 
-static struct ddsi_serdata *serdata_default_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, ddsi_iovec_t *ref)
+static struct ddsi_serdata *serdata_default_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, os_iovec_t *ref)
 {
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
   assert (off < d->pos + sizeof(struct CDRHeader));
   assert (sz <= alignup_size (d->pos + sizeof(struct CDRHeader), 4) - off);
   ref->iov_base = (char *)&d->hdr + off;
-  ref->iov_len = (ddsi_iov_len_t)sz;
+  ref->iov_len = (os_iov_len_t)sz;
   return ddsi_serdata_ref(serdata_common);
 }
 
-static void serdata_default_to_ser_unref (struct ddsi_serdata *serdata_common, const ddsi_iovec_t *ref)
+static void serdata_default_to_ser_unref (struct ddsi_serdata *serdata_common, const os_iovec_t *ref)
 {
   (void)ref;
   ddsi_serdata_unref(serdata_common);

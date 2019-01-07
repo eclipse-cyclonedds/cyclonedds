@@ -11,7 +11,6 @@
  */
 /* -*- c -*- */
 
-#include "ddsi/sysdeps.h"
 #include "os/os_atomics.h"
 #include "ddsi/q_static_assert.h"
 

@@ -40,8 +40,6 @@
 #include "ddsi/q_thread.h"
 #include "ddsi/q_globals.h" /* for mattr, cattr */
 
-#include "ddsi/sysdeps.h"
-
 /* OVERVIEW ------------------------------------------------------------
 
    The receive path of DDSI2 has any number of receive threads that

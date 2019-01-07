@@ -48,8 +48,6 @@
 #include "ddsi/q_debmon.h"
 #include "ddsi/q_init.h"
 
-#include "ddsi/sysdeps.h"
-
 #include "ddsi/ddsi_tran.h"
 #include "ddsi/ddsi_udp.h"
 #include "ddsi/ddsi_tcp.h"

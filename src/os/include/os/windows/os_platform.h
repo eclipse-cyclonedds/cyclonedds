@@ -34,6 +34,7 @@ extern "C" {
 #endif
 
 #define OS_WIN32 1
+#define OS_HAVE_GETRUSAGE 1
 
     typedef double os_timeReal;
     typedef int os_timeSec;

@@ -13,7 +13,6 @@
 #define Q_SOCKWAITSET_H
 
 #include "os/os_defs.h"
-#include "ddsi/sysdeps.h"
 
 #if defined (__cplusplus)
 extern "C" {

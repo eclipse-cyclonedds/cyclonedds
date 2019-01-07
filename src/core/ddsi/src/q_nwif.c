@@ -377,7 +377,7 @@ int make_socket
     return -2;
   }
 
-  if (! Q_VALID_SOCKET (*sock))
+  if (! OS_VALID_SOCKET (*sock))
   {
     print_sockerror ("socket");
     return rc;
@@ -425,7 +425,7 @@ int make_socket
 fail:
 
   os_sockFree (*sock);
-  *sock = Q_INVALID_SOCKET;
+  *sock = OS_INVALID_SOCKET;
   return rc;
 }
 

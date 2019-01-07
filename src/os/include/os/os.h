@@ -44,5 +44,7 @@
 #include "os_iter.h"
 #include "os_log.h"
 #include "os_strlcpy.h"
+#include "os_random.h"
+#include "os_rusage.h"
 
 #endif

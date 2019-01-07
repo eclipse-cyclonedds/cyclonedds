@@ -159,12 +159,12 @@ static unsigned short get_socket_port (os_socket socket)
 static void ddsi_tcp_conn_set_socket (ddsi_tcp_conn_t conn, os_socket sock)
 {
   conn->m_sock = sock;
-  conn->m_base.m_base.m_port = (sock == Q_INVALID_SOCKET) ? INVALID_PORT : get_socket_port (sock);
+  conn->m_base.m_base.m_port = (sock == OS_INVALID_SOCKET) ? INVALID_PORT : get_socket_port (sock);
 }
 
 static void ddsi_tcp_sock_free (os_socket sock, const char * msg)
 {
-  if (sock != Q_INVALID_SOCKET)
+  if (sock != OS_INVALID_SOCKET)
   {
     if (msg)
     {
@@ -178,7 +178,7 @@ static void ddsi_tcp_sock_new (os_socket * sock, unsigned short port)
 {
   if (make_socket (sock, port, true, true) != 0)
   {
-    *sock = Q_INVALID_SOCKET;
+    *sock = OS_INVALID_SOCKET;
   }
 }
 
@@ -196,7 +196,7 @@ static void ddsi_tcp_conn_connect (ddsi_tcp_conn_t conn, const struct msghdr * m
   os_socket sock;
 
   ddsi_tcp_sock_new (&sock, 0);
-  if (sock != Q_INVALID_SOCKET)
+  if (sock != OS_INVALID_SOCKET)
   {
     /* Attempt to connect, expected that may fail */
 
@@ -219,7 +219,7 @@ static void ddsi_tcp_conn_connect (ddsi_tcp_conn_t conn, const struct msghdr * m
       conn->m_ssl = (ddsi_tcp_ssl_plugin.connect) (sock);
       if (conn->m_ssl == NULL)
       {
-        ddsi_tcp_conn_set_socket (conn, Q_INVALID_SOCKET);
+        ddsi_tcp_conn_set_socket (conn, OS_INVALID_SOCKET);
         return;
       }
     }
@@ -329,7 +329,7 @@ static ddsi_tcp_conn_t ddsi_tcp_cache_find (const struct msghdr * msg)
   }
   if (ret == NULL)
   {
-    ret = ddsi_tcp_new_conn (Q_INVALID_SOCKET, false, (os_sockaddr *)&key.m_peer_addr);
+    ret = ddsi_tcp_new_conn (OS_INVALID_SOCKET, false, (os_sockaddr *)&key.m_peer_addr);
     ddsi_tcp_cache_add (ret, &path);
   }
   os_mutexUnlock (&ddsi_tcp_cache_lock_g);
@@ -521,7 +521,7 @@ static ssize_t ddsi_tcp_block_write
   return (pos == sz) ? (ssize_t) pos : -1;
 }
 
-static size_t iovlen_sum (size_t niov, const ddsi_iovec_t *iov)
+static size_t iovlen_sum (size_t niov, const os_iovec_t *iov)
 {
   size_t tot = 0;
   while (niov--) {
@@ -530,13 +530,13 @@ static size_t iovlen_sum (size_t niov, const ddsi_iovec_t *iov)
   return tot;
 }
 
-static void set_msghdr_iov (struct msghdr *mhdr, ddsi_iovec_t *iov, size_t iovlen)
+static void set_msghdr_iov (struct msghdr *mhdr, os_iovec_t *iov, size_t iovlen)
 {
   mhdr->msg_iov = iov;
-  mhdr->msg_iovlen = (ddsi_msg_iovlen_t)iovlen;
+  mhdr->msg_iovlen = (os_msg_iovlen_t)iovlen;
 }
 
-static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *dst, size_t niov, const ddsi_iovec_t *iov, uint32_t flags)
+static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *dst, size_t niov, const os_iovec_t *iov, uint32_t flags)
 {
 #ifdef DDSI_INCLUDE_SSL
   char msgbuf[4096]; /* stack buffer for merging smallish writes without requiring allocations */
@@ -552,7 +552,7 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
   assert(niov <= INT_MAX);
   ddsi_ipaddr_from_loc(&dstaddr, dst);
   memset(&msg, 0, sizeof(msg));
-  set_msghdr_iov (&msg, (ddsi_iovec_t *) iov, niov);
+  set_msghdr_iov (&msg, (os_iovec_t *) iov, niov);
   msg.msg_name = &dstaddr;
   msg.msg_namelen = (socklen_t) os_sockaddr_get_size((os_sockaddr *) &dstaddr);
 #if SYSDEPS_MSGHDR_FLAGS
@@ -571,10 +571,10 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
 
   /* If not connected attempt to conect */
 
-  if ((conn->m_sock == Q_INVALID_SOCKET) && ! conn->m_base.m_server)
+  if ((conn->m_sock == OS_INVALID_SOCKET) && ! conn->m_base.m_server)
   {
     ddsi_tcp_conn_connect (conn, &msg);
-    if (conn->m_sock == Q_INVALID_SOCKET)
+    if (conn->m_sock == OS_INVALID_SOCKET)
     {
       os_mutexUnlock (&conn->m_mutex);
       return -1;
@@ -644,7 +644,7 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
         piecewise = 0;
         if (err != os_sockECONNRESET)
         {
-          if (! conn->m_base.m_closed && (conn->m_sock != Q_INVALID_SOCKET))
+          if (! conn->m_base.m_closed && (conn->m_sock != OS_INVALID_SOCKET))
           {
             DDS_WARNING
             (
@@ -711,7 +711,7 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
   return ((size_t) ret == len) ? ret : -1;
 }
 
-static os_handle ddsi_tcp_conn_handle (ddsi_tran_base_t base)
+static os_socket ddsi_tcp_conn_handle (ddsi_tran_base_t base)
 {
   return ((ddsi_tcp_conn_t) base)->m_sock;
 }
@@ -756,7 +756,7 @@ static ddsi_tran_conn_t ddsi_tcp_accept (ddsi_tran_listener_t listener)
 {
   ddsi_tcp_listener_t tl = (ddsi_tcp_listener_t) listener;
   ddsi_tcp_conn_t tcp = NULL;
-  os_socket sock = Q_INVALID_SOCKET;
+  os_socket sock = OS_INVALID_SOCKET;
   os_sockaddr_storage addr;
   socklen_t addrlen = sizeof (addr);
   char buff[DDSI_LOCSTRLEN];
@@ -783,11 +783,11 @@ static ddsi_tran_conn_t ddsi_tcp_accept (ddsi_tran_listener_t listener)
       ddsi_tcp_sock_free (sock, NULL);
       return NULL;
     }
-    err = (sock == Q_INVALID_SOCKET) ? os_getErrno () : 0;
+    err = (sock == OS_INVALID_SOCKET) ? os_getErrno () : 0;
   }
   while ((err == os_sockEINTR) || (err == os_sockEAGAIN) || (err == os_sockEWOULDBLOCK));
 
-  if (sock == Q_INVALID_SOCKET)
+  if (sock == OS_INVALID_SOCKET)
   {
     getsockname (tl->m_sock, (struct sockaddr *) &addr, &addrlen);
     sockaddr_to_string_with_port(buff, sizeof(buff), (os_sockaddr *)&addr);
@@ -821,7 +821,7 @@ static ddsi_tran_conn_t ddsi_tcp_accept (ddsi_tran_listener_t listener)
   return tcp ? &tcp->m_base : NULL;
 }
 
-static os_handle ddsi_tcp_listener_handle (ddsi_tran_base_t base)
+static os_socket ddsi_tcp_listener_handle (ddsi_tran_base_t base)
 {
   return ((ddsi_tcp_listener_t) base)->m_sock;
 }
@@ -836,7 +836,7 @@ static void ddsi_tcp_conn_peer_locator (ddsi_tran_conn_t conn, nn_locator_t * lo
 {
   char buff[DDSI_LOCSTRLEN];
   ddsi_tcp_conn_t tc = (ddsi_tcp_conn_t) conn;
-  assert (tc->m_sock != Q_INVALID_SOCKET);
+  assert (tc->m_sock != OS_INVALID_SOCKET);
   ddsi_ipaddr_to_loc (loc, (os_sockaddr *)&tc->m_peer_addr, tc->m_peer_addr.ss_family == AF_INET ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6);
   ddsi_locator_to_string(buff, sizeof(buff), loc);
   DDS_LOG(DDS_LC_TCP, "(%s EP:%s)", ddsi_name, buff);
@@ -861,7 +861,7 @@ static ddsi_tcp_conn_t ddsi_tcp_new_conn (os_socket sock, bool server, os_sockad
   memset (conn, 0, sizeof (*conn));
   ddsi_tcp_base_init (&conn->m_base);
   os_mutexInit (&conn->m_mutex);
-  conn->m_sock = Q_INVALID_SOCKET;
+  conn->m_sock = OS_INVALID_SOCKET;
   (void)memcpy(&conn->m_peer_addr, peer, os_sockaddr_get_size(peer));
   conn->m_peer_port = os_sockaddr_get_port (peer);
   conn->m_base.m_server = server;
@@ -883,7 +883,7 @@ static ddsi_tran_listener_t ddsi_tcp_create_listener (int port, ddsi_tran_qos_t 
 
   ddsi_tcp_sock_new (&sock, (unsigned short) port);
 
-  if (sock != Q_INVALID_SOCKET)
+  if (sock != OS_INVALID_SOCKET)
   {
     tl = (ddsi_tcp_listener_t) os_malloc (sizeof (*tl));
     memset (tl, 0, sizeof (*tl));
@@ -974,7 +974,7 @@ static void ddsi_tcp_unblock_listener (ddsi_tran_listener_t listener)
 
   /* Connect to own listener socket to wake listener from blocking 'accept()' */
   ddsi_tcp_sock_new (&sock, 0);
-  if (sock != Q_INVALID_SOCKET)
+  if (sock != OS_INVALID_SOCKET)
   {
     os_sockaddr_storage addr;
     socklen_t addrlen = sizeof (addr);

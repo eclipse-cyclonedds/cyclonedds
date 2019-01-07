@@ -124,7 +124,7 @@ os_sockaddr_is_loopback(
 #if OS_SOCKET_HAS_IPV6
         case AF_INET6:
             return IN6_IS_ADDR_LOOPBACK(
-                ((const os_sockaddr_in6 *)sa)->sin6_addr);
+                &((const os_sockaddr_in6 *)sa)->sin6_addr);
 #endif /* OS_SOCKET_HAS_IPV6 */
         case AF_INET:
             return (((const os_sockaddr_in *)sa)->sin_addr.s_addr
