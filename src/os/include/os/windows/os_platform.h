@@ -34,33 +34,16 @@ extern "C" {
 #endif
 
 #define OS_WIN32 1
-#define OS_SOCKET_USE_FCNTL 0
-#define OS_SOCKET_USE_IOCTL 1
-#define OS_FILESEPCHAR '/'
-#define OS_HAS_NO_SET_NAME_PRCTL 1
-#define OS_HAS_UCONTEXT_T 0
-
-#ifdef __BIG_ENDIAN
-#define OS_ENDIANNESS OS_BIG_ENDIAN
-#else
-#define OS_ENDIANNESS OS_LITTLE_ENDIAN
-#endif
-
-#ifdef _WIN64
-#define OS_64BIT
-#endif
+#define OS_HAVE_GETRUSAGE 1
 
     typedef double os_timeReal;
     typedef int os_timeSec;
     typedef DWORD os_procId;
     #define PRIprocId "u"
-        /* keep in sync with st_mode field def in struct stat in sys/stat.h */
-        typedef unsigned short os_mode_t;
-        typedef SSIZE_T ssize_t;
+    typedef SSIZE_T ssize_t;
 
 #include "os/windows/os_platform_socket.h"
 #include "os/windows/os_platform_sync.h"
-#include "os/windows/os_platform_process.h"
 #include "os/windows/os_platform_thread.h"
 #include "os/windows/os_platform_stdlib.h"
 #include "os/windows/os_platform_time.h"

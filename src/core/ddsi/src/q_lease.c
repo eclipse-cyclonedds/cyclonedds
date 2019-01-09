@@ -38,8 +38,6 @@
 #include "ddsi/q_lease.h"
 #include "ddsi/q_gc.h"
 
-#include "ddsi/sysdeps.h"
-
 /* This is absolute bottom for signed integers, where -x = x and yet x
    != 0 -- and note that it had better be 2's complement machine! */
 #define TSCHED_NOT_ON_HEAP INT64_MIN

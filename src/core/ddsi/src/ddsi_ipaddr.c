@@ -74,15 +74,39 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (ddsi_tran_factory
 
 enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str, int32_t kind)
 {
+  int af = AF_INET;
   os_sockaddr_storage tmpaddr;
-  int ipv4 = (kind == NN_LOCATOR_KIND_UDPv4 || kind == NN_LOCATOR_KIND_TCPv4);
-  assert (kind == NN_LOCATOR_KIND_UDPv4 || kind == NN_LOCATOR_KIND_TCPv4 ||
-          kind == NN_LOCATOR_KIND_TCPv6 || kind == NN_LOCATOR_KIND_UDPv6);
+
+  switch (kind) {
+    case NN_LOCATOR_KIND_UDPv4:
+    case NN_LOCATOR_KIND_TCPv4:
+      break;
+#if OS_SOCKET_HAS_IPV6
+    case NN_LOCATOR_KIND_UDPv6:
+    case NN_LOCATOR_KIND_TCPv6:
+      af = AF_INET6;
+      break;
+#endif /* OS_SOCKET_HAS_IPV6 */
+    default:
+      return AFSR_MISMATCH;
+  }
+
   (void)tran;
-  if (!os_sockaddrStringToAddress (str, (os_sockaddr *) &tmpaddr, ipv4))
-    return AFSR_INVALID;
-  if ((ipv4 && tmpaddr.ss_family != AF_INET) || (!ipv4 && tmpaddr.ss_family != AF_INET6))
+  if (os_sockaddrfromstr(af, str, (os_sockaddr *) &tmpaddr) != 0) {
+#if OS_SOCKET_HAS_DNS
+      /* Not a valid IP address. User may have specified a hostname instead. */
+      os_hostent_t *hent = NULL;
+      if (os_gethostbyname(str, af, &hent) != 0) {
+          return AFSR_UNKNOWN;
+      }
+      memcpy(&tmpaddr, &hent->addrs[0], sizeof(hent->addrs[0]));
+#else
+      return AFSR_INVALID;
+#endif /* OS_SOCKET_HAS_DNS */
+  }
+  if (tmpaddr.ss_family != af) {
     return AFSR_MISMATCH;
+  }
   ddsi_ipaddr_to_loc (loc, (os_sockaddr *)&tmpaddr, kind);
   /* This is just an address, so there is no valid value for port, other than INVALID.
      Without a guarantee that tmpaddr has port 0, best is to set it explicitly here */
@@ -100,7 +124,7 @@ char *ddsi_ipaddr_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_
   switch (src.ss_family)
   {
     case AF_INET:
-      os_sockaddrAddressToString ((const os_sockaddr *) &src, dst, sizeof_dst);
+      os_sockaddrtostr ((const os_sockaddr *) &src, dst, sizeof_dst);
       if (with_port) {
         pos = strlen (dst);
         assert(pos <= sizeof_dst);
@@ -110,7 +134,7 @@ char *ddsi_ipaddr_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_
 #if OS_SOCKET_HAS_IPV6
     case AF_INET6:
       dst[0] = '[';
-      os_sockaddrAddressToString ((const os_sockaddr *) &src, dst + 1, sizeof_dst);
+      os_sockaddrtostr ((const os_sockaddr *) &src, dst + 1, sizeof_dst);
       pos = strlen (dst);
       if (with_port) {
         assert(pos <= sizeof_dst);

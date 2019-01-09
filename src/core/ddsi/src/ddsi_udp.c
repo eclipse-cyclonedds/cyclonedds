@@ -54,23 +54,18 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
   ssize_t ret;
   struct msghdr msghdr;
   os_sockaddr_storage src;
-  ddsi_iovec_t msg_iov;
+  os_iovec_t msg_iov;
   socklen_t srclen = (socklen_t) sizeof (src);
 
   msg_iov.iov_base = (void*) buf;
-  msg_iov.iov_len = (ddsi_iov_len_t)len; /* windows uses unsigned, POISX size_t */
+  msg_iov.iov_len = (os_iov_len_t)len; /* Windows uses unsigned, POSIX (except Linux) int */
 
   msghdr.msg_name = &src;
   msghdr.msg_namelen = srclen;
   msghdr.msg_iov = &msg_iov;
   msghdr.msg_iovlen = 1;
-#if !defined(__sun) || defined(_XPG4_2)
   msghdr.msg_control = NULL;
   msghdr.msg_controllen = 0;
-#else
-  msghdr.msg_accrights = NULL;
-  msghdr.msg_accrightslen = 0;
-#endif
 
   do {
     ret = recvmsg(((ddsi_udp_conn_t) conn)->m_sock, &msghdr, 0);
@@ -103,13 +98,13 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
   return ret;
 }
 
-static void set_msghdr_iov (struct msghdr *mhdr, ddsi_iovec_t *iov, size_t iovlen)
+static void set_msghdr_iov (struct msghdr *mhdr, os_iovec_t *iov, size_t iovlen)
 {
   mhdr->msg_iov = iov;
-  mhdr->msg_iovlen = (ddsi_msg_iovlen_t)iovlen;
+  mhdr->msg_iovlen = (os_msg_iovlen_t)iovlen;
 }
 
-static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsi_iovec_t *iov, uint32_t flags)
+static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const os_iovec_t *iov, uint32_t flags)
 {
   int err;
   ssize_t ret;
@@ -119,18 +114,15 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
   os_sockaddr_storage dstaddr;
   assert(niov <= INT_MAX);
   ddsi_ipaddr_from_loc(&dstaddr, dst);
-  set_msghdr_iov (&msg, (ddsi_iovec_t *) iov, niov);
+  set_msghdr_iov (&msg, (os_iovec_t *) iov, niov);
   msg.msg_name = &dstaddr;
   msg.msg_namelen = (socklen_t) os_sockaddr_get_size((os_sockaddr *) &dstaddr);
-#if !defined(__sun) || defined(_XPG4_2)
   msg.msg_control = NULL;
   msg.msg_controllen = 0;
-#else
-  msg.msg_accrights = NULL;
-  msg.msg_accrightslen = 0;
-#endif
 #if SYSDEPS_MSGHDR_FLAGS
   msg.msg_flags = (int) flags;
+#else
+  OS_UNUSED_ARG(flags);
 #endif
 #ifdef MSG_NOSIGNAL
   sendflags |= MSG_NOSIGNAL;
@@ -187,7 +179,7 @@ static void ddsi_udp_disable_multiplexing (ddsi_tran_conn_t base)
 #endif
 }
 
-static os_handle ddsi_udp_conn_handle (ddsi_tran_base_t base)
+static os_socket ddsi_udp_conn_handle (ddsi_tran_base_t base)
 {
   return ((ddsi_udp_conn_t) base)->m_sock;
 }
@@ -203,7 +195,7 @@ static int ddsi_udp_conn_locator (ddsi_tran_base_t base, nn_locator_t *loc)
 {
   int ret = -1;
   ddsi_udp_conn_t uc = (ddsi_udp_conn_t) base;
-  if (uc->m_sock != Q_INVALID_SOCKET)
+  if (uc->m_sock != OS_INVALID_SOCKET)
   {
     loc->kind = ddsi_udp_factory_g.m_kind;
     loc->port = uc->m_base.m_base.m_port;
@@ -484,7 +476,7 @@ static char *ddsi_udp_locator_to_string (ddsi_tran_factory_t tran, char *dst, si
     memset (&src, 0, sizeof (src));
     src.sin_family = AF_INET;
     memcpy (&src.sin_addr.s_addr, &mcgen.ipv4, 4);
-    os_sockaddrAddressToString ((const os_sockaddr *) &src, dst, sizeof_dst);
+    os_sockaddrtostr ((const os_sockaddr *) &src, dst, sizeof_dst);
     pos = strlen (dst);
     assert (pos <= sizeof_dst);
     cnt = snprintf (dst + pos, sizeof_dst - pos, ";%u;%u;%u", mcgen.base, mcgen.count, mcgen.idx);

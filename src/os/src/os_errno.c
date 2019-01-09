@@ -15,6 +15,40 @@
 #include <stddef.h>
 #include <string.h>
 
+static struct { int err; const char *str; } errstrs[] =
+{
+    { OS_HOST_NOT_FOUND, "Host not found" },
+    { OS_NO_DATA, "Valid name, no data record of requested type" },
+    { OS_NO_RECOVERY, "Nonrecoverable error" },
+    { OS_TRY_AGAIN, "Nonauthoritative host not found" },
+};
+
+int os_errstr(_In_ int errnum, char *buf, size_t buflen)
+{
+    int err = 0;
+    const char *str = NULL;
+    unsigned idx = (unsigned)(errnum - (OS_ERRBASE + 1));
+    static const unsigned max = (unsigned)(sizeof(errstrs)/sizeof(errstrs[0]));
+
+    if (errnum > OS_ERRBASE && idx < max) {
+        size_t len;
+        assert(errstrs[idx].err == errnum);
+        str = errstrs[idx].str;
+        assert(str != NULL);
+        len = strlen(str);
+        if (len < buflen) {
+            memcpy(buf, str, len);
+            buf[len] = '\0';
+        } else {
+            err = ERANGE;
+        }
+    } else {
+        err = EINVAL;
+    }
+
+    return err;
+}
+
 #define MIN_BUFLEN (64)
 #define MAX_BUFLEN (1024)
 

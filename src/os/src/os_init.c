@@ -24,12 +24,6 @@
 
 #include "os/os.h"
 
-const char *
-os_versionString(void)
-{
-    return OSPL_VERSION_STR;
-}
-
 #define OSINIT_STATUS_OK 0x80000000u
 static os_atomic_uint32_t osinit_status = OS_ATOMIC_UINT32_INIT(0);
 static os_mutex init_mutex;

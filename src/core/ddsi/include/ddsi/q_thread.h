@@ -13,8 +13,7 @@
 #define Q_THREAD_H
 
 #include "os/os.h"
-
-#include "ddsi/q_inline.h"
+#include "ddsi/q_static_assert.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -102,27 +101,88 @@ struct thread_state1 * init_thread_state (_In_z_ const char *tname);
 void reset_thread_state (_Inout_opt_ struct thread_state1 *ts1);
 int thread_exists (_In_z_ const char *name);
 
+inline int vtime_awake_p (_In_ vtime_t vtime)
+{
+  return (vtime % 2) == 0;
+}
+
+inline int vtime_asleep_p (_In_ vtime_t vtime)
+{
+  return (vtime % 2) == 1;
+}
+
+inline int vtime_gt (_In_ vtime_t vtime1, _In_ vtime_t vtime0)
+{
+  Q_STATIC_ASSERT_CODE (sizeof (vtime_t) == sizeof (svtime_t));
+  return (svtime_t) (vtime1 - vtime0) > 0;
+}
+
+inline void thread_state_asleep (_Inout_ struct thread_state1 *ts1)
+{
+  vtime_t vt = ts1->vtime;
+  vtime_t wd = ts1->watchdog;
+  if (vtime_awake_p (vt))
+  {
+    os_atomic_fence_rel ();
+    ts1->vtime = vt + 1;
+  }
+  else
+  {
+    os_atomic_fence_rel ();
+    ts1->vtime = vt + 2;
+    os_atomic_fence_acq ();
+  }
+
+  if ( wd % 2 ){
+    ts1->watchdog = wd + 2;
+  } else {
+    ts1->watchdog = wd + 1;
+  }
+ }
+
+inline void thread_state_awake (_Inout_ struct thread_state1 *ts1)
+{
+  vtime_t vt = ts1->vtime;
+  vtime_t wd = ts1->watchdog;
+  if (vtime_asleep_p (vt))
+    ts1->vtime = vt + 1;
+  else
+  {
+    os_atomic_fence_rel ();
+    ts1->vtime = vt + 2;
+  }
+  os_atomic_fence_acq ();
+
+  if ( wd % 2 ){
+    ts1->watchdog = wd + 1;
+  } else {
+    ts1->watchdog = wd + 2;
+  }
+
+}
+
+inline void thread_state_blocked (_Inout_ struct thread_state1 *ts1)
+{
+  vtime_t wd = ts1->watchdog;
+  if ( wd % 2 ){
+    ts1->watchdog = wd + 2;
+  } else {
+    ts1->watchdog = wd + 1;
+  }
+}
+
+inline void thread_state_unblocked (_Inout_ struct thread_state1 *ts1)
+{
+  vtime_t wd = ts1->watchdog;
+  if ( wd % 2 ){
+    ts1->watchdog = wd + 1;
+  } else {
+    ts1->watchdog = wd + 2;
+  }
+}
+
 #if defined (__cplusplus)
 }
-#endif
-
-#if NN_HAVE_C99_INLINE && !defined SUPPRESS_THREAD_INLINES
-#include "q_thread_template.h"
-#else
-#if defined (__cplusplus)
-extern "C" {
-#endif
-int vtime_awake_p (_In_ vtime_t vtime);
-int vtime_asleep_p (_In_ vtime_t vtime);
-int vtime_gt (_In_ vtime_t vtime1, _In_ vtime_t vtime0);
-
-void thread_state_asleep (_Inout_ struct thread_state1 *ts1);
-void thread_state_awake (_Inout_ struct thread_state1 *ts1);
-void thread_state_blocked (_Inout_ struct thread_state1 *ts1);
-void thread_state_unblocked (_Inout_ struct thread_state1 *ts1);
-#if defined (__cplusplus)
-}
-#endif
 #endif
 
 #endif /* Q_THREAD_H */

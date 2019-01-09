@@ -38,31 +38,8 @@ os_threadAttrInit (
     threadAttr->stackSize = 0;
 }
 
-int32_t
-os_threadFigureIdentity(char *str, uint32_t size)
+int os_threadEqual (os_threadId a, os_threadId b)
 {
-    int32_t cnt;
-    uintmax_t id;
-    char *fmt, *ptr, buf[1] = { '\0' };
-    uint32_t sz;
-
-    assert(str != NULL);
-    assert(size >= 1);
-
-    id = os_threadIdToInteger(os_threadIdSelf());
-    cnt = os_threadGetThreadName(str, size);
-    if (cnt >= 0) {
-        fmt = (cnt > 0 ? " 0x%"PRIxMAX : "0x%"PRIxMAX);
-        if ((uint32_t)cnt < size) {
-            ptr = str + (uint32_t)cnt;
-            sz = size - (uint32_t)cnt;
-        } else {
-            ptr = buf;
-            sz = sizeof(buf);
-        }
-
-        cnt += snprintf(ptr, sz, fmt, id);
-    }
-
-    return cnt;
+  /* on pthreads boxes, pthread_equal (a, b); as a workaround: */
+  return os_threadIdToInteger (a) == os_threadIdToInteger (b);
 }

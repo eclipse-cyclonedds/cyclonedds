@@ -281,6 +281,7 @@ static char *unescape_into_utf8 (char *dst, unsigned cp)
     return dst;
 }
 
+OS_WARNING_MSVC_OFF(4996);
 static int unescape_insitu (char *buffer, size_t *n)
 {
     const char *src = buffer;
@@ -337,6 +338,7 @@ static int unescape_insitu (char *buffer, size_t *n)
     *n = (size_t) (dst - buffer);
     return 0;
 }
+OS_WARNING_MSVC_ON(4996);
 
 static void discard_payload (struct ut_xmlpState *st)
 {

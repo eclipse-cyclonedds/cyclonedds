@@ -9,16 +9,15 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef OS_PLATFORM_PROCESS_H
-#define OS_PLATFORM_PROCESS_H
+#include "os/os.h"
 
-#if defined (__cplusplus)
-extern "C" {
+os_procId
+os_getpid(void)
+{
+#if defined(WIN32)
+    return GetCurrentProcessId();
+#else
+    /* Mapped to taskIdSelf() in VxWorks kernel mode. */
+    return getpid();
 #endif
-    void os_processModuleInit(void);
-    void os_processModuleExit(void);
-#if defined (__cplusplus)
 }
-#endif
-
-#endif

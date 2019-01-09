@@ -125,6 +125,7 @@ static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int p
   return 0;
 }
 
+OS_WARNING_MSVC_OFF(4996);
 int add_addresses_to_addrset (struct addrset *as, const char *addrs, int port_mode, const char *msgtag, int req_mc)
 {
   /* port_mode: -1  => take from string, if 0 & unicast, add for a range of participant indices;
@@ -177,6 +178,7 @@ int add_addresses_to_addrset (struct addrset *as, const char *addrs, int port_mo
   os_free (addrs_copy);
   return retval;
 }
+OS_WARNING_MSVC_ON(4996);
 
 int compare_locators (const nn_locator_t *a, const nn_locator_t *b)
 {

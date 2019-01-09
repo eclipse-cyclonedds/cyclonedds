@@ -16,7 +16,6 @@
 #include "ddsi/q_plist.h" /* for nn_prismtech_writer_info */
 #include "ddsi/q_freelist.h"
 #include "util/ut_avl.h"
-#include "sysdeps.h"
 #include "ddsi/ddsi_serdata.h"
 #include "ddsi/ddsi_sertopic.h"
 

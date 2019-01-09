@@ -81,6 +81,7 @@ FILE *fmemopen(void *buf, size_t size, const char *mode)
     if (err) {
         errno = err;
     } else {
+        OS_WARNING_MSVC_OFF(4996);
         if ((fd = _open_osfhandle((intptr_t)hdl, _O_APPEND)) == -1) {
             /* errno set by _open_osfhandle. */
             CloseHandle(hdl);
@@ -90,6 +91,7 @@ FILE *fmemopen(void *buf, size_t size, const char *mode)
         } else {
             return fh;
         }
+        OS_WARNING_MSVC_ON(4996);
     }
 
     return NULL;

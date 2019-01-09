@@ -61,13 +61,6 @@ uint32_t get_threadExit_thread (void *args)
     return id;
 }
 
-uint32_t threadIdentity_thread (_In_ void *args)
-{
-    char *identity = args;
-    os_threadFigureIdentity (identity, 512);
-    return 0;
-}
-
 uint32_t threadMemory_thread (_In_opt_ void *args)
 {
     OS_UNUSED_ARG(args);
@@ -610,112 +603,6 @@ CU_Test(os_thread, join)
     }
 
     printf ("Ending tc_threadWaitExit\n");
-}
-
-CU_Test(os_thread, figure_identity)
-{
-#if !defined(_WIN32)
-    os_threadId thread_os_threadId;
-    os_threadAttr thread_os_threadAttr;
-    char threadId[512];
-    char thread_name[512];
-    os_result osResult;
-#endif /* WIN32 */
-
-    /* Figure out the identity of the thread, where it's name is known */
-    printf ("Starting os_thread_figure_identity_001\n");
-#ifdef WIN32
-    /* Untested because the identifier does not contain the name on Windows */
-#else
-    os_threadAttrInit (&thread_os_threadAttr);
-    osResult = os_threadCreate (&thread_os_threadId, "threadFigureIdentity", &thread_os_threadAttr, &threadIdentity_thread, threadId);
-    CU_ASSERT (osResult == os_resultSuccess);
-
-    if (osResult == os_resultSuccess) {
-#ifdef _WRS_KERNEL
-        sleepSeconds(1);
-#endif
-        osResult = os_threadWaitExit (thread_os_threadId, NULL);
-        CU_ASSERT (osResult == os_resultSuccess);
-
-        if (osResult == os_resultSuccess) {
-            uintmax_t threadNumeric = 0;
-#ifdef _WRS_KERNEL
-            int dum;
-            (void)sscanf (threadId, "%s (%d %d)", thread_name, &threadNumeric, &dum);
-#else
-            (void)sscanf (threadId, "%s 0x%"SCNxMAX, thread_name, &threadNumeric);
-#endif
-            CU_ASSERT (strcmp (thread_name, "threadFigureIdentity") == 0 && threadNumeric == os_threadIdToInteger(thread_os_threadId));
-        } else {
-            printf ("os_threadWaitExit failed.\n");
-        }
-    } else {
-        printf ("os_threadCreate failed.\n");
-    }
-#endif /* WIN32 */
-
-    /* Figure out the identity of the thread, where it's name is unknown */
-    printf ("Starting os_thread_figure_identity_002\n");
-#if (defined _WRS_KERNEL || defined WIN32)
-    {
-      char threadId[512];
-      int threadNumeric;
-
-        os_threadFigureIdentity (threadId, sizeof(threadId));
-#if defined WIN32
-        (void)sscanf (threadId, "%"PRIx32, &threadNumeric);
-#else /* VXWORKS */
-        (void)sscanf (index(threadId,'(') + 1, "%"PRIx32, &threadNumeric);
-#endif
-        CU_ASSERT (threadNumeric == os_threadIdToInteger(os_threadIdSelf()));
-    }
-#else
-    {
-      char threadId[512];
-      uintptr_t threadNumeric;
-
-        os_threadFigureIdentity (threadId, sizeof(threadId));
-
-#ifdef WIN32
-        (void)sscanf (threadId, "%"PRIxPTR, &threadNumeric);
-#else
-        (void)sscanf (threadId, "%"PRIxPTR, &threadNumeric);
-#endif
-
-#ifndef INTEGRITY
-        CU_ASSERT (threadNumeric == (uintptr_t)os_threadIdToInteger(os_threadIdSelf()));
-#endif
-    }
-#endif
-
-    /* Figure out the identity of the thread, check the return parameter */
-    printf ("Starting os_thread_figure_identity_003\n");
-#ifdef _WRS_KERNEL
-   {
-       char threadId[512];
-       char threadIdString[512];
-       int threadNumeric;
-       int threadIdLen;
-
-       snprintf (threadIdString, sizeof(threadIdString), "%s (%d %d)", taskName(taskIdSelf()),os_threadIdSelf(),taskIdSelf());
-       threadIdLen = os_threadFigureIdentity (threadId, sizeof(threadId));
-       CU_ASSERT (threadIdLen == strlen(threadIdString));
-   }
-#else
-   {
-       char threadId[512];
-       char threadIdString[512];
-       int32_t threadIdLen;
-
-       (void)snprintf (threadIdString, sizeof(threadIdString), "0x%"PRIxMAX, os_threadIdToInteger(os_threadIdSelf()));
-       threadIdLen = os_threadFigureIdentity (threadId, sizeof(threadId));
-
-       CU_ASSERT (threadIdLen == (int32_t)strlen(threadIdString));
-   }
-#endif
-
-   printf ("Ending os_thread_figure_identity\n");
 }
 
 CU_Test(os_thread, attr_init)

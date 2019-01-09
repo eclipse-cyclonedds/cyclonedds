@@ -312,7 +312,7 @@ static char*
 create_topic_name(const char *prefix, char *name, size_t size)
 {
     /* Get semi random g_topic name. */
-    os_procId pid = os_procIdSelf();
+    os_procId pid = os_getpid();
     uintmax_t tid = os_threadIdToInteger(os_threadIdSelf());
     (void) snprintf(name, size, "%s_pid%"PRIprocId"_tid%"PRIuMAX"", prefix, pid, tid);
     return name;

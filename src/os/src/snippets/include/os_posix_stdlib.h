@@ -25,23 +25,9 @@
 void os_stdlibInitialize(void);
 #endif
 
-#ifdef OSPL_VERSION
- #ifdef PIKEOS_POSIX
-  #include <lwip/netdb.h>
- #else
-  #include <netdb.h>
- #endif
-#endif
-
 #if defined (__cplusplus)
 extern "C" {
 #endif
-
-#define OS_OS_FILESEPCHAR '/'
-#define OS_OS_PATHSEPCHAR ':'
-#define OS_OS_EXESUFFIX   ""
-#define OS_OS_BATSUFFIX   ""
-#define OS_OS_LIB_LOAD_PATH_VAR "LD_LIBRARY_PATH"
 
 #define OS_ROK	R_OK
 #define OS_WOK	W_OK
@@ -51,10 +37,6 @@ extern "C" {
 #define OS_ISDIR S_ISDIR
 #define OS_ISREG S_ISREG
 #define OS_ISLNK S_ISLNK
-
-#define OS_PATH_MAX _POSIX_PATH_MAX
-
-typedef DIR *os_os_dirHandle;
 
 #if defined (__cplusplus)
 }

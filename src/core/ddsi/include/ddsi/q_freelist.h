@@ -13,7 +13,6 @@
 #define NN_FREELIST_H
 
 #include "os/os.h"
-#include "ddsi/sysdeps.h"
 
 #define FREELIST_SIMPLE 1
 #define FREELIST_ATOMIC_LIFO 2

@@ -74,9 +74,9 @@ CU_Test(os_getifaddrs, ipv4)
         CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET);
         if (ifa->addr->sa_family == AF_INET) {
             if (ifa->flags & IFF_LOOPBACK) {
-                CU_ASSERT(os_sockaddrIsLoopback(ifa->addr));
+                CU_ASSERT(os_sockaddr_is_loopback(ifa->addr));
             } else {
-                CU_ASSERT(!os_sockaddrIsLoopback(ifa->addr));
+                CU_ASSERT(!os_sockaddr_is_loopback(ifa->addr));
             }
             seen = 1;
         }
@@ -134,10 +134,12 @@ CU_Test(os_getifaddrs, ipv6)
             CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET6);
             if (ifa->addr->sa_family == AF_INET6) {
                 have_ipv6 = 1;
-                if (ifa->flags & IFF_LOOPBACK) {
-                    CU_ASSERT(os_sockaddrIsLoopback(ifa->addr));
-                } else {
-                    CU_ASSERT(!os_sockaddrIsLoopback(ifa->addr));
+                /* macOS assigns a link-local address to the loopback
+                   interface, so the loopback address must be assigned to the
+                   loopback interface, but the loopback interface can have
+                   addresses other than the loopback address assigned. */
+                if (os_sockaddr_is_loopback(ifa->addr)) {
+                  CU_ASSERT(ifa->flags & IFF_LOOPBACK);
                 }
             }
         }

@@ -36,6 +36,7 @@ extern "C" {
      * @addtogroup OS_NET
      * @{
      */
+#define OS_VALID_SOCKET(s) ((s) != OS_INVALID_SOCKET)
 
     /**
      * Socket handle type. SOCKET on windows, int otherwise.
@@ -46,67 +47,23 @@ extern "C" {
 
     typedef struct sockaddr_in os_sockaddr_in;
     typedef struct sockaddr os_sockaddr;
+    typedef struct sockaddr_storage os_sockaddr_storage;
 
-#ifdef OS_SOCKET_HAS_IPV6
-#if (OS_SOCKET_HAS_IPV6 == 0)
-    struct foo_in6_addr {
-        unsigned char   foo_s6_addr[16];
-    };
-    typedef struct foo_in6_addr os_in6_addr;
-
-    struct foo_sockaddr_in6 {
-        os_os_ushort sin6_family;
-        os_os_ushort sin6_port;
-        uint32_t sin6_flowinfo;
-        os_in6_addr sin6_addr;
-        uint32_t sin6_scope_id;
-    };
-    typedef struct foo_sockaddr_in6 os_sockaddr_in6;
-
-    struct foo_sockaddr_storage {
-#if (OS_SOCKET_HAS_SA_LEN == 1)
-        os_uchar   ss_len;
-        os_uchar   ss_family;
-#else
-        os_os_ushort  ss_family;
-#endif
-        /* Below aren't 'real' members. Just here for padding to make it big enough
-           for any possible IPv6 address. Not that IPv6 works on this OS. */
-        os_os_ushort sin6_port;
-        uint32_t sin6_flowinfo;
-        os_in6_addr sin6_addr;
-        uint32_t sin6_scope_id;
-    };
-    typedef struct foo_sockaddr_storage os_sockaddr_storage;
-
-    struct foo_ipv6_mreq {
-        os_in6_addr ipv6mr_multiaddr;
-        unsigned int    ipv6mr_interface;
-    };
-    typedef struct foo_ipv6_mreq os_ipv6_mreq;
-#else
+#if OS_SOCKET_HAS_IPV6
     typedef struct ipv6_mreq os_ipv6_mreq;
     typedef struct in6_addr os_in6_addr;
 
-    typedef struct sockaddr_storage os_sockaddr_storage;
-
     typedef struct sockaddr_in6 os_sockaddr_in6;
-#endif
-#else
-#error OS_SOCKET_HAS_IPV6 not defined
-#endif
 
     extern const os_in6_addr os_in6addr_any;
     extern const os_in6_addr os_in6addr_loopback;
+#endif /* OS_SOCKET_HAS_IPV6 */
+
 
 #ifndef INET6_ADDRSTRLEN
 #define INET6_ADDRSTRLEN 46 /* strlen("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255") + 1 */
 #endif
 #define INET6_ADDRSTRLEN_EXTENDED (INET6_ADDRSTRLEN + 8) /* + strlen("[]:12345") */
-
-    /* The maximum buffersize needed to safely store the output of
-     * os_sockaddrAddressPortToString or os_sockaddrAddressToString. */
-#define OS_SOCKET_MAX_ADDRSTRLEN INET6_ADDRSTRLEN_EXTENDED
 
 #define SD_FLAG_IS_SET(flags, flag) ((((uint32_t)(flags) & (uint32_t)(flag))) != 0U)
 
@@ -279,58 +236,107 @@ extern "C" {
      */
     OSAPI_EXPORT int
     os_sockaddr_is_unspecified(
-        const os_sockaddr *const sa) __nonnull_all__;
+        _In_ const os_sockaddr *__restrict sa) __nonnull_all__;
 
-    /* docced in implementation file */
+    /**
+    * Check this address to see if it represents loopback.
+    * @return true if it does. false otherwise, or if unknown address type.
+    * @param thisSock A pointer to an os_sockaddr to be checked.
+    */
+    OSAPI_EXPORT int
+    os_sockaddr_is_loopback(
+        _In_ const os_sockaddr *__restrict sa) __nonnull_all__;
+
+    /**
+    * Checks two socket IP host addresses for be on the same subnet, considering the given subnetmask.
+    * It will not consider the possibility of IPv6 mapped IPv4 addresses or anything arcane like that.
+    * @param thisSock First address
+    * @param thatSock Second address.
+    * @param mask Subnetmask.
+    * @return true if equal, false otherwise.
+    */
     OSAPI_EXPORT bool
     os_sockaddrSameSubnet(const os_sockaddr* thisSock,
                           const os_sockaddr* thatSock,
                           const os_sockaddr* mask);
 
+#ifdef OS_SOCKET_HAS_DNS
+
+    typedef struct {
+        size_t naddrs;
+        os_sockaddr_storage addrs[];
+    } os_hostent_t;
+
     /**
-     * Convert a socket address to a string format presentation representation
-     * @param sa The socket address struct.
-     * @param buffer A character buffer to hold the string rep of the address.
-     * @param buflen The (max) size of the buffer
-     * @return Pointer to start of string
+     * Lookup addresses for given host name.
+     *
+     * @param[in]   name  Host name to resolve.
+     * @param[in]   af    Address family, either AF_INET, AF_INET6 or AF_UNSPEC.
+     * @param[out]  hent  Structure of type os_hostent_t.
+     *
+     * @returns 0 on success or valid error number on failure.
+     *
+     * @retval 0
+     *           Success. Host name successfully resolved to address(es).
+     * @retval OS_HOST_NOT_FOUND
+     *           Host not found.
+     * @retval OS_NO_DATA
+     *           Valid name, no data record of requested type.
+     * @retval OS_NO_RECOVERY
+     *           Nonrecoverable error.
+     * @retval OS_TRY_AGAIN
+     *           Nonauthoratitative host not found.
      */
-    OSAPI_EXPORT char*
-    os_sockaddrAddressToString(const os_sockaddr* sa,
-                               char* buffer, size_t buflen);
+    OSAPI_EXPORT _Success_(return == 0) int
+    os_gethostbyname(
+        _In_z_ const char *name,
+        _In_ int af,
+        _Out_ os_hostent_t **hent);
+
+#endif /* OS_SOCKET_HAS_DNS */
 
     /**
-    * Convert the provided addressString into a os_sockaddr.
-    *
-    * @param addressString The string representation of a network address.
-    * @param addressOut A pointer to an os_sockaddr. Must be big enough for
-    * the address type specified by the string. This implies it should
-    * generally be the address of an os_sockaddr_storage for safety's sake.
-    * @param isIPv4 If the addressString is a hostname specifies whether
-    * and IPv4 address should be returned. If false an Ipv6 address will be
-    * requested. If the address is in either valid decimal presentation format
-    * param will be ignored.
-    * @return true on successful conversion. false otherwise
-    */
-    _Success_(return) OSAPI_EXPORT bool
-    os_sockaddrStringToAddress(
-        _In_z_  const char *addressString,
-        _When_(isIPv4, _Out_writes_bytes_(sizeof(os_sockaddr_in)))
-        _When_(!isIPv4, _Out_writes_bytes_(sizeof(os_sockaddr_in6)))
-            os_sockaddr *addressOut,
-        _In_ bool isIPv4);
-
-    /* docced in implementation file */
-    OSAPI_EXPORT bool
-    os_sockaddrIsLoopback(const os_sockaddr* thisSock);
-
-    /**
-     * Sets the address of the sockaddr to the special IN_ADDR_ANY value.
-     * @param sa the sockaddr to set the address for
-     * @pre sa is a valid sockaddr pointer
-     * @post Address of sa is set to the special IN_ADDR_ANY value
+     * Convert IPv4 and IPv6 addresses from text to socket address.
+     *
+     * @param  af[in]   Address family, either AF_INET or AF_INET6.
+     * @param  str[in]  Network address in text form.
+     * @param  sa[out]  Pointer to a sufficiently large enough socket address
+     *                  structure. This implies it should generally be the
+     *                  address to a structure of type struct sockaddr_storage.
+     *
+     * @return 0 on success or a valid error number on failure.
      */
-    OSAPI_EXPORT void
-    os_sockaddrSetInAddrAny(os_sockaddr* sa);
+    OSAPI_EXPORT _Success_(return) int
+    os_sockaddrfromstr(
+        _In_ int af,
+        _In_z_  const char *str,
+        _When_(af == AF_INET, _Out_writes_bytes_(sizeof(os_sockaddr_in)))
+#if OS_SOCKET_HAS_IPV6
+        _When_(af == AF_INET6, _Out_writes_bytes_(sizeof(os_sockaddr_in6)))
+#endif
+            void *sa);
+
+    /**
+     * Convert a socket address to text form.
+     *
+     * @param[in]   sa    Socket address structure.
+     * @param[out]  buf   Buffer to which resulting string is copied.
+     * @param[in]   size  Number of bytes available in the buffer.
+     *
+     * @returns 0 on success or a valid error number on failure.
+     *
+     * @retval 0
+     *           Success. Socket address structure converted to text form.
+     * @retval EAFNOSUPPORT
+     *           Socket address structure of unsupported valid address family.
+     * @retval ENOSPC
+     *           Text form would exceed the size specified by size.
+     */
+    OSAPI_EXPORT _Success_(return == 0) int
+    os_sockaddrtostr(
+        _In_ const void *sa,
+        _Out_writes_z_(size) char *buf,
+        _In_ size_t size);
 
     /**
      * @}

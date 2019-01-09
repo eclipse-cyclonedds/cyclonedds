@@ -98,27 +98,10 @@ extern "C" {
 #endif
 
 #define OS_VXWORKS 1
-#define OS_SOCKET_USE_FCNTL 0
-#define OS_SOCKET_USE_IOCTL 1
-#define OS_FILESEPCHAR '/'
-#define OS_HAS_NO_SET_NAME_PRCTL 1 /* FIXME: Move to CMake */
-#define OS_HAS_UCONTEXT_T 1
-
-#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__ /* FIXME: Move to CMake */
-#define OS_ENDIANNESS OS_BIG_ENDIAN
-#else
-#define OS_ENDIANNESS OS_LITTLE_ENDIAN
-#endif
-
-#if defined(__PPC) || defined(__x86_64__) /* FIXME: Move to CMake */
-#define OS_64BIT
-#endif
+#define OS_HAVE_GETRUSAGE 0
 
 typedef double os_timeReal;
 typedef int os_timeSec;
-typedef uid_t os_uid;
-typedef gid_t os_gid;
-typedef mode_t os_mode_t;
 #ifdef _WRS_KERNEL
 typedef RTP_ID os_procId; /* typedef struct wind_rtp *RTP_ID */
 #define PRIprocId "d"

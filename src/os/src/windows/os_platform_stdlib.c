@@ -90,16 +90,6 @@ os_putenv(
 
 #pragma warning( disable : 4996 )
 int
-os_vfprintfnosigpipe(
-        FILE *file,
-        const char *format,
-        va_list args)
-{
-        return vfprintf(file, format, args);
-}
-
-#pragma warning( disable : 4996 )
-int
 os_vsnprintf(
         char *str,
         size_t size,

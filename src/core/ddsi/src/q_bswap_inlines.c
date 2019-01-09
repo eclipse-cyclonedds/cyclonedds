@@ -9,7 +9,10 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#define SUPPRESS_BSWAP_INLINES
-
 #include "ddsi/q_bswap.h"
-#include "ddsi/q_bswap_template.h"
+
+extern inline uint16_t bswap2u (uint16_t x);
+extern inline uint32_t bswap4u (uint32_t x);
+extern inline uint64_t bswap8u (uint64_t x);
+extern inline void bswapSN (nn_sequence_number_t *sn);
+

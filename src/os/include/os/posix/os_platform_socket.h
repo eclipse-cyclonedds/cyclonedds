@@ -19,25 +19,25 @@
 #endif /* __VXWORKS__ */
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <net/if.h>
+#include <ifaddrs.h>
 
-#include <sys/select.h>
 #ifdef __APPLE__
 #include <sys/sockio.h>
 #endif /* __APPLE__ */
 #include <unistd.h>
-
-#include <ifaddrs.h>
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
 /* Keep defines before common header */
+#define OS_SOCKET_HAS_DNS       1
 #define OS_SOCKET_HAS_IPV6      1
 #define OS_SOCKET_HAS_SA_LEN    1
 #define OS_NO_SIOCGIFINDEX      1
@@ -68,9 +68,24 @@ extern "C" {
     typedef int os_socket; /* signed */
     #define PRIsock "d"
 
-#define OS_SOCKET_INVALID (-1)
+#define OS_INVALID_SOCKET (-1)
 
+    typedef struct iovec os_iovec_t;
+    typedef size_t os_iov_len_t;
 
+#if defined(__sun) && !defined(_XPG4_2)
+#define msg_accrights msg_control
+#define msg_accrightslen msg_controllen
+#define OS_MSGHDR_FLAGS 0
+#else
+#define OS_MSGHDR_FLAGS 1
+#endif
+
+#if defined(__linux)
+typedef size_t os_msg_iovlen_t;
+#else /* POSIX says int (which macOS, FreeBSD, Solaris do) */
+typedef int os_msg_iovlen_t;
+#endif
 
 #if defined (__cplusplus)
 }

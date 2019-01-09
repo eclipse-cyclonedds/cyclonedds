@@ -15,22 +15,40 @@
 #include <assert.h>
 #include <string.h>
 
-#include "ddsi/q_inline.h"
+#include "ddsi/q_unused.h"
 
-#if NN_HAVE_C99_INLINE && !defined SUPPRESS_BITSET_INLINES
-#include "q_bitset_template.h"
-#else
-#if defined (__cplusplus)
-extern "C" {
-#endif
-int nn_bitset_isset (unsigned numbits, const unsigned *bits, unsigned idx);
-void nn_bitset_set (unsigned numbits, unsigned *bits, unsigned idx);
-void nn_bitset_clear (unsigned numbits, unsigned *bits, unsigned idx);
-void nn_bitset_zero (unsigned numbits, unsigned *bits);
-void nn_bitset_one (unsigned numbits, unsigned *bits);
-#if defined (__cplusplus)
+inline int nn_bitset_isset (unsigned numbits, const unsigned *bits, unsigned idx)
+{
+  return idx < numbits && (bits[idx/32] & (1u << (31 - (idx%32))));
 }
-#endif
-#endif
+
+inline void nn_bitset_set (UNUSED_ARG_NDEBUG (unsigned numbits), unsigned *bits, unsigned idx)
+{
+  assert (idx < numbits);
+  bits[idx/32] |= 1u << (31 - (idx%32));
+}
+
+inline void nn_bitset_clear (UNUSED_ARG_NDEBUG (unsigned numbits), unsigned *bits, unsigned idx)
+{
+  assert (idx < numbits);
+  bits[idx/32] &= ~(1u << (31 - (idx%32)));
+}
+
+inline void nn_bitset_zero (unsigned numbits, unsigned *bits)
+{
+  memset (bits, 0, 4 * ((numbits + 31) / 32));
+}
+
+inline void nn_bitset_one (unsigned numbits, unsigned *bits)
+{
+  memset (bits, 0xff, 4 * ((numbits + 31) / 32));
+
+  /* clear bits "accidentally" set */
+  {
+    const unsigned k = numbits / 32;
+    const unsigned n = numbits % 32;
+    bits[k] &= ~(~0u >> n);
+  }
+}
 
 #endif /* NN_BITSET_H */

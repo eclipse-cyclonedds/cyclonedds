@@ -22,7 +22,20 @@ extern "C" {
 #include <winerror.h>
 #endif
 
-#include <errno.h> /* Required on Windows platforms too */
+#include <errno.h> /* Required on Windows platforms too. */
+
+
+/* DNS runtime functions require custom error codes to be defined. For POSIX
+   platforms a high enough 32-bit number (not too close to any system specified
+   error number) should be safe. Microsoft Windows error codes, however, are
+   encoded after the HRESULT (https://en.wikipedia.org/wiki/HRESULT) scheme. To
+   avoid clashes the customer code bit (0x20000000) must be set. */
+#define OS_ERRBASE (0x20000000)
+
+#define OS_HOST_NOT_FOUND (OS_ERRBASE + 1)
+#define OS_NO_DATA (OS_ERRBASE + 2)
+#define OS_NO_RECOVERY (OS_ERRBASE + 3)
+#define OS_TRY_AGAIN (OS_ERRBASE + 4)
 
     /** \brief Get error code set by last operation that failed
      *
@@ -40,6 +53,28 @@ extern "C" {
     OSAPI_EXPORT void
     os_setErrno (
                  int err);
+
+    /**
+     * \brief Return string describing internal error number.
+     *
+     * @param[in]   errnum
+     * @param[out]  buf
+     * @param[in]   buflen
+     *
+     * @returns 0 on success or a valid error number on failure.
+     *
+     * @retval 0
+     *           Success. The error message is copied to the buffer.
+     * @retval EINVAL
+     *           Not a valid internal error code.
+     * @retval ERANGE
+     *           Buffer is not large enough to store the error message.
+     */
+    OSAPI_EXPORT int _Success_(return == 0)
+    os_errstr(
+         _In_ int errnum,
+         _Out_writes_opt_z_(buflen) char *buf,
+         _In_ size_t buflen);
 
     /**
      * \brief Get description for specified error code

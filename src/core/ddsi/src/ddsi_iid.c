@@ -67,7 +67,7 @@ void ddsi_iid_init (void)
   os_mutexInit (&gv.dds_iid.lock);
 #endif
 
-  gv.dds_iid.key[0] = (uint32_t) os_procIdSelf();
+  gv.dds_iid.key[0] = (uint32_t) os_getpid();
   gv.dds_iid.key[1] = (uint32_t) tnow.v;
   gv.dds_iid.key[2] = (uint32_t) (tnow.v >> 32);
   gv.dds_iid.key[3] = 0xdeadbeef;

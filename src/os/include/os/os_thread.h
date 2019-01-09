@@ -127,6 +127,8 @@ extern "C" {
     OSAPI_EXPORT os_threadId
     os_threadIdSelf(void);
 
+    int os_threadEqual (os_threadId a, os_threadId b);
+
     /** \brief Wait for the termination of the identified thread
      *
      * If the identified thread is still running, wait for its termination
@@ -146,26 +148,6 @@ extern "C" {
     os_threadWaitExit(
             _In_ os_threadId threadId,
             _Out_opt_ uint32_t *thread_result);
-
-    /** \brief Figure out the identity of the current thread
-     *
-     * Possible Results:
-     * - returns the actual length of threadIdentity
-     *
-     * Postcondition:
-     * - \b threadIdentity is ""
-     *     the thread identity could not be determined
-     * - \b threadIdentity is "<decimal number>" | "0x<hexadecimal number>"
-     *     only the thread numeric identity could be determined
-     * - \b threadIdentity is "<process name> (<decimal number>)" | "<process name> (0x<hexadecimal number>)"
-     *     the thread name and numeric identity could be determined
-     *
-     * \b threadIdentity will not be filled beyond the specified \b threadIdentitySize
-     */
-    OSAPI_EXPORT int32_t
-    os_threadFigureIdentity(
-            char *threadIdentity,
-            uint32_t threadIdentitySize);
 
     /** \brief Get name of current thread
      *

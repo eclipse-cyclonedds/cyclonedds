@@ -9,16 +9,19 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef OS_PLATFORM_PROCESS_H
-#define OS_PLATFORM_PROCESS_H
+#ifndef OS_RANDOM_H
+#define OS_RANDOM_H
+
+#include "os/os_defs.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
-    void os_processModuleInit(void);
-    void os_processModuleExit(void);
+
+OSAPI_EXPORT long os_random(void);
+
 #if defined (__cplusplus)
 }
 #endif
 
-#endif
+#endif /* OS_RANDOM_H */

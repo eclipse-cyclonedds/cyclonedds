@@ -37,10 +37,10 @@ typedef struct ddsi_tran_qos * ddsi_tran_qos_t;
 /* Function pointer types */
 
 typedef ssize_t (*ddsi_tran_read_fn_t) (ddsi_tran_conn_t, unsigned char *, size_t, nn_locator_t *);
-typedef ssize_t (*ddsi_tran_write_fn_t) (ddsi_tran_conn_t, const nn_locator_t *, size_t, const ddsi_iovec_t *, uint32_t);
+typedef ssize_t (*ddsi_tran_write_fn_t) (ddsi_tran_conn_t, const nn_locator_t *, size_t, const os_iovec_t *, uint32_t);
 typedef int (*ddsi_tran_locator_fn_t) (ddsi_tran_base_t, nn_locator_t *);
 typedef bool (*ddsi_tran_supports_fn_t) (int32_t);
-typedef os_handle (*ddsi_tran_handle_fn_t) (ddsi_tran_base_t);
+typedef os_socket (*ddsi_tran_handle_fn_t) (ddsi_tran_base_t);
 typedef int (*ddsi_tran_listen_fn_t) (ddsi_tran_listener_t);
 typedef void (*ddsi_tran_free_fn_t) (void);
 typedef void (*ddsi_tran_peer_locator_fn_t) (ddsi_tran_conn_t, nn_locator_t *);
@@ -188,7 +188,7 @@ int ddsi_tran_locator (ddsi_tran_base_t base, nn_locator_t * loc);
 void ddsi_tran_free (ddsi_tran_base_t base);
 void ddsi_tran_free_qos (ddsi_tran_qos_t qos);
 ddsi_tran_qos_t ddsi_tran_create_qos (void);
-os_handle ddsi_tran_handle (ddsi_tran_base_t base);
+os_socket ddsi_tran_handle (ddsi_tran_base_t base);
 
 #define ddsi_factory_create_listener(f,p,q) (((f)->m_create_listener_fn) ((p), (q)))
 #define ddsi_factory_supports(f,k) (((f)->m_supports_fn) (k))
@@ -208,7 +208,7 @@ void ddsi_factory_conn_init (ddsi_tran_factory_t factory, ddsi_tran_conn_t conn)
 
 #define ddsi_conn_handle(c) (ddsi_tran_handle (&(c)->m_base))
 #define ddsi_conn_locator(c,l) (ddsi_tran_locator (&(c)->m_base,(l)))
-OSAPI_EXPORT ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsi_iovec_t *iov, uint32_t flags);
+OSAPI_EXPORT ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const os_iovec_t *iov, uint32_t flags);
 ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, nn_locator_t *srcloc);
 bool ddsi_conn_peer_locator (ddsi_tran_conn_t conn, nn_locator_t * loc);
 void ddsi_conn_disable_multiplexing (ddsi_tran_conn_t conn);

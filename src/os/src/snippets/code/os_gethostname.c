@@ -11,6 +11,8 @@
  */
 #include <string.h>
 
+#include "os/os.h"
+
 os_result
 os_gethostname(
     char *hostname,
@@ -23,7 +25,7 @@ os_gethostname(
         if ((strlen(hostnamebuf)+1) > buffersize) {
             result = os_resultFail;
         } else {
-            strncpy (hostname, hostnamebuf, buffersize);
+            os_strlcpy (hostname, hostnamebuf, buffersize);
             result = os_resultSuccess;
         }
     } else {

@@ -537,8 +537,8 @@ dds_get_status_mask(
         _Out_ uint32_t *mask);
 
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
-DDS_EXPORT _Check_return_ dds_return_t
-DDS_DEPRECATED_EXPORT dds_get_enabled_status(
+DDS_DEPRECATED_EXPORT _Check_return_ dds_return_t
+dds_get_enabled_status(
         _In_  dds_entity_t entity,
         _Out_ uint32_t *mask);
 
@@ -568,8 +568,7 @@ dds_set_status_mask(
         _In_ uint32_t mask);
 
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
-DDS_EXPORT dds_return_t
-DDS_DEPRECATED_EXPORT
+DDS_DEPRECATED_EXPORT dds_return_t
 dds_set_enabled_status(
         _In_ dds_entity_t entity,
         _In_ uint32_t mask);
@@ -1115,8 +1114,7 @@ dds_set_topic_filter(
         dds_topic_filter_fn filter);
 
 _Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
-DDS_EXPORT void
-DDS_DEPRECATED_EXPORT
+DDS_DEPRECATED_EXPORT void
 dds_topic_set_filter(
         dds_entity_t topic,
         dds_topic_filter_fn filter);
@@ -1134,8 +1132,7 @@ dds_get_topic_filter(
         dds_entity_t topic);
 
 _Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
-DDS_EXPORT dds_topic_filter_fn
-DDS_DEPRECATED_EXPORT
+DDS_DEPRECATED_EXPORT dds_topic_filter_fn
 dds_topic_get_filter(
         dds_entity_t topic);
 
@@ -3145,8 +3142,7 @@ dds_lookup_instance(
         const void *data);
 
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
-DDS_EXPORT dds_instance_handle_t
-DDS_DEPRECATED_EXPORT
+DDS_DEPRECATED_EXPORT dds_instance_handle_t
 dds_instance_lookup (
         dds_entity_t entity,
         const void *data);

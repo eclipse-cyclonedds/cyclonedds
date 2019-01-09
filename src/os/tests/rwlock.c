@@ -57,7 +57,6 @@ os_threadAttr       rwlock_os_threadAttr;
 os_threadId         rwlock_os_threadId[RWLOCK_THREADS];
 static int          i;
 char                buffer[512];
-os_procId           rwlock_os_procId;
 int                 supported_resultBusy;
 int                 loop;
 static shared_data sd;
@@ -355,7 +354,7 @@ CU_Test(os_rwlock, read, false)
     printf ("concurrent_tryread_access = %d\n", sd.concurrent_tryread_access);
     printf ("concurrent_trywrite_access = %d\n", sd.concurrent_trywrite_access);
 
-    sprintf (buffer, "Corrupt counter = %d, Loop counter is %d",
+    snprintf (buffer, sizeof(buffer), "Corrupt counter = %d, Loop counter is %d",
         sd.read_corrupt_count + sd.write_corrupt_count + sd.tryread_corrupt_count + sd.trywrite_corrupt_count,
         sd.concurrent_read_access + sd.concurrent_write_access + sd.concurrent_tryread_access + sd.concurrent_trywrite_access);
 
@@ -419,7 +418,7 @@ CU_Test(os_rwlock, read, false)
             par[i].read_access, par[i].concurrent_read_access, i);
     }
 
-    sprintf (buffer, "Corrupt read counter = %d, Read loop counter is %d", sd.read_corrupt_count, sd.concurrent_read_access);
+    snprintf (buffer, sizeof(buffer), "Corrupt read counter = %d, Read loop counter is %d", sd.read_corrupt_count, sd.concurrent_read_access);
     CU_ASSERT (sd.read_corrupt_count == 0 && sd.concurrent_read_access > 0);
 
     /* Test read on rwlock with PRIVATE scope and Success result & not locked */
@@ -443,7 +442,7 @@ CU_Test(os_rwlock, write, false)
     /* Test critical section WRITE access with locking and PRIVATE scope */
     printf ("Starting os_rwlock_write_001\n");
 
-    sprintf (buffer, "Corrupt write counter = %d, Write loop counter is %d", sd.write_corrupt_count, sd.concurrent_write_access);
+    snprintf (buffer, sizeof(buffer), "Corrupt write counter = %d, Write loop counter is %d", sd.write_corrupt_count, sd.concurrent_write_access);
     CU_ASSERT (sd.write_corrupt_count == 0 && sd.concurrent_write_access > 0);
 
     /* Test write on rwlock with PRIVATE scope and Success result */
@@ -464,7 +463,7 @@ CU_Test(rwlock, tryread, false)
     /* Test critical section READ access with trylocking and PRIVATE scope */
     printf ("Starting os_rwlock_tryread_001\n");
 
-    sprintf (buffer, "Corrupt tryread counter = %d, Tryread loop counter is %d, Busy counter = %d", sd.tryread_corrupt_count, sd.concurrent_tryread_access, sd.tryread_busy_count);
+    snprintf (buffer, sizeof(buffer), "Corrupt tryread counter = %d, Tryread loop counter is %d, Busy counter = %d", sd.tryread_corrupt_count, sd.concurrent_tryread_access, sd.tryread_busy_count);
     CU_ASSERT (sd.tryread_corrupt_count == 0 && sd.concurrent_tryread_access > 0);
 
     /* Test try read on rwlock with PRIVATE scope and Success result & not locked */
@@ -494,7 +493,7 @@ CU_Test(os_rwlock, trywrite, false)
     /* Test critical section WRITE access with trylocking and PRIVATE scope */
     printf ("Starting os_rwlock_trywrite_001\n");
 
-    sprintf (buffer, "Corrupt trywrite counter = %d, Trywrite loop counter is %d, Busy counter = %d", sd.trywrite_corrupt_count, sd.concurrent_trywrite_access, sd.trywrite_busy_count);
+    snprintf (buffer, sizeof(buffer), "Corrupt trywrite counter = %d, Trywrite loop counter is %d, Busy counter = %d", sd.trywrite_corrupt_count, sd.concurrent_trywrite_access, sd.trywrite_busy_count);
     CU_ASSERT (sd.trywrite_corrupt_count == 0 && sd.concurrent_trywrite_access > 0);
 
     /* Test try write on rwlock with PRIVATE scope and Success result */

@@ -128,16 +128,15 @@ static int unreg_group_membership (struct nn_group_membership *mship, ddsi_tran_
 
 static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn, int join, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf, int err)
 {
-  char mcstr[DDSI_LOCSTRLEN], srcstr[DDSI_LOCSTRLEN], interfstr[DDSI_LOCSTRLEN];
+  char mcstr[DDSI_LOCSTRLEN], interfstr[DDSI_LOCSTRLEN];
+  char srcstr[DDSI_LOCSTRLEN] = { '*', '\0' };
   int n;
 #ifdef DDSI_INCLUDE_SSM
-  if (srcloc)
+  if (srcloc) {
     ddsi_locator_to_string_no_port(srcstr, sizeof(srcstr), srcloc);
-  else
-    strcpy (srcstr, "*");
+  }
 #else
   OS_UNUSED_ARG (srcloc);
-  strcpy (srcstr, "*");
 #endif
   ddsi_locator_to_string_no_port (mcstr, sizeof(mcstr), mcloc);
   if (interf)

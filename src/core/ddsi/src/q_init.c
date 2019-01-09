@@ -48,8 +48,6 @@
 #include "ddsi/q_debmon.h"
 #include "ddsi/q_init.h"
 
-#include "ddsi/sysdeps.h"
-
 #include "ddsi/ddsi_tran.h"
 #include "ddsi/ddsi_udp.h"
 #include "ddsi/ddsi_tcp.h"
@@ -426,6 +424,7 @@ static int check_thread_properties (void)
   return ok;
 }
 
+OS_WARNING_MSVC_OFF(4996);
 int rtps_config_open (void)
 {
     int status;
@@ -462,6 +461,7 @@ int rtps_config_open (void)
 
     return status;
 }
+OS_WARNING_MSVC_ON(4996);
 
 int rtps_config_prep (struct cfgst *cfgst)
 {
@@ -532,18 +532,6 @@ int rtps_config_prep (struct cfgst *cfgst)
     DDS_ERROR("Could not initialise configuration\n");
     goto err_config_late_error;
   }
-
-#if ! OS_SOCKET_HAS_IPV6
-  /* If the platform doesn't support IPv6, guarantee useIpv6 is
-   false. There are two ways of going about it, one is to do it
-   silently, the other to let the user fix his config. Clearly, we
-   have chosen the latter. */
-  if (config.useIpv6)
-  {
-    DDS_ERROR("IPv6 addressing requested but not supported on this platform\n");
-    goto err_config_late_error;
-  }
-#endif
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   {
@@ -1060,7 +1048,7 @@ int rtps_init (void)
 
   /* Template PP guid -- protected by privileged_pp_lock for simplicity */
   gv.next_ppguid.prefix.u[0] = locator_to_hopefully_unique_uint32 (&gv.ownloc);
-  gv.next_ppguid.prefix.u[1] = (unsigned) os_procIdSelf ();
+  gv.next_ppguid.prefix.u[1] = (unsigned) os_getpid ();
   gv.next_ppguid.prefix.u[2] = 1;
   gv.next_ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
 

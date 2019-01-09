@@ -85,12 +85,12 @@ CU_Test(ddsc_participant, create_with_conf_no_env) {
     dds_domainid_t valid_domain=3;
 
     static char env_uri_str[1000];
-    (void) sprintf(env_uri_str, "%s=%s", DDSC_PROJECT_NAME_NOSPACE_CAPS"_URI", CONFIG_ENV_SIMPLE_UDP);
+    (void) snprintf(env_uri_str, sizeof(env_uri_str), "%s=%s", DDSC_PROJECT_NAME_NOSPACE_CAPS"_URI", CONFIG_ENV_SIMPLE_UDP);
     os_putenv(env_uri_str);
     printf("env_uri_str %s\n", env_uri_str);
 
     static char env_mp_str[100];
-    (void) sprintf(env_mp_str, "%s=%s", "MAX_PARTICIPANTS", CONFIG_ENV_MAX_PARTICIPANTS);
+    (void) snprintf(env_mp_str, sizeof(env_mp_str), "%s=%s", "MAX_PARTICIPANTS", CONFIG_ENV_MAX_PARTICIPANTS);
     os_putenv(env_mp_str);
 
     const char * env_uri = os_getenv(DDSC_PROJECT_NAME_NOSPACE_CAPS"_URI");

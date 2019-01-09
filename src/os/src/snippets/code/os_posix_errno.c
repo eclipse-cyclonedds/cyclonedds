@@ -33,16 +33,18 @@ os_setErrno (int err)
 }
 
 int
-os_strerror_r (int err, char *str, size_t len)
+os_strerror_r (int errnum, char *buf, size_t buflen)
 {
-    int res;
+    int err;
 
-    assert(str != NULL);
-    assert(len > 0);
+    assert(buf != NULL);
+    assert(buflen > 0);
 
-    str[0] = '\0'; /* null-terminate in case nothing is written */
-    res = strerror_r(err, str, len);
-    str[len - 1] = '\0'; /* always null-terminate, just to be safe */
+    if ((err = os_errstr(errnum, buf, buflen)) == EINVAL) {
+        buf[0] = '\0'; /* null-terminate in case nothing is written */
+        err = strerror_r(errnum, buf, buflen);
+        buf[buflen - 1] = '\0'; /* always null-terminate, just to be safe */
+    }
 
-    return res;
+    return err;
 }

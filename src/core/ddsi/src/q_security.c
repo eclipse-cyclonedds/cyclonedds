@@ -11,10 +11,6 @@
  */
 #ifdef DDSI_INCLUDE_ENCRYPTION
 
-/* Ordering of the include files is utterly irrational but works.
-   Don't mess with it: you'll enter Dependency Hell Territory on
-   WinCE.  Here Be Dragons. */
-
 #include "ddsi/q_security.h"
 #include "ddsi/q_config.h"
 #include "ddsi/q_log.h"
@@ -35,17 +31,6 @@
 #include <openssl/err.h>
 #include <openssl/bn.h>
 #include <openssl/bio.h>
-
-#include "ddsi/sysdeps.h"
-
-/* We don't get FILENAME_MAX on WinCE but can't put it in the abstraction
- * without complications to the examples so here we go: */
-
-#ifndef FILENAME_MAX
-#ifdef WINCE
-#define FILENAME_MAX 260
-#endif
-#endif
 
 /* Supported URI schema by parser */
 #define URI_FILESCHEMA "file://"
@@ -1661,7 +1646,7 @@ static os_ssize_t q_security_sendmsg
 (
   ddsi_tran_conn_t conn,
   const nn_locator_t *dst,
-  size_t niov, ddsi_iovec_t *iov,
+  size_t niov, os_iovec_t *iov,
   q_securityEncoderSet *codec,
   os_uint32 encoderId,
   os_uint32 flags

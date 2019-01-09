@@ -37,14 +37,6 @@ const os_in6_addr os_in6addr_loopback = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } 
 #endif
 #endif
 
-#ifndef OS_INET_NTOP
-#define OS_INET_NTOP inet_ntop
-#endif
-
-#ifndef OS_INET_PTON
-#define OS_INET_PTON inet_pton
-#endif
-
 const int afs[] = {
 #ifdef __linux
     AF_PACKET,
@@ -104,76 +96,44 @@ uint16_t os_sockaddr_get_port(const os_sockaddr *const sa)
     return port;
 }
 
-static int os_sockaddr_compare(
-    const os_sockaddr *const sa1,
-    const os_sockaddr *const sa2)
+int
+os_sockaddr_is_unspecified(
+    _In_ const os_sockaddr *__restrict sa)
 {
-    int eq;
-    size_t sz;
+    assert(sa != NULL);
 
-    if ((eq = sa1->sa_family - sa2->sa_family) == 0) {
-        switch(sa1->sa_family) {
-#if (OS_SOCKET_HAS_IPV6 == 1)
-            case AF_INET6:
-            {
-                os_sockaddr_in6 *sin61, *sin62;
-                sin61 = (os_sockaddr_in6 *)sa1;
-                sin62 = (os_sockaddr_in6 *)sa2;
-                sz = sizeof(sin61->sin6_addr);
-                eq = memcmp(&sin61->sin6_addr, &sin62->sin6_addr, sz);
-            }
-                break;
-#endif /* OS_SOCKET_HAS_IPV6 */
-#ifdef __linux
-            case AF_PACKET:
-            {
-                struct sockaddr_ll *sll1, *sll2;
-                sll1 = (struct sockaddr_ll *)sa1;
-                sll2 = (struct sockaddr_ll *)sa2;
-                sz = sizeof(sll1->sll_addr);
-                eq = memcmp(sll1->sll_addr, sll2->sll_addr, sz);
-            }
-                break;
-#endif /* __linux */
-            default:
-            {
-                assert(sa1->sa_family == AF_INET);
-                os_sockaddr_in *sin1, *sin2;
-                sin1 = (os_sockaddr_in *)sa1;
-                sin2 = (os_sockaddr_in *)sa2;
-                sz = sizeof(sin1->sin_addr);
-                eq = memcmp(&sin1->sin_addr, &sin2->sin_addr, sz);
-            }
-                break;
-        }
+    switch(sa->sa_family) {
+#if OS_SOCKET_HAS_IPV6
+        case AF_INET6:
+            return IN6_IS_ADDR_UNSPECIFIED(&((os_sockaddr_in6*)sa)->sin6_addr);
+#endif
+        case AF_INET:
+            return (((os_sockaddr_in *)sa)->sin_addr.s_addr == 0);
     }
 
-    return eq;
+    return 0;
 }
 
-int os_sockaddr_is_unspecified(const os_sockaddr *const sa)
+int
+os_sockaddr_is_loopback(
+    _In_ const os_sockaddr *__restrict sa)
 {
-  int unspec = 0;
+    assert(sa != NULL);
 
-  assert(sa != NULL);
+    switch (sa->sa_family) {
+#if OS_SOCKET_HAS_IPV6
+        case AF_INET6:
+            return IN6_IS_ADDR_LOOPBACK(
+                &((const os_sockaddr_in6 *)sa)->sin6_addr);
+#endif /* OS_SOCKET_HAS_IPV6 */
+        case AF_INET:
+            return (((const os_sockaddr_in *)sa)->sin_addr.s_addr
+                        == htonl(INADDR_LOOPBACK));
+    }
 
-  if (sa->sa_family == AF_INET6) {
-    unspec = IN6_IS_ADDR_UNSPECIFIED(&((os_sockaddr_in6 *)sa)->sin6_addr);
-  } else if (sa->sa_family == AF_INET) {
-    unspec = (((os_sockaddr_in *)sa)->sin_addr.s_addr == 0);
-  }
-
-  return unspec;
+    return 0;
 }
 
-/**
-* Checks two socket IP host addresses for be on the same subnet, considering the given subnetmask.
-* It will not consider the possibility of IPv6 mapped IPv4 addresses or anything arcane like that.
-* @param thisSock First address
-* @param thatSock Second address.
-* @param mask Subnetmask.
-* @return true if equal, false otherwise.
-*/
 bool
 os_sockaddrSameSubnet(const os_sockaddr* thisSock,
                            const os_sockaddr* thatSock,
@@ -215,136 +175,97 @@ os_sockaddrSameSubnet(const os_sockaddr* thisSock,
     return result;
 }
 
-#if WIN32
-/*
- * gai_strerror under Windows is not thread safe. See getaddrinfo on MSDN:
- * https://msdn.microsoft.com/en-us/library/windows/desktop/ms738520.aspx
- *
- * The error codes that getaddrinfo returns map directly onto WSA error codes.
- * os_strerror_r can therefore safely be used to retrieve their description.
- */
-#define os_gai_strerror(errnum) os_strerror(errnum)
-#else
-#define os_gai_strerror(errnum) gai_strerror(errnum)
-#endif /* WIN32 */
-
-_Success_(return) bool
-os_sockaddrStringToAddress(
-    _In_z_  const char *addressString,
-    _When_(isIPv4, _Out_writes_bytes_(sizeof(os_sockaddr_in)))
-    _When_(!isIPv4, _Out_writes_bytes_(sizeof(os_sockaddr_in6)))
-        os_sockaddr *addressOut,
-    _In_ bool isIPv4)
+int _Success_(return == 0)
+os_sockaddrfromstr(
+    _In_ int af,
+    _In_z_ const char *str,
+    _When_(af == AF_INET, _Out_writes_bytes(sizeof(os_sockaddr_in)))
+#if OS_SOCKET_HAS_IPV6
+    _When_(af == AF_INET6, _Out_writes_bytes(sizeof(os_sockaddr_in6)))
+#endif /* OS_SOCKET_HAS_IPV6 */
+        void *sa)
 {
-    int ret;
-    const char *fmt;
-    struct addrinfo hints;
-    struct addrinfo *res = NULL;
+    int err = 0;
 
-    assert(addressString != NULL);
-    assert(addressOut != NULL);
+    assert(str != NULL);
+    assert(sa != NULL);
 
-    memset(&hints, 0, sizeof(hints));
-#if (OS_SOCKET_HAS_IPV6 == 1)
-    hints.ai_family = (isIPv4 ? AF_INET : AF_INET6);
-#else
-    hints.ai_family = AF_INET;
-    OS_UNUSED_ARG(isIPv4);
-#endif /* IPv6 */
-    hints.ai_socktype = SOCK_DGRAM;
-
-    ret = getaddrinfo(addressString, NULL, &hints, &res);
-    if (ret != 0) {
-        fmt = "getaddrinfo(\"%s\") failed: %s";
-        DDS_TRACE(fmt, addressString, os_gai_strerror(ret));
-    } else if (res != NULL) {
-        memcpy(addressOut, res->ai_addr, res->ai_addrlen);
-        freeaddrinfo(res);
-    } else {
-        fmt = "getaddrinfo(\"%s\") did not return any results";
-        DDS_TRACE(fmt, addressString);
-    }
-
-    return (ret == 0 && res != NULL);
-}
-
-/**
-* Check this address to see if it represents loopback.
-* @return true if it does. false otherwise, or if unknown address type.
-* @param thisSock A pointer to an os_sockaddr to be checked.
-*/
-bool
-os_sockaddrIsLoopback(const os_sockaddr* thisSock)
-{
-    bool result = false;
-
-#if (OS_SOCKET_HAS_IPV6 == 1)
-    static os_sockaddr_storage linkLocalLoopback;
-    static os_sockaddr* linkLocalLoopbackPtr = NULL;
-
-    if (linkLocalLoopbackPtr == NULL)
-    {
-        /* Initialise once (where 'once' implies some small integer) */
-        os_sockaddrStringToAddress("fe80::1", (os_sockaddr*) &linkLocalLoopback, false /* ! ipv4 */ );
-        linkLocalLoopbackPtr = (os_sockaddr*) &linkLocalLoopback;
-    }
-
-    if (thisSock->sa_family == AF_INET6)
-    {
-        result = IN6_IS_ADDR_LOOPBACK(&((os_sockaddr_in6*)thisSock)->sin6_addr) ||
-                 os_sockaddr_compare(thisSock, linkLocalLoopbackPtr) == 0 ? true : false;
-    }
-    else
-#endif
-    if (thisSock->sa_family == AF_INET)
-    {
-        result = (INADDR_LOOPBACK == ntohl(((os_sockaddr_in*)thisSock)->sin_addr.s_addr)) ? true : false;
-    }
-
-    return result;
-}
-
-void
-os_sockaddrSetInAddrAny(
-    os_sockaddr* sa)
-{
-    assert(sa);
-#if (OS_SOCKET_HAS_IPV6 == 1)
-    assert(sa->sa_family == AF_INET6 || sa->sa_family == AF_INET);
-    if (sa->sa_family == AF_INET6){
-        ((os_sockaddr_in6*)sa)->sin6_addr = os_in6addr_any;
-        ((os_sockaddr_in6*)sa)->sin6_scope_id = 0;
-    }
-    else
-#else
-    assert(sa->sa_family == AF_INET);
-#endif
-    if (sa->sa_family == AF_INET){
-        ((os_sockaddr_in*)sa)->sin_addr.s_addr = htonl(INADDR_ANY);
-    }
-}
-
-char*
-os_sockaddrAddressToString(const os_sockaddr* sa,
-                            char* buffer, size_t buflen)
-{
-    assert (buflen <= 0x7fffffff);
-
-    switch(sa->sa_family) {
+    switch (af) {
         case AF_INET:
-            OS_INET_NTOP(AF_INET, &(((struct sockaddr_in *)sa)->sin_addr),
-                    buffer, (socklen_t) buflen);
+        {
+            struct in_addr buf;
+            if (inet_pton(af, str, &buf) != 1) {
+                err = EINVAL;
+            } else {
+                memset(sa, 0, sizeof(os_sockaddr_in));
+                ((os_sockaddr_in *)sa)->sin_family = AF_INET;
+                memcpy(&((os_sockaddr_in *)sa)->sin_addr, &buf, sizeof(buf));
+            }
+        }
             break;
-#if (OS_SOCKET_HAS_IPV6 == 1)
+#if OS_SOCKET_HAS_IPV6
         case AF_INET6:
-            OS_INET_NTOP(AF_INET6, &(((os_sockaddr_in6 *)sa)->sin6_addr),
-                    buffer, (socklen_t) buflen);
+        {
+            struct in6_addr buf;
+            if (inet_pton(af, str, &buf) != 1) {
+                err = EINVAL;
+            } else {
+                memset(sa, 0, sizeof(os_sockaddr_in6));
+                ((os_sockaddr_in6 *)sa)->sin6_family = AF_INET6;
+                memcpy(&((os_sockaddr_in6 *)sa)->sin6_addr, &buf, sizeof(buf));
+            }
+        }
+            break;
+#endif /* OS_SOCKET_HAS_IPV6 */
+        default:
+            err = EAFNOSUPPORT;
+            break;
+    }
+
+    return err;
+}
+
+int _Success_(return == 0)
+os_sockaddrtostr(
+    _In_ const void *sa,
+    _Out_writes_z_(size) char *buf,
+    _In_ size_t size)
+{
+    int err = 0;
+    const char *ptr;
+
+    assert(sa != NULL);
+    assert(buf != NULL);
+
+    switch (((os_sockaddr *)sa)->sa_family) {
+        case AF_INET:
+            ptr = inet_ntop(
+                AF_INET, &((os_sockaddr_in *)sa)->sin_addr, buf, (socklen_t)size);
+            break;
+#if OS_SOCKET_HAS_IPV6
+        case AF_INET6:
+            ptr = inet_ntop(
+                AF_INET6, &((os_sockaddr_in6 *)sa)->sin6_addr, buf, (socklen_t)size);
             break;
 #endif
         default:
-            (void) snprintf(buffer, buflen, "Unknown address family");
-            break;
+            return EAFNOSUPPORT;
     }
 
-    return buffer;
+    if (ptr == NULL) {
+#if WIN32
+        err = GetLastError();
+        if (ERROR_INVALID_PARAMETER) {
+            /* ERROR_INVALID_PARAMETER is returned if the buffer is a null
+               pointer or the size of the buffer is not sufficiently large
+               enough. *NIX platforms set errno to ENOSPC if the buffer is not
+               large enough to store the IP address in text form. */
+            err = ENOSPC;
+        }
+#else
+        err = errno;
+#endif
+    }
+
+    return err;
 }

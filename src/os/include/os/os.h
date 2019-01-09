@@ -12,6 +12,7 @@
 #ifndef OS_H
 #define OS_H
 
+#include "os/os_project.h"
 #include "os/osapi_export.h"
 #include "os_public.h"
 
@@ -21,22 +22,10 @@
 #include "vxworks/os_platform.h"
 #elif __sun == 1
 #include "solaris/os_platform.h"
-#elif defined(__INTEGRITY)
-#include "integrity/os_platform.h"
-#elif  __PikeOS__ == 1
-#include "pikeos3/os_platform.h"
-#elif defined(__QNX__)
-#include "qnx/os_platform.h"
 #elif defined(_MSC_VER)
-#ifdef _WIN32_WCE
-#include "wince/os_platform.h"
-#else
 #include "windows/os_platform.h"
-#endif
 #elif defined __APPLE__
 #include "darwin/os_platform.h"
-#elif defined __CYGWIN__
-#include "cygwin/os_platform.h"
 #else
 #error "Platform missing from os.h list"
 #endif
@@ -54,11 +43,8 @@
 #include "os_errno.h"
 #include "os_iter.h"
 #include "os_log.h"
-
-#define OSPL_VERSION_STR "aap"
-#define OSPL_HOST_STR "noot"
-#define OSPL_TARGET_STR "mies"
-#define OSPL_INNER_REV_STR "wim"
-#define OSPL_OUTER_REV_STR "zus"
+#include "os_strlcpy.h"
+#include "os_random.h"
+#include "os_rusage.h"
 
 #endif

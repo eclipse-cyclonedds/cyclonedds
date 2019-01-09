@@ -16,7 +16,6 @@
 #include "ddsi/q_gc.h"
 #include "ddsi/q_globals.h"
 #include "ddsi/q_config.h"
-#include "ddsi/sysdeps.h"
 #include "ddsi/ddsi_iid.h"
 #include "ddsi/ddsi_tkmap.h"
 #include "util/ut_hopscotch.h"

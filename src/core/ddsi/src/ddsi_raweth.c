@@ -118,7 +118,7 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
   return ret;
 }
 
-static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsi_iovec_t *iov, uint32_t flags)
+static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const os_iovec_t *iov, uint32_t flags)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
   int err;
@@ -138,7 +138,7 @@ static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const nn_locator_t
   msg.msg_name = &dstaddr;
   msg.msg_namelen = sizeof(dstaddr);
   msg.msg_flags = (int) flags;
-  msg.msg_iov = (ddsi_iovec_t *) iov;
+  msg.msg_iov = (os_iovec_t *) iov;
   msg.msg_iovlen = niov;
 #ifdef MSG_NOSIGNAL
   sendflags |= MSG_NOSIGNAL;
@@ -168,7 +168,7 @@ static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const nn_locator_t
   return ret;
 }
 
-static os_handle ddsi_raweth_conn_handle (ddsi_tran_base_t base)
+static os_socket ddsi_raweth_conn_handle (ddsi_tran_base_t base)
 {
   return ((ddsi_raweth_conn_t) base)->m_sock;
 }
@@ -182,7 +182,7 @@ static int ddsi_raweth_conn_locator (ddsi_tran_base_t base, nn_locator_t *loc)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) base;
   int ret = -1;
-  if (uc->m_sock != Q_INVALID_SOCKET)
+  if (uc->m_sock != OS_INVALID_SOCKET)
   {
     loc->kind = NN_LOCATOR_KIND_RAWETH;
     loc->port = uc->m_base.m_base.m_port;

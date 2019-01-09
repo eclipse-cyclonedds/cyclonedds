@@ -14,7 +14,6 @@
 
 #include "os/os.h"
 
-#include "ddsi/q_inline.h"
 #include "ddsi/q_rtps.h" /* for nn_guid_t, nn_guid_prefix_t */
 #include "ddsi/q_protocol.h" /* for nn_sequence_number_t */
 
@@ -22,20 +21,28 @@
 #define bswap4(x) ((int32_t) bswap4u ((uint32_t) (x)))
 #define bswap8(x) ((int64_t) bswap8u ((uint64_t) (x)))
 
-#if NN_HAVE_C99_INLINE && !defined SUPPRESS_BSWAP_INLINES
-#include "q_bswap_template.h"
-#else
-#if defined (__cplusplus)
-extern "C" {
-#endif
-uint16_t bswap2u (uint16_t x);
-uint32_t bswap4u (uint32_t x);
-uint64_t bswap8u (uint64_t x);
-void bswapSN (nn_sequence_number_t *sn);
-#if defined (__cplusplus)
+inline uint16_t bswap2u (uint16_t x)
+{
+  return (unsigned short) ((x >> 8) | (x << 8));
 }
-#endif
-#endif
+
+inline uint32_t bswap4u (uint32_t x)
+{
+  return (x >> 24) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | (x << 24);
+}
+
+inline uint64_t bswap8u (uint64_t x)
+{
+  const uint32_t newhi = bswap4u ((uint32_t) x);
+  const uint32_t newlo = bswap4u ((uint32_t) (x >> 32));
+  return ((uint64_t) newhi << 32) | (uint64_t) newlo;
+}
+
+inline void bswapSN (nn_sequence_number_t *sn)
+{
+  sn->high = bswap4 (sn->high);
+  sn->low = bswap4u (sn->low);
+}
 
 #if OS_ENDIANNESS == OS_LITTLE_ENDIAN
 #define toBE2(x) bswap2 (x)

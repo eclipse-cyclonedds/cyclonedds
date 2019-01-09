@@ -19,7 +19,6 @@
 #include "ddsi/q_config.h"
 #include "ddsi/q_globals.h"
 #include "ddsi/q_bswap.h"
-#include "ddsi/sysdeps.h"
 #include "ddsi/q_pcap.h"
 
 /* pcap format info taken from http://wiki.wireshark.org/Development/LibpcapFileFormat */
@@ -79,6 +78,7 @@ static const ipv4_hdr_t ipv4_hdr_template = {
 #define IPV4_HDR_SIZE 20
 #define UDP_HDR_SIZE 8
 
+OS_WARNING_MSVC_OFF(4996);
 FILE *new_pcap_file (const char *name)
 {
   FILE *fp;
@@ -101,6 +101,7 @@ FILE *new_pcap_file (const char *name)
 
   return fp;
 }
+OS_WARNING_MSVC_ON(4996);
 
 static void write_data (FILE *fp, const struct msghdr *msghdr, size_t sz)
 {

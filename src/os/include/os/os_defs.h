@@ -18,21 +18,6 @@
 #if OS_ENDIANNESS != OS_LITTLE_ENDIAN && OS_ENDIANNESS != OS_BIG_ENDIAN
 #error "OS_ENDIANNESS not set correctly"
 #endif
-#ifndef OS_HAS_UCONTEXT_T
-#error "OS_HAS_UCONTEXT_T not set"
-#endif
-#ifndef OS_SOCKET_USE_FCNTL
-#error "OS_SOCKET_USE_FCNTL must be defined for this platform."
-#endif
-#ifndef OS_SOCKET_USE_IOCTL
-#error "OS_SOCKET_USE_IOCTL must be defined for this platform."
-#endif
-#if (OS_SOCKET_USE_IOCTL == 1) && (OS_SOCKET_USE_FCNTL == 1)
-#error "this platform must set only one of OS_SOCKET_USE_IOCTL and OS_SOCKET_USE_FCNTL to 1"
-#endif
-#ifndef OS_FILESEPCHAR
-#error "OS_FILESEPCHAR must be defined for this platform."
-#endif
 
 #include "os/os_decl_attributes.h"
 
@@ -203,66 +188,6 @@ __pragma (warning(pop))
         /** The operating system returned a failure */
         os_resultFail
     } os_result;
-
-    /* We want to inline these, but we don't want to emit an exernally
-     visible symbol for them and we don't want warnings if we don't use
-     them.
-
-     It appears as if a plain "inline" will do just that in C99.
-
-     In traditional GCC one had to use "extern inline" to achieve that
-     effect, but that will cause an externally visible symbol to be
-     emitted by a C99 compiler.
-
-     Starting with GCC 4.3, GCC conforms to the C99 standard if
-     compiling in C99 mode, unless -fgnu89-inline is specified. It
-     defines __GNUC_STDC_INLINE__ if "inline"/"extern inline" behaviour
-     is conforming the C99 standard.
-
-     So: GCC >= 4.3: choose between "inline" & "extern inline" based
-     upon __GNUC_STDC_INLINE__; for GCCs < 4.2, rely on the traditional
-     GCC behaiour; and for other compilers assume they behave conforming
-     the standard if they advertise themselves as C99 compliant (use
-     "inline"), and assume they do not support the inline keywords
-     otherwise.
-
-     GCC when not optimizing ignores "extern inline" functions. So we
-     need to distinguish between optimizing & non-optimizing ... */
-
-    /* Defining OS_HAVE_INLINE is a supported way of overruling this file */
-#ifndef OS_HAVE_INLINE
-
-#if __STDC_VERSION__ >= 199901L
-#  /* C99, but old GCC nonetheless doesn't implement C99 semantics ... */
-#  if __GNUC__ && ! defined __GNUC_STDC_INLINE__
-#    define OS_HAVE_INLINE 1
-#    define VDDS_INLINE extern __inline__
-#  else
-#    define OS_HAVE_INLINE 1
-#    define VDDS_INLINE inline
-#  endif
-#elif defined __STDC__ && defined __GNUC__ && ! defined __cplusplus
-#  if __OPTIMIZE__
-#    if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)
-#      ifdef __GNUC_STDC_INLINE__
-#        define OS_HAVE_INLINE 1
-#        define VDDS_INLINE __inline__
-#      else
-#        define OS_HAVE_INLINE 1
-#        define VDDS_INLINE extern __inline__
-#      endif
-#    else
-#      define OS_HAVE_INLINE 1
-#      define VDDS_INLINE extern __inline__
-#    endif
-#  endif
-#endif
-
-#if ! OS_HAVE_INLINE
-#define VDDS_INLINE
-#endif
-
-#endif /* not defined OS_HAVE_INLINE */
 
 #if defined(_MSC_VER)
     /* Thread-local storage using __declspec(thread) on Windows versions before

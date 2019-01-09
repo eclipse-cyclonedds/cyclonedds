@@ -60,7 +60,7 @@ struct entry {
 struct os_sockWaitset
 {
   int kqueue;
-  os_handle pipe[2];             /* pipe used for triggering */
+  os_socket pipe[2];             /* pipe used for triggering */
   os_atomic_uint32_t sz;
   struct entry *entries;
   struct os_sockWaitsetCtx ctx;  /* set of descriptors being handled  */
@@ -477,7 +477,7 @@ int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
   {
     WSANETWORKEVENTS nwev;
     int idx = ctx->index;
-    os_handle handle;
+    os_socket handle;
 
     ctx->index = -1;
     handle = ddsi_conn_handle (ctx->conns[idx]);
@@ -511,11 +511,7 @@ int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
 #ifndef _WIN32
 
 #ifndef __VXWORKS__
-#if defined (AIX) || defined (__Lynx__) || defined (__QNX__)
-#include <fcntl.h>
-#elif ! defined(INTEGRITY)
 #include <sys/fcntl.h>
-#endif
 #endif /* __VXWORKS__ */
 
 #ifndef _WRS_KERNEL
@@ -532,7 +528,7 @@ int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
 typedef struct os_sockWaitsetSet
 {
   ddsi_tran_conn_t * conns;  /* connections in set */
-  os_handle * fds;           /* file descriptors in set */
+  os_socket * fds;           /* file descriptors in set */
   unsigned sz;               /* max number of fds in context */
   unsigned n;                /* actual number of fds in context */
 } os_sockWaitsetSet;
@@ -546,7 +542,7 @@ struct os_sockWaitsetCtx
 
 struct os_sockWaitset
 {
-  os_handle pipe[2];             /* pipe used for triggering */
+  os_socket pipe[2];             /* pipe used for triggering */
   os_mutex mutex;                /* concurrency guard */
   int fdmax_plus_1;              /* value for first parameter of select() */
   os_sockWaitsetSet set;         /* set of descriptors handled next */
@@ -554,13 +550,13 @@ struct os_sockWaitset
 };
 
 #if defined (_WIN32)
-static int make_pipe (os_handle fd[2])
+static int make_pipe (os_socket fd[2])
 {
   struct sockaddr_in addr;
   socklen_t asize = sizeof (addr);
   os_socket listener = socket (AF_INET, SOCK_STREAM, 0);
   os_socket s1 = socket (AF_INET, SOCK_STREAM, 0);
-  os_socket s2 = Q_INVALID_SOCKET;
+  os_socket s2 = OS_INVALID_SOCKET;
 
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
@@ -759,7 +755,7 @@ void os_sockWaitsetTrigger (os_sockWaitset ws)
 
 int os_sockWaitsetAdd (os_sockWaitset ws, ddsi_tran_conn_t conn)
 {
-  os_handle handle = ddsi_conn_handle (conn);
+  os_socket handle = ddsi_conn_handle (conn);
   os_sockWaitsetSet * set = &ws->set;
   unsigned idx;
   int ret;
@@ -920,7 +916,7 @@ int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
   while (ctx->index < ctx->set.n)
   {
     unsigned idx = ctx->index++;
-    os_handle fd = ctx->set.fds[idx];
+    os_socket fd = ctx->set.fds[idx];
     assert(idx > 0);
     if (FD_ISSET (fd, &ctx->rdset))
     {

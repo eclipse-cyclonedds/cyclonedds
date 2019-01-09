@@ -14,7 +14,6 @@
 
 #include "os/os.h"
 #include "util/ut_avl.h"
-#include "sysdeps.h"
 #include "ddsi/ddsi_serdata.h"
 #include "ddsi/ddsi_sertopic.h"
 #include "ddsi/q_xqos.h"

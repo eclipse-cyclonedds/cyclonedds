@@ -36,7 +36,6 @@
 #include "ddsi/ddsi_tran.h"
 #include "ddsi/ddsi_tcp.h"
 
-#include "ddsi/sysdeps.h"
 #include "dds__whc.h"
 
 struct plugin {
@@ -63,7 +62,7 @@ static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...)
   else
   {
     va_list ap;
-    ddsi_iovec_t iov;
+    os_iovec_t iov;
     char buf[4096];
     int n;
     va_start (ap, fmt);

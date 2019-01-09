@@ -361,7 +361,7 @@ static SSL * ddsi_ssl_accept (BIO * bio, os_socket * sock)
     if (err <= 0)
     {
       SSL_free (ssl);
-      *sock = Q_INVALID_SOCKET;
+      *sock = OS_INVALID_SOCKET;
       ssl = NULL;
     }
   }

@@ -156,6 +156,10 @@ os_startRoutineWrapper (
     uintptr_t resultValue;
 
 #if !defined(__VXWORKS__) && !defined(__APPLE__) && !defined(__sun)
+/* FIXME: Switch to use pthread_setname_np in the future.
+           * Linux: pthread_setname_np(pthread_t, const char *)
+           * macOS: pthread_setname_np(const char *)
+           * FreeBSD: pthread_set_name_np(pthread_t, const char *) */
     prctl(PR_SET_NAME, context->threadName);
 #endif
 
@@ -236,9 +240,7 @@ os_threadCreate (
        (void)pthread_attr_setname(&attr, name);
 #endif
        if (pthread_getschedparam(pthread_self(), &policy, &sched_param) != 0 ||
-#if !defined (OS_RTEMS_DEFS_H) && !defined (PIKEOS_POSIX)
            pthread_attr_setscope (&attr, PTHREAD_SCOPE_SYSTEM) != 0 ||
-#endif
            pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_JOINABLE) != 0 ||
            pthread_attr_setinheritsched (&attr, PTHREAD_EXPLICIT_SCHED) != 0)
        {
@@ -250,11 +252,6 @@ os_threadCreate (
 #ifdef PTHREAD_STACK_MIN
              if ( tattr.stackSize < PTHREAD_STACK_MIN ) {
                 tattr.stackSize = PTHREAD_STACK_MIN;
-             }
-#endif
-#ifdef OSPL_STACK_MAX
-             if ( tattr.stackSize > OSPL_STACK_MAX ) {
-                tattr.stackSize = OSPL_STACK_MAX;
              }
 #endif
              if (pthread_attr_setstacksize (&attr, tattr.stackSize) != 0) {

@@ -15,7 +15,6 @@
 #include <string.h>
 
 #include "os/os.h"
-#include "ddsi/sysdeps.h"
 #include "ddsi/q_md5.h"
 #include "ddsi/q_bswap.h"
 #include "ddsi/q_config.h"
@@ -260,13 +259,13 @@ static void serdata_builtin_to_ser (const struct ddsi_serdata *serdata_common, s
   (void)serdata_common; (void)off; (void)sz; (void)buf;
 }
 
-static struct ddsi_serdata *serdata_builtin_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, ddsi_iovec_t *ref)
+static struct ddsi_serdata *serdata_builtin_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, os_iovec_t *ref)
 {
   (void)serdata_common; (void)off; (void)sz; (void)ref;
   return NULL;
 }
 
-static void serdata_builtin_to_ser_unref (struct ddsi_serdata *serdata_common, const ddsi_iovec_t *ref)
+static void serdata_builtin_to_ser_unref (struct ddsi_serdata *serdata_common, const os_iovec_t *ref)
 {
   (void)serdata_common; (void)ref;
 }
