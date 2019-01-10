@@ -12,10 +12,13 @@
 #ifndef _DDS_PPANT_H_
 #define _DDS_PPANT_H_
 
+#include "dds__entity.h"
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
+DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_participant, DDS_KIND_PARTICIPANT)
 
 #if defined (__cplusplus)
 }

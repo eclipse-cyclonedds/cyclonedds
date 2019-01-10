@@ -25,6 +25,12 @@
 #endif
 
 
+extern inline bool dds_entity_is_enabled (const dds_entity *e);
+extern inline void dds_entity_status_set (dds_entity *e, uint32_t t);
+extern inline void dds_entity_status_reset (dds_entity *e, uint32_t t);
+extern inline bool dds_entity_status_match (const dds_entity *e, uint32_t t);
+extern inline dds_entity_kind_t dds_entity_kind (const dds_entity *e);
+extern inline dds_entity_kind_t dds_entity_kind_from_handle (dds_entity_t hdl);
 
 static void
 dds_entity_observers_delete(
@@ -83,7 +89,7 @@ dds_entity_listener_propagation(
     if (e) {
         rc = dds_entity_lock(e->m_hdl, DDS_KIND_DONTCARE, &dummy);
         if (rc == DDS_RETCODE_OK) {
-            dds_listener_t *l = (dds_listener_t *)(&e->m_listener);
+            dds_listener_t *l = &e->m_listener;
 
             assert(e == dummy);
 
@@ -360,12 +366,12 @@ dds_delete_impl(
      * To circumvent the problem. We ignore topics in the first loop.
      */
     child = e->m_children;
-    while ((child != NULL) && (dds_entity_kind(child->m_hdl) == DDS_KIND_TOPIC)) {
+    while ((child != NULL) && (dds_entity_kind_from_handle(child->m_hdl) == DDS_KIND_TOPIC)) {
         child = child->m_next;
     }
     while ((child != NULL) && (ret == DDS_RETCODE_OK)) {
         next = child->m_next;
-        while ((next != NULL) && (dds_entity_kind(next->m_hdl) == DDS_KIND_TOPIC)) {
+        while ((next != NULL) && (dds_entity_kind_from_handle(next->m_hdl) == DDS_KIND_TOPIC)) {
             next = next->m_next;
         }
         /* This will probably delete the child entry from
@@ -377,7 +383,7 @@ dds_delete_impl(
     child = e->m_children;
     while ((child != NULL) && (ret == DDS_RETCODE_OK)) {
         next = child->m_next;
-        assert(dds_entity_kind(child->m_hdl) == DDS_KIND_TOPIC);
+        assert(dds_entity_kind_from_handle(child->m_hdl) == DDS_KIND_TOPIC);
         /* This will probably delete the child entry from
          * the current childrens list */
         ret = dds_delete(child->m_hdl);
@@ -1282,7 +1288,7 @@ dds_get_topic(
           if (rc == DDS_RETCODE_OK) {
               hdl = wr->m_topic->m_entity.m_hdl;
               dds_writer_unlock(wr);
-          } else if (dds_entity_kind(entity) == DDS_KIND_COND_READ || dds_entity_kind(entity) == DDS_KIND_COND_QUERY) {
+          } else if (dds_entity_kind_from_handle(entity) == DDS_KIND_COND_READ || dds_entity_kind_from_handle(entity) == DDS_KIND_COND_QUERY) {
                 hdl = dds_get_topic(dds_get_parent(entity));
                 rc = DDS_RETCODE_OK;
           }

@@ -1042,6 +1042,25 @@ static enum ddsi_locator_from_string_result ddsi_tcp_address_from_string (ddsi_t
   return ddsi_ipaddr_from_string(tran, loc, str, ddsi_tcp_factory_g.m_kind);
 }
 
+static int ddsi_tcp_is_mcaddr (const ddsi_tran_factory_t tran, const nn_locator_t *loc)
+{
+  (void) tran;
+  (void) loc;
+  return 0;
+}
+
+static int ddsi_tcp_is_ssm_mcaddr (const ddsi_tran_factory_t tran, const nn_locator_t *loc)
+{
+  (void) tran;
+  (void) loc;
+  return 0;
+}
+
+static enum ddsi_nearby_address_result ddsi_tcp_is_nearby_address (ddsi_tran_factory_t tran, const nn_locator_t *loc, size_t ninterf, const struct nn_interface interf[])
+{
+  return ddsi_ipaddr_is_nearby_address(tran, loc, ninterf, interf);
+}
+
 int ddsi_tcp_init (void)
 {
   static bool init = false;
@@ -1063,6 +1082,9 @@ int ddsi_tcp_init (void)
     ddsi_tcp_factory_g.m_locator_from_string_fn = ddsi_tcp_address_from_string;
     ddsi_tcp_factory_g.m_locator_to_string_fn = ddsi_ipaddr_to_string;
     ddsi_tcp_factory_g.m_enumerate_interfaces_fn = ddsi_eth_enumerate_interfaces;
+    ddsi_tcp_factory_g.m_is_mcaddr_fn = ddsi_tcp_is_mcaddr;
+    ddsi_tcp_factory_g.m_is_ssm_mcaddr_fn = ddsi_tcp_is_ssm_mcaddr;
+    ddsi_tcp_factory_g.m_is_nearby_address_fn = ddsi_tcp_is_nearby_address;
     ddsi_factory_add (&ddsi_tcp_factory_g);
 
 #if OS_SOCKET_HAS_IPV6

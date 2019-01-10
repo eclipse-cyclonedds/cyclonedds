@@ -51,7 +51,7 @@ typedef struct status_cb_data
 }
 status_cb_data_t;
 
-typedef void (*status_cb_t) (void * entity, const status_cb_data_t * data);
+typedef void (*status_cb_t) (void *entity, const status_cb_data_t *data);
 
 struct prd_wr_match {
   ut_avlNode_t avlnode;

@@ -45,11 +45,48 @@ dds_entity_listener_propagation(
         _In_opt_ void *metrics,
         _In_ bool propagate);
 
-#define dds_entity_is_enabled(e, k)   (((dds_entity*)e)->m_flags & DDS_ENTITY_ENABLED)
+#define DEFINE_ENTITY_LOCK_UNLOCK(qualifier_, type_, kind_) \
+  qualifier_ dds__retcode_t type_##_lock (dds_entity_t hdl, type_ **x) \
+  { \
+    dds__retcode_t rc; \
+    dds_entity *e; \
+    if ((rc = dds_entity_lock (hdl, kind_, &e)) != DDS_RETCODE_OK) \
+      return rc; \
+    *x = (type_ *) e; \
+    return DDS_RETCODE_OK; \
+  } \
+  \
+  qualifier_ void type_##_unlock (type_ *x) \
+  { \
+    dds_entity_unlock (&x->m_entity); \
+  }
+#define DECL_ENTITY_LOCK_UNLOCK(qualifier_, type_) \
+  qualifier_ dds__retcode_t type_##_lock (dds_entity_t hdl, type_ **x); \
+  qualifier_ void type_##_unlock (type_ *x);
 
-#define dds_entity_status_set(e, t)   (((dds_entity*)e)->m_trigger |= (((dds_entity*)e)->m_status_enable & t))
-#define dds_entity_status_reset(e,t)  (((dds_entity*)e)->m_trigger &= ~t)
-#define dds_entity_status_match(e,t)  (((dds_entity*)e)->m_trigger &   t)
+inline bool dds_entity_is_enabled (const dds_entity *e) {
+  return (e->m_flags & DDS_ENTITY_ENABLED) != 0;
+}
+
+inline void dds_entity_status_set (dds_entity *e, uint32_t t) {
+  e->m_trigger |= e->m_status_enable & t;
+}
+
+inline void dds_entity_status_reset (dds_entity *e, uint32_t t) {
+  e->m_trigger &= ~t;
+}
+
+inline bool dds_entity_status_match (const dds_entity *e, uint32_t t) {
+  return (e->m_trigger & t) != 0;
+}
+
+inline dds_entity_kind_t dds_entity_kind (const dds_entity *e) {
+  return (dds_entity_kind_t) (e->m_hdl & DDS_ENTITY_KIND_MASK);
+}
+
+inline dds_entity_kind_t dds_entity_kind_from_handle (dds_entity_t hdl) {
+  return (hdl > 0) ? (dds_entity_kind_t) (hdl & DDS_ENTITY_KIND_MASK) : DDS_KIND_DONTCARE;
+}
 
 /* The mutex needs to be unlocked when calling this because the entity can be called
  * within the signal callback from other contexts. That shouldn't deadlock. */
@@ -73,8 +110,6 @@ _Releases_exclusive_lock_(e)
 void
 dds_entity_unlock(
         _Inout_ dds_entity *e);
-
-#define dds_entity_kind(hdl) ((hdl > 0) ? (hdl & DDS_ENTITY_KIND_MASK) : 0)
 
 _Check_return_ dds__retcode_t
 dds_entity_observer_register_nl(

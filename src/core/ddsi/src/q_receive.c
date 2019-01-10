@@ -30,7 +30,6 @@
 #include "ddsi/q_lat_estim.h"
 #include "ddsi/q_bitset.h"
 #include "ddsi/q_xevent.h"
-#include "ddsi/q_align.h"
 #include "ddsi/q_addrset.h"
 #include "ddsi/q_ddsi_discovery.h"
 #include "ddsi/q_radmin.h"

@@ -19,6 +19,7 @@
 #include "dds__init.h"
 #include "dds__rhc.h"
 #include "dds__err.h"
+#include "dds__topic.h"
 #include "ddsi/q_entity.h"
 #include "ddsi/q_thread.h"
 #include "dds__builtin.h"
@@ -27,6 +28,7 @@
 
 #include "os/os.h"
 
+DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_reader)
 
 #define DDS_READER_STATUS_MASK                                   \
                         DDS_SAMPLE_REJECTED_STATUS              |\
@@ -162,9 +164,10 @@ dds_reader_status_validate(
 
 void
 dds_reader_status_cb(
-        void *entity,
+        void *ventity,
         const status_cb_data_t *data)
 {
+    struct dds_entity * const entity = ventity;
     dds_reader *rd;
     dds__retcode_t rc;
     void *metrics = NULL;
@@ -173,14 +176,14 @@ dds_reader_status_cb(
     if (data == NULL) {
         /* Release the initial claim that was done during the create. This
          * will indicate that further API deletion is now possible. */
-        ut_handle_release(((dds_entity*)entity)->m_hdl, ((dds_entity*)entity)->m_hdllink);
+        ut_handle_release(entity->m_hdl, ((dds_entity*)entity)->m_hdllink);
         return;
     }
 
-    if (dds_reader_lock(((dds_entity*)entity)->m_hdl, &rd) != DDS_RETCODE_OK) {
+    if (dds_reader_lock(entity->m_hdl, &rd) != DDS_RETCODE_OK) {
         return;
     }
-    assert(rd == entity);
+    assert(&rd->m_entity == entity);
 
     /* Reset the status for possible Listener call.
      * When a listener is not called, the status will be set (again). */
@@ -192,20 +195,20 @@ dds_reader_status_cb(
             rd->m_requested_deadline_missed_status.total_count++;
             rd->m_requested_deadline_missed_status.total_count_change++;
             rd->m_requested_deadline_missed_status.last_instance_handle = data->handle;
-            metrics = (void*)&(rd->m_requested_deadline_missed_status);
+            metrics = &rd->m_requested_deadline_missed_status;
             break;
         }
         case DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS: {
             rd->m_requested_incompatible_qos_status.total_count++;
             rd->m_requested_incompatible_qos_status.total_count_change++;
             rd->m_requested_incompatible_qos_status.last_policy_id = data->extra;
-            metrics = (void*)&(rd->m_requested_incompatible_qos_status);
+            metrics = &rd->m_requested_incompatible_qos_status;
             break;
         }
         case DDS_SAMPLE_LOST_STATUS: {
             rd->m_sample_lost_status.total_count++;
             rd->m_sample_lost_status.total_count_change++;
-            metrics = (void*)&(rd->m_sample_lost_status);
+            metrics = &rd->m_sample_lost_status;
             break;
         }
         case DDS_SAMPLE_REJECTED_STATUS: {
@@ -213,7 +216,7 @@ dds_reader_status_cb(
             rd->m_sample_rejected_status.total_count_change++;
             rd->m_sample_rejected_status.last_reason = data->extra;
             rd->m_sample_rejected_status.last_instance_handle = data->handle;
-            metrics = (void*)&(rd->m_sample_rejected_status);
+            metrics = &rd->m_sample_rejected_status;
             break;
         }
         case DDS_DATA_AVAILABLE_STATUS: {
@@ -233,7 +236,7 @@ dds_reader_status_cb(
                 rd->m_liveliness_changed_status.not_alive_count_change++;
             }
             rd->m_liveliness_changed_status.last_publication_handle = data->handle;
-            metrics = (void*)&(rd->m_liveliness_changed_status);
+            metrics = &rd->m_liveliness_changed_status;
             break;
         }
         case DDS_SUBSCRIPTION_MATCHED_STATUS: {
@@ -247,7 +250,7 @@ dds_reader_status_cb(
                 rd->m_subscription_matched_status.current_count_change--;
             }
             rd->m_subscription_matched_status.last_publication_handle = data->handle;
-            metrics = (void*)&(rd->m_subscription_matched_status);
+            metrics = &rd->m_subscription_matched_status;
             break;
         }
         default: assert (0);
@@ -283,8 +286,8 @@ dds_reader_status_cb(
 
     if (rc == DDS_RETCODE_OK) {
         /* Event was eaten by a listener. */
-        if (dds_reader_lock(((dds_entity*)entity)->m_hdl, &rd) == DDS_RETCODE_OK) {
-            assert(rd == entity);
+        if (dds_reader_lock(entity->m_hdl, &rd) == DDS_RETCODE_OK) {
+            assert(&rd->m_entity == entity);
 
             /* Reset the change counts of the metrics. */
             switch (data->status) {
@@ -353,16 +356,16 @@ dds_create_reader(
     dds_entity_t subscriber;
     dds_reader * rd;
     struct rhc * rhc;
-    dds_entity * tp;
+    dds_topic * tp;
     dds_entity_t reader;
     dds_entity_t t;
     struct thread_state1 * const thr = lookup_thread_state ();
     const bool asleep = !vtime_awake_p (thr->vtime);
     dds_return_t ret = DDS_RETCODE_OK;
 
-    if (dds_entity_kind(topic) != DDS_KIND_INTERNAL) {
+    if (dds_entity_kind_from_handle(topic) != DDS_KIND_INTERNAL) {
         /* Try claiming a participant. If that's not working, then it could be a subscriber. */
-        if (dds_entity_kind(participant_or_subscriber) == DDS_KIND_PARTICIPANT) {
+        if (dds_entity_kind_from_handle(participant_or_subscriber) == DDS_KIND_PARTICIPANT) {
             subscriber = dds_create_subscriber(participant_or_subscriber, qos, NULL);
         } else {
             subscriber = participant_or_subscriber;
@@ -381,19 +384,19 @@ dds_create_reader(
     }
 
     if ((subscriber != participant_or_subscriber) &&
-        (dds_entity_kind(topic) != DDS_KIND_INTERNAL)) {
+        (dds_entity_kind_from_handle(topic) != DDS_KIND_INTERNAL)) {
         /* Delete implicit subscriber if reader creation fails */
         sub->m_flags |= DDS_ENTITY_IMPLICIT;
     }
 
-    rc = dds_entity_lock(t, DDS_KIND_TOPIC, &tp);
+    rc = dds_topic_lock(t, &tp);
     if (rc != DDS_RETCODE_OK) {
         DDS_ERROR("Error occurred on locking topic\n");
         reader = DDS_ERRNO(rc);
         goto err_tp_lock;
     }
-    assert (((dds_topic*)tp)->m_stopic);
-    assert (sub->m_domain == tp->m_domain);
+    assert (tp->m_stopic);
+    assert (sub->m_domain == tp->m_entity.m_domain);
 
     /* Merge qos from topic and subscriber */
     rqos = dds_create_qos ();
@@ -407,8 +410,8 @@ dds_create_reader(
         dds_merge_qos (rqos, sub->m_qos);
     }
 
-    if (tp->m_qos) {
-        dds_merge_qos (rqos, tp->m_qos);
+    if (tp->m_entity.m_qos) {
+        dds_merge_qos (rqos, tp->m_entity.m_qos);
 
         /* reset the following qos policies if set during topic qos merge as they aren't applicable for reader */
         rqos->present &= ~(QP_DURABILITY_SERVICE | QP_TRANSPORT_PRIORITY | QP_LIFESPAN);
@@ -423,7 +426,7 @@ dds_create_reader(
     }
 
     /* Additional checks required for built-in topics */
-    if (dds_entity_kind(topic) == DDS_KIND_INTERNAL && !dds__validate_builtin_reader_qos(topic, qos)) {
+    if (dds_entity_kind_from_handle(topic) == DDS_KIND_INTERNAL && !dds__validate_builtin_reader_qos(topic, qos)) {
         dds_delete_qos(rqos);
         DDS_ERROR("Invalid QoS specified for built-in topic reader");
         reader = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
@@ -434,9 +437,9 @@ dds_create_reader(
     rd = dds_alloc (sizeof (*rd));
     reader = dds_entity_init (&rd->m_entity, sub, DDS_KIND_READER, rqos, listener, DDS_READER_STATUS_MASK);
     rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
-    rd->m_topic = (dds_topic*)tp;
-    rhc = dds_rhc_new (rd, ((dds_topic*)tp)->m_stopic);
-    dds_entity_add_ref_nolock (tp);
+    rd->m_topic = tp;
+    rhc = dds_rhc_new (rd, tp->m_stopic);
+    dds_entity_add_ref_nolock (&tp->m_entity);
     rd->m_entity.m_deriver.close = dds_reader_close;
     rd->m_entity.m_deriver.delete = dds_reader_delete;
     rd->m_entity.m_deriver.set_qos = dds_reader_qos_set;
@@ -449,16 +452,16 @@ dds_create_reader(
         assert(0);
     }
 
-    os_mutexUnlock(&tp->m_mutex);
+    os_mutexUnlock(&tp->m_entity.m_mutex);
     os_mutexUnlock(&sub->m_mutex);
 
     if (asleep) {
         thread_state_awake (thr);
     }
-    rd->m_rd = new_reader(&rd->m_entity.m_guid, NULL, &sub->m_participant->m_guid, ((dds_topic*)tp)->m_stopic,
+    rd->m_rd = new_reader(&rd->m_entity.m_guid, NULL, &sub->m_participant->m_guid, tp->m_stopic,
                           rqos, rhc, dds_reader_status_cb, rd);
     os_mutexLock(&sub->m_mutex);
-    os_mutexLock(&tp->m_mutex);
+    os_mutexLock(&tp->m_entity.m_mutex);
     assert (rd->m_rd);
     if (asleep) {
         thread_state_asleep (thr);
@@ -468,10 +471,10 @@ dds_create_reader(
     if (dds_global.m_dur_reader && (rd->m_entity.m_qos->durability.kind > NN_TRANSIENT_LOCAL_DURABILITY_QOS)) {
         (dds_global.m_dur_reader) (rd, rhc);
     }
-    dds_entity_unlock(tp);
+    dds_topic_unlock(tp);
     dds_entity_unlock(sub);
 
-    if (dds_entity_kind(topic) == DDS_KIND_INTERNAL) {
+    if (dds_entity_kind_from_handle(topic) == DDS_KIND_INTERNAL) {
         /* If topic is builtin, then the topic entity is local and should
          * be deleted because the application won't. */
         dds_delete(t);
@@ -480,14 +483,14 @@ dds_create_reader(
     return reader;
 
 err_bad_qos:
-    dds_entity_unlock(tp);
+    dds_topic_unlock(tp);
 err_tp_lock:
     dds_entity_unlock(sub);
     if((sub->m_flags & DDS_ENTITY_IMPLICIT) != 0){
         (void)dds_delete(subscriber);
     }
 err_sub_lock:
-    if (dds_entity_kind(topic) == DDS_KIND_INTERNAL) {
+    if (dds_entity_kind_from_handle(topic) == DDS_KIND_INTERNAL) {
         /* If topic is builtin, then the topic entity is local and should
          * be deleted because the application won't. */
         dds_delete(t);
@@ -495,11 +498,7 @@ err_sub_lock:
     return reader;
 }
 
-void
-dds_reader_ddsi2direct(
-        dds_entity_t entity,
-        ddsi2direct_directread_cb_t cb,
-        void *cbarg)
+void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb, void *cbarg)
 {
   dds_reader *dds_rd;
 
@@ -540,77 +539,62 @@ dds_reader_ddsi2direct(
       os_mutexLock (&rd->e.lock);
     }
     os_mutexUnlock (&rd->e.lock);
-    ut_handle_release(entity, ((dds_entity*)rd)->m_hdllink);
+    ut_handle_release(entity, dds_rd->m_entity.m_hdllink);
   }
 }
 
-uint32_t
-dds_reader_lock_samples(
-        dds_entity_t reader)
+uint32_t dds_reader_lock_samples (dds_entity_t reader)
 {
-    uint32_t ret = 0;
-    dds_reader *rd;
-    if (dds_reader_lock(reader, &rd) == DDS_RETCODE_OK) {
-        ret = dds_rhc_lock_samples(rd->m_rd->rhc);
-        dds_reader_unlock(rd);
-    } else {
-        ret = 0;
-    }
-    return ret;
+  dds_reader *rd;
+  uint32_t n;
+  if (dds_reader_lock (reader, &rd) != DDS_RETCODE_OK)
+    return 0;
+  n = dds_rhc_lock_samples (rd->m_rd->rhc);
+  dds_reader_unlock (rd);
+  return n;
 }
 
-_Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)
-int
-dds_reader_wait_for_historical_data(
-        dds_entity_t reader,
-        dds_duration_t max_wait)
+int dds_reader_wait_for_historical_data (dds_entity_t reader, dds_duration_t max_wait)
 {
-    int ret;
-    dds_reader *rd;
-
-    assert (reader);
-
-    ret = dds_reader_lock(reader, &rd);
-    if (ret == DDS_RETCODE_OK) {
-        if (((dds_entity*)rd)->m_qos->durability.kind > NN_TRANSIENT_LOCAL_DURABILITY_QOS) {
-            ret = (dds_global.m_dur_wait) (rd, max_wait);
-        } else {
-            DDS_ERROR("Can not wait for historical data on a reader with volatile durability\n");
-            ret = DDS_ERRNO(DDS_RETCODE_ERROR);
-        }
-        dds_reader_unlock(rd);
-    } else {
-        DDS_ERROR("Error occurred on locking reader\n");
-        ret = DDS_ERRNO(ret);
-    }
-
-    return ret;
+  dds_reader *rd;
+  int ret;
+  if ((ret = dds_reader_lock (reader, &rd)) != DDS_RETCODE_OK)
+    return DDS_ERRNO (ret);
+  switch (rd->m_entity.m_qos->durability.kind)
+  {
+    case DDS_DURABILITY_VOLATILE:
+      ret = DDS_RETCODE_OK;
+      break;
+    case DDS_DURABILITY_TRANSIENT_LOCAL:
+      break;
+    case DDS_DURABILITY_TRANSIENT:
+    case DDS_DURABILITY_PERSISTENT:
+      ret = (dds_global.m_dur_wait) (rd, max_wait);
+      break;
+  }
+  dds_reader_unlock(rd);
+  return ret;
 }
 
-_Pre_satisfies_(((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER    ) || \
-                ((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_COND_READ ) || \
-                ((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_COND_QUERY) )
-dds_entity_t
-dds_get_subscriber(
-        _In_ dds_entity_t entity)
+dds_entity_t dds_get_subscriber (dds_entity_t entity)
 {
-    dds_entity_t hdl;
+  dds_entity_t hdl;
+  if (dds_entity_kind_from_handle (entity) == DDS_KIND_READER)
+    hdl = dds_get_parent (entity);
+  else if (dds_entity_kind_from_handle (entity) == DDS_KIND_COND_READ || dds_entity_kind_from_handle (entity) == DDS_KIND_COND_QUERY)
+  {
+    hdl = dds_get_parent (entity);
+    if (hdl > 0)
+      hdl = dds_get_subscriber (hdl);
+    DDS_ERROR ("Reader of this condition is already deleted\n");
+  }
+  else
+  {
+    DDS_ERROR ("Provided entity is not a reader nor a condition\n");
+    hdl = DDS_ERRNO (dds_valid_hdl (entity, DDS_KIND_READER));
+  }
 
-    if (dds_entity_kind(entity) == DDS_KIND_READER) {
-        hdl = dds_get_parent(entity);
-    } else if (dds_entity_kind(entity) == DDS_KIND_COND_READ || dds_entity_kind(entity) == DDS_KIND_COND_QUERY) {
-        hdl = dds_get_parent(entity);
-        if(hdl > 0){
-            hdl = dds_get_subscriber(hdl);
-        } else {
-            DDS_ERROR("Reader of this condition is already deleted\n");
-        }
-    } else {
-        DDS_ERROR("Provided entity is not a reader nor a condition\n");
-        hdl = DDS_ERRNO(dds_valid_hdl(entity, DDS_KIND_READER));
-    }
-
-    return hdl;
+  return hdl;
 }
 
 _Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)
@@ -633,10 +617,10 @@ dds_get_subscription_matched_status (
     if (status) {
         *status = rd->m_subscription_matched_status;
     }
-    if (((dds_entity*)rd)->m_status_enable & DDS_SUBSCRIPTION_MATCHED_STATUS) {
+    if (rd->m_entity.m_status_enable & DDS_SUBSCRIPTION_MATCHED_STATUS) {
         rd->m_subscription_matched_status.total_count_change = 0;
         rd->m_subscription_matched_status.current_count_change = 0;
-        dds_entity_status_reset(rd, DDS_SUBSCRIPTION_MATCHED_STATUS);
+        dds_entity_status_reset(&rd->m_entity, DDS_SUBSCRIPTION_MATCHED_STATUS);
     }
     dds_reader_unlock(rd);
 fail:
@@ -663,10 +647,10 @@ dds_get_liveliness_changed_status (
     if (status) {
         *status = rd->m_liveliness_changed_status;
     }
-    if (((dds_entity*)rd)->m_status_enable & DDS_LIVELINESS_CHANGED_STATUS) {
+    if (rd->m_entity.m_status_enable & DDS_LIVELINESS_CHANGED_STATUS) {
         rd->m_liveliness_changed_status.alive_count_change = 0;
         rd->m_liveliness_changed_status.not_alive_count_change = 0;
-        dds_entity_status_reset(rd, DDS_LIVELINESS_CHANGED_STATUS);
+        dds_entity_status_reset(&rd->m_entity, DDS_LIVELINESS_CHANGED_STATUS);
     }
     dds_reader_unlock(rd);
 fail:
@@ -692,10 +676,10 @@ dds_return_t dds_get_sample_rejected_status (
     if (status) {
         *status = rd->m_sample_rejected_status;
     }
-    if (((dds_entity*)rd)->m_status_enable & DDS_SAMPLE_REJECTED_STATUS) {
+    if (rd->m_entity.m_status_enable & DDS_SAMPLE_REJECTED_STATUS) {
         rd->m_sample_rejected_status.total_count_change = 0;
         rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
-        dds_entity_status_reset(rd, DDS_SAMPLE_REJECTED_STATUS);
+        dds_entity_status_reset(&rd->m_entity, DDS_SAMPLE_REJECTED_STATUS);
     }
     dds_reader_unlock(rd);
 fail:
@@ -721,9 +705,9 @@ dds_return_t dds_get_sample_lost_status (
     if (status) {
         *status = rd->m_sample_lost_status;
     }
-    if (((dds_entity*)rd)->m_status_enable & DDS_SAMPLE_LOST_STATUS) {
+    if (rd->m_entity.m_status_enable & DDS_SAMPLE_LOST_STATUS) {
         rd->m_sample_lost_status.total_count_change = 0;
-        dds_entity_status_reset(rd, DDS_SAMPLE_LOST_STATUS);
+        dds_entity_status_reset(&rd->m_entity, DDS_SAMPLE_LOST_STATUS);
     }
     dds_reader_unlock(rd);
 fail:
@@ -749,9 +733,9 @@ dds_return_t dds_get_requested_deadline_missed_status (
     if (status) {
         *status = rd->m_requested_deadline_missed_status;
     }
-    if (((dds_entity*)rd)->m_status_enable & DDS_REQUESTED_DEADLINE_MISSED_STATUS) {
+    if (rd->m_entity.m_status_enable & DDS_REQUESTED_DEADLINE_MISSED_STATUS) {
         rd->m_requested_deadline_missed_status.total_count_change = 0;
-        dds_entity_status_reset(rd, DDS_REQUESTED_DEADLINE_MISSED_STATUS);
+        dds_entity_status_reset(&rd->m_entity, DDS_REQUESTED_DEADLINE_MISSED_STATUS);
     }
     dds_reader_unlock(rd);
 fail:
@@ -777,9 +761,9 @@ dds_return_t dds_get_requested_incompatible_qos_status (
     if (status) {
         *status = rd->m_requested_incompatible_qos_status;
     }
-    if (((dds_entity*)rd)->m_status_enable & DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS) {
+    if (rd->m_entity.m_status_enable & DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS) {
         rd->m_requested_incompatible_qos_status.total_count_change = 0;
-        dds_entity_status_reset(rd, DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS);
+        dds_entity_status_reset(&rd->m_entity, DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS);
     }
     dds_reader_unlock(rd);
 fail:

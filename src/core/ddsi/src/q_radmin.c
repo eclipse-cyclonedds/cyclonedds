@@ -32,7 +32,6 @@
 #include "ddsi/q_config.h"
 #include "ddsi/q_log.h"
 
-#include "ddsi/q_align.h"
 #include "ddsi/q_plist.h"
 #include "ddsi/q_unused.h"
 #include "ddsi/q_radmin.h"

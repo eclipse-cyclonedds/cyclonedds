@@ -21,7 +21,6 @@
 
 #include "ddsi/q_bswap.h"
 #include "ddsi/q_unused.h"
-#include "ddsi/q_align.h"
 #include "ddsi/q_error.h"
 #include "ddsi/q_plist.h"
 #include "ddsi/q_time.h"

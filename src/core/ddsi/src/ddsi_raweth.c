@@ -312,6 +312,22 @@ static int ddsi_raweth_is_mcaddr (const ddsi_tran_factory_t tran, const nn_locat
   return (loc->address[10] & 1);
 }
 
+static int ddsi_raweth_is_ssm_mcaddr (const ddsi_tran_factory_t tran, const nn_locator_t *loc)
+{
+  (void) tran;
+  (void) loc;
+  return 0;
+}
+
+static enum ddsi_nearby_address_result ddsi_raweth_is_nearby_address (ddsi_tran_factory_t tran, const nn_locator_t *loc, size_t ninterf, const struct nn_interface interf[])
+{
+  (void) tran;
+  (void) loc;
+  (void) ninterf;
+  (void) interf;
+  return DNAR_LOCAL;
+}
+
 static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str)
 {
   int i = 0;
@@ -371,7 +387,8 @@ int ddsi_raweth_init (void)
     ddsi_raweth_factory_g.m_join_mc_fn = ddsi_raweth_join_mc;
     ddsi_raweth_factory_g.m_leave_mc_fn = ddsi_raweth_leave_mc;
     ddsi_raweth_factory_g.m_is_mcaddr_fn = ddsi_raweth_is_mcaddr;
-    ddsi_raweth_factory_g.m_is_nearby_address_fn = ddsi_ipaddr_is_nearby_address;
+    ddsi_raweth_factory_g.m_is_ssm_mcaddr_fn = ddsi_raweth_is_ssm_mcaddr;
+    ddsi_raweth_factory_g.m_is_nearby_address_fn = ddsi_raweth_is_nearby_address;
     ddsi_raweth_factory_g.m_locator_from_string_fn = ddsi_raweth_address_from_string;
     ddsi_raweth_factory_g.m_locator_to_string_fn = ddsi_raweth_to_string;
     ddsi_raweth_factory_g.m_enumerate_interfaces_fn = ddsi_raweth_enumerate_interfaces;

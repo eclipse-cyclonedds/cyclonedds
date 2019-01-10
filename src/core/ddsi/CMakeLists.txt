@@ -79,7 +79,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/ddsi"
     ddsi_tkmap.h
     probes-constants.h
     q_addrset.h
-    q_align.h
     q_bitset.h
     q_bswap.h
     q_config.h

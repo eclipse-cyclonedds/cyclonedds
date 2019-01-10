@@ -27,7 +27,7 @@ dds_begin_coherent(
 {
     dds_return_t ret;
 
-    switch(dds_entity_kind(entity)) {
+    switch(dds_entity_kind_from_handle(entity)) {
         case DDS_KIND_READER:
         case DDS_KIND_WRITER:
             /* Invoking on a writer/reader behaves as if invoked on
@@ -58,7 +58,7 @@ dds_end_coherent(
 {
     dds_return_t ret;
 
-    switch(dds_entity_kind(entity)) {
+    switch(dds_entity_kind_from_handle(entity)) {
         case DDS_KIND_READER:
         case DDS_KIND_WRITER:
             /* Invoking on a writer/reader behaves as if invoked on

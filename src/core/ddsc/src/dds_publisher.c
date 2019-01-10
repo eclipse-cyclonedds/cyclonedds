@@ -149,7 +149,7 @@ dds_suspend(
 {
     dds_return_t ret;
 
-    if(dds_entity_kind(publisher) != DDS_KIND_PUBLISHER) {
+    if(dds_entity_kind_from_handle(publisher) != DDS_KIND_PUBLISHER) {
         DDS_ERROR("Provided entity is not a publisher kind\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
@@ -169,7 +169,7 @@ dds_resume(
 {
     dds_return_t ret = DDS_RETCODE_OK;
 
-    if(dds_entity_kind(publisher) != DDS_KIND_PUBLISHER) {
+    if(dds_entity_kind_from_handle(publisher) != DDS_KIND_PUBLISHER) {
         DDS_ERROR("Provided entity is not a publisher kind\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
@@ -194,7 +194,7 @@ dds_wait_for_acks(
     /* TODO: CHAM-125 Currently unsupported. */
     OS_UNUSED_ARG(timeout);
 
-    switch(dds_entity_kind(publisher_or_writer)) {
+    switch(dds_entity_kind_from_handle(publisher_or_writer)) {
         case DDS_KIND_WRITER:
             DDS_ERROR("Wait for acknowledgments on a writer is not being supported yet\n");
             ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);

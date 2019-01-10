@@ -20,9 +20,12 @@
 #include "dds__qos.h"
 #include "dds__err.h"
 #include "dds__init.h"
+#include "dds__topic.h"
 #include "ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
 #include "ddsc/ddsc_project.h"
+
+DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_writer)
 
 #define DDS_WRITER_STATUS_MASK                                   \
                         DDS_LIVELINESS_LOST_STATUS              |\
@@ -64,121 +67,133 @@ dds_writer_status_validate(
 
 static void
 dds_writer_status_cb(
-        void *entity,
+        void *ventity,
         const status_cb_data_t *data)
 {
-    dds_writer *wr;
-    dds__retcode_t rc;
-    void *metrics = NULL;
+    struct dds_entity * const entity = ventity;
+  dds_writer *wr;
+  dds__retcode_t rc;
+  void *metrics = NULL;
 
-    /* When data is NULL, it means that the writer is deleted. */
-    if (data == NULL) {
-        /* Release the initial claim that was done during the create. This
-         * will indicate that further API deletion is now possible. */
-        ut_handle_release(((dds_entity*)entity)->m_hdl, ((dds_entity*)entity)->m_hdllink);
-        return;
+  /* When data is NULL, it means that the writer is deleted. */
+  if (data == NULL)
+  {
+    /* Release the initial claim that was done during the create. This
+     * will indicate that further API deletion is now possible. */
+    ut_handle_release (entity->m_hdl, entity->m_hdllink);
+    return;
+  }
+
+  if (dds_writer_lock (entity->m_hdl, &wr) != DDS_RETCODE_OK) {
+    /* There's a deletion or closing going on. */
+    return;
+  }
+  assert (&wr->m_entity == entity);
+
+  /* Reset the status for possible Listener call.
+   * When a listener is not called, the status will be set (again). */
+  dds_entity_status_reset (entity, data->status);
+
+  /* Update status metrics. */
+  switch (data->status)
+  {
+    case DDS_OFFERED_DEADLINE_MISSED_STATUS: {
+      struct dds_offered_deadline_missed_status * const st = &wr->m_offered_deadline_missed_status;
+      st->total_count++;
+      st->total_count_change++;
+      st->last_instance_handle = data->handle;
+      metrics = st;
+      break;
     }
-
-    if (dds_writer_lock(((dds_entity*)entity)->m_hdl, &wr) != DDS_RETCODE_OK) {
-        /* There's a deletion or closing going on. */
-        return;
+    case DDS_LIVELINESS_LOST_STATUS: {
+      struct dds_liveliness_lost_status * const st = &wr->m_liveliness_lost_status;
+      st->total_count++;
+      st->total_count_change++;
+      metrics = st;
+      break;
     }
-    assert(wr == entity);
-
-    /* Reset the status for possible Listener call.
-     * When a listener is not called, the status will be set (again). */
-    dds_entity_status_reset(entity, data->status);
-
-    /* Update status metrics. */
-    switch (data->status) {
-        case DDS_OFFERED_DEADLINE_MISSED_STATUS: {
-            wr->m_offered_deadline_missed_status.total_count++;
-            wr->m_offered_deadline_missed_status.total_count_change++;
-            wr->m_offered_deadline_missed_status.last_instance_handle = data->handle;
-            metrics = (void*)&(wr->m_offered_deadline_missed_status);
-            break;
-        }
-        case DDS_LIVELINESS_LOST_STATUS: {
-            wr->m_liveliness_lost_status.total_count++;
-            wr->m_liveliness_lost_status.total_count_change++;
-            metrics = (void*)&(wr->m_liveliness_lost_status);
-            break;
-        }
-        case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS: {
-            wr->m_offered_incompatible_qos_status.total_count++;
-            wr->m_offered_incompatible_qos_status.total_count_change++;
-            wr->m_offered_incompatible_qos_status.last_policy_id = data->extra;
-            metrics = (void*)&(wr->m_offered_incompatible_qos_status);
-            break;
-        }
-        case DDS_PUBLICATION_MATCHED_STATUS: {
-            if (data->add) {
-                wr->m_publication_matched_status.total_count++;
-                wr->m_publication_matched_status.total_count_change++;
-                wr->m_publication_matched_status.current_count++;
-                wr->m_publication_matched_status.current_count_change++;
-            } else {
-                wr->m_publication_matched_status.current_count--;
-                wr->m_publication_matched_status.current_count_change--;
-            }
-            wr->m_publication_matched_status.last_subscription_handle = data->handle;
-            metrics = (void*)&(wr->m_publication_matched_status);
-            break;
-        }
-        default: assert (0);
+    case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS: {
+      struct dds_offered_incompatible_qos_status * const st = &wr->m_offered_incompatible_qos_status;
+      st->total_count++;
+      st->total_count_change++;
+      st->last_policy_id = data->extra;
+      metrics = st;
+      break;
     }
-
-    /* The writer needs to be unlocked when propagating the (possible) listener
-     * call because the application should be able to call this writer within
-     * the callback function. */
-    dds_writer_unlock(wr);
-
-    /* Is anybody interested within the entity hierarchy through listeners? */
-    rc = dds_entity_listener_propagation(entity, entity, data->status, metrics, true);
-
-    if (rc == DDS_RETCODE_OK) {
-        /* Event was eaten by a listener. */
-        if (dds_writer_lock(((dds_entity*)entity)->m_hdl, &wr) == DDS_RETCODE_OK) {
-            assert(wr == entity);
-
-            /* Reset the status. */
-            dds_entity_status_reset(entity, data->status);
-
-            /* Reset the change counts of the metrics. */
-            switch (data->status) {
-                case DDS_OFFERED_DEADLINE_MISSED_STATUS: {
-                    wr->m_offered_deadline_missed_status.total_count_change = 0;
-                    break;
-                }
-                case DDS_LIVELINESS_LOST_STATUS: {
-                    wr->m_liveliness_lost_status.total_count_change = 0;
-                    break;
-                }
-                case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS: {
-                    wr->m_offered_incompatible_qos_status.total_count_change = 0;
-                    break;
-                }
-                case DDS_PUBLICATION_MATCHED_STATUS: {
-                    wr->m_publication_matched_status.total_count_change = 0;
-                    wr->m_publication_matched_status.current_count_change = 0;
-                    break;
-                }
-                default: assert (0);
-            }
-            dds_writer_unlock(wr);
-        } else {
-            /* There's a deletion or closing going on. */
-        }
-    } else if (rc == DDS_RETCODE_NO_DATA) {
-        /* Nobody was interested through a listener (NO_DATA == NO_CALL): set the status; consider it successful. */
-        dds_entity_status_set(entity, data->status);
-        /* Notify possible interested observers. */
-        dds_entity_status_signal(entity);
-    } else if (rc == DDS_RETCODE_ALREADY_DELETED) {
-        /* An entity up the hierarchy is being deleted; consider it successful. */
-    } else {
-        /* Something went wrong up the hierarchy. */
+    case DDS_PUBLICATION_MATCHED_STATUS: {
+      struct dds_publication_matched_status * const st = &wr->m_publication_matched_status;
+      if (data->add) {
+        st->total_count++;
+        st->total_count_change++;
+        st->current_count++;
+        st->current_count_change++;
+      } else {
+        st->current_count--;
+        st->current_count_change--;
+      }
+      st->last_subscription_handle = data->handle;
+      metrics = st;
+      break;
     }
+    default:
+      assert (0);
+  }
+
+  /* The writer needs to be unlocked when propagating the (possible) listener
+   * call because the application should be able to call this writer within
+   * the callback function. */
+  dds_writer_unlock (wr);
+
+  /* Is anybody interested within the entity hierarchy through listeners? */
+  rc = dds_entity_listener_propagation (entity, entity, data->status, metrics, true);
+
+  if (rc == DDS_RETCODE_OK)
+  {
+    /* Event was eaten by a listener. */
+    if (dds_writer_lock (entity->m_hdl, &wr) == DDS_RETCODE_OK)
+    {
+      assert (&wr->m_entity == entity);
+
+      /* Reset the status. */
+      dds_entity_status_reset (entity, data->status);
+
+      /* Reset the change counts of the metrics. */
+      switch (data->status)
+      {
+        case DDS_OFFERED_DEADLINE_MISSED_STATUS:
+          wr->m_offered_deadline_missed_status.total_count_change = 0;
+          break;
+        case DDS_LIVELINESS_LOST_STATUS:
+          wr->m_liveliness_lost_status.total_count_change = 0;
+          break;
+        case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS:
+          wr->m_offered_incompatible_qos_status.total_count_change = 0;
+          break;
+        case DDS_PUBLICATION_MATCHED_STATUS:
+          wr->m_publication_matched_status.total_count_change = 0;
+          wr->m_publication_matched_status.current_count_change = 0;
+          break;
+        default:
+          assert (0);
+      }
+      dds_writer_unlock (wr);
+    }
+  }
+  else if (rc == DDS_RETCODE_NO_DATA)
+  {
+    /* Nobody was interested through a listener (NO_DATA == NO_CALL): set the status; consider it successful. */
+    dds_entity_status_set (entity, data->status);
+    /* Notify possible interested observers. */
+    dds_entity_status_signal (entity);
+  }
+  else if (rc == DDS_RETCODE_ALREADY_DELETED)
+  {
+    /* An entity up the hierarchy is being deleted; consider it successful. */
+  }
+  else
+  {
+    /* Something went wrong up the hierarchy. */
+  }
 }
 
 static uint32_t
@@ -412,7 +427,7 @@ dds_create_writer(
     dds_writer * wr;
     dds_entity_t writer;
     dds_entity * pub = NULL;
-    dds_entity * tp;
+    dds_topic * tp;
     dds_entity_t publisher;
     struct thread_state1 * const thr = lookup_thread_state();
     const bool asleep = !vtime_awake_p(thr->vtime);
@@ -420,7 +435,7 @@ dds_create_writer(
     dds_return_t ret;
 
     /* Try claiming a participant. If that's not working, then it could be a subscriber. */
-    if(dds_entity_kind(participant_or_publisher) == DDS_KIND_PARTICIPANT){
+    if(dds_entity_kind_from_handle(participant_or_publisher) == DDS_KIND_PARTICIPANT){
         publisher = dds_create_publisher(participant_or_publisher, qos, NULL);
     } else{
         publisher = participant_or_publisher;
@@ -437,14 +452,14 @@ dds_create_writer(
         pub->m_flags |= DDS_ENTITY_IMPLICIT;
     }
 
-    rc = dds_entity_lock(topic, DDS_KIND_TOPIC, &tp);
+    rc = dds_topic_lock(topic, &tp);
     if (rc != DDS_RETCODE_OK) {
         DDS_ERROR("Error occurred on locking topic\n");
         writer = DDS_ERRNO(rc);
         goto err_tp_lock;
     }
-    assert(((dds_topic*)tp)->m_stopic);
-    assert(pub->m_domain == tp->m_domain);
+    assert(tp->m_stopic);
+    assert(pub->m_domain == tp->m_entity.m_domain);
 
     /* Merge Topic & Publisher qos */
     wqos = dds_create_qos();
@@ -458,9 +473,9 @@ dds_create_writer(
         dds_merge_qos(wqos, pub->m_qos);
     }
 
-    if (tp->m_qos) {
+    if (tp->m_entity.m_qos) {
         /* merge topic qos data to writer qos */
-        dds_merge_qos(wqos, tp->m_qos);
+        dds_merge_qos(wqos, tp->m_entity.m_qos);
     }
     nn_xqos_mergein_missing(wqos, &gv.default_xqos_wr);
 
@@ -475,8 +490,8 @@ dds_create_writer(
     wr = dds_alloc(sizeof (*wr));
     writer = dds_entity_init(&wr->m_entity, pub, DDS_KIND_WRITER, wqos, listener, DDS_WRITER_STATUS_MASK);
 
-    wr->m_topic = (dds_topic*)tp;
-    dds_entity_add_ref_nolock(tp);
+    wr->m_topic = tp;
+    dds_entity_add_ref_nolock(&tp->m_entity);
     wr->m_xp = nn_xpack_new(conn, get_bandwidth_limit(wqos->transport_priority), config.xpack_send_async);
     wr->m_entity.m_deriver.close = dds_writer_close;
     wr->m_entity.m_deriver.delete = dds_writer_delete;
@@ -491,25 +506,25 @@ dds_create_writer(
         assert(0);
     }
 
-    os_mutexUnlock(&tp->m_mutex);
+    os_mutexUnlock(&tp->m_entity.m_mutex);
     os_mutexUnlock(&pub->m_mutex);
 
     if (asleep) {
         thread_state_awake(thr);
     }
-    wr->m_wr = new_writer(&wr->m_entity.m_guid, NULL, &pub->m_participant->m_guid, ((dds_topic*)tp)->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
+    wr->m_wr = new_writer(&wr->m_entity.m_guid, NULL, &pub->m_participant->m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
     os_mutexLock(&pub->m_mutex);
-    os_mutexLock(&tp->m_mutex);
+    os_mutexLock(&tp->m_entity.m_mutex);
     assert(wr->m_wr);
     if (asleep) {
         thread_state_asleep(thr);
     }
-    dds_entity_unlock(tp);
+    dds_topic_unlock(tp);
     dds_entity_unlock(pub);
     return writer;
 
 err_bad_qos:
-    dds_entity_unlock(tp);
+    dds_topic_unlock(tp);
 err_tp_lock:
     dds_entity_unlock(pub);
     if((pub->m_flags & DDS_ENTITY_IMPLICIT) != 0){
@@ -559,10 +574,10 @@ dds_get_publication_matched_status (
     if (status) {
         *status = wr->m_publication_matched_status;
     }
-    if (((dds_entity*)wr)->m_status_enable & DDS_PUBLICATION_MATCHED_STATUS) {
+    if (wr->m_entity.m_status_enable & DDS_PUBLICATION_MATCHED_STATUS) {
         wr->m_publication_matched_status.total_count_change = 0;
         wr->m_publication_matched_status.current_count_change = 0;
-        dds_entity_status_reset(wr, DDS_PUBLICATION_MATCHED_STATUS);
+        dds_entity_status_reset(&wr->m_entity, DDS_PUBLICATION_MATCHED_STATUS);
     }
     dds_writer_unlock(wr);
 fail:
@@ -589,9 +604,9 @@ dds_get_liveliness_lost_status (
     if (status) {
       *status = wr->m_liveliness_lost_status;
     }
-    if (((dds_entity*)wr)->m_status_enable & DDS_LIVELINESS_LOST_STATUS) {
+    if (wr->m_entity.m_status_enable & DDS_LIVELINESS_LOST_STATUS) {
       wr->m_liveliness_lost_status.total_count_change = 0;
-      dds_entity_status_reset(wr, DDS_LIVELINESS_LOST_STATUS);
+      dds_entity_status_reset(&wr->m_entity, DDS_LIVELINESS_LOST_STATUS);
     }
     dds_writer_unlock(wr);
 fail:
@@ -618,9 +633,9 @@ dds_get_offered_deadline_missed_status(
     if (status) {
       *status = wr->m_offered_deadline_missed_status;
     }
-    if (((dds_entity*)wr)->m_status_enable & DDS_OFFERED_DEADLINE_MISSED_STATUS) {
+    if (wr->m_entity.m_status_enable & DDS_OFFERED_DEADLINE_MISSED_STATUS) {
       wr->m_offered_deadline_missed_status.total_count_change = 0;
-      dds_entity_status_reset(wr, DDS_OFFERED_DEADLINE_MISSED_STATUS);
+      dds_entity_status_reset(&wr->m_entity, DDS_OFFERED_DEADLINE_MISSED_STATUS);
     }
     dds_writer_unlock(wr);
 fail:
@@ -647,9 +662,9 @@ dds_get_offered_incompatible_qos_status (
     if (status) {
       *status = wr->m_offered_incompatible_qos_status;
     }
-    if (((dds_entity*)wr)->m_status_enable & DDS_OFFERED_INCOMPATIBLE_QOS_STATUS) {
+    if (wr->m_entity.m_status_enable & DDS_OFFERED_INCOMPATIBLE_QOS_STATUS) {
       wr->m_offered_incompatible_qos_status.total_count_change = 0;
-      dds_entity_status_reset(wr, DDS_OFFERED_INCOMPATIBLE_QOS_STATUS);
+      dds_entity_status_reset(&wr->m_entity, DDS_OFFERED_INCOMPATIBLE_QOS_STATUS);
     }
     dds_writer_unlock(wr);
 fail:

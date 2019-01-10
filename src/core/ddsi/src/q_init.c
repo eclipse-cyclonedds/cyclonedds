@@ -29,7 +29,6 @@
 #include "ddsi/q_lat_estim.h"
 #include "ddsi/q_bitset.h"
 #include "ddsi/q_xevent.h"
-#include "ddsi/q_align.h"
 #include "ddsi/q_addrset.h"
 #include "ddsi/q_ddsi_discovery.h"
 #include "ddsi/q_radmin.h"
@@ -680,7 +679,7 @@ int create_multicast_sockets(void)
   gv.disc_conn_mc = disc;
   gv.data_conn_mc = data;
   DDS_TRACE("Multicast Ports: discovery %d data %d \n",
-          ddsi_tran_port (gv.disc_conn_mc), ddsi_tran_port (gv.data_conn_mc));
+          ddsi_conn_port (gv.disc_conn_mc), ddsi_conn_port (gv.data_conn_mc));
   return 1;
 
 err_data:
@@ -1113,7 +1112,7 @@ int rtps_init (void)
   if (gv.m_factory->m_connless)
   {
     if (!(config.many_sockets_mode == MSM_NO_UNICAST && config.allowMulticast))
-      DDS_TRACE("Unicast Ports: discovery %d data %d\n", ddsi_tran_port (gv.disc_conn_uc), ddsi_tran_port (gv.data_conn_uc));
+      DDS_TRACE("Unicast Ports: discovery %d data %d\n", ddsi_conn_port (gv.disc_conn_uc), ddsi_conn_port (gv.data_conn_uc));
 
     if (config.allowMulticast)
     {
@@ -1128,11 +1127,11 @@ int rtps_init (void)
 
       /* Set multicast locators */
       if (!is_unspec_locator(&gv.loc_spdp_mc))
-        gv.loc_spdp_mc.port = ddsi_tran_port (gv.disc_conn_mc);
+        gv.loc_spdp_mc.port = ddsi_conn_port (gv.disc_conn_mc);
       if (!is_unspec_locator(&gv.loc_meta_mc))
-        gv.loc_meta_mc.port = ddsi_tran_port (gv.disc_conn_mc);
+        gv.loc_meta_mc.port = ddsi_conn_port (gv.disc_conn_mc);
       if (!is_unspec_locator(&gv.loc_default_mc))
-        gv.loc_default_mc.port = ddsi_tran_port (gv.data_conn_mc);
+        gv.loc_default_mc.port = ddsi_conn_port (gv.data_conn_mc);
 
       if (joinleave_spdp_defmcip (1) < 0)
         goto err_mc_conn;
@@ -1167,7 +1166,7 @@ int rtps_init (void)
   /* Create shared transmit connection */
 
   gv.tev_conn = gv.data_conn_uc;
-  DDS_TRACE("Timed event transmit port: %d\n", (int) ddsi_tran_port (gv.tev_conn));
+  DDS_TRACE("Timed event transmit port: %d\n", (int) ddsi_conn_port (gv.tev_conn));
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   {

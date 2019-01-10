@@ -13,18 +13,20 @@
 #include <string.h>
 #include "dds__reader.h"
 #include "dds__guardcond.h"
-#include "dds__entity.h"
+#include "dds__participant.h"
 #include "dds__err.h"
 #include "ddsi/q_ephash.h"
 #include "ddsi/q_entity.h"
 #include "ddsi/q_thread.h"
+
+DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_guardcond)
 
 _Must_inspect_result_ dds_guardcond*
 dds_create_guardcond(
         _In_ dds_participant *pp)
 {
     dds_guardcond * gcond = dds_alloc(sizeof(*gcond));
-    gcond->m_entity.m_hdl = dds_entity_init(&gcond->m_entity, (dds_entity*)pp, DDS_KIND_COND_GUARD, NULL, NULL, 0);
+    gcond->m_entity.m_hdl = dds_entity_init(&gcond->m_entity, &pp->m_entity, DDS_KIND_COND_GUARD, NULL, NULL, 0);
     return gcond;
 }
 
@@ -34,15 +36,15 @@ dds_create_guardcondition(
         _In_ dds_entity_t participant)
 {
     dds_entity_t hdl;
-    dds_entity * pp;
+    dds_participant * pp;
     dds__retcode_t rc;
 
-    rc = dds_entity_lock(participant, DDS_KIND_PARTICIPANT, &pp);
+    rc = dds_participant_lock(participant, &pp);
     if (rc == DDS_RETCODE_OK) {
-        dds_guardcond *cond = dds_create_guardcond((dds_participant *)pp);
+        dds_guardcond *cond = dds_create_guardcond(pp);
         assert(cond);
         hdl = cond->m_entity.m_hdl;
-        dds_entity_unlock(pp);
+        dds_participant_unlock(pp);
     } else {
         DDS_ERROR("Error occurred on locking reader\n");
         hdl = DDS_ERRNO(rc);
@@ -64,10 +66,10 @@ dds_set_guardcondition(
     rc = dds_entity_lock(condition, DDS_KIND_COND_GUARD, (dds_entity**)&gcond);
     if (rc == DDS_RETCODE_OK) {
         if (triggered) {
-            dds_entity_status_set(gcond, DDS_WAITSET_TRIGGER_STATUS);
+            dds_entity_status_set(&gcond->m_entity, DDS_WAITSET_TRIGGER_STATUS);
             dds_entity_status_signal(&gcond->m_entity);
         } else {
-            dds_entity_status_reset(gcond, DDS_WAITSET_TRIGGER_STATUS);
+            dds_entity_status_reset(&gcond->m_entity, DDS_WAITSET_TRIGGER_STATUS);
         }
         dds_entity_unlock(&gcond->m_entity);
         ret = DDS_RETCODE_OK;
@@ -91,10 +93,10 @@ dds_read_guardcondition(
 
     if (triggered != NULL) {
         *triggered = false;
-        rc = dds_entity_lock(condition, DDS_KIND_COND_GUARD, (dds_entity**)&gcond);
+        rc = dds_guardcond_lock(condition, &gcond);
         if (rc == DDS_RETCODE_OK) {
-            *triggered = dds_entity_status_match(gcond, DDS_WAITSET_TRIGGER_STATUS);
-            dds_entity_unlock((dds_entity*)gcond);
+            *triggered = dds_entity_status_match(&gcond->m_entity, DDS_WAITSET_TRIGGER_STATUS);
+            dds_guardcond_unlock(gcond);
             ret = DDS_RETCODE_OK;
         } else {
             DDS_ERROR("Argument condition is not valid\n");
@@ -120,11 +122,11 @@ dds_take_guardcondition(
 
     if (triggered != NULL) {
         *triggered = false;
-        rc = dds_entity_lock(condition, DDS_KIND_COND_GUARD, (dds_entity**)&gcond);
+        rc = dds_guardcond_lock(condition, &gcond);
         if (rc == DDS_RETCODE_OK) {
-            *triggered = dds_entity_status_match(gcond, DDS_WAITSET_TRIGGER_STATUS);
-            dds_entity_status_reset(gcond, DDS_WAITSET_TRIGGER_STATUS);
-            dds_entity_unlock((dds_entity*)gcond);
+            *triggered = dds_entity_status_match(&gcond->m_entity, DDS_WAITSET_TRIGGER_STATUS);
+            dds_entity_status_reset(&gcond->m_entity, DDS_WAITSET_TRIGGER_STATUS);
+            dds_guardcond_unlock (gcond);
             ret = DDS_RETCODE_OK;
         } else {
             DDS_ERROR("Argument condition is not valid\n");

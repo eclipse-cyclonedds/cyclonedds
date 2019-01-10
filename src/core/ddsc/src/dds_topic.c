@@ -26,6 +26,8 @@
 #include "os/os_atomics.h"
 #include "ddsi/ddsi_iid.h"
 
+DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_topic)
+
 #define DDS_TOPIC_STATUS_MASK                                    \
                         DDS_INCONSISTENT_TOPIC_STATUS
 
@@ -97,7 +99,7 @@ dds_topic_status_cb(
     dds_topic *topic;
     dds__retcode_t rc;
 
-    if (dds_topic_lock(((dds_entity*)cb_t)->m_hdl, &topic) != DDS_RETCODE_OK) {
+    if (dds_topic_lock(cb_t->m_entity.m_hdl, &topic) != DDS_RETCODE_OK) {
         return;
     }
     assert(topic == cb_t);
@@ -116,24 +118,24 @@ dds_topic_status_cb(
     dds_topic_unlock(topic);
 
     /* Is anybody interested within the entity hierarchy through listeners? */
-    rc = dds_entity_listener_propagation((dds_entity*)topic,
-                                         (dds_entity*)topic,
+    rc = dds_entity_listener_propagation(&topic->m_entity,
+                                         &topic->m_entity,
                                          DDS_INCONSISTENT_TOPIC_STATUS,
-                                         (void*)&(topic->m_inconsistent_topic_status),
+                                         &topic->m_inconsistent_topic_status,
                                          true);
 
     if (rc == DDS_RETCODE_OK) {
         /* Event was eaten by a listener. */
-        if (dds_topic_lock(((dds_entity*)cb_t)->m_hdl, &topic) == DDS_RETCODE_OK) {
+        if (dds_topic_lock(cb_t->m_entity.m_hdl, &topic) == DDS_RETCODE_OK) {
             /* Reset the change counts of the metrics. */
             topic->m_inconsistent_topic_status.total_count_change = 0;
             dds_topic_unlock(topic);
         }
     } else if (rc == DDS_RETCODE_NO_DATA) {
         /* Nobody was interested through a listener (NO_DATA == NO_CALL): set the status; consider it successful. */
-        dds_entity_status_set((dds_entity*)topic, DDS_INCONSISTENT_TOPIC_STATUS);
+        dds_entity_status_set(&topic->m_entity, DDS_INCONSISTENT_TOPIC_STATUS);
         /* Notify possible interested observers. */
-        dds_entity_status_signal((dds_entity*)topic);
+        dds_entity_status_signal(&topic->m_entity);
     } else if (rc == DDS_RETCODE_ALREADY_DELETED) {
         /* An entity up the hierarchy is being deleted; consider it successful. */
     } else {
@@ -184,7 +186,7 @@ dds_topic_free(
     assert (st);
 
     os_mutexLock (&dds_global.m_mutex);
-    domain = (dds_domain*) ut_avlLookup (&dds_domaintree_def, &dds_global.m_domains, &domainid);
+    domain = ut_avlLookup (&dds_domaintree_def, &dds_global.m_domains, &domainid);
     if (domain != NULL) {
         ut_avlDelete (&dds_topictree_def, &domain->m_topics, st);
     }
@@ -715,9 +717,9 @@ dds_get_inconsistent_topic_status(
     if (status) {
         *status = t->m_inconsistent_topic_status;
     }
-    if (((dds_entity*)t)->m_status_enable & DDS_INCONSISTENT_TOPIC_STATUS) {
+    if (t->m_entity.m_status_enable & DDS_INCONSISTENT_TOPIC_STATUS) {
         t->m_inconsistent_topic_status.total_count_change = 0;
-        dds_entity_status_reset(t, DDS_INCONSISTENT_TOPIC_STATUS);
+        dds_entity_status_reset(&t->m_entity, DDS_INCONSISTENT_TOPIC_STATUS);
     }
     dds_topic_unlock(t);
 fail:

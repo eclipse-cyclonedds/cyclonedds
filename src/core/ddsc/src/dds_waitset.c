@@ -17,10 +17,7 @@
 #include "dds__rhc.h"
 #include "dds__err.h"
 
-
-#define dds_waitset_lock(hdl, obj) dds_entity_lock(hdl, DDS_KIND_WAITSET, (dds_entity**)obj)
-#define dds_waitset_unlock(obj)    dds_entity_unlock((dds_entity*)obj);
-
+DEFINE_ENTITY_LOCK_UNLOCK(static, dds_waitset, DDS_KIND_WAITSET)
 
 static void
 dds_waitset_swap(
@@ -41,18 +38,16 @@ dds_waitset_swap(
     *dst = idx;
 }
 
-static void
-dds_waitset_signal_entity(
-        _In_ dds_waitset *ws)
+static void dds_waitset_signal_entity (dds_waitset *ws)
 {
-    dds_entity *e = (dds_entity*)ws;
-    /* When signaling any observers of us through the entity,
-     * we need to be unlocked. We still have claimed the related
-     * handle, so possible deletions will be delayed until we
-     * release it. */
-    os_mutexUnlock(&(e->m_mutex));
-    dds_entity_status_signal(e);
-    os_mutexLock(&(e->m_mutex));
+  dds_entity *e = &ws->m_entity;
+  /* When signaling any observers of us through the entity,
+   * we need to be unlocked. We still have claimed the related
+   * handle, so possible deletions will be delayed until we
+   * release it. */
+  os_mutexUnlock (&e->m_mutex);
+  dds_entity_status_signal (e);
+  os_mutexLock (&e->m_mutex);
 }
 
 static dds_return_t
@@ -214,8 +209,8 @@ dds_waitset_close(
 {
     dds_waitset *ws = (dds_waitset*)e;
 
-    dds_waitset_close_list(&(ws->observed),  e->m_hdl);
-    dds_waitset_close_list(&(ws->triggered), e->m_hdl);
+    dds_waitset_close_list(&ws->observed,  e->m_hdl);
+    dds_waitset_close_list(&ws->triggered, e->m_hdl);
 
     /* Trigger waitset to wake up. */
     os_condBroadcast(&e->m_cond);
@@ -368,7 +363,7 @@ dds_waitset_attach(
                 e = NULL;
             }
         } else {
-            e = (dds_entity*)ws;
+            e = &ws->m_entity;
         }
 
         /* This will fail if given entity is already attached (or deleted). */
@@ -421,7 +416,7 @@ dds_waitset_detach(
     if (rc == DDS_RETCODE_OK) {
         /* Possibly fails when entity was not attached. */
         if (waitset == entity) {
-            rc = dds_entity_observer_unregister_nl((dds_entity*)ws, waitset);
+            rc = dds_entity_observer_unregister_nl(&ws->m_entity, waitset);
         } else {
             rc = dds_entity_observer_unregister(entity, waitset);
         }
@@ -497,9 +492,9 @@ dds_waitset_set_trigger(
         goto fail;
     }
     if (trigger) {
-        dds_entity_status_set(ws, DDS_WAITSET_TRIGGER_STATUS);
+        dds_entity_status_set(&ws->m_entity, DDS_WAITSET_TRIGGER_STATUS);
     } else {
-        dds_entity_status_reset(ws, DDS_WAITSET_TRIGGER_STATUS);
+        dds_entity_status_reset(&ws->m_entity, DDS_WAITSET_TRIGGER_STATUS);
     }
     dds_waitset_signal_entity(ws);
     dds_waitset_unlock(ws);
