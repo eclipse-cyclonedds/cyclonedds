@@ -79,6 +79,7 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
   }
 
   struct dds_listener const * const lst = &entity->m_listener;
+  enum dds_status_id status_id = (enum dds_status_id) data->raw_status_id;
   bool invoke = false;
   void *vst = NULL;
   int32_t *reset[2] = { NULL, NULL };
@@ -90,13 +91,13 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
 
   /* Reset the status for possible Listener call.
    * When a listener is not called, the status will be set (again). */
-  dds_entity_status_reset (entity, data->status);
+  dds_entity_status_reset (entity, 1u << status_id);
 
   /* Update status metrics. */
   dds_writer * const wr = (dds_writer *) entity;
-  switch (data->status)
+  switch (status_id)
   {
-    case DDS_OFFERED_DEADLINE_MISSED_STATUS: {
+    case DDS_OFFERED_DEADLINE_MISSED_STATUS_ID: {
       struct dds_offered_deadline_missed_status * const st = vst = &wr->m_offered_deadline_missed_status;
       st->total_count++;
       st->total_count_change++;
@@ -105,7 +106,7 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
       reset[0] = &st->total_count_change;
       break;
     }
-    case DDS_LIVELINESS_LOST_STATUS: {
+    case DDS_LIVELINESS_LOST_STATUS_ID: {
       struct dds_liveliness_lost_status * const st = vst = &wr->m_liveliness_lost_status;
       st->total_count++;
       st->total_count_change++;
@@ -113,7 +114,7 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
       reset[0] = &st->total_count_change;
       break;
     }
-    case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS: {
+    case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID: {
       struct dds_offered_incompatible_qos_status * const st = vst = &wr->m_offered_incompatible_qos_status;
       st->total_count++;
       st->total_count_change++;
@@ -122,7 +123,7 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
       reset[0] = &st->total_count_change;
       break;
     }
-    case DDS_PUBLICATION_MATCHED_STATUS: {
+    case DDS_PUBLICATION_MATCHED_STATUS_ID: {
       struct dds_publication_matched_status * const st = vst = &wr->m_publication_matched_status;
       if (data->add) {
         st->total_count++;
@@ -139,14 +140,22 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
       reset[1] = &st->current_count_change;
       break;
     }
-    default:
+    case DDS_DATA_AVAILABLE_STATUS_ID:
+    case DDS_INCONSISTENT_TOPIC_STATUS_ID:
+    case DDS_SAMPLE_LOST_STATUS_ID:
+    case DDS_DATA_ON_READERS_STATUS_ID:
+    case DDS_SAMPLE_REJECTED_STATUS_ID:
+    case DDS_LIVELINESS_CHANGED_STATUS_ID:
+    case DDS_SUBSCRIPTION_MATCHED_STATUS_ID:
+    case DDS_REQUESTED_DEADLINE_MISSED_STATUS_ID:
+    case DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID:
       assert (0);
   }
 
   if (invoke)
   {
     os_mutexUnlock (&entity->m_observers_lock);
-    dds_entity_invoke_listener(entity, data->status, vst);
+    dds_entity_invoke_listener(entity, status_id, vst);
     os_mutexLock (&entity->m_observers_lock);
     *reset[0] = 0;
     if (reset[1])
@@ -154,7 +163,7 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
   }
   else
   {
-    dds_entity_status_set (entity, data->status);
+    dds_entity_status_set (entity, 1u << status_id);
   }
 
   entity->m_cb_count--;

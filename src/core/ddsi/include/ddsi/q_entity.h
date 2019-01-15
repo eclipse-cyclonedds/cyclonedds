@@ -44,7 +44,7 @@ typedef void (*ddsi2direct_directread_cb_t) (const struct nn_rsample_info *sampl
 
 typedef struct status_cb_data
 {
-  uint32_t status;
+  int raw_status_id;
   uint32_t extra;
   uint64_t handle;
   bool add;

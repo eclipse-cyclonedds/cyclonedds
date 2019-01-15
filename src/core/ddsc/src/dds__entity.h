@@ -80,7 +80,7 @@ inline dds_entity_kind_t dds_entity_kind_from_handle (dds_entity_t hdl) {
 
 void dds_entity_status_signal (dds_entity *e);
 
-void dds_entity_invoke_listener (const dds_entity *entity, uint32_t status, const void *vst);
+void dds_entity_invoke_listener (const dds_entity *entity, enum dds_status_id which, const void *vst);
 
 _Check_return_ dds__retcode_t
 dds_valid_hdl(

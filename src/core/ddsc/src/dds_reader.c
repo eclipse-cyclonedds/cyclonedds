@@ -229,12 +229,13 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
   }
 
   struct dds_listener const * const lst = &entity->m_listener;
+  enum dds_status_id status_id = (enum dds_status_id) data->raw_status_id;
   bool invoke = false;
   void *vst = NULL;
   int32_t *reset[2] = { NULL, NULL };
 
   /* DATA_AVAILABLE is handled by dds_reader_data_available_cb */
-  assert (data->status != DDS_DATA_AVAILABLE_STATUS);
+  assert (status_id != DDS_DATA_AVAILABLE_STATUS_ID);
 
   /* Serialize listener invocations -- it is somewhat sad to do this,
      but then it may also be unreasonable to expect the application to
@@ -251,8 +252,8 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
 
   /* Update status metrics. */
   dds_reader * const rd = (dds_reader *) entity;
-  switch (data->status) {
-    case DDS_REQUESTED_DEADLINE_MISSED_STATUS: {
+  switch (status_id) {
+    case DDS_REQUESTED_DEADLINE_MISSED_STATUS_ID: {
       struct dds_requested_deadline_missed_status * const st = vst = &rd->m_requested_deadline_missed_status;
       st->last_instance_handle = data->handle;
       st->total_count++;
@@ -261,7 +262,7 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
       reset[0] = &st->total_count_change;
       break;
     }
-    case DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS: {
+    case DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID: {
       struct dds_requested_incompatible_qos_status * const st = vst = &rd->m_requested_incompatible_qos_status;
       st->total_count++;
       st->total_count_change++;
@@ -270,7 +271,7 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
       reset[0] = &st->total_count_change;
       break;
     }
-    case DDS_SAMPLE_LOST_STATUS: {
+    case DDS_SAMPLE_LOST_STATUS_ID: {
       struct dds_sample_lost_status * const st = vst = &rd->m_sample_lost_status;
       st->total_count++;
       st->total_count_change++;
@@ -278,7 +279,7 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
       reset[0] = &st->total_count_change;
       break;
     }
-    case DDS_SAMPLE_REJECTED_STATUS: {
+    case DDS_SAMPLE_REJECTED_STATUS_ID: {
       struct dds_sample_rejected_status * const st = vst = &rd->m_sample_rejected_status;
       st->total_count++;
       st->total_count_change++;
@@ -288,7 +289,7 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
       reset[0] = &st->total_count_change;
       break;
     }
-    case DDS_LIVELINESS_CHANGED_STATUS: {
+    case DDS_LIVELINESS_CHANGED_STATUS_ID: {
       struct dds_liveliness_changed_status * const st = vst = &rd->m_liveliness_changed_status;
       if (data->add) {
         st->alive_count++;
@@ -307,7 +308,7 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
       reset[1] = &st->not_alive_count_change;
       break;
     }
-    case DDS_SUBSCRIPTION_MATCHED_STATUS: {
+    case DDS_SUBSCRIPTION_MATCHED_STATUS_ID: {
       struct dds_subscription_matched_status * const st = vst = &rd->m_subscription_matched_status;
       if (data->add) {
         st->total_count++;
@@ -324,14 +325,20 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
       reset[1] = &st->current_count_change;
       break;
     }
-    default:
+    case DDS_DATA_ON_READERS_STATUS_ID:
+    case DDS_DATA_AVAILABLE_STATUS_ID:
+    case DDS_INCONSISTENT_TOPIC_STATUS_ID:
+    case DDS_LIVELINESS_LOST_STATUS_ID:
+    case DDS_PUBLICATION_MATCHED_STATUS_ID:
+    case DDS_OFFERED_DEADLINE_MISSED_STATUS_ID:
+    case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID:
       assert (0);
   }
 
   if (invoke)
   {
     os_mutexUnlock (&entity->m_observers_lock);
-    dds_entity_invoke_listener(entity, data->status, vst);
+    dds_entity_invoke_listener(entity, status_id, vst);
     os_mutexLock (&entity->m_observers_lock);
     *reset[0] = 0;
     if (reset[1])
@@ -339,7 +346,7 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
   }
   else
   {
-    dds_entity_status_set (entity, data->status);
+    dds_entity_status_set (entity, 1u << status_id);
   }
 
   entity->m_cb_count--;

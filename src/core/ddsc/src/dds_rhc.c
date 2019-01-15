@@ -644,7 +644,7 @@ static bool add_sample
 
     if (rhc->reader && rhc->max_samples != DDS_LENGTH_UNLIMITED && rhc->n_vsamples >= (uint32_t) rhc->max_samples)
     {
-      cb_data->status = DDS_SAMPLE_REJECTED_STATUS;
+      cb_data->raw_status_id = (int) DDS_SAMPLE_REJECTED_STATUS_ID;
       cb_data->extra = DDS_REJECTED_BY_SAMPLES_LIMIT;
       cb_data->handle = inst->iid;
       cb_data->add = true;
@@ -655,7 +655,7 @@ static bool add_sample
 
     if (rhc->reader && rhc->max_samples_per_instance != DDS_LENGTH_UNLIMITED && inst->nvsamples >= (uint32_t) rhc->max_samples_per_instance)
     {
-      cb_data->status = DDS_SAMPLE_REJECTED_STATUS;
+      cb_data->raw_status_id = (int) DDS_SAMPLE_REJECTED_STATUS_ID;
       cb_data->extra = DDS_REJECTED_BY_SAMPLES_PER_INSTANCE_LIMIT;
       cb_data->handle = inst->iid;
       cb_data->add = true;
@@ -1108,7 +1108,7 @@ static rhc_store_result_t rhc_store_new_instance
 
   if (rhc->reader && rhc->max_instances != DDS_LENGTH_UNLIMITED && rhc->n_instances >= (uint32_t) rhc->max_instances)
   {
-    cb_data->status = DDS_SAMPLE_REJECTED_STATUS;
+    cb_data->raw_status_id = (int) DDS_SAMPLE_REJECTED_STATUS_ID;
     cb_data->extra = DDS_REJECTED_BY_INSTANCES_LIMIT;
     cb_data->handle = tk->m_iid;
     cb_data->add = true;
@@ -1177,7 +1177,7 @@ bool dds_rhc_store
 
   dummy_instance.iid = tk->m_iid;
   stored = RHC_FILTERED;
-  cb_data.status = 0;
+  cb_data.raw_status_id = -1;
 
   os_mutexLock (&rhc->lock);
 
@@ -1229,7 +1229,7 @@ bool dds_rhc_store
     }
     /* notify sample lost */
 
-    cb_data.status = DDS_SAMPLE_LOST_STATUS;
+    cb_data.raw_status_id = (int) DDS_SAMPLE_LOST_STATUS_ID;
     cb_data.extra = 0;
     cb_data.handle = 0;
     cb_data.add = true;
@@ -1411,7 +1411,7 @@ error_or_nochange:
 
   /* Make any reader status callback */
 
-  if (cb_data.status && rhc->reader && rhc->reader->m_entity.m_status_enable)
+  if (cb_data.raw_status_id >= 0 && rhc->reader && rhc->reader->m_entity.m_status_enable)
   {
     os_atomic_inc32 (&rhc->n_cbs);
     dds_reader_status_cb (&rhc->reader->m_entity, &cb_data);

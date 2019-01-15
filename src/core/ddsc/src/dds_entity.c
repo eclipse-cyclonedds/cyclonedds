@@ -424,71 +424,71 @@ dds_return_t dds_get_listener (dds_entity_t entity, dds_listener_t *listener)
   return ret;
 }
 
-void dds_entity_invoke_listener (const dds_entity *entity, uint32_t status, const void *vst)
+void dds_entity_invoke_listener (const dds_entity *entity, enum dds_status_id which, const void *vst)
 {
   struct dds_listener const * const lst = &entity->m_listener;
-  switch (status)
+  switch (which)
   {
-    case DDS_INCONSISTENT_TOPIC_STATUS: {
+    case DDS_INCONSISTENT_TOPIC_STATUS_ID: {
       struct dds_inconsistent_topic_status const * const st = vst;
       lst->on_inconsistent_topic (entity->m_hdl, *st, lst->on_inconsistent_topic_arg);
       break;
     }
-    case DDS_REQUESTED_DEADLINE_MISSED_STATUS: {
+    case DDS_REQUESTED_DEADLINE_MISSED_STATUS_ID: {
       struct dds_requested_deadline_missed_status const * const st = vst;
       lst->on_requested_deadline_missed (entity->m_hdl, *st, lst->on_requested_deadline_missed_arg);
       break;
     }
-    case DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS: {
+    case DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID: {
       struct dds_requested_incompatible_qos_status const * const st = vst;
       lst->on_requested_incompatible_qos (entity->m_hdl, *st, lst->on_requested_incompatible_qos_arg);
       break;
     }
-    case DDS_SAMPLE_LOST_STATUS: {
+    case DDS_SAMPLE_LOST_STATUS_ID: {
       struct dds_sample_lost_status const * const st = vst;
       lst->on_sample_lost (entity->m_hdl, *st, lst->on_sample_lost_arg);
       break;
     }
-    case DDS_SAMPLE_REJECTED_STATUS: {
+    case DDS_SAMPLE_REJECTED_STATUS_ID: {
       struct dds_sample_rejected_status const * const st = vst;
       lst->on_sample_rejected (entity->m_hdl, *st, lst->on_sample_rejected_arg);
       break;
     }
-    case DDS_LIVELINESS_CHANGED_STATUS: {
+    case DDS_LIVELINESS_CHANGED_STATUS_ID: {
       struct dds_liveliness_changed_status const * const st = vst;
       lst->on_liveliness_changed (entity->m_hdl, *st, lst->on_liveliness_changed_arg);
       break;
     }
-    case DDS_SUBSCRIPTION_MATCHED_STATUS: {
+    case DDS_SUBSCRIPTION_MATCHED_STATUS_ID: {
       struct dds_subscription_matched_status const * const st = vst;
       lst->on_subscription_matched (entity->m_hdl, *st, lst->on_subscription_matched_arg);
       break;
     }
-    case DDS_OFFERED_DEADLINE_MISSED_STATUS: {
+    case DDS_OFFERED_DEADLINE_MISSED_STATUS_ID: {
       struct dds_offered_deadline_missed_status const * const st = vst;
       lst->on_offered_deadline_missed (entity->m_hdl, *st, lst->on_offered_deadline_missed_arg);
       break;
     }
-    case DDS_LIVELINESS_LOST_STATUS: {
+    case DDS_LIVELINESS_LOST_STATUS_ID: {
       struct dds_liveliness_lost_status const * const st = vst;
       lst->on_liveliness_lost (entity->m_hdl, *st, lst->on_liveliness_lost_arg);
       break;
     }
-    case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS: {
+    case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID: {
       struct dds_offered_incompatible_qos_status const * const st = vst;
       lst->on_offered_incompatible_qos (entity->m_hdl, *st, lst->on_offered_incompatible_qos_arg);
       break;
     }
-    case DDS_PUBLICATION_MATCHED_STATUS: {
+    case DDS_PUBLICATION_MATCHED_STATUS_ID: {
       struct dds_publication_matched_status const * const st = vst;
       lst->on_publication_matched (entity->m_hdl, *st, lst->on_publication_matched_arg);
       break;
     }
-    case DDS_DATA_AVAILABLE_STATUS: {
+    case DDS_DATA_AVAILABLE_STATUS_ID: {
       lst->on_data_available (entity->m_hdl, lst->on_data_available_arg);
       break;
     }
-    case DDS_DATA_ON_READERS_STATUS: {
+    case DDS_DATA_ON_READERS_STATUS_ID: {
       lst->on_data_on_readers (entity->m_hdl, lst->on_data_on_readers_arg);
       break;
     }

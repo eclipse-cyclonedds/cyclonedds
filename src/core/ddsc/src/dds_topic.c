@@ -106,7 +106,7 @@ static void dds_topic_status_cb (struct dds_topic *tp)
   if (lst->on_inconsistent_topic)
   {
     os_mutexUnlock (&tp->m_entity.m_observers_lock);
-    dds_entity_invoke_listener(&tp->m_entity, DDS_INCONSISTENT_TOPIC_STATUS, &tp->m_inconsistent_topic_status);
+    dds_entity_invoke_listener(&tp->m_entity, DDS_INCONSISTENT_TOPIC_STATUS_ID, &tp->m_inconsistent_topic_status);
     os_mutexLock (&tp->m_entity.m_observers_lock);
     tp->m_inconsistent_topic_status.total_count_change = 0;
   }
