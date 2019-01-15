@@ -65,15 +65,9 @@ dds_writer_status_validate(
   then status conditions is not triggered.
 */
 
-static void
-dds_writer_status_cb(
-        void *ventity,
-        const status_cb_data_t *data)
+static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
 {
-    struct dds_entity * const entity = ventity;
-  dds_writer *wr;
-  dds__retcode_t rc;
-  void *metrics = NULL;
+  struct dds_entity * const entity = ventity;
 
   /* When data is NULL, it means that the writer is deleted. */
   if (data == NULL)
@@ -84,44 +78,52 @@ dds_writer_status_cb(
     return;
   }
 
-  if (dds_writer_lock (entity->m_hdl, &wr) != DDS_RETCODE_OK) {
-    /* There's a deletion or closing going on. */
-    return;
-  }
-  assert (&wr->m_entity == entity);
+  struct dds_listener const * const lst = &entity->m_listener;
+  bool invoke = false;
+  void *vst = NULL;
+  int32_t *reset[2] = { NULL, NULL };
+
+  os_mutexLock (&entity->m_observers_lock);
+  while (entity->m_cb_count > 0)
+    os_condWait (&entity->m_observers_cond, &entity->m_observers_lock);
+  entity->m_cb_count++;
 
   /* Reset the status for possible Listener call.
    * When a listener is not called, the status will be set (again). */
   dds_entity_status_reset (entity, data->status);
 
   /* Update status metrics. */
+  dds_writer * const wr = (dds_writer *) entity;
   switch (data->status)
   {
     case DDS_OFFERED_DEADLINE_MISSED_STATUS: {
-      struct dds_offered_deadline_missed_status * const st = &wr->m_offered_deadline_missed_status;
+      struct dds_offered_deadline_missed_status * const st = vst = &wr->m_offered_deadline_missed_status;
       st->total_count++;
       st->total_count_change++;
       st->last_instance_handle = data->handle;
-      metrics = st;
+      invoke = (lst->on_offered_deadline_missed != 0);
+      reset[0] = &st->total_count_change;
       break;
     }
     case DDS_LIVELINESS_LOST_STATUS: {
-      struct dds_liveliness_lost_status * const st = &wr->m_liveliness_lost_status;
+      struct dds_liveliness_lost_status * const st = vst = &wr->m_liveliness_lost_status;
       st->total_count++;
       st->total_count_change++;
-      metrics = st;
+      invoke = (lst->on_liveliness_lost != 0);
+      reset[0] = &st->total_count_change;
       break;
     }
     case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS: {
-      struct dds_offered_incompatible_qos_status * const st = &wr->m_offered_incompatible_qos_status;
+      struct dds_offered_incompatible_qos_status * const st = vst = &wr->m_offered_incompatible_qos_status;
       st->total_count++;
       st->total_count_change++;
       st->last_policy_id = data->extra;
-      metrics = st;
+      invoke = (lst->on_offered_incompatible_qos != 0);
+      reset[0] = &st->total_count_change;
       break;
     }
     case DDS_PUBLICATION_MATCHED_STATUS: {
-      struct dds_publication_matched_status * const st = &wr->m_publication_matched_status;
+      struct dds_publication_matched_status * const st = vst = &wr->m_publication_matched_status;
       if (data->add) {
         st->total_count++;
         st->total_count_change++;
@@ -131,69 +133,33 @@ dds_writer_status_cb(
         st->current_count--;
         st->current_count_change--;
       }
-      st->last_subscription_handle = data->handle;
-      metrics = st;
+      wr->m_publication_matched_status.last_subscription_handle = data->handle;
+      invoke = (lst->on_publication_matched != 0);
+      reset[0] = &st->total_count_change;
+      reset[1] = &st->current_count_change;
       break;
     }
     default:
       assert (0);
   }
 
-  /* The writer needs to be unlocked when propagating the (possible) listener
-   * call because the application should be able to call this writer within
-   * the callback function. */
-  dds_writer_unlock (wr);
-
-  /* Is anybody interested within the entity hierarchy through listeners? */
-  rc = dds_entity_listener_propagation (entity, entity, data->status, metrics, true);
-
-  if (rc == DDS_RETCODE_OK)
+  if (invoke)
   {
-    /* Event was eaten by a listener. */
-    if (dds_writer_lock (entity->m_hdl, &wr) == DDS_RETCODE_OK)
-    {
-      assert (&wr->m_entity == entity);
-
-      /* Reset the status. */
-      dds_entity_status_reset (entity, data->status);
-
-      /* Reset the change counts of the metrics. */
-      switch (data->status)
-      {
-        case DDS_OFFERED_DEADLINE_MISSED_STATUS:
-          wr->m_offered_deadline_missed_status.total_count_change = 0;
-          break;
-        case DDS_LIVELINESS_LOST_STATUS:
-          wr->m_liveliness_lost_status.total_count_change = 0;
-          break;
-        case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS:
-          wr->m_offered_incompatible_qos_status.total_count_change = 0;
-          break;
-        case DDS_PUBLICATION_MATCHED_STATUS:
-          wr->m_publication_matched_status.total_count_change = 0;
-          wr->m_publication_matched_status.current_count_change = 0;
-          break;
-        default:
-          assert (0);
-      }
-      dds_writer_unlock (wr);
-    }
-  }
-  else if (rc == DDS_RETCODE_NO_DATA)
-  {
-    /* Nobody was interested through a listener (NO_DATA == NO_CALL): set the status; consider it successful. */
-    dds_entity_status_set (entity, data->status);
-    /* Notify possible interested observers. */
-    dds_entity_status_signal (entity);
-  }
-  else if (rc == DDS_RETCODE_ALREADY_DELETED)
-  {
-    /* An entity up the hierarchy is being deleted; consider it successful. */
+    os_mutexUnlock (&entity->m_observers_lock);
+    dds_entity_invoke_listener(entity, data->status, vst);
+    os_mutexLock (&entity->m_observers_lock);
+    *reset[0] = 0;
+    if (reset[1])
+      *reset[1] = 0;
   }
   else
   {
-    /* Something went wrong up the hierarchy. */
+    dds_entity_status_set (entity, data->status);
   }
+
+  entity->m_cb_count--;
+  os_condBroadcast (&entity->m_observers_cond);
+  os_mutexUnlock (&entity->m_observers_lock);
 }
 
 static uint32_t

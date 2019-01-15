@@ -38,18 +38,6 @@ dds_waitset_swap(
     *dst = idx;
 }
 
-static void dds_waitset_signal_entity (dds_waitset *ws)
-{
-  dds_entity *e = &ws->m_entity;
-  /* When signaling any observers of us through the entity,
-   * we need to be unlocked. We still have claimed the related
-   * handle, so possible deletions will be delayed until we
-   * release it. */
-  os_mutexUnlock (&e->m_mutex);
-  dds_entity_status_signal (e);
-  os_mutexLock (&e->m_mutex);
-}
-
 static dds_return_t
 dds_waitset_wait_impl(
         _In_ dds_entity_t waitset,
@@ -472,33 +460,25 @@ dds_waitset_wait(
     return ret;
 }
 
-_Pre_satisfies_((waitset & DDS_ENTITY_KIND_MASK) == DDS_KIND_WAITSET)
-dds_return_t
-dds_waitset_set_trigger(
-        _In_ dds_entity_t waitset,
-        _In_ bool trigger)
+dds_return_t dds_waitset_set_trigger (dds_entity_t waitset, bool trigger)
 {
-    dds_waitset *ws;
-    dds__retcode_t rc;
-    dds_return_t ret = DDS_RETCODE_OK;
+  dds_waitset *ws;
+  dds__retcode_t rc;
 
-    /* Locking the waitset here will delay a possible deletion until it is
-     * unlocked. Even when the related mutex is unlocked when we want to send
-     * a signal. */
-    rc = dds_waitset_lock(waitset, &ws);
-    if (rc != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking waitset\n");
-        ret = DDS_ERRNO(rc);
-        goto fail;
-    }
-    if (trigger) {
-        dds_entity_status_set(&ws->m_entity, DDS_WAITSET_TRIGGER_STATUS);
-    } else {
-        dds_entity_status_reset(&ws->m_entity, DDS_WAITSET_TRIGGER_STATUS);
-    }
-    dds_waitset_signal_entity(ws);
-    dds_waitset_unlock(ws);
-fail:
-    return ret;
+  if ((rc = dds_waitset_lock (waitset, &ws)) != DDS_RETCODE_OK)
+    return DDS_ERRNO (rc);
+
+  os_mutexUnlock (&ws->m_entity.m_mutex);
+
+  os_mutexLock (&ws->m_entity.m_observers_lock);
+  if (trigger)
+    dds_entity_status_set (&ws->m_entity, DDS_WAITSET_TRIGGER_STATUS);
+  else
+    dds_entity_status_reset (&ws->m_entity, DDS_WAITSET_TRIGGER_STATUS);
+  os_mutexUnlock (&ws->m_entity.m_observers_lock);
+
+  os_mutexLock (&ws->m_entity.m_mutex);
+  dds_waitset_unlock (ws);
+  return DDS_RETCODE_OK;
 }
 

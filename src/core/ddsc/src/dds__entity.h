@@ -37,14 +37,6 @@ void
 dds_entity_add_ref_nolock(
         _In_ dds_entity *e);
 
-_Check_return_ dds__retcode_t
-dds_entity_listener_propagation(
-        _Inout_opt_ dds_entity *e,
-        _In_ dds_entity *src,
-        _In_ uint32_t status,
-        _In_opt_ void *metrics,
-        _In_ bool propagate);
-
 #define DEFINE_ENTITY_LOCK_UNLOCK(qualifier_, type_, kind_) \
   qualifier_ dds__retcode_t type_##_lock (dds_entity_t hdl, type_ **x) \
   { \
@@ -68,9 +60,7 @@ inline bool dds_entity_is_enabled (const dds_entity *e) {
   return (e->m_flags & DDS_ENTITY_ENABLED) != 0;
 }
 
-inline void dds_entity_status_set (dds_entity *e, uint32_t t) {
-  e->m_trigger |= e->m_status_enable & t;
-}
+void dds_entity_status_set (dds_entity *e, uint32_t t);
 
 inline void dds_entity_status_reset (dds_entity *e, uint32_t t) {
   e->m_trigger &= ~t;
@@ -88,11 +78,9 @@ inline dds_entity_kind_t dds_entity_kind_from_handle (dds_entity_t hdl) {
   return (hdl > 0) ? (dds_entity_kind_t) (hdl & DDS_ENTITY_KIND_MASK) : DDS_KIND_DONTCARE;
 }
 
-/* The mutex needs to be unlocked when calling this because the entity can be called
- * within the signal callback from other contexts. That shouldn't deadlock. */
-void
-dds_entity_status_signal(
-        _In_ dds_entity *e);
+void dds_entity_status_signal (dds_entity *e);
+
+void dds_entity_invoke_listener (const dds_entity *entity, uint32_t status, const void *vst);
 
 _Check_return_ dds__retcode_t
 dds_valid_hdl(

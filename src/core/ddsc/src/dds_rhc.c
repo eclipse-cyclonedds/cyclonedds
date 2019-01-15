@@ -146,8 +146,6 @@
    "signal_conditions" after releasing the RHC lock.
 */
 
-static const status_cb_data_t dds_rhc_data_avail_cb_data = { DDS_DATA_AVAILABLE_STATUS, 0, 0, true };
-
 /* FIXME: tkmap should perhaps retain data with timestamp set to invalid
    An invalid timestamp is (logically) unordered with respect to valid
    timestamps, and that would mean BY_SOURCE order could be respected
@@ -1389,7 +1387,7 @@ bool dds_rhc_store
     if (rhc->reader && (rhc->reader->m_entity.m_status_enable & DDS_DATA_AVAILABLE_STATUS))
     {
       os_atomic_inc32 (&rhc->n_cbs);
-      dds_reader_status_cb (&rhc->reader->m_entity, &dds_rhc_data_avail_cb_data);
+      dds_reader_data_available_cb (rhc->reader);
       os_atomic_dec32 (&rhc->n_cbs);
     }
   }

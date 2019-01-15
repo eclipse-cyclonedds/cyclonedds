@@ -19,11 +19,8 @@
 extern "C" {
 #endif
 
-/*
- * Listener API (internal & external) are present in
- * dds__types.h
- * ddsc/dds_public_listener.h
- */
+void dds_override_inherited_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src);
+void dds_inherit_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src);
 
 #if defined (__cplusplus)
 }

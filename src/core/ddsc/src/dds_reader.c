@@ -162,181 +162,189 @@ dds_reader_status_validate(
                      DDS_RETCODE_OK;
 }
 
-void
-dds_reader_status_cb(
-        void *ventity,
-        const status_cb_data_t *data)
+void dds_reader_data_available_cb (struct dds_reader *rd)
 {
-    struct dds_entity * const entity = ventity;
-    dds_reader *rd;
-    dds__retcode_t rc;
-    void *metrics = NULL;
+  /* DATA_AVAILABLE is special in two ways: firstly, it should first try
+     DATA_ON_READERS on the line of ancestors, and if not consumed set the
+     status on the subscriber; secondly it is the only one for which
+     overhead really matters.  Otherwise, it is pretty much like
+     dds_reader_status_cb. */
+  struct dds_listener const * const lst = &rd->m_entity.m_listener;
+  dds_entity * const sub = rd->m_entity.m_parent;
 
-    /* When data is NULL, it means that the DDSI reader is deleted. */
-    if (data == NULL) {
-        /* Release the initial claim that was done during the create. This
-         * will indicate that further API deletion is now possible. */
-        ut_handle_release(entity->m_hdl, ((dds_entity*)entity)->m_hdllink);
-        return;
+  os_mutexLock (&rd->m_entity.m_observers_lock);
+  while (rd->m_entity.m_cb_count > 0)
+    os_condWait (&rd->m_entity.m_observers_cond, &rd->m_entity.m_observers_lock);
+  rd->m_entity.m_cb_count++;
+
+  if (lst->on_data_on_readers)
+  {
+    os_mutexUnlock (&rd->m_entity.m_observers_lock);
+
+    os_mutexLock (&sub->m_observers_lock);
+    while (sub->m_cb_count > 0)
+      os_condWait (&sub->m_observers_cond, &sub->m_observers_lock);
+    sub->m_cb_count++;
+    os_mutexUnlock (&sub->m_observers_lock);
+
+    lst->on_data_on_readers (sub->m_hdl, lst->on_data_on_readers_arg);
+
+    os_mutexLock (&rd->m_entity.m_observers_lock);
+    os_mutexLock (&sub->m_observers_lock);
+    sub->m_cb_count--;
+    os_condBroadcast (&sub->m_observers_cond);
+    os_mutexUnlock (&sub->m_observers_lock);
+  }
+  else if (rd->m_entity.m_listener.on_data_available)
+  {
+    os_mutexUnlock (&rd->m_entity.m_observers_lock);
+    lst->on_data_available (rd->m_entity.m_hdl, lst->on_data_available_arg);
+    os_mutexLock (&rd->m_entity.m_observers_lock);
+  }
+  else
+  {
+    dds_entity_status_set (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
+
+    os_mutexLock (&sub->m_observers_lock);
+    dds_entity_status_set (sub, DDS_DATA_ON_READERS_STATUS);
+    os_mutexUnlock (&sub->m_observers_lock);
+  }
+
+  rd->m_entity.m_cb_count--;
+  os_condBroadcast (&rd->m_entity.m_observers_cond);
+  os_mutexUnlock (&rd->m_entity.m_observers_lock);
+}
+
+void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
+{
+  struct dds_entity * const entity = ventity;
+
+  /* When data is NULL, it means that the DDSI reader is deleted. */
+  if (data == NULL)
+  {
+    /* Release the initial claim that was done during the create. This
+     * will indicate that further API deletion is now possible. */
+    ut_handle_release (entity->m_hdl, entity->m_hdllink);
+    return;
+  }
+
+  struct dds_listener const * const lst = &entity->m_listener;
+  bool invoke = false;
+  void *vst = NULL;
+  int32_t *reset[2] = { NULL, NULL };
+
+  /* DATA_AVAILABLE is handled by dds_reader_data_available_cb */
+  assert (data->status != DDS_DATA_AVAILABLE_STATUS);
+
+  /* Serialize listener invocations -- it is somewhat sad to do this,
+     but then it may also be unreasonable to expect the application to
+     handle concurrent invocations of a single listener.  The benefit
+     here is that it means the counters and "change" counters
+     can safely be incremented and/or reset while releasing
+     m_observers_lock for the duration of the listener call itself,
+     and that similarly the listener function and argument pointers
+     are stable */
+  os_mutexLock (&entity->m_observers_lock);
+  while (entity->m_cb_count > 0)
+    os_condWait (&entity->m_observers_cond, &entity->m_observers_lock);
+  entity->m_cb_count++;
+
+  /* Update status metrics. */
+  dds_reader * const rd = (dds_reader *) entity;
+  switch (data->status) {
+    case DDS_REQUESTED_DEADLINE_MISSED_STATUS: {
+      struct dds_requested_deadline_missed_status * const st = vst = &rd->m_requested_deadline_missed_status;
+      st->last_instance_handle = data->handle;
+      st->total_count++;
+      st->total_count_change++;
+      invoke = (lst->on_requested_deadline_missed != 0);
+      reset[0] = &st->total_count_change;
+      break;
     }
-
-    if (dds_reader_lock(entity->m_hdl, &rd) != DDS_RETCODE_OK) {
-        return;
+    case DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS: {
+      struct dds_requested_incompatible_qos_status * const st = vst = &rd->m_requested_incompatible_qos_status;
+      st->total_count++;
+      st->total_count_change++;
+      st->last_policy_id = data->extra;
+      invoke = (lst->on_requested_incompatible_qos != 0);
+      reset[0] = &st->total_count_change;
+      break;
     }
-    assert(&rd->m_entity == entity);
-
-    /* Reset the status for possible Listener call.
-     * When a listener is not called, the status will be set (again). */
-    dds_entity_status_reset(entity, data->status);
-
-    /* Update status metrics. */
-    switch (data->status) {
-        case DDS_REQUESTED_DEADLINE_MISSED_STATUS: {
-            rd->m_requested_deadline_missed_status.total_count++;
-            rd->m_requested_deadline_missed_status.total_count_change++;
-            rd->m_requested_deadline_missed_status.last_instance_handle = data->handle;
-            metrics = &rd->m_requested_deadline_missed_status;
-            break;
-        }
-        case DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS: {
-            rd->m_requested_incompatible_qos_status.total_count++;
-            rd->m_requested_incompatible_qos_status.total_count_change++;
-            rd->m_requested_incompatible_qos_status.last_policy_id = data->extra;
-            metrics = &rd->m_requested_incompatible_qos_status;
-            break;
-        }
-        case DDS_SAMPLE_LOST_STATUS: {
-            rd->m_sample_lost_status.total_count++;
-            rd->m_sample_lost_status.total_count_change++;
-            metrics = &rd->m_sample_lost_status;
-            break;
-        }
-        case DDS_SAMPLE_REJECTED_STATUS: {
-            rd->m_sample_rejected_status.total_count++;
-            rd->m_sample_rejected_status.total_count_change++;
-            rd->m_sample_rejected_status.last_reason = data->extra;
-            rd->m_sample_rejected_status.last_instance_handle = data->handle;
-            metrics = &rd->m_sample_rejected_status;
-            break;
-        }
-        case DDS_DATA_AVAILABLE_STATUS: {
-            metrics = NULL;
-            break;
-        }
-        case DDS_LIVELINESS_CHANGED_STATUS: {
-            if (data->add) {
-                rd->m_liveliness_changed_status.alive_count++;
-                rd->m_liveliness_changed_status.alive_count_change++;
-                if (rd->m_liveliness_changed_status.not_alive_count > 0) {
-                    rd->m_liveliness_changed_status.not_alive_count--;
-                }
-            } else {
-                rd->m_liveliness_changed_status.alive_count--;
-                rd->m_liveliness_changed_status.not_alive_count++;
-                rd->m_liveliness_changed_status.not_alive_count_change++;
-            }
-            rd->m_liveliness_changed_status.last_publication_handle = data->handle;
-            metrics = &rd->m_liveliness_changed_status;
-            break;
-        }
-        case DDS_SUBSCRIPTION_MATCHED_STATUS: {
-            if (data->add) {
-                rd->m_subscription_matched_status.total_count++;
-                rd->m_subscription_matched_status.total_count_change++;
-                rd->m_subscription_matched_status.current_count++;
-                rd->m_subscription_matched_status.current_count_change++;
-            } else {
-                rd->m_subscription_matched_status.current_count--;
-                rd->m_subscription_matched_status.current_count_change--;
-            }
-            rd->m_subscription_matched_status.last_publication_handle = data->handle;
-            metrics = &rd->m_subscription_matched_status;
-            break;
-        }
-        default: assert (0);
+    case DDS_SAMPLE_LOST_STATUS: {
+      struct dds_sample_lost_status * const st = vst = &rd->m_sample_lost_status;
+      st->total_count++;
+      st->total_count_change++;
+      invoke = (lst->on_sample_lost != 0);
+      reset[0] = &st->total_count_change;
+      break;
     }
-
-    /* The reader needs to be unlocked when propagating the (possible) listener
-     * call because the application should be able to call this reader within
-     * the callback function. */
-    dds_reader_unlock(rd);
-
-    /* DATA_AVAILABLE is handled differently to normal status changes. */
-    if (data->status == DDS_DATA_AVAILABLE_STATUS) {
-        dds_entity *parent = rd->m_entity.m_parent;
-        /* First, try to ship it off to its parent(s) DDS_DATA_ON_READERS_STATUS. */
-        rc = dds_entity_listener_propagation(parent, parent, DDS_DATA_ON_READERS_STATUS, NULL, true);
-
-        if (rc == DDS_RETCODE_NO_DATA) {
-            /* No parent was interested (NO_DATA == NO_CALL).
-             * What about myself with DDS_DATA_AVAILABLE_STATUS? */
-            rc = dds_entity_listener_propagation(entity, entity, DDS_DATA_AVAILABLE_STATUS, NULL, false);
-        }
-
-        if ( rc == DDS_RETCODE_NO_DATA ) {
-            /* Nobody was interested (NO_DATA == NO_CALL). Set the status on the subscriber. */
-            dds_entity_status_set(parent, DDS_DATA_ON_READERS_STATUS);
-            /* Notify possible interested observers of the subscriber. */
-            dds_entity_status_signal(parent);
-        }
-    } else {
-        /* Is anybody interested within the entity hierarchy through listeners? */
-        rc = dds_entity_listener_propagation(entity, entity, data->status, metrics, true);
+    case DDS_SAMPLE_REJECTED_STATUS: {
+      struct dds_sample_rejected_status * const st = vst = &rd->m_sample_rejected_status;
+      st->total_count++;
+      st->total_count_change++;
+      st->last_reason = data->extra;
+      st->last_instance_handle = data->handle;
+      invoke = (lst->on_sample_rejected != 0);
+      reset[0] = &st->total_count_change;
+      break;
     }
-
-    if (rc == DDS_RETCODE_OK) {
-        /* Event was eaten by a listener. */
-        if (dds_reader_lock(entity->m_hdl, &rd) == DDS_RETCODE_OK) {
-            assert(&rd->m_entity == entity);
-
-            /* Reset the change counts of the metrics. */
-            switch (data->status) {
-                case DDS_REQUESTED_DEADLINE_MISSED_STATUS: {
-                    rd->m_requested_deadline_missed_status.total_count_change = 0;
-                    break;
-                }
-                case DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS: {
-                    rd->m_requested_incompatible_qos_status.total_count_change = 0;
-                    break;
-                }
-                case DDS_SAMPLE_LOST_STATUS: {
-                    rd->m_sample_lost_status.total_count_change = 0;
-                    break;
-                }
-                case DDS_SAMPLE_REJECTED_STATUS: {
-                    rd->m_sample_rejected_status.total_count_change = 0;
-                    break;
-                }
-                case DDS_DATA_AVAILABLE_STATUS: {
-                    /* Nothing to reset. */;
-                    break;
-                }
-                case DDS_LIVELINESS_CHANGED_STATUS: {
-                    rd->m_liveliness_changed_status.alive_count_change = 0;
-                    rd->m_liveliness_changed_status.not_alive_count_change = 0;
-                    break;
-                }
-                case DDS_SUBSCRIPTION_MATCHED_STATUS: {
-                    rd->m_subscription_matched_status.total_count_change = 0;
-                    rd->m_subscription_matched_status.current_count_change = 0;
-                    break;
-                }
-                default: assert (0);
-            }
-            dds_reader_unlock(rd);
-        } else {
-            /* There's a deletion or closing going on. */
+    case DDS_LIVELINESS_CHANGED_STATUS: {
+      struct dds_liveliness_changed_status * const st = vst = &rd->m_liveliness_changed_status;
+      if (data->add) {
+        st->alive_count++;
+        st->alive_count_change++;
+        if (st->not_alive_count > 0) {
+          st->not_alive_count--;
         }
-    } else if (rc == DDS_RETCODE_NO_DATA) {
-        /* Nobody was interested through a listener (NO_DATA == NO_CALL): set the status, consider successful. */
-        dds_entity_status_set(entity, data->status);
-        /* Notify possible interested observers. */
-        dds_entity_status_signal(entity);
-    } else if (rc == DDS_RETCODE_ALREADY_DELETED) {
-        /* An entity up the hierarchy is being deleted, consider successful. */
-    } else {
-        /* Something went wrong up the hierarchy. */
+      } else {
+        st->alive_count--;
+        st->not_alive_count++;
+        st->not_alive_count_change++;
+      }
+      st->last_publication_handle = data->handle;
+      invoke = (lst->on_liveliness_changed != 0);
+      reset[0] = &st->alive_count_change;
+      reset[1] = &st->not_alive_count_change;
+      break;
     }
+    case DDS_SUBSCRIPTION_MATCHED_STATUS: {
+      struct dds_subscription_matched_status * const st = vst = &rd->m_subscription_matched_status;
+      if (data->add) {
+        st->total_count++;
+        st->total_count_change++;
+        st->current_count++;
+        st->current_count_change++;
+      } else {
+        st->current_count--;
+        st->current_count_change--;
+      }
+      st->last_publication_handle = data->handle;
+      invoke = (lst->on_subscription_matched != 0);
+      reset[0] = &st->total_count_change;
+      reset[1] = &st->current_count_change;
+      break;
+    }
+    default:
+      assert (0);
+  }
+
+  if (invoke)
+  {
+    os_mutexUnlock (&entity->m_observers_lock);
+    dds_entity_invoke_listener(entity, data->status, vst);
+    os_mutexLock (&entity->m_observers_lock);
+    *reset[0] = 0;
+    if (reset[1])
+      *reset[1] = 0;
+  }
+  else
+  {
+    dds_entity_status_set (entity, data->status);
+  }
+
+  entity->m_cb_count--;
+  os_condBroadcast (&entity->m_observers_cond);
+  os_mutexUnlock (&entity->m_observers_lock);
 }
 
 _Pre_satisfies_(((participant_or_subscriber & DDS_ENTITY_KIND_MASK) == DDS_KIND_SUBSCRIBER ) ||\
