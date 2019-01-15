@@ -27,6 +27,7 @@
 #define INVALID_PORT (~0u)
 
 typedef struct ddsi_tran_factory * ddsi_tcp_factory_g_t;
+static os_atomic_uint32_t ddsi_tcp_init_g = OS_ATOMIC_UINT32_INIT(0);
 
 #ifdef DDSI_INCLUDE_SSL
 struct ddsi_ssl_plugins ddsi_tcp_ssl_plugin =
@@ -1027,14 +1028,17 @@ static void ddsi_tcp_release_listener (ddsi_tran_listener_t listener)
 
 static void ddsi_tcp_release_factory (void)
 {
-  ut_avlFree (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, ddsi_tcp_node_free);
-  os_mutexDestroy (&ddsi_tcp_cache_lock_g);
+  if (os_atomic_dec32_nv (&ddsi_tcp_init_g) == 0) {
+    ut_avlFree (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, ddsi_tcp_node_free);
+    os_mutexDestroy (&ddsi_tcp_cache_lock_g);
 #ifdef DDSI_INCLUDE_SSL
-  if (ddsi_tcp_ssl_plugin.fini)
-  {
-    (ddsi_tcp_ssl_plugin.fini) ();
-  }
+    if (ddsi_tcp_ssl_plugin.fini)
+    {
+      (ddsi_tcp_ssl_plugin.fini) ();
+    }
 #endif
+    DDS_LOG(DDS_LC_INFO | DDS_LC_CONFIG, "tcp de-initialized\n");
+  }
 }
 
 static enum ddsi_locator_from_string_result ddsi_tcp_address_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str)
@@ -1063,10 +1067,9 @@ static enum ddsi_nearby_address_result ddsi_tcp_is_nearby_address (ddsi_tran_fac
 
 int ddsi_tcp_init (void)
 {
-  static bool init = false;
-  if (!init)
+  if (os_atomic_inc32_nv (&ddsi_tcp_init_g) == 1)
   {
-    init = true;
+    memset (&ddsi_tcp_factory_g, 0, sizeof (ddsi_tcp_factory_g));
     ddsi_tcp_factory_g.m_kind = NN_LOCATOR_KIND_TCPv4;
     ddsi_tcp_factory_g.m_typename = "tcp";
     ddsi_tcp_factory_g.m_stream = true;
