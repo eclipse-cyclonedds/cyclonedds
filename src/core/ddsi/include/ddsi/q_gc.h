@@ -43,6 +43,7 @@ struct gcreq {
 };
 
 struct gcreq_queue *gcreq_queue_new (void);
+void gcreq_queue_drain (struct gcreq_queue *q);
 void gcreq_queue_free (struct gcreq_queue *q);
 
 struct gcreq *gcreq_new (struct gcreq_queue *gcreq_queue, gcreq_cb_t cb);

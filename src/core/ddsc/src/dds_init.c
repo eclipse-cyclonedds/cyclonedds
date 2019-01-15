@@ -18,6 +18,7 @@
 #include "dds__domain.h"
 #include "dds__err.h"
 #include "dds__builtin.h"
+#include "dds__whc_builtintopic.h"
 #include "ddsi/ddsi_iid.h"
 #include "ddsi/ddsi_tkmap.h"
 #include "ddsi/ddsi_serdata.h"
@@ -106,8 +107,6 @@ dds_init(dds_domainid_t domain)
    * main configured domain id is. */
   dds_global.m_default_domain = config.domainId.value;
 
-  dds__builtin_init();
-
   if (rtps_config_prep(dds_cfgst) != 0)
   {
     DDS_ERROR("Failed to configure RTPS\n");
@@ -137,6 +136,8 @@ dds_init(dds_domainid_t domain)
     ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     goto fail_rtps_init;
   }
+
+  dds__builtin_init ();
 
   if (gv.servicelease && nn_servicelease_start_renewing(gv.servicelease) < 0)
   {
@@ -172,7 +173,8 @@ skip:
 fail_servicelease_start:
   if (gv.servicelease)
     nn_servicelease_stop_renewing (gv.servicelease);
-  rtps_term ();
+  rtps_stop ();
+  rtps_fini ();
 fail_rtps_init:
   if (gv.servicelease)
   {
@@ -182,7 +184,6 @@ fail_rtps_init:
 fail_servicelease_new:
   thread_states_fini();
 fail_rtps_config:
-  dds__builtin_fini();
 fail_config_domainid:
   dds_global.m_default_domain = DDS_DOMAIN_DEFAULT;
   config_fini (dds_cfgst);
@@ -206,11 +207,11 @@ extern void dds_fini (void)
   dds_global.m_init_count--;
   if (dds_global.m_init_count == 0)
   {
-    dds__builtin_fini();
-
     if (gv.servicelease)
       nn_servicelease_stop_renewing (gv.servicelease);
-    rtps_term ();
+    rtps_stop ();
+    dds__builtin_fini ();
+    rtps_fini ();
     if (gv.servicelease)
       nn_servicelease_free (gv.servicelease);
     gv.servicelease = NULL;
@@ -247,7 +248,9 @@ void ddsi_plugin_init (void)
   ddsi_plugin.init_fn = dds__init_plugin;
   ddsi_plugin.fini_fn = dds__fini_plugin;
 
-  ddsi_plugin.builtin_write = dds__builtin_write;
+  ddsi_plugin.builtintopic_is_visible = dds__builtin_is_visible;
+  ddsi_plugin.builtintopic_get_tkmap_entry = dds__builtin_get_tkmap_entry;
+  ddsi_plugin.builtintopic_write = dds__builtin_write;
 
   ddsi_plugin.rhc_plugin.rhc_free_fn = dds_rhc_free;
   ddsi_plugin.rhc_plugin.rhc_fini_fn = dds_rhc_fini;

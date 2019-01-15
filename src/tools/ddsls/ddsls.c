@@ -192,22 +192,22 @@ void qp_duration_qos (const dds_qos_t *q, FILE *fp, const char *what, bool (*qge
 
 void qp_lifespan (const dds_qos_t *q, FILE *fp)
 {
-  qp_duration_qos (q, fp, "lifespan: duration = ", dds_qget_lifespan);
+  qp_duration_qos (q, fp, "lifespan: duration", dds_qget_lifespan);
 }
 
 void qp_deadline (const dds_qos_t *q, FILE *fp)
 {
-  qp_duration_qos (q, fp, "deadline: period = ", dds_qget_deadline);
+  qp_duration_qos (q, fp, "deadline: period", dds_qget_deadline);
 }
 
 void qp_latency_budget (const dds_qos_t *q, FILE *fp)
 {
-  qp_duration_qos (q, fp, "latency_budget: duration = ", dds_qget_latency_budget);
+  qp_duration_qos (q, fp, "latency_budget: duration", dds_qget_latency_budget);
 }
 
 void qp_time_based_filter (const dds_qos_t *q, FILE *fp)
 {
-  qp_duration_qos (q, fp, "time_based_filter: minimum_separation = ", dds_qget_time_based_filter);
+  qp_duration_qos (q, fp, "time_based_filter: minimum_separation", dds_qget_time_based_filter);
 }
 
 void qp_ownership (const dds_qos_t *q, FILE *fp)

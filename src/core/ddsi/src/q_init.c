@@ -54,7 +54,6 @@
 #include "ddsi/ddsi_raweth.h"
 #include "ddsi/ddsi_mcgroup.h"
 #include "ddsi/ddsi_serdata_default.h"
-#include "ddsi/ddsi_serdata_builtin.h"
 
 #include "ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
@@ -772,18 +771,12 @@ static void make_special_topics (void)
 {
   gv.plist_topic = make_special_topic (PLATFORM_IS_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE, &ddsi_serdata_ops_plist);
   gv.rawcdr_topic = make_special_topic (PLATFORM_IS_LITTLE_ENDIAN ? CDR_LE : CDR_BE, &ddsi_serdata_ops_rawcdr);
-  gv.builtin_participant_topic = new_sertopic_builtin (DSBT_PARTICIPANT, "DCPSParticipant", "org::eclipse::cyclonedds::builtin::DCPSParticipant");
-  gv.builtin_reader_topic = new_sertopic_builtin (DSBT_READER, "DCPSSubscription", "org::eclipse::cyclonedds::builtin::DCPSSubscription");
-  gv.builtin_writer_topic = new_sertopic_builtin (DSBT_WRITER, "DCPSPublication", "org::eclipse::cyclonedds::builtin::DCPSPublication");
 }
 
 static void free_special_topics (void)
 {
   ddsi_sertopic_unref (gv.plist_topic);
   ddsi_sertopic_unref (gv.rawcdr_topic);
-  ddsi_sertopic_unref (gv.builtin_participant_topic);
-  ddsi_sertopic_unref (gv.builtin_reader_topic);
-  ddsi_sertopic_unref (gv.builtin_writer_topic);
 }
 
 static int setup_and_start_recv_threads (void)
@@ -1408,7 +1401,7 @@ static void builtins_dqueue_ready_cb (void *varg)
   os_mutexUnlock (&arg->lock);
 }
 
-void rtps_term (void)
+void rtps_stop (void)
 {
   struct thread_state1 *self = lookup_thread_state ();
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
@@ -1527,17 +1520,26 @@ void rtps_term (void)
   }
 
   /* Wait until all participants are really gone => by then we can be
-     certain that no new GC requests will be added */
+     certain that no new GC requests will be added, short of what we
+     do here */
   os_mutexLock (&gv.participant_set_lock);
   while (gv.nparticipants > 0)
     os_condWait (&gv.participant_set_cond, &gv.participant_set_lock);
   os_mutexUnlock (&gv.participant_set_lock);
 
+  /* Wait until no more GC requests are outstanding -- not really
+     necessary, but it allows us to claim the stack is quiescent
+     at this point */
+  gcreq_queue_drain (gv.gcreq_queue);
+
   /* Clean up privileged_pp -- it must be NULL now (all participants
      are gone), but the lock still needs to be destroyed */
   assert (gv.privileged_pp == NULL);
   os_mutexDestroy (&gv.privileged_pp_lock);
+}
 
+void rtps_fini (void)
+{
   /* Shut down the GC system -- no new requests will be added */
   gcreq_queue_free (gv.gcreq_queue);
 

@@ -64,8 +64,13 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
   msghdr.msg_namelen = srclen;
   msghdr.msg_iov = &msg_iov;
   msghdr.msg_iovlen = 1;
+#if !defined(__sun) || defined(_XPG4_2)
   msghdr.msg_control = NULL;
   msghdr.msg_controllen = 0;
+#else
+  msghdr.msg_accrights = NULL;
+  msghdr.msg_accrightslen = 0;
+#endif
 
   do {
     ret = recvmsg(((ddsi_udp_conn_t) conn)->m_sock, &msghdr, 0);
@@ -117,8 +122,13 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
   set_msghdr_iov (&msg, (os_iovec_t *) iov, niov);
   msg.msg_name = &dstaddr;
   msg.msg_namelen = (socklen_t) os_sockaddr_get_size((os_sockaddr *) &dstaddr);
+#if !defined(__sun) || defined(_XPG4_2)
   msg.msg_control = NULL;
   msg.msg_controllen = 0;
+#else
+  msg.msg_accrights = NULL;
+  msg.msg_accrightslen = 0;
+#endif
 #if SYSDEPS_MSGHDR_FLAGS
   msg.msg_flags = (int) flags;
 #else

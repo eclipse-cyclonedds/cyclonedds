@@ -74,8 +74,6 @@ extern "C" {
     typedef size_t os_iov_len_t;
 
 #if defined(__sun) && !defined(_XPG4_2)
-#define msg_accrights msg_control
-#define msg_accrightslen msg_controllen
 #define OS_MSGHDR_FLAGS 0
 #else
 #define OS_MSGHDR_FLAGS 1

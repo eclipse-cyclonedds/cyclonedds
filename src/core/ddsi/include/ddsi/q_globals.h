@@ -281,11 +281,6 @@ struct q_globals {
   struct ddsi_sertopic *plist_topic; /* used for all discovery data */
   struct ddsi_sertopic *rawcdr_topic; /* used for participant message data */
 
-  /* Sertopics for built-in topics -- FIXME: these really have little to do with topics, but everything with topic types, in other words, they are the type supports in DDS ... so a bit of refactoring is required */
-  struct ddsi_sertopic *builtin_participant_topic;
-  struct ddsi_sertopic *builtin_reader_topic;
-  struct ddsi_sertopic *builtin_writer_topic;
-
   /* Network ID needed by v_groupWrite -- FIXME: might as well pass it
      to the receive thread instead of making it global (and that would
      remove the need to include kernelModule.h) */

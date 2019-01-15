@@ -52,7 +52,7 @@ struct rhc;
  * Obviously, it is encouraged to use condition variables and such. But
  * sometimes it wouldn't make that much of a difference and taking the
  * easy route is somewhat pragmatic. */
-#define DDS_HEADBANG_TIMEOUT_MS (10)
+#define DDS_HEADBANG_TIMEOUT (DDS_MSECS (10))
 
 typedef bool (*dds_querycondition_filter_with_ctx_fn) (const void * sample, const void *ctx);
 

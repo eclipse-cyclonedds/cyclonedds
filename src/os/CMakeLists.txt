@@ -95,7 +95,7 @@ endif()
 
 if(${CMAKE_C_COMPILER_ID} STREQUAL "SunPro")
   target_link_libraries(OSAPI INTERFACE -lsocket -lnsl)
-  target_compile_definitions(OSAPI PRIVATE -KPIC)
+  add_definitions(-KPIC)
 endif()
 
 # Determine if platform is big or little endian.

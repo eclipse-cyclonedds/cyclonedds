@@ -13,49 +13,31 @@
 #define _DDS_BUILTIN_H_
 
 #include "ddsi/q_time.h"
-#include "ddsi/ddsi_serdata_builtin.h"
-
 
 #if defined (__cplusplus)
 extern "C"
 {
 #endif
 
-
 /* Get actual topic in related participant related to topic 'id'. */
-_Must_inspect_result_ dds_entity_t
-dds__get_builtin_topic(
-    _In_ dds_entity_t e,
-    _In_ dds_entity_t topic);
-
-/* Global publisher singleton (publishes only locally). */
-_Must_inspect_result_ dds_entity_t
-dds__get_builtin_publisher(
-    void);
+dds_entity_t dds__get_builtin_topic ( dds_entity_t e, dds_entity_t topic);
 
 /* Subscriber singleton within related participant. */
-_Must_inspect_result_ dds_entity_t
-dds__get_builtin_subscriber(
-    _In_ dds_entity_t e);
+dds_entity_t dds__get_builtin_subscriber(dds_entity_t e);
 
 /* Checks whether the reader QoS is valid for use with built-in topic TOPIC */
 bool dds__validate_builtin_reader_qos(dds_entity_t topic, const dds_qos_t *qos);
 
-/* Initialization and finalize functions. */
-void
-dds__builtin_init(
-        void);
+struct entity_common;
+struct nn_guid;
+struct ddsi_tkmap_instance;
 
-void
-dds__builtin_fini(
-        void);
-
-void
-dds__builtin_write(
-    _In_ enum ddsi_sertopic_builtin_type type,
-    _In_ const nn_guid_t *guid,
-    _In_ nn_wctime_t timestamp,
-    _In_ bool alive);
+void dds__builtin_init (void);
+void dds__builtin_fini (void);
+bool dds__builtin_is_visible (nn_entityid_t entityid, bool onlylocal, nn_vendorid_t vendorid);
+struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct nn_guid *guid);
+struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, nn_wctime_t timestamp, bool alive);
+void dds__builtin_write (const struct entity_common *e, nn_wctime_t timestamp, bool alive);
 
 #if defined (__cplusplus)
 }

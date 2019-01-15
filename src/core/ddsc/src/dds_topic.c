@@ -316,8 +316,6 @@ static bool dupdef_qos_ok(const dds_qos_t *qos, const struct ddsi_sertopic *st)
 
 static bool sertopic_equivalent (const struct ddsi_sertopic *a, const struct ddsi_sertopic *b)
 {
-  printf ("sertopic_equivalent %p %p (%s %s; %u %u; %p %p; %p %p)\n", (void*)a, (void*)b, a->name_typename, b->name_typename, a->serdata_basehash, b->serdata_basehash, (void *)a->ops, (void *)b->ops, (void *)a->serdata_ops, (void *)b->serdata_ops);
-
   if (strcmp (a->name_typename, b->name_typename) != 0)
     return false;
   if (a->serdata_basehash != b->serdata_basehash)

@@ -1777,7 +1777,7 @@ dds_write_flush(
  * @returns A dds_return_t indicating success or failure.
  */
 _Pre_satisfies_((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER)
-DDS_EXPORT int
+DDS_EXPORT dds_return_t
 dds_writecdr(
         dds_entity_t writer,
         struct ddsi_serdata *serdata);

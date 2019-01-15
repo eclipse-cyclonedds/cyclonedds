@@ -20,10 +20,8 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_mcgroup.c
     ddsi_serdata.c
     ddsi_serdata_default.c
-    ddsi_serdata_builtin.c
     ddsi_sertopic.c
     ddsi_sertopic_default.c
-    ddsi_sertopic_builtin.c
     ddsi_rhc_plugin.c
     ddsi_iid.c
     ddsi_tkmap.c
@@ -76,7 +74,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/ddsi"
     ddsi_serdata.h
     ddsi_sertopic.h
     ddsi_serdata_default.h
-    ddsi_serdata_builtin.h
     ddsi_rhc_plugin.h
     ddsi_iid.h
     ddsi_tkmap.h
