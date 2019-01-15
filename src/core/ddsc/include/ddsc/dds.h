@@ -685,7 +685,7 @@ dds_set_qos(
  */
 /* TODO: Link to (generic) Listener and status information. */
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
-DDS_EXPORT _Check_return_ dds_return_t
+DDS_EXPORT dds_return_t
 dds_get_listener(
         _In_  dds_entity_t entity,
         _Out_ dds_listener_t * listener);
@@ -744,7 +744,7 @@ dds_get_listener(
  */
 /* TODO: Link to (generic) Listener and status information. */
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
-DDS_EXPORT _Check_return_ dds_return_t
+DDS_EXPORT dds_return_t
 dds_set_listener(
         _In_     dds_entity_t entity,
         _In_opt_ const dds_listener_t * listener);

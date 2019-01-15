@@ -480,12 +480,7 @@ dds_get_parent(
     return hdl;
 }
 
-
-
-_Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
-_Check_return_ dds_entity_t
-dds_get_participant (
-        _In_ dds_entity_t entity)
+dds_return_t dds_get_listener (dds_entity_t entity, dds_listener_t *listener)
 {
     dds_entity *e;
     dds__retcode_t rc;
@@ -663,13 +658,7 @@ dds_get_listener(
     return ret;
 }
 
-
-
-_Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
-_Check_return_ dds_return_t
-dds_set_listener(
-        _In_     dds_entity_t entity,
-        _In_opt_ const dds_listener_t * listener)
+dds_return_t dds_set_listener (dds_entity_t entity, const dds_listener_t *listener)
 {
     dds_entity *e;
     dds__retcode_t rc;
