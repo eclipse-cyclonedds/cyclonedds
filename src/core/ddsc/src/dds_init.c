@@ -44,7 +44,7 @@ dds_init(dds_domainid_t domain)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   const char * uri;
-  char progname[50];
+  char progname[50] = "UNKNOWN"; /* FIXME: once retrieving process names is back in */
   char hostname[64];
   uint32_t len;
   os_mutex *init_mutex;
