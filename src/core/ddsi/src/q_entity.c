@@ -248,16 +248,12 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e)
     case EK_READER:
     case EK_WRITER:
       return (nn_vendorid_t) MY_VENDOR_ID;
-      break;
     case EK_PROXY_PARTICIPANT:
       return ((const struct proxy_participant *) e)->vendor;
-      break;
     case EK_PROXY_READER:
       return ((const struct proxy_reader *) e)->c.vendor;
-      break;
     case EK_PROXY_WRITER:
       return ((const struct proxy_writer *) e)->c.vendor;
-      break;
   }
   assert (0);
   return (nn_vendorid_t) NN_VENDORID_UNKNOWN;

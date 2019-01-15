@@ -2308,7 +2308,6 @@ int MAIN(int argc, char *argv[]) {
                             qpublisher[nqpublisher++] = q;
                             qsubscriber[nqsubscriber++] = q;
                             break;
-                            break;
                         default:
                             assert(0);
                         }
