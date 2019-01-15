@@ -1831,14 +1831,6 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   {
     m->in_sync = PRMSS_SYNC;
   }
-  else if (last_deliv_seq == 0)
-  {
-    /* proxy-writer hasn't seen any data yet, in which case this reader is in sync with the proxy writer (i.e., no reader-specific reorder buffer needed), but still should generate a notification when all historical data has been received, except for the built-in ones (for now anyway, it may turn out to be useful for determining discovery status). */
-    m->in_sync = PRMSS_TLCATCHUP;
-    m->u.not_in_sync.end_of_tl_seq = MAX_SEQ_NUMBER;
-    if (m->in_sync != PRMSS_SYNC)
-      DDS_LOG(DDS_LC_DISCOVERY, " - tlcatchup");
-  }
   else if (!config.conservative_builtin_reader_startup && is_builtin_entityid (rd->e.guid.entityid, ownvendorid) && !ut_avlIsEmpty (&pwr->readers))
   {
     /* builtins really don't care about multiple copies */
@@ -1848,8 +1840,16 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   {
     /* normal transient-local, reader is behind proxy writer */
     m->in_sync = PRMSS_OUT_OF_SYNC;
-    m->u.not_in_sync.end_of_tl_seq = pwr->last_seq;
-    m->u.not_in_sync.end_of_out_of_sync_seq = last_deliv_seq;
+    if (last_deliv_seq == 0)
+    {
+      m->u.not_in_sync.end_of_out_of_sync_seq = MAX_SEQ_NUMBER;
+      m->u.not_in_sync.end_of_tl_seq = MAX_SEQ_NUMBER;
+    }
+    else
+    {
+      m->u.not_in_sync.end_of_tl_seq = pwr->last_seq;
+      m->u.not_in_sync.end_of_out_of_sync_seq = last_deliv_seq;
+    }
     DDS_LOG(DDS_LC_DISCOVERY, " - out-of-sync %"PRId64, m->u.not_in_sync.end_of_out_of_sync_seq);
   }
   if (m->in_sync != PRMSS_SYNC)

@@ -1210,6 +1210,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
      the range of available sequence numbers is is interpreted here as
      a gap [1,a). See also handle_Gap.  */
   const seqno_t firstseq = fromSN (msg->firstSN);
+  const seqno_t lastseq = fromSN (msg->lastSN);
   struct handle_Heartbeat_helper_arg arg;
   struct proxy_writer *pwr;
   nn_guid_t src, dst;
@@ -1219,8 +1220,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->readerId;
 
-  DDS_TRACE("HEARTBEAT(%s#%d:%"PRId64"..%"PRId64" ", msg->smhdr.flags & HEARTBEAT_FLAG_FINAL ? "F" : "",
-            msg->count, firstseq, fromSN (msg->lastSN));
+  DDS_TRACE("HEARTBEAT(%s#%d:%"PRId64"..%"PRId64" ", msg->smhdr.flags & HEARTBEAT_FLAG_FINAL ? "F" : "", msg->count, firstseq, lastseq);
 
   if (!rst->forme)
   {
@@ -1242,14 +1242,33 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
 
   os_mutexLock (&pwr->e.lock);
 
-  pwr->have_seen_heartbeat = 1;
-  if (fromSN (msg->lastSN) > pwr->last_seq)
+  if (!pwr->have_seen_heartbeat)
   {
-    pwr->last_seq = fromSN (msg->lastSN);
+    struct nn_rdata *gap;
+    struct nn_rsample_chain sc;
+    int refc_adjust = 0;
+    nn_reorder_result_t res;
+
+    nn_defrag_notegap (pwr->defrag, 1, lastseq + 1);
+    gap = nn_rdata_newgap (rmsg);
+    if ((res = nn_reorder_gap (&sc, pwr->reorder, gap, 1, lastseq + 1, &refc_adjust)) > 0)
+    {
+      if (pwr->deliver_synchronously)
+        deliver_user_data_synchronously (&sc);
+      else
+        nn_dqueue_enqueue (pwr->dqueue, &sc, res);
+    }
+    nn_fragchain_adjust_refcount (gap, refc_adjust);
+    pwr->have_seen_heartbeat = 1;
+  }
+
+  if (lastseq > pwr->last_seq)
+  {
+    pwr->last_seq = lastseq;
     pwr->last_fragnum = ~0u;
     pwr->last_fragnum_reset = 0;
   }
-  else if (pwr->last_fragnum != ~0u && fromSN (msg->lastSN) == pwr->last_seq)
+  else if (pwr->last_fragnum != ~0u && lastseq == pwr->last_seq)
   {
     if (!pwr->last_fragnum_reset)
       pwr->last_fragnum_reset = 1;
@@ -1297,7 +1316,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
         }
         if (wn->u.not_in_sync.end_of_tl_seq == MAX_SEQ_NUMBER)
         {
-          wn->u.not_in_sync.end_of_tl_seq = fromSN (msg->lastSN);
+          wn->u.not_in_sync.end_of_out_of_sync_seq = wn->u.not_in_sync.end_of_tl_seq = fromSN (msg->lastSN);
           DDS_TRACE(" end-of-tl-seq(rd %x:%x:%x:%x #%"PRId64")", PGUID(wn->rd_guid), wn->u.not_in_sync.end_of_tl_seq);
         }
         maybe_set_reader_in_sync (pwr, wn, last_deliv_seq);
