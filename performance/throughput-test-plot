@@ -1,0 +1,14 @@
+#!/bin/bash
+
+`dirname $0`/throughput-test-extract > data.txt
+gnuplot <<\EOF
+set term png size 1024,768
+set output "throughput-polling.png"
+set st d l
+set title "Throughput (polling with 1ms sleeps)"
+set ylabel "M sample/s"
+set y2label "Mbps"
+set y2tics
+set xlabel "payload size [bytes]"
+p "data.txt" i 5 u 1:($2/1e6) ti "rate [M sample/s]", "" i 5 u 1:3 axes x1y2 ti "app bandwidth [Mbps]", "" i 5 u 1:4 axes x1y2 ti "GbE bandwidth [Mbps]"
+EOF
