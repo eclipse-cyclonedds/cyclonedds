@@ -363,10 +363,13 @@ dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
   if ((rc = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
     return DDS_ERRNO (rc);
 
-  if (e->m_deriver.set_qos)
-    ret = dds_copy_qos (qos, e->m_qos);
-  else
+  if (e->m_deriver.set_qos == 0)
     ret = DDS_ERRNO(DDS_RETCODE_ILLEGAL_OPERATION);
+  else
+  {
+    dds_reset_qos (qos);
+    ret = dds_copy_qos (qos, e->m_qos);
+  }
   dds_entity_unlock(e);
   return ret;
 }
