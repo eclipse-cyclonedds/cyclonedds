@@ -21,7 +21,24 @@ Assuming that **git** is also available on your machine then, simply do:
     $ make install
 
 At this point you are ready to use **cyclonedds** for your next DDS project!
- 
+
+
+## Performance
+
+Median small message throughput measured using the Throughput example between two Intel(R) Xeon(R)
+CPU E3-1270 V2 @ 3.50GHz (that's 2012 hardware ...) running Linux 3.8.13-rt14.20.el6rt.x86_64,
+connected via a quiet GbE and when using gcc-6.2.0 for a RelWithDebInfo build is:
+
+![Throughput](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/throughput-polling.png)
+
+This is with the subscriber in polling mode. Listener mode is marginally slower; using a waitset the
+message rate for minimal size messages drops to 600k sample/s in synchronous delivery mode and about
+750k samples/s in asynchronous delivery mode. The configuration is an out-of-the-box configuration,
+tweaked only to increase the high-water mark for the reliability window on the writer side. For
+details, see the scripts in the ``performance`` directory and the [data](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/throughput.txt).
+
+There is some data on roundtrip latency below.
+
 
 ## Examples
 Now that you have built and installed **cyclonecdds** it is time to experiment with some examples.
@@ -63,7 +80,7 @@ On another terminal, start the application that will be sending the ping.
        10     28075       17       16       23       46      28075        8        6      28075        1        0
 
            
-The number above were measure on Mac running a 4,2 GHz Intel Core i7 on December 12th 2018. From these number you can see how the roundtrip is incredibly stable and the minimal latency is now down to  17 micro-seconds (used to be 25 micro-seconds) on this HW.
+The number above were measure on Mac running a 4,2 GHz Intel Core i7 on December 12th 2018. From these number you can see how the roundtrip is incredibly stable and the minimal latency is now down to 17 micro-seconds (used to be 25 micro-seconds) on this HW.
 
 ## Documentation
 The Cyclone DDS documentation is available [here](http://cdds.io/docs).
