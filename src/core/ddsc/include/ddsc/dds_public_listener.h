@@ -44,16 +44,9 @@ typedef void (*dds_on_requested_incompatible_qos_fn) (dds_entity_t reader, const
 typedef void (*dds_on_publication_matched_fn) (dds_entity_t writer, const dds_publication_matched_status_t  status, void* arg);
 typedef void (*dds_on_subscription_matched_fn) (dds_entity_t reader, const dds_subscription_matched_status_t  status, void* arg);
 
-#if 0
-/* TODO: Why use (*dds_on_any_fn) (); and DDS_LUNSET? Why not just set the callbacks to NULL? */
-typedef void (*dds_on_any_fn) (); /**< Empty parameter list on purpose; should be assignable without cast to all of the above. @todo check with an actual compiler; I'm a sloppy compiler */
-#define DDS_LUNSET ((dds_on_any_fn)1) /**< Callback indicating a callback isn't set */
-#else
-#define DDS_LUNSET (NULL)
-#endif
-
-struct c_listener;
-typedef struct c_listener dds_listener_t;
+#define DDS_LUNSET 0
+struct dds_listener;
+typedef struct dds_listener dds_listener_t;
 
 /**
  * @brief Allocate memory and initializes to default values (::DDS_LUNSET) of a listener
@@ -103,7 +96,6 @@ DDS_DEPRECATED_EXPORT void dds_listener_copy (_Out_ dds_listener_t * __restrict 
  */
 DDS_EXPORT void dds_merge_listener (_Inout_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src);
 DDS_DEPRECATED_EXPORT void dds_listener_merge (_Inout_ dds_listener_t * __restrict dst, _In_ const dds_listener_t * __restrict src);
-
 
 /************************************************************************************************
  *  Setters

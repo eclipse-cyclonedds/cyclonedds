@@ -27,7 +27,7 @@ const ut_avlTreedef_t dds_domaintree_def = UT_AVL_TREEDEF_INITIALIZER
 
 dds_domain * dds_domain_find_locked (dds_domainid_t id)
 {
-  return (dds_domain*) ut_avlLookup (&dds_domaintree_def, &dds_global.m_domains, &id);
+  return ut_avlLookup (&dds_domaintree_def, &dds_global.m_domains, &id);
 }
 
 dds_domain * dds_domain_create (dds_domainid_t id)

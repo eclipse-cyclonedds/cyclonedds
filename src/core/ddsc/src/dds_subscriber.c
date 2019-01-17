@@ -97,28 +97,6 @@ dds_subscriber_status_validate(
     return ret;
 }
 
-/*
-  Set boolean on readers that indicates state of DATA_ON_READERS
-  status on parent subscriber
-*/
-static dds_return_t
-dds_subscriber_status_propagate(
-        dds_entity *sub,
-        uint32_t mask,
-        bool set)
-{
-    if (mask & DDS_DATA_ON_READERS_STATUS) {
-        dds_entity *iter = sub->m_children;
-        while (iter) {
-            os_mutexLock (&iter->m_mutex);
-            ((dds_reader*) iter)->m_data_on_readers = set;
-            os_mutexUnlock (&iter->m_mutex);
-            iter = iter->m_next;
-        }
-    }
-    return DDS_RETCODE_OK;
-}
-
 _Requires_exclusive_lock_held_(participant)
 _Check_return_ dds_entity_t
 dds__create_subscriber_l(
@@ -149,7 +127,6 @@ dds__create_subscriber_l(
     subscriber = dds_entity_init(&sub->m_entity, participant, DDS_KIND_SUBSCRIBER, new_qos, listener, DDS_SUBSCRIBER_STATUS_MASK);
     sub->m_entity.m_deriver.set_qos = dds_subscriber_qos_set;
     sub->m_entity.m_deriver.validate_status = dds_subscriber_status_validate;
-    sub->m_entity.m_deriver.propagate_status = dds_subscriber_status_propagate;
     sub->m_entity.m_deriver.get_instance_hdl = dds_subscriber_instance_hdl;
 
     return subscriber;

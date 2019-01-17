@@ -13,6 +13,7 @@
 #define _DDS_READER_H_
 
 #include "dds__types.h"
+#include "dds__entity.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -20,7 +21,9 @@ extern "C" {
 
 struct status_cb_data;
 
-void dds_reader_status_cb (void * entity, const struct status_cb_data * data);
+void dds_reader_status_cb (void *entity, const struct status_cb_data * data);
+
+void dds_reader_data_available_cb (struct dds_reader *entity);
 
 /*
   dds_reader_lock_samples: Returns number of samples in read cache and locks the
@@ -40,8 +43,7 @@ struct nn_rsample_info;
 struct nn_rdata;
 DDS_EXPORT void dds_reader_ddsi2direct (dds_entity_t entity, void (*cb) (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, void *arg), void *cbarg);
 
-#define dds_reader_lock(hdl, obj) dds_entity_lock(hdl, DDS_KIND_READER, (dds_entity**)obj)
-#define dds_reader_unlock(obj)    dds_entity_unlock((dds_entity*)obj);
+DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_reader, DDS_KIND_READER)
 
 #if defined (__cplusplus)
 }

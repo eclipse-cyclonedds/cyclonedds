@@ -248,16 +248,12 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e)
     case EK_READER:
     case EK_WRITER:
       return (nn_vendorid_t) MY_VENDOR_ID;
-      break;
     case EK_PROXY_PARTICIPANT:
       return ((const struct proxy_participant *) e)->vendor;
-      break;
     case EK_PROXY_READER:
       return ((const struct proxy_reader *) e)->c.vendor;
-      break;
     case EK_PROXY_WRITER:
       return ((const struct proxy_writer *) e)->c.vendor;
-      break;
   }
   assert (0);
   return (nn_vendorid_t) NN_VENDORID_UNKNOWN;
@@ -1350,7 +1346,7 @@ static void writer_drop_connection (const struct nn_guid * wr_guid, const struct
     if (m != NULL && wr->status_cb)
     {
       status_cb_data_t data;
-      data.status = DDS_PUBLICATION_MATCHED_STATUS;
+      data.raw_status_id = (int) DDS_PUBLICATION_MATCHED_STATUS_ID;
       data.add = false;
       data.handle = prd->e.iid;
       (wr->status_cb) (wr->status_cb_entity, &data);
@@ -1378,7 +1374,7 @@ static void writer_drop_local_connection (const struct nn_guid *wr_guid, struct 
     if (m != NULL && wr->status_cb)
     {
       status_cb_data_t data;
-      data.status = DDS_PUBLICATION_MATCHED_STATUS;
+      data.raw_status_id = (int) DDS_PUBLICATION_MATCHED_STATUS_ID;
       data.add = false;
       data.handle = rd->e.iid;
       (wr->status_cb) (wr->status_cb_entity, &data);
@@ -1412,10 +1408,10 @@ static void reader_drop_connection (const struct nn_guid *rd_guid, const struct 
       data.add = false;
       data.handle = pwr->e.iid;
 
-      data.status = DDS_LIVELINESS_CHANGED_STATUS;
+      data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
       (rd->status_cb) (rd->status_cb_entity, &data);
 
-      data.status = DDS_SUBSCRIPTION_MATCHED_STATUS;
+      data.raw_status_id = (int) DDS_SUBSCRIPTION_MATCHED_STATUS_ID;
       (rd->status_cb) (rd->status_cb_entity, &data);
     }
   }
@@ -1447,10 +1443,10 @@ static void reader_drop_local_connection (const struct nn_guid *rd_guid, const s
       data.add = false;
       data.handle = wr->e.iid;
 
-      data.status = DDS_LIVELINESS_CHANGED_STATUS;
+      data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
       (rd->status_cb) (rd->status_cb_entity, &data);
 
-      data.status = DDS_SUBSCRIPTION_MATCHED_STATUS;
+      data.raw_status_id = (int) DDS_SUBSCRIPTION_MATCHED_STATUS_ID;
       (rd->status_cb) (rd->status_cb_entity, &data);
     }
   }
@@ -1587,7 +1583,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
     if (wr->status_cb)
     {
       status_cb_data_t data;
-      data.status = DDS_PUBLICATION_MATCHED_STATUS;
+      data.raw_status_id = (int) DDS_PUBLICATION_MATCHED_STATUS_ID;
       data.add = true;
       data.handle = prd->e.iid;
       (wr->status_cb) (wr->status_cb_entity, &data);
@@ -1667,7 +1663,7 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
   if (wr->status_cb)
   {
     status_cb_data_t data;
-    data.status = DDS_PUBLICATION_MATCHED_STATUS;
+    data.raw_status_id = (int) DDS_PUBLICATION_MATCHED_STATUS_ID;
     data.add = true;
     data.handle = rd->e.iid;
     (wr->status_cb) (wr->status_cb_entity, &data);
@@ -1730,7 +1726,7 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
     if (rd->status_cb)
     {
       status_cb_data_t data;
-      data.status = DDS_SUBSCRIPTION_MATCHED_STATUS;
+      data.raw_status_id = (int) DDS_SUBSCRIPTION_MATCHED_STATUS_ID;
       data.add = true;
       data.handle = pwr->e.iid;
       (rd->status_cb) (rd->status_cb_entity, &data);
@@ -1765,10 +1761,10 @@ static void reader_add_local_connection (struct reader *rd, struct writer *wr)
       data.add = true;
       data.handle = wr->e.iid;
 
-      data.status = DDS_LIVELINESS_CHANGED_STATUS;
+      data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
       (rd->status_cb) (rd->status_cb_entity, &data);
 
-      data.status = DDS_SUBSCRIPTION_MATCHED_STATUS;
+      data.raw_status_id = (int) DDS_SUBSCRIPTION_MATCHED_STATUS_ID;
       (rd->status_cb) (rd->status_cb_entity, &data);
     }
   }
@@ -1875,7 +1871,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   if (rd->status_cb)
   {
     status_cb_data_t data;
-    data.status = DDS_LIVELINESS_CHANGED_STATUS;
+    data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
     data.add = true;
     data.handle = pwr->e.iid;
     (rd->status_cb) (rd->status_cb_entity, &data);
@@ -1997,7 +1993,7 @@ static void writer_qos_mismatch (struct writer * wr, uint32_t reason)
     if (wr->status_cb)
     {
       status_cb_data_t data;
-      data.status = DDS_OFFERED_INCOMPATIBLE_QOS_STATUS;
+      data.raw_status_id = (int) DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID;
       data.extra = reason;
       (wr->status_cb) (wr->status_cb_entity, &data);
     }
@@ -2018,7 +2014,7 @@ static void reader_qos_mismatch (struct reader * rd, uint32_t reason)
     if (rd->status_cb)
     {
       status_cb_data_t data;
-      data.status = DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS;
+      data.raw_status_id = (int) DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID;
       data.extra = reason;
       (rd->status_cb) (rd->status_cb_entity, &data);
     }

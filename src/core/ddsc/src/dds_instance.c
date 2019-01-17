@@ -81,21 +81,22 @@ dds_instance_remove(
     }
 }
 
-static const dds_topic*
-dds_instance_info(
-        _In_ dds_entity *e)
+static const dds_topic *dds_instance_info (dds_entity *e)
 {
-    const dds_topic *topic = NULL;
-
-    assert (e);
-    assert ((dds_entity_kind(e->m_hdl) == DDS_KIND_READER) || (dds_entity_kind(e->m_hdl) == DDS_KIND_WRITER));
-
-    if (dds_entity_kind(e->m_hdl) == DDS_KIND_READER) {
-        topic = ((dds_reader*)e)->m_topic;
-    } else {
-        topic = ((dds_writer*)e)->m_topic;
-    }
-    return topic;
+  const dds_topic *topic;
+  switch (dds_entity_kind (e))
+  {
+    case DDS_KIND_READER:
+      topic = ((dds_reader*) e)->m_topic;
+      break;
+    case DDS_KIND_WRITER:
+      topic = ((dds_writer*) e)->m_topic;
+      break;
+    default:
+      assert (0);
+      topic = NULL;
+  }
+  return topic;
 }
 
 static const dds_topic * dds_instance_info_by_hdl (dds_entity_t e)
@@ -127,7 +128,7 @@ dds_register_instance(
     struct thread_state1 * const thr = lookup_thread_state();
     const bool asleep = !vtime_awake_p(thr->vtime);
     struct ddsi_tkmap_instance * inst;
-    dds_entity *wr;
+    dds_writer *wr;
     dds_return_t ret;
     dds__retcode_t rc;
 
@@ -141,7 +142,7 @@ dds_register_instance(
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
-    rc = dds_entity_lock(writer, DDS_KIND_WRITER, &wr);
+    rc = dds_writer_lock(writer, &wr);
     if (rc != DDS_RETCODE_OK) {
         DDS_ERROR("Error occurred on locking writer\n");
         ret = DDS_ERRNO(rc);
@@ -150,7 +151,7 @@ dds_register_instance(
     if (asleep) {
         thread_state_awake(thr);
     }
-    inst = dds_instance_find (((dds_writer*) wr)->m_topic, data, true);
+    inst = dds_instance_find (wr->m_topic, data, true);
     if(inst != NULL){
         *handle = inst->m_iid;
         ret = DDS_RETCODE_OK;
@@ -161,7 +162,7 @@ dds_register_instance(
     if (asleep) {
         thread_state_asleep(thr);
     }
-    dds_entity_unlock(wr);
+    dds_writer_unlock(wr);
 err:
     return ret;
 }
@@ -197,8 +198,7 @@ dds_unregister_instance_ts(
     dds__retcode_t rc;
     bool autodispose = true;
     dds_write_action action = DDS_WR_ACTION_UNREGISTER;
-    void * sample = (void*) data;
-    dds_entity *wr;
+    dds_writer *wr;
 
     if (data == NULL){
         DDS_ERROR("Argument data is NULL\n");
@@ -210,28 +210,28 @@ dds_unregister_instance_ts(
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
-    rc = dds_entity_lock(writer, DDS_KIND_WRITER, &wr);
+    rc = dds_writer_lock(writer, &wr);
     if (rc != DDS_RETCODE_OK) {
         DDS_ERROR("Error occurred on locking writer\n");
         ret =  DDS_ERRNO(rc);
         goto err;
     }
 
-    if (wr->m_qos) {
-        dds_qget_writer_data_lifecycle (wr->m_qos, &autodispose);
+    if (wr->m_entity.m_qos) {
+        dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
     }
     if (asleep) {
         thread_state_awake(thr);
     }
     if (autodispose) {
-        dds_instance_remove (((dds_writer*) wr)->m_topic, data, DDS_HANDLE_NIL);
+        dds_instance_remove (wr->m_topic, data, DDS_HANDLE_NIL);
         action |= DDS_WR_DISPOSE_BIT;
     }
-    ret = dds_write_impl ((dds_writer*)wr, sample, timestamp, action);
+    ret = dds_write_impl (wr, data, timestamp, action);
     if (asleep) {
         thread_state_asleep(thr);
     }
-    dds_entity_unlock(wr);
+    dds_writer_unlock(wr);
 err:
     return ret;
 }
@@ -249,21 +249,21 @@ dds_unregister_instance_ih_ts(
     dds__retcode_t rc;
     bool autodispose = true;
     dds_write_action action = DDS_WR_ACTION_UNREGISTER;
-    dds_entity *wr;
+    dds_writer *wr;
     struct ddsi_tkmap_instance *tk;
 
-    rc = dds_entity_lock(writer, DDS_KIND_WRITER, &wr);
+    rc = dds_writer_lock(writer, &wr);
     if (rc != DDS_RETCODE_OK) {
         DDS_ERROR("Error occurred on locking writer\n");
         ret = DDS_ERRNO(rc);
         goto err;
     }
 
-    if (wr->m_qos) {
-        dds_qget_writer_data_lifecycle (wr->m_qos, &autodispose);
+    if (wr->m_entity.m_qos) {
+        dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
     }
     if (autodispose) {
-        dds_instance_remove (((dds_writer*) wr)->m_topic, NULL, handle);
+        dds_instance_remove (wr->m_topic, NULL, handle);
         action |= DDS_WR_DISPOSE_BIT;
     }
 
@@ -272,11 +272,11 @@ dds_unregister_instance_ih_ts(
     }
     tk = ddsi_tkmap_find_by_id (gv.m_tkmap, handle);
     if (tk) {
-        struct ddsi_sertopic *tp = ((dds_writer*) wr)->m_topic->m_stopic;
+        struct ddsi_sertopic *tp = wr->m_topic->m_stopic;
         void *sample = ddsi_sertopic_alloc_sample (tp);
         ddsi_serdata_topicless_to_sample (tp, tk->m_sample, sample, NULL, NULL);
         ddsi_tkmap_instance_unref (tk);
-        ret = dds_write_impl ((dds_writer*)wr, sample, timestamp, action);
+        ret = dds_write_impl (wr, sample, timestamp, action);
         ddsi_sertopic_free_sample (tp, sample, DDS_FREE_ALL);
     } else {
         DDS_ERROR("No instance related with the provided handle is found\n");
@@ -285,7 +285,7 @@ dds_unregister_instance_ih_ts(
     if (asleep) {
         thread_state_asleep(thr);
     }
-    dds_entity_unlock(wr);
+    dds_writer_unlock(wr);
 err:
     return ret;
 }
@@ -392,7 +392,7 @@ dds_dispose_ih_ts(
             thread_state_awake(thr);
         }
         if ((tk = ddsi_tkmap_find_by_id (gv.m_tkmap, handle)) != NULL) {
-            struct ddsi_sertopic *tp = ((dds_writer*) wr)->m_topic->m_stopic;
+            struct ddsi_sertopic *tp = wr->m_topic->m_stopic;
             void *sample = ddsi_sertopic_alloc_sample (tp);
             ddsi_serdata_topicless_to_sample (tp, tk->m_sample, sample, NULL, NULL);
             ddsi_tkmap_instance_unref (tk);

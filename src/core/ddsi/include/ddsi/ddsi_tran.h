@@ -178,27 +178,6 @@ struct ddsi_tran_qos
   int m_diffserv;
 };
 
-/* Functions and pseudo functions (macro wrappers) */
-
-void ddsi_factory_conn_init (ddsi_tran_factory_t, ddsi_tran_conn_t);
-
-#define ddsi_tran_type(b) (((ddsi_tran_base_t) (b))->m_trantype)
-#define ddsi_tran_port(b) (((ddsi_tran_base_t) (b))->m_port)
-int ddsi_tran_locator (ddsi_tran_base_t base, nn_locator_t * loc);
-void ddsi_tran_free (ddsi_tran_base_t base);
-void ddsi_tran_free_qos (ddsi_tran_qos_t qos);
-ddsi_tran_qos_t ddsi_tran_create_qos (void);
-os_socket ddsi_tran_handle (ddsi_tran_base_t base);
-
-#define ddsi_factory_create_listener(f,p,q) (((f)->m_create_listener_fn) ((p), (q)))
-#define ddsi_factory_supports(f,k) (((f)->m_supports_fn) (k))
-
-ddsi_tran_conn_t ddsi_factory_create_conn
-(
-  ddsi_tran_factory_t factory,
-  uint32_t port,
-  ddsi_tran_qos_t qos
-);
 void ddsi_tran_factories_fini (void);
 void ddsi_factory_add (ddsi_tran_factory_t factory);
 void ddsi_factory_free (ddsi_tran_factory_t factory);
@@ -206,24 +185,56 @@ ddsi_tran_factory_t ddsi_factory_find (const char * type);
 ddsi_tran_factory_t ddsi_factory_find_supported_kind (int32_t kind);
 void ddsi_factory_conn_init (ddsi_tran_factory_t factory, ddsi_tran_conn_t conn);
 
-#define ddsi_conn_handle(c) (ddsi_tran_handle (&(c)->m_base))
-#define ddsi_conn_locator(c,l) (ddsi_tran_locator (&(c)->m_base,(l)))
-OSAPI_EXPORT ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const os_iovec_t *iov, uint32_t flags);
-ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, nn_locator_t *srcloc);
+inline bool ddsi_factory_supports (ddsi_tran_factory_t factory, int32_t kind) {
+  return factory->m_supports_fn (kind);
+}
+inline ddsi_tran_conn_t ddsi_factory_create_conn (ddsi_tran_factory_t factory, uint32_t port, ddsi_tran_qos_t qos) {
+  return factory->m_create_conn_fn (port, qos);
+}
+inline ddsi_tran_listener_t ddsi_factory_create_listener (ddsi_tran_factory_t factory, int port, ddsi_tran_qos_t qos) {
+  return factory->m_create_listener_fn (port, qos);
+}
+
+void ddsi_tran_free (ddsi_tran_base_t base);
+void ddsi_tran_free_qos (ddsi_tran_qos_t qos);
+ddsi_tran_qos_t ddsi_tran_create_qos (void);
+inline os_socket ddsi_tran_handle (ddsi_tran_base_t base) {
+  return base->m_handle_fn (base);
+}
+inline int ddsi_tran_locator (ddsi_tran_base_t base, nn_locator_t * loc) {
+  return base->m_locator_fn (base, loc);
+}
+
+inline os_socket ddsi_conn_handle (ddsi_tran_conn_t conn) {
+  return conn->m_base.m_handle_fn (&conn->m_base);
+}
+inline uint32_t ddsi_conn_type (ddsi_tran_conn_t conn) {
+  return conn->m_base.m_trantype;
+}
+inline uint32_t ddsi_conn_port (ddsi_tran_conn_t conn) {
+  return conn->m_base.m_port;
+}
+inline int ddsi_conn_locator (ddsi_tran_conn_t conn, nn_locator_t * loc) {
+  return conn->m_base.m_locator_fn (&conn->m_base, loc);
+}
+inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const os_iovec_t *iov, uint32_t flags) {
+  return conn->m_closed ? -1 : (conn->m_write_fn) (conn, dst, niov, iov, flags);
+}
+inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, nn_locator_t *srcloc) {
+  return conn->m_closed ? -1 : conn->m_read_fn (conn, buf, len, srcloc);
+}
 bool ddsi_conn_peer_locator (ddsi_tran_conn_t conn, nn_locator_t * loc);
 void ddsi_conn_disable_multiplexing (ddsi_tran_conn_t conn);
 void ddsi_conn_add_ref (ddsi_tran_conn_t conn);
 void ddsi_conn_free (ddsi_tran_conn_t conn);
-
 int ddsi_conn_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcip, const nn_locator_t *mcip, const struct nn_interface *interf);
 int ddsi_conn_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcip, const nn_locator_t *mcip, const struct nn_interface *interf);
-
 void ddsi_conn_transfer_group_membership (ddsi_tran_conn_t conn, ddsi_tran_conn_t newconn);
 int ddsi_conn_rejoin_transferred_mcgroups (ddsi_tran_conn_t conn);
-
 int ddsi_is_mcaddr (const nn_locator_t *loc);
 int ddsi_is_ssm_mcaddr (const nn_locator_t *loc);
 enum ddsi_nearby_address_result ddsi_is_nearby_address (const nn_locator_t *loc, size_t ninterf, const struct nn_interface interf[]);
+
 enum ddsi_locator_from_string_result ddsi_locator_from_string (nn_locator_t *loc, const char *str);
 
 /*  8 for transport/
@@ -242,9 +253,15 @@ char *ddsi_locator_to_string_no_port (char *dst, size_t sizeof_dst, const nn_loc
 
 int ddsi_enumerate_interfaces (ddsi_tran_factory_t factory, os_ifaddrs_t **interfs);
 
-#define ddsi_listener_locator(s,l) (ddsi_tran_locator (&(s)->m_base,(l)))
-ddsi_tran_conn_t ddsi_listener_accept (ddsi_tran_listener_t listener);
-int ddsi_listener_listen (ddsi_tran_listener_t listener);
+inline int ddsi_listener_locator (ddsi_tran_listener_t listener, nn_locator_t * loc) {
+  return listener->m_base.m_locator_fn (&listener->m_base, loc);
+}
+inline int ddsi_listener_listen (ddsi_tran_listener_t listener) {
+  return listener->m_listen_fn (listener);
+}
+inline ddsi_tran_conn_t ddsi_listener_accept (ddsi_tran_listener_t listener) {
+  return listener->m_accept_fn (listener);
+}
 void ddsi_listener_unblock (ddsi_tran_listener_t listener);
 void ddsi_listener_free (ddsi_tran_listener_t listener);
 

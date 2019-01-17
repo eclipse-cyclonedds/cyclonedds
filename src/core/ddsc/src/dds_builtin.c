@@ -148,19 +148,17 @@ dds_entity_t dds__get_builtin_subscriber (dds_entity_t e)
   dds_return_t ret;
   dds_entity_t pp;
   dds_participant *p;
-  dds_entity *part_entity;
 
   if ((pp = dds_get_participant (e)) <= 0)
     return pp;
-  if ((ret = dds_entity_lock (pp, DDS_KIND_PARTICIPANT, &part_entity)) < 0)
+  if ((ret = dds_participant_lock (pp, &p)) != DDS_RETCODE_OK)
     return ret;
 
-  p = (dds_participant *) part_entity;
   if (p->m_builtin_subscriber <= 0) {
-    p->m_builtin_subscriber = dds__create_builtin_subscriber (part_entity);
+    p->m_builtin_subscriber = dds__create_builtin_subscriber (&p->m_entity);
   }
   sub = p->m_builtin_subscriber;
-  dds_entity_unlock(part_entity);
+  dds_participant_unlock(p);
   return sub;
 }
 

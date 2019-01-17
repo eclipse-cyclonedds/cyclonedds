@@ -1016,7 +1016,7 @@ static const char *durability_to_string (nn_durability_kind_t k)
     case NN_TRANSIENT_DURABILITY_QOS: return "transient";
     case NN_PERSISTENT_DURABILITY_QOS: return "persistent";
   }
-  abort (); return 0;
+  return "undefined-durability";
 }
 
 static struct proxy_participant *implicitly_create_proxypp (const nn_guid_t *ppguid, nn_plist_t *datap /* note: potentially modifies datap */, const nn_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp)

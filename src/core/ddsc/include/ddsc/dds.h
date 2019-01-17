@@ -81,31 +81,47 @@ extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION;
 /** @name Communication Status definitions
   @{**/
 /** Another topic exists with the same name but with different characteristics. */
-#define DDS_INCONSISTENT_TOPIC_STATUS          1u
+typedef enum dds_status_id {
+  DDS_INCONSISTENT_TOPIC_STATUS_ID,
+  DDS_OFFERED_DEADLINE_MISSED_STATUS_ID,
+  DDS_REQUESTED_DEADLINE_MISSED_STATUS_ID,
+  DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID,
+  DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID,
+  DDS_SAMPLE_LOST_STATUS_ID,
+  DDS_SAMPLE_REJECTED_STATUS_ID,
+  DDS_DATA_ON_READERS_STATUS_ID,
+  DDS_DATA_AVAILABLE_STATUS_ID,
+  DDS_LIVELINESS_LOST_STATUS_ID,
+  DDS_LIVELINESS_CHANGED_STATUS_ID,
+  DDS_PUBLICATION_MATCHED_STATUS_ID,
+  DDS_SUBSCRIPTION_MATCHED_STATUS_ID
+}
+dds_status_id_t;
+#define DDS_INCONSISTENT_TOPIC_STATUS          (1u << DDS_INCONSISTENT_TOPIC_STATUS_ID)
 /** The deadline that the writer has committed through its deadline QoS policy was not respected for a specific instance. */
-#define DDS_OFFERED_DEADLINE_MISSED_STATUS     2u
+#define DDS_OFFERED_DEADLINE_MISSED_STATUS     (1u << DDS_OFFERED_DEADLINE_MISSED_STATUS_ID)
 /** The deadline that the reader was expecting through its deadline QoS policy was not respected for a specific instance. */
-#define DDS_REQUESTED_DEADLINE_MISSED_STATUS   4u
+#define DDS_REQUESTED_DEADLINE_MISSED_STATUS   (1u << DDS_REQUESTED_DEADLINE_MISSED_STATUS_ID)
 /** A QoS policy setting was incompatible with what was requested. */
-#define DDS_OFFERED_INCOMPATIBLE_QOS_STATUS    32u
+#define DDS_OFFERED_INCOMPATIBLE_QOS_STATUS    (1u << DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID)
 /** A QoS policy setting was incompatible with what is offered. */
-#define DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS  64u
+#define DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS  (1u << DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID)
 /** A sample has been lost (never received). */
-#define DDS_SAMPLE_LOST_STATUS                 128u
+#define DDS_SAMPLE_LOST_STATUS                 (1u << DDS_SAMPLE_LOST_STATUS_ID)
 /** A (received) sample has been rejected. */
-#define DDS_SAMPLE_REJECTED_STATUS             256u
+#define DDS_SAMPLE_REJECTED_STATUS             (1u << DDS_SAMPLE_REJECTED_STATUS_ID)
 /** New information is available. */
-#define DDS_DATA_ON_READERS_STATUS             512u
+#define DDS_DATA_ON_READERS_STATUS             (1u << DDS_DATA_ON_READERS_STATUS_ID)
 /** New information is available. */
-#define DDS_DATA_AVAILABLE_STATUS              1024u
+#define DDS_DATA_AVAILABLE_STATUS              (1u << DDS_DATA_AVAILABLE_STATUS_ID)
 /** The liveliness that the DDS_DataWriter has committed through its liveliness QoS policy was not respected; thus readers will consider the writer as no longer "alive". */
-#define DDS_LIVELINESS_LOST_STATUS             2048u
+#define DDS_LIVELINESS_LOST_STATUS             (1u << DDS_LIVELINESS_LOST_STATUS_ID)
 /** The liveliness of one or more writers, that were writing instances read through the readers has changed. Some writers have become "alive" or "not alive". */
-#define DDS_LIVELINESS_CHANGED_STATUS          4096u
+#define DDS_LIVELINESS_CHANGED_STATUS          (1u << DDS_LIVELINESS_CHANGED_STATUS_ID)
 /** The writer has found a reader that matches the topic and has a compatible QoS. */
-#define DDS_PUBLICATION_MATCHED_STATUS         8192u
+#define DDS_PUBLICATION_MATCHED_STATUS         (1u << DDS_PUBLICATION_MATCHED_STATUS_ID)
 /** The reader has found a writer that matches the topic and has a compatible QoS. */
-#define DDS_SUBSCRIPTION_MATCHED_STATUS        16384u
+#define DDS_SUBSCRIPTION_MATCHED_STATUS        (1u << DDS_SUBSCRIPTION_MATCHED_STATUS_ID)
 /** @}*/
 
 /** Read state for a data value */
@@ -685,7 +701,7 @@ dds_set_qos(
  */
 /* TODO: Link to (generic) Listener and status information. */
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
-DDS_EXPORT _Check_return_ dds_return_t
+DDS_EXPORT dds_return_t
 dds_get_listener(
         _In_  dds_entity_t entity,
         _Out_ dds_listener_t * listener);
@@ -744,7 +760,7 @@ dds_get_listener(
  */
 /* TODO: Link to (generic) Listener and status information. */
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
-DDS_EXPORT _Check_return_ dds_return_t
+DDS_EXPORT dds_return_t
 dds_set_listener(
         _In_     dds_entity_t entity,
         _In_opt_ const dds_listener_t * listener);
