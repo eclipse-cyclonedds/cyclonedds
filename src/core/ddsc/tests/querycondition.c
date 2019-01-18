@@ -75,7 +75,7 @@ create_topic_name(const char *prefix, char *name, size_t size)
 }
 
 static void
-querycondition_init(void)
+querycondition_init_hdepth(int hdepth)
 {
     Space_Type1 sample = { 0, 0, 0 };
     dds_qos_t *qos = dds_create_qos ();
@@ -93,7 +93,7 @@ querycondition_init(void)
     CU_ASSERT_FATAL(g_topic > 0);
 
     /* Create a reader that keeps last sample of all instances. */
-    dds_qset_history(qos, DDS_HISTORY_KEEP_LAST, 1);
+    dds_qset_history(qos, DDS_HISTORY_KEEP_LAST, hdepth);
     g_reader = dds_create_reader(g_participant, g_topic, qos, NULL);
     CU_ASSERT_FATAL(g_reader > 0);
 
@@ -180,6 +180,18 @@ querycondition_init(void)
     }
 
     dds_delete_qos(qos);
+}
+
+static void
+querycondition_init(void)
+{
+    querycondition_init_hdepth(1);
+}
+
+static void
+querycondition_init_deephist(void)
+{
+    querycondition_init_hdepth(333);
 }
 
 static void
@@ -1472,5 +1484,77 @@ CU_Test(ddsc_querycondition_take, already_deleted, .init=querycondition_init, .f
     /* Try to take with a deleted condition. */
     ret = dds_take(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
     CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+}
+/*************************************************************************************************/
+
+/*************************************************************************************************/
+static bool
+filter_k333_s1(const void * sample)
+{
+    const Space_Type1 *s = sample;
+    return (s->long_1 == 333 && s->long_2 == 1);
+}
+
+CU_Test(ddsc_querycondition_take, some_from_instance, .init=querycondition_init_deephist, .fini=querycondition_fini)
+{
+    static const int sched[] = { 1, 0, 1, 0, 1, 1, 0, 1, 1, 1 };
+    static const int nsched = (int) (sizeof (sched) / sizeof (sched[0]));
+    dds_entity_t condition;
+    dds_return_t ret;
+    int idx, run;
+
+    condition = dds_create_querycondition (g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_k333_s1);
+    CU_ASSERT_FATAL (condition > 0);
+
+    for (int i = 0; i < nsched; i++) {
+        const Space_Type1 sample = { 333, sched[i], i };
+        ret = dds_write (g_writer, &sample);
+        CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    }
+
+    /* Try taking consecutive runs of ones, so that we take first, intermediate and final ones */
+    idx = 0;
+    while (idx < nsched) {
+        CU_ASSERT_FATAL (sched[idx] == 1);
+        run = 1;
+        while (idx + run < nsched && sched[idx + run] == 1) {
+            run++;
+        }
+        ret = dds_take (condition, g_samples, g_info, (size_t)run, (uint32_t)run);
+        CU_ASSERT_EQUAL (ret, run);
+        for (int i = 0; i < ret; i++) {
+            CU_ASSERT_EQUAL (g_data[i].long_1, 333);
+            CU_ASSERT_EQUAL (g_data[i].long_2, 1);
+            CU_ASSERT_EQUAL (g_data[i].long_3, idx + i);
+        }
+        idx += run;
+        while (idx < nsched && sched[idx] != 1) {
+            idx++;
+        }
+    }
+
+    /* Take all remaining samples from the instance */
+    for (idx = 0, run = 0; idx < nsched; idx++) {
+        run += (sched[idx] != 1);
+    }
+    CU_ASSERT_FATAL (run > 0);
+    ret = dds_take_instance (g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_info[0].instance_handle);
+    CU_ASSERT_EQUAL (ret, run);
+    idx = 0;
+    while (sched[idx] != 0) {
+        idx++;
+    }
+    for (int i = 0; i < ret; i++) {
+        CU_ASSERT_EQUAL (g_data[i].long_1, 333);
+        CU_ASSERT_NOT_EQUAL (g_data[i].long_2, 1);
+        CU_ASSERT_EQUAL (g_data[i].long_3, idx);
+        idx++;
+        while (idx < nsched && sched[idx] == 1) {
+            idx++;
+        }
+    }
+
+    ret = dds_delete(condition);
+    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 }
 /*************************************************************************************************/
