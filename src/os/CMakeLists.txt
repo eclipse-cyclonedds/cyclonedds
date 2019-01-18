@@ -120,12 +120,18 @@ if(BUILD_TESTING)
   add_subdirectory(tests)
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include/os/${system_name}/os_platform_public.h")
+  set(os_platform_public_h "${CMAKE_CURRENT_SOURCE_DIR}/include/os/${system_name}/os_platform_public.h")
+else()
+  set(os_platform_public_h "${CMAKE_CURRENT_SOURCE_DIR}/include/os/posix/os_platform_public.h")
+endif()
+
 install(
   FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/include/os/os_public.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/os/os_decl_attributes.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/os/os_decl_attributes_sal.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/os/${system_name}/os_platform_public.h"
+    "${os_platform_public_h}"
   DESTINATION
     "${CMAKE_INSTALL_INCLUDEDIR}/ddsc/os"
   COMPONENT
