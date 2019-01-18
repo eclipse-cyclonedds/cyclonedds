@@ -19,8 +19,7 @@ extern "C" {
 #endif
 
 dds_return_t
-dds__check_domain(
-        _In_ dds_domainid_t domain);
+dds__check_domain(dds_domainid_t domain);
 
 /**
  *Description : Initialization function, called from main. This operation
@@ -45,8 +44,6 @@ dds_init(dds_domainid_t domain);
  **/
 void
 dds_fini(void);
-
-
 
 /**
  * Description : Function that provides the explicit ID of default domain

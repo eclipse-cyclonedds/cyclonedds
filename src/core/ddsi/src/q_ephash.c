@@ -12,16 +12,15 @@
 #include <stddef.h>
 #include <assert.h>
 
-#include "os/os.h"
-
-#include "util/ut_hopscotch.h"
-#include "ddsi/q_ephash.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_globals.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/q_gc.h"
-#include "ddsi/q_rtps.h" /* guid_t */
-#include "ddsi/q_thread.h" /* for assert(thread is awake) */
+#include "dds/ddsrt/heap.h"
+#include "dds/util/ut_hopscotch.h"
+#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/q_rtps.h" /* guid_t */
+#include "dds/ddsi/q_thread.h" /* for assert(thread is awake) */
 
 struct ephash {
   struct ut_chh *hash;
@@ -65,7 +64,7 @@ static void gc_buckets_cb (struct gcreq *gcreq)
 {
   void *bs = gcreq->arg;
   gcreq_free (gcreq);
-  os_free (bs);
+  ddsrt_free (bs);
 }
 
 static void gc_buckets (void *bs)
@@ -78,10 +77,10 @@ static void gc_buckets (void *bs)
 struct ephash *ephash_new (void)
 {
   struct ephash *ephash;
-  ephash = os_malloc (sizeof (*ephash));
+  ephash = ddsrt_malloc (sizeof (*ephash));
   ephash->hash = ut_chhNew (32, hash_entity_guid_wrapper, entity_guid_eq_wrapper, gc_buckets);
   if (ephash->hash == NULL) {
-    os_free (ephash);
+    ddsrt_free (ephash);
     return NULL;
   } else {
     return ephash;
@@ -92,7 +91,7 @@ void ephash_free (struct ephash *ephash)
 {
   ut_chhFree (ephash->hash);
   ephash->hash = NULL;
-  os_free (ephash);
+  ddsrt_free (ephash);
 }
 
 static void ephash_guid_insert (struct entity_common *e)
@@ -335,7 +334,7 @@ struct proxy_participant *ephash_enum_proxy_participant_next (struct ephash_enum
 
 void ephash_enum_fini (struct ephash_enum *st)
 {
-  OS_UNUSED_ARG(st);
+  DDSRT_UNUSED_ARG(st);
 }
 
 void ephash_enum_writer_fini (struct ephash_enum_writer *st)

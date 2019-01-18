@@ -9,10 +9,9 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "os/os.h"
-#include "ddsi/q_rtps.h"
-#include "ddsi/q_time.h"
-#include "ddsi/q_whc.h"
+#include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/q_whc.h"
 
 extern inline seqno_t whc_next_seq (const struct whc *whc, seqno_t seq);
 extern inline void whc_get_state (const struct whc *whc, struct whc_state *st);

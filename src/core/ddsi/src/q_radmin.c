@@ -22,22 +22,26 @@
 #define USE_VALGRIND 0
 #endif
 
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/string.h"
+#include "dds/ddsrt/log.h"
 
-#include "util/ut_avl.h"
-#include "ddsi/q_protocol.h"
-#include "ddsi/q_rtps.h"
-#include "ddsi/q_misc.h"
+#include "dds/util/ut_avl.h"
+#include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/q_misc.h"
 
-#include "ddsi/q_config.h"
-#include "ddsi/q_log.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_log.h"
 
-#include "ddsi/q_plist.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_radmin.h"
-#include "ddsi/q_bitset.h"
-#include "ddsi/q_thread.h"
-#include "ddsi/q_globals.h" /* for mattr, cattr */
+#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/q_bitset.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_globals.h" /* for mattr, cattr */
 
 /* OVERVIEW ------------------------------------------------------------
 
@@ -276,14 +280,14 @@ struct nn_rbufpool {
      Could trivially be done lockless, except that it requires
      compare-and-swap, and we don't have that. But it hardly ever
      happens anyway. */
-  os_mutex lock;
+  ddsrt_mutex_t lock;
   struct nn_rbuf *current;
   uint32_t rbuf_size;
   uint32_t max_rmsg_size;
 #ifndef NDEBUG
   /* Thread that owns this pool, so we can check that no other thread
      is calling functions only the owner may use. */
-  os_threadId owner_tid;
+  ddsrt_thread_t owner_tid;
 #endif
 };
 
@@ -296,7 +300,7 @@ static uint32_t align8uint32 (uint32_t x)
 }
 
 #ifndef NDEBUG
-#define ASSERT_RBUFPOOL_OWNER(rbp) (assert (os_threadEqual (os_threadIdSelf (), (rbp)->owner_tid)))
+#define ASSERT_RBUFPOOL_OWNER(rbp) (assert (ddsrt_thread_equal (ddsrt_thread_self (), (rbp)->owner_tid)))
 #else
 #define ASSERT_RBUFPOOL_OWNER(rbp) ((void) (0))
 #endif
@@ -328,13 +332,13 @@ struct nn_rbufpool *nn_rbufpool_new (uint32_t rbuf_size, uint32_t max_rmsg_size)
   assert (max_rmsg_size > 0);
   assert (rbuf_size >= max_rmsg_size_w_hdr (max_rmsg_size));
 
-  if ((rbp = os_malloc (sizeof (*rbp))) == NULL)
+  if ((rbp = ddsrt_malloc (sizeof (*rbp))) == NULL)
     goto fail_rbp;
 #ifndef NDEBUG
-  rbp->owner_tid = os_threadIdSelf ();
+  rbp->owner_tid = ddsrt_thread_self ();
 #endif
 
-  os_mutexInit (&rbp->lock);
+  ddsrt_mutex_init (&rbp->lock);
 
   rbp->rbuf_size = rbuf_size;
   rbp->max_rmsg_size = max_rmsg_size;
@@ -351,13 +355,13 @@ struct nn_rbufpool *nn_rbufpool_new (uint32_t rbuf_size, uint32_t max_rmsg_size)
 #if USE_VALGRIND
   VALGRIND_DESTROY_MEMPOOL (rbp);
 #endif
-  os_mutexDestroy (&rbp->lock);
-  os_free (rbp);
+  ddsrt_mutex_destroy (&rbp->lock);
+  ddsrt_free (rbp);
  fail_rbp:
   return NULL;
 }
 
-void nn_rbufpool_setowner (UNUSED_ARG_NDEBUG (struct nn_rbufpool *rbp), UNUSED_ARG_NDEBUG (os_threadId tid))
+void nn_rbufpool_setowner (UNUSED_ARG_NDEBUG (struct nn_rbufpool *rbp), UNUSED_ARG_NDEBUG (ddsrt_thread_t tid))
 {
 #ifndef NDEBUG
   rbp->owner_tid = tid;
@@ -377,14 +381,14 @@ void nn_rbufpool_free (struct nn_rbufpool *rbp)
 #if USE_VALGRIND
   VALGRIND_DESTROY_MEMPOOL (rbp);
 #endif
-  os_mutexDestroy (&rbp->lock);
-  os_free (rbp);
+  ddsrt_mutex_destroy (&rbp->lock);
+  ddsrt_free (rbp);
 }
 
 /* RBUF ---------------------------------------------------------------- */
 
 struct nn_rbuf {
-  os_atomic_uint32_t n_live_rmsg_chunks;
+  ddsrt_atomic_uint32_t n_live_rmsg_chunks;
   uint32_t size;
   uint32_t max_rmsg_size;
   struct nn_rbufpool *rbufpool;
@@ -411,14 +415,14 @@ static struct nn_rbuf *nn_rbuf_alloc_new (struct nn_rbufpool *rbufpool)
   struct nn_rbuf *rb;
   ASSERT_RBUFPOOL_OWNER (rbufpool);
 
-  if ((rb = os_malloc (offsetof (struct nn_rbuf, u.raw) + rbufpool->rbuf_size)) == NULL)
+  if ((rb = ddsrt_malloc (offsetof (struct nn_rbuf, u.raw) + rbufpool->rbuf_size)) == NULL)
     return NULL;
 #if USE_VALGRIND
   VALGRIND_MAKE_MEM_NOACCESS (rb->u.raw, rbufpool->rbuf_size);
 #endif
 
   rb->rbufpool = rbufpool;
-  os_atomic_st32 (&rb->n_live_rmsg_chunks, 1);
+  ddsrt_atomic_st32 (&rb->n_live_rmsg_chunks, 1);
   rb->size = rbufpool->rbuf_size;
   rb->max_rmsg_size = rbufpool->max_rmsg_size;
   rb->freeptr = rb->u.raw;
@@ -433,10 +437,10 @@ static struct nn_rbuf *nn_rbuf_new (struct nn_rbufpool *rbufpool)
   ASSERT_RBUFPOOL_OWNER (rbufpool);
   if ((rb = nn_rbuf_alloc_new (rbufpool)) != NULL)
   {
-    os_mutexLock (&rbufpool->lock);
+    ddsrt_mutex_lock (&rbufpool->lock);
     nn_rbuf_release (rbufpool->current);
     rbufpool->current = rb;
-    os_mutexUnlock (&rbufpool->lock);
+    ddsrt_mutex_unlock (&rbufpool->lock);
   }
   return rb;
 }
@@ -445,10 +449,10 @@ static void nn_rbuf_release (struct nn_rbuf *rbuf)
 {
   struct nn_rbufpool *rbp = rbuf->rbufpool;
   DDS_LOG(DDS_LC_RADMIN, "rbuf_release(%p) pool %p current %p\n", (void *) rbuf, (void *) rbp, (void *) rbp->current);
-  if (os_atomic_dec32_ov (&rbuf->n_live_rmsg_chunks) == 1)
+  if (ddsrt_atomic_dec32_ov (&rbuf->n_live_rmsg_chunks) == 1)
   {
     DDS_LOG(DDS_LC_RADMIN, "rbuf_release(%p) free\n", (void *) rbuf);
-    os_free (rbuf);
+    ddsrt_free (rbuf);
   }
 }
 
@@ -464,7 +468,7 @@ static void nn_rbuf_release (struct nn_rbuf *rbuf)
 #define RMSG_REFCOUNT_UNCOMMITTED_BIAS (1u << 31)
 #define RMSG_REFCOUNT_RDATA_BIAS (1u << 20)
 #ifndef NDEBUG
-#define ASSERT_RMSG_UNCOMMITTED(rmsg) (assert (os_atomic_ld32 (&(rmsg)->refcount) >= RMSG_REFCOUNT_UNCOMMITTED_BIAS))
+#define ASSERT_RMSG_UNCOMMITTED(rmsg) (assert (ddsrt_atomic_ld32 (&(rmsg)->refcount) >= RMSG_REFCOUNT_UNCOMMITTED_BIAS))
 #else
 #define ASSERT_RMSG_UNCOMMITTED(rmsg) ((void) 0)
 #endif
@@ -503,7 +507,7 @@ static void init_rmsg_chunk (struct nn_rmsg_chunk *chunk, struct nn_rbuf *rbuf)
   chunk->rbuf = rbuf;
   chunk->next = NULL;
   chunk->size = 0;
-  os_atomic_inc32 (&rbuf->n_live_rmsg_chunks);
+  ddsrt_atomic_inc32 (&rbuf->n_live_rmsg_chunks);
 }
 
 struct nn_rmsg *nn_rmsg_new (struct nn_rbufpool *rbufpool)
@@ -517,7 +521,7 @@ struct nn_rmsg *nn_rmsg_new (struct nn_rbufpool *rbufpool)
     return NULL;
 
   /* Reference to this rmsg, undone by rmsg_commit(). */
-  os_atomic_st32 (&rmsg->refcount, RMSG_REFCOUNT_UNCOMMITTED_BIAS);
+  ddsrt_atomic_st32 (&rmsg->refcount, RMSG_REFCOUNT_UNCOMMITTED_BIAS);
   /* Initial chunk */
   init_rmsg_chunk (&rmsg->chunk, rbufpool->current);
   rmsg->lastchunk = &rmsg->chunk;
@@ -533,7 +537,7 @@ void nn_rmsg_setsize (struct nn_rmsg *rmsg, uint32_t size)
   DDS_LOG(DDS_LC_RADMIN, "rmsg_setsize(%p, %u => %u)\n", (void *) rmsg, size, size8);
   ASSERT_RBUFPOOL_OWNER (rmsg->chunk.rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
-  assert (os_atomic_ld32 (&rmsg->refcount) == RMSG_REFCOUNT_UNCOMMITTED_BIAS);
+  assert (ddsrt_atomic_ld32 (&rmsg->refcount) == RMSG_REFCOUNT_UNCOMMITTED_BIAS);
   assert (rmsg->chunk.size == 0);
   assert (size8 <= rmsg->chunk.rbuf->max_rmsg_size);
   assert (rmsg->lastchunk == &rmsg->chunk);
@@ -554,7 +558,7 @@ void nn_rmsg_free (struct nn_rmsg *rmsg)
      compare-and-swap for this. */
   struct nn_rmsg_chunk *c;
   DDS_LOG(DDS_LC_RADMIN, "rmsg_free(%p)\n", (void *) rmsg);
-  assert (os_atomic_ld32 (&rmsg->refcount) == 0);
+  assert (ddsrt_atomic_ld32 (&rmsg->refcount) == 0);
   c = &rmsg->chunk;
   while (c)
   {
@@ -567,7 +571,7 @@ void nn_rmsg_free (struct nn_rmsg *rmsg)
       VALGRIND_MEMPOOL_FREE (rbuf->rbufpool, c);
     }
 #endif
-    assert (os_atomic_ld32 (&rbuf->n_live_rmsg_chunks) > 0);
+    assert (ddsrt_atomic_ld32 (&rbuf->n_live_rmsg_chunks) > 0);
     nn_rbuf_release (rbuf);
     c = c1;
   }
@@ -597,11 +601,11 @@ void nn_rmsg_commit (struct nn_rmsg *rmsg)
   ASSERT_RMSG_UNCOMMITTED (rmsg);
   assert (chunk->size <= chunk->rbuf->max_rmsg_size);
   assert ((chunk->size % 8) == 0);
-  assert (os_atomic_ld32 (&rmsg->refcount) >= RMSG_REFCOUNT_UNCOMMITTED_BIAS);
-  assert (os_atomic_ld32 (&rmsg->chunk.rbuf->n_live_rmsg_chunks) > 0);
-  assert (os_atomic_ld32 (&chunk->rbuf->n_live_rmsg_chunks) > 0);
+  assert (ddsrt_atomic_ld32 (&rmsg->refcount) >= RMSG_REFCOUNT_UNCOMMITTED_BIAS);
+  assert (ddsrt_atomic_ld32 (&rmsg->chunk.rbuf->n_live_rmsg_chunks) > 0);
+  assert (ddsrt_atomic_ld32 (&chunk->rbuf->n_live_rmsg_chunks) > 0);
   assert (chunk->rbuf->rbufpool->current == chunk->rbuf);
-  if (os_atomic_sub32_nv (&rmsg->refcount, RMSG_REFCOUNT_UNCOMMITTED_BIAS) == 0)
+  if (ddsrt_atomic_sub32_nv (&rmsg->refcount, RMSG_REFCOUNT_UNCOMMITTED_BIAS) == 0)
     nn_rmsg_free (rmsg);
   else
   {
@@ -623,7 +627,7 @@ static void nn_rmsg_addbias (struct nn_rmsg *rmsg)
   DDS_LOG(DDS_LC_RADMIN, "rmsg_addbias(%p)\n", (void *) rmsg);
   ASSERT_RBUFPOOL_OWNER (rmsg->chunk.rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
-  os_atomic_add32 (&rmsg->refcount, RMSG_REFCOUNT_RDATA_BIAS);
+  ddsrt_atomic_add32 (&rmsg->refcount, RMSG_REFCOUNT_RDATA_BIAS);
 }
 
 static void nn_rmsg_rmbias_and_adjust (struct nn_rmsg *rmsg, int adjust)
@@ -637,8 +641,8 @@ static void nn_rmsg_rmbias_and_adjust (struct nn_rmsg *rmsg, int adjust)
   assert (adjust >= 0);
   assert ((uint32_t) adjust < RMSG_REFCOUNT_RDATA_BIAS);
   sub = RMSG_REFCOUNT_RDATA_BIAS - (uint32_t) adjust;
-  assert (os_atomic_ld32 (&rmsg->refcount) >= sub);
-  if (os_atomic_sub32_nv (&rmsg->refcount, sub) == 0)
+  assert (ddsrt_atomic_ld32 (&rmsg->refcount) >= sub);
+  if (ddsrt_atomic_sub32_nv (&rmsg->refcount, sub) == 0)
     nn_rmsg_free (rmsg);
 }
 
@@ -647,15 +651,15 @@ static void nn_rmsg_rmbias_anythread (struct nn_rmsg *rmsg)
   /* For removing garbage when freeing a nn_defrag. */
   uint32_t sub = RMSG_REFCOUNT_RDATA_BIAS;
   DDS_LOG(DDS_LC_RADMIN, "rmsg_rmbias_anythread(%p)\n", (void *) rmsg);
-  assert (os_atomic_ld32 (&rmsg->refcount) >= sub);
-  if (os_atomic_sub32_nv (&rmsg->refcount, sub) == 0)
+  assert (ddsrt_atomic_ld32 (&rmsg->refcount) >= sub);
+  if (ddsrt_atomic_sub32_nv (&rmsg->refcount, sub) == 0)
     nn_rmsg_free (rmsg);
 }
 static void nn_rmsg_unref (struct nn_rmsg *rmsg)
 {
   DDS_LOG(DDS_LC_RADMIN, "rmsg_unref(%p)\n", (void *) rmsg);
-  assert (os_atomic_ld32 (&rmsg->refcount) > 0);
-  if (os_atomic_dec32_ov (&rmsg->refcount) == 1)
+  assert (ddsrt_atomic_ld32 (&rmsg->refcount) > 0);
+  if (ddsrt_atomic_dec32_ov (&rmsg->refcount) == 1)
     nn_rmsg_free (rmsg);
 }
 
@@ -715,7 +719,7 @@ struct nn_rdata *nn_rdata_new (struct nn_rmsg *rmsg, uint32_t start, uint32_t en
   d->submsg_zoff = (uint16_t) NN_OFF_TO_ZOFF (submsg_offset);
   d->payload_zoff = (uint16_t) NN_OFF_TO_ZOFF (payload_offset);
 #ifndef NDEBUG
-  os_atomic_st32 (&d->refcount_bias_added, 0);
+  ddsrt_atomic_st32 (&d->refcount_bias_added, 0);
 #endif
   DDS_LOG(DDS_LC_RADMIN, "rdata_new(%p, bytes [%u,%u), submsg @ %u, payload @ %u) = %p\n", (void *) rmsg, start, endp1, NN_RDATA_SUBMSG_OFF (d), NN_RDATA_PAYLOAD_OFF (d), (void *) d);
   return d;
@@ -726,7 +730,7 @@ static void nn_rdata_addbias (struct nn_rdata *rdata)
   DDS_LOG(DDS_LC_RADMIN, "rdata_addbias(%p)\n", (void *) rdata);
 #ifndef NDEBUG
   ASSERT_RBUFPOOL_OWNER (rdata->rmsg->chunk.rbuf->rbufpool);
-  if (os_atomic_inc32_nv (&rdata->refcount_bias_added) != 1)
+  if (ddsrt_atomic_inc32_nv (&rdata->refcount_bias_added) != 1)
     abort ();
 #endif
   nn_rmsg_addbias (rdata->rmsg);
@@ -736,7 +740,7 @@ static void nn_rdata_rmbias_and_adjust (struct nn_rdata *rdata, int adjust)
 {
   DDS_LOG(DDS_LC_RADMIN, "rdata_rmbias_and_adjust(%p, %d)\n", (void *) rdata, adjust);
 #ifndef NDEBUG
-  if (os_atomic_dec32_ov (&rdata->refcount_bias_added) != 1)
+  if (ddsrt_atomic_dec32_ov (&rdata->refcount_bias_added) != 1)
     abort ();
 #endif
   nn_rmsg_rmbias_and_adjust (rdata->rmsg, adjust);
@@ -746,7 +750,7 @@ static void nn_rdata_rmbias_anythread (struct nn_rdata *rdata)
 {
   DDS_LOG(DDS_LC_RADMIN, "rdata_rmbias_anythread(%p)\n", (void *) rdata);
 #ifndef NDEBUG
-  if (os_atomic_dec32_ov (&rdata->refcount_bias_added) != 1)
+  if (ddsrt_atomic_dec32_ov (&rdata->refcount_bias_added) != 1)
     abort ();
 #endif
   nn_rmsg_rmbias_anythread (rdata->rmsg);
@@ -878,7 +882,7 @@ struct nn_defrag *nn_defrag_new (enum nn_defrag_drop_mode drop_mode, uint32_t ma
 {
   struct nn_defrag *d;
   assert (max_samples >= 1);
-  if ((d = os_malloc (sizeof (*d))) == NULL)
+  if ((d = ddsrt_malloc (sizeof (*d))) == NULL)
     return NULL;
   ut_avlInit (&defrag_sampletree_treedef, &d->sampletree);
   d->drop_mode = drop_mode;
@@ -942,7 +946,7 @@ void nn_defrag_free (struct nn_defrag *defrag)
     s = ut_avlFindMin (&defrag_sampletree_treedef, &defrag->sampletree);
   }
   assert (defrag->n_samples == 0);
-  os_free (defrag);
+  ddsrt_free (defrag);
 }
 
 static int defrag_try_merge_with_succ (struct nn_rsample_defrag *sample, struct nn_defrag_iv *node)
@@ -1635,7 +1639,7 @@ static const ut_avlTreedef_t reorder_sampleivtree_treedef =
 struct nn_reorder *nn_reorder_new (enum nn_reorder_mode mode, uint32_t max_samples)
 {
   struct nn_reorder *r;
-  if ((r = os_malloc (sizeof (*r))) == NULL)
+  if ((r = ddsrt_malloc (sizeof (*r))) == NULL)
     return NULL;
   ut_avlInit (&reorder_sampleivtree_treedef, &r->sampleivtree);
   r->max_sampleiv = NULL;
@@ -1675,7 +1679,7 @@ void nn_reorder_free (struct nn_reorder *r)
     }
     iv = ut_avlFindMin (&reorder_sampleivtree_treedef, &r->sampleivtree);
   }
-  os_free (r);
+  ddsrt_free (r);
 }
 
 static void reorder_add_rsampleiv (struct nn_reorder *reorder, struct nn_rsample *rsample)
@@ -2359,8 +2363,8 @@ seqno_t nn_reorder_next_seq (const struct nn_reorder *reorder)
 /* DQUEUE -------------------------------------------------------------- */
 
 struct nn_dqueue {
-  os_mutex lock;
-  os_cond cond;
+  ddsrt_mutex_t lock;
+  ddsrt_cond_t cond;
   nn_dqueue_handler_t handler;
   void *handler_arg;
 
@@ -2369,7 +2373,7 @@ struct nn_dqueue {
   struct thread_state1 *ts;
   char *name;
   uint32_t max_samples;
-  os_atomic_uint32_t nof_samples;
+  ddsrt_atomic_uint32_t nof_samples;
 };
 
 enum dqueue_elem_kind {
@@ -2379,7 +2383,7 @@ enum dqueue_elem_kind {
 };
 
 enum nn_dqueue_bubble_kind {
-  NN_DQBK_STOP, /* _not_ os_malloc()ed! */
+  NN_DQBK_STOP, /* _not_ ddsrt_malloc()ed! */
   NN_DQBK_CALLBACK,
   NN_DQBK_RDGUID
 };
@@ -2421,7 +2425,7 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
   nn_guid_t rdguid, *prdguid = NULL;
   uint32_t rdguid_count = 0;
 
-  os_mutexLock (&q->lock);
+  ddsrt_mutex_lock (&q->lock);
   while (keepgoing)
   {
     struct nn_rsample_chain sc;
@@ -2429,18 +2433,18 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
     LOG_THREAD_CPUTIME (next_thread_cputime);
 
     if (q->sc.first == NULL)
-      os_condWait (&q->cond, &q->lock);
+      ddsrt_cond_wait (&q->cond, &q->lock);
     sc = q->sc;
     q->sc.first = q->sc.last = NULL;
-    os_mutexUnlock (&q->lock);
+    ddsrt_mutex_unlock (&q->lock);
 
     while (sc.first)
     {
       struct nn_rsample_chain_elem *e = sc.first;
       int ret;
       sc.first = e->next;
-      if (os_atomic_dec32_ov (&q->nof_samples) == 1) {
-        os_condBroadcast (&q->cond);
+      if (ddsrt_atomic_dec32_ov (&q->nof_samples) == 1) {
+        ddsrt_cond_broadcast (&q->cond);
       }
       thread_state_awake (self);
       switch (dqueue_elem_kind (e))
@@ -2487,7 +2491,7 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
                   prdguid = &rdguid;
                   break;
               }
-              os_free (b);
+              ddsrt_free (b);
             }
             break;
           }
@@ -2495,9 +2499,9 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
       thread_state_asleep (self);
     }
 
-    os_mutexLock (&q->lock);
+    ddsrt_mutex_lock (&q->lock);
   }
-  os_mutexUnlock (&q->lock);
+  ddsrt_mutex_unlock (&q->lock);
   return 0;
 }
 
@@ -2507,36 +2511,36 @@ struct nn_dqueue *nn_dqueue_new (const char *name, uint32_t max_samples, nn_dque
   char *thrname;
   size_t thrnamesz;
 
-  if ((q = os_malloc (sizeof (*q))) == NULL)
+  if ((q = ddsrt_malloc (sizeof (*q))) == NULL)
     goto fail_q;
-  if ((q->name = os_strdup (name)) == NULL)
+  if ((q->name = ddsrt_strdup (name)) == NULL)
     goto fail_name;
   q->max_samples = max_samples;
-  os_atomic_st32 (&q->nof_samples, 0);
+  ddsrt_atomic_st32 (&q->nof_samples, 0);
   q->handler = handler;
   q->handler_arg = arg;
   q->sc.first = q->sc.last = NULL;
 
-  os_mutexInit (&q->lock);
-  os_condInit (&q->cond, &q->lock);
+  ddsrt_mutex_init (&q->lock);
+  ddsrt_cond_init (&q->cond);
 
   thrnamesz = 3 + strlen (name) + 1;
-  if ((thrname = os_malloc (thrnamesz)) == NULL)
+  if ((thrname = ddsrt_malloc (thrnamesz)) == NULL)
     goto fail_thrname;
   snprintf (thrname, thrnamesz, "dq.%s", name);
   if ((q->ts = create_thread (thrname, (uint32_t (*) (void *)) dqueue_thread, q)) == NULL)
     goto fail_thread;
-  os_free (thrname);
+  ddsrt_free (thrname);
   return q;
 
  fail_thread:
-  os_free (thrname);
+  ddsrt_free (thrname);
  fail_thrname:
-  os_condDestroy (&q->cond);
-  os_mutexDestroy (&q->lock);
-  os_free (q->name);
+  ddsrt_cond_destroy (&q->cond);
+  ddsrt_mutex_destroy (&q->lock);
+  ddsrt_free (q->name);
  fail_name:
-  os_free (q);
+  ddsrt_free (q);
  fail_q:
   return NULL;
 }
@@ -2563,11 +2567,11 @@ void nn_dqueue_enqueue (struct nn_dqueue *q, struct nn_rsample_chain *sc, nn_reo
   assert (rres > 0);
   assert (sc->first);
   assert (sc->last->next == NULL);
-  os_mutexLock (&q->lock);
-  os_atomic_add32 (&q->nof_samples, (uint32_t) rres);
+  ddsrt_mutex_lock (&q->lock);
+  ddsrt_atomic_add32 (&q->nof_samples, (uint32_t) rres);
   if (nn_dqueue_enqueue_locked (q, sc))
-    os_condBroadcast (&q->cond);
-  os_mutexUnlock (&q->lock);
+    ddsrt_cond_broadcast (&q->cond);
+  ddsrt_mutex_unlock (&q->lock);
 }
 
 static int nn_dqueue_enqueue_bubble_locked (struct nn_dqueue *q, struct nn_dqueue_bubble *b)
@@ -2582,17 +2586,17 @@ static int nn_dqueue_enqueue_bubble_locked (struct nn_dqueue *q, struct nn_dqueu
 
 static void nn_dqueue_enqueue_bubble (struct nn_dqueue *q, struct nn_dqueue_bubble *b)
 {
-  os_mutexLock (&q->lock);
-  os_atomic_inc32 (&q->nof_samples);
+  ddsrt_mutex_lock (&q->lock);
+  ddsrt_atomic_inc32 (&q->nof_samples);
   if (nn_dqueue_enqueue_bubble_locked (q, b))
-    os_condBroadcast (&q->cond);
-  os_mutexUnlock (&q->lock);
+    ddsrt_cond_broadcast (&q->cond);
+  ddsrt_mutex_unlock (&q->lock);
 }
 
 void nn_dqueue_enqueue_callback (struct nn_dqueue *q, nn_dqueue_callback_t cb, void *arg)
 {
   struct nn_dqueue_bubble *b;
-  b = os_malloc (sizeof (*b));
+  b = ddsrt_malloc (sizeof (*b));
   b->kind = NN_DQBK_CALLBACK;
   b->u.cb.cb = cb;
   b->u.cb.arg = arg;
@@ -2603,7 +2607,7 @@ void nn_dqueue_enqueue1 (struct nn_dqueue *q, const nn_guid_t *rdguid, struct nn
 {
   struct nn_dqueue_bubble *b;
 
-  b = os_malloc (sizeof (*b));
+  b = ddsrt_malloc (sizeof (*b));
   b->kind = NN_DQBK_RDGUID;
   b->u.rdguid.rdguid = *rdguid;
   b->u.rdguid.count = (uint32_t) rres;
@@ -2612,12 +2616,12 @@ void nn_dqueue_enqueue1 (struct nn_dqueue *q, const nn_guid_t *rdguid, struct nn
   assert (rdguid != NULL);
   assert (sc->first);
   assert (sc->last->next == NULL);
-  os_mutexLock (&q->lock);
-  os_atomic_add32 (&q->nof_samples, 1 + (uint32_t) rres);
+  ddsrt_mutex_lock (&q->lock);
+  ddsrt_atomic_add32 (&q->nof_samples, 1 + (uint32_t) rres);
   if (nn_dqueue_enqueue_bubble_locked (q, b))
-    os_condBroadcast (&q->cond);
+    ddsrt_cond_broadcast (&q->cond);
   nn_dqueue_enqueue_locked (q, sc);
-  os_mutexUnlock (&q->lock);
+  ddsrt_mutex_unlock (&q->lock);
 }
 
 int nn_dqueue_is_full (struct nn_dqueue *q)
@@ -2629,19 +2633,19 @@ int nn_dqueue_is_full (struct nn_dqueue *q)
      don't mind the occasional extra sample in the queue (we don't),
      and survive the occasional decision to not queue when it
      could've been queued (we do), it should be ok. */
-  const uint32_t count = os_atomic_ld32 (&q->nof_samples);
+  const uint32_t count = ddsrt_atomic_ld32 (&q->nof_samples);
   return (count >= q->max_samples);
 }
 
 void nn_dqueue_wait_until_empty_if_full (struct nn_dqueue *q)
 {
-  const uint32_t count = os_atomic_ld32 (&q->nof_samples);
+  const uint32_t count = ddsrt_atomic_ld32 (&q->nof_samples);
   if (count >= q->max_samples)
   {
-    os_mutexLock (&q->lock);
-    while (os_atomic_ld32 (&q->nof_samples) > 0)
-      os_condWait (&q->cond, &q->lock);
-    os_mutexUnlock (&q->lock);
+    ddsrt_mutex_lock (&q->lock);
+    while (ddsrt_atomic_ld32 (&q->nof_samples) > 0)
+      ddsrt_cond_wait (&q->cond, &q->lock);
+    ddsrt_mutex_unlock (&q->lock);
   }
 }
 
@@ -2658,8 +2662,8 @@ void nn_dqueue_free (struct nn_dqueue *q)
 
   join_thread (q->ts);
   assert (q->sc.first == NULL);
-  os_condDestroy (&q->cond);
-  os_mutexDestroy (&q->lock);
-  os_free (q->name);
-  os_free (q);
+  ddsrt_cond_destroy (&q->cond);
+  ddsrt_mutex_destroy (&q->lock);
+  ddsrt_free (q->name);
+  ddsrt_free (q);
 }

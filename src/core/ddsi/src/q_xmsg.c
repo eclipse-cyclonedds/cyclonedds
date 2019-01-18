@@ -19,27 +19,29 @@
 #include <limits.h> /* for IOV_MAX */
 #endif
 
-#include "os/os.h"
+#include "dds/ddsrt/atomics.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/random.h"
 
-#include "util/ut_avl.h"
-#include "util/ut_thread_pool.h"
+#include "dds/util/ut_avl.h"
+#include "dds/util/ut_thread_pool.h"
 
-#include "ddsi/q_protocol.h"
-#include "ddsi/q_xqos.h"
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_rtps.h"
-#include "ddsi/q_addrset.h"
-#include "ddsi/q_error.h"
-#include "ddsi/q_misc.h"
-#include "ddsi/q_log.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_xmsg.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/q_globals.h"
-#include "ddsi/q_ephash.h"
-#include "ddsi/q_freelist.h"
-#include "ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/q_error.h"
+#include "dds/ddsi/q_misc.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_serdata_default.h"
 
 #define NN_XMSG_MAX_ALIGN 8
 #define NN_XMSG_CHUNK_SIZE 128
@@ -70,7 +72,7 @@ struct nn_xmsg {
   size_t sz;
   int have_params;
   struct ddsi_serdata *refd_payload;
-  os_iovec_t refd_payload_iov;
+  ddsrt_iovec_t refd_payload_iov;
   int64_t maxdelay;
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   uint32_t encoderid;
@@ -140,43 +142,47 @@ struct nn_bw_limiter {
 #endif
 
 ///////////////////////////
-typedef struct os_sem {
-  os_mutex mtx;
+typedef struct {
+  ddsrt_mutex_t mtx;
   uint32_t value;
-  os_cond cv;
-} os_sem_t;
+  ddsrt_cond_t cv;
+} ddsi_sem_t;
 
-static os_result os_sem_init (os_sem_t * sem, uint32_t value)
+dds_retcode_t
+ddsi_sem_init (ddsi_sem_t *sem, uint32_t value)
 {
   sem->value = value;
-  os_mutexInit (&sem->mtx);
-  os_condInit (&sem->cv, &sem->mtx);
-  return os_resultSuccess;
+  ddsrt_mutex_init (&sem->mtx);
+  ddsrt_cond_init (&sem->cv);
+  return DDS_RETCODE_OK;
 }
 
-static os_result os_sem_destroy (os_sem_t *sem)
+dds_retcode_t
+ddsi_sem_destroy (ddsi_sem_t *sem)
 {
-  os_condDestroy (&sem->cv);
-  os_mutexDestroy (&sem->mtx);
-  return os_resultSuccess;
+  ddsrt_cond_destroy (&sem->cv);
+  ddsrt_mutex_destroy (&sem->mtx);
+  return DDS_RETCODE_OK;
 }
 
-static os_result os_sem_post (os_sem_t *sem)
+dds_retcode_t
+ddsi_sem_post (ddsi_sem_t *sem)
 {
-  os_mutexLock (&sem->mtx);
+  ddsrt_mutex_lock (&sem->mtx);
   if (sem->value++ == 0)
-    os_condSignal (&sem->cv);
-  os_mutexUnlock (&sem->mtx);
-  return os_resultSuccess;
+    ddsrt_cond_signal (&sem->cv);
+  ddsrt_mutex_unlock (&sem->mtx);
+  return DDS_RETCODE_OK;
 }
 
-static os_result os_sem_wait (os_sem_t *sem)
+dds_retcode_t
+ddsi_sem_wait (ddsi_sem_t *sem)
 {
-  os_mutexLock (&sem->mtx);
+  ddsrt_mutex_lock (&sem->mtx);
   while (sem->value == 0)
-    os_condWait (&sem->cv, &sem->mtx);
-  os_mutexUnlock (&sem->mtx);
-  return os_resultSuccess;
+    ddsrt_cond_wait (&sem->cv, &sem->mtx);
+  ddsrt_mutex_unlock (&sem->mtx);
+  return DDS_RETCODE_OK;
 }
 ///////////////////////////
 
@@ -190,12 +196,12 @@ struct nn_xpack
   InfoDST_t *last_dst;
   int64_t maxdelay;
   unsigned packetid;
-  os_atomic_uint32_t calls;
+  ddsrt_atomic_uint32_t calls;
   uint32_t call_flags;
   ddsi_tran_conn_t conn;
-  os_sem_t sem;
+  ddsi_sem_t sem;
   size_t niov;
-  os_iovec_t iov[NN_XMSG_MAX_MESSAGE_IOVECS];
+  ddsrt_iovec_t iov[NN_XMSG_MAX_MESSAGE_IOVECS];
   enum nn_xmsg_dstmode dstmode;
 
   union
@@ -240,7 +246,7 @@ static void nn_xmsg_realfree (struct nn_xmsg *m);
 struct nn_xmsgpool *nn_xmsgpool_new (void)
 {
   struct nn_xmsgpool *pool;
-  pool = os_malloc (sizeof (*pool));
+  pool = ddsrt_malloc (sizeof (*pool));
   nn_freelist_init (&pool->freelist, UINT32_MAX, offsetof (struct nn_xmsg, link.older));
   return pool;
 }
@@ -254,7 +260,7 @@ void nn_xmsgpool_free (struct nn_xmsgpool *pool)
 {
   nn_freelist_fini (&pool->freelist, nn_xmsg_realfree_wrap);
   DDS_TRACE("xmsgpool_free(%p)\n", (void *)pool);
-  os_free (pool);
+  ddsrt_free (pool);
 }
 
 /* XMSG ----------------------------------------------------------------
@@ -294,26 +300,26 @@ static struct nn_xmsg *nn_xmsg_allocnew (struct nn_xmsgpool *pool, size_t expect
   if (expected_size == 0)
     expected_size = NN_XMSG_CHUNK_SIZE;
 
-  if ((m = os_malloc (sizeof (*m))) == NULL)
+  if ((m = ddsrt_malloc (sizeof (*m))) == NULL)
     return NULL;
 
   m->pool = pool;
   m->maxsz = (expected_size + NN_XMSG_CHUNK_SIZE - 1) & (unsigned)-NN_XMSG_CHUNK_SIZE;
 
-  if ((d = m->data = os_malloc (offsetof (struct nn_xmsg_data, payload) + m->maxsz)) == NULL)
+  if ((d = m->data = ddsrt_malloc (offsetof (struct nn_xmsg_data, payload) + m->maxsz)) == NULL)
   {
-    os_free (m);
+    ddsrt_free (m);
     return NULL;
   }
   d->src.smhdr.submessageId = SMID_INFO_SRC;
-  d->src.smhdr.flags = (PLATFORM_IS_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
+  d->src.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
   d->src.smhdr.octetsToNextHeader = sizeof (d->src) - (offsetof (InfoSRC_t, smhdr.octetsToNextHeader) + 2);
   d->src.unused = 0;
   d->src.version.major = RTPS_MAJOR;
   d->src.version.minor = RTPS_MINOR;
   d->src.vendorid = NN_VENDORID_ECLIPSE;
   d->dst.smhdr.submessageId = SMID_INFO_DST;
-  d->dst.smhdr.flags = (PLATFORM_IS_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
+  d->dst.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
   d->dst.smhdr.octetsToNextHeader = sizeof (d->dst.guid_prefix);
   nn_xmsg_reinit (m, kind);
   return m;
@@ -332,8 +338,8 @@ struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const nn_guid_prefix_t *s
 
 static void nn_xmsg_realfree (struct nn_xmsg *m)
 {
-  os_free (m->data);
-  os_free (m);
+  ddsrt_free (m->data);
+  ddsrt_free (m);
 }
 
 void nn_xmsg_free (struct nn_xmsg *m)
@@ -475,7 +481,7 @@ void nn_xmsg_submsg_init (struct nn_xmsg *msg, struct nn_xmsg_marker marker, Sub
   SubmessageHeader_t *hdr = (SubmessageHeader_t *) (msg->data->payload + marker.offset);
   assert (submsg_is_compatible (msg, smkind));
   hdr->submessageId = (unsigned char)smkind;
-  hdr->flags = PLATFORM_IS_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0;
+  hdr->flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
   hdr->octetsToNextHeader = 0;
 }
 
@@ -515,7 +521,7 @@ void * nn_xmsg_append (struct nn_xmsg *m, struct nn_xmsg_marker *marker, size_t 
   if (m->sz + sz > m->maxsz)
   {
     size_t nmax = (m->maxsz + sz + NN_XMSG_CHUNK_SIZE - 1) & (size_t)-NN_XMSG_CHUNK_SIZE;
-    struct nn_xmsg_data *ndata = os_realloc (m->data, offsetof (struct nn_xmsg_data, payload) + nmax);
+    struct nn_xmsg_data *ndata = ddsrt_realloc (m->data, offsetof (struct nn_xmsg_data, payload) + nmax);
     m->maxsz = nmax;
     m->data = ndata;
   }
@@ -752,7 +758,7 @@ void nn_xmsg_setwriterseq_fragid (struct nn_xmsg *msg, const nn_guid_t *wrguid, 
   msg->kindspecific.data.wrfragid = wrfragid;
 }
 
-size_t nn_xmsg_add_string_padded(_Inout_opt_ unsigned char *buf, _In_ char *str)
+size_t nn_xmsg_add_string_padded(unsigned char *buf, char *str)
 {
   size_t len = strlen (str) + 1;
   assert (len <= UINT32_MAX);
@@ -771,7 +777,7 @@ size_t nn_xmsg_add_string_padded(_Inout_opt_ unsigned char *buf, _In_ char *str)
   return len;
 }
 
-size_t nn_xmsg_add_octseq_padded(_Inout_opt_ unsigned char *buf, _In_ nn_octetseq_t *seq)
+size_t nn_xmsg_add_octseq_padded(unsigned char *buf, nn_octetseq_t *seq)
 {
   unsigned len = seq->length;
   if (buf) {
@@ -787,50 +793,6 @@ size_t nn_xmsg_add_octseq_padded(_Inout_opt_ unsigned char *buf, _In_ nn_octetse
   return 4 +           /* cdr sequence len arg + */
          align4u(len); /* seqlen + possible padding */
 }
-
-
-size_t nn_xmsg_add_dataholder_padded (_Inout_opt_ unsigned char *buf, const struct nn_dataholder *dh)
-{
-  unsigned i;
-  size_t len;
-  unsigned dummy = 0;
-  unsigned *cnt = &dummy;
-
-  len = nn_xmsg_add_string_padded(buf, dh->class_id);
-
-  if (buf) {
-    cnt = ((unsigned *)&(buf[len]));
-    *cnt = 0;
-  }
-  len += sizeof(int);
-  for (i = 0; i < dh->properties.n; i++) {
-    nn_property_t *p = &(dh->properties.props[i]);
-    if (p->propagate) {
-      len += nn_xmsg_add_string_padded(buf ? &(buf[len]) : NULL, p->name);
-      len += nn_xmsg_add_string_padded(buf ? &(buf[len]) : NULL, p->value);
-      (*cnt)++;
-    }
-    /* p->propagate is not propagated over the wire. */
-  }
-
-  if (buf) {
-    cnt = ((unsigned *)&(buf[len]));
-    *cnt = 0;
-  }
-  len += sizeof(int);
-  for (i = 0; i < dh->binary_properties.n; i++) {
-    nn_binaryproperty_t *p = &(dh->binary_properties.props[i]);
-    if (p->propagate) {
-      len += nn_xmsg_add_string_padded(buf ? &(buf[len]) : NULL,   p->name  );
-      len += nn_xmsg_add_octseq_padded(buf ? &(buf[len]) : NULL, &(p->value));
-      (*cnt)++;
-    }
-    /* p->propagate is not propagated over the wire. */
-  }
-
-  return len;
-}
-
 
 void * nn_xmsg_addpar (struct nn_xmsg *m, unsigned pid, size_t len)
 {
@@ -1079,21 +1041,6 @@ void nn_xmsg_addpar_eotinfo (struct nn_xmsg *m, unsigned pid, const struct nn_pr
   }
 }
 
-void nn_xmsg_addpar_dataholder (_In_ struct nn_xmsg *m, _In_ unsigned pid, _In_ const struct nn_dataholder *dh)
-{
-    unsigned char *tmp;
-    size_t len;
-
-    /* Get total payload length. */
-    len = nn_xmsg_add_dataholder_padded(NULL, dh);
-
-    /* Prepare parameter header and get payload pointer. */
-    tmp = nn_xmsg_addpar (m, pid, 4 + len);
-
-    /* Insert dataholder. */
-    nn_xmsg_add_dataholder_padded(tmp, dh);
-}
-
 /* XMSG_CHAIN ----------------------------------------------------------
 
    Xpacks refer to xmsgs and need to release these after having been
@@ -1188,12 +1135,9 @@ static void nn_bw_limit_sleep_if_needed(struct nn_bw_limiter* this, ssize_t size
     else if ( this->balance > NN_BW_LIMIT_MIN_SLEEP )
     {
       /* We're over the bandwidth limit far enough, to warrent a sleep. */
-      os_time delay;
       DDS_TRACE(":%"PRId64":sleep",this->balance/1000);
-      delay.tv_sec = (int32_t) (this->balance / T_SECOND);
-      delay.tv_nsec = (int32_t) (this->balance % T_SECOND);
       thread_state_blocked (lookup_thread_state ());
-      os_nanoSleep (delay);
+      dds_sleepfor (this->balance);
       thread_state_unblocked (lookup_thread_state ());
     }
     else
@@ -1244,7 +1188,7 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
      can avoid starting the async send thread altogether */
   assert (!async_mode || config.xpack_send_async);
 
-  xp = os_malloc (sizeof (*xp));
+  xp = ddsrt_malloc (sizeof (*xp));
   memset (xp, 0, sizeof (*xp));
   xp->async_mode = async_mode;
 
@@ -1260,21 +1204,21 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
   /* MSG_LEN first sub message for stream based connections */
 
   xp->msg_len.smhdr.submessageId = SMID_PT_MSG_LEN;
-  xp->msg_len.smhdr.flags = (PLATFORM_IS_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
+  xp->msg_len.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
   xp->msg_len.smhdr.octetsToNextHeader = 4;
 
   xp->conn = conn;
   nn_xpack_reinit (xp);
 
   if (gv.thread_pool)
-    os_sem_init (&xp->sem, 0);
+    ddsi_sem_init (&xp->sem, 0);
 
 #ifdef DDSI_INCLUDE_ENCRYPTION
   if (q_security_plugin.new_encoder)
   {
     xp->codec = (q_security_plugin.new_encoder) ();
     xp->SecurityHeader.smhdr.submessageId = SMID_PT_INFO_CONTAINER;
-    xp->SecurityHeader.smhdr.flags = PLATFORM_IS_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0;;
+    xp->SecurityHeader.smhdr.flags = (DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
     xp->SecurityHeader.smhdr.octetsToNextHeader = 4;
     xp->SecurityHeader.id = PTINFO_ID_ENCRYPT;
   }
@@ -1298,8 +1242,8 @@ void nn_xpack_free (struct nn_xpack *xp)
   }
 #endif
   if (gv.thread_pool)
-    os_sem_destroy (&xp->sem);
-  os_free (xp);
+    ddsi_sem_destroy (&xp->sem);
+  ddsrt_free (xp);
 }
 
 static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
@@ -1317,7 +1261,7 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
   {
     /* We drop APPROXIMATELY a fraction of xmit_lossiness * 10**(-3)
        of all packets to be sent */
-    if ((os_random () % 1000) < config.xmit_lossiness)
+    if ((ddsrt_random () % 1000) < config.xmit_lossiness)
     {
       DDS_TRACE("(dropped)");
       xp->call_flags = 0;
@@ -1383,19 +1327,19 @@ static void nn_xpack_send1_thread (void * varg)
 {
   nn_xpack_send1_thread_arg_t arg = varg;
   (void) nn_xpack_send1 (arg->loc, arg->xp);
-  if (os_atomic_dec32_ov (&arg->xp->calls) == 1)
+  if (ddsrt_atomic_dec32_ov (&arg->xp->calls) == 1)
   {
-    os_sem_post (&arg->xp->sem);
+    ddsi_sem_post (&arg->xp->sem);
   }
-  os_free (varg);
+  ddsrt_free (varg);
 }
 
 static void nn_xpack_send1_threaded (const nn_locator_t *loc, void * varg)
 {
-  nn_xpack_send1_thread_arg_t arg = os_malloc (sizeof (*arg));
+  nn_xpack_send1_thread_arg_t arg = ddsrt_malloc (sizeof (*arg));
   arg->xp = (struct nn_xpack *) varg;
   arg->loc = loc;
-  os_atomic_inc32 (&arg->xp->calls);
+  ddsrt_atomic_inc32 (&arg->xp->calls);
   ut_thread_pool_submit (gv.thread_pool, nn_xpack_send1_thread, arg);
 }
 
@@ -1442,14 +1386,14 @@ static void nn_xpack_send_real (struct nn_xpack * xp)
       }
       else
       {
-        os_atomic_st32 (&xp->calls, 1);
+        ddsrt_atomic_st32 (&xp->calls, 1);
         calls = addrset_forall_count (xp->dstaddr.all.as, nn_xpack_send1_threaded, xp);
         /* Wait for the thread pool to complete the write; if we're the one
            decrementing "calls" to 0, all of the work has been completed and
            none of the threads will be posting; else some thread will be
            posting it and we had better wait for it */
-        if (os_atomic_dec32_ov (&xp->calls) != 1)
-          os_sem_wait (&xp->sem);
+        if (ddsrt_atomic_dec32_ov (&xp->calls) != 1)
+          ddsi_sem_wait (&xp->sem);
       }
       unref_addrset (xp->dstaddr.all.as);
     }
@@ -1480,27 +1424,26 @@ static void nn_xpack_send_real (struct nn_xpack * xp)
 
 static uint32_t nn_xpack_sendq_thread (UNUSED_ARG (void *arg))
 {
-  os_mutexLock (&gv.sendq_lock);
+  ddsrt_mutex_lock (&gv.sendq_lock);
   while (!(gv.sendq_stop && gv.sendq_head == NULL))
   {
     struct nn_xpack *xp;
     if ((xp = gv.sendq_head) == NULL)
     {
-      os_time to = { 0, 1000000 };
-      os_condTimedWait (&gv.sendq_cond, &gv.sendq_lock, &to);
+      ddsrt_cond_waitfor (&gv.sendq_cond, &gv.sendq_lock, 1000000);
     }
     else
     {
       gv.sendq_head = xp->sendq_next;
       if (--gv.sendq_length == SENDQ_LW)
-        os_condBroadcast (&gv.sendq_cond);
-      os_mutexUnlock (&gv.sendq_lock);
+        ddsrt_cond_broadcast (&gv.sendq_cond);
+      ddsrt_mutex_unlock (&gv.sendq_lock);
       nn_xpack_send_real (xp);
       nn_xpack_free (xp);
-      os_mutexLock (&gv.sendq_lock);
+      ddsrt_mutex_lock (&gv.sendq_lock);
     }
   }
-  os_mutexUnlock (&gv.sendq_lock);
+  ddsrt_mutex_unlock (&gv.sendq_lock);
   return 0;
 }
 
@@ -1510,8 +1453,8 @@ void nn_xpack_sendq_init (void)
   gv.sendq_head = NULL;
   gv.sendq_tail = NULL;
   gv.sendq_length = 0;
-  os_mutexInit (&gv.sendq_lock);
-  os_condInit (&gv.sendq_cond, &gv.sendq_lock);
+  ddsrt_mutex_init (&gv.sendq_lock);
+  ddsrt_cond_init (&gv.sendq_cond);
 }
 
 void nn_xpack_sendq_start (void)
@@ -1521,18 +1464,18 @@ void nn_xpack_sendq_start (void)
 
 void nn_xpack_sendq_stop (void)
 {
-  os_mutexLock (&gv.sendq_lock);
+  ddsrt_mutex_lock (&gv.sendq_lock);
   gv.sendq_stop = 1;
-  os_condBroadcast (&gv.sendq_cond);
-  os_mutexUnlock (&gv.sendq_lock);
+  ddsrt_cond_broadcast (&gv.sendq_cond);
+  ddsrt_mutex_unlock (&gv.sendq_lock);
 }
 
 void nn_xpack_sendq_fini (void)
 {
   assert (gv.sendq_head == NULL);
   join_thread(gv.sendq_ts);
-  os_condDestroy(&gv.sendq_cond);
-  os_mutexDestroy(&gv.sendq_lock);
+  ddsrt_cond_destroy(&gv.sendq_cond);
+  ddsrt_mutex_destroy(&gv.sendq_lock);
 }
 
 void nn_xpack_send (struct nn_xpack *xp, bool immediately)
@@ -1543,17 +1486,17 @@ void nn_xpack_send (struct nn_xpack *xp, bool immediately)
   }
   else
   {
-    struct nn_xpack *xp1 = os_malloc (sizeof (*xp));
+    struct nn_xpack *xp1 = ddsrt_malloc (sizeof (*xp));
     memcpy (xp1, xp, sizeof (*xp1));
     nn_xpack_reinit (xp);
     xp1->sendq_next = NULL;
-    os_mutexLock (&gv.sendq_lock);
+    ddsrt_mutex_lock (&gv.sendq_lock);
     if (immediately || gv.sendq_length == SENDQ_HW)
-      os_condBroadcast (&gv.sendq_cond);
+      ddsrt_cond_broadcast (&gv.sendq_cond);
     if (gv.sendq_length >= SENDQ_MAX)
     {
       while (gv.sendq_length > SENDQ_LW)
-        os_condWait (&gv.sendq_cond, &gv.sendq_lock);
+        ddsrt_cond_wait (&gv.sendq_cond, &gv.sendq_lock);
     }
     if (gv.sendq_head)
       gv.sendq_tail->sendq_next = xp1;
@@ -1563,7 +1506,7 @@ void nn_xpack_send (struct nn_xpack *xp, bool immediately)
     }
     gv.sendq_tail = xp1;
     gv.sendq_length++;
-    os_mutexUnlock (&gv.sendq_lock);
+    ddsrt_mutex_unlock (&gv.sendq_lock);
   }
 }
 
@@ -1659,7 +1602,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   /* Returns > 0 if pack got sent out before adding m */
 
   static InfoDST_t static_zero_dst = {
-    { SMID_INFO_DST, (PLATFORM_IS_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0), sizeof (nn_guid_prefix_t) },
+    { SMID_INFO_DST, (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0), sizeof (nn_guid_prefix_t) },
     { { 0,0,0,0, 0,0,0,0, 0,0,0,0 } }
   };
   InfoDST_t *dst;
@@ -1809,11 +1752,11 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
 
   /* Append submessage; can possibly be merged with preceding iovec */
   if ((char *) xp->iov[niov-1].iov_base + xp->iov[niov-1].iov_len == (char *) m->data->payload)
-    xp->iov[niov-1].iov_len += (os_iov_len_t)m->sz;
+    xp->iov[niov-1].iov_len += (ddsrt_iov_len_t)m->sz;
   else
   {
     xp->iov[niov].iov_base = m->data->payload;
-    xp->iov[niov].iov_len = (os_iov_len_t)m->sz;
+    xp->iov[niov].iov_len = (ddsrt_iov_len_t)m->sz;
     niov++;
   }
   sz += m->sz;

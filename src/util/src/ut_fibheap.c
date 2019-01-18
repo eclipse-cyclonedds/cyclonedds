@@ -13,7 +13,8 @@
 #include <limits.h>
 #include <assert.h>
 
-#include "util/ut_fibheap.h"
+#include "dds/ddsrt/misc.h"
+#include "dds/util/ut_fibheap.h"
 
 /* max degree: n >= F_{d+2} >= \phi^d ==> d <= log_\phi n, where \phi
    (as usual) is the golden ratio ~= 1.618.  We know n <= (size of
@@ -35,7 +36,7 @@ void ut_fibheapDefInit (ut_fibheapDef_t *fhdef, uintptr_t offset, int (*cmp) (co
 
 void ut_fibheapInit (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh)
 {
-    OS_UNUSED_ARG(fhdef);
+    DDSRT_UNUSED_ARG(fhdef);
     fh->roots = NULL;
 }
 

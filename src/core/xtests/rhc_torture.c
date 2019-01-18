@@ -15,21 +15,22 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include "os/os.h"
-
-#include "ddsc/dds.h"
-#include "ddsi/ddsi_tkmap.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/dds.h"
+#include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__entity.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_globals.h"
-#include "ddsi/q_radmin.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/q_gc.h"
-#include "ddsi/ddsi_serdata.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_serdata.h"
 #include "dds__topic.h"
 #include "dds__rhc.h"
-#include "ddsi/ddsi_iid.h"
+#include "dds/ddsi/ddsi_iid.h"
 
 #include "mt19937ar.h"
 #include "RhcTypes.h"
@@ -45,8 +46,8 @@ static struct thread_state1 *mainthread;
 static dds_time_t tref_dds;
 static uint32_t seq;
 
-static os_mutex wait_gc_cycle_lock;
-static os_cond wait_gc_cycle_cond;
+static ddsrt_mutex_t wait_gc_cycle_lock;
+static ddsrt_cond_t wait_gc_cycle_cond;
 static int wait_gc_cycle_trig;
 
 /* these are used to get a sufficiently large result buffer when takeing/reading everying */
@@ -139,8 +140,8 @@ static struct proxy_writer *mkwr (bool auto_dispose)
   struct proxy_writer *pwr;
   struct nn_xqos *xqos;
   uint64_t wr_iid;
-  pwr = os_malloc (sizeof (*pwr));
-  xqos = os_malloc (sizeof (*xqos));
+  pwr = ddsrt_malloc (sizeof (*pwr));
+  xqos = ddsrt_malloc (sizeof (*xqos));
   wr_iid = ddsi_iid_gen ();
   memset (pwr, 0, sizeof (*pwr));
   nn_xqos_init_empty (xqos);
@@ -457,10 +458,10 @@ static void tkcond (struct rhc *rhc, dds_readcond *cond, const struct check *chk
 
 static void wait_gc_cycle_impl (struct gcreq *gcreq)
 {
-  os_mutexLock (&wait_gc_cycle_lock);
+  ddsrt_mutex_lock (&wait_gc_cycle_lock);
   wait_gc_cycle_trig = 1;
-  os_condBroadcast (&wait_gc_cycle_cond);
-  os_mutexUnlock (&wait_gc_cycle_lock);
+  ddsrt_cond_broadcast (&wait_gc_cycle_cond);
+  ddsrt_mutex_unlock (&wait_gc_cycle_lock);
   gcreq_free (gcreq);
 }
 
@@ -469,16 +470,16 @@ static void wait_gc_cycle (void)
   /* only single-threaded for now */
   struct gcreq *gcreq = gcreq_new (gv.gcreq_queue, wait_gc_cycle_impl);
 #ifndef NDEBUG
-  os_mutexLock (&wait_gc_cycle_lock);
+  ddsrt_mutex_lock (&wait_gc_cycle_lock);
   assert (wait_gc_cycle_trig == 0);
-  os_mutexUnlock (&wait_gc_cycle_lock);
+  ddsrt_mutex_unlock (&wait_gc_cycle_lock);
 #endif
   gcreq_enqueue (gcreq);
-  os_mutexLock (&wait_gc_cycle_lock);
+  ddsrt_mutex_lock (&wait_gc_cycle_lock);
   while (!wait_gc_cycle_trig)
-    os_condWait (&wait_gc_cycle_cond, &wait_gc_cycle_lock);
+    ddsrt_cond_wait (&wait_gc_cycle_cond, &wait_gc_cycle_lock);
   wait_gc_cycle_trig = 0;
-  os_mutexUnlock (&wait_gc_cycle_lock);
+  ddsrt_mutex_unlock (&wait_gc_cycle_lock);
 }
 
 static bool qcpred_key (const void *vx)
@@ -810,13 +811,13 @@ int main (int argc, char **argv)
   bool print = false;
   int first = 0, count = 10000;
 
-  os_mutexInit (&wait_gc_cycle_lock);
-  os_condInit (&wait_gc_cycle_cond, &wait_gc_cycle_lock);
+  ddsrt_mutex_init (&wait_gc_cycle_lock);
+  ddsrt_cond_init (&wait_gc_cycle_cond);
 
   if (argc > 1)
     seed = (unsigned) atoi (argv[1]);
   if (seed == 0)
-    seed = (unsigned) os_getpid ();
+    seed = (unsigned) ddsrt_getpid ();
   if (argc > 2)
     first = atoi (argv[2]);
   if (argc > 3)
@@ -972,8 +973,8 @@ int main (int argc, char **argv)
       }
   }
 
-  os_condDestroy (&wait_gc_cycle_cond);
-  os_mutexDestroy (&wait_gc_cycle_lock);
+  ddsrt_cond_destroy (&wait_gc_cycle_cond);
+  ddsrt_mutex_destroy (&wait_gc_cycle_lock);
 
   for (size_t i = 0; i < sizeof (rres_iseq) / sizeof (rres_iseq[0]); i++)
     RhcTypes_T_free (&rres_mseq[i], DDS_FREE_CONTENTS);

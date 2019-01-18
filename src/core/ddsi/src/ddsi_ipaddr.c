@@ -11,32 +11,35 @@
  */
 #include <assert.h>
 #include <string.h>
-#include "os/os.h"
-#include "ddsi/ddsi_ipaddr.h"
-#include "ddsi/q_nwif.h"
-#include "ddsi/q_config.h"
 
-int ddsi_ipaddr_compare (const os_sockaddr *const sa1, const os_sockaddr *const sa2)
+#include "dds/ddsrt/endian.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/sockets.h"
+#include "dds/ddsi/ddsi_ipaddr.h"
+#include "dds/ddsi/q_nwif.h"
+#include "dds/ddsi/q_config.h"
+
+int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr *const sa2)
 {
   int eq;
   size_t sz;
 
   if ((eq = sa1->sa_family - sa2->sa_family) == 0) {
     switch(sa1->sa_family) {
-#if (OS_SOCKET_HAS_IPV6 == 1)
+#if DDSRT_HAVE_IPV6
       case AF_INET6: {
-        os_sockaddr_in6 *sin61, *sin62;
-        sin61 = (os_sockaddr_in6 *)sa1;
-        sin62 = (os_sockaddr_in6 *)sa2;
+        struct sockaddr_in6 *sin61, *sin62;
+        sin61 = (struct sockaddr_in6 *)sa1;
+        sin62 = (struct sockaddr_in6 *)sa2;
         sz = sizeof(sin61->sin6_addr);
         eq = memcmp(&sin61->sin6_addr, &sin62->sin6_addr, sz);
         break;
       }
-#endif /* OS_SOCKET_HAS_IPV6 */
+#endif
       case AF_INET: {
-        os_sockaddr_in *sin1, *sin2;
-        sin1 = (os_sockaddr_in *)sa1;
-        sin2 = (os_sockaddr_in *)sa2;
+        struct sockaddr_in *sin1, *sin2;
+        sin1 = (struct sockaddr_in *)sa1;
+        sin2 = (struct sockaddr_in *)sa2;
         sz = sizeof(sin1->sin_addr);
         eq = memcmp(&sin1->sin_addr, &sin2->sin_addr, sz);
         break;
@@ -52,7 +55,7 @@ int ddsi_ipaddr_compare (const os_sockaddr *const sa1, const os_sockaddr *const 
 
 enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (ddsi_tran_factory_t tran, const nn_locator_t *loc, size_t ninterf, const struct nn_interface interf[])
 {
-  os_sockaddr_storage tmp, iftmp, nmtmp, ownip;
+  struct sockaddr_storage tmp, iftmp, nmtmp, ownip;
   size_t i;
   (void)tran;
   ddsi_ipaddr_from_loc(&tmp, loc);
@@ -61,9 +64,9 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (ddsi_tran_factory
     ddsi_ipaddr_from_loc(&iftmp, &interf[i].loc);
     ddsi_ipaddr_from_loc(&nmtmp, &interf[i].netmask);
     ddsi_ipaddr_from_loc(&ownip, &gv.ownloc);
-    if (os_sockaddrSameSubnet ((os_sockaddr *) &tmp, (os_sockaddr *) &iftmp, (os_sockaddr *) &nmtmp))
+    if (ddsrt_sockaddr_insamesubnet ((struct sockaddr *) &tmp, (struct sockaddr *) &iftmp, (struct sockaddr *) &nmtmp))
     {
-      if (ddsi_ipaddr_compare((os_sockaddr *)&iftmp, (os_sockaddr *)&ownip) == 0)
+      if (ddsi_ipaddr_compare((struct sockaddr *)&iftmp, (struct sockaddr *)&ownip) == 0)
         return DNAR_SAME;
       else
         return DNAR_LOCAL;
@@ -75,39 +78,39 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (ddsi_tran_factory
 enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_t tran, nn_locator_t *loc, const char *str, int32_t kind)
 {
   int af = AF_INET;
-  os_sockaddr_storage tmpaddr;
+  struct sockaddr_storage tmpaddr;
 
   switch (kind) {
     case NN_LOCATOR_KIND_UDPv4:
     case NN_LOCATOR_KIND_TCPv4:
       break;
-#if OS_SOCKET_HAS_IPV6
+#if DDSRT_HAVE_IPV6
     case NN_LOCATOR_KIND_UDPv6:
     case NN_LOCATOR_KIND_TCPv6:
       af = AF_INET6;
       break;
-#endif /* OS_SOCKET_HAS_IPV6 */
+#endif
     default:
       return AFSR_MISMATCH;
   }
 
   (void)tran;
-  if (os_sockaddrfromstr(af, str, (os_sockaddr *) &tmpaddr) != 0) {
-#if OS_SOCKET_HAS_DNS
+  if (ddsrt_sockaddrfromstr(af, str, (struct sockaddr *) &tmpaddr) != 0) {
+#if DDSRT_HAVE_DNS
       /* Not a valid IP address. User may have specified a hostname instead. */
-      os_hostent_t *hent = NULL;
-      if (os_gethostbyname(str, af, &hent) != 0) {
+      ddsrt_hostent_t *hent = NULL;
+      if (ddsrt_gethostbyname(str, af, &hent) != 0) {
           return AFSR_UNKNOWN;
       }
       memcpy(&tmpaddr, &hent->addrs[0], sizeof(hent->addrs[0]));
 #else
       return AFSR_INVALID;
-#endif /* OS_SOCKET_HAS_DNS */
+#endif
   }
   if (tmpaddr.ss_family != af) {
     return AFSR_MISMATCH;
   }
-  ddsi_ipaddr_to_loc (loc, (os_sockaddr *)&tmpaddr, kind);
+  ddsi_ipaddr_to_loc (loc, (struct sockaddr *)&tmpaddr, kind);
   /* This is just an address, so there is no valid value for port, other than INVALID.
      Without a guarantee that tmpaddr has port 0, best is to set it explicitly here */
   loc->port = NN_LOCATOR_PORT_INVALID;
@@ -116,7 +119,7 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_
 
 char *ddsi_ipaddr_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
 {
-  os_sockaddr_storage src;
+  struct sockaddr_storage src;
   size_t pos;
   (void)tran;
   assert (sizeof_dst > 1);
@@ -124,17 +127,17 @@ char *ddsi_ipaddr_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_
   switch (src.ss_family)
   {
     case AF_INET:
-      os_sockaddrtostr ((const os_sockaddr *) &src, dst, sizeof_dst);
+      ddsrt_sockaddrtostr ((const struct sockaddr *) &src, dst, sizeof_dst);
       if (with_port) {
         pos = strlen (dst);
         assert(pos <= sizeof_dst);
         snprintf (dst + pos, sizeof_dst - pos, ":%d", loc->port);
       }
       break;
-#if OS_SOCKET_HAS_IPV6
+#if DDSRT_HAVE_IPV6
     case AF_INET6:
       dst[0] = '[';
-      os_sockaddrtostr ((const os_sockaddr *) &src, dst + 1, sizeof_dst);
+      ddsrt_sockaddrtostr ((const struct sockaddr *) &src, dst + 1, sizeof_dst);
       pos = strlen (dst);
       if (with_port) {
         assert(pos <= sizeof_dst);
@@ -152,14 +155,14 @@ char *ddsi_ipaddr_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_
   return dst;
 }
 
-void ddsi_ipaddr_to_loc (nn_locator_t *dst, const os_sockaddr *src, int32_t kind)
+void ddsi_ipaddr_to_loc (nn_locator_t *dst, const struct sockaddr *src, int32_t kind)
 {
   dst->kind = kind;
   switch (src->sa_family)
   {
     case AF_INET:
     {
-      const os_sockaddr_in *x = (const os_sockaddr_in *) src;
+      const struct sockaddr_in *x = (const struct sockaddr_in *) src;
       assert (kind == NN_LOCATOR_KIND_UDPv4 || kind == NN_LOCATOR_KIND_TCPv4);
       if (x->sin_addr.s_addr == htonl (INADDR_ANY))
       {
@@ -175,10 +178,10 @@ void ddsi_ipaddr_to_loc (nn_locator_t *dst, const os_sockaddr *src, int32_t kind
       }
       break;
     }
-#if OS_SOCKET_HAS_IPV6
+#if DDSRT_HAVE_IPV6
     case AF_INET6:
     {
-      const os_sockaddr_in6 *x = (const os_sockaddr_in6 *) src;
+      const struct sockaddr_in6 *x = (const struct sockaddr_in6 *) src;
       assert (kind == NN_LOCATOR_KIND_UDPv6 || kind == NN_LOCATOR_KIND_TCPv6);
       if (IN6_IS_ADDR_UNSPECIFIED (&x->sin6_addr))
       {
@@ -199,13 +202,13 @@ void ddsi_ipaddr_to_loc (nn_locator_t *dst, const os_sockaddr *src, int32_t kind
   }
 }
 
-void ddsi_ipaddr_from_loc (os_sockaddr_storage *dst, const nn_locator_t *src)
+void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const nn_locator_t *src)
 {
   memset (dst, 0, sizeof (*dst));
   switch (src->kind)
   {
     case NN_LOCATOR_KIND_INVALID:
-#if OS_SOCKET_HAS_IPV6
+#if DDSRT_HAVE_IPV6
       dst->ss_family = (config.transport_selector == TRANS_UDP6 || config.transport_selector == TRANS_TCP6) ? AF_INET6 : AF_INET;
 #else
       dst->ss_family = AF_INET;
@@ -214,17 +217,17 @@ void ddsi_ipaddr_from_loc (os_sockaddr_storage *dst, const nn_locator_t *src)
     case NN_LOCATOR_KIND_UDPv4:
     case NN_LOCATOR_KIND_TCPv4:
     {
-      os_sockaddr_in *x = (os_sockaddr_in *) dst;
+      struct sockaddr_in *x = (struct sockaddr_in *) dst;
       x->sin_family = AF_INET;
       x->sin_port = (src->port == NN_LOCATOR_PORT_INVALID) ? 0 : htons ((unsigned short) src->port);
       memcpy (&x->sin_addr.s_addr, src->address + 12, 4);
       break;
     }
-#if OS_SOCKET_HAS_IPV6
+#if DDSRT_HAVE_IPV6
     case NN_LOCATOR_KIND_UDPv6:
     case NN_LOCATOR_KIND_TCPv6:
     {
-      os_sockaddr_in6 *x = (os_sockaddr_in6 *) dst;
+      struct sockaddr_in6 *x = (struct sockaddr_in6 *) dst;
       x->sin6_family = AF_INET6;
       x->sin6_port = (src->port == NN_LOCATOR_PORT_INVALID) ? 0 : htons ((unsigned short) src->port);
       memcpy (&x->sin6_addr.s6_addr, src->address, 16);

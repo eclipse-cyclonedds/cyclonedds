@@ -10,8 +10,12 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <string.h>
-#include "os/os.h"
-#include "util/ut_thread_pool.h"
+
+#include "dds/ddsrt/io.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/threads.h"
+#include "dds/util/ut_thread_pool.h"
 
 typedef struct ddsi_work_queue_job
 {
@@ -33,23 +37,23 @@ struct ut_thread_pool_s
     uint32_t m_job_count;             /* Number of queued jobs */
     uint32_t m_job_max;               /* Maximum number of jobs to queue */
     unsigned short m_count;            /* Counter for thread name */
-    os_threadAttr m_attr;              /* Thread creation attribute */
-    os_cond m_cv;                    /* Thread wait semaphore */
-    os_mutex m_mutex;                  /* Pool guard mutex */
+    ddsrt_threadattr_t m_attr;              /* Thread creation attribute */
+    ddsrt_cond_t m_cv;                    /* Thread wait semaphore */
+    ddsrt_mutex_t m_mutex;                  /* Pool guard mutex */
 };
 
-static uint32_t ut_thread_start_fn (_In_ void * arg)
+static uint32_t ut_thread_start_fn (void * arg)
 {
     ddsi_work_queue_job_t job;
     ut_thread_pool pool = (ut_thread_pool) arg;
 
     /* Thread loops, pulling jobs from queue */
 
-    os_mutexLock (&pool->m_mutex);
+    ddsrt_mutex_lock (&pool->m_mutex);
 
     while (pool->m_jobs != NULL) {
         /* Wait for job */
-        os_condWait (&pool->m_cv, &pool->m_mutex);
+        ddsrt_cond_wait (&pool->m_cv, &pool->m_mutex);
 
         /* Check if pool deleted or being purged */
 
@@ -61,7 +65,7 @@ static uint32_t ut_thread_start_fn (_In_ void * arg)
             pool->m_jobs = job->m_next_job;
             pool->m_job_count--;
 
-            os_mutexUnlock (&pool->m_mutex);
+            ddsrt_mutex_unlock (&pool->m_mutex);
 
             /* Do job */
 
@@ -69,7 +73,7 @@ static uint32_t ut_thread_start_fn (_In_ void * arg)
 
             /* Put job back on free list */
 
-            os_mutexLock (&pool->m_mutex);
+            ddsrt_mutex_lock (&pool->m_mutex);
             pool->m_waiting++;
             job->m_next_job = pool->m_free;
             pool->m_free = job;
@@ -78,35 +82,35 @@ static uint32_t ut_thread_start_fn (_In_ void * arg)
 
     if (--pool->m_threads) {
         /* last to leave triggers thread_pool_free */
-        os_condBroadcast (&pool->m_cv);
+        ddsrt_cond_broadcast (&pool->m_cv);
     }
-    os_mutexUnlock (&pool->m_mutex);
+    ddsrt_mutex_unlock (&pool->m_mutex);
     return 0;
 }
 
-static os_result ut_thread_pool_new_thread (ut_thread_pool pool)
+static dds_retcode_t ut_thread_pool_new_thread (ut_thread_pool pool)
 {
     static unsigned char pools = 0; /* Pool counter - TODO make atomic */
 
     char name [64];
-    os_threadId id;
-    os_result res;
+    ddsrt_thread_t id;
+    dds_retcode_t res;
 
     (void) snprintf (name, sizeof (name), "OSPL-%u-%u", pools++, pool->m_count++);
-    res = os_threadCreate (&id, name, &pool->m_attr, &ut_thread_start_fn, pool);
+    res = ddsrt_thread_create (&id, name, &pool->m_attr, &ut_thread_start_fn, pool);
 
-    if (res == os_resultSuccess)
+    if (res == DDS_RETCODE_OK)
     {
-        os_mutexLock (&pool->m_mutex);
+        ddsrt_mutex_lock (&pool->m_mutex);
         pool->m_threads++;
         pool->m_waiting++;
-        os_mutexUnlock (&pool->m_mutex);
+        ddsrt_mutex_unlock (&pool->m_mutex);
     }
 
     return res;
 }
 
-ut_thread_pool ut_thread_pool_new (uint32_t threads, uint32_t max_threads, uint32_t max_queue, os_threadAttr * attr)
+ut_thread_pool ut_thread_pool_new (uint32_t threads, uint32_t max_threads, uint32_t max_queue, ddsrt_threadattr_t * attr)
 {
     ut_thread_pool pool;
     ddsi_work_queue_job_t job;
@@ -122,14 +126,14 @@ ut_thread_pool ut_thread_pool_new (uint32_t threads, uint32_t max_threads, uint3
         max_queue = threads;
     }
 
-    pool = os_malloc (sizeof (*pool));
+    pool = ddsrt_malloc (sizeof (*pool));
     memset (pool, 0, sizeof (*pool));
     pool->m_thread_min = threads;
     pool->m_thread_max = max_threads;
     pool->m_job_max = max_queue;
-    os_threadAttrInit (&pool->m_attr);
-    os_mutexInit (&pool->m_mutex);
-    os_condInit (&pool->m_cv, &pool->m_mutex);
+    ddsrt_threadattr_init (&pool->m_attr);
+    ddsrt_mutex_init (&pool->m_mutex);
+    ddsrt_cond_init (&pool->m_cv);
 
     if (attr)
     {
@@ -140,13 +144,13 @@ ut_thread_pool ut_thread_pool_new (uint32_t threads, uint32_t max_threads, uint3
 
     while (threads--)
     {
-        if (ut_thread_pool_new_thread (pool) != os_resultSuccess)
+        if (ut_thread_pool_new_thread (pool) != DDS_RETCODE_OK)
         {
             ut_thread_pool_free (pool);
             pool = NULL;
             break;
         }
-        job = os_malloc (sizeof (*job));
+        job = ddsrt_malloc (sizeof (*job));
         job->m_next_job = pool->m_free;
         pool->m_free = job;
     }
@@ -163,7 +167,7 @@ void ut_thread_pool_free (ut_thread_pool pool)
         return;
     }
 
-    os_mutexLock (&pool->m_mutex);
+    ddsrt_mutex_lock (&pool->m_mutex);
 
     /* Delete all pending jobs from queue */
 
@@ -171,21 +175,21 @@ void ut_thread_pool_free (ut_thread_pool pool)
     {
         job = pool->m_jobs;
         pool->m_jobs = job->m_next_job;
-        os_free (job);
+        ddsrt_free (job);
     }
 
     /* Wake all waiting threads */
 
-    os_condBroadcast (&pool->m_cv);
+    ddsrt_cond_broadcast (&pool->m_cv);
 
-    os_mutexUnlock (&pool->m_mutex);
+    ddsrt_mutex_unlock (&pool->m_mutex);
 
     /* Wait for threads to complete */
 
-    os_mutexLock (&pool->m_mutex);
+    ddsrt_mutex_lock (&pool->m_mutex);
     while (pool->m_threads != 0)
-        os_condWait (&pool->m_cv, &pool->m_mutex);
-    os_mutexUnlock (&pool->m_mutex);
+        ddsrt_cond_wait (&pool->m_cv, &pool->m_mutex);
+    ddsrt_mutex_unlock (&pool->m_mutex);
 
     /* Delete all free jobs from queue */
 
@@ -193,26 +197,26 @@ void ut_thread_pool_free (ut_thread_pool pool)
     {
         job = pool->m_free;
         pool->m_free = job->m_next_job;
-        os_free (job);
+        ddsrt_free (job);
     }
 
-    os_condDestroy (&pool->m_cv);
-    os_mutexDestroy (&pool->m_mutex);
-    os_free (pool);
+    ddsrt_cond_destroy (&pool->m_cv);
+    ddsrt_mutex_destroy (&pool->m_mutex);
+    ddsrt_free (pool);
 }
 
-os_result ut_thread_pool_submit (ut_thread_pool pool, void (*fn) (void *arg), void * arg)
+dds_retcode_t ut_thread_pool_submit (ut_thread_pool pool, void (*fn) (void *arg), void * arg)
 {
-    os_result res = os_resultSuccess;
+    dds_retcode_t res = DDS_RETCODE_OK;
     ddsi_work_queue_job_t job;
 
-    os_mutexLock (&pool->m_mutex);
+    ddsrt_mutex_lock (&pool->m_mutex);
 
     if (pool->m_job_max && pool->m_job_count >= pool->m_job_max)
     {
         /* Maximum number of jobs reached */
 
-        res = os_resultBusy;
+        res = DDS_RETCODE_TRY_AGAIN;
     }
     else
     {
@@ -225,7 +229,7 @@ os_result ut_thread_pool_submit (ut_thread_pool pool, void (*fn) (void *arg), vo
         }
         else
         {
-            job = os_malloc (sizeof (*job));
+            job = ddsrt_malloc (sizeof (*job));
         }
         job->m_next_job = NULL;
         job->m_fn = fn;
@@ -257,10 +261,10 @@ os_result ut_thread_pool_submit (ut_thread_pool pool, void (*fn) (void *arg), vo
 
         /* Wakeup processing thread */
 
-        os_condSignal (&pool->m_cv);
+        ddsrt_cond_signal (&pool->m_cv);
     }
 
-    os_mutexUnlock (&pool->m_mutex);
+    ddsrt_mutex_unlock (&pool->m_mutex);
 
     return res;
 }
@@ -269,13 +273,13 @@ void ut_thread_pool_purge (ut_thread_pool pool)
 {
     uint32_t total;
 
-    os_mutexLock (&pool->m_mutex);
+    ddsrt_mutex_lock (&pool->m_mutex);
     total = pool->m_threads;
     while (pool->m_waiting && (total > pool->m_thread_min))
     {
         pool->m_waiting--;
         total--;
     }
-    os_condBroadcast (&pool->m_cv);
-    os_mutexUnlock (&pool->m_mutex);
+    ddsrt_cond_broadcast (&pool->m_cv);
+    ddsrt_mutex_unlock (&pool->m_mutex);
 }

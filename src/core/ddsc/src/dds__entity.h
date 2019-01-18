@@ -13,35 +13,31 @@
 #define _DDS_ENTITY_H_
 
 #include "dds__types.h"
-#include "ddsi/q_thread.h"
+#include "dds/ddsi/q_thread.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-_Check_return_
 DDS_EXPORT dds_entity_t
 dds_entity_init(
-        _In_       dds_entity * e,
-        _When_(kind != DDS_KIND_PARTICIPANT, _Notnull_)
-        _When_(kind == DDS_KIND_PARTICIPANT, _Null_)
-          _In_opt_ dds_entity * parent,
-        _In_       dds_entity_kind_t kind,
-        _In_opt_   dds_qos_t * qos,
-        _In_opt_   const dds_listener_t *listener,
-        _In_       uint32_t mask);
+  dds_entity * e,
+  dds_entity * parent,
+  dds_entity_kind_t kind,
+  dds_qos_t * qos,
+  const dds_listener_t *listener,
+  uint32_t mask);
 
 DDS_EXPORT void
-dds_entity_add_ref(
-        _In_ dds_entity *e);
+dds_entity_add_ref(dds_entity *e);
+
 DDS_EXPORT void
-dds_entity_add_ref_nolock(
-        _In_ dds_entity *e);
+dds_entity_add_ref_nolock(dds_entity *e);
 
 #define DEFINE_ENTITY_LOCK_UNLOCK(qualifier_, type_, kind_) \
-  qualifier_ dds__retcode_t type_##_lock (dds_entity_t hdl, type_ **x) \
+  qualifier_ dds_retcode_t type_##_lock (dds_entity_t hdl, type_ **x) \
   { \
-    dds__retcode_t rc; \
+    dds_retcode_t rc; \
     dds_entity *e; \
     if ((rc = dds_entity_lock (hdl, kind_, &e)) != DDS_RETCODE_OK) \
       return rc; \
@@ -54,7 +50,7 @@ dds_entity_add_ref_nolock(
     dds_entity_unlock (&x->m_entity); \
   }
 #define DECL_ENTITY_LOCK_UNLOCK(qualifier_, type_) \
-  qualifier_ dds__retcode_t type_##_lock (dds_entity_t hdl, type_ **x); \
+  qualifier_ dds_retcode_t type_##_lock (dds_entity_t hdl, type_ **x); \
   qualifier_ void type_##_unlock (type_ *x);
 
 DDS_EXPORT inline bool dds_entity_is_enabled (const dds_entity *e) {
@@ -83,58 +79,52 @@ DDS_EXPORT void dds_entity_status_signal (dds_entity *e);
 
 DDS_EXPORT void dds_entity_invoke_listener (const dds_entity *entity, enum dds_status_id which, const void *vst);
 
-_Check_return_ DDS_EXPORT dds__retcode_t
-dds_valid_hdl(
-        _In_ dds_entity_t hdl,
-        _In_ dds_entity_kind_t kind);
+DDS_EXPORT dds_retcode_t
+dds_valid_hdl(dds_entity_t hdl, dds_entity_kind_t kind);
 
-_Acquires_exclusive_lock_(*e)
-_Check_return_ DDS_EXPORT dds__retcode_t
+DDS_EXPORT dds_retcode_t
 dds_entity_lock(
-        _In_ dds_entity_t hdl,
-        _In_ dds_entity_kind_t kind,
-        _Out_ dds_entity **e);
+  dds_entity_t hdl,
+  dds_entity_kind_t kind,
+  dds_entity **e);
 
-_Releases_exclusive_lock_(e)
 DDS_EXPORT void
-dds_entity_unlock(
-        _Inout_ dds_entity *e);
+dds_entity_unlock(dds_entity *e);
 
-_Check_return_ DDS_EXPORT dds__retcode_t
+DDS_EXPORT dds_retcode_t
 dds_entity_observer_register_nl(
-        _In_ dds_entity*  observed,
-        _In_ dds_entity_t observer,
-        _In_ dds_entity_callback cb);
+  dds_entity *observed,
+  dds_entity_t observer,
+  dds_entity_callback cb);
 
-_Check_return_ DDS_EXPORT dds__retcode_t
+DDS_EXPORT dds_retcode_t
 dds_entity_observer_register(
-        _In_ dds_entity_t observed,
-        _In_ dds_entity_t observer,
-        _In_ dds_entity_callback cb);
+  dds_entity_t observed,
+  dds_entity_t observer,
+  dds_entity_callback cb);
 
-DDS_EXPORT dds__retcode_t
+DDS_EXPORT dds_retcode_t
 dds_entity_observer_unregister_nl(
-        _In_ dds_entity*  observed,
-        _In_ dds_entity_t observer);
+  dds_entity *observed,
+  dds_entity_t observer);
 
-DDS_EXPORT dds__retcode_t
+DDS_EXPORT dds_retcode_t
 dds_entity_observer_unregister(
-        _In_ dds_entity_t observed,
-        _In_ dds_entity_t observer);
+  dds_entity_t observed,
+  dds_entity_t observer);
 
-_Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
 DDS_EXPORT dds_return_t
 dds_delete_impl(
-        _In_ dds_entity_t entity,
-        _In_ bool keep_if_explicit);
+  dds_entity_t entity,
+  bool keep_if_explicit);
 
 DDS_EXPORT const char *
 dds__entity_kind_str(
-        _In_ dds_entity_t e);
+  dds_entity_t e);
 
 DDS_EXPORT dds_domain *
 dds__entity_domain(
-        _In_ dds_entity* e);
+  dds_entity* e);
 
 #if defined (__cplusplus)
 }

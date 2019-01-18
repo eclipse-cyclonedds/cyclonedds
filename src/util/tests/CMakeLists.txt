@@ -11,5 +11,19 @@
 #
 include(CUnit)
 
-add_cunit_executable(CUnit_util "handleserver.c")
-target_link_libraries(CUnit_util util)
+add_cunit_executable(cunit_util "handleserver.c")
+target_link_libraries(cunit_util PRIVATE util)
+target_link_libraries(cunit_util PRIVATE ddsrt)
+
+# Create a dummy export header. generate_export_header can only be used with
+# library targets, but since the targets are linked statically,
+# __declspec(dllimport) is not required anyway.
+set(export_dir "${CMAKE_CURRENT_BINARY_DIR}/include/dds")
+set(export_header "${export_dir}/export.h")
+if(NOT EXISTS "${export_header}")
+  file(MAKE_DIRECTORY "${export_dir}")
+  file(WRITE "${export_header}" "#define DDS_EXPORT\n")
+endif()
+
+target_include_directories(
+  cunit_util PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")

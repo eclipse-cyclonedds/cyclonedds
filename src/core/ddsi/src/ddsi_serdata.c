@@ -14,12 +14,11 @@
 #include <assert.h>
 #include <string.h>
 
-#include "os/os.h"
-#include "ddsi/q_md5.h"
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_freelist.h"
-#include "ddsi/ddsi_serdata.h"
+#include "dds/ddsi/q_md5.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_serdata.h"
 
 void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertopic *tp, enum ddsi_serdata_kind kind)
 {
@@ -30,7 +29,7 @@ void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertopic *tp, 
   d->statusinfo = 0;
   d->timestamp.v = INT64_MIN;
   d->twrite.v = INT64_MIN;
-  os_atomic_st32 (&d->refc, 1);
+  ddsrt_atomic_st32 (&d->refc, 1);
 }
 
 extern inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const);
@@ -41,8 +40,8 @@ extern inline struct ddsi_serdata *ddsi_serdata_from_keyhash (const struct ddsi_
 extern inline struct ddsi_serdata *ddsi_serdata_from_sample (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, const void *sample);
 extern inline struct ddsi_serdata *ddsi_serdata_to_topicless (const struct ddsi_serdata *d);
 extern inline void ddsi_serdata_to_ser (const struct ddsi_serdata *d, size_t off, size_t sz, void *buf);
-extern inline struct ddsi_serdata *ddsi_serdata_to_ser_ref (const struct ddsi_serdata *d, size_t off, size_t sz, os_iovec_t *ref);
-extern inline void ddsi_serdata_to_ser_unref (struct ddsi_serdata *d, const os_iovec_t *ref);
+extern inline struct ddsi_serdata *ddsi_serdata_to_ser_ref (const struct ddsi_serdata *d, size_t off, size_t sz, ddsrt_iovec_t *ref);
+extern inline void ddsi_serdata_to_ser_unref (struct ddsi_serdata *d, const ddsrt_iovec_t *ref);
 extern inline bool ddsi_serdata_to_sample (const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
 extern inline bool ddsi_serdata_topicless_to_sample (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
 extern inline bool ddsi_serdata_eqkey (const struct ddsi_serdata *a, const struct ddsi_serdata *b);

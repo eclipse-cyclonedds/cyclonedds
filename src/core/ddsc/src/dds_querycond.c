@@ -10,24 +10,26 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+
+#include "dds/ddsrt/atomics.h"
+#include "dds/ddsrt/log.h"
 #include "dds__entity.h"
 #include "dds__reader.h"
 #include "dds__topic.h"
 #include "dds__querycond.h"
 #include "dds__readcond.h"
 #include "dds__err.h"
-#include "ddsi/ddsi_serdata.h"
-#include "ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_sertopic.h"
 
-_Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)
 DDS_EXPORT dds_entity_t
 dds_create_querycondition(
-        _In_ dds_entity_t reader,
-        _In_ uint32_t mask,
-        _In_ dds_querycondition_filter_fn filter)
+    dds_entity_t reader,
+    uint32_t mask,
+    dds_querycondition_filter_fn filter)
 {
     dds_entity_t hdl;
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_reader *r;
 
     rc = dds_reader_lock(reader, &r);

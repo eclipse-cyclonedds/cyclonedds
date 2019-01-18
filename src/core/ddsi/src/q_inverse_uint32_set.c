@@ -11,11 +11,11 @@
  */
 #include <assert.h>
 #include <stddef.h>
-#include "os/os.h"
-#include "util/ut_avl.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_log.h"
-#include "ddsi/q_inverse_uint32_set.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/util/ut_avl.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_inverse_uint32_set.h"
 
 static int uint32_t_cmp(const void *va, const void *vb);
 
@@ -55,7 +55,7 @@ void inverse_uint32_set_init(struct inverse_uint32_set *set, uint32_t min, uint3
   set->cursor = min;
   set->min = min;
   set->max = max;
-  n = os_malloc(sizeof(*n));
+  n = ddsrt_malloc(sizeof(*n));
   n->min = min;
   n->max = max;
   ut_avlInsert(&inverse_uint32_set_td, &set->ids, n);
@@ -64,7 +64,7 @@ void inverse_uint32_set_init(struct inverse_uint32_set *set, uint32_t min, uint3
 
 void inverse_uint32_set_fini(struct inverse_uint32_set *set)
 {
-  ut_avlFree(&inverse_uint32_set_td, &set->ids, os_free);
+  ut_avlFree(&inverse_uint32_set_td, &set->ids, ddsrt_free);
 }
 
 static uint32_t inverse_uint32_set_alloc_use_min(struct inverse_uint32_set *set, struct inverse_uint32_set_node *n)
@@ -73,7 +73,7 @@ static uint32_t inverse_uint32_set_alloc_use_min(struct inverse_uint32_set *set,
   if (n->min == n->max)
   {
     ut_avlDelete(&inverse_uint32_set_td, &set->ids, n);
-    os_free(n);
+    ddsrt_free(n);
   }
   else
   {
@@ -100,7 +100,7 @@ int inverse_uint32_set_alloc(uint32_t * const id, struct inverse_uint32_set *set
     }
     else
     {
-      struct inverse_uint32_set_node *n1 = os_malloc(sizeof(*n1));
+      struct inverse_uint32_set_node *n1 = ddsrt_malloc(sizeof(*n1));
       assert(n->min < set->cursor && set->cursor < n->max);
       n1->min = set->cursor + 1;
       n1->max = n->max;
@@ -150,7 +150,7 @@ void inverse_uint32_set_free(struct inverse_uint32_set *set, uint32_t id)
       } else {
         n->max = n1->max;
         ut_avlDeleteDPath(&inverse_uint32_set_td, &set->ids, n1, &dp);
-        os_free(n1);
+        ddsrt_free(n1);
       }
     }
   }
@@ -161,7 +161,7 @@ void inverse_uint32_set_free(struct inverse_uint32_set *set, uint32_t id)
   else
   {
     /* no adjacent interval */
-    n = os_malloc(sizeof(*n));
+    n = ddsrt_malloc(sizeof(*n));
     n->min = n->max = id;
     ut_avlInsertIPath(&inverse_uint32_set_td, &set->ids, n, &ip);
   }

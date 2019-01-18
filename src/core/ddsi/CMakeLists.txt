@@ -64,7 +64,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
 
 # The includes should reside close to the code. As long as that's not the case,
 # pull them in from this CMakeLists.txt.
-PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/ddsi"
+PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_ssl.h
     ddsi_tcp.h
     ddsi_tran.h
@@ -124,11 +124,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/ddsi"
 )
 
 target_sources(ddsc
-    PRIVATE
-        ${srcs_ddsi}
-        ${hdrs_private_ddsi}
-)
+  PRIVATE ${srcs_ddsi} ${hdrs_private_ddsi})
 
 target_include_directories(ddsc
-    PRIVATE
-        "${CMAKE_CURRENT_LIST_DIR}/include")
+  PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")

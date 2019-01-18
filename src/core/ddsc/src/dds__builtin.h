@@ -12,7 +12,7 @@
 #ifndef _DDS_BUILTIN_H_
 #define _DDS_BUILTIN_H_
 
-#include "ddsi/q_time.h"
+#include "dds/ddsi/q_time.h"
 
 #if defined (__cplusplus)
 extern "C"

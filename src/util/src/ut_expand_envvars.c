@@ -15,8 +15,11 @@
 #include <assert.h>
 #include <string.h>
 
-#include "os/os.h"
-#include "util/ut_expand_envvars.h"
+#include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/string.h"
+#include "dds/util/ut_expand_envvars.h"
 
 typedef char * (*expand_fn)(const char *src0);
 
@@ -24,7 +27,7 @@ static void expand_append (char **dst, size_t *sz, size_t *pos, char c)
 {
     if (*pos == *sz) {
         *sz += 1024;
-        *dst = os_realloc (*dst, *sz);
+        *dst = ddsrt_realloc (*dst, *sz);
     }
     (*dst)[*pos] = c;
     (*pos)++;
@@ -32,24 +35,25 @@ static void expand_append (char **dst, size_t *sz, size_t *pos, char c)
 
 static char *expand_env (const char *name, char op, const char *alt, expand_fn expand)
 {
-    const char *env = os_getenv (name);
+    char *env = NULL;
+    (void)ddsrt_getenv (name, &env);
     switch (op)
     {
         case 0:
-            return os_strdup (env ? env : "");
+            return ddsrt_strdup (env ? env : "");
         case '-':
-            return env && *env ? os_strdup (env) : expand (alt);
+            return env && *env ? ddsrt_strdup (env) : expand (alt);
         case '?':
             if (env && *env) {
-                return os_strdup (env);
+                return ddsrt_strdup (env);
             } else {
                 char *altx = expand (alt);
                 DDS_ERROR("%s: %s\n", name, altx);
-                os_free (altx);
+                ddsrt_free (altx);
                 return NULL;
             }
         case '+':
-            return env && *env ? expand (alt) : os_strdup ("");
+            return env && *env ? expand (alt) : ddsrt_strdup ("");
         default:
             abort ();
             return NULL;
@@ -68,13 +72,13 @@ static char *expand_envbrace (const char **src, expand_fn expand)
     if (**src == 0) {
         goto err;
     }
-    name = os_malloc ((size_t) (*src - start) + 1);
+    name = ddsrt_malloc ((size_t) (*src - start) + 1);
     memcpy (name, start, (size_t) (*src - start));
     name[*src - start] = 0;
     if (**src == '}') {
         (*src)++;
         x = expand_env (name, 0, NULL, expand);
-        os_free (name);
+        ddsrt_free (name);
         return x;
     } else {
         const char *altstart;
@@ -89,7 +93,7 @@ static char *expand_envbrace (const char **src, expand_fn expand)
                 (*src)++;
                 break;
             default:
-                os_free(name);
+                ddsrt_free(name);
                 goto err;
         }
         altstart = *src;
@@ -102,24 +106,24 @@ static char *expand_envbrace (const char **src, expand_fn expand)
             } else if (**src == '\\') {
                 (*src)++;
                 if (**src == 0) {
-                    os_free(name);
+                    ddsrt_free(name);
                     goto err;
                 }
             }
             (*src)++;
         }
         if (**src == 0) {
-            os_free(name);
+            ddsrt_free(name);
             goto err;
         }
         assert (**src == '}');
-        alt = os_malloc ((size_t) (*src - altstart) + 1);
+        alt = ddsrt_malloc ((size_t) (*src - altstart) + 1);
         memcpy (alt, altstart, (size_t) (*src - altstart));
         alt[*src - altstart] = 0;
         (*src)++;
         x = expand_env (name, op, alt, expand);
-        os_free (alt);
-        os_free (name);
+        ddsrt_free (alt);
+        ddsrt_free (name);
         return x;
     }
 err:
@@ -135,11 +139,11 @@ static char *expand_envsimple (const char **src, expand_fn expand)
         (*src)++;
     }
     assert (*src > start);
-    name = os_malloc ((size_t) (*src - start) + 1);
+    name = ddsrt_malloc ((size_t) (*src - start) + 1);
     memcpy (name, start, (size_t) (*src - start));
     name[*src - start] = 0;
     x = expand_env (name, 0, NULL, expand);
-    os_free (name);
+    ddsrt_free (name);
     return x;
 }
 
@@ -158,13 +162,13 @@ char *ut_expand_envvars_sh (const char *src0)
     /* Expands $X, ${X}, ${X:-Y}, ${X:+Y}, ${X:?Y} forms; $ and \ can be escaped with \ */
     const char *src = src0;
     size_t sz = strlen (src) + 1, pos = 0;
-    char *dst = os_malloc (sz);
+    char *dst = ddsrt_malloc (sz);
     while (*src) {
         if (*src == '\\') {
             src++;
             if (*src == 0) {
                 DDS_ERROR("%s: incomplete escape at end of string\n", src0);
-                os_free(dst);
+                ddsrt_free(dst);
                 return NULL;
             }
             expand_append (&dst, &sz, &pos, *src++);
@@ -173,7 +177,7 @@ char *ut_expand_envvars_sh (const char *src0)
             src++;
             if (*src == 0) {
                 DDS_ERROR("%s: incomplete variable expansion at end of string\n", src0);
-                os_free(dst);
+                ddsrt_free(dst);
                 return NULL;
             } else if (*src == '{') {
                 x = expand_envbrace (&src, &ut_expand_envvars_sh);
@@ -183,14 +187,14 @@ char *ut_expand_envvars_sh (const char *src0)
                 x = expand_envchar (&src, &ut_expand_envvars_sh);
             }
             if (x == NULL) {
-                os_free(dst);
+                ddsrt_free(dst);
                 return NULL;
             }
             xp = x;
             while (*xp) {
                 expand_append (&dst, &sz, &pos, *xp++);
             }
-            os_free (x);
+            ddsrt_free (x);
         } else {
             expand_append (&dst, &sz, &pos, *src++);
         }
@@ -204,21 +208,21 @@ char *ut_expand_envvars (const char *src0)
     /* Expands ${X}, ${X:-Y}, ${X:+Y}, ${X:?Y} forms, but not $X */
     const char *src = src0;
     size_t sz = strlen (src) + 1, pos = 0;
-    char *dst = os_malloc (sz);
+    char *dst = ddsrt_malloc (sz);
     while (*src) {
         if (*src == '$' && *(src + 1) == '{') {
             char *x, *xp;
             src++;
             x = expand_envbrace (&src, &ut_expand_envvars);
             if (x == NULL) {
-                os_free(dst);
+                ddsrt_free(dst);
                 return NULL;
             }
             xp = x;
             while (*xp) {
                 expand_append (&dst, &sz, &pos, *xp++);
             }
-            os_free (x);
+            ddsrt_free (x);
         } else {
             expand_append (&dst, &sz, &pos, *src++);
         }

@@ -15,8 +15,10 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "os/os.h"
-#include "util/ut_xmlparser.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/string.h"
+#include "dds/util/ut_xmlparser.h"
 
 #define TOK_EOF -1
 #define TOK_OPEN_TAG -2
@@ -52,42 +54,42 @@ struct ut_xmlpState {
 
 static int cb_null_elem_open (void *varg, uintptr_t parentinfo, uintptr_t *eleminfo, const char *name)
 {
-    OS_UNUSED_ARG (varg);
-    OS_UNUSED_ARG (parentinfo);
-    OS_UNUSED_ARG (eleminfo);
-    OS_UNUSED_ARG (name);
+    DDSRT_UNUSED_ARG (varg);
+    DDSRT_UNUSED_ARG (parentinfo);
+    DDSRT_UNUSED_ARG (eleminfo);
+    DDSRT_UNUSED_ARG (name);
     return 0;
 }
 
 static int cb_null_attr (void *varg, uintptr_t eleminfo, const char *name, const char *value)
 {
-    OS_UNUSED_ARG (varg);
-    OS_UNUSED_ARG (eleminfo);
-    OS_UNUSED_ARG (name);
-    OS_UNUSED_ARG (value);
+    DDSRT_UNUSED_ARG (varg);
+    DDSRT_UNUSED_ARG (eleminfo);
+    DDSRT_UNUSED_ARG (name);
+    DDSRT_UNUSED_ARG (value);
     return 0;
 }
 
 static int cb_null_elem_data (void *varg, uintptr_t eleminfo, const char *data)
 {
-    OS_UNUSED_ARG (varg);
-    OS_UNUSED_ARG (eleminfo);
-    OS_UNUSED_ARG (data);
+    DDSRT_UNUSED_ARG (varg);
+    DDSRT_UNUSED_ARG (eleminfo);
+    DDSRT_UNUSED_ARG (data);
     return 0;
 }
 
 static int cb_null_elem_close (void *varg, uintptr_t eleminfo)
 {
-    OS_UNUSED_ARG (varg);
-    OS_UNUSED_ARG (eleminfo);
+    DDSRT_UNUSED_ARG (varg);
+    DDSRT_UNUSED_ARG (eleminfo);
     return 0;
 }
 
 static void cb_null_error (void *varg, const char *msg, int line)
 {
-    OS_UNUSED_ARG (varg);
-    OS_UNUSED_ARG (msg);
-    OS_UNUSED_ARG (line);
+    DDSRT_UNUSED_ARG (varg);
+    DDSRT_UNUSED_ARG (msg);
+    DDSRT_UNUSED_ARG (line);
 }
 
 static void ut_xmlpNewCommon (struct ut_xmlpState *st)
@@ -97,7 +99,7 @@ static void ut_xmlpNewCommon (struct ut_xmlpState *st)
     st->tpp = 0;
     st->tpescp = 0;
     st->tpsz = 1024;
-    st->tp = os_malloc (st->tpsz);
+    st->tp = ddsrt_malloc (st->tpsz);
     st->line = 1;
     st->prevline = 1;
     st->linemark = 0;
@@ -121,10 +123,10 @@ static void ut_xmlpNewSetCB (struct ut_xmlpState *st, void *varg, const struct u
 struct ut_xmlpState *ut_xmlpNewFile (FILE *fp, void *varg, const struct ut_xmlpCallbacks *cb)
 {
     struct ut_xmlpState *st;
-    st = os_malloc (sizeof (*st));
+    st = ddsrt_malloc (sizeof (*st));
     st->cbufn = 0;
     st->cbufmax = 8192;
-    st->cbuf = os_malloc (st->cbufmax);
+    st->cbuf = ddsrt_malloc (st->cbufmax);
     st->fp = fp;
     ut_xmlpNewCommon (st);
     ut_xmlpNewSetCB (st, varg, cb);
@@ -134,7 +136,7 @@ struct ut_xmlpState *ut_xmlpNewFile (FILE *fp, void *varg, const struct ut_xmlpC
 struct ut_xmlpState *ut_xmlpNewString (const char *string, void *varg, const struct ut_xmlpCallbacks *cb)
 {
     struct ut_xmlpState *st;
-    st = os_malloc (sizeof (*st));
+    st = ddsrt_malloc (sizeof (*st));
     st->cbufn = strlen (string);
     st->cbufmax = st->cbufn;
     st->cbuf = (char *) string;
@@ -147,10 +149,10 @@ struct ut_xmlpState *ut_xmlpNewString (const char *string, void *varg, const str
 void ut_xmlpFree (struct ut_xmlpState *st)
 {
     if (st->fp != NULL) {
-        os_free (st->cbuf);
+        ddsrt_free (st->cbuf);
     }
-    os_free (st->tp);
-    os_free (st);
+    ddsrt_free (st->tp);
+    ddsrt_free (st);
 }
 
 static int make_chars_available (struct ut_xmlpState *st, size_t nmin)
@@ -176,7 +178,7 @@ static int make_chars_available (struct ut_xmlpState *st, size_t nmin)
     /* buffer is owned by caller if fp = NULL, and by us if fp != NULL */
     if (st->cbufp + st->cbufmax < nmin && st->fp != NULL) {
         st->cbufmax = st->cbufp + nmin;
-        st->cbuf = os_realloc (st->cbuf, st->cbufmax);
+        st->cbuf = ddsrt_realloc (st->cbuf, st->cbufmax);
     }
     /* try to refill buffer if a backing file is present; eof (or end-of-string) is
        reached when this doesn't add any bytes to the buffer */
@@ -281,7 +283,7 @@ static char *unescape_into_utf8 (char *dst, unsigned cp)
     return dst;
 }
 
-OS_WARNING_MSVC_OFF(4996);
+DDSRT_WARNING_MSVC_OFF(4996);
 static int unescape_insitu (char *buffer, size_t *n)
 {
     const char *src = buffer;
@@ -338,7 +340,7 @@ static int unescape_insitu (char *buffer, size_t *n)
     *n = (size_t) (dst - buffer);
     return 0;
 }
-OS_WARNING_MSVC_ON(4996);
+DDSRT_WARNING_MSVC_ON(4996);
 
 static void discard_payload (struct ut_xmlpState *st)
 {
@@ -364,7 +366,7 @@ static int append_to_payload (struct ut_xmlpState *st, int c, int islit)
     }
     if (st->tpp == st->tpsz) {
         st->tpsz += 1024;
-        st->tp = os_realloc (st->tp, st->tpsz);
+        st->tp = ddsrt_realloc (st->tp, st->tpsz);
     }
     return 0;
 }
@@ -383,7 +385,7 @@ static int save_payload (char **payload, struct ut_xmlpState *st, int trim)
     if (payload == NULL) {
         p = NULL;
     } else if (st->tpp == 0) {
-        p = os_strdup("");
+        p = ddsrt_strdup("");
     } else {
         size_t first = 0, last = st->tpp - 1;
         if (trim) {
@@ -395,9 +397,9 @@ static int save_payload (char **payload, struct ut_xmlpState *st, int trim)
             }
         }
         if (first > last) {
-            p = os_strdup("");
+            p = ddsrt_strdup("");
         } else {
-            p = os_malloc (last - first + 2);
+            p = ddsrt_malloc (last - first + 2);
             /* Could be improved, parser error will be "invalid char sequence" if malloc fails. */
             memcpy (p, st->tp + first, last - first + 1);
             p[last - first + 1] = 0;
@@ -491,7 +493,7 @@ static void drop_peek_token (struct ut_xmlpState *st)
 {
     st->peektok = 0;
     if (st->peekpayload) {
-        os_free (st->peekpayload);
+        ddsrt_free (st->peekpayload);
         st->peekpayload = NULL;
     }
 }
@@ -511,7 +513,7 @@ static int next_token (struct ut_xmlpState *st, char **payload)
         if (payload) {
             *payload = st->peekpayload;
         } else if (st->peekpayload) {
-            os_free (st->peekpayload);
+            ddsrt_free (st->peekpayload);
             st->peekpayload = NULL;
         }
         return tok;
@@ -587,15 +589,15 @@ static int parse_element (struct ut_xmlpState *st, uintptr_t parentinfo)
             PE_LOCAL_ERROR ("expecting '=' following attribute name", aname);
         }
         if (next_token (st, &content) != TOK_STRING) {
-            os_free (content);
+            ddsrt_free (content);
             PE_LOCAL_ERROR ("expecting string value for attribute", aname);
         }
         ret = st->cb.attr (st->varg, eleminfo, aname, content);
-        os_free (content);
+        ddsrt_free (content);
         if (ret < 0) {
             PE_ERROR2 ("failed in attribute callback", name, aname);
         }
-        os_free (aname);
+        ddsrt_free (aname);
         aname = NULL;
     }
 
@@ -650,12 +652,12 @@ static int parse_element (struct ut_xmlpState *st, uintptr_t parentinfo)
                 } else if (content != NULL) {
                     if(*content != '\0') {
                         ret = st->cb.elem_data (st->varg, eleminfo, content);
-                        os_free (content);
+                        ddsrt_free (content);
                         if (ret < 0) {
                             PE_ERROR ("failed in data callback", 0);
                         }
                     } else {
-                        os_free (content);
+                        ddsrt_free (content);
                     }
                 }
             }
@@ -680,9 +682,9 @@ err:
         st->error = 1;
     }
 ok:
-    os_free (name);
-    os_free (aname);
-    os_free (ename);
+    ddsrt_free (name);
+    ddsrt_free (aname);
+    ddsrt_free (ename);
     return ret;
 #undef PE_LOCAL_ERROR
 #undef PE_ERROR

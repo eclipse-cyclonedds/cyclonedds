@@ -10,12 +10,12 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <stdio.h>
-#include "CUnit/Test.h"
+
 #include "CUnit/Theory.h"
-#include "ddsc/dds.h"
+#include "dds/dds.h"
 #include "RoundTrip.h"
 #include "Space.h"
-#include "os/os.h"
+#include "dds/ddsrt/misc.h"
 
 /* Tests in this file only concern themselves with very basic api tests of
    dds_write and dds_write_ts */
@@ -73,9 +73,9 @@ CU_Test(ddsc_write, null_writer, .init = setup, .fini = teardown)
     dds_return_t status;
 
     /* Disable warning related to improper API usage by passing incompatible parameter. */
-    OS_WARNING_MSVC_OFF(28020);
+    DDSRT_WARNING_MSVC_OFF(28020);
     status = dds_write(0, &data);
-    OS_WARNING_MSVC_ON(28020);
+    DDSRT_WARNING_MSVC_ON(28020);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_BAD_PARAMETER);
 }
 
@@ -103,9 +103,9 @@ CU_Test(ddsc_write, null_sample, .init = setup, .fini = teardown)
     dds_return_t status;
 
     /* Disable warning related to improper API usage by passing NULL to a non-NULL parameter. */
-    OS_WARNING_MSVC_OFF(6387);
+    DDSRT_WARNING_MSVC_OFF(6387);
     status = dds_write(writer, NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
 
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_BAD_PARAMETER);
 }

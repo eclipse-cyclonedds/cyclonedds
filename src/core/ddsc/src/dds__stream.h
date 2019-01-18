@@ -12,8 +12,8 @@
 #ifndef _DDS_STREAM_H_
 #define _DDS_STREAM_H_
 
-#include "ddsi/ddsi_serdata.h"
-#include "ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_serdata_default.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -32,7 +32,7 @@ void dds_stream_read_sample
   const struct ddsi_sertopic_default * topic
 );
 
-size_t dds_stream_check_optimize (_In_ const dds_topic_descriptor_t * desc);
+size_t dds_stream_check_optimize (const dds_topic_descriptor_t * desc);
 void dds_stream_from_serdata_default (dds_stream_t * s, const struct ddsi_serdata_default *d);
 void dds_stream_add_to_serdata_default (dds_stream_t * s, struct ddsi_serdata_default **d);
 

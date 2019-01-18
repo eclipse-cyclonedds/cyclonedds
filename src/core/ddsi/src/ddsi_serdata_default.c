@@ -9,24 +9,22 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include <stddef.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <assert.h>
 #include <string.h>
 
-#include "os/os.h"
-#include "ddsi/q_md5.h"
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_freelist.h"
-#include <assert.h>
-#include <string.h>
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsi/q_md5.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_freelist.h"
 #include "dds__key.h"
-#include "ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__stream.h"
-#include "ddsi/q_radmin.h"
-#include "ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/ddsi_serdata_default.h"
 
 #define MAX_POOL_SIZE 16384
 #define CLEAR_PADDING 0
@@ -43,7 +41,7 @@ static size_t alignup_size (size_t x, size_t a);
 struct serdatapool * ddsi_serdatapool_new (void)
 {
   struct serdatapool * pool;
-  pool = os_malloc (sizeof (*pool));
+  pool = ddsrt_malloc (sizeof (*pool));
   nn_freelist_init (&pool->freelist, MAX_POOL_SIZE, offsetof (struct ddsi_serdata_default, next));
   return pool;
 }
@@ -52,7 +50,7 @@ static void serdata_free_wrap (void *elem)
 {
 #ifndef NDEBUG
   struct ddsi_serdata_default *d = elem;
-  assert(os_atomic_ld32(&d->c.refc) == 0);
+  assert(ddsrt_atomic_ld32(&d->c.refc) == 0);
 #endif
   dds_free(elem);
 }
@@ -61,7 +59,7 @@ void ddsi_serdatapool_free (struct serdatapool * pool)
 {
   DDS_TRACE("ddsi_serdatapool_free(%p)\n", (void *) pool);
   nn_freelist_fini (&pool->freelist, serdata_free_wrap);
-  os_free (pool);
+  ddsrt_free (pool);
 }
 
 static size_t alignup_size (size_t x, size_t a)
@@ -77,7 +75,7 @@ static void *serdata_default_append (struct ddsi_serdata_default **d, size_t n)
   if ((*d)->pos + n > (*d)->size)
   {
     size_t size1 = alignup_size ((*d)->pos + n, 128);
-    *d = os_realloc (*d, offsetof (struct ddsi_serdata_default, data) + size1);
+    *d = ddsrt_realloc (*d, offsetof (struct ddsi_serdata_default, data) + size1);
     (*d)->size = (uint32_t)size1;
   }
   assert ((*d)->pos + n <= (*d)->size);
@@ -205,7 +203,7 @@ static bool serdata_default_eqkey_nokey (const struct ddsi_serdata *acmn, const 
 static void serdata_default_free(struct ddsi_serdata *dcmn)
 {
   struct ddsi_serdata_default *d = (struct ddsi_serdata_default *)dcmn;
-  assert(os_atomic_ld32(&d->c.refc) == 0);
+  assert(ddsrt_atomic_ld32(&d->c.refc) == 0);
   if (!nn_freelist_push (&gv.serpool->freelist, d))
     dds_free (d);
 }
@@ -227,7 +225,7 @@ static void serdata_default_init(struct ddsi_serdata_default *d, const struct dd
 static struct ddsi_serdata_default *serdata_default_allocnew(struct serdatapool *pool)
 {
   const uint32_t init_size = 128;
-  struct ddsi_serdata_default *d = os_malloc(offsetof (struct ddsi_serdata_default, data) + init_size);
+  struct ddsi_serdata_default *d = ddsrt_malloc(offsetof (struct ddsi_serdata_default, data) + init_size);
   d->size = init_size;
   d->pool = pool;
   return d;
@@ -239,7 +237,7 @@ static struct ddsi_serdata_default *serdata_default_new(const struct ddsi_sertop
   if ((d = nn_freelist_pop (&gv.serpool->freelist)) == NULL)
     d = serdata_default_allocnew(gv.serpool);
   else
-    os_atomic_st32(&d->c.refc, 1);
+    ddsrt_atomic_st32(&d->c.refc, 1);
   serdata_default_init(d, tp, kind);
   return d;
 }
@@ -478,17 +476,17 @@ static void serdata_default_to_ser (const struct ddsi_serdata *serdata_common, s
   memcpy (buf, (char *)&d->hdr + off, sz);
 }
 
-static struct ddsi_serdata *serdata_default_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, os_iovec_t *ref)
+static struct ddsi_serdata *serdata_default_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, ddsrt_iovec_t *ref)
 {
   const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
   assert (off < d->pos + sizeof(struct CDRHeader));
   assert (sz <= alignup_size (d->pos + sizeof(struct CDRHeader), 4) - off);
   ref->iov_base = (char *)&d->hdr + off;
-  ref->iov_len = (os_iov_len_t)sz;
+  ref->iov_len = (ddsrt_iov_len_t)sz;
   return ddsi_serdata_ref(serdata_common);
 }
 
-static void serdata_default_to_ser_unref (struct ddsi_serdata *serdata_common, const os_iovec_t *ref)
+static void serdata_default_to_ser_unref (struct ddsi_serdata *serdata_common, const ddsrt_iovec_t *ref)
 {
   (void)ref;
   ddsi_serdata_unref(serdata_common);

@@ -11,7 +11,8 @@
  */
 #include <assert.h>
 #include <string.h>
-#include "ddsc/dds.h"
+#include "dds/dds.h"
+#include "dds/version.h"
 #include "dds__subscriber.h"
 #include "dds__reader.h"
 #include "dds__listener.h"
@@ -20,13 +21,10 @@
 #include "dds__rhc.h"
 #include "dds__err.h"
 #include "dds__topic.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/q_thread.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_thread.h"
 #include "dds__builtin.h"
-#include "ddsi/ddsi_sertopic.h"
-#include "ddsc/ddsc_project.h"
-
-#include "os/os.h"
+#include "dds/ddsi/ddsi_sertopic.h"
 
 DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_reader)
 
@@ -54,7 +52,7 @@ static dds_return_t
 dds_reader_close(
         dds_entity *e)
 {
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_return_t ret = DDS_RETCODE_OK;
     struct thread_state1 * const thr = lookup_thread_state();
     const bool asleep = !vtime_awake_p(thr->vtime);
@@ -146,7 +144,7 @@ dds_reader_qos_set(
     if (ret == DDS_RETCODE_OK) {
         if (enabled) {
             /* TODO: CHAM-95: DDSI does not support changing QoS policies. */
-            DDS_ERROR(DDSC_PROJECT_NAME" does not support changing QoS policies\n");
+            DDS_ERROR(DDS_PROJECT_NAME" does not support changing QoS policies\n");
             ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
         }
     }
@@ -172,47 +170,47 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
   struct dds_listener const * const lst = &rd->m_entity.m_listener;
   dds_entity * const sub = rd->m_entity.m_parent;
 
-  os_mutexLock (&rd->m_entity.m_observers_lock);
+  ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
   while (rd->m_entity.m_cb_count > 0)
-    os_condWait (&rd->m_entity.m_observers_cond, &rd->m_entity.m_observers_lock);
+    ddsrt_cond_wait (&rd->m_entity.m_observers_cond, &rd->m_entity.m_observers_lock);
   rd->m_entity.m_cb_count++;
 
   if (lst->on_data_on_readers)
   {
-    os_mutexUnlock (&rd->m_entity.m_observers_lock);
+    ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 
-    os_mutexLock (&sub->m_observers_lock);
+    ddsrt_mutex_lock (&sub->m_observers_lock);
     while (sub->m_cb_count > 0)
-      os_condWait (&sub->m_observers_cond, &sub->m_observers_lock);
+      ddsrt_cond_wait (&sub->m_observers_cond, &sub->m_observers_lock);
     sub->m_cb_count++;
-    os_mutexUnlock (&sub->m_observers_lock);
+    ddsrt_mutex_unlock (&sub->m_observers_lock);
 
     lst->on_data_on_readers (sub->m_hdl, lst->on_data_on_readers_arg);
 
-    os_mutexLock (&rd->m_entity.m_observers_lock);
-    os_mutexLock (&sub->m_observers_lock);
+    ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
+    ddsrt_mutex_lock (&sub->m_observers_lock);
     sub->m_cb_count--;
-    os_condBroadcast (&sub->m_observers_cond);
-    os_mutexUnlock (&sub->m_observers_lock);
+    ddsrt_cond_broadcast (&sub->m_observers_cond);
+    ddsrt_mutex_unlock (&sub->m_observers_lock);
   }
   else if (rd->m_entity.m_listener.on_data_available)
   {
-    os_mutexUnlock (&rd->m_entity.m_observers_lock);
+    ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
     lst->on_data_available (rd->m_entity.m_hdl, lst->on_data_available_arg);
-    os_mutexLock (&rd->m_entity.m_observers_lock);
+    ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
   }
   else
   {
     dds_entity_status_set (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
 
-    os_mutexLock (&sub->m_observers_lock);
+    ddsrt_mutex_lock (&sub->m_observers_lock);
     dds_entity_status_set (sub, DDS_DATA_ON_READERS_STATUS);
-    os_mutexUnlock (&sub->m_observers_lock);
+    ddsrt_mutex_unlock (&sub->m_observers_lock);
   }
 
   rd->m_entity.m_cb_count--;
-  os_condBroadcast (&rd->m_entity.m_observers_cond);
-  os_mutexUnlock (&rd->m_entity.m_observers_lock);
+  ddsrt_cond_broadcast (&rd->m_entity.m_observers_cond);
+  ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 }
 
 void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
@@ -245,9 +243,9 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
      m_observers_lock for the duration of the listener call itself,
      and that similarly the listener function and argument pointers
      are stable */
-  os_mutexLock (&entity->m_observers_lock);
+  ddsrt_mutex_lock (&entity->m_observers_lock);
   while (entity->m_cb_count > 0)
-    os_condWait (&entity->m_observers_cond, &entity->m_observers_lock);
+    ddsrt_cond_wait (&entity->m_observers_cond, &entity->m_observers_lock);
   entity->m_cb_count++;
 
   /* Update status metrics. */
@@ -337,9 +335,9 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
 
   if (invoke)
   {
-    os_mutexUnlock (&entity->m_observers_lock);
+    ddsrt_mutex_unlock (&entity->m_observers_lock);
     dds_entity_invoke_listener(entity, status_id, vst);
-    os_mutexLock (&entity->m_observers_lock);
+    ddsrt_mutex_lock (&entity->m_observers_lock);
     *reset[0] = 0;
     if (reset[1])
       *reset[1] = 0;
@@ -350,23 +348,19 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
   }
 
   entity->m_cb_count--;
-  os_condBroadcast (&entity->m_observers_cond);
-  os_mutexUnlock (&entity->m_observers_lock);
+  ddsrt_cond_broadcast (&entity->m_observers_cond);
+  ddsrt_mutex_unlock (&entity->m_observers_lock);
 }
 
-_Pre_satisfies_(((participant_or_subscriber & DDS_ENTITY_KIND_MASK) == DDS_KIND_SUBSCRIBER ) ||\
-                ((participant_or_subscriber & DDS_ENTITY_KIND_MASK) == DDS_KIND_PARTICIPANT) )
-_Pre_satisfies_(((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC   ) ||\
-                ((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_INTERNAL) )
 dds_entity_t
 dds_create_reader(
-        _In_ dds_entity_t participant_or_subscriber,
-        _In_ dds_entity_t topic,
-        _In_opt_ const dds_qos_t *qos,
-        _In_opt_ const dds_listener_t *listener)
+    dds_entity_t participant_or_subscriber,
+    dds_entity_t topic,
+    const dds_qos_t *qos,
+    const dds_listener_t *listener)
 {
     dds_qos_t * rqos;
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_entity * sub = NULL;
     dds_entity_t subscriber;
     dds_reader * rd;
@@ -467,16 +461,16 @@ dds_create_reader(
         assert(0);
     }
 
-    os_mutexUnlock(&tp->m_entity.m_mutex);
-    os_mutexUnlock(&sub->m_mutex);
+    ddsrt_mutex_unlock(&tp->m_entity.m_mutex);
+    ddsrt_mutex_unlock(&sub->m_mutex);
 
     if (asleep) {
         thread_state_awake (thr);
     }
     rd->m_rd = new_reader(&rd->m_entity.m_guid, NULL, &sub->m_participant->m_guid, tp->m_stopic,
                           rqos, rhc, dds_reader_status_cb, rd);
-    os_mutexLock(&sub->m_mutex);
-    os_mutexLock(&tp->m_entity.m_mutex);
+    ddsrt_mutex_lock(&sub->m_mutex);
+    ddsrt_mutex_lock(&tp->m_entity.m_mutex);
     assert (rd->m_rd);
     if (asleep) {
         thread_state_asleep (thr);
@@ -524,7 +518,7 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
     struct proxy_writer *pwr;
     struct rd_pwr_match *m;
     memset (&pwrguid, 0, sizeof (pwrguid));
-    os_mutexLock (&rd->e.lock);
+    ddsrt_mutex_lock (&rd->e.lock);
 
     rd->ddsi2direct_cb = cb;
     rd->ddsi2direct_cbarg = cbarg;
@@ -542,18 +536,18 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
         memset (&pwrguid_next, 0xff, sizeof (pwrguid_next));
         pwrguid_next.entityid.u = (pwrguid_next.entityid.u & ~(uint32_t)0xff) | NN_ENTITYID_KIND_WRITER_NO_KEY;
       }
-      os_mutexUnlock (&rd->e.lock);
+      ddsrt_mutex_unlock (&rd->e.lock);
       if ((pwr = ephash_lookup_proxy_writer_guid (&pwrguid)) != NULL)
       {
-        os_mutexLock (&pwr->e.lock);
+        ddsrt_mutex_lock (&pwr->e.lock);
         pwr->ddsi2direct_cb = cb;
         pwr->ddsi2direct_cbarg = cbarg;
-        os_mutexUnlock (&pwr->e.lock);
+        ddsrt_mutex_unlock (&pwr->e.lock);
       }
       pwrguid = pwrguid_next;
-      os_mutexLock (&rd->e.lock);
+      ddsrt_mutex_lock (&rd->e.lock);
     }
-    os_mutexUnlock (&rd->e.lock);
+    ddsrt_mutex_unlock (&rd->e.lock);
     ut_handle_release(entity, dds_rd->m_entity.m_hdllink);
   }
 }
@@ -612,13 +606,12 @@ dds_entity_t dds_get_subscriber (dds_entity_t entity)
   return hdl;
 }
 
-_Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)
 dds_return_t
 dds_get_subscription_matched_status (
-        _In_ dds_entity_t reader,
-        _Out_opt_ dds_subscription_matched_status_t * status)
+    dds_entity_t reader,
+    dds_subscription_matched_status_t * status)
 {
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_reader *rd;
     dds_return_t ret = DDS_RETCODE_OK;
 
@@ -642,13 +635,12 @@ fail:
     return ret;
 }
 
-_Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)
 dds_return_t
 dds_get_liveliness_changed_status (
-        _In_ dds_entity_t reader,
-        _Out_opt_ dds_liveliness_changed_status_t * status)
+    dds_entity_t reader,
+    dds_liveliness_changed_status_t * status)
 {
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_reader *rd;
     dds_return_t ret = DDS_RETCODE_OK;
 
@@ -672,12 +664,11 @@ fail:
     return ret;
 }
 
-_Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)
 dds_return_t dds_get_sample_rejected_status (
-        _In_ dds_entity_t reader,
-        _Out_opt_ dds_sample_rejected_status_t * status)
+    dds_entity_t reader,
+    dds_sample_rejected_status_t * status)
 {
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_reader *rd;
     dds_return_t ret = DDS_RETCODE_OK;
 
@@ -701,12 +692,11 @@ fail:
     return ret;
 }
 
-_Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)
 dds_return_t dds_get_sample_lost_status (
-        _In_ dds_entity_t reader,
-        _Out_opt_ dds_sample_lost_status_t * status)
+    dds_entity_t reader,
+    dds_sample_lost_status_t * status)
 {
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_reader *rd;
     dds_return_t ret = DDS_RETCODE_OK;
 
@@ -729,12 +719,11 @@ fail:
     return ret;
 }
 
-_Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)
 dds_return_t dds_get_requested_deadline_missed_status (
-        _In_ dds_entity_t reader,
-        _Out_opt_ dds_requested_deadline_missed_status_t * status)
+    dds_entity_t reader,
+    dds_requested_deadline_missed_status_t * status)
 {
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_reader *rd;
     dds_return_t ret = DDS_RETCODE_OK;
 
@@ -757,12 +746,11 @@ fail:
     return ret;
 }
 
-_Pre_satisfies_((reader & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER)
 dds_return_t dds_get_requested_incompatible_qos_status (
-        _In_ dds_entity_t reader,
-        _Out_opt_ dds_requested_incompatible_qos_status_t * status)
+    dds_entity_t reader,
+    dds_requested_incompatible_qos_status_t * status)
 {
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_reader *rd;
     dds_return_t ret = DDS_RETCODE_OK;
 

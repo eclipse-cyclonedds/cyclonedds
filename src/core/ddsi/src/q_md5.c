@@ -63,18 +63,18 @@
   1999-05-03 lpd Original version.
  */
 
-#include "ddsi/q_md5.h"
+#include "dds/ddsi/q_md5.h"
 #include <string.h>
-#include "os/os.h" /* big or little endianness */
+#include "dds/ddsrt/endian.h" /* big or little endianness */
 
 /* Byte order stuff hacked to use OSPL's macros */
 #undef BYTE_ORDER       /* 1 = big-endian, -1 = little-endian, 0 = unknown */
-#if OS_ENDIANNESS == OS_BIG_ENDIAN
+#if DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
 #  define BYTE_ORDER 1
-#elif OS_ENDIANNESS == OS_LITTLE_ENDIAN
+#elif DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 #  define BYTE_ORDER -1
 #else
-#  error "OS_ENDIANNESS not defined"
+#  error "DDSRT_ENDIAN not defined"
 #endif
 
 #define T_MASK ((md5_word_t)~0)

@@ -9,22 +9,28 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "ddsc/dds.h"
+#include <stdlib.h>
+
+#include "dds/dds.h"
 #include "CUnit/Test.h"
-#include "os/os.h"
 #include "config_env.h"
-#include "ddsc/ddsc_project.h"
+
+#include "dds/version.h"
+#include "dds/ddsrt/cdtors.h"
+#include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/heap.h"
 
 #define FORCE_ENV
 
-#define URI_VARIABLE DDSC_PROJECT_NAME_NOSPACE_CAPS"_URI"
+#define URI_VARIABLE DDS_PROJECT_NAME_NOSPACE_CAPS"_URI"
 #define MAX_PARTICIPANTS_VARIABLE "MAX_PARTICIPANTS"
 
 static void config__check_env(
-    _In_z_ const char * env_variable,
-    _In_z_ const char * expected_value)
+    const char * env_variable,
+    const char * expected_value)
 {
-    const char * env_uri = os_getenv(env_variable);
+    char * env_uri = NULL;
+    ddsrt_getenv(env_variable, &env_uri);
 #if 0
     const char * const env_not_set = "Environment variable '%s' isn't set. This needs to be set to '%s' for this test to run.";
     const char * const env_not_as_expected = "Environment variable '%s' has an unexpected value: '%s' (expected: '%s')";
@@ -43,17 +49,10 @@ static void config__check_env(
         }
 
         if ( !env_ok ) {
-            os_result r;
-            char *envstr;
-            size_t len = strlen(env_variable) + strlen("=") + strlen(expected_value) + 1;
+            dds_retcode_t r;
 
-            envstr = os_malloc(len);
-            (void)snprintf(envstr, len, "%s=%s", env_variable, expected_value);
-
-            r = os_putenv(envstr);
-            CU_ASSERT_EQUAL_FATAL(r, os_resultSuccess);
-
-            os_free(envstr);
+            r = ddsrt_setenv(env_variable, expected_value);
+            CU_ASSERT_EQUAL_FATAL(r, DDS_RETCODE_OK);
         }
     }
 #else
@@ -63,7 +62,7 @@ static void config__check_env(
 
 }
 
-CU_Test(ddsc_config, simple_udp, .init = os_osInit, .fini = os_osExit) {
+CU_Test(ddsc_config, simple_udp, .init = ddsrt_init, .fini = ddsrt_fini) {
 
     dds_entity_t participant;
 

@@ -12,7 +12,7 @@
 #ifndef _DDS_PUBLISHER_H_
 #define _DDS_PUBLISHER_H_
 
-#include "ddsc/dds.h"
+#include "dds/dds.h"
 
 #if defined (__cplusplus)
 extern "C" {

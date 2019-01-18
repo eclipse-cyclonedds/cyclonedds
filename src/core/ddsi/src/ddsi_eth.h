@@ -12,9 +12,8 @@
 #ifndef DDSI_ETH_H
 #define DDSI_ETH_H
 
-#include "ddsi/ddsi_tran.h"
-#include "os/os.h"
+#include "dds/ddsi/ddsi_tran.h"
 
-int ddsi_eth_enumerate_interfaces(ddsi_tran_factory_t fact, os_ifaddrs_t **ifs);
+int ddsi_eth_enumerate_interfaces(ddsi_tran_factory_t fact, ddsrt_ifaddrs_t **ifs);
 
 #endif /* DDSI_ETH_H */

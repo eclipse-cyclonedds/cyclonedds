@@ -11,9 +11,9 @@
  */
 #include <assert.h>
 #include <string.h>
-#include "ddsi/q_entity.h"
-#include "ddsi/q_thread.h"
-#include "ddsi/q_config.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_config.h"
 #include "dds__init.h"
 #include "dds__qos.h"
 #include "dds__domain.h"
@@ -26,8 +26,8 @@
 #include "dds__writer.h"
 #include "dds__whc_builtintopic.h"
 #include "dds__serdata_builtintopic.h"
-#include "ddsi/q_qosmatch.h"
-#include "ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/q_qosmatch.h"
+#include "dds/ddsi/ddsi_tkmap.h"
 
 static struct ddsi_sertopic *builtin_participant_topic;
 static struct ddsi_sertopic *builtin_reader_topic;

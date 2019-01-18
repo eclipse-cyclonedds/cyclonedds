@@ -12,10 +12,10 @@
 #include <string.h>
 #include <assert.h>
 
-#include "ddsi/q_time.h"
-#include "ddsi/q_xqos.h"
-#include "ddsi/q_misc.h"
-#include "ddsi/q_qosmatch.h"
+#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/q_misc.h"
+#include "dds/ddsi/q_qosmatch.h"
 
 int is_wildcard_partition (const char *str)
 {

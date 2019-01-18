@@ -18,9 +18,10 @@
 #include <stdarg.h>
 #include <math.h>
 
+#include "dds/ddsrt/string.h"
+
 #include "testtype.h"
 #include "common.h"
-#include "os/os.h"
 
 dds_entity_t dp = 0;
 dds_entity_t qosprov = 0;
@@ -122,7 +123,7 @@ static void xsnprintf(char *buf, size_t bufsz, size_t *p, const char *fmt, ...) 
         int n;
         va_list ap;
         va_start(ap, fmt);
-        n = os_vsnprintf(buf + *p, bufsz - *p, fmt, ap);
+        n = vsnprintf(buf + *p, bufsz - *p, fmt, ap);
         va_end(ap);
         *p += (size_t)n;
     }
@@ -259,7 +260,7 @@ int change_publisher_partitions(dds_entity_t pub, unsigned npartitions, const ch
 
     qos = dds_create_qos();
     rc = dds_get_qos(pub, qos);
-    if (rc == DDS_SUCCESS) {
+    if (rc == DDS_RETCODE_OK) {
         dds_qset_partition(qos, npartitions, partitions);
         rc = dds_set_qos(pub, qos);
     }
@@ -273,7 +274,7 @@ int change_subscriber_partitions(dds_entity_t sub, unsigned npartitions, const c
 
     qos = dds_create_qos();
     rc = dds_get_qos(sub, qos);
-    if (rc == DDS_SUCCESS) {
+    if (rc == DDS_RETCODE_OK) {
         dds_qset_partition(qos, npartitions, partitions);
         rc = dds_set_qos(sub, qos);
     }
@@ -883,7 +884,7 @@ void setqos_from_args(dds_entity_kind_t qt, dds_qos_t *q, int n, const char *arg
     for (i = 0; i < n; i++) {
         char *args_copy = dds_string_dup(args[i]), *cursor = args_copy;
         const char *arg;
-        while ((arg = os_strsep(&cursor, ",")) != NULL) {
+        while ((arg = ddsrt_strsep(&cursor, ",")) != NULL) {
             if (arg[0] && arg[1] == '=') {
                 const char *a = arg + 2;
                 switch (arg[0]) {
@@ -940,3 +941,37 @@ void setqos_from_args(dds_entity_kind_t qt, dds_qos_t *q, int n, const char *arg
         dds_free(args_copy);
     }
 }
+
+#define DDS_ERR_MSG_MAX 128
+
+void dds_fail (const char * msg, const char * where)
+{
+  fprintf (stderr, "Aborting Failure: %s %s\n", where, msg);
+  abort ();
+}
+
+bool dds_err_check (dds_return_t err, unsigned flags, const char * where)
+{
+  if (err < 0)
+  {
+    if (flags & (DDS_CHECK_REPORT | DDS_CHECK_FAIL))
+    {
+      char msg[DDS_ERR_MSG_MAX];
+      (void) snprintf (msg, DDS_ERR_MSG_MAX, "Error %d:M%d:%s", dds_err_file_id(err), dds_err_line(err), dds_err_str(err));
+      if (flags & DDS_CHECK_REPORT)
+      {
+        printf ("%s: %s\n", where, msg);
+      }
+      if (flags & DDS_CHECK_FAIL)
+      {
+        dds_fail (msg, where);
+      }
+    }
+    if (flags & DDS_CHECK_EXIT)
+    {
+      exit (-1);
+    }
+  }
+  return (err >= 0);
+}
+

@@ -9,19 +9,22 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "ddsc/dds.h"
-#include "os/os.h"
+#include "dds/dds.h"
 #include "RoundTrip.h"
 #include "CUnit/Test.h"
 
+#include "dds/ddsrt/cdtors.h"
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/threads.h"
+
 /****************************************************************************
- * TODO: (CHAM-279) Add DDS_INCONSISTENT_TOPIC_STATUS test
- * TODO: (CHAM-277) Add DDS_OFFERED/REQUESTED_DEADLINE_MISSED_STATUS test
- * TODO: (CHAM-278) Add DDS_LIVELINESS_LOST_STATUS test
+ * TODO: Add DDS_INCONSISTENT_TOPIC_STATUS test
+ * TODO: Add DDS_OFFERED/REQUESTED_DEADLINE_MISSED_STATUS test
+ * TODO: Add DDS_LIVELINESS_LOST_STATUS test
  * TODO: Check DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS intermittent fail (total_count != 1)
  ****************************************************************************/
-
-
 
 /****************************************************************************
  * Convenience test macros.
@@ -68,8 +71,8 @@ static dds_entity_t    g_reader      = 0;
 
 static dds_listener_t *g_listener = NULL;
 static dds_qos_t      *g_qos = NULL;
-static os_mutex        g_mutex;
-static os_cond         g_cond;
+static ddsrt_mutex_t   g_mutex;
+static ddsrt_cond_t    g_cond;
 
 
 
@@ -101,12 +104,12 @@ inconsistent_topic_cb(
         const dds_inconsistent_topic_status_t status, void* arg)
 {
     (void)arg;
-    os_mutexLock(&g_mutex);
+    ddsrt_mutex_lock(&g_mutex);
     cb_topic = topic;
     cb_inconsistent_topic_status = status;
     cb_called |= DDS_INCONSISTENT_TOPIC_STATUS;
-    os_condBroadcast(&g_cond);
-    os_mutexUnlock(&g_mutex);
+    ddsrt_cond_broadcast(&g_cond);
+    ddsrt_mutex_unlock(&g_mutex);
 }
 
 static void
@@ -116,12 +119,12 @@ liveliness_lost_cb(
         void* arg)
 {
     (void)arg;
-    os_mutexLock(&g_mutex);
+    ddsrt_mutex_lock(&g_mutex);
     cb_writer = writer;
     cb_liveliness_lost_status = status;
     cb_called |= DDS_LIVELINESS_LOST_STATUS;
-    os_condBroadcast(&g_cond);
-    os_mutexUnlock(&g_mutex);
+    ddsrt_cond_broadcast(&g_cond);
+    ddsrt_mutex_unlock(&g_mutex);
 }
 
 static void
@@ -131,12 +134,12 @@ offered_deadline_missed_cb(
         void* arg)
 {
     (void)arg;
-    os_mutexLock(&g_mutex);
+    ddsrt_mutex_lock(&g_mutex);
     cb_writer = writer;
     cb_offered_deadline_missed_status = status;
     cb_called |= DDS_OFFERED_DEADLINE_MISSED_STATUS;
-    os_condBroadcast(&g_cond);
-    os_mutexUnlock(&g_mutex);
+    ddsrt_cond_broadcast(&g_cond);
+    ddsrt_mutex_unlock(&g_mutex);
 }
 
 static void
@@ -146,12 +149,12 @@ offered_incompatible_qos_cb(
         void* arg)
 {
     (void)arg;
-    os_mutexLock(&g_mutex);
+    ddsrt_mutex_lock(&g_mutex);
     cb_writer = writer;
     cb_offered_incompatible_qos_status = status;
     cb_called |= DDS_OFFERED_INCOMPATIBLE_QOS_STATUS;
-    os_condBroadcast(&g_cond);
-    os_mutexUnlock(&g_mutex);
+    ddsrt_cond_broadcast(&g_cond);
+    ddsrt_mutex_unlock(&g_mutex);
 }
 
 static void
@@ -160,11 +163,11 @@ data_on_readers_cb(
         void* arg)
 {
     (void)arg;
-    os_mutexLock(&g_mutex);
+    ddsrt_mutex_lock(&g_mutex);
     cb_subscriber = subscriber;
     cb_called |= DDS_DATA_ON_READERS_STATUS;
-    os_condBroadcast(&g_cond);
-    os_mutexUnlock(&g_mutex);
+    ddsrt_cond_broadcast(&g_cond);
+    ddsrt_mutex_unlock(&g_mutex);
 }
 
 static void
@@ -174,12 +177,12 @@ sample_lost_cb(
         void* arg)
 {
     (void)arg;
-    os_mutexLock(&g_mutex);
+    ddsrt_mutex_lock(&g_mutex);
     cb_reader = reader;
     cb_sample_lost_status = status;
     cb_called |= DDS_SAMPLE_LOST_STATUS;
-    os_condBroadcast(&g_cond);
-    os_mutexUnlock(&g_mutex);
+    ddsrt_cond_broadcast(&g_cond);
+    ddsrt_mutex_unlock(&g_mutex);
 }
 
 static void
@@ -188,11 +191,11 @@ data_available_cb(
         void* arg)
 {
     (void)arg;
-    os_mutexLock(&g_mutex);
+    ddsrt_mutex_lock(&g_mutex);
     cb_reader = reader;
     cb_called |= DDS_DATA_AVAILABLE_STATUS;
-    os_condBroadcast(&g_cond);
-    os_mutexUnlock(&g_mutex);
+    ddsrt_cond_broadcast(&g_cond);
+    ddsrt_mutex_unlock(&g_mutex);
 }
 
 static void
@@ -202,12 +205,12 @@ sample_rejected_cb(
         void* arg)
 {
     (void)arg;
-    os_mutexLock(&g_mutex);
+    ddsrt_mutex_lock(&g_mutex);
     cb_reader = reader;
     cb_sample_rejected_status = status;
     cb_called |= DDS_SAMPLE_REJECTED_STATUS;
-    os_condBroadcast(&g_cond);
-    os_mutexUnlock(&g_mutex);
+    ddsrt_cond_broadcast(&g_cond);
+    ddsrt_mutex_unlock(&g_mutex);
 }
 
 static void
@@ -217,12 +220,12 @@ liveliness_changed_cb(
         void* arg)
 {
     (void)arg;
-    os_mutexLock(&g_mutex);
+    ddsrt_mutex_lock(&g_mutex);
     cb_reader = reader;
     cb_liveliness_changed_status = status;
     cb_called |= DDS_LIVELINESS_CHANGED_STATUS;
-    os_condBroadcast(&g_cond);
-    os_mutexUnlock(&g_mutex);
+    ddsrt_cond_broadcast(&g_cond);
+    ddsrt_mutex_unlock(&g_mutex);
 }
 
 static void
@@ -232,12 +235,12 @@ requested_deadline_missed_cb(
         void* arg)
 {
     (void)arg;
-    os_mutexLock(&g_mutex);
+    ddsrt_mutex_lock(&g_mutex);
     cb_reader = reader;
     cb_requested_deadline_missed_status = status;
     cb_called |= DDS_REQUESTED_DEADLINE_MISSED_STATUS;
-    os_condBroadcast(&g_cond);
-    os_mutexUnlock(&g_mutex);
+    ddsrt_cond_broadcast(&g_cond);
+    ddsrt_mutex_unlock(&g_mutex);
 }
 
 static void
@@ -247,12 +250,12 @@ requested_incompatible_qos_cb(
         void* arg)
 {
     (void)arg;
-    os_mutexLock(&g_mutex);
+    ddsrt_mutex_lock(&g_mutex);
     cb_reader = reader;
     cb_requested_incompatible_qos_status = status;
     cb_called |= DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS;
-    os_condBroadcast(&g_cond);
-    os_mutexUnlock(&g_mutex);
+    ddsrt_cond_broadcast(&g_cond);
+    ddsrt_mutex_unlock(&g_mutex);
 }
 
 static void
@@ -262,12 +265,12 @@ publication_matched_cb(
         void* arg)
 {
     (void)arg;
-    os_mutexLock(&g_mutex);
+    ddsrt_mutex_lock(&g_mutex);
     cb_writer = writer;
     cb_publication_matched_status = status;
     cb_called |= DDS_PUBLICATION_MATCHED_STATUS;
-    os_condBroadcast(&g_cond);
-    os_mutexUnlock(&g_mutex);
+    ddsrt_cond_broadcast(&g_cond);
+    ddsrt_mutex_unlock(&g_mutex);
 }
 
 static void
@@ -277,12 +280,12 @@ subscription_matched_cb(
         void* arg)
 {
     (void)arg;
-    os_mutexLock(&g_mutex);
+    ddsrt_mutex_lock(&g_mutex);
     cb_reader = reader;
     cb_subscription_matched_status = status;
     cb_called |= DDS_SUBSCRIPTION_MATCHED_STATUS;
-    os_condBroadcast(&g_cond);
-    os_mutexUnlock(&g_mutex);
+    ddsrt_cond_broadcast(&g_cond);
+    ddsrt_mutex_unlock(&g_mutex);
 }
 
 static void
@@ -293,13 +296,13 @@ callback_dummy(void)
 static uint32_t
 waitfor_cb(uint32_t expected)
 {
-    os_time timeout = { 5, 0 };
-    os_result osr = os_resultSuccess;
-    os_mutexLock(&g_mutex);
-    while (((cb_called & expected) != expected) && (osr == os_resultSuccess)) {
-        osr = os_condTimedWait(&g_cond, &g_mutex, &timeout);
+    dds_time_t timeout = 5 * DDS_NSECS_IN_SEC;
+    bool signalled = true;
+    ddsrt_mutex_lock(&g_mutex);
+    while (((cb_called & expected) != expected) && (signalled)) {
+        signalled = ddsrt_cond_waitfor(&g_cond, &g_mutex, timeout);
     }
-    os_mutexUnlock(&g_mutex);
+    ddsrt_mutex_unlock(&g_mutex);
     return cb_called;
 }
 
@@ -312,9 +315,9 @@ static char*
 create_topic_name(const char *prefix, char *name, size_t size)
 {
     /* Get semi random g_topic name. */
-    os_procId pid = os_getpid();
-    uintmax_t tid = os_threadIdToInteger(os_threadIdSelf());
-    (void) snprintf(name, size, "%s_pid%"PRIprocId"_tid%"PRIuMAX"", prefix, pid, tid);
+    ddsrt_pid_t pid = ddsrt_getpid();
+    ddsrt_tid_t tid = ddsrt_gettid();
+    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
     return name;
 }
 
@@ -323,10 +326,10 @@ init_triggering_base(void)
 {
     char name[100];
 
-    os_osInit();
+    ddsrt_init();
 
-    os_mutexInit(&g_mutex);
-    os_condInit(&g_cond, &g_mutex);
+    ddsrt_mutex_init(&g_mutex);
+    ddsrt_cond_init(&g_cond);
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(g_participant > 0);
@@ -347,6 +350,8 @@ init_triggering_base(void)
     CU_ASSERT_PTR_NOT_NULL_FATAL(g_qos);
     dds_qset_reliability(g_qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(1));
     dds_qset_history(g_qos, DDS_HISTORY_KEEP_ALL, 0);
+
+    cb_called = 0;
 }
 
 static void
@@ -386,9 +391,9 @@ fini_triggering_base(void)
     dds_delete_qos(g_qos);
     dds_delete_listener(g_listener);
     dds_delete(g_participant);
-    os_condDestroy(&g_cond);
-    os_mutexDestroy(&g_mutex);
-    os_osExit();
+    ddsrt_cond_destroy(&g_cond);
+    ddsrt_mutex_destroy(&g_mutex);
+    ddsrt_fini();
 }
 
 static void
@@ -426,9 +431,9 @@ CU_Test(ddsc_listener, create_and_delete)
     ASSERT_CALLBACK_EQUAL(data_available, listener, DDS_LUNSET);
 
     dds_delete_listener(listener);
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     dds_delete_listener(NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
 }
 
 CU_Test(ddsc_listener, reset)
@@ -475,11 +480,11 @@ CU_Test(ddsc_listener, copy)
     ASSERT_CALLBACK_EQUAL(sample_lost, listener2, sample_lost_cb);
 
     /* Calling copy with NULL should not crash and be noops. */
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     dds_copy_listener(listener2, NULL);
     dds_copy_listener(NULL, listener1);
     dds_copy_listener(NULL, NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
 
     dds_delete_listener(listener1);
     dds_delete_listener(listener2);
@@ -568,7 +573,7 @@ CU_Test(ddsc_listener, getters_setters)
     dds_listener_t *listener = dds_create_listener(NULL);
     CU_ASSERT_PTR_NOT_NULL_FATAL(listener);
 
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */ \
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */ \
     TEST_GET_SET(listener, inconsistent_topic, inconsistent_topic_cb);
     TEST_GET_SET(listener, liveliness_lost, liveliness_lost_cb);
     TEST_GET_SET(listener, offered_deadline_missed, offered_deadline_missed_cb);
@@ -582,7 +587,7 @@ CU_Test(ddsc_listener, getters_setters)
     TEST_GET_SET(listener, publication_matched, publication_matched_cb);
     TEST_GET_SET(listener, subscription_matched, subscription_matched_cb);
     TEST_GET_SET(listener, data_available, data_available_cb);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
 
     dds_delete_listener(listener);
 }
@@ -1013,8 +1018,8 @@ Test(ddsc_listener, inconsistent_topic, .init=init_triggering_base, .fini=fini_t
 
     os_osInit();
 
-    os_mutexInit(&g_mutex);
-    os_condInit(&g_cond, &g_mutex);
+    ddsrt_mutex_init(&g_mutex);
+    ddsrt_cond_init(&g_cond);
 
     g_qos = dds_create_qos();
     cr_assert_not_null(g_qos, "Failed to create prerequisite g_qos");

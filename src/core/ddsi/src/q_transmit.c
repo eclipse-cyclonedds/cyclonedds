@@ -12,30 +12,31 @@
 #include <assert.h>
 #include <math.h>
 
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sync.h"
 
-#include "util/ut_avl.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/q_addrset.h"
-#include "ddsi/q_xmsg.h"
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_misc.h"
-#include "ddsi/q_thread.h"
-#include "ddsi/q_xevent.h"
-#include "ddsi/q_time.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_globals.h"
-#include "ddsi/q_error.h"
-#include "ddsi/q_transmit.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_hbcontrol.h"
-#include "ddsi/q_static_assert.h"
-#include "ddsi/ddsi_tkmap.h"
-#include "ddsi/ddsi_serdata.h"
-#include "ddsi/ddsi_sertopic.h"
+#include "dds/util/ut_avl.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_misc.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_xevent.h"
+#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_error.h"
+#include "dds/ddsi/q_transmit.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_hbcontrol.h"
+#include "dds/ddsi/q_static_assert.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_sertopic.h"
 
-#include "ddsi/sysdeps.h"
+#include "dds/ddsi/sysdeps.h"
 #include "dds__whc.h"
 
 #if __STDC_VERSION__ >= 199901L
@@ -723,14 +724,14 @@ static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *
        eventually we'll have to retry.  But if a packet went out and
        we haven't yet completed transmitting a fragmented message, add
        a HeartbeatFrag. */
-    os_mutexLock (&wr->e.lock);
+    ddsrt_mutex_lock (&wr->e.lock);
     ret = create_fragment_message (wr, seq, plist, serdata, i, prd, &fmsg, isnew);
     if (ret >= 0)
     {
       if (nfrags > 1 && i + 1 < nfrags)
         create_HeartbeatFrag (wr, seq, i, prd, &hmsg);
     }
-    os_mutexUnlock (&wr->e.lock);
+    ddsrt_mutex_unlock (&wr->e.lock);
 
     if(fmsg) nn_xpack_addmsg (xp, fmsg, 0);
     if(hmsg) nn_xpack_addmsg (xp, hmsg, 0);
@@ -747,9 +748,9 @@ static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *
     struct nn_xmsg *msg = NULL;
     int hbansreq;
     assert (whcst != NULL);
-    os_mutexLock (&wr->e.lock);
+    ddsrt_mutex_lock (&wr->e.lock);
     msg = writer_hbcontrol_piggyback (wr, whcst, serdata->twrite, nn_xpack_packetid (xp), &hbansreq);
-    os_mutexUnlock (&wr->e.lock);
+    ddsrt_mutex_unlock (&wr->e.lock);
     if (msg)
     {
       nn_xpack_addmsg (xp, msg, 0);
@@ -771,14 +772,14 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, 
   if (sz > config.fragment_size || !isnew || plist != NULL || prd != NULL)
   {
     uint32_t nfrags;
-    os_mutexUnlock (&wr->e.lock);
+    ddsrt_mutex_unlock (&wr->e.lock);
     nfrags = (sz + config.fragment_size - 1) / config.fragment_size;
     transmit_sample_lgmsg_unlocked (xp, wr, whcst, seq, plist, serdata, prd, isnew, nfrags);
     return;
   }
   else if (create_fragment_message_simple (wr, seq, serdata, &fmsg) < 0)
   {
-    os_mutexUnlock (&wr->e.lock);
+    ddsrt_mutex_unlock (&wr->e.lock);
     return;
   }
   else
@@ -792,7 +793,7 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, 
     else
       hmsg = NULL;
 
-    os_mutexUnlock (&wr->e.lock);
+    ddsrt_mutex_unlock (&wr->e.lock);
     nn_xpack_addmsg (xp, fmsg, 0);
     if(hmsg)
       nn_xpack_addmsg (xp, hmsg, 0);
@@ -910,7 +911,7 @@ static int writer_may_continue (const struct writer *wr, const struct whc_state 
 }
 
 
-static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
+static dds_retcode_t throttle_writer (struct nn_xpack *xp, struct writer *wr)
 {
   /* Sleep (cond_wait) without updating the thread's vtime: the
      garbage collector won't free the writer while we leave it
@@ -946,7 +947,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
      reader. This implicitly clears the whc and unblocks the
      writer. */
 
-  os_result result = os_resultSuccess;
+  dds_retcode_t result = DDS_RETCODE_OK;
   nn_mtime_t tnow = now_mt ();
   const nn_mtime_t abstimeout = add_duration_to_mtime (tnow, nn_from_ddsi_duration (wr->xqos->reliability.max_blocking_time));
   struct whc_state whcst;
@@ -969,13 +970,13 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
   if (xp)
   {
     struct nn_xmsg *hbmsg = writer_hbcontrol_create_heartbeat (wr, &whcst, tnow, 1, 1);
-    os_mutexUnlock (&wr->e.lock);
+    ddsrt_mutex_unlock (&wr->e.lock);
     if (hbmsg)
     {
       nn_xpack_addmsg (xp, hbmsg, 0);
     }
     nn_xpack_send (xp, true);
-    os_mutexLock (&wr->e.lock);
+    ddsrt_mutex_lock (&wr->e.lock);
     whc_get_state (wr->whc, &whcst);
   }
 
@@ -984,18 +985,16 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
     int64_t reltimeout;
     tnow = now_mt ();
     reltimeout = abstimeout.v - tnow.v;
-    result = os_resultTimeout;
+    result = DDS_RETCODE_TIMEOUT;
     if (reltimeout > 0)
     {
-      os_time timeout;
-      timeout.tv_sec = (int32_t) (reltimeout / T_SECOND);
-      timeout.tv_nsec = (int32_t) (reltimeout % T_SECOND);
       thread_state_asleep (lookup_thread_state());
-      result = os_condTimedWait (&wr->throttle_cond, &wr->e.lock, &timeout);
+      if (ddsrt_cond_waitfor (&wr->throttle_cond, &wr->e.lock, reltimeout))
+        result = DDS_RETCODE_OK;
       thread_state_awake (lookup_thread_state());
       whc_get_state(wr->whc, &whcst);
     }
-    if (result == os_resultTimeout)
+    if (result == DDS_RETCODE_TIMEOUT)
     {
       break;
     }
@@ -1005,7 +1004,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
   if (wr->state != WRST_OPERATIONAL)
   {
     /* gc_delete_writer may be waiting */
-    os_condBroadcast (&wr->throttle_cond);
+    ddsrt_cond_broadcast (&wr->throttle_cond);
   }
 
   DDS_LOG(DDS_LC_THROTTLE, "writer %x:%x:%x:%x done waiting for whc to shrink below low-water mark (whc %"PRIuSIZE" low=%u high=%u)\n", PGUID (wr->e.guid), whcst.unacked_bytes, wr->whc_low, wr->whc_high);
@@ -1055,7 +1054,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
     goto drop;
   }
 
-  os_mutexLock (&wr->e.lock);
+  ddsrt_mutex_lock (&wr->e.lock);
 
   if (end_of_txn)
   {
@@ -1068,7 +1067,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
     whc_get_state(wr->whc, &whcst);
     if (whcst.unacked_bytes > wr->whc_high)
     {
-      os_result ores;
+      dds_retcode_t ores;
       assert(gc_allowed); /* also see beginning of the function */
       if (config.prioritize_retransmit && wr->retransmitting)
         ores = throttle_writer (xp, wr);
@@ -1076,13 +1075,13 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
       {
         maybe_grow_whc (wr);
         if (whcst.unacked_bytes <= wr->whc_high)
-          ores = os_resultSuccess;
+          ores = DDS_RETCODE_OK;
         else
           ores = throttle_writer (xp, wr);
       }
-      if (ores == os_resultTimeout)
+      if (ores == DDS_RETCODE_TIMEOUT)
       {
-        os_mutexUnlock (&wr->e.lock);
+        ddsrt_mutex_unlock (&wr->e.lock);
         r = ERR_TIMEOUT;
         goto drop;
       }
@@ -1098,7 +1097,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
   {
     if (plist == NULL)
     {
-      plist = os_malloc (sizeof (*plist));
+      plist = ddsrt_malloc (sizeof (*plist));
       nn_plist_init_empty (plist);
     }
     assert (!(plist->present & PP_COHERENT_SET));
@@ -1109,11 +1108,11 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
   if ((r = insert_sample_in_whc (wr, seq, plist, serdata, tk)) < 0)
   {
     /* Failure of some kind */
-    os_mutexUnlock (&wr->e.lock);
+    ddsrt_mutex_unlock (&wr->e.lock);
     if (plist != NULL)
     {
       nn_plist_fini (plist);
-      os_free (plist);
+      ddsrt_free (plist);
     }
   }
   else
@@ -1152,14 +1151,14 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
       if (wr->heartbeat_xevent)
         writer_hbcontrol_note_asyncwrite (wr, tnow);
       enqueue_sample_wrlock_held (wr, seq, plist, serdata, NULL, 1);
-      os_mutexUnlock (&wr->e.lock);
+      ddsrt_mutex_unlock (&wr->e.lock);
     }
 
     /* If not actually inserted, WHC didn't take ownership of plist */
     if (r == 0 && plist != NULL)
     {
       nn_plist_fini (plist);
-      os_free (plist);
+      ddsrt_free (plist);
     }
   }
 

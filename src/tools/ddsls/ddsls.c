@@ -9,11 +9,16 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "os/os.h"
-#include "ddsc/dds.h"
+#include <getopt.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/string.h"
+#include "dds/dds.h"
 
 // FIXME Temporary workaround for lack of wait_for_historical implementation. Remove this on completion of CHAM-268.
-#define dds_reader_wait_for_historical_data(a,b) DDS_SUCCESS; dds_sleepfor(DDS_MSECS(200));
+#define dds_reader_wait_for_historical_data(a,b) DDS_RETCODE_OK; dds_sleepfor(DDS_MSECS(200));
 
 // FIXME should fix read/take interface to allow simple unlimited take
 #define MAX_SAMPLES 10
@@ -517,13 +522,15 @@ int main (int argc, char **argv)
   int flags = 0;
   dds_entity_t pp;
   int opt;
-  while ((opt = os_getopt (argc, argv, "f:a")) != EOF)
+  while ((opt = getopt (argc, argv, "f:a")) != EOF)
   {
     switch (opt)
     {
       case 'f': {
-        char *fname = os_get_optarg ();
+        char *fname = optarg;
+        DDSRT_WARNING_MSVC_OFF(4996)
         fp = fopen (fname, "w");
+        DDSRT_WARNING_MSVC_ON(4996)
         if (fp == NULL)
         {
           fprintf (stderr, "%s: can't open for writing\n", fname);
@@ -545,12 +552,12 @@ int main (int argc, char **argv)
     usage();
   }
 
-  for (int i = os_get_optind (); i < argc; i++)
+  for (int i = optind; i < argc; i++)
   {
     size_t k;
     for (k = 0; k < TOPICTAB_SIZE; k++)
     {
-      if (os_strcasecmp (argv[i], topictab[k].name) == 0)
+      if (ddsrt_strcasecmp (argv[i], topictab[k].name) == 0)
       {
         flags |= topictab[k].flag;
         break;
@@ -565,7 +572,7 @@ int main (int argc, char **argv)
 
   if ((pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL)) < 0)
   {
-    fprintf (stderr, "failed to create participant: %s\n", dds_err_str (pp));
+    fprintf (stderr, "failed to create participant: %s\n", dds_strretcode (pp));
     exit (1);
   }
 

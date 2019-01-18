@@ -13,7 +13,8 @@
 #define _DDS_ERR_H_
 
 #include <assert.h>
-#include "os/os.h"
+
+#include "dds/ddsrt/retcode.h"
 
 #if defined (__cplusplus)
 extern "C" {

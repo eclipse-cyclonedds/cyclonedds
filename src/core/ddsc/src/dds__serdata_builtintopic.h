@@ -12,9 +12,9 @@
 #ifndef DDSI_SERDATA_BUILTINTOPIC_H
 #define DDSI_SERDATA_BUILTINTOPIC_H
 
-#include "ddsi/q_xqos.h"
-#include "ddsi/ddsi_serdata.h"
-#include "ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_sertopic.h"
 
 struct ddsi_serdata_builtintopic {
   struct ddsi_serdata c;

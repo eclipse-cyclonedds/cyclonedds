@@ -11,7 +11,7 @@
  */
 #include <string.h>
 
-#include "ddsi/ddsi_vendor.h"
+#include "dds/ddsi/ddsi_vendor.h"
 
 extern inline bool vendor_equals (nn_vendorid_t a, nn_vendorid_t b);
 extern inline bool vendor_is_rti (nn_vendorid_t vendor);

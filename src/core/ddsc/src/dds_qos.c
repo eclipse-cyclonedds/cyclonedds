@@ -13,7 +13,7 @@
 #include <string.h>
 #include "dds__qos.h"
 #include "dds__err.h"
-#include "ddsi/q_config.h"
+#include "dds/ddsi/q_config.h"
 
 /* TODO: dd_duration_t is converted to nn_ddsi_time_t declared in q_time.h
    This structure contain seconds and fractions.
@@ -22,9 +22,9 @@
 
 static void
 dds_qos_data_copy_in(
-    _Inout_ nn_octetseq_t * data,
-    _In_reads_bytes_opt_(sz) const void * __restrict value,
-    _In_ size_t sz)
+    nn_octetseq_t * data,
+    const void * __restrict value,
+    size_t sz)
 {
     if (data->value)  {
         dds_free (data->value);
@@ -39,11 +39,9 @@ dds_qos_data_copy_in(
 
 static bool
 dds_qos_data_copy_out(
-    _In_ const nn_octetseq_t * data,
-    _When_(*sz == 0, _At_(*value, _Post_null_))
-    _When_(*sz > 0, _At_(*value, _Post_notnull_))
-      _Outptr_result_bytebuffer_all_maybenull_(*sz) void ** value,
-    _Out_ size_t * sz)
+    const nn_octetseq_t * data,
+    void ** value,
+    size_t * sz)
 {
     if (sz == NULL && value != NULL) {
         return false;
@@ -137,7 +135,7 @@ dds_qos_validate_common (
 
 dds_return_t
 dds_qos_validate_mutable_common (
-    _In_ const dds_qos_t *qos)
+    const dds_qos_t *qos)
 {
     dds_return_t ret = DDS_RETCODE_OK;
 
@@ -176,7 +174,7 @@ dds_qos_validate_mutable_common (
 
 static void
 dds_qos_init_defaults (
-    _Inout_ dds_qos_t * __restrict qos)
+    dds_qos_t * __restrict qos)
 {
     assert (qos);
     memset (qos, 0, sizeof (*qos));
@@ -208,7 +206,6 @@ dds_qos_init_defaults (
     qos->reader_data_lifecycle.autopurge_disposed_samples_delay = nn_to_ddsi_duration (DDS_INFINITY);
 }
 
-_Ret_notnull_
 dds_qos_t * dds_create_qos (void)
 {
     dds_qos_t *qos = dds_alloc (sizeof (dds_qos_t));
@@ -216,7 +213,6 @@ dds_qos_t * dds_create_qos (void)
     return qos;
 }
 
-_Ret_notnull_
 dds_qos_t * dds_qos_create (void)
 {
     return dds_create_qos ();
@@ -224,7 +220,7 @@ dds_qos_t * dds_qos_create (void)
 
 void
 dds_reset_qos(
-    _Out_ dds_qos_t * __restrict qos)
+    dds_qos_t * __restrict qos)
 {
     if (qos) {
         nn_xqos_fini (qos);
@@ -236,14 +232,14 @@ dds_reset_qos(
 
 void
 dds_qos_reset(
-    _Out_ dds_qos_t * __restrict qos)
+    dds_qos_t * __restrict qos)
 {
     dds_reset_qos (qos);
 }
 
 void
 dds_delete_qos(
-    _In_ _Post_invalid_ dds_qos_t * __restrict qos)
+    dds_qos_t * __restrict qos)
 {
     if (qos) {
         dds_reset_qos(qos);
@@ -253,15 +249,15 @@ dds_delete_qos(
 
 void
 dds_qos_delete(
-    _In_ _Post_invalid_ dds_qos_t * __restrict qos)
+    dds_qos_t * __restrict qos)
 {
     dds_delete_qos (qos);
 }
 
 dds_return_t
 dds_copy_qos (
-    _Out_ dds_qos_t * __restrict dst,
-    _In_ const dds_qos_t * __restrict src)
+    dds_qos_t * __restrict dst,
+    const dds_qos_t * __restrict src)
 {
     if(!src){
         DDS_ERROR("Argument source(src) is NULL\n");
@@ -277,15 +273,15 @@ dds_copy_qos (
 
 dds_return_t
 dds_qos_copy (
-    _Out_ dds_qos_t * __restrict dst,
-    _In_ const dds_qos_t * __restrict src)
+    dds_qos_t * __restrict dst,
+    const dds_qos_t * __restrict src)
 {
     return dds_copy_qos (dst, src);
 }
 
 void dds_merge_qos (
-    _Inout_ dds_qos_t * __restrict dst,
-    _In_ const dds_qos_t * __restrict src)
+    dds_qos_t * __restrict dst,
+    const dds_qos_t * __restrict src)
 {
     if(!src){
         DDS_ERROR("Argument source(src) is NULL\n");
@@ -300,15 +296,15 @@ void dds_merge_qos (
 }
 
 void dds_qos_merge (
-    _Inout_ dds_qos_t * __restrict dst,
-    _In_ const dds_qos_t * __restrict src)
+    dds_qos_t * __restrict dst,
+    const dds_qos_t * __restrict src)
 {
     dds_merge_qos (dst, src);
 }
 
 bool dds_qos_equal (
-    _In_opt_ const dds_qos_t * __restrict a,
-    _In_opt_ const dds_qos_t * __restrict b)
+    const dds_qos_t * __restrict a,
+    const dds_qos_t * __restrict b)
 {
     /* FIXME: a bit of a hack - and I am not so sure I like accepting null pointers here anyway */
     if (a == NULL && b == NULL) {
@@ -321,9 +317,9 @@ bool dds_qos_equal (
 }
 
 void dds_qset_userdata(
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_reads_bytes_opt_(sz) const void * __restrict value,
-    _In_ size_t sz)
+    dds_qos_t * __restrict qos,
+    const void * __restrict value,
+    size_t sz)
 {
     if (!qos) {
         DDS_ERROR("Argument qos is NULL\n");
@@ -334,9 +330,9 @@ void dds_qset_userdata(
 }
 
 void dds_qset_topicdata(
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_reads_bytes_opt_(sz) const void * __restrict value,
-    _In_ size_t sz)
+    dds_qos_t * __restrict qos,
+    const void * __restrict value,
+    size_t sz)
 {
     if (!qos) {
         DDS_ERROR("Argument qos is NULL\n");
@@ -347,9 +343,9 @@ void dds_qset_topicdata(
 }
 
 void dds_qset_groupdata(
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_reads_bytes_opt_(sz) const void * __restrict value,
-    _In_ size_t sz)
+    dds_qos_t * __restrict qos,
+    const void * __restrict value,
+    size_t sz)
 {
     if (!qos) {
         DDS_ERROR("Argument qos is NULL\n");
@@ -361,8 +357,8 @@ void dds_qset_groupdata(
 
 void dds_qset_durability
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(DDS_DURABILITY_VOLATILE, DDS_DURABILITY_PERSISTENT) dds_durability_kind_t kind
+    dds_qos_t * __restrict qos,
+    dds_durability_kind_t kind
 )
 {
     if (qos) {
@@ -375,9 +371,9 @@ void dds_qset_durability
 
 void dds_qset_history
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(DDS_HISTORY_KEEP_LAST, DDS_HISTORY_KEEP_ALL) dds_history_kind_t kind,
-    _In_range_(>=, DDS_LENGTH_UNLIMITED) int32_t depth
+    dds_qos_t * __restrict qos,
+    dds_history_kind_t kind,
+    int32_t depth
 )
 {
     if (qos) {
@@ -391,10 +387,10 @@ void dds_qset_history
 
 void dds_qset_resource_limits
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(>=, DDS_LENGTH_UNLIMITED) int32_t max_samples,
-    _In_range_(>=, DDS_LENGTH_UNLIMITED) int32_t max_instances,
-    _In_range_(>=, DDS_LENGTH_UNLIMITED) int32_t max_samples_per_instance
+    dds_qos_t * __restrict qos,
+    int32_t max_samples,
+    int32_t max_instances,
+    int32_t max_samples_per_instance
 )
 {
     if (qos) {
@@ -409,10 +405,10 @@ void dds_qset_resource_limits
 
 void dds_qset_presentation
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(DDS_PRESENTATION_INSTANCE, DDS_PRESENTATION_GROUP) dds_presentation_access_scope_kind_t access_scope,
-    _In_ bool coherent_access,
-    _In_ bool ordered_access
+    dds_qos_t * __restrict qos,
+    dds_presentation_access_scope_kind_t access_scope,
+    bool coherent_access,
+    bool ordered_access
 )
 {
     if (qos) {
@@ -427,8 +423,8 @@ void dds_qset_presentation
 
 void dds_qset_lifespan
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(0, DDS_INFINITY) dds_duration_t lifespan
+    dds_qos_t * __restrict qos,
+    dds_duration_t lifespan
 )
 {
     if (qos) {
@@ -441,8 +437,8 @@ void dds_qset_lifespan
 
 void dds_qset_deadline
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(0, DDS_INFINITY) dds_duration_t deadline
+    dds_qos_t * __restrict qos,
+    dds_duration_t deadline
 )
 {
     if (qos) {
@@ -455,8 +451,8 @@ void dds_qset_deadline
 
 void dds_qset_latency_budget
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(0, DDS_INFINITY) dds_duration_t duration
+    dds_qos_t * __restrict qos,
+    dds_duration_t duration
 )
 {
     if (qos) {
@@ -469,8 +465,8 @@ void dds_qset_latency_budget
 
 void dds_qset_ownership
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(DDS_OWNERSHIP_SHARED, DDS_OWNERSHIP_EXCLUSIVE) dds_ownership_kind_t kind
+    dds_qos_t * __restrict qos,
+    dds_ownership_kind_t kind
 )
 {
     if (qos) {
@@ -483,8 +479,8 @@ void dds_qset_ownership
 
 void dds_qset_ownership_strength
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_ int32_t value
+    dds_qos_t * __restrict qos,
+    int32_t value
 )
 {
     if (qos) {
@@ -497,9 +493,9 @@ void dds_qset_ownership_strength
 
 void dds_qset_liveliness
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(DDS_LIVELINESS_AUTOMATIC, DDS_LIVELINESS_MANUAL_BY_TOPIC) dds_liveliness_kind_t kind,
-    _In_range_(0, DDS_INFINITY) dds_duration_t lease_duration
+    dds_qos_t * __restrict qos,
+    dds_liveliness_kind_t kind,
+    dds_duration_t lease_duration
 )
 {
     if (qos) {
@@ -513,8 +509,8 @@ void dds_qset_liveliness
 
 void dds_qset_time_based_filter
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(0, DDS_INFINITY) dds_duration_t minimum_separation
+    dds_qos_t * __restrict qos,
+    dds_duration_t minimum_separation
 )
 {
     if (qos) {
@@ -527,9 +523,9 @@ void dds_qset_time_based_filter
 
 void dds_qset_partition
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_ uint32_t n,
-    _In_count_(n) _Deref_pre_z_ const char ** __restrict ps
+    dds_qos_t * __restrict qos,
+    uint32_t n,
+    const char ** __restrict ps
 )
 {
     uint32_t i;
@@ -564,9 +560,9 @@ void dds_qset_partition
 
 void dds_qset_reliability
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(DDS_RELIABILITY_BEST_EFFORT, DDS_RELIABILITY_RELIABLE) dds_reliability_kind_t kind,
-    _In_range_(0, DDS_INFINITY) dds_duration_t max_blocking_time
+    dds_qos_t * __restrict qos,
+    dds_reliability_kind_t kind,
+    dds_duration_t max_blocking_time
 )
 {
     if (qos) {
@@ -580,8 +576,8 @@ void dds_qset_reliability
 
 void dds_qset_transport_priority
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_ int32_t value
+    dds_qos_t * __restrict qos,
+    int32_t value
 )
 {
     if (qos) {
@@ -594,9 +590,8 @@ void dds_qset_transport_priority
 
 void dds_qset_destination_order
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP,
-        DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP) dds_destination_order_kind_t kind
+    dds_qos_t * __restrict qos,
+    dds_destination_order_kind_t kind
 )
 {
     if (qos) {
@@ -609,8 +604,8 @@ void dds_qset_destination_order
 
 void dds_qset_writer_data_lifecycle
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_ bool autodispose
+    dds_qos_t * __restrict qos,
+    bool autodispose
 )
 {
     if(qos) {
@@ -623,9 +618,9 @@ void dds_qset_writer_data_lifecycle
 
 void dds_qset_reader_data_lifecycle
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(0, DDS_INFINITY) dds_duration_t autopurge_nowriter_samples_delay,
-    _In_range_(0, DDS_INFINITY) dds_duration_t autopurge_disposed_samples_delay
+    dds_qos_t * __restrict qos,
+    dds_duration_t autopurge_nowriter_samples_delay,
+    dds_duration_t autopurge_disposed_samples_delay
 )
 {
     if (qos) {
@@ -641,13 +636,13 @@ void dds_qset_reader_data_lifecycle
 
 void dds_qset_durability_service
 (
-    _Inout_ dds_qos_t * __restrict qos,
-    _In_range_(0, DDS_INFINITY) dds_duration_t service_cleanup_delay,
-    _In_range_(DDS_HISTORY_KEEP_LAST, DDS_HISTORY_KEEP_ALL) dds_history_kind_t history_kind,
-    _In_range_(>=, DDS_LENGTH_UNLIMITED) int32_t history_depth,
-    _In_range_(>=, DDS_LENGTH_UNLIMITED) int32_t max_samples,
-    _In_range_(>=, DDS_LENGTH_UNLIMITED) int32_t max_instances,
-    _In_range_(>=, DDS_LENGTH_UNLIMITED) int32_t max_samples_per_instance
+    dds_qos_t * __restrict qos,
+    dds_duration_t service_cleanup_delay,
+    dds_history_kind_t history_kind,
+    int32_t history_depth,
+    int32_t max_samples,
+    int32_t max_instances,
+    int32_t max_samples_per_instance
 )
 {
     if (qos) {

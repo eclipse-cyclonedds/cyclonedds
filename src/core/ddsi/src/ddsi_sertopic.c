@@ -14,20 +14,20 @@
 #include <assert.h>
 #include <string.h>
 
-#include "os/os.h"
-#include "ddsi/q_md5.h"
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_freelist.h"
-#include "ddsi/ddsi_sertopic.h"
-#include "ddsi/ddsi_serdata.h"
-#include "ddsi/q_md5.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsi/q_md5.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/q_md5.h"
 
 struct ddsi_sertopic *ddsi_sertopic_ref (const struct ddsi_sertopic *sertopic_const)
 {
   struct ddsi_sertopic *sertopic = (struct ddsi_sertopic *)sertopic_const;
   if (sertopic)
-    os_atomic_inc32 (&sertopic->refc);
+    ddsrt_atomic_inc32 (&sertopic->refc);
   return sertopic;
 }
 
@@ -35,13 +35,13 @@ void ddsi_sertopic_unref (struct ddsi_sertopic *sertopic)
 {
   if (sertopic)
   {
-    if (os_atomic_dec32_ov (&sertopic->refc) == 1)
+    if (ddsrt_atomic_dec32_ov (&sertopic->refc) == 1)
     {
       ddsi_sertopic_deinit (sertopic);
-      os_free (sertopic->name_typename);
-      os_free (sertopic->name);
-      os_free (sertopic->typename);
-      os_free (sertopic);
+      ddsrt_free (sertopic->name_typename);
+      ddsrt_free (sertopic->name);
+      ddsrt_free (sertopic->typename);
+      ddsrt_free (sertopic);
     }
   }
 }

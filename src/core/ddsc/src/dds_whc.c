@@ -13,18 +13,19 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "os/os.h"
-#include "ddsi/ddsi_serdata.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_config.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_config.h"
 #include "dds__whc.h"
-#include "ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_tkmap.h"
 
-#include "util/ut_avl.h"
-#include "util/ut_hopscotch.h"
-#include "ddsi/q_time.h"
-#include "ddsi/q_rtps.h"
-#include "ddsi/q_freelist.h"
+#include "dds/util/ut_avl.h"
+#include "dds/util/ut_hopscotch.h"
+#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/q_freelist.h"
 
 #define USE_EHH 0
 
@@ -73,7 +74,7 @@ struct whc_seq_entry {
 
 struct whc_impl {
   struct whc common;
-  os_mutex lock;
+  ddsrt_mutex_t lock;
   unsigned seq_size;
   size_t unacked_bytes;
   size_t sample_overhead;
@@ -343,9 +344,9 @@ struct whc *whc_new (int is_transient_local, unsigned hdepth, unsigned tldepth)
 
   assert((hdepth == 0 || tldepth <= hdepth) || is_transient_local);
 
-  whc = os_malloc (sizeof (*whc));
+  whc = ddsrt_malloc (sizeof (*whc));
   whc->common.ops = &whc_ops;
-  os_mutexInit (&whc->lock);
+  ddsrt_mutex_init (&whc->lock);
   whc->is_transient_local = is_transient_local ? 1 : 0;
   whc->hdepth = hdepth;
   whc->tldepth = tldepth;
@@ -368,7 +369,7 @@ struct whc *whc_new (int is_transient_local, unsigned hdepth, unsigned tldepth)
 
   /* seq interval tree: always has an "open" node */
   ut_avlInit (&whc_seq_treedef, &whc->seq);
-  intv = os_malloc (sizeof (*intv));
+  intv = ddsrt_malloc (sizeof (*intv));
   intv->min = intv->maxp1 = 1;
   intv->first = intv->last = NULL;
   ut_avlInsert (&whc_seq_treedef, &whc->seq, intv);
@@ -387,7 +388,7 @@ static void free_whc_node_contents (struct whc_node *whcn)
   ddsi_serdata_unref (whcn->serdata);
   if (whcn->plist) {
     nn_plist_fini (whcn->plist);
-    os_free (whcn->plist);
+    ddsrt_free (whcn->plist);
   }
 }
 
@@ -402,7 +403,7 @@ void whc_default_free (struct whc *whc_generic)
     struct ut_hhIter it;
     struct whc_idxnode *n;
     for (n = ut_hhIterFirst(whc->idx_hash, &it); n != NULL; n = ut_hhIterNext(&it))
-      os_free(n);
+      ddsrt_free(n);
     ut_hhFree(whc->idx_hash);
   }
 
@@ -412,24 +413,24 @@ void whc_default_free (struct whc *whc_generic)
     {
       struct whc_node *tmp = whcn;
 /* The compiler doesn't realize that whcn->prev_seq is always initialized. */
-OS_WARNING_MSVC_OFF(6001);
+DDSRT_WARNING_MSVC_OFF(6001);
       whcn = whcn->prev_seq;
-OS_WARNING_MSVC_ON(6001);
+DDSRT_WARNING_MSVC_ON(6001);
       free_whc_node_contents (tmp);
-      os_free (tmp);
+      ddsrt_free (tmp);
     }
   }
 
-  ut_avlFree (&whc_seq_treedef, &whc->seq, os_free);
-  nn_freelist_fini (&whc->freelist, os_free);
+  ut_avlFree (&whc_seq_treedef, &whc->seq, ddsrt_free);
+  nn_freelist_fini (&whc->freelist, ddsrt_free);
 
 #if USE_EHH
   ut_ehhFree (whc->seq_hash);
 #else
   ut_hhFree (whc->seq_hash);
 #endif
-  os_mutexDestroy (&whc->lock);
-  os_free (whc);
+  ddsrt_mutex_destroy (&whc->lock);
+  ddsrt_free (whc);
 }
 
 static void get_state_locked(const struct whc_impl *whc, struct whc_state *st)
@@ -456,10 +457,10 @@ static void get_state_locked(const struct whc_impl *whc, struct whc_state *st)
 static void whc_default_get_state(const struct whc *whc_generic, struct whc_state *st)
 {
   const struct whc_impl * const whc = (const struct whc_impl *)whc_generic;
-  os_mutexLock ((struct os_mutex *)&whc->lock);
+  ddsrt_mutex_lock ((ddsrt_mutex_t *)&whc->lock);
   check_whc (whc);
   get_state_locked(whc, st);
-  os_mutexUnlock ((struct os_mutex *)&whc->lock);
+  ddsrt_mutex_unlock ((ddsrt_mutex_t *)&whc->lock);
 }
 
 static struct whc_node *find_nextseq_intv (struct whc_intvnode **p_intv, const struct whc_impl *whc, seqno_t seq)
@@ -510,13 +511,13 @@ static seqno_t whc_default_next_seq (const struct whc *whc_generic, seqno_t seq)
   struct whc_node *n;
   struct whc_intvnode *intv;
   seqno_t nseq;
-  os_mutexLock ((struct os_mutex *)&whc->lock);
+  ddsrt_mutex_lock ((ddsrt_mutex_t *)&whc->lock);
   check_whc (whc);
   if ((n = find_nextseq_intv (&intv, whc, seq)) == NULL)
     nseq = MAX_SEQ_NUMBER;
   else
     nseq = n->seq;
-  os_mutexUnlock ((struct os_mutex *)&whc->lock);
+  ddsrt_mutex_unlock ((ddsrt_mutex_t *)&whc->lock);
   return nseq;
 }
 
@@ -538,7 +539,7 @@ static void delete_one_sample_from_idx (struct whc_impl *whc, struct whc_node *w
     if (!ut_hhRemove (whc->idx_hash, idxn))
       assert (0);
     ddsi_tkmap_instance_unref(idxn->tk);
-    os_free (idxn);
+    ddsrt_free (idxn);
   }
   whcn->idxnode = NULL;
 }
@@ -560,7 +561,7 @@ static void free_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop_s
       }
     }
   }
-  os_free(idxn);
+  ddsrt_free(idxn);
 }
 
 static void delete_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_idxnode *idxn)
@@ -591,14 +592,14 @@ static unsigned whc_default_downgrade_to_volatile (struct whc *whc_generic, stru
 
   /* We only remove them from whc->tlidx: we don't remove them from
      whc->seq yet.  That'll happen eventually.  */
-  os_mutexLock (&whc->lock);
+  ddsrt_mutex_lock (&whc->lock);
   check_whc (whc);
 
   if (whc->idxdepth == 0)
   {
     /* if not maintaining an index at all, this is nonsense */
     get_state_locked(whc, st);
-    os_mutexUnlock (&whc->lock);
+    ddsrt_mutex_unlock (&whc->lock);
     return 0;
   }
 
@@ -628,7 +629,7 @@ static unsigned whc_default_downgrade_to_volatile (struct whc *whc_generic, stru
   whc_default_free_deferred_free_list (whc_generic, deferred_free_list);
   assert (whc->max_drop_seq == old_max_drop_seq);
   get_state_locked(whc, st);
-  os_mutexUnlock (&whc->lock);
+  ddsrt_mutex_unlock (&whc->lock);
   return cnt;
 }
 
@@ -680,7 +681,7 @@ static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_i
       *p_intv = ut_avlFindSucc (&whc_seq_treedef, &whc->seq, intv);
       /* only sample in interval and not the open interval => delete interval */
       ut_avlDelete (&whc_seq_treedef, &whc->seq, tmp);
-      os_free (tmp);
+      ddsrt_free (tmp);
     }
     else
     {
@@ -711,7 +712,7 @@ static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_i
     struct whc_intvnode *new_intv;
     ut_avlIPath_t path;
 
-    new_intv = os_malloc (sizeof (*new_intv));
+    new_intv = ddsrt_malloc (sizeof (*new_intv));
 
     /* new interval starts at the next node */
     assert (whcn->next_seq);
@@ -770,7 +771,7 @@ static void free_deferred_free_list (struct whc_impl *whc, struct whc_node *defe
     {
       struct whc_node *tmp = cur;
       cur = cur->next_seq;
-      os_free (tmp);
+      ddsrt_free (tmp);
     }
   }
 }
@@ -996,7 +997,7 @@ static unsigned whc_default_remove_acked_messages (struct whc *whc_generic, seqn
   struct whc_impl * const whc = (struct whc_impl *)whc_generic;
   unsigned cnt;
 
-  os_mutexLock (&whc->lock);
+  ddsrt_mutex_lock (&whc->lock);
   assert (max_drop_seq < MAX_SEQ_NUMBER);
   assert (max_drop_seq >= whc->max_drop_seq);
 
@@ -1016,7 +1017,7 @@ static unsigned whc_default_remove_acked_messages (struct whc *whc_generic, seqn
   else
     cnt = whc_default_remove_acked_messages_full (whc, max_drop_seq, deferred_free_list);
   get_state_locked(whc, whcst);
-  os_mutexUnlock (&whc->lock);
+  ddsrt_mutex_unlock (&whc->lock);
   return cnt;
 }
 
@@ -1025,7 +1026,7 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
   struct whc_node *newn = NULL;
 
   if ((newn = nn_freelist_pop (&whc->freelist)) == NULL)
-    newn = os_malloc (sizeof (*newn));
+    newn = ddsrt_malloc (sizeof (*newn));
   newn->seq = seq;
   newn->plist = plist;
   newn->unacked = (seq > max_drop_seq);
@@ -1067,7 +1068,7 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
     /* gap => need new open_intv */
     struct whc_intvnode *intv1;
     ut_avlIPath_t path;
-    intv1 = os_malloc (sizeof (*intv1));
+    intv1 = ddsrt_malloc (sizeof (*intv1));
     intv1->min = seq;
     intv1->maxp1 = seq + 1;
     intv1->first = intv1->last = newn;
@@ -1091,7 +1092,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
     char pad[sizeof(struct whc_idxnode) + sizeof(struct whc_node *)];
   } template;
 
-  os_mutexLock (&whc->lock);
+  ddsrt_mutex_lock (&whc->lock);
   check_whc (whc);
 
   if (dds_get_log_mask() & DDS_LC_WHC)
@@ -1120,7 +1121,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
   if (serdata->kind == SDK_EMPTY || whc->idxdepth == 0)
   {
     DDS_LOG(DDS_LC_WHC, " empty or no hist\n");
-    os_mutexUnlock (&whc->lock);
+    ddsrt_mutex_unlock (&whc->lock);
     return 0;
   }
 
@@ -1188,7 +1189,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
     if (!(serdata->statusinfo & NN_STATUSINFO_UNREGISTER))
     {
       unsigned i;
-      idxn = os_malloc (sizeof (*idxn) + whc->idxdepth * sizeof (idxn->hist[0]));
+      idxn = ddsrt_malloc (sizeof (*idxn) + whc->idxdepth * sizeof (idxn->hist[0]));
       DDS_LOG(DDS_LC_WHC, " idxn %p", (void *)idxn);
       ddsi_tkmap_instance_ref(tk);
       idxn->iid = tk->m_iid;
@@ -1216,7 +1217,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
     }
     DDS_LOG(DDS_LC_WHC, "\n");
   }
-  os_mutexUnlock (&whc->lock);
+  ddsrt_mutex_unlock (&whc->lock);
   return 0;
 }
 
@@ -1237,7 +1238,7 @@ static bool whc_default_borrow_sample (const struct whc *whc_generic, seqno_t se
   const struct whc_impl * const whc = (const struct whc_impl *)whc_generic;
   struct whc_node *whcn;
   bool found;
-  os_mutexLock ((os_mutex *)&whc->lock);
+  ddsrt_mutex_lock ((ddsrt_mutex_t *)&whc->lock);
   if ((whcn = whc_findseq(whc, seq)) == NULL)
     found = false;
   else
@@ -1245,7 +1246,7 @@ static bool whc_default_borrow_sample (const struct whc *whc_generic, seqno_t se
     make_borrowed_sample(sample, whcn);
     found = true;
   }
-  os_mutexUnlock ((os_mutex *)&whc->lock);
+  ddsrt_mutex_unlock ((ddsrt_mutex_t *)&whc->lock);
   return found;
 }
 
@@ -1254,7 +1255,7 @@ static bool whc_default_borrow_sample_key (const struct whc *whc_generic, const 
   const struct whc_impl * const whc = (const struct whc_impl *)whc_generic;
   struct whc_node *whcn;
   bool found;
-  os_mutexLock ((os_mutex *)&whc->lock);
+  ddsrt_mutex_lock ((ddsrt_mutex_t *)&whc->lock);
   if ((whcn = whc_findkey(whc, serdata_key)) == NULL)
     found = false;
   else
@@ -1262,7 +1263,7 @@ static bool whc_default_borrow_sample_key (const struct whc *whc_generic, const 
     make_borrowed_sample(sample, whcn);
     found = true;
   }
-  os_mutexUnlock ((os_mutex *)&whc->lock);
+  ddsrt_mutex_unlock ((ddsrt_mutex_t *)&whc->lock);
   return found;
 }
 
@@ -1275,7 +1276,7 @@ static void return_sample_locked (struct whc_impl *whc, struct whc_borrowed_samp
     ddsi_serdata_unref (sample->serdata);
     if (sample->plist) {
       nn_plist_fini (sample->plist);
-      os_free (sample->plist);
+      ddsrt_free (sample->plist);
     }
   }
   else
@@ -1293,9 +1294,9 @@ static void return_sample_locked (struct whc_impl *whc, struct whc_borrowed_samp
 static void whc_default_return_sample (struct whc *whc_generic, struct whc_borrowed_sample *sample, bool update_retransmit_info)
 {
   struct whc_impl * const whc = (struct whc_impl *)whc_generic;
-  os_mutexLock (&whc->lock);
+  ddsrt_mutex_lock (&whc->lock);
   return_sample_locked (whc, sample, update_retransmit_info);
-  os_mutexUnlock (&whc->lock);
+  ddsrt_mutex_unlock (&whc->lock);
 }
 
 static void whc_default_sample_iter_init (const struct whc *whc_generic, struct whc_sample_iter *opaque_it)
@@ -1313,7 +1314,7 @@ static bool whc_default_sample_iter_borrow_next (struct whc_sample_iter *opaque_
   struct whc_intvnode *intv;
   seqno_t seq;
   bool valid;
-  os_mutexLock (&whc->lock);
+  ddsrt_mutex_lock (&whc->lock);
   check_whc (whc);
   if (!it->first)
   {
@@ -1332,6 +1333,6 @@ static bool whc_default_sample_iter_borrow_next (struct whc_sample_iter *opaque_
     make_borrowed_sample(sample, whcn);
     valid = true;
   }
-  os_mutexUnlock (&whc->lock);
+  ddsrt_mutex_unlock (&whc->lock);
   return valid;
 }

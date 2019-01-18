@@ -9,11 +9,13 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "ddsc/dds.h"
-#include "os/os.h"
+#include "dds/dds.h"
 #include "RoundTrip.h"
-#include "CUnit/Test.h"
 #include "CUnit/Theory.h"
+
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/threads.h"
 
 /**************************************************************************************************
  *
@@ -38,9 +40,9 @@ static char*
 create_topic_name(const char *prefix, char *name, size_t size)
 {
     /* Get semi random g_topic name. */
-    os_procId pid = os_getpid();
-    uintmax_t tid = os_threadIdToInteger(os_threadIdSelf());
-    (void) snprintf(name, size, "%s_pid%"PRIprocId"_tid%"PRIuMAX"", prefix, pid, tid);
+    ddsrt_pid_t pid = ddsrt_getpid();
+    ddsrt_tid_t tid = ddsrt_gettid();
+    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
     return name;
 }
 
@@ -102,9 +104,9 @@ CU_Test(ddsc_topic_create, invalid_qos, .init=ddsc_topic_init, .fini=ddsc_topic_
 {
     dds_entity_t topic;
     dds_qos_t *qos = dds_create_qos();
-    OS_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
     dds_qset_lifespan(qos, DDS_SECS(-1));
-    OS_WARNING_MSVC_OFF(28020);
+    DDSRT_WARNING_MSVC_OFF(28020);
     topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, "inconsistent", qos, NULL);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(topic), DDS_RETCODE_INCONSISTENT_POLICY);
     dds_delete_qos(qos);
@@ -164,9 +166,9 @@ CU_Test(ddsc_topic_create, recreate, .init=ddsc_topic_init, .fini=ddsc_topic_fin
 CU_Test(ddsc_topic_create, desc_null, .init=ddsc_topic_init, .fini=ddsc_topic_fini)
 {
     dds_entity_t topic;
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     topic = dds_create_topic (g_participant, NULL, "desc_null", NULL, NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(topic), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
@@ -219,9 +221,9 @@ CU_Test(ddsc_topic_find, non_participants, .init=ddsc_topic_init, .fini=ddsc_top
 CU_Test(ddsc_topic_find, null, .init=ddsc_topic_init, .fini=ddsc_topic_fini)
 {
     dds_entity_t topic;
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     topic = dds_find_topic(g_participant, NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(topic), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
@@ -411,9 +413,9 @@ CU_Test(ddsc_topic_set_qos, valid, .init=ddsc_topic_init, .fini=ddsc_topic_fini)
 CU_Test(ddsc_topic_set_qos, inconsistent, .init=ddsc_topic_init, .fini=ddsc_topic_fini)
 {
     dds_return_t ret;
-    OS_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
     dds_qset_lifespan(g_qos, DDS_SECS(-1));
-    OS_WARNING_MSVC_ON(28020);
+    DDSRT_WARNING_MSVC_ON(28020);
     ret = dds_set_qos(g_topicRtmDataType, g_qos);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_INCONSISTENT_POLICY);
 }

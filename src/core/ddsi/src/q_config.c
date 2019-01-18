@@ -17,21 +17,23 @@
 #include <limits.h>
 #include <string.h>
 
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/string.h"
+#include "dds/ddsrt/strtod.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/util/ut_avl.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_misc.h"
+#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/q_nwif.h"
+#include "dds/ddsi/q_error.h"
 
-#include "ddsi/q_config.h"
-#include "ddsi/q_log.h"
-#include "util/ut_avl.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_misc.h"
-#include "ddsi/q_addrset.h"
-#include "ddsi/q_nwif.h"
-#include "ddsi/q_error.h"
+#include "dds/util/ut_xmlparser.h"
+#include "dds/util/ut_expand_envvars.h"
 
-#include "util/ut_xmlparser.h"
-#include "util/ut_expand_envvars.h"
-
-#include "ddsc/ddsc_project.h"
+#include "dds/version.h"
 
 #define WARN_DEPRECATED_ALIAS 1
 #define WARN_DEPRECATED_UNIT 1
@@ -789,7 +791,7 @@ static const struct cfgelem tracing_cfgelems[] = {
 <li><i>finest</i>: <i>finer</i> + trace</li></ul>\n\
 <p>While <i>none</i> prevents any message from being written to a DDSI2 log file.</p>\n\
 <p>The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are <i>config</i>, <i>fine</i> and <i>finest</i>.</p>" },
-{ LEAF("OutputFile"), 1, DDSC_PROJECT_NAME_NOSPACE_SMALL".log", ABSOFF(tracingOutputFileName), 0, uf_tracingOutputFileName, ff_free, pf_string,
+{ LEAF("OutputFile"), 1, DDS_PROJECT_NAME_NOSPACE_SMALL".log", ABSOFF(tracingOutputFileName), 0, uf_tracingOutputFileName, ff_free, pf_string,
 "<p>This option specifies where the logging is printed to. Note that <i>stdout</i> and <i>stderr</i> are treated as special values, representing \"standard out\" and \"standard error\" respectively. No file is created unless logging categories are enabled using the Tracing/Verbosity or Tracing/EnabledCategory settings.</p>" },
 { LEAF_W_ATTRS("Timestamps", timestamp_cfgattrs), 1, "true", ABSOFF(tracingTimestamps), 0, uf_boolean, 0, pf_boolean,
 "<p>This option has no effect.</p>" },
@@ -896,7 +898,7 @@ static const struct cfgelem root_cfgelems[] = {
 
 static const struct cfgelem cyclonedds_root_cfgelems[] =
 {
-    { DDSC_PROJECT_NAME_NOSPACE, root_cfgelems, NULL, NODATA, NULL },
+    { DDS_PROJECT_NAME_NOSPACE, root_cfgelems, NULL, NODATA, NULL },
     END_MARKER
 };
 
@@ -1010,16 +1012,16 @@ struct cfg_note_buf {
 static size_t cfg_note_vsnprintf(struct cfg_note_buf *bb, const char *fmt, va_list ap)
 {
     int x;
-    x = os_vsnprintf(bb->buf + bb->bufpos, bb->bufsize - bb->bufpos, fmt, ap);
+    x = vsnprintf(bb->buf + bb->bufpos, bb->bufsize - bb->bufpos, fmt, ap);
     if ( x >= 0 && (size_t) x >= bb->bufsize - bb->bufpos ) {
         size_t nbufsize = ((bb->bufsize + (size_t) x + 1) + 1023) & (size_t) (-1024);
-        char *nbuf = os_realloc(bb->buf, nbufsize);
+        char *nbuf = ddsrt_realloc(bb->buf, nbufsize);
         bb->buf = nbuf;
         bb->bufsize = nbufsize;
         return nbufsize;
     }
     if ( x < 0 )
-        DDS_FATAL("cfg_note_vsnprintf: os_vsnprintf failed\n");
+        DDS_FATAL("cfg_note_vsnprintf: vsnprintf failed\n");
     else
         bb->bufpos += (size_t) x;
     return 0;
@@ -1038,9 +1040,9 @@ static void cfg_note_snprintf(struct cfg_note_buf *bb, const char *fmt, ...)
     if ( r > 0 ) {
         int s;
         va_start(ap, fmt);
-        s = os_vsnprintf(bb->buf + bb->bufpos, bb->bufsize - bb->bufpos, fmt, ap);
+        s = vsnprintf(bb->buf + bb->bufpos, bb->bufsize - bb->bufpos, fmt, ap);
         if ( s < 0 || (size_t) s >= bb->bufsize - bb->bufpos )
-            DDS_FATAL("cfg_note_snprintf: os_vsnprintf failed\n");
+            DDS_FATAL("cfg_note_snprintf: vsnprintf failed\n");
         va_end(ap);
         bb->bufpos += (size_t) s;
     }
@@ -1063,7 +1065,7 @@ static size_t cfg_note(struct cfgst *cfgst, uint32_t cat, size_t bsz, const char
 
     bb.bufpos = 0;
     bb.bufsize = (bsz == 0) ? 1024 : bsz;
-    if ( (bb.buf = os_malloc(bb.bufsize)) == NULL )
+    if ( (bb.buf = ddsrt_malloc(bb.bufsize)) == NULL )
         DDS_FATAL("cfg_note: out of memory\n");
 
     cfg_note_snprintf(&bb, "config: ");
@@ -1092,7 +1094,7 @@ static size_t cfg_note(struct cfgst *cfgst, uint32_t cat, size_t bsz, const char
         /* Can't reset ap ... and va_copy isn't widely available - so
         instead abort and hope the caller tries again with a larger
         initial buffer */
-        os_free(bb.buf);
+        ddsrt_free(bb.buf);
         return r;
     }
 
@@ -1111,7 +1113,7 @@ static size_t cfg_note(struct cfgst *cfgst, uint32_t cat, size_t bsz, const char
             break;
     }
 
-    os_free(bb.buf);
+    ddsrt_free(bb.buf);
     return 0;
 }
 
@@ -1156,7 +1158,7 @@ static int list_index(const char *list[], const char *elem)
 {
     int i;
     for ( i = 0; list[i] != NULL; i++ ) {
-        if ( os_strcasecmp(list[i], elem) == 0 )
+        if ( ddsrt_strcasecmp(list[i], elem) == 0 )
             return i;
     }
     return -1;
@@ -1208,7 +1210,7 @@ static void *cfg_deref_address(UNUSED_ARG(struct cfgst *cfgst), void *parent, st
 static void *if_common(UNUSED_ARG(struct cfgst *cfgst), void *parent, struct cfgelem const * const cfgelem, unsigned size)
 {
     struct config_listelem **current = (struct config_listelem **) ((char *) parent + cfgelem->elem_offset);
-    struct config_listelem *new = os_malloc(size);
+    struct config_listelem *new = ddsrt_malloc(size);
     new->next = *current;
     *current = new;
     return new;
@@ -1289,7 +1291,7 @@ static int if_peer(struct cfgst *cfgst, void *parent, struct cfgelem const * con
 static void ff_free(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
     void **elem = cfg_address(cfgst, parent, cfgelem);
-    os_free(*elem);
+    ddsrt_free(*elem);
 }
 
 static int uf_boolean(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
@@ -1350,17 +1352,17 @@ static int uf_logcat(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(s
 {
     static const char **vs = logcat_names;
     static const uint32_t *lc = logcat_codes;
-    char *copy = os_strdup(value), *cursor = copy, *tok;
-    while ( (tok = os_strsep(&cursor, ",")) != NULL ) {
+    char *copy = ddsrt_strdup(value), *cursor = copy, *tok;
+    while ( (tok = ddsrt_strsep(&cursor, ",")) != NULL ) {
         int idx = list_index(vs, tok);
         if ( idx < 0 ) {
             int ret = cfg_error(cfgst, "'%s' in '%s' undefined", tok, value);
-            os_free(copy);
+            ddsrt_free(copy);
             return ret;
         }
         enabled_logcats |= lc[idx];
     }
-    os_free(copy);
+    ddsrt_free(copy);
     return 1;
 }
 
@@ -1497,11 +1499,11 @@ static void pf_retransmit_merging(struct cfgst *cfgst, void *parent, struct cfge
 static int uf_string(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
     char **elem = cfg_address(cfgst, parent, cfgelem);
-    *elem = os_strdup(value);
+    *elem = ddsrt_strdup(value);
     return 1;
 }
 
-OS_WARNING_MSVC_OFF(4996);
+DDSRT_WARNING_MSVC_OFF(4996);
 static int uf_natint64_unit(struct cfgst *cfgst, int64_t *elem, const char *value, const struct unit *unittab, int64_t def_mult, int64_t max)
 {
     int pos;
@@ -1531,7 +1533,7 @@ static int uf_natint64_unit(struct cfgst *cfgst, int64_t *elem, const char *valu
         return cfg_error(cfgst, "%s: invalid value", value);
     }
 }
-OS_WARNING_MSVC_ON(4996);
+DDSRT_WARNING_MSVC_ON(4996);
 
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
 static int uf_bandwidth(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
@@ -1589,7 +1591,7 @@ static int uf_tracingOutputFileName(struct cfgst *cfgst, UNUSED_ARG(void *parent
 {
     struct config *cfg = cfgst->cfg;
     {
-        cfg->tracingOutputFileName = os_strdup(value);
+        cfg->tracingOutputFileName = ddsrt_strdup(value);
     }
     return 1;
 }
@@ -1602,7 +1604,7 @@ static int uf_ipv4(struct cfgst *cfgst, void *parent, struct cfgelem const * con
 
 static int uf_networkAddress(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {
-    if ( os_strcasecmp(value, "auto") != 0 )
+    if ( ddsrt_strcasecmp(value, "auto") != 0 )
         return uf_ipv4(cfgst, parent, cfgelem, first, value);
     else {
         char **elem = cfg_address(cfgst, parent, cfgelem);
@@ -1616,17 +1618,17 @@ static void ff_networkAddresses(struct cfgst *cfgst, void *parent, struct cfgele
     char ***elem = cfg_address(cfgst, parent, cfgelem);
     int i;
     for ( i = 0; (*elem)[i]; i++ )
-        os_free((*elem)[i]);
-    os_free(*elem);
+        ddsrt_free((*elem)[i]);
+    ddsrt_free(*elem);
 }
 
 static int uf_networkAddresses_simple(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
     char ***elem = cfg_address(cfgst, parent, cfgelem);
-    if ( (*elem = os_malloc(2 * sizeof(char *))) == NULL )
+    if ( (*elem = ddsrt_malloc(2 * sizeof(char *))) == NULL )
         return cfg_error(cfgst, "out of memory");
-    if ( ((*elem)[0] = os_strdup(value)) == NULL ) {
-        os_free(*elem);
+    if ( ((*elem)[0] = ddsrt_strdup(value)) == NULL ) {
+        ddsrt_free(*elem);
         *elem = NULL;
         return cfg_error(cfgst, "out of memory");
     }
@@ -1641,7 +1643,7 @@ static int uf_networkAddresses(struct cfgst *cfgst, void *parent, struct cfgelem
         static const char *keywords[] = { "all", "any", "none" };
         int i;
         for ( i = 0; i < (int) (sizeof(keywords) / sizeof(*keywords)); i++ ) {
-            if ( os_strcasecmp(value, keywords[i]) == 0 )
+            if ( ddsrt_strcasecmp(value, keywords[i]) == 0 )
                 return uf_networkAddresses_simple(cfgst, parent, cfgelem, first, keywords[i]);
         }
     }
@@ -1662,23 +1664,23 @@ static int uf_networkAddresses(struct cfgst *cfgst, void *parent, struct cfgelem
                 count += (*scan++ == ',');
         }
 
-        copy = os_strdup(value);
+        copy = ddsrt_strdup(value);
 
         /* Allocate an array of address strings (which may be oversized a
         bit because of the counting of the commas) */
-        *elem = os_malloc((count + 1) * sizeof(char *));
+        *elem = ddsrt_malloc((count + 1) * sizeof(char *));
 
         {
             char *cursor = copy, *tok;
             unsigned idx = 0;
-            while ( (tok = os_strsep(&cursor, ",")) != NULL ) {
+            while ( (tok = ddsrt_strsep(&cursor, ",")) != NULL ) {
                 assert(idx < count);
-                (*elem)[idx] = os_strdup(tok);
+                (*elem)[idx] = ddsrt_strdup(tok);
                 idx++;
             }
             (*elem)[idx] = NULL;
         }
-        os_free(copy);
+        ddsrt_free(copy);
     }
     return 1;
 }
@@ -1692,21 +1694,21 @@ static int uf_allow_multicast(struct cfgst *cfgst, void *parent, struct cfgelem 
     static const char *vs[] = { "false", "spdp", "asm", "true", NULL };
     static const unsigned bs[] = { AMC_FALSE, AMC_SPDP, AMC_ASM, AMC_TRUE };
 #endif
-    char *copy = os_strdup(value), *cursor = copy, *tok;
+    char *copy = ddsrt_strdup(value), *cursor = copy, *tok;
     unsigned *elem = cfg_address(cfgst, parent, cfgelem);
     if ( copy == NULL )
         return cfg_error(cfgst, "out of memory");
     *elem = 0;
-    while ( (tok = os_strsep(&cursor, ",")) != NULL ) {
+    while ( (tok = ddsrt_strsep(&cursor, ",")) != NULL ) {
         int idx = list_index(vs, tok);
         if ( idx < 0 ) {
             int ret = cfg_error(cfgst, "'%s' in '%s' undefined", tok, value);
-            os_free(copy);
+            ddsrt_free(copy);
             return ret;
         }
         *elem |= bs[idx];
     }
-    os_free(copy);
+    ddsrt_free(copy);
     return 1;
 }
 
@@ -1737,10 +1739,10 @@ static int uf_sched_prio_class(struct cfgst *cfgst, void *parent, struct cfgelem
 
     prio = cfg_address(cfgst, parent, cfgelem);
 
-    if ( os_strcasecmp(value, "relative") == 0 ) {
+    if ( ddsrt_strcasecmp(value, "relative") == 0 ) {
         *prio = Q__SCHED_PRIO_RELATIVE;
         ret = 1;
-    } else if ( os_strcasecmp(value, "absolute") == 0 ) {
+    } else if ( ddsrt_strcasecmp(value, "absolute") == 0 ) {
         *prio = Q__SCHED_PRIO_ABSOLUTE;
         ret = 1;
     } else {
@@ -1769,9 +1771,9 @@ static void pf_sched_prio_class(struct cfgst *cfgst, void *parent, struct cfgele
 static int uf_sched_class(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
     static const char *vs[] = { "realtime", "timeshare", "default" };
-    static const os_schedClass ms[] = { OS_SCHED_REALTIME, OS_SCHED_TIMESHARE, OS_SCHED_DEFAULT };
+    static const ddsrt_sched_t ms[] = { DDSRT_SCHED_REALTIME, DDSRT_SCHED_TIMESHARE, DDSRT_SCHED_DEFAULT };
     int idx = list_index(vs, value);
-    os_schedClass *elem = cfg_address(cfgst, parent, cfgelem);
+    ddsrt_sched_t *elem = cfg_address(cfgst, parent, cfgelem);
     assert(sizeof(vs) / sizeof(*vs) == sizeof(ms) / sizeof(*ms));
     if ( idx < 0 )
         return cfg_error(cfgst, "'%s': undefined value", value);
@@ -1781,22 +1783,22 @@ static int uf_sched_class(struct cfgst *cfgst, void *parent, struct cfgelem cons
 
 static void pf_sched_class(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
 {
-    os_schedClass *p = cfg_address(cfgst, parent, cfgelem);
+    ddsrt_sched_t *p = cfg_address(cfgst, parent, cfgelem);
     const char *str = "INVALID";
     switch ( *p ) {
-        case OS_SCHED_DEFAULT: str = "default"; break;
-        case OS_SCHED_TIMESHARE: str = "timeshare"; break;
-        case OS_SCHED_REALTIME: str = "realtime"; break;
+        case DDSRT_SCHED_DEFAULT: str = "default"; break;
+        case DDSRT_SCHED_TIMESHARE: str = "timeshare"; break;
+        case DDSRT_SCHED_REALTIME: str = "realtime"; break;
     }
     cfg_log(cfgst, "%s%s", str, is_default ? " [def]" : "");
 }
 
-OS_WARNING_MSVC_OFF(4996);
+DDSRT_WARNING_MSVC_OFF(4996);
 static int uf_maybe_int32(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
     struct config_maybe_int32 *elem = cfg_address(cfgst, parent, cfgelem);
     int pos;
-    if ( os_strcasecmp(value, "default") == 0 ) {
+    if ( ddsrt_strcasecmp(value, "default") == 0 ) {
         elem->isdefault = 1;
         elem->value = 0;
         return 1;
@@ -1807,13 +1809,13 @@ static int uf_maybe_int32(struct cfgst *cfgst, void *parent, struct cfgelem cons
         return cfg_error(cfgst, "'%s': neither 'default' nor a decimal integer\n", value);
     }
 }
-OS_WARNING_MSVC_ON(4996);
+DDSRT_WARNING_MSVC_ON(4996);
 
 static int uf_maybe_memsize(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
     struct config_maybe_uint32 *elem = cfg_address(cfgst, parent, cfgelem);
     int64_t size = 0;
-    if ( os_strcasecmp(value, "default") == 0 ) {
+    if ( ddsrt_strcasecmp(value, "default") == 0 ) {
         elem->isdefault = 1;
         elem->value = 0;
         return 1;
@@ -1831,8 +1833,9 @@ static int uf_float(struct cfgst *cfgst, void *parent, struct cfgelem const * co
 {
     float *elem = cfg_address(cfgst, parent, cfgelem);
     char *endptr;
-    float f = os_strtof(value, &endptr);
-    if ( *value == 0 || *endptr != 0 )
+    float f;
+    dds_retcode_t rc = ddsrt_strtof(value, &endptr, &f);
+    if (rc != DDS_RETCODE_OK || *value == 0 || *endptr != 0 )
         return cfg_error(cfgst, "%s: not a floating point number", value);
     *elem = f;
     return 1;
@@ -1858,7 +1861,7 @@ static int uf_duration_gen(struct cfgst *cfgst, void *parent, struct cfgelem con
 
 static int uf_duration_inf(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
-    if ( os_strcasecmp(value, "inf") == 0 ) {
+    if ( ddsrt_strcasecmp(value, "inf") == 0 ) {
         int64_t *elem = cfg_address(cfgst, parent, cfgelem);
         *elem = T_NEVER;
         return 1;
@@ -1934,12 +1937,12 @@ static int uf_int_min_max(struct cfgst *cfgst, void *parent, struct cfgelem cons
         return 1;
 }
 
-OS_WARNING_MSVC_OFF(4996);
+DDSRT_WARNING_MSVC_OFF(4996);
 static int uf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
   struct config_maybe_int32 *elem = cfg_address(cfgst, parent, cfgelem);
   int pos;
-  if (os_strcasecmp(value, "any") == 0) {
+  if (ddsrt_strcasecmp(value, "any") == 0) {
     elem->isdefault = 1;
     elem->value = 0;
     return 1;
@@ -1950,15 +1953,15 @@ static int uf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const *
     return cfg_error(cfgst, "'%s': neither 'any' nor a decimal integer in 0 .. 230\n", value);
   }
 }
-OS_WARNING_MSVC_ON(4996);
+DDSRT_WARNING_MSVC_ON(4996);
 
 static int uf_participantIndex(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {
     int *elem = cfg_address(cfgst, parent, cfgelem);
-    if ( os_strcasecmp(value, "auto") == 0 ) {
+    if ( ddsrt_strcasecmp(value, "auto") == 0 ) {
         *elem = PARTICIPANT_INDEX_AUTO;
         return 1;
-    } else if ( os_strcasecmp(value, "none") == 0 ) {
+    } else if ( ddsrt_strcasecmp(value, "none") == 0 ) {
         *elem = PARTICIPANT_INDEX_NONE;
         return 1;
     } else {
@@ -2058,7 +2061,7 @@ static int do_update(struct cfgst *cfgst, update_fun_t upd, void *parent, struct
     int ok;
     key.e = cfgelem;
     if ( (n = ut_avlLookupIPath(&cfgst_found_treedef, &cfgst->found, &key, &np)) == NULL ) {
-        if ( (n = os_malloc(sizeof(*n))) == NULL )
+        if ( (n = ddsrt_malloc(sizeof(*n))) == NULL )
             return cfg_error(cfgst, "out of memory");
 
         n->key = key;
@@ -2107,7 +2110,7 @@ static int set_defaults(struct cfgst *cfgst, void *parent, int isattr, struct cf
             if ( (n = ut_avlLookup(&cfgst_found_treedef, &cfgst->found, &key)) != NULL ) {
                 if ( clear_found ) {
                     ut_avlDelete(&cfgst_found_treedef, &cfgst->found, n);
-                    os_free(n);
+                    ddsrt_free(n);
                 }
             }
             if ( ce->children ) {
@@ -2443,7 +2446,7 @@ static void free_all_elements(struct cfgst *cfgst, void *parent, struct cfgelem 
                     free_all_elements(cfgst, p, ce->children);
                 r = p;
                 p = p->next;
-                os_free(r);
+                ddsrt_free(r);
             }
         }
     }
@@ -2478,7 +2481,7 @@ static void free_configured_elements(struct cfgst *cfgst, void *parent, struct c
                     free_all_elements(cfgst, p, ce->children);
                 r = p;
                 p = p->next;
-                os_free(r);
+                ddsrt_free(r);
             }
         }
     }
@@ -2489,7 +2492,7 @@ static int matching_name_index(const char *name_w_aliases, const char *name)
     const char *ns = name_w_aliases, *p = strchr(ns, '|');
     int idx = 0;
     while ( p ) {
-        if ( os_strncasecmp(ns, name, (size_t) (p - ns)) == 0 && name[p - ns] == 0 ) {
+        if ( ddsrt_strncasecmp(ns, name, (size_t) (p - ns)) == 0 && name[p - ns] == 0 ) {
             /* ns upto the pipe symbol is a prefix of name, and name is terminated at that point */
             return idx;
         }
@@ -2498,13 +2501,13 @@ static int matching_name_index(const char *name_w_aliases, const char *name)
         p = strchr(ns, '|');
         idx++;
     }
-    return (os_strcasecmp(ns, name) == 0) ? idx : -1;
+    return (ddsrt_strcasecmp(ns, name) == 0) ? idx : -1;
 }
 
 static const struct cfgelem *lookup_redirect(const char *target)
 {
     const struct cfgelem *cfgelem = ddsi2_cfgelems;
-    char *target_copy = os_strdup(target), *p1;
+    char *target_copy = ddsrt_strdup(target), *p1;
     const char *p = target_copy;
     while ( p ) {
         p1 = strchr(p, '/');
@@ -2520,7 +2523,7 @@ static const struct cfgelem *lookup_redirect(const char *target)
         }
         p = p1;
     }
-    os_free(target_copy);
+    ddsrt_free(target_copy);
     return cfgelem;
 }
 
@@ -2601,7 +2604,7 @@ static int proc_attr(void *varg, UNUSED_ARG(uintptr_t eleminfo), const char *nam
     if ( cfgelem == NULL )
         return 1;
     for ( cfg_attr = cfgelem->attributes; cfg_attr && cfg_attr->name; cfg_attr++ ) {
-        if ( os_strcasecmp(cfg_attr->name, name) == 0 )
+        if ( ddsrt_strcasecmp(cfg_attr->name, name) == 0 )
             break;
     }
     if ( cfg_attr == NULL || cfg_attr->name == NULL )
@@ -2613,7 +2616,7 @@ static int proc_attr(void *varg, UNUSED_ARG(uintptr_t eleminfo), const char *nam
         cfgst_push(cfgst, 1, cfg_attr, parent);
         ok = do_update(cfgst, cfg_attr->update, parent, cfg_attr, xvalue, 0);
         cfgst_pop(cfgst);
-        os_free(xvalue);
+        ddsrt_free(xvalue);
         return ok;
     }
 }
@@ -2633,7 +2636,7 @@ static int proc_elem_data(void *varg, UNUSED_ARG(uintptr_t eleminfo), const char
         cfgst_push(cfgst, 0, NULL, parent);
         ok = do_update(cfgst, cfgelem->update, parent, cfgelem, xvalue, 0);
         cfgst_pop(cfgst);
-        os_free(xvalue);
+        ddsrt_free(xvalue);
         return ok;
     }
 }
@@ -2673,10 +2676,10 @@ static int set_default_channel(struct config *cfg)
     if ( cfg->channels == NULL ) {
         /* create one default channel if none configured */
         struct config_channel_listelem *c;
-        if ( (c = os_malloc(sizeof(*c))) == NULL )
+        if ( (c = ddsrt_malloc(sizeof(*c))) == NULL )
             return ERR_OUT_OF_MEMORY;
         c->next = NULL;
-        c->name = os_strdup("user");
+        c->name = ddsrt_strdup("user");
         c->priority = 0;
         c->resolution = 1 * T_MILLISECOND;
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
@@ -2716,7 +2719,7 @@ static int sort_channels_check_nodups(struct config *cfg)
         n++;
     assert(n > 0);
 
-    ary = os_malloc(n * sizeof(*ary));
+    ary = ddsrt_malloc(n * sizeof(*ary));
 
     i = 0;
     for ( c = cfg->channels; c; c = c->next )
@@ -2740,15 +2743,12 @@ static int sort_channels_check_nodups(struct config *cfg)
         cfg->max_channel = ary[i];
     }
 
-    os_free(ary);
+    ddsrt_free(ary);
     return result;
 }
 #endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
 
-struct cfgst * config_init
-(
-    _In_opt_ const char *configfile
-)
+struct cfgst * config_init (const char *configfile)
 {
     int ok = 1;
     struct cfgst *cfgst;
@@ -2764,7 +2764,7 @@ struct cfgst * config_init
        ends up on the right value */
     config.domainId.value = 0;
 
-    cfgst = os_malloc(sizeof(*cfgst));
+    cfgst = ddsrt_malloc(sizeof(*cfgst));
     memset(cfgst, 0, sizeof(*cfgst));
 
     ut_avlInit(&cfgst_found_treedef, &cfgst->found);
@@ -2773,22 +2773,22 @@ struct cfgst * config_init
 
     /* configfile == NULL will get you the default configuration */
     if ( configfile ) {
-        char *copy = os_strdup(configfile), *cursor = copy, *tok;
-        while ( (tok = os_strsep(&cursor, ",")) != NULL ) {
+        char *copy = ddsrt_strdup(configfile), *cursor = copy, *tok;
+        while ( (tok = ddsrt_strsep(&cursor, ",")) != NULL ) {
             struct ut_xmlpCallbacks cb;
             struct ut_xmlpState *qx;
             FILE *fp;
 
-            OS_WARNING_MSVC_OFF(4996);
+            DDSRT_WARNING_MSVC_OFF(4996);
             if ( (fp = fopen(tok, "r")) == NULL ) {
                 if ( strncmp(tok, "file://", 7) != 0 || (fp = fopen(tok + 7, "r")) == NULL ) {
                     DDS_ERROR("can't open configuration file %s\n", tok);
-                    os_free(copy);
-                    os_free(cfgst);
+                    ddsrt_free(copy);
+                    ddsrt_free(cfgst);
                     return NULL;
                 }
             }
-            OS_WARNING_MSVC_ON(4996);
+            DDSRT_WARNING_MSVC_ON(4996);
 
             cb.attr = proc_attr;
             cb.elem_close = proc_elem_close;
@@ -2798,8 +2798,8 @@ struct cfgst * config_init
 
             if ( (qx = ut_xmlpNewFile(fp, cfgst, &cb)) == NULL ) {
                 fclose(fp);
-                os_free(copy);
-                os_free(cfgst);
+                ddsrt_free(copy);
+                ddsrt_free(cfgst);
                 return NULL;
             }
             cfgst_push(cfgst, 0, &root_cfgelem, &config);
@@ -2812,7 +2812,7 @@ struct cfgst * config_init
             ut_xmlpFree(qx);
             fclose(fp);
         }
-        os_free(copy);
+        ddsrt_free(copy);
     }
 
     /* Set defaults for everything not set that we have a default value
@@ -2910,11 +2910,11 @@ struct cfgst * config_init
         config.nof_networkPartitions = 0;
         while ( p ) {
 #ifdef DDSI_INCLUDE_ENCRYPTION
-            if ( os_strcasecmp(p->profileName, "null") == 0 )
+            if ( ddsrt_strcasecmp(p->profileName, "null") == 0 )
                 p->securityProfile = NULL;
             else {
                 struct config_securityprofile_listelem *s = config.securityProfiles;
-                while ( s && os_strcasecmp(p->profileName, s->name) != 0 )
+                while ( s && ddsrt_strcasecmp(p->profileName, s->name) != 0 )
                     s = s->next;
                 if ( s )
                     p->securityProfile = s;
@@ -2941,7 +2941,7 @@ struct cfgst * config_init
         struct config_partitionmapping_listelem * m = config.partitionMappings;
         while ( m ) {
             struct config_networkpartition_listelem * p = config.networkPartitions;
-            while ( p && os_strcasecmp(m->networkPartition, p->name) != 0 ) {
+            while ( p && ddsrt_strcasecmp(m->networkPartition, p->name) != 0 ) {
                 p = p->next;
             }
             if ( p ) {
@@ -2966,20 +2966,20 @@ struct cfgst * config_init
         config.valid = 1;
         return cfgst;
     } else {
-        ut_avlFree(&cfgst_found_treedef, &cfgst->found, os_free);
-        os_free(cfgst);
+        ut_avlFree(&cfgst_found_treedef, &cfgst->found, ddsrt_free);
+        ddsrt_free(cfgst);
         return NULL;
     }
 }
 
-void config_print_cfgst(_In_ struct cfgst *cfgst)
+void config_print_cfgst(struct cfgst *cfgst)
 {
     if ( cfgst == NULL )
         return;
     print_configitems(cfgst, cfgst->cfg, 0, root_cfgelems, 0);
 }
 
-void config_fini(_In_ struct cfgst *cfgst)
+void config_fini(struct cfgst *cfgst)
 {
     assert(cfgst);
     assert(cfgst->cfg == &config);
@@ -2994,15 +2994,15 @@ void config_fini(_In_ struct cfgst *cfgst)
     memset(&config, 0, sizeof(config));
     config.valid = 0;
 
-    ut_avlFree(&cfgst_found_treedef, &cfgst->found, os_free);
-    os_free(cfgst);
+    ut_avlFree(&cfgst_found_treedef, &cfgst->found, ddsrt_free);
+    ddsrt_free(cfgst);
 }
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 static char *get_partition_search_pattern(const char *partition, const char *topic)
 {
     size_t sz = strlen(partition) + strlen(topic) + 2;
-    char *pt = os_malloc(sz);
+    char *pt = ddsrt_malloc(sz);
     snprintf(pt, sz, "%s.%s", partition, topic);
     return pt;
 }
@@ -3014,7 +3014,7 @@ struct config_partitionmapping_listelem *find_partitionmapping(const char *parti
     for ( pm = config.partitionMappings; pm; pm = pm->next )
         if ( WildcardOverlap(pt, pm->DCPSPartitionTopic) )
             break;
-    os_free(pt);
+    ddsrt_free(pt);
     return pm;
 }
 
@@ -3034,7 +3034,7 @@ int is_ignored_partition(const char *partition, const char *topic)
     for ( ip = config.ignoredPartitions; ip; ip = ip->next )
         if ( WildcardOverlap(pt, ip->DCPSPartitionTopic) )
             break;
-    os_free(pt);
+    ddsrt_free(pt);
     return ip != NULL;
 }
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */

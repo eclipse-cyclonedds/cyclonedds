@@ -9,9 +9,10 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "ddsc/dds.h"
+#include "dds/dds.h"
 #include "CUnit/Test.h"
-#include "os/os.h"
+
+#include "dds/ddsrt/misc.h"
 
 CU_Test(ddsc_err, unique_file_id)
 {
@@ -21,14 +22,14 @@ CU_Test(ddsc_err, unique_file_id)
   CU_ASSERT_FATAL(participant > 0);
 
   /* Disable SAL warning on intentional misuse of the API */
-  OS_WARNING_MSVC_OFF(28020);
+  DDSRT_WARNING_MSVC_OFF(28020);
   reader = dds_create_reader(0, 0, NULL, NULL);
   CU_ASSERT_FATAL(reader < 0);
 
   writer = dds_create_writer(0, 0, NULL, NULL);
   CU_ASSERT_FATAL(writer < 0);
 
-  OS_WARNING_MSVC_ON(28020);
+  DDSRT_WARNING_MSVC_ON(28020);
 
   CU_ASSERT_NOT_EQUAL_FATAL(dds_err_file_id(reader), dds_err_file_id(writer));
 

@@ -14,15 +14,15 @@
 #include "dds__listener.h"
 #include "dds__qos.h"
 #include "dds__err.h"
-#include "ddsi/q_entity.h"
-#include "ddsc/ddsc_project.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/version.h"
 
 #define DDS_PUBLISHER_STATUS_MASK   0u
 
 static dds_return_t
 dds_publisher_instance_hdl(
-        dds_entity *e,
-        dds_instance_handle_t *i)
+    dds_entity *e,
+    dds_instance_handle_t *i)
 {
     (void)e;
     (void)i;
@@ -33,8 +33,8 @@ dds_publisher_instance_hdl(
 
 static dds_return_t
 dds_publisher_qos_validate(
-        _In_ const dds_qos_t *qos,
-        _In_ bool enabled)
+    const dds_qos_t *qos,
+    bool enabled)
 {
     dds_return_t ret = DDS_RETCODE_OK;
     assert(qos);
@@ -66,16 +66,16 @@ dds_publisher_qos_validate(
 
 static dds_return_t
 dds_publisher_qos_set(
-        dds_entity *e,
-        const dds_qos_t *qos,
-        bool enabled)
+    dds_entity *e,
+    const dds_qos_t *qos,
+    bool enabled)
 {
     dds_return_t ret = dds_publisher_qos_validate(qos, enabled);
     (void)e;
     if (ret == DDS_RETCODE_OK) {
         if (enabled) {
             /* TODO: CHAM-95: DDSI does not support changing QoS policies. */
-            DDS_ERROR(DDSC_PROJECT_NAME" does not support changing QoS policies yet\n");
+            DDS_ERROR(DDS_PROJECT_NAME" does not support changing QoS policies yet\n");
             ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
         }
     }
@@ -94,19 +94,18 @@ static dds_return_t dds_publisher_status_validate (uint32_t mask)
     return ret;
 }
 
-_Pre_satisfies_((participant & DDS_ENTITY_KIND_MASK) == DDS_KIND_PARTICIPANT)
-_Must_inspect_result_ dds_entity_t
+dds_entity_t
 dds_create_publisher(
-        _In_     dds_entity_t participant,
-        _In_opt_ const dds_qos_t *qos,
-        _In_opt_ const dds_listener_t *listener)
+    dds_entity_t participant,
+    const dds_qos_t *qos,
+    const dds_listener_t *listener)
 {
     dds_entity * par;
     dds_publisher * pub;
     dds_entity_t hdl;
     dds_qos_t * new_qos = NULL;
     dds_return_t ret;
-    dds__retcode_t rc;
+    dds_retcode_t rc;
 
     rc = dds_entity_lock(participant, DDS_KIND_PARTICIPANT, &par);
     if (rc != DDS_RETCODE_OK) {
@@ -141,11 +140,9 @@ lock_err:
     return hdl;
 }
 
-
-_Pre_satisfies_((publisher & DDS_ENTITY_KIND_MASK) == DDS_KIND_PUBLISHER)
 DDS_EXPORT dds_return_t
 dds_suspend(
-        _In_ dds_entity_t publisher)
+    dds_entity_t publisher)
 {
     dds_return_t ret;
 
@@ -161,11 +158,9 @@ err:
     return ret;
 }
 
-
-_Pre_satisfies_((publisher & DDS_ENTITY_KIND_MASK) == DDS_KIND_PUBLISHER)
 dds_return_t
 dds_resume(
-        _In_ dds_entity_t publisher)
+    dds_entity_t publisher)
 {
     dds_return_t ret = DDS_RETCODE_OK;
 
@@ -181,18 +176,15 @@ err:
     return ret;
 }
 
-
-_Pre_satisfies_(((publisher_or_writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER   ) ||\
-                ((publisher_or_writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_PUBLISHER) )
 dds_return_t
 dds_wait_for_acks(
-        _In_ dds_entity_t publisher_or_writer,
-        _In_ dds_duration_t timeout)
+    dds_entity_t publisher_or_writer,
+    dds_duration_t timeout)
 {
     dds_return_t ret;
 
     /* TODO: CHAM-125 Currently unsupported. */
-    OS_UNUSED_ARG(timeout);
+    DDSRT_UNUSED_ARG(timeout);
 
     switch(dds_entity_kind_from_handle(publisher_or_writer)) {
         case DDS_KIND_WRITER:
@@ -214,7 +206,7 @@ dds_wait_for_acks(
 
 dds_return_t
 dds_publisher_begin_coherent(
-        _In_ dds_entity_t e)
+    dds_entity_t e)
 {
     /* TODO: CHAM-124 Currently unsupported. */
     (void)e;
@@ -224,7 +216,7 @@ dds_publisher_begin_coherent(
 
 dds_return_t
 dds_publisher_end_coherent(
-        _In_ dds_entity_t e)
+    dds_entity_t e)
 {
     /* TODO: CHAM-124 Currently unsupported. */
     (void)e;

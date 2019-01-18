@@ -9,9 +9,9 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "ddsi/q_entity.h"
-#include "ddsi/q_xqos.h"
-#include "ddsi/ddsi_rhc_plugin.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/ddsi_rhc_plugin.h"
 
 DDS_EXPORT void make_proxy_writer_info(struct proxy_writer_info *pwr_info, const struct entity_common *e, const struct nn_xqos *xqos)
 {

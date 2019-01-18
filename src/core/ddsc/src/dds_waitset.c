@@ -10,7 +10,9 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
-#include "os/os.h"
+
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/log.h"
 #include "dds__entity.h"
 #include "dds__querycond.h"
 #include "dds__readcond.h"
@@ -21,10 +23,10 @@ DEFINE_ENTITY_LOCK_UNLOCK(static, dds_waitset, DDS_KIND_WAITSET)
 
 static void
 dds_waitset_swap(
-        _Inout_   dds_attachment **dst,
-        _In_      dds_attachment **src,
-        _In_opt_  dds_attachment  *prev,
-        _In_      dds_attachment  *idx)
+        dds_attachment **dst,
+        dds_attachment **src,
+        dds_attachment  *prev,
+        dds_attachment  *idx)
 {
     /* Remove from source. */
     if (prev == NULL) {
@@ -40,15 +42,15 @@ dds_waitset_swap(
 
 static dds_return_t
 dds_waitset_wait_impl(
-        _In_ dds_entity_t waitset,
-        _Out_writes_to_opt_(nxs, return < 0 ? 0 : return) dds_attach_t *xs,
-        _In_ size_t nxs,
-        _In_ dds_time_t abstimeout,
-        _In_ dds_time_t tnow)
+        dds_entity_t waitset,
+        dds_attach_t *xs,
+        size_t nxs,
+        dds_time_t abstimeout,
+        dds_time_t tnow)
 {
     dds_waitset *ws;
     dds_return_t ret;
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_attachment *idx;
     dds_attachment *next;
     dds_attachment *prev;
@@ -98,20 +100,12 @@ dds_waitset_wait_impl(
         rc = DDS_RETCODE_OK;
         while ((ws->observed != NULL) && (ws->triggered == NULL) && (rc == DDS_RETCODE_OK)) {
             if (abstimeout == DDS_NEVER) {
-                os_condWait(&ws->m_entity.m_cond, &ws->m_entity.m_mutex);
+                ddsrt_cond_wait(&ws->m_entity.m_cond, &ws->m_entity.m_mutex);
             } else if (abstimeout <= tnow) {
                 rc = DDS_RETCODE_TIMEOUT;
             } else {
                 dds_duration_t dt = abstimeout - tnow;
-                os_time to;
-                if ((dt / (dds_duration_t)DDS_NSECS_IN_SEC) >= (dds_duration_t)OS_TIME_INFINITE_SEC) {
-                    to.tv_sec = OS_TIME_INFINITE_SEC;
-                    to.tv_nsec = DDS_NSECS_IN_SEC - 1;
-                } else {
-                    to.tv_sec = (os_timeSec) (dt / DDS_NSECS_IN_SEC);
-                    to.tv_nsec = (int32_t) (dt % DDS_NSECS_IN_SEC);
-                }
-                (void)os_condTimedWait(&ws->m_entity.m_cond, &ws->m_entity.m_mutex, &to);
+                (void)ddsrt_cond_waitfor(&ws->m_entity.m_cond, &ws->m_entity.m_mutex, dt);
                 tnow = dds_time();
             }
         }
@@ -151,15 +145,15 @@ dds_waitset_wait_impl(
 
 static void
 dds_waitset_close_list(
-        _In_ dds_attachment **list,
-        _In_ dds_entity_t waitset)
+        dds_attachment **list,
+        dds_entity_t waitset)
 {
     dds_attachment *idx = *list;
     dds_attachment *next;
     while (idx != NULL) {
         next = idx->next;
         (void)dds_entity_observer_unregister(idx->entity->m_hdl, waitset);
-        os_free(idx);
+        ddsrt_free(idx);
         idx = next;
     }
     *list = NULL;
@@ -167,8 +161,8 @@ dds_waitset_close_list(
 
 static bool
 dds_waitset_remove_from_list(
-        _In_ dds_attachment **list,
-        _In_ dds_entity_t observed)
+        dds_attachment **list,
+        dds_entity_t observed)
 {
     dds_attachment *idx = *list;
     dds_attachment *prev = NULL;
@@ -180,7 +174,7 @@ dds_waitset_remove_from_list(
             } else {
                 prev->next = idx->next;
             }
-            os_free(idx);
+            ddsrt_free(idx);
 
             /* We're done. */
             return true;
@@ -201,19 +195,18 @@ dds_waitset_close(
     dds_waitset_close_list(&ws->triggered, e->m_hdl);
 
     /* Trigger waitset to wake up. */
-    os_condBroadcast(&e->m_cond);
+    ddsrt_cond_broadcast(&e->m_cond);
 
     return DDS_RETCODE_OK;
 }
 
-_Pre_satisfies_((participant & DDS_ENTITY_KIND_MASK) == DDS_KIND_PARTICIPANT)
-DDS_EXPORT _Must_inspect_result_ dds_entity_t
+DDS_EXPORT dds_entity_t
 dds_create_waitset(
-        _In_ dds_entity_t participant)
+        dds_entity_t participant)
 {
     dds_entity_t hdl;
     dds_entity *par;
-    dds__retcode_t rc;
+    dds_retcode_t rc;
 
     rc = dds_entity_lock(participant, DDS_KIND_PARTICIPANT, &par);
     if (rc == DDS_RETCODE_OK) {
@@ -232,15 +225,14 @@ dds_create_waitset(
 }
 
 
-_Pre_satisfies_((waitset & DDS_ENTITY_KIND_MASK) == DDS_KIND_WAITSET)
 DDS_EXPORT dds_return_t
 dds_waitset_get_entities(
-        _In_ dds_entity_t waitset,
-        _Out_writes_to_(size, return < 0 ? 0 : return) dds_entity_t *entities,
-        _In_ size_t size)
+        dds_entity_t waitset,
+        dds_entity_t *entities,
+        size_t size)
 {
     dds_return_t ret = 0;
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_waitset *ws;
 
     rc = dds_waitset_lock(waitset, &ws);
@@ -276,9 +268,9 @@ dds_waitset_get_entities(
 
 static void
 dds_waitset_move(
-        _In_    dds_attachment **src,
-        _Inout_ dds_attachment **dst,
-        _In_    dds_entity_t entity)
+        dds_attachment **src,
+        dds_attachment **dst,
+        dds_entity_t entity)
 {
     dds_attachment *idx = *src;
     dds_attachment *prev = NULL;
@@ -326,21 +318,20 @@ dds_waitset_observer(
             dds_waitset_move(&(ws->triggered), &(ws->observed), observed);
         }
         /* Trigger waitset to wake up. */
-        os_condBroadcast(&ws->m_entity.m_cond);
+        ddsrt_cond_broadcast(&ws->m_entity.m_cond);
         dds_waitset_unlock(ws);
     }
 }
 
-_Pre_satisfies_((waitset & DDS_ENTITY_KIND_MASK) == DDS_KIND_WAITSET)
 DDS_EXPORT dds_return_t
 dds_waitset_attach(
-        _In_ dds_entity_t waitset,
-        _In_ dds_entity_t entity,
-        _In_ dds_attach_t x)
+        dds_entity_t waitset,
+        dds_entity_t entity,
+        dds_attach_t x)
 {
     dds_entity  *e = NULL;
     dds_waitset *ws;
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_return_t ret;
 
     rc = dds_waitset_lock(waitset, &ws);
@@ -360,7 +351,7 @@ dds_waitset_attach(
         }
 
         if (rc == DDS_RETCODE_OK) {
-            dds_attachment *a = os_malloc(sizeof(dds_attachment));
+            dds_attachment *a = ddsrt_malloc(sizeof(dds_attachment));
             a->arg = x;
             a->entity = e;
             if (e->m_trigger > 0) {
@@ -390,14 +381,13 @@ dds_waitset_attach(
     return ret;
 }
 
-_Pre_satisfies_((waitset & DDS_ENTITY_KIND_MASK) == DDS_KIND_WAITSET)
 DDS_EXPORT dds_return_t
 dds_waitset_detach(
-        _In_ dds_entity_t waitset,
-        _In_ dds_entity_t entity)
+        dds_entity_t waitset,
+        dds_entity_t entity)
 {
     dds_waitset *ws;
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_return_t ret;
 
     rc = dds_waitset_lock(waitset, &ws);
@@ -427,24 +417,22 @@ dds_waitset_detach(
     return ret;
 }
 
-_Pre_satisfies_((waitset & DDS_ENTITY_KIND_MASK) == DDS_KIND_WAITSET)
 dds_return_t
 dds_waitset_wait_until(
-        _In_ dds_entity_t waitset,
-        _Out_writes_to_opt_(nxs, return < 0 ? 0 : return) dds_attach_t *xs,
-        _In_ size_t nxs,
-        _In_ dds_time_t abstimeout)
+        dds_entity_t waitset,
+        dds_attach_t *xs,
+        size_t nxs,
+        dds_time_t abstimeout)
 {
     return dds_waitset_wait_impl(waitset, xs, nxs, abstimeout, dds_time());
 }
 
-_Pre_satisfies_((waitset & DDS_ENTITY_KIND_MASK) == DDS_KIND_WAITSET)
 dds_return_t
 dds_waitset_wait(
-        _In_ dds_entity_t waitset,
-        _Out_writes_to_opt_(nxs, return < 0 ? 0 : return) dds_attach_t *xs,
-        _In_ size_t nxs,
-        _In_ dds_duration_t reltimeout)
+        dds_entity_t waitset,
+        dds_attach_t *xs,
+        size_t nxs,
+        dds_duration_t reltimeout)
 {
     dds_entity_t ret;
 
@@ -463,21 +451,21 @@ dds_waitset_wait(
 dds_return_t dds_waitset_set_trigger (dds_entity_t waitset, bool trigger)
 {
   dds_waitset *ws;
-  dds__retcode_t rc;
+  dds_retcode_t rc;
 
   if ((rc = dds_waitset_lock (waitset, &ws)) != DDS_RETCODE_OK)
     return DDS_ERRNO (rc);
 
-  os_mutexUnlock (&ws->m_entity.m_mutex);
+  ddsrt_mutex_unlock (&ws->m_entity.m_mutex);
 
-  os_mutexLock (&ws->m_entity.m_observers_lock);
+  ddsrt_mutex_lock (&ws->m_entity.m_observers_lock);
   if (trigger)
     dds_entity_status_set (&ws->m_entity, DDS_WAITSET_TRIGGER_STATUS);
   else
     dds_entity_status_reset (&ws->m_entity, DDS_WAITSET_TRIGGER_STATUS);
-  os_mutexUnlock (&ws->m_entity.m_observers_lock);
+  ddsrt_mutex_unlock (&ws->m_entity.m_observers_lock);
 
-  os_mutexLock (&ws->m_entity.m_mutex);
+  ddsrt_mutex_lock (&ws->m_entity.m_mutex);
   dds_waitset_unlock (ws);
   return DDS_RETCODE_OK;
 }

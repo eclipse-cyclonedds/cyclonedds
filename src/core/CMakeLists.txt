@@ -51,16 +51,12 @@ include(ddsi/CMakeLists.txt)
 include(ddsc/CMakeLists.txt)
 
 target_link_libraries(ddsc PRIVATE util)
-target_link_libraries(ddsc PRIVATE OSAPI)
+target_link_libraries(ddsc PRIVATE ddsrt)
+target_include_directories(
+  ddsc PUBLIC $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 # SOVERSION should increase on incompatible ABI change
 set_target_properties(ddsc PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
-
-get_target_property(os_api_src_dir OSAPI SOURCE_DIR)
-# We need to expose some of the OS headers as well.
-target_include_directories(ddsc
-    PUBLIC
-        "$<BUILD_INTERFACE:${os_api_src_dir}/include>")
 
 set_target_file_ids(ddsc)
 
