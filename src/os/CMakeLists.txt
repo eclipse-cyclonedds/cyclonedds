@@ -57,6 +57,7 @@ add_library(OSAPI ${sources})
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 find_package(Threads REQUIRED)
 target_link_libraries(OSAPI INTERFACE Threads::Threads)
+set_property(TARGET OSAPI PROPERTY POSITION_INDEPENDENT_CODE TRUE)
 
 if(WIN32)
   # Link with Win32 core-libraries
@@ -73,12 +74,7 @@ if(WIN32)
   target_compile_definitions(OSAPI PRIVATE _WINSOCK_DEPRECATED_NO_WARNINGS)
   # Disable warnings for deprecated POSIX names.
   target_compile_definitions(OSAPI PRIVATE -D_CRT_NONSTDC_NO_DEPRECATE)
-elseif(UNIX AND NOT APPLE)
-  if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
-    # Shared libs will have this by default. Static libs need it too on x86_64.
-    set_property(TARGET OSAPI PROPERTY POSITION_INDEPENDENT_CODE TRUE)
-  endif()
-
+elseif(UNIX)
   check_library_exists(c clock_gettime "" HAVE_CLOCK_GETTIME)
   if(NOT HAVE_CLOCK_GETTIME)
     # Before glibc 2.17, clock_gettime was in librt.
@@ -95,7 +91,6 @@ endif()
 
 if(${CMAKE_C_COMPILER_ID} STREQUAL "SunPro")
   target_link_libraries(OSAPI INTERFACE -lsocket -lnsl)
-  add_definitions(-KPIC)
 endif()
 
 # Determine if platform is big or little endian.
