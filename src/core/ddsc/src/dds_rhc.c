@@ -1874,6 +1874,7 @@ static int dds_rhc_take_w_qminv
                 {
                   /* The filter didn't match, so free the deserialised copy. */
                   ddsi_sertopic_free_sample (rhc->topic, values[n], DDS_FREE_CONTENTS);
+                  psample = sample;
                 }
               }
               sample = sample1;

@@ -43,6 +43,11 @@ copyaddr(os_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
         {
             err = errno;
         }
+        /* Seen on macOS using OpenVPN: netmask without an address family,
+           in which case copy it from the interface address */
+        if (ifa->addr && ifa->netmask && ifa->netmask->sa_family == 0) {
+            ifa->netmask->sa_family = ifa->addr->sa_family;
+        }
     }
 
     if (err == 0) {
