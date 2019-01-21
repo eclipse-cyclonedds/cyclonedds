@@ -116,7 +116,7 @@ static uint32_t lease_renewal_thread (struct nn_servicelease *sl)
               msg = "failed to make progress";
             else
               msg = "once again made progress";
-            DDS_WARNING("thread %s %s\n", name ? name : "(anon)", msg);
+            DDS_INFO("thread %s %s\n", name ? name : "(anon)", msg);
             sl->av_ary[i].alive = (char) alive;
           }
         }

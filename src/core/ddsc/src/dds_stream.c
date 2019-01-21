@@ -163,7 +163,7 @@ size_t dds_stream_check_optimize (_In_ const dds_topic_descriptor_t * desc)
   dds_sample_free_contents (sample, desc->m_ops);
   dds_free (sample);
   dds_stream_fini (&os);
-  DDS_INFO("Marshalling for type: %s is%s optimised\n", desc->m_typename, size ? "" : " not");
+  DDS_TRACE("Marshalling for type: %s is%s optimised\n", desc->m_typename, size ? "" : " not");
   return size;
 }
 

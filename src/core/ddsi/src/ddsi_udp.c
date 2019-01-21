@@ -273,7 +273,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
     uc->m_base.m_write_fn = ddsi_udp_conn_write;
     uc->m_base.m_disable_multiplexing_fn = ddsi_udp_disable_multiplexing;
 
-    DDS_INFO
+    DDS_TRACE
     (
       "ddsi_udp_create_conn %s socket %"PRIsock" port %u\n",
       mcast ? "multicast" : "unicast",
@@ -396,7 +396,7 @@ static int ddsi_udp_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc,
 static void ddsi_udp_release_conn (ddsi_tran_conn_t conn)
 {
   ddsi_udp_conn_t uc = (ddsi_udp_conn_t) conn;
-  DDS_INFO
+  DDS_TRACE
   (
     "ddsi_udp_release_conn %s socket %"PRIsock" port %u\n",
     conn->m_base.m_multicast ? "multicast" : "unicast",
@@ -415,7 +415,7 @@ void ddsi_udp_fini (void)
     if(os_atomic_dec32_nv (&ddsi_udp_init_g) == 0) {
         free_group_membership(ddsi_udp_config_g.mship);
         memset (&ddsi_udp_factory_g, 0, sizeof (ddsi_udp_factory_g));
-        DDS_LOG(DDS_LC_INFO | DDS_LC_CONFIG, "udp finalized\n");
+        DDS_LOG(DDS_LC_CONFIG, "udp finalized\n");
     }
 }
 
@@ -505,7 +505,7 @@ static void ddsi_udp_deinit(void)
   if (os_atomic_dec32_nv(&ddsi_udp_init_g) == 0) {
     if (ddsi_udp_config_g.mship)
       free_group_membership(ddsi_udp_config_g.mship);
-    DDS_LOG(DDS_LC_INFO | DDS_LC_CONFIG, "udp de-initialized\n");
+    DDS_LOG(DDS_LC_CONFIG, "udp de-initialized\n");
   }
 }
 
@@ -550,7 +550,7 @@ int ddsi_udp_init (void)
 
     ddsi_factory_add (&ddsi_udp_factory_g);
 
-    DDS_LOG(DDS_LC_INFO | DDS_LC_CONFIG, "udp initialized\n");
+    DDS_LOG(DDS_LC_CONFIG, "udp initialized\n");
   }
   return 0;
 }

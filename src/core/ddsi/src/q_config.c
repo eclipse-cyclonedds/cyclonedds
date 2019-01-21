@@ -2851,7 +2851,7 @@ struct cfgst * config_init
                 case Q_CIPHER_NULL:
                     /* nop */
                     if ( s->key && strlen(s->key) > 0 ) {
-                        DDS_ERROR("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s: cipher key not required\n", s->key);
+                        DDS_INFO("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s: cipher key not required\n", s->key);
                     }
                     break;
 

@@ -538,7 +538,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
            NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER)) &&
       config.assume_rti_has_pmd_endpoints)
   {
-    DDS_WARNING("data (SPDP, vendor %u.%u): assuming unadvertised PMD endpoints do exist\n",
+    DDS_LOG(DDS_LC_DISCOVERY, "data (SPDP, vendor %u.%u): assuming unadvertised PMD endpoints do exist\n",
                  rst->vendor.id[0], rst->vendor.id[1]);
     builtin_endpoint_set |=
       NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER |
@@ -1837,9 +1837,9 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
           pid = PID_ENDPOINT_GUID;
           break;
         default:
-          DDS_WARNING("data(builtin, vendor %u.%u): %x:%x:%x:%x #%"PRId64": mapping keyhash to ENDPOINT_GUID",
-                       sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
-                       PGUID (srcguid), sampleinfo->seq);
+          DDS_LOG(DDS_LC_DISCOVERY, "data(builtin, vendor %u.%u): %x:%x:%x:%x #%"PRId64": mapping keyhash to ENDPOINT_GUID",
+                  sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
+                  PGUID (srcguid), sampleinfo->seq);
           pid = PID_ENDPOINT_GUID;
           break;
       }
@@ -1882,9 +1882,9 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
       handle_SEDP_GROUP (sampleinfo->rst, timestamp, statusinfo, datap, datasz);
       break;
     default:
-      DDS_WARNING ("data(builtin, vendor %u.%u): %x:%x:%x:%x #%"PRId64": not handled\n",
-                   sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
-                   PGUID (srcguid), sampleinfo->seq);
+      DDS_LOG (DDS_LC_DISCOVERY, "data(builtin, vendor %u.%u): %x:%x:%x:%x #%"PRId64": not handled\n",
+               sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
+               PGUID (srcguid), sampleinfo->seq);
       break;
   }
 

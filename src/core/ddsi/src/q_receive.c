@@ -799,18 +799,9 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     nn_wctime_t tstamp_now = now ();
     nn_wctime_t tstamp_msg = nn_wctime_from_ddsi_time (timestamp);
     nn_lat_estim_update (&rn->hb_to_ack_latency, tstamp_now.v - tstamp_msg.v);
-    if ((dds_get_log_mask() & (DDS_LC_TRACE | DDS_LC_INFO)) &&
-        tstamp_now.v > rn->hb_to_ack_latency_tlastlog.v + 10 * T_SECOND)
+    if ((dds_get_log_mask() & DDS_LC_TRACE) && tstamp_now.v > rn->hb_to_ack_latency_tlastlog.v + 10 * T_SECOND)
     {
-      if (dds_get_log_mask() & DDS_LC_TRACE)
-        nn_lat_estim_log (DDS_LC_TRACE, NULL, &rn->hb_to_ack_latency);
-      else if (dds_get_log_mask() & DDS_LC_INFO)
-      {
-        char tagbuf[2*(4*8+3) + 4 + 1];
-        (void) snprintf (tagbuf, sizeof (tagbuf), "%x:%x:%x:%x -> %x:%x:%x:%x", PGUID (src), PGUID (dst));
-        if (nn_lat_estim_log (DDS_LC_INFO, tagbuf, &rn->hb_to_ack_latency))
-          DDS_LOG(DDS_LC_INFO, "\n");
-      }
+      nn_lat_estim_log (DDS_LC_TRACE, NULL, &rn->hb_to_ack_latency);
       rn->hb_to_ack_latency_tlastlog = tstamp_now;
     }
   }
@@ -856,7 +847,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
       rn->seq = wr->seq;
     }
     ut_avlAugmentUpdate (&wr_readers_treedef, rn);
-    DDS_WARNING("writer %x:%x:%x:%x considering reader %x:%x:%x:%x responsive again\n", PGUID (wr->e.guid), PGUID (rn->prd_guid));
+    DDS_LOG(DDS_LC_THROTTLE, "writer %x:%x:%x:%x considering reader %x:%x:%x:%x responsive again\n", PGUID (wr->e.guid), PGUID (rn->prd_guid));
   }
 
   /* Second, the NACK bits (literally, that is). To do so, attempt to

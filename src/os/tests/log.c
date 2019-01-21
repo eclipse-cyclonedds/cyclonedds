@@ -350,10 +350,6 @@ CU_Test(dds_log, synchronous_sink_changes)
     os_mutexLock(&mutex);
     dds_set_log_sink(&block, &arg);
     os_threadAttrInit(&tattr);
-#ifdef __APPLE__
-    tattr.schedPriority = sched_get_priority_min(SCHED_OTHER);
-#endif /* __APPLE__ */
-
     res = os_threadCreate(&tid, "foobar", &tattr, &run, &arg);
     CU_ASSERT_EQUAL_FATAL(res, os_resultSuccess);
     os_condWait(&cond, &mutex);

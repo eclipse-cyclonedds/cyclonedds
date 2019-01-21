@@ -64,6 +64,7 @@ extern "C" {
 #define os_sockENETUNREACH  ENETUNREACH /* Network is unreachable */
 #define os_sockENOBUFS      ENOBUFS     /* No buffer space available */
 #define os_sockECONNRESET   ECONNRESET  /* Connection reset by peer */
+#define os_sockEPIPE        EPIPE       /* Connection reset by peer */
 
     typedef int os_socket; /* signed */
     #define PRIsock "d"
