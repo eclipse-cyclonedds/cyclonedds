@@ -98,6 +98,7 @@ int main (int argc, char **argv)
   sat.sa_flags = 0;
   sigaction (SIGINT, &sat, &oldAction);
 #endif
+  setvbuf (stdout, NULL, _IOLBF, 0);
 
   if (parse_args(argc, argv, &maxCycles, &partitionName) == EXIT_FAILURE)
   {
