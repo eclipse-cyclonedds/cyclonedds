@@ -7,16 +7,18 @@ my @dirs = ("async0-mode-1", "async0-mode0", "async0-mode1",
 
 my $dataset = 0;
 my $basedir = "throughput-result";
+$basedir = $ARGV[0] if @ARGV== 1;
+my $load_threshold = 20;
 for my $dir (@dirs) {
   my @loads = ();
-  
+
   {
-    open LH, "< $basedir/data-$dir/sub-ethload.log" or die "can't open $basedir/data-$dir/sub-ethload.log";
+    open LH, "< $basedir/data-$dir/sub-ethload.log" or next; # die "can't open $basedir/data-$dir/sub-ethload.log";
     my @curload = ();
     while (<LH>) {
-      die unless /^r +([0-9.]+).*\( *(\d+)/;
-      push @curload, $2 if $1 > 20;
-      if (@curload && $1 < 20) {
+      next unless /^r +([0-9.]+).*\( *(\d+)/;
+      push @curload, $2 if $1 > $load_threshold;
+      if (@curload && $1 < $load_threshold) {
         push @loads, median (@curload);
         @curload = ();
       }
@@ -24,8 +26,8 @@ for my $dir (@dirs) {
     push @loads, median (@curload) if @curload;
     close LH;
   }
-  
-  open FH, "< $basedir/data-$dir/sub.log" or die "can't open $basedir/data-$dir/sub.log";
+
+  open FH, "< $basedir/data-$dir/sub.log" or next; # die "can't open $basedir/data-$dir/sub.log";
   print "\n\n" if $dataset++;
   print "# mode $dir\n";
   print "# payloadsize rate[samples/s] appl.bandwidth[Mb/s] raw.bandwidth[Mb/s]\n";
@@ -36,9 +38,6 @@ for my $dir (@dirs) {
     my $psz_cur = $1; my $rate_cur = $2;
     $psz = $psz_cur unless defined $psz;
     if ($psz != $psz_cur) {
-      # this is a bit yucky: scan the ethload for the next set of substantially-above-zero numbers
-      # where "substantially-above-zero" is defined as > 20%, cos that seems to work fine on a
-      # quiescent network
       my $load = shift @loads;
       my $rate = median (@rate);
       printf "%d %f %f %f\n", $psz, $rate, $rate * (8 + $psz) / 125e3, $load / 125e3;
