@@ -250,15 +250,15 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles)
   while (!done && (maxCycles == 0 || cycles < maxCycles))
   {
     if (pollingDelay > 0)
-    {
       dds_sleepfor (DDS_MSECS (pollingDelay));
-      while (do_take (reader))
-        ;
-    }
     else
     {
-      status = dds_waitset_wait (waitSet, wsresults, sizeof(wsresults)/sizeof(wsresults[0]), DDS_SECS(1));
+      status = dds_waitset_wait (waitSet, wsresults, sizeof(wsresults)/sizeof(wsresults[0]), DDS_MSECS(100));
       DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+    }
+
+    if (pollingDelay >= 0)
+    {
       while (do_take (reader))
         ;
     }
