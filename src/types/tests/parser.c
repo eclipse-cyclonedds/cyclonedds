@@ -211,5 +211,5 @@ CU_Test(parser, module37)
 {
   CU_ASSERT(test_parse_stringify("struct a{char c;};struct b{sequence<a> s;};",
                                  "struct a{char c,;}struct b{sequence<a> s,;}"));
-} 
+}
 

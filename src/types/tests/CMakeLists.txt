@@ -12,7 +12,8 @@
 include(CUnit)
 
 set(sources
-  "parser.c")
+  "parser.c"
+  "gen_C99.c")
 
 add_cunit_executable(testtypes ${sources})
 target_include_directories(testtypes PRIVATE "../src")

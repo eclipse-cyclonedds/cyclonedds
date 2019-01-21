@@ -189,9 +189,11 @@ typedef struct {
  * (Probably needs extra member (and type) for definitions that are introduced
  * by non-top scoped names when checking the scope rules.)
  */
-typedef struct {
+typedef struct dds_ts_module dds_ts_module_t;
+struct dds_ts_module {
   dds_ts_definition_t def;
-} dds_ts_module_t;
+  dds_ts_module_t *previous; /* to previous open of this module, if present */
+};
 
 dds_ts_module_t *dds_ts_create_module(dds_ts_identifier_t name);
 
@@ -208,11 +210,12 @@ typedef struct {
 dds_ts_forward_declaration_t *dds_ts_create_struct_forward_dcl(dds_ts_identifier_t name);
 
 /* Struct declaration (struct_def)
- * - members appear as children
+ * - members (and nested struct declarations) appear as children
  */
 typedef struct {
   dds_ts_definition_t def;
   dds_ts_definition_t *super; /* used for extended struct type definition */
+  bool part_of; /* true when used in other definition */
 } dds_ts_struct_t;
 
 dds_ts_struct_t *dds_ts_create_struct();

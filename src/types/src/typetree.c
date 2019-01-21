@@ -208,6 +208,7 @@ dds_ts_module_t *dds_ts_create_module(dds_ts_identifier_t name)
     return NULL;
   }
   init_definition(&module->def, free_module, DDS_TS_MODULE, name);
+  module->previous = NULL;
   return module;
 }
 
@@ -244,6 +245,7 @@ extern dds_ts_struct_t *dds_ts_create_struct(dds_ts_identifier_t name)
   }
   init_definition(&new_struct->def, free_struct, DDS_TS_STRUCT, name);
   new_struct->super = NULL;
+  new_struct->part_of = false;
   return new_struct;
 }
 

@@ -44,7 +44,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   set_source_files_properties("${LEXER_PATH}" PROPERTIES COMPILE_FLAGS "/wd4005") # suppress macro redefinition warnings
 endif()
 
-add_library(types "src/parser.c" "src/typetree.c" "src/tt_create.c" "src/type_walker.c" "src/stringify.c" "${BISON_parser_OUTPUTS}" "${FLEX_lexer_OUTPUTS}")
+add_library(types "src/parser.c" "src/typetree.c" "src/tt_create.c" "src/type_walker.c" "src/stringify.c" "src/gen_c99.c" "${BISON_parser_OUTPUTS}" "${FLEX_lexer_OUTPUTS}")
 target_include_directories(types PRIVATE "include")
 target_include_directories(types PRIVATE "src")
 target_include_directories(types PRIVATE "${GENERATED_SOURCE_DIR}")

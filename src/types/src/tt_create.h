@@ -47,8 +47,8 @@ bool dds_ts_add_struct_forward(dds_ts_context_t *context, dds_ts_identifier_t na
 bool dds_ts_add_struct_open(dds_ts_context_t *context, dds_ts_identifier_t name);
 bool dds_ts_add_struct_extension_open(dds_ts_context_t *context, dds_ts_identifier_t name, dds_ts_scoped_name_t *scoped_name);
 bool dds_ts_add_struct_member(dds_ts_context_t *context, dds_ts_type_spec_ptr_t *type);
-void dds_ts_struct_close(dds_ts_context_t *context);
-void dds_ts_struct_empty_close(dds_ts_context_t *context);
+void dds_ts_struct_close(dds_ts_context_t *context, dds_ts_type_spec_ptr_t *result);
+void dds_ts_struct_empty_close(dds_ts_context_t *context, dds_ts_type_spec_ptr_t *result);
 
 bool dds_ts_add_declarator(dds_ts_context_t *context, dds_ts_identifier_t name);
 

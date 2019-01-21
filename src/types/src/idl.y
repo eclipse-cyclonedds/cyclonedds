@@ -101,6 +101,7 @@ int illegal_identifier(const char *token);
   wide_string_type
   fixed_pt_type
   map_type
+  struct_def
 
 %type <scoped_name>
   scoped_name
@@ -364,7 +365,7 @@ struct_def:
         }
       }
     members '}'
-      { dds_ts_struct_close(context); }
+      { dds_ts_struct_close(context, &($$)); }
   ;
 members:
     member members
@@ -379,6 +380,10 @@ member:
         }
       }
     declarators ';'
+/* Embedded struct extension: */
+  | struct_def { dds_ts_add_struct_member(context, &($1)); }
+    declarators ';'
+
   ;
 
 struct_forward_dcl:
@@ -437,7 +442,7 @@ struct_def:
         }
       }
     members '}'
-      { dds_ts_struct_close(context); }
+      { dds_ts_struct_close(context, &($$)); }
   | "struct" identifier '{'
       {
         if (!dds_ts_add_struct_open(context, $2)) {
@@ -445,7 +450,7 @@ struct_def:
         }
       }
     '}'
-      { dds_ts_struct_empty_close(context); }
+      { dds_ts_struct_empty_close(context, &($$)); }
   ;
 
 template_type_spec:

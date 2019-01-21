@@ -17,6 +17,7 @@ int dds_ts_parse_string(const char *str, void (*error_func)(int line, int column
 
 /* For testing: */
 int dds_ts_parse_string_stringify(const char *str, char *buffer, size_t len);
+int dds_ts_parse_string_gen_C99(const char *str, char *buffer, size_t len);
 
 #endif /* IDL_PARSER_H */
 

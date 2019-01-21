@@ -15,6 +15,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "os/os.h"
+#include "gen_c99.h"
 
 #define YYSTYPE DDS_TS_PARSER_STYPE
 #define YYLTYPE DDS_TS_PARSER_LTYPE
@@ -63,12 +64,7 @@ OS_WARNING_MSVC_ON(4996);
     dds_ts_parser_set_in(fh, scanner);
     err = dds_ts_parser_parse(scanner, context);
     if (err == 0) {
-      char buffer[1000];
-      dds_ts_stringify(dds_ts_context_get_root_node(context), buffer, 1000);
-      /* FIXME: This print statement is only temporary here to show some result. */
-OS_WARNING_MSVC_OFF(4996);
-      printf("Result: '%s'\n", buffer);
-OS_WARNING_MSVC_ON(4996);
+      dds_ts_generate_C99(file, dds_ts_context_get_root_node(context));
     }
     else if (dds_ts_context_get_out_of_memory_error(context)) {
       if (error_func != 0) {
@@ -163,3 +159,43 @@ int dds_ts_parse_string_stringify(const char *str, char *buffer, size_t len)
 
   return err;
 }
+
+int dds_ts_parse_string_gen_C99(const char *str, char *buffer, size_t len)
+{
+  int err = 0;
+
+  assert(str != NULL);
+  if (str == NULL) {
+    err = -1;
+  }
+  else {
+    dds_ts_context_t *context = dds_ts_create_context();
+    if (context == NULL) {
+      os_strlcpy(buffer, "OUT_OF_MEMORY", len);
+      buffer[len-1] = '\0';
+      return 2;
+    }
+    yyscan_t scanner;
+    dds_ts_parser_lex_init(&scanner);
+    dds_ts_parser__scan_string(str, scanner);
+    err = dds_ts_parser_parse(scanner, context);
+    if (err != 0) {
+      if (dds_ts_context_get_out_of_memory_error(context)) {
+        os_strlcpy(buffer, "OUT_OF_MEMORY", len);
+      }
+      else {
+        os_strlcpy(buffer, "PARSING ERROR", len);
+      }
+      buffer[len-1] = '\0';
+    }
+    else {
+      dds_ts_generate_C99_to_buffer("test.idl", dds_ts_context_get_root_node(context), buffer, len);
+    }
+
+    dds_ts_free_context(context);
+    dds_ts_parser_lex_destroy(scanner);
+  }
+
+  return err;
+}
+

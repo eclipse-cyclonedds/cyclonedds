@@ -104,7 +104,7 @@ void dds_ts_walker_for_all_structs(dds_ts_walker_t *walker)
   dds_ts_walker_expr_t *expr = dds_ts_create_expr(dds_ts_walker_expr_for_all_structs, walker);
   walker->ref_next_expr = &expr->sub1;
   walker->cur_parent_expr = expr;
-  (void)walker;
+  OS_UNUSED_ARG(walker);
 }
 
 void dds_ts_walker_for_all_members(dds_ts_walker_t *walker)
@@ -130,7 +130,7 @@ void dds_ts_walker_end_for(dds_ts_walker_t *walker)
 void dds_ts_walker_emit_type(dds_ts_walker_t *walker)
 {
   dds_ts_walker_expr_t *expr = dds_ts_create_expr(dds_ts_walker_expr_emit_type, walker);
-  (void)expr;
+  OS_UNUSED_ARG(expr);
 }
 
 void dds_ts_walker_emit_name(dds_ts_walker_t *walker)

@@ -22,6 +22,7 @@ struct dds_ts_context {
   dds_ts_node_t *root_node;
   dds_ts_node_t *cur_node;
   dds_ts_node_t *parent_for_declarator;
+  dds_ts_node_t *array_sizes;
   bool out_of_memory;
   void (*error_func)(int line, int column, const char *msg);
 };
@@ -35,6 +36,19 @@ static void add_child(dds_ts_node_t *node, dds_ts_node_t *parent)
       ref_def = &(*ref_def)->next;
     }
     *ref_def = node;
+  }
+}
+
+static void attach_children(dds_ts_node_t *parent, dds_ts_node_t *children)
+{
+  dds_ts_node_t **ref_child = &parent->children;
+  while (*ref_child != NULL) {
+    ref_child = &(*ref_child)->next;
+  }
+  *ref_child = children;
+  dds_ts_node_t *child;
+  for (child = children; child != NULL; child = child->next) {
+    child->parent = parent;
   }
 }
 
@@ -251,6 +265,7 @@ extern dds_ts_context_t* dds_ts_create_context()
   context->root_node = (dds_ts_node_t*)module;
   context->cur_node = context->root_node;
   context->parent_for_declarator = NULL;
+  context->array_sizes = NULL;
   return context;
 }
 
@@ -307,6 +322,19 @@ extern bool dds_ts_module_open(dds_ts_context_t *context, dds_ts_identifier_t na
   if (!new_module_definition(context, name, (dds_ts_node_t*)context->cur_node, &module)) {
     return false;
   }
+  /* find previous open of this module, if any */
+  dds_ts_module_t *parent_module;
+  for (parent_module = (dds_ts_module_t*)context->cur_node; parent_module != NULL; parent_module = parent_module->previous) {
+    dds_ts_node_t *child;
+    for (child = parent_module->def.type_spec.node.children; child != NULL; child = child->next) {
+      if (child->flags == DDS_TS_MODULE && strcmp(((dds_ts_module_t*)child)->def.name, name) == 0 && (dds_ts_module_t*)child != module) {
+        module->previous = (dds_ts_module_t*)child;
+      }
+    }
+    if (module->previous != NULL) {
+      break;
+    }
+  }
   context->cur_node = (dds_ts_node_t*)module;
   return true;
 }
@@ -332,7 +360,8 @@ extern bool dds_ts_add_struct_forward(dds_ts_context_t *context, dds_ts_identifi
 
 extern bool dds_ts_add_struct_open(dds_ts_context_t *context, dds_ts_identifier_t name)
 {
-  assert(cur_scope_is_definition_type(context, DDS_TS_MODULE));
+  assert(   cur_scope_is_definition_type(context, DDS_TS_MODULE)
+         || cur_scope_is_definition_type(context, DDS_TS_STRUCT));
   dds_ts_struct_t *new_struct = dds_ts_create_struct(name);
   if (new_struct == NULL) {
     context->out_of_memory = true;
@@ -340,6 +369,18 @@ extern bool dds_ts_add_struct_open(dds_ts_context_t *context, dds_ts_identifier_
   }
   add_child(&new_struct->def.type_spec.node, context->cur_node);
   context->cur_node = (dds_ts_node_t*)new_struct;
+  /* find forward definitions of the struct and set their definition to this */
+  if (new_struct->def.type_spec.node.parent->flags == DDS_TS_MODULE) {
+    dds_ts_module_t *parent_module;
+    for (parent_module = (dds_ts_module_t*)new_struct->def.type_spec.node.parent; parent_module != NULL; parent_module = parent_module->previous) {
+      dds_ts_node_t *child;
+      for (child = parent_module->def.type_spec.node.children; child != NULL; child = child->next) {
+        if (child->flags == DDS_TS_FORWARD_STRUCT && strcmp(((dds_ts_forward_declaration_t*)child)->def.name, name) == 0) {
+          ((dds_ts_forward_declaration_t*)child)->definition = &new_struct->def;
+        }
+      }
+    }
+  }
   return true;
 }
 
@@ -366,6 +407,30 @@ extern bool dds_ts_add_struct_extension_open(dds_ts_context_t *context, dds_ts_i
   return true;
 }
 
+static void mark_structs_as_part_of(dds_ts_type_spec_t *type)
+{
+  if (type->node.flags == DDS_TS_STRUCT)
+  {
+    /* fprintf(stderr, "%s is part of %s\n", ((dds_ts_struct_t*)type)->name, ((dds_ts_definition_t*)context->cur_node)->name); */
+    ((dds_ts_struct_t*)type)->part_of = true;
+  }
+  else if (type->node.flags == DDS_TS_FORWARD_STRUCT)
+  {
+    /* fprintf(stderr, "forward %s is part of %s through sequence\n", ((dds_ts_forward_declaration_t*)seq_type->element_type)->name, ((dds_ts_definition_t*)context->cur_node)->name); */
+    dds_ts_forward_declaration_t *forward_struct = (dds_ts_forward_declaration_t*)type;
+    if (forward_struct->definition != NULL && forward_struct->definition->type_spec.node.flags == DDS_TS_STRUCT)
+      ((dds_ts_struct_t*)forward_struct->definition)->part_of = true;
+    /* FIXME: set value on forward. */
+  }
+  else if (type->node.flags == DDS_TS_SEQUENCE) {
+    mark_structs_as_part_of(((dds_ts_sequence_t*)type)->element_type.type_spec);
+  }
+  else if (type->node.flags == DDS_TS_MAP) {
+    mark_structs_as_part_of(((dds_ts_map_t*)type)->key_type.type_spec);
+    mark_structs_as_part_of(((dds_ts_map_t*)type)->value_type.type_spec);
+  }
+}
+
 extern bool dds_ts_add_struct_member(dds_ts_context_t *context, dds_ts_type_spec_ptr_t *spec_type_ptr)
 {
   assert(cur_scope_is_definition_type(context, DDS_TS_STRUCT));
@@ -376,21 +441,28 @@ extern bool dds_ts_add_struct_member(dds_ts_context_t *context, dds_ts_type_spec
   }
   add_child(&member->node, context->cur_node);
   context->parent_for_declarator = (dds_ts_node_t*)member;
+  mark_structs_as_part_of(spec_type_ptr->type_spec);
   return true;
 }
 
-extern void dds_ts_struct_close(dds_ts_context_t *context)
+extern void dds_ts_struct_close(dds_ts_context_t *context, dds_ts_type_spec_ptr_t *result)
 {
   assert(cur_scope_is_definition_type(context, DDS_TS_STRUCT));
+  dds_ts_type_spec_t *type_spec = (dds_ts_type_spec_t*)context->cur_node;
   context->cur_node = context->cur_node->parent;
   context->parent_for_declarator = NULL;
+  context->array_sizes = NULL;
+  dds_ts_type_spec_ptr_assign_reference(result, type_spec);
 }
 
-extern void dds_ts_struct_empty_close(dds_ts_context_t *context)
+extern void dds_ts_struct_empty_close(dds_ts_context_t *context, dds_ts_type_spec_ptr_t *result)
 {
   assert(cur_scope_is_definition_type(context, DDS_TS_STRUCT));
+  dds_ts_type_spec_t *type_spec = (dds_ts_type_spec_t*)context->cur_node;
   context->cur_node = context->cur_node->parent;
   context->parent_for_declarator = NULL;
+  context->array_sizes = NULL;
+  dds_ts_type_spec_ptr_assign_reference(result, type_spec);
 }
 
 extern bool dds_ts_add_declarator(dds_ts_context_t *context, dds_ts_identifier_t name)
@@ -403,6 +475,10 @@ extern bool dds_ts_add_declarator(dds_ts_context_t *context, dds_ts_identifier_t
       return false;
     }
     add_child(&declarator->type_spec.node, context->parent_for_declarator);
+    if (context->array_sizes != NULL) {
+      attach_children(&declarator->type_spec.node, context->array_sizes);
+      context->array_sizes = NULL;
+    }
     return true;
   }
   assert(false);
@@ -418,7 +494,11 @@ extern bool dds_ts_add_array_size(dds_ts_context_t *context, dds_ts_literal_t *v
     context->out_of_memory = true;
     return false;
   }
-  add_child(&array_size->node, context->cur_node);
+  dds_ts_node_t **ref_child = &context->array_sizes;
+  while (*ref_child != NULL) {
+    ref_child = &(*ref_child)->next;
+  }
+  *ref_child = &array_size->node;
   return true;
 }
 
