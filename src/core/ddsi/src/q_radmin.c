@@ -1945,10 +1945,9 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
       reorder->n_samples++;
     }
   }
-  else if (s->min == reorder->max_sampleiv->u.reorder.maxp1)
+  else if (((void) assert (reorder->max_sampleiv != NULL)), (s->min == reorder->max_sampleiv->u.reorder.maxp1))
   {
-    /* note: sampleivtree not empty <=> max_sampleiv is set (compilers
-       and static analyzers may warn) */
+    /* (sampleivtree not empty) <=> (max_sampleiv is non-NULL), for which there is an assert at the beginning but compilers and static analyzers don't all quite get that ... the somewhat crazy assert shuts up Clang's static analyzer */
     if (delivery_queue_full_p)
     {
       /* growing last inteval will not be accepted when this flag is set */
