@@ -1,0 +1,48 @@
+#!/usr/bin/perl -w
+
+use strict;
+use bignum;
+use Time::HiRes qw (time);
+
+if (@ARGV != 2) {
+  print STDERR "usage: $0 device {100|1000}\n";
+  exit 1;
+}
+
+my $devname = $ARGV[0];
+my $speed = $ARGV[1] * 1e6;
+
+$| = 1;
+my ($lt, $t, $lrecv, $lxmit);
+while (1) {
+  open FH, "< /proc/net/dev" or die "can't open /proc/net/dev";
+  $t = time;
+  my $info = undef;
+  while (<FH>) {
+    chomp;
+    if (s/^\s+$devname\s*:\s*//) {
+      $info = $_;
+      last;
+    }
+  }
+  close FH;
+  die "can't locate info for $devname" unless defined $info;
+
+  my @info = split ' ', $info;
+  my $recv = $info[0] + 0;
+  my $xmit = $info[8] + 0;
+
+  if (defined $lt) {
+    my $dr = $recv - $lrecv;
+    my $dx = $xmit - $lxmit;
+    my $dt = $t - $lt;
+    my $ur = 100 * (8 * $dr) / ($dt * $speed);
+    my $xr = 100 * (8 * $dx) / ($dt * $speed);
+    printf "r %5.1f x %5.1f (%8d %8d)\n", $ur, $xr, $dr, $dx;
+  }
+
+  $lt = $t;
+  $lrecv = $recv;
+  $lxmit = $xmit;
+  sleep 1;
+}

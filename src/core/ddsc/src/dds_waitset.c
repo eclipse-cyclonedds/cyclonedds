@@ -17,10 +17,7 @@
 #include "dds__rhc.h"
 #include "dds__err.h"
 
-
-#define dds_waitset_lock(hdl, obj) dds_entity_lock(hdl, DDS_KIND_WAITSET, (dds_entity**)obj)
-#define dds_waitset_unlock(obj)    dds_entity_unlock((dds_entity*)obj);
-
+DEFINE_ENTITY_LOCK_UNLOCK(static, dds_waitset, DDS_KIND_WAITSET)
 
 static void
 dds_waitset_swap(
@@ -39,20 +36,6 @@ dds_waitset_swap(
     /* Add to destination. */
     idx->next = *dst;
     *dst = idx;
-}
-
-static void
-dds_waitset_signal_entity(
-        _In_ dds_waitset *ws)
-{
-    dds_entity *e = (dds_entity*)ws;
-    /* When signaling any observers of us through the entity,
-     * we need to be unlocked. We still have claimed the related
-     * handle, so possible deletions will be delayed until we
-     * release it. */
-    os_mutexUnlock(&(e->m_mutex));
-    dds_entity_status_signal(e);
-    os_mutexLock(&(e->m_mutex));
 }
 
 static dds_return_t
@@ -214,8 +197,8 @@ dds_waitset_close(
 {
     dds_waitset *ws = (dds_waitset*)e;
 
-    dds_waitset_close_list(&(ws->observed),  e->m_hdl);
-    dds_waitset_close_list(&(ws->triggered), e->m_hdl);
+    dds_waitset_close_list(&ws->observed,  e->m_hdl);
+    dds_waitset_close_list(&ws->triggered, e->m_hdl);
 
     /* Trigger waitset to wake up. */
     os_condBroadcast(&e->m_cond);
@@ -368,7 +351,7 @@ dds_waitset_attach(
                 e = NULL;
             }
         } else {
-            e = (dds_entity*)ws;
+            e = &ws->m_entity;
         }
 
         /* This will fail if given entity is already attached (or deleted). */
@@ -421,7 +404,7 @@ dds_waitset_detach(
     if (rc == DDS_RETCODE_OK) {
         /* Possibly fails when entity was not attached. */
         if (waitset == entity) {
-            rc = dds_entity_observer_unregister_nl((dds_entity*)ws, waitset);
+            rc = dds_entity_observer_unregister_nl(&ws->m_entity, waitset);
         } else {
             rc = dds_entity_observer_unregister(entity, waitset);
         }
@@ -477,33 +460,25 @@ dds_waitset_wait(
     return ret;
 }
 
-_Pre_satisfies_((waitset & DDS_ENTITY_KIND_MASK) == DDS_KIND_WAITSET)
-dds_return_t
-dds_waitset_set_trigger(
-        _In_ dds_entity_t waitset,
-        _In_ bool trigger)
+dds_return_t dds_waitset_set_trigger (dds_entity_t waitset, bool trigger)
 {
-    dds_waitset *ws;
-    dds__retcode_t rc;
-    dds_return_t ret = DDS_RETCODE_OK;
+  dds_waitset *ws;
+  dds__retcode_t rc;
 
-    /* Locking the waitset here will delay a possible deletion until it is
-     * unlocked. Even when the related mutex is unlocked when we want to send
-     * a signal. */
-    rc = dds_waitset_lock(waitset, &ws);
-    if (rc != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking waitset\n");
-        ret = DDS_ERRNO(rc);
-        goto fail;
-    }
-    if (trigger) {
-        dds_entity_status_set(ws, DDS_WAITSET_TRIGGER_STATUS);
-    } else {
-        dds_entity_status_reset(ws, DDS_WAITSET_TRIGGER_STATUS);
-    }
-    dds_waitset_signal_entity(ws);
-    dds_waitset_unlock(ws);
-fail:
-    return ret;
+  if ((rc = dds_waitset_lock (waitset, &ws)) != DDS_RETCODE_OK)
+    return DDS_ERRNO (rc);
+
+  os_mutexUnlock (&ws->m_entity.m_mutex);
+
+  os_mutexLock (&ws->m_entity.m_observers_lock);
+  if (trigger)
+    dds_entity_status_set (&ws->m_entity, DDS_WAITSET_TRIGGER_STATUS);
+  else
+    dds_entity_status_reset (&ws->m_entity, DDS_WAITSET_TRIGGER_STATUS);
+  os_mutexUnlock (&ws->m_entity.m_observers_lock);
+
+  os_mutexLock (&ws->m_entity.m_mutex);
+  dds_waitset_unlock (ws);
+  return DDS_RETCODE_OK;
 }
 

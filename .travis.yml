@@ -30,17 +30,17 @@ osx_xcode94: &osx_xcode94
 matrix:
   include:
     - <<: *linux_gcc8
-      env: [ BUILD_TYPE=Debug, C_COMPILER=gcc-8, CXX_COMPILER=g++-8 ]
+      env: [ BUILD_TYPE=Debug, C_COMPILER=gcc-8, CXX_COMPILER=g++-8, USE_SANITIZER=none ]
     - <<: *linux_gcc8
-      env: [ BUILD_TYPE=Release, C_COMPILER=gcc-8, CXX_COMPILER=g++-8 ]
+      env: [ BUILD_TYPE=Release, C_COMPILER=gcc-8, CXX_COMPILER=g++-8, USE_SANITIZER=none ]
     - <<: *linux_clang60
-      env: [ BUILD_TYPE=Debug, C_COMPILER=clang-6.0, CXX_COMPILER=clang++-6.0 ]
+      env: [ BUILD_TYPE=Debug, C_COMPILER=clang-6.0, CXX_COMPILER=clang++-6.0, USE_SANITIZER=address ]
     - <<: *linux_clang60
-      env: [ BUILT_TYPE=Release, C_COMPILER=clang-6.0, CXX_COMPILER=clang++-6.0 ]
+      env: [ BUILT_TYPE=Release, C_COMPILER=clang-6.0, CXX_COMPILER=clang++-6.0, USE_SANITIZER=none ]
     - <<: *osx_xcode94
-      env: [ BUILD_TYPE=Debug, C_COMPILER=clang, CXX_COMPILER=clang++ ]
+      env: [ BUILD_TYPE=Debug, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=address ]
     - <<: *osx_xcode94
-      env: [ BUILD_TYPE=Release, C_COMPILER=clang, CXX_COMPILER=clang++ ]
+      env: [ BUILD_TYPE=Release, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=none ]
 
 
 before_install:
@@ -72,7 +72,12 @@ script:
   - mkdir build
   - cd build
   - conan install ..
-  - cmake -DBUILD_TESTING=on -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ../src
-  - cmake --build .
+  - cmake -DBUILD_TESTING=on -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_SANITIZER=${USE_SANITIZER} -DCMAKE_INSTALL_PREFIX=${PWD}/install ../src
+  - cmake --build . --target install
+  - mkdir install/share/CycloneDDS/examples/helloworld/build
+  - if [ "$USE_SANITIZER" = "none" ]; then
+      (cd install/share/CycloneDDS/examples/helloworld/build && cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} .. && cmake --build .) ;
+    else
+      (cd install/share/CycloneDDS/examples/helloworld/build && cmake -DCMAKE_C_FLAGS=-fsanitize=address -DCMAKE_LINKER_FLAGS=-fsanitize=address -DCMAKE_BUILD_TYPE=${BUILD_TYPE} .. && cmake --build .) ;
+    fi
   - ctest -T test
-

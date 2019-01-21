@@ -76,11 +76,11 @@ DDS_EXPORT double dds_stream_read_double (dds_stream_t * is);
 DDS_EXPORT char * dds_stream_read_string (dds_stream_t * is);
 DDS_EXPORT void dds_stream_read_buffer (dds_stream_t * is, uint8_t * buffer, uint32_t len);
 
-#define dds_stream_read_char(s) ((char) dds_stream_read_uint8 (s))
-#define dds_stream_read_int8(s) ((int8_t) dds_stream_read_uint8 (s))
-#define dds_stream_read_int16(s) ((int16_t) dds_stream_read_uint16 (s))
-#define dds_stream_read_int32(s) ((int32_t) dds_stream_read_uint32 (s))
-#define dds_stream_read_int64(s) ((int64_t) dds_stream_read_uint64 (s))
+inline char dds_stream_read_char (dds_stream_t *is) { return (char) dds_stream_read_uint8 (is); }
+inline int8_t dds_stream_read_int8 (dds_stream_t *is) { return (int8_t) dds_stream_read_uint8 (is); }
+inline int16_t dds_stream_read_int16 (dds_stream_t *is) { return (int16_t) dds_stream_read_uint16 (is); }
+inline int32_t dds_stream_read_int32 (dds_stream_t *is) { return (int32_t) dds_stream_read_uint32 (is); }
+inline int64_t dds_stream_read_int64 (dds_stream_t *is) { return (int64_t) dds_stream_read_uint64 (is); }
 
 DDS_EXPORT void dds_stream_write_bool (dds_stream_t * os, bool val);
 DDS_EXPORT void dds_stream_write_uint8 (dds_stream_t * os, uint8_t val);
@@ -94,11 +94,11 @@ DDS_EXPORT void dds_stream_write_buffer (dds_stream_t * os, uint32_t len, const 
 DDS_EXPORT void *dds_stream_address (dds_stream_t * s);
 DDS_EXPORT void *dds_stream_alignto (dds_stream_t * s, uint32_t a);
 
-#define dds_stream_write_char(s,v) (dds_stream_write_uint8 ((s), (uint8_t)(v)))
-#define dds_stream_write_int8(s,v) (dds_stream_write_uint8 ((s), (uint8_t)(v)))
-#define dds_stream_write_int16(s,v) (dds_stream_write_uint16 ((s), (uint16_t)(v)))
-#define dds_stream_write_int32(s,v) (dds_stream_write_uint32 ((s), (uint32_t)(v)))
-#define dds_stream_write_int64(s,v) (dds_stream_write_uint64 ((s), (uint64_t)(v)))
+inline void dds_stream_write_char (dds_stream_t * os, char val) { dds_stream_write_uint8 (os, (uint8_t) val); }
+inline void dds_stream_write_int8 (dds_stream_t * os, int8_t val) { dds_stream_write_uint8 (os, (uint8_t) val); }
+inline void dds_stream_write_int16 (dds_stream_t * os, int16_t val) { dds_stream_write_uint16 (os, (uint16_t) val); }
+inline void dds_stream_write_int32 (dds_stream_t * os, int32_t val) { dds_stream_write_uint32 (os, (uint32_t) val); }
+inline void dds_stream_write_int64 (dds_stream_t * os, int64_t val) { dds_stream_write_uint64 (os, (uint64_t) val); }
 
 #if defined (__cplusplus)
 }

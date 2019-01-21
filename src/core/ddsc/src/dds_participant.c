@@ -20,6 +20,8 @@
 #include "dds__err.h"
 #include "dds__builtin.h"
 
+DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_participant)
+
 #define DDS_PARTICIPANT_STATUS_MASK    0u
 
 /* List of created participants */
@@ -51,7 +53,7 @@ dds_participant_delete(
 
     assert(e);
     assert(thr);
-    assert(dds_entity_kind(e->m_hdl) == DDS_KIND_PARTICIPANT);
+    assert(dds_entity_kind_from_handle(e->m_hdl) == DDS_KIND_PARTICIPANT);
 
     if (asleep) {
       thread_state_awake(thr);

@@ -14,5 +14,8 @@
 extern inline uint16_t bswap2u (uint16_t x);
 extern inline uint32_t bswap4u (uint32_t x);
 extern inline uint64_t bswap8u (uint64_t x);
+extern inline int16_t bswap2 (int16_t x);
+extern inline int32_t bswap4 (int32_t x);
+extern inline int64_t bswap8 (int64_t x);
 extern inline void bswapSN (nn_sequence_number_t *sn);
 

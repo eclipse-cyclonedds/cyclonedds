@@ -17,13 +17,14 @@
 #include "ddsi/q_rtps.h" /* for nn_guid_t, nn_guid_prefix_t */
 #include "ddsi/q_protocol.h" /* for nn_sequence_number_t */
 
-#define bswap2(x) ((int16_t) bswap2u ((uint16_t) (x)))
-#define bswap4(x) ((int32_t) bswap4u ((uint32_t) (x)))
-#define bswap8(x) ((int64_t) bswap8u ((uint64_t) (x)))
-
 inline uint16_t bswap2u (uint16_t x)
 {
-  return (unsigned short) ((x >> 8) | (x << 8));
+  return (uint16_t) ((x >> 8) | (x << 8));
+}
+
+inline int16_t bswap2 (int16_t x)
+{
+  return (int16_t) bswap2u ((uint16_t) x);
 }
 
 inline uint32_t bswap4u (uint32_t x)
@@ -31,11 +32,21 @@ inline uint32_t bswap4u (uint32_t x)
   return (x >> 24) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | (x << 24);
 }
 
+inline int32_t bswap4 (int32_t x)
+{
+  return (int32_t) bswap4u ((uint32_t) x);
+}
+
 inline uint64_t bswap8u (uint64_t x)
 {
   const uint32_t newhi = bswap4u ((uint32_t) x);
   const uint32_t newlo = bswap4u ((uint32_t) (x >> 32));
   return ((uint64_t) newhi << 32) | (uint64_t) newlo;
+}
+
+inline int64_t bswap8 (int64_t x)
+{
+  return (int64_t) bswap8u ((uint64_t) x);
 }
 
 inline void bswapSN (nn_sequence_number_t *sn)

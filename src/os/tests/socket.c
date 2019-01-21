@@ -140,9 +140,9 @@ static void gethostbyname_test(char *name, int af, int ret)
 }
 
 CU_TheoryDataPoints(os_gethostbyname, ipv4) = {
-    CU_DataPoints(char *, "",                "_nah",            "127.0.0.1", "127.0.0.1"),
-    CU_DataPoints(int,    AF_UNSPEC,         AF_UNSPEC,         AF_INET,     AF_UNSPEC),
-    CU_DataPoints(int,    OS_HOST_NOT_FOUND, OS_HOST_NOT_FOUND, 0,           0)
+    CU_DataPoints(char *, "",                "127.0.0.1", "127.0.0.1"),
+    CU_DataPoints(int,    AF_UNSPEC,         AF_INET,     AF_UNSPEC),
+    CU_DataPoints(int,    OS_HOST_NOT_FOUND, 0,           0)
 };
 
 CU_Theory((char *name, int af, int ret), os_gethostbyname, ipv4, .init=setup, .fini=teardown)

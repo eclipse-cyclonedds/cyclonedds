@@ -19,10 +19,7 @@ add_library(util  ${srcs_util})
 generate_export_header(util EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/exports/util/ut_export.h")
 target_link_libraries(util PUBLIC OSAPI)
 
-if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
-  # Shared libs will have this by default. Static libs need it too on x86_64.
-  set_property(TARGET util PROPERTY POSITION_INDEPENDENT_CODE TRUE)
-endif()
+set_property(TARGET util PROPERTY POSITION_INDEPENDENT_CODE TRUE)
 
 target_include_directories(
   util PUBLIC
@@ -30,10 +27,6 @@ target_include_directories(
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/exports/>"
     "$<INSTALL_INTERFACE:${INSTALL_PREFIX}/include/>"
     "$<INSTALL_INTERFACE:${INSTALL_PREFIX}/exports/>")
-
-if(${CMAKE_C_COMPILER_ID} STREQUAL "SunPro")
-  add_definitions(-KPIC)
-endif()
 
 # TODO: improve test inclusion.
 if((BUILD_TESTING) AND ((NOT DEFINED MSVC_VERSION) OR (MSVC_VERSION GREATER "1800")))

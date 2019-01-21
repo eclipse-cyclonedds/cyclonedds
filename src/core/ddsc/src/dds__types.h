@@ -59,22 +59,35 @@ typedef bool (*dds_querycondition_filter_with_ctx_fn) (const void * sample, cons
 
 /* The listener struct. */
 
-typedef struct c_listener {
-    dds_on_inconsistent_topic_fn on_inconsistent_topic;
-    dds_on_liveliness_lost_fn on_liveliness_lost;
-    dds_on_offered_deadline_missed_fn on_offered_deadline_missed;
-    dds_on_offered_incompatible_qos_fn on_offered_incompatible_qos;
-    dds_on_data_on_readers_fn on_data_on_readers;
-    dds_on_sample_lost_fn on_sample_lost;
-    dds_on_data_available_fn on_data_available;
-    dds_on_sample_rejected_fn on_sample_rejected;
-    dds_on_liveliness_changed_fn on_liveliness_changed;
-    dds_on_requested_deadline_missed_fn on_requested_deadline_missed;
-    dds_on_requested_incompatible_qos_fn on_requested_incompatible_qos;
-    dds_on_publication_matched_fn on_publication_matched;
-    dds_on_subscription_matched_fn on_subscription_matched;
-    void *arg;
-} c_listener_t;
+struct dds_listener {
+  uint32_t inherited;
+  dds_on_inconsistent_topic_fn on_inconsistent_topic;
+  void *on_inconsistent_topic_arg;
+  dds_on_liveliness_lost_fn on_liveliness_lost;
+  void *on_liveliness_lost_arg;
+  dds_on_offered_deadline_missed_fn on_offered_deadline_missed;
+  void *on_offered_deadline_missed_arg;
+  dds_on_offered_incompatible_qos_fn on_offered_incompatible_qos;
+  void *on_offered_incompatible_qos_arg;
+  dds_on_data_on_readers_fn on_data_on_readers;
+  void *on_data_on_readers_arg;
+  dds_on_sample_lost_fn on_sample_lost;
+  void *on_sample_lost_arg;
+  dds_on_data_available_fn on_data_available;
+  void *on_data_available_arg;
+  dds_on_sample_rejected_fn on_sample_rejected;
+  void *on_sample_rejected_arg;
+  dds_on_liveliness_changed_fn on_liveliness_changed;
+  void *on_liveliness_changed_arg;
+  dds_on_requested_deadline_missed_fn on_requested_deadline_missed;
+  void *on_requested_deadline_missed_arg;
+  dds_on_requested_incompatible_qos_fn on_requested_incompatible_qos;
+  void *on_requested_incompatible_qos_arg;
+  dds_on_publication_matched_fn on_publication_matched;
+  void *on_publication_matched_arg;
+  dds_on_subscription_matched_fn on_subscription_matched;
+  void *on_subscription_matched_arg;
+};
 
 /* Entity flag values */
 
@@ -98,7 +111,6 @@ typedef struct dds_entity_deriver {
     dds_return_t (*delete)(struct dds_entity *e);
     dds_return_t (*set_qos)(struct dds_entity *e, const dds_qos_t *qos, bool enabled);
     dds_return_t (*validate_status)(uint32_t mask);
-    dds_return_t (*propagate_status)(struct dds_entity *e, uint32_t mask, bool set);
     dds_return_t (*get_instance_hdl)(struct dds_entity *e, dds_instance_handle_t *i);
 }
 dds_entity_deriver;
@@ -126,15 +138,18 @@ typedef struct dds_entity
   dds_qos_t * m_qos;
   dds_domainid_t m_domainid;
   nn_guid_t m_guid;
-  uint32_t m_status_enable;
   uint32_t m_flags;
-  uint32_t m_cb_count;
   os_mutex m_mutex;
   os_cond m_cond;
-  c_listener_t m_listener;
-  uint32_t m_trigger;
+
   os_mutex m_observers_lock;
+  os_cond m_observers_cond;
+  dds_listener_t m_listener;
+  uint32_t m_trigger;
+  uint32_t m_status_enable;
+  uint32_t m_cb_count;
   dds_entity_observer *m_observers;
+
   struct ut_handlelink *m_hdllink;
 }
 dds_entity;

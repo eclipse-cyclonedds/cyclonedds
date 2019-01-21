@@ -18,8 +18,7 @@
 extern "C" {
 #endif
 
-#define dds_writer_lock(hdl, obj) dds_entity_lock(hdl, DDS_KIND_WRITER, (dds_entity**)obj)
-#define dds_writer_unlock(obj)    dds_entity_unlock((dds_entity*)obj);
+DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_writer, DDS_KIND_WRITER)
 
 #if defined (__cplusplus)
 }

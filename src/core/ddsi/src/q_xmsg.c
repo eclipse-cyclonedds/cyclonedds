@@ -34,7 +34,6 @@
 #include "ddsi/q_log.h"
 #include "ddsi/q_unused.h"
 #include "ddsi/q_xmsg.h"
-#include "ddsi/q_align.h"
 #include "ddsi/q_config.h"
 #include "ddsi/q_entity.h"
 #include "ddsi/q_globals.h"
@@ -1339,7 +1338,18 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
 #endif
   {
     if (!gv.mute)
+    {
       nbytes = ddsi_conn_write (xp->conn, loc, xp->niov, xp->iov, xp->call_flags);
+#ifndef NDEBUG
+      {
+        size_t i, len;
+        for (i = 0, len = 0; i < xp->niov; i++) {
+          len += xp->iov[i].iov_len;
+        }
+        assert (nbytes == -1 || (size_t) nbytes == len);
+      }
+#endif
+    }
     else
     {
       DDS_TRACE("(dropped)");

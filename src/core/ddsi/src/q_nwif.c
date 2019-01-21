@@ -56,29 +56,6 @@ unsigned locator_to_hopefully_unique_uint32 (const nn_locator_t *src)
   return id;
 }
 
-unsigned short get_socket_port (os_socket socket)
-{
-  os_sockaddr_storage addr;
-  socklen_t addrlen = sizeof (addr);
-  if (getsockname (socket, (os_sockaddr *) &addr, &addrlen) < 0)
-  {
-    print_sockerror ("getsockname");
-    return 0;
-  }
-  switch (addr.ss_family)
-  {
-    case AF_INET:
-      return ntohs (((os_sockaddr_in *) &addr)->sin_port);
-#if OS_SOCKET_HAS_IPV6
-    case AF_INET6:
-      return ntohs (((os_sockaddr_in6 *) &addr)->sin6_port);
-#endif
-    default:
-      abort ();
-      return 0;
-  }
-}
-
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
 void set_socket_diffserv (os_socket sock, int diffserv)
 {

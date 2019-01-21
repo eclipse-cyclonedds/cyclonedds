@@ -37,9 +37,14 @@ build_script:
   - mkdir build
   - cd build
   - conan install -s arch=%ARCH% -s build_type=%CONFIGURATION% ..
-  - cmake -DBUILD_TESTING=on -DCMAKE_BUILD_TYPE=%CONFIGURATION% -G "%GENERATOR%" ../src
+  - cmake -DBUILD_TESTING=on -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DCMAKE_INSTALL_PREFIX=%CD%/install -G "%GENERATOR%" ../src
+  - cmake --build . --config %CONFIGURATION% --target install
+  - cd install/share/CycloneDDS/examples/helloworld
+  - mkdir build
+  - cd build
+  - cmake -DCMAKE_BUILD_TYPE=%CONFIGURATION% -G "%GENERATOR%" ..
   - cmake --build . --config %CONFIGURATION%
+  - cd ../../../../../..
 
 test_script:
   - ctest --test-action test --build-config %CONFIGURATION%
-
