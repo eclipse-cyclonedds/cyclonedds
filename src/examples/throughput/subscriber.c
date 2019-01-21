@@ -61,24 +61,11 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles);
 static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName);
 static void finalize_dds(dds_entity_t participant);
 
-/* Functions to handle Ctrl-C presses. */
-#ifdef _WIN32
-#include <Windows.h>
-static int CtrlHandler (DWORD fdwCtrlType)
+static void sigint (int sig)
 {
-  dds_waitset_set_trigger (waitSet, true);
-  done = true;
-  return true; /* Don't let other handlers handle this key */
-}
-#else
-struct sigaction oldAction;
-static void CtrlHandler (int sig)
-{
-  (void)sig;
-  dds_waitset_set_trigger (waitSet, true);
+  (void) sig;
   done = true;
 }
-#endif
 
 int main (int argc, char **argv)
 {
@@ -88,16 +75,6 @@ int main (int argc, char **argv)
   dds_entity_t participant;
   dds_entity_t reader;
 
-  /* Register handler for Ctrl-C */
-#ifdef _WIN32
-  SetConsoleCtrlHandler((PHANDLER_ROUTINE) CtrlHandler, true);
-#else
-  struct sigaction sat;
-  sat.sa_handler = CtrlHandler;
-  sigemptyset(&sat.sa_mask);
-  sat.sa_flags = 0;
-  sigaction (SIGINT, &sat, &oldAction);
-#endif
   setvbuf (stdout, NULL, _IOLBF, 0);
 
   if (parse_args(argc, argv, &maxCycles, &partitionName) == EXIT_FAILURE)
@@ -113,21 +90,12 @@ int main (int argc, char **argv)
 
   /* Process samples until Ctrl-C is pressed or until maxCycles */
   /* has been reached (0 = infinite) */
+  signal (SIGINT, sigint);
   process_samples(reader, maxCycles);
 
-  /* Finished, disable callbacks */
   dds_set_status_mask (reader, 0);
   HandleMap__free (imap);
-
-#ifdef _WIN32
-  SetConsoleCtrlHandler (0, FALSE);
-#else
-  sigaction (SIGINT, &oldAction, 0);
-#endif
-
-  /* Clean up */
-  finalize_dds(participant);
-
+  finalize_dds (participant);
   return EXIT_SUCCESS;
 }
 
