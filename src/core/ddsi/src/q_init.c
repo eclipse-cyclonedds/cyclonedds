@@ -454,7 +454,6 @@ int rtps_config_open (void)
     }
 
     dds_set_log_mask(config.enabled_logcats);
-    dds_set_log_file(config.tracingOutputFile);
     dds_set_trace_file(config.tracingOutputFile);
 
     return status;
@@ -487,7 +486,7 @@ int rtps_config_prep (struct cfgst *cfgst)
        inherited by readers/writers), but in many sockets mode each
        participant has its own socket, and therefore unique address
        set */
-    DDS_ERROR("Minimal built-in endpoint set mode and ManySocketsMode are incompatible\n");
+    DDS_ERROR ("Minimal built-in endpoint set mode and ManySocketsMode are incompatible\n");
     goto err_config_late_error;
   }
 
@@ -513,11 +512,11 @@ int rtps_config_prep (struct cfgst *cfgst)
     {
       double max = (double) config.auxiliary_bandwidth_limit * ((double) config.nack_delay / 1e9);
       if (max < 0)
-        DDS_FATAL("AuxiliaryBandwidthLimit * NackDelay = %g bytes is insane\n", max);
-      if (max > 2147483647.0)
-        config.max_queued_rexmit_bytes = 2147483647u;
-      else
-        config.max_queued_rexmit_bytes = (unsigned) max;
+      {
+        DDS_ERROR ("AuxiliaryBandwidthLimit * NackDelay = %g bytes is insane\n", max);
+        goto err_config_late_error;
+      }
+      config.max_queued_rexmit_bytes = max > 2147483647.0 ? 2147483647u : (unsigned) max;
     }
 #else
     config.max_queued_rexmit_bytes = 2147483647u;
@@ -527,7 +526,7 @@ int rtps_config_prep (struct cfgst *cfgst)
   /* Verify thread properties refer to defined threads */
   if (!check_thread_properties ())
   {
-    DDS_ERROR("Could not initialise configuration\n");
+    DDS_TRACE ("Could not initialise configuration\n");
     goto err_config_late_error;
   }
 
@@ -551,8 +550,7 @@ int rtps_config_prep (struct cfgst *cfgst)
 
       if (config.transport_selector != TRANS_UDP && chptr->diffserv_field != 0)
       {
-        DDS_ERROR("channel %s specifies IPv4 DiffServ settings which is incompatible with IPv6 use\n",
-                   chptr->name);
+        DDS_ERROR ("channel %s specifies IPv4 DiffServ settings which is incompatible with IPv6 use\n", chptr->name);
         error = 1;
       }
 
@@ -575,7 +573,7 @@ int rtps_config_prep (struct cfgst *cfgst)
    printed */
   if (! rtps_config_open ())
   {
-    DDS_ERROR("Could not initialise configuration\n");
+    DDS_TRACE ("Could not initialise configuration\n");
     goto err_config_late_error;
   }
 
@@ -891,7 +889,7 @@ int rtps_init (void)
     tv.tv_sec = sec;
     tv.tv_nsec = usec * 1000;
     os_ctime_r (&tv, str, sizeof(str));
-    DDS_LOG(DDS_LC_INFO | DDS_LC_CONFIG, "started at %d.06%d -- %s\n", sec, usec, str);
+    DDS_LOG(DDS_LC_CONFIG, "started at %d.06%d -- %s\n", sec, usec, str);
   }
 
   /* Initialize thread pool */
@@ -940,7 +938,8 @@ int rtps_init (void)
 
   if (!find_own_ip (config.networkAddressString))
   {
-    DDS_ERROR("No network interface selected\n");
+    /* find_own_ip already logs a more informative error message */
+    DDS_LOG(DDS_LC_CONFIG, "No network interface selected\n");
     goto err_find_own_ip;
   }
   if (config.allowMulticast)

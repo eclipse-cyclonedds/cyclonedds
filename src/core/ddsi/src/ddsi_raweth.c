@@ -242,7 +242,7 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (uint32_t port, ddsi_tran_qos_t 
   uc->m_base.m_write_fn = ddsi_raweth_conn_write;
   uc->m_base.m_disable_multiplexing_fn = 0;
 
-  DDS_INFO("ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sock, uc->m_base.m_base.m_port);
+  DDS_TRACE("ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sock, uc->m_base.m_base.m_port);
   return uc ? &uc->m_base : NULL;
 }
 
@@ -294,7 +294,7 @@ static int ddsi_raweth_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcl
 static void ddsi_raweth_release_conn (ddsi_tran_conn_t conn)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
-  DDS_INFO
+  DDS_TRACE
   (
     "ddsi_raweth_release_conn %s socket %d port %d\n",
     conn->m_base.m_multicast ? "multicast" : "unicast",
@@ -359,7 +359,7 @@ static void ddsi_raweth_deinit(void)
   if (os_atomic_dec32_nv(&init_g) == 0) {
     if (ddsi_raweth_config_g.mship)
       free_group_membership(ddsi_raweth_config_g.mship);
-    DDS_LOG(DDS_LC_INFO | DDS_LC_CONFIG, "raweth de-initialized\n");
+    DDS_LOG(DDS_LC_CONFIG, "raweth de-initialized\n");
   }
 }
 
@@ -396,7 +396,7 @@ int ddsi_raweth_init (void)
 
     ddsi_raweth_config_g.mship = new_group_membership();
 
-    DDS_LOG(DDS_LC_INFO | DDS_LC_CONFIG, "raweth initialized\n");
+    DDS_LOG(DDS_LC_CONFIG, "raweth initialized\n");
   }
   return 0;
 }

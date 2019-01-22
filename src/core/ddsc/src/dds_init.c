@@ -77,7 +77,7 @@ dds_init(dds_domainid_t domain)
   dds_cfgst = config_init (uri);
   if (dds_cfgst == NULL)
   {
-    DDS_ERROR("Failed to parse configuration XML file %s\n", uri);
+    DDS_LOG(DDS_LC_CONFIG, "Failed to parse configuration XML file %s\n", uri);
     ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     goto fail_config;
   }
@@ -109,7 +109,7 @@ dds_init(dds_domainid_t domain)
 
   if (rtps_config_prep(dds_cfgst) != 0)
   {
-    DDS_ERROR("Failed to configure RTPS\n");
+    DDS_LOG(DDS_LC_CONFIG, "Failed to configure RTPS\n");
     ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     goto fail_rtps_config;
   }
@@ -132,7 +132,7 @@ dds_init(dds_domainid_t domain)
 
   if (rtps_init() < 0)
   {
-    DDS_ERROR("Failed to initialize RTPS\n");
+    DDS_LOG(DDS_LC_CONFIG, "Failed to initialize RTPS\n");
     ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     goto fail_rtps_init;
   }

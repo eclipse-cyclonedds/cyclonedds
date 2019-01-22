@@ -1866,9 +1866,8 @@ static int do_guid (nn_guid_t *dst, uint64_t *present, uint64_t fl, int (*valid)
     if (fl == PP_PARTICIPANT_GUID && vendor_is_twinoaks (dd->vendorid) &&
         dst->entityid.u == 0 && ! NN_STRICT_P)
     {
-      DDS_WARNING("plist(vendor %u.%u): rewriting invalid participant guid %x:%x:%x:%x\n",
-                  dd->vendorid.id[0], dd->vendorid.id[1],
-                  dst->prefix.u[0], dst->prefix.u[1], dst->prefix.u[2], dst->entityid.u);
+      DDS_LOG(DDS_LC_DISCOVERY, "plist(vendor %u.%u): rewriting invalid participant guid %x:%x:%x:%x\n",
+              dd->vendorid.id[0], dd->vendorid.id[1], PGUID (*dst));
       dst->entityid.u = NN_ENTITYID_PARTICIPANT;
     }
     else

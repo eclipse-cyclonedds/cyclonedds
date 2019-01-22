@@ -70,11 +70,6 @@ uint32_t threadMemory_thread (_In_opt_ void *args)
     returnval = os_threadMemMalloc (3, 100);
     CU_ASSERT (returnval != NULL);
 
-    /* Check os_threadMemMalloc with fail result for child thread for index already in use */
-    printf("Starting os_threadMemMalloc_004\n");
-    returnval = os_threadMemMalloc (3, 100);
-    CU_ASSERT (returnval == NULL);
-
     /* Check os_threadMemGet for child thread and non allocated index */
     printf("Starting os_threadMemGet_003\n");
     returnval = os_threadMemGet (OS_THREAD_WARNING);
@@ -637,24 +632,6 @@ CU_Test(os_thread, memmalloc)
     printf ("Starting os_thread_memmalloc_001\n");
     returnval = os_threadMemMalloc (3, 100);
     CU_ASSERT (returnval != NULL);
-
-    /* Check os_threadMemMalloc with fail result for main thread
-       for index already in use */
-    printf ("Starting os_thread_memmalloc_002\n");
-    returnval = os_threadMemMalloc (3, 100);
-    CU_ASSERT (returnval == NULL);
-
-    /* Check os_threadMemMalloc with fail result for main thread
-       for index < 0 */
-    printf ("Starting os_thread_memmalloc_003\n");
-    returnval = os_threadMemMalloc (-1, 100);
-    CU_ASSERT (returnval == NULL);
-
-    /* Check os_threadMemMalloc with fail result for main thread
-       for index >= OS_THREAD_MEM_ARRAY_SIZE */
-    printf ("Starting os_thread_memmalloc_004\n");
-    returnval = os_threadMemMalloc (OS_THREAD_MEM_ARRAY_SIZE, 100);
-    CU_ASSERT (returnval == NULL);
 
     printf ("Ending tc_thread_memmalloc\n");
 }
