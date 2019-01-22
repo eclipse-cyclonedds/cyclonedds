@@ -29,22 +29,11 @@ static int parse_args(int argc, char **argv, uint32_t *payloadSize, int *burstIn
 static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName);
 static void finalize_dds(dds_entity_t participant, dds_entity_t writer, ThroughputModule_DataType sample);
 
-/* Functions to handle Ctrl-C presses. */
-#ifdef _WIN32
-#include <Windows.h>
-static int CtrlHandler (DWORD fdwCtrlType)
-{
-  done = true;
-  return true; /* Don't let other handlers handle this key */
-}
-#else
-struct sigaction oldAction;
-static void CtrlHandler (int sig)
+static void sigint (int sig)
 {
   (void)sig;
   done = true;
 }
-#endif
 
 int main (int argc, char **argv)
 {
@@ -56,6 +45,8 @@ int main (int argc, char **argv)
   dds_entity_t participant;
   dds_entity_t writer;
   ThroughputModule_DataType sample;
+
+  setvbuf (stdout, NULL, _IOLBF, 0);
 
   if (parse_args(argc, argv, &payloadSize, &burstInterval, &burstSize, &timeOut, &partitionName) == EXIT_FAILURE) {
     return EXIT_FAILURE;
@@ -80,24 +71,10 @@ int main (int argc, char **argv)
   }
 
   /* Register handler for Ctrl-C */
-#ifdef _WIN32
-  SetConsoleCtrlHandler ((PHANDLER_ROUTINE) CtrlHandler, true);
-#else
-  struct sigaction sat;
-  sat.sa_handler = CtrlHandler;
-  sigemptyset (&sat.sa_mask);
-  sat.sa_flags = 0;
-  sigaction (SIGINT, &sat, &oldAction);
-#endif
+  signal (SIGINT, sigint);
 
   /* Register the sample instance and write samples repeatedly or until time out */
   start_writing(writer, &sample, burstInterval, burstSize, timeOut);
-
-#ifdef _WIN32
-  SetConsoleCtrlHandler (0, false);
-#else
-  sigaction (SIGINT, &oldAction, 0);
-#endif
 
   /* Cleanup */
   finalize_dds(participant, writer, sample);

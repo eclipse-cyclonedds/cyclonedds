@@ -1,0 +1,73 @@
+#!/bin/bash
+
+usage () {
+    cat >&2 <<EOF
+usage: $0 [OPTIONS] user@remote [user@remote...]
+
+OPTIONS
+  -i IF        use network interface IF (default: eth0)
+  -b 100|1000  network bandwidth (100Mbps/1000Gbps) for calculating load
+               % given load in bytes/second (default: 1000)
+  -d DIR       use DIR on remote (default: PWD)
+  -p           provision required binaries in DIR (default: false)
+               first ssh's in to try mkdir -p DIR, then follows up with scp
+  -t DUR       run for DUR seconds per size (default 20)
+  -a ASYNCLIST run for delivery async settings ASYNCLIST (default: "0 1")
+  -m MODELIST  run with subscriber mode settings MODELIST (default: "-1 0 1")
+  -s SIZELIST  run for sizes in SIZELIST (default: "0 16 32 64 128 256")
+  -l LOOPBACK  enable multicast loopback (true/false, default: true)
+  -o DIR       store results in dir.N where N is number of nodes
+
+Runs throughput-test with the specified options for each prefix of remote nodes.
+EOF
+    exit 1
+}
+
+export nwif=eth0
+bandwidth=1000
+remotedir="$PWD"
+provision=false
+asynclist="0 1"
+modelist="-1 0 1"
+sizelist="0 16 32 64 128 256"
+timeout=20
+loopback=true
+resultdir="throughput-result"
+while getopts "i:b:d:pa:m:s:t:o:l:" opt ; do
+    case $opt in
+        i) nwif="$OPTARG" ;;
+        b) bandwidth="$OPTARG" ;;
+        d) remotedir="$OPTARG" ;;
+        p) provision=true ;;
+        a) asynclist="$OPTARG" ;;
+        m) modelist="$OPTARG" ;;
+        s) sizelist="$OPTARG" ;;
+        l) loopback="OPTARG" ;;
+        t) timeout="$OPTARG" ;;
+        o) resultdir="$OPTARG" ;;
+        h) usage ;;
+    esac
+done
+shift $((OPTIND-1))
+if [ $# -lt 1 ] ; then usage ; fi
+pubremote=$1
+shift
+
+popt=
+$provision && popt=-p
+
+n=0
+while [[ $n -le $# ]] ; do
+    out=$resultdir.$(( $n + 1 ))
+    mkdir $out
+
+    otherhosts=""
+    j=1
+    while [[ $j -le $n ]] ; do
+        hostJ=`eval echo "\\$$j"`
+        otherhosts="$otherhosts $hostJ"
+        j=$(( $j + 1 ))
+    done
+    `dirname $0`/throughput-test -i "$nwif" -b "$bandwidth" -d "$remotedir" $popt -a "$asynclist" -m "$modelist" -s "$sizelist" -t "$timeout" -o $out $pubremote $otherhosts
+    n=$(( $n + 1 ))
+done
