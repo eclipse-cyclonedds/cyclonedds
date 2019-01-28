@@ -384,7 +384,7 @@ static void inapplicable_qos(dds_entity_kind_t qt, const char *n) {
     case DDS_KIND_SUBSCRIBER: en = "subscriber"; break;
     case DDS_KIND_WRITER: en = "writer"; break;
     case DDS_KIND_READER: en = "reader"; break;
-    case DDS_KIND_DONTCARE: en = "dontcare"; break;
+    case DDS_KIND_ANY: en = "any"; break;
     case DDS_KIND_PARTICIPANT: en = "participant"; break;
     case DDS_KIND_COND_READ: en = "cond read"; break;
     case DDS_KIND_COND_QUERY: en = "cond query"; break;

@@ -606,7 +606,7 @@ dds_entity_t dds_get_subscriber (dds_entity_t entity)
   else
   {
     DDS_ERROR ("Provided entity is not a reader nor a condition\n");
-    hdl = DDS_ERRNO (dds_valid_hdl (entity, DDS_KIND_READER));
+    hdl = DDS_ERRNO (dds_is_entity (entity, DDS_KIND_READER));
   }
 
   return hdl;

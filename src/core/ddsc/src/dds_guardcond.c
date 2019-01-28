@@ -43,7 +43,7 @@ dds_return_t dds_set_guardcondition (dds_entity_t condition, bool triggered)
   dds__retcode_t rc;
 
   if ((rc = dds_guardcond_lock (condition, &gcond)) != DDS_RETCODE_OK)
-    return DDS_ERRNO (dds_valid_hdl (condition, DDS_KIND_COND_GUARD));
+    return DDS_ERRNO (dds_is_entity (condition, DDS_KIND_COND_GUARD));
   else
   {
     os_mutexLock (&gcond->m_entity.m_observers_lock);
@@ -67,7 +67,7 @@ dds_return_t dds_read_guardcondition (dds_entity_t condition, bool *triggered)
 
   *triggered = false;
   if ((rc = dds_guardcond_lock (condition, &gcond)) != DDS_RETCODE_OK)
-    return DDS_ERRNO (dds_valid_hdl (condition, DDS_KIND_COND_GUARD));
+    return DDS_ERRNO (dds_is_entity (condition, DDS_KIND_COND_GUARD));
   else
   {
     os_mutexLock (&gcond->m_entity.m_observers_lock);
@@ -88,7 +88,7 @@ dds_return_t dds_take_guardcondition (dds_entity_t condition, bool *triggered)
 
   *triggered = false;
   if ((rc = dds_guardcond_lock (condition, &gcond)) != DDS_RETCODE_OK)
-    return DDS_ERRNO (dds_valid_hdl (condition, DDS_KIND_COND_GUARD));
+    return DDS_ERRNO (dds_is_entity (condition, DDS_KIND_COND_GUARD));
   else
   {
     os_mutexLock (&gcond->m_entity.m_observers_lock);

@@ -25,7 +25,7 @@ static dds__retcode_t dds_read_lock (dds_entity_t hdl, dds_reader **reader, dds_
 {
   dds__retcode_t rc;
   dds_entity *entity, *parent_entity;
-  if ((rc = dds_entity_lock (hdl, DDS_KIND_DONTCARE, &entity)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_lock (hdl, DDS_KIND_ANY, &entity)) != DDS_RETCODE_OK)
   {
     return rc;
   }

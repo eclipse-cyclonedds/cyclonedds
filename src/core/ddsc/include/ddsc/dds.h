@@ -2083,7 +2083,7 @@ dds_waitset_get_entities(
  * @param[in]  waitset  The waitset to attach the given entity to.
  * @param[in]  entity   The entity to attach.
  * @param[in]  x        Blob that will be supplied when the waitset wait is
- *                      triggerd by the given entity.
+ *                      triggered by the given entity.
  *
  * @returns A dds_return_t indicating success or failure.
  *

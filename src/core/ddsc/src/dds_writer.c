@@ -518,7 +518,7 @@ dds_get_publisher(
 {
     dds_entity_t hdl = DDS_RETCODE_OK;
 
-    hdl = dds_valid_hdl(writer, DDS_KIND_WRITER);
+    hdl = dds_is_entity(writer, DDS_KIND_WRITER);
     if(hdl != DDS_RETCODE_OK){
         DDS_ERROR("Provided handle is not writer kind, so it is not valid\n");
         hdl = DDS_ERRNO(hdl);

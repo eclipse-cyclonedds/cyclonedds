@@ -346,7 +346,7 @@ dds_waitset_attach(
     rc = dds_waitset_lock(waitset, &ws);
     if (rc == DDS_RETCODE_OK) {
         if (waitset != entity) {
-            rc = dds_entity_lock(entity, DDS_KIND_DONTCARE, &e);
+            rc = dds_entity_lock(entity, DDS_KIND_ANY, &e);
             if (rc != DDS_RETCODE_OK) {
                 e = NULL;
             }

@@ -98,9 +98,11 @@ dds_topic_descriptor_t;
 #define DDS_ENTITY_NIL 0
 
 #define DDS_ENTITY_KIND_MASK (0x7F000000) /* Should be same as UT_HANDLE_KIND_MASK. */
+#define DDS_IS_ENTITY_KIND(entity) \
+    ((entity) > 0 && ((entity) & DDS_ENTITY_KIND_MASK) != 0)
 typedef enum dds_entity_kind
 {
-  DDS_KIND_DONTCARE    = 0x00000000,
+  DDS_KIND_ANY         = 0x00000000,
   DDS_KIND_TOPIC       = 0x01000000,
   DDS_KIND_PARTICIPANT = 0x02000000,
   DDS_KIND_READER      = 0x03000000,

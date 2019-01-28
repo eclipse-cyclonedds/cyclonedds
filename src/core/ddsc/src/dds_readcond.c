@@ -80,7 +80,7 @@ dds_entity_t dds_get_datareader (dds_entity_t condition)
         hdl = dds_get_parent(condition);
     } else {
         DDS_ERROR("Argument condition is not valid\n");
-        hdl = DDS_ERRNO(dds_valid_hdl(condition, DDS_KIND_COND_READ));
+        hdl = DDS_ERRNO(dds_is_entity(condition, DDS_KIND_COND_READ));
     }
 
     return hdl;
@@ -94,12 +94,12 @@ dds_return_t dds_get_mask (dds_entity_t condition, uint32_t *mask)
   if (mask == NULL)
     return DDS_ERRNO (DDS_RETCODE_BAD_PARAMETER);
 
-  if ((rc = dds_entity_lock (condition, DDS_KIND_DONTCARE, &entity)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_lock (condition, DDS_KIND_ANY, &entity)) != DDS_RETCODE_OK)
     return DDS_ERRNO (rc);
   else if (dds_entity_kind (entity) != DDS_KIND_COND_READ && dds_entity_kind (entity) != DDS_KIND_COND_QUERY)
   {
     dds_entity_unlock (entity);
-    return DDS_ERRNO (dds_valid_hdl (condition, DDS_KIND_COND_READ));
+    return DDS_ERRNO (dds_is_entity (condition, DDS_KIND_COND_READ));
   }
   else
   {

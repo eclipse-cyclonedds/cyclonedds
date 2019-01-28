@@ -75,7 +75,7 @@ inline dds_entity_kind_t dds_entity_kind (const dds_entity *e) {
 }
 
 inline dds_entity_kind_t dds_entity_kind_from_handle (dds_entity_t hdl) {
-  return (hdl > 0) ? (dds_entity_kind_t) (hdl & DDS_ENTITY_KIND_MASK) : DDS_KIND_DONTCARE;
+  return (hdl > 0) ? (dds_entity_kind_t) (hdl & DDS_ENTITY_KIND_MASK) : DDS_KIND_ANY;
 }
 
 void dds_entity_status_signal (dds_entity *e);
@@ -83,7 +83,7 @@ void dds_entity_status_signal (dds_entity *e);
 void dds_entity_invoke_listener (const dds_entity *entity, enum dds_status_id which, const void *vst);
 
 _Check_return_ dds__retcode_t
-dds_valid_hdl(
+dds_is_entity(
         _In_ dds_entity_t hdl,
         _In_ dds_entity_kind_t kind);
 
