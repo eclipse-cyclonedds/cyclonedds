@@ -3326,7 +3326,9 @@ dds_get_topic(
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             Entity or parent parameter is not a valid parameter.
  * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The combination of entity and parent is not legal
+ *             The combination of entity and parent is not legal.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             Either entity or parent is already deleted.
  */
 DDS_EXPORT dds_entity_t
 dds_contains (
