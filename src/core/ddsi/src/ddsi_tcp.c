@@ -30,15 +30,10 @@ typedef struct ddsi_tran_factory * ddsi_tcp_factory_g_t;
 static os_atomic_uint32_t ddsi_tcp_init_g = OS_ATOMIC_UINT32_INIT(0);
 
 #ifdef DDSI_INCLUDE_SSL
-struct ddsi_ssl_plugins ddsi_tcp_ssl_plugin =
-  { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+static struct ddsi_ssl_plugins ddsi_tcp_ssl_plugin;
 #endif
 
 static const char * ddsi_name = "tcp";
-
-/* Stateless singleton instance handed out as client connection */
-
-static struct ddsi_tran_conn ddsi_tcp_conn_client;
 
 /*
   ddsi_tcp_conn: TCP connection for reading and writing. Mutex prevents concurrent
@@ -73,6 +68,10 @@ typedef struct ddsi_tcp_listener
 #endif
 }
 * ddsi_tcp_listener_t;
+
+/* Stateless singleton instance handed out as client connection */
+
+static struct ddsi_tcp_conn ddsi_tcp_conn_client;
 
 static int ddsi_tcp_cmp_conn (const struct ddsi_tcp_conn *c1, const struct ddsi_tcp_conn *c2)
 {
@@ -348,7 +347,7 @@ OS_WARNING_MSVC_ON(4267);
 }
 
 #ifdef DDSI_INCLUDE_SSL
-static os_ssize_t ddsi_tcp_conn_read_ssl (ddsi_tcp_conn_t tcp, void * buf, os_size_t len, int * err)
+static ssize_t ddsi_tcp_conn_read_ssl (ddsi_tcp_conn_t tcp, void * buf, size_t len, int * err)
 {
   return (ddsi_tcp_ssl_plugin.read) (tcp->m_ssl, buf, len, err);
 }
@@ -471,7 +470,7 @@ OS_WARNING_MSVC_OFF(4267);
 }
 
 #ifdef DDSI_INCLUDE_SSL
-static os_ssize_t ddsi_tcp_conn_write_ssl (ddsi_tcp_conn_t conn, const void * buf, os_size_t len, int * err)
+static ssize_t ddsi_tcp_conn_write_ssl (ddsi_tcp_conn_t conn, const void * buf, size_t len, int * err)
 {
   return (ddsi_tcp_ssl_plugin.write) (conn->m_ssl, buf, len, err);
 }
@@ -541,7 +540,7 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
 {
 #ifdef DDSI_INCLUDE_SSL
   char msgbuf[4096]; /* stack buffer for merging smallish writes without requiring allocations */
-  struct iovec iovec; /* iovec used for msgbuf */
+  os_iovec_t iovec; /* iovec used for msgbuf */
 #endif
   ssize_t ret;
   size_t len;
@@ -732,8 +731,7 @@ static ddsi_tran_conn_t ddsi_tcp_create_conn (uint32_t port, ddsi_tran_qos_t qos
 {
   (void) qos;
   (void) port;
-
-  return (ddsi_tran_conn_t) &ddsi_tcp_conn_client;
+  return &ddsi_tcp_conn_client.m_base;
 }
 
 static int ddsi_tcp_listen (ddsi_tran_listener_t listener)
@@ -936,7 +934,7 @@ static void ddsi_tcp_conn_delete (ddsi_tcp_conn_t conn)
 
 static void ddsi_tcp_close_conn (ddsi_tran_conn_t tc)
 {
-  if (tc != (ddsi_tran_conn_t) &ddsi_tcp_conn_client)
+  if (tc != &ddsi_tcp_conn_client.m_base)
   {
     char buff[DDSI_LOCSTRLEN];
     nn_locator_t loc;
@@ -952,7 +950,7 @@ static void ddsi_tcp_close_conn (ddsi_tran_conn_t tc)
 
 static void ddsi_tcp_release_conn (ddsi_tran_conn_t conn)
 {
-  if (conn != (ddsi_tran_conn_t) &ddsi_tcp_conn_client)
+  if (conn != &ddsi_tcp_conn_client.m_base)
   {
     ddsi_tcp_conn_delete ((ddsi_tcp_conn_t) conn);
   }
@@ -963,13 +961,6 @@ static void ddsi_tcp_unblock_listener (ddsi_tran_listener_t listener)
   ddsi_tcp_listener_t tl = (ddsi_tcp_listener_t) listener;
   os_socket sock;
   int ret;
-
-#ifdef DDSI_INCLUDE_SSL
-  if (ddsi_tcp_ssl_plugin.bio_vfree)
-  {
-    (ddsi_tcp_ssl_plugin.bio_vfree) (tl->m_bio);
-  }
-#endif
 
   /* Connect to own listener socket to wake listener from blocking 'accept()' */
   ddsi_tcp_sock_new (&sock, 0);
@@ -1020,6 +1011,12 @@ static void ddsi_tcp_unblock_listener (ddsi_tran_listener_t listener)
 static void ddsi_tcp_release_listener (ddsi_tran_listener_t listener)
 {
   ddsi_tcp_listener_t tl = (ddsi_tcp_listener_t) listener;
+#ifdef DDSI_INCLUDE_SSL
+  if (ddsi_tcp_ssl_plugin.bio_vfree)
+  {
+    (ddsi_tcp_ssl_plugin.bio_vfree) (tl->m_bio);
+  }
+#endif
   ddsi_tcp_sock_free (tl->m_sock, "listener");
   os_free (tl);
 }
@@ -1097,17 +1094,14 @@ int ddsi_tcp_init (void)
 #endif
 
     memset (&ddsi_tcp_conn_client, 0, sizeof (ddsi_tcp_conn_client));
-    ddsi_tcp_base_init (&ddsi_tcp_conn_client);
+    ddsi_tcp_base_init (&ddsi_tcp_conn_client.m_base);
 
 #ifdef DDSI_INCLUDE_SSL
-    if (ddsi_tcp_ssl_plugin.config)
-    {
-      (ddsi_tcp_ssl_plugin.config) ();
-    }
-    if (ddsi_tcp_ssl_plugin.init)
+    if (config.ssl_enable)
     {
       ddsi_name = "tcp/ssl";
-      if (! (ddsi_tcp_ssl_plugin.init) ())
+      ddsi_ssl_config_plugin (&ddsi_tcp_ssl_plugin);
+      if (! ddsi_tcp_ssl_plugin.init ())
       {
         DDS_ERROR("Failed to initialize OpenSSL\n");
         return -1;

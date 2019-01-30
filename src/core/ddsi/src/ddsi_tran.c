@@ -59,12 +59,15 @@ ddsi_tran_factory_t ddsi_factory_find (const char * type)
 
 void ddsi_tran_factories_fini (void)
 {
-    ddsi_tran_factory_t factory;
-
-    while ((factory = ddsi_tran_factories) != NULL) {
-        ddsi_tran_factories = factory->m_factory;
-        ddsi_factory_free(factory);
-    }
+  ddsi_tran_factory_t factory;
+  while ((factory = ddsi_tran_factories) != NULL)
+  {
+    /* Keep the factory in the list for the duration of "factory_free" so that
+       conversion of locator kind to factory remains possible. */
+    ddsi_tran_factory_t next = factory->m_factory;
+    ddsi_factory_free (factory);
+    ddsi_tran_factories = next;
+  }
 }
 
 static ddsi_tran_factory_t ddsi_factory_find_with_len (const char * type, size_t len)

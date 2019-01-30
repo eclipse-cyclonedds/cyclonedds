@@ -679,7 +679,7 @@ static const struct cfgelem ssl_cfgelems[] = {
     "<p>This enables SSL/TLS for TCP.</p>" },
     { LEAF("CertificateVerification"), 1, "true", ABSOFF(ssl_verify), 0, uf_boolean, 0, pf_boolean,
     "<p>If disabled this allows SSL connections to occur even if an X509 certificate fails verification.</p>" },
-    { LEAF("VerifyClient"), 1, "false", ABSOFF(ssl_verify_client), 0, uf_boolean, 0, pf_boolean,
+    { LEAF("VerifyClient"), 1, "true", ABSOFF(ssl_verify_client), 0, uf_boolean, 0, pf_boolean,
     "<p>This enables an SSL server checking the X509 certificate of a connecting client.</p>" },
     { LEAF("SelfSignedCertificates"), 1, "false", ABSOFF(ssl_self_signed), 0, uf_boolean, 0, pf_boolean,
     "<p>This enables the use of self signed X509 certificates.</p>" },

@@ -20,19 +20,16 @@
 
 struct ddsi_ssl_plugins
 {
-  void (*config) (void);
-  c_bool (*init) (void);
+  bool (*init) (void);
   void (*fini) (void);
-  void (*ssl_free) (SSL * ssl);
-  void (*bio_vfree) (BIO * bio);
-  os_ssize_t (*read) (SSL * ssl, void * buf, os_size_t len, int * err);
-  os_ssize_t (*write) (SSL * ssl, const void * msg, os_size_t len, int * err);
+  void (*ssl_free) (SSL *ssl);
+  void (*bio_vfree) (BIO *bio);
+  ssize_t (*read) (SSL *ssl, void *buf, size_t len, int *err);
+  ssize_t (*write) (SSL *ssl, const void *msg, size_t len, int *err);
   SSL * (*connect) (os_socket sock);
   BIO * (*listen) (os_socket sock);
-  SSL * (*accept) (BIO * bio, os_socket * sock);
+  SSL * (*accept) (BIO *bio, os_socket *sock);
 };
-
-struct ddsi_ssl_plugins ddsi_tcp_ssl_plugin;
 
 #endif
 

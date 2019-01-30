@@ -19,7 +19,6 @@ FUNCTION(PREPEND var prefix)
    SET(${var} "${listVar}" PARENT_SCOPE)
 ENDFUNCTION(PREPEND)
 
-
 option(DDSC_SHARED "Build DDSC as a shared library" ON)
 
 if(DDSC_SHARED AND ((NOT DEFINED BUILD_SHARED_LIBS) OR BUILD_SHARED_LIBS))
@@ -33,6 +32,14 @@ else()
 endif()
 
 add_definitions(-DDDSI_INCLUDE_NETWORK_PARTITIONS -DDDSI_INCLUDE_SSM)
+
+find_package(OpenSSL)
+if(OPENSSL_FOUND)
+  add_definitions(-DDDSI_INCLUDE_SSL)
+  include_directories(${OPENSSL_INCLUDE_DIR})
+  target_link_libraries(ddsc PRIVATE ${OPENSSL_LIBRARIES})
+  message(STATUS "Using OpenSSL ${OPENSSL_VERSION} at ${OPENSSL_INCLUDE_DIR}")
+endif()
 
 include(ddsi/CMakeLists.txt)
 include(ddsc/CMakeLists.txt)
