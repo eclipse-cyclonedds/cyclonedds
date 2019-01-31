@@ -31,7 +31,7 @@ extern inline int ddsi_tran_locator (ddsi_tran_base_t base, nn_locator_t * loc);
 extern inline int ddsi_listener_locator (ddsi_tran_listener_t listener, nn_locator_t * loc);
 extern inline int ddsi_listener_listen (ddsi_tran_listener_t listener);
 extern inline ddsi_tran_conn_t ddsi_listener_accept (ddsi_tran_listener_t listener);
-extern inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, nn_locator_t *srcloc);
+extern inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc);
 extern inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const os_iovec_t *iov, uint32_t flags);
 
 void ddsi_factory_add (ddsi_tran_factory_t factory)

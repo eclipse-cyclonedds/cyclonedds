@@ -2970,7 +2970,13 @@ static bool do_packet
 
     /* Read in DDSI header plus MSG_LEN sub message that follows it */
 
-    sz = ddsi_conn_read (conn, buff, stream_hdr_size, &srcloc);
+    sz = ddsi_conn_read (conn, buff, stream_hdr_size, true, &srcloc);
+    if (sz == 0)
+    {
+      /* Spurious read -- which at this point is still ok */
+      nn_rmsg_commit (rmsg);
+      return true;
+    }
 
     /* Read in remainder of packet */
 
@@ -2998,7 +3004,7 @@ static bool do_packet
       }
       else
       {
-        sz = ddsi_conn_read (conn, buff + stream_hdr_size, ml->length - stream_hdr_size, NULL);
+        sz = ddsi_conn_read (conn, buff + stream_hdr_size, ml->length - stream_hdr_size, false, NULL);
         if (sz > 0)
         {
           sz = (ssize_t) ml->length;
@@ -3010,7 +3016,7 @@ static bool do_packet
   {
     /* Get next packet */
 
-    sz = ddsi_conn_read (conn, buff, buff_len, &srcloc);
+    sz = ddsi_conn_read (conn, buff, buff_len, true, &srcloc);
   }
 
   if (sz > 0 && !gv.deaf)

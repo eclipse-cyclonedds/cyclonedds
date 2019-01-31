@@ -36,7 +36,7 @@ typedef struct ddsi_tran_qos * ddsi_tran_qos_t;
 
 /* Function pointer types */
 
-typedef ssize_t (*ddsi_tran_read_fn_t) (ddsi_tran_conn_t, unsigned char *, size_t, nn_locator_t *);
+typedef ssize_t (*ddsi_tran_read_fn_t) (ddsi_tran_conn_t, unsigned char *, size_t, bool, nn_locator_t *);
 typedef ssize_t (*ddsi_tran_write_fn_t) (ddsi_tran_conn_t, const nn_locator_t *, size_t, const os_iovec_t *, uint32_t);
 typedef int (*ddsi_tran_locator_fn_t) (ddsi_tran_base_t, nn_locator_t *);
 typedef bool (*ddsi_tran_supports_fn_t) (int32_t);
@@ -220,8 +220,8 @@ inline int ddsi_conn_locator (ddsi_tran_conn_t conn, nn_locator_t * loc) {
 inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const os_iovec_t *iov, uint32_t flags) {
   return conn->m_closed ? -1 : (conn->m_write_fn) (conn, dst, niov, iov, flags);
 }
-inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, nn_locator_t *srcloc) {
-  return conn->m_closed ? -1 : conn->m_read_fn (conn, buf, len, srcloc);
+inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc) {
+  return conn->m_closed ? -1 : conn->m_read_fn (conn, buf, len, allow_spurious, srcloc);
 }
 bool ddsi_conn_peer_locator (ddsi_tran_conn_t conn, nn_locator_t * loc);
 void ddsi_conn_disable_multiplexing (ddsi_tran_conn_t conn);

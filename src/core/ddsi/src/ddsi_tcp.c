@@ -395,7 +395,7 @@ static int err_is_AGAIN_or_WOULDBLOCK (int err)
   return 0;
 }
 
-static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, nn_locator_t *srcloc)
+static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc)
 {
   ddsi_tcp_conn_t tcp = (ddsi_tcp_conn_t) conn;
   ssize_t (*rd) (ddsi_tcp_conn_t, void *, size_t, int * err) = ddsi_tcp_conn_read_plain;
@@ -436,10 +436,10 @@ static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
       {
         if (err_is_AGAIN_or_WOULDBLOCK (err))
         {
-          if (ddsi_tcp_select (tcp->m_sock, true, pos) == false)
-          {
+          if (allow_spurious && pos == 0)
+            return 0;
+          else if (ddsi_tcp_select (tcp->m_sock, true, pos) == false)
             break;
-          }
         }
         else
         {
