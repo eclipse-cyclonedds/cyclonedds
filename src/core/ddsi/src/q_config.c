@@ -165,6 +165,9 @@ DUPF(durability_cdr);
 DUPF(transport_selector);
 DUPF(many_sockets_mode);
 DU(deaf_mute);
+#ifdef DDSI_INCLUDE_SSL
+DUPF(min_tls_version);
+#endif
 #undef DUPF
 #undef DU
 #undef PF
@@ -691,6 +694,8 @@ static const struct cfgelem ssl_cfgelems[] = {
     "<p>The set of ciphers used by SSL/TLS</p>" },
     { LEAF("EntropyFile"), 1, "", ABSOFF(ssl_rand_file), 0, uf_string, ff_free, pf_string,
     "<p>The SSL/TLS random entropy file name.</p>" },
+    { LEAF("MinimumTLSVersion"), 1, "1.3", ABSOFF(ssl_min_version), 0, uf_min_tls_version, 0, pf_min_tls_version,
+    "<p>The minimum TLS version that may be negotiated, valid values are 1.2 and 1.3.</p>" },
     END_MARKER
 };
 #endif
@@ -1408,6 +1413,30 @@ static void pf_besmode(struct cfgst *cfgst, void *parent, struct cfgelem const *
     cfg_log(cfgst, "%s%s", str, is_default ? " [def]" : "");
 }
 
+#ifdef DDSI_INCLUDE_SSL
+static int uf_min_tls_version(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
+{
+  static const char *vs[] = {
+    "1.2", "1.3", NULL
+  };
+  static const struct ssl_min_version ms[] = {
+    {1,2}, {1,3}, {0,0}
+  };
+  int idx = list_index(vs, value);
+  struct ssl_min_version *elem = cfg_address(cfgst, parent, cfgelem);
+  assert(sizeof(vs) / sizeof(*vs) == sizeof(ms) / sizeof(*ms));
+  if ( idx < 0 )
+    return cfg_error(cfgst, "'%s': undefined value", value);
+  *elem = ms[idx];
+  return 1;
+}
+
+static void pf_min_tls_version(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
+{
+  struct ssl_min_version *p = cfg_address(cfgst, parent, cfgelem);
+  cfg_log(cfgst, "%d.%d%s", p->major, p->minor, is_default ? " [def]" : "");
+}
+#endif
 
 static int uf_durability_cdr(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
 {

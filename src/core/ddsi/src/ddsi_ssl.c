@@ -168,6 +168,7 @@ static int ddsi_ssl_password (char *buf, int num, int rwflag, void *udata)
 static SSL_CTX *ddsi_ssl_ctx_init (void)
 {
   SSL_CTX *ctx = SSL_CTX_new (SSLv23_method ());
+  unsigned disallow_TLSv1_2;
 
   /* Load certificates */
   if (! SSL_CTX_use_certificate_file (ctx, config.ssl_keystore, SSL_FILETYPE_PEM))
@@ -220,7 +221,32 @@ static SSL_CTX *ddsi_ssl_ctx_init (void)
       i |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
     SSL_CTX_set_verify (ctx, i, ddsi_ssl_verify);
   }
-  SSL_CTX_set_options (ctx, SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
+  switch (config.ssl_min_version.major)
+  {
+    case 1:
+      switch (config.ssl_min_version.minor)
+      {
+        case 2:
+          disallow_TLSv1_2 = 0;
+          break;
+        case 3:
+#ifdef SSL_OP_NO_TLSv1_2
+          disallow_TLSv1_2 = SSL_OP_NO_TLSv1_2;
+#else
+          DDS_LOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl: openssl version does not support disabling TLSv1.2 as required by config\n");
+          goto fail;
+#endif
+          break;
+        default:
+          DDS_LOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl: can't set minimum requested TLS version to %d.%d\n", config.ssl_min_version.major, config.ssl_min_version.minor);
+          goto fail;
+      }
+      break;
+    default:
+      DDS_LOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl: can't set minimum requested TLS version to %d.%d\n", config.ssl_min_version.major, config.ssl_min_version.minor);
+      goto fail;
+  }
+  SSL_CTX_set_options (ctx, SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | disallow_TLSv1_2);
   return ctx;
 
 fail:

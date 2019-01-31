@@ -213,6 +213,13 @@ enum many_sockets_mode {
   MSM_MANY_UNICAST
 };
 
+#ifdef DDSI_INCLUDE_SSL
+struct ssl_min_version {
+  int major;
+  int minor;
+};
+#endif
+
 struct config
 {
   int valid;
@@ -301,6 +308,7 @@ struct config
   char * ssl_rand_file;
   char * ssl_key_pass;
   char * ssl_ciphers;
+  struct ssl_min_version ssl_min_version;
 
 #endif
 
