@@ -5,27 +5,33 @@ language: c
 #       anchor/alias YAML features.
 linux_gcc8: &linux_gcc8
   os: linux
+  dist: xenial
   compiler: gcc
   addons:
     apt:
       update: true
       sources: [ ubuntu-toolchain-r-test ]
-      packages: [ gcc-8 g++-8 oracle-java8-set-default maven ]
+      #packages: [ gcc-8 g++-8 maven cmake ]
+      packages: [ gcc-8 g++-8 ]
 
-linux_clang60: &linux_clang60
+linux_clang: &linux_clang
   os: linux
+  dist: xenial
   compiler: clang
   addons:
     apt:
       update: true
-      sources: [ llvm-toolchain-trusty-6.0, ubuntu-toolchain-r-test ]
-      packages: [ clang-6.0 oracle-java8-set-default maven ]
+      #sources: [ ubuntu-toolchain-r-test ]
+      #packages: [ maven clang ]
 
-osx_xcode94: &osx_xcode94
+osx_xcode10_1: &osx_xcode10_1
   os: osx
-  osx_image: xcode94
+  osx_image: xcode10.1
   compiler: clang
-
+  addons:
+    homebrew:
+      packages:
+      - pyenv-virtualenv
 
 matrix:
   include:
@@ -33,13 +39,13 @@ matrix:
       env: [ BUILD_TYPE=Debug, C_COMPILER=gcc-8, CXX_COMPILER=g++-8, USE_SANITIZER=none ]
     - <<: *linux_gcc8
       env: [ BUILD_TYPE=Release, C_COMPILER=gcc-8, CXX_COMPILER=g++-8, USE_SANITIZER=none ]
-    - <<: *linux_clang60
-      env: [ BUILD_TYPE=Debug, C_COMPILER=clang-6.0, CXX_COMPILER=clang++-6.0, USE_SANITIZER=address ]
-    - <<: *linux_clang60
-      env: [ BUILT_TYPE=Release, C_COMPILER=clang-6.0, CXX_COMPILER=clang++-6.0, USE_SANITIZER=none ]
-    - <<: *osx_xcode94
+    - <<: *linux_clang
       env: [ BUILD_TYPE=Debug, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=address ]
-    - <<: *osx_xcode94
+    - <<: *linux_clang
+      env: [ BUILT_TYPE=Release, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=none ]
+    - <<: *osx_xcode10_1
+      env: [ BUILD_TYPE=Debug, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=address ]
+    - <<: *osx_xcode10_1
       env: [ BUILD_TYPE=Release, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=none ]
 
 
@@ -49,7 +55,6 @@ before_install:
 
 install:
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-      brew install pyenv-virtualenv;
       eval "$(pyenv init -)";
       pyenv virtualenv conan;
       pyenv rehash;
@@ -66,7 +71,7 @@ before_script:
 script:
   - mkdir build
   - cd build
-  - conan install ..
+  - conan install .. --build missing
   - cmake -DBUILD_TESTING=on -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_SANITIZER=${USE_SANITIZER} -DCMAKE_INSTALL_PREFIX=${PWD}/install ../src
   - cmake --build . --target install
   - mkdir install/share/CycloneDDS/examples/helloworld/build
