@@ -270,9 +270,14 @@ static SSL *ddsi_ssl_connect (os_socket sock)
   SSL *ssl;
   int err;
 
-  /* Connect SSL over connected socket */
+  /* Connect SSL over connected socket; on Win64 a SOCKET is 64-bit type is forced into an int by
+     the OpenSSL API. Lots of software does use openssl on Win64, so it appears that it is
+     safe to do so, and moreover, that it will remain safe to do so, given Microsoft's track
+     record of maintaining backwards compatibility. The SSL API is in the wrong of course ... */
   ssl = ddsi_ssl_new ();
+  OS_WARNING_MSVC_OFF(4244);
   SSL_set_fd (ssl, sock);
+  OS_WARNING_MSVC_ON(4244);
   err = SSL_connect (ssl);
   if (err != 1)
   {
@@ -286,8 +291,11 @@ static SSL *ddsi_ssl_connect (os_socket sock)
 
 static BIO *ddsi_ssl_listen (os_socket sock)
 {
+  /* See comment in ddsi_ssl_connect concerning casting the socket to an int */
   BIO * bio = BIO_new (BIO_s_accept ());
+  OS_WARNING_MSVC_OFF(4244);
   BIO_set_fd (bio, sock, BIO_NOCLOSE);
+  OS_WARNING_MSVC_ON(4244);
   return bio;
 }
 

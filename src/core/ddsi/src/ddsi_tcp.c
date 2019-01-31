@@ -602,7 +602,7 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
     {
       int i;
       char * ptr;
-      iovec.iov_len = len;
+      iovec.iov_len = (os_iov_len_t) len;
       iovec.iov_base = (len <= sizeof (msgbuf)) ? msgbuf : os_malloc (len);
       ptr = iovec.iov_base;
       for (i = 0; i < (int) msg.msg_iovlen; i++)
