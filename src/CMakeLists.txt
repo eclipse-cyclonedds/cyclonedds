@@ -80,6 +80,7 @@ if(EXISTS "${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
   else()
     conan_basic_setup()
   endif()
+  conan_define_targets()
 endif()
 
 # Set reasonably strict warning options for clang, gcc, msvc
