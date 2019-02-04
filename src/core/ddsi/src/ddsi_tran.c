@@ -31,7 +31,7 @@ extern inline int ddsi_tran_locator (ddsi_tran_base_t base, nn_locator_t * loc);
 extern inline int ddsi_listener_locator (ddsi_tran_listener_t listener, nn_locator_t * loc);
 extern inline int ddsi_listener_listen (ddsi_tran_listener_t listener);
 extern inline ddsi_tran_conn_t ddsi_listener_accept (ddsi_tran_listener_t listener);
-extern inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, nn_locator_t *srcloc);
+extern inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc);
 extern inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const os_iovec_t *iov, uint32_t flags);
 
 void ddsi_factory_add (ddsi_tran_factory_t factory)
@@ -59,12 +59,15 @@ ddsi_tran_factory_t ddsi_factory_find (const char * type)
 
 void ddsi_tran_factories_fini (void)
 {
-    ddsi_tran_factory_t factory;
-
-    while ((factory = ddsi_tran_factories) != NULL) {
-        ddsi_tran_factories = factory->m_factory;
-        ddsi_factory_free(factory);
-    }
+  ddsi_tran_factory_t factory;
+  while ((factory = ddsi_tran_factories) != NULL)
+  {
+    /* Keep the factory in the list for the duration of "factory_free" so that
+       conversion of locator kind to factory remains possible. */
+    ddsi_tran_factory_t next = factory->m_factory;
+    ddsi_factory_free (factory);
+    ddsi_tran_factories = next;
+  }
 }
 
 static ddsi_tran_factory_t ddsi_factory_find_with_len (const char * type, size_t len)

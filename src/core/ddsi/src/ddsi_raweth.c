@@ -63,7 +63,7 @@ static char *ddsi_raweth_to_string (ddsi_tran_factory_t tran, char *dst, size_t 
   return dst;
 }
 
-static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, nn_locator_t *srcloc)
+static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc)
 {
   int err;
   ssize_t ret;
@@ -71,6 +71,7 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
   struct sockaddr_ll src;
   struct iovec msg_iov;
   socklen_t srclen = (socklen_t) sizeof (src);
+  (void) allow_spurious;
 
   msg_iov.iov_base = (void*) buf;
   msg_iov.iov_len = len;
