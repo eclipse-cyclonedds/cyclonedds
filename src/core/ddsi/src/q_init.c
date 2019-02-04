@@ -1499,7 +1499,6 @@ void rtps_stop (void)
   }
 
   {
-    const nn_vendorid_t ownvendorid = MY_VENDOR_ID;
     struct ephash_enum_writer est_wr;
     struct ephash_enum_reader est_rd;
     struct ephash_enum_participant est_pp;
@@ -1515,7 +1514,7 @@ void rtps_stop (void)
     ephash_enum_writer_init (&est_wr);
     while ((wr = ephash_enum_writer_next (&est_wr)) != NULL)
     {
-      if (!is_builtin_entityid (wr->e.guid.entityid, ownvendorid))
+      if (!is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE))
         delete_writer_nolinger (&wr->e.guid);
     }
     ephash_enum_writer_fini (&est_wr);
@@ -1523,7 +1522,7 @@ void rtps_stop (void)
     ephash_enum_reader_init (&est_rd);
     while ((rd = ephash_enum_reader_next (&est_rd)) != NULL)
     {
-      if (!is_builtin_entityid (rd->e.guid.entityid, ownvendorid))
+      if (!is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE))
         (void)delete_reader (&rd->e.guid);
     }
     ephash_enum_reader_fini (&est_rd);

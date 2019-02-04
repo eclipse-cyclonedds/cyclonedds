@@ -18,26 +18,24 @@
 extern "C" {
 #endif
 
-struct nn_guid;
+inline seqno_t fromSN (const nn_sequence_number_t sn) {
+  return ((seqno_t) sn.high << 32) | sn.low;
+}
 
-int vendor_is_lite (nn_vendorid_t vendor);
-int vendor_is_opensplice (nn_vendorid_t vid);
-int vendor_is_rti (nn_vendorid_t vendor);
-int vendor_is_twinoaks (nn_vendorid_t vendor);
-int vendor_is_prismtech (nn_vendorid_t vendor);
-int vendor_is_cloud (nn_vendorid_t vendor);
-int is_own_vendor (nn_vendorid_t vendor);
+inline nn_sequence_number_t toSN (seqno_t n) {
+  nn_sequence_number_t x;
+  x.high = (int) (n >> 32);
+  x.low = (unsigned) n;
+  return x;
+}
+
 unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr, int datafrag_as_data);
-
-seqno_t fromSN (const nn_sequence_number_t sn);
-nn_sequence_number_t toSN (seqno_t);
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 int WildcardOverlap(char * p1, char * p2);
 #endif
 
 int ddsi2_patmatch (const char *pat, const char *str);
-
 
 uint32_t crc32_calc (const void *buf, size_t length);
 

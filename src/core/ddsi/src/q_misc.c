@@ -15,71 +15,8 @@
 #include "ddsi/q_bswap.h"
 #include "ddsi/q_md5.h"
 
-int vendor_is_rti (nn_vendorid_t vendor)
-{
-  const nn_vendorid_t rti = NN_VENDORID_RTI;
-  return vendor.id[0] == rti.id[0] && vendor.id[1] == rti.id[1];
-}
-
-int vendor_is_twinoaks (nn_vendorid_t vendor)
-{
-  const nn_vendorid_t twinoaks = NN_VENDORID_TWINOAKS;
-  return vendor.id[0] == twinoaks.id[0] && vendor.id[1] == twinoaks.id[1];
-}
-
-int vendor_is_cloud (nn_vendorid_t vendor)
-{
-  const nn_vendorid_t cloud = NN_VENDORID_PRISMTECH_CLOUD;
-  return vendor.id[0] == cloud.id[0] && vendor.id[1] == cloud.id[1];
-}
-
-int vendor_is_prismtech (nn_vendorid_t vid)
-{
-  const nn_vendorid_t pt1 = NN_VENDORID_PRISMTECH_OSPL;
-  const nn_vendorid_t pt2 = NN_VENDORID_PRISMTECH_LITE;
-  const nn_vendorid_t pt3 = NN_VENDORID_PRISMTECH_GATEWAY;
-  const nn_vendorid_t pt4 = NN_VENDORID_PRISMTECH_JAVA;
-  const nn_vendorid_t pt5 = NN_VENDORID_PRISMTECH_CLOUD;
-  const nn_vendorid_t pt6 = NN_VENDORID_ECLIPSE_CYCLONEDDS;
-
-  return
-    (vid.id[0] == pt1.id[0]) &&
-    ((vid.id[1] == pt1.id[1]) || (vid.id[1] == pt2.id[1])
-     || (vid.id[1] == pt3.id[1]) || (vid.id[1] == pt4.id[1])
-     || (vid.id[1] == pt5.id[1]) || (vid.id[1] == pt6.id[1]));
-}
-
-int vendor_is_opensplice (nn_vendorid_t vid)
-{
-  const nn_vendorid_t pt1 = NN_VENDORID_PRISMTECH_OSPL;
-  return (vid.id[0] == pt1.id[0] && vid.id[1] == pt1.id[1]);
-}
-
-int vendor_is_lite (nn_vendorid_t vid)
-{
-  const nn_vendorid_t pt1 = NN_VENDORID_PRISMTECH_LITE;
-  return (vid.id[0] == pt1.id[0] && vid.id[1] == pt1.id[1]);
-}
-
-int is_own_vendor (nn_vendorid_t vendor)
-{
-  const nn_vendorid_t ownid = MY_VENDOR_ID;
-  return vendor.id[0] == ownid.id[0] && vendor.id[1] == ownid.id[1];
-}
-
-
-seqno_t fromSN (const nn_sequence_number_t sn)
-{
-  return ((seqno_t) sn.high << 32) | sn.low;
-}
-
-nn_sequence_number_t toSN (seqno_t n)
-{
-  nn_sequence_number_t x;
-  x.high = (int) (n >> 32);
-  x.low = (unsigned) n;
-  return x;
-}
+extern inline seqno_t fromSN (const nn_sequence_number_t sn);
+extern inline nn_sequence_number_t toSN (seqno_t n);
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 int WildcardOverlap(char * p1, char * p2)

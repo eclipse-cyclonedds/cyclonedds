@@ -41,8 +41,6 @@
 #include "ddsi/q_md5.h"
 #include "ddsi/q_feature_check.h"
 
-static const nn_vendorid_t ownvendorid = MY_VENDOR_ID;
-
 static int get_locator (nn_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)
 {
   struct nn_locators_one *l;
@@ -182,7 +180,6 @@ static int write_mpayload (struct writer *wr, int alive, nn_parameterid_t keypar
 
 int spdp_write (struct participant *pp)
 {
-  static const nn_vendorid_t myvendorid = MY_VENDOR_ID;
   struct nn_xmsg *mpayload;
   struct nn_locators_one def_uni_loc_one, def_multi_loc_one, meta_uni_loc_one, meta_multi_loc_one;
   nn_plist_t ps;
@@ -220,7 +217,7 @@ int spdp_write (struct participant *pp)
   ps.builtin_endpoint_set = pp->bes;
   ps.protocol_version.major = RTPS_MAJOR;
   ps.protocol_version.minor = RTPS_MINOR;
-  ps.vendorid = myvendorid;
+  ps.vendorid = NN_VENDORID_ECLIPSE;
   if (pp->prismtech_bes)
   {
     ps.present |= PP_PRISMTECH_BUILTIN_ENDPOINT_SET;
@@ -460,7 +457,7 @@ static struct proxy_participant *find_ddsi2_proxy_participant (const nn_guid_t *
   ephash_enum_proxy_participant_init (&it);
   while ((pp = ephash_enum_proxy_participant_next (&it)) != NULL)
   {
-    if (vendor_is_opensplice (pp->vendor) && pp->e.guid.prefix.u[0] == ppguid->prefix.u[0] && pp->is_ddsi2_pp)
+    if (vendor_is_eclipse_or_opensplice (pp->vendor) && pp->e.guid.prefix.u[0] == ppguid->prefix.u[0] && pp->is_ddsi2_pp)
       break;
   }
   ephash_enum_proxy_participant_fini (&it);
@@ -478,7 +475,7 @@ static void make_participants_dependent_on_ddsi2 (const nn_guid_t *ddsi2guid, nn
   ephash_enum_proxy_participant_init (&it);
   while ((pp = ephash_enum_proxy_participant_next (&it)) != NULL)
   {
-    if (vendor_is_opensplice (pp->vendor) && pp->e.guid.prefix.u[0] == ddsi2guid->prefix.u[0] && !pp->is_ddsi2_pp)
+    if (vendor_is_eclipse_or_opensplice (pp->vendor) && pp->e.guid.prefix.u[0] == ddsi2guid->prefix.u[0] && !pp->is_ddsi2_pp)
     {
       DDS_TRACE("proxy participant %x:%x:%x:%x depends on ddsi2 %x:%x:%x:%x", PGUID (pp->e.guid), PGUID (*ddsi2guid));
       os_mutexLock (&pp->e.lock);
@@ -647,7 +644,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
        until the "privileged" one expires anyway */
     lease_duration = nn_to_ddsi_duration (T_NEVER);
   }
-  else if (vendor_is_opensplice (rst->vendor) && !(custom_flags & CF_PARTICIPANT_IS_DDSI2))
+  else if (vendor_is_eclipse_or_opensplice (rst->vendor) && !(custom_flags & CF_PARTICIPANT_IS_DDSI2))
   {
     /* Non-DDSI2 participants are made dependent on DDSI2 (but DDSI2
        itself need not be discovered yet) */
@@ -868,7 +865,6 @@ static int sedp_write_endpoint
    const nn_xqos_t *xqos, struct addrset *as)
 {
   const nn_xqos_t *defqos = is_writer_entityid (epguid->entityid) ? &gv.default_xqos_wr : &gv.default_xqos_rd;
-  const nn_vendorid_t my_vendor_id = MY_VENDOR_ID;
   struct nn_xmsg *mpayload;
   uint64_t qosdiff;
   nn_plist_t ps;
@@ -898,7 +894,7 @@ static int sedp_write_endpoint
     ps.present |= PP_PROTOCOL_VERSION | PP_VENDORID;
     ps.protocol_version.major = RTPS_MAJOR;
     ps.protocol_version.minor = RTPS_MINOR;
-    ps.vendorid = my_vendor_id;
+    ps.vendorid = NN_VENDORID_ECLIPSE;
 
     if (epcommon->group_guid.entityid.u != 0)
     {
@@ -959,7 +955,7 @@ static struct writer *get_sedp_writer (const struct participant *pp, unsigned en
 
 int sedp_write_writer (struct writer *wr)
 {
-  if ((!is_builtin_entityid(wr->e.guid.entityid, ownvendorid)) && (!wr->e.onlylocal))
+  if ((!is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
   {
     struct writer *sedp_wr = get_sedp_writer (wr->c.pp, NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER);
 #ifdef DDSI_INCLUDE_SSM
@@ -974,7 +970,7 @@ int sedp_write_writer (struct writer *wr)
 
 int sedp_write_reader (struct reader *rd)
 {
-  if ((!is_builtin_entityid (rd->e.guid.entityid, ownvendorid)) && (!rd->e.onlylocal))
+  if ((!is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!rd->e.onlylocal))
   {
     struct writer *sedp_wr = get_sedp_writer (rd->c.pp, NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -989,7 +985,7 @@ int sedp_write_reader (struct reader *rd)
 
 int sedp_dispose_unregister_writer (struct writer *wr)
 {
-  if ((!is_builtin_entityid(wr->e.guid.entityid, ownvendorid)) && (!wr->e.onlylocal))
+  if ((!is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
   {
     struct writer *sedp_wr = get_sedp_writer (wr->c.pp, NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER);
     return sedp_write_endpoint (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL);
@@ -999,7 +995,7 @@ int sedp_dispose_unregister_writer (struct writer *wr)
 
 int sedp_dispose_unregister_reader (struct reader *rd)
 {
-  if ((!is_builtin_entityid(rd->e.guid.entityid, ownvendorid)) && (!rd->e.onlylocal))
+  if ((!is_builtin_entityid(rd->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!rd->e.onlylocal))
   {
     struct writer *sedp_wr = get_sedp_writer (rd->c.pp, NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER);
     return sedp_write_endpoint (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL);
@@ -1058,7 +1054,7 @@ static struct proxy_participant *implicitly_create_proxypp (const nn_guid_t *ppg
     actual_vendorid = (datap->present & PP_VENDORID) ?  datap->vendorid : vendorid;
     new_proxy_participant(ppguid, 0, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, T_NEVER, actual_vendorid, CF_IMPLICITLY_CREATED_PROXYPP, timestamp);
   }
-  else if (ppguid->prefix.u[0] == src_guid_prefix->u[0] && vendor_is_opensplice (vendorid))
+  else if (ppguid->prefix.u[0] == src_guid_prefix->u[0] && vendor_is_eclipse_or_opensplice (vendorid))
   {
     /* FIXME: requires address sets to be those of ddsi2, no built-in
        readers or writers, only if remote ddsi2 is provably running
@@ -1148,7 +1144,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
   is_writer = is_writer_entityid (datap->endpoint_guid.entityid);
   if (!is_writer)
     nn_xqos_mergein_missing (xqos, &gv.default_xqos_rd);
-  else if (vendor_is_prismtech(vendorid))
+  else if (vendor_is_eclipse_or_prismtech(vendorid))
     nn_xqos_mergein_missing (xqos, &gv.default_xqos_wr);
   else
     nn_xqos_mergein_missing (xqos, &gv.default_xqos_wr_nad);
@@ -1251,7 +1247,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
   nn_log_xqos(DDS_LC_DISCOVERY, xqos);
   DDS_LOG(DDS_LC_DISCOVERY, "}\n");
 
-  if ((datap->endpoint_guid.entityid.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_VENDOR && !vendor_is_prismtech (vendorid))
+  if ((datap->endpoint_guid.entityid.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_VENDOR && !vendor_is_eclipse_or_prismtech (vendorid))
   {
     DDS_LOG(DDS_LC_DISCOVERY, "ignoring vendor-specific endpoint %x:%x:%x:%x\n", PGUID (datap->endpoint_guid));
   }

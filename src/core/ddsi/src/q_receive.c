@@ -2837,7 +2837,7 @@ static int handle_submsg_sequence
         break;
 
       case SMID_PT_INFO_CONTAINER:
-        if (is_own_vendor (rst->vendor) || vendor_is_lite(rst->vendor))
+        if (vendor_is_eclipse_or_prismtech (rst->vendor))
         {
           state = "parse:pt_info_container";
           DDS_TRACE("PT_INFO_CONTAINER(");
@@ -2898,7 +2898,7 @@ static int handle_submsg_sequence
                rst->protocol_version.minor < RTPS_MINOR_MINIMUM))
             goto malformed;
         }
-        else if (is_own_vendor (rst->vendor))
+        else if (vendor_is_eclipse (rst->vendor))
         {
           /* One wouldn't expect undefined stuff from ourselves,
              except that we need to be up- and backwards compatible
