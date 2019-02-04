@@ -862,6 +862,7 @@ int rtps_init (void)
 {
   uint32_t port_disc_uc = 0;
   uint32_t port_data_uc = 0;
+  bool mc_available = true;
 
   /* Initialize implementation (Lite or OSPL) */
 
@@ -949,6 +950,11 @@ int rtps_init (void)
       DDS_WARNING("selected interface is not multicast-capable: disabling multicast\n");
       config.suppress_spdp_multicast = 1;
       config.allowMulticast = AMC_FALSE;
+      /* ensure discovery can work: firstly, that the process will be reachable on a "well-known" port
+         number, and secondly, that the local interface's IP address gets added to the discovery
+         address set */
+      config.participantIndex = PARTICIPANT_INDEX_AUTO;
+      mc_available = false;
     }
   }
   if (set_recvips () < 0)
@@ -1240,8 +1246,22 @@ int rtps_init (void)
 
   gv.as_disc = new_addrset ();
   add_to_addrset (gv.as_disc, &gv.loc_spdp_mc);
+  /* If multicast was enabled but not available, always add the local interface to the discovery address set.
+     Conversion via string and add_peer_addresses has the benefit that the port number expansion happens
+     automatically. */
+  if (!mc_available)
+  {
+    struct config_peer_listelem peer_local;
+    char local_addr[DDSI_LOCSTRLEN];
+    ddsi_locator_to_string_no_port (local_addr, sizeof (local_addr), &gv.interfaces[gv.selected_interface].loc);
+    peer_local.next = NULL;
+    peer_local.peer = local_addr;
+    add_peer_addresses (gv.as_disc, &peer_local);
+  }
   if (config.peers)
+  {
     add_peer_addresses (gv.as_disc, config.peers);
+  }
   if (config.peers_group)
   {
     gv.as_disc_group = new_addrset ();
