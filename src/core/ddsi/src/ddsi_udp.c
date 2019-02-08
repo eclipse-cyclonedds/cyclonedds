@@ -85,7 +85,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
 
     /* Check for udp packet truncation */
     if ((((size_t) ret) > len)
-#if SYSDEPS_MSGHDR_FLAGS
+#if OS_MSGHDR_FLAGS
         || (msghdr.msg_flags & MSG_TRUNC)
 #endif
         )
@@ -130,7 +130,7 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
   msg.msg_accrights = NULL;
   msg.msg_accrightslen = 0;
 #endif
-#if SYSDEPS_MSGHDR_FLAGS
+#if OS_MSGHDR_FLAGS
   msg.msg_flags = (int) flags;
 #else
   OS_UNUSED_ARG(flags);

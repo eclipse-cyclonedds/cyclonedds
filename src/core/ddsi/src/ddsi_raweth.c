@@ -100,7 +100,7 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
 
     /* Check for udp packet truncation */
     if ((((size_t) ret) > len)
-#if SYSDEPS_MSGHDR_FLAGS
+#if OS_MSGHDR_FLAGS
         || (msghdr.msg_flags & MSG_TRUNC)
 #endif
         )
