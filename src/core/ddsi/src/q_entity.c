@@ -53,7 +53,6 @@ struct deleted_participant {
 
 static os_mutex deleted_participants_lock;
 static ut_avlTree_t deleted_participants;
-static const nn_vendorid_t ownvendorid = MY_VENDOR_ID;
 
 static int compare_guid (const void *va, const void *vb);
 static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vright);
@@ -140,7 +139,7 @@ int is_builtin_entityid (nn_entityid_t id, nn_vendorid_t vendorid)
     return 1;
   else if ((id.u & NN_ENTITYID_SOURCE_MASK) != NN_ENTITYID_SOURCE_VENDOR)
     return 0;
-  else if (!vendor_is_prismtech (vendorid))
+  else if (!vendor_is_eclipse_or_prismtech (vendorid))
     return 0;
   else
   {
@@ -157,7 +156,7 @@ int is_builtin_endpoint (nn_entityid_t id, nn_vendorid_t vendorid)
 bool is_local_orphan_endpoint (const struct entity_common *e)
 {
   return (e->guid.prefix.u[0] == 0 && e->guid.prefix.u[1] == 0 && e->guid.prefix.u[2] == 0 &&
-          is_builtin_endpoint (e->guid.entityid, ownvendorid));
+          is_builtin_endpoint (e->guid.entityid, NN_VENDORID_ECLIPSE));
 }
 
 static void entity_common_init (struct entity_common *e, const struct nn_guid *guid, const char *name, enum entity_kind kind, nn_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal)
@@ -247,7 +246,7 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e)
     case EK_PARTICIPANT:
     case EK_READER:
     case EK_WRITER:
-      return (nn_vendorid_t) MY_VENDOR_ID;
+      return NN_VENDORID_ECLIPSE;
     case EK_PROXY_PARTICIPANT:
       return ((const struct proxy_participant *) e)->vendor;
     case EK_PROXY_READER:
@@ -256,7 +255,7 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e)
       return ((const struct proxy_writer *) e)->c.vendor;
   }
   assert (0);
-  return (nn_vendorid_t) NN_VENDORID_UNKNOWN;
+  return NN_VENDORID_UNKNOWN;
 }
 
 /* DELETED PARTICIPANTS --------------------------------------------- */
@@ -437,7 +436,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
 
   pp = os_malloc (sizeof (*pp));
 
-  entity_common_init (&pp->e, ppguid, "", EK_PARTICIPANT, now (), ownvendorid, ((flags & RTPS_PF_ONLY_LOCAL) != 0));
+  entity_common_init (&pp->e, ppguid, "", EK_PARTICIPANT, now (), NN_VENDORID_ECLIPSE, ((flags & RTPS_PF_ONLY_LOCAL) != 0));
   pp->user_refc = 1;
   pp->builtin_refc = 0;
   pp->builtins_deleted = 0;
@@ -669,7 +668,7 @@ static void delete_builtin_endpoint (const struct nn_guid *ppguid, unsigned enti
   nn_guid_t guid;
   guid.prefix = ppguid->prefix;
   guid.entityid.u = entityid;
-  assert (is_builtin_entityid (to_entityid (entityid), ownvendorid));
+  assert (is_builtin_entityid (to_entityid (entityid), NN_VENDORID_ECLIPSE));
   if (is_writer_entityid (to_entityid (entityid)))
     delete_writer_nolinger (&guid);
   else
@@ -680,7 +679,7 @@ static struct participant *ref_participant (struct participant *pp, const struct
 {
   nn_guid_t stguid;
   os_mutexLock (&pp->refc_lock);
-  if (guid_of_refing_entity && is_builtin_endpoint (guid_of_refing_entity->entityid, ownvendorid))
+  if (guid_of_refing_entity && is_builtin_endpoint (guid_of_refing_entity->entityid, NN_VENDORID_ECLIPSE))
     pp->builtin_refc++;
   else
     pp->user_refc++;
@@ -719,7 +718,7 @@ static void unref_participant (struct participant *pp, const struct nn_guid *gui
   nn_guid_t stguid;
 
   os_mutexLock (&pp->refc_lock);
-  if (guid_of_refing_entity && is_builtin_endpoint (guid_of_refing_entity->entityid, ownvendorid))
+  if (guid_of_refing_entity && is_builtin_endpoint (guid_of_refing_entity->entityid, NN_VENDORID_ECLIPSE))
     pp->builtin_refc--;
   else
     pp->user_refc--;
@@ -1817,7 +1816,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   {
     m->in_sync = PRMSS_SYNC;
   }
-  else if (!config.conservative_builtin_reader_startup && is_builtin_entityid (rd->e.guid.entityid, ownvendorid) && !ut_avlIsEmpty (&pwr->readers))
+  else if (!config.conservative_builtin_reader_startup && is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) && !ut_avlIsEmpty (&pwr->readers))
   {
     /* builtins really don't care about multiple copies */
     m->in_sync = PRMSS_SYNC;
@@ -2023,7 +2022,7 @@ static void reader_qos_mismatch (struct reader * rd, uint32_t reason)
 
 static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_reader *prd, nn_mtime_t tnow)
 {
-  const int isb0 = (is_builtin_entityid (wr->e.guid.entityid, ownvendorid) != 0);
+  const int isb0 = (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
   const int isb1 = (is_builtin_entityid (prd->e.guid.entityid, prd->c.vendor) != 0);
   int32_t reason;
   OS_UNUSED_ARG(tnow);
@@ -2043,7 +2042,7 @@ static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_re
 static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct reader *rd, nn_mtime_t tnow)
 {
   const int isb0 = (is_builtin_entityid (pwr->e.guid.entityid, pwr->c.vendor) != 0);
-  const int isb1 = (is_builtin_entityid (rd->e.guid.entityid, ownvendorid) != 0);
+  const int isb1 = (is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
   int32_t reason;
   nn_count_t init_count;
   if (isb0 != isb1)
@@ -2063,7 +2062,7 @@ static void connect_writer_with_reader (struct writer *wr, struct reader *rd, nn
 {
   int32_t reason;
   (void)tnow;
-  if (!is_local_orphan_endpoint (&wr->e) && (is_builtin_entityid (wr->e.guid.entityid, ownvendorid) || is_builtin_entityid (rd->e.guid.entityid, ownvendorid)))
+  if (!is_local_orphan_endpoint (&wr->e) && (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) || is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE)))
     return;
   if ((reason = qos_match_p (rd->xqos, wr->xqos)) >= 0)
   {
@@ -2231,7 +2230,7 @@ static void generic_do_match (struct entity_common *e, nn_mtime_t tnow)
   struct ephash_enum est;
   struct entity_common *em;
   enum entity_kind mkind = generic_do_match_mkind(e->kind);
-  if (!is_builtin_entityid (e->guid.entityid, ownvendorid))
+  if (!is_builtin_entityid (e->guid.entityid, NN_VENDORID_ECLIPSE))
   {
     DDS_LOG(DDS_LC_DISCOVERY, "match_%s_with_%ss(%s %x:%x:%x:%x) scanning all %ss\n",
             generic_do_match_kindstr_us (e->kind), generic_do_match_kindstr_us (mkind),
@@ -2281,7 +2280,7 @@ static void generic_do_local_match (struct entity_common *e, nn_mtime_t tnow)
   struct ephash_enum est;
   struct entity_common *em;
   enum entity_kind mkind;
-  if (is_builtin_entityid (e->guid.entityid, ownvendorid) && !is_local_orphan_endpoint (e))
+  if (is_builtin_entityid (e->guid.entityid, NN_VENDORID_ECLIPSE) && !is_local_orphan_endpoint (e))
     /* never a need for local matches on discovery endpoints */
     return;
   mkind = generic_do_local_match_mkind(e->kind);
@@ -2338,8 +2337,8 @@ static void new_reader_writer_common (const struct nn_guid *guid, const struct d
 {
   const char *partition = "(default)";
   const char *partition_suffix = "";
-  assert (is_builtin_entityid (guid->entityid, ownvendorid) ? (topic == NULL) : (topic != NULL));
-  if (is_builtin_entityid (guid->entityid, ownvendorid))
+  assert (is_builtin_entityid (guid->entityid, NN_VENDORID_ECLIPSE) ? (topic == NULL) : (topic != NULL));
+  if (is_builtin_entityid (guid->entityid, NN_VENDORID_ECLIPSE))
   {
     /* continue printing it as not being in a partition, the actual
        value doesn't matter because it is never matched based on QoS
@@ -2362,7 +2361,7 @@ static void new_reader_writer_common (const struct nn_guid *guid, const struct d
 
 static void endpoint_common_init (struct entity_common *e, struct endpoint_common *c, enum entity_kind kind, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp)
 {
-  entity_common_init (e, guid, NULL, kind, now (), ownvendorid, pp->e.onlylocal);
+  entity_common_init (e, guid, NULL, kind, now (), NN_VENDORID_ECLIPSE, pp->e.onlylocal);
   c->pp = ref_participant (pp, &e->guid);
   if (group_guid)
     c->group_guid = *group_guid;
@@ -2372,7 +2371,7 @@ static void endpoint_common_init (struct entity_common *e, struct endpoint_commo
 
 static void endpoint_common_fini (struct entity_common *e, struct endpoint_common *c)
 {
-  if (!is_builtin_entityid(e->guid.entityid, ownvendorid))
+  if (!is_builtin_entityid(e->guid.entityid, NN_VENDORID_ECLIPSE))
     pp_release_entityid(c->pp, e->guid.entityid);
   if (c->pp)
     unref_participant (c->pp, &e->guid);
@@ -2627,7 +2626,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   assert (wr->xqos->present & QP_RELIABILITY);
   wr->reliable = (wr->xqos->reliability.kind != NN_BEST_EFFORT_RELIABILITY_QOS);
   assert (wr->xqos->present & QP_DURABILITY);
-  if (is_builtin_entityid (wr->e.guid.entityid, ownvendorid))
+  if (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE))
   {
     assert (wr->xqos->history.kind == NN_KEEP_LAST_HISTORY_QOS);
     assert (wr->xqos->durability.kind == NN_TRANSIENT_LOCAL_DURABILITY_QOS);
@@ -2771,7 +2770,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
     wr->whc_low = config.whc_lowwater_mark;
     wr->whc_high = config.whc_init_highwater_mark.value;
   }
-  assert (!is_builtin_entityid(wr->e.guid.entityid, ownvendorid) || (wr->whc_low == wr->whc_high && wr->whc_low == INT32_MAX));
+  assert (!is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE) || (wr->whc_low == wr->whc_high && wr->whc_low == INT32_MAX));
 
   /* Connection admin */
   ut_avlInit (&wr_readers_treedef, &wr->readers);
@@ -2859,7 +2858,7 @@ struct local_orphan_writer *new_local_orphan_writer (nn_entityid_t entityid, str
 
   memset (&guid.prefix, 0, sizeof (guid.prefix));
   guid.entityid = entityid;
-  entity_common_init (&wr->e, &guid, NULL, EK_WRITER, now (), ownvendorid, true);
+  entity_common_init (&wr->e, &guid, NULL, EK_WRITER, now (), NN_VENDORID_ECLIPSE, true);
   wr->c.pp = NULL;
   memset (&wr->c.group_guid, 0, sizeof (wr->c.group_guid));
   new_writer_guid_common_init (wr, topic, xqos, whc, 0, NULL);
@@ -2905,7 +2904,7 @@ static void gc_delete_writer (struct gcreq *gcreq)
   }
 
   /* Do last gasp on SEDP and free writer. */
-  if (!is_builtin_entityid (wr->e.guid.entityid, ownvendorid))
+  if (!is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE))
     sedp_dispose_unregister_writer (wr);
   if (wr->status_cb)
   {
@@ -3223,7 +3222,7 @@ static struct reader * new_reader_guid
 #endif
   if (topic == NULL)
   {
-    assert (is_builtin_entityid (rd->e.guid.entityid, ownvendorid));
+    assert (is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE));
   }
   rd->status_cb = status_cb;
   rd->status_cb_entity = status_entity;
@@ -3353,7 +3352,7 @@ static void gc_delete_reader (struct gcreq *gcreq)
     free_rd_wr_match (m);
   }
 
-  if (!is_builtin_entityid (rd->e.guid.entityid, ownvendorid))
+  if (!is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE))
     sedp_dispose_unregister_reader (rd);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   addrset_forall (rd->as, leave_mcast_helper, gv.data_conn_mc);
@@ -3542,7 +3541,7 @@ void new_proxy_participant
   /* Non-PrismTech doesn't implement the PT extensions and therefore won't generate
      a CMParticipant; if a PT peer does not implement a CMParticipant writer, then it
      presumably also is a handicapped implementation (perhaps simply an old one) */
-  if (!vendor_is_prismtech(proxypp->vendor) ||
+  if (!vendor_is_eclipse_or_prismtech(proxypp->vendor) ||
       (proxypp->bes != 0 && !(proxypp->prismtech_bes & NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_WRITER)))
     proxypp->proxypp_have_cm = 1;
   else

@@ -123,27 +123,6 @@ struct cdrstring {
 #define NN_LOCATOR_KIND_UDPv4MCGEN 0x4fff0000
 #define NN_LOCATOR_PORT_INVALID 0
 
-#define NN_VENDORID_UNKNOWN                {{ 0x00, 0x00 }}
-#define NN_VENDORID_RTI                    {{ 0x01, 0x01 }}
-#define NN_VENDORID_PRISMTECH_OSPL         {{ 0x01, 0x02 }}
-#define NN_VENDORID_OCI                    {{ 0x01, 0x03 }}
-#define NN_VENDORID_MILSOFT                {{ 0x01, 0x04 }}
-#define NN_VENDORID_KONGSBERG              {{ 0x01, 0x05 }}
-#define NN_VENDORID_TWINOAKS               {{ 0x01, 0x06 }}
-#define NN_VENDORID_LAKOTA                 {{ 0x01, 0x07 }}
-#define NN_VENDORID_ICOUP                  {{ 0x01, 0x08 }}
-#define NN_VENDORID_ETRI                   {{ 0x01, 0x09 }}
-#define NN_VENDORID_RTI_MICRO              {{ 0x01, 0x0a }}
-#define NN_VENDORID_PRISMTECH_JAVA         {{ 0x01, 0x0b }}
-#define NN_VENDORID_PRISMTECH_GATEWAY      {{ 0x01, 0x0c }}
-#define NN_VENDORID_PRISMTECH_LITE         {{ 0x01, 0x0d }}
-#define NN_VENDORID_TECHNICOLOR            {{ 0x01, 0x0e }}
-#define NN_VENDORID_EPROSIMA               {{ 0x01, 0x0f }}
-#define NN_VENDORID_PRISMTECH_CLOUD        {{ 0x01, 0x20 }}
-#define NN_VENDORID_ECLIPSE_CYCLONEDDS     {{ 0x01, 0x0d }} // Since CYCLONEDDS has no owner yet, it uses the same VENDORID as LITE
-
-#define MY_VENDOR_ID NN_VENDORID_ECLIPSE_CYCLONEDDS
-
 /* Only one specific version is grokked */
 #define RTPS_MAJOR 2
 #define RTPS_MINOR 1
@@ -155,15 +134,11 @@ typedef struct Header {
   nn_vendorid_t vendorid;
   nn_guid_prefix_t guid_prefix;
 } Header_t;
-#define NN_PROTOCOLID_INITIALIZER {{ 'R','T','P','S' }}
 #if PLATFORM_IS_LITTLE_ENDIAN
 #define NN_PROTOCOLID_AS_UINT32 (((uint32_t)'R' << 0) | ((uint32_t)'T' << 8) | ((uint32_t)'P' << 16) | ((uint32_t)'S' << 24))
 #else
 #define NN_PROTOCOLID_AS_UINT32 (((uint32_t)'R' << 24) | ((uint32_t)'T' << 16) | ((uint32_t)'P' << 8) | ((uint32_t)'S' << 0))
 #endif
-#define NN_PROTOCOL_VERSION_INITIALIZER { RTPS_MAJOR, RTPS_MINOR }
-#define NN_VENDORID_INITIALIER MY_VENDOR_ID
-#define NN_HEADER_INITIALIZER { NN_PROTOCOLID_INITIALIZER, NN_PROTOCOL_VERSION_INITIALIZER, NN_VENDORID_INITIALIER, NN_GUID_PREFIX_UNKNOWN_INITIALIZER }
 #define RTPS_MESSAGE_HEADER_SIZE (sizeof (Header_t))
 
 typedef struct SubmessageHeader {

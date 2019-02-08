@@ -13,16 +13,14 @@
 #define NN_RTPS_H
 
 #include "os/os_defs.h"
+#include "ddsi/ddsi_vendor.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
 typedef struct {
-  unsigned char id[2];
-} nn_vendorid_t;
-typedef struct {
-  unsigned char major, minor;
+  uint8_t major, minor;
 } nn_protocol_version_t;
 typedef union nn_guid_prefix {
   unsigned char s[12];

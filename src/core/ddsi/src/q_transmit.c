@@ -953,13 +953,10 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
   whc_get_state(wr->whc, &whcst);
 
   {
-#ifndef NDEBUG
-    nn_vendorid_t ownvendorid = MY_VENDOR_ID;
-#endif
     ASSERT_MUTEX_HELD (&wr->e.lock);
     assert (wr->throttling == 0);
     assert (vtime_awake_p (lookup_thread_state ()->vtime));
-    assert (!is_builtin_entityid(wr->e.guid.entityid, ownvendorid));
+    assert (!is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE));
   }
 
   DDS_LOG(DDS_LC_THROTTLE, "writer %x:%x:%x:%x waiting for whc to shrink below low-water mark (whc %"PRIuSIZE" low=%u high=%u)\n", PGUID (wr->e.guid), whcst.unacked_bytes, wr->whc_low, wr->whc_high);

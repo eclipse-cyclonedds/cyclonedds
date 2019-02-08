@@ -82,8 +82,7 @@ static size_t align4u (size_t x)
 
 static int protocol_version_is_newer (nn_protocol_version_t pv)
 {
-  const nn_protocol_version_t mv = NN_PROTOCOL_VERSION_INITIALIZER;
-  return (pv.major < mv.major) ? 0 : (pv.major > mv.major) ? 1 : (pv.minor > mv.minor);
+  return (pv.major < RTPS_MAJOR) ? 0 : (pv.major > RTPS_MAJOR) ? 1 : (pv.minor > RTPS_MINOR);
 }
 
 static int validate_string (const struct dd *dd, size_t *len)
@@ -1819,10 +1818,7 @@ static int valid_endpoint_guid (const nn_guid_t *g, const struct dd *dd)
           }
       }
     case NN_ENTITYID_SOURCE_VENDOR:
-      /* vendor specific: always ok, unless vendor is PrismTech, 'cos
-         we don't do that! (FIXME, might be worthwhile to be less
-         strict, or add an implementation version number here) */
-      if (!is_own_vendor (dd->vendorid) || protocol_version_is_newer (dd->protocol_version))
+      if (!vendor_is_eclipse (dd->vendorid))
         return 0;
       else
       {
@@ -1840,7 +1836,7 @@ static int valid_endpoint_guid (const nn_guid_t *g, const struct dd *dd)
               return 0;
             else
             {
-              DDS_TRACE("plist/valid_endpoint_guid[src=VENDOR,proto=%u.%u]: invalid entityid (%x)\n",
+              DDS_TRACE("plist/valid_endpoint_guid[src=VENDOR,proto=%u.%u]: unexpected entityid (%x)\n",
                       dd->protocol_version.major, dd->protocol_version.minor, g->entityid.u);
               return 0;
             }
@@ -1891,7 +1887,7 @@ static void bswap_prismtech_participant_version_info (nn_prismtech_participant_v
 
 static int do_prismtech_participant_version_info (nn_prismtech_participant_version_info_t *pvi, uint64_t *present, uint64_t *aliased, const struct dd *dd)
 {
-  if (!vendor_is_prismtech (dd->vendorid))
+  if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
     return 0;
   else if (dd->bufsz < NN_PRISMTECH_PARTICIPANT_VERSION_INFO_FIXED_CDRSIZE)
   {
@@ -2230,7 +2226,7 @@ static int init_one_parameter
     case PID_PRISMTECH_READER_DATA_LIFECYCLE: /* PrismTech specific */
       {
         int ret;
-        if (!vendor_is_prismtech (dd->vendorid))
+        if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
           return 0;
         if (dd->bufsz >= sizeof (nn_reader_data_lifecycle_qospolicy_t))
           ret = do_reader_data_lifecycle_v1 (&dest->qos.reader_data_lifecycle, dd);
@@ -2246,7 +2242,7 @@ static int init_one_parameter
         return ret;
       }
     case PID_PRISMTECH_WRITER_DATA_LIFECYCLE: /* PrismTech specific */
-      if (!vendor_is_prismtech (dd->vendorid))
+      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
         return 0;
       else
       {
@@ -2288,7 +2284,7 @@ static int init_one_parameter
       }
 
     case PID_PRISMTECH_RELAXED_QOS_MATCHING:
-      if (!vendor_is_prismtech (dd->vendorid))
+      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
         return 0;
       else if (dd->bufsz < sizeof (dest->qos.relaxed_qos_matching))
       {
@@ -2309,7 +2305,7 @@ static int init_one_parameter
       }
 
     case PID_PRISMTECH_SYNCHRONOUS_ENDPOINT: /* PrismTech specific */
-      if (!vendor_is_prismtech (dd->vendorid))
+      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
         return 0;
       else if (dd->bufsz < sizeof (dest->qos.synchronous_endpoint))
       {
@@ -2492,7 +2488,7 @@ static int init_one_parameter
       return 0;
 
     case PID_PRISMTECH_BUILTIN_ENDPOINT_SET:
-      if (!vendor_is_prismtech (dd->vendorid))
+      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
         return 0;
       else if (dd->bufsz < sizeof (dest->prismtech_builtin_endpoint_set))
       {
@@ -2545,7 +2541,7 @@ static int init_one_parameter
       }
       /* Clear all bits we don't understand, then add the extended bits if present */
       dest->statusinfo &= NN_STATUSINFO_STANDARDIZED;
-      if (dd->bufsz >= 2 * sizeof (dest->statusinfo) && vendor_is_opensplice(dd->vendorid))
+      if (dd->bufsz >= 2 * sizeof (dest->statusinfo) && vendor_is_eclipse_or_opensplice(dd->vendorid))
       {
         uint32_t statusinfox;
         Q_STATIC_ASSERT_CODE (sizeof(statusinfox) == sizeof(dest->statusinfo));
@@ -2603,7 +2599,7 @@ static int init_one_parameter
       return do_guid (&dest->endpoint_guid, &dest->present, PP_ENDPOINT_GUID, valid_endpoint_guid, dd);
 
     case PID_PRISMTECH_ENDPOINT_GUID: /* case PID_RTI_TYPECODE: */
-      if (vendor_is_prismtech (dd->vendorid))
+      if (vendor_is_eclipse_or_prismtech (dd->vendorid))
       {
         /* PrismTech specific variant of ENDPOINT_GUID, for strict compliancy */
         return do_guid (&dest->endpoint_guid, &dest->present, PP_ENDPOINT_GUID, valid_endpoint_guid, dd);
@@ -2624,33 +2620,33 @@ static int init_one_parameter
       return do_prismtech_participant_version_info(&dest->prismtech_participant_version_info, &dest->present, &dest->aliased, dd);
 
     case PID_PRISMTECH_SUBSCRIPTION_KEYS:
-      if (!vendor_is_prismtech (dd->vendorid))
+      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
         return 0;
       return do_subscription_keys_qospolicy (&dest->qos.subscription_keys, &dest->qos.present, &dest->qos.aliased, QP_PRISMTECH_SUBSCRIPTION_KEYS, dd);
 
     case PID_PRISMTECH_READER_LIFESPAN:
-      if (!vendor_is_prismtech (dd->vendorid))
+      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
         return 0;
       return do_reader_lifespan_qospolicy (&dest->qos.reader_lifespan, &dest->qos.present, QP_PRISMTECH_READER_LIFESPAN, dd);
 
 
     case PID_PRISMTECH_ENTITY_FACTORY:
-      if (!vendor_is_prismtech (dd->vendorid))
+      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
         return 0;
       return do_entity_factory_qospolicy (&dest->qos.entity_factory, &dest->qos.present, QP_PRISMTECH_ENTITY_FACTORY, dd);
 
     case PID_PRISMTECH_NODE_NAME:
-      if (!vendor_is_prismtech (dd->vendorid))
+      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
         return 0;
       return do_string (&dest->node_name, &dest->present, &dest->aliased, pwanted, PP_PRISMTECH_NODE_NAME, dd);
 
     case PID_PRISMTECH_EXEC_NAME:
-      if (!vendor_is_prismtech (dd->vendorid))
+      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
         return 0;
       return do_string (&dest->exec_name, &dest->present, &dest->aliased, pwanted, PP_PRISMTECH_EXEC_NAME, dd);
 
     case PID_PRISMTECH_SERVICE_TYPE:
-      if (!vendor_is_prismtech (dd->vendorid))
+      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
         return 0;
       if (dd->bufsz < sizeof (dest->service_type))
       {
@@ -2664,7 +2660,7 @@ static int init_one_parameter
       return 0;
 
     case PID_PRISMTECH_PROCESS_ID:
-      if (!vendor_is_prismtech (dd->vendorid))
+      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
         return 0;
       if (dd->bufsz < sizeof (dest->process_id))
       {
@@ -2678,12 +2674,12 @@ static int init_one_parameter
       return 0;
 
     case PID_PRISMTECH_TYPE_DESCRIPTION:
-      if (!vendor_is_prismtech (dd->vendorid))
+      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
         return 0;
       return do_string (&dest->type_description, &dest->present, &dest->aliased, pwanted, PP_PRISMTECH_TYPE_DESCRIPTION, dd);
 
     case PID_PRISMTECH_EOTINFO:
-      if (!vendor_is_opensplice (dd->vendorid))
+      if (!vendor_is_eclipse_or_opensplice (dd->vendorid))
         return 0;
       else if (dd->bufsz < 2*sizeof (uint32_t))
       {
@@ -3135,7 +3131,7 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
         else
         {
           unsigned stinfo = fromBE4u (*((unsigned *) pl));
-          unsigned stinfox = (length < 8 || !vendor_is_opensplice(src->vendorid)) ? 0 : fromBE4u (*((unsigned *) pl + 1));
+          unsigned stinfox = (length < 8 || !vendor_is_eclipse_or_opensplice(src->vendorid)) ? 0 : fromBE4u (*((unsigned *) pl + 1));
 #if (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER) != 3
 #error "expected dispose/unregister to be in lowest 2 bits"
 #endif

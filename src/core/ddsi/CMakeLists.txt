@@ -25,6 +25,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_rhc_plugin.c
     ddsi_iid.c
     ddsi_tkmap.c
+    ddsi_vendor.c
     q_addrset.c
     q_bitset_inlines.c
     q_bswap.c
@@ -77,6 +78,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/ddsi"
     ddsi_rhc_plugin.h
     ddsi_iid.h
     ddsi_tkmap.h
+    ddsi_vendor.h
     probes-constants.h
     q_addrset.h
     q_bitset.h
