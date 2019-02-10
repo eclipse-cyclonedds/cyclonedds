@@ -32,10 +32,9 @@ dds_create_querycondition(
 
     rc = dds_reader_lock(reader, &r);
     if (rc == DDS_RETCODE_OK) {
-        dds_readcond *cond = dds_create_readcond(r, DDS_KIND_COND_QUERY, mask);
+        dds_readcond *cond = dds_create_readcond(r, DDS_KIND_COND_QUERY, mask, filter);
         assert(cond);
         hdl = cond->m_entity.m_hdl;
-        cond->m_query.m_filter = filter;
         dds_reader_unlock(r);
     } else {
         DDS_ERROR("Error occurred on locking reader\n");
