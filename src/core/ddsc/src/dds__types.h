@@ -247,6 +247,7 @@ typedef struct dds_readcond
   struct
   {
       dds_querycondition_filter_fn m_filter;
+      unsigned m_index; /* index in RHC condition masks */
   } m_query;
 }
 dds_readcond;

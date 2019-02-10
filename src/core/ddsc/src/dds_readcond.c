@@ -45,6 +45,7 @@ dds_create_readcond(
     cond->m_rd_guid = rd->m_entity.m_guid;
     if (kind == DDS_KIND_COND_QUERY) {
         cond->m_query.m_filter = filter;
+        cond->m_query.m_index = UINT_MAX;
     }
     dds_rhc_add_readcondition (cond);
     return cond;
