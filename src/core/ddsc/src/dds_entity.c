@@ -164,7 +164,7 @@ dds_return_t dds_delete_impl (dds_entity_t entity, bool keep_if_explicit)
   rc = dds_entity_lock (entity, UT_HANDLE_DONTCARE_KIND, &e);
   if (rc != DDS_RETCODE_OK)
   {
-    DDS_ERROR ("Error on locking entity\n");
+    DDS_TRACE ("dds_delete_impl: error on locking entity %"PRIu32" keep_if_explicit %d\n", entity, (int) keep_if_explicit);
     return DDS_ERRNO (rc);
   }
 
