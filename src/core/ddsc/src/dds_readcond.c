@@ -47,7 +47,12 @@ dds_create_readcond(
         cond->m_query.m_filter = filter;
         cond->m_query.m_index = UINT_MAX;
     }
-    dds_rhc_add_readcondition (cond);
+    if (!dds_rhc_add_readcondition (cond)) {
+        /* FIXME: current entity management code can't deal with an error late in the creation of the
+           entity because it doesn't allow deleting it again ... instead use a hack to signal a problem
+           to the caller and let that one handle it. */
+        cond->m_entity.m_deriver.delete = 0;
+    }
     return cond;
 }
 
@@ -65,6 +70,7 @@ dds_create_readcondition(
     if (rc == DDS_RETCODE_OK) {
         dds_readcond *cond = dds_create_readcond(rd, DDS_KIND_COND_READ, mask, 0);
         assert(cond);
+        assert(cond->m_entity.m_deriver.delete);
         hdl = cond->m_entity.m_hdl;
         dds_reader_unlock(rd);
     } else {

@@ -64,7 +64,7 @@ dds_rhc_take(
 
 void dds_rhc_set_qos (struct rhc * rhc, const struct nn_xqos * qos);
 
-void dds_rhc_add_readcondition (dds_readcond * cond);
+bool dds_rhc_add_readcondition (dds_readcond * cond);
 void dds_rhc_remove_readcondition (dds_readcond * cond);
 
 bool dds_rhc_add_waitset (dds_readcond * cond, dds_waitset * waitset, dds_attach_t x);
