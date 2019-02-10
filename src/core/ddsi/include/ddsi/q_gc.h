@@ -12,6 +12,7 @@
 #ifndef Q_GC_H
 #define Q_GC_H
 
+#include "ddsc/dds_export.h"
 #include "ddsi/q_thread.h"
 
 #if defined (__cplusplus)
@@ -42,14 +43,14 @@ struct gcreq {
   struct idx_vtime vtimes[1 /* really a flex ary */];
 };
 
-struct gcreq_queue *gcreq_queue_new (void);
-void gcreq_queue_drain (struct gcreq_queue *q);
-void gcreq_queue_free (struct gcreq_queue *q);
+DDS_EXPORT struct gcreq_queue *gcreq_queue_new (void);
+DDS_EXPORT void gcreq_queue_drain (struct gcreq_queue *q);
+DDS_EXPORT void gcreq_queue_free (struct gcreq_queue *q);
 
-struct gcreq *gcreq_new (struct gcreq_queue *gcreq_queue, gcreq_cb_t cb);
-void gcreq_free (struct gcreq *gcreq);
-void gcreq_enqueue (struct gcreq *gcreq);
-int gcreq_requeue (struct gcreq *gcreq, gcreq_cb_t cb);
+DDS_EXPORT struct gcreq *gcreq_new (struct gcreq_queue *gcreq_queue, gcreq_cb_t cb);
+DDS_EXPORT void gcreq_free (struct gcreq *gcreq);
+DDS_EXPORT void gcreq_enqueue (struct gcreq *gcreq);
+DDS_EXPORT int gcreq_requeue (struct gcreq *gcreq, gcreq_cb_t cb);
 
 #if defined (__cplusplus)
 }

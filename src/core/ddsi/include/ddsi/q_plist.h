@@ -204,36 +204,36 @@ typedef struct nn_plist_src {
   size_t bufsz;
 } nn_plist_src_t;
 
-void nn_plist_init_empty (nn_plist_t *dest);
-void nn_plist_mergein_missing (nn_plist_t *a, const nn_plist_t *b);
-void nn_plist_copy (nn_plist_t *dst, const nn_plist_t *src);
-nn_plist_t *nn_plist_dup (const nn_plist_t *src);
-int nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const nn_plist_src_t *src);
-void nn_plist_fini (nn_plist_t *ps);
-void nn_plist_addtomsg (struct nn_xmsg *m, const nn_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
-int nn_plist_init_default_participant (nn_plist_t *plist);
+DDS_EXPORT void nn_plist_init_empty (nn_plist_t *dest);
+DDS_EXPORT void nn_plist_mergein_missing (nn_plist_t *a, const nn_plist_t *b);
+DDS_EXPORT void nn_plist_copy (nn_plist_t *dst, const nn_plist_t *src);
+DDS_EXPORT nn_plist_t *nn_plist_dup (const nn_plist_t *src);
+DDS_EXPORT int nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const nn_plist_src_t *src);
+DDS_EXPORT void nn_plist_fini (nn_plist_t *ps);
+DDS_EXPORT void nn_plist_addtomsg (struct nn_xmsg *m, const nn_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
+DDS_EXPORT int nn_plist_init_default_participant (nn_plist_t *plist);
 
-int validate_history_qospolicy (const nn_history_qospolicy_t *q);
-int validate_durability_qospolicy (const nn_durability_qospolicy_t *q);
-int validate_resource_limits_qospolicy (const nn_resource_limits_qospolicy_t *q);
-int validate_history_and_resource_limits (const nn_history_qospolicy_t *qh, const nn_resource_limits_qospolicy_t *qr);
-int validate_durability_service_qospolicy (const nn_durability_service_qospolicy_t *q);
-int validate_liveliness_qospolicy (const nn_liveliness_qospolicy_t *q);
-int validate_destination_order_qospolicy (const nn_destination_order_qospolicy_t *q);
-int validate_ownership_qospolicy (const nn_ownership_qospolicy_t *q);
-int validate_ownership_strength_qospolicy (const nn_ownership_strength_qospolicy_t *q);
-int validate_presentation_qospolicy (const nn_presentation_qospolicy_t *q);
-int validate_transport_priority_qospolicy (const nn_transport_priority_qospolicy_t *q);
-int validate_reader_data_lifecycle (const nn_reader_data_lifecycle_qospolicy_t *q);
-int validate_duration (const nn_duration_t *d);
+DDS_EXPORT int validate_history_qospolicy (const nn_history_qospolicy_t *q);
+DDS_EXPORT int validate_durability_qospolicy (const nn_durability_qospolicy_t *q);
+DDS_EXPORT int validate_resource_limits_qospolicy (const nn_resource_limits_qospolicy_t *q);
+DDS_EXPORT int validate_history_and_resource_limits (const nn_history_qospolicy_t *qh, const nn_resource_limits_qospolicy_t *qr);
+DDS_EXPORT int validate_durability_service_qospolicy (const nn_durability_service_qospolicy_t *q);
+DDS_EXPORT int validate_liveliness_qospolicy (const nn_liveliness_qospolicy_t *q);
+DDS_EXPORT int validate_destination_order_qospolicy (const nn_destination_order_qospolicy_t *q);
+DDS_EXPORT int validate_ownership_qospolicy (const nn_ownership_qospolicy_t *q);
+DDS_EXPORT int validate_ownership_strength_qospolicy (const nn_ownership_strength_qospolicy_t *q);
+DDS_EXPORT int validate_presentation_qospolicy (const nn_presentation_qospolicy_t *q);
+DDS_EXPORT int validate_transport_priority_qospolicy (const nn_transport_priority_qospolicy_t *q);
+DDS_EXPORT int validate_reader_data_lifecycle (const nn_reader_data_lifecycle_qospolicy_t *q);
+DDS_EXPORT int validate_duration (const nn_duration_t *d);
 
 
 struct nn_rmsg;
 struct nn_rsample_info;
 struct nn_rdata;
 
-unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const nn_plist_src_t *src);
-const unsigned char *nn_plist_findparam_native_unchecked (const void *src, nn_parameterid_t pid);
+DDS_EXPORT unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const nn_plist_src_t *src);
+DDS_EXPORT const unsigned char *nn_plist_findparam_native_unchecked (const void *src, nn_parameterid_t pid);
 
 #if defined (__cplusplus)
 }

@@ -326,21 +326,21 @@ typedef struct nn_xqos {
 
 struct nn_xmsg;
 
-void nn_xqos_init_empty (nn_xqos_t *xqos);
-void nn_xqos_init_default_reader (nn_xqos_t *xqos);
-void nn_xqos_init_default_writer (nn_xqos_t *xqos);
-void nn_xqos_init_default_writer_noautodispose (nn_xqos_t *xqos);
-void nn_xqos_init_default_subscriber (nn_xqos_t *xqos);
-void nn_xqos_init_default_publisher (nn_xqos_t *xqos);
-void nn_xqos_init_default_topic (nn_xqos_t *xqos);
-void nn_xqos_copy (nn_xqos_t *dst, const nn_xqos_t *src);
-void nn_xqos_unalias (nn_xqos_t *xqos);
-void nn_xqos_fini (nn_xqos_t *xqos);
-void nn_xqos_mergein_missing (nn_xqos_t *a, const nn_xqos_t *b);
-uint64_t nn_xqos_delta (const nn_xqos_t *a, const nn_xqos_t *b, uint64_t mask);
-void nn_xqos_addtomsg (struct nn_xmsg *m, const nn_xqos_t *xqos, uint64_t wanted);
-void nn_log_xqos (uint32_t cat, const nn_xqos_t *xqos);
-nn_xqos_t *nn_xqos_dup (const nn_xqos_t *src);
+DDS_EXPORT void nn_xqos_init_empty (nn_xqos_t *xqos);
+DDS_EXPORT void nn_xqos_init_default_reader (nn_xqos_t *xqos);
+DDS_EXPORT void nn_xqos_init_default_writer (nn_xqos_t *xqos);
+DDS_EXPORT void nn_xqos_init_default_writer_noautodispose (nn_xqos_t *xqos);
+DDS_EXPORT void nn_xqos_init_default_subscriber (nn_xqos_t *xqos);
+DDS_EXPORT void nn_xqos_init_default_publisher (nn_xqos_t *xqos);
+DDS_EXPORT void nn_xqos_init_default_topic (nn_xqos_t *xqos);
+DDS_EXPORT void nn_xqos_copy (nn_xqos_t *dst, const nn_xqos_t *src);
+DDS_EXPORT void nn_xqos_unalias (nn_xqos_t *xqos);
+DDS_EXPORT void nn_xqos_fini (nn_xqos_t *xqos);
+DDS_EXPORT void nn_xqos_mergein_missing (nn_xqos_t *a, const nn_xqos_t *b);
+DDS_EXPORT uint64_t nn_xqos_delta (const nn_xqos_t *a, const nn_xqos_t *b, uint64_t mask);
+DDS_EXPORT void nn_xqos_addtomsg (struct nn_xmsg *m, const nn_xqos_t *xqos, uint64_t wanted);
+DDS_EXPORT void nn_log_xqos (uint32_t cat, const nn_xqos_t *xqos);
+DDS_EXPORT nn_xqos_t *nn_xqos_dup (const nn_xqos_t *src);
 
 #if defined (__cplusplus)
 }

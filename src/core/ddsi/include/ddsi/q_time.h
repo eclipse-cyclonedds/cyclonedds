@@ -13,6 +13,7 @@
 #define NN_TIME_H
 
 #include "os/os.h"
+#include "ddsc/dds_export.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -55,21 +56,21 @@ extern const nn_duration_t duration_infinite;
 
 int valid_ddsi_timestamp (nn_ddsi_time_t t);
 
-OSAPI_EXPORT nn_wctime_t now (void);       /* wall clock time */
-nn_mtime_t now_mt (void);     /* monotonic time */
-nn_etime_t now_et (void);     /* elapsed time */
-void mtime_to_sec_usec (_Out_ int * __restrict sec, _Out_ int * __restrict usec, _In_ nn_mtime_t t);
-void wctime_to_sec_usec (_Out_ int * __restrict sec, _Out_ int * __restrict usec, _In_ nn_wctime_t t);
-void etime_to_sec_usec (_Out_ int * __restrict sec, _Out_ int * __restrict usec, _In_ nn_etime_t t);
-nn_mtime_t mtime_round_up (nn_mtime_t t, int64_t round);
-nn_mtime_t add_duration_to_mtime (nn_mtime_t t, int64_t d);
-nn_wctime_t add_duration_to_wctime (nn_wctime_t t, int64_t d);
-nn_etime_t add_duration_to_etime (nn_etime_t t, int64_t d);
+DDS_EXPORT nn_wctime_t now (void);       /* wall clock time */
+DDS_EXPORT nn_mtime_t now_mt (void);     /* monotonic time */
+DDS_EXPORT nn_etime_t now_et (void);     /* elapsed time */
+DDS_EXPORT void mtime_to_sec_usec (_Out_ int * __restrict sec, _Out_ int * __restrict usec, _In_ nn_mtime_t t);
+DDS_EXPORT void wctime_to_sec_usec (_Out_ int * __restrict sec, _Out_ int * __restrict usec, _In_ nn_wctime_t t);
+DDS_EXPORT void etime_to_sec_usec (_Out_ int * __restrict sec, _Out_ int * __restrict usec, _In_ nn_etime_t t);
+DDS_EXPORT nn_mtime_t mtime_round_up (nn_mtime_t t, int64_t round);
+DDS_EXPORT nn_mtime_t add_duration_to_mtime (nn_mtime_t t, int64_t d);
+DDS_EXPORT nn_wctime_t add_duration_to_wctime (nn_wctime_t t, int64_t d);
+DDS_EXPORT nn_etime_t add_duration_to_etime (nn_etime_t t, int64_t d);
 
-nn_ddsi_time_t nn_wctime_to_ddsi_time (nn_wctime_t t);
-OSAPI_EXPORT nn_wctime_t nn_wctime_from_ddsi_time (nn_ddsi_time_t x);
-OSAPI_EXPORT nn_duration_t nn_to_ddsi_duration (int64_t t);
-OSAPI_EXPORT int64_t nn_from_ddsi_duration (nn_duration_t x);
+DDS_EXPORT nn_ddsi_time_t nn_wctime_to_ddsi_time (nn_wctime_t t);
+DDS_EXPORT nn_wctime_t nn_wctime_from_ddsi_time (nn_ddsi_time_t x);
+DDS_EXPORT nn_duration_t nn_to_ddsi_duration (int64_t t);
+DDS_EXPORT int64_t nn_from_ddsi_duration (nn_duration_t x);
 
 #if defined (__cplusplus)
 }
