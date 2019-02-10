@@ -1746,12 +1746,14 @@ static int dds_rhc_read_w_qminv
             ++n;
           }
 
+          bool inst_became_old = false;
           if (n > n_first && inst->isnew)
           {
+            inst_became_old = true;
             inst->isnew = 0;
             rhc->n_new--;
           }
-          if (nread != inst_nread (inst))
+          if (nread != inst_nread (inst) || inst_became_old)
           {
             get_trigger_info (&post, inst, false);
             if (update_conditions_locked (rhc, &pre, &post, NULL))
