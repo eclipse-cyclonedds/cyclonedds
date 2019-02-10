@@ -152,6 +152,8 @@
    even when generating an invalid sample for an unregister message using
    the tkmap data. */
 
+#define TRACE(...) DDS_LOG(DDS_LC_RHC, __VA_ARGS__)
+
 /******************************
  ******   LIVE WRITERS   ******
  ******************************/
@@ -789,7 +791,7 @@ static void dds_rhc_register (struct rhc *rhc, struct rhc_instance *inst, uint64
 {
   const uint64_t inst_wr_iid = inst->wr_iid_islive ? inst->wr_iid : 0;
 
-  DDS_TRACE(" register:");
+  TRACE (" register:");
 
   /* Is an implicitly registering dispose semantically equivalent to
      register ; dispose?  If so, both no_writers_gen and disposed_gen
@@ -804,7 +806,7 @@ static void dds_rhc_register (struct rhc *rhc, struct rhc_instance *inst, uint64
     /* Same writer as last time => we know it is registered already.
        This is the fast path -- we don't have to check anything
        else. */
-    DDS_TRACE("cached");
+    TRACE ("cached");
     assert (inst->wrcount > 0);
     return;
   }
@@ -822,7 +824,7 @@ static void dds_rhc_register (struct rhc *rhc, struct rhc_instance *inst, uint64
     }
     inst->wrcount++;
     inst->no_writers_gen++;
-    DDS_TRACE("new1");
+    TRACE ("new1");
 
     if (!inst_is_empty (inst) && !inst->isdisposed)
       rhc->n_not_alive_no_writers--;
@@ -847,14 +849,14 @@ static void dds_rhc_register (struct rhc *rhc, struct rhc_instance *inst, uint64
     if (lwregs_add (&rhc->registrations, inst->iid, wr_iid))
     {
       inst->wrcount++;
-      DDS_TRACE("new2iidnull");
+      TRACE ("new2iidnull");
     }
     else
     {
       int x = lwregs_delete (&rhc->registrations, inst->iid, wr_iid);
       assert (x);
       (void) x;
-      DDS_TRACE("restore");
+      TRACE ("restore");
     }
     /* to avoid wr_iid update when register is called for sample rejected */
     if (iid_update)
@@ -870,7 +872,7 @@ static void dds_rhc_register (struct rhc *rhc, struct rhc_instance *inst, uint64
     if (inst->wrcount == 1)
     {
       /* 2nd writer => properly register the one we knew about */
-      DDS_TRACE("rescue1");
+      TRACE ("rescue1");
       int x;
       x = lwregs_add (&rhc->registrations, inst->iid, inst_wr_iid);
       assert (x);
@@ -881,12 +883,12 @@ static void dds_rhc_register (struct rhc *rhc, struct rhc_instance *inst, uint64
       /* as soon as we reach at least two writers, we have to check
          the result of lwregs_add to know whether this sample
          registers a previously unknown writer or not */
-      DDS_TRACE("new3");
+      TRACE ("new3");
       inst->wrcount++;
     }
     else
     {
-      DDS_TRACE("known");
+      TRACE ("known");
     }
     assert (inst->wrcount >= 2);
     /* the most recent writer gets the fast path */
@@ -915,7 +917,7 @@ static int rhc_unregister_isreg_w_sideeffects (struct rhc *rhc, const struct rhc
   /* Returns 1 if last registration just disappeared */
   if (inst->wrcount == 0)
   {
-    DDS_TRACE("unknown(#0)");
+    TRACE ("unknown(#0)");
     return 0;
   }
   else if (inst->wrcount == 1 && inst->wr_iid_islive)
@@ -923,23 +925,23 @@ static int rhc_unregister_isreg_w_sideeffects (struct rhc *rhc, const struct rhc
     assert(inst->wr_iid != 0);
     if (wr_iid != inst->wr_iid)
     {
-      DDS_TRACE("unknown(cache)");
+      TRACE ("unknown(cache)");
       return 0;
     }
     else
     {
-      DDS_TRACE("last(cache)");
+      TRACE ("last(cache)");
       return 1;
     }
   }
   else if (!lwregs_delete (&rhc->registrations, inst->iid, wr_iid))
   {
-    DDS_TRACE("unknown(regs)");
+    TRACE ("unknown(regs)");
     return 0;
   }
   else
   {
-    DDS_TRACE("delreg");
+    TRACE ("delreg");
     /* If we transition from 2 to 1 writer, and we are deleting a
        writer other than the one cached in the instance, that means
        afterward there will be 1 writer, it will be cached, and its
@@ -947,7 +949,7 @@ static int rhc_unregister_isreg_w_sideeffects (struct rhc *rhc, const struct rhc
        and wr_iid != 0 the wr_iid is not in "registrations") */
     if (inst->wrcount == 2 && inst->wr_iid_islive && inst->wr_iid != wr_iid)
     {
-      DDS_TRACE(",delreg(remain)");
+      TRACE (",delreg(remain)");
       lwregs_delete (&rhc->registrations, inst->iid, inst->wr_iid);
     }
     return 1;
@@ -972,7 +974,7 @@ static int rhc_unregister_updateinst
       /* Reset the ownership strength to allow samples to be read from other
        writer(s) */
       inst->strength = 0;
-      DDS_TRACE(",clearcache");
+      TRACE (",clearcache");
     }
     return 0;
   }
@@ -1002,14 +1004,14 @@ static int rhc_unregister_updateinst
     else if (inst->isdisposed)
     {
       /* No content left, no registrations left, so drop */
-      DDS_TRACE(",#0,empty,disposed,drop");
+      TRACE (",#0,empty,disposed,drop");
       drop_instance_noupdate_no_writers (rhc, inst);
       return 1;
     }
     else
     {
       /* Add invalid samples for transition to no-writers */
-      DDS_TRACE(",#0,empty,nowriters");
+      TRACE (",#0,empty,nowriters");
       assert (inst_is_empty (inst));
       inst_set_invsample (rhc, inst);
       update_inst (rhc, inst, pwr_info, false, tstamp);
@@ -1027,7 +1029,7 @@ static void dds_rhc_unregister
 )
 {
   /* 'post' always gets set; instance may have been freed upon return. */
-  DDS_TRACE(" unregister:");
+  TRACE (" unregister:");
   if (!rhc_unregister_isreg_w_sideeffects (rhc, inst, pwr_info->iid))
   {
     /* other registrations remain */
@@ -1165,13 +1167,13 @@ bool dds_rhc_store
   bool notify_data_available = true;
   bool delivered = true;
 
-  DDS_TRACE("rhc_store(%"PRIx64",%"PRIx64" si %x has_data %d:", tk->m_iid, wr_iid, statusinfo, has_data);
+  TRACE ("rhc_store(%"PRIx64",%"PRIx64" si %x has_data %d:", tk->m_iid, wr_iid, statusinfo, has_data);
   if (!has_data && statusinfo == 0)
   {
     /* Write with nothing but a key -- I guess that would be a
        register, which we do implicitly. (Currently DDSI2 won't allow
        it through anyway.) */
-    DDS_TRACE(" ignore explicit register)\n");
+    TRACE (" ignore explicit register)\n");
     return delivered;
   }
 
@@ -1190,12 +1192,12 @@ bool dds_rhc_store
      */
     if (!has_data && !is_dispose)
     {
-      DDS_TRACE(" disp/unreg on unknown instance");
+      TRACE (" disp/unreg on unknown instance");
       goto error_or_nochange;
     }
     else
     {
-      DDS_TRACE(" new instance");
+      TRACE (" new instance");
       stored = rhc_store_new_instance (&post, rhc, pwr_info, sample, tk, has_data, &cb_data);
       if (stored != RHC_STORED)
       {
@@ -1211,7 +1213,7 @@ bool dds_rhc_store
        will raise a SAMPLE_REJECTED, and indicate that the system should
        kill itself.)  Not letting instances go to ALIVE or NEW based on
        a rejected sample - (no one knows, it seemed) */
-    DDS_TRACE(" instance rejects sample");
+    TRACE (" instance rejects sample");
 
 
     get_trigger_info (&pre, inst, true);
@@ -1241,7 +1243,7 @@ bool dds_rhc_store
   {
     get_trigger_info (&pre, inst, true);
 
-    DDS_TRACE(" wc %"PRIu32, inst->wrcount);
+    TRACE (" wc %"PRIu32, inst->wrcount);
 
     if (has_data || is_dispose)
     {
@@ -1269,7 +1271,7 @@ bool dds_rhc_store
       /* Sample arriving for a NOT_ALIVE instance => view state NEW */
       if (has_data && not_alive)
       {
-        DDS_TRACE(" notalive->alive");
+        TRACE (" notalive->alive");
         inst->isnew = 1;
       }
 
@@ -1282,7 +1284,7 @@ bool dds_rhc_store
          and the operation is WD. */
       if (has_data && inst->isdisposed)
       {
-        DDS_TRACE(" disposed->notdisposed");
+        TRACE (" disposed->notdisposed");
         inst->isdisposed = 0;
         inst->disposed_gen++;
       }
@@ -1290,17 +1292,17 @@ bool dds_rhc_store
       {
         inst->isdisposed = 1;
         inst_became_disposed = !old_isdisposed;
-        DDS_TRACE(" dispose(%d)", inst_became_disposed);
+        TRACE (" dispose(%d)", inst_became_disposed);
       }
 
       /* Only need to add a sample to the history if the input actually
          is a sample. */
       if (has_data)
       {
-        DDS_TRACE(" add_sample");
         if (! add_sample (rhc, inst, pwr_info, sample, &cb_data))
+        TRACE (" add_sample");
         {
-          DDS_TRACE("(reject)");
+          TRACE ("(reject)");
           stored = RHC_REJECTED;
 
           /* FIXME: fix the bad rejection handling, probably put back in a proper rollback, until then a band-aid like this will have to do: */
@@ -1368,7 +1370,7 @@ bool dds_rhc_store
     }
   }
 
-  DDS_TRACE(")\n");
+  TRACE (")\n");
 
   /* do not send data available notification when an instance is dropped */
   if ((post.qminst == ~0u) && (post.has_read == 0) && (post.has_not_read == 0) && (post.has_changed == false))
@@ -1407,7 +1409,7 @@ error_or_nochange:
   }
 
   os_mutexUnlock (&rhc->lock);
-  DDS_TRACE(")\n");
+  TRACE (")\n");
 
   /* Make any reader status callback */
 
@@ -1449,7 +1451,7 @@ void dds_rhc_unregister_wr
   const int auto_dispose = pwr_info->auto_dispose;
 
   os_mutexLock (&rhc->lock);
-  DDS_TRACE("rhc_unregister_wr_iid(%"PRIx64",%d:\n", wr_iid, auto_dispose);
+  TRACE ("rhc_unregister_wr_iid(%"PRIx64",%d:\n", wr_iid, auto_dispose);
   for (inst = ut_hhIterFirst (rhc->instances, &iter); inst; inst = ut_hhIterNext (&iter))
   {
     if ((inst->wr_iid_islive && inst->wr_iid == wr_iid) || lwregs_contains (&rhc->registrations, inst->iid, wr_iid))
@@ -1457,7 +1459,7 @@ void dds_rhc_unregister_wr
       struct trigger_info pre, post;
       get_trigger_info (&pre, inst, true);
 
-      DDS_TRACE("  %"PRIx64":", inst->iid);
+      TRACE ("  %"PRIx64":", inst->iid);
 
       assert (inst->wrcount > 0);
       if (auto_dispose && !inst->isdisposed)
@@ -1483,7 +1485,7 @@ void dds_rhc_unregister_wr
 
       dds_rhc_unregister (&post, rhc, inst, pwr_info, inst->tstamp);
 
-      DDS_TRACE("\n");
+      TRACE ("\n");
 
       if (trigger_info_differs (&pre, &post))
       {
@@ -1496,7 +1498,7 @@ void dds_rhc_unregister_wr
       assert (rhc_check_counts_locked (rhc, true));
     }
   }
-  DDS_TRACE(")\n");
+  TRACE (")\n");
   os_mutexUnlock (&rhc->lock);
 
   if (trigger_waitsets)
@@ -1510,7 +1512,7 @@ void dds_rhc_relinquish_ownership (struct rhc * __restrict rhc, const uint64_t w
   struct rhc_instance *inst;
   struct ut_hhIter iter;
   os_mutexLock (&rhc->lock);
-  DDS_TRACE("rhc_relinquish_ownership(%"PRIx64":\n", wr_iid);
+  TRACE ("rhc_relinquish_ownership(%"PRIx64":\n", wr_iid);
   for (inst = ut_hhIterFirst (rhc->instances, &iter); inst; inst = ut_hhIterNext (&iter))
   {
     if (inst->wr_iid_islive && inst->wr_iid == wr_iid)
@@ -1518,7 +1520,7 @@ void dds_rhc_relinquish_ownership (struct rhc * __restrict rhc, const uint64_t w
       inst->wr_iid_islive = 0;
     }
   }
-  DDS_TRACE(")\n");
+  TRACE (")\n");
   assert (rhc_check_counts_locked (rhc, true));
   os_mutexUnlock (&rhc->lock);
 }
@@ -1674,8 +1676,8 @@ static int dds_rhc_read_w_qminv
     os_mutexLock (&rhc->lock);
   }
 
-  DDS_TRACE("read_w_qminv(%p,%p,%p,%u,%x) - inst %u nonempty %u disp %u nowr %u new %u samples %u+%u read %u+%u\n",
-    (void *) rhc, (void *) values, (void *) info_seq, max_samples, qminv,
+  TRACE ("read_w_qminv(%p,%p,%p,%u,%x,%p) - inst %u nonempty %u disp %u nowr %u new %u samples %u+%u read %u+%u\n",
+    (void *) rhc, (void *) values, (void *) info_seq, max_samples, qminv, (void *) cond,
     rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples, rhc->n_invsamples,
     rhc->n_vread, rhc->n_invread);
@@ -1712,7 +1714,7 @@ static int dds_rhc_read_w_qminv
                 {
                   if (!sample->isread)
                   {
-                    DDS_TRACE("s");
+                    TRACE ("s");
                     sample->isread = true;
                     inst->nvread++;
                     rhc->n_vread++;
@@ -1775,7 +1777,7 @@ static int dds_rhc_read_w_qminv
     }
     while (inst != end && n < max_samples);
   }
-  DDS_TRACE("read: returning %u\n", n);
+  TRACE ("read: returning %u\n", n);
   assert (rhc_check_counts_locked (rhc, true));
   os_mutexUnlock (&rhc->lock);
 
@@ -1803,7 +1805,7 @@ static int dds_rhc_take_w_qminv
     os_mutexLock (&rhc->lock);
   }
 
-  DDS_TRACE("take_w_qminv(%p,%p,%p,%u,%x) - inst %u nonempty %u disp %u nowr %u new %u samples %u+%u read %u+%u\n",
+  TRACE ("take_w_qminv(%p,%p,%p,%u,%x) - inst %u nonempty %u disp %u nowr %u new %u samples %u+%u read %u+%u\n",
     (void*) rhc, (void*) values, (void*) info_seq, max_samples, qminv,
     rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples,
@@ -1918,7 +1920,7 @@ static int dds_rhc_take_w_qminv
             }
             if (inst->wrcount == 0)
             {
-              DDS_TRACE("take: iid %"PRIx64" #0,empty,drop\n", iid);
+              TRACE ("take: iid %"PRIx64" #0,empty,drop\n", iid);
               if (!inst->isdisposed)
               {
                 /* disposed has priority over no writers (why not just 2 bits?) */
@@ -1940,7 +1942,7 @@ static int dds_rhc_take_w_qminv
       inst = inst1;
     }
   }
-  DDS_TRACE("take: returning %u\n", n);
+  TRACE ("take: returning %u\n", n);
   assert (rhc_check_counts_locked (rhc, true));
   os_mutexUnlock (&rhc->lock);
 
@@ -1969,7 +1971,7 @@ static int dds_rhc_takecdr_w_qminv
     os_mutexLock (&rhc->lock);
   }
 
-  DDS_TRACE("take_w_qminv(%p,%p,%p,%u,%x) - inst %u nonempty %u disp %u nowr %u new %u samples %u+%u read %u+%u\n",
+  TRACE ("take_w_qminv(%p,%p,%p,%u,%x) - inst %u nonempty %u disp %u nowr %u new %u samples %u+%u read %u+%u\n",
           (void*) rhc, (void*) values, (void*) info_seq, max_samples, qminv,
           rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
           rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples,
@@ -2069,7 +2071,7 @@ static int dds_rhc_takecdr_w_qminv
             }
             if (inst->wrcount == 0)
             {
-              DDS_TRACE("take: iid %"PRIx64" #0,empty,drop\n", iid);
+              TRACE ("take: iid %"PRIx64" #0,empty,drop\n", iid);
               if (!inst->isdisposed)
               {
                 /* disposed has priority over no writers (why not just 2 bits?) */
@@ -2091,7 +2093,7 @@ static int dds_rhc_takecdr_w_qminv
       inst = inst1;
     }
   }
-  DDS_TRACE("take: returning %u\n", n);
+  TRACE ("take: returning %u\n", n);
   assert (rhc_check_counts_locked (rhc, true));
   os_mutexUnlock (&rhc->lock);
 
@@ -2159,7 +2161,7 @@ void dds_rhc_add_readcondition (dds_readcond * cond)
   rhc->nconds++;
   rhc->conds = cond;
 
-  DDS_TRACE("add_readcondition(%p, %x, %x, %x) => %p qminv %x ; rhc %u conds\n",
+  TRACE ("add_readcondition(%p, %x, %x, %x) => %p qminv %x ; rhc %u conds\n",
     (void *) rhc, cond->m_sample_states, cond->m_view_states,
     cond->m_instance_states, (void *) cond, cond->m_qminv, rhc->nconds);
 
@@ -2212,9 +2214,9 @@ static bool update_conditions_locked
   int m_post;
   char *tmp = NULL;
 
-  DDS_TRACE("update_conditions_locked(%p) - inst %u nonempty %u disp %u nowr %u new %u samples %u read %u\n",
-          (void *) rhc, rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
-          rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples, rhc->n_vread);
+  TRACE ("update_conditions_locked(%p) - inst %u nonempty %u disp %u nowr %u new %u samples %u read %u\n",
+         (void *) rhc, rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
+         rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples, rhc->n_vread);
 
   assert (rhc->n_nonempty_instances >= rhc->n_not_alive_disposed + rhc->n_not_alive_no_writers);
   assert (rhc->n_nonempty_instances >= rhc->n_new);
@@ -2246,10 +2248,10 @@ static bool update_conditions_locked
         DDS_FATAL("update_readconditions: sample_states invalid: %x\n", iter->m_sample_states);
     }
 
-    DDS_TRACE("  cond %p: ", (void *) iter);
+    TRACE ("  cond %p: ", (void *) iter);
     if (m_pre == m_post)
     {
-      DDS_TRACE("no change");
+      TRACE ("no change");
     }
     else if (m_pre < m_post)
     {
@@ -2265,27 +2267,27 @@ static bool update_conditions_locked
         || (iter->m_query.m_filter != NULL && iter->m_query.m_filter (tmp))
       )
       {
-        DDS_TRACE("now matches");
+        TRACE ("now matches");
         if (iter->m_entity.m_trigger++ == 0)
         {
-          DDS_TRACE(" (cond now triggers)");
+          TRACE (" (cond now triggers)");
           trigger = true;
         }
       }
     }
     else
     {
-      DDS_TRACE("no longer matches");
+      TRACE ("no longer matches");
       if (--iter->m_entity.m_trigger == 0)
       {
-        DDS_TRACE(" (cond no longer triggers)");
+        TRACE (" (cond no longer triggers)");
       }
     }
     if (iter->m_entity.m_trigger) {
         dds_entity_status_signal(&(iter->m_entity));
     }
 
-    DDS_TRACE("\n");
+    TRACE ("\n");
     iter = iter->m_rhc_next;
   }
 
