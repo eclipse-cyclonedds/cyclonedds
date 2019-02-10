@@ -297,7 +297,6 @@ struct rhc
   unsigned history_depth;           /* depth, 1 for KEEP_LAST_1, 2**32-1 for KEEP_ALL */
 
   os_mutex lock;
-  os_mutex conds_lock;
   dds_readcond * conds;             /* List of associated read conditions */
   uint32_t nconds;                  /* Number of associated read conditions */
 };
@@ -424,7 +423,6 @@ struct rhc * dds_rhc_new (dds_reader * reader, const struct ddsi_sertopic * topi
 
   lwregs_init (&rhc->registrations);
   os_mutexInit (&rhc->lock);
-  os_mutexInit (&rhc->conds_lock);
   rhc->instances = ut_hhNew (1, instance_iid_hash, instance_iid_eq);
   rhc->topic = topic;
   rhc->reader = reader;
@@ -557,7 +555,6 @@ void dds_rhc_free (struct rhc *rhc)
   ut_hhFree (rhc->instances);
   lwregs_fini (&rhc->registrations);
   os_mutexDestroy (&rhc->lock);
-  os_mutexDestroy (&rhc->conds_lock);
   os_free (rhc);
 }
 
@@ -2156,7 +2153,6 @@ void dds_rhc_add_readcondition (dds_readcond * cond)
       }
     }
   }
-  os_mutexLock (&rhc->conds_lock);
   cond->m_rhc_next = rhc->conds;
   rhc->nconds++;
   rhc->conds = cond;
@@ -2165,7 +2161,6 @@ void dds_rhc_add_readcondition (dds_readcond * cond)
     (void *) rhc, cond->m_sample_states, cond->m_view_states,
     cond->m_instance_states, (void *) cond, cond->m_qminv, rhc->nconds);
 
-  os_mutexUnlock (&rhc->conds_lock);
   os_mutexUnlock (&rhc->lock);
 }
 
@@ -2176,7 +2171,6 @@ void dds_rhc_remove_readcondition (dds_readcond * cond)
   dds_readcond * prev = NULL;
 
   os_mutexLock (&rhc->lock);
-  os_mutexLock (&rhc->conds_lock);
   iter = rhc->conds;
   while (iter)
   {
@@ -2196,7 +2190,6 @@ void dds_rhc_remove_readcondition (dds_readcond * cond)
     prev = iter;
     iter = iter->m_rhc_next;
   }
-  os_mutexUnlock (&rhc->conds_lock);
   os_mutexUnlock (&rhc->lock);
 }
 
