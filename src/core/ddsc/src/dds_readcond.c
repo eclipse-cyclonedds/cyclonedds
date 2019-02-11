@@ -45,7 +45,7 @@ dds_create_readcond(
     cond->m_rd_guid = rd->m_entity.m_guid;
     if (kind == DDS_KIND_COND_QUERY) {
         cond->m_query.m_filter = filter;
-        cond->m_query.m_index = UINT_MAX;
+        cond->m_query.m_qcmask = 0;
     }
     if (!dds_rhc_add_readcondition (cond)) {
         /* FIXME: current entity management code can't deal with an error late in the creation of the

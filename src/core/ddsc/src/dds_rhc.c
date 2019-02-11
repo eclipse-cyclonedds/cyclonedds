@@ -152,10 +152,14 @@
    even when generating an invalid sample for an unregister message using
    the tkmap data. */
 
-typedef uint32_t querycond_mask_t;
-#define MAX_ATTACHED_QUERYCONDS (CHAR_BIT * sizeof (querycond_mask_t))
+#define MAX_ATTACHED_QUERYCONDS (CHAR_BIT * sizeof (dds_querycond_mask_t))
 
+#define INCLUDE_TRACE 1
+#if INCLUDE_TRACE
 #define TRACE(...) DDS_LOG(DDS_LC_RHC, __VA_ARGS__)
+#else
+#define TRACE(...) ((void)0)
+#endif
 
 /******************************
  ******   LIVE WRITERS   ******
@@ -228,7 +232,7 @@ struct rhc_sample {
   struct ddsi_serdata *sample; /* serialised data (either just_key or real data) */
   struct rhc_sample *next;     /* next sample in time ordering, or oldest sample if most recent */
   uint64_t wr_iid;             /* unique id for writer of this sample (perhaps better in serdata) */
-  querycond_mask_t conds;      /* matching query conditions */
+  dds_querycond_mask_t conds;  /* matching query conditions */
   bool isread;                 /* READ or NOT_READ sample state */
   unsigned disposed_gen;       /* snapshot of instance counter at time of insertion */
   unsigned no_writers_gen;     /* __/ */
@@ -240,7 +244,7 @@ struct rhc_instance {
   struct rhc_sample *latest;   /* latest received sample; circular list old->new; null if no sample */
   unsigned nvsamples;          /* number of "valid" samples in instance */
   unsigned nvread;             /* number of READ "valid" samples in instance (0 <= nvread <= nvsamples) */
-  querycond_mask_t conds;      /* matching query conditions */
+  dds_querycond_mask_t conds;  /* matching query conditions */
   uint32_t wrcount;            /* number of live writers */
   unsigned isnew : 1;          /* NEW or NOT_NEW view state */
   unsigned a_sample_free : 1;  /* whether or not a_sample is in use */
@@ -269,38 +273,39 @@ typedef enum rhc_store_result {
 struct rhc {
   struct ut_hh *instances;
   struct rhc_instance *nonempty_instances; /* circular, points to most recently added one, NULL if none */
-  struct lwregs registrations;      /* should be a global one (with lock-free lookups) */
+  struct lwregs registrations;       /* should be a global one (with lock-free lookups) */
 
   /* Instance/Sample maximums from resource limits QoS */
 
-  os_atomic_uint32_t n_cbs;                /* # callbacks in progress */
+  os_atomic_uint32_t n_cbs;          /* # callbacks in progress */
   int32_t max_instances; /* FIXME: probably better as uint32_t with MAX_UINT32 for unlimited */
   int32_t max_samples;   /* FIXME: probably better as uint32_t with MAX_UINT32 for unlimited */
   int32_t max_samples_per_instance; /* FIXME: probably better as uint32_t with MAX_UINT32 for unlimited */
 
-  uint32_t n_instances;             /* # instances, including empty [NOT USED] */
-  uint32_t n_nonempty_instances;    /* # non-empty instances */
-  uint32_t n_not_alive_disposed;    /* # disposed, non-empty instances [NOT USED] */
-  uint32_t n_not_alive_no_writers;  /* # not-alive-no-writers, non-empty instances [NOT USED] */
-  uint32_t n_new;                   /* # new, non-empty instances [NOT USED] */
-  uint32_t n_vsamples;              /* # "valid" samples over all instances */
-  uint32_t n_vread;                 /* # read "valid" samples over all instances [NOT USED] */
-  uint32_t n_invsamples;            /* # invalid samples over all instances [NOT USED] */
-  uint32_t n_invread;               /* # read invalid samples over all instances [NOT USED] */
+  uint32_t n_instances;              /* # instances, including empty [NOT USED] */
+  uint32_t n_nonempty_instances;     /* # non-empty instances */
+  uint32_t n_not_alive_disposed;     /* # disposed, non-empty instances [NOT USED] */
+  uint32_t n_not_alive_no_writers;   /* # not-alive-no-writers, non-empty instances [NOT USED] */
+  uint32_t n_new;                    /* # new, non-empty instances [NOT USED] */
+  uint32_t n_vsamples;               /* # "valid" samples over all instances */
+  uint32_t n_vread;                  /* # read "valid" samples over all instances [NOT USED] */
+  uint32_t n_invsamples;             /* # invalid samples over all instances [NOT USED] */
+  uint32_t n_invread;                /* # read invalid samples over all instances [NOT USED] */
 
-  bool by_source_ordering;          /* true if BY_SOURCE, false if BY_RECEPTION */
-  bool exclusive_ownership;         /* true if EXCLUSIVE, false if SHARED */
-  bool reliable;                    /* true if reliability RELIABLE */
+  bool by_source_ordering;           /* true if BY_SOURCE, false if BY_RECEPTION */
+  bool exclusive_ownership;          /* true if EXCLUSIVE, false if SHARED */
+  bool reliable;                     /* true if reliability RELIABLE */
 
-  dds_reader * reader;              /* reader */
-  const struct ddsi_sertopic * topic;    /* topic description */
-  unsigned history_depth;           /* depth, 1 for KEEP_LAST_1, 2**32-1 for KEEP_ALL */
+  dds_reader *reader;                /* reader */
+  const struct ddsi_sertopic *topic; /* topic description */
+  unsigned history_depth;            /* depth, 1 for KEEP_LAST_1, 2**32-1 for KEEP_ALL */
 
   os_mutex lock;
-  dds_readcond * conds;             /* List of associated read conditions */
-  uint32_t nconds;                  /* Number of associated read conditions */
-  uint32_t nqconds;                 /* Number of associated query conditions */
-  querycond_mask_t qconds_samplest; /* Mask of associated query conditions that check the sample state */
+  dds_readcond * conds;              /* List of associated read conditions */
+  uint32_t nconds;                   /* Number of associated read conditions */
+  uint32_t nqconds;                  /* Number of associated query conditions */
+  dds_querycond_mask_t qconds_samplest;  /* Mask of associated query conditions that check the sample state */
+  void *qcond_eval_samplebuf;        /* Temporary storage for evaluating query conditions, NULL if no qconds */
 };
 
 struct trigger_info_cmn {
@@ -321,10 +326,10 @@ struct trigger_info_qcond {
   bool dec_sample_read;
   bool inc_invsample_read;
   bool inc_sample_read;
-  querycond_mask_t dec_conds_invsample;
-  querycond_mask_t dec_conds_sample;
-  querycond_mask_t inc_conds_invsample;
-  querycond_mask_t inc_conds_sample;
+  dds_querycond_mask_t dec_conds_invsample;
+  dds_querycond_mask_t dec_conds_sample;
+  dds_querycond_mask_t inc_conds_invsample;
+  dds_querycond_mask_t inc_conds_sample;
 };
 
 struct trigger_info_post {
@@ -366,10 +371,20 @@ static bool inst_has_unread (const struct rhc_instance *i)
   return inst_nread (i) < inst_nsamples (i);
 }
 
+static void topicless_to_clean_invsample (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim)
+{
+  /* ddsi_serdata_topicless_to_sample just deals with the key value, without paying any attention to attributes;
+     but that makes life harder for the user: the attributes of an invalid sample would be garbage, but would
+     nonetheless have to be freed in the end.  Zero'ing it explicitly solves that problem. */
+  ddsi_sertopic_free_sample (topic, sample, DDS_FREE_CONTENTS);
+  ddsi_sertopic_zero_sample (topic, sample);
+  ddsi_serdata_topicless_to_sample (topic, d, sample, bufptr, buflim);
+}
+
 static unsigned qmask_of_inst (const struct rhc_instance *inst);
 static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc, const struct rhc_instance *inst);
 #ifndef NDEBUG
-static int rhc_check_counts_locked (struct rhc *rhc, bool check_conds);
+static int rhc_check_counts_locked (struct rhc *rhc, bool check_conds, bool check_qcmask);
 #endif
 
 static uint32_t instance_iid_hash (const void *va)
@@ -466,21 +481,17 @@ void dds_rhc_set_qos (struct rhc * rhc, const nn_xqos_t * qos)
   rhc->history_depth = (qos->history.kind == NN_KEEP_LAST_HISTORY_QOS) ? (uint32_t)qos->history.depth : ~0u;
 }
 
-static bool eval_predicate_allocs_buf (const struct ddsi_sertopic *sertopic, const struct ddsi_serdata *sample, bool (*pred) (const void *sample))
+static bool eval_predicate_sample (const struct rhc *rhc, const struct ddsi_serdata *sample, bool (*pred) (const void *sample))
 {
-  char *tmp = ddsi_sertopic_alloc_sample (sertopic);
-  ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
-  bool ret = pred (tmp);
-  ddsi_sertopic_free_sample (sertopic, tmp, DDS_FREE_ALL);
+  ddsi_serdata_to_sample (sample, rhc->qcond_eval_samplebuf, NULL, NULL);
+  bool ret = pred (rhc->qcond_eval_samplebuf);
   return ret;
 }
 
-static bool eval_predicate_invsample_allocbuf (const struct ddsi_sertopic *sertopic, const struct rhc_instance *inst, bool (*pred) (const void *sample))
+static bool eval_predicate_invsample (const struct rhc *rhc, const struct rhc_instance *inst, bool (*pred) (const void *sample))
 {
-  char *tmp = ddsi_sertopic_alloc_sample (sertopic);
-  ddsi_serdata_topicless_to_sample (sertopic, inst->tk->m_sample, tmp, NULL, NULL);
-  bool ret = pred (tmp);
-  ddsi_sertopic_free_sample (sertopic, tmp, DDS_FREE_ALL);
+  topicless_to_clean_invsample (rhc->topic, inst->tk->m_sample, rhc->qcond_eval_samplebuf, NULL, NULL);
+  bool ret = pred (rhc->qcond_eval_samplebuf);
   return ret;
 }
 
@@ -609,11 +620,13 @@ static void free_instance_rhc_free_wrap (void *vnode, void *varg)
 
 void dds_rhc_free (struct rhc *rhc)
 {
-  assert (rhc_check_counts_locked (rhc, true));
+  assert (rhc_check_counts_locked (rhc, true, true));
   ut_hhEnum (rhc->instances, free_instance_rhc_free_wrap, rhc);
   assert (rhc->nonempty_instances == NULL);
   ut_hhFree (rhc->instances);
   lwregs_fini (&rhc->registrations);
+  if (rhc->qcond_eval_samplebuf != NULL)
+    ddsi_sertopic_free_sample (rhc->topic, rhc->qcond_eval_samplebuf, DDS_FREE_ALL);
   os_mutexDestroy (&rhc->lock);
   os_free (rhc);
 }
@@ -760,13 +773,11 @@ static bool add_sample (struct rhc *rhc, struct rhc_instance *inst, const struct
   s->no_writers_gen = inst->no_writers_gen;
 
   s->conds = 0;
-  for (dds_readcond *rc = rhc->conds; rc != NULL; rc = rc->m_rhc_next)
+  if (rhc->nqconds != 0)
   {
-    if (rc->m_query.m_filter != 0 && eval_predicate_allocs_buf (rhc->topic, s->sample, rc->m_query.m_filter))
-    {
-      assert (rc->m_query.m_index < MAX_ATTACHED_QUERYCONDS);
-      s->conds |= (querycond_mask_t)1 << rc->m_query.m_index;
-    }
+    for (dds_readcond *rc = rhc->conds; rc != NULL; rc = rc->m_next)
+      if (rc->m_query.m_filter != 0 && eval_predicate_sample (rhc, s->sample, rc->m_query.m_filter))
+        s->conds |= rc->m_query.m_qcmask;
   }
 
   trig_qc->inc_conds_sample = s->conds;
@@ -1134,15 +1145,14 @@ static struct rhc_instance *alloc_new_instance (const struct rhc *rhc, const str
   inst->tstamp = serdata->timestamp;
   inst->strength = pwr_info->ownership_strength;
 
-  for (dds_readcond *c = rhc->conds; c != NULL; c = c->m_rhc_next)
+  if (rhc->nqconds != 0)
   {
-    assert ((dds_entity_kind (&c->m_entity) == DDS_KIND_COND_READ && c->m_query.m_filter == 0) ||
-            (dds_entity_kind (&c->m_entity) == DDS_KIND_COND_QUERY && c->m_query.m_filter != 0));
-    /* FIXME: should perhaps have a single sample allocated in the RHC if there are attached query conditions, so that all the alloc/free nonsense can be skipped */
-    if (c->m_query.m_filter && eval_predicate_invsample_allocbuf (rhc->topic, inst, c->m_query.m_filter))
+    for (dds_readcond *c = rhc->conds; c != NULL; c = c->m_next)
     {
-      assert (c->m_query.m_index < MAX_ATTACHED_QUERYCONDS);
-      inst->conds |= (querycond_mask_t)1 << c->m_query.m_index;
+      assert ((dds_entity_kind (&c->m_entity) == DDS_KIND_COND_READ && c->m_query.m_filter == 0) ||
+              (dds_entity_kind (&c->m_entity) == DDS_KIND_COND_QUERY && c->m_query.m_filter != 0));
+      if (c->m_query.m_filter && eval_predicate_invsample (rhc, inst, c->m_query.m_filter))
+        inst->conds |= c->m_query.m_qcmask;
     }
   }
 
@@ -1411,7 +1421,7 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
       }
     }
 
-    assert (rhc_check_counts_locked (rhc, false));
+    assert (rhc_check_counts_locked (rhc, false, false));
 
     if (statusinfo & NN_STATUSINFO_UNREGISTER)
     {
@@ -1451,7 +1461,7 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
   else
     trigger_waitsets = false;
 
-  assert (rhc_check_counts_locked (rhc, true));
+  assert (rhc_check_counts_locked (rhc, true, true));
 
   os_mutexUnlock (&rhc->lock);
 
@@ -1559,7 +1569,7 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
 
       if (trigger_info_differs (&pre, &post, &trig_qc) && update_conditions_locked (rhc, true, &pre, &post, &trig_qc, inst))
         trigger_waitsets = true;
-      assert (rhc_check_counts_locked (rhc, true));
+      assert (rhc_check_counts_locked (rhc, true, false));
     }
   }
   TRACE (")\n");
@@ -1583,7 +1593,7 @@ void dds_rhc_relinquish_ownership (struct rhc * __restrict rhc, const uint64_t w
     }
   }
   TRACE (")\n");
-  assert (rhc_check_counts_locked (rhc, true));
+  assert (rhc_check_counts_locked (rhc, true, false));
   os_mutexUnlock (&rhc->lock);
 }
 
@@ -1724,7 +1734,7 @@ static void patch_generations (dds_sample_info_t *si, uint32_t last_of_inst)
   }
 }
 
-static bool read_sample_update_conditions (struct rhc *rhc, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc, struct rhc_instance *inst, querycond_mask_t conds, bool sample_wasread)
+static bool read_sample_update_conditions (struct rhc *rhc, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc, struct rhc_instance *inst, dds_querycond_mask_t conds, bool sample_wasread)
 {
   /* No query conditions that are dependent on sample states */
   if (rhc->qconds_samplest == 0)
@@ -1745,7 +1755,7 @@ static bool read_sample_update_conditions (struct rhc *rhc, struct trigger_info_
   return trigger_waitsets;
 }
 
-static bool take_sample_update_conditions (struct rhc *rhc, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc, struct rhc_instance *inst, querycond_mask_t conds, bool sample_wasread)
+static bool take_sample_update_conditions (struct rhc *rhc, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc, struct rhc_instance *inst, dds_querycond_mask_t conds, bool sample_wasread)
 {
   /* Mostly the same as read_...: but we are deleting samples (so no "inc sample") and need to process all query conditions that match this sample. */
   if (rhc->nqconds == 0 || conds == 0)
@@ -1759,17 +1769,6 @@ static bool take_sample_update_conditions (struct rhc *rhc, struct trigger_info_
   trig_qc->dec_conds_sample = 0;
   pre->c = post->c;
   return trigger_waitsets;
-}
-
-static void topicless_to_clean_invsample (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim)
-{
-  /* ddsi_serdata_topicless_to_sample just deals with the key value, without paying any attention to attributes;
-     but that makes life harder for the user: the attributes of an invalid sample would be garbage, but would
-     nonetheless have to be freed in the end.  Zero'ing it explicitly solves that problem.  Not sure whether the
-     cure is not somehow worse.  */
-  ddsi_sertopic_free_sample (topic, sample, DDS_FREE_CONTENTS);
-  ddsi_sertopic_zero_sample (topic, sample);
-  ddsi_serdata_topicless_to_sample (topic, d, sample, bufptr, buflim);
 }
 
 static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, unsigned qminv, dds_instance_handle_t handle, dds_readcond *cond)
@@ -1790,7 +1789,7 @@ static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
 
   if (rhc->nonempty_instances)
   {
-    const querycond_mask_t qcmask = (cond && cond->m_query.m_filter) ? (querycond_mask_t)1 << cond->m_query.m_index : 0;
+    const dds_querycond_mask_t qcmask = (cond && cond->m_query.m_filter) ? cond->m_query.m_qcmask : 0;
     struct rhc_instance * inst = rhc->nonempty_instances->next;
     struct rhc_instance * const end = inst;
     do
@@ -1884,7 +1883,7 @@ static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
     while (inst != end && n < max_samples);
   }
   TRACE ("read: returning %u\n", n);
-  assert (rhc_check_counts_locked (rhc, true));
+  assert (rhc_check_counts_locked (rhc, true, false));
   os_mutexUnlock (&rhc->lock);
 
   if (trigger_waitsets)
@@ -1913,7 +1912,7 @@ static int dds_rhc_take_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
 
   if (rhc->nonempty_instances)
   {
-    const querycond_mask_t qcmask = (cond && cond->m_query.m_filter) ? (querycond_mask_t)1 << cond->m_query.m_index : 0;
+    const dds_querycond_mask_t qcmask = (cond && cond->m_query.m_filter) ? cond->m_query.m_qcmask : 0;
     struct rhc_instance *inst = rhc->nonempty_instances->next;
     unsigned n_insts = rhc->n_nonempty_instances;
     while (n_insts-- > 0 && n < max_samples)
@@ -2046,7 +2045,7 @@ static int dds_rhc_take_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
     }
   }
   TRACE ("take: returning %u\n", n);
-  assert (rhc_check_counts_locked (rhc, true));
+  assert (rhc_check_counts_locked (rhc, true, false));
   os_mutexUnlock (&rhc->lock);
 
   if (trigger_waitsets)
@@ -2076,7 +2075,7 @@ static int dds_rhc_takecdr_w_qminv (struct rhc *rhc, bool lock, struct ddsi_serd
 
   if (rhc->nonempty_instances)
   {
-    const querycond_mask_t qcmask = (cond && cond->m_query.m_filter) ? (querycond_mask_t)1 << cond->m_query.m_index : 0;
+    const dds_querycond_mask_t qcmask = (cond && cond->m_query.m_filter) ? cond->m_query.m_qcmask : 0;
     struct rhc_instance *inst = rhc->nonempty_instances->next;
     unsigned n_insts = rhc->n_nonempty_instances;
     while (n_insts-- > 0 && n < max_samples)
@@ -2198,7 +2197,7 @@ static int dds_rhc_takecdr_w_qminv (struct rhc *rhc, bool lock, struct ddsi_serd
     }
   }
   TRACE ("take: returning %u\n", n);
-  assert (rhc_check_counts_locked (rhc, true));
+  assert (rhc_check_counts_locked (rhc, true, false));
   os_mutexUnlock (&rhc->lock);
 
   if (trigger_waitsets)
@@ -2235,9 +2234,9 @@ static uint32_t rhc_get_cond_trigger (struct rhc_instance * const inst, const dd
   return m ? 1 : 0;
 }
 
-static bool cond_is_sample_state_dependent (uint32_t sample_states)
+static bool cond_is_sample_state_dependent (const struct dds_readcond *cond)
 {
-  switch (sample_states)
+  switch (cond->m_sample_states)
   {
     case DDS_SST_READ:
     case DDS_SST_NOT_READ:
@@ -2246,7 +2245,7 @@ static bool cond_is_sample_state_dependent (uint32_t sample_states)
     case 0:
       return false;
     default:
-      DDS_FATAL("update_readconditions: sample_states invalid: %x\n", sample_states);
+      DDS_FATAL("update_readconditions: sample_states invalid: %x\n", cond->m_sample_states);
       return false;
   }
 }
@@ -2260,19 +2259,44 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
 
   struct rhc *rhc = cond->m_rhc;
   struct ut_hhIter it;
-  querycond_mask_t qcmask = 0;
 
   assert ((dds_entity_kind (&cond->m_entity) == DDS_KIND_COND_READ && cond->m_query.m_filter == 0) ||
           (dds_entity_kind (&cond->m_entity) == DDS_KIND_COND_QUERY && cond->m_query.m_filter != 0));
   assert (cond->m_entity.m_trigger == 0);
+  assert (cond->m_query.m_qcmask == 0);
 
   cond->m_qminv = qmask_from_dcpsquery (cond->m_sample_states, cond->m_view_states, cond->m_instance_states);
 
   os_mutexLock (&rhc->lock);
 
-  if (cond->m_query.m_filter == NULL)
+  /* Allocate a slot in the condition bitmasks; return an error no more slots are available */
+  if (cond->m_query.m_filter != 0)
   {
-    /* Read condition is not cached inside the instances and samples, so it only needs to be evaluated on the non-empty instances */
+    dds_querycond_mask_t avail_qcmask = ~(dds_querycond_mask_t)0;
+    for (dds_readcond *rc = rhc->conds; rc != NULL; rc = rc->m_next)
+    {
+      assert ((rc->m_query.m_filter == 0 && rc->m_query.m_qcmask == 0) || (rc->m_query.m_filter != 0 && rc->m_query.m_qcmask != 0));
+      avail_qcmask &= ~rc->m_query.m_qcmask;
+    }
+    if (avail_qcmask == 0)
+    {
+      /* no available indices */
+      os_mutexUnlock (&rhc->lock);
+      return false;
+    }
+
+    /* use the least significant bit set */
+    cond->m_query.m_qcmask = avail_qcmask & (~avail_qcmask + 1);
+  }
+
+  rhc->nconds++;
+  cond->m_next = rhc->conds;
+  rhc->conds = cond;
+
+  if (cond->m_query.m_filter == 0)
+  {
+    /* Read condition is not cached inside the instances and samples, so it only needs
+       to be evaluated on the non-empty instances */
     if (rhc->nonempty_instances)
     {
       struct rhc_instance *inst = rhc->nonempty_instances;
@@ -2284,43 +2308,29 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
   }
   else
   {
-    /* Attaching a query condition means selecting an available index in the bitmasks of matching conditions, clearing the bit in all the masks & evaluating the condition on all samples. For the clearing and the setting of the instance mask, we need to scan all instances, not just the non-empty ones. */
-    dds_readcond *rc;
-    querycond_mask_t inv_qcmask = ~(querycond_mask_t)0;
-    assert (cond->m_query.m_index == UINT_MAX);
-    for (rc = rhc->conds; rc != NULL; rc = rc->m_rhc_next)
-      if (rc->m_query.m_filter != 0)
-      {
-        assert (rc->m_query.m_index < MAX_ATTACHED_QUERYCONDS);
-        inv_qcmask &= ~((querycond_mask_t)1 << rc->m_query.m_index);
-      }
-    if (inv_qcmask == 0)
+    if (cond_is_sample_state_dependent (cond))
+      rhc->qconds_samplest |= cond->m_query.m_qcmask;
+    if (rhc->nqconds++ == 0)
     {
-      /* no available indices */
-      os_mutexUnlock (&rhc->lock);
-      return false;
+      assert (rhc->qcond_eval_samplebuf == NULL);
+      rhc->qcond_eval_samplebuf = ddsi_sertopic_alloc_sample (rhc->topic);
     }
 
-    unsigned index = 0;
-    while (!(inv_qcmask & ((querycond_mask_t)1 << index)))
-      index++;
-    cond->m_query.m_index = index;
-
-    /* Evaluate the condition for all instances. Only non-empty instances can match, but the bitmasks need clearing too, so scan all instances */
+    /* Attaching a query condition means clearing the allocated bit in all instances and
+       samples, except for those that match the predicate. */
+    const dds_querycond_mask_t qcmask = cond->m_query.m_qcmask;
     uint32_t trigger = 0;
-    qcmask = (querycond_mask_t)1 << index;
     for (struct rhc_instance *inst = ut_hhIterFirst (rhc->instances, &it); inst != NULL; inst = ut_hhIterNext (&it))
     {
-      const bool instmatch = eval_predicate_invsample_allocbuf (rhc->topic, inst, cond->m_query.m_filter);;
+      const bool instmatch = eval_predicate_invsample (rhc, inst, cond->m_query.m_filter);;
       uint32_t matches = 0;
 
       inst->conds = (inst->conds & ~qcmask) | (instmatch ? qcmask : 0);
-
       if (inst->latest)
       {
         struct rhc_sample *sample = inst->latest->next, * const end = sample;
         do {
-          const bool m = eval_predicate_allocs_buf (rhc->topic, sample->sample, cond->m_query.m_filter);
+          const bool m = eval_predicate_sample (rhc, sample->sample, cond->m_query.m_filter);
           sample->conds = (sample->conds & ~qcmask) | (m ? qcmask : 0);
           matches += m;
           sample = sample->next;
@@ -2335,15 +2345,6 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
 
   if (cond->m_entity.m_trigger)
     dds_entity_status_signal (&cond->m_entity);
-
-  cond->m_rhc_next = rhc->conds;
-  rhc->nconds++;
-  if (cond->m_query.m_filter)
-  {
-    rhc->nqconds++;
-    rhc->qconds_samplest |= cond_is_sample_state_dependent (cond->m_sample_states) ? qcmask : 0;
-  }
-  rhc->conds = cond;
 
   TRACE ("add_readcondition(%p, %x, %x, %x) => %p qminv %x ; rhc %u conds\n",
     (void *) rhc, cond->m_sample_states, cond->m_view_states,
@@ -2360,15 +2361,20 @@ void dds_rhc_remove_readcondition (dds_readcond *cond)
   os_mutexLock (&rhc->lock);
   ptr = &rhc->conds;
   while (*ptr != cond)
-    ptr = &(*ptr)->m_rhc_next;
-  *ptr = (*ptr)->m_rhc_next;
+    ptr = &(*ptr)->m_next;
+  *ptr = (*ptr)->m_next;
   rhc->nconds--;
   if (cond->m_query.m_filter)
   {
-    const querycond_mask_t qcmask = (querycond_mask_t)1 << cond->m_query.m_index;
     rhc->nqconds--;
-    rhc->qconds_samplest &= ~(cond_is_sample_state_dependent (cond->m_sample_states) ? qcmask : 0);
-    cond->m_query.m_index = UINT_MAX;
+    rhc->qconds_samplest &= ~cond->m_query.m_qcmask;
+    cond->m_query.m_qcmask = 0;
+    if (rhc->nqconds == 0)
+    {
+      assert (rhc->qcond_eval_samplebuf != NULL);
+      ddsi_sertopic_free_sample (rhc->topic, rhc->qcond_eval_samplebuf, DDS_FREE_ALL);
+      rhc->qcond_eval_samplebuf = NULL;
+    }
   }
   os_mutexUnlock (&rhc->lock);
 }
@@ -2377,7 +2383,7 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
 {
   /* Pre: rhc->lock held; returns 1 if triggering required, else 0. */
   bool trigger = false;
-  dds_readcond * iter;
+  dds_readcond *iter;
   bool m_pre, m_post;
 
   TRACE ("update_conditions_locked(%p %p) - inst %u nonempty %u disp %u nowr %u new %u samples %u read %u\n",
@@ -2396,6 +2402,14 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
   {
     m_pre = ((pre->c.qminst & iter->m_qminv) == 0);
     m_post = ((post->c.qminst & iter->m_qminv) == 0);
+
+    /* Fast path out: instance did not and will not match based on instance, view states, so no
+       need to evaluate anything else */
+    if (!m_pre && !m_post)
+    {
+      iter = iter->m_next;
+      continue;
+    }
 
     /* FIXME: use bitmask? */
     switch (iter->m_sample_states)
@@ -2417,7 +2431,7 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
         DDS_FATAL ("update_readconditions: sample_states invalid: %x\n", iter->m_sample_states);
     }
 
-    TRACE ("  cond %p %d: ", (void *) iter, iter->m_query.m_filter ? (int) iter->m_query.m_index : -1);
+    TRACE ("  cond %p %08"PRIx32": ", (void *) iter, iter->m_query.m_qcmask);
     if (iter->m_query.m_filter == 0)
     {
       assert (dds_entity_kind (&iter->m_entity) == DDS_KIND_COND_READ);
@@ -2437,40 +2451,41 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
           TRACE (" (cond no longer triggers)");
       }
     }
-    else
+    else if (m_pre || m_post) /* no need to look any further if both are false */
     {
       assert (dds_entity_kind (&iter->m_entity) == DDS_KIND_COND_QUERY);
-      const querycond_mask_t qcmask = (querycond_mask_t)1 << iter->m_query.m_index;
-      int32_t minc = 0, mdec = 0; /* note: signed */
+      assert (iter->m_query.m_qcmask != 0);
+      const dds_querycond_mask_t qcmask = iter->m_query.m_qcmask;
+      int32_t mdelta = 0;
 
       switch (iter->m_sample_states)
       {
         case DDS_SST_READ:
           if (trig_qc->dec_invsample_read)
-            mdec += (trig_qc->dec_conds_invsample & qcmask) != 0;
+            mdelta -= (trig_qc->dec_conds_invsample & qcmask) != 0;
           if (trig_qc->dec_sample_read)
-            mdec += (trig_qc->dec_conds_sample & qcmask) != 0;
+            mdelta -= (trig_qc->dec_conds_sample & qcmask) != 0;
           if (trig_qc->inc_invsample_read)
-            minc += (trig_qc->inc_conds_invsample & qcmask) != 0;
+            mdelta += (trig_qc->inc_conds_invsample & qcmask) != 0;
           if (trig_qc->inc_sample_read)
-            minc += (trig_qc->inc_conds_sample & qcmask) != 0;
+            mdelta += (trig_qc->inc_conds_sample & qcmask) != 0;
           break;
         case DDS_SST_NOT_READ:
           if (!trig_qc->dec_invsample_read)
-            mdec += (trig_qc->dec_conds_invsample & qcmask) != 0;
+            mdelta -= (trig_qc->dec_conds_invsample & qcmask) != 0;
           if (!trig_qc->dec_sample_read)
-            mdec += (trig_qc->dec_conds_sample & qcmask) != 0;
+            mdelta -= (trig_qc->dec_conds_sample & qcmask) != 0;
           if (!trig_qc->inc_invsample_read)
-            minc += (trig_qc->inc_conds_invsample & qcmask) != 0;
+            mdelta += (trig_qc->inc_conds_invsample & qcmask) != 0;
           if (!trig_qc->inc_sample_read)
-            minc += (trig_qc->inc_conds_sample & qcmask) != 0;
+            mdelta += (trig_qc->inc_conds_sample & qcmask) != 0;
           break;
         case DDS_SST_READ | DDS_SST_NOT_READ:
         case 0:
-          mdec += (trig_qc->dec_conds_invsample & qcmask) != 0;
-          mdec += (trig_qc->dec_conds_sample & qcmask) != 0;
-          minc += (trig_qc->inc_conds_invsample & qcmask) != 0;
-          minc += (trig_qc->inc_conds_sample & qcmask) != 0;
+          mdelta -= (trig_qc->dec_conds_invsample & qcmask) != 0;
+          mdelta -= (trig_qc->dec_conds_sample & qcmask) != 0;
+          mdelta += (trig_qc->inc_conds_invsample & qcmask) != 0;
+          mdelta += (trig_qc->inc_conds_sample & qcmask) != 0;
           break;
         default:
           DDS_FATAL ("update_readconditions: sample_states invalid: %x\n", iter->m_sample_states);
@@ -2478,60 +2493,56 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
 
       if (m_pre == m_post)
       {
-        /* no change at instance level, but samples pushed out or in may still affect it */
-        if (m_pre)
-        {
-          /* there was a match at read-condition level
-             - therefore the matching samples in the instance are accounted for in the trigger count
-             - therefore an incremental update is required
-             there is always space for a valid and an invalid sample, both add and remove
-             inserting an update always has unread data added, but a read pretends it is a removal
-             of whatever and an insertion of read data */
-          const int32_t m = minc - mdec;
-          assert (m >= 0 || iter->m_entity.m_trigger >= (uint32_t) -m);
-          if (m == 0)
-            TRACE ("no change @ %"PRIu32" (0)", iter->m_entity.m_trigger);
-          else
-            TRACE ("m=%"PRId32" @ %"PRIu32" (0)", m, iter->m_entity.m_trigger + (uint32_t) m);
-          /* even though it matches now and matched before, it is not a given that any of the samples
-             matched before, so m_trigger may still be 0 */
-          if (m > 0 && iter->m_entity.m_trigger == 0)
-            trigger = true;
-          iter->m_entity.m_trigger += (uint32_t) m;
-          if (trigger)
-            TRACE (" (cond now triggers)");
-          else if (m < 0 && iter->m_entity.m_trigger == 0)
-            TRACE (" (cond no longer triggers)");
-        }
+        assert (m_pre);
+        /* there was a match at read-condition level
+           - therefore the matching samples in the instance are accounted for in the trigger count
+           - therefore an incremental update is required
+           there is always space for a valid and an invalid sample, both add and remove
+           inserting an update always has unread data added, but a read pretends it is a removal
+           of whatever and an insertion of read data */
+        assert (mdelta >= 0 || iter->m_entity.m_trigger >= (uint32_t) -mdelta);
+        if (mdelta == 0)
+          TRACE ("no change @ %"PRIu32" (0)", iter->m_entity.m_trigger);
         else
-        {
-          /* there was and is no match at the read-condition level and all is well */
-          TRACE ("no change (1)");
-        }
+          TRACE ("m=%"PRId32" @ %"PRIu32" (0)", mdelta, iter->m_entity.m_trigger + (uint32_t) mdelta);
+        /* even though it matches now and matched before, it is not a given that any of the samples
+           matched before, so m_trigger may still be 0 */
+        if (mdelta > 0 && iter->m_entity.m_trigger == 0)
+          trigger = true;
+        iter->m_entity.m_trigger += (uint32_t) mdelta;
+        if (trigger)
+          TRACE (" (cond now triggers)");
+        else if (mdelta < 0 && iter->m_entity.m_trigger == 0)
+          TRACE (" (cond no longer triggers)");
       }
       else
       {
         /* There either was no match at read-condition level, now there is: scan all samples for matches;
            or there was a match and now there is not: so also scan all samples for matches.  The only
            difference is in whether the number of matches should be added or subtracted. */
-        int32_t mrem = 0;
+        int32_t mcurrent = 0;
         if (inst->inv_exists)
-          mrem += (qmask_of_invsample (inst) & iter->m_qminv) == 0 && (inst->conds & qcmask) != 0;
+          mcurrent += (qmask_of_invsample (inst) & iter->m_qminv) == 0 && (inst->conds & qcmask) != 0;
         if (inst->latest)
         {
           struct rhc_sample *sample = inst->latest->next, * const end = sample;
           do {
-            mrem += (qmask_of_sample (sample) & iter->m_qminv) == 0 && (sample->conds & qcmask) != 0;
+            mcurrent += (qmask_of_sample (sample) & iter->m_qminv) == 0 && (sample->conds & qcmask) != 0;
             sample = sample->next;
           } while (sample != end);
         }
-        if (mdec == 0 && minc == 0 && mrem == 0)
+        if (mdelta == 0 && mcurrent == 0)
           TRACE ("no change @ %"PRIu32" (2)", iter->m_entity.m_trigger);
         else if (m_pre < m_post)
         {
-          /* No match previously, so the instance wasn't accounted for at all in the trigger value, and therefore when inserting data, all that matters is how many currently match (including dec/inc would double-count); when reading or taking it is evaluated incrementally _before_ changing the state of the sample, so mrem reflects the state before the change, and the incremental change is required, too */
-          const int32_t m = called_from_insert ? mrem : mrem - mdec + minc;
-          TRACE ("minc=%"PRId32" mdec=%"PRId32" mrem=%"PRId32" => %"PRId32" => %"PRIu32" (2a)", minc, mdec, mrem, m, iter->m_entity.m_trigger + (uint32_t) m);
+          /* No match previously, so the instance wasn't accounted for at all in the trigger value.
+             Therefore when inserting data, all that matters is how many currently match.
+
+             When reading or taking it is evaluated incrementally _before_ changing the state of the
+             sample, so mrem reflects the state before the change, and the incremental change needs
+             to be taken into account. */
+          const int32_t m = called_from_insert ? mcurrent : mcurrent + mdelta;
+          TRACE ("mdelta=%"PRId32" mcurrent=%"PRId32" => %"PRId32" => %"PRIu32" (2a)", mdelta, mcurrent, m, iter->m_entity.m_trigger + (uint32_t) m);
           assert (m >= 0 || iter->m_entity.m_trigger >= (uint32_t) -m);
           trigger = (iter->m_entity.m_trigger == 0) && m > 0;
           iter->m_entity.m_trigger += (uint32_t) m;
@@ -2540,9 +2551,11 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
         }
         else
         {
-          /* Previously matched, but no longer, which means we need to subtract the current number of matches as well as those that were removed just before, hence need the incremental change as well */
-          const int32_t m = mrem + mdec - minc;
-          TRACE ("minc=%"PRId32" mdec=%"PRId32" mrem=%"PRId32" => %"PRId32" => %"PRIu32" (2b)", minc, mdec, mrem, m, iter->m_entity.m_trigger - (uint32_t) m);
+          /* Previously matched, but no longer, which means we need to subtract the current number
+             of matches as well as those that were removed just before, hence need the incremental
+             change as well */
+          const int32_t m = mcurrent - mdelta;
+          TRACE ("mdelta=%"PRId32" mcurrent=%"PRId32" => %"PRId32" => %"PRIu32" (2b)", mdelta, mcurrent, m, iter->m_entity.m_trigger - (uint32_t) m);
           assert (m < 0 || iter->m_entity.m_trigger >= (uint32_t) m);
           iter->m_entity.m_trigger -= (uint32_t) m;
           if (iter->m_entity.m_trigger == 0)
@@ -2555,7 +2568,7 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
       dds_entity_status_signal (&iter->m_entity);
 
     TRACE ("\n");
-    iter = iter->m_rhc_next;
+    iter = iter->m_next;
   }
   return trigger;
 }
@@ -2610,110 +2623,124 @@ int dds_rhc_takecdr
 
 #ifndef NDEBUG
 #define CHECK_MAX_CONDS 64
-static int rhc_check_counts_locked (struct rhc *rhc, bool check_conds)
+static int rhc_check_counts_locked (struct rhc *rhc, bool check_conds, bool check_qcmask)
 {
+  const uint32_t ncheck = rhc->nconds < CHECK_MAX_CONDS ? rhc->nconds : CHECK_MAX_CONDS;
   unsigned n_instances = 0, n_nonempty_instances = 0;
   unsigned n_not_alive_disposed = 0, n_not_alive_no_writers = 0, n_new = 0;
   unsigned n_vsamples = 0, n_vread = 0;
   unsigned n_invsamples = 0, n_invread = 0;
   unsigned cond_match_count[CHECK_MAX_CONDS];
+  dds_querycond_mask_t enabled_qcmask = 0;
   struct rhc_instance *inst;
   struct ut_hhIter iter;
+  dds_readcond *rciter;
   uint32_t i;
 
   for (i = 0; i < CHECK_MAX_CONDS; i++)
     cond_match_count[i] = 0;
 
+  for (rciter = rhc->conds; rciter; rciter = rciter->m_next)
+  {
+    assert ((dds_entity_kind (&rciter->m_entity) == DDS_KIND_COND_READ && rciter->m_query.m_filter == 0) ||
+            (dds_entity_kind (&rciter->m_entity) == DDS_KIND_COND_QUERY && rciter->m_query.m_filter != 0));
+    assert ((rciter->m_query.m_filter != 0) == (rciter->m_query.m_qcmask != 0));
+    assert (!(enabled_qcmask & rciter->m_query.m_qcmask));
+    enabled_qcmask |= rciter->m_query.m_qcmask;
+  }
+
   for (inst = ut_hhIterFirst (rhc->instances, &iter); inst; inst = ut_hhIterNext (&iter))
   {
+    unsigned n_vsamples_in_instance = 0, n_read_vsamples_in_instance = 0;
+    bool a_sample_free = true;
+
     n_instances++;
-    if (!inst_is_empty (inst))
+    if (inst_is_empty (inst))
+      continue;
+
+    n_nonempty_instances++;
+    if (inst->isdisposed)
+      n_not_alive_disposed++;
+    else if (inst->wrcount == 0)
+      n_not_alive_no_writers++;
+    if (inst->isnew)
+      n_new++;
+
+    if (inst->latest)
     {
-      /* samples present (or an invalid sample is) */
-      unsigned n_vsamples_in_instance = 0, n_read_vsamples_in_instance = 0;
-      bool a_sample_free = true;
-
-      n_nonempty_instances++;
-      if (inst->isdisposed)
-      {
-        n_not_alive_disposed++;
-      }
-      else if (inst->wrcount == 0)
-        n_not_alive_no_writers++;
-      if (inst->isnew)
-      {
-        n_new++;
-      }
-
-      if (inst->latest)
-      {
-        struct rhc_sample *sample = inst->latest->next, * const end = sample;
-        do {
-          if (sample == &inst->a_sample)
-          {
-            assert (a_sample_free);
-            a_sample_free = false;
-          }
-          n_vsamples++;
-          n_vsamples_in_instance++;
-          if (sample->isread)
-          {
-            n_vread++;
-            n_read_vsamples_in_instance++;
-          }
-          sample = sample->next;
-        } while (sample != end);
-      }
-
-      if (inst->inv_exists)
-      {
-        n_invsamples++;
-        n_invread += inst->inv_isread;
-      }
-
-      assert (n_read_vsamples_in_instance == inst->nvread);
-      assert (n_vsamples_in_instance == inst->nvsamples);
-      assert (a_sample_free == inst->a_sample_free);
-
-      {
-        char *tmpsample = ddsi_sertopic_alloc_sample (rhc->topic);
-        dds_readcond *rciter = rhc->conds;
-        for (i = 0; i < (rhc->nconds < CHECK_MAX_CONDS ? rhc->nconds : CHECK_MAX_CONDS); i++)
+      struct rhc_sample *sample = inst->latest->next, * const end = sample;
+      do {
+        if (sample == &inst->a_sample)
         {
-          assert ((dds_entity_kind (&rciter->m_entity) == DDS_KIND_COND_READ && rciter->m_query.m_filter == 0) ||
-                  (dds_entity_kind (&rciter->m_entity) == DDS_KIND_COND_QUERY && rciter->m_query.m_filter != 0));
-          if (rciter->m_query.m_filter == 0)
-            cond_match_count[i] += rhc_get_cond_trigger (inst, rciter);
-          else
-          {
-            assert (rciter->m_query.m_index < MAX_ATTACHED_QUERYCONDS);
-            if (rhc_get_cond_trigger (inst, rciter))
-            {
-              if (inst->latest)
-              {
-                struct rhc_sample *sample = inst->latest->next, * const end = sample;
-                do {
-                  ddsi_serdata_to_sample (sample->sample, tmpsample, NULL, NULL);
-                  const bool m = rciter->m_query.m_filter (tmpsample);
-                  assert (m == ((sample->conds & ((querycond_mask_t)1 << rciter->m_query.m_index)) != 0));
-                  cond_match_count[i] += (qmask_of_sample (sample) & rciter->m_qminv) == 0 && m;
-                  sample = sample->next;
-                } while (sample != end);
-              }
-              if (inst->inv_exists)
-              {
-                /* Have to zero out the attributes before converting doing topicless_to_sample, or the
-                   attributes may be those remaining from the previous sample, messing up the result of m_filter() */
-                topicless_to_clean_invsample (rhc->topic, inst->tk->m_sample, tmpsample, 0, 0);
-                const bool m = rciter->m_query.m_filter (tmpsample);
-                assert (m == ((inst->conds & ((querycond_mask_t)1 << rciter->m_query.m_index)) != 0));
-                cond_match_count[i] += (qmask_of_invsample (inst) & rciter->m_qminv) == 0 && m;
-              }
-            }
-          }
-          rciter = rciter->m_rhc_next;
+          assert (a_sample_free);
+          a_sample_free = false;
         }
-        ddsi_sertopic_free_sample (rhc->topic, tmpsample, DDS_FREE_ALL);
+        n_vsamples++;
+        n_vsamples_in_instance++;
+        if (sample->isread)
+        {
+          n_vread++;
+          n_read_vsamples_in_instance++;
+        }
+        sample = sample->next;
+      } while (sample != end);
+    }
+
+    if (inst->inv_exists)
+    {
+      n_invsamples++;
+      n_invread += inst->inv_isread;
+    }
+
+    assert (n_read_vsamples_in_instance == inst->nvread);
+    assert (n_vsamples_in_instance == inst->nvsamples);
+    assert (a_sample_free == inst->a_sample_free);
+
+    if (check_conds)
+    {
+      if (check_qcmask && rhc->nqconds > 0)
+      {
+        dds_querycond_mask_t qcmask;
+        topicless_to_clean_invsample (rhc->topic, inst->tk->m_sample, rhc->qcond_eval_samplebuf, 0, 0);
+        qcmask = 0;
+        for (rciter = rhc->conds; rciter; rciter = rciter->m_next)
+          if (rciter->m_query.m_filter != 0 && rciter->m_query.m_filter (rhc->qcond_eval_samplebuf))
+            qcmask |= rciter->m_query.m_qcmask;
+        assert ((inst->conds & enabled_qcmask) == qcmask);
+        if (inst->latest)
+        {
+          struct rhc_sample *sample = inst->latest->next, * const end = sample;
+          do {
+            ddsi_serdata_to_sample (sample->sample, rhc->qcond_eval_samplebuf, NULL, NULL);
+            qcmask = 0;
+            for (rciter = rhc->conds; rciter; rciter = rciter->m_next)
+              if (rciter->m_query.m_filter != 0 && rciter->m_query.m_filter (rhc->qcond_eval_samplebuf))
+                qcmask |= rciter->m_query.m_qcmask;
+            assert ((sample->conds & enabled_qcmask) == qcmask);
+            sample = sample->next;
+          } while (sample != end);
+        }
+      }
+
+      for (i = 0, rciter = rhc->conds; i < ncheck; i++, rciter = rciter->m_next)
+      {
+        if (!rhc_get_cond_trigger (inst, rciter))
+          ;
+        else if (rciter->m_query.m_filter == 0)
+          cond_match_count[i]++;
+        else
+        {
+          if (inst->inv_exists)
+            cond_match_count[i] += (qmask_of_invsample (inst) & rciter->m_qminv) == 0 && (inst->conds & rciter->m_query.m_qcmask) != 0;
+          if (inst->latest)
+          {
+            struct rhc_sample *sample = inst->latest->next, * const end = sample;
+            do {
+              cond_match_count[i] += ((qmask_of_sample (sample) & rciter->m_qminv) == 0 && (sample->conds & rciter->m_query.m_qcmask) != 0);
+              sample = sample->next;
+            } while (sample != end);
+          }
+        }
       }
     }
   }
@@ -2730,13 +2757,9 @@ static int rhc_check_counts_locked (struct rhc *rhc, bool check_conds)
 
   if (check_conds)
   {
-    dds_readcond * rciter = rhc->conds;
-    for (i = 0; i < (rhc->nconds < CHECK_MAX_CONDS ? rhc->nconds : CHECK_MAX_CONDS); i++)
-    {
+    for (i = 0, rciter = rhc->conds; i < ncheck; i++, rciter = rciter->m_next)
       assert (cond_match_count[i] == rciter->m_entity.m_trigger);
-      rciter = rciter->m_rhc_next;
-    }
-  }
+   }
 
   if (rhc->n_nonempty_instances == 0)
   {

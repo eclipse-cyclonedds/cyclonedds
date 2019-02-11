@@ -234,6 +234,8 @@ typedef struct dds_topic
 }
 dds_topic;
 
+typedef uint32_t dds_querycond_mask_t;
+
 typedef struct dds_readcond
 {
   dds_entity m_entity;
@@ -243,11 +245,11 @@ typedef struct dds_readcond
   uint32_t m_view_states;
   uint32_t m_instance_states;
   nn_guid_t m_rd_guid;
-  struct dds_readcond * m_rhc_next;
+  struct dds_readcond * m_next;
   struct
   {
       dds_querycondition_filter_fn m_filter;
-      unsigned m_index; /* index in RHC condition masks */
+      dds_querycond_mask_t m_qcmask; /* condition mask in RHC*/
   } m_query;
 }
 dds_readcond;
