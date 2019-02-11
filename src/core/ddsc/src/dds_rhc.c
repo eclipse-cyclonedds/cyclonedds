@@ -1761,6 +1761,16 @@ static bool take_sample_update_conditions (struct rhc *rhc, struct trigger_info_
   return trigger_waitsets;
 }
 
+static void topicless_to_clean_invsample (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim)
+{
+  /* ddsi_serdata_topicless_to_sample just deals with the key value, without paying any attention to attributes;
+     but that makes life harder for the user: the attributes of an invalid sample would be garbage, but would
+     nonetheless have to be freed in the end.  Zero'ing it explicitly solves that problem.  Not sure whether the
+     cure is not somehow worse.  */
+  ddsi_sertopic_free_sample (topic, sample, DDS_FREE_CONTENTS);
+  ddsi_sertopic_zero_sample (topic, sample);
+  ddsi_serdata_topicless_to_sample (topic, d, sample, bufptr, buflim);
+}
 
 static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, unsigned qminv, dds_instance_handle_t handle, dds_readcond *cond)
 {
@@ -1830,7 +1840,7 @@ static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
           if (inst->inv_exists && n < max_samples && (qmask_of_invsample (inst) & qminv) == 0 && (qcmask == 0 || (inst->conds & qcmask)))
           {
             set_sample_info_invsample (info_seq + n, inst);
-            ddsi_serdata_topicless_to_sample (rhc->topic, inst->tk->m_sample, values[n], 0, 0);
+            topicless_to_clean_invsample (rhc->topic, inst->tk->m_sample, values[n], 0, 0);
             if (!inst->inv_isread)
             {
               TRACE ("i");
@@ -1980,7 +1990,7 @@ static int dds_rhc_take_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
             if (take_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, inst->conds, inst->inv_isread))
               trigger_waitsets = true;
             set_sample_info_invsample (info_seq + n, inst);
-            ddsi_serdata_topicless_to_sample (rhc->topic, inst->tk->m_sample, values[n], 0, 0);
+            topicless_to_clean_invsample (rhc->topic, inst->tk->m_sample, values[n], 0, 0);
             inst_clear_invsample (rhc, inst, &dummy_trig_qc);
             ++n;
           }
@@ -2694,9 +2704,7 @@ static int rhc_check_counts_locked (struct rhc *rhc, bool check_conds)
               {
                 /* Have to zero out the attributes before converting doing topicless_to_sample, or the
                    attributes may be those remaining from the previous sample, messing up the result of m_filter() */
-                ddsi_sertopic_free_sample (rhc->topic, tmpsample, DDS_FREE_CONTENTS);
-                ddsi_sertopic_zero_sample (rhc->topic, tmpsample);
-                ddsi_serdata_topicless_to_sample (rhc->topic, inst->tk->m_sample, tmpsample, NULL, NULL);
+                topicless_to_clean_invsample (rhc->topic, inst->tk->m_sample, tmpsample, 0, 0);
                 const bool m = rciter->m_query.m_filter (tmpsample);
                 assert (m == ((inst->conds & ((querycond_mask_t)1 << rciter->m_query.m_index)) != 0));
                 cond_match_count[i] += (qmask_of_invsample (inst) & rciter->m_qminv) == 0 && m;
