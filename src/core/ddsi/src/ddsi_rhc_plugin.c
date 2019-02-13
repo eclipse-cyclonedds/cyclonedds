@@ -13,7 +13,7 @@
 #include "ddsi/q_xqos.h"
 #include "ddsi/ddsi_rhc_plugin.h"
 
-void make_proxy_writer_info(struct proxy_writer_info *pwr_info, const struct entity_common *e, const struct nn_xqos *xqos)
+DDS_EXPORT void make_proxy_writer_info(struct proxy_writer_info *pwr_info, const struct entity_common *e, const struct nn_xqos *xqos)
 {
   pwr_info->guid = e->guid;
   pwr_info->ownership_strength = xqos->ownership_strength.value;

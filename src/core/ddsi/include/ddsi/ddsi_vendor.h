@@ -52,26 +52,26 @@ inline bool vendor_is_eclipse (nn_vendorid_t vendor) {
   return vendor_equals (vendor, NN_VENDORID_ECLIPSE);
 }
 inline bool vendor_is_rti (nn_vendorid_t vendor) {
-  return vendor_equals (vendor, (nn_vendorid_t) { 0x01, NN_VENDORID_MINOR_RTI });
+  return vendor_equals (vendor, (nn_vendorid_t) {{ 0x01, NN_VENDORID_MINOR_RTI }});
 }
 inline bool vendor_is_opensplice (nn_vendorid_t vendor) {
-  return vendor_equals (vendor, (nn_vendorid_t) { 0x01, NN_VENDORID_MINOR_PRISMTECH_OSPL });
+  return vendor_equals (vendor, (nn_vendorid_t) {{ 0x01, NN_VENDORID_MINOR_PRISMTECH_OSPL }});
 }
 inline bool vendor_is_twinoaks (nn_vendorid_t vendor) {
-  return vendor_equals (vendor, (nn_vendorid_t) { 0x01, NN_VENDORID_MINOR_TWINOAKS });
+  return vendor_equals (vendor, (nn_vendorid_t) {{ 0x01, NN_VENDORID_MINOR_TWINOAKS }});
 }
 inline bool vendor_is_cloud (nn_vendorid_t vendor) {
-  return vendor_equals (vendor, (nn_vendorid_t) { 0x01, NN_VENDORID_MINOR_PRISMTECH_CLOUD });
+  return vendor_equals (vendor, (nn_vendorid_t) {{ 0x01, NN_VENDORID_MINOR_PRISMTECH_CLOUD }});
 }
 inline bool vendor_is_eclipse_or_opensplice (nn_vendorid_t vendor) {
   return vendor_is_eclipse (vendor) | vendor_is_opensplice (vendor);
 }
 inline bool vendor_is_prismtech (nn_vendorid_t vendor) {
-  return (vendor_equals (vendor, (nn_vendorid_t) { 0x01, NN_VENDORID_MINOR_PRISMTECH_OSPL }) ||
-          vendor_equals (vendor, (nn_vendorid_t) { 0x01, NN_VENDORID_MINOR_PRISMTECH_LITE }) ||
-          vendor_equals (vendor, (nn_vendorid_t) { 0x01, NN_VENDORID_MINOR_PRISMTECH_GATEWAY }) ||
-          vendor_equals (vendor, (nn_vendorid_t) { 0x01, NN_VENDORID_MINOR_PRISMTECH_JAVA }) ||
-          vendor_equals (vendor, (nn_vendorid_t) { 0x01, NN_VENDORID_MINOR_PRISMTECH_CLOUD }));
+  return (vendor_equals (vendor, (nn_vendorid_t) {{ 0x01, NN_VENDORID_MINOR_PRISMTECH_OSPL }}) ||
+          vendor_equals (vendor, (nn_vendorid_t) {{ 0x01, NN_VENDORID_MINOR_PRISMTECH_LITE }}) ||
+          vendor_equals (vendor, (nn_vendorid_t) {{ 0x01, NN_VENDORID_MINOR_PRISMTECH_GATEWAY }}) ||
+          vendor_equals (vendor, (nn_vendorid_t) {{ 0x01, NN_VENDORID_MINOR_PRISMTECH_JAVA }}) ||
+          vendor_equals (vendor, (nn_vendorid_t) {{ 0x01, NN_VENDORID_MINOR_PRISMTECH_CLOUD }}));
 }
 inline bool vendor_is_eclipse_or_prismtech (nn_vendorid_t vendor) {
   return vendor_is_eclipse (vendor) || vendor_is_prismtech (vendor);

@@ -125,12 +125,12 @@ struct ddsi_rawcdr_sample {
   size_t keysize;
 };
 
-extern const struct ddsi_sertopic_ops ddsi_sertopic_ops_default;
+extern DDS_EXPORT const struct ddsi_sertopic_ops ddsi_sertopic_ops_default;
 
-extern const struct ddsi_serdata_ops ddsi_serdata_ops_cdr;
-extern const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey;
-extern const struct ddsi_serdata_ops ddsi_serdata_ops_plist;
-extern const struct ddsi_serdata_ops ddsi_serdata_ops_rawcdr;
+extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_cdr;
+extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey;
+extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_plist;
+extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_rawcdr;
 
 struct serdatapool * ddsi_serdatapool_new (void);
 void ddsi_serdatapool_free (struct serdatapool * pool);

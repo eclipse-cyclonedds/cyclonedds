@@ -41,31 +41,31 @@ struct xeventq *xeventq_new
 
 /* xeventq_free calls callback handlers with t = T_NEVER, at which point they are required to free
    whatever memory is claimed for the argument and call delete_xevent. */
-void xeventq_free (struct xeventq *evq);
-int xeventq_start (struct xeventq *evq, const char *name); /* <0 => error, =0 => ok */
-void xeventq_stop (struct xeventq *evq);
+DDS_EXPORT void xeventq_free (struct xeventq *evq);
+DDS_EXPORT int xeventq_start (struct xeventq *evq, const char *name); /* <0 => error, =0 => ok */
+DDS_EXPORT void xeventq_stop (struct xeventq *evq);
 
-void qxev_msg (struct xeventq *evq, struct nn_xmsg *msg);
-void qxev_pwr_entityid (struct proxy_writer * pwr, nn_guid_prefix_t * id);
-void qxev_prd_entityid (struct proxy_reader * prd, nn_guid_prefix_t * id);
+DDS_EXPORT void qxev_msg (struct xeventq *evq, struct nn_xmsg *msg);
+DDS_EXPORT void qxev_pwr_entityid (struct proxy_writer * pwr, nn_guid_prefix_t * id);
+DDS_EXPORT void qxev_prd_entityid (struct proxy_reader * prd, nn_guid_prefix_t * id);
 
 /* Returns 1 if queued, 0 otherwise (no point in returning the
    event, you can't do anything with it anyway) */
-int qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int force);
+DDS_EXPORT int qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int force);
 
 /* All of the following lock EVQ for the duration of the operation */
-void delete_xevent (struct xevent *ev);
-int resched_xevent_if_earlier (struct xevent *ev, nn_mtime_t tsched);
+DDS_EXPORT void delete_xevent (struct xevent *ev);
+DDS_EXPORT int resched_xevent_if_earlier (struct xevent *ev, nn_mtime_t tsched);
 
-struct xevent *qxev_heartbeat (struct xeventq *evq, nn_mtime_t tsched, const nn_guid_t *wr_guid);
-struct xevent *qxev_acknack (struct xeventq *evq, nn_mtime_t tsched, const nn_guid_t *pwr_guid, const nn_guid_t *rd_guid);
-struct xevent *qxev_spdp (nn_mtime_t tsched, const nn_guid_t *pp_guid, const nn_guid_t *proxypp_guid);
-struct xevent *qxev_pmd_update (nn_mtime_t tsched, const nn_guid_t *pp_guid);
-struct xevent *qxev_end_startup_mode (nn_mtime_t tsched);
-struct xevent *qxev_delete_writer (nn_mtime_t tsched, const nn_guid_t *guid);
+DDS_EXPORT struct xevent *qxev_heartbeat (struct xeventq *evq, nn_mtime_t tsched, const nn_guid_t *wr_guid);
+DDS_EXPORT struct xevent *qxev_acknack (struct xeventq *evq, nn_mtime_t tsched, const nn_guid_t *pwr_guid, const nn_guid_t *rd_guid);
+DDS_EXPORT struct xevent *qxev_spdp (nn_mtime_t tsched, const nn_guid_t *pp_guid, const nn_guid_t *proxypp_guid);
+DDS_EXPORT struct xevent *qxev_pmd_update (nn_mtime_t tsched, const nn_guid_t *pp_guid);
+DDS_EXPORT struct xevent *qxev_end_startup_mode (nn_mtime_t tsched);
+DDS_EXPORT struct xevent *qxev_delete_writer (nn_mtime_t tsched, const nn_guid_t *guid);
 
 /* cb will be called with now = T_NEVER if the event is still enqueued when when xeventq_free starts cleaning up */
-struct xevent *qxev_callback (nn_mtime_t tsched, void (*cb) (struct xevent *xev, void *arg, nn_mtime_t now), void *arg);
+DDS_EXPORT struct xevent *qxev_callback (nn_mtime_t tsched, void (*cb) (struct xevent *xev, void *arg, nn_mtime_t now), void *arg);
 
 #if defined (__cplusplus)
 }

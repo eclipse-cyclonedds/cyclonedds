@@ -30,19 +30,14 @@ struct ddsi_tkmap_instance
   os_atomic_uint32_t m_refc;
 };
 
-
-struct ddsi_tkmap * ddsi_tkmap_new (void);
-void ddsi_tkmap_free (_Inout_ _Post_invalid_ struct ddsi_tkmap *tkmap);
-void ddsi_tkmap_instance_ref (_In_ struct ddsi_tkmap_instance *tk);
-uint64_t ddsi_tkmap_lookup (_In_ struct ddsi_tkmap *tkmap, _In_ const struct ddsi_serdata *serdata);
-_Check_return_ struct ddsi_tkmap_instance * ddsi_tkmap_find(
-        _In_ struct ddsi_serdata * sd,
-        _In_ const bool rd,
-        _In_ const bool create);
-_Check_return_ struct ddsi_tkmap_instance * ddsi_tkmap_find_by_id (_In_ struct ddsi_tkmap * map, _In_ uint64_t iid);
-
-DDS_EXPORT _Check_return_ struct ddsi_tkmap_instance * ddsi_tkmap_lookup_instance_ref (_In_ struct ddsi_serdata * sd);
-DDS_EXPORT void ddsi_tkmap_instance_unref (_In_ struct ddsi_tkmap_instance * tk);
+DDS_EXPORT struct ddsi_tkmap * ddsi_tkmap_new (void);
+DDS_EXPORT void ddsi_tkmap_free (_Inout_ _Post_invalid_ struct ddsi_tkmap *tkmap);
+DDS_EXPORT void ddsi_tkmap_instance_ref (_In_ struct ddsi_tkmap_instance *tk);
+DDS_EXPORT uint64_t ddsi_tkmap_lookup (_In_ struct ddsi_tkmap *tkmap, _In_ const struct ddsi_serdata *serdata);
+DDS_EXPORT struct ddsi_tkmap_instance * ddsi_tkmap_find(struct ddsi_serdata *sd, const bool rd, const bool create);
+DDS_EXPORT struct ddsi_tkmap_instance * ddsi_tkmap_find_by_id (struct ddsi_tkmap *map, uint64_t iid);
+DDS_EXPORT struct ddsi_tkmap_instance * ddsi_tkmap_lookup_instance_ref (struct ddsi_serdata * sd);
+DDS_EXPORT void ddsi_tkmap_instance_unref (struct ddsi_tkmap_instance *tk);
 
 #if defined (__cplusplus)
 }

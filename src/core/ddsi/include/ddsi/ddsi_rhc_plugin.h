@@ -41,6 +41,6 @@ struct ddsi_rhc_plugin
   void (*rhc_set_qos_fn) (struct rhc * rhc, const struct nn_xqos * qos);
 };
 
-void make_proxy_writer_info(struct proxy_writer_info *pwr_info, const struct entity_common *e, const struct nn_xqos *xqos);
+DDS_EXPORT void make_proxy_writer_info(struct proxy_writer_info *pwr_info, const struct entity_common *e, const struct nn_xqos *xqos);
 
 #endif

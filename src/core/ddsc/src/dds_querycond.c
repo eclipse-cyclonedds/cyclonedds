@@ -32,11 +32,16 @@ dds_create_querycondition(
 
     rc = dds_reader_lock(reader, &r);
     if (rc == DDS_RETCODE_OK) {
-        dds_readcond *cond = dds_create_readcond(r, DDS_KIND_COND_QUERY, mask);
+        dds_readcond *cond = dds_create_readcond(r, DDS_KIND_COND_QUERY, mask, filter);
         assert(cond);
-        hdl = cond->m_entity.m_hdl;
-        cond->m_query.m_filter = filter;
+        const bool success = (cond->m_entity.m_deriver.delete != 0);
         dds_reader_unlock(r);
+        if (success) {
+            hdl = cond->m_entity.m_hdl;
+        } else {
+            dds_delete (cond->m_entity.m_hdl);
+            hdl = DDS_ERRNO(DDS_RETCODE_OUT_OF_RESOURCES);
+        }
     } else {
         DDS_ERROR("Error occurred on locking reader\n");
         hdl = DDS_ERRNO(rc);

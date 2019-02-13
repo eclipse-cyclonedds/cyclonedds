@@ -19,7 +19,8 @@
 extern "C" {
 #endif
 
-_Check_return_ dds_entity_t
+_Check_return_
+DDS_EXPORT dds_entity_t
 dds_entity_init(
         _In_       dds_entity * e,
         _When_(kind != DDS_KIND_PARTICIPANT, _Notnull_)
@@ -30,10 +31,10 @@ dds_entity_init(
         _In_opt_   const dds_listener_t *listener,
         _In_       uint32_t mask);
 
-void
+DDS_EXPORT void
 dds_entity_add_ref(
         _In_ dds_entity *e);
-void
+DDS_EXPORT void
 dds_entity_add_ref_nolock(
         _In_ dds_entity *e);
 
@@ -56,82 +57,82 @@ dds_entity_add_ref_nolock(
   qualifier_ dds__retcode_t type_##_lock (dds_entity_t hdl, type_ **x); \
   qualifier_ void type_##_unlock (type_ *x);
 
-inline bool dds_entity_is_enabled (const dds_entity *e) {
+DDS_EXPORT inline bool dds_entity_is_enabled (const dds_entity *e) {
   return (e->m_flags & DDS_ENTITY_ENABLED) != 0;
 }
 
-void dds_entity_status_set (dds_entity *e, uint32_t t);
+DDS_EXPORT void dds_entity_status_set (dds_entity *e, uint32_t t);
 
-inline void dds_entity_status_reset (dds_entity *e, uint32_t t) {
+DDS_EXPORT inline void dds_entity_status_reset (dds_entity *e, uint32_t t) {
   e->m_trigger &= ~t;
 }
 
-inline bool dds_entity_status_match (const dds_entity *e, uint32_t t) {
+DDS_EXPORT inline bool dds_entity_status_match (const dds_entity *e, uint32_t t) {
   return (e->m_trigger & t) != 0;
 }
 
-inline dds_entity_kind_t dds_entity_kind (const dds_entity *e) {
+DDS_EXPORT inline dds_entity_kind_t dds_entity_kind (const dds_entity *e) {
   return (dds_entity_kind_t) (e->m_hdl & DDS_ENTITY_KIND_MASK);
 }
 
-inline dds_entity_kind_t dds_entity_kind_from_handle (dds_entity_t hdl) {
+DDS_EXPORT inline dds_entity_kind_t dds_entity_kind_from_handle (dds_entity_t hdl) {
   return (hdl > 0) ? (dds_entity_kind_t) (hdl & DDS_ENTITY_KIND_MASK) : DDS_KIND_DONTCARE;
 }
 
-void dds_entity_status_signal (dds_entity *e);
+DDS_EXPORT void dds_entity_status_signal (dds_entity *e);
 
-void dds_entity_invoke_listener (const dds_entity *entity, enum dds_status_id which, const void *vst);
+DDS_EXPORT void dds_entity_invoke_listener (const dds_entity *entity, enum dds_status_id which, const void *vst);
 
-_Check_return_ dds__retcode_t
+_Check_return_ DDS_EXPORT dds__retcode_t
 dds_valid_hdl(
         _In_ dds_entity_t hdl,
         _In_ dds_entity_kind_t kind);
 
 _Acquires_exclusive_lock_(*e)
-_Check_return_ dds__retcode_t
+_Check_return_ DDS_EXPORT dds__retcode_t
 dds_entity_lock(
         _In_ dds_entity_t hdl,
         _In_ dds_entity_kind_t kind,
         _Out_ dds_entity **e);
 
 _Releases_exclusive_lock_(e)
-void
+DDS_EXPORT void
 dds_entity_unlock(
         _Inout_ dds_entity *e);
 
-_Check_return_ dds__retcode_t
+_Check_return_ DDS_EXPORT dds__retcode_t
 dds_entity_observer_register_nl(
         _In_ dds_entity*  observed,
         _In_ dds_entity_t observer,
         _In_ dds_entity_callback cb);
 
-_Check_return_ dds__retcode_t
+_Check_return_ DDS_EXPORT dds__retcode_t
 dds_entity_observer_register(
         _In_ dds_entity_t observed,
         _In_ dds_entity_t observer,
         _In_ dds_entity_callback cb);
 
-dds__retcode_t
+DDS_EXPORT dds__retcode_t
 dds_entity_observer_unregister_nl(
         _In_ dds_entity*  observed,
         _In_ dds_entity_t observer);
 
-dds__retcode_t
+DDS_EXPORT dds__retcode_t
 dds_entity_observer_unregister(
         _In_ dds_entity_t observed,
         _In_ dds_entity_t observer);
 
 _Pre_satisfies_(entity & DDS_ENTITY_KIND_MASK)
-dds_return_t
+DDS_EXPORT dds_return_t
 dds_delete_impl(
         _In_ dds_entity_t entity,
         _In_ bool keep_if_explicit);
 
-const char *
+DDS_EXPORT const char *
 dds__entity_kind_str(
         _In_ dds_entity_t e);
 
-dds_domain *
+DDS_EXPORT dds_domain *
 dds__entity_domain(
         _In_ dds_entity* e);
 

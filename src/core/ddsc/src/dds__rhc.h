@@ -27,21 +27,17 @@ struct ddsi_serdata;
 struct ddsi_tkmap_instance;
 struct proxy_writer_info;
 
-struct rhc * dds_rhc_new (dds_reader * reader, const struct ddsi_sertopic * topic);
-void dds_rhc_free (struct rhc * rhc);
-void dds_rhc_fini (struct rhc * rhc);
+DDS_EXPORT struct rhc *dds_rhc_new (dds_reader *reader, const struct ddsi_sertopic *topic);
+DDS_EXPORT void dds_rhc_free (struct rhc *rhc);
+DDS_EXPORT void dds_rhc_fini (struct rhc *rhc);
 
-uint32_t dds_rhc_lock_samples (struct rhc * rhc);
+DDS_EXPORT uint32_t dds_rhc_lock_samples (struct rhc *rhc);
 
-DDS_EXPORT bool dds_rhc_store
-(
-  struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info,
-  struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk
-);
-void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info);
-void dds_rhc_relinquish_ownership (struct rhc * __restrict rhc, const uint64_t wr_iid);
+DDS_EXPORT bool dds_rhc_store  (struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk);
+DDS_EXPORT void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info);
+DDS_EXPORT void dds_rhc_relinquish_ownership (struct rhc * __restrict rhc, const uint64_t wr_iid);
 
-int
+DDS_EXPORT int
 dds_rhc_read(
         struct rhc *rhc,
         bool lock,
@@ -51,7 +47,7 @@ dds_rhc_read(
         uint32_t mask,
         dds_instance_handle_t handle,
         dds_readcond *cond);
-int
+DDS_EXPORT int
 dds_rhc_take(
         struct rhc *rhc,
         bool lock,
@@ -62,15 +58,12 @@ dds_rhc_take(
         dds_instance_handle_t handle,
         dds_readcond *cond);
 
-void dds_rhc_set_qos (struct rhc * rhc, const struct nn_xqos * qos);
+DDS_EXPORT void dds_rhc_set_qos (struct rhc * rhc, const struct nn_xqos * qos);
 
-void dds_rhc_add_readcondition (dds_readcond * cond);
-void dds_rhc_remove_readcondition (dds_readcond * cond);
+DDS_EXPORT bool dds_rhc_add_readcondition (dds_readcond * cond);
+DDS_EXPORT void dds_rhc_remove_readcondition (dds_readcond * cond);
 
-bool dds_rhc_add_waitset (dds_readcond * cond, dds_waitset * waitset, dds_attach_t x);
-int dds_rhc_remove_waitset (dds_readcond * cond, dds_waitset * waitset);
-
-int dds_rhc_takecdr
+DDS_EXPORT int dds_rhc_takecdr
 (
   struct rhc *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq,
   uint32_t max_samples, unsigned sample_states,

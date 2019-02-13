@@ -50,8 +50,9 @@ set(ddsc_test_sources
     "writer.c")
 
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
-target_include_directories(cunit_ddsc PRIVATE
-		"$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>")
+target_include_directories(
+  cunit_ddsc PRIVATE
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>")
 target_link_libraries(cunit_ddsc RoundTrip Space TypesArrayKey ddsc OSAPI)
 
 # Setup environment for config-tests

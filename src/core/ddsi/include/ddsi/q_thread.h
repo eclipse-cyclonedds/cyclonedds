@@ -13,6 +13,7 @@
 #define Q_THREAD_H
 
 #include "os/os.h"
+#include "ddsc/dds_export.h"
 #include "ddsi/q_static_assert.h"
 
 #if defined (__cplusplus)
@@ -81,43 +82,43 @@ struct thread_states {
   struct thread_state1 *ts; /* [nthreads] */
 };
 
-extern struct thread_states thread_states;
+extern DDS_EXPORT struct thread_states thread_states;
 extern os_threadLocal struct thread_state1 *tsd_thread_state;
 
-void thread_states_init_static (void);
-void thread_states_init (_In_ unsigned maxthreads);
-void thread_states_fini (void);
+DDS_EXPORT void thread_states_init_static (void);
+DDS_EXPORT void thread_states_init (_In_ unsigned maxthreads);
+DDS_EXPORT void thread_states_fini (void);
 
-void upgrade_main_thread (void);
-void downgrade_main_thread (void);
-const struct config_thread_properties_listelem *lookup_thread_properties (_In_z_ const char *name);
-_Success_(return != NULL) _Ret_maybenull_ struct thread_state1 *create_thread (_In_z_ const char *name, _In_ uint32_t (*f) (void *arg), _In_opt_ void *arg);
-_Ret_valid_ struct thread_state1 *lookup_thread_state (void);
-_Success_(return != NULL) _Ret_maybenull_ struct thread_state1 *lookup_thread_state_real (void);
-_Success_(return == 0) int join_thread (_Inout_ struct thread_state1 *ts1);
-void log_stack_traces (void);
-struct thread_state1 *get_thread_state (_In_ os_threadId id);
-struct thread_state1 * init_thread_state (_In_z_ const char *tname);
-void reset_thread_state (_Inout_opt_ struct thread_state1 *ts1);
-int thread_exists (_In_z_ const char *name);
+DDS_EXPORT void upgrade_main_thread (void);
+DDS_EXPORT void downgrade_main_thread (void);
+DDS_EXPORT const struct config_thread_properties_listelem *lookup_thread_properties (const char *name);
+DDS_EXPORT struct thread_state1 *create_thread (const char *name, uint32_t (*f) (void *arg), void *arg);
+DDS_EXPORT struct thread_state1 *lookup_thread_state (void);
+DDS_EXPORT struct thread_state1 *lookup_thread_state_real (void);
+DDS_EXPORT int join_thread (_Inout_ struct thread_state1 *ts1);
+DDS_EXPORT void log_stack_traces (void);
+DDS_EXPORT struct thread_state1 *get_thread_state (_In_ os_threadId id);
+DDS_EXPORT struct thread_state1 * init_thread_state (_In_z_ const char *tname);
+DDS_EXPORT void reset_thread_state (_Inout_opt_ struct thread_state1 *ts1);
+DDS_EXPORT int thread_exists (_In_z_ const char *name);
 
-inline int vtime_awake_p (_In_ vtime_t vtime)
+DDS_EXPORT inline int vtime_awake_p (_In_ vtime_t vtime)
 {
   return (vtime % 2) == 0;
 }
 
-inline int vtime_asleep_p (_In_ vtime_t vtime)
+DDS_EXPORT inline int vtime_asleep_p (_In_ vtime_t vtime)
 {
   return (vtime % 2) == 1;
 }
 
-inline int vtime_gt (_In_ vtime_t vtime1, _In_ vtime_t vtime0)
+DDS_EXPORT inline int vtime_gt (_In_ vtime_t vtime1, _In_ vtime_t vtime0)
 {
   Q_STATIC_ASSERT_CODE (sizeof (vtime_t) == sizeof (svtime_t));
   return (svtime_t) (vtime1 - vtime0) > 0;
 }
 
-inline void thread_state_asleep (_Inout_ struct thread_state1 *ts1)
+DDS_EXPORT inline void thread_state_asleep (_Inout_ struct thread_state1 *ts1)
 {
   vtime_t vt = ts1->vtime;
   vtime_t wd = ts1->watchdog;
@@ -138,9 +139,9 @@ inline void thread_state_asleep (_Inout_ struct thread_state1 *ts1)
   } else {
     ts1->watchdog = wd + 1;
   }
- }
+}
 
-inline void thread_state_awake (_Inout_ struct thread_state1 *ts1)
+DDS_EXPORT inline void thread_state_awake (_Inout_ struct thread_state1 *ts1)
 {
   vtime_t vt = ts1->vtime;
   vtime_t wd = ts1->watchdog;
@@ -158,10 +159,9 @@ inline void thread_state_awake (_Inout_ struct thread_state1 *ts1)
   } else {
     ts1->watchdog = wd + 2;
   }
-
 }
 
-inline void thread_state_blocked (_Inout_ struct thread_state1 *ts1)
+DDS_EXPORT inline void thread_state_blocked (_Inout_ struct thread_state1 *ts1)
 {
   vtime_t wd = ts1->watchdog;
   if ( wd % 2 ){
@@ -171,7 +171,7 @@ inline void thread_state_blocked (_Inout_ struct thread_state1 *ts1)
   }
 }
 
-inline void thread_state_unblocked (_Inout_ struct thread_state1 *ts1)
+DDS_EXPORT inline void thread_state_unblocked (_Inout_ struct thread_state1 *ts1)
 {
   vtime_t wd = ts1->watchdog;
   if ( wd % 2 ){

@@ -18,6 +18,8 @@
 
 #include "util/ut_fibheap.h"
 
+#include "ddsc/dds_export.h"
+
 #include "ddsi/q_plist.h"
 #include "ddsi/q_protocol.h"
 #include "ddsi/q_nwif.h"
@@ -311,7 +313,7 @@ struct q_globals {
   struct nn_group_membership *mship;
 };
 
-extern struct q_globals OSAPI_EXPORT gv;
+extern struct q_globals DDS_EXPORT gv;
 
 #if defined (__cplusplus)
 }

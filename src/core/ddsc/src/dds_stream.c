@@ -303,7 +303,7 @@ char * dds_stream_reuse_string
       }
       else
       {
-        if ((str == NULL) || (strlen (str) < length))
+        if ((str == NULL) || (strlen (str) + 1 < length))
         {
           str = dds_realloc (str, length);
         }

@@ -108,60 +108,60 @@ struct ddsi_serdata_ops {
   ddsi_serdata_free_t free;
 };
 
-void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertopic *tp, enum ddsi_serdata_kind kind);
+DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertopic *tp, enum ddsi_serdata_kind kind);
 
-inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const) {
+DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const) {
   struct ddsi_serdata *serdata = (struct ddsi_serdata *)serdata_const;
   os_atomic_inc32 (&serdata->refc);
   return serdata;
 }
 
-inline void ddsi_serdata_unref (struct ddsi_serdata *serdata) {
+DDS_EXPORT inline void ddsi_serdata_unref (struct ddsi_serdata *serdata) {
   if (os_atomic_dec32_ov (&serdata->refc) == 1)
     serdata->ops->free (serdata);
 }
 
-inline uint32_t ddsi_serdata_size (const struct ddsi_serdata *d) {
+DDS_EXPORT inline uint32_t ddsi_serdata_size (const struct ddsi_serdata *d) {
   return d->ops->get_size (d);
 }
 
-inline struct ddsi_serdata *ddsi_serdata_from_ser (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size) {
+DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_ser (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size) {
   return topic->serdata_ops->from_ser (topic, kind, fragchain, size);
 }
 
-inline struct ddsi_serdata *ddsi_serdata_from_keyhash (const struct ddsi_sertopic *topic, const struct nn_keyhash *keyhash) {
+DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_keyhash (const struct ddsi_sertopic *topic, const struct nn_keyhash *keyhash) {
   return topic->serdata_ops->from_keyhash (topic, keyhash);
 }
 
-inline struct ddsi_serdata *ddsi_serdata_from_sample (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, const void *sample) {
+DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_sample (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, const void *sample) {
   return topic->serdata_ops->from_sample (topic, kind, sample);
 }
 
-inline struct ddsi_serdata *ddsi_serdata_to_topicless (const struct ddsi_serdata *d) {
+DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_to_topicless (const struct ddsi_serdata *d) {
   return d->ops->to_topicless (d);
 }
 
-inline void ddsi_serdata_to_ser (const struct ddsi_serdata *d, size_t off, size_t sz, void *buf) {
+DDS_EXPORT inline void ddsi_serdata_to_ser (const struct ddsi_serdata *d, size_t off, size_t sz, void *buf) {
   d->ops->to_ser (d, off, sz, buf);
 }
 
-inline struct ddsi_serdata *ddsi_serdata_to_ser_ref (const struct ddsi_serdata *d, size_t off, size_t sz, os_iovec_t *ref) {
+DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_to_ser_ref (const struct ddsi_serdata *d, size_t off, size_t sz, os_iovec_t *ref) {
   return d->ops->to_ser_ref (d, off, sz, ref);
 }
 
-inline void ddsi_serdata_to_ser_unref (struct ddsi_serdata *d, const os_iovec_t *ref) {
+DDS_EXPORT inline void ddsi_serdata_to_ser_unref (struct ddsi_serdata *d, const os_iovec_t *ref) {
   d->ops->to_ser_unref (d, ref);
 }
 
-inline bool ddsi_serdata_to_sample (const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim) {
+DDS_EXPORT inline bool ddsi_serdata_to_sample (const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim) {
   return d->ops->to_sample (d, sample, bufptr, buflim);
 }
 
-inline bool ddsi_serdata_topicless_to_sample (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim) {
+DDS_EXPORT inline bool ddsi_serdata_topicless_to_sample (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim) {
   return d->ops->topicless_to_sample (topic, d, sample, bufptr, buflim);
 }
 
-inline bool ddsi_serdata_eqkey (const struct ddsi_serdata *a, const struct ddsi_serdata *b) {
+DDS_EXPORT inline bool ddsi_serdata_eqkey (const struct ddsi_serdata *a, const struct ddsi_serdata *b) {
   return a->ops->eqkey (a, b);
 }
 

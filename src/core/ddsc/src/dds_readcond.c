@@ -31,10 +31,11 @@ _Must_inspect_result_ dds_readcond*
 dds_create_readcond(
         _In_ dds_reader *rd,
         _In_ dds_entity_kind_t kind,
-        _In_ uint32_t mask)
+        _In_ uint32_t mask,
+        _In_opt_ dds_querycondition_filter_fn filter)
 {
     dds_readcond * cond = dds_alloc(sizeof(*cond));
-    assert(kind == DDS_KIND_COND_READ || kind == DDS_KIND_COND_QUERY);
+    assert((kind == DDS_KIND_COND_READ && filter == 0) || (kind == DDS_KIND_COND_QUERY && filter != 0));
     cond->m_entity.m_hdl = dds_entity_init(&cond->m_entity, (dds_entity*)rd, kind, NULL, NULL, 0);
     cond->m_entity.m_deriver.delete = dds_readcond_delete;
     cond->m_rhc = rd->m_rd->rhc;
@@ -42,7 +43,16 @@ dds_create_readcond(
     cond->m_view_states = mask & DDS_ANY_VIEW_STATE;
     cond->m_instance_states = mask & DDS_ANY_INSTANCE_STATE;
     cond->m_rd_guid = rd->m_entity.m_guid;
-    dds_rhc_add_readcondition (cond);
+    if (kind == DDS_KIND_COND_QUERY) {
+        cond->m_query.m_filter = filter;
+        cond->m_query.m_qcmask = 0;
+    }
+    if (!dds_rhc_add_readcondition (cond)) {
+        /* FIXME: current entity management code can't deal with an error late in the creation of the
+           entity because it doesn't allow deleting it again ... instead use a hack to signal a problem
+           to the caller and let that one handle it. */
+        cond->m_entity.m_deriver.delete = 0;
+    }
     return cond;
 }
 
@@ -58,8 +68,9 @@ dds_create_readcondition(
 
     rc = dds_reader_lock(reader, &rd);
     if (rc == DDS_RETCODE_OK) {
-        dds_readcond *cond = dds_create_readcond(rd, DDS_KIND_COND_READ, mask);
+        dds_readcond *cond = dds_create_readcond(rd, DDS_KIND_COND_READ, mask, 0);
         assert(cond);
+        assert(cond->m_entity.m_deriver.delete);
         hdl = cond->m_entity.m_hdl;
         dds_reader_unlock(rd);
     } else {

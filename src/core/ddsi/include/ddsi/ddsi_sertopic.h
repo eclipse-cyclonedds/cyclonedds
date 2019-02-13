@@ -56,32 +56,32 @@ struct ddsi_sertopic_ops {
   ddsi_sertopic_free_samples_t free_samples;
 };
 
-struct ddsi_sertopic *ddsi_sertopic_ref (const struct ddsi_sertopic *tp);
-void ddsi_sertopic_unref (struct ddsi_sertopic *tp);
-uint32_t ddsi_sertopic_compute_serdata_basehash (const struct ddsi_serdata_ops *ops);
+DDS_EXPORT struct ddsi_sertopic *ddsi_sertopic_ref (const struct ddsi_sertopic *tp);
+DDS_EXPORT void ddsi_sertopic_unref (struct ddsi_sertopic *tp);
+DDS_EXPORT uint32_t ddsi_sertopic_compute_serdata_basehash (const struct ddsi_serdata_ops *ops);
 
-inline void ddsi_sertopic_deinit (struct ddsi_sertopic *tp) {
+DDS_EXPORT inline void ddsi_sertopic_deinit (struct ddsi_sertopic *tp) {
   tp->ops->deinit (tp);
 }
-inline void ddsi_sertopic_zero_samples (const struct ddsi_sertopic *tp, void *samples, size_t count) {
+DDS_EXPORT inline void ddsi_sertopic_zero_samples (const struct ddsi_sertopic *tp, void *samples, size_t count) {
   tp->ops->zero_samples (tp, samples, count);
 }
-inline void ddsi_sertopic_realloc_samples (void **ptrs, const struct ddsi_sertopic *tp, void *old, size_t oldcount, size_t count)
+DDS_EXPORT inline void ddsi_sertopic_realloc_samples (void **ptrs, const struct ddsi_sertopic *tp, void *old, size_t oldcount, size_t count)
 {
   tp->ops->realloc_samples (ptrs, tp, old, oldcount, count);
 }
-inline void ddsi_sertopic_free_samples (const struct ddsi_sertopic *tp, void **ptrs, size_t count, dds_free_op_t op) {
+DDS_EXPORT inline void ddsi_sertopic_free_samples (const struct ddsi_sertopic *tp, void **ptrs, size_t count, dds_free_op_t op) {
   tp->ops->free_samples (tp, ptrs, count, op);
 }
-inline void ddsi_sertopic_zero_sample (const struct ddsi_sertopic *tp, void *sample) {
+DDS_EXPORT inline void ddsi_sertopic_zero_sample (const struct ddsi_sertopic *tp, void *sample) {
   ddsi_sertopic_zero_samples (tp, sample, 1);
 }
-inline void *ddsi_sertopic_alloc_sample (const struct ddsi_sertopic *tp) {
+DDS_EXPORT inline void *ddsi_sertopic_alloc_sample (const struct ddsi_sertopic *tp) {
   void *ptr;
   ddsi_sertopic_realloc_samples (&ptr, tp, NULL, 0, 1);
   return ptr;
 }
-inline void ddsi_sertopic_free_sample (const struct ddsi_sertopic *tp, void *sample, dds_free_op_t op) {
+DDS_EXPORT inline void ddsi_sertopic_free_sample (const struct ddsi_sertopic *tp, void *sample, dds_free_op_t op) {
   ddsi_sertopic_free_samples (tp, &sample, 1, op);
 }
 
