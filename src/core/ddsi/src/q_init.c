@@ -204,7 +204,7 @@ static int set_recvips (void)
 #endif
     else
     {
-      struct ospl_in_addr_node **recvnode = &gv.recvips;
+      struct config_in_addr_node **recvnode = &gv.recvips;
       int i, j;
       gv.recvips_mode = RECVIPS_MODE_SOME;
       for (i = 0; config.networkRecvAddressStrings[i] != NULL; i++)
@@ -225,7 +225,7 @@ static int set_recvips (void)
           DDS_ERROR("No interface bound to requested address '%s'\n", config.networkRecvAddressStrings[i]);
           return -1;
         }
-        *recvnode = os_malloc (sizeof (struct ospl_in_addr_node));
+        *recvnode = os_malloc (sizeof (struct config_in_addr_node));
         (*recvnode)->loc = loc;
         recvnode = &(*recvnode)->next;
         *recvnode = NULL;
@@ -584,8 +584,7 @@ int rtps_config_prep (struct cfgst *cfgst)
      if it had been created using create_thread(). */
 
   {
-  /* For Lite - Temporary
-    Thread states for each application thread is managed using thread_states structure
+  /* Temporary: thread states for each application thread is managed using thread_states structure
   */
 #define USER_MAX_THREADS 50
 
@@ -863,8 +862,6 @@ int rtps_init (void)
   uint32_t port_disc_uc = 0;
   uint32_t port_data_uc = 0;
   bool mc_available = true;
-
-  /* Initialize implementation (Lite or OSPL) */
 
   ddsi_plugin_init ();
   ddsi_iid_init ();
@@ -1386,7 +1383,7 @@ err_network_partition_addrset:
 err_set_ext_address:
   while (gv.recvips)
   {
-    struct ospl_in_addr_node *n = gv.recvips;
+    struct config_in_addr_node *n = gv.recvips;
     gv.recvips = n->next;
     os_free (n);
   }
@@ -1670,7 +1667,7 @@ void rtps_fini (void)
 
   while (gv.recvips)
   {
-    struct ospl_in_addr_node *n = gv.recvips;
+    struct config_in_addr_node *n = gv.recvips;
 /* The compiler doesn't realize that n->next is always initialized. */
 OS_WARNING_MSVC_OFF(6001);
     gv.recvips = n->next;
