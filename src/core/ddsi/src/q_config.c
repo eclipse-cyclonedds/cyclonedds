@@ -502,7 +502,7 @@ static const struct cfgelem heartbeat_interval_attrs[] = {
 };
 
 static const struct cfgelem liveliness_monitoring_attrs[] = {
-  { LEAF("StackTraces"), 1, "true", ABSOFF(noprogress_log_stacktraces), 0, uf_boolean, 0, pf_boolean,
+  { ATTR("StackTraces"), 1, "true", ABSOFF(noprogress_log_stacktraces), 0, uf_boolean, 0, pf_boolean,
     "<p>This element controls whether or not to write stack traces to the DDSI2 trace when a thread fails to make progress (on select platforms only).</p>" },
   END_MARKER
 };
