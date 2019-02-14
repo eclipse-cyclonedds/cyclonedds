@@ -50,11 +50,6 @@ public class Compiler
 
     try
     {
-      if (!LicenseMgr.checkout (Project.nameCaps + "_IDLC"))
-      {
-        System.exit (1);
-      }
-
       String pathSep = System.getProperty ("file.separator");
       String outpath = (opts.outputdir == null) ? "" : opts.outputdir + pathSep;
       String fileRoot;
@@ -98,7 +93,7 @@ public class Compiler
         {
           System.err.println
             ("Input IDL file " + idl.getPath () + " is not valid");
-          licenseCheckAndExit (1);
+          System.exit (1);
         }
         fileRoot =
           idl.getName ().substring (0, idl.getName ().lastIndexOf ('.'));
@@ -109,12 +104,12 @@ public class Compiler
         if (!ppstatus.isOK ())
         {
           System.err.println ("Error: At " + ppstatus.getFilename () + ":" + ppstatus.getLine () + ", " + ppstatus.getMessage ());
-          licenseCheckAndExit(1);
+          System.exit(1);
         }
         if (opts.pponly)
         {
           System.out.println (ppresult.toCharArray ());
-          licenseCheckAndExit (0);
+          System.exit (0);
         }
 
         ANTLRInputStream input =
@@ -136,7 +131,7 @@ public class Compiler
               System.out.println (t.getText ());
             }
           }
-          licenseCheckAndExit (0);
+          System.exit (0);
         }
 
         params.linetab =
@@ -149,7 +144,7 @@ public class Compiler
           ParserRuleContext tree = (ParserRuleContext)parser.specification ();
           if (parser.getNumberOfSyntaxErrors () != 0)
           {
-            licenseCheckAndExit (1);
+            System.exit (1);
           }
           if (opts.dumptree)
           {
@@ -164,7 +159,7 @@ public class Compiler
               jd.setModalityType (java.awt.Dialog.ModalityType.APPLICATION_MODAL);
               jd.setVisible (true);
             }
-            licenseCheckAndExit(0);
+            System.exit(0);
           }
 
           params.symtab = new SymbolTable ();
@@ -172,18 +167,18 @@ public class Compiler
           gst.visit (tree);
           if (gst.getErrorCount () != 0)
           {
-            licenseCheckAndExit (1);
+            System.exit (1);
           }
           if (gst.unresolvedSymbols ())
           {
-            licenseCheckAndExit (1);
+            System.exit (1);
           }
 
           if (opts.dumpsymbols)
           {
             System.out.println ("Symbol table pass complete, symbols are:");
             params.symtab.dump ();
-            licenseCheckAndExit (0);
+            System.exit (0);
           }
 
           params.basename = fileRoot;
@@ -209,13 +204,13 @@ public class Compiler
           catch (IOException x)
           {
             System.err.format("IOException: %s%n", x);
-            licenseCheckAndExit (1);
+            System.exit (1);
           }
         }
         catch (RecognitionException r)
         {
           r.printStackTrace ();
-          licenseCheckAndExit (1);
+          System.exit (1);
         }
       }
     }
@@ -223,16 +218,6 @@ public class Compiler
     {
       e.printStackTrace ();
     }
-    finally
-    {
-      LicenseMgr.checkin ();
-    }
-  }
-
-  private static void licenseCheckAndExit (int exitStatus)
-  {
-    LicenseMgr.checkin ();
-    System.exit (exitStatus);
   }
 
   private static void version ()

@@ -34,7 +34,7 @@ public class Idlcpp
 
     if (opts.version)
     {
-      System.out.print ("Cyclone DDS ");
+      System.out.print ("Eclipse Cyclone DDS ");
       System.out.println ("IDL to C++ compiler v" + Project.version);
     }
     else
