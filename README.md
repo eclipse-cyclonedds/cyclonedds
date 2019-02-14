@@ -1,14 +1,25 @@
 # Eclipse Cyclone DDS
 
-Eclipse Cyclone DDS is by far the most performant and robust DDS implementation available on the market. 
-
-Beside, Cyclone DDS is developed completely in the open and is undergoing the acceptance process to become part of Eclipse IoT (see  [eclipse-cyclone-dds](https://projects.eclipse.org/proposals/eclipse-cyclone-dds)).
-
+Eclipse Cyclone DDS is by far the most performant and robust DDS implementation available on the
+market. Moreover, Eclipse Cyclone DDS is developed completely in the open as an Eclipse IoT project
+(see [eclipse-cyclone-dds](https://projects.eclipse.org/projects/iot.cyclonedds).
 
 # Getting Started
-## Building Cyclone DDS
 
-In order to use Eclipse Cyclone DDS you need to have installed on your host [cmake](https://cmake.org/download/) **v3.6.0** or higher, [git](https://git-scm.com/),  the [Java 8 JDK](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) or simply the [Java 8 RE](http://www.oracle.com/technetwork/java/javase/downloads/server-jre8-downloads-2133154.html), and [Apache Maven 3.5.x or higher](http://maven.apache.org/download.cgi).
+## Building Eclipse Cyclone DDS
+
+In order to build Eclipse Cyclone DDS you need a Linux, Mac or Windows 10 machine with the following
+installed on your host:
+
+  * [cmake](https://cmake.org/download/), version **v3.6** or later
+  * [OpenSSL](https://www.openssl.org/), preferably version **1.1** or later; if you wish, you can
+    build without support for OpenSSL by setting DDSC\_ENABLE\_OPENSSL to FALSE on the ``cmake ``
+    command line (i.e., ``cmake -DDDSC_ENABLE_OPENSSL=FALSE`` ../src)
+  * [Java 8 JDK](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
+  * [Apache Maven 3.5.x or higher](http://maven.apache.org/download.cgi)
+
+The Java-based components are the preprocessor and a configurator tool.  The run-time libraries are
+pure C code, so there is no need to have Java available on all the machines.
 
 To obtain Eclipse Cyclone DDS, do
 
@@ -25,47 +36,91 @@ To build and install the required libraries needed to develop your own applicati
 On Linux:
 
     $ cd build
-    $ cmake -DCMAKE_BUILD_TYPE=<build-type> -DCMAKE_INSTALL_PREFIX=<install-location> ../src
-    $ cmake --build . --target install
+    $ cmake -DCMAKE_INSTALL_PREFIX=<install-location> ../src
+    $ cmake --build .
 
 On Windows:
 
     $ cd build
-    $ cmake -DCMAKE_BUILD_TYPE=<build-type> -G "<generator-name>" -DCMAKE_INSTALL_PREFIX=<install-location> ../src
+    $ cmake -G "<generator-name>" -DCMAKE_INSTALL_PREFIX=<install-location> ../src
+    $ cmake --build .
+
+where you should replace "<install-location>" by the directory under which you would like to install
+Eclipse Cyclone DDS and <generator-name> by the one of ways
+CMake [generators](https://cmake.org/cmake/help/v3.0/manual/cmake-generators.7.html) offers for
+generating build files.  For example, "Visual Studio 15 2017 Win64" would target a 64-bit build
+using Visual Studio 2017.
+
+To install it after a successful build, do:
+    
     $ cmake --build . --target install
 
-### For contributors
+which will copy everything to:
 
-To contribute to the development of Eclipse Cyclone DDS you may need to provide test cases using [cunit](http://cunit.sourceforge.net/). Once cunit is installed do
+  * <prefix>/lib
+  * <prefix>/bin
+  * <prefix>/include/ddsc
+  * <prefix>/share/CycloneDDS
+  * <prefix>/etc/CycloneDDS
 
-On Linux:
+At this point you are ready to use **Cyclone DDS** in your own projects.
+
+Note that the default build type is a release build with debug information included
+(RelWithDebInfo), which is generally the most convenient type of build to use from applications
+because of a good mix between performance and still being able to debug things.  If you'd rather
+have a Debug or pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
+
+Depending on the location where to install you may need administrator privileges.
+
+## Contributing to Eclipse Cyclone DDS
+
+We very much welcome all contributions to the project, whether that is questions, examples, bug
+fixes, enhancements or improvements to the documentation, or anything else really.  When considering
+contributing code, it might be good to know that build configurations for Travis CI and AppVeyor are
+present in the repository and that there is a test suite using CTest and CUnit that can be built
+locally if desired.  To build it, set the cmake variable ``BUILD_TESTING`` to on when configuring, e.g.:
 
     $ cd build
-    $ cmake -DCMAKE_BUILD_TYPE=<build-type> -DBUILD_TESTING=on -DCMAKE_INSTALL_PREFIX=<install-location> ../src
-    $ cmake --build . --target install
+    $ cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ../src
+    $ cmake --build .
+    $ ctest
 
-On Windows:
+Such a build requires the presence of [cunit](http://cunit.sourceforge.net/.  You can install this
+yourself, or you can choose to instead rely on the [Conan](https://conan.io) packaging system that
+the CI build infrastructure also uses.  In that case, install Conan and do:
 
-    $ cd build
-    $ cmake -DCMAKE_BUILD_TYPE=<build-type> -G "<generator-name>" -DBUILD_TESTING=on -DCMAKE_INSTALL_PREFIX=<install-location> ../src
-    $ cmake --build . --config Debug --target install
+    $ conan install ..
 
+in the build directory prior to running cmake.  This will automatically download and/or build cunit
+(and, at the moment, openssl).
 
-where build type is Debug or Release, and '<generator name>' specifies the type of files to use (see [here](https://cmake.org/cmake/help/v3.0/manual/cmake-generators.7.html)).
+## Performance
 
-Depending on the location where to install you may need administrator privileges. To uninstall use
+Median small message throughput measured using the Throughput example between two Intel(R) Xeon(R)
+CPU E3-1270 V2 @ 3.50GHz (that's 2012 hardware ...) running Linux 3.8.13-rt14.20.el6rt.x86_64,
+connected via a quiet GbE and when using gcc-6.2.0 for a RelWithDebInfo build is:
 
-    $ cmake --build . --target uninstall
+![Throughput](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/throughput-polling.png)
 
-You are now ready to use **cyclonedds** for your next DDS project!
+This is with the subscriber in polling mode. Listener mode is marginally slower; using a waitset the
+message rate for minimal size messages drops to 600k sample/s in synchronous delivery mode and about
+750k samples/s in asynchronous delivery mode. The configuration is an out-of-the-box configuration,
+tweaked only to increase the high-water mark for the reliability window on the writer side. For
+details, see the scripts in the ``performance`` directory and
+the
+[data](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/throughput.txt).
+
+There is some data on roundtrip latency below.
 
 ## Examples
-Now that you have built and installed **cyclonecdds** it is time to experiment with some examples.
+
+Now that you have built and installed **Cyclone DDS** it is time to experiment with some examples.
 
 ### Building and Running the Roundtrip Example
-The first example we will show you how to build and run, measures cyclonedds latency and will allow you to see with your eyes how fast it is!
 
-Do as follows:
+The first example we will show you how to build and run an example program that measures latency.
+The examples are built automatically when you build Cyclone DDS, so you don't need to follow these
+steps to be able to run the program, it is merely to illustrate the process.
 
     $ cd cyclonedds/src/examples/roundtrip
     $ mkdir build
@@ -73,12 +128,11 @@ Do as follows:
     $ cmake ..
     $ make
     
-Now that you've build the roundtrip example it is time to run it. 
+On one terminal start the application that will be responding to Cyclone DDS pings:
 
-On one terminal start the applications that will be responding to **cyclonedds** pings.
     $ ./RoundtripPong
 
-On another terminal, start the application that will be sending the ping.
+On another terminal, start the application that will be sending the pings:
     
     $ ./RoundtripPing 0 0 0 
     # payloadSize: 0 | numSamples: 0 | timeOut: 0
@@ -98,8 +152,22 @@ On another terminal, start the application that will be sending the ping.
         9     28242       17       16       24      132      28242        8        6      28242        1        0
        10     28075       17       16       23       46      28075        8        6      28075        1        0
 
-           
-The number above were measure on Mac running a 4,2 GHz Intel Core i7 on December 12th 2018. From these number you can see how the roundtrip is incredibly stable and the minimal latency is now down to 17 micro-seconds (used to be 25 micro-seconds) on this HW.
+The numbers above were measured on Mac running a 4.2 GHz Intel Core i7 on December 12th 2018.  From
+these number you can see how the roundtrip is very stable and the minimal latency is now down to 17
+micro-seconds (used to be 25 micro-seconds) on this HW.
 
 ## Documentation
-The Cyclone DDS documentation is available [here](http://cdds.io/docs).
+
+The Eclipse Cyclone DDS documentation is still rather limited, and at the moment only available in
+the sources (in the form of restructured text files in ``src/docs`` and Doxygen comments in the
+header files), or as
+a
+[PDF](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/pdf/CycloneDDS-0.1.0.pdf). The
+intent is to automate the process of building the documentations and have them available in more
+convenient formats and in the usual locations.
+
+# Trademarks
+
+* "Eclipse Cyclone DDS" and "Cyclone DDS" are trademarks of the Eclipse Foundation.
+
+* "DDS" is a trademark of the Object Management Group, Inc.
