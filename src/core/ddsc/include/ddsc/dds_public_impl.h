@@ -16,7 +16,7 @@
  * @brief DDS C Implementation API
  *
  * This header file defines the public API for all kinds of things in the
- * CycloneDDS C language binding.
+ * Eclipse Cyclone DDS C language binding.
  */
 #ifndef DDS_IMPL_H
 #define DDS_IMPL_H
