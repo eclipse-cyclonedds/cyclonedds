@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 
-import org.eclipse.cyclonedds.common.util.ConfigModeIntializer;
 import org.eclipse.cyclonedds.config.data.DataAttribute;
 import org.eclipse.cyclonedds.config.data.DataConfiguration;
 import org.eclipse.cyclonedds.config.data.DataConfigurationListener;
@@ -131,9 +130,7 @@ public class DataElementTableModel extends DefaultTableModel implements DataConf
     public boolean isCellEditable(int row, int column) {
         boolean result;
                 
-        if(column == 1 && ConfigModeIntializer.CONFIGURATOR_MODE == ConfigModeIntializer.COMMERCIAL_MODE) {
-            result = true;
-        } else if (column == 1 && !element.getMetadata().getVersion().equals(ConfigModeIntializer.COMMERCIAL)) {
+        if(column == 1) {
             result = true;
         } else {
             result = false;

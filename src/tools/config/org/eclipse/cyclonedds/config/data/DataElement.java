@@ -13,7 +13,6 @@ package org.eclipse.cyclonedds.config.data;
 
 import java.util.ArrayList;
 
-import org.eclipse.cyclonedds.common.util.ConfigModeIntializer;
 import org.eclipse.cyclonedds.config.meta.MetaAttribute;
 import org.eclipse.cyclonedds.config.meta.MetaElement;
 import org.eclipse.cyclonedds.config.meta.MetaNode;
@@ -82,10 +81,6 @@ public class DataElement extends DataNode {
         } 
         
         if(nodeMeta instanceof MetaElement){
-            if (nodeMeta.getVersion().equals(ConfigModeIntializer.COMMERCIAL) 
-                    && (ConfigModeIntializer.CONFIGURATOR_MODE == ConfigModeIntializer.COMMUNITY_MODE || ConfigModeIntializer.CONFIGURATOR_MODE == ConfigModeIntializer.COMMUNITY_MODE_FILE_OPEN)) {
-                addToDOM = 0;
-            }
             if(count == ((MetaElement)nodeMeta).getMaxOccurrences()){
                 throw new DataException("Maximum number of occurrences for " + 
                         ((MetaElement)nodeMeta).getName()+ " reached.");
@@ -99,10 +94,6 @@ public class DataElement extends DataNode {
                 this.node.appendChild(textNode);
             }
         } else if(nodeMeta instanceof MetaAttribute){
-            if (nodeMeta.getVersion().equals(ConfigModeIntializer.COMMERCIAL)
-                    && (ConfigModeIntializer.CONFIGURATOR_MODE == ConfigModeIntializer.COMMUNITY_MODE || ConfigModeIntializer.CONFIGURATOR_MODE == ConfigModeIntializer.COMMUNITY_MODE_FILE_OPEN)) {
-                addToDOM = 0;
-            }
             if (addToDOM == 1) {
                 ((Element)this.node).setAttributeNode((Attr)node.getNode());
             }
@@ -170,29 +161,15 @@ public class DataElement extends DataNode {
             if(count == ((MetaElement)nodeMeta).getMinOccurrences()){
                 throw new DataException("Minimum number of occurrences for " + 
                         ((MetaElement)nodeMeta).getName()+ " reached.");
-            } else if (ConfigModeIntializer.CONFIGURATOR_MODE == ConfigModeIntializer.COMMERCIAL_MODE) {
+            } else
                 ((Element) this.node).removeChild(node.getNode());
-            } else {
-                if (!nodeMeta.getVersion().equals(
-                        ConfigModeIntializer.COMMERCIAL)) {
-                    if (!node.getOwner().getCommercialServices()
-                            .contains(node.getNode())) {
-                        ((Element) this.node).removeChild(node.getNode());
-                    }
-                }
-            }
         } else if(nodeMeta instanceof MetaAttribute){
             if(((MetaAttribute)nodeMeta).isRequired()){
                 throw new DataException("Cannot remove required attribute " + 
                         ((MetaAttribute)nodeMeta).getName()+ ".");
-            } else if (ConfigModeIntializer.CONFIGURATOR_MODE == ConfigModeIntializer.COMMERCIAL_MODE) {
+            } else {
                 ((Element) this.node)
                         .removeAttributeNode((Attr) node.getNode());
-            } else {
-                if (!nodeMeta.getVersion().equals(
-                        ConfigModeIntializer.COMMERCIAL)) {
-                    ((Element)this.node).removeAttributeNode((Attr)node.getNode());
-                }
             }
         } else {
             ((Element)this.node).removeChild(node.getNode());

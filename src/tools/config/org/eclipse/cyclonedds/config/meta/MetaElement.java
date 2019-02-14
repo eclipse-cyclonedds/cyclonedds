@@ -20,9 +20,9 @@ public class MetaElement extends MetaNode {
     private ArrayList<MetaNode> children;
     
     public MetaElement(String doc, String name, int minOccurrences,
-            int maxOccurrences, ArrayList<MetaNode> children, String version,
+            int maxOccurrences, ArrayList<MetaNode> children,
             String dimension) {
-        super(doc, version, dimension);
+        super(doc, dimension);
         this.name = name;
         this.minOccurrences = minOccurrences;
         this.maxOccurrences = maxOccurrences;
@@ -106,7 +106,6 @@ public class MetaElement extends MetaNode {
         StringBuffer buf = new StringBuffer();
         buf.append("\nElement\n");
         buf.append("-Name: " + this.name + "\n");
-        buf.append("-Version: " + this.version + "\n");
         buf.append("-MinOcccurrences: " + this.minOccurrences + "\n");
         buf.append("-MaxOcccurrences: " + this.maxOccurrences + "\n");
         if(this.children.size() > 0){

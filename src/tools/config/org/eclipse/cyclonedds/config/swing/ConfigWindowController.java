@@ -27,7 +27,6 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 
-import org.eclipse.cyclonedds.common.util.ConfigModeIntializer;
 import org.eclipse.cyclonedds.common.util.Report;
 import org.eclipse.cyclonedds.config.data.DataConfiguration;
 import org.eclipse.cyclonedds.config.data.DataException;
@@ -60,25 +59,12 @@ public class ConfigWindowController implements ActionListener {
         // Initialize the MetaConfiguration. This is done so the Configurator can know for
         // which product its meant for, according to the meta config file.
         MetaConfiguration.getInstance();
-        view.setWindowTitle(ConfigModeIntializer.CONFIGURATOR_MODE);
+        view.setWindowTitle();
 
-        String osplHome         = System.getenv("OSPL_HOME");
         File f                  = null;
         String fileSep          = System.getProperty("file.separator");
 
-        if(osplHome == null){
-            f = new File(System.getProperty("user.dir") + fileSep);
-        } else {
-            f = new File(osplHome + fileSep + "etc" + fileSep + "config" + fileSep);
-
-            if((!f.exists()) || (!f.isDirectory())){
-                f = new File(osplHome + fileSep + "etc" + fileSep);
-
-                if((!f.exists()) || (!f.isDirectory())){
-                    f = new File(System.getProperty("user.dir") + fileSep);
-                }
-            }
-        }
+        f = new File(System.getProperty("user.dir") + fileSep);
         this.openFileChooser.setCurrentDirectory(f);
         this.openFileChooser.setDialogTitle("Open configuration");
         this.openFileChooser.setMultiSelectionEnabled(false);
@@ -242,52 +228,9 @@ public class ConfigWindowController implements ActionListener {
                     DataConfiguration config = null;
 
                     try {
-                        if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.COMMERCIAL_MODE &&
-                                ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.LITE_MODE) {
-                            ConfigModeIntializer.setMode(ConfigModeIntializer.COMMUNITY_MODE_FILE_OPEN);
-                        }
-
                         config = new DataConfiguration(f, false);
                     } catch (DataException e) {
                         Report.getInstance().writeInfoLog("ConfigWindowController handleOpen\n" + e.getMessage());
-                        if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.LITE_MODE) {
-                            if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.COMMERCIAL_MODE) {
-                                ConfigModeIntializer.setMode(ConfigModeIntializer.COMMUNITY_MODE);
-                            }
-
-                            int answer = JOptionPane.showConfirmDialog(
-                                    view,
-                                    "The configuration is not valid.\nReason: " +
-                                    e.getMessage() +
-                                    "\nTry automatic repairing?",
-                                    "Invalid configuration",
-                                    JOptionPane.YES_NO_OPTION);
-
-                            if(answer == JOptionPane.YES_OPTION){
-                                try {
-                                    config = new DataConfiguration(f, true);
-
-                                    view.setStatus("Configuration repaired successfully.", false);
-                                } catch (DataException e1) {
-                                    JOptionPane.showMessageDialog(view,
-                                            "Configuration could not be repaired.\nReason: '" +
-                                            e.getMessage() + "'"
-                                            , "Error", JOptionPane.ERROR_MESSAGE);
-                                    handleSetStatus("Configuration could not be repaired.", false);
-                                    handleNextAction();
-                                }
-                            } else if(answer == JOptionPane.NO_OPTION){
-                                handleSetStatus("Configuration not opened.", false);
-                                handleNextAction();
-                            }
-                        } else {
-                            JOptionPane.showConfirmDialog(
-                                    view,
-                                    "The configuration is not valid.\nReason: " +
-                                    e.getMessage(),
-                                    "Invalid configuration",
-                                    JOptionPane.PLAIN_MESSAGE);
-                        }
                     }
                     if(config != null){
                         view.setDataConfiguration(config);
@@ -326,23 +269,11 @@ public class ConfigWindowController implements ActionListener {
                 DataConfiguration config = null;
 
                 try {
-                    if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.COMMERCIAL_MODE &&
-                            ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.LITE_MODE) {
-                        ConfigModeIntializer
-                                .setMode(ConfigModeIntializer.COMMUNITY_MODE_FILE_OPEN);
-                    }
-
                     config = new DataConfiguration(f, false);
                 } catch (DataException e) {
                     Report.getInstance().writeInfoLog(
                             "ConfigWindowController handleOpen\n"
                                     + e.getMessage());
-                    if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.COMMERCIAL_MODE &&
-                            ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.LITE_MODE) {
-                        ConfigModeIntializer
-                                .setMode(ConfigModeIntializer.COMMUNITY_MODE);
-                    }
-
                     int answer = JOptionPane.showConfirmDialog(
                             view,
                             "The configuration is not valid.\nReason: "
@@ -533,9 +464,6 @@ public class ConfigWindowController implements ActionListener {
             public void run(){
                 view.setDataConfiguration(null);
                 newInProgress = false;
-                if (ConfigModeIntializer.CONFIGURATOR_MODE == ConfigModeIntializer.COMMUNITY_MODE_FILE_OPEN) {
-                    ConfigModeIntializer.setMode(ConfigModeIntializer.COMMUNITY_MODE);
-                }
                 try {
                     DataConfiguration config = new DataConfiguration();
                     view.setDataConfiguration(config);
@@ -628,13 +556,8 @@ public class ConfigWindowController implements ActionListener {
         public static final String CONFIG_SUFFIX = ".xml";
 
         public ConfigChooseFilter(){
-            if (ConfigModeIntializer.CONFIGURATOR_MODE == ConfigModeIntializer.LITE_MODE) {
-                ConfigChooseFilter.description = "Cyclone DDS config files (*" +
-                        ConfigChooseFilter.CONFIG_SUFFIX + ")";
-            } else {
-                ConfigChooseFilter.description = "OpenSplice config files (*" +
-                        ConfigChooseFilter.CONFIG_SUFFIX + ")";
-            }
+          ConfigChooseFilter.description = "Eclipse Cyclone DDS config files (*" +
+            ConfigChooseFilter.CONFIG_SUFFIX + ")";
         }
 
         @Override

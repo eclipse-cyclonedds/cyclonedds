@@ -17,8 +17,8 @@ public class MetaAttribute extends MetaNode {
     private MetaValue value;
     
     public MetaAttribute(String doc, String name, boolean required,
-            MetaValue value, String version, String dimension) {
-        super(doc, version, dimension);
+            MetaValue value, String dimension) {
+        super(doc, dimension);
         this.name = name;
         this.required = required;
         this.value = value;
@@ -88,7 +88,6 @@ public class MetaAttribute extends MetaNode {
         result += "\nAttribute\n";
         result += "-Name: " + this.name + "\n";
         result += "-Required: " + this.required + "\n";
-        result += "-Version: " + this.version + "\n";
         result += "-Value: " + value.toString();
         
         return result;
