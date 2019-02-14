@@ -165,7 +165,7 @@ static int joinleave_mcgroup (ddsi_tran_conn_t conn, int join, const nn_locator_
 
 static int interface_in_recvips_p (const struct nn_interface *interf)
 {
-  struct ospl_in_addr_node *nodeaddr;
+  struct config_in_addr_node *nodeaddr;
   for (nodeaddr = gv.recvips; nodeaddr; nodeaddr = nodeaddr->next)
   {
     if (locator_compare_no_port(&nodeaddr->loc, &interf->loc) == 0)

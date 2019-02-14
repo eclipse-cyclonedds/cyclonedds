@@ -51,10 +51,10 @@ struct ut_thread_pool_s;
 struct debug_monitor;
 struct ddsi_tkmap;
 
-typedef struct ospl_in_addr_node {
+typedef struct config_in_addr_node {
    nn_locator_t loc;
-   struct ospl_in_addr_node *next;
-} ospl_in_addr_node;
+   struct config_in_addr_node *next;
+} config_in_addr_node;
 
 enum recvips_mode {
   RECVIPS_MODE_ALL,             /* all MC capable interfaces */
@@ -174,7 +174,7 @@ struct q_globals {
      advertised in discovery messages (so that an external IP address on
      a NAT may be advertised), and the DDSI multi-cast address. */
   enum recvips_mode recvips_mode;
-  struct ospl_in_addr_node *recvips;
+  struct config_in_addr_node *recvips;
   nn_locator_t extmask;
 
   nn_locator_t ownloc;
