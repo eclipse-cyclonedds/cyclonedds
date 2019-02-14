@@ -9,8 +9,8 @@
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-Cyclone DDS C API Reference
-==========================
+Eclipse Cyclone DDS C API Reference
+===================================
 
 .. doxygenindex::
    :project: ddsc_api

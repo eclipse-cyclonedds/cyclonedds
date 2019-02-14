@@ -131,11 +131,9 @@ elseif(BUILD_DOCS)
     endif()
 
     # Process sphinx configuration file
-    set(sph_conf_author "ADLINK")
-    string(TIMESTAMP sph_conf_copyright "%Y, ADLINK")
+    set(sph_conf_author "Eclipse Cyclone DDS project")
     set(sph_conf_version "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
     set(sph_conf_release "${PROJECT_VERSION}")
-    set(sph_logo "${PROJECT_SOURCE_DIR}/docs/_static/pictures/VORTEX_LOGO.png")
     configure_file(conf.py.in conf.py @ONLY)
 
     # Define a list of output formats (-b option for sphinx-build)

@@ -1,14 +1,14 @@
-###################################################
-A guide to the configuration options of Cyclone DDS
-###################################################
+###########################################################
+A guide to the configuration options of Eclipse Cyclone DDS
+###########################################################
 
 This document attempts to provide background information that will help in adjusting the
-configuration of Cyclone DDS when the default settings do not give the desired behavior.
+configuration of Eclipse Cyclone DDS when the default settings do not give the desired behavior.
 A full listing of all settings is out of scope for this document, but can be extracted
 from the sources.
 
 
-.. _`DDSI Concepts`
+.. _`DDSI Concepts`:
 
 DDSI Concepts
 *************
@@ -18,10 +18,10 @@ correspondence between the entities in DDSI and those in DCPS.  However, this
 correspondence is not one-to-one.
 
 In this section we give a high-level description of the concepts of the DDSI
-specification, with hardly any reference to the specifics of the Cyclone DDS
+specification, with hardly any reference to the specifics of the Eclipse Cyclone DDS
 implementation, which are addressed in subsequent sections. This division was chosen to
 aid readers interested in interoperability to understand where the specification ends
-and the Cyclone DDS implementation begins.
+and the Eclipse Cyclone DDS implementation begins.
 
 
 .. _`Mapping of DCPS domains to DDSI domains`:
@@ -89,7 +89,7 @@ are stored in the writer history cache (or *WHC*) of the DDSI writer.  The DDSI 
 is required to periodically send *Heartbeats* to its readers to ensure that all readers
 will learn of the presence of new samples in the WHC even when packets get lost.  It is
 allowed to suppress these periodic Heartbeats if there is all samples in the WHC have
-been acknowledged by all matched readers and the Cyclone DDS exploits this freedom.
+been acknowledged by all matched readers and the Eclipse Cyclone DDS exploits this freedom.
 
 If a reader receives a Heartbeat and detects it did not receive all samples, it requests
 a retransmission by sending an *AckNack* message to the writer.  The timing of this is
@@ -106,7 +106,7 @@ from its WHC when it fills up too far, and allows readers to always receive all 
 complication exists in the case of unresponsive readers, readers that do not respond to
 a Heartbeat at all, or that for some reason fail to receive some samples despite
 resending it.  The specification leaves the way these get treated unspecified.  The
-default beahviour of Cyclone DDS is to never consider readers unresponsive, but it can
+default beahviour of Eclipse Cyclone DDS is to never consider readers unresponsive, but it can
 be configured to consider them so after a certain length of time has passed at which
 point the participant containing the reader is undiscovered.
 
@@ -135,7 +135,7 @@ sample for each existing instance.
 
 Naturally, once the DCPS writer is deleted (or disappears for whatever reason), the DDSI
 writer disappears as well, and with it, its history.  For this reason, transient data is
-generally much to be preferred over transient-local data.  Cyclone DDS has a facility
+generally much to be preferred over transient-local data.  Eclipse Cyclone DDS has a facility
 for retrieving transient data from an suitably configured OpenSplice node, but does not
 yet include a native service for managing transient data.
 
@@ -162,14 +162,14 @@ The protocol does allow for unicast-based discovery, which requires listing the
 addresses of machines where participants may be located and ensuring each participant
 uses one of a small set of port numbers.  Because of this, some of the port numbers are
 derived not only from the domain id, but also from a *participant index*, which is a
-small non-negative integer, unique to a participant within a node.  (Cyclone DDS adds an
+small non-negative integer, unique to a participant within a node.  (Eclipse Cyclone DDS adds an
 indirection and uses at most one participant index for a domain for each process,
 regardless of how many DCPS participants are created by the process.)
 
 Once two participants have discovered each other and both have matched the DDSI built-in
 endpoints their peer is advertising in the SPDP message, the *Simple Endpoint Discovery
 Protocol* or *SEDP* takes over, exchanging information on the DCPS data readers and data
-writers (and for Cyclone DDS, also publishers, subscribers and topics in a manner
+writers (and for Eclipse Cyclone DDS, also publishers, subscribers and topics in a manner
 compatible with OpenSplice) in the two participants.
 
 The SEDP data is handled as reliable, transient-local data.  Therefore, the SEDP writers
@@ -183,10 +183,10 @@ participant is added to the system: *all* existing participants respond to the S
 message, following which all start exchanging SEDP data.
 
   
-.. _`Cyclone DDS specifics`:
+.. _`Eclipse Cyclone DDS specifics`:
 
-Cyclone DDS specifics
-*********************
+Eclipse Cyclone DDS specifics
+*****************************
 
 .. _`Discovery behaviour`:
 
@@ -198,7 +198,7 @@ Discovery behaviour
 Proxy participants and endpoints
 --------------------------------
 
-Cyclone DDS is what the DDSI specification calls a *stateful* implementation.  Writers
+Eclipse Cyclone DDS is what the DDSI specification calls a *stateful* implementation.  Writers
 only send data to discovered readers and readers only accept data from discovered
 writers.  (There is one exception: the writer may choose to multicast the data, and
 anyone listening will be able to receive it, if a reader has already discovered the
@@ -206,7 +206,7 @@ writer but not vice-versa; it may accept the data even though the connection is 
 fully established yet.  At present, not only can such asymmetrical discovery cause data
 to be delivered when it was perhaps not expected, it can also cause indefinite blocking
 if the situation persists for a long time.)  Consequently, for each remote participant
-and reader or writer, Cyclone DDS internally creates a proxy participant, proxy reader
+and reader or writer, Eclipse Cyclone DDS internally creates a proxy participant, proxy reader
 or proxy writer.  In the discovery process, writers are matched with proxy readers, and
 readers are matched with proxy writers, based on the topic and type names and the QoS
 settings.
@@ -215,7 +215,7 @@ Proxies have the same natural hierarchy that ‘normal’ DDSI entities have: ea
 endpoint is owned by some proxy participant, and once the proxy participant is deleted,
 all of its proxy endpoints are deleted as well.  Participants assert their liveliness
 periodically (called *automic* liveliness in the DCPS specification and the only mode
-currently supported by Cyclone DDS), and when nothing has been heard from a participant
+currently supported by Eclipse Cyclone DDS), and when nothing has been heard from a participant
 for the lease duration published by that participant in its SPDP message, the lease
 becomes expired triggering a clean-up.
 
@@ -230,11 +230,11 @@ to expire.
 Sharing of discovery information
 --------------------------------
 
-As Cyclone DDS handles any number of participants in an integrated manner, the discovery
+As Eclipse Cyclone DDS handles any number of participants in an integrated manner, the discovery
 protocol as sketched earlier is rather wasteful: there is no need for each individual
-participant in a Cyclone DDS process to run the full discovery protocol for itself.
+participant in a Eclipse Cyclone DDS process to run the full discovery protocol for itself.
 
-Instead of implementing the protocol as suggested by the standard, Cyclone DDS shares
+Instead of implementing the protocol as suggested by the standard, Eclipse Cyclone DDS shares
 all discovery activities amongst the participants, allowing one to add participants on a
 process with only a minimal impact on the system.  It is even possible to have only a
 single DDSI participant in a process regardless of the number of DCPS participants
@@ -246,7 +246,7 @@ affected.
 
 Because other implementations of the DDSI specification may be written on the assumption
 that all participants perform their own discovery, it is possible to simulate that with
-Cyclone DDS.  It will not actually perform the discovery for each participant
+Eclipse Cyclone DDS.  It will not actually perform the discovery for each participant
 independently, but it will generate the network traffic *as if* it does.  These are
 controlled by the ``Internal/BuiltinEndpointSet`` and
 ``Internal/ConservativeBuiltinReaderStartup`` options.  However, please note that at the
@@ -267,12 +267,12 @@ Lingering writers
 
 When an application deletes a reliable DCPS data writer, there is no guarantee that all
 its readers have already acknowledged the correct receipt of all samples.  In such a
-case, Cyclone DDS lets the writer (and the owning participant if necessary) linger in
+case, Eclipse Cyclone DDS lets the writer (and the owning participant if necessary) linger in
 the system for some time, controlled by the ``Internal/WriterLingerDuration`` option.
 The writer is deleted when all samples have been acknowledged by all readers or the
 linger duration has elapsed, whichever comes first.
 
-Note that the writer linger duration setting is currently not applied when Cyclone DDS
+Note that the writer linger duration setting is currently not applied when Eclipse Cyclone DDS
 is requested to terminate.
 
 
@@ -281,7 +281,7 @@ is requested to terminate.
 Start-up mode
 -------------
 
-A similar issue exists when starting Cyclone DDS: DDSI discovery takes time, and when
+A similar issue exists when starting Eclipse Cyclone DDS: DDSI discovery takes time, and when
 data is written immediately after the first participant was created, it is likely that
 the discovery process hasn’t completed yet and some remote readers have not yet been
 discovered.  This would cause the writers to throw away samples for lack of interest,
@@ -372,7 +372,7 @@ Network and discovery configuration
 Networking interfaces
 =====================
 
-Cyclone DDS uses a single network interface, the *preferred* interface, for transmitting
+Eclipse Cyclone DDS uses a single network interface, the *preferred* interface, for transmitting
 its multicast packets and advertises only the address corresponding to this interface in
 the DDSI discovery protocol.
 
@@ -398,7 +398,7 @@ is always preferred and is the only option that allows selecting the desired one
 multiple addresses are tied to a single interface.
 
 The default address family is IPv4, setting General/UseIPv6 will change this to IPv6.
-Currently, Cyclone DDS does not mix IPv4 and IPv6 addressing.  Consequently, all DDSI
+Currently, Eclipse Cyclone DDS does not mix IPv4 and IPv6 addressing.  Consequently, all DDSI
 participants in the network must use the same addressing mode.  When interoperating,
 this behaviour is the same, i.e., it will look at either IPv4 or IPv6 addresses in the
 advertised address information in the SPDP and SEDP discovery protocols.
@@ -412,7 +412,7 @@ DDS will operate in a *global addressing* mode and will only consider discovered
 non-link-local addresses.  In this mode, one can select any set of interface for
 listening to multicasts.  Note that this behaviour is essentially identical to that when
 using IPv4, as IPv4 does not have the formal notion of address scopes that IPv6 has.  If
-instead only a link-local address is available, Cyclone DDS will run in a *link-local
+instead only a link-local address is available, Eclipse Cyclone DDS will run in a *link-local
 addressing* mode.  In this mode it will accept any address in a discovery packet,
 assuming that a link-local address is valid on the preferred interface.  To minimise the
 risk involved in this assumption, it only allows the preferred interface for listening
@@ -431,7 +431,7 @@ in the same way as for network interfaces.
 Multicasting
 ------------
 
-Cyclone DDS allows configuring to what extent multicast (the regular, any-source
+Eclipse Cyclone DDS allows configuring to what extent multicast (the regular, any-source
 multicast as well as source-specific multicast) is to be used:
 
 + whether to use multicast for data communications,
@@ -463,7 +463,7 @@ TCP support
 The DDSI protocol is really a protocol designed for a transport providing
 connectionless, unreliable datagrams.  However, there are times where TCP is the only
 practical network transport available (for example, across a WAN).  Because of this,
-Cyclone DDS can use TCP instead of UDP.
+Eclipse Cyclone DDS can use TCP instead of UDP.
 
 The differences in the model of operation between DDSI and TCP are quite large: DDSI is
 based on the notion of peers, whereas TCP communication is based on the notion of a
@@ -500,7 +500,7 @@ initiated.
 Raw Ethernet support
 --------------------
 
-As an additional option, on Linux, Cyclone DDS can use a raw Ethernet network interface
+As an additional option, on Linux, Eclipse Cyclone DDS can use a raw Ethernet network interface
 to communicate without a configured IP stack.
 
 
@@ -581,7 +581,7 @@ Endpoint discovery
 ..................
 
 Although the SEDP protocol never requires any configuration, network partitioning does
-interact with it: so-called ‘ignored partitions’ can be used to instruct Cyclone DDS to
+interact with it: so-called ‘ignored partitions’ can be used to instruct Eclipse Cyclone DDS to
 completely ignore certain DCPS topic and partition combinations, which will prevent data
 for these topic/partition combinations from being forwarded to and from the network.
 
@@ -623,8 +623,8 @@ received for a participant that has not yet been discovered.
 Controlling port numbers
 ========================
 
-The port numbers used by by Cyclone DDS are determined as follows, where the first two
-items are given by the DDSI specification and the third is unique to Cyclone DDS as a
+The port numbers used by by Eclipse Cyclone DDS are determined as follows, where the first two
+items are given by the DDSI specification and the third is unique to Eclipse Cyclone DDS as a
 way of serving multiple participants by a single DDSI instance:
 
 + 2 ‘well-known’ multicast ports: ``B`` and ``B+1``
@@ -649,7 +649,7 @@ PI is the most interesting, as it relates to having multiple processes in the sa
 domain on a single node. Its configured value is either *auto*, *none* or a non-negative
 integer.  This setting matters:
 
-+ When it is *auto* (which is the default), Cyclone DDS probes UDP port numbers on
++ When it is *auto* (which is the default), Eclipse Cyclone DDS probes UDP port numbers on
   start-up, starting with PI = 0, incrementing it by one each time until it finds a pair
   of available port numbers, or it hits the limit.  The maximum PI it will ever choose
   is ``Discovery/MaxAutoParticipantIndex`` as a way of limiting the cost of unicast
@@ -674,12 +674,12 @@ item in the list.  These are used only because there exist some DDSI implementat
 that assume each domain participant advertises a unique port number as part of the
 discovery protocol, and hence that there is never any need for including an explicit
 destination participant id when intending to address a single domain participant by
-using its unicast locator.  Cyclone DDS never makes this assumption, instead opting to
+using its unicast locator.  Eclipse Cyclone DDS never makes this assumption, instead opting to
 send a few bytes extra to ensure the contents of a message are all that is needed.  With
 other implementations, you will need to check.
 
 If all DDSI implementations in the network include full addressing information in the
-messages like Cyclone DDS does, then the per-domain participant ports serve no purpose
+messages like Eclipse Cyclone DDS does, then the per-domain participant ports serve no purpose
 at all.  The default ``false`` setting of ``Compatibility/ManySocketsMode`` disables the
 creation of these ports.
 
@@ -706,7 +706,7 @@ retransmitting the same sample over & over again to many different readers.  Sim
 while readers should try to avoid requesting retransmissions too often, in an
 interoperable system the writers should be robust against it.
 
-In Cyclone DDS, upon receiving a Heartbeat that indicates samples are missing, a reader
+In Eclipse Cyclone DDS, upon receiving a Heartbeat that indicates samples are missing, a reader
 will schedule the second and following retransmission requests to be sent after
 ``Internal/NackDelay`` or combine it with an already scheduled request if possible.  Any
 samples received in between receipt of the Heartbeat and the sending of the AckNack will
@@ -734,7 +734,7 @@ the writer simply queues all these samples for retransmission, it may well resul
 huge backlog of samples to be retransmitted.  As a result, the ones near the end of the
 queue may be delayed by so much that the reader issues another retransmit request.
 
-Therefore, Cyclone DDS limits the number of samples queued for retransmission and
+Therefore, Eclipse Cyclone DDS limits the number of samples queued for retransmission and
 ignores (those parts of) retransmission requests that would cause the retransmit queue
 to contain too many samples or take too much time to process. There are two settings
 governing the size of these queues, and the limits are applied per timed-event thread.
@@ -754,7 +754,7 @@ Samples in DDS can be arbitrarily large, and will not always fit within a single
 datagram.  DDSI has facilities to fragment samples so they can fit in UDP datagrams, and
 similarly IP has facilities to fragment UDP datagrams to into network packets.  The DDSI
 specification states that one must not unnecessarily fragment at the DDSI level, but
-Cyclone DDS simply provides a fully configurable behaviour.
+Eclipse Cyclone DDS simply provides a fully configurable behaviour.
 
 If the serialised form of a sample is at least ``Internal/FragmentSize``,
 it will be fragmented using the DDSI fragmentation. All but the last fragment
@@ -835,14 +835,14 @@ priority, effectively enabling synchronous delivery for all data.
 Maximum sample size
 ===================
 
-Cyclone DDS provides a setting, ``Internal/MaxSampleSize``, to control the maximum size
+Eclipse Cyclone DDS provides a setting, ``Internal/MaxSampleSize``, to control the maximum size
 of samples that the service is willing to process. The size is the size of the (CDR)
 serialised payload, and the limit holds both for built-in data and for application data.
 The (CDR) serialised payload is never larger than the in-memory representation of the
 data.
 
 On the transmitting side, samples larger than ``MaxSampleSize`` are dropped with a
-warning in the.  Cyclone DDS behaves as if the sample never existed.
+warning in the.  Eclipse Cyclone DDS behaves as if the sample never existed.
 
 Similarly, on the receiving side, samples large than ``MaxSampleSize`` are dropped as
 early as possible, immediately following the reception of a sample or fragment of one,
@@ -904,10 +904,10 @@ partition mappings are specified in the configuration.  The first matching mappi
 the one that will be used. The ``*`` and ``?`` wildcards are available for the DCPS
 partition/topic combination in the partition mapping.
 
-As mentioned earlier (see `Local discovery and built-in topics`_), Cyclone DDS can be
-instructed to ignore all DCPS data readers and writers for certain DCPS partition/topic
-combinations through the use of *IgnoredPartitions*.  The ignored partitions use the
-same matching rules as normal mappings, and take precedence over the normal mappings.
+As mentioned earlier, Eclipse Cyclone DDS can be instructed to ignore all DCPS data
+readers and writers for certain DCPS partition/topic combinations through the use of
+*IgnoredPartitions*.  The ignored partitions use the same matching rules as normal
+mappings, and take precedence over the normal mappings.
 
 
 .. _`Multiple matching mappings`:
@@ -926,7 +926,7 @@ data the reader will receive; it only affects the addressing on the network.
 Thread configuration
 ********************
 
-Cyclone DDS creates a number of threads and each of these threads has a number of
+Eclipse Cyclone DDS creates a number of threads and each of these threads has a number of
 properties that can be controlled individually.  The properties that can be controlled
 are:
 
@@ -941,7 +941,7 @@ anything not specified explicitly is left at the default value.
 The following threads exist:
 
 + *gc*: garbage collector, which sleeps until garbage collection is requested for an
-  entity, at which point it starts monitoring the state of Cyclone DDS, pushing the
+  entity, at which point it starts monitoring the state of Eclipse Cyclone DDS, pushing the
   entity through whatever state transitions are needed once it is safe to do so, ending
   with the freeing of the memory.
 + *recv*: accepts incoming network packets from all sockets/ports, performs all protocol
@@ -949,7 +949,7 @@ The following threads exist:
   timed-event thread, queues for delivery or, in special cases, delivers it directly to
   the data readers.
 + *dq.builtins*: processes all discovery data coming in from the network.
-+ *lease*: performs internal liveliness monitoring of Cyclone DDS.
++ *lease*: performs internal liveliness monitoring of Eclipse Cyclone DDS.
 + *tev*: timed-event handling, used for all kinds of things, such as: periodic
   transmission of participant discovery and liveliness messages, transmission of control
   messages for reliable writers and readers (except those that have their own
@@ -973,7 +973,7 @@ When no channels are explicitly defined, there is one channel named *user*.
 Reporting and tracing
 *********************
 
-Cyclone DDS can produce highly detailed traces of all traffic and internal activities.
+Eclipse Cyclone DDS can produce highly detailed traces of all traffic and internal activities.
 It enables individual categories of information, as well as having a simple verbosity
 level that enables fixed sets of categories.
 
@@ -1058,26 +1058,21 @@ Compatibility and conformance
 Conformance modes
 =================
 
-Cyclone DDS operates in one of three modes: *pedantic*, *strict* and *lax*; the mode is
+Eclipse Cyclone DDS operates in one of three modes: *pedantic*, *strict* and *lax*; the mode is
 configured using the ``Compatibility/StandardsConformance`` setting.  The default is
 *lax*.
 
 The first, *pedantic* mode, is of such limited utility that it will be removed.
 
 The second mode, *strict*, attempts to follow the *intent* of the specification while
-staying close to the letter of it. The points in which it deviates from the standard are
-in all probability editing errors that will be rectified in the next update.  When
-operated in this mode, one would expect it to be fully interoperable with other vendors’
-implementations, but this is not the case. The deviations in other vendors’
-implementations are not required to implement DDSI 2.1 (or 2.2), as is proven by, e.g.,
-the OpenSplice DDSI2 service, and they cannot rightly be considered ‘true’
-implementations of the DDSI 2.1 (or 2.2) standard.
+staying close to the letter of it. Recent developments at the OMG have resolved these
+issues and this mode is no longer of any value.
 
 The default mode, *lax*, attempts to work around (most of) the deviations of other
 implementations, and generally provides good interoperability without any further
-settings.  In lax mode, the Cyclone DDS not only accepts some invalid messages, it will
+settings.  In lax mode, the Eclipse Cyclone DDS not only accepts some invalid messages, it will
 even transmit them.  The consequences for interoperability of not doing this are simply
-too severe.  It should be noted that if one configures two Cyclone DDS processes with
+too severe.  It should be noted that if one configures two Eclipse Cyclone DDS processes with
 different compliancy modes, the one in the stricter mode will complain about messages
 sent by the one in the less strict mode.
 
@@ -1095,7 +1090,7 @@ establish bidirectional communication between the two.
 
 Disposing data may also cause problems, as RTI DDS leaves out the serialised key value
 and instead expects the reader to rely on an embedded hash of the key value.  In the
-strict modes, Cyclone DDS requires a proper key value to be supplied; in the relaxed
+strict modes, Eclipse Cyclone DDS requires a proper key value to be supplied; in the relaxed
 mode, it is willing to accept key hash, provided it is of a form that contains the key
 values in an unmangled form.
 
@@ -1106,14 +1101,14 @@ maximum length larger than 11 bytes. See the DDSI specification for details.
 
 In *strict* mode, there is interoperation with RTI DDS, but at the cost of incredibly
 high CPU and network load, caused by a Heartbeats and AckNacks going back-and-forth
-between a reliable RTI DDS data writer and a reliable Cyclone DDS data reader. The
-problem is that once Cyclone DDS informs the RTI writer that it has received all data
+between a reliable RTI DDS data writer and a reliable Eclipse Cyclone DDS data reader. The
+problem is that once Eclipse Cyclone DDS informs the RTI writer that it has received all data
 (using a valid AckNack message), the RTI writer immediately publishes a message listing
 the range of available sequence numbers and requesting an acknowledgement, which becomes
 an endless loop.
 
 There is furthermore also a difference of interpretation of the meaning of the
-‘autodispose_unregistered_instances’ QoS on the writer.  Cyclone DDS aligns with
+‘autodispose_unregistered_instances’ QoS on the writer.  Eclipse Cyclone DDS aligns with
 OpenSplice.
 
 
