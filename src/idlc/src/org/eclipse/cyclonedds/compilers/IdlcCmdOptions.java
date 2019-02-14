@@ -35,7 +35,8 @@ public class IdlcCmdOptions extends CmdOptions
     io.println ("   -notopics        Generate type definitions only");
     io.println ("   -nostamp         Do not timestamp generated code");
     io.println ("   -lax             Skip over structs containing unsupported datatypes");
-    io.println ("   -quiet           Suppress console output other than error messages");
+    io.println ("   -quiet           Suppress console output other than error messages (default)");
+    io.println ("   -verbose         Enable console ouptut other than error messages");
     io.println ("   -map_wide        Map the unsupported wchar and wstring types to char and string");
     io.println ("   -map_longdouble  Map the unsupported long double type to double");
   }
@@ -71,6 +72,10 @@ public class IdlcCmdOptions extends CmdOptions
     else if (arg1.equals ("-quiet") || arg1.equals ("-q"))
     {
       quiet = true;
+    }
+    else if (arg1.equals ("-verbose") || arg1.equals ("-v"))
+    {
+      quiet = false;
     }
     else if (arg1.equals ("-lax"))
     {
@@ -111,7 +116,7 @@ public class IdlcCmdOptions extends CmdOptions
   public boolean allstructs;
   public boolean notopics;
   public boolean nostamp;
-  public boolean quiet;
+  public boolean quiet         = true;
   public boolean lax;
   public boolean mapwide;
   public boolean mapld;
