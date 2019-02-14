@@ -11,13 +11,11 @@
  */
 package org.eclipse.cyclonedds.config.meta;
 
-import org.eclipse.cyclonedds.common.util.ConfigModeIntializer;
-
 public abstract class MetaValue extends MetaNode {
     Object defaultValue;
     
     public MetaValue(String doc, Object defaultValue, String dimension) {
-        super(doc, ConfigModeIntializer.COMMUNITY, dimension);
+        super(doc, dimension);
         this.defaultValue = defaultValue;
         
     }

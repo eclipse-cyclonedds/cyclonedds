@@ -34,7 +34,6 @@ import org.eclipse.cyclonedds.config.meta.MetaAttribute;
 import org.eclipse.cyclonedds.config.meta.MetaElement;
 import org.eclipse.cyclonedds.config.meta.MetaNode;
 import org.eclipse.cyclonedds.config.meta.MetaValue;
-import org.eclipse.cyclonedds.common.util.ConfigModeIntializer;
 
 public class DataNodePopup implements MouseListener, ActionListener {
 
@@ -137,10 +136,6 @@ public class DataNodePopup implements MouseListener, ActionListener {
                 if(parentParent != null){
                     current = this.countOccurrences((DataElement)parent.getParent(), parent.getMetadata());
                     min = ((MetaElement)metaParent).getMinOccurrences();
-                    if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.COMMERCIAL_MODE && metaParent.getVersion().equals(ConfigModeIntializer.COMMERCIAL)) {
-                        reset.setEnabled(false);
-                    }
-
                     if(min == 0){
                         remove.setEnabled(true);
                     } else if(current > min){
@@ -151,10 +146,6 @@ public class DataNodePopup implements MouseListener, ActionListener {
                 }
             } else if(parent instanceof DataAttribute){
                 metaParent = parent.getMetadata();
-                if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.COMMERCIAL_MODE && metaParent.getVersion().equals(ConfigModeIntializer.COMMERCIAL)) {
-                    reset.setEnabled(false);
-                }
-
                 if(((MetaAttribute)metaParent).isRequired()){
                     remove.setEnabled(false);
                 }
@@ -387,40 +378,8 @@ public class DataNodePopup implements MouseListener, ActionListener {
 
     public void addService(DataNode dataNode, MetaNode metaNode) throws DataException {
         if (dataNode instanceof DataElement) {
-            if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.LITE_MODE){
-                String serviceName = null;
-
-                String suggestedName = dataNode.getOwner().getMetaAttributeValue((MetaElement) metaNode, "name");
-                /*
-                 * generate a new name if there is already a service with the
-                 * default name
-                 */
-                if (dataNode.getOwner().containsServiceName(suggestedName)) {
-                    String tmp = suggestedName + "_1";
-                    for (int i = 1; dataNode.getOwner().containsServiceName(tmp); i++) {
-                        tmp = suggestedName + "_" + i;
-                    }
-                    suggestedName = tmp;
-                }
-
-                serviceName = (String) JOptionPane.showInputDialog(null, "Please enter a service name:",
-                        "Set the service name", JOptionPane.QUESTION_MESSAGE, null, null, suggestedName);
-
-                if (serviceName != null) {
-                    if (!dataNode.getOwner().containsServiceName(serviceName)) {
-                        /* get the newly created service element */
-                        dataNode = dataNode.getOwner().addNodeWithDependency((DataElement) dataNode, metaNode);
-                        dataNode.getOwner().createDomainServiceForSerivce(dataNode, metaNode, serviceName);
-                    } else {
-                        this.notifyStatus("Error: Servicename is already in use", false, false);
-                    }
-                } else {
-                    this.notifyStatus("Error: Please fill in a servicename", false, false);
-                }
-            } else {
-                /* get the newly created service element */
-                dataNode.getOwner().addNode((DataElement) dataNode, metaNode);
-            }
+          /* get the newly created service element */
+          dataNode.getOwner().addNode((DataElement) dataNode, metaNode);
         } else {
             this.notifyStatus("Error: Unexpected type of parent found: '" + dataNode.getClass() + "'.", false, false);
         }

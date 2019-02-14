@@ -34,7 +34,6 @@ import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
-import org.eclipse.cyclonedds.common.util.ConfigModeIntializer;
 import org.eclipse.cyclonedds.common.view.MainWindow;
 import org.eclipse.cyclonedds.common.view.StatusPanel;
 import org.eclipse.cyclonedds.config.data.DataConfiguration;
@@ -71,15 +70,10 @@ public class ConfigWindow extends MainWindow implements DataConfigurationListene
     private DataNodePopup popupSupport = null;
     private ConfigTransferHandler transferHandler = null;
 
-    private String windowTitle = "Configurator";
-    public static final String    OSPL_WINDOW_TITLE      = "Vortex OpenSplice Configurator";
-    public static final String    LITE_WINDOW_TITLE      = "Vortex DDS Configurator";
+    private String windowTitle = "Eclipse Cyclone DDS Configurator";
 
-    public static final String    OSPL_SERVICE_LABEL = "Service";
-    public static final String    LITE_SERVICE_LABEL = "Component";
-
-    public static String    SERVICE_LABEL;
-    public static String    SERVICE_TEXT;
+    public static String    SERVICE_LABEL = "Component";
+    public static String    SERVICE_TEXT = "component";
 
     /**
      * This is the default constructor
@@ -237,12 +231,7 @@ public class ConfigWindow extends MainWindow implements DataConfigurationListene
         return this.controller;
     }
     
-    public void setWindowTitle (int configMode) {
-        if (configMode == ConfigModeIntializer.LITE_MODE) {
-            this.windowTitle = LITE_WINDOW_TITLE;
-        } else {
-            this.windowTitle = OSPL_WINDOW_TITLE;
-        }
+    public void setWindowTitle () {
         super.setTitle(this.windowTitle);
     }
 
@@ -351,10 +340,6 @@ public class ConfigWindow extends MainWindow implements DataConfigurationListene
     private void initialize() {
         this.setSize(800, 600);
         this.controller = new ConfigWindowController(this);
-        // setServiceLabel relies on the
-        // ConfigModeIntializer.CONFIGURATOR_MODE variable which
-        // has been set during construction of ConfigWndowController
-        this.setServiceLabel();
         this.popupSupport = new DataNodePopup();
         this.transferHandler = new ConfigTransferHandler(this);
         this.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -371,22 +356,6 @@ public class ConfigWindow extends MainWindow implements DataConfigurationListene
         });
         this.updateMenus();
         this.setAppLogo();
-    }
-
-    /**
-     * Set the proper service label to be used throughout the configurator UI.
-     * Ospl uses the label "Service" while Lite uses the label "Component"
-     * (since the concept of service does not really exist)
-     *
-     */
-    private void setServiceLabel(){
-        if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.LITE_MODE){
-            SERVICE_LABEL = OSPL_SERVICE_LABEL;
-            SERVICE_TEXT = OSPL_SERVICE_LABEL.toLowerCase();
-        } else {
-            SERVICE_LABEL = LITE_SERVICE_LABEL;
-            SERVICE_TEXT = LITE_SERVICE_LABEL.toLowerCase();
-        }
     }
 
     /**

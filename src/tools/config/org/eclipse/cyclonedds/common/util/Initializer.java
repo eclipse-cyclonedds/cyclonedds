@@ -48,14 +48,6 @@ public class Initializer {
         if(args.length > 0){
              Report.getInstance().writeInfoLog("Reading configuration from " + args[0] + ".");
             result = Config.getInstance().load(args[0]);
-
-            if(!result){
-                 Report.getInstance().writeInfoLog("Applying default configuration.");
-                result = Config.getInstance().loadDefault();
-            }
-        }
-        else{
-            result = Config.getInstance().loadDefault();
         }
 
         if(!result){

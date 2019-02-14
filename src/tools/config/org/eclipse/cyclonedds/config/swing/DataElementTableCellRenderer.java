@@ -18,7 +18,6 @@ import java.util.logging.Logger;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableCellRenderer;
 
-import org.eclipse.cyclonedds.common.util.ConfigModeIntializer;
 import org.eclipse.cyclonedds.config.data.DataNode;
 
 public class DataElementTableCellRenderer extends DefaultTableCellRenderer {
@@ -43,27 +42,9 @@ public class DataElementTableCellRenderer extends DefaultTableCellRenderer {
         node = node.getParent();
         table.setToolTipText(null);
         
-        if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.COMMERCIAL_MODE) {
-            if (node.getMetadata().getVersion().equals(ConfigModeIntializer.COMMERCIAL)) {
-                if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.COMMUNITY_MODE_FILE_OPEN) {
-                    comp.setBackground (Color.LIGHT_GRAY);
-                    comp.setForeground (Color.GRAY);
-                    table.setToolTipText("This element is not part of the community edition");
-                } else {
-                    comp.setBackground (Color.RED);
-                    comp.setForeground (Color.BLACK);
-                    table.setToolTipText("This element is found in the configuration file but not part of the community edition");
-                }
-            } else {
-                comp.setBackground (Color.WHITE);
-                comp.setForeground (Color.BLACK);
-                table.setToolTipText(null);
-            }
-        } else {
-            comp.setBackground (Color.WHITE);
-            comp.setForeground (Color.BLACK);
-            table.setToolTipText(null);
-        }
+        comp.setBackground (Color.WHITE);
+        comp.setForeground (Color.BLACK);
+        table.setToolTipText(null);
         return comp;
     }
 }
