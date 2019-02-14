@@ -15,7 +15,7 @@
  * @brief DDS C Time support API
  *
  * This header file defines the public API of the in the
- * CycloneDDS C language binding.
+ * Eclipse Cyclone DDS C language binding.
  */
 #ifndef DDS_TIME_H
 #define DDS_TIME_H
