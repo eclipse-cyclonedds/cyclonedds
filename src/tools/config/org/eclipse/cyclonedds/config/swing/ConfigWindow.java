@@ -466,7 +466,7 @@ public class ConfigWindow extends MainWindow implements DataConfigurationListene
             helpContentsItem.setMnemonic(KeyEvent.VK_C);
             helpContentsItem.setActionCommand("help");
             helpContentsItem.addActionListener(getController());
-            helpContentsItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_H, Event.CTRL_MASK, false));
+            helpContentsItem.setAccelerator(KeyStroke.getKeyStroke("control H"));
         }
         return helpContentsItem;
     }
@@ -499,7 +499,7 @@ public class ConfigWindow extends MainWindow implements DataConfigurationListene
             newItem = new JMenuItem();
             newItem.setText("New...");
             newItem.setMnemonic(KeyEvent.VK_N);
-            newItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, Event.CTRL_MASK, false));
+            newItem.setAccelerator(KeyStroke.getKeyStroke("control N"));
             newItem.setActionCommand("new");
             newItem.addActionListener(controller);
         }
@@ -516,7 +516,7 @@ public class ConfigWindow extends MainWindow implements DataConfigurationListene
             openItem = new JMenuItem();
             openItem.setText("Open...");
             openItem.setMnemonic(KeyEvent.VK_O);
-            openItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, Event.CTRL_MASK, false));
+            openItem.setAccelerator(KeyStroke.getKeyStroke("control O"));
             openItem.setActionCommand("open");
             openItem.addActionListener(controller);
         }
@@ -533,7 +533,7 @@ public class ConfigWindow extends MainWindow implements DataConfigurationListene
             saveItem = new JMenuItem();
             saveItem.setText("Save");
             saveItem.setMnemonic(KeyEvent.VK_S);
-            saveItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, Event.CTRL_MASK, false));
+            saveItem.setAccelerator(KeyStroke.getKeyStroke("control S"));
             saveItem.setActionCommand("save");
             saveItem.addActionListener(controller);
         }
@@ -582,7 +582,7 @@ public class ConfigWindow extends MainWindow implements DataConfigurationListene
             exitItem = new JMenuItem();
             exitItem.setText("Exit");
             exitItem.setMnemonic(KeyEvent.VK_X);
-            exitItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F4, Event.ALT_MASK, false));
+            exitItem.setAccelerator(KeyStroke.getKeyStroke("alt F4"));
             exitItem.setActionCommand("exit");
             exitItem.addActionListener(controller);
         }
@@ -599,7 +599,7 @@ public class ConfigWindow extends MainWindow implements DataConfigurationListene
             printItem = new JMenuItem();
             printItem.setText("Print...");
             printItem.setMnemonic(KeyEvent.VK_P);
-            printItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_P, Event.CTRL_MASK, false));
+            printItem.setAccelerator(KeyStroke.getKeyStroke("control P"));
             printItem.setActionCommand("print");
             printItem.addActionListener(controller);
         }

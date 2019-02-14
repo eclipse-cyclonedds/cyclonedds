@@ -9,7 +9,7 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.7)
 
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
