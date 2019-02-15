@@ -34,7 +34,6 @@ public class SpliceConfig extends Initializer {
         String uri = null;
 
         SpliceConfig t = new SpliceConfig();
-        t.validateJVMVersion();
 
         for (int i = 0; i < args.length; i++) {
             if ("-noredirect".equals(args[i])) {

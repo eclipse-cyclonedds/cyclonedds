@@ -414,7 +414,7 @@ public class DataConfiguration {
 
         try{
             TransformerFactory tFactory = TransformerFactory.newInstance();
-            tFactory.setAttribute("indent-number", new Integer(4));
+            tFactory.setAttribute("indent-number", Integer.valueOf(4));
             Transformer transformer = tFactory.newTransformer();
             transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
             transformer.setOutputProperty(OutputKeys.METHOD, "xml");
