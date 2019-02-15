@@ -587,7 +587,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
           if (conds[ci] <= 0) abort ();
           rhcconds[ci] = get_condaddr (conds[ci]);
           if (print) {
-            char buf[10];
+            char buf[18];
             snprintf (buf, sizeof (buf), "conds[%d]", ci);
             print_cond_w_addr (buf, conds[ci]);
           }
