@@ -13,7 +13,7 @@ find_package(Java 1.8 REQUIRED)
 include(UseJava)
 set(CONFJAR_TARGET "${CMAKE_PROJECT_NAME_SMALL}conf")
 
-set(CMAKE_JAVA_COMPILE_FLAGS "-source" "1.8" "-target" "1.8")
+#set(CMAKE_JAVA_COMPILE_FLAGS "-source" "1.8" "-target" "1.8" -Xlint:deprecation)
 
 # Oddly enough, add_jar can't deal with a resource having an absolute path (experienced on Windows), so
 # generate into the list-dir.
