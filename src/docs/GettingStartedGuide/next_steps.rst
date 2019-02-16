@@ -31,13 +31,13 @@ as the various vendors have posted tutorials, presentations, general
 information and documentation on their products. While the details
 between the various implementations do differ, they have much more in
 common than what separates them, and so this information is also
-applicable to Eclipse Eclipse Cyclone DDS. The one thing in which
+applicable to Eclipse Cyclone DDS. The one thing in which
 Eclipse Cyclone DDS really differs is in the details of API, but that's
 just syntax.
 
 Obviously there are also things specific to Eclipse Cyclone DDS. The
 level of documentation of Eclipse is not nearly what it should be, but
-that should improve over time.
+that will improve over time.
 
 And last but note least: please always feel welcome to ask questions on
 GitHub!

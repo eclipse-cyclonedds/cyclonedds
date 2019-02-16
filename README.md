@@ -1,17 +1,17 @@
 # Eclipse Cyclone DDS
 
 Eclipse Cyclone DDS is by far the most performant and robust DDS implementation available on the
-market. Moreover, Eclipse Cyclone DDS is developed completely in the open as an Eclipse IoT project
+market. Moreover, Cyclone DDS is developed completely in the open as an Eclipse IoT project
 (see [eclipse-cyclone-dds](https://projects.eclipse.org/projects/iot.cyclonedds)).
 
 # Getting Started
 
 ## Building Eclipse Cyclone DDS
 
-In order to build Eclipse Cyclone DDS you need a Linux, Mac or Windows 10 machine with the following
+In order to build Cyclone DDS you need a Linux, Mac or Windows 10 machine with the following
 installed on your host:
 
-  * [cmake](https://cmake.org/download/), version 3.7 or later.  (Version 3.6 should work but you
+  * [CMake](https://cmake.org/download/), version 3.7 or later.  (Version 3.6 should work but you
     will have to edit the ``cmake_minimum_required`` version and may have to disable building the
     tests.)
   * [OpenSSL](https://www.openssl.org/), preferably version 1.1 or later.  If you wish, you can
@@ -19,7 +19,7 @@ installed on your host:
     command line (i.e., ``cmake -DDDSC_ENABLE_OPENSSL=FALSE`` ../src).  In that, there is no need to
     have openssl available.
   * Java JDK, version 8 or later, e.g., [OpenJDK 11](http://jdk.java.net/11/).
-  * [Apache Maven 3.5 or higher](http://maven.apache.org/download.cgi), version 3.5 or later.
+  * [Apache Maven](http://maven.apache.org/download.cgi), version 3.5 or later.
 
 The Java-based components are the preprocessor and a configurator tool.  The run-time libraries are
 pure C code, so there is no need to have Java available on "target" machines.
@@ -30,27 +30,27 @@ To obtain Eclipse Cyclone DDS, do
     $ cd cyclonedds
     $ mkdir build
 
-Depending on whether you want to develop applications using Eclipse Cyclone DDS or contribute to
-Eclipse Cyclone DDS you can follow different procedures
+Depending on whether you want to develop applications using Cyclone DDS or contribute to it you can
+follow different procedures
 
 ### For application developers
 
-To build and install the required libraries needed to develop your own applications that use Eclipe Cyclone DDS
-
-On Linux:
+To build and install the required libraries needed to develop your own applications using Cyclone
+DDS requires a few simple steps. There are some small differences between Linux and macOS on the one
+hand, and Windows on the other. For Linux or macOS:
 
     $ cd build
     $ cmake -DCMAKE_INSTALL_PREFIX=<install-location> ../src
     $ cmake --build .
 
-On Windows:
+and for Windows:
 
     $ cd build
     $ cmake -G "<generator-name>" -DCMAKE_INSTALL_PREFIX=<install-location> ../src
     $ cmake --build .
 
 where you should replace ``<install-location>`` by the directory under which you would like to
-install Eclipse Cyclone DDS and ``<generator-name>`` by one of the ways
+install Cyclone DDS and ``<generator-name>`` by one of the ways
 CMake [generators](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html) offer for
 generating build files.  For example, "Visual Studio 15 2017 Win64" would target a 64-bit build
 using Visual Studio 2017.
@@ -69,7 +69,7 @@ which will copy everything to:
 
 Depending on the installation location you may need administrator privileges.
 
-At this point you are ready to use **Cyclone DDS** in your own projects.
+At this point you are ready to use Eclipse Cyclone DDS in your own projects.
 
 Note that the default build type is a release build with debug information included
 (RelWithDebInfo), which is generally the most convenient type of build to use from applications
@@ -95,24 +95,25 @@ the CI build infrastructure also uses.  In that case, install Conan and do:
 
     $ conan install ..
 
-in the build directory prior to running cmake.  This will automatically download and/or build cunit
-(and, at the moment, openssl).
+in the build directory prior to running cmake.  For Windows, depending on the generator, you might
+also need to add switches to select the architecture and build type, e.g., ``conan install -s
+arch=x86_64 -s build_type=Debug ..`` This will automatically download and/or build CUnit (and, at
+the moment, OpenSSL).
 
 ## Documentation
 
-The Eclipse Cyclone DDS documentation is still rather limited, and at the moment only available in
-the sources (in the form of restructured text files in ``src/docs`` and Doxygen comments in the
-header files), or as
+The documentation is still rather limited, and at the moment only available in the sources (in the
+form of restructured text files in ``src/docs`` and Doxygen comments in the header files), or as
 a
 [PDF](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/pdf/CycloneDDS-0.1.0.pdf). The
-intent is to automate the process of building the documentations and have them available in more
+intent is to automate the process of building the documentation and have them available in more
 convenient formats and in the usual locations.
 
 ## Performance
 
 Median small message throughput measured using the Throughput example between two Intel(R) Xeon(R)
 CPU E3-1270 V2 @ 3.50GHz (that's 2012 hardware ...) running Linux 3.8.13-rt14.20.el6rt.x86_64,
-connected via a quiet GbE and when using gcc-6.2.0 for a defuault (i.e., "RelWithDebInfo") build is:
+connected via a quiet GbE and when using gcc-6.2.0 for a default (i.e., "RelWithDebInfo") build is:
 
 <img src="https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/throughput-polling.png" alt="Throughput" height="400">
 
@@ -126,15 +127,11 @@ the
 
 There is some data on roundtrip latency below.
 
-## Examples
+## Building and Running the Roundtrip Example
 
-Now that you have built and installed **Cyclone DDS** it is time to experiment with some examples.
-
-### Building and Running the Roundtrip Example
-
-The first example we will show you how to build and run an example program that measures latency.
-The examples are built automatically when you build Cyclone DDS, so you don't need to follow these
-steps to be able to run the program, it is merely to illustrate the process.
+We will show you how to build and run an example program that measures latency.  The examples are
+built automatically when you build Cyclone DDS, so you don't need to follow these steps to be able
+to run the program, it is merely to illustrate the process.
 
     $ cd cyclonedds/src/examples/roundtrip
     $ mkdir build
@@ -142,7 +139,7 @@ steps to be able to run the program, it is merely to illustrate the process.
     $ cmake ..
     $ make
     
-On one terminal start the application that will be responding to Cyclone DDS pings:
+On one terminal start the application that will be responding to pings:
 
     $ ./RoundtripPong
 
@@ -167,7 +164,7 @@ On another terminal, start the application that will be sending the pings:
        10     28075       17       16       23       46      28075        8        6      28075        1        0
 
 The numbers above were measured on Mac running a 4.2 GHz Intel Core i7 on December 12th 2018.  From
-these number you can see how the roundtrip is very stable and the minimal latency is now down to 17
+these numbers you can see how the roundtrip is very stable and the minimal latency is now down to 17
 micro-seconds (used to be 25 micro-seconds) on this HW.
 
 # Trademarks
