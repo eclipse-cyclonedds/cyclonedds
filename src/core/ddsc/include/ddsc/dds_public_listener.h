@@ -15,7 +15,7 @@
  * @brief DDS C Listener API
  *
  * This header file defines the public API of listeners in the
- * CycloneDDS C language binding.
+ * Eclipse Cyclone DDS C language binding.
  */
 #ifndef _DDS_PUBLIC_LISTENER_H_
 #define _DDS_PUBLIC_LISTENER_H_

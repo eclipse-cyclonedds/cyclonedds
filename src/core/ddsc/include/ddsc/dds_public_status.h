@@ -15,7 +15,7 @@
  * @brief DDS C Communication Status API
  *
  * This header file defines the public API of the Communication Status in the
- * CycloneDDS C language binding.
+ * Eclipse Cyclone DDS C language binding.
  */
 #ifndef DDS_STATUS_H
 #define DDS_STATUS_H

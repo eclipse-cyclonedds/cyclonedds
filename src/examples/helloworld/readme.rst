@@ -16,7 +16,7 @@ Description
 ***********
 
 The basic HelloWorld example is used to illustrate the necessary steps to setup DCPS entities.
-Note it is also used in the Getting Started Guide to explain the usage of CycloneDDS.
+Note it is also used in the Getting Started Guide to explain the usage of Eclipse Cyclone DDS.
 
 Design
 ******

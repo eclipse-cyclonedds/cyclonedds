@@ -95,17 +95,6 @@
                             <destinationFile>target/generated-sources/idlc/org/eclipse/cyclonedds/Project.java</destinationFile>
                         </configuration>
                     </execution>
-                    <execution>
-                        <id>copy-LicenseMgr</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>copy</goal>
-                        </goals>
-                        <configuration>
-                            <sourceFile>${basedir}/org/eclipse/cyclonedds/LicenseMgr.java.dummy</sourceFile>
-                            <destinationFile>target/generated-sources/idlc/org/eclipse/cyclonedds/LicenseMgr.java</destinationFile>
-                        </configuration>
-                    </execution>
                 </executions>
             </plugin>
             <plugin>

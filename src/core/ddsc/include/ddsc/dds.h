@@ -14,7 +14,7 @@
 
 /** @file
  *
- *  @brief C DDS header
+ *  @brief Eclipse Cyclone DDS C header
  */
 
 #if defined (__cplusplus)

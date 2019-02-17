@@ -16,7 +16,7 @@
  * @brief DDS C Allocation API
  *
  * This header file defines the public API of allocation convenience functions
- * in the CycloneDDS C language binding.
+ * in the Eclipse Cyclone DDS C language binding.
  */
 #ifndef DDS_ALLOC_H
 #define DDS_ALLOC_H

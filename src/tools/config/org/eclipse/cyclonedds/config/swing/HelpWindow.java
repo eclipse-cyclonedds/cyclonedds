@@ -18,7 +18,6 @@ import javax.swing.JFrame;
 import javax.swing.WindowConstants;
 import javax.swing.JSplitPane;
 
-import org.eclipse.cyclonedds.common.util.ConfigModeIntializer;
 import org.eclipse.cyclonedds.common.view.StatusPanel;
 import org.eclipse.cyclonedds.config.meta.MetaConfiguration;
 
@@ -37,8 +36,7 @@ public class HelpWindow extends JFrame implements TreeSelectionListener {
     private JScrollPane docScrollPane = null;
     private MetaNodeDocPane docPane = null;
 
-    public static final String    OSPL_HELP_WINDOW_TITLE      = "Vortex OpenSplice Configurator | Help";
-    public static final String    LITE_HELP_WINDOW_TITLE      = "Vortex DDS Configurator | Help";
+    public static final String HELP_WINDOW_TITLE = "Eclipse Cyclone DDS Configurator | Help";
 
     /**
      * This is the default constructor
@@ -58,18 +56,13 @@ public class HelpWindow extends JFrame implements TreeSelectionListener {
         this.setSize(640, 480);
         this.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         this.setContentPane(getJContentPane());
-        setWindowTitle(ConfigModeIntializer.CONFIGURATOR_MODE);
+        setWindowTitle();
         getElementTree().getSelectionModel().addTreeSelectionListener(this);
         getDocPane().setNode(getElementTree().getSelectedMetaElement());
     }
 
-    public void setWindowTitle (int configMode) {
-        String windowTitle = "Configurator | Help";
-        if (configMode == ConfigModeIntializer.LITE_MODE) {
-            windowTitle = LITE_HELP_WINDOW_TITLE;
-        } else {
-            windowTitle = OSPL_HELP_WINDOW_TITLE;
-        }
+    public void setWindowTitle () {
+        String windowTitle = HELP_WINDOW_TITLE;
         this.setTitle(windowTitle);
     }
 

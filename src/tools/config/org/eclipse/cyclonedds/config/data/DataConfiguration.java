@@ -32,7 +32,6 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import org.eclipse.cyclonedds.common.util.ConfigModeIntializer;
 import org.eclipse.cyclonedds.common.util.Report;
 import org.eclipse.cyclonedds.config.meta.MetaAttribute;
 import org.eclipse.cyclonedds.config.meta.MetaConfiguration;
@@ -100,161 +99,6 @@ public class DataConfiguration {
                 }
                 this.initExisting(repair);
                 this.file = file;
-
-                if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.LITE_MODE) {
-                    // The following code is document validation specific to OpenSplice
-                    int currentMode = ConfigModeIntializer.CONFIGURATOR_MODE;
-
-                    if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.COMMERCIAL_MODE) {
-                        ConfigModeIntializer.setMode(ConfigModeIntializer.COMMERCIAL_MODE);
-                    }
-                    /* correct service tags */
-                    DataElement dataDomain = findDataElement(this.rootElement, "Domain");
-                    ArrayList<DataElement> domainServices = new ArrayList<DataElement>();
-                    /* collect all service tags */
-                    for (DataNode dn : dataDomain.getChildren()) {
-                        if (dn instanceof DataElement) {
-                            if (dn.getNode().getNodeName().equals("Service")) {
-                                domainServices.add((DataElement) dn);
-                            }
-                        }
-                    }
-
-                    ArrayList<DataElement> tmpServices = new ArrayList<DataElement>(services);
-                    ArrayList<DataElement> tmpDomainServices = new ArrayList<DataElement>(domainServices);
-                    ArrayList<MetaNode> comServices = new ArrayList<MetaNode>();
-                    /* domain element is not a service */
-                    tmpServices.remove(dataDomain);
-
-                    for (DataElement de : domainServices) {
-                        if (dataDomain != de) {
-                            String domainserviceName = de.getNode().getAttributes().getNamedItem("name").getNodeValue();
-                            for (DataElement del : services) {
-                                Node node = del.getNode().getAttributes().getNamedItem("name");
-                                if (node != null) {
-                                    String serviceName = node.getNodeValue();
-                                    if (serviceName.equals(domainserviceName)) {
-                                        tmpDomainServices.remove(de);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    /*
-                     * tmpDomainServices now contains a list of services that are
-                     * not in the configuration file but which are configured in the
-                     * domain tag
-                     */
-
-                    for (DataElement de : tmpDomainServices) {
-                        String serviceName = de.getNode().getAttributes().getNamedItem("name").getNodeValue();
-                        MetaNode[] mn = ((MetaElement) this.getRootElement().getMetadata()).getChildren();
-
-                        for (MetaNode m : mn) {
-                            if (m instanceof MetaElement) {
-                                MetaElement metaDomainService = findMetaElement((MetaElement) rootElement.getMetadata(),
-                                        "Service");
-                                MetaElement maDomainCommand = findMetaElement(metaDomainService, "Command");
-                                MetaAttribute maServiceName = findMetaAttribute((MetaElement) m, "name");
-                                if (maServiceName != null && maDomainCommand != null) {
-                                    DataValue serviceNameValue = findDataValueforMetaValue(de, maServiceName.getValue());
-
-                                    DataValue domainCommandValue = findDataValueforMetaValue(de,
-                                            ((MetaValue) maDomainCommand.getChildren()[0]));
-                                    String name = getServiceForCommand((String) domainCommandValue.getValue());
-                                    if (((MetaElement) m).getName().equals(name)) {
-                                        /* we got the service we need to add */
-                                        comServices.add(m);
-                                        DataNode dn = this.addNodeWithDependency(rootElement, m);
-                                        serviceNameValue = findDataValueforMetaValue((DataElement) dn, maServiceName
-                                                .getValue());
-
-                                        /* set name for service Element */
-                                        serviceNameValue.setValue(serviceName);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    for (DataElement de : services) {
-                        if (dataDomain != de) {
-                            String serviceName = de.getNode().getAttributes().getNamedItem("name").getNodeValue();
-                            for (DataElement del : domainServices) {
-                                String domainserviceName = del.getNode().getAttributes().getNamedItem("name")
-                                        .getNodeValue();
-                                if (serviceName.equals(domainserviceName)) {
-                                    /*
-                                     * found a match in both service and domain
-                                     * elements remove it from the tmp services
-                                     * object
-                                     */
-                                    tmpServices.remove(de);
-                                    MetaAttribute maDomainName = findMetaAttribute((MetaElement) del.getMetadata(), "name");
-                                    DataValue domainNameValue = findDataValueforMetaValueInCurrentElement(del, maDomainName
-                                            .getValue());
-                                    this.serviceNames.add(domainNameValue);
-
-                                    MetaAttribute maServiceName = findMetaAttribute((MetaElement) de.getMetadata(), "name");
-                                    DataValue serviceNameValue = findDataValueforMetaValue(de, maServiceName.getValue());
-                                    this.serviceNames.add(serviceNameValue);
-
-                                    getServiceNames().add(serviceNameValue);
-                                    getServiceNames().add(domainNameValue);
-
-                                    /* set dependencies */
-                                    domainNameValue.addDataValueDependency(serviceNameValue);
-                                    serviceNameValue.addDataValueDependency(domainNameValue);
-                                    de.addDependency(del);
-                                    del.addDependency(de);
-
-                                }
-                            }
-                        }
-                    }
-
-                    ConfigModeIntializer.setMode(currentMode);
-                    /*
-                     * tmpServices now contains all services that are missing from
-                     * the domain service element, we can add them now
-                     */
-                    if ((!tmpDomainServices.isEmpty() || !tmpServices.isEmpty()) && !repair) {
-                        if (!tmpDomainServices.isEmpty() && !tmpServices.isEmpty()) {
-                            throw new DataException("There is/are " + tmpServices.size()
-                                    + " service(s) that is/are not configured in the Domain tag and "
-                                    + tmpDomainServices.size()
-                                    + " service element(s) that do not match a configured service");
-                        } else if (!tmpDomainServices.isEmpty()) {
-                            throw new DataException("There are " + tmpDomainServices.size()
-                                    + " service element(s) that do not match a configured service");
-                        } else {
-                            throw new DataException("There is/are " + tmpServices.size()
-                                    + " service(s) that is/are not configured in the Domain tag");
-                        }
-                    }
-
-                    if (!tmpServices.isEmpty() && repair) {
-                        for (DataElement de : tmpServices) {
-                            String serviceName = de.getNode().getAttributes().getNamedItem("name").getNodeValue();
-                            createDomainServiceForSerivce(de, de.getMetadata(), serviceName);
-                        }
-                    }
-                    /* remove commerial items from xml tree in community mode */
-                    for (MetaNode m : comServices) {
-                        if (m.getVersion().equals(ConfigModeIntializer.COMMERCIAL)
-                                && (currentMode == ConfigModeIntializer.COMMUNITY_MODE || currentMode == ConfigModeIntializer.COMMUNITY_MODE_FILE_OPEN)) {
-                            NodeList nl = this.getDocument().getElementsByTagName(
-                                    ((MetaElement) m).getName());
-                            for (int i = 0; i < nl.getLength(); i++) {
-                                Node child = nl.item(i);
-                                if (child != null) {
-                                    child.getParentNode().removeChild(child);
-                                }
-                            }
-                        }
-                    }
-                }
             }
         } catch (SAXException se) {
             throw new DataException(se.getMessage());
@@ -352,9 +196,6 @@ public class DataConfiguration {
 
     public void addNode(DataElement parent, MetaNode child) throws DataException {
         if((parent.getOwner().equals(this))){
-            if (ConfigModeIntializer.CONFIGURATOR_MODE == ConfigModeIntializer.COMMUNITY_MODE_FILE_OPEN) {
-                ConfigModeIntializer.setMode(ConfigModeIntializer.COMMUNITY_MODE);
-            }
             DataNode added = this.createDataForMeta(parent, child);
 
             if(parent.equals(this.rootElement)){
@@ -372,9 +213,6 @@ public class DataConfiguration {
     public DataNode addNodeWithDependency(DataElement parent, MetaNode child) throws DataException {
         DataNode result = null;
         if ((parent.getOwner().equals(this))) {
-            if (ConfigModeIntializer.CONFIGURATOR_MODE == ConfigModeIntializer.COMMUNITY_MODE_FILE_OPEN) {
-                ConfigModeIntializer.setMode(ConfigModeIntializer.COMMUNITY_MODE);
-            }
             DataNode added = this.createDataForMeta(parent, child);
 
             if (parent.equals(this.rootElement)) {
@@ -431,11 +269,6 @@ public class DataConfiguration {
         DataElement dataDomain = findDataElement(rootElement, "Domain");
         /* get the newly created domain element */
         dataDomain = (DataElement) addNodeWithDependency(dataDomain, metaDomainService);
-
-        if (metaNode.getVersion().equals(ConfigModeIntializer.COMMERCIAL)
-                && (ConfigModeIntializer.CONFIGURATOR_MODE == ConfigModeIntializer.COMMUNITY_MODE || ConfigModeIntializer.CONFIGURATOR_MODE == ConfigModeIntializer.COMMUNITY_MODE_FILE_OPEN)) {
-            commercialServices.add(dataDomain.getNode());
-        }
 
         /*
          * find name and command DataValue objects for the domain element
@@ -581,7 +414,7 @@ public class DataConfiguration {
 
         try{
             TransformerFactory tFactory = TransformerFactory.newInstance();
-            tFactory.setAttribute("indent-number", new Integer(4));
+            tFactory.setAttribute("indent-number", Integer.valueOf(4));
             Transformer transformer = tFactory.newTransformer();
             transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
             transformer.setOutputProperty(OutputKeys.METHOD, "xml");
@@ -863,10 +696,6 @@ public class DataConfiguration {
             throw new DataException("RootElement is 'null'.");
         }
         this.document.appendChild(domElement);
-        if (ConfigModeIntializer.CONFIGURATOR_MODE != ConfigModeIntializer.LITE_MODE) {
-            domElement.setAttribute("version", Double.toString(this.metadata.getVersion()));
-        }
-
 
         this.rootElement = new DataElement(metaElement, domElement);
         this.rootElement.setOwner(this);

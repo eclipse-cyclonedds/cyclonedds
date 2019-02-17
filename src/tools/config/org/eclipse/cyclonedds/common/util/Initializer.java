@@ -22,8 +22,7 @@ import javax.swing.JOptionPane;
 
 /**
  * Base class for tooling initializers. Its responsibilities are to initialize
- * logging facilities according to commandline parameters and to validate
- * whether the correct Java Vitual Machine version is used.
+ * logging facilities according to commandline parameters.
  * 
  * @date Sep 1, 2004
  */
@@ -48,14 +47,6 @@ public class Initializer {
         if(args.length > 0){
              Report.getInstance().writeInfoLog("Reading configuration from " + args[0] + ".");
             result = Config.getInstance().load(args[0]);
-
-            if(!result){
-                 Report.getInstance().writeInfoLog("Applying default configuration.");
-                result = Config.getInstance().loadDefault();
-            }
-        }
-        else{
-            result = Config.getInstance().loadDefault();
         }
 
         if(!result){
@@ -93,77 +84,6 @@ public class Initializer {
             } else {
                 LogManager.getLogManager().reset();
             }
-        }
-    }
-
-    /**
-     * Validates whether a compatible Java virtual machine is used.
-     * 
-     * The version of Java must be &gt;= 1.4 and should be &gt;= 1.5.0. If the
-     * used version is &st; 1.4, the application exits with an error message. If
-     * 1.4 &st;= version &st; 1.5, false is returned, but the application
-     * proceeds.
-     * 
-     * @return true, if java version &gt;= 1.5 and false otherwise.
-     */
-    public boolean validateJVMVersion(){
-        int token;
-        boolean result = true;
-
-        String version = System.getProperty("java.version");
-        StringTokenizer tokenizer = new StringTokenizer(version, ".");
-
-	if(tokenizer.hasMoreTokens()){
-             token = Integer.parseInt(tokenizer.nextToken());
-
-            if(token < 1){
-                this.printVersionErrorAndExit(version);
-            }
-
-            if(tokenizer.hasMoreTokens()){
-                token = Integer.parseInt(tokenizer.nextToken());
-
-                if(token < 4){
-                    this.printVersionErrorAndExit(version);
-                } else if(token == 4){
-                    result = false;
-                }
-            }
-            else{
-                this.printVersionErrorAndExit(version);
-                result = false;
-            }
-        }
-        else{
-            this.printVersionErrorAndExit(version);
-            result = false;
-        }
-        return result;
-    }
-
-    /**
-     * Prints JVM version demands as well as the used version and exits the
-     * application.
-     */
-    private void printVersionErrorAndExit(String version){
-        System.err.println("Your Java version is '" + version + "', but version >= '1.4' is required.\nBailing out...");
-        System.exit(0);
-    }
-
-    /**
-     * Displays a Java version warning.
-     * 
-     * @param parent
-     *            The GUI parent which must be used as parent for displaying the
-     *            message. If the supplied component == null, the version
-     *            warning is displayed on standard out (System.out).
-     */
-    public void showVersionWarning(Component parent){
-        if(parent != null){
-            JOptionPane.showMessageDialog(parent, "You are using Java version " + System.getProperty("java.version") + ",\nbut version >= 1.5.0 is recommended.", "Warning", JOptionPane.WARNING_MESSAGE);
-        } else{
-            System.err.println("You are using Java version " + System.getProperty("java.version")
-                    + ",\nbut version >= 1.5.0 is recommended.");
         }
     }
 }

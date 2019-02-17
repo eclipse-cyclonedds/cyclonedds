@@ -15,9 +15,9 @@
 
     \newpage
 
-###############################
-Building CycloneDDS applications
-###############################
+#########################################
+Building Eclipse Cyclone DDS applications
+#########################################
 
 .. .. contents::
 
@@ -36,15 +36,12 @@ to be done to code the *Hello World!* example.
 The procedure used to build the *Hello World!* example can also be
 used for building your own applications.
 
-:Windows: It is advised to have the CycloneDDS examples component installed (see
-  :ref:`Windows installation <WindowsInstallMSI>`) when actively
-  building the CycloneDDS examples on Windows. This chapter refers to the
-  CycloneDDS examples installed in the User Profile directory on Windows.
+:Windows: ...
 
-:Linux: It is advised to have copied the CycloneDDS examples to a user-friendly
+:Linux: It is advised to have copied the Eclipse Cyclone DDS examples to a user-friendly
   location as described in :ref:`this <CopyLinuxExamplesToUserFriendlyLocation>`
-  paragraph when actively building the CycloneDDS examples on Linux.
-  This chapter refers to the CycloneDDS examples installed
+  paragraph when actively building the Eclipse Cyclone DDS examples on Linux.
+  This chapter refers to the Eclipse Cyclone DDS examples installed
   in the user-defined location.
 
 
@@ -116,8 +113,8 @@ Creating the *Hello World!* example executables is as simple as
 selecting the required configuration and building the solution.
 
 :code:`helloworld\vs\directories.props` contains the location of where
-the CycloneDDS header files and libraries are be placed. These locations
-are based on the default installation directory structure. When CycloneDDS
+the Eclipse Cyclone DDS header files and libraries are be placed. These locations
+are based on the default installation directory structure. When Eclipse Cyclone DDS
 is installed in a different directory, the following paths in
 :code:`helloworld\vs\directories.props` should be changed, like:
 
@@ -191,7 +188,7 @@ scope of this document.
 .. _`CycloneDdsPackage`:
 
 Hello World! CMake (CycloneDDS Package)
-======================================
+=======================================
 
 After the CMake digression, we're back with the *Hello World!*
 example. Apart from the native build files, CMake build files
@@ -304,13 +301,13 @@ using the binaries that were just build. Be sure to use the right directories.
 Summary
 *******
 
-We've seen that a CycloneDDS application can be build by using a Makefile on Linux
-or a Visual Studio Solutions on Windows. Also CMake can be used to build a CycloneDDS
+We've seen that a Eclipse Cyclone DDS application can be build by using a Makefile on Linux
+or a Visual Studio Solutions on Windows. Also CMake can be used to build a Eclipse Cyclone DDS
 application. In fact, it is the preferred way of building.
 
 In the end, a predefined way of generating and building the source code should
-be followed when building CycloneDDS applications. The figure below shows how a
-typical CycloneDDS application is build.
+be followed when building Eclipse Cyclone DDS applications. The figure below shows how a
+typical Eclipse Cyclone DDS application is build.
 
 .. image:: ../_static/pictures/BuildSchema.png
    :scale: 30 %

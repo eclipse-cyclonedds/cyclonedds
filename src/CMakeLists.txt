@@ -9,7 +9,7 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.7)
 
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
@@ -38,8 +38,8 @@ execute_process(COMMAND git submodule update
 
 # Set module path before defining project so platform files will work.
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules")
-set(CMAKE_PROJECT_NAME_FULL "Cyclone DDS")
-string(REPLACE " " "" PROJECT_NAME "${CMAKE_PROJECT_NAME_FULL}")
+set(CMAKE_PROJECT_NAME_FULL "Eclipse Cyclone DDS")
+set(PROJECT_NAME "CycloneDDS")
 project(${PROJECT_NAME} VERSION 0.1.0)
 
 # Set some convenience variants of the project-name

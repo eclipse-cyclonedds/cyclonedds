@@ -13,12 +13,10 @@ package org.eclipse.cyclonedds.config.meta;
 
 public abstract class MetaNode {
     String doc;
-    String version;
     String dimension;
     
-    public MetaNode(String doc, String version, String dimension) {
+    public MetaNode(String doc, String dimension) {
         this.doc = doc;
-        this.version = version;
         this.dimension = dimension;
     }
 
@@ -30,10 +28,6 @@ public abstract class MetaNode {
         this.doc = doc;
     }
     
-    public String getVersion() {
-        return this.version;
-    }
-
     public String getDimension() {
         return this.dimension;
     }
