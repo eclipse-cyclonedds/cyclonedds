@@ -17,6 +17,11 @@ if(DEFINED ENV{M2_HOME})
   list(APPEND _mvn_hints "$ENV{M2_HOME}/bin")
 endif()
 
+# Chocolatey installs packages under C:\ProgramData\chocolatey.
+if(ENV{ProgramData} AND IS_DIRECTORY "$ENV{ProgramData}/chocolatey/bin")
+  list(APPEND _mvn_paths "$ENV{ProgramData}/chocolatey/bin")
+endif()
+
 # Maven documentation mentions intalling maven under C:\Program Files on
 # Windows and under /opt on *NIX platforms.
 if(WIN32)
