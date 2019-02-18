@@ -9,14 +9,16 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
+find_package(Java 1.8 REQUIRED)
+
 if(NOT IDLC_JAR)
-    set(IDLC_JAR "${CMAKE_CURRENT_LIST_DIR}/idlc-jar-with-dependencies.jar")
+  set(IDLC_JAR "${CMAKE_CURRENT_LIST_DIR}/idlc-jar-with-dependencies.jar")
 endif()
 
 set(LINE_ENDINGS "UNIX")
-if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
-    set(EXTENSION ".bat")
-    set(LINE_ENDINGS "WIN32")
+if(WIN32)
+  set(EXTENSION ".bat")
+  set(LINE_ENDINGS "WIN32")
 endif()
 
 set(IDLC_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE STRING "")
@@ -29,13 +31,6 @@ configure_file(
     "${IDLC_SCRIPT_IN}" "${IDLC}"
     @ONLY
     NEWLINE_STYLE ${LINE_ENDINGS})
-
-# FIXME: C++ IDL compiler depends idlpp. Leave it disabled for now.
-#configure_file(
-#    "cmake/dds_idlcpp${EXTENSION}.in"
-#    "dds_idlcpp${EXTENSION}"
-#    @ONLY
-#    NEWLINE_STYLE ${LINE_ENDINGS})
 
 if(NOT ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows"))
     execute_process(COMMAND chmod +x "${IDLC_DIR}/${IDLC}")
