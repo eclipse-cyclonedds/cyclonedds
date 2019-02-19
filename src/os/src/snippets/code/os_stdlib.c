@@ -39,12 +39,19 @@ os_putenv(
     char *variable_definition)
 {
     os_result result;
-
-    if (putenv (variable_definition) == 0) {
-        result = os_resultSuccess;
+    char *name, *eq;
+    name = os_strdup (variable_definition);
+    if ((eq = strchr (name, '=')) == NULL) {
+      result = os_resultFail;
     } else {
+      *eq = 0;
+      if (setenv (name, variable_definition + (eq - name) + 1, 1) == 0) {
+        result = os_resultSuccess;
+      } else {
         result = os_resultFail;
+      }
     }
+    os_free (name);
     return result;
 }
 
