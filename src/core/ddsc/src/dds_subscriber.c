@@ -13,8 +13,11 @@
 #include "dds__listener.h"
 #include "dds__qos.h"
 #include "dds__err.h"
+#include "dds__subscriber.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/version.h"
+
+DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_subscriber)
 
 #define DDS_SUBSCRIBER_STATUS_MASK                               \
                         DDS_DATA_ON_READERS_STATUS

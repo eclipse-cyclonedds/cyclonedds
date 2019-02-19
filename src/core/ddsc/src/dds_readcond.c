@@ -36,7 +36,7 @@ dds_create_readcond(
 {
     dds_readcond * cond = dds_alloc(sizeof(*cond));
     assert((kind == DDS_KIND_COND_READ && filter == 0) || (kind == DDS_KIND_COND_QUERY && filter != 0));
-    cond->m_entity.m_hdl = dds_entity_init(&cond->m_entity, (dds_entity*)rd, kind, NULL, NULL, 0);
+    (void) dds_entity_init(&cond->m_entity, (dds_entity*)rd, kind, NULL, NULL, 0);
     cond->m_entity.m_deriver.delete = dds_readcond_delete;
     cond->m_rhc = rd->m_rd->rhc;
     cond->m_sample_states = mask & DDS_ANY_SAMPLE_STATE;
@@ -70,7 +70,7 @@ dds_create_readcondition(
         dds_readcond *cond = dds_create_readcond(rd, DDS_KIND_COND_READ, mask, 0);
         assert(cond);
         assert(cond->m_entity.m_deriver.delete);
-        hdl = cond->m_entity.m_hdl;
+        hdl = cond->m_entity.m_hdllink.hdl;
         dds_reader_unlock(rd);
     } else {
         DDS_ERROR("Error occurred on locking reader\n");
@@ -82,19 +82,30 @@ dds_create_readcondition(
 
 dds_entity_t dds_get_datareader (dds_entity_t condition)
 {
-    dds_entity_t hdl;
-
-    if (dds_entity_kind_from_handle(condition) == DDS_KIND_COND_READ) {
-        hdl = dds_get_parent(condition);
-    } else if (dds_entity_kind_from_handle(condition) == DDS_KIND_COND_QUERY) {
-        hdl = dds_get_parent(condition);
-    } else {
-        DDS_ERROR("Argument condition is not valid\n");
-        hdl = DDS_ERRNO(dds_valid_hdl(condition, DDS_KIND_COND_READ));
+  struct dds_entity *e;
+  dds_retcode_t rc;
+  if ((rc = dds_entity_claim (condition, &e)) != DDS_RETCODE_OK)
+    return DDS_ERRNO (rc);
+  else
+  {
+    dds_entity_t rdh;
+    switch (dds_entity_kind (e))
+    {
+      case DDS_KIND_COND_READ:
+      case DDS_KIND_COND_QUERY:
+        assert (dds_entity_kind (e->m_parent) == DDS_KIND_READER);
+        rdh = e->m_parent->m_hdllink.hdl;
+        break;
+      default:
+        rdh = DDS_ERRNO (DDS_RETCODE_ILLEGAL_OPERATION);
+        break;
     }
-
-    return hdl;
+    dds_handle_release (&e->m_hdllink);
+    return rdh;
+  }
 }
+
+
 
 dds_return_t dds_get_mask (dds_entity_t condition, uint32_t *mask)
 {
@@ -109,7 +120,7 @@ dds_return_t dds_get_mask (dds_entity_t condition, uint32_t *mask)
   else if (dds_entity_kind (entity) != DDS_KIND_COND_READ && dds_entity_kind (entity) != DDS_KIND_COND_QUERY)
   {
     dds_entity_unlock (entity);
-    return DDS_ERRNO (dds_valid_hdl (condition, DDS_KIND_COND_READ));
+    return DDS_ERRNO (DDS_RETCODE_ILLEGAL_OPERATION);
   }
   else
   {

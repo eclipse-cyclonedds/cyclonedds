@@ -147,21 +147,21 @@ CU_Test(ddsc_entity_delete, recursive, .init=hierarchy_init, .fini=hierarchy_fin
 
     /* Check if all the entities are deleted now. */
     ret = dds_get_domainid(g_participant, &id);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     ret = dds_get_domainid(g_topic, &id);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     ret = dds_get_domainid(g_publisher, &id);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     ret = dds_get_domainid(g_subscriber, &id);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     ret = dds_get_domainid(g_writer, &id);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     ret = dds_get_domainid(g_reader, &id);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     ret = dds_get_domainid(g_readcond, &id);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     ret = dds_get_domainid(g_querycond, &id);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -201,11 +201,11 @@ CU_Test(ddsc_entity_delete, recursive_with_deleted_topic)
 
     /* Check if the entities are actually deleted. */
     ret = dds_get_domainid(g_participant, &id);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED );
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER );
     ret = dds_get_domainid(g_topic, &id);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     ret = dds_get_domainid(g_writer, &id);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 
     dds_delete(g_keep);
 }
@@ -240,13 +240,13 @@ CU_Theory((dds_entity_t *entity), ddsc_entity_get_participant, deleted_entities,
     dds_entity_t participant;
     dds_delete(*entity);
     participant = dds_get_participant(*entity);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(participant), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(participant), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_entity_get_participant, invalid_entities) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t entity), ddsc_entity_get_participant, invalid_entities, .init=hierarchy_init, .fini=hierarchy_fini)
 {
@@ -327,13 +327,13 @@ CU_Theory((dds_entity_t *entity), ddsc_entity_get_parent, deleted_entities, .ini
     dds_entity_t parent;
     dds_delete(*entity);
     parent = dds_get_parent(*entity);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(parent), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(parent), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_entity_get_parent, invalid_entities) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t entity), ddsc_entity_get_parent, invalid_entities, .init=hierarchy_init, .fini=hierarchy_fini)
 {
@@ -478,13 +478,13 @@ CU_Theory((dds_entity_t *entity), ddsc_entity_get_children, deleted_entities, .i
     dds_entity_t children[4];
     dds_delete(*entity);
     ret = dds_get_children(*entity, children, 4);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_entity_get_children, invalid_entities) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t entity), ddsc_entity_get_children, invalid_entities, .init=hierarchy_init, .fini=hierarchy_fini)
 {
@@ -527,13 +527,13 @@ CU_Theory((dds_entity_t *entity), ddsc_entity_get_topic, deleted_entities, .init
     dds_entity_t topic;
     dds_delete(*entity);
     topic = dds_get_topic(*entity);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(topic), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(topic), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_entity_get_topic, invalid_entities) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t entity), ddsc_entity_get_topic, invalid_entities, .init=hierarchy_init, .fini=hierarchy_fini)
 {
@@ -581,13 +581,13 @@ CU_Test(ddsc_entity_get_publisher, deleted_writer, .init=hierarchy_init, .fini=h
     dds_entity_t publisher;
     dds_delete(g_writer);
     publisher = dds_get_publisher(g_writer);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(publisher), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(publisher), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_entity_get_publisher, invalid_writers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t entity), ddsc_entity_get_publisher, invalid_writers, .init=hierarchy_init, .fini=hierarchy_fini)
 {
@@ -640,13 +640,13 @@ CU_Theory((dds_entity_t *entity), ddsc_entity_get_subscriber, deleted_readers, .
     dds_entity_t subscriber;
     dds_delete(*entity);
     subscriber = dds_get_subscriber(*entity);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(subscriber), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(subscriber), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_entity_get_subscriber, invalid_readers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t entity), ddsc_entity_get_subscriber, invalid_readers, .init=hierarchy_init, .fini=hierarchy_fini)
 {
@@ -701,13 +701,13 @@ CU_Theory((dds_entity_t *cond), ddsc_entity_get_datareader, deleted_conds, .init
     dds_entity_t reader;
     dds_delete(*cond);
     reader = dds_get_datareader(*cond);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(reader), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(reader), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_entity_get_datareader, invalid_conds) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t cond), ddsc_entity_get_datareader, invalid_conds, .init=hierarchy_init, .fini=hierarchy_fini)
 {

@@ -22,6 +22,7 @@
 #include "dds__qos.h"
 #include "dds__err.h"
 #include "dds__init.h"
+#include "dds__publisher.h"
 #include "dds__topic.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
@@ -75,7 +76,7 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
   {
     /* Release the initial claim that was done during the create. This
      * will indicate that further API deletion is now possible. */
-    ut_handle_release (entity->m_hdl, entity->m_hdllink);
+    dds_handle_release (&entity->m_hdllink);
     return;
   }
 
@@ -235,10 +236,10 @@ dds_writer_delete(
     if (asleep) {
         thread_state_asleep(thr);
     }
-    ret = dds_delete(wr->m_topic->m_entity.m_hdl);
+    ret = dds_delete(wr->m_topic->m_entity.m_hdllink.hdl);
     if(ret == DDS_RETCODE_OK){
-        ret = dds_delete_impl(e->m_parent->m_hdl, true);
-        if(dds_err_nr(ret) == DDS_RETCODE_ALREADY_DELETED){
+        ret = dds_delete_impl(e->m_parent->m_hdllink.hdl, true);
+        if(dds_err_nr(ret) == DDS_RETCODE_BAD_PARAMETER){
             ret = DDS_RETCODE_OK;
         }
     }
@@ -399,7 +400,7 @@ dds_create_writer(
     dds_qos_t * wqos;
     dds_writer * wr;
     dds_entity_t writer;
-    dds_entity * pub = NULL;
+    dds_publisher * pub = NULL;
     dds_topic * tp;
     dds_entity_t publisher;
     struct thread_state1 * const thr = lookup_thread_state();
@@ -407,22 +408,26 @@ dds_create_writer(
     ddsi_tran_conn_t conn = gv.data_conn_uc;
     dds_return_t ret;
 
-    /* Try claiming a participant. If that's not working, then it could be a subscriber. */
-    if(dds_entity_kind_from_handle(participant_or_publisher) == DDS_KIND_PARTICIPANT){
-        publisher = dds_create_publisher(participant_or_publisher, qos, NULL);
-    } else{
-        publisher = participant_or_publisher;
+    {
+        dds_entity *p_or_p;
+        if ((rc = dds_entity_claim (participant_or_publisher, &p_or_p)) != DDS_RETCODE_OK) {
+            return DDS_ERRNO (rc);
+        }
+        if (dds_entity_kind (p_or_p) == DDS_KIND_PARTICIPANT) {
+            publisher = dds_create_publisher(participant_or_publisher, qos, NULL);
+        } else {
+            publisher = participant_or_publisher;
+        }
+        dds_handle_release (&p_or_p->m_hdllink);
     }
-    rc = dds_entity_lock(publisher, DDS_KIND_PUBLISHER, &pub);
 
-    if (rc != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking publisher\n");
+    if ((rc = dds_publisher_lock(publisher, &pub)) != DDS_RETCODE_OK) {
         writer = DDS_ERRNO(rc);
         goto err_pub_lock;
     }
 
     if (publisher != participant_or_publisher) {
-        pub->m_flags |= DDS_ENTITY_IMPLICIT;
+        pub->m_entity.m_flags |= DDS_ENTITY_IMPLICIT;
     }
 
     rc = dds_topic_lock(topic, &tp);
@@ -432,7 +437,7 @@ dds_create_writer(
         goto err_tp_lock;
     }
     assert(tp->m_stopic);
-    assert(pub->m_domain == tp->m_entity.m_domain);
+    assert(pub->m_entity.m_domain == tp->m_entity.m_domain);
 
     /* Merge Topic & Publisher qos */
     wqos = dds_create_qos();
@@ -442,8 +447,8 @@ dds_create_writer(
         (void)dds_copy_qos(wqos, qos);
     }
 
-    if (pub->m_qos) {
-        dds_merge_qos(wqos, pub->m_qos);
+    if (pub->m_entity.m_qos) {
+        dds_merge_qos(wqos, pub->m_entity.m_qos);
     }
 
     if (tp->m_entity.m_qos) {
@@ -461,7 +466,7 @@ dds_create_writer(
 
     /* Create writer */
     wr = dds_alloc(sizeof (*wr));
-    writer = dds_entity_init(&wr->m_entity, pub, DDS_KIND_WRITER, wqos, listener, DDS_WRITER_STATUS_MASK);
+    writer = dds_entity_init(&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, wqos, listener, DDS_WRITER_STATUS_MASK);
 
     wr->m_topic = tp;
     dds_entity_add_ref_nolock(&tp->m_entity);
@@ -475,32 +480,30 @@ dds_create_writer(
 
     /* Extra claim of this writer to make sure that the delete waits until DDSI
      * has deleted its writer as well. This can be known through the callback. */
-    if (ut_handle_claim(wr->m_entity.m_hdl, wr->m_entity.m_hdllink, DDS_KIND_WRITER, NULL) != UT_HANDLE_OK) {
-        assert(0);
-    }
+    dds_handle_claim_inc (&wr->m_entity.m_hdllink);
 
-    ddsrt_mutex_unlock(&tp->m_entity.m_mutex);
-    ddsrt_mutex_unlock(&pub->m_mutex);
+    ddsrt_mutex_unlock (&tp->m_entity.m_mutex);
+    ddsrt_mutex_unlock (&pub->m_entity.m_mutex);
 
     if (asleep) {
         thread_state_awake(thr);
     }
-    wr->m_wr = new_writer(&wr->m_entity.m_guid, NULL, &pub->m_participant->m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
-    ddsrt_mutex_lock(&pub->m_mutex);
-    ddsrt_mutex_lock(&tp->m_entity.m_mutex);
+    wr->m_wr = new_writer(&wr->m_entity.m_guid, NULL, &pub->m_entity.m_participant->m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
+    ddsrt_mutex_lock (&pub->m_entity.m_mutex);
+    ddsrt_mutex_lock (&tp->m_entity.m_mutex);
     assert(wr->m_wr);
     if (asleep) {
         thread_state_asleep(thr);
     }
     dds_topic_unlock(tp);
-    dds_entity_unlock(pub);
+    dds_publisher_unlock(pub);
     return writer;
 
 err_bad_qos:
     dds_topic_unlock(tp);
 err_tp_lock:
-    dds_entity_unlock(pub);
-    if((pub->m_flags & DDS_ENTITY_IMPLICIT) != 0){
+    dds_publisher_unlock(pub);
+    if((pub->m_entity.m_flags & DDS_ENTITY_IMPLICIT) != 0){
         (void)dds_delete(publisher);
     }
 err_pub_lock:
@@ -511,17 +514,23 @@ dds_entity_t
 dds_get_publisher(
     dds_entity_t writer)
 {
-    dds_entity_t hdl = DDS_RETCODE_OK;
-
-    hdl = dds_valid_hdl(writer, DDS_KIND_WRITER);
-    if(hdl != DDS_RETCODE_OK){
-        DDS_ERROR("Provided handle is not writer kind, so it is not valid\n");
-        hdl = DDS_ERRNO(hdl);
-    } else{
-        hdl = dds_get_parent(writer);
+  dds_entity *e;
+  dds_retcode_t rc;
+  if ((rc = dds_entity_claim (writer, &e)) != DDS_RETCODE_OK)
+    return DDS_ERRNO (rc);
+  else
+  {
+    dds_entity_t pubh;
+    if (dds_entity_kind (e) != DDS_KIND_WRITER)
+      pubh = DDS_ERRNO (DDS_RETCODE_ILLEGAL_OPERATION);
+    else
+    {
+      assert (dds_entity_kind (e->m_parent) == DDS_KIND_PUBLISHER);
+      pubh = e->m_parent->m_hdllink.hdl;
     }
-
-    return hdl;
+    dds_handle_release (&e->m_hdllink);
+    return pubh;
+  }
 }
 
 dds_return_t

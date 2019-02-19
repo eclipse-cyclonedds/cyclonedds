@@ -16,6 +16,7 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/process.h"
+#include "dds/ddsrt/heap.h"
 #include "dds__init.h"
 #include "dds__rhc.h"
 #include "dds__domain.h"
@@ -28,6 +29,7 @@
 #include "dds/ddsi/q_servicelease.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_gc.h"
 #include "dds/version.h"
 
 #define DOMAIN_ID_MIN 0
@@ -37,6 +39,20 @@ struct q_globals gv;
 
 dds_globals dds_global = { .m_default_domain = DDS_DOMAIN_DEFAULT };
 static struct cfgst * dds_cfgst = NULL;
+
+static void free_via_gc_cb (struct gcreq *gcreq)
+{
+  void *bs = gcreq->arg;
+  gcreq_free (gcreq);
+  ddsrt_free (bs);
+}
+
+static void free_via_gc (void *bs)
+{
+  struct gcreq *gcreq = gcreq_new (gv.gcreq_queue, free_via_gc_cb);
+  gcreq->arg = bs;
+  gcreq_enqueue (gcreq);
+}
 
 dds_return_t
 dds_init(dds_domainid_t domain)
@@ -58,13 +74,6 @@ dds_init(dds_domainid_t domain)
   if (dds_global.m_init_count > 1)
   {
     goto skip;
-  }
-
-  if (ut_handleserver_init() != UT_HANDLE_OK)
-  {
-    DDS_ERROR("Failed to initialize internal handle server\n");
-    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
-    goto fail_handleserver;
   }
 
   gv.tstart = now ();
@@ -137,6 +146,13 @@ dds_init(dds_domainid_t domain)
     goto fail_rtps_init;
   }
 
+  if (dds_handle_server_init (free_via_gc) != DDS_RETCODE_OK)
+  {
+    DDS_ERROR("Failed to initialize internal handle server\n");
+    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+    goto fail_handleserver;
+  }
+
   dds__builtin_init ();
 
   if (rtps_start () < 0)
@@ -178,6 +194,8 @@ skip:
 fail_servicelease_start:
   if (gv.servicelease)
     nn_servicelease_stop_renewing (gv.servicelease);
+  dds_handle_server_fini();
+fail_handleserver:
   rtps_stop ();
 fail_rtps_start:
   dds__builtin_fini ();
@@ -198,8 +216,6 @@ fail_config_domainid:
   dds_cfgst = NULL;
 fail_config:
   ddsrt_mutex_destroy (&dds_global.m_mutex);
-  ut_handleserver_fini();
-fail_handleserver:
   dds_global.m_init_count--;
   ddsrt_mutex_unlock(init_mutex);
   ddsrt_fini();
@@ -217,6 +233,7 @@ extern void dds_fini (void)
   {
     if (gv.servicelease)
       nn_servicelease_stop_renewing (gv.servicelease);
+    dds_handle_server_fini();
     rtps_stop ();
     dds__builtin_fini ();
     rtps_fini ();
@@ -229,7 +246,6 @@ extern void dds_fini (void)
     config_fini (dds_cfgst);
     dds_cfgst = NULL;
     ddsrt_mutex_destroy (&dds_global.m_mutex);
-    ut_handleserver_fini();
     dds_global.m_default_domain = DDS_DOMAIN_DEFAULT;
   }
   ddsrt_mutex_unlock(init_mutex);
