@@ -51,7 +51,7 @@ struct debug_monitor {
   os_mutex lock;
   os_cond cond;
   struct plugin *plugins;
-  int stop;
+  bool stop;
 };
 
 static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...)
@@ -297,6 +297,27 @@ static int print_proxy_participants (struct thread_state1 *self, ddsi_tran_conn_
   return x;
 }
 
+static void debmon_serve (struct debug_monitor *dm, ddsi_tran_conn_t conn)
+{
+  struct plugin *p;
+  int r = 0;
+  r += print_participants (dm->servts, conn);
+  if (r == 0)
+    r += print_proxy_participants (dm->servts, conn);
+
+  /* Note: can only add plugins (at the tail) */
+  os_mutexLock (&dm->lock);
+  p = dm->plugins;
+  while (r == 0 && p != NULL)
+  {
+    os_mutexUnlock (&dm->lock);
+    r += p->fn (conn, cpf, p->arg);
+    os_mutexLock (&dm->lock);
+    p = p->next;
+  }
+  os_mutexUnlock (&dm->lock);
+}
+
 static uint32_t debmon_main (void *vdm)
 {
   struct debug_monitor *dm = vdm;
@@ -307,24 +328,11 @@ static uint32_t debmon_main (void *vdm)
     os_mutexUnlock (&dm->lock);
     if ((conn = ddsi_listener_accept (dm->servsock)) != NULL)
     {
-      struct plugin *p;
-      int r = 0;
-      r += print_participants (dm->servts, conn);
-      if (r == 0)
-        r += print_proxy_participants (dm->servts, conn);
-
-      /* Note: can only add plugins (at the tail) */
       os_mutexLock (&dm->lock);
-      p = dm->plugins;
-      while (r == 0 && p != NULL)
-      {
-        os_mutexUnlock (&dm->lock);
-        r += p->fn (conn, cpf, p->arg);
-        os_mutexLock (&dm->lock);
-        p = p->next;
-      }
+      const bool stop = dm->stop;
       os_mutexUnlock (&dm->lock);
-
+      if (!stop)
+        debmon_serve (dm, conn);
       ddsi_conn_free (conn);
     }
     os_mutexLock (&dm->lock);
@@ -366,7 +374,7 @@ struct debug_monitor *new_debug_monitor (int port)
   os_condInit (&dm->cond, &dm->lock);
   if (ddsi_listener_listen (dm->servsock) < 0)
     goto err_listen;
-  dm->stop = 0;
+  dm->stop = false;
   dm->servts = create_thread("debmon", debmon_main, dm);
   return dm;
 
@@ -402,7 +410,7 @@ void free_debug_monitor (struct debug_monitor *dm)
     return;
 
   os_mutexLock (&dm->lock);
-  dm->stop = 1;
+  dm->stop = true;
   os_condBroadcast (&dm->cond);
   os_mutexUnlock (&dm->lock);
   ddsi_listener_unblock (dm->servsock);
