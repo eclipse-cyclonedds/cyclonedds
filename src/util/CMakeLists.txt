@@ -11,7 +11,7 @@
 #
 include (GenerateExportHeader)
 
-PREPEND(srcs_util "${CMAKE_CURRENT_SOURCE_DIR}/src" ut_avl.c ut_crc.c ut_expand_envvars.c ut_fibheap.c ut_handleserver.c ut_hopscotch.c ut_thread_pool.c ut_xmlparser.c)
+PREPEND(srcs_util "${CMAKE_CURRENT_SOURCE_DIR}/src" ut_avl.c ut_crc.c ut_expand_envvars.c ut_fibheap.c ut_hopscotch.c ut_thread_pool.c ut_xmlparser.c)
 
 add_library(util ${srcs_util})
 set_property(TARGET util PROPERTY POSITION_INDEPENDENT_CODE TRUE)

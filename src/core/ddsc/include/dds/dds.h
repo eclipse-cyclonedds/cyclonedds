@@ -69,6 +69,9 @@ struct ddsi_serdata;
  */
 DDS_EXPORT dds_domainid_t dds_domain_default (void);
 
+
+#define DDS_MIN_PSEUDO_HANDLE ((dds_entity_t) 0x7fff0000)
+
 /* @defgroup builtintopic_constants Convenience constants for referring to builtin topics
  *
  * These constants can be used in place of an actual dds_topic_t, when creating
@@ -76,10 +79,10 @@ DDS_EXPORT dds_domainid_t dds_domain_default (void);
  *
  * @{
  */
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSPARTICIPANT;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSTOPIC;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSPUBLICATION;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION;
+#define DDS_BUILTIN_TOPIC_DCPSPARTICIPANT  ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 1))
+#define DDS_BUILTIN_TOPIC_DCPSTOPIC        ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 2))
+#define DDS_BUILTIN_TOPIC_DCPSPUBLICATION  ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 3))
+#define DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 4))
 /** @}*/
 
 /** @name Communication Status definitions

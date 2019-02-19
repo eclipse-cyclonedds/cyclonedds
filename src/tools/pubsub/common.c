@@ -390,7 +390,6 @@ static void inapplicable_qos(dds_entity_kind_t qt, const char *n) {
     case DDS_KIND_COND_READ: en = "cond read"; break;
     case DDS_KIND_COND_QUERY: en = "cond query"; break;
     case DDS_KIND_WAITSET: en = "waitset"; break;
-    case DDS_KIND_INTERNAL: en = "internal"; break;
     default: en = "?"; break;
     }
     fprintf(stderr, "warning: %s entity ignoring inapplicable QoS \"%s\"\n", en, n);

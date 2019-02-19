@@ -22,16 +22,11 @@
 #include "dds__err.h"
 #include "dds/version.h"
 
-/* Sanity check. */
-#if DDS_ENTITY_KIND_MASK != UT_HANDLE_KIND_MASK
-#error "DDS_ENTITY_KIND_MASK != UT_HANDLE_KIND_MASK"
-#endif
-
+extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
 extern inline bool dds_entity_is_enabled (const dds_entity *e);
 extern inline void dds_entity_status_reset (dds_entity *e, uint32_t t);
 extern inline bool dds_entity_status_match (const dds_entity *e, uint32_t t);
 extern inline dds_entity_kind_t dds_entity_kind (const dds_entity *e);
-extern inline dds_entity_kind_t dds_entity_kind_from_handle (dds_entity_t hdl);
 
 static void dds_entity_observers_signal (dds_entity *observed, uint32_t status);
 static void dds_entity_observers_delete (dds_entity *observed);
@@ -71,10 +66,13 @@ static dds_entity *dds__nonself_parent (dds_entity *e)
 
 dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind_t kind, dds_qos_t *qos, const dds_listener_t *listener, uint32_t mask)
 {
+  dds_handle_t handle;
+
   assert ((kind == DDS_KIND_PARTICIPANT) == (parent == NULL));
   assert (e);
 
   e->m_refc = 1;
+  e->m_kind = kind;
   e->m_qos = qos;
   e->m_cb_count = 0;
   e->m_observers = NULL;
@@ -116,29 +114,11 @@ dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind
     ddsrt_mutex_unlock (&e->m_observers_lock);
   }
 
-  e->m_hdllink = NULL;
-  e->m_hdl = ut_handle_create ((int32_t) kind, e);
-  if (e->m_hdl > 0)
-  {
-    e->m_hdllink = ut_handle_get_link (e->m_hdl);
-    assert(e->m_hdllink);
-  }
-  else
-  {
-    if (e->m_hdl == UT_HANDLE_OUT_OF_RESOURCES) {
-      DDS_ERROR ("Can not create new entity; too many where created previously\n");
-      e->m_hdl = DDS_ERRNO (DDS_RETCODE_OUT_OF_RESOURCES);
-    } else if (e->m_hdl == UT_HANDLE_NOT_INITALIZED) {
-      DDS_ERROR (DDS_PROJECT_NAME" is not yet initialized. Please create a participant before executing an other method\n");
-      e->m_hdl = DDS_ERRNO (DDS_RETCODE_PRECONDITION_NOT_MET);
-    } else {
-      DDS_ERROR ("An internal error has occurred\n");
-      e->m_hdl = DDS_ERRNO (DDS_RETCODE_ERROR);
-    }
-  }
+  if ((handle = dds_handle_create (&e->m_hdllink)) <= 0)
+    return (dds_entity_t) handle;
 
-  /* An ut_handle_t is directly used as dds_entity_t. */
-  return (dds_entity_t) e->m_hdl;
+  /* An dds_handle_t is directly used as dds_entity_t. */
+  return (dds_entity_t) handle;
 }
 
 dds_return_t dds_delete (dds_entity_t entity)
@@ -164,7 +144,7 @@ dds_return_t dds_delete_impl (dds_entity_t entity, bool keep_if_explicit)
   dds_return_t ret;
   dds_retcode_t rc;
 
-  rc = dds_entity_lock (entity, UT_HANDLE_DONTCARE_KIND, &e);
+  rc = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e);
   if (rc != DDS_RETCODE_OK)
   {
     DDS_TRACE ("dds_delete_impl: error on locking entity %"PRIu32" keep_if_explicit %d\n", entity, (int) keep_if_explicit);
@@ -183,7 +163,7 @@ dds_return_t dds_delete_impl (dds_entity_t entity, bool keep_if_explicit)
     return DDS_RETCODE_OK;
   }
 
-  ut_handle_close (e->m_hdl, e->m_hdllink);
+  dds_handle_close (&e->m_hdllink);
   ddsrt_mutex_lock (&e->m_observers_lock);
   while (e->m_cb_count > 0)
     ddsrt_cond_wait (&e->m_observers_cond, &e->m_observers_lock);
@@ -219,7 +199,7 @@ dds_return_t dds_delete_impl (dds_entity_t entity, bool keep_if_explicit)
   {
     next = next_non_topic_child (child->m_next);
     /* This will probably delete the child entry from the current children's list */
-    ret = dds_delete (child->m_hdl);
+    ret = dds_delete (child->m_hdllink.hdl);
     child = next;
   }
   child = e->m_children;
@@ -227,7 +207,7 @@ dds_return_t dds_delete_impl (dds_entity_t entity, bool keep_if_explicit)
   {
     next = child->m_next;
     assert (dds_entity_kind (child) == DDS_KIND_TOPIC);
-    ret = dds_delete (child->m_hdl);
+    ret = dds_delete (child->m_hdllink.hdl);
     child = next;
   }
   if (ret == DDS_RETCODE_OK && e->m_deriver.close)
@@ -239,11 +219,11 @@ dds_return_t dds_delete_impl (dds_entity_t entity, bool keep_if_explicit)
 
   if (ret == DDS_RETCODE_OK)
   {
-    /* The ut_handle_delete will wait until the last active claim on that handle
+    /* The dds_handle_delete will wait until the last active claim on that handle
      * is released. It is possible that this last release will be done by a thread
      * that was kicked during the close(). */
-    if (ut_handle_delete (e->m_hdl, e->m_hdllink, timeout) != UT_HANDLE_OK)
-      return DDS_ERRNO (DDS_RETCODE_TIMEOUT);
+    if ((ret = dds_handle_delete (&e->m_hdllink, timeout)) != DDS_RETCODE_OK)
+      return ret;
   }
 
   if (ret == DDS_RETCODE_OK)
@@ -301,7 +281,7 @@ dds_entity_t dds_get_parent (dds_entity_t entity)
       hdl = DDS_ENTITY_NIL;
     else
     {
-      hdl = parent->m_hdl;
+      hdl = parent->m_hdllink.hdl;
       dds_set_explicit (hdl);
     }
     dds_entity_unlock (e);
@@ -317,7 +297,7 @@ dds_entity_t dds_get_participant (dds_entity_t entity)
     return DDS_ERRNO (rc);
   else
   {
-    dds_entity_t hdl = e->m_participant->m_hdl;
+    dds_entity_t hdl = e->m_participant->m_hdllink.hdl;
     dds_entity_unlock (e);
     return hdl;
   }
@@ -343,8 +323,8 @@ dds_return_t dds_get_children (dds_entity_t entity, dds_entity_t *children, size
     {
       if ((size_t) n < size)
       {
-        children[n] = iter->m_hdl;
-        dds_set_explicit (iter->m_hdl);
+        children[n] = iter->m_hdllink.hdl;
+        dds_set_explicit (iter->m_hdllink.hdl);
       }
       n++;
       iter = iter->m_next;
@@ -437,65 +417,65 @@ void dds_entity_invoke_listener (const dds_entity *entity, enum dds_status_id wh
   {
     case DDS_INCONSISTENT_TOPIC_STATUS_ID: {
       struct dds_inconsistent_topic_status const * const st = vst;
-      lst->on_inconsistent_topic (entity->m_hdl, *st, lst->on_inconsistent_topic_arg);
+      lst->on_inconsistent_topic (entity->m_hdllink.hdl, *st, lst->on_inconsistent_topic_arg);
       break;
     }
     case DDS_REQUESTED_DEADLINE_MISSED_STATUS_ID: {
       struct dds_requested_deadline_missed_status const * const st = vst;
-      lst->on_requested_deadline_missed (entity->m_hdl, *st, lst->on_requested_deadline_missed_arg);
+      lst->on_requested_deadline_missed (entity->m_hdllink.hdl, *st, lst->on_requested_deadline_missed_arg);
       break;
     }
     case DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID: {
       struct dds_requested_incompatible_qos_status const * const st = vst;
-      lst->on_requested_incompatible_qos (entity->m_hdl, *st, lst->on_requested_incompatible_qos_arg);
+      lst->on_requested_incompatible_qos (entity->m_hdllink.hdl, *st, lst->on_requested_incompatible_qos_arg);
       break;
     }
     case DDS_SAMPLE_LOST_STATUS_ID: {
       struct dds_sample_lost_status const * const st = vst;
-      lst->on_sample_lost (entity->m_hdl, *st, lst->on_sample_lost_arg);
+      lst->on_sample_lost (entity->m_hdllink.hdl, *st, lst->on_sample_lost_arg);
       break;
     }
     case DDS_SAMPLE_REJECTED_STATUS_ID: {
       struct dds_sample_rejected_status const * const st = vst;
-      lst->on_sample_rejected (entity->m_hdl, *st, lst->on_sample_rejected_arg);
+      lst->on_sample_rejected (entity->m_hdllink.hdl, *st, lst->on_sample_rejected_arg);
       break;
     }
     case DDS_LIVELINESS_CHANGED_STATUS_ID: {
       struct dds_liveliness_changed_status const * const st = vst;
-      lst->on_liveliness_changed (entity->m_hdl, *st, lst->on_liveliness_changed_arg);
+      lst->on_liveliness_changed (entity->m_hdllink.hdl, *st, lst->on_liveliness_changed_arg);
       break;
     }
     case DDS_SUBSCRIPTION_MATCHED_STATUS_ID: {
       struct dds_subscription_matched_status const * const st = vst;
-      lst->on_subscription_matched (entity->m_hdl, *st, lst->on_subscription_matched_arg);
+      lst->on_subscription_matched (entity->m_hdllink.hdl, *st, lst->on_subscription_matched_arg);
       break;
     }
     case DDS_OFFERED_DEADLINE_MISSED_STATUS_ID: {
       struct dds_offered_deadline_missed_status const * const st = vst;
-      lst->on_offered_deadline_missed (entity->m_hdl, *st, lst->on_offered_deadline_missed_arg);
+      lst->on_offered_deadline_missed (entity->m_hdllink.hdl, *st, lst->on_offered_deadline_missed_arg);
       break;
     }
     case DDS_LIVELINESS_LOST_STATUS_ID: {
       struct dds_liveliness_lost_status const * const st = vst;
-      lst->on_liveliness_lost (entity->m_hdl, *st, lst->on_liveliness_lost_arg);
+      lst->on_liveliness_lost (entity->m_hdllink.hdl, *st, lst->on_liveliness_lost_arg);
       break;
     }
     case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID: {
       struct dds_offered_incompatible_qos_status const * const st = vst;
-      lst->on_offered_incompatible_qos (entity->m_hdl, *st, lst->on_offered_incompatible_qos_arg);
+      lst->on_offered_incompatible_qos (entity->m_hdllink.hdl, *st, lst->on_offered_incompatible_qos_arg);
       break;
     }
     case DDS_PUBLICATION_MATCHED_STATUS_ID: {
       struct dds_publication_matched_status const * const st = vst;
-      lst->on_publication_matched (entity->m_hdl, *st, lst->on_publication_matched_arg);
+      lst->on_publication_matched (entity->m_hdllink.hdl, *st, lst->on_publication_matched_arg);
       break;
     }
     case DDS_DATA_AVAILABLE_STATUS_ID: {
-      lst->on_data_available (entity->m_hdl, lst->on_data_available_arg);
+      lst->on_data_available (entity->m_hdllink.hdl, lst->on_data_available_arg);
       break;
     }
     case DDS_DATA_ON_READERS_STATUS_ID: {
-      lst->on_data_on_readers (entity->m_hdl, lst->on_data_on_readers_arg);
+      lst->on_data_on_readers (entity->m_hdllink.hdl, lst->on_data_on_readers_arg);
       break;
     }
   }
@@ -768,45 +748,36 @@ dds_return_t dds_get_instance_handle (dds_entity_t entity, dds_instance_handle_t
   return ret;
 }
 
-
-dds_retcode_t dds_valid_hdl (dds_entity_t hdl, dds_entity_kind_t kind)
+dds_retcode_t dds_entity_claim (dds_entity_t hdl, dds_entity **eptr)
 {
-  ut_handle_t utr;
-  if ((utr = ut_handle_status (hdl, NULL, (int32_t) kind)) == UT_HANDLE_OK)
-    return DDS_RETCODE_OK;
-  else if (hdl < 0)
-    return DDS_RETCODE_BAD_PARAMETER;
+  dds_retcode_t hres;
+  struct dds_handle_link *hdllink;
+  if ((hres = dds_handle_claim (hdl, &hdllink)) != DDS_RETCODE_OK)
+    return hres;
   else
   {
-    switch (utr)
-    {
-      case UT_HANDLE_OK:
-        assert (0);
-        /* FALLS THROUGH */
-      case UT_HANDLE_UNEQUAL_KIND:
-        return DDS_RETCODE_ILLEGAL_OPERATION;
-      case UT_HANDLE_INVALID:
-        return DDS_RETCODE_BAD_PARAMETER;
-      case UT_HANDLE_DELETED:
-      case UT_HANDLE_CLOSED:
-        return DDS_RETCODE_ALREADY_DELETED;
-      default:
-        return DDS_RETCODE_ERROR;
-    }
+    *eptr = dds_entity_from_handle_link (hdllink);
+    return DDS_RETCODE_OK;
   }
 }
 
 dds_retcode_t dds_entity_lock (dds_entity_t hdl, dds_entity_kind_t kind, dds_entity **eptr)
 {
-  ut_handle_t utr;
-  void *raw;
+  dds_retcode_t hres;
+  dds_entity *e;
 
   /* When the given handle already contains an error, then return that
    * same error to retain the original information. */
-  if ((utr = ut_handle_claim (hdl, NULL, (int32_t) kind, &raw)) == UT_HANDLE_OK)
+  if ((hres = dds_entity_claim (hdl, &e)) != DDS_RETCODE_OK)
+    return hres;
+  else
   {
-    dds_entity *e;
-    *eptr = e = raw;
+    if (dds_entity_kind (e) != kind && kind != DDS_KIND_DONTCARE)
+    {
+      dds_handle_release (&e->m_hdllink);
+      return DDS_RETCODE_ILLEGAL_OPERATION;
+    }
+
     ddsrt_mutex_lock (&e->m_mutex);
     /* FIXME: The handle could have been closed while we were waiting for the mutex -- that should be handled differently!
 
@@ -815,41 +786,20 @@ dds_retcode_t dds_entity_lock (dds_entity_t hdl, dds_entity_kind_t kind, dds_ent
          (2) preventing dds_delete_impl from doing anything once the entity is being deleted.
 
        Without (1), it would be possible to add children while trying to delete them, without (2) you're looking at crashes. */
-    if (ut_handle_is_closed (hdl, e->m_hdllink))
+    if (dds_handle_is_closed (&e->m_hdllink))
     {
       dds_entity_unlock (e);
-      return DDS_RETCODE_ALREADY_DELETED;
+      return DDS_RETCODE_BAD_PARAMETER;
     }
+    *eptr = e;
     return DDS_RETCODE_OK;
-  }
-  else if (hdl < 0)
-  {
-    return DDS_RETCODE_BAD_PARAMETER;
-  }
-  else
-  {
-    switch (utr)
-    {
-      case UT_HANDLE_OK:
-        assert (0);
-        /* FALLS THROUGH */
-      case UT_HANDLE_UNEQUAL_KIND:
-        return DDS_RETCODE_ILLEGAL_OPERATION;
-      case UT_HANDLE_INVALID:
-        return DDS_RETCODE_BAD_PARAMETER;
-      case UT_HANDLE_DELETED:
-      case UT_HANDLE_CLOSED:
-        return DDS_RETCODE_ALREADY_DELETED;
-      default:
-        return DDS_RETCODE_ERROR;
-    }
   }
 }
 
 void dds_entity_unlock (dds_entity *e)
 {
   ddsrt_mutex_unlock (&e->m_mutex);
-  ut_handle_release (e->m_hdl, e->m_hdllink);
+  dds_handle_release (&e->m_hdllink);
 }
 
 dds_return_t dds_triggered (dds_entity_t entity)
@@ -965,7 +915,7 @@ static void dds_entity_observers_delete (dds_entity *observed)
 static void dds_entity_observers_signal (dds_entity *observed, uint32_t status)
 {
   for (dds_entity_observer *idx = observed->m_observers; idx; idx = idx->m_next)
-    idx->m_cb (idx->m_observer, observed->m_hdl, status);
+    idx->m_cb (idx->m_observer, observed->m_hdllink.hdl, status);
 }
 
 void dds_entity_status_signal (dds_entity *e)
@@ -996,19 +946,19 @@ dds_entity_t dds_get_topic (dds_entity_t entity)
   {
     case DDS_KIND_READER: {
       dds_reader *rd = (dds_reader *) e;
-      hdl = rd->m_topic->m_entity.m_hdl;
+      hdl = rd->m_topic->m_entity.m_hdllink.hdl;
       break;
     }
     case DDS_KIND_WRITER: {
       dds_writer *wr = (dds_writer *) e;
-      hdl = wr->m_topic->m_entity.m_hdl;
+      hdl = wr->m_topic->m_entity.m_hdllink.hdl;
       break;
     }
     case DDS_KIND_COND_READ:
     case DDS_KIND_COND_QUERY: {
       assert (dds_entity_kind (e->m_parent) == DDS_KIND_READER);
       dds_reader *rd = (dds_reader *) e->m_parent;
-      hdl = rd->m_topic->m_entity.m_hdl;
+      hdl = rd->m_topic->m_entity.m_hdllink.hdl;
       break;
     }
     default: {
@@ -1020,21 +970,32 @@ dds_entity_t dds_get_topic (dds_entity_t entity)
   return hdl;
 }
 
-const char *dds__entity_kind_str (dds_entity_t e)
+dds_return_t dds_generic_unimplemented_operation_manykinds (dds_entity_t handle, size_t nkinds, const dds_entity_kind_t *kinds)
 {
-  if (e <= 0)
-    return "(ERROR)";
-  switch (e & DDS_ENTITY_KIND_MASK)
+  dds_entity *e;
+  dds_retcode_t ret;
+  if ((ret = dds_entity_claim (handle, &e)) != DDS_RETCODE_OK)
+    return DDS_ERRNO (ret);
+  else
   {
-    case DDS_KIND_TOPIC:        return "Topic";
-    case DDS_KIND_PARTICIPANT:  return "Participant";
-    case DDS_KIND_READER:       return "Reader";
-    case DDS_KIND_WRITER:       return "Writer";
-    case DDS_KIND_SUBSCRIBER:   return "Subscriber";
-    case DDS_KIND_PUBLISHER:    return "Publisher";
-    case DDS_KIND_COND_READ:    return "ReadCondition";
-    case DDS_KIND_COND_QUERY:   return "QueryCondition";
-    case DDS_KIND_WAITSET:      return "WaitSet";
-    default:                    return "(INVALID_ENTITY)";
+    const dds_entity_kind_t actual = dds_entity_kind (e);
+    ret = DDS_RETCODE_ILLEGAL_OPERATION;
+    for (size_t i = 0; i < nkinds; i++)
+    {
+      if (kinds[i] == actual)
+      {
+        /* If the handle happens to be for an entity of the right kind, return unsupported */
+        ret = DDS_RETCODE_UNSUPPORTED;
+        break;
+      }
+    }
+    dds_handle_release (&e->m_hdllink);
+    return DDS_ERRNO (ret);
   }
 }
+
+dds_return_t dds_generic_unimplemented_operation (dds_entity_t handle, dds_entity_kind_t kind)
+{
+  return dds_generic_unimplemented_operation_manykinds (handle, 1, &kind);
+}
+

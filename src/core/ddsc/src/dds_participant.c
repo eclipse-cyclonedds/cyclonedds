@@ -55,7 +55,7 @@ dds_participant_delete(
 
     assert(e);
     assert(thr);
-    assert(dds_entity_kind_from_handle(e->m_hdl) == DDS_KIND_PARTICIPANT);
+    assert(dds_entity_kind(e) == DDS_KIND_PARTICIPANT);
 
     if (asleep) {
       thread_state_awake(thr);
@@ -278,9 +278,9 @@ dds_lookup_participant(
         ddsrt_mutex_lock (&dds_global.m_mutex);
         iter = dds_pp_head;
         while (iter) {
-            if(iter->m_domainid == domain_id) {
-                if((size_t)ret < size) {
-                    participants[ret] = iter->m_hdl;
+            if (iter->m_domainid == domain_id) {
+                if ((size_t)ret < size) {
+                    participants[ret] = iter->m_hdllink.hdl;
                 }
                 ret++;
             }

@@ -22,6 +22,7 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_domain.c
     dds_instance.c
     dds_qos.c
+    dds_handles.c
     dds_entity.c
     dds_key.c
     dds_querycond.c
@@ -54,6 +55,7 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__alloc.h
     dds__builtin.h
     dds__domain.h
+    dds__handles.h
     dds__entity.h
     dds__init.h
     dds__key.h

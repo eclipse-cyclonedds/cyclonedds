@@ -47,7 +47,7 @@ static dds_retcode_t dds_read_lock (dds_entity_t hdl, dds_reader **reader, dds_r
     DDS_ERROR ("Given entity is a reader nor a condition\n");
     return DDS_RETCODE_ILLEGAL_OPERATION;
   }
-  else if ((rc = dds_entity_lock (entity->m_parent->m_hdl, DDS_KIND_READER, &parent_entity)) != DDS_RETCODE_OK)
+  else if ((rc = dds_entity_lock (entity->m_parent->m_hdllink.hdl, DDS_KIND_READER, &parent_entity)) != DDS_RETCODE_OK)
   {
     dds_entity_unlock (entity);
     DDS_ERROR ("Failed to lock condition's reader\n");
@@ -168,7 +168,7 @@ dds_read_impl(
     /* read/take resets data available status */
     dds_entity_status_reset(&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
     /* reset DATA_ON_READERS status on subscriber after successful read/take */
-    if (dds_entity_kind_from_handle(rd->m_entity.m_parent->m_hdl) == DDS_KIND_SUBSCRIBER) {
+    if (dds_entity_kind(rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER) {
         dds_entity_status_reset(rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
     }
     dds_read_unlock(rd, cond);
@@ -225,7 +225,7 @@ dds_readcdr_impl(
 
       /* reset DATA_ON_READERS status on subscriber after successful read/take */
 
-      if (dds_entity_kind_from_handle(rd->m_entity.m_parent->m_hdl) == DDS_KIND_SUBSCRIBER)
+      if (dds_entity_kind(rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER)
       {
         dds_entity_status_reset(rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
       }

@@ -19,4 +19,3 @@ extern inline void thread_state_asleep (struct thread_state1 *ts1);
 extern inline void thread_state_awake (struct thread_state1 *ts1);
 extern inline void thread_state_blocked (struct thread_state1 *ts1);
 extern inline void thread_state_unblocked (struct thread_state1 *ts1);
-
