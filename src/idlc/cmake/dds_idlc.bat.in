@@ -15,5 +15,5 @@ if "%CLASSPATH%"=="" (
     set "CLASSPATH=@IDLC_JAR@;%CLASSPATH%"
 )
 
-java org.eclipse.cyclonedds.compilers.Idlc %*
+"@Java_JAVA_EXECUTABLE@" org.eclipse.cyclonedds.compilers.Idlc %*
 

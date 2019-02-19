@@ -11,7 +11,6 @@ linux_gcc8: &linux_gcc8
     apt:
       update: true
       sources: [ ubuntu-toolchain-r-test ]
-      #packages: [ gcc-8 g++-8 maven cmake ]
       packages: [ gcc-8 g++-8 ]
 
 linux_clang: &linux_clang
@@ -21,8 +20,6 @@ linux_clang: &linux_clang
   addons:
     apt:
       update: true
-      #sources: [ ubuntu-toolchain-r-test ]
-      #packages: [ maven clang ]
 
 osx_xcode10_1: &osx_xcode10_1
   os: osx
@@ -33,6 +30,9 @@ osx_xcode10_1: &osx_xcode10_1
       packages:
       - pyenv-virtualenv
 
+windows_vs2017: &windows_vs2017
+  os: windows
+
 matrix:
   include:
     - <<: *linux_gcc8
@@ -42,19 +42,56 @@ matrix:
     - <<: *linux_clang
       env: [ BUILD_TYPE=Debug, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=address ]
     - <<: *linux_clang
-      env: [ BUILT_TYPE=Release, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=none ]
+      env: [ BUILD_TYPE=Release, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=none ]
     - <<: *osx_xcode10_1
       env: [ BUILD_TYPE=Debug, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=address ]
     - <<: *osx_xcode10_1
       env: [ BUILD_TYPE=Release, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=none ]
+    - <<: *windows_vs2017
+      env: [ ARCH=x86, BUILD_TYPE=Debug, GENERATOR="Visual Studio 15 2017" ]
+    - <<: *windows_vs2017
+      env: [ ARCH=x86_64, BUILD_TYPE=Debug, GENERATOR="Visual Studio 15 2017" ]
+    - <<: *windows_vs2017
+      env: [ ARCH=x86_64, BUILD_TYPE=Release, GENERATOR="Visual Studio 15 2017" ]
 
-
+# Conan will automatically determine the best compiler for a given platform
+# based on educated guesses. The first check is based on the CC and CXX
+# environment variables, the second (on Windows) is to check if Microsoft
+# Visual Studio is installed. On Travis CC and CXX are set to gcc on Microsoft
+# Windows targets as well, this has the undesired effect that MSVC is not
+# detected, unsetting CC and CXX solves that problem.
 before_install:
-  - eval "export CC=${C_COMPILER}";
-  - eval "export CXX=${CXX_COMPILER}";
+  - if [ "${TRAVIS_OS_NAME}" = "windows" ]; then
+      eval "unset CC";
+      eval "unset CXX";
+    else
+      eval "export CC=${C_COMPILER}";
+      eval "export CXX=${CXX_COMPILER}";
+    fi
 
+# Windows targets in Travis are still very much in beta and Python is not yet
+# available and installation of Python through Chocolaty does not work well.
+# The real fix is to wait until Python and pip are both available on the
+# target. Until then download Conan from the official website and simply add
+# the extracted folder to the path.
+#
+# Maven requires JAVA_HOME to be set (at least on Windows), but Windows targets
+# do not come with Java installed. For now it is installed through Chocolatey
+# as a dependency of Maven, hence JAVA_HOME is only available after the
+# package is installed. The problem is that the shell cannot be restarted and
+# the path is not fixed as it contains the version number. To workaround this
+# issue, JAVA_HOME is read from the registry and exported by this script.
 install:
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+  - if [ "${TRAVIS_OS_NAME}" = "windows" ]; then
+      choco install innoextract maven;
+      wget -q https://dl.bintray.com/conan/installers/conan-win-64_1_10_0.exe;
+      innoextract conan-win-64_1_10_0.exe;
+      KEY='HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment';
+      VALUE='JAVA_HOME';
+      JAVA_HOME=$(REG QUERY "${KEY}" -v "${VALUE}" | sed -n 's/^.*JAVA_HOME \+[_A-Z]\+ \+//ip');
+      eval "export JAVA_HOME=\"${JAVA_HOME}\"";
+      eval "export PATH=\"$(pwd)/app/conan:${PATH}\"";
+    elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
       eval "$(pyenv init -)";
       pyenv virtualenv conan;
       pyenv rehash;
@@ -63,21 +100,43 @@ install:
     else
       pip install conan --upgrade --user;
     fi
-  - conan user
+  - conan profile new default --detect
 
 before_script:
   - conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
+  - conan profile get settings.arch default
+  - if [ -z "${ARCH}" ]; then
+      eval "export ARCH=\"$(conan profile get settings.arch default)\"";
+    fi
+  - if [ "${TRAVIS_OS_NAME}" = "windows" ]; then
+      GENERATOR_ARCH=$(if [ "${ARCH}" = "x86_64" ]; then echo " Win64"; fi);
+      eval "export GENERATOR=\"${GENERATOR}${GENERATOR_ARCH}\"";
+      eval "export USE_SANITIZER=none";
+    else
+      eval "export GENERATOR=\"Unix Makefiles\"";
+    fi
+  - export
 
 script:
   - mkdir build
   - cd build
-  - conan install .. --build missing
-  - cmake -DBUILD_TESTING=on -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUSE_SANITIZER=${USE_SANITIZER} -DCMAKE_INSTALL_PREFIX=${PWD}/install ../src
-  - cmake --build . --target install
-  - mkdir install/share/CycloneDDS/examples/helloworld/build
-  - if [ "$USE_SANITIZER" = "none" ]; then
-      (cd install/share/CycloneDDS/examples/helloworld/build && cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} .. && cmake --build .) ;
-    else
-      (cd install/share/CycloneDDS/examples/helloworld/build && cmake -DCMAKE_C_FLAGS=-fsanitize=address -DCMAKE_LINKER_FLAGS=-fsanitize=address -DCMAKE_BUILD_TYPE=${BUILD_TYPE} .. && cmake --build .) ;
+  - conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ..
+  - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+          -DCMAKE_INSTALL_PREFIX=$(pwd)/install
+          -DUSE_SANITIZER=${USE_SANITIZER}
+          -DBUILD_TESTING=on
+          -G "${GENERATOR}" ../src
+  - cmake --build . --config ${BUILD_TYPE} --target install
+  - ctest -T test -C ${BUILD_TYPE}
+  - if [ "${USE_SANITIZER}" != "none" ]; then
+      CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
+      CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
     fi
-  - ctest -T test
+  - mkdir install/share/CycloneDDS/examples/helloworld/build
+  - cd install/share/CycloneDDS/examples/helloworld/build
+  - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+          ${CMAKE_C_FLAGS}
+          ${CMAKE_LINKER_FLAGS}
+          -G "${GENERATOR}" ..
+  - cmake --build . --config ${BUILD_TYPE}
+

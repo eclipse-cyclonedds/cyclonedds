@@ -17,21 +17,19 @@ if(DEFINED ENV{M2_HOME})
   list(APPEND _mvn_hints "$ENV{M2_HOME}/bin")
 endif()
 
+# Chocolatey installs packages under C:\ProgramData\chocolatey.
+if(ENV{ProgramData} AND IS_DIRECTORY "$ENV{ProgramData}/chocolatey/bin")
+  list(APPEND _mvn_paths "$ENV{ProgramData}/chocolatey/bin")
+endif()
+
 # Maven documentation mentions intalling maven under C:\Program Files on
-# Windows and under /opt on *NIX platforms
+# Windows and under /opt on *NIX platforms.
 if(WIN32)
-  set(_program_files_env "ProgramFiles")
-  set(_program_files $ENV{${_program_files_env}})
-  set(_program_files_x86_env "ProgramFiles(x86)")
-  set(_program_files_x86 $ENV{${_program_files_x86_env}})
-
-  if(_program_files)
-    list(APPEND _dirs "${_program_files}")
-  endif()
-
-  if(_program_files_x86)
-    list(APPEND _dirs "${_program_files_x86}")
-  endif()
+  foreach(_env "ProgramFiles" "ProgramFiles(x86)")
+    if(ENV{${_env}} AND IS_DIRECTORY "$ENV{${_env}}")
+      list(APPEND _dirs "$ENV{${_env}}")
+    endif()
+  endforeach()
 else()
   list(APPEND _dirs "/opt")
 endif()
@@ -45,14 +43,20 @@ foreach(_dir ${_dirs})
   endforeach()
 endforeach()
 
+if(WIN32)
+  set(_mvn_names "mvn.cmd" "mvn.exe")
+else()
+  set(_mvn_names "mvn")
+endif()
+
 find_program(Maven_EXECUTABLE
-  NAMES mvn
+  NAMES ${_mvn_names}
   HINTS ${_mvn_hints}
   PATHS ${_mvn_paths})
 
 if(Maven_EXECUTABLE)
   execute_process(COMMAND ${Maven_EXECUTABLE} -version
-    RESULT_VARIABLE result
+    RESULT_VARIABLE res
     OUTPUT_VARIABLE var
     ERROR_VARIABLE var
     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -67,8 +71,8 @@ endif()
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Maven
   FOUND_VAR Maven_FOUND
-  REQUIRED_VARS Maven_EXECUTABLE
-  VERSION_VAR Maven_VERSION)
+  VERSION_VAR Maven_VERSION
+  REQUIRED_VARS Maven_EXECUTABLE Maven_VERSION)
 
 mark_as_advanced(Maven_FOUND Maven_EXECUTABLE Maven_VERSION)
 
