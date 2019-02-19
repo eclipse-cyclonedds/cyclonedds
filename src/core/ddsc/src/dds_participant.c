@@ -53,7 +53,7 @@ dds_participant_delete(
 
     assert(e);
     assert(thr);
-    assert(dds_entity_kind_from_handle(e->m_hdl) == DDS_KIND_PARTICIPANT);
+    assert(dds_entity_kind(e) == DDS_KIND_PARTICIPANT);
 
     if (asleep) {
       thread_state_awake(thr);

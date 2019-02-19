@@ -168,7 +168,7 @@ dds_read_impl(
     /* read/take resets data available status */
     dds_entity_status_reset(&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
     /* reset DATA_ON_READERS status on subscriber after successful read/take */
-    if (dds_entity_kind_from_handle(rd->m_entity.m_parent->m_hdl) == DDS_KIND_SUBSCRIBER) {
+    if (dds_entity_kind(rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER) {
         dds_entity_status_reset(rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
     }
     dds_read_unlock(rd, cond);
@@ -225,7 +225,7 @@ dds_readcdr_impl(
 
       /* reset DATA_ON_READERS status on subscriber after successful read/take */
 
-      if (dds_entity_kind_from_handle(rd->m_entity.m_parent->m_hdl) == DDS_KIND_SUBSCRIBER)
+      if (dds_entity_kind(rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER)
       {
         dds_entity_status_reset(rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
       }

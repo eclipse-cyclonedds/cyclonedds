@@ -42,7 +42,7 @@ CU_Test(ddsc_publisher, create)
 
   /* Use NULL participant */
   publisher = dds_create_publisher(0, NULL, NULL);
-  CU_ASSERT_EQUAL_FATAL(dds_err_nr(publisher), DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQUAL_FATAL(dds_err_nr(publisher), DDS_RETCODE_PRECONDITION_NOT_MET);
 
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_FATAL(participant >  0);
@@ -143,21 +143,21 @@ CU_Test(ddsc_publisher, suspend_resume)
 
   /* Suspend a 0 publisher */
   status = dds_suspend(0);
-  cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+  cu_assert_status_eq(status, DDS_RETCODE_PRECONDITION_NOT_MET);
 
   /* Resume a 0 publisher */
   status = dds_resume(0);
-  cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+  cu_assert_status_eq(status, DDS_RETCODE_PRECONDITION_NOT_MET);
 
   /* Uae dds_suspend on something else than a publisher */
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_FATAL(participant > 0);
   status = dds_suspend(participant);
-  cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+  cu_assert_status_eq(status, DDS_RETCODE_ILLEGAL_OPERATION);
 
   /* Use dds_resume on something else than a publisher */
   status = dds_resume(participant);
-  cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+  cu_assert_status_eq(status, DDS_RETCODE_ILLEGAL_OPERATION);
 
   /* Use dds_resume without calling dds_suspend */
   publisher = dds_create_publisher(participant, NULL, NULL);
@@ -193,15 +193,15 @@ CU_Test(ddsc_publisher, wait_for_acks)
 
   /* Wait_for_acks on NULL publisher or writer and zeroSec timeout */
   status = dds_wait_for_acks(0, zeroSec);
-  cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+  cu_assert_status_eq(status, DDS_RETCODE_PRECONDITION_NOT_MET);
 
   /* wait_for_acks on NULL publisher or writer and oneSec timeout */
   status = dds_wait_for_acks(0, oneSec);
-  cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+  cu_assert_status_eq(status, DDS_RETCODE_PRECONDITION_NOT_MET);
 
   /* wait_for_acks on NULL publisher or writer and DDS_INFINITE timeout */
   status = dds_wait_for_acks(0, DDS_INFINITY);
-  cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+  cu_assert_status_eq(status, DDS_RETCODE_PRECONDITION_NOT_MET);
 
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_FATAL(participant > 0);
@@ -212,22 +212,23 @@ CU_Test(ddsc_publisher, wait_for_acks)
 
   /* Wait_for_acks on participant and zeroSec timeout */
   status = dds_wait_for_acks(participant, zeroSec);
-  cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+  cu_assert_status_eq(status, DDS_RETCODE_ILLEGAL_OPERATION);
 
   /* Wait_for_acks on participant and oneSec timeout */
   status = dds_wait_for_acks(participant, oneSec);
-  cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+  cu_assert_status_eq(status, DDS_RETCODE_ILLEGAL_OPERATION);
 
   /* Wait_for_acks on participant and DDS_INFINITE timeout */
   status = dds_wait_for_acks(participant, DDS_INFINITY);
-  cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+  cu_assert_status_eq(status, DDS_RETCODE_ILLEGAL_OPERATION);
 
   publisher = dds_create_publisher(participant, NULL, NULL);
   CU_ASSERT_FATAL(publisher > 0);
 
-  /* Wait_for_acks on publisher and minusOneSec timeout */
+  /* Wait_for_acks on publisher and minusOneSec timeout --
+     either BAD_PARAMETER or UNSUPPORTED would be both be ok, really */
   status = dds_wait_for_acks(publisher, minusOneSec);
-  cu_assert_status_eq(status, DDS_RETCODE_UNSUPPORTED);
+  cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
 
   /* Wait_for_acks on publisher and zeroSec timeout */
   status = dds_wait_for_acks(publisher, zeroSec);
@@ -248,7 +249,7 @@ CU_Test(ddsc_publisher, wait_for_acks)
 
   /* Wait_for_acks on suspended publisher and minusOneSec timeout */
   status = dds_wait_for_acks(publisher, minusOneSec);
-  cu_assert_status_eq(status, DDS_RETCODE_UNSUPPORTED);
+  cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
 
   /* Wait_for_acks on suspended publisher and zeroSec timeout */
   status = dds_wait_for_acks(publisher, zeroSec);

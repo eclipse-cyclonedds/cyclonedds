@@ -72,21 +72,12 @@ DDS_EXPORT inline bool dds_entity_status_match (const dds_entity *e, uint32_t t)
 }
 
 DDS_EXPORT inline dds_entity_kind_t dds_entity_kind (const dds_entity *e) {
-  return (dds_entity_kind_t) (e->m_hdl & DDS_ENTITY_KIND_MASK);
-}
-
-DDS_EXPORT inline dds_entity_kind_t dds_entity_kind_from_handle (dds_entity_t hdl) {
-  return (hdl > 0) ? (dds_entity_kind_t) (hdl & DDS_ENTITY_KIND_MASK) : DDS_KIND_DONTCARE;
+  return e->m_kind;
 }
 
 DDS_EXPORT void dds_entity_status_signal (dds_entity *e);
 
 DDS_EXPORT void dds_entity_invoke_listener (const dds_entity *entity, enum dds_status_id which, const void *vst);
-
-_Check_return_ DDS_EXPORT dds__retcode_t
-dds_valid_hdl(
-        _In_ dds_entity_t hdl,
-        _In_ dds_entity_kind_t kind);
 
 _Acquires_exclusive_lock_(*e)
 _Check_return_ DDS_EXPORT dds__retcode_t
@@ -128,13 +119,21 @@ dds_delete_impl(
         _In_ dds_entity_t entity,
         _In_ bool keep_if_explicit);
 
-DDS_EXPORT const char *
-dds__entity_kind_str(
-        _In_ dds_entity_t e);
-
 DDS_EXPORT dds_domain *
 dds__entity_domain(
         _In_ dds_entity* e);
+
+DDS_EXPORT dds_return_t
+dds_generic_unimplemented_operation_manykinds(
+        dds_entity_t handle,
+        size_t nkinds,
+        const dds_entity_kind_t *kinds);
+
+DDS_EXPORT dds_return_t
+dds_generic_unimplemented_operation(
+        dds_entity_t handle,
+        dds_entity_kind_t kind);
+
 
 #if defined (__cplusplus)
 }

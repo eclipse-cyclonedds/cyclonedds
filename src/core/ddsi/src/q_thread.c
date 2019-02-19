@@ -112,56 +112,45 @@ cleanup_thread_state(
     os_osExit();
 }
 
-_Ret_valid_ struct thread_state1 *
-lookup_thread_state(
-    void)
-{
-    struct thread_state1 *ts1 = NULL;
-    char tname[128];
-    os_threadId tid;
-
-    if ((ts1 = tsd_thread_state) == NULL) {
-        if ((ts1 = lookup_thread_state_real()) == NULL) {
-            /* this situation only arises for threads that were not created
-               using create_thread, aka application threads. since registering
-               thread state should be fully automatic the name will simply be
-               the identifier */
-            tid = os_threadIdSelf();
-            (void)snprintf(
-                tname, sizeof(tname), "0x%"PRIxMAX, os_threadIdToInteger(tid));
-            os_mutexLock(&thread_states.lock);
-            ts1 = init_thread_state(tname);
-            if (ts1 != NULL) {
-                os_osInit();
-                ts1->extTid = tid;
-                ts1->tid = tid;
-                DDS_LOG(DDS_LC_TRACE, "started application thread %s\n", tname);
-                os_threadCleanupPush(&cleanup_thread_state, NULL);
-            }
-            os_mutexUnlock(&thread_states.lock);
-        }
-
-        tsd_thread_state = ts1;
-    }
-
-    assert(ts1 != NULL);
-
-    return ts1;
-}
-
-_Success_(return != NULL) _Ret_maybenull_
 struct thread_state1 *lookup_thread_state_real (void)
 {
-  if (thread_states.ts) {
-    os_threadId tid = os_threadIdSelf ();
-    unsigned i;
-    for (i = 0; i < thread_states.nthreads; i++) {
-      if (os_threadEqual (thread_states.ts[i].tid, tid)) {
-        return &thread_states.ts[i];
-      }
+  struct thread_state1 *ts1;
+  unsigned i;
+
+  assert (tsd_thread_state == NULL);
+
+  /* Library not initialised: try to not crash out of civility to the application */
+  if (thread_states.ts == NULL)
+    return NULL;
+
+  /* this situation only arises for threads that were not created
+     using create_thread, aka application threads. since registering
+     thread state should be fully automatic the name will simply be
+     the identifier */
+  const os_threadId tid = os_threadIdSelf ();
+
+  os_mutexLock (&thread_states.lock);
+  for (i = 0; i < thread_states.nthreads; i++)
+    if (os_threadEqual (thread_states.ts[i].tid, tid))
+      break;
+  if (i < thread_states.nthreads)
+    ts1 = &thread_states.ts[i];
+  else
+  {
+    char tname[128];
+    (void) snprintf (tname, sizeof (tname), "0x%"PRIxMAX, os_threadIdToInteger (tid));
+    ts1 = init_thread_state (tname);
+    if (ts1 != NULL) {
+      os_osInit ();
+      ts1->extTid = tid;
+      ts1->tid = tid;
+      DDS_LOG (DDS_LC_TRACE, "started application thread %s\n", tname);
+      os_threadCleanupPush (&cleanup_thread_state, NULL);
     }
   }
-  return NULL;
+  os_mutexUnlock(&thread_states.lock);
+  tsd_thread_state = ts1;
+  return ts1;
 }
 
 struct thread_context {
@@ -173,6 +162,7 @@ struct thread_context {
 static uint32_t create_thread_wrapper (_In_ _Post_invalid_ struct thread_context *ctxt)
 {
   uint32_t ret;
+  tsd_thread_state = ctxt->self;
   ctxt->self->tid = os_threadIdSelf ();
   ret = ctxt->f (ctxt->arg);
   os_free (ctxt);
@@ -221,7 +211,7 @@ const struct config_thread_properties_listelem *lookup_thread_properties (_In_z_
   return e;
 }
 
-struct thread_state1 * init_thread_state (_In_z_ const char *tname)
+struct thread_state1 *init_thread_state (_In_z_ const char *tname)
 {
   int cand;
   struct thread_state1 *ts;

@@ -65,7 +65,7 @@ teardown(void)
 }
 
 static void
-check_default_qos_of_builtin_entity(dds_entity_t entity)
+check_default_qos_of_builtin_entity(dds_entity_t entity, bool isread)
 {
   dds_return_t ret;
   int64_t deadline;
@@ -112,8 +112,7 @@ check_default_qos_of_builtin_entity(dds_entity_t entity)
   dds_qget_partition(qos, &plen, &partitions);
   // no getter for ENTITY_FACTORY
 
-  CU_ASSERT_FATAL((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_SUBSCRIBER || (entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_READER);
-  if ((entity & DDS_ENTITY_KIND_MASK) == DDS_KIND_SUBSCRIBER) {
+  if (!isread) {
       CU_ASSERT_FATAL(plen == 1);
       CU_ASSERT_STRING_EQUAL_FATAL(partitions[0], "__BUILT-IN PARTITION__");
   } else {
@@ -305,9 +304,9 @@ CU_Test(ddsc_builtin_topics, builtin_qos, .init = setup, .fini = teardown)
 
   dds_sub_rdr = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL);
   CU_ASSERT_FATAL(dds_sub_rdr > 0);
-  check_default_qos_of_builtin_entity(dds_sub_rdr);
+  check_default_qos_of_builtin_entity(dds_sub_rdr, 1);
 
   dds_sub_subscriber = dds_get_parent(dds_sub_rdr);
   CU_ASSERT_FATAL(dds_sub_subscriber > 0);
-  check_default_qos_of_builtin_entity(dds_sub_subscriber);
+  check_default_qos_of_builtin_entity(dds_sub_subscriber, 0);
 }

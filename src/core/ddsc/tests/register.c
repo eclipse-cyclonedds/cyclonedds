@@ -148,7 +148,7 @@ CU_Test(ddsc_register_instance, deleted_entity, .init=registering_init, .fini=re
     dds_instance_handle_t handle;
     dds_delete(g_writer);
     ret = dds_register_instance(g_writer, &handle, g_data);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 
 static dds_instance_handle_t hndle = 0;
@@ -171,7 +171,7 @@ CU_Theory((dds_instance_handle_t *hndl2, void *datap), ddsc_register_instance, i
 }
 
 CU_TheoryDataPoints(ddsc_register_instance, invalid_writers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t writer), ddsc_register_instance, invalid_writers, .init=registering_init, .fini=registering_fini)
 {

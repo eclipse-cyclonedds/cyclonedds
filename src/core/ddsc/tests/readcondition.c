@@ -224,13 +224,13 @@ CU_Test(ddsc_readcondition_create, deleted_reader, .init=readcondition_init, .fi
     dds_entity_t cond;
     dds_delete(g_reader);
     cond = dds_create_readcondition(g_reader, mask);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(cond), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(cond), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_readcondition_create, invalid_readers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t rdr), ddsc_readcondition_create, invalid_readers, .init=readcondition_init, .fini=readcondition_fini)
 {
@@ -276,7 +276,7 @@ CU_Test(ddsc_readcondition_get_mask, deleted, .init=readcondition_init, .fini=re
     dds_delete(condition);
     mask = 0;
     ret = dds_get_mask(condition, &mask);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -298,7 +298,7 @@ CU_Test(ddsc_readcondition_get_mask, null, .init=readcondition_init, .fini=readc
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_readcondition_get_mask, invalid_conditions) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t cond), ddsc_readcondition_get_mask, invalid_conditions, .init=readcondition_init, .fini=readcondition_fini)
 {
@@ -903,7 +903,7 @@ CU_Test(ddsc_readcondition_read, already_deleted, .init=readcondition_init, .fin
 
     /* Try to read with a deleted condition. */
     ret = dds_read(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -1459,7 +1459,7 @@ CU_Test(ddsc_readcondition_take, already_deleted, .init=readcondition_init, .fin
 
     /* Try to take with a deleted condition. */
     ret = dds_take(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 

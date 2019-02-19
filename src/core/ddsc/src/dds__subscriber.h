@@ -13,12 +13,13 @@
 #define _DDS_SUBSCRIBER_H_
 
 #include "ddsc/dds.h"
+#include "dds__entity.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-struct dds_entity;
+DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_subscriber, DDS_KIND_SUBSCRIBER)
 
 _Requires_exclusive_lock_held_(participant)
 _Check_return_ dds_entity_t

@@ -12,10 +12,13 @@
 #include <assert.h>
 #include <string.h>
 #include "dds__listener.h"
+#include "dds__publisher.h"
 #include "dds__qos.h"
 #include "dds__err.h"
 #include "ddsi/q_entity.h"
 #include "ddsc/ddsc_project.h"
+
+DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_publisher)
 
 #define DDS_PUBLISHER_STATUS_MASK   0u
 
@@ -147,18 +150,7 @@ DDS_EXPORT dds_return_t
 dds_suspend(
         _In_ dds_entity_t publisher)
 {
-    dds_return_t ret;
-
-    if(dds_entity_kind_from_handle(publisher) != DDS_KIND_PUBLISHER) {
-        DDS_ERROR("Provided entity is not a publisher kind\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
-        goto err;
-    }
-    /* TODO: CHAM-123 Currently unsupported. */
-    DDS_ERROR("Suspend publication operation does not being supported yet\n");
-    ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
-err:
-    return ret;
+  return dds_generic_unimplemented_operation (publisher, DDS_KIND_PUBLISHER);
 }
 
 
@@ -167,18 +159,7 @@ dds_return_t
 dds_resume(
         _In_ dds_entity_t publisher)
 {
-    dds_return_t ret = DDS_RETCODE_OK;
-
-    if(dds_entity_kind_from_handle(publisher) != DDS_KIND_PUBLISHER) {
-        DDS_ERROR("Provided entity is not a publisher kind\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
-        goto err;
-    }
-    /* TODO: CHAM-123 Currently unsupported. */
-    DDS_ERROR("Suspend publication operation does not being supported yet\n");
-    ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
-err:
-    return ret;
+  return dds_generic_unimplemented_operation (publisher, DDS_KIND_PUBLISHER);
 }
 
 
@@ -189,27 +170,10 @@ dds_wait_for_acks(
         _In_ dds_entity_t publisher_or_writer,
         _In_ dds_duration_t timeout)
 {
-    dds_return_t ret;
-
-    /* TODO: CHAM-125 Currently unsupported. */
-    OS_UNUSED_ARG(timeout);
-
-    switch(dds_entity_kind_from_handle(publisher_or_writer)) {
-        case DDS_KIND_WRITER:
-            DDS_ERROR("Wait for acknowledgments on a writer is not being supported yet\n");
-            ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
-            break;
-        case DDS_KIND_PUBLISHER:
-            DDS_ERROR("Wait for acknowledgments on a publisher is not being supported yet\n");
-            ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
-            break;
-        default:
-            DDS_ERROR("Provided entity is not a publisher nor a writer\n");
-            ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
-            break;
-    }
-
-    return ret;
+  if (timeout < 0)
+    return DDS_ERRNO (DDS_RETCODE_BAD_PARAMETER);
+  static const dds_entity_kind_t kinds[] = { DDS_KIND_WRITER, DDS_KIND_PUBLISHER };
+  return dds_generic_unimplemented_operation_manykinds (publisher_or_writer, sizeof (kinds) / sizeof (kinds[0]), kinds);
 }
 
 dds_return_t

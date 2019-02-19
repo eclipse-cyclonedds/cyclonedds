@@ -11,5 +11,5 @@
 #
 include(CUnit)
 
-add_cunit_executable(CUnit_util "handleserver.c")
-target_link_libraries(CUnit_util util)
+#add_cunit_executable(CUnit_util "handleserver.c")
+#target_link_libraries(CUnit_util util)

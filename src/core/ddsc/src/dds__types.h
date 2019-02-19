@@ -16,9 +16,9 @@
 
 #include "os/os.h"
 #include "ddsc/dds.h"
+#include "dds__handles.h"
 #include "ddsi/q_rtps.h"
 #include "util/ut_avl.h"
-#include "util/ut_handleserver.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -127,7 +127,8 @@ dds_entity_observer;
 
 typedef struct dds_entity
 {
-  ut_handle_t m_hdl;
+  dds_handle_t m_hdl;
+  dds_entity_kind_t m_kind;
   dds_entity_deriver m_deriver;
   uint32_t m_refc;
   struct dds_entity * m_next;
@@ -150,7 +151,7 @@ typedef struct dds_entity
   uint32_t m_cb_count;
   dds_entity_observer *m_observers;
 
-  struct ut_handlelink *m_hdllink;
+  struct dds_handle_link *m_hdllink;
 }
 dds_entity;
 

@@ -93,7 +93,6 @@ DDS_EXPORT void upgrade_main_thread (void);
 DDS_EXPORT void downgrade_main_thread (void);
 DDS_EXPORT const struct config_thread_properties_listelem *lookup_thread_properties (const char *name);
 DDS_EXPORT struct thread_state1 *create_thread (const char *name, uint32_t (*f) (void *arg), void *arg);
-DDS_EXPORT struct thread_state1 *lookup_thread_state (void);
 DDS_EXPORT struct thread_state1 *lookup_thread_state_real (void);
 DDS_EXPORT int join_thread (_Inout_ struct thread_state1 *ts1);
 DDS_EXPORT void log_stack_traces (void);
@@ -101,6 +100,13 @@ DDS_EXPORT struct thread_state1 *get_thread_state (_In_ os_threadId id);
 DDS_EXPORT struct thread_state1 * init_thread_state (_In_z_ const char *tname);
 DDS_EXPORT void reset_thread_state (_Inout_opt_ struct thread_state1 *ts1);
 DDS_EXPORT int thread_exists (_In_z_ const char *name);
+
+DDS_EXPORT inline struct thread_state1 *lookup_thread_state (void)
+{
+  if (tsd_thread_state != NULL)
+    return tsd_thread_state;
+  return lookup_thread_state_real ();
+}
 
 DDS_EXPORT inline int vtime_awake_p (_In_ vtime_t vtime)
 {

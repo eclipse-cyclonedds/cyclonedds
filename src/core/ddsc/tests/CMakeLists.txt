@@ -24,7 +24,6 @@ set(ddsc_test_sources
     "entity_hierarchy.c"
     "entity_status.c"
     "err.c"
-    "file_id.c"
     "instance_get_key.c"
     "listener.c"
     "participant.c"

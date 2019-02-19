@@ -72,10 +72,10 @@ DDS_EXPORT dds_domainid_t dds_domain_default (void);
  *
  * @{
  */
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSPARTICIPANT;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSTOPIC;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSPUBLICATION;
-extern DDS_EXPORT const dds_entity_t DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION;
+#define DDS_BUILTIN_TOPIC_DCPSPARTICIPANT  ((dds_entity_t) 0x40000001)
+#define DDS_BUILTIN_TOPIC_DCPSTOPIC        ((dds_entity_t) 0x40000002)
+#define DDS_BUILTIN_TOPIC_DCPSPUBLICATION  ((dds_entity_t) 0x40000003)
+#define DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION ((dds_entity_t) 0x40000004)
 /** @}*/
 
 /** @name Communication Status definitions

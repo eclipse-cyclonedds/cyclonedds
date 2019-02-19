@@ -312,7 +312,7 @@ CU_Test(ddsc_topic_get_name, deleted, .init=ddsc_topic_init, .fini=ddsc_topic_fi
     dds_return_t ret;
     dds_delete(g_topicRtmDataType);
     ret = dds_get_name(g_topicRtmDataType, name, MAX_NAME_SIZE);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -385,7 +385,7 @@ CU_Test(ddsc_topic_get_type_name, deleted, .init=ddsc_topic_init, .fini=ddsc_top
     dds_return_t ret;
     dds_delete(g_topicRtmDataType);
     ret = dds_get_type_name(g_topicRtmDataType, name, MAX_NAME_SIZE);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 

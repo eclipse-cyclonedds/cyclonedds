@@ -150,7 +150,7 @@ CU_Test(ddsc_unregister_instance, deleted, .init=unregistering_init, .fini=unreg
     dds_delete(g_writer);
 
     ret = dds_unregister_instance(g_writer, g_data);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -165,7 +165,7 @@ CU_Test(ddsc_unregister_instance, null, .init=unregistering_init, .fini=unregist
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_unregister_instance, invalid_writers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t writer), ddsc_unregister_instance, invalid_writers, .init=unregistering_init, .fini=unregistering_fini)
 {
@@ -244,7 +244,7 @@ CU_Test(ddsc_unregister_instance_ts, deleted, .init=unregistering_init, .fini=un
     dds_return_t ret;
     dds_delete(g_writer);
     ret = dds_unregister_instance_ts(g_writer, g_data, g_present);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -259,7 +259,7 @@ CU_Test(ddsc_unregister_instance_ts, null, .init=unregistering_init, .fini=unreg
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_unregister_instance_ts, invalid_writers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t writer), ddsc_unregister_instance_ts, invalid_writers, .init=unregistering_init, .fini=unregistering_fini)
 {
@@ -381,7 +381,7 @@ CU_Test(ddsc_unregister_instance_ih, deleted, .init=unregistering_init, .fini=un
     dds_return_t ret;
     dds_delete(g_writer);
     ret = dds_unregister_instance_ih(g_writer, DDS_HANDLE_NIL);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -399,7 +399,7 @@ CU_Theory((dds_instance_handle_t handle), ddsc_unregister_instance_ih, invalid_h
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_unregister_instance_ih, invalid_writers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t writer), ddsc_unregister_instance_ih, invalid_writers, .init=unregistering_init, .fini=unregistering_fini)
 {
@@ -479,7 +479,7 @@ CU_Test(ddsc_unregister_instance_ih_ts, deleted, .init=unregistering_init, .fini
     dds_return_t ret;
     dds_delete(g_writer);
     ret = dds_unregister_instance_ih_ts(g_writer, DDS_HANDLE_NIL, g_present);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -497,7 +497,7 @@ CU_Theory((dds_instance_handle_t handle), ddsc_unregister_instance_ih_ts, invali
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_unregister_instance_ih_ts, invalid_writers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t writer), ddsc_unregister_instance_ih_ts, invalid_writers, .init=unregistering_init, .fini=unregistering_fini)
 {

@@ -50,7 +50,7 @@ setup(void)
     CU_ASSERT_FATAL(e[REA] > 0);
     e[RCD] = dds_create_readcondition(e[REA], DDS_ANY_STATE);
     CU_ASSERT_FATAL(e[RCD] > 0);
-    e[BAD] = 1;
+    e[BAD] = 314159265;
 }
 
 static void
@@ -104,7 +104,7 @@ CU_Test(ddsc_unsupported, dds_suspend_resume, .init = setup, .fini = teardown)
     dds_return_t result;
     static struct index_result pars[] = {
         {PUB, DDS_RETCODE_UNSUPPORTED},
-        {WRI, DDS_RETCODE_BAD_PARAMETER},
+        {WRI, DDS_RETCODE_ILLEGAL_OPERATION},
         {BAD, DDS_RETCODE_BAD_PARAMETER}
     };
 

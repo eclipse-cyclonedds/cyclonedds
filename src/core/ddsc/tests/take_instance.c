@@ -445,7 +445,7 @@ CU_Theory((dds_entity_t *rdr, dds_instance_handle_t hdl), ddsc_take_instance_mas
  *************************************************************************************************/
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_take_instance, invalid_readers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t rdr), ddsc_take_instance, invalid_readers, .init=take_instance_init, .fini=take_instance_fini)
 {
@@ -459,7 +459,7 @@ CU_Theory((dds_entity_t rdr), ddsc_take_instance, invalid_readers, .init=take_in
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_take_instance_wl, invalid_readers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t rdr), ddsc_take_instance_wl, invalid_readers, .init=take_instance_init, .fini=take_instance_fini)
 {
@@ -473,7 +473,7 @@ CU_Theory((dds_entity_t rdr), ddsc_take_instance_wl, invalid_readers, .init=take
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_take_instance_mask, invalid_readers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t rdr), ddsc_take_instance_mask, invalid_readers, .init=take_instance_init, .fini=take_instance_fini)
 {
@@ -488,7 +488,7 @@ CU_Theory((dds_entity_t rdr), ddsc_take_instance_mask, invalid_readers, .init=ta
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_take_instance_mask_wl, invalid_readers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, 1, 100, INT_MAX, INT_MIN),
+        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
 CU_Theory((dds_entity_t rdr), ddsc_take_instance_mask_wl, invalid_readers, .init=take_instance_init, .fini=take_instance_fini)
 {
@@ -581,7 +581,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_instance, already_deleted, .init=take_i
     ret = dds_delete(*rdr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_take_instance(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_hdl_valid);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -595,7 +595,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_instance_wl, already_deleted, .init=tak
     ret = dds_delete(*rdr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_take_instance_wl(*rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -610,7 +610,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_instance_mask, already_deleted, .init=t
     ret = dds_delete(*rdr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_take_instance_mask(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_hdl_valid, mask);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -625,7 +625,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_instance_mask_wl, already_deleted, .ini
     ret = dds_delete(*rdr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_take_instance_mask_wl(*rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid, mask);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
