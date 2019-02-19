@@ -39,9 +39,9 @@ dds_create_querycondition(
         const bool success = (cond->m_entity.m_deriver.delete != 0);
         dds_reader_unlock(r);
         if (success) {
-            hdl = cond->m_entity.m_hdl;
+            hdl = cond->m_entity.m_hdllink.hdl;
         } else {
-            dds_delete (cond->m_entity.m_hdl);
+            dds_delete (cond->m_entity.m_hdllink.hdl);
             hdl = DDS_ERRNO(DDS_RETCODE_OUT_OF_RESOURCES);
         }
     } else {

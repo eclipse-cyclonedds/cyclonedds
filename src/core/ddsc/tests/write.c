@@ -95,7 +95,7 @@ CU_Test(ddsc_write, closed_writer, .init = setup, .fini = teardown)
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_OK);
     status = dds_write(writer, &data);
     writer = 0;
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_write, null_sample, .init = setup, .fini = teardown)

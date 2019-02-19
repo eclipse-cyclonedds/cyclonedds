@@ -83,7 +83,7 @@ CU_Test(ddsc_create_writer, deleted_publisher, .init = setup, .fini = teardown)
     dds_delete(publisher);
 
     writer = dds_create_writer(publisher, topic, NULL, NULL);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(writer), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(writer), DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_create_writer, null_topic, .init = setup, .fini = teardown)
@@ -105,5 +105,5 @@ CU_Test(ddsc_create_writer, deleted_topic, .init = setup, .fini = teardown)
     dds_delete(topic);
 
     writer = dds_create_writer(publisher, topic, NULL, NULL);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(writer), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(dds_err_nr(writer), DDS_RETCODE_BAD_PARAMETER);
 }

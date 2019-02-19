@@ -152,7 +152,7 @@ dds_waitset_close_list(
     dds_attachment *next;
     while (idx != NULL) {
         next = idx->next;
-        (void)dds_entity_observer_unregister(idx->entity->m_hdl, waitset);
+        (void)dds_entity_observer_unregister(idx->entity->m_hdllink.hdl, waitset);
         ddsrt_free(idx);
         idx = next;
     }
@@ -168,7 +168,7 @@ dds_waitset_remove_from_list(
     dds_attachment *prev = NULL;
 
     while (idx != NULL) {
-        if (idx->entity->m_hdl == observed) {
+        if (idx->entity->m_hdllink.hdl == observed) {
             if (prev == NULL) {
                 *list = idx->next;
             } else {
@@ -191,8 +191,8 @@ dds_waitset_close(
 {
     dds_waitset *ws = (dds_waitset*)e;
 
-    dds_waitset_close_list(&ws->observed,  e->m_hdl);
-    dds_waitset_close_list(&ws->triggered, e->m_hdl);
+    dds_waitset_close_list(&ws->observed,  e->m_hdllink.hdl);
+    dds_waitset_close_list(&ws->triggered, e->m_hdllink.hdl);
 
     /* Trigger waitset to wake up. */
     ddsrt_cond_broadcast(&e->m_cond);
@@ -242,7 +242,7 @@ dds_waitset_get_entities(
         iter = ws->observed;
         while (iter) {
             if (((size_t)ret < size) && (entities != NULL)) {
-                entities[ret] = iter->entity->m_hdl;
+                entities[ret] = iter->entity->m_hdllink.hdl;
             }
             ret++;
             iter = iter->next;
@@ -251,7 +251,7 @@ dds_waitset_get_entities(
         iter = ws->triggered;
         while (iter) {
             if (((size_t)ret < size) && (entities != NULL)) {
-                entities[ret] = iter->entity->m_hdl;
+                entities[ret] = iter->entity->m_hdllink.hdl;
             }
             ret++;
             iter = iter->next;
@@ -275,7 +275,7 @@ dds_waitset_move(
     dds_attachment *idx = *src;
     dds_attachment *prev = NULL;
     while (idx != NULL) {
-        if (idx->entity->m_hdl == entity) {
+        if (idx->entity->m_hdllink.hdl == entity) {
             /* Swap idx from src to dst. */
             dds_waitset_swap(dst, src, prev, idx);
 

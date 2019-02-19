@@ -152,7 +152,6 @@ if(NOT (${USE_SANITIZER} STREQUAL "none"))
   link_libraries(-fno-omit-frame-pointer -fsanitize=${USE_SANITIZER})
 endif()
 
-include(FileIDs)
 include(GNUInstallDirs)
 include(AnalyzeBuild)
 # Include Coverage before CTest so that COVERAGE_COMMAND can be modified

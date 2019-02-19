@@ -40,12 +40,6 @@ const ut_avlTreedef_t dds_topictree_def = UT_AVL_TREEDEF_INITIALIZER_INDKEY
   0
 );
 
-/* builtin-topic handles */
-const dds_entity_t DDS_BUILTIN_TOPIC_DCPSPARTICIPANT = (DDS_KIND_INTERNAL + 1);
-const dds_entity_t DDS_BUILTIN_TOPIC_DCPSTOPIC = (DDS_KIND_INTERNAL + 2);
-const dds_entity_t DDS_BUILTIN_TOPIC_DCPSPUBLICATION = (DDS_KIND_INTERNAL + 3);
-const dds_entity_t DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION = (DDS_KIND_INTERNAL + 4);
-
 static bool
 is_valid_name(
     const char *name)
@@ -198,7 +192,7 @@ dds_find_topic(
             st = dds_topic_lookup_locked (p->m_domain, name);
             if (st) {
                 dds_entity_add_ref (&st->status_cb_entity->m_entity);
-                tp = st->status_cb_entity->m_entity.m_hdl;
+                tp = st->status_cb_entity->m_entity.m_hdllink.hdl;
             } else {
                 DDS_ERROR("Topic is not being created yet\n");
                 tp = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
@@ -370,7 +364,7 @@ dds_create_topic_arbitrary (
             hdl = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
         } else {
             dds_entity_add_ref (&stgeneric->status_cb_entity->m_entity);
-            hdl = stgeneric->status_cb_entity->m_entity.m_hdl;
+            hdl = stgeneric->status_cb_entity->m_entity.m_hdllink.hdl;
         }
         ddsrt_mutex_unlock (&dds_global.m_mutex);
     } else {

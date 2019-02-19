@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ * Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -9,18 +9,19 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef UT_HANDLESERVER_H
-#define UT_HANDLESERVER_H
+#ifndef DDS__HANDLES_H
+#define DDS__HANDLES_H
 
-#include <stdbool.h>
-#include <stdint.h>
-
-#include "dds/export.h"
 #include "dds/ddsrt/time.h"
+#include "dds/ddsrt/retcode.h"
+#include "dds/ddsrt/atomics.h"
+#include "dds/dds.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
+
+struct dds_entity;
 
 /********************************************************************************************
  *
@@ -51,46 +52,8 @@ extern "C" {
  */
 
 
-/*
- * Some error return values.
- */
-typedef enum ut_handle_retcode_t {
-    UT_HANDLE_OK               =  0,
-    UT_HANDLE_ERROR            = -1,     /* General error.                                      */
-    UT_HANDLE_CLOSED           = -2,     /* Handle has been previously close.                   */
-    UT_HANDLE_DELETED          = -3,     /* Handle has been previously deleted.                 */
-    UT_HANDLE_INVALID          = -4,     /* Handle is not a valid handle.                       */
-    UT_HANDLE_UNEQUAL_KIND     = -5,     /* Handle does not contain expected kind.              */
-    UT_HANDLE_TIMEOUT          = -6,     /* Operation timed out.                                */
-    UT_HANDLE_OUT_OF_RESOURCES = -7,     /* Action isn't possible because of limited resources. */
-    UT_HANDLE_NOT_INITALIZED   = -8      /* Not initialized.                                    */
-} ut_handle_retcode_t;
 
-
-/*
- * The 32 bit handle
- *      |  bits |     # values | description                                                 |
- *      --------------------------------------------------------------------------------------
- *      |    31 |            2 | positive/negative (negative can be used to indicate errors) |
- *      | 24-30 |          127 | handle kind       (value determined by client)              |
- *      |  0-23 |   16.777.215 | index or hash     (maintained by the handleserver)          |
- *
- * When the handle is negative, it'll contain a ut_handle_retcode_t error value.
- *
- * FYI: the entity id within DDSI is also 24 bits...
- */
-typedef int32_t ut_handle_t;
-
-/*
- * Handle bits
- *   +kkk kkkk iiii iiii iiii iiii iiii iiii
- * 31|   | 24|                            0|
- */
-#define UT_HANDLE_SIGN_MASK (0x80000000)
-#define UT_HANDLE_KIND_MASK (0x7F000000)
-#define UT_HANDLE_IDX_MASK  (0x00FFFFFF)
-
-#define UT_HANDLE_DONTCARE_KIND (0)
+typedef int32_t dds_handle_t;
 
 /*
  * The handle link type.
@@ -106,14 +69,16 @@ typedef int32_t ut_handle_t;
  * This handlelink is invalid after the related handle is deleted and should
  * never be used afterwards.
  */
-struct ut_handlelink;
-
+struct dds_handle_link {
+  dds_handle_t hdl;
+  ddsrt_atomic_uint32_t cnt_flags;
+};
 
 /*
  * Initialize handleserver singleton.
  */
-DDS_EXPORT ut_handle_retcode_t
-ut_handleserver_init(void);
+DDS_EXPORT dds_return_t
+dds_handle_server_init(void (*free_via_gc) (void *x));
 
 
 /*
@@ -121,7 +86,7 @@ ut_handleserver_init(void);
  * The handleserver is destroyed when fini() is called as often as init().
  */
 DDS_EXPORT void
-ut_handleserver_fini(void);
+dds_handle_server_fini(void);
 
 
 /*
@@ -142,8 +107,9 @@ ut_handleserver_fini(void);
  * Valid handle when returned value is positive.
  * Otherwise negative handle is returned.
  */
-DDS_EXPORT ut_handle_t
-ut_handle_create(int32_t kind, void *arg);
+DDS_EXPORT dds_handle_t
+dds_handle_create(
+        struct dds_handle_link *link);
 
 
 /*
@@ -153,7 +119,8 @@ ut_handle_create(int32_t kind, void *arg);
  * This is a noop on an already closed handle.
  */
 DDS_EXPORT void
-ut_handle_close(ut_handle_t hdl, struct ut_handlelink *link);
+dds_handle_close(
+        struct dds_handle_link *link);
 
 
 /*
@@ -165,23 +132,10 @@ ut_handle_close(ut_handle_t hdl, struct ut_handlelink *link);
  * It will delete the information when there are no more active claims. It'll
  * block when necessary to wait for all possible claims to be released.
  */
-DDS_EXPORT ut_handle_retcode_t
-ut_handle_delete(
-    ut_handle_t hdl,
-    struct ut_handlelink *link,
-    dds_time_t timeout);
-
-
-/*
- * Returns the status the given handle; valid/deleted/closed/etc.
- *
- * Returns OK when valid.
- */
-ut_handle_retcode_t
-ut_handle_status(
-    ut_handle_t hdl,
-    struct ut_handlelink *link,
-    int32_t kind);
+DDS_EXPORT int32_t
+dds_handle_delete(
+        struct dds_handle_link *link,
+        dds_time_t timeout);
 
 
 /*
@@ -190,21 +144,23 @@ ut_handle_status(
  *
  * Returns OK when succeeded.
  */
-DDS_EXPORT ut_handle_retcode_t
-ut_handle_claim(
-    ut_handle_t hdl,
-    struct ut_handlelink *link,
-    int32_t kind,
-    void **arg);
+DDS_EXPORT int32_t
+dds_handle_claim(
+        dds_handle_t hdl,
+        struct dds_handle_link **entity);
+
+
+DDS_EXPORT void
+dds_handle_claim_inc(
+        struct dds_handle_link *link);
 
 
 /*
  * The active claims count is decreased.
  */
 DDS_EXPORT void
-ut_handle_release(
-    ut_handle_t hdl,
-    struct ut_handlelink *link);
+dds_handle_release(
+        struct dds_handle_link *link);
 
 
 /*
@@ -217,21 +173,12 @@ ut_handle_release(
  * possible.
  */
 DDS_EXPORT bool
-ut_handle_is_closed(
-    ut_handle_t hdl,
-    struct ut_handlelink *link);
+dds_handle_is_closed(
+        struct dds_handle_link *link);
 
-
-/*
- * This will get the link of the handle, which can be used for performance
- * increase.
- */
-DDS_EXPORT struct ut_handlelink*
-ut_handle_get_link(
-    ut_handle_t hdl);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* UT_HANDLESERVER_H */
+#endif /* DDS__HANDLES_H */

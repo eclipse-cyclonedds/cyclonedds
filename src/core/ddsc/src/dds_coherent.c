@@ -21,52 +21,14 @@ dds_return_t
 dds_begin_coherent(
   dds_entity_t entity)
 {
-  dds_return_t ret;
-
-  switch(dds_entity_kind_from_handle(entity)) {
-    case DDS_KIND_READER:
-    case DDS_KIND_WRITER:
-      /* Invoking on a writer/reader behaves as if invoked on
-       * its parent publisher/subscriber. */
-      ret = dds_begin_coherent(dds_get_parent(entity));
-      break;
-    case DDS_KIND_PUBLISHER:
-      ret = dds_publisher_begin_coherent(entity);
-      break;
-    case DDS_KIND_SUBSCRIBER:
-      ret = dds_subscriber_begin_coherent(entity);
-      break;
-    default:
-      DDS_ERROR("Given entity can not control coherency\n");
-      ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
-      break;
-  }
-  return ret;
+  static const dds_entity_kind_t kinds[] = { DDS_KIND_READER, DDS_KIND_WRITER, DDS_KIND_PUBLISHER, DDS_KIND_SUBSCRIBER };
+  return dds_generic_unimplemented_operation_manykinds (entity, sizeof (kinds) / sizeof (kinds[0]), kinds);
 }
 
 dds_return_t
 dds_end_coherent(
   dds_entity_t entity)
 {
-  dds_return_t ret;
-
-  switch(dds_entity_kind_from_handle(entity)) {
-    case DDS_KIND_READER:
-    case DDS_KIND_WRITER:
-      /* Invoking on a writer/reader behaves as if invoked on
-       * its parent publisher/subscriber. */
-      ret = dds_end_coherent(dds_get_parent(entity));
-      break;
-    case DDS_KIND_PUBLISHER:
-      ret = dds_publisher_end_coherent(entity);
-      break;
-    case DDS_KIND_SUBSCRIBER:
-      ret = dds_subscriber_end_coherent(entity);
-      break;
-    default:
-      DDS_ERROR("Given entity can not control coherency\n");
-      ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
-      break;
-  }
-  return ret;
+  static const dds_entity_kind_t kinds[] = { DDS_KIND_READER, DDS_KIND_WRITER, DDS_KIND_PUBLISHER, DDS_KIND_SUBSCRIBER };
+  return dds_generic_unimplemented_operation_manykinds (entity, sizeof (kinds) / sizeof (kinds[0]), kinds);
 }
