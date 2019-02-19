@@ -249,7 +249,6 @@ struct rhc_instance {
   unsigned isnew : 1;          /* NEW or NOT_NEW view state */
   unsigned a_sample_free : 1;  /* whether or not a_sample is in use */
   unsigned isdisposed : 1;     /* DISPOSED or NOT_DISPOSED (if not disposed, wrcount determines ALIVE/NOT_ALIVE_NO_WRITERS) */
-  unsigned has_changed : 1;    /* To track changes in an instance - if number of samples are added or data is overwritten */
   unsigned wr_iid_islive : 1;  /* whether wr_iid is of a live writer */
   unsigned inv_exists : 1;     /* whether or not state change occurred since last sample (i.e., must return invalid sample) */
   unsigned inv_isread : 1;     /* whether or not that state change has been read before */
@@ -312,7 +311,6 @@ struct trigger_info_cmn {
   unsigned qminst;
   bool has_read;
   bool has_not_read;
-  bool has_changed;
 };
 
 struct trigger_info_pre {
@@ -551,7 +549,7 @@ static void inst_clear_invsample_if_exists (struct rhc *rhc, struct rhc_instance
     inst_clear_invsample (rhc, inst, trig_qc);
 }
 
-static void inst_set_invsample (struct rhc *rhc, struct rhc_instance *inst, struct trigger_info_qcond *trig_qc)
+static void inst_set_invsample (struct rhc *rhc, struct rhc_instance *inst, struct trigger_info_qcond *trig_qc, bool *nda)
 {
   if (!inst->inv_exists || inst->inv_isread)
   {
@@ -562,6 +560,7 @@ static void inst_set_invsample (struct rhc *rhc, struct rhc_instance *inst, stru
     inst->inv_exists = 1;
     inst->inv_isread = 0;
     rhc->n_invsamples++;
+    *nda = true;
   }
 }
 
@@ -650,7 +649,6 @@ static void init_trigger_info_cmn_nonmatch (struct trigger_info_cmn *info)
   info->qminst = ~0u;
   info->has_read = false;
   info->has_not_read = false;
-  info->has_changed = false;
 }
 
 static void get_trigger_info_cmn (struct trigger_info_cmn *info, struct rhc_instance *inst)
@@ -658,12 +656,10 @@ static void get_trigger_info_cmn (struct trigger_info_cmn *info, struct rhc_inst
   info->qminst = qmask_of_inst (inst);
   info->has_read = inst_has_read (inst);
   info->has_not_read = inst_has_unread (inst);
-  info->has_changed = inst->has_changed;
 }
 
 static void get_trigger_info_pre (struct trigger_info_pre *info, struct rhc_instance *inst)
 {
-  inst->has_changed = 0;
   get_trigger_info_cmn (&info->c, inst);
 }
 
@@ -679,15 +675,19 @@ static void init_trigger_info_qcond (struct trigger_info_qcond *qc)
   qc->inc_conds_sample = 0;
 }
 
-static bool trigger_info_differs (const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc)
+static bool trigger_info_differs (const struct rhc *rhc, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc)
 {
-  return (pre->c.qminst != post->c.qminst ||
-          pre->c.has_read != post->c.has_read ||
-          pre->c.has_not_read != post->c.has_not_read ||
-          pre->c.has_changed != post->c.has_changed ||
-          trig_qc->dec_conds_invsample != trig_qc->inc_conds_invsample ||
-          trig_qc->dec_conds_sample != trig_qc->inc_conds_sample ||
-          trig_qc->dec_invsample_read != trig_qc->inc_invsample_read);
+  if (pre->c.qminst != post->c.qminst ||
+      pre->c.has_read != post->c.has_read ||
+      pre->c.has_not_read != post->c.has_not_read)
+    return true;
+  else if (rhc->nqconds == 0)
+    return false;
+  else
+    return (trig_qc->dec_conds_invsample != trig_qc->inc_conds_invsample ||
+            trig_qc->dec_conds_sample != trig_qc->inc_conds_sample ||
+            trig_qc->dec_invsample_read != trig_qc->inc_invsample_read ||
+            trig_qc->dec_sample_read != trig_qc->inc_sample_read);
 }
 
 static bool add_sample (struct rhc *rhc, struct rhc_instance *inst, const struct proxy_writer_info *pwr_info, const struct ddsi_serdata *sample, status_cb_data_t *cb_data, struct trigger_info_qcond *trig_qc)
@@ -721,9 +721,6 @@ static bool add_sample (struct rhc *rhc, struct rhc_instance *inst, const struct
       inst->nvread--;
       rhc->n_vread--;
     }
-
-    /* set a flag to indicate instance has changed to notify data_available since the sample is overwritten */
-    inst->has_changed = 1;
   }
   else
   {
@@ -1041,7 +1038,7 @@ static int rhc_unregister_isreg_w_sideeffects (struct rhc *rhc, const struct rhc
   }
 }
 
-static int rhc_unregister_updateinst (struct rhc *rhc, struct rhc_instance *inst, const struct proxy_writer_info * __restrict pwr_info, nn_wctime_t tstamp, struct trigger_info_qcond *trig_qc)
+static int rhc_unregister_updateinst (struct rhc *rhc, struct rhc_instance *inst, const struct proxy_writer_info * __restrict pwr_info, nn_wctime_t tstamp, struct trigger_info_qcond *trig_qc, bool *nda)
 {
   assert (inst->wrcount > 0);
 
@@ -1073,7 +1070,7 @@ static int rhc_unregister_updateinst (struct rhc *rhc, struct rhc_instance *inst
        care.) */
       if (inst->latest == NULL || inst->latest->isread)
       {
-        inst_set_invsample (rhc, inst, trig_qc);
+        inst_set_invsample (rhc, inst, trig_qc, nda);
         update_inst (inst, pwr_info, false, tstamp);
       }
       if (!inst->isdisposed)
@@ -1095,7 +1092,7 @@ static int rhc_unregister_updateinst (struct rhc *rhc, struct rhc_instance *inst
       /* Add invalid samples for transition to no-writers */
       TRACE (",#0,empty,nowriters");
       assert (inst_is_empty (inst));
-      inst_set_invsample (rhc, inst, trig_qc);
+      inst_set_invsample (rhc, inst, trig_qc, nda);
       update_inst (inst, pwr_info, false, tstamp);
       account_for_empty_to_nonempty_transition (rhc, inst);
       inst->wr_iid_islive = 0;
@@ -1104,8 +1101,10 @@ static int rhc_unregister_updateinst (struct rhc *rhc, struct rhc_instance *inst
   }
 }
 
-static void dds_rhc_unregister (struct rhc *rhc, struct rhc_instance *inst, const struct proxy_writer_info * __restrict pwr_info, nn_wctime_t tstamp, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
+static bool dds_rhc_unregister (struct rhc *rhc, struct rhc_instance *inst, const struct proxy_writer_info * __restrict pwr_info, nn_wctime_t tstamp, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
 {
+  bool notify_data_available = false;
+
   /* 'post' always gets set; instance may have been freed upon return. */
   TRACE (" unregister:");
   if (!rhc_unregister_isreg_w_sideeffects (rhc, inst, pwr_info->iid))
@@ -1113,7 +1112,7 @@ static void dds_rhc_unregister (struct rhc *rhc, struct rhc_instance *inst, cons
     /* other registrations remain */
     get_trigger_info_cmn (&post->c, inst);
   }
-  else if (rhc_unregister_updateinst (rhc, inst, pwr_info, tstamp, trig_qc))
+  else if (rhc_unregister_updateinst (rhc, inst, pwr_info, tstamp, trig_qc, &notify_data_available))
   {
     /* instance dropped */
     init_trigger_info_cmn_nonmatch (&post->c);
@@ -1123,6 +1122,7 @@ static void dds_rhc_unregister (struct rhc *rhc, struct rhc_instance *inst, cons
     /* no writers remain, but instance not empty */
     get_trigger_info_cmn (&post->c, inst);
   }
+  return notify_data_available;
 }
 
 static struct rhc_instance *alloc_new_instance (const struct rhc *rhc, const struct proxy_writer_info *pwr_info, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
@@ -1206,7 +1206,8 @@ static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst
   else
   {
     if (inst->isdisposed) {
-      inst_set_invsample (rhc, inst, trig_qc);
+      bool nda_dummy = false;
+      inst_set_invsample (rhc, inst, trig_qc, &nda_dummy);
     }
   }
 
@@ -1241,6 +1242,7 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
   rhc_store_result_t stored;
   status_cb_data_t cb_data;   /* Callback data for reader status callback */
   bool delivered = true;
+  bool notify_data_available = false;
 
   TRACE ("rhc_store(%"PRIx64",%"PRIx64" si %x has_data %d:", tk->m_iid, wr_iid, statusinfo, has_data);
   if (!has_data && statusinfo == 0)
@@ -1281,6 +1283,7 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
         goto error_or_nochange;
       }
       init_trigger_info_cmn_nonmatch (&pre.c);
+      notify_data_available = true;
     }
   }
   else if (!inst_accepts_sample (rhc, inst, pwr_info, sample, has_data))
@@ -1299,7 +1302,8 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
     }
     if (statusinfo & NN_STATUSINFO_UNREGISTER)
     {
-      dds_rhc_unregister (rhc, inst, pwr_info, sample->timestamp, &post, &trig_qc);
+      if (dds_rhc_unregister (rhc, inst, pwr_info, sample->timestamp, &post, &trig_qc))
+        notify_data_available = true;
     }
     else
     {
@@ -1388,11 +1392,12 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
             inst->disposed_gen--;
           goto error_or_nochange;
         }
+        notify_data_available = true;
       }
 
       /* If instance became disposed, add an invalid sample if there are no samples left */
       if (inst_became_disposed && inst->latest == NULL)
-        inst_set_invsample (rhc, inst, &trig_qc);
+        inst_set_invsample (rhc, inst, &trig_qc, &notify_data_available);
 
       update_inst (inst, pwr_info, true, sample->timestamp);
 
@@ -1448,18 +1453,7 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
 
   TRACE (")\n");
 
-  const bool update_read_conditions = trigger_info_differs (&pre, &post, &trig_qc);
-  bool notify_data_available;
-  /* do not send data available notification when an instance is dropped */
-  if ((post.c.qminst == ~0u) && (post.c.has_read == 0) && (post.c.has_not_read == 0) && (post.c.has_changed == false))
-    notify_data_available = false;
-  else /* FIXME: now that trigger_info_differs incorporates details on samples added/removed, this might well be wrong */
-    notify_data_available = update_read_conditions;
-
-  if (update_read_conditions)
-    trigger_waitsets = update_conditions_locked (rhc, true, &pre, &post, &trig_qc, inst);
-  else
-    trigger_waitsets = false;
+  trigger_waitsets = trigger_info_differs (rhc, &pre, &post, &trig_qc) && update_conditions_locked (rhc, true, &pre, &post, &trig_qc, inst);
 
   assert (rhc_check_counts_locked (rhc, true, true));
 
@@ -1526,6 +1520,7 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
   struct ut_hhIter iter;
   const uint64_t wr_iid = pwr_info->iid;
   const int auto_dispose = pwr_info->auto_dispose;
+  bool notify_data_available = false;
 
   os_mutexLock (&rhc->lock);
   TRACE ("rhc_unregister_wr_iid(%"PRIx64",%d:\n", wr_iid, auto_dispose);
@@ -1555,7 +1550,7 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
         else
         {
           const bool was_empty = inst_is_empty (inst);
-          inst_set_invsample (rhc, inst, &trig_qc);
+          inst_set_invsample (rhc, inst, &trig_qc, &notify_data_available);
           if (was_empty)
             account_for_empty_to_nonempty_transition (rhc, inst);
           else
@@ -1563,11 +1558,12 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
         }
       }
 
-      dds_rhc_unregister (rhc, inst, pwr_info, inst->tstamp, &post, &trig_qc);
+      if (dds_rhc_unregister (rhc, inst, pwr_info, inst->tstamp, &post, &trig_qc))
+        notify_data_available = true;
 
       TRACE ("\n");
 
-      if (trigger_info_differs (&pre, &post, &trig_qc) && update_conditions_locked (rhc, true, &pre, &post, &trig_qc, inst))
+      if (trigger_info_differs (rhc, &pre, &post, &trig_qc) && update_conditions_locked (rhc, true, &pre, &post, &trig_qc, inst))
         trigger_waitsets = true;
       assert (rhc_check_counts_locked (rhc, true, false));
     }
@@ -1575,8 +1571,20 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
   TRACE (")\n");
   os_mutexUnlock (&rhc->lock);
 
-  if (trigger_waitsets)
-    dds_entity_status_signal (&rhc->reader->m_entity);
+  if (rhc->reader)
+  {
+    if (notify_data_available && (rhc->reader->m_entity.m_status_enable & DDS_DATA_AVAILABLE_STATUS))
+    {
+      os_atomic_inc32 (&rhc->n_cbs);
+      dds_reader_data_available_cb (rhc->reader);
+      os_atomic_dec32 (&rhc->n_cbs);
+    }
+
+    if (trigger_waitsets)
+    {
+      dds_entity_status_signal(&rhc->reader->m_entity);
+    }
+  }
 }
 
 void dds_rhc_relinquish_ownership (struct rhc * __restrict rhc, const uint64_t wr_iid)
