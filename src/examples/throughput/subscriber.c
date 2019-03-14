@@ -75,7 +75,9 @@ int main (int argc, char **argv)
   dds_entity_t participant;
   dds_entity_t reader;
 
+#if !defined(_WIN32)
   setvbuf (stdout, NULL, _IOLBF, 0);
+#endif
 
   if (parse_args(argc, argv, &maxCycles, &partitionName) == EXIT_FAILURE)
   {

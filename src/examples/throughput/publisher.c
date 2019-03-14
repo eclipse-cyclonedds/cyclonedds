@@ -46,7 +46,9 @@ int main (int argc, char **argv)
   dds_entity_t writer;
   ThroughputModule_DataType sample;
 
+#if !defined(_WIN32)
   setvbuf (stdout, NULL, _IOLBF, 0);
+#endif
 
   if (parse_args(argc, argv, &payloadSize, &burstInterval, &burstSize, &timeOut, &partitionName) == EXIT_FAILURE) {
     return EXIT_FAILURE;
