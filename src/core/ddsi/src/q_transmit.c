@@ -950,7 +950,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
   nn_mtime_t tnow = now_mt ();
   const nn_mtime_t abstimeout = add_duration_to_mtime (tnow, nn_from_ddsi_duration (wr->xqos->reliability.max_blocking_time));
   struct whc_state whcst;
-  whc_get_state(wr->whc, &whcst);
+  whc_get_state (wr->whc, &whcst);
 
   {
     ASSERT_MUTEX_HELD (&wr->e.lock);
@@ -976,6 +976,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
     }
     nn_xpack_send (xp, true);
     os_mutexLock (&wr->e.lock);
+    whc_get_state (wr->whc, &whcst);
   }
 
   while (gv.rtps_keepgoing && !writer_may_continue (wr, &whcst))
