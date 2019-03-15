@@ -960,7 +960,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
   }
 
   DDS_LOG(DDS_LC_THROTTLE, "writer %x:%x:%x:%x waiting for whc to shrink below low-water mark (whc %"PRIuSIZE" low=%u high=%u)\n", PGUID (wr->e.guid), whcst.unacked_bytes, wr->whc_low, wr->whc_high);
-  wr->throttling = 1;
+  wr->throttling++;
   wr->throttle_count++;
 
   /* Force any outstanding packet out: there will be a heartbeat
@@ -1000,7 +1000,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
     }
   }
 
-  wr->throttling = 0;
+  wr->throttling--;
   if (wr->state != WRST_OPERATIONAL)
   {
     /* gc_delete_writer may be waiting */
