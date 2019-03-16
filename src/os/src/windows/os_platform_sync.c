@@ -97,7 +97,7 @@ os_result os_condTimedWait(os_cond *cond, os_mutex *mutex, const os_time *time)
     assert(cond != NULL);
     assert(mutex != NULL);
 
-    timems = time->tv_sec * 1000 + (time->tv_nsec + 999999999) / 1000000;
+    timems = time->tv_sec * 1000 + (time->tv_nsec + 999999) / 1000000;
     if (SleepConditionVariableSRW(&cond->cond, &mutex->lock, timems, 0)) {
         return os_resultSuccess;
     } else if (GetLastError() != ERROR_TIMEOUT) {
