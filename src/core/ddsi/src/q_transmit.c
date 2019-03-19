@@ -950,7 +950,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
   nn_mtime_t tnow = now_mt ();
   const nn_mtime_t abstimeout = add_duration_to_mtime (tnow, nn_from_ddsi_duration (wr->xqos->reliability.max_blocking_time));
   struct whc_state whcst;
-  whc_get_state(wr->whc, &whcst);
+  whc_get_state (wr->whc, &whcst);
 
   {
     ASSERT_MUTEX_HELD (&wr->e.lock);
@@ -960,7 +960,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
   }
 
   DDS_LOG(DDS_LC_THROTTLE, "writer %x:%x:%x:%x waiting for whc to shrink below low-water mark (whc %"PRIuSIZE" low=%u high=%u)\n", PGUID (wr->e.guid), whcst.unacked_bytes, wr->whc_low, wr->whc_high);
-  wr->throttling = 1;
+  wr->throttling++;
   wr->throttle_count++;
 
   /* Force any outstanding packet out: there will be a heartbeat
@@ -976,6 +976,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
     }
     nn_xpack_send (xp, true);
     os_mutexLock (&wr->e.lock);
+    whc_get_state (wr->whc, &whcst);
   }
 
   while (gv.rtps_keepgoing && !writer_may_continue (wr, &whcst))
@@ -1000,7 +1001,7 @@ static os_result throttle_writer (struct nn_xpack *xp, struct writer *wr)
     }
   }
 
-  wr->throttling = 0;
+  wr->throttling--;
   if (wr->state != WRST_OPERATIONAL)
   {
     /* gc_delete_writer may be waiting */
