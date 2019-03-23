@@ -153,6 +153,11 @@ void ut_xmlpSetRequireEOF (struct ut_xmlpState *st, int require_eof)
     st->require_eof = require_eof;
 }
 
+size_t ut_xmlpGetBufpos (const struct ut_xmlpState *st)
+{
+    return st->cbufp;
+}
+
 void ut_xmlpFree (struct ut_xmlpState *st)
 {
     if (st->fp != NULL) {
