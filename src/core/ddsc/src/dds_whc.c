@@ -15,6 +15,7 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_config.h"

@@ -32,6 +32,13 @@ extern "C" {
 #   elif __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #     define DDSRT_ENDIAN DDSRT_LITTLE_ENDIAN
 #   endif
+# elif defined(__sun)
+#   include <sys/isa_defs.h>
+#   if defined(_BIG_ENDIAN)
+#     define DDSRT_ENDIAN DDSRT_BIG_ENDIAN
+#   elif defined(_LITTLE_ENDIAN)
+#     define DDSRT_ENDIAN DDSRT_LITTLE_ENDIAN
+#   endif
 # endif
 #endif /* _WIN32 */
 

@@ -11,6 +11,7 @@
  */
 #include <assert.h>
 #include <string.h>
+#include <limits.h>
 
 #if HAVE_VALGRIND && ! defined (NDEBUG)
 #include <memcheck.h>

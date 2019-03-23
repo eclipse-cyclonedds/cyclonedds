@@ -11,6 +11,7 @@
  */
 #include <assert.h>
 #include <string.h>
+#include "dds/ddsrt/misc.h"
 #include "dds__listener.h"
 #include "dds__qos.h"
 #include "dds__err.h"

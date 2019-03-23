@@ -24,6 +24,10 @@
 # define ddsrt_clang (0)
 #endif
 
+#ifdef __SUNPRO_C
+# define __attribute__(x)
+#endif
+
 #if defined(__has_attribute)
 # define ddsrt_has_attribute(params) __has_attribute(params)
 #elif ddsrt_gnuc

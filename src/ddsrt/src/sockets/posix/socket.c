@@ -23,6 +23,9 @@
 #endif /* __VXWORKS__ */
 #include <sys/types.h>
 #include <sys/socket.h>
+#ifdef __sun
+#include <fcntl.h>
+#endif
 
 #ifdef __APPLE__
 #include <sys/sockio.h>

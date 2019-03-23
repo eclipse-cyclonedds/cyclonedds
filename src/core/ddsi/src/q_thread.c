@@ -19,6 +19,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/misc.h"
 
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_servicelease.h"
