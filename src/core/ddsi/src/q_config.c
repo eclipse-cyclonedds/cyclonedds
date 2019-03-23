@@ -105,6 +105,14 @@ static const uint32_t logcat_codes[] = {
     DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_ALL
 };
 
+/* "trace" is special: it enables (nearly) everything */
+static const char *xcheck_names[] = {
+  "whc", "rhc", "all", NULL
+};
+static const uint32_t xcheck_codes[] = {
+  DDS_XCHECK_WHC, DDS_XCHECK_RHC, ~(uint32_t)0
+};
+
 /* We want the tracing/verbosity settings to be fixed while parsing
 the configuration, so we update this variable instead. */
 static unsigned enabled_logcats;
@@ -131,6 +139,7 @@ DUPF(string);
 DU(tracingOutputFileName);
 DU(verbosity);
 DUPF(logcat);
+DUPF(xcheck);
 DUPF(float);
 DUPF(int);
 DUPF(uint);
@@ -632,6 +641,12 @@ static const struct cfgelem unsupp_cfgelems[] = {
 "<p>Testing options.</p>" },
 { GROUP("Watermarks", unsupp_watermarks_cfgelems),
 "<p>Watermarks for flow-control.</p>" },
+{ LEAF("EnableExpensiveChecks"), 1, "", ABSOFF(enabled_xchecks), 0, uf_xcheck, 0, pf_xcheck,
+      "<p>This element enables expensive checks in builds with assertions enabled and is ignored otherwise. Recognised categories are:</p>\n\
+      <ul><li><i>whc</i>: writer history cache checking</li>\n\
+      <li><i>rhc</i>: reader history cache checking</li>\n\
+      <p>In addition, there is the keyword <i>all</i> that enables all checks.</p>" },
+
 END_MARKER
 };
 
@@ -1348,22 +1363,31 @@ static void pf_boolean_default (struct cfgst *cfgst, void *parent, struct cfgele
 }
 #endif
 
-static int uf_logcat(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
+static int do_uint32_bitset(struct cfgst *cfgst, uint32_t *cats, const char **names, const uint32_t *codes, const char *value)
 {
-    static const char **vs = logcat_names;
-    static const uint32_t *lc = logcat_codes;
     char *copy = ddsrt_strdup(value), *cursor = copy, *tok;
     while ( (tok = ddsrt_strsep(&cursor, ",")) != NULL ) {
-        int idx = list_index(vs, tok);
+        int idx = list_index(names, tok);
         if ( idx < 0 ) {
             int ret = cfg_error(cfgst, "'%s' in '%s' undefined", tok, value);
             ddsrt_free(copy);
             return ret;
         }
-        enabled_logcats |= lc[idx];
+        *cats |= codes[idx];
     }
     ddsrt_free(copy);
     return 1;
+}
+
+static int uf_logcat(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
+{
+    return do_uint32_bitset (cfgst, &enabled_logcats, logcat_names, logcat_codes, value);
+}
+
+static int uf_xcheck(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
+{
+    uint32_t *elem = cfg_address(cfgst, parent, cfgelem);
+    return do_uint32_bitset (cfgst, elem, xcheck_names, xcheck_codes, value);
 }
 
 static int uf_verbosity(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
@@ -2333,45 +2357,76 @@ static void pf_standards_conformance(struct cfgst *cfgst, void *parent, struct c
     cfg_log(cfgst, "%s%s", str, is_default ? " [def]" : "");
 }
 
-static void pf_logcat(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int is_default))
+static unsigned uint32_popcnt (uint32_t x)
 {
-    uint32_t remaining = config.enabled_logcats;
+    unsigned n = 0;
+    while (x != 0)
+    {
+        n += ((x & 1u) != 0);
+        x >>= 1;
+    }
+    return n;
+}
+
+static void do_print_uint32_bitset (struct cfgst *cfgst, uint32_t mask, size_t ncodes, const char **names, const uint32_t *codes, const char *suffix)
+{
     char res[256] = "", *resp = res;
     const char *prefix = "";
-    size_t i;
 #ifndef NDEBUG
     {
-        size_t max;
-        for ( i = 0, max = 0; i < sizeof(logcat_codes) / sizeof(*logcat_codes); i++ )
-            max += 1 + strlen(logcat_names[i]);
+        size_t max = 0;
+        for (size_t i = 0; i < ncodes; i++ )
+            max += 1 + strlen(names[i]);
         max += 11; /* ,0x%x */
         max += 1; /* \0 */
         assert(max <= sizeof(res));
     }
 #endif
-    /* TRACE enables ALLCATS, all the others just one */
-    if ( (remaining & DDS_LC_ALL) == DDS_LC_ALL ) {
-        resp += snprintf(resp, 256, "%strace", prefix);
-        remaining &= ~DDS_LC_ALL;
-        prefix = ",";
-    }
-    for ( i = 0; i < sizeof(logcat_codes) / sizeof(*logcat_codes); i++ ) {
-        if ( remaining & logcat_codes[i] ) {
-            resp += snprintf(resp, 256, "%s%s", prefix, logcat_names[i]);
-            remaining &= ~logcat_codes[i];
+    while (mask) {
+        size_t i_best = 0;
+        unsigned pc_best = 0;
+        for (size_t i = 0; i < ncodes; i++) {
+            uint32_t m = mask & codes[i];
+            if (m == codes[i]) {
+                unsigned pc = uint32_popcnt (m);
+                if (pc > pc_best) {
+                    i_best = i;
+                    pc_best = pc;
+                }
+            }
+        }
+        if (pc_best != 0) {
+            resp += snprintf(resp, 256, "%s%s", prefix, names[i_best]);
+            mask &= ~codes[i_best];
             prefix = ",";
+        } else {
+            resp += snprintf (resp, 256, "%s0x%x", prefix, (unsigned) mask);
+            mask = 0;
         }
     }
-    if ( remaining ) {
-        resp += snprintf(resp, 256, "%s0x%x", prefix, (unsigned) remaining);
-    }
-    assert(resp <= res + sizeof(res));
-    /* can't do default indicator: user may have specified Verbosity, in
-    which case EnableCategory is at default, but for these two
-    settings, I don't mind. */
-    cfg_log(cfgst, "%s", res);
+    assert (resp <= res + sizeof(res));
+    cfg_log (cfgst, "%s%s", res, suffix);
 }
 
+static void pf_logcat(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int is_default))
+{
+    /* can't do default indicator: user may have specified Verbosity, in
+       which case EnableCategory is at default, but for these two
+       settings, I don't mind. */
+    do_print_uint32_bitset (cfgst, config.enabled_logcats, sizeof(logcat_codes) / sizeof(*logcat_codes), logcat_names, logcat_codes, "");
+}
+
+static void pf_xcheck(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
+{
+    const uint32_t *p = cfg_address(cfgst, parent, cfgelem);
+#ifndef NDEBUG
+    const char *suffix = is_default ? " [def]" : "";
+#else
+    const char *suffix = " [ignored]";
+    (void)is_default;
+#endif
+    do_print_uint32_bitset (cfgst, *p, sizeof(xcheck_codes) / sizeof(*xcheck_codes), xcheck_names, xcheck_codes, suffix);
+}
 
 static void print_configitems(struct cfgst *cfgst, void *parent, int isattr, struct cfgelem const * const cfgelem, int unchecked)
 {

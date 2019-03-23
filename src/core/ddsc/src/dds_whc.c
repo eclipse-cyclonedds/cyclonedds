@@ -258,6 +258,7 @@ static void check_whc (const struct whc_impl *whc)
   assert (whc->maxseq_node == whc_findmax_procedurally (whc));
 
 #if !defined(NDEBUG)
+  if (config.enabled_xchecks & DDS_XCHECK_WHC)
   {
     struct whc_intvnode *firstintv;
     struct whc_node *cur;

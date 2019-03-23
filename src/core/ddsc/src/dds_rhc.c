@@ -2625,6 +2625,9 @@ int dds_rhc_takecdr
 #define CHECK_MAX_CONDS 64
 static int rhc_check_counts_locked (struct rhc *rhc, bool check_conds, bool check_qcmask)
 {
+  if (!(config.enabled_xchecks & DDS_XCHECK_RHC))
+    return 1;
+
   const uint32_t ncheck = rhc->nconds < CHECK_MAX_CONDS ? rhc->nconds : CHECK_MAX_CONDS;
   unsigned n_instances = 0, n_nonempty_instances = 0;
   unsigned n_not_alive_disposed = 0, n_not_alive_no_writers = 0, n_new = 0;

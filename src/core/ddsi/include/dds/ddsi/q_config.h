@@ -218,10 +218,15 @@ struct ssl_min_version {
 };
 #endif
 
+/* Expensive checks (compiled in when NDEBUG not defined, enabled only if flag set in xchecks) */
+#define DDS_XCHECK_WHC 1u
+#define DDS_XCHECK_RHC 2u
+
 struct config
 {
   int valid;
   uint32_t enabled_logcats;
+  uint32_t enabled_xchecks;
   char *servicename;
   char *pcap_file;
 
