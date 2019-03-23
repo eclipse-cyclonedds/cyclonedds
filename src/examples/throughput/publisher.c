@@ -47,10 +47,6 @@ int main (int argc, char **argv)
   dds_return_t rc;
   ThroughputModule_DataType sample;
 
-#if !defined(_WIN32)
-  setvbuf (stdout, NULL, _IOLBF, 0);
-#endif
-
   if (parse_args(argc, argv, &payloadSize, &burstInterval, &burstSize, &timeOut, &partitionName) == EXIT_FAILURE) {
     return EXIT_FAILURE;
   }
@@ -60,6 +56,7 @@ int main (int argc, char **argv)
   /* Wait until have a reader */
   if (wait_for_reader(writer, participant) == 0) {
     printf ("=== [Publisher]  Did not discover a reader.\n");
+    fflush (stdout);
     rc = dds_delete (participant);
     if (rc < 0)
       DDS_FATAL("dds_delete: %s\n", dds_strretcode(-rc));
@@ -131,6 +128,7 @@ static int parse_args(
 
   printf ("payloadSize: %u bytes burstInterval: %u ms burstSize: %u timeOut: %u seconds partitionName: %s\n",
     *payloadSize, *burstInterval, *burstSize, *timeOut, *partitionName);
+  fflush (stdout);
 
   return result;
 }
@@ -182,6 +180,7 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
 static dds_return_t wait_for_reader(dds_entity_t writer, dds_entity_t participant)
 {
   printf ("\n=== [Publisher]  Waiting for a reader ...\n");
+  fflush (stdout);
 
   dds_return_t rc;
   dds_entity_t waitset;
@@ -224,6 +223,7 @@ static void start_writing(
     unsigned int burstCount = 0;
 
     printf ("=== [Publisher]  Writing samples...\n");
+    fflush (stdout);
 
     while (!done && !timedOut)
     {
@@ -277,14 +277,8 @@ static void start_writing(
     }
     dds_write_flush (writer);
 
-    if (done)
-    {
-      printf ("=== [Publisher]  Terminated, %llu samples written.\n", (unsigned long long) sample->count);
-    }
-    else
-    {
-      printf ("=== [Publisher]  Timed out, %llu samples written.\n", (unsigned long long) sample->count);
-    }
+    printf ("=== [Publisher]  %s, %llu samples written.\n", done ? "Terminated" : "Timed out", (unsigned long long) sample->count);
+    fflush (stdout);
   }
 }
 
