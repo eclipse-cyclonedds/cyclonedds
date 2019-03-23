@@ -2772,51 +2772,69 @@ struct cfgst * config_init (const char *configfile)
     cfgst->error = 0;
 
     /* configfile == NULL will get you the default configuration */
-    if ( configfile ) {
-        char *copy = ddsrt_strdup(configfile), *cursor = copy, *tok;
-        while ( (tok = ddsrt_strsep(&cursor, ",")) != NULL ) {
-            struct ut_xmlpCallbacks cb;
+    if (configfile) {
+        char *copy = ddsrt_strdup(configfile), *cursor = copy;
+        struct ut_xmlpCallbacks cb;
+
+        cb.attr = proc_attr;
+        cb.elem_close = proc_elem_close;
+        cb.elem_data = proc_elem_data;
+        cb.elem_open = proc_elem_open;
+        cb.error = proc_error;
+
+        while (ok && cursor && cursor[0]) {
             struct ut_xmlpState *qx;
             FILE *fp;
-
-            DDSRT_WARNING_MSVC_OFF(4996);
-            if ( (fp = fopen(tok, "r")) == NULL ) {
-                if ( strncmp(tok, "file://", 7) != 0 || (fp = fopen(tok + 7, "r")) == NULL ) {
-                    DDS_ERROR("can't open configuration file %s\n", tok);
-                    ddsrt_free(copy);
-                    ddsrt_free(cfgst);
-                    return NULL;
+            char *tok;
+            tok = cursor;
+            if (tok[0] == '<') {
+                /* Read XML directly from input string */
+                qx = ut_xmlpNewString (tok, cfgst, &cb);
+                ut_xmlpSetRequireEOF (qx, 0);
+                fp = NULL;
+            } else {
+                char *comma;
+                if ((comma = strchr (cursor, ',')) == NULL) {
+                    cursor = NULL;
+                } else {
+                    *comma = 0;
+                    cursor = comma + 1;
                 }
-            }
-            DDSRT_WARNING_MSVC_ON(4996);
-
-            cb.attr = proc_attr;
-            cb.elem_close = proc_elem_close;
-            cb.elem_data = proc_elem_data;
-            cb.elem_open = proc_elem_open;
-            cb.error = proc_error;
-
-            if ( (qx = ut_xmlpNewFile(fp, cfgst, &cb)) == NULL ) {
-                fclose(fp);
-                ddsrt_free(copy);
-                ddsrt_free(cfgst);
-                return NULL;
+                DDSRT_WARNING_MSVC_OFF(4996);
+                if ((fp = fopen(tok, "r")) == NULL) {
+                    if (strncmp(tok, "file://", 7) != 0 || (fp = fopen(tok + 7, "r")) == NULL) {
+                        DDS_ERROR("can't open configuration file %s\n", tok);
+                        ddsrt_free(copy);
+                        ddsrt_free(cfgst);
+                        return NULL;
+                    }
+                }
+                DDSRT_WARNING_MSVC_ON(4996);
+                qx = ut_xmlpNewFile(fp, cfgst, &cb);
             }
             cfgst_push(cfgst, 0, &root_cfgelem, &config);
 
             ok = (ut_xmlpParse(qx) >= 0) && !cfgst->error;
             /* Pop until stack empty: error handling is rather brutal */
             assert(!ok || cfgst->path_depth == 1);
-            while ( cfgst->path_depth > 0 )
+            while (cfgst->path_depth > 0) {
                 cfgst_pop(cfgst);
+            }
+            if (fp) {
+                fclose(fp);
+            } else if (ok) {
+                cursor = tok + ut_xmlpGetBufpos (qx);
+            }
             ut_xmlpFree(qx);
-            fclose(fp);
+            while (cursor && cursor[0] == ',') {
+                cursor++;
+            }
         }
         ddsrt_free(copy);
     }
 
     /* Set defaults for everything not set that we have a default value
-    for, signal errors for things unset but without a default. */
+       for, signal errors for things unset but without a default. */
     {
         int ok1 = set_defaults(cfgst, cfgst->cfg, 0, root_cfgelems, 0);
         ok = ok && ok1;
