@@ -9,17 +9,19 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "os/os.h"
-#include "ddsi/ddsi_tran.h"
-#include "ddsi/ddsi_raweth.h"
-#include "ddsi/ddsi_ipaddr.h"
-#include "ddsi/ddsi_mcgroup.h"
-#include "ddsi/q_nwif.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_log.h"
-#include "ddsi/q_error.h"
-#include "ddsi/q_pcap.h"
-#include "os/os_atomics.h"
+#include "dds/ddsi/ddsi_tran.h"
+#include "dds/ddsi/ddsi_raweth.h"
+#include "dds/ddsi/ddsi_ipaddr.h"
+#include "dds/ddsi/ddsi_mcgroup.h"
+#include "dds/ddsi/q_nwif.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_error.h"
+#include "dds/ddsi/q_pcap.h"
+#include "dds/ddsrt/atomics.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/sockets.h"
 
 #ifdef __linux
 #include <linux/if_packet.h>
@@ -28,6 +30,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <errno.h>
 
 typedef struct ddsi_tran_factory * ddsi_raweth_factory_t;
 
@@ -40,14 +43,14 @@ typedef struct ddsi_raweth_config
 typedef struct ddsi_raweth_conn
 {
   struct ddsi_tran_conn m_base;
-  os_socket m_sock;
+  ddsrt_socket_t m_sock;
   int m_ifindex;
 }
 * ddsi_raweth_conn_t;
 
 static struct ddsi_raweth_config ddsi_raweth_config_g;
 static struct ddsi_tran_factory ddsi_raweth_factory_g;
-static os_atomic_uint32_t init_g = OS_ATOMIC_UINT32_INIT(0);
+static ddsrt_atomic_uint32_t init_g = DDSRT_ATOMIC_UINT32_INIT(0);
 
 static char *ddsi_raweth_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
 {
@@ -65,8 +68,8 @@ static char *ddsi_raweth_to_string (ddsi_tran_factory_t tran, char *dst, size_t 
 
 static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc)
 {
-  int err;
-  ssize_t ret;
+  dds_retcode_t rc;
+  ssize_t ret = 0;
   struct msghdr msghdr;
   struct sockaddr_ll src;
   struct iovec msg_iov;
@@ -84,9 +87,8 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
   msghdr.msg_iovlen = 1;
 
   do {
-    ret = recvmsg(((ddsi_raweth_conn_t) conn)->m_sock, &msghdr, 0);
-    err = (ret == -1) ? os_getErrno() : 0;
-  } while (err == os_sockEINTR);
+    rc = ddsrt_recvmsg(((ddsi_raweth_conn_t) conn)->m_sock, &msghdr, 0, &ret);
+  } while (rc == DDS_RETCODE_INTERRUPTED);
 
   if (ret > 0)
   {
@@ -100,7 +102,7 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
 
     /* Check for udp packet truncation */
     if ((((size_t) ret) > len)
-#if OS_MSGHDR_FLAGS
+#if DDSRT_MSGHDR_FLAGS
         || (msghdr.msg_flags & MSG_TRUNC)
 #endif
         )
@@ -112,17 +114,19 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
       DDS_WARNING("%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
     }
   }
-  else if (err != os_sockENOTSOCK && err != os_sockECONNRESET)
+  else if (rc != DDS_RETCODE_OK &&
+           rc != DDS_RETCODE_BAD_PARAMETER &&
+           rc != DDS_RETCODE_NO_CONNECTION)
   {
-    DDS_ERROR("UDP recvmsg sock %d: ret %d errno %d\n", (int) ((ddsi_raweth_conn_t) conn)->m_sock, (int) ret, err);
+    DDS_ERROR("UDP recvmsg sock %d: ret %d retcode %d\n", (int) ((ddsi_raweth_conn_t) conn)->m_sock, (int) ret, rc);
   }
   return ret;
 }
 
-static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const os_iovec_t *iov, uint32_t flags)
+static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
-  int err;
+  dds_retcode_t rc;
   ssize_t ret;
   unsigned retry = 2;
   int sendflags = 0;
@@ -139,37 +143,27 @@ static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const nn_locator_t
   msg.msg_name = &dstaddr;
   msg.msg_namelen = sizeof(dstaddr);
   msg.msg_flags = (int) flags;
-  msg.msg_iov = (os_iovec_t *) iov;
+  msg.msg_iov = (ddsrt_iovec_t *) iov;
   msg.msg_iovlen = niov;
 #ifdef MSG_NOSIGNAL
   sendflags |= MSG_NOSIGNAL;
 #endif
   do {
-    ret = sendmsg (uc->m_sock, &msg, sendflags);
-    err = (ret == -1) ? os_getErrno() : 0;
-  } while (err == os_sockEINTR || err == os_sockEWOULDBLOCK || (err == os_sockEPERM && retry-- > 0));
-  if (ret == -1)
+    rc = ddsrt_sendmsg (uc->m_sock, &msg, sendflags, &ret);
+  } while ((rc == DDS_RETCODE_INTERRUPTED) ||
+           (rc == DDS_RETCODE_TRY_AGAIN) ||
+           (rc == DDS_RETCODE_NOT_ALLOWED && retry-- > 0));
+  if (rc != DDS_RETCODE_OK &&
+      rc != DDS_RETCODE_INTERRUPTED &&
+      rc != DDS_RETCODE_NOT_ALLOWED &&
+      rc != DDS_RETCODE_NO_CONNECTION)
   {
-    switch (err)
-    {
-      case os_sockEINTR:
-      case os_sockEPERM:
-      case os_sockECONNRESET:
-#ifdef os_sockENETUNREACH
-      case os_sockENETUNREACH:
-#endif
-#ifdef os_sockEHOSTUNREACH
-      case os_sockEHOSTUNREACH:
-#endif
-        break;
-      default:
-        DDS_ERROR("ddsi_raweth_conn_write failed with error code %d", err);
-    }
+    DDS_ERROR("ddsi_raweth_conn_write failed with retcode %d", rc);
   }
   return ret;
 }
 
-static os_socket ddsi_raweth_conn_handle (ddsi_tran_base_t base)
+static ddsrt_socket_t ddsi_raweth_conn_handle (ddsi_tran_base_t base)
 {
   return ((ddsi_raweth_conn_t) base)->m_sock;
 }
@@ -183,7 +177,7 @@ static int ddsi_raweth_conn_locator (ddsi_tran_base_t base, nn_locator_t *loc)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) base;
   int ret = -1;
-  if (uc->m_sock != OS_INVALID_SOCKET)
+  if (uc->m_sock != DDSRT_INVALID_SOCKET)
   {
     loc->kind = NN_LOCATOR_KIND_RAWETH;
     loc->port = uc->m_base.m_base.m_port;
@@ -195,8 +189,8 @@ static int ddsi_raweth_conn_locator (ddsi_tran_base_t base, nn_locator_t *loc)
 
 static ddsi_tran_conn_t ddsi_raweth_create_conn (uint32_t port, ddsi_tran_qos_t qos)
 {
-  os_socket sock;
-  int rc;
+  ddsrt_socket_t sock;
+  dds_retcode_t rc;
   ddsi_raweth_conn_t uc = NULL;
   struct sockaddr_ll addr;
   bool mcast = (bool) (qos ? qos->m_multicast : 0);
@@ -209,10 +203,10 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (uint32_t port, ddsi_tran_qos_t 
     return NULL;
   }
 
-  if ((sock = socket(PF_PACKET, SOCK_DGRAM, htons((uint16_t)port))) == -1)
+  rc = ddsrt_socket(&sock, PF_PACKET, SOCK_DGRAM, htons((uint16_t)port));
+  if (rc != DDS_RETCODE_OK)
   {
-    rc = os_getErrno();
-    DDS_ERROR("ddsi_raweth_create_conn %s port %u failed ... errno = %d\n", mcast ? "multicast" : "unicast", port, rc);
+    DDS_ERROR("ddsi_raweth_create_conn %s port %u failed ... retcode = %d\n", mcast ? "multicast" : "unicast", port, rc);
     return NULL;
   }
 
@@ -221,15 +215,15 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (uint32_t port, ddsi_tran_qos_t 
   addr.sll_protocol = htons((uint16_t)port);
   addr.sll_ifindex = (int)gv.interfaceNo;
   addr.sll_pkttype = PACKET_HOST | PACKET_BROADCAST | PACKET_MULTICAST;
-  if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) == -1)
+  rc = ddsrt_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
+  if (rc != DDS_RETCODE_OK)
   {
-    rc = os_getErrno();
-    close(sock);
-    DDS_ERROR("ddsi_raweth_create_conn %s bind port %u failed ... errno = %d\n", mcast ? "multicast" : "unicast", port, rc);
+    ddsrt_close(sock);
+    DDS_ERROR("ddsi_raweth_create_conn %s bind port %u failed ... retcode = %d\n", mcast ? "multicast" : "unicast", port, rc);
     return NULL;
   }
 
-  uc = (ddsi_raweth_conn_t) os_malloc (sizeof (*uc));
+  uc = (ddsi_raweth_conn_t) ddsrt_malloc (sizeof (*uc));
   memset (uc, 0, sizeof (*uc));
   uc->m_sock = sock;
   uc->m_ifindex = addr.sll_ifindex;
@@ -256,7 +250,7 @@ static int isbroadcast(const nn_locator_t *loc)
   return 1;
 }
 
-static int joinleave_asm_mcgroup (os_socket socket, int join, const nn_locator_t *mcloc, const struct nn_interface *interf)
+static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const nn_locator_t *mcloc, const struct nn_interface *interf)
 {
   int rc;
   struct packet_mreq mreq;
@@ -264,8 +258,8 @@ static int joinleave_asm_mcgroup (os_socket socket, int join, const nn_locator_t
   mreq.mr_type = PACKET_MR_MULTICAST;
   mreq.mr_alen = 6;
   memcpy(mreq.mr_address, mcloc + 10, 6);
-  rc = setsockopt(socket, SOL_PACKET, join ? PACKET_ADD_MEMBERSHIP : PACKET_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
-  return (rc == -1) ? os_getErrno() : 0;
+  rc = ddsrt_setsockopt(socket, SOL_PACKET, join ? PACKET_ADD_MEMBERSHIP : PACKET_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
+  return (rc == DDS_RETCODE_OK) ? 0 : rc;
 }
 
 static int ddsi_raweth_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
@@ -302,8 +296,8 @@ static void ddsi_raweth_release_conn (ddsi_tran_conn_t conn)
     uc->m_sock,
     uc->m_base.m_base.m_port
   );
-  os_sockFree (uc->m_sock);
-  os_free (conn);
+  ddsrt_close (uc->m_sock);
+  ddsrt_free (conn);
 }
 
 static int ddsi_raweth_is_mcaddr (const ddsi_tran_factory_t tran, const nn_locator_t *loc)
@@ -357,25 +351,25 @@ static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (dds
 
 static void ddsi_raweth_deinit(void)
 {
-  if (os_atomic_dec32_nv(&init_g) == 0) {
+  if (ddsrt_atomic_dec32_nv(&init_g) == 0) {
     if (ddsi_raweth_config_g.mship)
       free_group_membership(ddsi_raweth_config_g.mship);
     DDS_LOG(DDS_LC_CONFIG, "raweth de-initialized\n");
   }
 }
 
-static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t factory, os_ifaddrs_t **interfs)
+static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t factory, ddsrt_ifaddrs_t **interfs)
 {
-  int afs[] = { AF_PACKET, OS_AF_NULL };
+  int afs[] = { AF_PACKET, DDSRT_AF_TERM };
 
   (void)factory;
 
-  return -os_getifaddrs(interfs, afs);
+  return -ddsrt_getifaddrs(interfs, afs);
 }
 
 int ddsi_raweth_init (void)
 {
-  if (os_atomic_inc32_nv(&init_g) == 1) {
+  if (ddsrt_atomic_inc32_nv(&init_g) == 1) {
     memset (&ddsi_raweth_factory_g, 0, sizeof (ddsi_raweth_factory_g));
     ddsi_raweth_factory_g.m_free_fn = ddsi_raweth_deinit;
     ddsi_raweth_factory_g.m_kind = NN_LOCATOR_KIND_RAWETH;

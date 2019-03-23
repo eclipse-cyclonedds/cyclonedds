@@ -9,10 +9,6 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef MAIN
-#define MAIN main
-#endif
-
 #ifdef __APPLE__
 #define USE_EDITLINE 0
 #endif
@@ -27,6 +23,8 @@
 #include <limits.h>
 #include <ctype.h>
 #include <sys/types.h>
+#include <errno.h>
+#include <getopt.h>
 
 #if USE_EDITLINE
 #include <histedit.h>
@@ -36,7 +34,13 @@
 #include "testtype.h"
 #include "tglib.h"
 #include "porting.h"
-#include "os/os.h"
+
+#include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/string.h"
+#include "dds/ddsrt/strtol.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/threads.h"
 
 //#define NUMSTR "0123456789"
 //#define HOSTNAMESTR "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-." NUMSTR
@@ -146,7 +150,7 @@ struct wrspeclist {
     struct wrspeclist *prev, *next; /* circular */
 };
 
-static os_mutex output_mutex;
+static ddsrt_mutex_t output_mutex;
 
 static void terminate(void) {
 //    const char c = 0;
@@ -272,8 +276,10 @@ static void expand_append(char **dst, size_t *sz,size_t *pos, char c) {
 
 static char *expand_envvars(const char *src0);
 
+// FIXME: This is the same as the expand function in util. Merge.
 static char *expand_env(const char *name, char op, const char *alt) {
-    const char *env = os_getenv(name);
+    char *env = NULL;
+    ddsrt_getenv(name, &env);
     switch (op) {
     case 0:
         return dds_string_dup(env ? env : "");
@@ -812,7 +818,7 @@ static void print_sampleinfo(dds_time_t *tstart, dds_time_t tnow, const dds_samp
         n += printf ("%s", tag);
     }
     if (print_metadata & PM_TIME) {
-        n += printf ("%s%lld.%09lld", n > 0 ? " " : "", (relt / DDS_NSECS_IN_SEC), (relt % DDS_NSECS_IN_SEC));
+        n += printf ("%s%"PRId64".%09"PRId64, n > 0 ? " " : "", (relt / DDS_NSECS_IN_SEC), (relt % DDS_NSECS_IN_SEC));
     }
     sep = " : ";
     if (print_metadata & PM_PHANDLE) {
@@ -824,7 +830,7 @@ static void print_sampleinfo(dds_time_t *tstart, dds_time_t tnow, const dds_samp
     }
     sep = " : ";
     if (print_metadata & PM_STIME) {
-        n += printf ("%s%lld.%09lld", n > 0 ? sep : "", (si->source_timestamp/DDS_NSECS_IN_SEC), (si->source_timestamp%DDS_NSECS_IN_SEC));
+        n += printf ("%s%"PRId64".%09"PRId64, n > 0 ? sep : "", (si->source_timestamp/DDS_NSECS_IN_SEC), (si->source_timestamp%DDS_NSECS_IN_SEC));
     }
     sep = " : ";
     if (print_metadata & PM_DGEN) {
@@ -849,7 +855,7 @@ static void print_sampleinfo(dds_time_t *tstart, dds_time_t tnow, const dds_samp
 
 static void print_K(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd, const char *tag, const dds_sample_info_t *si, int32_t keyval, uint32_t seq, int (*getkeyval) (dds_entity_t rd, int32_t *key, dds_instance_handle_t ih)) {
     int result;
-    os_mutexLock(&output_mutex);
+    ddsrt_mutex_lock(&output_mutex);
     print_sampleinfo(tstart, tnow, si, tag);
     if (si->valid_data) {
         if(printmode == TGPM_MULTILINE) {
@@ -879,7 +885,7 @@ static void print_K(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd, const 
         } else
             printf ("get_key_value: error (%s)\n", dds_err_str(result));
     }
-    os_mutexUnlock(&output_mutex);
+    ddsrt_mutex_unlock(&output_mutex);
 }
 
 static void print_seq_KS(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd, const char *tag, const dds_sample_info_t *iseq, KeyedSeq **mseq, int count) {
@@ -916,7 +922,7 @@ static void print_seq_OU(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd __
     int i;
     for (i = 0; i < count; i++)
     {
-        os_mutexLock(&output_mutex);
+        ddsrt_mutex_lock(&output_mutex);
         print_sampleinfo(tstart, tnow, si, tag);
         if (si->valid_data) {
             if(printmode == TGPM_MULTILINE) {
@@ -929,7 +935,7 @@ static void print_seq_OU(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd __
         } else {
             printf ("NA\n");
         }
-        os_mutexUnlock(&output_mutex);
+        ddsrt_mutex_unlock(&output_mutex);
     }
 }
 
@@ -1715,7 +1721,7 @@ static uint32_t subthread(void *vspec) {
                     dds_subscription_matched_status_t status;
                     rc = dds_get_subscription_matched_status(rd, &status);
                     error_report(rc, "dds_get_subscription_matched_status failed");
-                    if (rc == DDS_SUCCESS) {
+                    if (rc == DDS_RETCODE_OK) {
                         printf("[pre-read: subscription-matched: total=(%"PRIu32" change %d) current=(%"PRIu32" change %d) handle=%"PRIu64"]\n",
                                 status.total_count, status.total_count_change,
                                 status.current_count,
@@ -1852,7 +1858,7 @@ static uint32_t subthread(void *vspec) {
                     printf ("-- final take: data reader empty --\n");
                 else
                     exitcode = 1;
-            } else if (nread < DDS_SUCCESS) {
+            } else if (nread < DDS_RETCODE_OK) {
                 if (!once_mode) {
                     error_report(rc, "-- final take --\n");
                 } else {
@@ -1976,7 +1982,7 @@ static char *read_line_from_textfile(FILE *fp) {
         if (n == sz) str = dds_realloc(str, sz += 1);
         str[n] = 0;
     } else if (ferror(fp)) {
-        error_exit("error reading file, errno = %d (%s)\n", os_getErrno(), os_strerror(os_getErrno()));
+        error_exit("error reading file, errno = %d\n", errno);
     }
     return str;
 }
@@ -2069,8 +2075,8 @@ struct spec {
     dds_duration_t findtopic_timeout;
     struct readerspec rd;
     struct writerspec wr;
-    os_threadId rdtid;
-    os_threadId wrtid;
+    ddsrt_thread_t rdtid;
+    ddsrt_thread_t wrtid;
 };
 
 static void addspec(unsigned whatfor, unsigned *specsofar, unsigned *specidx, struct spec **spec, int want_reader) {
@@ -2103,7 +2109,7 @@ static void addspec(unsigned whatfor, unsigned *specsofar, unsigned *specidx, st
 
 static void set_print_mode(const char *modestr) {
     char *copy = dds_string_dup(modestr), *cursor = copy, *tok;
-    while ((tok = os_strsep(&cursor, ",")) != NULL) {
+    while ((tok = ddsrt_strsep(&cursor, ",")) != NULL) {
         int enable;
         if (strncmp(tok, "no", 2) == 0) {
             enable = 0; tok += 2;
@@ -2154,7 +2160,7 @@ static void set_print_mode(const char *modestr) {
     dds_free(copy);
 }
 
-int MAIN(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
     dds_entity_t sub = 0;
     dds_entity_t pub = 0;
     dds_listener_t *rdlistener = dds_create_listener(NULL);
@@ -2174,9 +2180,9 @@ int MAIN(int argc, char *argv[]) {
     int want_writer = 1;
     bool isWriterListenerSet = false;
 //    int disable_signal_handlers = 0;  // TODO signal handler support
-    unsigned sleep_at_end = 0;
-    os_threadId sigtid;
-    os_threadId inptid;
+    long long sleep_at_end = 0;
+    ddsrt_thread_t sigtid;
+    ddsrt_thread_t inptid;
     #define SPEC_TOPICSEL 1
     #define SPEC_TOPICNAME 2
     unsigned spec_sofar = 0;
@@ -2188,15 +2194,15 @@ int MAIN(int argc, char *argv[]) {
     struct wrspeclist *wrspecs = NULL;
     memset (&sigtid, 0, sizeof(sigtid));
     memset (&inptid, 0, sizeof(inptid));
-    os_mutexInit(&output_mutex);
+    ddsrt_mutex_init(&output_mutex);
 
-    if (os_strcasecmp(execname(argc, argv), "sub") == 0)
+    if (ddsrt_strcasecmp(execname(argc, argv), "sub") == 0)
         want_writer = 0;
-    else if(os_strcasecmp(execname(argc, argv), "pub") == 0)
+    else if(ddsrt_strcasecmp(execname(argc, argv), "pub") == 0)
         want_reader = 0;
 
     save_argv0 (argv[0]);
-    pid = (int) os_getpid();
+    pid = (int) ddsrt_getpid();
 
     qreader[0] = "k=all";
     qreader[1] = "R=10000/inf/inf";
@@ -2212,7 +2218,7 @@ int MAIN(int argc, char *argv[]) {
     spec_sofar = 0;
     assert(specidx == 0);
 
-    while ((opt = os_getopt(argc, argv, "!@*:FK:T:D:q:m:M:n:OP:rRs:S:U:W:w:z:")) != EOF) {
+    while ((opt = getopt(argc, argv, "!@*:FK:T:D:q:m:M:n:OP:rRs:S:U:W:w:z:")) != EOF) {
         switch (opt) {
         case '!':
 //            disable_signal_handlers = 1; // TODO signal handler support
@@ -2221,45 +2227,48 @@ int MAIN(int argc, char *argv[]) {
             spec[specidx].wr.duplicate_writer_flag = 1;
             break;
         case '*':
-            sleep_at_end = (unsigned) os_atoll(os_get_optarg());
+            {
+                sleep_at_end = 0;
+                (void)ddsrt_atoll(optarg, &sleep_at_end);
+            }
             break;
         case 'M':
-            if (sscanf(os_get_optarg(), "%lf:%n", &wait_for_matching_reader_timeout, &pos) != 1) {
-                fprintf (stderr, "-M %s: invalid timeout\n", os_get_optarg());
+            if (sscanf(optarg, "%lf:%n", &wait_for_matching_reader_timeout, &pos) != 1) {
+                fprintf (stderr, "-M %s: invalid timeout\n", optarg);
                 exit(2);
             }
-            wait_for_matching_reader_arg = os_get_optarg() + pos;
+            wait_for_matching_reader_arg = optarg + pos;
             break;
         case 'F':
             setvbuf(stdout, (char *) NULL, _IOLBF, 0);
             break;
         case 'K':
             addspec(SPEC_TOPICSEL, &spec_sofar, &specidx, &spec, want_reader);
-            if (os_strcasecmp(os_get_optarg(), "KS") == 0)
+            if (ddsrt_strcasecmp(optarg, "KS") == 0)
                 spec[specidx].rd.topicsel = spec[specidx].wr.topicsel = KS;
-            else if (os_strcasecmp(os_get_optarg(), "K32") == 0)
+            else if (ddsrt_strcasecmp(optarg, "K32") == 0)
                 spec[specidx].rd.topicsel = spec[specidx].wr.topicsel = K32;
-            else if (os_strcasecmp(os_get_optarg(), "K64") == 0)
+            else if (ddsrt_strcasecmp(optarg, "K64") == 0)
                 spec[specidx].rd.topicsel = spec[specidx].wr.topicsel = K64;
-            else if (os_strcasecmp(os_get_optarg(), "K128") == 0)
+            else if (ddsrt_strcasecmp(optarg, "K128") == 0)
                 spec[specidx].rd.topicsel = spec[specidx].wr.topicsel = K128;
-            else if (os_strcasecmp(os_get_optarg(), "K256") == 0)
+            else if (ddsrt_strcasecmp(optarg, "K256") == 0)
                 spec[specidx].rd.topicsel = spec[specidx].wr.topicsel = K256;
-            else if (os_strcasecmp(os_get_optarg(), "OU") == 0)
+            else if (ddsrt_strcasecmp(optarg, "OU") == 0)
                 spec[specidx].rd.topicsel = spec[specidx].wr.topicsel = OU;
-            else if (os_strcasecmp(os_get_optarg(), "ARB") == 0)
+            else if (ddsrt_strcasecmp(optarg, "ARB") == 0)
                 spec[specidx].rd.topicsel = spec[specidx].wr.topicsel = ARB;
-            else if (get_metadata(&spec[specidx].metadata, &spec[specidx].typename, &spec[specidx].keylist, os_get_optarg()))
+            else if (get_metadata(&spec[specidx].metadata, &spec[specidx].typename, &spec[specidx].keylist, optarg))
                 spec[specidx].rd.topicsel = spec[specidx].wr.topicsel = ARB;
             else {
-                fprintf (stderr, "-K %s: unknown type\n", os_get_optarg());
+                fprintf (stderr, "-K %s: unknown type\n", optarg);
                 exit(2);
             }
             break;
         case 'T': {
             char *p;
             addspec(SPEC_TOPICNAME, &spec_sofar, &specidx, &spec, want_reader);
-            spec[specidx].topicname = (const char *) dds_string_dup(os_get_optarg());
+            spec[specidx].topicname = (const char *) dds_string_dup(optarg);
             if ((p = strchr(spec[specidx].topicname, ':')) != NULL) {
                 double d;
                 int dpos, have_to = 0;
@@ -2269,7 +2278,7 @@ int MAIN(int argc, char *argv[]) {
                     set_infinite_dds_duration(&spec[specidx].findtopic_timeout);
                 } else if (sscanf(p, "%lf%n", &d, &dpos) == 1 && (p[dpos] == 0 || p[dpos] == ':')) {
                     if (double_to_dds_duration(&spec[specidx].findtopic_timeout, d) < 0)
-                        error_exit("-T %s: %s: duration invalid\n", os_get_optarg(), p);
+                        error_exit("-T %s: %s: duration invalid\n", optarg, p);
                     have_to = 1;
                 } else {
                     /* assume content filter */
@@ -2284,17 +2293,17 @@ int MAIN(int argc, char *argv[]) {
             break;
         }
         case 'q':
-            if (strncmp(os_get_optarg(), "provider=", 9) == 0) {
-                set_qosprovider(os_get_optarg()+9);
+            if (strncmp(optarg, "provider=", 9) == 0) {
+                set_qosprovider(optarg+9);
             } else {
-                size_t n = strspn(os_get_optarg(), "atrwps");
-                const char *colon = strchr(os_get_optarg(), ':');
-                if (colon == NULL || n == 0 || n != (size_t) (colon - os_get_optarg())) {
-                    fprintf (stderr, "-q %s: flags indicating to which entities QoS's apply must match regex \"[^atrwps]+:\"\n", os_get_optarg());
+                size_t n = strspn(optarg, "atrwps");
+                const char *colon = strchr(optarg, ':');
+                if (colon == NULL || n == 0 || n != (size_t) (colon - optarg)) {
+                    fprintf (stderr, "-q %s: flags indicating to which entities QoS's apply must match regex \"[^atrwps]+:\"\n", optarg);
                     exit(2);
                 } else {
                     const char *q = colon+1;
-                    for (const char *flag = os_get_optarg(); flag != colon; flag++)
+                    for (const char *flag = optarg; flag != colon; flag++)
                         switch (*flag) {
                         case 't': qtopic[nqtopic++] = q; break;
                         case 'r': qreader[nqreader++] = q; break;
@@ -2315,32 +2324,32 @@ int MAIN(int argc, char *argv[]) {
             }
             break;
         case 'D':
-            dur = atof(os_get_optarg());
+            dur = atof(optarg);
             break;
         case 'm':
             spec[specidx].rd.polling = 0;
-            if (strcmp(os_get_optarg(), "0") == 0) {
+            if (strcmp(optarg, "0") == 0) {
                 spec[specidx].rd.mode = MODE_NONE;
-            } else if (strcmp(os_get_optarg(), "p") == 0) {
+            } else if (strcmp(optarg, "p") == 0) {
                 spec[specidx].rd.mode = MODE_PRINT;
-            } else if (strcmp(os_get_optarg(), "pp") == 0) {
+            } else if (strcmp(optarg, "pp") == 0) {
                 spec[specidx].rd.mode = MODE_PRINT; spec[specidx].rd.polling = 1;
-            } else if (strcmp(os_get_optarg(), "c") == 0) {
+            } else if (strcmp(optarg, "c") == 0) {
                 spec[specidx].rd.mode = MODE_CHECK;
-            } else if (sscanf(os_get_optarg(), "c:%u%n", &nkeyvals, &pos) == 1 && os_get_optarg()[pos] == 0) {
+            } else if (sscanf(optarg, "c:%u%n", &nkeyvals, &pos) == 1 && optarg[pos] == 0) {
                 spec[specidx].rd.mode = MODE_CHECK;
-            } else if (strcmp(os_get_optarg(), "cp") == 0) {
+            } else if (strcmp(optarg, "cp") == 0) {
                 spec[specidx].rd.mode = MODE_CHECK; spec[specidx].rd.polling = 1;
-            } else if (sscanf(os_get_optarg(), "cp:%u%n", &nkeyvals, &pos) == 1 && os_get_optarg()[pos] == 0) {
+            } else if (sscanf(optarg, "cp:%u%n", &nkeyvals, &pos) == 1 && optarg[pos] == 0) {
                 spec[specidx].rd.mode = MODE_CHECK; spec[specidx].rd.polling = 1;
-            } else if (strcmp(os_get_optarg(), "z") == 0) {
+            } else if (strcmp(optarg, "z") == 0) {
                 spec[specidx].rd.mode = MODE_ZEROLOAD;
-            } else if (strcmp(os_get_optarg(), "d") == 0) {
+            } else if (strcmp(optarg, "d") == 0) {
                 spec[specidx].rd.mode = MODE_DUMP;
-            } else if (strcmp(os_get_optarg(), "dp") == 0) {
+            } else if (strcmp(optarg, "dp") == 0) {
                 spec[specidx].rd.mode = MODE_DUMP; spec[specidx].rd.polling = 1;
             } else {
-                fprintf (stderr, "-m %s: invalid mode\n", os_get_optarg());
+                fprintf (stderr, "-m %s: invalid mode\n", optarg);
                 exit(2);
             }
             break;
@@ -2348,34 +2357,34 @@ int MAIN(int argc, char *argv[]) {
             int port;
             spec[specidx].wr.writerate = 0.0;
             spec[specidx].wr.burstsize = 1;
-            if (strcmp(os_get_optarg(), "-") == 0) {
+            if (strcmp(optarg, "-") == 0) {
                 spec[specidx].wr.mode = WRM_INPUT;
-            } else if (sscanf(os_get_optarg(), "%u%n", &nkeyvals, &pos) == 1 && os_get_optarg()[pos] == 0) {
+            } else if (sscanf(optarg, "%u%n", &nkeyvals, &pos) == 1 && optarg[pos] == 0) {
                 spec[specidx].wr.mode = (nkeyvals == 0) ? WRM_NONE : WRM_AUTO;
-            } else if (sscanf(os_get_optarg(), "%u:%lf*%u%n", &nkeyvals, &spec[specidx].wr.writerate, &spec[specidx].wr.burstsize, &pos) == 3
-                    && os_get_optarg()[pos] == 0) {
+            } else if (sscanf(optarg, "%u:%lf*%u%n", &nkeyvals, &spec[specidx].wr.writerate, &spec[specidx].wr.burstsize, &pos) == 3
+                    && optarg[pos] == 0) {
                 spec[specidx].wr.mode = (nkeyvals == 0) ? WRM_NONE : WRM_AUTO;
-            } else if (sscanf(os_get_optarg(), "%u:%lf%n", &nkeyvals, &spec[specidx].wr.writerate, &pos) == 2
-                    && os_get_optarg()[pos] == 0) {
+            } else if (sscanf(optarg, "%u:%lf%n", &nkeyvals, &spec[specidx].wr.writerate, &pos) == 2
+                    && optarg[pos] == 0) {
                 spec[specidx].wr.mode = (nkeyvals == 0) ? WRM_NONE : WRM_AUTO;
-            } else if (sscanf(os_get_optarg(), ":%d%n", &port, &pos) == 1 && os_get_optarg()[pos] == 0) {
+            } else if (sscanf(optarg, ":%d%n", &port, &pos) == 1 && optarg[pos] == 0) {
                 fprintf (stderr, "listen on TCP port P: not supported\n");
                 exit(1);
             } else {
                 spec[specidx].wr.mode = WRM_INPUT;
-                fprintf (stderr, "%s: can't open\n", os_get_optarg());
+                fprintf (stderr, "%s: can't open\n", optarg);
                 exit(1);
             }
             break;
         }
         case 'n':
-            spec[specidx].rd.read_maxsamples = (uint32_t)atoi(os_get_optarg());
+            spec[specidx].rd.read_maxsamples = (uint32_t)atoi(optarg);
             break;
         case 'O':
             once_mode = 1;
             break;
         case 'P':
-            set_print_mode(os_get_optarg());
+            set_print_mode(optarg);
             break;
         case 'R':
             spec[specidx].rd.use_take = 0;
@@ -2384,26 +2393,26 @@ int MAIN(int argc, char *argv[]) {
             spec[specidx].wr.register_instances = 1;
             break;
         case 's':
-            spec[specidx].rd.sleep_ns = DDS_MSECS((int64_t) atoi(os_get_optarg()));
+            spec[specidx].rd.sleep_ns = DDS_MSECS((int64_t) atoi(optarg));
             break;
         case 'W': {
             double t;
             wait_hist_data = 1;
-            if (strcmp(os_get_optarg(), "inf") == 0)
+            if (strcmp(optarg, "inf") == 0)
                 set_infinite_dds_duration(&wait_hist_data_timeout);
-            else if (sscanf(os_get_optarg(), "%lf%n", &t, &pos) == 1 && os_get_optarg()[pos] == 0 && t >= 0)
+            else if (sscanf(optarg, "%lf%n", &t, &pos) == 1 && optarg[pos] == 0 && t >= 0)
                 double_to_dds_duration(&wait_hist_data_timeout, t);
             else {
-                fprintf (stderr, "-W %s: invalid duration\n", os_get_optarg());
+                fprintf (stderr, "-W %s: invalid duration\n", optarg);
                 exit(2);
             }
         }
         break;
         case 'S': {
-            char *copy = dds_string_dup(os_get_optarg()), *tok, *lasts;
+            char *copy = dds_string_dup(optarg), *tok, *lasts;
             if (copy == NULL)
                 abort();
-            tok = os_strtok_r(copy, ",", &lasts);
+            tok = ddsrt_strtok_r(copy, ",", &lasts);
             while (tok) {
                 if (strcmp(tok, "pr") == 0 || strcmp(tok, "pre-read") == 0)
                     spec[specidx].rd.print_match_pre_read = 1;
@@ -2435,7 +2444,7 @@ int MAIN(int argc, char *argv[]) {
                     fprintf (stderr, "-S %s: invalid event\n", tok);
                     exit(2);
                 }
-                tok = os_strtok_r(NULL, ",", &lasts);
+                tok = ddsrt_strtok_r(NULL, ",", &lasts);
             }
             dds_free(copy);
         }
@@ -2443,9 +2452,9 @@ int MAIN(int argc, char *argv[]) {
         case 'z': {
             /* payload is int32 int32 seq<octet>, which we count as 16+N,
                 for a 4 byte sequence length */
-            int tmp = atoi(os_get_optarg());
+            int tmp = atoi(optarg);
             if (tmp != 0 && tmp < 12) {
-                fprintf (stderr, "-z %s: minimum is 12\n", os_get_optarg());
+                fprintf (stderr, "-z %s: minimum is 12\n", optarg);
                 exit(1);
             } else if (tmp == 0)
                 spec[specidx].wr.baggagesize = 0;
@@ -2458,7 +2467,7 @@ int MAIN(int argc, char *argv[]) {
         }
     }
 
-    if (argc - os_get_optind() < 1) {
+    if (argc - optind < 1) {
         usage(argv[0]);
     }
 
@@ -2528,22 +2537,22 @@ int MAIN(int argc, char *argv[]) {
     dds_write_set_batch(true); // FIXME: hack (the global batching flag is a hack anyway)
 
     {
-        char **ps = (char **) dds_alloc(sizeof(char *) * (uint32_t)(argc - os_get_optind()));
-        for (i = 0; i < (unsigned) (argc - os_get_optind()); i++)
-            ps[i] = expand_envvars(argv[(unsigned) os_get_optind() + i]);
+        char **ps = (char **) dds_alloc(sizeof(char *) * (uint32_t)(argc - optind));
+        for (i = 0; i < (unsigned) (argc - optind); i++)
+            ps[i] = expand_envvars(argv[(unsigned) optind + i]);
         if (want_reader) {
             qos = dds_create_qos();
             setqos_from_args(DDS_KIND_SUBSCRIBER, qos, nqsubscriber, qsubscriber);
-            sub = new_subscriber(qos, (unsigned) (argc - os_get_optind()), (const char **) ps);
+            sub = new_subscriber(qos, (unsigned) (argc - optind), (const char **) ps);
             dds_delete_qos(qos);
         }
         if (want_writer) {
             qos = dds_create_qos();
             setqos_from_args(DDS_KIND_PUBLISHER, qos, nqpublisher, qpublisher);
-            pub = new_publisher(qos, (unsigned) (argc - os_get_optind()), (const char **) ps);
+            pub = new_publisher(qos, (unsigned) (argc - optind), (const char **) ps);
             dds_delete_qos(qos);
         }
-        for (i = 0; i < (unsigned) (argc - os_get_optind()); i++)
+        for (i = 0; i < (unsigned) (argc - optind); i++)
             dds_free(ps[i]);
         dds_free(ps);
     }
@@ -2678,9 +2687,9 @@ int MAIN(int argc, char *argv[]) {
     termcond = dds_create_waitset(dp); // Waitset serves as GuardCondition here.
     error_abort(termcond, "dds_create_waitset failed");
 
-    os_threadAttr attr;
-    os_threadAttrInit(&attr);
-    os_result osres;
+    ddsrt_threadattr_t attr;
+    ddsrt_threadattr_init(&attr);
+    dds_retcode_t osres;
 
     if (want_writer) {
         for (i = 0; i <= specidx; i++) {
@@ -2689,7 +2698,7 @@ int MAIN(int argc, char *argv[]) {
             case WRM_NONE:
                 break;
             case WRM_AUTO:
-                osres = os_threadCreate(&spec[i].wrtid, "pubthread_auto", &attr, pubthread_auto, &spec[i].wr);
+                osres = ddsrt_thread_create(&spec[i].wrtid, "pubthread_auto", &attr, pubthread_auto, &spec[i].wr);
                 os_error_exit(osres, "Error: cannot create thread pubthread_auto");
                 break;
             case WRM_INPUT:
@@ -2708,18 +2717,18 @@ int MAIN(int argc, char *argv[]) {
         }
         if (wrspecs) { /* start with first wrspec */
             wrspecs = wrspecs->next;
-            osres = os_threadCreate(&inptid, "pubthread", &attr, pubthread, wrspecs);
+            osres = ddsrt_thread_create(&inptid, "pubthread", &attr, pubthread, wrspecs);
             os_error_exit(osres, "Error: cannot create thread pubthread");
         }
     } else if (dur > 0) { /* note: abusing inptid */
-        osres = os_threadCreate(&inptid, "autotermthread", &attr, autotermthread, NULL);
+        osres = ddsrt_thread_create(&inptid, "autotermthread", &attr, autotermthread, NULL);
         os_error_exit(osres, "Error: cannot create thread autotermthread");
     }
 
     for (i = 0; i <= specidx; i++) {
         if (spec[i].rd.mode != MODE_NONE) {
             spec[i].rd.idx = i;
-            osres = os_threadCreate(&spec[i].rdtid, "subthread", &attr, subthread, &spec[i].rd);
+            osres = ddsrt_thread_create(&spec[i].rdtid, "subthread", &attr, subthread, &spec[i].rd);
             os_error_exit(osres, "Error: cannot create thread subthread");
         }
     }
@@ -2727,13 +2736,13 @@ int MAIN(int argc, char *argv[]) {
     if (want_writer || dur > 0) {
         int term_called = 0;
         if (!want_writer || wrspecs) {
-            (void)os_threadWaitExit(inptid, NULL);
+            (void)ddsrt_thread_join(inptid, NULL);
             term_called = 1;
             terminate();
         }
         for (i = 0; i <= specidx; i++) {
             if (spec[i].wr.mode == WRM_AUTO)
-                (void)os_threadWaitExit(spec[i].wrtid, NULL);
+                (void)ddsrt_thread_join(spec[i].wrtid, NULL);
         }
         if (!term_called)
             terminate();
@@ -2744,7 +2753,7 @@ int MAIN(int argc, char *argv[]) {
         exitcode = 0;
         for (i = 0; i <= specidx; i++) {
             if (spec[i].rd.mode != MODE_NONE) {
-                (void)os_threadWaitExit(spec[i].rdtid, &ret);
+                (void)ddsrt_thread_join(spec[i].rdtid, &ret);
                 if ((uintptr_t) ret > exitcode)
                     exitcode = (uintptr_t) ret;
             }
@@ -2793,6 +2802,6 @@ int MAIN(int argc, char *argv[]) {
     if (sleep_at_end) {
         dds_sleepfor(DDS_SECS(sleep_at_end));
     }
-    os_mutexDestroy(&output_mutex);
+    ddsrt_mutex_destroy(&output_mutex);
     return (int) exitcode;
 }

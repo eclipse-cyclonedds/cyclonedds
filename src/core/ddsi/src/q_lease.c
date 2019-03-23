@@ -13,30 +13,31 @@
 #include <stddef.h>
 #include <assert.h>
 
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sync.h"
 
-#include "util/ut_fibheap.h"
+#include "dds/util/ut_fibheap.h"
 
-#include "ddsi/ddsi_serdata_default.h"
-#include "ddsi/q_protocol.h"
-#include "ddsi/q_rtps.h"
-#include "ddsi/q_misc.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_log.h"
-#include "ddsi/q_plist.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_xevent.h"
-#include "ddsi/q_addrset.h"
-#include "ddsi/q_ddsi_discovery.h"
-#include "ddsi/q_radmin.h"
-#include "ddsi/q_ephash.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/q_globals.h"
-#include "ddsi/q_xmsg.h"
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_transmit.h"
-#include "ddsi/q_lease.h"
-#include "ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/q_misc.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_xevent.h"
+#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/q_ddsi_discovery.h"
+#include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_transmit.h"
+#include "dds/ddsi/q_lease.h"
+#include "dds/ddsi/q_gc.h"
 
 /* This is absolute bottom for signed integers, where -x = x and yet x
    != 0 -- and note that it had better be 2's complement machine! */
@@ -69,9 +70,9 @@ static int compare_lease_tsched (const void *va, const void *vb)
 void lease_management_init (void)
 {
   int i;
-  os_mutexInit (&gv.leaseheap_lock);
+  ddsrt_mutex_init (&gv.leaseheap_lock);
   for (i = 0; i < N_LEASE_LOCKS; i++)
-    os_mutexInit (&gv.lease_locks[i]);
+    ddsrt_mutex_init (&gv.lease_locks[i]);
   ut_fibheapInit (&lease_fhdef, &gv.leaseheap);
 }
 
@@ -80,11 +81,11 @@ void lease_management_term (void)
   int i;
   assert (ut_fibheapMin (&lease_fhdef, &gv.leaseheap) == NULL);
   for (i = 0; i < N_LEASE_LOCKS; i++)
-    os_mutexDestroy (&gv.lease_locks[i]);
-  os_mutexDestroy (&gv.leaseheap_lock);
+    ddsrt_mutex_destroy (&gv.lease_locks[i]);
+  ddsrt_mutex_destroy (&gv.leaseheap_lock);
 }
 
-static os_mutex *lock_lease_addr (struct lease const * const l)
+static ddsrt_mutex_t *lock_lease_addr (struct lease const * const l)
 {
   uint32_t u = (uint16_t) ((uintptr_t) l >> 3);
   uint32_t v = u * 0xb4817365;
@@ -94,18 +95,18 @@ static os_mutex *lock_lease_addr (struct lease const * const l)
 
 static void lock_lease (const struct lease *l)
 {
-  os_mutexLock (lock_lease_addr (l));
+  ddsrt_mutex_lock (lock_lease_addr (l));
 }
 
 static void unlock_lease (const struct lease *l)
 {
-  os_mutexUnlock (lock_lease_addr (l));
+  ddsrt_mutex_unlock (lock_lease_addr (l));
 }
 
 struct lease *lease_new (nn_etime_t texpire, int64_t tdur, struct entity_common *e)
 {
   struct lease *l;
-  if ((l = os_malloc (sizeof (*l))) == NULL)
+  if ((l = ddsrt_malloc (sizeof (*l))) == NULL)
     return NULL;
   DDS_TRACE("lease_new(tdur %"PRId64" guid %x:%x:%x:%x) @ %p\n", tdur, PGUID (e->guid), (void *) l);
   l->tdur = tdur;
@@ -118,7 +119,7 @@ struct lease *lease_new (nn_etime_t texpire, int64_t tdur, struct entity_common 
 void lease_register (struct lease *l)
 {
   DDS_TRACE("lease_register(l %p guid %x:%x:%x:%x)\n", (void *) l, PGUID (l->entity->guid));
-  os_mutexLock (&gv.leaseheap_lock);
+  ddsrt_mutex_lock (&gv.leaseheap_lock);
   lock_lease (l);
   assert (l->tsched.v == TSCHED_NOT_ON_HEAP);
   if (l->tend.v != T_NEVER)
@@ -127,7 +128,7 @@ void lease_register (struct lease *l)
     ut_fibheapInsert (&lease_fhdef, &gv.leaseheap, l);
   }
   unlock_lease (l);
-  os_mutexUnlock (&gv.leaseheap_lock);
+  ddsrt_mutex_unlock (&gv.leaseheap_lock);
 
   /* check_and_handle_lease_expiration runs on GC thread and the only way to be sure that it wakes up in time is by forcing re-evaluation (strictly speaking only needed if this is the first lease to expire, but this operation is quite rare anyway) */
   force_lease_check();
@@ -136,11 +137,11 @@ void lease_register (struct lease *l)
 void lease_free (struct lease *l)
 {
   DDS_TRACE("lease_free(l %p guid %x:%x:%x:%x)\n", (void *) l, PGUID (l->entity->guid));
-  os_mutexLock (&gv.leaseheap_lock);
+  ddsrt_mutex_lock (&gv.leaseheap_lock);
   if (l->tsched.v != TSCHED_NOT_ON_HEAP)
     ut_fibheapDelete (&lease_fhdef, &gv.leaseheap, l);
-  os_mutexUnlock (&gv.leaseheap_lock);
-  os_free (l);
+  ddsrt_mutex_unlock (&gv.leaseheap_lock);
+  ddsrt_free (l);
 
   /* see lease_register() */
   force_lease_check();
@@ -178,7 +179,7 @@ void lease_set_expiry (struct lease *l, nn_etime_t when)
 {
   bool trigger = false;
   assert (when.v >= 0);
-  os_mutexLock (&gv.leaseheap_lock);
+  ddsrt_mutex_lock (&gv.leaseheap_lock);
   lock_lease (l);
   l->tend = when;
   if (l->tend.v < l->tsched.v)
@@ -197,7 +198,7 @@ void lease_set_expiry (struct lease *l, nn_etime_t when)
     trigger = true;
   }
   unlock_lease (l);
-  os_mutexUnlock (&gv.leaseheap_lock);
+  ddsrt_mutex_unlock (&gv.leaseheap_lock);
 
   /* see lease_register() */
   if (trigger)
@@ -208,7 +209,7 @@ int64_t check_and_handle_lease_expiration (UNUSED_ARG (struct thread_state1 *sel
 {
   struct lease *l;
   int64_t delay;
-  os_mutexLock (&gv.leaseheap_lock);
+  ddsrt_mutex_lock (&gv.leaseheap_lock);
   while ((l = ut_fibheapMin (&lease_fhdef, &gv.leaseheap)) != NULL && l->tsched.v <= tnowE.v)
   {
     nn_guid_t g = l->entity->guid;
@@ -277,7 +278,7 @@ int64_t check_and_handle_lease_expiration (UNUSED_ARG (struct thread_state1 *sel
     unlock_lease (l);
 
     l->tsched.v = TSCHED_NOT_ON_HEAP;
-    os_mutexUnlock (&gv.leaseheap_lock);
+    ddsrt_mutex_unlock (&gv.leaseheap_lock);
 
     switch (k)
     {
@@ -301,11 +302,11 @@ int64_t check_and_handle_lease_expiration (UNUSED_ARG (struct thread_state1 *sel
         break;
     }
 
-    os_mutexLock (&gv.leaseheap_lock);
+    ddsrt_mutex_lock (&gv.leaseheap_lock);
   }
 
   delay = (l == NULL) ? T_NEVER : (l->tsched.v - tnowE.v);
-  os_mutexUnlock (&gv.leaseheap_lock);
+  ddsrt_mutex_unlock (&gv.leaseheap_lock);
   return delay;
 }
 
@@ -329,7 +330,7 @@ static void debug_print_rawdata (const char *msg, const void *data, size_t len)
 void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len)
 {
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
-  const int bswap = (data->identifier == CDR_LE) ^ PLATFORM_IS_LITTLE_ENDIAN;
+  const int bswap = (data->identifier == CDR_LE) ^ (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
   struct proxy_participant *pp;
   nn_guid_t ppguid;
   DDS_TRACE(" PMD ST%x", statusinfo);
@@ -363,7 +364,7 @@ void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t time
           /* Renew lease if arrival of this message didn't already do so, also renew the lease
              of the virtual participant used for DS-discovered endpoints */
           if (!config.arrival_of_data_asserts_pp_and_ep_liveliness)
-            lease_renew (os_atomic_ldvoidp (&pp->lease), now_et ());
+            lease_renew (ddsrt_atomic_ldvoidp (&pp->lease), now_et ());
         }
       }
       break;

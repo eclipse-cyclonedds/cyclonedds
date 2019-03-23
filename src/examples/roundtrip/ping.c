@@ -1,4 +1,4 @@
-#include "ddsc/dds.h"
+#include "dds/dds.h"
 #include "RoundTrip.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -158,7 +158,8 @@ static void data_available(dds_entity_t rd, void *arg)
   /* Take sample and check that it is valid */
   preTakeTime = dds_time ();
   status = dds_take (rd, samples, info, MAX_SAMPLES, MAX_SAMPLES);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (status < 0)
+    DDS_FATAL("dds_take: %s\n", dds_strretcode(-status));
   postTakeTime = dds_time ();
 
   /* Update stats */
@@ -203,7 +204,8 @@ static void data_available(dds_entity_t rd, void *arg)
 
   preWriteTime = dds_time();
   status = dds_write_ts (writer, &pub_data, preWriteTime);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (status < 0)
+    DDS_FATAL("dds_write_ts: %s\n", dds_strretcode(-status));
   postWriteTime = dds_time();
 }
 
@@ -270,7 +272,8 @@ int main (int argc, char *argv[])
   }
 
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-  DDS_ERR_CHECK (participant, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (participant < 0)
+    DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 
   if (use_listener)
   {
@@ -292,7 +295,8 @@ int main (int argc, char *argv[])
     pub_data.payload._release = true;
     pub_data.payload._maximum = 0;
     status = dds_writedispose (writer, &pub_data);
-    DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+    if (status < 0)
+      DDS_FATAL("dds_writedispose: %s\n", dds_strretcode(-status));
     dds_sleepfor (DDS_SECS (1));
     goto done;
   }
@@ -337,11 +341,14 @@ int main (int argc, char *argv[])
   while (!dds_triggered (waitSet) && difference < DDS_SECS(5))
   {
     status = dds_waitset_wait (waitSet, wsresults, wsresultsize, waitTimeout);
-    DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+    if (status < 0)
+      DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-status));
+
     if (status > 0 && listener == NULL) /* data */
     {
       status = dds_take (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
-      DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+      if (status < 0)
+        DDS_FATAL("dds_take: %s\n", dds_strretcode(-status));
     }
 
     time = dds_time ();
@@ -365,12 +372,14 @@ int main (int argc, char *argv[])
   /* Write a sample that pong can send back */
   preWriteTime = dds_time ();
   status = dds_write_ts (writer, &pub_data, preWriteTime);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (status < 0)
+    DDS_FATAL("dds_write_ts: %s\n", dds_strretcode(-status));
   postWriteTime = dds_time ();
   for (i = 0; !dds_triggered (waitSet) && (!numSamples || i < numSamples); i++)
   {
     status = dds_waitset_wait (waitSet, wsresults, wsresultsize, waitTimeout);
-    DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+    if (status < 0)
+      DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-status));
     if (status != 0 && listener == NULL) {
       data_available(reader, NULL);
     }
@@ -439,14 +448,16 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
 
   /* A DDS_Topic is created for our sample type on the domain participant. */
   topic = dds_create_topic (participant, &RoundTripModule_DataType_desc, "RoundTrip", NULL, NULL);
-  DDS_ERR_CHECK (topic, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (topic < 0)
+    DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
   /* A DDS_Publisher is created on the domain participant. */
   pubQos = dds_create_qos ();
   dds_qset_partition (pubQos, 1, pubPartitions);
 
   publisher = dds_create_publisher (participant, pubQos, NULL);
-  DDS_ERR_CHECK (publisher, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (publisher < 0)
+    DDS_FATAL("dds_create_publisher: %s\n", dds_strretcode(-publisher));
   dds_delete_qos (pubQos);
 
   /* A DDS_DataWriter is created on the Publisher & Topic with a modified Qos. */
@@ -454,7 +465,8 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   dds_qset_reliability (dwQos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
   dds_qset_writer_data_lifecycle (dwQos, false);
   *wr = dds_create_writer (publisher, topic, dwQos, NULL);
-  DDS_ERR_CHECK (*wr, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (*wr < 0)
+    DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-*wr));
   dds_delete_qos (dwQos);
 
   /* A DDS_Subscriber is created on the domain participant. */
@@ -463,25 +475,29 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   dds_qset_partition (subQos, 1, subPartitions);
 
   subscriber = dds_create_subscriber (participant, subQos, NULL);
-  DDS_ERR_CHECK (subscriber, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (subscriber < 0)
+    DDS_FATAL("dds_create_subscriber: %s\n", dds_strretcode(-subscriber));
   dds_delete_qos (subQos);
   /* A DDS_DataReader is created on the Subscriber & Topic with a modified QoS. */
   drQos = dds_create_qos ();
   dds_qset_reliability (drQos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
   *rd = dds_create_reader (subscriber, topic, drQos, listener);
-  DDS_ERR_CHECK (*rd, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (*rd < 0)
+    DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-*rd));
   dds_delete_qos (drQos);
 
   waitSet = dds_create_waitset (participant);
   if (listener == NULL) {
     *rdcond = dds_create_readcondition (*rd, DDS_ANY_STATE);
     status = dds_waitset_attach (waitSet, *rdcond, *rd);
-    DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+    if (status < 0)
+      DDS_FATAL("dds_waitset_attach: %s\n", dds_strretcode(-status));
   } else {
     *rdcond = 0;
   }
   status = dds_waitset_attach (waitSet, waitSet, waitSet);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (status < 0)
+    DDS_FATAL("dds_waitset_attach: %s\n", dds_strretcode(-status));
 
   return participant;
 }
@@ -490,5 +506,6 @@ static void finalize_dds(dds_entity_t ppant)
 {
   dds_return_t status;
   status = dds_delete (ppant);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (status < 0)
+    DDS_FATAL("dds_delete: %s\n", dds_strretcode(-status));
 }

@@ -10,16 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "CUnit/Test.h"
-#include "ddsc/dds.h"
-#include "os/os.h"
-
-/* We are deliberately testing some bad arguments that SAL will complain about.
- * So, silence SAL regarding these issues. */
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 6387 28020)
-#endif
-
+#include "dds/dds.h"
 
 /****************************************************************************
  * Convenience global policies
@@ -655,6 +646,3 @@ CU_Test(ddsc_qos, durability_service, .init=qos_init, .fini=qos_fini)
     CU_ASSERT_EQUAL_FATAL(p.max_samples_per_instance, g_pol_durability_service.max_samples_per_instance);
 }
 
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif

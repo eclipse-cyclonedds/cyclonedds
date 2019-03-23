@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "ddsc/dds.h"
+#include "dds/dds.h"
 #include "CUnit/Test.h"
 
 /* We are deliberately testing some bad arguments that SAL will complain about.
@@ -338,7 +338,7 @@ CU_Test(ddsc_entity, get_entities, .init = create_entity, .fini = delete_entity)
 CU_Test(ddsc_entity, get_domainid, .init = create_entity, .fini = delete_entity)
 {
     dds_return_t status;
-    dds_domainid_t id;
+    dds_domainid_t id = -1;
 
     /* Check getting ID with bad parameters. */
     status = dds_get_domainid (0, NULL);
@@ -351,7 +351,7 @@ CU_Test(ddsc_entity, get_domainid, .init = create_entity, .fini = delete_entity)
     /* Get and check the domain id. */
     status = dds_get_domainid (entity, &id);
     cu_assert_status_eq(status, DDS_RETCODE_OK);
-    CU_ASSERT_EQUAL_FATAL(id, 0);
+    CU_ASSERT_FATAL(id != -1);
 }
 
 CU_Test(ddsc_entity, delete, .init = create_entity)

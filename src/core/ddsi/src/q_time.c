@@ -11,17 +11,12 @@
  */
 #include <assert.h>
 
-#include "os/os.h"
-
-#include "ddsi/q_time.h"
+#include "dds/ddsrt/time.h"
+#include "dds/ddsi/q_time.h"
 
 const nn_ddsi_time_t invalid_ddsi_timestamp = { -1, UINT32_MAX };
 const nn_ddsi_time_t ddsi_time_infinite = { INT32_MAX, UINT32_MAX };
-#if DDSI_DURATION_ACCORDING_TO_SPEC
-const nn_duration_t duration_infinite = { INT32_MAX, INT32_MAX };
-#else
 const nn_duration_t duration_infinite = { INT32_MAX, UINT32_MAX };
-#endif
 
 nn_wctime_t now (void)
 {
@@ -29,10 +24,8 @@ nn_wctime_t now (void)
    * This clock is not affected by time spent in suspend mode.
    * This clock is affected when the real time system clock jumps
    * forwards/backwards */
-  os_time tv;
   nn_wctime_t t;
-  tv = os_timeGet ();
-  t.v = ((int64_t) tv.tv_sec * T_SECOND + tv.tv_nsec);
+  t.v = dds_time();
   return t;
 }
 
@@ -41,10 +34,8 @@ nn_mtime_t now_mt (void)
   /* This function uses the monotonic clock.
    * This clock stops while the system is in suspend mode.
    * This clock is not affected by any jumps of the realtime clock. */
-  os_time tv;
   nn_mtime_t t;
-  tv = os_timeGetMonotonic ();
-  t.v = ((int64_t) tv.tv_sec * T_SECOND + tv.tv_nsec);
+  t.v = ddsrt_time_monotonic();
   return t;
 }
 
@@ -55,30 +46,28 @@ nn_etime_t now_et (void)
    * This clock does NOT stop when the system is in suspend mode.
    * This clock stops when the system is shut down, and starts when the system is restarted.
    * When restarted, there are no assumptions about the initial value of clock. */
-  os_time tv;
   nn_etime_t t;
-  tv = os_timeGetElapsed ();
-  t.v = ((int64_t) tv.tv_sec * T_SECOND + tv.tv_nsec);
+  t.v = ddsrt_time_elapsed();
   return t;
 }
 
-static void time_to_sec_usec (_Out_ int * __restrict sec, _Out_ int * __restrict usec, _In_ int64_t t)
+static void time_to_sec_usec (int * __restrict sec, int * __restrict usec, int64_t t)
 {
   *sec = (int) (t / T_SECOND);
   *usec = (int) (t % T_SECOND) / 1000;
 }
 
-void mtime_to_sec_usec (_Out_ int * __restrict sec, _Out_ int * __restrict usec, _In_ nn_mtime_t t)
+void mtime_to_sec_usec (int * __restrict sec, int * __restrict usec, nn_mtime_t t)
 {
   time_to_sec_usec (sec, usec, t.v);
 }
 
-void wctime_to_sec_usec (_Out_ int * __restrict sec, _Out_ int * __restrict usec, _In_ nn_wctime_t t)
+void wctime_to_sec_usec (int * __restrict sec, int * __restrict usec, nn_wctime_t t)
 {
   time_to_sec_usec (sec, usec, t.v);
 }
 
-void etime_to_sec_usec (_Out_ int * __restrict sec, _Out_ int * __restrict usec, _In_ nn_etime_t t)
+void etime_to_sec_usec (int * __restrict sec, int * __restrict usec, nn_etime_t t)
 {
   time_to_sec_usec (sec, usec, t.v);
 }
@@ -188,30 +177,6 @@ nn_wctime_t nn_wctime_from_ddsi_time (nn_ddsi_time_t x)
   return t;
 }
 
-#if DDSI_DURATION_ACCORDING_TO_SPEC
-nn_duration_t nn_to_ddsi_duration (int64_t t)
-{
-  if (t == T_NEVER)
-    return duration_infinite;
-  else
-  {
-    nn_duration_t x;
-    x.sec = (int) (t / T_SECOND);
-    x.nanosec = (int) (t % T_SECOND);
-    return x;
-  }
-}
-
-int64_t nn_from_ddsi_duration (nn_duration_t x)
-{
-  int64_t t;
-  if (x.sec == duration_infinite.sec && x.nanosec == duration_infinite.nanosec)
-    t = T_NEVER;
-  else
-    t = x.sec * T_SECOND + x.nanosec;
-  return t;
-}
-#else
 nn_duration_t nn_to_ddsi_duration (int64_t x)
 {
   return nn_to_ddsi_time (x);
@@ -221,4 +186,4 @@ int64_t nn_from_ddsi_duration (nn_duration_t x)
 {
   return nn_from_ddsi_time (x);
 }
-#endif
+

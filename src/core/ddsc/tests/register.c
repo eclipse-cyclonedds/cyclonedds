@@ -11,12 +11,14 @@
  */
 #include <assert.h>
 
-#include "ddsc/dds.h"
-#include "os/os.h"
+#include "dds/dds.h"
 #include "CUnit/Test.h"
 #include "CUnit/Theory.h"
 #include "Space.h"
 
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/threads.h"
 
 /**************************************************************************************************
  *
@@ -43,9 +45,9 @@ static char*
 create_topic_name(const char *prefix, char *name, size_t size)
 {
     /* Get semi random g_topic name. */
-    os_procId pid = os_getpid();
-    uintmax_t tid = os_threadIdToInteger(os_threadIdSelf());
-    (void) snprintf(name, size, "%s_pid%"PRIprocId"_tid%"PRIuMAX"", prefix, pid, tid);
+    ddsrt_pid_t pid = ddsrt_getpid();
+    ddsrt_tid_t tid = ddsrt_gettid();
+    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
     return name;
 }
 
@@ -164,9 +166,9 @@ CU_Theory((dds_instance_handle_t *hndl2, void *datap), ddsc_register_instance, i
     /* Only test when the combination of parameters is actually invalid.*/
     CU_ASSERT_FATAL((hndl2 == NULL) || (datap == NULL));
 
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_register_instance(g_writer, hndl2, datap);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 

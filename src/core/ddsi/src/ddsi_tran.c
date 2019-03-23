@@ -10,12 +10,15 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "os/os.h"
-#include "ddsi/ddsi_tran.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_log.h"
+
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/ifaddrs.h"
+#include "dds/ddsi/ddsi_tran.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_log.h"
 
 static ddsi_tran_factory_t ddsi_tran_factories = NULL;
 
@@ -23,16 +26,16 @@ extern inline uint32_t ddsi_conn_type (ddsi_tran_conn_t conn);
 extern inline uint32_t ddsi_conn_port (ddsi_tran_conn_t conn);
 extern inline ddsi_tran_listener_t ddsi_factory_create_listener (ddsi_tran_factory_t factory, int port, ddsi_tran_qos_t qos);
 extern inline bool ddsi_factory_supports (ddsi_tran_factory_t factory, int32_t kind);
-extern inline os_socket ddsi_conn_handle (ddsi_tran_conn_t conn);
+extern inline ddsrt_socket_t ddsi_conn_handle (ddsi_tran_conn_t conn);
 extern inline int ddsi_conn_locator (ddsi_tran_conn_t conn, nn_locator_t * loc);
-extern inline os_socket ddsi_tran_handle (ddsi_tran_base_t base);
+extern inline ddsrt_socket_t ddsi_tran_handle (ddsi_tran_base_t base);
 extern inline ddsi_tran_conn_t ddsi_factory_create_conn (ddsi_tran_factory_t factory, uint32_t port, ddsi_tran_qos_t qos);
 extern inline int ddsi_tran_locator (ddsi_tran_base_t base, nn_locator_t * loc);
 extern inline int ddsi_listener_locator (ddsi_tran_listener_t listener, nn_locator_t * loc);
 extern inline int ddsi_listener_listen (ddsi_tran_listener_t listener);
 extern inline ddsi_tran_conn_t ddsi_listener_accept (ddsi_tran_listener_t listener);
 extern inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc);
-extern inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const os_iovec_t *iov, uint32_t flags);
+extern inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags);
 
 void ddsi_factory_add (ddsi_tran_factory_t factory)
 {
@@ -115,7 +118,7 @@ void ddsi_conn_free (ddsi_tran_conn_t conn)
     {
       conn->m_closed = true;
       /* FIXME: rethink the socket waitset & the deleting of entries; the biggest issue is TCP handling that can open & close sockets at will and yet expects the waitset to wake up at the apprioriate times.  (This pretty much works with the select-based version, but not the kqueue-based one.)  TCP code can also have connections without a socket ...  Calling sockWaitsetRemove here (where there shouldn't be any knowledge of it) at least ensures that it is removed in time and that there can't be aliasing of connections and sockets.   */
-      if (ddsi_conn_handle (conn) != OS_INVALID_SOCKET)
+      if (ddsi_conn_handle (conn) != DDSRT_INVALID_SOCKET)
       {
         unsigned i;
         for (i = 0; i < gv.n_recv_threads; i++)
@@ -142,7 +145,7 @@ void ddsi_conn_free (ddsi_tran_conn_t conn)
         (conn->m_factory->m_close_conn_fn) (conn);
       }
     }
-    if (os_atomic_dec32_ov (&conn->m_count) == 1)
+    if (ddsrt_atomic_dec32_ov (&conn->m_count) == 1)
     {
       (conn->m_factory->m_release_conn_fn) (conn);
     }
@@ -151,12 +154,12 @@ void ddsi_conn_free (ddsi_tran_conn_t conn)
 
 void ddsi_conn_add_ref (ddsi_tran_conn_t conn)
 {
-  os_atomic_inc32 (&conn->m_count);
+  ddsrt_atomic_inc32 (&conn->m_count);
 }
 
 void ddsi_factory_conn_init (ddsi_tran_factory_t factory, ddsi_tran_conn_t conn)
 {
-  os_atomic_st32 (&conn->m_count, 1);
+  ddsrt_atomic_st32 (&conn->m_count, 1);
   conn->m_connless = factory->m_connless;
   conn->m_stream = factory->m_stream;
   conn->m_factory = factory;
@@ -181,7 +184,7 @@ bool ddsi_conn_peer_locator (ddsi_tran_conn_t conn, nn_locator_t * loc)
 
 void ddsi_tran_free_qos (ddsi_tran_qos_t qos)
 {
-  os_free (qos);
+  ddsrt_free (qos);
 }
 
 int ddsi_conn_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
@@ -197,7 +200,7 @@ int ddsi_conn_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const
 ddsi_tran_qos_t ddsi_tran_create_qos (void)
 {
   ddsi_tran_qos_t qos;
-  qos = (ddsi_tran_qos_t) os_malloc (sizeof (*qos));
+  qos = (ddsi_tran_qos_t) ddsrt_malloc (sizeof (*qos));
   memset (qos, 0, sizeof (*qos));
   return qos;
 }
@@ -243,7 +246,9 @@ int ddsi_is_mcaddr (const nn_locator_t *loc)
 int ddsi_is_ssm_mcaddr (const nn_locator_t *loc)
 {
   ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind(loc->kind);
-  return tran ? tran->m_is_ssm_mcaddr_fn (tran, loc) : 0;
+  if (tran && tran->m_is_ssm_mcaddr_fn != 0)
+    return tran->m_is_ssm_mcaddr_fn (tran, loc);
+  return 0;
 }
 
 enum ddsi_nearby_address_result ddsi_is_nearby_address (const nn_locator_t *loc, size_t ninterf, const struct nn_interface interf[])
@@ -300,7 +305,7 @@ char *ddsi_locator_to_string_no_port (char *dst, size_t sizeof_dst, const nn_loc
   return dst;
 }
 
-int ddsi_enumerate_interfaces (ddsi_tran_factory_t factory, os_ifaddrs_t **interfs)
+int ddsi_enumerate_interfaces (ddsi_tran_factory_t factory, ddsrt_ifaddrs_t **interfs)
 {
   return factory->m_enumerate_interfaces_fn (factory, interfs);
 }

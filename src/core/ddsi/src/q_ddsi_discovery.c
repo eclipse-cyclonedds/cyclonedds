@@ -15,31 +15,33 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "os/os.h"
-
-#include "util/ut_avl.h"
-#include "ddsi/q_protocol.h"
-#include "ddsi/q_rtps.h"
-#include "ddsi/q_misc.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_log.h"
-#include "ddsi/q_plist.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_xevent.h"
-#include "ddsi/q_addrset.h"
-#include "ddsi/q_ddsi_discovery.h"
-#include "ddsi/q_radmin.h"
-#include "ddsi/q_ephash.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/q_globals.h"
-#include "ddsi/q_xmsg.h"
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_transmit.h"
-#include "ddsi/q_lease.h"
-#include "ddsi/q_error.h"
-#include "ddsi/ddsi_serdata_default.h"
-#include "ddsi/q_md5.h"
-#include "ddsi/q_feature_check.h"
+#include "dds/version.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/util/ut_avl.h"
+#include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/q_misc.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_xevent.h"
+#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/q_ddsi_discovery.h"
+#include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_transmit.h"
+#include "dds/ddsi/q_lease.h"
+#include "dds/ddsi/q_error.h"
+#include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/q_md5.h"
+#include "dds/ddsi/q_feature_check.h"
 
 static int get_locator (nn_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)
 {
@@ -95,7 +97,7 @@ static int get_locator (nn_locator_t *loc, const nn_locators_t *locs, int uc_sam
       }
     }
 
-#if OS_SOCKET_HAS_IPV6
+#if DDSRT_HAVE_IPV6
     if ((l->loc.kind == NN_LOCATOR_KIND_UDPv6) || (l->loc.kind == NN_LOCATOR_KIND_TCPv6))
     {
       /* We (cowardly) refuse to accept advertised link-local
@@ -293,16 +295,16 @@ int spdp_write (struct participant *pp)
       NN_PRISMTECH_FL_SUPPORTS_STATUSINFOX;
     if (config.besmode == BESMODE_MINIMAL)
       ps.prismtech_participant_version_info.flags |= NN_PRISMTECH_FL_MINIMAL_BES_MODE;
-    os_mutexLock (&gv.privileged_pp_lock);
+    ddsrt_mutex_lock (&gv.privileged_pp_lock);
     if (pp->is_ddsi2_pp)
       ps.prismtech_participant_version_info.flags |= NN_PRISMTECH_FL_PARTICIPANT_IS_DDSI2;
-    os_mutexUnlock (&gv.privileged_pp_lock);
+    ddsrt_mutex_unlock (&gv.privileged_pp_lock);
 
-    os_gethostname(node, sizeof(node)-1);
+    ddsrt_gethostname(node, sizeof(node)-1);
     node[sizeof(node)-1] = '\0';
-    size = strlen(node) + strlen(OS_VERSION) + strlen(OS_HOST_NAME) + strlen(OS_TARGET_NAME) + 4; /* + ///'\0' */
-    ps.prismtech_participant_version_info.internals = os_malloc(size);
-    (void) snprintf(ps.prismtech_participant_version_info.internals, size, "%s/%s/%s/%s", node, OS_VERSION, OS_HOST_NAME, OS_TARGET_NAME);
+    size = strlen(node) + strlen(DDS_VERSION) + strlen(DDS_HOST_NAME) + strlen(DDS_TARGET_NAME) + 4; /* + ///'\0' */
+    ps.prismtech_participant_version_info.internals = ddsrt_malloc(size);
+    (void) snprintf(ps.prismtech_participant_version_info.internals, size, "%s/%s/%s/%s", node, DDS_VERSION, DDS_HOST_NAME, DDS_TARGET_NAME);
     DDS_TRACE("spdp_write(%x:%x:%x:%x) - internals: %s\n", PGUID (pp->e.guid), ps.prismtech_participant_version_info.internals);
   }
 
@@ -471,16 +473,16 @@ static void make_participants_dependent_on_ddsi2 (const nn_guid_t *ddsi2guid, nn
   struct lease *d2pp_lease;
   if ((d2pp = ephash_lookup_proxy_participant_guid (ddsi2guid)) == NULL)
     return;
-  d2pp_lease = os_atomic_ldvoidp (&d2pp->lease);
+  d2pp_lease = ddsrt_atomic_ldvoidp (&d2pp->lease);
   ephash_enum_proxy_participant_init (&it);
   while ((pp = ephash_enum_proxy_participant_next (&it)) != NULL)
   {
     if (vendor_is_eclipse_or_opensplice (pp->vendor) && pp->e.guid.prefix.u[0] == ddsi2guid->prefix.u[0] && !pp->is_ddsi2_pp)
     {
       DDS_TRACE("proxy participant %x:%x:%x:%x depends on ddsi2 %x:%x:%x:%x", PGUID (pp->e.guid), PGUID (*ddsi2guid));
-      os_mutexLock (&pp->e.lock);
+      ddsrt_mutex_lock (&pp->e.lock);
       pp->privileged_pp_guid = *ddsi2guid;
-      os_mutexUnlock (&pp->e.lock);
+      ddsrt_mutex_unlock (&pp->e.lock);
       proxy_participant_reassign_lease (pp, d2pp_lease);
       DDS_TRACE("\n");
 
@@ -587,15 +589,15 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
        regardless of
        config.arrival_of_data_asserts_pp_and_ep_liveliness. */
     DDS_LOG(DDS_LC_TRACE, "SPDP ST0 %x:%x:%x:%x (known)", PGUID (datap->participant_guid));
-    lease_renew (os_atomic_ldvoidp (&proxypp->lease), now_et ());
-    os_mutexLock (&proxypp->e.lock);
+    lease_renew (ddsrt_atomic_ldvoidp (&proxypp->lease), now_et ());
+    ddsrt_mutex_lock (&proxypp->e.lock);
     if (proxypp->implicitly_created)
     {
       DDS_LOG(DDS_LC_DISCOVERY, " (NEW was-implicitly-created)");
       proxypp->implicitly_created = 0;
       update_proxy_participant_plist_locked (proxypp, datap, UPD_PROXYPP_SPDP, timestamp);
     }
-    os_mutexUnlock (&proxypp->e.lock);
+    ddsrt_mutex_unlock (&proxypp->e.lock);
     return 0;
   }
 
@@ -823,7 +825,7 @@ static void handle_SPDP (const struct receiver_state *rst, nn_wctime_t timestamp
 static void add_locator_to_ps (const nn_locator_t *loc, void *arg)
 {
   nn_plist_t *ps = (nn_plist_t *) arg;
-  struct nn_locators_one *elem = os_malloc (sizeof (struct nn_locators_one));
+  struct nn_locators_one *elem = ddsrt_malloc (sizeof (struct nn_locators_one));
   struct nn_locators *locs;
   unsigned present_flag;
 
@@ -1075,7 +1077,7 @@ static struct proxy_participant *implicitly_create_proxypp (const nn_guid_t *ppg
       DDS_TRACE(" from-ddsi2 %x:%x:%x:%x", PGUID (privguid));
       nn_plist_init_empty (&pp_plist);
 
-      os_mutexLock (&privpp->e.lock);
+      ddsrt_mutex_lock (&privpp->e.lock);
       as_default = ref_addrset(privpp->as_default);
       as_meta = ref_addrset(privpp->as_meta);
       /* copy just what we need */
@@ -1083,7 +1085,7 @@ static struct proxy_participant *implicitly_create_proxypp (const nn_guid_t *ppg
       tmp_plist.present = PP_PARTICIPANT_GUID | PP_PRISMTECH_PARTICIPANT_VERSION_INFO;
       tmp_plist.participant_guid = *ppguid;
       nn_plist_mergein_missing (&pp_plist, &tmp_plist);
-      os_mutexUnlock (&privpp->e.lock);
+      ddsrt_mutex_unlock (&privpp->e.lock);
 
       pp_plist.prismtech_participant_version_info.flags &= ~NN_PRISMTECH_FL_PARTICIPANT_IS_DDSI2;
       new_proxy_participant (ppguid, 0, 0, &privguid, as_default, as_meta, &pp_plist, T_NEVER, vendorid, CF_IMPLICITLY_CREATED_PROXYPP | CF_PROXYPP_NO_SPDP, timestamp);
@@ -1197,10 +1199,10 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
     {
       nn_etime_t never = { T_NEVER };
       DDS_LOG(DDS_LC_DISCOVERY, " %x:%x:%x:%x attach-to-DS %x:%x:%x:%x", PGUID(pp->e.guid), PGUIDPREFIX(*src_guid_prefix), pp->privileged_pp_guid.entityid.u);
-      os_mutexLock (&pp->e.lock);
+      ddsrt_mutex_lock (&pp->e.lock);
       pp->privileged_pp_guid.prefix = *src_guid_prefix;
-      lease_set_expiry(os_atomic_ldvoidp(&pp->lease), never);
-      os_mutexUnlock (&pp->e.lock);
+      lease_set_expiry(ddsrt_atomic_ldvoidp(&pp->lease), never);
+      ddsrt_mutex_unlock (&pp->e.lock);
     }
     DDS_LOG(DDS_LC_DISCOVERY, "\n");
   }
@@ -1666,7 +1668,7 @@ static int defragment (unsigned char **datap, const struct nn_rdata *fragchain, 
   {
     unsigned char *buf;
     uint32_t off = 0;
-    buf = os_malloc (sz);
+    buf = ddsrt_malloc (sz);
     while (fragchain)
     {
       assert (fragchain->min <= off);
@@ -1811,7 +1813,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     else
     {
       nn_parameterid_t pid;
-      keyhash_payload.cdr.identifier = PLATFORM_IS_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE;
+      keyhash_payload.cdr.identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE);
       keyhash_payload.cdr.options = 0;
       switch (srcguid.entityid.u)
       {
@@ -1886,11 +1888,11 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
 
  done_upd_deliv:
   if (needs_free)
-    os_free (datap);
+    ddsrt_free (datap);
   if (pwr)
   {
     /* No proxy writer for SPDP */
-    os_atomic_st32 (&pwr->next_deliv_seq_lowword, (uint32_t) (sampleinfo->seq + 1));
+    ddsrt_atomic_st32 (&pwr->next_deliv_seq_lowword, (uint32_t) (sampleinfo->seq + 1));
   }
   return 0;
 }

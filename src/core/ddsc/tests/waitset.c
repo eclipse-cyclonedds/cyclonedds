@@ -10,12 +10,17 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <limits.h>
 
-#include "ddsc/dds.h"
-#include "os/os.h"
-#include "CUnit/Test.h"
+#include "dds/dds.h"
 #include "CUnit/Theory.h"
 #include "RoundTrip.h"
+
+#include "dds/ddsrt/cdtors.h"
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/time.h"
 
 /**************************************************************************************************
  *
@@ -30,7 +35,7 @@ typedef enum thread_state_t {
 } thread_state_t;
 
 typedef struct thread_arg_t {
-    os_threadId    tid;
+    ddsrt_thread_t tid;
     thread_state_t state;
     dds_entity_t   expected;
 } thread_arg_t;
@@ -61,9 +66,9 @@ static char*
 create_topic_name(const char *prefix, char *name, size_t size)
 {
     /* Get semi random g_topic name. */
-    os_procId pid = os_getpid();
-    uintmax_t tid = os_threadIdToInteger(os_threadIdSelf());
-    (void) snprintf(name, size, "%s_pid%"PRIprocId"_tid%"PRIuMAX"", prefix, pid, tid);
+    ddsrt_pid_t pid = ddsrt_getpid();
+    ddsrt_tid_t tid = ddsrt_gettid();
+    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
     return name;
 }
 
@@ -93,7 +98,7 @@ ddsc_waitset_init(void)
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     char name[100];
 
-    os_osInit();
+    ddsrt_init();
 
     ddsc_waitset_basic_init();
 
@@ -128,7 +133,7 @@ ddsc_waitset_fini(void)
     dds_delete(publisher);
     dds_delete(subscriber);
     ddsc_waitset_basic_fini();
-    os_osExit();
+    ddsrt_fini();
 }
 
 static void
@@ -823,9 +828,9 @@ CU_Theory((size_t size), ddsc_waitset_get_entities, array_sizes, .init=ddsc_wait
 CU_Test(ddsc_waitset_get_entities, no_array, .init=ddsc_waitset_attached_init, .fini=ddsc_waitset_attached_fini)
 {
     dds_return_t ret;
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_waitset_get_entities(waitset, NULL, 1);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     /* ddsc_waitset_attached_init attached 7 entities. */
     CU_ASSERT_EQUAL_FATAL(ret, 7);
 }
@@ -1068,41 +1073,41 @@ waiting_thread(void *a)
     return 0;
 }
 
-static os_result
+static dds_retcode_t
 thread_reached_state(thread_state_t *actual, thread_state_t expected, int32_t msec)
 {
     /* Convenience function. */
-    os_time msec10 = { 0, 10000000 };
+    dds_time_t msec10 = DDS_MSECS(10);
     while ((msec > 0) && (*actual != expected)) {
-        os_nanoSleep(msec10);
+        dds_sleepfor(msec10);
         msec -= 10;
     }
-    return (*actual == expected) ? os_resultSuccess : os_resultTimeout;
+    return (*actual == expected) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
 }
 
 static void
 waiting_thread_start(struct thread_arg_t *arg, dds_entity_t expected)
 {
-    os_threadId   thread_id;
-    os_threadAttr thread_attr;
-    os_result     osr;
+    ddsrt_thread_t thread_id;
+    ddsrt_threadattr_t thread_attr;
+    dds_retcode_t rc;
 
     assert(arg);
 
     /* Create an other thread that will blocking wait on the waitset. */
     arg->expected = expected;
     arg->state   = STARTING;
-    os_threadAttrInit(&thread_attr);
-    osr = os_threadCreate(&thread_id, "waiting_thread", &thread_attr, waiting_thread, arg);
-    CU_ASSERT_EQUAL_FATAL(osr, os_resultSuccess);
+    ddsrt_threadattr_init(&thread_attr);
+    rc = ddsrt_thread_create(&thread_id, "waiting_thread", &thread_attr, waiting_thread, arg);
+    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
 
     /* The thread should reach 'waiting' state. */
-    osr = thread_reached_state(&(arg->state), WAITING, 1000);
-    CU_ASSERT_EQUAL_FATAL(osr, os_resultSuccess);
+    rc = thread_reached_state(&(arg->state), WAITING, 1000);
+    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
 
     /* But thread should block and thus NOT reach 'stopped' state. */
-    osr = thread_reached_state(&(arg->state), STOPPED, 100);
-    CU_ASSERT_EQUAL_FATAL(osr, os_resultTimeout);
+    rc = thread_reached_state(&(arg->state), STOPPED, 100);
+    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_TIMEOUT);
 
     arg->tid = thread_id;
 }
@@ -1110,11 +1115,11 @@ waiting_thread_start(struct thread_arg_t *arg, dds_entity_t expected)
 static dds_return_t
 waiting_thread_expect_exit(struct thread_arg_t *arg)
 {
-    os_result osr;
+    dds_retcode_t rc;
     assert(arg);
-    osr = thread_reached_state(&(arg->state), STOPPED, 5000);
-    if (osr == os_resultSuccess) {
-        os_threadWaitExit(arg->tid, NULL);
+    rc = thread_reached_state(&(arg->state), STOPPED, 5000);
+    if (rc == DDS_RETCODE_OK) {
+        ddsrt_thread_join(arg->tid, NULL);
         return DDS_RETCODE_OK;
     }
     return DDS_RETCODE_TIMEOUT;

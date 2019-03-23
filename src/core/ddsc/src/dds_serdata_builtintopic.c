@@ -14,19 +14,16 @@
 #include <assert.h>
 #include <string.h>
 
-#include "os/os.h"
-#include "ddsi/q_md5.h"
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_freelist.h"
-#include <assert.h>
-#include <string.h>
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsi/q_md5.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_freelist.h"
 #include "dds__key.h"
 #include "dds__stream.h"
 #include "dds__serdata_builtintopic.h"
-#include "ddsi/ddsi_tkmap.h"
-#include "ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/q_entity.h"
 
 static const uint64_t unihashconsts[] = {
   UINT64_C (16292676669999574021),
@@ -63,12 +60,12 @@ static void serdata_builtin_free(struct ddsi_serdata *dcmn)
   struct ddsi_serdata_builtintopic *d = (struct ddsi_serdata_builtintopic *)dcmn;
   if (d->c.kind == SDK_DATA)
     nn_xqos_fini (&d->xqos);
-  os_free (d);
+  ddsrt_free (d);
 }
 
 static struct ddsi_serdata_builtintopic *serdata_builtin_new(const struct ddsi_sertopic_builtintopic *tp, enum ddsi_serdata_kind kind)
 {
-  struct ddsi_serdata_builtintopic *d = os_malloc(sizeof (*d));
+  struct ddsi_serdata_builtintopic *d = ddsrt_malloc(sizeof (*d));
   ddsi_serdata_init (&d->c, &tp->c, kind);
   return d;
 }
@@ -188,7 +185,7 @@ static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const nn_xqos_t *src)
 {
   if (old == NULL)
   {
-    old = os_malloc (sizeof (*old));
+    old = ddsrt_malloc (sizeof (*old));
     nn_xqos_init_empty (old);
     old->present |= QP_TOPIC_NAME | QP_TYPE_NAME;
     nn_xqos_mergein_missing (old, src);
@@ -267,13 +264,13 @@ static void serdata_builtin_to_ser (const struct ddsi_serdata *serdata_common, s
   (void)serdata_common; (void)off; (void)sz; (void)buf;
 }
 
-static struct ddsi_serdata *serdata_builtin_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, os_iovec_t *ref)
+static struct ddsi_serdata *serdata_builtin_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, ddsrt_iovec_t *ref)
 {
   (void)serdata_common; (void)off; (void)sz; (void)ref;
   return NULL;
 }
 
-static void serdata_builtin_to_ser_unref (struct ddsi_serdata *serdata_common, const os_iovec_t *ref)
+static void serdata_builtin_to_ser_unref (struct ddsi_serdata *serdata_common, const ddsrt_iovec_t *ref)
 {
   (void)serdata_common; (void)ref;
 }

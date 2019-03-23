@@ -13,28 +13,30 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/sync.h"
 
-#include "util/ut_avl.h"
+#include "dds/util/ut_avl.h"
 
-#include "ddsi/q_entity.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_time.h"
-#include "ddsi/q_misc.h"
-#include "ddsi/q_log.h"
-#include "ddsi/q_plist.h"
-#include "ddsi/q_ephash.h"
-#include "ddsi/q_globals.h"
-#include "ddsi/q_addrset.h"
-#include "ddsi/q_radmin.h"
-#include "ddsi/q_ddsi_discovery.h"
-#include "ddsi/q_protocol.h" /* NN_ENTITYID_... */
-#include "ddsi/q_unused.h"
-#include "ddsi/q_error.h"
-#include "ddsi/q_debmon.h"
-#include "ddsi/ddsi_serdata.h"
-#include "ddsi/ddsi_tran.h"
-#include "ddsi/ddsi_tcp.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/q_misc.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/q_ddsi_discovery.h"
+#include "dds/ddsi/q_protocol.h" /* NN_ENTITYID_... */
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_error.h"
+#include "dds/ddsi/q_debmon.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_tran.h"
+#include "dds/ddsi/ddsi_tcp.h"
 
 #include "dds__whc.h"
 
@@ -48,8 +50,8 @@ struct debug_monitor {
   struct thread_state1 *servts;
   ddsi_tran_factory_t tran_factory;
   ddsi_tran_listener_t servsock;
-  os_mutex lock;
-  os_cond cond;
+  ddsrt_mutex_t lock;
+  ddsrt_cond_t cond;
   struct plugin *plugins;
   int stop;
 };
@@ -62,11 +64,11 @@ static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...)
   else
   {
     va_list ap;
-    os_iovec_t iov;
+    ddsrt_iovec_t iov;
     char buf[4096];
     int n;
     va_start (ap, fmt);
-    n = os_vsnprintf (buf, sizeof (buf), fmt, ap);
+    n = vsnprintf (buf, sizeof (buf), fmt, ap);
     va_end (ap);
     iov.iov_base = buf;
     iov.iov_len = (size_t) n;
@@ -126,7 +128,7 @@ static int print_any_endpoint_common (ddsi_tran_conn_t conn, const char *label, 
 
 static int print_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e, const struct endpoint_common *c, const struct nn_xqos *xqos, const struct ddsi_sertopic *topic)
 {
-  OS_UNUSED_ARG (c);
+  DDSRT_UNUSED_ARG (c);
   return print_any_endpoint_common (conn, label, e, xqos, topic);
 }
 
@@ -148,9 +150,9 @@ static int print_participants (struct thread_state1 *self, ddsi_tran_conn_t conn
   ephash_enum_participant_init (&e);
   while ((p = ephash_enum_participant_next (&e)) != NULL)
   {
-    os_mutexLock (&p->e.lock);
+    ddsrt_mutex_lock (&p->e.lock);
     x += cpf (conn, "pp %x:%x:%x:%x %s%s\n", PGUID (p->e.guid), p->e.name, p->is_ddsi2_pp ? " [ddsi2]" : "");
-    os_mutexUnlock (&p->e.lock);
+    ddsrt_mutex_unlock (&p->e.lock);
 
     {
       struct ephash_enum_reader er;
@@ -162,14 +164,14 @@ static int print_participants (struct thread_state1 *self, ddsi_tran_conn_t conn
         struct rd_pwr_match *m;
         if (r->c.pp != p)
           continue;
-        os_mutexLock (&r->e.lock);
+        ddsrt_mutex_lock (&r->e.lock);
         print_endpoint_common (conn, "rd", &r->e, &r->c, r->xqos, r->topic);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
         x += print_addrset_if_notempty (conn, "    as", r->as, "\n");
 #endif
         for (m = ut_avlIterFirst (&rd_writers_treedef, &r->writers, &writ); m; m = ut_avlIterNext (&writ))
           x += cpf (conn, "    pwr %x:%x:%x:%x\n", PGUID (m->pwr_guid));
-        os_mutexUnlock (&r->e.lock);
+        ddsrt_mutex_unlock (&r->e.lock);
       }
       ephash_enum_reader_fini (&er);
     }
@@ -185,7 +187,7 @@ static int print_participants (struct thread_state1 *self, ddsi_tran_conn_t conn
         struct whc_state whcst;
         if (w->c.pp != p)
           continue;
-        os_mutexLock (&w->e.lock);
+        ddsrt_mutex_lock (&w->e.lock);
         print_endpoint_common (conn, "wr", &w->e, &w->c, w->xqos, w->topic);
         whc_get_state(w->whc, &whcst);
         x += cpf (conn, "    whc [%lld,%lld] unacked %"PRIuSIZE"%s [%u,%u] seq %lld seq_xmit %lld cs_seq %lld\n",
@@ -214,7 +216,7 @@ static int print_participants (struct thread_state1 *self, ddsi_tran_conn_t conn
           x += cpf (conn, "    prd %x:%x:%x:%x %s @ %lld [%lld,%lld] #nacks %u\n",
                     PGUID (m->prd_guid), wr_prd_flags, m->seq, m->min_seq, m->max_seq, m->rexmit_requests);
         }
-        os_mutexUnlock (&w->e.lock);
+        ddsrt_mutex_unlock (&w->e.lock);
       }
       ephash_enum_writer_fini (&ew);
     }
@@ -233,9 +235,9 @@ static int print_proxy_participants (struct thread_state1 *self, ddsi_tran_conn_
   ephash_enum_proxy_participant_init (&e);
   while ((p = ephash_enum_proxy_participant_next (&e)) != NULL)
   {
-    os_mutexLock (&p->e.lock);
+    ddsrt_mutex_lock (&p->e.lock);
     x += cpf (conn, "proxypp %x:%x:%x:%x%s\n", PGUID (p->e.guid), p->is_ddsi2_pp ? " [ddsi2]" : "");
-    os_mutexUnlock (&p->e.lock);
+    ddsrt_mutex_unlock (&p->e.lock);
     x += print_addrset (conn, "  as data", p->as_default, "");
     x += print_addrset (conn, " meta", p->as_default, "\n");
 
@@ -249,11 +251,11 @@ static int print_proxy_participants (struct thread_state1 *self, ddsi_tran_conn_
         struct prd_wr_match *m;
         if (r->c.proxypp != p)
           continue;
-        os_mutexLock (&r->e.lock);
+        ddsrt_mutex_lock (&r->e.lock);
         print_proxy_endpoint_common (conn, "prd", &r->e, &r->c);
         for (m = ut_avlIterFirst (&rd_writers_treedef, &r->writers, &writ); m; m = ut_avlIterNext (&writ))
           x += cpf (conn, "    wr %x:%x:%x:%x\n", PGUID (m->wr_guid));
-        os_mutexUnlock (&r->e.lock);
+        ddsrt_mutex_unlock (&r->e.lock);
       }
       ephash_enum_proxy_reader_fini (&er);
     }
@@ -268,7 +270,7 @@ static int print_proxy_participants (struct thread_state1 *self, ddsi_tran_conn_
         struct pwr_rd_match *m;
         if (w->c.proxypp != p)
           continue;
-        os_mutexLock (&w->e.lock);
+        ddsrt_mutex_lock (&w->e.lock);
         print_proxy_endpoint_common (conn, "pwr", &w->e, &w->c);
         x += cpf (conn, "    last_seq %lld last_fragnum %u\n", w->last_seq, w->last_fragnum);
         for (m = ut_avlIterFirst (&wr_readers_treedef, &w->readers, &rdit); m; m = ut_avlIterNext (&rdit))
@@ -287,7 +289,7 @@ static int print_proxy_participants (struct thread_state1 *self, ddsi_tran_conn_
               break;
           }
         }
-        os_mutexUnlock (&w->e.lock);
+        ddsrt_mutex_unlock (&w->e.lock);
       }
       ephash_enum_proxy_writer_fini (&ew);
     }
@@ -300,11 +302,11 @@ static int print_proxy_participants (struct thread_state1 *self, ddsi_tran_conn_
 static uint32_t debmon_main (void *vdm)
 {
   struct debug_monitor *dm = vdm;
-  os_mutexLock (&dm->lock);
+  ddsrt_mutex_lock (&dm->lock);
   while (!dm->stop)
   {
     ddsi_tran_conn_t conn;
-    os_mutexUnlock (&dm->lock);
+    ddsrt_mutex_unlock (&dm->lock);
     if ((conn = ddsi_listener_accept (dm->servsock)) != NULL)
     {
       struct plugin *p;
@@ -314,22 +316,22 @@ static uint32_t debmon_main (void *vdm)
         r += print_proxy_participants (dm->servts, conn);
 
       /* Note: can only add plugins (at the tail) */
-      os_mutexLock (&dm->lock);
+      ddsrt_mutex_lock (&dm->lock);
       p = dm->plugins;
       while (r == 0 && p != NULL)
       {
-        os_mutexUnlock (&dm->lock);
+        ddsrt_mutex_unlock (&dm->lock);
         r += p->fn (conn, cpf, p->arg);
-        os_mutexLock (&dm->lock);
+        ddsrt_mutex_lock (&dm->lock);
         p = p->next;
       }
-      os_mutexUnlock (&dm->lock);
+      ddsrt_mutex_unlock (&dm->lock);
 
       ddsi_conn_free (conn);
     }
-    os_mutexLock (&dm->lock);
+    ddsrt_mutex_lock (&dm->lock);
   }
-  os_mutexUnlock (&dm->lock);
+  ddsrt_mutex_unlock (&dm->lock);
   return 0;
 }
 
@@ -343,7 +345,7 @@ struct debug_monitor *new_debug_monitor (int port)
   if (ddsi_tcp_init () < 0)
     return NULL;
 
-  dm = os_malloc (sizeof (*dm));
+  dm = ddsrt_malloc (sizeof (*dm));
 
   dm->plugins = NULL;
   if ((dm->tran_factory = ddsi_factory_find ("tcp")) == NULL)
@@ -362,8 +364,8 @@ struct debug_monitor *new_debug_monitor (int port)
     DDS_LOG(DDS_LC_CONFIG, "debmon at %s\n", ddsi_locator_to_string (buf, sizeof(buf), &loc));
   }
 
-  os_mutexInit (&dm->lock);
-  os_condInit (&dm->cond, &dm->lock);
+  ddsrt_mutex_init (&dm->lock);
+  ddsrt_cond_init (&dm->cond);
   if (ddsi_listener_listen (dm->servsock) < 0)
     goto err_listen;
   dm->stop = 0;
@@ -371,28 +373,28 @@ struct debug_monitor *new_debug_monitor (int port)
   return dm;
 
 err_listen:
-  os_condDestroy(&dm->cond);
-  os_mutexDestroy(&dm->lock);
+  ddsrt_cond_destroy(&dm->cond);
+  ddsrt_mutex_destroy(&dm->lock);
   ddsi_listener_free(dm->servsock);
 err_servsock:
-  os_free(dm);
+  ddsrt_free(dm);
   return NULL;
 }
 
 void add_debug_monitor_plugin (struct debug_monitor *dm, debug_monitor_plugin_t fn, void *arg)
 {
   struct plugin *p, **pp;
-  if (dm != NULL && (p = os_malloc (sizeof (*p))) != NULL)
+  if (dm != NULL && (p = ddsrt_malloc (sizeof (*p))) != NULL)
   {
     p->fn = fn;
     p->arg = arg;
     p->next = NULL;
-    os_mutexLock (&dm->lock);
+    ddsrt_mutex_lock (&dm->lock);
     pp = &dm->plugins;
     while (*pp)
       pp = &(*pp)->next;
     *pp = p;
-    os_mutexUnlock (&dm->lock);
+    ddsrt_mutex_unlock (&dm->lock);
   }
 }
 
@@ -401,21 +403,21 @@ void free_debug_monitor (struct debug_monitor *dm)
   if (dm == NULL)
     return;
 
-  os_mutexLock (&dm->lock);
+  ddsrt_mutex_lock (&dm->lock);
   dm->stop = 1;
-  os_condBroadcast (&dm->cond);
-  os_mutexUnlock (&dm->lock);
+  ddsrt_cond_broadcast (&dm->cond);
+  ddsrt_mutex_unlock (&dm->lock);
   ddsi_listener_unblock (dm->servsock);
   join_thread (dm->servts);
   ddsi_listener_free (dm->servsock);
-  os_condDestroy (&dm->cond);
-  os_mutexDestroy (&dm->lock);
+  ddsrt_cond_destroy (&dm->cond);
+  ddsrt_mutex_destroy (&dm->lock);
 
   while (dm->plugins) {
     struct plugin *p = dm->plugins;
     dm->plugins = p->next;
-    os_free (p);
+    ddsrt_free (p);
   }
-  os_free (dm);
+  ddsrt_free (dm);
 }
 

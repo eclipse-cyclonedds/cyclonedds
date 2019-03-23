@@ -12,7 +12,7 @@
 #ifndef DDS_WHC_BUILTINTOPIC_H
 #define DDS_WHC_BUILTINTOPIC_H
 
-#include "ddsi/q_whc.h"
+#include "dds/ddsi/q_whc.h"
 #include "dds__serdata_builtintopic.h"
 
 #if defined (__cplusplus)

@@ -14,17 +14,15 @@
 
 /* DDS internal type definitions */
 
-#include "os/os.h"
-#include "ddsc/dds.h"
-#include "ddsi/q_rtps.h"
-#include "util/ut_avl.h"
-#include "util/ut_handleserver.h"
+#include "dds/dds.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsi/q_rtps.h"
+#include "dds/util/ut_avl.h"
+#include "dds/util/ut_handleserver.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
-
-typedef _Return_type_success_(return == DDS_RETCODE_OK) int32_t dds__retcode_t;
 
 struct dds_domain;
 struct dds_entity;
@@ -139,11 +137,11 @@ typedef struct dds_entity
   dds_domainid_t m_domainid;
   nn_guid_t m_guid;
   uint32_t m_flags;
-  os_mutex m_mutex;
-  os_cond m_cond;
+  ddsrt_mutex_t m_mutex;
+  ddsrt_cond_t m_cond;
 
-  os_mutex m_observers_lock;
-  os_cond m_observers_cond;
+  ddsrt_mutex_t m_observers_lock;
+  ddsrt_cond_t m_observers_cond;
   dds_listener_t m_listener;
   uint32_t m_trigger;
   uint32_t m_status_enable;
@@ -287,7 +285,7 @@ typedef struct dds_globals
   void (*m_dur_init) (void);
   void (*m_dur_fini) (void);
   ut_avlTree_t m_domains;
-  os_mutex m_mutex;
+  ddsrt_mutex_t m_mutex;
 }
 dds_globals;
 

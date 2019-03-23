@@ -14,20 +14,20 @@
 #include <assert.h>
 #include <string.h>
 
-#include "os/os.h"
-#include "ddsi/q_md5.h"
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_freelist.h"
-#include "ddsi/ddsi_sertopic.h"
-#include "ddsc/dds.h"
+#include "dds/dds.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsi/q_md5.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_sertopic.h"
 #include "dds__serdata_builtintopic.h"
 
 /* FIXME: sertopic /= ddstopic so a lot of stuff needs to be moved here from dds_topic.c and the free function needs to be implemented properly */
 
 struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic_type type, const char *name, const char *typename)
 {
-  struct ddsi_sertopic_builtintopic *tp = os_malloc (sizeof (*tp));
+  struct ddsi_sertopic_builtintopic *tp = ddsrt_malloc (sizeof (*tp));
   tp->c.iid = ddsi_iid_gen();
   tp->c.name = dds_string_dup (name);
   tp->c.typename = dds_string_dup (typename);
@@ -39,7 +39,7 @@ struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic
   tp->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (tp->c.serdata_ops);
   tp->c.status_cb = 0;
   tp->c.status_cb_entity = NULL;
-  os_atomic_st32 (&tp->c.refc, 1);
+  ddsrt_atomic_st32 (&tp->c.refc, 1);
   tp->type = type;
   return &tp->c;
 }

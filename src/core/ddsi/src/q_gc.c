@@ -13,25 +13,26 @@
 #include <stdlib.h>
 #include <stddef.h>
 
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_lease.h"
+#include "dds/ddsi/q_globals.h" /* for mattr, cattr */
 
-#include "ddsi/q_gc.h"
-#include "ddsi/q_log.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_time.h"
-#include "ddsi/q_thread.h"
-#include "ddsi/q_ephash.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_lease.h"
-#include "ddsi/q_globals.h" /* for mattr, cattr */
-
-#include "ddsi/q_rtps.h" /* for guid_hash */
+#include "dds/ddsi/q_rtps.h" /* for guid_hash */
 
 struct gcreq_queue {
   struct gcreq *first;
   struct gcreq *last;
-  os_mutex lock;
-  os_cond cond;
+  ddsrt_mutex_t lock;
+  ddsrt_cond_t cond;
   int terminate;
   int32_t count;
   struct thread_state1 *ts;
@@ -80,11 +81,11 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
 {
   struct thread_state1 *self = lookup_thread_state ();
   nn_mtime_t next_thread_cputime = { 0 };
-  struct os_time shortsleep = { 0, 1 * T_MILLISECOND };
+  dds_time_t shortsleep = 1 * T_MILLISECOND;
   int64_t delay = T_MILLISECOND; /* force evaluation after startup */
   struct gcreq *gcreq = NULL;
   int trace_shortsleep = 1;
-  os_mutexLock (&q->lock);
+  ddsrt_mutex_lock (&q->lock);
   while (!(q->terminate && q->count == 0))
   {
     LOG_THREAD_CPUTIME (next_thread_cputime);
@@ -98,17 +99,15 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
       assert (trace_shortsleep);
       if (q->first == NULL)
       {
-        /* FIXME: fix os_time and use absolute timeouts */
-        struct os_time to;
+        /* FIXME: use absolute timeouts */
+        dds_time_t to;
         if (delay >= 1000 * T_SECOND) {
           /* avoid overflow */
-          to.tv_sec = 1000;
-          to.tv_nsec = 0;
+          to = DDS_SECS(1000);
         } else {
-          to.tv_sec = (os_timeSec)(delay / T_SECOND);
-          to.tv_nsec = (int32_t)(delay % T_SECOND);
+          to = delay;
         }
-        os_condTimedWait (&q->cond, &q->lock, &to);
+        ddsrt_cond_waitfor(&q->cond, &q->lock, to);
       }
       if (q->first)
       {
@@ -116,7 +115,7 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
         q->first = q->first->next;
       }
     }
-    os_mutexUnlock (&q->lock);
+    ddsrt_mutex_unlock (&q->lock);
 
     /* Cleanup dead proxy entities. One can argue this should be an
        independent thread, but one can also easily argue that an
@@ -143,7 +142,7 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
           DDS_TRACE("gc %p: not yet, shortsleep\n", (void*)gcreq);
           trace_shortsleep = 0;
         }
-        os_nanoSleep (shortsleep);
+        dds_sleepfor (shortsleep);
       }
       else
       {
@@ -160,21 +159,21 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
       }
     }
 
-    os_mutexLock (&q->lock);
+    ddsrt_mutex_lock (&q->lock);
   }
-  os_mutexUnlock (&q->lock);
+  ddsrt_mutex_unlock (&q->lock);
   return 0;
 }
 
 struct gcreq_queue *gcreq_queue_new (void)
 {
-  struct gcreq_queue *q = os_malloc (sizeof (*q));
+  struct gcreq_queue *q = ddsrt_malloc (sizeof (*q));
 
   q->first = q->last = NULL;
   q->terminate = 0;
   q->count = 0;
-  os_mutexInit (&q->lock);
-  os_condInit (&q->cond, &q->lock);
+  ddsrt_mutex_init (&q->lock);
+  ddsrt_cond_init (&q->cond);
   q->ts = create_thread ("gc", (uint32_t (*) (void *)) gcreq_queue_thread, q);
   assert (q->ts);
   return q;
@@ -182,10 +181,10 @@ struct gcreq_queue *gcreq_queue_new (void)
 
 void gcreq_queue_drain (struct gcreq_queue *q)
 {
-  os_mutexLock (&q->lock);
+  ddsrt_mutex_lock (&q->lock);
   while (q->count != 0)
-    os_condWait (&q->cond, &q->lock);
-  os_mutexUnlock (&q->lock);
+    ddsrt_cond_wait (&q->cond, &q->lock);
+  ddsrt_mutex_unlock (&q->lock);
 }
 
 void gcreq_queue_free (struct gcreq_queue *q)
@@ -196,14 +195,14 @@ void gcreq_queue_free (struct gcreq_queue *q)
   gcreq = gcreq_new (q, gcreq_free);
   gcreq->nvtimes = 0;
 
-  os_mutexLock (&q->lock);
+  ddsrt_mutex_lock (&q->lock);
   q->terminate = 1;
   /* Wait until there is only request in existence, the one we just
      allocated (this is also why we can't use "drain" here). Then
      we know the gc system is quiet. */
   while (q->count != 1)
-    os_condWait (&q->cond, &q->lock);
-  os_mutexUnlock (&q->lock);
+    ddsrt_cond_wait (&q->cond, &q->lock);
+  ddsrt_mutex_unlock (&q->lock);
 
   /* Force the gc thread to wake up by enqueueing our no-op. The
      callback, gcreq_free, will be called immediately, which causes
@@ -213,40 +212,40 @@ void gcreq_queue_free (struct gcreq_queue *q)
 
   join_thread (q->ts);
   assert (q->first == NULL);
-  os_condDestroy (&q->cond);
-  os_mutexDestroy (&q->lock);
-  os_free (q);
+  ddsrt_cond_destroy (&q->cond);
+  ddsrt_mutex_destroy (&q->lock);
+  ddsrt_free (q);
 }
 
 struct gcreq *gcreq_new (struct gcreq_queue *q, gcreq_cb_t cb)
 {
   struct gcreq *gcreq;
-  gcreq = os_malloc (offsetof (struct gcreq, vtimes) + thread_states.nthreads * sizeof (*gcreq->vtimes));
+  gcreq = ddsrt_malloc (offsetof (struct gcreq, vtimes) + thread_states.nthreads * sizeof (*gcreq->vtimes));
   gcreq->cb = cb;
   gcreq->queue = q;
   threads_vtime_gather_for_wait (&gcreq->nvtimes, gcreq->vtimes);
-  os_mutexLock (&q->lock);
+  ddsrt_mutex_lock (&q->lock);
   q->count++;
-  os_mutexUnlock (&q->lock);
+  ddsrt_mutex_unlock (&q->lock);
   return gcreq;
 }
 
 void gcreq_free (struct gcreq *gcreq)
 {
   struct gcreq_queue *gcreq_queue = gcreq->queue;
-  os_mutexLock (&gcreq_queue->lock);
+  ddsrt_mutex_lock (&gcreq_queue->lock);
   --gcreq_queue->count;
   if (gcreq_queue->count <= 1)
-    os_condBroadcast (&gcreq_queue->cond);
-  os_mutexUnlock (&gcreq_queue->lock);
-  os_free (gcreq);
+    ddsrt_cond_broadcast (&gcreq_queue->cond);
+  ddsrt_mutex_unlock (&gcreq_queue->lock);
+  ddsrt_free (gcreq);
 }
 
 static int gcreq_enqueue_common (struct gcreq *gcreq)
 {
   struct gcreq_queue *gcreq_queue = gcreq->queue;
   int isfirst;
-  os_mutexLock (&gcreq_queue->lock);
+  ddsrt_mutex_lock (&gcreq_queue->lock);
   gcreq->next = NULL;
   if (gcreq_queue->first)
   {
@@ -260,8 +259,8 @@ static int gcreq_enqueue_common (struct gcreq *gcreq)
   }
   gcreq_queue->last = gcreq;
   if (isfirst)
-    os_condBroadcast (&gcreq_queue->cond);
-  os_mutexUnlock (&gcreq_queue->lock);
+    ddsrt_cond_broadcast (&gcreq_queue->cond);
+  ddsrt_mutex_unlock (&gcreq_queue->lock);
   return isfirst;
 }
 

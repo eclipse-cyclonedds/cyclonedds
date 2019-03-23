@@ -108,7 +108,7 @@ elseif(BUILD_DOCS)
         # Process doxygen configuration file, for ddsc
         set(doxy_conf_project "${CMAKE_PROJECT_NAME_FULL} C API Documentation")
         set(doxy_conf_outputdir "ddsc_api")
-        set(doxy_conf_input "${PROJECT_SOURCE_DIR}/core/ddsc/include/ddsc/dds.h ${PROJECT_SOURCE_DIR}/core/ddsc/include/ddsc")
+        set(doxy_conf_input "${PROJECT_SOURCE_DIR}/core/ddsc/include/dds/dds.h ${PROJECT_SOURCE_DIR}/core/ddsc/include/dds")
         configure_file(Doxyfile.in Doxyfile @ONLY)
 
         add_custom_target(ddsc_docs

@@ -13,14 +13,15 @@
 #include <stddef.h>
 #include <assert.h>
 
-#include "os/os.h"
-
-#include "util/ut_avl.h"
-#include "ddsi/q_log.h"
-#include "ddsi/q_misc.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_addrset.h"
-#include "ddsi/q_globals.h" /* gv.mattr */
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/string.h"
+#include "dds/util/ut_avl.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_misc.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/q_globals.h" /* gv.mattr */
 
 /* So what does one do with const & mutexes? I need to take lock in a
    pure function just in case some other thread is trying to change
@@ -31,9 +32,9 @@
 
    Today, I'm taking the latter interpretation. But all the
    const-discarding casts get moved into LOCK/UNLOCK macros. */
-#define LOCK(as) (os_mutexLock (&((struct addrset *) (as))->lock))
-#define TRYLOCK(as) (os_mutexTryLock (&((struct addrset *) (as))->lock))
-#define UNLOCK(as) (os_mutexUnlock (&((struct addrset *) (as))->lock))
+#define LOCK(as) (ddsrt_mutex_lock (&((struct addrset *) (as))->lock))
+#define TRYLOCK(as) (ddsrt_mutex_trylock (&((struct addrset *) (as))->lock))
+#define UNLOCK(as) (ddsrt_mutex_unlock (&((struct addrset *) (as))->lock))
 
 static int compare_locators_vwrap (const void *va, const void *vb);
 
@@ -125,7 +126,7 @@ static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int p
   return 0;
 }
 
-OS_WARNING_MSVC_OFF(4996);
+DDSRT_WARNING_MSVC_OFF(4996);
 int add_addresses_to_addrset (struct addrset *as, const char *addrs, int port_mode, const char *msgtag, int req_mc)
 {
   /* port_mode: -1  => take from string, if 0 & unicast, add for a range of participant indices;
@@ -133,10 +134,10 @@ int add_addresses_to_addrset (struct addrset *as, const char *addrs, int port_mo
   */
   char *addrs_copy, *ip, *cursor, *a;
   int retval = -1;
-  addrs_copy = os_strdup (addrs);
-  ip = os_malloc (strlen (addrs) + 1);
+  addrs_copy = ddsrt_strdup (addrs);
+  ip = ddsrt_malloc (strlen (addrs) + 1);
   cursor = addrs_copy;
-  while ((a = os_strsep (&cursor, ",")) != NULL)
+  while ((a = ddsrt_strsep (&cursor, ",")) != NULL)
   {
     int port = 0, pos;
     int mcgen_base = -1, mcgen_count = -1, mcgen_idx = -1;
@@ -174,11 +175,11 @@ int add_addresses_to_addrset (struct addrset *as, const char *addrs, int port_mo
   }
   retval = 0;
  error:
-  os_free (ip);
-  os_free (addrs_copy);
+  ddsrt_free (ip);
+  ddsrt_free (addrs_copy);
   return retval;
 }
-OS_WARNING_MSVC_ON(4996);
+DDSRT_WARNING_MSVC_ON(4996);
 
 int compare_locators (const nn_locator_t *a, const nn_locator_t *b)
 {
@@ -198,9 +199,9 @@ static int compare_locators_vwrap (const void *va, const void *vb)
 
 struct addrset *new_addrset (void)
 {
-  struct addrset *as = os_malloc (sizeof (*as));
-  os_atomic_st32 (&as->refc, 1);
-  os_mutexInit (&as->lock);
+  struct addrset *as = ddsrt_malloc (sizeof (*as));
+  ddsrt_atomic_st32 (&as->refc, 1);
+  ddsrt_mutex_init (&as->lock);
   ut_avlCInit (&addrset_treedef, &as->ucaddrs);
   ut_avlCInit (&addrset_treedef, &as->mcaddrs);
   return as;
@@ -210,19 +211,19 @@ struct addrset *ref_addrset (struct addrset *as)
 {
   if (as != NULL)
   {
-    os_atomic_inc32 (&as->refc);
+    ddsrt_atomic_inc32 (&as->refc);
   }
   return as;
 }
 
 void unref_addrset (struct addrset *as)
 {
-  if ((as != NULL) && (os_atomic_dec32_ov (&as->refc) == 1))
+  if ((as != NULL) && (ddsrt_atomic_dec32_ov (&as->refc) == 1))
   {
-    ut_avlCFree (&addrset_treedef, &as->ucaddrs, os_free);
-    ut_avlCFree (&addrset_treedef, &as->mcaddrs, os_free);
-    os_mutexDestroy (&as->lock);
-    os_free (as);
+    ut_avlCFree (&addrset_treedef, &as->ucaddrs, ddsrt_free);
+    ut_avlCFree (&addrset_treedef, &as->mcaddrs, ddsrt_free);
+    ddsrt_mutex_destroy (&as->lock);
+    ddsrt_free (as);
   }
 }
 
@@ -299,8 +300,8 @@ int addrset_any_non_ssm_mc (const struct addrset *as, nn_locator_t *dst)
 int addrset_purge (struct addrset *as)
 {
   LOCK (as);
-  ut_avlCFree (&addrset_treedef, &as->ucaddrs, os_free);
-  ut_avlCFree (&addrset_treedef, &as->mcaddrs, os_free);
+  ut_avlCFree (&addrset_treedef, &as->ucaddrs, ddsrt_free);
+  ut_avlCFree (&addrset_treedef, &as->mcaddrs, ddsrt_free);
   UNLOCK (as);
   return 0;
 }
@@ -314,7 +315,7 @@ void add_to_addrset (struct addrset *as, const nn_locator_t *loc)
     LOCK (as);
     if (ut_avlCLookupIPath (&addrset_treedef, tree, loc, &path) == NULL)
     {
-      struct addrset_node *n = os_malloc (sizeof (*n));
+      struct addrset_node *n = ddsrt_malloc (sizeof (*n));
       n->loc = *loc;
       ut_avlCInsertIPath (&addrset_treedef, tree, n, &path);
     }
@@ -331,7 +332,7 @@ void remove_from_addrset (struct addrset *as, const nn_locator_t *loc)
   if ((n = ut_avlCLookupDPath (&addrset_treedef, tree, loc, &path)) != NULL)
   {
     ut_avlCDeleteDPath (&addrset_treedef, tree, n, &path);
-    os_free (n);
+    ddsrt_free (n);
   }
   UNLOCK (as);
 }
@@ -395,7 +396,7 @@ void addrset_purge_ssm (struct addrset *as)
     if (ddsi_is_ssm_mcaddr (&n1->loc))
     {
       ut_avlCDelete (&addrset_treedef, &as->mcaddrs, n1);
-      os_free (n1);
+      ddsrt_free (n1);
     }
   }
   UNLOCK (as);
@@ -608,7 +609,7 @@ int addrset_eq_onesidederr (const struct addrset *a, const struct addrset *b)
   if (a == NULL || b == NULL)
     return 0;
   LOCK (a);
-  if (TRYLOCK (b) == os_resultSuccess)
+  if (TRYLOCK (b))
   {
     iseq =
       addrset_eq_onesidederr1 (&a->ucaddrs, &b->ucaddrs) &&

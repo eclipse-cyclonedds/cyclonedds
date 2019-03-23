@@ -9,8 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "util/ut_crc.h"
-#include "os/os.h"
+#include "dds/util/ut_crc.h"
 
 static const uint32_t crc32_table[] = {
   0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b,

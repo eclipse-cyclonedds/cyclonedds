@@ -10,10 +10,11 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <stdio.h>
+
 #include "CUnit/Test.h"
-#include "ddsc/dds.h"
+#include "dds/dds.h"
 #include "RoundTrip.h"
-#include "os/os.h"
+#include "dds/ddsrt/misc.h"
 
 static dds_entity_t participant = 0;
 static dds_entity_t topic = 0;
@@ -53,9 +54,9 @@ CU_Test(ddsc_create_writer, basic, .init = setup, .fini = teardown)
 
 CU_Test(ddsc_create_writer, null_parent, .init = setup, .fini = teardown)
 {
-    OS_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
     writer = dds_create_writer(0, topic, NULL, NULL);
-    OS_WARNING_MSVC_ON(28020);
+    DDSRT_WARNING_MSVC_ON(28020);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(writer), DDS_RETCODE_BAD_PARAMETER);
 }
 
@@ -87,9 +88,9 @@ CU_Test(ddsc_create_writer, deleted_publisher, .init = setup, .fini = teardown)
 
 CU_Test(ddsc_create_writer, null_topic, .init = setup, .fini = teardown)
 {
-    OS_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
     writer = dds_create_writer(publisher, 0, NULL, NULL);
-    OS_WARNING_MSVC_ON(28020);
+    DDSRT_WARNING_MSVC_ON(28020);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(writer), DDS_RETCODE_BAD_PARAMETER);
 }
 

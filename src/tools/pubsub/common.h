@@ -12,7 +12,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include "ddsc/dds.h"
+#include "dds/dds.h"
 #include <assert.h>
 
 #define DDS_USERDATA_QOS_POLICY_NAME                            "UserData"
@@ -74,11 +74,11 @@ void hist_record(struct hist *h, uint64_t x, unsigned weight);
 void hist_print(struct hist *h, dds_time_t dt, int reset);
 
 void error(const char *fmt, ...);
-#define error_abort(rc, ...) if (rc < DDS_SUCCESS) { error(__VA_ARGS__); DDS_ERR_CHECK(rc, DDS_CHECK_FAIL); }
-#define error_report(rc, ...) if (rc < DDS_SUCCESS) { error(__VA_ARGS__); DDS_ERR_CHECK(rc, DDS_CHECK_REPORT); }
-#define error_return(rc, ...) if (rc < DDS_SUCCESS) { error_report(rc, __VA_ARGS__); return; }
+#define error_abort(rc, ...) if (rc < DDS_RETCODE_OK) { error(__VA_ARGS__); DDS_ERR_CHECK(rc, DDS_CHECK_FAIL); }
+#define error_report(rc, ...) if (rc < DDS_RETCODE_OK) { error(__VA_ARGS__); DDS_ERR_CHECK(rc, DDS_CHECK_REPORT); }
+#define error_return(rc, ...) if (rc < DDS_RETCODE_OK) { error_report(rc, __VA_ARGS__); return; }
 #define error_exit(...) { error(__VA_ARGS__); exit(2); }
-#define os_error_exit(osres, ...) if (osres != os_resultSuccess) { error(__VA_ARGS__); exit(2); }
+#define os_error_exit(osres, ...) if (osres != DDS_RETCODE_OK) { error(__VA_ARGS__); exit(2); }
 
 void save_argv0(const char *argv0);
 int common_init(const char *argv0);
@@ -112,5 +112,17 @@ void qos_lifespan(dds_entity_kind_t qt, dds_qos_t *q, const char *arg);
 void qos_autodispose_unregistered_instances(dds_entity_kind_t qt, dds_qos_t *q, const char *arg);
 void set_qosprovider(const char *arg);
 void setqos_from_args(dds_entity_kind_t qt, dds_qos_t *q, int n, const char *args[]);
+
+bool dds_err_check (dds_return_t err, unsigned flags, const char *where);
+
+#define DDS_CHECK_REPORT 0x01
+#define DDS_CHECK_FAIL 0x02
+#define DDS_CHECK_EXIT 0x04
+
+#define dds_err_str(x) (dds_strretcode(dds_err_nr(x)))
+
+#define DDS_TO_STRING(n) #n
+#define DDS_INT_TO_STRING(n) DDS_TO_STRING(n)
+#define DDS_ERR_CHECK(e, f) (dds_err_check ((e), (f), __FILE__ ":" DDS_INT_TO_STRING(__LINE__)))
 
 #endif

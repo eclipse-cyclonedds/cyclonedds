@@ -12,51 +12,55 @@
 #include <ctype.h>
 #include <stddef.h>
 
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/time.h"
+#include "dds/ddsrt/string.h"
+#include "dds/ddsrt/sync.h"
 
-#include "util/ut_avl.h"
-#include "util/ut_thread_pool.h"
+#include "dds/util/ut_avl.h"
+#include "dds/util/ut_thread_pool.h"
 
-#include "ddsi/q_md5.h"
-#include "ddsi/q_protocol.h"
-#include "ddsi/q_rtps.h"
-#include "ddsi/q_misc.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_log.h"
-#include "ddsi/q_plist.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_lat_estim.h"
-#include "ddsi/q_bitset.h"
-#include "ddsi/q_xevent.h"
-#include "ddsi/q_addrset.h"
-#include "ddsi/q_ddsi_discovery.h"
-#include "ddsi/q_radmin.h"
-#include "ddsi/q_error.h"
-#include "ddsi/q_thread.h"
-#include "ddsi/q_ephash.h"
-#include "ddsi/q_lease.h"
-#include "ddsi/q_gc.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/q_nwif.h"
-#include "ddsi/q_globals.h"
-#include "ddsi/q_xmsg.h"
-#include "ddsi/q_receive.h"
-#include "ddsi/q_pcap.h"
-#include "ddsi/q_feature_check.h"
-#include "ddsi/q_debmon.h"
-#include "ddsi/q_init.h"
+#include "dds/ddsi/q_md5.h"
+#include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/q_misc.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_lat_estim.h"
+#include "dds/ddsi/q_bitset.h"
+#include "dds/ddsi/q_xevent.h"
+#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/q_ddsi_discovery.h"
+#include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/q_error.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/q_lease.h"
+#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_nwif.h"
+#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/q_receive.h"
+#include "dds/ddsi/q_pcap.h"
+#include "dds/ddsi/q_feature_check.h"
+#include "dds/ddsi/q_debmon.h"
+#include "dds/ddsi/q_init.h"
 
-#include "ddsi/ddsi_tran.h"
-#include "ddsi/ddsi_udp.h"
-#include "ddsi/ddsi_tcp.h"
-#include "ddsi/ddsi_raweth.h"
-#include "ddsi/ddsi_mcgroup.h"
-#include "ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_tran.h"
+#include "dds/ddsi/ddsi_udp.h"
+#include "dds/ddsi/ddsi_tcp.h"
+#include "dds/ddsi/ddsi_raweth.h"
+#include "dds/ddsi/ddsi_mcgroup.h"
+#include "dds/ddsi/ddsi_serdata_default.h"
 
-#include "ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
-#include "ddsi/ddsi_iid.h"
+#include "dds/ddsi/ddsi_iid.h"
 
 static void add_peer_addresses (struct addrset *as, const struct config_peer_listelem *list)
 {
@@ -142,9 +146,9 @@ static int set_recvips (void)
 
   if (config.networkRecvAddressStrings)
   {
-    if (os_strcasecmp (config.networkRecvAddressStrings[0], "all") == 0)
+    if (ddsrt_strcasecmp (config.networkRecvAddressStrings[0], "all") == 0)
     {
-#if OS_SOCKET_HAS_IPV6
+#if DDSRT_HAVE_IPV6
       if (gv.ipv6_link_local)
       {
         DDS_WARNING("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' instead of 'all' because of IPv6 link-local address\n");
@@ -156,9 +160,9 @@ static int set_recvips (void)
         gv.recvips_mode = RECVIPS_MODE_ALL;
       }
     }
-    else if (os_strcasecmp (config.networkRecvAddressStrings[0], "any") == 0)
+    else if (ddsrt_strcasecmp (config.networkRecvAddressStrings[0], "any") == 0)
     {
-#if OS_SOCKET_HAS_IPV6
+#if DDSRT_HAVE_IPV6
       if (gv.ipv6_link_local)
       {
         DDS_ERROR("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: 'any' is unsupported in combination with an IPv6 link-local address\n");
@@ -167,15 +171,15 @@ static int set_recvips (void)
 #endif
       gv.recvips_mode = RECVIPS_MODE_ANY;
     }
-    else if (os_strcasecmp (config.networkRecvAddressStrings[0], "preferred") == 0)
+    else if (ddsrt_strcasecmp (config.networkRecvAddressStrings[0], "preferred") == 0)
     {
       gv.recvips_mode = RECVIPS_MODE_PREFERRED;
     }
-    else if (os_strcasecmp (config.networkRecvAddressStrings[0], "none") == 0)
+    else if (ddsrt_strcasecmp (config.networkRecvAddressStrings[0], "none") == 0)
     {
       gv.recvips_mode = RECVIPS_MODE_NONE;
     }
-#if OS_SOCKET_HAS_IPV6
+#if DDSRT_HAVE_IPV6
     else if (gv.ipv6_link_local)
     {
       /* If the configuration explicitly includes the selected
@@ -225,7 +229,7 @@ static int set_recvips (void)
           DDS_ERROR("No interface bound to requested address '%s'\n", config.networkRecvAddressStrings[i]);
           return -1;
         }
-        *recvnode = os_malloc (sizeof (struct config_in_addr_node));
+        *recvnode = ddsrt_malloc (sizeof (struct config_in_addr_node));
         (*recvnode)->loc = loc;
         recvnode = &(*recvnode)->next;
         *recvnode = NULL;
@@ -422,7 +426,7 @@ static int check_thread_properties (void)
   return ok;
 }
 
-OS_WARNING_MSVC_OFF(4996);
+DDSRT_WARNING_MSVC_OFF(4996);
 int rtps_config_open (void)
 {
     int status;
@@ -433,12 +437,12 @@ int rtps_config_open (void)
         config.tracingOutputFile = NULL;
         status = 1;
     }
-    else if (os_strcasecmp (config.tracingOutputFileName, "stdout") == 0)
+    else if (ddsrt_strcasecmp (config.tracingOutputFileName, "stdout") == 0)
     {
         config.tracingOutputFile = stdout;
         status = 1;
     }
-    else if (os_strcasecmp (config.tracingOutputFileName, "stderr") == 0)
+    else if (ddsrt_strcasecmp (config.tracingOutputFileName, "stderr") == 0)
     {
         config.tracingOutputFile = stderr;
         status = 1;
@@ -458,7 +462,7 @@ int rtps_config_open (void)
 
     return status;
 }
-OS_WARNING_MSVC_ON(4996);
+DDSRT_WARNING_MSVC_ON(4996);
 
 int rtps_config_prep (struct cfgst *cfgst)
 {
@@ -542,7 +546,7 @@ int rtps_config_prep (struct cfgst *cfgst)
     while (chptr)
     {
       size_t slen = strlen (chptr->name) + 5;
-      char *thread_name = os_malloc (slen);
+      char *thread_name = ddsrt_malloc (slen);
       (void) snprintf (thread_name, slen, "tev.%s", chptr->name);
 
       num_channels++;
@@ -561,7 +565,7 @@ int rtps_config_prep (struct cfgst *cfgst)
           lookup_thread_properties (thread_name))
         num_channel_threads++;
 
-      os_free (thread_name);
+      ddsrt_free (thread_name);
       chptr = chptr->next;
     }
     if (error)
@@ -689,15 +693,15 @@ err_disc:
 static void rtps_term_prep (void)
 {
   /* Stop all I/O */
-  os_mutexLock (&gv.lock);
+  ddsrt_mutex_lock (&gv.lock);
   if (gv.rtps_keepgoing)
   {
     gv.rtps_keepgoing = 0; /* so threads will stop once they get round to checking */
-    os_atomic_fence ();
+    ddsrt_atomic_fence ();
     /* can't wake up throttle_writer, currently, but it'll check every few seconds */
     trigger_recv_threads ();
   }
-  os_mutexUnlock (&gv.lock);
+  ddsrt_mutex_unlock (&gv.lock);
 }
 
 struct wait_for_receive_threads_helper_arg {
@@ -751,9 +755,9 @@ static struct ddsi_sertopic *make_special_topic (uint16_t enc_id, const struct d
      - initialising/freeing them here, in this manner, is not very clean
        it should be moved to somewhere in the topic implementation
        (kinda natural if they stop being "default" ones) */
-  struct ddsi_sertopic_default *st = os_malloc (sizeof (*st));
+  struct ddsi_sertopic_default *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
-  os_atomic_st32 (&st->c.refc, 1);
+  ddsrt_atomic_st32 (&st->c.refc, 1);
   st->c.ops = &ddsi_sertopic_ops_default;
   st->c.serdata_ops = ops;
   st->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (st->c.serdata_ops);
@@ -765,8 +769,8 @@ static struct ddsi_sertopic *make_special_topic (uint16_t enc_id, const struct d
 
 static void make_special_topics (void)
 {
-  gv.plist_topic = make_special_topic (PLATFORM_IS_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE, &ddsi_serdata_ops_plist);
-  gv.rawcdr_topic = make_special_topic (PLATFORM_IS_LITTLE_ENDIAN ? CDR_LE : CDR_BE, &ddsi_serdata_ops_rawcdr);
+  gv.plist_topic = make_special_topic (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE, &ddsi_serdata_ops_plist);
+  gv.rawcdr_topic = make_special_topic (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE, &ddsi_serdata_ops_rawcdr);
 }
 
 static void free_special_topics (void)
@@ -882,11 +886,8 @@ int rtps_init (void)
   {
     int sec = (int) (gv.tstart.v / 1000000000);
     int usec = (int) (gv.tstart.v % 1000000000) / 1000;
-    os_time tv;
-    char str[OS_CTIME_R_BUFSIZE];
-    tv.tv_sec = sec;
-    tv.tv_nsec = usec * 1000;
-    os_ctime_r (&tv, str, sizeof(str));
+    char str[DDSRT_RFC3339STRLEN];
+    ddsrt_ctime(gv.tstart.v, str, sizeof(str));
     DDS_LOG(DDS_LC_CONFIG, "started at %d.06%d -- %s\n", sec, usec, str);
   }
 
@@ -989,12 +990,12 @@ int rtps_init (void)
     {
       static const char msgtag_fixed[] = ": partition address";
       size_t slen = strlen (np->name) + sizeof (msgtag_fixed);
-      char * msgtag = os_malloc (slen);
+      char * msgtag = ddsrt_malloc (slen);
       int rc;
       snprintf (msgtag, slen, "%s%s", np->name, msgtag_fixed);
       np->as = new_addrset ();
       rc = add_addresses_to_addrset (np->as, np->address_string, port, msgtag, 1);
-      os_free (msgtag);
+      ddsrt_free (msgtag);
       if (rc < 0)
         goto err_network_partition_addrset;
     }
@@ -1031,23 +1032,23 @@ int rtps_init (void)
 
   make_special_topics ();
 
-  os_mutexInit (&gv.participant_set_lock);
-  os_condInit (&gv.participant_set_cond, &gv.participant_set_lock);
+  ddsrt_mutex_init (&gv.participant_set_lock);
+  ddsrt_cond_init (&gv.participant_set_cond);
   lease_management_init ();
   deleted_participants_admin_init ();
   gv.guid_hash = ephash_new ();
 
-  os_mutexInit (&gv.privileged_pp_lock);
+  ddsrt_mutex_init (&gv.privileged_pp_lock);
   gv.privileged_pp = NULL;
 
   /* Template PP guid -- protected by privileged_pp_lock for simplicity */
   gv.next_ppguid.prefix.u[0] = locator_to_hopefully_unique_uint32 (&gv.ownloc);
-  gv.next_ppguid.prefix.u[1] = (unsigned) os_getpid ();
+  gv.next_ppguid.prefix.u[1] = (unsigned) ddsrt_getpid ();
   gv.next_ppguid.prefix.u[2] = 1;
   gv.next_ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
 
-  os_mutexInit (&gv.lock);
-  os_mutexInit (&gv.spdp_lock);
+  ddsrt_mutex_init (&gv.lock);
+  ddsrt_mutex_init (&gv.spdp_lock);
   gv.spdp_defrag = nn_defrag_new (NN_DEFRAG_DROP_OLDEST, config.defrag_unreliable_maxsamples);
   gv.spdp_reorder = nn_reorder_new (NN_REORDER_MODE_ALWAYS_DELIVER, config.primary_reorder_maxsamples);
 
@@ -1101,7 +1102,7 @@ int rtps_init (void)
     gv.pcap_fp = new_pcap_file (config.pcap_file);
     if (gv.pcap_fp)
     {
-      os_mutexInit (&gv.pcap_lock);
+      ddsrt_mutex_init (&gv.pcap_lock);
     }
   }
   else
@@ -1176,7 +1177,7 @@ int rtps_init (void)
     while (chptr)
     {
       size_t slen = strlen (chptr->name) + 5;
-      char * tname = os_malloc (slen);
+      char * tname = ddsrt_malloc (slen);
       (void) snprintf (tname, slen, "tev.%s", chptr->name);
 
       /* Only actually create new connection if diffserv set */
@@ -1221,7 +1222,7 @@ int rtps_init (void)
         );
       }
 #endif
-      os_free (tname);
+      ddsrt_free (tname);
       chptr = chptr->next;
     }
   }
@@ -1272,7 +1273,7 @@ int rtps_init (void)
   gv.gcreq_queue = gcreq_queue_new ();
 
   gv.rtps_keepgoing = 1;
-  os_rwlockInit (&gv.qoslock);
+  ddsrt_rwlock_init (&gv.qoslock);
 
   {
     int r;
@@ -1337,7 +1338,7 @@ err_mc_conn:
   if (gv.data_conn_mc && gv.data_conn_mc != gv.disc_conn_mc)
     ddsi_conn_free (gv.data_conn_mc);
   if (gv.pcap_fp)
-    os_mutexDestroy (&gv.pcap_lock);
+    ddsrt_mutex_destroy (&gv.pcap_lock);
   if (gv.disc_conn_uc != gv.disc_conn_mc)
     ddsi_conn_free (gv.disc_conn_uc);
   if (gv.data_conn_uc != gv.disc_conn_uc)
@@ -1347,15 +1348,15 @@ err_unicast_sockets:
   ddsi_tkmap_free (gv.m_tkmap);
   nn_reorder_free (gv.spdp_reorder);
   nn_defrag_free (gv.spdp_defrag);
-  os_mutexDestroy (&gv.spdp_lock);
-  os_mutexDestroy (&gv.lock);
-  os_mutexDestroy (&gv.privileged_pp_lock);
+  ddsrt_mutex_destroy (&gv.spdp_lock);
+  ddsrt_mutex_destroy (&gv.lock);
+  ddsrt_mutex_destroy (&gv.privileged_pp_lock);
   ephash_free (gv.guid_hash);
   gv.guid_hash = NULL;
   deleted_participants_admin_fini ();
   lease_management_term ();
-  os_condDestroy (&gv.participant_set_cond);
-  os_mutexDestroy (&gv.participant_set_lock);
+  ddsrt_cond_destroy (&gv.participant_set_cond);
+  ddsrt_mutex_destroy (&gv.participant_set_lock);
   free_special_topics ();
 #ifdef DDSI_INCLUDE_ENCRYPTION
   if (q_security_plugin.free_decoder)
@@ -1385,13 +1386,13 @@ err_set_ext_address:
   {
     struct config_in_addr_node *n = gv.recvips;
     gv.recvips = n->next;
-    os_free (n);
+    ddsrt_free (n);
   }
 err_set_recvips:
   {
     int i;
     for (i = 0; i < gv.n_interfaces; i++)
-      os_free (gv.interfaces[i].name);
+      ddsrt_free (gv.interfaces[i].name);
   }
 err_find_own_ip:
     ddsi_tran_factories_fini ();
@@ -1402,18 +1403,18 @@ err_udp_tcp_init:
 }
 
 struct dq_builtins_ready_arg {
-  os_mutex lock;
-  os_cond cond;
+  ddsrt_mutex_t lock;
+  ddsrt_cond_t cond;
   int ready;
 };
 
 static void builtins_dqueue_ready_cb (void *varg)
 {
   struct dq_builtins_ready_arg *arg = varg;
-  os_mutexLock (&arg->lock);
+  ddsrt_mutex_lock (&arg->lock);
   arg->ready = 1;
-  os_condBroadcast (&arg->cond);
-  os_mutexUnlock (&arg->lock);
+  ddsrt_cond_broadcast (&arg->cond);
+  ddsrt_mutex_unlock (&arg->lock);
 }
 
 void rtps_stop (void)
@@ -1454,23 +1455,23 @@ void rtps_stop (void)
      deleting them */
   {
     struct dq_builtins_ready_arg arg;
-    os_mutexInit (&arg.lock);
-    os_condInit (&arg.cond, &arg.lock);
+    ddsrt_mutex_init (&arg.lock);
+    ddsrt_cond_init (&arg.cond);
     arg.ready = 0;
     nn_dqueue_enqueue_callback(gv.builtins_dqueue, builtins_dqueue_ready_cb, &arg);
-    os_mutexLock (&arg.lock);
+    ddsrt_mutex_lock (&arg.lock);
     while (!arg.ready)
-      os_condWait (&arg.cond, &arg.lock);
-    os_mutexUnlock (&arg.lock);
-    os_condDestroy (&arg.cond);
-    os_mutexDestroy (&arg.lock);
+      ddsrt_cond_wait (&arg.cond, &arg.lock);
+    ddsrt_mutex_unlock (&arg.lock);
+    ddsrt_cond_destroy (&arg.cond);
+    ddsrt_mutex_destroy (&arg.lock);
   }
 
   /* Once the receive threads have stopped, defragmentation and
      reorder state can't change anymore, and can be freed safely. */
   nn_reorder_free (gv.spdp_reorder);
   nn_defrag_free (gv.spdp_defrag);
-  os_mutexDestroy (&gv.spdp_lock);
+  ddsrt_mutex_destroy (&gv.spdp_lock);
 #ifdef DDSI_INCLUDE_ENCRYPTION
   if (q_security_plugin.free_decoder)
   {
@@ -1536,10 +1537,10 @@ void rtps_stop (void)
   /* Wait until all participants are really gone => by then we can be
      certain that no new GC requests will be added, short of what we
      do here */
-  os_mutexLock (&gv.participant_set_lock);
+  ddsrt_mutex_lock (&gv.participant_set_lock);
   while (gv.nparticipants > 0)
-    os_condWait (&gv.participant_set_cond, &gv.participant_set_lock);
-  os_mutexUnlock (&gv.participant_set_lock);
+    ddsrt_cond_wait (&gv.participant_set_cond, &gv.participant_set_lock);
+  ddsrt_mutex_unlock (&gv.participant_set_lock);
 
   /* Wait until no more GC requests are outstanding -- not really
      necessary, but it allows us to claim the stack is quiescent
@@ -1549,7 +1550,7 @@ void rtps_stop (void)
   /* Clean up privileged_pp -- it must be NULL now (all participants
      are gone), but the lock still needs to be destroyed */
   assert (gv.privileged_pp == NULL);
-  os_mutexDestroy (&gv.privileged_pp_lock);
+  ddsrt_mutex_destroy (&gv.privileged_pp_lock);
 }
 
 void rtps_fini (void)
@@ -1616,7 +1617,7 @@ void rtps_fini (void)
 
   if (gv.pcap_fp)
   {
-    os_mutexDestroy (&gv.pcap_lock);
+    ddsrt_mutex_destroy (&gv.pcap_lock);
     fclose (gv.pcap_fp);
   }
 
@@ -1647,8 +1648,8 @@ void rtps_fini (void)
   gv.guid_hash = NULL;
   deleted_participants_admin_fini ();
   lease_management_term ();
-  os_mutexDestroy (&gv.participant_set_lock);
-  os_condDestroy (&gv.participant_set_cond);
+  ddsrt_mutex_destroy (&gv.participant_set_lock);
+  ddsrt_cond_destroy (&gv.participant_set_cond);
   free_special_topics ();
 
   nn_xqos_fini (&gv.builtin_endpoint_xqos_wr);
@@ -1662,23 +1663,23 @@ void rtps_fini (void)
   nn_xqos_fini (&gv.default_xqos_rd);
   nn_plist_fini (&gv.default_plist_pp);
 
-  os_mutexDestroy (&gv.lock);
-  os_rwlockDestroy (&gv.qoslock);
+  ddsrt_mutex_destroy (&gv.lock);
+  ddsrt_rwlock_destroy (&gv.qoslock);
 
   while (gv.recvips)
   {
     struct config_in_addr_node *n = gv.recvips;
 /* The compiler doesn't realize that n->next is always initialized. */
-OS_WARNING_MSVC_OFF(6001);
+DDSRT_WARNING_MSVC_OFF(6001);
     gv.recvips = n->next;
-OS_WARNING_MSVC_ON(6001);
-    os_free (n);
+DDSRT_WARNING_MSVC_ON(6001);
+    ddsrt_free (n);
   }
 
   {
     int i;
     for (i = 0; i < (int) gv.n_interfaces; i++)
-      os_free (gv.interfaces[i].name);
+      ddsrt_free (gv.interfaces[i].name);
   }
 
   ddsi_serdatapool_free (gv.serpool);

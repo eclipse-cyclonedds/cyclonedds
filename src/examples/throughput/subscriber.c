@@ -1,4 +1,4 @@
-#include "ddsc/dds.h"
+#include "dds/dds.h"
 #include "Throughput.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -168,7 +168,8 @@ static int do_take (dds_entity_t reader)
   /* Take samples and iterate through them */
 
   samples_received = dds_take (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
-  DDS_ERR_CHECK (samples_received, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (samples_received < 0)
+    DDS_FATAL("dds_take: %s\n", dds_strretcode(-samples_received));
 
   for (int i = 0; !done && i < samples_received; i++)
   {
@@ -256,7 +257,8 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles)
     else
     {
       status = dds_waitset_wait (waitSet, wsresults, sizeof(wsresults)/sizeof(wsresults[0]), DDS_MSECS(100));
-      DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+      if (status < 0)
+        DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-status));
     }
 
     if (pollingDelay >= 0)
@@ -316,19 +318,22 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
   /* A Participant is created for the default domain. */
 
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-  DDS_ERR_CHECK (participant, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (participant < 0)
+    DDS_FATAL("dds_create_particpant: %s\n", dds_strretcode(-participant));
 
   /* A Topic is created for our sample type on the domain participant. */
 
   topic = dds_create_topic (participant, &ThroughputModule_DataType_desc, "Throughput", NULL, NULL);
-  DDS_ERR_CHECK (topic, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (topic < 0)
+    DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
   /* A Subscriber is created on the domain participant. */
 
   subParts[0] = partitionName;
   dds_qset_partition (subQos, 1, subParts);
   subscriber = dds_create_subscriber (participant, subQos, NULL);
-  DDS_ERR_CHECK (subscriber, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (subscriber < 0)
+    DDS_FATAL("dds_create_subscriber: %s\n", dds_strretcode(-subscriber));
   dds_delete_qos (subQos);
 
   /* A Reader is created on the Subscriber & Topic with a modified Qos. */
@@ -342,10 +347,12 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
 
   /* A Read Condition is created which is triggered when data is available to read */
   waitSet = dds_create_waitset (participant);
-  DDS_ERR_CHECK (waitSet, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (waitSet < 0)
+    DDS_FATAL("dds_create_waitset: %s\n", dds_strretcode(-waitSet));
 
   status = dds_waitset_attach (waitSet, waitSet, waitSet);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (status < 0)
+    DDS_FATAL("dds_waitset_attach: %s\n", dds_strretcode(-status));
 
   imap = HandleMap__alloc ();
 
@@ -356,12 +363,14 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
   }
 
   *reader = dds_create_reader (subscriber, topic, drQos, pollingDelay < 0 ? rd_listener : NULL);
-  DDS_ERR_CHECK (*reader, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (*reader < 0)
+    DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-*reader));
 
   if (pollingDelay == 0)
   {
     status = dds_waitset_attach (waitSet, *reader, *reader);
-    DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+    if (status < 0)
+      DDS_FATAL("dds_waitset_attach: %s\n", dds_strretcode(-status));
   }
 
   dds_delete_qos (drQos);
@@ -380,9 +389,12 @@ static void finalize_dds(dds_entity_t participant)
   }
 
   status = dds_waitset_detach (waitSet, waitSet);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (status < 0)
+    DDS_FATAL("dds_waitset_detach: %s\n", dds_strretcode(-status));
   status = dds_delete (waitSet);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (status < 0)
+    DDS_FATAL("dds_delete: %s\n", dds_strretcode(-status));
   status = dds_delete (participant);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (status < 0)
+    DDS_FATAL("dds_delete: %s\n", dds_strretcode(-status));
 }

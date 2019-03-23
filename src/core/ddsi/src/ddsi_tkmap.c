@@ -11,17 +11,20 @@
  */
 #include <assert.h>
 #include <string.h>
-#include "ddsi/q_thread.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_gc.h"
-#include "ddsi/q_globals.h"
-#include "ddsi/q_config.h"
-#include "ddsi/ddsi_iid.h"
-#include "ddsi/ddsi_tkmap.h"
-#include "util/ut_hopscotch.h"
+
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/ddsi_iid.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/util/ut_hopscotch.h"
 #include "dds__stream.h"
-#include "os/os.h"
-#include "ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_serdata.h"
 
 #define REFC_DELETE 0x80000000
 #define REFC_MASK   0x0fffffff
@@ -29,13 +32,13 @@
 struct ddsi_tkmap
 {
   struct ut_chh * m_hh;
-  os_mutex m_lock;
-  os_cond m_cond;
+  ddsrt_mutex_t m_lock;
+  ddsrt_cond_t m_cond;
 };
 
 static void gc_buckets_impl (struct gcreq *gcreq)
 {
-  os_free (gcreq->arg);
+  ddsrt_free (gcreq->arg);
   gcreq_free (gcreq);
 }
 
@@ -85,8 +88,8 @@ struct ddsi_tkmap *ddsi_tkmap_new (void)
 {
   struct ddsi_tkmap *tkmap = dds_alloc (sizeof (*tkmap));
   tkmap->m_hh = ut_chhNew (1, dds_tk_hash_void, dds_tk_equals_void, gc_buckets);
-  os_mutexInit (&tkmap->m_lock);
-  os_condInit (&tkmap->m_cond, &tkmap->m_lock);
+  ddsrt_mutex_init (&tkmap->m_lock);
+  ddsrt_cond_init (&tkmap->m_cond);
   return tkmap;
 }
 
@@ -94,19 +97,19 @@ static void free_tkmap_instance (void *vtk, UNUSED_ARG(void *f_arg))
 {
   struct ddsi_tkmap_instance *tk = vtk;
   ddsi_serdata_unref (tk->m_sample);
-  os_free (tk);
+  ddsrt_free (tk);
 }
 
-void ddsi_tkmap_free (_Inout_ _Post_invalid_ struct ddsi_tkmap * map)
+void ddsi_tkmap_free (struct ddsi_tkmap * map)
 {
   ut_chhEnumUnsafe (map->m_hh, free_tkmap_instance, NULL);
   ut_chhFree (map->m_hh);
-  os_condDestroy (&map->m_cond);
-  os_mutexDestroy (&map->m_lock);
+  ddsrt_cond_destroy (&map->m_cond);
+  ddsrt_mutex_destroy (&map->m_lock);
   dds_free (map);
 }
 
-uint64_t ddsi_tkmap_lookup (_In_ struct ddsi_tkmap * map, _In_ const struct ddsi_serdata * sd)
+uint64_t ddsi_tkmap_lookup (struct ddsi_tkmap * map, const struct ddsi_serdata * sd)
 {
   struct ddsi_tkmap_instance dummy;
   struct ddsi_tkmap_instance * tk;
@@ -116,8 +119,7 @@ uint64_t ddsi_tkmap_lookup (_In_ struct ddsi_tkmap * map, _In_ const struct ddsi
   return (tk) ? tk->m_iid : DDS_HANDLE_NIL;
 }
 
-_Check_return_
-struct ddsi_tkmap_instance *ddsi_tkmap_find_by_id (_In_ struct ddsi_tkmap *map, _In_ uint64_t iid)
+struct ddsi_tkmap_instance *ddsi_tkmap_find_by_id (struct ddsi_tkmap *map, uint64_t iid)
 {
   /* This is not a function that should be used liberally, as it linearly scans the key-to-iid map. */
   struct ut_chhIter it;
@@ -130,7 +132,7 @@ struct ddsi_tkmap_instance *ddsi_tkmap_find_by_id (_In_ struct ddsi_tkmap *map, 
   if (tk == NULL)
     /* Common case of it not existing at all */
     return NULL;
-  else if (!((refc = os_atomic_ld32 (&tk->m_refc)) & REFC_DELETE) && os_atomic_cas32 (&tk->m_refc, refc, refc+1))
+  else if (!((refc = ddsrt_atomic_ld32 (&tk->m_refc)) & REFC_DELETE) && ddsrt_atomic_cas32 (&tk->m_refc, refc, refc+1))
     /* Common case of it existing, not in the process of being deleted and no one else concurrently modifying the refcount */
     return tk;
   else
@@ -150,11 +152,11 @@ struct ddsi_tkmap_instance *ddsi_tkmap_find_by_id (_In_ struct ddsi_tkmap *map, 
 #define DDS_DEBUG_KEYHASH 1
 #endif
 
-_Check_return_
-struct ddsi_tkmap_instance * ddsi_tkmap_find(
-        _In_ struct ddsi_serdata * sd,
-        _In_ const bool rd,
-        _In_ const bool create)
+struct ddsi_tkmap_instance *
+ddsi_tkmap_find(
+  struct ddsi_serdata * sd,
+  const bool rd,
+  const bool create)
 {
   struct ddsi_tkmap_instance dummy;
   struct ddsi_tkmap_instance * tk;
@@ -166,19 +168,19 @@ retry:
   if ((tk = ut_chhLookup(map->m_hh, &dummy)) != NULL)
   {
     uint32_t new;
-    new = os_atomic_inc32_nv(&tk->m_refc);
+    new = ddsrt_atomic_inc32_nv(&tk->m_refc);
     if (new & REFC_DELETE)
     {
       /* for the unlikely case of spinning 2^31 times across all threads ... */
-      os_atomic_dec32(&tk->m_refc);
+      ddsrt_atomic_dec32(&tk->m_refc);
 
       /* simplest action would be to just spin, but that can potentially take a long time;
        we can block until someone signals some entry is removed from the map if we take
        some lock & wait for some condition */
-      os_mutexLock(&map->m_lock);
-      while ((tk = ut_chhLookup(map->m_hh, &dummy)) != NULL && (os_atomic_ld32(&tk->m_refc) & REFC_DELETE))
-        os_condWait(&map->m_cond, &map->m_lock);
-      os_mutexUnlock(&map->m_lock);
+      ddsrt_mutex_lock(&map->m_lock);
+      while ((tk = ut_chhLookup(map->m_hh, &dummy)) != NULL && (ddsrt_atomic_ld32(&tk->m_refc) & REFC_DELETE))
+        ddsrt_cond_wait(&map->m_cond, &map->m_lock);
+      ddsrt_mutex_unlock(&map->m_lock);
       goto retry;
     }
   }
@@ -188,7 +190,7 @@ retry:
       return NULL;
 
     tk->m_sample = ddsi_serdata_to_topicless (sd);
-    os_atomic_st32 (&tk->m_refc, 1);
+    ddsrt_atomic_st32 (&tk->m_refc, 1);
     tk->m_iid = ddsi_iid_gen ();
     if (!ut_chhAdd (map->m_hh, tk))
     {
@@ -206,23 +208,22 @@ retry:
   return tk;
 }
 
-_Check_return_
-struct ddsi_tkmap_instance * ddsi_tkmap_lookup_instance_ref (_In_ struct ddsi_serdata * sd)
+struct ddsi_tkmap_instance * ddsi_tkmap_lookup_instance_ref (struct ddsi_serdata * sd)
 {
   return ddsi_tkmap_find (sd, true, true);
 }
 
-void ddsi_tkmap_instance_ref (_In_ struct ddsi_tkmap_instance *tk)
+void ddsi_tkmap_instance_ref (struct ddsi_tkmap_instance *tk)
 {
-  os_atomic_inc32 (&tk->m_refc);
+  ddsrt_atomic_inc32 (&tk->m_refc);
 }
 
-void ddsi_tkmap_instance_unref (_In_ struct ddsi_tkmap_instance * tk)
+void ddsi_tkmap_instance_unref (struct ddsi_tkmap_instance * tk)
 {
   uint32_t old, new;
   assert (vtime_awake_p(lookup_thread_state()->vtime));
   do {
-    old = os_atomic_ld32(&tk->m_refc);
+    old = ddsrt_atomic_ld32(&tk->m_refc);
     if (old == 1)
       new = REFC_DELETE;
     else
@@ -230,7 +231,7 @@ void ddsi_tkmap_instance_unref (_In_ struct ddsi_tkmap_instance * tk)
       assert(!(old & REFC_DELETE));
       new = old - 1;
     }
-  } while (!os_atomic_cas32(&tk->m_refc, old, new));
+  } while (!ddsrt_atomic_cas32(&tk->m_refc, old, new));
   if (new == REFC_DELETE)
   {
     struct ddsi_tkmap *map = gv.m_tkmap;
@@ -241,9 +242,9 @@ void ddsi_tkmap_instance_unref (_In_ struct ddsi_tkmap_instance * tk)
     (void)removed;
 
     /* Signal any threads blocked in their retry loops in lookup */
-    os_mutexLock(&map->m_lock);
-    os_condBroadcast(&map->m_cond);
-    os_mutexUnlock(&map->m_lock);
+    ddsrt_mutex_lock(&map->m_lock);
+    ddsrt_cond_broadcast(&map->m_cond);
+    ddsrt_mutex_unlock(&map->m_lock);
 
     /* Schedule freeing of memory until after all those who may have found a pointer have
      progressed to where they no longer hold that pointer */

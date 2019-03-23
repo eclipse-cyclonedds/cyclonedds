@@ -9,14 +9,15 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "os/os.h"
-#include "util/ut_handleserver.h"
+#include "dds/util/ut_handleserver.h"
 #include "CUnit/Test.h"
+#include "dds/ddsrt/retcode.h"
+#include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/time.h"
 
 /*****************************************************************************************/
 CU_Test(util_handleserver, basic)
 {
-    const os_time zero  = { 0, 0 };
     int32_t kind = 0x10000000;
     ut_handle_retcode_t ret;
     ut_handle_t hdl;
@@ -35,7 +36,7 @@ CU_Test(util_handleserver, basic)
 
     ut_handle_release(hdl, NULL);
 
-    ret = ut_handle_delete(hdl, NULL, zero);
+    ret = ut_handle_delete(hdl, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, UT_HANDLE_OK);
 
     ret = ut_handle_claim(hdl, NULL, kind, &argx);
@@ -48,7 +49,6 @@ CU_Test(util_handleserver, basic)
 /*****************************************************************************************/
 CU_Test(util_handleserver, close)
 {
-    const os_time zero  = { 0, 0 };
     int32_t kind = 0x10000000;
     ut_handle_retcode_t ret;
     ut_handle_t hdl;
@@ -73,7 +73,7 @@ CU_Test(util_handleserver, close)
     ret = ut_handle_claim(hdl, NULL, kind, &argx);
     CU_ASSERT_EQUAL_FATAL(ret, UT_HANDLE_CLOSED);
 
-    ret = ut_handle_delete(hdl, NULL, zero);
+    ret = ut_handle_delete(hdl, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, UT_HANDLE_OK);
 
     ret = ut_handle_claim(hdl, NULL, kind, &argx);
@@ -85,7 +85,6 @@ CU_Test(util_handleserver, close)
 /*****************************************************************************************/
 CU_Test(util_handleserver, link)
 {
-    const os_time zero  = { 0, 0 };
     int32_t kind = 0x10000000;
     ut_handle_retcode_t ret;
     struct ut_handlelink *link;
@@ -108,7 +107,7 @@ CU_Test(util_handleserver, link)
 
     ut_handle_release(hdl, link);
 
-    ret = ut_handle_delete(hdl, link, zero);
+    ret = ut_handle_delete(hdl, link, 0);
     CU_ASSERT_EQUAL_FATAL(ret, UT_HANDLE_OK);
 
     link = ut_handle_get_link(hdl);
@@ -121,7 +120,6 @@ CU_Test(util_handleserver, link)
 /*****************************************************************************************/
 CU_Test(util_handleserver, types)
 {
-    const os_time zero  = { 0, 0 };
     int32_t kind1 = 0x10000000;
     int32_t kind2 = 0x20000000;
     ut_handle_retcode_t ret;
@@ -170,11 +168,11 @@ CU_Test(util_handleserver, types)
     ut_handle_release(hdl1b, NULL);
     ut_handle_release(hdl2,  NULL);
 
-    ret = ut_handle_delete(hdl1a, NULL, zero);
+    ret = ut_handle_delete(hdl1a, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, UT_HANDLE_OK);
-    ret = ut_handle_delete(hdl1b, NULL, zero);
+    ret = ut_handle_delete(hdl1b, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, UT_HANDLE_OK);
-    ret = ut_handle_delete(hdl2,  NULL, zero);
+    ret = ut_handle_delete(hdl2,  NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, UT_HANDLE_OK);
 
     ut_handleserver_fini();
@@ -184,7 +182,6 @@ CU_Test(util_handleserver, types)
 /*****************************************************************************************/
 CU_Test(util_handleserver, timeout)
 {
-    const os_time zero  = { 0, 0 };
     int32_t kind = 0x10000000;
     ut_handle_retcode_t ret;
     ut_handle_t hdl;
@@ -201,12 +198,12 @@ CU_Test(util_handleserver, timeout)
     CU_ASSERT_EQUAL_FATAL(ret, UT_HANDLE_OK);
     CU_ASSERT_EQUAL_FATAL(argx, &arg);
 
-    ret = ut_handle_delete(hdl, NULL, zero);
+    ret = ut_handle_delete(hdl, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, UT_HANDLE_TIMEOUT);
 
     ut_handle_release(hdl, NULL);
 
-    ret = ut_handle_delete(hdl, NULL, zero);
+    ret = ut_handle_delete(hdl, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, UT_HANDLE_OK);
 
     ut_handleserver_fini();
@@ -229,7 +226,7 @@ static uint32_t
 deleting_thread(void *a)
 {
     thread_arg_t *arg = (thread_arg_t*)a;
-    const os_time ten = { 10, 0 };
+    const dds_time_t ten = DDS_SECS(10);
     ut_handle_t ret;
 
     arg->state = DELETING;
@@ -241,16 +238,16 @@ deleting_thread(void *a)
     return 0;
 }
 
-os_result
+dds_retcode_t
 thread_reached_state(thread_state_t *actual, thread_state_t expected, int32_t msec)
 {
     /* Convenience function. */
-    os_time msec10 = { 0, 10000000 };
+    dds_time_t msec10 = DDS_MSECS(10);
     while ((msec > 0) && (*actual != expected)) {
-        os_nanoSleep(msec10);
+        dds_sleepfor(msec10);
         msec -= 10;
     }
-    return (*actual == expected) ? os_resultSuccess : os_resultTimeout;
+    return (*actual == expected) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
 }
 
 CU_Test(util_handleserver, wakeup)
@@ -261,10 +258,10 @@ CU_Test(util_handleserver, wakeup)
     int arg = 1;
     void *argx;
 
-    os_threadId   thread_id;
+    ddsrt_thread_t   thread_id;
     thread_arg_t  thread_arg;
-    os_threadAttr thread_attr;
-    os_result     osr;
+    ddsrt_threadattr_t thread_attr;
+    dds_retcode_t rc;
 
     ret = ut_handleserver_init();
     CU_ASSERT_EQUAL_FATAL(ret, UT_HANDLE_OK);
@@ -281,26 +278,27 @@ CU_Test(util_handleserver, wakeup)
     /* Try deleting in other thread, which should block. */
     thread_arg.hdl   = hdl;
     thread_arg.state = STARTING;
-    os_threadAttrInit(&thread_attr);
-    osr = os_threadCreate(&thread_id, "deleting_thread", &thread_attr, deleting_thread, (void*)&thread_arg);
-    CU_ASSERT_EQUAL_FATAL(osr, os_resultSuccess);
-    osr = thread_reached_state(&thread_arg.state, DELETING, 1000);
-    CU_ASSERT_EQUAL_FATAL(osr, os_resultSuccess);
-    osr = thread_reached_state(&thread_arg.state, STOPPED, 500);
-    CU_ASSERT_EQUAL_FATAL(osr, os_resultTimeout);
+    ddsrt_threadattr_init(&thread_attr);
+    rc = ddsrt_thread_create(&thread_id, "deleting_thread", &thread_attr, deleting_thread, (void*)&thread_arg);
+    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+    rc = thread_reached_state(&thread_arg.state, DELETING, 1000);
+    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+    rc = thread_reached_state(&thread_arg.state, STOPPED, 500);
+    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_TIMEOUT);
 
     /* First release of the hdl should not unblock the thread. */
     ut_handle_release(hdl, NULL);
-    osr = thread_reached_state(&thread_arg.state, STOPPED, 500);
-    CU_ASSERT_EQUAL_FATAL(osr, os_resultTimeout);
+    rc = thread_reached_state(&thread_arg.state, STOPPED, 500);
+    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_TIMEOUT);
 
     /* Second release of the hdl should unblock the thread. */
     ut_handle_release(hdl, NULL);
-    osr = thread_reached_state(&thread_arg.state, STOPPED, 500);
-    CU_ASSERT_EQUAL_FATAL(osr, os_resultSuccess);
-    os_threadWaitExit(thread_id, NULL);
+    rc = thread_reached_state(&thread_arg.state, STOPPED, 500);
+    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+    ddsrt_thread_join(thread_id, NULL);
 
     /* The handle is deleted within the thread. */
 
     ut_handleserver_fini();
 }
+

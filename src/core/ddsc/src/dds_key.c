@@ -13,9 +13,9 @@
 #include <string.h>
 #include "dds__key.h"
 #include "dds__stream.h"
-#include "ddsi/ddsi_serdata.h"
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_md5.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_md5.h"
 
 #ifndef NDEBUG
 static bool keyhash_is_reset(const dds_key_hash_t *kh)

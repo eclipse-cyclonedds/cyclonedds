@@ -10,20 +10,21 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
-#include "ddsc/dds.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/q_thread.h"
-#include "ddsi/q_xmsg.h"
+
+#include "dds/dds.h"
+#include "dds/version.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_xmsg.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
 #include "dds__qos.h"
 #include "dds__err.h"
 #include "dds__init.h"
 #include "dds__topic.h"
-#include "ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
-#include "ddsc/ddsc_project.h"
 
 DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_writer)
 
@@ -84,9 +85,9 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
   void *vst = NULL;
   int32_t *reset[2] = { NULL, NULL };
 
-  os_mutexLock (&entity->m_observers_lock);
+  ddsrt_mutex_lock (&entity->m_observers_lock);
   while (entity->m_cb_count > 0)
-    os_condWait (&entity->m_observers_cond, &entity->m_observers_lock);
+    ddsrt_cond_wait (&entity->m_observers_cond, &entity->m_observers_lock);
   entity->m_cb_count++;
 
   /* Reset the status for possible Listener call.
@@ -154,9 +155,9 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
 
   if (invoke)
   {
-    os_mutexUnlock (&entity->m_observers_lock);
+    ddsrt_mutex_unlock (&entity->m_observers_lock);
     dds_entity_invoke_listener(entity, status_id, vst);
-    os_mutexLock (&entity->m_observers_lock);
+    ddsrt_mutex_lock (&entity->m_observers_lock);
     *reset[0] = 0;
     if (reset[1])
       *reset[1] = 0;
@@ -167,8 +168,8 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
   }
 
   entity->m_cb_count--;
-  os_condBroadcast (&entity->m_observers_cond);
-  os_mutexUnlock (&entity->m_observers_lock);
+  ddsrt_cond_broadcast (&entity->m_observers_cond);
+  ddsrt_mutex_unlock (&entity->m_observers_lock);
 }
 
 static uint32_t
@@ -313,11 +314,11 @@ dds_writer_qos_set(
                 }
 
                 /* FIXME: with QoS changes being unsupported by the underlying stack I wonder what will happen; locking the underlying DDSI writer is of doubtful value as well */
-                os_mutexLock (&ddsi_wr->e.lock);
+                ddsrt_mutex_lock (&ddsi_wr->e.lock);
                 if (qos->ownership_strength.value != ddsi_wr->xqos->ownership_strength.value) {
                     ddsi_wr->xqos->ownership_strength.value = qos->ownership_strength.value;
                 }
-                os_mutexUnlock (&ddsi_wr->e.lock);
+                ddsrt_mutex_unlock (&ddsi_wr->e.lock);
 
                 if (asleep) {
                     thread_state_asleep (thr);
@@ -328,7 +329,7 @@ dds_writer_qos_set(
             }
         } else {
             if (enabled) {
-                DDS_ERROR(DDSC_PROJECT_NAME" does not support changing QoS policies yet\n");
+                DDS_ERROR(DDS_PROJECT_NAME" does not support changing QoS policies yet\n");
                 ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
             }
         }
@@ -387,17 +388,14 @@ static struct whc *make_whc(const dds_qos_t *qos)
 }
 
 
-_Pre_satisfies_(((participant_or_publisher & DDS_ENTITY_KIND_MASK) == DDS_KIND_PUBLISHER) || \
-                ((participant_or_publisher & DDS_ENTITY_KIND_MASK) == DDS_KIND_PARTICIPANT))
-_Pre_satisfies_((topic & DDS_ENTITY_KIND_MASK) == DDS_KIND_TOPIC)
 dds_entity_t
 dds_create_writer(
-        _In_ dds_entity_t participant_or_publisher,
-        _In_ dds_entity_t topic,
-        _In_opt_ const dds_qos_t *qos,
-        _In_opt_ const dds_listener_t *listener)
+    dds_entity_t participant_or_publisher,
+    dds_entity_t topic,
+    const dds_qos_t *qos,
+    const dds_listener_t *listener)
 {
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_qos_t * wqos;
     dds_writer * wr;
     dds_entity_t writer;
@@ -481,15 +479,15 @@ dds_create_writer(
         assert(0);
     }
 
-    os_mutexUnlock(&tp->m_entity.m_mutex);
-    os_mutexUnlock(&pub->m_mutex);
+    ddsrt_mutex_unlock(&tp->m_entity.m_mutex);
+    ddsrt_mutex_unlock(&pub->m_mutex);
 
     if (asleep) {
         thread_state_awake(thr);
     }
     wr->m_wr = new_writer(&wr->m_entity.m_guid, NULL, &pub->m_participant->m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
-    os_mutexLock(&pub->m_mutex);
-    os_mutexLock(&tp->m_entity.m_mutex);
+    ddsrt_mutex_lock(&pub->m_mutex);
+    ddsrt_mutex_lock(&tp->m_entity.m_mutex);
     assert(wr->m_wr);
     if (asleep) {
         thread_state_asleep(thr);
@@ -509,12 +507,9 @@ err_pub_lock:
     return writer;
 }
 
-
-
-_Pre_satisfies_(((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER))
 dds_entity_t
 dds_get_publisher(
-        _In_ dds_entity_t writer)
+    dds_entity_t writer)
 {
     dds_entity_t hdl = DDS_RETCODE_OK;
 
@@ -529,13 +524,12 @@ dds_get_publisher(
     return hdl;
 }
 
-_Pre_satisfies_(((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER))
 dds_return_t
 dds_get_publication_matched_status (
-        _In_ dds_entity_t writer,
-        _Out_opt_ dds_publication_matched_status_t * status)
+    dds_entity_t writer,
+    dds_publication_matched_status_t * status)
 {
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_writer *wr;
     dds_return_t ret = DDS_RETCODE_OK;
 
@@ -559,13 +553,12 @@ fail:
     return ret;
 }
 
-_Pre_satisfies_(((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER))
 dds_return_t
 dds_get_liveliness_lost_status (
-        _In_ dds_entity_t writer,
-        _Out_opt_ dds_liveliness_lost_status_t * status)
+    dds_entity_t writer,
+    dds_liveliness_lost_status_t * status)
 {
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_writer *wr;
     dds_return_t ret = DDS_RETCODE_OK;
 
@@ -588,13 +581,12 @@ fail:
     return ret;
 }
 
-_Pre_satisfies_(((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER))
 dds_return_t
 dds_get_offered_deadline_missed_status(
-        _In_  dds_entity_t writer,
-        _Out_opt_ dds_offered_deadline_missed_status_t *status)
+    dds_entity_t writer,
+    dds_offered_deadline_missed_status_t *status)
 {
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_writer *wr;
     dds_return_t ret = DDS_RETCODE_OK;
 
@@ -617,13 +609,12 @@ fail:
     return ret;
 }
 
-_Pre_satisfies_(((writer & DDS_ENTITY_KIND_MASK) == DDS_KIND_WRITER))
 dds_return_t
 dds_get_offered_incompatible_qos_status (
-        _In_  dds_entity_t writer,
-        _Out_opt_ dds_offered_incompatible_qos_status_t * status)
+    dds_entity_t writer,
+    dds_offered_incompatible_qos_status_t * status)
 {
-    dds__retcode_t rc;
+    dds_retcode_t rc;
     dds_writer *wr;
     dds_return_t ret = DDS_RETCODE_OK;
 

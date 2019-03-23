@@ -12,10 +12,7 @@
 #ifndef _DDS_RHC_H_
 #define _DDS_RHC_H_
 
-#include "os/os_defs.h"
-
 #define NO_STATE_MASK_SET   (DDS_ANY_STATE + 1)
-
 
 #if defined (__cplusplus)
 extern "C" {

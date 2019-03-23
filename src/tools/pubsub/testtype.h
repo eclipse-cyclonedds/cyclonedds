@@ -18,8 +18,8 @@
   Vortex Lite: V2.1.0
 
 *****************************************************************/
-
-#include "ddsc/dds.h"
+#include <stddef.h>
+#include "dds/dds.h"
 
 #ifndef _DDSL_TESTTYPE_H_
 #define _DDSL_TESTTYPE_H_

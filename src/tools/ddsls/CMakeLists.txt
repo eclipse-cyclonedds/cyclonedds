@@ -10,10 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 add_executable(ddsls ddsls.c)
-target_link_libraries(ddsls ddsc OSAPI)
-if(WIN32)
-  target_compile_definitions(ddsls PRIVATE _CRT_SECURE_NO_WARNINGS)
-endif()
+target_link_libraries(ddsls ddsc)
 
 install(
   TARGETS ddsls

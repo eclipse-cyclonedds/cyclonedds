@@ -305,7 +305,7 @@ function(add_cunit_executable TARGET)
 
   add_executable(
     ${TARGET} "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.c" ${sources})
-  target_link_libraries(${TARGET} CUnit)
+  target_link_libraries(${TARGET} PRIVATE CUnit)
   target_include_directories(${TARGET} PRIVATE "${CUNIT_DIR}/include")
 endfunction()
 

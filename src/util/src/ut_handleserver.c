@@ -11,8 +11,11 @@
  */
 #include <string.h>
 #include <assert.h>
-#include "os/os.h"
-#include "util/ut_handleserver.h"
+
+#include "dds/ddsrt/cdtors.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/util/ut_handleserver.h"
 
 /* Arbitrarily number of max handles. Should be enough for the mock. */
 #define MAX_NR_OF_HANDLES  (1000)
@@ -30,7 +33,7 @@ typedef struct ut_handlelink {
 typedef struct ut_handleserver {
     ut_handlelink *hdls[MAX_NR_OF_HANDLES];
     int32_t last;
-    os_mutex mutex;
+    ddsrt_mutex_t mutex;
 } ut_handleserver;
 
 
@@ -38,25 +41,25 @@ typedef struct ut_handleserver {
 static ut_handleserver *hs = NULL;
 
 
-_Check_return_ static ut_handle_retcode_t
-lookup_handle(_In_  ut_handle_t hdl, _In_  int32_t kind, _Out_ ut_handlelink **link);
+static ut_handle_retcode_t
+lookup_handle(ut_handle_t hdl, int32_t kind, ut_handlelink **link);
 
-_Check_return_ static ut_handle_t
-check_handle(_In_ ut_handle_t hdl, _In_ int32_t kind);
+static ut_handle_t
+check_handle(ut_handle_t hdl, int32_t kind);
 
 static void
-delete_handle(_In_ int32_t idx);
+delete_handle(int32_t idx);
 
 
-_Check_return_ ut_handle_retcode_t
+ut_handle_retcode_t
 ut_handleserver_init(void)
 {
-    os_osInit();
-    /* TODO CHAM-138: Allow re-entry (something like os_osInit()). */
+    ddsrt_init();
+    /* TODO Allow re-entry (something like ddsrt_init()). */
     assert(hs == NULL);
-    hs = os_malloc(sizeof(ut_handleserver));
+    hs = ddsrt_malloc(sizeof(ut_handleserver));
     hs->last = 0;
-    os_mutexInit(&hs->mutex);
+    ddsrt_mutex_init(&hs->mutex);
     return UT_HANDLE_OK;
 }
 
@@ -66,29 +69,27 @@ ut_handleserver_fini(void)
 {
     int32_t i;
 
-    /* TODO CHAM-138: Only destroy when this is the last fini (something like os_osExit()). */
+    /* TODO Only destroy when this is the last fini (something like ddsrt_fini()). */
     assert(hs);
 
     /* Every handle should have been deleted, but make sure. */
     for (i = 0; i < hs->last; i++) {
         if (hs->hdls[i] != NULL) {
             /* TODO CHAM-138: Print warning. */
-            os_free(hs->hdls[i]);
+            ddsrt_free(hs->hdls[i]);
         }
     }
-    os_mutexDestroy(&hs->mutex);
-    os_free(hs);
+    ddsrt_mutex_destroy(&hs->mutex);
+    ddsrt_free(hs);
     hs = NULL;
-    os_osExit();
+    ddsrt_fini();
 }
 
 
-_Pre_satisfies_((kind & UT_HANDLE_KIND_MASK) && !(kind & ~UT_HANDLE_KIND_MASK))
-_Post_satisfies_((return & UT_HANDLE_KIND_MASK) == kind)
-_Must_inspect_result_ ut_handle_t
+ut_handle_t
 ut_handle_create(
-        _In_ int32_t kind,
-        _In_ void *arg)
+    int32_t kind,
+    void *arg)
 {
     ut_handle_t hdl = (ut_handle_t)UT_HANDLE_OUT_OF_RESOURCES;
 
@@ -101,13 +102,13 @@ ut_handle_create(
         return (ut_handle_t)UT_HANDLE_NOT_INITALIZED;
     }
 
-    os_mutexLock(&hs->mutex);
+    ddsrt_mutex_lock(&hs->mutex);
 
     /* TODO CHAM-138: Improve the creation and management of handles. */
     if (hs->last < MAX_NR_OF_HANDLES) {
         hdl  = hs->last;
         hdl |= kind;
-        hs->hdls[hs->last] = os_malloc(sizeof(ut_handlelink));
+        hs->hdls[hs->last] = ddsrt_malloc(sizeof(ut_handlelink));
         hs->hdls[hs->last]->cnt   = 0;
         hs->hdls[hs->last]->arg   = arg;
         hs->hdls[hs->last]->hdl   = hdl;
@@ -115,23 +116,22 @@ ut_handle_create(
         hs->last++;
     }
 
-    os_mutexUnlock(&hs->mutex);
+    ddsrt_mutex_unlock(&hs->mutex);
 
     return hdl;
 }
 
-
 void
 ut_handle_close(
-        _In_        ut_handle_t hdl,
-        _Inout_opt_ struct ut_handlelink *link)
+    ut_handle_t hdl,
+    struct ut_handlelink *link)
 {
     struct ut_handlelink *info = link;
     ut_handle_retcode_t   ret = UT_HANDLE_OK;
 
     assert(hs);
 
-    os_mutexLock(&hs->mutex);
+    ddsrt_mutex_lock(&hs->mutex);
     if (info == NULL) {
         ret = lookup_handle(hdl, UT_HANDLE_DONTCARE_KIND, &info);
     }
@@ -140,22 +140,21 @@ ut_handle_close(
         assert(hdl == info->hdl);
         info->flags |= HDL_FLAG_CLOSED;
     }
-    os_mutexUnlock(&hs->mutex);
+    ddsrt_mutex_unlock(&hs->mutex);
 }
 
-
-_Check_return_ ut_handle_retcode_t
+ut_handle_retcode_t
 ut_handle_delete(
-        _In_                        ut_handle_t hdl,
-        _Inout_opt_ _Post_invalid_  struct ut_handlelink *link,
-        _In_                        os_time timeout)
+    ut_handle_t hdl,
+    struct ut_handlelink *link,
+    dds_time_t timeout)
 {
     struct ut_handlelink *info = link;
     ut_handle_retcode_t   ret = UT_HANDLE_OK;
 
     assert(hs);
 
-    os_mutexLock(&hs->mutex);
+    ddsrt_mutex_lock(&hs->mutex);
     if (info == NULL) {
         ret = lookup_handle(hdl, UT_HANDLE_DONTCARE_KIND, &info);
     }
@@ -164,17 +163,16 @@ ut_handle_delete(
         assert(hdl == info->hdl);
         info->flags |= HDL_FLAG_CLOSED;
 
-        /* TODO CHAM-138: Replace this polling with conditional wait. */
-        os_mutexUnlock(&hs->mutex);
+        /* FIXME: Replace this polling with conditional wait. */
+        ddsrt_mutex_unlock(&hs->mutex);
         {
-            const os_time zero  = { 0,        0 };
-            const os_time delay = { 0, 10000000 };
-            while ((info->cnt != 0) && (os_timeCompare(timeout, zero) > 0)) {
-                os_nanoSleep(delay);
-                timeout = os_timeSub(timeout, delay);
+            dds_duration_t delay = DDS_MSECS(10);
+            while ((info->cnt != 0) && timeout > 0) {
+                dds_sleepfor(delay);
+                timeout = (delay < timeout ? timeout - delay : 0);
             }
         }
-        os_mutexLock(&hs->mutex);
+        ddsrt_mutex_lock(&hs->mutex);
 
         if (info->cnt == 0) {
             delete_handle(hdl & UT_HANDLE_IDX_MASK);
@@ -182,18 +180,16 @@ ut_handle_delete(
             ret = UT_HANDLE_TIMEOUT;
         }
     }
-    os_mutexUnlock(&hs->mutex);
+    ddsrt_mutex_unlock(&hs->mutex);
 
     return ret;
 }
 
-
-_Pre_satisfies_((kind & UT_HANDLE_KIND_MASK) && !(kind & ~UT_HANDLE_KIND_MASK))
-_Check_return_ ut_handle_retcode_t
+ut_handle_retcode_t
 ut_handle_status(
-        _In_        ut_handle_t hdl,
-        _Inout_opt_ struct ut_handlelink *link,
-        _In_        int32_t kind)
+    ut_handle_t hdl,
+    struct ut_handlelink *link,
+    int32_t kind)
 {
     struct ut_handlelink *info = link;
     ut_handle_retcode_t   ret = UT_HANDLE_OK;
@@ -202,7 +198,7 @@ ut_handle_status(
         return (ut_handle_t)UT_HANDLE_INVALID;
     }
 
-    os_mutexLock(&hs->mutex);
+    ddsrt_mutex_lock(&hs->mutex);
     if (info == NULL) {
         ret = lookup_handle(hdl, kind, &info);
     }
@@ -213,19 +209,17 @@ ut_handle_status(
             ret = UT_HANDLE_CLOSED;
         }
     }
-    os_mutexUnlock(&hs->mutex);
+    ddsrt_mutex_unlock(&hs->mutex);
 
     return ret;
 }
 
-
-_Pre_satisfies_((kind & UT_HANDLE_KIND_MASK) && !(kind & ~UT_HANDLE_KIND_MASK))
-_Check_return_ ut_handle_retcode_t
+ut_handle_retcode_t
 ut_handle_claim(
-        _In_        ut_handle_t hdl,
-        _Inout_opt_ struct ut_handlelink *link,
-        _In_        int32_t kind,
-        _Out_opt_   void **arg)
+    ut_handle_t hdl,
+    struct ut_handlelink *link,
+    int32_t kind,
+    void **arg)
 {
     struct ut_handlelink *info = link;
     ut_handle_retcode_t   ret = UT_HANDLE_OK;
@@ -238,7 +232,7 @@ ut_handle_claim(
         return (ut_handle_t)UT_HANDLE_INVALID;
     }
 
-    os_mutexLock(&hs->mutex);
+    ddsrt_mutex_lock(&hs->mutex);
     if (info == NULL) {
         ret = lookup_handle(hdl, kind, &info);
     }
@@ -255,7 +249,7 @@ ut_handle_claim(
             *arg = info->arg;
         }
     }
-    os_mutexUnlock(&hs->mutex);
+    ddsrt_mutex_unlock(&hs->mutex);
 
     return ret;
 }
@@ -263,15 +257,15 @@ ut_handle_claim(
 
 void
 ut_handle_release(
-        _In_        ut_handle_t hdl,
-        _Inout_opt_ struct ut_handlelink *link)
+    ut_handle_t hdl,
+    struct ut_handlelink *link)
 {
     struct ut_handlelink *info = link;
     ut_handle_retcode_t   ret = UT_HANDLE_OK;
 
     assert(hs);
 
-    os_mutexLock(&hs->mutex);
+    ddsrt_mutex_lock(&hs->mutex);
     if (info == NULL) {
         ret = lookup_handle(hdl, UT_HANDLE_DONTCARE_KIND, &info);
     }
@@ -281,21 +275,20 @@ ut_handle_release(
         assert(info->cnt > 0);
         info->cnt--;
     }
-    os_mutexUnlock(&hs->mutex);
+    ddsrt_mutex_unlock(&hs->mutex);
 }
 
-
-_Check_return_ bool
+bool
 ut_handle_is_closed(
-        _In_        ut_handle_t hdl,
-        _Inout_opt_ struct ut_handlelink *link)
+    ut_handle_t hdl,
+    struct ut_handlelink *link)
 {
     struct ut_handlelink *info = link;
     ut_handle_retcode_t   ret = UT_HANDLE_OK;
 
     assert(hs);
 
-    os_mutexLock(&hs->mutex);
+    ddsrt_mutex_lock(&hs->mutex);
     if (info == NULL) {
         ret = lookup_handle(hdl, UT_HANDLE_DONTCARE_KIND, &info);
     }
@@ -306,38 +299,37 @@ ut_handle_is_closed(
             ret = UT_HANDLE_CLOSED;
         }
     }
-    os_mutexUnlock(&hs->mutex);
+    ddsrt_mutex_unlock(&hs->mutex);
 
     /* Simulate closed for every error. */
     return (ret != UT_HANDLE_OK);
 }
 
-
-_Must_inspect_result_ struct ut_handlelink*
+struct ut_handlelink*
 ut_handle_get_link(
-        _In_ ut_handle_t hdl)
+    ut_handle_t hdl)
 {
     struct ut_handlelink *info;
     ut_handle_retcode_t   ret;
 
     assert(hs);
 
-    os_mutexLock(&hs->mutex);
+    ddsrt_mutex_lock(&hs->mutex);
     ret = lookup_handle(hdl, UT_HANDLE_DONTCARE_KIND, &info);
     assert(((ret == UT_HANDLE_OK) && (info != NULL)) ||
            ((ret != UT_HANDLE_OK) && (info == NULL)) );
     (void)ret;
-    os_mutexUnlock(&hs->mutex);
+    ddsrt_mutex_unlock(&hs->mutex);
 
     return info;
 }
 
 
-_Check_return_ static ut_handle_retcode_t
+static ut_handle_retcode_t
 lookup_handle(
-        _In_  ut_handle_t hdl,
-        _In_  int32_t kind,
-        _Out_ ut_handlelink **link)
+    ut_handle_t hdl,
+    int32_t kind,
+    ut_handlelink **link)
 {
     ut_handle_retcode_t ret;
     *link = NULL;
@@ -350,10 +342,10 @@ lookup_handle(
     return ret;
 }
 
-_Check_return_ static ut_handle_t
+static ut_handle_t
 check_handle(
-        _In_ ut_handle_t hdl,
-        _In_ int32_t kind)
+    ut_handle_t hdl,
+    int32_t kind)
 {
     /* When handle is negative, it contains a retcode. */
     ut_handle_retcode_t ret = UT_HANDLE_OK;
@@ -392,10 +384,10 @@ check_handle(
 }
 
 static void
-delete_handle(_In_ int32_t idx)
+delete_handle(int32_t idx)
 {
     assert(hs);
     assert(idx < MAX_NR_OF_HANDLES);
-    os_free(hs->hdls[idx]);
+    ddsrt_free(hs->hdls[idx]);
     hs->hdls[idx] = NULL;
 }

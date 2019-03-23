@@ -10,9 +10,11 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
-#include "ddsi/q_entity.h"
-#include "ddsi/q_thread.h"
-#include "ddsi/q_config.h"
+
+#include "dds/ddsrt/cdtors.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_config.h"
 #include "dds__init.h"
 #include "dds__qos.h"
 #include "dds__domain.h"
@@ -30,7 +32,7 @@ static dds_entity * dds_pp_head = NULL;
 
 static dds_return_t
 dds_participant_status_validate(
-        uint32_t mask)
+    uint32_t mask)
 {
     dds_return_t ret = DDS_RETCODE_OK;
 
@@ -44,7 +46,7 @@ dds_participant_status_validate(
 
 static dds_return_t
 dds_participant_delete(
-        dds_entity *e)
+    dds_entity *e)
 {
     struct thread_state1 * const thr = lookup_thread_state ();
     const bool asleep = !vtime_awake_p (thr->vtime);
@@ -61,7 +63,7 @@ dds_participant_delete(
 
     dds_domain_free (e->m_domain);
 
-    os_mutexLock (&dds_global.m_mutex);
+    ddsrt_mutex_lock (&dds_global.m_mutex);
     iter = dds_pp_head;
     while (iter) {
         if (iter == e) {
@@ -75,7 +77,7 @@ dds_participant_delete(
         prev = iter;
         iter = iter->m_next;
     }
-    os_mutexUnlock (&dds_global.m_mutex);
+    ddsrt_mutex_unlock (&dds_global.m_mutex);
 
     assert (iter);
 
@@ -91,8 +93,8 @@ dds_participant_delete(
 
 static dds_return_t
 dds_participant_instance_hdl(
-        dds_entity *e,
-        dds_instance_handle_t *i)
+    dds_entity *e,
+    dds_instance_handle_t *i)
 {
     assert(e);
     assert(i);
@@ -102,8 +104,8 @@ dds_participant_instance_hdl(
 
 static dds_return_t
 dds_participant_qos_validate(
-        const dds_qos_t *qos,
-        bool enabled)
+    const dds_qos_t *qos,
+    bool enabled)
 {
     dds_return_t ret = DDS_RETCODE_OK;
     assert(qos);
@@ -124,9 +126,9 @@ dds_participant_qos_validate(
 
 static dds_return_t
 dds_participant_qos_set(
-        dds_entity *e,
-        const dds_qos_t *qos,
-        bool enabled)
+    dds_entity *e,
+    const dds_qos_t *qos,
+    bool enabled)
 {
     dds_return_t ret = dds_participant_qos_validate(qos, enabled);
     (void)e;
@@ -140,11 +142,11 @@ dds_participant_qos_set(
     return ret;
 }
 
-_Must_inspect_result_ dds_entity_t
+dds_entity_t
 dds_create_participant(
-        _In_     const dds_domainid_t domain,
-        _In_opt_ const dds_qos_t *qos,
-        _In_opt_ const dds_listener_t *listener)
+    const dds_domainid_t domain,
+    const dds_qos_t *qos,
+    const dds_listener_t *listener)
 {
     int q_rc;
     dds_return_t ret;
@@ -222,10 +224,10 @@ dds_create_participant(
     pp->m_builtin_subscriber = 0;
 
     /* Add participant to extent */
-    os_mutexLock (&dds_global.m_mutex);
+    ddsrt_mutex_lock (&dds_global.m_mutex);
     pp->m_entity.m_next = dds_pp_head;
     dds_pp_head = &pp->m_entity;
-    os_mutexUnlock (&dds_global.m_mutex);
+    ddsrt_mutex_unlock (&dds_global.m_mutex);
 
     return e;
 
@@ -240,18 +242,18 @@ fail_dds_init:
     return e;
 }
 
-_Check_return_ dds_return_t
+dds_entity_t
 dds_lookup_participant(
-        _In_        dds_domainid_t domain_id,
-        _Out_opt_   dds_entity_t *participants,
-        _In_        size_t size)
+    dds_domainid_t domain_id,
+    dds_entity_t *participants,
+    size_t size)
 {
     dds_return_t ret = 0;
-    os_mutex *init_mutex;
+    ddsrt_mutex_t *init_mutex;
 
     /* Be sure the DDS lifecycle resources are initialized. */
-    os_osInit();
-    init_mutex = os_getSingletonMutex();
+    ddsrt_init();
+    init_mutex = ddsrt_get_singleton_mutex();
 
     if ((participants != NULL) && ((size <= 0) || (size >= INT32_MAX))) {
         DDS_ERROR("Array is given, but with invalid size\n");
@@ -268,12 +270,12 @@ dds_lookup_participant(
         participants[0] = 0;
     }
 
-    os_mutexLock (init_mutex);
+    ddsrt_mutex_lock (init_mutex);
 
     /* Check if dds is intialized. */
     if (dds_global.m_init_count > 0) {
         dds_entity* iter;
-        os_mutexLock (&dds_global.m_mutex);
+        ddsrt_mutex_lock (&dds_global.m_mutex);
         iter = dds_pp_head;
         while (iter) {
             if(iter->m_domainid == domain_id) {
@@ -284,12 +286,12 @@ dds_lookup_participant(
             }
             iter = iter->m_next;
         }
-        os_mutexUnlock (&dds_global.m_mutex);
+        ddsrt_mutex_unlock (&dds_global.m_mutex);
     }
 
-    os_mutexUnlock (init_mutex);
+    ddsrt_mutex_unlock (init_mutex);
 
 err:
-    os_osExit();
+    ddsrt_fini();
     return ret;
 }

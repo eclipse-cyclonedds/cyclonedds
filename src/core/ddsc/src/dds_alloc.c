@@ -11,10 +11,11 @@
  */
 #include <assert.h>
 #include <string.h>
+
 #include "dds__alloc.h"
 #include "dds__stream.h"
-#include "os/os_heap.h"
-#include "ddsi/q_config.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsi/q_config.h"
 
 /*
 #define OP_DEBUG_FREE 1
@@ -28,18 +29,15 @@ static const char * stream_op_type[11] =
 };
 #endif
 
-static dds_allocator_t dds_allocator_fns = { os_malloc, os_realloc, os_free };
+static dds_allocator_t dds_allocator_fns = { ddsrt_malloc, ddsrt_realloc, ddsrt_free };
 
 void * dds_alloc (size_t size)
 {
   void * ret = (dds_allocator_fns.malloc) (size);
-  if (ret)
-  {
+  if (ret == NULL) {
+    DDS_FATAL("dds_alloc");
+  } else {
     memset (ret, 0, size);
-  }
-  else 
-  {
-    DDS_FAIL ("dds_alloc");
   }
   return ret;
 }
@@ -47,7 +45,8 @@ void * dds_alloc (size_t size)
 void * dds_realloc (void * ptr, size_t size)
 {
   void * ret = (dds_allocator_fns.realloc) (ptr, size);
-  if (ret == NULL) DDS_FAIL ("dds_realloc");
+  if (ret == NULL)
+    DDS_FATAL("dds_realloc");
   return ret;
 }
 

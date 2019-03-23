@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds__domain.h"
-#include "ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_tkmap.h"
 
 static int dds_domain_compare (const int32_t * a, const int32_t * b)
 {
@@ -33,7 +33,7 @@ dds_domain * dds_domain_find_locked (dds_domainid_t id)
 dds_domain * dds_domain_create (dds_domainid_t id)
 {
   dds_domain * domain;
-  os_mutexLock (&dds_global.m_mutex);
+  ddsrt_mutex_lock (&dds_global.m_mutex);
   domain = dds_domain_find_locked (id);
   if (domain == NULL)
   {
@@ -43,17 +43,17 @@ dds_domain * dds_domain_create (dds_domainid_t id)
     ut_avlInsert (&dds_domaintree_def, &dds_global.m_domains, domain);
   }
   domain->m_refc++;
-  os_mutexUnlock (&dds_global.m_mutex);
+  ddsrt_mutex_unlock (&dds_global.m_mutex);
   return domain;
 }
 
 void dds_domain_free (dds_domain * domain)
 {
-  os_mutexLock (&dds_global.m_mutex);
+  ddsrt_mutex_lock (&dds_global.m_mutex);
   if (--domain->m_refc == 0)
   {
     ut_avlDelete (&dds_domaintree_def, &dds_global.m_domains, domain);
     dds_free (domain);
   }
-  os_mutexUnlock (&dds_global.m_mutex);
+  ddsrt_mutex_unlock (&dds_global.m_mutex);
 }

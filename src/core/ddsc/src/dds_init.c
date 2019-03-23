@@ -12,24 +12,23 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "os/os.h"
+
+#include "dds/ddsrt/cdtors.h"
+#include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/process.h"
 #include "dds__init.h"
 #include "dds__rhc.h"
 #include "dds__domain.h"
 #include "dds__err.h"
 #include "dds__builtin.h"
 #include "dds__whc_builtintopic.h"
-#include "ddsi/ddsi_iid.h"
-#include "ddsi/ddsi_tkmap.h"
-#include "ddsi/ddsi_serdata.h"
-#include "ddsi/q_servicelease.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/q_config.h"
-#include "ddsc/ddsc_project.h"
-
-#ifdef _WRS_KERNEL
-char *os_environ[] = { NULL };
-#endif
+#include "dds/ddsi/ddsi_iid.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/q_servicelease.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/version.h"
 
 #define DOMAIN_ID_MIN 0
 #define DOMAIN_ID_MAX 230
@@ -43,17 +42,17 @@ dds_return_t
 dds_init(dds_domainid_t domain)
 {
   dds_return_t ret = DDS_RETCODE_OK;
-  const char * uri;
+  char * uri = NULL;
   char progname[50] = "UNKNOWN"; /* FIXME: once retrieving process names is back in */
   char hostname[64];
   uint32_t len;
-  os_mutex *init_mutex;
+  ddsrt_mutex_t *init_mutex;
 
   /* Be sure the DDS lifecycle resources are initialized. */
-  os_osInit();
-  init_mutex = os_getSingletonMutex();
+  ddsrt_init();
+  init_mutex = ddsrt_get_singleton_mutex();
 
-  os_mutexLock(init_mutex);
+  ddsrt_mutex_lock(init_mutex);
 
   dds_global.m_init_count++;
   if (dds_global.m_init_count > 1)
@@ -70,10 +69,10 @@ dds_init(dds_domainid_t domain)
 
   gv.tstart = now ();
   gv.exception = false;
-  os_mutexInit (&dds_global.m_mutex);
+  ddsrt_mutex_init (&dds_global.m_mutex);
   thread_states_init_static();
 
-  uri = os_getenv (DDSC_PROJECT_NAME_NOSPACE_CAPS"_URI");
+  (void)ddsrt_getenv (DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", &uri);
   dds_cfgst = config_init (uri);
   if (dds_cfgst == NULL)
   {
@@ -150,13 +149,13 @@ dds_init(dds_domainid_t domain)
 
   /* Set additional default participant properties */
 
-  gv.default_plist_pp.process_id = (unsigned)os_getpid();
+  gv.default_plist_pp.process_id = (unsigned)ddsrt_getpid();
   gv.default_plist_pp.present |= PP_PRISMTECH_PROCESS_ID;
   gv.default_plist_pp.exec_name = dds_string_alloc(32);
-  (void) snprintf(gv.default_plist_pp.exec_name, 32, "%s: %u", DDSC_PROJECT_NAME, gv.default_plist_pp.process_id);
+  (void) snprintf(gv.default_plist_pp.exec_name, 32, "%s: %u", DDS_PROJECT_NAME, gv.default_plist_pp.process_id);
   len = (uint32_t) (13 + strlen(gv.default_plist_pp.exec_name));
   gv.default_plist_pp.present |= PP_PRISMTECH_EXEC_NAME;
-  if (os_gethostname(hostname, sizeof(hostname)) == os_resultSuccess)
+  if (ddsrt_gethostname(hostname, sizeof(hostname)) == DDS_RETCODE_OK)
   {
     gv.default_plist_pp.node_name = dds_string_dup(hostname);
     gv.default_plist_pp.present |= PP_PRISMTECH_NODE_NAME;
@@ -167,7 +166,7 @@ dds_init(dds_domainid_t domain)
   gv.default_plist_pp.present |= PP_ENTITY_NAME;
 
 skip:
-  os_mutexUnlock(init_mutex);
+  ddsrt_mutex_unlock(init_mutex);
   return DDS_RETCODE_OK;
 
 fail_servicelease_start:
@@ -189,20 +188,20 @@ fail_config_domainid:
   config_fini (dds_cfgst);
   dds_cfgst = NULL;
 fail_config:
-  os_mutexDestroy (&dds_global.m_mutex);
+  ddsrt_mutex_destroy (&dds_global.m_mutex);
   ut_handleserver_fini();
 fail_handleserver:
   dds_global.m_init_count--;
-  os_mutexUnlock(init_mutex);
-  os_osExit();
+  ddsrt_mutex_unlock(init_mutex);
+  ddsrt_fini();
   return ret;
 }
 
 extern void dds_fini (void)
 {
-  os_mutex *init_mutex;
-  init_mutex = os_getSingletonMutex();
-  os_mutexLock(init_mutex);
+  ddsrt_mutex_t *init_mutex;
+  init_mutex = ddsrt_get_singleton_mutex();
+  ddsrt_mutex_lock(init_mutex);
   assert(dds_global.m_init_count > 0);
   dds_global.m_init_count--;
   if (dds_global.m_init_count == 0)
@@ -220,17 +219,13 @@ extern void dds_fini (void)
 
     config_fini (dds_cfgst);
     dds_cfgst = NULL;
-    os_mutexDestroy (&dds_global.m_mutex);
+    ddsrt_mutex_destroy (&dds_global.m_mutex);
     ut_handleserver_fini();
     dds_global.m_default_domain = DDS_DOMAIN_DEFAULT;
   }
-  os_mutexUnlock(init_mutex);
-  os_osExit();
+  ddsrt_mutex_unlock(init_mutex);
+  ddsrt_fini();
 }
-
-
-
-
 
 static int dds__init_plugin (void)
 {
@@ -260,18 +255,15 @@ void ddsi_plugin_init (void)
   ddsi_plugin.rhc_plugin.rhc_set_qos_fn = dds_rhc_set_qos;
 }
 
-
-
 //provides explicit default domain id.
 dds_domainid_t dds_domain_default (void)
 {
-  return  dds_global.m_default_domain;
+  return dds_global.m_default_domain;
 }
-
 
 dds_return_t
 dds__check_domain(
-        _In_ dds_domainid_t domain)
+  dds_domainid_t domain)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   /* If domain is default: use configured id. */

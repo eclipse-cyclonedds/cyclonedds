@@ -9,11 +9,15 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "ddsc/dds.h"
-#include "os/os.h"
-#include "CUnit/Test.h"
+#include <limits.h>
+
+#include "dds/dds.h"
 #include "CUnit/Theory.h"
 #include "Space.h"
+
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/threads.h"
 
 /**************************************************************************************************
  *
@@ -41,9 +45,9 @@ static char*
 create_topic_name(const char *prefix, char *name, size_t size)
 {
     /* Get semi random g_topic name. */
-    os_procId pid = os_getpid();
-    uintmax_t tid = os_threadIdToInteger(os_threadIdSelf());
-    (void) snprintf(name, size, "%s_pid%"PRIprocId"_tid%"PRIuMAX"", prefix, pid, tid);
+    ddsrt_pid_t pid = ddsrt_getpid();
+    ddsrt_tid_t tid = ddsrt_gettid();
+    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
     return name;
 }
 
@@ -146,9 +150,9 @@ CU_Test(ddsc_writedispose, deleted, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
     dds_delete(g_writer);
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_writedispose(g_writer, NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
@@ -157,9 +161,9 @@ CU_Test(ddsc_writedispose, deleted, .init=disposing_init, .fini=disposing_fini)
 CU_Test(ddsc_writedispose, null, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_writedispose(g_writer, NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
@@ -173,9 +177,9 @@ CU_Theory((dds_entity_t writer), ddsc_writedispose, invalid_writers, .init=dispo
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_writedispose(writer, NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
@@ -187,9 +191,9 @@ CU_TheoryDataPoints(ddsc_writedispose, non_writers) = {
 CU_Theory((dds_entity_t *writer), ddsc_writedispose, non_writers, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_writedispose(*writer, NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
@@ -303,9 +307,9 @@ CU_Test(ddsc_writedispose_ts, deleted, .init=disposing_init, .fini=disposing_fin
 {
     dds_return_t ret;
     dds_delete(g_writer);
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_writedispose_ts(g_writer, NULL, g_present);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
@@ -314,9 +318,9 @@ CU_Test(ddsc_writedispose_ts, deleted, .init=disposing_init, .fini=disposing_fin
 CU_Test(ddsc_writedispose_ts, null, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_writedispose_ts(g_writer, NULL, g_present);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
@@ -344,9 +348,9 @@ CU_Theory((dds_entity_t writer), ddsc_writedispose_ts, invalid_writers, .init=di
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_writedispose_ts(writer, NULL, g_present);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
@@ -358,9 +362,9 @@ CU_TheoryDataPoints(ddsc_writedispose_ts, non_writers) = {
 CU_Theory((dds_entity_t *writer), ddsc_writedispose_ts, non_writers, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_writedispose_ts(*writer, NULL, g_present);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
@@ -503,9 +507,9 @@ CU_Test(ddsc_dispose, deleted, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
     dds_delete(g_writer);
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_dispose(g_writer, NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
@@ -514,9 +518,9 @@ CU_Test(ddsc_dispose, deleted, .init=disposing_init, .fini=disposing_fini)
 CU_Test(ddsc_dispose, null, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_dispose(g_writer, NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
@@ -544,9 +548,9 @@ CU_Theory((dds_entity_t writer), ddsc_dispose, invalid_writers, .init=disposing_
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_dispose(writer, NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
@@ -558,9 +562,9 @@ CU_TheoryDataPoints(ddsc_dispose, non_writers) = {
 CU_Theory((dds_entity_t *writer), ddsc_dispose, non_writers, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_dispose(*writer, NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
@@ -658,9 +662,9 @@ CU_Test(ddsc_dispose_ts, deleted, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
     dds_delete(g_writer);
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_dispose_ts(g_writer, NULL, g_present);
-    OS_WARNING_MSVC_ON(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_ON(6387); /* Disable SAL warning on intentional misuse of the API */
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ALREADY_DELETED);
 }
 /*************************************************************************************************/
@@ -669,9 +673,9 @@ CU_Test(ddsc_dispose_ts, deleted, .init=disposing_init, .fini=disposing_fini)
 CU_Test(ddsc_dispose_ts, null, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_dispose_ts(g_writer, NULL, g_present);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
@@ -699,9 +703,9 @@ CU_Theory((dds_entity_t writer), ddsc_dispose_ts, invalid_writers, .init=disposi
     dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
 
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_dispose_ts(writer, NULL, g_present);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
 }
 /*************************************************************************************************/
@@ -713,9 +717,9 @@ CU_TheoryDataPoints(ddsc_dispose_ts, non_writers) = {
 CU_Theory((dds_entity_t *writer), ddsc_dispose_ts, non_writers, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_dispose_ts(*writer, NULL, g_present);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/

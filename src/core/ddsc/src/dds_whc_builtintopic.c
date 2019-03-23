@@ -13,13 +13,13 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "os/os.h"
-#include "ddsi/ddsi_serdata.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_ephash.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/ddsi_tkmap.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__serdata_builtintopic.h"
 #include "dds__whc_builtintopic.h"
 #include "dds__builtin.h"
@@ -50,7 +50,7 @@ struct bwhc_sample_iter_sizecheck {
 
 static void bwhc_free (struct whc *whc_generic)
 {
-  os_free (whc_generic);
+  ddsrt_free (whc_generic);
 }
 
 static void bwhc_sample_iter_init (const struct whc *whc_generic, struct whc_sample_iter *opaque_it)
@@ -151,7 +151,7 @@ static int bwhc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, stru
   (void)serdata;
   (void)tk;
   if (plist)
-    os_free (plist);
+    ddsrt_free (plist);
   return 0;
 }
 
@@ -194,7 +194,7 @@ static const struct whc_ops bwhc_ops = {
 
 struct whc *builtintopic_whc_new (enum ddsi_sertopic_builtintopic_type type)
 {
-  struct bwhc *whc = os_malloc (sizeof (*whc));
+  struct bwhc *whc = ddsrt_malloc (sizeof (*whc));
   whc->common.ops = &bwhc_ops;
   whc->type = type;
   return (struct whc *) whc;

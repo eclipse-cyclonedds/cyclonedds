@@ -14,43 +14,46 @@
 #include <stdlib.h>
 #include <stddef.h>
 
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/string.h"
+#include "dds/ddsrt/log.h"
 
-#include "ddsi/q_md5.h"
-#include "util/ut_avl.h"
+#include "dds/ddsi/q_md5.h"
+#include "dds/util/ut_avl.h"
 #include "dds__stream.h"
-#include "ddsi/q_protocol.h"
-#include "ddsi/q_rtps.h"
-#include "ddsi/q_misc.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_log.h"
-#include "ddsi/q_plist.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_lat_estim.h"
-#include "ddsi/q_bitset.h"
-#include "ddsi/q_xevent.h"
-#include "ddsi/q_addrset.h"
-#include "ddsi/q_ddsi_discovery.h"
-#include "ddsi/q_radmin.h"
-#include "ddsi/q_error.h"
-#include "ddsi/q_thread.h"
-#include "ddsi/q_ephash.h"
-#include "ddsi/q_lease.h"
-#include "ddsi/q_gc.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/q_xmsg.h"
-#include "ddsi/q_receive.h"
-#include "ddsi/q_transmit.h"
-#include "ddsi/q_globals.h"
-#include "ddsi/q_static_assert.h"
-#include "ddsi/q_init.h"
-#include "ddsi/ddsi_tkmap.h"
-#include "ddsi/ddsi_mcgroup.h"
-#include "ddsi/ddsi_serdata.h"
-#include "ddsi/ddsi_serdata_default.h" /* FIXME: get rid of this */
+#include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/q_misc.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_lat_estim.h"
+#include "dds/ddsi/q_bitset.h"
+#include "dds/ddsi/q_xevent.h"
+#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/q_ddsi_discovery.h"
+#include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/q_error.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/q_lease.h"
+#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/q_receive.h"
+#include "dds/ddsi/q_transmit.h"
+#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_static_assert.h"
+#include "dds/ddsi/q_init.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_mcgroup.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_serdata_default.h" /* FIXME: get rid of this */
 
-#include "ddsi/sysdeps.h"
+#include "dds/ddsi/sysdeps.h"
 #include "dds__whc.h"
 
 /*
@@ -415,13 +418,13 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
       case CDR_BE:
       case PL_CDR_BE:
       {
-        sampleinfo->bswap = PLATFORM_IS_LITTLE_ENDIAN ? 1 : 0;
+        sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? 1 : 0);
         break;
       }
       case CDR_LE:
       case PL_CDR_LE:
       {
-        sampleinfo->bswap = PLATFORM_IS_LITTLE_ENDIAN ? 0 : 1;
+        sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? 0 : 1);
         break;
       }
       default:
@@ -554,13 +557,13 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
       case CDR_BE:
       case PL_CDR_BE:
       {
-        sampleinfo->bswap = PLATFORM_IS_LITTLE_ENDIAN ? 1 : 0;
+        sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? 1 : 0);
         break;
       }
       case CDR_LE:
       case PL_CDR_LE:
       {
-        sampleinfo->bswap = PLATFORM_IS_LITTLE_ENDIAN ? 0 : 1;
+        sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? 0 : 1);
         break;
       }
       default:
@@ -754,7 +757,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
 
   /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
   if (prd->assert_pp_lease)
-    lease_renew (os_atomic_ldvoidp (&prd->c.proxypp->lease), tnow);
+    lease_renew (ddsrt_atomic_ldvoidp (&prd->c.proxypp->lease), tnow);
 
   if (!wr->reliable) /* note: reliability can't be changed */
   {
@@ -762,7 +765,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     return 1;
   }
 
-  os_mutexLock (&wr->e.lock);
+  ddsrt_mutex_lock (&wr->e.lock);
   if ((rn = ut_avlLookup (&wr_readers_treedef, &wr->readers, &src)) == NULL)
   {
     DDS_TRACE(" %x:%x:%x:%x -> %x:%x:%x:%x not a connection)", PGUID (src), PGUID (dst));
@@ -1066,7 +1069,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     force_heartbeat_to_peer (wr, &whcst, prd, 0);
   DDS_TRACE(")");
  out:
-  os_mutexUnlock (&wr->e.lock);
+  ddsrt_mutex_unlock (&wr->e.lock);
   whc_free_deferred_free_list (wr->whc, deferred_free_list);
   return 1;
 }
@@ -1226,11 +1229,11 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
 
   /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
   if (pwr->assert_pp_lease)
-    lease_renew (os_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
+    lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
 
   DDS_TRACE("%x:%x:%x:%x -> %x:%x:%x:%x:", PGUID (src), PGUID (dst));
 
-  os_mutexLock (&pwr->e.lock);
+  ddsrt_mutex_lock (&pwr->e.lock);
 
   if (!pwr->have_seen_heartbeat)
   {
@@ -1323,7 +1326,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
   handle_forall_destinations (&dst, pwr, (ut_avlWalk_t) handle_Heartbeat_helper, &arg);
   DDS_TRACE(")");
 
-  os_mutexUnlock (&pwr->e.lock);
+  ddsrt_mutex_unlock (&pwr->e.lock);
   return 1;
 }
 
@@ -1354,10 +1357,10 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
 
   /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
   if (pwr->assert_pp_lease)
-    lease_renew (os_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
+    lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
 
   DDS_TRACE(" %x:%x:%x:%x -> %x:%x:%x:%x", PGUID (src), PGUID (dst));
-  os_mutexLock (&pwr->e.lock);
+  ddsrt_mutex_lock (&pwr->e.lock);
 
   if (seq > pwr->last_seq)
   {
@@ -1434,7 +1437,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
     }
   }
   DDS_TRACE(")");
-  os_mutexUnlock (&pwr->e.lock);
+  ddsrt_mutex_unlock (&pwr->e.lock);
   return 1;
 }
 
@@ -1482,7 +1485,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
 
   /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
   if (prd->assert_pp_lease)
-    lease_renew (os_atomic_ldvoidp (&prd->c.proxypp->lease), tnow);
+    lease_renew (ddsrt_atomic_ldvoidp (&prd->c.proxypp->lease), tnow);
 
   if (!wr->reliable) /* note: reliability can't be changed */
   {
@@ -1490,7 +1493,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
     return 1;
   }
 
-  os_mutexLock (&wr->e.lock);
+  ddsrt_mutex_lock (&wr->e.lock);
   if ((rn = ut_avlLookup (&wr_readers_treedef, &wr->readers, &src)) == NULL)
   {
     DDS_TRACE(" %x:%x:%x:%x -> %x:%x:%x:%x not a connection", PGUID (src), PGUID (dst));
@@ -1557,7 +1560,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
   }
 
  out:
-  os_mutexUnlock (&wr->e.lock);
+  ddsrt_mutex_unlock (&wr->e.lock);
   DDS_TRACE(")");
   return 1;
 }
@@ -1730,13 +1733,13 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
 
   /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
   if (pwr->assert_pp_lease)
-    lease_renew (os_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
+    lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
 
-  os_mutexLock (&pwr->e.lock);
+  ddsrt_mutex_lock (&pwr->e.lock);
   if ((wn = ut_avlLookup (&pwr_readers_treedef, &pwr->readers, &dst)) == NULL)
   {
     DDS_TRACE("%x:%x:%x:%x -> %x:%x:%x:%x not a connection)", PGUID (src), PGUID (dst));
-    os_mutexUnlock (&pwr->e.lock);
+    ddsrt_mutex_unlock (&pwr->e.lock);
     return 1;
   }
   DDS_TRACE("%x:%x:%x:%x -> %x:%x:%x:%x", PGUID (src), PGUID (dst));
@@ -1790,7 +1793,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
     pwr->last_fragnum_reset = 0;
   }
   DDS_TRACE(")");
-  os_mutexUnlock (&pwr->e.lock);
+  ddsrt_mutex_unlock (&pwr->e.lock);
   return 1;
 }
 
@@ -2029,7 +2032,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
           (with late acknowledgement of sample and nack). */
 retry:
 
-        os_mutexLock (&pwr->rdary.rdary_lock);
+        ddsrt_mutex_lock (&pwr->rdary.rdary_lock);
         if (pwr->rdary.fastpath_ok)
         {
           struct reader ** const rdary = pwr->rdary.rdary;
@@ -2039,14 +2042,14 @@ retry:
             DDS_TRACE("reader %x:%x:%x:%x\n", PGUID (rdary[i]->e.guid));
             if (! (ddsi_plugin.rhc_plugin.rhc_store_fn) (rdary[i]->rhc, &pwr_info, payload, tk))
             {
-              if (pwr_locked) os_mutexUnlock (&pwr->e.lock);
-              os_mutexUnlock (&pwr->rdary.rdary_lock);
+              if (pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
+              ddsrt_mutex_unlock (&pwr->rdary.rdary_lock);
               dds_sleepfor (DDS_MSECS (10));
-              if (pwr_locked) os_mutexLock (&pwr->e.lock);
+              if (pwr_locked) ddsrt_mutex_lock (&pwr->e.lock);
               goto retry;
             }
           }
-          os_mutexUnlock (&pwr->rdary.rdary_lock);
+          ddsrt_mutex_unlock (&pwr->rdary.rdary_lock);
         }
         else
         {
@@ -2060,8 +2063,8 @@ retry:
              reliable samples that are rejected are simply discarded. */
           ut_avlIter_t it;
           struct pwr_rd_match *m;
-          os_mutexUnlock (&pwr->rdary.rdary_lock);
-          if (!pwr_locked) os_mutexLock (&pwr->e.lock);
+          ddsrt_mutex_unlock (&pwr->rdary.rdary_lock);
+          if (!pwr_locked) ddsrt_mutex_lock (&pwr->e.lock);
           for (m = ut_avlIterFirst (&pwr_readers_treedef, &pwr->readers, &it); m != NULL; m = ut_avlIterNext (&it))
           {
             struct reader *rd;
@@ -2071,10 +2074,10 @@ retry:
               (void) (ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk);
             }
           }
-          if (!pwr_locked) os_mutexUnlock (&pwr->e.lock);
+          if (!pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
         }
 
-        os_atomic_st32 (&pwr->next_deliv_seq_lowword, (uint32_t) (sampleinfo->seq + 1));
+        ddsrt_atomic_st32 (&pwr->next_deliv_seq_lowword, (uint32_t) (sampleinfo->seq + 1));
       }
       else
       {
@@ -2082,9 +2085,9 @@ retry:
         DDS_TRACE(" %"PRId64"=>%x:%x:%x:%x%s\n", sampleinfo->seq, PGUID (*rdguid), rd ? "" : "?");
         while (rd && ! (ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk) && ephash_lookup_proxy_writer_guid (&pwr->e.guid))
         {
-          if (pwr_locked) os_mutexUnlock (&pwr->e.lock);
+          if (pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
           dds_sleepfor (DDS_MSECS (1));
-          if (pwr_locked) os_mutexLock (&pwr->e.lock);
+          if (pwr_locked) ddsrt_mutex_lock (&pwr->e.lock);
         }
       }
       ddsi_tkmap_instance_unref (tk);
@@ -2164,14 +2167,14 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
      participant's lease. */
   if (pwr->assert_pp_lease)
   {
-    lease_renew (os_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
+    lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
   }
 
   /* Shouldn't lock the full writer, but will do so for now */
-  os_mutexLock (&pwr->e.lock);
+  ddsrt_mutex_lock (&pwr->e.lock);
   if (ut_avlIsEmpty (&pwr->readers) || pwr->local_matching_inprogress)
   {
-    os_mutexUnlock (&pwr->e.lock);
+    ddsrt_mutex_unlock (&pwr->e.lock);
     DDS_TRACE(" %x:%x:%x:%x -> %x:%x:%x:%x: no readers", PGUID (pwr->e.guid), PGUID (dst));
     return;
   }
@@ -2285,7 +2288,7 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
 #endif
     nn_fragchain_adjust_refcount (fragchain, refc_adjust);
   }
-  os_mutexUnlock (&pwr->e.lock);
+  ddsrt_mutex_unlock (&pwr->e.lock);
   nn_dqueue_wait_until_empty_if_full (pwr->dqueue);
 }
 
@@ -2296,12 +2299,12 @@ static int handle_SPDP (const struct nn_rsample_info *sampleinfo, struct nn_rdat
   struct nn_rdata *fragchain;
   nn_reorder_result_t rres;
   int refc_adjust = 0;
-  os_mutexLock (&gv.spdp_lock);
+  ddsrt_mutex_lock (&gv.spdp_lock);
   rsample = nn_defrag_rsample (gv.spdp_defrag, rdata, sampleinfo);
   fragchain = nn_rsample_fragchain (rsample);
   if ((rres = nn_reorder_rsample (&sc, gv.spdp_reorder, rsample, &refc_adjust, nn_dqueue_is_full (gv.builtins_dqueue))) > 0)
     nn_dqueue_enqueue (gv.builtins_dqueue, &sc, rres);
-  os_mutexUnlock (&gv.spdp_lock);
+  ddsrt_mutex_unlock (&gv.spdp_lock);
   nn_fragchain_adjust_refcount (fragchain, refc_adjust);
   return 0;
 }
@@ -2336,10 +2339,10 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
     dst.prefix = rst->dst_guid_prefix;
     dst.entityid = msg->readerId;
 
-    os_mutexLock (&pwr->e.lock);
+    ddsrt_mutex_lock (&pwr->e.lock);
     wn = ut_avlLookup (&pwr_readers_treedef, &pwr->readers, &dst);
     gap_was_valuable = handle_one_gap (pwr, wn, sampleinfo->seq, sampleinfo->seq+1, gap, &refc_adjust);
-    os_mutexUnlock (&pwr->e.lock);
+    ddsrt_mutex_unlock (&pwr->e.lock);
     nn_fragchain_adjust_refcount (gap, refc_adjust);
 
     if (gap_was_valuable)
@@ -2687,11 +2690,11 @@ static int handle_submsg_sequence
 
     if (sm->smhdr.flags & SMFLAG_ENDIANNESS)
     {
-      byteswap = ! PLATFORM_IS_LITTLE_ENDIAN;
+      byteswap = !(DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
     }
     else
     {
-      byteswap = PLATFORM_IS_LITTLE_ENDIAN;
+      byteswap =  (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
     }
     if (byteswap)
     {
@@ -2986,11 +2989,11 @@ static bool do_packet
 
       if (ml->smhdr.flags & SMFLAG_ENDIANNESS)
       {
-        swap = ! PLATFORM_IS_LITTLE_ENDIAN;
+        swap = !(DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
       }
       else
       {
-        swap = PLATFORM_IS_LITTLE_ENDIAN;
+        swap =  (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
       }
       if (swap)
       {
@@ -3066,8 +3069,8 @@ static int local_participant_cmp (const void *va, const void *vb)
 {
   const struct local_participant_desc *a = va;
   const struct local_participant_desc *b = vb;
-  os_socket h1 = ddsi_conn_handle (a->m_conn);
-  os_socket h2 = ddsi_conn_handle (b->m_conn);
+  ddsrt_socket_t h1 = ddsi_conn_handle (a->m_conn);
+  ddsrt_socket_t h2 = ddsi_conn_handle (b->m_conn);
   return (h1 == h2) ? 0 : (h1 < h2) ? -1 : 1;
 }
 
@@ -3106,12 +3109,12 @@ static void local_participant_set_init (struct local_participant_set *lps)
 {
   lps->ps = NULL;
   lps->nps = 0;
-  lps->gen = os_atomic_ld32 (&gv.participant_set_generation) - 1;
+  lps->gen = ddsrt_atomic_ld32 (&gv.participant_set_generation) - 1;
 }
 
 static void local_participant_set_fini (struct local_participant_set *lps)
 {
-  os_free (lps->ps);
+  ddsrt_free (lps->ps);
 }
 
 static void rebuild_local_participant_set (struct thread_state1 *self, struct local_participant_set *lps)
@@ -3119,17 +3122,17 @@ static void rebuild_local_participant_set (struct thread_state1 *self, struct lo
   struct ephash_enum_participant est;
   struct participant *pp;
   unsigned nps_alloc;
-  DDS_TRACE("pp set gen changed: local %u global %"PRIu32"\n", lps->gen, os_atomic_ld32(&gv.participant_set_generation));
+  DDS_TRACE("pp set gen changed: local %u global %"PRIu32"\n", lps->gen, ddsrt_atomic_ld32(&gv.participant_set_generation));
   thread_state_awake (self);
  restart:
-  lps->gen = os_atomic_ld32 (&gv.participant_set_generation);
+  lps->gen = ddsrt_atomic_ld32 (&gv.participant_set_generation);
   /* Actual local set of participants may never be older than the
      local generation count => membar to guarantee the ordering */
-  os_atomic_fence_acq ();
+  ddsrt_atomic_fence_acq ();
   nps_alloc = gv.nparticipants;
-  os_free (lps->ps);
+  ddsrt_free (lps->ps);
   lps->nps = 0;
-  lps->ps = (nps_alloc == 0) ? NULL : os_malloc (nps_alloc * sizeof (*lps->ps));
+  lps->ps = (nps_alloc == 0) ? NULL : ddsrt_malloc (nps_alloc * sizeof (*lps->ps));
   ephash_enum_participant_init (&est);
   while ((pp = ephash_enum_participant_next (&est)) != NULL)
   {
@@ -3147,7 +3150,7 @@ static void rebuild_local_participant_set (struct thread_state1 *self, struct lo
     {
       lps->ps[lps->nps].m_conn = pp->m_conn;
       lps->ps[lps->nps].guid_prefix = pp->e.guid.prefix;
-      DDS_TRACE("  pp %x:%x:%x:%x handle %"PRIsock"\n", PGUID (pp->e.guid), ddsi_conn_handle (pp->m_conn));
+      DDS_TRACE("  pp %x:%x:%x:%x handle %"PRIdSOCK"\n", PGUID (pp->e.guid), ddsi_conn_handle (pp->m_conn));
       lps->nps++;
     }
   }
@@ -3159,8 +3162,8 @@ static void rebuild_local_participant_set (struct thread_state1 *self, struct lo
      participant guid prefix for a directed packet without an
      explicit destination. Membar because we must have completed
      the loop before testing the generation again. */
-  os_atomic_fence_acq ();
-  if (lps->gen != os_atomic_ld32 (&gv.participant_set_generation))
+  ddsrt_atomic_fence_acq ();
+  if (lps->gen != ddsrt_atomic_ld32 (&gv.participant_set_generation))
   {
     DDS_TRACE("  set changed - restarting\n");
     goto restart;
@@ -3313,7 +3316,7 @@ void trigger_recv_threads (void)
         char buf[DDSI_LOCSTRLEN];
         char dummy = 0;
         const nn_locator_t *dst = gv.recv_threads[i].arg.u.single.loc;
-        os_iovec_t iov;
+        ddsrt_iovec_t iov;
         iov.iov_base = &dummy;
         iov.iov_len = 1;
         DDS_TRACE("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
@@ -3337,7 +3340,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
   os_sockWaitset waitset = recv_thread_arg->mode == RTM_MANY ? recv_thread_arg->u.many.ws : NULL;
   nn_mtime_t next_thread_cputime = { 0 };
 
-  nn_rbufpool_setowner (rbpool, os_threadIdSelf ());
+  nn_rbufpool_setowner (rbpool, ddsrt_thread_self ());
   if (waitset == NULL)
   {
     while (gv.rtps_keepgoing)
@@ -3383,7 +3386,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
       {
         /* no other sockets to check */
       }
-      else if (os_atomic_ld32 (&gv.participant_set_generation) != lps.gen)
+      else if (ddsrt_atomic_ld32 (&gv.participant_set_generation) != lps.gen)
       {
         rebuildws = 1;
       }

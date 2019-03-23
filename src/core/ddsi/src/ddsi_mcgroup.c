@@ -12,13 +12,15 @@
 #include <ctype.h>
 #include <assert.h>
 #include <string.h>
-#include "os/os.h"
-#include "os/os_atomics.h"
-#include "ddsi/ddsi_tran.h"
-#include "ddsi/ddsi_mcgroup.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_log.h"
-#include "util/ut_avl.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/atomics.h"
+#include "dds/ddsi/ddsi_tran.h"
+#include "dds/ddsi/ddsi_mcgroup.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/util/ut_avl.h"
 
 struct nn_group_membership_node {
   ut_avlNode_t avlnode;
@@ -29,7 +31,7 @@ struct nn_group_membership_node {
 };
 
 struct nn_group_membership {
-  os_mutex lock;
+  ddsrt_mutex_t lock;
   ut_avlTree_t mships;
 };
 
@@ -62,17 +64,17 @@ static ut_avlTreedef_t mship_td = UT_AVL_TREEDEF_INITIALIZER(offsetof (struct nn
 
 struct nn_group_membership *new_group_membership (void)
 {
-  struct nn_group_membership *mship = os_malloc (sizeof (*mship));
-  os_mutexInit (&mship->lock);
+  struct nn_group_membership *mship = ddsrt_malloc (sizeof (*mship));
+  ddsrt_mutex_init (&mship->lock);
   ut_avlInit (&mship_td, &mship->mships);
   return mship;
 }
 
 void free_group_membership (struct nn_group_membership *mship)
 {
-  ut_avlFree (&mship_td, &mship->mships, os_free);
-  os_mutexDestroy (&mship->lock);
-  os_free (mship);
+  ut_avlFree (&mship_td, &mship->mships, ddsrt_free);
+  ddsrt_mutex_destroy (&mship->lock);
+  ddsrt_free (mship);
 }
 
 static int reg_group_membership (struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
@@ -91,7 +93,7 @@ static int reg_group_membership (struct nn_group_membership *mship, ddsi_tran_co
     n->count++;
   } else {
     isnew = 1;
-    n = os_malloc (sizeof (*n));
+    n = ddsrt_malloc (sizeof (*n));
     n->conn = conn;
     n->srcloc = key.srcloc;
     n->mcloc = key.mcloc;
@@ -121,7 +123,7 @@ static int unreg_group_membership (struct nn_group_membership *mship, ddsi_tran_
   {
     mustdel = 1;
     ut_avlDeleteDPath (&mship_td, &mship->mships, n, &dp);
-    os_free (n);
+    ddsrt_free (n);
   }
   return mustdel;
 }
@@ -136,7 +138,7 @@ static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn,
     ddsi_locator_to_string_no_port(srcstr, sizeof(srcstr), srcloc);
   }
 #else
-  OS_UNUSED_ARG (srcloc);
+  DDSRT_UNUSED_ARG (srcloc);
 #endif
   ddsi_locator_to_string_no_port (mcstr, sizeof(mcstr), mcloc);
   if (interf)
@@ -223,7 +225,7 @@ static int joinleave_mcgroups (ddsi_tran_conn_t conn, int join, const nn_locator
 int ddsi_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
 {
   int ret;
-  os_mutexLock (&gv.mship->lock);
+  ddsrt_mutex_lock (&gv.mship->lock);
   if (!reg_group_membership (gv.mship, conn, srcloc, mcloc))
   {
     char buf[256];
@@ -234,14 +236,14 @@ int ddsi_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_lo
   {
     ret = joinleave_mcgroups (conn, 1, srcloc, mcloc);
   }
-  os_mutexUnlock (&gv.mship->lock);
+  ddsrt_mutex_unlock (&gv.mship->lock);
   return ret;
 }
 
 int ddsi_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
 {
   int ret;
-  os_mutexLock (&gv.mship->lock);
+  ddsrt_mutex_lock (&gv.mship->lock);
   if (!unreg_group_membership (gv.mship, conn, srcloc, mcloc))
   {
     char buf[256];
@@ -252,7 +254,7 @@ int ddsi_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_l
   {
     ret = joinleave_mcgroups (conn, 0, srcloc, mcloc);
   }
-  os_mutexUnlock (&gv.mship->lock);
+  ddsrt_mutex_unlock (&gv.mship->lock);
   return ret;
 }
 
@@ -265,7 +267,7 @@ void ddsi_transfer_group_membership (ddsi_tran_conn_t conn, ddsi_tran_conn_t new
   /* ordering is on socket, then src IP, then mc IP; IP compare checks family first and AF_INET, AF_INET6
    are neither 0 nor maximum representable, min and max define the range of key values that relate to
    oldsock */
-  os_mutexLock (&gv.mship->lock);
+  ddsrt_mutex_lock (&gv.mship->lock);
   n = ut_avlLookupSuccEq (&mship_td, &gv.mship->mships, &min);
   while (n != NULL && cmp_group_membership (n, &max) <= 0)
   {
@@ -275,7 +277,7 @@ void ddsi_transfer_group_membership (ddsi_tran_conn_t conn, ddsi_tran_conn_t new
     ut_avlInsert (&mship_td, &gv.mship->mships, n);
     n = nn;
   }
-  os_mutexUnlock (&gv.mship->lock);
+  ddsrt_mutex_unlock (&gv.mship->lock);
 }
 
 int ddsi_rejoin_transferred_mcgroups (ddsi_tran_conn_t conn)
@@ -286,13 +288,13 @@ int ddsi_rejoin_transferred_mcgroups (ddsi_tran_conn_t conn)
   memset(&min, 0, sizeof(min));
   memset(&max, 0xff, sizeof(max));
   min.conn = max.conn = conn;
-  os_mutexLock (&gv.mship->lock);
+  ddsrt_mutex_lock (&gv.mship->lock);
   for (n = ut_avlIterSuccEq (&mship_td, &gv.mship->mships, &it, &min); n != NULL && ret >= 0 && cmp_group_membership(n, &max) <= 0; n = ut_avlIterNext (&it))
   {
     int have_srcloc = (memcmp(&n->srcloc, &min.srcloc, sizeof(n->srcloc)) != 0);
     assert (n->conn == conn);
     ret = joinleave_mcgroups (conn, 1, have_srcloc ? &n->srcloc : NULL, &n->mcloc);
   }
-  os_mutexUnlock (&gv.mship->lock);
+  ddsrt_mutex_unlock (&gv.mship->lock);
   return ret;
 }

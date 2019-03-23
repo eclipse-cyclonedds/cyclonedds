@@ -15,24 +15,25 @@
 #include <assert.h>
 #include <ctype.h>
 
-#include "os/os.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/heap.h"
 
-#include "ddsi/q_log.h"
+#include "dds/ddsi/q_log.h"
 
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_error.h"
-#include "ddsi/q_plist.h"
-#include "ddsi/q_time.h"
-#include "ddsi/q_xmsg.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_error.h"
+#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/q_xmsg.h"
 
-#include "ddsi/q_config.h"
-#include "ddsi/q_protocol.h" /* for NN_STATUSINFO_... */
-#include "ddsi/q_radmin.h" /* for nn_plist_quickscan */
-#include "ddsi/q_static_assert.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_protocol.h" /* for NN_STATUSINFO_... */
+#include "dds/ddsi/q_radmin.h" /* for nn_plist_quickscan */
+#include "dds/ddsi/q_static_assert.h"
 
-#include "util/ut_avl.h"
-#include "ddsi/q_misc.h" /* for vendor_is_... */
+#include "dds/util/ut_avl.h"
+#include "dds/ddsi/q_misc.h" /* for vendor_is_... */
 
 /* These are internal to the parameter list processing. We never
    generate them, and we never want to do see them anywhere outside
@@ -133,7 +134,7 @@ static void unalias_string (char **str, int bswap)
   {
     len = (unsigned) strlen (alias) + 1;
   }
-  *str = os_malloc (len);
+  *str = ddsrt_malloc (len);
   memcpy (*str, alias, len);
 }
 
@@ -177,7 +178,7 @@ static void unalias_octetseq (nn_octetseq_t *oseq, UNUSED_ARG (int bswap))
   if (oseq->length != 0)
   {
     unsigned char *vs;
-    vs = os_malloc (oseq->length);
+    vs = ddsrt_malloc (oseq->length);
     memcpy (vs, oseq->value, oseq->length);
     oseq->value = vs;
   }
@@ -264,7 +265,7 @@ static int alias_stringseq (nn_stringseq_t *strseq, const struct dd *dd)
   }
   else
   {
-    strs = os_malloc (strseq->n * sizeof (*strs));
+    strs = ddsrt_malloc (strseq->n * sizeof (*strs));
     for (i = 0; i < strseq->n && seq <= seqend; i++)
     {
       size_t len1;
@@ -290,7 +291,7 @@ static int alias_stringseq (nn_stringseq_t *strseq, const struct dd *dd)
   }
   return 0;
  fail:
-  os_free (strs);
+  ddsrt_free (strs);
   return result;
 }
 
@@ -301,10 +302,10 @@ static void free_stringseq (nn_stringseq_t *strseq)
   {
     if (strseq->strs[i])
     {
-      os_free (strseq->strs[i]);
+      ddsrt_free (strseq->strs[i]);
     }
   }
-  os_free (strseq->strs);
+  ddsrt_free (strseq->strs);
 }
 
 static int unalias_stringseq (nn_stringseq_t *strseq, int bswap)
@@ -313,13 +314,13 @@ static int unalias_stringseq (nn_stringseq_t *strseq, int bswap)
   char **strs;
   if (strseq->n != 0)
   {
-    strs = os_malloc (strseq->n * sizeof (*strs));
+    strs = ddsrt_malloc (strseq->n * sizeof (*strs));
     for (i = 0; i < strseq->n; i++)
     {
       strs[i] = strseq->strs[i];
       unalias_string (&strs[i], bswap);
     }
-    os_free (strseq->strs);
+    ddsrt_free (strseq->strs);
     strseq->strs = strs;
   }
   return 0;
@@ -335,511 +336,11 @@ assert (dest->strs == NULL);
     dest->strs = NULL;
     return;
   }
-  dest->strs = os_malloc (dest->n * sizeof (*dest->strs));
+  dest->strs = ddsrt_malloc (dest->n * sizeof (*dest->strs));
   for (i = 0; i < dest->n; i++)
   {
     dest->strs[i] = src->strs[i];
     unalias_string (&dest->strs[i], -1);
-  }
-}
-
-_Success_(return == 0)
-static int validate_property (_In_ const struct dd *dd, _Out_ size_t *len)
-{
-  struct dd ddV = *dd;
-  size_t lenN;
-  size_t lenV;
-  int rc;
-
-  /* Check name. */
-  rc = validate_string(dd, &lenN);
-  if (rc != 0)
-  {
-    DDS_TRACE("plist/validate_property: name validation failed\n");
-    return rc;
-  }
-  lenN = sizeof(uint32_t) + /* cdr string len arg + */
-         align4u(lenN);     /* strlen + possible padding */
-
-
-  /* Check value. */
-  ddV.buf = dd->buf + lenN;
-  ddV.bufsz = dd->bufsz - lenN;
-  rc = validate_string(&ddV, &lenV);
-  if (rc != 0)
-  {
-    DDS_TRACE("plist/validate_property: value validation failed\n");
-    return rc;
-  }
-  lenV = sizeof(uint32_t) + /* cdr string len arg + */
-         align4u(lenV);     /* strlen + possible padding */
-
-  *len = lenN + lenV;
-
-  return 0;
-}
-
-_Success_(return == 0)
-static int alias_property (_Out_ nn_property_t *prop, _In_ const struct dd *dd, _Out_ size_t *len)
-{
-  struct dd ddV = *dd;
-  size_t lenN;
-  size_t lenV;
-  int rc;
-
-  /* Get name */
-  rc = alias_string((const unsigned char **)&(prop->name), dd, &lenN);
-  if (rc != 0)
-  {
-    DDS_TRACE("plist/alias_property: invalid name buffer\n");
-    return rc;
-  }
-  lenN = sizeof(uint32_t) + /* cdr string len arg + */
-         align4u(lenN);     /* strlen + possible padding */
-
-  /* Get value */
-  ddV.buf = dd->buf + lenN;
-  ddV.bufsz = dd->bufsz - lenN;
-  rc = alias_string((const unsigned char **)&(prop->value), &ddV, &lenV);
-  if (rc != 0)
-  {
-    DDS_TRACE("plist/validate_property: invalid value buffer\n");
-    return rc;
-  }
-  lenV = sizeof(uint32_t) + /* cdr string len arg + */
-         align4u (lenV);    /* strlen + possible padding */
-
-  /* We got this from the wire; so it has been propagated. */
-  prop->propagate = true;
-
-  *len = lenN + lenV;
-
-  return 0;
-}
-
-static void free_property (_Inout_ nn_property_t *prop)
-{
-  os_free(prop->name);
-  prop->name = NULL;
-  os_free(prop->value);
-  prop->value = NULL;
-}
-
-static void unalias_property (_Inout_ nn_property_t *prop, _In_ int bswap)
-{
-  unalias_string(&prop->name,  bswap);
-  unalias_string(&prop->value, bswap);
-}
-
-static void duplicate_property (_Out_ nn_property_t *dest, _In_ const nn_property_t *src)
-{
-    nn_property_t tmp = *src;
-    unalias_property(&tmp, -1);
-    *dest = tmp;
-}
-
-_Success_(return == 0)
-static int validate_propertyseq (_In_ const struct dd *dd, _Out_ size_t *len)
-{
-  const unsigned char *seq = dd->buf;
-  const unsigned char *seqend = seq + dd->bufsz;
-  struct dd dd1 = *dd;
-  int i, n;
-  if (dd->bufsz < sizeof (int))
-  {
-    DDS_TRACE("plist/validate_propertyseq: buffer too small (header)\n");
-    return ERR_INVALID;
-  }
-  memcpy (&n, seq, sizeof (n));
-  if (dd->bswap)
-    n = bswap4 (n);
-  seq += sizeof (int);
-  if (n < 0)
-  {
-    DDS_TRACE("plist/validate_propertyseq: length %d out of range\n", n);
-    return ERR_INVALID;
-  }
-  else if (n == 0)
-  {
-    /* nothing to check */
-  }
-  else
-  {
-    for (i = 0; i < n && seq <= seqend; i++)
-    {
-      size_t len1;
-      int rc;
-      dd1.buf = seq;
-      dd1.bufsz = (size_t) (seqend - seq);
-      if ((rc = validate_property (&dd1, &len1)) != 0)
-      {
-        DDS_TRACE("plist/validate_propertyseq: invalid property\n");
-        return rc;
-      }
-      seq += len1;
-    }
-    if (i < n)
-    {
-      DDS_TRACE("plist/validate_propertyseq: buffer too small (contents)\n");
-      return ERR_INVALID;
-    }
-  }
-  *len = align4u((size_t)(seq - dd->buf));
-  return 0;
-}
-
-_Success_(return == 0)
-static int alias_propertyseq (_Out_ nn_propertyseq_t *pseq, _In_ const struct dd *dd, _Out_ size_t *len)
-{
-  /* Not truly an alias: it allocates an array of pointers that alias
-     the individual components. Also: see validate_propertyseq */
-  const unsigned char *seq = dd->buf;
-  const unsigned char *seqend = seq + dd->bufsz;
-  struct dd dd1 = *dd;
-  nn_property_t *props;
-  unsigned i;
-  int result;
-  if (dd->bufsz < sizeof (int))
-  {
-    DDS_TRACE("plist/alias_propertyseq: buffer too small (header)\n");
-    return ERR_INVALID;
-  }
-
-  memcpy (&pseq->n, seq, sizeof (pseq->n));
-  if (dd->bswap)
-      pseq->n = bswap4u (pseq->n);
-  seq += sizeof (uint32_t);
-  if (pseq->n >= UINT_MAX / sizeof(*props))
-  {
-    DDS_TRACE("plist/alias_propertyseq: length %u out of range\n", pseq->n);
-    return ERR_INVALID;
-  }
-  else if (pseq->n == 0)
-  {
-    pseq->props = NULL;
-  }
-  else
-  {
-    props = os_malloc (pseq->n * sizeof (*props));
-    for (i = 0; i < pseq->n && seq <= seqend; i++)
-    {
-      size_t len1;
-      dd1.buf = seq;
-      dd1.bufsz = (size_t) (seqend - seq);
-      if ((result = alias_property (&props[i], &dd1, &len1)) != 0)
-      {
-        DDS_TRACE("plist/alias_propertyseq: invalid property\n");
-        goto fail;
-      }
-      seq += len1;
-    }
-    if (i != pseq->n)
-    {
-      DDS_TRACE("plist/alias_propertyseq: buffer too small (contents)\n");
-      result = ERR_INVALID;
-      goto fail;
-    }
-    pseq->props = props;
-  }
-  *len = align4u((size_t)(seq - dd->buf));
-  return 0;
- fail:
-  os_free (props);
-  return result;
-}
-
-static void free_propertyseq (_Inout_ nn_propertyseq_t *pseq)
-{
-  unsigned i;
-  for (i = 0; i < pseq->n; i++)
-  {
-    free_property(&(pseq->props[i]));
-  }
-  os_free (pseq->props);
-  pseq->props = NULL;
-  pseq->n = 0;
-}
-
-static void unalias_propertyseq (_Inout_ nn_propertyseq_t *pseq, _In_ int bswap)
-{
-  unsigned i;
-  nn_property_t *props;
-  if (pseq->n != 0)
-  {
-    props = os_malloc (pseq->n * sizeof (*pseq->props));
-    for (i = 0; i < pseq->n; i++)
-    {
-      props[i] = pseq->props[i];
-      unalias_property (&props[i], bswap);
-    }
-    os_free (pseq->props);
-    pseq->props = props;
-  }
-}
-
-static void duplicate_propertyseq (_Out_ nn_propertyseq_t *dest, _In_ const nn_propertyseq_t *src)
-{
-  unsigned i;
-  dest->n = src->n;
-  if (dest->n == 0)
-  {
-    dest->props = NULL;
-    return;
-  }
-  dest->props = os_malloc (dest->n * sizeof (*dest->props));
-  for (i = 0; i < dest->n; i++)
-  {
-    duplicate_property(&(dest->props[i]), &(src->props[i]));
-  }
-}
-
-_Success_(return == 0)
-static int validate_binaryproperty (_In_ const struct dd *dd, _Out_ size_t *len)
-{
-  struct dd ddV = *dd;
-  size_t lenN;
-  size_t lenV;
-  int rc;
-
-  /* Check name. */
-  rc = validate_string(dd, &lenN);
-  if (rc != 0)
-  {
-    DDS_TRACE("plist/validate_property: name validation failed\n");
-    return rc;
-  }
-  lenN = sizeof(uint32_t) + /* cdr string len arg + */
-         align4u(lenN);     /* strlen + possible padding */
-
-  /* Check value. */
-  ddV.buf = dd->buf + lenN;
-  ddV.bufsz = dd->bufsz - lenN;
-  rc = validate_octetseq(&ddV, &lenV);
-  if (rc != 0)
-  {
-    DDS_TRACE("plist/validate_property: value validation failed\n");
-    return rc;
-  }
-  lenV = sizeof(uint32_t) + /* cdr sequence len arg + */
-         align4u(lenV);     /* seqlen + possible padding */
-
-  *len = lenN + lenV;
-
-  return 0;
-}
-
-_Success_(return == 0)
-static int alias_binaryproperty (_Out_ nn_binaryproperty_t *prop, _In_ const struct dd *dd, _Out_ size_t *len)
-{
-  struct dd ddV = *dd;
-  size_t lenN;
-  size_t lenV;
-  int rc;
-
-  /* Get name */
-  rc = alias_string((const unsigned char **)&(prop->name), dd, &lenN);
-  if (rc != 0)
-  {
-    DDS_TRACE("plist/alias_property: invalid name buffer\n");
-    return rc;
-  }
-  lenN = sizeof(uint32_t) + /* cdr string len arg + */
-         align4u(lenN);     /* strlen + possible padding */
-
-  /* Get value */
-  ddV.buf = dd->buf + lenN;
-  ddV.bufsz = dd->bufsz - lenN;
-  rc = alias_octetseq(&(prop->value), &ddV);
-  if (rc != 0)
-  {
-    DDS_TRACE("plist/validate_property: invalid value buffer\n");
-    return rc;
-  }
-  lenV = sizeof(uint32_t) +           /* cdr sequence len arg + */
-         align4u(prop->value.length); /* seqlen + possible padding */
-
-  /* We got this from the wire; so it has been propagated. */
-  prop->propagate = true;
-
-  *len = lenN + lenV;
-
-  return 0;
-}
-
-static void free_binaryproperty (_Inout_ nn_binaryproperty_t *prop)
-{
-  os_free(prop->name);
-  prop->name = NULL;
-  os_free(prop->value.value);
-  prop->value.value = NULL;
-  prop->value.length = 0;
-}
-
-static void unalias_binaryproperty (_Inout_ nn_binaryproperty_t *prop, _In_ int bswap)
-{
-  unalias_string  (&prop->name,  bswap);
-  unalias_octetseq(&prop->value, bswap);
-}
-
-static void duplicate_binaryproperty (_Out_ nn_binaryproperty_t *dest, _In_ const nn_binaryproperty_t *src)
-{
-    nn_binaryproperty_t tmp = *src;
-    unalias_binaryproperty(&tmp, -1);
-    *dest = tmp;
-}
-
-_Success_(return == 0)
-static int validate_binarypropertyseq (_In_ const struct dd *dd, _Out_ size_t *len)
-{
-  const unsigned char *seq = dd->buf;
-  const unsigned char *seqend = seq + dd->bufsz;
-  struct dd dd1 = *dd;
-  int i, n;
-  if (dd->bufsz < sizeof (int))
-  {
-    DDS_TRACE("plist/validate_binarypropertyseq: buffer too small (header)\n");
-    return ERR_INVALID;
-  }
-  memcpy (&n, seq, sizeof (n));
-  if (dd->bswap)
-    n = bswap4 (n);
-  seq += sizeof (int);
-  if (n < 0)
-  {
-    DDS_TRACE("plist/validate_binarypropertyseq: length %d out of range\n", n);
-    return ERR_INVALID;
-  }
-  else if (n == 0)
-  {
-    /* nothing to check */
-  }
-  else
-  {
-    for (i = 0; i < n && seq <= seqend; i++)
-    {
-      size_t len1;
-      int rc;
-      dd1.buf = seq;
-      dd1.bufsz = (size_t) (seqend - seq);
-      if ((rc = validate_binaryproperty (&dd1, &len1)) != 0)
-      {
-        DDS_TRACE("plist/validate_binarypropertyseq: invalid property\n");
-        return rc;
-      }
-      seq += len1;
-    }
-    if (i < n)
-    {
-      DDS_TRACE("plist/validate_binarypropertyseq: buffer too small (contents)\n");
-      return ERR_INVALID;
-    }
-  }
-  *len = align4u((size_t)(seq - dd->buf));
-  return 0;
-}
-
-_Success_(return == 0)
-static int alias_binarypropertyseq (_Out_ nn_binarypropertyseq_t *pseq, _In_ const struct dd *dd, _Out_ size_t *len)
-{
-  /* Not truly an alias: it allocates an array of pointers that alias
-     the individual components. Also: see validate_binarypropertyseq */
-  const unsigned char *seq = dd->buf;
-  const unsigned char *seqend = seq + dd->bufsz;
-  struct dd dd1 = *dd;
-  nn_binaryproperty_t *props;
-  unsigned i;
-  int result;
-  if (dd->bufsz < sizeof (int))
-  {
-    DDS_TRACE("plist/alias_binarypropertyseq: buffer too small (header)\n");
-    return ERR_INVALID;
-  }
-
-  memcpy (&pseq->n, seq, sizeof (pseq->n));
-  if (dd->bswap)
-      pseq->n = bswap4u (pseq->n);
-  seq += sizeof (uint32_t);
-  if (pseq->n >= UINT_MAX / sizeof(*props))
-  {
-    DDS_TRACE("plist/alias_binarypropertyseq: length %u out of range\n", pseq->n);
-    return ERR_INVALID;
-  }
-  else if (pseq->n == 0)
-  {
-    pseq->props = NULL;
-  }
-  else
-  {
-    props = os_malloc (pseq->n * sizeof (*props));
-    for (i = 0; i < pseq->n && seq <= seqend; i++)
-    {
-      size_t len1;
-      dd1.buf = seq;
-      dd1.bufsz = (size_t) (seqend - seq);
-      if ((result = alias_binaryproperty (&props[i], &dd1, &len1)) != 0)
-      {
-        DDS_TRACE("plist/alias_binarypropertyseq: invalid property\n");
-        goto fail;
-      }
-      seq += len1;
-    }
-    if (i != pseq->n)
-    {
-      DDS_TRACE("plist/alias_binarypropertyseq: buffer too small (contents)\n");
-      result = ERR_INVALID;
-      goto fail;
-    }
-    pseq->props = props;
-  }
-  *len = align4u((size_t)(seq - dd->buf));
-  return 0;
- fail:
-  os_free (props);
-  return result;
-}
-
-static void free_binarypropertyseq (_Inout_ nn_binarypropertyseq_t *pseq)
-{
-  unsigned i;
-  for (i = 0; i < pseq->n; i++)
-  {
-    free_binaryproperty(&(pseq->props[i]));
-  }
-  os_free (pseq->props);
-  pseq->props = NULL;
-  pseq->n = 0;
-}
-
-static void unalias_binarypropertyseq (_Inout_ nn_binarypropertyseq_t *pseq, _In_ int bswap)
-{
-  unsigned i;
-  nn_binaryproperty_t *props;
-  if (pseq->n != 0)
-  {
-    props = os_malloc (pseq->n * sizeof (*pseq->props));
-    for (i = 0; i < pseq->n; i++)
-    {
-      props[i] = pseq->props[i];
-      unalias_binaryproperty (&props[i], bswap);
-    }
-    os_free (pseq->props);
-    pseq->props = props;
-  }
-}
-
-static void duplicate_binarypropertyseq (_Out_ nn_binarypropertyseq_t *dest, _In_ const nn_binarypropertyseq_t *src)
-{
-  unsigned i;
-  dest->n = src->n;
-  if (dest->n == 0)
-  {
-    dest->props = NULL;
-    return;
-  }
-  dest->props = os_malloc (dest->n * sizeof (*dest->props));
-  for (i = 0; i < dest->n; i++)
-  {
-    duplicate_binaryproperty(&(dest->props[i]), &(src->props[i]));
   }
 }
 
@@ -849,7 +350,7 @@ static void free_locators (nn_locators_t *locs)
   {
     struct nn_locators_one *l = locs->first;
     locs->first = l->next;
-    os_free (l);
+    ddsrt_free (l);
   }
 }
 
@@ -865,7 +366,7 @@ static void unalias_locators (nn_locators_t *locs, UNUSED_ARG (int bswap))
   for (lold = locs->first; lold != NULL; lold = lold->next)
   {
     struct nn_locators_one *n;
-    n = os_malloc (sizeof (*n));
+    n = ddsrt_malloc (sizeof (*n));
     n->next = NULL;
     n->loc = lold->loc;
     if (newlocs.first == NULL)
@@ -882,31 +383,10 @@ static void unalias_eotinfo (nn_prismtech_eotinfo_t *txnid, UNUSED_ARG (int bswa
   if (txnid->n > 0)
   {
     nn_prismtech_eotgroup_tid_t *vs;
-    vs = os_malloc (txnid->n * sizeof (*vs));
+    vs = ddsrt_malloc (txnid->n * sizeof (*vs));
     memcpy (vs, txnid->tids, txnid->n * sizeof (*vs));
     txnid->tids = vs;
   }
-}
-
-static void free_dataholder (_Inout_ nn_dataholder_t *dh)
-{
-  os_free(dh->class_id);
-  dh->class_id = NULL;
-  free_propertyseq(&(dh->properties));
-  free_binarypropertyseq(&(dh->binary_properties));
-}
-
-static void unalias_dataholder (_Inout_ nn_dataholder_t *holder, _In_ int bswap)
-{
-  unalias_string(&(holder->class_id), bswap);
-  unalias_propertyseq(&(holder->properties), bswap);
-  unalias_binarypropertyseq(&(holder->binary_properties), bswap);
-}
-
-static void duplicate_property_qospolicy (_Out_ nn_property_qospolicy_t *dest, _In_ const nn_property_qospolicy_t *src)
-{
-  duplicate_propertyseq(&(dest->value), &(src->value));
-  duplicate_binarypropertyseq(&(dest->binary_value), &(src->binary_value));
 }
 
 void nn_plist_fini (nn_plist_t *ps)
@@ -928,21 +408,17 @@ void nn_plist_fini (nn_plist_t *ps)
     { PP_METATRAFFIC_UNICAST_LOCATOR, offsetof (nn_plist_t, metatraffic_unicast_locators) },
     { PP_METATRAFFIC_MULTICAST_LOCATOR, offsetof (nn_plist_t, metatraffic_multicast_locators) }
   };
-  static const struct t tokens[] = {
-    { PP_IDENTITY_TOKEN, offsetof (nn_plist_t, identity_token) },
-    { PP_PERMISSIONS_TOKEN, offsetof (nn_plist_t, permissions_token) }
-  };
   int i;
   nn_xqos_fini (&ps->qos);
 
 /* The compiler doesn't understand how offsetof is used in the arrays. */
-OS_WARNING_MSVC_OFF(6001);
+DDSRT_WARNING_MSVC_OFF(6001);
   for (i = 0; i < (int) (sizeof (simple) / sizeof (*simple)); i++)
   {
     if ((ps->present & simple[i].fl) && !(ps->aliased & simple[i].fl))
     {
       void **pp = (void **) ((char *) ps + simple[i].off);
-      os_free (*pp);
+      ddsrt_free (*pp);
     }
   }
   for (i = 0; i < (int) (sizeof (locs) / sizeof (*locs)); i++)
@@ -950,12 +426,7 @@ OS_WARNING_MSVC_OFF(6001);
     if ((ps->present & locs[i].fl) && !(ps->aliased & locs[i].fl))
       free_locators ((nn_locators_t *) ((char *) ps + locs[i].off));
   }
-  for (i = 0; i < (int) (sizeof (tokens) / sizeof (*tokens)); i++)
-  {
-    if ((ps->present & tokens[i].fl) && !(ps->aliased & tokens[i].fl))
-      free_dataholder ((nn_token_t *) ((char *) ps + tokens[i].off));
-  }
-OS_WARNING_MSVC_ON(6001);
+DDSRT_WARNING_MSVC_ON(6001);
 
   ps->present = 0;
 }
@@ -981,8 +452,6 @@ void nn_plist_unalias (nn_plist_t *ps)
   P (PRISMTECH_EXEC_NAME, string, exec_name);
   P (PRISMTECH_TYPE_DESCRIPTION, string, type_description);
   P (PRISMTECH_EOTINFO, eotinfo, eotinfo);
-  P (IDENTITY_TOKEN, dataholder, identity_token);
-  P (PERMISSIONS_TOKEN, dataholder, permissions_token);
 #undef P
   if ((ps->present & PP_PRISMTECH_PARTICIPANT_VERSION_INFO) &&
       (ps->aliased & PP_PRISMTECH_PARTICIPANT_VERSION_INFO))
@@ -1070,33 +539,6 @@ static int validate_time (const nn_ddsi_time_t *t)
   }
 }
 
-#if DDSI_DURATION_ACCORDING_TO_SPEC
-static void bswap_duration (nn_duration_t *d)
-{
-  /* Why o why is a Duration_t used for some things, and a (DDSI) time
-     used for other things, where a duration is {sec,nsec} and a time
-     is {sec,fraction}? */
-  d->sec = bswap4 (d->sec);
-  d->nanosec = bswap4 (d->nanosec);
-}
-
-int validate_duration (const nn_duration_t *d)
-{
-  /* Accepted are zero, positive, infinite or invalid as defined in
-     the DDS 1.2 spec. */
-  if (d->sec >= 0 && d->nanosec >= 0 && d->nanosec < 1000000000)
-    return 0;
-  else if (d->sec == (int) INT32_MAX && d->nanosec == (int) INT32_MAX)
-    return 0;
-  else if (d->sec == -1 && d->nanosec == (int) UINT32_MAX)
-    return 0;
-  else
-  {
-    DDS_TRACE("plist/validate_time: invalid duration (%08x.%08x)\n", d->sec, d->nanosec);
-    return ERR_INVALID;
-  }
-}
-#else
 static void bswap_duration (nn_duration_t *d)
 {
   bswap_time (d);
@@ -1106,7 +548,6 @@ int validate_duration (const nn_duration_t *d)
 {
   return validate_time (d);
 }
-#endif
 
 static int do_duration (nn_duration_t *q, uint64_t *present, uint64_t fl, const struct dd *dd)
 {
@@ -1452,7 +893,7 @@ static int add_locator (nn_locators_t *ls, uint64_t *present, uint64_t wanted, u
       ls->first = NULL;
       ls->last = NULL;
     }
-    nloc = os_malloc (sizeof (*nloc));
+    nloc = ddsrt_malloc (sizeof (*nloc));
     nloc->loc = *loc;
     nloc->next = NULL;
     if (ls->first == NULL)
@@ -2045,87 +1486,6 @@ static int do_reader_data_lifecycle_v1 (nn_reader_data_lifecycle_qospolicy_t *q,
     q->invalid_sample_visibility = (nn_invalid_sample_visibility_kind_t) bswap4u ((unsigned) q->invalid_sample_visibility);
   }
   return validate_reader_data_lifecycle (q);
-}
-
-_Success_(return == 0)
-static int do_dataholder (_Out_ nn_dataholder_t *dh, _Inout_ uint64_t *present, _Inout_ uint64_t *aliased, _In_ uint64_t wanted, _In_ uint64_t fl, _In_ const struct dd *dd)
-{
-  struct dd ddtmp = *dd;
-  size_t len;
-  int res;
-
-  memset(dh, 0, sizeof(nn_dataholder_t));
-
-  if (!(wanted & fl))
-  {
-    res = 0;
-    if (NN_STRICT_P)
-    {
-      /* check class_id */
-      if ((res = validate_string (&ddtmp, &len)) == 0)
-      {
-        len = sizeof(uint32_t) + /* cdr string len arg + */
-              align4u(len);      /* strlen + possible padding */
-        /* check properties */
-        ddtmp.buf = &(dd->buf[len]);
-        ddtmp.bufsz = dd->bufsz - len;
-        if ((res = validate_propertyseq (&ddtmp, &len)) == 0)
-        {
-          /* check binary properties */
-          ddtmp.buf = &(ddtmp.buf[len]);
-          ddtmp.bufsz = ddtmp.bufsz - len;
-          if ((res = validate_binarypropertyseq (&ddtmp, &len)) != 0)
-          {
-            DDS_TRACE("plist/do_dataholder: invalid binary_property_seq\n");
-          }
-        }
-        else
-        {
-          DDS_TRACE("plist/do_dataholder: invalid property_seq\n");
-        }
-      }
-      else
-      {
-        DDS_TRACE("plist/do_dataholder: invalid class_id\n");
-      }
-    }
-    return res;
-  }
-
-  /* get class_id */
-  res = alias_string((const unsigned char **)&(dh->class_id), dd, &len /* strlen */);
-  if (res != 0)
-  {
-    DDS_TRACE("plist/do_dataholder: invalid class_id\n");
-    return res;
-  }
-  len = sizeof(uint32_t) + /* cdr string len arg + */
-        align4u(len);      /* strlen + possible padding */
-
-  /* get properties */
-  ddtmp.buf = &(dd->buf[len]);
-  ddtmp.bufsz = dd->bufsz - len;
-  res = alias_propertyseq(&(dh->properties), &ddtmp, &len /* complete length */);
-  if (res != 0)
-  {
-    DDS_TRACE("plist/do_dataholder: invalid property_seq\n");
-    return res;
-  }
-
-  /* get binary properties */
-  ddtmp.buf = &(ddtmp.buf[len]);
-  ddtmp.bufsz = ddtmp.bufsz - len;
-  res = alias_binarypropertyseq(&(dh->binary_properties), &ddtmp, &len /* complete length */);
-  if (res != 0)
-  {
-    DDS_TRACE("plist/do_dataholder: invalid binary_property_seq\n");
-    return res;
-  }
-
-  *present |= fl;
-  *aliased |= fl;
-
-  return 0;
 }
 
 static int init_one_parameter
@@ -2747,12 +2107,6 @@ static int init_one_parameter
       }
 #endif
 
-    case PID_IDENTITY_TOKEN:
-      return do_dataholder (&dest->identity_token, &dest->present, &dest->aliased, pwanted, PP_IDENTITY_TOKEN, dd);
-
-    case PID_PERMISSIONS_TOKEN:
-      return do_dataholder (&dest->permissions_token, &dest->present, &dest->aliased, pwanted, PP_PERMISSIONS_TOKEN, dd);
-
       /* Deprecated ones (used by RTI, but not relevant to DDSI) */
     case PID_PERSISTENCE:
     case PID_TYPE_CHECKSUM:
@@ -2871,8 +2225,6 @@ void nn_plist_mergein_missing (nn_plist_t *a, const nn_plist_t *b)
   CQ (PRISMTECH_EXEC_NAME, exec_name, string, char *);
   CQ (PRISMTECH_TYPE_DESCRIPTION, type_description, string, char *);
   CQ (PRISMTECH_EOTINFO, eotinfo, eotinfo, nn_prismtech_eotinfo_t);
-  CQ (IDENTITY_TOKEN, identity_token, dataholder, nn_token_t);
-  CQ (PERMISSIONS_TOKEN, permissions_token, dataholder, nn_token_t);
 #undef CQ
   if (!(a->present & PP_PRISMTECH_PARTICIPANT_VERSION_INFO) &&
       (b->present & PP_PRISMTECH_PARTICIPANT_VERSION_INFO))
@@ -2895,7 +2247,7 @@ void nn_plist_copy (nn_plist_t *dst, const nn_plist_t *src)
 nn_plist_t *nn_plist_dup (const nn_plist_t *src)
 {
   nn_plist_t *dst;
-  dst = os_malloc (sizeof (*dst));
+  dst = ddsrt_malloc (sizeof (*dst));
   nn_plist_copy (dst, src);
   assert (dst->aliased == 0);
   return dst;
@@ -2951,14 +2303,14 @@ int nn_plist_init_frommsg
   switch (src->encoding)
   {
     case PL_CDR_LE:
-#if OS_ENDIANNESS == OS_LITTLE_ENDIAN
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
       dd.bswap = 0;
 #else
       dd.bswap = 1;
 #endif
       break;
     case PL_CDR_BE:
-#if OS_ENDIANNESS == OS_LITTLE_ENDIAN
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
       dd.bswap = 1;
 #else
       dd.bswap = 0;
@@ -3075,14 +2427,14 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
   switch (src->encoding)
   {
     case PL_CDR_LE:
-#if OS_ENDIANNESS == OS_LITTLE_ENDIAN
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
       dest->bswap = 0;
 #else
       dest->bswap = 1;
 #endif
       break;
     case PL_CDR_BE:
-#if OS_ENDIANNESS == OS_LITTLE_ENDIAN
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
       dest->bswap = 1;
 #else
       dest->bswap = 0;
@@ -3406,11 +2758,6 @@ void nn_xqos_mergein_missing (nn_xqos_t *a, const nn_xqos_t *b)
     duplicate_stringseq (&a->partition, &b->partition);
     a->present |= QP_PARTITION;
   }
-  if (!(a->present & QP_PROPERTY) && (b->present & QP_PROPERTY))
-  {
-    duplicate_property_qospolicy (&a->property, &b->property);
-    a->present |= QP_PROPERTY;
-  }
 }
 
 void nn_xqos_copy (nn_xqos_t *dst, const nn_xqos_t *src)
@@ -3459,7 +2806,7 @@ void nn_xqos_fini (nn_xqos_t *xqos)
     {
       void **pp = (void **) ((char *) xqos + qos_simple[i].off);
       DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", *pp);
-      os_free (*pp);
+      ddsrt_free (*pp);
     }
   }
   if (xqos->present & QP_PARTITION)
@@ -3472,7 +2819,7 @@ void nn_xqos_fini (nn_xqos_t *xqos)
     {
       /* until proper message buffers arrive */
       DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", (void *) xqos->partition.strs);
-      os_free (xqos->partition.strs);
+      ddsrt_free (xqos->partition.strs);
     }
   }
   if (xqos->present & QP_PRISMTECH_SUBSCRIPTION_KEYS)
@@ -3483,15 +2830,7 @@ void nn_xqos_fini (nn_xqos_t *xqos)
     {
       /* until proper message buffers arrive */
       DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI free %p\n", (void *) xqos->subscription_keys.key_list.strs);
-      os_free (xqos->subscription_keys.key_list.strs);
-    }
-  }
-  if (xqos->present & QP_PROPERTY)
-  {
-    if (!(xqos->aliased & QP_PROPERTY))
-    {
-      free_propertyseq(&xqos->property.value);
-      free_binarypropertyseq(&xqos->property.binary_value);
+      ddsrt_free (xqos->subscription_keys.key_list.strs);
     }
   }
   xqos->present = 0;
@@ -3499,7 +2838,7 @@ void nn_xqos_fini (nn_xqos_t *xqos)
 
 nn_xqos_t * nn_xqos_dup (const nn_xqos_t *src)
 {
-  nn_xqos_t *dst = os_malloc (sizeof (*dst));
+  nn_xqos_t *dst = ddsrt_malloc (sizeof (*dst));
   nn_xqos_copy (dst, src);
   assert (dst->aliased == 0);
   return dst;
@@ -3512,11 +2851,7 @@ static int octetseqs_differ (const nn_octetseq_t *a, const nn_octetseq_t *b)
 
 static int durations_differ (const nn_duration_t *a, const nn_duration_t *b)
 {
-#if DDSI_DURATION_ACCORDING_TO_SPEC
-  return (a->sec != b->sec || a->nanosec != b->nanosec);
-#else
   return (a->seconds != b->seconds || a->fraction != b->fraction);
-#endif
 }
 
 static int stringseqs_differ (const nn_stringseq_t *a, const nn_stringseq_t *b)
@@ -3573,19 +2908,19 @@ static int partitions_equal_nlogn (const nn_partition_qospolicy_t *a, const nn_p
   if (a->n <= (int) (sizeof (statictab) / sizeof (*statictab)))
     tab = statictab;
   else
-    tab = os_malloc (a->n * sizeof (*tab));
+    tab = ddsrt_malloc (a->n * sizeof (*tab));
 
   for (i = 0; i < a->n; i++)
     tab[i] = a->strs[i];
   qsort (tab, a->n, sizeof (*tab), (int (*) (const void *, const void *)) strcmp);
   for (i = 0; i < b->n; i++)
-    if (os_bsearch (b->strs[i], tab, a->n, sizeof (*tab), (int (*) (const void *, const void *)) strcmp) == NULL)
+    if (bsearch (b->strs[i], tab, a->n, sizeof (*tab), (int (*) (const void *, const void *)) strcmp) == NULL)
     {
       equal = 0;
       break;
     }
   if (tab != statictab)
-    os_free (tab);
+    ddsrt_free (tab);
   return equal;
 }
 
@@ -3921,8 +3256,6 @@ void nn_plist_addtomsg (struct nn_xmsg *m, const nn_plist_t *ps, uint64_t pwante
   SIMPLE_TYPE (PRISMTECH_SERVICE_TYPE, service_type, unsigned);
   FUNC_BY_VAL (PRISMTECH_TYPE_DESCRIPTION, type_description, string);
   FUNC_BY_REF (PRISMTECH_EOTINFO, eotinfo, eotinfo);
-  FUNC_BY_REF (IDENTITY_TOKEN, identity_token, dataholder);
-  FUNC_BY_REF (PERMISSIONS_TOKEN, permissions_token, dataholder);
 #ifdef DDSI_INCLUDE_SSM
   SIMPLE_TYPE (READER_FAVOURS_SSM, reader_favours_ssm, nn_reader_favours_ssm_t);
 #endif
@@ -3979,13 +3312,8 @@ void nn_log_xqos (uint32_t cat, const nn_xqos_t *xqos)
 #define LOGB5(fmt_, arg0_, arg1_, arg2_, arg3_, arg4_) DDS_LOG(cat, "%s" fmt_, prefix, arg0_, arg1_, arg2_, arg3_, arg4_)
 #define DO(name_, body_) do { if (p & QP_##name_) { { body_ } prefix = ","; } } while (0)
 
-#if DDSI_DURATION_ACCORDING_TO_SPEC
-#define FMT_DUR "%d.%09d"
-#define PRINTARG_DUR(d) (d).sec, (d).nanosec
-#else
 #define FMT_DUR "%d.%09d"
 #define PRINTARG_DUR(d) (d).seconds, (int) ((d).fraction/4.294967296)
-#endif
 
   DO (TOPIC_NAME, { LOGB1 ("topic=%s", xqos->topic_name); });
   DO (TYPE_NAME, { LOGB1 ("type=%s", xqos->type_name); });
@@ -4050,25 +3378,6 @@ void nn_log_xqos (uint32_t cat, const nn_xqos_t *xqos)
   });
   DO (PRISMTECH_ENTITY_FACTORY, { LOGB1 ("entity_factory=%u", xqos->entity_factory.autoenable_created_entities); });
   DO (PRISMTECH_SYNCHRONOUS_ENDPOINT, { LOGB1 ("synchronous_endpoint=%u", xqos->synchronous_endpoint.value); });
-  DO (PROPERTY, {
-    unsigned i;
-    LOGB0 ("property={{");
-    for (i = 0; i < xqos->property.value.n; i++) {
-      DDS_LOG(cat, "(\"%s\",\"%s\",%d)",
-              xqos->property.value.props[i].name  ? xqos->property.value.props[i].name  : "nil",
-              xqos->property.value.props[i].value ? xqos->property.value.props[i].value : "nil",
-              (int)xqos->property.value.props[i].propagate);
-    }
-    DDS_LOG(cat, "},{");
-    for (i = 0; i < xqos->property.binary_value.n; i++) {
-      DDS_LOG(cat, "(\"%s\",<",
-              xqos->property.binary_value.props[i].name  ? xqos->property.binary_value.props[i].name : "nil");
-      log_octetseq (cat, xqos->property.binary_value.props[i].value.length, xqos->property.binary_value.props[i].value.value);
-      DDS_LOG(cat, ">,%d)",
-              (int)xqos->property.binary_value.props[i].propagate);
-    }
-    DDS_LOG(cat, "}}");
-  });
   DO (RTI_TYPECODE, {
     LOGB1 ("rti_typecode=%u<", xqos->rti_typecode.length);
     log_octetseq (cat, xqos->rti_typecode.length, xqos->rti_typecode.value);

@@ -19,25 +19,25 @@
 #define USE_VALGRIND 0
 #endif
 
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sync.h"
 
 #include "dds__entity.h"
 #include "dds__reader.h"
 #include "dds__rhc.h"
-#include "ddsi/ddsi_tkmap.h"
-#include "util/ut_hopscotch.h"
-
-#include "util/ut_avl.h"
-#include "ddsi/q_xqos.h"
-#include "ddsi/q_error.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_globals.h"
-#include "ddsi/q_radmin.h" /* sampleinfo */
-#include "ddsi/q_entity.h" /* proxy_writer_info */
-#include "ddsi/ddsi_serdata.h"
-#include "ddsi/ddsi_serdata_default.h"
-#include "ddsi/sysdeps.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/util/ut_hopscotch.h"
+#include "dds/util/ut_avl.h"
+#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/q_error.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_radmin.h" /* sampleinfo */
+#include "dds/ddsi/q_entity.h" /* proxy_writer_info */
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/sysdeps.h"
 
 /* INSTANCE MANAGEMENT
    ===================
@@ -277,7 +277,7 @@ struct rhc {
 
   /* Instance/Sample maximums from resource limits QoS */
 
-  os_atomic_uint32_t n_cbs;          /* # callbacks in progress */
+  ddsrt_atomic_uint32_t n_cbs;       /* # callbacks in progress */
   int32_t max_instances; /* FIXME: probably better as uint32_t with MAX_UINT32 for unlimited */
   int32_t max_samples;   /* FIXME: probably better as uint32_t with MAX_UINT32 for unlimited */
   int32_t max_samples_per_instance; /* FIXME: probably better as uint32_t with MAX_UINT32 for unlimited */
@@ -300,7 +300,7 @@ struct rhc {
   const struct ddsi_sertopic *topic; /* topic description */
   unsigned history_depth;            /* depth, 1 for KEEP_LAST_1, 2**32-1 for KEEP_ALL */
 
-  os_mutex lock;
+  ddsrt_mutex_t lock;
   dds_readcond * conds;              /* List of associated read conditions */
   uint32_t nconds;                   /* Number of associated read conditions */
   uint32_t nqconds;                  /* Number of associated query conditions */
@@ -400,7 +400,7 @@ static int instance_iid_eq (const void *va, const void *vb)
   return (a->iid == b->iid);
 }
 
-static void add_inst_to_nonempty_list (_Inout_ struct rhc *rhc, _Inout_ struct rhc_instance *inst)
+static void add_inst_to_nonempty_list (struct rhc *rhc, struct rhc_instance *inst)
 {
   if (rhc->nonempty_instances == NULL)
   {
@@ -455,11 +455,11 @@ static void remove_inst_from_nonempty_list (struct rhc *rhc, struct rhc_instance
 
 struct rhc * dds_rhc_new (dds_reader * reader, const struct ddsi_sertopic * topic)
 {
-  struct rhc * rhc = os_malloc (sizeof (*rhc));
+  struct rhc * rhc = ddsrt_malloc (sizeof (*rhc));
   memset (rhc, 0, sizeof (*rhc));
 
   lwregs_init (&rhc->registrations);
-  os_mutexInit (&rhc->lock);
+  ddsrt_mutex_init (&rhc->lock);
   rhc->instances = ut_hhNew (1, instance_iid_hash, instance_iid_eq);
   rhc->topic = topic;
   rhc->reader = reader;
@@ -509,7 +509,7 @@ static struct rhc_sample *alloc_sample (struct rhc_instance *inst)
   {
     /* This instead of sizeof(rhc_sample) gets us type checking */
     struct rhc_sample *s;
-    s = os_malloc (sizeof (*s));
+    s = ddsrt_malloc (sizeof (*s));
     return s;
   }
 }
@@ -527,7 +527,7 @@ static void free_sample (struct rhc_instance *inst, struct rhc_sample *s)
   }
   else
   {
-    os_free (s);
+    ddsrt_free (s);
   }
 }
 
@@ -569,7 +569,7 @@ static void free_empty_instance (struct rhc_instance *inst)
 {
   assert (inst_is_empty (inst));
   ddsi_tkmap_instance_unref (inst->tk);
-  os_free (inst);
+  ddsrt_free (inst);
 }
 
 static void free_instance_rhc_free (struct rhc_instance *inst, struct rhc *rhc)
@@ -598,17 +598,17 @@ static void free_instance_rhc_free (struct rhc_instance *inst, struct rhc *rhc)
     remove_inst_from_nonempty_list (rhc, inst);
   }
   ddsi_tkmap_instance_unref (inst->tk);
-  os_free (inst);
+  ddsrt_free (inst);
 }
 
 uint32_t dds_rhc_lock_samples (struct rhc *rhc)
 {
   uint32_t no;
-  os_mutexLock (&rhc->lock);
+  ddsrt_mutex_lock (&rhc->lock);
   no = rhc->n_vsamples + rhc->n_invsamples;
   if (no == 0)
   {
-    os_mutexUnlock (&rhc->lock);
+    ddsrt_mutex_unlock (&rhc->lock);
   }
   return no;
 }
@@ -627,19 +627,19 @@ void dds_rhc_free (struct rhc *rhc)
   lwregs_fini (&rhc->registrations);
   if (rhc->qcond_eval_samplebuf != NULL)
     ddsi_sertopic_free_sample (rhc->topic, rhc->qcond_eval_samplebuf, DDS_FREE_ALL);
-  os_mutexDestroy (&rhc->lock);
-  os_free (rhc);
+  ddsrt_mutex_destroy (&rhc->lock);
+  ddsrt_free (rhc);
 }
 
 void dds_rhc_fini (struct rhc * rhc)
 {
-  os_mutexLock (&rhc->lock);
+  ddsrt_mutex_lock (&rhc->lock);
   rhc->reader = NULL;
-  os_mutexUnlock (&rhc->lock);
+  ddsrt_mutex_unlock (&rhc->lock);
 
   /* Wait for all callbacks to complete */
 
-  while (os_atomic_ld32 (&rhc->n_cbs) > 0)
+  while (ddsrt_atomic_ld32 (&rhc->n_cbs) > 0)
   {
     dds_sleepfor (DDS_MSECS (1));
   }
@@ -1130,7 +1130,7 @@ static struct rhc_instance *alloc_new_instance (const struct rhc *rhc, const str
   struct rhc_instance *inst;
 
   ddsi_tkmap_instance_ref (tk);
-  inst = os_malloc (sizeof (*inst));
+  inst = ddsrt_malloc (sizeof (*inst));
   memset (inst, 0, sizeof (*inst));
   inst->iid = tk->m_iid;
   inst->tk = tk;
@@ -1258,7 +1258,7 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
 
   init_trigger_info_qcond (&trig_qc);
 
-  os_mutexLock (&rhc->lock);
+  ddsrt_mutex_lock (&rhc->lock);
 
   inst = ut_hhLookup (rhc->instances, &dummy_instance);
   if (inst == NULL)
@@ -1463,15 +1463,15 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
 
   assert (rhc_check_counts_locked (rhc, true, true));
 
-  os_mutexUnlock (&rhc->lock);
+  ddsrt_mutex_unlock (&rhc->lock);
 
   if (rhc->reader)
   {
     if (notify_data_available && (rhc->reader->m_entity.m_status_enable & DDS_DATA_AVAILABLE_STATUS))
     {
-      os_atomic_inc32 (&rhc->n_cbs);
+      ddsrt_atomic_inc32 (&rhc->n_cbs);
       dds_reader_data_available_cb (rhc->reader);
-      os_atomic_dec32 (&rhc->n_cbs);
+      ddsrt_atomic_dec32 (&rhc->n_cbs);
     }
 
     if (trigger_waitsets)
@@ -1489,16 +1489,16 @@ error_or_nochange:
     delivered = false;
   }
 
-  os_mutexUnlock (&rhc->lock);
+  ddsrt_mutex_unlock (&rhc->lock);
   TRACE (")\n");
 
   /* Make any reader status callback */
 
   if (cb_data.raw_status_id >= 0 && rhc->reader && rhc->reader->m_entity.m_status_enable)
   {
-    os_atomic_inc32 (&rhc->n_cbs);
+    ddsrt_atomic_inc32 (&rhc->n_cbs);
     dds_reader_status_cb (&rhc->reader->m_entity, &cb_data);
-    os_atomic_dec32 (&rhc->n_cbs);
+    ddsrt_atomic_dec32 (&rhc->n_cbs);
   }
 
   return delivered;
@@ -1527,7 +1527,7 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
   const uint64_t wr_iid = pwr_info->iid;
   const int auto_dispose = pwr_info->auto_dispose;
 
-  os_mutexLock (&rhc->lock);
+  ddsrt_mutex_lock (&rhc->lock);
   TRACE ("rhc_unregister_wr_iid(%"PRIx64",%d:\n", wr_iid, auto_dispose);
   for (inst = ut_hhIterFirst (rhc->instances, &iter); inst; inst = ut_hhIterNext (&iter))
   {
@@ -1573,7 +1573,7 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
     }
   }
   TRACE (")\n");
-  os_mutexUnlock (&rhc->lock);
+  ddsrt_mutex_unlock (&rhc->lock);
 
   if (trigger_waitsets)
     dds_entity_status_signal (&rhc->reader->m_entity);
@@ -1583,7 +1583,7 @@ void dds_rhc_relinquish_ownership (struct rhc * __restrict rhc, const uint64_t w
 {
   struct rhc_instance *inst;
   struct ut_hhIter iter;
-  os_mutexLock (&rhc->lock);
+  ddsrt_mutex_lock (&rhc->lock);
   TRACE ("rhc_relinquish_ownership(%"PRIx64":\n", wr_iid);
   for (inst = ut_hhIterFirst (rhc->instances, &iter); inst; inst = ut_hhIterNext (&iter))
   {
@@ -1594,7 +1594,7 @@ void dds_rhc_relinquish_ownership (struct rhc * __restrict rhc, const uint64_t w
   }
   TRACE (")\n");
   assert (rhc_check_counts_locked (rhc, true, false));
-  os_mutexUnlock (&rhc->lock);
+  ddsrt_mutex_unlock (&rhc->lock);
 }
 
 /* STATUSES:
@@ -1778,7 +1778,7 @@ static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
 
   if (lock)
   {
-    os_mutexLock (&rhc->lock);
+    ddsrt_mutex_lock (&rhc->lock);
   }
 
   TRACE ("read_w_qminv(%p,%p,%p,%u,%x,%p) - inst %u nonempty %u disp %u nowr %u new %u samples %u+%u read %u+%u\n",
@@ -1884,7 +1884,7 @@ static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
   }
   TRACE ("read: returning %u\n", n);
   assert (rhc_check_counts_locked (rhc, true, false));
-  os_mutexUnlock (&rhc->lock);
+  ddsrt_mutex_unlock (&rhc->lock);
 
   if (trigger_waitsets)
     dds_entity_status_signal (&rhc->reader->m_entity);
@@ -1901,7 +1901,7 @@ static int dds_rhc_take_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
 
   if (lock)
   {
-    os_mutexLock (&rhc->lock);
+    ddsrt_mutex_lock (&rhc->lock);
   }
 
   TRACE ("take_w_qminv(%p,%p,%p,%u,%x) - inst %u nonempty %u disp %u nowr %u new %u samples %u+%u read %u+%u\n",
@@ -2046,7 +2046,7 @@ static int dds_rhc_take_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
   }
   TRACE ("take: returning %u\n", n);
   assert (rhc_check_counts_locked (rhc, true, false));
-  os_mutexUnlock (&rhc->lock);
+  ddsrt_mutex_unlock (&rhc->lock);
 
   if (trigger_waitsets)
     dds_entity_status_signal(&rhc->reader->m_entity);
@@ -2064,7 +2064,7 @@ static int dds_rhc_takecdr_w_qminv (struct rhc *rhc, bool lock, struct ddsi_serd
 
   if (lock)
   {
-    os_mutexLock (&rhc->lock);
+    ddsrt_mutex_lock (&rhc->lock);
   }
 
   TRACE ("take_w_qminv(%p,%p,%p,%u,%x) - inst %u nonempty %u disp %u nowr %u new %u samples %u+%u read %u+%u\n",
@@ -2198,7 +2198,7 @@ static int dds_rhc_takecdr_w_qminv (struct rhc *rhc, bool lock, struct ddsi_serd
   }
   TRACE ("take: returning %u\n", n);
   assert (rhc_check_counts_locked (rhc, true, false));
-  os_mutexUnlock (&rhc->lock);
+  ddsrt_mutex_unlock (&rhc->lock);
 
   if (trigger_waitsets)
     dds_entity_status_signal (&rhc->reader->m_entity);
@@ -2267,7 +2267,7 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
 
   cond->m_qminv = qmask_from_dcpsquery (cond->m_sample_states, cond->m_view_states, cond->m_instance_states);
 
-  os_mutexLock (&rhc->lock);
+  ddsrt_mutex_lock (&rhc->lock);
 
   /* Allocate a slot in the condition bitmasks; return an error no more slots are available */
   if (cond->m_query.m_filter != 0)
@@ -2281,7 +2281,7 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
     if (avail_qcmask == 0)
     {
       /* no available indices */
-      os_mutexUnlock (&rhc->lock);
+      ddsrt_mutex_unlock (&rhc->lock);
       return false;
     }
 
@@ -2350,7 +2350,7 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
     (void *) rhc, cond->m_sample_states, cond->m_view_states,
     cond->m_instance_states, (void *) cond, cond->m_qminv, rhc->nconds);
 
-  os_mutexUnlock (&rhc->lock);
+  ddsrt_mutex_unlock (&rhc->lock);
   return true;
 }
 
@@ -2358,7 +2358,7 @@ void dds_rhc_remove_readcondition (dds_readcond *cond)
 {
   struct rhc *rhc = cond->m_rhc;
   dds_readcond **ptr;
-  os_mutexLock (&rhc->lock);
+  ddsrt_mutex_lock (&rhc->lock);
   ptr = &rhc->conds;
   while (*ptr != cond)
     ptr = &(*ptr)->m_next;
@@ -2376,7 +2376,7 @@ void dds_rhc_remove_readcondition (dds_readcond *cond)
       rhc->qcond_eval_samplebuf = NULL;
     }
   }
-  os_mutexUnlock (&rhc->lock);
+  ddsrt_mutex_unlock (&rhc->lock);
 }
 
 static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc, const struct rhc_instance *inst)

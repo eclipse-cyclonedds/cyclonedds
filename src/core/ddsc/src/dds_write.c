@@ -13,23 +13,23 @@
 #include <string.h>
 #include "dds__writer.h"
 #include "dds__write.h"
-#include "ddsi/ddsi_tkmap.h"
-#include "ddsi/q_error.h"
-#include "ddsi/q_thread.h"
-#include "ddsi/q_xmsg.h"
-#include "ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/q_error.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/ddsi_serdata.h"
 #include "dds__stream.h"
 #include "dds__err.h"
-#include "ddsi/q_transmit.h"
-#include "ddsi/q_ephash.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_entity.h"
-#include "ddsi/q_radmin.h"
+#include "dds/ddsi/q_transmit.h"
+#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_radmin.h"
 
 dds_return_t dds_write (dds_entity_t writer, const void *data)
 {
   dds_return_t ret;
-  dds__retcode_t rc;
+  dds_retcode_t rc;
   dds_writer *wr;
 
   if (data == NULL)
@@ -45,7 +45,7 @@ dds_return_t dds_write (dds_entity_t writer, const void *data)
 dds_return_t dds_writecdr (dds_entity_t writer, struct ddsi_serdata *serdata)
 {
   dds_return_t ret;
-  dds__retcode_t rc;
+  dds_retcode_t rc;
   dds_writer *wr;
 
   if (serdata == NULL)
@@ -61,7 +61,7 @@ dds_return_t dds_writecdr (dds_entity_t writer, struct ddsi_serdata *serdata)
 dds_return_t dds_write_ts (dds_entity_t writer, const void *data, dds_time_t timestamp)
 {
   dds_return_t ret;
-  dds__retcode_t rc;
+  dds_retcode_t rc;
   dds_writer *wr;
 
   if (data == NULL || timestamp < 0)
@@ -95,7 +95,7 @@ static dds_return_t try_store (struct rhc *rhc, const struct proxy_writer_info *
 static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *payload, struct ddsi_tkmap_instance *tk)
 {
   dds_return_t ret = DDS_RETCODE_OK;
-  os_mutexLock (&wr->rdary.rdary_lock);
+  ddsrt_mutex_lock (&wr->rdary.rdary_lock);
   if (wr->rdary.fastpath_ok)
   {
     struct reader ** const rdary = wr->rdary.rdary;
@@ -111,7 +111,7 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
           break;
       }
     }
-    os_mutexUnlock (&wr->rdary.rdary_lock);
+    ddsrt_mutex_unlock (&wr->rdary.rdary_lock);
   }
   else
   {
@@ -127,9 +127,9 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
     struct pwr_rd_match *m;
     struct proxy_writer_info pwr_info;
     dds_duration_t max_block_ms = nn_from_ddsi_duration (wr->xqos->reliability.max_blocking_time);
-    os_mutexUnlock (&wr->rdary.rdary_lock);
+    ddsrt_mutex_unlock (&wr->rdary.rdary_lock);
     make_proxy_writer_info (&pwr_info, &wr->e, wr->xqos);
-    os_mutexLock (&wr->e.lock);
+    ddsrt_mutex_lock (&wr->e.lock);
     for (m = ut_avlIterFirst (&wr_local_readers_treedef, &wr->local_readers, &it); m != NULL; m = ut_avlIterNext (&it))
     {
       struct reader *rd;
@@ -141,7 +141,7 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
           break;
       }
     }
-    os_mutexUnlock (&wr->e.lock);
+    ddsrt_mutex_unlock (&wr->e.lock);
   }
   return ret;
 }
@@ -266,7 +266,7 @@ void dds_write_flush (dds_entity_t writer)
   struct thread_state1 * const thr = lookup_thread_state ();
   const bool asleep = !vtime_awake_p (thr->vtime);
   dds_writer *wr;
-  dds__retcode_t rc;
+  dds_retcode_t rc;
 
   if (asleep)
     thread_state_awake (thr);

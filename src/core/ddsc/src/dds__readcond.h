@@ -14,11 +14,11 @@
 
 #include "dds__entity.h"
 
-_Must_inspect_result_ dds_readcond*
+dds_readcond *
 dds_create_readcond(
-        _In_ dds_reader *rd,
-        _In_ dds_entity_kind_t kind,
-        _In_ uint32_t mask,
-        _In_opt_ dds_querycondition_filter_fn filter);
+  dds_reader *rd,
+  dds_entity_kind_t kind,
+  uint32_t mask,
+  dds_querycondition_filter_fn filter);
 
 #endif

@@ -1,4 +1,4 @@
-#include "ddsc/dds.h"
+#include "dds/dds.h"
 #include "RoundTrip.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,7 +42,8 @@ static void data_available(dds_entity_t rd, void *arg)
   int status, samplecount;
   (void)arg;
   samplecount = dds_take (rd, samples, info, MAX_SAMPLES, MAX_SAMPLES);
-  DDS_ERR_CHECK (samplecount, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (samplecount < 0)
+    DDS_FATAL("dds_take: %s\n", dds_strretcode(-samplecount));
   for (int j = 0; !dds_triggered (waitSet) && j < samplecount; j++)
   {
     /* If writer has been disposed terminate pong */
@@ -58,7 +59,8 @@ static void data_available(dds_entity_t rd, void *arg)
       /* If sample is valid, send it back to ping */
       RoundTripModule_DataType * valid_sample = &data[j];
       status = dds_write_ts (writer, valid_sample, info[j].source_timestamp);
-      DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+      if (status < 0)
+        DDS_FATAL("dds_write_ts: %s\n", -status);
     }
   }
 }
@@ -101,7 +103,8 @@ int main (int argc, char *argv[])
   }
 
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-  DDS_ERR_CHECK (participant, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (participant < 0)
+    DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 
   if (use_listener)
   {
@@ -116,7 +119,8 @@ int main (int argc, char *argv[])
     /* Wait for a sample from ping */
 
     status = dds_waitset_wait (waitSet, wsresults, wsresultsize, waitTimeout);
-    DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+    if (status < 0)
+      DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-status));
 
     /* Take samples */
     if (listener == NULL) {
@@ -140,7 +144,8 @@ static void finalize_dds(dds_entity_t pp, RoundTripModule_DataType xs[MAX_SAMPLE
 {
   dds_return_t status;
   status = dds_delete (pp);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (status < 0)
+    DDS_FATAL("dds_delete: %s\n", dds_strretcode(-status));
   for (unsigned int i = 0; i < MAX_SAMPLES; i++)
   {
     RoundTripModule_DataType_free (&xs[i], DDS_FREE_CONTENTS);
@@ -160,7 +165,8 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   /* A DDS Topic is created for our sample type on the domain participant. */
 
   topic = dds_create_topic (participant, &RoundTripModule_DataType_desc, "RoundTrip", NULL, NULL);
-  DDS_ERR_CHECK (topic, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (topic < 0)
+    DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
   /* A DDS Publisher is created on the domain participant. */
 
@@ -168,7 +174,8 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   dds_qset_partition (qos, 1, pubPartitions);
 
   publisher = dds_create_publisher (participant, qos, NULL);
-  DDS_ERR_CHECK (publisher, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (publisher < 0)
+    DDS_FATAL("dds_create_publisher: %s\n", dds_strretcode(-publisher));
   dds_delete_qos (qos);
 
   /* A DDS DataWriter is created on the Publisher & Topic with a modififed Qos. */
@@ -177,7 +184,8 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
   dds_qset_writer_data_lifecycle (qos, false);
   *wr = dds_create_writer (publisher, topic, qos, NULL);
-  DDS_ERR_CHECK (*wr, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (*wr < 0)
+    DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-*wr));
   dds_delete_qos (qos);
 
   /* A DDS Subscriber is created on the domain participant. */
@@ -186,7 +194,8 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   dds_qset_partition (qos, 1, subPartitions);
 
   subscriber = dds_create_subscriber (participant, qos, NULL);
-  DDS_ERR_CHECK (subscriber, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (subscriber < 0)
+    DDS_FATAL("dds_create_subscriber: %s\n", dds_strretcode(-subscriber));
   dds_delete_qos (qos);
 
   /* A DDS DataReader is created on the Subscriber & Topic with a modified QoS. */
@@ -194,19 +203,22 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   qos = dds_create_qos ();
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
   *rd = dds_create_reader (subscriber, topic, qos, rdlist);
-  DDS_ERR_CHECK (*rd, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (*rd < 0)
+    DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-*rd));
   dds_delete_qos (qos);
 
   waitSet = dds_create_waitset (participant);
   if (rdlist == NULL) {
     *rdcond = dds_create_readcondition (*rd, DDS_ANY_STATE);
     status = dds_waitset_attach (waitSet, *rdcond, *rd);
-    DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+    if (status < 0)
+      DDS_FATAL("dds_waitset_attach: %s\n", dds_strretcode(-status));
   } else {
     *rdcond = 0;
   }
   status = dds_waitset_attach (waitSet, waitSet, waitSet);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (status < 0)
+    DDS_FATAL("dds_waitset_attach: %s\n", dds_strretcode(-status));
 
   printf ("Waiting for samples from ping to send back...\n");
   fflush (stdout);

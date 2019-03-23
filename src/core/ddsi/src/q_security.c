@@ -11,10 +11,10 @@
  */
 #ifdef DDSI_INCLUDE_ENCRYPTION
 
-#include "ddsi/q_security.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_log.h"
-#include "ddsi/q_error.h"
+#include "dds/ddsi/q_security.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_error.h"
 #include "os/os_stdlib.h"
 #include "os/os_process.h"
 #include "os/os_thread.h"
@@ -539,7 +539,7 @@ static c_bool q_securityResolveCipherKeyFromUri
         const char *justPath =
                 (char *)(uriStr + strlen(URI_FILESCHEMA));
 
-        filename = os_strdup (justPath);
+        filename = ddsrt_strdup (justPath);
         file = fopen(filename, "r");
         if (file) {
             /* read at most 255 chars from file, this should suffice if the
@@ -561,7 +561,7 @@ static c_bool q_securityResolveCipherKeyFromUri
             DDS_ERROR("q_securityResolveCipherKeyFromUri: Could not open %s",uriStr);
         }
 
-        os_free(filename);
+        ddsrt_free(filename);
 
     } else if (uriStr != NULL) {
         /* seems to be a hex string */
@@ -600,34 +600,34 @@ static c_bool q_securityCipherTypeFromString(const char* cipherName,
         return FALSE;
     }
 
-    if (os_strcasecmp(cipherName, "null") == 0) {
+    if (ddsrt_strcasecmp(cipherName, "null") == 0) {
         *cipherType = Q_CIPHER_NULL;
-    } else if (os_strcasecmp(cipherName, "blowfish") == 0 ||
-               os_strcasecmp(cipherName, "blowfish-sha1") == 0) {
+    } else if (ddsrt_strcasecmp(cipherName, "blowfish") == 0 ||
+               ddsrt_strcasecmp(cipherName, "blowfish-sha1") == 0) {
         *cipherType = Q_CIPHER_BLOWFISH;
-    } else if (os_strcasecmp(cipherName, "aes128") == 0 ||
-               os_strcasecmp(cipherName, "aes128-sha1") == 0) {
+    } else if (ddsrt_strcasecmp(cipherName, "aes128") == 0 ||
+               ddsrt_strcasecmp(cipherName, "aes128-sha1") == 0) {
         *cipherType = Q_CIPHER_AES128;
-    } else if (os_strcasecmp(cipherName, "aes192") == 0 ||
-               os_strcasecmp(cipherName, "aes192-sha1") == 0) {
+    } else if (ddsrt_strcasecmp(cipherName, "aes192") == 0 ||
+               ddsrt_strcasecmp(cipherName, "aes192-sha1") == 0) {
         *cipherType = Q_CIPHER_AES192;
-    } else if (os_strcasecmp(cipherName, "aes256") == 0 ||
-              os_strcasecmp(cipherName, "aes256-sha1") == 0) {
+    } else if (ddsrt_strcasecmp(cipherName, "aes256") == 0 ||
+              ddsrt_strcasecmp(cipherName, "aes256-sha1") == 0) {
         *cipherType = Q_CIPHER_AES256;
 #if 0
-    } else if (os_strcasecmp(cipherName, "rsa-null") == 0) {
+    } else if (ddsrt_strcasecmp(cipherName, "rsa-null") == 0) {
         *cipherType = Q_CIPHER_RSA_WITH_NULL;
-    } else if (os_strcasecmp(cipherName, "rsa-blowfish") == 0 ||
-               os_strcasecmp(cipherName, "rsa-blowfish-sha1") == 0) {
+    } else if (ddsrt_strcasecmp(cipherName, "rsa-blowfish") == 0 ||
+               ddsrt_strcasecmp(cipherName, "rsa-blowfish-sha1") == 0) {
         *cipherType = Q_CIPHER_RSA_WITH_BLOWFISH;
-    } else if (os_strcasecmp(cipherName, "rsa-aes128") == 0 ||
-               os_strcasecmp(cipherName, "rsa-aes128-sha1") == 0) {
+    } else if (ddsrt_strcasecmp(cipherName, "rsa-aes128") == 0 ||
+               ddsrt_strcasecmp(cipherName, "rsa-aes128-sha1") == 0) {
         *cipherType = Q_CIPHER_RSA_WITH_AES128;
-    } else if (os_strcasecmp(cipherName, "rsa-aes192") == 0 ||
-               os_strcasecmp(cipherName, "rsa-aes192-sha1") == 0) {
+    } else if (ddsrt_strcasecmp(cipherName, "rsa-aes192") == 0 ||
+               ddsrt_strcasecmp(cipherName, "rsa-aes192-sha1") == 0) {
         *cipherType = Q_CIPHER_RSA_WITH_AES192;
-    } else if (os_strcasecmp(cipherName, "rsa-aes256") == 0 ||
-               os_strcasecmp(cipherName, "rsa-aes256-sha1") == 0) {
+    } else if (ddsrt_strcasecmp(cipherName, "rsa-aes256") == 0 ||
+               ddsrt_strcasecmp(cipherName, "rsa-aes256-sha1") == 0) {
         *cipherType = Q_CIPHER_RSA_WITH_AES256;
 #endif
     } else {
@@ -668,8 +668,10 @@ static os_uint32 cipherTypeToHeaderSize(q_cipherType cipherType) {
 static
 void q_securityRNGSeed (void)
 {
-        os_time time=os_timeGetMonotonic();
-        RAND_seed((const void *)&time.tv_nsec,sizeof(time.tv_nsec));
+    int32_t nsec;
+    dds_time_t time = ddsrt_time_monotonic();
+    nsec = time % DDS_NSECS_IN_SEC;
+    RAND_seed(nsec,sizeof(nsec));
 }
 
 static
@@ -947,7 +949,7 @@ static q_securityEncoderSet q_securityEncoderSetNew (void)
     const os_uint32 nofPartitions = config.nof_networkPartitions;
 
     q_securityEncoderSet result =
-        os_malloc(sizeof(C_STRUCT(q_securityEncoderSet)));
+        ddsrt_malloc(sizeof(C_STRUCT(q_securityEncoderSet)));
 
     if (!result) {
         return NULL;
@@ -958,7 +960,7 @@ static q_securityEncoderSet q_securityEncoderSetNew (void)
     if (nofPartitions == 0) {
         result->encoders = NULL;
     } else {
-        result->encoders = os_malloc(sizeof(C_STRUCT(q_securityPartitionEncoder)) * nofPartitions);
+        result->encoders = ddsrt_malloc(sizeof(C_STRUCT(q_securityPartitionEncoder)) * nofPartitions);
         memset(result->encoders,
                0,
                sizeof(C_STRUCT(q_securityPartitionEncoder)) *
@@ -1037,11 +1039,11 @@ static q_securityDecoderSet q_securityDecoderSetNew (void)
       return NULL;
     }
 
-    result = os_malloc (sizeof(C_STRUCT(q_securityDecoderSet)));
+    result = ddsrt_malloc (sizeof(C_STRUCT(q_securityDecoderSet)));
     result->nofPartitions = 0;
 
     result->decoders =
-        os_malloc(sizeof(C_STRUCT(q_securityPartitionDecoder)) * nofPartitions);
+        ddsrt_malloc(sizeof(C_STRUCT(q_securityPartitionDecoder)) * nofPartitions);
 
     /* init the memory region */
     memset(result->decoders,
@@ -1115,8 +1117,8 @@ static c_bool q_securityEncoderSetFree (q_securityEncoderSet codec)
 
         q_securityPartitionEncoderFini(currentEncoder);
     }
-    os_free(codec->encoders);
-    os_free(codec);
+    ddsrt_free(codec->encoders);
+    ddsrt_free(codec);
 
     return 1; /* true */
 }
@@ -1137,8 +1139,8 @@ static c_bool q_securityDecoderSetFree (q_securityDecoderSet codec)
 
         q_securityPartitionDecoderFini(currentDecoder);
     }
-    os_free(codec->decoders);
-    os_free(codec);
+    ddsrt_free(codec->decoders);
+    ddsrt_free(codec);
 
     return TRUE; /* true */
 }
@@ -1674,7 +1676,7 @@ static os_ssize_t q_security_sendmsg
   }
   else
   {
-    buf = os_malloc (sz);
+    buf = ddsrt_malloc (sz);
   }
   /* ... then copy data into buffer */
   data_size = 0;
@@ -1715,7 +1717,7 @@ static os_ssize_t q_security_sendmsg
 
   if (buf != stbuf)
   {
-    os_free (buf);
+    ddsrt_free (buf);
   }
   return ret;
 }

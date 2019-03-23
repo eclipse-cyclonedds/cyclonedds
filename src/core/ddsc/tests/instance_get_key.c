@@ -12,10 +12,10 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include "CUnit/Test.h"
 
-#include "os/os.h"
-#include "ddsc/dds.h"
+#include "CUnit/Test.h"
+#include "dds/dds.h"
+#include "dds/ddsrt/string.h"
 #include "RoundTrip.h"
 
 static dds_entity_t participant = DDS_ENTITY_NIL;
@@ -42,7 +42,7 @@ static void setup(void)
     CU_ASSERT_FATAL(writer > 0);
 
     memset(&data, 0, sizeof(data));
-    data.ip = os_strdup("some data");
+    data.ip = ddsrt_strdup("some data");
     CU_ASSERT_PTR_NOT_NULL_FATAL(data.ip);
     data.port = 1;
 }

@@ -10,13 +10,15 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <limits.h>
 
-#include "ddsc/dds.h"
-#include "os/os.h"
+#include "dds/dds.h"
 #include "Space.h"
 #include "RoundTrip.h"
-#include "CUnit/Test.h"
 #include "CUnit/Theory.h"
+
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/threads.h"
 
 /**************************************************************************************************
  *
@@ -85,9 +87,9 @@ static char*
 create_topic_name(const char *prefix, char *name, size_t size)
 {
     /* Get semi random g_topic name. */
-    os_procId pid = os_getpid();
-    uintmax_t tid = os_threadIdToInteger(os_threadIdSelf());
-    (void) snprintf(name, size, "%s_pid%"PRIprocId"_tid%"PRIuMAX"", prefix, pid, tid);
+    ddsrt_pid_t pid = ddsrt_getpid();
+    ddsrt_tid_t tid = ddsrt_gettid();
+    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
     return name;
 }
 

@@ -11,13 +11,13 @@
  */
 #include <assert.h>
 #include <string.h>
-#include "ddsi/q_bswap.h"
-#include "ddsi/q_config.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_config.h"
 #include "dds__stream.h"
 #include "dds__key.h"
 #include "dds__alloc.h"
-#include "os/os.h"
-#include "ddsi/q_md5.h"
+#include "dds/ddsi/q_md5.h"
+#include "dds/ddsrt/endian.h"
 
 //#define OP_DEBUG_READ 1
 //#define OP_DEBUG_WRITE 1
@@ -32,7 +32,7 @@ static const char * stream_op_type[11] =
 };
 #endif
 
-#if OS_ENDIANNESS == OS_LITTLE_ENDIAN
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 #define DDS_ENDIAN true
 #else
 #define DDS_ENDIAN false
@@ -139,7 +139,7 @@ bool dds_stream_endian (void)
   return DDS_ENDIAN;
 }
 
-size_t dds_stream_check_optimize (_In_ const dds_topic_descriptor_t * desc)
+size_t dds_stream_check_optimize (const dds_topic_descriptor_t * desc)
 {
   dds_stream_t os;
   void * sample = dds_alloc (desc->m_size);
@@ -1193,7 +1193,7 @@ void dds_stream_write_sample (dds_stream_t * os, const void * data, const struct
   }
 }
 
-void dds_stream_from_serdata_default (_Out_ dds_stream_t * s, _In_ const struct ddsi_serdata_default *d)
+void dds_stream_from_serdata_default (dds_stream_t * s, const struct ddsi_serdata_default *d)
 {
   s->m_failed = false;
   s->m_buffer.p8 = (uint8_t*) d;

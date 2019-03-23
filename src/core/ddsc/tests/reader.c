@@ -10,13 +10,16 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <limits.h>
 
-#include "ddsc/dds.h"
-#include "os/os.h"
+#include "dds/dds.h"
 #include "Space.h"
 #include "RoundTrip.h"
-#include "CUnit/Test.h"
 #include "CUnit/Theory.h"
+
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/threads.h"
 
 /**************************************************************************************************
  *
@@ -65,9 +68,9 @@ static char*
 create_topic_name(const char *prefix, char *name, size_t size)
 {
     /* Get semi random g_topic name. */
-    os_procId pid = os_getpid();
-    uintmax_t tid = os_threadIdToInteger(os_threadIdSelf());
-    (void) snprintf(name, size, "%s_pid%"PRIprocId"_tid%"PRIuMAX"", prefix, pid, tid);
+    ddsrt_pid_t pid = ddsrt_getpid();
+    ddsrt_tid_t tid = ddsrt_gettid();
+    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
     return name;
 }
 
@@ -234,9 +237,9 @@ CU_Test(ddsc_reader_create, invalid_qos_participant, .init=reader_init, .fini=re
     dds_entity_t rdr;
     dds_qos_t *qos = dds_create_qos();
     /* Set invalid reader data lifecycle policy */
-    OS_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
     dds_qset_reader_data_lifecycle(qos, DDS_SECS(-1), DDS_SECS(-1));
-    OS_WARNING_MSVC_ON(28020);
+    DDSRT_WARNING_MSVC_ON(28020);
     rdr = dds_create_reader(g_participant, g_topic, qos, NULL);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(rdr), DDS_RETCODE_INCONSISTENT_POLICY);
     dds_delete_qos(qos);
@@ -249,9 +252,9 @@ CU_Test(ddsc_reader_create, invalid_qos_subscriber, .init=reader_init, .fini=rea
     dds_entity_t rdr;
     dds_qos_t *qos = dds_create_qos();
     /* Set invalid reader data lifecycle policy */
-    OS_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
     dds_qset_reader_data_lifecycle(qos, DDS_SECS(-1), DDS_SECS(-1));
-    OS_WARNING_MSVC_ON(28020);
+    DDSRT_WARNING_MSVC_ON(28020);
     rdr = dds_create_reader(g_subscriber, g_topic, qos, NULL);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(rdr), DDS_RETCODE_INCONSISTENT_POLICY);
     dds_delete_qos(qos);

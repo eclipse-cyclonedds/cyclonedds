@@ -1,4 +1,4 @@
-#include "ddsc/dds.h"
+#include "dds/dds.h"
 #include "Throughput.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,6 +44,7 @@ int main (int argc, char **argv)
   char * partitionName = "Throughput example";
   dds_entity_t participant;
   dds_entity_t writer;
+  dds_return_t rc;
   ThroughputModule_DataType sample;
 
 #if !defined(_WIN32)
@@ -59,7 +60,9 @@ int main (int argc, char **argv)
   /* Wait until have a reader */
   if (wait_for_reader(writer, participant) == 0) {
     printf ("=== [Publisher]  Did not discover a reader.\n");
-    DDS_ERR_CHECK (dds_delete (participant), DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+    rc = dds_delete (participant);
+    if (rc < 0)
+      DDS_FATAL("dds_delete: %s\n", dds_strretcode(-rc));
     return EXIT_FAILURE;
   }
 
@@ -143,18 +146,21 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
 
   /* A domain participant is created for the default domain. */
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-  DDS_ERR_CHECK (participant, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (participant < 0)
+    DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 
   /* A topic is created for our sample type on the domain participant. */
   topic = dds_create_topic (participant, &ThroughputModule_DataType_desc, "Throughput", NULL, NULL);
-  DDS_ERR_CHECK (topic, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (topic < 0)
+    DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
   /* A publisher is created on the domain participant. */
   pubQos = dds_create_qos ();
   pubParts[0] = partitionName;
   dds_qset_partition (pubQos, 1, pubParts);
   publisher = dds_create_publisher (participant, pubQos, NULL);
-  DDS_ERR_CHECK (publisher, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (publisher < 0)
+    DDS_FATAL("dds_create_publisher: %s\n", dds_strretcode(-publisher));
   dds_delete_qos (pubQos);
 
   /* A DataWriter is created on the publisher. */
@@ -163,7 +169,8 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
   dds_qset_history (dwQos, DDS_HISTORY_KEEP_ALL, 0);
   dds_qset_resource_limits (dwQos, MAX_SAMPLES, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
   *writer = dds_create_writer (publisher, topic, dwQos, NULL);
-  DDS_ERR_CHECK (*writer, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (*writer < 0)
+    DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-*writer));
   dds_delete_qos (dwQos);
 
   /* Enable write batching */
@@ -176,22 +183,26 @@ static dds_return_t wait_for_reader(dds_entity_t writer, dds_entity_t participan
 {
   printf ("\n=== [Publisher]  Waiting for a reader ...\n");
 
-  dds_return_t ret;
+  dds_return_t rc;
   dds_entity_t waitset;
 
-  ret = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
-  DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  rc = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
+  if (rc < 0)
+    DDS_FATAL("dds_set_status_mask: %s\n", dds_strretcode(-rc));
 
   waitset = dds_create_waitset(participant);
-  DDS_ERR_CHECK (waitset, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (waitset < 0)
+    DDS_FATAL("dds_create_waitset: %s\n", dds_strretcode(-waitset));
 
-  ret = dds_waitset_attach(waitset, writer, (dds_attach_t)NULL);
-  DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  rc = dds_waitset_attach(waitset, writer, (dds_attach_t)NULL);
+  if (rc < 0)
+    DDS_FATAL("dds_waitset_attach: %s\n", dds_strretcode(-rc));
 
-  ret = dds_waitset_wait(waitset, NULL, 0, DDS_SECS(30));
-  DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  rc = dds_waitset_wait(waitset, NULL, 0, DDS_SECS(30));
+  if (rc < 0)
+    DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-rc));
 
-  return ret;
+  return rc;
 }
 
 static void start_writing(
@@ -225,9 +236,12 @@ static void start_writing(
         {
           timedOut = true;
         }
+        else if (status < 0)
+        {
+          DDS_FATAL("dds_write: %s\n", dds_strretcode(-status));
+        }
         else
         {
-          DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
           sample->count++;
           burstCount++;
         }
@@ -277,12 +291,11 @@ static void start_writing(
 static void finalize_dds(dds_entity_t participant, dds_entity_t writer, ThroughputModule_DataType sample)
 {
   dds_return_t status = dds_dispose (writer, &sample);
-  if (dds_err_nr (status) != DDS_RETCODE_TIMEOUT)
-  {
-    DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-  }
+  if (dds_err_nr (status) != DDS_RETCODE_TIMEOUT && status < 0)
+    DDS_FATAL("dds_dispose: %s\n", dds_strretcode(-status));
 
   dds_free (sample.payload._buffer);
   status = dds_delete (participant);
-  DDS_ERR_CHECK (status, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
+  if (status < 0)
+    DDS_FATAL("dds_delete: %s\n", dds_strretcode(-status));
 }

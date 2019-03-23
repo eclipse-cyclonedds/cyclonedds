@@ -11,24 +11,24 @@
  */
 #include <assert.h>
 
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/threads.h"
 
-#include "ddsi/q_servicelease.h"
-#include "ddsi/q_config.h"
-#include "ddsi/q_log.h"
-#include "ddsi/q_thread.h"
-#include "ddsi/q_time.h"
-#include "ddsi/q_unused.h"
-#include "ddsi/q_error.h"
-#include "ddsi/q_globals.h" /* for mattr, cattr */
-#include "ddsi/q_receive.h"
+#include "dds/ddsi/q_servicelease.h"
+#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_error.h"
+#include "dds/ddsi/q_globals.h" /* for mattr, cattr */
+#include "dds/ddsi/q_receive.h"
 
-#include "ddsi/sysdeps.h" /* for getrusage() */
-
-static void nn_retrieve_lease_settings (os_time *sleepTime)
+static dds_time_t nn_retrieve_lease_settings (void)
 {
-  const float leaseSec = config.servicelease_expiry_time;
-  float sleepSec = leaseSec * config.servicelease_update_factor;
+  const double leaseSec = config.servicelease_expiry_time;
+  double sleepSec = leaseSec * config.servicelease_update_factor;
 
   /* Run at no less than 1Hz: internal liveliness monitoring is slaved
    to this interval as well.  1Hz lease renewals and liveliness
@@ -36,10 +36,10 @@ static void nn_retrieve_lease_settings (os_time *sleepTime)
    a second is a lot more useful than doing it once every few
    seconds.  Besides -- we're now also gathering CPU statistics. */
   if (sleepSec > 1.0f)
-    sleepSec = 1.0f;
+    return DDS_NSECS_IN_SEC;
 
-  sleepTime->tv_sec = (int32_t) sleepSec;
-  sleepTime->tv_nsec = (int32_t) ((sleepSec - (float) sleepTime->tv_sec) * 1e9f);
+  return ((dds_time_t)(sleepSec * DDS_NSECS_IN_SEC)) +
+         ((dds_time_t)(sleepSec * (double)DDS_NSECS_IN_SEC) % DDS_NSECS_IN_SEC);
 }
 
 struct alive_wd {
@@ -48,14 +48,14 @@ struct alive_wd {
 };
 
 struct nn_servicelease {
-  os_time sleepTime;
+  dds_time_t sleepTime;
   int keepgoing;
   struct alive_wd *av_ary;
   void (*renew_cb) (void *arg);
   void *renew_arg;
 
-  os_mutex lock;
-  os_cond cond;
+  ddsrt_mutex_t lock;
+  ddsrt_cond_t cond;
   struct thread_state1 *ts;
 };
 
@@ -76,7 +76,7 @@ static uint32_t lease_renewal_thread (struct nn_servicelease *sl)
     sl->av_ary[i].alive = 1;
     sl->av_ary[i].wd = thread_states.ts[i].watchdog - 1;
   }
-  os_mutexLock (&sl->lock);
+  ddsrt_mutex_lock (&sl->lock);
   while (sl->keepgoing)
   {
     unsigned n_alive = 0;
@@ -144,26 +144,22 @@ static uint32_t lease_renewal_thread (struct nn_servicelease *sl)
       was_alive = 0;
     }
 
-#if SYSDEPS_HAVE_GETRUSAGE
-    /* If getrusage() is available, use it to log CPU and memory
-       statistics to the trace.  Getrusage() can't fail if the
-       parameters are valid, and these are by the book.  Still we
-       check. */
     if (dds_get_log_mask() & DDS_LC_TIMING)
     {
-      struct rusage u;
-      if (getrusage (RUSAGE_SELF, &u) == 0)
+      ddsrt_rusage_t u;
+      if (ddsrt_getrusage (DDSRT_RUSAGE_SELF, &u) == DDS_RETCODE_OK)
       {
         DDS_LOG(DDS_LC_TIMING,
-                  "rusage: utime %d.%06d stime %d.%06d maxrss %ld data %ld vcsw %ld ivcsw %ld\n",
-                  (int) u.ru_utime.tv_sec, (int) u.ru_utime.tv_usec,
-                  (int) u.ru_stime.tv_sec, (int) u.ru_stime.tv_usec,
-                  u.ru_maxrss, u.ru_idrss, u.ru_nvcsw, u.ru_nivcsw);
+                "rusage: utime %d.%09d stime %d.%09d maxrss %ld data %ld vcsw %ld ivcsw %ld\n",
+                (int) u.utime / DDS_NSECS_IN_SEC,
+                (int) u.utime % DDS_NSECS_IN_SEC,
+                (int) u.stime / DDS_NSECS_IN_SEC,
+                (int) u.stime % DDS_NSECS_IN_SEC,
+                u.maxrss, u.idrss, u.nvcsw, u.nivcsw);
       }
     }
-#endif
 
-    os_condTimedWait (&sl->cond, &sl->lock, &sl->sleepTime);
+    ddsrt_cond_waitfor (&sl->cond, &sl->lock, sl->sleepTime);
 
     /* We are never active in a way that matters for the garbage
        collection of old writers, &c. */
@@ -175,7 +171,7 @@ static uint32_t lease_renewal_thread (struct nn_servicelease *sl)
     if (gv.deaf)
       trigger_recv_threads ();
   }
-  os_mutexUnlock (&sl->lock);
+  ddsrt_mutex_unlock (&sl->lock);
   return 0;
 }
 
@@ -187,32 +183,32 @@ struct nn_servicelease *nn_servicelease_new (void (*renew_cb) (void *arg), void 
 {
   struct nn_servicelease *sl;
 
-  sl = os_malloc (sizeof (*sl));
-  nn_retrieve_lease_settings (&sl->sleepTime);
+  sl = ddsrt_malloc (sizeof (*sl));
+  sl->sleepTime = nn_retrieve_lease_settings ();
   sl->keepgoing = -1;
   sl->renew_cb = renew_cb ? renew_cb : dummy_renew_cb;
   sl->renew_arg = renew_arg;
   sl->ts = NULL;
 
-  if ((sl->av_ary = os_malloc (thread_states.nthreads * sizeof (*sl->av_ary))) == NULL)
+  if ((sl->av_ary = ddsrt_malloc (thread_states.nthreads * sizeof (*sl->av_ary))) == NULL)
     goto fail_vtimes;
   /* service lease update thread initializes av_ary */
 
-  os_mutexInit (&sl->lock);
-  os_condInit (&sl->cond, &sl->lock);
+  ddsrt_mutex_init (&sl->lock);
+  ddsrt_cond_init (&sl->cond);
   return sl;
 
  fail_vtimes:
-  os_free (sl);
+  ddsrt_free (sl);
   return NULL;
 }
 
 int nn_servicelease_start_renewing (struct nn_servicelease *sl)
 {
-  os_mutexLock (&sl->lock);
+  ddsrt_mutex_lock (&sl->lock);
   assert (sl->keepgoing == -1);
   sl->keepgoing = 1;
-  os_mutexUnlock (&sl->lock);
+  ddsrt_mutex_unlock (&sl->lock);
 
   sl->ts = create_thread ("lease", (uint32_t (*) (void *)) lease_renewal_thread, sl);
   if (sl->ts == NULL)
@@ -226,26 +222,27 @@ int nn_servicelease_start_renewing (struct nn_servicelease *sl)
 
 void nn_servicelease_statechange_barrier (struct nn_servicelease *sl)
 {
-  os_mutexLock (&sl->lock);
-  os_mutexUnlock (&sl->lock);
+  ddsrt_mutex_lock (&sl->lock);
+  ddsrt_mutex_unlock (&sl->lock);
 }
 
 void nn_servicelease_stop_renewing (struct nn_servicelease *sl)
 {
   if (sl->keepgoing != -1)
   {
-    os_mutexLock (&sl->lock);
+    ddsrt_mutex_lock (&sl->lock);
     sl->keepgoing = 0;
-    os_condSignal (&sl->cond);
-    os_mutexUnlock (&sl->lock);
+    ddsrt_cond_signal (&sl->cond);
+    ddsrt_mutex_unlock (&sl->lock);
     join_thread (sl->ts);
   }
 }
 
 void nn_servicelease_free (struct nn_servicelease *sl)
 {
-  os_condDestroy (&sl->cond);
-  os_mutexDestroy (&sl->lock);
-  os_free (sl->av_ary);
-  os_free (sl);
+  ddsrt_cond_destroy (&sl->cond);
+  ddsrt_mutex_destroy (&sl->lock);
+  ddsrt_free (sl->av_ary);
+  ddsrt_free (sl);
 }
+

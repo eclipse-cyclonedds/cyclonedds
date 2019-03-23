@@ -9,11 +9,15 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "ddsc/dds.h"
-#include "os/os.h"
-#include "CUnit/Test.h"
+#include <limits.h>
+
+#include "dds/dds.h"
 #include "CUnit/Theory.h"
 #include "Space.h"
+
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/threads.h"
 
 /**************************************************************************************************
  *
@@ -68,9 +72,9 @@ static char*
 create_topic_name(const char *prefix, char *name, size_t size)
 {
     /* Get semi random g_topic name. */
-    os_procId pid = os_getpid();
-    uintmax_t tid = os_threadIdToInteger(os_threadIdSelf());
-    (void) snprintf(name, size, "%s_pid%"PRIprocId"_tid%"PRIuMAX"", prefix, pid, tid);
+    ddsrt_pid_t pid = ddsrt_getpid();
+    ddsrt_tid_t tid = ddsrt_gettid();
+    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
     return name;
 }
 
@@ -305,9 +309,9 @@ CU_Test(ddsc_querycondition_get_mask, null, .init=querycondition_init, .fini=que
     dds_return_t ret;
     condition = dds_create_querycondition(g_reader, mask, filter_mod2);
     CU_ASSERT_FATAL(condition > 0);
-    OS_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
+    DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_get_mask(condition, NULL);
-    OS_WARNING_MSVC_ON(6387);
+    DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
     dds_delete(condition);
 }

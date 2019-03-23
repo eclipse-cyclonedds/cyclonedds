@@ -9,13 +9,11 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include "dds/dds.h"
 #include "RoundTrip.h"
 #include "Space.h"
-#include "ddsc/dds.h"
-#include "os/os.h"
 #include "test-common.h"
 #include "CUnit/Test.h"
-#include "CUnit/Theory.h"
 
 static dds_entity_t g_participant = 0;
 static dds_entity_t g_subscriber  = 0;

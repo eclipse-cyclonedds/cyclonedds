@@ -9,15 +9,16 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "ddsc/dds.h"
-#include "os/os.h"
+#include <limits.h>
+
+#include "dds/dds.h"
 #include "CUnit/Test.h"
 #include "CUnit/Theory.h"
 #include "RoundTrip.h"
 
-/* Add --verbose command line argument to get the cr_log_info traces (if there are any). */
-
-
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/threads.h"
 
 /**************************************************************************************************
  *
@@ -47,9 +48,9 @@ static char*
 create_topic_name(const char *prefix, char *name, size_t size)
 {
     /* Get semi random g_topic name. */
-    os_procId pid = os_getpid();
-    uintmax_t tid = os_threadIdToInteger(os_threadIdSelf());
-    (void) snprintf(name, size, "%s_pid%"PRIprocId"_tid%"PRIuMAX"", prefix, pid, tid);
+    ddsrt_pid_t pid = ddsrt_getpid();
+    ddsrt_tid_t tid = ddsrt_gettid();
+    (void) snprintf(name, size, "%s_pid%"PRIdPID"_tid%"PRIdTID"", prefix, pid, tid);
     return name;
 }
 
@@ -772,10 +773,10 @@ CU_Test(ddsc_entity_implicit_publisher, invalid_topic)
     CU_ASSERT_FATAL(participant > 0);
 
     /* Disable SAL warning on intentional misuse of the API */
-    OS_WARNING_MSVC_OFF(28020);
+    DDSRT_WARNING_MSVC_OFF(28020);
     writer = dds_create_writer(participant, 0, NULL, NULL);
     /* Disable SAL warning on intentional misuse of the API */
-    OS_WARNING_MSVC_ON(28020);
+    DDSRT_WARNING_MSVC_ON(28020);
     CU_ASSERT_FATAL(writer < 0);
 
     dds_delete(writer);
@@ -826,9 +827,9 @@ CU_Test(ddsc_entity_explicit_subscriber, invalid_topic)
 
     subscriber = dds_create_subscriber(participant, NULL,NULL);
     /* Disable SAL warning on intentional misuse of the API */
-    OS_WARNING_MSVC_OFF(28020);
+    DDSRT_WARNING_MSVC_OFF(28020);
     reader = dds_create_reader(subscriber, 0, NULL, NULL);
-    OS_WARNING_MSVC_ON(28020);
+    DDSRT_WARNING_MSVC_ON(28020);
     CU_ASSERT_FATAL(reader < 0);
 
     dds_delete(reader);

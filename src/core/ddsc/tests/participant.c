@@ -9,12 +9,13 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "ddsc/dds.h"
-#include "CUnit/Test.h"
-#include <os/os.h>
-#include "config_env.h"
-#include "ddsc/ddsc_project.h"
+#include <stdlib.h>
 
+#include "dds/dds.h"
+#include "CUnit/Test.h"
+#include "config_env.h"
+#include "dds/version.h"
+#include "dds/ddsrt/environ.h"
 
 #define cu_assert_status_eq(s1, s2) CU_ASSERT_EQUAL_FATAL(dds_err_nr(s1), s2)
 
@@ -41,14 +42,14 @@ CU_Test(ddsc_participant, create_and_delete) {
 
 
 /* Test for creating participant with no configuration file  */
-CU_Test(ddsc_participant, create_with_no_conf_no_env) {
+CU_Test(ddsc_participant, create_with_no_conf_no_env)
+{
   dds_entity_t participant, participant2, participant3;
   dds_return_t status;
   dds_domainid_t domain_id;
   dds_domainid_t valid_domain=3;
 
-  const char * env_uri = os_getenv(DDSC_PROJECT_NAME_NOSPACE_CAPS"_URI");
-  CU_ASSERT_EQUAL_FATAL(env_uri, NULL);
+  ddsrt_unsetenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI");
 
   //invalid domain
   participant = dds_create_participant (-2, NULL, NULL);
@@ -70,8 +71,6 @@ CU_Test(ddsc_participant, create_with_no_conf_no_env) {
 
   dds_delete(participant2);
   dds_delete(participant3);
-
-
 }
 
 
@@ -84,17 +83,12 @@ CU_Test(ddsc_participant, create_with_conf_no_env) {
     dds_domainid_t domain_id;
     dds_domainid_t valid_domain=3;
 
-    static char env_uri_str[1000];
-    (void) snprintf(env_uri_str, sizeof(env_uri_str), "%s=%s", DDSC_PROJECT_NAME_NOSPACE_CAPS"_URI", CONFIG_ENV_SIMPLE_UDP);
-    os_putenv(env_uri_str);
-    printf("env_uri_str %s\n", env_uri_str);
+    ddsrt_setenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", CONFIG_ENV_SIMPLE_UDP);
+    ddsrt_setenv("MAX_PARTICIPANTS", CONFIG_ENV_MAX_PARTICIPANTS);
 
-    static char env_mp_str[100];
-    (void) snprintf(env_mp_str, sizeof(env_mp_str), "%s=%s", "MAX_PARTICIPANTS", CONFIG_ENV_MAX_PARTICIPANTS);
-    os_putenv(env_mp_str);
-
-    const char * env_uri = os_getenv(DDSC_PROJECT_NAME_NOSPACE_CAPS"_URI");
-    CU_ASSERT_NOT_EQUAL_FATAL(env_uri, NULL);
+    char * env_uri = NULL;
+    ddsrt_getenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", &env_uri);
+    CU_ASSERT_PTR_NOT_EQUAL_FATAL(env_uri, NULL);
 
     //invalid domain
     participant = dds_create_participant (1, NULL, NULL);
