@@ -375,7 +375,7 @@ int main (int argc, char *argv[])
   if (status < 0)
     DDS_FATAL("dds_write_ts: %s\n", dds_strretcode(-status));
   postWriteTime = dds_time ();
-  for (i = 0; !dds_triggered (waitSet) && (!numSamples || i < numSamples); i++)
+  for (i = 0; !dds_triggered (waitSet) && (!numSamples || i < numSamples) && !(timeOut && elapsed >= timeOut); i++)
   {
     status = dds_waitset_wait (waitSet, wsresults, wsresultsize, waitTimeout);
     if (status < 0)
