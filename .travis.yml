@@ -127,7 +127,7 @@ script:
           -DBUILD_TESTING=on
           -G "${GENERATOR}" ../src
   - cmake --build . --config ${BUILD_TYPE} --target install
-  - ctest -T test -C ${BUILD_TYPE}
+  - CYCLONEDDS_URI='<CycloneDDS><DDSI2E><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></DDSI2E></CycloneDDS>' ctest -T test -C ${BUILD_TYPE}
   - if [ "${USE_SANITIZER}" != "none" ]; then
       CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
       CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";

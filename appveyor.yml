@@ -37,13 +37,14 @@ build_script:
   - cd build
   - conan install -s arch=%ARCH% -s build_type=%CONFIGURATION% ..
   - cmake -DBUILD_TESTING=on -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DCMAKE_INSTALL_PREFIX=%CD%/install -G "%GENERATOR%" ../src
-  - cmake --build . --config %CONFIGURATION% --target install
+  - cmake --build . --config %CONFIGURATION% --target install -- /maxcpucount
   - cd install/share/CycloneDDS/examples/helloworld
   - mkdir build
   - cd build
   - cmake -DCMAKE_BUILD_TYPE=%CONFIGURATION% -G "%GENERATOR%" ..
-  - cmake --build . --config %CONFIGURATION%
+  - cmake --build . --config %CONFIGURATION% -- /maxcpucount
   - cd ../../../../../..
 
 test_script:
+  - set "CYCLONEDDS_URI=<CycloneDDS><DDSI2E><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></DDSI2E></CycloneDDS>"
   - ctest --test-action test --build-config %CONFIGURATION%
