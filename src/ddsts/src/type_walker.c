@@ -17,6 +17,7 @@
 #include "tt_create.h"
 #include "type_walker.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/strtol.h"
 
 typedef struct dds_ts_walker_expr dds_ts_walker_expr_t;
 typedef struct dds_ts_walker_proc_def dds_ts_walker_proc_def_t;
