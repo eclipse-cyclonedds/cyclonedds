@@ -85,7 +85,7 @@ before_install:
 # issue, JAVA_HOME is read from the registry and exported by this script.
 install:
   - if [ "${TRAVIS_OS_NAME}" = "windows" ]; then
-      choco install innoextract maven;
+      choco install innoextract maven winflexbison3;
       wget -q https://dl.bintray.com/conan/installers/conan-win-64_1_10_0.exe;
       innoextract conan-win-64_1_10_0.exe;
       KEY='HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment';
