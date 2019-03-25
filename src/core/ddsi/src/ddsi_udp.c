@@ -117,7 +117,7 @@ static void set_msghdr_iov (ddsrt_msghdr_t *mhdr, ddsrt_iovec_t *iov, size_t iov
 static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
 {
   dds_retcode_t rc;
-  ssize_t ret;
+  ssize_t ret = -1;
   unsigned retry = 2;
   int sendflags = 0;
   ddsrt_msghdr_t msg;
@@ -169,7 +169,7 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
   {
     DDS_ERROR("ddsi_udp_conn_write failed with retcode %d", rc);
   }
-  return ret;
+  return (rc == DDS_RETCODE_OK ? ret : -1);
 }
 
 static void ddsi_udp_disable_multiplexing (ddsi_tran_conn_t base)
