@@ -530,7 +530,7 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
   char msgbuf[4096]; /* stack buffer for merging smallish writes without requiring allocations */
   ddsrt_iovec_t iovec; /* iovec used for msgbuf */
 #endif
-  ssize_t ret;
+  ssize_t ret = -1;
   size_t len;
   ddsi_tcp_conn_t conn;
   int piecewise;

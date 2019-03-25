@@ -160,7 +160,7 @@ static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const nn_locator_t
   {
     DDS_ERROR("ddsi_raweth_conn_write failed with retcode %d", rc);
   }
-  return ret;
+  return (rc == DDS_RETCODE_OK ? ret : -1);
 }
 
 static ddsrt_socket_t ddsi_raweth_conn_handle (ddsi_tran_base_t base)
