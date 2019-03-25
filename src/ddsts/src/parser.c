@@ -14,7 +14,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+
 #include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/string.h"
 
 #define YYSTYPE DDS_TS_PARSER_STYPE
 #define YYLTYPE DDS_TS_PARSER_LTYPE

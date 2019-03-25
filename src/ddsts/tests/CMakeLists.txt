@@ -11,10 +11,6 @@
 #
 include(CUnit)
 
-set(sources
-  "parser.c")
-
-add_cunit_executable(testtypes ${sources})
-target_include_directories(testtypes PRIVATE "../src")
-target_link_libraries(testtypes PRIVATE ddsrt types)
+add_cunit_executable(testtypes "parser.c")
+target_link_libraries(testtypes PRIVATE ddsts)
 

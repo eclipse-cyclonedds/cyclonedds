@@ -17,7 +17,6 @@
 #include "tt_create.h"
 
 #include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/strtol.h"
 
 struct dds_ts_context {
   dds_ts_node_t *root_node;

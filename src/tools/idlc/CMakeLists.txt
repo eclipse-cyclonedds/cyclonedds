@@ -11,6 +11,5 @@
 #
 
 add_executable(idlpp "src/main.c")
-target_include_directories(idlpp PRIVATE "${CMAKE_SOURCE_DIR}/src/types/src")
-target_link_libraries(idlpp PRIVATE ddsrt types)
+target_link_libraries(idlpp PUBLIC ddsts)
 
