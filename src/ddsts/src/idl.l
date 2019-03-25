@@ -14,7 +14,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "os/os.h"
+
+#include "dds/ddsrt/retcode.h"
+#include "dds/ddsrt/strtol.h"
 
 /* YYSTYPE and YYLTYPE defines are required because idl.y defines api.prefix */
 #define YYSTYPE DDS_TS_PARSER_STYPE
@@ -78,16 +80,17 @@ identifier                [a-zA-Z_][a-zA-Z0-9_]*
 
 
 {integer_literal}         {
+                            dds_retcode_t rc;
                             yylval->literal.flags = DDS_TS_UNSIGNED_LONG_LONG_TYPE;
                             /* strtoll recognizes if the value is dec, oct or hex if base is zero */
-                            int saved_errno = os_getErrno();
-                            os_setErrno(0);
-                            yylval->literal.value.ullng = os_strtoull(yytext, NULL, 0);
-                            if (   os_getErrno() == ERANGE
-                                && (yylval->literal.value.ullng == 0 || yylval->literal.value.ullng == ULLONG_MAX)) {
+                            rc = ddsrt_strtoull(
+                              yytext, NULL, 0, &yylval->literal.value.ullng);
+                            /* No need to check if nothing was parsed as there
+                               must be at least one number for the regular
+                               expression to match. */
+                            if (rc == DDS_RETCODE_OUT_OF_RANGE) {
                               yyerror(yylloc_param, yyscanner, context, "Integer value invalid");
                             }
-                            os_setErrno(saved_errno);
                             return INTEGER_LITERAL;
                           }
 

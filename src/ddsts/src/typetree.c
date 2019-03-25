@@ -12,7 +12,7 @@
 
 #include "typetree.h"
 #include <assert.h>
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
 
 /* dds_ts_node_t */
 
@@ -38,7 +38,7 @@ static void free_node(dds_ts_node_t *node)
     dds_ts_free_node(child);
     child = next;
   }
-  os_free((void*)node);
+  ddsrt_free((void*)node);
 }
 
 /* dds_ts_type_spec_t (is abstract) */
@@ -81,7 +81,7 @@ static void free_base_type(dds_ts_node_t *node)
 
 extern dds_ts_base_type_t *dds_ts_create_base_type(dds_ts_node_flags_t flags)
 {
-  dds_ts_base_type_t *base_type = (dds_ts_base_type_t*)os_malloc(sizeof(dds_ts_base_type_t));
+  dds_ts_base_type_t *base_type = (dds_ts_base_type_t*)ddsrt_malloc(sizeof(dds_ts_base_type_t));
   if (base_type == NULL) {
     return NULL;
   }
@@ -108,7 +108,7 @@ static void free_sequence(dds_ts_node_t *node)
 
 extern dds_ts_sequence_t *dds_ts_create_sequence(dds_ts_type_spec_ptr_t* element_type, bool bounded, unsigned long long max)
 {
-  dds_ts_sequence_t *sequence = (dds_ts_sequence_t*)os_malloc(sizeof(dds_ts_sequence_t));
+  dds_ts_sequence_t *sequence = (dds_ts_sequence_t*)ddsrt_malloc(sizeof(dds_ts_sequence_t));
   if (sequence == NULL) {
     return NULL;
   }
@@ -128,7 +128,7 @@ static void free_string(dds_ts_node_t *node)
 
 extern dds_ts_string_t *dds_ts_create_string(dds_ts_node_flags_t flags, bool bounded, unsigned long long max)
 {
-  dds_ts_string_t *string = (dds_ts_string_t*)os_malloc(sizeof(dds_ts_string_t));
+  dds_ts_string_t *string = (dds_ts_string_t*)ddsrt_malloc(sizeof(dds_ts_string_t));
   if (string == NULL) {
     return NULL;
   }
@@ -147,7 +147,7 @@ static void free_fixed_pt(dds_ts_node_t *node)
 
 extern dds_ts_fixed_pt_t *dds_ts_create_fixed_pt(unsigned long long digits, unsigned long long fraction_digits)
 {
-  dds_ts_fixed_pt_t *fixed_pt = (dds_ts_fixed_pt_t*)os_malloc(sizeof(dds_ts_fixed_pt_t));
+  dds_ts_fixed_pt_t *fixed_pt = (dds_ts_fixed_pt_t*)ddsrt_malloc(sizeof(dds_ts_fixed_pt_t));
   if (fixed_pt == NULL) {
     return NULL;
   }
@@ -168,7 +168,7 @@ static void free_map(dds_ts_node_t *node)
 
 extern dds_ts_map_t *dds_ts_create_map(dds_ts_type_spec_ptr_t *key_type, dds_ts_type_spec_ptr_t *value_type, bool bounded, unsigned long long max)
 {
-  dds_ts_map_t *map = (dds_ts_map_t*)os_malloc(sizeof(dds_ts_map_t));
+  dds_ts_map_t *map = (dds_ts_map_t*)ddsrt_malloc(sizeof(dds_ts_map_t));
   if (map == NULL) {
     return NULL;
   }
@@ -190,7 +190,7 @@ static void init_definition(dds_ts_definition_t *definition, void (*free_func)(d
 
 static void free_definition(dds_ts_node_t *node)
 {
-  os_free((void*)((dds_ts_definition_t*)node)->name);
+  ddsrt_free((void*)((dds_ts_definition_t*)node)->name);
   free_type_spec(&((dds_ts_definition_t*)node)->type_spec);
 }
 
@@ -203,7 +203,7 @@ static void free_module(dds_ts_node_t *node)
 
 dds_ts_module_t *dds_ts_create_module(dds_ts_identifier_t name)
 {
-  dds_ts_module_t *module = (dds_ts_module_t*)os_malloc(sizeof(dds_ts_module_t));
+  dds_ts_module_t *module = (dds_ts_module_t*)ddsrt_malloc(sizeof(dds_ts_module_t));
   if (module == NULL) {
     return NULL;
   }
@@ -220,7 +220,7 @@ static void free_forward_declaration(dds_ts_node_t *node)
 
 extern dds_ts_forward_declaration_t *dds_ts_create_struct_forward_dcl(dds_ts_identifier_t name)
 {
-  dds_ts_forward_declaration_t *forward_dcl = (dds_ts_forward_declaration_t*)os_malloc(sizeof(dds_ts_forward_declaration_t));
+  dds_ts_forward_declaration_t *forward_dcl = (dds_ts_forward_declaration_t*)ddsrt_malloc(sizeof(dds_ts_forward_declaration_t));
   if (forward_dcl == NULL) {
     return NULL;
   }
@@ -238,7 +238,7 @@ static void free_struct(dds_ts_node_t *node)
 
 extern dds_ts_struct_t *dds_ts_create_struct(dds_ts_identifier_t name)
 {
-  dds_ts_struct_t *new_struct = (dds_ts_struct_t*)os_malloc(sizeof(dds_ts_struct_t));
+  dds_ts_struct_t *new_struct = (dds_ts_struct_t*)ddsrt_malloc(sizeof(dds_ts_struct_t));
   if (new_struct == NULL) {
     return NULL;
   }
@@ -257,7 +257,7 @@ static void free_struct_member(dds_ts_node_t *node)
 
 extern dds_ts_struct_member_t *dds_ts_create_struct_member(dds_ts_type_spec_ptr_t *member_type)
 {
-  dds_ts_struct_member_t *member = (dds_ts_struct_member_t*)os_malloc(sizeof(dds_ts_struct_member_t));
+  dds_ts_struct_member_t *member = (dds_ts_struct_member_t*)ddsrt_malloc(sizeof(dds_ts_struct_member_t));
   if (member == NULL) {
     return NULL;
   }
@@ -270,7 +270,7 @@ extern dds_ts_struct_member_t *dds_ts_create_struct_member(dds_ts_type_spec_ptr_
 
 extern dds_ts_definition_t *dds_ts_create_declarator(dds_ts_identifier_t name)
 {
-  dds_ts_definition_t* declarator = (dds_ts_definition_t*)os_malloc(sizeof(dds_ts_definition_t));
+  dds_ts_definition_t* declarator = (dds_ts_definition_t*)ddsrt_malloc(sizeof(dds_ts_definition_t));
   if (declarator == NULL) {
     return NULL;
   }
@@ -287,7 +287,7 @@ static void free_array_size(dds_ts_node_t *node)
 
 extern dds_ts_array_size_t *dds_ts_create_array_size(unsigned long long size)
 {
-  dds_ts_array_size_t *array_size = (dds_ts_array_size_t*)os_malloc(sizeof(dds_ts_array_size_t));
+  dds_ts_array_size_t *array_size = (dds_ts_array_size_t*)ddsrt_malloc(sizeof(dds_ts_array_size_t));
   if (array_size == NULL) {
     return NULL;
   }

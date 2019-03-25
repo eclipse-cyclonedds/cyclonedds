@@ -14,7 +14,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
-#include "os/os.h"
+
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/string.h"
 
 #define YYSTYPE DDS_TS_PARSER_STYPE
 #define YYLTYPE DDS_TS_PARSER_LTYPE
@@ -39,9 +41,9 @@ dds_ts_parse_file(const char *file, void (*error_func)(int line, int column, con
 
   assert(file != NULL);
 
-OS_WARNING_MSVC_OFF(4996);
+DDSRT_WARNING_MSVC_OFF(4996);
   fh = fopen(file, "rb");
-OS_WARNING_MSVC_ON(4996);
+DDSRT_WARNING_MSVC_ON(4996);
 
   if (fh == NULL) {
     err = errno;
@@ -66,9 +68,9 @@ OS_WARNING_MSVC_ON(4996);
       char buffer[1000];
       dds_ts_stringify(dds_ts_context_get_root_node(context), buffer, 1000);
       /* FIXME: This print statement is only temporary here to show some result. */
-OS_WARNING_MSVC_OFF(4996);
+DDSRT_WARNING_MSVC_OFF(4996);
       printf("Result: '%s'\n", buffer);
-OS_WARNING_MSVC_ON(4996);
+DDSRT_WARNING_MSVC_ON(4996);
     }
     else if (dds_ts_context_get_out_of_memory_error(context)) {
       if (error_func != 0) {
@@ -137,7 +139,7 @@ int dds_ts_parse_string_stringify(const char *str, char *buffer, size_t len)
   else {
     dds_ts_context_t *context = dds_ts_create_context();
     if (context == NULL) {
-      os_strlcpy(buffer, "OUT_OF_MEMORY", len);
+      ddsrt_strlcpy(buffer, "OUT_OF_MEMORY", len);
       return 2;
     }
     yyscan_t scanner;
@@ -146,10 +148,10 @@ int dds_ts_parse_string_stringify(const char *str, char *buffer, size_t len)
     err = dds_ts_parser_parse(scanner, context);
     if (err != 0) {
       if (dds_ts_context_get_out_of_memory_error(context)) {
-        os_strlcpy(buffer, "OUT_OF_MEMORY", len);
+        ddsrt_strlcpy(buffer, "OUT_OF_MEMORY", len);
       }
       else {
-        os_strlcpy(buffer, "PARSING ERROR", len);
+        ddsrt_strlcpy(buffer, "PARSING ERROR", len);
       }
       buffer[len-1] = '\0';
     }

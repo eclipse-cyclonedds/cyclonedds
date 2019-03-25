@@ -16,7 +16,7 @@
 #include "typetree.h"
 #include "tt_create.h"
 
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
 
 struct dds_ts_context {
   dds_ts_node_t *root_node;
@@ -152,7 +152,7 @@ struct dds_ts_scoped_name {
 extern bool dds_ts_new_scoped_name(dds_ts_context_t *context, dds_ts_scoped_name_t* prev, bool top, dds_ts_identifier_t name, dds_ts_scoped_name_t **result)
 {
   assert(context != NULL);
-  dds_ts_scoped_name_t *scoped_name = (dds_ts_scoped_name_t*)os_malloc(sizeof(dds_ts_scoped_name_t));
+  dds_ts_scoped_name_t *scoped_name = (dds_ts_scoped_name_t*)ddsrt_malloc(sizeof(dds_ts_scoped_name_t));
   if (scoped_name == NULL) {
     context->out_of_memory = true;
     return false;
@@ -205,8 +205,8 @@ static void free_scoped_name(dds_ts_scoped_name_t *scoped_name)
 {
   while (scoped_name != NULL) {
     dds_ts_scoped_name_t *next = scoped_name->next;
-    os_free((void*)scoped_name->name);
-    os_free((void*)scoped_name);
+    ddsrt_free((void*)scoped_name->name);
+    ddsrt_free((void*)scoped_name);
     scoped_name = next;
   }
 }
@@ -238,14 +238,14 @@ static bool new_module_definition(dds_ts_context_t *context, dds_ts_identifier_t
 
 extern dds_ts_context_t* dds_ts_create_context()
 {
-  dds_ts_context_t *context = (dds_ts_context_t*)os_malloc(sizeof(dds_ts_context_t));
+  dds_ts_context_t *context = (dds_ts_context_t*)ddsrt_malloc(sizeof(dds_ts_context_t));
   if (context == NULL) {
     return NULL;
   }
   context->error_func = NULL;
   dds_ts_module_t *module;
   if (!new_module_definition(context, NULL, NULL, &module)) {
-    os_free(context);
+    ddsrt_free(context);
     return NULL;
   }
   context->root_node = (dds_ts_node_t*)module;
@@ -289,7 +289,7 @@ extern void dds_ts_free_context(dds_ts_context_t *context)
 {
   assert(context != NULL);
   dds_ts_free_node(context->root_node);
-  os_free(context);
+  ddsrt_free(context);
 }
 
 #if (!defined(NDEBUG))

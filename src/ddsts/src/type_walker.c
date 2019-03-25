@@ -16,7 +16,8 @@
 #include "typetree.h"
 #include "tt_create.h"
 #include "type_walker.h"
-#include "os/os.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/strtol.h"
 
 typedef struct dds_ts_walker_expr dds_ts_walker_expr_t;
 typedef struct dds_ts_walker_proc_def dds_ts_walker_proc_def_t;
@@ -59,7 +60,7 @@ struct dds_ts_walker {
 
 dds_ts_walker_t *dds_ts_create_walker(dds_ts_node_t *root_node)
 {
-  dds_ts_walker_t *walker = (dds_ts_walker_t*)os_malloc(sizeof(dds_ts_walker_t));
+  dds_ts_walker_t *walker = (dds_ts_walker_t*)ddsrt_malloc(sizeof(dds_ts_walker_t));
   walker->root_node = root_node;
   walker->proc_defs = NULL;
   walker->main = NULL;
@@ -70,7 +71,7 @@ dds_ts_walker_t *dds_ts_create_walker(dds_ts_node_t *root_node)
 
 void dds_ts_walker_def_proc(dds_ts_walker_t *walker, const char *name)
 {
-  dds_ts_walker_proc_def_t *proc_def = (dds_ts_walker_proc_def_t*)os_malloc(sizeof(dds_ts_walker_proc_def_t));
+  dds_ts_walker_proc_def_t *proc_def = (dds_ts_walker_proc_def_t*)ddsrt_malloc(sizeof(dds_ts_walker_proc_def_t));
   proc_def->name = name;
   proc_def->body = NULL;
   proc_def->next = walker->proc_defs;
@@ -80,7 +81,7 @@ void dds_ts_walker_def_proc(dds_ts_walker_t *walker, const char *name)
 
 static dds_ts_walker_expr_t *dds_ts_create_expr(dds_ts_walker_expr_type_t type, dds_ts_walker_t *walker)
 {
-  dds_ts_walker_expr_t *expr = (dds_ts_walker_expr_t*)os_malloc(sizeof(dds_ts_walker_expr_t));
+  dds_ts_walker_expr_t *expr = (dds_ts_walker_expr_t*)ddsrt_malloc(sizeof(dds_ts_walker_expr_t));
   expr->parent = walker->cur_parent_expr;
   expr->type = type;
   expr->sub1 = NULL;
@@ -189,7 +190,7 @@ static void dds_ts_ostream_emit(dds_ts_ostream_t *stream, const char *s)
 static void dds_ts_ostream_emit_ull(dds_ts_ostream_t *stream, unsigned long long ull)
 {
   char buffer[100];
-  os_ulltostr(ull, buffer, 99, NULL);
+  ddsrt_ulltostr(ull, buffer, 99, NULL);
   dds_ts_ostream_emit(stream, buffer);
 }
 
@@ -355,7 +356,7 @@ void dds_ts_walker_execute_expr(dds_ts_walker_t *walker, dds_ts_walker_expr_t *e
 	}
         else {
           char buffer[40];
-          os_ulltostr(state->cur_node->flags, buffer, 39, NULL);
+          ddsrt_ulltostr(state->cur_node->flags, buffer, 39, NULL);
           dds_ts_ostream_emit(stream, "?");
           dds_ts_ostream_emit(stream, buffer);
           dds_ts_ostream_emit(stream, "?");
@@ -393,7 +394,7 @@ static void dds_ts_walker_expr_free(dds_ts_walker_expr_t *expr)
     dds_ts_walker_expr_t *next = expr->next;
     dds_ts_walker_expr_free(expr->sub1);
     dds_ts_walker_expr_free(expr->sub2);
-    os_free((void*)expr);
+    ddsrt_free((void*)expr);
     expr = next;
   }
 }
@@ -404,11 +405,11 @@ void dds_ts_walker_free(dds_ts_walker_t *walker)
   for (proc_def = walker->proc_defs; proc_def != NULL;) {
     dds_ts_walker_proc_def_t *next = proc_def->next;
     dds_ts_walker_expr_free(proc_def->body);
-    os_free((void*)proc_def);
+    ddsrt_free((void*)proc_def);
     proc_def = next;
   }
   dds_ts_walker_expr_free(walker->main);
-  os_free((void*)walker);
+  ddsrt_free((void*)walker);
 }
 
 
