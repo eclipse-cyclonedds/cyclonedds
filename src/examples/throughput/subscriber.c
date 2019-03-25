@@ -75,20 +75,18 @@ int main (int argc, char **argv)
   dds_entity_t participant;
   dds_entity_t reader;
 
-#if !defined(_WIN32)
-  setvbuf (stdout, NULL, _IOLBF, 0);
-#endif
-
   if (parse_args(argc, argv, &maxCycles, &partitionName) == EXIT_FAILURE)
   {
     return EXIT_FAILURE;
   }
 
   printf ("Cycles: %llu | PollingDelay: %ld | Partition: %s\n", maxCycles, pollingDelay, partitionName);
+  fflush (stdout);
 
   participant = prepare_dds(&reader, partitionName);
 
   printf ("=== [Subscriber] Waiting for samples...\n");
+  fflush (stdout);
 
   /* Process samples until Ctrl-C is pressed or until maxCycles */
   /* has been reached (0 = infinite) */
@@ -280,6 +278,7 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles)
                 deltaTime, payloadSize, total_samples, total_bytes, outOfOrder,
                 (deltaTime != 0.0) ? ((double)(total_samples - prev_samples) / deltaTime) : 0,
                 (deltaTime != 0.0) ? ((double)((total_bytes - prev_bytes) / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime) : 0);
+        fflush (stdout);
         cycles++;
         prev_time = time_now;
         prev_bytes = total_bytes;
@@ -300,6 +299,7 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles)
   printf ("Out of order: %llu samples\n", outOfOrder);
   printf ("Average transfer rate: %.2lf samples/s, ", (double)total_samples / deltaTime);
   printf ("%.2lf Mbit/s\n", (double)(total_bytes / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime);
+  fflush (stdout);
 }
 
 static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)

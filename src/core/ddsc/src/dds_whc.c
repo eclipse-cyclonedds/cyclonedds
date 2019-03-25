@@ -15,6 +15,7 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_config.h"
@@ -258,6 +259,7 @@ static void check_whc (const struct whc_impl *whc)
   assert (whc->maxseq_node == whc_findmax_procedurally (whc));
 
 #if !defined(NDEBUG)
+  if (config.enabled_xchecks & DDS_XCHECK_WHC)
   {
     struct whc_intvnode *firstintv;
     struct whc_node *cur;

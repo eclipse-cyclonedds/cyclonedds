@@ -38,6 +38,8 @@ extern "C" {
 
     DDS_EXPORT struct ut_xmlpState *ut_xmlpNewFile (FILE *fp, void *varg, const struct ut_xmlpCallbacks *cb);
     DDS_EXPORT struct ut_xmlpState *ut_xmlpNewString (const char *string, void *varg, const struct ut_xmlpCallbacks *cb);
+    DDS_EXPORT void ut_xmlpSetRequireEOF (struct ut_xmlpState *st, int require_eof);
+    DDS_EXPORT size_t ut_xmlpGetBufpos (const struct ut_xmlpState *st);
     DDS_EXPORT void ut_xmlpFree (struct ut_xmlpState *st);
     DDS_EXPORT int ut_xmlpParse (struct ut_xmlpState *st);
 

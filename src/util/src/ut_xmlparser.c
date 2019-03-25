@@ -49,6 +49,7 @@ struct ut_xmlpState {
     size_t tpescp; /* still escape sequences in tpescp .. tpp */
     int nest; /* current nesting level */
     void *varg; /* user argument to callback functions */
+    int require_eof; /* if false, junk may follow top-level closing tag */
     struct ut_xmlpCallbacks cb; /* user-supplied callbacks (or stubs) */
 };
 
@@ -107,6 +108,7 @@ static void ut_xmlpNewCommon (struct ut_xmlpState *st)
     st->peekpayload = NULL;
     st->nest = 0;
     st->error = 0;
+    st->require_eof = 1;
 }
 
 static void ut_xmlpNewSetCB (struct ut_xmlpState *st, void *varg, const struct ut_xmlpCallbacks *cb)
@@ -144,6 +146,16 @@ struct ut_xmlpState *ut_xmlpNewString (const char *string, void *varg, const str
     ut_xmlpNewCommon (st);
     ut_xmlpNewSetCB (st, varg, cb);
     return st;
+}
+
+void ut_xmlpSetRequireEOF (struct ut_xmlpState *st, int require_eof)
+{
+    st->require_eof = require_eof;
+}
+
+size_t ut_xmlpGetBufpos (const struct ut_xmlpState *st)
+{
+    return st->cbufp;
 }
 
 void ut_xmlpFree (struct ut_xmlpState *st)
@@ -697,7 +709,7 @@ int ut_xmlpParse (struct ut_xmlpState *st)
         return 0;
     } else {
         int ret = parse_element (st, 0);
-        if (ret < 0 || next_token (st, NULL) == TOK_EOF) {
+        if (ret < 0|| !st->require_eof || next_token (st, NULL) == TOK_EOF ) {
             return ret;
         } else {
             return -1;

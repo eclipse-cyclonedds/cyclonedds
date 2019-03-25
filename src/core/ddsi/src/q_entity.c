@@ -18,6 +18,7 @@
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/misc.h"
 
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_config.h"

@@ -13,6 +13,8 @@
 #include <assert.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/misc.h"
+
 #include "dds/util/ut_hopscotch.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_config.h"

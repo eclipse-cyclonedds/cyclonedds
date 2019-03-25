@@ -193,6 +193,7 @@ static void data_available(dds_entity_t rd, void *arg)
              readAccess.count,
              exampleGetMedianFromTimeStats (&readAccess),
              readAccess.min);
+      fflush (stdout);
 
       exampleResetTimeStats (&roundTrip);
       exampleResetTimeStats (&writeAccess);
@@ -282,11 +283,10 @@ int main (int argc, char *argv[])
   }
   prepare_dds(&writer, &reader, &readCond, listener);
 
-  setvbuf(stdout, NULL, _IONBF, 0);
-
   if (argc - argidx == 1 && strcmp (argv[argidx], "quit") == 0)
   {
     printf ("Sending termination request.\n");
+    fflush (stdout);
     /* pong uses a waitset which is triggered by instance disposal, and
       quits when it fires. */
     dds_sleepfor (DDS_SECS (1));
@@ -325,6 +325,7 @@ int main (int argc, char *argv[])
   if (invalidargs || (argc - argidx == 1 && (strcmp (argv[argidx], "-h") == 0 || strcmp (argv[argidx], "--help") == 0)))
     usage();
   printf ("# payloadSize: %" PRIu32 " | numSamples: %" PRIu64 " | timeOut: %" PRIi64 "\n\n", payloadSize, numSamples, timeOut);
+  fflush (stdout);
 
   pub_data.payload._length = payloadSize;
   pub_data.payload._buffer = payloadSize ? dds_alloc (payloadSize) : NULL;
@@ -337,6 +338,7 @@ int main (int argc, char *argv[])
 
   startTime = dds_time ();
   printf ("# Waiting for startup jitter to stabilise\n");
+  fflush (stdout);
   /* Write a sample that pong can send back */
   while (!dds_triggered (waitSet) && difference < DDS_SECS(5))
   {
@@ -358,11 +360,10 @@ int main (int argc, char *argv[])
   {
     warmUp = false;
     printf("# Warm up complete.\n\n");
-
     printf("# Latency measurements (in us)\n");
     printf("#             Latency [us]                                   Write-access time [us]       Read-access time [us]\n");
     printf("# Seconds     Count   median      min      99%%      max      Count   median      min      Count   median      min\n");
-
+    fflush (stdout);
   }
 
   exampleResetTimeStats (&roundTrip);
@@ -375,7 +376,7 @@ int main (int argc, char *argv[])
   if (status < 0)
     DDS_FATAL("dds_write_ts: %s\n", dds_strretcode(-status));
   postWriteTime = dds_time ();
-  for (i = 0; !dds_triggered (waitSet) && (!numSamples || i < numSamples); i++)
+  for (i = 0; !dds_triggered (waitSet) && (!numSamples || i < numSamples) && !(timeOut && elapsed >= timeOut); i++)
   {
     status = dds_waitset_wait (waitSet, wsresults, wsresultsize, waitTimeout);
     if (status < 0)
@@ -403,6 +404,7 @@ int main (int argc, char *argv[])
       exampleGetMedianFromTimeStats (&readAccessOverall),
       readAccessOverall.min
     );
+    fflush (stdout);
   }
 
 done:

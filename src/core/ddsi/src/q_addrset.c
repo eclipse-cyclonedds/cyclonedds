@@ -16,6 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/util/ut_avl.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_misc.h"

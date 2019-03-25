@@ -13,6 +13,7 @@
 #include <stdlib.h>
 
 #include "dds/ddsrt/atomics.h"
+#include "dds/ddsrt/misc.h"
 
 #include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_log.h"

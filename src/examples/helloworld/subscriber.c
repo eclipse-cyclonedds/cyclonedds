@@ -40,6 +40,7 @@ int main (int argc, char ** argv)
   dds_delete_qos(qos);
 
   printf ("\n=== [Subscriber] Waiting for a sample ...\n");
+  fflush (stdout);
 
   /* Initialize sample buffer, by pointing the void pointer within
    * the buffer array to a valid sample memory location. */
@@ -61,6 +62,7 @@ int main (int argc, char ** argv)
       msg = (HelloWorldData_Msg*) samples[0];
       printf ("=== [Subscriber] Received : ");
       printf ("Message (%d, %s)\n", msg->userID, msg->message);
+      fflush (stdout);
       break;
     }
     else

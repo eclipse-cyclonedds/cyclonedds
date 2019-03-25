@@ -12,6 +12,7 @@
 #include <stddef.h>
 
 #include "dds/ddsrt/atomics.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"

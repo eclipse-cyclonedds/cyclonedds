@@ -13,6 +13,7 @@
 #include "dds/ddsi/ddsi_ssl.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsrt/log.h"
+#include "dds/ddsrt/misc.h"
 
 #ifdef DDSI_INCLUDE_SSL
 

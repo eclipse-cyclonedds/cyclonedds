@@ -53,7 +53,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "VxWorks")
 endif()
 
 if(${CMAKE_C_COMPILER_ID} STREQUAL "SunPro")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64 -xc99 -D__restrict=restrict")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64 -xc99 -D__restrict=restrict -D__deprecated__=")
+  set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -m64")
 endif()
 
 # Conan

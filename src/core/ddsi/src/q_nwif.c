@@ -544,9 +544,7 @@ int find_own_ip (const char *requested_address)
       quality = q;
     }
 
-    /* FIXME: HACK HACK */
-    //ddsi_ipaddr_to_loc(&gv.interfaces[gv.n_interfaces].loc, &tmpip, gv.m_factory->m_kind);
-    if (ifa->addr->sa_family == AF_INET || ifa->addr->sa_family == AF_INET6)
+    if (ifa->addr->sa_family == AF_INET && ifa->netmask)
     {
       ddsi_ipaddr_to_loc(&gv.interfaces[gv.n_interfaces].netmask, ifa->netmask, gv.m_factory->m_kind);
     }

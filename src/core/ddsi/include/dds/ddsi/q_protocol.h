@@ -130,8 +130,10 @@ typedef struct Header {
 } Header_t;
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 #define NN_PROTOCOLID_AS_UINT32 (((uint32_t)'R' << 0) | ((uint32_t)'T' << 8) | ((uint32_t)'P' << 16) | ((uint32_t)'S' << 24))
-#else
+#elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
 #define NN_PROTOCOLID_AS_UINT32 (((uint32_t)'R' << 24) | ((uint32_t)'T' << 16) | ((uint32_t)'P' << 8) | ((uint32_t)'S' << 0))
+#else
+#error "DDSRT_ENDIAN neither LITTLE nor BIG"
 #endif
 #define RTPS_MESSAGE_HEADER_SIZE (sizeof (Header_t))
 
