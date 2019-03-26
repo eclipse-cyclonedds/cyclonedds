@@ -42,7 +42,7 @@ int illegal_identifier(const char *token);
 
 #include "typetree.h"
 #include "tt_create.h"
-#include "os/os.h"
+#include "dds/ddsrt/string.h"
 
 }
 
@@ -505,7 +505,7 @@ identifier:
         else if (illegal_identifier($1) != 0) {
           yyerror(&yylloc, scanner, context, "Identifier collides with a keyword");
         }
-        if (($$ = os_strdup($1 + offset)) == NULL) {
+        if (($$ = ddsrt_strdup($1 + offset)) == NULL) {
           dds_ts_context_set_out_of_memory_error(context);
           YYABORT;
         }
@@ -533,7 +533,7 @@ illegal_identifier(const char *token)
   for (i = 0, n = strlen(token); i < YYNTOKENS; i++) {
     if (yytname[i] != 0
         && yytname[i][    0] == '"'
-        && os_strncasecmp(yytname[i] + 1, token, n) == 0
+        && ddsrt_strncasecmp(yytname[i] + 1, token, n) == 0
         && yytname[i][n + 1] == '"'
         && yytname[i][n + 2] == '\0') {
       return 1;
