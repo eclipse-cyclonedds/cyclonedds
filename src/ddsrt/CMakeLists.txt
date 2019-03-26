@@ -74,7 +74,6 @@ list(APPEND sources
   "${source_path}/io.c"
   "${source_path}/log.c"
   "${source_path}/retcode.c"
-  "${source_path}/process.c"
   "${source_path}/strtod.c"
   "${source_path}/strtol.c")
 
@@ -89,7 +88,7 @@ list(APPEND sources
 # network stack. In order to mix-and-match various compilers, architectures,
 # operating systems, etc input from the build system is required.
 foreach(feature atomics cdtors environ heap ifaddrs random rusage
-                sockets string sync threads time)
+                sockets string sync threads time process)
   if(EXISTS "${include_path}/dds/ddsrt/${feature}.h")
     list(APPEND headers "${include_path}/dds/ddsrt/${feature}.h")
     file(GLOB
@@ -188,6 +187,7 @@ endif()
 
 if(BUILD_TESTING)
   add_subdirectory(tests)
+  add_subdirectory(xtests)
 endif()
 
 install(

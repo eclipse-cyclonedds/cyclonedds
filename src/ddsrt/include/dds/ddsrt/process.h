@@ -13,11 +13,9 @@
 #define DDSRT_PROCESS_H
 
 #include "dds/export.h"
+#include "dds/ddsrt/time.h"
 #include "dds/ddsrt/types.h"
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
+#include "dds/ddsrt/retcode.h"
 
 #if defined(_WIN32)
 typedef DWORD ddsrt_pid_t;
@@ -33,6 +31,11 @@ typedef pid_t ddsrt_pid_t;
 #endif
 #endif /* _WIN32 */
 
+
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 /**
  * @brief Return process ID (PID) of the calling process.
  *
@@ -40,6 +43,98 @@ typedef pid_t ddsrt_pid_t;
  */
 DDS_EXPORT ddsrt_pid_t
 ddsrt_getpid(void);
+
+#ifdef DDSRT_USE_PROCESSCREATION
+#define DDSRT_HAVE_PROCESSCREATION 1
+
+/**
+ * @brief Create new process.
+ *
+ * Creates a new process using the provided executable file. It will have
+ * default priority and scheduling.
+ *
+ * Process arguments are represented by argv, which can be null. If argv is
+ * not null, then the array must be null terminated. The argv array only has
+ * to contain the arguments, the executable filename doesn't have to be in
+ * the first element, which is normally the convention.
+ *
+ * @param[in]   executable     Executable file name.
+ * @param[in]   argv           Arguments array.
+ * @param[out]  pid            ID of the created process.
+ *
+ * @returns A dds_retcode_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             Process successfully created.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Provided file is not executable.
+ * @retval DDS_RETCODE_ERROR
+ *             Process could not be created.
+ */
+DDS_EXPORT dds_retcode_t
+ddsrt_process_create(
+  const char *executable,
+  char *const argv[],
+  ddsrt_pid_t *pid);
+
+/**
+ * @brief Wait for a process to exit.
+ *
+ * When the process (identified by pid) has exited, the status argument will
+ * contain the process exit code.
+ *
+ * When the process is terminated by a call to ddsrt_process_terminate(), then
+ * the return code is uncertain, except that it won't be DDS_RETCODE_TIMEOUT.
+ *
+ * @param[in]   pid            Process ID (PID) of the process to wait for.
+ * @param[in]   timeout        Max timeout to wait for the process to exit.
+ * @param[out]  status         The exit code of the process.
+ *
+ * @returns A dds_retcode_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             Process has exited.
+ * @retval DDS_RETCODE_TIMEOUT
+ *             Process is still alive.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Process unknown.
+ * @retval DDS_RETCODE_ERROR
+ *             Wait failed for an unknown reason.
+ */
+DDS_EXPORT dds_retcode_t
+ddsrt_process_wait_exit(
+  ddsrt_pid_t pid,
+  dds_duration_t timeout,
+  int32_t *status);
+
+/**
+ * @brief Terminate a process.
+ *
+ * This will try to gracefully terminate the process (identified by pid).
+ *
+ * If the process hasn't terminated within the timeout, the process will
+ * be forcefully killed.
+ *
+ * @param[in]   pid            Process ID (PID) of the process to terminate.
+ * @param[in]   timeout        Max timeout to wait for graceful termination.
+ *
+ * @returns A dds_retcode_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             Process has gracefully terminated.
+ * @retval DDS_RETCODE_TIMEOUT
+ *             Graceful termination failed. Process has been killed.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Process unknown.
+ * @retval DDS_RETCODE_ERROR
+ *             Termination failed for an unknown reason.
+ */
+DDS_EXPORT dds_retcode_t
+ddsrt_process_terminate(
+  ddsrt_pid_t pid,
+  dds_duration_t timeout);
+
+#endif /* DDSRT_USE_PROCESSCREATION */
 
 #if defined (__cplusplus)
 }
