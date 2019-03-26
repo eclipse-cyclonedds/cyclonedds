@@ -40,7 +40,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
 elseif(CMAKE_C_COMPILER_ID MATCHES "GNU" OR
        CMAKE_C_COMPILER_ID MATCHES "Clang") # Takes care of AppleClang too.
   set_source_files_properties(
-    "${LEXER_PATH}" PROPERTIES COMPILE_FLAGS "-Wno-sign-conversion -Wno-conversion")
+    "${LEXER_PATH}" PROPERTIES COMPILE_FLAGS "-Wno-sign-conversion -Wno-conversion -Wno-sign-compare -Wno-unused-parameter")
   set_source_files_properties(
     "${PARSER_PATH}" PROPERTIES COMPILE_FLAGS "-Wno-sign-conversion")
 endif()
