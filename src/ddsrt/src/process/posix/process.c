@@ -15,8 +15,11 @@
 #include <unistd.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <sys/wait.h>
 #include <sys/types.h>
 #include "dds/ddsrt/process.h"
+#include "dds/ddsrt/string.h"
+#include "dds/ddsrt/heap.h"
 
 
 ddsrt_pid_t
@@ -25,25 +28,6 @@ ddsrt_getpid(void)
   /* Mapped to taskIdSelf() in VxWorks kernel mode. */
   return getpid();
 }
-
-
-#ifdef DDSRT_USE_PROCESSCREATION
-
-#ifndef PIKEOS_POSIX
-#include <sys/wait.h>
-#endif
-
-#if defined(__APPLE__)
-#include <crt_externs.h>
-#else
-/* environ is a variable declared in unistd.h, and it keeps track
- * of the environment variables during this running process. */
-extern char **environ;
-#endif
-
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/string.h"
-
 
 
 /*
@@ -104,15 +88,12 @@ ddsrt_process_create(
     } else if (spawn == 0) {
       /* Child process */
       char **argvexec;
-#if defined(__APPLE__)
-      char **environ = *_NSGetEnviron ();
-#endif
 
       /* First prefix the argv with the executable, which is the convention. */
       argvexec = prefix_argv(executable, argv);
 
       /* Then execute the executable, replacing current process. */
-      execve(executable, argvexec, environ);
+      execv(executable, argvexec);
 
       /* If executing this, something has gone wrong */
       ddsrt_free(argvexec);
@@ -195,5 +176,3 @@ ddsrt_process_terminate(
 
   return rv;
 }
-
-#endif /* DDSRT_USE_PROCESSCREATION */

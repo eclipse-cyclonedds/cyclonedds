@@ -18,6 +18,13 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/process.h"
 
+static HANDLE        pid_to_phdl         (ddsrt_pid_t pid);
+static dds_retcode_t process_wait_exit   (HANDLE phdl, dds_duration_t timeout, int32_t *status);
+static dds_retcode_t process_terminate   (HANDLE phdl, dds_duration_t timeout);
+static dds_retcode_t process_kill        (HANDLE phdl, dds_duration_t timeout);
+static char*         commandline         (const char *exe, char *const argv_in[]);
+
+
 
 ddsrt_pid_t
 ddsrt_getpid(void)
@@ -26,13 +33,6 @@ ddsrt_getpid(void)
 }
 
 
-#ifdef DDSRT_USE_PROCESSCREATION
-
-static HANDLE        pid_to_phdl         (ddsrt_pid_t pid);
-static dds_retcode_t process_wait_exit   (HANDLE phdl, dds_duration_t timeout, int32_t *status);
-static dds_retcode_t process_terminate   (HANDLE phdl, dds_duration_t timeout);
-static dds_retcode_t process_kill        (HANDLE phdl, dds_duration_t timeout);
-static char*         commandline         (const char *exe, char *const argv_in[]);
 
 dds_retcode_t
 ddsrt_process_create(
@@ -369,6 +369,3 @@ commandline(const char *exe, char *const argv_in[])
 
   return cmd;
 }
-
-#endif /* DDSRT_USE_PROCESSCREATION */
-

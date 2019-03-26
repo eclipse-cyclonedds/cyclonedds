@@ -44,9 +44,6 @@ extern "C" {
 DDS_EXPORT ddsrt_pid_t
 ddsrt_getpid(void);
 
-#ifdef DDSRT_USE_PROCESSCREATION
-#define DDSRT_HAVE_PROCESSCREATION 1
-
 /**
  * @brief Create new process.
  *
@@ -134,7 +131,6 @@ ddsrt_process_terminate(
   ddsrt_pid_t pid,
   dds_duration_t timeout);
 
-#endif /* DDSRT_USE_PROCESSCREATION */
 
 #if defined (__cplusplus)
 }

@@ -39,17 +39,15 @@ endif()
 #
 # Create the process tests application and add it to the overall tests.
 #
-if (${DDSRT_USE_PROCESSCREATION})
-  add_executable(ddsrt_process_test process_test.c)
-  target_link_libraries(ddsrt_process_test PRIVATE ddsrt)
+add_executable(ddsrt_process_test process_test.c)
+target_link_libraries(ddsrt_process_test PRIVATE ddsrt)
 
-  target_include_directories(
-    ddsrt_process_test PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
+target_include_directories(
+  ddsrt_process_test PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
 
-  add_test(NAME ddsrt_process_create  COMMAND ddsrt_process_test -t create )
-  add_test(NAME ddsrt_process_destroy COMMAND ddsrt_process_test -t destroy)
-  add_test(NAME ddsrt_process_pid     COMMAND ddsrt_process_test -t pid    )
-  add_test(NAME ddsrt_process_env     COMMAND ddsrt_process_test -t env    )
-  add_test(NAME ddsrt_process_invalid COMMAND ddsrt_process_test -t invalid)
-endif()
+add_test(NAME ddsrt_process_create  COMMAND ddsrt_process_test -t create )
+add_test(NAME ddsrt_process_destroy COMMAND ddsrt_process_test -t destroy)
+add_test(NAME ddsrt_process_pid     COMMAND ddsrt_process_test -t pid    )
+add_test(NAME ddsrt_process_env     COMMAND ddsrt_process_test -t env    )
+add_test(NAME ddsrt_process_invalid COMMAND ddsrt_process_test -t invalid)
 
