@@ -654,7 +654,7 @@ END_MARKER
 static const struct cfgelem sizing_cfgelems[] =
 {
     { LEAF("ReceiveBufferSize"), 1, "1 MiB", ABSOFF(rbuf_size), 0, uf_memsize, 0, pf_memsize,
-    "<p>This element sets the size of a single receive buffer. Many receive buffers may be needed. Their size must be greater than ReceiveBufferChunkSize by a modest amount.</p>" },
+    "<p>This element sets the size of a single receive buffer. Many receive buffers may be needed. The minimum workable size a little bit larger than Sizing/ReceiveBufferChunkSize, and the value used is taken as the configured value and the actual minimum workable size.</p>" },
     { LEAF("ReceiveBufferChunkSize"), 1, "128 KiB", ABSOFF(rmsg_chunk_size), 0, uf_memsize, 0, pf_memsize,
     "<p>This element specifies the size of one allocation unit in the receive buffer. Must be greater than the maximum packet size by a modest amount (too large packets are dropped). Each allocation is shrunk immediately after processing a message, or freed straightaway.</p>" },
     END_MARKER
