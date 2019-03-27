@@ -330,7 +330,13 @@ struct nn_rbufpool *nn_rbufpool_new (uint32_t rbuf_size, uint32_t max_rmsg_size)
   struct nn_rbufpool *rbp;
 
   assert (max_rmsg_size > 0);
-  assert (rbuf_size >= max_rmsg_size_w_hdr (max_rmsg_size));
+
+  /* raise rbuf_size to minimum possible considering max_rmsg_size, there is
+     no reason to bother the user with the small difference between the two
+     when he tries to configure things, and the crash is horrible when
+     rbuf_size is too small */
+  if (rbuf_size < max_rmsg_size_w_hdr (max_rmsg_size))
+    rbuf_size = max_rmsg_size_w_hdr (max_rmsg_size);
 
   if ((rbp = ddsrt_malloc (sizeof (*rbp))) == NULL)
     goto fail_rbp;
