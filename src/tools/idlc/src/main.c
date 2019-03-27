@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "dds/ddsrt/log.h"
+#include "dds/ddsts/typetree.h"
 #include "parser.h"
 
 static void
@@ -22,21 +24,22 @@ usage(const char *prog)
   fprintf(stderr, "Usage: %s FILE\n", prog);
 }
 
-static void report_error(int line, int column, const char *msg)
-{
-  fprintf(stderr, "ERROR %d.%d: %s\n", line, column, msg);
-}
-
 int
 main(int argc, char *argv[])
 {
-  int ret = EXIT_FAILURE;
-
   if (argc != 2) {
     usage(argv[0]);
-  } else if (dds_ts_parse_file(argv[1], report_error) == 0) {
-    ret = EXIT_SUCCESS;
+    return EXIT_FAILURE;
   }
 
-  return ret;
+  dds_set_log_mask(DDS_LC_ALL);
+
+  ddsts_type_t *root_type = NULL;
+  if (ddsts_idl_parse_file(argv[1], &root_type) != DDS_RETCODE_OK) {
+    return EXIT_FAILURE;
+  }
+
+  ddsts_free_type(root_type);
+
+  return EXIT_SUCCESS;
 }
