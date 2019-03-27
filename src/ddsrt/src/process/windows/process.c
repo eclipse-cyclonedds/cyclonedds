@@ -317,21 +317,62 @@ process_kill(
 
 
 
-/* Add quotes to a given string. */
+/* Add quotes to a given string and escape. */
 static size_t
 stringify_len(const char *str)
 {
-  return strlen(str) + 4; /* '\"' + str + '\"' + ' ' + '\0' */
+  const char *esc;
+  size_t escapes = 0;
+  for (esc = strchr(str, '\"'); esc != NULL; esc = strchr(esc, '\"')) {
+    escapes++;
+    esc++;
+  }
+  return strlen(str) + escapes + 5; /* '\"' +
+                                       str +
+                                       nr_of_quotes +
+                                       possible_trailing_bslash +
+                                       '\"' + ' ' + '\0' */
 }
 static char*
 stringify(char *buf, const char *str)
 {
+  const char *ptr = str;
+  const char *esc;
   size_t len = strlen(str);
   size_t idx = 0;
-  buf[idx++] = '\"';
+  char last = '\0';
+
   if (len > 0) {
-    memcpy(&(buf[idx]), str, len);
-    idx += len;
+    last = str[len - 1];
+  }
+
+  buf[idx++] = '\"';
+  while (len > 0) {
+    esc = strchr(ptr, '\"');
+    if (esc) {
+      size_t n = (size_t)(esc - ptr);
+      assert(esc >= ptr);
+      if (n != 0) {
+        /* Copy part before escape. */
+        memcpy(&(buf[idx]), ptr, n);
+        idx += n;
+      }
+      /* Escape the double quote. */
+      buf[idx++] = '\\';
+      buf[idx++] = '\"';
+      /* Continue after the offending char. */
+      ptr = esc + 1;
+      len -= (n + 1);
+    } else {
+      /* No (more) chars to escape. */
+      memcpy(&(buf[idx]), ptr, len);
+      idx += len;
+      len = 0;
+    }
+  }
+  /* For some reason, the last backslash will be stripped. */
+  if (last == '\\') {
+    buf[idx++] = '\\';
   }
   buf[idx++] = '\"';
   buf[idx++] = ' ';

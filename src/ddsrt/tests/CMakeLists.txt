@@ -24,7 +24,8 @@ set(sources
     "log.c"
     "strlcpy.c"
     "socket.c"
-    "select.c")
+    "select.c"
+    "process.c")
 
 add_cunit_executable(cunit_ddsrt ${sources})
 target_link_libraries(cunit_ddsrt PRIVATE ddsrt)
@@ -41,3 +42,18 @@ endif()
 
 target_include_directories(
   cunit_ddsrt PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
+
+# Create a separate test application that will be used to
+# test process management.
+add_executable(process_app process_app.c)
+target_link_libraries(process_app PRIVATE ddsrt)
+target_include_directories(
+  process_app PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
+if (MSVC_IDE)
+  set(process_app_name "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}/process_app${CMAKE_EXECUTABLE_SUFFIX}")
+else()
+  set(process_app_name "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/process_app${CMAKE_EXECUTABLE_SUFFIX}")
+endif()
+configure_file(
+  "process_test.h.in" "${CMAKE_CURRENT_BINARY_DIR}/include/process_test.h" @ONLY)
+
