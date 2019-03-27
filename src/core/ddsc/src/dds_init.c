@@ -113,6 +113,7 @@ dds_init(dds_domainid_t domain)
     goto fail_rtps_config;
   }
 
+  upgrade_main_thread();
   ut_avlInit(&dds_domaintree_def, &dds_global.m_domains);
 
   /* Start monitoring the liveliness of all threads. */
@@ -129,7 +130,7 @@ dds_init(dds_domainid_t domain)
     }
   }
 
-  if (rtps_init() < 0)
+  if (rtps_init () < 0)
   {
     DDS_LOG(DDS_LC_CONFIG, "Failed to initialize RTPS\n");
     ret = DDS_ERRNO(DDS_RETCODE_ERROR);
@@ -138,14 +139,19 @@ dds_init(dds_domainid_t domain)
 
   dds__builtin_init ();
 
+  if (rtps_start () < 0)
+  {
+    DDS_LOG(DDS_LC_CONFIG, "Failed to start RTPS\n");
+    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+    goto fail_rtps_start;
+  }
+
   if (gv.servicelease && nn_servicelease_start_renewing(gv.servicelease) < 0)
   {
     DDS_ERROR("Failed to start the servicelease\n");
     ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     goto fail_servicelease_start;
   }
-
-  upgrade_main_thread();
 
   /* Set additional default participant properties */
 
@@ -173,6 +179,8 @@ fail_servicelease_start:
   if (gv.servicelease)
     nn_servicelease_stop_renewing (gv.servicelease);
   rtps_stop ();
+fail_rtps_start:
+  dds__builtin_fini ();
   rtps_fini ();
 fail_rtps_init:
   if (gv.servicelease)
@@ -181,6 +189,7 @@ fail_rtps_init:
     gv.servicelease = NULL;
   }
 fail_servicelease_new:
+  downgrade_main_thread ();
   thread_states_fini();
 fail_rtps_config:
 fail_config_domainid:
