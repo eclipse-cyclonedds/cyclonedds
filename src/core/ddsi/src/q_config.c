@@ -248,7 +248,7 @@ static const struct cfgelem general_cfgelems[] = {
 "<p>This element controls whether DDSI2E uses multicasts for data traffic.</p>\n\
 <p>It is a comma-separated list of some of the following keywords: \"spdp\", \"asm\", \"ssm\", or either of \"false\" or \"true\".</p>\n\
 <ul>\n\
-<li><i>spdp</i>: enables the use of ASM (any-source multicast) for participant discovery</li>\n\
+<li><i>spdp</i>: enables the use of ASM (any-source multicast) for participant discovery, joining the multicast group on the discovery socket, transmitting SPDP messages to this group, but never advertising nor using any multicast address in any discovery message, thus forcing unicast communications for all endpoint discovery and user data.</li>\n\
 <li><i>asm</i>: enables the use of ASM for all traffic (including SPDP)</li>\n\
 <li><i>ssm</i>: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)</li>\n\
 </ul>\n\
