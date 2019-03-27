@@ -11,9 +11,11 @@ Definition Language (IDL). The IDL type definitions are processed by an IDL
 compiler to generate language specific type definitions and
 instructions/routines to marshal in-memory data to/from CDR.
 
-> The *Interface Definition Language* (IDL) and *Common Data Representation*
-> (CDR) are part of the *[CORBA](https://www.omg.org/spec/CORBA/)*
-> specification.
+> Until IDL 3.5, the "Interface Definition Language" (IDL) and "Common
+> Data Representation" (CDR) were part of the
+> *[CORBA](https://www.omg.org/spec/CORBA/)* > specification, but
+> the most recent version of the *Interface Definition Language*, IDL 4.2,
+> can be downloaded from [here](https://www.omg.org/spec/IDL/4.2/Beta1).
 
 
 ## Runtime type generation
@@ -51,13 +53,13 @@ takes the intermediate format and uses it to generate one or more target
 representations. e.g. For native C types to be used, the *backend* would need
 to generate native C language representations (opcodes for the serialization
 VM included), the *TypeObject* representation for XTypes compatibility and
-the OpenSplice XML format for comatibility with OpenSplice.
+the OpenSplice XML format for compatibility with OpenSplice.
 
     --------                                -----
     |  IDL |---------\                  /-- | C |
     --------         |                  |   -----
                      |                  |   -------
-                     |                  |   | C++ |
+                     |                  |-- | C++ |
                      |                  |   -------
     --------------   |   ------------   |   --------------
     | TypeObject | -->-- | TypeTree | -->-- | TypeObject |
@@ -73,6 +75,10 @@ The diagram above provides a very minimal overview of the different parts
 involved with translating language agnostic type definitions into language
 native type definitions. The diagram clearly shows the importance of the
 intermediate format, hereafter to be referred to as the *TypeTree*.
+XML stands for the XML Type Representation, which like the TypeObject, is
+a way to represent types as specified in the
+[Extensible and Dynamic Topic Types for DDS](https://www.omg.org/spec/DDS-XTypes/About-DDS-XTypes/)
+specification.
 
 
 ### TypeTree design
@@ -88,7 +94,7 @@ Previous incarnations of IDL compilers studied often used a visitor pattern.
 i.e. The backend registers a set of callback functions, usually one or more
 for each type, and the programmer calls a function that *visits* each type
 exactly once and calls the appropriate callback functions in order. However,
-this method is considered to rigid.
+this method is considered too rigid.
 
 1. There are cases where a part of the tree must be traversed several times
    with different callback functions. For instance, when generating code for
@@ -182,4 +188,147 @@ union type {
   map_t tu_map;
 };
 ```
+
+#### Details
+
+Although the TypeTree follows the IDL syntax, there is one notable
+exceptions. Consider for example, the following fragment of IDL:
+
+```C
+struct s {
+   short a[3], b[5][6];
+};
+```
+
+The the syntax tree would look like:
+```
+   struct 's'
+   |
+   +-- member
+       |
+       +-- type 'short'
+       |
+       +-- declarators
+           |
+           +-- declarator 'a'
+           |   |
+           |   +-- array size '3'
+           |
+           +-- declarator 'b'
+               |
+               +-- array size '5'
+               |
+               +-- array size '6'
+```
+
+But in the TypeTree it is better to use the following tree representation
+that follows the 'semantic' representation of a type better:
+
+```
+   struct 's'
+   |
+   +-- declaration 'a'
+   |   |
+   |   +-- array size '3'
+   |       |
+   |       +-- short   <-------+
+   |                           |
+   +-- declaration 'b'         |
+       |                       |
+       +-- array size '5'      |
+           |                   |
+           +-- array size '6'  |
+               |               |
+               +---------------+
+```
+
+Note that the type 'short' is shared between the two declarations and
+that a far more complex type could have been used instead.
+During the freeing of the TypeTree, some mechanism is needed to determine
+if a tree is shared or not. Although, reference counting is commonly used
+for this, we decide to use a special flag for this. In the above example
+this flag will be set on the type `array size '6'`. (Because a map has two
+types, it requires two different flags for this.)
+
+
+
+#### Examples with structs
+
+There are several ways to define the 'same' data structure with
+(anonymous) structs. Below three examples are given, together with
+the type trees.
+
+The first example defines a struct `A`, which is used in struct `B`.
+```C
+   struct A {
+     short a;
+   };
+   struct B {
+     A b;
+   };
+```
+This results in the following TypeTree:
+```
+  |
+  +-- struct 'A'  <---------+
+  |   |                     |
+  |   +-- declaration 'a'   |
+  |       |                 |
+  |       +-- short         |
+  |                         |
+  +-- struct 'B'            |
+      |                     |
+      +-- declaration 'b'   |
+          |                 |
+          +-----------------+
+```
+
+In the second example, the struct `A` appears as an embedded struct
+inside struct `B`.
+```C
+   struct B {
+     struct A {
+       short a;
+     };
+     A b;
+   };
+```
+This results in the following TypeTree:
+```
+  |
+  +-- struct 'B'
+      |
+      +-- struct 'A'  <---------+
+      |   |                     |
+      |   +-- declaration 'a'   |
+      |       |                 |
+      |       +-- short         |
+      |                         |
+      +-- declaration 'b'       |
+          |                     |
+          +---------------------+
+```
+
+In the third example, an anonymous struct is used in the declaration of `b`.
+```C
+   struct B {
+     struct {
+       short a;
+     } b;
+   };
+```
+This results in the following TypeTree:
+```
+  |
+  +-- struct 'B'
+      |
+      +-- declarator 'b'
+          |
+          +-- struct
+              |
+              +-- declarator 'a'
+                  |
+                  +-- short
+```
+
 
