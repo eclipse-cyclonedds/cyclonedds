@@ -300,37 +300,46 @@ static int print_proxy_participants (struct thread_state1 *self, ddsi_tran_conn_
   return x;
 }
 
+static void debmon_handle_connection (struct debug_monitor *dm, ddsi_tran_conn_t conn)
+{
+  struct plugin *p;
+  int r = 0;
+  r += print_participants (dm->servts, conn);
+  if (r == 0)
+    r += print_proxy_participants (dm->servts, conn);
+
+  /* Note: can only add plugins (at the tail) */
+  ddsrt_mutex_lock (&dm->lock);
+  p = dm->plugins;
+  while (r == 0 && p != NULL)
+  {
+    ddsrt_mutex_unlock (&dm->lock);
+    r += p->fn (conn, cpf, p->arg);
+    ddsrt_mutex_lock (&dm->lock);
+    p = p->next;
+  }
+  ddsrt_mutex_unlock (&dm->lock);
+}
+
 static uint32_t debmon_main (void *vdm)
 {
   struct debug_monitor *dm = vdm;
   ddsrt_mutex_lock (&dm->lock);
   while (!dm->stop)
   {
-    ddsi_tran_conn_t conn;
     ddsrt_mutex_unlock (&dm->lock);
-    if ((conn = ddsi_listener_accept (dm->servsock)) != NULL)
+    ddsi_tran_conn_t conn = ddsi_listener_accept (dm->servsock);
+    ddsrt_mutex_lock (&dm->lock);
+    if (conn != NULL && !dm->stop)
     {
-      struct plugin *p;
-      int r = 0;
-      r += print_participants (dm->servts, conn);
-      if (r == 0)
-        r += print_proxy_participants (dm->servts, conn);
-
-      /* Note: can only add plugins (at the tail) */
-      ddsrt_mutex_lock (&dm->lock);
-      p = dm->plugins;
-      while (r == 0 && p != NULL)
-      {
-        ddsrt_mutex_unlock (&dm->lock);
-        r += p->fn (conn, cpf, p->arg);
-        ddsrt_mutex_lock (&dm->lock);
-        p = p->next;
-      }
       ddsrt_mutex_unlock (&dm->lock);
-
+      debmon_handle_connection (dm, conn);
+      ddsrt_mutex_lock (&dm->lock);
+    }
+    if (conn != NULL)
+    {
       ddsi_conn_free (conn);
     }
-    ddsrt_mutex_lock (&dm->lock);
   }
   ddsrt_mutex_unlock (&dm->lock);
   return 0;
