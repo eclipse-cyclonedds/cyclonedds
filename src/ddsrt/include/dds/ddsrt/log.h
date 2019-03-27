@@ -106,7 +106,7 @@ typedef struct {
 /** Function signature that log and trace callbacks must adhere too. */
 typedef void(*dds_log_write_fn_t)(void *, const dds_log_data_t *);
 
-extern uint32_t *const dds_log_mask;
+DDS_EXPORT extern uint32_t *const dds_log_mask;
 
 /**
  * @brief Get currently enabled log and trace categories.
