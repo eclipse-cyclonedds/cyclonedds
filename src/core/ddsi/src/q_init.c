@@ -1275,60 +1275,19 @@ int rtps_init (void)
   gv.rtps_keepgoing = 1;
   ddsrt_rwlock_init (&gv.qoslock);
 
-  {
-    int r;
-    gv.builtins_dqueue = nn_dqueue_new ("builtins", config.delivery_queue_maxsamples, builtins_dqueue_handler, NULL);
-    if ((r = xeventq_start (gv.xevents, NULL)) < 0)
-    {
-      DDS_FATAL("failed to start global event processing thread (%d)\n", r);
-    }
-  }
-
   if (config.xpack_send_async)
   {
     nn_xpack_sendq_init();
     nn_xpack_sendq_start();
   }
 
+  gv.builtins_dqueue = nn_dqueue_new ("builtins", config.delivery_queue_maxsamples, builtins_dqueue_handler, NULL);
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-  /* Create a delivery queue and start tev for each channel */
-  {
-    struct config_channel_listelem * chptr = config.channels;
-    while (chptr)
-    {
-      chptr->dqueue = nn_dqueue_new (chptr->name, config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
-      if (chptr->evq)
-      {
-        int r;
-        if ((r = xeventq_start (chptr->evq, chptr->name)) < 0)
-          DDS_FATAL("failed to start event processing thread for channel '%s' (%d)\n", chptr->name, r);
-      }
-      chptr = chptr->next;
-    }
-  }
+  for (struct config_channel_listelem *chptr = config.channels; chptr; chptr = chptr->next)
+    chptr->dqueue = nn_dqueue_new (chptr->name, config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
 #else
   gv.user_dqueue = nn_dqueue_new ("user", config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
 #endif
-
-  if (setup_and_start_recv_threads () < 0)
-  {
-    DDS_FATAL("failed to start receive threads\n");
-  }
-
-  if (gv.listener)
-  {
-    gv.listen_ts = create_thread ("listen", (uint32_t (*) (void *)) listen_thread, gv.listener);
-  }
-
-  if (gv.startup_mode)
-  {
-    qxev_end_startup_mode (add_duration_to_mtime (now_mt (), config.startup_mode_duration));
-  }
-
-  if (config.monitor_port >= 0)
-  {
-    gv.debmon = new_debug_monitor (config.monitor_port);
-  }
 
   return 0;
 
@@ -1400,6 +1359,57 @@ err_udp_tcp_init:
   if (config.tp_enable)
     ut_thread_pool_free (gv.thread_pool);
   return -1;
+}
+
+#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+static void stop_all_xeventq_upto (struct config_channel_listelem *chptr)
+{
+  for (struct config_channel_listelem *chptr1 = config.channels; chptr1 != chptr; chptr1 = chptr1->next)
+    if (chptr1->evq)
+      xeventq_stop (chptr1->evq);
+}
+#endif
+
+int rtps_start (void)
+{
+  if (xeventq_start (gv.xevents, NULL) < 0)
+    return -1;
+#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+  for (struct config_channel_listelem *chptr = config.channels; chptr; chptr = chptr->next)
+  {
+    if (chptr->evq)
+    {
+      if (xeventq_start (chptr->evq, chptr->name) < 0)
+      {
+        stop_all_xeventq_upto (chptr);
+        xeventq_stop (gv.xevents);
+        return -1;
+      }
+    }
+  }
+#endif
+
+  if (setup_and_start_recv_threads () < 0)
+  {
+#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+    stop_all_xeventq_upto (NULL);
+#endif
+    xeventq_stop (gv.xevents);
+    return -1;
+  }
+  if (gv.listener)
+  {
+    gv.listen_ts = create_thread ("listen", (uint32_t (*) (void *)) listen_thread, gv.listener);
+  }
+  if (gv.startup_mode)
+  {
+    qxev_end_startup_mode (add_duration_to_mtime (now_mt (), config.startup_mode_duration));
+  }
+  if (config.monitor_port >= 0)
+  {
+    gv.debmon = new_debug_monitor (config.monitor_port);
+  }
+  return 0;
 }
 
 struct dq_builtins_ready_arg {

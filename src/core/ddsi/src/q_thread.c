@@ -172,6 +172,7 @@ static uint32_t create_thread_wrapper (void *ptr)
 {
   uint32_t ret;
   struct thread_context *ctx = ptr;
+  DDS_TRACE ("started new thread %"PRIdTID": %s\n", ddsrt_gettid (), ctx->self->name);
   ctx->self->tid = ddsrt_thread_self ();
   ret = ctx->f (ctx->arg);
   ddsrt_free (ctx);
@@ -272,7 +273,6 @@ struct thread_state1 *create_thread (const char *name, uint32_t (*f) (void *arg)
     DDS_FATAL("create_thread: %s: ddsrt_thread_create failed\n", name);
     goto fatal;
   }
-  DDS_TRACE("started new thread %"PRIdTID" : %s\n", ddsrt_gettid(), name);
   ts1->extTid = tid; /* overwrite the temporary value with the correct external one */
   ddsrt_mutex_unlock (&thread_states.lock);
   return ts1;
