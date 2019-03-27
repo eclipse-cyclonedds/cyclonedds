@@ -11,6 +11,9 @@
 #
 include(CUnit)
 
-add_cunit_executable(testtypes "parser.c")
-target_link_libraries(testtypes PRIVATE ddsts)
+set(sources
+  "parser.c")
+
+add_cunit_executable(testidlparser ${sources})
+target_link_libraries(testidlparser PRIVATE idll)
 

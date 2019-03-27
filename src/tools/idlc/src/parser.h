@@ -12,11 +12,10 @@
 #ifndef IDL_PARSER_H
 #define IDL_PARSER_H
 
-int dds_ts_parse_file(const char *file, void (*error_func)(int line, int column, const char *msg));
-int dds_ts_parse_string(const char *str, void (*error_func)(int line, int column, const char *msg));
+#include "dds/ddsrt/retcode.h"
 
-/* For testing: */
-int dds_ts_parse_string_stringify(const char *str, char *buffer, size_t len);
+dds_return_t ddsts_idl_parse_file(const char *file, ddsts_type_t **ref_root_type);
+dds_return_t ddsts_idl_parse_string(const char *str, ddsts_type_t **ref_root_type);
 
 #endif /* IDL_PARSER_H */
 
