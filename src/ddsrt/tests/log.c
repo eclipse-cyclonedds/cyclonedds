@@ -115,6 +115,14 @@ static void copy(void *ptr, const dds_log_data_t *data)
   *(char **)ptr = ddsrt_strdup(data->message);
 }
 
+static void reset(void)
+{
+  /* Reset log internals to default. */
+  dds_set_log_mask(DDS_LC_ERROR | DDS_LC_WARNING);
+  dds_set_trace_sink(NULL, NULL);
+  dds_set_log_sink(NULL, NULL);
+}
+
 static void setup(void)
 {
   fh = fmemopen(NULL, 1024, "wb+");
@@ -123,6 +131,7 @@ static void setup(void)
 
 static void teardown(void)
 {
+  reset();
   (void)fclose(fh);
 }
 
@@ -178,7 +187,7 @@ CU_Test(dds_log, same_file, .init=setup, .fini=teardown)
 /* The sinks are considered to be the same only if the callback and userdata
    both are an exact match. If the userdata is different, the function should
    be called twice for log messages. */
-CU_Test(dds_log, same_sink_function)
+CU_Test(dds_log, same_sink_function, .fini=reset)
 {
   int log_cnt = 0, trace_cnt = 0;
 
@@ -190,7 +199,7 @@ CU_Test(dds_log, same_sink_function)
   CU_ASSERT_EQUAL(trace_cnt, 1);
 }
 
-CU_Test(dds_log, exact_same_sink)
+CU_Test(dds_log, exact_same_sink, .fini=reset)
 {
   int cnt = 0;
 
@@ -266,7 +275,7 @@ CU_Test(dds_log, no_sink, .init=setup, .fini=teardown)
 /* A newline terminates the message. Until that a newline is encountered, the
    messages must be concatenated in the buffer. The newline is replaced by a
    NULL byte if it is flushed to a sink. */
-CU_Test(dds_log, newline_terminates)
+CU_Test(dds_log, newline_terminates, .fini=reset)
 {
   char *msg = NULL;
 
@@ -282,10 +291,9 @@ CU_Test(dds_log, newline_terminates)
 }
 
 /* Nothing must be written unless a category is enabled. */
-CU_Test(dds_log, disabled_categories_discarded)
+CU_Test(dds_log, disabled_categories_discarded, .fini=reset)
 {
   char *msg = NULL;
-
   dds_set_log_sink(&copy, &msg);
   DDS_INFO("foobar\n");
   CU_ASSERT_PTR_NULL_FATAL(msg);
@@ -336,7 +344,7 @@ static uint32_t run(void *ptr)
 /* Log and trace sinks can be changed at runtime. However, the operation must
    be synchronous! Verify the dds_set_log_sink blocks while other threads
    reside in the log or trace sinks. */
-CU_Test(dds_log, synchronous_sink_changes)
+CU_Test(dds_log, synchronous_sink_changes, .fini=reset)
 {
   struct arg arg;
   dds_time_t diff, stamp;
