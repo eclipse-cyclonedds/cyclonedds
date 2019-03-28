@@ -48,12 +48,20 @@ target_include_directories(
 add_executable(process_app process_app.c)
 target_link_libraries(process_app PRIVATE ddsrt)
 target_include_directories(
-  process_app PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
-if (MSVC_IDE)
-  set(process_app_name "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}/process_app${CMAKE_EXECUTABLE_SUFFIX}")
-else()
-  set(process_app_name "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/process_app${CMAKE_EXECUTABLE_SUFFIX}")
-endif()
+        process_app
+        PRIVATE
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
+# Force the app to be at the same location, no matter what platform or build type.
+set_target_properties(
+        process_app
+        PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY                ${CMAKE_CURRENT_BINARY_DIR}
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG          ${CMAKE_CURRENT_BINARY_DIR}
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE        ${CMAKE_CURRENT_BINARY_DIR}
+        RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_CURRENT_BINARY_DIR}
+        RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL     ${CMAKE_CURRENT_BINARY_DIR} )
+# Let the cunit application know the location and name of the test application.
+set(process_app_name "${CMAKE_CURRENT_BINARY_DIR}/process_app${CMAKE_EXECUTABLE_SUFFIX}")
 configure_file(
-  "process_test.h.in" "${CMAKE_CURRENT_BINARY_DIR}/include/process_test.h" @ONLY)
+        "process_test.h.in" "${CMAKE_CURRENT_BINARY_DIR}/include/process_test.h" @ONLY)
 
