@@ -44,6 +44,8 @@ extern "C" {
 DDS_EXPORT ddsrt_pid_t
 ddsrt_getpid(void);
 
+#ifdef PROCESS_MANAGEMENT_ENABLED
+
 /**
  * @brief Create new process.
  *
@@ -64,7 +66,11 @@ ddsrt_getpid(void);
  * @retval DDS_RETCODE_OK
  *             Process successfully created.
  * @retval DDS_RETCODE_BAD_PARAMETER
- *             Provided file is not executable.
+ *             Provided file is not available or not executable.
+ * @retval DDS_RETCODE_NOT_ALLOWED
+ *             Caller is not permitted to start the process.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES
+ *             Not enough resources to start the process.
  * @retval DDS_RETCODE_ERROR
  *             Process could not be created.
  */
@@ -75,61 +81,59 @@ ddsrt_process_create(
   ddsrt_pid_t *pid);
 
 /**
- * @brief Wait for a process to exit.
+ * @brief Get the exit code of a process.
  *
- * When the process (identified by pid) has exited, the status argument will
- * contain the process exit code.
- *
- * When the process is terminated by a call to ddsrt_process_terminate(), then
- * the return code is uncertain, except that it won't be DDS_RETCODE_TIMEOUT.
- *
- * @param[in]   pid            Process ID (PID) of the process to wait for.
- * @param[in]   timeout        Max timeout to wait for the process to exit.
- * @param[out]  status         The exit code of the process.
+ * @param[in]   pid            Process ID (PID) to get the exit code from.
+ * @param[out]  code           The exit code of the process.
  *
  * @returns A dds_retcode_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
- *             Process has exited.
- * @retval DDS_RETCODE_TIMEOUT
+ *             Process has terminated and its exit code has been captured.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
  *             Process is still alive.
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             Process unknown.
  * @retval DDS_RETCODE_ERROR
- *             Wait failed for an unknown reason.
+ *             Getting the exit code failed for an unknown reason.
  */
 DDS_EXPORT dds_retcode_t
-ddsrt_process_wait_exit(
+ddsrt_process_get_exit_code(
   ddsrt_pid_t pid,
-  dds_duration_t timeout,
-  int32_t *status);
+  int32_t *code);
 
 /**
  * @brief Terminate a process.
  *
- * This will try to gracefully terminate the process (identified by pid).
+ * Depending on the force argument, this function will either try to
+ * either gracefully terminate the process (identified by pid) or
+ * forcefully kill it.
  *
- * If the process hasn't terminated within the timeout, the process will
- * be forcefully killed.
+ * When DDS_RETCODE_OK is returned, it doesn't mean that the process
+ * has actually terminated. It only indicates that the process was
+ * 'told' to terminate. Call ddsrt_process_get_exit_code() to know
+ * for sure if the process has terminated.
  *
- * @param[in]   pid            Process ID (PID) of the process to terminate.
- * @param[in]   timeout        Max timeout to wait for graceful termination.
+ * @param[in]   pid       Process ID (PID) of the process to terminate.
+ * @param[in]   force     TRUE - force kill, FALSE - gracefully terminate.
  *
  * @returns A dds_retcode_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
- *             Process has gracefully terminated.
- * @retval DDS_RETCODE_TIMEOUT
- *             Graceful termination failed. Process has been killed.
+ *             Process was told to terminate.
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             Process unknown.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             Caller is not allowed to terminate the process.
  * @retval DDS_RETCODE_ERROR
  *             Termination failed for an unknown reason.
  */
 DDS_EXPORT dds_retcode_t
 ddsrt_process_terminate(
   ddsrt_pid_t pid,
-  dds_duration_t timeout);
+  bool force);
+
+#endif /* PROCESS_MANAGEMENT_ENABLED */
 
 
 #if defined (__cplusplus)

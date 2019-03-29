@@ -12,25 +12,30 @@
 #include <errno.h>
 #include <assert.h>
 #include <process.h>
-
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/process.h"
-
-static HANDLE        pid_to_phdl         (ddsrt_pid_t pid);
-static dds_retcode_t process_wait_exit   (HANDLE phdl, dds_duration_t timeout, int32_t *status);
-static dds_retcode_t process_terminate   (HANDLE phdl, dds_duration_t timeout);
-static dds_retcode_t process_kill        (HANDLE phdl, dds_duration_t timeout);
-static char*         commandline         (const char *exe, char *const argv_in[]);
-
-
 
 ddsrt_pid_t
 ddsrt_getpid(void)
 {
   return GetCurrentProcessId();
 }
+
+
+#ifdef PROCESS_MANAGEMENT_ENABLED
+
+
+extern inline DWORD
+ddsrt_duration_to_msecs_ceil(dds_duration_t reltime);
+
+
+static HANDLE        pid_to_phdl          (ddsrt_pid_t pid);
+static dds_retcode_t process_get_exit_code(HANDLE phdl, int32_t *code);
+static dds_retcode_t process_terminate    (HANDLE phdl);
+static dds_retcode_t process_kill         (HANDLE phdl);
+static char*         commandline          (const char *exe, char *const argv_in[]);
 
 
 
@@ -50,6 +55,9 @@ ddsrt_process_create(
   assert(pid != NULL);
 
   cmd = commandline(executable, argv);
+  if (cmd == NULL) {
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  }
 
   memset(&si, 0, sizeof(STARTUPINFO));
   si.cb = sizeof(STARTUPINFO);
@@ -81,9 +89,10 @@ ddsrt_process_create(
     } else {
       DWORD error = GetLastError();
       if ((ERROR_FILE_NOT_FOUND == error) ||
-          (ERROR_PATH_NOT_FOUND == error) ||
-          (ERROR_ACCESS_DENIED  == error)) {
+          (ERROR_PATH_NOT_FOUND == error)) {
         rv = DDS_RETCODE_BAD_PARAMETER;
+      } else if (ERROR_ACCESS_DENIED  == error) {
+        rv = DDS_RETCODE_NOT_ALLOWED;
       }
     }
     FreeEnvironmentStrings(environment);
@@ -95,19 +104,17 @@ ddsrt_process_create(
 }
 
 
-
 dds_retcode_t
-ddsrt_process_wait_exit(
+ddsrt_process_get_exit_code(
   ddsrt_pid_t pid,
-  dds_duration_t timeout,
-  int32_t *status)
+  int32_t *code)
 {
   dds_retcode_t rv = DDS_RETCODE_BAD_PARAMETER;
   HANDLE phdl;
 
   phdl = pid_to_phdl(pid);
   if (phdl != 0) {
-    rv = process_wait_exit(phdl, timeout, status);
+    rv = process_get_exit_code(phdl, code);
     CloseHandle (phdl);
   }
 
@@ -119,23 +126,19 @@ ddsrt_process_wait_exit(
 dds_retcode_t
 ddsrt_process_terminate(
   ddsrt_pid_t pid,
-  dds_duration_t timeout)
+  bool force)
 {
   dds_retcode_t rv = DDS_RETCODE_BAD_PARAMETER;
   HANDLE phdl;
 
   phdl = pid_to_phdl(pid);
   if (phdl != 0) {
-    /* Try a graceful kill. */
-    rv = process_terminate(phdl, timeout);
-
-    /* Escalate when not killed yet. */
-    if (rv != DDS_RETCODE_OK) {
+    if (force) {
       /* Forcefully kill. */
-      rv = process_kill(phdl, timeout);
-      if (rv == DDS_RETCODE_OK) {
-        rv = DDS_RETCODE_TIMEOUT;
-      }
+      rv = process_kill(phdl);
+    } else {
+      /* Try a graceful kill. */
+      rv = process_terminate(phdl);
     }
     CloseHandle(phdl);
   }
@@ -174,41 +177,21 @@ pid_to_phdl(ddsrt_pid_t pid)
 
 
 static dds_retcode_t
-process_wait_exit(
+process_get_exit_code(
   HANDLE phdl,
-  dds_duration_t timeout,
-  int32_t *status)
+  int32_t *code)
 {
-  dds_retcode_t rv = DDS_RETCODE_TIMEOUT;
-  dds_duration_t poll = DDS_MSECS(10);
-  BOOL ret;
+  dds_retcode_t rv = DDS_RETCODE_ERROR;
   DWORD tr;
 
   assert(phdl != 0);
 
-  /*
-   * Polling.
-   * It would be preferable to replace this with with a better
-   * exit detection. But it'll do for now.
-   */
-  while (rv == DDS_RETCODE_TIMEOUT) {
-    ret = GetExitCodeProcess(phdl, &tr);
-    if (!ret) {
-      if (errno == ERROR_INVALID_HANDLE) {
-        rv = DDS_RETCODE_BAD_PARAMETER;
-      } else {
-        rv = DDS_RETCODE_ERROR;
-      }
-    } else if (tr == STILL_ACTIVE) {
-      /* Process is still alive. */
-      timeout -= poll;
-      if (timeout < 0) {
-        break;
-      }
-      dds_sleepfor(poll);
+  if (GetExitCodeProcess(phdl, &tr)) {
+    if (tr == STILL_ACTIVE) {
+      rv = DDS_RETCODE_PRECONDITION_NOT_MET;
     } else {
-      if (status) {
-        *status = (int32_t)tr;
+      if (code) {
+        *code = (int32_t)tr;
       }
       rv = DDS_RETCODE_OK;
     }
@@ -225,40 +208,39 @@ process_wait_exit(
  * the process to terminate somewhat gracefully.
  */
 static dds_retcode_t
-process_terminate(
-  HANDLE phdl,
-  dds_duration_t timeout)
+process_terminate(HANDLE phdl)
 {
-  dds_retcode_t rv = DDS_RETCODE_ERROR;
+  dds_retcode_t rv;
   HINSTANCE kernel32;
   HANDLE remoteHandle;
   HANDLE dupHandle;
   BOOL duplicated;
   DWORD threadId;
   DWORD waitres;
-  DWORD waitmsec;
 
   assert(phdl != 0);
 
-  kernel32 = GetModuleHandle("Kernel32");
-  if (kernel32) {
-    /* Ensure that we will have rights to create a thread
-     * in the remote process. */
-    duplicated = DuplicateHandle(GetCurrentProcess(),
-                                 phdl,
-                                 GetCurrentProcess(),
-                                 &dupHandle,
-                                 PROCESS_ALL_ACCESS,
-                                 FALSE,
-                                 0);
-    if (duplicated) {
-      phdl = dupHandle;
-    }
+  /* Check if target process is actually still alive. */
+  rv = process_get_exit_code(phdl, NULL);
+  if (rv == DDS_RETCODE_PRECONDITION_NOT_MET) {
+    rv = DDS_RETCODE_ERROR;
+    kernel32 = GetModuleHandle("Kernel32");
+    if (kernel32) {
+      /* Ensure that we will have rights to create a thread
+       * in the remote process. */
+      duplicated = DuplicateHandle(GetCurrentProcess(),
+                                   phdl,
+                                   GetCurrentProcess(),
+                                   &dupHandle,
+                                   PROCESS_ALL_ACCESS,
+                                   FALSE,
+                                   0);
+      if (duplicated) {
+        phdl = dupHandle;
+      }
 
-    rv = process_wait_exit(phdl, 0, NULL);
-    if (rv == DDS_RETCODE_TIMEOUT) {
-      /* Target process is still alive. Try to terminate it by
-       * injecting a thread that will execute a ExitProcess(). */
+      /* Try terminate the process by injecting a thread
+       * that will execute a ExitProcess(). */
       FARPROC funcExitProcess;
       funcExitProcess = GetProcAddress(kernel32, "ExitProcess");
       if (funcExitProcess) {
@@ -269,26 +251,14 @@ process_terminate(
                                           (LPVOID)1,  /* Exit code */
                                           0,
                                           &threadId);
-        if (remoteHandle == 0) {
-          rv = DDS_RETCODE_ERROR;
-        } else {
-          /* Wait for the process to exit. */
-          waitmsec = INFINITE;
-          if (timeout != DDS_INFINITY) {
-            waitmsec = (DWORD)(timeout / DDS_NSECS_IN_MSEC);
-          }
-          waitres = WaitForSingleObject(phdl, waitmsec);
+        if (remoteHandle != 0) {
+          /* Wait for the process to exit before closing the handle. */
+          waitres = WaitForSingleObject(phdl, 10000);
           if (waitres == 0) {
             rv = DDS_RETCODE_OK;
-          } else if (waitres == WAIT_TIMEOUT) {
-            rv = DDS_RETCODE_TIMEOUT;
-          } else {
-            rv = DDS_RETCODE_ERROR;
           }
           CloseHandle(remoteHandle);
         }
-      } else {
-        rv = DDS_RETCODE_ERROR;
       }
     }
 
@@ -304,9 +274,7 @@ process_terminate(
 
 /* Forcefully kill the given process. */
 static dds_retcode_t
-process_kill(
-  HANDLE phdl,
-  dds_duration_t timeout)
+process_kill(HANDLE phdl)
 {
   assert(phdl != 0);
   if (TerminateProcess(phdl, 1 /* exit code */) == 0) {
@@ -394,7 +362,9 @@ commandline(const char *exe, char *const argv_in[])
 
   if (argv_in == NULL) {
     cmd = ddsrt_malloc(cmdlen);
-    stringify(cmd, exe);
+    if (cmd) {
+      stringify(cmd, exe);
+    }
   } else {
     char *ptr;
     size_t argi;
@@ -402,11 +372,15 @@ commandline(const char *exe, char *const argv_in[])
       cmdlen += stringify_len(argv_in[argi]);
     }
     cmd = ddsrt_malloc(cmdlen);
-    ptr = stringify(cmd, exe);
-    for (argi = 0; argv_in[argi] != NULL; argi++) {
-      ptr = stringify(ptr, argv_in[argi]);
+    if (cmd) {
+      ptr = stringify(cmd, exe);
+      for (argi = 0; argv_in[argi] != NULL; argi++) {
+        ptr = stringify(ptr, argv_in[argi]);
+      }
     }
   }
 
   return cmd;
 }
+
+#endif /* PROCESS_MANAGEMENT_ENABLED */

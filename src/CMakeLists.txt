@@ -166,6 +166,11 @@ set(MEMORYCHECK_COMMAND_OPTIONS "--track-origins=yes --leak-check=full --trace-c
 option(BUILD_TESTING "Build the testing tree." OFF)
 include(CTest)
 
+option(WITH_PROCESS "Enable process management feature, used for testing." ON)
+if (WITH_PROCESS)
+  add_definitions(-DPROCESS_MANAGEMENT_ENABLED)
+endif()
+
 # Build all executables and libraries into the top-level /bin and /lib folders.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")

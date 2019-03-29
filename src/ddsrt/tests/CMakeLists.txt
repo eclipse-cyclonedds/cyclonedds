@@ -24,8 +24,11 @@ set(sources
     "log.c"
     "strlcpy.c"
     "socket.c"
-    "select.c"
-    "process.c")
+    "select.c")
+
+if (WITH_PROCESS)
+  set(sources ${sources} "process.c")
+endif()
 
 add_cunit_executable(cunit_ddsrt ${sources})
 target_link_libraries(cunit_ddsrt PRIVATE ddsrt)

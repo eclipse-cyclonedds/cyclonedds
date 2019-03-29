@@ -21,10 +21,29 @@
 
 
 /*
+ * Just wait for a maximum of 10 seconds for
+ * a process to have terminated.
+ */
+static dds_retcode_t wait_exit(ddsrt_pid_t pid, int32_t *status)
+{
+  static const dds_duration_t poll = DDS_MSECS(50);
+  dds_duration_t timeout = DDS_SECS(10);
+  dds_retcode_t rv;
+
+  do {
+    dds_sleepfor(poll);
+    timeout -= poll;
+    rv = ddsrt_process_get_exit_code(pid, status);
+  } while ((rv == DDS_RETCODE_PRECONDITION_NOT_MET) && (timeout > 0));
+
+  return rv;
+}
+
+/*
  * Create a process that is expected to exit quickly.
  * Compare the exit code with the expected exit code.
  */
-void create_and_test_exit(const char *arg, int code)
+static void create_and_test_exit(const char *arg, int code)
 {
   dds_retcode_t ret;
   ddsrt_pid_t pid;
@@ -35,7 +54,7 @@ void create_and_test_exit(const char *arg, int code)
   ret = ddsrt_process_create(TEST_APPLICATION, argv, &pid);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
-  ret = ddsrt_process_wait_exit(pid, DDS_SECS(10), &status);
+  ret = wait_exit(pid, &status);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
 
   /* Check result. */
@@ -43,7 +62,7 @@ void create_and_test_exit(const char *arg, int code)
 
   /* Garbage collection when needed. */
   if (ret != DDS_RETCODE_OK) {
-    ddsrt_process_terminate(pid, DDS_SECS(10));
+    ddsrt_process_terminate(pid, true);
   }
 }
 
@@ -66,7 +85,6 @@ CU_Test(ddsrt_process, destroy)
 {
   dds_retcode_t ret;
   ddsrt_pid_t pid;
-  int32_t status;
   char *argv[] = { TEST_DESTROY_ARG0, TEST_DESTROY_ARG1, NULL };
 
   ret = ddsrt_process_create(TEST_APPLICATION, argv, &pid);
@@ -74,16 +92,21 @@ CU_Test(ddsrt_process, destroy)
   CU_ASSERT_NOT_EQUAL_FATAL(pid, 0);
 
   /* Check if process is running. */
-  ret = ddsrt_process_wait_exit(pid, 0, &status);
-  CU_ASSERT_EQUAL(ret, DDS_RETCODE_TIMEOUT);
+  ret = ddsrt_process_get_exit_code(pid, NULL);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_PRECONDITION_NOT_MET);
 
   /* Destroy it. */
-  ret = ddsrt_process_terminate(pid, DDS_SECS(10));
+  ret = ddsrt_process_terminate(pid, false);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
   /* Check if process is actually gone. */
-  ret = ddsrt_process_wait_exit(pid, 0, &status);
-  CU_ASSERT_NOT_EQUAL(ret, DDS_RETCODE_TIMEOUT);
+  ret = wait_exit(pid, NULL);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
+
+  /* Garbage collection when needed. */
+  if (ret != DDS_RETCODE_OK) {
+    ddsrt_process_terminate(pid, true);
+  }
 }
 
 
@@ -104,7 +127,7 @@ CU_Test(ddsrt_process, pid)
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
   CU_ASSERT_NOT_EQUAL_FATAL(pid, 0);
 
-  ret = ddsrt_process_wait_exit(pid, DDS_SECS(10), &status);
+  ret = wait_exit(pid, &status);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
 
   /* Compare the pid values. */
@@ -112,7 +135,7 @@ CU_Test(ddsrt_process, pid)
 
   /* Garbage collection when needed. */
   if (ret != DDS_RETCODE_OK) {
-    ddsrt_process_terminate(pid, DDS_SECS(10));
+    ddsrt_process_terminate(pid, true);
   }
 }
 
@@ -146,7 +169,7 @@ CU_Test(ddsrt_process, invalid)
 
   /* Garbage collection when needed. */
   if (ret == DDS_RETCODE_OK) {
-    ddsrt_process_terminate(pid, DDS_SECS(10));
+    ddsrt_process_terminate(pid, true);
   }
 }
 
