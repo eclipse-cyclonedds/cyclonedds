@@ -26,6 +26,12 @@
 
 #define DDSI_TRAN_ON_CONNECT 0x0001
 
+#if DDSRT_HAVE_IPV6 == 1
+# define DDSI_LOCATORSTRLEN INET6_ADDRSTRLEN_EXTENDED
+#else
+# define DDSI_LOCATORSTRLEN INET_ADDRSTRLEN_EXTENDED
+#endif
+
 /* Core types */
 
 typedef struct ddsi_tran_base * ddsi_tran_base_t;

@@ -52,6 +52,8 @@ include(ddsc/CMakeLists.txt)
 
 target_link_libraries(ddsc PRIVATE util)
 target_link_libraries(ddsc PRIVATE ddsrt)
+target_compile_definitions(
+  ddsc PUBLIC $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_COMPILE_DEFINITIONS>>)
 target_include_directories(
   ddsc PUBLIC $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>)
 

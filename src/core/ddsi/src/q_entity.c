@@ -381,7 +381,7 @@ int pp_allocate_entityid(nn_entityid_t *id, unsigned kind, struct participant *p
   else
   {
     DDS_ERROR("pp_allocate_entityid(%x:%x:%x:%x): all ids in use\n", PGUID(pp->e.guid));
-    ret = ERR_OUT_OF_IDS;
+    ret = Q_ERR_OUT_OF_IDS;
   }
   ddsrt_mutex_unlock (&pp->e.lock);
   return ret;
@@ -412,7 +412,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
      used to exist, but is currently being deleted and we're trying to
      recreate it. */
   if (ephash_lookup_participant_guid (ppguid) != NULL)
-    return ERR_ENTITY_EXISTS;
+    return Q_ERR_ENTITY_EXISTS;
 
   if (config.max_participants == 0)
   {
@@ -432,7 +432,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
     {
       ddsrt_mutex_unlock (&gv.participant_set_lock);
       DDS_ERROR("new_participant(%x:%x:%x:%x, %x) failed: max participants reached\n", PGUID (*ppguid), flags);
-      return ERR_OUT_OF_IDS;
+      return Q_ERR_OUT_OF_IDS;
     }
   }
 
@@ -659,7 +659,7 @@ int new_participant (nn_guid_t *p_ppguid, unsigned flags, const nn_plist_t *plis
   if (gv.next_ppguid.prefix.u[2]++ == ~0u)
   {
     ddsrt_mutex_unlock (&gv.privileged_pp_lock);
-    return ERR_OUT_OF_IDS;
+    return Q_ERR_OUT_OF_IDS;
   }
   ddsrt_mutex_unlock (&gv.privileged_pp_lock);
   *p_ppguid = ppguid;
@@ -854,7 +854,7 @@ int delete_participant (const struct nn_guid *ppguid)
 {
   struct participant *pp;
   if ((pp = ephash_lookup_participant_guid (ppguid)) == NULL)
-    return ERR_UNKNOWN_ENTITY;
+    return Q_ERR_UNKNOWN_ENTITY;
   ddsi_plugin.builtintopic_write (&pp->e, now(), false);
   remember_deleted_participant_guid (&pp->e.guid);
   ephash_remove_participant_guid (pp);
@@ -1105,7 +1105,7 @@ static void rebuild_trace_covered(int nreaders, int nlocs, const nn_locator_t *l
   int i, j;
   for (i = 0; i < nlocs; i++)
   {
-    char buf[INET6_ADDRSTRLEN_EXTENDED];
+    char buf[DDSI_LOCATORSTRLEN];
     ddsi_locator_to_string(buf, sizeof(buf), &locs[i]);
     DDS_LOG(DDS_LC_DISCOVERY, "  loc %2d = %-20s %2d {", i, buf, locs_nrds[i]);
     for (j = 0; j < nreaders; j++)
@@ -1140,7 +1140,7 @@ static int rebuild_select(int nlocs, const nn_locator_t *locs, const int *locs_n
 
 static void rebuild_add(struct addrset *newas, int locidx, int nreaders, int nlocs, const nn_locator_t *locs, const int8_t *covered)
 {
-  char str[INET6_ADDRSTRLEN_EXTENDED];
+  char str[DDSI_LOCATORSTRLEN];
   if (locs[locidx].kind != NN_LOCATOR_KIND_UDPv4MCGEN)
   {
     ddsi_locator_to_string(str, sizeof(str), &locs[locidx]);
@@ -2987,7 +2987,7 @@ int delete_writer_nolinger (const struct nn_guid *guid)
   if ((wr = ephash_lookup_writer_guid (guid)) == NULL)
   {
     DDS_LOG(DDS_LC_DISCOVERY, "delete_writer_nolinger(guid %x:%x:%x:%x) - unknown guid\n", PGUID (*guid));
-    return ERR_UNKNOWN_ENTITY;
+    return Q_ERR_UNKNOWN_ENTITY;
   }
   DDS_LOG(DDS_LC_DISCOVERY, "delete_writer_nolinger(guid %x:%x:%x:%x) ...\n", PGUID (*guid));
   ddsrt_mutex_lock (&wr->e.lock);
@@ -3010,7 +3010,7 @@ int delete_writer (const struct nn_guid *guid)
   if ((wr = ephash_lookup_writer_guid (guid)) == NULL)
   {
     DDS_LOG(DDS_LC_DISCOVERY, "delete_writer(guid %x:%x:%x:%x) - unknown guid\n", PGUID (*guid));
-    return ERR_UNKNOWN_ENTITY;
+    return Q_ERR_UNKNOWN_ENTITY;
   }
   DDS_LOG(DDS_LC_DISCOVERY, "delete_writer(guid %x:%x:%x:%x) ...\n", PGUID (*guid));
   ddsrt_mutex_lock (&wr->e.lock);
@@ -3029,12 +3029,12 @@ int delete_writer (const struct nn_guid *guid)
   else
   {
     nn_mtime_t tsched;
-    int tsec, tusec;
+    int32_t tsec, tusec;
     writer_set_state (wr, WRST_LINGERING);
     ddsrt_mutex_unlock (&wr->e.lock);
     tsched = add_duration_to_mtime (now_mt (), config.writer_linger_duration);
     mtime_to_sec_usec (&tsec, &tusec, tsched);
-    DDS_LOG(DDS_LC_DISCOVERY, "delete_writer(guid %x:%x:%x:%x) - unack'ed samples, will delete when ack'd or at t = %d.%06d\n",
+    DDS_LOG(DDS_LC_DISCOVERY, "delete_writer(guid %x:%x:%x:%x) - unack'ed samples, will delete when ack'd or at t = %"PRId32".%06"PRId32"\n",
             PGUID (*guid), tsec, tusec);
     qxev_delete_writer (tsched, &wr->e.guid);
   }
@@ -3388,7 +3388,7 @@ int delete_reader (const struct nn_guid *guid)
   if ((rd = ephash_lookup_reader_guid (guid)) == NULL)
   {
     DDS_LOG(DDS_LC_DISCOVERY, "delete_reader_guid(guid %x:%x:%x:%x) - unknown guid\n", PGUID (*guid));
-    return ERR_UNKNOWN_ENTITY;
+    return Q_ERR_UNKNOWN_ENTITY;
   }
   if (rd->rhc)
   {
@@ -3900,7 +3900,7 @@ int delete_proxy_participant_by_guid (const struct nn_guid * guid, nn_wctime_t t
   {
     ddsrt_mutex_unlock (&gv.lock);
     DDS_LOG(DDS_LC_DISCOVERY, "- unknown\n");
-    return ERR_UNKNOWN_ENTITY;
+    return Q_ERR_UNKNOWN_ENTITY;
   }
   DDS_LOG(DDS_LC_DISCOVERY, "- deleting\n");
   ddsi_plugin.builtintopic_write (&ppt->e, timestamp, false);
@@ -3955,7 +3955,7 @@ int new_proxy_group (const struct nn_guid *guid, const char *name, const struct 
         break;
       default:
         DDS_WARNING("new_proxy_group: unrecognised entityid: %x\n", guid->entityid.u);
-        return ERR_INVALID_DATA;
+        return Q_ERR_INVALID_DATA;
     }
     ddsrt_mutex_lock (&proxypp->e.lock);
     if ((pgroup = ut_avlLookupIPath (&proxypp_groups_treedef, &proxypp->groups, guid, &ipath)) != NULL)
@@ -4084,7 +4084,7 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   if ((proxypp = ephash_lookup_proxy_participant_guid (ppguid)) == NULL)
   {
     DDS_WARNING("new_proxy_writer(%x:%x:%x:%x): proxy participant unknown\n", PGUID (*guid));
-    return ERR_UNKNOWN_ENTITY;
+    return Q_ERR_UNKNOWN_ENTITY;
   }
 
   pwr = ddsrt_malloc (sizeof (*pwr));
@@ -4277,7 +4277,7 @@ int delete_proxy_writer (const struct nn_guid *guid, nn_wctime_t timestamp, int 
   {
     ddsrt_mutex_unlock (&gv.lock);
     DDS_LOG(DDS_LC_DISCOVERY, "- unknown\n");
-    return ERR_UNKNOWN_ENTITY;
+    return Q_ERR_UNKNOWN_ENTITY;
   }
   /* Set "deleting" flag in particular for Lite, to signal to the receive path it can't
      trust rdary[] anymore, which is because removing the proxy writer from the hash
@@ -4310,7 +4310,7 @@ int new_proxy_reader (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   if ((proxypp = ephash_lookup_proxy_participant_guid (ppguid)) == NULL)
   {
     DDS_WARNING("new_proxy_reader(%x:%x:%x:%x): proxy participant unknown\n", PGUID (*guid));
-    return ERR_UNKNOWN_ENTITY;
+    return Q_ERR_UNKNOWN_ENTITY;
   }
 
   prd = ddsrt_malloc (sizeof (*prd));
@@ -4408,7 +4408,7 @@ int delete_proxy_reader (const struct nn_guid *guid, nn_wctime_t timestamp, int 
   {
     ddsrt_mutex_unlock (&gv.lock);
     DDS_LOG(DDS_LC_DISCOVERY, "- unknown\n");
-    return ERR_UNKNOWN_ENTITY;
+    return Q_ERR_UNKNOWN_ENTITY;
   }
   ddsi_plugin.builtintopic_write (&prd->e, timestamp, false);
   ephash_remove_proxy_reader_guid (prd);

@@ -573,7 +573,7 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
   return 1;
 }
 
-static int add_Gap (struct nn_xmsg *msg, struct writer *wr, struct proxy_reader *prd, seqno_t start, seqno_t base, unsigned numbits, const unsigned *bits)
+static int add_Gap (struct nn_xmsg *msg, struct writer *wr, struct proxy_reader *prd, seqno_t start, seqno_t base, uint32_t numbits, const uint32_t *bits)
 {
   struct nn_xmsg_marker sm_marker;
   Gap_t *gap;
@@ -614,7 +614,7 @@ static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *
        it is as-if a Data submessage had once been sent with that
        sequence number and it now receives an unsollicited response to
        a NACK ... */
-    unsigned bits = 0;
+    uint32_t bits = 0;
     seqno_t seq;
     if (wr->seq > 0)
       seq = wr->seq;
@@ -708,7 +708,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   nn_count_t *countp;
   seqno_t gapstart = -1, gapend = -1;
   unsigned gapnumbits = 0;
-  unsigned gapbits[256 / 32];
+  uint32_t gapbits[256 / 32];
   int accelerate_rexmit = 0;
   int is_pure_ack;
   int is_pure_nonhist_ack;
@@ -1531,7 +1531,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
   }
   else
   {
-    static unsigned zero = 0;
+    static uint32_t zero = 0;
     struct nn_xmsg *m;
     DDS_TRACE(" msg not available: scheduling Gap\n");
     m = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
@@ -1979,7 +1979,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
     if ((plist_ret = nn_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET | PP_PRISMTECH_EOTINFO, 0, &src)) < 0)
     {
-      if (plist_ret != ERR_INCOMPATIBLE)
+      if (plist_ret != Q_ERR_INCOMPATIBLE)
         DDS_WARNING ("data(application, vendor %u.%u): %x:%x:%x:%x #%"PRId64": invalid inline qos\n",
                      src.vendorid.id[0], src.vendorid.id[1], PGUID (pwr->e.guid), sampleinfo->seq);
       return 0;
@@ -2545,7 +2545,7 @@ static void malformed_packet_received
       if (smsize >= sizeof (AckNack_t))
       {
         const AckNack_t *x = (const AckNack_t *) submsg;
-        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%x,%x,%"PRId64",%u}",
+        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%"PRIx32",%"PRIx32",%"PRId64",%"PRIu32"}",
                          x->smhdr.submessageId, x->smhdr.flags, x->smhdr.octetsToNextHeader,
                          x->readerId.u, x->writerId.u, fromSN (x->readerSNState.bitmap_base),
                          x->readerSNState.numbits);
@@ -2555,7 +2555,7 @@ static void malformed_packet_received
       if (smsize >= sizeof (Heartbeat_t))
       {
         const Heartbeat_t *x = (const Heartbeat_t *) submsg;
-        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%x,%x,%"PRId64",%"PRId64"}",
+        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%"PRIx32",%"PRIx32",%"PRId64",%"PRId64"}",
                          x->smhdr.submessageId, x->smhdr.flags, x->smhdr.octetsToNextHeader,
                          x->readerId.u, x->writerId.u, fromSN (x->firstSN), fromSN (x->lastSN));
       }
@@ -2564,7 +2564,7 @@ static void malformed_packet_received
       if (smsize >= sizeof (Gap_t))
       {
         const Gap_t *x = (const Gap_t *) submsg;
-        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%x,%x,%"PRId64",%"PRId64",%u}",
+        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%"PRIx32",%"PRIx32",%"PRId64",%"PRId64",%"PRIu32"}",
                          x->smhdr.submessageId, x->smhdr.flags, x->smhdr.octetsToNextHeader,
                          x->readerId.u, x->writerId.u, fromSN (x->gapStart),
                          fromSN (x->gapList.bitmap_base), x->gapList.numbits);
@@ -2574,7 +2574,7 @@ static void malformed_packet_received
       if (smsize >= sizeof (NackFrag_t))
       {
         const NackFrag_t *x = (const NackFrag_t *) submsg;
-        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%x,%x,%"PRId64",%u,%u}",
+        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%"PRIx32",%"PRIx32",%"PRId64",%u,%"PRIu32"}",
                          x->smhdr.submessageId, x->smhdr.flags, x->smhdr.octetsToNextHeader,
                          x->readerId.u, x->writerId.u, fromSN (x->writerSN),
                          x->fragmentNumberState.bitmap_base, x->fragmentNumberState.numbits);
@@ -2584,7 +2584,7 @@ static void malformed_packet_received
       if (smsize >= sizeof (HeartbeatFrag_t))
       {
         const HeartbeatFrag_t *x = (const HeartbeatFrag_t *) submsg;
-        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%x,%x,%"PRId64",%u}",
+        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%"PRIx32",%"PRIx32",%"PRId64",%u}",
                          x->smhdr.submessageId, x->smhdr.flags, x->smhdr.octetsToNextHeader,
                          x->readerId.u, x->writerId.u, fromSN (x->writerSN),
                          x->lastFragmentNum);
@@ -2594,7 +2594,7 @@ static void malformed_packet_received
       if (smsize >= sizeof (Data_t))
       {
         const Data_t *x = (const Data_t *) submsg;
-        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%x,%u,%x,%x,%"PRId64"}",
+        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%x,%u,%"PRIx32",%"PRIx32",%"PRId64"}",
                          x->x.smhdr.submessageId, x->x.smhdr.flags, x->x.smhdr.octetsToNextHeader,
                          x->x.extraFlags, x->x.octetsToInlineQos,
                          x->x.readerId.u, x->x.writerId.u, fromSN (x->x.writerSN));
@@ -2604,7 +2604,7 @@ static void malformed_packet_received
       if (smsize >= sizeof (DataFrag_t))
       {
         const DataFrag_t *x = (const DataFrag_t *) submsg;
-        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%x,%u,%x,%x,%"PRId64",%u,%u,%u,%u}",
+        (void) snprintf (tmp + pos, sizeof (tmp) - pos, " {{%x,%x,%u},%x,%u,%"PRIx32",%"PRIx32",%"PRId64",%u,%u,%u,%"PRIu32"}",
                          x->x.smhdr.submessageId, x->x.smhdr.flags, x->x.smhdr.octetsToNextHeader,
                          x->x.extraFlags, x->x.octetsToInlineQos,
                          x->x.readerId.u, x->x.writerId.u, fromSN (x->x.writerSN),

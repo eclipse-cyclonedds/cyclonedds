@@ -53,9 +53,9 @@ int valid_ddsi_timestamp (nn_ddsi_time_t t);
 DDS_EXPORT nn_wctime_t now (void);       /* wall clock time */
 DDS_EXPORT nn_mtime_t now_mt (void);     /* monotonic time */
 DDS_EXPORT nn_etime_t now_et (void);     /* elapsed time */
-DDS_EXPORT void mtime_to_sec_usec (int * __restrict sec, int * __restrict usec, nn_mtime_t t);
-DDS_EXPORT void wctime_to_sec_usec (int * __restrict sec, int * __restrict usec, nn_wctime_t t);
-DDS_EXPORT void etime_to_sec_usec (int * __restrict sec, int * __restrict usec, nn_etime_t t);
+DDS_EXPORT void mtime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, nn_mtime_t t);
+DDS_EXPORT void wctime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, nn_wctime_t t);
+DDS_EXPORT void etime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, nn_etime_t t);
 DDS_EXPORT nn_mtime_t mtime_round_up (nn_mtime_t t, int64_t round);
 DDS_EXPORT nn_mtime_t add_duration_to_mtime (nn_mtime_t t, int64_t d);
 DDS_EXPORT nn_wctime_t add_duration_to_wctime (nn_wctime_t t, int64_t d);

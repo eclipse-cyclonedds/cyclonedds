@@ -301,7 +301,7 @@ int join_thread (struct thread_state1 *ts1)
   if (ddsrt_thread_join (ts1->extTid, NULL) == DDS_RETCODE_OK)
     ret = 0;
   else
-    ret = ERR_UNSPECIFIED;
+    ret = Q_ERR_UNSPECIFIED;
   assert (vtime_asleep_p (ts1->vtime));
   reap_thread_state (ts1, 1);
   return ret;

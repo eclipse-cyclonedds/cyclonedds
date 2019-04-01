@@ -185,10 +185,10 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     if (!config.whc_batch)
       nn_xpack_send (wr->m_xp, false);
     ret = DDS_RETCODE_OK;
-  } else if (w_rc == ERR_TIMEOUT) {
+  } else if (w_rc == Q_ERR_TIMEOUT) {
     DDS_ERROR ("The writer could not deliver data on time, probably due to a reader resources being full\n");
     ret = DDS_ERRNO (DDS_RETCODE_TIMEOUT);
-  } else if (w_rc == ERR_INVALID_DATA) {
+  } else if (w_rc == Q_ERR_INVALID_DATA) {
     DDS_ERROR ("Invalid data provided\n");
     ret = DDS_ERRNO (DDS_RETCODE_ERROR);
   } else {
@@ -224,10 +224,10 @@ dds_return_t dds_writecdr_impl_lowlevel (struct writer *ddsi_wr, struct nn_xpack
     if (!config.whc_batch && xp != NULL)
       nn_xpack_send (xp, false);
     ret = DDS_RETCODE_OK;
-  } else if (w_rc == ERR_TIMEOUT) {
+  } else if (w_rc == Q_ERR_TIMEOUT) {
     DDS_ERROR ("The writer could not deliver data on time, probably due to a reader resources being full\n");
     ret = DDS_ERRNO(DDS_RETCODE_TIMEOUT);
-  } else if (w_rc == ERR_INVALID_DATA) {
+  } else if (w_rc == Q_ERR_INVALID_DATA) {
     DDS_ERROR ("Invalid data provided\n");
     ret = DDS_ERRNO (DDS_RETCODE_ERROR);
   } else {

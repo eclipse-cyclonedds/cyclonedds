@@ -390,7 +390,7 @@ static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
 {
   dds_retcode_t rc;
   ddsi_tcp_conn_t tcp = (ddsi_tcp_conn_t) conn;
-  ssize_t (*rd) (ddsi_tcp_conn_t, void *, size_t, int * err) = ddsi_tcp_conn_read_plain;
+  ssize_t (*rd) (ddsi_tcp_conn_t, void *, size_t, dds_retcode_t * err) = ddsi_tcp_conn_read_plain;
   size_t pos = 0;
   ssize_t n;
 
@@ -467,7 +467,7 @@ static ssize_t ddsi_tcp_conn_write_ssl (ddsi_tcp_conn_t conn, const void * buf, 
 
 static ssize_t ddsi_tcp_block_write
 (
-  ssize_t (*wr) (ddsi_tcp_conn_t, const void *, size_t, int *),
+  ssize_t (*wr) (ddsi_tcp_conn_t, const void *, size_t, dds_retcode_t *),
   ddsi_tcp_conn_t conn,
   const void * buf,
   size_t sz
@@ -654,7 +654,7 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
 
   if (piecewise)
   {
-    ssize_t (*wr) (ddsi_tcp_conn_t, const void *, size_t, int *) = ddsi_tcp_conn_write_plain;
+    ssize_t (*wr) (ddsi_tcp_conn_t, const void *, size_t, dds_retcode_t *) = ddsi_tcp_conn_write_plain;
     int i = 0;
 #ifdef DDSI_INCLUDE_SSL
     if (ddsi_tcp_ssl_plugin.write)

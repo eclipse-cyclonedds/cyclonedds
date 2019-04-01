@@ -217,7 +217,7 @@ int nn_servicelease_start_renewing (struct nn_servicelease *sl)
 
  fail_thread:
   sl->keepgoing = -1;
-  return ERR_UNSPECIFIED;
+  return Q_ERR_UNSPECIFIED;
 }
 
 void nn_servicelease_statechange_barrier (struct nn_servicelease *sl)

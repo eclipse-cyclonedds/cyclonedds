@@ -45,7 +45,7 @@
 //#define NUMSTR "0123456789"
 //#define HOSTNAMESTR "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-." NUMSTR
 
-typedef int (*write_oper_t) (dds_entity_t wr, const void *d, const dds_time_t ts);
+typedef dds_return_t (*write_oper_t) (dds_entity_t wr, const void *d, const dds_time_t ts);
 
 enum topicsel { UNSPEC, KS, K32, K64, K128, K256, OU, ARB };
 enum readermode { MODE_PRINT, MODE_CHECK, MODE_ZEROLOAD, MODE_DUMP, MODE_NONE };
@@ -860,11 +860,11 @@ static void print_K(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd, const 
     print_sampleinfo(tstart, tnow, si, tag);
     if (si->valid_data) {
         if(printmode == TGPM_MULTILINE) {
-            printf ("{\n%*.*s.seq = %u,\n%*.*s.keyval = %d }\n", 4, 4, "", seq, 4, 4, "", keyval);
+            printf ("{\n%*.*s.seq = %"PRIu32",\n%*.*s.keyval = %"PRId32" }\n", 4, 4, "", seq, 4, 4, "", keyval);
         } else if(printmode == TGPM_DENSE) {
-            printf ("{%u,%d}\n", seq, keyval);
+            printf ("{%"PRIu32",%"PRId32"}\n", seq, keyval);
         } else {
-            printf ("{ .seq = %u, .keyval = %d }\n", seq, keyval);
+            printf ("{ .seq = %"PRIu32", .keyval = %"PRId32" }\n", seq, keyval);
         }
     } else {
         /* May not look at mseq->_buffer[i] but want the key value
@@ -877,11 +877,11 @@ static void print_K(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd, const 
         int32_t d_key;
         if ((result = getkeyval(rd, &d_key, si->instance_handle)) == DDS_RETCODE_OK) {
             if(printmode == TGPM_MULTILINE) {
-                printf ("{\n%*.*s.seq = NA,\n%*.*s.keyval = %d }\n", 4, 4, "", 4, 4, "", keyval);
+                printf ("{\n%*.*s.seq = NA,\n%*.*s.keyval = %"PRId32" }\n", 4, 4, "", 4, 4, "", keyval);
             } else if(printmode == TGPM_DENSE) {
-                printf ("{NA,%d}\n", keyval);
+                printf ("{NA,%"PRId32"}\n", keyval);
             } else {
-                printf ("{ .seq = NA, .keyval = %d }\n", keyval);
+                printf ("{ .seq = NA, .keyval = %"PRId32" }\n", keyval);
             }
         } else
             printf ("get_key_value: error (%s)\n", dds_err_str(result));
@@ -930,11 +930,11 @@ static void print_seq_OU(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd __
         print_sampleinfo(tstart, tnow, si, tag);
         if (si->valid_data) {
             if(printmode == TGPM_MULTILINE) {
-                printf ("{\n%*.*s.seq = %u }\n", 4, 4, "", mseq[i]->seq);
+                printf ("{\n%*.*s.seq = %"PRIu32" }\n", 4, 4, "", mseq[i]->seq);
             } else if(printmode == TGPM_DENSE) {
-                printf ("{%u}\n", mseq[i]->seq);
+                printf ("{%"PRIu32"}\n", mseq[i]->seq);
             } else {
-                printf ("{ .seq = %u }\n", mseq[i]->seq);
+                printf ("{ .seq = %"PRIu32" }\n", mseq[i]->seq);
             }
         } else {
             printf ("NA\n");
@@ -1109,7 +1109,7 @@ static void wr_on_publication_matched(dds_entity_t wr __attribute__((unused)), c
     }
 }
 
-static int register_instance_wrapper(dds_entity_t wr, const void *d, const dds_time_t tstamp) {
+static dds_return_t register_instance_wrapper(dds_entity_t wr, const void *d, const dds_time_t tstamp) {
     dds_instance_handle_t handle;
     (void)tstamp;
     return dds_register_instance(wr, &handle, d);
@@ -1795,7 +1795,7 @@ static uint32_t subthread(void *vspec) {
                     rc = dds_get_subscription_matched_status(rd, &status);
                     error_report(rc, "dds_get_subscription_matched_status failed");
                     if (rc == DDS_RETCODE_OK) {
-                        printf("[pre-read: subscription-matched: total=(%"PRIu32" change %d) current=(%"PRIu32" change %d) handle=%"PRIu64"]\n",
+                        printf("[pre-read: subscription-matched: total=(%"PRIu32" change %"PRId32") current=(%"PRIu32" change %"PRId32") handle=%"PRIu64"]\n",
                                 status.total_count, status.total_count_change,
                                 status.current_count,
                                 status.current_count_change,
