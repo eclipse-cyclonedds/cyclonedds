@@ -9,10 +9,10 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Theory.h"
-#include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/sockets_priv.h"
+#include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/threads.h"
+#include "CUnit/Theory.h"
 
 CU_Init(ddsrt_select)
 {
@@ -162,6 +162,10 @@ static uint32_t select_timeout_routine(void *ptr)
 
   if (rc == DDS_RETCODE_TIMEOUT) {
     res = (((after - delay) >= (arg->delay - arg->skew)) && (cnt == 0));
+  /* Running in the FreeRTOS simulator causes some trouble as interrupts are
+     simulated using signals causing the select call to be interrupted. */
+  } else if (rc == DDS_RETCODE_INTERRUPTED) {
+    res = (cnt == -1);
   }
 
   return res;

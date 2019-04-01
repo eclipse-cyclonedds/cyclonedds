@@ -19,9 +19,6 @@
 #include <assert.h>
 #include <limits.h>
 #include <math.h>
-#ifndef _WIN32
-#include <errno.h>
-#endif
 #include <getopt.h>
 
 #include "dds/dds.h"
@@ -35,6 +32,10 @@
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/fibheap.h"
+
+#if !defined(_WIN32) && !defined(LWIP_SOCKET)
+#include <errno.h>
+#endif
 
 #define UDATA_MAGIC "DDSPerf:"
 #define UDATA_MAGIC_SIZE (sizeof (UDATA_MAGIC) - 1)
@@ -1383,14 +1384,16 @@ static void subthread_arg_fini (struct subthread_arg *arg)
   free (arg->iseq);
 }
 
+#if !DDSRT_WITH_FREERTOS
 static void signal_handler (int sig)
 {
   (void) sig;
   termflag = 1;
   dds_set_guardcondition (termcond, true);
 }
+#endif
 
-#ifndef _WIN32
+#if !_WIN32 && !DDSRT_WITH_FREERTOS
 static uint32_t sigthread (void *varg)
 {
   sigset_t *set = varg;
@@ -1642,7 +1645,7 @@ int main (int argc, char *argv[])
   int opt;
   ddsrt_threadattr_t attr;
   ddsrt_thread_t pubtid, subtid, subpingtid, subpongtid;
-#ifndef _WIN32
+#if !_WIN32 && !DDSRT_WITH_FREERTOS
   sigset_t sigset, osigset;
   ddsrt_thread_t sigtid;
 #endif
@@ -1841,7 +1844,7 @@ int main (int argc, char *argv[])
   /* I hate Unix signals in multi-threaded processes ... */
 #ifdef _WIN32
   signal (SIGINT, signal_handler);
-#else
+#elif !DDSRT_WITH_FREERTOS
   sigemptyset (&sigset);
   sigaddset (&sigset, SIGINT);
   sigaddset (&sigset, SIGTERM);
@@ -1989,7 +1992,7 @@ int main (int argc, char *argv[])
 
 #if _WIN32
   signal_handler (SIGINT);
-#else
+#elif !DDSRT_WITH_FREERTOS
   {
     /* get the attention of the signal handler thread */
     void (*osigint) (int);

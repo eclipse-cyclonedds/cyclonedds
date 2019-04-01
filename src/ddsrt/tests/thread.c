@@ -11,9 +11,12 @@
  */
 #include <assert.h>
 #include <stdlib.h>
-#if !defined(_WIN32)
-#include <sched.h>
-#include <unistd.h>
+#if DDSRT_WITH_FREERTOS
+# include <FreeRTOS.h>
+# include <task.h>
+#elif !defined(_WIN32)
+# include <sched.h>
+# include <unistd.h>
 #endif
 
 #include "CUnit/Theory.h"
@@ -30,7 +33,10 @@ static int32_t min_other_prio = 250;
 CU_Init(ddsrt_thread)
 {
   ddsrt_init();
-#if defined(WIN32)
+#if DDSRT_WITH_FREERTOS
+  max_other_prio = max_fifo_prio = configMAX_PRIORITIES - 1;
+  min_other_prio = min_fifo_prio = tskIDLE_PRIORITY + 1;
+#elif defined(WIN32)
   max_fifo_prio = THREAD_PRIORITY_HIGHEST;
   min_fifo_prio = THREAD_PRIORITY_LOWEST;
   max_other_prio = THREAD_PRIORITY_HIGHEST;
@@ -68,7 +74,12 @@ uint32_t thread_main(void *ptr)
 
   attr = arg->attr;
 
-#if _WIN32
+#if DDSRT_WITH_FREERTOS
+  int prio = (int)uxTaskPriorityGet(NULL);
+  if (prio == attr->schedPriority) {
+    arg->res = 1;
+  }
+#elif _WIN32
   int prio = GetThreadPriority(GetCurrentThread());
   if (prio == THREAD_PRIORITY_ERROR_RETURN)
     abort();
@@ -113,7 +124,12 @@ CU_Theory((ddsrt_sched_t sched, int32_t *prio, uint32_t exp), ddsrt_thread, crea
   ddsrt_threadattr_t attr;
   thread_arg_t arg;
 
-#if defined(__VXWORKS__)
+#if DDSRT_WITH_FREERTOS
+  if (sched == DDSRT_SCHED_TIMESHARE) {
+    skip = 1;
+    CU_PASS("FreeRTOS only support SCHED_FIFO");
+  }
+#elif defined(__VXWORKS__)
 # if defined(_WRS_KERNEL)
   if (sched == DDSRT_SCHED_TIMESHARE) {
     skip = 1;
@@ -150,7 +166,9 @@ CU_Test(ddsrt_thread, thread_id)
 {
   int eq = 0;
   ddsrt_thread_t thr;
-#if defined(_WIN32)
+#if DDSRT_WITH_FREERTOS
+  TaskHandle_t task;
+#elif defined(_WIN32)
   DWORD _tid;
 #else
   pthread_t _thr;
@@ -158,7 +176,10 @@ CU_Test(ddsrt_thread, thread_id)
 
   thr = ddsrt_thread_self();
 
-#if defined(_WIN32)
+#if DDSRT_WITH_FREERTOS
+  task = xTaskGetCurrentTaskHandle();
+  eq = (thr.task == task);
+#elif defined(_WIN32)
   _tid = GetCurrentThreadId();
   eq = (thr.tid == _tid);
 #else
@@ -230,4 +251,3 @@ CU_Test(ddsrt_thread, attribute)
   CU_ASSERT_EQUAL(attr.schedPriority, 0);
   CU_ASSERT_EQUAL(attr.stackSize, 0);
 }
-

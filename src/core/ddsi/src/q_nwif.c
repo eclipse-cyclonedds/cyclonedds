@@ -266,7 +266,7 @@ static int set_mc_options_transmit_ipv4 (ddsrt_socket_t socket)
   unsigned char loop;
   dds_retcode_t ret;
 
-#if defined __linux || defined __APPLE__
+#if (defined(__linux) || defined(__APPLE__)) && !LWIP_SOCKET
   if (config.use_multicast_if_mreqn)
   {
     struct ip_mreqn mreqn;
@@ -470,7 +470,7 @@ int find_own_ip (const char *requested_address)
       continue;
     }
 
-#ifdef __linux
+#if defined(__linux) && !LWIP_SOCKET
     if (ifa->addr->sa_family == AF_PACKET)
     {
       /* FIXME: weirdo warning warranted */

@@ -17,19 +17,30 @@
 #include "dds/ddsrt/types.h"
 #include "dds/ddsrt/retcode.h"
 
-#if defined(_WIN32)
+#if DDSRT_WITH_FREERTOS
+#include <FreeRTOS.h>
+#include <task.h>
+typedef TaskHandle_t ddsrt_pid_t; /* typedef void *TaskHandle_t */
+#define PRIdPID "p"
+#define DDSRT_HAVE_MULTI_PROCESS 0
+/* DDSRT_WITH_FREERTOS */
+#elif defined(_WIN32)
 typedef DWORD ddsrt_pid_t;
 #define PRIdPID "u"
-#else /* _WIN32 */
+#define DDSRT_HAVE_MULTI_PROCESS 1
+/* _WIN32 */
+#else
 #include <unistd.h>
 #if defined(_WRS_KERNEL)
 typedef RTP_ID ddsrt_pid_t; /* typedef struct wind_rtp *RTP_ID */
 #define PRIdPID PRIuPTR
+#define DDSRT_HAVE_MULTI_PROCESS 0
 #else
 typedef pid_t ddsrt_pid_t;
 #define PRIdPID "d"
+#define DDSRT_HAVE_MULTI_PROCESS 1
 #endif
-#endif /* _WIN32 */
+#endif
 
 
 #if defined (__cplusplus)
@@ -44,6 +55,7 @@ extern "C" {
 DDS_EXPORT ddsrt_pid_t
 ddsrt_getpid(void);
 
+#if DDSRT_HAVE_MULTI_PROCESS
 
 /**
  * @brief Create new process.
@@ -205,6 +217,7 @@ DDS_EXPORT dds_retcode_t
 ddsrt_proc_kill(
   ddsrt_pid_t pid);
 
+#endif /* DDSRT_HAVE_MULTI_PROCESS */
 
 #if defined (__cplusplus)
 }

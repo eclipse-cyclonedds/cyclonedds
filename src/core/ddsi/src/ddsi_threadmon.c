@@ -118,13 +118,14 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
       was_alive = false;
     }
 
+#if DDSRT_HAVE_RUSAGE
     if (dds_get_log_mask() & DDS_LC_TIMING)
     {
       ddsrt_rusage_t u;
       if (ddsrt_getrusage (DDSRT_RUSAGE_SELF, &u) == DDS_RETCODE_OK)
       {
         DDS_LOG(DDS_LC_TIMING,
-                "rusage: utime %d.%09d stime %d.%09d maxrss %ld data %ld vcsw %ld ivcsw %ld\n",
+                "rusage: utime %d.%09d stime %d.%09d maxrss %zu data %zu vcsw %zu ivcsw %zu\n",
                 (int) (u.utime / DDS_NSECS_IN_SEC),
                 (int) (u.utime % DDS_NSECS_IN_SEC),
                 (int) (u.stime / DDS_NSECS_IN_SEC),
@@ -132,6 +133,7 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
                 u.maxrss, u.idrss, u.nvcsw, u.nivcsw);
       }
     }
+#endif /* DDSRT_HAVE_RUSAGE */
 
     /* While deaf, we need to make sure the receive thread wakes up
        every now and then to try recreating sockets & rejoining multicast

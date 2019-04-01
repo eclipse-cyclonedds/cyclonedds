@@ -31,6 +31,12 @@
 #include "dds/ddsrt/threads_priv.h"
 #include "dds/ddsrt/types.h"
 
+typedef struct {
+  char *name;
+  ddsrt_thread_routine_t routine;
+  void *arg;
+} thread_context_t;
+
 #if defined(__linux)
 #include <sys/syscall.h>
 #define MAXTHREADNAMESIZE (15) /* 16 bytes including null-terminating byte. */

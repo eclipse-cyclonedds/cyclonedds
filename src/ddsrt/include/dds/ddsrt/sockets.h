@@ -3,6 +3,10 @@
 
 #include <stdbool.h>
 
+#if !defined(DDSRT_WITH_DNS)
+# define DDSRT_WITH_DNS 1
+#endif
+
 #include "dds/export.h"
 #include "dds/ddsrt/types.h"
 #include "dds/ddsrt/attributes.h"

@@ -19,16 +19,10 @@ FUNCTION(PREPEND var prefix)
    SET(${var} "${listVar}" PARENT_SCOPE)
 ENDFUNCTION(PREPEND)
 
-option(DDSC_SHARED "Build DDSC as a shared library" ON)
-
-if(DDSC_SHARED AND ((NOT DEFINED BUILD_SHARED_LIBS) OR BUILD_SHARED_LIBS))
-  # BUILD_SHARED_LIBS is set to off by for example VxWorks DKM environment
-  add_library(ddsc SHARED "")
+if (BUILD_SHARED_LIBS OR NOT DEFINED BUILD_SHARED_LIBS)
+  add_library(ddsc SHARED)
 else()
-  if(DDSC_SHARED)
-    message(STATUS "Option DDSC_SHARED ignored. Only static libraries supported on this platform.")
-  endif()
-  add_library(ddsc "")
+  add_library(ddsc)
 endif()
 
 add_definitions(-DDDSI_INCLUDE_NETWORK_PARTITIONS -DDDSI_INCLUDE_SSM)

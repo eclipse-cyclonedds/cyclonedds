@@ -24,7 +24,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sockets.h"
 
-#ifdef __linux
+#if defined(__linux) && !LWIP_SOCKET
 #include <linux/if_packet.h>
 #include <sys/types.h>
 #include <ifaddrs.h>

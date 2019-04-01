@@ -52,10 +52,10 @@ ddsrt_duration_to_timeval_ceil(dds_duration_t reltime, struct timeval *tv)
     return NULL;
   } else if (reltime > 0) {
     dds_duration_t max_nsecs;
-    if (DDS_INFINITY > DDSRT_TIME_T_MAX) {
-      assert(DDSRT_TIME_T_MAX == INT32_MAX);
+    if (DDSRT_TIME_T_MAX == INT32_MAX) {
       max_nsecs = INT32_MAX * DDS_NSECS_IN_SEC;
     } else {
+      assert(DDSRT_TIME_T_MAX == INT64_MAX);
       max_nsecs = DDSRT_TIME_T_MAX / DDS_NSECS_IN_SEC;
     }
 

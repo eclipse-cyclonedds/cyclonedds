@@ -20,7 +20,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/sysdeps.h"
 
-#if !(defined __APPLE__ || defined __linux) || (__GNUC__ > 0 && (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) < 40100)
+#if DDSRT_WITH_FREERTOS || !(defined __APPLE__ || defined __linux) || (__GNUC__ > 0 && (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) < 40100)
 void log_stacktrace (const char *name, ddsrt_thread_t tid)
 {
   DDSRT_UNUSED_ARG (name);

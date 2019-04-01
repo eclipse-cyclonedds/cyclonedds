@@ -11,12 +11,44 @@
 #
 include(CheckCSourceCompiles)
 include(CheckLibraryExists)
+include(GenerateDummyExportHeader)
+
+# Lightweight IP stack can be used on non-embedded targets too, but the
+# runtime must be instructed to use it instead of the native stack. Of course
+# for embedded targets there is no "native" stack and the runtime module must
+# always be instructed to use an "alternative" stack.
+option(WITH_LWIP "Use lightweight IP stack" OFF)
+option(WITH_DNS "Enable domain name lookups" ON)
+option(WITH_FREERTOS "Build for FreeRTOS" OFF)
 
 function(check_runtime_feature SOURCE_FILE)
+  get_target_property(_defs ddsrt INTERFACE_COMPILE_DEFINITIONS)
+  foreach(_def ${_defs})
+    set(_strdefs "${_strdefs} -D${_def}")
+  endforeach()
+
+  # Generate dummy export header required by feature tests.
+  generate_dummy_export_header(
+    ddsrt
+    BASE_NAME dds
+    EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/cmake/include/dds/export.h")
+  set(_strincs "${CMAKE_CURRENT_BINARY_DIR}/cmake/include")
+
+  get_target_property(_incs ddsrt INTERFACE_INCLUDE_DIRECTORIES)
+  foreach(_inc ${_incs})
+    set(_strincs "${_strincs};${_inc}")
+  endforeach()
+
+  if(_strincs)
+    set(_strincs "-DINCLUDE_DIRECTORIES:STRING=${_strincs}")
+  endif()
+
   set(expr "cmake_([_a-zA-Z0-9]+)=([_a-zA-Z0-9]+)")
   try_compile(
     foo "${CMAKE_BINARY_DIR}"
     SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE_FILE}"
+    CMAKE_FLAGS "${_strincs}"
+    COMPILE_DEFINITIONS "${_strdefs}"
     OUTPUT_VARIABLE output)
   string(REGEX MATCHALL "${expr}" matches "${output}")
   foreach(match ${matches})
@@ -26,7 +58,9 @@ function(check_runtime_feature SOURCE_FILE)
   endforeach()
 endfunction()
 
-if(APPLE)
+if(WITH_FREERTOS)
+  set(system_name freertos)
+elseif(APPLE)
   set(system_name darwin)
 else()
   string(TOLOWER ${CMAKE_SYSTEM_NAME} system_name)
@@ -38,6 +72,15 @@ endif()
 # ship an older version, so an interface library with public sources is used
 # as a workaround for now.
 add_library(ddsrt INTERFACE)
+
+foreach(opt WITH_LWIP WITH_DNS WITH_FREERTOS)
+  if(${opt})
+    target_compile_definitions(ddsrt INTERFACE DDSRT_${opt}=1)
+  else()
+    target_compile_definitions(ddsrt INTERFACE DDSRT_${opt}=0)
+  endif()
+endforeach()
+
 target_include_directories(
   ddsrt INTERFACE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
@@ -124,10 +167,9 @@ foreach(feature atomics cdtors environ heap ifaddrs random rusage
     # feature does not exist in cmake, the feature is expected to be
     # implemented for all targets.
     string(TOUPPER "${feature}" feature_uc)
+    set(HAVE_${feature_uc} TRUE)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${feature}.c")
-      check_runtime_feature(cmake/${feature}.c)
-    else()
-      set(HAVE_${feature_uc} TRUE)
+      check_runtime_feature("cmake/${feature}.c")
     endif()
 
     if(HAVE_${feature_uc})
@@ -137,7 +179,15 @@ foreach(feature atomics cdtors environ heap ifaddrs random rusage
         list(APPEND sources "${source_path}/${feature}.c")
       endif()
       set(system_exists FALSE)
-      foreach(system ${system_name} posix)
+
+      # Allow custom implementations for a feature. e.g. lwip as opposed to
+      # windows or posix.
+      set(_system_name "${system_name}")
+      if(NOT HAVE_${feature_uc} MATCHES "[tT][rR][uU][eE]")
+        set(_system_name "${HAVE_${feature_uc}}")
+      endif()
+
+      foreach(system ${_system_name} posix)
         # Headers that must remain private but are required by other runtime
         # source files must be located in src/<feature>/dds/ddsrt.
         if(IS_DIRECTORY "${source_path}/${feature}/include")
@@ -173,9 +223,11 @@ endforeach()
 
 target_sources(ddsrt INTERFACE ${sources})
 
-set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
-find_package(Threads REQUIRED)
-target_link_libraries(ddsrt INTERFACE Threads::Threads)
+if(NOT WITH_FREERTOS)
+  set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+  find_package(Threads REQUIRED)
+  target_link_libraries(ddsrt INTERFACE Threads::Threads)
+endif()
 
 if(WIN32)
   target_link_libraries(ddsrt INTERFACE wsock32 ws2_32 iphlpapi bcrypt)

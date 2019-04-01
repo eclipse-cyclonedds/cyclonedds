@@ -138,9 +138,10 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
 #if DDSRT_MSGHDR_FLAGS
   msg.msg_flags = (int) flags;
 #else
+  msg.msg_flags = 0;
   DDSRT_UNUSED_ARG(flags);
 #endif
-#ifdef MSG_NOSIGNAL
+#if MSG_NOSIGNAL && !LWIP_SOCKET
   sendflags |= MSG_NOSIGNAL;
 #endif
   do {
