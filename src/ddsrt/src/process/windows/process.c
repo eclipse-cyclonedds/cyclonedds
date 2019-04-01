@@ -16,6 +16,8 @@
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/process.h"
+#include "dds/ddsrt/timeconv.h"
+
 
 ddsrt_pid_t
 ddsrt_getpid(void)
@@ -23,12 +25,6 @@ ddsrt_getpid(void)
   return GetCurrentProcessId();
 }
 
-
-#ifdef PROCESS_MANAGEMENT_ENABLED
-
-
-extern inline DWORD
-ddsrt_duration_to_msecs_ceil(dds_duration_t reltime);
 
 
 static HANDLE        pid_to_phdl          (ddsrt_pid_t pid);
@@ -40,7 +36,7 @@ static char*         commandline          (const char *exe, char *const argv_in[
 
 
 dds_retcode_t
-ddsrt_process_create(
+ddsrt_proc_create(
   const char *executable,
   char *const argv[],
   ddsrt_pid_t *pid)
@@ -105,7 +101,7 @@ ddsrt_process_create(
 
 
 dds_retcode_t
-ddsrt_process_get_exit_code(
+ddsrt_proc_get_exit_code(
   ddsrt_pid_t pid,
   int32_t *code)
 {
@@ -124,21 +120,23 @@ ddsrt_process_get_exit_code(
 
 
 dds_retcode_t
-ddsrt_process_terminate(
-  ddsrt_pid_t pid,
-  bool force)
+ddsrt_proc_exists(
+  ddsrt_pid_t pid)
 {
-  dds_retcode_t rv = DDS_RETCODE_BAD_PARAMETER;
+  dds_retcode_t rv = DDS_RETCODE_NOT_FOUND;
   HANDLE phdl;
 
   phdl = pid_to_phdl(pid);
   if (phdl != 0) {
-    if (force) {
-      /* Forcefully kill. */
-      rv = process_kill(phdl);
+    rv = process_get_exit_code(phdl, NULL);
+    if (rv == DDS_RETCODE_PRECONDITION_NOT_MET) {
+      /* Process still exists. */
+      rv = DDS_RETCODE_OK;
+    } else if (rv == DDS_RETCODE_OK) {
+      /* The process has gone. */
+      rv = DDS_RETCODE_NOT_FOUND;
     } else {
-      /* Try a graceful kill. */
-      rv = process_terminate(phdl);
+      rv = DDS_RETCODE_ERROR;
     }
     CloseHandle(phdl);
   }
@@ -148,30 +146,48 @@ ddsrt_process_terminate(
 
 
 
-#if (_WIN32_WINNT <= 0x0502)
-static DWORD
-processQueryFlag(void)
+dds_retcode_t
+ddsrt_proc_term(
+  ddsrt_pid_t pid)
 {
-  DWORD flag;
+  dds_retcode_t rv = DDS_RETCODE_BAD_PARAMETER;
+  HANDLE phdl;
 
-  /* For Windows Server 2003 and Windows XP:  PROCESS_QUERY_LIMITED_INFORMATION is not supported.
-   * PROCESS_QUERY_INFORMATION need higher access permission which are not always granted when using OpenSplice
-   * as a windows service due to UAC so use PROCESS_QUERY_LIMITED_INFORMATION instead */
-  if(LOBYTE(LOWORD(GetVersion())) < 6) {
-    flag = PROCESS_QUERY_INFORMATION;
-  } else {
-    flag = 0x1000; /* PROCESS_QUERY_LIMITED_INFORMATION */
+  phdl = pid_to_phdl(pid);
+  if (phdl != 0) {
+    /* Try a graceful kill. */
+    rv = process_terminate(phdl);
+    CloseHandle(phdl);
   }
-  return flag;
+
+  return rv;
 }
-#else
-# define processQueryFlag() PROCESS_QUERY_LIMITED_INFORMATION
-#endif
+
+
+
+dds_retcode_t
+ddsrt_proc_kill(
+  ddsrt_pid_t pid)
+{
+  dds_retcode_t rv = DDS_RETCODE_BAD_PARAMETER;
+  HANDLE phdl;
+
+  phdl = pid_to_phdl(pid);
+  if (phdl != 0) {
+    /* Forcefully kill. */
+    rv = process_kill(phdl);
+    CloseHandle(phdl);
+  }
+
+  return rv;
+}
+
+
 
 static HANDLE
 pid_to_phdl(ddsrt_pid_t pid)
 {
-  return OpenProcess(processQueryFlag() | SYNCHRONIZE | PROCESS_TERMINATE, FALSE, pid);
+  return OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE | PROCESS_TERMINATE, FALSE, pid);
 }
 
 
@@ -383,4 +399,3 @@ commandline(const char *exe, char *const argv_in[])
   return cmd;
 }
 
-#endif /* PROCESS_MANAGEMENT_ENABLED */

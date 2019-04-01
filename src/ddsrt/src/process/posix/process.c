@@ -31,9 +31,6 @@ ddsrt_getpid(void)
 }
 
 
-#ifdef PROCESS_MANAGEMENT_ENABLED
-
-
 /*
  * This'll take a argv and prefixes it with the given prefix.
  * If argv is NULL, the new argv array will only contain the prefix and a NULL.
@@ -73,8 +70,33 @@ prefix_argv(const char *prefix, char *const argv_in[])
 
 
 
+static dds_retcode_t
+proc_kill(
+  ddsrt_pid_t pid,
+  int sig)
+{
+  dds_retcode_t rv = DDS_RETCODE_ERROR;
+  int ret;
+
+  /* Send signal. */
+  ret = kill(pid, sig);
+  if (ret == 0) {
+    rv = DDS_RETCODE_OK;
+  } else if (ret == -1) {
+    if (errno == EPERM) {
+      rv = DDS_RETCODE_ILLEGAL_OPERATION;
+    } else if (errno == ESRCH) {
+      rv = DDS_RETCODE_BAD_PARAMETER;
+    }
+  }
+
+  return rv;
+}
+
+
+
 dds_retcode_t
-ddsrt_process_create(
+ddsrt_proc_create(
   const char *executable,
   char *const argv[],
   ddsrt_pid_t *pid)
@@ -169,7 +191,7 @@ fail_pipe:
 
 
 DDS_EXPORT dds_retcode_t
-ddsrt_process_get_exit_code(
+ddsrt_proc_get_exit_code(
   ddsrt_pid_t pid,
   int32_t *code)
 {
@@ -204,32 +226,44 @@ ddsrt_process_get_exit_code(
 
 
 dds_retcode_t
-ddsrt_process_terminate(
-  ddsrt_pid_t pid,
-  bool force)
+ddsrt_proc_exists(
+  ddsrt_pid_t pid)
 {
-  dds_retcode_t rv = DDS_RETCODE_ERROR;
-  int ret = -1;
+  dds_retcode_t rv;
 
-  if (force) {
-    /* Forcefully kill. */
-    ret = kill(pid, SIGKILL);
-  } else {
-    /* Try a graceful kill. */
-    ret = kill(pid, SIGTERM);
-  }
-
-  if (ret == 0) {
+  /* Try sending a 'dummy' signal. */
+  rv = proc_kill(pid, 0);
+  if (rv == DDS_RETCODE_OK) {
+    /* Process exists. */
+  } else if (rv == DDS_RETCODE_ILLEGAL_OPERATION) {
+    /* Process exists, we're just not allowed to send signals. */
     rv = DDS_RETCODE_OK;
-  } else if (ret == -1) {
-    if (errno == EPERM) {
-      rv = DDS_RETCODE_ILLEGAL_OPERATION;
-    } else if (errno == ESRCH) {
-      rv = DDS_RETCODE_BAD_PARAMETER;
-    }
+  } else if (rv == DDS_RETCODE_BAD_PARAMETER) {
+    /* Unknown PID. */
+    rv = DDS_RETCODE_NOT_FOUND;
+  } else {
+    rv = DDS_RETCODE_ERROR;
   }
 
   return rv;
 }
 
-#endif /* PROCESS_MANAGEMENT_ENABLED */
+
+
+dds_retcode_t
+ddsrt_proc_term(
+  ddsrt_pid_t pid)
+{
+  /* Try a graceful termination. */
+  return proc_kill(pid, SIGTERM);
+}
+
+
+
+dds_retcode_t
+ddsrt_proc_kill(
+  ddsrt_pid_t pid)
+{
+  /* Forcefully kill. */
+  return proc_kill(pid, SIGKILL);
+}

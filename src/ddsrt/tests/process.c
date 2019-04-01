@@ -33,7 +33,7 @@ static dds_retcode_t wait_exit(ddsrt_pid_t pid, int32_t *status)
   do {
     dds_sleepfor(poll);
     timeout -= poll;
-    rv = ddsrt_process_get_exit_code(pid, status);
+    rv = ddsrt_proc_get_exit_code(pid, status);
   } while ((rv == DDS_RETCODE_PRECONDITION_NOT_MET) && (timeout > 0));
 
   return rv;
@@ -51,7 +51,7 @@ static void create_and_test_exit(const char *arg, int code)
   char *argv[] = { NULL, NULL };
 
   argv[0] = (char*)arg;
-  ret = ddsrt_process_create(TEST_APPLICATION, argv, &pid);
+  ret = ddsrt_proc_create(TEST_APPLICATION, argv, &pid);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
   ret = wait_exit(pid, &status);
@@ -62,7 +62,7 @@ static void create_and_test_exit(const char *arg, int code)
 
   /* Garbage collection when needed. */
   if (ret != DDS_RETCODE_OK) {
-    ddsrt_process_terminate(pid, true);
+    ddsrt_proc_kill(pid);
   }
 }
 
@@ -87,25 +87,27 @@ CU_Test(ddsrt_process, destroy)
   ddsrt_pid_t pid;
   char *argv[] = { TEST_DESTROY_ARG0, TEST_DESTROY_ARG1, NULL };
 
-  ret = ddsrt_process_create(TEST_APPLICATION, argv, &pid);
+  ret = ddsrt_proc_create(TEST_APPLICATION, argv, &pid);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
   CU_ASSERT_NOT_EQUAL_FATAL(pid, 0);
 
   /* Check if process is running. */
-  ret = ddsrt_process_get_exit_code(pid, NULL);
-  CU_ASSERT_EQUAL(ret, DDS_RETCODE_PRECONDITION_NOT_MET);
+  ret = ddsrt_proc_exists(pid);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
 
   /* Destroy it. */
-  ret = ddsrt_process_terminate(pid, false);
+  ret = ddsrt_proc_term(pid);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
   /* Check if process is actually gone. */
   ret = wait_exit(pid, NULL);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
+  ret = ddsrt_proc_exists(pid);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_NOT_FOUND);
 
   /* Garbage collection when needed. */
-  if (ret != DDS_RETCODE_OK) {
-    ddsrt_process_terminate(pid, true);
+  if (ret != DDS_RETCODE_NOT_FOUND) {
+    ddsrt_proc_kill(pid);
   }
 }
 
@@ -123,7 +125,7 @@ CU_Test(ddsrt_process, pid)
   int32_t status;
   char *argv[] = { TEST_PID_ARG, NULL };
 
-  ret = ddsrt_process_create(TEST_APPLICATION, argv, &pid);
+  ret = ddsrt_proc_create(TEST_APPLICATION, argv, &pid);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
   CU_ASSERT_NOT_EQUAL_FATAL(pid, 0);
 
@@ -135,7 +137,7 @@ CU_Test(ddsrt_process, pid)
 
   /* Garbage collection when needed. */
   if (ret != DDS_RETCODE_OK) {
-    ddsrt_process_terminate(pid, true);
+    ddsrt_proc_kill(pid);
   }
 }
 
@@ -164,12 +166,12 @@ CU_Test(ddsrt_process, invalid)
   dds_retcode_t ret;
   ddsrt_pid_t pid;
 
-  ret = ddsrt_process_create("ProbablyNotAnValidExecutable", NULL, &pid);
+  ret = ddsrt_proc_create("ProbablyNotAnValidExecutable", NULL, &pid);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 
   /* Garbage collection when needed. */
   if (ret == DDS_RETCODE_OK) {
-    ddsrt_process_terminate(pid, true);
+    ddsrt_proc_kill(pid);
   }
 }
 

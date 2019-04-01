@@ -44,7 +44,6 @@ extern "C" {
 DDS_EXPORT ddsrt_pid_t
 ddsrt_getpid(void);
 
-#ifdef PROCESS_MANAGEMENT_ENABLED
 
 /**
  * @brief Create new process.
@@ -75,13 +74,15 @@ ddsrt_getpid(void);
  *             Process could not be created.
  */
 DDS_EXPORT dds_retcode_t
-ddsrt_process_create(
+ddsrt_proc_create(
   const char *executable,
   char *const argv[],
   ddsrt_pid_t *pid);
 
 /**
  * @brief Get the exit code of a process.
+ *
+ * This can only be used on child processes on some platforms.
  *
  * @param[in]   pid            Process ID (PID) to get the exit code from.
  * @param[out]  code           The exit code of the process.
@@ -98,24 +99,42 @@ ddsrt_process_create(
  *             Getting the exit code failed for an unknown reason.
  */
 DDS_EXPORT dds_retcode_t
-ddsrt_process_get_exit_code(
+ddsrt_proc_get_exit_code(
   ddsrt_pid_t pid,
   int32_t *code);
 
 /**
+ * @brief Checks if a process exists.
+ *
+ * @param[in]   pid            Process ID (PID) to check if it exists.
+ *
+ * @returns A dds_retcode_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The process exists.
+ * @retval DDS_RETCODE_NOT_FOUND
+ *             The process does not exist.
+ * @retval DDS_RETCODE_ERROR
+ *             Determining if a process exists or not, failed.
+ */
+DDS_EXPORT dds_retcode_t
+ddsrt_proc_exists(
+  ddsrt_pid_t pid);
+
+/**
  * @brief Terminate a process.
  *
- * Depending on the force argument, this function will either try to
- * either gracefully terminate the process (identified by pid) or
- * forcefully kill it.
+ * This function will try to gracefully terminate the process (identified
+ * by pid).
  *
  * When DDS_RETCODE_OK is returned, it doesn't mean that the process
  * has actually terminated. It only indicates that the process was
- * 'told' to terminate. Call ddsrt_process_get_exit_code() to know
+ * 'told' to terminate. Call ddsrt_proc_exists() to know
  * for sure if the process has terminated.
  *
+ * See also ddsrt_proc_kill();
+ *
  * @param[in]   pid       Process ID (PID) of the process to terminate.
- * @param[in]   force     TRUE - force kill, FALSE - gracefully terminate.
  *
  * @returns A dds_retcode_t indicating success or failure.
  *
@@ -129,11 +148,38 @@ ddsrt_process_get_exit_code(
  *             Termination failed for an unknown reason.
  */
 DDS_EXPORT dds_retcode_t
-ddsrt_process_terminate(
-  ddsrt_pid_t pid,
-  bool force);
+ddsrt_proc_term(
+  ddsrt_pid_t pid);
 
-#endif /* PROCESS_MANAGEMENT_ENABLED */
+/**
+ * @brief Kill a process.
+ *
+ * This function will try to forcefully kill the process (identified
+ * by pid).
+ *
+ * When DDS_RETCODE_OK is returned, it doesn't mean that the process
+ * has actually killed. It only indicates that the process was
+ * 'told' to terminate. Call ddsrt_proc_exists() to know
+ * for sure if the process was killed.
+ *
+ * See also ddsrt_proc_term();
+ *
+ * @param[in]   pid       Process ID (PID) of the process to terminate.
+ *
+ * @returns A dds_retcode_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             Kill attempt has been started.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Process unknown.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             Caller is not allowed to kill the process.
+ * @retval DDS_RETCODE_ERROR
+ *             Kill failed for an unknown reason.
+ */
+DDS_EXPORT dds_retcode_t
+ddsrt_proc_kill(
+  ddsrt_pid_t pid);
 
 
 #if defined (__cplusplus)
