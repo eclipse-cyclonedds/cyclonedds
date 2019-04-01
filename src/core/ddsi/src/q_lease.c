@@ -164,14 +164,14 @@ void lease_renew (struct lease *l, nn_etime_t tnowE)
 
   if (did_update && (dds_get_log_mask() & DDS_LC_TRACE))
   {
-    int tsec, tusec;
+    int32_t tsec, tusec;
     DDS_TRACE(" L(");
     if (l->entity->guid.entityid.u == NN_ENTITYID_PARTICIPANT)
       DDS_TRACE(":%x", l->entity->guid.entityid.u);
     else
       DDS_TRACE("%x:%x:%x:%x", PGUID (l->entity->guid));
     etime_to_sec_usec (&tsec, &tusec, tend_new);
-    DDS_TRACE(" %d.%06d)", tsec, tusec);
+    DDS_TRACE(" %"PRId32".%06"PRId32")", tsec, tusec);
   }
 }
 

@@ -20,7 +20,7 @@ extern "C" {
 
 #if defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 402
 # define DDSRT_GNUC_STR(s) #s
-# define DDSRT_GNUC_JOINSTR(x,y) DDSRT_GNUC_DIAG_STR(x ## y)
+# define DDSRT_GNUC_JOINSTR(x,y) DDSRT_GNUC_STR(x ## y)
 # define DDSRT_GNUC_DO_PRAGMA(x) _Pragma (#x)
 # define DDSRT_GNUC_PRAGMA(x) DDSRT_GNUC_DO_PRAGMA(GCC diagnostic x)
 # if ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406

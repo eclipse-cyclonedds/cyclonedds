@@ -39,7 +39,7 @@ static void print_sockerror (const char *msg)
 
 unsigned locator_to_hopefully_unique_uint32 (const nn_locator_t *src)
 {
-  unsigned id;
+  unsigned id = 0;
   if (src->kind == NN_LOCATOR_KIND_UDPv4 || src->kind == NN_LOCATOR_KIND_TCPv4)
     memcpy (&id, src->address + 12, sizeof (id));
   else
@@ -93,7 +93,7 @@ static void set_socket_nodelay (ddsrt_socket_t sock)
 static int set_rcvbuf (ddsrt_socket_t socket)
 {
   uint32_t ReceiveBufferSize;
-  uint32_t optlen = (uint32_t) sizeof (ReceiveBufferSize);
+  socklen_t optlen = (socklen_t) sizeof (ReceiveBufferSize);
   uint32_t socket_min_rcvbuf_size;
   if (config.socket_min_rcvbuf_size.isdefault)
     socket_min_rcvbuf_size = 1048576;
@@ -137,7 +137,7 @@ static int set_rcvbuf (ddsrt_socket_t socket)
 static int set_sndbuf (ddsrt_socket_t socket)
 {
   unsigned SendBufferSize;
-  uint32_t optlen = (uint32_t) sizeof(SendBufferSize);
+  socklen_t optlen = (socklen_t) sizeof(SendBufferSize);
   if (ddsrt_getsockopt(socket, SOL_SOCKET, SO_SNDBUF,(char *)&SendBufferSize, &optlen) != DDS_RETCODE_OK)
   {
     print_sockerror ("get SO_SNDBUF");

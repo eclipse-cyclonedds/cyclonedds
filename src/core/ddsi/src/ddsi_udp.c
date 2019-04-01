@@ -490,7 +490,7 @@ static char *ddsi_udp_locator_to_string (ddsi_tran_factory_t tran, char *dst, si
       pos += (size_t)cnt;
     }
     if (with_port && pos < sizeof_dst) {
-      snprintf (dst + pos, sizeof_dst - pos, ":%d", loc->port);
+      snprintf (dst + pos, sizeof_dst - pos, ":%"PRIu32, loc->port);
     }
     return dst;
   }

@@ -116,7 +116,7 @@ static const uint32_t xcheck_codes[] = {
 
 /* We want the tracing/verbosity settings to be fixed while parsing
 the configuration, so we update this variable instead. */
-static unsigned enabled_logcats;
+static uint32_t enabled_logcats;
 
 static int cfgst_node_cmp(const void *va, const void *vb);
 static const ut_avlTreedef_t cfgst_found_treedef =
@@ -1827,7 +1827,7 @@ static int uf_maybe_int32(struct cfgst *cfgst, void *parent, struct cfgelem cons
         elem->isdefault = 1;
         elem->value = 0;
         return 1;
-    } else if ( sscanf(value, "%d%n", &elem->value, &pos) == 1 && value[pos] == 0 ) {
+    } else if ( sscanf(value, "%"PRId32"%n", &elem->value, &pos) == 1 && value[pos] == 0 ) {
         elem->isdefault = 0;
         return 1;
     } else {
@@ -1971,7 +1971,7 @@ static int uf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const *
     elem->isdefault = 1;
     elem->value = 0;
     return 1;
-  } else if (sscanf(value, "%d%n", &elem->value, &pos) == 1 && value[pos] == 0 && elem->value >= 0 && elem->value <= 230) {
+  } else if (sscanf(value, "%"PRId32"%n", &elem->value, &pos) == 1 && value[pos] == 0 && elem->value >= 0 && elem->value <= 230) {
     elem->isdefault = 0;
     return 1;
   } else {

@@ -799,7 +799,7 @@ static void handle_SPDP (const struct receiver_state *rst, nn_wctime_t timestamp
     src.bufsz = len - 4;
     if ((plist_ret = nn_plist_init_frommsg (&decoded_data, NULL, ~(uint64_t)0, ~(uint64_t)0, &src)) < 0)
     {
-      if (plist_ret != ERR_INCOMPATIBLE)
+      if (plist_ret != Q_ERR_INCOMPATIBLE)
         DDS_WARNING("SPDP (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
       return;
     }
@@ -1341,7 +1341,7 @@ static void handle_SEDP (const struct receiver_state *rst, nn_wctime_t timestamp
     src.bufsz = len - 4;
     if ((plist_ret = nn_plist_init_frommsg (&decoded_data, NULL, ~(uint64_t)0, ~(uint64_t)0, &src)) < 0)
     {
-      if (plist_ret != ERR_INCOMPATIBLE)
+      if (plist_ret != Q_ERR_INCOMPATIBLE)
         DDS_WARNING("SEDP (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
       return;
     }
@@ -1469,7 +1469,7 @@ static void handle_SEDP_CM (const struct receiver_state *rst, nn_entityid_t wr_e
     src.bufsz = len - 4;
     if ((plist_ret = nn_plist_init_frommsg (&decoded_data, NULL, ~(uint64_t)0, ~(uint64_t)0, &src)) < 0)
     {
-      if (plist_ret != ERR_INCOMPATIBLE)
+      if (plist_ret != Q_ERR_INCOMPATIBLE)
         DDS_WARNING("SEDP_CM (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
       return;
     }
@@ -1631,7 +1631,7 @@ static void handle_SEDP_GROUP (const struct receiver_state *rst, nn_wctime_t tim
     src.bufsz = len - 4;
     if ((plist_ret = nn_plist_init_frommsg (&decoded_data, NULL, ~(uint64_t)0, ~(uint64_t)0, &src)) < 0)
     {
-      if (plist_ret != ERR_INCOMPATIBLE)
+      if (plist_ret != Q_ERR_INCOMPATIBLE)
         DDS_WARNING("SEDP_GROUP (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
       return;
     }
@@ -1754,7 +1754,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
     if ((plist_ret = nn_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH, 0, &src)) < 0)
     {
-      if (plist_ret != ERR_INCOMPATIBLE)
+      if (plist_ret != Q_ERR_INCOMPATIBLE)
         DDS_WARNING("data(builtin, vendor %u.%u): %x:%x:%x:%x #%"PRId64": invalid inline qos\n",
                     src.vendorid.id[0], src.vendorid.id[1], PGUID (srcguid), sampleinfo->seq);
       goto done_upd_deliv;

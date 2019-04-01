@@ -424,7 +424,7 @@ static int create_fragment_message_simple (struct writer *wr, seqno_t seq, struc
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
   if ((*pmsg = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (Data_t) + expected_inline_qos_size, NN_XMSG_KIND_DATA)) == NULL)
-    return ERR_OUT_OF_MEMORY;
+    return Q_ERR_OUT_OF_MEMORY;
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   /* use the partition_id from the writer to select the proper encoder */
@@ -503,13 +503,13 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
        an non-existent fragment, which a malicious (or buggy) remote
        reader can trigger.  So we return an error instead of asserting
        as we used to. */
-    return ERR_INVALID;
+    return Q_ERR_INVALID;
   }
 
   fragging = (config.fragment_size < size);
 
   if ((*pmsg = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (DataFrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
-    return ERR_OUT_OF_MEMORY;
+    return Q_ERR_OUT_OF_MEMORY;
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   /* use the partition_id from the writer to select the proper encoder */
@@ -522,7 +522,7 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
     {
       nn_xmsg_free (*pmsg);
       *pmsg = NULL;
-      return ERR_NO_ADDRESS;
+      return Q_ERR_NO_ADDRESS;
     }
     /* retransmits: latency budget doesn't apply */
   }
@@ -1050,7 +1050,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
                  ddsi_serdata_size (serdata), config.max_sample_size,
                  PGUID (wr->e.guid), tname, ttname, ppbuf,
                  tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
-    r = ERR_INVALID_DATA;
+    r = Q_ERR_INVALID_DATA;
     goto drop;
   }
 
@@ -1082,7 +1082,7 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
       if (ores == DDS_RETCODE_TIMEOUT)
       {
         ddsrt_mutex_unlock (&wr->e.lock);
-        r = ERR_TIMEOUT;
+        r = Q_ERR_TIMEOUT;
         goto drop;
       }
     }

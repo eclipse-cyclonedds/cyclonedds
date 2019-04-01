@@ -11,9 +11,9 @@
  */
 #include "dds/ddsi/q_bitset.h"
 
-extern inline int nn_bitset_isset (unsigned numbits, const unsigned *bits, unsigned idx);
-extern inline void nn_bitset_set (unsigned numbits, unsigned *bits, unsigned idx);
-extern inline void nn_bitset_clear (unsigned numbits, unsigned *bits, unsigned idx);
-extern inline void nn_bitset_zero (unsigned numbits, unsigned *bits);
-extern inline void nn_bitset_one (unsigned numbits, unsigned *bits);
+extern inline int nn_bitset_isset (uint32_t numbits, const uint32_t *bits, uint32_t idx);
+extern inline void nn_bitset_set (uint32_t numbits, uint32_t *bits, uint32_t idx);
+extern inline void nn_bitset_clear (uint32_t numbits, uint32_t *bits, uint32_t idx);
+extern inline void nn_bitset_zero (uint32_t numbits, uint32_t *bits);
+extern inline void nn_bitset_one (uint32_t numbits, uint32_t *bits);
 

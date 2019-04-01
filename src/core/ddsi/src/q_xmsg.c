@@ -591,7 +591,7 @@ int nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
   else
   {
     DDS_WARNING("nn_xmsg_setdstPRD: no address for %x:%x:%x:%x", PGUID (prd->e.guid));
-    return ERR_NO_ADDRESS;
+    return Q_ERR_NO_ADDRESS;
   }
 }
 
@@ -604,7 +604,7 @@ int nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
     return 0;
   }
   DDS_WARNING("nn_xmsg_setdstPRD: no address for %x:%x:%x:%x", PGUID (pwr->e.guid));
-  return ERR_NO_ADDRESS;
+  return Q_ERR_NO_ADDRESS;
 }
 
 void nn_xmsg_setdstN (struct nn_xmsg *m, struct addrset *as, struct addrset *as_group)

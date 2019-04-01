@@ -1657,7 +1657,7 @@ static os_ssize_t q_security_sendmsg
   char stbuf[2048], *buf;
   size_t sz, data_size;
   uint32_t sz32, data_size32;
-  ssize_t ret = ERR_UNSPECIFIED;
+  ssize_t ret = Q_ERR_UNSPECIFIED;
   PT_InfoContainer_t * securityHeader;
   unsigned i;
 
