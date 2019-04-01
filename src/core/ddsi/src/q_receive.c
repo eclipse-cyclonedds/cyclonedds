@@ -2304,8 +2304,8 @@ static int handle_SPDP (const struct nn_rsample_info *sampleinfo, struct nn_rdat
   fragchain = nn_rsample_fragchain (rsample);
   if ((rres = nn_reorder_rsample (&sc, gv.spdp_reorder, rsample, &refc_adjust, nn_dqueue_is_full (gv.builtins_dqueue))) > 0)
     nn_dqueue_enqueue (gv.builtins_dqueue, &sc, rres);
-  ddsrt_mutex_unlock (&gv.spdp_lock);
   nn_fragchain_adjust_refcount (fragchain, refc_adjust);
+  ddsrt_mutex_unlock (&gv.spdp_lock);
   return 0;
 }
 
@@ -2342,8 +2342,8 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
     ddsrt_mutex_lock (&pwr->e.lock);
     wn = ut_avlLookup (&pwr_readers_treedef, &pwr->readers, &dst);
     gap_was_valuable = handle_one_gap (pwr, wn, sampleinfo->seq, sampleinfo->seq+1, gap, &refc_adjust);
-    ddsrt_mutex_unlock (&pwr->e.lock);
     nn_fragchain_adjust_refcount (gap, refc_adjust);
+    ddsrt_mutex_unlock (&pwr->e.lock);
 
     if (gap_was_valuable)
     {

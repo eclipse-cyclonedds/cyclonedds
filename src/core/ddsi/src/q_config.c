@@ -248,7 +248,7 @@ static const struct cfgelem general_cfgelems[] = {
 "<p>This element controls whether DDSI2E uses multicasts for data traffic.</p>\n\
 <p>It is a comma-separated list of some of the following keywords: \"spdp\", \"asm\", \"ssm\", or either of \"false\" or \"true\".</p>\n\
 <ul>\n\
-<li><i>spdp</i>: enables the use of ASM (any-source multicast) for participant discovery</li>\n\
+<li><i>spdp</i>: enables the use of ASM (any-source multicast) for participant discovery, joining the multicast group on the discovery socket, transmitting SPDP messages to this group, but never advertising nor using any multicast address in any discovery message, thus forcing unicast communications for all endpoint discovery and user data.</li>\n\
 <li><i>asm</i>: enables the use of ASM for all traffic (including SPDP)</li>\n\
 <li><i>ssm</i>: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)</li>\n\
 </ul>\n\
@@ -654,7 +654,7 @@ END_MARKER
 static const struct cfgelem sizing_cfgelems[] =
 {
     { LEAF("ReceiveBufferSize"), 1, "1 MiB", ABSOFF(rbuf_size), 0, uf_memsize, 0, pf_memsize,
-    "<p>This element sets the size of a single receive buffer. Many receive buffers may be needed. Their size must be greater than ReceiveBufferChunkSize by a modest amount.</p>" },
+    "<p>This element sets the size of a single receive buffer. Many receive buffers may be needed. The minimum workable size a little bit larger than Sizing/ReceiveBufferChunkSize, and the value used is taken as the configured value and the actual minimum workable size.</p>" },
     { LEAF("ReceiveBufferChunkSize"), 1, "128 KiB", ABSOFF(rmsg_chunk_size), 0, uf_memsize, 0, pf_memsize,
     "<p>This element specifies the size of one allocation unit in the receive buffer. Must be greater than the maximum packet size by a modest amount (too large packets are dropped). Each allocation is shrunk immediately after processing a message, or freed straightaway.</p>" },
     END_MARKER
