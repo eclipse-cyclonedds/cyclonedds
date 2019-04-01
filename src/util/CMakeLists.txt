@@ -25,6 +25,10 @@ generate_export_header(
 
 # util must NOT link with ddsrt to avoid duplicate symbols in ddsc!
 # ddsrt include directories are required though.
+target_compile_definitions(
+  util
+  PUBLIC
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_COMPILE_DEFINITIONS>>)
 target_include_directories(
   util
   PUBLIC

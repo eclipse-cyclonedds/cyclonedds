@@ -521,7 +521,7 @@ int xeventq_start (struct xeventq *evq, const char *name)
   {
     ddsrt_free (evqname);
   }
-  return (evq->ts == NULL) ? ERR_UNSPECIFIED : 0;
+  return (evq->ts == NULL) ? Q_ERR_UNSPECIFIED : 0;
 }
 
 void xeventq_stop (struct xeventq *evq)

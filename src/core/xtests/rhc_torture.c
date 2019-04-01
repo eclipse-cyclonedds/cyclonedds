@@ -265,7 +265,7 @@ static void print_seq (int n, const dds_sample_info_t *iseq, const RhcTypes_T *m
     char buf[64];
     assert(si->instance_handle);
     assert(si->publication_handle);
-    printf ("[%2d] %c%c%c %16"PRIx64" %16"PRIx64" %4d %4d %2d %2d %2d %2"PRId32,
+    printf ("[%2d] %c%c%c %16"PRIx64" %16"PRIx64" %4"PRIu32" %4"PRIu32" %2"PRIu32" %2"PRIu32" %2"PRIu32" %2"PRId32,
             i, si2ss(si), si2vs(si), si2is(si),
             si->instance_handle, si->publication_handle,
             si->disposed_generation_count, si->no_writers_generation_count,

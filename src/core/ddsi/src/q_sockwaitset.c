@@ -831,7 +831,7 @@ void os_sockWaitsetRemove (os_sockWaitset ws, ddsi_tran_conn_t conn)
 
 os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
 {
-  int n = -1;
+  int32_t n = -1;
   unsigned u;
   int fdmax;
   fd_set * rdset = NULL;

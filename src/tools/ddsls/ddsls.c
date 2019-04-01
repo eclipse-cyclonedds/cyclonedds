@@ -150,17 +150,17 @@ void qp_resource_limits_1 (FILE *fp, int32_t max_samples, int32_t max_instances,
   if (max_samples == DDS_LENGTH_UNLIMITED)
     fprintf (fp, "unlimited");
   else
-    fprintf (fp, "%d", max_samples);
+    fprintf (fp, "%"PRId32, max_samples);
   fprintf (fp, ", max_instances = ");
   if (max_instances == DDS_LENGTH_UNLIMITED)
     fprintf (fp, "unlimited");
   else
-    fprintf (fp, "%d", max_instances);
+    fprintf (fp, "%"PRId32, max_instances);
   fprintf (fp, ", max_samples_per_instance = ");
   if (max_samples_per_instance == DDS_LENGTH_UNLIMITED)
     fprintf (fp, "unlimited\n");
   else
-    fprintf (fp, "%d\n", max_samples_per_instance);
+    fprintf (fp, "%"PRId32"\n", max_samples_per_instance);
 }
 
 void qp_resource_limits (const dds_qos_t *q, FILE *fp)

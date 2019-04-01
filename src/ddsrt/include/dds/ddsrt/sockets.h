@@ -8,11 +8,13 @@
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/time.h"
-#if !defined(_WIN32)
-#include "dds/ddsrt/sockets/posix.h"
-#else
+#if _WIN32
 #include "dds/ddsrt/sockets/windows.h"
+#else
+#include "dds/ddsrt/sockets/posix.h"
 #endif
+
+#define INET_ADDRSTRLEN_EXTENDED (INET_ADDRSTRLEN + 6) /* ":12345" */
 
 #if DDSRT_HAVE_IPV6
 #define INET6_ADDRSTRLEN_EXTENDED (INET6_ADDRSTRLEN + 8) /* "[]:12345" */

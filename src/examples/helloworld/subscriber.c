@@ -61,7 +61,7 @@ int main (int argc, char ** argv)
       /* Print Message. */
       msg = (HelloWorldData_Msg*) samples[0];
       printf ("=== [Subscriber] Received : ");
-      printf ("Message (%d, %s)\n", msg->userID, msg->message);
+      printf ("Message (%"PRId32", %s)\n", msg->userID, msg->message);
       fflush (stdout);
       break;
     }
