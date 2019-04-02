@@ -1117,20 +1117,14 @@ OpenSplice.
 Compatibility issues with TwinOaks
 ----------------------------------
 
-Interoperability with TwinOaks CoreDX require (or used to require at some point in the
-past):
+In the default configuration there should be no interoperability issues with TwinOaks CoreDX,
+although there is the aforementioned difference in interpretation of the meaning of the
+‘autodispose_unregistered_instances’ QoS on the writer.
+
+Interoperability with very old versions of CoreDX may require setting:
 
 + ``Compatibility/ManySocketsMode``: *true*
-+ ``Compatibility/StandardsConformance``: *lax*
-+ ``Compatibility/AckNackNumbitsEmptySet``: *0*
 + ``Compatibility/ExplicitlyPublishQosSetToDefault``: *true*
 
-The ``ManySocketsMode`` option needed to be changed from the default, to ensure that
-each domain participant has a unique locator; this was needed because TwinOaks CoreDX
-DDS did not include the full GUID of a reader or writer if it needs to address just one,
-but this is probably no longer the case.  Note that the (old) behaviour of TwinOaks
-CoreDX DDS has always been allowed by the specification.
-
-The ``Compatibility/ExplicitlyPublishQosSetToDefault`` settings work around TwinOaks
-CoreDX DDS’ use of incorrect default values for some of the QoS settings if they are not
-explicitly supplied during discovery.  It may be that this is no longer the case.
+The exact version number of CoreDX starting with which these settings are no longer needed is
+unknown, but it has certainly not been needed for several years.

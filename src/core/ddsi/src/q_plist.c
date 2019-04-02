@@ -593,6 +593,11 @@ static void bswap_history_qospolicy (nn_history_qospolicy_t *q)
   q->depth = bswap4 (q->depth);
 }
 
+static int history_qospolicy_allzero (const nn_history_qospolicy_t *q)
+{
+  return q->kind == NN_KEEP_LAST_HISTORY_QOS && q->depth == 0;
+}
+
 int validate_history_qospolicy (const nn_history_qospolicy_t *q)
 {
   /* Validity of history setting and of resource limits are dependent,
@@ -628,6 +633,11 @@ static void bswap_resource_limits_qospolicy (nn_resource_limits_qospolicy_t *q)
   q->max_samples = bswap4 (q->max_samples);
   q->max_instances = bswap4 (q->max_instances);
   q->max_samples_per_instance = bswap4 (q->max_samples_per_instance);
+}
+
+static int resource_limits_qospolicy_allzero (const nn_resource_limits_qospolicy_t *q)
+{
+  return q->max_samples == 0 && q->max_instances == 0 && q->max_samples_per_instance == 0;
 }
 
 int validate_resource_limits_qospolicy (const nn_resource_limits_qospolicy_t *q)
@@ -707,9 +717,18 @@ static void bswap_durability_service_qospolicy (nn_durability_service_qospolicy_
   bswap_resource_limits_qospolicy (&q->resource_limits);
 }
 
-int validate_durability_service_qospolicy (const nn_durability_service_qospolicy_t *q)
+static int durability_service_qospolicy_allzero (const nn_durability_service_qospolicy_t *q)
+{
+  return (history_qospolicy_allzero (&q->history) &&
+          resource_limits_qospolicy_allzero (&q->resource_limits) &&
+          q->service_cleanup_delay.seconds == 0 && q->service_cleanup_delay.fraction == 0);
+}
+
+static int validate_durability_service_qospolicy_acceptzero (const nn_durability_service_qospolicy_t *q, bool acceptzero)
 {
   int res;
+  if (acceptzero && durability_service_qospolicy_allzero (q))
+    return 0;
   if ((res = validate_duration (&q->service_cleanup_delay)) < 0)
   {
     DDS_TRACE("plist/validate_durability_service_qospolicy: duration invalid\n");
@@ -721,6 +740,11 @@ int validate_durability_service_qospolicy (const nn_durability_service_qospolicy
     return res;
   }
   return 0;
+}
+
+int validate_durability_service_qospolicy (const nn_durability_service_qospolicy_t *q)
+{
+  return validate_durability_service_qospolicy_acceptzero (q, false);
 }
 
 static void bswap_liveliness_qospolicy (nn_liveliness_qospolicy_t *q)
@@ -1300,8 +1324,9 @@ static int do_guid (nn_guid_t *dst, uint64_t *present, uint64_t fl, int (*valid)
   *dst = nn_ntoh_guid (*dst);
   if (valid (dst, dd) < 0)
   {
-    if (fl == PP_PARTICIPANT_GUID && vendor_is_twinoaks (dd->vendorid) &&
-        dst->entityid.u == 0 && ! NN_STRICT_P)
+    /* CoreDX once upon a time used to send out PARTICIPANT_GUID parameters with a 0 entity id, but it
+       that has long since changed (even if I don't know exactly when) */
+    if (fl == PP_PARTICIPANT_GUID && vendor_is_twinoaks (dd->vendorid) && dst->entityid.u == 0 && ! NN_STRICT_P)
     {
       DDS_LOG(DDS_LC_DISCOVERY, "plist(vendor %u.%u): rewriting invalid participant guid %x:%x:%x:%x\n",
               dd->vendorid.id[0], dd->vendorid.id[1], PGUID (*dst));
@@ -1523,7 +1548,6 @@ static int init_one_parameter
     }                                                                   \
     return 0
       Q (DURABILITY, durability);
-      Q (DURABILITY_SERVICE, durability_service);
       Q (LIVELINESS, liveliness);
       Q (DESTINATION_ORDER, destination_order);
       Q (HISTORY, history);
@@ -1533,6 +1557,27 @@ static int init_one_parameter
       Q (PRESENTATION, presentation);
       Q (TRANSPORT_PRIORITY, transport_priority);
 #undef Q
+
+    case PID_DURABILITY_SERVICE:
+      if (dd->bufsz < sizeof (nn_durability_service_qospolicy_t))
+      {
+        DDS_TRACE("plist/init_one_parameter[pid=DURABILITY_SERVICE]: buffer too small\n");
+        return ERR_INVALID;
+      }
+      else
+      {
+        nn_durability_service_qospolicy_t *q = &dest->qos.durability_service;
+        /* All-zero durability service is illegal, but at least CoreDX sometimes advertises
+           it in some harmless cases. So accept all-zero durability service, then handle it
+           in final_validation, where we can determine whether it really is harmless or not */
+        memcpy (q, dd->buf, sizeof (*q));
+        if (dd->bswap)
+          bswap_durability_service_qospolicy (q);
+        if ((res = validate_durability_service_qospolicy_acceptzero (q, true)) < 0)
+          return res;
+        dest->qos.present |= QP_DURABILITY_SERVICE;
+      }
+      return 0;
 
       /* PID_RELIABILITY handled differently because it (formally, for
          static typing reasons) has a different type on the network
@@ -2253,9 +2298,9 @@ nn_plist_t *nn_plist_dup (const nn_plist_t *src)
   return dst;
 }
 
-static int final_validation (nn_plist_t *dest)
+static int final_validation (nn_plist_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid)
 {
-    /* Resource limits & history are related, so if only one is given,
+  /* Resource limits & history are related, so if only one is given,
      set the other to the default, claim it has been provided &
      validate the combination. They can't be changed afterward, so
      this is a reasonable interpretation. */
@@ -2275,6 +2320,46 @@ static int final_validation (nn_plist_t *dest)
     assert ((dest->qos.present & (QP_HISTORY | QP_RESOURCE_LIMITS)) == (QP_HISTORY | QP_RESOURCE_LIMITS));
     if ((res = validate_history_and_resource_limits (&dest->qos.history, &dest->qos.resource_limits)) < 0)
       return res;
+  }
+
+  /* Durability service is sort-of accepted if all zeros, but only
+     for some protocol versions and vendors.  We don't handle want
+     to deal with that case internally. Now that all QoS have been
+     parsed we know the setting of the durability QoS (the default
+     is always VOLATILE), and hence we can verify that the setting
+     is valid or delete it if irrelevant. */
+  if (dest->qos.present & QP_DURABILITY_SERVICE)
+  {
+    const nn_durability_kind_t durkind = (dest->qos.present & QP_DURABILITY) ? dest->qos.durability.kind : NN_VOLATILE_DURABILITY_QOS;
+    bool acceptzero;
+    /* Use a somewhat convoluted rule to decide whether or not to
+       "accept" an all-zero durability service setting, to find a
+       reasonable mix of strictness and compatibility */
+    if (protocol_version_is_newer (protocol_version))
+      acceptzero = true;
+    else if (NN_STRICT_P)
+      acceptzero = vendor_is_twinoaks (vendorid);
+    else
+      acceptzero = !vendor_is_eclipse (vendorid);
+    switch (durkind)
+    {
+      case NN_VOLATILE_DURABILITY_QOS:
+      case NN_TRANSIENT_LOCAL_DURABILITY_QOS:
+        /* pretend we never saw it if it is all zero */
+        if (acceptzero && durability_service_qospolicy_allzero (&dest->qos.durability_service))
+          dest->qos.present &= ~QP_DURABILITY_SERVICE;
+        break;
+      case NN_TRANSIENT_DURABILITY_QOS:
+      case NN_PERSISTENT_DURABILITY_QOS:
+        break;
+    }
+    /* if it is still present, it must be valid */
+    if (dest->qos.present & QP_DURABILITY_SERVICE)
+    {
+      int res;
+      if ((res = validate_durability_service_qospolicy (&dest->qos.durability_service)) < 0)
+        return res;
+    }
   }
   return 0;
 }
@@ -2341,10 +2426,9 @@ int nn_plist_init_frommsg
     length = (unsigned short) (dd.bswap ? bswap2u (par->length) : par->length);
     if (pid == PID_SENTINEL)
     {
-      /* Sentinel terminates list, the length is ignored, DDSI
-         9.4.2.11. */
+      /* Sentinel terminates list, the length is ignored, DDSI 9.4.2.11. */
       DDS_LOG(DDS_LC_PLIST, "%4x PID %x\n", (unsigned) (pl - src->buf), pid);
-      if ((res = final_validation (dest)) < 0)
+      if ((res = final_validation (dest, src->protocol_version, src->vendorid)) < 0)
       {
         nn_plist_fini (dest);
         return ERR_INVALID;
