@@ -715,6 +715,61 @@ DDS_EXPORT dds_return_t
 dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
 
 /*
+  Get or set user data pointer for an entity.
+*/
+
+/**
+ * @brief Get user data pointer.
+ *
+ * This operation allows access to the user data pointer of the entity.
+ *
+ * @param[in]  entity     Entity from which to get the user data pointer.
+ * @param[in]  user_data  Pointer to a pointer that will get the address
+ *                        of the user data that is stored with this entity.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The user data pointer has been successfully retrieved from
+ *             the entity.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             The user_data parameter is NULL or the entity parameter
+ *             is not a valid parameter
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ */
+DDS_EXPORT dds_return_t
+dds_get_user_data(dds_entity_t entity, void ** user_data);
+
+/**
+ * @brief Set user data pointer.
+ *
+ * This operation sets the user data pointer of the entity. The user-data
+ * pointer can e.g. be used to facilitate lookup functionality when implementing
+ * a language binding. The user-data pointer can act as a back-ref to the API
+ * object that is built on top of the C API.
+ *
+ * @param[in]  entity     Entity on which to set the user data pointer.
+ * @param[in]  user_data  Pointer to the user data that will be stored with
+ *                        this entity.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The user data pointer has been successfully set.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             The entity parameter is not a valid parameter.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ */
+DDS_EXPORT dds_return_t
+dds_set_user_data(dds_entity_t entity, const void * user_data);
+
+/*
   Creation functions for various entities. Creating a subscriber or
   publisher is optional: if one creates a reader as a descendant of a
   participant, it is as if a subscriber is created specially for

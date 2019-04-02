@@ -257,6 +257,41 @@ CU_Test(ddsc_entity, status, .init = create_entity, .fini = delete_entity)
     cu_assert_status_eq(status1, DDS_RETCODE_OK);
 }
 
+CU_Test(ddsc_entity, user_data, .init = create_entity, .fini = delete_entity)
+{
+    dds_return_t status1;
+    void * user_data1 = NULL;
+    void * user_data2 = &user_data1;
+
+    /* Check getting user data with bad parameters. */
+    status1 = dds_get_user_data (0, NULL);
+    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+    status1 = dds_get_user_data (entity, NULL);
+    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+    status1 = dds_get_user_data (0, &user_data1);
+    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+
+    /* Check setting user data with bad parameters. */
+    status1 = dds_set_user_data (0, NULL);
+    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(user_data1, NULL);
+
+    /* Check setting user data to user_data2 (address of user_data1) */
+    status1 = dds_set_user_data (entity, user_data2);
+    cu_assert_status_eq(status1, DDS_RETCODE_OK);
+
+    /* Get user data, which should be the address of user_data1 */
+    status1 = dds_get_user_data (entity, &user_data2);
+    cu_assert_status_eq(status1, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(user_data2, &user_data1);
+
+    /* Check setting user data to NULL */
+    status1 = dds_set_user_data (entity, NULL);
+    cu_assert_status_eq(status1, DDS_RETCODE_OK);
+    status1 = dds_get_user_data (entity, &user_data2);
+    cu_assert_status_eq(status1, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(user_data2, NULL);
+}
 
 CU_Test(ddsc_entity, instance_handle, .init = create_entity, .fini = delete_entity)
 {

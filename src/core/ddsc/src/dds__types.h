@@ -147,6 +147,7 @@ typedef struct dds_entity
   uint32_t m_status_enable;
   uint32_t m_cb_count;
   dds_entity_observer *m_observers;
+  void * m_user_data;
 
   struct ut_handlelink *m_hdllink;
 }

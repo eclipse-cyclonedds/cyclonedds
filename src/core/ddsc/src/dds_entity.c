@@ -1038,3 +1038,37 @@ const char *dds__entity_kind_str (dds_entity_t e)
     default:                    return "(INVALID_ENTITY)";
   }
 }
+
+dds_return_t dds_get_user_data (dds_entity_t entity, void ** user_data)
+{
+  dds_entity *e;
+  dds_retcode_t rc;
+
+  if (user_data == NULL) {
+    return DDS_ERRNO (DDS_RETCODE_BAD_PARAMETER);
+  }
+
+  if ((rc = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK) {
+    return DDS_ERRNO (rc);
+  }
+
+  *user_data = e->m_user_data;
+  dds_entity_unlock(e);
+
+  return DDS_RETCODE_OK;
+}
+
+dds_return_t dds_set_user_data (dds_entity_t entity, const void * user_data)
+{
+  dds_entity *e;
+  dds_retcode_t rc;
+
+  if ((rc = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK) {
+    return DDS_ERRNO (rc);
+  }
+
+  e->m_user_data = (void *)user_data;
+  dds_entity_unlock(e);
+
+  return DDS_RETCODE_OK;
+}
