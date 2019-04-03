@@ -18,6 +18,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/random.h"
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__entity.h"
@@ -32,7 +33,6 @@
 #include "dds__rhc.h"
 #include "dds/ddsi/ddsi_iid.h"
 
-#include "mt19937ar.h"
 #include "RhcTypes.h"
 
 #ifndef _MSC_VER
@@ -40,6 +40,8 @@
 #else
 #define STATIC_ARRAY_DIM
 #endif
+
+static ddsrt_prng_t prng;
 
 static struct ddsi_sertopic *mdtopic;
 static struct thread_state1 *mainthread;
@@ -669,14 +671,14 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
   int lastprint_pct = 0;
   for (int i = 0; i < count; i++)
   {
-    const int32_t keyval = (int32_t) (genrand_int32 () % N_KEYVALS);
-    const uint32_t which = genrand_int32 () % 3;
+    const int32_t keyval = (int32_t) (ddsrt_prng_random (&prng) % N_KEYVALS);
+    const uint32_t which = ddsrt_prng_random (&prng) % 3;
     uint32_t oper_base;
     uint32_t oper;
 
     /* generate uniform number in range 0 .. N, then map to operation following the frequency table */
     do {
-      oper_base = genrand_int32 ();
+      oper_base = ddsrt_prng_random (&prng);
     } while (oper_base >= opthres[sizeof (opfreqs) / sizeof (opfreqs[0]) - 1]);
     for (oper = 0; oper < sizeof (opfreqs) / sizeof (opfreqs[0]); oper++)
     {
@@ -745,19 +747,19 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
           tkall (rhc[k], NULL, print && k == 0, states_seen);
         break;
       case 8: {
-        uint32_t cond = genrand_int32 () % (uint32_t) nconds;
+        uint32_t cond = ddsrt_prng_random (&prng) % (uint32_t) nconds;
         for (size_t k = 0; k < nrd; k++)
           rdcond (rhc[k], rhcconds[cond], NULL, 0, print && k == 0, states_seen);
         break;
       }
       case 9: {
-        uint32_t cond = genrand_int32 () % (uint32_t) nconds;
+        uint32_t cond = ddsrt_prng_random (&prng) % (uint32_t) nconds;
         for (size_t k = 0; k < nrd; k++)
           tkcond (rhc[k], rhcconds[cond], NULL, 0, print && k == 0, states_seen);
         break;
       }
       case 10: {
-        uint32_t cond = genrand_int32 () % (uint32_t) nconds;
+        uint32_t cond = ddsrt_prng_random (&prng) % (uint32_t) nconds;
         for (size_t k = 0; k < nrd; k++)
           tkcond (rhc[k], rhcconds[cond], NULL, 1, print && k == 0, states_seen);
         break;
@@ -826,7 +828,7 @@ int main (int argc, char **argv)
     print = (atoi (argv[4]) != 0);
 
   printf ("prng seed %u first %d count %d print %d\n", seed, first, count, print);
-  init_genrand (seed);
+  ddsrt_prng_init_simple (&prng, seed);
 
   memset (rres_mseq, 0, sizeof (rres_mseq));
   for (size_t i = 0; i < sizeof (rres_iseq) / sizeof(rres_iseq[0]); i++)

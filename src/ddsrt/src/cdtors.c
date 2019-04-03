@@ -13,6 +13,7 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/time.h"
+#include "dds/ddsrt/random.h"
 
 #if _WIN32
 /* Sockets API initialization is only necessary on Microsoft Windows. The
@@ -41,6 +42,7 @@ retry:
     ddsrt_winsock_init();
     ddsrt_time_init();
 #endif
+    ddsrt_random_init();
     ddsrt_atomic_or32(&init_status, INIT_STATUS_OK);
   } else {
     while (v > 1 && !(v & INIT_STATUS_OK)) {
@@ -65,6 +67,7 @@ void ddsrt_fini (void)
   if (nv == 1)
   {
     ddsrt_mutex_destroy(&init_mutex);
+    ddsrt_random_fini();
 #if _WIN32
     ddsrt_winsock_fini();
     ddsrt_time_fini();
