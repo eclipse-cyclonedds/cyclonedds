@@ -1261,7 +1261,7 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
   {
     /* We drop APPROXIMATELY a fraction of xmit_lossiness * 10**(-3)
        of all packets to be sent */
-    if ((ddsrt_random () % 1000) < config.xmit_lossiness)
+    if ((ddsrt_random () % 1000) < (uint32_t) config.xmit_lossiness)
     {
       DDS_TRACE("(dropped)");
       xp->call_flags = 0;

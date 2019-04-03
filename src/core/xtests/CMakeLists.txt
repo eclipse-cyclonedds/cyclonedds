@@ -11,7 +11,7 @@
 #
 idlc_generate(RhcTypes RhcTypes.idl)
 
-add_executable(rhc_torture rhc_torture.c mt19937ar.c mt19937ar.h)
+add_executable(rhc_torture rhc_torture.c)
 
 target_include_directories(
   rhc_torture PRIVATE
