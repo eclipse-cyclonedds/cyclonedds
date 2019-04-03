@@ -22,6 +22,7 @@ set(sources
     "thread_cleanup.c"
     "string.c"
     "log.c"
+    "random.c"
     "strlcpy.c"
     "socket.c"
     "select.c")
