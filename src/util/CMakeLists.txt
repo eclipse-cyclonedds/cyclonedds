@@ -37,6 +37,11 @@ target_include_directories(
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>")
 
+install(
+  DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/dds"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  COMPONENT dev)
+
 # TODO: improve test inclusion.
 if((BUILD_TESTING) AND ((NOT DEFINED MSVC_VERSION) OR (MSVC_VERSION GREATER "1800")))
   add_subdirectory(tests)

@@ -78,7 +78,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_iid.h
     ddsi_tkmap.h
     ddsi_vendor.h
-    probes-constants.h
     q_addrset.h
     q_bitset.h
     q_bswap.h
@@ -126,3 +125,8 @@ target_sources(ddsc
 
 target_include_directories(ddsc
   PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
+
+install(
+  DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/dds"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  COMPONENT dev)
