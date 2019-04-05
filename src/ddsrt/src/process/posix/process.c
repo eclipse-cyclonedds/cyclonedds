@@ -11,10 +11,11 @@
  */
 #include <stdio.h>
 #include <errno.h>
-#include <string.h>
 #include <fcntl.h>
+#include <string.h>
 #include <unistd.h>
 #include <assert.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <sys/types.h>
@@ -40,54 +41,105 @@ static char**
 prefix_argv(const char *prefix, char *const argv_in[])
 {
   char **argv_out;
+  size_t argc = 0;
 
   assert(prefix);
 
-  if (argv_in == NULL) {
-    argv_out = ddsrt_calloc(2, sizeof(char*));
-    if (argv_out) {
-      argv_out[0] = (char*)prefix;
-      argv_out[1] = NULL;
-    }
-  } else {
-    size_t argi;
-    size_t argc = 0;
+  if (argv_in != NULL) {
     while (argv_in[argc] != NULL) {
       argc++;
     }
-    argv_out = ddsrt_calloc((argc + 2), sizeof(char*));
-    if (argv_out) {
-      argv_out[0] = (char*)prefix;
-      for (argi = 0; argi < argc; argi++) {
-        argv_out[argi + 1] = (char*)argv_in[argi];
-      }
-      argv_out[argc + 1] = NULL;
+  }
+
+  argv_out = ddsrt_calloc((argc + 2), sizeof(char*));
+  if (argv_out) {
+    size_t argi;
+    argv_out[0] = (char*)prefix;
+    for (argi = 0; argi < argc; argi++) {
+      argv_out[argi + 1] = (char*)argv_in[argi];
     }
+    argv_out[argc + 1] = NULL;
   }
 
   return argv_out;
 }
 
 
+static void no_op(int sig)
+{
+  (void)sig;
+}
+
 
 static dds_retcode_t
-proc_kill(
-  ddsrt_pid_t pid,
-  int sig)
+waitpids(
+  ddsrt_pid_t request_pid,
+  dds_duration_t timeout,
+  ddsrt_pid_t *child_pid,
+  int32_t *code)
 {
-  dds_retcode_t rv = DDS_RETCODE_ERROR;
+  struct sigaction sigactold;
+  struct sigaction sigact;
+  dds_retcode_t rv;
+  int options = 0;
   int ret;
+  int s;
 
-  /* Send signal. */
-  ret = kill(pid, sig);
-  if (ret == 0) {
-    rv = DDS_RETCODE_OK;
-  } else if (ret == -1) {
-    if (errno == EPERM) {
-      rv = DDS_RETCODE_ILLEGAL_OPERATION;
-    } else if (errno == ESRCH) {
-      rv = DDS_RETCODE_BAD_PARAMETER;
+  if (timeout < 0) {
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+
+  if (timeout == 0) {
+    options = WNOHANG;
+  } else if (timeout != DDS_INFINITY) {
+    /* Round-up timemout to alarm seconds. */
+    unsigned secs;
+    secs = (unsigned)(timeout / DDS_NSECS_IN_SEC);
+    if ((timeout % DDS_NSECS_IN_SEC) != 0) {
+      secs++;
     }
+    /* Be sure that the SIGALRM only wakes up waitpid. */
+    sigemptyset (&sigact.sa_mask);
+    sigact.sa_handler = no_op;
+    sigact.sa_flags = 0;
+    sigaction (SIGALRM, &sigact, &sigactold);
+    /* Now, set the alarm. */
+    alarm(secs);
+  }
+
+  ret = waitpid(request_pid, &s, options);
+  if (ret > 0) {
+    if (code) {
+      if (WIFEXITED(s)) {
+        *code = WEXITSTATUS(s);
+      } else {
+        *code = 1;
+      }
+    }
+    if (child_pid) {
+      *child_pid = ret;
+    }
+    rv = DDS_RETCODE_OK;
+  } else if (ret == 0) {
+    /* Process is still alive. */
+    rv = DDS_RETCODE_PRECONDITION_NOT_MET;
+  } else if ((ret == -1) && (errno == EINTR)) {
+    /* Interrupted,
+     * so process(es) likely didn't change state and are/is alive. */
+    rv = DDS_RETCODE_TIMEOUT;
+  } else if ((ret == -1) && (errno == ECHILD)) {
+    /* Unknown pid. */
+    rv = DDS_RETCODE_BAD_PARAMETER;
+  } else {
+    /* Unknown error. */
+    rv = DDS_RETCODE_ERROR;
+  }
+
+  if ((timeout != 0) && (timeout != DDS_INFINITY)) {
+    /* Clean the alarm. */
+    alarm(0);
+    /* Reset SIGALRM actions. */
+    sigaction(SIGALRM, &sigactold, NULL);
   }
 
   return rv;
@@ -144,11 +196,11 @@ ddsrt_proc_create(
 
     /* If executing this, something has gone wrong */
     exec_err = errno;
-    write(exec_fds[1], &exec_err, sizeof(int));
+    (void)write(exec_fds[1], &exec_err, sizeof(int));
     close(exec_fds[1]);
     close(exec_fds[0]);
     ddsrt_free(exec_argv);
-    exit(1);
+    _exit(1);
   }
   else
   {
@@ -172,8 +224,13 @@ ddsrt_proc_create(
     }
     close(exec_fds[0]);
 
-    /* Remember child pid. */
-    *pid = spawn;
+    if (rv == DDS_RETCODE_OK) {
+      /* Remember child pid. */
+      *pid = spawn;
+    } else {
+      /* Remove the failed fork pid from the system list. */
+      waitpid(spawn, NULL, 0);
+    }
   }
 
   ddsrt_free(exec_argv);
@@ -190,37 +247,27 @@ fail_pipe:
 
 
 
-DDS_EXPORT dds_retcode_t
-ddsrt_proc_get_exit_code(
+dds_retcode_t
+ddsrt_proc_waitpid(
   ddsrt_pid_t pid,
+  dds_duration_t timeout,
   int32_t *code)
 {
-  dds_retcode_t rv;
-  int ret;
-  int s;
-
-  ret = waitpid(pid, &s, WNOHANG);
-  if (ret == pid) {
-    if (code) {
-      if (WIFEXITED(s)) {
-        *code = WEXITSTATUS(s);
-      } else {
-        *code = 1;
-      }
-    }
-    rv = DDS_RETCODE_OK;
-  } else if (ret == 0) {
-    /* Process is still alive. */
-    rv = DDS_RETCODE_PRECONDITION_NOT_MET;
-  } else if ((ret == -1) && (errno == ECHILD)) {
-    /* Unknown pid. */
-    rv = DDS_RETCODE_BAD_PARAMETER;
-  } else {
-    /* Unknown error. */
-    rv = DDS_RETCODE_ERROR;
+  if (pid > 0) {
+    return waitpids(pid, timeout, NULL, code);
   }
+  return DDS_RETCODE_BAD_PARAMETER;
+}
 
-  return rv;
+
+
+dds_retcode_t
+ddsrt_proc_waitpids(
+  dds_duration_t timeout,
+  ddsrt_pid_t *pid,
+  int32_t *code)
+{
+  return waitpids(0, timeout, pid, code);
 }
 
 
@@ -229,33 +276,14 @@ dds_retcode_t
 ddsrt_proc_exists(
   ddsrt_pid_t pid)
 {
-  dds_retcode_t rv;
-
-  /* Try sending a 'dummy' signal. */
-  rv = proc_kill(pid, 0);
-  if (rv == DDS_RETCODE_OK) {
-    /* Process exists. */
-  } else if (rv == DDS_RETCODE_ILLEGAL_OPERATION) {
-    /* Process exists, we're just not allowed to send signals. */
-    rv = DDS_RETCODE_OK;
-  } else if (rv == DDS_RETCODE_BAD_PARAMETER) {
-    /* Unknown PID. */
-    rv = DDS_RETCODE_NOT_FOUND;
-  } else {
-    rv = DDS_RETCODE_ERROR;
-  }
-
-  return rv;
-}
-
-
-
-dds_retcode_t
-ddsrt_proc_term(
-  ddsrt_pid_t pid)
-{
-  /* Try a graceful termination. */
-  return proc_kill(pid, SIGTERM);
+  if (kill(pid, 0) == 0)
+    return DDS_RETCODE_OK;
+  else if (errno == EPERM)
+    return DDS_RETCODE_OK;
+  else if (errno == ESRCH)
+    return DDS_RETCODE_NOT_FOUND;
+  else
+    return DDS_RETCODE_ERROR;
 }
 
 
@@ -264,6 +292,12 @@ dds_retcode_t
 ddsrt_proc_kill(
   ddsrt_pid_t pid)
 {
-  /* Forcefully kill. */
-  return proc_kill(pid, SIGKILL);
+  if (kill(pid, SIGKILL) == 0)
+    return DDS_RETCODE_OK;
+  else if (errno == EPERM)
+    return DDS_RETCODE_ILLEGAL_OPERATION;
+  else if (errno == ESRCH)
+    return DDS_RETCODE_BAD_PARAMETER;
+  else
+    return DDS_RETCODE_ERROR;
 }

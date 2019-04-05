@@ -93,14 +93,27 @@ ddsrt_proc_create(
  *             Process has terminated and its exit code has been captured.
  * @retval DDS_RETCODE_PRECONDITION_NOT_MET
  *             Process is still alive.
+ * @retval DDS_RETCODE_TIMEOUT
+ *             Process is still alive, even after the timeout.
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             Process unknown.
  * @retval DDS_RETCODE_ERROR
  *             Getting the exit code failed for an unknown reason.
  */
+
+/* If req_pid == 0, then wait for all children. Else, try wait for specific child. */
+/* Duration is round-up to the nearest second. */
+
 DDS_EXPORT dds_retcode_t
-ddsrt_proc_get_exit_code(
+ddsrt_proc_waitpid(
   ddsrt_pid_t pid,
+  dds_duration_t timeout,
+  int32_t *code);
+
+DDS_EXPORT dds_retcode_t
+ddsrt_proc_waitpids(
+  dds_duration_t timeout,
+  ddsrt_pid_t *pid,
   int32_t *code);
 
 /**
@@ -122,47 +135,15 @@ ddsrt_proc_exists(
   ddsrt_pid_t pid);
 
 /**
- * @brief Terminate a process.
- *
- * This function will try to gracefully terminate the process (identified
- * by pid).
- *
- * When DDS_RETCODE_OK is returned, it doesn't mean that the process
- * has actually terminated. It only indicates that the process was
- * 'told' to terminate. Call ddsrt_proc_exists() to know
- * for sure if the process has terminated.
- *
- * See also ddsrt_proc_kill();
- *
- * @param[in]   pid       Process ID (PID) of the process to terminate.
- *
- * @returns A dds_retcode_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Process was told to terminate.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             Process unknown.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             Caller is not allowed to terminate the process.
- * @retval DDS_RETCODE_ERROR
- *             Termination failed for an unknown reason.
- */
-DDS_EXPORT dds_retcode_t
-ddsrt_proc_term(
-  ddsrt_pid_t pid);
-
-/**
  * @brief Kill a process.
  *
  * This function will try to forcefully kill the process (identified
  * by pid).
  *
  * When DDS_RETCODE_OK is returned, it doesn't mean that the process
- * has actually killed. It only indicates that the process was
+ * was actually killed. It only indicates that the process was
  * 'told' to terminate. Call ddsrt_proc_exists() to know
  * for sure if the process was killed.
- *
- * See also ddsrt_proc_term();
  *
  * @param[in]   pid       Process ID (PID) of the process to terminate.
  *

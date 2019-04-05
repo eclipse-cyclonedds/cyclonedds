@@ -9,12 +9,14 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include <stdio.h>
 #include <errno.h>
 #include <assert.h>
 #include <process.h>
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/timeconv.h"
 
@@ -29,9 +31,12 @@ ddsrt_getpid(void)
 
 static HANDLE        pid_to_phdl          (ddsrt_pid_t pid);
 static dds_retcode_t process_get_exit_code(HANDLE phdl, int32_t *code);
-static dds_retcode_t process_terminate    (HANDLE phdl);
 static dds_retcode_t process_kill         (HANDLE phdl);
 static char*         commandline          (const char *exe, char *const argv_in[]);
+static BOOL          child_add            (HANDLE phdl);
+static void          child_remove         (HANDLE phdl);
+static DWORD         child_list           (HANDLE *list, DWORD max);
+static HANDLE        child_handle         (ddsrt_pid_t pid);
 
 
 
@@ -80,8 +85,13 @@ ddsrt_proc_create(
                             &si,                      // StartupInfo
                             &process_info);           // ProcessInformation
     if (created) {
-      *pid = process_info.dwProcessId;
-      rv = DDS_RETCODE_OK;
+      if (child_add(process_info.hProcess)) {
+        *pid = process_info.dwProcessId;
+        rv = DDS_RETCODE_OK;
+      } else {
+        process_kill(process_info.hProcess);
+        rv = DDS_RETCODE_OUT_OF_RESOURCES;
+      }
     } else {
       DWORD error = GetLastError();
       if ((ERROR_FILE_NOT_FOUND == error) ||
@@ -100,18 +110,97 @@ ddsrt_proc_create(
 }
 
 
+
 dds_retcode_t
-ddsrt_proc_get_exit_code(
+ddsrt_proc_waitpid(
   ddsrt_pid_t pid,
+  dds_duration_t timeout,
   int32_t *code)
 {
-  dds_retcode_t rv = DDS_RETCODE_BAD_PARAMETER;
+  dds_retcode_t rv = DDS_RETCODE_OK;
   HANDLE phdl;
+  DWORD ret;
 
-  phdl = pid_to_phdl(pid);
-  if (phdl != 0) {
+  if (timeout < 0) {
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+
+  phdl = child_handle(pid);
+  if (phdl == 0) {
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+
+  if (timeout > 0) {
+    ret = WaitForSingleObject(phdl, ddsrt_duration_to_msecs_ceil(timeout));
+    if (ret != WAIT_OBJECT_0) {
+      if (ret == WAIT_TIMEOUT) {
+        rv = DDS_RETCODE_TIMEOUT;
+      } else {
+        rv = DDS_RETCODE_ERROR;
+      }
+    }
+  }
+
+  if (rv == DDS_RETCODE_OK) {
     rv = process_get_exit_code(phdl, code);
-    CloseHandle (phdl);
+  }
+
+  if (rv == DDS_RETCODE_OK) {
+    child_remove(phdl);
+  }
+
+
+  return rv;
+}
+
+
+
+dds_retcode_t
+ddsrt_proc_waitpids(
+  dds_duration_t timeout,
+  ddsrt_pid_t *pid,
+  int32_t *code)
+{
+  dds_retcode_t rv = DDS_RETCODE_OK;
+  HANDLE hdls[MAXIMUM_WAIT_OBJECTS];
+  HANDLE phdl;
+  DWORD cnt;
+  DWORD ret;
+
+  if (timeout < 0) {
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+
+  cnt = child_list(hdls, MAXIMUM_WAIT_OBJECTS);
+  if (cnt == 0) {
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+  }
+
+  ret = WaitForMultipleObjects(cnt, hdls, FALSE, ddsrt_duration_to_msecs_ceil(timeout));
+  if ((ret < WAIT_OBJECT_0) || (ret >= (WAIT_OBJECT_0 + cnt))) {
+    if (ret == WAIT_TIMEOUT) {
+      if (timeout == 0) {
+        rv = DDS_RETCODE_PRECONDITION_NOT_MET;
+      } else {
+        rv = DDS_RETCODE_TIMEOUT;
+      }
+    } else {
+      rv = DDS_RETCODE_ERROR;
+    }
+  } else {
+    /* Get the handle of the specific child that was triggered. */
+    phdl = hdls[ret - WAIT_OBJECT_0];
+  }
+
+  if (rv == DDS_RETCODE_OK) {
+    rv = process_get_exit_code(phdl, code);
+  }
+
+  if (rv == DDS_RETCODE_OK) {
+    if (pid) {
+      *pid = GetProcessId(phdl);
+    }
+    child_remove(phdl);
   }
 
   return rv;
@@ -138,25 +227,6 @@ ddsrt_proc_exists(
     } else {
       rv = DDS_RETCODE_ERROR;
     }
-    CloseHandle(phdl);
-  }
-
-  return rv;
-}
-
-
-
-dds_retcode_t
-ddsrt_proc_term(
-  ddsrt_pid_t pid)
-{
-  dds_retcode_t rv = DDS_RETCODE_BAD_PARAMETER;
-  HANDLE phdl;
-
-  phdl = pid_to_phdl(pid);
-  if (phdl != 0) {
-    /* Try a graceful kill. */
-    rv = process_terminate(phdl);
     CloseHandle(phdl);
   }
 
@@ -218,82 +288,12 @@ process_get_exit_code(
 
 
 
-/*
- * This function will try to inject a thread into the given process.
- * That thread will execute the ExitProcess() call, which should cause
- * the process to terminate somewhat gracefully.
- */
-static dds_retcode_t
-process_terminate(HANDLE phdl)
-{
-  dds_retcode_t rv;
-  HINSTANCE kernel32;
-  HANDLE remoteHandle;
-  HANDLE dupHandle;
-  BOOL duplicated;
-  DWORD threadId;
-  DWORD waitres;
-
-  assert(phdl != 0);
-
-  /* Check if target process is actually still alive. */
-  rv = process_get_exit_code(phdl, NULL);
-  if (rv == DDS_RETCODE_PRECONDITION_NOT_MET) {
-    rv = DDS_RETCODE_ERROR;
-    kernel32 = GetModuleHandle("Kernel32");
-    if (kernel32) {
-      /* Ensure that we will have rights to create a thread
-       * in the remote process. */
-      duplicated = DuplicateHandle(GetCurrentProcess(),
-                                   phdl,
-                                   GetCurrentProcess(),
-                                   &dupHandle,
-                                   PROCESS_ALL_ACCESS,
-                                   FALSE,
-                                   0);
-      if (duplicated) {
-        phdl = dupHandle;
-      }
-
-      /* Try terminate the process by injecting a thread
-       * that will execute a ExitProcess(). */
-      FARPROC funcExitProcess;
-      funcExitProcess = GetProcAddress(kernel32, "ExitProcess");
-      if (funcExitProcess) {
-        remoteHandle = CreateRemoteThread(phdl,
-                                          NULL,
-                                          0,
-                                          (LPTHREAD_START_ROUTINE)funcExitProcess,
-                                          (LPVOID)1,  /* Exit code */
-                                          0,
-                                          &threadId);
-        if (remoteHandle != 0) {
-          /* Wait for the process to exit before closing the handle. */
-          waitres = WaitForSingleObject(phdl, 10000);
-          if (waitres == 0) {
-            rv = DDS_RETCODE_OK;
-          }
-          CloseHandle(remoteHandle);
-        }
-      }
-    }
-
-    if (duplicated) {
-      CloseHandle(dupHandle);
-    }
-  }
-
-  return rv;
-}
-
-
-
 /* Forcefully kill the given process. */
 static dds_retcode_t
 process_kill(HANDLE phdl)
 {
   assert(phdl != 0);
-  if (TerminateProcess(phdl, 1 /* exit code */) == 0) {
+  if (TerminateProcess(phdl, 1 /* exit code */) != 0) {
     return DDS_RETCODE_OK;
   }
   return DDS_RETCODE_ERROR;
@@ -301,67 +301,55 @@ process_kill(HANDLE phdl)
 
 
 
-/* Add quotes to a given string and escape. */
-static size_t
-stringify_len(const char *str)
+/* Add quotes to a given string, escape it and add it to a buffer. */
+static char*
+insert_char(char *buf, size_t *len, size_t *max, char c)
 {
-  const char *esc;
-  size_t escapes = 0;
-  for (esc = strchr(str, '\"'); esc != NULL; esc = strchr(esc, '\"')) {
-    escapes++;
-    esc++;
+  static const size_t buf_inc = 64;
+  if (*len == *max) {
+    *max += buf_inc;
+    buf = ddsrt_realloc(buf, *max);
   }
-  return strlen(str) + escapes + 5; /* '\"' +
-                                       str +
-                                       nr_of_quotes +
-                                       possible_trailing_bslash +
-                                       '\"' + ' ' + '\0' */
+  if (buf) {
+    buf[(*len)++] = c;
+  }
+  return buf;
 }
 static char*
-stringify(char *buf, const char *str)
+stringify_cat(char *buf, size_t *len, size_t *max, const char *str)
 {
-  const char *ptr = str;
-  const char *esc;
-  size_t len = strlen(str);
-  size_t idx = 0;
   char last = '\0';
 
-  if (len > 0) {
-    last = str[len - 1];
+  /* Start stringification with an opening double-quote. */
+  buf = insert_char(buf, len, max, '\"');
+  if (!buf) goto end;
+
+  /* Copy and escape the string. */
+  while ((*str) != '\0') {
+    if (*str == '\"') {
+      buf = insert_char(buf, len, max, '\\');
+      if (!buf) goto end;
+    }
+    buf = insert_char(buf, len, max, *str);
+    if (!buf) goto end;
+    last = *str;
+    str++;
   }
 
-  buf[idx++] = '\"';
-  while (len > 0) {
-    esc = strchr(ptr, '\"');
-    if (esc) {
-      size_t n = (size_t)(esc - ptr);
-      assert(esc >= ptr);
-      if (n != 0) {
-        /* Copy part before escape. */
-        memcpy(&(buf[idx]), ptr, n);
-        idx += n;
-      }
-      /* Escape the double quote. */
-      buf[idx++] = '\\';
-      buf[idx++] = '\"';
-      /* Continue after the offending char. */
-      ptr = esc + 1;
-      len -= (n + 1);
-    } else {
-      /* No (more) chars to escape. */
-      memcpy(&(buf[idx]), ptr, len);
-      idx += len;
-      len = 0;
-    }
-  }
-  /* For some reason, the last backslash will be stripped. */
+  /* For some reason, only the last backslash will be stripped.
+   * No need to escape the other backslashes. */
   if (last == '\\') {
-    buf[idx++] = '\\';
+    buf = insert_char(buf, len, max, '\\');
+    if (!buf) goto end;
   }
-  buf[idx++] = '\"';
-  buf[idx++] = ' ';
-  buf[idx  ] = '\0';
-  return &(buf[idx]);
+
+  /* End stringification. */
+  buf = insert_char(buf, len, max, '\"');
+  if (!buf) goto end;
+  buf = insert_char(buf, len, max, ' ');
+
+end:
+  return buf;
 }
 
 
@@ -370,32 +358,90 @@ stringify(char *buf, const char *str)
 static char*
 commandline(const char *exe, char *const argv_in[])
 {
-  char *cmd;
-  size_t cmdlen;
+  char *cmd = NULL;
+  size_t len = 0;
+  size_t max = 0;
+  size_t argi;
 
   assert(exe);
-  cmdlen = stringify_len(exe);
 
-  if (argv_in == NULL) {
-    cmd = ddsrt_malloc(cmdlen);
-    if (cmd) {
-      stringify(cmd, exe);
-    }
-  } else {
-    char *ptr;
-    size_t argi;
+  /* Add quoted and escaped executable. */
+  cmd = stringify_cat(cmd, &len, &max, exe);
+  if (!cmd) goto end;
+
+  /* Add quoted and escaped arguments. */
+  if (argv_in != NULL) {
     for (argi = 0; argv_in[argi] != NULL; argi++) {
-      cmdlen += stringify_len(argv_in[argi]);
+      cmd = stringify_cat(cmd, &len, &max, argv_in[argi]);
+      if (!cmd) goto end;
     }
-    cmd = ddsrt_malloc(cmdlen);
-    if (cmd) {
-      ptr = stringify(cmd, exe);
-      for (argi = 0; argv_in[argi] != NULL; argi++) {
-        ptr = stringify(ptr, argv_in[argi]);
+  }
+
+  /* Terminate command line string. */
+  cmd = insert_char(cmd, &len, &max, '\0');
+
+end:
+  return cmd;
+}
+
+
+/* Maintain a list of children to be able to wait for all them. */
+static ddsrt_atomic_voidp_t g_children[MAXIMUM_WAIT_OBJECTS] = {0};
+
+static BOOL
+child_update(HANDLE old, HANDLE new)
+{
+  BOOL updated = FALSE;
+  for (int i = 0; (i < MAXIMUM_WAIT_OBJECTS) && (!updated); i++)
+  {
+    updated = ddsrt_atomic_casvoidp(&(g_children[i]), old, new);
+  }
+  return updated;
+}
+
+static BOOL
+child_add(HANDLE phdl)
+{
+  return child_update(0, phdl);
+}
+
+static void
+child_remove(HANDLE phdl)
+{
+  (void)child_update(phdl, 0);
+}
+
+static DWORD
+child_list(HANDLE *list, DWORD max)
+{
+  HANDLE hdl;
+  int cnt = 0;
+  assert(list);
+  assert(max <= MAXIMUM_WAIT_OBJECTS);
+  for (int i = 0; (i < MAXIMUM_WAIT_OBJECTS); i++)
+  {
+    hdl = ddsrt_atomic_ldvoidp(&(g_children[i]));
+    if (hdl != 0) {
+      list[cnt++] = hdl;
+    }
+  }
+  return cnt;
+}
+
+static HANDLE
+child_handle(ddsrt_pid_t pid)
+{
+  HANDLE phdl = 0;
+
+  for (int i = 0; (i < MAXIMUM_WAIT_OBJECTS) && (phdl == 0); i++)
+  {
+    phdl = ddsrt_atomic_ldvoidp(&(g_children[i]));
+    if (phdl != 0) {
+      if (GetProcessId(phdl) != pid) {
+        phdl = 0;
       }
     }
   }
 
-  return cmd;
+  return phdl;
 }
-

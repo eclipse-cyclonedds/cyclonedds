@@ -24,7 +24,7 @@ static int test_create(void)
   return TEST_CREATE_EXIT;
 }
 
-static int test_destroy(int argi, int argc, char **argv)
+static int test_sleep(int argi, int argc, char **argv)
 {
   argi++;
   if (argi < argc) {
@@ -88,8 +88,8 @@ int main(int argc, char **argv)
   if (argc == 1) {
     ret = test_create();
   } else {
-    if (strcmp(argv[1], TEST_DESTROY_ARG0) == 0) {
-      ret = test_destroy(1, argc, argv);
+    if (strcmp(argv[1], TEST_SLEEP_ARG) == 0) {
+      ret = test_sleep(1, argc, argv);
     } else if (strcmp(argv[1], TEST_PID_ARG) == 0) {
       ret = test_pid();
     } else if (strcmp(argv[1], TEST_ENV_ARG) == 0) {

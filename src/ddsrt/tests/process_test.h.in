@@ -16,18 +16,14 @@
  * get the proper extension and location. */
 #define TEST_APPLICATION "@process_app_name@"
 
+#define TEST_SLEEP_ARG        "--sleep"
 
 #define TEST_EXIT_GENERIC_OK  (0)
 #define TEST_EXIT_FAILURE     (1)
 #define TEST_EXIT_WRONG_ARGS  (2)
 
-
 #define TEST_CREATE_ARG       NULL
 #define TEST_CREATE_EXIT      (0)
-
-#define TEST_DESTROY_ARG0     "--sleep"
-#define TEST_DESTROY_ARG1     "20"
-#define TEST_DESTROY_EXIT     (11)
 
 #define TEST_PID_ARG          "--retpid"
 #define TEST_PID_EXIT(pid)    ((int)(int32_t)(pid % 127))

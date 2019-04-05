@@ -21,25 +21,6 @@
 
 
 /*
- * Just wait for a maximum of 10 seconds for
- * a process to have terminated.
- */
-static dds_retcode_t wait_exit(ddsrt_pid_t pid, int32_t *status)
-{
-  static const dds_duration_t poll = DDS_MSECS(50);
-  dds_duration_t timeout = DDS_SECS(10);
-  dds_retcode_t rv;
-
-  do {
-    dds_sleepfor(poll);
-    timeout -= poll;
-    rv = ddsrt_proc_get_exit_code(pid, status);
-  } while ((rv == DDS_RETCODE_PRECONDITION_NOT_MET) && (timeout > 0));
-
-  return rv;
-}
-
-/*
  * Create a process that is expected to exit quickly.
  * Compare the exit code with the expected exit code.
  */
@@ -54,7 +35,7 @@ static void create_and_test_exit(const char *arg, int code)
   ret = ddsrt_proc_create(TEST_APPLICATION, argv, &pid);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
-  ret = wait_exit(pid, &status);
+  ret = ddsrt_proc_waitpid(pid, DDS_SECS(10), &status);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
 
   /* Check result. */
@@ -79,13 +60,15 @@ CU_Test(ddsrt_process, create)
 
 /*
  * Create a process that'll sleep for a while.
- * Try to destroy that process.
+ * Try to kill that process.
  */
-CU_Test(ddsrt_process, destroy)
+CU_Test(ddsrt_process, kill)
 {
   dds_retcode_t ret;
   ddsrt_pid_t pid;
-  char *argv[] = { TEST_DESTROY_ARG0, TEST_DESTROY_ARG1, NULL };
+
+  /* Sleep for 20 seconds. It should be killed before then. */
+  char *argv[] = { TEST_SLEEP_ARG, "20", NULL };
 
   ret = ddsrt_proc_create(TEST_APPLICATION, argv, &pid);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -95,20 +78,15 @@ CU_Test(ddsrt_process, destroy)
   ret = ddsrt_proc_exists(pid);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
 
-  /* Destroy it. */
-  ret = ddsrt_proc_term(pid);
+  /* Kill it. */
+  ret = ddsrt_proc_kill(pid);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
   /* Check if process is actually gone. */
-  ret = wait_exit(pid, NULL);
+  ret = ddsrt_proc_waitpid(pid, DDS_SECS(10), NULL);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
   ret = ddsrt_proc_exists(pid);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_NOT_FOUND);
-
-  /* Garbage collection when needed. */
-  if (ret != DDS_RETCODE_NOT_FOUND) {
-    ddsrt_proc_kill(pid);
-  }
 }
 
 
@@ -129,7 +107,7 @@ CU_Test(ddsrt_process, pid)
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
   CU_ASSERT_NOT_EQUAL_FATAL(pid, 0);
 
-  ret = wait_exit(pid, &status);
+  ret = ddsrt_proc_waitpid(pid, DDS_SECS(10), &status);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
 
   /* Compare the pid values. */
@@ -193,3 +171,111 @@ CU_Test(ddsrt_process, arg_dquote)
   create_and_test_exit(TEST_DQUOTE_ARG, TEST_DQUOTE_EXIT);
 }
 
+
+/*
+ * Create two processes and wait for them simultaneously.
+ */
+CU_Test(ddsrt_process, waitpids)
+{
+  dds_retcode_t ret;
+  ddsrt_pid_t child;
+  ddsrt_pid_t pid1 = 0;
+  ddsrt_pid_t pid2 = 0;
+  int32_t status;
+
+  /* Use retpid option to identify return values. */
+  char *argv[] = { TEST_PID_ARG, NULL };
+
+  /* Start two processes. */
+  ret = ddsrt_proc_create(TEST_APPLICATION, argv, &pid1);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
+  ret = ddsrt_proc_create(TEST_APPLICATION, argv, &pid2);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
+
+  /* Wait for both processes to have finished. */
+  while (((pid1 != 0) || (pid2 != 0)) && (ret == DDS_RETCODE_OK)) {
+    ret = ddsrt_proc_waitpids(DDS_SECS(10), &child, &status);
+    CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
+    if (child == pid1) {
+      CU_ASSERT_EQUAL(status, TEST_PID_EXIT(pid1));
+      pid1 = 0;
+    } else if (child == pid2) {
+      CU_ASSERT_EQUAL(status, TEST_PID_EXIT(pid2));
+      pid2 = 0;
+    } else {
+      CU_ASSERT(0);
+    }
+  }
+
+  /* Garbage collection when needed. */
+  if (pid1 != 0) {
+    ddsrt_proc_kill(pid1);
+  }
+  if (pid2 != 0) {
+    ddsrt_proc_kill(pid2);
+  }
+}
+
+
+/*
+ * Create a sleeping process. Waiting for it should timeout.
+ */
+CU_Test(ddsrt_process, waitpid_timeout)
+{
+  dds_retcode_t ret;
+  ddsrt_pid_t pid;
+
+  /* Sleep for 20 seconds. We should have a timeout before then. */
+  char *argv[] = { TEST_SLEEP_ARG, "20", NULL };
+  ret = ddsrt_proc_create(TEST_APPLICATION, argv, &pid);
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_NOT_EQUAL_FATAL(pid, 0);
+
+  /* Timeout 0 should return DDS_RETCODE_PRECONDITION_NOT_MET when alive. */
+  ret = ddsrt_proc_waitpid(pid, 0, NULL);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_PRECONDITION_NOT_MET);
+
+  /* Valid timeout should return DDS_RETCODE_TIMEOUT when alive. */
+  ret = ddsrt_proc_waitpid(pid, DDS_SECS(1), NULL);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_TIMEOUT);
+
+  /* Kill it. */
+  ret = ddsrt_proc_kill(pid);
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+  /* When killed, DDS_RETCODE_OK should be returned. */
+  ret = ddsrt_proc_waitpid(pid, DDS_SECS(10), NULL);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
+}
+
+
+/*
+ * Create a sleeping process. Waiting for it should timeout.
+ */
+CU_Test(ddsrt_process, waitpids_timeout)
+{
+  dds_retcode_t ret;
+  ddsrt_pid_t pid;
+
+  /* Sleep for 20 seconds. We should have a timeout before then. */
+  char *argv[] = { TEST_SLEEP_ARG, "20", NULL };
+  ret = ddsrt_proc_create(TEST_APPLICATION, argv, &pid);
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_NOT_EQUAL_FATAL(pid, 0);
+
+  /* Timeout 0 should return DDS_RETCODE_PRECONDITION_NOT_MET when alive. */
+  ret = ddsrt_proc_waitpids(0, NULL, NULL);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_PRECONDITION_NOT_MET);
+
+  /* Valid timeout should return DDS_RETCODE_TIMEOUT when alive. */
+  ret = ddsrt_proc_waitpids(DDS_SECS(1), NULL, NULL);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_TIMEOUT);
+
+  /* Kill it. */
+  ret = ddsrt_proc_kill(pid);
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+  /* When killed, DDS_RETCODE_OK should be returned. */
+  ret = ddsrt_proc_waitpids(DDS_SECS(10), NULL, NULL);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
+}
