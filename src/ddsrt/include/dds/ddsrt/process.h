@@ -80,11 +80,21 @@ ddsrt_proc_create(
   ddsrt_pid_t *pid);
 
 /**
- * @brief Get the exit code of a process.
+ * @brief Wait for a specific child process to have finished.
  *
- * This can only be used on child processes on some platforms.
+ * This function takes a process id and will wait until the related process
+ * has finished or the timeout is reached.
+ *
+ * If the process finished, then the exit code of that process will be copied
+ * into the given 'code' argument.
+ *
+ * Internally, the timeout can be round-up to the nearest milliseconds or
+ * seconds, depending on the platform.
+ *
+ * See ddsrt_proc_waitpids() for waiting on all child processes.
  *
  * @param[in]   pid            Process ID (PID) to get the exit code from.
+ * @param[in]   timemout       Time within the process is expected to finish.
  * @param[out]  code           The exit code of the process.
  *
  * @returns A dds_retcode_t indicating success or failure.
@@ -92,24 +102,53 @@ ddsrt_proc_create(
  * @retval DDS_RETCODE_OK
  *             Process has terminated and its exit code has been captured.
  * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             Process is still alive.
+ *             Process is still alive (only when timeout == 0).
  * @retval DDS_RETCODE_TIMEOUT
- *             Process is still alive, even after the timeout.
+ *             Process is still alive (even after the timeout).
  * @retval DDS_RETCODE_BAD_PARAMETER
- *             Process unknown.
+ *             Process unknown or a negative timeout.
  * @retval DDS_RETCODE_ERROR
  *             Getting the exit code failed for an unknown reason.
  */
-
-/* If req_pid == 0, then wait for all children. Else, try wait for specific child. */
-/* Duration is round-up to the nearest second. */
-
 DDS_EXPORT dds_retcode_t
 ddsrt_proc_waitpid(
   ddsrt_pid_t pid,
   dds_duration_t timeout,
   int32_t *code);
 
+/**
+ * @brief Wait for a random child process to have finished.
+ *
+ * This function will wait until anyone of the child processes has
+ * finished or the timeout is reached.
+ *
+ * If a process finished, then the exit code of that process will be
+ * copied into the given 'code' argument. The pid of the process will
+ * be put in the 'pid' argument.
+ *
+ * Internally, the timeout can be round-up to the nearest milliseconds or
+ * seconds, depending on the platform.
+ *
+ * See ddsrt_proc_waitpid() for waiting on a specific child process.
+ *
+ * @param[in]   timemout       Time within a process is expected to finish.
+ * @param[out]  pid            Process ID (PID) of the finished process.
+ * @param[out]  code           The exit code of the process.
+ *
+ * @returns A dds_retcode_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             A process has terminated.
+ *             Its exit code and pid have been captured.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             All child processes are still alive (only when timeout == 0).
+ * @retval DDS_RETCODE_TIMEOUT
+ *             All child processes are still alive (even after the timeout).
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Negative timeout.
+ * @retval DDS_RETCODE_ERROR
+ *             Getting the exit code failed for an unknown reason.
+ */
 DDS_EXPORT dds_retcode_t
 ddsrt_proc_waitpids(
   dds_duration_t timeout,
