@@ -2660,9 +2660,9 @@ static struct receiver_state *rst_cow_if_needed (int *rst_live, struct nn_rmsg *
 
 static int handle_submsg_sequence
 (
+  struct thread_state1 * const ts1,
   ddsi_tran_conn_t conn,
   const nn_locator_t *srcloc,
-  struct thread_state1 * const self,
   nn_wctime_t tnowWC,
   nn_etime_t tnowE,
   const nn_guid_prefix_t * const src_prefix,
@@ -2709,10 +2709,12 @@ static int handle_submsg_sequence
   ts_for_latmeas = 0;
   timestamp = invalid_ddsi_timestamp;
 
+  assert (thread_is_asleep ());
+  thread_state_awake (ts1);
   while (submsg <= (end - sizeof (SubmessageHeader_t)))
   {
     Submessage_t *sm = (Submessage_t *) submsg;
-    int byteswap;
+    bool byteswap;
     unsigned octetsToNextHeader;
 
     if (sm->smhdr.flags & SMFLAG_ENDIANNESS)
@@ -2749,7 +2751,7 @@ static int handle_submsg_sequence
       break;
     }
 
-    thread_state_awake (self);
+    thread_state_awake_to_awake_no_nest (ts1);
     state_smkind = sm->smhdr.submessageId;
     switch (sm->smhdr.submessageId)
     {
@@ -2855,9 +2857,7 @@ static int handle_submsg_sequence
           unsigned char *datap;
           /* valid_Data does not validate the payload */
           if (!valid_Data (rst, rmsg, &sm->data, submsg_size, byteswap, &sampleinfo, &datap))
-          {
             goto malformed;
-          }
           sampleinfo.timestamp = timestamp;
           sampleinfo.reception_timestamp = tnowWC;
           handle_Data (rst, tnowE, rmsg, &sm->data, submsg_size, &sampleinfo, datap);
@@ -2886,8 +2886,10 @@ static int handle_submsg_sequence
                 size_t len2 = decode_container (submsg1, len1);
                 if ( len2 != 0 ) {
                   TRACE ((")\n"));
-                  if (handle_submsg_sequence (conn, srcloc, self, tnowWC, tnowE, src_prefix, dst_prefix, msg, (size_t) (submsg1 - msg) + len2, submsg1, rmsg) < 0)
-                    goto malformed;
+                  thread_state_asleep (ts1);
+                  if (handle_submsg_sequence (conn, srcloc, tnowWC, tnowE, src_prefix, dst_prefix, msg, (size_t) (submsg1 - msg) + len2, submsg1, rmsg) < 0)
+                    goto malformed_asleep;
+                  thread_state_awake (ts1);
                 }
                 TRACE (("PT_INFO_CONTAINER END"));
               }
@@ -2952,19 +2954,24 @@ static int handle_submsg_sequence
     state = "parse:shortmsg";
     state_smkind = SMID_PAD;
     DDS_TRACE("short (size %"PRIuSIZE" exp %p act %p)", submsg_size, (void *) submsg, (void *) end);
-    goto malformed;
+    goto malformed_asleep;
   }
+  thread_state_asleep (ts1);
+  assert (thread_is_asleep ());
   return 0;
 
 malformed:
-
+  thread_state_asleep (ts1);
+  assert (thread_is_asleep ());
+malformed_asleep:
+  assert (thread_is_asleep ());
   malformed_packet_received (msg, submsg, len, state, state_smkind, hdr->vendorid);
   return -1;
 }
 
 static bool do_packet
 (
-  struct thread_state1 *self,
+  struct thread_state1 * const ts1,
   ddsi_tran_conn_t conn,
   const nn_guid_prefix_t * guidprefix,
   struct nn_rbufpool *rbpool
@@ -3052,7 +3059,7 @@ static bool do_packet
   if (sz > 0 && !gv.deaf)
   {
     nn_rmsg_setsize (rmsg, (uint32_t) sz);
-    assert (vtime_asleep_p (self->vtime));
+    assert (thread_is_asleep ());
 
     if ((size_t)sz < RTPS_MESSAGE_HEADER_SIZE || *(uint32_t *)buff != NN_PROTOCOLID_AS_UINT32)
     {
@@ -3078,9 +3085,8 @@ static bool do_packet
                   PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
       }
 
-      handle_submsg_sequence (conn, &srcloc, self, now (), now_et (), &hdr->guid_prefix, guidprefix, buff, (size_t) sz, buff + RTPS_MESSAGE_HEADER_SIZE, rmsg);
+      handle_submsg_sequence (ts1, conn, &srcloc, now (), now_et (), &hdr->guid_prefix, guidprefix, buff, (size_t) sz, buff + RTPS_MESSAGE_HEADER_SIZE, rmsg);
     }
-    thread_state_asleep (self);
   }
   nn_rmsg_commit (rmsg);
   return (sz > 0);
@@ -3144,13 +3150,13 @@ static void local_participant_set_fini (struct local_participant_set *lps)
   ddsrt_free (lps->ps);
 }
 
-static void rebuild_local_participant_set (struct thread_state1 *self, struct local_participant_set *lps)
+static void rebuild_local_participant_set (struct thread_state1 * const ts1, struct local_participant_set *lps)
 {
   struct ephash_enum_participant est;
   struct participant *pp;
   unsigned nps_alloc;
   DDS_TRACE("pp set gen changed: local %u global %"PRIu32"\n", lps->gen, ddsrt_atomic_ld32(&gv.participant_set_generation));
-  thread_state_awake (self);
+  thread_state_awake (ts1);
  restart:
   lps->gen = ddsrt_atomic_ld32 (&gv.participant_set_generation);
   /* Actual local set of participants may never be older than the
@@ -3195,7 +3201,7 @@ static void rebuild_local_participant_set (struct thread_state1 *self, struct lo
     DDS_TRACE("  set changed - restarting\n");
     goto restart;
   }
-  thread_state_asleep (self);
+  thread_state_asleep (ts1);
 
   /* The definition of the hash enumeration allows visiting one
      participant multiple times, so guard against that, too.  Note
@@ -3361,8 +3367,8 @@ void trigger_recv_threads (void)
 
 uint32_t recv_thread (void *vrecv_thread_arg)
 {
+  struct thread_state1 * const ts1 = lookup_thread_state ();
   struct recv_thread_arg *recv_thread_arg = vrecv_thread_arg;
-  struct thread_state1 *self = lookup_thread_state ();
   struct nn_rbufpool *rbpool = recv_thread_arg->rbpool;
   os_sockWaitset waitset = recv_thread_arg->mode == RTM_MANY ? recv_thread_arg->u.many.ws : NULL;
   nn_mtime_t next_thread_cputime = { 0 };
@@ -3373,7 +3379,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     while (gv.rtps_keepgoing)
     {
       LOG_THREAD_CPUTIME (next_thread_cputime);
-      (void) do_packet (self, recv_thread_arg->u.single.conn, NULL, rbpool);
+      (void) do_packet (ts1, recv_thread_arg->u.single.conn, NULL, rbpool);
     }
   }
   else
@@ -3422,7 +3428,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
       {
         /* first rebuild local participant set - unless someone's toggling "deafness", this
          only happens when the participant set has changed, so might as well rebuild it */
-        rebuild_local_participant_set (self, &lps);
+        rebuild_local_participant_set (ts1, &lps);
         os_sockWaitsetPurge (waitset, num_fixed);
         for (i = 0; i < lps.nps; i++)
         {
@@ -3443,7 +3449,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
           else
             guid_prefix = &lps.ps[(unsigned)idx - num_fixed].guid_prefix;
           /* Process message and clean out connection if failed or closed */
-          if (!do_packet (self, conn, guid_prefix, rbpool) && !conn->m_connless)
+          if (!do_packet (ts1, conn, guid_prefix, rbpool) && !conn->m_connless)
             ddsi_conn_free (conn);
         }
       }

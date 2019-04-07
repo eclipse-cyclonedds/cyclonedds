@@ -1459,7 +1459,7 @@ void nn_xpack_sendq_init (void)
 
 void nn_xpack_sendq_start (void)
 {
-  gv.sendq_ts = create_thread("sendq", nn_xpack_sendq_thread, NULL);
+  create_thread (&gv.sendq_ts, "sendq", nn_xpack_sendq_thread, NULL);
 }
 
 void nn_xpack_sendq_stop (void)

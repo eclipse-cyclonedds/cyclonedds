@@ -141,7 +141,6 @@ DU(tracingOutputFileName);
 DU(verbosity);
 DUPF(logcat);
 DUPF(xcheck);
-DUPF(float);
 DUPF(int);
 DUPF(uint);
 DUPF(int32);
@@ -158,6 +157,7 @@ DU(duration_inf);
 DU(duration_ms_1hr);
 DU(duration_ms_1s);
 DU(duration_us_1s);
+DU(duration_100ms_1hr);
 PF(duration);
 DUPF(standards_conformance);
 DUPF(besmode);
@@ -516,6 +516,8 @@ static const struct cfgelem heartbeat_interval_attrs[] = {
 static const struct cfgelem liveliness_monitoring_attrs[] = {
   { ATTR("StackTraces"), 1, "true", ABSOFF(noprogress_log_stacktraces), 0, uf_boolean, 0, pf_boolean,
     "<p>This element controls whether or not to write stack traces to the DDSI2 trace when a thread fails to make progress (on select platforms only).</p>" },
+  { ATTR("Interval"), 1, "1s", ABSOFF(liveliness_monitoring_interval), 0, uf_duration_100ms_1hr, 0, pf_duration,
+    "<p>This element controls the interval at which to check whether threads have been making progress.</p>" },
   END_MARKER
 };
 
@@ -878,23 +880,14 @@ static const struct cfgelem ddsi2_cfgelems[] = {
     END_MARKER
 };
 
-/* Note: using 2e-1 instead of 0.2 to avoid use of the decimal
-separator, which is locale dependent. */
-static const struct cfgelem lease_expiry_time_cfgattrs[] = {
-    { ATTR("update_factor"), 1, "2e-1", ABSOFF(servicelease_update_factor), 0, uf_float, 0, pf_float, NULL },
-    END_MARKER
+static const struct cfgelem deprecated_lease_cfgelems[] = {
+  WILDCARD,
+  END_MARKER
 };
-
-static const struct cfgelem lease_cfgelems[] = {
-    { LEAF_W_ATTRS("ExpiryTime", lease_expiry_time_cfgattrs), 1, "10", ABSOFF(servicelease_expiry_time), 0, uf_float, 0, pf_float, NULL },
-    END_MARKER
-};
-
 
 static const struct cfgelem domain_cfgelems[] = {
-    { GROUP("Lease", lease_cfgelems), NULL },
     { LEAF("Id"), 1, "any", ABSOFF(domainId), 0, uf_domainId, 0, pf_domainId, NULL },
-    WILDCARD,
+    { GROUP("|Lease", deprecated_lease_cfgelems), NULL },
     END_MARKER
 };
 
@@ -908,7 +901,7 @@ static const struct cfgelem root_cfgelems[] = {
     { "DDSI2E|DDSI2", ddsi2_cfgelems, NULL, NODATA,
     "<p>DDSI2 settings ...</p>" },
     { "Durability", durability_cfgelems, NULL, NODATA, NULL },
-    { "Lease", lease_cfgelems, NULL, NODATA, NULL },
+    { GROUP("|Lease", deprecated_lease_cfgelems), NULL },
     END_MARKER
 };
 
@@ -1529,7 +1522,7 @@ static int uf_string(struct cfgst *cfgst, void *parent, struct cfgelem const * c
 }
 
 DDSRT_WARNING_MSVC_OFF(4996);
-static int uf_natint64_unit(struct cfgst *cfgst, int64_t *elem, const char *value, const struct unit *unittab, int64_t def_mult, int64_t max)
+static int uf_natint64_unit(struct cfgst *cfgst, int64_t *elem, const char *value, const struct unit *unittab, int64_t def_mult, int64_t min, int64_t max)
 {
     int pos;
     double v_dbl;
@@ -1542,14 +1535,14 @@ static int uf_natint64_unit(struct cfgst *cfgst, int64_t *elem, const char *valu
         return cfg_error(cfgst, "%s: empty string is not a valid value", value);
     } else if ( sscanf(value, "%lld%n", (long long int *) &v_int, &pos) == 1 && (mult = lookup_multiplier(cfgst, unittab, value, pos, v_int == 0, def_mult, 0)) != 0 ) {
         assert(mult > 0);
-        if ( v_int < 0 || v_int > max / mult )
+        if ( v_int < 0 || v_int > max / mult || mult * v_int < min)
             return cfg_error(cfgst, "%s: value out of range", value);
         *elem = mult * v_int;
         return 1;
     } else if ( sscanf(value, "%lf%n", &v_dbl, &pos) == 1 && (mult = lookup_multiplier(cfgst, unittab, value, pos, v_dbl == 0, def_mult, 1)) != 0 ) {
         double dmult = (double) mult;
         assert(dmult > 0);
-        if ( v_dbl < 0 || (int64_t) (v_dbl * dmult + 0.5) > max )
+        if ( (int64_t) (v_dbl * dmult + 0.5) < min || (int64_t) (v_dbl * dmult + 0.5) > max )
             return cfg_error(cfgst, "%s: value out of range", value);
         *elem = (int64_t) (v_dbl * dmult + 0.5);
         return 1;
@@ -1587,7 +1580,7 @@ static int uf_bandwidth(struct cfgst *cfgst, void *parent, struct cfgelem const 
 static int uf_memsize(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
     int64_t size = 0;
-    if ( !uf_natint64_unit(cfgst, &size, value, unittab_memsize, 1, INT32_MAX) )
+    if ( !uf_natint64_unit(cfgst, &size, value, unittab_memsize, 1, 0, INT32_MAX) )
         return 0;
     else {
         uint32_t *elem = cfg_address(cfgst, parent, cfgelem);
@@ -1844,26 +1837,13 @@ static int uf_maybe_memsize(struct cfgst *cfgst, void *parent, struct cfgelem co
         elem->isdefault = 1;
         elem->value = 0;
         return 1;
-    } else if ( !uf_natint64_unit(cfgst, &size, value, unittab_memsize, 1, INT32_MAX) ) {
+    } else if ( !uf_natint64_unit(cfgst, &size, value, unittab_memsize, 1, 0, INT32_MAX) ) {
         return 0;
     } else {
         elem->isdefault = 0;
         elem->value = (uint32_t) size;
         return 1;
     }
-}
-
-
-static int uf_float(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
-{
-    float *elem = cfg_address(cfgst, parent, cfgelem);
-    char *endptr;
-    float f;
-    dds_retcode_t rc = ddsrt_strtof(value, &endptr, &f);
-    if (rc != DDS_RETCODE_OK || *value == 0 || *endptr != 0 )
-        return cfg_error(cfgst, "%s: not a floating point number", value);
-    *elem = f;
-    return 1;
 }
 
 static int uf_int(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
@@ -1879,9 +1859,9 @@ static int uf_int(struct cfgst *cfgst, void *parent, struct cfgelem const * cons
     return 1;
 }
 
-static int uf_duration_gen(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, const char *value, int64_t def_mult, int64_t max_ns)
+static int uf_duration_gen(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, const char *value, int64_t def_mult, int64_t min_ns, int64_t max_ns)
 {
-    return uf_natint64_unit(cfgst, cfg_address(cfgst, parent, cfgelem), value, unittab_duration, def_mult, max_ns);
+    return uf_natint64_unit(cfgst, cfg_address(cfgst, parent, cfgelem), value, unittab_duration, def_mult, min_ns, max_ns);
 }
 
 static int uf_duration_inf(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
@@ -1891,23 +1871,28 @@ static int uf_duration_inf(struct cfgst *cfgst, void *parent, struct cfgelem con
         *elem = T_NEVER;
         return 1;
     } else {
-        return uf_duration_gen(cfgst, parent, cfgelem, value, 0, T_NEVER - 1);
+        return uf_duration_gen(cfgst, parent, cfgelem, value, 0, 0, T_NEVER - 1);
     }
 }
 
 static int uf_duration_ms_1hr(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
-    return uf_duration_gen(cfgst, parent, cfgelem, value, T_MILLISECOND, 3600 * T_SECOND);
+    return uf_duration_gen(cfgst, parent, cfgelem, value, T_MILLISECOND, 0, 3600 * T_SECOND);
 }
 
 static int uf_duration_ms_1s(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
-    return uf_duration_gen(cfgst, parent, cfgelem, value, T_MILLISECOND, T_SECOND);
+    return uf_duration_gen(cfgst, parent, cfgelem, value, T_MILLISECOND, 0, T_SECOND);
 }
 
 static int uf_duration_us_1s(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
-    return uf_duration_gen(cfgst, parent, cfgelem, value, 1000, T_SECOND);
+    return uf_duration_gen(cfgst, parent, cfgelem, value, 1000, 0, T_SECOND);
+}
+
+static int uf_duration_100ms_1hr(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
+{
+  return uf_duration_gen(cfgst, parent, cfgelem, value, 0, 100 * T_MILLISECOND, 3600 * T_SECOND);
 }
 
 static int uf_int32(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
@@ -2307,12 +2292,6 @@ static void pf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const 
     cfg_log(cfgst, "any (%d)%s", p->value, is_default ? " [def]" : "");
   else
     cfg_log(cfgst, "%d%s", p->value, is_default ? " [def]" : "");
-}
-
-static void pf_float(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-    float *p = cfg_address(cfgst, parent, cfgelem);
-    cfg_log(cfgst, "%f%s", *p, is_default ? " [def]" : "");
 }
 
 static void pf_boolean(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)

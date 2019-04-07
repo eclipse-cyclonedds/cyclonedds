@@ -108,7 +108,7 @@ static uint64_t store (struct rhc *rhc, struct proxy_writer *wr, struct ddsi_ser
   /* beware: unrefs sd */
   struct ddsi_tkmap_instance *tk;
   struct proxy_writer_info pwr_info;
-  thread_state_awake (mainthread);
+  thread_state_awake (lookup_thread_state ());
   tk = ddsi_tkmap_lookup_instance_ref(sd);
   uint64_t iid = tk->m_iid;
   if (print)
@@ -132,7 +132,7 @@ static uint64_t store (struct rhc *rhc, struct proxy_writer *wr, struct ddsi_ser
   pwr_info.ownership_strength = wr->c.xqos->ownership_strength.value;
   dds_rhc_store (rhc, &pwr_info, sd, tk);
   ddsi_tkmap_instance_unref (tk);
-  thread_state_asleep (mainthread);
+  thread_state_asleep (lookup_thread_state ());
   ddsi_serdata_unref (sd);
   return iid;
 }
@@ -171,18 +171,18 @@ static struct rhc *mkrhc (dds_reader *rd, nn_history_kind_t hk, int32_t hdepth, 
   rqos.history.depth = hdepth;
   rqos.destination_order.kind = dok;
   nn_xqos_mergein_missing (&rqos, &gv.default_xqos_rd);
-  thread_state_awake (mainthread);
+  thread_state_awake (lookup_thread_state ());
   rhc = dds_rhc_new (rd, mdtopic);
   dds_rhc_set_qos(rhc, &rqos);
-  thread_state_asleep (mainthread);
+  thread_state_asleep (lookup_thread_state ());
   return rhc;
 }
 
 static void frhc (struct rhc *rhc)
 {
-  thread_state_awake (mainthread);
+  thread_state_awake (lookup_thread_state ());
   dds_rhc_free (rhc);
-  thread_state_asleep (mainthread);
+  thread_state_asleep (lookup_thread_state ());
 }
 
 static char si2is (const dds_sample_info_t *si)
@@ -288,9 +288,9 @@ static void rdtkcond (struct rhc *rhc, dds_readcond *cond, const struct check *c
   if (print)
     printf ("%s:\n", opname);
 
-  thread_state_awake (mainthread);
+  thread_state_awake (lookup_thread_state ());
   cnt = op (rhc, true, rres_ptrs, rres_iseq, (max <= 0) ? (uint32_t) (sizeof (rres_iseq) / sizeof (rres_iseq[0])) : (uint32_t) max, cond ? NO_STATE_MASK_SET : (DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE), 0, cond);
-  thread_state_asleep (mainthread);
+  thread_state_asleep (lookup_thread_state ());
   if (max > 0 && cnt > max) {
     printf ("%s TOO MUCH DATA (%d > %d)\n", opname, cnt, max);
     abort ();
@@ -764,8 +764,8 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
           tkcond (rhc[k], rhcconds[cond], NULL, 1, print && k == 0, states_seen);
         break;
       }
-      case 11:
-        thread_state_awake (mainthread);
+      case 11: {
+        thread_state_awake (lookup_thread_state ());
         struct proxy_writer_info wr_info;
         wr_info.auto_dispose = wr[which]->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
         wr_info.guid = wr[which]->e.guid;
@@ -773,8 +773,9 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
         wr_info.ownership_strength = wr[which]->c.xqos->ownership_strength.value;
         for (size_t k = 0; k < nrd; k++)
           dds_rhc_unregister_wr (rhc[k], &wr_info);
-        thread_state_asleep (mainthread);
+        thread_state_asleep (lookup_thread_state ());
         break;
+      }
     }
 
     if ((i % 200) == 0)
@@ -869,14 +870,14 @@ int main (int argc, char **argv)
       { 0, 0, 0, 0, 0, 0, 0, 0 }
     };
     rdall (rhc, c1, print, states_seen);
-    thread_state_awake (mainthread);
+    thread_state_awake (lookup_thread_state ());
     struct proxy_writer_info wr0_info;
     wr0_info.auto_dispose = wr0->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
     wr0_info.guid = wr0->e.guid;
     wr0_info.iid = wr0->e.iid;
     wr0_info.ownership_strength = wr0->c.xqos->ownership_strength.value;
     dds_rhc_unregister_wr (rhc, &wr0_info);
-    thread_state_asleep (mainthread);
+    thread_state_asleep (lookup_thread_state ());
     const struct check c2[] = {
       { "ROU", iid0, wr0->e.iid, 0,0, 1, 0,1 },
       { "ROU", iid0, 0, 0,0, 0, 0,0 },

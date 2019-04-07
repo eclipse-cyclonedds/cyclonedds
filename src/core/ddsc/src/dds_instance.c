@@ -127,8 +127,7 @@ dds_register_instance(
     dds_instance_handle_t *handle,
     const void *data)
 {
-    struct thread_state1 * const thr = lookup_thread_state();
-    const bool asleep = !vtime_awake_p(thr->vtime);
+    struct thread_state1 * const ts1 = lookup_thread_state ();
     struct ddsi_tkmap_instance * inst;
     dds_writer *wr;
     dds_return_t ret;
@@ -150,9 +149,7 @@ dds_register_instance(
         ret = DDS_ERRNO(rc);
         goto err;
     }
-    if (asleep) {
-        thread_state_awake(thr);
-    }
+    thread_state_awake (ts1);
     inst = dds_instance_find (wr->m_topic, data, true);
     if(inst != NULL){
         *handle = inst->m_iid;
@@ -161,9 +158,7 @@ dds_register_instance(
         DDS_ERROR("Unable to create instance\n");
         ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     }
-    if (asleep) {
-        thread_state_asleep(thr);
-    }
+    thread_state_asleep (ts1);
     dds_writer_unlock(wr);
 err:
     return ret;
@@ -191,8 +186,7 @@ dds_unregister_instance_ts(
     const void *data,
     dds_time_t timestamp)
 {
-    struct thread_state1 * const thr = lookup_thread_state();
-    const bool asleep = !vtime_awake_p(thr->vtime);
+    struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_return_t ret = DDS_RETCODE_OK;
     dds_retcode_t rc;
     bool autodispose = true;
@@ -219,17 +213,13 @@ dds_unregister_instance_ts(
     if (wr->m_entity.m_qos) {
         dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
     }
-    if (asleep) {
-        thread_state_awake(thr);
-    }
+    thread_state_awake (ts1);
     if (autodispose) {
         dds_instance_remove (wr->m_topic, data, DDS_HANDLE_NIL);
         action |= DDS_WR_DISPOSE_BIT;
     }
     ret = dds_write_impl (wr, data, timestamp, action);
-    if (asleep) {
-        thread_state_asleep(thr);
-    }
+    thread_state_asleep (ts1);
     dds_writer_unlock(wr);
 err:
     return ret;
@@ -241,8 +231,7 @@ dds_unregister_instance_ih_ts(
     dds_instance_handle_t handle,
     dds_time_t timestamp)
 {
-    struct thread_state1 * const thr = lookup_thread_state();
-    const bool asleep = !vtime_awake_p(thr->vtime);
+    struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_return_t ret = DDS_RETCODE_OK;
     dds_retcode_t rc;
     bool autodispose = true;
@@ -265,9 +254,7 @@ dds_unregister_instance_ih_ts(
         action |= DDS_WR_DISPOSE_BIT;
     }
 
-    if (asleep) {
-        thread_state_awake(thr);
-    }
+    thread_state_awake (ts1);
     tk = ddsi_tkmap_find_by_id (gv.m_tkmap, handle);
     if (tk) {
         struct ddsi_sertopic *tp = wr->m_topic->m_stopic;
@@ -280,9 +267,7 @@ dds_unregister_instance_ih_ts(
         DDS_ERROR("No instance related with the provided handle is found\n");
         ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
     }
-    if (asleep) {
-        thread_state_asleep(thr);
-    }
+    thread_state_asleep (ts1);
     dds_writer_unlock(wr);
 err:
     return ret;
@@ -294,24 +279,19 @@ dds_writedispose_ts(
     const void *data,
     dds_time_t timestamp)
 {
+    struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_return_t ret;
     dds_retcode_t rc;
     dds_writer *wr;
 
     rc = dds_writer_lock(writer, &wr);
     if (rc == DDS_RETCODE_OK) {
-        struct thread_state1 * const thr = lookup_thread_state();
-        const bool asleep = !vtime_awake_p(thr->vtime);
-        if (asleep) {
-            thread_state_awake(thr);
-        }
+        thread_state_awake (ts1);
         ret = dds_write_impl (wr, data, timestamp, DDS_WR_ACTION_WRITE_DISPOSE);
         if (ret == DDS_RETCODE_OK) {
             dds_instance_remove (wr->m_topic, data, DDS_HANDLE_NIL);
         }
-        if (asleep) {
-            thread_state_asleep(thr);
-        }
+        thread_state_asleep (ts1);
         dds_writer_unlock(wr);
     } else {
         DDS_ERROR("Error occurred on locking writer\n");
@@ -329,7 +309,7 @@ dds_dispose_impl(
     dds_time_t timestamp)
 {
     dds_return_t ret;
-    assert(vtime_awake_p(lookup_thread_state()->vtime));
+    assert(thread_is_awake ());
     assert(wr);
     ret = dds_write_impl(wr, data, timestamp, DDS_WR_ACTION_DISPOSE);
     if (ret == DDS_RETCODE_OK) {
@@ -344,21 +324,16 @@ dds_dispose_ts(
     const void *data,
     dds_time_t timestamp)
 {
+    struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_return_t ret;
     dds_retcode_t rc;
     dds_writer *wr;
 
     rc = dds_writer_lock(writer, &wr);
     if (rc == DDS_RETCODE_OK) {
-        struct thread_state1 * const thr = lookup_thread_state();
-        const bool asleep = !vtime_awake_p(thr->vtime);
-        if (asleep) {
-            thread_state_awake(thr);
-        }
+        thread_state_awake (ts1);
         ret = dds_dispose_impl(wr, data, DDS_HANDLE_NIL, timestamp);
-        if (asleep) {
-            thread_state_asleep(thr);
-        }
+        thread_state_asleep (ts1);
         dds_writer_unlock(wr);
     } else {
         DDS_ERROR("Error occurred on locking writer\n");
@@ -374,18 +349,15 @@ dds_dispose_ih_ts(
     dds_instance_handle_t handle,
     dds_time_t timestamp)
 {
+    struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_return_t ret;
     dds_retcode_t rc;
     dds_writer *wr;
 
     rc = dds_writer_lock(writer, &wr);
     if (rc == DDS_RETCODE_OK) {
-        struct thread_state1 * const thr = lookup_thread_state();
-        const bool asleep = !vtime_awake_p(thr->vtime);
         struct ddsi_tkmap_instance *tk;
-        if (asleep) {
-            thread_state_awake(thr);
-        }
+        thread_state_awake (ts1);
         if ((tk = ddsi_tkmap_find_by_id (gv.m_tkmap, handle)) != NULL) {
             struct ddsi_sertopic *tp = wr->m_topic->m_stopic;
             void *sample = ddsi_sertopic_alloc_sample (tp);
@@ -397,9 +369,7 @@ dds_dispose_ih_ts(
             DDS_ERROR("No instance related with the provided handle is found\n");
             ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
         }
-        if (asleep) {
-            thread_state_asleep(thr);
-        }
+        thread_state_asleep (ts1);
         dds_writer_unlock(wr);
     } else {
         DDS_ERROR("Error occurred on locking writer\n");
@@ -414,6 +384,7 @@ dds_lookup_instance(
     dds_entity_t entity,
     const void *data)
 {
+    struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_instance_handle_t ih = DDS_HANDLE_NIL;
     const dds_topic * topic;
     struct ddsi_tkmap * map = gv.m_tkmap;
@@ -426,17 +397,11 @@ dds_lookup_instance(
 
     topic = dds_instance_info_by_hdl (entity);
     if (topic) {
-        struct thread_state1 * const thr = lookup_thread_state();
-        const bool asleep = !vtime_awake_p(thr->vtime);
-        if (asleep) {
-            thread_state_awake(thr);
-        }
+        thread_state_awake (ts1);
         sd = ddsi_serdata_from_sample (topic->m_stopic, SDK_KEY, data);
         ih = ddsi_tkmap_lookup (map, sd);
         ddsi_serdata_unref (sd);
-        if (asleep) {
-            thread_state_asleep(thr);
-        }
+        thread_state_asleep (ts1);
     } else {
         DDS_ERROR("Acquired topic is NULL\n");
     }
@@ -458,8 +423,7 @@ dds_instance_get_key(
     dds_instance_handle_t ih,
     void *data)
 {
-    struct thread_state1 * const thr = lookup_thread_state();
-    const bool asleep = !vtime_awake_p(thr->vtime);
+    struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_return_t ret;
     const dds_topic * topic;
     struct ddsi_tkmap_instance * tk;
@@ -476,9 +440,7 @@ dds_instance_get_key(
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
-    if (asleep) {
-        thread_state_awake(thr);
-    }
+    thread_state_awake (ts1);
     if ((tk = ddsi_tkmap_find_by_id(gv.m_tkmap, ih)) != NULL) {
         ddsi_sertopic_zero_sample (topic->m_stopic, data);
         ddsi_serdata_topicless_to_sample (topic->m_stopic, tk->m_sample, data, NULL, NULL);
@@ -488,9 +450,7 @@ dds_instance_get_key(
         DDS_ERROR("No instance related with the provided entity is found\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
-    if (asleep) {
-        thread_state_asleep(thr);
-    }
+    thread_state_asleep (ts1);
 err:
     return ret;
 }

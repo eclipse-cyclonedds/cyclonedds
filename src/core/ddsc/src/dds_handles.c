@@ -117,12 +117,12 @@ static dds_handle_t dds_handle_create_int (struct dds_handle_link *link)
 
 dds_handle_t dds_handle_create (struct dds_handle_link *link)
 {
+#if USE_CHH
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+#endif
   dds_handle_t ret;
 #if USE_CHH
-  struct thread_state1 * const self = lookup_thread_state ();
-  const bool asleep = vtime_asleep_p (self->vtime);
-  if (asleep)
-    thread_state_awake (self);
+  thread_state_awake (ts1);
 #endif
   ddsrt_mutex_lock (&handles.lock);
   if (handles.count == MAX_HANDLES)
@@ -143,8 +143,7 @@ dds_handle_t dds_handle_create (struct dds_handle_link *link)
     assert (ret > 0);
   }
 #if USE_CHH
-  if (asleep)
-    thread_state_asleep (self);
+  thread_state_asleep (ts1);
 #endif
   return ret;
 }
@@ -156,8 +155,10 @@ void dds_handle_close (struct dds_handle_link *link)
 
 int32_t dds_handle_delete (struct dds_handle_link *link, dds_duration_t timeout)
 {
+#if USE_CHH
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+#endif
   assert (ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_FLAG_CLOSED);
-
   ddsrt_mutex_lock (&handles.lock);
   if ((ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_COUNT_MASK) != 0)
   {
@@ -174,13 +175,9 @@ int32_t dds_handle_delete (struct dds_handle_link *link, dds_duration_t timeout)
     }
   }
 #if USE_CHH
-  struct thread_state1 * const self = lookup_thread_state ();
-  const bool asleep = vtime_asleep_p (self->vtime);
-  if (asleep)
-    thread_state_awake (self);
+  thread_state_awake (ts1);
   int x = ut_chhRemove (handles.ht, link);
-  if (asleep)
-    thread_state_asleep (self);
+  thread_state_asleep (ts1);
 #else
   int x = ut_hhRemove (handles.ht, link);
 #endif
@@ -194,6 +191,9 @@ int32_t dds_handle_delete (struct dds_handle_link *link, dds_duration_t timeout)
 
 int32_t dds_handle_claim (dds_handle_t hdl, struct dds_handle_link **link)
 {
+#if USE_CHH
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+#endif
   struct dds_handle_link dummy = { .hdl = hdl };
   int32_t rc;
   /* it makes sense to check here for initialization: the first thing any operation
@@ -208,10 +208,7 @@ int32_t dds_handle_claim (dds_handle_t hdl, struct dds_handle_link **link)
     return DDS_RETCODE_PRECONDITION_NOT_MET;
 
 #if USE_CHH
-  struct thread_state1 * const self = lookup_thread_state ();
-  const bool asleep = vtime_asleep_p (self->vtime);
-  if (asleep)
-    thread_state_awake (self);
+  thread_state_awake (ts1);
   *link = ut_chhLookup (handles.ht, &dummy);
 #else
   ddsrt_mutex_lock (&handles.lock);
@@ -234,10 +231,8 @@ int32_t dds_handle_claim (dds_handle_t hdl, struct dds_handle_link **link)
       }
     } while (!ddsrt_atomic_cas32 (&(*link)->cnt_flags, cnt_flags, cnt_flags + 1));
   }
-
 #if USE_CHH
-  if (asleep)
-    thread_state_asleep (self);
+  thread_state_asleep (ts1);
 #else
   ddsrt_mutex_unlock (&handles.lock);
 #endif
