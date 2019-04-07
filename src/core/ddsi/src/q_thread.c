@@ -22,7 +22,7 @@
 #include "dds/ddsrt/misc.h"
 
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_servicelease.h"
+#include "dds/ddsi/ddsi_threadmon.h"
 #include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_config.h"
@@ -34,6 +34,16 @@ static char main_thread_name[] = "main";
 struct thread_states thread_states;
 ddsrt_thread_local struct thread_state1 *tsd_thread_state;
 
+extern inline bool vtime_awake_p (vtime_t vtime);
+extern inline bool vtime_asleep_p (vtime_t vtime);
+extern inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0);
+
+extern inline struct thread_state1 *lookup_thread_state (void);
+extern inline bool thread_is_asleep (void);
+extern inline bool thread_is_awake (void);
+extern inline void thread_state_asleep (struct thread_state1 *ts1);
+extern inline void thread_state_awake (struct thread_state1 *ts1);
+extern inline void thread_state_awake_to_awake_no_nest (struct thread_state1 *ts1);
 
 void *ddsrt_malloc_aligned_cacheline (size_t size)
 {
@@ -63,9 +73,10 @@ static void ddsrt_free_aligned (void *ptr)
 
 void thread_states_init_static (void)
 {
-    static struct thread_state1 ts =
-        { .state = THREAD_STATE_ALIVE, .vtime = 1, .watchdog = 1, .name = "(anon)" };
-    tsd_thread_state = &ts;
+  static struct thread_state1 ts = {
+    .state = THREAD_STATE_ALIVE, .vtime = 0u, .name = "(anon)"
+  };
+  tsd_thread_state = &ts;
 }
 
 void thread_states_init (unsigned maxthreads)
@@ -82,8 +93,7 @@ DDSRT_WARNING_MSVC_OFF(6386);
   for (i = 0; i < thread_states.nthreads; i++)
   {
     thread_states.ts[i].state = THREAD_STATE_ZERO;
-    thread_states.ts[i].vtime = 1;
-    thread_states.ts[i].watchdog = 1;
+    thread_states.ts[i].vtime = 0u;
     thread_states.ts[i].name = NULL;
   }
 DDSRT_WARNING_MSVC_ON(6386);
@@ -115,43 +125,9 @@ static void cleanup_thread_state (void *data)
   ddsrt_fini();
 }
 
-struct thread_state1 *lookup_thread_state (void)
-{
-  struct thread_state1 *ts1 = NULL;
-  char name[128];
-  ddsrt_thread_t thr;
-
-  if ((ts1 = tsd_thread_state) == NULL) {
-    if ((ts1 = lookup_thread_state_real()) == NULL) {
-      /* This situation only arises for threads that were not created using
-         create_thread, aka application threads. Since registering thread
-         state should be fully automatic the name is simply the identifier. */
-      thr = ddsrt_thread_self();
-      ddsrt_thread_getname(name, sizeof(name));
-      ddsrt_mutex_lock(&thread_states.lock);
-      ts1 = init_thread_state(name);
-      if (ts1 != NULL) {
-        ddsrt_init();
-        ts1->extTid = thr;
-        ts1->tid = thr;
-        DDS_TRACE("started application thread %s\n", name);
-        ddsrt_thread_cleanup_push(&cleanup_thread_state, NULL);
-      }
-      ddsrt_mutex_unlock(&thread_states.lock);
-    }
-
-    tsd_thread_state = ts1;
-  }
-
-  assert(ts1 != NULL);
-
-  return ts1;
-}
-
-struct thread_state1 *lookup_thread_state_real (void)
+static struct thread_state1 *find_thread_state (ddsrt_thread_t tid)
 {
   if (thread_states.ts) {
-    ddsrt_thread_t tid = ddsrt_thread_self ();
     unsigned i;
     for (i = 0; i < thread_states.nthreads; i++) {
       if (ddsrt_thread_equal (thread_states.ts[i].tid, tid)) {
@@ -160,6 +136,40 @@ struct thread_state1 *lookup_thread_state_real (void)
     }
   }
   return NULL;
+}
+
+static struct thread_state1 *lazy_create_thread_state (ddsrt_thread_t self)
+{
+  /* This situation only arises for threads that were not created using
+     create_thread, aka application threads. Since registering thread
+     state should be fully automatic the name is simply the identifier. */
+  struct thread_state1 *ts1;
+  char name[128];
+  ddsrt_thread_getname (name, sizeof (name));
+  ddsrt_mutex_lock (&thread_states.lock);
+  if ((ts1 = init_thread_state (name)) != NULL) {
+    ddsrt_init ();
+    ts1->extTid = self;
+    ts1->tid = self;
+    DDS_TRACE ("started application thread %s\n", name);
+    ddsrt_thread_cleanup_push (&cleanup_thread_state, NULL);
+  }
+  ddsrt_mutex_unlock (&thread_states.lock);
+  return ts1;
+}
+
+struct thread_state1 *lookup_thread_state_real (void)
+{
+  struct thread_state1 *ts1 = tsd_thread_state;
+  if (ts1 == NULL)
+  {
+    ddsrt_thread_t self = ddsrt_thread_self ();
+    if ((ts1 = find_thread_state (self)) == NULL)
+      ts1 = lazy_create_thread_state (self);
+    tsd_thread_state = ts1;
+  }
+  assert(ts1 != NULL);
+  return ts1;
 }
 
 struct thread_context {
@@ -221,7 +231,7 @@ const struct config_thread_properties_listelem *lookup_thread_properties (const 
   return e;
 }
 
-struct thread_state1 * init_thread_state (const char *tname)
+struct thread_state1 *init_thread_state (const char *tname)
 {
   int cand;
   struct thread_state1 *ts;
@@ -231,29 +241,29 @@ struct thread_state1 * init_thread_state (const char *tname)
 
   ts = &thread_states.ts[cand];
   if (ts->state == THREAD_STATE_ZERO)
+  {
     assert (vtime_asleep_p (ts->vtime));
+  }
   ts->name = ddsrt_strdup (tname);
   ts->state = THREAD_STATE_ALIVE;
 
   return ts;
 }
 
-struct thread_state1 *create_thread (const char *name, uint32_t (*f) (void *arg), void *arg)
+dds_retcode_t create_thread (struct thread_state1 **ts1, const char *name, uint32_t (*f) (void *arg), void *arg)
 {
   struct config_thread_properties_listelem const * const tprops = lookup_thread_properties (name);
   ddsrt_threadattr_t tattr;
-  struct thread_state1 *ts1;
   ddsrt_thread_t tid;
   struct thread_context *ctxt;
   ctxt = ddsrt_malloc (sizeof (*ctxt));
   ddsrt_mutex_lock (&thread_states.lock);
 
-  ts1 = init_thread_state (name);
-
-  if (ts1 == NULL)
+  *ts1 = init_thread_state (name);
+  if (*ts1 == NULL)
     goto fatal;
 
-  ctxt->self = ts1;
+  ctxt->self = *ts1;
   ctxt->f = f;
   ctxt->arg = arg;
   ddsrt_threadattr_init (&tattr);
@@ -269,26 +279,27 @@ struct thread_state1 *create_thread (const char *name, uint32_t (*f) (void *arg)
 
   if (ddsrt_thread_create (&tid, name, &tattr, &create_thread_wrapper, ctxt) != DDS_RETCODE_OK)
   {
-    ts1->state = THREAD_STATE_ZERO;
+    (*ts1)->state = THREAD_STATE_ZERO;
     DDS_FATAL("create_thread: %s: ddsrt_thread_create failed\n", name);
     goto fatal;
   }
-  ts1->extTid = tid; /* overwrite the temporary value with the correct external one */
+  (*ts1)->extTid = tid; /* overwrite the temporary value with the correct external one */
   ddsrt_mutex_unlock (&thread_states.lock);
-  return ts1;
+  return DDS_RETCODE_OK;
  fatal:
   ddsrt_mutex_unlock (&thread_states.lock);
   ddsrt_free (ctxt);
+  *ts1 = NULL;
   abort ();
-  return NULL;
+  return DDS_RETCODE_ERROR;
 }
 
 static void reap_thread_state (struct thread_state1 *ts1, int sync_with_servicelease)
 {
   ddsrt_mutex_lock (&thread_states.lock);
   ts1->state = THREAD_STATE_ZERO;
-  if (sync_with_servicelease && gv.servicelease)
-    nn_servicelease_statechange_barrier (gv.servicelease);
+  if (sync_with_servicelease && gv.threadmon)
+    ddsi_threadmon_statechange_barrier (gv.threadmon);
   if (ts1->name != main_thread_name)
     ddsrt_free (ts1->name);
   ddsrt_mutex_unlock (&thread_states.lock);
@@ -319,7 +330,7 @@ void reset_thread_state (struct thread_state1 *ts1)
 void downgrade_main_thread (void)
 {
   struct thread_state1 *ts1 = lookup_thread_state ();
-  thread_state_asleep (ts1);
+  assert (vtime_asleep_p (ts1->vtime));
   /* no need to sync with service lease: already stopped */
   reap_thread_state (ts1, 0);
   thread_states_init_static ();

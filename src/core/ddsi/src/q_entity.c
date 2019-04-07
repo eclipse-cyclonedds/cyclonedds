@@ -3862,14 +3862,11 @@ void purge_proxy_participants (const nn_locator_t *loc, bool delete_from_as_disc
 {
   /* FIXME: check whether addr:port can't be reused for a new connection by the time we get here. */
   /* NOTE: This function exists for the sole purpose of cleaning up after closing a TCP connection in ddsi_tcp_close_conn and the state of the calling thread could be anything at this point. Because of that we do the unspeakable and toggle the thread state conditionally. We can't afford to have it in "asleep", as that causes a race with the garbage collector. */
-  struct thread_state1 * const self = lookup_thread_state();
-  const int self_is_awake = vtime_awake_p (self->vtime);
+  struct thread_state1 * const ts1 = lookup_thread_state ();
   struct ephash_enum_proxy_participant est;
   struct proxy_purge_data data;
 
-  if (!self_is_awake)
-    thread_state_awake(self);
-
+  thread_state_awake (ts1);
   data.loc = loc;
   data.timestamp = now();
   ephash_enum_proxy_participant_init (&est);
@@ -3881,8 +3878,7 @@ void purge_proxy_participants (const nn_locator_t *loc, bool delete_from_as_disc
   if (delete_from_as_disc)
     remove_from_addrset (gv.as_disc, loc);
 
-  if (!self_is_awake)
-    thread_state_asleep(self);
+  thread_state_asleep (ts1);
 }
 
 int delete_proxy_participant_by_guid (const struct nn_guid * guid, nn_wctime_t timestamp, int isimplicit)

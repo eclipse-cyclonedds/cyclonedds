@@ -79,7 +79,7 @@ static int threads_vtime_check (unsigned *nivs, struct idx_vtime *ivs)
 
 static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
 {
-  struct thread_state1 *self = lookup_thread_state ();
+  struct thread_state1 * const ts1 = lookup_thread_state ();
   nn_mtime_t next_thread_cputime = { 0 };
   dds_time_t shortsleep = 1 * T_MILLISECOND;
   int64_t delay = T_MILLISECOND; /* force evaluation after startup */
@@ -124,9 +124,9 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
        very little impact on its primary purpose and be less of a
        burden on the system than having a separate thread or adding it
        to the workload of the data handling threads. */
-    thread_state_awake (self);
-    delay = check_and_handle_lease_expiration (self, now_et ());
-    thread_state_asleep (self);
+    thread_state_awake (ts1);
+    delay = check_and_handle_lease_expiration (now_et ());
+    thread_state_asleep (ts1);
 
     if (gcreq)
     {
@@ -151,9 +151,9 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
            multi-phase delete) or freeing the delete request.  Reset
            the current gcreq as this one obviously is no more.  */
         DDS_TRACE("gc %p: deleting\n", (void*)gcreq);
-        thread_state_awake (self);
+        thread_state_awake (ts1);
         gcreq->cb (gcreq);
-        thread_state_asleep (self);
+        thread_state_asleep (ts1);
         gcreq = NULL;
         trace_shortsleep = 1;
       }
@@ -174,9 +174,15 @@ struct gcreq_queue *gcreq_queue_new (void)
   q->count = 0;
   ddsrt_mutex_init (&q->lock);
   ddsrt_cond_init (&q->cond);
-  q->ts = create_thread ("gc", (uint32_t (*) (void *)) gcreq_queue_thread, q);
-  assert (q->ts);
-  return q;
+  if (create_thread (&q->ts, "gc", (uint32_t (*) (void *)) gcreq_queue_thread, q) == DDS_RETCODE_OK)
+    return q;
+  else
+  {
+    ddsrt_mutex_destroy (&q->lock);
+    ddsrt_cond_destroy (&q->cond);
+    ddsrt_free (q);
+    return NULL;
+  }
 }
 
 void gcreq_queue_drain (struct gcreq_queue *q)

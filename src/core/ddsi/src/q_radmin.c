@@ -2397,7 +2397,7 @@ static enum dqueue_elem_kind dqueue_elem_kind (const struct nn_rsample_chain_ele
 
 static uint32_t dqueue_thread (struct nn_dqueue *q)
 {
-  struct thread_state1 *self = lookup_thread_state ();
+  struct thread_state1 * const ts1 = lookup_thread_state ();
   nn_mtime_t next_thread_cputime = { 0 };
   int keepgoing = 1;
   nn_guid_t rdguid, *prdguid = NULL;
@@ -2416,6 +2416,7 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
     q->sc.first = q->sc.last = NULL;
     ddsrt_mutex_unlock (&q->lock);
 
+    thread_state_awake (ts1);
     while (sc.first)
     {
       struct nn_rsample_chain_elem *e = sc.first;
@@ -2424,7 +2425,7 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
       if (ddsrt_atomic_dec32_ov (&q->nof_samples) == 1) {
         ddsrt_cond_broadcast (&q->cond);
       }
-      thread_state_awake (self);
+      thread_state_awake_to_awake_no_nest (ts1);
       switch (dqueue_elem_kind (e))
       {
         case DQEK_DATA:
@@ -2474,9 +2475,9 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
             break;
           }
       }
-      thread_state_asleep (self);
     }
 
+    thread_state_asleep (ts1);
     ddsrt_mutex_lock (&q->lock);
   }
   ddsrt_mutex_unlock (&q->lock);
@@ -2506,7 +2507,7 @@ struct nn_dqueue *nn_dqueue_new (const char *name, uint32_t max_samples, nn_dque
   if ((thrname = ddsrt_malloc (thrnamesz)) == NULL)
     goto fail_thrname;
   snprintf (thrname, thrnamesz, "dq.%s", name);
-  if ((q->ts = create_thread (thrname, (uint32_t (*) (void *)) dqueue_thread, q)) == NULL)
+  if (create_thread (&q->ts, thrname, (uint32_t (*) (void *)) dqueue_thread, q) != DDS_RETCODE_OK)
     goto fail_thread;
   ddsrt_free (thrname);
   return q;

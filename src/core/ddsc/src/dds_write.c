@@ -148,8 +148,7 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
 
 dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
 {
-  struct thread_state1 * const thr = lookup_thread_state ();
-  const bool asleep = !vtime_awake_p (thr->vtime);
+  struct thread_state1 * const ts1 = lookup_thread_state ();
   const bool writekey = action & DDS_WR_KEY_BIT;
   struct writer *ddsi_wr = wr->m_wr;
   struct ddsi_tkmap_instance *tk;
@@ -168,8 +167,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     if (!(wr->m_topic->filter_fn) (data, wr->m_topic->filter_ctx))
       return DDS_RETCODE_OK;
 
-  if (asleep)
-    thread_state_awake (thr);
+  thread_state_awake (ts1);
 
   /* Serialize and write data or key */
   d = ddsi_serdata_from_sample (ddsi_wr->topic, writekey ? SDK_KEY : SDK_DATA, data);
@@ -177,7 +175,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   d->timestamp.v = tstamp;
   ddsi_serdata_ref (d);
   tk = ddsi_tkmap_lookup_instance_ref (d);
-  w_rc = write_sample_gc (wr->m_xp, ddsi_wr, d, tk);
+  w_rc = write_sample_gc (ts1, wr->m_xp, ddsi_wr, d, tk);
 
   if (w_rc >= 0)
   {
@@ -199,26 +197,21 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     ret = deliver_locally (ddsi_wr, d, tk);
   ddsi_serdata_unref (d);
   ddsi_tkmap_instance_unref (tk);
-
-  if (asleep)
-    thread_state_asleep (thr);
+  thread_state_asleep (ts1);
   return ret;
 }
 
 dds_return_t dds_writecdr_impl_lowlevel (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *d)
 {
-  struct thread_state1 * const thr = lookup_thread_state ();
-  const bool asleep = !vtime_awake_p (thr->vtime);
+  struct thread_state1 * const ts1 = lookup_thread_state ();
   struct ddsi_tkmap_instance * tk;
   int ret = DDS_RETCODE_OK;
   int w_rc;
 
-  if (asleep)
-    thread_state_awake (thr);
-
+  thread_state_awake (ts1);
   ddsi_serdata_ref (d);
   tk = ddsi_tkmap_lookup_instance_ref (d);
-  w_rc = write_sample_gc (xp, ddsi_wr, d, tk);
+  w_rc = write_sample_gc (ts1, xp, ddsi_wr, d, tk);
   if (w_rc >= 0) {
     /* Flush out write unless configured to batch */
     if (!config.whc_batch && xp != NULL)
@@ -239,10 +232,7 @@ dds_return_t dds_writecdr_impl_lowlevel (struct writer *ddsi_wr, struct nn_xpack
     ret = deliver_locally (ddsi_wr, d, tk);
   ddsi_serdata_unref (d);
   ddsi_tkmap_instance_unref (tk);
-
-  if (asleep)
-    thread_state_asleep (thr);
-
+  thread_state_asleep (ts1);
   return ret;
 }
 
@@ -263,13 +253,10 @@ void dds_write_set_batch (bool enable)
 
 void dds_write_flush (dds_entity_t writer)
 {
-  struct thread_state1 * const thr = lookup_thread_state ();
-  const bool asleep = !vtime_awake_p (thr->vtime);
+  struct thread_state1 * const ts1 = lookup_thread_state ();
   dds_writer *wr;
   dds_retcode_t rc;
-
-  if (asleep)
-    thread_state_awake (thr);
+  thread_state_awake (ts1);
   if ((rc = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     DDS_ERROR ("Error occurred on locking writer\n");
   else
@@ -277,8 +264,5 @@ void dds_write_flush (dds_entity_t writer)
     nn_xpack_send (wr->m_xp, true);
     dds_writer_unlock (wr);
   }
-
-  if (asleep)
-    thread_state_asleep (thr);
-  return;
+  thread_state_asleep (ts1);
 }

@@ -142,12 +142,12 @@ static int print_proxy_endpoint_common (ddsi_tran_conn_t conn, const char *label
 }
 
 
-static int print_participants (struct thread_state1 *self, ddsi_tran_conn_t conn)
+static int print_participants (struct thread_state1 * const ts1, ddsi_tran_conn_t conn)
 {
   struct ephash_enum_participant e;
   struct participant *p;
   int x = 0;
-  thread_state_awake (self);
+  thread_state_awake (ts1);
   ephash_enum_participant_init (&e);
   while ((p = ephash_enum_participant_next (&e)) != NULL)
   {
@@ -223,16 +223,16 @@ static int print_participants (struct thread_state1 *self, ddsi_tran_conn_t conn
     }
   }
   ephash_enum_participant_fini (&e);
-  thread_state_asleep (self);
+  thread_state_asleep (ts1);
   return x;
 }
 
-static int print_proxy_participants (struct thread_state1 *self, ddsi_tran_conn_t conn)
+static int print_proxy_participants (struct thread_state1 * const ts1, ddsi_tran_conn_t conn)
 {
   struct ephash_enum_proxy_participant e;
   struct proxy_participant *p;
   int x = 0;
-  thread_state_awake (self);
+  thread_state_awake (ts1);
   ephash_enum_proxy_participant_init (&e);
   while ((p = ephash_enum_proxy_participant_next (&e)) != NULL)
   {
@@ -296,17 +296,18 @@ static int print_proxy_participants (struct thread_state1 *self, ddsi_tran_conn_
     }
   }
   ephash_enum_proxy_participant_fini (&e);
-  thread_state_asleep (self);
+  thread_state_asleep (ts1);
   return x;
 }
 
 static void debmon_handle_connection (struct debug_monitor *dm, ddsi_tran_conn_t conn)
 {
+  struct thread_state1 * const ts1 = lookup_thread_state ();
   struct plugin *p;
   int r = 0;
-  r += print_participants (dm->servts, conn);
+  r += print_participants (ts1, conn);
   if (r == 0)
-    r += print_proxy_participants (dm->servts, conn);
+    r += print_proxy_participants (ts1, conn);
 
   /* Note: can only add plugins (at the tail) */
   ddsrt_mutex_lock (&dm->lock);
@@ -379,7 +380,7 @@ struct debug_monitor *new_debug_monitor (int port)
   if (ddsi_listener_listen (dm->servsock) < 0)
     goto err_listen;
   dm->stop = 0;
-  dm->servts = create_thread("debmon", debmon_main, dm);
+  create_thread(&dm->servts, "debmon", debmon_main, dm);
   return dm;
 
 err_listen:

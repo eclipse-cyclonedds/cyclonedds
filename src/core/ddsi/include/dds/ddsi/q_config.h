@@ -267,6 +267,7 @@ struct config
   int forward_all_messages;
   int liveliness_monitoring;
   int noprogress_log_stacktraces;
+  int64_t liveliness_monitoring_interval;
   int prioritize_retransmit;
   int xpack_send_async;
   int multiple_recv_threads;
@@ -276,9 +277,6 @@ struct config
   unsigned secondary_reorder_maxsamples;
 
   unsigned delivery_queue_maxsamples;
-
-  float servicelease_expiry_time;
-  float servicelease_update_factor;
 
   int enableLoopback;
   enum durability_cdr durability_cdr;

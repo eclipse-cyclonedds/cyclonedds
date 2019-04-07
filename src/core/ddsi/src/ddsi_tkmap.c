@@ -113,7 +113,7 @@ uint64_t ddsi_tkmap_lookup (struct ddsi_tkmap * map, const struct ddsi_serdata *
 {
   struct ddsi_tkmap_instance dummy;
   struct ddsi_tkmap_instance * tk;
-  assert (vtime_awake_p(lookup_thread_state()->vtime));
+  assert (thread_is_awake ());
   dummy.m_sample = (struct ddsi_serdata *) sd;
   tk = ut_chhLookup (map->m_hh, &dummy);
   return (tk) ? tk->m_iid : DDS_HANDLE_NIL;
@@ -125,7 +125,7 @@ struct ddsi_tkmap_instance *ddsi_tkmap_find_by_id (struct ddsi_tkmap *map, uint6
   struct ut_chhIter it;
   struct ddsi_tkmap_instance *tk;
   uint32_t refc;
-  assert (vtime_awake_p(lookup_thread_state()->vtime));
+  assert (thread_is_awake ());
   for (tk = ut_chhIterFirst (map->m_hh, &it); tk; tk = ut_chhIterNext (&it))
     if (tk->m_iid == iid)
       break;
@@ -162,7 +162,7 @@ ddsi_tkmap_find(
   struct ddsi_tkmap_instance * tk;
   struct ddsi_tkmap * map = gv.m_tkmap;
 
-  assert (vtime_awake_p(lookup_thread_state()->vtime));
+  assert (thread_is_awake ());
   dummy.m_sample = sd;
 retry:
   if ((tk = ut_chhLookup(map->m_hh, &dummy)) != NULL)
@@ -221,7 +221,7 @@ void ddsi_tkmap_instance_ref (struct ddsi_tkmap_instance *tk)
 void ddsi_tkmap_instance_unref (struct ddsi_tkmap_instance * tk)
 {
   uint32_t old, new;
-  assert (vtime_awake_p(lookup_thread_state()->vtime));
+  assert (thread_is_awake ());
   do {
     old = ddsrt_atomic_ld32(&tk->m_refc);
     if (old == 1)

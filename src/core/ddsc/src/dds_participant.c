@@ -48,18 +48,13 @@ static dds_return_t
 dds_participant_delete(
     dds_entity *e)
 {
-    struct thread_state1 * const thr = lookup_thread_state ();
-    const bool asleep = !vtime_awake_p (thr->vtime);
     dds_entity *prev = NULL;
     dds_entity *iter;
 
     assert(e);
-    assert(thr);
     assert(dds_entity_kind(e) == DDS_KIND_PARTICIPANT);
 
-    if (asleep) {
-      thread_state_awake(thr);
-    }
+    thread_state_awake (lookup_thread_state ());
 
     dds_domain_free (e->m_domain);
 
@@ -81,9 +76,7 @@ dds_participant_delete(
 
     assert (iter);
 
-    if (asleep) {
-      thread_state_asleep(thr);
-    }
+    thread_state_asleep (lookup_thread_state ());
 
     /* Every dds_init needs a dds_fini. */
     dds_fini();
@@ -155,8 +148,6 @@ dds_create_participant(
     dds_participant * pp;
     nn_plist_t plist;
     dds_qos_t * new_qos = NULL;
-    struct thread_state1 * thr;
-    bool asleep;
 
     /* Make sure DDS instance is initialized. */
     ret = dds_init(domain);
@@ -192,15 +183,9 @@ dds_create_participant(
     nn_plist_init_empty(&plist);
     dds_merge_qos (&plist.qos, new_qos);
 
-    thr = lookup_thread_state ();
-    asleep = !vtime_awake_p (thr->vtime);
-    if (asleep) {
-        thread_state_awake (thr);
-    }
+    thread_state_awake (lookup_thread_state ());
     q_rc = new_participant (&guid, 0, &plist);
-    if (asleep) {
-        thread_state_asleep (thr);
-    }
+    thread_state_asleep (lookup_thread_state ());
     nn_plist_fini (&plist);
     if (q_rc != 0) {
         DDS_ERROR("Internal error");

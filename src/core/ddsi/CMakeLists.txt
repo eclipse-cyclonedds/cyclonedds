@@ -26,6 +26,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_iid.c
     ddsi_tkmap.c
     ddsi_vendor.c
+    ddsi_threadmon.c
     q_addrset.c
     q_bitset_inlines.c
     q_bswap.c
@@ -47,10 +48,8 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_radmin.c
     q_receive.c
     q_security.c
-    q_servicelease.c
     q_sockwaitset.c
     q_thread.c
-    q_thread_inlines.c
     q_time.c
     q_transmit.c
     q_inverse_uint32_set.c
@@ -78,6 +77,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_iid.h
     ddsi_tkmap.h
     ddsi_vendor.h
+    ddsi_threadmon.h
     q_addrset.h
     q_bitset.h
     q_bswap.h
@@ -105,7 +105,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_receive.h
     q_rtps.h
     q_security.h
-    q_servicelease.h
     q_sockwaitset.h
     q_static_assert.h
     q_thread.h

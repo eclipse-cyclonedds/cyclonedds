@@ -26,7 +26,7 @@
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/q_servicelease.h"
+#include "dds/ddsi/ddsi_threadmon.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_gc.h"
@@ -127,15 +127,15 @@ dds_init(dds_domainid_t domain)
 
   /* Start monitoring the liveliness of all threads. */
   if (!config.liveliness_monitoring)
-    gv.servicelease = NULL;
+    gv.threadmon = NULL;
   else
   {
-    gv.servicelease = nn_servicelease_new(0, 0);
-    if (gv.servicelease == NULL)
+    gv.threadmon = ddsi_threadmon_new ();
+    if (gv.threadmon == NULL)
     {
-      DDS_ERROR("Failed to create a servicelease\n");
+      DDS_ERROR("Failed to create a thread monitor\n");
       ret = DDS_ERRNO(DDS_RETCODE_OUT_OF_RESOURCES);
-      goto fail_servicelease_new;
+      goto fail_threadmon_new;
     }
   }
 
@@ -162,11 +162,11 @@ dds_init(dds_domainid_t domain)
     goto fail_rtps_start;
   }
 
-  if (gv.servicelease && nn_servicelease_start_renewing(gv.servicelease) < 0)
+  if (gv.threadmon && ddsi_threadmon_start(gv.threadmon) < 0)
   {
     DDS_ERROR("Failed to start the servicelease\n");
     ret = DDS_ERRNO(DDS_RETCODE_ERROR);
-    goto fail_servicelease_start;
+    goto fail_threadmon_start;
   }
 
   /* Set additional default participant properties */
@@ -191,9 +191,9 @@ skip:
   ddsrt_mutex_unlock(init_mutex);
   return DDS_RETCODE_OK;
 
-fail_servicelease_start:
-  if (gv.servicelease)
-    nn_servicelease_stop_renewing (gv.servicelease);
+fail_threadmon_start:
+  if (gv.threadmon)
+    ddsi_threadmon_stop (gv.threadmon);
   dds_handle_server_fini();
 fail_handleserver:
   rtps_stop ();
@@ -201,12 +201,12 @@ fail_rtps_start:
   dds__builtin_fini ();
   rtps_fini ();
 fail_rtps_init:
-  if (gv.servicelease)
+  if (gv.threadmon)
   {
-    nn_servicelease_free (gv.servicelease);
-    gv.servicelease = NULL;
+    ddsi_threadmon_free (gv.threadmon);
+    gv.threadmon = NULL;
   }
-fail_servicelease_new:
+fail_threadmon_new:
   downgrade_main_thread ();
   thread_states_fini();
 fail_rtps_config:
@@ -231,15 +231,15 @@ extern void dds_fini (void)
   dds_global.m_init_count--;
   if (dds_global.m_init_count == 0)
   {
-    if (gv.servicelease)
-      nn_servicelease_stop_renewing (gv.servicelease);
+    if (gv.threadmon)
+      ddsi_threadmon_stop (gv.threadmon);
     dds_handle_server_fini();
     rtps_stop ();
     dds__builtin_fini ();
     rtps_fini ();
-    if (gv.servicelease)
-      nn_servicelease_free (gv.servicelease);
-    gv.servicelease = NULL;
+    if (gv.threadmon)
+      ddsi_threadmon_free (gv.threadmon);
+    gv.threadmon = NULL;
     downgrade_main_thread ();
     thread_states_fini ();
 
