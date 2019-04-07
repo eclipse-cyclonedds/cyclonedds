@@ -51,14 +51,14 @@ void log_stacktrace (const char *name, ddsrt_thread_t tid)
   if (dds_get_log_mask() == 0)
     ; /* no op if nothing logged */
   else if (!config.noprogress_log_stacktraces)
-    DDS_LOG(~0u, "-- stack trace of %s requested, but traces disabled --\n", name);
+    DDS_LOG(~DDS_LC_FATAL, "-- stack trace of %s requested, but traces disabled --\n", name);
   else
   {
     const dds_time_t d = 1000000;
     struct sigaction act, oact;
     char **strs;
     int i;
-    DDS_LOG(~0u, "-- stack trace of %s requested --\n", name);
+    DDS_LOG(~DDS_LC_FATAL, "-- stack trace of %s requested --\n", name);
     act.sa_handler = log_stacktrace_sigh;
     act.sa_flags = 0;
     sigfillset (&act.sa_mask);
@@ -70,15 +70,15 @@ void log_stacktrace (const char *name, ddsrt_thread_t tid)
       dds_sleepfor (d);
     sigaction (SIGXCPU, &oact, NULL);
     if (pthread_kill (tid.v, 0) != 0)
-      DDS_LOG(~0u, "-- thread exited --\n");
+      DDS_LOG(~DDS_LC_FATAL, "-- thread exited --\n");
     else
     {
-      DDS_LOG(~0u, "-- stack trace follows --\n");
+      DDS_LOG(~DDS_LC_FATAL, "-- stack trace follows --\n");
       strs = backtrace_symbols (log_stacktrace_stk.stk, log_stacktrace_stk.depth);
       for (i = 0; i < log_stacktrace_stk.depth; i++)
-        DDS_LOG(~0u, "%s\n", strs[i]);
+        DDS_LOG(~DDS_LC_FATAL, "%s\n", strs[i]);
       free (strs);
-      DDS_LOG(~0u, "-- end of stack trace --\n");
+      DDS_LOG(~DDS_LC_FATAL, "-- end of stack trace --\n");
     }
     ddsrt_atomic_st32 (&log_stacktrace_flag, 0);
   }

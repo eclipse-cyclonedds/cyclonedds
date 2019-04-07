@@ -88,16 +88,12 @@ dds_read_impl(
         bool lock,
         bool only_reader)
 {
+    struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_return_t ret = DDS_RETCODE_OK;
     dds_retcode_t rc;
     struct dds_reader * rd;
     struct dds_readcond * cond;
-    struct thread_state1 * const thr = lookup_thread_state ();
-    const bool asleep = !vtime_awake_p (thr->vtime);
 
-    if (asleep) {
-        thread_state_awake (thr);
-    }
     if (buf == NULL) {
         DDS_ERROR("The provided buffer is NULL\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
@@ -124,18 +120,19 @@ dds_read_impl(
         goto fail;
     }
 
+    thread_state_awake (ts1);
     rc = dds_read_lock(reader_or_condition, &rd, &cond, only_reader);
     if (rc != DDS_RETCODE_OK) {
         DDS_ERROR("Error occurred on locking entity\n");
         ret = DDS_ERRNO(rc);
-        goto fail;
+        goto fail_awake;
     }
     if (hand != DDS_HANDLE_NIL) {
         if (ddsi_tkmap_find_by_id(gv.m_tkmap, hand) == NULL) {
             DDS_ERROR("Could not find instance\n");
             ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
             dds_read_unlock(rd, cond);
-            goto fail;
+            goto fail_awake;
         }
     }
     /* Allocate samples if not provided (assuming all or none provided) */
@@ -173,10 +170,9 @@ dds_read_impl(
     }
     dds_read_unlock(rd, cond);
 
+fail_awake:
+    thread_state_asleep (ts1);
 fail:
-    if (asleep) {
-        thread_state_asleep (thr);
-    }
     return ret;
 }
 
@@ -191,12 +187,11 @@ dds_readcdr_impl(
         dds_instance_handle_t hand,
         bool lock)
 {
+  struct thread_state1 * const ts1 = lookup_thread_state ();
   dds_return_t ret = DDS_RETCODE_OK;
   dds_retcode_t rc;
   struct dds_reader * rd;
   struct dds_readcond * cond;
-  struct thread_state1 * const thr = lookup_thread_state ();
-  const bool asleep = !vtime_awake_p (thr->vtime);
 
   assert (take);
   assert (buf);
@@ -205,10 +200,7 @@ dds_readcdr_impl(
   assert (maxs > 0);
   (void)take;
 
-  if (asleep)
-  {
-    thread_state_awake (thr);
-  }
+  thread_state_awake (ts1);
   rc = dds_read_lock(reader_or_condition, &rd, &cond, false);
   if (rc >= DDS_RETCODE_OK) {
       ret = dds_rhc_takecdr
@@ -235,11 +227,7 @@ dds_readcdr_impl(
       ret = DDS_ERRNO(rc);
   }
 
-  if (asleep)
-  {
-    thread_state_asleep (thr);
-  }
-
+  thread_state_asleep (ts1);
   return ret;
 }
 

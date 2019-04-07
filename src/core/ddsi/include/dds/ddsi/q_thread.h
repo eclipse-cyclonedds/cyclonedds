@@ -12,6 +12,7 @@
 #ifndef Q_THREAD_H
 #define Q_THREAD_H
 
+#include <assert.h>
 #include "dds/export.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/sync.h"
@@ -30,6 +31,9 @@ extern "C" {
 
 typedef uint32_t vtime_t;
 typedef int32_t svtime_t; /* signed version */
+#define VTIME_NEST_MASK 0xfu
+#define VTIME_TIME_MASK 0xfffffff0u
+#define VTIME_TIME_SHIFT 4
 
 /* GCC has a nifty feature allowing the specification of the required
    alignment: __attribute__ ((aligned (CACHE_LINE_SIZE))) in this
@@ -59,7 +63,6 @@ struct logbuf;
  */
 #define THREAD_BASE                             \
   volatile vtime_t vtime;                       \
-  volatile vtime_t watchdog;                    \
   ddsrt_thread_t tid;                           \
   ddsrt_thread_t extTid;                        \
   enum thread_state state;                      \
@@ -94,8 +97,7 @@ DDS_EXPORT void thread_states_fini (void);
 DDS_EXPORT void upgrade_main_thread (void);
 DDS_EXPORT void downgrade_main_thread (void);
 DDS_EXPORT const struct config_thread_properties_listelem *lookup_thread_properties (const char *name);
-DDS_EXPORT struct thread_state1 *create_thread (const char *name, uint32_t (*f) (void *arg), void *arg);
-DDS_EXPORT struct thread_state1 *lookup_thread_state (void);
+DDS_EXPORT dds_retcode_t create_thread (struct thread_state1 **ts, const char *name, uint32_t (*f) (void *arg), void *arg);
 DDS_EXPORT struct thread_state1 *lookup_thread_state_real (void);
 DDS_EXPORT int join_thread (struct thread_state1 *ts1);
 DDS_EXPORT void log_stack_traces (void);
@@ -104,83 +106,69 @@ DDS_EXPORT struct thread_state1 * init_thread_state (const char *tname);
 DDS_EXPORT void reset_thread_state (struct thread_state1 *ts1);
 DDS_EXPORT int thread_exists (const char *name);
 
-DDS_EXPORT inline int vtime_awake_p (vtime_t vtime)
-{
-  return (vtime % 2) == 0;
+DDS_EXPORT inline struct thread_state1 *lookup_thread_state (void) {
+  struct thread_state1 *ts1 = tsd_thread_state;
+  if (ts1)
+    return ts1;
+  else
+    return lookup_thread_state_real ();
 }
 
-DDS_EXPORT inline int vtime_asleep_p (vtime_t vtime)
+DDS_EXPORT inline bool vtime_awake_p (vtime_t vtime)
 {
-  return (vtime % 2) == 1;
+  return (vtime & VTIME_NEST_MASK) != 0;
 }
 
-DDS_EXPORT inline int vtime_gt (vtime_t vtime1, vtime_t vtime0)
+DDS_EXPORT inline bool vtime_asleep_p (vtime_t vtime)
+{
+  return (vtime & VTIME_NEST_MASK) == 0;
+}
+
+DDS_EXPORT inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0)
 {
   Q_STATIC_ASSERT_CODE (sizeof (vtime_t) == sizeof (svtime_t));
-  return (svtime_t) (vtime1 - vtime0) > 0;
+  return (svtime_t) ((vtime1 & VTIME_TIME_MASK) - (vtime0 & VTIME_TIME_MASK)) > 0;
+}
+
+DDS_EXPORT inline bool thread_is_awake (void)
+{
+  return vtime_awake_p (lookup_thread_state ()->vtime);
+}
+
+DDS_EXPORT inline bool thread_is_asleep (void)
+{
+  return vtime_asleep_p (lookup_thread_state ()->vtime);
 }
 
 DDS_EXPORT inline void thread_state_asleep (struct thread_state1 *ts1)
 {
   vtime_t vt = ts1->vtime;
-  vtime_t wd = ts1->watchdog;
-  if (vtime_awake_p (vt))
-  {
-    ddsrt_atomic_fence_rel ();
-    ts1->vtime = vt + 1;
-  }
+  assert (vtime_awake_p (vt));
+  /* nested calls a rare and an extra fence doesn't break things */
+  ddsrt_atomic_fence_rel ();
+  if ((vt & VTIME_NEST_MASK) == 1)
+    vt += (1u << VTIME_TIME_SHIFT) - 1u;
   else
-  {
-    ddsrt_atomic_fence_rel ();
-    ts1->vtime = vt + 2;
-    ddsrt_atomic_fence_acq ();
-  }
-
-  if ( wd % 2 ){
-    ts1->watchdog = wd + 2;
-  } else {
-    ts1->watchdog = wd + 1;
-  }
+    vt -= 1u;
+  ts1->vtime = vt;
 }
 
 DDS_EXPORT inline void thread_state_awake (struct thread_state1 *ts1)
 {
   vtime_t vt = ts1->vtime;
-  vtime_t wd = ts1->watchdog;
-  if (vtime_asleep_p (vt))
-    ts1->vtime = vt + 1;
-  else
-  {
-    ddsrt_atomic_fence_rel ();
-    ts1->vtime = vt + 2;
-  }
+  assert ((vt & VTIME_NEST_MASK) < VTIME_NEST_MASK);
+  ts1->vtime = vt + 1u;
+  /* nested calls a rare and an extra fence doesn't break things */
   ddsrt_atomic_fence_acq ();
-
-  if ( wd % 2 ){
-    ts1->watchdog = wd + 1;
-  } else {
-    ts1->watchdog = wd + 2;
-  }
 }
 
-DDS_EXPORT inline void thread_state_blocked (struct thread_state1 *ts1)
+DDS_EXPORT inline void thread_state_awake_to_awake_no_nest (struct thread_state1 *ts1)
 {
-  vtime_t wd = ts1->watchdog;
-  if ( wd % 2 ){
-    ts1->watchdog = wd + 2;
-  } else {
-    ts1->watchdog = wd + 1;
-  }
-}
-
-DDS_EXPORT inline void thread_state_unblocked (struct thread_state1 *ts1)
-{
-  vtime_t wd = ts1->watchdog;
-  if ( wd % 2 ){
-    ts1->watchdog = wd + 1;
-  } else {
-    ts1->watchdog = wd + 2;
-  }
+  vtime_t vt = ts1->vtime;
+  assert ((vt & VTIME_NEST_MASK) == 1);
+  ddsrt_atomic_fence_rel ();
+  ts1->vtime = vt + (1u << VTIME_TIME_SHIFT);
+  ddsrt_atomic_fence_acq ();
 }
 
 #if defined (__cplusplus)

@@ -839,7 +839,7 @@ static int setup_and_start_recv_threads (void)
         goto fail;
       }
     }
-    if ((gv.recv_threads[i].ts = create_thread (gv.recv_threads[i].name, recv_thread, &gv.recv_threads[i].arg)) == NULL)
+    if (create_thread (&gv.recv_threads[i].ts, gv.recv_threads[i].name, recv_thread, &gv.recv_threads[i].arg) != DDS_RETCODE_OK)
     {
       DDS_ERROR("rtps_init: failed to start thread %s\n", gv.recv_threads[i].name);
       goto fail;
@@ -1399,7 +1399,7 @@ int rtps_start (void)
   }
   if (gv.listener)
   {
-    gv.listen_ts = create_thread ("listen", (uint32_t (*) (void *)) listen_thread, gv.listener);
+    create_thread (&gv.listen_ts, "listen", (uint32_t (*) (void *)) listen_thread, gv.listener);
   }
   if (gv.startup_mode)
   {
@@ -1429,7 +1429,8 @@ static void builtins_dqueue_ready_cb (void *varg)
 
 void rtps_stop (void)
 {
-  struct thread_state1 *self = lookup_thread_state ();
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   struct config_channel_listelem * chptr;
 #endif
@@ -1496,14 +1497,14 @@ void rtps_stop (void)
     /* Clean up proxy readers, proxy writers and proxy
        participants. Deleting a proxy participants deletes all its
        readers and writers automatically */
-    thread_state_awake (self);
+    thread_state_awake (ts1);
     ephash_enum_proxy_participant_init (&est);
     while ((proxypp = ephash_enum_proxy_participant_next (&est)) != NULL)
     {
       delete_proxy_participant_by_guid(&proxypp->e.guid, tnow, 1);
     }
     ephash_enum_proxy_participant_fini (&est);
-    thread_state_asleep (self);
+    thread_state_asleep (ts1);
   }
 
   {
@@ -1518,7 +1519,7 @@ void rtps_stop (void)
        rwriters to get all SEDP and SPDP dispose+unregister messages
        out. FIXME: need to keep xevent thread alive for a while
        longer. */
-    thread_state_awake (self);
+    thread_state_awake (ts1);
     ephash_enum_writer_init (&est_wr);
     while ((wr = ephash_enum_writer_next (&est_wr)) != NULL)
     {
@@ -1526,7 +1527,7 @@ void rtps_stop (void)
         delete_writer_nolinger (&wr->e.guid);
     }
     ephash_enum_writer_fini (&est_wr);
-    thread_state_awake (self);
+    thread_state_awake_to_awake_no_nest (ts1);
     ephash_enum_reader_init (&est_rd);
     while ((rd = ephash_enum_reader_next (&est_rd)) != NULL)
     {
@@ -1534,14 +1535,14 @@ void rtps_stop (void)
         (void)delete_reader (&rd->e.guid);
     }
     ephash_enum_reader_fini (&est_rd);
-    thread_state_awake (self);
+    thread_state_awake_to_awake_no_nest (ts1);
     ephash_enum_participant_init (&est_pp);
     while ((pp = ephash_enum_participant_next (&est_pp)) != NULL)
     {
       delete_participant (&pp->e.guid);
     }
     ephash_enum_participant_fini (&est_pp);
-    thread_state_asleep (self);
+    thread_state_asleep (ts1);
   }
 
   /* Wait until all participants are really gone => by then we can be

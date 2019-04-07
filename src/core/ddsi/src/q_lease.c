@@ -205,7 +205,7 @@ void lease_set_expiry (struct lease *l, nn_etime_t when)
     force_lease_check();
 }
 
-int64_t check_and_handle_lease_expiration (UNUSED_ARG (struct thread_state1 *self), nn_etime_t tnowE)
+int64_t check_and_handle_lease_expiration (nn_etime_t tnowE)
 {
   struct lease *l;
   int64_t delay;

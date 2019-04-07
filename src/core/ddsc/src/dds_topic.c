@@ -313,8 +313,6 @@ dds_create_topic_arbitrary (
     dds_qos_t *new_qos = NULL;
     dds_entity_t hdl;
     struct participant *ddsi_pp;
-    struct thread_state1 *const thr = lookup_thread_state ();
-    const bool asleep = !vtime_awake_p (thr->vtime);
 
     if (sertopic == NULL){
         DDS_ERROR("Topic description is NULL\n");
@@ -389,17 +387,13 @@ dds_create_topic_arbitrary (
         ddsrt_mutex_unlock (&dds_global.m_mutex);
 
         /* Publish Topic */
-        if (asleep) {
-            thread_state_awake (thr);
-        }
+        thread_state_awake (lookup_thread_state ());
         ddsi_pp = ephash_lookup_participant_guid (&par->m_guid);
         assert (ddsi_pp);
         if (sedp_plist) {
             sedp_write_topic (ddsi_pp, sedp_plist);
         }
-        if (asleep) {
-            thread_state_asleep (thr);
-        }
+        thread_state_asleep (lookup_thread_state ());
     }
 
 qos_err:

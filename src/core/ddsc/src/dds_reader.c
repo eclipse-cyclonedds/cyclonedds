@@ -54,23 +54,16 @@ dds_reader_close(
 {
     dds_retcode_t rc;
     dds_return_t ret = DDS_RETCODE_OK;
-    struct thread_state1 * const thr = lookup_thread_state();
-    const bool asleep = !vtime_awake_p(thr->vtime);
 
     assert(e);
-    assert(thr);
 
-    if (asleep) {
-      thread_state_awake(thr);
-    }
+    thread_state_awake (lookup_thread_state ());
     if (delete_reader(&e->m_guid) != 0) {
         DDS_ERROR("Internal error");
         rc = DDS_RETCODE_ERROR;
         ret = DDS_ERRNO(rc);
     }
-    if (asleep) {
-      thread_state_asleep(thr);
-    }
+    thread_state_asleep (lookup_thread_state ());
     return ret;
 }
 
@@ -368,8 +361,6 @@ dds_create_reader(
     dds_topic * tp;
     dds_entity_t reader;
     dds_entity_t t;
-    struct thread_state1 * const thr = lookup_thread_state ();
-    const bool asleep = !vtime_awake_p (thr->vtime);
     dds_return_t ret = DDS_RETCODE_OK;
     bool internal_topic;
 
@@ -474,17 +465,13 @@ dds_create_reader(
     ddsrt_mutex_unlock(&tp->m_entity.m_mutex);
     ddsrt_mutex_unlock(&sub->m_entity.m_mutex);
 
-    if (asleep) {
-        thread_state_awake (thr);
-    }
+    thread_state_awake (lookup_thread_state ());
     rd->m_rd = new_reader(&rd->m_entity.m_guid, NULL, &sub->m_entity.m_participant->m_guid, tp->m_stopic,
                           rqos, rhc, dds_reader_status_cb, rd);
     ddsrt_mutex_lock(&sub->m_entity.m_mutex);
     ddsrt_mutex_lock(&tp->m_entity.m_mutex);
     assert (rd->m_rd);
-    if (asleep) {
-        thread_state_asleep (thr);
-    }
+    thread_state_asleep (lookup_thread_state ());
 
     /* For persistent data register reader with durability */
     if (dds_global.m_dur_reader && (rd->m_entity.m_qos->durability.kind > NN_TRANSIENT_LOCAL_DURABILITY_QOS)) {

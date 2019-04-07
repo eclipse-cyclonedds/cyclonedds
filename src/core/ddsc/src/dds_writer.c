@@ -192,24 +192,16 @@ dds_writer_close(
 {
     dds_return_t ret = DDS_RETCODE_OK;
     dds_writer *wr = (dds_writer*)e;
-    struct thread_state1 * const thr = lookup_thread_state();
-    const bool asleep = thr ? !vtime_awake_p(thr->vtime) : false;
 
     assert(e);
 
-    if (asleep) {
-        thread_state_awake(thr);
-    }
-    if (thr) {
-        nn_xpack_send (wr->m_xp, false);
-    }
+    thread_state_awake (lookup_thread_state ());
+    nn_xpack_send (wr->m_xp, false);
     if (delete_writer (&e->m_guid) != 0) {
         DDS_ERROR("Internal error");
         ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     }
-    if (asleep) {
-        thread_state_asleep(thr);
-    }
+    thread_state_asleep (lookup_thread_state ());
     return ret;
 }
 
@@ -218,24 +210,11 @@ dds_writer_delete(
         dds_entity *e)
 {
     dds_writer *wr = (dds_writer*)e;
-    struct thread_state1 * const thr = lookup_thread_state();
-    const bool asleep = thr ? !vtime_awake_p(thr->vtime) : false;
     dds_return_t ret;
-
-    assert(e);
-    assert(thr);
-
     /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
-
-    if (asleep) {
-        thread_state_awake(thr);
-    }
-    if (thr) {
-        nn_xpack_free(wr->m_xp);
-    }
-    if (asleep) {
-        thread_state_asleep(thr);
-    }
+    thread_state_awake (lookup_thread_state ());
+    nn_xpack_free(wr->m_xp);
+    thread_state_asleep (lookup_thread_state ());
     ret = dds_delete(wr->m_topic->m_entity.m_hdllink.hdl);
     if(ret == DDS_RETCODE_OK){
         ret = dds_delete_impl(e->m_parent->m_hdllink.hdl, true);
@@ -304,15 +283,11 @@ dds_writer_qos_set(
             dds_qget_ownership (e->m_qos, &kind);
 
             if (kind == DDS_OWNERSHIP_EXCLUSIVE) {
-                struct thread_state1 * const thr = lookup_thread_state ();
-                const bool asleep = !vtime_awake_p (thr->vtime);
                 struct writer * ddsi_wr = ((dds_writer*)e)->m_wr;
 
                 dds_qset_ownership_strength (e->m_qos, qos->ownership_strength.value);
 
-                if (asleep) {
-                    thread_state_awake (thr);
-                }
+                thread_state_awake (lookup_thread_state ());
 
                 /* FIXME: with QoS changes being unsupported by the underlying stack I wonder what will happen; locking the underlying DDSI writer is of doubtful value as well */
                 ddsrt_mutex_lock (&ddsi_wr->e.lock);
@@ -320,10 +295,7 @@ dds_writer_qos_set(
                     ddsi_wr->xqos->ownership_strength.value = qos->ownership_strength.value;
                 }
                 ddsrt_mutex_unlock (&ddsi_wr->e.lock);
-
-                if (asleep) {
-                    thread_state_asleep (thr);
-                }
+                thread_state_asleep (lookup_thread_state ());
             } else {
                 DDS_ERROR("Setting ownership strength doesn't make sense when the ownership is shared\n");
                 ret = DDS_ERRNO(DDS_RETCODE_ERROR);
@@ -403,8 +375,6 @@ dds_create_writer(
     dds_publisher * pub = NULL;
     dds_topic * tp;
     dds_entity_t publisher;
-    struct thread_state1 * const thr = lookup_thread_state();
-    const bool asleep = !vtime_awake_p(thr->vtime);
     ddsi_tran_conn_t conn = gv.data_conn_uc;
     dds_return_t ret;
 
@@ -485,16 +455,12 @@ dds_create_writer(
     ddsrt_mutex_unlock (&tp->m_entity.m_mutex);
     ddsrt_mutex_unlock (&pub->m_entity.m_mutex);
 
-    if (asleep) {
-        thread_state_awake(thr);
-    }
+    thread_state_awake (lookup_thread_state ());
     wr->m_wr = new_writer(&wr->m_entity.m_guid, NULL, &pub->m_entity.m_participant->m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
     ddsrt_mutex_lock (&pub->m_entity.m_mutex);
     ddsrt_mutex_lock (&tp->m_entity.m_mutex);
     assert(wr->m_wr);
-    if (asleep) {
-        thread_state_asleep(thr);
-    }
+    thread_state_asleep (lookup_thread_state ());
     dds_topic_unlock(tp);
     dds_publisher_unlock(pub);
     return writer;

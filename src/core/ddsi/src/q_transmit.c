@@ -911,7 +911,7 @@ static int writer_may_continue (const struct writer *wr, const struct whc_state 
 }
 
 
-static dds_retcode_t throttle_writer (struct nn_xpack *xp, struct writer *wr)
+static dds_retcode_t throttle_writer (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr)
 {
   /* Sleep (cond_wait) without updating the thread's vtime: the
      garbage collector won't free the writer while we leave it
@@ -956,7 +956,7 @@ static dds_retcode_t throttle_writer (struct nn_xpack *xp, struct writer *wr)
   {
     ASSERT_MUTEX_HELD (&wr->e.lock);
     assert (wr->throttling == 0);
-    assert (vtime_awake_p (lookup_thread_state ()->vtime));
+    assert (thread_is_awake ());
     assert (!is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE));
   }
 
@@ -988,10 +988,10 @@ static dds_retcode_t throttle_writer (struct nn_xpack *xp, struct writer *wr)
     result = DDS_RETCODE_TIMEOUT;
     if (reltimeout > 0)
     {
-      thread_state_asleep (lookup_thread_state());
+      thread_state_asleep (ts1);
       if (ddsrt_cond_waitfor (&wr->throttle_cond, &wr->e.lock, reltimeout))
         result = DDS_RETCODE_OK;
-      thread_state_awake (lookup_thread_state());
+      thread_state_awake (ts1);
       whc_get_state(wr->whc, &whcst);
     }
     if (result == DDS_RETCODE_TIMEOUT)
@@ -1028,7 +1028,7 @@ static int maybe_grow_whc (struct writer *wr)
   return 0;
 }
 
-static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
+static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
 {
   int r;
   seqno_t seq;
@@ -1070,14 +1070,14 @@ static int write_sample_eot (struct nn_xpack *xp, struct writer *wr, struct nn_p
       dds_retcode_t ores;
       assert(gc_allowed); /* also see beginning of the function */
       if (config.prioritize_retransmit && wr->retransmitting)
-        ores = throttle_writer (xp, wr);
+        ores = throttle_writer (ts1, xp, wr);
       else
       {
         maybe_grow_whc (wr);
         if (whcst.unacked_bytes <= wr->whc_high)
           ores = DDS_RETCODE_OK;
         else
-          ores = throttle_writer (xp, wr);
+          ores = throttle_writer (ts1, xp, wr);
       }
       if (ores == DDS_RETCODE_TIMEOUT)
       {
@@ -1168,32 +1168,34 @@ drop:
   return r;
 }
 
-int write_sample_gc (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+int write_sample_gc (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
-  return write_sample_eot (xp, wr, NULL, serdata, tk, 0, 1);
+  return write_sample_eot (ts1, xp, wr, NULL, serdata, tk, 0, 1);
 }
 
-int write_sample_nogc (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+int write_sample_nogc (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
-  return write_sample_eot (xp, wr, NULL, serdata, tk, 0, 0);
+  return write_sample_eot (ts1, xp, wr, NULL, serdata, tk, 0, 0);
 }
 
-int write_sample_gc_notk (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
+int write_sample_gc_notk (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
 {
   struct ddsi_tkmap_instance *tk;
   int res;
+  assert (thread_is_awake ());
   tk = ddsi_tkmap_lookup_instance_ref (serdata);
-  res = write_sample_eot (xp, wr, NULL, serdata, tk, 0, 1);
+  res = write_sample_eot (ts1, xp, wr, NULL, serdata, tk, 0, 1);
   ddsi_tkmap_instance_unref (tk);
   return res;
 }
 
-int write_sample_nogc_notk (struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
+int write_sample_nogc_notk (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
 {
   struct ddsi_tkmap_instance *tk;
   int res;
+  assert (thread_is_awake ());
   tk = ddsi_tkmap_lookup_instance_ref (serdata);
-  res = write_sample_eot (xp, wr, NULL, serdata, tk, 0, 0);
+  res = write_sample_eot (ts1, xp, wr, NULL, serdata, tk, 0, 0);
   ddsi_tkmap_instance_unref (tk);
   return res;
 }

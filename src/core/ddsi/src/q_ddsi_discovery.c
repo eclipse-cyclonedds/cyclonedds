@@ -172,13 +172,14 @@ static void maybe_add_pp_as_meta_to_as_disc (const struct addrset *as_meta)
 
 static int write_mpayload (struct writer *wr, int alive, nn_parameterid_t keyparam, struct nn_xmsg *mpayload)
 {
+  struct thread_state1 * const ts1 = lookup_thread_state ();
   struct ddsi_plist_sample plist_sample;
   struct ddsi_serdata *serdata;
   nn_xmsg_payload_to_plistsample (&plist_sample, keyparam, mpayload);
   serdata = ddsi_serdata_from_sample (gv.plist_topic, alive ? SDK_DATA : SDK_KEY, &plist_sample);
   serdata->statusinfo = alive ? 0 : NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
   serdata->timestamp = now ();
-  return write_sample_nogc_notk (NULL, wr, serdata);
+  return write_sample_nogc_notk (ts1, NULL, wr, serdata);
 }
 
 int spdp_write (struct participant *pp)

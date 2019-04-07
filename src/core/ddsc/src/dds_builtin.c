@@ -65,12 +65,11 @@ void dds__builtin_init (void)
 void dds__builtin_fini (void)
 {
   /* No more sources for builtin topic samples */
-  struct thread_state1 * const self = lookup_thread_state ();
-  thread_state_awake (self);
+  thread_state_awake (lookup_thread_state ());
   delete_local_orphan_writer (builtintopic_writer_participant);
   delete_local_orphan_writer (builtintopic_writer_publications);
   delete_local_orphan_writer (builtintopic_writer_subscriptions);
-  thread_state_asleep (self);
+  thread_state_asleep (lookup_thread_state ());
 
   ddsi_sertopic_unref (builtin_participant_topic);
   ddsi_sertopic_unref (builtin_reader_topic);
