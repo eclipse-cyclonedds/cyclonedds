@@ -1744,6 +1744,13 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
   }
   DDS_TRACE("%x:%x:%x:%x -> %x:%x:%x:%x", PGUID (src), PGUID (dst));
 
+  if (!pwr->have_seen_heartbeat && pwr->n_reliable_readers > 0)
+  {
+    DDS_TRACE(": no heartbeat seen yet", PGUID (pwr->e.guid), PGUID (dst));
+    ddsrt_mutex_unlock (&pwr->e.lock);
+    return 1;
+  }
+
   /* Notify reordering in proxy writer & and the addressed reader (if
      it is out-of-sync, &c.), while delivering samples that become
      available because preceding ones are now known to be missing. */
@@ -2172,6 +2179,25 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
 
   /* Shouldn't lock the full writer, but will do so for now */
   ddsrt_mutex_lock (&pwr->e.lock);
+
+  /* Don't accept data when reliable readers exist and we haven't yet seen
+     a heartbeat telling us what the "current" sequence number of the writer
+     is. If no reliable readers are present, we can't request a heartbeat and
+     therefore must not require one.
+
+     This should be fine except for the one case where one transitions from
+     having only best-effort readers to also having a reliable reader (in
+     the same process): in that case, the requirement that a heartbeat has
+     been seen could potentially result in a disruption of the data flow to
+     the best-effort readers.  That state should last only for a very short
+     time, but it is rather inelegant.  */
+  if (!pwr->have_seen_heartbeat && pwr->n_reliable_readers > 0)
+  {
+    ddsrt_mutex_unlock (&pwr->e.lock);
+    DDS_TRACE(" %x:%x:%x:%x -> %x:%x:%x:%x: no heartbeat seen yet", PGUID (pwr->e.guid), PGUID (dst));
+    return;
+  }
+
   if (ut_avlIsEmpty (&pwr->readers) || pwr->local_matching_inprogress)
   {
     ddsrt_mutex_unlock (&pwr->e.lock);
