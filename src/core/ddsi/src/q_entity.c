@@ -4111,12 +4111,13 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   } else {
     pwr->deliver_synchronously = 0;
   }
-  pwr->have_seen_heartbeat = 0;
+  /* Pretend we have seen a heartbeat if the proxy writer is a best-effort one */
+  isreliable = (pwr->c.xqos->reliability.kind != NN_BEST_EFFORT_RELIABILITY_QOS);
+  pwr->have_seen_heartbeat = !isreliable;
   pwr->local_matching_inprogress = 1;
 #ifdef DDSI_INCLUDE_SSM
   pwr->supports_ssm = (addrset_contains_ssm (as) && config.allowMulticast & AMC_SSM) ? 1 : 0;
 #endif
-  isreliable = (pwr->c.xqos->reliability.kind != NN_BEST_EFFORT_RELIABILITY_QOS);
 
   /* Only assert PP lease on receipt of data if enabled (duh) and the proxy participant is a
      "real" participant, rather than the thing we use for endpoints discovered via the DS */
