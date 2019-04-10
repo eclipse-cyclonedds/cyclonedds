@@ -400,7 +400,8 @@ static void
 fini_triggering_test(void)
 {
     dds_delete(g_reader);
-    dds_delete(g_writer);
+    if (g_writer)
+      dds_delete(g_writer);
     fini_triggering_base();
 }
 
@@ -836,6 +837,113 @@ CU_Test(ddsc_listener, data_available, .init=init_triggering_test, .fini=fini_tr
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Data available should be triggered with the right status. */
+    triggered = waitfor_cb(DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_DATA_AVAILABLE_STATUS, DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
+
+    /* The listener should have swallowed the status. */
+    ret = dds_read_status(g_subscriber, &status, DDS_DATA_ON_READERS_STATUS);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
+    ret = dds_read_status(g_reader, &status, DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
+
+    /* Deleting the writer causes unregisters (or dispose+unregister), and those
+       should trigger DATA_AVAILABLE as well */
+    cb_called = 0;
+    cb_reader = 0;
+    ret = dds_delete (g_writer);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    g_writer = 0;
+    triggered = waitfor_cb(DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_DATA_AVAILABLE_STATUS, DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
+
+    /* The listener should have swallowed the status. */
+    ret = dds_read_status(g_subscriber, &status, DDS_DATA_ON_READERS_STATUS);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
+    ret = dds_read_status(g_reader, &status, DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
+}
+
+CU_Test(ddsc_listener, data_available_delete_writer, .init=init_triggering_test, .fini=fini_triggering_test)
+{
+    dds_return_t ret;
+    uint32_t triggered;
+    uint32_t status;
+    RoundTripModule_DataType sample;
+    memset (&sample, 0, sizeof (sample));
+
+    /* We are interested in data available notifications. */
+    dds_lset_data_available(g_listener, data_available_cb);
+    ret = dds_set_listener(g_reader, g_listener);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+    /* Write sample, wait for the listener to swallow the status. */
+    ret = dds_write(g_writer, &sample);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    triggered = waitfor_cb(DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_DATA_AVAILABLE_STATUS, DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
+
+    /* Deleting the writer must trigger DATA_AVAILABLE as well */
+    cb_called = 0;
+    cb_reader = 0;
+    ret = dds_delete (g_writer);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    g_writer = 0;
+    triggered = waitfor_cb(DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_DATA_AVAILABLE_STATUS, DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
+
+    /* The listener should have swallowed the status. */
+    ret = dds_read_status(g_subscriber, &status, DDS_DATA_ON_READERS_STATUS);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
+    ret = dds_read_status(g_reader, &status, DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, 0);
+}
+
+CU_Test(ddsc_listener, data_available_delete_writer_disposed, .init=init_triggering_test, .fini=fini_triggering_test)
+{
+    dds_return_t ret;
+    uint32_t triggered;
+    uint32_t status;
+    RoundTripModule_DataType sample;
+    memset (&sample, 0, sizeof (sample));
+
+    /* We are interested in data available notifications. */
+    dds_lset_data_available(g_listener, data_available_cb);
+    ret = dds_set_listener(g_reader, g_listener);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+    /* Write & dispose sample and take it so that the instance is empty & disposed.  Then deleting
+       the writer should silently drop the instance. */
+    ret = dds_write(g_writer, &sample);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    ret = dds_dispose(g_writer, &sample);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    triggered = waitfor_cb(DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(triggered & DDS_DATA_AVAILABLE_STATUS, DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
+
+    /* Take all data so that the instance becomes empty & disposed */
+    do {
+      void *sampleptr = &sample;
+      dds_sample_info_t info;
+      ret = dds_take (g_reader, &sampleptr, &info, 1, 1);
+    } while (ret > 0);
+
+    /* Deleting the writer should not trigger DATA_AVAILABLE with all instances empty & disposed */
+    cb_called = 0;
+    cb_reader = 0;
+    ret = dds_delete (g_writer);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    g_writer = 0;
     triggered = waitfor_cb(DDS_DATA_AVAILABLE_STATUS);
     CU_ASSERT_EQUAL_FATAL(triggered & DDS_DATA_AVAILABLE_STATUS, DDS_DATA_AVAILABLE_STATUS);
     CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);

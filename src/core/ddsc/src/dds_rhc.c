@@ -1523,6 +1523,7 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
      built-in topics and in get_instance_handle, and one used internally
      for tracking registrations and unregistrations. */
   bool trigger_waitsets = false;
+  bool notify_data_available = false;
   struct rhc_instance *inst;
   struct ut_hhIter iter;
   const uint64_t wr_iid = pwr_info->iid;
@@ -1568,16 +1569,28 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
 
       TRACE ("\n");
 
+      notify_data_available = true;
       if (trigger_info_differs (&pre, &post, &trig_qc) && update_conditions_locked (rhc, true, &pre, &post, &trig_qc, inst))
         trigger_waitsets = true;
       assert (rhc_check_counts_locked (rhc, true, false));
     }
   }
   TRACE (")\n");
+
   ddsrt_mutex_unlock (&rhc->lock);
 
-  if (trigger_waitsets)
-    dds_entity_status_signal (&rhc->reader->m_entity);
+  if (rhc->reader)
+  {
+    if (notify_data_available && (rhc->reader->m_entity.m_status_enable & DDS_DATA_AVAILABLE_STATUS))
+    {
+      ddsrt_atomic_inc32 (&rhc->n_cbs);
+      dds_reader_data_available_cb (rhc->reader);
+      ddsrt_atomic_dec32 (&rhc->n_cbs);
+    }
+
+    if (trigger_waitsets)
+      dds_entity_status_signal (&rhc->reader->m_entity);
+  }
 }
 
 void dds_rhc_relinquish_ownership (struct rhc * __restrict rhc, const uint64_t wr_iid)
