@@ -15,11 +15,11 @@
 #include <stddef.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsrt/log.h"
 
-#include "dds/ddsi/q_md5.h"
 #include "dds/util/ut_avl.h"
 #include "dds__stream.h"
 #include "dds/ddsi/q_protocol.h"
@@ -44,6 +44,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_receive.h"
+
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_static_assert.h"

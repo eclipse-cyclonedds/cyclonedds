@@ -11,11 +11,12 @@
  */
 #include <assert.h>
 #include <string.h>
+
+#include "dds/ddsrt/md5.h"
 #include "dds__key.h"
 #include "dds__stream.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_md5.h"
 
 #ifndef NDEBUG
 static bool keyhash_is_reset(const dds_key_hash_t *kh)
@@ -112,14 +113,14 @@ void dds_key_gen (const dds_topic_descriptor_t * const desc, dds_key_hash_t * kh
   else
   {
     dds_stream_t os;
-    md5_state_t md5st;
+    ddsrt_md5_state_t md5st;
     kh->m_iskey = 0;
     dds_stream_init(&os, 64);
     os.m_endian = 0;
     dds_key_gen_stream (desc, &os, sample);
-    md5_init (&md5st);
-    md5_append (&md5st, os.m_buffer.p8, os.m_index);
-    md5_finish (&md5st, (unsigned char *) kh->m_hash);
+    ddsrt_md5_init (&md5st);
+    ddsrt_md5_append (&md5st, os.m_buffer.p8, os.m_index);
+    ddsrt_md5_finish (&md5st, (unsigned char *) kh->m_hash);
     dds_stream_fini (&os);
   }
 }

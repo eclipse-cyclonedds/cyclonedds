@@ -89,7 +89,7 @@ list(APPEND sources
 # network stack. In order to mix-and-match various compilers, architectures,
 # operating systems, etc input from the build system is required.
 foreach(feature atomics cdtors environ heap ifaddrs random rusage
-                sockets string sync threads time)
+                sockets string sync threads time md5)
   if(EXISTS "${include_path}/dds/ddsrt/${feature}.h")
     list(APPEND headers "${include_path}/dds/ddsrt/${feature}.h")
     file(GLOB
