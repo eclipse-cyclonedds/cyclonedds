@@ -13,6 +13,7 @@
 #include <stddef.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/string.h"
@@ -21,7 +22,6 @@
 #include "dds/util/ut_avl.h"
 #include "dds/util/ut_thread_pool.h"
 
-#include "dds/ddsi/q_md5.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"

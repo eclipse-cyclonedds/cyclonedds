@@ -11,18 +11,18 @@
  */
 #include <assert.h>
 #include <string.h>
+
+#include "dds/ddsrt/endian.h"
+#include "dds/ddsrt/md5.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds__stream.h"
 #include "dds__key.h"
 #include "dds__alloc.h"
-#include "dds/ddsi/q_md5.h"
-#include "dds/ddsrt/endian.h"
 
 //#define OP_DEBUG_READ 1
 //#define OP_DEBUG_WRITE 1
 //#define OP_DEBUG_KEY 1
-
 
 #if defined OP_DEBUG_WRITE || defined OP_DEBUG_READ || defined OP_DEBUG_KEY
 static const char * stream_op_type[11] =
@@ -1612,14 +1612,14 @@ void dds_stream_read_keyhash
   else
   {
     dds_stream_t os;
-    md5_state_t md5st;
+    ddsrt_md5_state_t md5st;
     kh->m_iskey = 0;
     dds_stream_init (&os, 0);
     os.m_endian = 0;
     dds_stream_extract_key (is, &os, desc->m_ops, just_key);
-    md5_init (&md5st);
-    md5_append (&md5st, os.m_buffer.p8, os.m_index);
-    md5_finish (&md5st, (unsigned char *) kh->m_hash);
+    ddsrt_md5_init (&md5st);
+    ddsrt_md5_append (&md5st, os.m_buffer.p8, os.m_index);
+    ddsrt_md5_finish (&md5st, (unsigned char *) kh->m_hash);
     dds_stream_fini (&os);
   }
 }

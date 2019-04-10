@@ -39,7 +39,6 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_init.c
     q_lat_estim.c
     q_lease.c
-    q_md5.c
     q_misc.c
     q_nwif.c
     q_pcap.c
@@ -97,7 +96,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_lat_estim.h
     q_lease.h
     q_log.h
-    q_md5.h
     q_misc.h
     q_nwif.h
     q_pcap.h

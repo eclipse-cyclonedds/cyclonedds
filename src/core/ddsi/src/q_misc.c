@@ -12,8 +12,9 @@
 #include <string.h>
 
 #include "dds/ddsi/q_misc.h"
+
+#include "dds/ddsrt/md5.h"
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_md5.h"
 
 extern inline seqno_t fromSN (const nn_sequence_number_t sn);
 extern inline nn_sequence_number_t toSN (seqno_t n);

@@ -59,8 +59,8 @@
   1999-05-03 lpd Original version.
  */
 
-#ifndef md5_INCLUDED
-#  define md5_INCLUDED
+#ifndef DDSRT_MD5_H
+#define DDSRT_MD5_H
 
 #include <stddef.h>
 
@@ -74,15 +74,15 @@
  * efficiently on either one than if ARCH_IS_BIG_ENDIAN is defined.
  */
 
-typedef unsigned char md5_byte_t; /* 8-bit byte */
-typedef unsigned int md5_word_t; /* 32-bit word */
+typedef unsigned char ddsrt_md5_byte_t; /* 8-bit byte */
+typedef unsigned int ddsrt_md5_word_t; /* 32-bit word */
 
 /* Define the state of the MD5 Algorithm. */
-typedef struct md5_state_s {
-    md5_word_t count[2];        /* message length in bits, lsw first */
-    md5_word_t abcd[4];         /* digest buffer */
-    md5_byte_t buf[64];         /* accumulate block */
-} md5_state_t;
+typedef struct ddsrt_md5_state_s {
+    ddsrt_md5_word_t count[2];        /* message length in bits, lsw first */
+    ddsrt_md5_word_t abcd[4];         /* digest buffer */
+    ddsrt_md5_byte_t buf[64];         /* accumulate block */
+} ddsrt_md5_state_t;
 
 #ifdef __cplusplus
 extern "C"
@@ -90,16 +90,16 @@ extern "C"
 #endif
 
 /* Initialize the algorithm. */
-void md5_init(md5_state_t *pms);
+void ddsrt_md5_init(ddsrt_md5_state_t *pms);
 
 /* Append a string to the message. */
-void md5_append(md5_state_t *pms, const md5_byte_t *data, unsigned nbytes);
+void ddsrt_md5_append(ddsrt_md5_state_t *pms, const ddsrt_md5_byte_t *data, unsigned nbytes);
 
 /* Finish the message and return the digest. */
-void md5_finish(md5_state_t *pms, md5_byte_t digest[16]);
+void ddsrt_md5_finish(ddsrt_md5_state_t *pms, ddsrt_md5_byte_t digest[16]);
 
 #ifdef __cplusplus
 }  /* end extern "C" */
 #endif
 
-#endif /* md5_INCLUDED */
+#endif /* DDSRT_MD5_H */
