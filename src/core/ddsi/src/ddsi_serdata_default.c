@@ -16,7 +16,7 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
-#include "dds/ddsi/q_md5.h"
+#include "dds/ddsrt/md5.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
@@ -377,16 +377,16 @@ static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi
       const char *topic_name = (const char *) (rawkey + sizeof(uint32_t));
       uint32_t topic_name_sz;
       uint32_t topic_name_sz_BE;
-      md5_state_t md5st;
-      md5_byte_t digest[16];
+      ddsrt_md5_state_t md5st;
+      ddsrt_md5_byte_t digest[16];
       topic_name_sz = (uint32_t) strlen (topic_name) + 1;
       topic_name_sz_BE = toBE4u (topic_name_sz);
       d->keyhash.m_set = 1;
       d->keyhash.m_iskey = 0;
-      md5_init (&md5st);
-      md5_append (&md5st, (const md5_byte_t *) &topic_name_sz_BE, sizeof (topic_name_sz_BE));
-      md5_append (&md5st, (const md5_byte_t *) topic_name, topic_name_sz);
-      md5_finish (&md5st, digest);
+      ddsrt_md5_init (&md5st);
+      ddsrt_md5_append (&md5st, (const ddsrt_md5_byte_t *) &topic_name_sz_BE, sizeof (topic_name_sz_BE));
+      ddsrt_md5_append (&md5st, (const ddsrt_md5_byte_t *) topic_name, topic_name_sz);
+      ddsrt_md5_finish (&md5st, digest);
       memcpy (d->keyhash.m_hash, digest, 16);
 #ifndef NDEBUG
       keysize = sizeof (uint32_t) + topic_name_sz;

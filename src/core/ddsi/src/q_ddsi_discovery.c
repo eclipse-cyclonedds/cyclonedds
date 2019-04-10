@@ -18,6 +18,7 @@
 #include "dds/version.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
+#include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/util/ut_avl.h"
 #include "dds/ddsi/q_protocol.h"
@@ -30,6 +31,7 @@
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
+
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_entity.h"
@@ -40,7 +42,6 @@
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_error.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
-#include "dds/ddsi/q_md5.h"
 #include "dds/ddsi/q_feature_check.h"
 
 static int get_locator (nn_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)

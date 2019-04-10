@@ -17,15 +17,16 @@
 
 #include "dds/ddsrt/ifaddrs.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sockets.h"
 
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_nwif.h"
+
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_md5.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_addrset.h" /* unspec locator */
 #include "dds/ddsi/q_feature_check.h"
@@ -45,11 +46,11 @@ unsigned locator_to_hopefully_unique_uint32 (const nn_locator_t *src)
   else
   {
 #if DDSRT_HAVE_IPV6
-    md5_state_t st;
-    md5_byte_t digest[16];
-    md5_init (&st);
-    md5_append (&st, (const md5_byte_t *) ((const struct sockaddr_in6 *) src)->sin6_addr.s6_addr, 16);
-    md5_finish (&st, digest);
+    ddsrt_md5_state_t st;
+    ddsrt_md5_byte_t digest[16];
+    ddsrt_md5_init (&st);
+    ddsrt_md5_append (&st, (const ddsrt_md5_byte_t *) ((const struct sockaddr_in6 *) src)->sin6_addr.s6_addr, 16);
+    ddsrt_md5_finish (&st, digest);
     memcpy (&id, digest, sizeof (id));
 #else
     DDS_FATAL("IPv6 unavailable\n");
