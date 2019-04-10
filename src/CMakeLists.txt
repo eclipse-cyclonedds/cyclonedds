@@ -186,5 +186,11 @@ endif()
 
 add_subdirectory(examples)
 
+if (BUILD_TESTING)
+  # Multi Process Tests
+  add_subdirectory(mpt)
+endif()
+
+
 # Pull-in CPack and support for generating <Package>Config.cmake and packages.
 include(Packaging)
