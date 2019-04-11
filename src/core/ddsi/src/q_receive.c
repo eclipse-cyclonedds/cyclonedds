@@ -1747,7 +1747,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
 
   if (!pwr->have_seen_heartbeat && pwr->n_reliable_readers > 0)
   {
-    DDS_TRACE(": no heartbeat seen yet", PGUID (pwr->e.guid), PGUID (dst));
+    DDS_TRACE(": no heartbeat seen yet");
     ddsrt_mutex_unlock (&pwr->e.lock);
     return 1;
   }
