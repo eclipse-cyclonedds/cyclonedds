@@ -14,6 +14,7 @@
 #include "CUnit/Theory.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/heap.h"
 
 CU_TheoryDataPoints(ddsrt_environ, bad_name) = {
   CU_DataPoints(const char *, "", "foo=")
@@ -91,8 +92,110 @@ CU_Test(ddsrt_environ, getenv)
     CU_ASSERT_STRING_EQUAL(ptr, "bar");
   }
 
-  /* Ensure environement is as it was. */
+  /* Ensure environment is as it was. */
   rc = ddsrt_unsetenv(name);
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
 }
 
+CU_TheoryDataPoints(ddsrt_environ, expand) = {
+  CU_DataPoints(const char *,
+         "${X}",        "$X",          "X",       "${Y}",     "${Q}",      "${X",
+    "${X:-ALT}", "${Q:-ALT}", "${X:-${Y}}", "${Q:-${Y}}", "${X:-$Y}", "${Q:-$Y}", "${X:-}", "${Q:-}",
+    "${X:+SET}", "${Q:+SET}", "${X:+${Y}}", "${Q:+${Y}}", "${X:+$Y}", "${Q:+$Y}", "${X:+}", "${Q:+}",
+    "${X:?SET}", "${Q:?SET}", "${X:?${Y}}", "${Q:?${Y}}", "${X:?$Y}", "${Q:?$Y}", "${X:?}", "${Q:?}"),
+  CU_DataPoints(const char *,
+         "TEST",        "$X",          "X",        "FOO",         "",       NULL,
+         "TEST",       "ALT",       "TEST",        "FOO",     "TEST",       "$Y",   "TEST",       "",
+          "SET",          "",        "FOO",           "",       "$Y",         "",       "",       "",
+         "TEST",        NULL,       "TEST",         NULL,     "TEST",       NULL,   "TEST",     NULL)
+};
+CU_Theory((const char *var, const char *expect), ddsrt_environ, expand)
+{
+  dds_retcode_t rc;
+  static const char x_name[]  = "X";
+  static const char x_value[] = "TEST";
+  static const char y_name[]  = "Y";
+  static const char y_value[] = "FOO";
+  char *ptr;
+
+  /* Ensure that the vars are not used yet. */
+  rc = ddsrt_unsetenv(x_name);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  rc = ddsrt_unsetenv(y_name);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+
+  /* Set the env vars to check expansion. */
+  rc = ddsrt_setenv(x_name, x_value);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  rc = ddsrt_setenv(y_name, y_value);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+
+  /* Expand a string with available environment variables. */
+  ptr = ddsrt_expand_envvars(var);
+  if (ptr) {
+    /* printf("==== %10s: expand(%s), expect(%s))\n", var, ptr, expect); */
+    CU_ASSERT_STRING_EQUAL(ptr, expect);
+    ddsrt_free(ptr);
+  } else {
+    /* printf("==== %10s: expand(<null>), expect(<null>))\n", var ? var : "<null>"); */
+    CU_ASSERT_PTR_NULL(expect);
+  }
+
+  /* Ensure to reset the environment is as it was. */
+  rc = ddsrt_unsetenv(y_name);
+  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
+  rc = ddsrt_unsetenv(x_name);
+  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
+}
+
+
+CU_TheoryDataPoints(ddsrt_environ, expand_sh) = {
+  CU_DataPoints(const char *,
+         "${X}",        "$X",          "X",       "${Y}",     "${Q}",      "${X",
+    "${X:-ALT}", "${Q:-ALT}", "${X:-${Y}}", "${Q:-${Y}}", "${X:-$Y}", "${Q:-$Y}", "${X:-}", "${Q:-}",
+    "${X:+SET}", "${Q:+SET}", "${X:+${Y}}", "${Q:+${Y}}", "${X:+$Y}", "${Q:+$Y}", "${X:+}", "${Q:+}",
+    "${X:?SET}", "${Q:?SET}", "${X:?${Y}}", "${Q:?${Y}}", "${X:?$Y}", "${Q:?$Y}", "${X:?}", "${Q:?}"),
+  CU_DataPoints(const char *,
+         "TEST",      "TEST",          "X",        "FOO",         "",       NULL,
+         "TEST",       "ALT",       "TEST",        "FOO",     "TEST",      "FOO",   "TEST",       "",
+          "SET",          "",        "FOO",           "",      "FOO",         "",       "",       "",
+         "TEST",        NULL,       "TEST",         NULL,     "TEST",       NULL,   "TEST",     NULL)
+};
+CU_Theory((const char *var, const char *expect), ddsrt_environ, expand_sh)
+{
+  dds_retcode_t rc;
+  static const char x_name[]  = "X";
+  static const char x_value[] = "TEST";
+  static const char y_name[]  = "Y";
+  static const char y_value[] = "FOO";
+  char *ptr;
+
+  /* Ensure that the vars are not used yet. */
+  rc = ddsrt_unsetenv(x_name);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  rc = ddsrt_unsetenv(y_name);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+
+  /* Set the env vars to check expansion. */
+  rc = ddsrt_setenv(x_name, x_value);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  rc = ddsrt_setenv(y_name, y_value);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+
+  /* Expand a string with available environment variables. */
+  ptr = ddsrt_expand_envvars_sh(var);
+  if (ptr) {
+    /* printf("==== %10s: expand(%s), expect(%s))\n", var, ptr, expect); */
+    CU_ASSERT_STRING_EQUAL(ptr, expect);
+    ddsrt_free(ptr);
+  } else {
+    /* printf("==== %10s: expand(<null>), expect(<null>))\n", var ? var : "<null>"); */
+    CU_ASSERT_PTR_NULL(expect);
+  }
+
+  /* Ensure to reset the environment is as it was. */
+  rc = ddsrt_unsetenv(y_name);
+  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
+  rc = ddsrt_unsetenv(x_name);
+  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
+}
