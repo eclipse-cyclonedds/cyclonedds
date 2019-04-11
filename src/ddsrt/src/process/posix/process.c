@@ -22,6 +22,7 @@
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/log.h"
 
 
 ddsrt_pid_t
@@ -196,7 +197,9 @@ ddsrt_proc_create(
 
     /* If executing this, something has gone wrong */
     exec_err = errno;
-    (void)write(exec_fds[1], &exec_err, sizeof(int));
+    if (write(exec_fds[1], &exec_err, sizeof(int)) < (ssize_t)sizeof(int)) {
+      DDS_ERROR("Could not write proc error pipe.\n");
+    }
     close(exec_fds[1]);
     close(exec_fds[0]);
     ddsrt_free(exec_argv);
