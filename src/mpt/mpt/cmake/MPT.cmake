@@ -171,14 +171,5 @@ function(add_mpt_executable TARGET)
 
   target_include_directories(${TARGET} PRIVATE "${MPT_DIR}/include" "${MPT_BINARY_ROOT_DIR}/mpt/include")
   target_link_libraries(${TARGET} PRIVATE ddsc)
-
-  # We need the 'expand environment variables' feature that is present in the
-  # 'util' module. However, it is currently not possible to properly link to
-  # that module on Windows. In the near future, the utils will be migrated to
-  # ddsrt, after which we automatically have access to expand_envvars.
-  # But until then, use this very ugly (but quick) hack to solve our immediate
-  # build issues.
-  target_include_directories(${TARGET} PRIVATE "${CMAKE_SOURCE_DIR}/util/include")
-  target_sources(${TARGET} PRIVATE "${CMAKE_SOURCE_DIR}/util/src/ut_expand_envvars.c")
 endfunction()
 
