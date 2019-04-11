@@ -60,7 +60,7 @@ static void data_available(dds_entity_t rd, void *arg)
       RoundTripModule_DataType * valid_sample = &data[j];
       status = dds_write_ts (writer, valid_sample, info[j].source_timestamp);
       if (status < 0)
-        DDS_FATAL("dds_write_ts: %s\n", -status);
+        DDS_FATAL("dds_write_ts: %d\n", -status);
     }
   }
 }
