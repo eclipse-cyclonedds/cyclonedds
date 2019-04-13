@@ -202,7 +202,7 @@ dds_readcdr_impl(
 
   thread_state_awake (ts1);
   rc = dds_read_lock(reader_or_condition, &rd, &cond, false);
-  if (rc >= DDS_RETCODE_OK) {
+  if (rc == DDS_RETCODE_OK) {
       ret = dds_rhc_takecdr
         (
          rd->m_rd->rhc, lock, buf, si, maxs,
