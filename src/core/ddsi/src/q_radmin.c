@@ -2541,6 +2541,26 @@ static int nn_dqueue_enqueue_locked (struct nn_dqueue *q, struct nn_rsample_chai
   return must_signal;
 }
 
+bool nn_dqueue_enqueue_deferred_wakeup (struct nn_dqueue *q, struct nn_rsample_chain *sc, nn_reorder_result_t rres)
+{
+  bool signal;
+  assert (rres > 0);
+  assert (sc->first);
+  assert (sc->last->next == NULL);
+  ddsrt_mutex_lock (&q->lock);
+  ddsrt_atomic_add32 (&q->nof_samples, (uint32_t) rres);
+  signal = nn_dqueue_enqueue_locked (q, sc);
+  ddsrt_mutex_unlock (&q->lock);
+  return signal;
+}
+
+void dd_dqueue_enqueue_trigger (struct nn_dqueue *q)
+{
+  ddsrt_mutex_lock (&q->lock);
+  ddsrt_cond_broadcast (&q->cond);
+  ddsrt_mutex_unlock (&q->lock);
+}
+
 void nn_dqueue_enqueue (struct nn_dqueue *q, struct nn_rsample_chain *sc, nn_reorder_result_t rres)
 {
   assert (rres > 0);
@@ -2622,6 +2642,8 @@ void nn_dqueue_wait_until_empty_if_full (struct nn_dqueue *q)
   if (count >= q->max_samples)
   {
     ddsrt_mutex_lock (&q->lock);
+    /* In case the wakeups are were all deferred */
+    ddsrt_cond_broadcast (&q->cond);
     while (ddsrt_atomic_ld32 (&q->nof_samples) > 0)
       ddsrt_cond_wait (&q->cond, &q->lock);
     ddsrt_mutex_unlock (&q->lock);
