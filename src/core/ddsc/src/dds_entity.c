@@ -163,18 +163,23 @@ dds_return_t dds_delete_impl (dds_entity_t entity, bool keep_if_explicit)
     return DDS_RETCODE_OK;
   }
 
+  /* FIXME: "closing" the handle here means a listener invoked on X
+     can still discover that X has become inaccessible */
+  /* FIXME: RHC reads m_status_enable outside lock and might still
+     just invoke the listener */
   dds_handle_close (&e->m_hdllink);
-  ddsrt_mutex_lock (&e->m_observers_lock);
-  while (e->m_cb_count > 0)
-    ddsrt_cond_wait (&e->m_observers_cond, &e->m_observers_lock);
   e->m_status_enable = 0;
   dds_reset_listener (&e->m_listener);
   e->m_trigger |= DDS_DELETING_STATUS;
-  ddsrt_mutex_unlock (&e->m_observers_lock);
   dds_entity_unlock(e);
 
-  /* Signal observers that this entity will be deleted. */
-  dds_entity_status_signal (e);
+  /* Signal observers that this entity will be deleted and wait for
+     all listeners to complete. */
+  ddsrt_mutex_lock (&e->m_observers_lock);
+  dds_entity_observers_signal (e, e->m_trigger);
+  while (e->m_cb_count > 0)
+    ddsrt_cond_wait (&e->m_observers_cond, &e->m_observers_lock);
+  ddsrt_mutex_unlock (&e->m_observers_lock);
 
   /*
    * Recursively delete children.
@@ -547,7 +552,7 @@ dds_return_t dds_set_listener (dds_entity_t entity, const dds_listener_t *listen
   dds_entity *e, *x;
   dds_retcode_t rc;
 
-  if ((rc = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_claim (entity, &e)) != DDS_RETCODE_OK)
     return DDS_ERRNO (rc);
 
   ddsrt_mutex_lock (&e->m_observers_lock);
@@ -568,7 +573,7 @@ dds_return_t dds_set_listener (dds_entity_t entity, const dds_listener_t *listen
   }
   clear_status_with_listener (e);
   ddsrt_mutex_unlock (&e->m_observers_lock);
-  dds_entity_unlock (e);
+  dds_entity_release (e);
   pushdown_listener (entity);
   return DDS_RETCODE_OK;
 }
@@ -625,7 +630,7 @@ dds_return_t dds_get_status_mask (dds_entity_t entity, uint32_t *mask)
   if (mask == NULL)
     return DDS_ERRNO (DDS_RETCODE_BAD_PARAMETER);
 
-  if ((rc = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_claim (entity, &e)) != DDS_RETCODE_OK)
     return DDS_ERRNO (rc);
 
   if (e->m_deriver.validate_status == 0)
@@ -637,7 +642,7 @@ dds_return_t dds_get_status_mask (dds_entity_t entity, uint32_t *mask)
     ddsrt_mutex_unlock (&e->m_observers_lock);
     ret = DDS_RETCODE_OK;
   }
-  dds_entity_unlock(e);
+  dds_entity_release(e);
   return ret;
 }
 
@@ -652,7 +657,7 @@ dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
   dds_retcode_t rc;
   dds_return_t ret;
 
-  if ((rc = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_claim (entity, &e)) != DDS_RETCODE_OK)
     return DDS_ERRNO (rc);
 
   if (e->m_deriver.validate_status == 0)
@@ -660,13 +665,16 @@ dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
   else if ((ret = e->m_deriver.validate_status (mask)) == DDS_RETCODE_OK)
   {
     ddsrt_mutex_lock (&e->m_observers_lock);
+    while (e->m_cb_count > 0)
+      ddsrt_cond_wait (&e->m_observers_cond, &e->m_observers_lock);
+
     /* Don't block internal status triggers. */
     mask |= DDS_INTERNAL_STATUS_MASK;
     e->m_status_enable = mask;
     e->m_trigger &= mask;
     ddsrt_mutex_unlock (&e->m_observers_lock);
   }
-  dds_entity_unlock(e);
+  dds_entity_release (e);
   return ret;
 }
 
