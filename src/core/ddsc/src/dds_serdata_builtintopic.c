@@ -73,11 +73,13 @@ static struct ddsi_serdata_builtintopic *serdata_builtin_new(const struct ddsi_s
 static void from_entity_pp (struct ddsi_serdata_builtintopic *d, const struct participant *pp)
 {
   nn_xqos_copy(&d->xqos, &pp->plist->qos);
+  d->pphandle = pp->e.iid;
 }
 
 static void from_entity_proxypp (struct ddsi_serdata_builtintopic *d, const struct proxy_participant *proxypp)
 {
   nn_xqos_copy(&d->xqos, &proxypp->plist->qos);
+  d->pphandle = proxypp->e.iid;
 }
 
 static void set_topic_type_from_sertopic (struct ddsi_serdata_builtintopic *d, const struct ddsi_sertopic *tp)
@@ -96,12 +98,14 @@ static void set_topic_type_from_sertopic (struct ddsi_serdata_builtintopic *d, c
 
 static void from_entity_rd (struct ddsi_serdata_builtintopic *d, const struct reader *rd)
 {
+  d->pphandle = rd->c.pp->e.iid;
   nn_xqos_copy(&d->xqos, rd->xqos);
   set_topic_type_from_sertopic(d, rd->topic);
 }
 
 static void from_entity_prd (struct ddsi_serdata_builtintopic *d, const struct proxy_reader *prd)
 {
+  d->pphandle = prd->c.proxypp->e.iid;
   nn_xqos_copy(&d->xqos, prd->c.xqos);
   assert (d->xqos.present & QP_TOPIC_NAME);
   assert (d->xqos.present & QP_TYPE_NAME);
@@ -109,12 +113,14 @@ static void from_entity_prd (struct ddsi_serdata_builtintopic *d, const struct p
 
 static void from_entity_wr (struct ddsi_serdata_builtintopic *d, const struct writer *wr)
 {
+  d->pphandle = wr->c.pp->e.iid;
   nn_xqos_copy(&d->xqos, wr->xqos);
   set_topic_type_from_sertopic(d, wr->topic);
 }
 
 static void from_entity_pwr (struct ddsi_serdata_builtintopic *d, const struct proxy_writer *pwr)
 {
+  d->pphandle = pwr->c.proxypp->e.iid;
   nn_xqos_copy(&d->xqos, pwr->c.xqos);
   assert (d->xqos.present & QP_TOPIC_NAME);
   assert (d->xqos.present & QP_TYPE_NAME);
@@ -219,6 +225,7 @@ static bool to_sample_endpoint (const struct ddsi_serdata_builtintopic *d, struc
   ppguid = d->key;
   ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
   convkey (&sample->participant_key, &ppguid);
+  sample->participant_instance_handle = d->pphandle;
   if (d->c.kind == SDK_DATA)
   {
     assert (d->xqos.present & QP_TOPIC_NAME);
