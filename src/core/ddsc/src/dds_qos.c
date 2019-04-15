@@ -658,6 +658,16 @@ void dds_qset_durability_service
     }
 }
 
+void dds_qset_ignorelocal (dds_qos_t * __restrict qos, dds_ignorelocal_kind_t ignore)
+{
+  if (qos) {
+    qos->ignorelocal.value = (nn_ignorelocal_kind_t) ignore;
+    qos->present |= QP_CYCLONE_IGNORELOCAL;
+  } else {
+    DDS_ERROR("Argument QoS is NULL\n");
+  }
+}
+
 bool dds_qget_userdata (const dds_qos_t * __restrict qos, void **value, size_t *sz)
 {
     if (!qos || !(qos->present & QP_USER_DATA)) {
@@ -930,4 +940,15 @@ bool dds_qget_durability_service (const dds_qos_t * __restrict qos, dds_duration
         *max_samples_per_instance = qos->durability_service.resource_limits.max_samples_per_instance;
     }
     return true;
+}
+
+bool dds_qget_ignorelocal (const dds_qos_t * __restrict qos, dds_ignorelocal_kind_t *ignore)
+{
+  if (!qos || !(qos->present & QP_CYCLONE_IGNORELOCAL)) {
+    return false;
+  }
+  if (ignore) {
+    *ignore = (dds_ignorelocal_kind_t) qos->ignorelocal.value;
+  }
+  return true;
 }
