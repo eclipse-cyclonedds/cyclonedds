@@ -391,13 +391,25 @@ dds_qset_time_based_filter (
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
  * @param[in] n - Number of partitions stored in ps
- * @param[in[ ps - Pointer to string(s) storing partition name(s)
+ * @param[in] ps - Pointer to string(s) storing partition name(s)
  */
 DDS_EXPORT void
 dds_qset_partition (
   dds_qos_t * __restrict qos,
   uint32_t n,
   const char ** __restrict ps);
+
+/**
+ * @brief Convenience function to set the partition policy of a qos structure to a
+ * single name.  Name may be a null pointer.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
+ * @param[in] name - Pointer to the name
+ */
+DDS_EXPORT void
+dds_qset_partition1 (
+  dds_qos_t * __restrict qos,
+  const char * __restrict name);
 
 /**
  * @brief Set the reliability policy of a qos structure

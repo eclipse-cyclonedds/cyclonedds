@@ -558,6 +558,14 @@ void dds_qset_partition
     qos->present |= QP_PARTITION;
 }
 
+void dds_qset_partition1 (dds_qos_t * __restrict qos, const char * __restrict name)
+{
+  if (name == NULL)
+    dds_qset_partition (qos, 0, NULL);
+  else
+    dds_qset_partition (qos, 1, (const char **) &name);
+}
+
 void dds_qset_reliability
 (
     dds_qos_t * __restrict qos,
