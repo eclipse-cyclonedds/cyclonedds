@@ -686,13 +686,12 @@ dds_return_loan(
     dds_readcond *cond;
     dds_return_t ret = DDS_RETCODE_OK;
 
-    if (!buf ) {
+    if (!buf) {
         DDS_ERROR("Argument buf is NULL\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto fail;
     }
-    if(*buf == NULL && bufsz > 0){
-        DDS_ERROR("Argument buf is NULL\n");
+    if (*buf == NULL && bufsz > 0) {
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto fail;
     }
