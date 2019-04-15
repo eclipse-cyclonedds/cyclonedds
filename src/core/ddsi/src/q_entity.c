@@ -2058,11 +2058,38 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
   proxy_writer_add_connection (pwr, rd, tnow, init_count);
 }
 
+static bool ignore_local_p (const nn_guid_t *guid1, const nn_guid_t *guid2, const struct nn_xqos *xqos1, const struct nn_xqos *xqos2)
+{
+  assert (xqos1->present & QP_CYCLONE_IGNORELOCAL);
+  assert (xqos2->present & QP_CYCLONE_IGNORELOCAL);
+  switch (xqos1->ignorelocal.value)
+  {
+    case NN_NONE_IGNORELOCAL_QOS:
+      break;
+    case NN_PARTICIPANT_IGNORELOCAL_QOS:
+      return memcmp (&guid1->prefix, &guid2->prefix, sizeof (guid1->prefix)) == 0;
+    case NN_PROCESS_IGNORELOCAL_QOS:
+      return true;
+  }
+  switch (xqos2->ignorelocal.value)
+  {
+    case NN_NONE_IGNORELOCAL_QOS:
+      break;
+    case NN_PARTICIPANT_IGNORELOCAL_QOS:
+      return memcmp (&guid1->prefix, &guid2->prefix, sizeof (guid1->prefix)) == 0;
+    case NN_PROCESS_IGNORELOCAL_QOS:
+      return true;
+  }
+  return false;
+}
+
 static void connect_writer_with_reader (struct writer *wr, struct reader *rd, nn_mtime_t tnow)
 {
   int32_t reason;
   (void)tnow;
   if (!is_local_orphan_endpoint (&wr->e) && (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) || is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE)))
+    return;
+  if (ignore_local_p (&wr->e.guid, &rd->e.guid, wr->xqos, rd->xqos))
     return;
   if ((reason = qos_match_p (rd->xqos, wr->xqos)) >= 0)
   {
