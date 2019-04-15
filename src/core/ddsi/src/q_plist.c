@@ -2656,6 +2656,9 @@ static void xqos_init_default_common (nn_xqos_t *xqos)
 
   xqos->present |= QP_PRISMTECH_SYNCHRONOUS_ENDPOINT;
   xqos->synchronous_endpoint.value = 0;
+
+  xqos->present |= QP_CYCLONE_IGNORELOCAL;
+  xqos->ignorelocal.value = NN_NONE_IGNORELOCAL_QOS;
 }
 
 void nn_xqos_init_default_reader (nn_xqos_t *xqos)
@@ -2810,6 +2813,7 @@ void nn_xqos_mergein_missing (nn_xqos_t *a, const nn_xqos_t *b)
   CQ (PRISMTECH_READER_LIFESPAN, reader_lifespan);
   CQ (PRISMTECH_ENTITY_FACTORY, entity_factory);
   CQ (PRISMTECH_SYNCHRONOUS_ENDPOINT, synchronous_endpoint);
+  CQ (CYCLONE_IGNORELOCAL, ignorelocal);
 #undef CQ
 
   /* For allocated ones it is Not strictly necessary to use tmp, as
@@ -3197,6 +3201,10 @@ uint64_t nn_xqos_delta (const nn_xqos_t *a, const nn_xqos_t *b, uint64_t mask)
     if (octetseqs_differ (&a->rti_typecode, &b->rti_typecode))
       delta |= QP_RTI_TYPECODE;
   }
+  if (check & QP_CYCLONE_IGNORELOCAL) {
+    if (a->ignorelocal.value != b->ignorelocal.value)
+      delta |= QP_CYCLONE_IGNORELOCAL;
+  }
   return delta;
 }
 
@@ -3257,6 +3265,7 @@ void nn_xqos_addtomsg (struct nn_xmsg *m, const nn_xqos_t *xqos, uint64_t wanted
   SIMPLE (PRISMTECH_ENTITY_FACTORY, entity_factory);
   SIMPLE (PRISMTECH_SYNCHRONOUS_ENDPOINT, synchronous_endpoint);
   FUNC_BY_REF (RTI_TYPECODE, rti_typecode, octetseq);
+  /* CYCLONE_IGNORELOCAL is not visible on the wire */
 #undef FUNC_BY_REF
 #undef FUNC_BY_VAL
 #undef SIMPLE
@@ -3467,6 +3476,7 @@ void nn_log_xqos (uint32_t cat, const nn_xqos_t *xqos)
     log_octetseq (cat, xqos->rti_typecode.length, xqos->rti_typecode.value);
     DDS_LOG(cat, ">");
   });
+  DO (CYCLONE_IGNORELOCAL, { LOGB1 ("ignorelocal=%u", xqos->ignorelocal.value); });
 
 #undef PRINTARG_DUR
 #undef FMT_DUR

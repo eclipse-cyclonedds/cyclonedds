@@ -136,6 +136,16 @@ typedef enum dds_presentation_access_scope_kind
 }
 dds_presentation_access_scope_kind_t;
 
+/** Ignore-local QoS: Applies to DataReader, DataWriter */
+typedef enum dds_ignorelocal_kind
+{
+    DDS_IGNORELOCAL_NONE,
+    DDS_IGNORELOCAL_PARTICIPANT,
+    DDS_IGNORELOCAL_PROCESS
+}
+dds_ignorelocal_kind_t;
+
+
 /**
  * @brief Allocate memory and initialize default QoS-policies
  *
@@ -466,6 +476,16 @@ dds_qset_durability_service (
   int32_t max_samples_per_instance);
 
 /**
+ * @brief Set the ignore-local policy of a qos structure
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
+ * @param[in] ignore - True if readers and writers owned by the same participant should be ignored
+ */
+DDS_EXPORT void dds_qset_ignorelocal (
+  dds_qos_t * __restrict qos,
+  dds_ignorelocal_kind_t ignore);
+
+/**
  * @brief Get the userdata from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -752,6 +772,19 @@ dds_qget_durability_service (
   int32_t *max_samples,
   int32_t *max_instances,
   int32_t *max_samples_per_instance);
+
+  /**
+   * @brief Get the ignore-local qos policy
+   *
+   * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
+   * @param[in,out] ignore - Pointer that will store whether to ignore readers/writers owned by the same participant (optional)
+   *
+   * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
+   */
+DDS_EXPORT bool
+dds_qget_ignorelocal (
+  const dds_qos_t * __restrict qos,
+  dds_ignorelocal_kind_t *ignore);
 
 #if defined (__cplusplus)
 }
