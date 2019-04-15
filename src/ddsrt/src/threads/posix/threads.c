@@ -193,6 +193,7 @@ ddsrt_thread_create (
   thread_context_t *ctx;
   ddsrt_threadattr_t tattr;
   int result, create_ret;
+  sigset_t set, oset;
 
   assert (threadptr != NULL);
   assert (name != NULL);
@@ -281,11 +282,18 @@ ddsrt_thread_create (
   strcpy (ctx->name, name);
   ctx->routine = start_routine;
   ctx->arg = arg;
+
+  /* Block signal delivery in our own threads (SIGXCPU is excluded so we have a way of
+     dumping stack traces, but that should be improved upon) */
+  sigfillset (&set);
+  sigdelset (&set, SIGXCPU);
+  sigprocmask (SIG_BLOCK, &set, &oset);
   if ((create_ret = pthread_create (&threadptr->v, &attr, os_startRoutineWrapper, ctx)) != 0)
   {
     DDS_ERROR ("os_threadCreate(%s): pthread_create failed with error %d\n", name, create_ret);
     goto err_create;
   }
+  sigprocmask (SIG_SETMASK, &oset, NULL);
   pthread_attr_destroy (&attr);
   return DDS_RETCODE_OK;
 
