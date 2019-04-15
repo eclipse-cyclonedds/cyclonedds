@@ -472,11 +472,11 @@ dds_create_reader(
     ddsrt_mutex_unlock(&sub->m_entity.m_mutex);
 
     thread_state_awake (lookup_thread_state ());
-    rd->m_rd = new_reader(&rd->m_entity.m_guid, NULL, &sub->m_entity.m_participant->m_guid, tp->m_stopic,
-                          rqos, rhc, dds_reader_status_cb, rd);
+    ret = new_reader(&rd->m_rd, &rd->m_entity.m_guid, NULL, &sub->m_entity.m_participant->m_guid, tp->m_stopic,
+                     rqos, rhc, dds_reader_status_cb, rd);
     ddsrt_mutex_lock(&sub->m_entity.m_mutex);
     ddsrt_mutex_lock(&tp->m_entity.m_mutex);
-    assert (rd->m_rd);
+    assert (ret == DDS_RETCODE_OK);
     thread_state_asleep (lookup_thread_state ());
 
     /* For persistent data register reader with durability */

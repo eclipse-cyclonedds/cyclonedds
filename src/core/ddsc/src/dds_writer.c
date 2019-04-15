@@ -456,10 +456,10 @@ dds_create_writer(
     ddsrt_mutex_unlock (&pub->m_entity.m_mutex);
 
     thread_state_awake (lookup_thread_state ());
-    wr->m_wr = new_writer(&wr->m_entity.m_guid, NULL, &pub->m_entity.m_participant->m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
+    ret = new_writer(&wr->m_wr, &wr->m_entity.m_guid, NULL, &pub->m_entity.m_participant->m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
     ddsrt_mutex_lock (&pub->m_entity.m_mutex);
     ddsrt_mutex_lock (&tp->m_entity.m_mutex);
-    assert(wr->m_wr);
+    assert(ret == DDS_RETCODE_OK);
     thread_state_asleep (lookup_thread_state ());
     dds_topic_unlock(tp);
     dds_publisher_unlock(pub);
