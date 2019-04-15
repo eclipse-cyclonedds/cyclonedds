@@ -210,6 +210,7 @@ typedef struct dds_builtintopic_endpoint
 {
   dds_builtintopic_guid_t key;
   dds_builtintopic_guid_t participant_key;
+  dds_instance_handle_t participant_instance_handle;
   char *topic_name;
   char *type_name;
   dds_qos_t *qos;
