@@ -84,6 +84,9 @@ dds_entity_claim (
   dds_entity_t hdl,
   dds_entity **eptr);
 
+DDS_EXPORT void dds_entity_release (
+  dds_entity *e);
+
 DDS_EXPORT dds_retcode_t
 dds_entity_lock(
   dds_entity_t hdl,

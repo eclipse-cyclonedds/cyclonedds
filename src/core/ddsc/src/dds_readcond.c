@@ -100,12 +100,10 @@ dds_entity_t dds_get_datareader (dds_entity_t condition)
         rdh = DDS_ERRNO (DDS_RETCODE_ILLEGAL_OPERATION);
         break;
     }
-    dds_handle_release (&e->m_hdllink);
+    dds_entity_release (e);
     return rdh;
   }
 }
-
-
 
 dds_return_t dds_get_mask (dds_entity_t condition, uint32_t *mask)
 {

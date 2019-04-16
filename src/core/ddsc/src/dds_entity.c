@@ -761,6 +761,11 @@ dds_retcode_t dds_entity_claim (dds_entity_t hdl, dds_entity **eptr)
   }
 }
 
+void dds_entity_release (dds_entity *e)
+{
+  dds_handle_release (&e->m_hdllink);
+}
+
 dds_retcode_t dds_entity_lock (dds_entity_t hdl, dds_entity_kind_t kind, dds_entity **eptr)
 {
   dds_retcode_t hres;
@@ -989,7 +994,7 @@ dds_return_t dds_generic_unimplemented_operation_manykinds (dds_entity_t handle,
         break;
       }
     }
-    dds_handle_release (&e->m_hdllink);
+    dds_entity_release (e);
     return DDS_ERRNO (ret);
   }
 }

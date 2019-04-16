@@ -388,7 +388,7 @@ dds_create_writer(
         } else {
             publisher = participant_or_publisher;
         }
-        dds_handle_release (&p_or_p->m_hdllink);
+        dds_entity_release (p_or_p);
     }
 
     if ((rc = dds_publisher_lock(publisher, &pub)) != DDS_RETCODE_OK) {
@@ -494,7 +494,7 @@ dds_get_publisher(
       assert (dds_entity_kind (e->m_parent) == DDS_KIND_PUBLISHER);
       pubh = e->m_parent->m_hdllink.hdl;
     }
-    dds_handle_release (&e->m_hdllink);
+    dds_entity_release (e);
     return pubh;
   }
 }
