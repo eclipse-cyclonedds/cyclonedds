@@ -384,7 +384,7 @@ dds_create_reader(
             } else {
                 subscriber = participant_or_subscriber;
             }
-            dds_handle_release (&p_or_s->m_hdllink);
+            dds_entity_release (p_or_s);
             internal_topic = false;
             t = topic;
             break;
@@ -512,7 +512,7 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
 
   if (dds_entity_kind (dds_entity) != DDS_KIND_READER)
   {
-    dds_handle_release (&dds_entity->m_hdllink);
+    dds_entity_release (dds_entity);
     return;
   }
 
@@ -552,7 +552,7 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
     ddsrt_mutex_lock (&rd->e.lock);
   }
   ddsrt_mutex_unlock (&rd->e.lock);
-  dds_handle_release (&dds_rd->m_entity.m_hdllink);
+  dds_entity_release (dds_entity);
 }
 
 uint32_t dds_reader_lock_samples (dds_entity_t reader)
@@ -613,7 +613,7 @@ dds_entity_t dds_get_subscriber (dds_entity_t entity)
         subh = DDS_ERRNO (DDS_RETCODE_ILLEGAL_OPERATION);
         break;
     }
-    dds_handle_release (&e->m_hdllink);
+    dds_entity_release (e);
     return subh;
   }
 }
