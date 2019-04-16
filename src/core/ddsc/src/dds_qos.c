@@ -43,6 +43,7 @@ dds_qos_data_copy_out(
     void ** value,
     size_t * sz)
 {
+    assert (data->length < UINT32_MAX);
     if (sz == NULL && value != NULL) {
         return false;
     }
@@ -51,9 +52,10 @@ dds_qos_data_copy_out(
     }
     if (value) {
         if (data->length != 0) {
-            assert(data->value);
-            *value = dds_alloc(data->length);
-            memcpy(*value, data->value, data->length);
+            assert (data->value);
+            *value = dds_alloc (data->length + 1);
+            memcpy (*value, data->value, data->length);
+            ((char *) (*value))[data->length] = 0;
         } else {
             *value = NULL;
         }
@@ -66,7 +68,7 @@ validate_octetseq(
     const nn_octetseq_t* seq)
 {
     /* default value is NULL with length 0 */
-    return (((seq->length == 0) && (seq->value == NULL)) || (seq->length > 0));
+    return (((seq->length == 0) && (seq->value == NULL)) || (seq->length > 0 && seq->length < UINT32_MAX));
 }
 
 bool
