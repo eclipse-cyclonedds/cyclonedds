@@ -17,7 +17,7 @@ static int dds_domain_compare (const int32_t * a, const int32_t * b)
   return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
 }
 
-const ut_avlTreedef_t dds_domaintree_def = UT_AVL_TREEDEF_INITIALIZER
+const ddsrt_avl_treedef_t dds_domaintree_def = DDSRT_AVL_TREEDEF_INITIALIZER
 (
   offsetof (dds_domain, m_node),
   offsetof (dds_domain, m_id),
@@ -27,7 +27,7 @@ const ut_avlTreedef_t dds_domaintree_def = UT_AVL_TREEDEF_INITIALIZER
 
 dds_domain * dds_domain_find_locked (dds_domainid_t id)
 {
-  return ut_avlLookup (&dds_domaintree_def, &dds_global.m_domains, &id);
+  return ddsrt_avl_lookup (&dds_domaintree_def, &dds_global.m_domains, &id);
 }
 
 dds_domain * dds_domain_create (dds_domainid_t id)
@@ -39,8 +39,8 @@ dds_domain * dds_domain_create (dds_domainid_t id)
   {
     domain = dds_alloc (sizeof (*domain));
     domain->m_id = id;
-    ut_avlInit (&dds_topictree_def, &domain->m_topics);
-    ut_avlInsert (&dds_domaintree_def, &dds_global.m_domains, domain);
+    ddsrt_avl_init (&dds_topictree_def, &domain->m_topics);
+    ddsrt_avl_insert (&dds_domaintree_def, &dds_global.m_domains, domain);
   }
   domain->m_refc++;
   ddsrt_mutex_unlock (&dds_global.m_mutex);
@@ -52,7 +52,7 @@ void dds_domain_free (dds_domain * domain)
   ddsrt_mutex_lock (&dds_global.m_mutex);
   if (--domain->m_refc == 0)
   {
-    ut_avlDelete (&dds_domaintree_def, &dds_global.m_domains, domain);
+    ddsrt_avl_delete (&dds_domaintree_def, &dds_global.m_domains, domain);
     dds_free (domain);
   }
   ddsrt_mutex_unlock (&dds_global.m_mutex);

@@ -25,7 +25,7 @@
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_qosmatch.h"
@@ -49,34 +49,34 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 
 struct deleted_participant {
-  ut_avlNode_t avlnode;
+  ddsrt_avl_node_t avlnode;
   nn_guid_t guid;
   unsigned for_what;
   nn_mtime_t t_prune;
 };
 
 static ddsrt_mutex_t deleted_participants_lock;
-static ut_avlTree_t deleted_participants;
+static ddsrt_avl_tree_t deleted_participants;
 
 static int compare_guid (const void *va, const void *vb);
 static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vright);
 
-const ut_avlTreedef_t wr_readers_treedef =
-  UT_AVL_TREEDEF_INITIALIZER (offsetof (struct wr_prd_match, avlnode), offsetof (struct wr_prd_match, prd_guid), compare_guid, augment_wr_prd_match);
-const ut_avlTreedef_t wr_local_readers_treedef =
-  UT_AVL_TREEDEF_INITIALIZER (offsetof (struct wr_rd_match, avlnode), offsetof (struct wr_rd_match, rd_guid), compare_guid, 0);
-const ut_avlTreedef_t rd_writers_treedef =
-  UT_AVL_TREEDEF_INITIALIZER (offsetof (struct rd_pwr_match, avlnode), offsetof (struct rd_pwr_match, pwr_guid), compare_guid, 0);
-const ut_avlTreedef_t rd_local_writers_treedef =
-  UT_AVL_TREEDEF_INITIALIZER (offsetof (struct rd_wr_match, avlnode), offsetof (struct rd_wr_match, wr_guid), compare_guid, 0);
-const ut_avlTreedef_t pwr_readers_treedef =
-  UT_AVL_TREEDEF_INITIALIZER (offsetof (struct pwr_rd_match, avlnode), offsetof (struct pwr_rd_match, rd_guid), compare_guid, 0);
-const ut_avlTreedef_t prd_writers_treedef =
-  UT_AVL_TREEDEF_INITIALIZER (offsetof (struct prd_wr_match, avlnode), offsetof (struct prd_wr_match, wr_guid), compare_guid, 0);
-const ut_avlTreedef_t deleted_participants_treedef =
-  UT_AVL_TREEDEF_INITIALIZER (offsetof (struct deleted_participant, avlnode), offsetof (struct deleted_participant, guid), compare_guid, 0);
-const ut_avlTreedef_t proxypp_groups_treedef =
-  UT_AVL_TREEDEF_INITIALIZER (offsetof (struct proxy_group, avlnode), offsetof (struct proxy_group, guid), compare_guid, 0);
+const ddsrt_avl_treedef_t wr_readers_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct wr_prd_match, avlnode), offsetof (struct wr_prd_match, prd_guid), compare_guid, augment_wr_prd_match);
+const ddsrt_avl_treedef_t wr_local_readers_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct wr_rd_match, avlnode), offsetof (struct wr_rd_match, rd_guid), compare_guid, 0);
+const ddsrt_avl_treedef_t rd_writers_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct rd_pwr_match, avlnode), offsetof (struct rd_pwr_match, pwr_guid), compare_guid, 0);
+const ddsrt_avl_treedef_t rd_local_writers_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct rd_wr_match, avlnode), offsetof (struct rd_wr_match, wr_guid), compare_guid, 0);
+const ddsrt_avl_treedef_t pwr_readers_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct pwr_rd_match, avlnode), offsetof (struct pwr_rd_match, rd_guid), compare_guid, 0);
+const ddsrt_avl_treedef_t prd_writers_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct prd_wr_match, avlnode), offsetof (struct prd_wr_match, wr_guid), compare_guid, 0);
+const ddsrt_avl_treedef_t deleted_participants_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct deleted_participant, avlnode), offsetof (struct deleted_participant, guid), compare_guid, 0);
+const ddsrt_avl_treedef_t proxypp_groups_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct proxy_group, avlnode), offsetof (struct proxy_group, guid), compare_guid, 0);
 
 static const unsigned builtin_writers_besmask =
   NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |
@@ -267,13 +267,13 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e)
 int deleted_participants_admin_init (void)
 {
   ddsrt_mutex_init (&deleted_participants_lock);
-  ut_avlInit (&deleted_participants_treedef, &deleted_participants);
+  ddsrt_avl_init (&deleted_participants_treedef, &deleted_participants);
   return 0;
 }
 
 void deleted_participants_admin_fini (void)
 {
-  ut_avlFree (&deleted_participants_treedef, &deleted_participants, ddsrt_free);
+  ddsrt_avl_free (&deleted_participants_treedef, &deleted_participants, ddsrt_free);
   ddsrt_mutex_destroy (&deleted_participants_lock);
 }
 
@@ -283,13 +283,13 @@ static void prune_deleted_participant_guids_unlocked (nn_mtime_t tnow)
      all circumstances, but I expect the tree to be very small at all
      times, so a full scan is fine, too ... */
   struct deleted_participant *dpp;
-  dpp = ut_avlFindMin (&deleted_participants_treedef, &deleted_participants);
+  dpp = ddsrt_avl_find_min (&deleted_participants_treedef, &deleted_participants);
   while (dpp)
   {
-    struct deleted_participant *dpp1 = ut_avlFindSucc (&deleted_participants_treedef, &deleted_participants, dpp);
+    struct deleted_participant *dpp1 = ddsrt_avl_find_succ (&deleted_participants_treedef, &deleted_participants, dpp);
     if (dpp->t_prune.v < tnow.v)
     {
-      ut_avlDelete (&deleted_participants_treedef, &deleted_participants, dpp);
+      ddsrt_avl_delete (&deleted_participants_treedef, &deleted_participants, dpp);
       ddsrt_free (dpp);
     }
     dpp = dpp1;
@@ -306,16 +306,16 @@ static void prune_deleted_participant_guids (nn_mtime_t tnow)
 static void remember_deleted_participant_guid (const struct nn_guid *guid)
 {
   struct deleted_participant *n;
-  ut_avlIPath_t path;
+  ddsrt_avl_ipath_t path;
   ddsrt_mutex_lock (&deleted_participants_lock);
-  if (ut_avlLookupIPath (&deleted_participants_treedef, &deleted_participants, guid, &path) == NULL)
+  if (ddsrt_avl_lookup_ipath (&deleted_participants_treedef, &deleted_participants, guid, &path) == NULL)
   {
     if ((n = ddsrt_malloc (sizeof (*n))) != NULL)
     {
       n->guid = *guid;
       n->t_prune.v = T_NEVER;
       n->for_what = DPG_LOCAL | DPG_REMOTE;
-      ut_avlInsertIPath (&deleted_participants_treedef, &deleted_participants, n, &path);
+      ddsrt_avl_insert_ipath (&deleted_participants_treedef, &deleted_participants, n, &path);
     }
   }
   ddsrt_mutex_unlock (&deleted_participants_lock);
@@ -327,7 +327,7 @@ int is_deleted_participant_guid (const struct nn_guid *guid, unsigned for_what)
   int known;
   ddsrt_mutex_lock (&deleted_participants_lock);
   prune_deleted_participant_guids_unlocked (now_mt());
-  if ((n = ut_avlLookup (&deleted_participants_treedef, &deleted_participants, guid)) == NULL)
+  if ((n = ddsrt_avl_lookup (&deleted_participants_treedef, &deleted_participants, guid)) == NULL)
     known = 0;
   else
     known = ((n->for_what & for_what) != 0);
@@ -340,7 +340,7 @@ static void remove_deleted_participant_guid (const struct nn_guid *guid, unsigne
   struct deleted_participant *n;
   DDS_LOG(DDS_LC_DISCOVERY, "remove_deleted_participant_guid(%x:%x:%x:%x for_what=%x)\n", PGUID (*guid), for_what);
   ddsrt_mutex_lock (&deleted_participants_lock);
-  if ((n = ut_avlLookup (&deleted_participants_treedef, &deleted_participants, guid)) != NULL)
+  if ((n = ddsrt_avl_lookup (&deleted_participants_treedef, &deleted_participants, guid)) != NULL)
   {
     if (config.prune_deleted_ppant.enforce_delay)
     {
@@ -357,7 +357,7 @@ static void remove_deleted_participant_guid (const struct nn_guid *guid, unsigne
       }
       else
       {
-        ut_avlDelete (&deleted_participants_treedef, &deleted_participants, n);
+        ddsrt_avl_delete (&deleted_participants_treedef, &deleted_participants, n);
         ddsrt_free (n);
       }
     }
@@ -971,13 +971,13 @@ static struct addrset *rebuild_make_all_addrs (int *nreaders, struct writer *wr)
 {
   struct addrset *all_addrs = new_addrset();
   struct wr_prd_match *m;
-  ut_avlIter_t it;
+  ddsrt_avl_iter_t it;
 #ifdef DDSI_INCLUDE_SSM
   if (wr->supports_ssm && wr->ssm_as)
     copy_addrset_into_addrset_mc (all_addrs, wr->ssm_as);
 #endif
   *nreaders = 0;
-  for (m = ut_avlIterFirst (&wr_readers_treedef, &wr->readers, &it); m; m = ut_avlIterNext (&it))
+  for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
   {
     struct proxy_reader *prd;
     if ((prd = ephash_lookup_proxy_reader_guid (&m->prd_guid)) == NULL)
@@ -1030,7 +1030,7 @@ static void rebuild_make_covered(int8_t **covered, const struct writer *wr, int 
 {
   struct rebuild_flatten_locs_arg flarg;
   struct wr_prd_match *m;
-  ut_avlIter_t it;
+  ddsrt_avl_iter_t it;
   int rdidx, i, j;
   int8_t *cov = ddsrt_malloc((size_t) *nreaders * (size_t) nlocs * sizeof (*cov));
   for (i = 0; i < *nreaders * nlocs; i++)
@@ -1040,7 +1040,7 @@ static void rebuild_make_covered(int8_t **covered, const struct writer *wr, int 
 #ifndef NDEBUG
   flarg.size = nlocs;
 #endif
-  for (m = ut_avlIterFirst (&wr_readers_treedef, &wr->readers, &it); m; m = ut_avlIterNext (&it))
+  for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
   {
     struct proxy_reader *prd;
     struct addrset *ass[] = { NULL, NULL, NULL };
@@ -1337,10 +1337,10 @@ static void writer_drop_connection (const struct nn_guid * wr_guid, const struct
     struct whc_node *deferred_free_list = NULL;
     struct wr_prd_match *m;
     ddsrt_mutex_lock (&wr->e.lock);
-    if ((m = ut_avlLookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
+    if ((m = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
     {
       struct whc_state whcst;
-      ut_avlDelete (&wr_readers_treedef, &wr->readers, m);
+      ddsrt_avl_delete (&wr_readers_treedef, &wr->readers, m);
       rebuild_writer_addrset (wr);
       remove_acked_messages (wr, &whcst, &deferred_free_list);
       wr->num_reliable_readers -= m->is_reliable;
@@ -1368,9 +1368,9 @@ static void writer_drop_local_connection (const struct nn_guid *wr_guid, struct 
     struct wr_rd_match *m;
 
     ddsrt_mutex_lock (&wr->e.lock);
-    if ((m = ut_avlLookup (&wr_local_readers_treedef, &wr->local_readers, &rd->e.guid)) != NULL)
+    if ((m = ddsrt_avl_lookup (&wr_local_readers_treedef, &wr->local_readers, &rd->e.guid)) != NULL)
     {
-      ut_avlDelete (&wr_local_readers_treedef, &wr->local_readers, m);
+      ddsrt_avl_delete (&wr_local_readers_treedef, &wr->local_readers, m);
       local_reader_ary_remove (&wr->rdary, rd);
     }
     ddsrt_mutex_unlock (&wr->e.lock);
@@ -1393,8 +1393,8 @@ static void reader_drop_connection (const struct nn_guid *rd_guid, const struct 
   {
     struct rd_pwr_match *m;
     ddsrt_mutex_lock (&rd->e.lock);
-    if ((m = ut_avlLookup (&rd_writers_treedef, &rd->writers, &pwr->e.guid)) != NULL)
-      ut_avlDelete (&rd_writers_treedef, &rd->writers, m);
+    if ((m = ddsrt_avl_lookup (&rd_writers_treedef, &rd->writers, &pwr->e.guid)) != NULL)
+      ddsrt_avl_delete (&rd_writers_treedef, &rd->writers, m);
     ddsrt_mutex_unlock (&rd->e.lock);
     free_rd_pwr_match (m);
 
@@ -1427,8 +1427,8 @@ static void reader_drop_local_connection (const struct nn_guid *rd_guid, const s
   {
     struct rd_wr_match *m;
     ddsrt_mutex_lock (&rd->e.lock);
-    if ((m = ut_avlLookup (&rd_local_writers_treedef, &rd->local_writers, &wr->e.guid)) != NULL)
-      ut_avlDelete (&rd_local_writers_treedef, &rd->local_writers, m);
+    if ((m = ddsrt_avl_lookup (&rd_local_writers_treedef, &rd->local_writers, &wr->e.guid)) != NULL)
+      ddsrt_avl_delete (&rd_local_writers_treedef, &rd->local_writers, m);
     ddsrt_mutex_unlock (&rd->e.lock);
     free_rd_wr_match (m);
 
@@ -1486,9 +1486,9 @@ static void proxy_writer_drop_connection (const struct nn_guid *pwr_guid, struct
     struct pwr_rd_match *m;
 
     ddsrt_mutex_lock (&pwr->e.lock);
-    if ((m = ut_avlLookup (&pwr_readers_treedef, &pwr->readers, &rd->e.guid)) != NULL)
+    if ((m = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &rd->e.guid)) != NULL)
     {
-      ut_avlDelete (&pwr_readers_treedef, &pwr->readers, m);
+      ddsrt_avl_delete (&pwr_readers_treedef, &pwr->readers, m);
       if (m->in_sync != PRMSS_SYNC)
         pwr->n_readers_out_of_sync--;
       if (rd->reliable)
@@ -1512,10 +1512,10 @@ static void proxy_reader_drop_connection
   {
     struct prd_wr_match *m;
     ddsrt_mutex_lock (&prd->e.lock);
-    m = ut_avlLookup (&prd_writers_treedef, &prd->writers, &wr->e.guid);
+    m = ddsrt_avl_lookup (&prd_writers_treedef, &prd->writers, &wr->e.guid);
     if (m)
     {
-      ut_avlDelete (&prd_writers_treedef, &prd->writers, m);
+      ddsrt_avl_delete (&prd_writers_treedef, &prd->writers, m);
     }
     ddsrt_mutex_unlock (&prd->e.lock);
     free_prd_wr_match (m);
@@ -1525,7 +1525,7 @@ static void proxy_reader_drop_connection
 static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
 {
   struct wr_prd_match *m = ddsrt_malloc (sizeof (*m));
-  ut_avlIPath_t path;
+  ddsrt_avl_ipath_t path;
   int pretend_everything_acked;
   m->prd_guid = prd->e.guid;
   m->is_reliable = (prd->c.xqos->reliability.kind > NN_BEST_EFFORT_RELIABILITY_QOS);
@@ -1564,7 +1564,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
     m->seq = MAX_SEQ_NUMBER;
   else
     m->seq = wr->seq;
-  if (ut_avlLookupIPath (&wr_readers_treedef, &wr->readers, &prd->e.guid, &path))
+  if (ddsrt_avl_lookup_ipath (&wr_readers_treedef, &wr->readers, &prd->e.guid, &path))
   {
     DDS_LOG(DDS_LC_DISCOVERY, "  writer_add_connection(wr %x:%x:%x:%x prd %x:%x:%x:%x) - already connected\n", PGUID (wr->e.guid), PGUID (prd->e.guid));
     ddsrt_mutex_unlock (&wr->e.lock);
@@ -1574,7 +1574,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
   else
   {
     DDS_LOG(DDS_LC_DISCOVERY, "  writer_add_connection(wr %x:%x:%x:%x prd %x:%x:%x:%x) - ack seq %"PRId64"\n", PGUID (wr->e.guid), PGUID (prd->e.guid), m->seq);
-    ut_avlInsertIPath (&wr_readers_treedef, &wr->readers, m, &path);
+    ddsrt_avl_insert_ipath (&wr_readers_treedef, &wr->readers, m, &path);
     rebuild_writer_addrset (wr);
     wr->num_reliable_readers += m->is_reliable;
     ddsrt_mutex_unlock (&wr->e.lock);
@@ -1618,10 +1618,10 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
 static void writer_add_local_connection (struct writer *wr, struct reader *rd)
 {
   struct wr_rd_match *m = ddsrt_malloc (sizeof (*m));
-  ut_avlIPath_t path;
+  ddsrt_avl_ipath_t path;
 
   ddsrt_mutex_lock (&wr->e.lock);
-  if (ut_avlLookupIPath (&wr_local_readers_treedef, &wr->local_readers, &rd->e.guid, &path))
+  if (ddsrt_avl_lookup_ipath (&wr_local_readers_treedef, &wr->local_readers, &rd->e.guid, &path))
   {
     DDS_LOG(DDS_LC_DISCOVERY, "  writer_add_local_connection(wr %x:%x:%x:%x rd %x:%x:%x:%x) - already connected\n", PGUID (wr->e.guid), PGUID (rd->e.guid));
     ddsrt_mutex_unlock (&wr->e.lock);
@@ -1631,7 +1631,7 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
 
   DDS_LOG(DDS_LC_DISCOVERY, "  writer_add_local_connection(wr %x:%x:%x:%x rd %x:%x:%x:%x)", PGUID (wr->e.guid), PGUID (rd->e.guid));
   m->rd_guid = rd->e.guid;
-  ut_avlInsertIPath (&wr_local_readers_treedef, &wr->local_readers, m, &path);
+  ddsrt_avl_insert_ipath (&wr_local_readers_treedef, &wr->local_readers, m, &path);
   local_reader_ary_insert (&wr->rdary, rd);
 
   /* Store available data into the late joining reader when it is reliable (we don't do
@@ -1672,7 +1672,7 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
 static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, nn_count_t *init_count)
 {
   struct rd_pwr_match *m = ddsrt_malloc (sizeof (*m));
-  ut_avlIPath_t path;
+  ddsrt_avl_ipath_t path;
 
   m->pwr_guid = pwr->e.guid;
 
@@ -1687,7 +1687,7 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
   DDS_LOG(DDS_LC_DISCOVERY, "  reader %x:%x:%x:%x init_acknack_count = %d\n", PGUID (rd->e.guid), rd->init_acknack_count);
   *init_count = rd->init_acknack_count;
 
-  if (ut_avlLookupIPath (&rd_writers_treedef, &rd->writers, &pwr->e.guid, &path))
+  if (ddsrt_avl_lookup_ipath (&rd_writers_treedef, &rd->writers, &pwr->e.guid, &path))
   {
     DDS_LOG(DDS_LC_DISCOVERY, "  reader_add_connection(pwr %x:%x:%x:%x rd %x:%x:%x:%x) - already connected\n",
             PGUID (pwr->e.guid), PGUID (rd->e.guid));
@@ -1698,7 +1698,7 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
   {
     DDS_LOG(DDS_LC_DISCOVERY, "  reader_add_connection(pwr %x:%x:%x:%x rd %x:%x:%x:%x)\n",
             PGUID (pwr->e.guid), PGUID (rd->e.guid));
-    ut_avlInsertIPath (&rd_writers_treedef, &rd->writers, m, &path);
+    ddsrt_avl_insert_ipath (&rd_writers_treedef, &rd->writers, m, &path);
     ddsrt_mutex_unlock (&rd->e.lock);
 
 #ifdef DDSI_INCLUDE_SSM
@@ -1736,13 +1736,13 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
 static void reader_add_local_connection (struct reader *rd, struct writer *wr)
 {
   struct rd_wr_match *m = ddsrt_malloc (sizeof (*m));
-  ut_avlIPath_t path;
+  ddsrt_avl_ipath_t path;
 
   m->wr_guid = wr->e.guid;
 
   ddsrt_mutex_lock (&rd->e.lock);
 
-  if (ut_avlLookupIPath (&rd_local_writers_treedef, &rd->local_writers, &wr->e.guid, &path))
+  if (ddsrt_avl_lookup_ipath (&rd_local_writers_treedef, &rd->local_writers, &wr->e.guid, &path))
   {
     DDS_LOG(DDS_LC_DISCOVERY, "  reader_add_local_connection(wr %x:%x:%x:%x rd %x:%x:%x:%x) - already connected\n", PGUID (wr->e.guid), PGUID (rd->e.guid));
     ddsrt_mutex_unlock (&rd->e.lock);
@@ -1751,7 +1751,7 @@ static void reader_add_local_connection (struct reader *rd, struct writer *wr)
   else
   {
     DDS_LOG(DDS_LC_DISCOVERY, "  reader_add_local_connection(wr %x:%x:%x:%x rd %x:%x:%x:%x)\n", PGUID (wr->e.guid), PGUID (rd->e.guid));
-    ut_avlInsertIPath (&rd_local_writers_treedef, &rd->local_writers, m, &path);
+    ddsrt_avl_insert_ipath (&rd_local_writers_treedef, &rd->local_writers, m, &path);
     ddsrt_mutex_unlock (&rd->e.lock);
 
     if (rd->status_cb)
@@ -1772,11 +1772,11 @@ static void reader_add_local_connection (struct reader *rd, struct writer *wr)
 static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader *rd, nn_mtime_t tnow, nn_count_t init_count)
 {
   struct pwr_rd_match *m = ddsrt_malloc (sizeof (*m));
-  ut_avlIPath_t path;
+  ddsrt_avl_ipath_t path;
   seqno_t last_deliv_seq;
 
   ddsrt_mutex_lock (&pwr->e.lock);
-  if (ut_avlLookupIPath (&pwr_readers_treedef, &pwr->readers, &rd->e.guid, &path))
+  if (ddsrt_avl_lookup_ipath (&pwr_readers_treedef, &pwr->readers, &rd->e.guid, &path))
     goto already_matched;
 
   if (pwr->c.topic == NULL && rd->topic)
@@ -1816,7 +1816,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   {
     m->in_sync = PRMSS_SYNC;
   }
-  else if (!config.conservative_builtin_reader_startup && is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) && !ut_avlIsEmpty (&pwr->readers))
+  else if (!config.conservative_builtin_reader_startup && is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) && !ddsrt_avl_is_empty (&pwr->readers))
   {
     /* builtins really don't care about multiple copies */
     m->in_sync = PRMSS_SYNC;
@@ -1860,7 +1860,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
       nn_reorder_new (NN_REORDER_MODE_MONOTONICALLY_INCREASING, config.secondary_reorder_maxsamples);
   }
 
-  ut_avlInsertIPath (&pwr_readers_treedef, &pwr->readers, m, &path);
+  ddsrt_avl_insert_ipath (&pwr_readers_treedef, &pwr->readers, m, &path);
   local_reader_ary_insert(&pwr->rdary, rd);
   ddsrt_mutex_unlock (&pwr->e.lock);
   qxev_pwr_entityid (pwr, &rd->e.guid.prefix);
@@ -1890,13 +1890,13 @@ already_matched:
 static void proxy_reader_add_connection (struct proxy_reader *prd, struct writer *wr)
 {
   struct prd_wr_match *m = ddsrt_malloc (sizeof (*m));
-  ut_avlIPath_t path;
+  ddsrt_avl_ipath_t path;
 
   m->wr_guid = wr->e.guid;
   ddsrt_mutex_lock (&prd->e.lock);
   if (prd->c.topic == NULL)
     prd->c.topic = ddsi_sertopic_ref (wr->topic);
-  if (ut_avlLookupIPath (&prd_writers_treedef, &prd->writers, &wr->e.guid, &path))
+  if (ddsrt_avl_lookup_ipath (&prd_writers_treedef, &prd->writers, &wr->e.guid, &path))
   {
     DDS_LOG(DDS_LC_DISCOVERY, "  proxy_reader_add_connection(wr %x:%x:%x:%x prd %x:%x:%x:%x) - already connected\n",
             PGUID (wr->e.guid), PGUID (prd->e.guid));
@@ -1907,7 +1907,7 @@ static void proxy_reader_add_connection (struct proxy_reader *prd, struct writer
   {
     DDS_LOG(DDS_LC_DISCOVERY, "  proxy_reader_add_connection(wr %x:%x:%x:%x prd %x:%x:%x:%x)\n",
             PGUID (wr->e.guid), PGUID (prd->e.guid));
-    ut_avlInsertIPath (&prd_writers_treedef, &prd->writers, m, &path);
+    ddsrt_avl_insert_ipath (&prd_writers_treedef, &prd->writers, m, &path);
     ddsrt_mutex_unlock (&prd->e.lock);
     qxev_prd_entityid (prd, &wr->e.guid.prefix);
   }
@@ -2539,15 +2539,15 @@ static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vr
 seqno_t writer_max_drop_seq (const struct writer *wr)
 {
   const struct wr_prd_match *n;
-  if (ut_avlIsEmpty (&wr->readers))
+  if (ddsrt_avl_is_empty (&wr->readers))
     return wr->seq;
-  n = ut_avlRootNonEmpty (&wr_readers_treedef, &wr->readers);
+  n = ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers);
   return (n->min_seq == MAX_SEQ_NUMBER) ? wr->seq : n->min_seq;
 }
 
 int writer_must_have_hb_scheduled (const struct writer *wr, const struct whc_state *whcst)
 {
-  if (ut_avlIsEmpty (&wr->readers) || whcst->max_seq < 0)
+  if (ddsrt_avl_is_empty (&wr->readers) || whcst->max_seq < 0)
   {
     /* Can't transmit a valid heartbeat if there is no data; and it
        wouldn't actually be sent anywhere if there are no readers, so
@@ -2558,7 +2558,7 @@ int writer_must_have_hb_scheduled (const struct writer *wr, const struct whc_sta
        a heartbeat if no data is available. */
     return 0;
   }
-  else if (!((const struct wr_prd_match *) ut_avlRootNonEmpty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb)
+  else if (!((const struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb)
   {
     /* Labouring under the belief that heartbeats must be sent
        regardless of ack state */
@@ -2800,8 +2800,8 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   assert (!is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE) || (wr->whc_low == wr->whc_high && wr->whc_low == INT32_MAX));
 
   /* Connection admin */
-  ut_avlInit (&wr_readers_treedef, &wr->readers);
-  ut_avlInit (&wr_local_readers_treedef, &wr->local_readers);
+  ddsrt_avl_init (&wr_readers_treedef, &wr->readers);
+  ddsrt_avl_init (&wr_local_readers_treedef, &wr->local_readers);
 
   local_reader_ary_init (&wr->rdary);
 }
@@ -2917,17 +2917,17 @@ static void gc_delete_writer (struct gcreq *gcreq)
       us now, because we can't be found via guid_hash anymore.  We
       therefore need not take lock. */
 
-  while (!ut_avlIsEmpty (&wr->readers))
+  while (!ddsrt_avl_is_empty (&wr->readers))
   {
-    struct wr_prd_match *m = ut_avlRootNonEmpty (&wr_readers_treedef, &wr->readers);
-    ut_avlDelete (&wr_readers_treedef, &wr->readers, m);
+    struct wr_prd_match *m = ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers);
+    ddsrt_avl_delete (&wr_readers_treedef, &wr->readers, m);
     proxy_reader_drop_connection (&m->prd_guid, wr);
     free_wr_prd_match (m);
   }
-  while (!ut_avlIsEmpty (&wr->local_readers))
+  while (!ddsrt_avl_is_empty (&wr->local_readers))
   {
-    struct wr_rd_match *m = ut_avlRootNonEmpty (&wr_local_readers_treedef, &wr->local_readers);
-    ut_avlDelete (&wr_local_readers_treedef, &wr->local_readers, m);
+    struct wr_rd_match *m = ddsrt_avl_root_non_empty (&wr_local_readers_treedef, &wr->local_readers);
+    ddsrt_avl_delete (&wr_local_readers_treedef, &wr->local_readers, m);
     reader_drop_local_connection (&m->rd_guid, wr);
     free_wr_rd_match (m);
   }
@@ -3324,8 +3324,8 @@ static dds_retcode_t new_reader_guid
 #endif
 #endif
 
-  ut_avlInit (&rd_writers_treedef, &rd->writers);
-  ut_avlInit (&rd_local_writers_treedef, &rd->local_writers);
+  ddsrt_avl_init (&rd_writers_treedef, &rd->writers);
+  ddsrt_avl_init (&rd_local_writers_treedef, &rd->local_writers);
 
   ddsrt_mutex_lock (&rd->e.lock);
   ephash_insert_reader_guid (rd);
@@ -3371,17 +3371,17 @@ static void gc_delete_reader (struct gcreq *gcreq)
   DDS_LOG(DDS_LC_DISCOVERY, "gc_delete_reader(%p, %x:%x:%x:%x)\n", (void *) gcreq, PGUID (rd->e.guid));
   gcreq_free (gcreq);
 
-  while (!ut_avlIsEmpty (&rd->writers))
+  while (!ddsrt_avl_is_empty (&rd->writers))
   {
-    struct rd_pwr_match *m = ut_avlRootNonEmpty (&rd_writers_treedef, &rd->writers);
-    ut_avlDelete (&rd_writers_treedef, &rd->writers, m);
+    struct rd_pwr_match *m = ddsrt_avl_root_non_empty (&rd_writers_treedef, &rd->writers);
+    ddsrt_avl_delete (&rd_writers_treedef, &rd->writers, m);
     proxy_writer_drop_connection (&m->pwr_guid, rd);
     free_rd_pwr_match (m);
   }
-  while (!ut_avlIsEmpty (&rd->local_writers))
+  while (!ddsrt_avl_is_empty (&rd->local_writers))
   {
-    struct rd_wr_match *m = ut_avlRootNonEmpty (&rd_local_writers_treedef, &rd->local_writers);
-    ut_avlDelete (&rd_local_writers_treedef, &rd->local_writers, m);
+    struct rd_wr_match *m = ddsrt_avl_root_non_empty (&rd_local_writers_treedef, &rd->local_writers);
+    ddsrt_avl_delete (&rd_local_writers_treedef, &rd->local_writers, m);
     writer_drop_local_connection (&m->wr_guid, rd);
     free_rd_wr_match (m);
   }
@@ -3552,7 +3552,7 @@ void new_proxy_participant
   proxypp->as_meta = as_meta;
   proxypp->endpoints = NULL;
   proxypp->plist = nn_plist_dup (plist);
-  ut_avlInit (&proxypp_groups_treedef, &proxypp->groups);
+  ddsrt_avl_init (&proxypp_groups_treedef, &proxypp->groups);
 
 
   if (custom_flags & CF_INC_KERNEL_SEQUENCE_NUMBERS)
@@ -3851,8 +3851,8 @@ static void delete_ppt (struct proxy_participant * proxypp, nn_wctime_t timestam
     proxypp->lease_expired = 1;
 
   DDS_LOG(DDS_LC_DISCOVERY, "delete_ppt(%x:%x:%x:%x) - deleting groups\n", PGUID (proxypp->e.guid));
-  while (!ut_avlIsEmpty (&proxypp->groups))
-    delete_proxy_group_locked (ut_avlRoot (&proxypp_groups_treedef, &proxypp->groups), timestamp, isimplicit);
+  while (!ddsrt_avl_is_empty (&proxypp->groups))
+    delete_proxy_group_locked (ddsrt_avl_root (&proxypp_groups_treedef, &proxypp->groups), timestamp, isimplicit);
 
   DDS_LOG(DDS_LC_DISCOVERY, "delete_ppt(%x:%x:%x:%x) - deleting endpoints\n", PGUID (proxypp->e.guid));
   c = proxypp->endpoints;
@@ -3965,7 +3965,7 @@ int new_proxy_group (const struct nn_guid *guid, const char *name, const struct 
   else
   {
     struct proxy_group *pgroup;
-    ut_avlIPath_t ipath;
+    ddsrt_avl_ipath_t ipath;
     int is_sub;
     switch (guid->entityid.u & (NN_ENTITYID_SOURCE_MASK | NN_ENTITYID_KIND_MASK))
     {
@@ -3980,7 +3980,7 @@ int new_proxy_group (const struct nn_guid *guid, const char *name, const struct 
         return Q_ERR_INVALID_DATA;
     }
     ddsrt_mutex_lock (&proxypp->e.lock);
-    if ((pgroup = ut_avlLookupIPath (&proxypp_groups_treedef, &proxypp->groups, guid, &ipath)) != NULL)
+    if ((pgroup = ddsrt_avl_lookup_ipath (&proxypp_groups_treedef, &proxypp->groups, guid, &ipath)) != NULL)
     {
       /* Complete proxy group definition if it was a partial
          definition made by creating a proxy reader or writer,
@@ -3997,7 +3997,7 @@ int new_proxy_group (const struct nn_guid *guid, const char *name, const struct 
       pgroup->proxypp = proxypp;
       pgroup->name = NULL;
       pgroup->xqos = NULL;
-      ut_avlInsertIPath (&proxypp_groups_treedef, &proxypp->groups, pgroup, &ipath);
+      ddsrt_avl_insert_ipath (&proxypp_groups_treedef, &proxypp->groups, pgroup, &ipath);
     }
     if (name)
     {
@@ -4021,7 +4021,7 @@ static void delete_proxy_group_locked (struct proxy_group *pgroup, nn_wctime_t t
   (void)isimplicit;
   assert ((pgroup->xqos != NULL) == (pgroup->name != NULL));
   DDS_LOG(DDS_LC_DISCOVERY, "delete_proxy_group_locked %x:%x:%x:%x\n", PGUID (pgroup->guid));
-  ut_avlDelete (&proxypp_groups_treedef, &proxypp->groups, pgroup);
+  ddsrt_avl_delete (&proxypp_groups_treedef, &proxypp->groups, pgroup);
   /* Publish corresponding built-in topic only if it is not a place
      holder: in that case we haven't announced its presence and
      therefore don't need to dispose it, and this saves us from having
@@ -4046,7 +4046,7 @@ void delete_proxy_group (const nn_guid_t *guid, nn_wctime_t timestamp, int isimp
   {
     struct proxy_group *pgroup;
     ddsrt_mutex_lock (&proxypp->e.lock);
-    if ((pgroup = ut_avlLookup (&proxypp_groups_treedef, &proxypp->groups, guid)) != NULL)
+    if ((pgroup = ddsrt_avl_lookup (&proxypp_groups_treedef, &proxypp->groups, guid)) != NULL)
       delete_proxy_group_locked (pgroup, timestamp, isimplicit);
     ddsrt_mutex_unlock (&proxypp->e.lock);
   }
@@ -4112,7 +4112,7 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   pwr = ddsrt_malloc (sizeof (*pwr));
   proxy_endpoint_common_init (&pwr->e, &pwr->c, EK_PROXY_WRITER, guid, timestamp, proxypp, as, plist);
 
-  ut_avlInit (&pwr_readers_treedef, &pwr->readers);
+  ddsrt_avl_init (&pwr_readers_treedef, &pwr->readers);
   pwr->n_reliable_readers = 0;
   pwr->n_readers_out_of_sync = 0;
   pwr->last_seq = 0;
@@ -4195,7 +4195,7 @@ void update_proxy_writer (struct proxy_writer * pwr, struct addrset * as)
 {
   struct reader * rd;
   struct  pwr_rd_match * m;
-  ut_avlIter_t iter;
+  ddsrt_avl_iter_t iter;
 
   /* Update proxy writer endpoints (from SEDP alive) */
 
@@ -4208,7 +4208,7 @@ void update_proxy_writer (struct proxy_writer * pwr, struct addrset * as)
     unref_addrset (pwr->c.as);
     ref_addrset (as);
     pwr->c.as = as;
-    m = ut_avlIterFirst (&pwr_readers_treedef, &pwr->readers, &iter);
+    m = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, &iter);
     while (m)
     {
       rd = ephash_lookup_reader_guid (&m->rd_guid);
@@ -4216,7 +4216,7 @@ void update_proxy_writer (struct proxy_writer * pwr, struct addrset * as)
       {
         qxev_pwr_entityid (pwr, &rd->e.guid.prefix);
       }
-      m = ut_avlIterNext (&iter);
+      m = ddsrt_avl_iter_next (&iter);
     }
   }
   ddsrt_mutex_unlock (&pwr->e.lock);
@@ -4240,14 +4240,14 @@ void update_proxy_reader (struct proxy_reader * prd, struct addrset * as)
 
     /* Rebuild writer endpoints */
 
-    while ((m = ut_avlLookupSuccEq (&prd_writers_treedef, &prd->writers, &wrguid)) != NULL)
+    while ((m = ddsrt_avl_lookup_succ_eq (&prd_writers_treedef, &prd->writers, &wrguid)) != NULL)
     {
       struct prd_wr_match *next;
       nn_guid_t guid_next;
       struct writer * wr;
 
       wrguid = m->wr_guid;
-      next = ut_avlFindSucc (&prd_writers_treedef, &prd->writers, m);
+      next = ddsrt_avl_find_succ (&prd_writers_treedef, &prd->writers, m);
       if (next)
       {
         guid_next = next->wr_guid;
@@ -4280,10 +4280,10 @@ static void gc_delete_proxy_writer (struct gcreq *gcreq)
   DDS_LOG(DDS_LC_DISCOVERY, "gc_delete_proxy_writer(%p, %x:%x:%x:%x)\n", (void *) gcreq, PGUID (pwr->e.guid));
   gcreq_free (gcreq);
 
-  while (!ut_avlIsEmpty (&pwr->readers))
+  while (!ddsrt_avl_is_empty (&pwr->readers))
   {
-    struct pwr_rd_match *m = ut_avlRootNonEmpty (&pwr_readers_treedef, &pwr->readers);
-    ut_avlDelete (&pwr_readers_treedef, &pwr->readers, m);
+    struct pwr_rd_match *m = ddsrt_avl_root_non_empty (&pwr_readers_treedef, &pwr->readers);
+    ddsrt_avl_delete (&pwr_readers_treedef, &pwr->readers, m);
     reader_drop_connection (&m->rd_guid, pwr);
     update_reader_init_acknack_count (&m->rd_guid, m->count);
     free_pwr_rd_match (m);
@@ -4353,7 +4353,7 @@ int new_proxy_reader (const struct nn_guid *ppguid, const struct nn_guid *guid, 
      "real" participant, rather than the thing we use for endpoints discovered via the DS */
   prd->assert_pp_lease = (unsigned) !!config.arrival_of_data_asserts_pp_and_ep_liveliness;
 
-  ut_avlInit (&prd_writers_treedef, &prd->writers);
+  ddsrt_avl_init (&prd_writers_treedef, &prd->writers);
 
   /* locking the entity prevents matching while the built-in topic hasn't been published yet */
   ddsrt_mutex_lock (&prd->e.lock);
@@ -4374,14 +4374,14 @@ static void proxy_reader_set_delete_and_ack_all_messages (struct proxy_reader *p
   memset (&wrguid, 0, sizeof (wrguid));
   ddsrt_mutex_lock (&prd->e.lock);
   prd->deleting = 1;
-  while ((m = ut_avlLookupSuccEq (&prd_writers_treedef, &prd->writers, &wrguid)) != NULL)
+  while ((m = ddsrt_avl_lookup_succ_eq (&prd_writers_treedef, &prd->writers, &wrguid)) != NULL)
   {
     /* have to be careful walking the tree -- pretty is different, but
        I want to check this before I write a lookup_succ function. */
     struct prd_wr_match *m_a_next;
     nn_guid_t wrguid_next;
     wrguid = m->wr_guid;
-    if ((m_a_next = ut_avlFindSucc (&prd_writers_treedef, &prd->writers, m)) != NULL)
+    if ((m_a_next = ddsrt_avl_find_succ (&prd_writers_treedef, &prd->writers, m)) != NULL)
       wrguid_next = m_a_next->wr_guid;
     else
     {
@@ -4395,11 +4395,11 @@ static void proxy_reader_set_delete_and_ack_all_messages (struct proxy_reader *p
       struct whc_node *deferred_free_list = NULL;
       struct wr_prd_match *m_wr;
       ddsrt_mutex_lock (&wr->e.lock);
-      if ((m_wr = ut_avlLookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
+      if ((m_wr = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
       {
         struct whc_state whcst;
         m_wr->seq = MAX_SEQ_NUMBER;
-        ut_avlAugmentUpdate (&wr_readers_treedef, m_wr);
+        ddsrt_avl_augment_update (&wr_readers_treedef, m_wr);
         (void)remove_acked_messages (wr, &whcst, &deferred_free_list);
         writer_clear_retransmitting (wr);
       }
@@ -4419,10 +4419,10 @@ static void gc_delete_proxy_reader (struct gcreq *gcreq)
   DDS_LOG(DDS_LC_DISCOVERY, "gc_delete_proxy_reader(%p, %x:%x:%x:%x)\n", (void *) gcreq, PGUID (prd->e.guid));
   gcreq_free (gcreq);
 
-  while (!ut_avlIsEmpty (&prd->writers))
+  while (!ddsrt_avl_is_empty (&prd->writers))
   {
-    struct prd_wr_match *m = ut_avlRootNonEmpty (&prd_writers_treedef, &prd->writers);
-    ut_avlDelete (&prd_writers_treedef, &prd->writers, m);
+    struct prd_wr_match *m = ddsrt_avl_root_non_empty (&prd_writers_treedef, &prd->writers);
+    ddsrt_avl_delete (&prd_writers_treedef, &prd->writers, m);
     writer_drop_connection (&m->wr_guid, prd);
     free_prd_wr_match (m);
   }

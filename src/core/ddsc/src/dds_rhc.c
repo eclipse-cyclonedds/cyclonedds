@@ -27,8 +27,8 @@
 #include "dds__reader.h"
 #include "dds__rhc.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/util/ut_hopscotch.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/hopscotch.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_xqos.h"
 #include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_unused.h"
@@ -174,7 +174,7 @@ struct lwreg
 
 struct lwregs
 {
-  struct ut_ehh * regs;
+  struct ddsrt_ehh * regs;
 };
 
 static uint32_t lwreg_hash (const void *vl)
@@ -192,36 +192,36 @@ static int lwreg_equals (const void *va, const void *vb)
 
 static void lwregs_init (struct lwregs *rt)
 {
-  rt->regs = ut_ehhNew (sizeof (struct lwreg), 1, lwreg_hash, lwreg_equals);
+  rt->regs = ddsrt_ehh_new (sizeof (struct lwreg), 1, lwreg_hash, lwreg_equals);
 }
 
 static void lwregs_fini (struct lwregs *rt)
 {
-  ut_ehhFree (rt->regs);
+  ddsrt_ehh_free (rt->regs);
 }
 
 static int lwregs_contains (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
 {
   struct lwreg dummy = { .iid = iid, .wr_iid = wr_iid };
-  return ut_ehhLookup (rt->regs, &dummy) != NULL;
+  return ddsrt_ehh_lookup (rt->regs, &dummy) != NULL;
 }
 
 static int lwregs_add (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
 {
   struct lwreg dummy = { .iid = iid, .wr_iid = wr_iid };
-  return ut_ehhAdd (rt->regs, &dummy);
+  return ddsrt_ehh_add (rt->regs, &dummy);
 }
 
 static int lwregs_delete (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
 {
   struct lwreg dummy = { .iid = iid, .wr_iid = wr_iid };
-  return ut_ehhRemove (rt->regs, &dummy);
+  return ddsrt_ehh_remove (rt->regs, &dummy);
 }
 
 void lwregs_dump (struct lwregs *rt)
 {
-  struct ut_ehhIter it;
-  for (struct lwreg *r = ut_ehhIterFirst(rt->regs, &it); r; r = ut_ehhIterNext(&it))
+  struct ddsrt_ehh_iter it;
+  for (struct lwreg *r = ddsrt_ehh_iter_first(rt->regs, &it); r; r = ddsrt_ehh_iter_next(&it))
     printf("iid=%"PRIu64" wr_iid=%"PRIu64"\n", r->iid, r->wr_iid);
 }
 
@@ -271,7 +271,7 @@ typedef enum rhc_store_result {
 } rhc_store_result_t;
 
 struct rhc {
-  struct ut_hh *instances;
+  struct ddsrt_hh *instances;
   struct rhc_instance *nonempty_instances; /* circular, points to most recently added one, NULL if none */
   struct lwregs registrations;       /* should be a global one (with lock-free lookups) */
 
@@ -458,7 +458,7 @@ struct rhc * dds_rhc_new (dds_reader * reader, const struct ddsi_sertopic * topi
 
   lwregs_init (&rhc->registrations);
   ddsrt_mutex_init (&rhc->lock);
-  rhc->instances = ut_hhNew (1, instance_iid_hash, instance_iid_eq);
+  rhc->instances = ddsrt_hh_new (1, instance_iid_hash, instance_iid_eq);
   rhc->topic = topic;
   rhc->reader = reader;
 
@@ -620,9 +620,9 @@ static void free_instance_rhc_free_wrap (void *vnode, void *varg)
 void dds_rhc_free (struct rhc *rhc)
 {
   assert (rhc_check_counts_locked (rhc, true, true));
-  ut_hhEnum (rhc->instances, free_instance_rhc_free_wrap, rhc);
+  ddsrt_hh_enum (rhc->instances, free_instance_rhc_free_wrap, rhc);
   assert (rhc->nonempty_instances == NULL);
-  ut_hhFree (rhc->instances);
+  ddsrt_hh_free (rhc->instances);
   lwregs_fini (&rhc->registrations);
   if (rhc->qcond_eval_samplebuf != NULL)
     ddsi_sertopic_free_sample (rhc->topic, rhc->qcond_eval_samplebuf, DDS_FREE_ALL);
@@ -848,7 +848,7 @@ static void drop_instance_noupdate_no_writers (struct rhc *rhc, struct rhc_insta
 
   rhc->n_instances--;
 
-  ret = ut_hhRemove (rhc->instances, inst);
+  ret = ddsrt_hh_remove (rhc->instances, inst);
   assert (ret);
   (void) ret;
 
@@ -1198,7 +1198,7 @@ static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst
   }
 
   account_for_empty_to_nonempty_transition (rhc, inst);
-  ret = ut_hhAdd (rhc->instances, inst);
+  ret = ddsrt_hh_add (rhc->instances, inst);
   assert (ret);
   (void) ret;
   rhc->n_instances++;
@@ -1248,7 +1248,7 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
 
   ddsrt_mutex_lock (&rhc->lock);
 
-  inst = ut_hhLookup (rhc->instances, &dummy_instance);
+  inst = ddsrt_hh_lookup (rhc->instances, &dummy_instance);
   if (inst == NULL)
   {
     /* New instance for this reader.  If no data content -- not (also)
@@ -1492,13 +1492,13 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
   bool trigger_waitsets = false;
   bool notify_data_available = false;
   struct rhc_instance *inst;
-  struct ut_hhIter iter;
+  struct ddsrt_hh_iter iter;
   const uint64_t wr_iid = pwr_info->iid;
   const int auto_dispose = pwr_info->auto_dispose;
 
   ddsrt_mutex_lock (&rhc->lock);
   TRACE ("rhc_unregister_wr_iid(%"PRIx64",%d:\n", wr_iid, auto_dispose);
-  for (inst = ut_hhIterFirst (rhc->instances, &iter); inst; inst = ut_hhIterNext (&iter))
+  for (inst = ddsrt_hh_iter_first (rhc->instances, &iter); inst; inst = ddsrt_hh_iter_next (&iter))
   {
     if ((inst->wr_iid_islive && inst->wr_iid == wr_iid) || lwregs_contains (&rhc->registrations, inst->iid, wr_iid))
     {
@@ -1558,10 +1558,10 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
 void dds_rhc_relinquish_ownership (struct rhc * __restrict rhc, const uint64_t wr_iid)
 {
   struct rhc_instance *inst;
-  struct ut_hhIter iter;
+  struct ddsrt_hh_iter iter;
   ddsrt_mutex_lock (&rhc->lock);
   TRACE ("rhc_relinquish_ownership(%"PRIx64":\n", wr_iid);
-  for (inst = ut_hhIterFirst (rhc->instances, &iter); inst; inst = ut_hhIterNext (&iter))
+  for (inst = ddsrt_hh_iter_first (rhc->instances, &iter); inst; inst = ddsrt_hh_iter_next (&iter))
   {
     if (inst->wr_iid_islive && inst->wr_iid == wr_iid)
     {
@@ -2234,7 +2234,7 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
      between those attached to a waitset or not. */
 
   struct rhc *rhc = cond->m_rhc;
-  struct ut_hhIter it;
+  struct ddsrt_hh_iter it;
 
   assert ((dds_entity_kind (&cond->m_entity) == DDS_KIND_COND_READ && cond->m_query.m_filter == 0) ||
           (dds_entity_kind (&cond->m_entity) == DDS_KIND_COND_QUERY && cond->m_query.m_filter != 0));
@@ -2296,7 +2296,7 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
        samples, except for those that match the predicate. */
     const dds_querycond_mask_t qcmask = cond->m_query.m_qcmask;
     uint32_t trigger = 0;
-    for (struct rhc_instance *inst = ut_hhIterFirst (rhc->instances, &it); inst != NULL; inst = ut_hhIterNext (&it))
+    for (struct rhc_instance *inst = ddsrt_hh_iter_first (rhc->instances, &it); inst != NULL; inst = ddsrt_hh_iter_next (&it))
     {
       const bool instmatch = eval_predicate_invsample (rhc, inst, cond->m_query.m_filter);;
       uint32_t matches = 0;
@@ -2612,7 +2612,7 @@ static int rhc_check_counts_locked (struct rhc *rhc, bool check_conds, bool chec
   unsigned cond_match_count[CHECK_MAX_CONDS];
   dds_querycond_mask_t enabled_qcmask = 0;
   struct rhc_instance *inst;
-  struct ut_hhIter iter;
+  struct ddsrt_hh_iter iter;
   dds_readcond *rciter;
   uint32_t i;
 
@@ -2628,7 +2628,7 @@ static int rhc_check_counts_locked (struct rhc *rhc, bool check_conds, bool chec
     enabled_qcmask |= rciter->m_query.m_qcmask;
   }
 
-  for (inst = ut_hhIterFirst (rhc->instances, &iter); inst; inst = ut_hhIterNext (&iter))
+  for (inst = ddsrt_hh_iter_first (rhc->instances, &iter); inst; inst = ddsrt_hh_iter_next (&iter))
   {
     unsigned n_vsamples_in_instance = 0, n_read_vsamples_in_instance = 0;
     bool a_sample_free = true;

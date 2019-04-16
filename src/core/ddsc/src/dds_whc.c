@@ -22,8 +22,8 @@
 #include "dds__whc.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 
-#include "dds/util/ut_avl.h"
-#include "dds/util/ut_hopscotch.h"
+#include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_freelist.h"
@@ -47,7 +47,7 @@ struct whc_node {
 };
 
 struct whc_intvnode {
-  ut_avlNode_t avlnode;
+  ddsrt_avl_node_t avlnode;
   seqno_t min;
   seqno_t maxp1;
   struct whc_node *first; /* linked list of seqs with contiguous sequence numbers [min,maxp1) */
@@ -89,12 +89,12 @@ struct whc_impl {
   struct whc_node *maxseq_node; /* NULL if empty; if not in open_intv, open_intv is empty */
   struct nn_freelist freelist; /* struct whc_node *; linked via whc_node::next_seq */
 #if USE_EHH
-  struct ut_ehh *seq_hash;
+  struct ddsrt_ehh *seq_hash;
 #else
-  struct ut_hh *seq_hash;
+  struct ddsrt_hh *seq_hash;
 #endif
-  struct ut_hh *idx_hash;
-  ut_avlTree_t seq;
+  struct ddsrt_hh *idx_hash;
+  ddsrt_avl_tree_t seq;
 };
 
 struct whc_sample_iter_impl {
@@ -140,8 +140,8 @@ static void whc_default_sample_iter_init (const struct whc *whc, struct whc_samp
 static bool whc_default_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, struct whc_borrowed_sample *sample);
 static void whc_default_free (struct whc *whc);
 
-static const ut_avlTreedef_t whc_seq_treedef =
-  UT_AVL_TREEDEF_INITIALIZER (offsetof (struct whc_intvnode, avlnode), offsetof (struct whc_intvnode, min), compare_seq, 0);
+static const ddsrt_avl_treedef_t whc_seq_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct whc_intvnode, avlnode), offsetof (struct whc_intvnode, min), compare_seq, 0);
 
 static const struct whc_ops whc_ops = {
   .insert = whc_default_insert,
@@ -225,7 +225,7 @@ static struct whc_node *whc_findmax_procedurally (const struct whc_impl *whc)
   }
   else
   {
-    struct whc_intvnode *intv = ut_avlFindPred (&whc_seq_treedef, &whc->seq, whc->open_intv);
+    struct whc_intvnode *intv = ddsrt_avl_find_pred (&whc_seq_treedef, &whc->seq, whc->open_intv);
     assert (intv && intv->first);
     return intv->last;
   }
@@ -239,8 +239,8 @@ static void check_whc (const struct whc_impl *whc)
      contiguous; all samples in seq & in seqhash; tlidx \subseteq seq;
      seq-number ordered list correct; &c. */
   assert (whc->open_intv != NULL);
-  assert (whc->open_intv == ut_avlFindMax (&whc_seq_treedef, &whc->seq));
-  assert (ut_avlFindSucc (&whc_seq_treedef, &whc->seq, whc->open_intv) == NULL);
+  assert (whc->open_intv == ddsrt_avl_find_max (&whc_seq_treedef, &whc->seq));
+  assert (ddsrt_avl_find_succ (&whc_seq_treedef, &whc->seq, whc->open_intv) == NULL);
   if (whc->maxseq_node)
   {
     assert (whc->maxseq_node->next_seq == NULL);
@@ -264,7 +264,7 @@ static void check_whc (const struct whc_impl *whc)
     struct whc_intvnode *firstintv;
     struct whc_node *cur;
     seqno_t prevseq = 0;
-    firstintv = ut_avlFindMin (&whc_seq_treedef, &whc->seq);
+    firstintv = ddsrt_avl_find_min (&whc_seq_treedef, &whc->seq);
     assert (firstintv);
     cur = firstintv->first;
     while (cur)
@@ -283,10 +283,10 @@ static void insert_whcn_in_hash (struct whc_impl *whc, struct whc_node *whcn)
   /* precondition: whcn is not in hash */
 #if USE_EHH
   struct whc_seq_entry e = { .seq = whcn->seq, .whcn = whcn };
-  if (!ut_ehhAdd (whc->seq_hash, &e))
+  if (!ddsrt_ehh_add (whc->seq_hash, &e))
     assert(0);
 #else
-  if (!ut_hhAdd (whc->seq_hash, whcn))
+  if (!ddsrt_hh_add (whc->seq_hash, whcn))
     assert(0);
 #endif
 }
@@ -296,10 +296,10 @@ static void remove_whcn_from_hash (struct whc_impl *whc, struct whc_node *whcn)
   /* precondition: whcn is in hash */
 #if USE_EHH
   struct whc_seq_entry e = { .seq = whcn->seq };
-  if (!ut_ehhRemove(whc->seq_hash, &e))
+  if (!ddsrt_ehh_remove(whc->seq_hash, &e))
     assert(0);
 #else
-  if (!ut_hhRemove(whc->seq_hash, whcn))
+  if (!ddsrt_hh_remove(whc->seq_hash, whcn))
     assert(0);
 #endif
 }
@@ -308,14 +308,14 @@ static struct whc_node *whc_findseq (const struct whc_impl *whc, seqno_t seq)
 {
 #if USE_EHH
   struct whc_seq_entry e = { .seq = seq }, *r;
-  if ((r = ut_ehhLookup(whc->seq_hash, &e)) != NULL)
+  if ((r = ddsrt_ehh_lookup(whc->seq_hash, &e)) != NULL)
     return r->whcn;
   else
     return NULL;
 #else
   struct whc_node template;
   template.seq = seq;
-  return ut_hhLookup(whc->seq_hash, &template);
+  return ddsrt_hh_lookup(whc->seq_hash, &template);
 #endif
 }
 
@@ -328,7 +328,7 @@ static struct whc_node *whc_findkey (const struct whc_impl *whc, const struct dd
   struct whc_idxnode *n;
   check_whc (whc);
   template.idxn.iid = ddsi_tkmap_lookup(gv.m_tkmap, serdata_key);
-  n = ut_hhLookup (whc->idx_hash, &template.idxn);
+  n = ddsrt_hh_lookup (whc->idx_hash, &template.idxn);
   if (n == NULL)
     return NULL;
   else
@@ -359,22 +359,22 @@ struct whc *whc_new (int is_transient_local, unsigned hdepth, unsigned tldepth)
   whc->total_bytes = 0;
   whc->sample_overhead = sample_overhead;
 #if USE_EHH
-  whc->seq_hash = ut_ehhNew (sizeof (struct whc_seq_entry), 32, whc_seq_entry_hash, whc_seq_entry_eq);
+  whc->seq_hash = ddsrt_ehh_new (sizeof (struct whc_seq_entry), 32, whc_seq_entry_hash, whc_seq_entry_eq);
 #else
-  whc->seq_hash = ut_hhNew(32, whc_node_hash, whc_node_eq);
+  whc->seq_hash = ddsrt_hh_new(32, whc_node_hash, whc_node_eq);
 #endif
 
   if (whc->idxdepth > 0)
-    whc->idx_hash = ut_hhNew(32, whc_idxnode_hash_key, whc_idxnode_eq_key);
+    whc->idx_hash = ddsrt_hh_new(32, whc_idxnode_hash_key, whc_idxnode_eq_key);
   else
     whc->idx_hash = NULL;
 
   /* seq interval tree: always has an "open" node */
-  ut_avlInit (&whc_seq_treedef, &whc->seq);
+  ddsrt_avl_init (&whc_seq_treedef, &whc->seq);
   intv = ddsrt_malloc (sizeof (*intv));
   intv->min = intv->maxp1 = 1;
   intv->first = intv->last = NULL;
-  ut_avlInsert (&whc_seq_treedef, &whc->seq, intv);
+  ddsrt_avl_insert (&whc_seq_treedef, &whc->seq, intv);
   whc->open_intv = intv;
   whc->maxseq_node = NULL;
 
@@ -402,11 +402,11 @@ void whc_default_free (struct whc *whc_generic)
 
   if (whc->idx_hash)
   {
-    struct ut_hhIter it;
+    struct ddsrt_hh_iter it;
     struct whc_idxnode *n;
-    for (n = ut_hhIterFirst(whc->idx_hash, &it); n != NULL; n = ut_hhIterNext(&it))
+    for (n = ddsrt_hh_iter_first(whc->idx_hash, &it); n != NULL; n = ddsrt_hh_iter_next(&it))
       ddsrt_free(n);
-    ut_hhFree(whc->idx_hash);
+    ddsrt_hh_free(whc->idx_hash);
   }
 
   {
@@ -423,13 +423,13 @@ DDSRT_WARNING_MSVC_ON(6001);
     }
   }
 
-  ut_avlFree (&whc_seq_treedef, &whc->seq, ddsrt_free);
+  ddsrt_avl_free (&whc_seq_treedef, &whc->seq, ddsrt_free);
   nn_freelist_fini (&whc->freelist, ddsrt_free);
 
 #if USE_EHH
-  ut_ehhFree (whc->seq_hash);
+  ddsrt_ehh_free (whc->seq_hash);
 #else
-  ut_hhFree (whc->seq_hash);
+  ddsrt_hh_free (whc->seq_hash);
 #endif
   ddsrt_mutex_destroy (&whc->lock);
   ddsrt_free (whc);
@@ -445,7 +445,7 @@ static void get_state_locked(const struct whc_impl *whc, struct whc_state *st)
   else
   {
     const struct whc_intvnode *intv;
-    intv = ut_avlFindMin (&whc_seq_treedef, &whc->seq);
+    intv = ddsrt_avl_find_min (&whc_seq_treedef, &whc->seq);
     /* not empty, open node may be anything but is (by definition)
      findmax, and whc is claimed to be non-empty, so min interval
      can't be empty */
@@ -476,12 +476,12 @@ static struct whc_node *find_nextseq_intv (struct whc_intvnode **p_intv, const s
        SEQ < Y can't exist */
 #ifndef NDEBUG
     {
-      struct whc_intvnode *predintv = ut_avlLookupPredEq (&whc_seq_treedef, &whc->seq, &seq);
+      struct whc_intvnode *predintv = ddsrt_avl_lookup_pred_eq (&whc_seq_treedef, &whc->seq, &seq);
       assert (predintv == NULL || predintv->maxp1 <= seq);
     }
 #endif
-    if ((intv = ut_avlLookupSuccEq (&whc_seq_treedef, &whc->seq, &seq)) == NULL) {
-      assert (ut_avlLookupPredEq (&whc_seq_treedef, &whc->seq, &seq) == whc->open_intv);
+    if ((intv = ddsrt_avl_lookup_succ_eq (&whc_seq_treedef, &whc->seq, &seq)) == NULL) {
+      assert (ddsrt_avl_lookup_pred_eq (&whc_seq_treedef, &whc->seq, &seq) == whc->open_intv);
       return NULL;
     } else if (intv->min < intv->maxp1) { /* only if not empty interval */
       assert (intv->min > seq);
@@ -502,7 +502,7 @@ static struct whc_node *find_nextseq_intv (struct whc_intvnode **p_intv, const s
     assert (whc->maxseq_node != NULL);
     assert (n->seq < whc->maxseq_node->seq);
     n = n->next_seq;
-    *p_intv = ut_avlLookupPredEq (&whc_seq_treedef, &whc->seq, &n->seq);
+    *p_intv = ddsrt_avl_lookup_pred_eq (&whc_seq_treedef, &whc->seq, &n->seq);
     return n;
   }
 }
@@ -538,7 +538,7 @@ static void delete_one_sample_from_idx (struct whc_impl *whc, struct whc_node *w
     for (i = 0; i < whc->idxdepth; i++)
       assert (i == idxn->headidx || idxn->hist[i] == NULL);
 #endif
-    if (!ut_hhRemove (whc->idx_hash, idxn))
+    if (!ddsrt_hh_remove (whc->idx_hash, idxn))
       assert (0);
     ddsi_tkmap_instance_unref(idxn->tk);
     ddsrt_free (idxn);
@@ -568,7 +568,7 @@ static void free_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop_s
 
 static void delete_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_idxnode *idxn)
 {
-  if (!ut_hhRemove (whc->idx_hash, idxn))
+  if (!ddsrt_hh_remove (whc->idx_hash, idxn))
     assert (0);
   free_one_instance_from_idx (whc, max_drop_seq, idxn);
 }
@@ -612,11 +612,11 @@ static unsigned whc_default_downgrade_to_volatile (struct whc *whc_generic, stru
     whc->tldepth = 0;
     if (whc->hdepth == 0)
     {
-      struct ut_hhIter it;
+      struct ddsrt_hh_iter it;
       struct whc_idxnode *n;
-      for (n = ut_hhIterFirst(whc->idx_hash, &it); n != NULL; n = ut_hhIterNext(&it))
+      for (n = ddsrt_hh_iter_first(whc->idx_hash, &it); n != NULL; n = ddsrt_hh_iter_next(&it))
         free_one_instance_from_idx (whc, 0, n);
-      ut_hhFree(whc->idx_hash);
+      ddsrt_hh_free(whc->idx_hash);
       whc->idxdepth = 0;
       whc->idx_hash = NULL;
     }
@@ -680,9 +680,9 @@ static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_i
     if (whcn == intv->last && intv != whc->open_intv)
     {
       struct whc_intvnode *tmp = intv;
-      *p_intv = ut_avlFindSucc (&whc_seq_treedef, &whc->seq, intv);
+      *p_intv = ddsrt_avl_find_succ (&whc_seq_treedef, &whc->seq, intv);
       /* only sample in interval and not the open interval => delete interval */
-      ut_avlDelete (&whc_seq_treedef, &whc->seq, tmp);
+      ddsrt_avl_delete (&whc_seq_treedef, &whc->seq, tmp);
       ddsrt_free (tmp);
     }
     else
@@ -703,7 +703,7 @@ static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_i
     assert (whcn->prev_seq->seq + 1 == whcn->seq);
     intv->last = whcn->prev_seq;
     intv->maxp1--;
-    *p_intv = ut_avlFindSucc (&whc_seq_treedef, &whc->seq, intv);
+    *p_intv = ddsrt_avl_find_succ (&whc_seq_treedef, &whc->seq, intv);
   }
   else
   {
@@ -712,7 +712,7 @@ static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_i
        issue only, and so we can (for now) get away with splitting
        it greedily */
     struct whc_intvnode *new_intv;
-    ut_avlIPath_t path;
+    ddsrt_avl_ipath_t path;
 
     new_intv = ddsrt_malloc (sizeof (*new_intv));
 
@@ -730,9 +730,9 @@ static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_i
 
     /* insert new node & continue the loop with intv set to the
        new interval */
-    if (ut_avlLookupIPath (&whc_seq_treedef, &whc->seq, &new_intv->min, &path) != NULL)
+    if (ddsrt_avl_lookup_ipath (&whc_seq_treedef, &whc->seq, &new_intv->min, &path) != NULL)
       assert (0);
-    ut_avlInsertIPath (&whc_seq_treedef, &whc->seq, new_intv, &path);
+    ddsrt_avl_insert_ipath (&whc_seq_treedef, &whc->seq, new_intv, &path);
 
     if (intv == whc->open_intv)
       whc->open_intv = new_intv;
@@ -744,7 +744,7 @@ static void whc_delete_one (struct whc_impl *whc, struct whc_node *whcn)
 {
   struct whc_intvnode *intv;
   struct whc_node *whcn_tmp = whcn;
-  intv = ut_avlLookupPredEq (&whc_seq_treedef, &whc->seq, &whcn->seq);
+  intv = ddsrt_avl_lookup_pred_eq (&whc_seq_treedef, &whc->seq, &whcn->seq);
   assert (intv != NULL);
   whc_delete_one_intv (whc, &intv, &whcn);
   if (whcn_tmp->prev_seq)
@@ -804,7 +804,7 @@ static unsigned whc_default_remove_acked_messages_noidx (struct whc_impl *whc, s
 #ifndef NDEBUG
   whcn = find_nextseq_intv (&intv, whc, whc->max_drop_seq);
   assert (whcn == NULL || whcn->prev_seq == NULL);
-  assert (ut_avlIsSingleton (&whc->seq));
+  assert (ddsrt_avl_is_singleton (&whc->seq));
 #endif
   intv = whc->open_intv;
 
@@ -894,7 +894,7 @@ static unsigned whc_default_remove_acked_messages_full (struct whc_impl *whc, se
       }
 
       if (whcn == intv->last)
-        intv = ut_avlFindSucc (&whc_seq_treedef, &whc->seq, intv);
+        intv = ddsrt_avl_find_succ (&whc_seq_treedef, &whc->seq, intv);
       if (prev_seq)
         prev_seq->next_seq = whcn;
       whcn->prev_seq = prev_seq;
@@ -975,7 +975,7 @@ static unsigned whc_default_remove_acked_messages_full (struct whc_impl *whc, se
           DDS_LOG(DDS_LC_WHC, " del %p %"PRId64, (void *) oldn, oldn->seq);
           whc_delete_one (whc, oldn);
 #ifndef NDEBUG
-          assert(ut_hhLookup(whc->idx_hash, &template) == idxn);
+          assert(ddsrt_hh_lookup(whc->idx_hash, &template) == idxn);
           ddsi_serdata_unref(whcn_template.serdata);
 #endif
         }
@@ -1069,14 +1069,14 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
   {
     /* gap => need new open_intv */
     struct whc_intvnode *intv1;
-    ut_avlIPath_t path;
+    ddsrt_avl_ipath_t path;
     intv1 = ddsrt_malloc (sizeof (*intv1));
     intv1->min = seq;
     intv1->maxp1 = seq + 1;
     intv1->first = intv1->last = newn;
-    if (ut_avlLookupIPath (&whc_seq_treedef, &whc->seq, &seq, &path) != NULL)
+    if (ddsrt_avl_lookup_ipath (&whc_seq_treedef, &whc->seq, &seq, &path) != NULL)
       assert (0);
-    ut_avlInsertIPath (&whc_seq_treedef, &whc->seq, intv1, &path);
+    ddsrt_avl_insert_ipath (&whc_seq_treedef, &whc->seq, intv1, &path);
     whc->open_intv = intv1;
   }
 
@@ -1128,7 +1128,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
   }
 
   template.idxn.iid = tk->m_iid;
-  if ((idxn = ut_hhLookup (whc->idx_hash, &template)) != NULL)
+  if ((idxn = ddsrt_hh_lookup (whc->idx_hash, &template)) != NULL)
   {
     /* Unregisters cause deleting of index entry, non-unregister of adding/overwriting in history */
     DDS_LOG(DDS_LC_WHC, " idxn %p", (void *)idxn);
@@ -1203,7 +1203,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
         idxn->hist[i] = NULL;
       newn->idxnode = idxn;
       newn->idxnode_pos = 0;
-      if (!ut_hhAdd (whc->idx_hash, idxn))
+      if (!ddsrt_hh_add (whc->idx_hash, idxn))
         assert (0);
     }
     else

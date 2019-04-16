@@ -32,7 +32,7 @@ DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_topic)
 #define DDS_TOPIC_STATUS_MASK                                    \
                         DDS_INCONSISTENT_TOPIC_STATUS
 
-const ut_avlTreedef_t dds_topictree_def = UT_AVL_TREEDEF_INITIALIZER_INDKEY
+const ddsrt_avl_treedef_t dds_topictree_def = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY
 (
   offsetof (struct ddsi_sertopic, avlnode),
   offsetof (struct ddsi_sertopic, name_typename),
@@ -118,17 +118,17 @@ dds_topic_lookup_locked(
         const char *name)
 {
     struct ddsi_sertopic *st = NULL;
-    ut_avlIter_t iter;
+    ddsrt_avl_iter_t iter;
 
     assert (domain);
     assert (name);
 
-    st = ut_avlIterFirst (&dds_topictree_def, &domain->m_topics, &iter);
+    st = ddsrt_avl_iter_first (&dds_topictree_def, &domain->m_topics, &iter);
     while (st) {
         if (strcmp (st->name, name) == 0) {
             break;
         }
-        st = ut_avlIterNext (&iter);
+        st = ddsrt_avl_iter_next (&iter);
     }
     return st;
 }
@@ -155,9 +155,9 @@ dds_topic_free(
     assert (st);
 
     ddsrt_mutex_lock (&dds_global.m_mutex);
-    domain = ut_avlLookup (&dds_domaintree_def, &dds_global.m_domains, &domainid);
+    domain = ddsrt_avl_lookup (&dds_domaintree_def, &dds_global.m_domains, &domainid);
     if (domain != NULL) {
-        ut_avlDelete (&dds_topictree_def, &domain->m_topics, st);
+        ddsrt_avl_delete (&dds_topictree_def, &domain->m_topics, st);
     }
     ddsrt_mutex_unlock (&dds_global.m_mutex);
     st->status_cb_entity = NULL;
@@ -172,7 +172,7 @@ dds_topic_add_locked(
     dds_domain * dom;
     dom = dds_domain_find_locked (id);
     assert (dom);
-    ut_avlInsert (&dds_topictree_def, &dom->m_topics, st);
+    ddsrt_avl_insert (&dds_topictree_def, &dom->m_topics, st);
 }
 
 DDS_EXPORT dds_entity_t

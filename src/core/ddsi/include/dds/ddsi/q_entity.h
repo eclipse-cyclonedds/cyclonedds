@@ -13,7 +13,7 @@
 #define Q_ENTITY_H
 
 #include "dds/ddsrt/atomics.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_lat_estim.h"
@@ -54,12 +54,12 @@ status_cb_data_t;
 typedef void (*status_cb_t) (void *entity, const status_cb_data_t *data);
 
 struct prd_wr_match {
-  ut_avlNode_t avlnode;
+  ddsrt_avl_node_t avlnode;
   nn_guid_t wr_guid;
 };
 
 struct rd_pwr_match {
-  ut_avlNode_t avlnode;
+  ddsrt_avl_node_t avlnode;
   nn_guid_t pwr_guid;
 #ifdef DDSI_INCLUDE_SSM
   nn_locator_t ssm_mc_loc;
@@ -68,17 +68,17 @@ struct rd_pwr_match {
 };
 
 struct wr_rd_match {
-  ut_avlNode_t avlnode;
+  ddsrt_avl_node_t avlnode;
   nn_guid_t rd_guid;
 };
 
 struct rd_wr_match {
-  ut_avlNode_t avlnode;
+  ddsrt_avl_node_t avlnode;
   nn_guid_t wr_guid;
 };
 
 struct wr_prd_match {
-  ut_avlNode_t avlnode;
+  ddsrt_avl_node_t avlnode;
   nn_guid_t prd_guid; /* guid of the proxy reader */
   unsigned assumed_in_sync: 1; /* set to 1 upon receipt of ack not nack'ing msgs */
   unsigned has_replied_to_hb: 1; /* we must keep sending HBs until all readers have this set */
@@ -105,7 +105,7 @@ enum pwr_rd_match_syncstate {
 };
 
 struct pwr_rd_match {
-  ut_avlNode_t avlnode;
+  ddsrt_avl_node_t avlnode;
   nn_guid_t rd_guid;
   nn_mtime_t tcreate;
   nn_count_t count; /* most recent acknack sequence number */
@@ -247,8 +247,8 @@ struct writer
   nn_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
   nn_etime_t t_whc_high_upd; /* time "whc_high" was last updated for controlled ramp-up of throughput */
   int num_reliable_readers; /* number of matching reliable PROXY readers */
-  ut_avlTree_t readers; /* all matching PROXY readers, see struct wr_prd_match */
-  ut_avlTree_t local_readers; /* all matching LOCAL readers, see struct wr_rd_match */
+  ddsrt_avl_tree_t readers; /* all matching PROXY readers, see struct wr_prd_match */
+  ddsrt_avl_tree_t local_readers; /* all matching LOCAL readers, see struct wr_rd_match */
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   uint32_t partition_id;
 #endif
@@ -280,8 +280,8 @@ struct reader
   struct addrset *as;
 #endif
   const struct ddsi_sertopic * topic; /* topic is NULL for built-in readers */
-  ut_avlTree_t writers; /* all matching PROXY writers, see struct rd_pwr_match */
-  ut_avlTree_t local_writers; /* all matching LOCAL writers, see struct rd_wr_match */
+  ddsrt_avl_tree_t writers; /* all matching PROXY writers, see struct rd_pwr_match */
+  ddsrt_avl_tree_t local_writers; /* all matching LOCAL writers, see struct rd_wr_match */
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
 };
@@ -299,7 +299,7 @@ struct proxy_participant
   struct addrset *as_default; /* default address set to use for user data traffic */
   struct addrset *as_meta; /* default address set to use for discovery traffic */
   struct proxy_endpoint_common *endpoints; /* all proxy endpoints can be reached from here */
-  ut_avlTree_t groups; /* table of all groups (publisher, subscriber), see struct proxy_group */
+  ddsrt_avl_tree_t groups; /* table of all groups (publisher, subscriber), see struct proxy_group */
   unsigned kernel_sequence_numbers : 1; /* whether this proxy participant generates OSPL kernel sequence numbers */
   unsigned implicitly_created : 1; /* participants are implicitly created for Cloud/Fog discovered endpoints */
   unsigned is_ddsi2_pp: 1; /* if this is the federation-leader on the remote node */
@@ -318,7 +318,7 @@ struct proxy_participant
    tables, but "groups" only live in the context of a proxy
    participant. */
 struct proxy_group {
-  ut_avlNode_t avlnode;
+  ddsrt_avl_node_t avlnode;
   nn_guid_t guid;
   char *name;
   struct proxy_participant *proxypp; /* uncounted backref to proxy participant */
@@ -340,7 +340,7 @@ struct proxy_endpoint_common
 struct proxy_writer {
   struct entity_common e;
   struct proxy_endpoint_common c;
-  ut_avlTree_t readers; /* matching LOCAL readers, see pwr_rd_match */
+  ddsrt_avl_tree_t readers; /* matching LOCAL readers, see pwr_rd_match */
   int n_reliable_readers; /* number of those that are reliable */
   int n_readers_out_of_sync; /* number of those that require special handling (accepting historical data, waiting for historical data set to become complete) */
   seqno_t last_seq; /* highest known seq published by the writer, not last delivered */
@@ -373,16 +373,16 @@ struct proxy_reader {
 #ifdef DDSI_INCLUDE_SSM
   unsigned favours_ssm: 1; /* iff 1, this proxy reader favours SSM when available */
 #endif
-  ut_avlTree_t writers; /* matching LOCAL writers */
+  ddsrt_avl_tree_t writers; /* matching LOCAL writers */
 };
 
-extern const ut_avlTreedef_t wr_readers_treedef;
-extern const ut_avlTreedef_t wr_local_readers_treedef;
-extern const ut_avlTreedef_t rd_writers_treedef;
-extern const ut_avlTreedef_t rd_local_writers_treedef;
-extern const ut_avlTreedef_t pwr_readers_treedef;
-extern const ut_avlTreedef_t prd_writers_treedef;
-extern const ut_avlTreedef_t deleted_participants_treedef;
+extern const ddsrt_avl_treedef_t wr_readers_treedef;
+extern const ddsrt_avl_treedef_t wr_local_readers_treedef;
+extern const ddsrt_avl_treedef_t rd_writers_treedef;
+extern const ddsrt_avl_treedef_t rd_local_writers_treedef;
+extern const ddsrt_avl_treedef_t pwr_readers_treedef;
+extern const ddsrt_avl_treedef_t prd_writers_treedef;
+extern const ddsrt_avl_treedef_t deleted_participants_treedef;
 
 #define DPG_LOCAL 1
 #define DPG_REMOTE 2

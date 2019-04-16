@@ -20,7 +20,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/string.h"
 
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds__stream.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_rtps.h"
@@ -767,7 +767,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   }
 
   ddsrt_mutex_lock (&wr->e.lock);
-  if ((rn = ut_avlLookup (&wr_readers_treedef, &wr->readers, &src)) == NULL)
+  if ((rn = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &src)) == NULL)
   {
     DDS_TRACE(" %x:%x:%x:%x -> %x:%x:%x:%x not a connection)", PGUID (src), PGUID (dst));
     goto out;
@@ -823,7 +823,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
          that rn->seq <= wr->seq) */
       rn->seq = wr->seq;
     }
-    ut_avlAugmentUpdate (&wr_readers_treedef, rn);
+    ddsrt_avl_augment_update (&wr_readers_treedef, rn);
     n = remove_acked_messages (wr, &whcst, &deferred_free_list);
     DDS_TRACE(" ACK%"PRId64" RM%u", n_ack, n);
   }
@@ -850,7 +850,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
          that rn->seq <= wr->seq) */
       rn->seq = wr->seq;
     }
-    ut_avlAugmentUpdate (&wr_readers_treedef, rn);
+    ddsrt_avl_augment_update (&wr_readers_treedef, rn);
     DDS_LOG(DDS_LC_THROTTLE, "writer %x:%x:%x:%x considering reader %x:%x:%x:%x responsive again\n", PGUID (wr->e.guid), PGUID (rn->prd_guid));
   }
 
@@ -867,7 +867,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     rn->has_replied_to_hb = 1;
     /* walk the whole tree to ensure all proxy readers for this writer
        have their unack'ed info updated */
-    ut_avlAugmentUpdate (&wr_readers_treedef, rn);
+    ddsrt_avl_augment_update (&wr_readers_treedef, rn);
   }
   if (is_preemptive_ack)
   {
@@ -1075,7 +1075,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   return 1;
 }
 
-static void handle_forall_destinations (const nn_guid_t *dst, struct proxy_writer *pwr, ut_avlWalk_t fun, void *arg)
+static void handle_forall_destinations (const nn_guid_t *dst, struct proxy_writer *pwr, ddsrt_avl_walk_t fun, void *arg)
 {
   /* prefix:  id:   to:
      0        0     all matched readers
@@ -1093,12 +1093,12 @@ static void handle_forall_destinations (const nn_guid_t *dst, struct proxy_write
   switch ((haveprefix << 1) | haveid)
   {
     case (0 << 1) | 0: /* all: full treewalk */
-      ut_avlWalk (&pwr_readers_treedef, &pwr->readers, fun, arg);
+      ddsrt_avl_walk (&pwr_readers_treedef, &pwr->readers, fun, arg);
       break;
     case (0 << 1) | 1: /* all with correct entityid: special filtering treewalk */
       {
         struct pwr_rd_match *wn;
-        for (wn = ut_avlFindMin (&pwr_readers_treedef, &pwr->readers); wn; wn = ut_avlFindSucc (&pwr_readers_treedef, &pwr->readers, wn))
+        for (wn = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers); wn; wn = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, wn))
         {
           if (wn->rd_guid.entityid.u == dst->entityid.u)
             fun (wn, arg);
@@ -1110,13 +1110,13 @@ static void handle_forall_destinations (const nn_guid_t *dst, struct proxy_write
         nn_guid_t a, b;
         a = *dst; a.entityid.u = 0;
         b = *dst; b.entityid.u = ~0u;
-        ut_avlWalkRange (&pwr_readers_treedef, &pwr->readers, &a, &b, fun, arg);
+        ddsrt_avl_walk_range (&pwr_readers_treedef, &pwr->readers, &a, &b, fun, arg);
       }
       break;
     case (1 << 1) | 1: /* fully addressed: dst should exist (but for removal) */
       {
         struct pwr_rd_match *wn;
-        if ((wn = ut_avlLookup (&pwr_readers_treedef, &pwr->readers, dst)) != NULL)
+        if ((wn = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, dst)) != NULL)
           fun (wn, arg);
       }
       break;
@@ -1289,7 +1289,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
       else
         nn_dqueue_enqueue (pwr->dqueue, &sc, res);
     }
-    for (wn = ut_avlFindMin (&pwr_readers_treedef, &pwr->readers); wn; wn = ut_avlFindSucc (&pwr_readers_treedef, &pwr->readers, wn))
+    for (wn = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers); wn; wn = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, wn))
       if (wn->in_sync != PRMSS_SYNC)
       {
         seqno_t last_deliv_seq = 0;
@@ -1324,7 +1324,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
   arg.timestamp = timestamp;
   arg.tnow = tnow;
   arg.tnow_mt = now_mt ();
-  handle_forall_destinations (&dst, pwr, (ut_avlWalk_t) handle_Heartbeat_helper, &arg);
+  handle_forall_destinations (&dst, pwr, (ddsrt_avl_walk_t) handle_Heartbeat_helper, &arg);
   DDS_TRACE(")");
 
   ddsrt_mutex_unlock (&pwr->e.lock);
@@ -1380,7 +1380,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
      discover a missing fragment, which differs significantly from
      handle_Heartbeat's scheduling of an AckNack event when it must
      respond.  Why?  Just because. */
-  if (ut_avlIsEmpty (&pwr->readers) || pwr->local_matching_inprogress)
+  if (ddsrt_avl_is_empty (&pwr->readers) || pwr->local_matching_inprogress)
     DDS_TRACE(" no readers");
   else
   {
@@ -1392,19 +1392,19 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
          assuming a reliable writer -> unreliable reader is rare, and
          so scanning the readers is acceptable if the first guess
          fails */
-      m = ut_avlRootNonEmpty (&pwr_readers_treedef, &pwr->readers);
+      m = ddsrt_avl_root_non_empty (&pwr_readers_treedef, &pwr->readers);
       if (m->acknack_xevent == NULL)
       {
-        m = ut_avlFindMin (&pwr_readers_treedef, &pwr->readers);
+        m = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers);
         while (m && m->acknack_xevent == NULL)
-          m = ut_avlFindSucc (&pwr_readers_treedef, &pwr->readers, m);
+          m = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, m);
       }
     }
     else if (seq < nn_reorder_next_seq (pwr->reorder))
     {
       /* Check out-of-sync readers -- should add a bit to cheaply test
          whether there are any (usually there aren't) */
-      m = ut_avlFindMin (&pwr_readers_treedef, &pwr->readers);
+      m = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers);
       while (m)
       {
         if ((m->in_sync == PRMSS_OUT_OF_SYNC) && m->acknack_xevent != NULL && nn_reorder_wantsample (m->u.not_in_sync.reorder, seq))
@@ -1414,7 +1414,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
              reader to decide which fragments to nack */
           break;
         }
-        m = ut_avlFindSucc (&pwr_readers_treedef, &pwr->readers, m);
+        m = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, m);
       }
     }
 
@@ -1495,7 +1495,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
   }
 
   ddsrt_mutex_lock (&wr->e.lock);
-  if ((rn = ut_avlLookup (&wr_readers_treedef, &wr->readers, &src)) == NULL)
+  if ((rn = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &src)) == NULL)
   {
     DDS_TRACE(" %x:%x:%x:%x -> %x:%x:%x:%x not a connection", PGUID (src), PGUID (dst));
     goto out;
@@ -1737,7 +1737,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
     lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
 
   ddsrt_mutex_lock (&pwr->e.lock);
-  if ((wn = ut_avlLookup (&pwr_readers_treedef, &pwr->readers, &dst)) == NULL)
+  if ((wn = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &dst)) == NULL)
   {
     DDS_TRACE("%x:%x:%x:%x -> %x:%x:%x:%x not a connection)", PGUID (src), PGUID (dst));
     ddsrt_mutex_unlock (&pwr->e.lock);
@@ -2069,11 +2069,11 @@ retry:
              we fall back to using the GUIDs so that we can deliver all
              samples we received from it. As writer being deleted any
              reliable samples that are rejected are simply discarded. */
-          ut_avlIter_t it;
+          ddsrt_avl_iter_t it;
           struct pwr_rd_match *m;
           ddsrt_mutex_unlock (&pwr->rdary.rdary_lock);
           if (!pwr_locked) ddsrt_mutex_lock (&pwr->e.lock);
-          for (m = ut_avlIterFirst (&pwr_readers_treedef, &pwr->readers, &it); m != NULL; m = ut_avlIterNext (&it))
+          for (m = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, &it); m != NULL; m = ddsrt_avl_iter_next (&it))
           {
             struct reader *rd;
             if ((rd = ephash_lookup_reader_guid (&m->rd_guid)) != NULL)
@@ -2138,7 +2138,7 @@ static void clean_defrag (struct proxy_writer *pwr)
   if (pwr->n_readers_out_of_sync > 0)
   {
     struct pwr_rd_match *wn;
-    for (wn = ut_avlFindMin (&pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ut_avlFindSucc (&pwr_readers_treedef, &pwr->readers, wn))
+    for (wn = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, wn))
     {
       if (wn->in_sync == PRMSS_OUT_OF_SYNC)
       {
@@ -2199,7 +2199,7 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
     return;
   }
 
-  if (ut_avlIsEmpty (&pwr->readers) || pwr->local_matching_inprogress)
+  if (ddsrt_avl_is_empty (&pwr->readers) || pwr->local_matching_inprogress)
   {
     ddsrt_mutex_unlock (&pwr->e.lock);
     DDS_TRACE(" %x:%x:%x:%x -> %x:%x:%x:%x: no readers", PGUID (pwr->e.guid), PGUID (dst));
@@ -2274,9 +2274,9 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
            writer may have become in sync with the proxy writer and the
            writer; those catching up with TL all by themselves go through
            the "TOO_OLD" path below. */
-        ut_avlIter_t it;
+        ddsrt_avl_iter_t it;
         struct pwr_rd_match *wn;
-        for (wn = ut_avlIterFirst (&pwr_readers_treedef, &pwr->readers, &it); wn != NULL; wn = ut_avlIterNext (&it))
+        for (wn = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, &it); wn != NULL; wn = ddsrt_avl_iter_next (&it))
           if (wn->in_sync == PRMSS_TLCATCHUP)
             maybe_set_reader_in_sync (pwr, wn, sampleinfo->seq);
       }
@@ -2286,7 +2286,7 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
       struct pwr_rd_match *wn;
       struct nn_rsample *rsample_dup = NULL;
       int reuse_rsample_dup = 0;
-      for (wn = ut_avlFindMin (&pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ut_avlFindSucc (&pwr_readers_treedef, &pwr->readers, wn))
+      for (wn = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, wn))
       {
         nn_reorder_result_t rres2;
         if (wn->in_sync != PRMSS_OUT_OF_SYNC || sampleinfo->seq > wn->u.not_in_sync.end_of_out_of_sync_seq)
@@ -2380,7 +2380,7 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
     dst.entityid = msg->readerId;
 
     ddsrt_mutex_lock (&pwr->e.lock);
-    wn = ut_avlLookup (&pwr_readers_treedef, &pwr->readers, &dst);
+    wn = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &dst);
     gap_was_valuable = handle_one_gap (pwr, wn, sampleinfo->seq, sampleinfo->seq+1, gap, &refc_adjust);
     nn_fragchain_adjust_refcount (gap, refc_adjust);
     ddsrt_mutex_unlock (&pwr->e.lock);

@@ -15,7 +15,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
-#include "dds/util/ut_hopscotch.h"
+#include "dds/ddsrt/hopscotch.h"
 
 #define HH_HOP_RANGE 32
 #define HH_ADD_RANGE 64
@@ -27,45 +27,45 @@
 #define N_BACKING_LOCKS 32
 #define N_RESIZE_LOCKS 8
 
-struct ut_chhBucket {
+struct ddsrt_chh_bucket {
     ddsrt_atomic_uint32_t hopinfo;
     ddsrt_atomic_uint32_t timestamp;
     ddsrt_atomic_uint32_t lock;
     ddsrt_atomic_voidp_t data;
 };
 
-struct ut_chhBucketArray {
+struct ddsrt_chh_bucket_array {
     uint32_t size; /* power of 2 */
-    struct ut_chhBucket bs[];
+    struct ddsrt_chh_bucket bs[];
 };
 
-struct ut_chhBackingLock {
+struct ddsrt_chh_backing_lock {
     ddsrt_mutex_t lock;
     ddsrt_cond_t cv;
 };
 
-struct ut_chh {
-    ddsrt_atomic_voidp_t buckets; /* struct ut_chhBucketArray * */
-    struct ut_chhBackingLock backingLocks[N_BACKING_LOCKS];
-    ut_hhHash_fn hash;
-    ut_hhEquals_fn equals;
+struct ddsrt_chh {
+    ddsrt_atomic_voidp_t buckets; /* struct ddsrt_chh_bucket_array * */
+    struct ddsrt_chh_backing_lock backingLocks[N_BACKING_LOCKS];
+    ddsrt_hh_hash_fn hash;
+    ddsrt_hh_equals_fn equals;
     ddsrt_rwlock_t resize_locks[N_RESIZE_LOCKS];
-    ut_hhBucketsGc_fn gc_buckets;
+    ddsrt_hh_buckets_gc_fn gc_buckets;
 };
 
 #define CHH_MAX_TRIES 4
 #define CHH_BUSY ((void *) 1)
 
-static int ut_chhDataValid_p (void *data)
+static int ddsrt_chh_data_valid_p (void *data)
 {
     return data != NULL && data != CHH_BUSY;
 }
 
-static int ut_chhInit (struct ut_chh *rt, uint32_t init_size, ut_hhHash_fn hash, ut_hhEquals_fn equals, ut_hhBucketsGc_fn gc_buckets)
+static int ddsrt_chh_init (struct ddsrt_chh *rt, uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets)
 {
     uint32_t size;
     uint32_t i;
-    struct ut_chhBucketArray *buckets;
+    struct ddsrt_chh_bucket_array *buckets;
 
     size = HH_HOP_RANGE;
     while (size < init_size) {
@@ -75,11 +75,11 @@ static int ut_chhInit (struct ut_chh *rt, uint32_t init_size, ut_hhHash_fn hash,
     rt->equals = equals;
     rt->gc_buckets = gc_buckets;
 
-    buckets = ddsrt_malloc (offsetof (struct ut_chhBucketArray, bs) + size * sizeof (*buckets->bs));
+    buckets = ddsrt_malloc (offsetof (struct ddsrt_chh_bucket_array, bs) + size * sizeof (*buckets->bs));
     ddsrt_atomic_stvoidp (&rt->buckets, buckets);
     buckets->size = size;
     for (i = 0; i < size; i++) {
-        struct ut_chhBucket *b = &buckets->bs[i];
+        struct ddsrt_chh_bucket *b = &buckets->bs[i];
         ddsrt_atomic_st32 (&b->hopinfo, 0);
         ddsrt_atomic_st32 (&b->timestamp, 0);
         ddsrt_atomic_st32 (&b->lock, 0);
@@ -87,7 +87,7 @@ static int ut_chhInit (struct ut_chh *rt, uint32_t init_size, ut_hhHash_fn hash,
     }
 
     for (i = 0; i < N_BACKING_LOCKS; i++) {
-        struct ut_chhBackingLock *s = &rt->backingLocks[i];
+        struct ddsrt_chh_backing_lock *s = &rt->backingLocks[i];
         ddsrt_mutex_init (&s->lock);
         ddsrt_cond_init (&s->cv);
     }
@@ -97,12 +97,12 @@ static int ut_chhInit (struct ut_chh *rt, uint32_t init_size, ut_hhHash_fn hash,
     return 0;
 }
 
-static void ut_chhFini (struct ut_chh *rt)
+static void ddsrt_chh_fini (struct ddsrt_chh *rt)
 {
     int i;
     ddsrt_free (ddsrt_atomic_ldvoidp (&rt->buckets));
     for (i = 0; i < N_BACKING_LOCKS; i++) {
-        struct ut_chhBackingLock *s = &rt->backingLocks[i];
+        struct ddsrt_chh_backing_lock *s = &rt->backingLocks[i];
         ddsrt_cond_destroy (&s->cv);
         ddsrt_mutex_destroy (&s->lock);
     }
@@ -111,10 +111,10 @@ static void ut_chhFini (struct ut_chh *rt)
     }
 }
 
-struct ut_chh *ut_chhNew (uint32_t init_size, ut_hhHash_fn hash, ut_hhEquals_fn equals, ut_hhBucketsGc_fn gc_buckets)
+struct ddsrt_chh *ddsrt_chh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets)
 {
-    struct ut_chh *hh = ddsrt_malloc (sizeof (*hh));
-    if (ut_chhInit (hh, init_size, hash, equals, gc_buckets) < 0) {
+    struct ddsrt_chh *hh = ddsrt_malloc (sizeof (*hh));
+    if (ddsrt_chh_init (hh, init_size, hash, equals, gc_buckets) < 0) {
         ddsrt_free (hh);
         return NULL;
     } else {
@@ -122,22 +122,22 @@ struct ut_chh *ut_chhNew (uint32_t init_size, ut_hhHash_fn hash, ut_hhEquals_fn 
     }
 }
 
-void ut_chhFree (struct ut_chh * UT_HH_RESTRICT hh)
+void ddsrt_chh_free (struct ddsrt_chh * __restrict hh)
 {
-    ut_chhFini (hh);
+    ddsrt_chh_fini (hh);
     ddsrt_free (hh);
 }
 
 #define LOCKBIT ((uint32_t)1 << 31)
 
-static void ut_chhLockBucket (struct ut_chh *rt, uint32_t bidx)
+static void ddsrt_chh_lock_bucket (struct ddsrt_chh *rt, uint32_t bidx)
 {
     /* Lock: MSB <=> LOCKBIT, LSBs <=> wait count; note that
        (o&LOCKBIT)==0 means a thread can sneak in when there are
        already waiters, changing it to o==0 would avoid that. */
-    struct ut_chhBucketArray * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
-    struct ut_chhBucket * const b = &bsary->bs[bidx];
-    struct ut_chhBackingLock * const s = &rt->backingLocks[bidx % N_BACKING_LOCKS];
+    struct ddsrt_chh_bucket_array * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
+    struct ddsrt_chh_bucket * const b = &bsary->bs[bidx];
+    struct ddsrt_chh_backing_lock * const s = &rt->backingLocks[bidx % N_BACKING_LOCKS];
     uint32_t o, n;
  fastpath_retry:
     o = ddsrt_atomic_ld32 (&b->lock);
@@ -162,11 +162,11 @@ static void ut_chhLockBucket (struct ut_chh *rt, uint32_t bidx)
     }
 }
 
-static void ut_chhUnlockBucket (struct ut_chh *rt, uint32_t bidx)
+static void ddsrt_chh_unlock_bucket (struct ddsrt_chh *rt, uint32_t bidx)
 {
-    struct ut_chhBucketArray * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
-    struct ut_chhBucket * const b = &bsary->bs[bidx];
-    struct ut_chhBackingLock * const s = &rt->backingLocks[bidx % N_BACKING_LOCKS];
+    struct ddsrt_chh_bucket_array * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
+    struct ddsrt_chh_bucket * const b = &bsary->bs[bidx];
+    struct ddsrt_chh_backing_lock * const s = &rt->backingLocks[bidx % N_BACKING_LOCKS];
     uint32_t o, n;
  retry:
     o = ddsrt_atomic_ld32 (&b->lock);
@@ -190,9 +190,9 @@ static void ut_chhUnlockBucket (struct ut_chh *rt, uint32_t bidx)
     }
 }
 
-static void *ut_chhLookupInternal (struct ut_chhBucketArray const * const bsary, ut_hhEquals_fn equals, const uint32_t bucket, const void *template)
+static void *ddsrt_chh_lookup_internal (struct ddsrt_chh_bucket_array const * const bsary, ddsrt_hh_equals_fn equals, const uint32_t bucket, const void *template)
 {
-    struct ut_chhBucket const * const bs = bsary->bs;
+    struct ddsrt_chh_bucket const * const bs = bsary->bs;
     const uint32_t idxmask = bsary->size - 1;
     uint32_t timestamp;
     int try_counter = 0;
@@ -205,7 +205,7 @@ static void *ut_chhLookupInternal (struct ut_chhBucketArray const * const bsary,
         for (idx = 0; hopinfo != 0; hopinfo >>= 1, idx++) {
             const uint32_t bidx = (bucket + idx) & idxmask;
             void *data = ddsrt_atomic_ldvoidp (&bs[bidx].data);
-            if (ut_chhDataValid_p (data) && equals (data, template)) {
+            if (ddsrt_chh_data_valid_p (data) && equals (data, template)) {
                 return data;
             }
         }
@@ -218,7 +218,7 @@ static void *ut_chhLookupInternal (struct ut_chhBucketArray const * const bsary,
         for (idx = 0; idx < HH_HOP_RANGE; idx++) {
             const uint32_t bidx = (bucket + idx) & idxmask;
             void *data = ddsrt_atomic_ldvoidp (&bs[bidx].data);
-            if (ut_chhDataValid_p (data) && equals (data, template)) {
+            if (ddsrt_chh_data_valid_p (data) && equals (data, template)) {
                 return data;
             }
         }
@@ -232,19 +232,19 @@ static void *ut_chhLookupInternal (struct ut_chhBucketArray const * const bsary,
         ddsrt_atomic_st32 (var__, (expr_));                                  \
     } while (0)
 
-void *ut_chhLookup (struct ut_chh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT template)
+void *ddsrt_chh_lookup (struct ddsrt_chh * __restrict rt, const void * __restrict template)
 {
-    struct ut_chhBucketArray const * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
+    struct ddsrt_chh_bucket_array const * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
     const uint32_t hash = rt->hash (template);
     const uint32_t idxmask = bsary->size - 1;
     const uint32_t bucket = hash & idxmask;
-    return ut_chhLookupInternal (bsary, rt->equals, bucket, template);
+    return ddsrt_chh_lookup_internal (bsary, rt->equals, bucket, template);
 }
 
-static uint32_t ut_chhFindCloserFreeBucket (struct ut_chh *rt, uint32_t free_bucket, uint32_t *free_distance)
+static uint32_t ddsrt_chh_find_closer_free_bucket (struct ddsrt_chh *rt, uint32_t free_bucket, uint32_t *free_distance)
 {
-    struct ut_chhBucketArray * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
-    struct ut_chhBucket * const bs = bsary->bs;
+    struct ddsrt_chh_bucket_array * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
+    struct ddsrt_chh_bucket * const bs = bsary->bs;
     const uint32_t idxmask = bsary->size - 1;
     uint32_t move_bucket, free_dist;
     move_bucket = (free_bucket - (HH_HOP_RANGE - 1)) & idxmask;
@@ -260,7 +260,7 @@ static uint32_t ut_chhFindCloserFreeBucket (struct ut_chh *rt, uint32_t free_buc
             }
         }
         if (move_free_distance != NOT_A_BUCKET) {
-            ut_chhLockBucket (rt, move_bucket);
+            ddsrt_chh_lock_bucket (rt, move_bucket);
             if (start_hop_info == ddsrt_atomic_ld32 (&bs[move_bucket].hopinfo))
             {
                 uint32_t new_free_bucket = (move_bucket + move_free_distance) & idxmask;
@@ -272,31 +272,31 @@ static uint32_t ut_chhFindCloserFreeBucket (struct ut_chh *rt, uint32_t free_buc
                 ddsrt_atomic_rmw32_nonatomic (&bs[move_bucket].hopinfo, x, x & ~(1u << move_free_distance));
 
                 *free_distance -= free_dist - move_free_distance;
-                ut_chhUnlockBucket (rt, move_bucket);
+                ddsrt_chh_unlock_bucket (rt, move_bucket);
                 return new_free_bucket;
             }
-            ut_chhUnlockBucket (rt, move_bucket);
+            ddsrt_chh_unlock_bucket (rt, move_bucket);
         }
         move_bucket = (move_bucket + 1) & idxmask;
     }
     return NOT_A_BUCKET;
 }
 
-static void ut_chhResize (struct ut_chh *rt)
+static void ddsrt_chh_resize (struct ddsrt_chh *rt)
 {
     /* doubles the size => bucket index gains one bit at the msb =>
        start bucket is unchanged or moved into the added half of the set
        => those for which the (new) msb is 0 are guaranteed to fit, and
        so are those for which the (new) msb is 1 => never have to resize
        recursively */
-    struct ut_chhBucketArray * const bsary0 = ddsrt_atomic_ldvoidp (&rt->buckets);
-    struct ut_chhBucket * const bs0 = bsary0->bs;
-    struct ut_chhBucketArray *bsary1;
-    struct ut_chhBucket *bs1;
+    struct ddsrt_chh_bucket_array * const bsary0 = ddsrt_atomic_ldvoidp (&rt->buckets);
+    struct ddsrt_chh_bucket * const bs0 = bsary0->bs;
+    struct ddsrt_chh_bucket_array *bsary1;
+    struct ddsrt_chh_bucket *bs1;
     uint32_t i, idxmask0, idxmask1;
 
     assert (bsary0->size > 0);
-    bsary1 = ddsrt_malloc (offsetof (struct ut_chhBucketArray, bs) + 2 * bsary0->size * sizeof (*bsary1->bs));
+    bsary1 = ddsrt_malloc (offsetof (struct ddsrt_chh_bucket_array, bs) + 2 * bsary0->size * sizeof (*bsary1->bs));
     bsary1->size = 2 * bsary0->size;
     bs1 = bsary1->bs;
 
@@ -327,15 +327,15 @@ static void ut_chhResize (struct ut_chh *rt)
     rt->gc_buckets (bsary0);
 }
 
-int ut_chhAdd (struct ut_chh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT data)
+int ddsrt_chh_add (struct ddsrt_chh * __restrict rt, const void * __restrict data)
 {
     const uint32_t hash = rt->hash (data);
     uint32_t size;
     ddsrt_rwlock_read (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
 
     {
-        struct ut_chhBucketArray * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
-        struct ut_chhBucket * const bs = bsary->bs;
+        struct ddsrt_chh_bucket_array * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
+        struct ddsrt_chh_bucket * const bs = bsary->bs;
         uint32_t idxmask;
         uint32_t start_bucket, free_distance, free_bucket;
 
@@ -343,9 +343,9 @@ int ut_chhAdd (struct ut_chh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT da
         idxmask = size - 1;
         start_bucket = hash & idxmask;
 
-        ut_chhLockBucket (rt, start_bucket);
-        if (ut_chhLookupInternal (bsary, rt->equals, start_bucket, data)) {
-            ut_chhUnlockBucket (rt, start_bucket);
+        ddsrt_chh_lock_bucket (rt, start_bucket);
+        if (ddsrt_chh_lookup_internal (bsary, rt->equals, start_bucket, data)) {
+            ddsrt_chh_unlock_bucket (rt, start_bucket);
             ddsrt_rwlock_unlock (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
             return 0;
         }
@@ -365,77 +365,77 @@ int ut_chhAdd (struct ut_chh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT da
                     ddsrt_atomic_rmw32_nonatomic (&bs[start_bucket].hopinfo, x, x | (1u << free_distance));
                     ddsrt_atomic_fence ();
                     ddsrt_atomic_stvoidp (&bs[free_bucket].data, (void *) data);
-                    ut_chhUnlockBucket (rt, start_bucket);
+                    ddsrt_chh_unlock_bucket (rt, start_bucket);
                     ddsrt_rwlock_unlock (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
                     return 1;
                 }
-                free_bucket = ut_chhFindCloserFreeBucket (rt, free_bucket, &free_distance);
+                free_bucket = ddsrt_chh_find_closer_free_bucket (rt, free_bucket, &free_distance);
                 assert (free_bucket == NOT_A_BUCKET || free_bucket <= idxmask);
             } while (free_bucket != NOT_A_BUCKET);
         }
-        ut_chhUnlockBucket (rt, start_bucket);
+        ddsrt_chh_unlock_bucket (rt, start_bucket);
     }
 
     ddsrt_rwlock_unlock (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
 
     {
         int i;
-        struct ut_chhBucketArray *bsary1;
+        struct ddsrt_chh_bucket_array *bsary1;
         for (i = 0; i < N_RESIZE_LOCKS; i++) {
             ddsrt_rwlock_write (&rt->resize_locks[i]);
         }
         /* another thread may have sneaked past and grown the hash table */
         bsary1 = ddsrt_atomic_ldvoidp (&rt->buckets);
         if (bsary1->size == size) {
-            ut_chhResize (rt);
+            ddsrt_chh_resize (rt);
         }
         for (i = 0; i < N_RESIZE_LOCKS; i++) {
             ddsrt_rwlock_unlock (&rt->resize_locks[i]);
         }
     }
 
-    return ut_chhAdd (rt, data);
+    return ddsrt_chh_add (rt, data);
 }
 
-int ut_chhRemove (struct ut_chh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT template)
+int ddsrt_chh_remove (struct ddsrt_chh * __restrict rt, const void * __restrict template)
 {
     const uint32_t hash = rt->hash (template);
     ddsrt_rwlock_read (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
 
     {
-        struct ut_chhBucketArray * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
-        struct ut_chhBucket * const bs = bsary->bs;
+        struct ddsrt_chh_bucket_array * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
+        struct ddsrt_chh_bucket * const bs = bsary->bs;
         const uint32_t size = bsary->size;
         const uint32_t idxmask = size - 1;
         const uint32_t bucket = hash & idxmask;
         uint32_t hopinfo;
         uint32_t idx;
-        ut_chhLockBucket (rt, bucket);
+        ddsrt_chh_lock_bucket (rt, bucket);
         hopinfo = ddsrt_atomic_ld32 (&bs[bucket].hopinfo);
         for (idx = 0; hopinfo != 0; hopinfo >>= 1, idx++) {
             if (hopinfo & 1) {
                 const uint32_t bidx = (bucket + idx) & idxmask;
                 void *data = ddsrt_atomic_ldvoidp (&bs[bidx].data);
-                if (ut_chhDataValid_p (data) && rt->equals (data, template)) {
+                if (ddsrt_chh_data_valid_p (data) && rt->equals (data, template)) {
                     ddsrt_atomic_stvoidp (&bs[bidx].data, NULL);
                     ddsrt_atomic_rmw32_nonatomic (&bs[bucket].hopinfo, x, x & ~(1u << idx));
-                    ut_chhUnlockBucket (rt, bucket);
+                    ddsrt_chh_unlock_bucket (rt, bucket);
                     ddsrt_rwlock_unlock (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
                     return 1;
                 }
             }
         }
-        ut_chhUnlockBucket (rt, bucket);
+        ddsrt_chh_unlock_bucket (rt, bucket);
     }
 
     ddsrt_rwlock_unlock (&rt->resize_locks[hash % N_RESIZE_LOCKS]);
     return 0;
 }
 
-void ut_chhEnumUnsafe (struct ut_chh * UT_HH_RESTRICT rt, void (*f) (void *a, void *f_arg), void *f_arg)
+void ddsrt_chh_enum_unsafe (struct ddsrt_chh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg)
 {
-    struct ut_chhBucketArray * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
-    struct ut_chhBucket * const bs = bsary->bs;
+    struct ddsrt_chh_bucket_array * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
+    struct ddsrt_chh_bucket * const bs = bsary->bs;
     uint32_t i;
     for (i = 0; i < bsary->size; i++) {
         void *data = ddsrt_atomic_ldvoidp (&bs[i].data);
@@ -445,7 +445,7 @@ void ut_chhEnumUnsafe (struct ut_chh * UT_HH_RESTRICT rt, void (*f) (void *a, vo
     }
 }
 
-void *ut_chhIterNext (struct ut_chhIter *it)
+void *ddsrt_chh_iter_next (struct ddsrt_chh_iter *it)
 {
   uint32_t i;
   for (i = it->cursor; i < it->size; i++) {
@@ -458,30 +458,30 @@ void *ut_chhIterNext (struct ut_chhIter *it)
   return NULL;
 }
 
-void *ut_chhIterFirst (struct ut_chh * UT_HH_RESTRICT rt, struct ut_chhIter *it)
+void *ddsrt_chh_iter_first (struct ddsrt_chh * __restrict rt, struct ddsrt_chh_iter *it)
 {
-  struct ut_chhBucketArray * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
+  struct ddsrt_chh_bucket_array * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
   it->bs = bsary->bs;
   it->size = bsary->size;
   it->cursor = 0;
-  return ut_chhIterNext (it);
+  return ddsrt_chh_iter_next (it);
 }
 
 /************* SEQUENTIAL VERSION ***************/
 
-struct ut_hhBucket {
+struct ddsrt_hh_bucket {
     uint32_t hopinfo;
     void *data;
 };
 
-struct ut_hh {
+struct ddsrt_hh {
     uint32_t size; /* power of 2 */
-    struct ut_hhBucket *buckets;
-    ut_hhHash_fn hash;
-    ut_hhEquals_fn equals;
+    struct ddsrt_hh_bucket *buckets;
+    ddsrt_hh_hash_fn hash;
+    ddsrt_hh_equals_fn equals;
 };
 
-static void ut_hhInit (struct ut_hh *rt, uint32_t init_size, ut_hhHash_fn hash, ut_hhEquals_fn equals)
+static void ddsrt_hh_init (struct ddsrt_hh *rt, uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals)
 {
     uint32_t size = HH_HOP_RANGE;
     uint32_t i;
@@ -498,25 +498,25 @@ static void ut_hhInit (struct ut_hh *rt, uint32_t init_size, ut_hhHash_fn hash, 
     }
 }
 
-static void ut_hhFini (struct ut_hh *rt)
+static void ddsrt_hh_fini (struct ddsrt_hh *rt)
 {
     ddsrt_free (rt->buckets);
 }
 
-struct ut_hh *ut_hhNew (uint32_t init_size, ut_hhHash_fn hash, ut_hhEquals_fn equals)
+struct ddsrt_hh *ddsrt_hh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals)
 {
-    struct ut_hh *hh = ddsrt_malloc (sizeof (*hh));
-    ut_hhInit (hh, init_size, hash, equals);
+    struct ddsrt_hh *hh = ddsrt_malloc (sizeof (*hh));
+    ddsrt_hh_init (hh, init_size, hash, equals);
     return hh;
 }
 
-void ut_hhFree (struct ut_hh * UT_HH_RESTRICT hh)
+void ddsrt_hh_free (struct ddsrt_hh * __restrict hh)
 {
-    ut_hhFini (hh);
+    ddsrt_hh_fini (hh);
     ddsrt_free (hh);
 }
 
-static void *ut_hhLookupInternal (const struct ut_hh *rt, const uint32_t bucket, const void *template)
+static void *ddsrt_hh_lookup_internal (const struct ddsrt_hh *rt, const uint32_t bucket, const void *template)
 {
     const uint32_t idxmask = rt->size - 1;
     uint32_t hopinfo = rt->buckets[bucket].hopinfo;
@@ -530,15 +530,15 @@ static void *ut_hhLookupInternal (const struct ut_hh *rt, const uint32_t bucket,
     return NULL;
 }
 
-void *ut_hhLookup (const struct ut_hh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT template)
+void *ddsrt_hh_lookup (const struct ddsrt_hh * __restrict rt, const void * __restrict template)
 {
     const uint32_t hash = rt->hash (template);
     const uint32_t idxmask = rt->size - 1;
     const uint32_t bucket = hash & idxmask;
-    return ut_hhLookupInternal (rt, bucket, template);
+    return ddsrt_hh_lookup_internal (rt, bucket, template);
 }
 
-static uint32_t ut_hhFindCloserFreeBucket (struct ut_hh *rt, uint32_t free_bucket, uint32_t *free_distance)
+static uint32_t ddsrt_hh_find_closer_free_bucket (struct ddsrt_hh *rt, uint32_t free_bucket, uint32_t *free_distance)
 {
     const uint32_t idxmask = rt->size - 1;
     uint32_t move_bucket, free_dist;
@@ -567,9 +567,9 @@ static uint32_t ut_hhFindCloserFreeBucket (struct ut_hh *rt, uint32_t free_bucke
     return NOT_A_BUCKET;
 }
 
-static void ut_hhResize (struct ut_hh *rt)
+static void ddsrt_hh_resize (struct ddsrt_hh *rt)
 {
-    struct ut_hhBucket *bs1;
+    struct ddsrt_hh_bucket *bs1;
     uint32_t i, idxmask0, idxmask1;
 
     bs1 = ddsrt_malloc (2 * rt->size * sizeof (*rt->buckets));
@@ -599,14 +599,14 @@ static void ut_hhResize (struct ut_hh *rt)
     rt->buckets = bs1;
 }
 
-int ut_hhAdd (struct ut_hh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT data)
+int ddsrt_hh_add (struct ddsrt_hh * __restrict rt, const void * __restrict data)
 {
     const uint32_t hash = rt->hash (data);
     const uint32_t idxmask = rt->size - 1;
     const uint32_t start_bucket = hash & idxmask;
     uint32_t free_distance, free_bucket;
 
-    if (ut_hhLookupInternal (rt, start_bucket, data)) {
+    if (ddsrt_hh_lookup_internal (rt, start_bucket, data)) {
         return 0;
     }
 
@@ -624,16 +624,16 @@ int ut_hhAdd (struct ut_hh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT data
                 rt->buckets[free_bucket].data = (void *) data;
                 return 1;
             }
-            free_bucket = ut_hhFindCloserFreeBucket (rt, free_bucket, &free_distance);
+            free_bucket = ddsrt_hh_find_closer_free_bucket (rt, free_bucket, &free_distance);
             assert (free_bucket == NOT_A_BUCKET || free_bucket <= idxmask);
         } while (free_bucket != NOT_A_BUCKET);
     }
 
-    ut_hhResize (rt);
-    return ut_hhAdd (rt, data);
+    ddsrt_hh_resize (rt);
+    return ddsrt_hh_add (rt, data);
 }
 
-int ut_hhRemove (struct ut_hh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT template)
+int ddsrt_hh_remove (struct ddsrt_hh * __restrict rt, const void * __restrict template)
 {
     const uint32_t hash = rt->hash (template);
     const uint32_t idxmask = rt->size - 1;
@@ -655,7 +655,7 @@ int ut_hhRemove (struct ut_hh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT t
     return 0;
 }
 
-void ut_hhEnum (struct ut_hh * UT_HH_RESTRICT rt, void (*f) (void *a, void *f_arg), void *f_arg)
+void ddsrt_hh_enum (struct ddsrt_hh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg)
 {
     uint32_t i;
     for (i = 0; i < rt->size; i++) {
@@ -666,16 +666,16 @@ void ut_hhEnum (struct ut_hh * UT_HH_RESTRICT rt, void (*f) (void *a, void *f_ar
     }
 }
 
-void *ut_hhIterFirst (struct ut_hh * UT_HH_RESTRICT rt, struct ut_hhIter * UT_HH_RESTRICT iter)
+void *ddsrt_hh_iter_first (struct ddsrt_hh * __restrict rt, struct ddsrt_hh_iter * __restrict iter)
 {
     iter->hh = rt;
     iter->cursor = 0;
-    return ut_hhIterNext (iter);
+    return ddsrt_hh_iter_next (iter);
 }
 
-void *ut_hhIterNext (struct ut_hhIter * UT_HH_RESTRICT iter)
+void *ddsrt_hh_iter_next (struct ddsrt_hh_iter * __restrict iter)
 {
-    struct ut_hh *rt = iter->hh;
+    struct ddsrt_hh *rt = iter->hh;
     while (iter->cursor < rt->size) {
         void *data = rt->buckets[iter->cursor].data;
         iter->cursor++;
@@ -688,22 +688,22 @@ void *ut_hhIterNext (struct ut_hhIter * UT_HH_RESTRICT iter)
 
 /************* SEQUENTIAL VERSION WITH EMBEDDED DATA ***************/
 
-struct ut_ehhBucket {
+struct ddsrt_ehh_bucket {
     uint32_t hopinfo;
     uint32_t inuse;
     char data[];
 };
 
-struct ut_ehh {
+struct ddsrt_ehh {
     uint32_t size; /* power of 2 */
     size_t elemsz;
     size_t bucketsz;
     char *buckets; /* ehhBucket, but embedded data messes up the layout */
-    ut_hhHash_fn hash;
-    ut_hhEquals_fn equals;
+    ddsrt_hh_hash_fn hash;
+    ddsrt_hh_equals_fn equals;
 };
 
-static void ut_ehhInit (struct ut_ehh *rt, size_t elemsz, uint32_t init_size, ut_hhHash_fn hash, ut_hhEquals_fn equals)
+static void ddsrt_ehh_init (struct ddsrt_ehh *rt, size_t elemsz, uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals)
 {
     uint32_t size = HH_HOP_RANGE;
     uint32_t i;
@@ -714,36 +714,36 @@ static void ut_ehhInit (struct ut_ehh *rt, size_t elemsz, uint32_t init_size, ut
     rt->equals = equals;
     rt->size = size;
     rt->elemsz = elemsz;
-    rt->bucketsz = sizeof (struct ut_ehhBucket) + ((elemsz+7) & ~(size_t)7);
+    rt->bucketsz = sizeof (struct ddsrt_ehh_bucket) + ((elemsz+7) & ~(size_t)7);
     rt->buckets = ddsrt_malloc (size * rt->bucketsz);
     for (i = 0; i < size; i++) {
-        struct ut_ehhBucket *b = (struct ut_ehhBucket *) (rt->buckets + i * rt->bucketsz);
+        struct ddsrt_ehh_bucket *b = (struct ddsrt_ehh_bucket *) (rt->buckets + i * rt->bucketsz);
         b->hopinfo = 0;
         b->inuse = 0;
     }
 }
 
-static void ut_ehhFini (struct ut_ehh *rt)
+static void ddsrt_ehh_fini (struct ddsrt_ehh *rt)
 {
     ddsrt_free (rt->buckets);
 }
 
-struct ut_ehh *ut_ehhNew (size_t elemsz, uint32_t init_size, ut_hhHash_fn hash, ut_hhEquals_fn equals)
+struct ddsrt_ehh *ddsrt_ehh_new (size_t elemsz, uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals)
 {
-    struct ut_ehh *hh = ddsrt_malloc (sizeof (*hh));
-    ut_ehhInit (hh, elemsz, init_size, hash, equals);
+    struct ddsrt_ehh *hh = ddsrt_malloc (sizeof (*hh));
+    ddsrt_ehh_init (hh, elemsz, init_size, hash, equals);
     return hh;
 }
 
-void ut_ehhFree (struct ut_ehh * UT_HH_RESTRICT hh)
+void ddsrt_ehh_free (struct ddsrt_ehh * __restrict hh)
 {
-    ut_ehhFini (hh);
+    ddsrt_ehh_fini (hh);
     ddsrt_free (hh);
 }
 
-static void *ut_ehhLookupInternal (const struct ut_ehh *rt, uint32_t bucket, const void *template)
+static void *ddsrt_ehh_lookup_internal (const struct ddsrt_ehh *rt, uint32_t bucket, const void *template)
 {
-    const struct ut_ehhBucket *b = (const struct ut_ehhBucket *) (rt->buckets + bucket * rt->bucketsz);
+    const struct ddsrt_ehh_bucket *b = (const struct ddsrt_ehh_bucket *) (rt->buckets + bucket * rt->bucketsz);
     uint32_t hopinfo = b->hopinfo;
 
     if (hopinfo & 1) {
@@ -758,7 +758,7 @@ static void *ut_ehhLookupInternal (const struct ut_ehh *rt, uint32_t bucket, con
             bucket = 0;
         }
         if (hopinfo & 1) {
-            b = (const struct ut_ehhBucket *) (rt->buckets + bucket * rt->bucketsz);
+            b = (const struct ddsrt_ehh_bucket *) (rt->buckets + bucket * rt->bucketsz);
             if (b->inuse && rt->equals (b->data, template)) {
                 return (void *) b->data;
             }
@@ -767,21 +767,21 @@ static void *ut_ehhLookupInternal (const struct ut_ehh *rt, uint32_t bucket, con
     return NULL;
 }
 
-void *ut_ehhLookup (const struct ut_ehh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT template)
+void *ddsrt_ehh_lookup (const struct ddsrt_ehh * __restrict rt, const void * __restrict template)
 {
     const uint32_t hash = rt->hash (template);
     const uint32_t idxmask = rt->size - 1;
     const uint32_t bucket = hash & idxmask;
-    return ut_ehhLookupInternal (rt, bucket, template);
+    return ddsrt_ehh_lookup_internal (rt, bucket, template);
 }
 
-static uint32_t ut_ehhFindCloserFreeBucket (struct ut_ehh *rt, uint32_t free_bucket, uint32_t *free_distance)
+static uint32_t ddsrt_ehh_find_closer_free_bucket (struct ddsrt_ehh *rt, uint32_t free_bucket, uint32_t *free_distance)
 {
     const uint32_t idxmask = rt->size - 1;
     uint32_t move_bucket, free_dist;
     move_bucket = (free_bucket - (HH_HOP_RANGE - 1)) & idxmask;
     for (free_dist = HH_HOP_RANGE - 1; free_dist > 0; free_dist--) {
-        struct ut_ehhBucket * const mb = (struct ut_ehhBucket *) (rt->buckets + move_bucket * rt->bucketsz);
+        struct ddsrt_ehh_bucket * const mb = (struct ddsrt_ehh_bucket *) (rt->buckets + move_bucket * rt->bucketsz);
         uint32_t move_free_distance = NOT_A_BUCKET;
         uint32_t mask = 1;
         uint32_t i;
@@ -793,8 +793,8 @@ static uint32_t ut_ehhFindCloserFreeBucket (struct ut_ehh *rt, uint32_t free_buc
         }
         if (move_free_distance != NOT_A_BUCKET) {
             uint32_t new_free_bucket = (move_bucket + move_free_distance) & idxmask;
-            struct ut_ehhBucket * const fb = (struct ut_ehhBucket *) (rt->buckets + free_bucket * rt->bucketsz);
-            struct ut_ehhBucket * const nfb = (struct ut_ehhBucket *) (rt->buckets + new_free_bucket * rt->bucketsz);
+            struct ddsrt_ehh_bucket * const fb = (struct ddsrt_ehh_bucket *) (rt->buckets + free_bucket * rt->bucketsz);
+            struct ddsrt_ehh_bucket * const nfb = (struct ddsrt_ehh_bucket *) (rt->buckets + new_free_bucket * rt->bucketsz);
             mb->hopinfo |= 1u << free_dist;
             fb->inuse = 1;
             memcpy (fb->data, nfb->data, rt->elemsz);
@@ -808,7 +808,7 @@ static uint32_t ut_ehhFindCloserFreeBucket (struct ut_ehh *rt, uint32_t free_buc
     return NOT_A_BUCKET;
 }
 
-static void ut_ehhResize (struct ut_ehh *rt)
+static void ddsrt_ehh_resize (struct ddsrt_ehh *rt)
 {
     char *bs1;
     uint32_t i, idxmask0, idxmask1;
@@ -816,22 +816,22 @@ static void ut_ehhResize (struct ut_ehh *rt)
     bs1 = ddsrt_malloc (2 * rt->size * rt->bucketsz);
 
     for (i = 0; i < 2 * rt->size; i++) {
-        struct ut_ehhBucket *b = (struct ut_ehhBucket *) (bs1 + i * rt->bucketsz);
+        struct ddsrt_ehh_bucket *b = (struct ddsrt_ehh_bucket *) (bs1 + i * rt->bucketsz);
         b->hopinfo = 0;
         b->inuse = 0;
     }
     idxmask0 = rt->size - 1;
     idxmask1 = 2 * rt->size - 1;
     for (i = 0; i < rt->size; i++) {
-        struct ut_ehhBucket const * const b = (struct ut_ehhBucket *) (rt->buckets + i * rt->bucketsz);
+        struct ddsrt_ehh_bucket const * const b = (struct ddsrt_ehh_bucket *) (rt->buckets + i * rt->bucketsz);
         if (b->inuse) {
             const uint32_t hash = rt->hash (b->data);
             const uint32_t old_start_bucket = hash & idxmask0;
             const uint32_t new_start_bucket = hash & idxmask1;
             const uint32_t dist = (i >= old_start_bucket) ? (i - old_start_bucket) : (rt->size + i - old_start_bucket);
             const uint32_t newb = (new_start_bucket + dist) & idxmask1;
-            struct ut_ehhBucket * const nsb = (struct ut_ehhBucket *) (bs1 + new_start_bucket * rt->bucketsz);
-            struct ut_ehhBucket * const nb = (struct ut_ehhBucket *) (bs1 + newb * rt->bucketsz);
+            struct ddsrt_ehh_bucket * const nsb = (struct ddsrt_ehh_bucket *) (bs1 + new_start_bucket * rt->bucketsz);
+            struct ddsrt_ehh_bucket * const nb = (struct ddsrt_ehh_bucket *) (bs1 + newb * rt->bucketsz);
             assert (dist < HH_HOP_RANGE);
             assert (!nb->inuse);
             nsb->hopinfo |= 1u << dist;
@@ -845,20 +845,20 @@ static void ut_ehhResize (struct ut_ehh *rt)
     rt->buckets = bs1;
 }
 
-int ut_ehhAdd (struct ut_ehh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT data)
+int ddsrt_ehh_add (struct ddsrt_ehh * __restrict rt, const void * __restrict data)
 {
     const uint32_t hash = rt->hash (data);
     const uint32_t idxmask = rt->size - 1;
     const uint32_t start_bucket = hash & idxmask;
     uint32_t free_distance, free_bucket;
 
-    if (ut_ehhLookupInternal (rt, start_bucket, data)) {
+    if (ddsrt_ehh_lookup_internal (rt, start_bucket, data)) {
         return 0;
     }
 
     free_bucket = start_bucket;
     for (free_distance = 0; free_distance < HH_ADD_RANGE; free_distance++) {
-        struct ut_ehhBucket const * const fb = (struct ut_ehhBucket *) (rt->buckets + free_bucket * rt->bucketsz);
+        struct ddsrt_ehh_bucket const * const fb = (struct ddsrt_ehh_bucket *) (rt->buckets + free_bucket * rt->bucketsz);
         if (!fb->inuse) {
             break;
         }
@@ -867,73 +867,73 @@ int ut_ehhAdd (struct ut_ehh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT da
     if (free_distance < HH_ADD_RANGE) {
         do {
             if (free_distance < HH_HOP_RANGE) {
-                struct ut_ehhBucket * const sb = (struct ut_ehhBucket *) (rt->buckets + start_bucket * rt->bucketsz);
-                struct ut_ehhBucket * const fb = (struct ut_ehhBucket *) (rt->buckets + free_bucket * rt->bucketsz);
+                struct ddsrt_ehh_bucket * const sb = (struct ddsrt_ehh_bucket *) (rt->buckets + start_bucket * rt->bucketsz);
+                struct ddsrt_ehh_bucket * const fb = (struct ddsrt_ehh_bucket *) (rt->buckets + free_bucket * rt->bucketsz);
                 assert ((uint32_t) free_bucket == ((start_bucket + free_distance) & idxmask));
                 sb->hopinfo |= 1u << free_distance;
                 fb->inuse = 1;
                 memcpy (fb->data, data, rt->elemsz);
-                assert (ut_ehhLookupInternal (rt, start_bucket, data));
+                assert (ddsrt_ehh_lookup_internal (rt, start_bucket, data));
                 return 1;
             }
-            free_bucket = ut_ehhFindCloserFreeBucket (rt, free_bucket, &free_distance);
+            free_bucket = ddsrt_ehh_find_closer_free_bucket (rt, free_bucket, &free_distance);
             assert (free_bucket == NOT_A_BUCKET || free_bucket <= idxmask);
         } while (free_bucket != NOT_A_BUCKET);
     }
 
-    ut_ehhResize (rt);
-    return ut_ehhAdd (rt, data);
+    ddsrt_ehh_resize (rt);
+    return ddsrt_ehh_add (rt, data);
 }
 
-int ut_ehhRemove (struct ut_ehh * UT_HH_RESTRICT rt, const void * UT_HH_RESTRICT template)
+int ddsrt_ehh_remove (struct ddsrt_ehh * __restrict rt, const void * __restrict template)
 {
     const uint32_t hash = rt->hash (template);
     const uint32_t idxmask = rt->size - 1;
     const uint32_t bucket = hash & idxmask;
     uint32_t hopinfo;
-    struct ut_ehhBucket *sb;
+    struct ddsrt_ehh_bucket *sb;
     uint32_t idx;
-    sb = (struct ut_ehhBucket *) (rt->buckets + bucket * rt->bucketsz);
+    sb = (struct ddsrt_ehh_bucket *) (rt->buckets + bucket * rt->bucketsz);
     hopinfo = sb->hopinfo;
     for (idx = 0; hopinfo != 0; hopinfo >>= 1, idx++) {
         if (hopinfo & 1) {
             const uint32_t bidx = (bucket + idx) & idxmask;
-            struct ut_ehhBucket *b = (struct ut_ehhBucket *) (rt->buckets + bidx * rt->bucketsz);
+            struct ddsrt_ehh_bucket *b = (struct ddsrt_ehh_bucket *) (rt->buckets + bidx * rt->bucketsz);
             if (b->inuse && rt->equals (b->data, template)) {
-                assert (ut_ehhLookupInternal(rt, bucket, template));
+                assert (ddsrt_ehh_lookup_internal(rt, bucket, template));
                 b->inuse = 0;
                 sb->hopinfo &= ~(1u << idx);
                 return 1;
             }
         }
     }
-    assert (!ut_ehhLookupInternal(rt, bucket, template));
+    assert (!ddsrt_ehh_lookup_internal(rt, bucket, template));
     return 0;
 }
 
-void ut_ehhEnum (struct ut_ehh * UT_HH_RESTRICT rt, void (*f) (void *a, void *f_arg), void *f_arg)
+void ddsrt_ehh_enum (struct ddsrt_ehh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg)
 {
     uint32_t i;
     for (i = 0; i < rt->size; i++) {
-        struct ut_ehhBucket *b = (struct ut_ehhBucket *) (rt->buckets + i * rt->bucketsz);
+        struct ddsrt_ehh_bucket *b = (struct ddsrt_ehh_bucket *) (rt->buckets + i * rt->bucketsz);
         if (b->inuse) {
             f (b->data, f_arg);
         }
     }
 }
 
-void *ut_ehhIterFirst (struct ut_ehh * UT_HH_RESTRICT rt, struct ut_ehhIter * UT_HH_RESTRICT iter)
+void *ddsrt_ehh_iter_first (struct ddsrt_ehh * __restrict rt, struct ddsrt_ehh_iter * __restrict iter)
 {
     iter->hh = rt;
     iter->cursor = 0;
-    return ut_ehhIterNext (iter);
+    return ddsrt_ehh_iter_next (iter);
 }
 
-void *ut_ehhIterNext (struct ut_ehhIter * UT_HH_RESTRICT iter)
+void *ddsrt_ehh_iter_next (struct ddsrt_ehh_iter * __restrict iter)
 {
-    struct ut_ehh *rt = iter->hh;
+    struct ddsrt_ehh *rt = iter->hh;
     while (iter->cursor < rt->size) {
-        struct ut_ehhBucket *b = (struct ut_ehhBucket *) (rt->buckets + iter->cursor * rt->bucketsz);
+        struct ddsrt_ehh_bucket *b = (struct ddsrt_ehh_bucket *) (rt->buckets + iter->cursor * rt->bucketsz);
         iter->cursor++;
         if (b->inuse) {
             return b->data;

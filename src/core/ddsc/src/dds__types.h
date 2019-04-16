@@ -17,7 +17,7 @@
 #include "dds/dds.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_rtps.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds__handles.h"
 
 #if defined (__cplusplus)
@@ -94,9 +94,9 @@ struct dds_listener {
 
 typedef struct dds_domain
 {
-  ut_avlNode_t m_node;
+  ddsrt_avl_node_t m_node;
   dds_domainid_t m_id;
-  ut_avlTree_t m_topics;
+  ddsrt_avl_tree_t m_topics;
   uint32_t m_refc;
 }
 dds_domain;
@@ -151,7 +151,7 @@ typedef struct dds_entity
 }
 dds_entity;
 
-extern const ut_avlTreedef_t dds_topictree_def;
+extern const ddsrt_avl_treedef_t dds_topictree_def;
 
 typedef struct dds_subscriber
 {
@@ -283,7 +283,7 @@ typedef struct dds_globals
   int (*m_dur_wait) (struct dds_reader * reader, dds_duration_t timeout);
   void (*m_dur_init) (void);
   void (*m_dur_fini) (void);
-  ut_avlTree_t m_domains;
+  ddsrt_avl_tree_t m_domains;
   ddsrt_mutex_t m_mutex;
 }
 dds_globals;

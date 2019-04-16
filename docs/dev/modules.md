@@ -22,10 +22,6 @@ but does offer a neat way to separate features logically.
      |   |  ddsi   |  RTPS-DDSI specification.
      |   |         |
      |   |---------|
-     |   |         |  util is a collection of snippets that do not require
-     |   |  util   |  per-target implementations and may be used by the ddsc
-     |   |         |  and ddsi targets. util will be merged into ddsrt.
-     |   |---------|
      |             |  ddsrt offers target agnostic implementations of
      |      ddsrt  |  functionality required by the ddsc and ddsi targets, but
      |             |  also exports a subset of the dds\_ api directly. e.g.

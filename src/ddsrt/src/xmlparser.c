@@ -18,7 +18,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/string.h"
-#include "dds/util/ut_xmlparser.h"
+#include "dds/ddsrt/xmlparser.h"
 
 #define TOK_EOF -1
 #define TOK_OPEN_TAG -2
@@ -30,7 +30,7 @@
 
 #define NOMARKER (~(size_t)0)
 
-struct ut_xmlpState {
+struct ddsrt_xmlp_state {
     size_t cbufp; /* current position in cbuf */
     size_t cbufn; /* number of bytes in cbuf (cbufp <= cbufn) */
     size_t cbufmax; /* allocated size of cbuf (cbufn <= cbufmax) */
@@ -50,7 +50,7 @@ struct ut_xmlpState {
     int nest; /* current nesting level */
     void *varg; /* user argument to callback functions */
     int require_eof; /* if false, junk may follow top-level closing tag */
-    struct ut_xmlpCallbacks cb; /* user-supplied callbacks (or stubs) */
+    struct ddsrt_xmlp_callbacks cb; /* user-supplied callbacks (or stubs) */
 };
 
 static int cb_null_elem_open (void *varg, uintptr_t parentinfo, uintptr_t *eleminfo, const char *name)
@@ -93,7 +93,7 @@ static void cb_null_error (void *varg, const char *msg, int line)
     DDSRT_UNUSED_ARG (line);
 }
 
-static void ut_xmlpNewCommon (struct ut_xmlpState *st)
+static void ddsrt_xmlp_new_common (struct ddsrt_xmlp_state *st)
 {
     st->cbufp = 0;
     st->cbufmark = NOMARKER;
@@ -111,7 +111,7 @@ static void ut_xmlpNewCommon (struct ut_xmlpState *st)
     st->require_eof = 1;
 }
 
-static void ut_xmlpNewSetCB (struct ut_xmlpState *st, void *varg, const struct ut_xmlpCallbacks *cb)
+static void ddsrt_xmlp_new_setCB (struct ddsrt_xmlp_state *st, void *varg, const struct ddsrt_xmlp_callbacks *cb)
 {
     st->varg = varg;
     st->cb = *cb;
@@ -122,43 +122,43 @@ static void ut_xmlpNewSetCB (struct ut_xmlpState *st, void *varg, const struct u
     if (st->cb.error == 0) st->cb.error = cb_null_error;
 }
 
-struct ut_xmlpState *ut_xmlpNewFile (FILE *fp, void *varg, const struct ut_xmlpCallbacks *cb)
+struct ddsrt_xmlp_state *ddsrt_xmlp_new_file (FILE *fp, void *varg, const struct ddsrt_xmlp_callbacks *cb)
 {
-    struct ut_xmlpState *st;
+    struct ddsrt_xmlp_state *st;
     st = ddsrt_malloc (sizeof (*st));
     st->cbufn = 0;
     st->cbufmax = 8192;
     st->cbuf = ddsrt_malloc (st->cbufmax);
     st->fp = fp;
-    ut_xmlpNewCommon (st);
-    ut_xmlpNewSetCB (st, varg, cb);
+    ddsrt_xmlp_new_common (st);
+    ddsrt_xmlp_new_setCB (st, varg, cb);
     return st;
 }
 
-struct ut_xmlpState *ut_xmlpNewString (const char *string, void *varg, const struct ut_xmlpCallbacks *cb)
+struct ddsrt_xmlp_state *ddsrt_xmlp_new_string (const char *string, void *varg, const struct ddsrt_xmlp_callbacks *cb)
 {
-    struct ut_xmlpState *st;
+    struct ddsrt_xmlp_state *st;
     st = ddsrt_malloc (sizeof (*st));
     st->cbufn = strlen (string);
     st->cbufmax = st->cbufn;
     st->cbuf = (char *) string;
     st->fp = NULL;
-    ut_xmlpNewCommon (st);
-    ut_xmlpNewSetCB (st, varg, cb);
+    ddsrt_xmlp_new_common (st);
+    ddsrt_xmlp_new_setCB (st, varg, cb);
     return st;
 }
 
-void ut_xmlpSetRequireEOF (struct ut_xmlpState *st, int require_eof)
+void ddsrt_xmlp_set_requireEOF (struct ddsrt_xmlp_state *st, int require_eof)
 {
     st->require_eof = require_eof;
 }
 
-size_t ut_xmlpGetBufpos (const struct ut_xmlpState *st)
+size_t ddsrt_xmlp_get_bufpos (const struct ddsrt_xmlp_state *st)
 {
     return st->cbufp;
 }
 
-void ut_xmlpFree (struct ut_xmlpState *st)
+void ddsrt_xmlp_free (struct ddsrt_xmlp_state *st)
 {
     if (st->fp != NULL) {
         ddsrt_free (st->cbuf);
@@ -167,7 +167,7 @@ void ut_xmlpFree (struct ut_xmlpState *st)
     ddsrt_free (st);
 }
 
-static int make_chars_available (struct ut_xmlpState *st, size_t nmin)
+static int make_chars_available (struct ddsrt_xmlp_state *st, size_t nmin)
 {
     size_t n, pos;
     pos = (st->cbufmark != NOMARKER) ? st->cbufmark : st->cbufp;
@@ -201,21 +201,21 @@ static int make_chars_available (struct ut_xmlpState *st, size_t nmin)
     return (st->cbufn - st->cbufp >= nmin);
 }
 
-static void set_input_marker (struct ut_xmlpState *st)
+static void set_input_marker (struct ddsrt_xmlp_state *st)
 {
     assert (st->cbufmark == NOMARKER);
     st->cbufmark = st->cbufp;
     st->linemark = st->line;
 }
 
-static void discard_input_marker (struct ut_xmlpState *st)
+static void discard_input_marker (struct ddsrt_xmlp_state *st)
 {
     assert (st->cbufmark != NOMARKER);
     st->cbufmark = NOMARKER;
     st->linemark = 0;
 }
 
-static void rewind_to_input_marker (struct ut_xmlpState *st)
+static void rewind_to_input_marker (struct ddsrt_xmlp_state *st)
 {
     assert (st->cbufmark != NOMARKER);
     st->cbufp = st->cbufmark;
@@ -223,7 +223,7 @@ static void rewind_to_input_marker (struct ut_xmlpState *st)
     discard_input_marker (st);
 }
 
-static int next_char (struct ut_xmlpState *st)
+static int next_char (struct ddsrt_xmlp_state *st)
 {
     char c;
     if (!make_chars_available (st, 1)) {
@@ -236,7 +236,7 @@ static int next_char (struct ut_xmlpState *st)
     return c;
 }
 
-static int peek_char (struct ut_xmlpState *st)
+static int peek_char (struct ddsrt_xmlp_state *st)
 {
     if (!make_chars_available (st, 1)) {
         return TOK_EOF;
@@ -244,7 +244,7 @@ static int peek_char (struct ut_xmlpState *st)
     return st->cbuf[st->cbufp];
 }
 
-static int peek_chars (struct ut_xmlpState *st, const char *seq, int consume)
+static int peek_chars (struct ddsrt_xmlp_state *st, const char *seq, int consume)
 {
     size_t n = strlen (seq);
     if (!make_chars_available (st, n)) {
@@ -354,13 +354,13 @@ static int unescape_insitu (char *buffer, size_t *n)
 }
 DDSRT_WARNING_MSVC_ON(4996);
 
-static void discard_payload (struct ut_xmlpState *st)
+static void discard_payload (struct ddsrt_xmlp_state *st)
 {
     st->tpp = 0;
     st->tpescp = 0;
 }
 
-static int append_to_payload (struct ut_xmlpState *st, int c, int islit)
+static int append_to_payload (struct ddsrt_xmlp_state *st, int c, int islit)
 {
     if (!islit) {
         st->tp[st->tpp++] = (char) c;
@@ -383,7 +383,7 @@ static int append_to_payload (struct ut_xmlpState *st, int c, int islit)
     return 0;
 }
 
-static int save_payload (char **payload, struct ut_xmlpState *st, int trim)
+static int save_payload (char **payload, struct ddsrt_xmlp_state *st, int trim)
 {
     char *p;
     if (st->tpescp < st->tpp) {
@@ -424,7 +424,7 @@ static int save_payload (char **payload, struct ut_xmlpState *st, int trim)
     return 0;
 }
 
-static int next_token_ident (struct ut_xmlpState *st, char **payload)
+static int next_token_ident (struct ddsrt_xmlp_state *st, char **payload)
 {
     while (qq_isidentcont (peek_char (st))) {
         if (append_to_payload (st, next_char (st), 0) < 0) {
@@ -438,7 +438,7 @@ static int next_token_ident (struct ut_xmlpState *st, char **payload)
     }
 }
 
-static int next_token_tag_withoutclose (struct ut_xmlpState *st, char **payload)
+static int next_token_tag_withoutclose (struct ddsrt_xmlp_state *st, char **payload)
 {
     if (peek_chars (st, "<![CDATA[", 0)) {
         return next_char (st);
@@ -459,7 +459,7 @@ static int next_token_tag_withoutclose (struct ut_xmlpState *st, char **payload)
     }
 }
 
-static int next_token_string (struct ut_xmlpState *st, char **payload)
+static int next_token_string (struct ddsrt_xmlp_state *st, char **payload)
 {
     /* pre: peek_char(st) == ('"' or '\'') */
     int endm = next_char (st);
@@ -478,7 +478,7 @@ static int next_token_string (struct ut_xmlpState *st, char **payload)
     }
 }
 
-static int skip_comment (struct ut_xmlpState *st)
+static int skip_comment (struct ddsrt_xmlp_state *st)
 {
     if (!peek_chars (st, "<!--", 1)) {
         return 0;
@@ -493,7 +493,7 @@ static int skip_comment (struct ut_xmlpState *st)
     }
 }
 
-static void processing_instruction (struct ut_xmlpState *st, const char *end)
+static void processing_instruction (struct ddsrt_xmlp_state *st, const char *end)
 {
     /* just after <?; skip everything up to and include ?> */
     while (peek_char (st) != TOK_EOF && !peek_chars (st, end, 1)) {
@@ -501,7 +501,7 @@ static void processing_instruction (struct ut_xmlpState *st, const char *end)
     }
 }
 
-static void drop_peek_token (struct ut_xmlpState *st)
+static void drop_peek_token (struct ddsrt_xmlp_state *st)
 {
     st->peektok = 0;
     if (st->peekpayload) {
@@ -510,7 +510,7 @@ static void drop_peek_token (struct ut_xmlpState *st)
     }
 }
 
-static int next_token (struct ut_xmlpState *st, char **payload)
+static int next_token (struct ddsrt_xmlp_state *st, char **payload)
 {
     /* Always return a valid pointer to allocated memory or a null
      pointer, regardless of token type */
@@ -566,7 +566,7 @@ static int next_token (struct ut_xmlpState *st, char **payload)
     }
 }
 
-static int peek_token (struct ut_xmlpState *st)
+static int peek_token (struct ddsrt_xmlp_state *st)
 {
     int tok;
     char *payload;
@@ -576,7 +576,7 @@ static int peek_token (struct ut_xmlpState *st)
     return tok;
 }
 
-static int parse_element (struct ut_xmlpState *st, uintptr_t parentinfo)
+static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
 {
 #define PE_ERROR2(c,c1,c2) do { errc = (c); errc1 = (c1); errc2 = (c2); goto err; } while (0)
 #define PE_ERROR(c,c1) PE_ERROR2(c,c1,0)
@@ -703,7 +703,7 @@ ok:
 #undef PE_ERROR2
 }
 
-int ut_xmlpParse (struct ut_xmlpState *st)
+int ddsrt_xmlp_parse (struct ddsrt_xmlp_state *st)
 {
     if (peek_token (st) == TOK_EOF) {
         return 0;
@@ -717,6 +717,6 @@ int ut_xmlpParse (struct ut_xmlpState *st)
     }
 }
 
-int ut_xmlUnescapeInsitu (char *buffer, size_t *n) {
+int ddsrt_xmlUnescapeInsitu (char *buffer, size_t *n) {
     return unescape_insitu (buffer, n);
 }

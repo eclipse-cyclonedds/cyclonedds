@@ -18,7 +18,7 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../ddsi/include>")
 
-target_link_libraries(rhc_torture RhcTypes ddsc util)
+target_link_libraries(rhc_torture RhcTypes ddsc)
 
 add_test(
   NAME rhc_torture

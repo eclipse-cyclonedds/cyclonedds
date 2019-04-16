@@ -123,14 +123,14 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
      we fall back to using the GUIDs so that we can deliver all
      samples we received from it. As writer being deleted any
      reliable samples that are rejected are simply discarded. */
-    ut_avlIter_t it;
+    ddsrt_avl_iter_t it;
     struct pwr_rd_match *m;
     struct proxy_writer_info pwr_info;
     dds_duration_t max_block_ms = nn_from_ddsi_duration (wr->xqos->reliability.max_blocking_time);
     ddsrt_mutex_unlock (&wr->rdary.rdary_lock);
     make_proxy_writer_info (&pwr_info, &wr->e, wr->xqos);
     ddsrt_mutex_lock (&wr->e.lock);
-    for (m = ut_avlIterFirst (&wr_local_readers_treedef, &wr->local_readers, &it); m != NULL; m = ut_avlIterNext (&it))
+    for (m = ddsrt_avl_iter_first (&wr_local_readers_treedef, &wr->local_readers, &it); m != NULL; m = ddsrt_avl_iter_next (&it))
     {
       struct reader *rd;
       if ((rd = ephash_lookup_reader_guid (&m->rd_guid)) != NULL)

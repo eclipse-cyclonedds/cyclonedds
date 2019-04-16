@@ -19,8 +19,8 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sync.h"
 
-#include "dds/util/ut_avl.h"
-#include "dds/util/ut_thread_pool.h"
+#include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/thread_pool.h"
 
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_rtps.h"
@@ -895,7 +895,7 @@ int rtps_init (void)
 
   if (config.tp_enable)
   {
-    gv.thread_pool = ut_thread_pool_new
+    gv.thread_pool = ddsrt_thread_pool_new
       (config.tp_threads, config.tp_max_threads, 0, NULL);
   }
 
@@ -1357,7 +1357,7 @@ err_find_own_ip:
     ddsi_tran_factories_fini ();
 err_udp_tcp_init:
   if (config.tp_enable)
-    ut_thread_pool_free (gv.thread_pool);
+    ddsrt_thread_pool_free (gv.thread_pool);
   return -1;
 }
 
@@ -1609,7 +1609,7 @@ void rtps_fini (void)
   }
 #endif
 
-  ut_thread_pool_free (gv.thread_pool);
+  ddsrt_thread_pool_free (gv.thread_pool);
 
   (void) joinleave_spdp_defmcip (0);
 

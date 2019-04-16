@@ -18,7 +18,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/misc.h"
 
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_config.h"
@@ -161,7 +161,7 @@ static int print_participants (struct thread_state1 * const ts1, ddsi_tran_conn_
       ephash_enum_reader_init (&er);
       while ((r = ephash_enum_reader_next (&er)) != NULL)
       {
-        ut_avlIter_t writ;
+        ddsrt_avl_iter_t writ;
         struct rd_pwr_match *m;
         if (r->c.pp != p)
           continue;
@@ -170,7 +170,7 @@ static int print_participants (struct thread_state1 * const ts1, ddsi_tran_conn_
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
         x += print_addrset_if_notempty (conn, "    as", r->as, "\n");
 #endif
-        for (m = ut_avlIterFirst (&rd_writers_treedef, &r->writers, &writ); m; m = ut_avlIterNext (&writ))
+        for (m = ddsrt_avl_iter_first (&rd_writers_treedef, &r->writers, &writ); m; m = ddsrt_avl_iter_next (&writ))
           x += cpf (conn, "    pwr %x:%x:%x:%x\n", PGUID (m->pwr_guid));
         ddsrt_mutex_unlock (&r->e.lock);
       }
@@ -183,7 +183,7 @@ static int print_participants (struct thread_state1 * const ts1, ddsi_tran_conn_
       ephash_enum_writer_init (&ew);
       while ((w = ephash_enum_writer_next (&ew)) != NULL)
       {
-        ut_avlIter_t rdit;
+        ddsrt_avl_iter_t rdit;
         struct wr_prd_match *m;
         struct whc_state whcst;
         if (w->c.pp != p)
@@ -207,7 +207,7 @@ static int print_participants (struct thread_state1 * const ts1, ddsi_tran_conn_
           x += cpf (conn, "    max-drop-seq %lld\n", writer_max_drop_seq (w));
         }
         x += print_addrset_if_notempty (conn, "    as", w->as, "\n");
-        for (m = ut_avlIterFirst (&wr_readers_treedef, &w->readers, &rdit); m; m = ut_avlIterNext (&rdit))
+        for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &w->readers, &rdit); m; m = ddsrt_avl_iter_next (&rdit))
         {
           char wr_prd_flags[4];
           wr_prd_flags[0] = m->is_reliable ? 'R' : 'U';
@@ -248,13 +248,13 @@ static int print_proxy_participants (struct thread_state1 * const ts1, ddsi_tran
       ephash_enum_proxy_reader_init (&er);
       while ((r = ephash_enum_proxy_reader_next (&er)) != NULL)
       {
-        ut_avlIter_t writ;
+        ddsrt_avl_iter_t writ;
         struct prd_wr_match *m;
         if (r->c.proxypp != p)
           continue;
         ddsrt_mutex_lock (&r->e.lock);
         print_proxy_endpoint_common (conn, "prd", &r->e, &r->c);
-        for (m = ut_avlIterFirst (&rd_writers_treedef, &r->writers, &writ); m; m = ut_avlIterNext (&writ))
+        for (m = ddsrt_avl_iter_first (&rd_writers_treedef, &r->writers, &writ); m; m = ddsrt_avl_iter_next (&writ))
           x += cpf (conn, "    wr %x:%x:%x:%x\n", PGUID (m->wr_guid));
         ddsrt_mutex_unlock (&r->e.lock);
       }
@@ -267,14 +267,14 @@ static int print_proxy_participants (struct thread_state1 * const ts1, ddsi_tran
       ephash_enum_proxy_writer_init (&ew);
       while ((w = ephash_enum_proxy_writer_next (&ew)) != NULL)
       {
-        ut_avlIter_t rdit;
+        ddsrt_avl_iter_t rdit;
         struct pwr_rd_match *m;
         if (w->c.proxypp != p)
           continue;
         ddsrt_mutex_lock (&w->e.lock);
         print_proxy_endpoint_common (conn, "pwr", &w->e, &w->c);
         x += cpf (conn, "    last_seq %lld last_fragnum %u\n", w->last_seq, w->last_fragnum);
-        for (m = ut_avlIterFirst (&wr_readers_treedef, &w->readers, &rdit); m; m = ut_avlIterNext (&rdit))
+        for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &w->readers, &rdit); m; m = ddsrt_avl_iter_next (&rdit))
         {
           x += cpf (conn, "    rd %x:%x:%x:%x (nack %lld %lld)\n",
                     PGUID (m->rd_guid), m->seq_last_nack, m->t_last_nack);

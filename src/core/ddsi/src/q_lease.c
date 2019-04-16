@@ -16,7 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 
-#include "dds/util/ut_fibheap.h"
+#include "dds/ddsrt/fibheap.h"
 
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/q_protocol.h"
@@ -44,7 +44,7 @@
 #define TSCHED_NOT_ON_HEAP INT64_MIN
 
 struct lease {
-  ut_fibheapNode_t heapnode;
+  ddsrt_fibheap_node_t heapnode;
   nn_etime_t tsched;  /* access guarded by leaseheap_lock */
   nn_etime_t tend;    /* access guarded by lock_lease/unlock_lease */
   int64_t tdur;      /* constant (renew depends on it) */
@@ -53,7 +53,7 @@ struct lease {
 
 static int compare_lease_tsched (const void *va, const void *vb);
 
-static const ut_fibheapDef_t lease_fhdef = UT_FIBHEAPDEF_INITIALIZER(offsetof (struct lease, heapnode), compare_lease_tsched);
+static const ddsrt_fibheap_def_t lease_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct lease, heapnode), compare_lease_tsched);
 
 static void force_lease_check (void)
 {
@@ -73,13 +73,13 @@ void lease_management_init (void)
   ddsrt_mutex_init (&gv.leaseheap_lock);
   for (i = 0; i < N_LEASE_LOCKS; i++)
     ddsrt_mutex_init (&gv.lease_locks[i]);
-  ut_fibheapInit (&lease_fhdef, &gv.leaseheap);
+  ddsrt_fibheap_init (&lease_fhdef, &gv.leaseheap);
 }
 
 void lease_management_term (void)
 {
   int i;
-  assert (ut_fibheapMin (&lease_fhdef, &gv.leaseheap) == NULL);
+  assert (ddsrt_fibheap_min (&lease_fhdef, &gv.leaseheap) == NULL);
   for (i = 0; i < N_LEASE_LOCKS; i++)
     ddsrt_mutex_destroy (&gv.lease_locks[i]);
   ddsrt_mutex_destroy (&gv.leaseheap_lock);
@@ -125,7 +125,7 @@ void lease_register (struct lease *l)
   if (l->tend.v != T_NEVER)
   {
     l->tsched = l->tend;
-    ut_fibheapInsert (&lease_fhdef, &gv.leaseheap, l);
+    ddsrt_fibheap_insert (&lease_fhdef, &gv.leaseheap, l);
   }
   unlock_lease (l);
   ddsrt_mutex_unlock (&gv.leaseheap_lock);
@@ -139,7 +139,7 @@ void lease_free (struct lease *l)
   DDS_TRACE("lease_free(l %p guid %x:%x:%x:%x)\n", (void *) l, PGUID (l->entity->guid));
   ddsrt_mutex_lock (&gv.leaseheap_lock);
   if (l->tsched.v != TSCHED_NOT_ON_HEAP)
-    ut_fibheapDelete (&lease_fhdef, &gv.leaseheap, l);
+    ddsrt_fibheap_delete (&lease_fhdef, &gv.leaseheap, l);
   ddsrt_mutex_unlock (&gv.leaseheap_lock);
   ddsrt_free (l);
 
@@ -187,14 +187,14 @@ void lease_set_expiry (struct lease *l, nn_etime_t when)
     /* moved forward and currently scheduled (by virtue of
        TSCHED_NOT_ON_HEAP == INT64_MIN) */
     l->tsched = l->tend;
-    ut_fibheapDecreaseKey (&lease_fhdef, &gv.leaseheap, l);
+    ddsrt_fibheap_decrease_key (&lease_fhdef, &gv.leaseheap, l);
     trigger = true;
   }
   else if (l->tsched.v == TSCHED_NOT_ON_HEAP && l->tend.v < T_NEVER)
   {
     /* not currently scheduled, with a finite new expiry time */
     l->tsched = l->tend;
-    ut_fibheapInsert (&lease_fhdef, &gv.leaseheap, l);
+    ddsrt_fibheap_insert (&lease_fhdef, &gv.leaseheap, l);
     trigger = true;
   }
   unlock_lease (l);
@@ -210,13 +210,13 @@ int64_t check_and_handle_lease_expiration (nn_etime_t tnowE)
   struct lease *l;
   int64_t delay;
   ddsrt_mutex_lock (&gv.leaseheap_lock);
-  while ((l = ut_fibheapMin (&lease_fhdef, &gv.leaseheap)) != NULL && l->tsched.v <= tnowE.v)
+  while ((l = ddsrt_fibheap_min (&lease_fhdef, &gv.leaseheap)) != NULL && l->tsched.v <= tnowE.v)
   {
     nn_guid_t g = l->entity->guid;
     enum entity_kind k = l->entity->kind;
 
     assert (l->tsched.v != TSCHED_NOT_ON_HEAP);
-    ut_fibheapExtractMin (&lease_fhdef, &gv.leaseheap);
+    ddsrt_fibheap_extract_min (&lease_fhdef, &gv.leaseheap);
 
     lock_lease (l);
     if (tnowE.v < l->tend.v)
@@ -228,7 +228,7 @@ int64_t check_and_handle_lease_expiration (nn_etime_t tnowE)
       } else {
         l->tsched = l->tend;
         unlock_lease (l);
-        ut_fibheapInsert (&lease_fhdef, &gv.leaseheap, l);
+        ddsrt_fibheap_insert (&lease_fhdef, &gv.leaseheap, l);
       }
       continue;
     }
@@ -270,7 +270,7 @@ int64_t check_and_handle_lease_expiration (nn_etime_t tnowE)
                 PGUID (proxypp->privileged_pp_guid));
         l->tsched = l->tend = add_duration_to_etime (tnowE, 200 * T_MILLISECOND);
         unlock_lease (l);
-        ut_fibheapInsert (&lease_fhdef, &gv.leaseheap, l);
+        ddsrt_fibheap_insert (&lease_fhdef, &gv.leaseheap, l);
         continue;
       }
     }
