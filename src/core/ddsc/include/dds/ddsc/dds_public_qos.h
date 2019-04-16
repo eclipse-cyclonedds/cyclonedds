@@ -501,7 +501,7 @@ DDS_EXPORT void dds_qset_ignorelocal (
  * @brief Get the userdata from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
- * @param[in,out] value - Pointer that will store the userdata
+ * @param[in,out] value - Pointer that will store the userdata.  If sz = 0, then a null pointer, else it is a pointer to an allocated buffer of sz+1 bytes where the last byte is always 0
  * @param[in,out] sz - Pointer that will store the size of userdata
  *
  * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
@@ -512,7 +512,7 @@ DDS_EXPORT bool dds_qget_userdata (const dds_qos_t * __restrict qos, void **valu
  * @brief Get the topicdata from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
- * @param[in,out] value - Pointer that will store the topicdata
+ * @param[in,out] value - Pointer that will store the topicdata.  If sz = 0, then a null pointer, else it is a pointer to an allocated buffer of sz+1 bytes where the last byte is always 0
  * @param[in,out] sz - Pointer that will store the size of topicdata
  *
  * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
@@ -523,7 +523,7 @@ DDS_EXPORT bool dds_qget_topicdata (const dds_qos_t * __restrict qos, void **val
  * @brief Get the groupdata from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
- * @param[in,out] value - Pointer that will store the groupdata
+ * @param[in,out] value - Pointer that will store the groupdata.  If sz = 0, then a null pointer, else it is a pointer to an allocated buffer of sz+1 bytes where the last byte is always 0
  * @param[in,out] sz - Pointer that will store the size of groupdata
  *
  * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
