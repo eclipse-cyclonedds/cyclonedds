@@ -17,7 +17,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/misc.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_config.h"
@@ -39,8 +39,8 @@
 
 static int compare_locators_vwrap (const void *va, const void *vb);
 
-static const ut_avlCTreedef_t addrset_treedef =
-  UT_AVL_CTREEDEF_INITIALIZER (offsetof (struct addrset_node, avlnode), offsetof (struct addrset_node, loc), compare_locators_vwrap, 0);
+static const ddsrt_avl_ctreedef_t addrset_treedef =
+  DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct addrset_node, avlnode), offsetof (struct addrset_node, loc), compare_locators_vwrap, 0);
 
 static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int port_mode, const char *msgtag, int req_mc, int mcgen_base, int mcgen_count, int mcgen_idx)
 {
@@ -203,8 +203,8 @@ struct addrset *new_addrset (void)
   struct addrset *as = ddsrt_malloc (sizeof (*as));
   ddsrt_atomic_st32 (&as->refc, 1);
   ddsrt_mutex_init (&as->lock);
-  ut_avlCInit (&addrset_treedef, &as->ucaddrs);
-  ut_avlCInit (&addrset_treedef, &as->mcaddrs);
+  ddsrt_avl_cinit (&addrset_treedef, &as->ucaddrs);
+  ddsrt_avl_cinit (&addrset_treedef, &as->mcaddrs);
   return as;
 }
 
@@ -221,8 +221,8 @@ void unref_addrset (struct addrset *as)
 {
   if ((as != NULL) && (ddsrt_atomic_dec32_ov (&as->refc) == 1))
   {
-    ut_avlCFree (&addrset_treedef, &as->ucaddrs, ddsrt_free);
-    ut_avlCFree (&addrset_treedef, &as->mcaddrs, ddsrt_free);
+    ddsrt_avl_cfree (&addrset_treedef, &as->ucaddrs, ddsrt_free);
+    ddsrt_avl_cfree (&addrset_treedef, &as->mcaddrs, ddsrt_free);
     ddsrt_mutex_destroy (&as->lock);
     ddsrt_free (as);
   }
@@ -247,9 +247,9 @@ int is_unspec_locator (const nn_locator_t *loc)
 int addrset_contains_ssm (const struct addrset *as)
 {
   struct addrset_node *n;
-  ut_avlCIter_t it;
+  ddsrt_avl_citer_t it;
   LOCK (as);
-  for (n = ut_avlCIterFirst (&addrset_treedef, &as->mcaddrs, &it); n; n = ut_avlCIterNext (&it))
+  for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
     if (ddsi_is_ssm_mcaddr (&n->loc))
     {
@@ -264,9 +264,9 @@ int addrset_contains_ssm (const struct addrset *as)
 int addrset_any_ssm (const struct addrset *as, nn_locator_t *dst)
 {
   struct addrset_node *n;
-  ut_avlCIter_t it;
+  ddsrt_avl_citer_t it;
   LOCK (as);
-  for (n = ut_avlCIterFirst (&addrset_treedef, &as->mcaddrs, &it); n; n = ut_avlCIterNext (&it))
+  for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
     if (ddsi_is_ssm_mcaddr (&n->loc))
     {
@@ -282,9 +282,9 @@ int addrset_any_ssm (const struct addrset *as, nn_locator_t *dst)
 int addrset_any_non_ssm_mc (const struct addrset *as, nn_locator_t *dst)
 {
   struct addrset_node *n;
-  ut_avlCIter_t it;
+  ddsrt_avl_citer_t it;
   LOCK (as);
-  for (n = ut_avlCIterFirst (&addrset_treedef, &as->mcaddrs, &it); n; n = ut_avlCIterNext (&it))
+  for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
     if (!ddsi_is_ssm_mcaddr (&n->loc))
     {
@@ -301,8 +301,8 @@ int addrset_any_non_ssm_mc (const struct addrset *as, nn_locator_t *dst)
 int addrset_purge (struct addrset *as)
 {
   LOCK (as);
-  ut_avlCFree (&addrset_treedef, &as->ucaddrs, ddsrt_free);
-  ut_avlCFree (&addrset_treedef, &as->mcaddrs, ddsrt_free);
+  ddsrt_avl_cfree (&addrset_treedef, &as->ucaddrs, ddsrt_free);
+  ddsrt_avl_cfree (&addrset_treedef, &as->mcaddrs, ddsrt_free);
   UNLOCK (as);
   return 0;
 }
@@ -311,14 +311,14 @@ void add_to_addrset (struct addrset *as, const nn_locator_t *loc)
 {
   if (!is_unspec_locator (loc))
   {
-    ut_avlIPath_t path;
-    ut_avlCTree_t *tree = ddsi_is_mcaddr (loc) ? &as->mcaddrs : &as->ucaddrs;
+    ddsrt_avl_ipath_t path;
+    ddsrt_avl_ctree_t *tree = ddsi_is_mcaddr (loc) ? &as->mcaddrs : &as->ucaddrs;
     LOCK (as);
-    if (ut_avlCLookupIPath (&addrset_treedef, tree, loc, &path) == NULL)
+    if (ddsrt_avl_clookup_ipath (&addrset_treedef, tree, loc, &path) == NULL)
     {
       struct addrset_node *n = ddsrt_malloc (sizeof (*n));
       n->loc = *loc;
-      ut_avlCInsertIPath (&addrset_treedef, tree, n, &path);
+      ddsrt_avl_cinsert_ipath (&addrset_treedef, tree, n, &path);
     }
     UNLOCK (as);
   }
@@ -326,13 +326,13 @@ void add_to_addrset (struct addrset *as, const nn_locator_t *loc)
 
 void remove_from_addrset (struct addrset *as, const nn_locator_t *loc)
 {
-  ut_avlDPath_t path;
-  ut_avlCTree_t *tree = ddsi_is_mcaddr (loc) ? &as->mcaddrs : &as->ucaddrs;
+  ddsrt_avl_dpath_t path;
+  ddsrt_avl_ctree_t *tree = ddsi_is_mcaddr (loc) ? &as->mcaddrs : &as->ucaddrs;
   struct addrset_node *n;
   LOCK (as);
-  if ((n = ut_avlCLookupDPath (&addrset_treedef, tree, loc, &path)) != NULL)
+  if ((n = ddsrt_avl_clookup_dpath (&addrset_treedef, tree, loc, &path)) != NULL)
   {
-    ut_avlCDeleteDPath (&addrset_treedef, tree, n, &path);
+    ddsrt_avl_cdelete_dpath (&addrset_treedef, tree, n, &path);
     ddsrt_free (n);
   }
   UNLOCK (as);
@@ -341,9 +341,9 @@ void remove_from_addrset (struct addrset *as, const nn_locator_t *loc)
 void copy_addrset_into_addrset_uc (struct addrset *as, const struct addrset *asadd)
 {
   struct addrset_node *n;
-  ut_avlCIter_t it;
+  ddsrt_avl_citer_t it;
   LOCK (asadd);
-  for (n = ut_avlCIterFirst (&addrset_treedef, &asadd->ucaddrs, &it); n; n = ut_avlCIterNext (&it))
+  for (n = ddsrt_avl_citer_first (&addrset_treedef, &asadd->ucaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
     add_to_addrset (as, &n->loc);
   UNLOCK (asadd);
 }
@@ -351,9 +351,9 @@ void copy_addrset_into_addrset_uc (struct addrset *as, const struct addrset *asa
 void copy_addrset_into_addrset_mc (struct addrset *as, const struct addrset *asadd)
 {
   struct addrset_node *n;
-  ut_avlCIter_t it;
+  ddsrt_avl_citer_t it;
   LOCK (asadd);
-  for (n = ut_avlCIterFirst (&addrset_treedef, &asadd->mcaddrs, &it); n; n = ut_avlCIterNext (&it))
+  for (n = ddsrt_avl_citer_first (&addrset_treedef, &asadd->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
     add_to_addrset (as, &n->loc);
   UNLOCK (asadd);
 }
@@ -368,9 +368,9 @@ void copy_addrset_into_addrset (struct addrset *as, const struct addrset *asadd)
 void copy_addrset_into_addrset_no_ssm_mc (struct addrset *as, const struct addrset *asadd)
 {
   struct addrset_node *n;
-  ut_avlCIter_t it;
+  ddsrt_avl_citer_t it;
   LOCK (asadd);
-  for (n = ut_avlCIterFirst (&addrset_treedef, &asadd->mcaddrs, &it); n; n = ut_avlCIterNext (&it))
+  for (n = ddsrt_avl_citer_first (&addrset_treedef, &asadd->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
     if (!ddsi_is_ssm_mcaddr (&n->loc))
       add_to_addrset (as, &n->loc);
@@ -389,14 +389,14 @@ void addrset_purge_ssm (struct addrset *as)
 {
   struct addrset_node *n;
   LOCK (as);
-  n = ut_avlCFindMin (&addrset_treedef, &as->mcaddrs);
+  n = ddsrt_avl_cfind_min (&addrset_treedef, &as->mcaddrs);
   while (n)
   {
     struct addrset_node *n1 = n;
-    n = ut_avlCFindSucc (&addrset_treedef, &as->mcaddrs, n);
+    n = ddsrt_avl_cfind_succ (&addrset_treedef, &as->mcaddrs, n);
     if (ddsi_is_ssm_mcaddr (&n1->loc))
     {
-      ut_avlCDelete (&addrset_treedef, &as->mcaddrs, n1);
+      ddsrt_avl_cdelete (&addrset_treedef, &as->mcaddrs, n1);
       ddsrt_free (n1);
     }
   }
@@ -412,7 +412,7 @@ size_t addrset_count (const struct addrset *as)
   {
     size_t count;
     LOCK (as);
-    count = ut_avlCCount (&as->ucaddrs) + ut_avlCCount (&as->mcaddrs);
+    count = ddsrt_avl_ccount (&as->ucaddrs) + ddsrt_avl_ccount (&as->mcaddrs);
     UNLOCK (as);
     return count;
   }
@@ -426,7 +426,7 @@ size_t addrset_count_uc (const struct addrset *as)
   {
     size_t count;
     LOCK (as);
-    count = ut_avlCCount (&as->ucaddrs);
+    count = ddsrt_avl_ccount (&as->ucaddrs);
     UNLOCK (as);
     return count;
   }
@@ -440,7 +440,7 @@ size_t addrset_count_mc (const struct addrset *as)
   {
     size_t count;
     LOCK (as);
-    count = ut_avlCCount (&as->mcaddrs);
+    count = ddsrt_avl_ccount (&as->mcaddrs);
     UNLOCK (as);
     return count;
   }
@@ -450,7 +450,7 @@ int addrset_empty_uc (const struct addrset *as)
 {
   int isempty;
   LOCK (as);
-  isempty = ut_avlCIsEmpty (&as->ucaddrs);
+  isempty = ddsrt_avl_cis_empty (&as->ucaddrs);
   UNLOCK (as);
   return isempty;
 }
@@ -459,7 +459,7 @@ int addrset_empty_mc (const struct addrset *as)
 {
   int isempty;
   LOCK (as);
-  isempty = ut_avlCIsEmpty (&as->mcaddrs);
+  isempty = ddsrt_avl_cis_empty (&as->mcaddrs);
   UNLOCK (as);
   return isempty;
 }
@@ -468,7 +468,7 @@ int addrset_empty (const struct addrset *as)
 {
   int isempty;
   LOCK (as);
-  isempty = ut_avlCIsEmpty (&as->ucaddrs) && ut_avlCIsEmpty (&as->mcaddrs);
+  isempty = ddsrt_avl_cis_empty (&as->ucaddrs) && ddsrt_avl_cis_empty (&as->mcaddrs);
   UNLOCK (as);
   return isempty;
 }
@@ -476,14 +476,14 @@ int addrset_empty (const struct addrset *as)
 int addrset_any_uc (const struct addrset *as, nn_locator_t *dst)
 {
   LOCK (as);
-  if (ut_avlCIsEmpty (&as->ucaddrs))
+  if (ddsrt_avl_cis_empty (&as->ucaddrs))
   {
     UNLOCK (as);
     return 0;
   }
   else
   {
-    const struct addrset_node *n = ut_avlCRootNonEmpty (&addrset_treedef, &as->ucaddrs);
+    const struct addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->ucaddrs);
     *dst = n->loc;
     UNLOCK (as);
     return 1;
@@ -493,14 +493,14 @@ int addrset_any_uc (const struct addrset *as, nn_locator_t *dst)
 int addrset_any_mc (const struct addrset *as, nn_locator_t *dst)
 {
   LOCK (as);
-  if (ut_avlCIsEmpty (&as->mcaddrs))
+  if (ddsrt_avl_cis_empty (&as->mcaddrs))
   {
     UNLOCK (as);
     return 0;
   }
   else
   {
-    const struct addrset_node *n = ut_avlCRootNonEmpty (&addrset_treedef, &as->mcaddrs);
+    const struct addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->mcaddrs);
     *dst = n->loc;
     UNLOCK (as);
     return 1;
@@ -527,9 +527,9 @@ size_t addrset_forall_count (struct addrset *as, addrset_forall_fun_t f, void *a
   arg1.f = f;
   arg1.arg = arg;
   LOCK (as);
-  ut_avlCWalk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
-  ut_avlCWalk (&addrset_treedef, &as->ucaddrs, addrset_forall_helper, &arg1);
-  count = ut_avlCCount (&as->ucaddrs) + ut_avlCCount (&as->mcaddrs);
+  ddsrt_avl_cwalk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
+  ddsrt_avl_cwalk (&addrset_treedef, &as->ucaddrs, addrset_forall_helper, &arg1);
+  count = ddsrt_avl_ccount (&as->ucaddrs) + ddsrt_avl_ccount (&as->mcaddrs);
   UNLOCK (as);
   return count;
 }
@@ -543,22 +543,22 @@ int addrset_forone (struct addrset *as, addrset_forone_fun_t f, void *arg)
 {
   unsigned i;
   addrset_node_t n;
-  ut_avlCTree_t *trees[2];
-  ut_avlCIter_t iter;
+  ddsrt_avl_ctree_t *trees[2];
+  ddsrt_avl_citer_t iter;
 
   trees[0] = &as->mcaddrs;
   trees[1] = &as->ucaddrs;
 
   for (i = 0; i < 2u; i++)
   {
-    n = (addrset_node_t) ut_avlCIterFirst (&addrset_treedef, trees[i], &iter);
+    n = (addrset_node_t) ddsrt_avl_citer_first (&addrset_treedef, trees[i], &iter);
     while (n)
     {
       if ((f) (&n->loc, arg) > 0)
       {
         return 0;
       }
-      n = (addrset_node_t) ut_avlCIterNext (&iter);
+      n = (addrset_node_t) ddsrt_avl_citer_next (&iter);
     }
   }
   return -1;
@@ -588,14 +588,14 @@ void nn_log_addrset (uint32_t tf, const char *prefix, const struct addrset *as)
   }
 }
 
-static int addrset_eq_onesidederr1 (const ut_avlCTree_t *at, const ut_avlCTree_t *bt)
+static int addrset_eq_onesidederr1 (const ddsrt_avl_ctree_t *at, const ddsrt_avl_ctree_t *bt)
 {
   /* Just checking the root */
-  if (ut_avlCIsEmpty (at) && ut_avlCIsEmpty (bt)) {
+  if (ddsrt_avl_cis_empty (at) && ddsrt_avl_cis_empty (bt)) {
     return 1;
-  } else if (ut_avlCIsSingleton (at) && ut_avlCIsSingleton (bt)) {
-    const struct addrset_node *a = ut_avlCRootNonEmpty (&addrset_treedef, at);
-    const struct addrset_node *b = ut_avlCRootNonEmpty (&addrset_treedef, bt);
+  } else if (ddsrt_avl_cis_singleton (at) && ddsrt_avl_cis_singleton (bt)) {
+    const struct addrset_node *a = ddsrt_avl_croot_non_empty (&addrset_treedef, at);
+    const struct addrset_node *b = ddsrt_avl_croot_non_empty (&addrset_treedef, bt);
     return compare_locators (&a->loc, &b->loc) == 0;
   } else {
     return 0;

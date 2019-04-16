@@ -14,7 +14,7 @@
 #include <assert.h>
 
 #include "dds/ddsrt/misc.h"
-#include "dds/util/ut_fibheap.h"
+#include "dds/ddsrt/fibheap.h"
 
 /* max degree: n >= F_{d+2} >= \phi^d ==> d <= log_\phi n, where \phi
    (as usual) is the golden ratio ~= 1.618.  We know n <= (size of
@@ -23,24 +23,24 @@
    space). */
 #define MAX_DEGREE ((unsigned) (sizeof (void *) * CHAR_BIT - 1))
 
-static int cmp (const ut_fibheapDef_t *fhdef, const ut_fibheapNode_t *a, const ut_fibheapNode_t *b)
+static int cmp (const ddsrt_fibheap_def_t *fhdef, const ddsrt_fibheap_node_t *a, const ddsrt_fibheap_node_t *b)
 {
     return fhdef->cmp ((const char *) a - fhdef->offset, (const char *) b - fhdef->offset);
 }
 
-void ut_fibheapDefInit (ut_fibheapDef_t *fhdef, uintptr_t offset, int (*cmp) (const void *va, const void *vb))
+void ddsrt_fibheap_def_init (ddsrt_fibheap_def_t *fhdef, uintptr_t offset, int (*cmp) (const void *va, const void *vb))
 {
     fhdef->offset = offset;
     fhdef->cmp = cmp;
 }
 
-void ut_fibheapInit (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh)
+void ddsrt_fibheap_init (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap_t *fh)
 {
     DDSRT_UNUSED_ARG(fhdef);
     fh->roots = NULL;
 }
 
-void *ut_fibheapMin (const ut_fibheapDef_t *fhdef, const ut_fibheap_t *fh)
+void *ddsrt_fibheap_min (const ddsrt_fibheap_def_t *fhdef, const ddsrt_fibheap_t *fh)
 {
     if (fh->roots) {
         return (void *) ((char *) fh->roots - fhdef->offset);
@@ -49,16 +49,16 @@ void *ut_fibheapMin (const ut_fibheapDef_t *fhdef, const ut_fibheap_t *fh)
     }
 }
 
-static void ut_fibheap_merge_nonempty_list (ut_fibheapNode_t **markptr, ut_fibheapNode_t *list)
+static void ddsrt_fibheap_merge_nonempty_list (ddsrt_fibheap_node_t **markptr, ddsrt_fibheap_node_t *list)
 {
     assert (list != NULL);
 
     if (*markptr == NULL) {
         *markptr = list;
     } else {
-        ut_fibheapNode_t * const mark = *markptr;
-        ut_fibheapNode_t * const old_mark_next = mark->next;
-        ut_fibheapNode_t * const old_list_prev = list->prev;
+        ddsrt_fibheap_node_t * const mark = *markptr;
+        ddsrt_fibheap_node_t * const old_mark_next = mark->next;
+        ddsrt_fibheap_node_t * const old_list_prev = list->prev;
         mark->next = list;
         old_mark_next->prev = old_list_prev;
         list->prev = mark;
@@ -66,7 +66,7 @@ static void ut_fibheap_merge_nonempty_list (ut_fibheapNode_t **markptr, ut_fibhe
     }
 }
 
-static void ut_fibheap_merge_into (const ut_fibheapDef_t *fhdef, ut_fibheap_t *a, ut_fibheapNode_t * const br)
+static void ddsrt_fibheap_merge_into (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap_t *a, ddsrt_fibheap_node_t * const br)
 {
     if (br == NULL) {
         return;
@@ -74,25 +74,25 @@ static void ut_fibheap_merge_into (const ut_fibheapDef_t *fhdef, ut_fibheap_t *a
         a->roots = br;
     } else {
         const int c = cmp (fhdef, br, a->roots);
-        ut_fibheap_merge_nonempty_list (&a->roots, br);
+        ddsrt_fibheap_merge_nonempty_list (&a->roots, br);
         if (c < 0)
             a->roots = br;
     }
 }
 
-void ut_fibheapMerge (const ut_fibheapDef_t *fhdef, ut_fibheap_t *a, ut_fibheap_t *b)
+void ddsrt_fibheap_merge (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap_t *a, ddsrt_fibheap_t *b)
 {
     /* merges nodes from b into a, thereafter, b is empty */
-    ut_fibheap_merge_into (fhdef, a, b->roots);
+    ddsrt_fibheap_merge_into (fhdef, a, b->roots);
     b->roots = NULL;
 }
 
-void ut_fibheapInsert (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh, const void *vnode)
+void ddsrt_fibheap_insert (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap_t *fh, const void *vnode)
 {
     /* fibheap node is opaque => nothing in node changes as far as
      caller is concerned => declare as const argument, then drop the
      const qualifier */
-    ut_fibheapNode_t *node = (ut_fibheapNode_t *) ((char *) vnode + fhdef->offset);
+    ddsrt_fibheap_node_t *node = (ddsrt_fibheap_node_t *) ((char *) vnode + fhdef->offset);
 
     /* new heap of degree 0 (i.e., only containing NODE) */
     node->parent = node->children = NULL;
@@ -101,24 +101,24 @@ void ut_fibheapInsert (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh, const voi
     node->degree = 0;
 
     /* then merge it in */
-    ut_fibheap_merge_into (fhdef, fh, node);
+    ddsrt_fibheap_merge_into (fhdef, fh, node);
 }
 
-static void ut_fibheap_add_as_child (ut_fibheapNode_t *parent, ut_fibheapNode_t *child)
+static void ddsrt_fibheap_add_as_child (ddsrt_fibheap_node_t *parent, ddsrt_fibheap_node_t *child)
 {
     parent->degree++;
     child->parent = parent;
     child->prev = child->next = child;
-    ut_fibheap_merge_nonempty_list (&parent->children, child);
+    ddsrt_fibheap_merge_nonempty_list (&parent->children, child);
 }
 
-static void ut_fibheap_delete_one_from_list (ut_fibheapNode_t **markptr, ut_fibheapNode_t *node)
+static void ddsrt_fibheap_delete_one_from_list (ddsrt_fibheap_node_t **markptr, ddsrt_fibheap_node_t *node)
 {
     if (node->next == node) {
         *markptr = NULL;
     } else {
-        ut_fibheapNode_t * const node_prev = node->prev;
-        ut_fibheapNode_t * const node_next = node->next;
+        ddsrt_fibheap_node_t * const node_prev = node->prev;
+        ddsrt_fibheap_node_t * const node_next = node->next;
         node_prev->next = node_next;
         node_next->prev = node_prev;
         if (*markptr == node) {
@@ -127,10 +127,10 @@ static void ut_fibheap_delete_one_from_list (ut_fibheapNode_t **markptr, ut_fibh
     }
 }
 
-void *ut_fibheapExtractMin (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh)
+void *ddsrt_fibheap_extract_min (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap_t *fh)
 {
-    ut_fibheapNode_t *roots[MAX_DEGREE + 1];
-    ut_fibheapNode_t * const min = fh->roots;
+    ddsrt_fibheap_node_t *roots[MAX_DEGREE + 1];
+    ddsrt_fibheap_node_t * const min = fh->roots;
     unsigned min_degree_noninit = 0;
 
     /* empty heap => return that, alternative would be to require the
@@ -147,7 +147,7 @@ void *ut_fibheapExtractMin (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh)
     }
 
     /* remove min from fh->roots */
-    ut_fibheap_delete_one_from_list (&fh->roots, min);
+    ddsrt_fibheap_delete_one_from_list (&fh->roots, min);
 
     /* FIXME: can speed up by combining a few things & improving
        locality of reference by scanning lists only once */
@@ -155,30 +155,30 @@ void *ut_fibheapExtractMin (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh)
     /* insert min'schildren as new roots -- must fix parent pointers,
        and reset marks because roots are always unmarked */
     if (min->children) {
-        ut_fibheapNode_t * const mark = min->children;
-        ut_fibheapNode_t *n = mark;
+        ddsrt_fibheap_node_t * const mark = min->children;
+        ddsrt_fibheap_node_t *n = mark;
         do {
             n->parent = NULL;
             n->mark = 0;
             n = n->next;
         } while (n != mark);
 
-        ut_fibheap_merge_nonempty_list (&fh->roots, min->children);
+        ddsrt_fibheap_merge_nonempty_list (&fh->roots, min->children);
     }
 
     /* iteratively merge roots of equal degree, completely messing up
        fh->roots, ... */
     {
-        ut_fibheapNode_t *const mark = fh->roots;
-        ut_fibheapNode_t *n = mark;
+        ddsrt_fibheap_node_t *const mark = fh->roots;
+        ddsrt_fibheap_node_t *n = mark;
         do {
-            ut_fibheapNode_t * const n1 = n->next;
+            ddsrt_fibheap_node_t * const n1 = n->next;
 
             /* if n is first root with this high a degree, there's certainly
                not going to be another root to merge with yet */
             while (n->degree < min_degree_noninit && roots[n->degree]) {
                 unsigned const degree = n->degree;
-                ut_fibheapNode_t *u, *v;
+                ddsrt_fibheap_node_t *u, *v;
 
                 if (cmp (fhdef, roots[degree], n) < 0) {
                     u = roots[degree]; v = n;
@@ -186,7 +186,7 @@ void *ut_fibheapExtractMin (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh)
                     u = n; v = roots[degree];
                 }
                 roots[degree] = NULL;
-                ut_fibheap_add_as_child (u, v);
+                ddsrt_fibheap_add_as_child (u, v);
                 n = u;
             }
 
@@ -206,7 +206,7 @@ void *ut_fibheapExtractMin (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh)
        memory at an astonishing rate, and we need to compare the root
        keys anyway to find the minimum */
     {
-        ut_fibheapNode_t *mark, *cursor, *newmin;
+        ddsrt_fibheap_node_t *mark, *cursor, *newmin;
         unsigned i;
         for (i = 0; roots[i] == NULL; i++) {
             assert (i+1 < min_degree_noninit);
@@ -216,7 +216,7 @@ void *ut_fibheapExtractMin (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh)
         mark = cursor = roots[i];
         for (++i; i < min_degree_noninit; i++) {
             if (roots[i]) {
-                ut_fibheapNode_t * const r = roots[i];
+                ddsrt_fibheap_node_t * const r = roots[i];
                 if (cmp (fhdef, r, newmin) < 0)
                     newmin = r;
                 r->prev = cursor;
@@ -233,17 +233,17 @@ void *ut_fibheapExtractMin (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh)
     return (void *) ((char *) min - fhdef->offset);
 }
 
-static void ut_fibheap_cutnode (ut_fibheap_t *fh, ut_fibheapNode_t *node)
+static void ddsrt_fibheap_cutnode (ddsrt_fibheap_t *fh, ddsrt_fibheap_node_t *node)
 {
     /* by marking the node, we ensure it gets cut */
     node->mark = 1;
 
     /* traverse towards the root, cutting marked nodes on the way */
     while (node->parent && node->mark) {
-        ut_fibheapNode_t *parent = node->parent;
+        ddsrt_fibheap_node_t *parent = node->parent;
 
         assert (parent->degree > 0);
-        ut_fibheap_delete_one_from_list (&parent->children, node);
+        ddsrt_fibheap_delete_one_from_list (&parent->children, node);
         parent->degree--;
 
         node->mark = 0;
@@ -252,7 +252,7 @@ static void ut_fibheap_cutnode (ut_fibheap_t *fh, ut_fibheapNode_t *node)
 
         /* we assume heap properties haven't been violated, and therefore
            none of the nodes we cut can become the new minimum */
-        ut_fibheap_merge_nonempty_list (&fh->roots, node);
+        ddsrt_fibheap_merge_nonempty_list (&fh->roots, node);
 
         node = parent;
     }
@@ -264,12 +264,12 @@ static void ut_fibheap_cutnode (ut_fibheap_t *fh, ut_fibheapNode_t *node)
     }
 }
 
-void ut_fibheapDecreaseKey (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh, const void *vnode)
+void ddsrt_fibheap_decrease_key (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap_t *fh, const void *vnode)
 {
     /* fibheap node is opaque => nothing in node changes as far as
        caller is concerned => declare as const argument, then drop the
        const qualifier */
-    ut_fibheapNode_t *node = (ut_fibheapNode_t *) ((char *) vnode + fhdef->offset);
+    ddsrt_fibheap_node_t *node = (ddsrt_fibheap_node_t *) ((char *) vnode + fhdef->offset);
 
     if (node->parent && cmp (fhdef, node->parent, node) <= 0) {
         /* heap property not violated, do nothing */
@@ -278,7 +278,7 @@ void ut_fibheapDecreaseKey (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh, cons
             /* heap property violated by decreasing the key, but we cut it
                pretending nothing has happened yet, then fix up the minimum if
                this node is the new minimum */
-            ut_fibheap_cutnode (fh, node);
+            ddsrt_fibheap_cutnode (fh, node);
         }
         if (cmp (fhdef, node, fh->roots) < 0) {
             fh->roots = node;
@@ -286,19 +286,19 @@ void ut_fibheapDecreaseKey (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh, cons
     }
 }
 
-void ut_fibheapDelete (const ut_fibheapDef_t *fhdef, ut_fibheap_t *fh, const void *vnode)
+void ddsrt_fibheap_delete (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap_t *fh, const void *vnode)
 {
     /* fibheap node is opaque => nothing in node changes as far as
        caller is concerned => declare as const argument, then drop the
        const qualifier */
-    ut_fibheapNode_t *node = (ut_fibheapNode_t *) ((char *) vnode + fhdef->offset);
+    ddsrt_fibheap_node_t *node = (ddsrt_fibheap_node_t *) ((char *) vnode + fhdef->offset);
     
     /* essentially decreasekey(node);extractmin while pretending the
        node key is -infinity.  That means we can't directly call
        decreasekey, because it considers the actual value of the key. */
     if (node->parent != NULL) {
-        ut_fibheap_cutnode (fh, node);
+        ddsrt_fibheap_cutnode (fh, node);
     }
     fh->roots = node;
-    (void) ut_fibheapExtractMin (fhdef, fh);
+    (void) ddsrt_fibheap_extract_min (fhdef, fh);
 }

@@ -15,7 +15,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_xmsg.h"
@@ -51,12 +51,12 @@
 
 static const struct wr_prd_match *root_rdmatch (const struct writer *wr)
 {
-  return ut_avlRoot (&wr_readers_treedef, &wr->readers);
+  return ddsrt_avl_root (&wr_readers_treedef, &wr->readers);
 }
 
 static int have_reliable_subs (const struct writer *wr)
 {
-  if (ut_avlIsEmpty (&wr->readers) || root_rdmatch (wr)->min_seq == MAX_SEQ_NUMBER)
+  if (ddsrt_avl_is_empty (&wr->readers) || root_rdmatch (wr)->min_seq == MAX_SEQ_NUMBER)
     return 0;
   else
     return 1;
@@ -152,7 +152,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
     /* out of memory at worst slows down traffic */
     return NULL;
 
-  if (ut_avlIsEmpty (&wr->readers) || wr->num_reliable_readers == 0)
+  if (ddsrt_avl_is_empty (&wr->readers) || wr->num_reliable_readers == 0)
   {
     /* Not really supposed to come here, at least not for the first
        case. Secondly, there really seems to be little use for
@@ -192,9 +192,9 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
     DDS_TRACE("unicasting to prd %x:%x:%x:%x ", PGUID (*prd_guid));
   DDS_TRACE("(rel-prd %d seq-eq-max %d seq %"PRId64" maxseq %"PRId64")\n",
           wr->num_reliable_readers,
-          ut_avlIsEmpty (&wr->readers) ? -1 : root_rdmatch (wr)->num_reliable_readers_where_seq_equals_max,
+          ddsrt_avl_is_empty (&wr->readers) ? -1 : root_rdmatch (wr)->num_reliable_readers_where_seq_equals_max,
           wr->seq,
-          ut_avlIsEmpty (&wr->readers) ? (seqno_t) -1 : root_rdmatch (wr)->max_seq);
+          ddsrt_avl_is_empty (&wr->readers) ? (seqno_t) -1 : root_rdmatch (wr)->max_seq);
 
   if (prd_guid == NULL)
   {
@@ -312,8 +312,8 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
             PGUID (wr->e.guid),
             *hbansreq ? "" : " final",
             (hbc->tsched.v == T_NEVER) ? POS_INFINITY_DOUBLE : (double) (hbc->tsched.v - tnow.v) / 1e9,
-            ut_avlIsEmpty (&wr->readers) ? -1 : root_rdmatch (wr)->min_seq,
-            ut_avlIsEmpty (&wr->readers) || root_rdmatch (wr)->all_have_replied_to_hb ? "" : "!",
+            ddsrt_avl_is_empty (&wr->readers) ? -1 : root_rdmatch (wr)->min_seq,
+            ddsrt_avl_is_empty (&wr->readers) || root_rdmatch (wr)->all_have_replied_to_hb ? "" : "!",
             whcst->max_seq, READ_SEQ_XMIT(wr));
   }
 

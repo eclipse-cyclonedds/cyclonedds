@@ -78,6 +78,21 @@ list(APPEND sources
   "${source_path}/strtod.c"
   "${source_path}/strtol.c")
 
+list(APPEND headers
+  "${source_path}/dds/ddsrt/avl.h"
+  "${source_path}/dds/ddsrt/expand_envvars.h"
+  "${source_path}/dds/ddsrt/fibheap.h"
+  "${source_path}/dds/ddsrt/hopscotch.h"
+  "${source_path}/dds/ddsrt/thread_pool.h")
+
+list(APPEND sources
+  "${source_path}/avl.c"
+  "${source_path}/expand_envvars.c"
+  "${source_path}/fibheap.c"
+  "${source_path}/hopscotch.c"
+  "${source_path}/thread_pool.c"
+  "${source_path}/xmlparser.c")
+
 # Not every target offers the same set of features. For embedded targets the
 # set of features may even be different between builds. e.g. a FreeRTOS build
 # could use the lightweight IP stack, but later change to FreeRTOS+TCP.

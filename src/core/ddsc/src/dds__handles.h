@@ -94,9 +94,9 @@ dds_handle_server_fini(void);
  * user data.
  *
  * A kind value != 0 has to be provided, just to make sure that no 0 handles
- * will be created. It should also fit the UT_HANDLE_KIND_MASK.
+ * will be created. It should also fit the DDSRT_HANDLE_KIND_MASK.
  * In other words handle creation will fail if
- * ((kind & ~UT_HANDLE_KIND_MASK != 0) || (kind & UT_HANDLE_KIND_MASK == 0)).
+ * ((kind & ~DDSRT_HANDLE_KIND_MASK != 0) || (kind & DDSRT_HANDLE_KIND_MASK == 0)).
  *
  * It has to do something clever to make sure that a deleted handle is not
  * re-issued very quickly after it was deleted.

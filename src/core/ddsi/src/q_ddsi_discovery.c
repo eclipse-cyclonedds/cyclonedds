@@ -20,7 +20,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/sync.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"
@@ -1767,7 +1767,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     statusinfo = (qos.present & PP_STATUSINFO) ? qos.statusinfo : 0;
   }
 
-  if (pwr && ut_avlIsEmpty (&pwr->readers))
+  if (pwr && ddsrt_avl_is_empty (&pwr->readers))
   {
     /* Wasn't empty when enqueued, but needn't still be; SPDP has no
        proxy writer, and is always accepted */

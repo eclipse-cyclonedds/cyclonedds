@@ -123,7 +123,7 @@ dds_init(dds_domainid_t domain)
   }
 
   upgrade_main_thread();
-  ut_avlInit(&dds_domaintree_def, &dds_global.m_domains);
+  ddsrt_avl_init(&dds_domaintree_def, &dds_global.m_domains);
 
   /* Start monitoring the liveliness of all threads. */
   if (!config.liveliness_monitoring)

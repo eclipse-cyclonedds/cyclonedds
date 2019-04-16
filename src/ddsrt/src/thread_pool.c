@@ -15,7 +15,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
-#include "dds/util/ut_thread_pool.h"
+#include "dds/ddsrt/thread_pool.h"
 
 typedef struct ddsi_work_queue_job
 {
@@ -25,7 +25,7 @@ typedef struct ddsi_work_queue_job
 }
 * ddsi_work_queue_job_t;
 
-struct ut_thread_pool_s
+struct ddsrt_thread_pool_s
 {
     ddsi_work_queue_job_t m_jobs;      /* Job queue */
     ddsi_work_queue_job_t m_jobs_tail; /* Tail of job queue */
@@ -42,10 +42,10 @@ struct ut_thread_pool_s
     ddsrt_mutex_t m_mutex;                  /* Pool guard mutex */
 };
 
-static uint32_t ut_thread_start_fn (void * arg)
+static uint32_t ddsrt_thread_start_fn (void * arg)
 {
     ddsi_work_queue_job_t job;
-    ut_thread_pool pool = (ut_thread_pool) arg;
+    ddsrt_thread_pool pool = (ddsrt_thread_pool) arg;
 
     /* Thread loops, pulling jobs from queue */
 
@@ -88,7 +88,7 @@ static uint32_t ut_thread_start_fn (void * arg)
     return 0;
 }
 
-static dds_retcode_t ut_thread_pool_new_thread (ut_thread_pool pool)
+static dds_retcode_t ddsrt_thread_pool_new_thread (ddsrt_thread_pool pool)
 {
     static unsigned char pools = 0; /* Pool counter - TODO make atomic */
 
@@ -97,7 +97,7 @@ static dds_retcode_t ut_thread_pool_new_thread (ut_thread_pool pool)
     dds_retcode_t res;
 
     (void) snprintf (name, sizeof (name), "OSPL-%u-%u", pools++, pool->m_count++);
-    res = ddsrt_thread_create (&id, name, &pool->m_attr, &ut_thread_start_fn, pool);
+    res = ddsrt_thread_create (&id, name, &pool->m_attr, &ddsrt_thread_start_fn, pool);
 
     if (res == DDS_RETCODE_OK)
     {
@@ -110,9 +110,9 @@ static dds_retcode_t ut_thread_pool_new_thread (ut_thread_pool pool)
     return res;
 }
 
-ut_thread_pool ut_thread_pool_new (uint32_t threads, uint32_t max_threads, uint32_t max_queue, ddsrt_threadattr_t * attr)
+ddsrt_thread_pool ddsrt_thread_pool_new (uint32_t threads, uint32_t max_threads, uint32_t max_queue, ddsrt_threadattr_t * attr)
 {
-    ut_thread_pool pool;
+    ddsrt_thread_pool pool;
     ddsi_work_queue_job_t job;
 
     /* Sanity check QoS */
@@ -144,9 +144,9 @@ ut_thread_pool ut_thread_pool_new (uint32_t threads, uint32_t max_threads, uint3
 
     while (threads--)
     {
-        if (ut_thread_pool_new_thread (pool) != DDS_RETCODE_OK)
+        if (ddsrt_thread_pool_new_thread (pool) != DDS_RETCODE_OK)
         {
-            ut_thread_pool_free (pool);
+            ddsrt_thread_pool_free (pool);
             pool = NULL;
             break;
         }
@@ -158,7 +158,7 @@ ut_thread_pool ut_thread_pool_new (uint32_t threads, uint32_t max_threads, uint3
     return pool;
 }
 
-void ut_thread_pool_free (ut_thread_pool pool)
+void ddsrt_thread_pool_free (ddsrt_thread_pool pool)
 {
     ddsi_work_queue_job_t job;
 
@@ -205,7 +205,7 @@ void ut_thread_pool_free (ut_thread_pool pool)
     ddsrt_free (pool);
 }
 
-dds_retcode_t ut_thread_pool_submit (ut_thread_pool pool, void (*fn) (void *arg), void * arg)
+dds_retcode_t ddsrt_thread_pool_submit (ddsrt_thread_pool pool, void (*fn) (void *arg), void * arg)
 {
     dds_retcode_t res = DDS_RETCODE_OK;
     ddsi_work_queue_job_t job;
@@ -255,7 +255,7 @@ dds_retcode_t ut_thread_pool_submit (ut_thread_pool pool, void (*fn) (void *arg)
             if ((pool->m_thread_max == 0) || (pool->m_threads < pool->m_thread_max))
             {
                 /* OK if fails as have queued job */
-                (void) ut_thread_pool_new_thread (pool);
+                (void) ddsrt_thread_pool_new_thread (pool);
             }
         }
 
@@ -269,7 +269,7 @@ dds_retcode_t ut_thread_pool_submit (ut_thread_pool pool, void (*fn) (void *arg)
     return res;
 }
 
-void ut_thread_pool_purge (ut_thread_pool pool)
+void ddsrt_thread_pool_purge (ddsrt_thread_pool pool)
 {
     uint32_t total;
 

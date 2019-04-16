@@ -15,7 +15,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/random.h"
-#include "dds/util/ut_hopscotch.h"
+#include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds__handles.h"
 #include "dds__types.h"
@@ -40,9 +40,9 @@
 
 struct dds_handle_server {
 #if USE_CHH
-  struct ut_chh *ht;
+  struct ddsrt_chh *ht;
 #else
-  struct ut_hh *ht;
+  struct ddsrt_hh *ht;
 #endif
   size_t count;
   ddsrt_mutex_t lock;
@@ -68,9 +68,9 @@ static int handle_equal (const void *va, const void *vb)
 dds_return_t dds_handle_server_init (void (*free_via_gc) (void *x))
 {
 #if USE_CHH
-  handles.ht = ut_chhNew (128, handle_hash, handle_equal, free_via_gc);
+  handles.ht = ddsrt_chh_new (128, handle_hash, handle_equal, free_via_gc);
 #else
-  handles.ht = ut_hhNew (128, handle_hash, handle_equal);
+  handles.ht = ddsrt_hh_new (128, handle_hash, handle_equal);
   (void) free_via_gc;
 #endif
   handles.count = 0;
@@ -83,16 +83,16 @@ void dds_handle_server_fini (void)
 {
 #if USE_CHH
 #ifndef NDEBUG
-  struct ut_chhIter it;
-  assert (ut_chhIterFirst (handles.ht, &it) == NULL);
+  struct ddsrt_chh_iter it;
+  assert (ddsrt_chh_iter_first (handles.ht, &it) == NULL);
 #endif
-  ut_chhFree (handles.ht);
+  ddsrt_chh_free (handles.ht);
 #else /* USE_CHH */
 #ifndef NDEBUG
-  struct ut_hhIter it;
-  assert (ut_hhIterFirst (handles.ht, &it) == NULL);
+  struct ddsrt_hh_iter it;
+  assert (ddsrt_hh_iter_first (handles.ht, &it) == NULL);
 #endif
-  ut_hhFree (handles.ht);
+  ddsrt_hh_free (handles.ht);
 #endif /* USE_CHH */
   ddsrt_cond_destroy (&handles.cond);
   ddsrt_mutex_destroy (&handles.lock);
@@ -100,9 +100,9 @@ void dds_handle_server_fini (void)
 }
 
 #if USE_CHH
-static bool hhadd (struct ut_chh *ht, void *elem) { return ut_chhAdd (ht, elem); }
+static bool hhadd (struct ddsrt_chh *ht, void *elem) { return ddsrt_chh_add (ht, elem); }
 #else
-static bool hhadd (struct ut_hh *ht, void *elem) { return ut_hhAdd (ht, elem); }
+static bool hhadd (struct ddsrt_hh *ht, void *elem) { return ddsrt_hh_add (ht, elem); }
 #endif
 static dds_handle_t dds_handle_create_int (struct dds_handle_link *link)
 {
@@ -176,10 +176,10 @@ int32_t dds_handle_delete (struct dds_handle_link *link, dds_duration_t timeout)
   }
 #if USE_CHH
   thread_state_awake (ts1);
-  int x = ut_chhRemove (handles.ht, link);
+  int x = ddsrt_chh_remove (handles.ht, link);
   thread_state_asleep (ts1);
 #else
-  int x = ut_hhRemove (handles.ht, link);
+  int x = ddsrt_hh_remove (handles.ht, link);
 #endif
   assert(x);
   (void)x;
@@ -209,10 +209,10 @@ int32_t dds_handle_claim (dds_handle_t hdl, struct dds_handle_link **link)
 
 #if USE_CHH
   thread_state_awake (ts1);
-  *link = ut_chhLookup (handles.ht, &dummy);
+  *link = ddsrt_chh_lookup (handles.ht, &dummy);
 #else
   ddsrt_mutex_lock (&handles.lock);
-  *link = ut_hhLookup (handles.ht, &dummy);
+  *link = ddsrt_hh_lookup (handles.ht, &dummy);
 #endif
   if (*link == NULL)
     rc = DDS_RETCODE_BAD_PARAMETER;

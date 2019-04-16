@@ -12,14 +12,14 @@
 #include <assert.h>
 #include <stddef.h>
 #include "dds/ddsrt/heap.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_inverse_uint32_set.h"
 
 static int uint32_t_cmp(const void *va, const void *vb);
 
-static ut_avlTreedef_t inverse_uint32_set_td = UT_AVL_TREEDEF_INITIALIZER(offsetof(struct inverse_uint32_set_node, avlnode), offsetof(struct inverse_uint32_set_node, min), uint32_t_cmp, 0);
+static ddsrt_avl_treedef_t inverse_uint32_set_td = DDSRT_AVL_TREEDEF_INITIALIZER(offsetof(struct inverse_uint32_set_node, avlnode), offsetof(struct inverse_uint32_set_node, min), uint32_t_cmp, 0);
 
 static int uint32_t_cmp(const void *va, const void *vb)
 {
@@ -31,12 +31,12 @@ static int uint32_t_cmp(const void *va, const void *vb)
 static void check(const struct inverse_uint32_set *set)
 {
 #ifndef NDEBUG
-  ut_avlIter_t it;
+  ddsrt_avl_iter_t it;
   struct inverse_uint32_set_node *pn = NULL, *n;
   assert(set->min <= set->max);
   assert(set->cursor >= set->min);
   assert(set->cursor <= set->max);
-  for (n = ut_avlIterFirst(&inverse_uint32_set_td, &set->ids, &it); n; pn = n, n = ut_avlIterNext(&it))
+  for (n = ddsrt_avl_iter_first(&inverse_uint32_set_td, &set->ids, &it); n; pn = n, n = ddsrt_avl_iter_next(&it))
   {
     assert(n->min <= n->max);
     assert(n->min >= set->min);
@@ -51,20 +51,20 @@ static void check(const struct inverse_uint32_set *set)
 void inverse_uint32_set_init(struct inverse_uint32_set *set, uint32_t min, uint32_t max)
 {
   struct inverse_uint32_set_node *n;
-  ut_avlInit(&inverse_uint32_set_td, &set->ids);
+  ddsrt_avl_init(&inverse_uint32_set_td, &set->ids);
   set->cursor = min;
   set->min = min;
   set->max = max;
   n = ddsrt_malloc(sizeof(*n));
   n->min = min;
   n->max = max;
-  ut_avlInsert(&inverse_uint32_set_td, &set->ids, n);
+  ddsrt_avl_insert(&inverse_uint32_set_td, &set->ids, n);
   check(set);
 }
 
 void inverse_uint32_set_fini(struct inverse_uint32_set *set)
 {
-  ut_avlFree(&inverse_uint32_set_td, &set->ids, ddsrt_free);
+  ddsrt_avl_free(&inverse_uint32_set_td, &set->ids, ddsrt_free);
 }
 
 static uint32_t inverse_uint32_set_alloc_use_min(struct inverse_uint32_set *set, struct inverse_uint32_set_node *n)
@@ -72,7 +72,7 @@ static uint32_t inverse_uint32_set_alloc_use_min(struct inverse_uint32_set *set,
   const uint32_t id = n->min;
   if (n->min == n->max)
   {
-    ut_avlDelete(&inverse_uint32_set_td, &set->ids, n);
+    ddsrt_avl_delete(&inverse_uint32_set_td, &set->ids, n);
     ddsrt_free(n);
   }
   else
@@ -86,7 +86,7 @@ static uint32_t inverse_uint32_set_alloc_use_min(struct inverse_uint32_set *set,
 int inverse_uint32_set_alloc(uint32_t * const id, struct inverse_uint32_set *set)
 {
   struct inverse_uint32_set_node *n;
-  if ((n = ut_avlLookupPredEq(&inverse_uint32_set_td, &set->ids, &set->cursor)) != NULL && set->cursor <= n->max) {
+  if ((n = ddsrt_avl_lookup_pred_eq(&inverse_uint32_set_td, &set->ids, &set->cursor)) != NULL && set->cursor <= n->max) {
     /* n is [a,b] s.t. a <= C <= b, so C is available */
     *id = set->cursor;
     if (n->min == set->cursor)
@@ -105,15 +105,15 @@ int inverse_uint32_set_alloc(uint32_t * const id, struct inverse_uint32_set *set
       n1->min = set->cursor + 1;
       n1->max = n->max;
       n->max = set->cursor - 1;
-      ut_avlInsert(&inverse_uint32_set_td, &set->ids, n1);
+      ddsrt_avl_insert(&inverse_uint32_set_td, &set->ids, n1);
     }
   }
-  else if ((n = ut_avlLookupSucc(&inverse_uint32_set_td, &set->ids, &set->cursor)) != NULL)
+  else if ((n = ddsrt_avl_lookup_succ(&inverse_uint32_set_td, &set->ids, &set->cursor)) != NULL)
   {
     /* n is [a,b] s.t. a > C and all intervals [a',b'] in tree have a' <= C */
     *id = inverse_uint32_set_alloc_use_min(set, n);
   }
-  else if ((n = ut_avlFindMin(&inverse_uint32_set_td, &set->ids)) != NULL)
+  else if ((n = ddsrt_avl_find_min(&inverse_uint32_set_td, &set->ids)) != NULL)
   {
     /* no available ids >= cursor: wrap around and use the first available */
     assert(n->max < set->cursor);
@@ -133,8 +133,8 @@ void inverse_uint32_set_free(struct inverse_uint32_set *set, uint32_t id)
 {
   struct inverse_uint32_set_node *n;
   const uint32_t idp1 = id + 1;
-  ut_avlIPath_t ip;
-  if ((n = ut_avlLookupPredEq(&inverse_uint32_set_td, &set->ids, &id)) != NULL && id <= n->max + 1) {
+  ddsrt_avl_ipath_t ip;
+  if ((n = ddsrt_avl_lookup_pred_eq(&inverse_uint32_set_td, &set->ids, &id)) != NULL && id <= n->max + 1) {
     if (id <= n->max)
     {
       /* n is [a,b] s.t. a <= I <= b: so it is already in the set */
@@ -143,18 +143,18 @@ void inverse_uint32_set_free(struct inverse_uint32_set *set, uint32_t id)
     else
     {
       struct inverse_uint32_set_node *n1;
-      ut_avlDPath_t dp;
+      ddsrt_avl_dpath_t dp;
       /* grow the interval, possibly coalesce with next */
-      if ((n1 = ut_avlLookupDPath(&inverse_uint32_set_td, &set->ids, &idp1, &dp)) == NULL) {
+      if ((n1 = ddsrt_avl_lookup_dpath(&inverse_uint32_set_td, &set->ids, &idp1, &dp)) == NULL) {
         n->max = id;
       } else {
         n->max = n1->max;
-        ut_avlDeleteDPath(&inverse_uint32_set_td, &set->ids, n1, &dp);
+        ddsrt_avl_delete_dpath(&inverse_uint32_set_td, &set->ids, n1, &dp);
         ddsrt_free(n1);
       }
     }
   }
-  else if ((n = ut_avlLookupIPath(&inverse_uint32_set_td, &set->ids, &idp1, &ip)) != NULL) {
+  else if ((n = ddsrt_avl_lookup_ipath(&inverse_uint32_set_td, &set->ids, &idp1, &ip)) != NULL) {
     /* changing the key in-place here: the key value may be changing, but the structure of the tree is not or the previous case would have applied */
     n->min = id;
   }
@@ -163,7 +163,7 @@ void inverse_uint32_set_free(struct inverse_uint32_set *set, uint32_t id)
     /* no adjacent interval */
     n = ddsrt_malloc(sizeof(*n));
     n->min = n->max = id;
-    ut_avlInsertIPath(&inverse_uint32_set_td, &set->ids, n, &ip);
+    ddsrt_avl_insert_ipath(&inverse_uint32_set_td, &set->ids, n, &ip);
   }
   check(set);
 }

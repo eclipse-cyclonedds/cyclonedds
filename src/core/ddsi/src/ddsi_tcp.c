@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_tcp.h"
 #include "dds/ddsi/ddsi_ipaddr.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
@@ -93,12 +93,12 @@ static int ddsi_tcp_cmp_conn_wrap (const void *a, const void *b)
 
 typedef struct ddsi_tcp_node
 {
-  ut_avlNode_t m_avlnode;
+  ddsrt_avl_node_t m_avlnode;
   ddsi_tcp_conn_t m_conn;
 }
 * ddsi_tcp_node_t;
 
-static const ut_avlTreedef_t ddsi_tcp_treedef = UT_AVL_TREEDEF_INITIALIZER_INDKEY
+static const ddsrt_avl_treedef_t ddsi_tcp_treedef = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY
 (
   offsetof (struct ddsi_tcp_node, m_avlnode),
   offsetof (struct ddsi_tcp_node, m_conn),
@@ -107,7 +107,7 @@ static const ut_avlTreedef_t ddsi_tcp_treedef = UT_AVL_TREEDEF_INITIALIZER_INDKE
 );
 
 static ddsrt_mutex_t ddsi_tcp_cache_lock_g;
-static ut_avlTree_t ddsi_tcp_cache_g;
+static ddsrt_avl_tree_t ddsi_tcp_cache_g;
 static struct ddsi_tran_factory ddsi_tcp_factory_g;
 
 static ddsi_tcp_conn_t ddsi_tcp_new_conn (ddsrt_socket_t, bool, struct sockaddr *);
@@ -125,11 +125,11 @@ static char *sockaddr_to_string_with_port (char *dst, size_t sizeof_dst, const s
 static void ddsi_tcp_cache_dump (void)
 {
   char buff[64];
-  ut_avlIter_t iter;
+  ddsrt_avl_iter_t iter;
   ddsi_tcp_node_t n;
   unsigned i = 0;
 
-  n = ut_avlIterFirst (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, &iter);
+  n = ddsrt_avl_iter_first (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, &iter);
   while (n)
   {
     os_sockaddrAddressPortToString ((const os_sockaddr *) &n->m_conn->m_peer_addr, buff, sizeof (buff));
@@ -140,7 +140,7 @@ static void ddsi_tcp_cache_dump (void)
       ddsi_name, i++, n->m_conn->m_base.m_server ? "server" : "client",
       n->m_conn->m_sock, n->m_conn->m_base.m_base.m_port, buff
     );
-    n = ut_avlIterNext (&iter);
+    n = ddsrt_avl_iter_next (&iter);
   }
 }
 */
@@ -242,7 +242,7 @@ static void ddsi_tcp_conn_connect (ddsi_tcp_conn_t conn, const ddsrt_msghdr_t * 
   }
 }
 
-static void ddsi_tcp_cache_add (ddsi_tcp_conn_t conn, ut_avlIPath_t * path)
+static void ddsi_tcp_cache_add (ddsi_tcp_conn_t conn, ddsrt_avl_ipath_t * path)
 {
   const char * action = "added";
   ddsi_tcp_node_t node;
@@ -255,11 +255,11 @@ static void ddsi_tcp_cache_add (ddsi_tcp_conn_t conn, ut_avlIPath_t * path)
   {
     node = ddsrt_malloc (sizeof (*node));
     node->m_conn = conn;
-    ut_avlInsertIPath (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, node, path);
+    ddsrt_avl_insert_ipath (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, node, path);
   }
   else
   {
-    node = ut_avlLookup (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, conn);
+    node = ddsrt_avl_lookup (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, conn);
     if (node)
     {
       /* Replace connection in cache */
@@ -272,7 +272,7 @@ static void ddsi_tcp_cache_add (ddsi_tcp_conn_t conn, ut_avlIPath_t * path)
     {
       node = ddsrt_malloc (sizeof (*node));
       node->m_conn = conn;
-      ut_avlInsert (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, node);
+      ddsrt_avl_insert (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, node);
     }
   }
 
@@ -284,15 +284,15 @@ static void ddsi_tcp_cache_remove (ddsi_tcp_conn_t conn)
 {
   char buff[DDSI_LOCSTRLEN];
   ddsi_tcp_node_t node;
-  ut_avlDPath_t path;
+  ddsrt_avl_dpath_t path;
 
   ddsrt_mutex_lock (&ddsi_tcp_cache_lock_g);
-  node = ut_avlLookupDPath (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, conn, &path);
+  node = ddsrt_avl_lookup_dpath (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, conn, &path);
   if (node)
   {
     sockaddr_to_string_with_port(buff, sizeof(buff), (struct sockaddr *)&conn->m_peer_addr);
     DDS_LOG(DDS_LC_TCP, "%s cache removed socket %"PRIdSOCK" to %s\n", ddsi_name, conn->m_sock, buff);
-    ut_avlDeleteDPath (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, node, &path);
+    ddsrt_avl_delete_dpath (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, node, &path);
     ddsi_tcp_node_free (node);
   }
   ddsrt_mutex_unlock (&ddsi_tcp_cache_lock_g);
@@ -305,7 +305,7 @@ static void ddsi_tcp_cache_remove (ddsi_tcp_conn_t conn)
 
 static ddsi_tcp_conn_t ddsi_tcp_cache_find (const ddsrt_msghdr_t * msg)
 {
-  ut_avlIPath_t path;
+  ddsrt_avl_ipath_t path;
   ddsi_tcp_node_t node;
   struct ddsi_tcp_conn key;
   ddsi_tcp_conn_t ret = NULL;
@@ -317,12 +317,12 @@ static ddsi_tcp_conn_t ddsi_tcp_cache_find (const ddsrt_msghdr_t * msg)
   /* Check cache for existing connection to target */
 
   ddsrt_mutex_lock (&ddsi_tcp_cache_lock_g);
-  node = ut_avlLookupIPath (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, &key, &path);
+  node = ddsrt_avl_lookup_ipath (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, &key, &path);
   if (node)
   {
     if (node->m_conn->m_base.m_closed)
     {
-      ut_avlDelete (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, node);
+      ddsrt_avl_delete (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, node);
       ddsi_tcp_node_free (node);
     }
     else
@@ -1010,7 +1010,7 @@ static void ddsi_tcp_release_listener (ddsi_tran_listener_t listener)
 static void ddsi_tcp_release_factory (void)
 {
   if (ddsrt_atomic_dec32_nv (&ddsi_tcp_init_g) == 0) {
-    ut_avlFree (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, ddsi_tcp_node_free);
+    ddsrt_avl_free (&ddsi_tcp_treedef, &ddsi_tcp_cache_g, ddsi_tcp_node_free);
     ddsrt_mutex_destroy (&ddsi_tcp_cache_lock_g);
 #ifdef DDSI_INCLUDE_SSL
     if (ddsi_tcp_ssl_plugin.fini)
@@ -1095,7 +1095,7 @@ int ddsi_tcp_init (void)
     }
 #endif
 
-    ut_avlInit (&ddsi_tcp_treedef, &ddsi_tcp_cache_g);
+    ddsrt_avl_init (&ddsi_tcp_treedef, &ddsi_tcp_cache_g);
     ddsrt_mutex_init (&ddsi_tcp_cache_lock_g);
 
     DDS_LOG(DDS_LC_CONFIG, "%s initialized\n", ddsi_name);

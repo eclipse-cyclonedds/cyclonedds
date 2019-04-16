@@ -13,7 +13,7 @@
 #define NN_ADDRSET_H
 
 #include "dds/ddsrt/sync.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_feature_check.h"
@@ -23,14 +23,14 @@ extern "C" {
 #endif
 
 typedef struct addrset_node {
-  ut_avlNode_t avlnode;
+  ddsrt_avl_node_t avlnode;
   nn_locator_t loc;
 } * addrset_node_t;
 
 struct addrset {
   ddsrt_mutex_t lock;
   ddsrt_atomic_uint32_t refc;
-  ut_avlCTree_t ucaddrs, mcaddrs;
+  ddsrt_avl_ctree_t ucaddrs, mcaddrs;
 };
 
 typedef void (*addrset_forall_fun_t) (const nn_locator_t *loc, void *arg);
