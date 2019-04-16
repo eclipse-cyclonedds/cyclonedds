@@ -144,7 +144,7 @@ static int validate_octetseq (const struct dd *dd, size_t *len)
   if (dd->bufsz < offsetof (struct cdroctetseq, value))
     return Q_ERR_INVALID;
   *len = dd->bswap ? bswap4u (x->len) : x->len;
-  if (*len > dd->bufsz - offsetof (struct cdroctetseq, value))
+  if (*len > dd->bufsz - offsetof (struct cdroctetseq, value) || *len >= UINT32_MAX)
     return Q_ERR_INVALID;
   return 0;
 }
@@ -158,7 +158,7 @@ static int alias_octetseq (nn_octetseq_t *oseq, const struct dd *dd)
   else
   {
     const struct cdroctetseq *x = (const struct cdroctetseq *) dd->buf;
-    assert(len <= UINT32_MAX); /* it really is an uint32_t on the wire */
+    assert(len < UINT32_MAX); /* it really is an uint32_t on the wire */
     oseq->length = (uint32_t)len;
     oseq->value = (len == 0) ? NULL : (unsigned char *) x->value;
     return 0;
@@ -167,7 +167,7 @@ static int alias_octetseq (nn_octetseq_t *oseq, const struct dd *dd)
 
 static int alias_blob (nn_octetseq_t *oseq, const struct dd *dd)
 {
-  assert (dd->bufsz <= UINT32_MAX);
+  assert (dd->bufsz < UINT32_MAX);
   oseq->length = (uint32_t)dd->bufsz;
   oseq->value = (oseq->length == 0) ? NULL : (unsigned char *) dd->buf;
   return 0;
