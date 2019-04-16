@@ -167,7 +167,7 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
            rc != DDS_RETCODE_NOT_ALLOWED &&
            rc != DDS_RETCODE_NO_CONNECTION)
   {
-    DDS_ERROR("ddsi_udp_conn_write failed with retcode %d", rc);
+    DDS_ERROR("ddsi_udp_conn_write failed with retcode %d\n", rc);
   }
   return (rc == DDS_RETCODE_OK ? ret : -1);
 }
