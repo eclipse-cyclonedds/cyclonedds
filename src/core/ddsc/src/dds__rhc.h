@@ -26,7 +26,6 @@ struct proxy_writer_info;
 
 DDS_EXPORT struct rhc *dds_rhc_new (dds_reader *reader, const struct ddsi_sertopic *topic);
 DDS_EXPORT void dds_rhc_free (struct rhc *rhc);
-DDS_EXPORT void dds_rhc_fini (struct rhc *rhc);
 
 DDS_EXPORT uint32_t dds_rhc_lock_samples (struct rhc *rhc);
 

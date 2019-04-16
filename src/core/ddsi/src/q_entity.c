@@ -3386,10 +3386,6 @@ int delete_reader (const struct nn_guid *guid)
     DDS_LOG(DDS_LC_DISCOVERY, "delete_reader_guid(guid %x:%x:%x:%x) - unknown guid\n", PGUID (*guid));
     return Q_ERR_UNKNOWN_ENTITY;
   }
-  if (rd->rhc)
-  {
-    (ddsi_plugin.rhc_plugin.rhc_fini_fn) (rd->rhc);
-  }
   DDS_LOG(DDS_LC_DISCOVERY, "delete_reader_guid(guid %x:%x:%x:%x) ...\n", PGUID (*guid));
   ddsi_plugin.builtintopic_write (&rd->e, now(), false);
   ephash_remove_reader_guid (rd);

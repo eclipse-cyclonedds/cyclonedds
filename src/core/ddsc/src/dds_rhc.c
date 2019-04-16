@@ -277,7 +277,6 @@ struct rhc {
 
   /* Instance/Sample maximums from resource limits QoS */
 
-  ddsrt_atomic_uint32_t n_cbs;       /* # callbacks in progress */
   int32_t max_instances; /* FIXME: probably better as uint32_t with MAX_UINT32 for unlimited */
   int32_t max_samples;   /* FIXME: probably better as uint32_t with MAX_UINT32 for unlimited */
   int32_t max_samples_per_instance; /* FIXME: probably better as uint32_t with MAX_UINT32 for unlimited */
@@ -629,20 +628,6 @@ void dds_rhc_free (struct rhc *rhc)
     ddsi_sertopic_free_sample (rhc->topic, rhc->qcond_eval_samplebuf, DDS_FREE_ALL);
   ddsrt_mutex_destroy (&rhc->lock);
   ddsrt_free (rhc);
-}
-
-void dds_rhc_fini (struct rhc * rhc)
-{
-  ddsrt_mutex_lock (&rhc->lock);
-  rhc->reader = NULL;
-  ddsrt_mutex_unlock (&rhc->lock);
-
-  /* Wait for all callbacks to complete */
-
-  while (ddsrt_atomic_ld32 (&rhc->n_cbs) > 0)
-  {
-    dds_sleepfor (DDS_MSECS (1));
-  }
 }
 
 static void init_trigger_info_cmn_nonmatch (struct trigger_info_cmn *info)
@@ -1462,17 +1447,10 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
 
   if (rhc->reader)
   {
-    if (notify_data_available && (rhc->reader->m_entity.m_status_enable & DDS_DATA_AVAILABLE_STATUS))
-    {
-      ddsrt_atomic_inc32 (&rhc->n_cbs);
+    if (notify_data_available)
       dds_reader_data_available_cb (rhc->reader);
-      ddsrt_atomic_dec32 (&rhc->n_cbs);
-    }
-
     if (trigger_waitsets)
-    {
-      dds_entity_status_signal(&rhc->reader->m_entity);
-    }
+      dds_entity_status_signal (&rhc->reader->m_entity);
   }
 
   return delivered;
@@ -1489,13 +1467,8 @@ error_or_nochange:
 
   /* Make any reader status callback */
 
-  if (cb_data.raw_status_id >= 0 && rhc->reader && rhc->reader->m_entity.m_status_enable)
-  {
-    ddsrt_atomic_inc32 (&rhc->n_cbs);
+  if (cb_data.raw_status_id >= 0 && rhc->reader)
     dds_reader_status_cb (&rhc->reader->m_entity, &cb_data);
-    ddsrt_atomic_dec32 (&rhc->n_cbs);
-  }
-
   return delivered;
 }
 
@@ -1575,17 +1548,10 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
 
   if (rhc->reader)
   {
-    if (notify_data_available && (rhc->reader->m_entity.m_status_enable & DDS_DATA_AVAILABLE_STATUS))
-    {
-      ddsrt_atomic_inc32 (&rhc->n_cbs);
+    if (notify_data_available)
       dds_reader_data_available_cb (rhc->reader);
-      ddsrt_atomic_dec32 (&rhc->n_cbs);
-    }
-
     if (trigger_waitsets)
-    {
-      dds_entity_status_signal(&rhc->reader->m_entity);
-    }
+      dds_entity_status_signal (&rhc->reader->m_entity);
   }
 }
 

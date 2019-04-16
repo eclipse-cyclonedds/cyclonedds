@@ -273,7 +273,6 @@ void ddsi_plugin_init (void)
   ddsi_plugin.builtintopic_write = dds__builtin_write;
 
   ddsi_plugin.rhc_plugin.rhc_free_fn = dds_rhc_free;
-  ddsi_plugin.rhc_plugin.rhc_fini_fn = dds_rhc_fini;
   ddsi_plugin.rhc_plugin.rhc_store_fn = dds_rhc_store;
   ddsi_plugin.rhc_plugin.rhc_unregister_wr_fn = dds_rhc_unregister_wr;
   ddsi_plugin.rhc_plugin.rhc_relinquish_ownership_fn = dds_rhc_relinquish_ownership;
