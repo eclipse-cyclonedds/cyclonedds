@@ -24,15 +24,15 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_error.h"
 
-#include "dds/util/ut_xmlparser.h"
-#include "dds/util/ut_expand_envvars.h"
+#include "dds/ddsrt/xmlparser.h"
+#include "dds/ddsrt/expand_envvars.h"
 
 #include "dds/version.h"
 
@@ -77,7 +77,7 @@ struct cfgst_nodekey {
 };
 
 struct cfgst_node {
-    ut_avlNode_t avlnode;
+    ddsrt_avl_node_t avlnode;
     struct cfgst_nodekey key;
     int count;
     int failed;
@@ -85,7 +85,7 @@ struct cfgst_node {
 };
 
 struct cfgst {
-    ut_avlTree_t found;
+    ddsrt_avl_tree_t found;
     struct config *cfg;
     /* error flag set so that we can continue parsing for some errors and still fail properly */
     int error;
@@ -119,8 +119,8 @@ the configuration, so we update this variable instead. */
 static uint32_t enabled_logcats;
 
 static int cfgst_node_cmp(const void *va, const void *vb);
-static const ut_avlTreedef_t cfgst_found_treedef =
-UT_AVL_TREEDEF_INITIALIZER(offsetof(struct cfgst_node, avlnode), offsetof(struct cfgst_node, key), cfgst_node_cmp, 0);
+static const ddsrt_avl_treedef_t cfgst_found_treedef =
+DDSRT_AVL_TREEDEF_INITIALIZER(offsetof(struct cfgst_node, avlnode), offsetof(struct cfgst_node, key), cfgst_node_cmp, 0);
 
 #define DU(fname) static int uf_##fname (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 #define PF(fname) static void pf_##fname (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
@@ -2067,10 +2067,10 @@ static int do_update(struct cfgst *cfgst, update_fun_t upd, void *parent, struct
 {
     struct cfgst_node *n;
     struct cfgst_nodekey key;
-    ut_avlIPath_t np;
+    ddsrt_avl_ipath_t np;
     int ok;
     key.e = cfgelem;
-    if ( (n = ut_avlLookupIPath(&cfgst_found_treedef, &cfgst->found, &key, &np)) == NULL ) {
+    if ( (n = ddsrt_avl_lookup_ipath(&cfgst_found_treedef, &cfgst->found, &key, &np)) == NULL ) {
         if ( (n = ddsrt_malloc(sizeof(*n))) == NULL )
             return cfg_error(cfgst, "out of memory");
 
@@ -2078,7 +2078,7 @@ static int do_update(struct cfgst *cfgst, update_fun_t upd, void *parent, struct
         n->count = 0;
         n->failed = 0;
         n->is_default = is_default;
-        ut_avlInsertIPath(&cfgst_found_treedef, &cfgst->found, n, &np);
+        ddsrt_avl_insert_ipath(&cfgst_found_treedef, &cfgst->found, n, &np);
     }
     if ( cfgelem->multiplicity == 0 || n->count < cfgelem->multiplicity )
         ok = upd(cfgst, parent, cfgelem, (n->count == n->failed), value);
@@ -2108,7 +2108,7 @@ static int set_defaults(struct cfgst *cfgst, void *parent, int isattr, struct cf
         key.e = ce;
         cfgst_push(cfgst, isattr, ce, parent);
         if ( ce->multiplicity == 1 ) {
-            if ( ut_avlLookup(&cfgst_found_treedef, &cfgst->found, &key) == NULL ) {
+            if ( ddsrt_avl_lookup(&cfgst_found_treedef, &cfgst->found, &key) == NULL ) {
                 if ( ce->update ) {
                     int ok1;
                     cfgst_push(cfgst, 0, NULL, NULL);
@@ -2117,9 +2117,9 @@ static int set_defaults(struct cfgst *cfgst, void *parent, int isattr, struct cf
                     ok = ok && ok1;
                 }
             }
-            if ( (n = ut_avlLookup(&cfgst_found_treedef, &cfgst->found, &key)) != NULL ) {
+            if ( (n = ddsrt_avl_lookup(&cfgst_found_treedef, &cfgst->found, &key)) != NULL ) {
                 if ( clear_found ) {
-                    ut_avlDelete(&cfgst_found_treedef, &cfgst->found, n);
+                    ddsrt_avl_delete(&cfgst_found_treedef, &cfgst->found, n);
                     ddsrt_free(n);
                 }
             }
@@ -2419,7 +2419,7 @@ static void print_configitems(struct cfgst *cfgst, void *parent, int isattr, str
         key.e = ce;
         cfgst_push(cfgst, isattr, ce, parent);
         if ( ce->multiplicity == 1 ) {
-            if ( (n = ut_avlLookup(&cfgst_found_treedef, &cfgst->found, &key)) != NULL ) {
+            if ( (n = ddsrt_avl_lookup(&cfgst_found_treedef, &cfgst->found, &key)) != NULL ) {
                 cfgst_push(cfgst, 0, NULL, NULL);
                 ce->print(cfgst, parent, ce, n->is_default);
                 cfgst_pop(cfgst);
@@ -2496,7 +2496,7 @@ static void free_configured_elements(struct cfgst *cfgst, void *parent, struct c
         if ( ce->name[0] == '>' ) /* moved, so don't care */
             continue;
         key.e = ce;
-        if ( (n = ut_avlLookup(&cfgst_found_treedef, &cfgst->found, &key)) != NULL ) {
+        if ( (n = ddsrt_avl_lookup(&cfgst_found_treedef, &cfgst->found, &key)) != NULL ) {
             if ( ce->free && n->count > n->failed )
                 ce->free(cfgst, parent, ce);
         }
@@ -2646,7 +2646,7 @@ static int proc_attr(void *varg, UNUSED_ARG(uintptr_t eleminfo), const char *nam
         return cfg_error(cfgst, "%s: unknown attribute", name);
     else {
         void *parent = cfgst_parent(cfgst);
-        char *xvalue = ut_expand_envvars(value);
+        char *xvalue = ddsrt_expand_envvars(value);
         int ok;
         cfgst_push(cfgst, 1, cfg_attr, parent);
         ok = do_update(cfgst, cfg_attr->update, parent, cfg_attr, xvalue, 0);
@@ -2666,7 +2666,7 @@ static int proc_elem_data(void *varg, UNUSED_ARG(uintptr_t eleminfo), const char
         return cfg_error(cfgst, "%s: no data expected", value);
     else {
         void *parent = cfgst_parent(cfgst);
-        char *xvalue = ut_expand_envvars(value);
+        char *xvalue = ddsrt_expand_envvars(value);
         int ok;
         cfgst_push(cfgst, 0, NULL, parent);
         ok = do_update(cfgst, cfgelem->update, parent, cfgelem, xvalue, 0);
@@ -2802,14 +2802,14 @@ struct cfgst * config_init (const char *configfile)
     cfgst = ddsrt_malloc(sizeof(*cfgst));
     memset(cfgst, 0, sizeof(*cfgst));
 
-    ut_avlInit(&cfgst_found_treedef, &cfgst->found);
+    ddsrt_avl_init(&cfgst_found_treedef, &cfgst->found);
     cfgst->cfg = &config;
     cfgst->error = 0;
 
     /* configfile == NULL will get you the default configuration */
     if (configfile) {
         char *copy = ddsrt_strdup(configfile), *cursor = copy;
-        struct ut_xmlpCallbacks cb;
+        struct ddsrt_xmlp_callbacks cb;
 
         cb.attr = proc_attr;
         cb.elem_close = proc_elem_close;
@@ -2818,14 +2818,14 @@ struct cfgst * config_init (const char *configfile)
         cb.error = proc_error;
 
         while (ok && cursor && cursor[0]) {
-            struct ut_xmlpState *qx;
+            struct ddsrt_xmlp_state *qx;
             FILE *fp;
             char *tok;
             tok = cursor;
             if (tok[0] == '<') {
                 /* Read XML directly from input string */
-                qx = ut_xmlpNewString (tok, cfgst, &cb);
-                ut_xmlpSetRequireEOF (qx, 0);
+                qx = ddsrt_xmlp_new_string (tok, cfgst, &cb);
+                ddsrt_xmlp_set_requireEOF (qx, 0);
                 fp = NULL;
             } else {
                 char *comma;
@@ -2845,11 +2845,11 @@ struct cfgst * config_init (const char *configfile)
                     }
                 }
                 DDSRT_WARNING_MSVC_ON(4996);
-                qx = ut_xmlpNewFile(fp, cfgst, &cb);
+                qx = ddsrt_xmlp_new_file(fp, cfgst, &cb);
             }
             cfgst_push(cfgst, 0, &root_cfgelem, &config);
 
-            ok = (ut_xmlpParse(qx) >= 0) && !cfgst->error;
+            ok = (ddsrt_xmlp_parse(qx) >= 0) && !cfgst->error;
             /* Pop until stack empty: error handling is rather brutal */
             assert(!ok || cfgst->path_depth == 1);
             while (cfgst->path_depth > 0) {
@@ -2858,9 +2858,9 @@ struct cfgst * config_init (const char *configfile)
             if (fp) {
                 fclose(fp);
             } else if (ok) {
-                cursor = tok + ut_xmlpGetBufpos (qx);
+                cursor = tok + ddsrt_xmlp_get_bufpos (qx);
             }
-            ut_xmlpFree(qx);
+            ddsrt_xmlp_free(qx);
             while (cursor && cursor[0] == ',') {
                 cursor++;
             }
@@ -3019,7 +3019,7 @@ struct cfgst * config_init (const char *configfile)
         config.valid = 1;
         return cfgst;
     } else {
-        ut_avlFree(&cfgst_found_treedef, &cfgst->found, ddsrt_free);
+        ddsrt_avl_free(&cfgst_found_treedef, &cfgst->found, ddsrt_free);
         ddsrt_free(cfgst);
         return NULL;
     }
@@ -3047,7 +3047,7 @@ void config_fini(struct cfgst *cfgst)
     memset(&config, 0, sizeof(config));
     config.valid = 0;
 
-    ut_avlFree(&cfgst_found_treedef, &cfgst->found, ddsrt_free);
+    ddsrt_avl_free(&cfgst_found_treedef, &cfgst->found, ddsrt_free);
     ddsrt_free(cfgst);
 }
 

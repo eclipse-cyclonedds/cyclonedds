@@ -32,7 +32,7 @@
 #include "dds/ddsi/q_radmin.h" /* for nn_plist_quickscan */
 #include "dds/ddsi/q_static_assert.h"
 
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_misc.h" /* for vendor_is_... */
 
 /* These are internal to the parameter list processing. We never

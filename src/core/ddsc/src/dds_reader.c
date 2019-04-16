@@ -532,14 +532,14 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
 
   rd->ddsi2direct_cb = cb;
   rd->ddsi2direct_cbarg = cbarg;
-  while ((m = ut_avlLookupSuccEq (&rd_writers_treedef, &rd->writers, &pwrguid)) != NULL)
+  while ((m = ddsrt_avl_lookup_succ_eq (&rd_writers_treedef, &rd->writers, &pwrguid)) != NULL)
   {
     /* have to be careful walking the tree -- pretty is different, but
      I want to check this before I write a lookup_succ function. */
     struct rd_pwr_match *m_next;
     nn_guid_t pwrguid_next;
     pwrguid = m->pwr_guid;
-    if ((m_next = ut_avlFindSucc (&rd_writers_treedef, &rd->writers, m)) != NULL)
+    if ((m_next = ddsrt_avl_find_succ (&rd_writers_treedef, &rd->writers, m)) != NULL)
       pwrguid_next = m_next->pwr_guid;
     else
     {

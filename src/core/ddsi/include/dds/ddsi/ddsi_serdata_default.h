@@ -15,7 +15,7 @@
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsi/q_plist.h" /* for nn_prismtech_writer_info */
 #include "dds/ddsi/q_freelist.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 

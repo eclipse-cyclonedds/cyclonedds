@@ -9,23 +9,23 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef UT_CRC_H
-#define UT_CRC_H
-
-#include <stdint.h>
-#include <stddef.h>
+#ifndef DDSRT_EXPAND_ENVVARS_H
+#define DDSRT_EXPAND_ENVVARS_H
 
 #include "dds/export.h"
-#include "dds/ddsrt/attributes.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-DDS_EXPORT uint32_t ut_crcCalculate (const void *buf, size_t length) ddsrt_nonnull_all ddsrt_attribute_pure;
+    /* Expands ${X}, ${X:-Y}, ${X:+Y}, ${X:?Y} forms, but not $X */
+    DDS_EXPORT char *ddsrt_expand_envvars(const char *string);
+
+    /* Expands $X, ${X}, ${X:-Y}, ${X:+Y}, ${X:?Y} forms, $ and \ can be escaped with \ */
+    DDS_EXPORT char *ddsrt_expand_envvars_sh(const char *string);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* UT_CRC_H */
+#endif

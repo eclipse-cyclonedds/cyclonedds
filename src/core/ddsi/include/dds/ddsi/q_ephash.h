@@ -12,7 +12,7 @@
 #ifndef Q_EPHASH_H
 #define Q_EPHASH_H
 
-#include "dds/util/ut_hopscotch.h"
+#include "dds/ddsrt/hopscotch.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -39,7 +39,7 @@ struct nn_guid;
   
 struct ephash_enum
 {
-  struct ut_chhIter it;
+  struct ddsrt_chh_iter it;
   enum entity_kind kind;
   struct entity_common *cur;
 };

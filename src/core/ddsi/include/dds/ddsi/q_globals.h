@@ -18,7 +18,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/sync.h"
-#include "dds/util/ut_fibheap.h"
+#include "dds/ddsrt/fibheap.h"
 
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_protocol.h"
@@ -47,7 +47,7 @@ struct lease;
 struct ddsi_tran_conn;
 struct ddsi_tran_listener;
 struct ddsi_tran_factory;
-struct ut_thread_pool_s;
+struct ddsrt_thread_pool_s;
 struct debug_monitor;
 struct ddsi_tkmap;
 
@@ -110,7 +110,7 @@ struct q_globals {
   /* Lease junk */
   ddsrt_mutex_t leaseheap_lock;
   ddsrt_mutex_t lease_locks[N_LEASE_LOCKS];
-  ut_fibheap_t leaseheap;
+  ddsrt_fibheap_t leaseheap;
 
   /* Transport factory */
 
@@ -133,7 +133,7 @@ struct q_globals {
 
   /* Thread pool */
 
-  struct ut_thread_pool_s * thread_pool;
+  struct ddsrt_thread_pool_s * thread_pool;
 
   /* In many sockets mode, the receive threads maintain a local array
      with participant GUIDs and sockets, participant_set_generation is

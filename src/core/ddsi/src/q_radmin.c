@@ -28,7 +28,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/log.h"
 
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"
@@ -812,7 +812,7 @@ static void nn_rdata_unref (struct nn_rdata *rdata)
    anyway). */
 
 struct nn_defrag_iv {
-  ut_avlNode_t avlnode; /* for nn_rsample.defrag::fragtree */
+  ddsrt_avl_node_t avlnode; /* for nn_rsample.defrag::fragtree */
   uint32_t min, maxp1;
   struct nn_rdata *first;
   struct nn_rdata *last;
@@ -821,14 +821,14 @@ struct nn_defrag_iv {
 struct nn_rsample {
   union {
     struct nn_rsample_defrag {
-      ut_avlNode_t avlnode; /* for nn_defrag::sampletree */
-      ut_avlTree_t fragtree;
+      ddsrt_avl_node_t avlnode; /* for nn_defrag::sampletree */
+      ddsrt_avl_tree_t fragtree;
       struct nn_defrag_iv *lastfrag;
       struct nn_rsample_info *sampleinfo;
       seqno_t seq;
     } defrag;
     struct nn_rsample_reorder {
-      ut_avlNode_t avlnode;       /* for nn_reorder::sampleivtree, if head of a chain */
+      ddsrt_avl_node_t avlnode;       /* for nn_reorder::sampleivtree, if head of a chain */
       struct nn_rsample_chain sc; /* this interval's samples, covering ... */
       seqno_t min, maxp1;        /* ... seq nos: [min,maxp1), but possibly with holes in it */
       uint32_t n_samples;        /* so this is the actual length of the chain */
@@ -837,7 +837,7 @@ struct nn_rsample {
 };
 
 struct nn_defrag {
-  ut_avlTree_t sampletree;
+  ddsrt_avl_tree_t sampletree;
   struct nn_rsample *max_sample; /* = max(sampletree) */
   uint32_t n_samples;
   uint32_t max_samples;
@@ -847,8 +847,8 @@ struct nn_defrag {
 static int compare_uint32 (const void *va, const void *vb);
 static int compare_seqno (const void *va, const void *vb);
 
-static const ut_avlTreedef_t defrag_sampletree_treedef = UT_AVL_TREEDEF_INITIALIZER (offsetof (struct nn_rsample, u.defrag.avlnode), offsetof (struct nn_rsample, u.defrag.seq), compare_seqno, 0);
-static const ut_avlTreedef_t rsample_defrag_fragtree_treedef = UT_AVL_TREEDEF_INITIALIZER (offsetof (struct nn_defrag_iv, avlnode), offsetof (struct nn_defrag_iv, min), compare_uint32, 0);
+static const ddsrt_avl_treedef_t defrag_sampletree_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct nn_rsample, u.defrag.avlnode), offsetof (struct nn_rsample, u.defrag.seq), compare_seqno, 0);
+static const ddsrt_avl_treedef_t rsample_defrag_fragtree_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct nn_defrag_iv, avlnode), offsetof (struct nn_defrag_iv, min), compare_uint32, 0);
 
 static int compare_uint32 (const void *va, const void *vb)
 {
@@ -870,7 +870,7 @@ struct nn_defrag *nn_defrag_new (enum nn_defrag_drop_mode drop_mode, uint32_t ma
   assert (max_samples >= 1);
   if ((d = ddsrt_malloc (sizeof (*d))) == NULL)
     return NULL;
-  ut_avlInit (&defrag_sampletree_treedef, &d->sampletree);
+  ddsrt_avl_init (&defrag_sampletree_treedef, &d->sampletree);
   d->drop_mode = drop_mode;
   d->max_samples = max_samples;
   d->n_samples = 0;
@@ -903,25 +903,25 @@ static void defrag_rsample_drop (struct nn_defrag *defrag, struct nn_rsample *rs
      So we need to walk the fragments while guaranteeing strict
      "forward progress" in the memory accesses, which this particular
      inorder treewalk does provide. */
-  ut_avlIter_t iter;
+  ddsrt_avl_iter_t iter;
   struct nn_defrag_iv *iv;
   DDS_LOG(DDS_LC_RADMIN, "  defrag_rsample_drop (%p, %p)\n", (void *) defrag, (void *) rsample);
-  ut_avlDelete (&defrag_sampletree_treedef, &defrag->sampletree, rsample);
+  ddsrt_avl_delete (&defrag_sampletree_treedef, &defrag->sampletree, rsample);
   assert (defrag->n_samples > 0);
   defrag->n_samples--;
-  for (iv = ut_avlIterFirst (&rsample_defrag_fragtree_treedef, &rsample->u.defrag.fragtree, &iter); iv; iv = ut_avlIterNext (&iter))
+  for (iv = ddsrt_avl_iter_first (&rsample_defrag_fragtree_treedef, &rsample->u.defrag.fragtree, &iter); iv; iv = ddsrt_avl_iter_next (&iter))
     nn_fragchain_rmbias (iv->first);
 }
 
 void nn_defrag_free (struct nn_defrag *defrag)
 {
   struct nn_rsample *s;
-  s = ut_avlFindMin (&defrag_sampletree_treedef, &defrag->sampletree);
+  s = ddsrt_avl_find_min (&defrag_sampletree_treedef, &defrag->sampletree);
   while (s)
   {
     DDS_LOG(DDS_LC_RADMIN, "defrag_free(%p, sample %p seq %"PRId64")\n", (void *) defrag, (void *) s, s->u.defrag.seq);
     defrag_rsample_drop (defrag, s);
-    s = ut_avlFindMin (&defrag_sampletree_treedef, &defrag->sampletree);
+    s = ddsrt_avl_find_min (&defrag_sampletree_treedef, &defrag->sampletree);
   }
   assert (defrag->n_samples == 0);
   ddsrt_free (defrag);
@@ -940,7 +940,7 @@ static int defrag_try_merge_with_succ (struct nn_rsample_defrag *sample, struct 
     return 0;
   }
 
-  succ = ut_avlFindSucc (&rsample_defrag_fragtree_treedef, &sample->fragtree, node);
+  succ = ddsrt_avl_find_succ (&rsample_defrag_fragtree_treedef, &sample->fragtree, node);
   assert (succ != NULL);
   DDS_LOG(DDS_LC_RADMIN, "  succ is %p [%u..%u)\n", (void *) succ, succ->min, succ->maxp1);
   if (succ->min > node->maxp1)
@@ -955,7 +955,7 @@ static int defrag_try_merge_with_succ (struct nn_rsample_defrag *sample, struct 
     /* no longer a gap between node & succ => succ will be removed
        from the interval tree and therefore node will become the
        last interval if succ currently is */
-    ut_avlDelete (&rsample_defrag_fragtree_treedef, &sample->fragtree, succ);
+    ddsrt_avl_delete (&rsample_defrag_fragtree_treedef, &sample->fragtree, succ);
     if (sample->lastfrag == succ)
     {
       DDS_LOG(DDS_LC_RADMIN, "  succ is lastfrag\n");
@@ -987,7 +987,7 @@ static int defrag_try_merge_with_succ (struct nn_rsample_defrag *sample, struct 
   }
 }
 
-static void defrag_rsample_addiv (struct nn_rsample_defrag *sample, struct nn_rdata *rdata, ut_avlIPath_t *path)
+static void defrag_rsample_addiv (struct nn_rsample_defrag *sample, struct nn_rdata *rdata, ddsrt_avl_ipath_t *path)
 {
   struct nn_defrag_iv *newiv;
   if ((newiv = nn_rmsg_alloc (rdata->rmsg, sizeof (*newiv))) == NULL)
@@ -997,7 +997,7 @@ static void defrag_rsample_addiv (struct nn_rsample_defrag *sample, struct nn_rd
   newiv->min = rdata->min;
   newiv->maxp1 = rdata->maxp1;
   nn_rdata_addbias (rdata);
-  ut_avlInsertIPath (&rsample_defrag_fragtree_treedef, &sample->fragtree, newiv, path);
+  ddsrt_avl_insert_ipath (&rsample_defrag_fragtree_treedef, &sample->fragtree, newiv, path);
   if (sample->lastfrag == NULL || rdata->min > sample->lastfrag->min)
     sample->lastfrag = newiv;
 }
@@ -1010,7 +1010,7 @@ static struct nn_rsample *defrag_rsample_new (struct nn_rdata *rdata, const stru
 {
   struct nn_rsample *rsample;
   struct nn_rsample_defrag *dfsample;
-  ut_avlIPath_t ivpath;
+  ddsrt_avl_ipath_t ivpath;
 
   if ((rsample = nn_rmsg_alloc (rdata->rmsg, sizeof (*rsample))) == NULL)
     return NULL;
@@ -1022,7 +1022,7 @@ static struct nn_rsample *defrag_rsample_new (struct nn_rdata *rdata, const stru
     return NULL;
   *dfsample->sampleinfo = *sampleinfo;
 
-  ut_avlInit (&rsample_defrag_fragtree_treedef, &dfsample->fragtree);
+  ddsrt_avl_init (&rsample_defrag_fragtree_treedef, &dfsample->fragtree);
 
   /* add sentinel if rdata is not the first fragment of the message */
   if (rdata->min > 0)
@@ -1032,12 +1032,12 @@ static struct nn_rsample *defrag_rsample_new (struct nn_rdata *rdata, const stru
       return NULL;
     sentinel->first = sentinel->last = NULL;
     sentinel->min = sentinel->maxp1 = 0;
-    ut_avlLookupIPath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &sentinel->min, &ivpath);
-    ut_avlInsertIPath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, sentinel, &ivpath);
+    ddsrt_avl_lookup_ipath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &sentinel->min, &ivpath);
+    ddsrt_avl_insert_ipath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, sentinel, &ivpath);
   }
 
   /* add an interval for the first received fragment */
-  ut_avlLookupIPath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &rdata->min, &ivpath);
+  ddsrt_avl_lookup_ipath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &rdata->min, &ivpath);
   defrag_rsample_addiv (dfsample, rdata, &ivpath);
   return rsample;
 }
@@ -1084,7 +1084,7 @@ static int is_complete (const struct nn_rsample_defrag *sample)
      one interval covering all bytes. One interval because of the
      greedy coalescing in add_fragment(). There is at least one
      interval if we get here. */
-  const struct nn_defrag_iv *iv = ut_avlRoot (&rsample_defrag_fragtree_treedef, &sample->fragtree);
+  const struct nn_defrag_iv *iv = ddsrt_avl_root (&rsample_defrag_fragtree_treedef, &sample->fragtree);
   assert (iv != NULL);
   if (iv->min == 0 && iv->maxp1 >= sample->sampleinfo->size)
   {
@@ -1094,7 +1094,7 @@ static int is_complete (const struct nn_rsample_defrag *sample)
        samples that will never be completed; dropping them in the
        defragmenter would be feasible by discarding all fragments of
        that sample collected so far. */
-    assert (ut_avlIsSingleton (&sample->fragtree));
+    assert (ddsrt_avl_is_singleton (&sample->fragtree));
     return 1;
   }
   else
@@ -1111,14 +1111,14 @@ static void rsample_convert_defrag_to_reorder (struct nn_rsample *sample)
      self-respecting compiler will optimise them away, and any
      self-respecting CPU would need to copy them via registers anyway
      because it uses a load-store architecture. */
-  struct nn_defrag_iv *iv = ut_avlRootNonEmpty (&rsample_defrag_fragtree_treedef, &sample->u.defrag.fragtree);
+  struct nn_defrag_iv *iv = ddsrt_avl_root_non_empty (&rsample_defrag_fragtree_treedef, &sample->u.defrag.fragtree);
   struct nn_rdata *fragchain = iv->first;
   struct nn_rsample_info *sampleinfo = sample->u.defrag.sampleinfo;
   struct nn_rsample_chain_elem *sce;
   seqno_t seq = sample->u.defrag.seq;
 
   /* re-use memory fragment interval node for sample chain */
-  sce = (struct nn_rsample_chain_elem *) ut_avlRootNonEmpty (&rsample_defrag_fragtree_treedef, &sample->u.defrag.fragtree);
+  sce = (struct nn_rsample_chain_elem *) ddsrt_avl_root_non_empty (&rsample_defrag_fragtree_treedef, &sample->u.defrag.fragtree);
   sce->fragchain = fragchain;
   sce->next = NULL;
   sce->sampleinfo = sampleinfo;
@@ -1145,7 +1145,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct
   /* there must be a last fragment */
   assert (dfsample->lastfrag);
   /* relatively expensive test: lastfrag, tree must be consistent */
-  assert (dfsample->lastfrag == ut_avlFindMax (&rsample_defrag_fragtree_treedef, &dfsample->fragtree));
+  assert (dfsample->lastfrag == ddsrt_avl_find_max (&rsample_defrag_fragtree_treedef, &dfsample->fragtree));
 
   DDS_LOG(DDS_LC_RADMIN, "  lastfrag %p [%u..%u)\n",
                  (void *) dfsample->lastfrag,
@@ -1162,7 +1162,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct
   else
   {
     /* Slow path: find preceding fragment by tree search */
-    predeq = ut_avlLookupPredEq (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &min);
+    predeq = ddsrt_avl_lookup_pred_eq (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &min);
     assert (predeq);
     DDS_LOG(DDS_LC_RADMIN, "  slow path: predeq = lookup %u => %p [%u..%u)\n",
                    min, (void *) predeq, predeq->min, predeq->maxp1);
@@ -1206,7 +1206,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct
     return is_complete (dfsample) ? sample : NULL;
   }
   else if (predeq != dfsample->lastfrag && /* if predeq is last frag, there is no succ */
-           (succ = ut_avlFindSucc (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, predeq)) != NULL &&
+           (succ = ddsrt_avl_find_succ (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, predeq)) != NULL &&
            succ->min <= maxp1)
   {
     /* extends succ (at the low end; no guarantee each individual
@@ -1236,9 +1236,9 @@ static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct
   {
     /* doesn't extend either predeq at the end or succ at the head =>
        new interval; rdata did not cause completion of sample */
-    ut_avlIPath_t path;
+    ddsrt_avl_ipath_t path;
     DDS_LOG(DDS_LC_RADMIN, "  new interval\n");
-    if (ut_avlLookupIPath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &min, &path))
+    if (ddsrt_avl_lookup_ipath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &min, &path))
       assert (0);
     defrag_rsample_addiv (dfsample, rdata, &path);
     return NULL;
@@ -1274,7 +1274,7 @@ static int defrag_limit_samples (struct nn_defrag *defrag, seqno_t seq, seqno_t 
       break;
     case NN_DEFRAG_DROP_OLDEST:
       DDS_LOG(DDS_LC_RADMIN, "  drop mode = DROP_OLDEST\n");
-      sample_to_drop = ut_avlFindMin (&defrag_sampletree_treedef, &defrag->sampletree);
+      sample_to_drop = ddsrt_avl_find_min (&defrag_sampletree_treedef, &defrag->sampletree);
       assert (sample_to_drop);
       if (seq < sample_to_drop->u.defrag.seq)
       {
@@ -1287,7 +1287,7 @@ static int defrag_limit_samples (struct nn_defrag *defrag, seqno_t seq, seqno_t 
   defrag_rsample_drop (defrag, sample_to_drop);
   if (sample_to_drop == defrag->max_sample)
   {
-    defrag->max_sample = ut_avlFindMax (&defrag_sampletree_treedef, &defrag->sampletree);
+    defrag->max_sample = ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree);
     *max_seq = defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0;
     DDS_LOG(DDS_LC_RADMIN, "  updating max_sample: now %p %"PRId64"\n",
                    (void *) defrag->max_sample,
@@ -1322,7 +1322,7 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
      by adding BIAS to the refcount. */
   struct nn_rsample *sample, *result;
   seqno_t max_seq;
-  ut_avlIPath_t path;
+  ddsrt_avl_ipath_t path;
 
   assert (defrag->n_samples <= defrag->max_samples);
 
@@ -1334,7 +1334,7 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
   /* max_seq is used for the fast path, and is 0 when there is no
      last message in 'defrag'. max_seq and max_sample must be
      consistent. Max_sample must be consistent with tree */
-  assert (defrag->max_sample == ut_avlFindMax (&defrag_sampletree_treedef, &defrag->sampletree));
+  assert (defrag->max_sample == ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree));
   max_seq = defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0;
   DDS_LOG(DDS_LC_RADMIN, "defrag_rsample(%p, %p [%u..%u) msg %p, %p seq %"PRId64" size %u) max_seq %p %"PRId64":\n",
           (void *) defrag, (void *) rdata, rdata->min, rdata->maxp1, (void *) rdata->rmsg,
@@ -1358,22 +1358,22 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
        child of the old maximum node */
     /* FIXME: MERGE THIS ONE WITH THE NEXT */
     DDS_LOG(DDS_LC_RADMIN, "  new max sample\n");
-    ut_avlLookupIPath (&defrag_sampletree_treedef, &defrag->sampletree, &sampleinfo->seq, &path);
+    ddsrt_avl_lookup_ipath (&defrag_sampletree_treedef, &defrag->sampletree, &sampleinfo->seq, &path);
     if ((sample = defrag_rsample_new (rdata, sampleinfo)) == NULL)
       return NULL;
-    ut_avlInsertIPath (&defrag_sampletree_treedef, &defrag->sampletree, sample, &path);
+    ddsrt_avl_insert_ipath (&defrag_sampletree_treedef, &defrag->sampletree, sample, &path);
     defrag->max_sample = sample;
     defrag->n_samples++;
     result = NULL;
   }
-  else if ((sample = ut_avlLookupIPath (&defrag_sampletree_treedef, &defrag->sampletree, &sampleinfo->seq, &path)) == NULL)
+  else if ((sample = ddsrt_avl_lookup_ipath (&defrag_sampletree_treedef, &defrag->sampletree, &sampleinfo->seq, &path)) == NULL)
   {
     /* a new sequence number, but smaller than the maximum */
     DDS_LOG(DDS_LC_RADMIN, "  new sample less than max\n");
     assert (sampleinfo->seq < max_seq);
     if ((sample = defrag_rsample_new (rdata, sampleinfo)) == NULL)
       return NULL;
-    ut_avlInsertIPath (&defrag_sampletree_treedef, &defrag->sampletree, sample, &path);
+    ddsrt_avl_insert_ipath (&defrag_sampletree_treedef, &defrag->sampletree, sample, &path);
     defrag->n_samples++;
     result = NULL;
   }
@@ -1390,12 +1390,12 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
        reorder format. If it is the sample with the maximum sequence in
        the tree, an update of max_sample is required. */
     DDS_LOG(DDS_LC_RADMIN, "  complete\n");
-    ut_avlDelete (&defrag_sampletree_treedef, &defrag->sampletree, result);
+    ddsrt_avl_delete (&defrag_sampletree_treedef, &defrag->sampletree, result);
     assert (defrag->n_samples > 0);
     defrag->n_samples--;
     if (result == defrag->max_sample)
     {
-      defrag->max_sample = ut_avlFindMax (&defrag_sampletree_treedef, &defrag->sampletree);
+      defrag->max_sample = ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree);
       DDS_LOG(DDS_LC_RADMIN, "  updating max_sample: now %p %"PRId64"\n",
               (void *) defrag->max_sample,
               defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0);
@@ -1403,7 +1403,7 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
     rsample_convert_defrag_to_reorder (result);
   }
 
-  assert (defrag->max_sample == ut_avlFindMax (&defrag_sampletree_treedef, &defrag->sampletree));
+  assert (defrag->max_sample == ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree));
   return result;
 }
 
@@ -1412,14 +1412,14 @@ void nn_defrag_notegap (struct nn_defrag *defrag, seqno_t min, seqno_t maxp1)
   /* All sequence numbers in [min,maxp1) are unavailable so any
      fragments in that range must be discarded.  Used both for
      Hearbeats (by setting min=1) and for Gaps. */
-  struct nn_rsample *s = ut_avlLookupSuccEq (&defrag_sampletree_treedef, &defrag->sampletree, &min);
+  struct nn_rsample *s = ddsrt_avl_lookup_succ_eq (&defrag_sampletree_treedef, &defrag->sampletree, &min);
   while (s && s->u.defrag.seq < maxp1)
   {
-    struct nn_rsample *s1 = ut_avlFindSucc (&defrag_sampletree_treedef, &defrag->sampletree, s);
+    struct nn_rsample *s1 = ddsrt_avl_find_succ (&defrag_sampletree_treedef, &defrag->sampletree, s);
     defrag_rsample_drop (defrag, s);
     s = s1;
   }
-  defrag->max_sample = ut_avlFindMax (&defrag_sampletree_treedef, &defrag->sampletree);
+  defrag->max_sample = ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree);
 }
 
 int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct nn_fragment_number_set *map, uint32_t maxsz)
@@ -1428,7 +1428,7 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
   struct nn_defrag_iv *iv;
   uint32_t i, fragsz, nfrags;
   assert (maxsz <= 256);
-  s = ut_avlLookup (&defrag_sampletree_treedef, &defrag->sampletree, &seq);
+  s = ddsrt_avl_lookup (&defrag_sampletree_treedef, &defrag->sampletree, &seq);
   if (s == NULL)
   {
     if (maxfragnum == UINT32_MAX)
@@ -1465,7 +1465,7 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
        are missing the first fragment. */
     struct nn_defrag_iv *liv = s->u.defrag.lastfrag;
     nn_fragment_number_t map_end;
-    iv = ut_avlFindMin (&rsample_defrag_fragtree_treedef, &s->u.defrag.fragtree);
+    iv = ddsrt_avl_find_min (&rsample_defrag_fragtree_treedef, &s->u.defrag.fragtree);
     assert (iv != NULL);
     /* iv is first interval, iv->maxp1 is first byte beyond that =>
        divide by fragsz to get first missing fragment */
@@ -1485,7 +1485,7 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
        map->bitmap_base, but there is nothing to request in that
        case. */
     map->numbits = (map_end < map->bitmap_base) ? 0 : map_end - map->bitmap_base + 1;
-    iv = ut_avlFindSucc (&rsample_defrag_fragtree_treedef, &s->u.defrag.fragtree, iv);
+    iv = ddsrt_avl_find_succ (&rsample_defrag_fragtree_treedef, &s->u.defrag.fragtree, iv);
   }
 
   /* Clear bitmap, then set bits for gaps in available fragments */
@@ -1515,7 +1515,7 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
        at fragment containing maxp1 (because we don't have that byte
        yet), and runs until the next interval begins */
     i = iv->maxp1 / fragsz;
-    iv = ut_avlFindSucc (&rsample_defrag_fragtree_treedef, &s->u.defrag.fragtree, iv);
+    iv = ddsrt_avl_find_succ (&rsample_defrag_fragtree_treedef, &s->u.defrag.fragtree, iv);
   }
   /* and set bits for missing fragments beyond the highest interval */
   for (; i < map->bitmap_base + map->numbits; i++)
@@ -1603,7 +1603,7 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
    in the overview comment at the top of this file. */
 
 struct nn_reorder {
-  ut_avlTree_t sampleivtree;
+  ddsrt_avl_tree_t sampleivtree;
   struct nn_rsample *max_sampleiv; /* = max(sampleivtree) */
   seqno_t next_seq;
   enum nn_reorder_mode mode;
@@ -1611,15 +1611,15 @@ struct nn_reorder {
   uint32_t n_samples;
 };
 
-static const ut_avlTreedef_t reorder_sampleivtree_treedef =
-  UT_AVL_TREEDEF_INITIALIZER (offsetof (struct nn_rsample, u.reorder.avlnode), offsetof (struct nn_rsample, u.reorder.min), compare_seqno, 0);
+static const ddsrt_avl_treedef_t reorder_sampleivtree_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct nn_rsample, u.reorder.avlnode), offsetof (struct nn_rsample, u.reorder.min), compare_seqno, 0);
 
 struct nn_reorder *nn_reorder_new (enum nn_reorder_mode mode, uint32_t max_samples)
 {
   struct nn_reorder *r;
   if ((r = ddsrt_malloc (sizeof (*r))) == NULL)
     return NULL;
-  ut_avlInit (&reorder_sampleivtree_treedef, &r->sampleivtree);
+  ddsrt_avl_init (&reorder_sampleivtree_treedef, &r->sampleivtree);
   r->max_sampleiv = NULL;
   r->next_seq = 1;
   r->mode = mode;
@@ -1644,10 +1644,10 @@ void nn_reorder_free (struct nn_reorder *r)
   struct nn_rsample *iv;
   struct nn_rsample_chain_elem *sce;
   /* FXIME: instead of findmin/delete, a treewalk can be used. */
-  iv = ut_avlFindMin (&reorder_sampleivtree_treedef, &r->sampleivtree);
+  iv = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &r->sampleivtree);
   while (iv)
   {
-    ut_avlDelete (&reorder_sampleivtree_treedef, &r->sampleivtree, iv);
+    ddsrt_avl_delete (&reorder_sampleivtree_treedef, &r->sampleivtree, iv);
     sce = iv->u.reorder.sc.first;
     while (sce)
     {
@@ -1655,17 +1655,17 @@ void nn_reorder_free (struct nn_reorder *r)
       nn_fragchain_unref (sce->fragchain);
       sce = sce1;
     }
-    iv = ut_avlFindMin (&reorder_sampleivtree_treedef, &r->sampleivtree);
+    iv = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &r->sampleivtree);
   }
   ddsrt_free (r);
 }
 
 static void reorder_add_rsampleiv (struct nn_reorder *reorder, struct nn_rsample *rsample)
 {
-  ut_avlIPath_t path;
-  if (ut_avlLookupIPath (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &rsample->u.reorder.min, &path) != NULL)
+  ddsrt_avl_ipath_t path;
+  if (ddsrt_avl_lookup_ipath (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &rsample->u.reorder.min, &path) != NULL)
     assert (0);
-  ut_avlInsertIPath (&reorder_sampleivtree_treedef, &reorder->sampleivtree, rsample, &path);
+  ddsrt_avl_insert_ipath (&reorder_sampleivtree_treedef, &reorder->sampleivtree, rsample, &path);
 }
 
 #ifndef NDEBUG
@@ -1713,7 +1713,7 @@ static int reorder_try_append_and_discard (struct nn_reorder *reorder, struct nn
             appendto->u.reorder.min, appendto->u.reorder.maxp1, (void *) appendto,
             todiscard->u.reorder.min, todiscard->u.reorder.maxp1, (void *) todiscard);
     assert (todiscard->u.reorder.min == appendto->u.reorder.maxp1);
-    ut_avlDelete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, todiscard);
+    ddsrt_avl_delete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, todiscard);
     append_rsample_interval (appendto, todiscard);
     DDS_LOG(DDS_LC_RADMIN, "  try_append_and_discard: max_sampleiv needs update? %s\n",
             (todiscard == reorder->max_sampleiv) ? "yes" : "no");
@@ -1793,8 +1793,8 @@ static void delete_last_sample (struct nn_reorder *reorder)
        recalc max_sampleiv. */
     DDS_LOG(DDS_LC_RADMIN, "  delete_last_sample: in singleton interval\n");
     fragchain = last->sc.first->fragchain;
-    ut_avlDelete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, reorder->max_sampleiv);
-    reorder->max_sampleiv = ut_avlFindMax (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
+    ddsrt_avl_delete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, reorder->max_sampleiv);
+    reorder->max_sampleiv = ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
     /* No harm done if it the sampleivtree is empty, except that we
        chose not to allow it */
     assert (reorder->max_sampleiv != NULL);
@@ -1847,7 +1847,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
      seq; max must be set iff the reorder is non-empty. */
 #ifndef NDEBUG
   {
-    struct nn_rsample *min = ut_avlFindMin (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
+    struct nn_rsample *min = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
     if (min)
       DDS_LOG(DDS_LC_RADMIN, "  min = %"PRId64" @ %p\n", min->u.reorder.min, (void *) min);
     assert (min == NULL || reorder->next_seq < min->u.reorder.min);
@@ -1855,8 +1855,8 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
             (reorder->max_sampleiv != NULL && min != NULL));
   }
 #endif
-  assert ((!!ut_avlIsEmpty (&reorder->sampleivtree)) == (reorder->max_sampleiv == NULL));
-  assert (reorder->max_sampleiv == NULL || reorder->max_sampleiv == ut_avlFindMax (&reorder_sampleivtree_treedef, &reorder->sampleivtree));
+  assert ((!!ddsrt_avl_is_empty (&reorder->sampleivtree)) == (reorder->max_sampleiv == NULL));
+  assert (reorder->max_sampleiv == NULL || reorder->max_sampleiv == ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree));
   assert (reorder->n_samples <= reorder->max_samples);
   if (reorder->max_sampleiv)
     DDS_LOG(DDS_LC_RADMIN, "  max = [%"PRId64",%"PRId64") @ %p\n", reorder->max_sampleiv->u.reorder.min, reorder->max_sampleiv->u.reorder.maxp1, (void *) reorder->max_sampleiv);
@@ -1883,7 +1883,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
        out-of-order either ends up here or in discard.)  */
     if (reorder->max_sampleiv != NULL)
     {
-      struct nn_rsample *min = ut_avlFindMin (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
+      struct nn_rsample *min = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
       DDS_LOG(DDS_LC_RADMIN, "  try append_and_discard\n");
       if (reorder_try_append_and_discard (reorder, rsampleiv, min))
         reorder->max_sampleiv = NULL;
@@ -1908,7 +1908,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     DDS_LOG(DDS_LC_RADMIN, "  discard: too old\n");
     return NN_REORDER_TOO_OLD; /* don't want refcount increment */
   }
-  else if (ut_avlIsEmpty (&reorder->sampleivtree))
+  else if (ddsrt_avl_is_empty (&reorder->sampleivtree))
   {
     /* else, if nothing's stored simply add this one, max_samples = 0
        is technically allowed, and potentially useful, so check for
@@ -1989,7 +1989,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
       return NN_REORDER_REJECT;
     }
 
-    predeq = ut_avlLookupPredEq (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &s->min);
+    predeq = ddsrt_avl_lookup_pred_eq (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &s->min);
     if (predeq)
       DDS_LOG(DDS_LC_RADMIN, "  predeq = [%"PRId64",%"PRId64") @ %p\n",
               predeq->u.reorder.min, predeq->u.reorder.maxp1, (void *) predeq);
@@ -2002,7 +2002,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
       return NN_REORDER_REJECT;
     }
 
-    immsucc = ut_avlLookup (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &s->maxp1);
+    immsucc = ddsrt_avl_lookup (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &s->maxp1);
     if (immsucc)
       DDS_LOG(DDS_LC_RADMIN, "  immsucc = [%"PRId64",%"PRId64") @ %p\n",
               immsucc->u.reorder.min, immsucc->u.reorder.maxp1, (void *) immsucc);
@@ -2040,7 +2040,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
          Therefore, we can swap rsampleiv in for immsucc and avoid the
          case above. */
       rsampleiv->u.reorder = immsucc->u.reorder;
-      ut_avlSwapNode (&reorder_sampleivtree_treedef, &reorder->sampleivtree, immsucc, rsampleiv);
+      ddsrt_avl_swap_node (&reorder_sampleivtree_treedef, &reorder->sampleivtree, immsucc, rsampleiv);
       if (immsucc == reorder->max_sampleiv)
         reorder->max_sampleiv = rsampleiv;
     }
@@ -2072,12 +2072,12 @@ static struct nn_rsample *coalesce_intervals_touching_range (struct nn_reorder *
   struct nn_rsample *s, *t;
   *valuable = 0;
   /* Find first (lowest m) interval [m,n) s.t. n >= min && m <= maxp1 */
-  s = ut_avlLookupPredEq (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &min);
+  s = ddsrt_avl_lookup_pred_eq (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &min);
   if (s && s->u.reorder.maxp1 >= min)
   {
     /* m <= min && n >= min (note: pred of s [m',n') necessarily has n' < m) */
 #ifndef NDEBUG
-    struct nn_rsample *q = ut_avlFindPred (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s);
+    struct nn_rsample *q = ddsrt_avl_find_pred (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s);
     assert (q == NULL || q->u.reorder.maxp1 < min);
 #endif
   }
@@ -2086,15 +2086,15 @@ static struct nn_rsample *coalesce_intervals_touching_range (struct nn_reorder *
     /* No good, but the first (if s = NULL) or the next one (if s !=
        NULL) may still have m <= maxp1 (m > min is implied now).  If
        not, no such interval.  */
-    s = ut_avlFindSucc (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s);
+    s = ddsrt_avl_find_succ (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s);
     if (!(s && s->u.reorder.min <= maxp1))
       return NULL;
   }
   /* Append successors [m',n') s.t. m' <= maxp1 to s */
   assert (s->u.reorder.min + s->u.reorder.n_samples <= s->u.reorder.maxp1);
-  while ((t = ut_avlFindSucc (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s)) != NULL && t->u.reorder.min <= maxp1)
+  while ((t = ddsrt_avl_find_succ (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s)) != NULL && t->u.reorder.min <= maxp1)
   {
-    ut_avlDelete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, t);
+    ddsrt_avl_delete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, t);
     assert (t->u.reorder.min + t->u.reorder.n_samples <= t->u.reorder.maxp1);
     append_rsample_interval (s, t);
     *valuable = 1;
@@ -2126,8 +2126,8 @@ static int reorder_insert_gap (struct nn_reorder *reorder, struct nn_rdata *rdat
 {
   struct nn_rsample_chain_elem *sce;
   struct nn_rsample *s;
-  ut_avlIPath_t path;
-  if (ut_avlLookupIPath (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &min, &path) != NULL)
+  ddsrt_avl_ipath_t path;
+  if (ddsrt_avl_lookup_ipath (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &min, &path) != NULL)
     assert (0);
   if ((sce = nn_rmsg_alloc (rdata->rmsg, sizeof (*sce))) == NULL)
     return 0;
@@ -2140,7 +2140,7 @@ static int reorder_insert_gap (struct nn_reorder *reorder, struct nn_rdata *rdat
   s->u.reorder.min = min;
   s->u.reorder.maxp1 = maxp1;
   s->u.reorder.n_samples = 1;
-  ut_avlInsertIPath (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s, &path);
+  ddsrt_avl_insert_ipath (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s, &path);
   return 1;
 }
 
@@ -2225,7 +2225,7 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
         delete_last_sample (reorder);
       (*refcount_adjust)++;
     }
-    reorder->max_sampleiv = ut_avlFindMax (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
+    reorder->max_sampleiv = ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
     return res;
   }
   else if (coalesced->u.reorder.min <= reorder->next_seq)
@@ -2233,11 +2233,11 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
     DDS_LOG(DDS_LC_RADMIN, "  coalesced = [%"PRId64",%"PRId64") @ %p containing %d samples\n",
             coalesced->u.reorder.min, coalesced->u.reorder.maxp1,
             (void *) coalesced, coalesced->u.reorder.n_samples);
-    ut_avlDelete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, coalesced);
+    ddsrt_avl_delete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, coalesced);
     if (coalesced->u.reorder.min <= reorder->next_seq)
       assert (min <= reorder->next_seq);
     reorder->next_seq = coalesced->u.reorder.maxp1;
-    reorder->max_sampleiv = ut_avlFindMax (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
+    reorder->max_sampleiv = ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
     DDS_LOG(DDS_LC_RADMIN, "  next expected: %"PRId64"\n", reorder->next_seq);
     *sc = coalesced->u.reorder.sc;
 
@@ -2251,7 +2251,7 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
   {
     DDS_LOG(DDS_LC_RADMIN, "  coalesced = [%"PRId64",%"PRId64") @ %p - that is all\n",
             coalesced->u.reorder.min, coalesced->u.reorder.maxp1, (void *) coalesced);
-    reorder->max_sampleiv = ut_avlFindMax (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
+    reorder->max_sampleiv = ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
     return valuable ? NN_REORDER_ACCEPT : NN_REORDER_REJECT;
   }
 }
@@ -2264,7 +2264,7 @@ int nn_reorder_wantsample (struct nn_reorder *reorder, seqno_t seq)
     return 0;
   /* Find interval that contains seq, if we know seq.  We are
      interested if seq is outside this interval (if any). */
-  s = ut_avlLookupPredEq (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &seq);
+  s = ddsrt_avl_lookup_pred_eq (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &seq);
   return (s == NULL || s->u.reorder.maxp1 <= seq);
 }
 
@@ -2307,7 +2307,7 @@ unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t m
     map->numbits = (uint32_t) (maxseq + 1 - base);
   nn_bitset_zero (map->numbits, map->bits);
 
-  if ((iv = ut_avlFindMin (&reorder_sampleivtree_treedef, &reorder->sampleivtree)) != NULL)
+  if ((iv = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree)) != NULL)
     assert (iv->u.reorder.min > base);
   i = base;
   while (iv && i < base + map->numbits)
@@ -2318,7 +2318,7 @@ unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t m
       nn_bitset_set (map->numbits, map->bits, x);
     }
     i = iv->u.reorder.maxp1;
-    iv = ut_avlFindSucc (&reorder_sampleivtree_treedef, &reorder->sampleivtree, iv);
+    iv = ddsrt_avl_find_succ (&reorder_sampleivtree_treedef, &reorder->sampleivtree, iv);
   }
   if (notail && i < base + map->numbits)
     map->numbits = (unsigned) (i - base);

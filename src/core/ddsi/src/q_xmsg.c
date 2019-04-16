@@ -23,8 +23,8 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/random.h"
 
-#include "dds/util/ut_avl.h"
-#include "dds/util/ut_thread_pool.h"
+#include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/thread_pool.h"
 
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_xqos.h"
@@ -1340,7 +1340,7 @@ static void nn_xpack_send1_threaded (const nn_locator_t *loc, void * varg)
   arg->xp = (struct nn_xpack *) varg;
   arg->loc = loc;
   ddsrt_atomic_inc32 (&arg->xp->calls);
-  ut_thread_pool_submit (gv.thread_pool, nn_xpack_send1_thread, arg);
+  ddsrt_thread_pool_submit (gv.thread_pool, nn_xpack_send1_thread, arg);
 }
 
 static void nn_xpack_send_real (struct nn_xpack * xp)

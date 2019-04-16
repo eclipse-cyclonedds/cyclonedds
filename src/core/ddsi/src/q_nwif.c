@@ -31,7 +31,7 @@
 #include "dds/ddsi/q_addrset.h" /* unspec locator */
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/ddsi_ipaddr.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 
 static void print_sockerror (const char *msg)
 {

@@ -16,8 +16,8 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 
-#include "dds/util/ut_avl.h"
-#include "dds/util/ut_fibheap.h"
+#include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/fibheap.h"
 
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_log.h"
@@ -70,7 +70,7 @@ enum xeventkind
 
 struct xevent
 {
-  ut_fibheapNode_t heapnode;
+  ddsrt_fibheap_node_t heapnode;
   struct xeventq *evq;
   nn_mtime_t tsched;
   enum xeventkind kind;
@@ -133,7 +133,7 @@ struct xevent_nt
       /* xmsg is self-contained / relies on reference counts */
       struct nn_xmsg *msg;
       size_t queued_rexmit_bytes;
-      ut_avlNode_t msg_avlnode;
+      ddsrt_avl_node_t msg_avlnode;
     } msg_rexmit;
     struct {
       /* xmsg is self-contained / relies on reference counts */
@@ -143,8 +143,8 @@ struct xevent_nt
 };
 
 struct xeventq {
-  ut_fibheap_t xevents;
-  ut_avlTree_t msg_xevents;
+  ddsrt_fibheap_t xevents;
+  ddsrt_avl_tree_t msg_xevents;
   struct xevent_nt *non_timed_xmit_list_oldest;
   struct xevent_nt *non_timed_xmit_list_newest; /* undefined if ..._oldest == NULL */
   size_t queued_rexmit_bytes;
@@ -164,9 +164,9 @@ static nn_mtime_t earliest_in_xeventq (struct xeventq *evq);
 static int msg_xevents_cmp (const void *a, const void *b);
 static int compare_xevent_tsched (const void *va, const void *vb);
 
-static const ut_avlTreedef_t msg_xevents_treedef = UT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct xevent_nt, u.msg_rexmit.msg_avlnode), offsetof (struct xevent_nt, u.msg_rexmit.msg), msg_xevents_cmp, 0);
+static const ddsrt_avl_treedef_t msg_xevents_treedef = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct xevent_nt, u.msg_rexmit.msg_avlnode), offsetof (struct xevent_nt, u.msg_rexmit.msg), msg_xevents_cmp, 0);
 
-static const ut_fibheapDef_t evq_xevents_fhdef = UT_FIBHEAPDEF_INITIALIZER(offsetof (struct xevent, heapnode), compare_xevent_tsched);
+static const ddsrt_fibheap_def_t evq_xevents_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct xevent, heapnode), compare_xevent_tsched);
 
 static int compare_xevent_tsched (const void *va, const void *vb)
 {
@@ -209,21 +209,21 @@ static struct xevent_nt *lookup_msg (struct xeventq *evq, struct nn_xmsg *msg)
 {
   assert (nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT);
   trace_msg ("lookup-msg", msg);
-  return ut_avlLookup (&msg_xevents_treedef, &evq->msg_xevents, msg);
+  return ddsrt_avl_lookup (&msg_xevents_treedef, &evq->msg_xevents, msg);
 }
 
 static void remember_msg (struct xeventq *evq, struct xevent_nt *ev)
 {
   assert (ev->kind == XEVK_MSG_REXMIT);
   trace_msg ("remember-msg", ev->u.msg_rexmit.msg);
-  ut_avlInsert (&msg_xevents_treedef, &evq->msg_xevents, ev);
+  ddsrt_avl_insert (&msg_xevents_treedef, &evq->msg_xevents, ev);
 }
 
 static void forget_msg (struct xeventq *evq, struct xevent_nt *ev)
 {
   assert (ev->kind == XEVK_MSG_REXMIT);
   trace_msg ("forget-msg", ev->u.msg_rexmit.msg);
-  ut_avlDelete (&msg_xevents_treedef, &evq->msg_xevents, ev);
+  ddsrt_avl_delete (&msg_xevents_treedef, &evq->msg_xevents, ev);
 }
 
 static void add_to_non_timed_xmit_list (struct xeventq *evq, struct xevent_nt *ev)
@@ -330,7 +330,7 @@ static void free_xevent_nt (struct xeventq *evq, struct xevent_nt *ev)
       nn_xmsg_free (ev->u.msg.msg);
       break;
     case XEVK_MSG_REXMIT:
-      assert (ut_avlLookup (&msg_xevents_treedef, &evq->msg_xevents, ev->u.msg_rexmit.msg) == NULL);
+      assert (ddsrt_avl_lookup (&msg_xevents_treedef, &evq->msg_xevents, ev->u.msg_rexmit.msg) == NULL);
       update_rexmit_counts (evq, ev);
       nn_xmsg_free (ev->u.msg_rexmit.msg);
       break;
@@ -351,12 +351,12 @@ void delete_xevent (struct xevent *ev)
   if (ev->tsched.v != T_NEVER)
   {
     ev->tsched.v = TSCHED_DELETE;
-    ut_fibheapDecreaseKey (&evq_xevents_fhdef, &evq->xevents, ev);
+    ddsrt_fibheap_decrease_key (&evq_xevents_fhdef, &evq->xevents, ev);
   }
   else
   {
     ev->tsched.v = TSCHED_DELETE;
-    ut_fibheapInsert (&evq_xevents_fhdef, &evq->xevents, ev);
+    ddsrt_fibheap_insert (&evq_xevents_fhdef, &evq->xevents, ev);
   }
   /* TSCHED_DELETE is absolute minimum time, so chances are we need to
      wake up the thread.  The superfluous signal is harmless. */
@@ -384,12 +384,12 @@ int resched_xevent_if_earlier (struct xevent *ev, nn_mtime_t tsched)
     if (ev->tsched.v != T_NEVER)
     {
       ev->tsched = tsched;
-      ut_fibheapDecreaseKey (&evq_xevents_fhdef, &evq->xevents, ev);
+      ddsrt_fibheap_decrease_key (&evq_xevents_fhdef, &evq->xevents, ev);
     }
     else
     {
       ev->tsched = tsched;
-      ut_fibheapInsert (&evq_xevents_fhdef, &evq->xevents, ev);
+      ddsrt_fibheap_insert (&evq_xevents_fhdef, &evq->xevents, ev);
     }
     is_resched = 1;
     if (tsched.v < tbefore.v)
@@ -435,7 +435,7 @@ static nn_mtime_t earliest_in_xeventq (struct xeventq *evq)
 {
   struct xevent *min;
   ASSERT_MUTEX_HELD (&evq->lock);
-  if ((min = ut_fibheapMin (&evq_xevents_fhdef, &evq->xevents)) != NULL)
+  if ((min = ddsrt_fibheap_min (&evq_xevents_fhdef, &evq->xevents)) != NULL)
     return min->tsched;
   else
   {
@@ -453,7 +453,7 @@ static void qxev_insert (struct xevent *ev)
   if (ev->tsched.v != T_NEVER)
   {
     nn_mtime_t tbefore = earliest_in_xeventq (evq);
-    ut_fibheapInsert (&evq_xevents_fhdef, &evq->xevents, ev);
+    ddsrt_fibheap_insert (&evq_xevents_fhdef, &evq->xevents, ev);
     if (ev->tsched.v < tbefore.v)
       ddsrt_cond_signal (&evq->cond);
   }
@@ -485,8 +485,8 @@ struct xeventq * xeventq_new
   /* limit to 2GB to prevent overflow (4GB - 64kB should be ok, too) */
   if (max_queued_rexmit_bytes > 2147483648u)
     max_queued_rexmit_bytes = 2147483648u;
-  ut_fibheapInit (&evq_xevents_fhdef, &evq->xevents);
-  ut_avlInit (&msg_xevents_treedef, &evq->msg_xevents);
+  ddsrt_fibheap_init (&evq_xevents_fhdef, &evq->xevents);
+  ddsrt_avl_init (&msg_xevents_treedef, &evq->msg_xevents);
   evq->non_timed_xmit_list_oldest = NULL;
   evq->non_timed_xmit_list_newest = NULL;
   evq->terminate = 0;
@@ -540,7 +540,7 @@ void xeventq_free (struct xeventq *evq)
 {
   struct xevent *ev;
   assert (evq->ts == NULL);
-  while ((ev = ut_fibheapExtractMin (&evq_xevents_fhdef, &evq->xevents)) != NULL)
+  while ((ev = ddsrt_fibheap_extract_min (&evq_xevents_fhdef, &evq->xevents)) != NULL)
   {
     if (ev->tsched.v == TSCHED_DELETE || ev->kind != XEVK_CALLBACK)
       free_xevent (evq, ev);
@@ -559,7 +559,7 @@ void xeventq_free (struct xeventq *evq)
   }
   while (!non_timed_xmit_list_is_empty(evq))
     free_xevent_nt (evq, getnext_from_non_timed_xmit_list (evq));
-  assert (ut_avlIsEmpty (&evq->msg_xevents));
+  assert (ddsrt_avl_is_empty (&evq->msg_xevents));
   ddsrt_cond_destroy (&evq->cond);
   ddsrt_mutex_destroy (&evq->lock);
   ddsrt_free (evq);
@@ -636,8 +636,8 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
           hbansreq ? "" : " final",
           msg ? "sent" : "suppressed",
           (t_next.v == T_NEVER) ? POS_INFINITY_DOUBLE : (double)(t_next.v - tnow.v) / 1e9,
-          ut_avlIsEmpty (&wr->readers) ? (seqno_t) -1 : ((struct wr_prd_match *) ut_avlRootNonEmpty (&wr_readers_treedef, &wr->readers))->min_seq,
-          ut_avlIsEmpty (&wr->readers) || ((struct wr_prd_match *) ut_avlRootNonEmpty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
+          ddsrt_avl_is_empty (&wr->readers) ? (seqno_t) -1 : ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->min_seq,
+          ddsrt_avl_is_empty (&wr->readers) || ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
           whcst.max_seq, READ_SEQ_XMIT(wr));
   resched_xevent_if_earlier (ev, t_next);
   wr->hbcontrol.tsched = t_next;
@@ -888,7 +888,7 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
   }
 
   ddsrt_mutex_lock (&pwr->e.lock);
-  if ((rwn = ut_avlLookup (&pwr_readers_treedef, &pwr->readers, &ev->u.acknack.rd_guid)) == NULL)
+  if ((rwn = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &ev->u.acknack.rd_guid)) == NULL)
   {
     ddsrt_mutex_unlock (&pwr->e.lock);
     return;
@@ -1322,7 +1322,7 @@ static void handle_xevents (struct thread_state1 * const ts1, struct xeventq *xe
   {
     while (earliest_in_xeventq(xevq).v <= tnow.v)
     {
-      struct xevent *xev = ut_fibheapExtractMin (&evq_xevents_fhdef, &xevq->xevents);
+      struct xevent *xev = ddsrt_fibheap_extract_min (&evq_xevents_fhdef, &xevq->xevents);
       if (xev->tsched.v == TSCHED_DELETE)
       {
         free_xevent (xevq, xev);

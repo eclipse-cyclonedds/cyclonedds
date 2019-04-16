@@ -13,7 +13,7 @@
 #define DDSI_SERTOPIC_H
 
 #include "dds/ddsrt/atomics.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsc/dds_public_alloc.h"
 
 struct ddsi_serdata;
@@ -25,7 +25,7 @@ typedef void (*topic_cb_t) (struct dds_topic * topic);
 struct ddsi_sertopic_ops;
 
 struct ddsi_sertopic {
-  ut_avlNode_t avlnode; /* index on name_typename */
+  ddsrt_avl_node_t avlnode; /* index on name_typename */
   const struct ddsi_sertopic_ops *ops;
   const struct ddsi_serdata_ops *serdata_ops;
   uint32_t serdata_basehash;
