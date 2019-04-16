@@ -160,14 +160,20 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
      status on the subscriber; secondly it is the only one for which
      overhead really matters.  Otherwise, it is pretty much like
      dds_reader_status_cb. */
-  struct dds_listener const * const lst = &rd->m_entity.m_listener;
-  dds_entity * const sub = rd->m_entity.m_parent;
 
   ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
+  if (!(rd->m_entity.m_status_enable & DDS_DATA_AVAILABLE_STATUS))
+  {
+    ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
+    return;
+  }
+
   while (rd->m_entity.m_cb_count > 0)
     ddsrt_cond_wait (&rd->m_entity.m_observers_cond, &rd->m_entity.m_observers_lock);
   rd->m_entity.m_cb_count++;
 
+  struct dds_listener const * const lst = &rd->m_entity.m_listener;
+  dds_entity * const sub = rd->m_entity.m_parent;
   if (lst->on_data_on_readers)
   {
     ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);

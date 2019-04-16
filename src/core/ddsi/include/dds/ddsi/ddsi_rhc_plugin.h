@@ -30,7 +30,6 @@ struct proxy_writer_info
 struct ddsi_rhc_plugin
 {
   void (*rhc_free_fn) (struct rhc *rhc);
-  void (*rhc_fini_fn) (struct rhc *rhc);
   bool (*rhc_store_fn)
   (struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info,
    struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk);
