@@ -455,6 +455,9 @@ send_error_to_retcode(int errnum)
     case ENOBUFS:
     case ENOMEM:
       return DDS_RETCODE_OUT_OF_RESOURCES;
+    case EHOSTUNREACH:
+    case EHOSTDOWN:
+      return DDS_RETCODE_NO_CONNECTION;
     default:
       break;
   }
