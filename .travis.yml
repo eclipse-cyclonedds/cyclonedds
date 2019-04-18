@@ -64,6 +64,9 @@ before_install:
   - if [ "${TRAVIS_OS_NAME}" = "windows" ]; then
       eval "unset CC";
       eval "unset CXX";
+      JAVA_HOME=$(find "/c/Program Files/Android/jdk/" -name "*openjdk*" | sort | head -n 1);
+      export JAVA_HOME;
+      export PATH="${PATH}:${JAVA_HOME}/bin";
     else
       eval "export CC=${C_COMPILER}";
       eval "export CXX=${CXX_COMPILER}";
@@ -83,13 +86,10 @@ before_install:
 # issue, JAVA_HOME is read from the registry and exported by this script.
 install:
   - if [ "${TRAVIS_OS_NAME}" = "windows" ]; then
-      choco install innoextract maven;
+      choco install innoextract;
+      choco install maven --ignore-dependencies;
       wget -q https://dl.bintray.com/conan/installers/conan-win-64_1_10_0.exe;
       innoextract conan-win-64_1_10_0.exe;
-      KEY='HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment';
-      VALUE='JAVA_HOME';
-      JAVA_HOME=$(REG QUERY "${KEY}" -v "${VALUE}" | sed -n 's/^.*JAVA_HOME \+[_A-Z]\+ \+//ip');
-      eval "export JAVA_HOME=\"${JAVA_HOME}\"";
       eval "export PATH=\"$(pwd)/app/conan:${PATH}\"";
     elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
       eval "$(pyenv init -)";
