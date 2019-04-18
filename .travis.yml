@@ -77,13 +77,6 @@ before_install:
 # The real fix is to wait until Python and pip are both available on the
 # target. Until then download Conan from the official website and simply add
 # the extracted folder to the path.
-#
-# Maven requires JAVA_HOME to be set (at least on Windows), but Windows targets
-# do not come with Java installed. For now it is installed through Chocolatey
-# as a dependency of Maven, hence JAVA_HOME is only available after the
-# package is installed. The problem is that the shell cannot be restarted and
-# the path is not fixed as it contains the version number. To workaround this
-# issue, JAVA_HOME is read from the registry and exported by this script.
 install:
   - if [ "${TRAVIS_OS_NAME}" = "windows" ]; then
       choco install innoextract;
