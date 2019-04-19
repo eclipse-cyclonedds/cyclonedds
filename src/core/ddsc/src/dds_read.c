@@ -123,7 +123,6 @@ dds_read_impl(
     thread_state_awake (ts1);
     rc = dds_read_lock(reader_or_condition, &rd, &cond, only_reader);
     if (rc != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking entity\n");
         ret = DDS_ERRNO(rc);
         goto fail_awake;
     }
@@ -223,7 +222,6 @@ dds_readcdr_impl(
       }
       dds_read_unlock(rd, cond);
   } else {
-      DDS_ERROR("Error occurred on locking entity\n");
       ret = DDS_ERRNO(rc);
   }
 
@@ -695,7 +693,6 @@ dds_return_loan(
 
     rc = dds_read_lock(reader_or_condition, &rd, &cond, false);
     if (rc != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking entity\n");
         ret = DDS_ERRNO(rc);
         goto fail;
     }

@@ -134,18 +134,15 @@ dds_register_instance(
     dds_retcode_t rc;
 
     if(data == NULL){
-        DDS_ERROR("Argument data is NULL\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
     if(handle == NULL){
-        DDS_ERROR("Argument handle is NULL\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
     rc = dds_writer_lock(writer, &wr);
     if (rc != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking writer\n");
         ret = DDS_ERRNO(rc);
         goto err;
     }
@@ -155,7 +152,6 @@ dds_register_instance(
         *handle = inst->m_iid;
         ret = DDS_RETCODE_OK;
     } else {
-        DDS_ERROR("Unable to create instance\n");
         ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     }
     thread_state_asleep (ts1);
@@ -194,19 +190,16 @@ dds_unregister_instance_ts(
     dds_writer *wr;
 
     if (data == NULL){
-        DDS_ERROR("Argument data is NULL\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
     if(timestamp < 0){
-        DDS_ERROR("Argument timestamp has negative value\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
     rc = dds_writer_lock(writer, &wr);
     if (rc != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking writer\n");
-        ret =  DDS_ERRNO(rc);
+        ret = DDS_ERRNO(rc);
         goto err;
     }
 
@@ -241,7 +234,6 @@ dds_unregister_instance_ih_ts(
 
     rc = dds_writer_lock(writer, &wr);
     if (rc != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking writer\n");
         ret = DDS_ERRNO(rc);
         goto err;
     }
@@ -264,7 +256,6 @@ dds_unregister_instance_ih_ts(
         ret = dds_write_impl (wr, sample, timestamp, action);
         ddsi_sertopic_free_sample (tp, sample, DDS_FREE_ALL);
     } else {
-        DDS_ERROR("No instance related with the provided handle is found\n");
         ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
     }
     thread_state_asleep (ts1);
@@ -294,7 +285,6 @@ dds_writedispose_ts(
         thread_state_asleep (ts1);
         dds_writer_unlock(wr);
     } else {
-        DDS_ERROR("Error occurred on locking writer\n");
         ret = DDS_ERRNO(rc);
     }
 
@@ -336,7 +326,6 @@ dds_dispose_ts(
         thread_state_asleep (ts1);
         dds_writer_unlock(wr);
     } else {
-        DDS_ERROR("Error occurred on locking writer\n");
         ret = DDS_ERRNO(rc);
     }
 
@@ -366,13 +355,11 @@ dds_dispose_ih_ts(
             ret = dds_dispose_impl (wr, sample, handle, timestamp);
             ddsi_sertopic_free_sample (tp, sample, DDS_FREE_ALL);
         } else {
-            DDS_ERROR("No instance related with the provided handle is found\n");
             ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
         }
         thread_state_asleep (ts1);
         dds_writer_unlock(wr);
     } else {
-        DDS_ERROR("Error occurred on locking writer\n");
         ret = DDS_ERRNO(rc);
     }
 
@@ -391,7 +378,6 @@ dds_lookup_instance(
     struct ddsi_serdata *sd;
 
     if(data == NULL){
-        DDS_ERROR("Argument data is NULL\n");
         goto err;
     }
 
@@ -402,8 +388,6 @@ dds_lookup_instance(
         ih = ddsi_tkmap_lookup (map, sd);
         ddsi_serdata_unref (sd);
         thread_state_asleep (ts1);
-    } else {
-        DDS_ERROR("Acquired topic is NULL\n");
     }
 err:
     return ih;
@@ -429,14 +413,12 @@ dds_instance_get_key(
     struct ddsi_tkmap_instance * tk;
 
     if(data == NULL){
-        DDS_ERROR("Argument data is NULL\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
 
     topic = dds_instance_info_by_hdl (entity);
     if(topic == NULL){
-        DDS_ERROR("Could not find topic related to the given entity\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto err;
     }
@@ -447,7 +429,6 @@ dds_instance_get_key(
         ddsi_tkmap_instance_unref (tk);
         ret = DDS_RETCODE_OK;
     } else {
-        DDS_ERROR("No instance related with the provided entity is found\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
     thread_state_asleep (ts1);
