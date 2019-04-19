@@ -217,7 +217,6 @@ dds_create_waitset(
         waitset->triggered = NULL;
         dds_entity_unlock(par);
     } else {
-        DDS_ERROR("Error occurred on locking entity\n");
         hdl = DDS_ERRNO(rc);
     }
 

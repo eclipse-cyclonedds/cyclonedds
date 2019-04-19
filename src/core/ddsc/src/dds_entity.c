@@ -269,8 +269,8 @@ dds_return_t dds_delete_impl (dds_entity_t entity, bool keep_if_explicit)
     dds_free (e);
   }
 
-    return ret;
-  }
+  return ret;
+}
 
 dds_entity_t dds_get_parent (dds_entity_t entity)
 {
@@ -404,11 +404,9 @@ dds_return_t dds_get_listener (dds_entity_t entity, dds_listener_t *listener)
       ddsrt_mutex_unlock (&e->m_observers_lock);
       dds_entity_unlock(e);
     } else {
-      DDS_ERROR("Error occurred on locking entity\n");
       ret = DDS_ERRNO(rc);
     }
   } else {
-    DDS_ERROR("Argument listener is NULL\n");
     ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
   }
 
