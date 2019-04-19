@@ -37,7 +37,6 @@ dds_participant_status_validate(
     dds_return_t ret = DDS_RETCODE_OK;
 
     if (mask & ~(DDS_PARTICIPANT_STATUS_MASK)) {
-        DDS_ERROR("Argument mask is invalid\n");
         ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
     }
 

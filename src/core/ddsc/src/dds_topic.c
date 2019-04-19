@@ -200,7 +200,6 @@ dds_find_topic(
             ddsrt_mutex_unlock (&dds_global.m_mutex);
             dds_entity_unlock(p);
         } else {
-            DDS_ERROR("Error occurred on locking entity\n");
             tp = DDS_ERRNO(rc);
         }
     } else {
@@ -334,7 +333,6 @@ dds_create_topic_arbitrary (
 
     rc = dds_entity_lock(participant, DDS_KIND_PARTICIPANT, &par);
     if (rc != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking entity\n");
         hdl = DDS_ERRNO(rc);
         goto lock_err;
     }
