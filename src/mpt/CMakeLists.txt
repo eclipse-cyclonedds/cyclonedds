@@ -16,6 +16,7 @@ option(MPT_ENABLE_SELFTEST "Enable multi-process test-framework self test" OFF)
 set(MPT_CMAKE "${CMAKE_CURRENT_SOURCE_DIR}/mpt/cmake/MPT.cmake")
 set(MPT_SOURCE_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(MPT_BINARY_ROOT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+set(MPT_DEFAULT_TIMEOUT "60")
 
 add_subdirectory(mpt)
 add_subdirectory(tests)

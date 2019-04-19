@@ -70,3 +70,6 @@ MPT_Test(disabled, _false, .disabled=false);
  * This can only really be done manually, unfortunately. */
 MPT_TestProcess(timeout, child_culling, id, proc_sleep, MPT_ArgValues(DDS_SECS(120)));
 MPT_Test(timeout, child_culling, .timeout=1);
+
+MPT_TestProcess(timeout, default_timeout, id, proc_sleep, MPT_ArgValues(DDS_SECS(120)));
+MPT_Test(timeout, default_timeout);

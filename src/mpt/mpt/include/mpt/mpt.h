@@ -154,5 +154,4 @@ MPT_TestFiniDeclaration(suite, test)                              \
 /* Helpful function to check for patterns in log callbacks. */
 int mpt_patmatch(const char *pat, const char *str);
 
-
 #endif /* MPT_H_INCLUDED */
