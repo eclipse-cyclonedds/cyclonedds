@@ -11,8 +11,6 @@
 #
 set(MPT_DIR "${CMAKE_CURRENT_LIST_DIR}/..")
 
-
-
 function(parse_mpt_fixtures INPUT TEST_DISABLED TEST_TIMEOUT TEST_XFAIL)
   set(s "[ \t\r\n]")
   if(INPUT MATCHES ".disabled${s}*=${s}*([tT][rR][uU][eE]|[0-9]+)")
@@ -24,7 +22,7 @@ function(parse_mpt_fixtures INPUT TEST_DISABLED TEST_TIMEOUT TEST_XFAIL)
   if(INPUT MATCHES ".timeout${s}*=${s}*([0-9]+)")
     set(${TEST_TIMEOUT} "${CMAKE_MATCH_1}" PARENT_SCOPE)
   else()
-    set(${TEST_TIMEOUT} "0" PARENT_SCOPE)
+    set(${TEST_TIMEOUT} "${MPT_DEFAULT_TIMEOUT}" PARENT_SCOPE)
   endif()
 
   if(INPUT MATCHES ".xfail${s}*=${s}*([tT][rR][uU][eE]|[0-9]+)")

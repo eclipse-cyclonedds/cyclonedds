@@ -157,10 +157,9 @@ mpt_test_new(const char* name, int secs, bool xf)
    * So, make sure that the 'manual' timeout takes longer than the ctest
    * timeout. */
   if (secs == 0) {
-    test->timeout = DDS_SECS(1600);
-  } else {
-    test->timeout = DDS_SECS(secs * 2);
+    secs = MPT_DEFAULT_TIMEOUT;
   }
+  test->timeout = DDS_SECS(secs + 5);
 
   return test;
 }
