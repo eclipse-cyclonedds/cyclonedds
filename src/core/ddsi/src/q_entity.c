@@ -1371,8 +1371,8 @@ static void writer_drop_local_connection (const struct nn_guid *wr_guid, struct 
     if ((m = ut_avlLookup (&wr_local_readers_treedef, &wr->local_readers, &rd->e.guid)) != NULL)
     {
       ut_avlDelete (&wr_local_readers_treedef, &wr->local_readers, m);
+      local_reader_ary_remove (&wr->rdary, rd);
     }
-    local_reader_ary_remove (&wr->rdary, rd);
     ddsrt_mutex_unlock (&wr->e.lock);
     if (m != NULL && wr->status_cb)
     {
@@ -1490,15 +1490,11 @@ static void proxy_writer_drop_connection (const struct nn_guid *pwr_guid, struct
     {
       ut_avlDelete (&pwr_readers_treedef, &pwr->readers, m);
       if (m->in_sync != PRMSS_SYNC)
-      {
         pwr->n_readers_out_of_sync--;
-      }
+      if (rd->reliable)
+        pwr->n_reliable_readers--;
+      local_reader_ary_remove (&pwr->rdary, rd);
     }
-    if (rd->reliable)
-    {
-      pwr->n_reliable_readers--;
-    }
-    local_reader_ary_remove (&pwr->rdary, rd);
     ddsrt_mutex_unlock (&pwr->e.lock);
     if (m != NULL)
     {
