@@ -156,16 +156,18 @@ dds_read_impl(
             rd->m_loan_out = true;
         }
     }
+
+    /* read/take resets data available status -- must reset before reading because
+       the actual writing is protected by RHC lock, not by rd->m_entity.m_lock */
+    dds_entity_status_reset (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
+    /* reset DATA_ON_READERS status on subscriber after successful read/take */
+    if (dds_entity_kind (rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER) {
+      dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
+    }
     if (take) {
         ret = (dds_return_t)dds_rhc_take(rd->m_rd->rhc, lock, buf, si, maxs, mask, hand, cond);
     } else {
         ret = (dds_return_t)dds_rhc_read(rd->m_rd->rhc, lock, buf, si, maxs, mask, hand, cond);
-    }
-    /* read/take resets data available status */
-    dds_entity_status_reset(&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
-    /* reset DATA_ON_READERS status on subscriber after successful read/take */
-    if (dds_entity_kind(rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER) {
-        dds_entity_status_reset(rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
     }
     dds_read_unlock(rd, cond);
 
@@ -202,6 +204,13 @@ dds_readcdr_impl(
   thread_state_awake (ts1);
   rc = dds_read_lock(reader_or_condition, &rd, &cond, false);
   if (rc == DDS_RETCODE_OK) {
+      /* read/take resets data available status -- must reset before reading because
+         the actual writing is protected by RHC lock, not by rd->m_entity.m_lock */
+      dds_entity_status_reset (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
+      /* reset DATA_ON_READERS status on subscriber after successful read/take */
+      if (dds_entity_kind (rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER) {
+        dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
+      }
       ret = dds_rhc_takecdr
         (
          rd->m_rd->rhc, lock, buf, si, maxs,
@@ -211,15 +220,6 @@ dds_readcdr_impl(
          hand
          );
 
-      /* read/take resets data available status */
-      dds_entity_status_reset(&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
-
-      /* reset DATA_ON_READERS status on subscriber after successful read/take */
-
-      if (dds_entity_kind(rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER)
-      {
-        dds_entity_status_reset(rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
-      }
       dds_read_unlock(rd, cond);
   } else {
       ret = DDS_ERRNO(rc);
