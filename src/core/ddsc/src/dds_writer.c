@@ -518,11 +518,13 @@ dds_get_publication_matched_status (
     if (status) {
         *status = wr->m_publication_matched_status;
     }
+    ddsrt_mutex_lock (&wr->m_entity.m_observers_lock);
     if (wr->m_entity.m_status_enable & DDS_PUBLICATION_MATCHED_STATUS) {
         wr->m_publication_matched_status.total_count_change = 0;
         wr->m_publication_matched_status.current_count_change = 0;
         dds_entity_status_reset(&wr->m_entity, DDS_PUBLICATION_MATCHED_STATUS);
     }
+    ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
     dds_writer_unlock(wr);
 fail:
     return ret;
@@ -547,10 +549,12 @@ dds_get_liveliness_lost_status (
     if (status) {
       *status = wr->m_liveliness_lost_status;
     }
+    ddsrt_mutex_lock (&wr->m_entity.m_observers_lock);
     if (wr->m_entity.m_status_enable & DDS_LIVELINESS_LOST_STATUS) {
       wr->m_liveliness_lost_status.total_count_change = 0;
       dds_entity_status_reset(&wr->m_entity, DDS_LIVELINESS_LOST_STATUS);
     }
+    ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
     dds_writer_unlock(wr);
 fail:
     return ret;
@@ -575,10 +579,12 @@ dds_get_offered_deadline_missed_status(
     if (status) {
       *status = wr->m_offered_deadline_missed_status;
     }
+    ddsrt_mutex_lock (&wr->m_entity.m_observers_lock);
     if (wr->m_entity.m_status_enable & DDS_OFFERED_DEADLINE_MISSED_STATUS) {
       wr->m_offered_deadline_missed_status.total_count_change = 0;
       dds_entity_status_reset(&wr->m_entity, DDS_OFFERED_DEADLINE_MISSED_STATUS);
     }
+    ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
     dds_writer_unlock(wr);
 fail:
     return ret;
@@ -603,10 +609,12 @@ dds_get_offered_incompatible_qos_status (
     if (status) {
       *status = wr->m_offered_incompatible_qos_status;
     }
+    ddsrt_mutex_lock (&wr->m_entity.m_observers_lock);
     if (wr->m_entity.m_status_enable & DDS_OFFERED_INCOMPATIBLE_QOS_STATUS) {
       wr->m_offered_incompatible_qos_status.total_count_change = 0;
       dds_entity_status_reset(&wr->m_entity, DDS_OFFERED_INCOMPATIBLE_QOS_STATUS);
     }
+    ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
     dds_writer_unlock(wr);
 fail:
     return ret;

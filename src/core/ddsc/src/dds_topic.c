@@ -669,10 +669,12 @@ dds_get_inconsistent_topic_status(
     if (status) {
         *status = t->m_inconsistent_topic_status;
     }
+    ddsrt_mutex_lock (&t->m_entity.m_observers_lock);
     if (t->m_entity.m_status_enable & DDS_INCONSISTENT_TOPIC_STATUS) {
         t->m_inconsistent_topic_status.total_count_change = 0;
         dds_entity_status_reset(&t->m_entity, DDS_INCONSISTENT_TOPIC_STATUS);
     }
+    ddsrt_mutex_unlock (&t->m_entity.m_observers_lock);
     dds_topic_unlock(t);
 fail:
     return ret;
