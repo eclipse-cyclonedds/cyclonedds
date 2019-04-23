@@ -16,9 +16,6 @@
   <Domain>
     <Id>3</Id>
   </Domain>
-  <Lease>
-    <ExpiryTime update_factor="2e-1"/>
-  </Lease>
   <DDSI2E>
     <General>
       <NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress>
