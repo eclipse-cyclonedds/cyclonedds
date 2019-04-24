@@ -181,6 +181,9 @@ ddsrt_proc_create(
     goto fail_fctl;
   }
 
+  /* Be sure to not trigger the SIGCHLD. */
+  signal(SIGCHLD, SIG_DFL);
+
   /* Create a new process. */
   spawn = fork();
   if (spawn == -1)
