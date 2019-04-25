@@ -33,7 +33,6 @@
 #include "dds/ddsi/q_error.h"
 
 #include "dds/ddsrt/xmlparser.h"
-#include "dds/ddsrt/expand_envvars.h"
 
 #include "dds/version.h"
 
