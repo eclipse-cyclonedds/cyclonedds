@@ -79,7 +79,6 @@ list(APPEND sources
 
 list(APPEND headers
   "${source_path}/dds/ddsrt/avl.h"
-  "${source_path}/dds/ddsrt/expand_envvars.h"
   "${source_path}/dds/ddsrt/fibheap.h"
   "${source_path}/dds/ddsrt/hopscotch.h"
   "${source_path}/dds/ddsrt/thread_pool.h")
