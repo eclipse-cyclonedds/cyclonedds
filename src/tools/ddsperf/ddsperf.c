@@ -664,7 +664,7 @@ static dds_instance_handle_t get_pphandle_for_pubhandle (dds_instance_handle_t p
   dds_sample_info_t info;
   if ((n = dds_read_instance (rd_publications, &msg, &info, 1, 1, pubhandle)) < 0)
     error2 ("dds_read_instance(rd_publications, %"PRIx64") failed: %d\n", pubhandle, (int) n);
-  else if (n == 0 || !info.valid_data)
+  if (n == 0 || !info.valid_data)
   {
     printf ("get_pong_writer: publication handle %"PRIx64" not found\n", pubhandle);
     fflush (stdout);
@@ -772,7 +772,7 @@ static bool process_data (dds_entity_t rd, struct subthread_arg *arg)
   {
     if (iseq[i].valid_data)
     {
-      uint32_t seq, keyval, size;
+      uint32_t seq = 0, keyval = 0, size = 0;
       switch (topicsel)
       {
         case KS:   { KeyedSeq *d = (KeyedSeq *) mseq[i]; keyval = d->keyval; seq = d->seq; size = 12 + d->baggage._length; } break;
@@ -783,7 +783,7 @@ static bool process_data (dds_entity_t rd, struct subthread_arg *arg)
       (void) check_eseq (&eseq_admin, seq, keyval, size, iseq[i].publication_handle);
       if (iseq[i].source_timestamp & 1)
       {
-        dds_entity_t wr_pong = 0;
+        dds_entity_t wr_pong;
         if ((wr_pong = get_pong_writer (iseq[i].publication_handle)) != 0)
         {
           dds_return_t rc;
