@@ -96,6 +96,50 @@ ddsrt_unsetenv(
   const char *name)
 ddsrt_nonnull_all;
 
+/**
+ * @brief Expand environment variables within string.
+ *
+ * Expands ${X}, ${X:-Y}, ${X:+Y}, ${X:?Y} forms, but not $X.
+ *
+ * The result string should be freed with ddsrt_free().
+ *
+ * @param[in]  string  String to expand.
+ *
+ * @returns Allocated char*.
+ *
+ * @retval NULL
+ *             Expansion failed.
+ * @retval Pointer
+ *             Copy of the string argument with the environment
+ *             variables expanded.
+ */
+DDS_EXPORT char*
+ddsrt_expand_envvars(
+  const char *string);
+
+/**
+ * @brief Expand environment variables within string.
+ *
+ * Expands $X, ${X}, ${X:-Y}, ${X:+Y}, ${X:?Y} forms, $ and \
+ * can be escaped with \.
+ *
+ * The result string should be freed with ddsrt_free().
+ *
+ * @param[in]  string  String to expand.
+ *
+ * @returns Allocated char*.
+ *
+ * @retval NULL
+ *             Expansion failed.
+ * @retval Pointer
+ *             Copy of the string argument with the environment
+ *             variables expanded.
+ */
+DDS_EXPORT char*
+ddsrt_expand_envvars_sh(
+  const char *string);
+
+
 #if defined(__cplusplus)
 }
 #endif

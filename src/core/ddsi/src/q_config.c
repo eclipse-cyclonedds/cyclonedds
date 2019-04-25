@@ -22,6 +22,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/strtod.h"
 #include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/environ.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsrt/avl.h"
@@ -32,7 +33,6 @@
 #include "dds/ddsi/q_error.h"
 
 #include "dds/ddsrt/xmlparser.h"
-#include "dds/ddsrt/expand_envvars.h"
 
 #include "dds/version.h"
 

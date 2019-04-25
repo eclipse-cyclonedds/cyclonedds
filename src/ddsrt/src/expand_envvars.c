@@ -19,7 +19,6 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsrt/expand_envvars.h"
 
 typedef char * (*expand_fn)(const char *src0);
 

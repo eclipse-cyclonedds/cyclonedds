@@ -1,0 +1,42 @@
+/*
+ * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+#ifndef DDSRT_TEST_PROCESS_TEST_H
+#define DDSRT_TEST_PROCESS_TEST_H
+
+/* Get the application name from cmake to automatically
+ * get the proper extension and location. */
+#define TEST_APPLICATION "@process_app_name@"
+
+#define TEST_SLEEP_ARG        "--sleep"
+
+#define TEST_EXIT_GENERIC_OK  (0)
+#define TEST_EXIT_FAILURE     (1)
+#define TEST_EXIT_WRONG_ARGS  (2)
+
+#define TEST_CREATE_ARG       NULL
+#define TEST_CREATE_EXIT      (0)
+
+#define TEST_PID_ARG          "--retpid"
+#define TEST_PID_EXIT(pid)    ((int)(int32_t)(pid % 127))
+
+#define TEST_ENV_ARG          "--checkenv"
+#define TEST_ENV_EXIT         (12)
+#define TEST_ENV_VAR_NAME     "TEST_ENV_VAR_NAME"
+#define TEST_ENV_VAR_VALUE    "TEST_ENV_VAR_VALUE"
+
+#define TEST_BSLASH_ARG       "\\left\\\\right\\"
+#define TEST_BSLASH_EXIT      (int)('\\')
+
+#define TEST_DQUOTE_ARG       "\"left\"\"right\""
+#define TEST_DQUOTE_EXIT      (int)('"')
+
+#endif /* DDSRT_TEST_PROCESS_TEST_H */

@@ -25,6 +25,7 @@ set(sources
     "random.c"
     "strlcpy.c"
     "socket.c"
+    "process.c"
     "select.c")
 
 add_cunit_executable(cunit_ddsrt ${sources})
@@ -42,3 +43,26 @@ endif()
 
 target_include_directories(
   cunit_ddsrt PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
+
+# Create a separate test application that will be used to
+# test process management.
+add_executable(process_app process_app.c)
+target_link_libraries(process_app PRIVATE ddsrt)
+target_include_directories(
+        process_app
+        PRIVATE
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
+# Force the app to be at the same location, no matter what platform or build type.
+set_target_properties(
+        process_app
+        PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY                ${CMAKE_CURRENT_BINARY_DIR}
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG          ${CMAKE_CURRENT_BINARY_DIR}
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE        ${CMAKE_CURRENT_BINARY_DIR}
+        RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_CURRENT_BINARY_DIR}
+        RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL     ${CMAKE_CURRENT_BINARY_DIR} )
+# Let the cunit application know the location and name of the test application.
+set(process_app_name "${CMAKE_CURRENT_BINARY_DIR}/process_app${CMAKE_EXECUTABLE_SUFFIX}")
+configure_file(
+        "process_test.h.in" "${CMAKE_CURRENT_BINARY_DIR}/include/process_test.h" @ONLY)
+
