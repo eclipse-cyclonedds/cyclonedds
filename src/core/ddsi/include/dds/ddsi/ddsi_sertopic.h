@@ -16,6 +16,10 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsc/dds_public_alloc.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 struct ddsi_serdata;
 struct ddsi_serdata_ops;
 
@@ -29,9 +33,9 @@ struct ddsi_sertopic {
   const struct ddsi_sertopic_ops *ops;
   const struct ddsi_serdata_ops *serdata_ops;
   uint32_t serdata_basehash;
-  char *name_typename;
+  char *name_type_name;
   char *name;
-  char *typename;
+  char *type_name;
   uint64_t iid;
   ddsrt_atomic_uint32_t refc; /* counts refs from entities, not from data */
 
@@ -39,12 +43,14 @@ struct ddsi_sertopic {
   struct dds_topic * status_cb_entity;
 };
 
+/* Called when the refcount dropped to zero */
 typedef void (*ddsi_sertopic_deinit_t) (struct ddsi_sertopic *tp);
 
-/* Release any memory allocated by ddsi_sertopic_to_sample */
+/* Zero out a sample, used for generating samples from just a key value and in cleaning up
+   after dds_return_loan */
 typedef void (*ddsi_sertopic_zero_samples_t) (const struct ddsi_sertopic *d, void *samples, size_t count);
 
-/* Release any memory allocated by ddsi_sertopic_to_sample */
+/* (Re)allocate an array of samples, used in growing loaned sample arrays in dds_read */
 typedef void (*ddsi_sertopic_realloc_samples_t) (void **ptrs, const struct ddsi_sertopic *d, void *old, size_t oldcount, size_t count);
 
 /* Release any memory allocated by ddsi_sertopic_to_sample (also undo sertopic_alloc_sample if "op" so requests) */
@@ -85,5 +91,9 @@ DDS_EXPORT inline void *ddsi_sertopic_alloc_sample (const struct ddsi_sertopic *
 DDS_EXPORT inline void ddsi_sertopic_free_sample (const struct ddsi_sertopic *tp, void *sample, dds_free_op_t op) {
   ddsi_sertopic_free_samples (tp, &sample, 1, op);
 }
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

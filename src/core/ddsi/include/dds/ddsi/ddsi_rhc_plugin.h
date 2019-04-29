@@ -12,6 +12,10 @@
 #ifndef DDSI_RHC_PLUGIN_H
 #define DDSI_RHC_PLUGIN_H
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 struct rhc;
 struct nn_xqos;
 struct ddsi_tkmap_instance;
@@ -41,5 +45,9 @@ struct ddsi_rhc_plugin
 };
 
 DDS_EXPORT void make_proxy_writer_info(struct proxy_writer_info *pwr_info, const struct entity_common *e, const struct nn_xqos *xqos);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

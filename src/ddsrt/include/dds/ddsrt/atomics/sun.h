@@ -11,6 +11,10 @@
  */
 #include <atomic.h>
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 #define DDSRT_ATOMIC64_SUPPORT 1
 
 /* LD, ST */
@@ -239,3 +243,6 @@ inline void ddsrt_atomic_fence_rel (void) {
   membar_exit ();
 }
 
+#if defined (__cplusplus)
+}
+#endif

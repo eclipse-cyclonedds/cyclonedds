@@ -18,6 +18,10 @@
 
 #include "dds/ddsi/q_unused.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 inline int nn_bitset_isset (uint32_t numbits, const uint32_t *bits, uint32_t idx)
 {
   return idx < numbits && (bits[idx/32] & (UINT32_C(1) << (31 - (idx%32))));
@@ -51,5 +55,9 @@ inline void nn_bitset_one (uint32_t numbits, uint32_t *bits)
     bits[k] &= ~(~UINT32_C(0) >> n);
   }
 }
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* NN_BITSET_H */

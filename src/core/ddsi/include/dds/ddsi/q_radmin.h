@@ -14,7 +14,6 @@
 
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/threads.h"
-#include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/ddsi_tran.h"
 
 #if defined (__cplusplus)

@@ -28,6 +28,7 @@
 #include "dds/ddsi/q_xmsg.h"
 
 #include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_protocol.h" /* for NN_STATUSINFO_... */
 #include "dds/ddsi/q_radmin.h" /* for nn_plist_quickscan */
 #include "dds/ddsi/q_static_assert.h"

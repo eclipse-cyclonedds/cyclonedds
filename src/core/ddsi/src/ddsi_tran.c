@@ -19,6 +19,7 @@
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_globals.h"
 
 static ddsi_tran_factory_t ddsi_tran_factories = NULL;
 

@@ -15,10 +15,18 @@
 #include "dds/export.h"
 #include "dds/ddsrt/sync.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 DDS_EXPORT void ddsrt_init(void);
 
 DDS_EXPORT void ddsrt_fini(void);
 
 DDS_EXPORT ddsrt_mutex_t *ddsrt_get_singleton_mutex(void);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* DDSRT_CDTORS_H */

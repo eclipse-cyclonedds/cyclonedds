@@ -14,6 +14,7 @@
 
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_lat_estim.h"
@@ -32,11 +33,14 @@ struct xevent;
 struct nn_reorder;
 struct nn_defrag;
 struct nn_dqueue;
+struct nn_rsample_info;
+struct nn_rdata;
 struct addrset;
 struct ddsi_sertopic;
 struct whc;
 struct nn_xqos;
 struct nn_plist;
+struct lease;
 
 struct proxy_group;
 struct proxy_endpoint_common;
@@ -159,7 +163,7 @@ struct participant
   unsigned bes; /* built-in endpoint set */
   unsigned prismtech_bes; /* prismtech-specific extension of built-in endpoints set */
   unsigned is_ddsi2_pp: 1; /* true for the "federation leader", the ddsi2 participant itself in OSPL; FIXME: probably should use this for broker mode as well ... */
-  nn_plist_t *plist; /* settings/QoS for this participant */
+  struct nn_plist *plist; /* settings/QoS for this participant */
   struct xevent *spdp_xevent; /* timed event for periodically publishing SPDP */
   struct xevent *pmd_update_xevent; /* timed event for periodically publishing ParticipantMessageData */
   nn_locator_t m_locator;
@@ -294,7 +298,7 @@ struct proxy_participant
   unsigned bes; /* built-in endpoint set */
   unsigned prismtech_bes; /* prismtech-specific extension of built-in endpoints set */
   nn_guid_t privileged_pp_guid; /* if this PP depends on another PP for its SEDP writing */
-  nn_plist_t *plist; /* settings/QoS for this participant */
+  struct nn_plist *plist; /* settings/QoS for this participant */
   ddsrt_atomic_voidp_t lease; /* lease object for this participant, for automatic leases */
   struct addrset *as_default; /* default address set to use for user data traffic */
   struct addrset *as_meta; /* default address set to use for discovery traffic */

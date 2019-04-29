@@ -25,6 +25,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_pcap.h"
+#include "dds/ddsi/q_globals.h"
 
 extern void ddsi_factory_conn_init (ddsi_tran_factory_t factory, ddsi_tran_conn_t conn);
 

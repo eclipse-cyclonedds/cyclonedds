@@ -14,6 +14,14 @@
 
 #include "dds/ddsi/ddsi_tran.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 int ddsi_eth_enumerate_interfaces(ddsi_tran_factory_t fact, ddsrt_ifaddrs_t **ifs);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* DDSI_ETH_H */

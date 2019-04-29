@@ -1885,7 +1885,7 @@ static struct ddsi_serdata *extract_sample_from_data
       "data(application, vendor %u.%u): %x:%x:%x:%x #%"PRId64": deserialization %s/%s failed (%s)\n",
       sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
       PGUID (guid), sampleinfo->seq,
-      topic->name, topic->typename,
+      topic->name, topic->type_name,
       failmsg ? failmsg : "for reasons unknown"
     );
   }
@@ -2388,7 +2388,7 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
     if (gap_was_valuable)
     {
       const char *tname = pwr->c.topic ? pwr->c.topic->name : "(null)";
-      const char *ttname = pwr->c.topic ? pwr->c.topic->typename : "(null)";
+      const char *ttname = pwr->c.topic ? pwr->c.topic->type_name : "(null)";
       DDS_WARNING ("dropping oversize (%u > %u) sample %"PRId64" from remote writer %x:%x:%x:%x %s/%s\n",
                    sampleinfo->size, config.max_sample_size, sampleinfo->seq,
                    PGUIDPREFIX (rst->src_guid_prefix), msg->writerId.u,

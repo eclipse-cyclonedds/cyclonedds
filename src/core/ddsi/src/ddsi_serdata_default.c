@@ -24,6 +24,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__stream.h"
 #include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 
 #define MAX_POOL_SIZE 16384

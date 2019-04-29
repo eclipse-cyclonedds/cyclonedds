@@ -14,6 +14,10 @@
 #include "dds/ddsrt/sockets/posix.h"
 #endif
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 #define INET_ADDRSTRLEN_EXTENDED (INET_ADDRSTRLEN + 6) /* ":12345" */
 
 #if DDSRT_HAVE_IPV6
@@ -259,6 +263,10 @@ ddsrt_gethostbyname(
   const char *name,
   int af,
   ddsrt_hostent_t **hentp);
+#endif
+
+#if defined (__cplusplus)
+}
 #endif
 
 #endif /* DDSRT_SOCKETS_H */
