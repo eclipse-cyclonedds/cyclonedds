@@ -27,6 +27,7 @@
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/q_globals.h"
 
 #define USE_EHH 0
 

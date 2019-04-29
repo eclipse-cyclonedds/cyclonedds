@@ -23,6 +23,7 @@
 #include "dds__topic.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds__builtin.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 

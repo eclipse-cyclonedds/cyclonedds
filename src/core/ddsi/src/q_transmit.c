@@ -868,7 +868,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
     char ppbuf[1024];
     int tmp;
     const char *tname = wr->topic ? wr->topic->name : "(null)";
-    const char *ttname = wr->topic ? wr->topic->typename : "(null)";
+    const char *ttname = wr->topic ? wr->topic->type_name : "(null)";
     ppbuf[0] = '\0';
     tmp = sizeof (ppbuf) - 1;
     DDS_TRACE("write_sample %x:%x:%x:%x #%"PRId64"", PGUID (wr->e.guid), seq);
@@ -1043,7 +1043,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
     char ppbuf[1024];
     int tmp;
     const char *tname = wr->topic ? wr->topic->name : "(null)";
-    const char *ttname = wr->topic ? wr->topic->typename : "(null)";
+    const char *ttname = wr->topic ? wr->topic->type_name : "(null)";
     ppbuf[0] = '\0';
     tmp = sizeof (ppbuf) - 1;
     DDS_WARNING ("dropping oversize (%u > %u) sample from local writer %x:%x:%x:%x %s/%s:%s%s\n",

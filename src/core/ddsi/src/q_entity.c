@@ -2383,7 +2383,7 @@ static void new_reader_writer_common (const struct nn_guid *guid, const struct d
           PGUID (*guid),
           partition, partition_suffix,
           topic ? topic->name : "(null)",
-          topic ? topic->typename : "(null)");
+          topic ? topic->type_name : "(null)");
 }
 
 static void endpoint_common_init (struct entity_common *e, struct endpoint_common *c, enum entity_kind kind, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp)
@@ -2415,7 +2415,7 @@ static int set_topic_type_name (nn_xqos_t *xqos, const struct ddsi_sertopic * to
   if (!(xqos->present & QP_TYPE_NAME) && topic)
   {
     xqos->present |= QP_TYPE_NAME;
-    xqos->type_name = ddsrt_strdup (topic->typename);
+    xqos->type_name = ddsrt_strdup (topic->type_name);
   }
   if (!(xqos->present & QP_TOPIC_NAME) && topic)
   {
@@ -2881,7 +2881,7 @@ struct local_orphan_writer *new_local_orphan_writer (nn_entityid_t entityid, str
   struct writer *wr;
   nn_mtime_t tnow = now_mt ();
 
-  DDS_LOG(DDS_LC_DISCOVERY, "new_local_orphan_writer(%s/%s)\n", topic->name, topic->typename);
+  DDS_LOG(DDS_LC_DISCOVERY, "new_local_orphan_writer(%s/%s)\n", topic->name, topic->type_name);
   lowr = ddsrt_malloc (sizeof (*lowr));
   wr = &lowr->wr;
 

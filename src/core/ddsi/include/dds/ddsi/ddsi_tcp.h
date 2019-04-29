@@ -18,6 +18,10 @@
 
 #include "dds/ddsi/ddsi_ssl.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 struct ddsi_ssl_plugins
 {
   bool (*init) (void);
@@ -31,8 +35,20 @@ struct ddsi_ssl_plugins
   SSL * (*accept) (BIO *bio, ddsrt_socket_t *sock);
 };
 
+#if defined (__cplusplus)
+}
+#endif
+
+#endif
+
+#if defined (__cplusplus)
+extern "C" {
 #endif
 
 int ddsi_tcp_init (void);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

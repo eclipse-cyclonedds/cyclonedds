@@ -12,6 +12,14 @@
 #ifndef DDSI_RAWETH_H
 #define DDSI_RAWETH_H
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 int ddsi_raweth_init (void);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

@@ -30,6 +30,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds/version.h"
 
 #define DOMAIN_ID_MIN 0

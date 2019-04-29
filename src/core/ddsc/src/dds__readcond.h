@@ -14,11 +14,19 @@
 
 #include "dds__entity.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 dds_readcond *
 dds_create_readcond(
   dds_reader *rd,
   dds_entity_kind_t kind,
   uint32_t mask,
   dds_querycondition_filter_fn filter);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

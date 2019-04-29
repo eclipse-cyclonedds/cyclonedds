@@ -12,6 +12,14 @@
 #ifndef _DDSI_UDP_H_
 #define _DDSI_UDP_H_
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 int ddsi_udp_init (void);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

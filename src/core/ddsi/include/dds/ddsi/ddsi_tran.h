@@ -14,8 +14,15 @@
 
 /* DDSI Transport module */
 
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsrt/ifaddrs.h"
+#include "dds/ddsrt/atomics.h"
 #include "dds/ddsi/q_protocol.h"
+
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
+struct nn_interface;
 
 /* Types supporting handles */
 
@@ -69,7 +76,7 @@ enum ddsi_nearby_address_result {
   DNAR_SAME
 };
 
-typedef enum ddsi_nearby_address_result (*ddsi_is_nearby_address_fn_t) (ddsi_tran_factory_t tran, const nn_locator_t *loc, size_t ninterf, const struct nn_interface interf[]);
+typedef enum ddsi_nearby_address_result (*ddsi_is_nearby_address_fn_t) (ddsi_tran_factory_t tran, const nn_locator_t *loc, size_t ninterf, const struct nn_interface *interf);
 
 enum ddsi_locator_from_string_result {
   AFSR_OK,      /* conversion succeeded */
@@ -239,7 +246,7 @@ void ddsi_conn_transfer_group_membership (ddsi_tran_conn_t conn, ddsi_tran_conn_
 int ddsi_conn_rejoin_transferred_mcgroups (ddsi_tran_conn_t conn);
 int ddsi_is_mcaddr (const nn_locator_t *loc);
 int ddsi_is_ssm_mcaddr (const nn_locator_t *loc);
-enum ddsi_nearby_address_result ddsi_is_nearby_address (const nn_locator_t *loc, size_t ninterf, const struct nn_interface interf[]);
+enum ddsi_nearby_address_result ddsi_is_nearby_address (const nn_locator_t *loc, size_t ninterf, const struct nn_interface *interf);
 
 enum ddsi_locator_from_string_result ddsi_locator_from_string (nn_locator_t *loc, const char *str);
 
@@ -270,5 +277,9 @@ inline ddsi_tran_conn_t ddsi_listener_accept (ddsi_tran_listener_t listener) {
 }
 void ddsi_listener_unblock (ddsi_tran_listener_t listener);
 void ddsi_listener_free (ddsi_tran_listener_t listener);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

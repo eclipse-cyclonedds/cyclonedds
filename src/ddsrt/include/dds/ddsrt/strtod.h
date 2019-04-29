@@ -22,6 +22,10 @@
 #include "dds/export.h"
 #include "dds/ddsrt/retcode.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 /**
  * @brief Convert a string to a double precision floating point number.
  *
@@ -71,5 +75,9 @@ ddsrt_dtostr(double src, char *str, size_t size);
  */
 DDS_EXPORT int
 ddsrt_ftostr(float src, char *str, size_t size);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* DDSRT_STRTOD_H */

@@ -12,6 +12,10 @@
 #ifndef DDSRT_ATOMICS_ARM_H
 #define DDSRT_ATOMICS_ARM_H
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 #if !defined(__arm__)
 #define __arm__
 #endif
@@ -209,5 +213,8 @@ inline void ddsrt_atomic_fence_rel (void) {
     ddsrt_atomic_fence ();
 }
 
-#endif /* DDSRT_ATOMICS_ARM_H */
+#if defined (__cplusplus)
+}
+#endif
 
+#endif /* DDSRT_ATOMICS_ARM_H */

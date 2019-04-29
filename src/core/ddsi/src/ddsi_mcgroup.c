@@ -20,6 +20,7 @@
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds/ddsrt/avl.h"
 
 struct nn_group_membership_node {

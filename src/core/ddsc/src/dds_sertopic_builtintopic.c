@@ -21,6 +21,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_iid.h"
 #include "dds__serdata_builtintopic.h"
 
 /* FIXME: sertopic /= ddstopic so a lot of stuff needs to be moved here from dds_topic.c and the free function needs to be implemented properly */
@@ -30,10 +31,10 @@ struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic
   struct ddsi_sertopic_builtintopic *tp = ddsrt_malloc (sizeof (*tp));
   tp->c.iid = ddsi_iid_gen();
   tp->c.name = dds_string_dup (name);
-  tp->c.typename = dds_string_dup (typename);
-  const size_t name_typename_size = strlen (tp->c.name) + 1 + strlen (tp->c.typename) + 1;
-  tp->c.name_typename = dds_alloc (name_typename_size);
-  snprintf (tp->c.name_typename, name_typename_size, "%s/%s", tp->c.name, tp->c.typename);
+  tp->c.type_name = dds_string_dup (typename);
+  const size_t name_typename_size = strlen (tp->c.name) + 1 + strlen (tp->c.type_name) + 1;
+  tp->c.name_type_name = dds_alloc (name_typename_size);
+  snprintf (tp->c.name_type_name, name_typename_size, "%s/%s", tp->c.name, tp->c.type_name);
   tp->c.ops = &ddsi_sertopic_ops_builtintopic;
   tp->c.serdata_ops = &ddsi_serdata_ops_builtintopic;
   tp->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (tp->c.serdata_ops);

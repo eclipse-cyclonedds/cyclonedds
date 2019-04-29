@@ -14,6 +14,10 @@
 
 #include "dds/ddsrt/avl.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 struct inverse_uint32_set_node {
   ddsrt_avl_node_t avlnode;
   uint32_t min, max;
@@ -28,5 +32,9 @@ void inverse_uint32_set_init(struct inverse_uint32_set *set, uint32_t min, uint3
 void inverse_uint32_set_fini(struct inverse_uint32_set *set);
 int inverse_uint32_set_alloc(uint32_t * const id, struct inverse_uint32_set *set);
 void inverse_uint32_set_free(struct inverse_uint32_set *set, uint32_t id);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

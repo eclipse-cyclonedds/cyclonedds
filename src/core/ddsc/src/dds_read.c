@@ -19,6 +19,7 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 
 static dds_retcode_t dds_read_lock (dds_entity_t hdl, dds_reader **reader, dds_readcond **condition, bool only_reader)

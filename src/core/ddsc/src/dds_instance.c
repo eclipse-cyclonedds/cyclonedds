@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
-
+#include "dds/ddsi/q_globals.h"
 
 dds_return_t
 dds_writedispose(
