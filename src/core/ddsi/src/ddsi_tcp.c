@@ -154,7 +154,7 @@ static unsigned short get_socket_port (ddsrt_socket_t socket)
 
   ret = ddsrt_getsockname(socket, (struct sockaddr *)&addr, &addrlen);
   if (ret != DDS_RETCODE_OK) {
-    DDS_ERROR("ddsi_tcp_get_socket_port: ddsrt_getsockname retcode %d\n", ret);
+    DDS_ERROR("ddsi_tcp_get_socket_port: ddsrt_getsockname retcode %"PRId32"\n", ret);
     return 0;
   }
   return ddsrt_sockaddr_get_port((struct sockaddr *)&addr);
@@ -435,7 +435,7 @@ static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
         }
         else
         {
-          DDS_LOG(DDS_LC_TCP, "%s read: sock %"PRIdSOCK" error %d\n", ddsi_name, tcp->m_sock, rc);
+          DDS_LOG(DDS_LC_TCP, "%s read: sock %"PRIdSOCK" error %"PRId32"\n", ddsi_name, tcp->m_sock, rc);
           break;
         }
       }
@@ -500,7 +500,7 @@ static ssize_t ddsi_tcp_block_write
         }
         else
         {
-          DDS_LOG(DDS_LC_TCP, "%s write: sock %"PRIdSOCK" error %d\n", ddsi_name, conn->m_sock, rc);
+          DDS_LOG(DDS_LC_TCP, "%s write: sock %"PRIdSOCK" error %"PRId32"\n", ddsi_name, conn->m_sock, rc);
           break;
         }
       }
@@ -638,7 +638,7 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
             break;
           default:
             if (! conn->m_base.m_closed && (conn->m_sock != DDSRT_INVALID_SOCKET))
-              DDS_WARNING("%s write failed on socket %"PRIdSOCK" with errno %d\n", ddsi_name, conn->m_sock, rc);
+              DDS_WARNING("%s write failed on socket %"PRIdSOCK" with errno %"PRId32"\n", ddsi_name, conn->m_sock, rc);
             break;
         }
       }
@@ -775,11 +775,11 @@ static ddsi_tran_conn_t ddsi_tcp_accept (ddsi_tran_listener_t listener)
   {
     (void)ddsrt_getsockname (tl->m_sock, (struct sockaddr *) &addr, &addrlen);
     sockaddr_to_string_with_port(buff, sizeof(buff), (struct sockaddr *)&addr);
-    DDS_LOG((rc == DDS_RETCODE_OK) ? DDS_LC_ERROR : DDS_LC_FATAL, "%s accept failed on socket %"PRIdSOCK" at %s retcode %d\n", ddsi_name, tl->m_sock, buff, rc);
+    DDS_LOG((rc == DDS_RETCODE_OK) ? DDS_LC_ERROR : DDS_LC_FATAL, "%s accept failed on socket %"PRIdSOCK" at %s retcode %"PRId32"\n", ddsi_name, tl->m_sock, buff, rc);
   }
   else if (getpeername (sock, (struct sockaddr *) &addr, &addrlen) == -1)
   {
-    DDS_WARNING("%s accepted new socket %"PRIdSOCK" on socket %"PRIdSOCK" but no peer address, errno %d\n", ddsi_name, sock, tl->m_sock, rc);
+    DDS_WARNING("%s accepted new socket %"PRIdSOCK" on socket %"PRIdSOCK" but no peer address, errno %"PRId32"\n", ddsi_name, sock, tl->m_sock, rc);
     ddsrt_close (sock);
   }
   else
@@ -886,7 +886,7 @@ static ddsi_tran_listener_t ddsi_tcp_create_listener (int port, ddsi_tran_qos_t 
 
     ret = ddsrt_getsockname(sock, (struct sockaddr *)&addr, &addrlen);
     if (ret != DDS_RETCODE_OK) {
-        DDS_ERROR("ddsi_tcp_create_listener: ddsrt_getsockname returned %d\n", ret);
+        DDS_ERROR("ddsi_tcp_create_listener: ddsrt_getsockname returned %"PRId32"\n", ret);
         ddsi_tcp_sock_free(sock, NULL);
         ddsrt_free(tl);
         return NULL;
@@ -958,7 +958,7 @@ static void ddsi_tcp_unblock_listener (ddsi_tran_listener_t listener)
 
     ret = ddsrt_getsockname(tl->m_sock, (struct sockaddr *)&addr, &addrlen);
     if (ret != DDS_RETCODE_OK) {
-      DDS_WARNING("%s failed to get listener address error %d\n", ddsi_name, ret);
+      DDS_WARNING("%s failed to get listener address error %"PRId32"\n", ddsi_name, ret);
     } else {
       switch (addr.ss_family) {
         case AF_INET:
@@ -988,7 +988,7 @@ static void ddsi_tcp_unblock_listener (ddsi_tran_listener_t listener)
       {
         char buff[DDSI_LOCSTRLEN];
         sockaddr_to_string_with_port(buff, sizeof(buff), (struct sockaddr *)&addr);
-        DDS_WARNING("%s failed to connect to own listener (%s) error %d\n", ddsi_name, buff, ret);
+        DDS_WARNING("%s failed to connect to own listener (%s) error %"PRId32"\n", ddsi_name, buff, ret);
       }
     }
     ddsi_tcp_sock_free (sock, NULL);

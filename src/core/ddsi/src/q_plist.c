@@ -257,7 +257,7 @@ static int alias_stringseq (nn_stringseq_t *strseq, const struct dd *dd)
   seq += sizeof (uint32_t);
   if (strseq->n >= UINT_MAX / sizeof(*strs))
   {
-    DDS_TRACE("plist/alias_stringseq: length %u out of range\n", strseq->n);
+    DDS_TRACE("plist/alias_stringseq: length %"PRIu32" out of range\n", strseq->n);
     return Q_ERR_INVALID;
   }
   else if (strseq->n == 0)
@@ -1185,7 +1185,7 @@ static int valid_participant_guid (const nn_guid_t *g, UNUSED_ARG (const struct 
       return 0;
     else
     {
-      DDS_TRACE("plist/valid_participant_guid: prefix is 0 but entityid is not (%u)\n", g->entityid.u);
+      DDS_TRACE("plist/valid_participant_guid: prefix is 0 but entityid is not (%"PRIu32")\n", g->entityid.u);
       return Q_ERR_INVALID;
     }
   }
@@ -1195,7 +1195,7 @@ static int valid_participant_guid (const nn_guid_t *g, UNUSED_ARG (const struct 
   }
   else
   {
-    DDS_TRACE("plist/valid_participant_guid: entityid not a participant entityid (%u)\n", g->entityid.u);
+    DDS_TRACE("plist/valid_participant_guid: entityid not a participant entityid (%"PRIu32")\n", g->entityid.u);
     return Q_ERR_INVALID;
   }
 }
@@ -1209,7 +1209,7 @@ static int valid_group_guid (const nn_guid_t *g, UNUSED_ARG (const struct dd *dd
       return 0;
     else
     {
-      DDS_TRACE("plist/valid_group_guid: prefix is 0 but entityid is not (%u)\n", g->entityid.u);
+      DDS_TRACE("plist/valid_group_guid: prefix is 0 but entityid is not (%"PRIu32")\n", g->entityid.u);
       return Q_ERR_INVALID;
     }
   }
@@ -1234,7 +1234,7 @@ static int valid_endpoint_guid (const nn_guid_t *g, const struct dd *dd)
       return 0;
     else
     {
-      DDS_TRACE("plist/valid_endpoint_guid: prefix is 0 but entityid is not (%x)\n", g->entityid.u);
+      DDS_TRACE("plist/valid_endpoint_guid: prefix is 0 but entityid is not (%"PRIx32")\n", g->entityid.u);
       return Q_ERR_INVALID;
     }
   }
@@ -1253,7 +1253,7 @@ static int valid_endpoint_guid (const nn_guid_t *g, const struct dd *dd)
             return 0;
           else
           {
-            DDS_TRACE("plist/valid_endpoint_guid[src=USER,proto=%u.%u]: invalid kind (%x)\n",
+            DDS_TRACE("plist/valid_endpoint_guid[src=USER,proto=%u.%u]: invalid kind (%"PRIx32")\n",
                     dd->protocol_version.major, dd->protocol_version.minor,
                     g->entityid.u & NN_ENTITYID_KIND_MASK);
             return Q_ERR_INVALID;
@@ -1278,7 +1278,7 @@ static int valid_endpoint_guid (const nn_guid_t *g, const struct dd *dd)
             return 0;
           else
           {
-            DDS_TRACE("plist/valid_endpoint_guid[src=BUILTIN,proto=%u.%u]: invalid entityid (%x)\n",
+            DDS_TRACE("plist/valid_endpoint_guid[src=BUILTIN,proto=%u.%u]: invalid entityid (%"PRIx32")\n",
                     dd->protocol_version.major, dd->protocol_version.minor, g->entityid.u);
             return Q_ERR_INVALID;
           }
@@ -1302,14 +1302,14 @@ static int valid_endpoint_guid (const nn_guid_t *g, const struct dd *dd)
               return 0;
             else
             {
-              DDS_TRACE("plist/valid_endpoint_guid[src=VENDOR,proto=%u.%u]: unexpected entityid (%x)\n",
+              DDS_TRACE("plist/valid_endpoint_guid[src=VENDOR,proto=%u.%u]: unexpected entityid (%"PRIx32")\n",
                       dd->protocol_version.major, dd->protocol_version.minor, g->entityid.u);
               return 0;
             }
         }
       }
     default:
-      DDS_TRACE("plist/valid_endpoint_guid: invalid source (%x)\n", g->entityid.u);
+      DDS_TRACE("plist/valid_endpoint_guid: invalid source (%"PRIx32")\n", g->entityid.u);
       return Q_ERR_INVALID;
   }
 }
@@ -1329,7 +1329,7 @@ static int do_guid (nn_guid_t *dst, uint64_t *present, uint64_t fl, int (*valid)
        that has long since changed (even if I don't know exactly when) */
     if (fl == PP_PARTICIPANT_GUID && vendor_is_twinoaks (dd->vendorid) && dst->entityid.u == 0 && ! NN_STRICT_P)
     {
-      DDS_LOG(DDS_LC_DISCOVERY, "plist(vendor %u.%u): rewriting invalid participant guid %x:%x:%x:%x\n",
+      DDS_LOG(DDS_LC_DISCOVERY, "plist(vendor %u.%u): rewriting invalid participant guid "PGUIDFMT,
               dd->vendorid.id[0], dd->vendorid.id[1], PGUID (*dst));
       dst->entityid.u = NN_ENTITYID_PARTICIPANT;
     }
@@ -2122,9 +2122,9 @@ static int init_one_parameter
         dest->aliased |= PP_PRISMTECH_EOTINFO;
         if (dds_get_log_mask() & DDS_LC_PLIST)
         {
-          DDS_LOG(DDS_LC_PLIST, "eotinfo: txn %u {", q->transactionId);
+          DDS_LOG(DDS_LC_PLIST, "eotinfo: txn %"PRIu32" {", q->transactionId);
           for (i = 0; i < q->n; i++)
-            DDS_LOG(DDS_LC_PLIST, " %x:%u", q->tids[i].writer_entityid.u, q->tids[i].transactionId);
+            DDS_LOG(DDS_LC_PLIST, " %"PRIx32":%"PRIu32, q->tids[i].writer_entityid.u, q->tids[i].transactionId);
           DDS_LOG(DDS_LC_PLIST, " }\n");
         }
         return 0;
@@ -3421,12 +3421,12 @@ void nn_log_xqos (uint32_t cat, const nn_xqos_t *xqos)
       DDS_LOG(cat, "}");
     });
   DO (GROUP_DATA, {
-    LOGB1 ("group_data=%u<", xqos->group_data.length);
+    LOGB1 ("group_data=%"PRIu32"<", xqos->group_data.length);
     log_octetseq (cat, xqos->group_data.length, xqos->group_data.value);
     DDS_LOG(cat, ">");
   });
   DO (TOPIC_DATA, {
-    LOGB1 ("topic_data=%u<", xqos->topic_data.length);
+    LOGB1 ("topic_data=%"PRIu32"<", xqos->topic_data.length);
     log_octetseq (cat, xqos->topic_data.length, xqos->topic_data.value);
     DDS_LOG(cat, ">");
   });
@@ -3434,25 +3434,25 @@ void nn_log_xqos (uint32_t cat, const nn_xqos_t *xqos)
   DO (DURABILITY_SERVICE, {
       LOGB0 ("durability_service=");
       DDS_LOG(cat, FMT_DUR, PRINTARG_DUR (xqos->durability_service.service_cleanup_delay));
-      DDS_LOG(cat, ":{%d:%d}", xqos->durability_service.history.kind, xqos->durability_service.history.depth);
-      DDS_LOG(cat, ":{%d:%d:%d}", xqos->durability_service.resource_limits.max_samples, xqos->durability_service.resource_limits.max_instances, xqos->durability_service.resource_limits.max_samples_per_instance);
+      DDS_LOG(cat, ":{%u:%"PRId32"}", xqos->durability_service.history.kind, xqos->durability_service.history.depth);
+      DDS_LOG(cat, ":{%"PRId32":%"PRId32":%"PRId32"}", xqos->durability_service.resource_limits.max_samples, xqos->durability_service.resource_limits.max_instances, xqos->durability_service.resource_limits.max_samples_per_instance);
     });
   DO (DEADLINE, { LOGB1 ("deadline="FMT_DUR, PRINTARG_DUR (xqos->deadline.deadline)); });
   DO (LATENCY_BUDGET, { LOGB1 ("latency_budget="FMT_DUR, PRINTARG_DUR (xqos->latency_budget.duration)); });
   DO (LIVELINESS, { LOGB2 ("liveliness=%d:"FMT_DUR, xqos->liveliness.kind, PRINTARG_DUR (xqos->liveliness.lease_duration)); });
   DO (RELIABILITY, { LOGB2 ("reliability=%d:"FMT_DUR, xqos->reliability.kind, PRINTARG_DUR (xqos->reliability.max_blocking_time)); });
   DO (DESTINATION_ORDER, { LOGB1 ("destination_order=%d", xqos->destination_order.kind); });
-  DO (HISTORY, { LOGB2 ("history=%d:%d", xqos->history.kind, xqos->history.depth); });
-  DO (RESOURCE_LIMITS, { LOGB3 ("resource_limits=%d:%d:%d", xqos->resource_limits.max_samples, xqos->resource_limits.max_instances, xqos->resource_limits.max_samples_per_instance); });
-  DO (TRANSPORT_PRIORITY, { LOGB1 ("transport_priority=%d", xqos->transport_priority.value); });
+  DO (HISTORY, { LOGB2 ("history=%d:%"PRId32, xqos->history.kind, xqos->history.depth); });
+  DO (RESOURCE_LIMITS, { LOGB3 ("resource_limits=%"PRId32":%"PRId32":%"PRId32, xqos->resource_limits.max_samples, xqos->resource_limits.max_instances, xqos->resource_limits.max_samples_per_instance); });
+  DO (TRANSPORT_PRIORITY, { LOGB1 ("transport_priority=%"PRId32, xqos->transport_priority.value); });
   DO (LIFESPAN, { LOGB1 ("lifespan="FMT_DUR, PRINTARG_DUR (xqos->lifespan.duration)); });
   DO (USER_DATA, {
-    LOGB1 ("user_data=%u<", xqos->user_data.length);
+    LOGB1 ("user_data=%"PRIu32"<", xqos->user_data.length);
     log_octetseq (cat, xqos->user_data.length, xqos->user_data.value);
     DDS_LOG(cat, ">");
   });
   DO (OWNERSHIP, { LOGB1 ("ownership=%d", xqos->ownership.kind); });
-  DO (OWNERSHIP_STRENGTH, { LOGB1 ("ownership_strength=%d", xqos->ownership_strength.value); });
+  DO (OWNERSHIP_STRENGTH, { LOGB1 ("ownership_strength=%"PRId32, xqos->ownership_strength.value); });
   DO (TIME_BASED_FILTER, { LOGB1 ("time_based_filter="FMT_DUR, PRINTARG_DUR (xqos->time_based_filter.minimum_separation)); });
   DO (PRISMTECH_READER_DATA_LIFECYCLE, { LOGB5 ("reader_data_lifecycle="FMT_DUR":"FMT_DUR":%u:%u:%d", PRINTARG_DUR (xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay), PRINTARG_DUR (xqos->reader_data_lifecycle.autopurge_disposed_samples_delay), xqos->reader_data_lifecycle.autopurge_dispose_all, xqos->reader_data_lifecycle.enable_invalid_samples, (int) xqos->reader_data_lifecycle.invalid_sample_visibility); });
   DO (PRISMTECH_WRITER_DATA_LIFECYCLE, {
@@ -3473,7 +3473,7 @@ void nn_log_xqos (uint32_t cat, const nn_xqos_t *xqos)
   DO (PRISMTECH_ENTITY_FACTORY, { LOGB1 ("entity_factory=%u", xqos->entity_factory.autoenable_created_entities); });
   DO (PRISMTECH_SYNCHRONOUS_ENDPOINT, { LOGB1 ("synchronous_endpoint=%u", xqos->synchronous_endpoint.value); });
   DO (RTI_TYPECODE, {
-    LOGB1 ("rti_typecode=%u<", xqos->rti_typecode.length);
+    LOGB1 ("rti_typecode=%"PRIu32"<", xqos->rti_typecode.length);
     log_octetseq (cat, xqos->rti_typecode.length, xqos->rti_typecode.value);
     DDS_LOG(cat, ">");
   });

@@ -106,7 +106,7 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
       unsigned i;
       make_proxy_writer_info (&pwr_info, &wr->e, wr->xqos);
       for (i = 0; rdary[i]; i++) {
-        DDS_TRACE ("reader %x:%x:%x:%x\n", PGUID (rdary[i]->e.guid));
+        DDS_TRACE ("reader "PGUIDFMT"\n", PGUID (rdary[i]->e.guid));
         if ((ret = try_store (rdary[i]->rhc, &pwr_info, payload, tk, &max_block_ms)) != DDS_RETCODE_OK)
           break;
       }
@@ -135,7 +135,7 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
       struct reader *rd;
       if ((rd = ephash_lookup_reader_guid (&m->rd_guid)) != NULL)
       {
-        DDS_TRACE("reader-via-guid %x:%x:%x:%x\n", PGUID (rd->e.guid));
+        DDS_TRACE("reader-via-guid "PGUIDFMT"\n", PGUID (rd->e.guid));
         /* Copied the return value ignore from DDSI deliver_user_data() function. */
         if ((ret = try_store (rd->rhc, &pwr_info, payload, tk, &max_block_ms)) != DDS_RETCODE_OK)
           break;

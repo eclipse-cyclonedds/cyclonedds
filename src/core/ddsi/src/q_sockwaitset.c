@@ -873,7 +873,7 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
     dds_retcode_t rc = ddsrt_select (fdmax, rdset, NULL, NULL, DDS_INFINITY, &n);
     if (rc != DDS_RETCODE_OK && rc != DDS_RETCODE_INTERRUPTED && rc != DDS_RETCODE_TRY_AGAIN)
     {
-      DDS_WARNING("os_sockWaitsetWait: select failed, retcode = %d", rc);
+      DDS_WARNING("os_sockWaitsetWait: select failed, retcode = %"PRId32, rc);
       break;
     }
   }

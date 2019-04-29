@@ -537,7 +537,7 @@ void dds_qset_partition
         return ;
     }
     if(n && !ps) {
-        DDS_ERROR("Argument ps is NULL, but n (%u) > 0", n);
+        DDS_ERROR("Argument ps is NULL, but n (%"PRIu32") > 0", n);
         return ;
     }
 
