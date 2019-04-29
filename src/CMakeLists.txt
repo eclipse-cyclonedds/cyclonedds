@@ -154,6 +154,11 @@ endif()
 
 include(GNUInstallDirs)
 include(AnalyzeBuild)
+if(APPLE)
+  set(CMAKE_INSTALL_RPATH "@loader_path/../${CMAKE_INSTALL_LIBDIR}")
+else()
+  set(CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+endif()
 # Include Coverage before CTest so that COVERAGE_COMMAND can be modified
 # in the Coverage module should that ever be necessary.
 include(Coverage)
