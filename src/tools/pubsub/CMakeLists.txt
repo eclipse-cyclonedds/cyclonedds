@@ -11,11 +11,6 @@
 #
 add_executable(pubsub pubsub.c common.c testtype.c porting.c)
 target_link_libraries(pubsub ddsc)
-if(APPLE)
-  set_target_properties(pubsub PROPERTIES INSTALL_RPATH "@loader_path/../lib")
-else()
-  set_target_properties(pubsub PROPERTIES INSTALL_RPATH "$ORIGIN/../lib")
-endif()
 
 if(WIN32)
   target_compile_definitions(pubsub PRIVATE _CRT_SECURE_NO_WARNINGS)

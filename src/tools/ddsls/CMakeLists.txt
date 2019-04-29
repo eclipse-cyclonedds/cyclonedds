@@ -11,11 +11,6 @@
 #
 add_executable(ddsls ddsls.c)
 target_link_libraries(ddsls ddsc)
-if(APPLE)
-  set_target_properties(ddsls PROPERTIES INSTALL_RPATH "@loader_path/../lib")
-else()
-  set_target_properties(ddsls PROPERTIES INSTALL_RPATH "$ORIGIN/../lib")
-endif()
 
 install(
   TARGETS ddsls
