@@ -103,7 +103,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
   else if (rc != DDS_RETCODE_BAD_PARAMETER &&
            rc != DDS_RETCODE_NO_CONNECTION)
   {
-    DDS_ERROR("UDP recvmsg sock %d: ret %d retcode %d\n", (int) ((ddsi_udp_conn_t) conn)->m_sock, (int) ret, rc);
+    DDS_ERROR("UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) ((ddsi_udp_conn_t) conn)->m_sock, (int) ret, rc);
     ret = -1;
   }
   return ret;
@@ -168,7 +168,7 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
            rc != DDS_RETCODE_NOT_ALLOWED &&
            rc != DDS_RETCODE_NO_CONNECTION)
   {
-    DDS_ERROR("ddsi_udp_conn_write failed with retcode %d\n", rc);
+    DDS_ERROR("ddsi_udp_conn_write failed with retcode %"PRId32"\n", rc);
   }
   return (rc == DDS_RETCODE_OK ? ret : -1);
 }
@@ -220,7 +220,7 @@ static unsigned short get_socket_port (ddsrt_socket_t socket)
   ret = ddsrt_getsockname (socket, (struct sockaddr *)&addr, &addrlen);
   if (ret != DDS_RETCODE_OK)
   {
-    DDS_ERROR("ddsi_udp_get_socket_port: getsockname returned %d\n", ret);
+    DDS_ERROR("ddsi_udp_get_socket_port: getsockname returned %"PRId32"\n", ret);
     return 0;
   }
 
@@ -273,7 +273,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
 
     DDS_TRACE
     (
-      "ddsi_udp_create_conn %s socket %"PRIdSOCK" port %u\n",
+      "ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
       mcast ? "multicast" : "unicast",
       uc->m_sock,
       uc->m_base.m_base.m_port
@@ -284,7 +284,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
       dds_retcode_t rc;
       rc = ddsrt_setsockopt(sock, IPPROTO_IP, IP_TOS, (char *)&uc->m_diffserv, sizeof(uc->m_diffserv));
       if (rc != DDS_RETCODE_OK)
-        DDS_ERROR("ddsi_udp_create_conn: set diffserv retcode %d\n", rc);
+        DDS_ERROR("ddsi_udp_create_conn: set diffserv retcode %"PRId32"\n", rc);
     }
 #endif
   }
@@ -294,7 +294,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
     {
       DDS_ERROR
       (
-        "UDP make_socket failed for %s port %u\n",
+        "UDP make_socket failed for %s port %"PRIu32"\n",
         mcast ? "multicast" : "unicast",
         port
       );
@@ -395,7 +395,7 @@ static void ddsi_udp_release_conn (ddsi_tran_conn_t conn)
   ddsi_udp_conn_t uc = (ddsi_udp_conn_t) conn;
   DDS_TRACE
   (
-    "ddsi_udp_release_conn %s socket %"PRIdSOCK" port %u\n",
+    "ddsi_udp_release_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
     conn->m_base.m_multicast ? "multicast" : "unicast",
     uc->m_sock,
     uc->m_base.m_base.m_port

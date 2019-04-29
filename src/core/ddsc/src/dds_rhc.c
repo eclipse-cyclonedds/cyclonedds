@@ -1757,7 +1757,7 @@ static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
     ddsrt_mutex_lock (&rhc->lock);
   }
 
-  TRACE ("read_w_qminv(%p,%p,%p,%u,%x,%p) - inst %u nonempty %u disp %u nowr %u new %u samples %u+%u read %u+%u\n",
+  TRACE ("read_w_qminv(%p,%p,%p,%"PRIu32",%x,%p) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n",
     (void *) rhc, (void *) values, (void *) info_seq, max_samples, qminv, (void *) cond,
     rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples, rhc->n_invsamples,
@@ -1858,7 +1858,7 @@ static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
     }
     while (inst != end && n < max_samples);
   }
-  TRACE ("read: returning %u\n", n);
+  TRACE ("read: returning %"PRIu32"\n", n);
   assert (rhc_check_counts_locked (rhc, true, false));
   ddsrt_mutex_unlock (&rhc->lock);
 
@@ -1880,7 +1880,7 @@ static int dds_rhc_take_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
     ddsrt_mutex_lock (&rhc->lock);
   }
 
-  TRACE ("take_w_qminv(%p,%p,%p,%u,%x) - inst %u nonempty %u disp %u nowr %u new %u samples %u+%u read %u+%u\n",
+  TRACE ("take_w_qminv(%p,%p,%p,%"PRIu32",%x) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n",
     (void*) rhc, (void*) values, (void*) info_seq, max_samples, qminv,
     rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples,
@@ -2020,7 +2020,7 @@ static int dds_rhc_take_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
       inst = inst1;
     }
   }
-  TRACE ("take: returning %u\n", n);
+  TRACE ("take: returning %"PRIu32"\n", n);
   assert (rhc_check_counts_locked (rhc, true, false));
   ddsrt_mutex_unlock (&rhc->lock);
 
@@ -2043,7 +2043,7 @@ static int dds_rhc_takecdr_w_qminv (struct rhc *rhc, bool lock, struct ddsi_serd
     ddsrt_mutex_lock (&rhc->lock);
   }
 
-  TRACE ("take_w_qminv(%p,%p,%p,%u,%x) - inst %u nonempty %u disp %u nowr %u new %u samples %u+%u read %u+%u\n",
+  TRACE ("take_w_qminv(%p,%p,%p,%"PRIu32",%x) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n",
           (void*) rhc, (void*) values, (void*) info_seq, max_samples, qminv,
           rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
           rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples,
@@ -2172,7 +2172,7 @@ static int dds_rhc_takecdr_w_qminv (struct rhc *rhc, bool lock, struct ddsi_serd
       inst = inst1;
     }
   }
-  TRACE ("take: returning %u\n", n);
+  TRACE ("take: returning %"PRIu32"\n", n);
   assert (rhc_check_counts_locked (rhc, true, false));
   ddsrt_mutex_unlock (&rhc->lock);
 
@@ -2205,7 +2205,7 @@ static uint32_t rhc_get_cond_trigger (struct rhc_instance * const inst, const dd
       m = m && !inst_is_empty (inst);
       break;
     default:
-      DDS_FATAL("update_readconditions: sample_states invalid: %x\n", c->m_sample_states);
+      DDS_FATAL("update_readconditions: sample_states invalid: %"PRIx32"\n", c->m_sample_states);
   }
   return m ? 1 : 0;
 }
@@ -2221,7 +2221,7 @@ static bool cond_is_sample_state_dependent (const struct dds_readcond *cond)
     case 0:
       return false;
     default:
-      DDS_FATAL("update_readconditions: sample_states invalid: %x\n", cond->m_sample_states);
+      DDS_FATAL("update_readconditions: sample_states invalid: %"PRIx32"\n", cond->m_sample_states);
       return false;
   }
 }
@@ -2322,7 +2322,7 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
   if (cond->m_entity.m_trigger)
     dds_entity_status_signal (&cond->m_entity);
 
-  TRACE ("add_readcondition(%p, %x, %x, %x) => %p qminv %x ; rhc %u conds\n",
+  TRACE ("add_readcondition(%p, %"PRIx32", %"PRIx32", %"PRIx32") => %p qminv %"PRIx32" ; rhc %"PRIu32" conds\n",
     (void *) rhc, cond->m_sample_states, cond->m_view_states,
     cond->m_instance_states, (void *) cond, cond->m_qminv, rhc->nconds);
 
@@ -2362,10 +2362,10 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
   dds_readcond *iter;
   bool m_pre, m_post;
 
-  TRACE ("update_conditions_locked(%p %p) - inst %u nonempty %u disp %u nowr %u new %u samples %u read %u\n",
+  TRACE ("update_conditions_locked(%p %p) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32" read %"PRIu32"\n",
          (void *) rhc, (void *) inst, rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
          rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples, rhc->n_vread);
-  TRACE ("  read -[%d,%d]+[%d,%d] qcmask -[%x,%x]+[%x,%x]\n",
+  TRACE ("  read -[%d,%d]+[%d,%d] qcmask -[%"PRIx32",%"PRIx32"]+[%"PRIx32",%"PRIx32"]\n",
          trig_qc->dec_invsample_read, trig_qc->dec_sample_read, trig_qc->inc_invsample_read, trig_qc->inc_sample_read,
          trig_qc->dec_conds_invsample, trig_qc->dec_conds_sample, trig_qc->inc_conds_invsample, trig_qc->inc_conds_sample);
 
@@ -2404,7 +2404,7 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
         m_post = m_post && (post->c.has_read + post->c.has_not_read);
         break;
       default:
-        DDS_FATAL ("update_readconditions: sample_states invalid: %x\n", iter->m_sample_states);
+        DDS_FATAL ("update_readconditions: sample_states invalid: %"PRIx32"\n", iter->m_sample_states);
     }
 
     TRACE ("  cond %p %08"PRIx32": ", (void *) iter, iter->m_query.m_qcmask);
@@ -2464,7 +2464,7 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
           mdelta += (trig_qc->inc_conds_sample & qcmask) != 0;
           break;
         default:
-          DDS_FATAL ("update_readconditions: sample_states invalid: %x\n", iter->m_sample_states);
+          DDS_FATAL ("update_readconditions: sample_states invalid: %"PRIx32"\n", iter->m_sample_states);
       }
 
       if (m_pre == m_post)
