@@ -123,13 +123,13 @@ static int set_rcvbuf (ddsrt_socket_t socket)
     {
       /* NN_ERROR does more than just DDS_ERROR(), hence the duplication */
       if (config.socket_min_rcvbuf_size.isdefault)
-        DDS_LOG(DDS_LC_CONFIG, "failed to increase socket receive buffer size to %u bytes, continuing with %u bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
+        DDS_LOG(DDS_LC_CONFIG, "failed to increase socket receive buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
       else
-        DDS_ERROR("failed to increase socket receive buffer size to %u bytes, continuing with %u bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
+        DDS_ERROR("failed to increase socket receive buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
     }
     else
     {
-      DDS_LOG(DDS_LC_CONFIG, "socket receive buffer size set to %u bytes\n", ReceiveBufferSize);
+      DDS_LOG(DDS_LC_CONFIG, "socket receive buffer size set to %"PRIu32" bytes\n", ReceiveBufferSize);
     }
   }
   return 0;

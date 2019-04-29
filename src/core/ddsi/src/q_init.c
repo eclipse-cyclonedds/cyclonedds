@@ -647,7 +647,7 @@ int joinleave_spdp_defmcip (int dojoin)
   unref_addrset (as);
   if (arg.errcount)
   {
-    DDS_ERROR("rtps_init: failed to join multicast groups for domain %d participant %d\n", config.domainId.value, config.participantIndex);
+    DDS_ERROR("rtps_init: failed to join multicast groups for domain %"PRId32" participant %d\n", config.domainId.value, config.participantIndex);
     return -1;
   }
   return 0;
@@ -679,7 +679,7 @@ int create_multicast_sockets(void)
 
   gv.disc_conn_mc = disc;
   gv.data_conn_mc = data;
-  DDS_TRACE("Multicast Ports: discovery %d data %d \n",
+  DDS_TRACE("Multicast Ports: discovery %"PRIu32" data %"PRIu32" \n",
           ddsi_conn_port (gv.disc_conn_mc), ddsi_conn_port (gv.data_conn_mc));
   return 1;
 
@@ -1060,7 +1060,7 @@ int rtps_init (void)
     {
       if (make_uc_sockets (&port_disc_uc, &port_data_uc, config.participantIndex) < 0)
       {
-        DDS_ERROR("rtps_init: failed to create unicast sockets for domain %d participant %d\n", config.domainId.value, config.participantIndex);
+        DDS_ERROR("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", config.domainId.value, config.participantIndex);
         goto err_unicast_sockets;
       }
     }
@@ -1078,13 +1078,13 @@ int rtps_init (void)
           continue;
         else /* Oops! */
         {
-          DDS_ERROR("rtps_init: failed to create unicast sockets for domain %d participant %d\n", config.domainId.value, ppid);
+          DDS_ERROR("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", config.domainId.value, ppid);
           goto err_unicast_sockets;
         }
       }
       if (ppid > config.maxAutoParticipantIndex)
       {
-        DDS_ERROR("rtps_init: failed to find a free participant index for domain %d\n", config.domainId.value);
+        DDS_ERROR("rtps_init: failed to find a free participant index for domain %"PRId32"\n", config.domainId.value);
         goto err_unicast_sockets;
       }
       config.participantIndex = ppid;
@@ -1093,9 +1093,9 @@ int rtps_init (void)
     {
       assert(0);
     }
-    DDS_LOG(DDS_LC_CONFIG, "rtps_init: uc ports: disc %u data %u\n", port_disc_uc, port_data_uc);
+    DDS_LOG(DDS_LC_CONFIG, "rtps_init: uc ports: disc %"PRIu32" data %"PRIu32"\n", port_disc_uc, port_data_uc);
   }
-  DDS_LOG(DDS_LC_CONFIG, "rtps_init: domainid %d participantid %d\n", config.domainId.value, config.participantIndex);
+  DDS_LOG(DDS_LC_CONFIG, "rtps_init: domainid %"PRId32" participantid %d\n", config.domainId.value, config.participantIndex);
 
   if (config.pcap_file && *config.pcap_file)
   {
@@ -1115,7 +1115,7 @@ int rtps_init (void)
   if (gv.m_factory->m_connless)
   {
     if (!(config.many_sockets_mode == MSM_NO_UNICAST && config.allowMulticast))
-      DDS_TRACE("Unicast Ports: discovery %d data %d\n", ddsi_conn_port (gv.disc_conn_uc), ddsi_conn_port (gv.data_conn_uc));
+      DDS_TRACE("Unicast Ports: discovery %"PRIu32" data %"PRIu32"\n", ddsi_conn_port (gv.disc_conn_uc), ddsi_conn_port (gv.data_conn_uc));
 
     if (config.allowMulticast)
     {

@@ -590,7 +590,7 @@ int nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
   }
   else
   {
-    DDS_WARNING("nn_xmsg_setdstPRD: no address for %x:%x:%x:%x", PGUID (prd->e.guid));
+    DDS_WARNING("nn_xmsg_setdstPRD: no address for "PGUIDFMT"", PGUID (prd->e.guid));
     return Q_ERR_NO_ADDRESS;
   }
 }
@@ -603,7 +603,7 @@ int nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
     nn_xmsg_setdst1 (m, &pwr->e.guid.prefix, &loc);
     return 0;
   }
-  DDS_WARNING("nn_xmsg_setdstPRD: no address for %x:%x:%x:%x", PGUID (pwr->e.guid));
+  DDS_WARNING("nn_xmsg_setdstPRD: no address for "PGUIDFMT, PGUID (pwr->e.guid));
   return Q_ERR_NO_ADDRESS;
 }
 
@@ -659,7 +659,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct nn_xmsg *m, const stru
   assert (m->kindspecific.data.readerId_off != 0);
   assert (madd->kindspecific.data.readerId_off != 0);
 
-  DDS_TRACE(" (%x:%x:%x:%x#%"PRId64"/%u:",
+  DDS_TRACE(" ("PGUIDFMT"#%"PRId64"/%u:",
             PGUID (m->kindspecific.data.wrguid), m->kindspecific.data.wrseq, m->kindspecific.data.wrfragid + 1);
 
   switch (m->dstmode)
@@ -1359,7 +1359,7 @@ static void nn_xpack_send_real (struct nn_xpack * xp)
   if (dds_get_log_mask() & DDS_LC_TRACE)
   {
     int i;
-    DDS_TRACE("nn_xpack_send %u:", xp->msg_len.length);
+    DDS_TRACE("nn_xpack_send %"PRIu32":", xp->msg_len.length);
     for (i = 0; i < (int) xp->niov; i++)
     {
       DDS_TRACE(" %p:%lu", (void *) xp->iov[i].iov_base, (unsigned long) xp->iov[i].iov_len);
@@ -1412,7 +1412,7 @@ static void nn_xpack_send_real (struct nn_xpack * xp)
   DDS_TRACE(" ]\n");
   if (calls)
   {
-    DDS_LOG(DDS_LC_TRAFFIC, "traffic-xmit (%lu) %u\n", (unsigned long) calls, xp->msg_len.length);
+    DDS_LOG(DDS_LC_TRAFFIC, "traffic-xmit (%lu) %"PRIu32"\n", (unsigned long) calls, xp->msg_len.length);
   }
   nn_xmsg_chain_release (&xp->included_msgs);
   nn_xpack_reinit (xp);
@@ -1641,7 +1641,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
      But do make sure we can't run out of iovecs. */
   assert (niov + NN_XMSG_MAX_SUBMESSAGE_IOVECS <= NN_XMSG_MAX_MESSAGE_IOVECS);
 
-  DDS_TRACE("xpack_addmsg %p %p %u(", (void *) xp, (void *) m, flags);
+  DDS_TRACE("xpack_addmsg %p %p %"PRIu32"(", (void *) xp, (void *) m, flags);
   switch (m->kind)
   {
     case NN_XMSG_KIND_CONTROL:
@@ -1649,7 +1649,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
       break;
     case NN_XMSG_KIND_DATA:
     case NN_XMSG_KIND_DATA_REXMIT:
-      DDS_TRACE("%s(%x:%x:%x:%x:#%"PRId64"/%u)",
+      DDS_TRACE("%s("PGUIDFMT":#%"PRId64"/%u)",
               (m->kind == NN_XMSG_KIND_DATA) ? "data" : "rexmit",
               PGUID (m->kindspecific.data.wrguid),
               m->kindspecific.data.wrseq,
@@ -1784,7 +1784,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
 
   if (xpo_niov > 0 && sz > config.max_msg_size)
   {
-    DDS_TRACE(" => now niov %d sz %"PRIuSIZE" > max_msg_size %u, nn_xpack_send niov %d sz %u now\n", (int) niov, sz, config.max_msg_size, (int) xpo_niov, xpo_sz);
+    DDS_TRACE(" => now niov %d sz %"PRIuSIZE" > max_msg_size %"PRIu32", nn_xpack_send niov %d sz %"PRIu32" now\n", (int) niov, sz, config.max_msg_size, (int) xpo_niov, xpo_sz);
     xp->msg_len.length = xpo_sz;
     xp->niov = xpo_niov;
     nn_xpack_send (xp, false);

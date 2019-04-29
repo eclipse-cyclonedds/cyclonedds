@@ -275,7 +275,7 @@ dds_retcode_t create_thread (struct thread_state1 **ts1, const char *name, uint3
     if (!tprops->stack_size.isdefault)
       tattr.stackSize = tprops->stack_size.value;
   }
-  DDS_TRACE("create_thread: %s: class %d priority %d stack %u\n", name, (int) tattr.schedClass, tattr.schedPriority, tattr.stackSize);
+  DDS_TRACE("create_thread: %s: class %d priority %"PRId32" stack %"PRIu32"\n", name, (int) tattr.schedClass, tattr.schedPriority, tattr.stackSize);
 
   if (ddsrt_thread_create (&tid, name, &tattr, &create_thread_wrapper, ctxt) != DDS_RETCODE_OK)
   {

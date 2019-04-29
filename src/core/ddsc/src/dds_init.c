@@ -96,7 +96,7 @@ dds_init(dds_domainid_t domain)
   {
     if (domain < 0 || domain > 230)
     {
-      DDS_ERROR("requested domain id %d is out of range\n", domain);
+      DDS_ERROR("requested domain id %"PRId32" is out of range\n", domain);
       ret = DDS_ERRNO(DDS_RETCODE_ERROR);
       goto fail_config_domainid;
     }
@@ -106,7 +106,7 @@ dds_init(dds_domainid_t domain)
     }
     else if (domain != config.domainId.value)
     {
-      DDS_ERROR("requested domain id %d is inconsistent with configured value %d\n", domain, config.domainId.value);
+      DDS_ERROR("requested domain id %"PRId32" is inconsistent with configured value %"PRId32"\n", domain, config.domainId.value);
       ret = DDS_ERRNO(DDS_RETCODE_ERROR);
       goto fail_config_domainid;
     }
@@ -298,7 +298,7 @@ dds__check_domain(
     if (domain != dds_global.m_default_domain)
     {
       DDS_ERROR("Inconsistent domain configuration detected: domain on "
-                "configuration: %d, domain %d\n", dds_global.m_default_domain, domain);
+                "configuration: %"PRId32", domain %"PRId32"\n", dds_global.m_default_domain, domain);
       ret = DDS_ERRNO(DDS_RETCODE_ERROR);
     }
   }

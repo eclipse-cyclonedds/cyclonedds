@@ -88,7 +88,7 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
           vtime_t vt = thread_states.ts[i].vtime;
           bool alive = vtime_asleep_p (vt) || vtime_asleep_p (sl->av_ary[i].vt) || vtime_gt (vt, sl->av_ary[i].vt);
           n_alive += (unsigned) alive;
-          DDS_TRACE(" %u(%s):%c:%x->%x", i, thread_states.ts[i].name, alive ? 'a' : 'd', sl->av_ary[i].vt, vt);
+          DDS_TRACE(" %u(%s):%c:%"PRIx32"->%"PRIx32, i, thread_states.ts[i].name, alive ? 'a' : 'd', sl->av_ary[i].vt, vt);
           sl->av_ary[i].vt = vt;
           if (sl->av_ary[i].alive != alive)
           {

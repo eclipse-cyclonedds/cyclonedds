@@ -624,7 +624,7 @@ static int check_eseq (struct eseq_admin *ea, uint32_t seq, uint32_t keyval, uin
   uint32_t *eseq;
   if (keyval >= ea->nkeys)
   {
-    printf ("received key %u >= nkeys %u\n", keyval, ea->nkeys);
+    printf ("received key %"PRIu32" >= nkeys %u\n", keyval, ea->nkeys);
     exit (3);
   }
   ddsrt_mutex_lock (&ea->lock);
@@ -1315,7 +1315,7 @@ static void print_stats (dds_time_t tstart, dds_time_t tnow, dds_time_t tprev)
                 prefix, x->pubhandle, (double) x->min / 1e3,
                 (double) x->sum / (double) x->cnt / 1e3, (double) x->max / 1e3, x->cnt);
       else
-        printf ("%s  %s:%d min %.3fus mean %.3fus max %.3fus cnt %"PRIu32"\n",
+        printf ("%s  %s:%"PRIu32" min %.3fus mean %.3fus max %.3fus cnt %"PRIu32"\n",
                 prefix, pp->hostname, pp->pid, (double) x->min / 1e3,
                 (double) x->sum / (double) x->cnt / 1e3, (double) x->max / 1e3, x->cnt);
       ddsrt_mutex_unlock (&disc_lock);

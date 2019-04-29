@@ -108,7 +108,7 @@ struct lease *lease_new (nn_etime_t texpire, int64_t tdur, struct entity_common 
   struct lease *l;
   if ((l = ddsrt_malloc (sizeof (*l))) == NULL)
     return NULL;
-  DDS_TRACE("lease_new(tdur %"PRId64" guid %x:%x:%x:%x) @ %p\n", tdur, PGUID (e->guid), (void *) l);
+  DDS_TRACE("lease_new(tdur %"PRId64" guid "PGUIDFMT") @ %p\n", tdur, PGUID (e->guid), (void *) l);
   l->tdur = tdur;
   l->tend = texpire;
   l->tsched.v = TSCHED_NOT_ON_HEAP;
@@ -118,7 +118,7 @@ struct lease *lease_new (nn_etime_t texpire, int64_t tdur, struct entity_common 
 
 void lease_register (struct lease *l)
 {
-  DDS_TRACE("lease_register(l %p guid %x:%x:%x:%x)\n", (void *) l, PGUID (l->entity->guid));
+  DDS_TRACE("lease_register(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
   ddsrt_mutex_lock (&gv.leaseheap_lock);
   lock_lease (l);
   assert (l->tsched.v == TSCHED_NOT_ON_HEAP);
@@ -136,7 +136,7 @@ void lease_register (struct lease *l)
 
 void lease_free (struct lease *l)
 {
-  DDS_TRACE("lease_free(l %p guid %x:%x:%x:%x)\n", (void *) l, PGUID (l->entity->guid));
+  DDS_TRACE("lease_free(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
   ddsrt_mutex_lock (&gv.leaseheap_lock);
   if (l->tsched.v != TSCHED_NOT_ON_HEAP)
     ddsrt_fibheap_delete (&lease_fhdef, &gv.leaseheap, l);
@@ -167,9 +167,9 @@ void lease_renew (struct lease *l, nn_etime_t tnowE)
     int32_t tsec, tusec;
     DDS_TRACE(" L(");
     if (l->entity->guid.entityid.u == NN_ENTITYID_PARTICIPANT)
-      DDS_TRACE(":%x", l->entity->guid.entityid.u);
+      DDS_TRACE(":%"PRIx32, l->entity->guid.entityid.u);
     else
-      DDS_TRACE("%x:%x:%x:%x", PGUID (l->entity->guid));
+      DDS_TRACE(""PGUIDFMT"", PGUID (l->entity->guid));
     etime_to_sec_usec (&tsec, &tusec, tend_new);
     DDS_TRACE(" %"PRId32".%06"PRId32")", tsec, tusec);
   }
@@ -233,7 +233,7 @@ int64_t check_and_handle_lease_expiration (nn_etime_t tnowE)
       continue;
     }
 
-    DDS_LOG(DDS_LC_DISCOVERY, "lease expired: l %p guid %x:%x:%x:%x tend %"PRId64" < now %"PRId64"\n", (void *) l, PGUID (g), l->tend.v, tnowE.v);
+    DDS_LOG(DDS_LC_DISCOVERY, "lease expired: l %p guid "PGUIDFMT" tend %"PRId64" < now %"PRId64"\n", (void *) l, PGUID (g), l->tend.v, tnowE.v);
 
     /* If the proxy participant is relying on another participant for
        writing its discovery data (on the privileged participant,
@@ -266,7 +266,7 @@ int64_t check_and_handle_lease_expiration (nn_etime_t tnowE)
       if ((proxypp = ephash_lookup_proxy_participant_guid (&g)) != NULL &&
           ephash_lookup_proxy_participant_guid (&proxypp->privileged_pp_guid) != NULL)
       {
-        DDS_LOG(DDS_LC_DISCOVERY, "but postponing because privileged pp %x:%x:%x:%x is still live\n",
+        DDS_LOG(DDS_LC_DISCOVERY, "but postponing because privileged pp "PGUIDFMT" is still live\n",
                 PGUID (proxypp->privileged_pp_guid));
         l->tsched = l->tend = add_duration_to_etime (tnowE, 200 * T_MILLISECOND);
         unlock_lease (l);
@@ -350,7 +350,7 @@ void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t time
         nn_guid_prefix_t p = nn_ntoh_guid_prefix (pmd->participantGuidPrefix);
         unsigned kind = ntohl (pmd->kind);
         unsigned length = bswap ? bswap4u (pmd->length) : pmd->length;
-        DDS_TRACE(" pp %x:%x:%x kind %u data %u", p.u[0], p.u[1], p.u[2], kind, length);
+        DDS_TRACE(" pp %"PRIx32":%"PRIx32":%"PRIx32" kind %u data %u", p.u[0], p.u[1], p.u[2], kind, length);
         if (len - sizeof (struct CDRHeader) - offsetof (ParticipantMessageData_t, value) < length)
           debug_print_rawdata (" SHORT2", pmd->value, len - sizeof (struct CDRHeader) - offsetof (ParticipantMessageData_t, value));
         else
