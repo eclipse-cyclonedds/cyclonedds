@@ -14,6 +14,7 @@
 #include "dds/dds.h"
 #include "dds/version.h"
 #include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_xmsg.h"

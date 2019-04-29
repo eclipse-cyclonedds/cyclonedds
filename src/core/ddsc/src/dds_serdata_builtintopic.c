@@ -91,7 +91,7 @@ static void set_topic_type_from_sertopic (struct ddsi_serdata_builtintopic *d, c
   }
   if (!(d->xqos.present & QP_TYPE_NAME))
   {
-    d->xqos.type_name = dds_string_dup (tp->typename);
+    d->xqos.type_name = dds_string_dup (tp->type_name);
     d->xqos.present |= QP_TYPE_NAME;
   }
 }

@@ -18,6 +18,7 @@
 #include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_globals.h"
 
 int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr *const sa2)
 {

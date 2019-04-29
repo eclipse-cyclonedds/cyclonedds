@@ -35,7 +35,7 @@ DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_topic)
 const ddsrt_avl_treedef_t dds_topictree_def = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY
 (
   offsetof (struct ddsi_sertopic, avlnode),
-  offsetof (struct ddsi_sertopic, name_typename),
+  offsetof (struct ddsi_sertopic, name_type_name),
   (int (*) (const void *, const void *)) strcmp,
   0
 );
@@ -285,7 +285,7 @@ static bool dupdef_qos_ok(const dds_qos_t *qos, const struct ddsi_sertopic *st)
 
 static bool sertopic_equivalent (const struct ddsi_sertopic *a, const struct ddsi_sertopic *b)
 {
-  if (strcmp (a->name_typename, b->name_typename) != 0)
+  if (strcmp (a->name_type_name, b->name_type_name) != 0)
     return false;
   if (a->serdata_basehash != b->serdata_basehash)
     return false;
@@ -447,9 +447,9 @@ dds_create_topic(
     st->c.iid = ddsi_iid_gen ();
     st->c.status_cb = dds_topic_status_cb;
     st->c.status_cb_entity = NULL; /* set by dds_create_topic_arbitrary */
-    st->c.name_typename = key;
+    st->c.name_type_name = key;
     st->c.name = dds_string_dup (name);
-    st->c.typename = dds_string_dup (typename);
+    st->c.type_name = dds_string_dup (typename);
     st->c.ops = &ddsi_sertopic_ops_default;
     st->c.serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey;
     st->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (st->c.serdata_ops);
@@ -471,7 +471,7 @@ dds_create_topic(
 
     /* Set Topic meta data (for SEDP publication) */
     plist.qos.topic_name = dds_string_dup (st->c.name);
-    plist.qos.type_name = dds_string_dup (st->c.typename);
+    plist.qos.type_name = dds_string_dup (st->c.type_name);
     plist.qos.present |= (QP_TOPIC_NAME | QP_TYPE_NAME);
     if (desc->m_meta) {
         plist.type_description = dds_string_dup (desc->m_meta);
@@ -643,7 +643,7 @@ dds_get_type_name(
         ret = DDS_ERRNO(rc);
         goto fail;
     }
-    (void)snprintf(name, size, "%s", t->m_stopic->typename);
+    (void)snprintf(name, size, "%s", t->m_stopic->type_name);
     dds_topic_unlock(t);
     ret = DDS_RETCODE_OK;
 fail:

@@ -22,6 +22,10 @@
 #include "dds/dds.h"
 #include "dds__topic.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 #define CDR_BE 0x0000
 #define CDR_LE 0x0100
@@ -124,5 +128,9 @@ extern DDS_EXPORT const struct ddsi_serdata_ops ddsi_serdata_ops_rawcdr;
 
 struct serdatapool * ddsi_serdatapool_new (void);
 void ddsi_serdatapool_free (struct serdatapool * pool);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

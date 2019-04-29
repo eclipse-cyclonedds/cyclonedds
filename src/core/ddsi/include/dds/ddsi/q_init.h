@@ -12,7 +12,15 @@
 #ifndef Q_INIT_H
 #define Q_INIT_H
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 int create_multicast_sockets(void);
 int joinleave_spdp_defmcip (int dojoin);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

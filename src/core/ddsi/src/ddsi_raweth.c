@@ -18,6 +18,7 @@
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_pcap.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"

@@ -25,6 +25,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_globals.h"
 
 #define INVALID_PORT (~0u)
 

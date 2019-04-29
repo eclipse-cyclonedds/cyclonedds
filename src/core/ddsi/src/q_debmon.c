@@ -121,7 +121,7 @@ static int print_any_endpoint_common (ddsi_tran_conn_t conn, const char *label, 
     if (xqos->partition.n > 1) cpf (conn, "}");
     x += cpf (conn, ".%s/%s",
               topic && topic->name ? topic->name : (xqos->present & QP_TOPIC_NAME) ? xqos->topic_name : "(null)",
-              topic && topic->typename ? topic->typename : (xqos->present & QP_TYPE_NAME) ? xqos->type_name : "(null)");
+              topic && topic->type_name ? topic->type_name : (xqos->present & QP_TYPE_NAME) ? xqos->type_name : "(null)");
   }
   cpf (conn, "\n");
   return x;

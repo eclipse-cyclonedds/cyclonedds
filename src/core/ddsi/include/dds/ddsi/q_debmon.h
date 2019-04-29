@@ -12,6 +12,10 @@
 #ifndef Q_DEBMON_H
 #define Q_DEBMON_H
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 struct debug_monitor;
 typedef int (*debug_monitor_cpf_t) (ddsi_tran_conn_t conn, const char *fmt, ...);
 typedef int (*debug_monitor_plugin_t) (ddsi_tran_conn_t conn, debug_monitor_cpf_t cpf, void *arg);
@@ -20,4 +24,8 @@ struct debug_monitor *new_debug_monitor (int port);
 void add_debug_monitor_plugin (struct debug_monitor *dm, debug_monitor_plugin_t fn, void *arg);
 void free_debug_monitor (struct debug_monitor *dm);
 
-#endif /* defined(__ospli_osplo__q_debmon__) */
+#if defined (__cplusplus)
+}
+#endif
+
+#endif

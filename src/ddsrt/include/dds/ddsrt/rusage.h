@@ -17,6 +17,10 @@
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/retcode.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 typedef struct {
   dds_time_t utime; /* User CPU time used. */
   dds_time_t stime; /* System CPU time used. */
@@ -46,5 +50,9 @@ typedef struct {
  *             An unidentified error occurred.
  */
 DDS_EXPORT dds_retcode_t ddsrt_getrusage(int who, ddsrt_rusage_t *usage);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* DDSRT_RUSAGE_H */

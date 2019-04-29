@@ -14,6 +14,10 @@
 
 #include "dds/ddsrt/misc.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 /* x86 has supported 64-bit CAS for a long time, so Windows ought to
    provide all the interlocked operations for 64-bit operands on x86
    platforms, but it doesn't. */
@@ -295,5 +299,8 @@ inline void ddsrt_atomic_fence_rel (void) {
 
 #undef DDSRT_ATOMIC_PTROP
 
-#endif /* DDSRT_ATOMICS_MSVC_H */
+#if defined (__cplusplus)
+}
+#endif
 
+#endif /* DDSRT_ATOMICS_MSVC_H */

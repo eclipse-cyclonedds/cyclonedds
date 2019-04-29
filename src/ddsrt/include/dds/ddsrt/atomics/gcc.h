@@ -14,6 +14,10 @@
 
 #include "dds/ddsrt/misc.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 #if ( DDSRT_HAVE_ATOMIC64 && __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16) || \
     (!DDSRT_HAVE_ATOMIC64 && __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)
 # define DDSRT_HAVE_ATOMIC_LIFO 1
@@ -287,5 +291,8 @@ inline void ddsrt_atomic_fence_rel (void) {
   ddsrt_atomic_fence ();
 }
 
-#endif /* DDSRT_ATOMICS_GCC_H */
+#if defined (__cplusplus)
+}
+#endif
 
+#endif /* DDSRT_ATOMICS_GCC_H */

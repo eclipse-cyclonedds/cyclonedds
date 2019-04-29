@@ -63,6 +63,7 @@
 #define DDSRT_MD5_H
 
 #include <stddef.h>
+#include "dds/export.h"
 
 /*
  * This package supports both compile-time and run-time determination of CPU
@@ -90,13 +91,13 @@ extern "C"
 #endif
 
 /* Initialize the algorithm. */
-void ddsrt_md5_init(ddsrt_md5_state_t *pms);
+DDS_EXPORT void ddsrt_md5_init(ddsrt_md5_state_t *pms);
 
 /* Append a string to the message. */
-void ddsrt_md5_append(ddsrt_md5_state_t *pms, const ddsrt_md5_byte_t *data, unsigned nbytes);
+DDS_EXPORT void ddsrt_md5_append(ddsrt_md5_state_t *pms, const ddsrt_md5_byte_t *data, unsigned nbytes);
 
 /* Finish the message and return the digest. */
-void ddsrt_md5_finish(ddsrt_md5_state_t *pms, ddsrt_md5_byte_t digest[16]);
+DDS_EXPORT void ddsrt_md5_finish(ddsrt_md5_state_t *pms, ddsrt_md5_byte_t digest[16]);
 
 #ifdef __cplusplus
 }  /* end extern "C" */

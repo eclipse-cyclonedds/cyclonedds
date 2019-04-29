@@ -5,6 +5,10 @@
 
 #include "dds/export.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 typedef int32_t dds_retcode_t;
 
 /*
@@ -85,5 +89,9 @@ typedef int32_t dds_retcode_t;
  * @returns  String corresponding to the error value
  */
 DDS_EXPORT const char *dds_strretcode(dds_retcode_t ret);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* DDS_RETCODE_H */

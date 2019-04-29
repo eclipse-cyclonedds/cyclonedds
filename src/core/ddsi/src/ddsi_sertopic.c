@@ -37,9 +37,9 @@ void ddsi_sertopic_unref (struct ddsi_sertopic *sertopic)
     if (ddsrt_atomic_dec32_ov (&sertopic->refc) == 1)
     {
       ddsi_sertopic_deinit (sertopic);
-      ddsrt_free (sertopic->name_typename);
+      ddsrt_free (sertopic->name_type_name);
       ddsrt_free (sertopic->name);
-      ddsrt_free (sertopic->typename);
+      ddsrt_free (sertopic->type_name);
       ddsrt_free (sertopic);
     }
   }

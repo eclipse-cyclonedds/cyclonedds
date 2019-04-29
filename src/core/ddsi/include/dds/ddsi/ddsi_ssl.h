@@ -20,8 +20,16 @@
 #endif
 #include <openssl/ssl.h>
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 struct ddsi_ssl_plugins;
 void ddsi_ssl_config_plugin (struct ddsi_ssl_plugins *plugin);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif
 #endif
