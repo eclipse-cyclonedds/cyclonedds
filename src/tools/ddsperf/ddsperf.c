@@ -1298,7 +1298,7 @@ static void print_stats (dds_time_t tstart, dds_time_t tnow, dds_time_t tprev)
     if (nrecv > 0)
     {
       printf ("%s ntot %"PRIu64" delta: %"PRIu64" lost %"PRIu64" rate %.2f Mb/s\n",
-              prefix, tot_nrecv, nrecv, nlost, (double) nrecv_bytes * 8 / 1e6 / (1e9 * (double) (tnow - tprev)));
+              prefix, tot_nrecv, nrecv, nlost, (double) nrecv_bytes * 8 * 1e3 / (double) (tnow - tprev));
     }
   }
 
