@@ -27,7 +27,12 @@
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 
-#define MAX_POOL_SIZE 16384
+/* 8k entries in the freelist seems to be roughly the amount needed to send
+   minimum-size (well, 4 bytes) samples as fast as possible over loopback
+   while using large messages -- actually, it stands to reason that this would
+   be the same as the WHC node pool size */
+#define MAX_POOL_SIZE 8192
+#define MAX_SIZE_FOR_POOL 256
 #define CLEAR_PADDING 0
 
 #ifndef NDEBUG
@@ -205,7 +210,7 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
 {
   struct ddsi_serdata_default *d = (struct ddsi_serdata_default *)dcmn;
   assert(ddsrt_atomic_ld32(&d->c.refc) == 0);
-  if (!nn_freelist_push (&gv.serpool->freelist, d))
+  if (d->size > MAX_SIZE_FOR_POOL || !nn_freelist_push (&gv.serpool->freelist, d))
     dds_free (d);
 }
 

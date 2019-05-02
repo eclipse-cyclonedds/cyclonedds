@@ -241,13 +241,18 @@ static size_t align4u (size_t x)
 
    Great expectations, but so far still wanting. */
 
+/* We need about as many as will fit in a message; an otherwise unadorned data message is ~ 40 bytes
+   for a really small sample, no key hash, no status info, and message sizes are (typically) < 64kB
+   so we can expect not to need more than ~ 1600 xmsg at a time.  Powers-of-two are nicer :) */
+#define MAX_FREELIST_SIZE 2048
+
 static void nn_xmsg_realfree (struct nn_xmsg *m);
 
 struct nn_xmsgpool *nn_xmsgpool_new (void)
 {
   struct nn_xmsgpool *pool;
   pool = ddsrt_malloc (sizeof (*pool));
-  nn_freelist_init (&pool->freelist, UINT32_MAX, offsetof (struct nn_xmsg, link.older));
+  nn_freelist_init (&pool->freelist, MAX_FREELIST_SIZE, offsetof (struct nn_xmsg, link.older));
   return pool;
 }
 
@@ -352,7 +357,8 @@ void nn_xmsg_free (struct nn_xmsg *m)
     unref_addrset (m->dstaddr.all.as);
     unref_addrset (m->dstaddr.all.as_group);
   }
-  if (!nn_freelist_push (&pool->freelist, m))
+  /* Only cache the smallest xmsgs; data messages store the payload by reference and are small */
+  if (m->maxsz > NN_XMSG_CHUNK_SIZE || !nn_freelist_push (&pool->freelist, m))
   {
     nn_xmsg_realfree (m);
   }

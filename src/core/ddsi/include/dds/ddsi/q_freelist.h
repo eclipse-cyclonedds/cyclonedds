@@ -19,7 +19,7 @@
 extern "C" {
 #endif
 
-#define FREELIST_SIMPLE 1
+#define FREELIST_NONE 1
 #define FREELIST_ATOMIC_LIFO 2
 #define FREELIST_DOUBLE 3
 
@@ -33,7 +33,13 @@ extern "C" {
 #endif
 #endif
 
-#if FREELIST_TYPE == FREELIST_ATOMIC_LIFO
+#if FREELIST_TYPE == FREELIST_NONE
+
+struct nn_freelist {
+  char dummy;
+};
+
+#elif FREELIST_TYPE == FREELIST_ATOMIC_LIFO
 
 struct nn_freelist {
   ddsrt_atomic_lifo_t x;

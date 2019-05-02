@@ -18,7 +18,37 @@
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsi/q_freelist.h"
 
-#if FREELIST_TYPE == FREELIST_ATOMIC_LIFO
+#if FREELIST_TYPE == FREELIST_NONE
+
+void nn_freelist_init (struct nn_freelist *fl, uint32_t max, off_t linkoff)
+{
+  (void) fl; (void) max; (void) linkoff;
+}
+
+void nn_freelist_fini (struct nn_freelist *fl, void (*free) (void *elem))
+{
+  (void) fl; (void) free;
+}
+
+bool nn_freelist_push (struct nn_freelist *fl, void *elem)
+{
+  (void) fl; (void) elem;
+  return false;
+}
+
+void *nn_freelist_pushmany (struct nn_freelist *fl, void *first, void *last, uint32_t n)
+{
+  (void) fl; (void) first; (void) last; (void) n;
+  return first;
+}
+
+void *nn_freelist_pop (struct nn_freelist *fl)
+{
+  (void) fl;
+  return NULL;
+}
+
+#elif FREELIST_TYPE == FREELIST_ATOMIC_LIFO
 
 void nn_freelist_init (struct nn_freelist *fl, uint32_t max, off_t linkoff)
 {
