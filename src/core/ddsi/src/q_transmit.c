@@ -400,7 +400,9 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
 static int create_fragment_message_simple (struct writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct nn_xmsg **pmsg)
 {
 #define TEST_KEYHASH 0
-  const size_t expected_inline_qos_size = 4+8+20+4 + 32;
+  /* actual expected_inline_qos_size is typically 0, but always claiming 32 bytes won't make
+     a difference, so no point in being precise */
+  const size_t expected_inline_qos_size = /* statusinfo */ 8 + /* keyhash */ 20 + /* sentinel */ 4;
   struct nn_xmsg_marker sm_marker;
   unsigned char contentflag = 0;
   Data_t *data;
@@ -423,6 +425,7 @@ static int create_fragment_message_simple (struct writer *wr, seqno_t seq, struc
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
+  /* INFO_TS: 12 bytes, Data_t: 24 bytes, expected inline QoS: 32 => should be single chunk */
   if ((*pmsg = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (Data_t) + expected_inline_qos_size, NN_XMSG_KIND_DATA)) == NULL)
     return Q_ERR_OUT_OF_MEMORY;
 
@@ -484,7 +487,9 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
      Expected inline QoS size: header(4) + statusinfo(8) + keyhash(20)
      + sentinel(4). Plus some spare cos I can't be bothered. */
   const int set_smhdr_flags_asif_data = config.buggy_datafrag_flags_mode;
-  const size_t expected_inline_qos_size = 4+8+20+4 + 32;
+  /* actual expected_inline_qos_size is typically 0, but always claiming 32 bytes won't make
+     a difference, so no point in being precise */
+  const size_t expected_inline_qos_size = /* statusinfo */ 8 + /* keyhash */ 20 + /* sentinel */ 4;
   struct nn_xmsg_marker sm_marker;
   void *sm;
   Data_DataFrag_common_t *ddcmn;
@@ -508,6 +513,7 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
 
   fragging = (config.fragment_size < size);
 
+  /* INFO_TS: 12 bytes, DataFrag_t: 36 bytes, expected inline QoS: 32 => should be single chunk */
   if ((*pmsg = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (DataFrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
     return Q_ERR_OUT_OF_MEMORY;
 
