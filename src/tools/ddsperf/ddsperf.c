@@ -39,6 +39,8 @@
 #define UDATA_MAGIC "DDSPerf:"
 #define UDATA_MAGIC_SIZE (sizeof (UDATA_MAGIC) - 1)
 
+#define PINGPONG_RAWSIZE 20000
+
 enum topicsel {
   KS,   /* KeyedSeq type: seq#, key, sequence-of-octet */
   K32,  /* Keyed32  type: seq#, key, array-of-24-octet (sizeof = 32) */
@@ -158,6 +160,7 @@ struct eseq_stat {
   uint64_t nrecv;
   uint64_t nlost;
   uint64_t nrecv_bytes;
+  uint32_t last_size;
 
   /* stats printer state */
   uint64_t nrecv_ref;
@@ -190,6 +193,7 @@ struct subthread_arg_pongstat {
   uint64_t min, max;
   uint64_t sum;
   uint32_t cnt;
+  uint64_t *raw;
 };
 
 /* Pong statistics is stored in n array of npongstat entries
@@ -636,6 +640,7 @@ static int check_eseq (struct eseq_admin *ea, uint32_t seq, uint32_t keyval, uin
       ea->stats[i].nrecv++;
       ea->stats[i].nrecv_bytes += size;
       ea->stats[i].nlost += seq - e;
+      ea->stats[i].last_size = size;
       ddsrt_mutex_unlock (&ea->lock);
       return seq == e;
     }
@@ -650,6 +655,7 @@ static int check_eseq (struct eseq_admin *ea, uint32_t seq, uint32_t keyval, uin
   memset (&ea->stats[ea->nph], 0, sizeof (ea->stats[ea->nph]));
   ea->stats[ea->nph].nrecv = 1;
   ea->stats[ea->nph].nrecv_bytes = size;
+  ea->stats[ea->nph].last_size = size;
   ea->nph++;
   ddsrt_mutex_unlock (&ea->lock);
   return 1;
@@ -694,6 +700,8 @@ static bool update_roundtrip (dds_instance_handle_t pubhandle, uint64_t tdelta, 
       if (tdelta < x->min) x->min = tdelta;
       if (tdelta > x->max) x->max = tdelta;
       x->sum += tdelta;
+      if (x->cnt < PINGPONG_RAWSIZE)
+        x->raw[x->cnt] = tdelta;
       x->cnt++;
       ddsrt_mutex_unlock (&pongstat_lock);
       return allseen;
@@ -704,6 +712,8 @@ static bool update_roundtrip (dds_instance_handle_t pubhandle, uint64_t tdelta, 
   x->pphandle = get_pphandle_for_pubhandle (pubhandle);
   x->min = x->max = x->sum = tdelta;
   x->cnt = 1;
+  x->raw = malloc (PINGPONG_RAWSIZE * sizeof (*x->raw));
+  x->raw[0] = tdelta;
   npongstat++;
   ddsrt_mutex_unlock (&pongstat_lock);
   return allseen;
@@ -1264,6 +1274,13 @@ static void set_data_available_listener (dds_entity_t rd, const char *rd_name, d
   dds_delete_listener (listener);
 }
 
+static int cmp_uint64 (const void *va, const void *vb)
+{
+  const uint64_t *a = va;
+  const uint64_t *b = vb;
+  return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
+}
+
 static void print_stats (dds_time_t tstart, dds_time_t tnow, dds_time_t tprev)
 {
   char prefix[128];
@@ -1281,6 +1298,7 @@ static void print_stats (dds_time_t tstart, dds_time_t tnow, dds_time_t tprev)
   {
     struct eseq_admin * const ea = &eseq_admin;
     uint64_t tot_nrecv = 0, nrecv = 0, nrecv_bytes = 0, nlost = 0;
+    uint32_t last_size = 0;
     ddsrt_mutex_lock (&ea->lock);
     for (uint32_t i = 0; i < ea->nph; i++)
     {
@@ -1289,6 +1307,7 @@ static void print_stats (dds_time_t tstart, dds_time_t tnow, dds_time_t tprev)
       nrecv += x->nrecv - x->nrecv_ref;
       nlost += x->nlost - x->nlost_ref;
       nrecv_bytes += x->nrecv_bytes - x->nrecv_bytes_ref;
+      last_size = x->last_size;
       x->nrecv_ref = x->nrecv;
       x->nlost_ref = x->nlost;
       x->nrecv_bytes_ref = x->nrecv_bytes;
@@ -1297,33 +1316,53 @@ static void print_stats (dds_time_t tstart, dds_time_t tnow, dds_time_t tprev)
 
     if (nrecv > 0)
     {
-      printf ("%s ntot %"PRIu64" delta: %"PRIu64" lost %"PRIu64" rate %.2f Mb/s\n",
-              prefix, tot_nrecv, nrecv, nlost, (double) nrecv_bytes * 8 * 1e3 / (double) (tnow - tprev));
+      printf ("%s size %"PRIu32" ntot %"PRIu64" delta: %"PRIu64" lost %"PRIu64" rate %.2f Mb/s\n",
+              prefix, last_size, tot_nrecv, nrecv, nlost, (double) nrecv_bytes * 8 * 1e3 / (double) (tnow - tprev));
     }
   }
 
+  uint64_t *newraw = malloc (PINGPONG_RAWSIZE * sizeof (*newraw));
   ddsrt_mutex_lock (&pongstat_lock);
   for (uint32_t i = 0; i < npongstat; i++)
   {
     struct subthread_arg_pongstat * const x = &pongstat[i];
-    if (x->cnt > 0)
+    struct subthread_arg_pongstat y = *x;
+    x->raw = newraw;
+    x->min = UINT64_MAX;
+    x->max = x->sum = x->cnt = 0;
+    /* pongstat entries get added at the end, npongstat only grows: so can safely
+       unlock the stats in between nodes for calculating percentiles */
+    ddsrt_mutex_unlock (&pongstat_lock);
+
+    if (y.cnt > 0)
     {
+      const uint32_t rawcnt = (y.cnt > PINGPONG_RAWSIZE) ? PINGPONG_RAWSIZE : y.cnt;
+      char ppinfo[128];
       struct ppant *pp;
       ddsrt_mutex_lock (&disc_lock);
-      if ((pp = ddsrt_avl_lookup (&ppants_td, &ppants, &x->pphandle)) == NULL)
-        printf ("%s  %"PRIx64" min %.3fus mean %.3fus max %.3fus cnt %"PRIu32"\n",
-                prefix, x->pubhandle, (double) x->min / 1e3,
-                (double) x->sum / (double) x->cnt / 1e3, (double) x->max / 1e3, x->cnt);
+      if ((pp = ddsrt_avl_lookup (&ppants_td, &ppants, &y.pphandle)) == NULL)
+        snprintf (ppinfo, sizeof (ppinfo), "%"PRIx64, y.pubhandle);
       else
-        printf ("%s  %s:%"PRIu32" min %.3fus mean %.3fus max %.3fus cnt %"PRIu32"\n",
-                prefix, pp->hostname, pp->pid, (double) x->min / 1e3,
-                (double) x->sum / (double) x->cnt / 1e3, (double) x->max / 1e3, x->cnt);
+        snprintf (ppinfo, sizeof (ppinfo), "%s:%"PRIu32, pp->hostname, pp->pid);
       ddsrt_mutex_unlock (&disc_lock);
-      x->min = UINT64_MAX;
-      x->max = x->sum = x->cnt = 0;
+
+      qsort (y.raw, rawcnt, sizeof (*y.raw), cmp_uint64);
+      printf ("%s  %s mean %.3fus min %.3fus 50%% %.3fus 90%% %.3fus 99%% %.3fus max %.3fus cnt %"PRIu32"\n",
+              prefix, ppinfo,
+              (double) y.sum / (double) y.cnt / 1e3,
+              (double) y.min / 1e3,
+              (double) y.raw[rawcnt - (rawcnt + 1) / 2] / 1e3,
+              (double) y.raw[rawcnt - (rawcnt + 9) / 10] / 1e3,
+              (double) y.raw[rawcnt - (rawcnt + 99) / 100] / 1e3,
+              (double) y.max / 1e3,
+              y.cnt);
     }
+    newraw = y.raw;
+
+    ddsrt_mutex_lock (&pongstat_lock);
   }
   ddsrt_mutex_unlock (&pongstat_lock);
+  free (newraw);
   fflush (stdout);
 }
 
@@ -1644,6 +1683,10 @@ int main (int argc, char *argv[])
     error3 ("-n%u invalid: topic OU has no key\n", nkeyvals);
   if (topicsel != KS && baggagesize != 0)
     error3 ("-z%u invalid: only topic KS has a sequence\n", baggagesize);
+  if (baggagesize != 0 && baggagesize < 12)
+    error3 ("-z%u invalid: too small to allow for overhead\n", baggagesize);
+  else if (baggagesize > 0)
+    baggagesize -= 12;
 
   ddsrt_avl_init (&ppants_td, &ppants);
   ddsrt_fibheap_init (&ppants_to_match_fhd, &ppants_to_match);
