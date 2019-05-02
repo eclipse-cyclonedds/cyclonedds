@@ -1493,7 +1493,7 @@ static int string_int_map_lookup (const struct string_int_map_elem *elems, const
   for (size_t i = 0; elems[i].name; i++)
   {
     if (strcmp (elems[i].name, str) == 0)
-      return elems[match].value;
+      return elems[i].value;
     else if (len >= 3 && strlen (elems[i].name) >= 3 && strncmp (elems[i].name, str, len) == 0)
     {
       if (match == SIZE_MAX)
