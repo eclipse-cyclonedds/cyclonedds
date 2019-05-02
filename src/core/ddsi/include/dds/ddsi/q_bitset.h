@@ -49,6 +49,7 @@ inline void nn_bitset_one (uint32_t numbits, uint32_t *bits)
   memset (bits, 0xff, 4 * ((numbits + 31) / 32));
 
   /* clear bits "accidentally" set */
+  if ((numbits % 32) != 0)
   {
     const uint32_t k = numbits / 32;
     const uint32_t n = numbits % 32;
