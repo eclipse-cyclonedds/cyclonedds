@@ -49,7 +49,7 @@ struct ddsrt_xmlp_state {
     size_t tpescp; /* still escape sequences in tpescp .. tpp */
     int nest; /* current nesting level */
     void *varg; /* user argument to callback functions */
-    int require_eof; /* if false, junk may follow top-level closing tag */
+    unsigned options;
     struct ddsrt_xmlp_callbacks cb; /* user-supplied callbacks (or stubs) */
 };
 
@@ -108,7 +108,7 @@ static void ddsrt_xmlp_new_common (struct ddsrt_xmlp_state *st)
     st->peekpayload = NULL;
     st->nest = 0;
     st->error = 0;
-    st->require_eof = 1;
+    st->options = DDSRT_XMLP_REQUIRE_EOF;
 }
 
 static void ddsrt_xmlp_new_setCB (struct ddsrt_xmlp_state *st, void *varg, const struct ddsrt_xmlp_callbacks *cb)
@@ -148,9 +148,9 @@ struct ddsrt_xmlp_state *ddsrt_xmlp_new_string (const char *string, void *varg, 
     return st;
 }
 
-void ddsrt_xmlp_set_requireEOF (struct ddsrt_xmlp_state *st, int require_eof)
+void ddsrt_xmlp_set_options (struct ddsrt_xmlp_state *st, unsigned options)
 {
-    st->require_eof = require_eof;
+    st->options = options;
 }
 
 size_t ddsrt_xmlp_get_bufpos (const struct ddsrt_xmlp_state *st)
@@ -451,11 +451,14 @@ static int next_token_tag_withoutclose (struct ddsrt_xmlp_state *st, char **payl
             next_char (st);
         }
         /* we only do tag names that are identifiers */
-        if (!qq_isidentfirst (peek_char (st))) {
+        if (peek_char (st) == '>' && (st->options & DDSRT_XMLP_ANONYMOUS_CLOSE_TAG)) {
+            return TOK_SHORTHAND_CLOSE_TAG;
+        } else if (!qq_isidentfirst (peek_char (st))) {
             return TOK_ERROR;
+        } else {
+            next_token_ident (st, payload);
+            return tok;
         }
-        next_token_ident (st, payload);
-        return tok;
     }
 }
 
@@ -560,6 +563,9 @@ static int next_token (struct ddsrt_xmlp_state *st, char **payload)
             }
         }
         if (tok == TOK_ERROR) {
+            char msg[512];
+            (void) snprintf (msg, sizeof (msg), "invalid token encountered");
+            st->cb.error (st->varg, msg, st->line);
             st->error = 1;
         }
         return tok;
@@ -674,10 +680,10 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
                 }
             }
             st->nest--;
-            if (next_token (st, &ename) != TOK_CLOSE_TAG || next_char (st) != '>') {
+            if (((tok = next_token (st, &ename)) != TOK_CLOSE_TAG && tok != TOK_SHORTHAND_CLOSE_TAG) || next_char (st) != '>') {
                 PE_LOCAL_ERROR ("expecting closing tag", name);
             }
-            if (strcmp (name, ename) != 0) {
+            if (tok != TOK_SHORTHAND_CLOSE_TAG && strcmp (name, ename) != 0) {
                 PE_LOCAL_ERROR ("open/close tag mismatch", ename);
             }
             ret = st->cb.elem_close (st->varg, eleminfo);
@@ -709,7 +715,7 @@ int ddsrt_xmlp_parse (struct ddsrt_xmlp_state *st)
         return 0;
     } else {
         int ret = parse_element (st, 0);
-        if (ret < 0|| !st->require_eof || next_token (st, NULL) == TOK_EOF ) {
+        if (ret < 0|| !(st->options & DDSRT_XMLP_REQUIRE_EOF) || next_token (st, NULL) == TOK_EOF ) {
             return ret;
         } else {
             return -1;

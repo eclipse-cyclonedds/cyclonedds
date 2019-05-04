@@ -2685,7 +2685,7 @@ struct cfgst * config_init (const char *configfile)
       if (tok[0] == '<') {
         /* Read XML directly from input string */
         qx = ddsrt_xmlp_new_string (tok, cfgst, &cb);
-        ddsrt_xmlp_set_requireEOF (qx, 0);
+        ddsrt_xmlp_set_options (qx, DDSRT_XMLP_ANONYMOUS_CLOSE_TAG);
         fp = NULL;
       } else {
         char *comma;
