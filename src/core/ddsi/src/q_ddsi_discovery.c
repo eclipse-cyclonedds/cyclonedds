@@ -1719,7 +1719,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
      from the submsg to always conform to that of the "Data"
      submessage regardless of the input. */
   msg = (Data_DataFrag_common_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_SUBMSG_OFF (fragchain));
-  data_smhdr_flags = normalize_data_datafrag_flags (&msg->smhdr, config.buggy_datafrag_flags_mode);
+  data_smhdr_flags = normalize_data_datafrag_flags (&msg->smhdr);
   srcguid.prefix = sampleinfo->rst->src_guid_prefix;
   srcguid.entityid = msg->writerId;
 

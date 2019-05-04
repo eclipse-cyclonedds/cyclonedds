@@ -61,7 +61,6 @@ DDS_EXPORT struct xevent *qxev_heartbeat (struct xeventq *evq, nn_mtime_t tsched
 DDS_EXPORT struct xevent *qxev_acknack (struct xeventq *evq, nn_mtime_t tsched, const nn_guid_t *pwr_guid, const nn_guid_t *rd_guid);
 DDS_EXPORT struct xevent *qxev_spdp (nn_mtime_t tsched, const nn_guid_t *pp_guid, const nn_guid_t *proxypp_guid);
 DDS_EXPORT struct xevent *qxev_pmd_update (nn_mtime_t tsched, const nn_guid_t *pp_guid);
-DDS_EXPORT struct xevent *qxev_end_startup_mode (nn_mtime_t tsched);
 DDS_EXPORT struct xevent *qxev_delete_writer (nn_mtime_t tsched, const nn_guid_t *guid);
 
 /* cb will be called with now = T_NEVER if the event is still enqueued when when xeventq_free starts cleaning up */

@@ -237,7 +237,6 @@ struct config
   FILE *tracingOutputFile;
   char *tracingOutputFileName;
   int tracingTimestamps;
-  int tracingRelativeTimestamps;
   int tracingAppendToFile;
   unsigned allowMulticast;
   enum transport_selector transport_selector;
@@ -254,7 +253,6 @@ struct config
   char *assumeMulticastCapable;
   int64_t spdp_interval;
   int64_t spdp_response_delay_max;
-  int64_t startup_mode_duration;
   int64_t lease_duration;
   int64_t const_hb_intv_sched;
   int64_t const_hb_intv_sched_min;
@@ -263,8 +261,6 @@ struct config
   enum retransmit_merging retransmit_merging;
   int64_t retransmit_merging_period;
   int squash_participants;
-  int startup_mode_full;
-  int forward_all_messages;
   int liveliness_monitoring;
   int noprogress_log_stacktraces;
   int64_t liveliness_monitoring_interval;
@@ -278,10 +274,6 @@ struct config
 
   unsigned delivery_queue_maxsamples;
 
-  int enableLoopback;
-  enum durability_cdr durability_cdr;
-
-  int buggy_datafrag_flags_mode;
   int do_topic_discovery;
 
   uint32_t max_msg_size;
@@ -298,9 +290,7 @@ struct config
   int tcp_use_peeraddr_for_unicast;
 
 #ifdef DDSI_INCLUDE_SSL
-
   /* SSL support for TCP */
-
   int ssl_enable;
   int ssl_verify;
   int ssl_verify_client;
@@ -310,16 +300,12 @@ struct config
   char * ssl_key_pass;
   char * ssl_ciphers;
   struct ssl_min_version ssl_min_version;
-
 #endif
 
   /* Thread pool configuration */
-
   int tp_enable;
   uint32_t tp_threads;
   uint32_t tp_max_threads;
-
-  int advertise_builtin_topic_writers;
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   struct config_channel_listelem *channels;
@@ -343,7 +329,6 @@ struct config
   uint32_t rmsg_chunk_size;          /**<< size of a chunk in the receive buffer */
   uint32_t rbuf_size;                /* << size of a single receiver buffer */
   enum besmode besmode;
-  int aggressive_keep_last_whc;
   int conservative_builtin_reader_startup;
   int meas_hb_to_ack_latency;
   int suppress_spdp_multicast;
@@ -389,8 +374,6 @@ struct config
   int explicitly_publish_qos_set_to_default;
   enum many_sockets_mode many_sockets_mode;
   int arrival_of_data_asserts_pp_and_ep_liveliness;
-  int acknack_numbits_emptyset;
-  int respond_to_rti_init_zero_ack_with_invalid_heartbeat;
   int assume_rti_has_pmd_endpoints;
 
   int port_dg;
@@ -406,14 +389,9 @@ struct config
   int initial_deaf;
   int initial_mute;
   int64_t initial_deaf_mute_reset;
+
   int use_multicast_if_mreqn;
   struct prune_deleted_ppant prune_deleted_ppant;
-
-  /* not used by ddsi2, only validated; user layer directly accesses
-     the configuration tree */
-  ddsrt_sched_t watchdog_sched_class;
-  int32_t watchdog_sched_priority;
-  q__schedPrioClass watchdog_sched_priority_class;
 };
 
 struct ddsi_plugin

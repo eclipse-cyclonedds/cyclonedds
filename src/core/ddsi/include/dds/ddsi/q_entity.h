@@ -233,8 +233,6 @@ struct writer
   enum writer_state state;
   unsigned reliable: 1; /* iff 1, writer is reliable <=> heartbeat_xevent != NULL */
   unsigned handle_as_transient_local: 1; /* controls whether data is retained in WHC */
-  unsigned aggressive_keep_last: 1; /* controls whether KEEP_LAST will overwrite samples that haven't been ACK'd yet */
-  unsigned startup_mode: 1; /* causes data to be treated as T-L for a while */
   unsigned include_keyhash: 1; /* iff 1, this writer includes a keyhash; keyless topics => include_keyhash = 0 */
   unsigned retransmitting: 1; /* iff 1, this writer is currently retransmitting */
 #ifdef DDSI_INCLUDE_SSM
@@ -570,7 +568,6 @@ void update_proxy_writer (struct proxy_writer * pwr, struct addrset *as);
 int new_proxy_group (const struct nn_guid *guid, const char *name, const struct nn_xqos *xqos, nn_wctime_t timestamp);
 void delete_proxy_group (const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit);
 
-void writer_exit_startup_mode (struct writer *wr);
 uint64_t writer_instance_id (const struct nn_guid *guid);
 
 /* Call this to empty all address sets of all writers to stop all outgoing traffic, or to

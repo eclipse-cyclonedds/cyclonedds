@@ -438,21 +438,12 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
 static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rmsg, DataFrag_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp)
 {
   /* on success: sampleinfo->{rst,statusinfo,pt_wr_info_zoff,bswap,complex_qos} all set */
-  const int interpret_smhdr_flags_asif_data = config.buggy_datafrag_flags_mode;
   uint32_t payloadsz;
   nn_guid_t pwr_guid;
   unsigned char *ptr;
 
   if (size < sizeof (*msg))
     return 0; /* too small even for fixed fields */
-
-  if (interpret_smhdr_flags_asif_data)
-  {
-    /* D=1 && K=1 is invalid in this version of the protocol */
-    if ((msg->x.smhdr.flags & (DATA_FLAG_DATAFLAG | DATA_FLAG_KEYFLAG)) ==
-        (DATA_FLAG_DATAFLAG | DATA_FLAG_KEYFLAG))
-      return 0;
-  }
 
   if (byteswap)
   {
@@ -496,13 +487,6 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
 
   if (sampleinfo->seq <= 0 && sampleinfo->seq != NN_SEQUENCE_NUMBER_UNKNOWN)
     return 0;
-
-  if (interpret_smhdr_flags_asif_data)
-  {
-    if ((msg->x.smhdr.flags & (DATA_FLAG_DATAFLAG | DATA_FLAG_KEYFLAG)) == 0)
-      /* may not fragment if not needed => surely _some_ payload must be present! */
-      return 0;
-  }
 
   /* QoS and/or payload, so octetsToInlineQos must be within the msg;
      since the serialized data and serialized parameter lists have a 4
@@ -607,36 +591,10 @@ static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *
     return;
   }
 
-  if (WHCST_ISEMPTY(whcst) && !config.respond_to_rti_init_zero_ack_with_invalid_heartbeat)
-  {
-    /* If WHC is empty, we send a Gap combined with a Heartbeat.  The
-       Gap reuses the latest sequence number (or consumes a new one if
-       the writer hasn't sent anything yet), therefore for the reader
-       it is as-if a Data submessage had once been sent with that
-       sequence number and it now receives an unsollicited response to
-       a NACK ... */
-    uint32_t bits = 0;
-    seqno_t seq;
-    if (wr->seq > 0)
-      seq = wr->seq;
-    else
-    {
-      /* never sent anything, pretend we did */
-      seq = wr->seq = 1;
-      UPDATE_SEQ_XMIT_LOCKED(wr, 1);
-    }
-    add_Gap (m, wr, prd, seq, seq+1, 1, &bits);
-    add_Heartbeat (m, wr, whcst, hbansreq, prd->e.guid.entityid, 1);
-    DDS_TRACE("force_heartbeat_to_peer: "PGUIDFMT" -> "PGUIDFMT" - whc empty, queueing gap #%"PRId64" + heartbeat for transmit\n",
-            PGUID (wr->e.guid), PGUID (prd->e.guid), seq);
-  }
-  else
-  {
-    /* Send a Heartbeat just to this peer */
-    add_Heartbeat (m, wr, whcst, hbansreq, prd->e.guid.entityid, 0);
-    DDS_TRACE("force_heartbeat_to_peer: "PGUIDFMT" -> "PGUIDFMT" - queue for transmit\n",
+  /* Send a Heartbeat just to this peer */
+  add_Heartbeat (m, wr, whcst, hbansreq, prd->e.guid.entityid, 0);
+  DDS_TRACE("force_heartbeat_to_peer: "PGUIDFMT" -> "PGUIDFMT" - queue for transmit\n",
             PGUID (wr->e.guid), PGUID (prd->e.guid));
-  }
   qxev_msg (wr->evq, m);
 }
 
@@ -1892,16 +1850,13 @@ static struct ddsi_serdata *extract_sample_from_data
   return sample;
 }
 
-unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr, int datafrag_as_data)
+unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr)
 {
   switch ((SubmessageKind_t) smhdr->submessageId)
   {
     case SMID_DATA:
       return smhdr->flags;
     case SMID_DATA_FRAG:
-      if (datafrag_as_data)
-        return smhdr->flags;
-      else
       {
         unsigned char common = smhdr->flags & DATA_FLAG_INLINE_QOS;
         Q_STATIC_ASSERT_CODE (DATA_FLAG_INLINE_QOS == DATAFRAG_FLAG_INLINE_QOS);
@@ -1955,7 +1910,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
      DataFrag header, so for the fixed-position things that we're
      interested in here, both can be treated as Data submessages. */
   msg = (Data_DataFrag_common_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_SUBMSG_OFF (fragchain));
-  data_smhdr_flags = normalize_data_datafrag_flags (&msg->smhdr, config.buggy_datafrag_flags_mode);
+  data_smhdr_flags = normalize_data_datafrag_flags (&msg->smhdr);
 
   /* Extract QoS's to the extent necessary.  The expected case has all
      we need predecoded into a few bits in the sample info.

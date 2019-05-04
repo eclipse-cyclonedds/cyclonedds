@@ -223,13 +223,6 @@ struct q_globals {
   /* Flag cleared when stopping (receive threads). FIXME. */
   int rtps_keepgoing;
 
-  /* Startup mode causes data to be treated as transient-local with
-     depth 1 (i.e., stored in the WHCs and regurgitated on request) to
-     cover the start-up delay of the discovery protocols. Because all
-     discovery data is shared, this is strictly a start-up issue of the
-     service. */
-  int startup_mode;
-
   /* Start time of the DDSI2 service, for logging relative time stamps,
      should I ever so desire. */
   nn_wctime_t tstart;
