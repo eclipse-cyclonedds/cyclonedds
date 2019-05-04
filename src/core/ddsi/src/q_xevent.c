@@ -63,7 +63,6 @@ enum xeventkind
   XEVK_ACKNACK,
   XEVK_SPDP,
   XEVK_PMD_UPDATE,
-  XEVK_END_STARTUP_MODE,
   XEVK_DELETE_WRITER,
   XEVK_CALLBACK
 };
@@ -93,10 +92,6 @@ struct xevent
 #if 0
     struct {
     } info;
-#endif
-#if 0
-    struct {
-    } end_startup_mode;
 #endif
     struct {
       nn_guid_t guid;
@@ -312,7 +307,6 @@ static void free_xevent (struct xeventq *evq, struct xevent *ev)
       case XEVK_ACKNACK:
       case XEVK_SPDP:
       case XEVK_PMD_UPDATE:
-      case XEVK_END_STARTUP_MODE:
       case XEVK_DELETE_WRITER:
       case XEVK_CALLBACK:
         break;
@@ -805,15 +799,6 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
     an->smhdr.flags |= ACKNACK_FLAG_FINAL;
   }
 
-  /* If we refuse to send invalid AckNacks, grow a length-0 bitmap and
-     zero-fill it. Cleared bits are meaningless (DDSI 2.1, table 8.33,
-     although RTI seems to think otherwise). */
-  if (numbits == 0 && config.acknack_numbits_emptyset > 0)
-  {
-    an->readerSNState.numbits = (unsigned) config.acknack_numbits_emptyset;
-    nn_bitset_zero (an->readerSNState.numbits, an->readerSNState.bits);
-  }
-
   {
     /* Count field is at a variable offset ... silly DDSI spec. */
     nn_count_t *countp =
@@ -1195,21 +1180,6 @@ static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 
-static void handle_xevk_end_startup_mode (UNUSED_ARG (struct nn_xpack *xp), struct xevent *ev, UNUSED_ARG (nn_mtime_t tnow))
-{
-  struct ephash_enum_writer est;
-  struct writer *wr;
-  assert (gv.startup_mode);
-  DDS_LOG(DDS_LC_DISCOVERY, "end startup mode\n");
-  gv.startup_mode = 0;
-  /* FIXME: MEMBAR needed for startup mode (or use a lock) */
-  ephash_enum_writer_init (&est);
-  while ((wr = ephash_enum_writer_next (&est)) != NULL)
-    writer_exit_startup_mode (wr);
-  ephash_enum_writer_fini (&est);
-  delete_xevent (ev);
-}
-
 static void handle_xevk_delete_writer (UNUSED_ARG (struct nn_xpack *xp), struct xevent *ev, UNUSED_ARG (nn_mtime_t tnow))
 {
   /* don't worry if the writer is already gone by the time we get here. */
@@ -1233,9 +1203,6 @@ static void handle_individual_xevent (struct thread_state1 * const ts1, struct x
       break;
     case XEVK_PMD_UPDATE:
       handle_xevk_pmd_update (ts1, xp, xev, tnow);
-      break;
-    case XEVK_END_STARTUP_MODE:
-      handle_xevk_end_startup_mode (xp, xev, tnow);
       break;
     case XEVK_DELETE_WRITER:
       handle_xevk_delete_writer (xp, xev, tnow);
@@ -1577,16 +1544,6 @@ struct xevent *qxev_pmd_update (nn_mtime_t tsched, const nn_guid_t *pp_guid)
   ddsrt_mutex_lock (&gv.xevents->lock);
   ev = qxev_common (gv.xevents, tsched, XEVK_PMD_UPDATE);
   ev->u.pmd_update.pp_guid = *pp_guid;
-  qxev_insert (ev);
-  ddsrt_mutex_unlock (&gv.xevents->lock);
-  return ev;
-}
-
-struct xevent *qxev_end_startup_mode (nn_mtime_t tsched)
-{
-  struct xevent *ev;
-  ddsrt_mutex_lock (&gv.xevents->lock);
-  ev = qxev_common (gv.xevents, tsched, XEVK_END_STARTUP_MODE);
   qxev_insert (ev);
   ddsrt_mutex_unlock (&gv.xevents->lock);
   return ev;

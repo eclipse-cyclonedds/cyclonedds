@@ -2657,39 +2657,11 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   {
     assert (wr->xqos->history.kind == NN_KEEP_LAST_HISTORY_QOS);
     assert (wr->xqos->durability.kind == NN_TRANSIENT_LOCAL_DURABILITY_QOS);
-    wr->aggressive_keep_last = 1;
-  }
-  else
-  {
-    wr->aggressive_keep_last = (config.aggressive_keep_last_whc && wr->xqos->history.kind == NN_KEEP_LAST_HISTORY_QOS);
   }
   wr->handle_as_transient_local = (wr->xqos->durability.kind == NN_TRANSIENT_LOCAL_DURABILITY_QOS);
   wr->include_keyhash =
     config.generate_keyhash &&
     ((wr->e.guid.entityid.u & NN_ENTITYID_KIND_MASK) == NN_ENTITYID_KIND_WRITER_WITH_KEY);
-  /* Startup mode causes the writer to treat data in its WHC as if
-     transient-local, for the first few seconds after startup of the
-     DDSI service. It is done for volatile reliable writers only
-     (which automatically excludes all builtin writers) or for all
-     writers except volatile best-effort & transient-local ones.
-
-     Which one to use depends on whether merge policies are in effect
-     in durability. If yes, then durability will take care of all
-     transient & persistent data; if no, DDSI discovery usually takes
-     too long and this'll save you.
-
-     Note: may still be cleared, if it turns out we are not maintaining
-     an index at all (e.g., volatile KEEP_ALL) */
-  if (config.startup_mode_full) {
-    wr->startup_mode = gv.startup_mode &&
-      (wr->xqos->durability.kind >= NN_TRANSIENT_DURABILITY_QOS ||
-       (wr->xqos->durability.kind == NN_VOLATILE_DURABILITY_QOS &&
-        wr->xqos->reliability.kind != NN_BEST_EFFORT_RELIABILITY_QOS));
-  } else {
-    wr->startup_mode = gv.startup_mode &&
-      (wr->xqos->durability.kind == NN_VOLATILE_DURABILITY_QOS &&
-       wr->xqos->reliability.kind != NN_BEST_EFFORT_RELIABILITY_QOS);
-  }
   wr->topic = ddsi_sertopic_ref (topic);
   wr->as = new_addrset ();
   wr->as_group = NULL;
@@ -2784,7 +2756,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->lease_duration = T_NEVER; /* FIXME */
 
   wr->whc = whc;
-  if (wr->xqos->history.kind == NN_KEEP_LAST_HISTORY_QOS && wr->aggressive_keep_last)
+  if (wr->xqos->history.kind == NN_KEEP_LAST_HISTORY_QOS)
   {
     /* hdepth > 0 => "aggressive keep last", and in that case: why
        bother blocking for a slow receiver when the entire point of
@@ -3064,24 +3036,6 @@ int delete_writer (const struct nn_guid *guid)
     qxev_delete_writer (tsched, &wr->e.guid);
   }
   return 0;
-}
-
-void writer_exit_startup_mode (struct writer *wr)
-{
-  struct whc_node *deferred_free_list = NULL;
-  ddsrt_mutex_lock (&wr->e.lock);
-  if (wr->startup_mode)
-  {
-    unsigned cnt = 0;
-    struct whc_state whcst;
-    wr->startup_mode = 0;
-    cnt += remove_acked_messages (wr, &whcst, &deferred_free_list);
-    cnt += whc_downgrade_to_volatile (wr->whc, &whcst);
-    writer_clear_retransmitting (wr);
-    DDS_LOG(DDS_LC_DISCOVERY, "  "PGUIDFMT": dropped %u samples\n", PGUID(wr->e.guid), cnt);
-  }
-  ddsrt_mutex_unlock (&wr->e.lock);
-  whc_free_deferred_free_list (wr->whc, deferred_free_list);
 }
 
 uint64_t writer_instance_id (const struct nn_guid *guid)

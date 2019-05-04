@@ -501,12 +501,6 @@ int rtps_config_prep (struct cfgst *cfgst)
     if (config.max_participants == 0)
       config.max_participants = 100;
   }
-  if (NN_STRICT_P)
-  {
-    /* Should not be sending invalid messages when strict */
-    config.respond_to_rti_init_zero_ack_with_invalid_heartbeat = 0;
-    config.acknack_numbits_emptyset = 1;
-  }
   if (config.max_queued_rexmit_bytes == 0)
   {
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
@@ -1002,9 +996,6 @@ int rtps_init (void)
   }
 #endif
 
-  gv.startup_mode = (config.startup_mode_duration > 0) ? 1 : 0;
-  DDS_LOG(DDS_LC_CONFIG, "startup-mode: %s\n", gv.startup_mode ? "enabled" : "disabled");
-
   (ddsi_plugin.init_fn) ();
 
   gv.xmsgpool = nn_xmsgpool_new ();
@@ -1400,10 +1391,6 @@ int rtps_start (void)
   if (gv.listener)
   {
     create_thread (&gv.listen_ts, "listen", (uint32_t (*) (void *)) listen_thread, gv.listener);
-  }
-  if (gv.startup_mode)
-  {
-    qxev_end_startup_mode (add_duration_to_mtime (now_mt (), config.startup_mode_duration));
   }
   if (config.monitor_port >= 0)
   {
