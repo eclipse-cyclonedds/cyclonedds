@@ -29,7 +29,7 @@ inline nn_sequence_number_t toSN (seqno_t n) {
   return x;
 }
 
-unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr, int datafrag_as_data);
+unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr);
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 int WildcardOverlap(char * p1, char * p2);

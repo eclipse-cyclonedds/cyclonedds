@@ -352,13 +352,8 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
        We're not really allowed to generate heartbeats when the WHC is
        empty, but it appears RTI sort-of needs them ...  Now we use
        GAPs, and allocate a sequence number specially for that. */
-    assert (config.respond_to_rti_init_zero_ack_with_invalid_heartbeat || wr->seq >= 1);
     max = wr->seq;
-    min = max;
-    if (config.respond_to_rti_init_zero_ack_with_invalid_heartbeat)
-    {
-      min += 1;
-    }
+    min = max + 1;
   }
   else
   {
@@ -378,14 +373,9 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
       if (seq_xmit >= min) {
         /* Advertise some but not all data */
         max = seq_xmit;
-      } else if (config.respond_to_rti_init_zero_ack_with_invalid_heartbeat) {
+      } else {
         /* if we can generate an empty heartbeat => do so. */
         max = min - 1;
-      } else {
-        /* claim the existence of a sample we possibly haven't set
-           yet, at worst this causes a retransmission (but the
-           NackDelay usually takes care of that). */
-        max = min;
       }
     }
   }
@@ -484,10 +474,7 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
      Note: fragnum is 0-based here, 1-based in DDSI. But 0-based is
      much easier ...
 
-     Expected inline QoS size: header(4) + statusinfo(8) + keyhash(20)
-     + sentinel(4). Plus some spare cos I can't be bothered. */
-  const int set_smhdr_flags_asif_data = config.buggy_datafrag_flags_mode;
-  /* actual expected_inline_qos_size is typically 0, but always claiming 32 bytes won't make
+     actual expected_inline_qos_size is typically 0, but always claiming 32 bytes won't make
      a difference, so no point in being precise */
   const size_t expected_inline_qos_size = /* statusinfo */ 8 + /* keyhash */ 20 + /* sentinel */ 4;
   struct nn_xmsg_marker sm_marker;
@@ -569,10 +556,7 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
   }
   else
   {
-    const unsigned char contentflag =
-      set_smhdr_flags_asif_data
-      ? (serdata->kind == SDK_KEY ? DATA_FLAG_KEYFLAG : DATA_FLAG_DATAFLAG)
-      : (serdata->kind == SDK_KEY ? DATAFRAG_FLAG_KEYFLAG : 0);
+    const unsigned char contentflag = (serdata->kind == SDK_KEY ? DATAFRAG_FLAG_KEYFLAG : 0);
     DataFrag_t *frag = sm;
     /* empty means size = 0, which means it never needs fragmenting */
     assert (serdata->kind != SDK_EMPTY);
@@ -887,7 +871,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
 
   if (wr->reliable && have_reliable_subs (wr))
     do_insert = 1;
-  else if (wr->handle_as_transient_local || wr->startup_mode)
+  else if (wr->handle_as_transient_local)
     do_insert = 1;
   else
     do_insert = 0;
@@ -1041,7 +1025,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
   nn_mtime_t tnow;
 
   /* If GC not allowed, we must be sure to never block when writing.  That is only the case for (true, aggressive) KEEP_LAST writers, and also only if there is no limit to how much unacknowledged data the WHC may contain. */
-  assert(gc_allowed || (wr->xqos->history.kind == NN_KEEP_LAST_HISTORY_QOS && wr->aggressive_keep_last && wr->whc_low == INT32_MAX));
+  assert(gc_allowed || (wr->xqos->history.kind == NN_KEEP_LAST_HISTORY_QOS && wr->whc_low == INT32_MAX));
   (void)gc_allowed;
 
   if (ddsi_serdata_size (serdata) > config.max_sample_size)

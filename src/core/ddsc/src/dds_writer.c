@@ -313,38 +313,13 @@ dds_writer_qos_set(
 
 static struct whc *make_whc(const dds_qos_t *qos)
 {
-  bool startup_mode;
   bool handle_as_transient_local;
   unsigned hdepth, tldepth;
-  /* Startup mode causes the writer to treat data in its WHC as if
-   transient-local, for the first few seconds after startup of the
-   DDSI service. It is done for volatile reliable writers only
-   (which automatically excludes all builtin writers) or for all
-   writers except volatile best-effort & transient-local ones.
-
-   Which one to use depends on whether merge policies are in effect
-   in durability. If yes, then durability will take care of all
-   transient & persistent data; if no, DDSI discovery usually takes
-   too long and this'll save you.
-
-   Note: may still be cleared, if it turns out we are not maintaining
-   an index at all (e.g., volatile KEEP_ALL) */
-  if (config.startup_mode_full) {
-    startup_mode = gv.startup_mode &&
-      (qos->durability.kind >= NN_TRANSIENT_DURABILITY_QOS ||
-       (qos->durability.kind == NN_VOLATILE_DURABILITY_QOS &&
-        qos->reliability.kind != NN_BEST_EFFORT_RELIABILITY_QOS));
-  } else {
-    startup_mode = gv.startup_mode &&
-      (qos->durability.kind == NN_VOLATILE_DURABILITY_QOS &&
-       qos->reliability.kind != NN_BEST_EFFORT_RELIABILITY_QOS);
-  }
-
   /* Construct WHC -- if aggressive_keep_last1 is set, the WHC will
     drop all samples for which a later update is available.  This
     forces it to maintain a tlidx.  */
   handle_as_transient_local = (qos->durability.kind == NN_TRANSIENT_LOCAL_DURABILITY_QOS);
-  if (!config.aggressive_keep_last_whc || qos->history.kind == NN_KEEP_ALL_HISTORY_QOS)
+  if (qos->history.kind == NN_KEEP_ALL_HISTORY_QOS)
     hdepth = 0;
   else
     hdepth = (unsigned)qos->history.depth;
@@ -353,8 +328,6 @@ static struct whc *make_whc(const dds_qos_t *qos)
       tldepth = 0;
     else
       tldepth = (unsigned)qos->durability_service.history.depth;
-  } else if (startup_mode) {
-    tldepth = (hdepth == 0) ? 1 : hdepth;
   } else {
     tldepth = 0;
   }
