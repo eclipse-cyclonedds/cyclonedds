@@ -245,7 +245,7 @@ static const struct cfgelem general_cfgelems[] = {
 <p>It is a comma-separated list of some of the following keywords: \"spdp\", \"asm\", \"ssm\", or either of \"false\" or \"true\".</p>\n\
 <ul>\n\
 <li><i>spdp</i>: enables the use of ASM (any-source multicast) for participant discovery, joining the multicast group on the discovery socket, transmitting SPDP messages to this group, but never advertising nor using any multicast address in any discovery message, thus forcing unicast communications for all endpoint discovery and user data.</li>\n\
-<li><i>asm</i>: enables the use of ASM for all traffic (including SPDP)</li>\n\
+<li><i>asm</i>: enables the use of ASM for all traffic, including receiving SPDP but not transmitting SPDP messages via multicast</li>\n\
 <li><i>ssm</i>: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)</li>\n\
 </ul>\n\
 <p>When set to \"false\" all multicasting is disabled. The default, \"true\" enables full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>") },
@@ -531,9 +531,6 @@ static const struct cfgelem unsupp_cfgelems[] = {
 <p>Should it be necessary to hide DDSI2E's shared discovery behaviour, set this to <i>true</i> and Internal/BuiltinEndpointSet to <i>full</i>.</p>") },
   { LEAF("MeasureHbToAckLatency"), 1, "false", ABSOFF(meas_hb_to_ack_latency), 0, uf_boolean, 0, pf_boolean,
     BLURB("<p>This element enables heartbeat-to-ack latency among DDSI2E services by prepending timestamps to Heartbeat and AckNack messages and calculating round trip times. This is non-standard behaviour. The measured latencies are quite noisy and are currently not used anywhere.</p>") },
-  { LEAF("SuppressSPDPMulticast"), 1, "false", ABSOFF(suppress_spdp_multicast), 0, uf_boolean, 0, pf_boolean,
-    BLURB("<p>The element controls whether the mandatory multicasting of the participant discovery packets occurs. Completely disabling multicasting requires this element be set to <i>true</i>, and generally requires explicitly listing peers to ping for unicast discovery.</p>\n\
-<p>See also General/AllowMulticast.</p>") },
   { LEAF("UnicastResponseToSPDPMessages"), 1, "true", ABSOFF(unicast_response_to_spdp_messages), 0, uf_boolean, 0, pf_boolean,
     BLURB("<p>This element controls whether the response to a newly discovered participant is sent as a unicasted SPDP packet, instead of rescheduling the periodic multicasted one. There is no known benefit to setting this to <i>false</i>.</p>") },
   { LEAF("SynchronousDeliveryPriorityThreshold"), 1, "0", ABSOFF(synchronous_delivery_priority_threshold), 0, uf_int, 0, pf_int,

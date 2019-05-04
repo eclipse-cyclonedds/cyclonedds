@@ -331,7 +331,6 @@ struct config
   enum besmode besmode;
   int conservative_builtin_reader_startup;
   int meas_hb_to_ack_latency;
-  int suppress_spdp_multicast;
   int unicast_response_to_spdp_messages;
   int synchronous_delivery_priority_threshold;
   int64_t synchronous_delivery_latency_bound;

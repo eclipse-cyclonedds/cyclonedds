@@ -160,7 +160,7 @@ static int get_locator (nn_locator_t *loc, const nn_locators_t *locs, int uc_sam
 
 static void maybe_add_pp_as_meta_to_as_disc (const struct addrset *as_meta)
 {
-  if (addrset_empty_mc (as_meta))
+  if (addrset_empty_mc (as_meta) || !(config.allowMulticast & AMC_SPDP))
   {
     nn_locator_t loc;
     if (addrset_any_uc (as_meta, &loc))

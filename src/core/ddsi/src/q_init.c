@@ -313,11 +313,6 @@ static int set_spdp_address (void)
     return -1;
   }
 #endif
-  if (!(config.allowMulticast & AMC_SPDP) || config.suppress_spdp_multicast)
-  {
-    /* Explicitly disabling SPDP multicasting is always possible */
-    set_unspec_locator (&gv.loc_spdp_mc);
-  }
   return 0;
 }
 
@@ -331,11 +326,6 @@ static int set_default_mc_address (void)
     return rc;
   else if (rc == 0)
     gv.loc_default_mc = gv.loc_spdp_mc;
-  if (!(config.allowMulticast & ~AMC_SPDP))
-  {
-    /* no multicasting beyond SPDP */
-    set_unspec_locator (&gv.loc_default_mc);
-  }
   gv.loc_meta_mc = gv.loc_default_mc;
   return 0;
 }
@@ -791,7 +781,7 @@ static int setup_and_start_recv_threads (void)
   gv.recv_threads[0].arg.mode = RTM_MANY;
   if (gv.m_factory->m_connless && config.many_sockets_mode != MSM_NO_UNICAST && config.multiple_recv_threads)
   {
-    if (ddsi_is_mcaddr (&gv.loc_default_mc) && !ddsi_is_ssm_mcaddr (&gv.loc_default_mc))
+    if (ddsi_is_mcaddr (&gv.loc_default_mc) && !ddsi_is_ssm_mcaddr (&gv.loc_default_mc) && (config.allowMulticast & AMC_ASM))
     {
       /* Multicast enabled, but it isn't an SSM address => handle data multicasts on a separate thread (the trouble with SSM addresses is that we only join matching writers, which our own sockets typically would not be) */
       gv.recv_threads[gv.n_recv_threads].name = "recvMC";
@@ -911,7 +901,6 @@ int rtps_init (void)
       config.publish_uc_locators = (config.tcp_port != -1);
       config.enable_uc_locators = 1;
       /* TCP affects what features are supported/required */
-      config.suppress_spdp_multicast = 1;
       config.many_sockets_mode = MSM_SINGLE_UNICAST;
       config.allowMulticast = AMC_FALSE;
       if (ddsi_tcp_init () < 0)
@@ -940,7 +929,6 @@ int rtps_init (void)
     if (!gv.interfaces[gv.selected_interface].mc_capable)
     {
       DDS_WARNING("selected interface is not multicast-capable: disabling multicast\n");
-      config.suppress_spdp_multicast = 1;
       config.allowMulticast = AMC_FALSE;
       /* ensure discovery can work: firstly, that the process will be reachable on a "well-known" port
          number, and secondly, that the local interface's IP address gets added to the discovery
@@ -1234,7 +1222,8 @@ int rtps_init (void)
   );
 
   gv.as_disc = new_addrset ();
-  add_to_addrset (gv.as_disc, &gv.loc_spdp_mc);
+  if (config.allowMulticast & AMC_SPDP)
+    add_to_addrset (gv.as_disc, &gv.loc_spdp_mc);
   /* If multicast was enabled but not available, always add the local interface to the discovery address set.
      Conversion via string and add_peer_addresses has the benefit that the port number expansion happens
      automatically. */
