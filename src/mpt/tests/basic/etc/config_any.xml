@@ -13,18 +13,16 @@
   <Domain>
     <Id>any</Id>
   </Domain>
-  <DDSI2E>
-    <General>
-      <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>
-      <AllowMulticast>true</AllowMulticast>
-      <EnableMulticastLoopback>true</EnableMulticastLoopback>
-    </General>
-    <Compatibility>
-      <StandardsConformance>lax</StandardsConformance>
-    </Compatibility>
-    <!--Tracing>
-      <Verbosity>finest</Verbosity>
-      <OutputFile>ddsi_${MPT_PROCESS_NAME}.log</OutputFile>
-    </Tracing-->
-  </DDSI2E>
+  <General>
+    <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>
+    <AllowMulticast>true</AllowMulticast>
+    <EnableMulticastLoopback>true</EnableMulticastLoopback>
+  </General>
+  <Compatibility>
+    <StandardsConformance>lax</StandardsConformance>
+  </Compatibility>
+  <!--Tracing>
+    <Verbosity>finest</Verbosity>
+    <OutputFile>ddsi_${MPT_PROCESS_NAME}.log</OutputFile>
+  </Tracing-->
 </CycloneDDS>

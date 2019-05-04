@@ -508,8 +508,8 @@ static const struct cfgelem multiple_recv_threads_attrs[] = {
 };
 
 static const struct cfgelem unsupp_cfgelems[] = {
-  { MOVED("MaxMessageSize", "General/MaxMessageSize") },
-  { MOVED("FragmentSize", "General/FragmentSize") },
+  { MOVED("MaxMessageSize", "CycloneDDS/General/MaxMessageSize") },
+  { MOVED("FragmentSize", "CycloneDDS/General/FragmentSize") },
   { LEAF("DeliveryQueueMaxSamples"), 1, "256", ABSOFF(delivery_queue_maxsamples), 0, uf_uint, 0, pf_uint,
     BLURB("<p>This element controls the Maximum size of a delivery queue, expressed in samples. Once a delivery queue is full, incoming samples destined for that queue are dropped until space becomes available again.</p>") },
   { LEAF("PrimaryReorderMaxSamples"), 1, "64", ABSOFF(primary_reorder_maxsamples), 0, uf_uint, 0, pf_uint,
@@ -785,7 +785,14 @@ static const struct cfgelem tracing_cfgelems[] = {
   END_MARKER
 };
 
-static const struct cfgelem ddsi2_cfgelems[] = {
+static const struct cfgelem domain_cfgelems[] = {
+  { LEAF("Id"), 1, "any", ABSOFF(domainId), 0, uf_domainId, 0, pf_domainId, NULL },
+  END_MARKER
+};
+
+static const struct cfgelem root_cfgelems[] = {
+  { GROUP("Domain", domain_cfgelems),
+    BLURB("<p>The General element specifying Domain related settings.</p>") },
   { GROUP("General", general_cfgelems),
     BLURB("<p>The General element specifies overall DDSI2E service settings.</p>") },
 #ifdef DDSI_INCLUDE_ENCRYPTION
@@ -820,18 +827,7 @@ static const struct cfgelem ddsi2_cfgelems[] = {
   { GROUP("SSL", ssl_cfgelems),
     BLURB("<p>The SSL element allows specifying various parameters related to using SSL/TLS for DDSI over TCP.</p>") },
 #endif
-  END_MARKER
-};
-
-static const struct cfgelem domain_cfgelems[] = {
-  { LEAF("Id"), 1, "any", ABSOFF(domainId), 0, uf_domainId, 0, pf_domainId, NULL },
-  END_MARKER
-};
-
-static const struct cfgelem root_cfgelems[] = {
-  { "Domain", domain_cfgelems, NULL, NODATA, NULL },
-  { "DDSI2E|DDSI2", ddsi2_cfgelems, NULL, NODATA,
-    BLURB("<p>DDSI2 settings ...</p>") },
+  { MOVED("DDSI2E|DDSI2", "CycloneDDS") },
   END_MARKER
 };
 
@@ -841,7 +837,7 @@ static const struct cfgelem cyclonedds_root_cfgelems[] = {
 };
 
 static const struct cfgelem root_cfgelem = {
-  "root", cyclonedds_root_cfgelems, NULL, NODATA, NULL
+  "/", cyclonedds_root_cfgelems, NULL, NODATA, NULL
 };
 
 #undef ATTR
@@ -1014,17 +1010,27 @@ static size_t cfg_note(struct cfgst *cfgst, uint32_t cat, size_t bsz, const char
   sidx = 0;
   while ( sidx < cfgst->path_depth && cfgst->path[sidx]->name == NULL )
     sidx++;
+  const struct cfgelem *prev_path = NULL;
   for ( i = sidx; i < cfgst->path_depth && (i == sidx || !cfgst->isattr[i - 1]); i++ ) {
     if ( cfgst->path[i] == NULL ) {
       assert(i > sidx);
       cfg_note_snprintf(&bb, "/#text");
     } else if ( cfgst->isattr[i] ) {
       cfg_note_snprintf(&bb, "[@%s]", cfgst->path[i]->name);
+    } else if (cfgst->path[i] == prev_path) {
+      /* skip printing this level: it means a group contained an element indicating that
+         it was moved to the first group (i.e., stripping a level) -- this is currently
+         only used for stripping out the DDSI2E level, and the sole purpose of this
+         special case is making any warnings from elements contained within it look
+         reasonable by always printing the new location */
     } else {
-      const char *p = strchr(cfgst->path[i]->name, '|');
-      int n = p ? (int) (p - cfgst->path[i]->name) : (int) strlen(cfgst->path[i]->name);
-      cfg_note_snprintf(&bb, "%s%*.*s", (i == sidx) ? "" : "/", n, n, cfgst->path[i]->name);
+      /* first character is '>' means it was moved, so print what follows instead */
+      const char *name = cfgst->path[i]->name + ((cfgst->path[i]->name[0] == '>') ? 1 : 0);
+      const char *p = strchr(name, '|');
+      int n = p ? (int) (p - name) : (int) strlen(name);
+      cfg_note_snprintf(&bb, "%s%*.*s", (i == sidx) ? "" : "/", n, n, name);
     }
+    prev_path = cfgst->path[i];
   }
 
   cfg_note_snprintf(&bb, ": ");
@@ -1938,7 +1944,7 @@ static int do_update(struct cfgst *cfgst, update_fun_t upd, void *parent, struct
   if ( cfgelem->multiplicity == 0 || n->count < cfgelem->multiplicity )
     ok = upd(cfgst, parent, cfgelem, (n->count == n->failed), value);
   else
-    ok = cfg_error(cfgst, "only %d instance(s) allowed", cfgelem->multiplicity);
+    ok = cfg_error(cfgst, "only %d instance%s allowed", cfgelem->multiplicity, (cfgelem->multiplicity == 1) ? "" : "s");
   n->count++;
   if ( !ok ) {
     n->failed++;
@@ -2392,7 +2398,7 @@ static int matching_name_index(const char *name_w_aliases, const char *name)
 
 static const struct cfgelem *lookup_redirect(const char *target)
 {
-  const struct cfgelem *cfgelem = ddsi2_cfgelems;
+  const struct cfgelem *cfgelem = cyclonedds_root_cfgelems;
   char *target_copy = ddsrt_strdup(target), *p1;
   const char *p = target_copy;
   while ( p ) {
@@ -2458,10 +2464,13 @@ static int proc_elem_open(void *varg, UNUSED_ARG(uintptr_t parentinfo), UNUSED_A
     void *parent, *dynparent;
 
     if ( moved ) {
-#if WARN_DEPRECATED_ALIAS
-      cfg_warning(cfgst, "'%s': deprecated alias for '%s'", name, cfg_subelem->defvalue);
-#endif
+      struct cfgelem const * const cfg_subelem_orig = cfg_subelem;
       cfg_subelem = lookup_redirect(cfg_subelem->defvalue);
+#if WARN_DEPRECATED_ALIAS
+      cfgst_push(cfgst, 0, cfg_subelem_orig, NULL);
+      cfg_warning(cfgst, "setting%s moved to //%s", cfg_subelem->children ? "s" : "", cfg_subelem_orig->defvalue);
+      cfgst_pop(cfgst);
+#endif
     }
 
     parent = cfgst_parent(cfgst);
