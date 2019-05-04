@@ -179,22 +179,22 @@ static int make_chars_available (struct ddsrt_xmlp_state *st, size_t nmin)
         return 1;
     }
     /* ensure buffer space is available */
-    if (pos + nmin > st->cbufmax) {
-        memmove (st->cbuf, st->cbuf + pos, st->cbufn - pos);
-        st->cbufn -= pos;
-        st->cbufp -= pos;
-        if (st->cbufmark != NOMARKER) {
-            st->cbufmark -= pos;
-        }
-    }
-    /* buffer is owned by caller if fp = NULL, and by us if fp != NULL */
-    if (st->cbufp + st->cbufmax < nmin && st->fp != NULL) {
-        st->cbufmax = st->cbufp + nmin;
-        st->cbuf = ddsrt_realloc (st->cbuf, st->cbufmax);
-    }
-    /* try to refill buffer if a backing file is present; eof (or end-of-string) is
-       reached when this doesn't add any bytes to the buffer */
     if (st->fp != NULL) {
+        if (pos + nmin > st->cbufmax) {
+            memmove (st->cbuf, st->cbuf + pos, st->cbufn - pos);
+            st->cbufn -= pos;
+            st->cbufp -= pos;
+            if (st->cbufmark != NOMARKER) {
+                st->cbufmark -= pos;
+            }
+        }
+        /* buffer is owned by caller if fp = NULL, and by us if fp != NULL */
+        if (st->cbufp + st->cbufmax < nmin) {
+            st->cbufmax = st->cbufp + nmin;
+            st->cbuf = ddsrt_realloc (st->cbuf, st->cbufmax);
+        }
+        /* try to refill buffer if a backing file is present; eof (or end-of-string) is
+         reached when this doesn't add any bytes to the buffer */
         n = fread (st->cbuf + st->cbufn, 1, st->cbufmax - st->cbufn, st->fp);
         st->cbufn += n;
     }
