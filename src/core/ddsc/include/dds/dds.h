@@ -967,8 +967,7 @@ dds_create_topic(
  * matching is done on a combination of topic name and type name.
  *
  * @param[in]  participant  Participant on which to create the topic.
- * @param[in]  sertopic     Internal description of the topic type.
- * @param[in]  name         Name of the topic.
+ * @param[in]  sertopic     Internal description of the topic type (includes name).
  * @param[in]  qos          QoS to set on the new topic (can be NULL).
  * @param[in]  listener     Any listener functions associated with the new topic (can be NULL).
  * @param[in]  sedp_plist   Topic description to be published as part of discovery (if NULL, not published).
@@ -987,7 +986,6 @@ DDS_EXPORT dds_entity_t
 dds_create_topic_arbitrary (
   dds_entity_t participant,
   struct ddsi_sertopic *sertopic,
-  const char *name,
   const dds_qos_t *qos,
   const dds_listener_t *listener,
   const struct nn_plist *sedp_plist);
