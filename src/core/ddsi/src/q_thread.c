@@ -45,6 +45,8 @@ extern inline void thread_state_asleep (struct thread_state1 *ts1);
 extern inline void thread_state_awake (struct thread_state1 *ts1);
 extern inline void thread_state_awake_to_awake_no_nest (struct thread_state1 *ts1);
 
+static struct thread_state1 *init_thread_state (const char *tname, enum thread_state state);
+
 void *ddsrt_malloc_aligned_cacheline (size_t size)
 {
   /* This wastes some space, but we use it only once and it isn't a
@@ -115,16 +117,6 @@ void thread_states_fini (void)
   thread_states.ts = NULL;
 }
 
-static void cleanup_thread_state (void *data)
-{
-  struct thread_state1 *ts = get_thread_state(ddsrt_thread_self());
-  (void)data;
-  assert(ts->state == THREAD_STATE_ALIVE);
-  assert(vtime_asleep_p(ts->vtime));
-  reset_thread_state(ts);
-  ddsrt_fini();
-}
-
 static struct thread_state1 *find_thread_state (ddsrt_thread_t tid)
 {
   if (thread_states.ts) {
@@ -138,6 +130,19 @@ static struct thread_state1 *find_thread_state (ddsrt_thread_t tid)
   return NULL;
 }
 
+static void cleanup_thread_state (void *data)
+{
+  struct thread_state1 *ts = find_thread_state(ddsrt_thread_self());
+  (void)data;
+  if (ts)
+  {
+    assert(ts->state == THREAD_STATE_LAZILY_CREATED);
+    assert(vtime_asleep_p(ts->vtime));
+    reset_thread_state(ts);
+  }
+  ddsrt_fini();
+}
+
 static struct thread_state1 *lazy_create_thread_state (ddsrt_thread_t self)
 {
   /* This situation only arises for threads that were not created using
@@ -147,7 +152,7 @@ static struct thread_state1 *lazy_create_thread_state (ddsrt_thread_t self)
   char name[128];
   ddsrt_thread_getname (name, sizeof (name));
   ddsrt_mutex_lock (&thread_states.lock);
-  if ((ts1 = init_thread_state (name)) != NULL) {
+  if ((ts1 = init_thread_state (name, THREAD_STATE_LAZILY_CREATED)) != NULL) {
     ddsrt_init ();
     ts1->extTid = self;
     ts1->tid = self;
@@ -191,18 +196,11 @@ static uint32_t create_thread_wrapper (void *ptr)
 
 static int find_free_slot (const char *name)
 {
-  unsigned i;
-  int cand;
-  for (i = 0, cand = -1; i < thread_states.nthreads; i++)
-  {
-    if (thread_states.ts[i].state != THREAD_STATE_ALIVE)
-      cand = (int) i;
+  for (unsigned i = 0; i < thread_states.nthreads; i++)
     if (thread_states.ts[i].state == THREAD_STATE_ZERO)
-      break;
-  }
-  if (cand == -1)
-    DDS_FATAL("create_thread: %s: no free slot\n", name ? name : "(anon)");
-  return cand;
+      return (int) i;
+  DDS_FATAL("create_thread: %s: no free slot\n", name ? name : "(anon)");
+  return -1;
 }
 
 void upgrade_main_thread (void)
@@ -215,7 +213,7 @@ void upgrade_main_thread (void)
   ts1 = &thread_states.ts[cand];
   if (ts1->state == THREAD_STATE_ZERO)
     assert (vtime_asleep_p (ts1->vtime));
-  ts1->state = THREAD_STATE_ALIVE;
+  ts1->state = THREAD_STATE_LAZILY_CREATED;
   ts1->tid = ddsrt_thread_self ();
   ts1->name = main_thread_name;
   ddsrt_mutex_unlock (&thread_states.lock);
@@ -231,7 +229,7 @@ const struct config_thread_properties_listelem *lookup_thread_properties (const 
   return e;
 }
 
-struct thread_state1 *init_thread_state (const char *tname)
+static struct thread_state1 *init_thread_state (const char *tname, enum thread_state state)
 {
   int cand;
   struct thread_state1 *ts;
@@ -240,12 +238,9 @@ struct thread_state1 *init_thread_state (const char *tname)
     return NULL;
 
   ts = &thread_states.ts[cand];
-  if (ts->state == THREAD_STATE_ZERO)
-  {
-    assert (vtime_asleep_p (ts->vtime));
-  }
+  assert (vtime_asleep_p (ts->vtime));
   ts->name = ddsrt_strdup (tname);
-  ts->state = THREAD_STATE_ALIVE;
+  ts->state = state;
 
   return ts;
 }
@@ -259,7 +254,7 @@ dds_retcode_t create_thread (struct thread_state1 **ts1, const char *name, uint3
   ctxt = ddsrt_malloc (sizeof (*ctxt));
   ddsrt_mutex_lock (&thread_states.lock);
 
-  *ts1 = init_thread_state (name);
+  *ts1 = init_thread_state (name, THREAD_STATE_ALIVE);
   if (*ts1 == NULL)
     goto fatal;
 
@@ -336,28 +331,12 @@ void downgrade_main_thread (void)
   thread_states_init_static ();
 }
 
-struct thread_state1 *get_thread_state (ddsrt_thread_t id)
-{
-  unsigned i;
-  struct thread_state1 *ts = NULL;
-
-  for (i = 0; i < thread_states.nthreads; i++)
-  {
-    if (ddsrt_thread_equal (thread_states.ts[i].extTid, id))
-    {
-      ts = &thread_states.ts[i];
-      break;
-    }
-  }
-  return ts;
-}
-
 void log_stack_traces (void)
 {
   unsigned i;
   for (i = 0; i < thread_states.nthreads; i++)
   {
-    if (thread_states.ts[i].state == THREAD_STATE_ALIVE)
+    if (thread_states.ts[i].state != THREAD_STATE_ZERO)
     {
       log_stacktrace (thread_states.ts[i].name, thread_states.ts[i].tid);
     }
