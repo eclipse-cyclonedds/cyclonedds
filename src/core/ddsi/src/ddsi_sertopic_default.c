@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/heap.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
@@ -23,9 +24,12 @@
 
 /* FIXME: sertopic /= ddstopic so a lot of stuff needs to be moved here from dds_topic.c and the free function needs to be implemented properly */
 
-static void sertopic_default_deinit (struct ddsi_sertopic *tp)
+static void sertopic_default_free (struct ddsi_sertopic *tp)
 {
-  (void)tp;
+  ddsrt_free (tp->name_type_name);
+  ddsrt_free (tp->name);
+  ddsrt_free (tp->type_name);
+  ddsrt_free (tp);
 }
 
 static void sertopic_default_zero_samples (const struct ddsi_sertopic *sertopic_common, void *sample, size_t count)
@@ -76,7 +80,7 @@ static void sertopic_default_free_samples (const struct ddsi_sertopic *sertopic_
 }
 
 const struct ddsi_sertopic_ops ddsi_sertopic_ops_default = {
-  .deinit = sertopic_default_deinit,
+  .free = sertopic_default_free,
   .zero_samples = sertopic_default_zero_samples,
   .realloc_samples = sertopic_default_realloc_samples,
   .free_samples = sertopic_default_free_samples

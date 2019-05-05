@@ -45,9 +45,12 @@ struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic
   return &tp->c;
 }
 
-static void sertopic_builtin_deinit (struct ddsi_sertopic *tp)
+static void sertopic_builtin_free (struct ddsi_sertopic *tp)
 {
-  (void)tp;
+  ddsrt_free (tp->name_type_name);
+  ddsrt_free (tp->name);
+  ddsrt_free (tp->type_name);
+  ddsrt_free (tp);
 }
 
 static void free_pp (void *vsample)
@@ -141,7 +144,7 @@ static void sertopic_builtin_free_samples (const struct ddsi_sertopic *sertopic_
 }
 
 const struct ddsi_sertopic_ops ddsi_sertopic_ops_builtintopic = {
-  .deinit = sertopic_builtin_deinit,
+  .free = sertopic_builtin_free,
   .zero_samples = sertopic_builtin_zero_samples,
   .realloc_samples = sertopic_builtin_realloc_samples,
   .free_samples = sertopic_builtin_free_samples

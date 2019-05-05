@@ -44,7 +44,7 @@ struct ddsi_sertopic {
 };
 
 /* Called when the refcount dropped to zero */
-typedef void (*ddsi_sertopic_deinit_t) (struct ddsi_sertopic *tp);
+typedef void (*ddsi_sertopic_free_t) (struct ddsi_sertopic *tp);
 
 /* Zero out a sample, used for generating samples from just a key value and in cleaning up
    after dds_return_loan */
@@ -57,7 +57,7 @@ typedef void (*ddsi_sertopic_realloc_samples_t) (void **ptrs, const struct ddsi_
 typedef void (*ddsi_sertopic_free_samples_t) (const struct ddsi_sertopic *d, void **ptrs, size_t count, dds_free_op_t op);
 
 struct ddsi_sertopic_ops {
-  ddsi_sertopic_deinit_t deinit;
+  ddsi_sertopic_free_t free;
   ddsi_sertopic_zero_samples_t zero_samples;
   ddsi_sertopic_realloc_samples_t realloc_samples;
   ddsi_sertopic_free_samples_t free_samples;
@@ -67,8 +67,8 @@ DDS_EXPORT struct ddsi_sertopic *ddsi_sertopic_ref (const struct ddsi_sertopic *
 DDS_EXPORT void ddsi_sertopic_unref (struct ddsi_sertopic *tp);
 DDS_EXPORT uint32_t ddsi_sertopic_compute_serdata_basehash (const struct ddsi_serdata_ops *ops);
 
-DDS_EXPORT inline void ddsi_sertopic_deinit (struct ddsi_sertopic *tp) {
-  tp->ops->deinit (tp);
+DDS_EXPORT inline void ddsi_sertopic_free (struct ddsi_sertopic *tp) {
+  tp->ops->free (tp);
 }
 DDS_EXPORT inline void ddsi_sertopic_zero_samples (const struct ddsi_sertopic *tp, void *samples, size_t count) {
   tp->ops->zero_samples (tp, samples, count);
