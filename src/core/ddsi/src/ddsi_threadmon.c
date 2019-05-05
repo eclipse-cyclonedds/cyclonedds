@@ -62,7 +62,7 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
     if (ddsrt_cond_waitfor (&sl->cond, &sl->lock, config.liveliness_monitoring_interval))
       continue;
 
-    unsigned n_alive = 0;
+    unsigned n_alive = 0, n_unused = 0;
     nn_mtime_t tnow = now_mt ();
 
     LOG_THREAD_CPUTIME (next_thread_cputime);
@@ -81,8 +81,8 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
       tlast = tnow;
       for (i = 0; i < thread_states.nthreads; i++)
       {
-        if (thread_states.ts[i].state != THREAD_STATE_ALIVE)
-          n_alive++;
+        if (thread_states.ts[i].state == THREAD_STATE_ZERO)
+          n_unused++;
         else
         {
           vtime_t vt = thread_states.ts[i].vtime;
@@ -105,7 +105,7 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
       }
     }
 
-    if (n_alive == thread_states.nthreads)
+    if (n_alive + n_unused == thread_states.nthreads)
     {
       DDS_TRACE(": [%u] OK\n", n_alive);
       was_alive = true;
