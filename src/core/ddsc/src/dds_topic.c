@@ -191,6 +191,11 @@ dds_find_topic(
             ddsrt_mutex_lock (&dds_global.m_mutex);
             st = dds_topic_lookup_locked (p->m_domain, name);
             if (st) {
+                /* FIXME: calling addref is wrong because the Cyclone library has no
+                   knowledge of the reference and hence simply deleting the participant
+                   won't make the ref count drop to 0.  On the other hand, the DDS spec
+                   says find_topic (and a second call to create_topic) return a new
+                   proxy that must separately be deleted.  */
                 dds_entity_add_ref (&st->status_cb_entity->m_entity);
                 tp = st->status_cb_entity->m_entity.m_hdllink.hdl;
             } else {
@@ -300,7 +305,6 @@ DDS_EXPORT dds_entity_t
 dds_create_topic_arbitrary (
         dds_entity_t participant,
         struct ddsi_sertopic *sertopic,
-        const char *name,
         const dds_qos_t *qos,
         const dds_listener_t *listener,
         const nn_plist_t *sedp_plist)
@@ -315,18 +319,6 @@ dds_create_topic_arbitrary (
 
     if (sertopic == NULL){
         DDS_ERROR("Topic description is NULL\n");
-        hdl = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
-        goto bad_param_err;
-    }
-
-    if (name == NULL) {
-        DDS_ERROR("Topic name is NULL\n");
-        hdl = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
-        goto bad_param_err;
-    }
-
-    if (!is_valid_name(name)) {
-        DDS_ERROR("Topic name contains characters that are not allowed\n");
         hdl = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
         goto bad_param_err;
     }
@@ -349,8 +341,8 @@ dds_create_topic_arbitrary (
 
     /* Check if topic already exists with same name */
     ddsrt_mutex_lock (&dds_global.m_mutex);
-    if ((stgeneric = dds_topic_lookup_locked (par->m_domain, name)) != NULL) {
-        if (!sertopic_equivalent (stgeneric,sertopic)) {
+    if ((stgeneric = dds_topic_lookup_locked (par->m_domain, sertopic->name)) != NULL) {
+        if (!sertopic_equivalent (stgeneric, sertopic)) {
             /* FIXME: should copy the type, perhaps? but then the pointers will no longer be the same */
             DDS_ERROR("Create topic with mismatching type\n");
             hdl = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
@@ -359,6 +351,11 @@ dds_create_topic_arbitrary (
             DDS_ERROR("Create topic with mismatching qos\n");
             hdl = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
         } else {
+            /* FIXME: calling addref is wrong because the Cyclone library has no
+               knowledge of the reference and hence simply deleting the participant
+               won't make the ref count drop to 0.  On the other hand, the DDS spec
+               says find_topic (and a second call to create_topic) return a new
+               proxy that must separately be deleted.  */
             dds_entity_add_ref (&stgeneric->status_cb_entity->m_entity);
             hdl = stgeneric->status_cb_entity->m_entity.m_hdllink.hdl;
         }
@@ -487,7 +484,7 @@ dds_create_topic(
         }
     }
 
-    hdl = dds_create_topic_arbitrary(participant, &st->c, name, qos, listener, &plist);
+    hdl = dds_create_topic_arbitrary(participant, &st->c, qos, listener, &plist);
     ddsi_sertopic_unref (&st->c);
     nn_plist_fini (&plist);
 

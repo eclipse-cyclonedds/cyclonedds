@@ -97,7 +97,7 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t e, dds_entity_t topic)
   }
 
   dds_qos_t *qos = dds__create_builtin_qos ();
-  tp = dds_create_topic_arbitrary (pp, sertopic, sertopic->name, qos, NULL, NULL);
+  tp = dds_create_topic_arbitrary (pp, sertopic, qos, NULL, NULL);
   dds_delete_qos (qos);
   return tp;
 }
