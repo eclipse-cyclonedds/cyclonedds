@@ -49,8 +49,9 @@ typedef int32_t svtime_t; /* signed version */
 #define Q_THREAD_SCHEDPRIO_DEFAULT 0
 
 enum thread_state {
-  THREAD_STATE_ZERO,
-  THREAD_STATE_ALIVE
+  THREAD_STATE_ZERO, /* known to be dead */
+  THREAD_STATE_LAZILY_CREATED, /* lazily created in response because an application used it. Reclaimed if the thread terminates, but not considered an error if all of Cyclone is shutdown while this thread hasn't terminated yet */
+  THREAD_STATE_ALIVE /* known to be alive - for Cyclone internal threads */
 };
 
 struct logbuf;
@@ -101,8 +102,6 @@ DDS_EXPORT dds_retcode_t create_thread (struct thread_state1 **ts, const char *n
 DDS_EXPORT struct thread_state1 *lookup_thread_state_real (void);
 DDS_EXPORT int join_thread (struct thread_state1 *ts1);
 DDS_EXPORT void log_stack_traces (void);
-DDS_EXPORT struct thread_state1 *get_thread_state (ddsrt_thread_t id);
-DDS_EXPORT struct thread_state1 * init_thread_state (const char *tname);
 DDS_EXPORT void reset_thread_state (struct thread_state1 *ts1);
 DDS_EXPORT int thread_exists (const char *name);
 
