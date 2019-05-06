@@ -33,12 +33,20 @@ osx_xcode10_1: &osx_xcode10_1
 windows_vs2017: &windows_vs2017
   os: windows
 
-matrix:
+stages:
+    # Run Coverity only on a branch called coverity_scan
+    - name: Coverity
+      if: branch = coverity_scan
+    - name: Build & Test
+      if: branch != coverity_scan
+
+jobs:
   include:
+    - stage: Build & Test
+    - <<: *linux_gcc8
+      env: [ BUILD_TYPE=Release, C_COMPILER=gcc-8, CXX_COMPILER=g++-8, USE_SANITIZER=none]
     - <<: *linux_gcc8
       env: [ BUILD_TYPE=Debug, C_COMPILER=gcc-8, CXX_COMPILER=g++-8, USE_SANITIZER=none ]
-    - <<: *linux_gcc8
-      env: [ BUILD_TYPE=Release, C_COMPILER=gcc-8, CXX_COMPILER=g++-8, USE_SANITIZER=none ]
     - <<: *linux_clang
       env: [ BUILD_TYPE=Debug, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=address ]
     - <<: *linux_clang
@@ -53,6 +61,22 @@ matrix:
       env: [ ARCH=x86_64, BUILD_TYPE=Debug, GENERATOR="Visual Studio 15 2017" ]
     - <<: *windows_vs2017
       env: [ ARCH=x86_64, BUILD_TYPE=Release, GENERATOR="Visual Studio 15 2017" ]
+    - stage: Coverity
+      <<: *linux_gcc8
+      name: Coverity Build
+      env:
+        - BUILD_TYPE=Release
+        - C_COMPILER=gcc-8
+        - CXX_COMPILER=g++-8
+        - USE_SANITIZER=none
+        - COVERITY_SCAN_PROJECT_NAME="$TRAVIS_REPO_SLUG"
+        - COVERITY_SCAN_BRANCH_PATTERN="coverity_scan"
+        - COVERITY_SCAN_NOTIFICATION_EMAIL="$(git log -1 $TRAVIS_COMMIT --pretty=\"%aE\")"
+        - COVERITY_SCAN_BUILD_COMMAND="cmake --build ."
+        - COVERITY_SCAN_BUILD_COMMAND_PREPEND="cov-configure --comptype gcc --compiler gcc-8 --template"
+        # Encrypted COVERITY_SCAN_TOKEN env variable
+        # Generated using `travis encrypt -r eclipse-cyclonedds/cyclonedds COVERITY_SCAN_TOKEN=xxx`
+        - secure: "insert secret here"
 
 # Conan will automatically determine the best compiler for a given platform
 # based on educated guesses. The first check is based on the CC and CXX
@@ -71,7 +95,6 @@ before_install:
       eval "export CC=${C_COMPILER}";
       eval "export CXX=${CXX_COMPILER}";
     fi
-
 # Windows targets in Travis are still very much in beta and Python is not yet
 # available and installation of Python through Chocolaty does not work well.
 # The real fix is to wait until Python and pip are both available on the
@@ -119,6 +142,8 @@ script:
           -DUSE_SANITIZER=${USE_SANITIZER}
           -DBUILD_TESTING=on
           -G "${GENERATOR}" ../src
+  # execute coverity build, to let coverity integrate with the existing script code the following line is used to active the coverity build.
+  - if [[ -n $COVERITY_SCAN_PROJECT_NAME ]] ; then curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash || true ; fi
   - cmake --build . --config ${BUILD_TYPE} --target install
   - CYCLONEDDS_URI='<CycloneDDS><DDSI2E><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></DDSI2E></CycloneDDS>' ctest -T test -C ${BUILD_TYPE}
   - if [ "${USE_SANITIZER}" != "none" ]; then
