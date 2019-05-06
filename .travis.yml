@@ -43,23 +43,32 @@ stages:
 jobs:
   include:
     - stage: Build & Test
-    - <<: *linux_gcc8
-      env: [ BUILD_TYPE=Release, C_COMPILER=gcc-8, CXX_COMPILER=g++-8, USE_SANITIZER=none]
-    - <<: *linux_gcc8
+    - name: Ubuntu xenial gcc-8 Debug
+      <<: *linux_gcc8
       env: [ BUILD_TYPE=Debug, C_COMPILER=gcc-8, CXX_COMPILER=g++-8, USE_SANITIZER=none ]
-    - <<: *linux_clang
+    - name: Ubuntu xenial gcc-8 Release    
+      <<: *linux_gcc8
+      env: [ BUILD_TYPE=Release, C_COMPILER=gcc-8, CXX_COMPILER=g++-8, USE_SANITIZER=none ]
+    - name: Ubuntu xenial clang Debug       
+      <<: *linux_clang
       env: [ BUILD_TYPE=Debug, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=address ]
-    - <<: *linux_clang
+    - name: Ubuntu xenial clang Release           
+      <<: *linux_clang
       env: [ BUILD_TYPE=Release, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=none ]
-    - <<: *osx_xcode10_1
+    - name: macOS clang Debug            
+      <<: *osx_xcode10_1
       env: [ BUILD_TYPE=Debug, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=address ]
-    - <<: *osx_xcode10_1
+    - name: macOS clang Release 
+      <<: *osx_xcode10_1
       env: [ BUILD_TYPE=Release, C_COMPILER=clang, CXX_COMPILER=clang++, USE_SANITIZER=none ]
-    - <<: *windows_vs2017
+    - name: Windows Visual Studio 2017 x86 Debug     
+      <<: *windows_vs2017
       env: [ ARCH=x86, BUILD_TYPE=Debug, GENERATOR="Visual Studio 15 2017" ]
-    - <<: *windows_vs2017
+    - name: Windows Visual Studio 2017 x86_64 Debug  
+      <<: *windows_vs2017
       env: [ ARCH=x86_64, BUILD_TYPE=Debug, GENERATOR="Visual Studio 15 2017" ]
-    - <<: *windows_vs2017
+    - name: Windows Visual Studio 2017 x86_64 Release   
+      <<: *windows_vs2017
       env: [ ARCH=x86_64, BUILD_TYPE=Release, GENERATOR="Visual Studio 15 2017" ]
     - stage: Coverity
       <<: *linux_gcc8
