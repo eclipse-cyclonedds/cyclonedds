@@ -94,6 +94,10 @@ dds_read_impl(
     dds_retcode_t rc;
     struct dds_reader * rd;
     struct dds_readcond * cond;
+    unsigned nodata_cleanups = 0;
+#define NC_CLEAR_LOAN_OUT 1u
+#define NC_FREE_BUF 2u
+#define NC_RESET_BUF 4u
 
     if (buf == NULL) {
         DDS_ERROR("The provided buffer is NULL\n");
@@ -140,21 +144,25 @@ dds_read_impl(
         /* Allocate, use or reallocate loan cached on reader */
         if (rd->m_loan_out) {
             ddsi_sertopic_realloc_samples (buf, rd->m_topic->m_stopic, NULL, 0, maxs);
+            nodata_cleanups = NC_FREE_BUF | NC_RESET_BUF;
         } else {
             if (rd->m_loan) {
                 if (rd->m_loan_size < maxs) {
                     ddsi_sertopic_realloc_samples (buf, rd->m_topic->m_stopic, rd->m_loan, rd->m_loan_size, maxs);
                     rd->m_loan = buf[0];
                     rd->m_loan_size = maxs;
+                    nodata_cleanups = NC_RESET_BUF;
                 } else {
-                  buf[0] = rd->m_loan;
+                    buf[0] = rd->m_loan;
+                    nodata_cleanups = NC_RESET_BUF;
                 }
-             } else {
-                 ddsi_sertopic_realloc_samples (buf, rd->m_topic->m_stopic, NULL, 0, maxs);
-                 rd->m_loan = buf[0];
-                 rd->m_loan_size = maxs;
-             }
+            } else {
+                ddsi_sertopic_realloc_samples (buf, rd->m_topic->m_stopic, NULL, 0, maxs);
+                rd->m_loan = buf[0];
+                rd->m_loan_size = maxs;
+            }
             rd->m_loan_out = true;
+            nodata_cleanups |= NC_CLEAR_LOAN_OUT;
         }
     }
 
@@ -169,9 +177,24 @@ dds_read_impl(
     ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 
     if (take) {
-        ret = (dds_return_t)dds_rhc_take(rd->m_rd->rhc, lock, buf, si, maxs, mask, hand, cond);
+        ret = (dds_return_t) dds_rhc_take (rd->m_rd->rhc, lock, buf, si, maxs, mask, hand, cond);
     } else {
-        ret = (dds_return_t)dds_rhc_read(rd->m_rd->rhc, lock, buf, si, maxs, mask, hand, cond);
+        ret = (dds_return_t) dds_rhc_read (rd->m_rd->rhc, lock, buf, si, maxs, mask, hand, cond);
+    }
+
+    /* if no data read, restore the state to what it was before the call, with the sole
+       exception of holding on to a buffer we just allocated and that is pointed to by
+       rd->m_loan */
+    if (ret <= 0 && nodata_cleanups) {
+        if (nodata_cleanups & NC_CLEAR_LOAN_OUT) {
+            rd->m_loan_out = false;
+        }
+        if (nodata_cleanups & NC_FREE_BUF) {
+            ddsi_sertopic_free_samples (rd->m_topic->m_stopic, buf[0], maxs, DDS_FREE_ALL);
+        }
+        if (nodata_cleanups & NC_RESET_BUF) {
+            buf[0] = NULL;
+        }
     }
     dds_read_unlock(rd, cond);
 
