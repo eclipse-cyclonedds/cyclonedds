@@ -1330,13 +1330,10 @@ err_set_ext_address:
     ddsrt_free (n);
   }
 err_set_recvips:
-  {
-    int i;
-    for (i = 0; i < gv.n_interfaces; i++)
-      ddsrt_free (gv.interfaces[i].name);
-  }
 err_find_own_ip:
-    ddsi_tran_factories_fini ();
+  for (int i = 0; i < gv.n_interfaces; i++)
+    ddsrt_free (gv.interfaces[i].name);
+  ddsi_tran_factories_fini ();
 err_udp_tcp_init:
   if (config.tp_enable)
     ddsrt_thread_pool_free (gv.thread_pool);
@@ -1665,11 +1662,8 @@ DDSRT_WARNING_MSVC_ON(6001);
     ddsrt_free (n);
   }
 
-  {
-    int i;
-    for (i = 0; i < (int) gv.n_interfaces; i++)
-      ddsrt_free (gv.interfaces[i].name);
-  }
+  for (int i = 0; i < (int) gv.n_interfaces; i++)
+    ddsrt_free (gv.interfaces[i].name);
 
   ddsi_serdatapool_free (gv.serpool);
   nn_xmsgpool_free (gv.xmsgpool);
