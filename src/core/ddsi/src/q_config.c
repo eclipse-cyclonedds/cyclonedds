@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <stdio.h>
+#include <ctype.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -36,8 +37,6 @@
 
 #include "dds/version.h"
 
-#define WARN_DEPRECATED_ALIAS 1
-#define WARN_DEPRECATED_UNIT 1
 #define MAX_PATH_DEPTH 10 /* max nesting level of configuration elements */
 
 struct cfgelem;
@@ -46,7 +45,7 @@ struct cfgst;
 typedef int(*init_fun_t) (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
 typedef int(*update_fun_t) (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value);
 typedef void(*free_fun_t) (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
-typedef void(*print_fun_t) (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default);
+typedef void(*print_fun_t) (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources);
 
 #ifdef DDSI_INCLUDE_SECURITY
 struct q_security_plugins q_security_plugin = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
@@ -74,14 +73,21 @@ struct cfgelem {
 
 struct cfgst_nodekey {
   const struct cfgelem *e;
+  void *p;
 };
 
 struct cfgst_node {
   ddsrt_avl_node_t avlnode;
   struct cfgst_nodekey key;
   int count;
+  uint32_t sources;
   int failed;
-  int is_default;
+};
+
+enum implicit_toplevel {
+  ITL_DISALLOWED,
+  ITL_ALLOWED,
+  ITL_INSERTED
 };
 
 struct cfgst {
@@ -90,28 +96,17 @@ struct cfgst {
   /* error flag set so that we can continue parsing for some errors and still fail properly */
   int error;
 
+  enum implicit_toplevel implicit_toplevel;
+
+  /* current input, mask with 1 bit set */
+  uint32_t source;
+
   /* path_depth, isattr and path together control the formatting of
      error messages by cfg_error() */
   int path_depth;
   int isattr[MAX_PATH_DEPTH];
   const struct cfgelem *path[MAX_PATH_DEPTH];
   void *parent[MAX_PATH_DEPTH];
-};
-
-/* "trace" is special: it enables (nearly) everything */
-static const char *logcat_names[] = {
-  "fatal", "error", "warning", "info", "config", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "rhc", "trace", NULL
-};
-static const uint32_t logcat_codes[] = {
-  DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_ALL
-};
-
-/* "trace" is special: it enables (nearly) everything */
-static const char *xcheck_names[] = {
-  "whc", "rhc", "all", NULL
-};
-static const uint32_t xcheck_codes[] = {
-  DDS_XCHECK_WHC, DDS_XCHECK_RHC, ~(uint32_t)0
 };
 
 /* We want the tracing/verbosity settings to be fixed while parsing
@@ -123,7 +118,7 @@ static const ddsrt_avl_treedef_t cfgst_found_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER(offsetof(struct cfgst_node, avlnode), offsetof(struct cfgst_node, key), cfgst_node_cmp, 0);
 
 #define DU(fname) static int uf_##fname (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
-#define PF(fname) static void pf_##fname (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
+#define PF(fname) static void pf_##fname (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 #define DUPF(fname) DU(fname) ; PF(fname)
 PF(nop);
 DUPF(networkAddress);
@@ -310,7 +305,7 @@ static const struct cfgelem networkpartition_cfgattrs[] = {
 };
 
 static const struct cfgelem networkpartitions_cfgelems[] = {
-  { LEAF_W_ATTRS("NetworkPartition", networkpartition_cfgattrs), 0, 0, ABSOFF(networkPartitions), if_network_partition, 0, 0, 0,
+  { LEAF_W_ATTRS("NetworkPartition", networkpartition_cfgattrs), 2, 0, ABSOFF(networkPartitions), if_network_partition, 0, 0, 0,
     BLURB("<p>This element defines a DDSI2E network partition.</p>") },
   END_MARKER
 };
@@ -909,7 +904,11 @@ static const struct unit unittab_bandwidth_Bps[] = {
 };
 #endif
 
-static void cfgst_push(struct cfgst *cfgst, int isattr, const struct cfgelem *elem, void *parent)
+static void free_configured_elements (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
+static void free_configured_element (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
+static const struct cfgelem *lookup_element (const char *target);
+
+static void cfgst_push (struct cfgst *cfgst, int isattr, const struct cfgelem *elem, void *parent)
 {
   assert(cfgst->path_depth < MAX_PATH_DEPTH);
   assert(isattr == 0 || isattr == 1);
@@ -919,19 +918,19 @@ static void cfgst_push(struct cfgst *cfgst, int isattr, const struct cfgelem *el
   cfgst->path_depth++;
 }
 
-static void cfgst_pop(struct cfgst *cfgst)
+static void cfgst_pop (struct cfgst *cfgst)
 {
   assert(cfgst->path_depth > 0);
   cfgst->path_depth--;
 }
 
-static const struct cfgelem *cfgst_tos(const struct cfgst *cfgst)
+static const struct cfgelem *cfgst_tos (const struct cfgst *cfgst)
 {
   assert(cfgst->path_depth > 0);
   return cfgst->path[cfgst->path_depth - 1];
 }
 
-static void *cfgst_parent(const struct cfgst *cfgst)
+static void *cfgst_parent (const struct cfgst *cfgst)
 {
   assert(cfgst->path_depth > 0);
   return cfgst->parent[cfgst->path_depth - 1];
@@ -943,46 +942,47 @@ struct cfg_note_buf {
   char *buf;
 };
 
-static size_t cfg_note_vsnprintf(struct cfg_note_buf *bb, const char *fmt, va_list ap)
+static size_t cfg_note_vsnprintf (struct cfg_note_buf *bb, const char *fmt, va_list ap)
 {
   int x;
   x = vsnprintf(bb->buf + bb->bufpos, bb->bufsize - bb->bufpos, fmt, ap);
-  if ( x >= 0 && (size_t) x >= bb->bufsize - bb->bufpos ) {
+  if (x >= 0 && (size_t) x >= bb->bufsize - bb->bufpos)
+  {
     size_t nbufsize = ((bb->bufsize + (size_t) x + 1) + 1023) & (size_t) (-1024);
-    char *nbuf = ddsrt_realloc(bb->buf, nbufsize);
+    char *nbuf = ddsrt_realloc (bb->buf, nbufsize);
     bb->buf = nbuf;
     bb->bufsize = nbufsize;
     return nbufsize;
   }
-  if ( x < 0 )
+  if (x < 0)
     DDS_FATAL("cfg_note_vsnprintf: vsnprintf failed\n");
   else
     bb->bufpos += (size_t) x;
   return 0;
 }
 
-static void cfg_note_snprintf(struct cfg_note_buf *bb, const char *fmt, ...)
+static void cfg_note_snprintf (struct cfg_note_buf *bb, const char *fmt, ...)
 {
   /* The reason the 2nd call to os_vsnprintf is here and not inside
      cfg_note_vsnprintf is because I somehow doubt that all platforms
      implement va_copy() */
   va_list ap;
   size_t r;
-  va_start(ap, fmt);
-  r = cfg_note_vsnprintf(bb, fmt, ap);
-  va_end(ap);
-  if ( r > 0 ) {
+  va_start (ap, fmt);
+  r = cfg_note_vsnprintf (bb, fmt, ap);
+  va_end (ap);
+  if (r > 0) {
     int s;
-    va_start(ap, fmt);
-    s = vsnprintf(bb->buf + bb->bufpos, bb->bufsize - bb->bufpos, fmt, ap);
-    if ( s < 0 || (size_t) s >= bb->bufsize - bb->bufpos )
-      DDS_FATAL("cfg_note_snprintf: vsnprintf failed\n");
-    va_end(ap);
+    va_start (ap, fmt);
+    s = vsnprintf (bb->buf + bb->bufpos, bb->bufsize - bb->bufpos, fmt, ap);
+    if (s < 0 || (size_t) s >= bb->bufsize - bb->bufpos)
+      DDS_FATAL ("cfg_note_snprintf: vsnprintf failed\n");
+    va_end (ap);
     bb->bufpos += (size_t) s;
   }
 }
 
-static size_t cfg_note(struct cfgst *cfgst, uint32_t cat, size_t bsz, const char *fmt, va_list ap)
+static size_t cfg_note (struct cfgst *cfgst, uint32_t cat, size_t bsz, const char *fmt, const char *suffix, va_list ap)
 {
   /* Have to snprintf our way to a single string so we can OS_REPORT
      as well as nn_log.  Otherwise configuration errors will be lost
@@ -993,177 +993,196 @@ static size_t cfg_note(struct cfgst *cfgst, uint32_t cat, size_t bsz, const char
   int i, sidx;
   size_t r;
 
-  if (cat & DDS_LC_ERROR) {
+  if (cat & DDS_LC_ERROR)
     cfgst->error = 1;
-  }
 
   bb.bufpos = 0;
   bb.bufsize = (bsz == 0) ? 1024 : bsz;
-  if ( (bb.buf = ddsrt_malloc(bb.bufsize)) == NULL )
-    DDS_FATAL("cfg_note: out of memory\n");
+  if ((bb.buf = ddsrt_malloc(bb.bufsize)) == NULL)
+    DDS_FATAL ("cfg_note: out of memory\n");
 
-  cfg_note_snprintf(&bb, "config: ");
+  cfg_note_snprintf (&bb, "config: ");
 
   /* Path to element/attribute causing the error. Have to stop once an
      attribute is reached: a NULL marker may have been pushed onto the
      stack afterward in the default handling. */
   sidx = 0;
-  while ( sidx < cfgst->path_depth && cfgst->path[sidx]->name == NULL )
+  while (sidx < cfgst->path_depth && cfgst->path[sidx]->name == NULL)
     sidx++;
   const struct cfgelem *prev_path = NULL;
-  for ( i = sidx; i < cfgst->path_depth && (i == sidx || !cfgst->isattr[i - 1]); i++ ) {
-    if ( cfgst->path[i] == NULL ) {
+  for (i = sidx; i < cfgst->path_depth && (i == sidx || !cfgst->isattr[i - 1]); i++)
+  {
+    if (cfgst->path[i] == NULL)
+    {
       assert(i > sidx);
-      cfg_note_snprintf(&bb, "/#text");
-    } else if ( cfgst->isattr[i] ) {
-      cfg_note_snprintf(&bb, "[@%s]", cfgst->path[i]->name);
-    } else if (cfgst->path[i] == prev_path) {
+      cfg_note_snprintf (&bb, "/#text");
+    }
+    else if (cfgst->isattr[i])
+    {
+      cfg_note_snprintf (&bb, "[@%s]", cfgst->path[i]->name);
+    }
+    else if (cfgst->path[i] == prev_path)
+    {
       /* skip printing this level: it means a group contained an element indicating that
          it was moved to the first group (i.e., stripping a level) -- this is currently
          only used for stripping out the DDSI2E level, and the sole purpose of this
          special case is making any warnings from elements contained within it look
          reasonable by always printing the new location */
-    } else {
+    }
+    else
+    {
       /* first character is '>' means it was moved, so print what follows instead */
       const char *name = cfgst->path[i]->name + ((cfgst->path[i]->name[0] == '>') ? 1 : 0);
-      const char *p = strchr(name, '|');
+      const char *p = strchr (name, '|');
       int n = p ? (int) (p - name) : (int) strlen(name);
-      cfg_note_snprintf(&bb, "%s%*.*s", (i == sidx) ? "" : "/", n, n, name);
+      cfg_note_snprintf (&bb, "%s%*.*s", (i == sidx) ? "" : "/", n, n, name);
     }
     prev_path = cfgst->path[i];
   }
 
-  cfg_note_snprintf(&bb, ": ");
-  if ( (r = cfg_note_vsnprintf(&bb, fmt, ap)) > 0 ) {
+  cfg_note_snprintf (&bb, ": ");
+  if ((r = cfg_note_vsnprintf (&bb, fmt, ap)) > 0)
+  {
     /* Can't reset ap ... and va_copy isn't widely available - so
        instead abort and hope the caller tries again with a larger
        initial buffer */
-    ddsrt_free(bb.buf);
+    ddsrt_free (bb.buf);
     return r;
   }
 
-  switch ( cat ) {
+  cfg_note_snprintf (&bb, "%s", suffix);
+  switch (cat)
+  {
     case DDS_LC_CONFIG:
-      DDS_LOG(cat, "%s\n", bb.buf);
+      DDS_LOG (cat, "%s\n", bb.buf);
       break;
     case DDS_LC_WARNING:
-      DDS_WARNING("%s\n", bb.buf);
+      DDS_WARNING ("%s\n", bb.buf);
       break;
     case DDS_LC_ERROR:
-      DDS_ERROR("%s\n", bb.buf);
+      DDS_ERROR ("%s\n", bb.buf);
       break;
     default:
-      DDS_FATAL("cfg_note unhandled category %u for message %s\n", (unsigned) cat, bb.buf);
+      DDS_FATAL ("cfg_note unhandled category %u for message %s\n", (unsigned) cat, bb.buf);
       break;
   }
 
-  ddsrt_free(bb.buf);
+  ddsrt_free (bb.buf);
   return 0;
 }
 
-#if WARN_DEPRECATED_ALIAS || WARN_DEPRECATED_UNIT
-static void cfg_warning(struct cfgst *cfgst, const char *fmt, ...)
+static void cfg_warning (struct cfgst *cfgst, const char *fmt, ...)
 {
   va_list ap;
   size_t bsz = 0;
   do {
-    va_start(ap, fmt);
-    bsz = cfg_note(cfgst, DDS_LC_WARNING, bsz, fmt, ap);
-    va_end(ap);
-  } while ( bsz > 0 );
+    va_start (ap, fmt);
+    bsz = cfg_note (cfgst, DDS_LC_WARNING, bsz, fmt, "", ap);
+    va_end (ap);
+  } while (bsz > 0);
 }
-#endif
 
-static int cfg_error(struct cfgst *cfgst, const char *fmt, ...)
+static int cfg_error (struct cfgst *cfgst, const char *fmt, ...)
 {
   va_list ap;
   size_t bsz = 0;
   do {
-    va_start(ap, fmt);
-    bsz = cfg_note(cfgst, DDS_LC_ERROR, bsz, fmt, ap);
-    va_end(ap);
-  } while ( bsz > 0 );
+    va_start (ap, fmt);
+    bsz = cfg_note (cfgst, DDS_LC_ERROR, bsz, fmt, "", ap);
+    va_end (ap);
+  } while (bsz > 0);
   return 0;
 }
 
-static int cfg_log(struct cfgst *cfgst, const char *fmt, ...)
+static int cfg_logelem (struct cfgst *cfgst, uint32_t sources, const char *fmt, ...)
 {
+  /* 89 = 1 + 2 + 31 + 1 + 10 + 2*22: the number of characters in
+     a string formed by concatenating all numbers from 0 .. 31 in decimal notation,
+     31 separators, a opening and closing brace pair, a terminating 0, and a leading
+     space */
+  char srcinfo[89];
   va_list ap;
   size_t bsz = 0;
+  srcinfo[0] = ' ';
+  srcinfo[1] = '{';
+  int pos = 2;
+  for (uint32_t i = 0, m = 1; i < 32; i++, m <<= 1)
+    if (sources & m)
+      pos += snprintf (srcinfo + pos, sizeof (srcinfo) - (size_t) pos, "%s%"PRIu32, (pos == 2) ? "" : ",", i);
+  srcinfo[pos] = '}';
+  srcinfo[pos + 1] = 0;
+  assert ((size_t) pos <= sizeof (srcinfo) - 2);
   do {
-    va_start(ap, fmt);
-    bsz = cfg_note(cfgst, DDS_LC_CONFIG, bsz, fmt, ap);
-    va_end(ap);
-  } while ( bsz > 0 );
+    va_start (ap, fmt);
+    bsz = cfg_note (cfgst, DDS_LC_CONFIG, bsz, fmt, srcinfo, ap);
+    va_end (ap);
+  } while (bsz > 0);
   return 0;
 }
 
-static int list_index(const char *list[], const char *elem)
+static int list_index (const char *list[], const char *elem)
 {
-  int i;
-  for ( i = 0; list[i] != NULL; i++ ) {
-    if ( ddsrt_strcasecmp(list[i], elem) == 0 )
+  for (int i = 0; list[i] != NULL; i++)
+    if (ddsrt_strcasecmp (list[i], elem) == 0)
       return i;
-  }
   return -1;
 }
 
-static int64_t lookup_multiplier(struct cfgst *cfgst, const struct unit *unittab, const char *value, int unit_pos, int value_is_zero, int64_t def_mult, int err_on_unrecognised)
+static int64_t lookup_multiplier (struct cfgst *cfgst, const struct unit *unittab, const char *value, int unit_pos, int value_is_zero, int64_t def_mult, int err_on_unrecognised)
 {
-  assert(0 <= unit_pos && (size_t) unit_pos <= strlen(value));
-  while ( value[unit_pos] == ' ' )
+  assert (0 <= unit_pos && (size_t) unit_pos <= strlen(value));
+  while (value[unit_pos] == ' ')
     unit_pos++;
-  if ( value[unit_pos] == 0 ) {
-    if ( value_is_zero ) {
+  if (value[unit_pos] == 0)
+  {
+    if (value_is_zero) {
       /* No matter what unit, 0 remains just that.  For convenience,
          always allow 0 to be specified without a unit */
       return 1;
-    } else if ( def_mult == 0 && err_on_unrecognised ) {
-      cfg_error(cfgst, "%s: unit is required", value);
+    } else if (def_mult == 0 && err_on_unrecognised) {
+      cfg_error (cfgst, "%s: unit is required", value);
       return 0;
     } else {
-#if WARN_DEPRECATED_UNIT
-      cfg_warning(cfgst, "%s: use of default unit is deprecated", value);
-#endif
+      cfg_warning (cfgst, "%s: use of default unit is deprecated", value);
       return def_mult;
     }
-  } else {
-    int i;
-    for ( i = 0; unittab[i].name != NULL; i++ ) {
-      if ( strcmp(unittab[i].name, value + unit_pos) == 0 )
+  }
+  else
+  {
+    for (int i = 0; unittab[i].name != NULL; i++)
+      if (strcmp(unittab[i].name, value + unit_pos) == 0)
         return unittab[i].multiplier;
-    }
-    if ( err_on_unrecognised )
+    if (err_on_unrecognised)
       cfg_error(cfgst, "%s: unrecognised unit", value + unit_pos);
     return 0;
   }
 }
 
-static void *cfg_address(UNUSED_ARG(struct cfgst *cfgst), void *parent, struct cfgelem const * const cfgelem)
+static void *cfg_address (UNUSED_ARG (struct cfgst *cfgst), void *parent, struct cfgelem const * const cfgelem)
 {
-  assert(cfgelem->multiplicity == 1);
+  assert (cfgelem->multiplicity == 1);
   return (char *) parent + cfgelem->elem_offset;
 }
 
-static void *cfg_deref_address(UNUSED_ARG(struct cfgst *cfgst), void *parent, struct cfgelem const * const cfgelem)
+static void *cfg_deref_address (UNUSED_ARG (struct cfgst *cfgst), void *parent, struct cfgelem const * const cfgelem)
 {
-  assert(cfgelem->multiplicity != 1);
+  assert (cfgelem->multiplicity != 1);
   return *((void **) ((char *) parent + cfgelem->elem_offset));
 }
 
-static void *if_common(UNUSED_ARG(struct cfgst *cfgst), void *parent, struct cfgelem const * const cfgelem, unsigned size)
+static void *if_common (UNUSED_ARG (struct cfgst *cfgst), void *parent, struct cfgelem const * const cfgelem, unsigned size)
 {
   struct config_listelem **current = (struct config_listelem **) ((char *) parent + cfgelem->elem_offset);
-  struct config_listelem *new = ddsrt_malloc(size);
+  struct config_listelem *new = ddsrt_malloc (size);
   new->next = *current;
   *current = new;
   return new;
 }
 
-static int if_thread_properties(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+static int if_thread_properties (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  struct config_thread_properties_listelem *new = if_common(cfgst, parent, cfgelem, sizeof(*new));
-  if ( new == NULL )
+  struct config_thread_properties_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  if (new == NULL)
     return -1;
   new->name = NULL;
   return 0;
@@ -1172,8 +1191,8 @@ static int if_thread_properties(struct cfgst *cfgst, void *parent, struct cfgele
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
 static int if_channel(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  struct config_channel_listelem *new = if_common(cfgst, parent, cfgelem, sizeof(*new));
-  if ( new == NULL )
+  struct config_channel_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  if (new == NULL)
     return -1;
   new->name = NULL;
   new->channel_reader_ts = NULL;
@@ -1186,19 +1205,19 @@ static int if_channel(struct cfgst *cfgst, void *parent, struct cfgelem const * 
 #endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
 
 #ifdef DDSI_INCLUDE_ENCRYPTION
-static int if_security_profile(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+static int if_security_profile (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  if ( if_common(cfgst, parent, cfgelem, sizeof(struct config_securityprofile_listelem)) == NULL )
+  if (if_common (cfgst, parent, cfgelem, sizeof (struct config_securityprofile_listelem)) == NULL)
     return -1;
   return 0;
 }
 #endif /* DDSI_INCLUDE_ENCRYPTION */
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-static int if_network_partition(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+static int if_network_partition (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  struct config_networkpartition_listelem *new = if_common(cfgst, parent, cfgelem, sizeof(*new));
-  if ( new == NULL )
+  struct config_networkpartition_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  if (new == NULL)
     return -1;
   new->address_string = NULL;
 #ifdef DDSI_INCLUDE_ENCRYPTION
@@ -1208,214 +1227,114 @@ static int if_network_partition(struct cfgst *cfgst, void *parent, struct cfgele
   return 0;
 }
 
-static int if_ignored_partition(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+static int if_ignored_partition (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  if ( if_common(cfgst, parent, cfgelem, sizeof(struct config_ignoredpartition_listelem)) == NULL )
+  if (if_common (cfgst, parent, cfgelem, sizeof (struct config_ignoredpartition_listelem)) == NULL)
     return -1;
   return 0;
 }
 
-static int if_partition_mapping(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+static int if_partition_mapping (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  if ( if_common(cfgst, parent, cfgelem, sizeof(struct config_partitionmapping_listelem)) == NULL )
+  if (if_common (cfgst, parent, cfgelem, sizeof (struct config_partitionmapping_listelem)) == NULL)
     return -1;
   return 0;
 }
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
 
-static int if_peer(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+static int if_peer (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  struct config_peer_listelem *new = if_common(cfgst, parent, cfgelem, sizeof(struct config_peer_listelem));
-  if ( new == NULL )
+  struct config_peer_listelem *new = if_common (cfgst, parent, cfgelem, sizeof (struct config_peer_listelem));
+  if (new == NULL)
     return -1;
   new->peer = NULL;
   return 0;
 }
 
-static void ff_free(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+static void ff_free (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  void **elem = cfg_address(cfgst, parent, cfgelem);
-  ddsrt_free(*elem);
+  void ** const elem = cfg_address (cfgst, parent, cfgelem);
+  ddsrt_free (*elem);
 }
 
-static int uf_boolean(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
+static void pf_nop (UNUSED_ARG (struct cfgst *cfgst), UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (uint32_t sources))
 {
-  static const char *vs[] = { "false", "true", NULL };
-  int *elem = cfg_address(cfgst, parent, cfgelem);
-  int idx = list_index(vs, value);
-  if ( idx < 0 )
-    return cfg_error(cfgst, "'%s': undefined value", value);
-  else {
-    *elem = idx;
-    return 1;
-  }
 }
 
-static int uf_boolean_default (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+static int do_uint32_bitset (struct cfgst *cfgst, uint32_t *cats, const char **names, const uint32_t *codes, const char *value)
 {
-  static const char *vs[] = { "default", "false", "true", NULL };
-  static const enum boolean_default ms[] = {
-    BOOLDEF_DEFAULT, BOOLDEF_FALSE, BOOLDEF_TRUE, 0,
-  };
-  enum boolean_default *elem = cfg_address (cfgst, parent, cfgelem);
-  int idx = list_index (vs, value);
-  assert (sizeof (vs) / sizeof (*vs) == sizeof (ms) / sizeof (*ms));
-  if (idx < 0)
-    return cfg_error (cfgst, "'%s': undefined value", value);
-  *elem = ms[idx];
-  return 1;
-}
-
-#if 0
-static void pf_boolean_default (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  enum besmode *p = cfg_address (cfgst, parent, cfgelem);
-  const char *str = "INVALID";
-  switch (*p)
+  char *copy = ddsrt_strdup (value), *cursor = copy, *tok;
+  while ((tok = ddsrt_strsep (&cursor, ",")) != NULL)
   {
-    case BOOLDEF_DEFAULT: str = "default"; break;
-    case BOOLDEF_FALSE: str = "false"; break;
-    case BOOLDEF_TRUE: str = "true"; break;
-  }
-  cfg_log (cfgst, "%s%s", str, is_default ? " [def]" : "");
-}
-#endif
-
-static int do_uint32_bitset(struct cfgst *cfgst, uint32_t *cats, const char **names, const uint32_t *codes, const char *value)
-{
-  char *copy = ddsrt_strdup(value), *cursor = copy, *tok;
-  while ( (tok = ddsrt_strsep(&cursor, ",")) != NULL ) {
-    int idx = list_index(names, tok);
-    if ( idx < 0 ) {
-      int ret = cfg_error(cfgst, "'%s' in '%s' undefined", tok, value);
-      ddsrt_free(copy);
+    const int idx = list_index (names, tok);
+    if (idx < 0)
+    {
+      const int ret = cfg_error (cfgst, "'%s' in '%s' undefined", tok, value);
+      ddsrt_free (copy);
       return ret;
     }
     *cats |= codes[idx];
   }
-  ddsrt_free(copy);
+  ddsrt_free (copy);
   return 1;
 }
 
-static int uf_logcat(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
+static unsigned uint32_popcnt (uint32_t x)
 {
-  return do_uint32_bitset (cfgst, &enabled_logcats, logcat_names, logcat_codes, value);
-}
-
-static int uf_xcheck(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
-{
-  uint32_t *elem = cfg_address(cfgst, parent, cfgelem);
-  return do_uint32_bitset (cfgst, elem, xcheck_names, xcheck_codes, value);
-}
-
-static int uf_verbosity(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
-{
-  static const char *vs[] = {
-    "finest", "finer", "fine", "config", "info", "warning", "severe", "none", NULL
-  };
-  static const uint32_t lc[] = {
-    DDS_LC_ALL, DDS_LC_TRAFFIC | DDS_LC_TIMING, DDS_LC_DISCOVERY | DDS_LC_THROTTLE, DDS_LC_CONFIG, DDS_LC_INFO, DDS_LC_WARNING, DDS_LC_ERROR | DDS_LC_FATAL, 0, 0
-  };
-  int idx = list_index(vs, value);
-  assert(sizeof(vs) / sizeof(*vs) == sizeof(lc) / sizeof(*lc));
-  if ( idx < 0 )
-    return cfg_error(cfgst, "'%s': undefined value", value);
-  else {
-    int i;
-    for ( i = (int) (sizeof(vs) / sizeof(*vs)) - 1; i >= idx; i-- )
-      enabled_logcats |= lc[i];
-    return 1;
+  unsigned n = 0;
+  while (x != 0)
+  {
+    n += ((x & 1u) != 0);
+    x >>= 1;
   }
+  return n;
 }
 
-static int uf_besmode(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
+static void do_print_uint32_bitset (struct cfgst *cfgst, uint32_t mask, size_t ncodes, const char **names, const uint32_t *codes, uint32_t sources, const char *suffix)
 {
-  static const char *vs[] = {
-    "full", "writers", "minimal", NULL
-  };
-  static const enum besmode ms[] = {
-    BESMODE_FULL, BESMODE_WRITERS, BESMODE_MINIMAL, 0,
-  };
-  int idx = list_index(vs, value);
-  enum besmode *elem = cfg_address(cfgst, parent, cfgelem);
-  assert(sizeof(vs) / sizeof(*vs) == sizeof(ms) / sizeof(*ms));
-  if ( idx < 0 )
-    return cfg_error(cfgst, "'%s': undefined value", value);
-  *elem = ms[idx];
-  return 1;
-}
-
-static void pf_besmode(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  enum besmode *p = cfg_address(cfgst, parent, cfgelem);
-  const char *str = "INVALID";
-  switch ( *p ) {
-    case BESMODE_FULL: str = "full"; break;
-    case BESMODE_WRITERS: str = "writers"; break;
-    case BESMODE_MINIMAL: str = "minimal"; break;
+  char res[256] = "", *resp = res;
+  const char *prefix = "";
+#ifndef NDEBUG
+  {
+    size_t max = 0;
+    for (size_t i = 0; i < ncodes; i++)
+      max += 1 + strlen (names[i]);
+    max += 11; /* ,0x%x */
+    max += 1; /* \0 */
+    assert (max <= sizeof (res));
   }
-  cfg_log(cfgst, "%s%s", str, is_default ? " [def]" : "");
-}
-
-#ifdef DDSI_INCLUDE_SSL
-static int uf_min_tls_version(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
-{
-  static const char *vs[] = {
-    "1.2", "1.3", NULL
-  };
-  static const struct ssl_min_version ms[] = {
-    {1,2}, {1,3}, {0,0}
-  };
-  int idx = list_index(vs, value);
-  struct ssl_min_version *elem = cfg_address(cfgst, parent, cfgelem);
-  assert(sizeof(vs) / sizeof(*vs) == sizeof(ms) / sizeof(*ms));
-  if ( idx < 0 )
-    return cfg_error(cfgst, "'%s': undefined value", value);
-  *elem = ms[idx];
-  return 1;
-}
-
-static void pf_min_tls_version(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  struct ssl_min_version *p = cfg_address(cfgst, parent, cfgelem);
-  cfg_log(cfgst, "%d.%d%s", p->major, p->minor, is_default ? " [def]" : "");
-}
 #endif
-
-static int uf_retransmit_merging(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
-{
-  static const char *vs[] = {
-    "never", "adaptive", "always", NULL
-  };
-  static const enum retransmit_merging ms[] = {
-    REXMIT_MERGE_NEVER, REXMIT_MERGE_ADAPTIVE, REXMIT_MERGE_ALWAYS, 0,
-  };
-  int idx = list_index(vs, value);
-  enum retransmit_merging *elem = cfg_address(cfgst, parent, cfgelem);
-  assert(sizeof(vs) / sizeof(*vs) == sizeof(ms) / sizeof(*ms));
-  if ( idx < 0 )
-    return cfg_error(cfgst, "'%s': undefined value", value);
-  *elem = ms[idx];
-  return 1;
-}
-
-static void pf_retransmit_merging(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  enum retransmit_merging *p = cfg_address(cfgst, parent, cfgelem);
-  const char *str = "INVALID";
-  switch ( *p ) {
-    case REXMIT_MERGE_NEVER: str = "never"; break;
-    case REXMIT_MERGE_ADAPTIVE: str = "adaptive"; break;
-    case REXMIT_MERGE_ALWAYS: str = "always"; break;
+  while (mask)
+  {
+    size_t i_best = 0;
+    unsigned pc_best = 0;
+    for (size_t i = 0; i < ncodes; i++)
+    {
+      uint32_t m = mask & codes[i];
+      if (m == codes[i])
+      {
+        unsigned pc = uint32_popcnt (m);
+        if (pc > pc_best)
+        {
+          i_best = i;
+          pc_best = pc;
+        }
+      }
+    }
+    if (pc_best != 0)
+    {
+      resp += snprintf (resp, 256, "%s%s", prefix, names[i_best]);
+      mask &= ~codes[i_best];
+      prefix = ",";
+    }
+    else
+    {
+      resp += snprintf (resp, 256, "%s0x%x", prefix, (unsigned) mask);
+      mask = 0;
+    }
   }
-  cfg_log(cfgst, "%s%s", str, is_default ? " [def]" : "");
-}
-
-static int uf_string(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
-{
-  char **elem = cfg_address(cfgst, parent, cfgelem);
-  *elem = ddsrt_strdup(value);
-  return 1;
+  assert (resp <= res + sizeof (res));
+  cfg_logelem (cfgst, sources, "%s%s", res, suffix);
 }
 
 DDSRT_WARNING_MSVC_OFF(4996);
@@ -1427,145 +1346,366 @@ static int uf_natint64_unit(struct cfgst *cfgst, int64_t *elem, const char *valu
   int64_t mult;
   /* try convert as integer + optional unit; if that fails, try
      floating point + optional unit (round, not truncate, to integer) */
-  if ( *value == 0 ) {
+  if (*value == 0) {
     *elem = 0; /* some static analyzers don't "get it" */
     return cfg_error(cfgst, "%s: empty string is not a valid value", value);
-  } else if ( sscanf(value, "%lld%n", (long long int *) &v_int, &pos) == 1 && (mult = lookup_multiplier(cfgst, unittab, value, pos, v_int == 0, def_mult, 0)) != 0 ) {
+  } else if (sscanf (value, "%lld%n", (long long int *) &v_int, &pos) == 1 && (mult = lookup_multiplier (cfgst, unittab, value, pos, v_int == 0, def_mult, 0)) != 0) {
     assert(mult > 0);
-    if ( v_int < 0 || v_int > max / mult || mult * v_int < min)
-      return cfg_error(cfgst, "%s: value out of range", value);
+    if (v_int < 0 || v_int > max / mult || mult * v_int < min)
+      return cfg_error (cfgst, "%s: value out of range", value);
     *elem = mult * v_int;
     return 1;
-  } else if ( sscanf(value, "%lf%n", &v_dbl, &pos) == 1 && (mult = lookup_multiplier(cfgst, unittab, value, pos, v_dbl == 0, def_mult, 1)) != 0 ) {
+  } else if (sscanf(value, "%lf%n", &v_dbl, &pos) == 1 && (mult = lookup_multiplier (cfgst, unittab, value, pos, v_dbl == 0, def_mult, 1)) != 0) {
     double dmult = (double) mult;
-    assert(dmult > 0);
-    if ( (int64_t) (v_dbl * dmult + 0.5) < min || (int64_t) (v_dbl * dmult + 0.5) > max )
+    assert (dmult > 0);
+    if ((int64_t) (v_dbl * dmult + 0.5) < min || (int64_t) (v_dbl * dmult + 0.5) > max)
       return cfg_error(cfgst, "%s: value out of range", value);
     *elem = (int64_t) (v_dbl * dmult + 0.5);
     return 1;
   } else {
     *elem = 0; /* some static analyzers don't "get it" */
-    return cfg_error(cfgst, "%s: invalid value", value);
+    return cfg_error (cfgst, "%s: invalid value", value);
   }
 }
 DDSRT_WARNING_MSVC_ON(4996);
 
+static void pf_int64_unit (struct cfgst *cfgst, int64_t value, uint32_t sources, const struct unit *unittab, const char *zero_unit)
+{
+  if (value == 0) {
+    /* 0s is a bit of a special case: we don't want to print 0hr (or
+       whatever unit will have the greatest multiplier), so hard-code
+       as 0s */
+    cfg_logelem (cfgst, sources, "0 %s", zero_unit);
+  } else {
+    int64_t m = 0;
+    const char *unit = NULL;
+    int i;
+    for (i = 0; unittab[i].name != NULL; i++)
+    {
+      if (unittab[i].multiplier > m && (value % unittab[i].multiplier) == 0)
+      {
+        m = unittab[i].multiplier;
+        unit = unittab[i].name;
+      }
+    }
+    assert (m > 0);
+    assert (unit != NULL);
+    cfg_logelem (cfgst, sources, "%lld %s", value / m, unit);
+  }
+}
+
+#define GENERIC_ENUM_CTYPE_UF(type_, c_type_)                           \
+  struct en_##type_##_vs_ms_check {                                     \
+    char length_eq[(sizeof (en_##type_##_vs) / sizeof (*en_##type_##_vs) == \
+                    sizeof (en_##type_##_ms) / sizeof (*en_##type_##_ms)) ? 1 : -1]; \
+  };                                                                    \
+                                                                        \
+  static int uf_##type_ (struct cfgst *cfgst, void *parent, UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value) \
+  {                                                                     \
+    const int idx = list_index (en_##type_##_vs, value);                \
+    c_type_ * const elem = cfg_address (cfgst, parent, cfgelem);        \
+    /* idx >= length of ms check is to shut up clang's static analyzer */ \
+    if (idx < 0 || idx >= (int) (sizeof (en_##type_##_ms) / sizeof (en_##type_##_ms[0]))) \
+      return cfg_error (cfgst, "'%s': undefined value", value);         \
+    *elem = en_##type_##_ms[idx];                                       \
+    return 1;                                                           \
+  }
+#define GENERIC_ENUM_CTYPE_PF(type_, c_type_)                           \
+  static void pf_##type_ (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources) \
+  {                                                                     \
+    c_type_ const * const p = cfg_address (cfgst, parent, cfgelem);     \
+    const char *str = "INVALID";                                        \
+    /* i < length of ms check is to shut up clang's static analyzer */  \
+    for (int i = 0; en_##type_##_vs[i] != NULL && i < (int) (sizeof (en_##type_##_ms) / sizeof (en_##type_##_ms[0])); i++) { \
+      if (en_##type_##_ms[i] == *p)                                     \
+      {                                                                 \
+        str = en_##type_##_vs[i];                                       \
+        break;                                                          \
+      }                                                                 \
+    }                                                                   \
+    cfg_logelem(cfgst, sources, "%s", str);                             \
+  }
+#define GENERIC_ENUM_CTYPE(type_, c_type_)      \
+  GENERIC_ENUM_CTYPE_UF(type_, c_type_)         \
+  GENERIC_ENUM_CTYPE_PF(type_, c_type_)
+#define GENERIC_ENUM_UF(type_) GENERIC_ENUM_CTYPE_UF(type_, enum type_)
+#define GENERIC_ENUM(type_) GENERIC_ENUM_CTYPE(type_, enum type_)
+
+static const char *en_boolean_vs[] = { "false", "true", NULL };
+static const int en_boolean_ms[] = { 0, 1, 0 };
+GENERIC_ENUM_CTYPE (boolean, int)
+
+static const char *en_boolean_default_vs[] = { "default", "false", "true", NULL };
+static const enum boolean_default en_boolean_default_ms[] = { BOOLDEF_DEFAULT, BOOLDEF_FALSE, BOOLDEF_TRUE, 0 };
+GENERIC_ENUM_UF (boolean_default)
+
+static const char *en_besmode_vs[] = { "full", "writers", "minimal", NULL };
+static const enum besmode en_besmode_ms[] = { BESMODE_FULL, BESMODE_WRITERS, BESMODE_MINIMAL, 0 };
+GENERIC_ENUM (besmode)
+
+static const char *en_retransmit_merging_vs[] = { "never", "adaptive", "always", NULL };
+static const enum retransmit_merging en_retransmit_merging_ms[] = { REXMIT_MERGE_NEVER, REXMIT_MERGE_ADAPTIVE, REXMIT_MERGE_ALWAYS, 0 };
+GENERIC_ENUM (retransmit_merging)
+
+static const char *en_sched_class_vs[] = { "realtime", "timeshare", "default", NULL };
+static const ddsrt_sched_t en_sched_class_ms[] = { DDSRT_SCHED_REALTIME, DDSRT_SCHED_TIMESHARE, DDSRT_SCHED_DEFAULT, 0 };
+GENERIC_ENUM_CTYPE (sched_class, ddsrt_sched_t)
+
+static const char *en_transport_selector_vs[] = { "default", "udp", "udp6", "tcp", "tcp6", "raweth", NULL };
+static const enum transport_selector en_transport_selector_ms[] = { TRANS_DEFAULT, TRANS_UDP, TRANS_UDP6, TRANS_TCP, TRANS_TCP6, TRANS_RAWETH, 0 };
+GENERIC_ENUM (transport_selector)
+
+/* by putting the  "true" and "false" aliases at the end, they won't come out of the
+   generic printing function */
+static const char *en_many_sockets_mode_vs[] = { "single", "none", "many", "false", "true", NULL };
+static const enum many_sockets_mode en_many_sockets_mode_ms[] = {
+  MSM_SINGLE_UNICAST, MSM_NO_UNICAST, MSM_MANY_UNICAST, MSM_SINGLE_UNICAST, MSM_MANY_UNICAST, 0 };
+GENERIC_ENUM (many_sockets_mode)
+
+static const char *en_standards_conformance_vs[] = { "pedantic", "strict", "lax", NULL };
+static const enum nn_standards_conformance en_standards_conformance_ms[] = { NN_SC_PEDANTIC, NN_SC_STRICT, NN_SC_LAX, 0 };
+GENERIC_ENUM_CTYPE (standards_conformance, enum nn_standards_conformance)
+
+/* "trace" is special: it enables (nearly) everything */
+static const char *logcat_names[] = {
+  "fatal", "error", "warning", "info", "config", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "rhc", "trace", NULL
+};
+static const uint32_t logcat_codes[] = {
+  DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_ALL
+};
+
+static int uf_logcat (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
+{
+  return do_uint32_bitset (cfgst, &enabled_logcats, logcat_names, logcat_codes, value);
+}
+
+static int uf_verbosity (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
+{
+  static const char *vs[] = {
+    "finest", "finer", "fine", "config", "info", "warning", "severe", "none", NULL
+  };
+  static const uint32_t lc[] = {
+    DDS_LC_ALL, DDS_LC_TRAFFIC | DDS_LC_TIMING, DDS_LC_DISCOVERY | DDS_LC_THROTTLE, DDS_LC_CONFIG, DDS_LC_INFO, DDS_LC_WARNING, DDS_LC_ERROR | DDS_LC_FATAL, 0, 0
+  };
+  const int idx = list_index (vs, value);
+  assert (sizeof (vs) / sizeof (*vs) == sizeof (lc) / sizeof (*lc));
+  if (idx < 0)
+    return cfg_error (cfgst, "'%s': undefined value", value);
+  for (int i = (int) (sizeof (vs) / sizeof (*vs)) - 1; i >= idx; i--)
+    enabled_logcats |= lc[i];
+  return 1;
+}
+
+static void pf_logcat (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), uint32_t sources)
+{
+  /* EnableCategory is also (and often) set by Verbosity, so make an effort to locate the sources for verbosity and merge them in */
+  struct cfgst_node *n;
+  struct cfgst_nodekey key;
+  key.e = lookup_element ("CycloneDDS/Tracing/Verbosity");
+  key.p = NULL;
+  assert (key.e != NULL);
+  if ((n = ddsrt_avl_lookup_succ_eq (&cfgst_found_treedef, &cfgst->found, &key)) != NULL && n->key.e == key.e)
+    sources |= n->sources;
+  do_print_uint32_bitset (cfgst, config.enabled_logcats, sizeof (logcat_codes) / sizeof (*logcat_codes), logcat_names, logcat_codes, sources, "");
+}
+
+static const char *xcheck_names[] = {
+  "whc", "rhc", "all", NULL
+};
+static const uint32_t xcheck_codes[] = {
+  DDS_XCHECK_WHC, DDS_XCHECK_RHC, ~(uint32_t) 0
+};
+
+static int uf_xcheck (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
+  return do_uint32_bitset (cfgst, elem, xcheck_names, xcheck_codes, value);
+}
+
+static void pf_xcheck (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  const uint32_t * const p = cfg_address (cfgst, parent, cfgelem);
+#ifndef NDEBUG
+  const char *suffix = "";
+#else
+  const char *suffix = " [ignored]";
+#endif
+  do_print_uint32_bitset (cfgst, *p, sizeof (xcheck_codes) / sizeof (*xcheck_codes), xcheck_names, xcheck_codes, sources, suffix);
+}
+
+#ifdef DDSI_INCLUDE_SSL
+static int uf_min_tls_version (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
+{
+  static const char *vs[] = {
+    "1.2", "1.3", NULL
+  };
+  static const struct ssl_min_version ms[] = {
+    {1,2}, {1,3}, {0,0}
+  };
+  const int idx = list_index (vs, value);
+  struct ssl_min_version * const elem = cfg_address (cfgst, parent, cfgelem);
+  assert (sizeof (vs) / sizeof (*vs) == sizeof (ms) / sizeof (*ms));
+  if (idx < 0)
+    return cfg_error(cfgst, "'%s': undefined value", value);
+  *elem = ms[idx];
+  return 1;
+}
+
+static void pf_min_tls_version (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  struct ssl_min_version * const p = cfg_address (cfgst, parent, cfgelem);
+  cfg_logelem (cfgst, sources, "%d.%d", p->major, p->minor);
+}
+#endif
+
+static int uf_string (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  char ** const elem = cfg_address (cfgst, parent, cfgelem);
+  *elem = ddsrt_strdup (value);
+  return 1;
+}
+
+static void pf_string (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  char ** const p = cfg_address (cfgst, parent, cfgelem);
+  cfg_logelem (cfgst, sources, "%s", *p ? *p : "(null)");
+}
+
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
-static int uf_bandwidth(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
+static int uf_bandwidth (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   int64_t bandwidth_bps = 0;
-  if ( strncmp(value, "inf", 3) == 0 ) {
+  if (strncmp (value, "inf", 3) == 0) {
     /* special case: inf needs no unit */
-    int *elem = cfg_address(cfgst, parent, cfgelem);
-    if ( strspn(value + 3, " ") != strlen(value + 3) &&
-         lookup_multiplier(cfgst, unittab_bandwidth_bps, value, 3, 1, 8, 1) == 0 )
+    uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
+    if (strspn (value + 3, " ") != strlen (value + 3) &&
+        lookup_multiplier (cfgst, unittab_bandwidth_bps, value, 3, 1, 8, 1) == 0)
       return 0;
     *elem = 0;
     return 1;
-  } else if ( !uf_natint64_unit(cfgst, &bandwidth_bps, value, unittab_bandwidth_bps, 8, INT64_MAX) ) {
+  } else if (!uf_natint64_unit (cfgst, &bandwidth_bps, value, unittab_bandwidth_bps, 8, INT64_MAX)) {
     return 0;
-  } else if ( bandwidth_bps / 8 > INT_MAX ) {
-    return cfg_error(cfgst, "%s: value out of range", value);
+  } else if (bandwidth_bps / 8 > INT_MAX) {
+    return cfg_error (cfgst, "%s: value out of range", value);
   } else {
-    uint32_t *elem = cfg_address(cfgst, parent, cfgelem);
+    uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
     *elem = (uint32_t) (bandwidth_bps / 8);
     return 1;
   }
 }
+
+static void pf_bandwidth(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  uint32_t const * const elem = cfg_address (cfgst, parent, cfgelem);
+  if (*elem == 0)
+    cfg_logelem (cfgst, sources, "inf");
+  else
+    pf_int64_unit (cfgst, *elem, sources, unittab_bandwidth_Bps, "B/s");
+}
 #endif
 
-static int uf_memsize(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
+static int uf_memsize (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   int64_t size = 0;
-  if ( !uf_natint64_unit(cfgst, &size, value, unittab_memsize, 1, 0, INT32_MAX) )
+  if (!uf_natint64_unit (cfgst, &size, value, unittab_memsize, 1, 0, INT32_MAX))
     return 0;
   else {
-    uint32_t *elem = cfg_address(cfgst, parent, cfgelem);
+    uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
     *elem = (uint32_t) size;
     return 1;
   }
 }
 
+static void pf_memsize (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  int const * const elem = cfg_address (cfgst, parent, cfgelem);
+  pf_int64_unit (cfgst, *elem, sources, unittab_memsize, "B");
+}
+
 #ifdef DDSI_INCLUDE_ENCRYPTION
 static int uf_cipher(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
-  if ( q_security_plugin.cipher_type_from_string ) {
-    q_cipherType *elem = cfg_address(cfgst, parent, cfgelem);
-    if ( (q_security_plugin.cipher_type_from_string) (value, elem) ) {
-      return 1;
-    } else {
-      return cfg_error(cfgst, "%s: undefined value", value);
-    }
+  if (q_security_plugin.cipher_type_from_string)
+  {
+    q_cipherType * const elem = cfg_address (cfgst, parent, cfgelem);
+    if (! q_security_plugin.cipher_type_from_string (value, elem))
+      return cfg_error (cfgst, "%s: undefined value", value);
   }
   return 1;
+}
+
+static void pf_cipher (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  q_cipherType const * const p = cfg_address (cfgst, parent, cfgelem);
+  if (q_security_plugin.cipher_type)
+    cfg_logelem (cfgst, sources, "%s", (q_security_plugin.cipher_type) (*p));
+}
+
+static void pf_key (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), uint32_t sources)
+{
+  cfg_logelem (cfgst, sources, "<hidden, see configfile>");
 }
 #endif /* DDSI_INCLUDE_ENCRYPTION */
 
-
-static int uf_tracingOutputFileName(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int first), const char *value)
+static int uf_tracingOutputFileName (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
 {
-  struct config *cfg = cfgst->cfg;
-  {
-    cfg->tracingOutputFileName = ddsrt_strdup(value);
-  }
+  struct config * const cfg = cfgst->cfg;
+  cfg->tracingOutputFileName = ddsrt_strdup (value);
   return 1;
 }
 
-static int uf_ipv4(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
+static int uf_ipv4 (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {
   /* Not actually doing any checking yet */
-  return uf_string(cfgst, parent, cfgelem, first, value);
+  return uf_string (cfgst, parent, cfgelem, first, value);
 }
 
-static int uf_networkAddress(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
+static int uf_networkAddress (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {
-  if ( ddsrt_strcasecmp(value, "auto") != 0 )
-    return uf_ipv4(cfgst, parent, cfgelem, first, value);
-  else {
-    char **elem = cfg_address(cfgst, parent, cfgelem);
+  if (ddsrt_strcasecmp (value, "auto") != 0)
+    return uf_ipv4 (cfgst, parent, cfgelem, first, value);
+  else
+  {
+    char ** const elem = cfg_address (cfgst, parent, cfgelem);
     *elem = NULL;
     return 1;
   }
 }
 
-static void ff_networkAddresses(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+static void pf_networkAddress (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
-  char ***elem = cfg_address(cfgst, parent, cfgelem);
-  int i;
-  for ( i = 0; (*elem)[i]; i++ )
-    ddsrt_free((*elem)[i]);
-  ddsrt_free(*elem);
+  char ** const p = cfg_address (cfgst, parent, cfgelem);
+  cfg_logelem (cfgst, sources, "%s", *p ? *p : "auto");
 }
 
-static int uf_networkAddresses_simple(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
+static int uf_networkAddresses_simple (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
-  char ***elem = cfg_address(cfgst, parent, cfgelem);
-  if ( (*elem = ddsrt_malloc(2 * sizeof(char *))) == NULL )
-    return cfg_error(cfgst, "out of memory");
-  if ( ((*elem)[0] = ddsrt_strdup(value)) == NULL ) {
-    ddsrt_free(*elem);
+  char *** const elem = cfg_address (cfgst, parent, cfgelem);
+  if ((*elem = ddsrt_malloc (2 * sizeof(char *))) == NULL)
+    return cfg_error (cfgst, "out of memory");
+  if (((*elem)[0] = ddsrt_strdup (value)) == NULL) {
+    ddsrt_free (*elem);
     *elem = NULL;
-    return cfg_error(cfgst, "out of memory");
+    return cfg_error (cfgst, "out of memory");
   }
   (*elem)[1] = NULL;
   return 1;
 }
 
-static int uf_networkAddresses(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
+static int uf_networkAddresses (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {
   /* Check for keywords first */
   {
     static const char *keywords[] = { "all", "any", "none" };
-    int i;
-    for ( i = 0; i < (int) (sizeof(keywords) / sizeof(*keywords)); i++ ) {
-      if ( ddsrt_strcasecmp(value, keywords[i]) == 0 )
-        return uf_networkAddresses_simple(cfgst, parent, cfgelem, first, keywords[i]);
+    for (int i = 0; i < (int) (sizeof (keywords) / sizeof (*keywords)); i++) {
+      if (ddsrt_strcasecmp (value, keywords[i]) == 0)
+        return uf_networkAddresses_simple (cfgst, parent, cfgelem, first, keywords[i]);
     }
   }
 
   /* If not keyword, then comma-separated list of addresses */
   {
-    char ***elem = cfg_address(cfgst, parent, cfgelem);
+    char *** const elem = cfg_address (cfgst, parent, cfgelem);
     char *copy;
     unsigned count;
 
@@ -1575,128 +1715,102 @@ static int uf_networkAddresses(struct cfgst *cfgst, void *parent, struct cfgelem
     {
       const char *scan = value;
       count = 1;
-      while ( *scan )
+      while (*scan)
         count += (*scan++ == ',');
     }
 
-    copy = ddsrt_strdup(value);
+    copy = ddsrt_strdup (value);
 
     /* Allocate an array of address strings (which may be oversized a
        bit because of the counting of the commas) */
-    *elem = ddsrt_malloc((count + 1) * sizeof(char *));
+    *elem = ddsrt_malloc ((count + 1) * sizeof(char *));
 
     {
       char *cursor = copy, *tok;
       unsigned idx = 0;
-      while ( (tok = ddsrt_strsep(&cursor, ",")) != NULL ) {
-        assert(idx < count);
-        (*elem)[idx] = ddsrt_strdup(tok);
+      while ((tok = ddsrt_strsep (&cursor, ",")) != NULL) {
+        assert (idx < count);
+        (*elem)[idx] = ddsrt_strdup (tok);
         idx++;
       }
       (*elem)[idx] = NULL;
     }
-    ddsrt_free(copy);
+    ddsrt_free (copy);
   }
   return 1;
 }
 
-static int uf_allow_multicast(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
+static void pf_networkAddresses (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
+  char *** const p = cfg_address (cfgst, parent, cfgelem);
+  for (int i = 0; (*p)[i] != NULL; i++)
+    cfg_logelem (cfgst, sources, "%s", (*p)[i]);
+}
+
+static void ff_networkAddresses (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+{
+  char *** const elem = cfg_address (cfgst, parent, cfgelem);
+  for (int i = 0; (*elem)[i]; i++)
+    ddsrt_free ((*elem)[i]);
+  ddsrt_free (*elem);
+}
+
 #ifdef DDSI_INCLUDE_SSM
-  static const char *vs[] = { "false", "spdp", "asm", "ssm", "true", NULL };
-  static const unsigned bs[] = { AMC_FALSE, AMC_SPDP, AMC_ASM, AMC_SSM, AMC_TRUE };
+static const char *allow_multicast_names[] = { "false", "spdp", "asm", "ssm", "true", NULL };
+static const uint32_t allow_multicast_codes[] = { AMC_FALSE, AMC_SPDP, AMC_ASM, AMC_SSM, AMC_TRUE };
 #else
-  static const char *vs[] = { "false", "spdp", "asm", "true", NULL };
-  static const unsigned bs[] = { AMC_FALSE, AMC_SPDP, AMC_ASM, AMC_TRUE };
+static const char *allow_multicast_names[] = { "false", "spdp", "asm", "true", NULL };
+static const uint32_t allow_multicast_codes[] = { AMC_FALSE, AMC_SPDP, AMC_ASM, AMC_TRUE };
 #endif
-  char *copy = ddsrt_strdup(value), *cursor = copy, *tok;
-  unsigned *elem = cfg_address(cfgst, parent, cfgelem);
-  if ( copy == NULL )
-    return cfg_error(cfgst, "out of memory");
-  *elem = 0;
-  while ( (tok = ddsrt_strsep(&cursor, ",")) != NULL ) {
-    int idx = list_index(vs, tok);
-    if ( idx < 0 ) {
-      int ret = cfg_error(cfgst, "'%s' in '%s' undefined", tok, value);
-      ddsrt_free(copy);
-      return ret;
-    }
-    *elem |= bs[idx];
-  }
-  ddsrt_free(copy);
-  return 1;
+
+static int uf_allow_multicast (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
+{
+  uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
+  return do_uint32_bitset (cfgst, elem, allow_multicast_names, allow_multicast_codes, value);
 }
 
-static void pf_allow_multicast(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
+static void pf_allow_multicast(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
-  unsigned *p = cfg_address(cfgst, parent, cfgelem);
-  const char *str = "INVALID";
-  switch ( *p ) {
-    case AMC_FALSE: str = "false"; break;
-    case AMC_SPDP: str = "spdp"; break;
-    case AMC_ASM: str = "asm"; break;
-#ifdef DDSI_INCLUDE_SSM
-    case AMC_SSM: str = "ssm"; break;
-    case (AMC_SPDP | AMC_ASM): str = "spdp,asm"; break;
-    case (AMC_SPDP | AMC_SSM): str = "spdp,ssm"; break;
-#endif
-    case AMC_TRUE: str = "true"; break;
-  }
-  cfg_log(cfgst, "%s%s", str, is_default ? " [def]" : "");
-}
-
-static int uf_sched_class(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
-{
-  static const char *vs[] = { "realtime", "timeshare", "default" };
-  static const ddsrt_sched_t ms[] = { DDSRT_SCHED_REALTIME, DDSRT_SCHED_TIMESHARE, DDSRT_SCHED_DEFAULT };
-  int idx = list_index(vs, value);
-  ddsrt_sched_t *elem = cfg_address(cfgst, parent, cfgelem);
-  assert(sizeof(vs) / sizeof(*vs) == sizeof(ms) / sizeof(*ms));
-  if ( idx < 0 )
-    return cfg_error(cfgst, "'%s': undefined value", value);
-  *elem = ms[idx];
-  return 1;
-}
-
-static void pf_sched_class(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  ddsrt_sched_t *p = cfg_address(cfgst, parent, cfgelem);
-  const char *str = "INVALID";
-  switch ( *p ) {
-    case DDSRT_SCHED_DEFAULT: str = "default"; break;
-    case DDSRT_SCHED_TIMESHARE: str = "timeshare"; break;
-    case DDSRT_SCHED_REALTIME: str = "realtime"; break;
-  }
-  cfg_log(cfgst, "%s%s", str, is_default ? " [def]" : "");
+  uint32_t *p = cfg_address (cfgst, parent, cfgelem);
+  do_print_uint32_bitset (cfgst, *p, sizeof (allow_multicast_codes) / sizeof (*allow_multicast_codes), allow_multicast_names, allow_multicast_codes, sources, "");
 }
 
 DDSRT_WARNING_MSVC_OFF(4996);
-static int uf_maybe_int32(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
+static int uf_maybe_int32 (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
-  struct config_maybe_int32 *elem = cfg_address(cfgst, parent, cfgelem);
+  struct config_maybe_int32 * const elem = cfg_address (cfgst, parent, cfgelem);
   int pos;
-  if ( ddsrt_strcasecmp(value, "default") == 0 ) {
+  if (ddsrt_strcasecmp (value, "default") == 0) {
     elem->isdefault = 1;
     elem->value = 0;
     return 1;
-  } else if ( sscanf(value, "%"PRId32"%n", &elem->value, &pos) == 1 && value[pos] == 0 ) {
+  } else if (sscanf (value, "%"SCNd32"%n", &elem->value, &pos) == 1 && value[pos] == 0) {
     elem->isdefault = 0;
     return 1;
   } else {
-    return cfg_error(cfgst, "'%s': neither 'default' nor a decimal integer\n", value);
+    return cfg_error (cfgst, "'%s': neither 'default' nor a decimal integer\n", value);
   }
 }
 DDSRT_WARNING_MSVC_ON(4996);
 
-static int uf_maybe_memsize(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
+static void pf_maybe_int32 (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
-  struct config_maybe_uint32 *elem = cfg_address(cfgst, parent, cfgelem);
+  struct config_maybe_int32 const * const p = cfg_address (cfgst, parent, cfgelem);
+  if (p->isdefault)
+    cfg_logelem (cfgst, sources, "default");
+  else
+    cfg_logelem (cfgst, sources, "%d", p->value);
+}
+
+static int uf_maybe_memsize (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  struct config_maybe_uint32 * const elem = cfg_address (cfgst, parent, cfgelem);
   int64_t size = 0;
-  if ( ddsrt_strcasecmp(value, "default") == 0 ) {
+  if (ddsrt_strcasecmp (value, "default") == 0) {
     elem->isdefault = 1;
     elem->value = 0;
     return 1;
-  } else if ( !uf_natint64_unit(cfgst, &size, value, unittab_memsize, 1, 0, INT32_MAX) ) {
+  } else if (!uf_natint64_unit (cfgst, &size, value, unittab_memsize, 1, 0, INT32_MAX)) {
     return 0;
   } else {
     elem->isdefault = 0;
@@ -1705,139 +1819,43 @@ static int uf_maybe_memsize(struct cfgst *cfgst, void *parent, struct cfgelem co
   }
 }
 
-static int uf_int(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
+static void pf_maybe_memsize (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
-  int *elem = cfg_address(cfgst, parent, cfgelem);
+  struct config_maybe_uint32 const * const p = cfg_address (cfgst, parent, cfgelem);
+  if (p->isdefault)
+    cfg_logelem (cfgst, sources, "default");
+  else
+    pf_int64_unit (cfgst, p->value, sources, unittab_memsize, "B");
+}
+
+static int uf_int (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  int * const elem = cfg_address (cfgst, parent, cfgelem);
   char *endptr;
-  long v = strtol(value, &endptr, 10);
-  if ( *value == 0 || *endptr != 0 )
-    return cfg_error(cfgst, "%s: not a decimal integer", value);
-  if ( v != (int) v )
-    return cfg_error(cfgst, "%s: value out of range", value);
+  long v = strtol (value, &endptr, 10);
+  if (*value == 0 || *endptr != 0)
+    return cfg_error (cfgst, "%s: not a decimal integer", value);
+  if (v != (int) v)
+    return cfg_error (cfgst, "%s: value out of range", value);
   *elem = (int) v;
   return 1;
 }
 
-static int uf_duration_gen(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, const char *value, int64_t def_mult, int64_t min_ns, int64_t max_ns)
+static int uf_int_min_max (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value, int min, int max)
 {
-  return uf_natint64_unit(cfgst, cfg_address(cfgst, parent, cfgelem), value, unittab_duration, def_mult, min_ns, max_ns);
-}
-
-static int uf_duration_inf(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
-{
-  if ( ddsrt_strcasecmp(value, "inf") == 0 ) {
-    int64_t *elem = cfg_address(cfgst, parent, cfgelem);
-    *elem = T_NEVER;
-    return 1;
-  } else {
-    return uf_duration_gen(cfgst, parent, cfgelem, value, 0, 0, T_NEVER - 1);
-  }
-}
-
-static int uf_duration_ms_1hr(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
-{
-  return uf_duration_gen(cfgst, parent, cfgelem, value, T_MILLISECOND, 0, 3600 * T_SECOND);
-}
-
-static int uf_duration_ms_1s(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
-{
-  return uf_duration_gen(cfgst, parent, cfgelem, value, T_MILLISECOND, 0, T_SECOND);
-}
-
-static int uf_duration_us_1s(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
-{
-  return uf_duration_gen(cfgst, parent, cfgelem, value, 1000, 0, T_SECOND);
-}
-
-static int uf_duration_100ms_1hr(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
-{
-  return uf_duration_gen(cfgst, parent, cfgelem, value, 0, 100 * T_MILLISECOND, 3600 * T_SECOND);
-}
-
-#if 0
-static int uf_int32(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
-{
-  int32_t *elem = cfg_address(cfgst, parent, cfgelem);
-  char *endptr;
-  long v = strtol(value, &endptr, 10);
-  if ( *value == 0 || *endptr != 0 )
-    return cfg_error(cfgst, "%s: not a decimal integer", value);
-  if ( v != (int32_t) v )
-    return cfg_error(cfgst, "%s: value out of range", value);
-  *elem = (int32_t) v;
-  return 1;
-}
-#endif
-
-#if 0
-static int uf_uint32(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
-{
-  uint32_t *elem = cfg_address(cfgst, parent, cfgelem);
-  char *endptr;
-  unsigned long v = strtoul(value, &endptr, 10);
-  if ( *value == 0 || *endptr != 0 )
-    return cfg_error(cfgst, "%s: not a decimal integer", value);
-  if ( v != (uint32_t) v )
-    return cfg_error(cfgst, "%s: value out of range", value);
-  *elem = (uint32_t) v;
-  return 1;
-}
-#endif
-
-static int uf_uint(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
-{
-  unsigned *elem = cfg_address(cfgst, parent, cfgelem);
-  char *endptr;
-  unsigned long v = strtoul(value, &endptr, 10);
-  if ( *value == 0 || *endptr != 0 )
-    return cfg_error(cfgst, "%s: not a decimal integer", value);
-  if ( v != (unsigned) v )
-    return cfg_error(cfgst, "%s: value out of range", value);
-  *elem = (unsigned) v;
-  return 1;
-}
-
-static int uf_int_min_max(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value, int min, int max)
-{
-  int *elem = cfg_address(cfgst, parent, cfgelem);
-  if ( !uf_int(cfgst, parent, cfgelem, first, value) )
+  int *elem = cfg_address (cfgst, parent, cfgelem);
+  if (!uf_int (cfgst, parent, cfgelem, first, value))
     return 0;
-  else if ( *elem < min || *elem > max )
-    return cfg_error(cfgst, "%s: out of range", value);
+  else if (*elem < min || *elem > max)
+    return cfg_error (cfgst, "%s: out of range", value);
   else
     return 1;
 }
 
-DDSRT_WARNING_MSVC_OFF(4996);
-static int uf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
+static void pf_int (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
-  struct config_maybe_int32 *elem = cfg_address(cfgst, parent, cfgelem);
-  int pos;
-  if (ddsrt_strcasecmp(value, "any") == 0) {
-    elem->isdefault = 1;
-    elem->value = 0;
-    return 1;
-  } else if (sscanf(value, "%"PRId32"%n", &elem->value, &pos) == 1 && value[pos] == 0 && elem->value >= 0 && elem->value <= 230) {
-    elem->isdefault = 0;
-    return 1;
-  } else {
-    return cfg_error(cfgst, "'%s': neither 'any' nor a decimal integer in 0 .. 230\n", value);
-  }
-}
-DDSRT_WARNING_MSVC_ON(4996);
-
-static int uf_participantIndex(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
-{
-  int *elem = cfg_address(cfgst, parent, cfgelem);
-  if ( ddsrt_strcasecmp(value, "auto") == 0 ) {
-    *elem = PARTICIPANT_INDEX_AUTO;
-    return 1;
-  } else if ( ddsrt_strcasecmp(value, "none") == 0 ) {
-    *elem = PARTICIPANT_INDEX_NONE;
-    return 1;
-  } else {
-    return uf_int_min_max(cfgst, parent, cfgelem, first, value, 0, 120);
-  }
+  int const * const p = cfg_address (cfgst, parent, cfgelem);
+  cfg_logelem (cfgst, sources, "%d", *p);
 }
 
 static int uf_port(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
@@ -1860,63 +1878,126 @@ static int uf_natint_255(struct cfgst *cfgst, void *parent, struct cfgelem const
   return uf_int_min_max(cfgst, parent, cfgelem, first, value, 0, 255);
 }
 
-static int uf_transport_selector (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+static int uf_uint (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
-  static const char *vs[] = { "default", "udp", "udp6", "tcp", "tcp6", "raweth", NULL };
-  static const enum transport_selector ms[] = {
-    TRANS_DEFAULT, TRANS_UDP, TRANS_UDP6, TRANS_TCP, TRANS_TCP6, TRANS_RAWETH, 0,
-  };
-  enum transport_selector *elem = cfg_address (cfgst, parent, cfgelem);
-  int idx = list_index (vs, value);
-  assert (sizeof (vs) / sizeof (*vs) == sizeof (ms) / sizeof (*ms));
-  if (idx < 0)
-    return cfg_error (cfgst, "'%s': undefined value", value);
-  *elem = ms[idx];
+  unsigned * const elem = cfg_address (cfgst, parent, cfgelem);
+  char *endptr;
+  unsigned long v = strtoul (value, &endptr, 10);
+  if (*value == 0 || *endptr != 0)
+    return cfg_error (cfgst, "%s: not a decimal integer", value);
+  if (v != (unsigned) v)
+    return cfg_error (cfgst, "%s: value out of range", value);
+  *elem = (unsigned) v;
   return 1;
 }
 
-static void pf_transport_selector (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
+static void pf_uint (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
-  enum transport_selector *p = cfg_address (cfgst, parent, cfgelem);
-  const char *str = "INVALID";
-  switch (*p)
-  {
-    case TRANS_DEFAULT: str = "default"; break;
-    case TRANS_UDP: str = "udp"; break;
-    case TRANS_UDP6: str = "udp6"; break;
-    case TRANS_TCP: str = "tcp"; break;
-    case TRANS_TCP6: str = "tcp6"; break;
-    case TRANS_RAWETH: str = "raweth"; break;
-  }
-  cfg_log (cfgst, "%s%s", str, is_default ? " [def]" : "");
+  unsigned const * const p = cfg_address (cfgst, parent, cfgelem);
+  cfg_logelem (cfgst, sources, "%u", *p);
 }
 
-static int uf_many_sockets_mode (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+static int uf_duration_gen (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, const char *value, int64_t def_mult, int64_t min_ns, int64_t max_ns)
 {
-  static const char *vs[] = { "false", "true", "single", "none", "many", NULL };
-  static const enum many_sockets_mode ms[] = {
-    MSM_SINGLE_UNICAST, MSM_MANY_UNICAST, MSM_SINGLE_UNICAST, MSM_NO_UNICAST, MSM_MANY_UNICAST, 0,
-  };
-  enum many_sockets_mode *elem = cfg_address (cfgst, parent, cfgelem);
-  int idx = list_index (vs, value);
-  assert (sizeof (vs) / sizeof (*vs) == sizeof (ms) / sizeof (*ms));
-  if (idx < 0)
-    return cfg_error (cfgst, "'%s': undefined value", value);
-  *elem = ms[idx];
-  return 1;
+  return uf_natint64_unit (cfgst, cfg_address (cfgst, parent, cfgelem), value, unittab_duration, def_mult, min_ns, max_ns);
 }
 
-static void pf_many_sockets_mode (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
+static int uf_duration_inf (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
-  enum many_sockets_mode *p = cfg_address (cfgst, parent, cfgelem);
-  const char *str = "INVALID";
+  if (ddsrt_strcasecmp (value, "inf") == 0) {
+    int64_t * const elem = cfg_address (cfgst, parent, cfgelem);
+    *elem = T_NEVER;
+    return 1;
+  } else {
+    return uf_duration_gen (cfgst, parent, cfgelem, value, 0, 0, T_NEVER - 1);
+  }
+}
+
+static int uf_duration_ms_1hr (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  return uf_duration_gen (cfgst, parent, cfgelem, value, T_MILLISECOND, 0, 3600 * T_SECOND);
+}
+
+static int uf_duration_ms_1s (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  return uf_duration_gen (cfgst, parent, cfgelem, value, T_MILLISECOND, 0, T_SECOND);
+}
+
+static int uf_duration_us_1s (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  return uf_duration_gen (cfgst, parent, cfgelem, value, 1000, 0, T_SECOND);
+}
+
+static int uf_duration_100ms_1hr (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  return uf_duration_gen (cfgst, parent, cfgelem, value, 0, 100 * T_MILLISECOND, 3600 * T_SECOND);
+}
+
+static void pf_duration (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  int64_t const * const elem = cfg_address (cfgst, parent, cfgelem);
+  if (*elem == T_NEVER)
+    cfg_logelem (cfgst, sources, "inf");
+  else
+    pf_int64_unit (cfgst, *elem, sources, unittab_duration, "s");
+}
+
+DDSRT_WARNING_MSVC_OFF(4996);
+static int uf_domainId (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  struct config_maybe_int32 * const elem = cfg_address (cfgst, parent, cfgelem);
+  int pos;
+  if (ddsrt_strcasecmp (value, "any") == 0) {
+    elem->isdefault = 1;
+    elem->value = 0;
+    return 1;
+  } else if (sscanf (value, "%"SCNd32"%n", &elem->value, &pos) == 1 && value[pos] == 0 && elem->value >= 0 && elem->value <= 230) {
+    elem->isdefault = 0;
+    return 1;
+  } else {
+    return cfg_error (cfgst, "'%s': neither 'any' nor a decimal integer in 0 .. 230\n", value);
+  }
+}
+DDSRT_WARNING_MSVC_ON(4996);
+
+static void pf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  struct config_maybe_int32 const * const p = cfg_address (cfgst, parent, cfgelem);
+  if (p->isdefault)
+    cfg_logelem (cfgst, sources, "any (%d)", p->value);
+  else
+    cfg_logelem (cfgst, sources, "%d", p->value);
+}
+
+static int uf_participantIndex (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
+{
+  int * const elem = cfg_address (cfgst, parent, cfgelem);
+  if (ddsrt_strcasecmp (value, "auto") == 0) {
+    *elem = PARTICIPANT_INDEX_AUTO;
+    return 1;
+  } else if (ddsrt_strcasecmp (value, "none") == 0) {
+    *elem = PARTICIPANT_INDEX_NONE;
+    return 1;
+  } else {
+    return uf_int_min_max (cfgst, parent, cfgelem, first, value, 0, 120);
+  }
+}
+
+static void pf_participantIndex (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  int const * const p = cfg_address (cfgst, parent, cfgelem);
   switch (*p)
   {
-    case MSM_SINGLE_UNICAST: str = "single"; break;
-    case MSM_MANY_UNICAST: str = "many"; break;
-    case MSM_NO_UNICAST: str = "none"; break;
+    case PARTICIPANT_INDEX_NONE:
+      cfg_logelem (cfgst, sources, "none");
+      break;
+    case PARTICIPANT_INDEX_AUTO:
+      cfg_logelem (cfgst, sources, "auto");
+      break;
+    default:
+      cfg_logelem (cfgst, sources, "%d", *p);
+      break;
   }
-  cfg_log (cfgst, "%s%s", str, is_default ? " [def]" : "");
 }
 
 static int uf_deaf_mute (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
@@ -1924,657 +2005,432 @@ static int uf_deaf_mute (struct cfgst *cfgst, void *parent, struct cfgelem const
   return uf_boolean (cfgst, parent, cfgelem, first, value);
 }
 
-static int do_update(struct cfgst *cfgst, update_fun_t upd, void *parent, struct cfgelem const * const cfgelem, const char *value, int is_default)
+static struct cfgst_node *lookup_or_create_elem_record (struct cfgst *cfgst, struct cfgelem const * const cfgelem, void *parent, uint32_t source)
 {
   struct cfgst_node *n;
   struct cfgst_nodekey key;
   ddsrt_avl_ipath_t np;
-  int ok;
   key.e = cfgelem;
-  if ( (n = ddsrt_avl_lookup_ipath(&cfgst_found_treedef, &cfgst->found, &key, &np)) == NULL ) {
-    if ( (n = ddsrt_malloc(sizeof(*n))) == NULL )
-      return cfg_error(cfgst, "out of memory");
-
+  key.p = parent;
+  if ((n = ddsrt_avl_lookup_ipath (&cfgst_found_treedef, &cfgst->found, &key, &np)) == NULL)
+  {
+    if ((n = ddsrt_malloc (sizeof (*n))) == NULL)
+    {
+      cfg_error (cfgst, "out of memory");
+      return NULL;
+    }
     n->key = key;
     n->count = 0;
     n->failed = 0;
-    n->is_default = is_default;
-    ddsrt_avl_insert_ipath(&cfgst_found_treedef, &cfgst->found, n, &np);
-  }
-  if ( cfgelem->multiplicity == 0 || n->count < cfgelem->multiplicity )
-    ok = upd(cfgst, parent, cfgelem, (n->count == n->failed), value);
-  else
-    ok = cfg_error(cfgst, "only %d instance%s allowed", cfgelem->multiplicity, (cfgelem->multiplicity == 1) ? "" : "s");
-  n->count++;
-  if ( !ok ) {
-    n->failed++;
-  }
-  return ok;
-}
-
-static int set_default(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
-{
-  if ( cfgelem->defvalue == NULL )
-    return cfg_error(cfgst, "element missing in configuration");
-  return do_update(cfgst, cfgelem->update, parent, cfgelem, cfgelem->defvalue, 1);
-}
-
-static int set_defaults(struct cfgst *cfgst, void *parent, int isattr, struct cfgelem const * const cfgelem, int clear_found)
-{
-  const struct cfgelem *ce;
-  int ok = 1;
-  for ( ce = cfgelem; ce && ce->name; ce++ ) {
-    struct cfgst_node *n;
-    struct cfgst_nodekey key;
-    key.e = ce;
-    cfgst_push(cfgst, isattr, ce, parent);
-    if ( ce->multiplicity == 1 ) {
-      if ( ddsrt_avl_lookup(&cfgst_found_treedef, &cfgst->found, &key) == NULL ) {
-        if ( ce->update ) {
-          int ok1;
-          cfgst_push(cfgst, 0, NULL, NULL);
-          ok1 = set_default(cfgst, parent, ce);
-          cfgst_pop(cfgst);
-          ok = ok && ok1;
-        }
-      }
-      if ( (n = ddsrt_avl_lookup(&cfgst_found_treedef, &cfgst->found, &key)) != NULL ) {
-        if ( clear_found ) {
-          ddsrt_avl_delete(&cfgst_found_treedef, &cfgst->found, n);
-          ddsrt_free(n);
-        }
-      }
-      if ( ce->children ) {
-        int ok1 = set_defaults(cfgst, parent, 0, ce->children, clear_found);
-        ok = ok && ok1;
-      }
-      if ( ce->attributes ) {
-        int ok1 = set_defaults(cfgst, parent, 1, ce->attributes, clear_found);
-        ok = ok && ok1;
-      }
-    }
-    cfgst_pop(cfgst);
-  }
-  return ok;
-}
-
-static void pf_nop(UNUSED_ARG(struct cfgst *cfgst), UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int is_default))
-{
-}
-
-static void pf_string(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  char **p = cfg_address(cfgst, parent, cfgelem);
-  cfg_log(cfgst, "%s%s", *p ? *p : "(null)", is_default ? " [def]" : "");
-}
-
-static void pf_int64_unit(struct cfgst *cfgst, int64_t value, int is_default, const struct unit *unittab, const char *zero_unit)
-{
-  if ( value == 0 ) {
-    /* 0s is a bit of a special case: we don't want to print 0hr (or
-       whatever unit will have the greatest multiplier), so hard-code
-       as 0s */
-    cfg_log(cfgst, "0 %s%s", zero_unit, is_default ? " [def]" : "");
-  } else {
-    int64_t m = 0;
-    const char *unit = NULL;
-    int i;
-    for ( i = 0; unittab[i].name != NULL; i++ ) {
-      if ( unittab[i].multiplier > m && (value % unittab[i].multiplier) == 0 ) {
-        m = unittab[i].multiplier;
-        unit = unittab[i].name;
-      }
-    }
-    assert(m > 0);
-    assert(unit != NULL);
-    cfg_log(cfgst, "%lld %s%s", value / m, unit, is_default ? " [def]" : "");
-  }
-}
-
-#ifdef DDSI_INCLUDE_ENCRYPTION
-static void pf_key(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int is_default))
-{
-  cfg_log(cfgst, "<hidden, see configfile>");
-}
-
-static void pf_cipher(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  q_cipherType *p = cfg_address(cfgst, parent, cfgelem);
-  if ( q_security_plugin.cipher_type ) {
-    cfg_log(cfgst, "%s%s", (q_security_plugin.cipher_type) (*p), is_default ? " [def]" : "");
-  }
-}
-#endif /* DDSI_INCLUDE_ENCRYPTION */
-
-static void pf_networkAddress(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  char **p = cfg_address(cfgst, parent, cfgelem);
-  cfg_log(cfgst, "%s%s", *p ? *p : "auto", is_default ? " [def]" : "");
-}
-
-static void pf_participantIndex(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  int *p = cfg_address(cfgst, parent, cfgelem);
-  switch ( *p ) {
-    case PARTICIPANT_INDEX_NONE:
-      cfg_log(cfgst, "none%s", is_default ? " [def]" : "");
-      break;
-    case PARTICIPANT_INDEX_AUTO:
-      cfg_log(cfgst, "auto%s", is_default ? " [def]" : "");
-      break;
-    default:
-      cfg_log(cfgst, "%d%s", *p, is_default ? " [def]" : "");
-      break;
-  }
-}
-
-static void pf_networkAddresses(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  int i;
-  char ***p = cfg_address(cfgst, parent, cfgelem);
-  for ( i = 0; (*p)[i] != NULL; i++ )
-    cfg_log(cfgst, "%s%s", (*p)[i], is_default ? " [def]" : "");
-}
-
-static void pf_int(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  int *p = cfg_address(cfgst, parent, cfgelem);
-  cfg_log(cfgst, "%d%s", *p, is_default ? " [def]" : "");
-}
-
-static void pf_uint(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  unsigned *p = cfg_address(cfgst, parent, cfgelem);
-  cfg_log(cfgst, "%u%s", *p, is_default ? " [def]" : "");
-}
-
-static void pf_duration(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  const int64_t *elem = cfg_address(cfgst, parent, cfgelem);
-  if ( *elem == T_NEVER )
-    cfg_log(cfgst, "inf%s", is_default ? " [def]" : "");
-  else
-    pf_int64_unit(cfgst, *elem, is_default, unittab_duration, "s");
-}
-
-#ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
-static void pf_bandwidth(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  const uint32_t *elem = cfg_address(cfgst, parent, cfgelem);
-  if ( *elem == 0 )
-    cfg_log(cfgst, "inf%s", is_default ? " [def]" : "");
-  else
-    pf_int64_unit(cfgst, *elem, is_default, unittab_bandwidth_Bps, "B/s");
-}
-#endif
-
-static void pf_memsize(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  const int *elem = cfg_address(cfgst, parent, cfgelem);
-  pf_int64_unit(cfgst, *elem, is_default, unittab_memsize, "B");
-}
-
-#if 0
-static void pf_int32(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  int32_t *p = cfg_address(cfgst, parent, cfgelem);
-  cfg_log(cfgst, "%d%s", *p, is_default ? " [def]" : "");
-}
-#endif
-
-#if 0
-static void pf_uint32(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  uint32_t *p = cfg_address(cfgst, parent, cfgelem);
-  cfg_log(cfgst, "%u%s", *p, is_default ? " [def]" : "");
-}
-#endif
-
-static void pf_maybe_int32(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  struct config_maybe_int32 *p = cfg_address(cfgst, parent, cfgelem);
-  if ( p->isdefault )
-    cfg_log(cfgst, "default%s", is_default ? " [def]" : "");
-  else
-    cfg_log(cfgst, "%d%s", p->value, is_default ? " [def]" : "");
-}
-
-static void pf_maybe_memsize(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  struct config_maybe_uint32 *p = cfg_address(cfgst, parent, cfgelem);
-  if ( p->isdefault )
-    cfg_log(cfgst, "default%s", is_default ? " [def]" : "");
-  else
-    pf_int64_unit(cfgst, p->value, is_default, unittab_memsize, "B");
-}
-
-static void pf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  struct config_maybe_int32 *p = cfg_address(cfgst, parent, cfgelem);
-  if ( p->isdefault )
-    cfg_log(cfgst, "any (%d)%s", p->value, is_default ? " [def]" : "");
-  else
-    cfg_log(cfgst, "%d%s", p->value, is_default ? " [def]" : "");
-}
-
-static void pf_boolean(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  int *p = cfg_address(cfgst, parent, cfgelem);
-  cfg_log(cfgst, "%s%s", *p ? "true" : "false", is_default ? " [def]" : "");
-}
-
-static int uf_standards_conformance(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
-{
-  static const char *vs[] = {
-    "pedantic", "strict", "lax", NULL
-  };
-  static const uint32_t lc[] = {
-    NN_SC_PEDANTIC, NN_SC_STRICT, NN_SC_LAX, 0
-  };
-  enum nn_standards_conformance *elem = cfg_address(cfgst, parent, cfgelem);
-  int idx = list_index(vs, value);
-  assert(sizeof(vs) / sizeof(*vs) == sizeof(lc) / sizeof(*lc));
-  if ( idx < 0 )
-    return cfg_error(cfgst, "'%s': undefined value", value);
-  else {
-    *elem = lc[idx];
-    return 1;
-  }
-}
-
-static void pf_standards_conformance(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
-{
-  enum nn_standards_conformance *p = cfg_address(cfgst, parent, cfgelem);
-  const char *str = "INVALID";
-  switch ( *p ) {
-    case NN_SC_PEDANTIC: str = "pedantic"; break;
-    case NN_SC_STRICT: str = "strict"; break;
-    case NN_SC_LAX: str = "lax"; break;
-  }
-  cfg_log(cfgst, "%s%s", str, is_default ? " [def]" : "");
-}
-
-static unsigned uint32_popcnt (uint32_t x)
-{
-  unsigned n = 0;
-  while (x != 0)
-  {
-    n += ((x & 1u) != 0);
-    x >>= 1;
+    n->sources = source;
+    ddsrt_avl_insert_ipath (&cfgst_found_treedef, &cfgst->found, n, &np);
   }
   return n;
 }
 
-static void do_print_uint32_bitset (struct cfgst *cfgst, uint32_t mask, size_t ncodes, const char **names, const uint32_t *codes, const char *suffix)
+static int do_update (struct cfgst *cfgst, update_fun_t upd, void *parent, struct cfgelem const * const cfgelem, const char *value, uint32_t source)
 {
-  char res[256] = "", *resp = res;
-  const char *prefix = "";
-#ifndef NDEBUG
+  struct cfgst_node *n;
+  int ok;
+  n = lookup_or_create_elem_record (cfgst, cfgelem, parent, source);
+  if (cfgelem->multiplicity == 1 && n->count == 1 && source > n->sources)
+    free_configured_element (cfgst, parent, cfgelem);
+  if (cfgelem->multiplicity == 0 || n->count < cfgelem->multiplicity)
+    ok = upd (cfgst, parent, cfgelem, (n->count == n->failed), value);
+  else
+    ok = cfg_error (cfgst, "only %d instance%s allowed", cfgelem->multiplicity, (cfgelem->multiplicity == 1) ? "" : "s");
+  n->count++;
+  n->sources |= source;
+  if (!ok)
+    n->failed++;
+  return ok;
+}
+
+static int set_default (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+{
+  if (cfgelem->defvalue == NULL)
+    return cfg_error (cfgst, "element missing in configuration");
+  return do_update (cfgst, cfgelem->update, parent, cfgelem, cfgelem->defvalue, 0);
+}
+
+static int set_defaults (struct cfgst *cfgst, void *parent, int isattr, struct cfgelem const * const cfgelem)
+{
+  int ok = 1;
+  for (const struct cfgelem *ce = cfgelem; ce && ce->name; ce++)
   {
-    size_t max = 0;
-    for (size_t i = 0; i < ncodes; i++ )
-      max += 1 + strlen(names[i]);
-    max += 11; /* ,0x%x */
-    max += 1; /* \0 */
-    assert(max <= sizeof(res));
-  }
-#endif
-  while (mask) {
-    size_t i_best = 0;
-    unsigned pc_best = 0;
-    for (size_t i = 0; i < ncodes; i++) {
-      uint32_t m = mask & codes[i];
-      if (m == codes[i]) {
-        unsigned pc = uint32_popcnt (m);
-        if (pc > pc_best) {
-          i_best = i;
-          pc_best = pc;
+    struct cfgst_node *n;
+    struct cfgst_nodekey key;
+    key.e = ce;
+    key.p = parent;
+    cfgst_push (cfgst, isattr, ce, parent);
+    if (ce->multiplicity == 1)
+    {
+      if ((n = ddsrt_avl_lookup (&cfgst_found_treedef, &cfgst->found, &key)) == NULL)
+      {
+        if (ce->update)
+        {
+          int ok1;
+          cfgst_push (cfgst, 0, NULL, NULL);
+          ok1 = set_default (cfgst, parent, ce);
+          cfgst_pop (cfgst);
+          ok = ok && ok1;
         }
       }
+      if (ce->children)
+        ok = ok && set_defaults (cfgst, parent, 0, ce->children);
+      if (ce->attributes)
+        ok = ok && set_defaults (cfgst, parent, 1, ce->attributes);
     }
-    if (pc_best != 0) {
-      resp += snprintf(resp, 256, "%s%s", prefix, names[i_best]);
-      mask &= ~codes[i_best];
-      prefix = ",";
-    } else {
-      resp += snprintf (resp, 256, "%s0x%x", prefix, (unsigned) mask);
-      mask = 0;
-    }
+    cfgst_pop (cfgst);
   }
-  assert (resp <= res + sizeof(res));
-  cfg_log (cfgst, "%s%s", res, suffix);
+  return ok;
 }
 
-static void pf_logcat(struct cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG(int is_default))
-{
-  /* can't do default indicator: user may have specified Verbosity, in
-     which case EnableCategory is at default, but for these two
-     settings, I don't mind. */
-  do_print_uint32_bitset (cfgst, config.enabled_logcats, sizeof(logcat_codes) / sizeof(*logcat_codes), logcat_names, logcat_codes, "");
-}
 
-static void pf_xcheck(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int is_default)
+static void print_configitems (struct cfgst *cfgst, void *parent, int isattr, struct cfgelem const * const cfgelem, uint32_t sources)
 {
-  const uint32_t *p = cfg_address(cfgst, parent, cfgelem);
-#ifndef NDEBUG
-  const char *suffix = is_default ? " [def]" : "";
-#else
-  const char *suffix = " [ignored]";
-  (void)is_default;
-#endif
-  do_print_uint32_bitset (cfgst, *p, sizeof(xcheck_codes) / sizeof(*xcheck_codes), xcheck_names, xcheck_codes, suffix);
-}
-
-static void print_configitems(struct cfgst *cfgst, void *parent, int isattr, struct cfgelem const * const cfgelem, int unchecked)
-{
-  const struct cfgelem *ce;
-  for ( ce = cfgelem; ce && ce->name; ce++ ) {
+  for (const struct cfgelem *ce = cfgelem; ce && ce->name; ce++)
+  {
     struct cfgst_nodekey key;
     struct cfgst_node *n;
-    if ( ce->name[0] == '>' || ce->name[0] == '|') /* moved or deprecated, so don't care */
+    if (ce->name[0] == '>' || ce->name[0] == '|') /* moved or deprecated, so don't care */
       continue;
     key.e = ce;
-    cfgst_push(cfgst, isattr, ce, parent);
-    if ( ce->multiplicity == 1 ) {
-      if ( (n = ddsrt_avl_lookup(&cfgst_found_treedef, &cfgst->found, &key)) != NULL ) {
-        cfgst_push(cfgst, 0, NULL, NULL);
-        ce->print(cfgst, parent, ce, n->is_default);
-        cfgst_pop(cfgst);
-      } else {
-        if ( unchecked && ce->print ) {
-          cfgst_push(cfgst, 0, NULL, NULL);
-          ce->print(cfgst, parent, ce, 0);
-          cfgst_pop(cfgst);
-        }
-      }
+    key.p = parent;
+    cfgst_push (cfgst, isattr, ce, parent);
+    if ((n = ddsrt_avl_lookup(&cfgst_found_treedef, &cfgst->found, &key)) != NULL)
+      sources = n->sources;
 
-      if ( ce->children )
-        print_configitems(cfgst, parent, 0, ce->children, unchecked);
-      if ( ce->attributes )
-        print_configitems(cfgst, parent, 1, ce->attributes, unchecked);
-    } else {
-      struct config_listelem *p = cfg_deref_address(cfgst, parent, ce);
-      while ( p ) {
-        cfgst_push(cfgst, 0, NULL, NULL);
-        if ( ce->print ) {
-          ce->print(cfgst, p, ce, 0);
-        }
+    if (ce->multiplicity == 1)
+    {
+      cfgst_push (cfgst, 0, NULL, NULL);
+      if (ce->print)
+        ce->print (cfgst, parent, ce, sources);
+      cfgst_pop (cfgst);
+      if (ce->children)
+        print_configitems (cfgst, parent, 0, ce->children, sources);
+      if (ce->attributes)
+        print_configitems (cfgst, parent, 1, ce->attributes, sources);
+    }
+    else
+    {
+      struct config_listelem *p = cfg_deref_address (cfgst, parent, ce);
+      while (p)
+      {
+        cfgst_push (cfgst, 0, NULL, NULL);
+        if (ce->print)
+          ce->print (cfgst, p, ce, sources);
         cfgst_pop(cfgst);
-        if ( ce->attributes )
-          print_configitems(cfgst, p, 1, ce->attributes, 1);
-        if ( ce->children )
-          print_configitems(cfgst, p, 0, ce->children, 1);
+        if (ce->attributes)
+          print_configitems (cfgst, p, 1, ce->attributes, sources);
+        if (ce->children)
+          print_configitems (cfgst, p, 0, ce->children, sources);
         p = p->next;
       }
     }
-    cfgst_pop(cfgst);
+    cfgst_pop (cfgst);
   }
 }
 
 
-static void free_all_elements(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+static void free_all_elements (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  const struct cfgelem *ce;
-
-  for ( ce = cfgelem; ce && ce->name; ce++ ) {
-    if ( ce->name[0] == '>' ) /* moved, so don't care */
+  for (const struct cfgelem *ce = cfgelem; ce && ce->name; ce++)
+  {
+    if (ce->name[0] == '>') /* moved, so don't care */
       continue;
 
-    if ( ce->free )
-      ce->free(cfgst, parent, ce);
+    if (ce->free)
+      ce->free (cfgst, parent, ce);
 
-    if ( ce->multiplicity == 1 ) {
-      if ( ce->children )
-        free_all_elements(cfgst, parent, ce->children);
-      if ( ce->attributes )
-        free_all_elements(cfgst, parent, ce->attributes);
+    if (ce->multiplicity == 1) {
+      if (ce->children)
+        free_all_elements (cfgst, parent, ce->children);
+      if (ce->attributes)
+        free_all_elements (cfgst, parent, ce->attributes);
     } else {
-      struct config_listelem *p = cfg_deref_address(cfgst, parent, ce);
-      struct config_listelem *r;
-      while ( p ) {
-        if ( ce->attributes )
-          free_all_elements(cfgst, p, ce->attributes);
-        if ( ce->children )
-          free_all_elements(cfgst, p, ce->children);
-        r = p;
-        p = p->next;
-        ddsrt_free(r);
+      struct config_listelem *p = cfg_deref_address (cfgst, parent, ce);
+      while (p) {
+        struct config_listelem *p1 = p->next;
+        if (ce->attributes)
+          free_all_elements (cfgst, p, ce->attributes);
+        if (ce->children)
+          free_all_elements (cfgst, p, ce->children);
+        ddsrt_free (p);
+        p = p1;
       }
     }
   }
 }
 
-static void free_configured_elements(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+static void free_configured_element (struct cfgst *cfgst, void *parent, struct cfgelem const * const ce)
 {
-  const struct cfgelem *ce;
-  for ( ce = cfgelem; ce && ce->name; ce++ ) {
-    struct cfgst_nodekey key;
-    struct cfgst_node *n;
-    if ( ce->name[0] == '>' ) /* moved, so don't care */
-      continue;
-    key.e = ce;
-    if ( (n = ddsrt_avl_lookup(&cfgst_found_treedef, &cfgst->found, &key)) != NULL ) {
-      if ( ce->free && n->count > n->failed )
-        ce->free(cfgst, parent, ce);
-    }
+  struct cfgst_nodekey key;
+  struct cfgst_node *n;
+  if (ce->name[0] == '>') /* moved, so don't care */
+    return;
+  key.e = ce;
+  key.p = parent;
+  if ((n = ddsrt_avl_lookup (&cfgst_found_treedef, &cfgst->found, &key)) != NULL)
+  {
+    if (ce->free && n->count > n->failed)
+      ce->free (cfgst, parent, ce);
+    n->count = n->failed = 0;
+  }
 
-    if ( ce->multiplicity == 1 ) {
-      if ( ce->children )
-        free_configured_elements(cfgst, parent, ce->children);
-      if ( ce->attributes )
-        free_configured_elements(cfgst, parent, ce->attributes);
-    } else {
-      struct config_listelem *p = cfg_deref_address(cfgst, parent, ce);
-      struct config_listelem *r;
-      while ( p ) {
-        if ( ce->attributes )
-          free_all_elements(cfgst, p, ce->attributes);
-        if ( ce->children )
-          free_all_elements(cfgst, p, ce->children);
-        r = p;
-        p = p->next;
-        ddsrt_free(r);
-      }
+  if (ce->multiplicity == 1)
+  {
+    if (ce->children)
+      free_configured_elements (cfgst, parent, ce->children);
+    if (ce->attributes)
+      free_configured_elements (cfgst, parent, ce->attributes);
+  }
+  else
+  {
+    /* FIXME: this used to require free_all_elements because there would be no record stored for
+       configuration elements within lists, but with that changed, I think this can now just use
+       free_configured_elements */
+    struct config_listelem *p = cfg_deref_address (cfgst, parent, ce);
+    while (p) {
+      struct config_listelem * const p1 = p->next;
+      if (ce->attributes)
+        free_all_elements (cfgst, p, ce->attributes);
+      if (ce->children)
+        free_all_elements (cfgst, p, ce->children);
+      ddsrt_free (p);
+      p = p1;
     }
   }
 }
 
-static int matching_name_index(const char *name_w_aliases, const char *name)
+static void free_configured_elements (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
-  const char *ns = name_w_aliases, *p = strchr(ns, '|');
+  for (const struct cfgelem *ce = cfgelem; ce && ce->name; ce++)
+    free_configured_element (cfgst, parent, ce);
+}
+
+static int matching_name_index (const char *name_w_aliases, const char *name)
+{
+  const char *ns = name_w_aliases, *p = strchr (ns, '|');
   int idx = 0;
-  while ( p ) {
-    if ( ddsrt_strncasecmp(ns, name, (size_t) (p - ns)) == 0 && name[p - ns] == 0 ) {
+  while (p)
+  {
+    if (ddsrt_strncasecmp (ns, name, (size_t) (p - ns)) == 0 && name[p - ns] == 0)
+    {
       /* ns upto the pipe symbol is a prefix of name, and name is terminated at that point */
       return idx;
     }
     /* If primary name followed by '||' instead of '|', aliases are non-warning */
     ns = p + 1 + (idx == 0 && p[1] == '|');
-    p = strchr(ns, '|');
+    p = strchr (ns, '|');
     idx++;
   }
-  return (ddsrt_strcasecmp(ns, name) == 0) ? idx : -1;
+  return (ddsrt_strcasecmp (ns, name) == 0) ? idx : -1;
 }
 
-static const struct cfgelem *lookup_redirect(const char *target)
+static const struct cfgelem *lookup_element (const char *target)
 {
   const struct cfgelem *cfgelem = cyclonedds_root_cfgelems;
-  char *target_copy = ddsrt_strdup(target), *p1;
+  char *target_copy = ddsrt_strdup (target);
   const char *p = target_copy;
-  while ( p ) {
-    p1 = strchr(p, '/');
-    if ( p1 ) *p1++ = 0;
-    for ( ; cfgelem->name; cfgelem++ ) {
-      /* not supporting multiple redirects */
-      assert(cfgelem->name[0] != '>');
-      if ( matching_name_index(cfgelem->name, p) >= 0 )
+  while (p)
+  {
+    char *p1 = strchr (p, '/');
+    if (p1)
+      *p1++ = 0;
+    for (; cfgelem->name; cfgelem++)
+    {
+      /* not supporting chained redirects */
+      assert (cfgelem->name[0] != '>');
+      if (matching_name_index (cfgelem->name, p) >= 0)
         break;
     }
-    if ( p1 ) {
+    if (p1)
       cfgelem = cfgelem->children;
-    }
     p = p1;
   }
-  ddsrt_free(target_copy);
+  ddsrt_free (target_copy);
   return cfgelem;
 }
 
-static int proc_elem_open(void *varg, UNUSED_ARG(uintptr_t parentinfo), UNUSED_ARG(uintptr_t *eleminfo), const char *name)
+static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED_ARG (uintptr_t *eleminfo), const char *name)
 {
   struct cfgst * const cfgst = varg;
-  const struct cfgelem *cfgelem = cfgst_tos(cfgst);
+
+  if (cfgst->implicit_toplevel == ITL_ALLOWED)
+  {
+    assert (cyclonedds_root_cfgelems[1].name == NULL);
+    if (ddsrt_strcasecmp (name, cyclonedds_root_cfgelems[0].name) == 0)
+      cfgst->implicit_toplevel = ITL_DISALLOWED;
+    else
+    {
+      int x = proc_elem_open (cfgst, 0, 0, cyclonedds_root_cfgelems[0].name);
+      assert (x > 0);
+      (void) x;
+      cfgst->implicit_toplevel = ITL_INSERTED;
+    }
+  }
+
+  const struct cfgelem *cfgelem = cfgst_tos (cfgst);
   const struct cfgelem *cfg_subelem;
   int moved = 0;
-  if ( cfgelem == NULL ) {
+
+  if (cfgelem == NULL)
+  {
     /* Ignoring, but do track the structure so we can know when to stop ignoring */
-    cfgst_push(cfgst, 0, NULL, NULL);
+    cfgst_push (cfgst, 0, NULL, NULL);
     return 1;
   }
-  for ( cfg_subelem = cfgelem->children; cfg_subelem && cfg_subelem->name && strcmp(cfg_subelem->name, "*") != 0; cfg_subelem++ ) {
+  for (cfg_subelem = cfgelem->children; cfg_subelem && cfg_subelem->name && strcmp (cfg_subelem->name, "*") != 0; cfg_subelem++)
+  {
     const char *csename = cfg_subelem->name;
     int idx;
     moved = (csename[0] == '>');
-    if ( moved )
+    if (moved)
       csename++;
-    idx = matching_name_index(csename, name);
-#if WARN_DEPRECATED_ALIAS
-    if ( idx > 0 ) {
-      if (csename[0] == '|') {
-        cfg_warning(cfgst, "'%s': deprecated setting", name);
-      } else {
-        int n = (int) (strchr(csename, '|') - csename);
-        if ( csename[n + 1] != '|' ) {
-          cfg_warning(cfgst, "'%s': deprecated alias for '%*.*s'", name, n, n, csename);
+    idx = matching_name_index (csename, name);
+    if (idx > 0)
+    {
+      if (csename[0] == '|')
+        cfg_warning (cfgst, "'%s': deprecated setting", name);
+      else
+      {
+        int n = (int) (strchr (csename, '|') - csename);
+        if (csename[n + 1] != '|') {
+          cfg_warning (cfgst, "'%s': deprecated alias for '%*.*s'", name, n, n, csename);
         }
       }
     }
-#endif
-    if ( idx >= 0 ) {
+    if (idx >= 0)
       break;
-    }
   }
-  if ( cfg_subelem == NULL || cfg_subelem->name == NULL ) {
-    cfgst_push(cfgst, 0, NULL, NULL);
-    return cfg_error(cfgst, "%s: unknown element", name);
-  } else if ( strcmp(cfg_subelem->name, "*") == 0 ) {
+  if (cfg_subelem == NULL || cfg_subelem->name == NULL)
+  {
+    cfg_error (cfgst, "%s: unknown element", name);
+    cfgst_push (cfgst, 0, NULL, NULL);
+    return 0;
+  }
+  else if (strcmp (cfg_subelem->name, "*") == 0)
+  {
     /* Push a marker that we are to ignore this part of the DOM tree */
-    cfgst_push(cfgst, 0, NULL, NULL);
+    cfgst_push (cfgst, 0, NULL, NULL);
     return 1;
-  } else {
+  }
+  else
+  {
     void *parent, *dynparent;
 
-    if ( moved ) {
+    if (moved)
+    {
       struct cfgelem const * const cfg_subelem_orig = cfg_subelem;
-      cfg_subelem = lookup_redirect(cfg_subelem->defvalue);
-#if WARN_DEPRECATED_ALIAS
-      cfgst_push(cfgst, 0, cfg_subelem_orig, NULL);
-      cfg_warning(cfgst, "setting%s moved to //%s", cfg_subelem->children ? "s" : "", cfg_subelem_orig->defvalue);
-      cfgst_pop(cfgst);
-#endif
+      cfg_subelem = lookup_element (cfg_subelem->defvalue);
+      cfgst_push (cfgst, 0, cfg_subelem_orig, NULL);
+      cfg_warning (cfgst, "setting%s moved to //%s", cfg_subelem->children ? "s" : "", cfg_subelem_orig->defvalue);
+      cfgst_pop (cfgst);
     }
 
-    parent = cfgst_parent(cfgst);
-    assert(cfgelem->init || cfgelem->multiplicity == 1); /*multi-items must have an init-func */
-    if ( cfg_subelem->init ) {
-      if ( cfg_subelem->init(cfgst, parent, cfg_subelem) < 0 )
+    parent = cfgst_parent (cfgst);
+    assert (cfgelem->init || cfgelem->multiplicity == 1); /* multi-items must have an init-func */
+    if (cfg_subelem->init)
+    {
+      if (cfg_subelem->init (cfgst, parent, cfg_subelem) < 0)
         return 0;
     }
 
-    if ( cfg_subelem->multiplicity != 1 )
-      dynparent = cfg_deref_address(cfgst, parent, cfg_subelem);
-    else
+    if (cfg_subelem->multiplicity == 1)
       dynparent = parent;
+    else
+      dynparent = cfg_deref_address (cfgst, parent, cfg_subelem);
 
-    cfgst_push(cfgst, 0, cfg_subelem, dynparent);
+    cfgst_push (cfgst, 0, cfg_subelem, dynparent);
+
+    if (cfg_subelem == &cyclonedds_root_cfgelems[0])
+      cfgst->source = (cfgst->source == 0) ? 1 : cfgst->source << 1;
     return 1;
   }
 }
 
-static int proc_attr(void *varg, UNUSED_ARG(uintptr_t eleminfo), const char *name, const char *value)
+static int proc_update_cfgelem (struct cfgst * cfgst, const struct cfgelem *ce, const char *value, bool isattr)
 {
-  /* All attributes are processed immediately after opening the element */
-  struct cfgst * const cfgst = varg;
-  const struct cfgelem *cfgelem = cfgst_tos(cfgst);
-  const struct cfgelem *cfg_attr;
-  if ( cfgelem == NULL )
-    return 1;
-  for ( cfg_attr = cfgelem->attributes; cfg_attr && cfg_attr->name; cfg_attr++ ) {
-    if ( ddsrt_strcasecmp(cfg_attr->name, name) == 0 )
-      break;
-  }
-  if ( cfg_attr == NULL || cfg_attr->name == NULL )
-    return cfg_error(cfgst, "%s: unknown attribute", name);
-  else {
-    void *parent = cfgst_parent(cfgst);
-    char *xvalue = ddsrt_expand_envvars(value);
-    int ok;
-    cfgst_push(cfgst, 1, cfg_attr, parent);
-    ok = do_update(cfgst, cfg_attr->update, parent, cfg_attr, xvalue, 0);
-    cfgst_pop(cfgst);
-    ddsrt_free(xvalue);
-    return ok;
-  }
-}
-
-static int proc_elem_data(void *varg, UNUSED_ARG(uintptr_t eleminfo), const char *value)
-{
-  struct cfgst * const cfgst = varg;
-  const struct cfgelem *cfgelem = cfgst_tos(cfgst);
-  if ( cfgelem == NULL )
-    return 1;
-  if ( cfgelem->update == 0 )
-    return cfg_error(cfgst, "%s: no data expected", value);
-  else {
-    void *parent = cfgst_parent(cfgst);
-    char *xvalue = ddsrt_expand_envvars(value);
-    int ok;
-    cfgst_push(cfgst, 0, NULL, parent);
-    ok = do_update(cfgst, cfgelem->update, parent, cfgelem, xvalue, 0);
-    cfgst_pop(cfgst);
-    ddsrt_free(xvalue);
-    return ok;
-  }
-}
-
-static int proc_elem_close(void *varg, UNUSED_ARG(uintptr_t eleminfo))
-{
-  struct cfgst * const cfgst = varg;
-  const struct cfgelem * cfgelem = cfgst_tos(cfgst);
-  int ok = 1;
-  if ( cfgelem && cfgelem->multiplicity != 1 ) {
-    void *parent = cfgst_parent(cfgst);
-    int ok1;
-    ok1 = set_defaults(cfgst, parent, 1, cfgelem->attributes, 1);
-    ok = ok && ok1;
-    ok1 = set_defaults(cfgst, parent, 0, cfgelem->children, 1);
-    ok = ok && ok1;
-  }
-  cfgst_pop(cfgst);
+  void *parent = cfgst_parent (cfgst);
+  char *xvalue = ddsrt_expand_envvars (value);
+  int ok;
+  cfgst_push (cfgst, isattr, isattr ? ce : NULL, parent);
+  ok = do_update (cfgst, ce->update, parent, ce, xvalue, cfgst->source);
+  cfgst_pop (cfgst);
+  ddsrt_free (xvalue);
   return ok;
 }
 
-static void proc_error(void *varg, const char *msg, int line)
+static int proc_attr(void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *name, const char *value)
 {
+  /* All attributes are processed immediately after opening the element */
   struct cfgst * const cfgst = varg;
-  cfg_error(cfgst, "parser error %s at line %d", msg, line);
+  const struct cfgelem *cfgelem = cfgst_tos (cfgst);
+  const struct cfgelem *cfg_attr;
+  if (cfgelem == NULL)
+    return 1;
+  for (cfg_attr = cfgelem->attributes; cfg_attr && cfg_attr->name; cfg_attr++)
+    if (ddsrt_strcasecmp(cfg_attr->name, name) == 0)
+      break;
+  if (cfg_attr == NULL || cfg_attr->name == NULL)
+    return cfg_error (cfgst, "%s: unknown attribute", name);
+  else
+    return proc_update_cfgelem (cfgst, cfg_attr, value, true);
 }
 
-
-static int cfgst_node_cmp(const void *va, const void *vb)
+static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *value)
 {
-  return memcmp(va, vb, sizeof(struct cfgst_nodekey));
+  struct cfgst * const cfgst = varg;
+  const struct cfgelem *cfgelem = cfgst_tos (cfgst);
+  if (cfgelem == NULL)
+    return 1;
+  if (cfgelem->update == 0)
+    return cfg_error (cfgst, "%s: no data expected", value);
+  else
+    return proc_update_cfgelem (cfgst, cfgelem, value, false);
+}
+
+static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo))
+{
+  struct cfgst * const cfgst = varg;
+  const struct cfgelem * cfgelem = cfgst_tos (cfgst);
+  int ok = 1;
+  if (cfgelem && cfgelem->multiplicity != 1)
+  {
+    void *parent = cfgst_parent (cfgst);
+    int ok1;
+    ok1 = set_defaults (cfgst, parent, 1, cfgelem->attributes);
+    ok = ok && ok1;
+    ok1 = set_defaults (cfgst, parent, 0, cfgelem->children);
+    ok = ok && ok1;
+  }
+  cfgst_pop (cfgst);
+  return ok;
+}
+
+static void proc_error (void *varg, const char *msg, int line)
+{
+  struct cfgst * const cfgst = varg;
+  cfg_error (cfgst, "parser error %s at line %d", msg, line);
+}
+
+static int cfgst_node_cmp (const void *va, const void *vb)
+{
+  return memcmp (va, vb, sizeof (struct cfgst_nodekey));
 }
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-static int set_default_channel(struct config *cfg)
+static int set_default_channel (struct config *cfg)
 {
-  if ( cfg->channels == NULL ) {
+  if (cfg->channels == NULL)
+  {
     /* create one default channel if none configured */
     struct config_channel_listelem *c;
-    if ( (c = ddsrt_malloc(sizeof(*c))) == NULL )
+    if ((c = ddsrt_malloc (sizeof (*c))) == NULL)
       return ERR_OUT_OF_MEMORY;
     c->next = NULL;
-    c->name = ddsrt_strdup("user");
+    c->name = ddsrt_strdup ("user");
     c->priority = 0;
     c->resolution = 1 * T_MILLISECOND;
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
@@ -2592,14 +2448,14 @@ static int set_default_channel(struct config *cfg)
   return 0;
 }
 
-static int sort_channels_cmp(const void *va, const void *vb)
+static int sort_channels_cmp (const void *va, const void *vb)
 {
   const struct config_channel_listelem * const *a = va;
   const struct config_channel_listelem * const *b = vb;
   return ((*a)->priority == (*b)->priority) ? 0 : ((*a)->priority < (*b)->priority) ? -1 : 1;
 }
 
-static int sort_channels_check_nodups(struct config *cfg)
+static int sort_channels_check_nodups (struct config *cfg)
 {
   /* Selecting a channel is much easier & more elegant if the channels
      are sorted on descending priority.  While we do retain the list
@@ -2610,45 +2466,71 @@ static int sort_channels_check_nodups(struct config *cfg)
   int result;
 
   n = 0;
-  for ( c = cfg->channels; c; c = c->next )
+  for (c = cfg->channels; c; c = c->next)
     n++;
   assert(n > 0);
 
-  ary = ddsrt_malloc(n * sizeof(*ary));
+  ary = ddsrt_malloc (n * sizeof (*ary));
 
   i = 0;
-  for ( c = cfg->channels; c; c = c->next )
+  for  (c = cfg->channels; c; c = c->next)
     ary[i++] = c;
-  qsort(ary, n, sizeof(*ary), sort_channels_cmp);
+  qsort (ary, n, sizeof (*ary), sort_channels_cmp);
 
   result = 0;
-  for ( i = 0; i < n - 1; i++ ) {
-    if ( ary[i]->priority == ary[i + 1]->priority ) {
+  for (i = 0; i < n - 1; i++) {
+    if (ary[i]->priority == ary[i + 1]->priority) {
       DDS_ERROR("config: duplicate channel definition for priority %u: channels %s and %s\n",
                 ary[i]->priority, ary[i]->name, ary[i + 1]->name);
       result = ERR_ENTITY_EXISTS;
     }
   }
 
-  if ( result == 0 ) {
+  if (result == 0)
+  {
     cfg->channels = ary[0];
-    for ( i = 0; i < n - 1; i++ )
+    for (i = 0; i < n - 1; i++)
       ary[i]->next = ary[i + 1];
     ary[i]->next = NULL;
     cfg->max_channel = ary[i];
   }
 
-  ddsrt_free(ary);
+  ddsrt_free (ary);
   return result;
 }
 #endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
 
-struct cfgst * config_init (const char *configfile)
+static FILE *config_open_file (char *tok, char **cursor)
+{
+  assert (*tok && !(isspace ((unsigned char) *tok) || *tok == ','));
+  FILE *fp;
+  char *comma;
+  if ((comma = strchr (tok, ',')) == NULL)
+    *cursor = NULL;
+  else
+  {
+    *comma = 0;
+    *cursor = comma + 1;
+  }
+  DDSRT_WARNING_MSVC_OFF(4996);
+  if ((fp = fopen (tok, "r")) == NULL)
+  {
+    if (strncmp (tok, "file://", 7) != 0 || (fp = fopen (tok + 7, "r")) == NULL)
+    {
+      DDS_ERROR ("can't open configuration file %s\n", tok);
+      return NULL;
+    }
+  }
+  DDSRT_WARNING_MSVC_ON(4996);
+  return fp;
+}
+
+struct cfgst *config_init (const char *configfile)
 {
   int ok = 1;
   struct cfgst *cfgst;
 
-  memset(&config, 0, sizeof(config));
+  memset (&config, 0, sizeof (config));
 
   config.tracingOutputFile = stderr;
   config.enabled_logcats = DDS_LC_ERROR | DDS_LC_WARNING;
@@ -2659,16 +2541,17 @@ struct cfgst * config_init (const char *configfile)
      ends up on the right value */
   config.domainId.value = 0;
 
-  cfgst = ddsrt_malloc(sizeof(*cfgst));
-  memset(cfgst, 0, sizeof(*cfgst));
+  cfgst = ddsrt_malloc (sizeof (*cfgst));
+  memset (cfgst, 0, sizeof (*cfgst));
 
-  ddsrt_avl_init(&cfgst_found_treedef, &cfgst->found);
+  ddsrt_avl_init (&cfgst_found_treedef, &cfgst->found);
   cfgst->cfg = &config;
   cfgst->error = 0;
+  cfgst->source = 0;
 
   /* configfile == NULL will get you the default configuration */
   if (configfile) {
-    char *copy = ddsrt_strdup(configfile), *cursor = copy;
+    char *copy = ddsrt_strdup (configfile), *cursor = copy;
     struct ddsrt_xmlp_callbacks cb;
 
     cb.attr = proc_attr;
@@ -2677,64 +2560,58 @@ struct cfgst * config_init (const char *configfile)
     cb.elem_open = proc_elem_open;
     cb.error = proc_error;
 
-    while (ok && cursor && cursor[0]) {
+    while (*cursor && (isspace ((unsigned char) *cursor) || *cursor == ','))
+      cursor++;
+    while (ok && cursor && cursor[0])
+    {
       struct ddsrt_xmlp_state *qx;
       FILE *fp;
       char *tok;
       tok = cursor;
-      if (tok[0] == '<') {
+      if (tok[0] == '<')
+      {
         /* Read XML directly from input string */
         qx = ddsrt_xmlp_new_string (tok, cfgst, &cb);
-        ddsrt_xmlp_set_options (qx, DDSRT_XMLP_ANONYMOUS_CLOSE_TAG);
+        ddsrt_xmlp_set_options (qx, DDSRT_XMLP_ANONYMOUS_CLOSE_TAG | DDSRT_XMLP_MISSING_CLOSE_AS_EOF);
         fp = NULL;
-      } else {
-        char *comma;
-        if ((comma = strchr (cursor, ',')) == NULL) {
-          cursor = NULL;
-        } else {
-          *comma = 0;
-          cursor = comma + 1;
-        }
-        DDSRT_WARNING_MSVC_OFF(4996);
-        if ((fp = fopen(tok, "r")) == NULL) {
-          if (strncmp(tok, "file://", 7) != 0 || (fp = fopen(tok + 7, "r")) == NULL) {
-            DDS_ERROR("can't open configuration file %s\n", tok);
-            ddsrt_free(copy);
-            ddsrt_free(cfgst);
-            return NULL;
-          }
-        }
-        DDSRT_WARNING_MSVC_ON(4996);
-        qx = ddsrt_xmlp_new_file(fp, cfgst, &cb);
       }
-      cfgst_push(cfgst, 0, &root_cfgelem, &config);
+      else if ((fp = config_open_file (tok, &cursor)) == NULL)
+      {
+        ddsrt_free (copy);
+        goto error;
+      }
+      else
+      {
+        qx = ddsrt_xmlp_new_file (fp, cfgst, &cb);
+      }
 
-      ok = (ddsrt_xmlp_parse(qx) >= 0) && !cfgst->error;
+      cfgst->implicit_toplevel = (fp == NULL) ? ITL_ALLOWED : ITL_DISALLOWED;
+      cfgst_push (cfgst, 0, &root_cfgelem, &config);
+      ok = (ddsrt_xmlp_parse (qx) >= 0) && !cfgst->error;
+      assert (!ok ||
+              (cfgst->path_depth == 1 && cfgst->implicit_toplevel != ITL_INSERTED) ||
+              (cfgst->path_depth == 2 && cfgst->implicit_toplevel == ITL_INSERTED));
       /* Pop until stack empty: error handling is rather brutal */
-      assert(!ok || cfgst->path_depth == 1);
-      while (cfgst->path_depth > 0) {
-        cfgst_pop(cfgst);
-      }
-      if (fp) {
-        fclose(fp);
-      } else if (ok) {
+      while (cfgst->path_depth > 0)
+        cfgst_pop (cfgst);
+      if (fp != NULL)
+        fclose (fp);
+      else if (ok)
         cursor = tok + ddsrt_xmlp_get_bufpos (qx);
-      }
-      ddsrt_xmlp_free(qx);
-      while (cursor && cursor[0] == ',') {
-        cursor++;
+      ddsrt_xmlp_free (qx);
+      assert (fp == NULL || cfgst->implicit_toplevel != ITL_INSERTED);
+      if (cursor)
+      {
+        while (*cursor && (isspace ((unsigned char) cursor[0]) || cursor[0] == ','))
+          cursor++;
       }
     }
-    ddsrt_free(copy);
+    ddsrt_free (copy);
   }
 
   /* Set defaults for everything not set that we have a default value
      for, signal errors for things unset but without a default. */
-  {
-    int ok1 = set_defaults(cfgst, cfgst->cfg, 0, root_cfgelems, 0);
-    ok = ok && ok1;
-  }
-
+  ok = ok && set_defaults (cfgst, cfgst->cfg, 0, root_cfgelems);
 
   /* Compatibility settings of IPv6, TCP -- a bit too complicated for
      the poor framework */
@@ -2774,36 +2651,37 @@ struct cfgst * config_init (const char *configfile)
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   /* Default channel gets set outside set_defaults -- a bit too
      complicated for the poor framework */
-
-  if ( set_default_channel(cfgst->cfg) < 0 ) {
+  if (set_default_channel (cfgst->cfg) < 0)
     ok = 0;
-  }
-  if ( cfgst->cfg->channels && sort_channels_check_nodups(cfgst->cfg) < 0 ) {
+  if (cfgst->cfg->channels && sort_channels_check_nodups (cfgst->cfg) < 0)
     ok = 0;
-  }
 #endif
 
 #ifdef DDSI_INCLUDE_ENCRYPTION
   /* Check security profiles */
   {
     struct config_securityprofile_listelem *s = config.securityProfiles;
-    while ( s ) {
-      switch ( s->cipher ) {
+    while (s)
+    {
+      switch (s->cipher)
+      {
         case Q_CIPHER_UNDEFINED:
         case Q_CIPHER_NULL:
           /* nop */
-          if ( s->key && strlen(s->key) > 0 ) {
-            DDS_INFO("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s: cipher key not required\n", s->key);
-          }
+          if (s->key && strlen(s->key) > 0)
+            DDS_INFO ("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s: cipher key not required\n", s->key);
           break;
 
         default:
           /* read the cipherkey if present */
-          if ( !s->key || strlen(s->key) == 0 ) {
-            DDS_ERROR("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: cipher key missing\n");
+          if (!s->key || strlen(s->key) == 0)
+          {
+            DDS_ERROR ("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: cipher key missing\n");
             ok = 0;
-          } else if ( q_security_plugin.valid_uri && !(q_security_plugin.valid_uri) (s->cipher, s->key) ) {
-            DDS_ERROR("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s : incorrect key\n", s->key);
+          }
+          else if (q_security_plugin.valid_uri && !(q_security_plugin.valid_uri) (s->cipher, s->key))
+          {
+            DDS_ERROR ("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s : incorrect key\n", s->key);
             ok = 0;
           }
       }
@@ -2821,17 +2699,20 @@ struct cfgst * config_init (const char *configfile)
   {
     struct config_networkpartition_listelem *p = config.networkPartitions;
     config.nof_networkPartitions = 0;
-    while ( p ) {
+    while (p)
+    {
 #ifdef DDSI_INCLUDE_ENCRYPTION
-      if ( ddsrt_strcasecmp(p->profileName, "null") == 0 )
+      if (ddsrt_strcasecmp(p->profileName, "null") == 0)
         p->securityProfile = NULL;
-      else {
+      else
+      {
         struct config_securityprofile_listelem *s = config.securityProfiles;
-        while ( s && ddsrt_strcasecmp(p->profileName, s->name) != 0 )
+        while (s && ddsrt_strcasecmp(p->profileName, s->name) != 0)
           s = s->next;
-        if ( s )
+        if (s)
           p->securityProfile = s;
-        else {
+        else
+        {
           DDS_ERROR("config: DDSI2Service/Partitioning/NetworkPartitions/NetworkPartition[@securityprofile]: %s: unknown securityprofile\n", p->profileName);
           ok = 0;
         }
@@ -2852,15 +2733,16 @@ struct cfgst * config_init (const char *configfile)
      and signal errors if partitions do not exist */
   {
     struct config_partitionmapping_listelem * m = config.partitionMappings;
-    while ( m ) {
+    while (m)
+    {
       struct config_networkpartition_listelem * p = config.networkPartitions;
-      while ( p && ddsrt_strcasecmp(m->networkPartition, p->name) != 0 ) {
+      while (p && ddsrt_strcasecmp(m->networkPartition, p->name) != 0)
         p = p->next;
-      }
-      if ( p ) {
+      if (p)
         m->partition = p;
-      } else {
-        DDS_ERROR("config: DDSI2Service/Partitioning/PartitionMappings/PartitionMapping[@networkpartition]: %s: unknown partition\n", m->networkPartition);
+      else
+      {
+        DDS_ERROR ("config: DDSI2Service/Partitioning/PartitionMappings/PartitionMapping[@networkpartition]: %s: unknown partition\n", m->networkPartition);
         ok = 0;
       }
       m = m->next;
@@ -2871,89 +2753,94 @@ struct cfgst * config_init (const char *configfile)
   /* Now switch to configured tracing settings */
   config.enabled_logcats = enabled_logcats;
 
-  if ( !ok ) {
-    free_configured_elements(cfgst, cfgst->cfg, root_cfgelems);
-  }
-
-  if ( ok ) {
+  if (ok)
+  {
     config.valid = 1;
     return cfgst;
-  } else {
-    ddsrt_avl_free(&cfgst_found_treedef, &cfgst->found, ddsrt_free);
-    ddsrt_free(cfgst);
-    return NULL;
   }
+
+error:
+  free_configured_elements (cfgst, cfgst->cfg, root_cfgelems);
+  ddsrt_avl_free (&cfgst_found_treedef, &cfgst->found, ddsrt_free);
+  ddsrt_free (cfgst);
+  return NULL;
 }
 
-void config_print_cfgst(struct cfgst *cfgst)
+void config_print_cfgst (struct cfgst *cfgst)
 {
-  if ( cfgst == NULL )
+  if (cfgst == NULL)
     return;
-  print_configitems(cfgst, cfgst->cfg, 0, root_cfgelems, 0);
+  print_configitems (cfgst, cfgst->cfg, 0, root_cfgelems, 0);
 }
 
-void config_fini(struct cfgst *cfgst)
+void config_free_source_info (struct cfgst *cfgst)
 {
-  assert(cfgst);
-  assert(cfgst->cfg == &config);
-  assert(config.valid);
+  assert (!cfgst->error);
+  ddsrt_avl_free (&cfgst_found_treedef, &cfgst->found, ddsrt_free);
+}
 
-  free_all_elements(cfgst, cfgst->cfg, root_cfgelems);
-  dds_set_log_file(stderr);
-  dds_set_trace_file(stderr);
+void config_fini (struct cfgst *cfgst)
+{
+  assert (cfgst);
+  assert (cfgst->cfg == &config);
+  assert (config.valid);
+
+  free_all_elements (cfgst, cfgst->cfg, root_cfgelems);
+  dds_set_log_file (stderr);
+  dds_set_trace_file (stderr);
   if (config.tracingOutputFile && config.tracingOutputFile != stdout && config.tracingOutputFile != stderr) {
     fclose(config.tracingOutputFile);
   }
-  memset(&config, 0, sizeof(config));
+  memset (&config, 0, sizeof (config));
   config.valid = 0;
 
-  ddsrt_avl_free(&cfgst_found_treedef, &cfgst->found, ddsrt_free);
-  ddsrt_free(cfgst);
+  ddsrt_avl_free (&cfgst_found_treedef, &cfgst->found, ddsrt_free);
+  ddsrt_free (cfgst);
 }
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-static char *get_partition_search_pattern(const char *partition, const char *topic)
+static char *get_partition_search_pattern (const char *partition, const char *topic)
 {
-  size_t sz = strlen(partition) + strlen(topic) + 2;
-  char *pt = ddsrt_malloc(sz);
-  snprintf(pt, sz, "%s.%s", partition, topic);
+  size_t sz = strlen (partition) + strlen (topic) + 2;
+  char *pt = ddsrt_malloc (sz);
+  snprintf (pt, sz, "%s.%s", partition, topic);
   return pt;
 }
 
-struct config_partitionmapping_listelem *find_partitionmapping(const char *partition, const char *topic)
+struct config_partitionmapping_listelem *find_partitionmapping (const char *partition, const char *topic)
 {
-  char *pt = get_partition_search_pattern(partition, topic);
+  char *pt = get_partition_search_pattern (partition, topic);
   struct config_partitionmapping_listelem *pm;
-  for ( pm = config.partitionMappings; pm; pm = pm->next )
-    if ( WildcardOverlap(pt, pm->DCPSPartitionTopic) )
+  for (pm = config.partitionMappings; pm; pm = pm->next)
+    if (WildcardOverlap (pt, pm->DCPSPartitionTopic))
       break;
-  ddsrt_free(pt);
+  ddsrt_free (pt);
   return pm;
 }
 
-struct config_networkpartition_listelem *find_networkpartition_by_id(uint32_t id)
+struct config_networkpartition_listelem *find_networkpartition_by_id (uint32_t id)
 {
   struct config_networkpartition_listelem *np;
-  for ( np = config.networkPartitions; np; np = np->next )
-    if ( np->partitionId == id )
+  for (np = config.networkPartitions; np; np = np->next)
+    if (np->partitionId == id)
       return np;
   return 0;
 }
 
-int is_ignored_partition(const char *partition, const char *topic)
+int is_ignored_partition (const char *partition, const char *topic)
 {
-  char *pt = get_partition_search_pattern(partition, topic);
+  char *pt = get_partition_search_pattern (partition, topic);
   struct config_ignoredpartition_listelem *ip;
-  for ( ip = config.ignoredPartitions; ip; ip = ip->next )
-    if ( WildcardOverlap(pt, ip->DCPSPartitionTopic) )
+  for (ip = config.ignoredPartitions; ip; ip = ip->next)
+    if (WildcardOverlap(pt, ip->DCPSPartitionTopic))
       break;
-  ddsrt_free(pt);
+  ddsrt_free (pt);
   return ip != NULL;
 }
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-struct config_channel_listelem *find_channel(nn_transport_priority_qospolicy_t transport_priority)
+struct config_channel_listelem *find_channel (nn_transport_priority_qospolicy_t transport_priority)
 {
   struct config_channel_listelem *c;
   /* Channel selection is to use the channel with the lowest priority
@@ -2961,9 +2848,10 @@ struct config_channel_listelem *find_channel(nn_transport_priority_qospolicy_t t
      highest priority. */
   assert(config.channels != NULL);
   assert(config.max_channel != NULL);
-  for ( c = config.channels; c; c = c->next ) {
+  for (c = config.channels; c; c = c->next)
+  {
     assert(c->next == NULL || c->next->priority > c->priority);
-    if ( transport_priority.value <= c->priority )
+    if (transport_priority.value <= c->priority)
       return c;
   }
   return config.max_channel;

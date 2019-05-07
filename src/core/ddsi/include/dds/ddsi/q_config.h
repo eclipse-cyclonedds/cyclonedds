@@ -238,7 +238,7 @@ struct config
   char *tracingOutputFileName;
   int tracingTimestamps;
   int tracingAppendToFile;
-  unsigned allowMulticast;
+  uint32_t allowMulticast;
   enum transport_selector transport_selector;
   enum boolean_default compat_use_ipv6;
   enum boolean_default compat_tcp_enable;
@@ -413,6 +413,7 @@ struct cfgst;
 
 struct cfgst *config_init (const char *configfile);
 void config_print_cfgst (struct cfgst *cfgst);
+void config_free_source_info (struct cfgst *cfgst);
 void config_fini (struct cfgst *cfgst);
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
