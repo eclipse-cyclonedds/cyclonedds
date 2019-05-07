@@ -584,8 +584,10 @@ int rtps_config_prep (struct cfgst *cfgst)
     thread_states_init (max_threads);
   }
 
-  /* Now the per-thread-log-buffers are set up, so print the configuration */
+  /* Now the per-thread-log-buffers are set up, so print the configuration.  After this there
+     is no value to the source information for the various configuration elements, so free those. */
   config_print_cfgst (cfgst);
+  config_free_source_info (cfgst);
   return 0;
 
 err_config_late_error:
