@@ -43,12 +43,11 @@ struct serdatapool {
   struct nn_freelist freelist;
 };
 
-typedef struct dds_key_hash {
-  char m_hash [16];          /* Key hash value. Also possibly key. Suitably aligned for accessing as uint32_t's */
+typedef struct dds_keyhash {
+  unsigned char m_hash [16]; /* Key hash value. Also possibly key. Suitably aligned for accessing as uint32_t's */
   unsigned m_set : 1;        /* has it been initialised? */
   unsigned m_iskey : 1;      /* m_hash is key value */
-}
-dds_key_hash_t;
+} dds_keyhash_t;
 
 struct ddsi_serdata_default {
   struct ddsi_serdata c;
@@ -57,7 +56,7 @@ struct ddsi_serdata_default {
 #ifndef NDEBUG
   bool fixed;
 #endif
-  dds_key_hash_t keyhash;
+  dds_keyhash_t keyhash;
 
   struct serdatapool *pool;
   struct ddsi_serdata_default *next; /* in pool->freelist */

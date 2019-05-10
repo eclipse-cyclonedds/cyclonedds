@@ -24,7 +24,6 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_qos.c
     dds_handles.c
     dds_entity.c
-    dds_key.c
     dds_querycond.c
     dds_topic.c
     dds_listener.c
@@ -48,7 +47,6 @@ PREPEND(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/dd
     ddsc/dds_public_listener.h
     ddsc/dds_public_qos.h
     ddsc/dds_public_status.h
-    ddsc/dds_public_stream.h
 )
 
 PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
@@ -58,7 +56,6 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__handles.h
     dds__entity.h
     dds__init.h
-    dds__key.h
     dds__listener.h
     dds__participant.h
     dds__publisher.h

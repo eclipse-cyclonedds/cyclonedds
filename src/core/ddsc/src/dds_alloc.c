@@ -179,6 +179,8 @@ void dds_sample_free_contents (char * data, const uint32_t * ops)
             if (seq->_release)
             {
               dds_free (seq->_buffer);
+              seq->_maximum = 0;
+              seq->_length = 0;
               seq->_buffer = NULL;
             }
             break;
