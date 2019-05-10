@@ -19,7 +19,6 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
-#include "dds__key.h"
 #include "dds__stream.h"
 #include "dds__serdata_builtintopic.h"
 #include "dds/ddsi/ddsi_tkmap.h"

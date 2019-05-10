@@ -45,7 +45,6 @@ typedef int32_t dds_entity_t;
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/log.h"
-#include "dds/ddsc/dds_public_stream.h"
 #include "dds/ddsc/dds_public_impl.h"
 #include "dds/ddsc/dds_public_alloc.h"
 #include "dds/ddsc/dds_public_qos.h"

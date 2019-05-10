@@ -27,6 +27,11 @@ public class TypedefType extends AbstractType implements NamedType
     return new TypedefType (name, ref);
   }
 
+  public boolean containsUnion ()
+  {
+    return ref.containsUnion ();
+  }
+
   public ArrayList <String> getMetaOp (String myname, String structname)
   {
     return ref.getMetaOp (myname, structname);

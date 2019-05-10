@@ -1766,8 +1766,11 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
 static struct ddsi_serdata *get_serdata (struct ddsi_sertopic const * const topic, const struct nn_rdata *fragchain, uint32_t sz, int justkey, unsigned statusinfo, nn_wctime_t tstamp)
 {
   struct ddsi_serdata *sd = ddsi_serdata_from_ser (topic, justkey ? SDK_KEY : SDK_DATA, fragchain, sz);
-  sd->statusinfo = statusinfo;
-  sd->timestamp = tstamp;
+  if (sd)
+  {
+    sd->statusinfo = statusinfo;
+    sd->timestamp = tstamp;
+  }
   return sd;
 }
 
