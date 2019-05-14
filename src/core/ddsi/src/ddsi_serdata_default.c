@@ -301,7 +301,13 @@ static struct ddsi_serdata_default *serdata_default_from_ser_common (const struc
 
   const bool needs_bswap = (d->hdr.identifier != NATIVE_ENCODING);
   d->hdr.identifier = NATIVE_ENCODING;
-  if (!dds_stream_normalize (d->data, d->pos, needs_bswap, tp, kind == SDK_KEY))
+  const uint32_t pad = fromBE2u (d->hdr.options) & 2;
+  if (d->pos < pad)
+  {
+    ddsi_serdata_unref (&d->c);
+    return NULL;
+  }
+  else if (!dds_stream_normalize (d->data, d->pos - pad, needs_bswap, tp, kind == SDK_KEY))
   {
     ddsi_serdata_unref (&d->c);
     return NULL;
