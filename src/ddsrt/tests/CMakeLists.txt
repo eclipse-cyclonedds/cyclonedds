@@ -30,7 +30,7 @@ set(sources
 
 add_cunit_executable(cunit_ddsrt ${sources})
 target_link_libraries(cunit_ddsrt PRIVATE ddsrt)
-
+add_coverage(cunit_ddsrt)
 # Create a dummy export header. generate_export_header can only be used with
 # library targets, but since the targets are linked statically,
 # __declspec(dllimport) is not required anyway.

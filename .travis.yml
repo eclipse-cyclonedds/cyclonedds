@@ -3,6 +3,54 @@ language: c
 # Platform descriptions
 # NOTE: These can be used in creating the build matrix by making use of the
 #       anchor/alias YAML features.
+
+before_general: &before_general
+  conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan &&
+  conan profile get settings.arch default &&
+  if [ -z "${ARCH}" ]; then 
+  eval "export ARCH=\"$(conan profile get settings.arch default)\""; 
+  fi &&
+  if [ -z "${GENERATOR}" ]; then eval "export GENERATOR=\"Unix Makefiles\""; fi &&
+  if [ -z "${COVERAGE}" ]; then eval "export COVERAGE=0"; fi &&
+  export;
+
+install_conan_linux: &install_conan_linux
+  pip install conan --upgrade --user &&
+  conan profile new default --detect;
+
+build_and_test: &build_and_test
+  mkdir build &&
+  cd build &&
+  conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} .. &&
+  cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+        -DCMAKE_INSTALL_PREFIX=$(pwd)/install
+        -DUSE_SANITIZER=${USE_SANITIZER}
+        -DBUILD_TESTING=on
+        -DENABLE_COVERAGE=${COVERAGE}
+        -G "${GENERATOR}" ../src &&
+  cmake --build . --config ${BUILD_TYPE} --target install &&
+  CYCLONEDDS_URI='<CycloneDDS><DDSI2E><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></DDSI2E></CycloneDDS>' ctest -T test -C ${BUILD_TYPE};
+
+build_examples: &build_examples
+  if [ "${USE_SANITIZER}" != "none" ]; then
+  CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
+  CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
+  fi &&
+  mkdir install/share/CycloneDDS/examples/helloworld/build &&
+  cd install/share/CycloneDDS/examples/helloworld/build &&
+  cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+        ${CMAKE_C_FLAGS}
+        ${CMAKE_LINKER_FLAGS}
+        -G "${GENERATOR}" .. &&
+  cmake --build . --config ${BUILD_TYPE};
+
+codecoverage: &codecoverage
+  if [ "${COVERAGE}" == "1" ]; then
+  pip install codecov --user &&
+  cmake --build . --config ${BUILD_TYPE} --target gcov &&
+  codecov -X gcov;
+  fi;
+
 linux_gcc8: &linux_gcc8
   os: linux
   dist: xenial
@@ -12,6 +60,17 @@ linux_gcc8: &linux_gcc8
       update: true
       sources: [ ubuntu-toolchain-r-test ]
       packages: [ gcc-8 g++-8 ]
+  before_install:
+    - eval "export CC=${C_COMPILER}"
+    - eval "export CXX=${CXX_COMPILER}"
+  install:
+    - *install_conan_linux
+  before_script:
+    - *before_general
+  script:
+    - *build_and_test
+    - *codecoverage
+    - *build_examples
 
 linux_clang: &linux_clang
   os: linux
@@ -20,6 +79,17 @@ linux_clang: &linux_clang
   addons:
     apt:
       update: true
+  before_install:
+    - eval "export CC=${C_COMPILER}"
+    - eval "export CXX=${CXX_COMPILER}"
+  install:
+    - *install_conan_linux
+  before_script:
+    - *before_general
+  script:
+    - *build_and_test
+    - *codecoverage
+    - *build_examples
 
 osx_xcode10_1: &osx_xcode10_1
   os: osx
@@ -28,15 +98,64 @@ osx_xcode10_1: &osx_xcode10_1
   addons:
     homebrew:
       packages:
-      - pyenv-virtualenv
+        - pyenv-virtualenv
+  before_install:
+    - eval "export CC=${C_COMPILER}"
+    - eval "export CXX=${CXX_COMPILER}"
+  install:
+    - eval "$(pyenv init -)"
+    - pyenv virtualenv conan
+    - pyenv rehash
+    - pyenv activate conan
+    - pip install conan --upgrade
+    - conan profile new default --detect
+  before_script:
+    - *before_general
+  script:
+    - *build_and_test
+    - *codecoverage
+    - *build_examples
 
 windows_vs2017: &windows_vs2017
   os: windows
+  # Conan will automatically determine the best compiler for a given platform
+  # based on educated guesses. The first check is based on the CC and CXX
+  # environment variables, the second (on Windows) is to check if Microsoft
+  # Visual Studio is installed. On Travis CC and CXX are set to gcc on Microsoft
+  # Windows targets as well, this has the undesired effect that MSVC is not
+  # detected, unsetting CC and CXX solves that problem.
+  before_install:
+    - eval "unset CC"
+    - eval "unset CXX"
+    - JAVA_HOME=$(find "/c/Program Files/Android/jdk/" -name "*openjdk*" | sort | head -n 1)
+    - export JAVA_HOME
+    - export PATH="${PATH}:${JAVA_HOME}/bin"
+  # Windows targets in Travis are still very much in beta and Python is not yet
+  # available and installation of Python through Chocolaty does not work well.
+  # The real fix is to wait until Python and pip are both available on the
+  # target. Until then download Conan from the official website and simply add
+  # the extracted folder to the path.
+  install:
+    - choco install innoextract
+    - choco install maven --ignore-dependencies
+    - wget -q https://dl.bintray.com/conan/installers/conan-win-64_1_10_0.exe
+    - innoextract conan-win-64_1_10_0.exe
+    - eval "export PATH=\"$(pwd)/app/conan:${PATH}\""
+    - conan profile new default --detect
+  before_script:
+    - *before_general
+    - GENERATOR_ARCH=$(if [ "${ARCH}" = "x86_64" ]; then echo " Win64"; fi)
+    - eval "export GENERATOR=\"${GENERATOR}${GENERATOR_ARCH}\""
+    - eval "export USE_SANITIZER=none"
+    - export
+  script:
+    - *build_and_test
+    - *build_examples
 
 matrix:
   include:
     - <<: *linux_gcc8
-      env: [ BUILD_TYPE=Debug, C_COMPILER=gcc-8, CXX_COMPILER=g++-8, USE_SANITIZER=none ]
+      env: [ BUILD_TYPE=Debug, C_COMPILER=gcc-8, CXX_COMPILER=g++-8, USE_SANITIZER=none COVERAGE=1 ]
     - <<: *linux_gcc8
       env: [ BUILD_TYPE=Release, C_COMPILER=gcc-8, CXX_COMPILER=g++-8, USE_SANITIZER=none ]
     - <<: *linux_clang
@@ -53,83 +172,3 @@ matrix:
       env: [ ARCH=x86_64, BUILD_TYPE=Debug, GENERATOR="Visual Studio 15 2017" ]
     - <<: *windows_vs2017
       env: [ ARCH=x86_64, BUILD_TYPE=Release, GENERATOR="Visual Studio 15 2017" ]
-
-# Conan will automatically determine the best compiler for a given platform
-# based on educated guesses. The first check is based on the CC and CXX
-# environment variables, the second (on Windows) is to check if Microsoft
-# Visual Studio is installed. On Travis CC and CXX are set to gcc on Microsoft
-# Windows targets as well, this has the undesired effect that MSVC is not
-# detected, unsetting CC and CXX solves that problem.
-before_install:
-  - if [ "${TRAVIS_OS_NAME}" = "windows" ]; then
-      eval "unset CC";
-      eval "unset CXX";
-      JAVA_HOME=$(find "/c/Program Files/Android/jdk/" -name "*openjdk*" | sort | head -n 1);
-      export JAVA_HOME;
-      export PATH="${PATH}:${JAVA_HOME}/bin";
-    else
-      eval "export CC=${C_COMPILER}";
-      eval "export CXX=${CXX_COMPILER}";
-    fi
-
-# Windows targets in Travis are still very much in beta and Python is not yet
-# available and installation of Python through Chocolaty does not work well.
-# The real fix is to wait until Python and pip are both available on the
-# target. Until then download Conan from the official website and simply add
-# the extracted folder to the path.
-install:
-  - if [ "${TRAVIS_OS_NAME}" = "windows" ]; then
-      choco install innoextract;
-      choco install maven --ignore-dependencies;
-      wget -q https://dl.bintray.com/conan/installers/conan-win-64_1_10_0.exe;
-      innoextract conan-win-64_1_10_0.exe;
-      eval "export PATH=\"$(pwd)/app/conan:${PATH}\"";
-    elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-      eval "$(pyenv init -)";
-      pyenv virtualenv conan;
-      pyenv rehash;
-      pyenv activate conan;
-      pip install conan --upgrade;
-    else
-      pip install conan --upgrade --user;
-    fi
-  - conan profile new default --detect
-
-before_script:
-  - conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
-  - conan profile get settings.arch default
-  - if [ -z "${ARCH}" ]; then
-      eval "export ARCH=\"$(conan profile get settings.arch default)\"";
-    fi
-  - if [ "${TRAVIS_OS_NAME}" = "windows" ]; then
-      GENERATOR_ARCH=$(if [ "${ARCH}" = "x86_64" ]; then echo " Win64"; fi);
-      eval "export GENERATOR=\"${GENERATOR}${GENERATOR_ARCH}\"";
-      eval "export USE_SANITIZER=none";
-    else
-      eval "export GENERATOR=\"Unix Makefiles\"";
-    fi
-  - export
-
-script:
-  - mkdir build
-  - cd build
-  - conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ..
-  - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
-          -DCMAKE_INSTALL_PREFIX=$(pwd)/install
-          -DUSE_SANITIZER=${USE_SANITIZER}
-          -DBUILD_TESTING=on
-          -G "${GENERATOR}" ../src
-  - cmake --build . --config ${BUILD_TYPE} --target install
-  - CYCLONEDDS_URI='<CycloneDDS><DDSI2E><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></DDSI2E></CycloneDDS>' ctest -T test -C ${BUILD_TYPE}
-  - if [ "${USE_SANITIZER}" != "none" ]; then
-      CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
-      CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
-    fi
-  - mkdir install/share/CycloneDDS/examples/helloworld/build
-  - cd install/share/CycloneDDS/examples/helloworld/build
-  - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
-          ${CMAKE_C_FLAGS}
-          ${CMAKE_LINKER_FLAGS}
-          -G "${GENERATOR}" ..
-  - cmake --build . --config ${BUILD_TYPE}
-

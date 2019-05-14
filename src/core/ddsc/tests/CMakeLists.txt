@@ -49,6 +49,7 @@ set(ddsc_test_sources
     "writer.c")
 
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
+add_coverage(cunit_ddsc)
 target_include_directories(
   cunit_ddsc PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>")

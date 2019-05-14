@@ -106,6 +106,7 @@ target_include_directories(ddsc
         "${CMAKE_CURRENT_LIST_DIR}/src")
 
 target_include_directories(ddsc INTERFACE $<INSTALL_INTERFACE:include>)
+add_coverage(ddsc)
 
 install(
   DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/dds"
