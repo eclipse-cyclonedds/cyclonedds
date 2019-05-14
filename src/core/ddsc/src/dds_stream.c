@@ -77,23 +77,27 @@ static void dds_cdr_alignto (dds_istream_t * __restrict s, uint32_t a)
   assert (s->m_index < s->m_size);
 }
 
-static void dds_cdr_alignto_clear_and_resize (dds_ostream_t * __restrict s, uint32_t a, uint32_t extra)
+static uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t * __restrict s, uint32_t a, uint32_t extra)
 {
   const uint32_t m = s->m_index % a;
   if (m == 0)
+  {
     dds_cdr_resize (s, extra);
+    return 0;
+  }
   else
   {
-    uint32_t pad = a - m;
+    const uint32_t pad = a - m;
     dds_cdr_resize (s, pad + extra);
-    while (pad--)
+    for (uint32_t i = 0; i < pad; i++)
       s->m_buffer[s->m_index++] = 0;
+    return pad;
   }
 }
 
-static void dds_cdr_alignto_clear_and_resize_be (dds_ostreamBE_t * __restrict s, uint32_t a, uint32_t extra)
+static uint32_t dds_cdr_alignto_clear_and_resize_be (dds_ostreamBE_t * __restrict s, uint32_t a, uint32_t extra)
 {
-  dds_cdr_alignto_clear_and_resize (&s->x, a, extra);
+  return dds_cdr_alignto_clear_and_resize (&s->x, a, extra);
 }
 
 static uint8_t dds_is_get1 (dds_istream_t * __restrict s)
@@ -1644,13 +1648,15 @@ void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct dd
 {
   /* DDSI requires 4 byte alignment */
 
-  dds_cdr_alignto_clear_and_resize (s, 4, 0);
+  const uint32_t pad = dds_cdr_alignto_clear_and_resize (s, 4, 0);
+  assert (pad <= 3);
 
   /* Reset data pointer as stream may have reallocated */
 
   (*d) = (void *) s->m_buffer;
   (*d)->pos = (s->m_index - (uint32_t) offsetof (struct ddsi_serdata_default, data));
   (*d)->size = (s->m_size - (uint32_t) offsetof (struct ddsi_serdata_default, data));
+  (*d)->hdr.options = toBE2u ((uint16_t) pad);
 }
 
 void dds_ostreamBE_from_serdata_default (dds_ostreamBE_t * __restrict s, struct ddsi_serdata_default * __restrict d)
@@ -1665,11 +1671,13 @@ void dds_ostreamBE_add_to_serdata_default (dds_ostreamBE_t * __restrict s, struc
 {
   /* DDSI requires 4 byte alignment */
 
-  dds_cdr_alignto_clear_and_resize_be (s, 4, 0);
+  const uint32_t pad = dds_cdr_alignto_clear_and_resize_be (s, 4, 0);
+  assert (pad <= 3);
 
   /* Reset data pointer as stream may have reallocated */
 
   (*d) = (void *) s->x.m_buffer;
   (*d)->pos = (s->x.m_index - (uint32_t) offsetof (struct ddsi_serdata_default, data));
   (*d)->size = (s->x.m_size - (uint32_t) offsetof (struct ddsi_serdata_default, data));
+  (*d)->hdr.options = toBE2u ((uint16_t) pad);
 }
