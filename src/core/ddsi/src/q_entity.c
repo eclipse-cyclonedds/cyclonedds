@@ -1107,7 +1107,7 @@ static void rebuild_trace_covered(int nreaders, int nlocs, const nn_locator_t *l
   {
     char buf[DDSI_LOCATORSTRLEN];
     ddsi_locator_to_string(buf, sizeof(buf), &locs[i]);
-    DDS_LOG(DDS_LC_DISCOVERY, "  loc %2d = %-20s %2d {", i, buf, locs_nrds[i]);
+    DDS_LOG(DDS_LC_DISCOVERY, "  loc %2d = %-30s %2d {", i, buf, locs_nrds[i]);
     for (j = 0; j < nreaders; j++)
       if (covered[j * nlocs + i] >= 0)
         DDS_LOG(DDS_LC_DISCOVERY, " %d", covered[j * nlocs + i]);
@@ -1123,7 +1123,9 @@ static int rebuild_select(int nlocs, const nn_locator_t *locs, const int *locs_n
   if (nlocs == 0)
     return -1;
   for (j = 0, i = 1; i < nlocs; i++) {
-    if (locs_nrds[i] > locs_nrds[j])
+    if (config.prefer_multicast && locs_nrds[i] > 0 && ddsi_is_mcaddr(&locs[i]) && !ddsi_is_mcaddr(&locs[j]))
+      j = i; /* obviously first step must be to try and avoid unicast if configuration says so */
+    else if (locs_nrds[i] > locs_nrds[j])
       j = i; /* better coverage */
     else if (locs_nrds[i] == locs_nrds[j])
     {

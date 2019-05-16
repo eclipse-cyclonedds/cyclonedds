@@ -239,6 +239,7 @@ struct config
   int tracingTimestamps;
   int tracingAppendToFile;
   uint32_t allowMulticast;
+  int prefer_multicast;
   enum transport_selector transport_selector;
   enum boolean_default compat_use_ipv6;
   enum boolean_default compat_tcp_enable;

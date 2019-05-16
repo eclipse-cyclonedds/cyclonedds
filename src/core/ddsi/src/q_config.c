@@ -244,6 +244,8 @@ static const struct cfgelem general_cfgelems[] = {
 <li><i>ssm</i>: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)</li>\n\
 </ul>\n\
 <p>When set to \"false\" all multicasting is disabled. The default, \"true\" enables full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>") },
+  { LEAF("PreferMulticast"), 1, "false", ABSOFF(prefer_multicast), 0, uf_boolean, 0, pf_boolean,
+    BLURB("<p>When false (default) Cyclone DDS uses unicast for data whenever there a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast address is available.</p>") },
   { LEAF("MulticastTimeToLive"), 1, "32", ABSOFF(multicast_ttl), 0, uf_natint_255, 0, pf_int,
     BLURB("<p>This element specifies the time-to-live setting for outgoing multicast packets.</p>") },
   { LEAF("DontRoute"), 1, "false", ABSOFF(dontRoute), 0, uf_boolean, 0, pf_boolean,
