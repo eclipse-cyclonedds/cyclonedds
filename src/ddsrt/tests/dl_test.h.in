@@ -1,0 +1,22 @@
+/*
+ * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+#ifndef DDSRT_TEST_DL_TEST_H
+#define DDSRT_TEST_DL_TEST_H
+
+/* Get the library name information from cmake. */
+#define TEST_LIB_NAME   "@test_lib_name@"
+#define TEST_LIB_DIR    "@test_lib_dir@"
+#define TEST_LIB_SEP    "@test_lib_sep@"
+#define TEST_LIB_SUFFIX "@CMAKE_SHARED_LIBRARY_SUFFIX@"
+#define TEST_LIB_PREFIX "@CMAKE_SHARED_LIBRARY_PREFIX@"
+
+#endif /* DDSRT_TEST_DL_TEST_H */
