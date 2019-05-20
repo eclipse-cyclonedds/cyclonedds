@@ -10,8 +10,8 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <FreeRTOS.h>
-#include <string.h>
 #include <task.h>
+#include <string.h>
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/retcode.h"
@@ -62,7 +62,7 @@ typedef struct {
   size_t len;
 } thread_registry_t;
 
-static ddsrt_thread_local thread_context_t *thread_context;
+static ddsrt_thread_local thread_context_t *thread_context = NULL;
 
 static thread_registry_t thread_registry;
 
@@ -192,6 +192,7 @@ thread_context_acquire(thread_context_t **ctxptr)
       ctx->task = xTaskGetCurrentTaskHandle();
     }
     ddsrt_mutex_unlock(&thread_registry.mutex);
+    thread_context = ctx;
   } else {
     assert(ctx->func != NULL);
     assert(ctx->stat == THREAD_RUNNING);

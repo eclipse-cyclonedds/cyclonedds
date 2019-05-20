@@ -223,6 +223,8 @@ endforeach()
 
 target_sources(ddsrt INTERFACE ${sources})
 
+set(HAVE_MULTI_PROCESS ${HAVE_MULTI_PROCESS} PARENT_SCOPE)
+
 if(NOT WITH_FREERTOS)
   set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
   find_package(Threads REQUIRED)

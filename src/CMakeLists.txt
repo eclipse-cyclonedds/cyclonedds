@@ -191,12 +191,9 @@ endif()
 
 add_subdirectory(examples)
 
-# FIXME: Reenable when runtime can be checked for availibility of
-#        multi-process feature.
-#if(BUILD_TESTING)
-#  # Multi Process Tests
-#  add_subdirectory(mpt)
-#endif()
+if(BUILD_TESTING AND HAVE_MULTI_PROCESS)
+  add_subdirectory(mpt)
+endif()
 
 # Pull-in CPack and support for generating <Package>Config.cmake and packages.
 include(Packaging)

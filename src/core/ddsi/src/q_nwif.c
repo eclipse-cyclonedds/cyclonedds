@@ -96,12 +96,18 @@ static int set_rcvbuf (ddsrt_socket_t socket)
   uint32_t ReceiveBufferSize;
   socklen_t optlen = (socklen_t) sizeof (ReceiveBufferSize);
   uint32_t socket_min_rcvbuf_size;
+  dds_retcode_t rc;
   if (config.socket_min_rcvbuf_size.isdefault)
     socket_min_rcvbuf_size = 1048576;
   else
     socket_min_rcvbuf_size = config.socket_min_rcvbuf_size.value;
-  if (ddsrt_getsockopt (socket, SOL_SOCKET, SO_RCVBUF, (char *) &ReceiveBufferSize, &optlen) != DDS_RETCODE_OK)
-  {
+  rc = ddsrt_getsockopt(
+    socket, SOL_SOCKET, SO_RCVBUF, (char *) &ReceiveBufferSize, &optlen);
+  /* TCP/IP stack may not support SO_RCVBUF. */
+  if (rc == DDS_RETCODE_BAD_PARAMETER) {
+    DDS_LOG(DDS_LC_CONFIG, "cannot retrieve socket receive buffer size\n");
+    return 0;
+  } else if (rc != DDS_RETCODE_OK) {
     print_sockerror ("get SO_RCVBUF");
     return -2;
   }
@@ -139,8 +145,13 @@ static int set_sndbuf (ddsrt_socket_t socket)
 {
   unsigned SendBufferSize;
   socklen_t optlen = (socklen_t) sizeof(SendBufferSize);
-  if (ddsrt_getsockopt(socket, SOL_SOCKET, SO_SNDBUF,(char *)&SendBufferSize, &optlen) != DDS_RETCODE_OK)
-  {
+  dds_retcode_t rc;
+  rc = ddsrt_getsockopt(
+    socket, SOL_SOCKET, SO_SNDBUF,(char *)&SendBufferSize, &optlen);
+  if (rc == DDS_RETCODE_BAD_PARAMETER) {
+    DDS_LOG(DDS_LC_CONFIG, "cannot retrieve socket send buffer size\n");
+    return 0;
+  } else if (rc != DDS_RETCODE_OK) {
     print_sockerror ("get SO_SNDBUF");
     return -2;
   }
@@ -191,12 +202,16 @@ static int set_reuse_options (ddsrt_socket_t socket)
   /* Set REUSEADDR (if available on platform) for
      multicast sockets, leave unicast sockets alone. */
   int one = 1;
-
-  if (ddsrt_setsockopt (socket, SOL_SOCKET, SO_REUSEADDR, (char *) &one, sizeof (one)) != DDS_RETCODE_OK)
-  {
+  dds_retcode_t rc = ddsrt_setsockopt (
+      socket, SOL_SOCKET, SO_REUSEADDR, (char *) &one, sizeof (one));
+  if (rc == DDS_RETCODE_BAD_PARAMETER) {
+    DDS_LOG(DDS_LC_CONFIG, "cannot enable address reuse on socket\n");
+    return 0;
+  } else if (rc != DDS_RETCODE_OK) {
     print_sockerror ("SO_REUSEADDR");
     return -2;
   }
+
   return 0;
 }
 

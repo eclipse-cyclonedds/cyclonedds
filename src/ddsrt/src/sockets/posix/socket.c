@@ -259,6 +259,10 @@ ddsrt_getsockopt(
 #if LWIP_SOCKET
   if (optname == SO_SNDBUF || optname == SO_RCVBUF)
     return DDS_RETCODE_BAD_PARAMETER;
+# if !SO_REUSE
+  if (optname == SO_REUSEADDR)
+    return DDS_RETCODE_BAD_PARAMETER;
+# endif /* SO_REUSE */
 #endif /* LWIP_SOCKET */
 
   if (getsockopt(sock, level, optname, optval, optlen) == 0)
@@ -289,6 +293,10 @@ ddsrt_setsockopt(
 #if LWIP_SOCKET
   if (optname == SO_SNDBUF || optname == SO_RCVBUF)
     return DDS_RETCODE_BAD_PARAMETER;
+# if !SO_REUSE
+  if (optname == SO_REUSEADDR)
+    return DDS_RETCODE_BAD_PARAMETER;
+# endif /* SO_REUSE */
 #endif /* LWIP_SOCKET */
 
   switch (optname) {

@@ -58,6 +58,26 @@ must provide the following.
   `clock_gettime` implementation is required to retrieve the wall clock time.
 
 
+### Thread-local storage
+
+FreeRTOS tasks are not threads and compiler supported thread-local storage
+(tls) might not work as desired/expected under FreeRTOS on embedded targets.
+i.e. the address of a given variable defined with *__thread* may be the same
+for different tasks.
+
+The compiler generates code to retrieve a unique address per thread when it
+encounters a variable defined with *__thread*. What code it generates depends
+on the compiler and the target it generates the code for. e.g. `iccarm.exe`
+that comes with IAR Embedded Workbench requires `__aeabi_read_tp` to be
+implemented and `mb-gcc` that comes with the Xilinx SDK requires
+`__tls_get_addr` to be implemented.
+
+The implementation for each of these functions is more-or-less the same.
+Generally speaking they require the number of bytes to allocate, call
+`pvTaskGetThreadLocalStoragePointer` and return the address of the memory
+block to the caller.
+
+
 ## Simulator
 
 FreeRTOS ports for Windows and POSIX exist to test compatibility. How to

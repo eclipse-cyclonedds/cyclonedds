@@ -14,10 +14,10 @@
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/string.h"
 #include "CUnit/Theory.h"
 
 #include <assert.h>
-//#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -148,7 +148,6 @@ CU_Test(ddsrt_sockaddrtostr, ipv6)
 
 CU_Test(ddsrt_sockets, gethostname)
 {
-  int ret;
   dds_retcode_t rc;
   char sysbuf[200], buf[200];
 
@@ -157,8 +156,12 @@ CU_Test(ddsrt_sockets, gethostname)
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
 
   sysbuf[0] = '\0';
-  ret = gethostname(sysbuf, sizeof(sysbuf));
+#if LWIP_SOCKET
+  ddsrt_strlcpy(sysbuf, "localhost", sizeof(sysbuf));
+#else
+  int ret = gethostname(sysbuf, sizeof(sysbuf));
   CU_ASSERT_EQUAL(ret, 0);
+#endif
   CU_ASSERT(strcmp(buf, sysbuf) == 0);
 
   rc = ddsrt_gethostname(buf, strlen(buf) - 1);

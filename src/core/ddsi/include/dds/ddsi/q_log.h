@@ -42,7 +42,7 @@ extern "C" {
         }                                                                \
     } while (0)
 #else
-#define LOG_THREAD_CPUTIME(guard) /* empty */
+#define LOG_THREAD_CPUTIME(guard) (void)(guard)
 #endif /* DDSRT_HAVE_RUSAGE */
 
 #if defined (__cplusplus)

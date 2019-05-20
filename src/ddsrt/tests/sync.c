@@ -270,7 +270,7 @@ static uint32_t waitfor_routine(void *ptr)
   reltime = after - before;
   fprintf(stderr, "waited for %"PRId64" (nanoseconds)\n", reltime);
   fprintf(stderr, "expected to wait %"PRId64" (nanoseconds)\n", arg->reltime);
-  fprintf(stderr, "woke up %u times\n", cnt);
+  fprintf(stderr, "woke up %"PRIu32" times\n", cnt);
   ddsrt_mutex_unlock(&arg->lock);
   if (reltime >= arg->reltime) {
     /* Ensure that the condition variable at least waited for the amount of
@@ -322,7 +322,7 @@ static uint32_t waituntil_routine(void *ptr)
   ddsrt_mutex_unlock(&arg->lock);
   fprintf(stderr, "waited until %"PRId64" (nanoseconds)\n", after);
   fprintf(stderr, "expected to wait until %"PRId64" (nanoseconds)\n", arg->abstime);
-  fprintf(stderr, "woke up %u times\n", cnt);
+  fprintf(stderr, "woke up %"PRIu32" times\n", cnt);
   if (after > arg->abstime) {
     res = cnt < 3; /* An arbitrary number to ensure the implementation
                       did not just spin, aka is completely broken. */

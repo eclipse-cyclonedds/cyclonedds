@@ -139,7 +139,7 @@ static const char mesg[] = "foobar";
 
 static uint32_t select_timeout_routine(void *ptr)
 {
-  int cnt = -1;
+  int32_t cnt = -1;
   dds_retcode_t rc;
   dds_time_t before, after;
   dds_duration_t delay;
@@ -148,7 +148,13 @@ static uint32_t select_timeout_routine(void *ptr)
   uint32_t res = 0;
 
   FD_ZERO(&rdset);
+#if LWIP_SOCKET
+  DDSRT_WARNING_GNUC_OFF(sign-conversion)
+#endif
   FD_SET(arg->sock, &rdset);
+#if LWIP_SOCKET
+  DDSRT_WARNING_GNUC_ON(sign-conversion)
+#endif
 
   before = dds_time();
   rc = ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay, &cnt);
@@ -157,8 +163,8 @@ static uint32_t select_timeout_routine(void *ptr)
 
   fprintf(stderr, "Waited for %"PRId64" (nanoseconds)\n", delay);
   fprintf(stderr, "Expected to wait %"PRId64" (nanoseconds)\n", arg->delay);
-  fprintf(stderr, "ddsrt_select returned %d\n", rc);
-  fprintf(stderr, "ddsrt_select reported %d ready\n", cnt);
+  fprintf(stderr, "ddsrt_select returned %"PRId32"\n", rc);
+  fprintf(stderr, "ddsrt_select reported %"PRId32" ready\n", cnt);
 
   if (rc == DDS_RETCODE_TIMEOUT) {
     res = (((after - delay) >= (arg->delay - arg->skew)) && (cnt == 0));
@@ -211,13 +217,19 @@ static uint32_t recv_routine(void *ptr)
 {
   thread_arg_t *arg = (thread_arg_t*)ptr;
 
-  int nfds = 0;
+  int32_t nfds = 0;
   fd_set rdset;
   ssize_t rcvd = -1;
   char buf[sizeof(mesg)];
 
   FD_ZERO(&rdset);
+#if LWIP_SOCKET
+  DDSRT_WARNING_GNUC_OFF(sign-conversion)
+#endif
   FD_SET(arg->sock, &rdset);
+#if LWIP_SOCKET
+  DDSRT_WARNING_GNUC_ON(sign-conversion)
+#endif
 
   (void)ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay, &nfds);
 
@@ -264,7 +276,7 @@ static uint32_t recvmsg_routine(void *ptr)
 {
   thread_arg_t *arg = (thread_arg_t*)ptr;
 
-  int nfds = 0;
+  int32_t nfds = 0;
   fd_set rdset;
   ssize_t rcvd = -1;
   char buf[sizeof(mesg)];
@@ -278,7 +290,13 @@ static uint32_t recvmsg_routine(void *ptr)
   msg.msg_iovlen = 1;
 
   FD_ZERO(&rdset);
+#if LWIP_SOCKET
+  DDSRT_WARNING_GNUC_OFF(sign-conversion)
+#endif
   FD_SET(arg->sock, &rdset);
+#if LWIP_SOCKET
+  DDSRT_WARNING_GNUC_ON(sign-conversion)
+#endif
 
   (void)ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay, &nfds);
 
