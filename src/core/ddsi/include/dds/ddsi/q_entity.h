@@ -123,7 +123,6 @@ struct pwr_rd_match {
   union {
     struct {
       seqno_t end_of_tl_seq; /* when seq >= end_of_tl_seq, it's in sync, =0 when not tl */
-      seqno_t end_of_out_of_sync_seq; /* when seq >= end_of_tl_seq, it's in sync, =0 when not tl */
       struct nn_reorder *reorder; /* can be done (mostly) per proxy writer, but that is harder; only when state=OUT_OF_SYNC */
     } not_in_sync;
   } u;
@@ -573,6 +572,9 @@ uint64_t writer_instance_id (const struct nn_guid *guid);
 /* Call this to empty all address sets of all writers to stop all outgoing traffic, or to
    rebuild them all (which only makes sense after previously having emptied them all). */
 void rebuild_or_clear_writer_addrsets(int rebuild);
+
+
+void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_ok);
 
 #if defined (__cplusplus)
 }

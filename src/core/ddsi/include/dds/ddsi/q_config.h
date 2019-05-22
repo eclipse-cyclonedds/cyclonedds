@@ -330,7 +330,6 @@ struct config
   uint32_t rmsg_chunk_size;          /**<< size of a chunk in the receive buffer */
   uint32_t rbuf_size;                /* << size of a single receiver buffer */
   enum besmode besmode;
-  int conservative_builtin_reader_startup;
   int meas_hb_to_ack_latency;
   int unicast_response_to_spdp_messages;
   int synchronous_delivery_priority_threshold;

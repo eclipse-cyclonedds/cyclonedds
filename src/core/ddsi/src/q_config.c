@@ -509,9 +509,9 @@ static const struct cfgelem unsupp_cfgelems[] = {
   { MOVED("FragmentSize", "CycloneDDS/General/FragmentSize") },
   { LEAF("DeliveryQueueMaxSamples"), 1, "256", ABSOFF(delivery_queue_maxsamples), 0, uf_uint, 0, pf_uint,
     BLURB("<p>This element controls the Maximum size of a delivery queue, expressed in samples. Once a delivery queue is full, incoming samples destined for that queue are dropped until space becomes available again.</p>") },
-  { LEAF("PrimaryReorderMaxSamples"), 1, "64", ABSOFF(primary_reorder_maxsamples), 0, uf_uint, 0, pf_uint,
+  { LEAF("PrimaryReorderMaxSamples"), 1, "128", ABSOFF(primary_reorder_maxsamples), 0, uf_uint, 0, pf_uint,
     BLURB("<p>This element sets the maximum size in samples of a primary re-order administration. Each proxy writer has one primary re-order administration to buffer the packet flow in case some packets arrive out of order. Old samples are forwarded to secondary re-order administrations associated with readers in need of historical data.</p>") },
-  { LEAF("SecondaryReorderMaxSamples"), 1, "16", ABSOFF(secondary_reorder_maxsamples), 0, uf_uint, 0, pf_uint,
+  { LEAF("SecondaryReorderMaxSamples"), 1, "128", ABSOFF(secondary_reorder_maxsamples), 0, uf_uint, 0, pf_uint,
     BLURB("<p>This element sets the maximum size in samples of a secondary re-order administration. The secondary re-order administration is per reader in need of historical data.</p>") },
   { LEAF("DefragUnreliableMaxSamples"), 1, "4", ABSOFF(defrag_unreliable_maxsamples), 0, uf_uint, 0, pf_uint,
     BLURB("<p>This element sets the maximum number of samples that can be defragmented simultaneously for a best-effort writers.</p>") },
@@ -523,9 +523,6 @@ static const struct cfgelem unsupp_cfgelems[] = {
 <li><i>writers</i>: all participants have the writers, but just one has the readers;</li>\n\
 <li><i>minimal</i>: only one participant has built-in endpoints.</li></ul>\n\
 <p>The default is <i>writers</i>, as this is thought to be compliant and reasonably efficient. <i>Minimal</i> may or may not be compliant but is most efficient, and <i>full</i> is inefficient but certain to be compliant. See also Internal/ConservativeBuiltinReaderStartup.</p>") },
-  { LEAF("ConservativeBuiltinReaderStartup"), 1, "false", ABSOFF(conservative_builtin_reader_startup), 0, uf_boolean, 0, pf_boolean,
-    BLURB("<p>This element forces all DDSI2E built-in discovery-related readers to request all historical data, instead of just one for each \"topic\". There is no indication that any of the current DDSI implementations requires changing of this setting, but it is conceivable that an implementation might track which participants have been informed of the existence of endpoints and which have not been, refusing communication with those that have \"can't\" know.</p>\n\
-<p>Should it be necessary to hide DDSI2E's shared discovery behaviour, set this to <i>true</i> and Internal/BuiltinEndpointSet to <i>full</i>.</p>") },
   { LEAF("MeasureHbToAckLatency"), 1, "false", ABSOFF(meas_hb_to_ack_latency), 0, uf_boolean, 0, pf_boolean,
     BLURB("<p>This element enables heartbeat-to-ack latency among DDSI2E services by prepending timestamps to Heartbeat and AckNack messages and calculating round trip times. This is non-standard behaviour. The measured latencies are quite noisy and are currently not used anywhere.</p>") },
   { LEAF("UnicastResponseToSPDPMessages"), 1, "true", ABSOFF(unicast_response_to_spdp_messages), 0, uf_boolean, 0, pf_boolean,
