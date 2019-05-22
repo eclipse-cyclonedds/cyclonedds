@@ -16,8 +16,6 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 
-
-
 /* Task list is a buffer used to keep track of blocked tasks. The buffer is
    cyclic to avoid memory (re)allocation as much as possible. To avoid memory
    relocation, the window is allowed to be sparse too.
@@ -59,7 +57,7 @@
 
 #ifndef NDEBUG
 
-static void tasklist_assert(tasklist_t *list)
+static void tasklist_assert(ddsrt_tasklist_t *list)
 {
   size_t i;
 
@@ -68,7 +66,7 @@ static void tasklist_assert(tasklist_t *list)
   if (list->cnt == 0) {
     assert(list->off == 0);
     assert(list->end == 0);
-    assert(list->len == TASKLIST_INITIAL);
+    assert(list->len == DDSRT_TASKLIST_INITIAL);
     for (i = 0; i < list->len; i++) {
       assert(list->tasks[i] == NULL);
     }
@@ -80,31 +78,32 @@ static void tasklist_assert(tasklist_t *list)
 #define tasklist_assert(...)
 #endif /* NDEBUG */
 
-int tasklist_init(tasklist_t *list)
+int ddsrt_tasklist_init(ddsrt_tasklist_t *list)
 {
   TaskHandle_t *p;
 
   assert(list != NULL);
 
-  if ((p = ddsrt_malloc(TASKLIST_INITIAL * sizeof(*list->tasks))) == NULL) {
+  p = ddsrt_malloc(DDSRT_TASKLIST_INITIAL * sizeof(*list->tasks));
+  if (p == NULL) {
     return -1;
   }
 
   memset(list, 0, sizeof(*list));
-  memset(p, 0, TASKLIST_INITIAL * sizeof(*list->tasks));
+  memset(p, 0, DDSRT_TASKLIST_INITIAL * sizeof(*list->tasks));
   list->tasks = p;
-  list->len = TASKLIST_INITIAL;
+  list->len = DDSRT_TASKLIST_INITIAL;
 
   return 0;
 }
 
-void tasklist_fini(tasklist_t *list)
+void ddsrt_tasklist_fini(ddsrt_tasklist_t *list)
 {
   ddsrt_free(list->tasks);
   memset(list, 0, sizeof(*list));
 }
 
-void tasklist_ltrim(tasklist_t *list)
+void ddsrt_tasklist_ltrim(ddsrt_tasklist_t *list)
 {
   size_t i;
 
@@ -124,7 +123,7 @@ void tasklist_ltrim(tasklist_t *list)
   list->off = i;
 }
 
-void tasklist_rtrim(tasklist_t *list)
+void ddsrt_tasklist_rtrim(ddsrt_tasklist_t *list)
 {
   size_t i;
 
@@ -144,7 +143,7 @@ void tasklist_rtrim(tasklist_t *list)
   list->end = i;
 }
 
-void tasklist_pack(tasklist_t *list)
+void ddsrt_tasklist_pack(ddsrt_tasklist_t *list)
 {
   size_t i, j;
 
@@ -207,9 +206,9 @@ void tasklist_pack(tasklist_t *list)
   }
 }
 
-int tasklist_shrink(tasklist_t *list)
+int ddsrt_tasklist_shrink(ddsrt_tasklist_t *list)
 {
-  static const size_t x = TASKLIST_CHUNK;
+  static const size_t x = DDSRT_TASKLIST_CHUNK;
   TaskHandle_t *p;
   size_t mv = 0, n;
 
@@ -218,12 +217,13 @@ int tasklist_shrink(tasklist_t *list)
   /* Shrink by one chunk too, but only if the difference is at least two
      chunks to avoid memory (re)allocation if a task is pushed and popped
      just over the boundary. */
-  if (list->cnt > (list->len - (x * 2)) || (list->len - x) < TASKLIST_INITIAL) {
+  if (list->cnt > (list->len - (x * 2)) || (list->len - x) < DDSRT_TASKLIST_INITIAL)
+  {
     return 0;
   }
 
   /* List can be sparse. Pack to ensure list can be compacted. */
-  tasklist_pack(list);
+  ddsrt_tasklist_pack(list);
 
   /* Pack operation moved head to end of buffer on wrap around. Move head back
      to not discard it on reallocation. */
@@ -250,9 +250,9 @@ int tasklist_shrink(tasklist_t *list)
   return 0;
 }
 
-int tasklist_grow(tasklist_t *list)
+int ddsrt_tasklist_grow(ddsrt_tasklist_t *list)
 {
-  static const size_t x = TASKLIST_CHUNK;
+  static const size_t x = DDSRT_TASKLIST_CHUNK;
   TaskHandle_t *p;
   size_t n;
 
@@ -265,8 +265,7 @@ int tasklist_grow(tasklist_t *list)
     return -1;
   }
 
-  /* Pack operation moved head to end of buffer on wrap around. Move head to
-     end of newly allocated memory. */
+  /* Move head to end of newly allocated memory. */
   if (list->off != 0) {
     assert(list->end < list->off);
     memmove(p + (list->off + x), p + list->off, (list->len - list->off) * sizeof(*p));
@@ -282,7 +281,7 @@ int tasklist_grow(tasklist_t *list)
   return 0;
 }
 
-ssize_t tasklist_find(tasklist_t *list, TaskHandle_t task)
+ssize_t ddsrt_tasklist_find(ddsrt_tasklist_t *list, TaskHandle_t task)
 {
   size_t i, n;
 
@@ -309,20 +308,20 @@ ssize_t tasklist_find(tasklist_t *list, TaskHandle_t task)
   return -1;
 }
 
-TaskHandle_t tasklist_peek(tasklist_t *list, TaskHandle_t task)
+TaskHandle_t ddsrt_tasklist_peek(ddsrt_tasklist_t *list, TaskHandle_t task)
 {
   tasklist_assert(list);
 
   if (list->cnt == 0) {
     return NULL;
   } else if (task != NULL) {
-    return tasklist_find(list, task) == -1 ? NULL : task;
+    return ddsrt_tasklist_find(list, task) == -1 ? NULL : task;
   }
 
   return list->tasks[list->off];
 }
 
-TaskHandle_t tasklist_pop(tasklist_t *list, TaskHandle_t task)
+TaskHandle_t ddsrt_tasklist_pop(ddsrt_tasklist_t *list, TaskHandle_t task)
 {
   ssize_t i;
 
@@ -332,7 +331,7 @@ TaskHandle_t tasklist_pop(tasklist_t *list, TaskHandle_t task)
     return NULL;
   } else if (task == NULL) {
     i = (ssize_t)list->off;
-  } else if ((i = tasklist_find(list, task)) == -1) {
+  } else if ((i = ddsrt_tasklist_find(list, task)) == -1) {
     return NULL;
   }
 
@@ -346,35 +345,35 @@ TaskHandle_t tasklist_pop(tasklist_t *list, TaskHandle_t task)
       list->off = list->end = 0;
     } else if (i == (ssize_t)list->end) {
       /* Trim invalidated buckets from tail of window. */
-      tasklist_rtrim(list);
+      ddsrt_tasklist_rtrim(list);
     } else if (i == (ssize_t)list->off) {
       /* Trim invalidated buckets from head of window. */
-      tasklist_ltrim(list);
+      ddsrt_tasklist_ltrim(list);
     } else {
       /* Window is now sparse. */
     }
 
-    if (list->cnt <= (list->len - TASKLIST_CHUNK*2)) {
+    if (list->cnt <= (list->len - DDSRT_TASKLIST_CHUNK*2)) {
       /* Shrink operation failure can safely be ignored. */
-      (void)tasklist_shrink(list);
+      (void)ddsrt_tasklist_shrink(list);
     }
   }
 
   return task;
 }
 
-int tasklist_push(tasklist_t *list, TaskHandle_t task)
+int ddsrt_tasklist_push(ddsrt_tasklist_t *list, TaskHandle_t task)
 {
   tasklist_assert(list);
   assert(task != NULL);
 
   /* Ensure task is not listed. */
-  if (tasklist_find(list, task) != -1) {
+  if (ddsrt_tasklist_find(list, task) != -1) {
     return 0;
   }
   /* Grow number of buckets if none are available. */
   if (list->cnt == list->len) {
-    if (tasklist_grow(list) == -1) {
+    if (ddsrt_tasklist_grow(list) == -1) {
       return -1;
     }
     list->end++;
@@ -384,7 +383,7 @@ int tasklist_push(tasklist_t *list, TaskHandle_t task)
   } else {
     /* List can be sparse. */
     if (list->end == list->len - 1 || list->end + 1 == list->off) {
-      tasklist_pack(list);
+      ddsrt_tasklist_pack(list);
     }
     /* Room is guaranteed to be available at the tail. */
     list->end += (list->cnt > 0);

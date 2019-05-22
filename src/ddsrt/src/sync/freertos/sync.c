@@ -104,7 +104,7 @@ cond_timedwait(
 
   task = xTaskGetCurrentTaskHandle();
   /* Register current task with condition. */
-  tasklist_push(&cond->tasks, task);
+  ddsrt_tasklist_push(&cond->tasks, task);
   /* Discard pending notifications. */
   ulTaskNotifyTake(1, 0);
 
@@ -113,7 +113,7 @@ cond_timedwait(
   switch (ulTaskNotifyTake(1, ticks)) {
     case 0:
       xSemaphoreTake(cond->sem, ticks);
-      tasklist_pop(&cond->tasks, task);
+      ddsrt_tasklist_pop(&cond->tasks, task);
       xSemaphoreGive(cond->sem);
       break;
     default:
@@ -134,15 +134,15 @@ cond_timedwait(
 void ddsrt_cond_init(ddsrt_cond_t *cond)
 {
   SemaphoreHandle_t sem;
-  tasklist_t tasks;
+  ddsrt_tasklist_t tasks;
 
   assert(cond != NULL);
 
-  if (tasklist_init(&tasks) == -1) {
+  if (ddsrt_tasklist_init(&tasks) == -1) {
     abort();
   }
   if ((sem = xSemaphoreCreateMutex()) == NULL) {
-    tasklist_fini(&tasks);
+    ddsrt_tasklist_fini(&tasks);
     abort();
   }
 
@@ -156,7 +156,7 @@ void ddsrt_cond_destroy(ddsrt_cond_t *cond)
   assert(cond != NULL);
 
   vSemaphoreDelete(cond->sem);
-  tasklist_fini(&cond->tasks);
+  ddsrt_tasklist_fini(&cond->tasks);
   (void)memset(cond, 0, sizeof(*cond));
 }
 
@@ -228,7 +228,7 @@ void ddsrt_cond_signal(ddsrt_cond_t *cond)
   assert(cond != NULL);
 
   xSemaphoreTake(cond->sem, portMAX_DELAY);
-  if ((task = tasklist_pop(&cond->tasks, NULL)) != NULL) {
+  if ((task = ddsrt_tasklist_pop(&cond->tasks, NULL)) != NULL) {
     xTaskNotifyGive(task);
   }
   xSemaphoreGive(cond->sem);
@@ -241,7 +241,7 @@ void ddsrt_cond_broadcast(ddsrt_cond_t *cond)
   assert(cond != NULL);
 
   xSemaphoreTake(cond->sem, portMAX_DELAY);
-  while ((task = tasklist_pop(&cond->tasks, NULL)) != NULL) {
+  while ((task = ddsrt_tasklist_pop(&cond->tasks, NULL)) != NULL) {
     xTaskNotifyGive(task);
   }
   xSemaphoreGive(cond->sem);
@@ -254,15 +254,15 @@ void ddsrt_cond_broadcast(ddsrt_cond_t *cond)
 void ddsrt_rwlock_init(ddsrt_rwlock_t *rwlock)
 {
   SemaphoreHandle_t sem;
-  tasklist_t tasks;
+  ddsrt_tasklist_t tasks;
 
   assert(rwlock != NULL);
 
-  if (tasklist_init(&tasks) == -1) {
+  if (ddsrt_tasklist_init(&tasks) == -1) {
     abort();
   }
   if ((sem = xSemaphoreCreateMutex()) == NULL) {
-    tasklist_fini(&tasks);
+    ddsrt_tasklist_fini(&tasks);
     abort();
   }
 
@@ -277,7 +277,7 @@ void ddsrt_rwlock_destroy(ddsrt_rwlock_t *rwlock)
   assert(rwlock != NULL);
 
   vSemaphoreDelete(rwlock->sem);
-  tasklist_fini(&rwlock->tasks);
+  ddsrt_tasklist_fini(&rwlock->tasks);
   memset(rwlock, 0, sizeof(*rwlock));
 }
 
@@ -290,21 +290,21 @@ void ddsrt_rwlock_read(ddsrt_rwlock_t *rwlock)
   xSemaphoreTake(rwlock->sem, portMAX_DELAY);
   rwlock->rdcnt++;
   if (rwlock->wrcnt != 0) {
-    tasklist_push(&rwlock->tasks, task);
+    ddsrt_tasklist_push(&rwlock->tasks, task);
     /* Discard pending notifications. */
     ulTaskNotifyTake(1, 0);
     xSemaphoreGive(rwlock->sem);
     /* Wait to be notified. */
     ulTaskNotifyTake(1, portMAX_DELAY);
     xSemaphoreTake(rwlock->sem, portMAX_DELAY);
-    tasklist_pop(&rwlock->tasks, task);
+    ddsrt_tasklist_pop(&rwlock->tasks, task);
   }
   assert(rwlock->state == UNLOCKED ||
          rwlock->state == READ_LOCKED);
   rwlock->cnt++;
   rwlock->state = READ_LOCKED;
   /* Notify next task, if any. */
-  if ((task = tasklist_peek(&rwlock->tasks, NULL)) != NULL) {
+  if ((task = ddsrt_tasklist_peek(&rwlock->tasks, NULL)) != NULL) {
     xTaskNotifyGive(task);
   }
   xSemaphoreGive(rwlock->sem);
@@ -319,7 +319,7 @@ void ddsrt_rwlock_write(ddsrt_rwlock_t *rwlock)
   xSemaphoreTake(rwlock->sem, portMAX_DELAY);
   rwlock->wrcnt++;
   if (rwlock->rdcnt != 0 || rwlock->wrcnt != 1) {
-    tasklist_push(&rwlock->tasks, task);
+    ddsrt_tasklist_push(&rwlock->tasks, task);
     do {
       /* Discard pending notifications. */
       ulTaskNotifyTake(1, 0);
@@ -328,7 +328,7 @@ void ddsrt_rwlock_write(ddsrt_rwlock_t *rwlock)
       ulTaskNotifyTake(1, portMAX_DELAY);
       xSemaphoreTake(rwlock->sem, portMAX_DELAY);
     } while (rwlock->state != UNLOCKED);
-    tasklist_pop(&rwlock->tasks, task);
+    ddsrt_tasklist_pop(&rwlock->tasks, task);
   }
   assert(rwlock->cnt == 0);
   assert(rwlock->state == UNLOCKED);
@@ -351,7 +351,7 @@ bool ddsrt_rwlock_tryread(ddsrt_rwlock_t *rwlock)
     rwlock->rdcnt++;
     rwlock->state = READ_LOCKED;
     /* Notify next task, if any. */
-    if ((task = tasklist_peek(&rwlock->tasks, NULL)) != NULL) {
+    if ((task = ddsrt_tasklist_peek(&rwlock->tasks, NULL)) != NULL) {
       xTaskNotifyGive(task);
     }
   }
@@ -402,7 +402,7 @@ void ddsrt_rwlock_unlock(ddsrt_rwlock_t *rwlock)
   }
   /* Notify next task, if any. */
   if ((rwlock->state == UNLOCKED) &&
-      (task = tasklist_peek(&rwlock->tasks, NULL)) != NULL)
+      (task = ddsrt_tasklist_peek(&rwlock->tasks, NULL)) != NULL)
   {
     assert(rwlock->rdcnt != 0 ||
            rwlock->wrcnt != 0);

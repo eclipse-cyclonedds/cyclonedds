@@ -39,11 +39,11 @@ typedef struct {
   size_t off;
   size_t end;
   TaskHandle_t *tasks;
-} tasklist_t;
+} ddsrt_tasklist_t;
 
 typedef struct {
   SemaphoreHandle_t sem;
-  tasklist_t tasks;
+  ddsrt_tasklist_t tasks;
 } ddsrt_cond_t;
 
 /* This readers-writer lock implementation does not prefer writers over readers
@@ -56,7 +56,7 @@ typedef struct {
    notify the next task, etc. */
 typedef struct {
   SemaphoreHandle_t sem;
-  tasklist_t tasks;
+  ddsrt_tasklist_t tasks;
   int32_t state;
   uint32_t cnt;
   uint32_t rdcnt;
@@ -70,22 +70,21 @@ typedef ddsrt_atomic_uint32_t ddsrt_once_t;
 /* The declarations below are here for tests and must be considered private. */
 
 /* Number of buckets to grow buffer by. */
-#define TASKLIST_CHUNK (5)
+#define DDSRT_TASKLIST_CHUNK (5)
 /* Number of buckets to allocate initially. */
-#define TASKLIST_INITIAL (TASKLIST_CHUNK * 2)
+#define DDSRT_TASKLIST_INITIAL (DDSRT_TASKLIST_CHUNK * 2)
 
-int tasklist_init(tasklist_t *list);
-void tasklist_fini(tasklist_t *list);
-void tasklist_ltrim(tasklist_t *list);
-void tasklist_rtrim(tasklist_t *list);
-void tasklist_pack(tasklist_t *list);
-int tasklist_shrink(tasklist_t *list);
-int tasklist_grow(tasklist_t *list);
-ssize_t tasklist_find(tasklist_t *list, TaskHandle_t task);
-TaskHandle_t tasklist_peek(tasklist_t *list, TaskHandle_t task);
-TaskHandle_t tasklist_pop(tasklist_t *list, TaskHandle_t task);
-int tasklist_push(tasklist_t *list, TaskHandle_t task);
-
+int ddsrt_tasklist_init(ddsrt_tasklist_t *list);
+void ddsrt_tasklist_fini(ddsrt_tasklist_t *list);
+void ddsrt_tasklist_ltrim(ddsrt_tasklist_t *list);
+void ddsrt_tasklist_rtrim(ddsrt_tasklist_t *list);
+void ddsrt_tasklist_pack(ddsrt_tasklist_t *list);
+int ddsrt_tasklist_shrink(ddsrt_tasklist_t *list);
+int ddsrt_tasklist_grow(ddsrt_tasklist_t *list);
+ssize_t ddsrt_tasklist_find(ddsrt_tasklist_t *list, TaskHandle_t task);
+TaskHandle_t ddsrt_tasklist_peek(ddsrt_tasklist_t *list, TaskHandle_t task);
+TaskHandle_t ddsrt_tasklist_pop(ddsrt_tasklist_t *list, TaskHandle_t task);
+int ddsrt_tasklist_push(ddsrt_tasklist_t *list, TaskHandle_t task);
 
 #if defined (__cplusplus)
 }
