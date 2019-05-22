@@ -235,6 +235,14 @@ void local_reader_ary_remove (struct local_reader_ary *x, struct reader *rd)
   ddsrt_mutex_unlock (&x->rdary_lock);
 }
 
+void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_ok)
+{
+  ddsrt_mutex_lock (&x->rdary_lock);
+  if (x->valid)
+    x->fastpath_ok = fastpath_ok;
+  ddsrt_mutex_unlock (&x->rdary_lock);
+}
+
 void local_reader_ary_setinvalid (struct local_reader_ary *x)
 {
   ddsrt_mutex_lock (&x->rdary_lock);
@@ -1492,9 +1500,17 @@ static void proxy_writer_drop_connection (const struct nn_guid *pwr_guid, struct
     {
       ddsrt_avl_delete (&pwr_readers_treedef, &pwr->readers, m);
       if (m->in_sync != PRMSS_SYNC)
-        pwr->n_readers_out_of_sync--;
+      {
+        if (--pwr->n_readers_out_of_sync == 0)
+          local_reader_ary_setfastpath_ok (&pwr->rdary, true);
+      }
       if (rd->reliable)
         pwr->n_reliable_readers--;
+      /* If no reliable readers left, there is no reason to believe the heartbeats will keep
+         coming and therefore reset have_seen_heartbeat so the next reader to be created
+         doesn't get initialised based on stale data */
+      if (pwr->n_reliable_readers == 0)
+        pwr->have_seen_heartbeat = 0;
       local_reader_ary_remove (&pwr->rdary, rd);
     }
     ddsrt_mutex_unlock (&pwr->e.lock);
@@ -1775,7 +1791,6 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
 {
   struct pwr_rd_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
-  seqno_t last_deliv_seq;
 
   ddsrt_mutex_lock (&pwr->e.lock);
   if (ddsrt_avl_lookup_ipath (&pwr_readers_treedef, &pwr->readers, &rd->e.guid, &path))
@@ -1793,7 +1808,6 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
           PGUID (pwr->e.guid), PGUID (rd->e.guid));
   m->rd_guid = rd->e.guid;
   m->tcreate = now_mt ();
-
 
   /* We track the last heartbeat count value per reader--proxy-writer
      pair, so that we can correctly handle directed heartbeats. The
@@ -1813,34 +1827,61 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   /* These can change as a consequence of handling data and/or
      discovery activities. The safe way of dealing with them is to
      lock the proxy writer */
-  last_deliv_seq = nn_reorder_next_seq (pwr->reorder) - 1;
-  if (!rd->handle_as_transient_local)
+  if (is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) && !ddsrt_avl_is_empty (&pwr->readers))
   {
+    /* builtins really don't care about multiple copies or anything */
     m->in_sync = PRMSS_SYNC;
   }
-  else if (!config.conservative_builtin_reader_startup && is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) && !ddsrt_avl_is_empty (&pwr->readers))
+  else if (!pwr->have_seen_heartbeat)
   {
-    /* builtins really don't care about multiple copies */
+    /* Proxy writer hasn't seen a heartbeat yet: means we have no
+       clue from what sequence number to start accepting data, nor
+       where historical data ends and live data begins.
+
+       A transient-local reader should always get all historical
+       data, and so can always start-out as "out-of-sync".  Cyclone
+       refuses to retransmit already ACK'd samples to a Cyclone
+       reader, so if the other side is Cyclone, we can always start
+       from sequence number 1.
+
+       For non-Cyclone, if the reader is volatile, we have to just
+       start from the most recent sample, even though that means
+       the first samples written after matching the reader may be
+       lost.  The alternative not only gets too much historical data
+       but may also result in "sample lost" notifications because the
+       writer is (may not be) retaining samples on behalf of this
+       reader for the oldest samples and so this reader may end up
+       with a partial set of old-ish samples.  Even when both are
+       using KEEP_ALL and the connection doesn't fail ... */
+    if (rd->handle_as_transient_local)
+      m->in_sync = PRMSS_OUT_OF_SYNC;
+    else if (vendor_is_eclipse (pwr->c.vendor))
+      m->in_sync = PRMSS_OUT_OF_SYNC;
+    else
+      m->in_sync = PRMSS_SYNC;
+    m->u.not_in_sync.end_of_tl_seq = MAX_SEQ_NUMBER;
+  }
+  else if (!rd->handle_as_transient_local)
+  {
+    /* volatile reader, writer has seen a heartbeat: it's in sync
+       (there is a risk of it getting some historical data: that
+       happens to be cached in the writer's reorder admin at this
+       point) */
     m->in_sync = PRMSS_SYNC;
   }
   else
   {
-    /* normal transient-local, reader is behind proxy writer */
+    /* transient-local reader; range of sequence numbers is already
+       known */
     m->in_sync = PRMSS_OUT_OF_SYNC;
-    if (last_deliv_seq == 0)
-    {
-      m->u.not_in_sync.end_of_out_of_sync_seq = MAX_SEQ_NUMBER;
-      m->u.not_in_sync.end_of_tl_seq = MAX_SEQ_NUMBER;
-    }
-    else
-    {
-      m->u.not_in_sync.end_of_tl_seq = pwr->last_seq;
-      m->u.not_in_sync.end_of_out_of_sync_seq = last_deliv_seq;
-    }
-    DDS_LOG(DDS_LC_DISCOVERY, " - out-of-sync %"PRId64, m->u.not_in_sync.end_of_out_of_sync_seq);
+    m->u.not_in_sync.end_of_tl_seq = pwr->last_seq;
   }
   if (m->in_sync != PRMSS_SYNC)
+  {
+    DDS_LOG(DDS_LC_DISCOVERY, " - out-of-sync");
     pwr->n_readers_out_of_sync++;
+    local_reader_ary_setfastpath_ok (&pwr->rdary, false);
+  }
   m->count = init_count;
   /* Spec says we may send a pre-emptive AckNack (8.4.2.3.4), hence we
      schedule it for the configured delay * T_MILLISECOND. From then
@@ -3509,7 +3550,6 @@ void new_proxy_participant
   proxypp->endpoints = NULL;
   proxypp->plist = nn_plist_dup (plist);
   ddsrt_avl_init (&proxypp_groups_treedef, &proxypp->groups);
-
 
   if (custom_flags & CF_INC_KERNEL_SEQUENCE_NUMBERS)
     proxypp->kernel_sequence_numbers = 1;

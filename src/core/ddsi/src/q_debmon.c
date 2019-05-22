@@ -286,7 +286,7 @@ static int print_proxy_participants (struct thread_state1 * const ts1, ddsi_tran
               x += cpf (conn, "      tl-catchup end_of_tl_seq %lld\n", m->u.not_in_sync.end_of_tl_seq);
               break;
             case PRMSS_OUT_OF_SYNC:
-              x += cpf (conn, "      out-of-sync end_of_tl_seq %lld end_of_out_of_sync_seq %lld\n", m->u.not_in_sync.end_of_tl_seq, m->u.not_in_sync.end_of_out_of_sync_seq);
+              x += cpf (conn, "      out-of-sync end_of_tl_seq %lld\n", m->u.not_in_sync.end_of_tl_seq);
               break;
           }
         }
