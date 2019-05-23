@@ -30,7 +30,7 @@ extern "C" {
  *                    byte), or would have been written would @buf have been
  *                    sufficiently large enough.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Environment variable written to @buf.
@@ -43,7 +43,7 @@ extern "C" {
  * @retval DDS_RETCODE_ERROR
  *             Unspecified error.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_getenv(
   const char *name,
   char **value)
@@ -58,7 +58,7 @@ ddsrt_nonnull_all;
  * @param[in]  name   Environment variable name.
  * @param[in]  value  Value to set environment variable to.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Environment variable successfully set to @value.
@@ -69,7 +69,7 @@ ddsrt_nonnull_all;
  * @retval DDS_RETCODE_ERROR
  *             Unspecified system error.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_setenv(
   const char *name,
   const char *value)
@@ -80,7 +80,7 @@ ddsrt_nonnull_all;
  *
  * @param[in]  name  Environment variable name.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Environment variable successfully unset.
@@ -91,7 +91,7 @@ ddsrt_nonnull_all;
  * @retval DDS_RETCODE_ERROR
  *             Unspecified system error.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_unsetenv(
   const char *name)
 ddsrt_nonnull_all;

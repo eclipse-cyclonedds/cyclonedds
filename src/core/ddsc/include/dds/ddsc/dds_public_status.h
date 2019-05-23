@@ -185,7 +185,7 @@ dds_inconsistent_topic_status_t;
  * @param[out] status The pointer to \ref DCPS_Status_InconsistentTopic to get the status
  *
  * @returns  0 - Success
- * @returns <0 - Failure (use dds_err_nr() to get error value).
+ * @returns <0 - Failure
  *
  * @retval DDS_RETCODE_ERROR
  *                  An internal error has occurred.
@@ -212,7 +212,7 @@ dds_get_inconsistent_topic_status (
  * @param[out] status  The pointer to \ref DCPS_Status_PublicationMatched to get the status
  *
  * @returns  0 - Success
- * @returns <0 - Failure (use dds_err_nr() to get error value).
+ * @returns <0 - Failure
  *
  * @retval DDS_RETCODE_ERROR
  *                  An internal error has occurred.
@@ -239,7 +239,7 @@ dds_get_publication_matched_status (
  * @param[out] status  The pointer to \ref DCPS_Status_LivelinessLost to get the status
  *
  * @returns  0 - Success
- * @returns <0 - Failure (use dds_err_nr() to get error value).
+ * @returns <0 - Failure
  *
  * @retval DDS_RETCODE_ERROR
  *                  An internal error has occurred.
@@ -266,7 +266,7 @@ dds_get_liveliness_lost_status (
  * @param[out] status  The pointer to \ref DCPS_Status_OfferedDeadlineMissed to get the status
  *
  * @returns  0 - Success
- * @returns <0 - Failure (use dds_err_nr() to get error value).
+ * @returns <0 - Failure
  *
  * @retval DDS_RETCODE_ERROR
  *                  An internal error has occurred.
@@ -293,7 +293,7 @@ dds_get_offered_deadline_missed_status(
  * @param[out] status  The pointer to \ref DCPS_Status_OfferedIncompatibleQoS to get the status
  *
  * @returns  0 - Success
- * @returns <0 - Failure (use dds_err_nr() to get error value).
+ * @returns <0 - Failure
  *
  * @retval DDS_RETCODE_ERROR
  *                  An internal error has occurred.
@@ -320,7 +320,7 @@ dds_get_offered_incompatible_qos_status (
  * @param[out] status  The pointer to \ref DCPS_Status_SubscriptionMatched to get the status
  *
  * @returns  0 - Success
- * @returns <0 - Failure (use dds_err_nr() to get error value).
+ * @returns <0 - Failure
  *
  * @retval DDS_RETCODE_ERROR
  *                  An internal error has occurred.
@@ -347,7 +347,7 @@ dds_get_subscription_matched_status (
  * @param[out] status  The pointer to \ref DCPS_Status_LivelinessChanged to get the status
  *
  * @returns  0 - Success
- * @returns <0 - Failure (use dds_err_nr() to get error value).
+ * @returns <0 - Failure
  *
  * @retval DDS_RETCODE_ERROR
  *                  An internal error has occurred.
@@ -374,7 +374,7 @@ dds_get_liveliness_changed_status (
  * @param[out] status  The pointer to \ref DCPS_Status_SampleRejected to get the status
  *
  * @returns  0 - Success
- * @returns <0 - Failure (use dds_err_nr() to get error value).
+ * @returns <0 - Failure
  *
  * @retval DDS_RETCODE_ERROR
  *                  An internal error has occurred.

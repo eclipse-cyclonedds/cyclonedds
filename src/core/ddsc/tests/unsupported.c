@@ -78,9 +78,9 @@ CU_Test(ddsc_unsupported, dds_begin_end_coherent, .init = setup, .fini = teardow
 
     for (int i=0; i < 5; i++) {
         result = dds_begin_coherent(e[pars[i].index]);
-        CU_ASSERT_EQUAL(dds_err_nr(result), pars[i].exp_res);
+        CU_ASSERT_EQUAL(result, pars[i].exp_res);
         result = dds_end_coherent(e[pars[i].index]);
-        CU_ASSERT_EQUAL(dds_err_nr(result), pars[i].exp_res);
+        CU_ASSERT_EQUAL(result, pars[i].exp_res);
     }
 }
 
@@ -95,7 +95,7 @@ CU_Test(ddsc_unsupported, dds_wait_for_acks, .init = setup, .fini = teardown)
 
     for (int i=0; i< 3; i++) {
         result = dds_wait_for_acks(e[pars[i].index], 0);
-        CU_ASSERT_EQUAL(dds_err_nr(result), pars[i].exp_res);
+        CU_ASSERT_EQUAL(result, pars[i].exp_res);
     }
 }
 
@@ -110,9 +110,9 @@ CU_Test(ddsc_unsupported, dds_suspend_resume, .init = setup, .fini = teardown)
 
     for (int i=0; i< 3; i++) {
         result = dds_suspend(e[pars[i].index]);
-        CU_ASSERT_EQUAL(dds_err_nr(result), pars[i].exp_res);
+        CU_ASSERT_EQUAL(result, pars[i].exp_res);
         result = dds_resume(e[pars[i].index]);
-        CU_ASSERT_EQUAL(dds_err_nr(result), pars[i].exp_res);
+        CU_ASSERT_EQUAL(result, pars[i].exp_res);
     }
 }
 
@@ -130,7 +130,7 @@ CU_Test(ddsc_unsupported, dds_get_instance_handle, .init = setup, .fini = teardo
 
     for (int i=0; i < 5; i++) {
         result = dds_get_instance_handle(e[pars[i].index], &ih);
-        CU_ASSERT_EQUAL(dds_err_nr(result), pars[i].exp_res);
+        CU_ASSERT_EQUAL(result, pars[i].exp_res);
     }
 }
 
@@ -152,7 +152,7 @@ CU_Test(ddsc_unsupported, dds_set_qos, .init = setup, .fini = teardown)
     qos = dds_create_qos();
     for (int i=0; i < 8;i++) {
         result = dds_set_qos(e[pars[i].index], qos);
-        CU_ASSERT_EQUAL(dds_err_nr(result), pars[i].exp_res);
+        CU_ASSERT_EQUAL(result, pars[i].exp_res);
     }
     dds_delete_qos(qos);
 }

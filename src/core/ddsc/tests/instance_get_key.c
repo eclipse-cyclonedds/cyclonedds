@@ -63,7 +63,7 @@ CU_Test(ddsc_instance_get_key, bad_entity, .init=setup, .fini=teardown)
     dds_return_t ret;
 
     ret = dds_instance_get_key(participant, handle, &data);
-    CU_ASSERT_EQUAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_instance_get_key, null_data, .init=setup, .fini=teardown)
@@ -71,7 +71,7 @@ CU_Test(ddsc_instance_get_key, null_data, .init=setup, .fini=teardown)
     dds_return_t ret;
 
     ret = dds_register_instance(writer, &handle, NULL);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_instance_get_key, null_handle, .init=setup, .fini=teardown)
@@ -81,7 +81,7 @@ CU_Test(ddsc_instance_get_key, null_handle, .init=setup, .fini=teardown)
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     ret = dds_instance_get_key(writer, DDS_HANDLE_NIL, &data);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_instance_get_key, registered_instance, .init=setup, .fini=teardown)
@@ -99,7 +99,7 @@ CU_Test(ddsc_instance_get_key, registered_instance, .init=setup, .fini=teardown)
     CU_ASSERT_PTR_NOT_NULL_FATAL(key_data.ip);
     CU_ASSERT_STRING_EQUAL_FATAL(key_data.ip, data.ip);
     CU_ASSERT_EQUAL_FATAL(key_data.port, data.port);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     RoundTripModule_Address_free(&key_data, DDS_FREE_CONTENTS);
 }

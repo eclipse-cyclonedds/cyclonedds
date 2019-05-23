@@ -55,7 +55,7 @@ static uint32_t mutex_lock_routine(void *ptr)
    main thread before a lock operation is attempted by the second thread. */
 CU_Test(ddsrt_sync, mutex_lock_conc)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_thread_t thr;
   ddsrt_threadattr_t attr;
   thread_arg_t arg = { .cnt = DDSRT_ATOMIC_UINT32_INIT(0) };
@@ -133,7 +133,7 @@ static uint32_t rwlock_trywrite_routine(void *ptr)
 
 CU_Test(ddsrt_sync, mutex_trylock_conc)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_thread_t thr;
   ddsrt_threadattr_t attr;
   thread_arg_t arg = { .cnt = DDSRT_ATOMIC_UINT32_INIT(1) };
@@ -164,7 +164,7 @@ CU_TheoryDataPoints(ddsrt_sync, rwlock_trylock_conc) = {
 
 CU_Theory((uint32_t lock, uint32_t trylock, uint32_t exp), ddsrt_sync, rwlock_trylock_conc)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_thread_t thr;
   ddsrt_threadattr_t attr;
   ddsrt_thread_routine_t func;
@@ -219,7 +219,7 @@ static uint32_t once_routine(void *ptr)
 
 CU_Test(ddsrt_sync, once_conc)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_thread_t thrs[ONCE_THREADS];
   ddsrt_threadattr_t attr;
   uint32_t res;
@@ -284,7 +284,7 @@ static uint32_t waitfor_routine(void *ptr)
 
 CU_Test(ddsrt_sync, cond_waitfor)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ddsrt_thread_t thr;
   ddsrt_threadattr_t attr;
   thread_arg_t arg = { .cnt = DDSRT_ATOMIC_UINT32_INIT(0), .reltime = DDS_MSECS(100) };
@@ -333,7 +333,7 @@ static uint32_t waituntil_routine(void *ptr)
 
 CU_Test(ddsrt_sync, cond_waituntil)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   dds_duration_t delay = DDS_MSECS(100);
   ddsrt_thread_t thr;
   ddsrt_threadattr_t attr;

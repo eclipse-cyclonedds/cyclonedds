@@ -19,7 +19,6 @@
 #include "dds__qos.h"
 #include "dds__domain.h"
 #include "dds__participant.h"
-#include "dds__err.h"
 #include "dds__builtin.h"
 
 DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_participant)
@@ -37,7 +36,7 @@ dds_participant_status_validate(
     dds_return_t ret = DDS_RETCODE_OK;
 
     if (mask & ~(DDS_PARTICIPANT_STATUS_MASK)) {
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
     }
 
     return ret;
@@ -106,11 +105,11 @@ dds_participant_qos_validate(
     /* Check consistency. */
     if ((qos->present & QP_USER_DATA) && !validate_octetseq(&qos->user_data)) {
         DDS_ERROR("User data QoS policy is inconsistent and caused an error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
+        ret = DDS_RETCODE_INCONSISTENT_POLICY;
     }
     if ((qos->present & QP_PRISMTECH_ENTITY_FACTORY) && !validate_entityfactory_qospolicy(&qos->entity_factory)) {
         DDS_ERROR("Prismtech entity factory QoS policy is inconsistent and caused an error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
+        ret = DDS_RETCODE_INCONSISTENT_POLICY;
     }
     return ret;
 }
@@ -128,7 +127,7 @@ dds_participant_qos_set(
         if (enabled) {
             /* TODO: CHAM-95: DDSI does not support changing QoS policies. */
             DDS_ERROR("Changing the participant QoS is not supported\n");
-            ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
+            ret = DDS_RETCODE_UNSUPPORTED;
         }
     }
     return ret;
@@ -188,7 +187,7 @@ dds_create_participant(
     nn_plist_fini (&plist);
     if (q_rc != 0) {
         DDS_ERROR("Internal error");
-        e = DDS_ERRNO(DDS_RETCODE_ERROR);
+        e = DDS_RETCODE_ERROR;
         goto fail_new_participant;
     }
 
@@ -241,12 +240,12 @@ dds_lookup_participant(
 
     if ((participants != NULL) && ((size <= 0) || (size >= INT32_MAX))) {
         DDS_ERROR("Array is given, but with invalid size\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto err;
     }
     if ((participants == NULL) && (size != 0)) {
         DDS_ERROR("Size is given, but no array\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto err;
     }
 

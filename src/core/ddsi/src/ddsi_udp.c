@@ -54,7 +54,7 @@ static ddsrt_atomic_uint32_t ddsi_udp_init_g = DDSRT_ATOMIC_UINT32_INIT(0);
 
 static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ssize_t ret = 0;
   ddsrt_msghdr_t msghdr;
   struct sockaddr_storage src;
@@ -117,7 +117,7 @@ static void set_msghdr_iov (ddsrt_msghdr_t *mhdr, ddsrt_iovec_t *iov, size_t iov
 
 static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ssize_t ret = -1;
   unsigned retry = 2;
   int sendflags = 0;
@@ -214,7 +214,7 @@ static int ddsi_udp_conn_locator (ddsi_tran_base_t base, nn_locator_t *loc)
 
 static unsigned short get_socket_port (ddsrt_socket_t socket)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   struct sockaddr_storage addr;
   socklen_t addrlen = sizeof (addr);
 
@@ -282,7 +282,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
     if ((uc->m_diffserv != 0) && (ddsi_udp_factory_g.m_kind == NN_LOCATOR_KIND_UDPv4))
     {
-      dds_retcode_t rc;
+      dds_return_t rc;
       rc = ddsrt_setsockopt(sock, IPPROTO_IP, IP_TOS, (char *)&uc->m_diffserv, sizeof(uc->m_diffserv));
       if (rc != DDS_RETCODE_OK)
         DDS_ERROR("ddsi_udp_create_conn: set diffserv retcode %"PRId32"\n", rc);
@@ -307,7 +307,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
 
 static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const nn_locator_t *mcloc, const struct nn_interface *interf)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   struct sockaddr_storage mcip;
   ddsi_ipaddr_from_loc(&mcip, mcloc);
 #if DDSRT_HAVE_IPV6
@@ -336,7 +336,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const nn_loca
 #ifdef DDSI_INCLUDE_SSM
 static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   struct sockaddr_storage mcip, srcip;
   ddsi_ipaddr_from_loc(&mcip, mcloc);
   ddsi_ipaddr_from_loc(&srcip, srcloc);

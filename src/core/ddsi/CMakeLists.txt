@@ -86,7 +86,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_debmon.h
     q_entity.h
     q_ephash.h
-    q_error.h
     q_feature_check.h
     q_freelist.h
     q_gc.h

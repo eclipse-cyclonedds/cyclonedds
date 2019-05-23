@@ -34,9 +34,9 @@ extern "C" {
  *                      character is stored.
  * @param[out]  dblptr  A double where the result is stored.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_strtod(const char *nptr, char **endptr, double *dblptr);
 
 /**
@@ -47,9 +47,9 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr);
  *                      character is stored.
  * @param[out]  fltptr  A float where the floating-point number is stored.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_strtof(const char *nptr, char **endptr, float *fltptr);
 
 /**

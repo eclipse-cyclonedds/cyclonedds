@@ -36,7 +36,6 @@
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_lease.h"
@@ -1953,7 +1952,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   {
     nn_plist_src_t src;
     size_t qos_offset = NN_RDATA_SUBMSG_OFF (fragchain) + offsetof (Data_DataFrag_common_t, octetsToInlineQos) + sizeof (msg->octetsToInlineQos) + msg->octetsToInlineQos;
-    int plist_ret;
+    dds_return_t plist_ret;
     src.protocol_version = rst->protocol_version;
     src.vendorid = rst->vendor;
     src.encoding = (msg->smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
@@ -1961,7 +1960,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
     if ((plist_ret = nn_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET | PP_PRISMTECH_EOTINFO, 0, &src)) < 0)
     {
-      if (plist_ret != Q_ERR_INCOMPATIBLE)
+      if (plist_ret != DDS_RETCODE_UNSUPPORTED)
         DDS_WARNING ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": invalid inline qos\n",
                      src.vendorid.id[0], src.vendorid.id[1], PGUID (pwr->e.guid), sampleinfo->seq);
       return 0;

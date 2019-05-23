@@ -20,7 +20,6 @@
 #include "dds__stream.h"
 #include "dds__init.h"
 #include "dds__domain.h"
-#include "dds__err.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_sertopic.h"
@@ -76,7 +75,7 @@ dds_topic_status_validate(
 
     if (mask & ~(DDS_TOPIC_STATUS_MASK)) {
         DDS_ERROR("Argument mask is invalid\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
     }
 
     return ret;
@@ -183,7 +182,7 @@ dds_find_topic(
     dds_entity_t tp;
     dds_entity *p = NULL;
     struct ddsi_sertopic *st;
-    dds_retcode_t rc;
+    dds_return_t rc;
 
     if (name) {
         rc = dds_entity_lock(participant, DDS_KIND_PARTICIPANT, &p);
@@ -200,16 +199,16 @@ dds_find_topic(
                 tp = st->status_cb_entity->m_entity.m_hdllink.hdl;
             } else {
                 DDS_ERROR("Topic is not being created yet\n");
-                tp = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
+                tp = DDS_RETCODE_PRECONDITION_NOT_MET;
             }
             ddsrt_mutex_unlock (&dds_global.m_mutex);
             dds_entity_unlock(p);
         } else {
-            tp = DDS_ERRNO(rc);
+            tp = rc;
         }
     } else {
         DDS_ERROR("Argument name is not valid\n");
-        tp = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        tp = DDS_RETCODE_BAD_PARAMETER;
     }
 
     return tp;
@@ -234,23 +233,23 @@ dds_topic_qos_validate(
     /* Check consistency. */
     if (!dds_qos_validate_common(qos)) {
         DDS_ERROR("Argument QoS is not valid\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
     }
     if ((qos->present & QP_GROUP_DATA) && !validate_octetseq (&qos->group_data)) {
         DDS_ERROR("Group data QoS policy is inconsistent and caused an error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
+        ret = DDS_RETCODE_INCONSISTENT_POLICY;
     }
     if ((qos->present & QP_DURABILITY_SERVICE) && (validate_durability_service_qospolicy(&qos->durability_service) != 0)) {
         DDS_ERROR("Durability service QoS policy is inconsistent and caused an error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
+        ret = DDS_RETCODE_INCONSISTENT_POLICY;
     }
     if ((qos->present & QP_LIFESPAN) && (validate_duration(&qos->lifespan.duration) != 0)) {
         DDS_ERROR("Lifespan QoS policy is inconsistent and caused an error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
+        ret = DDS_RETCODE_INCONSISTENT_POLICY;
     }
     if (qos->present & QP_HISTORY && (qos->present & QP_RESOURCE_LIMITS) && (validate_history_and_resource_limits(&qos->history, &qos->resource_limits) != 0)) {
         DDS_ERROR("Lifespan QoS policy is inconsistent and caused an error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
+        ret = DDS_RETCODE_INCONSISTENT_POLICY;
     }
     if(ret == DDS_RETCODE_OK && enabled){
         ret = dds_qos_validate_mutable_common(qos);
@@ -271,7 +270,7 @@ dds_topic_qos_set(
         if (enabled) {
             /* TODO: CHAM-95: DDSI does not support changing QoS policies. */
             DDS_ERROR("Changing the topic QoS is not supported\n");
-            ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
+            ret = DDS_RETCODE_UNSUPPORTED;
         }
     }
     return ret;
@@ -310,7 +309,7 @@ dds_create_topic_arbitrary (
         const nn_plist_t *sedp_plist)
 {
     struct ddsi_sertopic *stgeneric;
-    dds_retcode_t rc;
+    dds_return_t rc;
     dds_entity *par;
     dds_topic *top;
     dds_qos_t *new_qos = NULL;
@@ -319,13 +318,13 @@ dds_create_topic_arbitrary (
 
     if (sertopic == NULL){
         DDS_ERROR("Topic description is NULL\n");
-        hdl = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        hdl = DDS_RETCODE_BAD_PARAMETER;
         goto bad_param_err;
     }
 
     rc = dds_entity_lock(participant, DDS_KIND_PARTICIPANT, &par);
     if (rc != DDS_RETCODE_OK) {
-        hdl = DDS_ERRNO(rc);
+        hdl = rc;
         goto lock_err;
     }
 
@@ -345,11 +344,11 @@ dds_create_topic_arbitrary (
         if (!sertopic_equivalent (stgeneric, sertopic)) {
             /* FIXME: should copy the type, perhaps? but then the pointers will no longer be the same */
             DDS_ERROR("Create topic with mismatching type\n");
-            hdl = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
+            hdl = DDS_RETCODE_PRECONDITION_NOT_MET;
         } else if (!dupdef_qos_ok(qos, stgeneric)) {
             /* FIXME: should copy the type, perhaps? but then the pointers will no longer be the same */
             DDS_ERROR("Create topic with mismatching qos\n");
-            hdl = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
+            hdl = DDS_RETCODE_INCONSISTENT_POLICY;
         } else {
             /* FIXME: calling addref is wrong because the Cyclone library has no
                knowledge of the reference and hence simply deleting the participant
@@ -417,19 +416,19 @@ dds_create_topic(
 
     if (desc == NULL){
         DDS_ERROR("Topic description is NULL");
-        hdl = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        hdl = DDS_RETCODE_BAD_PARAMETER;
         goto bad_param_err;
     }
 
     if (name == NULL) {
         DDS_ERROR("Topic name is NULL");
-        hdl = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        hdl = DDS_RETCODE_BAD_PARAMETER;
         goto bad_param_err;
     }
 
     if (!is_valid_name(name)) {
         DDS_ERROR("Topic name contains characters that are not allowed.");
-        hdl = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        hdl = DDS_RETCODE_BAD_PARAMETER;
         goto bad_param_err;
     }
 
@@ -586,27 +585,24 @@ dds_get_name(
 {
     dds_topic *t;
     dds_return_t ret;
-    dds_retcode_t rc;
 
     if(size <= 0){
         DDS_ERROR("Argument size is smaller than 0\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto fail;
     }
     if(name == NULL){
         DDS_ERROR("Argument name is NULL\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto fail;
     }
     name[0] = '\0';
-    rc = dds_topic_lock(topic, &t);
-    if (rc == DDS_RETCODE_OK) {
+    ret = dds_topic_lock(topic, &t);
+    if (ret == DDS_RETCODE_OK) {
         (void)snprintf(name, size, "%s", t->m_stopic->name);
         dds_topic_unlock(t);
-        ret = DDS_RETCODE_OK;
     } else {
         DDS_ERROR("Error occurred on locking topic\n");
-        ret = DDS_ERRNO(rc);
         goto fail;
     }
 fail:
@@ -620,29 +616,26 @@ dds_get_type_name(
         size_t size)
 {
     dds_topic *t;
-    dds_retcode_t rc;
     dds_return_t ret;
 
     if(size <= 0){
         DDS_ERROR("Argument size is smaller than 0\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto fail;
     }
     if(name == NULL){
         DDS_ERROR("Argument name is NULL\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto fail;
     }
     name[0] = '\0';
-    rc = dds_topic_lock(topic, &t);
-    if (rc != DDS_RETCODE_OK) {
+    ret = dds_topic_lock(topic, &t);
+    if (ret != DDS_RETCODE_OK) {
         DDS_ERROR("Error occurred on locking topic\n");
-        ret = DDS_ERRNO(rc);
         goto fail;
     }
     (void)snprintf(name, size, "%s", t->m_stopic->type_name);
     dds_topic_unlock(t);
-    ret = DDS_RETCODE_OK;
 fail:
     return ret;
 }
@@ -652,14 +645,12 @@ dds_get_inconsistent_topic_status(
         dds_entity_t topic,
         dds_inconsistent_topic_status_t *status)
 {
-    dds_retcode_t rc;
     dds_topic *t;
-    dds_return_t ret = DDS_RETCODE_OK;
+    dds_return_t ret;
 
-    rc = dds_topic_lock(topic, &t);
-    if (rc != DDS_RETCODE_OK) {
+    ret = dds_topic_lock(topic, &t);
+    if (ret != DDS_RETCODE_OK) {
         DDS_ERROR("Error occurred on locking topic\n");
-        ret = DDS_ERRNO(rc);
         goto fail;
     }
     /* status = NULL, application do not need the status, but reset the counter & triggered bit */

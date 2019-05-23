@@ -187,7 +187,7 @@ static void *os_startRoutineWrapper (void *threadContext)
   return (void *)resultValue;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_thread_create (
   ddsrt_thread_t *threadptr,
   const char *name,
@@ -346,7 +346,7 @@ bool ddsrt_thread_equal(ddsrt_thread_t a, ddsrt_thread_t b)
   return (pthread_equal(a.v, b.v) != 0);
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_thread_join(ddsrt_thread_t thread, uint32_t *thread_result)
 {
   int err;
@@ -386,7 +386,7 @@ static void thread_init(void)
   (void)pthread_once(&thread_once, &thread_init_once);
 }
 
-dds_retcode_t ddsrt_thread_cleanup_push (void (*routine) (void *), void *arg)
+dds_return_t ddsrt_thread_cleanup_push (void (*routine) (void *), void *arg)
 {
   int err;
   thread_cleanup_t *prev, *tail;
@@ -408,7 +408,7 @@ dds_retcode_t ddsrt_thread_cleanup_push (void (*routine) (void *), void *arg)
   return DDS_RETCODE_OUT_OF_RESOURCES;
 }
 
-dds_retcode_t ddsrt_thread_cleanup_pop (int execute)
+dds_return_t ddsrt_thread_cleanup_pop (int execute)
 {
   int err;
   thread_cleanup_t *tail;

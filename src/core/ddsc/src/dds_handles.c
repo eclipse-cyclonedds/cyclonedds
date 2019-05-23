@@ -19,7 +19,6 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds__handles.h"
 #include "dds__types.h"
-#include "dds__err.h"
 
 /* FIXME: this code isn't really correct when USE_CHH is set:
    - the DDS entity code doesn't really play by the awake/asleep mechanism
@@ -128,7 +127,7 @@ dds_handle_t dds_handle_create (struct dds_handle_link *link)
   if (handles.count == MAX_HANDLES)
   {
     ddsrt_mutex_unlock (&handles.lock);
-    ret = DDS_ERRNO (DDS_RETCODE_OUT_OF_RESOURCES);
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
   }
   else
   {

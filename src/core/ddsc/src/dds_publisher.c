@@ -15,7 +15,6 @@
 #include "dds__listener.h"
 #include "dds__publisher.h"
 #include "dds__qos.h"
-#include "dds__err.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/version.h"
 
@@ -32,7 +31,7 @@ dds_publisher_instance_hdl(
     (void)i;
     /* TODO: Get/generate proper handle. */
     DDS_ERROR("Getting publisher instance handle is not supported\n");
-    return DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
+    return DDS_RETCODE_UNSUPPORTED;
 }
 
 static dds_return_t
@@ -46,24 +45,24 @@ dds_publisher_qos_validate(
     /* Check consistency. */
     if((qos->present & QP_GROUP_DATA) && !validate_octetseq(&qos->group_data)){
         DDS_ERROR("Group data policy is inconsistent and caused an error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
+        ret = DDS_RETCODE_INCONSISTENT_POLICY;
     }
     if((qos->present & QP_PRESENTATION) && (validate_presentation_qospolicy(&qos->presentation) != 0)){
         DDS_ERROR("Presentation policy is inconsistent and caused an error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
+        ret = DDS_RETCODE_INCONSISTENT_POLICY;
     }
     if((qos->present & QP_PARTITION) && !validate_stringseq(&qos->partition)){
         DDS_ERROR("Partition policy is inconsistent and caused an error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
+        ret = DDS_RETCODE_INCONSISTENT_POLICY;
     }
     if((qos->present & QP_PRISMTECH_ENTITY_FACTORY) && !validate_entityfactory_qospolicy(&qos->entity_factory)){
         DDS_ERROR("Prismtech entity factory policy is inconsistent and caused an error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_INCONSISTENT_POLICY);
+        ret = DDS_RETCODE_INCONSISTENT_POLICY;
     }
     if(ret == DDS_RETCODE_OK && enabled && (qos->present & QP_PRESENTATION)){
         /* TODO: Improve/check immutable check. */
         DDS_ERROR("Presentation policy is immutable\n");
-        ret = DDS_ERRNO(DDS_RETCODE_IMMUTABLE_POLICY);
+        ret = DDS_RETCODE_IMMUTABLE_POLICY;
     }
     return ret;
 }
@@ -80,7 +79,7 @@ dds_publisher_qos_set(
         if (enabled) {
             /* TODO: CHAM-95: DDSI does not support changing QoS policies. */
             DDS_ERROR(DDS_PROJECT_NAME" does not support changing QoS policies yet\n");
-            ret = DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
+            ret = DDS_RETCODE_UNSUPPORTED;
         }
     }
     return ret;
@@ -92,7 +91,7 @@ static dds_return_t dds_publisher_status_validate (uint32_t mask)
 
     if (mask & ~(DDS_PUBLISHER_STATUS_MASK)) {
         DDS_ERROR("Invalid status mask\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
     }
 
     return ret;
@@ -109,12 +108,11 @@ dds_create_publisher(
     dds_entity_t hdl;
     dds_qos_t * new_qos = NULL;
     dds_return_t ret;
-    dds_retcode_t rc;
 
-    rc = dds_entity_lock(participant, DDS_KIND_PARTICIPANT, &par);
-    if (rc != DDS_RETCODE_OK) {
+    ret = dds_entity_lock(participant, DDS_KIND_PARTICIPANT, &par);
+    if (ret != DDS_RETCODE_OK) {
         DDS_ERROR("Error occurred on locking participant\n");
-        hdl = DDS_ERRNO(rc);
+        hdl = ret;
         goto lock_err;
     }
 
@@ -164,7 +162,7 @@ dds_wait_for_acks(
     dds_duration_t timeout)
 {
   if (timeout < 0)
-    return DDS_ERRNO (DDS_RETCODE_BAD_PARAMETER);
+    return DDS_RETCODE_BAD_PARAMETER;
   static const dds_entity_kind_t kinds[] = { DDS_KIND_WRITER, DDS_KIND_PUBLISHER };
   return dds_generic_unimplemented_operation_manykinds (publisher_or_writer, sizeof (kinds) / sizeof (kinds[0]), kinds);
 }
@@ -176,7 +174,7 @@ dds_publisher_begin_coherent(
     /* TODO: CHAM-124 Currently unsupported. */
     (void)e;
     DDS_ERROR("Using coherency to get a coherent data set is not being supported yet\n");
-    return DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
+    return DDS_RETCODE_UNSUPPORTED;
 }
 
 dds_return_t
@@ -186,6 +184,6 @@ dds_publisher_end_coherent(
     /* TODO: CHAM-124 Currently unsupported. */
     (void)e;
     DDS_ERROR("Using coherency to get a coherent data set is not being supported yet\n");
-    return DDS_ERRNO(DDS_RETCODE_UNSUPPORTED);
+    return DDS_RETCODE_UNSUPPORTED;
 }
 

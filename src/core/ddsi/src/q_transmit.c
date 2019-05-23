@@ -26,7 +26,6 @@
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_unused.h"
@@ -387,7 +386,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
   nn_xmsg_submsg_setnext (msg, sm_marker);
 }
 
-static int create_fragment_message_simple (struct writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct nn_xmsg **pmsg)
+static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct nn_xmsg **pmsg)
 {
 #define TEST_KEYHASH 0
   /* actual expected_inline_qos_size is typically 0, but always claiming 32 bytes won't make
@@ -417,7 +416,7 @@ static int create_fragment_message_simple (struct writer *wr, seqno_t seq, struc
 
   /* INFO_TS: 12 bytes, Data_t: 24 bytes, expected inline QoS: 32 => should be single chunk */
   if ((*pmsg = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (Data_t) + expected_inline_qos_size, NN_XMSG_KIND_DATA)) == NULL)
-    return Q_ERR_OUT_OF_MEMORY;
+    return DDS_RETCODE_OUT_OF_RESOURCES;
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   /* use the partition_id from the writer to select the proper encoder */
@@ -461,7 +460,7 @@ static int create_fragment_message_simple (struct writer *wr, seqno_t seq, struc
   return 0;
 }
 
-int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, unsigned fragnum, struct proxy_reader *prd, struct nn_xmsg **pmsg, int isnew)
+dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, unsigned fragnum, struct proxy_reader *prd, struct nn_xmsg **pmsg, int isnew)
 {
   /* We always fragment into FRAGMENT_SIZEd fragments, which are near
      the smallest allowed fragment size & can't be bothered (yet) to
@@ -484,7 +483,7 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
   uint32_t fragstart, fraglen;
   enum nn_xmsg_kind xmsg_kind = isnew ? NN_XMSG_KIND_DATA : NN_XMSG_KIND_DATA_REXMIT;
   const uint32_t size = ddsi_serdata_size (serdata);
-  int ret = 0;
+  dds_return_t ret = 0;
   (void)plist;
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
@@ -495,14 +494,14 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
        an non-existent fragment, which a malicious (or buggy) remote
        reader can trigger.  So we return an error instead of asserting
        as we used to. */
-    return Q_ERR_INVALID;
+    return DDS_RETCODE_BAD_PARAMETER;
   }
 
   fragging = (config.fragment_size < size);
 
   /* INFO_TS: 12 bytes, DataFrag_t: 36 bytes, expected inline QoS: 32 => should be single chunk */
   if ((*pmsg = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (DataFrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
-    return Q_ERR_OUT_OF_MEMORY;
+    return DDS_RETCODE_OUT_OF_RESOURCES;
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   /* use the partition_id from the writer to select the proper encoder */
@@ -515,7 +514,7 @@ int create_fragment_message (struct writer *wr, seqno_t seq, const struct nn_pli
     {
       nn_xmsg_free (*pmsg);
       *pmsg = NULL;
-      return Q_ERR_NO_ADDRESS;
+      return DDS_RETCODE_PRECONDITION_NOT_MET;
     }
     /* retransmits: latency budget doesn't apply */
   }
@@ -901,7 +900,7 @@ static int writer_may_continue (const struct writer *wr, const struct whc_state 
 }
 
 
-static dds_retcode_t throttle_writer (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr)
+static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr)
 {
   /* Sleep (cond_wait) without updating the thread's vtime: the
      garbage collector won't free the writer while we leave it
@@ -937,7 +936,7 @@ static dds_retcode_t throttle_writer (struct thread_state1 * const ts1, struct n
      reader. This implicitly clears the whc and unblocks the
      writer. */
 
-  dds_retcode_t result = DDS_RETCODE_OK;
+  dds_return_t result = DDS_RETCODE_OK;
   nn_mtime_t tnow = now_mt ();
   const nn_mtime_t abstimeout = add_duration_to_mtime (tnow, nn_from_ddsi_duration (wr->xqos->reliability.max_blocking_time));
   struct whc_state whcst;
@@ -1040,7 +1039,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
                  ddsi_serdata_size (serdata), config.max_sample_size,
                  PGUID (wr->e.guid), tname, ttname, ppbuf,
                  tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
-    r = Q_ERR_INVALID_DATA;
+    r = DDS_RETCODE_BAD_PARAMETER;
     goto drop;
   }
 
@@ -1057,7 +1056,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
     whc_get_state(wr->whc, &whcst);
     if (whcst.unacked_bytes > wr->whc_high)
     {
-      dds_retcode_t ores;
+      dds_return_t ores;
       assert(gc_allowed); /* also see beginning of the function */
       if (config.prioritize_retransmit && wr->retransmitting)
         ores = throttle_writer (ts1, xp, wr);
@@ -1072,7 +1071,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
       if (ores == DDS_RETCODE_TIMEOUT)
       {
         ddsrt_mutex_unlock (&wr->e.lock);
-        r = Q_ERR_TIMEOUT;
+        r = DDS_RETCODE_TIMEOUT;
         goto drop;
       }
     }
@@ -1189,4 +1188,3 @@ int write_sample_nogc_notk (struct thread_state1 * const ts1, struct nn_xpack *x
   ddsi_tkmap_instance_unref (tk);
   return res;
 }
-

@@ -21,10 +21,10 @@
 
 extern const int *const os_supp_afs;
 
-static dds_retcode_t
+static dds_return_t
 copyaddr(ddsrt_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
 {
-  dds_retcode_t err = DDS_RETCODE_OK;
+  dds_return_t err = DDS_RETCODE_OK;
   ddsrt_ifaddrs_t *ifa;
   size_t sz;
 
@@ -64,12 +64,12 @@ copyaddr(ddsrt_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
   return err;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_getifaddrs(
   ddsrt_ifaddrs_t **ifap,
   const int *afs)
 {
-  dds_retcode_t err = DDS_RETCODE_OK;
+  dds_return_t err = DDS_RETCODE_OK;
   int use;
   ddsrt_ifaddrs_t *ifa, *ifa_root, *ifa_next;
   struct ifaddrs *sys_ifa, *sys_ifa_root;

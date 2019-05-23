@@ -33,7 +33,6 @@
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_protocol.h" /* NN_ENTITYID_... */
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_debmon.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_tran.h"

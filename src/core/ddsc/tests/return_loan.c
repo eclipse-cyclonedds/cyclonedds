@@ -36,7 +36,7 @@ void delete_entities(void)
 {
     dds_return_t result;
     result = dds_delete(participant);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(result), DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(result, DDS_RETCODE_OK);
     dds_delete(read_condition);
 }
 
@@ -86,7 +86,7 @@ CU_Test(ddsc_reader, return_loan_bad_params, .init = create_entities, .fini = de
     void **buf = NULL;
 
     result = dds_return_loan(reader, NULL, 0);
-    CU_ASSERT_EQUAL(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL(result, DDS_RETCODE_BAD_PARAMETER);
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -96,7 +96,7 @@ CU_Test(ddsc_reader, return_loan_bad_params, .init = create_entities, .fini = de
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
-    CU_ASSERT_EQUAL(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL(result, DDS_RETCODE_BAD_PARAMETER);
 
     buf = create_loan_buf(10, false);
 #ifdef _MSC_VER
@@ -107,10 +107,10 @@ CU_Test(ddsc_reader, return_loan_bad_params, .init = create_entities, .fini = de
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
-    CU_ASSERT_EQUAL(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL(result, DDS_RETCODE_BAD_PARAMETER);
 
     result = dds_return_loan(participant, buf, 0);
-    CU_ASSERT_EQUAL(dds_err_nr(result), DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQUAL(result, DDS_RETCODE_ILLEGAL_OPERATION);
 
     delete_loan_buf(buf, 10, false);
 }
@@ -124,17 +124,17 @@ CU_Test(ddsc_reader, return_loan_success, .init = create_entities, .fini = delet
 
     buf = create_loan_buf(10, false);
     result = dds_return_loan(reader, buf, 10);
-    CU_ASSERT_EQUAL(dds_err_nr(result), DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL(result, DDS_RETCODE_OK);
 
     result = dds_return_loan(reader, &buf2, 0);
-    CU_ASSERT_EQUAL(dds_err_nr(result), DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL(result, DDS_RETCODE_OK);
     delete_loan_buf(buf, 10, true);
 
     buf = create_loan_buf(10, false);
     result = dds_return_loan(read_condition, buf, 10);
-    CU_ASSERT_EQUAL(dds_err_nr(result), DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL(result, DDS_RETCODE_OK);
 
     result = dds_return_loan(read_condition, &buf2, 0);
-    CU_ASSERT_EQUAL(dds_err_nr(result), DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL(result, DDS_RETCODE_OK);
     delete_loan_buf(buf, 10, true);
 }

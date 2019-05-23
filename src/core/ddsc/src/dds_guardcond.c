@@ -14,7 +14,6 @@
 #include "dds__reader.h"
 #include "dds__guardcond.h"
 #include "dds__participant.h"
-#include "dds__err.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
@@ -24,10 +23,10 @@ DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_guardcond)
 dds_entity_t dds_create_guardcondition (dds_entity_t participant)
 {
   dds_participant *pp;
-  dds_retcode_t rc;
+  dds_return_t rc;
 
   if ((rc = dds_participant_lock (participant, &pp)) != DDS_RETCODE_OK)
-    return DDS_ERRNO (rc);
+    return rc;
   else
   {
     dds_guardcond * gcond = dds_alloc (sizeof (*gcond));
@@ -40,10 +39,10 @@ dds_entity_t dds_create_guardcondition (dds_entity_t participant)
 dds_return_t dds_set_guardcondition (dds_entity_t condition, bool triggered)
 {
   dds_guardcond *gcond;
-  dds_retcode_t rc;
+  dds_return_t rc;
 
   if ((rc = dds_guardcond_lock (condition, &gcond)) != DDS_RETCODE_OK)
-    return DDS_ERRNO (DDS_RETCODE_BAD_PARAMETER);
+    return rc;
   else
   {
     ddsrt_mutex_lock (&gcond->m_entity.m_observers_lock);
@@ -60,14 +59,14 @@ dds_return_t dds_set_guardcondition (dds_entity_t condition, bool triggered)
 dds_return_t dds_read_guardcondition (dds_entity_t condition, bool *triggered)
 {
   dds_guardcond *gcond;
-  dds_retcode_t rc;
+  dds_return_t rc;
 
   if (triggered == NULL)
-    return DDS_ERRNO (DDS_RETCODE_BAD_PARAMETER);
+    return DDS_RETCODE_BAD_PARAMETER;
 
   *triggered = false;
   if ((rc = dds_guardcond_lock (condition, &gcond)) != DDS_RETCODE_OK)
-    return DDS_ERRNO (DDS_RETCODE_BAD_PARAMETER);
+    return rc;
   else
   {
     ddsrt_mutex_lock (&gcond->m_entity.m_observers_lock);
@@ -81,14 +80,14 @@ dds_return_t dds_read_guardcondition (dds_entity_t condition, bool *triggered)
 dds_return_t dds_take_guardcondition (dds_entity_t condition, bool *triggered)
 {
   dds_guardcond *gcond;
-  dds_retcode_t rc;
+  dds_return_t rc;
 
   if (triggered == NULL)
-    return DDS_ERRNO (DDS_RETCODE_BAD_PARAMETER);
+    return DDS_RETCODE_BAD_PARAMETER;
 
   *triggered = false;
   if ((rc = dds_guardcond_lock (condition, &gcond)) != DDS_RETCODE_OK)
-    return DDS_ERRNO (DDS_RETCODE_BAD_PARAMETER);
+    return rc;
   else
   {
     ddsrt_mutex_lock (&gcond->m_entity.m_observers_lock);

@@ -31,7 +31,6 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_addrset.h"
-#include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_unused.h"
@@ -148,7 +147,7 @@ typedef struct {
   ddsrt_cond_t cv;
 } ddsi_sem_t;
 
-dds_retcode_t
+dds_return_t
 ddsi_sem_init (ddsi_sem_t *sem, uint32_t value)
 {
   sem->value = value;
@@ -157,7 +156,7 @@ ddsi_sem_init (ddsi_sem_t *sem, uint32_t value)
   return DDS_RETCODE_OK;
 }
 
-dds_retcode_t
+dds_return_t
 ddsi_sem_destroy (ddsi_sem_t *sem)
 {
   ddsrt_cond_destroy (&sem->cv);
@@ -165,7 +164,7 @@ ddsi_sem_destroy (ddsi_sem_t *sem)
   return DDS_RETCODE_OK;
 }
 
-dds_retcode_t
+dds_return_t
 ddsi_sem_post (ddsi_sem_t *sem)
 {
   ddsrt_mutex_lock (&sem->mtx);
@@ -175,7 +174,7 @@ ddsi_sem_post (ddsi_sem_t *sem)
   return DDS_RETCODE_OK;
 }
 
-dds_retcode_t
+dds_return_t
 ddsi_sem_wait (ddsi_sem_t *sem)
 {
   ddsrt_mutex_lock (&sem->mtx);
@@ -586,7 +585,7 @@ void nn_xmsg_setdst1 (struct nn_xmsg *m, const nn_guid_prefix_t *gp, const nn_lo
   m->data->dst.guid_prefix = nn_hton_guid_prefix (*gp);
 }
 
-int nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
+dds_return_t nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
 {
   nn_locator_t loc;
   if (addrset_any_uc (prd->c.as, &loc) || addrset_any_mc (prd->c.as, &loc))
@@ -597,11 +596,11 @@ int nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
   else
   {
     DDS_WARNING("nn_xmsg_setdstPRD: no address for "PGUIDFMT"", PGUID (prd->e.guid));
-    return Q_ERR_NO_ADDRESS;
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
   }
 }
 
-int nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
+dds_return_t nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
 {
   nn_locator_t loc;
   if (addrset_any_uc (pwr->c.as, &loc) || addrset_any_mc (pwr->c.as, &loc))
@@ -610,7 +609,7 @@ int nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
     return 0;
   }
   DDS_WARNING("nn_xmsg_setdstPRD: no address for "PGUIDFMT, PGUID (pwr->e.guid));
-  return Q_ERR_NO_ADDRESS;
+  return DDS_RETCODE_PRECONDITION_NOT_MET;
 }
 
 void nn_xmsg_setdstN (struct nn_xmsg *m, struct addrset *as, struct addrset *as_group)

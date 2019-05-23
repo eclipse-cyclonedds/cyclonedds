@@ -150,7 +150,7 @@ static unsigned short get_socket_port (ddsrt_socket_t socket)
 {
   struct sockaddr_storage addr;
   socklen_t addrlen = sizeof (addr);
-  dds_retcode_t ret;
+  dds_return_t ret;
 
   ret = ddsrt_getsockname(socket, (struct sockaddr *)&addr, &addrlen);
   if (ret != DDS_RETCODE_OK) {
@@ -197,7 +197,7 @@ static void ddsi_tcp_conn_connect (ddsi_tcp_conn_t conn, const ddsrt_msghdr_t * 
 {
   char buff[DDSI_LOCSTRLEN];
   ddsrt_socket_t sock;
-  dds_retcode_t ret;
+  dds_return_t ret;
 
   ddsi_tcp_sock_new (&sock, 0);
   if (sock != DDSRT_INVALID_SOCKET)
@@ -341,7 +341,7 @@ static ddsi_tcp_conn_t ddsi_tcp_cache_find (const ddsrt_msghdr_t * msg)
   return ret;
 }
 
-static ssize_t ddsi_tcp_conn_read_plain (ddsi_tcp_conn_t tcp, void * buf, size_t len, dds_retcode_t *rc)
+static ssize_t ddsi_tcp_conn_read_plain (ddsi_tcp_conn_t tcp, void * buf, size_t len, dds_return_t *rc)
 {
   ssize_t rcvd = -1;
 
@@ -352,7 +352,7 @@ static ssize_t ddsi_tcp_conn_read_plain (ddsi_tcp_conn_t tcp, void * buf, size_t
 }
 
 #ifdef DDSI_INCLUDE_SSL
-static ssize_t ddsi_tcp_conn_read_ssl (ddsi_tcp_conn_t tcp, void * buf, size_t len, dds_retcode_t *rc)
+static ssize_t ddsi_tcp_conn_read_ssl (ddsi_tcp_conn_t tcp, void * buf, size_t len, dds_return_t *rc)
 {
   return (ddsi_tcp_ssl_plugin.read) (tcp->m_ssl, buf, len, rc);
 }
@@ -360,7 +360,7 @@ static ssize_t ddsi_tcp_conn_read_ssl (ddsi_tcp_conn_t tcp, void * buf, size_t l
 
 static bool ddsi_tcp_select (ddsrt_socket_t sock, bool read, size_t pos)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   fd_set fds;
   fd_set * rdset = read ? &fds : NULL;
   fd_set * wrset = read ? NULL : &fds;
@@ -395,9 +395,9 @@ static bool ddsi_tcp_select (ddsrt_socket_t sock, bool read, size_t pos)
 
 static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ddsi_tcp_conn_t tcp = (ddsi_tcp_conn_t) conn;
-  ssize_t (*rd) (ddsi_tcp_conn_t, void *, size_t, dds_retcode_t * err) = ddsi_tcp_conn_read_plain;
+  ssize_t (*rd) (ddsi_tcp_conn_t, void *, size_t, dds_return_t * err) = ddsi_tcp_conn_read_plain;
   size_t pos = 0;
   ssize_t n;
 
@@ -452,7 +452,7 @@ static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
   return -1;
 }
 
-static ssize_t ddsi_tcp_conn_write_plain (ddsi_tcp_conn_t conn, const void * buf, size_t len, dds_retcode_t *rc)
+static ssize_t ddsi_tcp_conn_write_plain (ddsi_tcp_conn_t conn, const void * buf, size_t len, dds_return_t *rc)
 {
   ssize_t sent = -1;
   int sendflags = 0;
@@ -466,7 +466,7 @@ static ssize_t ddsi_tcp_conn_write_plain (ddsi_tcp_conn_t conn, const void * buf
 }
 
 #ifdef DDSI_INCLUDE_SSL
-static ssize_t ddsi_tcp_conn_write_ssl (ddsi_tcp_conn_t conn, const void * buf, size_t len, dds_retcode_t *rc)
+static ssize_t ddsi_tcp_conn_write_ssl (ddsi_tcp_conn_t conn, const void * buf, size_t len, dds_return_t *rc)
 {
   return (ddsi_tcp_ssl_plugin.write) (conn->m_ssl, buf, len, rc);
 }
@@ -474,7 +474,7 @@ static ssize_t ddsi_tcp_conn_write_ssl (ddsi_tcp_conn_t conn, const void * buf, 
 
 static ssize_t ddsi_tcp_block_write
 (
-  ssize_t (*wr) (ddsi_tcp_conn_t, const void *, size_t, dds_retcode_t *),
+  ssize_t (*wr) (ddsi_tcp_conn_t, const void *, size_t, dds_return_t *),
   ddsi_tcp_conn_t conn,
   const void * buf,
   size_t sz
@@ -482,7 +482,7 @@ static ssize_t ddsi_tcp_block_write
 {
   /* Write all bytes of buf even in the presence of signals,
      partial writes and blocking (typically write buffer full) */
-  dds_retcode_t rc;
+  dds_return_t rc;
   size_t pos = 0;
   ssize_t n = -1;
 
@@ -615,7 +615,7 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
 #endif
   {
     int sendflags = 0;
-    dds_retcode_t rc;
+    dds_return_t rc;
 #ifdef MSG_NOSIGNAL
     sendflags |= MSG_NOSIGNAL;
 #endif
@@ -661,7 +661,7 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
 
   if (piecewise)
   {
-    ssize_t (*wr) (ddsi_tcp_conn_t, const void *, size_t, dds_retcode_t *) = ddsi_tcp_conn_write_plain;
+    ssize_t (*wr) (ddsi_tcp_conn_t, const void *, size_t, dds_return_t *) = ddsi_tcp_conn_write_plain;
     int i = 0;
 #ifdef DDSI_INCLUDE_SSL
     if (ddsi_tcp_ssl_plugin.write)
@@ -749,7 +749,7 @@ static ddsi_tran_conn_t ddsi_tcp_accept (ddsi_tran_listener_t listener)
   struct sockaddr_storage addr;
   socklen_t addrlen = sizeof (addr);
   char buff[DDSI_LOCSTRLEN];
-  dds_retcode_t rc = DDS_RETCODE_OK;
+  dds_return_t rc = DDS_RETCODE_OK;
 #ifdef DDSI_INCLUDE_SSL
   SSL * ssl = NULL;
 #endif
@@ -875,7 +875,7 @@ static ddsi_tran_listener_t ddsi_tcp_create_listener (int port, ddsi_tran_qos_t 
 
   if (sock != DDSRT_INVALID_SOCKET)
   {
-    dds_retcode_t ret;
+    dds_return_t ret;
     tl = (ddsi_tcp_listener_t) ddsrt_malloc (sizeof (*tl));
     memset (tl, 0, sizeof (*tl));
 
@@ -953,7 +953,7 @@ static void ddsi_tcp_unblock_listener (ddsi_tran_listener_t listener)
 {
   ddsi_tcp_listener_t tl = (ddsi_tcp_listener_t) listener;
   ddsrt_socket_t sock;
-  dds_retcode_t ret;
+  dds_return_t ret;
 
   /* Connect to own listener socket to wake listener from blocking 'accept()' */
   ddsi_tcp_sock_new (&sock, 0);

@@ -26,7 +26,7 @@
  */
 static void create_and_test_exit(const char *arg, int code)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_pid_t pid;
   int32_t status;
   char *argv[] = { NULL, NULL };
@@ -64,7 +64,7 @@ CU_Test(ddsrt_process, create)
  */
 CU_Test(ddsrt_process, kill)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_pid_t pid;
 
   /* Sleep for 20 seconds. It should be killed before then. */
@@ -98,7 +98,7 @@ CU_Test(ddsrt_process, kill)
  */
 CU_Test(ddsrt_process, pid)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_pid_t pid;
   int32_t status;
   char *argv[] = { TEST_PID_ARG, NULL };
@@ -126,7 +126,7 @@ CU_Test(ddsrt_process, pid)
  */
 CU_Test(ddsrt_process, env)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
 
   ret = ddsrt_setenv(TEST_ENV_VAR_NAME, TEST_ENV_VAR_VALUE);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -141,7 +141,7 @@ CU_Test(ddsrt_process, env)
  */
 CU_Test(ddsrt_process, invalid)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_pid_t pid;
 
   ret = ddsrt_proc_create("ProbablyNotAnValidExecutable", NULL, &pid);
@@ -177,7 +177,7 @@ CU_Test(ddsrt_process, arg_dquote)
  */
 CU_Test(ddsrt_process, waitpids)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_pid_t child;
   ddsrt_pid_t pid1 = 0;
   ddsrt_pid_t pid2 = 0;
@@ -225,7 +225,7 @@ CU_Test(ddsrt_process, waitpids)
  */
 CU_Test(ddsrt_process, waitpid_timeout)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_pid_t pid;
 
   /* Sleep for 20 seconds. We should have a timeout before then. */
@@ -238,7 +238,7 @@ CU_Test(ddsrt_process, waitpid_timeout)
   ret = ddsrt_proc_waitpid(pid, 0, NULL);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_PRECONDITION_NOT_MET);
 
-  /* Valid timeout should return DDS_RETCODE_TIMEOUT when alive. */
+  /* Valid timeout should return DDS_RETURN_TIMEOUT when alive. */
   ret = ddsrt_proc_waitpid(pid, DDS_SECS(1), NULL);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_TIMEOUT);
 
@@ -257,7 +257,7 @@ CU_Test(ddsrt_process, waitpid_timeout)
  */
 CU_Test(ddsrt_process, waitpids_timeout)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_pid_t pid;
 
   /* Sleep for 20 seconds. We should have a timeout before then. */
@@ -270,7 +270,7 @@ CU_Test(ddsrt_process, waitpids_timeout)
   ret = ddsrt_proc_waitpids(0, NULL, NULL);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_PRECONDITION_NOT_MET);
 
-  /* Valid timeout should return DDS_RETCODE_TIMEOUT when alive. */
+  /* Valid timeout should return DDS_RETURN_TIMEOUT when alive. */
   ret = ddsrt_proc_waitpids(DDS_SECS(1), NULL, NULL);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_TIMEOUT);
 

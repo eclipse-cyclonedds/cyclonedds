@@ -121,14 +121,14 @@ ddsrt_nonnull_all;
  * @param[in]   start_routine  Function to execute in created thread.
  * @param[in]   arg            Argument passed to @start_routine.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Thread successfully created.
  * @retval DDS_RETCODE_ERROR
  *             Thread could not be created.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_thread_create(
   ddsrt_thread_t *thread,
   const char *name,
@@ -172,14 +172,14 @@ ddsrt_thread_equal(ddsrt_thread_t t1, ddsrt_thread_t t2);
  * @param[in]   thread         Id of thread to wait for.
  * @param[out]  thread_result  Location where thread result is stored.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Target thread terminated.
  * @retval DDS_RETCODE_ERROR
  *             An error occurred while waiting for the thread to terminate.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_thread_join(
   ddsrt_thread_t thread,
   uint32_t *thread_result);
@@ -224,7 +224,7 @@ ddsrt_thread_setname(
  * @param[in]  routine  Cleanup handler to push onto the thread cleanup stack.
  * @param[in]  arg      Argument that will be passed to the cleanup handler.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_thread_cleanup_push(
   void (*routine)(void*),
   void *arg);
@@ -235,7 +235,7 @@ ddsrt_thread_cleanup_push(
  * Remove routine at the top of the calling thread's cleanup stack and
  * optionally invoke it (if execute is non-zero).
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_thread_cleanup_pop(
   int execute);
 

@@ -23,12 +23,12 @@
 
 #include "dds/ddsrt/rusage.h"
 
-dds_retcode_t
+dds_return_t
 ddsrt_getrusage(int who, ddsrt_rusage_t *usage)
 {
   int err = 0;
   struct rusage buf;
-  dds_retcode_t rc;
+  dds_return_t rc;
 
   assert(who == DDSRT_RUSAGE_SELF || who == DDSRT_RUSAGE_THREAD);
   assert(usage != NULL);

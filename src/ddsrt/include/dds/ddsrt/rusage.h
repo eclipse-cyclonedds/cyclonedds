@@ -52,7 +52,7 @@ typedef struct {
  * @param[in]  who    DDSRT_RUSAGE_SELF or DDSRT_RUSAGE_THREAD.
  * @param[in]  usage  Structure where resource usage is returned.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Resource usage successfully returned in @usage.
@@ -61,7 +61,7 @@ typedef struct {
  * @retval DDS_RETCODE_ERROR
  *             An unidentified error occurred.
  */
-DDS_EXPORT dds_retcode_t ddsrt_getrusage(int who, ddsrt_rusage_t *usage);
+DDS_EXPORT dds_return_t ddsrt_getrusage(int who, ddsrt_rusage_t *usage);
 
 #if defined (__cplusplus)
 }

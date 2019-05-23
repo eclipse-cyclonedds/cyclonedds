@@ -34,7 +34,7 @@
 
 
 #if LWIP_SOCKET
-dds_retcode_t
+dds_return_t
 ddsrt_gethostname(
   char *name,
   size_t len)
@@ -45,7 +45,7 @@ ddsrt_gethostname(
   return DDS_RETCODE_OK;
 }
 #else
-dds_retcode_t
+dds_return_t
 ddsrt_gethostname(
   char *name,
   size_t len)

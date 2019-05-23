@@ -42,7 +42,7 @@ struct xeventq *xeventq_new
 /* xeventq_free calls callback handlers with t = T_NEVER, at which point they are required to free
    whatever memory is claimed for the argument and call delete_xevent. */
 DDS_EXPORT void xeventq_free (struct xeventq *evq);
-DDS_EXPORT int xeventq_start (struct xeventq *evq, const char *name); /* <0 => error, =0 => ok */
+DDS_EXPORT dds_return_t xeventq_start (struct xeventq *evq, const char *name); /* <0 => error, =0 => ok */
 DDS_EXPORT void xeventq_stop (struct xeventq *evq);
 
 DDS_EXPORT void qxev_msg (struct xeventq *evq, struct nn_xmsg *msg);

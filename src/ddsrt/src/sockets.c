@@ -177,7 +177,7 @@ ddsrt_sockaddr_insamesubnet(
   return eq;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_sockaddrfromstr(int af, const char *str, void *sa)
 {
   assert(str != NULL);
@@ -213,7 +213,7 @@ ddsrt_sockaddrfromstr(int af, const char *str, void *sa)
   return DDS_RETCODE_OK;
 }
 
-dds_retcode_t ddsrt_sockaddrtostr(const void *sa, char *buf, size_t size)
+dds_return_t ddsrt_sockaddrtostr(const void *sa, char *buf, size_t size)
 {
   const char *ptr;
 
@@ -249,7 +249,7 @@ DDSRT_WARNING_GNUC_ON(sign-conversion)
 }
 
 #if DDSRT_HAVE_DNS
-dds_retcode_t
+dds_return_t
 ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
 {
   int gai_err = 0;

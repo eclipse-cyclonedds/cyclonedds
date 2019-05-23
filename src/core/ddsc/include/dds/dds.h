@@ -26,17 +26,10 @@
 
 #include "dds/export.h"
 
-/* TODO: Move to appropriate location */
-/**
- * Return code indicating success (DDS_RETCODE_OK) or failure. If a given
- * operation failed the value will be a unique error code and dds_err_nr() must
- * be used to extract the DDS_RETCODE_* value.
- */
-typedef int32_t dds_return_t;
 /**
  * Handle to an entity. A valid entity handle will always have a positive
- * integer value. Should the value be negative, the value represents a unique
- * error code. dds_err_nr() can be used to extract the DDS_RETCODE_* value.
+ * integer value. Should the value be negative, it is one of the DDS_RETCODE_*
+ * error codes.
  */
 typedef int32_t dds_entity_t;
 
@@ -1223,7 +1216,7 @@ dds_create_reader(
  * @returns a status, 0 on success, TIMEOUT on timeout or a negative value to indicate error.
  */
 /* TODO: Complete list of error codes */
-DDS_EXPORT int
+DDS_EXPORT dds_return_t
 dds_reader_wait_for_historical_data(
   dds_entity_t reader,
   dds_duration_t max_wait);

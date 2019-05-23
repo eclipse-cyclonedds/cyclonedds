@@ -232,7 +232,7 @@ static void start_writing(
       if (burstCount < burstSize)
       {
         status = dds_write (writer, sample);
-        if (dds_err_nr(status) == DDS_RETCODE_TIMEOUT)
+        if (status == DDS_RETCODE_TIMEOUT)
         {
           timedOut = true;
         }
@@ -285,7 +285,7 @@ static void start_writing(
 static void finalize_dds(dds_entity_t participant, dds_entity_t writer, ThroughputModule_DataType sample)
 {
   dds_return_t status = dds_dispose (writer, &sample);
-  if (dds_err_nr (status) != DDS_RETCODE_TIMEOUT && status < 0)
+  if (status != DDS_RETCODE_TIMEOUT && status < 0)
     DDS_FATAL("dds_dispose: %s\n", dds_strretcode(-status));
 
   dds_free (sample.payload._buffer);

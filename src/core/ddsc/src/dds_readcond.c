@@ -14,7 +14,6 @@
 #include "dds__readcond.h"
 #include "dds__rhc.h"
 #include "dds__entity.h"
-#include "dds__err.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
@@ -63,7 +62,7 @@ dds_create_readcondition(
 {
     dds_entity_t hdl;
     dds_reader * rd;
-    dds_retcode_t rc;
+    dds_return_t rc;
 
     rc = dds_reader_lock(reader, &rd);
     if (rc == DDS_RETCODE_OK) {
@@ -74,7 +73,7 @@ dds_create_readcondition(
         dds_reader_unlock(rd);
     } else {
         DDS_ERROR("Error occurred on locking reader\n");
-        hdl = DDS_ERRNO(rc);
+        hdl = rc;
     }
 
     return hdl;
@@ -83,9 +82,9 @@ dds_create_readcondition(
 dds_entity_t dds_get_datareader (dds_entity_t condition)
 {
   struct dds_entity *e;
-  dds_retcode_t rc;
+  dds_return_t rc;
   if ((rc = dds_entity_claim (condition, &e)) != DDS_RETCODE_OK)
-    return DDS_ERRNO (rc);
+    return rc;
   else
   {
     dds_entity_t rdh;
@@ -97,7 +96,7 @@ dds_entity_t dds_get_datareader (dds_entity_t condition)
         rdh = e->m_parent->m_hdllink.hdl;
         break;
       default:
-        rdh = DDS_ERRNO (DDS_RETCODE_ILLEGAL_OPERATION);
+        rdh = DDS_RETCODE_ILLEGAL_OPERATION;
         break;
     }
     dds_entity_release (e);
@@ -108,17 +107,17 @@ dds_entity_t dds_get_datareader (dds_entity_t condition)
 dds_return_t dds_get_mask (dds_entity_t condition, uint32_t *mask)
 {
   dds_entity *entity;
-  dds_retcode_t rc;
+  dds_return_t rc;
 
   if (mask == NULL)
-    return DDS_ERRNO (DDS_RETCODE_BAD_PARAMETER);
+    return DDS_RETCODE_BAD_PARAMETER;
 
   if ((rc = dds_entity_lock (condition, DDS_KIND_DONTCARE, &entity)) != DDS_RETCODE_OK)
-    return DDS_ERRNO (rc);
+    return rc;
   else if (dds_entity_kind (entity) != DDS_KIND_COND_READ && dds_entity_kind (entity) != DDS_KIND_COND_QUERY)
   {
     dds_entity_unlock (entity);
-    return DDS_ERRNO (DDS_RETCODE_ILLEGAL_OPERATION);
+    return DDS_RETCODE_ILLEGAL_OPERATION;
   }
   else
   {

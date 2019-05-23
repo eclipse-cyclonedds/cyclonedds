@@ -234,7 +234,7 @@ CU_Test(ddsc_qos, copy_bad_source, .init=qos_init, .fini=qos_fini)
     dds_return_t result;
 
         result = dds_copy_qos(g_qos, NULL);
-        CU_ASSERT_EQUAL_FATAL(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER);
+        CU_ASSERT_EQUAL_FATAL(result, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_qos, copy_bad_destination, .init=qos_init, .fini=qos_fini)
@@ -242,7 +242,7 @@ CU_Test(ddsc_qos, copy_bad_destination, .init=qos_init, .fini=qos_fini)
         dds_return_t result;
 
         result = dds_copy_qos(NULL, g_qos);
-        CU_ASSERT_EQUAL_FATAL(dds_err_nr(result), DDS_RETCODE_BAD_PARAMETER);
+        CU_ASSERT_EQUAL_FATAL(result, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_qos, copy_with_partition, .init=qos_init, .fini=qos_fini)

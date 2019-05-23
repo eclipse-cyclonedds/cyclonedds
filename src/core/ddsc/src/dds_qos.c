@@ -12,7 +12,6 @@
 #include <assert.h>
 #include <string.h>
 #include "dds__qos.h"
-#include "dds__err.h"
 #include "dds/ddsi/q_config.h"
 
 /* TODO: dd_duration_t is converted to nn_ddsi_time_t declared in q_time.h
@@ -144,31 +143,31 @@ dds_qos_validate_mutable_common (
     /* TODO: Check whether immutable QoS are changed should actually incorporate change to current QoS */
     if (qos->present & QP_DEADLINE) {
         DDS_ERROR("Deadline QoS policy caused immutable error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_IMMUTABLE_POLICY);
+        ret = DDS_RETCODE_IMMUTABLE_POLICY;
     }
     if (qos->present & QP_OWNERSHIP) {
         DDS_ERROR("Ownership QoS policy caused immutable error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_IMMUTABLE_POLICY);
+        ret = DDS_RETCODE_IMMUTABLE_POLICY;
     }
     if (qos->present & QP_LIVELINESS) {
         DDS_ERROR("Liveliness QoS policy caused immutable error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_IMMUTABLE_POLICY);
+        ret = DDS_RETCODE_IMMUTABLE_POLICY;
     }
     if (qos->present & QP_RELIABILITY) {
         DDS_ERROR("Reliability QoS policy caused immutable error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_IMMUTABLE_POLICY);
+        ret = DDS_RETCODE_IMMUTABLE_POLICY;
     }
     if (qos->present & QP_DESTINATION_ORDER) {
         DDS_ERROR("Destination order QoS policy caused immutable error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_IMMUTABLE_POLICY);
+        ret = DDS_RETCODE_IMMUTABLE_POLICY;
     }
     if (qos->present & QP_HISTORY) {
         DDS_ERROR("History QoS policy caused immutable error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_IMMUTABLE_POLICY);
+        ret = DDS_RETCODE_IMMUTABLE_POLICY;
     }
     if (qos->present & QP_RESOURCE_LIMITS) {
         DDS_ERROR("Resource limits QoS policy caused immutable error\n");
-        ret = DDS_ERRNO(DDS_RETCODE_IMMUTABLE_POLICY);
+        ret = DDS_RETCODE_IMMUTABLE_POLICY;
     }
 
     return ret;
@@ -263,11 +262,11 @@ dds_copy_qos (
 {
     if(!src){
         DDS_ERROR("Argument source(src) is NULL\n");
-        return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        return DDS_RETCODE_BAD_PARAMETER;
     }
     if(!dst){
         DDS_ERROR("Argument destination(dst) is NULL\n");
-        return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        return DDS_RETCODE_BAD_PARAMETER;
     }
     nn_xqos_copy (dst, src);
     return DDS_RETCODE_OK;

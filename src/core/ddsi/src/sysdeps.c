@@ -15,7 +15,6 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/misc.h"
 
-#include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/sysdeps.h"

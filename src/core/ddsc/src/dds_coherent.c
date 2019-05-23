@@ -15,7 +15,6 @@
 #include "dds__entity.h"
 #include "dds__subscriber.h"
 #include "dds__publisher.h"
-#include "dds__err.h"
 
 dds_return_t
 dds_begin_coherent(
