@@ -88,3 +88,16 @@ the unofficial [FreeRTOS POSIX Port][8] can be found in the msvc and
 [7]: https://www.freertos.org/FreeRTOS-Windows-Simulator-Emulator-for-Visual-Studio-and-Eclipse-MingW.html
 [8]: https://github.com/shlinym/FreeRTOS-Sim.git
 
+
+## Known Limitations
+
+Triggering the socket waitset is not (yet) implemented for FreeRTOS+lwIP. This
+introduces issues in scenarios where it is required.
+
+ * Receive threads require a trigger to shutdown or a thread may block
+   indefinitely if no packet arrives from the network.
+ * Sockets are created dynamically if ManySocketsMode is used and a participant
+   is created, or TCP is used. A trigger is issued after the sockets are added
+   to the set if I/O multiplexing logic does not automatically wait for data
+   on the newly created sockets as well.
+
