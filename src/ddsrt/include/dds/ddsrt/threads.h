@@ -25,7 +25,9 @@
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/retcode.h"
 
-#if _WIN32
+#if DDSRT_WITH_FREERTOS
+#include "dds/ddsrt/threads/freertos.h"
+#elif _WIN32
 #include "dds/ddsrt/threads/windows.h"
 #else
 #include "dds/ddsrt/threads/posix.h"
@@ -206,9 +208,11 @@ ddsrt_thread_getname(
  *
  * @param[in]  name  Name for current thread.
  */
+#if DDSRT_HAVE_THREAD_SETNAME
 DDS_EXPORT void
 ddsrt_thread_setname(
   const char *__restrict name);
+#endif
 
 /**
  * @brief Push cleanup handler onto the cleanup stack

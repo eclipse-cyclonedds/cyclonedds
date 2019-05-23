@@ -25,7 +25,15 @@ extern "C" {
 # else
 #   define DDSRT_ENDIAN DDSRT_LITTLE_ENDIAN
 # endif
-#else /* _WIN32 */
+/* _WIN32 */
+#elif defined(__IAR_SYSTEMS_ICC__)
+# if __LITTLE_ENDIAN__ == 1
+#   define DDSRT_ENDIAN DDSRT_LITTLE_ENDIAN
+# else
+#   define DDSRT_ENDIAN DDSRT_BIG_ENDIAN
+# endif
+/* __IAR_SYSTEMS_ICC__ */
+#else
 # if defined(__BYTE_ORDER__)
 #   if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #     define DDSRT_ENDIAN DDSRT_BIG_ENDIAN

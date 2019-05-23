@@ -13,7 +13,7 @@ typedef SOCKET ddsrt_socket_t;
 #define PRIdSOCK PRIuPTR
 
 #define DDSRT_HAVE_IPV6 1
-#define DDSRT_HAVE_DNS  1
+#define DDSRT_HAVE_DNS  DDSRT_WITH_DNS
 
 #if defined(NTDDI_VERSION) && \
     defined(_WIN32_WINNT_WS03) && \

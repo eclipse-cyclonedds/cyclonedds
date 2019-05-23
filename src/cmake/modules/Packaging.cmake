@@ -37,7 +37,7 @@ install(
         "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}Version.cmake"
   DESTINATION "${CMAKE_INSTALL_CMAKEDIR}" COMPONENT dev)
 
-if(DDSC_SHARED AND ((NOT DEFINED BUILD_SHARED_LIBS) OR BUILD_SHARED_LIBS))
+if((NOT DEFINED BUILD_SHARED_LIBS) OR BUILD_SHARED_LIBS)
   # Generates <Package>Targets.cmake file included by <Package>Config.cmake.
   # The files are placed in CMakeFiles/Export in the build tree.
   install(

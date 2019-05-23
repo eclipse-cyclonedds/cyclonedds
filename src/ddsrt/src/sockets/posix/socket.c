@@ -10,10 +10,14 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
-#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/sockets_priv.h"
+
+#if !LWIP_SOCKET
 #if defined(__VXWORKS__)
 #include <vxWorks.h>
 #include <sockLib.h>
@@ -21,6 +25,7 @@
 #else
 #include <sys/fcntl.h>
 #endif /* __VXWORKS__ */
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #ifdef __sun
@@ -30,10 +35,7 @@
 #ifdef __APPLE__
 #include <sys/sockio.h>
 #endif /* __APPLE__ */
-
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/sockets_priv.h"
+#endif /* LWIP_SOCKET */
 
 dds_retcode_t
 ddsrt_socket(ddsrt_socket_t *sockptr, int domain, int type, int protocol)
@@ -254,6 +256,15 @@ ddsrt_getsockopt(
   void *optval,
   socklen_t *optlen)
 {
+#if LWIP_SOCKET
+  if (optname == SO_SNDBUF || optname == SO_RCVBUF)
+    return DDS_RETCODE_BAD_PARAMETER;
+# if !SO_REUSE
+  if (optname == SO_REUSEADDR)
+    return DDS_RETCODE_BAD_PARAMETER;
+# endif /* SO_REUSE */
+#endif /* LWIP_SOCKET */
+
   if (getsockopt(sock, level, optname, optval, optlen) == 0)
     return DDS_RETCODE_OK;
 
@@ -279,6 +290,15 @@ ddsrt_setsockopt(
   const void *optval,
   socklen_t optlen)
 {
+#if LWIP_SOCKET
+  if (optname == SO_SNDBUF || optname == SO_RCVBUF)
+    return DDS_RETCODE_BAD_PARAMETER;
+# if !SO_REUSE
+  if (optname == SO_REUSEADDR)
+    return DDS_RETCODE_BAD_PARAMETER;
+# endif /* SO_REUSE */
+#endif /* LWIP_SOCKET */
+
   switch (optname) {
     case SO_SNDBUF:
     case SO_RCVBUF:
@@ -404,6 +424,24 @@ ddsrt_recv(
 
   return recv_error_to_retcode(errno);
 }
+
+#if LWIP_SOCKET && !defined(recvmsg)
+static ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
+{
+  assert(msg->msg_iovlen == 1);
+  assert(msg->msg_controllen == 0);
+
+  msg->msg_flags = 0;
+
+  return recvfrom(
+    sockfd,
+    msg->msg_iov[0].iov_base,
+    msg->msg_iov[0].iov_len,
+    flags,
+    msg->msg_name,
+   &msg->msg_namelen);
+}
+#endif /* LWIP_SOCKET */
 
 dds_retcode_t
 ddsrt_recvmsg(

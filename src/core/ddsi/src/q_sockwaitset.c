@@ -509,7 +509,7 @@ int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
 #define OSPL_PIPENAMESIZE 26
 #endif
 
-#ifndef _WIN32
+#if !_WIN32 && !LWIP_SOCKET
 
 #ifndef __VXWORKS__
 #include <sys/fcntl.h>
@@ -524,7 +524,7 @@ int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
 #include <fcntl.h>
 #endif
 
-#endif /* _WIN32 */
+#endif /* !_WIN32 && !LWIP_SOCKET */
 
 typedef struct os_sockWaitsetSet
 {
@@ -586,7 +586,7 @@ fail:
   closesocket (s2);
   return -1;
 }
-#elif defined (VXWORKS_RTP) || defined (_WRS_KERNEL)
+#elif defined(__VXWORKS__)
 static int make_pipe (int pfd[2])
 {
   char pipename[OSPL_PIPENAMESIZE];
@@ -609,7 +609,7 @@ fail_open0:
 fail_pipedev:
   return -1;
 }
-#else
+#elif !defined(LWIP_SOCKET)
 static int make_pipe (int pfd[2])
 {
   return pipe (pfd);
@@ -644,7 +644,11 @@ os_sockWaitset os_sockWaitsetNew (void)
   ws->fdmax_plus_1 = FD_SETSIZE;
 #endif
 
-#if defined (VXWORKS_RTP) || defined (_WRS_KERNEL)
+#if defined(LWIP_SOCKET)
+  ws->pipe[0] = -1;
+  ws->pipe[1] = -1;
+  result = 0;
+#elif defined(__VXWORKS__)
   int make_pipe (int pfd[2])
   {
     char pipename[OSPL_PIPENAMESIZE];
@@ -679,15 +683,21 @@ os_sockWaitset os_sockWaitsetNew (void)
   assert (result != -1);
   (void) result;
 
+#if !defined(LWIP_SOCKET)
   ws->set.fds[0] = ws->pipe[0];
+#else
+  ws->set.fds[0] = 0;
+#endif
   ws->set.conns[0] = NULL;
 
-#if ! defined (VXWORKS_RTP) && ! defined ( _WRS_KERNEL ) && ! defined (_WIN32)
+#if !defined(__VXWORKS__) && !defined(_WIN32) && !defined(LWIP_SOCKET)
   fcntl (ws->pipe[0], F_SETFD, fcntl (ws->pipe[0], F_GETFD) | FD_CLOEXEC);
   fcntl (ws->pipe[1], F_SETFD, fcntl (ws->pipe[1], F_GETFD) | FD_CLOEXEC);
 #endif
+#if !defined(LWIP_SOCKET)
   FD_SET (ws->set.fds[0], &ws->ctx.rdset);
-#if ! defined (_WIN32)
+#endif
+#if !defined(_WIN32)
   ws->fdmax_plus_1 = ws->set.fds[0] + 1;
 #endif
 
@@ -716,18 +726,18 @@ static void os_sockWaitsetFreeCtx (os_sockWaitsetCtx ctx)
 
 void os_sockWaitsetFree (os_sockWaitset ws)
 {
-#ifdef VXWORKS_RTP
+#if defined(__VXWORKS__) && defined(__RTP__)
   char nameBuf[OSPL_PIPENAMESIZE];
   ioctl (ws->pipe[0], FIOGETNAME, &nameBuf);
 #endif
-#if defined (_WIN32)
+#if defined(_WIN32)
   closesocket (ws->pipe[0]);
   closesocket (ws->pipe[1]);
-#else
+#elif !defined(LWIP_SOCKET)
   close (ws->pipe[0]);
   close (ws->pipe[1]);
 #endif
-#ifdef VXWORKS_RTP
+#if defined(__VXWORKS__) && defined(__RTP__)
   pipeDevDelete ((char*) &nameBuf, 0);
 #endif
   os_sockWaitsetFreeSet (&ws->set);
@@ -738,6 +748,9 @@ void os_sockWaitsetFree (os_sockWaitset ws)
 
 void os_sockWaitsetTrigger (os_sockWaitset ws)
 {
+#if defined(LWIP_SOCKET)
+  (void)ws;
+#else
   char buf = 0;
   int n;
 
@@ -750,6 +763,7 @@ void os_sockWaitsetTrigger (os_sockWaitset ws)
   {
     DDS_WARNING("os_sockWaitsetTrigger: write failed on trigger pipe\n");
   }
+#endif
 }
 
 int os_sockWaitsetAdd (os_sockWaitset ws, ddsi_tran_conn_t conn)
@@ -863,10 +877,19 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
 
   rdset = &ctx->rdset;
   FD_ZERO (rdset);
+#if !defined(LWIP_SOCKET)
   for (u = 0; u < dst->n; u++)
   {
     FD_SET (dst->fds[u], rdset);
   }
+#else
+  for (u = 1; u < dst->n; u++)
+  {
+    DDSRT_WARNING_GNUC_OFF(sign-conversion)
+    FD_SET (dst->fds[u], rdset);
+    DDSRT_WARNING_GNUC_ON(sign-conversion)
+  }
+#endif /* LWIP_SOCKET */
 
   do
   {
@@ -883,6 +906,7 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
   {
     /* this simply skips the trigger fd */
     ctx->index = 1;
+#if ! defined(LWIP_SOCKET)
     if (FD_ISSET (dst->fds[0], rdset))
     {
       char buf;
@@ -898,11 +922,16 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
         assert (0);
       }
     }
+#endif /* LWIP_SOCKET */
     return ctx;
   }
 
   return NULL;
 }
+
+#if defined(LWIP_SOCKET)
+DDSRT_WARNING_GNUC_OFF(sign-conversion)
+#endif
 
 int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
 {
@@ -910,7 +939,9 @@ int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
   {
     unsigned idx = ctx->index++;
     ddsrt_socket_t fd = ctx->set.fds[idx];
+#if ! defined (LWIP_SOCKET)
     assert(idx > 0);
+#endif
     if (FD_ISSET (fd, &ctx->rdset))
     {
       *conn = ctx->set.conns[idx];
@@ -920,6 +951,10 @@ int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
   }
   return -1;
 }
+
+#if defined(LWIP_SOCKET)
+DDSRT_WARNING_GNUC_ON(sign-conversion)
+#endif
 
 #else
 #error "no mode selected"

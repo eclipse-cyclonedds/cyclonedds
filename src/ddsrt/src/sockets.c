@@ -15,18 +15,20 @@
 #include <stdbool.h>
 #include <string.h>
 
-#if !defined(_WIN32)
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <sys/socket.h>
-# if defined(__linux)
-#   include <linux/if_packet.h> /* sockaddr_ll */
-# endif /* __linux */
-#endif /* _WIN32 */
-
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sockets_priv.h"
+
+#if !LWIP_SOCKET
+# if !defined(_WIN32)
+#   include <arpa/inet.h>
+#   include <netdb.h>
+#   include <sys/socket.h>
+#   if defined(__linux)
+#     include <linux/if_packet.h> /* sockaddr_ll */
+#   endif /* __linux */
+# endif /* _WIN32 */
+#endif /* LWIP_SOCKET */
 
 extern inline struct timeval *
 ddsrt_duration_to_timeval_ceil(dds_duration_t reltime, struct timeval *tv);
@@ -37,7 +39,7 @@ const struct in6_addr ddsrt_in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
 #endif
 
 const int afs[] = {
-#ifdef __linux
+#if defined(__linux) && !LWIP_SOCKET
   AF_PACKET,
 #endif /* __linux */
 #if DDSRT_HAVE_IPV6
@@ -62,7 +64,7 @@ ddsrt_sockaddr_get_size(const struct sockaddr *const sa)
       sz = sizeof(struct sockaddr_in6);
       break;
 #endif /* DDSRT_HAVE_IPV6 */
-#ifdef __linux
+#if defined(__linux) && !LWIP_SOCKET
     case AF_PACKET:
       sz = sizeof(struct sockaddr_ll);
       break;
@@ -218,6 +220,9 @@ dds_retcode_t ddsrt_sockaddrtostr(const void *sa, char *buf, size_t size)
   assert(sa != NULL);
   assert(buf != NULL);
 
+#if LWIP_SOCKET
+DDSRT_WARNING_GNUC_OFF(sign-conversion)
+#endif
   switch (((struct sockaddr *)sa)->sa_family) {
     case AF_INET:
       ptr = inet_ntop(
@@ -232,6 +237,9 @@ dds_retcode_t ddsrt_sockaddrtostr(const void *sa, char *buf, size_t size)
     default:
       return DDS_RETCODE_BAD_PARAMETER;
   }
+#if LWIP_SOCKET
+DDSRT_WARNING_GNUC_ON(sign-conversion)
+#endif
 
   if (ptr == NULL) {
     return DDS_RETCODE_NOT_ENOUGH_SPACE;
@@ -312,10 +320,14 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
       /* Other system error. */
       return DDS_RETCODE_ERROR;
 #endif
+#if defined(EAI_BADFLAGS)
     case EAI_BADFLAGS: /* Invalid flags in hints.ai_flags. */
+#endif
     case EAI_FAMILY: /* Address family not supported. */
     case EAI_SERVICE: /* Service not available for socket type. */
+#if defined(EAI_SOCKTYPE)
     case EAI_SOCKTYPE: /* Socket type not supported. */
+#endif
     case 0: {
       struct addrinfo *ai;
       size_t addrno, naddrs, size;

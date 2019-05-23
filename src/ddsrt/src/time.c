@@ -18,7 +18,7 @@
 extern inline dds_time_t
 ddsrt_time_add_duration(dds_time_t abstime, dds_duration_t reltime);
 
-#if !defined(_WIN32)
+#if !_WIN32 && !DDSRT_WITH_FREERTOS
 #include <errno.h>
 
 void dds_sleepfor(dds_duration_t n)

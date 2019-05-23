@@ -368,7 +368,13 @@ static bool ddsi_tcp_select (ddsrt_socket_t sock, bool read, size_t pos)
   int32_t ready = 0;
 
   FD_ZERO (&fds);
+#if LWIP_SOCKET == 1
+  DDSRT_WARNING_GNUC_OFF(sign-conversion)
+#endif
   FD_SET (sock, &fds);
+#if LWIP_SOCKET == 1
+  DDSRT_WARNING_GNUC_ON(sign-conversion)
+#endif
 
   DDS_LOG(DDS_LC_TCP, "%s blocked %s: sock %d\n", ddsi_name, read ? "read" : "write", (int) sock);
   do {

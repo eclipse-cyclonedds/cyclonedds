@@ -9,10 +9,10 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Test.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/ifaddrs.h"
 #include "dds/ddsrt/retcode.h"
+#include "CUnit/Test.h"
 
 /* FIXME: It's not possible to predict what network interfaces are available
           on a given host. To properly test all combinations the abstracted
@@ -117,9 +117,9 @@ CU_Test(ddsrt_getifaddrs, empty_filter)
   ddsrt_freeifaddrs(ifa_root);
 }
 
-#ifdef DDSRT_HAVE_IPV6
 CU_Test(ddsrt_getifaddrs, ipv6)
 {
+#ifdef DDSRT_HAVE_IPV6
   if (ipv6_enabled == 1) {
     dds_retcode_t ret;
     int have_ipv6 = 0;
@@ -149,12 +149,16 @@ CU_Test(ddsrt_getifaddrs, ipv6)
   } else {
     CU_PASS("IPv6 disabled in test environment");
   }
+#else
+  CU_PASS("IPv6 is not supported");
+#endif
 }
 
 /* Assume at least one IPv4 and one IPv6 interface are available when IPv6 is
    available on the platform. */
 CU_Test(ddsrt_getifaddrs, ipv4_n_ipv6)
 {
+#if DDSRT_HAVE_IPV6
   if (ipv6_enabled == 1) {
     dds_retcode_t ret;
     int have_ipv4 = 0;
@@ -182,6 +186,8 @@ CU_Test(ddsrt_getifaddrs, ipv4_n_ipv6)
   } else {
     CU_PASS("IPv6 disabled in test environment");
   }
+#else
+  CU_PASS("IPv6 is not supported");
+#endif /* DDSRT_HAVE_IPV6 */
 }
 
-#endif /* DDSRT_HAVE_IPV6 */

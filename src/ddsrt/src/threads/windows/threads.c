@@ -16,6 +16,12 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/threads_priv.h"
 
+typedef struct {
+  char *name;
+  ddsrt_thread_routine_t routine;
+  void *arg;
+} thread_context_t;
+
 static uint32_t
 os_startRoutineWrapper(
   void *threadContext)

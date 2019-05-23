@@ -14,6 +14,18 @@
 
 #include <stddef.h>
 
+#if DDSRT_WITH_FREERTOS
+#include <FreeRTOS.h>
+# if configUSE_TRACE_FACILITY == 1 && \
+     configGENERATE_RUN_TIME_STATS == 1
+#   define DDSRT_HAVE_RUSAGE 1
+# else
+#   define DDSRT_HAVE_RUSAGE 0
+#endif
+#else
+# define DDSRT_HAVE_RUSAGE 1
+#endif
+
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/retcode.h"
 

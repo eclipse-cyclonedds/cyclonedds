@@ -11,7 +11,12 @@
 #
 set(CUNIT_HEADER "CUnit/CUnit.h")
 
-find_path(CUNIT_INCLUDE_DIR ${CUNIT_HEADER})
+if(CONAN_INCLUDE_DIRS)
+  find_path(CUNIT_INCLUDE_DIR ${CUNIT_HEADER} HINTS ${CONAN_INCLUDE_DIRS})
+else()
+  find_path(CUNIT_INCLUDE_DIR ${CUNIT_HEADER})
+endif()
+
 mark_as_advanced(CUNIT_INCLUDE_DIR)
 
 if(CUNIT_INCLUDE_DIR AND EXISTS "${CUNIT_INCLUDE_DIR}/${CUNIT_HEADER}")
@@ -25,7 +30,11 @@ if(CUNIT_INCLUDE_DIR AND EXISTS "${CUNIT_INCLUDE_DIR}/${CUNIT_HEADER}")
   set(CUNIT_VERSION "${CUNIT_VERSION_MAJOR}.${CUNIT_VERSION_MINOR}-${CUNIT_VERSION_PATCH}")
 endif()
 
-find_library(CUNIT_LIBRARY cunit)
+if(CONAN_LIB_DIRS)
+  find_library(CUNIT_LIBRARY cunit HINTS ${CONAN_LIB_DIRS})
+else()
+  find_library(CUNIT_LIBRARY cunit)
+endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(

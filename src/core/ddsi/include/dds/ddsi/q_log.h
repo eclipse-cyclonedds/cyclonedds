@@ -23,6 +23,7 @@ extern "C" {
 #endif
 
 /* LOG_THREAD_CPUTIME must be considered private. */
+#if DDSRT_HAVE_RUSAGE
 #define LOG_THREAD_CPUTIME(guard)                                        \
     do {                                                                 \
         if (dds_get_log_mask() & DDS_LC_TIMING) {                        \
@@ -40,6 +41,9 @@ extern "C" {
             }                                                            \
         }                                                                \
     } while (0)
+#else
+#define LOG_THREAD_CPUTIME(guard) (void)(guard)
+#endif /* DDSRT_HAVE_RUSAGE */
 
 #if defined (__cplusplus)
 }

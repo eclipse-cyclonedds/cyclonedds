@@ -92,7 +92,6 @@ CU_Test(ddsc_participant, create_with_conf_no_env) {
 
     //invalid domain
     participant = dds_create_participant (1, NULL, NULL);
-    printf("\n participant is %d\n", participant);
     CU_ASSERT_FATAL(participant < 0);
 
     //valid specific domain value

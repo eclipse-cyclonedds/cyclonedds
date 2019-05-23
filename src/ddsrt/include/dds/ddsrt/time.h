@@ -146,4 +146,8 @@ DDS_EXPORT size_t ddsrt_ctime(dds_time_t abstime, char *str, size_t size);
 }
 #endif
 
+#if DDSRT_WITH_FREERTOS
+#include "dds/ddsrt/time/freertos.h"
+#endif
+
 #endif /* DDSRT_TIME_H */

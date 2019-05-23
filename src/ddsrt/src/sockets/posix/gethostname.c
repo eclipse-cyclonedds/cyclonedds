@@ -10,21 +10,41 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
-#include <errno.h>
 #include <limits.h>
 #include <string.h>
+
+#include "dds/ddsrt/sockets.h"
+#include "dds/ddsrt/string.h"
+
+#if !LWIP_SOCKET
+#include <errno.h>
+#endif
 
 #if defined(__VXWORKS__)
 #include <hostLib.h>
 #endif /* __VXWORKS__ */
 
-#if !defined(HOST_NAME_MAX) && defined(_POSIX_HOST_NAME_MAX)
-# define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+#if !defined(HOST_NAME_MAX)
+# if LWIP_SOCKET
+#   define HOST_NAME_MAX DNS_MAX_NAME_LENGTH
+# elif defined(_POSIX_HOST_NAME_MAX)
+#   define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+# endif
 #endif
 
-#include "dds/ddsrt/sockets.h"
-#include "dds/ddsrt/string.h"
 
+#if LWIP_SOCKET
+dds_retcode_t
+ddsrt_gethostname(
+  char *name,
+  size_t len)
+{
+  if (ddsrt_strlcpy(name, "localhost", len) >= len) {
+    return DDS_RETCODE_NOT_ENOUGH_SPACE;
+  }
+  return DDS_RETCODE_OK;
+}
+#else
 dds_retcode_t
 ddsrt_gethostname(
   char *name,
@@ -59,3 +79,4 @@ ddsrt_gethostname(
 
   return DDS_RETCODE_ERROR;
 }
+#endif

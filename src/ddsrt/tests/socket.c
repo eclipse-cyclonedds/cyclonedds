@@ -9,17 +9,17 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include <assert.h>
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-
-#include "CUnit/Theory.h"
+#include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/sockets.h"
+#include "dds/ddsrt/string.h"
+#include "CUnit/Theory.h"
+
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
 
 DDSRT_WARNING_MSVC_OFF(4305)
 #if DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
@@ -79,8 +79,8 @@ CU_Theory((char *str, int af, dds_retcode_t exp), ddsrt_sockaddrfromstr, ipv4, .
   sockaddrfromstr_test(str, af, exp);
 }
 
-#if DDSRT_HAVE_IPV6
 CU_TheoryDataPoints(ddsrt_sockaddrfromstr, ipv6) = {
+#if DDSRT_HAVE_IPV6
   CU_DataPoints(char *, "127.0.0.1", "::1",
                         "::1",       "::",
                         "nip"),
@@ -90,13 +90,20 @@ CU_TheoryDataPoints(ddsrt_sockaddrfromstr, ipv6) = {
   CU_DataPoints(dds_retcode_t, DDS_RETCODE_BAD_PARAMETER, DDS_RETCODE_OK,
                                DDS_RETCODE_BAD_PARAMETER, DDS_RETCODE_OK,
                                DDS_RETCODE_BAD_PARAMETER)
+#endif /* DDSRT_HAVE_IPV6 */
 };
 
 CU_Theory((char *str, int af, dds_retcode_t exp), ddsrt_sockaddrfromstr, ipv6, .init=setup, .fini=teardown)
 {
+#if DDSRT_HAVE_IPV6
   sockaddrfromstr_test(str, af, exp);
-}
+#else
+  (void)str;
+  (void)af;
+  (void)exp;
+  CU_PASS("IPV6 is not supported");
 #endif /* DDSRT_HAVE_IPV6 */
+}
 
 CU_Test(ddsrt_sockaddrtostr, bad_sockaddr, .init=setup, .fini=teardown)
 {
@@ -128,16 +135,19 @@ CU_Test(ddsrt_sockaddrtostr, ipv4)
 
 CU_Test(ddsrt_sockaddrtostr, ipv6)
 {
+#if DDSRT_HAVE_IPV6
   dds_retcode_t rc;
   char buf[128] = { 0 };
   rc = ddsrt_sockaddrtostr(&ipv6_loopback, buf, sizeof(buf));
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
   CU_ASSERT_STRING_EQUAL(buf, "::1");
+#else
+  CU_PASS("IPv6 is not supported");
+#endif
 }
 
 CU_Test(ddsrt_sockets, gethostname)
 {
-  int ret;
   dds_retcode_t rc;
   char sysbuf[200], buf[200];
 
@@ -146,8 +156,12 @@ CU_Test(ddsrt_sockets, gethostname)
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
 
   sysbuf[0] = '\0';
-  ret = gethostname(sysbuf, sizeof(sysbuf));
+#if LWIP_SOCKET
+  ddsrt_strlcpy(sysbuf, "localhost", sizeof(sysbuf));
+#else
+  int ret = gethostname(sysbuf, sizeof(sysbuf));
   CU_ASSERT_EQUAL(ret, 0);
+#endif
   CU_ASSERT(strcmp(buf, sysbuf) == 0);
 
   rc = ddsrt_gethostname(buf, strlen(buf) - 1);
@@ -169,6 +183,7 @@ static void gethostbyname_test(char *name, int af, dds_retcode_t exp)
   }
   ddsrt_free(hent);
 }
+#endif
 
 CU_TheoryDataPoints(ddsrt_gethostbyname, ipv4) = {
   CU_DataPoints(char *,        "",                         "127.0.0.1",    "127.0.0.1"),
@@ -178,21 +193,34 @@ CU_TheoryDataPoints(ddsrt_gethostbyname, ipv4) = {
 
 CU_Theory((char *name, int af, dds_retcode_t exp), ddsrt_gethostbyname, ipv4, .init=setup, .fini=teardown)
 {
+#if DDSRT_HAVE_DNS
   gethostbyname_test(name, af, exp);
+#else
+  (void)name;
+  (void)af;
+  (void)exp;
+  CU_PASS("DNS is not supported");
+#endif
 }
 
-#if DDSRT_HAVE_IPV6
 /* Lookup of IPv4 address and specifying AF_INET6 is not invalid as it may
    return an IPV4-mapped IPv6 address. */
 CU_TheoryDataPoints(ddsrt_gethostbyname, ipv6) = {
+#if DDSRT_HAVE_IPV6 && DDSRT_HAVE_DNS
   CU_DataPoints(char *,        "::1",                      "::1",          "::1"),
   CU_DataPoints(int,           AF_INET,                    AF_INET6,       AF_UNSPEC),
   CU_DataPoints(dds_retcode_t, DDS_RETCODE_HOST_NOT_FOUND, DDS_RETCODE_OK, DDS_RETCODE_OK)
+#endif /* DDSRT_HAVE_IPV6 */
 };
 
 CU_Theory((char *name, int af, dds_retcode_t exp), ddsrt_gethostbyname, ipv6, .init=setup, .fini=teardown)
 {
+#if DDSRT_HAVE_IPV6 && DDSRT_HAVE_DNS
   gethostbyname_test(name, af, exp);
-}
+#else
+  (void)name;
+  (void)af;
+  (void)exp;
+  CU_PASS("DNS and IPv6 are not supported");
 #endif /* DDSRT_HAVE_IPV6 */
-#endif /* DDSRT_HAVE_DNS */
+}

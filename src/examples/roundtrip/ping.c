@@ -116,7 +116,7 @@ static bool CtrlHandler (DWORD fdwCtrlType)
   dds_waitset_set_trigger (waitSet, true);
   return true; //Don't let other handlers handle this key
 }
-#else
+#elif !DDSRT_WITH_FREERTOS
 static void CtrlHandler (int sig)
 {
   (void)sig;
@@ -249,7 +249,7 @@ int main (int argc, char *argv[])
   /* Register handler for Ctrl-C */
 #ifdef _WIN32
   SetConsoleCtrlHandler ((PHANDLER_ROUTINE)CtrlHandler, TRUE);
-#else
+#elif !DDSRT_WITH_FREERTOS
   struct sigaction sat, oldAction;
   sat.sa_handler = CtrlHandler;
   sigemptyset (&sat.sa_mask);
@@ -411,7 +411,7 @@ done:
 
 #ifdef _WIN32
   SetConsoleCtrlHandler (0, FALSE);
-#else
+#elif !DDSRT_WITH_FREERTOS
   sigaction (SIGINT, &oldAction, 0);
 #endif
 

@@ -14,6 +14,12 @@
 
 #include <pthread.h>
 
+#if defined(__VXWORKS__)
+#define DDSRT_HAVE_THREAD_SETNAME (0)
+#else
+#define DDSRT_HAVE_THREAD_SETNAME (1)
+#endif
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
