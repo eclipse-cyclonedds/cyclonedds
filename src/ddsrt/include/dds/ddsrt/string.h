@@ -12,6 +12,7 @@
 #ifndef DDSRT_STRING_H
 #define DDSRT_STRING_H
 
+#include <stdbool.h>
 #include "dds/export.h"
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/retcode.h"
@@ -168,6 +169,8 @@ ddsrt_strlcat(
   const char * __restrict src,
   size_t size)
 ddsrt_nonnull((1,2));
+
+
 
 /**
  * @brief Get description for specified system error number.

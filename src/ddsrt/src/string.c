@@ -178,3 +178,4 @@ ddsrt_strdup(
 
   return ddsrt_memdup(str, strlen(str) + 1);
 }
+
