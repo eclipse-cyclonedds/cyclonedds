@@ -24,40 +24,29 @@
 #include "dds__init.h"
 #include "dds__publisher.h"
 #include "dds__topic.h"
+#include "dds__get_status.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
 
-DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_writer)
+DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_writer)
 
 #define DDS_WRITER_STATUS_MASK                                   \
-                        DDS_LIVELINESS_LOST_STATUS              |\
-                        DDS_OFFERED_DEADLINE_MISSED_STATUS      |\
-                        DDS_OFFERED_INCOMPATIBLE_QOS_STATUS     |\
-                        DDS_PUBLICATION_MATCHED_STATUS
+                        (DDS_LIVELINESS_LOST_STATUS              |\
+                         DDS_OFFERED_DEADLINE_MISSED_STATUS      |\
+                         DDS_OFFERED_INCOMPATIBLE_QOS_STATUS     |\
+                         DDS_PUBLICATION_MATCHED_STATUS)
 
-static dds_return_t
-dds_writer_instance_hdl(
-        dds_entity *e,
-        dds_instance_handle_t *i)
+static dds_return_t dds_writer_instance_hdl (dds_entity *e, dds_instance_handle_t *i) ddsrt_nonnull_all;
+
+static dds_return_t dds_writer_instance_hdl (dds_entity *e, dds_instance_handle_t *i)
 {
-    assert(e);
-    assert(i);
-    *i = (dds_instance_handle_t)writer_instance_id(&e->m_guid);
-    return DDS_RETCODE_OK;
+  *i = writer_instance_id(&e->m_guid);
+  return DDS_RETCODE_OK;
 }
 
-static dds_return_t
-dds_writer_status_validate(
-        uint32_t mask)
+static dds_return_t dds_writer_status_validate (uint32_t mask)
 {
-    dds_return_t ret = DDS_RETCODE_OK;
-
-    if (mask & ~(DDS_WRITER_STATUS_MASK)) {
-        DDS_ERROR("Invalid status mask\n");
-        ret = DDS_RETCODE_BAD_PARAMETER;
-    }
-
-    return ret;
+  return (mask & ~DDS_WRITER_STATUS_MASK) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
 }
 
 /*
@@ -173,285 +162,217 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
   ddsrt_mutex_unlock (&entity->m_observers_lock);
 }
 
-static uint32_t
-get_bandwidth_limit(
-        nn_transport_priority_qospolicy_t transport_priority)
+static uint32_t get_bandwidth_limit (nn_transport_priority_qospolicy_t transport_priority)
 {
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   struct config_channel_listelem *channel = find_channel (transport_priority);
   return channel->data_bandwidth_limit;
 #else
-  (void)transport_priority;
+  (void) transport_priority;
   return 0;
 #endif
 }
 
-static dds_return_t
-dds_writer_close(
-        dds_entity *e)
-{
-    dds_return_t ret = DDS_RETCODE_OK;
-    dds_writer *wr = (dds_writer*)e;
+static dds_return_t dds_writer_close (dds_entity *e) ddsrt_nonnull_all;
 
-    assert(e);
+static dds_return_t dds_writer_close (dds_entity *e)
+{
+  dds_writer * const wr = (dds_writer *) e;
+  dds_return_t ret;
+  thread_state_awake (lookup_thread_state ());
+  nn_xpack_send (wr->m_xp, false);
+  if ((ret = delete_writer (&e->m_guid)) < 0)
+    ret = DDS_RETCODE_ERROR;
+  thread_state_asleep (lookup_thread_state ());
+  return ret;
+}
+
+static dds_return_t dds_writer_delete (dds_entity *e) ddsrt_nonnull_all;
+
+static dds_return_t dds_writer_delete (dds_entity *e)
+{
+  dds_writer * const wr = (dds_writer *) e;
+  dds_return_t ret;
+  /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
+  thread_state_awake (lookup_thread_state ());
+  nn_xpack_free (wr->m_xp);
+  thread_state_asleep (lookup_thread_state ());
+  if ((ret = dds_delete (wr->m_topic->m_entity.m_hdllink.hdl)) == DDS_RETCODE_OK)
+  {
+    ret = dds_delete_impl (e->m_parent->m_hdllink.hdl, true);
+    if (ret == DDS_RETCODE_BAD_PARAMETER)
+      ret = DDS_RETCODE_OK;
+  }
+  return ret;
+}
+
+static dds_return_t dds_writer_qos_validate (const dds_qos_t *qos, bool enabled)
+{
+  if (!dds_qos_validate_common(qos))
+    return DDS_RETCODE_INCONSISTENT_POLICY;
+  if ((qos->present & QP_USER_DATA) && !validate_octetseq (&qos->user_data))
+    return DDS_RETCODE_INCONSISTENT_POLICY;
+  if ((qos->present & QP_DURABILITY_SERVICE) && validate_durability_service_qospolicy (&qos->durability_service) < 0)
+    return DDS_RETCODE_INCONSISTENT_POLICY;
+  if ((qos->present & QP_LIFESPAN) && validate_duration (&qos->lifespan.duration) < 0)
+    return DDS_RETCODE_INCONSISTENT_POLICY;
+  if ((qos->present & QP_HISTORY) && (qos->present & QP_RESOURCE_LIMITS) && validate_history_and_resource_limits(&qos->history, &qos->resource_limits) < 0)
+    return DDS_RETCODE_INCONSISTENT_POLICY;
+  return enabled ? dds_qos_validate_mutable_common (qos) : DDS_RETCODE_OK;
+}
+
+static dds_return_t dds_writer_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
+{
+  /* FIXME: QoS changes */
+  dds_return_t ret;
+
+  if ((ret = dds_writer_qos_validate (qos, enabled)) != DDS_RETCODE_OK)
+    return ret;
+
+  /* Sort-of support updating ownership strength */
+  if ((qos->present & QP_OWNERSHIP_STRENGTH) && (qos->present & ~QP_OWNERSHIP_STRENGTH) == 0)
+  {
+    dds_ownership_kind_t kind;
+    dds_qget_ownership (e->m_qos, &kind);
+
+    if (kind != DDS_OWNERSHIP_EXCLUSIVE)
+      return DDS_RETCODE_ERROR;
+
+    struct writer *ddsi_wr = ((dds_writer *) e)->m_wr;
+    dds_qset_ownership_strength (e->m_qos, qos->ownership_strength.value);
 
     thread_state_awake (lookup_thread_state ());
-    nn_xpack_send (wr->m_xp, false);
-    if (delete_writer (&e->m_guid) != 0) {
-        DDS_ERROR("Internal error");
-        ret = DDS_RETCODE_ERROR;
-    }
+
+    /* FIXME: with QoS changes being unsupported by the underlying stack I wonder what will happen; locking the underlying DDSI writer is of doubtful value as well */
+    ddsrt_mutex_lock (&ddsi_wr->e.lock);
+    ddsi_wr->xqos->ownership_strength.value = qos->ownership_strength.value;
+    ddsrt_mutex_unlock (&ddsi_wr->e.lock);
     thread_state_asleep (lookup_thread_state ());
-    return ret;
+  }
+  else
+  {
+    if (enabled)
+      ret = DDS_RETCODE_UNSUPPORTED;
+  }
+  return ret;
 }
 
-static dds_return_t
-dds_writer_delete(
-        dds_entity *e)
-{
-    dds_writer *wr = (dds_writer*)e;
-    dds_return_t ret;
-    /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
-    thread_state_awake (lookup_thread_state ());
-    nn_xpack_free(wr->m_xp);
-    thread_state_asleep (lookup_thread_state ());
-    ret = dds_delete(wr->m_topic->m_entity.m_hdllink.hdl);
-    if(ret == DDS_RETCODE_OK){
-        ret = dds_delete_impl(e->m_parent->m_hdllink.hdl, true);
-        if(ret == DDS_RETCODE_BAD_PARAMETER){
-            ret = DDS_RETCODE_OK;
-        }
-    }
-    return ret;
-}
-
-
-static dds_return_t
-dds_writer_qos_validate(
-        const dds_qos_t *qos,
-        bool enabled)
-{
-    dds_return_t ret = DDS_RETCODE_OK;
-
-    assert(qos);
-
-    /* Check consistency. */
-    if(dds_qos_validate_common(qos) != true){
-        DDS_ERROR("Provided inconsistent QoS policy\n");
-        ret = DDS_RETCODE_INCONSISTENT_POLICY;
-    }
-    if((qos->present & QP_USER_DATA) && validate_octetseq(&qos->user_data) != true){
-        DDS_ERROR("User Data QoS policy is inconsistent and caused an error\n");
-        ret = DDS_RETCODE_INCONSISTENT_POLICY;
-    }
-    if ((qos->present & QP_DURABILITY_SERVICE) && validate_durability_service_qospolicy(&qos->durability_service) != 0){
-        DDS_ERROR("Durability service QoS policy is inconsistent and caused an error\n");
-        ret = DDS_RETCODE_INCONSISTENT_POLICY;
-    }
-    if ((qos->present & QP_LIFESPAN) && validate_duration(&qos->lifespan.duration) != 0){
-        DDS_ERROR("Lifespan QoS policy is inconsistent and caused an error\n");
-        ret = DDS_RETCODE_INCONSISTENT_POLICY;
-    }
-    if ((qos->present & QP_HISTORY) && (qos->present & QP_RESOURCE_LIMITS) && (validate_history_and_resource_limits(&qos->history, &qos->resource_limits) != 0)){
-        DDS_ERROR("Resource limits QoS policy is inconsistent and caused an error\n");
-        ret = DDS_RETCODE_INCONSISTENT_POLICY;
-    }
-    if(ret == DDS_RETCODE_OK && enabled) {
-        ret = dds_qos_validate_mutable_common(qos);
-    }
-    return ret;
-}
-
-static dds_return_t
-dds_writer_qos_set(
-        dds_entity *e,
-        const dds_qos_t *qos,
-        bool enabled)
-{
-    dds_return_t ret = dds_writer_qos_validate(qos, enabled);
-    if (ret == DDS_RETCODE_OK) {
-        /*
-         * TODO: CHAM-95: DDSI does not support changing QoS policies.
-         *
-         * Only Ownership is required for the minimum viable product. This seems
-         * to be the only QoS policy that DDSI supports changes on.
-         */
-        if (qos->present & QP_OWNERSHIP_STRENGTH) {
-            dds_ownership_kind_t kind;
-            /* check for ownership before updating, ownership strength is applicable only if
-             * writer is exclusive */
-            dds_qget_ownership (e->m_qos, &kind);
-
-            if (kind == DDS_OWNERSHIP_EXCLUSIVE) {
-                struct writer * ddsi_wr = ((dds_writer*)e)->m_wr;
-
-                dds_qset_ownership_strength (e->m_qos, qos->ownership_strength.value);
-
-                thread_state_awake (lookup_thread_state ());
-
-                /* FIXME: with QoS changes being unsupported by the underlying stack I wonder what will happen; locking the underlying DDSI writer is of doubtful value as well */
-                ddsrt_mutex_lock (&ddsi_wr->e.lock);
-                if (qos->ownership_strength.value != ddsi_wr->xqos->ownership_strength.value) {
-                    ddsi_wr->xqos->ownership_strength.value = qos->ownership_strength.value;
-                }
-                ddsrt_mutex_unlock (&ddsi_wr->e.lock);
-                thread_state_asleep (lookup_thread_state ());
-            } else {
-                DDS_ERROR("Setting ownership strength doesn't make sense when the ownership is shared\n");
-                ret = DDS_RETCODE_ERROR;
-            }
-        } else {
-            if (enabled) {
-                DDS_ERROR(DDS_PROJECT_NAME" does not support changing QoS policies yet\n");
-                ret = DDS_RETCODE_UNSUPPORTED;
-            }
-        }
-    }
-    return ret;
-}
-
-static struct whc *make_whc(const dds_qos_t *qos)
+static struct whc *make_whc (const dds_qos_t *qos)
 {
   bool handle_as_transient_local;
-  unsigned hdepth, tldepth;
+  uint32_t hdepth, tldepth;
   /* Construct WHC -- if aggressive_keep_last1 is set, the WHC will
-    drop all samples for which a later update is available.  This
-    forces it to maintain a tlidx.  */
+     drop all samples for which a later update is available.  This
+     forces it to maintain a tlidx.  */
   handle_as_transient_local = (qos->durability.kind == NN_TRANSIENT_LOCAL_DURABILITY_QOS);
   if (qos->history.kind == NN_KEEP_ALL_HISTORY_QOS)
     hdepth = 0;
   else
-    hdepth = (unsigned)qos->history.depth;
-  if (handle_as_transient_local) {
+    hdepth = (unsigned) qos->history.depth;
+  if (!handle_as_transient_local)
+    tldepth = 0;
+  else
+  {
     if (qos->durability_service.history.kind == NN_KEEP_ALL_HISTORY_QOS)
       tldepth = 0;
     else
-      tldepth = (unsigned)qos->durability_service.history.depth;
-  } else {
-    tldepth = 0;
+      tldepth = (unsigned) qos->durability_service.history.depth;
   }
   return whc_new (handle_as_transient_local, hdepth, tldepth);
 }
 
-
-dds_entity_t
-dds_create_writer(
-    dds_entity_t participant_or_publisher,
-    dds_entity_t topic,
-    const dds_qos_t *qos,
-    const dds_listener_t *listener)
+dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
 {
-    dds_return_t rc;
-    dds_qos_t * wqos;
-    dds_writer * wr;
-    dds_entity_t writer;
-    dds_publisher * pub = NULL;
-    dds_topic * tp;
-    dds_entity_t publisher;
-    ddsi_tran_conn_t conn = gv.data_conn_uc;
-    dds_return_t ret;
+  dds_return_t rc;
+  dds_qos_t *wqos;
+  dds_writer *wr;
+  dds_entity_t writer;
+  dds_publisher *pub = NULL;
+  dds_topic *tp;
+  dds_entity_t publisher;
+  ddsi_tran_conn_t conn = gv.data_conn_uc;
 
-    {
-        dds_entity *p_or_p;
-        if ((rc = dds_entity_claim (participant_or_publisher, &p_or_p)) != DDS_RETCODE_OK) {
-            return rc;
-        }
-        if (dds_entity_kind (p_or_p) == DDS_KIND_PARTICIPANT) {
-            publisher = dds_create_publisher(participant_or_publisher, qos, NULL);
-        } else {
-            publisher = participant_or_publisher;
-        }
-        dds_entity_release (p_or_p);
-    }
+  {
+    dds_entity *p_or_p;
+    if ((rc = dds_entity_claim (participant_or_publisher, &p_or_p)) != DDS_RETCODE_OK)
+      return rc;
+    if (dds_entity_kind (p_or_p) == DDS_KIND_PARTICIPANT)
+      publisher = dds_create_publisher(participant_or_publisher, qos, NULL);
+    else
+      publisher = participant_or_publisher;
+    dds_entity_release (p_or_p);
+  }
 
-    if ((rc = dds_publisher_lock(publisher, &pub)) != DDS_RETCODE_OK) {
-        writer = rc;
-        goto err_pub_lock;
-    }
+  if ((rc = dds_publisher_lock (publisher, &pub)) != DDS_RETCODE_OK)
+    return rc;
 
-    if (publisher != participant_or_publisher) {
-        pub->m_entity.m_flags |= DDS_ENTITY_IMPLICIT;
-    }
+  if (publisher != participant_or_publisher)
+    pub->m_entity.m_flags |= DDS_ENTITY_IMPLICIT;
 
-    rc = dds_topic_lock(topic, &tp);
-    if (rc != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking topic\n");
-        writer = rc;
-        goto err_tp_lock;
-    }
-    assert(tp->m_stopic);
-    assert(pub->m_entity.m_domain == tp->m_entity.m_domain);
+  if ((rc = dds_topic_lock (topic, &tp)) != DDS_RETCODE_OK)
+    goto err_tp_lock;
 
-    /* Merge Topic & Publisher qos */
-    wqos = dds_create_qos();
-    if (qos) {
-        /* Only returns failure when one of the qos args is NULL, which
-         * is not the case here. */
-        (void)dds_copy_qos(wqos, qos);
-    }
+  assert (tp->m_stopic);
+  assert (pub->m_entity.m_domain == tp->m_entity.m_domain);
 
-    if (pub->m_entity.m_qos) {
-        dds_merge_qos(wqos, pub->m_entity.m_qos);
-    }
+  /* Merge Topic & Publisher qos */
+  wqos = dds_create_qos ();
+  if (qos)
+    (void) dds_copy_qos (wqos, qos);
+  if (pub->m_entity.m_qos)
+    dds_merge_qos (wqos, pub->m_entity.m_qos);
+  if (tp->m_entity.m_qos)
+    dds_merge_qos (wqos, tp->m_entity.m_qos);
+  nn_xqos_mergein_missing (wqos, &gv.default_xqos_wr);
 
-    if (tp->m_entity.m_qos) {
-        /* merge topic qos data to writer qos */
-        dds_merge_qos(wqos, tp->m_entity.m_qos);
-    }
-    nn_xqos_mergein_missing(wqos, &gv.default_xqos_wr);
+  if ((rc = dds_writer_qos_validate (wqos, false)) != DDS_RETCODE_OK)
+  {
+    dds_delete_qos(wqos);
+    goto err_bad_qos;
+  }
 
-    ret = dds_writer_qos_validate(wqos, false);
-    if (ret != 0) {
-        dds_delete_qos(wqos);
-        writer = ret;
-        goto err_bad_qos;
-    }
+  /* Create writer */
+  wr = dds_alloc (sizeof (*wr));
+  writer = dds_entity_init (&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, wqos, listener, DDS_WRITER_STATUS_MASK);
 
-    /* Create writer */
-    wr = dds_alloc(sizeof (*wr));
-    writer = dds_entity_init(&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, wqos, listener, DDS_WRITER_STATUS_MASK);
+  wr->m_topic = tp;
+  dds_entity_add_ref_nolock (&tp->m_entity);
+  wr->m_xp = nn_xpack_new (conn, get_bandwidth_limit (wqos->transport_priority), config.xpack_send_async);
+  wr->m_entity.m_deriver.close = dds_writer_close;
+  wr->m_entity.m_deriver.delete = dds_writer_delete;
+  wr->m_entity.m_deriver.set_qos = dds_writer_qos_set;
+  wr->m_entity.m_deriver.validate_status = dds_writer_status_validate;
+  wr->m_entity.m_deriver.get_instance_hdl = dds_writer_instance_hdl;
+  wr->m_whc = make_whc (wqos);
 
-    wr->m_topic = tp;
-    dds_entity_add_ref_nolock(&tp->m_entity);
-    wr->m_xp = nn_xpack_new(conn, get_bandwidth_limit(wqos->transport_priority), config.xpack_send_async);
-    wr->m_entity.m_deriver.close = dds_writer_close;
-    wr->m_entity.m_deriver.delete = dds_writer_delete;
-    wr->m_entity.m_deriver.set_qos = dds_writer_qos_set;
-    wr->m_entity.m_deriver.validate_status = dds_writer_status_validate;
-    wr->m_entity.m_deriver.get_instance_hdl = dds_writer_instance_hdl;
-    wr->m_whc = make_whc (wqos);
+  /* Extra claim of this writer to make sure that the delete waits until DDSI
+   * has deleted its writer as well. This can be known through the callback. */
+  dds_handle_claim_inc (&wr->m_entity.m_hdllink);
 
-    /* Extra claim of this writer to make sure that the delete waits until DDSI
-     * has deleted its writer as well. This can be known through the callback. */
-    dds_handle_claim_inc (&wr->m_entity.m_hdllink);
+  ddsrt_mutex_unlock (&tp->m_entity.m_mutex);
+  ddsrt_mutex_unlock (&pub->m_entity.m_mutex);
 
-    ddsrt_mutex_unlock (&tp->m_entity.m_mutex);
-    ddsrt_mutex_unlock (&pub->m_entity.m_mutex);
-
-    thread_state_awake (lookup_thread_state ());
-    ret = new_writer(&wr->m_wr, &wr->m_entity.m_guid, NULL, &pub->m_entity.m_participant->m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
-    ddsrt_mutex_lock (&pub->m_entity.m_mutex);
-    ddsrt_mutex_lock (&tp->m_entity.m_mutex);
-    assert(ret == DDS_RETCODE_OK);
-    thread_state_asleep (lookup_thread_state ());
-    dds_topic_unlock(tp);
-    dds_publisher_unlock(pub);
-    return writer;
+  thread_state_awake (lookup_thread_state ());
+  rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, &pub->m_entity.m_participant->m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
+  ddsrt_mutex_lock (&pub->m_entity.m_mutex);
+  ddsrt_mutex_lock (&tp->m_entity.m_mutex);
+  assert(rc == DDS_RETCODE_OK);
+  thread_state_asleep (lookup_thread_state ());
+  dds_topic_unlock (tp);
+  dds_publisher_unlock (pub);
+  return writer;
 
 err_bad_qos:
-    dds_topic_unlock(tp);
+  dds_topic_unlock (tp);
 err_tp_lock:
-    dds_publisher_unlock(pub);
-    if((pub->m_entity.m_flags & DDS_ENTITY_IMPLICIT) != 0){
-        (void)dds_delete(publisher);
-    }
-err_pub_lock:
-    return writer;
+  dds_publisher_unlock (pub);
+  if ((pub->m_entity.m_flags & DDS_ENTITY_IMPLICIT) != 0){
+    (void )dds_delete (publisher);
+  }
+  return rc;
 }
 
-dds_entity_t
-dds_get_publisher(
-    dds_entity_t writer)
+dds_entity_t dds_get_publisher (dds_entity_t writer)
 {
   dds_entity *e;
   dds_return_t rc;
@@ -472,115 +393,7 @@ dds_get_publisher(
   }
 }
 
-dds_return_t
-dds_get_publication_matched_status (
-    dds_entity_t writer,
-    dds_publication_matched_status_t * status)
-{
-    dds_writer *wr;
-    dds_return_t ret;
-
-    ret = dds_writer_lock(writer, &wr);
-    if (ret != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking writer\n");
-        goto fail;
-    }
-    /* status = NULL, application do not need the status, but reset the counter & triggered bit */
-    if (status) {
-        *status = wr->m_publication_matched_status;
-    }
-    ddsrt_mutex_lock (&wr->m_entity.m_observers_lock);
-    if (wr->m_entity.m_status_enable & DDS_PUBLICATION_MATCHED_STATUS) {
-        wr->m_publication_matched_status.total_count_change = 0;
-        wr->m_publication_matched_status.current_count_change = 0;
-        dds_entity_status_reset(&wr->m_entity, DDS_PUBLICATION_MATCHED_STATUS);
-    }
-    ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
-    dds_writer_unlock(wr);
-fail:
-    return ret;
-}
-
-dds_return_t
-dds_get_liveliness_lost_status (
-    dds_entity_t writer,
-    dds_liveliness_lost_status_t * status)
-{
-    dds_writer *wr;
-    dds_return_t ret;
-
-    ret = dds_writer_lock(writer, &wr);
-    if (ret != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking writer\n");
-        goto fail;
-    }
-    /* status = NULL, application do not need the status, but reset the counter & triggered bit */
-    if (status) {
-      *status = wr->m_liveliness_lost_status;
-    }
-    ddsrt_mutex_lock (&wr->m_entity.m_observers_lock);
-    if (wr->m_entity.m_status_enable & DDS_LIVELINESS_LOST_STATUS) {
-      wr->m_liveliness_lost_status.total_count_change = 0;
-      dds_entity_status_reset(&wr->m_entity, DDS_LIVELINESS_LOST_STATUS);
-    }
-    ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
-    dds_writer_unlock(wr);
-fail:
-    return ret;
-}
-
-dds_return_t
-dds_get_offered_deadline_missed_status(
-    dds_entity_t writer,
-    dds_offered_deadline_missed_status_t *status)
-{
-    dds_writer *wr;
-    dds_return_t ret;
-
-    ret = dds_writer_lock(writer, &wr);
-    if (ret != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking writer\n");
-        goto fail;
-    }
-    /* status = NULL, application do not need the status, but reset the counter & triggered bit */
-    if (status) {
-      *status = wr->m_offered_deadline_missed_status;
-    }
-    ddsrt_mutex_lock (&wr->m_entity.m_observers_lock);
-    if (wr->m_entity.m_status_enable & DDS_OFFERED_DEADLINE_MISSED_STATUS) {
-      wr->m_offered_deadline_missed_status.total_count_change = 0;
-      dds_entity_status_reset(&wr->m_entity, DDS_OFFERED_DEADLINE_MISSED_STATUS);
-    }
-    ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
-    dds_writer_unlock(wr);
-fail:
-    return ret;
-}
-
-dds_return_t
-dds_get_offered_incompatible_qos_status (
-    dds_entity_t writer,
-    dds_offered_incompatible_qos_status_t * status)
-{
-    dds_writer *wr;
-    dds_return_t ret;
-
-    ret = dds_writer_lock(writer, &wr);
-    if (ret != DDS_RETCODE_OK) {
-        DDS_ERROR("Error occurred on locking writer\n");
-        goto fail;
-    }
-    /* status = NULL, application do not need the status, but reset the counter & triggered bit */
-    if (status) {
-      *status = wr->m_offered_incompatible_qos_status;
-    }
-    ddsrt_mutex_lock (&wr->m_entity.m_observers_lock);
-    if (wr->m_entity.m_status_enable & DDS_OFFERED_INCOMPATIBLE_QOS_STATUS) {
-      wr->m_offered_incompatible_qos_status.total_count_change = 0;
-      dds_entity_status_reset(&wr->m_entity, DDS_OFFERED_INCOMPATIBLE_QOS_STATUS);
-    }
-    ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
-    dds_writer_unlock(wr);
-fail:
-    return ret;
-}
+DDS_GET_STATUS(writer, publication_matched, PUBLICATION_MATCHED, total_count_change, current_count_change)
+DDS_GET_STATUS(writer, liveliness_lost, LIVELINESS_LOST, total_count_change)
+DDS_GET_STATUS(writer, offered_deadline_missed, OFFERED_DEADLINE_MISSED, total_count_change)
+DDS_GET_STATUS(writer, offered_incompatible_qos, OFFERED_INCOMPATIBLE_QOS, total_count_change)

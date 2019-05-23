@@ -111,13 +111,13 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
   else
   {
     /* When deleting, pwr is no longer accessible via the hash
-     tables, and consequently, a reader may be deleted without
-     it being possible to remove it from rdary. The primary
-     reason rdary exists is to avoid locking the proxy writer
-     but this is less of an issue when we are deleting it, so
-     we fall back to using the GUIDs so that we can deliver all
-     samples we received from it. As writer being deleted any
-     reliable samples that are rejected are simply discarded. */
+       tables, and consequently, a reader may be deleted without
+       it being possible to remove it from rdary. The primary
+       reason rdary exists is to avoid locking the proxy writer
+       but this is less of an issue when we are deleting it, so
+       we fall back to using the GUIDs so that we can deliver all
+       samples we received from it. As writer being deleted any
+       reliable samples that are rejected are simply discarded. */
     ddsrt_avl_iter_t it;
     struct pwr_rd_match *m;
     struct proxy_writer_info pwr_info;
@@ -130,8 +130,8 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
       struct reader *rd;
       if ((rd = ephash_lookup_reader_guid (&m->rd_guid)) != NULL)
       {
-        DDS_TRACE("reader-via-guid "PGUIDFMT"\n", PGUID (rd->e.guid));
-        /* Copied the return value ignore from DDSI deliver_user_data() function. */
+        DDS_TRACE ("reader-via-guid "PGUIDFMT"\n", PGUID (rd->e.guid));
+        /* Copied the return value ignore from DDSI deliver_user_data () function. */
         if ((ret = try_store (rd->rhc, &pwr_info, payload, tk, &max_block_ms)) != DDS_RETCODE_OK)
           break;
       }
@@ -152,40 +152,34 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   int w_rc;
 
   if (data == NULL)
-  {
-    DDS_ERROR("No data buffer provided\n");
     return DDS_RETCODE_BAD_PARAMETER;
-  }
 
   /* Check for topic filter */
   if (wr->m_topic->filter_fn && !writekey)
-    if (!(wr->m_topic->filter_fn) (data, wr->m_topic->filter_ctx))
+    if (! wr->m_topic->filter_fn (data, wr->m_topic->filter_ctx))
       return DDS_RETCODE_OK;
 
   thread_state_awake (ts1);
 
   /* Serialize and write data or key */
   d = ddsi_serdata_from_sample (ddsi_wr->topic, writekey ? SDK_KEY : SDK_DATA, data);
-  d->statusinfo = ((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) | ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0);
+  d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
+                   ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
   d->timestamp.v = tstamp;
   ddsi_serdata_ref (d);
   tk = ddsi_tkmap_lookup_instance_ref (d);
   w_rc = write_sample_gc (ts1, wr->m_xp, ddsi_wr, d, tk);
 
-  if (w_rc >= 0)
-  {
+  if (w_rc >= 0) {
     /* Flush out write unless configured to batch */
     if (!config.whc_batch)
       nn_xpack_send (wr->m_xp, false);
     ret = DDS_RETCODE_OK;
   } else if (w_rc == DDS_RETCODE_TIMEOUT) {
-    DDS_ERROR ("The writer could not deliver data on time, probably due to a reader resources being full\n");
     ret = DDS_RETCODE_TIMEOUT;
   } else if (w_rc == DDS_RETCODE_BAD_PARAMETER) {
-    DDS_ERROR ("Invalid data provided\n");
     ret = DDS_RETCODE_ERROR;
   } else {
-    DDS_ERROR ("Internal error\n");
     ret = DDS_RETCODE_ERROR;
   }
   if (ret == DDS_RETCODE_OK)
@@ -213,13 +207,10 @@ dds_return_t dds_writecdr_impl_lowlevel (struct writer *ddsi_wr, struct nn_xpack
       nn_xpack_send (xp, false);
     ret = DDS_RETCODE_OK;
   } else if (w_rc == DDS_RETCODE_TIMEOUT) {
-    DDS_ERROR ("The writer could not deliver data on time, probably due to a reader resources being full\n");
     ret = DDS_RETCODE_TIMEOUT;
   } else if (w_rc == DDS_RETCODE_BAD_PARAMETER) {
-    DDS_ERROR ("Invalid data provided\n");
     ret = DDS_RETCODE_ERROR;
   } else {
-    DDS_ERROR ("Internal error\n");
     ret = DDS_RETCODE_ERROR;
   }
 
@@ -236,7 +227,8 @@ dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_serdata *d, dds_time
   if (wr->m_topic->filter_fn)
     abort ();
   /* Set if disposing or unregistering */
-  d->statusinfo = ((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) | ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0);
+  d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
+                   ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
   d->timestamp.v = tstamp;
   return dds_writecdr_impl_lowlevel (wr->m_wr, wr->m_xp, d);
 }
@@ -252,9 +244,7 @@ void dds_write_flush (dds_entity_t writer)
   dds_writer *wr;
   dds_return_t rc;
   thread_state_awake (ts1);
-  if ((rc = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
-    DDS_ERROR ("Error occurred on locking writer\n");
-  else
+  if ((rc = dds_writer_lock (writer, &wr)) == DDS_RETCODE_OK)
   {
     nn_xpack_send (wr->m_xp, true);
     dds_writer_unlock (wr);

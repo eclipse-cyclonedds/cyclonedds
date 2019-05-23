@@ -12,27 +12,24 @@
 #include "dds__domain.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 
-static int dds_domain_compare (const int32_t * a, const int32_t * b)
+static int dds_domain_compare (const void *va, const void *vb)
 {
+  const int32_t *a = va;
+  const int32_t *b = vb;
   return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
 }
 
-const ddsrt_avl_treedef_t dds_domaintree_def = DDSRT_AVL_TREEDEF_INITIALIZER
-(
-  offsetof (dds_domain, m_node),
-  offsetof (dds_domain, m_id),
-  (int (*) (const void *, const void *)) dds_domain_compare,
-  0
-);
+const ddsrt_avl_treedef_t dds_domaintree_def = DDSRT_AVL_TREEDEF_INITIALIZER (
+  offsetof (dds_domain, m_node), offsetof (dds_domain, m_id), dds_domain_compare, 0);
 
-dds_domain * dds_domain_find_locked (dds_domainid_t id)
+dds_domain *dds_domain_find_locked (dds_domainid_t id)
 {
   return ddsrt_avl_lookup (&dds_domaintree_def, &dds_global.m_domains, &id);
 }
 
-dds_domain * dds_domain_create (dds_domainid_t id)
+dds_domain *dds_domain_create (dds_domainid_t id)
 {
-  dds_domain * domain;
+  dds_domain *domain;
   ddsrt_mutex_lock (&dds_global.m_mutex);
   domain = dds_domain_find_locked (id);
   if (domain == NULL)
@@ -47,7 +44,7 @@ dds_domain * dds_domain_create (dds_domainid_t id)
   return domain;
 }
 
-void dds_domain_free (dds_domain * domain)
+void dds_domain_free (dds_domain *domain)
 {
   ddsrt_mutex_lock (&dds_global.m_mutex);
   if (--domain->m_refc == 0)

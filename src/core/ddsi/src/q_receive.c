@@ -19,6 +19,7 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/static_assert.h"
 
 #include "dds/ddsrt/avl.h"
 #include "dds__stream.h"
@@ -46,7 +47,6 @@
 
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_static_assert.h"
 #include "dds/ddsi/q_init.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
@@ -1613,7 +1613,7 @@ static int handle_one_gap (struct proxy_writer *pwr, struct pwr_rd_match *wn, se
      anything useful, or there was insufficient memory to store it.
      When the result is either ACCEPT or a sample chain, it clearly
      meant something. */
-  Q_STATIC_ASSERT_CODE (NN_REORDER_ACCEPT == 0);
+  DDSRT_STATIC_ASSERT_CODE (NN_REORDER_ACCEPT == 0);
   if (res >= 0)
     gap_was_valuable = 1;
 
@@ -1877,7 +1877,7 @@ unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr)
     case SMID_DATA_FRAG:
       {
         unsigned char common = smhdr->flags & DATA_FLAG_INLINE_QOS;
-        Q_STATIC_ASSERT_CODE (DATA_FLAG_INLINE_QOS == DATAFRAG_FLAG_INLINE_QOS);
+        DDSRT_STATIC_ASSERT_CODE (DATA_FLAG_INLINE_QOS == DATAFRAG_FLAG_INLINE_QOS);
         if (smhdr->flags & DATAFRAG_FLAG_KEYFLAG)
           return common | DATA_FLAG_KEYFLAG;
         else

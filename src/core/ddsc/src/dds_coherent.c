@@ -16,17 +16,13 @@
 #include "dds__subscriber.h"
 #include "dds__publisher.h"
 
-dds_return_t
-dds_begin_coherent(
-  dds_entity_t entity)
+dds_return_t dds_begin_coherent (dds_entity_t entity)
 {
   static const dds_entity_kind_t kinds[] = { DDS_KIND_READER, DDS_KIND_WRITER, DDS_KIND_PUBLISHER, DDS_KIND_SUBSCRIBER };
   return dds_generic_unimplemented_operation_manykinds (entity, sizeof (kinds) / sizeof (kinds[0]), kinds);
 }
 
-dds_return_t
-dds_end_coherent(
-  dds_entity_t entity)
+dds_return_t dds_end_coherent (dds_entity_t entity)
 {
   static const dds_entity_kind_t kinds[] = { DDS_KIND_READER, DDS_KIND_WRITER, DDS_KIND_PUBLISHER, DDS_KIND_SUBSCRIBER };
   return dds_generic_unimplemented_operation_manykinds (entity, sizeof (kinds) / sizeof (kinds[0]), kinds);

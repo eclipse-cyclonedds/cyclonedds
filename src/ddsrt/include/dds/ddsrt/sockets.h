@@ -247,7 +247,7 @@ typedef struct {
  *
  * @param[in]   name  Host name to resolve.
  * @param[in]   af    Address family, either AF_INET, AF_INET6 or AF_UNSPEC.
- * @param[out]  hent  Structure of type ddsrt_hostent_t.
+ * @param[out]  hentp Structure of type ddsrt_hostent_t.
  *
  * @returns A dds_return_t indicating success or failure.
  *

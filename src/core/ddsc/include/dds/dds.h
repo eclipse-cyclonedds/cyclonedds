@@ -313,7 +313,7 @@ dds_delete(dds_entity_t entity);
  * For instance, it will return the Publisher that was used when
  * creating a DataWriter (when that DataWriter was provided here).
  *
- * @param[in]  entity  Entity from which to get its publisher.
+ * @param[in]  writer  Entity from which to get its publisher.
  *
  * @returns A valid entity or an error code.
  *
@@ -361,7 +361,7 @@ dds_get_subscriber(dds_entity_t entity);
  * For instance, it will return the DataReader that was used when
  * creating a ReadCondition (when that ReadCondition was provided here).
  *
- * @param[in]  entity  Entity from which to get its datareader.
+ * @param[in]  condition  Entity from which to get its datareader.
  *
  * @returns A valid reader handle or an error code.
  *
@@ -502,7 +502,7 @@ dds_get_status_changes(dds_entity_t entity, uint32_t *status);
  * This operation returns the status enabled on the entity
  *
  * @param[in]  entity  Entity to get the status.
- * @param[out] status  Status set on the entity.
+ * @param[out] mask    Mask of enabled statuses set on the entity.
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -952,6 +952,8 @@ dds_create_topic(
   const dds_qos_t *qos,
   const dds_listener_t *listener);
 
+struct ddsi_sertopic;
+struct nn_plist;
 /**
  * @brief Creates a new topic with arbitrary type handling.
  *
@@ -972,8 +974,6 @@ dds_create_topic(
  *             Either participant, descriptor, name or qos is invalid.
  */
 /* TODO: Check list of retcodes is complete. */
-struct ddsi_sertopic;
-struct nn_plist;
 DDS_EXPORT dds_entity_t
 dds_create_topic_arbitrary (
   dds_entity_t participant,
@@ -1650,8 +1650,7 @@ dds_write_flush(dds_entity_t writer);
  * @brief Write a CDR serialized value of a data instance
  *
  * @param[in]  writer The writer entity.
- * @param[in]  cdr CDR serialized value to be written.
- * @param[in]  size Size (in bytes) of CDR encoded data to be written.
+ * @param[in]  serdata CDR serialized value to be written.
  *
  * @returns A dds_return_t indicating success or failure.
  */
@@ -2604,7 +2603,7 @@ dds_take_mask_wl(
   uint32_t maxs,
   uint32_t mask);
 
-DDS_EXPORT int
+DDS_EXPORT dds_return_t
 dds_takecdr(
   dds_entity_t reader_or_condition,
   struct ddsi_serdata **buf,
@@ -2898,7 +2897,7 @@ dds_read_next_wl(
  * the memory is released so that the buffer can be reused during a successive read/take operation.
  * When a condition is provided, the reader to which the condition belongs is looked up.
  *
- * @param[in] rd_or_cnd Reader or condition that belongs to a reader.
+ * @param[in] reader_or_condition Reader or condition that belongs to a reader.
  * @param[in] buf An array of (pointers to) samples.
  * @param[in] bufsz The number of (pointers to) samples stored in buf.
  *

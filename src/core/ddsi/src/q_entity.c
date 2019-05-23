@@ -1099,10 +1099,10 @@ static void rebuild_make_locs_nrds(int **locs_nrds, int nreaders, int nlocs, con
       if (covered[j * nlocs + i] >= 0)
         n++;
 
-/* The compiler doesn't realize that ln is large enough. */
-DDSRT_WARNING_MSVC_OFF(6386);
+    /* The compiler doesn't realize that ln is large enough. */
+    DDSRT_WARNING_MSVC_OFF(6386);
     ln[i] = n;
-DDSRT_WARNING_MSVC_ON(6386);
+    DDSRT_WARNING_MSVC_ON(6386);
   }
   *locs_nrds = ln;
 }
@@ -3002,7 +3002,7 @@ static void writer_set_state (struct writer *wr, enum writer_state newstate)
   wr->state = newstate;
 }
 
-int delete_writer_nolinger_locked (struct writer *wr)
+dds_return_t delete_writer_nolinger_locked (struct writer *wr)
 {
   DDS_LOG(DDS_LC_DISCOVERY, "delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (wr->e.guid));
   ASSERT_MUTEX_HELD (&wr->e.lock);
@@ -3014,7 +3014,7 @@ int delete_writer_nolinger_locked (struct writer *wr)
   return 0;
 }
 
-int delete_writer_nolinger (const struct nn_guid *guid)
+dds_return_t delete_writer_nolinger (const struct nn_guid *guid)
 {
   struct writer *wr;
   /* We take no care to ensure application writers are not deleted
@@ -3043,7 +3043,7 @@ void delete_local_orphan_writer (struct local_orphan_writer *lowr)
   ddsrt_mutex_unlock (&lowr->wr.e.lock);
 }
 
-int delete_writer (const struct nn_guid *guid)
+dds_return_t delete_writer (const struct nn_guid *guid)
 {
   struct writer *wr;
   struct whc_state whcst;
@@ -3409,7 +3409,7 @@ static void gc_delete_reader (struct gcreq *gcreq)
   ddsrt_free (rd);
 }
 
-int delete_reader (const struct nn_guid *guid)
+dds_return_t delete_reader (const struct nn_guid *guid)
 {
   struct reader *rd;
   assert (!is_writer_entityid (guid->entityid));

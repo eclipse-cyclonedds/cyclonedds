@@ -24,11 +24,7 @@ extern "C" {
  * @brief Get value for environment variable.
  *
  * @param[in]  name   Environment variable name.
- * @param[in]  buf    Buffer to write value to.
- * @param[in]  sz     Size of buffer.
- * @param[out] reqsz  Number of bytes written (excluding the terminating null
- *                    byte), or would have been written would @buf have been
- *                    sufficiently large enough.
+ * @param[out] value  Alias to value of environment variable - must not be modified
  *
  * @returns A dds_return_t indicating success or failure.
  *

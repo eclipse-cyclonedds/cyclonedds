@@ -17,7 +17,7 @@
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_qosmatch.h"
 
-int is_wildcard_partition (const char *str)
+static int is_wildcard_partition (const char *str)
 {
   return strchr (str, '*') || strchr (str, '?');
 }
@@ -63,46 +63,6 @@ int partitions_match_p (const nn_xqos_t *a, const nn_xqos_t *b)
           return 1;
       }
     return 0;
-  }
-}
-
-int partition_match_based_on_wildcard_in_left_operand (const nn_xqos_t *a, const nn_xqos_t *b, const char **realname)
-{
-  assert (partitions_match_p (a, b));
-  if (!(a->present & QP_PARTITION) || a->partition.n == 0)
-  {
-    return 0;
-  }
-  else if (!(b->present & QP_PARTITION) || b->partition.n == 0)
-  {
-    /* Either A explicitly includes the default partition, or it is a
-       wildcard that matches it */
-    unsigned i;
-    for (i = 0; i < a->partition.n; i++)
-      if (strcmp (a->partition.strs[i], "") == 0)
-        return 0;
-    *realname = "";
-    return 1;
-  }
-  else
-  {
-    unsigned i, j;
-    int maybe_yes = 0;
-    for (i = 0; i < a->partition.n; i++)
-      for (j = 0; j < b->partition.n; j++)
-      {
-        if (partition_patmatch_p (a->partition.strs[i], b->partition.strs[j]))
-        {
-          if (!is_wildcard_partition (a->partition.strs[i]))
-            return 0;
-          else
-          {
-            *realname = b->partition.strs[j];
-            maybe_yes = 1;
-          }
-        }
-      }
-    return maybe_yes;
   }
 }
 

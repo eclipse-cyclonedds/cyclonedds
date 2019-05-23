@@ -17,6 +17,7 @@
 
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/static_assert.h"
 
 #include "dds/ddsi/q_log.h"
 
@@ -30,7 +31,6 @@
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_protocol.h" /* for NN_STATUSINFO_... */
 #include "dds/ddsi/q_radmin.h" /* for nn_plist_quickscan */
-#include "dds/ddsi/q_static_assert.h"
 
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_misc.h" /* for vendor_is_... */
@@ -407,8 +407,8 @@ void nn_plist_fini (nn_plist_t *ps)
   int i;
   nn_xqos_fini (&ps->qos);
 
-/* The compiler doesn't understand how offsetof is used in the arrays. */
-DDSRT_WARNING_MSVC_OFF(6001);
+  /* The compiler doesn't understand how offsetof is used in the arrays. */
+  DDSRT_WARNING_MSVC_OFF(6001);
   for (i = 0; i < (int) (sizeof (simple) / sizeof (*simple)); i++)
   {
     if ((ps->present & simple[i].fl) && !(ps->aliased & simple[i].fl))
@@ -422,7 +422,7 @@ DDSRT_WARNING_MSVC_OFF(6001);
     if ((ps->present & locs[i].fl) && !(ps->aliased & locs[i].fl))
       free_locators ((nn_locators_t *) ((char *) ps + locs[i].off));
   }
-DDSRT_WARNING_MSVC_ON(6001);
+  DDSRT_WARNING_MSVC_ON(6001);
 
   ps->present = 0;
 }
@@ -1943,7 +1943,7 @@ static dds_return_t init_one_parameter
       if (dd->bufsz >= 2 * sizeof (dest->statusinfo) && vendor_is_eclipse_or_opensplice(dd->vendorid))
       {
         uint32_t statusinfox;
-        Q_STATIC_ASSERT_CODE (sizeof(statusinfox) == sizeof(dest->statusinfo));
+        DDSRT_STATIC_ASSERT_CODE (sizeof(statusinfox) == sizeof(dest->statusinfo));
         memcpy (&statusinfox, dd->buf + sizeof (dest->statusinfo), sizeof (statusinfox));
         statusinfox = fromBE4u (statusinfox);
         if (statusinfox & NN_STATUSINFOX_OSPL_AUTO)

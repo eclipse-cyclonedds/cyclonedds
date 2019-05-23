@@ -305,9 +305,9 @@ static char *unescape_into_utf8 (char *dst, unsigned cp)
     return dst;
 }
 
-DDSRT_WARNING_MSVC_OFF(4996);
 static int unescape_insitu (char *buffer, size_t *n)
 {
+    DDSRT_WARNING_MSVC_OFF(4996);
     const char *src = buffer;
     char const * const srcend = buffer + *n;
     char *dst = buffer;
@@ -361,8 +361,8 @@ static int unescape_insitu (char *buffer, size_t *n)
     }
     *n = (size_t) (dst - buffer);
     return 0;
+    DDSRT_WARNING_MSVC_ON(4996);
 }
-DDSRT_WARNING_MSVC_ON(4996);
 
 static void discard_payload (struct ddsrt_xmlp_state *st)
 {

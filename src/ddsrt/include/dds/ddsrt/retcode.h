@@ -84,7 +84,7 @@ typedef int32_t dds_return_t;
 /**
  * @brief Takes the error value and outputs a string corresponding to it.
  *
- * @param[in]  err  Error value to be converted to a string
+ * @param[in]  ret  Error value to be converted to a string
  *
  * @returns  String corresponding to the error value
  */
