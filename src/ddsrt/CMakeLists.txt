@@ -111,7 +111,9 @@ list(APPEND headers
   "${include_path}/dds/ddsrt/process.h"
   "${include_path}/dds/ddsrt/strtod.h"
   "${include_path}/dds/ddsrt/strtol.h"
-  "${include_path}/dds/ddsrt/types.h")
+  "${include_path}/dds/ddsrt/types.h"
+  "${include_path}/dds/ddsrt/countargs.h"
+  "${include_path}/dds/ddsrt/static_assert.h")
 
 list(APPEND sources
   "${source_path}/io.c"

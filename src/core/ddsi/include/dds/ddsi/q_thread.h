@@ -17,7 +17,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
-#include "dds/ddsi/q_static_assert.h"
+#include "dds/ddsrt/static_assert.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -125,7 +125,7 @@ DDS_EXPORT inline bool vtime_asleep_p (vtime_t vtime)
 
 DDS_EXPORT inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0)
 {
-  Q_STATIC_ASSERT_CODE (sizeof (vtime_t) == sizeof (svtime_t));
+  DDSRT_STATIC_ASSERT_CODE (sizeof (vtime_t) == sizeof (svtime_t));
   return (svtime_t) ((vtime1 & VTIME_TIME_MASK) - (vtime0 & VTIME_TIME_MASK)) > 0;
 }
 

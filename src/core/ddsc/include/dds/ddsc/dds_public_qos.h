@@ -212,8 +212,8 @@ dds_qos_merge (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src);
  *
  * Policies are copied from src to dst, unless src already has the policy set to a non-default value.
  *
- * @param[in,out] dst - Pointer to the destination qos structure
- * @param[in] src - Pointer to the source qos structure
+ * @param[in,out] a - Pointer to the destination qos structure
+ * @param[in] b - Pointer to the source qos structure
  */
 DDS_EXPORT bool
 dds_qos_equal (const dds_qos_t * __restrict a, const dds_qos_t * __restrict b);
@@ -448,7 +448,7 @@ dds_qset_destination_order (
  * @brief Set the writer data-lifecycle policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
- * @param[in] autodispose_unregistered_instances - Automatic disposal of unregistered instances
+ * @param[in] autodispose - Automatic disposal of unregistered instances
  */
 DDS_EXPORT void
 dds_qset_writer_data_lifecycle (dds_qos_t * __restrict qos, bool autodispose);
@@ -738,7 +738,7 @@ dds_qget_destination_order (
  * @brief Get the writer data-lifecycle qos policy
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
- * @param[in,out] autodispose_unregistered_instances - Pointer that will store the autodispose unregistered instances enable value
+ * @param[in,out] autodispose - Pointer that will store the autodispose unregistered instances enable value
  *
  * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
  */

@@ -57,7 +57,7 @@ ddsrt_nonnull((1,2));
  *
  * @param[in]     str      String to split into tokens.
  * @param[in]     delim    Characters that delimit a token.
- * @param[inout]  saveptr  Pointer to a char * used internally.
+ * @param[in,out] saveptr  Pointer to a char * used internally.
  *
  * @returns The next token or NULL if there are no more tokens.
  */
@@ -74,7 +74,7 @@ ddsrt_strtok_r(
  * @delim. The delimiter is overwritten with a null byte, terminating the
  * token and @stringp is updated to point past the delimiter.
  *
- * @param[inout]  stringp  String to extract token from.
+ * @param[in,out] stringp  String to extract token from.
  * @param[in]     delim    Characters that delimit a token.
  *
  * @returns The original value of @stringp.
@@ -153,7 +153,7 @@ ddsrt_nonnull((1,2));
  * string is truncated if there is not enough space. The resulting string
  * guaranteed to be null terminated if there is space.
  *
- * @param[inout]  dest  Destination buffer.
+ * @param[in,out] dest  Destination buffer.
  * @param[in]     src   Null terminated string to append to dest.
  * @param[in]     size  Number of bytes available in dest.
  *

@@ -1335,9 +1335,9 @@ static void do_print_uint32_bitset (struct cfgst *cfgst, uint32_t mask, size_t n
   cfg_logelem (cfgst, sources, "%s%s", res, suffix);
 }
 
-DDSRT_WARNING_MSVC_OFF(4996);
 static int uf_natint64_unit(struct cfgst *cfgst, int64_t *elem, const char *value, const struct unit *unittab, int64_t def_mult, int64_t min, int64_t max)
 {
+  DDSRT_WARNING_MSVC_OFF(4996);
   int pos;
   double v_dbl;
   int64_t v_int;
@@ -1364,8 +1364,8 @@ static int uf_natint64_unit(struct cfgst *cfgst, int64_t *elem, const char *valu
     *elem = 0; /* some static analyzers don't "get it" */
     return cfg_error (cfgst, "%s: invalid value", value);
   }
+  DDSRT_WARNING_MSVC_ON(4996);
 }
-DDSRT_WARNING_MSVC_ON(4996);
 
 static void pf_int64_unit (struct cfgst *cfgst, int64_t value, uint32_t sources, const struct unit *unittab, const char *zero_unit)
 {
@@ -1393,10 +1393,8 @@ static void pf_int64_unit (struct cfgst *cfgst, int64_t value, uint32_t sources,
 }
 
 #define GENERIC_ENUM_CTYPE_UF(type_, c_type_)                           \
-  struct en_##type_##_vs_ms_check {                                     \
-    char length_eq[(sizeof (en_##type_##_vs) / sizeof (*en_##type_##_vs) == \
-                    sizeof (en_##type_##_ms) / sizeof (*en_##type_##_ms)) ? 1 : -1]; \
-  };                                                                    \
+  DDSRT_STATIC_ASSERT (sizeof (en_##type_##_vs) / sizeof (*en_##type_##_vs) == \
+                       sizeof (en_##type_##_ms) / sizeof (*en_##type_##_ms)); \
                                                                         \
   static int uf_##type_ (struct cfgst *cfgst, void *parent, UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value) \
   {                                                                     \
@@ -1773,9 +1771,9 @@ static void pf_allow_multicast(struct cfgst *cfgst, void *parent, struct cfgelem
   do_print_uint32_bitset (cfgst, *p, sizeof (allow_multicast_codes) / sizeof (*allow_multicast_codes), allow_multicast_names, allow_multicast_codes, sources, "");
 }
 
-DDSRT_WARNING_MSVC_OFF(4996);
 static int uf_maybe_int32 (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
+  DDSRT_WARNING_MSVC_OFF(4996);
   struct config_maybe_int32 * const elem = cfg_address (cfgst, parent, cfgelem);
   int pos;
   if (ddsrt_strcasecmp (value, "default") == 0) {
@@ -1788,8 +1786,8 @@ static int uf_maybe_int32 (struct cfgst *cfgst, void *parent, struct cfgelem con
   } else {
     return cfg_error (cfgst, "'%s': neither 'default' nor a decimal integer\n", value);
   }
+  DDSRT_WARNING_MSVC_ON(4996);
 }
-DDSRT_WARNING_MSVC_ON(4996);
 
 static void pf_maybe_int32 (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
@@ -1940,9 +1938,9 @@ static void pf_duration (struct cfgst *cfgst, void *parent, struct cfgelem const
     pf_int64_unit (cfgst, *elem, sources, unittab_duration, "s");
 }
 
-DDSRT_WARNING_MSVC_OFF(4996);
 static int uf_domainId (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
+  DDSRT_WARNING_MSVC_OFF(4996);
   struct config_maybe_int32 * const elem = cfg_address (cfgst, parent, cfgelem);
   int pos;
   if (ddsrt_strcasecmp (value, "any") == 0) {
@@ -1955,8 +1953,8 @@ static int uf_domainId (struct cfgst *cfgst, void *parent, struct cfgelem const 
   } else {
     return cfg_error (cfgst, "'%s': neither 'any' nor a decimal integer in 0 .. 230\n", value);
   }
+  DDSRT_WARNING_MSVC_ON(4996);
 }
-DDSRT_WARNING_MSVC_ON(4996);
 
 static void pf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {

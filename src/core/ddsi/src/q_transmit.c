@@ -14,6 +14,7 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/static_assert.h"
 
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_entity.h"
@@ -30,7 +31,6 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_hbcontrol.h"
-#include "dds/ddsi/q_static_assert.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertopic.h"
@@ -598,7 +598,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
   if (xmsg_kind == NN_XMSG_KIND_DATA_REXMIT)
     nn_xmsg_set_data_readerId (*pmsg, &ddcmn->readerId);
 
-  Q_STATIC_ASSERT_CODE (DATA_FLAG_INLINE_QOS == DATAFRAG_FLAG_INLINE_QOS);
+  DDSRT_STATIC_ASSERT_CODE (DATA_FLAG_INLINE_QOS == DATAFRAG_FLAG_INLINE_QOS);
   assert (!(ddcmn->smhdr.flags & DATAFRAG_FLAG_INLINE_QOS));
 
   if (fragnum == 0)

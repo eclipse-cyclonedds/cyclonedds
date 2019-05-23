@@ -18,9 +18,7 @@ extern "C" {
 
 struct nn_xqos;
 
-int partition_match_based_on_wildcard_in_left_operand (const struct nn_xqos *a, const struct nn_xqos *b, const char **realname);
 int partitions_match_p (const struct nn_xqos *a, const struct nn_xqos *b);
-int is_wildcard_partition (const char *str);
 
 /* Returns -1 on success, or QoS id of first mismatch (>=0) */
 

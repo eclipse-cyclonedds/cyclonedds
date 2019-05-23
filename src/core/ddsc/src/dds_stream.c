@@ -204,9 +204,7 @@ static void dds_os_put_bytes_aligned (dds_ostream_t * __restrict s, const void *
 
 static uint32_t get_type_size (enum dds_stream_typecode type)
 {
-  struct check {
-    char x[(DDS_OP_VAL_1BY == 1 && DDS_OP_VAL_2BY == 2 && DDS_OP_VAL_4BY == 3 && DDS_OP_VAL_8BY == 4) ? 1 : -1];
-  };
+  DDSRT_STATIC_ASSERT (DDS_OP_VAL_1BY == 1 && DDS_OP_VAL_2BY == 2 && DDS_OP_VAL_4BY == 3 && DDS_OP_VAL_8BY == 4);
   assert (type == DDS_OP_VAL_1BY || type == DDS_OP_VAL_2BY || type == DDS_OP_VAL_4BY || type == DDS_OP_VAL_8BY);
   return (uint32_t)1 << ((uint32_t) type - 1);
 }

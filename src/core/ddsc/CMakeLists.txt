@@ -74,6 +74,7 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__whc.h
     dds__whc_builtintopic.h
     dds__serdata_builtintopic.h
+    dds__get_status.h
 )
 
 generate_export_header(

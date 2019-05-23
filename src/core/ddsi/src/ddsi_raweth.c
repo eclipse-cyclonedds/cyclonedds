@@ -332,8 +332,9 @@ static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (dds
   memset (loc->address, 0, sizeof (loc->address));
   while (i < 6 && *str != 0)
   {
-    int o, p;
-    if (sscanf (str, "%x%n", &o, &p) != 1 || o < 0 || o > 255)
+    unsigned o;
+    int p;
+    if (sscanf (str, "%x%n", &o, &p) != 1 || o > 255)
       return AFSR_INVALID;
     loc->address[10 + i++] = (unsigned char) o;
     str += p;

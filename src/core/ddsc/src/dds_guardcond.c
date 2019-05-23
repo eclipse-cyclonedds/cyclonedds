@@ -18,7 +18,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 
-DECL_ENTITY_LOCK_UNLOCK(extern inline, dds_guardcond)
+DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_guardcond)
 
 dds_entity_t dds_create_guardcondition (dds_entity_t participant)
 {

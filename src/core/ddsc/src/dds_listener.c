@@ -207,324 +207,169 @@ void dds_merge_listener (dds_listener_t * __restrict dst, const dds_listener_t *
 
 void dds_listener_merge (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src)
 {
-  dds_merge_listener(dst, src);
+  dds_merge_listener (dst, src);
 }
 
 /************************************************************************************************
  *  Setters
  ************************************************************************************************/
 
-void
-dds_lset_data_available (dds_listener_t * __restrict listener, dds_on_data_available_fn callback)
+void dds_lset_data_available (dds_listener_t * __restrict listener, dds_on_data_available_fn callback)
 {
-    if (listener) {
-        listener->on_data_available = callback;
-    } else {
-        DDS_ERROR("Argument listener is NULL\n");
-    }
+  if (listener)
+    listener->on_data_available = callback;
 }
 
-void
-dds_lset_data_on_readers (dds_listener_t * __restrict listener, dds_on_data_on_readers_fn callback)
+void dds_lset_data_on_readers (dds_listener_t * __restrict listener, dds_on_data_on_readers_fn callback)
 {
-    if (listener) {
-        listener->on_data_on_readers = callback;
-    } else {
-        DDS_ERROR("Argument listener is NULL\n");
-    }
+  if (listener)
+    listener->on_data_on_readers = callback;
 }
 
-void
-dds_lset_inconsistent_topic (dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn callback)
+void dds_lset_inconsistent_topic (dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn callback)
 {
-    if (listener) {
-        listener->on_inconsistent_topic = callback;
-    } else {
-        DDS_ERROR("Argument listener is NULL\n");
-    }
+  if (listener)
+    listener->on_inconsistent_topic = callback;
 }
 
-void
-dds_lset_liveliness_changed (dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn callback)
+void dds_lset_liveliness_changed (dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn callback)
 {
-    if (listener) {
-        listener->on_liveliness_changed = callback;
-    } else {
-        DDS_ERROR("Argument listener is NULL\n");
-    }
+  if (listener)
+    listener->on_liveliness_changed = callback;
 }
 
-void
-dds_lset_liveliness_lost (dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn callback)
+void dds_lset_liveliness_lost (dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn callback)
 {
-    if (listener) {
-        listener->on_liveliness_lost = callback;
-    } else {
-        DDS_ERROR("Argument listener is NULL\n");
-    }
+  if (listener)
+    listener->on_liveliness_lost = callback;
 }
 
-void
-dds_lset_offered_deadline_missed (dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn callback)
+void dds_lset_offered_deadline_missed (dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn callback)
 {
-    if (listener) {
-        listener->on_offered_deadline_missed = callback;
-    } else {
-        DDS_ERROR("Argument listener is NULL\n");
-    }
+  if (listener)
+    listener->on_offered_deadline_missed = callback;
 }
 
-void
-dds_lset_offered_incompatible_qos (dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn callback)
+void dds_lset_offered_incompatible_qos (dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn callback)
 {
-    if (listener) {
-        listener->on_offered_incompatible_qos = callback;
-    } else {
-        DDS_ERROR("Argument listener is NULL\n");
-    }
+  if (listener)
+    listener->on_offered_incompatible_qos = callback;
 }
 
-void
-dds_lset_publication_matched (dds_listener_t * __restrict listener, dds_on_publication_matched_fn callback)
+void dds_lset_publication_matched (dds_listener_t * __restrict listener, dds_on_publication_matched_fn callback)
 {
-    if (listener) {
-        listener->on_publication_matched = callback;
-    } else {
-        DDS_ERROR("Argument listener is NULL");
-    }
+  if (listener)
+    listener->on_publication_matched = callback;
 }
 
-void
-dds_lset_requested_deadline_missed (dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn callback)
+void dds_lset_requested_deadline_missed (dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn callback)
 {
-    if (listener) {
-        listener->on_requested_deadline_missed = callback;
-    } else {
-        DDS_ERROR("Argument listener is NULL\n");
-    }
+  if (listener)
+    listener->on_requested_deadline_missed = callback;
 }
 
-void
-dds_lset_requested_incompatible_qos (dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn callback)
+void dds_lset_requested_incompatible_qos (dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn callback)
 {
-    if (listener) {
-        listener->on_requested_incompatible_qos = callback;
-    } else {
-        DDS_ERROR("Argument listener is NULL\n");
-    }
+  if (listener)
+    listener->on_requested_incompatible_qos = callback;
 }
 
-void
-dds_lset_sample_lost (dds_listener_t * __restrict listener, dds_on_sample_lost_fn callback)
+void dds_lset_sample_lost (dds_listener_t * __restrict listener, dds_on_sample_lost_fn callback)
 {
-    if (listener) {
-        listener->on_sample_lost = callback;
-    } else {
-        DDS_ERROR("Argument listener is NULL\n");
-    }
+  if (listener)
+    listener->on_sample_lost = callback;
 }
 
-void
-dds_lset_sample_rejected (dds_listener_t * __restrict listener, dds_on_sample_rejected_fn callback)
+void dds_lset_sample_rejected (dds_listener_t * __restrict listener, dds_on_sample_rejected_fn callback)
 {
-    if (listener) {
-        listener->on_sample_rejected = callback;
-    } else {
-        DDS_ERROR("Argument listener is NULL\n");
-    }
+  if (listener)
+    listener->on_sample_rejected = callback;
 }
 
-void
-dds_lset_subscription_matched (dds_listener_t * __restrict listener, dds_on_subscription_matched_fn callback)
+void dds_lset_subscription_matched (dds_listener_t * __restrict listener, dds_on_subscription_matched_fn callback)
 {
-    if (listener) {
-        listener->on_subscription_matched = callback;
-    } else {
-        DDS_ERROR("Argument listener is NULL\n");
-    }
+  if (listener)
+    listener->on_subscription_matched = callback;
 }
 
 /************************************************************************************************
  *  Getters
  ************************************************************************************************/
 
-void
-dds_lget_data_available (const dds_listener_t * __restrict listener, dds_on_data_available_fn *callback)
+void dds_lget_data_available (const dds_listener_t * __restrict listener, dds_on_data_available_fn *callback)
 {
-    if(!callback){
-        DDS_ERROR("Argument callback is NULL\n");
-        return ;
-    }
-    if (!listener) {
-        DDS_ERROR("Argument listener is NULL\n");
-        return ;
-    }
+  if (callback && listener)
     *callback = listener->on_data_available;
 }
 
-void
-dds_lget_data_on_readers (const dds_listener_t * __restrict listener, dds_on_data_on_readers_fn *callback)
+void dds_lget_data_on_readers (const dds_listener_t * __restrict listener, dds_on_data_on_readers_fn *callback)
 {
-    if(!callback){
-        DDS_ERROR("Argument callback is NULL\n");
-        return ;
-    }
-    if (!listener) {
-        DDS_ERROR("Argument listener is NULL\n");
-        return ;
-    }
+  if (callback && listener)
     *callback = listener->on_data_on_readers;
 }
 
 void dds_lget_inconsistent_topic (const dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn *callback)
 {
-    if(!callback){
-        DDS_ERROR("Argument callback is NULL\n");
-        return ;
-    }
-    if (!listener) {
-        DDS_ERROR("Argument listener is NULL\n");
-        return ;
-    }
+  if (callback && listener)
     *callback = listener->on_inconsistent_topic;
 }
 
-void
-dds_lget_liveliness_changed (const dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn *callback)
+void dds_lget_liveliness_changed (const dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn *callback)
 {
-    if(!callback){
-        DDS_ERROR("Argument callback is NULL\n");
-        return ;
-    }
-    if (!listener) {
-        DDS_ERROR("Argument listener is NULL\n");
-        return ;
-    }
+  if (callback && listener)
     *callback = listener->on_liveliness_changed;
 }
 
-void
-dds_lget_liveliness_lost (const dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn *callback)
+void dds_lget_liveliness_lost (const dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn *callback)
 {
-    if(!callback){
-        DDS_ERROR("Argument callback is NULL\n");
-        return ;
-    }
-    if (!listener) {
-        DDS_ERROR("Argument listener is NULL\n");
-        return ;
-    }
+  if (callback && listener)
     *callback = listener->on_liveliness_lost;
 }
 
-void
-dds_lget_offered_deadline_missed (const dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn *callback)
+void dds_lget_offered_deadline_missed (const dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn *callback)
 {
-    if(!callback){
-        DDS_ERROR("Argument callback is NULL\n");
-        return ;
-    }
-    if (!listener) {
-        DDS_ERROR("Argument listener is NULL\n");
-        return ;
-    }
+  if (callback && listener)
     *callback = listener->on_offered_deadline_missed;
 }
 
-void
-dds_lget_offered_incompatible_qos (const dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn *callback)
+void dds_lget_offered_incompatible_qos (const dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn *callback)
 {
-    if(!callback){
-        DDS_ERROR("Argument callback is NULL\n");
-        return ;
-    }
-    if (!listener) {
-        DDS_ERROR("Argument listener is NULL\n");
-        return ;
-    }
+  if (callback && listener)
     *callback = listener->on_offered_incompatible_qos;
 }
 
-void
-dds_lget_publication_matched (const dds_listener_t * __restrict listener, dds_on_publication_matched_fn *callback)
+void dds_lget_publication_matched (const dds_listener_t * __restrict listener, dds_on_publication_matched_fn *callback)
 {
-    if(!callback){
-        DDS_ERROR("Argument callback is NULL\n");
-        return ;
-    }
-    if (!listener) {
-        DDS_ERROR("Argument listener is NULL\n");
-        return ;
-    }
+  if (callback && listener)
     *callback = listener->on_publication_matched;
 }
 
-void
-dds_lget_requested_deadline_missed (const dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn *callback)
+void dds_lget_requested_deadline_missed (const dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn *callback)
 {
-    if(!callback) {
-        DDS_ERROR("Argument callback is NULL\n");
-        return ;
-    }
-    if (!listener) {
-        DDS_ERROR("Argument listener is NULL\n");
-        return ;
-    }
+  if (callback && listener)
     *callback = listener->on_requested_deadline_missed;
 }
 
-void
-dds_lget_requested_incompatible_qos (const dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn *callback)
+void dds_lget_requested_incompatible_qos (const dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn *callback)
 {
-    if(!callback) {
-        DDS_ERROR("Argument callback is NULL\n");
-        return ;
-    }
-    if (!listener) {
-        DDS_ERROR("Argument listener is NULL\n");
-        return ;
-    }
+  if (callback && listener)
     *callback = listener->on_requested_incompatible_qos;
 }
 
-void
-dds_lget_sample_lost (const dds_listener_t *__restrict listener, dds_on_sample_lost_fn *callback)
+void dds_lget_sample_lost (const dds_listener_t *__restrict listener, dds_on_sample_lost_fn *callback)
 {
-    if(!callback) {
-        DDS_ERROR("Argument callback is NULL\n");
-        return ;
-    }
-    if (!listener) {
-        DDS_ERROR("Argument listener is NULL\n");
-        return ;
-    }
+  if (callback && listener)
     *callback = listener->on_sample_lost;
 }
 
-void
-dds_lget_sample_rejected (const dds_listener_t  *__restrict listener, dds_on_sample_rejected_fn *callback)
+void dds_lget_sample_rejected (const dds_listener_t  *__restrict listener, dds_on_sample_rejected_fn *callback)
 {
-    if(!callback) {
-        DDS_ERROR("Argument callback is NULL\n");
-        return ;
-    }
-    if (!listener) {
-        DDS_ERROR("Argument listener is NULL\n");
-        return ;
-    }
+  if (callback && listener)
     *callback = listener->on_sample_rejected;
 }
 
-void
-dds_lget_subscription_matched (const dds_listener_t * __restrict listener, dds_on_subscription_matched_fn *callback)
+void dds_lget_subscription_matched (const dds_listener_t * __restrict listener, dds_on_subscription_matched_fn *callback)
 {
-    if(!callback) {
-        DDS_ERROR("Argument callback is NULL\n");
-        return ;
-    }
-    if (!listener) {
-        DDS_ERROR("Argument listener is NULL\n");
-        return ;
-    }
+  if (callback && listener)
     *callback = listener->on_subscription_matched;
 }

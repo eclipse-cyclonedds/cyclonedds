@@ -415,43 +415,43 @@ static int check_thread_properties (void)
   return ok;
 }
 
-DDSRT_WARNING_MSVC_OFF(4996);
 int rtps_config_open (void)
 {
-    int status;
+  DDSRT_WARNING_MSVC_OFF(4996);
+  int status;
 
-    if (config.tracingOutputFileName == NULL || *config.tracingOutputFileName == 0 || config.enabled_logcats == 0)
-    {
-        config.enabled_logcats = 0;
-        config.tracingOutputFile = NULL;
-        status = 1;
-    }
-    else if (ddsrt_strcasecmp (config.tracingOutputFileName, "stdout") == 0)
-    {
-        config.tracingOutputFile = stdout;
-        status = 1;
-    }
-    else if (ddsrt_strcasecmp (config.tracingOutputFileName, "stderr") == 0)
-    {
-        config.tracingOutputFile = stderr;
-        status = 1;
-    }
-    else if ((config.tracingOutputFile = fopen (config.tracingOutputFileName, config.tracingAppendToFile ? "a" : "w")) == NULL)
-    {
-        DDS_ERROR("%s: cannot open for writing\n", config.tracingOutputFileName);
-        status = 0;
-    }
-    else
-    {
-        status = 1;
-    }
+  if (config.tracingOutputFileName == NULL || *config.tracingOutputFileName == 0 || config.enabled_logcats == 0)
+  {
+    config.enabled_logcats = 0;
+    config.tracingOutputFile = NULL;
+    status = 1;
+  }
+  else if (ddsrt_strcasecmp (config.tracingOutputFileName, "stdout") == 0)
+  {
+    config.tracingOutputFile = stdout;
+    status = 1;
+  }
+  else if (ddsrt_strcasecmp (config.tracingOutputFileName, "stderr") == 0)
+  {
+    config.tracingOutputFile = stderr;
+    status = 1;
+  }
+  else if ((config.tracingOutputFile = fopen (config.tracingOutputFileName, config.tracingAppendToFile ? "a" : "w")) == NULL)
+  {
+    DDS_ERROR("%s: cannot open for writing\n", config.tracingOutputFileName);
+    status = 0;
+  }
+  else
+  {
+    status = 1;
+  }
 
-    dds_set_log_mask(config.enabled_logcats);
-    dds_set_trace_file(config.tracingOutputFile);
+  dds_set_log_mask(config.enabled_logcats);
+  dds_set_trace_file(config.tracingOutputFile);
 
-    return status;
+  return status;
+  DDSRT_WARNING_MSVC_ON(4996);
 }
-DDSRT_WARNING_MSVC_ON(4996);
 
 int rtps_config_prep (struct cfgst *cfgst)
 {
@@ -1654,10 +1654,10 @@ void rtps_fini (void)
   while (gv.recvips)
   {
     struct config_in_addr_node *n = gv.recvips;
-/* The compiler doesn't realize that n->next is always initialized. */
-DDSRT_WARNING_MSVC_OFF(6001);
+    /* The compiler doesn't realize that n->next is always initialized. */
+    DDSRT_WARNING_MSVC_OFF(6001);
     gv.recvips = n->next;
-DDSRT_WARNING_MSVC_ON(6001);
+    DDSRT_WARNING_MSVC_ON(6001);
     ddsrt_free (n);
   }
 

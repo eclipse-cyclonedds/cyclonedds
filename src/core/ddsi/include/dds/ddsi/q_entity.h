@@ -467,17 +467,6 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e);
  *               - RTPS_PF_ONLY_LOCAL           FIXME: not used, it seems
  * @param[in]  plist
  *               Parameters/QoS for this participant
- * @param[out] dest
- *               Filled with the recognized parameters in the input if successful, otherwise
- *               initialized to an empty parameter list.  Where possible, pointers alias the
- *               input (indicated by the "aliased" bits in the plist/xqos structures), but
- *               some things cannot be aliased (e.g., the array of pointers to strings for a
- *               sequence of strings).
- *               Generally, nn_plist_fini should be called when done with the parameter list,
- *               even when nn_plist_unlias or nn_xqos_unlias hasn't been called.
- * @param[out] nextafterplist
- *               If non-NULL, *nextafterplist is set to the first byte following the parameter
- *               list sentinel on successful parse, or to NULL on failure
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -562,11 +551,11 @@ int writer_must_have_hb_scheduled (const struct writer *wr, const struct whc_sta
 void writer_set_retransmitting (struct writer *wr);
 void writer_clear_retransmitting (struct writer *wr);
 
-int delete_writer (const struct nn_guid *guid);
-int delete_writer_nolinger (const struct nn_guid *guid);
-int delete_writer_nolinger_locked (struct writer *wr);
+dds_return_t delete_writer (const struct nn_guid *guid);
+dds_return_t delete_writer_nolinger (const struct nn_guid *guid);
+dds_return_t delete_writer_nolinger_locked (struct writer *wr);
 
-int delete_reader (const struct nn_guid *guid);
+dds_return_t delete_reader (const struct nn_guid *guid);
 uint64_t reader_instance_id (const struct nn_guid *guid);
 
 struct local_orphan_writer {

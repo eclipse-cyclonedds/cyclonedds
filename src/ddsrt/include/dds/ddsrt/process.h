@@ -106,7 +106,7 @@ ddsrt_proc_create(
  * See ddsrt_proc_waitpids() for waiting on all child processes.
  *
  * @param[in]   pid            Process ID (PID) to get the exit code from.
- * @param[in]   timemout       Time within the process is expected to finish.
+ * @param[in]   timeout        Time within the process is expected to finish.
  * @param[out]  code           The exit code of the process.
  *
  * @returns A dds_return_t indicating success or failure.
@@ -145,7 +145,7 @@ ddsrt_proc_waitpid(
  *
  * See ddsrt_proc_waitpid() for waiting on a specific child process.
  *
- * @param[in]   timemout       Time within a process is expected to finish.
+ * @param[in]   timeout        Time within a process is expected to finish.
  * @param[out]  pid            Process ID (PID) of the finished process.
  * @param[out]  code           The exit code of the process.
  *

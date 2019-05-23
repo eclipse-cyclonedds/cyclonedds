@@ -21,32 +21,27 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 
-DDS_EXPORT dds_entity_t
-dds_create_querycondition(
-    dds_entity_t reader,
-    uint32_t mask,
-    dds_querycondition_filter_fn filter)
+dds_entity_t dds_create_querycondition (dds_entity_t reader, uint32_t mask, dds_querycondition_filter_fn filter)
 {
+  dds_return_t rc;
+  dds_reader *r;
+
+  if ((rc = dds_reader_lock (reader, &r)) != DDS_RETCODE_OK)
+    return rc;
+  else
+  {
     dds_entity_t hdl;
-    dds_return_t rc;
-    dds_reader *r;
-
-    rc = dds_reader_lock(reader, &r);
-    if (rc == DDS_RETCODE_OK) {
-        dds_readcond *cond = dds_create_readcond(r, DDS_KIND_COND_QUERY, mask, filter);
-        assert(cond);
-        const bool success = (cond->m_entity.m_deriver.delete != 0);
-        dds_reader_unlock(r);
-        if (success) {
-            hdl = cond->m_entity.m_hdllink.hdl;
-        } else {
-            dds_delete (cond->m_entity.m_hdllink.hdl);
-            hdl = DDS_RETCODE_OUT_OF_RESOURCES;
-        }
-    } else {
-        DDS_ERROR("Error occurred on locking reader\n");
-        hdl = rc;
+    dds_readcond *cond = dds_create_readcond (r, DDS_KIND_COND_QUERY, mask, filter);
+    assert (cond);
+    const bool success = (cond->m_entity.m_deriver.delete != 0);
+    dds_reader_unlock (r);
+    if (success)
+      hdl = cond->m_entity.m_hdllink.hdl;
+    else
+    {
+      dds_delete (cond->m_entity.m_hdllink.hdl);
+      hdl = DDS_RETCODE_OUT_OF_RESOURCES;
     }
-
     return hdl;
+  }
 }

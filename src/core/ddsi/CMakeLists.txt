@@ -105,7 +105,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_rtps.h
     q_security.h
     q_sockwaitset.h
-    q_static_assert.h
     q_thread.h
     q_time.h
     q_transmit.h

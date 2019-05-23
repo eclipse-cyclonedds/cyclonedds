@@ -104,12 +104,12 @@ dds_domain;
 struct dds_entity;
 typedef struct dds_entity_deriver {
     /* Close can be used to terminate (blocking) actions on a entity before actually deleting it. */
-    dds_return_t (*close)(struct dds_entity *e);
+    dds_return_t (*close)(struct dds_entity *e) ddsrt_nonnull_all;
     /* Delete is used to actually free the entity. */
-    dds_return_t (*delete)(struct dds_entity *e);
-    dds_return_t (*set_qos)(struct dds_entity *e, const dds_qos_t *qos, bool enabled);
+    dds_return_t (*delete)(struct dds_entity *e) ddsrt_nonnull_all;
+    dds_return_t (*set_qos)(struct dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
     dds_return_t (*validate_status)(uint32_t mask);
-    dds_return_t (*get_instance_hdl)(struct dds_entity *e, dds_instance_handle_t *i);
+    dds_return_t (*get_instance_hdl)(struct dds_entity *e, dds_instance_handle_t *i) ddsrt_nonnull_all;
 }
 dds_entity_deriver;
 

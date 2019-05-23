@@ -140,9 +140,9 @@ void nn_freelist_fini (struct nn_freelist *fl, void (*xfree) (void *))
       xfree (fl->inner[i].m->x[j]);
     ddsrt_free(fl->inner[i].m);
   }
-/* The compiler can't make sense of all these linked lists and doesn't
- * realize that the next pointers are always initialized here. */
-DDSRT_WARNING_MSVC_OFF(6001);
+  /* The compiler can't make sense of all these linked lists and doesn't
+   * realize that the next pointers are always initialized here. */
+  DDSRT_WARNING_MSVC_OFF(6001);
   while ((m = fl->mlist) != NULL)
   {
     fl->mlist = m->next;
@@ -155,7 +155,7 @@ DDSRT_WARNING_MSVC_OFF(6001);
     fl->emlist = m->next;
     ddsrt_free (m);
   }
-DDSRT_WARNING_MSVC_ON(6001);
+  DDSRT_WARNING_MSVC_ON(6001);
 }
 
 static ddsrt_atomic_uint32_t freelist_inner_idx_off = DDSRT_ATOMIC_UINT32_INIT(0);

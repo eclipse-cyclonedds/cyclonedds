@@ -132,7 +132,7 @@ bool dds__validate_builtin_reader_qos (dds_entity_t topic, const dds_qos_t *qos)
   }
 }
 
-static dds_entity_t dds__create_builtin_subscriber (dds_entity *participant)
+static dds_entity_t dds__create_builtin_subscriber (dds_participant *participant)
 {
   dds_qos_t *qos = dds__create_builtin_qos ();
   dds_entity_t sub = dds__create_subscriber_l (participant, qos, NULL);
@@ -153,7 +153,7 @@ dds_entity_t dds__get_builtin_subscriber (dds_entity_t e)
     return ret;
 
   if (p->m_builtin_subscriber <= 0) {
-    p->m_builtin_subscriber = dds__create_builtin_subscriber (&p->m_entity);
+    p->m_builtin_subscriber = dds__create_builtin_subscriber (p);
   }
   sub = p->m_builtin_subscriber;
   dds_participant_unlock(p);

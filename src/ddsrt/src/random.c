@@ -61,6 +61,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/process.h"
+#include "dds/ddsrt/static_assert.h"
 
 #define N DDSRT_MT19937_N
 #define M 397
@@ -186,9 +187,7 @@ void ddsrt_random_init (void)
   if (!ddsrt_prng_makeseed (&seed))
   {
     /* Poor man's initialisation */
-    struct lengthof_seed_large_enough {
-      char ok[sizeof (seed.key) / sizeof (seed.key[0]) >= 3 ? 1 : -1];
-    };
+    DDSRT_STATIC_ASSERT (sizeof (seed.key) / sizeof (seed.key[0]) >= 3);
     memset (&seed, 0, sizeof (seed));
     dds_time_t now = dds_time ();
     seed.key[0] = (uint32_t) ddsrt_getpid ();

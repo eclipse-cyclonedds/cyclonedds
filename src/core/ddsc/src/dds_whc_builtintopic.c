@@ -44,9 +44,7 @@ struct bwhc_iter {
 };
 
 /* check that our definition of whc_sample_iter fits in the type that callers allocate */
-struct bwhc_sample_iter_sizecheck {
-  char fits_in_generic_type[sizeof(struct bwhc_iter) <= sizeof(struct whc_sample_iter) ? 1 : -1];
-};
+DDSRT_STATIC_ASSERT (sizeof (struct bwhc_iter) <= sizeof (struct whc_sample_iter));
 
 static void bwhc_free (struct whc *whc_generic)
 {
