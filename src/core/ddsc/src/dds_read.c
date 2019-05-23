@@ -15,16 +15,15 @@
 #include "dds__reader.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__rhc.h"
-#include "dds__err.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 
-static dds_retcode_t dds_read_lock (dds_entity_t hdl, dds_reader **reader, dds_readcond **condition, bool only_reader)
+static dds_return_t dds_read_lock (dds_entity_t hdl, dds_reader **reader, dds_readcond **condition, bool only_reader)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   dds_entity *entity, *parent_entity;
   if ((rc = dds_entity_lock (hdl, DDS_KIND_DONTCARE, &entity)) != DDS_RETCODE_OK)
   {
@@ -91,7 +90,6 @@ dds_read_impl(
 {
     struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_return_t ret = DDS_RETCODE_OK;
-    dds_retcode_t rc;
     struct dds_reader * rd;
     struct dds_readcond * cond;
     unsigned nodata_cleanups = 0;
@@ -101,40 +99,39 @@ dds_read_impl(
 
     if (buf == NULL) {
         DDS_ERROR("The provided buffer is NULL\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto fail;
     }
     if (si == NULL) {
         DDS_ERROR("Provided pointer to an array of dds_sample_info_t is NULL\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto fail;
     }
     if (maxs == 0) {
         DDS_ERROR("The maximum number of samples to read is zero\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto fail;
     }
     if (bufsz == 0) {
         DDS_ERROR("The size of buffer is zero\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto fail;
     }
     if (bufsz < maxs) {
         DDS_ERROR("The provided size of buffer is smaller than the maximum number of samples to read\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto fail;
     }
 
     thread_state_awake (ts1);
-    rc = dds_read_lock(reader_or_condition, &rd, &cond, only_reader);
-    if (rc != DDS_RETCODE_OK) {
-        ret = DDS_ERRNO(rc);
+    ret = dds_read_lock(reader_or_condition, &rd, &cond, only_reader);
+    if (ret != DDS_RETCODE_OK) {
         goto fail_awake;
     }
     if (hand != DDS_HANDLE_NIL) {
         if (ddsi_tkmap_find_by_id(gv.m_tkmap, hand) == NULL) {
             DDS_ERROR("Could not find instance\n");
-            ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
+            ret = DDS_RETCODE_PRECONDITION_NOT_MET;
             dds_read_unlock(rd, cond);
             goto fail_awake;
         }
@@ -217,7 +214,6 @@ dds_readcdr_impl(
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
   dds_return_t ret = DDS_RETCODE_OK;
-  dds_retcode_t rc;
   struct dds_reader * rd;
   struct dds_readcond * cond;
 
@@ -229,8 +225,8 @@ dds_readcdr_impl(
   (void)take;
 
   thread_state_awake (ts1);
-  rc = dds_read_lock(reader_or_condition, &rd, &cond, false);
-  if (rc == DDS_RETCODE_OK) {
+  ret = dds_read_lock(reader_or_condition, &rd, &cond, false);
+  if (ret == DDS_RETCODE_OK) {
       /* read/take resets data available status -- must reset before reading because
          the actual writing is protected by RHC lock, not by rd->m_entity.m_lock */
       ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
@@ -251,8 +247,6 @@ dds_readcdr_impl(
          );
 
       dds_read_unlock(rd, cond);
-  } else {
-      ret = DDS_ERRNO(rc);
   }
 
   thread_state_asleep (ts1);
@@ -349,7 +343,7 @@ dds_read_instance(
 
     if (handle == DDS_HANDLE_NIL) {
         DDS_ERROR("DDS_HANDLE_NIL was provided\n");
-        ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
+        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
         goto fail;
     }
 
@@ -377,7 +371,7 @@ dds_read_instance_wl(
 
     if (handle == DDS_HANDLE_NIL) {
         DDS_ERROR("DDS_HANDLE_NIL was provided\n");
-        ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
+        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
         goto fail;
     }
 
@@ -407,7 +401,7 @@ dds_read_instance_mask(
 
     if (handle == DDS_HANDLE_NIL) {
         DDS_ERROR("DDS_HANDLE_NIL was provided\n");
-        ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
+        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
         goto fail;
     }
 
@@ -436,7 +430,7 @@ dds_read_instance_mask_wl(
 
     if (handle == DDS_HANDLE_NIL) {
         DDS_ERROR("DDS_HANDLE_NIL was provided\n");
-        ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
+        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
         goto fail;
     }
     if (maxs == DDS_READ_WITHOUT_LOCK) {
@@ -579,7 +573,7 @@ dds_take_instance(
 
     if (handle == DDS_HANDLE_NIL) {
         DDS_ERROR("DDS_HANDLE_NIL was provided\n");
-        ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
+        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
         goto fail;
     }
 
@@ -607,7 +601,7 @@ dds_take_instance_wl(
 
     if (handle == DDS_HANDLE_NIL) {
         DDS_ERROR("DDS_HANDLE_NIL was provided\n");
-        ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
+        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
         goto fail;
     }
     if (maxs == DDS_READ_WITHOUT_LOCK) {
@@ -636,7 +630,7 @@ dds_take_instance_mask(
 
     if (handle == DDS_HANDLE_NIL) {
         DDS_ERROR("DDS_HANDLE_NIL was provided\n");
-        ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
+        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
         goto fail;
     }
     if (maxs == DDS_READ_WITHOUT_LOCK) {
@@ -664,7 +658,7 @@ dds_take_instance_mask_wl(
 
     if (handle == DDS_HANDLE_NIL) {
         DDS_ERROR("DDS_HANDLE_NIL was provided\n");
-        ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
+        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
         goto fail;
     }
     if (maxs == DDS_READ_WITHOUT_LOCK) {
@@ -704,7 +698,6 @@ dds_return_loan(
         void **buf,
         int32_t bufsz)
 {
-    dds_retcode_t rc;
     const struct ddsi_sertopic *st;
     dds_reader *rd;
     dds_readcond *cond;
@@ -712,17 +705,16 @@ dds_return_loan(
 
     if (!buf) {
         DDS_ERROR("Argument buf is NULL\n");
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto fail;
     }
     if (*buf == NULL && bufsz > 0) {
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto fail;
     }
 
-    rc = dds_read_lock(reader_or_condition, &rd, &cond, false);
-    if (rc != DDS_RETCODE_OK) {
-        ret = DDS_ERRNO(rc);
+    ret = dds_read_lock(reader_or_condition, &rd, &cond, false);
+    if (ret != DDS_RETCODE_OK) {
         goto fail;
     }
     st = rd->m_topic->m_stopic;

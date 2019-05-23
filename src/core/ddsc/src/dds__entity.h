@@ -35,9 +35,9 @@ DDS_EXPORT void
 dds_entity_add_ref_nolock(dds_entity *e);
 
 #define DEFINE_ENTITY_LOCK_UNLOCK(qualifier_, type_, kind_) \
-  qualifier_ dds_retcode_t type_##_lock (dds_entity_t hdl, type_ **x) \
+  qualifier_ dds_return_t type_##_lock (dds_entity_t hdl, type_ **x) \
   { \
-    dds_retcode_t rc; \
+    dds_return_t rc; \
     dds_entity *e; \
     if ((rc = dds_entity_lock (hdl, kind_, &e)) != DDS_RETCODE_OK) \
       return rc; \
@@ -50,7 +50,7 @@ dds_entity_add_ref_nolock(dds_entity *e);
     dds_entity_unlock (&x->m_entity); \
   }
 #define DECL_ENTITY_LOCK_UNLOCK(qualifier_, type_) \
-  qualifier_ dds_retcode_t type_##_lock (dds_entity_t hdl, type_ **x); \
+  qualifier_ dds_return_t type_##_lock (dds_entity_t hdl, type_ **x); \
   qualifier_ void type_##_unlock (type_ *x);
 
 DDS_EXPORT inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink) {
@@ -79,7 +79,7 @@ DDS_EXPORT void dds_entity_status_signal (dds_entity *e);
 
 DDS_EXPORT void dds_entity_invoke_listener (const dds_entity *entity, enum dds_status_id which, const void *vst);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 dds_entity_claim (
   dds_entity_t hdl,
   dds_entity **eptr);
@@ -87,7 +87,7 @@ dds_entity_claim (
 DDS_EXPORT void dds_entity_release (
   dds_entity *e);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 dds_entity_lock(
   dds_entity_t hdl,
   dds_entity_kind_t kind,
@@ -96,24 +96,24 @@ dds_entity_lock(
 DDS_EXPORT void
 dds_entity_unlock(dds_entity *e);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 dds_entity_observer_register_nl(
   dds_entity *observed,
   dds_entity_t observer,
   dds_entity_callback cb);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 dds_entity_observer_register(
   dds_entity_t observed,
   dds_entity_t observer,
   dds_entity_callback cb);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 dds_entity_observer_unregister_nl(
   dds_entity *observed,
   dds_entity_t observer);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 dds_entity_observer_unregister(
   dds_entity_t observed,
   dds_entity_t observer);

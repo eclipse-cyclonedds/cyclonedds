@@ -30,7 +30,6 @@
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_transmit.h"
-#include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_misc.h"
@@ -477,9 +476,9 @@ struct xeventq * xeventq_new
   return evq;
 }
 
-int xeventq_start (struct xeventq *evq, const char *name)
+dds_return_t xeventq_start (struct xeventq *evq, const char *name)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   char * evqname = "tev";
   assert (evq->ts == NULL);
 
@@ -497,7 +496,7 @@ int xeventq_start (struct xeventq *evq, const char *name)
   {
     ddsrt_free (evqname);
   }
-  return (rc != DDS_RETCODE_OK) ? Q_ERR_UNSPECIFIED : 0;
+  return rc;
 }
 
 void xeventq_stop (struct xeventq *evq)

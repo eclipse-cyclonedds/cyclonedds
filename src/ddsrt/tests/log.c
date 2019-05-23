@@ -349,7 +349,7 @@ CU_Test(dds_log, synchronous_sink_changes, .fini=reset)
   struct arg arg;
   ddsrt_thread_t tid;
   ddsrt_threadattr_t tattr;
-  dds_retcode_t ret;
+  dds_return_t ret;
 
   ddsrt_mutex_init(&mutex);
   ddsrt_cond_init(&cond);

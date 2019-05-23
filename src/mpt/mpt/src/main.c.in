@@ -298,7 +298,7 @@ mpt_run_test(const char *exe, mpt_suite_t *suite, mpt_test_t *test)
 {
   int result = EXIT_SUCCESS;
   mpt_process_t *proc;
-  dds_retcode_t retcode;
+  dds_return_t retcode;
   char *argv[] = { NULL, NULL,   NULL, NULL,   NULL, NULL,   NULL, NULL };
 
   argv[0] = "-s";

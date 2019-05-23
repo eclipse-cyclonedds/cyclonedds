@@ -21,7 +21,6 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_globals.h" /* for mattr, cattr */
 #include "dds/ddsi/q_receive.h"
 
@@ -166,7 +165,7 @@ struct ddsi_threadmon *ddsi_threadmon_new (void)
   return NULL;
 }
 
-int ddsi_threadmon_start (struct ddsi_threadmon *sl)
+dds_return_t ddsi_threadmon_start (struct ddsi_threadmon *sl)
 {
   ddsrt_mutex_lock (&sl->lock);
   assert (sl->keepgoing == -1);
@@ -179,7 +178,7 @@ int ddsi_threadmon_start (struct ddsi_threadmon *sl)
 
  fail_thread:
   sl->keepgoing = -1;
-  return Q_ERR_UNSPECIFIED;
+  return DDS_RETCODE_ERROR;
 }
 
 void ddsi_threadmon_statechange_barrier (struct ddsi_threadmon *sl)

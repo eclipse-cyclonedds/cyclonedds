@@ -20,7 +20,6 @@
 #include "dds__init.h"
 #include "dds__rhc.h"
 #include "dds__domain.h"
-#include "dds__err.h"
 #include "dds__builtin.h"
 #include "dds__whc_builtintopic.h"
 #include "dds/ddsi/ddsi_iid.h"
@@ -87,7 +86,7 @@ dds_init(dds_domainid_t domain)
   if (dds_cfgst == NULL)
   {
     DDS_LOG(DDS_LC_CONFIG, "Failed to parse configuration XML file %s\n", uri);
-    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+    ret = DDS_RETCODE_ERROR;
     goto fail_config;
   }
 
@@ -97,7 +96,7 @@ dds_init(dds_domainid_t domain)
     if (domain < 0 || domain > 230)
     {
       DDS_ERROR("requested domain id %"PRId32" is out of range\n", domain);
-      ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+      ret = DDS_RETCODE_ERROR;
       goto fail_config_domainid;
     }
     else if (config.domainId.isdefault)
@@ -107,7 +106,7 @@ dds_init(dds_domainid_t domain)
     else if (domain != config.domainId.value)
     {
       DDS_ERROR("requested domain id %"PRId32" is inconsistent with configured value %"PRId32"\n", domain, config.domainId.value);
-      ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+      ret = DDS_RETCODE_ERROR;
       goto fail_config_domainid;
     }
   }
@@ -119,7 +118,7 @@ dds_init(dds_domainid_t domain)
   if (rtps_config_prep(dds_cfgst) != 0)
   {
     DDS_LOG(DDS_LC_CONFIG, "Failed to configure RTPS\n");
-    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+    ret = DDS_RETCODE_ERROR;
     goto fail_rtps_config;
   }
 
@@ -135,7 +134,7 @@ dds_init(dds_domainid_t domain)
     if (gv.threadmon == NULL)
     {
       DDS_ERROR("Failed to create a thread monitor\n");
-      ret = DDS_ERRNO(DDS_RETCODE_OUT_OF_RESOURCES);
+      ret = DDS_RETCODE_OUT_OF_RESOURCES;
       goto fail_threadmon_new;
     }
   }
@@ -143,14 +142,14 @@ dds_init(dds_domainid_t domain)
   if (rtps_init () < 0)
   {
     DDS_LOG(DDS_LC_CONFIG, "Failed to initialize RTPS\n");
-    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+    ret = DDS_RETCODE_ERROR;
     goto fail_rtps_init;
   }
 
   if (dds_handle_server_init (free_via_gc) != DDS_RETCODE_OK)
   {
     DDS_ERROR("Failed to initialize internal handle server\n");
-    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+    ret = DDS_RETCODE_ERROR;
     goto fail_handleserver;
   }
 
@@ -159,14 +158,14 @@ dds_init(dds_domainid_t domain)
   if (rtps_start () < 0)
   {
     DDS_LOG(DDS_LC_CONFIG, "Failed to start RTPS\n");
-    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+    ret = DDS_RETCODE_ERROR;
     goto fail_rtps_start;
   }
 
   if (gv.threadmon && ddsi_threadmon_start(gv.threadmon) < 0)
   {
     DDS_ERROR("Failed to start the servicelease\n");
-    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+    ret = DDS_RETCODE_ERROR;
     goto fail_threadmon_start;
   }
 
@@ -299,7 +298,7 @@ dds__check_domain(
     {
       DDS_ERROR("Inconsistent domain configuration detected: domain on "
                 "configuration: %"PRId32", domain %"PRId32"\n", dds_global.m_default_domain, domain);
-      ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+      ret = DDS_RETCODE_ERROR;
     }
   }
   return ret;

@@ -21,7 +21,7 @@
 
 #include "dds/ddsrt/string.h"
 
-dds_retcode_t
+dds_return_t
 ddsrt_strerror_r(int errnum, char *buf, size_t buflen)
 {
   assert(buf != NULL);

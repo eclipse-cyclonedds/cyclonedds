@@ -23,8 +23,6 @@
 
 static dds_entity_t entity = -1;
 
-#define cu_assert_status_eq(s1, s2) CU_ASSERT_FATAL(dds_err_nr(s1)== s2)
-
 /* Fixture to create prerequisite entity */
 void create_entity(void)
 {
@@ -38,7 +36,7 @@ void delete_entity(void)
 {
     CU_ASSERT_FATAL(entity > 0);
     dds_return_t ret = dds_delete(entity);
-    cu_assert_status_eq(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     entity = -1;
 }
 
@@ -55,17 +53,17 @@ CU_Test(ddsc_entity, enable, .init = create_entity, .fini = delete_entity)
 
     /* Check enabling with bad parameters. */
     status = dds_enable(0);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
 
     /* Check actual enabling. */
     /* TODO: CHAM-96: Check enabling.
     status = dds_enable(&entity);
-    cu_assert_status_eq(status, dds_err_nr(DDS_RETCODE_OK), "dds_enable (delayed enable)");
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK, "dds_enable (delayed enable)");
     */
 
     /* Check re-enabling (should be a noop). */
     status = dds_enable(entity);
-    cu_assert_status_eq(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 }
 
 void entity_qos_get_set(dds_entity_t e, const char* info)
@@ -77,10 +75,10 @@ void entity_qos_get_set(dds_entity_t e, const char* info)
 
     /* Get QoS. */
     status = dds_get_qos (e, qos);
-    cu_assert_status_eq(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
     status = dds_set_qos (e, qos); /* Doesn't change anything, so no need to forbid. But we return NOT_SUPPORTED anyway for now*/
-    cu_assert_status_eq(status, DDS_RETCODE_UNSUPPORTED);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_UNSUPPORTED);
 
     dds_delete_qos(qos);
 }
@@ -95,19 +93,19 @@ CU_Test(ddsc_entity, qos, .init = create_entity, .fini = delete_entity)
 
     /* Check getting QoS with bad parameters. */
     status = dds_get_qos (0, NULL);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_get_qos (entity, NULL);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_get_qos (0, qos);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
 
     /* Check setting QoS with bad parameters. */
     status = dds_set_qos (0, NULL);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_set_qos (entity, NULL);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_set_qos (0, qos);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
 
     /* Check set/get with entity without initial qos. */
     entity_qos_get_set(entity, "{without initial qos}");
@@ -145,15 +143,15 @@ CU_Test(ddsc_entity, listener, .init = create_entity, .fini = delete_entity)
 
     /* Check getting Listener with bad parameters. */
     status = dds_get_listener (0, NULL);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_get_listener (entity, NULL);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_get_listener (0, l1);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
 
     /* Get Listener, which should be unset. */
     status = dds_get_listener (entity, l1);
-    cu_assert_status_eq(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
     dds_lget_liveliness_changed (l1, (dds_on_liveliness_changed_fn*)&cb1);
     CU_ASSERT_EQUAL_FATAL(cb1, DDS_LUNSET);
     dds_lget_requested_deadline_missed (l1, (dds_on_requested_deadline_missed_fn*)&cb1);
@@ -165,15 +163,15 @@ CU_Test(ddsc_entity, listener, .init = create_entity, .fini = delete_entity)
 
     /* Check setting Listener with bad parameters. */
     status = dds_set_listener (0, NULL);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_set_listener (0, l2);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
 
     /* Getting after setting should return set listener. */
     status = dds_set_listener (entity, l2);
-    cu_assert_status_eq(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
     status = dds_get_listener (entity, l1);
-    cu_assert_status_eq(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
     dds_lget_liveliness_changed (l1, (dds_on_liveliness_changed_fn*)&cb1);
     dds_lget_liveliness_changed (l2, (dds_on_liveliness_changed_fn*)&cb2);
     CU_ASSERT_EQUAL_FATAL(cb1, cb2);
@@ -189,9 +187,9 @@ CU_Test(ddsc_entity, listener, .init = create_entity, .fini = delete_entity)
 
     /* Reset listener. */
     status = dds_set_listener (entity, NULL);
-    cu_assert_status_eq(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
     status = dds_get_listener (entity, l2);
-    cu_assert_status_eq(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
     dds_lget_liveliness_changed (l2, (dds_on_liveliness_changed_fn*)&cb2);
     CU_ASSERT_EQUAL_FATAL(cb2, DDS_LUNSET);
     dds_lget_requested_deadline_missed (l2, (dds_on_requested_deadline_missed_fn*)&cb2);
@@ -215,46 +213,46 @@ CU_Test(ddsc_entity, status, .init = create_entity, .fini = delete_entity)
 
     /* Check getting Status with bad parameters. */
     status1 = dds_get_status_mask (0, NULL);
-    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_BAD_PARAMETER);
     status1 = dds_get_status_mask (entity, NULL);
-    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_BAD_PARAMETER);
     status1 = dds_get_status_mask (0, &s1);
-    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_BAD_PARAMETER);
 
     /* Get Status, which should be 0 for a participant. */
     status1 = dds_get_status_mask (entity, &s1);
-    cu_assert_status_eq(status1, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(s1, 0);
 
     /* Check setting Status with bad parameters. */
     status1 = dds_set_status_mask (0, 0);
-    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_BAD_PARAMETER);
 
     /* I shouldn't be able to set statuses on a participant. */
     status1 = dds_set_status_mask (entity, 0);
-    cu_assert_status_eq(status1, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_OK);
     status1 = dds_set_status_mask (entity, DDS_DATA_AVAILABLE_STATUS);
-    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_BAD_PARAMETER);
 
     /* Check getting Status changes with bad parameters. */
     status1 = dds_get_status_changes (0, NULL);
-    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_BAD_PARAMETER);
     status1 = dds_get_status_changes (entity, NULL);
-    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_BAD_PARAMETER);
     status1 = dds_get_status_changes (0, &s1);
-    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_BAD_PARAMETER);
     status1 = dds_get_status_changes (entity, &s1);
-    cu_assert_status_eq(status1, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_OK);
 
     /* Status read and take shouldn't work either. */
     status1 = dds_read_status (0, &s1, 0);
-    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_BAD_PARAMETER);
     status1 = dds_read_status (entity, &s1, 0);
-    cu_assert_status_eq(status1, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_OK);
     status1 = dds_take_status (0, &s1, 0);
-    cu_assert_status_eq(status1, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_BAD_PARAMETER);
     status1 = dds_take_status (entity, &s1, 0);
-    cu_assert_status_eq(status1, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status1, DDS_RETCODE_OK);
 }
 
 
@@ -268,15 +266,15 @@ CU_Test(ddsc_entity, instance_handle, .init = create_entity, .fini = delete_enti
 
     /* Check getting Handle with bad parameters. */
     status = dds_get_instance_handle (0, NULL);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_get_instance_handle (entity, NULL);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_get_instance_handle (0, &hdl);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
 
     /* Get Instance Handle, which should not be 0 for a participant. */
     status = dds_get_instance_handle (entity, &hdl);
-    cu_assert_status_eq(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
     CU_ASSERT_NOT_EQUAL_FATAL(hdl, 0);
 }
 
@@ -290,17 +288,17 @@ CU_Test(ddsc_entity, get_entities, .init = create_entity, .fini = delete_entity)
 
     /* Check getting Parent with bad parameters. */
     par = dds_get_parent (0);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(par), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(par, DDS_RETCODE_BAD_PARAMETER);
 
     /* Get Parent, a participant doesn't have a parent. */
     par = dds_get_parent (entity);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(par), DDS_ENTITY_NIL);
+    CU_ASSERT_EQUAL_FATAL(par, DDS_ENTITY_NIL);
 
     /* ---------- Get Participant ------------ */
 
     /* Check getting Participant with bad parameters. */
     par = dds_get_participant (0);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(par), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(par, DDS_RETCODE_BAD_PARAMETER);
 
     /* Get Participant, a participants' participant is itself. */
     par = dds_get_participant (entity);
@@ -310,15 +308,15 @@ CU_Test(ddsc_entity, get_entities, .init = create_entity, .fini = delete_entity)
 
     /* Check getting Children with bad parameters. */
     status = dds_get_children (0, &child, 1);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_get_children (entity, NULL, 1);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_get_children (entity, &child, 0);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_get_children (0, NULL, 1);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_get_children (0, &child, 0);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
 
     /* Get Children, of which there are currently none. */
     status = dds_get_children (entity, NULL, 0);
@@ -342,15 +340,15 @@ CU_Test(ddsc_entity, get_domainid, .init = create_entity, .fini = delete_entity)
 
     /* Check getting ID with bad parameters. */
     status = dds_get_domainid (0, NULL);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_get_domainid (entity, NULL);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
     status = dds_get_domainid (0, &id);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
 
     /* Get and check the domain id. */
     status = dds_get_domainid (entity, &id);
-    cu_assert_status_eq(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
     CU_ASSERT_FATAL(id != -1);
 }
 
@@ -358,10 +356,10 @@ CU_Test(ddsc_entity, delete, .init = create_entity)
 {
     dds_return_t status;
     status = dds_delete(0);
-    cu_assert_status_eq(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
 
     status = dds_delete(entity);
-    cu_assert_status_eq(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
     entity = 0;
 }
 

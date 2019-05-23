@@ -22,7 +22,7 @@ CU_TheoryDataPoints(ddsrt_environ, bad_name) = {
 
 CU_Theory((const char *name), ddsrt_environ, bad_name)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   static const char value[] = "bar";
   static char dummy[] = "foobar";
   char *ptr;
@@ -40,7 +40,7 @@ CU_Theory((const char *name), ddsrt_environ, bad_name)
 DDSRT_WARNING_MSVC_OFF(4996)
 CU_Test(ddsrt_environ, setenv)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   static const char name[] = "foo";
   static char value[] = "bar";
   char *ptr;
@@ -64,7 +64,7 @@ DDSRT_WARNING_MSVC_ON(4996)
 
 CU_Test(ddsrt_environ, getenv)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   static const char name[] = "foo";
   static const char value[] = "bar";
   static char dummy[] = "foobar";
@@ -111,7 +111,7 @@ CU_TheoryDataPoints(ddsrt_environ, expand) = {
 };
 CU_Theory((const char *var, const char *expect), ddsrt_environ, expand)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   static const char x_name[]  = "X";
   static const char x_value[] = "TEST";
   static const char y_name[]  = "Y";
@@ -163,7 +163,7 @@ CU_TheoryDataPoints(ddsrt_environ, expand_sh) = {
 };
 CU_Theory((const char *var, const char *expect), ddsrt_environ, expand_sh)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   static const char x_name[]  = "X";
   static const char x_value[] = "TEST";
   static const char y_name[]  = "Y";

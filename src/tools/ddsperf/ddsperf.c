@@ -564,7 +564,7 @@ static uint32_t pubthread (void *varg)
     {
       printf ("write error: %d\n", result);
       fflush (stdout);
-      if (dds_err_nr (result) != DDS_RETCODE_TIMEOUT)
+      if (result != DDS_RETCODE_TIMEOUT)
         exit (2);
       timeouts++;
       /* retry with original timestamp, it really is just a way of reporting
@@ -800,7 +800,7 @@ static bool process_data (dds_entity_t rd, struct subthread_arg *arg)
         if ((wr_pong = get_pong_writer (iseq[i].publication_handle)) != 0)
         {
           dds_return_t rc;
-          if ((rc = dds_write_ts (wr_pong, mseq[i], iseq[i].source_timestamp - 1)) < 0 && dds_err_nr(rc) != DDS_RETCODE_TIMEOUT)
+          if ((rc = dds_write_ts (wr_pong, mseq[i], iseq[i].source_timestamp - 1)) < 0 && rc != DDS_RETCODE_TIMEOUT)
             error2 ("dds_write_ts (wr_pong, mseq[i], iseq[i].source_timestamp): %d\n", (int) rc);
           dds_write_flush (wr_pong);
         }
@@ -828,7 +828,7 @@ static bool process_ping (dds_entity_t rd, struct subthread_arg *arg)
       if ((wr_pong = get_pong_writer (iseq[i].publication_handle)) != 0)
       {
         dds_return_t rc;
-        if ((rc = dds_write_ts (wr_pong, mseq[i], iseq[i].source_timestamp | 1)) < 0 && dds_err_nr(rc) != DDS_RETCODE_TIMEOUT)
+        if ((rc = dds_write_ts (wr_pong, mseq[i], iseq[i].source_timestamp | 1)) < 0 && rc != DDS_RETCODE_TIMEOUT)
           error2 ("dds_write_ts (wr_pong, mseq[i], iseq[i].source_timestamp): %d\n", (int) rc);
         dds_write_flush (wr_pong);
       }
@@ -863,7 +863,7 @@ static bool process_pong (dds_entity_t rd, struct subthread_arg *arg)
           cur_ping_time = dds_time ();
           cur_ping_seq = ++(*seq);
           ddsrt_mutex_unlock (&pongwr_lock);
-          if ((rc = dds_write_ts (wr_ping, mseq[i], dds_time () | 1)) < 0 && dds_err_nr(rc) != DDS_RETCODE_TIMEOUT)
+          if ((rc = dds_write_ts (wr_ping, mseq[i], dds_time () | 1)) < 0 && rc != DDS_RETCODE_TIMEOUT)
             error2 ("dds_write (wr_ping, mseq[i]): %d\n", (int) rc);
           dds_write_flush (wr_ping);
         }
@@ -916,7 +916,7 @@ static void maybe_send_new_ping (dds_time_t tnow, dds_time_t *tnextping)
     cur_ping_seq++;
     baggage = init_sample (&data, cur_ping_seq);
     ddsrt_mutex_unlock (&pongwr_lock);
-    if ((rc = dds_write_ts (wr_ping, &data, dds_time () | 1)) < 0 && dds_err_nr (rc) != DDS_RETCODE_TIMEOUT)
+    if ((rc = dds_write_ts (wr_ping, &data, dds_time () | 1)) < 0 && rc != DDS_RETCODE_TIMEOUT)
       error2 ("send_new_ping: dds_write (wr_ping, &data): %d\n", (int) rc);
     dds_write_flush (wr_ping);
     if (baggage)

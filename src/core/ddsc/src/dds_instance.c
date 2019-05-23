@@ -17,7 +17,6 @@
 #include "dds__write.h"
 #include "dds__writer.h"
 #include "dds__rhc.h"
-#include "dds__err.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_entity.h"
@@ -104,7 +103,7 @@ static const dds_topic *dds_instance_info (dds_entity *e)
 static const dds_topic * dds_instance_info_by_hdl (dds_entity_t e)
 {
     const dds_topic * topic = NULL;
-    dds_retcode_t rc;
+    dds_return_t rc;
     dds_entity *w_or_r;
 
     rc = dds_entity_lock(e, DDS_KIND_WRITER, &w_or_r);
@@ -131,19 +130,15 @@ dds_register_instance(
     struct ddsi_tkmap_instance * inst;
     dds_writer *wr;
     dds_return_t ret;
-    dds_retcode_t rc;
 
     if(data == NULL){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
-        goto err;
+        return DDS_RETCODE_BAD_PARAMETER;
     }
     if(handle == NULL){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
-        goto err;
+        return DDS_RETCODE_BAD_PARAMETER;
     }
-    rc = dds_writer_lock(writer, &wr);
-    if (rc != DDS_RETCODE_OK) {
-        ret = DDS_ERRNO(rc);
+    ret = dds_writer_lock(writer, &wr);
+    if (ret != DDS_RETCODE_OK) {
         goto err;
     }
     thread_state_awake (ts1);
@@ -152,7 +147,7 @@ dds_register_instance(
         *handle = inst->m_iid;
         ret = DDS_RETCODE_OK;
     } else {
-        ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+        ret = DDS_RETCODE_ERROR;
     }
     thread_state_asleep (ts1);
     dds_writer_unlock(wr);
@@ -184,22 +179,20 @@ dds_unregister_instance_ts(
 {
     struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_return_t ret = DDS_RETCODE_OK;
-    dds_retcode_t rc;
     bool autodispose = true;
     dds_write_action action = DDS_WR_ACTION_UNREGISTER;
     dds_writer *wr;
 
     if (data == NULL){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto err;
     }
     if(timestamp < 0){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto err;
     }
-    rc = dds_writer_lock(writer, &wr);
-    if (rc != DDS_RETCODE_OK) {
-        ret = DDS_ERRNO(rc);
+    ret = dds_writer_lock(writer, &wr);
+    if (ret != DDS_RETCODE_OK) {
         goto err;
     }
 
@@ -226,15 +219,13 @@ dds_unregister_instance_ih_ts(
 {
     struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_return_t ret = DDS_RETCODE_OK;
-    dds_retcode_t rc;
     bool autodispose = true;
     dds_write_action action = DDS_WR_ACTION_UNREGISTER;
     dds_writer *wr;
     struct ddsi_tkmap_instance *tk;
 
-    rc = dds_writer_lock(writer, &wr);
-    if (rc != DDS_RETCODE_OK) {
-        ret = DDS_ERRNO(rc);
+    ret = dds_writer_lock(writer, &wr);
+    if (ret != DDS_RETCODE_OK) {
         goto err;
     }
 
@@ -255,7 +246,7 @@ dds_unregister_instance_ih_ts(
         ret = dds_write_impl (wr, sample, timestamp, action);
         ddsi_sertopic_free_sample (tp, sample, DDS_FREE_ALL);
     } else {
-        ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
+        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
     }
     thread_state_asleep (ts1);
     dds_writer_unlock(wr);
@@ -271,11 +262,10 @@ dds_writedispose_ts(
 {
     struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_return_t ret;
-    dds_retcode_t rc;
     dds_writer *wr;
 
-    rc = dds_writer_lock(writer, &wr);
-    if (rc == DDS_RETCODE_OK) {
+    ret = dds_writer_lock(writer, &wr);
+    if (ret == DDS_RETCODE_OK) {
         thread_state_awake (ts1);
         ret = dds_write_impl (wr, data, timestamp, DDS_WR_ACTION_WRITE_DISPOSE);
         if (ret == DDS_RETCODE_OK) {
@@ -283,8 +273,6 @@ dds_writedispose_ts(
         }
         thread_state_asleep (ts1);
         dds_writer_unlock(wr);
-    } else {
-        ret = DDS_ERRNO(rc);
     }
 
     return ret;
@@ -315,17 +303,14 @@ dds_dispose_ts(
 {
     struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_return_t ret;
-    dds_retcode_t rc;
     dds_writer *wr;
 
-    rc = dds_writer_lock(writer, &wr);
-    if (rc == DDS_RETCODE_OK) {
+    ret = dds_writer_lock(writer, &wr);
+    if (ret == DDS_RETCODE_OK) {
         thread_state_awake (ts1);
         ret = dds_dispose_impl(wr, data, DDS_HANDLE_NIL, timestamp);
         thread_state_asleep (ts1);
         dds_writer_unlock(wr);
-    } else {
-        ret = DDS_ERRNO(rc);
     }
 
     return ret;
@@ -339,11 +324,10 @@ dds_dispose_ih_ts(
 {
     struct thread_state1 * const ts1 = lookup_thread_state ();
     dds_return_t ret;
-    dds_retcode_t rc;
     dds_writer *wr;
 
-    rc = dds_writer_lock(writer, &wr);
-    if (rc == DDS_RETCODE_OK) {
+    ret = dds_writer_lock(writer, &wr);
+    if (ret == DDS_RETCODE_OK) {
         struct ddsi_tkmap_instance *tk;
         thread_state_awake (ts1);
         if ((tk = ddsi_tkmap_find_by_id (gv.m_tkmap, handle)) != NULL) {
@@ -354,12 +338,10 @@ dds_dispose_ih_ts(
             ret = dds_dispose_impl (wr, sample, handle, timestamp);
             ddsi_sertopic_free_sample (tp, sample, DDS_FREE_ALL);
         } else {
-            ret = DDS_ERRNO(DDS_RETCODE_PRECONDITION_NOT_MET);
+            ret = DDS_RETCODE_PRECONDITION_NOT_MET;
         }
         thread_state_asleep (ts1);
         dds_writer_unlock(wr);
-    } else {
-        ret = DDS_ERRNO(rc);
     }
 
     return ret;
@@ -412,13 +394,13 @@ dds_instance_get_key(
     struct ddsi_tkmap_instance * tk;
 
     if(data == NULL){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto err;
     }
 
     topic = dds_instance_info_by_hdl (entity);
     if(topic == NULL){
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
         goto err;
     }
     thread_state_awake (ts1);
@@ -428,7 +410,7 @@ dds_instance_get_key(
         ddsi_tkmap_instance_unref (tk);
         ret = DDS_RETCODE_OK;
     } else {
-        ret = DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+        ret = DDS_RETCODE_BAD_PARAMETER;
     }
     thread_state_asleep (ts1);
 err:

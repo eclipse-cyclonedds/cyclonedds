@@ -23,10 +23,10 @@
 
 extern const int *const os_supp_afs;
 
-static dds_retcode_t
+static dds_return_t
 getifaces(PIP_ADAPTER_ADDRESSES *ptr)
 {
-  dds_retcode_t err = DDS_RETCODE_NOT_ENOUGH_SPACE;
+  dds_return_t err = DDS_RETCODE_NOT_ENOUGH_SPACE;
   PIP_ADAPTER_ADDRESSES buf = NULL;
   ULONG bufsz = 0; /* Size is determined on first iteration. */
   ULONG ret;
@@ -72,10 +72,10 @@ getifaces(PIP_ADAPTER_ADDRESSES *ptr)
   return err;
 }
 
-static dds_retcode_t
+static dds_return_t
 getaddrtable(PMIB_IPADDRTABLE *ptr)
 {
-  dds_retcode_t err = DDS_RETCODE_NOT_ENOUGH_SPACE;
+  dds_return_t err = DDS_RETCODE_NOT_ENOUGH_SPACE;
   PMIB_IPADDRTABLE buf = NULL;
   ULONG bufsz = 0;
   DWORD ret;
@@ -159,7 +159,7 @@ copyaddr(
   const PMIB_IPADDRTABLE addrtable,
   const PIP_ADAPTER_UNICAST_ADDRESS addr)
 {
-  dds_retcode_t err = DDS_RETCODE_OK;
+  dds_return_t err = DDS_RETCODE_OK;
   ddsrt_ifaddrs_t *ifa;
   struct sockaddr *sa;
   size_t sz;
@@ -220,7 +220,7 @@ copyaddr(
   return err;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_getifaddrs(
   ddsrt_ifaddrs_t **ifap,
   const int *afs)

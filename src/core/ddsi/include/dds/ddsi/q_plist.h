@@ -196,24 +196,68 @@ DDS_EXPORT void nn_plist_init_empty (nn_plist_t *dest);
 DDS_EXPORT void nn_plist_mergein_missing (nn_plist_t *a, const nn_plist_t *b);
 DDS_EXPORT void nn_plist_copy (nn_plist_t *dst, const nn_plist_t *src);
 DDS_EXPORT nn_plist_t *nn_plist_dup (const nn_plist_t *src);
-DDS_EXPORT int nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const nn_plist_src_t *src);
+
+/**
+ * @brief Initialize an nn_plist_t from a PL_CDR_{LE,BE} paylaod.
+ *
+ * @param[in]  pwanted
+ *               PP_... flags indicating which non-QoS parameters are of interest, treated as
+ *               a hint.  Parameters in the input that are outside the mask may or may not be
+ *               ignored.
+ * @param[in]  qwanted
+ *               QP_... flags indicating which QoS settings are of interest, and is treated as
+ *               a hint.  Parameters in the input that are outside the mask may or may not be
+ *               ignored.
+ * @param[in]  src
+ *               Serialized payload to be parsed, validated and copied into dest
+ *               - protocol_version is the version protocol version according to which the list
+ *                 should be parsed
+ *               - vendorid is the vendor id code for the source of the parameter list (for
+ *                 handling vendor-specific parameters and compatibility workarounds)
+ *               - encoding is PL_CDR_LE or PL_CDR_BE
+ *               - buf is a pointer to the first parameter header
+ *               - bufsz is the size in bytes of the input buffer
+ * @param[out] dest
+ *               Filled with the recognized parameters in the input if successful, otherwise
+ *               initialized to an empty parameter list.  Where possible, pointers alias the
+ *               input (indicated by the "aliased" bits in the plist/xqos structures), but
+ *               some things cannot be aliased (e.g., the array of pointers to strings for a
+ *               sequence of strings).
+ *               Generally, nn_plist_fini should be called when done with the parameter list,
+ *               even when nn_plist_unlias or nn_xqos_unlias hasn't been called.
+ * @param[out] nextafterplist
+ *               If non-NULL, *nextafterplist is set to the first byte following the parameter
+ *               list sentinel on successful parse, or to NULL on failure
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *               All parameters valid (or ignored), dest and *nextafterplist have been set
+ *               accordingly.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *               Input contained invalid data; dest is cleared, *nextafterplist is NULL.
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *               Input contained an unrecognized parameter with the "incompatible-if-unknown"
+ *               flag set; dest is cleared, *nextafterplist is NULL.
+ */
+DDS_EXPORT dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const nn_plist_src_t *src);
 DDS_EXPORT void nn_plist_fini (nn_plist_t *ps);
 DDS_EXPORT void nn_plist_addtomsg (struct nn_xmsg *m, const nn_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
-DDS_EXPORT int nn_plist_init_default_participant (nn_plist_t *plist);
+DDS_EXPORT void nn_plist_init_default_participant (nn_plist_t *plist);
 
-DDS_EXPORT int validate_history_qospolicy (const nn_history_qospolicy_t *q);
-DDS_EXPORT int validate_durability_qospolicy (const nn_durability_qospolicy_t *q);
-DDS_EXPORT int validate_resource_limits_qospolicy (const nn_resource_limits_qospolicy_t *q);
-DDS_EXPORT int validate_history_and_resource_limits (const nn_history_qospolicy_t *qh, const nn_resource_limits_qospolicy_t *qr);
-DDS_EXPORT int validate_durability_service_qospolicy (const nn_durability_service_qospolicy_t *q);
-DDS_EXPORT int validate_liveliness_qospolicy (const nn_liveliness_qospolicy_t *q);
-DDS_EXPORT int validate_destination_order_qospolicy (const nn_destination_order_qospolicy_t *q);
-DDS_EXPORT int validate_ownership_qospolicy (const nn_ownership_qospolicy_t *q);
-DDS_EXPORT int validate_ownership_strength_qospolicy (const nn_ownership_strength_qospolicy_t *q);
-DDS_EXPORT int validate_presentation_qospolicy (const nn_presentation_qospolicy_t *q);
-DDS_EXPORT int validate_transport_priority_qospolicy (const nn_transport_priority_qospolicy_t *q);
-DDS_EXPORT int validate_reader_data_lifecycle (const nn_reader_data_lifecycle_qospolicy_t *q);
-DDS_EXPORT int validate_duration (const nn_duration_t *d);
+DDS_EXPORT dds_return_t validate_history_qospolicy (const nn_history_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_durability_qospolicy (const nn_durability_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_resource_limits_qospolicy (const nn_resource_limits_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_history_and_resource_limits (const nn_history_qospolicy_t *qh, const nn_resource_limits_qospolicy_t *qr);
+DDS_EXPORT dds_return_t validate_durability_service_qospolicy (const nn_durability_service_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_liveliness_qospolicy (const nn_liveliness_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_destination_order_qospolicy (const nn_destination_order_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_ownership_qospolicy (const nn_ownership_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_ownership_strength_qospolicy (const nn_ownership_strength_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_presentation_qospolicy (const nn_presentation_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_transport_priority_qospolicy (const nn_transport_priority_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_reader_data_lifecycle (const nn_reader_data_lifecycle_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_duration (const nn_duration_t *d);
 
 
 struct nn_rmsg;

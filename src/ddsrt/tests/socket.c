@@ -48,15 +48,15 @@ static void teardown(void)
 
 CU_Test(ddsrt_sockaddrfromstr, bad_family)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   struct sockaddr_storage sa;
   rc = ddsrt_sockaddrfromstr(AF_UNSPEC, "127.0.0.1", &sa);
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_BAD_PARAMETER);
 }
 
-static void sockaddrfromstr_test(char *str, int af, dds_retcode_t exp)
+static void sockaddrfromstr_test(char *str, int af, dds_return_t exp)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   struct sockaddr_storage ss;
   rc = ddsrt_sockaddrfromstr(af, str, &ss);
   CU_ASSERT_EQUAL(rc, exp);
@@ -70,11 +70,11 @@ CU_TheoryDataPoints(ddsrt_sockaddrfromstr, ipv4) = {
                         "nip"),
   CU_DataPoints(int, AF_INET, AF_INET,
                      AF_INET),
-  CU_DataPoints(dds_retcode_t, DDS_RETCODE_OK, DDS_RETCODE_OK,
+  CU_DataPoints(dds_return_t, DDS_RETCODE_OK, DDS_RETCODE_OK,
                                DDS_RETCODE_BAD_PARAMETER)
 };
 
-CU_Theory((char *str, int af, dds_retcode_t exp), ddsrt_sockaddrfromstr, ipv4, .init=setup, .fini=teardown)
+CU_Theory((char *str, int af, dds_return_t exp), ddsrt_sockaddrfromstr, ipv4, .init=setup, .fini=teardown)
 {
   sockaddrfromstr_test(str, af, exp);
 }
@@ -87,13 +87,13 @@ CU_TheoryDataPoints(ddsrt_sockaddrfromstr, ipv6) = {
   CU_DataPoints(int, AF_INET6, AF_INET6,
                      AF_INET,  AF_INET6,
                      AF_INET6),
-  CU_DataPoints(dds_retcode_t, DDS_RETCODE_BAD_PARAMETER, DDS_RETCODE_OK,
+  CU_DataPoints(dds_return_t, DDS_RETCODE_BAD_PARAMETER, DDS_RETCODE_OK,
                                DDS_RETCODE_BAD_PARAMETER, DDS_RETCODE_OK,
                                DDS_RETCODE_BAD_PARAMETER)
 #endif /* DDSRT_HAVE_IPV6 */
 };
 
-CU_Theory((char *str, int af, dds_retcode_t exp), ddsrt_sockaddrfromstr, ipv6, .init=setup, .fini=teardown)
+CU_Theory((char *str, int af, dds_return_t exp), ddsrt_sockaddrfromstr, ipv6, .init=setup, .fini=teardown)
 {
 #if DDSRT_HAVE_IPV6
   sockaddrfromstr_test(str, af, exp);
@@ -107,7 +107,7 @@ CU_Theory((char *str, int af, dds_retcode_t exp), ddsrt_sockaddrfromstr, ipv6, .
 
 CU_Test(ddsrt_sockaddrtostr, bad_sockaddr, .init=setup, .fini=teardown)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   char buf[128] = { 0 };
   struct sockaddr_in sa;
   memcpy(&sa, &ipv4_loopback, sizeof(ipv4_loopback));
@@ -118,7 +118,7 @@ CU_Test(ddsrt_sockaddrtostr, bad_sockaddr, .init=setup, .fini=teardown)
 
 CU_Test(ddsrt_sockaddrtostr, no_space, .init=setup, .fini=teardown)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   char buf[1] = { 0 };
   rc = ddsrt_sockaddrtostr(&ipv4_loopback, buf, sizeof(buf));
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_NOT_ENOUGH_SPACE);
@@ -126,7 +126,7 @@ CU_Test(ddsrt_sockaddrtostr, no_space, .init=setup, .fini=teardown)
 
 CU_Test(ddsrt_sockaddrtostr, ipv4)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   char buf[128] = { 0 };
   rc = ddsrt_sockaddrtostr(&ipv4_loopback, buf, sizeof(buf));
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
@@ -136,7 +136,7 @@ CU_Test(ddsrt_sockaddrtostr, ipv4)
 CU_Test(ddsrt_sockaddrtostr, ipv6)
 {
 #if DDSRT_HAVE_IPV6
-  dds_retcode_t rc;
+  dds_return_t rc;
   char buf[128] = { 0 };
   rc = ddsrt_sockaddrtostr(&ipv6_loopback, buf, sizeof(buf));
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
@@ -148,7 +148,7 @@ CU_Test(ddsrt_sockaddrtostr, ipv6)
 
 CU_Test(ddsrt_sockets, gethostname)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   char sysbuf[200], buf[200];
 
   buf[0] = '\0';
@@ -169,9 +169,9 @@ CU_Test(ddsrt_sockets, gethostname)
 }
 
 #if DDSRT_HAVE_DNS
-static void gethostbyname_test(char *name, int af, dds_retcode_t exp)
+static void gethostbyname_test(char *name, int af, dds_return_t exp)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ddsrt_hostent_t *hent = NULL;
   rc = ddsrt_gethostbyname(name, af, &hent);
   CU_ASSERT_EQUAL(rc, exp);
@@ -188,10 +188,10 @@ static void gethostbyname_test(char *name, int af, dds_retcode_t exp)
 CU_TheoryDataPoints(ddsrt_gethostbyname, ipv4) = {
   CU_DataPoints(char *,        "",                         "127.0.0.1",    "127.0.0.1"),
   CU_DataPoints(int,           AF_UNSPEC,                  AF_INET,        AF_UNSPEC),
-  CU_DataPoints(dds_retcode_t, DDS_RETCODE_HOST_NOT_FOUND, DDS_RETCODE_OK, DDS_RETCODE_OK)
+  CU_DataPoints(dds_return_t, DDS_RETCODE_HOST_NOT_FOUND, DDS_RETCODE_OK, DDS_RETCODE_OK)
 };
 
-CU_Theory((char *name, int af, dds_retcode_t exp), ddsrt_gethostbyname, ipv4, .init=setup, .fini=teardown)
+CU_Theory((char *name, int af, dds_return_t exp), ddsrt_gethostbyname, ipv4, .init=setup, .fini=teardown)
 {
 #if DDSRT_HAVE_DNS
   gethostbyname_test(name, af, exp);
@@ -209,11 +209,11 @@ CU_TheoryDataPoints(ddsrt_gethostbyname, ipv6) = {
 #if DDSRT_HAVE_IPV6 && DDSRT_HAVE_DNS
   CU_DataPoints(char *,        "::1",                      "::1",          "::1"),
   CU_DataPoints(int,           AF_INET,                    AF_INET6,       AF_UNSPEC),
-  CU_DataPoints(dds_retcode_t, DDS_RETCODE_HOST_NOT_FOUND, DDS_RETCODE_OK, DDS_RETCODE_OK)
+  CU_DataPoints(dds_return_t, DDS_RETCODE_HOST_NOT_FOUND, DDS_RETCODE_OK, DDS_RETCODE_OK)
 #endif /* DDSRT_HAVE_IPV6 */
 };
 
-CU_Theory((char *name, int af, dds_retcode_t exp), ddsrt_gethostbyname, ipv6, .init=setup, .fini=teardown)
+CU_Theory((char *name, int af, dds_return_t exp), ddsrt_gethostbyname, ipv6, .init=setup, .fini=teardown)
 {
 #if DDSRT_HAVE_IPV6 && DDSRT_HAVE_DNS
   gethostbyname_test(name, af, exp);

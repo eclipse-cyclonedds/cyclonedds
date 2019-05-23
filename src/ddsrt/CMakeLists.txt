@@ -121,10 +121,10 @@ list(APPEND sources
   "${source_path}/strtol.c")
 
 list(APPEND headers
-  "${source_path}/dds/ddsrt/avl.h"
-  "${source_path}/dds/ddsrt/fibheap.h"
-  "${source_path}/dds/ddsrt/hopscotch.h"
-  "${source_path}/dds/ddsrt/thread_pool.h")
+  "${include_path}/dds/ddsrt/avl.h"
+  "${include_path}/dds/ddsrt/fibheap.h"
+  "${include_path}/dds/ddsrt/hopscotch.h"
+  "${include_path}/dds/ddsrt/thread_pool.h")
 
 list(APPEND sources
   "${source_path}/avl.c"
@@ -221,7 +221,7 @@ foreach(feature atomics cdtors environ heap ifaddrs random rusage
   endif()
 endforeach()
 
-target_sources(ddsrt INTERFACE ${sources})
+target_sources(ddsrt INTERFACE ${sources} ${headers})
 
 set(HAVE_MULTI_PROCESS ${HAVE_MULTI_PROCESS} PARENT_SCOPE)
 

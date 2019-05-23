@@ -30,7 +30,7 @@
         CU_ASSERT_FATAL(wri > 0); \
         \
         status = dds_write(wri, &data); \
-        CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_OK); \
+        CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK); \
         \
         dds_delete(wri); \
         dds_delete(top); \
@@ -114,7 +114,7 @@ CU_Test(ddsc_types, alltypeskey)
     CU_ASSERT_FATAL(wri > 0);
 
     status = dds_write(wri, &atk_data);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(status), DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
     dds_delete(wri);
     dds_delete(top);

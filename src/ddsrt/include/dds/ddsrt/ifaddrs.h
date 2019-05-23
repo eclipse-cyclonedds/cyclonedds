@@ -30,7 +30,7 @@ struct ddsrt_ifaddrs {
 
 typedef struct ddsrt_ifaddrs ddsrt_ifaddrs_t;
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_getifaddrs(
   ddsrt_ifaddrs_t **ifap,
   const int *afs);

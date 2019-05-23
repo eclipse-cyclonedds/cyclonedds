@@ -28,8 +28,8 @@ struct ddsi_ssl_plugins
   void (*fini) (void);
   void (*ssl_free) (SSL *ssl);
   void (*bio_vfree) (BIO *bio);
-  ssize_t (*read) (SSL *ssl, void *buf, size_t len, dds_retcode_t *err);
-  ssize_t (*write) (SSL *ssl, const void *msg, size_t len, dds_retcode_t *err);
+  ssize_t (*read) (SSL *ssl, void *buf, size_t len, dds_return_t *err);
+  ssize_t (*write) (SSL *ssl, const void *msg, size_t len, dds_return_t *err);
   SSL * (*connect) (ddsrt_socket_t sock);
   BIO * (*listen) (ddsrt_socket_t sock);
   SSL * (*accept) (BIO *bio, ddsrt_socket_t *sock);

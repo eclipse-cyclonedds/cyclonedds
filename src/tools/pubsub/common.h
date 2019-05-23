@@ -119,7 +119,7 @@ bool dds_err_check (dds_return_t err, unsigned flags, const char *where);
 #define DDS_CHECK_FAIL 0x02
 #define DDS_CHECK_EXIT 0x04
 
-#define dds_err_str(x) (dds_strretcode(dds_err_nr(x)))
+#define dds_err_str(x) (dds_strretcode(x))
 
 #define DDS_TO_STRING(n) #n
 #define DDS_INT_TO_STRING(n) DDS_TO_STRING(n)

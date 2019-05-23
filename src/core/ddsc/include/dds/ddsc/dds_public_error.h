@@ -28,6 +28,8 @@
 extern "C" {
 #endif
 
+/* ** DEPRECATED ** */
+
 /* Error masks for returned status values */
 
 #define DDS_ERR_NR_MASK       0x000000ff
@@ -37,13 +39,13 @@ extern "C" {
 /* Error code handling functions */
 
 /** Macro to extract error number */
-#define dds_err_nr(e) ((-(e)) & DDS_ERR_NR_MASK)
+#define dds_err_nr(e) (e))
 
 /** Macro to extract line number */
-#define dds_err_line(e) (((-(e)) & DDS_ERR_LINE_MASK) >> 8)
+#define dds_err_line(e) (0)
 
 /** Macro to extract file identifier */
-#define dds_err_file_id(e) (((-(e)) & DDS_ERR_FILE_ID_MASK) >> 22)
+#define dds_err_file_id(e) (0)
 
 #if defined (__cplusplus)
 }

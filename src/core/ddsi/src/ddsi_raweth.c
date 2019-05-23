@@ -16,7 +16,6 @@
 #include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_pcap.h"
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsrt/atomics.h"
@@ -69,7 +68,7 @@ static char *ddsi_raweth_to_string (ddsi_tran_factory_t tran, char *dst, size_t 
 
 static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ssize_t ret = 0;
   struct msghdr msghdr;
   struct sockaddr_ll src;
@@ -127,7 +126,7 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
 static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
-  dds_retcode_t rc;
+  dds_return_t rc;
   ssize_t ret;
   unsigned retry = 2;
   int sendflags = 0;
@@ -191,7 +190,7 @@ static int ddsi_raweth_conn_locator (ddsi_tran_base_t base, nn_locator_t *loc)
 static ddsi_tran_conn_t ddsi_raweth_create_conn (uint32_t port, ddsi_tran_qos_t qos)
 {
   ddsrt_socket_t sock;
-  dds_retcode_t rc;
+  dds_return_t rc;
   ddsi_raweth_conn_t uc = NULL;
   struct sockaddr_ll addr;
   bool mcast = (bool) (qos ? qos->m_multicast : 0);

@@ -23,7 +23,6 @@
 
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_threadmon.h"
-#include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_globals.h"
@@ -245,7 +244,7 @@ static struct thread_state1 *init_thread_state (const char *tname, enum thread_s
   return ts;
 }
 
-dds_retcode_t create_thread (struct thread_state1 **ts1, const char *name, uint32_t (*f) (void *arg), void *arg)
+dds_return_t create_thread (struct thread_state1 **ts1, const char *name, uint32_t (*f) (void *arg), void *arg)
 {
   struct config_thread_properties_listelem const * const tprops = lookup_thread_properties (name);
   ddsrt_threadattr_t tattr;
@@ -300,14 +299,11 @@ static void reap_thread_state (struct thread_state1 *ts1, int sync_with_servicel
   ddsrt_mutex_unlock (&thread_states.lock);
 }
 
-int join_thread (struct thread_state1 *ts1)
+dds_return_t join_thread (struct thread_state1 *ts1)
 {
-  int ret;
+  dds_return_t ret;
   assert (ts1->state == THREAD_STATE_ALIVE);
-  if (ddsrt_thread_join (ts1->extTid, NULL) == DDS_RETCODE_OK)
-    ret = 0;
-  else
-    ret = Q_ERR_UNSPECIFIED;
+  ret = ddsrt_thread_join (ts1->extTid, NULL);
   assert (vtime_asleep_p (ts1->vtime));
   reap_thread_state (ts1, 1);
   return ret;

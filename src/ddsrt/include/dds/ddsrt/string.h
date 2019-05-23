@@ -176,7 +176,7 @@ ddsrt_nonnull((1,2));
  * @param[in]  buf     Buffer where description is copied to.
  * @param[in]  buflen  Number of bytes available in @buf.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Description for @errnum was successfully copied to @buf.
@@ -185,7 +185,7 @@ ddsrt_nonnull((1,2));
  * @retval DDS_RETCODE_NOT_ENOUGH_SPACE
  *             Buffer was not large enough to hold the description.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_strerror_r(
     int errnum,
     char *buf,

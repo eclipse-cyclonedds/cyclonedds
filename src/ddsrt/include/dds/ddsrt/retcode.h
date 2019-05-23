@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-typedef int32_t dds_retcode_t;
+typedef int32_t dds_return_t;
 
 /*
   State is unchanged following a function call returning an error
@@ -29,25 +29,25 @@ typedef int32_t dds_retcode_t;
  * @{
  */
 #define DDS_RETCODE_OK                   0 /**< Success */
-#define DDS_RETCODE_ERROR                1 /**< Non specific error */
-#define DDS_RETCODE_UNSUPPORTED          2 /**< Feature unsupported */
-#define DDS_RETCODE_BAD_PARAMETER        3 /**< Bad parameter value */
-#define DDS_RETCODE_PRECONDITION_NOT_MET 4 /**< Precondition for operation not met */
-#define DDS_RETCODE_OUT_OF_RESOURCES     5 /**< When an operation fails because of a lack of resources */
-#define DDS_RETCODE_NOT_ENABLED          6 /**< When a configurable feature is not enabled */
-#define DDS_RETCODE_IMMUTABLE_POLICY     7 /**< When an attempt is made to modify an immutable policy */
-#define DDS_RETCODE_INCONSISTENT_POLICY  8 /**< When a policy is used with inconsistent values */
-#define DDS_RETCODE_ALREADY_DELETED      9 /**< When an attempt is made to delete something more than once */
-#define DDS_RETCODE_TIMEOUT              10 /**< When a timeout has occurred */
-#define DDS_RETCODE_NO_DATA              11 /**< When expected data is not provided */
-#define DDS_RETCODE_ILLEGAL_OPERATION    12 /**< When a function is called when it should not be */
-#define DDS_RETCODE_NOT_ALLOWED_BY_SECURITY 13 /**< When credentials are not enough to use the function */
+#define DDS_RETCODE_ERROR                -1 /**< Non specific error */
+#define DDS_RETCODE_UNSUPPORTED          -2 /**< Feature unsupported */
+#define DDS_RETCODE_BAD_PARAMETER        -3 /**< Bad parameter value */
+#define DDS_RETCODE_PRECONDITION_NOT_MET -4 /**< Precondition for operation not met */
+#define DDS_RETCODE_OUT_OF_RESOURCES     -5 /**< When an operation fails because of a lack of resources */
+#define DDS_RETCODE_NOT_ENABLED          -6 /**< When a configurable feature is not enabled */
+#define DDS_RETCODE_IMMUTABLE_POLICY     -7 /**< When an attempt is made to modify an immutable policy */
+#define DDS_RETCODE_INCONSISTENT_POLICY  -8 /**< When a policy is used with inconsistent values */
+#define DDS_RETCODE_ALREADY_DELETED      -9 /**< When an attempt is made to delete something more than once */
+#define DDS_RETCODE_TIMEOUT              -10 /**< When a timeout has occurred */
+#define DDS_RETCODE_NO_DATA              -11 /**< When expected data is not provided */
+#define DDS_RETCODE_ILLEGAL_OPERATION    -12 /**< When a function is called when it should not be */
+#define DDS_RETCODE_NOT_ALLOWED_BY_SECURITY -13 /**< When credentials are not enough to use the function */
 
 
 /* Extended return codes are not in the DDS specification and are meant
    exclusively for internal use and must not be returned by the C API. */
-#define DDS_XRETCODE_BASE (50)
-#define DDS_XRETCODE(x) (DDS_XRETCODE_BASE + (x))
+#define DDS_XRETCODE_BASE (-50)
+#define DDS_XRETCODE(x) (DDS_XRETCODE_BASE - (x))
 
 /** Requested resource is busy */
 #define DDS_RETCODE_IN_PROGRESS         DDS_XRETCODE(1)
@@ -88,7 +88,7 @@ typedef int32_t dds_retcode_t;
  *
  * @returns  String corresponding to the error value
  */
-DDS_EXPORT const char *dds_strretcode(dds_retcode_t ret);
+DDS_EXPORT const char *dds_strretcode(dds_return_t ret);
 
 #if defined (__cplusplus)
 }

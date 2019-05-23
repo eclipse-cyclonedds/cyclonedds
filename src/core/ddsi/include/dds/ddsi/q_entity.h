@@ -400,9 +400,6 @@ int is_writer_entityid (nn_entityid_t id);
 int is_reader_entityid (nn_entityid_t id);
 nn_vendorid_t get_entity_vendorid (const struct entity_common *e);
 
-int pp_allocate_entityid (nn_entityid_t *id, unsigned kind, struct participant *pp);
-void pp_release_entityid(struct participant *pp, nn_entityid_t id);
-
 /* Interface for glue code between the OpenSplice kernel and the DDSI
    entities. These all return 0 iff successful. All GIDs supplied
    __MUST_BE_UNIQUE__. All hell may break loose if they aren't.
@@ -456,20 +453,93 @@ void pp_release_entityid(struct participant *pp, nn_entityid_t id);
   /* Set this flag to mark the participant as an local entity only. */
 #define RTPS_PF_ONLY_LOCAL 16u
 
-/* To create a DDSI participant given a GUID. May return ERR_OUT_OF_IDS
-   (a.o.) */
-int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const struct nn_plist *plist);
+/**
+ * @brief Create a new participant with a given GUID in the domain.
+ *
+ * @param[in]  ppguid
+ *               The GUID of the new participant.
+ * @param[in]  flags
+ *               Zero or more of:
+ *               - RTPS_PF_NO_BUILTIN_READERS   do not create discovery readers in new ppant
+ *               - RTPS_PF_NO_BUILTIN_WRITERS   do not create discvoery writers in new ppant
+ *               - RTPS_PF_PRIVILEGED_PP        FIXME: figure out how to describe this ...
+ *               - RTPS_PF_IS_DDSI2_PP          FIXME: OSPL holdover - there is no DDSI2E here
+ *               - RTPS_PF_ONLY_LOCAL           FIXME: not used, it seems
+ * @param[in]  plist
+ *               Parameters/QoS for this participant
+ * @param[out] dest
+ *               Filled with the recognized parameters in the input if successful, otherwise
+ *               initialized to an empty parameter list.  Where possible, pointers alias the
+ *               input (indicated by the "aliased" bits in the plist/xqos structures), but
+ *               some things cannot be aliased (e.g., the array of pointers to strings for a
+ *               sequence of strings).
+ *               Generally, nn_plist_fini should be called when done with the parameter list,
+ *               even when nn_plist_unlias or nn_xqos_unlias hasn't been called.
+ * @param[out] nextafterplist
+ *               If non-NULL, *nextafterplist is set to the first byte following the parameter
+ *               list sentinel on successful parse, or to NULL on failure
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *               All parameters valid (or ignored), dest and *nextafterplist have been set
+ *               accordingly.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *               A participant with GUID *ppguid already exists.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES
+ *               The configured maximum number of participants has been reached.
+ */
+dds_return_t new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const struct nn_plist *plist);
 
-int new_participant (struct nn_guid *ppguid, unsigned flags, const struct nn_plist *plist);
+/**
+ * @brief Create a new participant in the domain.  See also new_participant_guid.
+ *
+ * @param[out] ppguid
+ *               On successful return: the GUID of the new participant;
+ *               Undefined on error.
+ * @param[in]  flags
+ *               See new_participant_guid
+ * @param[in]  plist
+ *               See new_participant_guid
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *               Success, there is now a local participant with the GUID stored in
+ *               *ppguid
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES
+ *               Failed to allocate a new GUID (note: currently this will always
+ *               happen after 2**24-1 successful calls to new_participant ...).
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES
+ *               The configured maximum number of participants has been reached.
+*/
+dds_return_t new_participant (struct nn_guid *ppguid, unsigned flags, const struct nn_plist *plist);
 
-/* To delete a DDSI participant: this only removes the participant
-   from the hash tables and schedules the actual delete operation,
-   which will start doing scary things once all but the DDSI built-in
-   endpoints are gone.  It is acceptable to call delete_participant()
-   before all its readers and writers have been deleted (which also
-   fits nicely with model where the glue calls merely schedules
-   garbage-collection). */
-int delete_participant (const struct nn_guid *ppguid);
+/**
+ * @brief Initiate the deletion of the participant:
+ * - dispose/unregister built-in topic
+ * - list it as one of the recently deleted participants
+ * - remote it from the GUID hash tables
+ * - schedule the scare stuff to really delete it via the GC
+ *
+ * It is ok to call delete_participant without deleting all DDSI-level
+ * readers/writers: those will simply be deleted.  (New ones can't be
+ * created anymore because the participant can no longer be located via
+ * the hash tables).
+ *
+ * @param[in]  ppguid
+ *               GUID of the participant to be deleted.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *               Success, it is no longer visible and GC events have
+ *               been scheduled for eventual deleting of all remaining
+ *               readers and writers and freeing of memory
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *               ppguid lookup failed.
+*/
+dds_return_t delete_participant (const struct nn_guid *ppguid);
 
 /* To obtain the builtin writer to be used for publishing SPDP, SEDP,
    PMD stuff for PP and its endpoints, given the entityid.  If PP has
@@ -480,9 +550,9 @@ struct writer *get_builtin_writer (const struct participant *pp, unsigned entity
    GUID "ppguid". May return NULL if participant unknown or
    writer/reader already known. */
 
-dds_retcode_t new_writer (struct writer **wr_out, struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg);
+dds_return_t new_writer (struct writer **wr_out, struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg);
 
-dds_retcode_t new_reader (struct reader **rd_out, struct nn_guid *rdguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct rhc * rhc, status_cb_t status_cb, void *status_cb_arg);
+dds_return_t new_reader (struct reader **rd_out, struct nn_guid *rdguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct rhc * rhc, status_cb_t status_cb, void *status_cb_arg);
 
 struct whc_node;
 struct whc_state;

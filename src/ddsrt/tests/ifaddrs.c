@@ -64,7 +64,7 @@ CU_Clean(ddsrt_getifaddrs)
    IFF_LOOPBACK flags are properly set. */
 CU_Test(ddsrt_getifaddrs, ipv4)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   int seen = 0;
   ddsrt_ifaddrs_t *ifa_root, *ifa;
   const int afs[] = { AF_INET, DDSRT_AF_TERM };
@@ -90,7 +90,7 @@ CU_Test(ddsrt_getifaddrs, ipv4)
 
 CU_Test(ddsrt_getifaddrs, null_filter)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   int cnt = 0;
   ddsrt_ifaddrs_t *ifa_root, *ifa;
 
@@ -107,7 +107,7 @@ CU_Test(ddsrt_getifaddrs, null_filter)
 
 CU_Test(ddsrt_getifaddrs, empty_filter)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_ifaddrs_t *ifa_root;
   const int afs[] = { DDSRT_AF_TERM };
 
@@ -121,7 +121,7 @@ CU_Test(ddsrt_getifaddrs, ipv6)
 {
 #ifdef DDSRT_HAVE_IPV6
   if (ipv6_enabled == 1) {
-    dds_retcode_t ret;
+    dds_return_t ret;
     int have_ipv6 = 0;
     ddsrt_ifaddrs_t *ifa_root, *ifa;
     const int afs[] = { AF_INET6, DDSRT_AF_TERM };
@@ -160,7 +160,7 @@ CU_Test(ddsrt_getifaddrs, ipv4_n_ipv6)
 {
 #if DDSRT_HAVE_IPV6
   if (ipv6_enabled == 1) {
-    dds_retcode_t ret;
+    dds_return_t ret;
     int have_ipv4 = 0;
     int have_ipv6 = 0;
     ddsrt_ifaddrs_t *ifa_root, *ifa;

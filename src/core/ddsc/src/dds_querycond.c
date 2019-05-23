@@ -18,7 +18,6 @@
 #include "dds__topic.h"
 #include "dds__querycond.h"
 #include "dds__readcond.h"
-#include "dds__err.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 
@@ -29,7 +28,7 @@ dds_create_querycondition(
     dds_querycondition_filter_fn filter)
 {
     dds_entity_t hdl;
-    dds_retcode_t rc;
+    dds_return_t rc;
     dds_reader *r;
 
     rc = dds_reader_lock(reader, &r);
@@ -42,11 +41,11 @@ dds_create_querycondition(
             hdl = cond->m_entity.m_hdllink.hdl;
         } else {
             dds_delete (cond->m_entity.m_hdllink.hdl);
-            hdl = DDS_ERRNO(DDS_RETCODE_OUT_OF_RESOURCES);
+            hdl = DDS_RETCODE_OUT_OF_RESOURCES;
         }
     } else {
         DDS_ERROR("Error occurred on locking reader\n");
-        hdl = DDS_ERRNO(rc);
+        hdl = rc;
     }
 
     return hdl;

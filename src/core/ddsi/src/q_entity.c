@@ -38,7 +38,6 @@
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_protocol.h" /* NN_ENTITYID_... */
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_error.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/q_receive.h"
@@ -88,8 +87,8 @@ static const unsigned prismtech_builtin_writers_besmask =
   NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER |
   NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
 
-static dds_retcode_t new_writer_guid (struct writer **wr_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc *whc, status_cb_t status_cb, void *status_cbarg);
-static dds_retcode_t new_reader_guid (struct reader **rd_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct rhc *rhc, status_cb_t status_cb, void *status_cbarg);
+static dds_return_t new_writer_guid (struct writer **wr_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc *whc, status_cb_t status_cb, void *status_cbarg);
+static dds_return_t new_reader_guid (struct reader **rd_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct rhc *rhc, status_cb_t status_cb, void *status_cbarg);
 static struct participant *ref_participant (struct participant *pp, const struct nn_guid *guid_of_refing_entity);
 static void unref_participant (struct participant *pp, const struct nn_guid *guid_of_refing_entity);
 static void delete_proxy_group_locked (struct proxy_group *pgroup, nn_wctime_t timestamp, int isimplicit);
@@ -376,7 +375,7 @@ static void remove_deleted_participant_guid (const struct nn_guid *guid, unsigne
 
 /* PARTICIPANT ------------------------------------------------------ */
 
-int pp_allocate_entityid(nn_entityid_t *id, unsigned kind, struct participant *pp)
+static dds_return_t pp_allocate_entityid(nn_entityid_t *id, unsigned kind, struct participant *pp)
 {
   uint32_t id1;
   int ret = 0;
@@ -389,20 +388,20 @@ int pp_allocate_entityid(nn_entityid_t *id, unsigned kind, struct participant *p
   else
   {
     DDS_ERROR("pp_allocate_entityid("PGUIDFMT"): all ids in use\n", PGUID(pp->e.guid));
-    ret = Q_ERR_OUT_OF_IDS;
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
   }
   ddsrt_mutex_unlock (&pp->e.lock);
   return ret;
 }
 
-void pp_release_entityid(struct participant *pp, nn_entityid_t id)
+static void pp_release_entityid(struct participant *pp, nn_entityid_t id)
 {
   ddsrt_mutex_lock (&pp->e.lock);
   inverse_uint32_set_free(&pp->avail_entityids.x, id.u / NN_ENTITYID_ALLOCSTEP);
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 
-int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plist_t *plist)
+dds_return_t new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plist_t *plist)
 {
   struct participant *pp;
   nn_guid_t subguid, group_guid;
@@ -420,7 +419,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
      used to exist, but is currently being deleted and we're trying to
      recreate it. */
   if (ephash_lookup_participant_guid (ppguid) != NULL)
-    return Q_ERR_ENTITY_EXISTS;
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
 
   if (config.max_participants == 0)
   {
@@ -440,7 +439,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
     {
       ddsrt_mutex_unlock (&gv.participant_set_lock);
       DDS_ERROR("new_participant("PGUIDFMT", %x) failed: max participants reached\n", PGUID (*ppguid), flags);
-      return Q_ERR_OUT_OF_IDS;
+      return DDS_RETCODE_OUT_OF_RESOURCES;
     }
   }
 
@@ -658,7 +657,7 @@ int new_participant_guid (const nn_guid_t *ppguid, unsigned flags, const nn_plis
   return 0;
 }
 
-int new_participant (nn_guid_t *p_ppguid, unsigned flags, const nn_plist_t *plist)
+dds_return_t new_participant (nn_guid_t *p_ppguid, unsigned flags, const nn_plist_t *plist)
 {
   nn_guid_t ppguid;
 
@@ -667,7 +666,7 @@ int new_participant (nn_guid_t *p_ppguid, unsigned flags, const nn_plist_t *plis
   if (gv.next_ppguid.prefix.u[2]++ == ~0u)
   {
     ddsrt_mutex_unlock (&gv.privileged_pp_lock);
-    return Q_ERR_OUT_OF_IDS;
+    return DDS_RETCODE_OUT_OF_RESOURCES;
   }
   ddsrt_mutex_unlock (&gv.privileged_pp_lock);
   *p_ppguid = ppguid;
@@ -858,11 +857,11 @@ static void gc_delete_participant (struct gcreq *gcreq)
   unref_participant (pp, NULL);
 }
 
-int delete_participant (const struct nn_guid *ppguid)
+dds_return_t delete_participant (const struct nn_guid *ppguid)
 {
   struct participant *pp;
   if ((pp = ephash_lookup_participant_guid (ppguid)) == NULL)
-    return Q_ERR_UNKNOWN_ENTITY;
+    return DDS_RETCODE_BAD_PARAMETER;
   ddsi_plugin.builtintopic_write (&pp->e, now(), false);
   remember_deleted_participant_guid (&pp->e.guid);
   ephash_remove_participant_guid (pp);
@@ -2821,7 +2820,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   local_reader_ary_init (&wr->rdary);
 }
 
-static dds_retcode_t new_writer_guid (struct writer **wr_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc *whc, status_cb_t status_cb, void *status_entity)
+static dds_return_t new_writer_guid (struct writer **wr_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc *whc, status_cb_t status_cb, void *status_entity)
 {
   struct writer *wr;
   nn_mtime_t tnow = now_mt ();
@@ -2868,24 +2867,25 @@ static dds_retcode_t new_writer_guid (struct writer **wr_out, const struct nn_gu
     resched_xevent_if_earlier (pp->pmd_update_xevent, tsched);
   }
 
-  return DDS_RETCODE_OK;
+  return 0;
 }
 
-dds_retcode_t new_writer (struct writer **wr_out, struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg)
+dds_return_t new_writer (struct writer **wr_out, struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg)
 {
   struct participant *pp;
+  dds_return_t rc;
 
   if ((pp = ephash_lookup_participant_guid (ppguid)) == NULL)
   {
     DDS_LOG(DDS_LC_DISCOVERY, "new_writer - participant "PGUIDFMT" not found\n", PGUID (*ppguid));
-    return DDS_RETCODE_NOT_FOUND;
+    return DDS_RETCODE_BAD_PARAMETER;
   }
   /* participant can't be freed while we're mucking around cos we are
      awake and do not touch the thread's vtime (ephash_lookup already
      verifies we're awake) */
   wrguid->prefix = pp->e.guid.prefix;
-  if (pp_allocate_entityid (&wrguid->entityid, NN_ENTITYID_KIND_WRITER_WITH_KEY, pp) < 0)
-    return DDS_RETCODE_OUT_OF_RESOURCES;
+  if ((rc = pp_allocate_entityid (&wrguid->entityid, NN_ENTITYID_KIND_WRITER_WITH_KEY, pp)) < 0)
+    return rc;
   return new_writer_guid (wr_out, wrguid, group_guid, pp, topic, xqos, whc, status_cb, status_cb_arg);
 }
 
@@ -3027,7 +3027,7 @@ int delete_writer_nolinger (const struct nn_guid *guid)
   if ((wr = ephash_lookup_writer_guid (guid)) == NULL)
   {
     DDS_LOG(DDS_LC_DISCOVERY, "delete_writer_nolinger(guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
-    return Q_ERR_UNKNOWN_ENTITY;
+    return DDS_RETCODE_BAD_PARAMETER;
   }
   DDS_LOG(DDS_LC_DISCOVERY, "delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (*guid));
   ddsrt_mutex_lock (&wr->e.lock);
@@ -3050,7 +3050,7 @@ int delete_writer (const struct nn_guid *guid)
   if ((wr = ephash_lookup_writer_guid (guid)) == NULL)
   {
     DDS_LOG(DDS_LC_DISCOVERY, "delete_writer(guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
-    return Q_ERR_UNKNOWN_ENTITY;
+    return DDS_RETCODE_BAD_PARAMETER;
   }
   DDS_LOG(DDS_LC_DISCOVERY, "delete_writer(guid "PGUIDFMT") ...\n", PGUID (*guid));
   ddsrt_mutex_lock (&wr->e.lock);
@@ -3196,7 +3196,7 @@ static void leave_mcast_helper (const nn_locator_t *n, void * varg)
 }
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
 
-static dds_retcode_t new_reader_guid
+static dds_return_t new_reader_guid
 (
   struct reader **rd_out,
   const struct nn_guid *guid,
@@ -3332,10 +3332,10 @@ static dds_retcode_t new_reader_guid
   match_reader_with_proxy_writers (rd, tnow);
   match_reader_with_local_writers (rd, tnow);
   sedp_write_reader (rd);
-  return DDS_RETCODE_OK;
+  return 0;
 }
 
-dds_retcode_t new_reader
+dds_return_t new_reader
 (
   struct reader **rd_out,
   struct nn_guid *rdguid,
@@ -3349,15 +3349,16 @@ dds_retcode_t new_reader
 )
 {
   struct participant * pp;
+  dds_return_t rc;
 
   if ((pp = ephash_lookup_participant_guid (ppguid)) == NULL)
   {
     DDS_LOG(DDS_LC_DISCOVERY, "new_reader - participant "PGUIDFMT" not found\n", PGUID (*ppguid));
-    return DDS_RETCODE_NOT_FOUND;
+    return DDS_RETCODE_BAD_PARAMETER;
   }
   rdguid->prefix = pp->e.guid.prefix;
-  if (pp_allocate_entityid (&rdguid->entityid, NN_ENTITYID_KIND_READER_WITH_KEY, pp) < 0)
-    return DDS_RETCODE_OUT_OF_RESOURCES;
+  if ((rc = pp_allocate_entityid (&rdguid->entityid, NN_ENTITYID_KIND_READER_WITH_KEY, pp)) < 0)
+    return rc;
   return new_reader_guid (rd_out, rdguid, group_guid, pp, topic, xqos, rhc, status_cb, status_cbarg);
 }
 
@@ -3415,7 +3416,7 @@ int delete_reader (const struct nn_guid *guid)
   if ((rd = ephash_lookup_reader_guid (guid)) == NULL)
   {
     DDS_LOG(DDS_LC_DISCOVERY, "delete_reader_guid(guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
-    return Q_ERR_UNKNOWN_ENTITY;
+    return DDS_RETCODE_BAD_PARAMETER;
   }
   DDS_LOG(DDS_LC_DISCOVERY, "delete_reader_guid(guid "PGUIDFMT") ...\n", PGUID (*guid));
   ddsi_plugin.builtintopic_write (&rd->e, now(), false);
@@ -3918,7 +3919,7 @@ int delete_proxy_participant_by_guid (const struct nn_guid * guid, nn_wctime_t t
   {
     ddsrt_mutex_unlock (&gv.lock);
     DDS_LOG(DDS_LC_DISCOVERY, "- unknown\n");
-    return Q_ERR_UNKNOWN_ENTITY;
+    return DDS_RETCODE_BAD_PARAMETER;
   }
   DDS_LOG(DDS_LC_DISCOVERY, "- deleting\n");
   ddsi_plugin.builtintopic_write (&ppt->e, timestamp, false);
@@ -3973,7 +3974,7 @@ int new_proxy_group (const struct nn_guid *guid, const char *name, const struct 
         break;
       default:
         DDS_WARNING("new_proxy_group: unrecognised entityid: %"PRIx32"\n", guid->entityid.u);
-        return Q_ERR_INVALID_DATA;
+        return DDS_RETCODE_BAD_PARAMETER;
     }
     ddsrt_mutex_lock (&proxypp->e.lock);
     if ((pgroup = ddsrt_avl_lookup_ipath (&proxypp_groups_treedef, &proxypp->groups, guid, &ipath)) != NULL)
@@ -4102,7 +4103,7 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   if ((proxypp = ephash_lookup_proxy_participant_guid (ppguid)) == NULL)
   {
     DDS_WARNING("new_proxy_writer("PGUIDFMT"): proxy participant unknown\n", PGUID (*guid));
-    return Q_ERR_UNKNOWN_ENTITY;
+    return DDS_RETCODE_BAD_PARAMETER;
   }
 
   pwr = ddsrt_malloc (sizeof (*pwr));
@@ -4301,7 +4302,7 @@ int delete_proxy_writer (const struct nn_guid *guid, nn_wctime_t timestamp, int 
   {
     ddsrt_mutex_unlock (&gv.lock);
     DDS_LOG(DDS_LC_DISCOVERY, "- unknown\n");
-    return Q_ERR_UNKNOWN_ENTITY;
+    return DDS_RETCODE_BAD_PARAMETER;
   }
   /* Set "deleting" flag in particular for Lite, to signal to the receive path it can't
      trust rdary[] anymore, which is because removing the proxy writer from the hash
@@ -4334,7 +4335,7 @@ int new_proxy_reader (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   if ((proxypp = ephash_lookup_proxy_participant_guid (ppguid)) == NULL)
   {
     DDS_WARNING("new_proxy_reader("PGUIDFMT"): proxy participant unknown\n", PGUID (*guid));
-    return Q_ERR_UNKNOWN_ENTITY;
+    return DDS_RETCODE_BAD_PARAMETER;
   }
 
   prd = ddsrt_malloc (sizeof (*prd));
@@ -4437,7 +4438,7 @@ int delete_proxy_reader (const struct nn_guid *guid, nn_wctime_t timestamp, int 
   {
     ddsrt_mutex_unlock (&gv.lock);
     DDS_LOG(DDS_LC_DISCOVERY, "- unknown\n");
-    return Q_ERR_UNKNOWN_ENTITY;
+    return DDS_RETCODE_BAD_PARAMETER;
   }
   ddsi_plugin.builtintopic_write (&prd->e, timestamp, false);
   ephash_remove_proxy_reader_guid (prd);

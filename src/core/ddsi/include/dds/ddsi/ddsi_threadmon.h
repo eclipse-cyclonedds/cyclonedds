@@ -19,7 +19,7 @@ extern "C" {
 struct ddsi_threadmon;
 
 struct ddsi_threadmon *ddsi_threadmon_new (void);
-int ddsi_threadmon_start (struct ddsi_threadmon *sl);
+dds_return_t ddsi_threadmon_start (struct ddsi_threadmon *sl);
 void ddsi_threadmon_stop (struct ddsi_threadmon *sl);
 void ddsi_threadmon_free (struct ddsi_threadmon *sl);
 void ddsi_threadmon_statechange_barrier (struct ddsi_threadmon *sl);

@@ -119,7 +119,7 @@ CU_Theory((ddsrt_sched_t sched, int32_t *prio, uint32_t exp), ddsrt_thread, crea
 {
   int skip = 0;
   uint32_t res = 50505;
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_thread_t thr;
   ddsrt_threadattr_t attr;
   thread_arg_t arg;
@@ -215,7 +215,7 @@ uint32_t thread_main_waitforit(void *ptr)
 
 CU_Test(ddsrt_thread, stacked_join)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   ddsrt_thread_t thrs[2];
   ddsrt_threadattr_t attr;
   uint32_t res = 0;

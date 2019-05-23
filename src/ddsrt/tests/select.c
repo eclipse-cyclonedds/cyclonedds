@@ -107,7 +107,7 @@ typedef struct {
 static void
 sockets_pipe(ddsrt_socket_t socks[2])
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ddsrt_socket_t sock;
   int reuseaddr = 1;
 
@@ -140,7 +140,7 @@ static const char mesg[] = "foobar";
 static uint32_t select_timeout_routine(void *ptr)
 {
   int32_t cnt = -1;
-  dds_retcode_t rc;
+  dds_return_t rc;
   dds_time_t before, after;
   dds_duration_t delay;
   fd_set rdset;
@@ -179,7 +179,7 @@ static uint32_t select_timeout_routine(void *ptr)
 
 CU_Test(ddsrt_select, timeout)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ddsrt_socket_t socks[2];
   ddsrt_thread_t thr;
   ddsrt_threadattr_t attr;
@@ -242,7 +242,7 @@ static uint32_t recv_routine(void *ptr)
 
 CU_Test(ddsrt_select, send_recv)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ddsrt_socket_t socks[2];
   ddsrt_thread_t thr;
   ddsrt_threadattr_t attr;
@@ -309,7 +309,7 @@ static uint32_t recvmsg_routine(void *ptr)
 
 CU_Test(ddsrt_select, sendmsg_recvmsg)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ddsrt_socket_t socks[2];
   ddsrt_thread_t thr;
   ddsrt_threadattr_t attr;

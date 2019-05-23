@@ -2792,7 +2792,7 @@ int main(int argc, char *argv[]) {
 
     ddsrt_threadattr_t attr;
     ddsrt_threadattr_init(&attr);
-    dds_retcode_t osres;
+    dds_return_t osres;
 
     if (want_writer) {
         for (i = 0; i <= specidx; i++) {

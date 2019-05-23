@@ -18,7 +18,6 @@
 #include "dds__qos.h"
 #include "dds__domain.h"
 #include "dds__participant.h"
-#include "dds__err.h"
 #include "dds__types.h"
 #include "dds__builtin.h"
 #include "dds__subscriber.h"
@@ -93,7 +92,7 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t e, dds_entity_t topic)
     sertopic = builtin_reader_topic;
   } else {
     assert (0);
-    return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+    return DDS_RETCODE_BAD_PARAMETER;
   }
 
   dds_qos_t *qos = dds__create_builtin_qos ();
