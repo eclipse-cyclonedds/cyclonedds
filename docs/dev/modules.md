@@ -195,3 +195,94 @@ automatic if the target supports it. Finalization is primarily used to release
 thread-specific memory and call routines registered by
 `ddsrt_thread_cleanup_push`.
 
+
+## DDS Security 
+
+### Specification
+
+DDS Security is an [OMG specification](https://www.omg.org/spec/DDS-SECURITY/1.1/PDF) which adds several “DDS Security Support” 
+compliance points to the DDS Specification.
+The specification defines the Security Model and Service Plugin Interface (SPI) 
+architecture for compliant DDS implementations. The DDS Security Model is enforced 
+by the invocation of these SPIs by the DDS implementation.
+Security Model for DDS defines the security principals (users of the system), 
+the objects that are being secured, and the operations on the objects that are 
+to be restricted.
+
+SPIs are defined that when combined together provide Information Assurance to
+DDS systems:
+* Authentication Service Plugin. Provides the means to verify the identity of the 
+application and/or user that invokes operations on DDS. Includes facilities to 
+perform mutual authentication between participants and establish a shared secret.
+* AccessControl Service Plugin. Provides the means to enforce policy decisions on 
+what DDS related operations an authenticated user can perform. For example, which 
+domains it can join, which Topics it can publish or subscribe to, etc.
+* Cryptographic Service Plugin. Implements (or interfaces with libraries that 
+implement) all cryptographic operations including encryption, decryption,
+* Logging Service Plugin. Supports auditing of all DDS security-relevant events
+* Data Tagging Service Plugin. Provides a way to add tags to data samples.
+
+<img src="pictures/dds_security_plugin_components.png" alt="DDS Security Plugin Components">
+
+
+### Cyclone DDS Security 
+
+Cyclone DDS Security implementation is composed of the following components/modifications:
+
+* DDS Security plugin API
+* DDS Security built-in plugins that implement the API
+* DDS Security Core Library that is used by the plugins and DDSI.
+* Changes in the DDSI that moderate the specified security model.
+
+The dependency diagram:
+
+
+     DDSI  ---->     DDS Security API (headers only)  <----- DDS Security Plugins
+     |                    ^                                    |
+     |                    |                                    |
+     |                    |                                    |
+      ------->     DDS Security Core  <------------------------
+     |                    |                                    |
+     |                    |                                    |
+     |                    |                                    |
+     |                    v                                    |
+      ------->          DDS_RT        <------------------------
+   
+All security specific contents are under src/security.
+
+##### DDS Security API
+
+The DDS Security plugin API consists of just a few header files. There are separate 
+header files for each plugin: dds_security_api_authentication.h dds_security_api_cryptography.h 
+and dds_security_api_access_control.c
+
+The API functions and types are prepared from the IDL by adding DDS_Security_ namespace 
+prefix to functions and data types. Instead of extending DDS builtin topic data types, 
+separate DDS_Security_ data type is defined for the current type and the new secure data type.
+
+##### Built-in Plugins
+
+Cyclone DDS Security comes with three mandatory plugins: authentication, cryptography and access control.
+
+###### Authentication Plugin
+
+This plugin implements authentication using a trusted Certificate Authority (CA). It performs
+mutual authentication between discovered participants using the RSA or ECDSA Digital Signature 
+Algorithms and establishes a shared secret using Diffie-Hellman (DH) or Elliptic Curve Diffie-Hellman 
+(ECDH) Key Agreement Methods.
+
+<img src="pictures/dds_security_authentication_plugin.png" alt="DDS Security Plugin Components">
+
+###### Cryptography Plugin
+
+This plugin provides authenticated encryption using Advanced Encryption Standard (AES) in 
+Galois Counter Mode (AES-GCM). It supports two AES key sizes: 128 bits and 256 bits. It may 
+also provide additional reader-specific message authentication codes (MACs) using Galois MAC (AES-GMAC).
+
+<img src="pictures/dds_security_crypto_plugin.png" alt="DDS Security Plugin Components">
+
+
+###### Access Control Plugin
+
+<img src="pictures/dds_security_access_control_plugin.png" alt="DDS Security Plugin Components">
+
