@@ -355,8 +355,14 @@ mpt_run_test(const char *exe, mpt_suite_t *suite, mpt_test_t *test)
         result = EXIT_FAILURE;
       }
     } else if (retcode != DDS_RETCODE_NOT_FOUND) {
-      printf("Wait for processes of %s::%s failed (%d)\n", suite->name, test->name, (int)retcode);
-      result = EXIT_FAILURE;
+      for (proc = test->procs; proc; proc = proc->next) {
+        if (proc->pid != 0)
+          break;
+      }
+      if (proc != NULL) {
+        printf("Wait for processes of %s::%s failed (%d)\n", suite->name, test->name, (int)retcode);
+        result = EXIT_FAILURE;
+      }
     }
   }
 
