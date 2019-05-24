@@ -11,7 +11,7 @@
  */
 #include "dds/ddsrt/process.h"
 
-#if DDSRT_HAVE_PROCESS
+#if DDSRT_HAVE_MULTI_PROCESS
 # error "cmake_HAVE_MULTI_PROCESS=true"
 #else
 # error "cmake_HAVE_MULTI_PROCESS=false"
