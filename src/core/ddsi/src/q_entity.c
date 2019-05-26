@@ -87,8 +87,8 @@ static const unsigned prismtech_builtin_writers_besmask =
   NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER |
   NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
 
-static dds_return_t new_writer_guid (struct writer **wr_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc *whc, status_cb_t status_cb, void *status_cbarg);
-static dds_return_t new_reader_guid (struct reader **rd_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct rhc *rhc, status_cb_t status_cb, void *status_cbarg);
+static dds_return_t new_writer_guid (struct writer **wr_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc, status_cb_t status_cb, void *status_cbarg);
+static dds_return_t new_reader_guid (struct reader **rd_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct rhc *rhc, status_cb_t status_cb, void *status_cbarg);
 static struct participant *ref_participant (struct participant *pp, const struct nn_guid *guid_of_refing_entity);
 static void unref_participant (struct participant *pp, const struct nn_guid *guid_of_refing_entity);
 static void delete_proxy_group_locked (struct proxy_group *pgroup, nn_wctime_t timestamp, int isimplicit);
@@ -1545,7 +1545,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
   ddsrt_avl_ipath_t path;
   int pretend_everything_acked;
   m->prd_guid = prd->e.guid;
-  m->is_reliable = (prd->c.xqos->reliability.kind > NN_BEST_EFFORT_RELIABILITY_QOS);
+  m->is_reliable = (prd->c.xqos->reliability.kind > DDS_RELIABILITY_BEST_EFFORT);
   m->assumed_in_sync = (config.retransmit_merging == REXMIT_MERGE_ALWAYS);
   m->has_replied_to_hb = !m->is_reliable;
   m->all_have_replied_to_hb = 0;
@@ -1655,7 +1655,7 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
      historical data for best-effort data over the wire, so also not locally).
      FIXME: should limit ourselves to what it is available because of durability history,
      not writer history */
-  if (rd->xqos->reliability.kind > NN_BEST_EFFORT_RELIABILITY_QOS && rd->xqos->durability.kind > NN_VOLATILE_DURABILITY_QOS)
+  if (rd->xqos->reliability.kind > DDS_RELIABILITY_BEST_EFFORT && rd->xqos->durability.kind > DDS_DURABILITY_VOLATILE)
   {
     struct whc_sample_iter it;
     struct whc_borrowed_sample sample;
@@ -2021,7 +2021,7 @@ static nn_entityid_t builtin_entityid_match (nn_entityid_t x)
   return res;
 }
 
-static void writer_qos_mismatch (struct writer * wr, uint32_t reason)
+static void writer_qos_mismatch (struct writer * wr, dds_qos_policy_id_t reason)
 {
   /* When the reason is DDS_INVALID_QOS_POLICY_ID, it means that we compared
    * readers/writers from different topics: ignore that. */
@@ -2041,7 +2041,7 @@ static void writer_qos_mismatch (struct writer * wr, uint32_t reason)
   }
 }
 
-static void reader_qos_mismatch (struct reader * rd, uint32_t reason)
+static void reader_qos_mismatch (struct reader * rd, dds_qos_policy_id_t reason)
 {
   /* When the reason is DDS_INVALID_QOS_POLICY_ID, it means that we compared
    * readers/writers from different topics: ignore that. */
@@ -2066,15 +2066,15 @@ static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_re
 {
   const int isb0 = (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
   const int isb1 = (is_builtin_entityid (prd->e.guid.entityid, prd->c.vendor) != 0);
-  int32_t reason;
+  dds_qos_policy_id_t reason;
   DDSRT_UNUSED_ARG(tnow);
   if (isb0 != isb1)
     return;
   if (wr->e.onlylocal)
     return;
-  if (!isb0 && (reason = qos_match_p (prd->c.xqos, wr->xqos)) >= 0)
+  if (!isb0 && !qos_match_p (prd->c.xqos, wr->xqos, &reason))
   {
-    writer_qos_mismatch (wr, (uint32_t)reason);
+    writer_qos_mismatch (wr, reason);
     return;
   }
   proxy_reader_add_connection (prd, wr);
@@ -2085,41 +2085,41 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
 {
   const int isb0 = (is_builtin_entityid (pwr->e.guid.entityid, pwr->c.vendor) != 0);
   const int isb1 = (is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
-  int32_t reason;
+  dds_qos_policy_id_t reason;
   nn_count_t init_count;
   if (isb0 != isb1)
     return;
   if (rd->e.onlylocal)
     return;
-  if (!isb0 && (reason = qos_match_p (rd->xqos, pwr->c.xqos)) >= 0)
+  if (!isb0 && !qos_match_p (rd->xqos, pwr->c.xqos, &reason))
   {
-    reader_qos_mismatch (rd, (uint32_t)reason);
+    reader_qos_mismatch (rd, reason);
     return;
   }
   reader_add_connection (rd, pwr, &init_count);
   proxy_writer_add_connection (pwr, rd, tnow, init_count);
 }
 
-static bool ignore_local_p (const nn_guid_t *guid1, const nn_guid_t *guid2, const struct nn_xqos *xqos1, const struct nn_xqos *xqos2)
+static bool ignore_local_p (const nn_guid_t *guid1, const nn_guid_t *guid2, const struct dds_qos *xqos1, const struct dds_qos *xqos2)
 {
   assert (xqos1->present & QP_CYCLONE_IGNORELOCAL);
   assert (xqos2->present & QP_CYCLONE_IGNORELOCAL);
   switch (xqos1->ignorelocal.value)
   {
-    case NN_NONE_IGNORELOCAL_QOS:
+    case DDS_IGNORELOCAL_NONE:
       break;
-    case NN_PARTICIPANT_IGNORELOCAL_QOS:
+    case DDS_IGNORELOCAL_PARTICIPANT:
       return memcmp (&guid1->prefix, &guid2->prefix, sizeof (guid1->prefix)) == 0;
-    case NN_PROCESS_IGNORELOCAL_QOS:
+    case DDS_IGNORELOCAL_PROCESS:
       return true;
   }
   switch (xqos2->ignorelocal.value)
   {
-    case NN_NONE_IGNORELOCAL_QOS:
+    case DDS_IGNORELOCAL_NONE:
       break;
-    case NN_PARTICIPANT_IGNORELOCAL_QOS:
+    case DDS_IGNORELOCAL_PARTICIPANT:
       return memcmp (&guid1->prefix, &guid2->prefix, sizeof (guid1->prefix)) == 0;
-    case NN_PROCESS_IGNORELOCAL_QOS:
+    case DDS_IGNORELOCAL_PROCESS:
       return true;
   }
   return false;
@@ -2127,16 +2127,16 @@ static bool ignore_local_p (const nn_guid_t *guid1, const nn_guid_t *guid2, cons
 
 static void connect_writer_with_reader (struct writer *wr, struct reader *rd, nn_mtime_t tnow)
 {
-  int32_t reason;
+  dds_qos_policy_id_t reason;
   (void)tnow;
   if (!is_local_orphan_endpoint (&wr->e) && (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) || is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE)))
     return;
   if (ignore_local_p (&wr->e.guid, &rd->e.guid, wr->xqos, rd->xqos))
     return;
-  if ((reason = qos_match_p (rd->xqos, wr->xqos)) >= 0)
+  if (!qos_match_p (rd->xqos, wr->xqos, &reason))
   {
-    writer_qos_mismatch (wr, (uint32_t)reason);
-    reader_qos_mismatch (rd, (uint32_t)reason);
+    writer_qos_mismatch (wr, reason);
+    reader_qos_mismatch (rd, reason);
     return;
   }
   reader_add_local_connection (rd, wr);
@@ -2402,7 +2402,7 @@ static void match_proxy_reader_with_writers (struct proxy_reader *prd, nn_mtime_
 
 /* ENDPOINT --------------------------------------------------------- */
 
-static void new_reader_writer_common (const struct nn_guid *guid, const struct ddsi_sertopic * topic, const struct nn_xqos *xqos)
+static void new_reader_writer_common (const struct nn_guid *guid, const struct ddsi_sertopic * topic, const struct dds_qos *xqos)
 {
   const char *partition = "(default)";
   const char *partition_suffix = "";
@@ -2452,7 +2452,7 @@ static void endpoint_common_fini (struct entity_common *e, struct endpoint_commo
   entity_common_fini (e);
 }
 
-static int set_topic_type_name (nn_xqos_t *xqos, const struct ddsi_sertopic * topic)
+static int set_topic_type_name (dds_qos_t *xqos, const struct ddsi_sertopic * topic)
 {
   if (!(xqos->present & QP_TYPE_NAME) && topic)
   {
@@ -2655,7 +2655,7 @@ unsigned remove_acked_messages (struct writer *wr, struct whc_state *whcst, stru
   return n;
 }
 
-static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc *whc, status_cb_t status_cb, void * status_entity)
+static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc, status_cb_t status_cb, void * status_entity)
 {
   ddsrt_cond_init (&wr->throttle_cond);
   wr->seq = 0;
@@ -2693,14 +2693,14 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   DDS_LOG(DDS_LC_DISCOVERY, "}\n");
 
   assert (wr->xqos->present & QP_RELIABILITY);
-  wr->reliable = (wr->xqos->reliability.kind != NN_BEST_EFFORT_RELIABILITY_QOS);
+  wr->reliable = (wr->xqos->reliability.kind != DDS_RELIABILITY_BEST_EFFORT);
   assert (wr->xqos->present & QP_DURABILITY);
   if (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE))
   {
-    assert (wr->xqos->history.kind == NN_KEEP_LAST_HISTORY_QOS);
-    assert (wr->xqos->durability.kind == NN_TRANSIENT_LOCAL_DURABILITY_QOS);
+    assert (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST);
+    assert (wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
   }
-  wr->handle_as_transient_local = (wr->xqos->durability.kind == NN_TRANSIENT_LOCAL_DURABILITY_QOS);
+  wr->handle_as_transient_local = (wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
   wr->include_keyhash =
     config.generate_keyhash &&
     ((wr->e.guid.entityid.u & NN_ENTITYID_KIND_MASK) == NN_ENTITYID_KIND_WRITER_WITH_KEY);
@@ -2790,15 +2790,14 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
     wr->heartbeat_xevent = NULL;
   }
   assert (wr->xqos->present & QP_LIVELINESS);
-  if (wr->xqos->liveliness.kind != NN_AUTOMATIC_LIVELINESS_QOS ||
-      nn_from_ddsi_duration (wr->xqos->liveliness.lease_duration) != T_NEVER)
+  if (wr->xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC || wr->xqos->liveliness.lease_duration != T_NEVER)
   {
-    DDS_LOG(DDS_LC_DISCOVERY, "writer "PGUIDFMT": incorrectly treating it as of automatic liveliness kind with lease duration = inf (%d, %"PRId64")\n", PGUID (wr->e.guid), (int) wr->xqos->liveliness.kind, nn_from_ddsi_duration (wr->xqos->liveliness.lease_duration));
+    DDS_LOG(DDS_LC_DISCOVERY, "writer "PGUIDFMT": incorrectly treating it as of automatic liveliness kind with lease duration = inf (%d, %"PRId64")\n", PGUID (wr->e.guid), (int) wr->xqos->liveliness.kind, wr->xqos->liveliness.lease_duration);
   }
   wr->lease_duration = T_NEVER; /* FIXME */
 
   wr->whc = whc;
-  if (wr->xqos->history.kind == NN_KEEP_LAST_HISTORY_QOS)
+  if (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST)
   {
     /* hdepth > 0 => "aggressive keep last", and in that case: why
        bother blocking for a slow receiver when the entire point of
@@ -2820,7 +2819,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   local_reader_ary_init (&wr->rdary);
 }
 
-static dds_return_t new_writer_guid (struct writer **wr_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc *whc, status_cb_t status_cb, void *status_entity)
+static dds_return_t new_writer_guid (struct writer **wr_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc, status_cb_t status_cb, void *status_entity)
 {
   struct writer *wr;
   nn_mtime_t tnow = now_mt ();
@@ -2870,7 +2869,7 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct nn_gui
   return 0;
 }
 
-dds_return_t new_writer (struct writer **wr_out, struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg)
+dds_return_t new_writer (struct writer **wr_out, struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg)
 {
   struct participant *pp;
   dds_return_t rc;
@@ -2889,7 +2888,7 @@ dds_return_t new_writer (struct writer **wr_out, struct nn_guid *wrguid, const s
   return new_writer_guid (wr_out, wrguid, group_guid, pp, topic, xqos, whc, status_cb, status_cb_arg);
 }
 
-struct local_orphan_writer *new_local_orphan_writer (nn_entityid_t entityid, struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc *whc)
+struct local_orphan_writer *new_local_orphan_writer (nn_entityid_t entityid, struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc)
 {
   nn_guid_t guid;
   struct local_orphan_writer *lowr;
@@ -3203,7 +3202,7 @@ static dds_return_t new_reader_guid
   const struct nn_guid *group_guid,
   struct participant *pp,
   const struct ddsi_sertopic *topic,
-  const struct nn_xqos *xqos,
+  const struct dds_qos *xqos,
   struct rhc *rhc,
   status_cb_t status_cb,
   void * status_entity
@@ -3239,9 +3238,9 @@ static dds_return_t new_reader_guid
     DDS_LOG(DDS_LC_DISCOVERY, "}\n");
   }
   assert (rd->xqos->present & QP_RELIABILITY);
-  rd->reliable = (rd->xqos->reliability.kind != NN_BEST_EFFORT_RELIABILITY_QOS);
+  rd->reliable = (rd->xqos->reliability.kind != DDS_RELIABILITY_BEST_EFFORT);
   assert (rd->xqos->present & QP_DURABILITY);
-  rd->handle_as_transient_local = (rd->xqos->durability.kind == NN_TRANSIENT_LOCAL_DURABILITY_QOS);
+  rd->handle_as_transient_local = (rd->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
   rd->topic = ddsi_sertopic_ref (topic);
   rd->ddsi2direct_cb = 0;
   rd->ddsi2direct_cbarg = 0;
@@ -3262,10 +3261,9 @@ static dds_return_t new_reader_guid
     (ddsi_plugin.rhc_plugin.rhc_set_qos_fn) (rd->rhc, rd->xqos);
   }
   assert (rd->xqos->present & QP_LIVELINESS);
-  if (rd->xqos->liveliness.kind != NN_AUTOMATIC_LIVELINESS_QOS ||
-      nn_from_ddsi_duration (rd->xqos->liveliness.lease_duration) != T_NEVER)
+  if (rd->xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC || rd->xqos->liveliness.lease_duration != T_NEVER)
   {
-    DDS_LOG(DDS_LC_DISCOVERY, "reader "PGUIDFMT": incorrectly treating it as of automatic liveliness kind with lease duration = inf (%d, %"PRId64")\n", PGUID (rd->e.guid), (int) rd->xqos->liveliness.kind, nn_from_ddsi_duration (rd->xqos->liveliness.lease_duration));
+    DDS_LOG(DDS_LC_DISCOVERY, "reader "PGUIDFMT": incorrectly treating it as of automatic liveliness kind with lease duration = inf (%d, %"PRId64")\n", PGUID (rd->e.guid), (int) rd->xqos->liveliness.kind, rd->xqos->liveliness.lease_duration);
   }
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -3342,7 +3340,7 @@ dds_return_t new_reader
   const struct nn_guid *group_guid,
   const struct nn_guid *ppguid,
   const struct ddsi_sertopic *topic,
-  const struct nn_xqos *xqos,
+  const struct dds_qos *xqos,
   struct rhc * rhc,
   status_cb_t status_cb,
   void * status_cbarg
@@ -3947,7 +3945,7 @@ uint64_t participant_instance_id (const struct nn_guid *guid)
 
 /* PROXY-GROUP --------------------------------------------------- */
 
-int new_proxy_group (const struct nn_guid *guid, const char *name, const struct nn_xqos *xqos, nn_wctime_t timestamp)
+int new_proxy_group (const struct nn_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp)
 {
   struct proxy_participant *proxypp;
   nn_guid_t ppguid;
@@ -4121,7 +4119,7 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
     /* The DDSI built-in proxy writers always deliver
        asynchronously */
     pwr->deliver_synchronously = 0;
-  } else if (nn_from_ddsi_duration (pwr->c.xqos->latency_budget.duration) <= config.synchronous_delivery_latency_bound &&
+  } else if (pwr->c.xqos->latency_budget.duration <= config.synchronous_delivery_latency_bound &&
              pwr->c.xqos->transport_priority.value >= config.synchronous_delivery_priority_threshold) {
     /* Regular proxy-writers with a sufficiently low latency_budget
        and a sufficiently high transport_priority deliver
@@ -4131,7 +4129,7 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
     pwr->deliver_synchronously = 0;
   }
   /* Pretend we have seen a heartbeat if the proxy writer is a best-effort one */
-  isreliable = (pwr->c.xqos->reliability.kind != NN_BEST_EFFORT_RELIABILITY_QOS);
+  isreliable = (pwr->c.xqos->reliability.kind != DDS_RELIABILITY_BEST_EFFORT);
   pwr->have_seen_heartbeat = !isreliable;
   pwr->local_matching_inprogress = 1;
 #ifdef DDSI_INCLUDE_SSM
@@ -4144,7 +4142,7 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
     (unsigned) !!config.arrival_of_data_asserts_pp_and_ep_liveliness;
 
   assert (pwr->c.xqos->present & QP_LIVELINESS);
-  if (pwr->c.xqos->liveliness.kind != NN_AUTOMATIC_LIVELINESS_QOS)
+  if (pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC)
     DDS_LOG(DDS_LC_DISCOVERY, " FIXME: only AUTOMATIC liveliness supported");
 #if 0
   pwr->tlease_dur = nn_from_ddsi_duration (pwr->c.xqos->liveliness.lease_duration);

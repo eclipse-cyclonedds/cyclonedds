@@ -96,7 +96,7 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
     struct reader ** const rdary = wr->rdary.rdary;
     if (rdary[0])
     {
-      dds_duration_t max_block_ms = nn_from_ddsi_duration (wr->xqos->reliability.max_blocking_time);
+      dds_duration_t max_block_ms = wr->xqos->reliability.max_blocking_time;
       struct proxy_writer_info pwr_info;
       unsigned i;
       make_proxy_writer_info (&pwr_info, &wr->e, wr->xqos);
@@ -121,7 +121,7 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
     ddsrt_avl_iter_t it;
     struct pwr_rd_match *m;
     struct proxy_writer_info pwr_info;
-    dds_duration_t max_block_ms = nn_from_ddsi_duration (wr->xqos->reliability.max_blocking_time);
+    dds_duration_t max_block_ms = wr->xqos->reliability.max_blocking_time;
     ddsrt_mutex_unlock (&wr->rdary.rdary_lock);
     make_proxy_writer_info (&pwr_info, &wr->e, wr->xqos);
     ddsrt_mutex_lock (&wr->e.lock);

@@ -162,7 +162,7 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
   ddsrt_mutex_unlock (&entity->m_observers_lock);
 }
 
-static uint32_t get_bandwidth_limit (nn_transport_priority_qospolicy_t transport_priority)
+static uint32_t get_bandwidth_limit (dds_transport_priority_qospolicy_t transport_priority)
 {
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   struct config_channel_listelem *channel = find_channel (transport_priority);
@@ -214,7 +214,7 @@ static dds_return_t dds_writer_qos_validate (const dds_qos_t *qos, bool enabled)
     return DDS_RETCODE_INCONSISTENT_POLICY;
   if ((qos->present & QP_DURABILITY_SERVICE) && validate_durability_service_qospolicy (&qos->durability_service) < 0)
     return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_LIFESPAN) && validate_duration (&qos->lifespan.duration) < 0)
+  if ((qos->present & QP_LIFESPAN) && validate_duration (qos->lifespan.duration) < 0)
     return DDS_RETCODE_INCONSISTENT_POLICY;
   if ((qos->present & QP_HISTORY) && (qos->present & QP_RESOURCE_LIMITS) && validate_history_and_resource_limits(&qos->history, &qos->resource_limits) < 0)
     return DDS_RETCODE_INCONSISTENT_POLICY;
@@ -264,8 +264,8 @@ static struct whc *make_whc (const dds_qos_t *qos)
   /* Construct WHC -- if aggressive_keep_last1 is set, the WHC will
      drop all samples for which a later update is available.  This
      forces it to maintain a tlidx.  */
-  handle_as_transient_local = (qos->durability.kind == NN_TRANSIENT_LOCAL_DURABILITY_QOS);
-  if (qos->history.kind == NN_KEEP_ALL_HISTORY_QOS)
+  handle_as_transient_local = (qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
+  if (qos->history.kind == DDS_HISTORY_KEEP_ALL)
     hdepth = 0;
   else
     hdepth = (unsigned) qos->history.depth;
@@ -273,7 +273,7 @@ static struct whc *make_whc (const dds_qos_t *qos)
     tldepth = 0;
   else
   {
-    if (qos->durability_service.history.kind == NN_KEEP_ALL_HISTORY_QOS)
+    if (qos->durability_service.history.kind == DDS_HISTORY_KEEP_ALL)
       tldepth = 0;
     else
       tldepth = (unsigned) qos->durability_service.history.depth;

@@ -188,7 +188,7 @@ static dds_return_t dds_topic_qos_validate (const dds_qos_t *qos, bool enabled)
     return DDS_RETCODE_INCONSISTENT_POLICY;
   if ((qos->present & QP_DURABILITY_SERVICE) && validate_durability_service_qospolicy(&qos->durability_service) < 0)
     return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_LIFESPAN) && validate_duration(&qos->lifespan.duration) < 0)
+  if ((qos->present & QP_LIFESPAN) && validate_duration(qos->lifespan.duration) < 0)
     return DDS_RETCODE_INCONSISTENT_POLICY;
   if ((qos->present & QP_HISTORY) && (qos->present & QP_RESOURCE_LIMITS) && validate_history_and_resource_limits(&qos->history, &qos->resource_limits) < 0)
     return  DDS_RETCODE_INCONSISTENT_POLICY;

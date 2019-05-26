@@ -137,7 +137,7 @@ typedef struct nn_plist {
   uint64_t aliased;
   int unalias_needs_bswap;
 
-  nn_xqos_t qos;
+  dds_qos_t qos;
 
   nn_protocol_version_t protocol_version;
   nn_vendorid_t vendorid;
@@ -151,7 +151,7 @@ typedef struct nn_plist {
   unsigned char expects_inline_qos;
   nn_count_t participant_manual_liveliness_count;
   unsigned participant_builtin_endpoints;
-  nn_duration_t participant_lease_duration;
+  dds_duration_t participant_lease_duration;
   /* nn_content_filter_property_t content_filter_property; */
   nn_guid_t participant_guid;
   nn_guid_t endpoint_guid;
@@ -245,20 +245,19 @@ DDS_EXPORT void nn_plist_fini (nn_plist_t *ps);
 DDS_EXPORT void nn_plist_addtomsg (struct nn_xmsg *m, const nn_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
 DDS_EXPORT void nn_plist_init_default_participant (nn_plist_t *plist);
 
-DDS_EXPORT dds_return_t validate_history_qospolicy (const nn_history_qospolicy_t *q);
-DDS_EXPORT dds_return_t validate_durability_qospolicy (const nn_durability_qospolicy_t *q);
-DDS_EXPORT dds_return_t validate_resource_limits_qospolicy (const nn_resource_limits_qospolicy_t *q);
-DDS_EXPORT dds_return_t validate_history_and_resource_limits (const nn_history_qospolicy_t *qh, const nn_resource_limits_qospolicy_t *qr);
-DDS_EXPORT dds_return_t validate_durability_service_qospolicy (const nn_durability_service_qospolicy_t *q);
-DDS_EXPORT dds_return_t validate_liveliness_qospolicy (const nn_liveliness_qospolicy_t *q);
-DDS_EXPORT dds_return_t validate_destination_order_qospolicy (const nn_destination_order_qospolicy_t *q);
-DDS_EXPORT dds_return_t validate_ownership_qospolicy (const nn_ownership_qospolicy_t *q);
-DDS_EXPORT dds_return_t validate_ownership_strength_qospolicy (const nn_ownership_strength_qospolicy_t *q);
-DDS_EXPORT dds_return_t validate_presentation_qospolicy (const nn_presentation_qospolicy_t *q);
-DDS_EXPORT dds_return_t validate_transport_priority_qospolicy (const nn_transport_priority_qospolicy_t *q);
-DDS_EXPORT dds_return_t validate_reader_data_lifecycle (const nn_reader_data_lifecycle_qospolicy_t *q);
-DDS_EXPORT dds_return_t validate_duration (const nn_duration_t *d);
-
+DDS_EXPORT dds_return_t validate_history_qospolicy (const dds_history_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_durability_qospolicy (const dds_durability_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_resource_limits_qospolicy (const dds_resource_limits_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_history_and_resource_limits (const dds_history_qospolicy_t *qh, const dds_resource_limits_qospolicy_t *qr);
+DDS_EXPORT dds_return_t validate_durability_service_qospolicy (const dds_durability_service_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_liveliness_qospolicy (const dds_liveliness_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_destination_order_qospolicy (const dds_destination_order_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_ownership_qospolicy (const dds_ownership_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_ownership_strength_qospolicy (const dds_ownership_strength_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_presentation_qospolicy (const dds_presentation_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_transport_priority_qospolicy (const dds_transport_priority_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_reader_data_lifecycle (const dds_reader_data_lifecycle_qospolicy_t *q);
+DDS_EXPORT dds_return_t validate_duration (const dds_duration_t d);
 
 struct nn_rmsg;
 struct nn_rsample_info;

@@ -140,7 +140,7 @@ static uint64_t store (struct rhc *rhc, struct proxy_writer *wr, struct ddsi_ser
 static struct proxy_writer *mkwr (bool auto_dispose)
 {
   struct proxy_writer *pwr;
-  struct nn_xqos *xqos;
+  struct dds_qos *xqos;
   uint64_t wr_iid;
   pwr = ddsrt_malloc (sizeof (*pwr));
   xqos = ddsrt_malloc (sizeof (*xqos));
@@ -161,10 +161,10 @@ static void fwr (struct proxy_writer *wr)
   free (wr);
 }
 
-static struct rhc *mkrhc (dds_reader *rd, nn_history_kind_t hk, int32_t hdepth, nn_destination_order_kind_t dok)
+static struct rhc *mkrhc (dds_reader *rd, dds_history_kind_t hk, int32_t hdepth, dds_destination_order_kind_t dok)
 {
   struct rhc *rhc;
-  nn_xqos_t rqos;
+  dds_qos_t rqos;
   nn_xqos_init_empty (&rqos);
   rqos.present |= QP_HISTORY | QP_DESTINATION_ORDER;
   rqos.history.kind = hk;
@@ -848,7 +848,7 @@ int main (int argc, char **argv)
   {
     if (print)
       printf ("************* 0 *************\n");
-    struct rhc *rhc = mkrhc (NULL, NN_KEEP_LAST_HISTORY_QOS, 1, NN_BY_SOURCE_TIMESTAMP_DESTINATIONORDER_QOS);
+    struct rhc *rhc = mkrhc (NULL, DDS_HISTORY_KEEP_LAST, 1, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
     struct proxy_writer *wr0 = mkwr (1);
     uint64_t iid0, iid1, iid_t;
     iid0 = store (rhc, wr0, mksample (0, 0), print);
@@ -894,7 +894,7 @@ int main (int argc, char **argv)
   {
     if (print)
       printf ("************* 1 *************\n");
-    struct rhc *rhc = mkrhc (NULL, NN_KEEP_LAST_HISTORY_QOS, 4, NN_BY_SOURCE_TIMESTAMP_DESTINATIONORDER_QOS);
+    struct rhc *rhc = mkrhc (NULL, DDS_HISTORY_KEEP_LAST, 4, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
     struct proxy_writer *wr[] = { mkwr (0), mkwr (0), mkwr (0) };
     uint64_t iid0, iid_t;
     int nregs = 3, isreg[] = { 1, 1, 1 };

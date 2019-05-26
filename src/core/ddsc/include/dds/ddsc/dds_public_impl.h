@@ -39,8 +39,6 @@ typedef struct dds_sequence
 }
 dds_sequence_t;
 
-#define DDS_LENGTH_UNLIMITED -1
-
 typedef struct dds_key_descriptor
 {
   const char * m_name;

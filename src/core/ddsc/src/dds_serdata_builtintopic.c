@@ -186,7 +186,7 @@ static char *dds_string_dup_reuse (char *old, const char *src)
   return memcpy (new, src, size);
 }
 
-static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const nn_xqos_t *src)
+static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const dds_qos_t *src)
 {
   if (old == NULL)
   {

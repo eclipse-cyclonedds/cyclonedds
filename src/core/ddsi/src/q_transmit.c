@@ -424,7 +424,7 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
 #endif
 
   nn_xmsg_setdstN (*pmsg, wr->as, wr->as_group);
-  nn_xmsg_setmaxdelay (*pmsg, nn_from_ddsi_duration (wr->xqos->latency_budget.duration));
+  nn_xmsg_setmaxdelay (*pmsg, wr->xqos->latency_budget.duration);
   nn_xmsg_add_timestamp (*pmsg, serdata->timestamp);
   data = nn_xmsg_append (*pmsg, &sm_marker, sizeof (Data_t));
 
@@ -521,7 +521,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
   else
   {
     nn_xmsg_setdstN (*pmsg, wr->as, wr->as_group);
-    nn_xmsg_setmaxdelay (*pmsg, nn_from_ddsi_duration (wr->xqos->latency_budget.duration));
+    nn_xmsg_setmaxdelay (*pmsg, wr->xqos->latency_budget.duration);
   }
 
   /* Timestamp only needed once, for the first fragment */
@@ -938,7 +938,7 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
 
   dds_return_t result = DDS_RETCODE_OK;
   nn_mtime_t tnow = now_mt ();
-  const nn_mtime_t abstimeout = add_duration_to_mtime (tnow, nn_from_ddsi_duration (wr->xqos->reliability.max_blocking_time));
+  const nn_mtime_t abstimeout = add_duration_to_mtime (tnow, wr->xqos->reliability.max_blocking_time);
   struct whc_state whcst;
   whc_get_state (wr->whc, &whcst);
 
@@ -1024,7 +1024,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
   nn_mtime_t tnow;
 
   /* If GC not allowed, we must be sure to never block when writing.  That is only the case for (true, aggressive) KEEP_LAST writers, and also only if there is no limit to how much unacknowledged data the WHC may contain. */
-  assert(gc_allowed || (wr->xqos->history.kind == NN_KEEP_LAST_HISTORY_QOS && wr->whc_low == INT32_MAX));
+  assert(gc_allowed || (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST && wr->whc_low == INT32_MAX));
   (void)gc_allowed;
 
   if (ddsi_serdata_size (serdata) > config.max_sample_size)

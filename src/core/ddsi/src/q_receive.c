@@ -657,7 +657,7 @@ static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *exp_cou
   return 1;
 }
 
-static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const AckNack_t *msg, nn_ddsi_time_t timestamp)
+static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const AckNack_t *msg, nn_wctime_t timestamp)
 {
   struct proxy_reader *prd;
   struct wr_prd_match *rn;
@@ -757,11 +757,10 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
      work so well if the timestamp can be a left over from some other
      submessage -- but then, it is no more than a quick hack at the
      moment. */
-  if (config.meas_hb_to_ack_latency && valid_ddsi_timestamp (timestamp))
+  if (config.meas_hb_to_ack_latency && timestamp.v)
   {
     nn_wctime_t tstamp_now = now ();
-    nn_wctime_t tstamp_msg = nn_wctime_from_ddsi_time (timestamp);
-    nn_lat_estim_update (&rn->hb_to_ack_latency, tstamp_now.v - tstamp_msg.v);
+    nn_lat_estim_update (&rn->hb_to_ack_latency, tstamp_now.v - timestamp.v);
     if ((dds_get_log_mask() & DDS_LC_TRACE) && tstamp_now.v > rn->hb_to_ack_latency_tlastlog.v + 10 * T_SECOND)
     {
       nn_lat_estim_log (DDS_LC_TRACE, NULL, &rn->hb_to_ack_latency);
@@ -794,7 +793,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
 
   /* If this reader was marked as "non-responsive" in the past, it's now responding again,
      so update its status */
-  if (rn->seq == MAX_SEQ_NUMBER && prd->c.xqos->reliability.kind == NN_RELIABLE_RELIABILITY_QOS)
+  if (rn->seq == MAX_SEQ_NUMBER && prd->c.xqos->reliability.kind == DDS_RELIABILITY_RELIABLE)
   {
     seqno_t oldest_seq;
     oldest_seq = WHCST_ISEMPTY(&whcst) ? wr->seq : whcst.max_seq;
@@ -888,7 +887,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
      a future request'll fix it. */
   enqueued = 1;
   seq_xmit = READ_SEQ_XMIT(wr);
-  const bool gap_for_already_acked = vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == NN_VOLATILE_DURABILITY_QOS && seqbase <= rn->seq;
+  const bool gap_for_already_acked = vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE && seqbase <= rn->seq;
   const seqno_t min_seq_to_rexmit = gap_for_already_acked ? rn->seq + 1 : 0;
   for (i = 0; i < numbits && seqbase + i <= seq_xmit && enqueued; i++)
   {
@@ -1088,7 +1087,7 @@ struct handle_Heartbeat_helper_arg {
   struct receiver_state *rst;
   const Heartbeat_t *msg;
   struct proxy_writer *pwr;
-  nn_ddsi_time_t timestamp;
+  nn_wctime_t timestamp;
   nn_etime_t tnow;
   nn_mtime_t tnow_mt;
 };
@@ -1145,13 +1144,13 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
     }
     if (resched_xevent_if_earlier (wn->acknack_xevent, tsched))
     {
-      if (config.meas_hb_to_ack_latency && valid_ddsi_timestamp (arg->timestamp))
-        wn->hb_timestamp = nn_wctime_from_ddsi_time (arg->timestamp);
+      if (config.meas_hb_to_ack_latency && arg->timestamp.v)
+        wn->hb_timestamp = arg->timestamp;
     }
   }
 }
 
-static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct nn_rmsg *rmsg, const Heartbeat_t *msg, nn_ddsi_time_t timestamp)
+static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct nn_rmsg *rmsg, const Heartbeat_t *msg, nn_wctime_t timestamp)
 {
   /* We now cheat: and process the heartbeat for _all_ readers,
      always, regardless of the destination address in the Heartbeat
@@ -1567,22 +1566,19 @@ static int handle_InfoSRC (struct receiver_state *rst, const InfoSRC_t *msg)
   return 1;
 }
 
-static int handle_InfoTS (const InfoTS_t *msg, nn_ddsi_time_t *timestamp)
+static int handle_InfoTS (const InfoTS_t *msg, nn_wctime_t *timestamp)
 {
   DDS_TRACE("INFOTS(");
   if (msg->smhdr.flags & INFOTS_INVALIDATE_FLAG)
   {
-    *timestamp = invalid_ddsi_timestamp;
+    *timestamp = NN_WCTIME_INVALID;
     DDS_TRACE("invalidate");
   }
   else
   {
-    *timestamp = msg->time;
+    *timestamp = nn_wctime_from_ddsi_time (msg->time);
     if (dds_get_log_mask() & DDS_LC_TRACE)
-    {
-      nn_wctime_t t = nn_wctime_from_ddsi_time (* timestamp);
-      DDS_TRACE("%d.%09d", (int) (t.v / 1000000000), (int) (t.v % 1000000000));
-    }
+      DDS_TRACE("%d.%09d", (int) (timestamp->v / 1000000000), (int) (timestamp->v % 1000000000));
   }
   DDS_TRACE(")");
   return 1;
@@ -1974,8 +1970,8 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
      worry about it. */
   {
     nn_wctime_t tstamp;
-    if (valid_ddsi_timestamp (sampleinfo->timestamp))
-      tstamp = nn_wctime_from_ddsi_time (sampleinfo->timestamp);
+    if (sampleinfo->timestamp.v != NN_WCTIME_INVALID.v)
+      tstamp = sampleinfo->timestamp;
     else
       tstamp.v = 0;
     payload = extract_sample_from_data (sampleinfo, data_smhdr_flags, &qos, fragchain, statusinfo, tstamp, topic);
@@ -2663,7 +2659,7 @@ static int handle_submsg_sequence
   Header_t * hdr = (Header_t *) msg;
   struct receiver_state *rst;
   int rst_live, ts_for_latmeas;
-  nn_ddsi_time_t timestamp;
+  nn_wctime_t timestamp;
   size_t submsg_size = 0;
   unsigned char * end = msg + len;
   struct nn_dqueue *deferred_wakeup = NULL;
@@ -2693,7 +2689,7 @@ static int handle_submsg_sequence
   rst->srcloc = *srcloc;
   rst_live = 0;
   ts_for_latmeas = 0;
-  timestamp = invalid_ddsi_timestamp;
+  timestamp = NN_WCTIME_INVALID;
 
   assert (thread_is_asleep ());
   thread_state_awake (ts1);
@@ -2748,14 +2744,14 @@ static int handle_submsg_sequence
         state = "parse:acknack";
         if (!valid_AckNack (&sm->acknack, submsg_size, byteswap))
           goto malformed;
-        handle_AckNack (rst, tnowE, &sm->acknack, ts_for_latmeas ? timestamp : invalid_ddsi_timestamp);
+        handle_AckNack (rst, tnowE, &sm->acknack, ts_for_latmeas ? timestamp : NN_WCTIME_INVALID);
         ts_for_latmeas = 0;
         break;
       case SMID_HEARTBEAT:
         state = "parse:heartbeat";
         if (!valid_Heartbeat (&sm->heartbeat, submsg_size, byteswap))
           goto malformed;
-        handle_Heartbeat (rst, tnowE, rmsg, &sm->heartbeat, ts_for_latmeas ? timestamp : invalid_ddsi_timestamp);
+        handle_Heartbeat (rst, tnowE, rmsg, &sm->heartbeat, ts_for_latmeas ? timestamp : NN_WCTIME_INVALID);
         ts_for_latmeas = 0;
         break;
       case SMID_GAP:

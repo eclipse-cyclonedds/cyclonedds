@@ -115,7 +115,7 @@ struct nn_rsample_info {
   struct proxy_writer *pwr;
   uint32_t size;
   uint32_t fragsize;
-  nn_ddsi_time_t timestamp;
+  nn_wctime_t timestamp;
   nn_wctime_t reception_timestamp; /* OpenSplice extension -- but we get it essentially for free, so why not? */
   unsigned statusinfo: 2;       /* just the two defined bits from the status info */
   unsigned pt_wr_info_zoff: 16; /* PrismTech writer info offset */

@@ -17,7 +17,7 @@ extern "C" {
 #endif
 
 struct rhc;
-struct nn_xqos;
+struct dds_qos;
 struct ddsi_tkmap_instance;
 struct ddsi_serdata;
 struct ddsi_sertopic;
@@ -41,10 +41,10 @@ struct ddsi_rhc_plugin
   (struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info);
   void (*rhc_relinquish_ownership_fn)
   (struct rhc * __restrict rhc, const uint64_t wr_iid);
-  void (*rhc_set_qos_fn) (struct rhc * rhc, const struct nn_xqos * qos);
+  void (*rhc_set_qos_fn) (struct rhc * rhc, const struct dds_qos * qos);
 };
 
-DDS_EXPORT void make_proxy_writer_info(struct proxy_writer_info *pwr_info, const struct entity_common *e, const struct nn_xqos *xqos);
+DDS_EXPORT void make_proxy_writer_info(struct proxy_writer_info *pwr_info, const struct entity_common *e, const struct dds_qos *xqos);
 
 #if defined (__cplusplus)
 }

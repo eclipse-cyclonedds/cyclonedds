@@ -38,7 +38,7 @@ struct nn_rdata;
 struct addrset;
 struct ddsi_sertopic;
 struct whc;
-struct nn_xqos;
+struct dds_qos;
 struct nn_plist;
 struct lease;
 
@@ -228,7 +228,7 @@ struct writer
   nn_count_t hbfragcount; /* last hb frag seq number */
   int throttling; /* non-zero when some thread is waiting for the WHC to shrink */
   struct hbcontrol hbcontrol; /* controls heartbeat timing, piggybacking */
-  struct nn_xqos *xqos;
+  struct dds_qos *xqos;
   enum writer_state state;
   unsigned reliable: 1; /* iff 1, writer is reliable <=> heartbeat_xevent != NULL */
   unsigned handle_as_transient_local: 1; /* controls whether data is retained in WHC */
@@ -270,7 +270,7 @@ struct reader
   status_cb_t status_cb;
   void * status_cb_entity;
   struct rhc * rhc; /* reader history, tracks registrations and data */
-  struct nn_xqos *xqos;
+  struct dds_qos *xqos;
   unsigned reliable: 1; /* 1 iff reader is reliable */
   unsigned handle_as_transient_local: 1; /* 1 iff reader wants historical data from proxy writers */
 #ifdef DDSI_INCLUDE_SSM
@@ -323,7 +323,7 @@ struct proxy_group {
   nn_guid_t guid;
   char *name;
   struct proxy_participant *proxypp; /* uncounted backref to proxy participant */
-  struct nn_xqos *xqos; /* publisher/subscriber QoS */
+  struct dds_qos *xqos; /* publisher/subscriber QoS */
 };
 
 struct proxy_endpoint_common
@@ -331,7 +331,7 @@ struct proxy_endpoint_common
   struct proxy_participant *proxypp; /* counted backref to proxy participant */
   struct proxy_endpoint_common *next_ep; /* next \ endpoint belonging to this proxy participant */
   struct proxy_endpoint_common *prev_ep; /* prev / -- this is in arbitrary ordering */
-  struct nn_xqos *xqos; /* proxy endpoint QoS lives here; FIXME: local ones should have it moved to common as well */
+  struct dds_qos *xqos; /* proxy endpoint QoS lives here; FIXME: local ones should have it moved to common as well */
   struct ddsi_sertopic * topic; /* topic may be NULL: for built-ins, but also for never-yet matched proxies (so we don't have to know the topic; when we match, we certainly do know) */
   struct addrset *as; /* address set to use for communicating with this endpoint */
   nn_guid_t group_guid; /* 0:0:0:0 if not available */
@@ -539,9 +539,9 @@ struct writer *get_builtin_writer (const struct participant *pp, unsigned entity
    GUID "ppguid". May return NULL if participant unknown or
    writer/reader already known. */
 
-dds_return_t new_writer (struct writer **wr_out, struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg);
+dds_return_t new_writer (struct writer **wr_out, struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg);
 
-dds_return_t new_reader (struct reader **rd_out, struct nn_guid *rdguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct rhc * rhc, status_cb_t status_cb, void *status_cb_arg);
+dds_return_t new_reader (struct reader **rd_out, struct nn_guid *rdguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct rhc * rhc, status_cb_t status_cb, void *status_cb_arg);
 
 struct whc_node;
 struct whc_state;
@@ -561,7 +561,7 @@ uint64_t reader_instance_id (const struct nn_guid *guid);
 struct local_orphan_writer {
   struct writer wr;
 };
-struct local_orphan_writer *new_local_orphan_writer (nn_entityid_t entityid, struct ddsi_sertopic *topic, const struct nn_xqos *xqos, struct whc *whc);
+struct local_orphan_writer *new_local_orphan_writer (nn_entityid_t entityid, struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc);
 void delete_local_orphan_writer (struct local_orphan_writer *wr);
 
 /* To create or delete a new proxy participant: "guid" MUST have the
@@ -623,7 +623,7 @@ int delete_proxy_reader (const struct nn_guid *guid, nn_wctime_t timestamp, int 
 void update_proxy_reader (struct proxy_reader * prd, struct addrset *as);
 void update_proxy_writer (struct proxy_writer * pwr, struct addrset *as);
 
-int new_proxy_group (const struct nn_guid *guid, const char *name, const struct nn_xqos *xqos, nn_wctime_t timestamp);
+int new_proxy_group (const struct nn_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp);
 void delete_proxy_group (const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit);
 
 uint64_t writer_instance_id (const struct nn_guid *guid);

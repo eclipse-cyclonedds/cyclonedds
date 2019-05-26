@@ -131,12 +131,12 @@ static int make_uc_sockets (uint32_t * pdisc, uint32_t * pdata, int ppid)
   return gv.data_conn_uc ? 0 : -1;
 }
 
-static void make_builtin_endpoint_xqos (nn_xqos_t *q, const nn_xqos_t *template)
+static void make_builtin_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
 {
   nn_xqos_copy (q, template);
-  q->reliability.kind = NN_RELIABLE_RELIABILITY_QOS;
-  q->reliability.max_blocking_time = nn_to_ddsi_duration (100 * T_MILLISECOND);
-  q->durability.kind = NN_TRANSIENT_LOCAL_DURABILITY_QOS;
+  q->reliability.kind = DDS_RELIABILITY_RELIABLE;
+  q->reliability.max_blocking_time = 100 * T_MILLISECOND;
+  q->durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
 }
 
 static int set_recvips (void)
@@ -1006,7 +1006,7 @@ int rtps_init (void)
   nn_xqos_init_default_subscriber (&gv.default_xqos_sub);
   nn_xqos_init_default_publisher (&gv.default_xqos_pub);
   nn_xqos_copy (&gv.spdp_endpoint_xqos, &gv.default_xqos_rd);
-  gv.spdp_endpoint_xqos.durability.kind = NN_TRANSIENT_LOCAL_DURABILITY_QOS;
+  gv.spdp_endpoint_xqos.durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
   make_builtin_endpoint_xqos (&gv.builtin_endpoint_xqos_rd, &gv.default_xqos_rd);
   make_builtin_endpoint_xqos (&gv.builtin_endpoint_xqos_wr, &gv.default_xqos_wr);
 
