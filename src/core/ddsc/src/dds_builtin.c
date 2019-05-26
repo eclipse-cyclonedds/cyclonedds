@@ -128,7 +128,7 @@ bool dds__validate_builtin_reader_qos (dds_entity_t topic, const dds_qos_t *qos)
       assert (0);
       return false;
     }
-    return qos_match_p (qos, bwr->wr.xqos) && !qos_has_resource_limits (qos);
+    return !qos_match_p (qos, bwr->wr.xqos, NULL) && !qos_has_resource_limits (qos);
   }
 }
 

@@ -35,6 +35,11 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_misc.h" /* for vendor_is_... */
 
+/* I am tempted to change LENGTH_UNLIMITED to 0 in the API (with -1
+   supported for backwards compatibility) ... on the wire however
+   it must be -1 */
+DDSRT_STATIC_ASSERT(DDS_LENGTH_UNLIMITED == -1);
+
 /* These are internal to the parameter list processing. We never
    generate them, and we never want to do see them anywhere outside
    the actual parsing of an incoming parameter list. (There are
@@ -50,7 +55,7 @@
 #define PPTMP_METATRAFFIC_MULTICAST_PORT        (1 << 6)
 
 typedef struct nn_ipaddress_params_tmp {
-  unsigned present;
+  uint32_t present;
 
   nn_ipv4address_t multicast_ipaddress;
   nn_ipv4address_t default_unicast_ipaddress;
@@ -70,11 +75,11 @@ struct dd {
 };
 
 struct cdroctetseq {
-  unsigned len;
+  uint32_t len;
   unsigned char value[1];
 };
 
-static void log_octetseq (uint32_t cat, unsigned n, const unsigned char *xs);
+static void log_octetseq (uint32_t cat, uint32_t n, const unsigned char *xs);
 
 static size_t align4u (size_t x)
 {
@@ -124,15 +129,15 @@ static dds_return_t alias_string (const unsigned char **ptr, const struct dd *dd
 static void unalias_string (char **str, int bswap)
 {
   const char *alias = *str;
-  unsigned len;
+  uint32_t len;
   if (bswap == 0 || bswap == 1)
   {
-    const unsigned *plen = (const unsigned *) alias - 1;
+    const uint32_t *plen = (const uint32_t *) alias - 1;
     len = bswap ? bswap4u (*plen) : *plen;
   }
   else
   {
-    len = (unsigned) strlen (alias) + 1;
+    len = (uint32_t) strlen (alias) + 1;
   }
   *str = ddsrt_malloc (len);
   memcpy (*str, alias, len);
@@ -149,7 +154,7 @@ static dds_return_t validate_octetseq (const struct dd *dd, size_t *len)
   return 0;
 }
 
-static dds_return_t alias_octetseq (nn_octetseq_t *oseq, const struct dd *dd)
+static dds_return_t alias_octetseq (ddsi_octetseq_t *oseq, const struct dd *dd)
 {
   size_t len;
   dds_return_t rc;
@@ -165,7 +170,7 @@ static dds_return_t alias_octetseq (nn_octetseq_t *oseq, const struct dd *dd)
   }
 }
 
-static dds_return_t alias_blob (nn_octetseq_t *oseq, const struct dd *dd)
+static dds_return_t alias_blob (ddsi_octetseq_t *oseq, const struct dd *dd)
 {
   assert (dd->bufsz < UINT32_MAX);
   oseq->length = (uint32_t)dd->bufsz;
@@ -173,7 +178,7 @@ static dds_return_t alias_blob (nn_octetseq_t *oseq, const struct dd *dd)
   return 0;
 }
 
-static void unalias_octetseq (nn_octetseq_t *oseq, UNUSED_ARG (int bswap))
+static void unalias_octetseq (ddsi_octetseq_t *oseq, UNUSED_ARG (int bswap))
 {
   if (oseq->length != 0)
   {
@@ -234,7 +239,7 @@ static dds_return_t validate_stringseq (const struct dd *dd)
   return 0;
 }
 
-static dds_return_t alias_stringseq (nn_stringseq_t *strseq, const struct dd *dd)
+static dds_return_t alias_stringseq (ddsi_stringseq_t *strseq, const struct dd *dd)
 {
   /* Not truly an alias: it allocates an array of pointers that alias
      the individual null-terminated strings. Also: see
@@ -243,7 +248,7 @@ static dds_return_t alias_stringseq (nn_stringseq_t *strseq, const struct dd *dd
   const unsigned char *seqend = seq + dd->bufsz;
   struct dd dd1 = *dd;
   char **strs;
-  unsigned i;
+  uint32_t i;
   dds_return_t result;
   if (dd->bufsz < sizeof (int))
   {
@@ -295,18 +300,18 @@ static dds_return_t alias_stringseq (nn_stringseq_t *strseq, const struct dd *dd
   return result;
 }
 
-static void free_stringseq (nn_stringseq_t *strseq)
+static void free_stringseq (ddsi_stringseq_t *strseq)
 {
-  unsigned i;
+  uint32_t i;
   for (i = 0; i < strseq->n; i++)
     if (strseq->strs[i])
       ddsrt_free (strseq->strs[i]);
   ddsrt_free (strseq->strs);
 }
 
-static dds_return_t unalias_stringseq (nn_stringseq_t *strseq, int bswap)
+static dds_return_t unalias_stringseq (ddsi_stringseq_t *strseq, int bswap)
 {
-  unsigned i;
+  uint32_t i;
   char **strs;
   if (strseq->n != 0)
   {
@@ -322,9 +327,9 @@ static dds_return_t unalias_stringseq (nn_stringseq_t *strseq, int bswap)
   return 0;
 }
 
-static void duplicate_stringseq (nn_stringseq_t *dest, const nn_stringseq_t *src)
+static void duplicate_stringseq (ddsi_stringseq_t *dest, const ddsi_stringseq_t *src)
 {
-  unsigned i;
+  uint32_t i;
   dest->n = src->n;
 assert (dest->strs == NULL);
   if (dest->n == 0)
@@ -460,7 +465,7 @@ void nn_plist_unalias (nn_plist_t *ps)
 }
 #endif
 
-static dds_return_t do_octetseq (nn_octetseq_t *dst, uint64_t *present, uint64_t *aliased, uint64_t wanted, uint64_t fl, const struct dd *dd)
+static dds_return_t do_octetseq (ddsi_octetseq_t *dst, uint64_t *present, uint64_t *aliased, uint64_t wanted, uint64_t fl, const struct dd *dd)
 {
   dds_return_t res;
   size_t len;
@@ -474,7 +479,7 @@ static dds_return_t do_octetseq (nn_octetseq_t *dst, uint64_t *present, uint64_t
   return res;
 }
 
-static dds_return_t do_blob (nn_octetseq_t *dst, uint64_t *present, uint64_t *aliased, uint64_t wanted, uint64_t fl, const struct dd *dd)
+static dds_return_t do_blob (ddsi_octetseq_t *dst, uint64_t *present, uint64_t *aliased, uint64_t wanted, uint64_t fl, const struct dd *dd)
 {
   dds_return_t res;
   if (!(wanted & fl))
@@ -501,7 +506,7 @@ static dds_return_t do_string (char **dst, uint64_t *present, uint64_t *aliased,
   return res;
 }
 
-static dds_return_t do_stringseq (nn_stringseq_t *dst, uint64_t *present, uint64_t *aliased, uint64_t wanted, uint64_t fl, const struct dd *dd)
+static dds_return_t do_stringseq (ddsi_stringseq_t *dst, uint64_t *present, uint64_t *aliased, uint64_t wanted, uint64_t fl, const struct dd *dd)
 {
   dds_return_t res;
   if (!(wanted & fl))
@@ -514,13 +519,13 @@ static dds_return_t do_stringseq (nn_stringseq_t *dst, uint64_t *present, uint64
   return res;
 }
 
-static void bswap_time (nn_ddsi_time_t *t)
+static void bswap_time (ddsi_time_t *t)
 {
   t->seconds = bswap4 (t->seconds);
   t->fraction = bswap4u (t->fraction);
 }
 
-static dds_return_t validate_time (const nn_ddsi_time_t *t)
+static dds_return_t validate_time (const ddsi_time_t *t)
 {
   /* Accepted are zero, positive, infinite or invalid as defined in
      the DDS 2.1 spec, table 9.4. */
@@ -535,46 +540,53 @@ static dds_return_t validate_time (const nn_ddsi_time_t *t)
   }
 }
 
-static void bswap_duration (nn_duration_t *d)
+static void bswap_external_duration (ddsi_duration_t *d)
 {
   bswap_time (d);
 }
 
-dds_return_t validate_duration (const nn_duration_t *d)
+static dds_return_t validate_external_duration (const ddsi_duration_t *d)
 {
   return validate_time (d);
 }
 
-static dds_return_t do_duration (nn_duration_t *q, uint64_t *present, uint64_t fl, const struct dd *dd)
+dds_return_t validate_duration (const dds_duration_t d)
 {
+  return (d >= 0 && d <= DDS_INFINITY) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
+}
+
+static dds_return_t do_duration (dds_duration_t *q, uint64_t *present, uint64_t fl, const struct dd *dd)
+{
+  ddsi_duration_t extq;
   dds_return_t res;
-  if (dd->bufsz < sizeof (*q))
+  if (dd->bufsz < sizeof (extq))
   {
     DDS_TRACE("plist/do_duration: buffer too small\n");
     return DDS_RETCODE_BAD_PARAMETER;
   }
-  memcpy (q, dd->buf, sizeof (*q));
+  memcpy (&extq, dd->buf, sizeof (extq));
   if (dd->bswap)
-    bswap_duration (q);
-  if ((res = validate_duration (q)) < 0)
+    bswap_external_duration (&extq);
+  if ((res = validate_external_duration (&extq)) < 0)
     return res;
+  *q = nn_from_ddsi_duration (extq);
   *present |= fl;
   return 0;
 }
 
-static void bswap_durability_qospolicy (nn_durability_qospolicy_t *q)
+static void bswap_durability_qospolicy (dds_durability_qospolicy_t *q)
 {
   q->kind = bswap4u (q->kind);
 }
 
-dds_return_t validate_durability_qospolicy (const nn_durability_qospolicy_t *q)
+dds_return_t validate_durability_qospolicy (const dds_durability_qospolicy_t *q)
 {
   switch (q->kind)
   {
-    case NN_VOLATILE_DURABILITY_QOS:
-    case NN_TRANSIENT_LOCAL_DURABILITY_QOS:
-    case NN_TRANSIENT_DURABILITY_QOS:
-    case NN_PERSISTENT_DURABILITY_QOS:
+    case DDS_DURABILITY_VOLATILE:
+    case DDS_DURABILITY_TRANSIENT_LOCAL:
+    case DDS_DURABILITY_TRANSIENT:
+    case DDS_DURABILITY_PERSISTENT:
       break;
     default:
       DDS_TRACE("plist/validate_durability_qospolicy: invalid kind (%d)\n", (int) q->kind);
@@ -583,18 +595,18 @@ dds_return_t validate_durability_qospolicy (const nn_durability_qospolicy_t *q)
   return 0;
 }
 
-static void bswap_history_qospolicy (nn_history_qospolicy_t *q)
+static void bswap_history_qospolicy (dds_history_qospolicy_t *q)
 {
   q->kind = bswap4u (q->kind);
   q->depth = bswap4 (q->depth);
 }
 
-static int history_qospolicy_allzero (const nn_history_qospolicy_t *q)
+static int history_qospolicy_allzero (const dds_history_qospolicy_t *q)
 {
-  return q->kind == NN_KEEP_LAST_HISTORY_QOS && q->depth == 0;
+  return q->kind == DDS_HISTORY_KEEP_LAST && q->depth == 0;
 }
 
-dds_return_t validate_history_qospolicy (const nn_history_qospolicy_t *q)
+dds_return_t validate_history_qospolicy (const dds_history_qospolicy_t *q)
 {
   /* Validity of history setting and of resource limits are dependent,
      but we don't have access to the resource limits here ... the
@@ -605,15 +617,15 @@ dds_return_t validate_history_qospolicy (const nn_history_qospolicy_t *q)
      n possibly unlimited. */
   switch (q->kind)
   {
-    case NN_KEEP_LAST_HISTORY_QOS:
-    case NN_KEEP_ALL_HISTORY_QOS:
+    case DDS_HISTORY_KEEP_LAST:
+    case DDS_HISTORY_KEEP_ALL:
       break;
     default:
       DDS_TRACE("plist/validate_history_qospolicy: invalid kind (%d)\n", (int) q->kind);
       return DDS_RETCODE_BAD_PARAMETER;
   }
   /* Accept all values for depth if kind = ALL */
-  if (q->kind == NN_KEEP_LAST_HISTORY_QOS)
+  if (q->kind == DDS_HISTORY_KEEP_LAST)
   {
     if (q->depth < 1)
     {
@@ -624,21 +636,21 @@ dds_return_t validate_history_qospolicy (const nn_history_qospolicy_t *q)
   return 0;
 }
 
-static void bswap_resource_limits_qospolicy (nn_resource_limits_qospolicy_t *q)
+static void bswap_resource_limits_qospolicy (dds_resource_limits_qospolicy_t *q)
 {
   q->max_samples = bswap4 (q->max_samples);
   q->max_instances = bswap4 (q->max_instances);
   q->max_samples_per_instance = bswap4 (q->max_samples_per_instance);
 }
 
-static int resource_limits_qospolicy_allzero (const nn_resource_limits_qospolicy_t *q)
+static int resource_limits_qospolicy_allzero (const dds_resource_limits_qospolicy_t *q)
 {
   return q->max_samples == 0 && q->max_instances == 0 && q->max_samples_per_instance == 0;
 }
 
-dds_return_t validate_resource_limits_qospolicy (const nn_resource_limits_qospolicy_t *q)
+dds_return_t validate_resource_limits_qospolicy (const dds_resource_limits_qospolicy_t *q)
 {
-  const int unlimited = NN_DDS_LENGTH_UNLIMITED;
+  const int unlimited = DDS_LENGTH_UNLIMITED;
   /* Note: dependent on history setting as well (see
      validate_history_qospolicy). Verifying only the internal
      consistency of the resource limits. */
@@ -670,9 +682,9 @@ dds_return_t validate_resource_limits_qospolicy (const nn_resource_limits_qospol
   return 0;
 }
 
-dds_return_t validate_history_and_resource_limits (const nn_history_qospolicy_t *qh, const nn_resource_limits_qospolicy_t *qr)
+dds_return_t validate_history_and_resource_limits (const dds_history_qospolicy_t *qh, const dds_resource_limits_qospolicy_t *qr)
 {
-  const int unlimited = NN_DDS_LENGTH_UNLIMITED;
+  const int unlimited = DDS_LENGTH_UNLIMITED;
   dds_return_t res;
   if ((res = validate_history_qospolicy (qh)) < 0)
   {
@@ -686,7 +698,7 @@ dds_return_t validate_history_and_resource_limits (const nn_history_qospolicy_t 
   }
   switch (qh->kind)
   {
-    case NN_KEEP_ALL_HISTORY_QOS:
+    case DDS_HISTORY_KEEP_ALL:
 #if 0 /* See comment in validate_resource_limits, ref'ing 7.1.3.19 */
       if (qr->max_samples_per_instance != unlimited)
       {
@@ -695,7 +707,7 @@ dds_return_t validate_history_and_resource_limits (const nn_history_qospolicy_t 
       }
 #endif
       break;
-    case NN_KEEP_LAST_HISTORY_QOS:
+    case DDS_HISTORY_KEEP_LAST:
       if (qr->max_samples_per_instance != unlimited && qh->depth > qr->max_samples_per_instance)
       {
         DDS_TRACE("plist/validate_history_and_resource_limits: depth (%d) and max_samples_per_instance (%d) incompatible with KEEP_LAST policy\n", (int) qh->depth, (int) qr->max_samples_per_instance);
@@ -706,26 +718,33 @@ dds_return_t validate_history_and_resource_limits (const nn_history_qospolicy_t 
   return 0;
 }
 
-static void bswap_durability_service_qospolicy (nn_durability_service_qospolicy_t *q)
+static void bswap_external_durability_service_qospolicy (dds_external_durability_service_qospolicy_t *q)
 {
-  bswap_duration (&q->service_cleanup_delay);
+  bswap_external_duration (&q->service_cleanup_delay);
   bswap_history_qospolicy (&q->history);
   bswap_resource_limits_qospolicy (&q->resource_limits);
 }
 
-static int durability_service_qospolicy_allzero (const nn_durability_service_qospolicy_t *q)
+static int durability_service_qospolicy_allzero (const dds_durability_service_qospolicy_t *q)
+{
+  return (history_qospolicy_allzero (&q->history) &&
+          resource_limits_qospolicy_allzero (&q->resource_limits) &&
+          q->service_cleanup_delay == 0);
+}
+
+static int external_durability_service_qospolicy_allzero (const dds_external_durability_service_qospolicy_t *q)
 {
   return (history_qospolicy_allzero (&q->history) &&
           resource_limits_qospolicy_allzero (&q->resource_limits) &&
           q->service_cleanup_delay.seconds == 0 && q->service_cleanup_delay.fraction == 0);
 }
 
-static dds_return_t validate_durability_service_qospolicy_acceptzero (const nn_durability_service_qospolicy_t *q, bool acceptzero)
+static dds_return_t validate_external_durability_service_qospolicy_acceptzero (const dds_external_durability_service_qospolicy_t *q, bool acceptzero)
 {
   dds_return_t res;
-  if (acceptzero && durability_service_qospolicy_allzero (q))
+  if (acceptzero && external_durability_service_qospolicy_allzero (q))
     return 0;
-  if ((res = validate_duration (&q->service_cleanup_delay)) < 0)
+  if ((res = validate_external_duration (&q->service_cleanup_delay)) < 0)
   {
     DDS_TRACE("plist/validate_durability_service_qospolicy: duration invalid\n");
     return res;
@@ -738,26 +757,30 @@ static dds_return_t validate_durability_service_qospolicy_acceptzero (const nn_d
   return 0;
 }
 
-dds_return_t validate_durability_service_qospolicy (const nn_durability_service_qospolicy_t *q)
+dds_return_t validate_durability_service_qospolicy (const dds_durability_service_qospolicy_t *q)
 {
-  return validate_durability_service_qospolicy_acceptzero (q, false);
+  dds_external_durability_service_qospolicy_t qext;
+  qext.history = q->history;
+  qext.resource_limits = q->resource_limits;
+  qext.service_cleanup_delay = nn_to_ddsi_duration (q->service_cleanup_delay);
+  return validate_external_durability_service_qospolicy_acceptzero (&qext, false);
 }
 
-static void bswap_liveliness_qospolicy (nn_liveliness_qospolicy_t *q)
+static void bswap_external_liveliness_qospolicy (dds_external_liveliness_qospolicy_t *q)
 {
   q->kind = bswap4u (q->kind);
-  bswap_duration (&q->lease_duration);
+  bswap_external_duration (&q->lease_duration);
 }
 
-dds_return_t validate_liveliness_qospolicy (const nn_liveliness_qospolicy_t *q)
+static dds_return_t validate_external_liveliness_qospolicy (const dds_external_liveliness_qospolicy_t *q)
 {
   dds_return_t res;
   switch (q->kind)
   {
-    case NN_AUTOMATIC_LIVELINESS_QOS:
-    case NN_MANUAL_BY_PARTICIPANT_LIVELINESS_QOS:
-    case NN_MANUAL_BY_TOPIC_LIVELINESS_QOS:
-      if ((res = validate_duration (&q->lease_duration)) < 0)
+    case DDS_LIVELINESS_AUTOMATIC:
+    case DDS_LIVELINESS_MANUAL_BY_PARTICIPANT:
+    case DDS_LIVELINESS_MANUAL_BY_TOPIC:
+      if ((res = validate_external_duration (&q->lease_duration)) < 0)
         DDS_TRACE("plist/validate_liveliness_qospolicy: invalid lease duration\n");
       return res;
     default:
@@ -766,63 +789,51 @@ dds_return_t validate_liveliness_qospolicy (const nn_liveliness_qospolicy_t *q)
   }
 }
 
-static void bswap_external_reliability_qospolicy (nn_external_reliability_qospolicy_t *qext)
+dds_return_t validate_liveliness_qospolicy (const dds_liveliness_qospolicy_t *q)
+{
+  dds_external_liveliness_qospolicy_t qext;
+  qext.kind = q->kind;
+  qext.lease_duration = nn_to_ddsi_duration (q->lease_duration);
+  return validate_external_liveliness_qospolicy (&qext);
+}
+
+static void bswap_external_reliability_qospolicy (dds_external_reliability_qospolicy_t *qext)
 {
   qext->kind = bswap4u (qext->kind);
-  bswap_duration (&qext->max_blocking_time);
+  bswap_external_duration (&qext->max_blocking_time);
 }
 
-static dds_return_t validate_xform_reliability_qospolicy (nn_reliability_qospolicy_t *qdst, const nn_external_reliability_qospolicy_t *qext)
+static dds_return_t validate_xform_reliability_qospolicy (dds_reliability_qospolicy_t *qdst, const dds_external_reliability_qospolicy_t *qext)
 {
   dds_return_t res;
-  qdst->max_blocking_time = qext->max_blocking_time;
-  if (NN_PEDANTIC_P)
+  qdst->max_blocking_time = nn_from_ddsi_duration (qext->max_blocking_time);
+  switch (qext->kind)
   {
-    switch (qext->kind)
-    {
-      case NN_PEDANTIC_BEST_EFFORT_RELIABILITY_QOS:
-        qdst->kind = NN_BEST_EFFORT_RELIABILITY_QOS;
-        return 0;
-      case NN_PEDANTIC_RELIABLE_RELIABILITY_QOS:
-        qdst->kind = NN_RELIABLE_RELIABILITY_QOS;
-        if ((res = validate_duration (&qdst->max_blocking_time)) < 0)
-          DDS_TRACE("plist/validate_xform_reliability_qospolicy[pedantic]: max_blocking_time invalid\n");
-        return res;
-      default:
-        DDS_TRACE("plist/validate_xform_reliability_qospolicy[pedantic]: invalid kind (%d)\n", (int) qext->kind);
-        return DDS_RETCODE_BAD_PARAMETER;
-    }
-  }
-  else
-  {
-    switch (qext->kind)
-    {
-      case NN_INTEROP_BEST_EFFORT_RELIABILITY_QOS:
-        qdst->kind = NN_BEST_EFFORT_RELIABILITY_QOS;
-        return 0;
-      case NN_INTEROP_RELIABLE_RELIABILITY_QOS:
-        qdst->kind = NN_RELIABLE_RELIABILITY_QOS;
-        if ((res = validate_duration (&qdst->max_blocking_time)) < 0)
-          DDS_TRACE("plist/validate_xform_reliability_qospolicy[!pedantic]: max_blocking time invalid\n");
-        return res;
-      default:
-        DDS_TRACE("plist/validate_xform_reliability_qospolicy[!pedantic]: invalid kind (%d)\n", (int) qext->kind);
-        return DDS_RETCODE_BAD_PARAMETER;
-    }
+    case DDS_EXTERNAL_RELIABILITY_BEST_EFFORT:
+      qdst->kind = DDS_RELIABILITY_BEST_EFFORT;
+      return 0;
+    case DDS_EXTERNAL_RELIABILITY_RELIABLE:
+      qdst->kind = DDS_RELIABILITY_RELIABLE;
+      if ((res = validate_external_duration (&qext->max_blocking_time)) < 0)
+        DDS_TRACE("plist/validate_xform_reliability_qospolicy[!pedantic]: max_blocking time invalid\n");
+      return res;
+    default:
+      DDS_TRACE("plist/validate_xform_reliability_qospolicy[!pedantic]: invalid kind (%d)\n", (int) qext->kind);
+      return DDS_RETCODE_BAD_PARAMETER;
   }
 }
 
-static void bswap_destination_order_qospolicy (nn_destination_order_qospolicy_t *q)
+static void bswap_destination_order_qospolicy (dds_destination_order_qospolicy_t *q)
 {
   q->kind = bswap4u (q->kind);
 }
 
-dds_return_t validate_destination_order_qospolicy (const nn_destination_order_qospolicy_t *q)
+dds_return_t validate_destination_order_qospolicy (const dds_destination_order_qospolicy_t *q)
 {
   switch (q->kind)
   {
-    case NN_BY_RECEPTION_TIMESTAMP_DESTINATIONORDER_QOS:
-    case NN_BY_SOURCE_TIMESTAMP_DESTINATIONORDER_QOS:
+    case DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP:
+    case DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP:
       return 0;
     default:
       DDS_TRACE("plist/validate_destination_order_qospolicy: invalid kind (%d)\n", (int) q->kind);
@@ -830,17 +841,17 @@ dds_return_t validate_destination_order_qospolicy (const nn_destination_order_qo
   }
 }
 
-static void bswap_ownership_qospolicy (nn_ownership_qospolicy_t *q)
+static void bswap_ownership_qospolicy (dds_ownership_qospolicy_t *q)
 {
   q->kind = bswap4u (q->kind);
 }
 
-dds_return_t validate_ownership_qospolicy (const nn_ownership_qospolicy_t *q)
+dds_return_t validate_ownership_qospolicy (const dds_ownership_qospolicy_t *q)
 {
   switch (q->kind)
   {
-    case NN_SHARED_OWNERSHIP_QOS:
-    case NN_EXCLUSIVE_OWNERSHIP_QOS:
+    case DDS_OWNERSHIP_SHARED:
+    case DDS_OWNERSHIP_EXCLUSIVE:
       return 0;
     default:
       DDS_TRACE("plist/validate_ownership_qospolicy: invalid kind (%d)\n", (int) q->kind);
@@ -848,28 +859,28 @@ dds_return_t validate_ownership_qospolicy (const nn_ownership_qospolicy_t *q)
   }
 }
 
-static void bswap_ownership_strength_qospolicy (nn_ownership_strength_qospolicy_t *q)
+static void bswap_ownership_strength_qospolicy (dds_ownership_strength_qospolicy_t *q)
 {
   q->value = bswap4 (q->value);
 }
 
-dds_return_t validate_ownership_strength_qospolicy (UNUSED_ARG (const nn_ownership_strength_qospolicy_t *q))
+dds_return_t validate_ownership_strength_qospolicy (UNUSED_ARG (const dds_ownership_strength_qospolicy_t *q))
 {
   return 0;
 }
 
-static void bswap_presentation_qospolicy (nn_presentation_qospolicy_t *q)
+static void bswap_presentation_qospolicy (dds_presentation_qospolicy_t *q)
 {
   q->access_scope = bswap4u (q->access_scope);
 }
 
-dds_return_t validate_presentation_qospolicy (const nn_presentation_qospolicy_t *q)
+dds_return_t validate_presentation_qospolicy (const dds_presentation_qospolicy_t *q)
 {
   switch (q->access_scope)
   {
-    case NN_INSTANCE_PRESENTATION_QOS:
-    case NN_TOPIC_PRESENTATION_QOS:
-    case NN_GROUP_PRESENTATION_QOS:
+    case DDS_PRESENTATION_INSTANCE:
+    case DDS_PRESENTATION_TOPIC:
+    case DDS_PRESENTATION_GROUP:
       break;
     default:
       DDS_TRACE("plist/validate_presentation_qospolicy: invalid access_scope (%d)\n", (int) q->access_scope);
@@ -892,12 +903,12 @@ dds_return_t validate_presentation_qospolicy (const nn_presentation_qospolicy_t 
   return 0;
 }
 
-static void bswap_transport_priority_qospolicy (nn_transport_priority_qospolicy_t *q)
+static void bswap_transport_priority_qospolicy (dds_transport_priority_qospolicy_t *q)
 {
   q->value = bswap4 (q->value);
 }
 
-dds_return_t validate_transport_priority_qospolicy (UNUSED_ARG (const nn_transport_priority_qospolicy_t *q))
+dds_return_t validate_transport_priority_qospolicy (UNUSED_ARG (const dds_transport_priority_qospolicy_t *q))
 {
   return 0;
 }
@@ -935,14 +946,14 @@ static int locator_address_prefix12_zero (const nn_locator_t *loc)
   /* loc has has 32 bit ints preceding the address, hence address is
      4-byte aligned; reading char* as unsigneds isn't illegal type
      punning */
-  const unsigned *u = (const unsigned *) loc->address;
+  const uint32_t *u = (const uint32_t *) loc->address;
   return (u[0] == 0 && u[1] == 0 && u[2] == 0);
 }
 
 static int locator_address_zero (const nn_locator_t *loc)
 {
   /* see locator_address_prefix12_zero */
-  const unsigned *u = (const unsigned *) loc->address;
+  const uint32_t *u = (const uint32_t *) loc->address;
   return (u[0] == 0 && u[1] == 0 && u[2] == 0 && u[3] == 0);
 }
 
@@ -1038,12 +1049,12 @@ static void locator_from_ipv4address_port (nn_locator_t *loc, const nn_ipv4addre
   memcpy (loc->address + 12, a, 4);
 }
 
-static dds_return_t do_ipv4address (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, unsigned fl_tmp, const struct dd *dd)
+static dds_return_t do_ipv4address (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd)
 {
   nn_ipv4address_t *a;
   nn_port_t *p;
   nn_locators_t *ls;
-  unsigned fl1_tmp;
+  uint32_t fl1_tmp;
   uint64_t fldest;
   if (dd->bufsz < sizeof (*a))
   {
@@ -1108,13 +1119,13 @@ static dds_return_t do_ipv4address (nn_plist_t *dest, nn_ipaddress_params_tmp_t 
   }
 }
 
-static dds_return_t do_port (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, unsigned fl_tmp, const struct dd *dd)
+static dds_return_t do_port (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd)
 {
   nn_ipv4address_t *a;
   nn_port_t *p;
   nn_locators_t *ls;
   uint64_t fldest;
-  unsigned fl1_tmp;
+  uint32_t fl1_tmp;
   if (dd->bufsz < sizeof (*p))
   {
     DDS_TRACE("plist/do_port: buffer too small\n");
@@ -1359,7 +1370,7 @@ static dds_return_t do_prismtech_participant_version_info (nn_prismtech_particip
   else
   {
     dds_return_t res;
-    unsigned sz = NN_PRISMTECH_PARTICIPANT_VERSION_INFO_FIXED_CDRSIZE - sizeof(uint32_t);
+    uint32_t sz = NN_PRISMTECH_PARTICIPANT_VERSION_INFO_FIXED_CDRSIZE - sizeof(uint32_t);
     uint32_t *pu = (uint32_t *)dd->buf;
     size_t len;
     struct dd dd1 = *dd;
@@ -1380,7 +1391,7 @@ static dds_return_t do_prismtech_participant_version_info (nn_prismtech_particip
   }
 }
 
-static dds_return_t do_subscription_keys_qospolicy (nn_subscription_keys_qospolicy_t *q, uint64_t *present, uint64_t *aliased, uint64_t fl, const struct dd *dd)
+static dds_return_t do_subscription_keys_qospolicy (dds_subscription_keys_qospolicy_t *q, uint64_t *present, uint64_t *aliased, uint64_t fl, const struct dd *dd)
 {
   struct dd dd1;
   dds_return_t res;
@@ -1406,33 +1417,37 @@ static dds_return_t do_subscription_keys_qospolicy (nn_subscription_keys_qospoli
   return res;
 }
 
-static dds_return_t unalias_subscription_keys_qospolicy (nn_subscription_keys_qospolicy_t *q, int bswap)
+static dds_return_t unalias_subscription_keys_qospolicy (dds_subscription_keys_qospolicy_t *q, int bswap)
 {
   return unalias_stringseq (&q->key_list, bswap);
 }
 
-static dds_return_t do_reader_lifespan_qospolicy (nn_reader_lifespan_qospolicy_t *q, uint64_t *present, uint64_t fl, const struct dd *dd)
+static dds_return_t do_reader_lifespan_qospolicy (dds_reader_lifespan_qospolicy_t *q, uint64_t *present, uint64_t fl, const struct dd *dd)
 {
+  dds_external_reader_lifespan_qospolicy_t qext;
   dds_return_t res;
-  if (dd->bufsz < sizeof (*q))
+  if (dd->bufsz < sizeof (qext))
   {
     DDS_TRACE("plist/do_reader_lifespan: buffer too small\n");
     return DDS_RETCODE_BAD_PARAMETER;
   }
-  *q = *((nn_reader_lifespan_qospolicy_t *) dd->buf);
+  memcpy (&qext, dd->buf, sizeof (qext));
   if (dd->bswap)
-    bswap_duration (&q->duration);
-  if (q->use_lifespan != 0 && q->use_lifespan != 1)
+    bswap_external_duration (&qext.duration);
+  if (qext.use_lifespan != 0 && qext.use_lifespan != 1)
   {
-    DDS_TRACE("plist/do_reader_lifespan: invalid use_lifespan (%d)\n", (int) q->use_lifespan);
+    DDS_TRACE("plist/do_reader_lifespan: invalid use_lifespan (%d)\n", (int) qext.use_lifespan);
     return DDS_RETCODE_BAD_PARAMETER;
   }
-  if ((res = validate_duration (&q->duration)) >= 0)
-    *present |= fl;
-  return res;
+  if ((res = validate_external_duration (&qext.duration)) < 0)
+    return res;
+  q->use_lifespan = qext.use_lifespan;
+  q->duration = nn_from_ddsi_duration (qext.duration);
+  *present |= fl;
+  return 0;
 }
 
-static dds_return_t do_entity_factory_qospolicy (nn_entity_factory_qospolicy_t *q, uint64_t *present, uint64_t fl, const struct dd *dd)
+static dds_return_t do_entity_factory_qospolicy (dds_entity_factory_qospolicy_t *q, uint64_t *present, uint64_t fl, const struct dd *dd)
 {
   if (dd->bufsz < sizeof (*q))
   {
@@ -1449,62 +1464,40 @@ static dds_return_t do_entity_factory_qospolicy (nn_entity_factory_qospolicy_t *
   return 0;
 }
 
-dds_return_t validate_reader_data_lifecycle (const nn_reader_data_lifecycle_qospolicy_t *q)
+static dds_return_t validate_external_reader_data_lifecycle (const dds_external_reader_data_lifecycle_qospolicy_t *q)
 {
-  if (validate_duration (&q->autopurge_nowriter_samples_delay) < 0 ||
-      validate_duration (&q->autopurge_disposed_samples_delay) < 0)
+  if (validate_external_duration (&q->autopurge_nowriter_samples_delay) < 0 ||
+      validate_external_duration (&q->autopurge_disposed_samples_delay) < 0)
   {
     DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: invalid autopurge_nowriter_sample_delay or autopurge_disposed_samples_delay\n");
     return DDS_RETCODE_BAD_PARAMETER;
   }
-  if (q->autopurge_dispose_all != 0 && q->autopurge_dispose_all != 1)
-  {
-    DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: invalid autopurge_dispose_all\n");
-    return DDS_RETCODE_BAD_PARAMETER;
-  }
-  if (q->enable_invalid_samples != 0 && q->enable_invalid_samples != 1)
-  {
-    DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: invalid enable_invalid_samples\n");
-    return DDS_RETCODE_BAD_PARAMETER;
-  }
-  /* Don't check consistency between enable_invalid_samples and invalid_samples_mode (yet) */
-  switch (q->invalid_sample_visibility)
-  {
-    case NN_NO_INVALID_SAMPLE_VISIBILITY_QOS:
-    case NN_MINIMUM_INVALID_SAMPLE_VISIBILITY_QOS:
-    case NN_ALL_INVALID_SAMPLE_VISIBILITY_QOS:
-      break;
-    default:
-      DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: invalid invalid_sample_visibility\n");
-      return DDS_RETCODE_BAD_PARAMETER;
-  }
   return 0;
 }
 
-static dds_return_t do_reader_data_lifecycle_v0 (nn_reader_data_lifecycle_qospolicy_t *q, const struct dd *dd)
+dds_return_t validate_reader_data_lifecycle (const dds_reader_data_lifecycle_qospolicy_t *q)
 {
-  memcpy (q, dd->buf, 2 * sizeof (nn_duration_t));
-  q->autopurge_dispose_all = 0;
-  q->enable_invalid_samples = 1;
-  q->invalid_sample_visibility = NN_MINIMUM_INVALID_SAMPLE_VISIBILITY_QOS;
-  if (dd->bswap)
-  {
-    bswap_duration (&q->autopurge_nowriter_samples_delay);
-    bswap_duration (&q->autopurge_disposed_samples_delay);
-  }
-  return validate_reader_data_lifecycle (q);
+  dds_external_reader_data_lifecycle_qospolicy_t qext;
+  qext.autopurge_disposed_samples_delay = nn_to_ddsi_duration (q->autopurge_disposed_samples_delay);
+  qext.autopurge_nowriter_samples_delay = nn_to_ddsi_duration (q->autopurge_nowriter_samples_delay);
+  return validate_external_reader_data_lifecycle (&qext);
 }
 
-static dds_return_t do_reader_data_lifecycle_v1 (nn_reader_data_lifecycle_qospolicy_t *q, const struct dd *dd)
+static dds_return_t do_reader_data_lifecycle (dds_reader_data_lifecycle_qospolicy_t *q, const struct dd *dd)
 {
-  memcpy (q, dd->buf, sizeof (*q));
+  dds_external_reader_data_lifecycle_qospolicy_t qext;
+  dds_return_t ret;
+  memcpy (&qext, dd->buf, sizeof (qext));
   if (dd->bswap)
   {
-    bswap_duration (&q->autopurge_nowriter_samples_delay);
-    bswap_duration (&q->autopurge_disposed_samples_delay);
-    q->invalid_sample_visibility = (nn_invalid_sample_visibility_kind_t) bswap4u ((unsigned) q->invalid_sample_visibility);
+    bswap_external_duration (&qext.autopurge_nowriter_samples_delay);
+    bswap_external_duration (&qext.autopurge_disposed_samples_delay);
   }
-  return validate_reader_data_lifecycle (q);
+  if ((ret = validate_external_reader_data_lifecycle (&qext)) < 0)
+    return ret;
+  q->autopurge_disposed_samples_delay = nn_from_ddsi_duration (qext.autopurge_disposed_samples_delay);
+  q->autopurge_nowriter_samples_delay = nn_from_ddsi_duration (qext.autopurge_nowriter_samples_delay);
+  return 0;
 }
 
 static dds_return_t init_one_parameter
@@ -1513,7 +1506,7 @@ static dds_return_t init_one_parameter
   nn_ipaddress_params_tmp_t *dest_tmp,
   uint64_t pwanted,
   uint64_t qwanted,
-  unsigned short pid,
+  uint16_t pid,
   const struct dd *dd
 )
 {
@@ -1525,15 +1518,15 @@ static dds_return_t init_one_parameter
       return 0;
 
       /* Extended QoS data: */
-#define Q(NAME_, name_) case PID_##NAME_:                               \
-    if (dd->bufsz < sizeof (nn_##name_##_qospolicy_t))                  \
+#define Q(NAME_, prefix_, name_) case PID_##NAME_:                      \
+    if (dd->bufsz < sizeof (prefix_##_##name_##_qospolicy_t))           \
     {                                                                   \
       DDS_TRACE("plist/init_one_parameter[pid=%s]: buffer too small\n", #NAME_); \
-      return DDS_RETCODE_BAD_PARAMETER;                                             \
+      return DDS_RETCODE_BAD_PARAMETER;                                          \
     }                                                                   \
     else                                                                \
     {                                                                   \
-      nn_##name_##_qospolicy_t *q = &dest->qos.name_;                   \
+      prefix_##_##name_##_qospolicy_t *q = &dest->qos.name_;            \
       memcpy (q, dd->buf, sizeof (*q));                                 \
       if (dd->bswap) bswap_##name_##_qospolicy (q);                     \
       if ((res = validate_##name_##_qospolicy (q)) < 0)                 \
@@ -1541,34 +1534,58 @@ static dds_return_t init_one_parameter
       dest->qos.present |= QP_##NAME_;                                  \
     }                                                                   \
     return 0
-      Q (DURABILITY, durability);
-      Q (LIVELINESS, liveliness);
-      Q (DESTINATION_ORDER, destination_order);
-      Q (HISTORY, history);
-      Q (RESOURCE_LIMITS, resource_limits);
-      Q (OWNERSHIP, ownership);
-      Q (OWNERSHIP_STRENGTH, ownership_strength);
-      Q (PRESENTATION, presentation);
-      Q (TRANSPORT_PRIORITY, transport_priority);
+      Q (DURABILITY, dds, durability);
+      Q (DESTINATION_ORDER, dds, destination_order);
+      Q (HISTORY, dds, history);
+      Q (RESOURCE_LIMITS, dds, resource_limits);
+      Q (OWNERSHIP, dds, ownership);
+      Q (OWNERSHIP_STRENGTH, dds, ownership_strength);
+      Q (PRESENTATION, dds, presentation);
+      Q (TRANSPORT_PRIORITY, dds, transport_priority);
 #undef Q
 
+    case PID_LIVELINESS:
+      if (dd->bufsz < sizeof (dds_external_liveliness_qospolicy_t))
+      {
+        DDS_TRACE("plist/init_one_parameter[pid=LIVELINESS]: buffer too small\n");
+        return DDS_RETCODE_BAD_PARAMETER;
+      }
+      else
+      {
+        dds_external_liveliness_qospolicy_t qext;
+        dds_liveliness_qospolicy_t *q = &dest->qos.liveliness;
+        memcpy (&qext, dd->buf, sizeof (qext));
+        if (dd->bswap)
+          bswap_external_liveliness_qospolicy (&qext);
+        if ((res = validate_external_liveliness_qospolicy (&qext)) < 0)
+          return res;
+        q->kind = qext.kind;
+        q->lease_duration = nn_from_ddsi_duration (qext.lease_duration);
+        dest->qos.present |= QP_LIVELINESS;
+      }
+      return 0;
+
     case PID_DURABILITY_SERVICE:
-      if (dd->bufsz < sizeof (nn_durability_service_qospolicy_t))
+      if (dd->bufsz < sizeof (dds_external_durability_service_qospolicy_t))
       {
         DDS_TRACE("plist/init_one_parameter[pid=DURABILITY_SERVICE]: buffer too small\n");
         return DDS_RETCODE_BAD_PARAMETER;
       }
       else
       {
-        nn_durability_service_qospolicy_t *q = &dest->qos.durability_service;
+        dds_external_durability_service_qospolicy_t qext;
+        dds_durability_service_qospolicy_t *q = &dest->qos.durability_service;
         /* All-zero durability service is illegal, but at least CoreDX sometimes advertises
            it in some harmless cases. So accept all-zero durability service, then handle it
            in final_validation, where we can determine whether it really is harmless or not */
-        memcpy (q, dd->buf, sizeof (*q));
+        memcpy (&qext, dd->buf, sizeof (qext));
         if (dd->bswap)
-          bswap_durability_service_qospolicy (q);
-        if ((res = validate_durability_service_qospolicy_acceptzero (q, true)) < 0)
+          bswap_external_durability_service_qospolicy (&qext);
+        if ((res = validate_external_durability_service_qospolicy_acceptzero (&qext, true)) < 0)
           return res;
+        q->history = qext.history;
+        q->resource_limits = qext.resource_limits;
+        q->service_cleanup_delay = nn_from_ddsi_duration (qext.service_cleanup_delay);
         dest->qos.present |= QP_DURABILITY_SERVICE;
       }
       return 0;
@@ -1580,15 +1597,15 @@ static dds_return_t init_one_parameter
          the case, it would've been an ordinary Q (RELIABILITY,
          reliability). */
     case PID_RELIABILITY:
-      if (dd->bufsz < sizeof (nn_external_reliability_qospolicy_t))
+      if (dd->bufsz < sizeof (dds_external_reliability_qospolicy_t))
       {
         DDS_TRACE("plist/init_one_parameter[pid=RELIABILITY]: buffer too small\n");
         return DDS_RETCODE_BAD_PARAMETER;
       }
       else
       {
-        nn_reliability_qospolicy_t *q = &dest->qos.reliability;
-        nn_external_reliability_qospolicy_t qext;
+        dds_reliability_qospolicy_t *q = &dest->qos.reliability;
+        dds_external_reliability_qospolicy_t qext;
         memcpy (&qext, dd->buf, sizeof (qext));
         if (dd->bswap)
           bswap_external_reliability_qospolicy (&qext);
@@ -1627,10 +1644,8 @@ static dds_return_t init_one_parameter
         dds_return_t ret;
         if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
           return 0;
-        if (dd->bufsz >= sizeof (nn_reader_data_lifecycle_qospolicy_t))
-          ret = do_reader_data_lifecycle_v1 (&dest->qos.reader_data_lifecycle, dd);
-        else if (dd->bufsz >= 2 * sizeof (nn_duration_t))
-          ret = do_reader_data_lifecycle_v0 (&dest->qos.reader_data_lifecycle, dd);
+        if (dd->bufsz >= sizeof (dds_external_reader_data_lifecycle_qospolicy_t))
+          ret = do_reader_data_lifecycle (&dest->qos.reader_data_lifecycle, dd);
         else
         {
           DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_READER_DATA_LIFECYCLE]: buffer too small\n");
@@ -1645,82 +1660,19 @@ static dds_return_t init_one_parameter
         return 0;
       else
       {
-        nn_writer_data_lifecycle_qospolicy_t *q = &dest->qos.writer_data_lifecycle;
-        if (dd->bufsz < 1)
+        dds_writer_data_lifecycle_qospolicy_t *q = &dest->qos.writer_data_lifecycle;
+        if (dd->bufsz < sizeof (*q))
         {
           DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_WRITER_DATA_LIFECYCLE]: buffer too small\n");
           return DDS_RETCODE_BAD_PARAMETER;
         }
-        else if (dd->bufsz < sizeof (*q))
-        {
-          /* Spec form, with just autodispose_unregistered_instances */
-          q->autodispose_unregistered_instances = dd->buf[0];
-          q->autounregister_instance_delay = nn_to_ddsi_duration (T_NEVER);
-          q->autopurge_suspended_samples_delay = nn_to_ddsi_duration (T_NEVER);
-        }
-        else
-        {
-          memcpy (q, dd->buf, sizeof (*q));
-          if (dd->bswap)
-          {
-            bswap_duration (&q->autounregister_instance_delay);
-            bswap_duration (&q->autopurge_suspended_samples_delay);
-          }
-        }
+        q->autodispose_unregistered_instances = dd->buf[0];
         if (q->autodispose_unregistered_instances & ~1)
         {
           DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_WRITER_DATA_LIFECYCLE]: invalid autodispose_unregistered_instances (%d)\n", (int) q->autodispose_unregistered_instances);
           return DDS_RETCODE_BAD_PARAMETER;
         }
-        if (validate_duration (&q->autounregister_instance_delay) < 0 ||
-            validate_duration (&q->autopurge_suspended_samples_delay) < 0)
-        {
-          DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_WRITER_DATA_LIFECYCLE]: invalid autounregister_instance_delay or autopurge_suspended_samples_delay\n");
-          return DDS_RETCODE_BAD_PARAMETER;
-        }
         dest->qos.present |= QP_PRISMTECH_WRITER_DATA_LIFECYCLE;
-        return 0;
-      }
-
-    case PID_PRISMTECH_RELAXED_QOS_MATCHING:
-      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
-        return 0;
-      else if (dd->bufsz < sizeof (dest->qos.relaxed_qos_matching))
-      {
-        DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_RELAXED_QOS_MATCHING]: buffer too small\n");
-        return DDS_RETCODE_BAD_PARAMETER;
-      }
-      else
-      {
-        nn_relaxed_qos_matching_qospolicy_t *rqm = &dest->qos.relaxed_qos_matching;
-        memcpy (rqm, dd->buf, sizeof (*rqm));
-        if (rqm->value != 0 && rqm->value != 1)
-        {
-          DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_RELAXED_QOS_MATCHING]: invalid\n");
-          return DDS_RETCODE_BAD_PARAMETER;
-        }
-        dest->qos.present |= QP_PRISMTECH_RELAXED_QOS_MATCHING;
-        return 0;
-      }
-
-    case PID_PRISMTECH_SYNCHRONOUS_ENDPOINT: /* PrismTech specific */
-      if (!vendor_is_eclipse_or_prismtech (dd->vendorid))
-        return 0;
-      else if (dd->bufsz < sizeof (dest->qos.synchronous_endpoint))
-      {
-        DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_SYNCHRONOUS_ENDPOINT]: buffer too small\n");
-        return DDS_RETCODE_BAD_PARAMETER;
-      }
-      else
-      {
-        nn_synchronous_endpoint_qospolicy_t *q = &dest->qos.synchronous_endpoint;
-        memcpy (q, dd->buf, sizeof (*q));
-        if (q->value != 0 && q->value != 1)
-        {
-          DDS_TRACE("plist/init_one_parameter[pid=PRISMTECH_SYNCHRONOUS_ENDPOINT]: invalid value for synchronous flag\n");
-          return DDS_RETCODE_BAD_PARAMETER;
-        }
-        dest->qos.present |= QP_PRISMTECH_SYNCHRONOUS_ENDPOINT;
         return 0;
       }
 
@@ -2183,16 +2135,16 @@ static dds_return_t init_one_parameter
   return DDS_RETCODE_BAD_PARAMETER;
 }
 
-static void default_resource_limits (nn_resource_limits_qospolicy_t *q)
+static void default_resource_limits (dds_resource_limits_qospolicy_t *q)
 {
-  q->max_instances = NN_DDS_LENGTH_UNLIMITED;
-  q->max_samples = NN_DDS_LENGTH_UNLIMITED;
-  q->max_samples_per_instance = NN_DDS_LENGTH_UNLIMITED;
+  q->max_instances = DDS_LENGTH_UNLIMITED;
+  q->max_samples = DDS_LENGTH_UNLIMITED;
+  q->max_samples_per_instance = DDS_LENGTH_UNLIMITED;
 }
 
-static void default_history (nn_history_qospolicy_t *q)
+static void default_history (dds_history_qospolicy_t *q)
 {
-  q->kind = NN_KEEP_LAST_HISTORY_QOS;
+  q->kind = DDS_HISTORY_KEEP_LAST;
   q->depth = 1;
 }
 
@@ -2322,7 +2274,7 @@ static dds_return_t final_validation (nn_plist_t *dest, nn_protocol_version_t pr
      is valid or delete it if irrelevant. */
   if (dest->qos.present & QP_DURABILITY_SERVICE)
   {
-    const nn_durability_kind_t durkind = (dest->qos.present & QP_DURABILITY) ? dest->qos.durability.kind : NN_VOLATILE_DURABILITY_QOS;
+    const dds_durability_kind_t durkind = (dest->qos.present & QP_DURABILITY) ? dest->qos.durability.kind : DDS_DURABILITY_VOLATILE;
     bool acceptzero;
     /* Use a somewhat convoluted rule to decide whether or not to
        "accept" an all-zero durability service setting, to find a
@@ -2335,14 +2287,14 @@ static dds_return_t final_validation (nn_plist_t *dest, nn_protocol_version_t pr
       acceptzero = !vendor_is_eclipse (vendorid);
     switch (durkind)
     {
-      case NN_VOLATILE_DURABILITY_QOS:
-      case NN_TRANSIENT_LOCAL_DURABILITY_QOS:
+      case DDS_DURABILITY_VOLATILE:
+      case DDS_DURABILITY_TRANSIENT_LOCAL:
         /* pretend we never saw it if it is all zero */
         if (acceptzero && durability_service_qospolicy_allzero (&dest->qos.durability_service))
           dest->qos.present &= ~QP_DURABILITY_SERVICE;
         break;
-      case NN_TRANSIENT_DURABILITY_QOS:
-      case NN_PERSISTENT_DURABILITY_QOS:
+      case DDS_DURABILITY_TRANSIENT:
+      case DDS_DURABILITY_PERSISTENT:
         break;
     }
     /* if it is still present, it must be valid */
@@ -2409,17 +2361,17 @@ dds_return_t nn_plist_init_frommsg
   {
     nn_parameter_t *par = (nn_parameter_t *) pl;
     nn_parameterid_t pid;
-    unsigned short length;
+    uint16_t length;
     dds_return_t res;
     /* swapping header partially based on wireshark dissector
        output, partially on intuition, and in a small part based on
        the spec */
     pid = (nn_parameterid_t) (dd.bswap ? bswap2u (par->parameterid) : par->parameterid);
-    length = (unsigned short) (dd.bswap ? bswap2u (par->length) : par->length);
+    length = (uint16_t) (dd.bswap ? bswap2u (par->length) : par->length);
     if (pid == PID_SENTINEL)
     {
       /* Sentinel terminates list, the length is ignored, DDSI 9.4.2.11. */
-      DDS_LOG(DDS_LC_PLIST, "%4x PID %x\n", (unsigned) (pl - src->buf), pid);
+      DDS_LOG(DDS_LC_PLIST, "%4"PRIx32" PID %"PRIx16"\n", (uint32_t) (pl - src->buf), pid);
       if ((res = final_validation (dest, src->protocol_version, src->vendorid)) < 0)
       {
         nn_plist_fini (dest);
@@ -2433,16 +2385,16 @@ dds_return_t nn_plist_init_frommsg
         return 0;
       }
     }
-    if (length > src->bufsz - sizeof (*par) - (unsigned) (pl - src->buf))
+    if (length > src->bufsz - sizeof (*par) - (uint32_t) (pl - src->buf))
     {
-      DDS_WARNING("plist(vendor %u.%u): parameter length %u out of bounds\n",
+      DDS_WARNING("plist(vendor %u.%u): parameter length %"PRIu16" out of bounds\n",
                   src->vendorid.id[0], src->vendorid.id[1], length);
       nn_plist_fini (dest);
       return DDS_RETCODE_BAD_PARAMETER;
     }
     if ((length % 4) != 0) /* DDSI 9.4.2.11 */
     {
-      DDS_WARNING("plist(vendor %u.%u): parameter length %u mod 4 != 0\n",
+      DDS_WARNING("plist(vendor %u.%u): parameter length %"PRIu16" mod 4 != 0\n",
                   src->vendorid.id[0], src->vendorid.id[1], length);
       nn_plist_fini (dest);
       return DDS_RETCODE_BAD_PARAMETER;
@@ -2450,7 +2402,7 @@ dds_return_t nn_plist_init_frommsg
 
     if (dds_get_log_mask() & DDS_LC_PLIST)
     {
-      DDS_LOG(DDS_LC_PLIST, "%4x PID %x len %u ", (unsigned) (pl - src->buf), pid, length);
+      DDS_LOG(DDS_LC_PLIST, "%4"PRIx32" PID %"PRIx16" len %"PRIu16" ", (uint32_t) (pl - src->buf), pid, length);
       log_octetseq(DDS_LC_PLIST, length, (const unsigned char *) (par + 1));
       DDS_LOG(DDS_LC_PLIST, "\n");
     }
@@ -2460,7 +2412,7 @@ dds_return_t nn_plist_init_frommsg
     if ((res = init_one_parameter (dest, &dest_tmp, pwanted, qwanted, pid, &dd)) < 0)
     {
       /* make sure we print a trace message on error */
-      DDS_TRACE("plist(vendor %u.%u): failed at pid=%u\n", src->vendorid.id[0], src->vendorid.id[1], pid);
+      DDS_TRACE("plist(vendor %u.%u): failed at pid=%"PRIx16"\n", src->vendorid.id[0], src->vendorid.id[1], pid);
       nn_plist_fini (dest);
       return res;
     }
@@ -2535,13 +2487,13 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
       return (unsigned char *) pl;
     if (length > src->bufsz - (size_t)(pl - src->buf))
     {
-      DDS_WARNING("plist(vendor %u.%u): quickscan: parameter length %u out of bounds\n",
+      DDS_WARNING("plist(vendor %u.%u): quickscan: parameter length %"PRIu16" out of bounds\n",
                   src->vendorid.id[0], src->vendorid.id[1], length);
       return NULL;
     }
     if ((length % 4) != 0) /* DDSI 9.4.2.11 */
     {
-      DDS_WARNING("plist(vendor %u.%u): quickscan: parameter length %u mod 4 != 0\n",
+      DDS_WARNING("plist(vendor %u.%u): quickscan: parameter length %"PRIu16" mod 4 != 0\n",
                   src->vendorid.id[0], src->vendorid.id[1], length);
       return NULL;
     }
@@ -2558,8 +2510,8 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
         }
         else
         {
-          unsigned stinfo = fromBE4u (*((unsigned *) pl));
-          unsigned stinfox = (length < 8 || !vendor_is_eclipse_or_opensplice(src->vendorid)) ? 0 : fromBE4u (*((unsigned *) pl + 1));
+          uint32_t stinfo = fromBE4u (*((uint32_t *) pl));
+          uint32_t stinfox = (length < 8 || !vendor_is_eclipse_or_opensplice(src->vendorid)) ? 0 : fromBE4u (*((uint32_t *) pl + 1));
 #if (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER) != 3
 #error "expected dispose/unregister to be in lowest 2 bits"
 #endif
@@ -2569,7 +2521,7 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
         }
         break;
       default:
-        DDS_LOG(DDS_LC_PLIST, "(pid=%x complex_qos=1)", pid);
+        DDS_LOG(DDS_LC_PLIST, "(pid=%"PRIx16" complex_qos=1)", pid);
         dest->complex_qos = 1;
         break;
     }
@@ -2582,7 +2534,7 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
   return NULL;
 }
 
-void nn_xqos_init_empty (nn_xqos_t *dest)
+void nn_xqos_init_empty (dds_qos_t *dest)
 {
 #ifndef NDEBUG
   memset (dest, 0, sizeof (*dest));
@@ -2597,7 +2549,7 @@ void nn_plist_init_default_participant (nn_plist_t *plist)
   plist->qos.entity_factory.autoenable_created_entities = 0;
 }
 
-static void xqos_init_default_common (nn_xqos_t *xqos)
+static void xqos_init_default_common (dds_qos_t *xqos)
 {
   nn_xqos_init_empty (xqos);
 
@@ -2606,72 +2558,62 @@ static void xqos_init_default_common (nn_xqos_t *xqos)
   xqos->partition.strs = NULL;
 
   xqos->present |= QP_PRESENTATION;
-  xqos->presentation.access_scope = NN_INSTANCE_PRESENTATION_QOS;
+  xqos->presentation.access_scope = DDS_PRESENTATION_INSTANCE;
   xqos->presentation.coherent_access = 0;
   xqos->presentation.ordered_access = 0;
 
   xqos->present |= QP_DURABILITY;
-  xqos->durability.kind = NN_VOLATILE_DURABILITY_QOS;
+  xqos->durability.kind = DDS_DURABILITY_VOLATILE;
 
   xqos->present |= QP_DEADLINE;
-  xqos->deadline.deadline = nn_to_ddsi_duration (T_NEVER);
+  xqos->deadline.deadline = T_NEVER;
 
   xqos->present |= QP_LATENCY_BUDGET;
-  xqos->latency_budget.duration = nn_to_ddsi_duration (0);
+  xqos->latency_budget.duration = 0;
 
   xqos->present |= QP_LIVELINESS;
-  xqos->liveliness.kind = NN_AUTOMATIC_LIVELINESS_QOS;
-  xqos->liveliness.lease_duration = nn_to_ddsi_duration (T_NEVER);
+  xqos->liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
+  xqos->liveliness.lease_duration = T_NEVER;
 
   xqos->present |= QP_DESTINATION_ORDER;
-  xqos->destination_order.kind = NN_BY_RECEPTION_TIMESTAMP_DESTINATIONORDER_QOS;
+  xqos->destination_order.kind = DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP;
 
   xqos->present |= QP_HISTORY;
-  xqos->history.kind = NN_KEEP_LAST_HISTORY_QOS;
+  xqos->history.kind = DDS_HISTORY_KEEP_LAST;
   xqos->history.depth = 1;
 
   xqos->present |= QP_RESOURCE_LIMITS;
-  xqos->resource_limits.max_samples = NN_DDS_LENGTH_UNLIMITED;
-  xqos->resource_limits.max_instances = NN_DDS_LENGTH_UNLIMITED;
-  xqos->resource_limits.max_samples_per_instance = NN_DDS_LENGTH_UNLIMITED;
+  xqos->resource_limits.max_samples = DDS_LENGTH_UNLIMITED;
+  xqos->resource_limits.max_instances = DDS_LENGTH_UNLIMITED;
+  xqos->resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED;
 
   xqos->present |= QP_TRANSPORT_PRIORITY;
   xqos->transport_priority.value = 0;
 
   xqos->present |= QP_OWNERSHIP;
-  xqos->ownership.kind = NN_SHARED_OWNERSHIP_QOS;
-
-  xqos->present |= QP_PRISMTECH_RELAXED_QOS_MATCHING;
-  xqos->relaxed_qos_matching.value = 0;
-
-  xqos->present |= QP_PRISMTECH_SYNCHRONOUS_ENDPOINT;
-  xqos->synchronous_endpoint.value = 0;
+  xqos->ownership.kind = DDS_OWNERSHIP_SHARED;
 
   xqos->present |= QP_CYCLONE_IGNORELOCAL;
-  xqos->ignorelocal.value = NN_NONE_IGNORELOCAL_QOS;
+  xqos->ignorelocal.value = DDS_IGNORELOCAL_NONE;
 }
 
-void nn_xqos_init_default_reader (nn_xqos_t *xqos)
+void nn_xqos_init_default_reader (dds_qos_t *xqos)
 {
   xqos_init_default_common (xqos);
 
   xqos->present |= QP_RELIABILITY;
-  xqos->reliability.kind = NN_BEST_EFFORT_RELIABILITY_QOS;
+  xqos->reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
 
   xqos->present |= QP_TIME_BASED_FILTER;
-  xqos->time_based_filter.minimum_separation = nn_to_ddsi_duration (0);
+  xqos->time_based_filter.minimum_separation = 0;
 
   xqos->present |= QP_PRISMTECH_READER_DATA_LIFECYCLE;
-  xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay = nn_to_ddsi_duration (T_NEVER);
-  xqos->reader_data_lifecycle.autopurge_disposed_samples_delay = nn_to_ddsi_duration (T_NEVER);
-  xqos->reader_data_lifecycle.autopurge_dispose_all = 0;
-  xqos->reader_data_lifecycle.enable_invalid_samples = 1;
-  xqos->reader_data_lifecycle.invalid_sample_visibility = NN_MINIMUM_INVALID_SAMPLE_VISIBILITY_QOS;
+  xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay = T_NEVER;
+  xqos->reader_data_lifecycle.autopurge_disposed_samples_delay = T_NEVER;
 
   xqos->present |= QP_PRISMTECH_READER_LIFESPAN;
   xqos->reader_lifespan.use_lifespan = 0;
-  xqos->reader_lifespan.duration = nn_to_ddsi_duration (T_NEVER);
-
+  xqos->reader_lifespan.duration = T_NEVER;
 
   xqos->present |= QP_PRISMTECH_SUBSCRIPTION_KEYS;
   xqos->subscription_keys.use_key_list = 0;
@@ -2679,21 +2621,21 @@ void nn_xqos_init_default_reader (nn_xqos_t *xqos)
   xqos->subscription_keys.key_list.strs = NULL;
 }
 
-void nn_xqos_init_default_writer (nn_xqos_t *xqos)
+void nn_xqos_init_default_writer (dds_qos_t *xqos)
 {
   xqos_init_default_common (xqos);
 
   xqos->present |= QP_DURABILITY_SERVICE;
-  xqos->durability_service.service_cleanup_delay = nn_to_ddsi_duration (0);
-  xqos->durability_service.history.kind = NN_KEEP_LAST_HISTORY_QOS;
+  xqos->durability_service.service_cleanup_delay = 0;
+  xqos->durability_service.history.kind = DDS_HISTORY_KEEP_LAST;
   xqos->durability_service.history.depth = 1;
-  xqos->durability_service.resource_limits.max_samples = NN_DDS_LENGTH_UNLIMITED;
-  xqos->durability_service.resource_limits.max_instances = NN_DDS_LENGTH_UNLIMITED;
-  xqos->durability_service.resource_limits.max_samples_per_instance = NN_DDS_LENGTH_UNLIMITED;
+  xqos->durability_service.resource_limits.max_samples = DDS_LENGTH_UNLIMITED;
+  xqos->durability_service.resource_limits.max_instances = DDS_LENGTH_UNLIMITED;
+  xqos->durability_service.resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED;
 
   xqos->present |= QP_RELIABILITY;
-  xqos->reliability.kind = NN_RELIABLE_RELIABILITY_QOS;
-  xqos->reliability.max_blocking_time = nn_to_ddsi_duration (100 * T_MILLISECOND);
+  xqos->reliability.kind = DDS_RELIABILITY_RELIABLE;
+  xqos->reliability.max_blocking_time = 100 * T_MILLISECOND;
 
   xqos->present |= QP_OWNERSHIP_STRENGTH;
   xqos->ownership_strength.value = 0;
@@ -2702,41 +2644,39 @@ void nn_xqos_init_default_writer (nn_xqos_t *xqos)
   xqos->transport_priority.value = 0;
 
   xqos->present |= QP_LIFESPAN;
-  xqos->lifespan.duration = nn_to_ddsi_duration (T_NEVER);
+  xqos->lifespan.duration = T_NEVER;
 
   xqos->present |= QP_PRISMTECH_WRITER_DATA_LIFECYCLE;
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = 1;
-  xqos->writer_data_lifecycle.autounregister_instance_delay = nn_to_ddsi_duration (T_NEVER);
-  xqos->writer_data_lifecycle.autopurge_suspended_samples_delay = nn_to_ddsi_duration (T_NEVER);
 }
 
-void nn_xqos_init_default_writer_noautodispose (nn_xqos_t *xqos)
+void nn_xqos_init_default_writer_noautodispose (dds_qos_t *xqos)
 {
   nn_xqos_init_default_writer (xqos);
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = 0;
 }
 
-void nn_xqos_init_default_topic (nn_xqos_t *xqos)
+void nn_xqos_init_default_topic (dds_qos_t *xqos)
 {
   xqos_init_default_common (xqos);
 
   xqos->present |= QP_DURABILITY_SERVICE;
-  xqos->durability_service.service_cleanup_delay = nn_to_ddsi_duration (0);
-  xqos->durability_service.history.kind = NN_KEEP_LAST_HISTORY_QOS;
+  xqos->durability_service.service_cleanup_delay = 0;
+  xqos->durability_service.history.kind = DDS_HISTORY_KEEP_LAST;
   xqos->durability_service.history.depth = 1;
-  xqos->durability_service.resource_limits.max_samples = NN_DDS_LENGTH_UNLIMITED;
-  xqos->durability_service.resource_limits.max_instances = NN_DDS_LENGTH_UNLIMITED;
-  xqos->durability_service.resource_limits.max_samples_per_instance = NN_DDS_LENGTH_UNLIMITED;
+  xqos->durability_service.resource_limits.max_samples = DDS_LENGTH_UNLIMITED;
+  xqos->durability_service.resource_limits.max_instances = DDS_LENGTH_UNLIMITED;
+  xqos->durability_service.resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED;
 
   xqos->present |= QP_RELIABILITY;
-  xqos->reliability.kind = NN_BEST_EFFORT_RELIABILITY_QOS;
-  xqos->reliability.max_blocking_time = nn_to_ddsi_duration (100 * T_MILLISECOND);
+  xqos->reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
+  xqos->reliability.max_blocking_time = 100 * T_MILLISECOND;
 
   xqos->present |= QP_TRANSPORT_PRIORITY;
   xqos->transport_priority.value = 0;
 
   xqos->present |= QP_LIFESPAN;
-  xqos->lifespan.duration = nn_to_ddsi_duration (T_NEVER);
+  xqos->lifespan.duration = T_NEVER;
 
   xqos->present |= QP_PRISMTECH_SUBSCRIPTION_KEYS;
   xqos->subscription_keys.use_key_list = 0;
@@ -2744,7 +2684,7 @@ void nn_xqos_init_default_topic (nn_xqos_t *xqos)
   xqos->subscription_keys.key_list.strs = NULL;
 }
 
-void nn_xqos_init_default_subscriber (nn_xqos_t *xqos)
+void nn_xqos_init_default_subscriber (dds_qos_t *xqos)
 {
   nn_xqos_init_empty (xqos);
 
@@ -2757,7 +2697,7 @@ void nn_xqos_init_default_subscriber (nn_xqos_t *xqos)
   xqos->partition.strs = NULL;
 }
 
-void nn_xqos_init_default_publisher (nn_xqos_t *xqos)
+void nn_xqos_init_default_publisher (dds_qos_t *xqos)
 {
   nn_xqos_init_empty (xqos);
 
@@ -2769,7 +2709,7 @@ void nn_xqos_init_default_publisher (nn_xqos_t *xqos)
   xqos->partition.strs = NULL;
 }
 
-void nn_xqos_mergein_missing (nn_xqos_t *a, const nn_xqos_t *b)
+void nn_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b)
 {
   /* Adds QoS's from B to A (duplicating memory) (only those not
      present in A, obviously) */
@@ -2799,10 +2739,8 @@ void nn_xqos_mergein_missing (nn_xqos_t *a, const nn_xqos_t *b)
   CQ (TIME_BASED_FILTER, time_based_filter);
   CQ (PRISMTECH_READER_DATA_LIFECYCLE, reader_data_lifecycle);
   CQ (PRISMTECH_WRITER_DATA_LIFECYCLE, writer_data_lifecycle);
-  CQ (PRISMTECH_RELAXED_QOS_MATCHING, relaxed_qos_matching);
   CQ (PRISMTECH_READER_LIFESPAN, reader_lifespan);
   CQ (PRISMTECH_ENTITY_FACTORY, entity_factory);
-  CQ (PRISMTECH_SYNCHRONOUS_ENDPOINT, synchronous_endpoint);
   CQ (CYCLONE_IGNORELOCAL, ignorelocal);
 #undef CQ
 
@@ -2818,12 +2756,12 @@ void nn_xqos_mergein_missing (nn_xqos_t *a, const nn_xqos_t *b)
       a->present |= QP_##fl_;                                   \
     }                                                           \
   } while (0)
-  CQ (GROUP_DATA, group_data, octetseq, nn_octetseq_t);
-  CQ (TOPIC_DATA, topic_data, octetseq, nn_octetseq_t);
-  CQ (USER_DATA, user_data, octetseq, nn_octetseq_t);
+  CQ (GROUP_DATA, group_data, octetseq, ddsi_octetseq_t);
+  CQ (TOPIC_DATA, topic_data, octetseq, ddsi_octetseq_t);
+  CQ (USER_DATA, user_data, octetseq, ddsi_octetseq_t);
   CQ (TOPIC_NAME, topic_name, string, char *);
   CQ (TYPE_NAME, type_name, string, char *);
-  CQ (RTI_TYPECODE, rti_typecode, octetseq, nn_octetseq_t);
+  CQ (RTI_TYPECODE, rti_typecode, octetseq, ddsi_octetseq_t);
 #undef CQ
   if (!(a->present & QP_PRISMTECH_SUBSCRIPTION_KEYS) && (b->present & QP_PRISMTECH_SUBSCRIPTION_KEYS))
   {
@@ -2838,13 +2776,13 @@ void nn_xqos_mergein_missing (nn_xqos_t *a, const nn_xqos_t *b)
   }
 }
 
-void nn_xqos_copy (nn_xqos_t *dst, const nn_xqos_t *src)
+void nn_xqos_copy (dds_qos_t *dst, const dds_qos_t *src)
 {
   nn_xqos_init_empty (dst);
   nn_xqos_mergein_missing (dst, src);
 }
 
-void nn_xqos_unalias (nn_xqos_t *xqos)
+void nn_xqos_unalias (dds_qos_t *xqos)
 {
   DDS_LOG(DDS_LC_PLIST, "NN_XQOS_UNALIAS\n");
 #define Q(name_, func_, field_) do {                                    \
@@ -2865,20 +2803,19 @@ void nn_xqos_unalias (nn_xqos_t *xqos)
   assert (xqos->aliased == 0);
 }
 
-void nn_xqos_fini (nn_xqos_t *xqos)
+void nn_xqos_fini (dds_qos_t *xqos)
 {
   struct t { uint64_t fl; size_t off; };
   static const struct t qos_simple[] = {
-    { QP_GROUP_DATA, offsetof (nn_xqos_t, group_data.value) },
-    { QP_TOPIC_DATA, offsetof (nn_xqos_t, topic_data.value) },
-    { QP_USER_DATA, offsetof (nn_xqos_t, user_data.value) },
-    { QP_TOPIC_NAME, offsetof (nn_xqos_t, topic_name) },
-    { QP_TYPE_NAME, offsetof (nn_xqos_t, type_name) },
-    { QP_RTI_TYPECODE, offsetof (nn_xqos_t, rti_typecode.value) }
+    { QP_GROUP_DATA, offsetof (dds_qos_t, group_data.value) },
+    { QP_TOPIC_DATA, offsetof (dds_qos_t, topic_data.value) },
+    { QP_USER_DATA, offsetof (dds_qos_t, user_data.value) },
+    { QP_TOPIC_NAME, offsetof (dds_qos_t, topic_name) },
+    { QP_TYPE_NAME, offsetof (dds_qos_t, type_name) },
+    { QP_RTI_TYPECODE, offsetof (dds_qos_t, rti_typecode.value) }
   };
-  int i;
   DDS_LOG(DDS_LC_PLIST, "NN_XQOS_FINI\n");
-  for (i = 0; i < (int) (sizeof (qos_simple) / sizeof (*qos_simple)); i++)
+  for (size_t i = 0; i < sizeof (qos_simple) / sizeof (*qos_simple); i++)
   {
     if ((xqos->present & qos_simple[i].fl) && !(xqos->aliased & qos_simple[i].fl))
     {
@@ -2914,27 +2851,22 @@ void nn_xqos_fini (nn_xqos_t *xqos)
   xqos->present = 0;
 }
 
-nn_xqos_t * nn_xqos_dup (const nn_xqos_t *src)
+dds_qos_t * nn_xqos_dup (const dds_qos_t *src)
 {
-  nn_xqos_t *dst = ddsrt_malloc (sizeof (*dst));
+  dds_qos_t *dst = ddsrt_malloc (sizeof (*dst));
   nn_xqos_copy (dst, src);
   assert (dst->aliased == 0);
   return dst;
 }
 
-static int octetseqs_differ (const nn_octetseq_t *a, const nn_octetseq_t *b)
+static int octetseqs_differ (const ddsi_octetseq_t *a, const ddsi_octetseq_t *b)
 {
   return (a->length != b->length || memcmp (a->value, b->value, a->length) != 0);
 }
 
-static int durations_differ (const nn_duration_t *a, const nn_duration_t *b)
+static int stringseqs_differ (const ddsi_stringseq_t *a, const ddsi_stringseq_t *b)
 {
-  return (a->seconds != b->seconds || a->fraction != b->fraction);
-}
-
-static int stringseqs_differ (const nn_stringseq_t *a, const nn_stringseq_t *b)
-{
-  unsigned i;
+  uint32_t i;
   if (a->n != b->n)
     return 1;
   for (i = 0; i < a->n; i++)
@@ -2943,29 +2875,29 @@ static int stringseqs_differ (const nn_stringseq_t *a, const nn_stringseq_t *b)
   return 0;
 }
 
-static int histories_differ (const nn_history_qospolicy_t *a, const nn_history_qospolicy_t *b)
+static int histories_differ (const dds_history_qospolicy_t *a, const dds_history_qospolicy_t *b)
 {
-  return (a->kind != b->kind || (a->kind == NN_KEEP_LAST_HISTORY_QOS && a->depth != b->depth));
+  return (a->kind != b->kind || (a->kind == DDS_HISTORY_KEEP_LAST && a->depth != b->depth));
 }
 
-static int resource_limits_differ (const nn_resource_limits_qospolicy_t *a, const nn_resource_limits_qospolicy_t *b)
+static int resource_limits_differ (const dds_resource_limits_qospolicy_t *a, const dds_resource_limits_qospolicy_t *b)
 {
   return (a->max_samples != b->max_samples || a->max_instances != b->max_instances ||
           a->max_samples_per_instance != b->max_samples_per_instance);
 }
 
-static int partition_is_default (const nn_partition_qospolicy_t *a)
+static int partition_is_default (const dds_partition_qospolicy_t *a)
 {
-  unsigned i;
+  uint32_t i;
   for (i = 0; i < a->n; i++)
     if (strcmp (a->strs[i], "") != 0)
       return 0;
   return 1;
 }
 
-static int partitions_equal_n2 (const nn_partition_qospolicy_t *a, const nn_partition_qospolicy_t *b)
+static int partitions_equal_n2 (const dds_partition_qospolicy_t *a, const dds_partition_qospolicy_t *b)
 {
-  unsigned i, j;
+  uint32_t i, j;
   for (i = 0; i < a->n; i++)
   {
     for (j = 0; j < b->n; j++)
@@ -2977,22 +2909,27 @@ static int partitions_equal_n2 (const nn_partition_qospolicy_t *a, const nn_part
   return 1;
 }
 
-static int partitions_equal_nlogn (const nn_partition_qospolicy_t *a, const nn_partition_qospolicy_t *b)
+static int strcmp_wrapper (const void *a, const void *b)
+{
+  return strcmp (a, b);
+}
+
+static int partitions_equal_nlogn (const dds_partition_qospolicy_t *a, const dds_partition_qospolicy_t *b)
 {
   char *statictab[8], **tab;
   int equal = 1;
-  unsigned i;
+  uint32_t i;
 
-  if (a->n <= (int) (sizeof (statictab) / sizeof (*statictab)))
+  if (a->n <= sizeof (statictab) / sizeof (*statictab))
     tab = statictab;
   else
     tab = ddsrt_malloc (a->n * sizeof (*tab));
 
   for (i = 0; i < a->n; i++)
     tab[i] = a->strs[i];
-  qsort (tab, a->n, sizeof (*tab), (int (*) (const void *, const void *)) strcmp);
+  qsort (tab, a->n, sizeof (*tab), strcmp_wrapper);
   for (i = 0; i < b->n; i++)
-    if (bsearch (b->strs[i], tab, a->n, sizeof (*tab), (int (*) (const void *, const void *)) strcmp) == NULL)
+    if (bsearch (b->strs[i], tab, a->n, sizeof (*tab), strcmp_wrapper) == NULL)
     {
       equal = 0;
       break;
@@ -3002,7 +2939,7 @@ static int partitions_equal_nlogn (const nn_partition_qospolicy_t *a, const nn_p
   return equal;
 }
 
-static int partitions_equal (const nn_partition_qospolicy_t *a, const nn_partition_qospolicy_t *b)
+static int partitions_equal (const dds_partition_qospolicy_t *a, const dds_partition_qospolicy_t *b)
 {
   /* Return true iff (the set a->strs) equals (the set b->strs); that
      is, order doesn't matter. One could argue that "**" and "*" are
@@ -3023,7 +2960,7 @@ static int partitions_equal (const nn_partition_qospolicy_t *a, const nn_partiti
      assuming that |A| >= |B|. */
   if (a->n < b->n)
   {
-    const nn_partition_qospolicy_t *x = a;
+    const dds_partition_qospolicy_t *x = a;
     a = b;
     b = x;
   }
@@ -3040,7 +2977,7 @@ static int partitions_equal (const nn_partition_qospolicy_t *a, const nn_partiti
   }
 }
 
-uint64_t nn_xqos_delta (const nn_xqos_t *a, const nn_xqos_t *b, uint64_t mask)
+uint64_t nn_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uint64_t mask)
 {
   /* Returns QP_... set for RxO settings where a differs from b; if
      present in a but not in b (or in b but not in a) it counts as a
@@ -3079,29 +3016,27 @@ uint64_t nn_xqos_delta (const nn_xqos_t *a, const nn_xqos_t *b, uint64_t mask)
   }
   if (check & QP_DURABILITY_SERVICE)
   {
-    const nn_durability_service_qospolicy_t *qa = &a->durability_service;
-    const nn_durability_service_qospolicy_t *qb = &b->durability_service;
-    if (durations_differ (&qa->service_cleanup_delay, &qb->service_cleanup_delay) ||
+    const dds_durability_service_qospolicy_t *qa = &a->durability_service;
+    const dds_durability_service_qospolicy_t *qb = &b->durability_service;
+    if (qa->service_cleanup_delay != qb->service_cleanup_delay ||
         histories_differ (&qa->history, &qb->history) ||
         resource_limits_differ (&qa->resource_limits, &qb->resource_limits))
       delta |= QP_DURABILITY_SERVICE;
   }
   if (check & QP_DEADLINE) {
-    if (durations_differ (&a->deadline.deadline, &b->deadline.deadline))
+    if (a->deadline.deadline != b->deadline.deadline)
       delta |= QP_DEADLINE;
   }
   if (check & QP_LATENCY_BUDGET) {
-    if (durations_differ (&a->latency_budget.duration, &b->latency_budget.duration))
+    if (a->latency_budget.duration != b->latency_budget.duration)
       delta |= QP_LATENCY_BUDGET;
   }
   if (check & QP_LIVELINESS) {
-    if (a->liveliness.kind != b->liveliness.kind ||
-        durations_differ (&a->liveliness.lease_duration, &b->liveliness.lease_duration))
+    if (a->liveliness.kind != b->liveliness.kind || a->liveliness.lease_duration != b->liveliness.lease_duration)
       delta |= QP_LIVELINESS;
   }
   if (check & QP_RELIABILITY) {
-    if (a->reliability.kind != b->reliability.kind ||
-        durations_differ (&a->reliability.max_blocking_time, &b->reliability.max_blocking_time))
+    if (a->reliability.kind != b->reliability.kind || a->reliability.max_blocking_time != b->reliability.max_blocking_time)
       delta |= QP_RELIABILITY;
   }
   if (check & QP_DESTINATION_ORDER) {
@@ -3121,7 +3056,7 @@ uint64_t nn_xqos_delta (const nn_xqos_t *a, const nn_xqos_t *b, uint64_t mask)
       delta |= QP_TRANSPORT_PRIORITY;
   }
   if (check & QP_LIFESPAN) {
-    if (durations_differ (&a->lifespan.duration, &b->lifespan.duration))
+    if (a->lifespan.duration != b->lifespan.duration)
       delta |= QP_LIFESPAN;
   }
   if (check & QP_USER_DATA) {
@@ -3137,38 +3072,24 @@ uint64_t nn_xqos_delta (const nn_xqos_t *a, const nn_xqos_t *b, uint64_t mask)
       delta |= QP_OWNERSHIP_STRENGTH;
   }
   if (check & QP_TIME_BASED_FILTER) {
-    if (durations_differ (&a->time_based_filter.minimum_separation, &b->time_based_filter.minimum_separation))
+    if (a->time_based_filter.minimum_separation != b->time_based_filter.minimum_separation)
       delta |= QP_TIME_BASED_FILTER;
   }
   if (check & QP_PRISMTECH_READER_DATA_LIFECYCLE) {
-    if (durations_differ (&a->reader_data_lifecycle.autopurge_disposed_samples_delay,
-                          &b->reader_data_lifecycle.autopurge_disposed_samples_delay) ||
-        durations_differ (&a->reader_data_lifecycle.autopurge_nowriter_samples_delay,
-                          &b->reader_data_lifecycle.autopurge_nowriter_samples_delay) ||
-        a->reader_data_lifecycle.autopurge_dispose_all != b->reader_data_lifecycle.autopurge_dispose_all ||
-        a->reader_data_lifecycle.enable_invalid_samples != b->reader_data_lifecycle.enable_invalid_samples ||
-        a->reader_data_lifecycle.invalid_sample_visibility != b->reader_data_lifecycle.invalid_sample_visibility)
+    if (a->reader_data_lifecycle.autopurge_disposed_samples_delay != b->reader_data_lifecycle.autopurge_disposed_samples_delay ||
+        a->reader_data_lifecycle.autopurge_nowriter_samples_delay != b->reader_data_lifecycle.autopurge_nowriter_samples_delay)
       delta |= QP_PRISMTECH_READER_DATA_LIFECYCLE;
   }
   if (check & QP_PRISMTECH_WRITER_DATA_LIFECYCLE) {
     if (a->writer_data_lifecycle.autodispose_unregistered_instances !=
-        b->writer_data_lifecycle.autodispose_unregistered_instances ||
-        durations_differ (&a->writer_data_lifecycle.autopurge_suspended_samples_delay,
-                          &b->writer_data_lifecycle.autopurge_suspended_samples_delay) ||
-        durations_differ (&a->writer_data_lifecycle.autounregister_instance_delay,
-                          &b->writer_data_lifecycle.autounregister_instance_delay))
+        b->writer_data_lifecycle.autodispose_unregistered_instances)
       delta |= QP_PRISMTECH_WRITER_DATA_LIFECYCLE;
-  }
-  if (check & QP_PRISMTECH_RELAXED_QOS_MATCHING) {
-    if (a->relaxed_qos_matching.value !=
-        b->relaxed_qos_matching.value)
-      delta |= QP_PRISMTECH_RELAXED_QOS_MATCHING;
   }
   if (check & QP_PRISMTECH_READER_LIFESPAN) {
     /* Note: the conjunction need not test both a & b for having use_lifespan set */
     if (a->reader_lifespan.use_lifespan != b->reader_lifespan.use_lifespan ||
         (a->reader_lifespan.use_lifespan && b->reader_lifespan.use_lifespan &&
-         durations_differ (&a->reader_lifespan.duration, &b->reader_lifespan.duration)))
+         a->reader_lifespan.duration != b->reader_lifespan.duration))
       delta |= QP_PRISMTECH_READER_LIFESPAN;
   }
   if (check & QP_PRISMTECH_SUBSCRIPTION_KEYS) {
@@ -3183,10 +3104,6 @@ uint64_t nn_xqos_delta (const nn_xqos_t *a, const nn_xqos_t *b, uint64_t mask)
         b->entity_factory.autoenable_created_entities)
       delta |= QP_PRISMTECH_ENTITY_FACTORY;
   }
-  if (check & QP_PRISMTECH_SYNCHRONOUS_ENDPOINT) {
-    if (a->synchronous_endpoint.value != b->synchronous_endpoint.value)
-      delta |= QP_PRISMTECH_SYNCHRONOUS_ENDPOINT;
-  }
   if (check & QP_RTI_TYPECODE) {
     if (octetseqs_differ (&a->rti_typecode, &b->rti_typecode))
       delta |= QP_RTI_TYPECODE;
@@ -3200,17 +3117,17 @@ uint64_t nn_xqos_delta (const nn_xqos_t *a, const nn_xqos_t *b, uint64_t mask)
 
 /*************************/
 
-void nn_xqos_addtomsg (struct nn_xmsg *m, const nn_xqos_t *xqos, uint64_t wanted)
+void nn_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, uint64_t wanted)
 {
   /* Returns new nn_xmsg pointer (currently, reallocs may happen) */
 
   uint64_t w = xqos->present & wanted;
   char *tmp;
-#define SIMPLE(name_, field_) \
+#define SIMPLE(name_, prefix_, field_) \
   do { \
     if (w & QP_##name_) { \
       tmp = nn_xmsg_addpar (m, PID_##name_, sizeof (xqos->field_)); \
-      *((nn_##field_##_qospolicy_t *) tmp) = xqos->field_; \
+      *((prefix_##_##field_##_qospolicy_t *) tmp) = xqos->field_; \
     } \
   } while (0)
 #define FUNC_BY_REF(name_, field_, func_) \
@@ -3228,32 +3145,30 @@ void nn_xqos_addtomsg (struct nn_xmsg *m, const nn_xqos_t *xqos, uint64_t wanted
 
   FUNC_BY_VAL (TOPIC_NAME, topic_name, string);
   FUNC_BY_VAL (TYPE_NAME, type_name, string);
-  SIMPLE (PRESENTATION, presentation);
+  SIMPLE (PRESENTATION, dds, presentation);
   FUNC_BY_REF (PARTITION, partition, stringseq);
   FUNC_BY_REF (GROUP_DATA, group_data, octetseq);
   FUNC_BY_REF (TOPIC_DATA, topic_data, octetseq);
-  SIMPLE (DURABILITY, durability);
-  SIMPLE (DURABILITY_SERVICE, durability_service);
-  SIMPLE (DEADLINE, deadline);
-  SIMPLE (LATENCY_BUDGET, latency_budget);
-  SIMPLE (LIVELINESS, liveliness);
+  SIMPLE (DURABILITY, dds, durability);
+  FUNC_BY_REF (DURABILITY_SERVICE, durability_service, durability_service);
+  FUNC_BY_VAL (DEADLINE, deadline.deadline, duration);
+  FUNC_BY_VAL (LATENCY_BUDGET, latency_budget.duration, duration);
+  FUNC_BY_REF (LIVELINESS, liveliness, liveliness);
   FUNC_BY_REF (RELIABILITY, reliability, reliability);
-  SIMPLE (DESTINATION_ORDER, destination_order);
-  SIMPLE (HISTORY, history);
-  SIMPLE (RESOURCE_LIMITS, resource_limits);
-  SIMPLE (TRANSPORT_PRIORITY, transport_priority);
-  SIMPLE (LIFESPAN, lifespan);
+  SIMPLE (DESTINATION_ORDER, dds, destination_order);
+  SIMPLE (HISTORY, dds, history);
+  SIMPLE (RESOURCE_LIMITS, dds, resource_limits);
+  SIMPLE (TRANSPORT_PRIORITY, dds, transport_priority);
+  FUNC_BY_VAL (LIFESPAN, lifespan.duration, duration);
   FUNC_BY_REF (USER_DATA, user_data, octetseq);
-  SIMPLE (OWNERSHIP, ownership);
-  SIMPLE (OWNERSHIP_STRENGTH, ownership_strength);
-  SIMPLE (TIME_BASED_FILTER, time_based_filter);
-  SIMPLE (PRISMTECH_READER_DATA_LIFECYCLE, reader_data_lifecycle);
-  SIMPLE (PRISMTECH_WRITER_DATA_LIFECYCLE, writer_data_lifecycle);
-  SIMPLE (PRISMTECH_RELAXED_QOS_MATCHING, relaxed_qos_matching);
-  SIMPLE (PRISMTECH_READER_LIFESPAN, reader_lifespan);
+  SIMPLE (OWNERSHIP, dds, ownership);
+  SIMPLE (OWNERSHIP_STRENGTH, dds, ownership_strength);
+  FUNC_BY_VAL (TIME_BASED_FILTER, time_based_filter.minimum_separation, duration);
+  FUNC_BY_REF (PRISMTECH_READER_DATA_LIFECYCLE, reader_data_lifecycle, reader_data_lifecycle);
+  SIMPLE (PRISMTECH_WRITER_DATA_LIFECYCLE, dds, writer_data_lifecycle);
+  FUNC_BY_REF (PRISMTECH_READER_LIFESPAN, reader_lifespan, reader_lifespan);
   FUNC_BY_REF (PRISMTECH_SUBSCRIPTION_KEYS, subscription_keys, subscription_keys);
-  SIMPLE (PRISMTECH_ENTITY_FACTORY, entity_factory);
-  SIMPLE (PRISMTECH_SYNCHRONOUS_ENDPOINT, synchronous_endpoint);
+  SIMPLE (PRISMTECH_ENTITY_FACTORY, dds, entity_factory);
   FUNC_BY_REF (RTI_TYPECODE, rti_typecode, octetseq);
   /* CYCLONE_IGNORELOCAL is not visible on the wire */
 #undef FUNC_BY_REF
@@ -3261,7 +3176,7 @@ void nn_xqos_addtomsg (struct nn_xmsg *m, const nn_xqos_t *xqos, uint64_t wanted
 #undef SIMPLE
 }
 
-static void add_locators (struct nn_xmsg *m, uint64_t present, uint64_t flag, const nn_locators_t *ls, unsigned pid)
+static void add_locators (struct nn_xmsg *m, uint64_t present, uint64_t flag, const nn_locators_t *ls, nn_parameterid_t pid)
 {
   const struct nn_locators_one *l;
   if (present & flag)
@@ -3313,7 +3228,7 @@ void nn_plist_addtomsg (struct nn_xmsg *m, const nn_plist_t *ps, uint64_t pwante
   add_locators (m, ps->present, PP_METATRAFFIC_MULTICAST_LOCATOR, &ps->metatraffic_multicast_locators, PID_METATRAFFIC_MULTICAST_LOCATOR);
 
   SIMPLE_TYPE (EXPECTS_INLINE_QOS, expects_inline_qos, unsigned char);
-  SIMPLE_TYPE (PARTICIPANT_LEASE_DURATION, participant_lease_duration, nn_duration_t);
+  FUNC_BY_VAL (PARTICIPANT_LEASE_DURATION, participant_lease_duration, duration);
   FUNC_BY_REF (PARTICIPANT_GUID, participant_guid, guid);
   SIMPLE_TYPE (BUILTIN_ENDPOINT_SET, builtin_endpoint_set, unsigned);
   SIMPLE_TYPE (KEYHASH, keyhash, nn_keyhash_t);
@@ -3349,21 +3264,21 @@ void nn_plist_addtomsg (struct nn_xmsg *m, const nn_plist_t *ps, uint64_t pwante
 
 /*************************/
 
-static unsigned isprint_runlen (unsigned n, const unsigned char *xs)
+static uint32_t isprint_runlen (uint32_t n, const unsigned char *xs)
 {
-  unsigned m;
+  uint32_t m;
   for (m = 0; m < n && xs[m] != '"' && isprint (xs[m]); m++)
     ;
   return m;
 }
 
 
-static void log_octetseq (uint32_t cat, unsigned n, const unsigned char *xs)
+static void log_octetseq (uint32_t cat, uint32_t n, const unsigned char *xs)
 {
-  unsigned i = 0;
+  uint32_t i = 0;
   while (i < n)
   {
-    unsigned m = isprint_runlen(n - i, xs);
+    uint32_t m = isprint_runlen(n - i, xs);
     if (m >= 4)
     {
       DDS_LOG(cat, "%s\"%*.*s\"", i == 0 ? "" : ",", m, m, xs);
@@ -3383,7 +3298,7 @@ static void log_octetseq (uint32_t cat, unsigned n, const unsigned char *xs)
   }
 }
 
-void nn_log_xqos (uint32_t cat, const nn_xqos_t *xqos)
+void nn_log_xqos (uint32_t cat, const dds_qos_t *xqos)
 {
   uint64_t p = xqos->present;
   const char *prefix = "";
@@ -3395,16 +3310,15 @@ void nn_log_xqos (uint32_t cat, const nn_xqos_t *xqos)
 #define LOGB5(fmt_, arg0_, arg1_, arg2_, arg3_, arg4_) DDS_LOG(cat, "%s" fmt_, prefix, arg0_, arg1_, arg2_, arg3_, arg4_)
 #define DO(name_, body_) do { if (p & QP_##name_) { { body_ } prefix = ","; } } while (0)
 
-#define FMT_DUR "%d.%09d"
-#define PRINTARG_DUR(d) (d).seconds, (int) ((d).fraction/4.294967296)
+#define FMT_DUR "%"PRId64".%09"PRId32
+#define PRINTARG_DUR(d) ((int64_t) ((d) / 1000000000)), ((int32_t) ((d) % 1000000000))
 
   DO (TOPIC_NAME, { LOGB1 ("topic=%s", xqos->topic_name); });
   DO (TYPE_NAME, { LOGB1 ("type=%s", xqos->type_name); });
   DO (PRESENTATION, { LOGB3 ("presentation=%d:%u:%u", xqos->presentation.access_scope, xqos->presentation.coherent_access, xqos->presentation.ordered_access); });
   DO (PARTITION, {
-      unsigned i;
       LOGB0 ("partition={");
-      for (i = 0; i < xqos->partition.n; i++) {
+      for (uint32_t i = 0; i < xqos->partition.n; i++) {
         DDS_LOG(cat, "%s%s", (i == 0) ? "" : ",", xqos->partition.strs[i]);
       }
       DDS_LOG(cat, "}");
@@ -3443,24 +3357,18 @@ void nn_log_xqos (uint32_t cat, const nn_xqos_t *xqos)
   DO (OWNERSHIP, { LOGB1 ("ownership=%d", xqos->ownership.kind); });
   DO (OWNERSHIP_STRENGTH, { LOGB1 ("ownership_strength=%"PRId32, xqos->ownership_strength.value); });
   DO (TIME_BASED_FILTER, { LOGB1 ("time_based_filter="FMT_DUR, PRINTARG_DUR (xqos->time_based_filter.minimum_separation)); });
-  DO (PRISMTECH_READER_DATA_LIFECYCLE, { LOGB5 ("reader_data_lifecycle="FMT_DUR":"FMT_DUR":%u:%u:%d", PRINTARG_DUR (xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay), PRINTARG_DUR (xqos->reader_data_lifecycle.autopurge_disposed_samples_delay), xqos->reader_data_lifecycle.autopurge_dispose_all, xqos->reader_data_lifecycle.enable_invalid_samples, (int) xqos->reader_data_lifecycle.invalid_sample_visibility); });
+  DO (PRISMTECH_READER_DATA_LIFECYCLE, { LOGB2 ("reader_data_lifecycle="FMT_DUR":"FMT_DUR, PRINTARG_DUR (xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay), PRINTARG_DUR (xqos->reader_data_lifecycle.autopurge_disposed_samples_delay)); });
   DO (PRISMTECH_WRITER_DATA_LIFECYCLE, {
-    LOGB3 ("writer_data_lifecycle={%u,"FMT_DUR","FMT_DUR"}",
-           xqos->writer_data_lifecycle.autodispose_unregistered_instances,
-           PRINTARG_DUR (xqos->writer_data_lifecycle.autounregister_instance_delay),
-           PRINTARG_DUR (xqos->writer_data_lifecycle.autopurge_suspended_samples_delay)); });
-  DO (PRISMTECH_RELAXED_QOS_MATCHING, { LOGB1 ("relaxed_qos_matching=%u", xqos->relaxed_qos_matching.value); });
+    LOGB1 ("writer_data_lifecycle={%u}", xqos->writer_data_lifecycle.autodispose_unregistered_instances); });
   DO (PRISMTECH_READER_LIFESPAN, { LOGB2 ("reader_lifespan={%u,"FMT_DUR"}", xqos->reader_lifespan.use_lifespan, PRINTARG_DUR (xqos->reader_lifespan.duration)); });
   DO (PRISMTECH_SUBSCRIPTION_KEYS, {
-    unsigned i;
     LOGB1 ("subscription_keys={%u,{", xqos->subscription_keys.use_key_list);
-    for (i = 0; i < xqos->subscription_keys.key_list.n; i++) {
+    for (uint32_t i = 0; i < xqos->subscription_keys.key_list.n; i++) {
       DDS_LOG(cat, "%s%s", (i == 0) ? "" : ",", xqos->subscription_keys.key_list.strs[i]);
     }
     DDS_LOG(cat, "}}");
   });
   DO (PRISMTECH_ENTITY_FACTORY, { LOGB1 ("entity_factory=%u", xqos->entity_factory.autoenable_created_entities); });
-  DO (PRISMTECH_SYNCHRONOUS_ENDPOINT, { LOGB1 ("synchronous_endpoint=%u", xqos->synchronous_endpoint.value); });
   DO (RTI_TYPECODE, {
     LOGB1 ("rti_typecode=%"PRIu32"<", xqos->rti_typecode.length);
     log_octetseq (cat, xqos->rti_typecode.length, xqos->rti_typecode.value);

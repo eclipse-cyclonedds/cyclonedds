@@ -16,13 +16,13 @@
 extern "C" {
 #endif
 
-struct nn_xqos;
+struct dds_qos;
 
-int partitions_match_p (const struct nn_xqos *a, const struct nn_xqos *b);
+int partitions_match_p (const struct dds_qos *a, const struct dds_qos *b);
 
 /* Returns -1 on success, or QoS id of first mismatch (>=0) */
 
-int32_t qos_match_p (const struct nn_xqos *rd, const struct nn_xqos *wr);
+bool qos_match_p (const struct dds_qos *rd, const struct dds_qos *wr, dds_qos_policy_id_t *reason) ddsrt_nonnull ((1, 2));
 
 #if defined (__cplusplus)
 }

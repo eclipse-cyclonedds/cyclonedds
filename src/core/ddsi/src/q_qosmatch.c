@@ -35,7 +35,7 @@ static int partition_patmatch_p (const char *pat, const char *name)
     return ddsi2_patmatch (pat, name);
 }
 
-static int partitions_match_default (const nn_xqos_t *x)
+static int partitions_match_default (const dds_qos_t *x)
 {
   unsigned i;
   if (!(x->present & QP_PARTITION) || x->partition.n == 0)
@@ -46,7 +46,7 @@ static int partitions_match_default (const nn_xqos_t *x)
   return 0;
 }
 
-int partitions_match_p (const nn_xqos_t *a, const nn_xqos_t *b)
+int partitions_match_p (const dds_qos_t *a, const dds_qos_t *b)
 {
   if (!(a->present & QP_PARTITION) || a->partition.n == 0)
     return partitions_match_default (b);
@@ -66,117 +66,74 @@ int partitions_match_p (const nn_xqos_t *a, const nn_xqos_t *b)
   }
 }
 
-static int ddsi_duration_is_lt (nn_duration_t a0, nn_duration_t b0)
-{
-  /* inf counts as <= inf */
-  const int64_t a = nn_from_ddsi_duration (a0);
-  const int64_t b = nn_from_ddsi_duration (b0);
-  if (a == T_NEVER)
-    return 0;
-  else if (b == T_NEVER)
-    return 1;
-  else
-    return a < b;
-}
+static bool qos_match_internal_p (const dds_qos_t *rd, const dds_qos_t *wr, dds_qos_policy_id_t *reason) ddsrt_nonnull_all;
 
-/* Duplicates of DDS policy ids to avoid inclusion of actual definitions */
-
-#define Q_INVALID_QOS_POLICY_ID 0
-#define Q_USERDATA_QOS_POLICY_ID 1
-#define Q_DURABILITY_QOS_POLICY_ID 2
-#define Q_PRESENTATION_QOS_POLICY_ID 3
-#define Q_DEADLINE_QOS_POLICY_ID 4
-#define Q_LATENCYBUDGET_QOS_POLICY_ID 5
-#define Q_OWNERSHIP_QOS_POLICY_ID 6
-#define Q_OWNERSHIPSTRENGTH_QOS_POLICY_ID 7
-#define Q_LIVELINESS_QOS_POLICY_ID 8
-#define Q_TIMEBASEDFILTER_QOS_POLICY_ID 9
-#define Q_PARTITION_QOS_POLICY_ID 10
-#define Q_RELIABILITY_QOS_POLICY_ID 11
-#define Q_DESTINATIONORDER_QOS_POLICY_ID 12
-#define Q_HISTORY_QOS_POLICY_ID 13
-#define Q_RESOURCELIMITS_QOS_POLICY_ID 14
-#define Q_ENTITYFACTORY_QOS_POLICY_ID 15
-#define Q_WRITERDATALIFECYCLE_QOS_POLICY_ID 16
-#define Q_READERDATALIFECYCLE_QOS_POLICY_ID 17
-#define Q_TOPICDATA_QOS_POLICY_ID 18
-#define Q_GROUPDATA_QOS_POLICY_ID 19
-#define Q_TRANSPORTPRIORITY_QOS_POLICY_ID 20
-#define Q_LIFESPAN_QOS_POLICY_ID 21
-#define Q_DURABILITYSERVICE_QOS_POLICY_ID 22
-
-int32_t qos_match_p (const nn_xqos_t *rd, const nn_xqos_t *wr)
+static bool qos_match_internal_p (const dds_qos_t *rd, const dds_qos_t *wr, dds_qos_policy_id_t *reason)
 {
 #ifndef NDEBUG
   unsigned musthave = (QP_RXO_MASK | QP_PARTITION | QP_TOPIC_NAME | QP_TYPE_NAME);
   assert ((rd->present & musthave) == musthave);
   assert ((wr->present & musthave) == musthave);
 #endif
+  *reason = DDS_INVALID_QOS_POLICY_ID;
   if (strcmp (rd->topic_name, wr->topic_name) != 0)
-  {
-    return Q_INVALID_QOS_POLICY_ID;
-  }
+    return false;
   if (strcmp (rd->type_name, wr->type_name) != 0)
-  {
-    return Q_INVALID_QOS_POLICY_ID;
+    return false;
+
+  if (rd->reliability.kind > wr->reliability.kind) {
+    *reason = DDS_RELIABILITY_QOS_POLICY_ID;
+    return false;
   }
-  if (rd->relaxed_qos_matching.value || wr->relaxed_qos_matching.value)
-  {
-    if (rd->reliability.kind != wr->reliability.kind)
-    {
-      return Q_RELIABILITY_QOS_POLICY_ID;
-    }
+  if (rd->durability.kind > wr->durability.kind) {
+    *reason = DDS_DURABILITY_QOS_POLICY_ID;
+    return false;
   }
-  else
-  {
-    if (rd->reliability.kind > wr->reliability.kind)
-    {
-      return Q_RELIABILITY_QOS_POLICY_ID;
-    }
-    if (rd->durability.kind > wr->durability.kind)
-    {
-      return Q_DURABILITY_QOS_POLICY_ID;
-    }
-    if (rd->presentation.access_scope > wr->presentation.access_scope)
-    {
-      return Q_PRESENTATION_QOS_POLICY_ID;
-    }
-    if (rd->presentation.coherent_access > wr->presentation.coherent_access)
-    {
-      return Q_PRESENTATION_QOS_POLICY_ID;
-    }
-    if (rd->presentation.ordered_access > wr->presentation.ordered_access)
-    {
-      return Q_PRESENTATION_QOS_POLICY_ID;
-    }
-    if (ddsi_duration_is_lt (rd->deadline.deadline, wr->deadline.deadline))
-    {
-      return Q_DEADLINE_QOS_POLICY_ID;
-    }
-    if (ddsi_duration_is_lt (rd->latency_budget.duration, wr->latency_budget.duration))
-    {
-      return Q_LATENCYBUDGET_QOS_POLICY_ID;
-    }
-    if (rd->ownership.kind != wr->ownership.kind)
-    {
-      return Q_OWNERSHIP_QOS_POLICY_ID;
-    }
-    if (rd->liveliness.kind > wr->liveliness.kind)
-    {
-      return Q_LIVELINESS_QOS_POLICY_ID;
-    }
-    if (ddsi_duration_is_lt (rd->liveliness.lease_duration, wr->liveliness.lease_duration))
-    {
-      return Q_LIVELINESS_QOS_POLICY_ID;
-    }
-    if (rd->destination_order.kind > wr->destination_order.kind)
-    {
-      return Q_DESTINATIONORDER_QOS_POLICY_ID;
-    }
+  if (rd->presentation.access_scope > wr->presentation.access_scope) {
+    *reason = DDS_PRESENTATION_QOS_POLICY_ID;
+    return false;
   }
-  if (!partitions_match_p (rd, wr))
-  {
-    return Q_PARTITION_QOS_POLICY_ID;
+  if (rd->presentation.coherent_access > wr->presentation.coherent_access) {
+    *reason = DDS_PRESENTATION_QOS_POLICY_ID;
+    return false;
   }
-  return -1;
+  if (rd->presentation.ordered_access > wr->presentation.ordered_access) {
+    *reason = DDS_PRESENTATION_QOS_POLICY_ID;
+    return false;
+  }
+  if (rd->deadline.deadline < wr->deadline.deadline) {
+    *reason = DDS_DEADLINE_QOS_POLICY_ID;
+    return false;
+  }
+  if (rd->latency_budget.duration < wr->latency_budget.duration) {
+    *reason = DDS_LATENCYBUDGET_QOS_POLICY_ID;
+    return false;
+  }
+  if (rd->ownership.kind != wr->ownership.kind) {
+    *reason = DDS_OWNERSHIP_QOS_POLICY_ID;
+    return false;
+  }
+  if (rd->liveliness.kind > wr->liveliness.kind) {
+    *reason = DDS_LIVELINESS_QOS_POLICY_ID;
+    return false;
+  }
+  if (rd->liveliness.lease_duration < wr->liveliness.lease_duration) {
+    *reason = DDS_LIVELINESS_QOS_POLICY_ID;
+    return false;
+  }
+  if (rd->destination_order.kind > wr->destination_order.kind) {
+    *reason = DDS_DESTINATIONORDER_QOS_POLICY_ID;
+    return false;
+  }
+  if (!partitions_match_p (rd, wr)) {
+    *reason = DDS_PARTITION_QOS_POLICY_ID;
+    return false;
+  }
+  return true;
+}
+
+bool qos_match_p (const dds_qos_t *rd, const dds_qos_t *wr, dds_qos_policy_id_t *reason)
+{
+  dds_qos_policy_id_t dummy;
+  return qos_match_internal_p (rd, wr, reason ? reason : &dummy);
 }

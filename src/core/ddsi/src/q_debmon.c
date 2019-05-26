@@ -107,7 +107,7 @@ static int print_addrset_if_notempty (ddsi_tran_conn_t conn, const char *prefix,
 }
 
 static int print_any_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e,
-                                      const struct nn_xqos *xqos, const struct ddsi_sertopic *topic)
+                                      const struct dds_qos *xqos, const struct ddsi_sertopic *topic)
 {
   int x = 0;
   x += cpf (conn, "  %s %x:%x:%x:%x ", label, PGUID (e->guid));
@@ -126,7 +126,7 @@ static int print_any_endpoint_common (ddsi_tran_conn_t conn, const char *label, 
   return x;
 }
 
-static int print_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e, const struct endpoint_common *c, const struct nn_xqos *xqos, const struct ddsi_sertopic *topic)
+static int print_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e, const struct endpoint_common *c, const struct dds_qos *xqos, const struct ddsi_sertopic *topic)
 {
   DDSRT_UNUSED_ARG (c);
   return print_any_endpoint_common (conn, label, e, xqos, topic);

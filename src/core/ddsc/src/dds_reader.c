@@ -87,7 +87,7 @@ static dds_return_t dds_reader_qos_validate (const dds_qos_t *qos, bool enabled)
     return DDS_RETCODE_INCONSISTENT_POLICY;
   if ((qos->present & QP_PRISMTECH_READER_DATA_LIFECYCLE) && validate_reader_data_lifecycle (&qos->reader_data_lifecycle) < 0)
     return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_TIME_BASED_FILTER) && validate_duration (&qos->time_based_filter.minimum_separation) < 0)
+  if ((qos->present & QP_TIME_BASED_FILTER) && validate_duration (qos->time_based_filter.minimum_separation) < 0)
     return DDS_RETCODE_INCONSISTENT_POLICY;
   if ((qos->present & QP_HISTORY) && (qos->present & QP_RESOURCE_LIMITS) && validate_history_and_resource_limits (&qos->history, &qos->resource_limits) < 0)
     return DDS_RETCODE_INCONSISTENT_POLICY;
@@ -432,7 +432,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   thread_state_asleep (lookup_thread_state ());
 
   /* For persistent data register reader with durability */
-  if (dds_global.m_dur_reader && (rd->m_entity.m_qos->durability.kind > NN_TRANSIENT_LOCAL_DURABILITY_QOS)) {
+  if (dds_global.m_dur_reader && (rd->m_entity.m_qos->durability.kind > DDS_DURABILITY_TRANSIENT_LOCAL)) {
     (dds_global.m_dur_reader) (rd, rhc);
   }
   dds_topic_unlock (tp);

@@ -24,7 +24,7 @@ struct ddsi_serdata_builtintopic {
   struct ddsi_serdata c;
   nn_guid_t key;
   dds_instance_handle_t pphandle;
-  nn_xqos_t xqos;
+  dds_qos_t xqos;
 };
 
 enum ddsi_sertopic_builtintopic_type {

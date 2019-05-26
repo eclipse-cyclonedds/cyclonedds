@@ -41,7 +41,14 @@ static dds_time_t waitTimeout = DDS_SECS (2);
 static dds_time_t shortTimeout = DDS_MSECS (10);
 static dds_publication_matched_status_t publication_matched;
 static dds_subscription_matched_status_t subscription_matched;
-static dds_resource_limits_qospolicy_t resource_limits = {1,1,1};
+
+struct reslimits {
+  int32_t max_samples;
+  int32_t max_instances;
+  int32_t max_samples_per_instance;
+};
+
+static struct reslimits resource_limits = {1,1,1};
 
 static dds_instance_handle_t reader_i_hdl = 0;
 static dds_instance_handle_t writer_i_hdl = 0;

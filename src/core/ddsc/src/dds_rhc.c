@@ -464,18 +464,18 @@ struct rhc * dds_rhc_new (dds_reader * reader, const struct ddsi_sertopic * topi
   return rhc;
 }
 
-void dds_rhc_set_qos (struct rhc * rhc, const nn_xqos_t * qos)
+void dds_rhc_set_qos (struct rhc * rhc, const dds_qos_t * qos)
 {
   /* Set read related QoS */
 
   rhc->max_samples = qos->resource_limits.max_samples;
   rhc->max_instances = qos->resource_limits.max_instances;
   rhc->max_samples_per_instance = qos->resource_limits.max_samples_per_instance;
-  rhc->by_source_ordering = (qos->destination_order.kind == NN_BY_SOURCE_TIMESTAMP_DESTINATIONORDER_QOS);
-  rhc->exclusive_ownership = (qos->ownership.kind == NN_EXCLUSIVE_OWNERSHIP_QOS);
-  rhc->reliable = (qos->reliability.kind == NN_RELIABLE_RELIABILITY_QOS);
-  assert(qos->history.kind != NN_KEEP_LAST_HISTORY_QOS || qos->history.depth > 0);
-  rhc->history_depth = (qos->history.kind == NN_KEEP_LAST_HISTORY_QOS) ? (uint32_t)qos->history.depth : ~0u;
+  rhc->by_source_ordering = (qos->destination_order.kind == DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
+  rhc->exclusive_ownership = (qos->ownership.kind == DDS_OWNERSHIP_EXCLUSIVE);
+  rhc->reliable = (qos->reliability.kind == DDS_RELIABILITY_RELIABLE);
+  assert(qos->history.kind != DDS_HISTORY_KEEP_LAST || qos->history.depth > 0);
+  rhc->history_depth = (qos->history.kind == DDS_HISTORY_KEEP_LAST) ? (uint32_t)qos->history.depth : ~0u;
 }
 
 static bool eval_predicate_sample (const struct rhc *rhc, const struct ddsi_serdata *sample, bool (*pred) (const void *sample))

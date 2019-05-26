@@ -167,7 +167,7 @@ typedef enum SubmessageKind {
 
 typedef struct InfoTimestamp {
   SubmessageHeader_t smhdr;
-  nn_ddsi_time_t time;
+  ddsi_time_t time;
 } InfoTimestamp_t;
 
 typedef struct EntityId {
@@ -196,7 +196,7 @@ typedef struct InfoSRC {
 #define PL_CDR_LE 0x0003u
 #endif
 
-typedef unsigned short nn_parameterid_t; /* spec says short */
+typedef uint16_t nn_parameterid_t; /* spec says short */
 typedef struct nn_parameter {
   nn_parameterid_t parameterid;
   uint16_t length; /* spec says signed short */
@@ -257,7 +257,7 @@ typedef struct Gap {
 
 typedef struct InfoTS {
   SubmessageHeader_t smhdr;
-  nn_ddsi_time_t time;
+  ddsi_time_t time;
 } InfoTS_t;
 #define INFOTS_INVALIDATE_FLAG 0x2u
 

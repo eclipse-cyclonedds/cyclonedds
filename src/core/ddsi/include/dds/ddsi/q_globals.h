@@ -233,15 +233,15 @@ struct q_globals {
      packets); plus the actual QoSs needed for the builtin
      endpoints. */
   nn_plist_t default_plist_pp;
-  nn_xqos_t default_xqos_rd;
-  nn_xqos_t default_xqos_wr;
-  nn_xqos_t default_xqos_wr_nad;
-  nn_xqos_t default_xqos_tp;
-  nn_xqos_t default_xqos_sub;
-  nn_xqos_t default_xqos_pub;
-  nn_xqos_t spdp_endpoint_xqos;
-  nn_xqos_t builtin_endpoint_xqos_rd;
-  nn_xqos_t builtin_endpoint_xqos_wr;
+  dds_qos_t default_xqos_rd;
+  dds_qos_t default_xqos_wr;
+  dds_qos_t default_xqos_wr_nad;
+  dds_qos_t default_xqos_tp;
+  dds_qos_t default_xqos_sub;
+  dds_qos_t default_xqos_pub;
+  dds_qos_t spdp_endpoint_xqos;
+  dds_qos_t builtin_endpoint_xqos_rd;
+  dds_qos_t builtin_endpoint_xqos_wr;
 
   /* SPDP packets get very special treatment (they're the only packets
      we accept from writers we don't know) and have their very own

@@ -46,6 +46,7 @@ PREPEND(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/dd
     ddsc/dds_public_impl.h
     ddsc/dds_public_listener.h
     ddsc/dds_public_qos.h
+    ddsc/dds_public_qosdefs.h
     ddsc/dds_public_status.h
 )
 

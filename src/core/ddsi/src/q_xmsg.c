@@ -782,7 +782,7 @@ size_t nn_xmsg_add_string_padded(unsigned char *buf, char *str)
   return len;
 }
 
-size_t nn_xmsg_add_octseq_padded(unsigned char *buf, nn_octetseq_t *seq)
+size_t nn_xmsg_add_octseq_padded(unsigned char *buf, ddsi_octetseq_t *seq)
 {
   unsigned len = seq->length;
   if (buf) {
@@ -799,15 +799,16 @@ size_t nn_xmsg_add_octseq_padded(unsigned char *buf, nn_octetseq_t *seq)
          align4u(len); /* seqlen + possible padding */
 }
 
-void * nn_xmsg_addpar (struct nn_xmsg *m, unsigned pid, size_t len)
+void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len)
 {
-  const size_t len4 = (len + 3) & (size_t)-4; /* must alloc a multiple of 4 */
+  const size_t len4 = (len + 3) & ~(size_t)3; /* must alloc a multiple of 4 */
   nn_parameter_t *phdr;
   char *p;
+  assert (len4 < UINT16_MAX); /* FIXME: return error */
   m->have_params = 1;
   phdr = nn_xmsg_append (m, NULL, sizeof (nn_parameter_t) + len4);
-  phdr->parameterid = (nn_parameterid_t) pid;
-  phdr->length = (unsigned short) len4;
+  phdr->parameterid = pid;
+  phdr->length = (uint16_t) len4;
   p = (char *) (phdr + 1);
   if (len4 > len)
   {
@@ -819,23 +820,23 @@ void * nn_xmsg_addpar (struct nn_xmsg *m, unsigned pid, size_t len)
   return p;
 }
 
-void nn_xmsg_addpar_string (struct nn_xmsg *m, unsigned pid, const char *str)
+void nn_xmsg_addpar_string (struct nn_xmsg *m, nn_parameterid_t pid, const char *str)
 {
   struct cdrstring *p;
-  unsigned len = (unsigned) strlen (str) + 1;
+  size_t len = strlen (str) + 1;
   p = nn_xmsg_addpar (m, pid, 4 + len);
-  p->length = len;
+  p->length = (uint32_t) len;
   memcpy (p->contents, str, len);
 }
 
-void nn_xmsg_addpar_octetseq (struct nn_xmsg *m, unsigned pid, const nn_octetseq_t *oseq)
+void nn_xmsg_addpar_octetseq (struct nn_xmsg *m, nn_parameterid_t pid, const ddsi_octetseq_t *oseq)
 {
   char *p = nn_xmsg_addpar (m, pid, 4 + oseq->length);
   *((unsigned *) p) = oseq->length;
   memcpy (p + sizeof (int), oseq->value, oseq->length);
 }
 
-void nn_xmsg_addpar_stringseq (struct nn_xmsg *m, unsigned pid, const nn_stringseq_t *sseq)
+void nn_xmsg_addpar_stringseq (struct nn_xmsg *m, nn_parameterid_t pid, const ddsi_stringseq_t *sseq)
 {
   unsigned char *tmp;
   uint32_t i;
@@ -866,7 +867,7 @@ void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serda
   }
 }
 
-void nn_xmsg_addpar_guid (struct nn_xmsg *m, unsigned pid, const nn_guid_t *guid)
+void nn_xmsg_addpar_guid (struct nn_xmsg *m, nn_parameterid_t pid, const nn_guid_t *guid)
 {
   unsigned *pu;
   int i;
@@ -878,50 +879,68 @@ void nn_xmsg_addpar_guid (struct nn_xmsg *m, unsigned pid, const nn_guid_t *guid
   pu[i] = toBE4u (guid->entityid.u);
 }
 
-void nn_xmsg_addpar_reliability (struct nn_xmsg *m, unsigned pid, const struct nn_reliability_qospolicy *rq)
+void nn_xmsg_addpar_reliability (struct nn_xmsg *m, nn_parameterid_t pid, const struct dds_reliability_qospolicy *rq)
 {
-  struct nn_external_reliability_qospolicy *p;
+  struct dds_external_reliability_qospolicy *p;
   p = nn_xmsg_addpar (m, pid, sizeof (*p));
-  if (NN_PEDANTIC_P)
+  switch (rq->kind)
   {
-    switch (rq->kind)
-    {
-      case NN_BEST_EFFORT_RELIABILITY_QOS:
-        p->kind = NN_PEDANTIC_BEST_EFFORT_RELIABILITY_QOS;
-        break;
-      case NN_RELIABLE_RELIABILITY_QOS:
-        p->kind = NN_PEDANTIC_RELIABLE_RELIABILITY_QOS;
-        break;
-      default:
-        assert (0);
-    }
+    case DDS_RELIABILITY_BEST_EFFORT:
+      p->kind = DDS_EXTERNAL_RELIABILITY_BEST_EFFORT;
+      break;
+    case DDS_RELIABILITY_RELIABLE:
+      p->kind = DDS_EXTERNAL_RELIABILITY_RELIABLE;
+      break;
+    default:
+      assert (0);
   }
-  else
-  {
-    switch (rq->kind)
-    {
-      case NN_BEST_EFFORT_RELIABILITY_QOS:
-        p->kind = NN_INTEROP_BEST_EFFORT_RELIABILITY_QOS;
-        break;
-      case NN_RELIABLE_RELIABILITY_QOS:
-        p->kind = NN_INTEROP_RELIABLE_RELIABILITY_QOS;
-        break;
-      default:
-        assert (0);
-    }
-  }
-  p->max_blocking_time = rq->max_blocking_time;
+  p->max_blocking_time = nn_to_ddsi_duration (rq->max_blocking_time);
 }
 
-void nn_xmsg_addpar_4u (struct nn_xmsg *m, unsigned pid, unsigned x)
+void nn_xmsg_addpar_duration (struct nn_xmsg *m, nn_parameterid_t pid, const dds_duration_t rq)
 {
-  unsigned *p = nn_xmsg_addpar (m, pid, 4);
+  ddsi_duration_t *p = nn_xmsg_addpar (m, pid, sizeof (*p));
+  *p = nn_to_ddsi_duration (rq);
+}
+
+void nn_xmsg_addpar_durability_service (struct nn_xmsg *m, nn_parameterid_t pid, const dds_durability_service_qospolicy_t *rq)
+{
+  dds_external_durability_service_qospolicy_t *p = nn_xmsg_addpar (m, pid, sizeof (*p));
+  p->history = rq->history;
+  p->resource_limits = rq->resource_limits;
+  p->service_cleanup_delay = nn_to_ddsi_duration (rq->service_cleanup_delay);
+}
+
+void nn_xmsg_addpar_reader_lifespan (struct nn_xmsg *m, nn_parameterid_t pid, const dds_reader_lifespan_qospolicy_t *rq)
+{
+  dds_external_reader_lifespan_qospolicy_t *p = nn_xmsg_addpar (m, pid, sizeof (*p));
+  p->use_lifespan = rq->use_lifespan;
+  p->duration = nn_to_ddsi_duration (rq->duration);
+}
+
+void nn_xmsg_addpar_reader_data_lifecycle (struct nn_xmsg *m, nn_parameterid_t pid, const dds_reader_data_lifecycle_qospolicy_t *rq)
+{
+  dds_external_reader_data_lifecycle_qospolicy_t *p = nn_xmsg_addpar (m, pid, sizeof (*p));
+  p->autopurge_disposed_samples_delay = nn_to_ddsi_duration (rq->autopurge_disposed_samples_delay);
+  p->autopurge_nowriter_samples_delay = nn_to_ddsi_duration (rq->autopurge_nowriter_samples_delay);
+}
+
+void nn_xmsg_addpar_liveliness (struct nn_xmsg *m, nn_parameterid_t pid, const dds_liveliness_qospolicy_t *rq)
+{
+  dds_external_liveliness_qospolicy_t *p = nn_xmsg_addpar (m, pid, sizeof (*p));
+  p->kind = rq->kind;
+  p->lease_duration = nn_to_ddsi_duration (rq->lease_duration);
+}
+
+void nn_xmsg_addpar_4u (struct nn_xmsg *m, nn_parameterid_t pid, uint32_t x)
+{
+  unsigned *p = nn_xmsg_addpar (m, pid, sizeof (x));
   *p = x;
 }
 
-void nn_xmsg_addpar_BE4u (struct nn_xmsg *m, unsigned pid, unsigned x)
+void nn_xmsg_addpar_BE4u (struct nn_xmsg *m, nn_parameterid_t pid, uint32_t x)
 {
-  unsigned *p = nn_xmsg_addpar (m, pid, 4);
+  unsigned *p = nn_xmsg_addpar (m, pid, sizeof (x));
   *p = toBE4u (x);
 }
 
@@ -941,28 +960,7 @@ void nn_xmsg_addpar_statusinfo (struct nn_xmsg *m, unsigned statusinfo)
   }
 }
 
-
-void nn_xmsg_addpar_share (struct nn_xmsg *m, unsigned pid, const struct nn_share_qospolicy *q)
-{
-  /* Written thus to allow q->name to be a null pointer if enable = false */
-  const unsigned fixed_len = 4 + 4;
-  const unsigned len = (q->enable ? (unsigned) strlen (q->name) : 0) + 1;
-  unsigned char *p;
-  struct cdrstring *ps;
-  p = nn_xmsg_addpar (m, pid, fixed_len + len);
-  p[0] = q->enable;
-  p[1] = 0;
-  p[2] = 0;
-  p[3] = 0;
-  ps = (struct cdrstring *) (p + 4);
-  ps->length = len;
-  if (q->enable)
-    memcpy (ps->contents, q->name, len);
-  else
-    ps->contents[0] = 0;
-}
-
-void nn_xmsg_addpar_subscription_keys (struct nn_xmsg *m, unsigned pid, const struct nn_subscription_keys_qospolicy *q)
+void nn_xmsg_addpar_subscription_keys (struct nn_xmsg *m, nn_parameterid_t pid, const struct dds_subscription_keys_qospolicy *q)
 {
   unsigned char *tmp;
   size_t len = 8; /* use_key_list, length of key_list */
@@ -1012,7 +1010,7 @@ int nn_xmsg_addpar_sentinel_ifparam (struct nn_xmsg * m)
   return 0;
 }
 
-void nn_xmsg_addpar_parvinfo (struct nn_xmsg *m, unsigned pid, const struct nn_prismtech_participant_version_info *pvi)
+void nn_xmsg_addpar_parvinfo (struct nn_xmsg *m, nn_parameterid_t pid, const struct nn_prismtech_participant_version_info *pvi)
 {
   int i;
   unsigned slen;
@@ -1033,7 +1031,7 @@ void nn_xmsg_addpar_parvinfo (struct nn_xmsg *m, unsigned pid, const struct nn_p
   memcpy(ps->contents, pvi->internals, slen);
 }
 
-void nn_xmsg_addpar_eotinfo (struct nn_xmsg *m, unsigned pid, const struct nn_prismtech_eotinfo *txnid)
+void nn_xmsg_addpar_eotinfo (struct nn_xmsg *m, nn_parameterid_t pid, const struct nn_prismtech_eotinfo *txnid)
 {
   uint32_t *pu, i;
   pu = nn_xmsg_addpar (m, pid, 2 * sizeof (uint32_t) + txnid->n * sizeof (txnid->tids[0]));

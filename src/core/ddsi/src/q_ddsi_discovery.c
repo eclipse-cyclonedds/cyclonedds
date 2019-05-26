@@ -284,7 +284,7 @@ int spdp_write (struct participant *pp)
       meta_multi_loc_one.loc = gv.loc_meta_mc;
     }
   }
-  ps.participant_lease_duration = nn_to_ddsi_duration (pp->lease_duration);
+  ps.participant_lease_duration = pp->lease_duration;
 
   /* Add PrismTech specific version information */
   {
@@ -515,7 +515,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
   unsigned builtin_endpoint_set;
   unsigned prismtech_builtin_endpoint_set;
   nn_guid_t privileged_pp_guid;
-  nn_duration_t lease_duration;
+  dds_duration_t lease_duration;
   unsigned custom_flags = 0;
 
   if (!(datap->present & PP_PARTICIPANT_GUID) || !(datap->present & PP_BUILTIN_ENDPOINT_SET))
@@ -611,7 +611,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
   else
   {
     DDS_LOG(DDS_LC_DISCOVERY, " (PARTICIPANT_LEASE_DURATION defaulting to 100s)");
-    lease_duration = nn_to_ddsi_duration (100 * T_SECOND);
+    lease_duration = 100 * T_SECOND;
   }
 
   if (datap->present & PP_PRISMTECH_PARTICIPANT_VERSION_INFO) {
@@ -645,7 +645,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
     DDS_LOG(DDS_LC_DISCOVERY, " (depends on "PGUIDFMT")", PGUID (privileged_pp_guid));
     /* never expire lease for this proxy: it won't actually expire
        until the "privileged" one expires anyway */
-    lease_duration = nn_to_ddsi_duration (T_NEVER);
+    lease_duration = T_NEVER;
   }
   else if (vendor_is_eclipse_or_opensplice (rst->vendor) && !(custom_flags & CF_PARTICIPANT_IS_DDSI2))
   {
@@ -657,7 +657,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
     else
     {
       privileged_pp_guid.prefix = ddsi2->e.guid.prefix;
-      lease_duration = nn_to_ddsi_duration (T_NEVER);
+      lease_duration = T_NEVER;
       DDS_LOG(DDS_LC_DISCOVERY, " (depends on "PGUIDFMT")", PGUID (privileged_pp_guid));
     }
   }
@@ -735,7 +735,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
     as_default,
     as_meta,
     datap,
-    nn_from_ddsi_duration (lease_duration),
+    lease_duration,
     rst->vendor,
     custom_flags,
     timestamp
@@ -865,9 +865,9 @@ static int sedp_write_endpoint
 (
    struct writer *wr, int alive, const nn_guid_t *epguid,
    const struct entity_common *common, const struct endpoint_common *epcommon,
-   const nn_xqos_t *xqos, struct addrset *as)
+   const dds_qos_t *xqos, struct addrset *as)
 {
-  const nn_xqos_t *defqos = is_writer_entityid (epguid->entityid) ? &gv.default_xqos_wr : &gv.default_xqos_rd;
+  const dds_qos_t *defqos = is_writer_entityid (epguid->entityid) ? &gv.default_xqos_wr : &gv.default_xqos_rd;
   struct nn_xmsg *mpayload;
   uint64_t qosdiff;
   nn_plist_t ps;
@@ -1006,14 +1006,14 @@ int sedp_dispose_unregister_reader (struct reader *rd)
   return 0;
 }
 
-static const char *durability_to_string (nn_durability_kind_t k)
+static const char *durability_to_string (dds_durability_kind_t k)
 {
   switch (k)
   {
-    case NN_VOLATILE_DURABILITY_QOS: return "volatile";
-    case NN_TRANSIENT_LOCAL_DURABILITY_QOS: return "transient-local";
-    case NN_TRANSIENT_DURABILITY_QOS: return "transient";
-    case NN_PERSISTENT_DURABILITY_QOS: return "persistent";
+    case DDS_DURABILITY_VOLATILE: return "volatile";
+    case DDS_DURABILITY_TRANSIENT_LOCAL: return "transient-local";
+    case DDS_DURABILITY_TRANSIENT: return "transient";
+    case DDS_DURABILITY_PERSISTENT: return "persistent";
   }
   return "undefined-durability";
 }
@@ -1105,7 +1105,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
   struct proxy_writer * pwr = NULL;
   struct proxy_reader * prd = NULL;
   nn_guid_t ppguid;
-  nn_xqos_t *xqos;
+  dds_qos_t *xqos;
   int reliable;
   struct addrset *as;
   int is_writer;
@@ -1158,7 +1158,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
   assert ((xqos->present & datap->qos.present) == datap->qos.present);
   assert (xqos->present & QP_RELIABILITY);
   assert (xqos->present & QP_DURABILITY);
-  reliable = (xqos->reliability.kind == NN_RELIABLE_RELIABILITY_QOS);
+  reliable = (xqos->reliability.kind == DDS_RELIABILITY_RELIABLE);
 
   DDS_LOG(DDS_LC_DISCOVERY, " %s %s %s: %s%s.%s/%s",
           reliable ? "reliable" : "best-effort",
@@ -1860,7 +1860,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     goto done_upd_deliv;
   }
 
-  timestamp = valid_ddsi_timestamp(sampleinfo->timestamp) ? nn_wctime_from_ddsi_time(sampleinfo->timestamp): now();
+  timestamp = (sampleinfo->timestamp.v != NN_WCTIME_INVALID.v) ? sampleinfo->timestamp : now ();
   switch (srcguid.entityid.u)
   {
     case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
