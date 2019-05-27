@@ -241,12 +241,11 @@ dds_unregister_instance_ih_ts(
     if (wr->m_entity.m_qos) {
         dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
     }
+    thread_state_awake (ts1);
     if (autodispose) {
         dds_instance_remove (wr->m_topic, NULL, handle);
         action |= DDS_WR_DISPOSE_BIT;
     }
-
-    thread_state_awake (ts1);
     tk = ddsi_tkmap_find_by_id (gv.m_tkmap, handle);
     if (tk) {
         struct ddsi_sertopic *tp = wr->m_topic->m_stopic;

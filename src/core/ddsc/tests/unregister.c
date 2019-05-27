@@ -610,6 +610,37 @@ CU_Test(ddsc_unregister_instance_ih_ts, unregistering_past_sample, .init=unregis
 /*************************************************************************************************/
 
 /*************************************************************************************************/
+CU_Test(ddsc_unregister_instance_ih_ts, unregistering_instance)
+{
+    Space_Type1 testData = { 0, 22, 22 };
+    dds_instance_handle_t ih = 0;
+    dds_return_t ret;
+    char name[100];
+
+    /* Create a writer that WILL automatically dispose unregistered samples. */
+    g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+    CU_ASSERT_FATAL(g_participant > 0);
+    g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_topic_name("ddsc_unregistering_instance_test", name, 100), NULL, NULL);
+    CU_ASSERT_FATAL(g_topic > 0);
+    g_writer = dds_create_writer(g_participant, g_topic, NULL, NULL);
+    CU_ASSERT_FATAL(g_writer > 0);
+
+    /* Register the instance. */
+    ret = dds_register_instance(g_writer, &ih, &testData);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_NOT_EQUAL_FATAL(ih, DDS_HANDLE_NIL);
+
+    /* Unregister the instance. */
+    ret = dds_unregister_instance_ih_ts(g_writer, ih, dds_time());
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+    dds_delete(g_writer);
+    dds_delete(g_topic);
+    dds_delete(g_participant);
+}
+/*************************************************************************************************/
+
+/*************************************************************************************************/
 CU_Test(ddsc_unregister_instance, dispose_unregistered_sample, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_entity_t writer;
