@@ -116,3 +116,27 @@ CU_Test(ddsc_create_writer, deleted_topic, .init = setup, .fini = teardown)
     writer = dds_create_writer(publisher, topic, NULL, NULL);
     CU_ASSERT_EQUAL_FATAL(writer, DDS_RETCODE_BAD_PARAMETER);
 }
+
+
+CU_Test(ddsc_create_writer, participant_mismatch, .init = setup, .fini = teardown)
+{
+    dds_entity_t l_par = 0;
+    dds_entity_t l_pub = 0;
+
+    /* The call to setup() created the global topic. */
+
+    /* Create publisher on local participant. */
+    l_par = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+    CU_ASSERT_FATAL(l_par > 0);
+    l_pub = dds_create_publisher(l_par, NULL, NULL);
+    CU_ASSERT_FATAL(l_pub > 0);
+
+    /* Create writer with local publisher and global topic. */
+    writer = dds_create_writer(l_pub, topic, NULL, NULL);
+
+    /* Expect the creation to have failed. */
+    CU_ASSERT_FATAL(writer <= 0);
+
+    dds_delete(l_pub);
+    dds_delete(l_par);
+}
