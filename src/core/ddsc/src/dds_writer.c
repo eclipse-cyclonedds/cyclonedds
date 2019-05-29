@@ -208,16 +208,9 @@ static dds_return_t dds_writer_delete (dds_entity *e)
 
 static dds_return_t dds_writer_qos_validate (const dds_qos_t *qos, bool enabled)
 {
-  if (!dds_qos_validate_common(qos))
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_USER_DATA) && !validate_octetseq (&qos->user_data))
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_DURABILITY_SERVICE) && validate_durability_service_qospolicy (&qos->durability_service) < 0)
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_LIFESPAN) && validate_duration (qos->lifespan.duration) < 0)
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_HISTORY) && (qos->present & QP_RESOURCE_LIMITS) && validate_history_and_resource_limits(&qos->history, &qos->resource_limits) < 0)
-    return DDS_RETCODE_INCONSISTENT_POLICY;
+  dds_return_t ret;
+  if ((ret = nn_xqos_valid (qos)) < 0)
+    return ret;
   return enabled ? dds_qos_validate_mutable_common (qos) : DDS_RETCODE_OK;
 }
 
@@ -316,14 +309,15 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   assert (pub->m_entity.m_domain == tp->m_entity.m_domain);
 
   /* Merge Topic & Publisher qos */
+#define DDS_QOSMASK_WRITER (QP_USER_DATA | QP_DURABILITY | QP_DURABILITY_SERVICE | QP_DEADLINE | QP_LATENCY_BUDGET | QP_OWNERSHIP | QP_OWNERSHIP_STRENGTH | QP_LIVELINESS | QP_RELIABILITY | QP_TRANSPORT_PRIORITY | QP_LIFESPAN | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_PRISMTECH_WRITER_DATA_LIFECYCLE | QP_CYCLONE_IGNORELOCAL)
   wqos = dds_create_qos ();
   if (qos)
-    (void) dds_copy_qos (wqos, qos);
+    nn_xqos_mergein_missing (wqos, qos, DDS_QOSMASK_WRITER);
   if (pub->m_entity.m_qos)
-    dds_merge_qos (wqos, pub->m_entity.m_qos);
+    nn_xqos_mergein_missing (wqos, pub->m_entity.m_qos, ~(uint64_t)0);
   if (tp->m_entity.m_qos)
-    dds_merge_qos (wqos, tp->m_entity.m_qos);
-  nn_xqos_mergein_missing (wqos, &gv.default_xqos_wr);
+    nn_xqos_mergein_missing (wqos, tp->m_entity.m_qos, ~(uint64_t)0);
+  nn_xqos_mergein_missing (wqos, &gv.default_xqos_wr, ~(uint64_t)0);
 
   if ((rc = dds_writer_qos_validate (wqos, false)) != DDS_RETCODE_OK)
   {

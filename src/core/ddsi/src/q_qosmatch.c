@@ -64,66 +64,65 @@ int partitions_match_p (const dds_qos_t *a, const dds_qos_t *b)
   }
 }
 
-static bool qos_match_internal_p (const dds_qos_t *rd, const dds_qos_t *wr, dds_qos_policy_id_t *reason) ddsrt_nonnull_all;
-
-static bool qos_match_internal_p (const dds_qos_t *rd, const dds_qos_t *wr, dds_qos_policy_id_t *reason)
+bool qos_match_mask_p (const dds_qos_t *rd, const dds_qos_t *wr, uint64_t mask, dds_qos_policy_id_t *reason)
 {
 #ifndef NDEBUG
-  unsigned musthave = (QP_RXO_MASK | QP_PARTITION | QP_TOPIC_NAME | QP_TYPE_NAME);
+  unsigned musthave = (QP_RXO_MASK | QP_PARTITION | QP_TOPIC_NAME | QP_TYPE_NAME) & mask;
   assert ((rd->present & musthave) == musthave);
   assert ((wr->present & musthave) == musthave);
 #endif
+  mask &= rd->present & wr->present;
   *reason = DDS_INVALID_QOS_POLICY_ID;
-  if (strcmp (rd->topic_name, wr->topic_name) != 0)
+  if ((mask & QP_TOPIC_NAME) && strcmp (rd->topic_name, wr->topic_name) != 0)
     return false;
-  if (strcmp (rd->type_name, wr->type_name) != 0)
+  if ((mask & QP_TYPE_NAME) && strcmp (rd->type_name, wr->type_name) != 0)
     return false;
 
-  if (rd->reliability.kind > wr->reliability.kind) {
+  if ((mask & QP_RELIABILITY) && rd->reliability.kind > wr->reliability.kind) {
     *reason = DDS_RELIABILITY_QOS_POLICY_ID;
     return false;
   }
-  if (rd->durability.kind > wr->durability.kind) {
+  if ((mask & QP_DURABILITY) && rd->durability.kind > wr->durability.kind) {
     *reason = DDS_DURABILITY_QOS_POLICY_ID;
     return false;
   }
-  if (rd->presentation.access_scope > wr->presentation.access_scope) {
+  if ((mask & QP_PRESENTATION) && rd->presentation.access_scope > wr->presentation.access_scope) {
     *reason = DDS_PRESENTATION_QOS_POLICY_ID;
     return false;
   }
-  if (rd->presentation.coherent_access > wr->presentation.coherent_access) {
+  if ((mask & QP_PRESENTATION) && rd->presentation.coherent_access > wr->presentation.coherent_access) {
     *reason = DDS_PRESENTATION_QOS_POLICY_ID;
     return false;
   }
-  if (rd->presentation.ordered_access > wr->presentation.ordered_access) {
+  if ((mask & QP_PRESENTATION) && rd->presentation.ordered_access > wr->presentation.ordered_access) {
     *reason = DDS_PRESENTATION_QOS_POLICY_ID;
     return false;
   }
-  if (rd->deadline.deadline < wr->deadline.deadline) {
+  if ((mask & QP_DEADLINE) && rd->deadline.deadline < wr->deadline.deadline) {
     *reason = DDS_DEADLINE_QOS_POLICY_ID;
     return false;
   }
-  if (rd->latency_budget.duration < wr->latency_budget.duration) {
+  if ((mask & QP_LATENCY_BUDGET) && rd->latency_budget.duration < wr->latency_budget.duration) {
     *reason = DDS_LATENCYBUDGET_QOS_POLICY_ID;
     return false;
   }
-  if (rd->ownership.kind != wr->ownership.kind) {
+  if ((mask & QP_OWNERSHIP) && rd->ownership.kind != wr->ownership.kind) {
     *reason = DDS_OWNERSHIP_QOS_POLICY_ID;
     return false;
   }
-  if (rd->liveliness.kind > wr->liveliness.kind) {
+  if ((mask & QP_LIVELINESS) && rd->liveliness.kind > wr->liveliness.kind) {
     *reason = DDS_LIVELINESS_QOS_POLICY_ID;
     return false;
   }
-  if (rd->liveliness.lease_duration < wr->liveliness.lease_duration) {
+  if ((mask & QP_LIVELINESS) && rd->liveliness.lease_duration < wr->liveliness.lease_duration) {
     *reason = DDS_LIVELINESS_QOS_POLICY_ID;
     return false;
   }
-  if (rd->destination_order.kind > wr->destination_order.kind) {
+  if ((mask & QP_DESTINATION_ORDER) && rd->destination_order.kind > wr->destination_order.kind) {
     *reason = DDS_DESTINATIONORDER_QOS_POLICY_ID;
     return false;
   }
-  if (!partitions_match_p (rd, wr)) {
+  if ((mask & QP_PARTITION) && !partitions_match_p (rd, wr)) {
     *reason = DDS_PARTITION_QOS_POLICY_ID;
     return false;
   }
@@ -133,5 +132,5 @@ static bool qos_match_internal_p (const dds_qos_t *rd, const dds_qos_t *wr, dds_
 bool qos_match_p (const dds_qos_t *rd, const dds_qos_t *wr, dds_qos_policy_id_t *reason)
 {
   dds_qos_policy_id_t dummy;
-  return qos_match_internal_p (rd, wr, reason ? reason : &dummy);
+  return qos_match_mask_p (rd, wr, ~(uint64_t)0, reason ? reason : &dummy);
 }

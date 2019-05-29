@@ -850,10 +850,11 @@ int rtps_init (void)
   uint32_t port_data_uc = 0;
   bool mc_available = true;
 
+  gv.tstart = now ();    /* wall clock time, used in logs */
+
   ddsi_plugin_init ();
   ddsi_iid_init ();
-
-  gv.tstart = now ();    /* wall clock time, used in logs */
+  nn_plist_init_tables ();
 
   gv.disc_conn_uc = NULL;
   gv.data_conn_uc = NULL;

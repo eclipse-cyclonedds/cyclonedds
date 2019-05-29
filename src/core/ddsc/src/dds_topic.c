@@ -14,6 +14,8 @@
 #include <ctype.h>
 
 #include "dds/ddsrt/atomics.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/string.h"
 #include "dds__topic.h"
 #include "dds__listener.h"
 #include "dds__qos.h"
@@ -27,6 +29,8 @@
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/ddsi_iid.h"
+#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/q_globals.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_topic)
 
@@ -182,17 +186,10 @@ static dds_return_t dds_topic_qos_validate (const dds_qos_t *qos, bool enabled) 
 
 static dds_return_t dds_topic_qos_validate (const dds_qos_t *qos, bool enabled)
 {
-  if (!dds_qos_validate_common (qos))
-    return DDS_RETCODE_BAD_PARAMETER;
-  if ((qos->present & QP_GROUP_DATA) && !validate_octetseq (&qos->group_data))
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_DURABILITY_SERVICE) && validate_durability_service_qospolicy(&qos->durability_service) < 0)
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_LIFESPAN) && validate_duration(qos->lifespan.duration) < 0)
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_HISTORY) && (qos->present & QP_RESOURCE_LIMITS) && validate_history_and_resource_limits(&qos->history, &qos->resource_limits) < 0)
-    return  DDS_RETCODE_INCONSISTENT_POLICY;
-  return enabled ? dds_qos_validate_mutable_common(qos) : DDS_RETCODE_OK;
+  dds_return_t ret;
+  if ((ret = nn_xqos_valid (qos)) < 0)
+    return ret;
+  return enabled ? dds_qos_validate_mutable_common (qos) : DDS_RETCODE_OK;
 }
 
 
@@ -333,8 +330,8 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   st->c.status_cb = dds_topic_status_cb;
   st->c.status_cb_entity = NULL; /* set by dds_create_topic_arbitrary */
   st->c.name_type_name = key;
-  st->c.name = dds_string_dup (name);
-  st->c.type_name = dds_string_dup (typename);
+  st->c.name = ddsrt_strdup (name);
+  st->c.type_name = ddsrt_strdup (typename);
   st->c.ops = &ddsi_sertopic_ops_default;
   st->c.serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey;
   st->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (st->c.serdata_ops);
@@ -349,13 +346,15 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
     st->opt_size = dds_stream_check_optimize (desc);
   }
 
+#define DDS_QOSMASK_TOPIC (QP_TOPIC_DATA | QP_DURABILITY | QP_DURABILITY_SERVICE | QP_DEADLINE | QP_LATENCY_BUDGET | QP_OWNERSHIP | QP_LIVELINESS | QP_RELIABILITY | QP_TRANSPORT_PRIORITY | QP_LIFESPAN | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS)
   nn_plist_init_empty (&plist);
   if (new_qos)
-    dds_merge_qos (&plist.qos, new_qos);
+    nn_xqos_mergein_missing (&plist.qos, new_qos, DDS_QOSMASK_TOPIC);
+  nn_xqos_mergein_missing (&plist.qos, &gv.default_xqos_tp, DDS_QOSMASK_TOPIC);
 
   /* Set Topic meta data (for SEDP publication) */
-  plist.qos.topic_name = dds_string_dup (st->c.name);
-  plist.qos.type_name = dds_string_dup (st->c.type_name);
+  plist.qos.topic_name = ddsrt_strdup (st->c.name);
+  plist.qos.type_name = ddsrt_strdup (st->c.type_name);
   plist.qos.present |= (QP_TOPIC_NAME | QP_TYPE_NAME);
   if (desc->m_meta)
   {

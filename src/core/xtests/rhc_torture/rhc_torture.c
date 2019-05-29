@@ -147,7 +147,7 @@ static struct proxy_writer *mkwr (bool auto_dispose)
   wr_iid = ddsi_iid_gen ();
   memset (pwr, 0, sizeof (*pwr));
   nn_xqos_init_empty (xqos);
-  nn_xqos_mergein_missing (xqos, &gv.default_xqos_wr);
+  nn_xqos_mergein_missing (xqos, &gv.default_xqos_wr, ~(uint64_t)0);
   xqos->ownership_strength.value = 0;
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = auto_dispose;
   pwr->e.iid = wr_iid;
@@ -170,7 +170,7 @@ static struct rhc *mkrhc (dds_reader *rd, dds_history_kind_t hk, int32_t hdepth,
   rqos.history.kind = hk;
   rqos.history.depth = hdepth;
   rqos.destination_order.kind = dok;
-  nn_xqos_mergein_missing (&rqos, &gv.default_xqos_rd);
+  nn_xqos_mergein_missing (&rqos, &gv.default_xqos_rd, ~(uint64_t)0);
   thread_state_awake (lookup_thread_state ());
   rhc = dds_rhc_new (rd, mdtopic);
   dds_rhc_set_qos(rhc, &rqos);

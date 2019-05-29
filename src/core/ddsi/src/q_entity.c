@@ -457,7 +457,7 @@ dds_return_t new_participant_guid (const nn_guid_t *ppguid, unsigned flags, cons
   pp->lease_duration = config.lease_duration;
   pp->plist = ddsrt_malloc (sizeof (*pp->plist));
   nn_plist_copy (pp->plist, plist);
-  nn_plist_mergein_missing (pp->plist, &gv.default_plist_pp);
+  nn_plist_mergein_missing (pp->plist, &gv.default_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
 
   if (dds_get_log_mask() & DDS_LC_DISCOVERY)
   {
@@ -2684,7 +2684,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
 
   wr->xqos = ddsrt_malloc (sizeof (*wr->xqos));
   nn_xqos_copy (wr->xqos, xqos);
-  nn_xqos_mergein_missing (wr->xqos, &gv.default_xqos_wr);
+  nn_xqos_mergein_missing (wr->xqos, &gv.default_xqos_wr, ~(uint64_t)0);
   assert (wr->xqos->aliased == 0);
   set_topic_type_name (wr->xqos, topic);
 
@@ -3222,7 +3222,7 @@ static dds_return_t new_reader_guid
   /* Copy QoS, merging in defaults */
   rd->xqos = ddsrt_malloc (sizeof (*rd->xqos));
   nn_xqos_copy (rd->xqos, xqos);
-  nn_xqos_mergein_missing (rd->xqos, &gv.default_xqos_rd);
+  nn_xqos_mergein_missing (rd->xqos, &gv.default_xqos_rd, ~(uint64_t)0);
   assert (rd->xqos->aliased == 0);
   set_topic_type_name (rd->xqos, topic);
 
@@ -3660,7 +3660,7 @@ int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, co
   nn_plist_t *new_plist;
 
   new_plist = nn_plist_dup (datap);
-  nn_plist_mergein_missing (new_plist, proxypp->plist);
+  nn_plist_mergein_missing (new_plist, proxypp->plist, ~(uint64_t)0, ~(uint64_t)0);
   nn_plist_fini (proxypp->plist);
   ddsrt_free (proxypp->plist);
   proxypp->plist = new_plist;
@@ -3694,8 +3694,7 @@ int update_proxy_participant_plist (struct proxy_participant *proxypp, const str
       tmp = *datap;
       tmp.present &=
         PP_PRISMTECH_NODE_NAME | PP_PRISMTECH_EXEC_NAME | PP_PRISMTECH_PROCESS_ID |
-        PP_PRISMTECH_WATCHDOG_SCHEDULING | PP_PRISMTECH_LISTENER_SCHEDULING |
-        PP_PRISMTECH_SERVICE_TYPE | PP_ENTITY_NAME;
+        PP_ENTITY_NAME;
       tmp.qos.present &= QP_PRISMTECH_ENTITY_FACTORY;
       update_proxy_participant_plist_locked (proxypp, &tmp, source, timestamp);
       break;
@@ -3993,7 +3992,7 @@ int new_proxy_group (const struct nn_guid *guid, const char *name, const struct 
       DDS_LOG(DDS_LC_DISCOVERY, "new_proxy_group("PGUIDFMT"): setting name (%s) and qos\n", PGUID (*guid), name);
       pgroup->name = ddsrt_strdup (name);
       pgroup->xqos = nn_xqos_dup (xqos);
-      nn_xqos_mergein_missing (pgroup->xqos, is_sub ? &gv.default_xqos_sub : &gv.default_xqos_pub);
+      nn_xqos_mergein_missing (pgroup->xqos, is_sub ? &gv.default_xqos_sub : &gv.default_xqos_pub, ~(uint64_t)0);
     }
   out:
     ddsrt_mutex_unlock (&proxypp->e.lock);

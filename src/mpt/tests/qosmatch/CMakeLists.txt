@@ -9,11 +9,15 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-cmake_minimum_required(VERSION 3.7)
+include(${MPT_CMAKE})
 
-if(MPT_ENABLE_SELFTEST)
-  add_subdirectory(self)
-endif()
+set(sources
+    "procs/rw.c"
+    "qosmatch.c")
 
-add_subdirectory(basic)
-add_subdirectory(qosmatch)
+add_compile_options("-I${PROJECT_SOURCE_DIR}/core/ddsi/include")
+add_mpt_executable(mpt_qosmatch ${sources})
+
+idlc_generate(mpt_qosmatch_rwdata_lib "procs/rwdata.idl")
+target_link_libraries(mpt_qosmatch PRIVATE mpt_qosmatch_rwdata_lib)
+

@@ -211,7 +211,6 @@ typedef struct dds_ignorelocal_qospolicy {
 #define QP_PRISMTECH_READER_LIFESPAN         ((uint64_t)1 << 24)
 #define QP_PRISMTECH_SUBSCRIPTION_KEYS       ((uint64_t)1 << 25)
 #define QP_PRISMTECH_ENTITY_FACTORY          ((uint64_t)1 << 27)
-#define QP_RTI_TYPECODE                      ((uint64_t)1 << 29)
 #define QP_CYCLONE_IGNORELOCAL               ((uint64_t)1 << 30)
 
 /* Partition QoS is not RxO according to the specification (DDS 1.2,
@@ -264,8 +263,6 @@ struct dds_qos {
   /*x xR*/dds_subscription_keys_qospolicy_t subscription_keys;
   /*x xR*/dds_reader_lifespan_qospolicy_t reader_lifespan;
   /* x  */dds_ignorelocal_qospolicy_t ignorelocal;
-
-  /*   X*/ddsi_octetseq_t rti_typecode;
 };
 
 struct nn_xmsg;
@@ -280,7 +277,8 @@ DDS_EXPORT void nn_xqos_init_default_topic (dds_qos_t *xqos);
 DDS_EXPORT void nn_xqos_copy (dds_qos_t *dst, const dds_qos_t *src);
 DDS_EXPORT void nn_xqos_unalias (dds_qos_t *xqos);
 DDS_EXPORT void nn_xqos_fini (dds_qos_t *xqos);
-DDS_EXPORT void nn_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b);
+DDS_EXPORT dds_return_t nn_xqos_valid (const dds_qos_t *xqos);
+DDS_EXPORT void nn_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
 DDS_EXPORT uint64_t nn_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
 DDS_EXPORT void nn_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, uint64_t wanted);
 DDS_EXPORT void nn_log_xqos (uint32_t cat, const dds_qos_t *xqos);

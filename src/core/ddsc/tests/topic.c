@@ -105,7 +105,7 @@ CU_Test(ddsc_topic_create, invalid_qos, .init=ddsc_topic_init, .fini=ddsc_topic_
     dds_entity_t topic;
     dds_qos_t *qos = dds_create_qos();
     DDSRT_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
-    dds_qset_lifespan(qos, DDS_SECS(-1));
+    dds_qset_resource_limits(qos, 1, 1, 2);
     DDSRT_WARNING_MSVC_OFF(28020);
     topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, "inconsistent", qos, NULL);
     CU_ASSERT_EQUAL_FATAL(topic, DDS_RETCODE_INCONSISTENT_POLICY);
@@ -417,7 +417,7 @@ CU_Test(ddsc_topic_set_qos, inconsistent, .init=ddsc_topic_init, .fini=ddsc_topi
     dds_qset_lifespan(g_qos, DDS_SECS(-1));
     DDSRT_WARNING_MSVC_ON(28020);
     ret = dds_set_qos(g_topicRtmDataType, g_qos);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_INCONSISTENT_POLICY);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
