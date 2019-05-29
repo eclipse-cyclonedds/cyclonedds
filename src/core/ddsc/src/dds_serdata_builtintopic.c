@@ -19,6 +19,7 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/q_plist.h"
 #include "dds__stream.h"
 #include "dds__serdata_builtintopic.h"
 #include "dds/ddsi/ddsi_tkmap.h"
@@ -193,7 +194,7 @@ static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const dds_qos_t *src)
     old = ddsrt_malloc (sizeof (*old));
     nn_xqos_init_empty (old);
     old->present |= QP_TOPIC_NAME | QP_TYPE_NAME;
-    nn_xqos_mergein_missing (old, src);
+    nn_xqos_mergein_missing (old, src, ~(uint64_t)0);
     old->present &= ~(QP_TOPIC_NAME | QP_TYPE_NAME);
   }
   else
@@ -201,7 +202,7 @@ static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const dds_qos_t *src)
     nn_xqos_fini (old);
     nn_xqos_init_empty (old);
     old->present |= QP_TOPIC_NAME | QP_TYPE_NAME;
-    nn_xqos_mergein_missing (old, src);
+    nn_xqos_mergein_missing (old, src, ~(uint64_t)0);
     old->present &= ~(QP_TOPIC_NAME | QP_TYPE_NAME);
   }
   return old;

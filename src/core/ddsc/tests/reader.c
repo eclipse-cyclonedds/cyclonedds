@@ -241,7 +241,7 @@ CU_Test(ddsc_reader_create, invalid_qos_participant, .init=reader_init, .fini=re
     dds_qset_reader_data_lifecycle(qos, DDS_SECS(-1), DDS_SECS(-1));
     DDSRT_WARNING_MSVC_ON(28020);
     rdr = dds_create_reader(g_participant, g_topic, qos, NULL);
-    CU_ASSERT_EQUAL_FATAL(rdr, DDS_RETCODE_INCONSISTENT_POLICY);
+    CU_ASSERT_EQUAL_FATAL(rdr, DDS_RETCODE_BAD_PARAMETER);
     dds_delete_qos(qos);
 }
 /*************************************************************************************************/
@@ -256,7 +256,7 @@ CU_Test(ddsc_reader_create, invalid_qos_subscriber, .init=reader_init, .fini=rea
     dds_qset_reader_data_lifecycle(qos, DDS_SECS(-1), DDS_SECS(-1));
     DDSRT_WARNING_MSVC_ON(28020);
     rdr = dds_create_reader(g_subscriber, g_topic, qos, NULL);
-    CU_ASSERT_EQUAL_FATAL(rdr, DDS_RETCODE_INCONSISTENT_POLICY);
+    CU_ASSERT_EQUAL_FATAL(rdr, DDS_RETCODE_BAD_PARAMETER);
     dds_delete_qos(qos);
 }
 /*************************************************************************************************/

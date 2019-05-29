@@ -1029,19 +1029,6 @@ void nn_xmsg_addpar_parvinfo (struct nn_xmsg *m, nn_parameterid_t pid, const str
   memcpy(ps->contents, pvi->internals, slen);
 }
 
-void nn_xmsg_addpar_eotinfo (struct nn_xmsg *m, nn_parameterid_t pid, const struct nn_prismtech_eotinfo *txnid)
-{
-  uint32_t *pu, i;
-  pu = nn_xmsg_addpar (m, pid, 2 * sizeof (uint32_t) + txnid->n * sizeof (txnid->tids[0]));
-  pu[0] = txnid->transactionId;
-  pu[1] = txnid->n;
-  for (i = 0; i < txnid->n; i++)
-  {
-    pu[2*i + 2] = toBE4u (txnid->tids[i].writer_entityid.u);
-    pu[2*i + 3] = txnid->tids[i].transactionId;
-  }
-}
-
 /* XMSG_CHAIN ----------------------------------------------------------
 
    Xpacks refer to xmsgs and need to release these after having been

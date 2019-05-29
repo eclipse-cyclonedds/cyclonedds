@@ -28,8 +28,6 @@ struct proxy_reader;
 struct proxy_writer;
 
 struct nn_prismtech_participant_version_info;
-struct nn_prismtech_writer_info;
-struct nn_prismtech_eotinfo;
 struct nn_xmsgpool;
 struct nn_xmsg_data;
 struct nn_xmsg;
@@ -139,7 +137,6 @@ void nn_xmsg_addpar_reader_data_lifecycle (struct nn_xmsg *m, nn_parameterid_t p
 void nn_xmsg_addpar_liveliness (struct nn_xmsg *m, nn_parameterid_t pid, const dds_liveliness_qospolicy_t *rq);
 
 void nn_xmsg_addpar_parvinfo (struct nn_xmsg *m, nn_parameterid_t pid, const struct nn_prismtech_participant_version_info *pvi);
-void nn_xmsg_addpar_eotinfo (struct nn_xmsg *m, nn_parameterid_t pid, const struct nn_prismtech_eotinfo *txnid);
 void nn_xmsg_addpar_sentinel (struct nn_xmsg *m);
 int nn_xmsg_addpar_sentinel_ifparam (struct nn_xmsg *m);
 

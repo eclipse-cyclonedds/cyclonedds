@@ -1085,7 +1085,7 @@ static struct proxy_participant *implicitly_create_proxypp (const nn_guid_t *ppg
       tmp_plist = *privpp->plist;
       tmp_plist.present = PP_PARTICIPANT_GUID | PP_PRISMTECH_PARTICIPANT_VERSION_INFO;
       tmp_plist.participant_guid = *ppguid;
-      nn_plist_mergein_missing (&pp_plist, &tmp_plist);
+      nn_plist_mergein_missing (&pp_plist, &tmp_plist, ~(uint64_t)0, ~(uint64_t)0);
       ddsrt_mutex_unlock (&privpp->e.lock);
 
       pp_plist.prismtech_participant_version_info.flags &= ~NN_PRISMTECH_FL_PARTICIPANT_IS_DDSI2;
@@ -1146,11 +1146,11 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
   xqos = &datap->qos;
   is_writer = is_writer_entityid (datap->endpoint_guid.entityid);
   if (!is_writer)
-    nn_xqos_mergein_missing (xqos, &gv.default_xqos_rd);
+    nn_xqos_mergein_missing (xqos, &gv.default_xqos_rd, ~(uint64_t)0);
   else if (vendor_is_eclipse_or_prismtech(vendorid))
-    nn_xqos_mergein_missing (xqos, &gv.default_xqos_wr);
+    nn_xqos_mergein_missing (xqos, &gv.default_xqos_wr, ~(uint64_t)0);
   else
-    nn_xqos_mergein_missing (xqos, &gv.default_xqos_wr_nad);
+    nn_xqos_mergein_missing (xqos, &gv.default_xqos_wr_nad, ~(uint64_t)0);
 
   /* After copy + merge, should have at least the ones present in the
      input.  Also verify reliability and durability are present,
@@ -1434,8 +1434,7 @@ int sedp_write_cm_participant (struct participant *pp, int alive)
   {
     nn_plist_addtomsg (mpayload, pp->plist,
                        PP_PRISMTECH_NODE_NAME | PP_PRISMTECH_EXEC_NAME | PP_PRISMTECH_PROCESS_ID |
-                       PP_PRISMTECH_WATCHDOG_SCHEDULING | PP_PRISMTECH_LISTENER_SCHEDULING |
-                       PP_PRISMTECH_SERVICE_TYPE | PP_ENTITY_NAME,
+                       PP_ENTITY_NAME,
                        QP_PRISMTECH_ENTITY_FACTORY);
   }
   nn_xmsg_addpar_sentinel (mpayload);

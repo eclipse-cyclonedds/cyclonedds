@@ -13,7 +13,7 @@
 #define DDSI_SERDATA_DEFAULT_H
 
 #include "dds/ddsrt/endian.h"
-#include "dds/ddsi/q_plist.h" /* for nn_prismtech_writer_info */
+#include "dds/ddsi/q_protocol.h" /* for nn_parameterid_t */
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_serdata.h"

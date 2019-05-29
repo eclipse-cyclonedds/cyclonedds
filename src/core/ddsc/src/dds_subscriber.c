@@ -15,6 +15,7 @@
 #include "dds__qos.h"
 #include "dds__subscriber.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds/version.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_subscriber)
@@ -36,15 +37,9 @@ static dds_return_t dds__subscriber_qos_validate (const dds_qos_t *qos, bool ena
 
 static dds_return_t dds__subscriber_qos_validate (const dds_qos_t *qos, bool enabled)
 {
-  if ((qos->present & QP_GROUP_DATA) && !validate_octetseq (&qos->group_data))
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_PARTITION) && !validate_stringseq (&qos->partition))
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_PRESENTATION) && validate_presentation_qospolicy (&qos->presentation) < 0)
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_PRISMTECH_ENTITY_FACTORY) && !validate_entityfactory_qospolicy (&qos->entity_factory))
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  /* FIXME: Improve/check immutable check. */
+  dds_return_t ret;
+  if ((ret = nn_xqos_valid (qos)) < 0)
+    return ret;
   return (enabled && (qos->present & QP_PRESENTATION)) ? DDS_RETCODE_IMMUTABLE_POLICY : DDS_RETCODE_OK;
 }
 
@@ -73,16 +68,15 @@ dds_entity_t dds__create_subscriber_l (dds_participant *participant, const dds_q
   dds_return_t ret;
   dds_qos_t *new_qos;
 
-  /* Validate qos */
-  if (qos && (ret = dds__subscriber_qos_validate (qos, false)) != DDS_RETCODE_OK)
-    return ret;
-
-  if (qos == NULL)
-    new_qos = NULL;
-  else
+#define DDS_QOSMASK_SUBSCRIBER (QP_PARTITION | QP_PRESENTATION | QP_GROUP_DATA | QP_PRISMTECH_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL)
+  new_qos = dds_create_qos ();
+  if (qos)
+    nn_xqos_mergein_missing (new_qos, qos, DDS_QOSMASK_SUBSCRIBER);
+  nn_xqos_mergein_missing (new_qos, &gv.default_xqos_sub, ~(uint64_t)0);
+  if ((ret = dds__subscriber_qos_validate (new_qos, false)) != DDS_RETCODE_OK)
   {
-    new_qos = dds_create_qos ();
-    (void) dds_copy_qos (new_qos, qos);
+    dds_delete_qos (new_qos);
+    return ret;
   }
 
   sub = dds_alloc (sizeof (*sub));

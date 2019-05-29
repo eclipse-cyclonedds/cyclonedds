@@ -1952,7 +1952,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     src.encoding = (msg->smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
     src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
-    if ((plist_ret = nn_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET | PP_PRISMTECH_EOTINFO, 0, &src)) < 0)
+    if ((plist_ret = nn_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET, 0, &src)) < 0)
     {
       if (plist_ret != DDS_RETCODE_UNSUPPORTED)
         DDS_WARNING ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": invalid inline qos\n",
@@ -1980,9 +1980,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   }
 
   /* Generate the DDS_SampleInfo (which is faked to some extent
-     because we don't actually have a data reader); also note that
-     the PRISMTECH_WRITER_INFO thing is completely meaningless to
-     us */
+     because we don't actually have a data reader) */
   struct ddsi_tkmap_instance * tk;
   if ((tk = ddsi_tkmap_lookup_instance_ref(payload)) != NULL)
   {

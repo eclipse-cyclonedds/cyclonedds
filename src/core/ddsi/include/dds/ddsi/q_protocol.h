@@ -390,14 +390,6 @@ typedef struct ParticipantMessageData {
 #define PID_IDENTITY_TOKEN                      0x1001u
 #define PID_PERMISSIONS_TOKEN                   0x1002u
 
-#define PID_RTI_TYPECODE                        (PID_VENDORSPECIFIC_FLAG | 0x4u)
-
-#ifdef DDSI_INCLUDE_SSM
-/* To indicate whether a reader favours the use of SSM.  Iff the
-   reader favours SSM, it will use SSM if available. */
-#define PID_READER_FAVOURS_SSM                  0x72u
-#endif
-
 #ifdef DDSI_INCLUDE_SSM
 /* To indicate whether a reader favours the use of SSM.  Iff the
    reader favours SSM, it will use SSM if available. */

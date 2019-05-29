@@ -20,6 +20,7 @@
 #include "dds__reader.h"
 #include "dds__listener.h"
 #include "dds/version.h"
+#include "dds/ddsi/q_xqos.h"
 
 extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
 extern inline bool dds_entity_is_enabled (const dds_entity *e);
@@ -354,7 +355,8 @@ dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
   else
   {
     dds_reset_qos (qos);
-    ret = dds_copy_qos (qos, e->m_qos);
+    nn_xqos_mergein_missing (qos, e->m_qos, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
+    ret = DDS_RETCODE_OK;
   }
   dds_entity_unlock(e);
   return ret;

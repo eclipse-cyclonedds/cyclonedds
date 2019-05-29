@@ -15,6 +15,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_plist.h"
 #include "dds__init.h"
 #include "dds__qos.h"
 #include "dds__domain.h"
@@ -73,13 +74,10 @@ static dds_return_t dds_participant_qos_validate (const dds_qos_t *qos, bool ena
 
 static dds_return_t dds_participant_qos_validate (const dds_qos_t *qos, bool enabled)
 {
+  dds_return_t ret;
   (void)enabled;
-
-  if ((qos->present & QP_USER_DATA) && !validate_octetseq (&qos->user_data))
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_PRISMTECH_ENTITY_FACTORY) && !validate_entityfactory_qospolicy (&qos->entity_factory))
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-
+  if ((ret = nn_xqos_valid (qos)) < 0)
+    return ret;
   return DDS_RETCODE_OK;
 }
 
@@ -112,13 +110,14 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   if ((ret = dds__check_domain (domain)) != DDS_RETCODE_OK)
     goto err_domain_check;
 
-  /* Validate qos or use default if NULL */
-  if (qos && (ret = dds_participant_qos_validate (qos, false)) != DDS_RETCODE_OK)
-    goto err_qos_validation;
 
+#define DDS_QOSMASK_PARTICIPANT (QP_USER_DATA | QP_PRISMTECH_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL)
   new_qos = dds_create_qos ();
   if (qos != NULL)
-    (void) dds_copy_qos (new_qos, qos);
+    nn_xqos_mergein_missing (new_qos, qos, DDS_QOSMASK_PARTICIPANT);
+  /* Validate qos or use default if NULL */
+  if ((ret = dds_participant_qos_validate (new_qos, false)) != DDS_RETCODE_OK)
+    goto err_qos_validation;
 
   /* Translate qos */
   nn_plist_init_empty (&plist);
@@ -157,8 +156,8 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
 err_entity_init:
   dds_free (pp);
 err_new_participant:
-  dds_delete_qos (new_qos);
 err_qos_validation:
+  dds_delete_qos (new_qos);
 err_domain_check:
   dds_fini ();
 err_dds_init:

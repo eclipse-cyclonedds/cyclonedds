@@ -11,9 +11,11 @@
  */
 #include <assert.h>
 #include <string.h>
+#include "dds/ddsrt/string.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_plist.h" /* for nn_keyhash */
 #include "dds__init.h"
 #include "dds__qos.h"
 #include "dds__domain.h"
@@ -103,6 +105,7 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t e, dds_entity_t topic)
 
 static bool qos_has_resource_limits (const dds_qos_t *qos)
 {
+  assert (qos->present & QP_RESOURCE_LIMITS);
   return (qos->resource_limits.max_samples != DDS_LENGTH_UNLIMITED ||
           qos->resource_limits.max_instances != DDS_LENGTH_UNLIMITED ||
           qos->resource_limits.max_samples_per_instance != DDS_LENGTH_UNLIMITED);
@@ -115,8 +118,9 @@ bool dds__validate_builtin_reader_qos (dds_entity_t topic, const dds_qos_t *qos)
     return true;
   else
   {
-    /* failing writes on built-in topics are unwelcome complications, so we simply forbid the creation of
-       a reader matching a built-in topics writer that has resource limits */
+    /* failing writes on built-in topics are unwelcome complications, so we simply
+       forbid the creation of a reader matching a built-in topics writer that has
+       resource limits */
     struct local_orphan_writer *bwr;
     if (topic == DDS_BUILTIN_TOPIC_DCPSPARTICIPANT) {
       bwr = builtintopic_writer_participant;
@@ -128,7 +132,15 @@ bool dds__validate_builtin_reader_qos (dds_entity_t topic, const dds_qos_t *qos)
       assert (0);
       return false;
     }
-    return !qos_match_p (qos, bwr->wr.xqos, NULL) && !qos_has_resource_limits (qos);
+
+    /* FIXME: DDSI-level readers, writers have topic, type name in their QoS, but
+       DDSC-level ones don't and that gives an automatic mismatch when comparing
+       the full QoS object ...  Here the two have the same topic by construction
+       so ignoring them in the comparison makes things work.  The discrepancy
+       should be addressed one day. */
+    const uint64_t qmask = ~(QP_TOPIC_NAME | QP_TYPE_NAME);
+    dds_qos_policy_id_t dummy;
+    return qos_match_mask_p (qos, bwr->wr.xqos, qmask, &dummy) && !qos_has_resource_limits (qos);
   }
 }
 

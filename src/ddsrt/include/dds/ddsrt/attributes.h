@@ -105,4 +105,10 @@
 # define ddsrt_attribute_assume_aligned(params)
 #endif
 
+#if ddsrt_has_attribute(packed)
+# define ddsrt_attribute_packed __attribute__ ((__packed__))
+#else
+# define ddsrt_attribute_packed
+#endif
+
 #endif /* DDSRT_ATTRIBUTES_H */

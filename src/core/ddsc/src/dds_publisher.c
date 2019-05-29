@@ -17,6 +17,7 @@
 #include "dds__publisher.h"
 #include "dds__qos.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds/version.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_publisher)
@@ -37,14 +38,9 @@ static dds_return_t dds_publisher_qos_validate (const dds_qos_t *qos, bool enabl
 
 static dds_return_t dds_publisher_qos_validate (const dds_qos_t *qos, bool enabled)
 {
-  if ((qos->present & QP_GROUP_DATA) && !validate_octetseq (&qos->group_data))
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_PRESENTATION) && validate_presentation_qospolicy (&qos->presentation) < 0)
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_PARTITION) && !validate_stringseq (&qos->partition))
-    return DDS_RETCODE_INCONSISTENT_POLICY;
-  if ((qos->present & QP_PRISMTECH_ENTITY_FACTORY) && !validate_entityfactory_qospolicy (&qos->entity_factory))
-    return DDS_RETCODE_INCONSISTENT_POLICY;
+  dds_return_t ret;
+  if ((ret = nn_xqos_valid (qos)) < 0)
+    return ret;
   /* FIXME: Improve/check immutable check. */
   if (enabled && (qos->present & QP_PRESENTATION))
     return DDS_RETCODE_IMMUTABLE_POLICY;
@@ -74,21 +70,25 @@ dds_entity_t dds_create_publisher (dds_entity_t participant, const dds_qos_t *qo
   dds_participant *par;
   dds_publisher *pub;
   dds_entity_t hdl;
-  dds_qos_t *new_qos = NULL;
+  dds_qos_t *new_qos;
   dds_return_t ret;
 
-  if (qos && (ret = dds_publisher_qos_validate (qos, false)) != DDS_RETCODE_OK)
-    return ret;
-  
-  if ((ret = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
-    return ret;
-
+#define DDS_QOSMASK_PUBLISHER (QP_PARTITION | QP_PRESENTATION | QP_GROUP_DATA | QP_PRISMTECH_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL)
+  new_qos = dds_create_qos ();
   if (qos)
+    nn_xqos_mergein_missing (new_qos, qos, DDS_QOSMASK_PUBLISHER);
+  nn_xqos_mergein_missing (new_qos, &gv.default_xqos_pub, ~(uint64_t)0);
+  if ((ret = dds_publisher_qos_validate (new_qos, false)) != DDS_RETCODE_OK)
   {
-    new_qos = dds_create_qos ();
-    (void) dds_copy_qos (new_qos, qos);
+    dds_delete_qos (new_qos);
+    return ret;
   }
 
+  if ((ret = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
+  {
+    dds_delete_qos (new_qos);
+    return ret;
+  }
   pub = dds_alloc (sizeof (*pub));
   hdl = dds_entity_init (&pub->m_entity, &par->m_entity, DDS_KIND_PUBLISHER, new_qos, listener, DDS_PUBLISHER_STATUS_MASK);
   pub->m_entity.m_deriver.set_qos = dds_publisher_qos_set;

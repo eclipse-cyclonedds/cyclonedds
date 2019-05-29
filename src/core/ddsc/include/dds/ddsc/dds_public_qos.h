@@ -374,7 +374,8 @@ dds_qset_durability_service (
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
  * @param[in] ignore - True if readers and writers owned by the same participant should be ignored
  */
-DDS_EXPORT void dds_qset_ignorelocal (
+DDS_EXPORT void
+dds_qset_ignorelocal (
   dds_qos_t * __restrict qos,
   dds_ignorelocal_kind_t ignore);
 

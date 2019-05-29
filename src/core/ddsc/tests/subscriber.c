@@ -91,7 +91,7 @@ CU_Test(ddsc_subscriber, create) {
   sqos = dds_create_qos();
   dds_qset_presentation(sqos, 123, 1, 1); /* Set invalid presentation policy */
   subscriber = dds_create_subscriber(participant, sqos, NULL);
-  CU_ASSERT_EQUAL_FATAL(subscriber, DDS_RETCODE_INCONSISTENT_POLICY);
+  CU_ASSERT_EQUAL_FATAL(subscriber, DDS_RETCODE_BAD_PARAMETER);
   dds_delete_qos(sqos);
 
   /*** Verify listener parameter ***/
