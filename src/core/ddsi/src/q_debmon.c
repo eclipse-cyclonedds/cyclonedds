@@ -113,9 +113,8 @@ static int print_any_endpoint_common (ddsi_tran_conn_t conn, const char *label, 
   x += cpf (conn, "  %s %x:%x:%x:%x ", label, PGUID (e->guid));
   if (xqos->present & QP_PARTITION)
   {
-    unsigned i;
     if (xqos->partition.n > 1) cpf (conn, "{");
-    for (i = 0; i < xqos->partition.n; i++)
+    for (uint32_t i = 0; i < xqos->partition.n; i++)
       x += cpf (conn, "%s%s", i == 0 ? "" : ",", xqos->partition.strs[i]);
     if (xqos->partition.n > 1) cpf (conn, "}");
     x += cpf (conn, ".%s/%s",

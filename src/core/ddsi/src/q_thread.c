@@ -82,8 +82,6 @@ void thread_states_init_static (void)
 
 void thread_states_init (unsigned maxthreads)
 {
-  unsigned i;
-
   ddsrt_mutex_init (&thread_states.lock);
   thread_states.nthreads = maxthreads;
   thread_states.ts =
@@ -91,7 +89,7 @@ void thread_states_init (unsigned maxthreads)
   memset (thread_states.ts, 0, maxthreads * sizeof (*thread_states.ts));
   /* The compiler doesn't realize that ts is large enough. */
   DDSRT_WARNING_MSVC_OFF(6386);
-  for (i = 0; i < thread_states.nthreads; i++)
+  for (uint32_t i = 0; i < thread_states.nthreads; i++)
   {
     thread_states.ts[i].state = THREAD_STATE_ZERO;
     thread_states.ts[i].vtime = 0u;
@@ -102,8 +100,7 @@ void thread_states_init (unsigned maxthreads)
 
 void thread_states_fini (void)
 {
-  unsigned i;
-  for (i = 0; i < thread_states.nthreads; i++)
+  for (uint32_t i = 0; i < thread_states.nthreads; i++)
     assert (thread_states.ts[i].state != THREAD_STATE_ALIVE);
   ddsrt_mutex_destroy (&thread_states.lock);
   ddsrt_free_aligned (thread_states.ts);
@@ -119,11 +116,10 @@ void thread_states_fini (void)
 static struct thread_state1 *find_thread_state (ddsrt_thread_t tid)
 {
   if (thread_states.ts) {
-    unsigned i;
-    for (i = 0; i < thread_states.nthreads; i++) {
-      if (ddsrt_thread_equal (thread_states.ts[i].tid, tid)) {
+    for (uint32_t i = 0; i < thread_states.nthreads; i++)
+    {
+      if (ddsrt_thread_equal (thread_states.ts[i].tid, tid))
         return &thread_states.ts[i];
-      }
     }
   }
   return NULL;
@@ -195,7 +191,7 @@ static uint32_t create_thread_wrapper (void *ptr)
 
 static int find_free_slot (const char *name)
 {
-  for (unsigned i = 0; i < thread_states.nthreads; i++)
+  for (uint32_t i = 0; i < thread_states.nthreads; i++)
     if (thread_states.ts[i].state == THREAD_STATE_ZERO)
       return (int) i;
   DDS_FATAL("create_thread: %s: no free slot\n", name ? name : "(anon)");
@@ -329,13 +325,8 @@ void downgrade_main_thread (void)
 
 void log_stack_traces (void)
 {
-  unsigned i;
-  for (i = 0; i < thread_states.nthreads; i++)
-  {
+  for (uint32_t i = 0; i < thread_states.nthreads; i++)
     if (thread_states.ts[i].state != THREAD_STATE_ZERO)
-    {
       log_stacktrace (thread_states.ts[i].name, thread_states.ts[i].tid);
-    }
-  }
 }
 

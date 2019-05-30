@@ -207,7 +207,7 @@ void *ddsrt_fibheap_extract_min (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap
        keys anyway to find the minimum */
     {
         ddsrt_fibheap_node_t *mark, *cursor, *newmin;
-        unsigned i;
+        uint32_t i;
         for (i = 0; roots[i] == NULL; i++) {
             assert (i+1 < min_degree_noninit);
         }

@@ -32,7 +32,7 @@ void lease_renew (struct lease *l, nn_etime_t tnow);
 void lease_set_expiry (struct lease *l, nn_etime_t when);
 int64_t check_and_handle_lease_expiration (nn_etime_t tnow);
 
-void handle_PMD (const struct receiver_state *rst, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len);
+void handle_PMD (const struct receiver_state *rst, nn_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len);
 
 #if defined (__cplusplus)
 }

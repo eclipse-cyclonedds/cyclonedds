@@ -234,16 +234,16 @@ struct rhc_sample {
   uint64_t wr_iid;             /* unique id for writer of this sample (perhaps better in serdata) */
   dds_querycond_mask_t conds;  /* matching query conditions */
   bool isread;                 /* READ or NOT_READ sample state */
-  unsigned disposed_gen;       /* snapshot of instance counter at time of insertion */
-  unsigned no_writers_gen;     /* __/ */
+  uint32_t disposed_gen;       /* snapshot of instance counter at time of insertion */
+  uint32_t no_writers_gen;     /* __/ */
 };
 
 struct rhc_instance {
   uint64_t iid;                /* unique instance id, key of table, also serves as instance handle */
   uint64_t wr_iid;             /* unique of id of writer of latest sample or 0; if wrcount = 0 it is the wr_iid that caused  */
   struct rhc_sample *latest;   /* latest received sample; circular list old->new; null if no sample */
-  unsigned nvsamples;          /* number of "valid" samples in instance */
-  unsigned nvread;             /* number of READ "valid" samples in instance (0 <= nvread <= nvsamples) */
+  uint32_t nvsamples;          /* number of "valid" samples in instance */
+  uint32_t nvread;             /* number of READ "valid" samples in instance (0 <= nvread <= nvsamples) */
   dds_querycond_mask_t conds;  /* matching query conditions */
   uint32_t wrcount;            /* number of live writers */
   unsigned isnew : 1;          /* NEW or NOT_NEW view state */
@@ -252,8 +252,8 @@ struct rhc_instance {
   unsigned wr_iid_islive : 1;  /* whether wr_iid is of a live writer */
   unsigned inv_exists : 1;     /* whether or not state change occurred since last sample (i.e., must return invalid sample) */
   unsigned inv_isread : 1;     /* whether or not that state change has been read before */
-  unsigned disposed_gen;       /* bloody generation counters - worst invention of mankind */
-  unsigned no_writers_gen;     /* __/ */
+  uint32_t disposed_gen;       /* bloody generation counters - worst invention of mankind */
+  uint32_t no_writers_gen;     /* __/ */
   int32_t strength;            /* "current" ownership strength */
   nn_guid_t wr_guid;           /* guid of last writer (if wr_iid != 0 then wr_guid is the corresponding guid, else undef) */
   nn_wctime_t tstamp;          /* source time stamp of last update */
@@ -296,7 +296,7 @@ struct rhc {
 
   dds_reader *reader;                /* reader */
   const struct ddsi_sertopic *topic; /* topic description */
-  unsigned history_depth;            /* depth, 1 for KEEP_LAST_1, 2**32-1 for KEEP_ALL */
+  uint32_t history_depth;            /* depth, 1 for KEEP_LAST_1, 2**32-1 for KEEP_ALL */
 
   ddsrt_mutex_t lock;
   dds_readcond * conds;              /* List of associated read conditions */
@@ -1593,9 +1593,9 @@ static unsigned qmask_of_inst (const struct rhc_instance *inst)
   return qm;
 }
 
-static unsigned qmask_from_dcpsquery (unsigned sample_states, unsigned view_states, unsigned instance_states)
+static uint32_t qmask_from_dcpsquery (uint32_t sample_states, uint32_t view_states, uint32_t instance_states)
 {
-  unsigned qminv = 0;
+  uint32_t qminv = 0;
 
   switch ((dds_sample_state_t) sample_states)
   {
@@ -1639,7 +1639,7 @@ static unsigned qmask_from_dcpsquery (unsigned sample_states, unsigned view_stat
   return qminv;
 }
 
-static unsigned qmask_from_mask_n_cond(uint32_t mask, dds_readcond* cond)
+static unsigned qmask_from_mask_n_cond (uint32_t mask, dds_readcond* cond)
 {
     unsigned qminv;
     if (mask == NO_STATE_MASK_SET) {
@@ -2553,40 +2553,19 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
  ******  READ/TAKE  ******
  *************************/
 
-int
-dds_rhc_read(
-        struct rhc *rhc,
-        bool lock,
-        void ** values,
-        dds_sample_info_t *info_seq,
-        uint32_t max_samples,
-        uint32_t mask,
-        dds_instance_handle_t handle,
-        dds_readcond *cond)
+int dds_rhc_read (struct rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond)
 {
-    unsigned qminv = qmask_from_mask_n_cond(mask, cond);
-    return dds_rhc_read_w_qminv(rhc, lock, values, info_seq, max_samples, qminv, handle, cond);
+    unsigned qminv = qmask_from_mask_n_cond (mask, cond);
+    return dds_rhc_read_w_qminv (rhc, lock, values, info_seq, max_samples, qminv, handle, cond);
 }
 
-int
-dds_rhc_take(
-        struct rhc *rhc,
-        bool lock,
-        void ** values,
-        dds_sample_info_t *info_seq,
-        uint32_t max_samples,
-        uint32_t mask,
-        dds_instance_handle_t handle,
-        dds_readcond *cond)
+int dds_rhc_take (struct rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond)
 {
     unsigned qminv = qmask_from_mask_n_cond(mask, cond);
-    return dds_rhc_take_w_qminv(rhc, lock, values, info_seq, max_samples, qminv, handle, cond);
+    return dds_rhc_take_w_qminv (rhc, lock, values, info_seq, max_samples, qminv, handle, cond);
 }
 
-int dds_rhc_takecdr
-(
- struct rhc *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples,
- unsigned sample_states, unsigned view_states, unsigned instance_states, dds_instance_handle_t handle)
+int dds_rhc_takecdr (struct rhc *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle)
 {
   unsigned qminv = qmask_from_dcpsquery (sample_states, view_states, instance_states);
   return dds_rhc_takecdr_w_qminv (rhc, lock, values, info_seq, max_samples, qminv, handle, NULL);

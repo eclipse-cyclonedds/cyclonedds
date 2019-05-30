@@ -1703,7 +1703,7 @@ static int uf_networkAddresses (struct cfgst *cfgst, void *parent, struct cfgele
   {
     char *** const elem = cfg_address (cfgst, parent, cfgelem);
     char *copy;
-    unsigned count;
+    uint32_t count;
 
     /* First count how many addresses we have - but do it stupidly by
        counting commas and adding one (so two commas in a row are both
@@ -1723,7 +1723,7 @@ static int uf_networkAddresses (struct cfgst *cfgst, void *parent, struct cfgele
 
     {
       char *cursor = copy, *tok;
-      unsigned idx = 0;
+      uint32_t idx = 0;
       while ((tok = ddsrt_strsep (&cursor, ",")) != NULL) {
         assert (idx < count);
         (*elem)[idx] = ddsrt_strdup (tok);
@@ -2458,7 +2458,7 @@ static int sort_channels_check_nodups (struct config *cfg)
      structure, sorting is much easier in an array, and hence we
      convert back and forth. */
   struct config_channel_listelem **ary, *c;
-  unsigned i, n;
+  uint32_t i, n;
   int result;
 
   n = 0;
@@ -2469,7 +2469,7 @@ static int sort_channels_check_nodups (struct config *cfg)
   ary = ddsrt_malloc (n * sizeof (*ary));
 
   i = 0;
-  for  (c = cfg->channels; c; c = c->next)
+  for (c = cfg->channels; c; c = c->next)
     ary[i++] = c;
   qsort (ary, n, sizeof (*ary), sort_channels_cmp);
 

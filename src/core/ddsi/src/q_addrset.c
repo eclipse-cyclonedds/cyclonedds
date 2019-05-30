@@ -541,15 +541,13 @@ void addrset_forall (struct addrset *as, addrset_forall_fun_t f, void *arg)
 
 int addrset_forone (struct addrset *as, addrset_forone_fun_t f, void *arg)
 {
-  unsigned i;
   addrset_node_t n;
   ddsrt_avl_ctree_t *trees[2];
   ddsrt_avl_citer_t iter;
 
   trees[0] = &as->mcaddrs;
   trees[1] = &as->ucaddrs;
-
-  for (i = 0; i < 2u; i++)
+  for (int i = 0; i < 2; i++)
   {
     n = (addrset_node_t) ddsrt_avl_citer_first (&addrset_treedef, trees[i], &iter);
     while (n)
