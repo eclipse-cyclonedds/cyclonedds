@@ -47,7 +47,7 @@ struct lease {
   ddsrt_fibheap_node_t heapnode;
   nn_etime_t tsched;  /* access guarded by leaseheap_lock */
   nn_etime_t tend;    /* access guarded by lock_lease/unlock_lease */
-  int64_t tdur;      /* constant (renew depends on it) */
+  dds_duration_t tdur;      /* constant (renew depends on it) */
   struct entity_common *entity; /* constant */
 };
 
@@ -89,7 +89,7 @@ static ddsrt_mutex_t *lock_lease_addr (struct lease const * const l)
 {
   uint32_t u = (uint16_t) ((uintptr_t) l >> 3);
   uint32_t v = u * 0xb4817365;
-  unsigned idx = v >> (32 - N_LEASE_LOCKS_LG2);
+  uint32_t idx = v >> (32 - N_LEASE_LOCKS_LG2);
   return &gv.lease_locks[idx];
 }
 
@@ -103,7 +103,7 @@ static void unlock_lease (const struct lease *l)
   ddsrt_mutex_unlock (lock_lease_addr (l));
 }
 
-struct lease *lease_new (nn_etime_t texpire, int64_t tdur, struct entity_common *e)
+struct lease *lease_new (nn_etime_t texpire, dds_duration_t tdur, struct entity_common *e)
 {
   struct lease *l;
   if ((l = ddsrt_malloc (sizeof (*l))) == NULL)
@@ -327,7 +327,7 @@ static void debug_print_rawdata (const char *msg, const void *data, size_t len)
   DDS_TRACE(">");
 }
 
-void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len)
+void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
 {
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
   const int bswap = (data->identifier == CDR_LE) ^ (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
@@ -348,8 +348,8 @@ void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t time
       {
         const ParticipantMessageData_t *pmd = (ParticipantMessageData_t *) (data + 1);
         nn_guid_prefix_t p = nn_ntoh_guid_prefix (pmd->participantGuidPrefix);
-        unsigned kind = ntohl (pmd->kind);
-        unsigned length = bswap ? bswap4u (pmd->length) : pmd->length;
+        uint32_t kind = ntohl (pmd->kind);
+        uint32_t length = bswap ? bswap4u (pmd->length) : pmd->length;
         DDS_TRACE(" pp %"PRIx32":%"PRIx32":%"PRIx32" kind %u data %u", p.u[0], p.u[1], p.u[2], kind, length);
         if (len - sizeof (struct CDRHeader) - offsetof (ParticipantMessageData_t, value) < length)
           debug_print_rawdata (" SHORT2", pmd->value, len - sizeof (struct CDRHeader) - offsetof (ParticipantMessageData_t, value));
@@ -374,7 +374,7 @@ void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t time
     case NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER:
       /* Serialized key; BE or LE doesn't matter as both fields are
          defined as octets.  */
-      if (len < (int) (sizeof (struct CDRHeader) + sizeof (nn_guid_prefix_t)))
+      if (len < sizeof (struct CDRHeader) + sizeof (nn_guid_prefix_t))
         debug_print_rawdata (" SHORT3", data, len);
       else
       {

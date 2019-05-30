@@ -311,9 +311,7 @@ os_sockWaitset os_sockWaitsetNew (void)
 
 void os_sockWaitsetFree (os_sockWaitset ws)
 {
-  unsigned i;
-
-  for (i = 0; i < ws->ctx.n; i++)
+  for (unsigned i = 0; i < ws->ctx.n; i++)
   {
     WSACloseEvent (ws->ctx.events[i]);
   }
@@ -323,10 +321,8 @@ void os_sockWaitsetFree (os_sockWaitset ws)
 
 void os_sockWaitsetPurge (os_sockWaitset ws, unsigned index)
 {
-  unsigned i;
-
   ddsrt_mutex_lock (&ws->mutex);
-  for (i = index + 1; i < ws->ctx.n; i++)
+  for (unsigned i = index + 1; i < ws->ctx.n; i++)
   {
     ws->ctx.conns[i] = NULL;
     if (!WSACloseEvent (ws->ctx.events[i]))
@@ -340,10 +336,8 @@ void os_sockWaitsetPurge (os_sockWaitset ws, unsigned index)
 
 void os_sockWaitsetRemove (os_sockWaitset ws, ddsi_tran_conn_t conn)
 {
-  unsigned i;
-
   ddsrt_mutex_lock (&ws->mutex);
-  for (i = 0; i < ws->ctx.n; i++)
+  for (unsigned i = 0; i < ws->ctx.n; i++)
   {
     if (conn == ws->ctx.conns[i])
     {
@@ -805,13 +799,12 @@ int os_sockWaitsetAdd (os_sockWaitset ws, ddsi_tran_conn_t conn)
 
 void os_sockWaitsetPurge (os_sockWaitset ws, unsigned index)
 {
-  unsigned i;
   os_sockWaitsetSet * set = &ws->set;
 
   ddsrt_mutex_lock (&ws->mutex);
   if (index + 1 <= set->n)
   {
-    for (i = index + 1; i < set->n; i++)
+    for (unsigned i = index + 1; i < set->n; i++)
     {
       set->conns[i] = NULL;
       set->fds[i] = 0;
@@ -823,11 +816,10 @@ void os_sockWaitsetPurge (os_sockWaitset ws, unsigned index)
 
 void os_sockWaitsetRemove (os_sockWaitset ws, ddsi_tran_conn_t conn)
 {
-  unsigned i;
   os_sockWaitsetSet * set = &ws->set;
 
   ddsrt_mutex_lock (&ws->mutex);
-  for (i = 0; i < set->n; i++)
+  for (unsigned i = 0; i < set->n; i++)
   {
     if (conn == set->conns[i])
     {

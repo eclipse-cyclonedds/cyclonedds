@@ -147,7 +147,7 @@ struct local_reader_ary {
   ddsrt_mutex_t rdary_lock;
   unsigned valid: 1; /* always true until (proxy-)writer is being deleted; !valid => !fastpath_ok */
   unsigned fastpath_ok: 1; /* if not ok, fall back to using GUIDs (gives access to the reader-writer match data for handling readers that bumped into resource limits, hence can flip-flop, unlike "valid") */
-  unsigned n_readers;
+  uint32_t n_readers;
   struct reader **rdary; /* for efficient delivery, null-pointer terminated */
 };
 
@@ -158,9 +158,9 @@ struct avail_entityid_set {
 struct participant
 {
   struct entity_common e;
-  long long lease_duration; /* constant */
-  unsigned bes; /* built-in endpoint set */
-  unsigned prismtech_bes; /* prismtech-specific extension of built-in endpoints set */
+  dds_duration_t lease_duration; /* constant */
+  uint32_t bes; /* built-in endpoint set */
+  uint32_t prismtech_bes; /* prismtech-specific extension of built-in endpoints set */
   unsigned is_ddsi2_pp: 1; /* true for the "federation leader", the ddsi2 participant itself in OSPL; FIXME: probably should use this for broker mode as well ... */
   struct nn_plist *plist; /* settings/QoS for this participant */
   struct xevent *spdp_xevent; /* timed event for periodically publishing SPDP */
@@ -242,7 +242,7 @@ struct writer
   struct addrset *as; /* set of addresses to publish to */
   struct addrset *as_group; /* alternate case, used for SPDP, when using Cloud with multiple bootstrap locators */
   struct xevent *heartbeat_xevent; /* timed event for "periodically" publishing heartbeats when unack'd data present, NULL <=> unreliable */
-  long long lease_duration;
+  dds_duration_t lease_duration;
   struct whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
   nn_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
@@ -588,7 +588,7 @@ void delete_local_orphan_writer (struct local_orphan_writer *wr);
 /* Set when this proxy participant is not to be announced on the built-in topics yet */
 #define CF_PROXYPP_NO_SPDP                     (1 << 3)
 
-void new_proxy_participant (const struct nn_guid *guid, unsigned bes, unsigned prismtech_bes, const struct nn_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct nn_plist *plist, int64_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, nn_wctime_t timestamp);
+void new_proxy_participant (const struct nn_guid *guid, unsigned bes, unsigned prismtech_bes, const struct nn_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct nn_plist *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, nn_wctime_t timestamp);
 int delete_proxy_participant_by_guid (const struct nn_guid * guid, nn_wctime_t timestamp, int isimplicit);
 uint64_t participant_instance_id (const struct nn_guid *guid);
 

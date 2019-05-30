@@ -270,10 +270,10 @@ int writer_hbcontrol_ack_required (const struct writer *wr, const struct whc_sta
   return writer_hbcontrol_ack_required_generic (wr, whcst, hbc->t_of_last_write, tnow, 0);
 }
 
-struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, unsigned packetid, int *hbansreq)
+struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, uint32_t packetid, int *hbansreq)
 {
   struct hbcontrol * const hbc = &wr->hbcontrol;
-  unsigned last_packetid;
+  uint32_t last_packetid;
   nn_mtime_t tlast;
   struct nn_xmsg *msg;
 
@@ -691,16 +691,15 @@ static int must_skip_frag (const char *frags_to_skip, unsigned frag)
 }
 #endif
 
-static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew, unsigned nfrags)
+static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew, uint32_t nfrags)
 {
-  unsigned i;
 #if 0
   const char *frags_to_skip = getenv ("SKIPFRAGS");
 #endif
   assert(xp);
   assert((wr->heartbeat_xevent != NULL) == (whcst != NULL));
 
-  for (i = 0; i < nfrags; i++)
+  for (uint32_t i = 0; i < nfrags; i++)
   {
     struct nn_xmsg *fmsg = NULL;
     struct nn_xmsg *hmsg = NULL;

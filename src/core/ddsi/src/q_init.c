@@ -705,7 +705,6 @@ static void wait_for_receive_threads_helper (struct xevent *xev, void *varg, nn_
 static void wait_for_receive_threads (void)
 {
   struct xevent *trigev;
-  unsigned i;
   struct wait_for_receive_threads_helper_arg cbarg;
   cbarg.count = 0;
   if ((trigev = qxev_callback (add_duration_to_mtime (now_mt (), T_SECOND), wait_for_receive_threads_helper, &cbarg)) == NULL)
@@ -715,7 +714,7 @@ static void wait_for_receive_threads (void)
        dropping the packets until the user approves. */
     DDS_WARNING("wait_for_receive_threads: failed to schedule periodic triggering of the receive threads to deal with packet loss\n");
   }
-  for (i = 0; i < gv.n_recv_threads; i++)
+  for (uint32_t i = 0; i < gv.n_recv_threads; i++)
   {
     if (gv.recv_threads[i].ts)
     {
@@ -766,8 +765,7 @@ static void free_special_topics (void)
 
 static int setup_and_start_recv_threads (void)
 {
-  unsigned i;
-  for (i = 0; i < MAX_RECV_THREADS; i++)
+  for (uint32_t i = 0; i < MAX_RECV_THREADS; i++)
   {
     gv.recv_threads[i].ts = NULL;
     gv.recv_threads[i].arg.mode = RTM_SINGLE;
@@ -806,7 +804,7 @@ static int setup_and_start_recv_threads (void)
   assert (gv.n_recv_threads <= MAX_RECV_THREADS);
 
   /* For each thread, create rbufpool and waitset if needed, then start it */
-  for (i = 0; i < gv.n_recv_threads; i++)
+  for (uint32_t i = 0; i < gv.n_recv_threads; i++)
   {
     /* We create the rbufpool for the receive thread, and so we'll
        become the initial owner thread. The receive thread will change
@@ -836,7 +834,7 @@ fail:
   /* to trigger any threads we already started to stop - xevent thread has already been started */
   rtps_term_prep ();
   wait_for_receive_threads ();
-  for (i = 0; i < gv.n_recv_threads; i++)
+  for (uint32_t i = 0; i < gv.n_recv_threads; i++)
   {
     if (gv.recv_threads[i].arg.mode == RTM_MANY && gv.recv_threads[i].arg.u.many.ws)
       os_sockWaitsetFree (gv.recv_threads[i].arg.u.many.ws);
@@ -1617,14 +1615,11 @@ void rtps_fini (void)
      been dropped, which only happens once all receive threads have
      stopped, defrags and reorders have been freed, and all delivery
      queues been drained.  I.e., until very late in the game. */
+  for (uint32_t i = 0; i < gv.n_recv_threads; i++)
   {
-    unsigned i;
-    for (i = 0; i < gv.n_recv_threads; i++)
-    {
-      if (gv.recv_threads[i].arg.mode == RTM_MANY)
-        os_sockWaitsetFree (gv.recv_threads[i].arg.u.many.ws);
-      nn_rbufpool_free (gv.recv_threads[i].arg.rbpool);
-    }
+    if (gv.recv_threads[i].arg.mode == RTM_MANY)
+      os_sockWaitsetFree (gv.recv_threads[i].arg.u.many.ws);
+    nn_rbufpool_free (gv.recv_threads[i].arg.rbpool);
   }
 
   ddsi_tkmap_free (gv.m_tkmap);

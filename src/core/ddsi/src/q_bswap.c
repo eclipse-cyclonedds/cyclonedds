@@ -61,8 +61,8 @@ void bswap_sequence_number_set_hdr (nn_sequence_number_set_t *snset)
 
 void bswap_sequence_number_set_bitmap (nn_sequence_number_set_t *snset)
 {
-  unsigned i, n = (snset->numbits + 31) / 32;
-  for (i = 0; i < n; i++)
+  const uint32_t n = (snset->numbits + 31) / 32;
+  for (uint32_t i = 0; i < n; i++)
     snset->bits[i] = bswap4u (snset->bits[i]);
 }
 
@@ -74,7 +74,7 @@ void bswap_fragment_number_set_hdr (nn_fragment_number_set_t *fnset)
 
 void bswap_fragment_number_set_bitmap (nn_fragment_number_set_t *fnset)
 {
-  unsigned i, n = (fnset->numbits + 31) / 32;
-  for (i = 0; i < n; i++)
+  const uint32_t n = (fnset->numbits + 31) / 32;
+  for (uint32_t i = 0; i < n; i++)
     fnset->bits[i] = bswap4u (fnset->bits[i]);
 }

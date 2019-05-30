@@ -778,7 +778,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
   return 1;
 }
 
-static void handle_SPDP (const struct receiver_state *rst, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len)
+static void handle_SPDP (const struct receiver_state *rst, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
 {
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
   DDS_TRACE("SPDP ST%x", statusinfo);
@@ -1321,7 +1321,7 @@ static void handle_SEDP_dead (nn_plist_t *datap, nn_wctime_t timestamp)
   DDS_LOG(DDS_LC_DISCOVERY, " %s\n", (res < 0) ? " unknown" : " delete");
 }
 
-static void handle_SEDP (const struct receiver_state *rst, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len)
+static void handle_SEDP (const struct receiver_state *rst, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
 {
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
   DDS_LOG(DDS_LC_DISCOVERY, "SEDP ST%x", statusinfo);
@@ -1447,7 +1447,7 @@ int sedp_write_cm_participant (struct participant *pp, int alive)
   return ret;
 }
 
-static void handle_SEDP_CM (const struct receiver_state *rst, nn_entityid_t wr_entity_id, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len)
+static void handle_SEDP_CM (const struct receiver_state *rst, nn_entityid_t wr_entity_id, nn_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len)
 {
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
   DDS_LOG(DDS_LC_DISCOVERY, "SEDP_CM ST%x", statusinfo);
@@ -1611,7 +1611,7 @@ static void handle_SEDP_GROUP_dead (nn_plist_t *datap, nn_wctime_t timestamp)
   delete_proxy_group (&datap->group_guid, timestamp, 0);
 }
 
-static void handle_SEDP_GROUP (const struct receiver_state *rst, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len)
+static void handle_SEDP_GROUP (const struct receiver_state *rst, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
 {
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
   DDS_LOG(DDS_LC_DISCOVERY, "SEDP_GROUP ST%x", statusinfo);

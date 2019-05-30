@@ -210,7 +210,7 @@ struct q_globals {
      it is only a global variable because it needs to be freed way later
      than the receive thread itself terminates */
 #define MAX_RECV_THREADS 3
-  unsigned n_recv_threads;
+  uint32_t n_recv_threads;
   struct recv_thread {
     const char *name;
     struct thread_state1 *ts;

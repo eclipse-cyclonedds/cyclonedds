@@ -84,7 +84,7 @@ struct thread_state1 {
 
 struct thread_states {
   ddsrt_mutex_t lock;
-  unsigned nthreads;
+  uint32_t nthreads;
   struct thread_state1 *ts; /* [nthreads] */
 };
 

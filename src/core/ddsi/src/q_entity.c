@@ -218,7 +218,7 @@ void local_reader_ary_insert (struct local_reader_ary *x, struct reader *rd)
 
 void local_reader_ary_remove (struct local_reader_ary *x, struct reader *rd)
 {
-  unsigned i;
+  uint32_t i;
   ddsrt_mutex_lock (&x->rdary_lock);
   for (i = 0; i < x->n_readers; i++)
   {
@@ -2709,16 +2709,13 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->as_group = NULL;
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-  {
-    unsigned i;
-    /* This is an open issue how to encrypt mesages send for various
-       partitions that match multiple network partitions.  From a safety
-       point of view a wierd configuration. Here we chose the first one
-       that we find */
-    wr->partition_id = 0;
-    for (i = 0; i < wr->xqos->partition.n && wr->partition_id == 0; i++)
-      wr->partition_id = get_partitionid_from_mapping (wr->xqos->partition.strs[i], wr->xqos->topic_name);
-  }
+  /* This is an open issue how to encrypt mesages send for various
+     partitions that match multiple network partitions.  From a safety
+     point of view a wierd configuration. Here we chose the first one
+     that we find */
+  wr->partition_id = 0;
+  for (uint32_t i = 0; i < wr->xqos->partition.n && wr->partition_id == 0; i++)
+    wr->partition_id = get_partitionid_from_mapping (wr->xqos->partition.strs[i], wr->xqos->topic_name);
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
 
 #ifdef DDSI_INCLUDE_SSM
@@ -3128,12 +3125,11 @@ static void join_mcast_helper (const nn_locator_t *n, void * varg)
         nn_locator_t l = *n;
         nn_udpv4mcgen_address_t l1;
         uint32_t iph;
-        unsigned i;
         memcpy(&l1, l.address, sizeof(l1));
         l.kind = NN_LOCATOR_KIND_UDPv4;
         memset(l.address, 0, 12);
         iph = ntohl(l1.ipv4.s_addr);
-        for (i = 1; i < (1u << l1.count); i++)
+        for (uint32_t i = 1; i < ((uint32_t)1 << l1.count); i++)
         {
           uint32_t ipn, iph1 = iph;
           if (i & (1u << l1.idx))
@@ -3170,12 +3166,11 @@ static void leave_mcast_helper (const nn_locator_t *n, void * varg)
         nn_locator_t l = *n;
         nn_udpv4mcgen_address_t l1;
         uint32_t iph;
-        unsigned i;
         memcpy(&l1, l.address, sizeof(l1));
         l.kind = NN_LOCATOR_KIND_UDPv4;
         memset(l.address, 0, 12);
         iph = ntohl(l1.ipv4.s_addr);
-        for (i = 1; i < (1u << l1.count); i++)
+        for (uint32_t i = 1; i < ((uint32_t)1 << l1.count); i++)
         {
           uint32_t ipn, iph1 = iph;
           if (i & (1u << l1.idx))
@@ -3270,10 +3265,8 @@ static dds_return_t new_reader_guid
   rd->as = new_addrset ();
   if (config.allowMulticast & ~AMC_SPDP)
   {
-    unsigned i;
-
     /* compile address set from the mapped network partitions */
-    for (i = 0; i < rd->xqos->partition.n; i++)
+    for (uint32_t i = 0; i < rd->xqos->partition.n; i++)
     {
       struct addrset *pas = get_as_from_mapping (rd->xqos->partition.strs[i], rd->xqos->topic_name);
       if (pas)
@@ -3483,7 +3476,7 @@ void new_proxy_participant
   struct addrset *as_default,
   struct addrset *as_meta,
   const nn_plist_t *plist,
-  int64_t tlease_dur,
+  dds_duration_t tlease_dur,
   nn_vendorid_t vendor,
   unsigned custom_flags,
   nn_wctime_t timestamp
@@ -3538,7 +3531,7 @@ void new_proxy_participant
     {
       /* Lease duration is meaningless when the lease never expires, but when proxy participants are created implicitly because of endpoint discovery from a cloud service, we do want the lease to expire eventually when the cloud discovery service disappears and never reappears. The normal data path renews the lease, so if the lease expiry is changed after the DS disappears but data continues to flow (even if it is only a single sample) the proxy participant would immediately go back to a non-expiring lease with no further triggers for deleting it. Instead, we take tlease_dur == NEVER as a special value meaning a lease that doesn't expire now and that has a "reasonable" lease duration. That way the lease renewal in the data path is fine, and we only need to do something special in SEDP handling. */
       nn_etime_t texp = add_duration_to_etime (now_et(), tlease_dur);
-      int64_t dur = (tlease_dur == T_NEVER) ? config.lease_duration : tlease_dur;
+      dds_duration_t dur = (tlease_dur == T_NEVER) ? config.lease_duration : tlease_dur;
       ddsrt_atomic_stvoidp (&proxypp->lease, lease_new (texp, dur, &proxypp->e));
       proxypp->owns_lease = 1;
     }

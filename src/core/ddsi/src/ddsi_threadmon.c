@@ -49,8 +49,7 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
   nn_mtime_t next_thread_cputime = { 0 };
   nn_mtime_t tlast = { 0 };
   bool was_alive = true;
-  unsigned i;
-  for (i = 0; i < thread_states.nthreads; i++)
+  for (uint32_t i = 0; i < thread_states.nthreads; i++)
   {
     sl->av_ary[i].alive = true;
   }
@@ -78,7 +77,7 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
     else
     {
       tlast = tnow;
-      for (i = 0; i < thread_states.nthreads; i++)
+      for (uint32_t i = 0; i < thread_states.nthreads; i++)
       {
         if (thread_states.ts[i].state == THREAD_STATE_ZERO)
           n_unused++;

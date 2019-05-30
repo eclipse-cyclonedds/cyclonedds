@@ -38,9 +38,9 @@ static void print_sockerror (const char *msg)
   DDS_ERROR("SOCKET %s\n", msg);
 }
 
-unsigned locator_to_hopefully_unique_uint32 (const nn_locator_t *src)
+uint32_t locator_to_hopefully_unique_uint32 (const nn_locator_t *src)
 {
-  unsigned id = 0;
+  uint32_t id = 0;
   if (src->kind == NN_LOCATOR_KIND_UDPv4 || src->kind == NN_LOCATOR_KIND_TCPv4)
     memcpy (&id, src->address + 12, sizeof (id));
   else
@@ -342,7 +342,7 @@ static int set_mc_options_transmit (ddsrt_socket_t socket)
 int make_socket
 (
   ddsrt_socket_t * sock,
-  unsigned short port,
+  uint16_t port,
   bool stream,
   bool reuse
 )

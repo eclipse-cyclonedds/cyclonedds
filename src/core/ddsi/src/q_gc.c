@@ -41,7 +41,7 @@ struct gcreq_queue {
 static void threads_vtime_gather_for_wait (unsigned *nivs, struct idx_vtime *ivs)
 {
   /* copy vtimes of threads, skipping those that are sleeping */
-  unsigned i, j;
+  uint32_t i, j;
   for (i = j = 0; i < thread_states.nthreads; i++)
   {
     vtime_t vtime = thread_states.ts[i].vtime;
@@ -55,14 +55,14 @@ static void threads_vtime_gather_for_wait (unsigned *nivs, struct idx_vtime *ivs
   *nivs = j;
 }
 
-static int threads_vtime_check (unsigned *nivs, struct idx_vtime *ivs)
+static int threads_vtime_check (uint32_t *nivs, struct idx_vtime *ivs)
 {
   /* check all threads in ts have made progress those that have are
      removed from the set */
-  unsigned i = 0;
+  uint32_t i = 0;
   while (i < *nivs)
   {
-    unsigned thridx = ivs[i].idx;
+    uint32_t thridx = ivs[i].idx;
     vtime_t vtime = thread_states.ts[thridx].vtime;
     assert (vtime_awake_p (ivs[i].vtime));
     if (!vtime_gt (vtime, ivs[i].vtime))

@@ -98,9 +98,8 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
     {
       dds_duration_t max_block_ms = wr->xqos->reliability.max_blocking_time;
       struct proxy_writer_info pwr_info;
-      unsigned i;
       make_proxy_writer_info (&pwr_info, &wr->e, wr->xqos);
-      for (i = 0; rdary[i]; i++) {
+      for (uint32_t i = 0; rdary[i]; i++) {
         DDS_TRACE ("reader "PGUIDFMT"\n", PGUID (rdary[i]->e.guid));
         if ((ret = try_store (rdary[i]->rhc, &pwr_info, payload, tk, &max_block_ms)) != DDS_RETCODE_OK)
           break;

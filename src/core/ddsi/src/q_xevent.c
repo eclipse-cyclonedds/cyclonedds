@@ -703,9 +703,8 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
   struct nn_reorder *reorder;
   AckNack_t *an;
   struct nn_xmsg_marker sm_marker;
-  unsigned i, numbits;
+  uint32_t i, numbits;
   seqno_t base;
-  unsigned ui;
 
   union {
     struct nn_fragment_number_set set;
@@ -808,7 +807,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
     DDS_TRACE("acknack "PGUIDFMT" -> "PGUIDFMT": #%"PRId32":%"PRId64"/%"PRIu32":",
             PGUID (rwn->rd_guid), PGUID (pwr->e.guid), rwn->count,
             base, an->readerSNState.numbits);
-    for (ui = 0; ui != an->readerSNState.numbits; ui++)
+    for (uint32_t ui = 0; ui != an->readerSNState.numbits; ui++)
       DDS_TRACE("%c", nn_bitset_isset (numbits, an->readerSNState.bits, ui) ? '1' : '0');
   }
 
@@ -837,7 +836,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
       nn_xmsg_submsg_setnext (msg, sm_marker);
 
       DDS_TRACE(" + nackfrag #%"PRId32":%"PRId64"/%u/%"PRIu32":", *countp, fromSN (nf->writerSN), nf->fragmentNumberState.bitmap_base, nf->fragmentNumberState.numbits);
-      for (ui = 0; ui != nf->fragmentNumberState.numbits; ui++)
+      for (uint32_t ui = 0; ui != nf->fragmentNumberState.numbits; ui++)
         DDS_TRACE("%c", nn_bitset_isset (nf->fragmentNumberState.numbits, nf->fragmentNumberState.bits, ui) ? '1' : '0');
     }
   }
@@ -1071,8 +1070,8 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     /* schedule next when 80% of the interval has elapsed, or 2s
        before the lease ends, whichever comes first (similar to PMD),
        but never wait longer than spdp_interval */
-    const int64_t mindelta = 10 * T_MILLISECOND;
-    const int64_t ldur = pp->lease_duration;
+    const dds_duration_t mindelta = 10 * T_MILLISECOND;
+    const dds_duration_t ldur = pp->lease_duration;
     nn_mtime_t tnext;
     int64_t intv;
 
@@ -1134,7 +1133,7 @@ static void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack
 static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_xpack *xp, struct xevent *ev, nn_mtime_t tnow)
 {
   struct participant *pp;
-  int64_t intv;
+  dds_duration_t intv;
   nn_mtime_t tnext;
 
   if ((pp = ephash_lookup_participant_guid (&ev->u.pmd_update.pp_guid)) == NULL)

@@ -679,7 +679,6 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   seqno_t max_seq_in_reply;
   struct whc_node *deferred_free_list = NULL;
   struct whc_state whcst;
-  unsigned i;
   int hb_sent_in_response = 0;
   memset (gapbits, 0, sizeof (gapbits));
   countp = (nn_count_t *) ((char *) msg + offsetof (AckNack_t, readerSNState) +
@@ -690,7 +689,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   dst.entityid = msg->writerId;
   DDS_TRACE("ACKNACK(%s#%"PRId32":%"PRId64"/%"PRIu32":", msg->smhdr.flags & ACKNACK_FLAG_FINAL ? "F" : "",
           *countp, fromSN (msg->readerSNState.bitmap_base), msg->readerSNState.numbits);
-  for (i = 0; i < msg->readerSNState.numbits; i++)
+  for (uint32_t i = 0; i < msg->readerSNState.numbits; i++)
     DDS_TRACE("%c", nn_bitset_isset (msg->readerSNState.numbits, msg->readerSNState.bits, i) ? '1' : '0');
   seqbase = fromSN (msg->readerSNState.bitmap_base);
 
@@ -889,7 +888,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   seq_xmit = READ_SEQ_XMIT(wr);
   const bool gap_for_already_acked = vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE && seqbase <= rn->seq;
   const seqno_t min_seq_to_rexmit = gap_for_already_acked ? rn->seq + 1 : 0;
-  for (i = 0; i < numbits && seqbase + i <= seq_xmit && enqueued; i++)
+  for (uint32_t i = 0; i < numbits && seqbase + i <= seq_xmit && enqueued; i++)
   {
     /* Accelerated schedule may run ahead of sequence number set
        contained in the acknack, and assumes all messages beyond the
@@ -954,7 +953,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
       }
       else if (seqbase + i - gapend < 256)
       {
-        unsigned idx = (unsigned) (seqbase + i - gapend);
+        uint32_t idx = (uint32_t) (seqbase + i - gapend);
         DDS_TRACE(" M%"PRId64, seqbase + i);
         gapnumbits = idx + 1;
         nn_bitset_set (gapnumbits, gapbits, idx);
@@ -989,7 +988,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     if (gapend-1 + gapnumbits > max_seq_in_reply)
       max_seq_in_reply = gapend-1 + gapnumbits;
     DDS_TRACE(" XGAP%"PRId64"..%"PRId64"/%u:", gapstart, gapend, gapnumbits);
-    for (i = 0; i < gapnumbits; i++)
+    for (uint32_t i = 0; i < gapnumbits; i++)
       DDS_TRACE("%c", nn_bitset_isset (gapnumbits, gapbits, i) ? '1' : '0');
     m = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -1421,7 +1420,6 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
   nn_guid_t src, dst;
   nn_count_t *countp;
   seqno_t seq = fromSN (msg->writerSN);
-  unsigned i;
 
   countp = (nn_count_t *) ((char *) msg + offsetof (NackFrag_t, fragmentNumberState) + NN_FRAGMENT_NUMBER_SET_SIZE (msg->fragmentNumberState.numbits));
   src.prefix = rst->src_guid_prefix;
@@ -1430,7 +1428,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
   dst.entityid = msg->writerId;
 
   DDS_TRACE("NACKFRAG(#%"PRId32":%"PRId64"/%u/%"PRIu32":", *countp, seq, msg->fragmentNumberState.bitmap_base, msg->fragmentNumberState.numbits);
-  for (i = 0; i < msg->fragmentNumberState.numbits; i++)
+  for (uint32_t i = 0; i < msg->fragmentNumberState.numbits; i++)
     DDS_TRACE("%c", nn_bitset_isset (msg->fragmentNumberState.numbits, msg->fragmentNumberState.bits, i) ? '1' : '0');
 
   if (!rst->forme)
@@ -1487,7 +1485,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
     const unsigned base = msg->fragmentNumberState.bitmap_base - 1;
     int enqueued = 1;
     DDS_TRACE(" scheduling requested frags ...\n");
-    for (i = 0; i < msg->fragmentNumberState.numbits && enqueued; i++)
+    for (uint32_t i = 0; i < msg->fragmentNumberState.numbits && enqueued; i++)
     {
       if (nn_bitset_isset (msg->fragmentNumberState.numbits, msg->fragmentNumberState.bits, i))
       {
@@ -1670,8 +1668,8 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
   struct pwr_rd_match *wn;
   nn_guid_t src, dst;
   seqno_t gapstart, listbase;
-  int64_t last_included_rel;
-  unsigned listidx;
+  int32_t last_included_rel;
+  uint32_t listidx;
 
   src.prefix = rst->src_guid_prefix;
   src.entityid = msg->writerId;
@@ -1687,7 +1685,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
   for (listidx = 0; listidx < msg->gapList.numbits; listidx++)
     if (!nn_bitset_isset (msg->gapList.numbits, msg->gapList.bits, listidx))
       break;
-  last_included_rel = (int)listidx - 1;
+  last_included_rel = (int32_t) listidx - 1;
 
   if (!rst->forme)
   {
@@ -1741,8 +1739,8 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
         listidx++;
       else
       {
-        unsigned j;
-        for (j = listidx+1; j < msg->gapList.numbits; j++)
+        uint32_t j;
+        for (j = listidx + 1; j < msg->gapList.numbits; j++)
           if (!nn_bitset_isset (msg->gapList.numbits, msg->gapList.bits, j))
             break;
         /* spec says gapList (2) identifies an additional list of sequence numbers that
@@ -1750,7 +1748,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
            initial interval is to be ignored and the bitmap to be applied */
         (void) handle_one_gap (pwr, wn, listbase + listidx, listbase + j, gap, &refc_adjust);
         assert(j >= 1);
-        last_included_rel = j - 1;
+        last_included_rel = (int32_t) j - 1;
         listidx = j;
       }
     }
@@ -2010,8 +2008,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
       if (pwr->rdary.fastpath_ok)
       {
         struct reader ** const rdary = pwr->rdary.rdary;
-        unsigned i;
-        for (i = 0; rdary[i]; i++)
+        for (uint32_t i = 0; rdary[i]; i++)
         {
           DDS_TRACE("reader "PGUIDFMT"\n", PGUID (rdary[i]->e.guid));
           if (! (ddsi_plugin.rhc_plugin.rhc_store_fn) (rdary[i]->rhc, &pwr_info, payload, tk))
@@ -3120,7 +3117,7 @@ static size_t dedup_sorted_array (void *base, size_t nel, size_t width, int (*co
 
 struct local_participant_set {
   struct local_participant_desc *ps;
-  unsigned nps;
+  uint32_t nps;
   uint32_t gen;
 };
 
@@ -3222,10 +3219,9 @@ uint32_t listen_thread (struct ddsi_tran_listener * listener)
 
 static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t conn)
 {
-  unsigned i;
   if (conn == NULL)
     return 0;
-  for (i = 0; i < gv.n_recv_threads; i++)
+  for (uint32_t i = 0; i < gv.n_recv_threads; i++)
     if (gv.recv_threads[i].arg.mode == RTM_SINGLE && gv.recv_threads[i].arg.u.single.conn == conn)
       return 0;
   return os_sockWaitsetAdd (ws, conn);
@@ -3324,8 +3320,7 @@ static int check_and_handle_deafness(struct local_deaf_state *st, unsigned num_f
 
 void trigger_recv_threads (void)
 {
-  unsigned i;
-  for (i = 0; i < gv.n_recv_threads; i++)
+  for (uint32_t i = 0; i < gv.n_recv_threads; i++)
   {
     if (gv.recv_threads[i].ts == NULL)
       continue;
@@ -3373,7 +3368,6 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     struct local_participant_set lps;
     unsigned num_fixed = 0, num_fixed_uc = 0;
     os_sockWaitsetCtx ctx;
-    unsigned i;
     struct local_deaf_state lds;
     lds.state = gv.deaf ? LDSR_DEAF : LDSR_NORMAL;
     lds.tnext = now_mt();
@@ -3416,7 +3410,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
          only happens when the participant set has changed, so might as well rebuild it */
         rebuild_local_participant_set (ts1, &lps);
         os_sockWaitsetPurge (waitset, num_fixed);
-        for (i = 0; i < lps.nps; i++)
+        for (uint32_t i = 0; i < lps.nps; i++)
         {
           if (lps.ps[i].m_conn)
             os_sockWaitsetAdd (waitset, lps.ps[i].m_conn);

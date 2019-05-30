@@ -26,15 +26,15 @@ extern "C" {
 struct nn_interface {
   nn_locator_t loc;
   nn_locator_t netmask;
-  unsigned if_index;
+  uint32_t if_index;
   unsigned mc_capable: 1;
   unsigned point_to_point: 1;
   char *name;
 };
 
-int make_socket (ddsrt_socket_t *socket, unsigned short port, bool stream, bool reuse);
+int make_socket (ddsrt_socket_t *socket, uint16_t port, bool stream, bool reuse);
 int find_own_ip (const char *requested_address);
-unsigned locator_to_hopefully_unique_uint32 (const nn_locator_t *src);
+uint32_t locator_to_hopefully_unique_uint32 (const nn_locator_t *src);
 
 #if defined (__cplusplus)
 }

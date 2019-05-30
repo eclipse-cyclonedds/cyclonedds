@@ -37,10 +37,9 @@ static int partition_patmatch_p (const char *pat, const char *name)
 
 static int partitions_match_default (const dds_qos_t *x)
 {
-  unsigned i;
   if (!(x->present & QP_PARTITION) || x->partition.n == 0)
     return 1;
-  for (i = 0; i < x->partition.n; i++)
+  for (uint32_t i = 0; i < x->partition.n; i++)
     if (partition_patmatch_p (x->partition.strs[i], ""))
       return 1;
   return 0;
@@ -54,9 +53,8 @@ int partitions_match_p (const dds_qos_t *a, const dds_qos_t *b)
     return partitions_match_default (a);
   else
   {
-    unsigned i, j;
-    for (i = 0; i < a->partition.n; i++)
-      for (j = 0; j < b->partition.n; j++)
+    for (uint32_t i = 0; i < a->partition.n; i++)
+      for (uint32_t j = 0; j < b->partition.n; j++)
       {
         if (partition_patmatch_p (a->partition.strs[i], b->partition.strs[j]) ||
             partition_patmatch_p (b->partition.strs[j], a->partition.strs[i]))

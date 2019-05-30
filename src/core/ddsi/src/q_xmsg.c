@@ -784,19 +784,18 @@ size_t nn_xmsg_add_string_padded(unsigned char *buf, char *str)
 
 size_t nn_xmsg_add_octseq_padded(unsigned char *buf, ddsi_octetseq_t *seq)
 {
-  unsigned len = seq->length;
+  uint32_t len = seq->length;
   if (buf) {
     /* Add cdr octet seq */
-    *((unsigned *)buf) = len;
-    buf += sizeof (int);
+    *((uint32_t *) buf) = len;
+    buf += sizeof (uint32_t);
     memcpy (buf, seq->value, len);
     /* clear padding */
     if (len < align4u (len)) {
       memset (buf + len, 0, align4u (len) - len);
     }
   }
-  return 4 +           /* cdr sequence len arg + */
-         align4u(len); /* seqlen + possible padding */
+  return 4 + align4u (len);
 }
 
 void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len)
@@ -964,9 +963,8 @@ void nn_xmsg_addpar_subscription_keys (struct nn_xmsg *m, nn_parameterid_t pid, 
 {
   unsigned char *tmp;
   size_t len = 8; /* use_key_list, length of key_list */
-  unsigned i;
 
-  for (i = 0; i < q->key_list.n; i++)
+  for (uint32_t i = 0; i < q->key_list.n; i++)
   {
     size_t len1 = strlen (q->key_list.strs[i]) + 1;
     len += 4 + align4u (len1);
@@ -975,14 +973,14 @@ void nn_xmsg_addpar_subscription_keys (struct nn_xmsg *m, nn_parameterid_t pid, 
   tmp = nn_xmsg_addpar (m, pid, len);
 
   tmp[0] = q->use_key_list;
-  for (i = 1; i < sizeof (int); i++)
+  for (uint32_t i = 1; i < sizeof (int); i++)
   {
       tmp[i] = 0;
   }
   tmp += sizeof (int);
   *((uint32_t *) tmp) = q->key_list.n;
   tmp += sizeof (uint32_t);
-  for (i = 0; i < q->key_list.n; i++)
+  for (uint32_t i = 0; i < q->key_list.n; i++)
   {
     struct cdrstring *p = (struct cdrstring *) tmp;
     size_t len1 = strlen (q->key_list.strs[i]) + 1;
