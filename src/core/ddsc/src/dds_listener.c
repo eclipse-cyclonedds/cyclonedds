@@ -298,78 +298,78 @@ void dds_lset_subscription_matched (dds_listener_t * __restrict listener, dds_on
 
 void dds_lget_data_available (const dds_listener_t * __restrict listener, dds_on_data_available_fn *callback)
 {
-  if (callback && listener)
-    *callback = listener->on_data_available;
+  if (callback != NULL)
+    *callback = listener ? listener->on_data_available : 0;
 }
 
 void dds_lget_data_on_readers (const dds_listener_t * __restrict listener, dds_on_data_on_readers_fn *callback)
 {
-  if (callback && listener)
-    *callback = listener->on_data_on_readers;
+  if (callback)
+    *callback = listener ? listener->on_data_on_readers : 0;
 }
 
 void dds_lget_inconsistent_topic (const dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn *callback)
 {
-  if (callback && listener)
-    *callback = listener->on_inconsistent_topic;
+  if (callback)
+    *callback = listener ? listener->on_inconsistent_topic : 0;
 }
 
 void dds_lget_liveliness_changed (const dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn *callback)
 {
-  if (callback && listener)
-    *callback = listener->on_liveliness_changed;
+  if (callback)
+    *callback = listener ? listener->on_liveliness_changed : 0;
 }
 
 void dds_lget_liveliness_lost (const dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn *callback)
 {
-  if (callback && listener)
-    *callback = listener->on_liveliness_lost;
+  if (callback)
+    *callback = listener ? listener->on_liveliness_lost : 0;
 }
 
 void dds_lget_offered_deadline_missed (const dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn *callback)
 {
-  if (callback && listener)
-    *callback = listener->on_offered_deadline_missed;
+  if (callback)
+    *callback = listener ? listener->on_offered_deadline_missed : 0;
 }
 
 void dds_lget_offered_incompatible_qos (const dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn *callback)
 {
-  if (callback && listener)
-    *callback = listener->on_offered_incompatible_qos;
+  if (callback)
+    *callback = listener ? listener->on_offered_incompatible_qos : 0;
 }
 
 void dds_lget_publication_matched (const dds_listener_t * __restrict listener, dds_on_publication_matched_fn *callback)
 {
-  if (callback && listener)
-    *callback = listener->on_publication_matched;
+  if (callback)
+    *callback = listener ? listener->on_publication_matched : 0;
 }
 
 void dds_lget_requested_deadline_missed (const dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn *callback)
 {
-  if (callback && listener)
-    *callback = listener->on_requested_deadline_missed;
+  if (callback)
+    *callback = listener ? listener->on_requested_deadline_missed : 0;
 }
 
 void dds_lget_requested_incompatible_qos (const dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn *callback)
 {
-  if (callback && listener)
-    *callback = listener->on_requested_incompatible_qos;
+  if (callback)
+    *callback = listener ? listener->on_requested_incompatible_qos : 0;
 }
 
 void dds_lget_sample_lost (const dds_listener_t *__restrict listener, dds_on_sample_lost_fn *callback)
 {
-  if (callback && listener)
-    *callback = listener->on_sample_lost;
+  if (callback)
+    *callback = listener ? listener->on_sample_lost : 0;
 }
 
 void dds_lget_sample_rejected (const dds_listener_t  *__restrict listener, dds_on_sample_rejected_fn *callback)
 {
-  if (callback && listener)
-    *callback = listener->on_sample_rejected;
+  if (callback)
+    *callback = listener ? listener->on_sample_rejected : 0;
 }
 
 void dds_lget_subscription_matched (const dds_listener_t * __restrict listener, dds_on_subscription_matched_fn *callback)
 {
-  if (callback && listener)
-    *callback = listener->on_subscription_matched;
+  if (callback)
+    *callback = listener ? listener->on_subscription_matched : 0;
 }
