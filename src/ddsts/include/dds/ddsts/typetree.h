@@ -53,7 +53,7 @@
 
 #define DDSTS_TYPES                    ((1L<<(26+1))-1L)
 #define DDSTS_TYPE_OF(O)               ((O)->type.flags & DDSTS_TYPES)
-#define DDSTS_IS_TYPE(O,T)             (DDSTS_TYPE_OF(O) == (T))
+#define DDSTS_IS_TYPE(O,T)             ((DDSTS_TYPE_OF(O) & (T)) != 0)
 #define DDSTS_IS_DEFINITION(O)         ((DDSTS_DEFINITIONS & (O)->type.flags) != 0)
 
 #define DDSTS_UNBOUND                  (1L<<27)
@@ -109,6 +109,11 @@ struct ddsts_typespec {
   ddsts_type_t *next;       /* pointer to the next sibling */
   void (*free_func)(ddsts_type_t*);
 };
+
+typedef struct {
+  ddsts_type_t *first;     /* pointer to the first element */
+  ddsts_type_t **ref_end;  /* pointer to the pointer where a next element can be appended */
+} ddsts_type_list_t;
 
 /* Base type specification (base_type_spec) */
 typedef struct {
@@ -261,7 +266,7 @@ ddsts_create_map(ddsts_type_t *key_type, ddsts_type_t *value_type, unsigned long
 typedef struct ddsts_module ddsts_module_t;
 struct ddsts_module {
   ddsts_typespec_t type;
-  ddsts_type_t *members;
+  ddsts_type_list_t members;
   ddsts_module_t *previous; /* to previous open of this module, if present */
 };
 
@@ -322,11 +327,18 @@ ddsts_create_struct_forward_dcl(ddsts_identifier_t name, ddsts_type_t **result);
 
 /* Struct declaration (struct_def)
  */
+typedef struct ddsts_struct_key ddsts_struct_key_t;
 typedef struct {
   ddsts_typespec_t type;
   ddsts_type_t *super; /* used for extended struct type definition */
-  ddsts_type_t *members;
+  ddsts_type_list_t members;
+  ddsts_struct_key_t *keys;
 } ddsts_struct_t;
+ 
+struct ddsts_struct_key {
+  ddsts_type_t *member;
+  ddsts_struct_key_t *next;
+};
 
 /**
  * @brief Creates a ddsts_struct_t with no members.
@@ -344,15 +356,30 @@ ddsts_create_struct(ddsts_identifier_t name, ddsts_type_t **result);
 /**
  * @brief Adds a member at the end of the members of a ddsts_struct_t struct.
  *
- * @param[inout] module  A non-NULL pointer to a ddsts_struct_t struct.
- * @param[in]    member  A non-NULL pointer to a member type that is not owned
- *                       yet. If the function returns success, the member type
- *                       will be owned by the struct.
+ * @param[inout] struct_def  A non-NULL pointer to a ddsts_struct_t struct.
+ * @param[in]    member      A non-NULL pointer to a member type that is not
+ *                           owned yet. If the function returns success, the
+ *                           member type will be owned by the struct.
  *
  * @returns A dds_return_t indicating success or failure.
  */
 DDS_EXPORT dds_return_t
 ddsts_struct_add_member(ddsts_type_t *struct_def, ddsts_type_t *member);
+
+/**
+ * @brief Adds a key at the end of the keys of a ddsts_struct_t struct.
+ *
+ * @param[inout] struct_def  A non-NULL pointer to a ddsts_struct_t struct.
+ * @param[in]    member      A non-NULL pointer to a member type that
+ *                           belongs to the struct.
+ *
+ * @returns A dds_return_t indicating success or failure. On success a
+ * struct ddsts_struct_key_t pointing to the member will be added to the
+ * keys of struct_def. DDS_RETCODE_ERROR is returned when the member is
+ * already included as a key.
+ */
+DDS_EXPORT dds_return_t
+ddsts_struct_add_key(ddsts_type_t *struct_def, ddsts_type_t *member);
 
 /* Declaration
  */
