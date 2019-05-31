@@ -50,12 +50,19 @@ bool ddsts_add_struct_forward(ddsts_context_t *context, ddsts_identifier_t name)
 bool ddsts_add_struct_open(ddsts_context_t *context, ddsts_identifier_t name);
 bool ddsts_add_struct_extension_open(ddsts_context_t *context, ddsts_identifier_t name, ddsts_scoped_name_t *scoped_name);
 bool ddsts_add_struct_member(ddsts_context_t *context, ddsts_type_t **ref_type);
+void ddsts_struct_member_close(ddsts_context_t *context);
 void ddsts_struct_close(ddsts_context_t *context, ddsts_type_t **result);
 void ddsts_struct_empty_close(ddsts_context_t *context, ddsts_type_t **result);
 
 bool ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t name);
 
 bool ddsts_add_array_size(ddsts_context_t *context, ddsts_literal_t *value);
+
+bool ddsts_add_annotation(ddsts_context_t *context, ddsts_scoped_name_t* scoped_name);
+
+void ddsts_pragma_open(ddsts_context_t *context);
+bool ddsts_pragma_add_identifier(ddsts_context_t *context, ddsts_identifier_t name);
+bool ddsts_pragma_close(ddsts_context_t *context);
 
 void ddsts_accept(ddsts_context_t *context);
 
