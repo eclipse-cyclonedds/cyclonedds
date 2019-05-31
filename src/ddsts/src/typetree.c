@@ -20,7 +20,7 @@
 void ddsts_free_literal(ddsts_literal_t *literal)
 {
   if (literal->flags == DDSTS_STRING || literal->flags == DDSTS_WIDE_STRING) {
-    ddsrt_free((void*)literal->value.str);
+    ddsrt_free(literal->value.str);
   }
 }
 
@@ -71,8 +71,8 @@ static void init_type(ddsts_type_t *type, void (*free_func)(ddsts_type_t*), ddst
 
 static void free_type(ddsts_type_t *type)
 {
-  ddsrt_free((void*)type->type.name);
-  ddsrt_free((void*)type);
+  ddsrt_free(type->type.name);
+  ddsrt_free(type);
 }
 
 /* ddsts_base_type_t */
@@ -214,7 +214,7 @@ dds_return_t ddsts_create_map(ddsts_type_t *key_type, ddsts_type_t *value_type, 
 
 static void free_module(ddsts_type_t *type)
 {
-  free_children(type->module.members);
+  free_children(type->module.members.first);
   free_type(type);
 }
 
@@ -225,7 +225,8 @@ dds_return_t ddsts_create_module(ddsts_identifier_t name, ddsts_type_t **result)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   }
   init_type(type, free_module, DDSTS_MODULE, name);
-  type->module.members = NULL;
+  type->module.members.first = NULL;
+  type->module.members.ref_end = &type->module.members.first;
   type->module.previous = NULL;
   *result = type;
   return DDS_RETCODE_OK;
@@ -235,18 +236,15 @@ dds_return_t ddsts_module_add_member(ddsts_type_t *module, ddsts_type_t *member)
 {
   if (module != NULL) {
     member->type.parent = module;
-    ddsts_type_t **ref_child = &module->module.members;
-    while (*ref_child != 0) {
-      ref_child = &(*ref_child)->type.next;
-    }
-    *ref_child = member;
+    *module->module.members.ref_end = member;
+    module->module.members.ref_end = &member->type.next;
 
     /* if the member is a module, find previous open of this module, if any */
     if (DDSTS_IS_TYPE(member, DDSTS_MODULE)) {
       ddsts_module_t *parent_module;
       for (parent_module = &module->module; parent_module != NULL; parent_module = parent_module->previous) {
         ddsts_type_t *child;
-        for (child = parent_module->members; child != NULL; child = child->type.next) {
+        for (child = parent_module->members.first; child != NULL; child = child->type.next) {
           if (DDSTS_IS_TYPE(child, DDSTS_MODULE) && strcmp(child->type.name, member->type.name) == 0 && child != member) {
             member->module.previous = &child->module;
           }
@@ -262,12 +260,12 @@ dds_return_t ddsts_module_add_member(ddsts_type_t *module, ddsts_type_t *member)
       ddsts_module_t *parent_module;
       for (parent_module = &module->module; parent_module != NULL; parent_module = parent_module->previous) {
         ddsts_type_t *child;
-	    for (child = parent_module->members; child != NULL; child = child->type.next) {
-		  if (DDSTS_IS_TYPE(child, DDSTS_FORWARD_STRUCT) && strcmp(child->type.name, member->type.name) == 0) {
-		    child->forward.definition = member;
-		  }
-	    }
-	  }
+        for (child = parent_module->members.first; child != NULL; child = child->type.next) {
+          if (DDSTS_IS_TYPE(child, DDSTS_FORWARD_STRUCT) && strcmp(child->type.name, member->type.name) == 0) {
+            child->forward.definition = member;
+          }
+        }
+      }
     }
   }
   return DDS_RETCODE_OK;
@@ -296,7 +294,13 @@ dds_return_t ddsts_create_struct_forward_dcl(ddsts_identifier_t name, ddsts_type
 
 static void free_struct(ddsts_type_t *type)
 {
-  free_children(type->struct_def.members);
+  ddsts_struct_key_t *key = type->struct_def.keys;
+  while (key != NULL) {
+    ddsts_struct_key_t *next = key->next;
+    ddsrt_free(key);
+    key = next;
+  }
+  free_children(type->struct_def.members.first);
   free_type(type);
 }
 
@@ -307,8 +311,10 @@ dds_return_t ddsts_create_struct(ddsts_identifier_t name, ddsts_type_t **result)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   }
   init_type(type, free_struct, DDSTS_STRUCT, name);
-  type->struct_def.members = NULL;
+  type->struct_def.members.first = NULL;
+  type->struct_def.members.ref_end = &type->struct_def.members.first;
   type->struct_def.super = NULL;
+  type->struct_def.keys = NULL;
   *result = type;
   return DDS_RETCODE_OK;
 }
@@ -317,12 +323,28 @@ dds_return_t ddsts_struct_add_member(ddsts_type_t *struct_def, ddsts_type_t *mem
 {
   if (struct_def != NULL) {
     member->type.parent = struct_def;
-    ddsts_type_t **ref_child = &struct_def->struct_def.members;
-    while (*ref_child != 0) {
-      ref_child = &(*ref_child)->type.next;
-    }
-    *ref_child = member;
+    *struct_def->struct_def.members.ref_end = member;
+    struct_def->struct_def.members.ref_end = &member->type.next;
   }
+  return DDS_RETCODE_OK;
+}
+
+dds_return_t ddsts_struct_add_key(ddsts_type_t *struct_def, ddsts_type_t *member)
+{
+  /* We traverse the list to the end and check if 'member' is already included */
+  ddsts_struct_key_t **ref_key = &struct_def->struct_def.keys;
+  while (*ref_key != NULL) {
+    if ((*ref_key)->member == member) {
+      return DDS_RETCODE_ERROR;
+    }
+    ref_key = &(*ref_key)->next;
+  }
+  (*ref_key) = (ddsts_struct_key_t*)ddsrt_malloc(sizeof(ddsts_struct_key_t));
+  if (*ref_key == NULL) {
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  }
+  (*ref_key)->member = member;
+  (*ref_key)->next = NULL;
   return DDS_RETCODE_OK;
 }
 

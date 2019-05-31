@@ -25,7 +25,7 @@
 #define YY_TYPEDEF_YY_SCANNER_T
 typedef void* yyscan_t;
 
-#define YY_NO_UNISTD_H 1 /* to surpress #include <unistd.h> */
+#define YY_NO_UNISTD_H 1 /* to suppress #include <unistd.h> */
 
 #include "parser.h"
 #include "idl.parser.h"
@@ -56,10 +56,10 @@ DDSRT_WARNING_MSVC_ON(4996);
   ddsts_parser_lex_init(&scanner);
   ddsts_parser_set_in(fh, scanner);
   int parse_result = ddsts_parser_parse(scanner, context);
-  if (parse_result == 0) {
+  dds_return_t rc = parse_result == 2 ? DDS_RETCODE_OUT_OF_RESOURCES : ddsts_context_get_retcode(context);
+  if (rc == DDS_RETCODE_OK) {
     *ref_root_type = ddsts_context_take_root_type(context);
   }
-  dds_return_t rc = parse_result == 2 ? DDS_RETCODE_OUT_OF_RESOURCES : ddsts_context_get_retcode(context) ;
   ddsts_free_context(context);
   ddsts_parser_lex_destroy(scanner);
   (void)fclose(fh);
@@ -82,10 +82,10 @@ dds_return_t ddsts_idl_parse_string(const char *str, ddsts_type_t **ref_root_typ
   ddsts_parser_lex_init(&scanner);
   ddsts_parser__scan_string(str, scanner);
   int parse_result = ddsts_parser_parse(scanner, context);
-  if (parse_result == 0) {
+  dds_return_t rc = parse_result == 2 ? DDS_RETCODE_OUT_OF_RESOURCES : ddsts_context_get_retcode(context);
+  if (rc == DDS_RETCODE_OK) {
     *ref_root_type = ddsts_context_take_root_type(context);
   }
-  dds_return_t rc = parse_result == 2 ? DDS_RETCODE_OUT_OF_RESOURCES : ddsts_context_get_retcode(context) ;
   ddsts_free_context(context);
   ddsts_parser_lex_destroy(scanner);
 

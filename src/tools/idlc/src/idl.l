@@ -48,6 +48,8 @@ int yyerror(YYLTYPE *yylloc, yyscan_t yyscanner, ddsts_context_t *context, char 
 %x COMMENT
 %x INSTRING
 %x INWSTRING
+%x NOWS
+%x DIRECTIVE
 
 %option noyywrap
 %option nounistd
@@ -56,7 +58,6 @@ int yyerror(YYLTYPE *yylloc, yyscan_t yyscanner, ddsts_context_t *context, char 
 %option reentrant
 %option bison-bridge
 %option bison-locations
-%option never-interactive
 
 number                    [1-9][0-9]*
 octal_number              0[0-7]*
@@ -66,20 +67,21 @@ identifier                [a-zA-Z_][a-zA-Z0-9_]*
 
 %%
 
-[ \t\r]                   { }
-[\n]                      { }
+<INITIAL,NOWS>[ \t\r]     { BEGIN(INITIAL); }
+<INITIAL,NOWS>[\n]        { BEGIN(INITIAL); }
 
-"/*"                      { BEGIN(MULTILINE_COMMENT); }
+<INITIAL,NOWS>"/*"        { BEGIN(MULTILINE_COMMENT); }
 <MULTILINE_COMMENT>.      { }
 <MULTILINE_COMMENT>"\n"   { }
 <MULTILINE_COMMENT>"*/"   { BEGIN(INITIAL); }
 
-"//"                      { BEGIN(COMMENT); }
-<COMMENT>"\n"             { BEGIN(INITIAL); }
+<INITIAL,NOWS>"//"        { BEGIN(COMMENT); }
 <COMMENT>.                { }
+<COMMENT>"\n"             { BEGIN(INITIAL); }
 
 
-{integer_literal}         {
+<INITIAL,NOWS>{integer_literal} {
+                            BEGIN(INITIAL);
                             yylval->literal.flags = DDSTS_ULONGLONG;
                             yylval->literal.value.ullng = 0u;
                             /* strtoll recognizes if the value is dec, oct or hex if base is zero */
@@ -90,7 +92,7 @@ identifier                [a-zA-Z_][a-zA-Z0-9_]*
                             return DDSTS_INTEGER_LITERAL_TOKEN;
                           }
 
-{identifier}              {
+<INITIAL>{identifier}     {
                             int token_number;
                             if (ddsts_parser_token_matches_keyword(yytext, &token_number)) {
                               return token_number;
@@ -99,12 +101,58 @@ identifier                [a-zA-Z_][a-zA-Z0-9_]*
                             if (yylval->identifier == NULL) {
                               yyerror(yylloc_param, yyscanner, context, "Could not copy identifier");
                             }
+                            BEGIN(NOWS);
                             return DDSTS_IDENTIFIER_TOKEN;
                           }
 
-"::"                      { return DDSTS_COLON_COLON_TOKEN; }
+<INITIAL>"::"             {
+                            BEGIN(NOWS);
+                            return DDSTS_COLON_COLON_TOKEN;
+                          }
 
-.                         { return yytext[0]; }
+<NOWS>{identifier}        {
+                            int token_number;
+                            if (ddsts_parser_token_matches_keyword(yytext, &token_number)) {
+                              return token_number;
+                            }
+                            yylval->identifier = yytext;
+                            if (yylval->identifier == NULL) {
+                              yyerror(yylloc_param, yyscanner, context, "Could not copy identifier");
+                            }
+                            return DDSTS_NOWS_IDENTIFIER_TOKEN;
+                          }
+
+<NOWS>"::"                {
+                            return DDSTS_NOWS_COLON_COLON_TOKEN;
+                          }
+
+
+<INITIAL>"@"              {
+                            BEGIN(NOWS);
+                            return DDSTS_AT_TOKEN;
+                          }
+
+<INITIAL,NOWS>.           {
+                            BEGIN(INITIAL);
+                            return yytext[0];
+                          }
+
+<INITIAL,NOWS>"#pragma"   {
+                            BEGIN(DIRECTIVE);
+                            return DDSTS_PRAGMA_TOKEN;
+                          }
+<DIRECTIVE>[ \t]          { }
+<DIRECTIVE>{identifier}   {
+                            yylval->identifier = yytext;
+                            if (yylval->identifier == NULL) {
+                              yyerror(yylloc_param, yyscanner, context, "Could not copy identifier");
+                            }
+                            return DDSTS_IDENTIFIER_TOKEN;
+                          }
+<DIRECTIVE>[\n]           {
+                            BEGIN(INITIAL);
+                            return DDSTS_END_DIRECTIVE_TOKEN;
+                          }
 
 %%
 
