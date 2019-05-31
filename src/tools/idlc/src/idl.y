@@ -80,6 +80,7 @@ int illegal_identifier(const char *token);
 
 %token <identifier>
   DDSTS_IDENTIFIER_TOKEN
+  DDSTS_NOWS_IDENTIFIER_TOKEN
 
 %token <literal>
   DDSTS_INTEGER_LITERAL_TOKEN
@@ -119,6 +120,7 @@ int illegal_identifier(const char *token);
 
 %type <scoped_name>
   scoped_name
+  nows_scoped_name
 
 %destructor { ddsts_free_scoped_name($$); } <scoped_name>
 
@@ -133,6 +135,7 @@ int illegal_identifier(const char *token);
 %type <identifier>
   simple_declarator
   identifier
+  nows_identifier
 
 /* keywords */
 %token DDSTS_MODULE_TOKEN "module"
@@ -175,8 +178,15 @@ int illegal_identifier(const char *token);
 %token DDSTS_UINT32_TOKEN "uint32"
 %token DDSTS_UINT64_TOKEN "uint64"
 
-%token DDSTS_COLON_COLON_TOKEN "::"
+%token DDSTS_COLON_COLON_TOKEN
+%token DDSTS_NOWS_COLON_COLON_TOKEN
+%token DDSTS_AT_TOKEN "@"
+
+%token DDSTS_PRAGMA_TOKEN "#pragma"
+%token DDSTS_END_DIRECTIVE_TOKEN
+
 %token DDSTS_END_TOKEN 0 "end of file"
+
 
 %%
 
@@ -196,6 +206,7 @@ definitions:
 definition:
     module_dcl ';'
   | type_dcl ';'
+  | pragma
   ;
 
 module_dcl:
@@ -215,13 +226,34 @@ scoped_name:
           YYABORT;
         }
       }
-  | "::" identifier
+  | DDSTS_COLON_COLON_TOKEN nows_identifier
       {
         if (!ddsts_new_scoped_name(context, 0, true, $2, &($$))) {
           YYABORT;
         }
       }
-  | scoped_name "::" identifier
+  | scoped_name DDSTS_NOWS_COLON_COLON_TOKEN nows_identifier
+      {
+        if (!ddsts_new_scoped_name(context, $1, false, $3, &($$))) {
+          YYABORT;
+        }
+      }
+  ;
+
+nows_scoped_name:
+    nows_identifier
+      {
+        if (!ddsts_new_scoped_name(context, 0, false, $1, &($$))) {
+          YYABORT;
+        }
+      }
+  | DDSTS_NOWS_COLON_COLON_TOKEN nows_identifier
+      {
+        if (!ddsts_new_scoped_name(context, 0, true, $2, &($$))) {
+          YYABORT;
+        }
+      }
+  | nows_scoped_name DDSTS_NOWS_COLON_COLON_TOKEN nows_identifier
       {
         if (!ddsts_new_scoped_name(context, $1, false, $3, &($$))) {
           YYABORT;
@@ -407,13 +439,22 @@ members:
   ;
 
 member:
-    type_spec
+    annotation_appls type_spec
+      {
+        if (!ddsts_add_struct_member(context, &($2))) {
+          YYABORT;
+        }
+      }
+    declarators ';'
+      { ddsts_struct_member_close(context); }
+  | type_spec
       {
         if (!ddsts_add_struct_member(context, &($1))) {
           YYABORT;
         }
       }
     declarators ';'
+      { ddsts_struct_member_close(context); }
 /* Embedded struct extension: */
   | struct_def { ddsts_add_struct_member(context, &($1)); }
     declarators ';'
@@ -429,8 +470,7 @@ struct_forward_dcl:
       };
 
 array_declarator:
-    identifier
-    fixed_array_sizes
+    identifier fixed_array_sizes
       {
         if (!ddsts_add_declarator(context, $1)) {
           YYABORT;
@@ -459,7 +499,8 @@ declarators:
   | declarator
   ;
 
-declarator: simple_declarator
+declarator:
+    simple_declarator
       {
         if (!ddsts_add_declarator(context, $1)) {
           YYABORT;
@@ -534,8 +575,63 @@ type_spec: template_type_spec ;
 declarator: array_declarator ;
 
 
+/* From Building Block Annotations (minimal for support of @key): */
+
+annotation_appls:
+    annotation_appl annotation_appls
+  | annotation_appl
+  ;
+
+annotation_appl:
+    "@" nows_scoped_name
+    {
+      if (!ddsts_add_annotation(context, $2)) {
+        YYABORT;
+      }
+    }
+  ;
+
+/* Backward compatability #pragma */
+
+pragma:
+    "#pragma"
+      { ddsts_pragma_open(context); }
+    pragma_arg_list DDSTS_END_DIRECTIVE_TOKEN
+      {
+        if (!ddsts_pragma_close(context)) {
+          YYABORT;
+        }
+      }
+  ;
+
+pragma_arg_list:
+    identifier
+      {
+        if (!ddsts_pragma_add_identifier(context, $1)) {
+          YYABORT;
+        }
+      }
+    pragma_arg_list
+  |
+  ;
+
 identifier:
     DDSTS_IDENTIFIER_TOKEN
+      {
+        size_t offset = 0;
+        if ($1[0] == '_') {
+          offset = 1;
+        }
+        else if (illegal_identifier($1) != 0) {
+          yyerror(&yylloc, scanner, context, "Identifier collides with a keyword");
+        }
+        if (!ddsts_context_copy_identifier(context, $1 + offset, &($$))) {
+          YYABORT;
+        }
+      };
+
+nows_identifier:
+    DDSTS_NOWS_IDENTIFIER_TOKEN
       {
         size_t offset = 0;
         if ($1[0] == '_') {

@@ -10,11 +10,13 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <stdio.h>
+#include <stdbool.h>
 #include <assert.h>
 #include <string.h>
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsts/typetree.h"
 #include "tt_create.h"
@@ -26,12 +28,33 @@ struct array_size {
   array_size_t *next;
 };
 
+typedef struct annotation annotation_t;
+struct annotation {
+  ddsts_scoped_name_t *scoped_name;
+  annotation_t *next;
+};
+
+typedef struct annotations_stack annotations_stack_t;
+struct annotations_stack {
+  annotation_t *annotations;
+  annotations_stack_t *deeper;
+};
+
+typedef struct pragma_arg pragma_arg_t;
+struct pragma_arg {
+  ddsts_identifier_t arg;
+  pragma_arg_t *next;
+};
+
 struct ddsts_context {
   ddsts_type_t *root_type;
   ddsts_type_t *cur_type;
   ddsts_type_t *type_for_declarator;
   array_size_t *array_sizes;
+  annotations_stack_t *annotations_stack;
+  pragma_arg_t *pragma_args;
   dds_return_t retcode;
+  bool semantic_error;
   ddsts_identifier_t dangling_identifier;
 };
 
@@ -189,10 +212,10 @@ static bool resolve_scoped_name(ddsts_context_t *context, ddsts_scoped_name_t *s
     for (cur_scoped_name = scoped_name; cur_scoped_name != NULL && found_type != NULL; cur_scoped_name = cur_scoped_name->next) {
       ddsts_type_t *child = NULL;
       if (DDSTS_IS_TYPE(found_type, DDSTS_MODULE)) {
-        child = found_type->module.members;
+        child = found_type->module.members.first;
       }
       else if (DDSTS_IS_TYPE(found_type, DDSTS_STRUCT)) {
-        child = found_type->struct_def.members;
+        child = found_type->struct_def.members.first;
       }
       found_type = NULL;
       for (; child != NULL; child = child->type.next) {
@@ -217,23 +240,37 @@ extern void ddsts_free_scoped_name(ddsts_scoped_name_t *scoped_name)
 {
   while (scoped_name != NULL) {
     ddsts_scoped_name_t *next = scoped_name->next;
-    ddsrt_free((void*)scoped_name->name);
-    ddsrt_free((void*)scoped_name);
+    ddsrt_free(scoped_name->name);
+    ddsrt_free(scoped_name);
     scoped_name = next;
   }
 }
 
 extern bool ddsts_get_type_from_scoped_name(ddsts_context_t *context, ddsts_scoped_name_t *scoped_name, ddsts_type_t **result)
 {
-  ddsts_type_t *definition;
-  resolve_scoped_name(context, scoped_name, &definition);
-  ddsts_free_scoped_name(scoped_name);
-  if (definition == NULL) {
-    /* Create a Boolean type, just to prevent a NULL pointer */
-    return ddsts_new_base_type(context, DDSTS_BOOLEAN, result);
+  ddsts_type_t *definition = NULL;
+  if (!resolve_scoped_name(context, scoped_name, &definition)) {
+    ddsts_free_scoped_name(scoped_name);
+    return false;
   }
+  ddsts_free_scoped_name(scoped_name);
   *result = definition;
   return true;
+}
+
+static void scoped_name_dds_error(ddsts_scoped_name_t *scoped_name)
+{
+  if (scoped_name == NULL) {
+    return;
+  }
+  bool collon = scoped_name->top;
+  for (; scoped_name != NULL; scoped_name = scoped_name->next) {
+    if (collon) {
+      DDS_ERROR("::");
+    }
+    DDS_ERROR("%s", scoped_name->name);
+    collon = true;
+  }
 }
 
 static bool new_module_definition(ddsts_context_t *context, ddsts_identifier_t name, ddsts_type_t *parent, ddsts_type_t **result)
@@ -252,6 +289,27 @@ static bool new_module_definition(ddsts_context_t *context, ddsts_identifier_t n
   return true;
 }
 
+static bool context_push_annotations_stack(ddsts_context_t *context)
+{
+  annotations_stack_t *annotations_stack = (annotations_stack_t*)ddsrt_malloc(sizeof(annotations_stack_t));
+  if (annotations_stack == NULL) {
+    return false;
+  }
+  annotations_stack->annotations = NULL;
+  annotations_stack->deeper = context->annotations_stack;
+  context->annotations_stack = annotations_stack;
+  return true;
+}
+
+static void context_pop_annotations_stack(ddsts_context_t *context)
+{
+  assert(context->annotations_stack != NULL);
+  annotations_stack_t *annotations_stack = context->annotations_stack;
+  context->annotations_stack = annotations_stack->deeper;
+  assert(annotations_stack->annotations == NULL);
+  ddsrt_free(annotations_stack);
+}
+
 extern ddsts_context_t* ddsts_create_context(void)
 {
   ddsts_context_t *context = (ddsts_context_t*)ddsrt_malloc(sizeof(ddsts_context_t));
@@ -268,7 +326,15 @@ extern ddsts_context_t* ddsts_create_context(void)
   context->cur_type = context->root_type;
   context->type_for_declarator = NULL;
   context->array_sizes = NULL;
+  context->annotations_stack = NULL;
+  if (!context_push_annotations_stack(context)) {
+    ddsts_free_type(module);
+    ddsrt_free(context);
+    return NULL;
+  }
+  context->pragma_args = NULL;
   context->retcode = DDS_RETCODE_ERROR;
+  context->semantic_error = false;
   return context;
 }
 
@@ -289,9 +355,34 @@ static void ddsts_context_free_array_sizes(ddsts_context_t *context)
 {
   while (context->array_sizes != NULL) {
     array_size_t *next = context->array_sizes->next;
-    ddsrt_free((void*)context->array_sizes);
+    ddsrt_free(context->array_sizes);
     context->array_sizes = next;
   }
+}
+
+static void context_free_pragma_args(ddsts_context_t *context)
+{
+  pragma_arg_t *pragma_arg = context->pragma_args;
+  while (pragma_arg != NULL) {
+    pragma_arg_t *next = pragma_arg->next;
+    ddsrt_free(pragma_arg->arg);
+    ddsrt_free(pragma_arg);
+    pragma_arg = next;
+  }
+  context->pragma_args = NULL;
+}
+
+static void context_free_annotations(ddsts_context_t *context)
+{
+  assert(context->annotations_stack != NULL);
+  annotation_t *annotation = context->annotations_stack->annotations;
+  while (annotation != NULL) {
+    annotation_t *next = annotation->next;
+    ddsts_free_scoped_name(annotation->scoped_name);
+    ddsrt_free(annotation);
+    annotation = next;
+  }
+  context->annotations_stack->annotations = NULL;
 }
 
 static void ddsts_context_close_member(ddsts_context_t *context)
@@ -308,6 +399,11 @@ extern void ddsts_free_context(ddsts_context_t *context)
   assert(context != NULL);
   ddsts_context_close_member(context);
   ddsts_free_type(context->root_type);
+  while (context->annotations_stack != NULL) {
+    context_free_annotations(context);
+    context_pop_annotations_stack(context);
+  }
+  context_free_pragma_args(context);
   ddsrt_free(context->dangling_identifier);
   ddsrt_free(context);
 }
@@ -384,6 +480,9 @@ extern bool ddsts_add_struct_open(ddsts_context_t *context, ddsts_identifier_t n
     ddsts_struct_add_member(context->cur_type, new_struct);
   }
   context->cur_type = new_struct;
+  if (!context_push_annotations_stack(context)) {
+    return false;
+  }
   return true;
 }
 
@@ -422,12 +521,18 @@ extern bool ddsts_add_struct_member(ddsts_context_t *context, ddsts_type_t **ref
   return true;
 }
 
+extern void ddsts_struct_member_close(ddsts_context_t *context)
+{
+  context_free_annotations(context);
+}
+
 extern void ddsts_struct_close(ddsts_context_t *context, ddsts_type_t **result)
 {
   assert(cur_scope_is_definition_type(context, DDSTS_STRUCT));
   ddsts_context_close_member(context);
   *result = context->cur_type;
   context->cur_type = context->cur_type->type.parent;
+  context_pop_annotations_stack(context);
 }
 
 extern void ddsts_struct_empty_close(ddsts_context_t *context, ddsts_type_t **result)
@@ -456,14 +561,50 @@ static ddsts_type_t *create_array_type(array_size_t *array_size, ddsts_type_t *t
   return array;
 }
 
+static bool keyable_type(ddsts_type_t *type)
+{
+  bool is_array = false;
+  while (type != NULL && DDSTS_IS_TYPE(type, DDSTS_ARRAY)) {
+    type = type->array.element_type;
+    is_array = true;
+  }
+  if (type == NULL) {
+    return false;
+  }
+  if (   DDSTS_IS_TYPE(type,
+                       DDSTS_SHORT | DDSTS_LONG | DDSTS_LONGLONG |
+                       DDSTS_USHORT | DDSTS_ULONG | DDSTS_ULONGLONG |
+                       DDSTS_CHAR | DDSTS_BOOLEAN | DDSTS_OCTET |
+                       DDSTS_INT8 | DDSTS_UINT8 |
+                       DDSTS_FLOAT | DDSTS_DOUBLE)
+      || (DDSTS_IS_TYPE(type, DDSTS_STRING) && !is_array)) {
+    return true;
+  }
+  if (DDSTS_IS_TYPE(type, DDSTS_STRUCT)) {
+    if (type->struct_def.keys == NULL) {
+      /* All fields should be keyable */
+      for (ddsts_type_t *member = type->struct_def.members.first; member != NULL; member = member->type.next) {
+        if (DDSTS_IS_TYPE(member, DDSTS_DECLARATION)) {
+          if (!keyable_type(member->declaration.decl_type)) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
 extern bool ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t name)
 {
   assert(context != NULL);
   assert(context->dangling_identifier == name);
   if (DDSTS_IS_TYPE(context->cur_type, DDSTS_STRUCT)) {
     assert(context->type_for_declarator != NULL);
-    ddsts_type_t *decl;
-    dds_return_t rc = ddsts_create_declaration(name, NULL, &decl);
+    ddsts_type_t *decl = NULL;
+    dds_return_t rc;
+    rc = ddsts_create_declaration(name, NULL, &decl);
     if (rc != DDS_RETCODE_OK) {
       ddsts_context_free_array_sizes(context);
       context->retcode = rc;
@@ -480,6 +621,37 @@ extern bool ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t na
     ddsts_context_free_array_sizes(context);
     ddsts_declaration_set_type(decl, type);
     ddsts_struct_add_member(context->cur_type, decl);
+    /* Process annotations */
+    assert(context->annotations_stack != NULL);
+    for (annotation_t *annotation = context->annotations_stack->annotations; annotation != NULL; annotation = annotation->next) {
+      if (   annotation->scoped_name != NULL
+          && !annotation->scoped_name->top
+          && strcmp(annotation->scoped_name->name, "key") == 0
+          && annotation->scoped_name->next == NULL) {
+        if (keyable_type(type)) {
+          rc = ddsts_struct_add_key(context->cur_type, decl);
+          if (rc == DDS_RETCODE_ERROR) {
+            DDS_ERROR("Field '%s' already defined as key\n", name);
+            context->semantic_error = true;
+          }
+          else if (rc != DDS_RETCODE_OK) {
+            ddsts_context_free_array_sizes(context);
+            context->retcode = rc;
+            return false;
+          }
+        }
+        else {
+          DDS_ERROR("Type of '%s' is not valid for key\n", name);
+          context->semantic_error = true;
+        }
+      }
+      else {
+        DDS_ERROR("Unsupported annotation '");
+        scoped_name_dds_error(annotation->scoped_name);
+        DDS_ERROR("' is ignored\n");
+      }
+    }
+
     return true;
   }
   assert(false);
@@ -504,9 +676,145 @@ extern bool ddsts_add_array_size(ddsts_context_t *context, ddsts_literal_t *valu
   return true;
 }
 
+bool ddsts_add_annotation(ddsts_context_t *context, ddsts_scoped_name_t *scoped_name)
+{
+  assert(context != NULL);
+  assert(context->annotations_stack != NULL);
+
+  annotation_t **ref_annotation = &context->annotations_stack->annotations;
+  while (*ref_annotation != NULL) {
+    ref_annotation = &(*ref_annotation)->next;
+  }
+  (*ref_annotation) = (annotation_t*)ddsrt_malloc(sizeof(annotation_t));
+  if ((*ref_annotation) == NULL) {
+    context->retcode = DDS_RETCODE_OUT_OF_RESOURCES;
+    return false;
+  }
+  context->dangling_identifier = NULL;
+  (*ref_annotation)->scoped_name = scoped_name;
+  (*ref_annotation)->next = NULL;
+  return true;
+}
+
+void ddsts_pragma_open(ddsts_context_t *context)
+{
+  assert(context != NULL);
+  assert(context->pragma_args == NULL);
+  DDSRT_UNUSED_ARG(context);
+}
+
+bool ddsts_pragma_add_identifier(ddsts_context_t *context, ddsts_identifier_t name)
+{
+  assert(context != NULL);
+  assert(context->dangling_identifier == name);
+
+  pragma_arg_t **ref_pragma_arg = &context->pragma_args;
+  while (*ref_pragma_arg != NULL) {
+    ref_pragma_arg = &(*ref_pragma_arg)->next;
+  }
+  (*ref_pragma_arg) = (pragma_arg_t*)ddsrt_malloc(sizeof(pragma_arg_t));
+  if ((*ref_pragma_arg) == NULL) {
+    context->retcode = DDS_RETCODE_OUT_OF_RESOURCES;
+    return false;
+  }
+  context->dangling_identifier = NULL;
+  (*ref_pragma_arg)->arg = name;
+  (*ref_pragma_arg)->next = NULL;
+  return true;
+}
+
+bool ddsts_pragma_close(ddsts_context_t *context)
+{
+  assert(context != NULL);
+  assert(context->cur_type != NULL);
+
+  pragma_arg_t *pragma_arg = context->pragma_args;
+  if (pragma_arg == NULL) {
+    DDS_ERROR("Empty pragma is ignored\n");
+  }
+  else if (strcmp(pragma_arg->arg, "keylist") == 0) {
+    pragma_arg = pragma_arg->next;
+
+    if (pragma_arg == NULL) {
+      DDS_ERROR("Expect struct name after keylist pragma\n");
+      context->semantic_error = true;
+      context_free_pragma_args(context);
+      return true;
+    }
+
+    /* Find struct in currect context */
+    ddsts_type_t *member = NULL;
+    if (DDSTS_IS_TYPE(context->cur_type, DDSTS_MODULE)) {
+      member = context->cur_type->module.members.first;
+    }
+    else if (DDSTS_IS_TYPE(context->cur_type, DDSTS_STRUCT)) {
+      member = context->cur_type->struct_def.members.first;
+    }
+    ddsts_type_t *struct_def = NULL;
+    for (; member != NULL; member = member->type.next) {
+      if (DDSTS_IS_TYPE(member, DDSTS_STRUCT) && strcmp(pragma_arg->arg, member->type.name) == 0) {
+        struct_def = member;
+        break;
+      }
+    }
+    if (struct_def == NULL) {
+      DDS_ERROR("Struct '%s' for keylist pragma is undefined here\n", pragma_arg->arg);
+      context->semantic_error = true;
+      context_free_pragma_args(context);
+      return true;
+    }
+    /* The '@key' and '#pragma keylist' may not be mixed */
+    if (struct_def->struct_def.keys != NULL) {
+      DDS_ERROR("Cannot use keylist pragma for struct '%s' in combination with @key annotation\n", pragma_arg->arg);
+      context->semantic_error = true;
+      context_free_pragma_args(context);
+      return true;
+    }
+
+    for (pragma_arg = pragma_arg->next; pragma_arg != NULL; pragma_arg = pragma_arg->next) {
+      /* Find declarator in struct */
+      ddsts_type_t *declaration = NULL;
+      for (ddsts_type_t *member = struct_def->struct_def.members.first; member != NULL && declaration == NULL; member = member->type.next) {
+        if (DDSTS_IS_TYPE(member, DDSTS_DECLARATION) && strcmp(member->type.name, pragma_arg->arg) == 0) {
+          declaration = member;
+          break;
+        }
+      }
+      if (declaration == NULL) {
+        DDS_ERROR("Member '%s' in struct '%s' for keylist pragma is undefined\n", pragma_arg->arg, struct_def->type.name);
+        context->semantic_error = true;
+      }
+      else if (keyable_type(declaration->declaration.decl_type)) {
+        dds_return_t rc = ddsts_struct_add_key(struct_def, declaration);
+        if (rc == DDS_RETCODE_ERROR) {
+          DDS_ERROR("Field '%s' already defined as key\n", pragma_arg->arg);
+          context->semantic_error = true;
+        }
+        else if (rc != DDS_RETCODE_OK) {
+          context->retcode = rc;
+          context_free_pragma_args(context);
+          return false;
+        }
+      }
+      else {
+        DDS_ERROR("Type of '%s' is not valid for key\n", pragma_arg->arg);
+        context->semantic_error = true;
+      }
+    }
+  }
+  else {
+    DDS_WARNING("Unknown pragma '%s' is ignored\n", pragma_arg->arg);
+    context_free_pragma_args(context);
+    return true;
+  }
+
+  context_free_pragma_args(context);
+  return true;
+}
+
 extern void ddsts_accept(ddsts_context_t *context)
 {
   assert(context != NULL);
-  context->retcode = DDS_RETCODE_OK;
+  context->retcode = context->semantic_error ? DDS_RETCODE_ERROR : DDS_RETCODE_OK;
 }
 
