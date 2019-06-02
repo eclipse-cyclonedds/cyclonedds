@@ -3061,6 +3061,140 @@ dds_triggered(dds_entity_t entity);
 DDS_EXPORT dds_entity_t
 dds_get_topic(dds_entity_t entity);
 
+/**
+ * @brief Get instance handles of the data readers matching a writer
+ *
+ * This operation fills the provided array with the instance handles
+ * of the data readers that match the writer.  On successful output,
+ * the number of entries of "rds" set is the minimum of the return
+ * value and the value of "nrds".
+ *
+ * @param[in] writer   The writer.
+ * @param[in] rds      The array to be filled.
+ * @param[in] nrds     The size of the rds array, at most the first
+ *             nrds entries will be filled.  rds = NULL and nrds = 0
+ *             is a valid way of determining the number of matched
+ *             readers, but inefficient compared to relying on the
+ *             matched publication status.
+ *
+ * @returns A dds_return_t indicating the number of matched readers
+ *             or failure.  The return value may be larger than nrds
+ *             if there are more matching readers than the array can
+ *             hold.
+ *
+ * @retval >=0
+ *             The number of matching readers.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             The entity parameter is not valid or rds = NULL and
+ *             nrds > 0.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ */
+DDS_EXPORT dds_return_t
+dds_get_matched_subscriptions (
+  dds_entity_t writer,
+  dds_instance_handle_t *rds,
+  size_t nrds);
+
+/**
+ * @brief Get a description of a reader matched with the provided
+ * writer
+ *
+ * This operation looks up the reader instance handle in the set of
+ * readers matched with the specified writer, returning a freshly
+ * allocated sample of the DCPSSubscription built-in topic if found,
+ * and NULL if not.  The caller is responsible for freeing the
+ * memory allocated.
+ *
+ * This operation is similar to performing a read of the given
+ * instance handle on a reader of the DCPSSubscription built-in
+ * topic, but this operation additionally filters on whether the
+ * reader is matched by the provided writer.
+ *
+ * @param[in] writer   The writer.
+ * @param[in] ih       The instance handle of a reader.
+ *
+ * @returns A newly allocated sample containing the information on the
+ *             reader, or a NULL pointer for any kind of failure.
+ *
+ * @retval != NULL
+ *             The requested data
+ * @retval NULL
+ *             The writer is not valid or ih is not an instance handle
+ *             of a matched reader.
+ */
+DDS_EXPORT dds_builtintopic_endpoint_t *
+dds_get_matched_subscription_data (
+  dds_entity_t writer,
+  dds_instance_handle_t ih);
+
+/**
+ * @brief Get instance handles of the data writers matching a reader
+ *
+ * This operation fills the provided array with the instance handles
+ * of the data writers that match the reader.  On successful output,
+ * the number of entries of "wrs" set is the minimum of the return
+ * value and the value of "nwrs".
+ *
+ * @param[in] reader   The reader.
+ * @param[in] wrs      The array to be filled.
+ * @param[in] nwrs     The size of the wrs array, at most the first
+ *             nwrs entries will be filled.  wrs = NULL and wrds = 0
+ *             is a valid way of determining the number of matched
+ *             readers, but inefficient compared to relying on the
+ *             matched publication status.
+ *
+ * @returns A dds_return_t indicating the number of matched writers
+ *             or failure.  The return value may be larger than nwrs
+ *             if there are more matching writers than the array can
+ *             hold.
+ *
+ * @retval >=0
+ *             The number of matching writers.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             The entity parameter is not valid or wrs = NULL and
+ *             nwrs > 0.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ */
+DDS_EXPORT dds_return_t
+dds_get_matched_publications (
+  dds_entity_t reader,
+  dds_instance_handle_t *wrs,
+  size_t nwrs);
+
+/**
+ * @brief Get a description of a writer matched with the provided
+ * reader
+ *
+ * This operation looks up the writer instance handle in the set of
+ * writers matched with the specified reader, returning a freshly
+ * allocated sample of the DCPSPublication built-in topic if found,
+ * and NULL if not.  The caller is responsible for freeing the
+ * memory allocated.
+ *
+ * This operation is similar to performing a read of the given
+ * instance handle on a reader of the DCPSPublication built-in
+ * topic, but this operation additionally filters on whether the
+ * writer is matched by the provided reader.
+ *
+ * @param[in] reader   The reader.
+ * @param[in] ih       The instance handle of a writer.
+ *
+ * @returns A newly allocated sample containing the information on the
+ *             writer, or a NULL pointer for any kind of failure.
+ *
+ * @retval != NULL
+ *             The requested data
+ * @retval NULL
+ *             The reader is not valid or ih is not an instance handle
+ *             of a matched writer.
+ */
+DDS_EXPORT dds_builtintopic_endpoint_t *
+dds_get_matched_publication_data (
+  dds_entity_t reader,
+  dds_instance_handle_t ih);
+
 #if defined (__cplusplus)
 }
 #endif
