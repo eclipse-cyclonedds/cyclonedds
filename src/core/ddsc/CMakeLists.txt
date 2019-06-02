@@ -24,6 +24,7 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_qos.c
     dds_handles.c
     dds_entity.c
+    dds_matched.c
     dds_querycond.c
     dds_topic.c
     dds_listener.c
