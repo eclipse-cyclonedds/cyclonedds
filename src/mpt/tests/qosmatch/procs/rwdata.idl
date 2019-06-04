@@ -1,8 +1,0 @@
-module RWData
-{
-  struct Msg
-  {
-    long k;
-  };
-  #pragma keylist Msg k
-};

@@ -76,7 +76,7 @@ CU_Test(ddsc_unsupported, dds_begin_end_coherent, .init = setup, .fini = teardow
         {BAD, DDS_RETCODE_BAD_PARAMETER}
     };
 
-    for (int i=0; i < 5; i++) {
+    for (size_t i=0; i < sizeof (pars) / sizeof (pars[0]);i++) {
         result = dds_begin_coherent(e[pars[i].index]);
         CU_ASSERT_EQUAL(result, pars[i].exp_res);
         result = dds_end_coherent(e[pars[i].index]);
@@ -93,7 +93,7 @@ CU_Test(ddsc_unsupported, dds_wait_for_acks, .init = setup, .fini = teardown)
         {BAD, DDS_RETCODE_BAD_PARAMETER}
     };
 
-    for (int i=0; i< 3; i++) {
+    for (size_t i=0; i < sizeof (pars) / sizeof (pars[0]);i++) {
         result = dds_wait_for_acks(e[pars[i].index], 0);
         CU_ASSERT_EQUAL(result, pars[i].exp_res);
     }
@@ -108,7 +108,7 @@ CU_Test(ddsc_unsupported, dds_suspend_resume, .init = setup, .fini = teardown)
         {BAD, DDS_RETCODE_BAD_PARAMETER}
     };
 
-    for (int i=0; i< 3; i++) {
+    for (size_t i=0; i < sizeof (pars) / sizeof (pars[0]);i++) {
         result = dds_suspend(e[pars[i].index]);
         CU_ASSERT_EQUAL(result, pars[i].exp_res);
         result = dds_resume(e[pars[i].index]);
@@ -128,7 +128,7 @@ CU_Test(ddsc_unsupported, dds_get_instance_handle, .init = setup, .fini = teardo
         {BAD, DDS_RETCODE_BAD_PARAMETER}
     };
 
-    for (int i=0; i < 5; i++) {
+    for (size_t i=0; i < sizeof (pars) / sizeof (pars[0]);i++) {
         result = dds_get_instance_handle(e[pars[i].index], &ih);
         CU_ASSERT_EQUAL(result, pars[i].exp_res);
     }
@@ -139,18 +139,12 @@ CU_Test(ddsc_unsupported, dds_set_qos, .init = setup, .fini = teardown)
     dds_return_t result;
     dds_qos_t *qos;
     static struct index_result pars[] = {
-        {PAR, DDS_RETCODE_UNSUPPORTED},
-        {TOP, DDS_RETCODE_UNSUPPORTED},
-        {PUB, DDS_RETCODE_UNSUPPORTED},
-        {WRI, DDS_RETCODE_UNSUPPORTED},
-        {SUB, DDS_RETCODE_UNSUPPORTED},
-        {REA, DDS_RETCODE_UNSUPPORTED},
         {RCD, DDS_RETCODE_ILLEGAL_OPERATION},
         {BAD, DDS_RETCODE_BAD_PARAMETER}
     };
 
     qos = dds_create_qos();
-    for (int i=0; i < 8;i++) {
+    for (size_t i=0; i < sizeof (pars) / sizeof (pars[0]);i++) {
         result = dds_set_qos(e[pars[i].index], qos);
         CU_ASSERT_EQUAL(result, pars[i].exp_res);
     }

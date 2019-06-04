@@ -301,6 +301,7 @@ struct proxy_participant
   struct addrset *as_meta; /* default address set to use for discovery traffic */
   struct proxy_endpoint_common *endpoints; /* all proxy endpoints can be reached from here */
   ddsrt_avl_tree_t groups; /* table of all groups (publisher, subscriber), see struct proxy_group */
+  seqno_t seq; /* sequence number of most recent SPDP message */
   unsigned kernel_sequence_numbers : 1; /* whether this proxy participant generates OSPL kernel sequence numbers */
   unsigned implicitly_created : 1; /* participants are implicitly created for Cloud/Fog discovered endpoints */
   unsigned is_ddsi2_pp: 1; /* if this is the federation-leader on the remote node */
@@ -527,6 +528,7 @@ dds_return_t new_participant (struct nn_guid *ppguid, unsigned flags, const stru
  *               ppguid lookup failed.
 */
 dds_return_t delete_participant (const struct nn_guid *ppguid);
+void update_participant_plist (struct participant *pp, const struct nn_plist *plist);
 
 /* To obtain the builtin writer to be used for publishing SPDP, SEDP,
    PMD stuff for PP and its endpoints, given the entityid.  If PP has
@@ -540,6 +542,9 @@ struct writer *get_builtin_writer (const struct participant *pp, unsigned entity
 dds_return_t new_writer (struct writer **wr_out, struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg);
 
 dds_return_t new_reader (struct reader **rd_out, struct nn_guid *rdguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct rhc * rhc, status_cb_t status_cb, void *status_cb_arg);
+
+void update_reader_qos (struct reader *rd, const struct dds_qos *xqos);
+void update_writer_qos (struct writer *wr, const struct dds_qos *xqos);
 
 struct whc_node;
 struct whc_state;
@@ -586,7 +591,7 @@ void delete_local_orphan_writer (struct local_orphan_writer *wr);
 /* Set when this proxy participant is not to be announced on the built-in topics yet */
 #define CF_PROXYPP_NO_SPDP                     (1 << 3)
 
-void new_proxy_participant (const struct nn_guid *guid, unsigned bes, unsigned prismtech_bes, const struct nn_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct nn_plist *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, nn_wctime_t timestamp);
+void new_proxy_participant (const struct nn_guid *guid, unsigned bes, unsigned prismtech_bes, const struct nn_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct nn_plist *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, nn_wctime_t timestamp, seqno_t seq);
 int delete_proxy_participant_by_guid (const struct nn_guid * guid, nn_wctime_t timestamp, int isimplicit);
 uint64_t participant_instance_id (const struct nn_guid *guid);
 
@@ -595,8 +600,8 @@ enum update_proxy_participant_source {
   UPD_PROXYPP_CM
 };
 
-int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp);
-int update_proxy_participant_plist (struct proxy_participant *proxypp, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp);
+int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp);
+int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp);
 void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct lease *newlease);
 
 void purge_proxy_participants (const nn_locator_t *loc, bool delete_from_as_disc);
@@ -618,8 +623,8 @@ int new_proxy_reader (const struct nn_guid *ppguid, const struct nn_guid *guid, 
 int delete_proxy_writer (const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit);
 int delete_proxy_reader (const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit);
 
-void update_proxy_reader (struct proxy_reader * prd, struct addrset *as);
-void update_proxy_writer (struct proxy_writer * pwr, struct addrset *as);
+void update_proxy_reader (struct proxy_reader *prd, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
+void update_proxy_writer (struct proxy_writer *pwr, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
 
 int new_proxy_group (const struct nn_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp);
 void delete_proxy_group (const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit);

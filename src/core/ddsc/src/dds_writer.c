@@ -20,11 +20,11 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
-#include "dds__qos.h"
 #include "dds__init.h"
 #include "dds__publisher.h"
 #include "dds__topic.h"
 #include "dds__get_status.h"
+#include "dds__qos.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
 
@@ -206,48 +206,18 @@ static dds_return_t dds_writer_delete (dds_entity *e)
   return ret;
 }
 
-static dds_return_t dds_writer_qos_validate (const dds_qos_t *qos, bool enabled)
-{
-  dds_return_t ret;
-  if ((ret = nn_xqos_valid (qos)) < 0)
-    return ret;
-  return enabled ? dds_qos_validate_mutable_common (qos) : DDS_RETCODE_OK;
-}
-
 static dds_return_t dds_writer_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
-  /* FIXME: QoS changes */
-  dds_return_t ret;
-
-  if ((ret = dds_writer_qos_validate (qos, enabled)) != DDS_RETCODE_OK)
-    return ret;
-
-  /* Sort-of support updating ownership strength */
-  if ((qos->present & QP_OWNERSHIP_STRENGTH) && (qos->present & ~QP_OWNERSHIP_STRENGTH) == 0)
+  /* note: e->m_qos is still the old one to allow for failure here */
+  if (enabled)
   {
-    dds_ownership_kind_t kind;
-    dds_qget_ownership (e->m_qos, &kind);
-
-    if (kind != DDS_OWNERSHIP_EXCLUSIVE)
-      return DDS_RETCODE_ERROR;
-
-    struct writer *ddsi_wr = ((dds_writer *) e)->m_wr;
-    dds_qset_ownership_strength (e->m_qos, qos->ownership_strength.value);
-
+    struct writer *wr;
     thread_state_awake (lookup_thread_state ());
-
-    /* FIXME: with QoS changes being unsupported by the underlying stack I wonder what will happen; locking the underlying DDSI writer is of doubtful value as well */
-    ddsrt_mutex_lock (&ddsi_wr->e.lock);
-    ddsi_wr->xqos->ownership_strength.value = qos->ownership_strength.value;
-    ddsrt_mutex_unlock (&ddsi_wr->e.lock);
+    if ((wr = ephash_lookup_writer_guid (&e->m_guid)) != NULL)
+      update_writer_qos (wr, qos);
     thread_state_asleep (lookup_thread_state ());
   }
-  else
-  {
-    if (enabled)
-      ret = DDS_RETCODE_UNSUPPORTED;
-  }
-  return ret;
+  return DDS_RETCODE_OK;
 }
 
 static struct whc *make_whc (const dds_qos_t *qos)
@@ -309,17 +279,16 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   assert (pub->m_entity.m_domain == tp->m_entity.m_domain);
 
   /* Merge Topic & Publisher qos */
-#define DDS_QOSMASK_WRITER (QP_USER_DATA | QP_DURABILITY | QP_DURABILITY_SERVICE | QP_DEADLINE | QP_LATENCY_BUDGET | QP_OWNERSHIP | QP_OWNERSHIP_STRENGTH | QP_LIVELINESS | QP_RELIABILITY | QP_TRANSPORT_PRIORITY | QP_LIFESPAN | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_PRISMTECH_WRITER_DATA_LIFECYCLE | QP_CYCLONE_IGNORELOCAL)
   wqos = dds_create_qos ();
   if (qos)
-    nn_xqos_mergein_missing (wqos, qos, DDS_QOSMASK_WRITER);
+    nn_xqos_mergein_missing (wqos, qos, DDS_WRITER_QOS_MASK);
   if (pub->m_entity.m_qos)
     nn_xqos_mergein_missing (wqos, pub->m_entity.m_qos, ~(uint64_t)0);
   if (tp->m_entity.m_qos)
     nn_xqos_mergein_missing (wqos, tp->m_entity.m_qos, ~(uint64_t)0);
   nn_xqos_mergein_missing (wqos, &gv.default_xqos_wr, ~(uint64_t)0);
 
-  if ((rc = dds_writer_qos_validate (wqos, false)) != DDS_RETCODE_OK)
+  if ((rc = nn_xqos_valid (wqos)) < 0)
   {
     dds_delete_qos(wqos);
     goto err_bad_qos;

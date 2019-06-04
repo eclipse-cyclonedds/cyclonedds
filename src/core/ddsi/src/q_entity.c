@@ -375,6 +375,36 @@ static void remove_deleted_participant_guid (const struct nn_guid *guid, unsigne
 
 /* PARTICIPANT ------------------------------------------------------ */
 
+static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, const dds_qos_t *xqos, nn_wctime_t timestamp)
+{
+  uint64_t mask;
+
+  mask = nn_xqos_delta (ent_qos, xqos, QP_CHANGEABLE_MASK & ~(QP_RXO_MASK | QP_PARTITION)) & xqos->present;
+#if 0
+  int a = (ent_qos->present & QP_TOPIC_DATA) ? (int) ent_qos->topic_data.length : 6;
+  int b = (xqos->present & QP_TOPIC_DATA) ? (int) xqos->topic_data.length : 6;
+  char *astr = (ent_qos->present & QP_TOPIC_DATA) ? (char *) ent_qos->topic_data.value : "(null)";
+  char *bstr = (xqos->present & QP_TOPIC_DATA) ? (char *) xqos->topic_data.value : "(null)";
+  printf ("%d: "PGUIDFMT" ent_qos %d \"%*.*s\" xqos %d \"%*.*s\" => mask %d\n",
+          (int) getpid (), PGUID (e->guid),
+          !!(ent_qos->present & QP_TOPIC_DATA), a, a, astr,
+          !!(xqos->present & QP_TOPIC_DATA), b, b, bstr,
+          !!(mask & QP_TOPIC_DATA));
+#endif
+  DDS_LOG (DDS_LC_DISCOVERY, "update_qos_locked "PGUIDFMT" delta=%"PRIu64" QOS={", PGUID(e->guid), mask);
+  nn_log_xqos(DDS_LC_DISCOVERY, xqos);
+  DDS_LOG (DDS_LC_DISCOVERY, "}\n");
+
+  if (mask == 0)
+    /* no change, or an as-yet unsupported one */
+    return false;
+
+  nn_xqos_fini_mask (ent_qos, mask);
+  nn_xqos_mergein_missing (ent_qos, xqos, mask);
+  ddsi_plugin.builtintopic_write (e, timestamp, true);
+  return true;
+}
+
 static dds_return_t pp_allocate_entityid(nn_entityid_t *id, unsigned kind, struct participant *pp)
 {
   uint32_t id1;
@@ -672,6 +702,14 @@ dds_return_t new_participant (nn_guid_t *p_ppguid, unsigned flags, const nn_plis
   *p_ppguid = ppguid;
 
   return new_participant_guid (p_ppguid, flags, plist);
+}
+
+void update_participant_plist (struct participant *pp, const nn_plist_t *plist)
+{
+  ddsrt_mutex_lock (&pp->e.lock);
+  if (update_qos_locked (&pp->e, &pp->plist->qos, &plist->qos, now ()))
+    spdp_write (pp);
+  ddsrt_mutex_unlock (&pp->e.lock);
 }
 
 static void delete_builtin_endpoint (const struct nn_guid *ppguid, unsigned entityid)
@@ -2909,6 +2947,14 @@ struct local_orphan_writer *new_local_orphan_writer (nn_entityid_t entityid, str
   return lowr;
 }
 
+void update_writer_qos (struct writer *wr, const dds_qos_t *xqos)
+{
+  ddsrt_mutex_lock (&wr->e.lock);
+  if (update_qos_locked (&wr->e, wr->xqos, xqos, now ()))
+    sedp_write_writer (wr);
+  ddsrt_mutex_unlock (&wr->e.lock);
+}
+
 static void gc_delete_writer (struct gcreq *gcreq)
 {
   struct writer *wr = gcreq->arg;
@@ -3432,6 +3478,13 @@ uint64_t reader_instance_id (const struct nn_guid *guid)
     return 0;
 }
 
+void update_reader_qos (struct reader *rd, const dds_qos_t *xqos)
+{
+  ddsrt_mutex_lock (&rd->e.lock);
+  if (update_qos_locked (&rd->e, rd->xqos, xqos, now ()))
+    sedp_write_reader (rd);
+  ddsrt_mutex_unlock (&rd->e.lock);
+}
 
 /* PROXY-PARTICIPANT ------------------------------------------------ */
 static void gc_proxy_participant_lease (struct gcreq *gcreq)
@@ -3481,7 +3534,8 @@ void new_proxy_participant
   dds_duration_t tlease_dur,
   nn_vendorid_t vendor,
   unsigned custom_flags,
-  nn_wctime_t timestamp
+  nn_wctime_t timestamp,
+  seqno_t seq
 )
 {
   /* No locking => iff all participants use unique guids, and sedp
@@ -3503,6 +3557,7 @@ void new_proxy_participant
   proxypp->vendor = vendor;
   proxypp->bes = bes;
   proxypp->prismtech_bes = prismtech_bes;
+  proxypp->seq = seq;
   if (privileged_pp_guid) {
     proxypp->privileged_pp_guid = *privileged_pp_guid;
   } else {
@@ -3543,6 +3598,7 @@ void new_proxy_participant
   proxypp->as_meta = as_meta;
   proxypp->endpoints = NULL;
   proxypp->plist = nn_plist_dup (plist);
+  nn_xqos_mergein_missing (&proxypp->plist->qos, &gv.default_plist_pp.qos, ~(uint64_t)0);
   ddsrt_avl_init (&proxypp_groups_treedef, &proxypp->groups);
 
   if (custom_flags & CF_INC_KERNEL_SEQUENCE_NUMBERS)
@@ -3656,51 +3712,39 @@ void new_proxy_participant
   ddsrt_mutex_unlock (&proxypp->e.lock);
 }
 
-int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp)
+int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp)
 {
-  /* Currently, built-in processing is single-threaded, and it is only through this function and the proxy participant deletion (which necessarily happens when no-one else potentially references the proxy participant anymore).  So at the moment, the lock is superfluous. */
-  nn_plist_t *new_plist;
+  nn_plist_t *new_plist = ddsrt_malloc (sizeof (*new_plist));
+  nn_plist_init_empty (new_plist);
+  nn_plist_mergein_missing (new_plist, datap, PP_PRISMTECH_NODE_NAME | PP_PRISMTECH_EXEC_NAME | PP_PRISMTECH_PROCESS_ID | PP_ENTITY_NAME, QP_USER_DATA);
+  nn_plist_mergein_missing (new_plist, &gv.default_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
 
-  new_plist = nn_plist_dup (datap);
-  nn_plist_mergein_missing (new_plist, proxypp->plist, ~(uint64_t)0, ~(uint64_t)0);
-  nn_plist_fini (proxypp->plist);
-  ddsrt_free (proxypp->plist);
-  proxypp->plist = new_plist;
+  if (seq && seq > proxypp->seq)
+    proxypp->seq = seq;
 
   switch (source)
   {
     case UPD_PROXYPP_SPDP:
-      ddsi_plugin.builtintopic_write (&proxypp->e, timestamp, true);
+      update_qos_locked (&proxypp->e, &proxypp->plist->qos, &new_plist->qos, timestamp);
+      nn_plist_fini (new_plist);
+      ddsrt_free (new_plist);
       proxypp->proxypp_have_spdp = 1;
       break;
+
     case UPD_PROXYPP_CM:
+      nn_plist_fini (proxypp->plist);
+      ddsrt_free (proxypp->plist);
+      proxypp->plist = new_plist;
       proxypp->proxypp_have_cm = 1;
       break;
   }
-
   return 0;
 }
 
-int update_proxy_participant_plist (struct proxy_participant *proxypp, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp)
+int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp)
 {
-  nn_plist_t tmp;
-
-  /* FIXME: find a better way of restricting which bits can get updated */
   ddsrt_mutex_lock (&proxypp->e.lock);
-  switch (source)
-  {
-    case UPD_PROXYPP_SPDP:
-      update_proxy_participant_plist_locked (proxypp, datap, source, timestamp);
-      break;
-    case UPD_PROXYPP_CM:
-      tmp = *datap;
-      tmp.present &=
-        PP_PRISMTECH_NODE_NAME | PP_PRISMTECH_EXEC_NAME | PP_PRISMTECH_PROCESS_ID |
-        PP_ENTITY_NAME;
-      tmp.qos.present &= QP_PRISMTECH_ENTITY_FACTORY;
-      update_proxy_participant_plist_locked (proxypp, &tmp, source, timestamp);
-      break;
-  }
+  update_proxy_participant_plist_locked (proxypp, seq, datap, source, timestamp);
   ddsrt_mutex_unlock (&proxypp->e.lock);
   return 0;
 }
@@ -4064,7 +4108,6 @@ static void proxy_endpoint_common_init (struct entity_common *e, struct proxy_en
   else
     memset (&c->group_guid, 0, sizeof (c->group_guid));
 
-
   ref_proxy_participant (proxypp, c);
 }
 
@@ -4175,7 +4218,7 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   return 0;
 }
 
-void update_proxy_writer (struct proxy_writer * pwr, struct addrset * as)
+void update_proxy_writer (struct proxy_writer *pwr, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp)
 {
   struct reader * rd;
   struct  pwr_rd_match * m;
@@ -4203,10 +4246,12 @@ void update_proxy_writer (struct proxy_writer * pwr, struct addrset * as)
       m = ddsrt_avl_iter_next (&iter);
     }
   }
+
+  update_qos_locked (&pwr->e, pwr->c.xqos, xqos, timestamp);
   ddsrt_mutex_unlock (&pwr->e.lock);
 }
 
-void update_proxy_reader (struct proxy_reader * prd, struct addrset * as)
+void update_proxy_reader (struct proxy_reader *prd, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp)
 {
   struct prd_wr_match * m;
   nn_guid_t wrguid;
@@ -4255,6 +4300,8 @@ void update_proxy_reader (struct proxy_reader * prd, struct addrset * as)
       ddsrt_mutex_lock (&prd->e.lock);
     }
   }
+
+  update_qos_locked (&prd->e, prd->c.xqos, xqos, timestamp);
   ddsrt_mutex_unlock (&prd->e.lock);
 }
 

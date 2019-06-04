@@ -11,10 +11,11 @@
  */
 #include <assert.h>
 #include <string.h>
-#include "dds__qos.h"
+#include <stdbool.h>
+#include "dds/dds.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_plist.h"
 
 static void dds_qos_data_copy_in (ddsi_octetseq_t *data, const void * __restrict value, size_t sz, bool overwrite)
 {
@@ -45,26 +46,6 @@ static bool dds_qos_data_copy_out (const ddsi_octetseq_t *data, void **value, si
     }
   }
   return true;
-}
-
-dds_return_t dds_qos_validate_mutable_common (const dds_qos_t *qos)
-{
-    /* FIXME: Check whether immutable QoS are changed should actually incorporate change to current QoS */
-  if (qos->present & QP_DEADLINE)
-    return DDS_RETCODE_IMMUTABLE_POLICY;
-  if (qos->present & QP_OWNERSHIP)
-    return DDS_RETCODE_IMMUTABLE_POLICY;
-  if (qos->present & QP_LIVELINESS)
-    return DDS_RETCODE_IMMUTABLE_POLICY;
-  if (qos->present & QP_RELIABILITY)
-    return DDS_RETCODE_IMMUTABLE_POLICY;
-  if (qos->present & QP_DESTINATION_ORDER)
-    return DDS_RETCODE_IMMUTABLE_POLICY;
-  if (qos->present & QP_HISTORY)
-    return DDS_RETCODE_IMMUTABLE_POLICY;
-  if (qos->present & QP_RESOURCE_LIMITS)
-    return DDS_RETCODE_IMMUTABLE_POLICY;
-  return DDS_RETCODE_OK;
 }
 
 dds_qos_t *dds_create_qos (void)

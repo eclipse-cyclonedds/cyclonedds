@@ -1248,7 +1248,7 @@ void nn_plist_init_tables (void)
   ddsrt_once (&table_init_control, nn_plist_init_tables_real);
 }
 
-static void plist_or_xqos_fini (void * __restrict dst, size_t shift)
+static void plist_or_xqos_fini (void * __restrict dst, size_t shift, uint64_t pmask, uint64_t qmask)
 {
   /* shift == 0: plist, shift > 0: just qos */
   struct flagset pfs, qfs;
@@ -1277,7 +1277,8 @@ static void plist_or_xqos_fini (void * __restrict dst, size_t shift)
     assert (shift == 0 || entry->plist_offset - shift < sizeof (dds_qos_t));
     size_t dstoff = entry->plist_offset - shift;
     struct flagset * const fs = (entry->flags & PDF_QOS) ? &qfs : &pfs;
-    if ((*fs->present & entry->present_flag))
+    uint64_t mask = (entry->flags & PDF_QOS) ? qmask : pmask;
+    if (*fs->present & entry->present_flag & mask)
     {
       if (!(entry->flags & PDF_FUNCTION))
         fini_generic (dst, &dstoff, fs, entry->present_flag, entry->op.desc);
@@ -1285,8 +1286,8 @@ static void plist_or_xqos_fini (void * __restrict dst, size_t shift)
         entry->op.f.fini (dst, &dstoff, fs, entry->present_flag);
     }
   }
-  if (pfs.present) { *pfs.present = *pfs.aliased = 0; }
-  *qfs.present = *qfs.aliased = 0;
+  if (pfs.present) { *pfs.present &= ~pmask; *pfs.aliased &= ~pmask; }
+  *qfs.present &= ~qmask; *qfs.aliased &= ~qmask;
 }
 
 static void plist_or_xqos_unalias (void * __restrict dst, size_t shift)
@@ -1441,7 +1442,7 @@ static void plist_or_xqos_addtomsg (struct nn_xmsg *xmsg, const void * __restric
 
 void nn_plist_fini (nn_plist_t *plist)
 {
-  plist_or_xqos_fini (plist, 0);
+  plist_or_xqos_fini (plist, 0, ~(uint64_t)0, ~(uint64_t)0);
 }
 
 void nn_plist_unalias (nn_plist_t *plist)
@@ -2322,17 +2323,18 @@ void nn_xqos_init_empty (dds_qos_t *dest)
 void nn_plist_init_default_participant (nn_plist_t *plist)
 {
   nn_plist_init_empty (plist);
+
   plist->qos.present |= QP_PRISMTECH_ENTITY_FACTORY;
   plist->qos.entity_factory.autoenable_created_entities = 0;
+
+  plist->qos.present |= QP_USER_DATA;
+  plist->qos.user_data.length = 0;
+  plist->qos.user_data.value = NULL;
 }
 
 static void xqos_init_default_common (dds_qos_t *xqos)
 {
   nn_xqos_init_empty (xqos);
-
-  xqos->present |= QP_PARTITION;
-  xqos->partition.n = 0;
-  xqos->partition.strs = NULL;
 
   xqos->present |= QP_PRESENTATION;
   xqos->presentation.access_scope = DDS_PRESENTATION_INSTANCE;
@@ -2374,9 +2376,30 @@ static void xqos_init_default_common (dds_qos_t *xqos)
   xqos->ignorelocal.value = DDS_IGNORELOCAL_NONE;
 }
 
-void nn_xqos_init_default_reader (dds_qos_t *xqos)
+static void nn_xqos_init_default_endpoint (dds_qos_t *xqos)
 {
   xqos_init_default_common (xqos);
+
+  xqos->present |= QP_TOPIC_DATA;
+  xqos->topic_data.length = 0;
+  xqos->topic_data.value = NULL;
+
+  xqos->present |= QP_GROUP_DATA;
+  xqos->group_data.length = 0;
+  xqos->group_data.value = NULL;
+
+  xqos->present |= QP_USER_DATA;
+  xqos->user_data.length = 0;
+  xqos->user_data.value = NULL;
+
+  xqos->present |= QP_PARTITION;
+  xqos->partition.n = 0;
+  xqos->partition.strs = NULL;
+}
+
+void nn_xqos_init_default_reader (dds_qos_t *xqos)
+{
+  nn_xqos_init_default_endpoint (xqos);
 
   xqos->present |= QP_RELIABILITY;
   xqos->reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
@@ -2400,7 +2423,7 @@ void nn_xqos_init_default_reader (dds_qos_t *xqos)
 
 void nn_xqos_init_default_writer (dds_qos_t *xqos)
 {
-  xqos_init_default_common (xqos);
+  nn_xqos_init_default_endpoint (xqos);
 
   xqos->present |= QP_DURABILITY_SERVICE;
   xqos->durability_service.service_cleanup_delay = 0;
@@ -2461,9 +2484,13 @@ void nn_xqos_init_default_topic (dds_qos_t *xqos)
   xqos->subscription_keys.key_list.strs = NULL;
 }
 
-void nn_xqos_init_default_subscriber (dds_qos_t *xqos)
+static void nn_xqos_init_default_publisher_subscriber (dds_qos_t *xqos)
 {
   nn_xqos_init_empty (xqos);
+
+  xqos->present |= QP_GROUP_DATA;
+  xqos->group_data.length = 0;
+  xqos->group_data.value = NULL;
 
   xqos->present |= QP_PRISMTECH_ENTITY_FACTORY;
   xqos->entity_factory.autoenable_created_entities = 1;
@@ -2473,16 +2500,14 @@ void nn_xqos_init_default_subscriber (dds_qos_t *xqos)
   xqos->partition.strs = NULL;
 }
 
+void nn_xqos_init_default_subscriber (dds_qos_t *xqos)
+{
+  nn_xqos_init_default_publisher_subscriber (xqos);
+}
+
 void nn_xqos_init_default_publisher (dds_qos_t *xqos)
 {
-  nn_xqos_init_empty (xqos);
-
-  xqos->present |= QP_PRISMTECH_ENTITY_FACTORY;
-  xqos->entity_factory.autoenable_created_entities = 1;
-
-  xqos->present |= QP_PARTITION;
-  xqos->partition.n = 0;
-  xqos->partition.strs = NULL;
+  nn_xqos_init_default_publisher_subscriber (xqos);
 }
 
 void nn_xqos_copy (dds_qos_t *dst, const dds_qos_t *src)
@@ -2493,7 +2518,12 @@ void nn_xqos_copy (dds_qos_t *dst, const dds_qos_t *src)
 
 void nn_xqos_fini (dds_qos_t *xqos)
 {
-  plist_or_xqos_fini (xqos, offsetof (nn_plist_t, qos));
+  plist_or_xqos_fini (xqos, offsetof (nn_plist_t, qos), ~(uint64_t)0, ~(uint64_t)0);
+}
+
+void nn_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask)
+{
+  plist_or_xqos_fini (xqos, offsetof (nn_plist_t, qos), ~(uint64_t)0, mask);
 }
 
 void nn_xqos_unalias (dds_qos_t *xqos)

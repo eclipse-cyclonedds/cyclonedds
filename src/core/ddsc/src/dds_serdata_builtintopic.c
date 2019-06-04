@@ -190,21 +190,13 @@ static char *dds_string_dup_reuse (char *old, const char *src)
 static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const dds_qos_t *src)
 {
   if (old == NULL)
-  {
     old = ddsrt_malloc (sizeof (*old));
-    nn_xqos_init_empty (old);
-    old->present |= QP_TOPIC_NAME | QP_TYPE_NAME;
-    nn_xqos_mergein_missing (old, src, ~(uint64_t)0);
-    old->present &= ~(QP_TOPIC_NAME | QP_TYPE_NAME);
-  }
   else
   {
     nn_xqos_fini (old);
-    nn_xqos_init_empty (old);
-    old->present |= QP_TOPIC_NAME | QP_TYPE_NAME;
-    nn_xqos_mergein_missing (old, src, ~(uint64_t)0);
-    old->present &= ~(QP_TOPIC_NAME | QP_TYPE_NAME);
   }
+  nn_xqos_init_empty (old);
+  nn_xqos_mergein_missing (old, src, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
   return old;
 }
 

@@ -78,7 +78,7 @@ void entity_qos_get_set(dds_entity_t e, const char* info)
     CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
     status = dds_set_qos (e, qos); /* Doesn't change anything, so no need to forbid. But we return NOT_SUPPORTED anyway for now*/
-    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_UNSUPPORTED);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
     dds_delete_qos(qos);
 }
