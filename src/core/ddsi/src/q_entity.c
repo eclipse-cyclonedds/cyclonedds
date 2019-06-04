@@ -170,7 +170,7 @@ static void entity_common_init (struct entity_common *e, const struct nn_guid *g
   e->name = ddsrt_strdup (name ? name : "");
   e->onlylocal = onlylocal;
   ddsrt_mutex_init (&e->lock);
-  if (ddsi_plugin.builtintopic_is_visible (guid->entityid, onlylocal, vendorid))
+  if (ddsi_plugin.builtintopic_is_visible (guid, vendorid))
   {
     e->tk = ddsi_plugin.builtintopic_get_tkmap_entry (guid);
     e->iid = e->tk->m_iid;
@@ -2428,9 +2428,9 @@ static void new_reader_writer_common (const struct nn_guid *guid, const struct d
           topic ? topic->type_name : "(null)");
 }
 
-static void endpoint_common_init (struct entity_common *e, struct endpoint_common *c, enum entity_kind kind, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp)
+static void endpoint_common_init (struct entity_common *e, struct endpoint_common *c, enum entity_kind kind, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, bool onlylocal)
 {
-  entity_common_init (e, guid, NULL, kind, now (), NN_VENDORID_ECLIPSE, pp->e.onlylocal);
+  entity_common_init (e, guid, NULL, kind, now (), NN_VENDORID_ECLIPSE, pp->e.onlylocal || onlylocal);
   c->pp = ref_participant (pp, &e->guid);
   if (group_guid)
     c->group_guid = *group_guid;
@@ -2834,7 +2834,8 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct nn_gui
    delete_participant won't interfere with our ability to address
    the participant */
 
-  endpoint_common_init (&wr->e, &wr->c, EK_WRITER, guid, group_guid, pp);
+  const bool onlylocal = topic && ddsi_plugin.builtintopic_is_builtintopic (topic);
+  endpoint_common_init (&wr->e, &wr->c, EK_WRITER, guid, group_guid, pp, onlylocal);
   new_writer_guid_common_init(wr, topic, xqos, whc, status_cb, status_entity);
 
   /* guid_hash needed for protocol handling, so add it before we send
@@ -3217,7 +3218,8 @@ static dds_return_t new_reader_guid
   if (rd_out)
     *rd_out = rd;
 
-  endpoint_common_init (&rd->e, &rd->c, EK_READER, guid, group_guid, pp);
+  const bool onlylocal = topic && ddsi_plugin.builtintopic_is_builtintopic (topic);
+  endpoint_common_init (&rd->e, &rd->c, EK_READER, guid, group_guid, pp, onlylocal);
 
   /* Copy QoS, merging in defaults */
   rd->xqos = ddsrt_malloc (sizeof (*rd->xqos));

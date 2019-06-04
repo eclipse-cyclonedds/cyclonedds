@@ -268,6 +268,7 @@ void ddsi_plugin_init (void)
   ddsi_plugin.init_fn = dds__init_plugin;
   ddsi_plugin.fini_fn = dds__fini_plugin;
 
+  ddsi_plugin.builtintopic_is_builtintopic = dds__builtin_is_builtintopic;
   ddsi_plugin.builtintopic_is_visible = dds__builtin_is_visible;
   ddsi_plugin.builtintopic_get_tkmap_entry = dds__builtin_get_tkmap_entry;
   ddsi_plugin.builtintopic_write = dds__builtin_write;

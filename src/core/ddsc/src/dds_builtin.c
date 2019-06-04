@@ -172,9 +172,16 @@ dds_entity_t dds__get_builtin_subscriber (dds_entity_t e)
   return sub;
 }
 
-bool dds__builtin_is_visible (nn_entityid_t entityid, bool onlylocal, nn_vendorid_t vendorid)
+bool dds__builtin_is_builtintopic (const struct ddsi_sertopic *tp)
 {
-  return !(onlylocal || is_builtin_endpoint (entityid, vendorid));
+  return tp->ops == &ddsi_sertopic_ops_builtintopic;
+}
+
+bool dds__builtin_is_visible (const nn_guid_t *guid, nn_vendorid_t vendorid)
+{
+  if (is_builtin_endpoint (guid->entityid, vendorid))
+    return false;
+  return true;
 }
 
 struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct nn_guid *guid)
@@ -221,7 +228,7 @@ struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, nn
 
 void dds__builtin_write (const struct entity_common *e, nn_wctime_t timestamp, bool alive)
 {
-  if (ddsi_plugin.builtintopic_is_visible (e->guid.entityid, e->onlylocal, get_entity_vendorid (e)))
+  if (dds__builtin_is_visible (&e->guid, get_entity_vendorid (e)))
   {
     /* initialize to avoid gcc warning ultimately caused by C's horrible type system */
     struct local_orphan_writer *bwr = NULL;
