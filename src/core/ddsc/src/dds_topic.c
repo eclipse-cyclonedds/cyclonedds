@@ -18,12 +18,12 @@
 #include "dds/ddsrt/string.h"
 #include "dds__topic.h"
 #include "dds__listener.h"
-#include "dds__qos.h"
 #include "dds__participant.h"
 #include "dds__stream.h"
 #include "dds__init.h"
 #include "dds__domain.h"
 #include "dds__get_status.h"
+#include "dds__qos.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_sertopic.h"
@@ -182,25 +182,11 @@ static dds_return_t dds_topic_delete (dds_entity *e)
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t dds_topic_qos_validate (const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
-
-static dds_return_t dds_topic_qos_validate (const dds_qos_t *qos, bool enabled)
-{
-  dds_return_t ret;
-  if ((ret = nn_xqos_valid (qos)) < 0)
-    return ret;
-  return enabled ? dds_qos_validate_mutable_common (qos) : DDS_RETCODE_OK;
-}
-
-
 static dds_return_t dds_topic_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
-  /* FIXME: QoS changes */
-  dds_return_t ret;
-  (void) e;
-  if ((ret = dds_topic_qos_validate (qos, enabled)) != DDS_RETCODE_OK)
-    return ret;
-  return enabled ? DDS_RETCODE_UNSUPPORTED : DDS_RETCODE_OK;
+  /* note: e->m_qos is still the old one to allow for failure here */
+  (void) e; (void) qos; (void) enabled;
+  return DDS_RETCODE_OK;
 }
 
 static bool dupdef_qos_ok (const dds_qos_t *qos, const struct ddsi_sertopic *st)
@@ -239,13 +225,25 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
   if (sertopic == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if (qos && (rc = dds_topic_qos_validate (qos, false)) != DDS_RETCODE_OK)
-    return rc;
+  new_qos = dds_create_qos ();
+  if (qos)
+    nn_xqos_mergein_missing (new_qos, qos, DDS_TOPIC_QOS_MASK);
+  /* One would expect this:
+   *
+   *   nn_xqos_mergein_missing (new_qos, &gv.default_xqos_tp, ~(uint64_t)0);
+   *
+   * but the crazy defaults of the DDS specification has a default settings
+   * for reliability that are dependent on the entity type: readers and
+   * topics default to best-effort, but writers to reliable.
+   *
+   * Leaving the topic QoS sparse means a default-default topic QoS of
+   * best-effort will do "the right thing" and let a writer still default to
+   * reliable ... (and keep behaviour unchanged) */
+  if ((rc = nn_xqos_valid (new_qos)) != DDS_RETCODE_OK)
+    goto err_invalid_qos;
 
   if ((rc = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
-    return rc;
-
-  /* FIXME: I find it weird that qos may be NULL in the entity */
+    goto err_lock_participant;
 
   /* Check if topic already exists with same name */
   ddsrt_mutex_lock (&dds_global.m_mutex);
@@ -254,27 +252,22 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
       /* FIXME: should copy the type, perhaps? but then the pointers will no longer be the same */
       rc = DDS_RETCODE_PRECONDITION_NOT_MET;
       goto err_mismatch;
-    } else if (!dupdef_qos_ok(qos, stgeneric)) {
+    } else if (!dupdef_qos_ok (new_qos, stgeneric)) {
       /* FIXME: should copy the type, perhaps? but then the pointers will no longer be the same */
       rc = DDS_RETCODE_INCONSISTENT_POLICY;
       goto err_mismatch;
     } else {
       /* FIXME: calling addref is wrong because the Cyclone library has no
-       knowledge of the reference and hence simply deleting the participant
-       won't make the ref count drop to 0.  On the other hand, the DDS spec
-       says find_topic (and a second call to create_topic) return a new
-       proxy that must separately be deleted.  */
+         knowledge of the reference and hence simply deleting the participant
+         won't make the ref count drop to 0.  On the other hand, the DDS spec
+         says find_topic (and a second call to create_topic) return a new
+         proxy that must separately be deleted.  */
       dds_entity_add_ref (&stgeneric->status_cb_entity->m_entity);
       hdl = stgeneric->status_cb_entity->m_entity.m_hdllink.hdl;
+      dds_delete_qos (new_qos);
     }
     ddsrt_mutex_unlock (&dds_global.m_mutex);
   } else {
-    if (qos)
-    {
-      new_qos = dds_create_qos ();
-      (void)dds_copy_qos (new_qos, qos);
-    }
-
     /* Create topic */
     top = dds_alloc (sizeof (*top));
     hdl = dds_entity_init (&top->m_entity, &par->m_entity, DDS_KIND_TOPIC, new_qos, listener, DDS_TOPIC_STATUS_MASK);
@@ -293,7 +286,14 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
     ddsi_pp = ephash_lookup_participant_guid (&par->m_entity.m_guid);
     assert (ddsi_pp);
     if (sedp_plist)
-      sedp_write_topic (ddsi_pp, sedp_plist);
+    {
+      nn_plist_t plist;
+      nn_plist_init_empty (&plist);
+      nn_plist_mergein_missing (&plist, sedp_plist, ~(uint64_t)0, ~(uint64_t)0);
+      nn_xqos_mergein_missing (&plist.qos, new_qos, ~(uint64_t)0);
+      sedp_write_topic (ddsi_pp, &plist);
+      nn_plist_fini (&plist);
+    }
     thread_state_asleep (lookup_thread_state ());
   }
   dds_participant_unlock (par);
@@ -302,6 +302,9 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
 err_mismatch:
   ddsrt_mutex_unlock (&dds_global.m_mutex);
   dds_participant_unlock (par);
+err_lock_participant:
+err_invalid_qos:
+  dds_delete_qos (new_qos);
   return rc;
 }
 
@@ -310,7 +313,6 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   char *key = NULL;
   struct ddsi_sertopic_default *st;
   const char *typename;
-  dds_qos_t *new_qos = NULL;
   nn_plist_t plist;
   dds_entity_t hdl;
   size_t keysz;
@@ -346,12 +348,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
     st->opt_size = dds_stream_check_optimize (desc);
   }
 
-#define DDS_QOSMASK_TOPIC (QP_TOPIC_DATA | QP_DURABILITY | QP_DURABILITY_SERVICE | QP_DEADLINE | QP_LATENCY_BUDGET | QP_OWNERSHIP | QP_LIVELINESS | QP_RELIABILITY | QP_TRANSPORT_PRIORITY | QP_LIFESPAN | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS)
   nn_plist_init_empty (&plist);
-  if (new_qos)
-    nn_xqos_mergein_missing (&plist.qos, new_qos, DDS_QOSMASK_TOPIC);
-  nn_xqos_mergein_missing (&plist.qos, &gv.default_xqos_tp, DDS_QOSMASK_TOPIC);
-
   /* Set Topic meta data (for SEDP publication) */
   plist.qos.topic_name = ddsrt_strdup (st->c.name);
   plist.qos.type_name = ddsrt_strdup (st->c.type_name);

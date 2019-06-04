@@ -19,6 +19,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/process.h"
 
 typedef char * (*expand_fn)(const char *src0);
 
@@ -34,8 +35,16 @@ static void expand_append (char **dst, size_t *sz, size_t *pos, char c)
 
 static char *expand_env (const char *name, char op, const char *alt, expand_fn expand)
 {
+    char pidstr[20];
     char *env = NULL;
-    (void)ddsrt_getenv (name, &env);
+
+    if (name[0] == '$' && name[1] == 0) {
+        snprintf (pidstr, sizeof (pidstr), "%"PRIdPID, ddsrt_getpid ());
+        env = pidstr;
+    } else {
+        (void) ddsrt_getenv (name, &env);
+    }
+
     switch (op)
     {
         case 0:

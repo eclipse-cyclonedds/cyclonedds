@@ -506,7 +506,7 @@ static void make_participants_dependent_on_ddsi2 (const nn_guid_t *ddsi2guid, nn
   }
 }
 
-static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t timestamp, const nn_plist_t *datap)
+static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_wctime_t timestamp, const nn_plist_t *datap)
 {
   const unsigned bes_sedp_announcer_mask =
     NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
@@ -593,11 +593,14 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
     DDS_LOG(DDS_LC_TRACE, "SPDP ST0 "PGUIDFMT" (known)", PGUID (datap->participant_guid));
     lease_renew (ddsrt_atomic_ldvoidp (&proxypp->lease), now_et ());
     ddsrt_mutex_lock (&proxypp->e.lock);
-    if (proxypp->implicitly_created)
+    if (proxypp->implicitly_created || seq > proxypp->seq)
     {
-      DDS_LOG(DDS_LC_DISCOVERY, " (NEW was-implicitly-created)");
+      if (proxypp->implicitly_created)
+        DDS_LOG(DDS_LC_DISCOVERY, " (NEW was-implicitly-created)");
+      else
+        DDS_LOG(DDS_LC_DISCOVERY, " (update)");
       proxypp->implicitly_created = 0;
-      update_proxy_participant_plist_locked (proxypp, datap, UPD_PROXYPP_SPDP, timestamp);
+      update_proxy_participant_plist_locked (proxypp, seq, datap, UPD_PROXYPP_SPDP, timestamp);
     }
     ddsrt_mutex_unlock (&proxypp->e.lock);
     return 0;
@@ -739,7 +742,8 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
     lease_duration,
     rst->vendor,
     custom_flags,
-    timestamp
+    timestamp,
+    seq
   );
 
   /* Force transmission of SPDP messages - we're not very careful
@@ -779,7 +783,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, nn_wctime_t time
   return 1;
 }
 
-static void handle_SPDP (const struct receiver_state *rst, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
+static void handle_SPDP (const struct receiver_state *rst, seqno_t seq, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
 {
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
   DDS_TRACE("SPDP ST%x", statusinfo);
@@ -809,7 +813,7 @@ static void handle_SPDP (const struct receiver_state *rst, nn_wctime_t timestamp
     switch (statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
     {
       case 0:
-        interesting = handle_SPDP_alive (rst, timestamp, &decoded_data);
+        interesting = handle_SPDP_alive (rst, seq, timestamp, &decoded_data);
         break;
 
       case NN_STATUSINFO_DISPOSE:
@@ -1019,7 +1023,7 @@ static const char *durability_to_string (dds_durability_kind_t k)
   return "undefined-durability";
 }
 
-static struct proxy_participant *implicitly_create_proxypp (const nn_guid_t *ppguid, nn_plist_t *datap /* note: potentially modifies datap */, const nn_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp)
+static struct proxy_participant *implicitly_create_proxypp (const nn_guid_t *ppguid, nn_plist_t *datap /* note: potentially modifies datap */, const nn_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp, seqno_t seq)
 {
   nn_guid_t privguid;
   nn_plist_t pp_plist;
@@ -1056,7 +1060,7 @@ static struct proxy_participant *implicitly_create_proxypp (const nn_guid_t *ppg
        doing anything about (1).  That means we fall back to the legacy mode of locally generating
        GIDs but leaving the system id unchanged if the remote is OSPL.  */
     actual_vendorid = (datap->present & PP_VENDORID) ?  datap->vendorid : vendorid;
-    new_proxy_participant(ppguid, 0, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, T_NEVER, actual_vendorid, CF_IMPLICITLY_CREATED_PROXYPP, timestamp);
+    new_proxy_participant(ppguid, 0, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, T_NEVER, actual_vendorid, CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
   }
   else if (ppguid->prefix.u[0] == src_guid_prefix->u[0] && vendor_is_eclipse_or_opensplice (vendorid))
   {
@@ -1090,7 +1094,7 @@ static struct proxy_participant *implicitly_create_proxypp (const nn_guid_t *ppg
       ddsrt_mutex_unlock (&privpp->e.lock);
 
       pp_plist.prismtech_participant_version_info.flags &= ~NN_PRISMTECH_FL_PARTICIPANT_IS_DDSI2;
-      new_proxy_participant (ppguid, 0, 0, &privguid, as_default, as_meta, &pp_plist, T_NEVER, vendorid, CF_IMPLICITLY_CREATED_PROXYPP | CF_PROXYPP_NO_SPDP, timestamp);
+      new_proxy_participant (ppguid, 0, 0, &privguid, as_default, as_meta, &pp_plist, T_NEVER, vendorid, CF_IMPLICITLY_CREATED_PROXYPP | CF_PROXYPP_NO_SPDP, timestamp, seq);
     }
   }
 
@@ -1138,7 +1142,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
   if ((pp = ephash_lookup_proxy_participant_guid (&ppguid)) == NULL)
   {
     DDS_LOG(DDS_LC_DISCOVERY, " unknown-proxypp");
-    if ((pp = implicitly_create_proxypp (&ppguid, datap, src_guid_prefix, vendorid, timestamp)) == NULL)
+    if ((pp = implicitly_create_proxypp (&ppguid, datap, src_guid_prefix, vendorid, timestamp, 0)) == NULL)
       E ("?\n", err);
     /* Repeat regular SEDP trace for convenience */
     DDS_LOG(DDS_LC_DISCOVERY, "SEDP ST0 "PGUIDFMT" (cont)", PGUID (datap->endpoint_guid));
@@ -1185,18 +1189,10 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
   }
   if (pwr || prd)
   {
-    /* Cloud load balances by updating participant endpoints */
-
-    if (! vendor_is_cloud (vendorid))
-    {
-      DDS_LOG(DDS_LC_DISCOVERY, " known\n");
-      goto err;
-    }
-
     /* Re-bind the proxy participant to the discovery service - and do this if it is currently
        bound to another DS instance, because that other DS instance may have already failed and
        with a new one taking over, without our noticing it. */
-    DDS_LOG(DDS_LC_DISCOVERY, " known-DS");
+    DDS_LOG(DDS_LC_DISCOVERY, " known%s", vendor_is_cloud (vendorid) ? "-DS" : "");
     if (vendor_is_cloud (vendorid) && pp->implicitly_created && memcmp(&pp->privileged_pp_guid.prefix, src_guid_prefix, sizeof(pp->privileged_pp_guid.prefix)) != 0)
     {
       nn_etime_t never = { T_NEVER };
@@ -1261,7 +1257,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
     {
       if (pwr)
       {
-        update_proxy_writer (pwr, as);
+        update_proxy_writer (pwr, as, xqos, timestamp);
       }
       else
       {
@@ -1281,7 +1277,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
     {
       if (prd)
       {
-        update_proxy_reader (prd, as);
+        update_proxy_reader (prd, as, xqos, timestamp);
       }
       else
       {
@@ -1484,9 +1480,9 @@ static void handle_SEDP_CM (const struct receiver_state *rst, nn_entityid_t wr_e
       else
       {
         if ((proxypp = ephash_lookup_proxy_participant_guid (&decoded_data.participant_guid)) == NULL)
-          proxypp = implicitly_create_proxypp (&decoded_data.participant_guid, &decoded_data, &rst->src_guid_prefix, rst->vendor, timestamp);
+          proxypp = implicitly_create_proxypp (&decoded_data.participant_guid, &decoded_data, &rst->src_guid_prefix, rst->vendor, timestamp, 0);
         if (proxypp != NULL)
-          update_proxy_participant_plist (proxypp, &decoded_data, UPD_PROXYPP_CM, timestamp);
+          update_proxy_participant_plist (proxypp, 0, &decoded_data, UPD_PROXYPP_CM, timestamp);
       }
     }
 
@@ -1864,7 +1860,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
   switch (srcguid.entityid.u)
   {
     case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
-      handle_SPDP (sampleinfo->rst, timestamp, statusinfo, datap, datasz);
+      handle_SPDP (sampleinfo->rst, sampleinfo->seq, timestamp, statusinfo, datap, datasz);
       break;
     case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER:
     case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER:

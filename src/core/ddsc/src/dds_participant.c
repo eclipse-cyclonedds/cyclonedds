@@ -16,15 +16,17 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds__init.h"
-#include "dds__qos.h"
 #include "dds__domain.h"
 #include "dds__participant.h"
 #include "dds__builtin.h"
+#include "dds__qos.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_participant)
 
 #define DDS_PARTICIPANT_STATUS_MASK    (0u)
+
 
 /* List of created participants */
 static dds_entity *dds_pp_head = NULL;
@@ -70,28 +72,24 @@ static dds_return_t dds_participant_instance_hdl (dds_entity *e, dds_instance_ha
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t dds_participant_qos_validate (const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
-
-static dds_return_t dds_participant_qos_validate (const dds_qos_t *qos, bool enabled)
-{
-  dds_return_t ret;
-  (void)enabled;
-  if ((ret = nn_xqos_valid (qos)) < 0)
-    return ret;
-  return DDS_RETCODE_OK;
-}
-
-static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
-
 static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
-  dds_return_t ret;
-  (void)e;
-  if ((ret = dds_participant_qos_validate (qos, enabled)) != DDS_RETCODE_OK)
-    return ret;
-  if (enabled) /* FIXME: changing QoS */
-    return DDS_RETCODE_UNSUPPORTED;
-  return ret;
+  /* note: e->m_qos is still the old one to allow for failure here */
+  if (enabled)
+  {
+    struct participant *pp;
+    thread_state_awake (lookup_thread_state ());
+    if ((pp = ephash_lookup_participant_guid (&e->m_guid)) != NULL)
+    {
+      nn_plist_t plist;
+      nn_plist_init_empty (&plist);
+      plist.qos.present = plist.qos.aliased = qos->present;
+      plist.qos = *qos;
+      update_participant_plist (pp, &plist);
+    }
+    thread_state_asleep (lookup_thread_state ());
+  }
+  return DDS_RETCODE_OK;
 }
 
 dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener)
@@ -110,13 +108,11 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   if ((ret = dds__check_domain (domain)) != DDS_RETCODE_OK)
     goto err_domain_check;
 
-
-#define DDS_QOSMASK_PARTICIPANT (QP_USER_DATA | QP_PRISMTECH_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL)
   new_qos = dds_create_qos ();
   if (qos != NULL)
-    nn_xqos_mergein_missing (new_qos, qos, DDS_QOSMASK_PARTICIPANT);
-  /* Validate qos or use default if NULL */
-  if ((ret = dds_participant_qos_validate (new_qos, false)) != DDS_RETCODE_OK)
+    nn_xqos_mergein_missing (new_qos, qos, DDS_PARTICIPANT_QOS_MASK);
+  nn_xqos_mergein_missing (new_qos, &gv.default_plist_pp.qos, ~(uint64_t)0);
+  if ((ret = nn_xqos_valid (new_qos)) < 0)
     goto err_qos_validation;
 
   /* Translate qos */

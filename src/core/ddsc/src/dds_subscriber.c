@@ -12,8 +12,8 @@
 #include <string.h>
 #include "dds__listener.h"
 #include "dds__participant.h"
-#include "dds__qos.h"
 #include "dds__subscriber.h"
+#include "dds__qos.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_globals.h"
 #include "dds/version.h"
@@ -27,32 +27,16 @@ static dds_return_t dds_subscriber_instance_hdl (dds_entity *e, dds_instance_han
 
 static dds_return_t dds_subscriber_instance_hdl (dds_entity *e, dds_instance_handle_t *i)
 {
-  (void) e;
-  (void) i;
+  (void) e; (void) i;
   /* FIXME: Get/generate proper handle. */
   return DDS_RETCODE_UNSUPPORTED;
 }
 
-static dds_return_t dds__subscriber_qos_validate (const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
-
-static dds_return_t dds__subscriber_qos_validate (const dds_qos_t *qos, bool enabled)
-{
-  dds_return_t ret;
-  if ((ret = nn_xqos_valid (qos)) < 0)
-    return ret;
-  return (enabled && (qos->present & QP_PRESENTATION)) ? DDS_RETCODE_IMMUTABLE_POLICY : DDS_RETCODE_OK;
-}
-
-static dds_return_t dds_subscriber_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
-
 static dds_return_t dds_subscriber_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
-  /* FIXME: QoS changes. */
-  dds_return_t ret;
-  (void) e;
-  if ((ret = dds__subscriber_qos_validate (qos, enabled)) != DDS_RETCODE_OK)
-    return ret;
-  return (enabled ? DDS_RETCODE_UNSUPPORTED : DDS_RETCODE_OK);
+  /* note: e->m_qos is still the old one to allow for failure here */
+  (void) e; (void) qos; (void) enabled;
+  return DDS_RETCODE_OK;
 }
 
 static dds_return_t dds_subscriber_status_validate (uint32_t mask)
@@ -68,12 +52,11 @@ dds_entity_t dds__create_subscriber_l (dds_participant *participant, const dds_q
   dds_return_t ret;
   dds_qos_t *new_qos;
 
-#define DDS_QOSMASK_SUBSCRIBER (QP_PARTITION | QP_PRESENTATION | QP_GROUP_DATA | QP_PRISMTECH_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL)
   new_qos = dds_create_qos ();
   if (qos)
-    nn_xqos_mergein_missing (new_qos, qos, DDS_QOSMASK_SUBSCRIBER);
+    nn_xqos_mergein_missing (new_qos, qos, DDS_SUBSCRIBER_QOS_MASK);
   nn_xqos_mergein_missing (new_qos, &gv.default_xqos_sub, ~(uint64_t)0);
-  if ((ret = dds__subscriber_qos_validate (new_qos, false)) != DDS_RETCODE_OK)
+  if ((ret = nn_xqos_valid (new_qos)) != DDS_RETCODE_OK)
   {
     dds_delete_qos (new_qos);
     return ret;

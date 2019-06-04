@@ -21,7 +21,6 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds__writer.h"
 #include "dds__reader.h"
-#include "dds__qos.h"
 #include "dds__topic.h"
 
 dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_handle_t *rds, size_t nrds)

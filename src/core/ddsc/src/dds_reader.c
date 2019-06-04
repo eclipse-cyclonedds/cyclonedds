@@ -17,11 +17,11 @@
 #include "dds__subscriber.h"
 #include "dds__reader.h"
 #include "dds__listener.h"
-#include "dds__qos.h"
 #include "dds__init.h"
 #include "dds__rhc.h"
 #include "dds__topic.h"
 #include "dds__get_status.h"
+#include "dds__qos.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_globals.h"
@@ -77,26 +77,18 @@ static dds_return_t dds_reader_delete (dds_entity *e)
   return ret;
 }
 
-static dds_return_t dds_reader_qos_validate (const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
-
-static dds_return_t dds_reader_qos_validate (const dds_qos_t *qos, bool enabled)
-{
-  dds_return_t ret;
-  if ((ret = nn_xqos_valid (qos)) < 0)
-    return ret;
-  return (enabled ? dds_qos_validate_mutable_common (qos) : DDS_RETCODE_OK);
-}
-
-static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
-
 static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
-  dds_return_t ret;
-  (void) e;
-  if ((ret = dds_reader_qos_validate (qos, enabled)) != DDS_RETCODE_OK)
-    return ret;
-  /* FIXME: QoS changes. */
-  return (enabled ? DDS_RETCODE_UNSUPPORTED : DDS_RETCODE_OK);
+  /* note: e->m_qos is still the old one to allow for failure here */
+  if (enabled)
+  {
+    struct reader *rd;
+    thread_state_awake (lookup_thread_state ());
+    if ((rd = ephash_lookup_reader_guid (&e->m_guid)) != NULL)
+      update_reader_qos (rd, qos);
+    thread_state_asleep (lookup_thread_state ());
+  }
+  return DDS_RETCODE_OK;
 }
 
 static dds_return_t dds_reader_status_validate (uint32_t mask)
@@ -363,17 +355,16 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
 
   /* Merge qos from topic and subscriber, dds_copy_qos only fails when it is passed a null
      argument, but that isn't the case here */
-#define DDS_QOSMASK_READER (QP_USER_DATA | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_OWNERSHIP | QP_LIVELINESS | QP_TIME_BASED_FILTER | QP_RELIABILITY | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_PRISMTECH_READER_DATA_LIFECYCLE | QP_CYCLONE_IGNORELOCAL)
   rqos = dds_create_qos ();
   if (qos)
-    nn_xqos_mergein_missing (rqos, qos, DDS_QOSMASK_READER);
+    nn_xqos_mergein_missing (rqos, qos, DDS_READER_QOS_MASK);
   if (sub->m_entity.m_qos)
     nn_xqos_mergein_missing (rqos, sub->m_entity.m_qos, ~(uint64_t)0);
   if (tp->m_entity.m_qos)
     nn_xqos_mergein_missing (rqos, tp->m_entity.m_qos, ~(uint64_t)0);
   nn_xqos_mergein_missing (rqos, &gv.default_xqos_rd, ~(uint64_t)0);
 
-  if ((ret = dds_reader_qos_validate (rqos, false)) != DDS_RETCODE_OK)
+  if ((ret = nn_xqos_valid (rqos)) != DDS_RETCODE_OK)
   {
     dds_delete_qos (rqos);
     reader = ret;

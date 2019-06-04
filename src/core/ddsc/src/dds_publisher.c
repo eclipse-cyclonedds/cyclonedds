@@ -29,34 +29,14 @@ static dds_return_t dds_publisher_instance_hdl (dds_entity *e, dds_instance_hand
 static dds_return_t dds_publisher_instance_hdl (dds_entity *e, dds_instance_handle_t *i)
 {
   /* FIXME: Get/generate proper handle. */
-  (void) e;
-  (void) i;
+  (void) e; (void) i;
   return DDS_RETCODE_UNSUPPORTED;
 }
 
-static dds_return_t dds_publisher_qos_validate (const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
-
-static dds_return_t dds_publisher_qos_validate (const dds_qos_t *qos, bool enabled)
-{
-  dds_return_t ret;
-  if ((ret = nn_xqos_valid (qos)) < 0)
-    return ret;
-  /* FIXME: Improve/check immutable check. */
-  if (enabled && (qos->present & QP_PRESENTATION))
-    return DDS_RETCODE_IMMUTABLE_POLICY;
-  return DDS_RETCODE_OK;
-}
-
-static dds_return_t dds_publisher_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
-
 static dds_return_t dds_publisher_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
-  dds_return_t ret;
-  (void)e;
-  if ((ret = dds_publisher_qos_validate (qos, enabled)) != DDS_RETCODE_OK)
-    return ret;
-  if (enabled) /* FIXME: QoS changes. */
-    return DDS_RETCODE_UNSUPPORTED;
+  /* note: e->m_qos is still the old one to allow for failure here */
+  (void) e; (void) qos; (void) enabled;
   return DDS_RETCODE_OK;
 }
 
@@ -73,12 +53,11 @@ dds_entity_t dds_create_publisher (dds_entity_t participant, const dds_qos_t *qo
   dds_qos_t *new_qos;
   dds_return_t ret;
 
-#define DDS_QOSMASK_PUBLISHER (QP_PARTITION | QP_PRESENTATION | QP_GROUP_DATA | QP_PRISMTECH_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL)
   new_qos = dds_create_qos ();
   if (qos)
-    nn_xqos_mergein_missing (new_qos, qos, DDS_QOSMASK_PUBLISHER);
+    nn_xqos_mergein_missing (new_qos, qos, DDS_PUBLISHER_QOS_MASK);
   nn_xqos_mergein_missing (new_qos, &gv.default_xqos_pub, ~(uint64_t)0);
-  if ((ret = dds_publisher_qos_validate (new_qos, false)) != DDS_RETCODE_OK)
+  if ((ret = nn_xqos_valid (new_qos)) != DDS_RETCODE_OK)
   {
     dds_delete_qos (new_qos);
     return ret;

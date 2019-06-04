@@ -277,6 +277,7 @@ DDS_EXPORT void nn_xqos_init_default_topic (dds_qos_t *xqos);
 DDS_EXPORT void nn_xqos_copy (dds_qos_t *dst, const dds_qos_t *src);
 DDS_EXPORT void nn_xqos_unalias (dds_qos_t *xqos);
 DDS_EXPORT void nn_xqos_fini (dds_qos_t *xqos);
+DDS_EXPORT void nn_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask);
 DDS_EXPORT dds_return_t nn_xqos_valid (const dds_qos_t *xqos);
 DDS_EXPORT void nn_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
 DDS_EXPORT uint64_t nn_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uint64_t mask);

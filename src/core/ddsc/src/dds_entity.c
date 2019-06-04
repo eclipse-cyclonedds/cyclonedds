@@ -19,6 +19,8 @@
 #include "dds__writer.h"
 #include "dds__reader.h"
 #include "dds__listener.h"
+#include "dds__qos.h"
+#include "dds__topic.h"
 #include "dds/version.h"
 #include "dds/ddsi/q_xqos.h"
 
@@ -339,6 +341,32 @@ dds_return_t dds_get_children (dds_entity_t entity, dds_entity_t *children, size
   }
 }
 
+static uint64_t entity_kind_qos_mask (dds_entity_kind_t kind)
+{
+  switch (kind)
+  {
+    case DDS_KIND_TOPIC:
+      return DDS_TOPIC_QOS_MASK;
+    case DDS_KIND_PARTICIPANT:
+      return DDS_PARTICIPANT_QOS_MASK;
+    case DDS_KIND_READER:
+      return DDS_READER_QOS_MASK;
+    case DDS_KIND_WRITER:
+      return DDS_WRITER_QOS_MASK;
+    case DDS_KIND_SUBSCRIBER:
+      return DDS_SUBSCRIBER_QOS_MASK;
+    case DDS_KIND_PUBLISHER:
+      return DDS_PUBLISHER_QOS_MASK;
+    case DDS_KIND_DONTCARE:
+    case DDS_KIND_COND_READ:
+    case DDS_KIND_COND_QUERY:
+    case DDS_KIND_COND_GUARD:
+    case DDS_KIND_WAITSET:
+      break;
+  }
+  return 0;
+}
+
 dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
 {
   dds_entity *e;
@@ -362,29 +390,159 @@ dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
   return ret;
 }
 
+static dds_return_t dds_set_qos_locked_impl (dds_entity *e, const dds_qos_t *qos, uint64_t mask)
+{
+  dds_return_t ret;
+  dds_qos_t *newqos = dds_create_qos ();
+  nn_xqos_mergein_missing (newqos, qos, mask);
+  nn_xqos_mergein_missing (newqos, e->m_qos, ~(uint64_t)0);
+  if ((ret = nn_xqos_valid (newqos)) != DDS_RETCODE_OK)
+    ; /* oops ... invalid or inconsistent */
+  else if (!(e->m_flags & DDS_ENTITY_ENABLED))
+    ; /* do as you please while the entity is not enabled (perhaps we should even allow invalid ones?) */
+  else
+  {
+    const uint64_t delta = nn_xqos_delta (e->m_qos, newqos, ~(uint64_t)0);
+    if (delta == 0) /* no change */
+      ret = DDS_RETCODE_OK;
+    else if (delta & ~QP_CHANGEABLE_MASK)
+      ret = DDS_RETCODE_IMMUTABLE_POLICY;
+    else if (delta & (QP_RXO_MASK | QP_PARTITION))
+      ret = DDS_RETCODE_UNSUPPORTED; /* not yet supporting things that affect matching */
+    else
+    {
+      /* yay! */
+    }
+  }
+
+  if (ret != DDS_RETCODE_OK)
+    dds_delete_qos (newqos);
+  else if ((ret = e->m_deriver.set_qos (e, newqos, e->m_flags & DDS_ENTITY_ENABLED)) != DDS_RETCODE_OK)
+    dds_delete_qos (newqos);
+  else
+  {
+    dds_delete_qos (e->m_qos);
+    e->m_qos = newqos;
+  }
+  return ret;
+}
+
+static void pushdown_pubsub_qos (dds_entity_t entity)
+{
+  dds_entity_t *cs = NULL;
+  int ncs, size = 0;
+  while ((ncs = dds_get_children (entity, cs, (size_t) size)) > size)
+  {
+    size = ncs;
+    cs = ddsrt_realloc (cs, (size_t) size * sizeof (*cs));
+  }
+  for (int i = 0; i < ncs; i++)
+  {
+    dds_entity *e;
+    if (dds_entity_lock (cs[i], DDS_KIND_DONTCARE, &e) == DDS_RETCODE_OK)
+    {
+      if (dds_entity_kind (e) == DDS_KIND_READER || dds_entity_kind (e) == DDS_KIND_WRITER)
+      {
+        dds_entity *pe;
+        if (dds_entity_lock (entity, DDS_KIND_DONTCARE, &pe) == DDS_RETCODE_OK)
+        {
+          dds_set_qos_locked_impl (e, pe->m_qos, QP_GROUP_DATA | QP_PARTITION);
+          dds_entity_unlock (pe);
+        }
+      }
+      dds_entity_unlock (e);
+    }
+  }
+  ddsrt_free (cs);
+}
+
+static void pushdown_topic_qos (dds_entity_t parent, dds_entity_t topic)
+{
+  dds_entity_t *cs = NULL;
+  int ncs, size = 0;
+  while ((ncs = dds_get_children (parent, cs, (size_t) size)) > size)
+  {
+    size = ncs;
+    cs = ddsrt_realloc (cs, (size_t) size * sizeof (*cs));
+  }
+  for (int i = 0; i < ncs; i++)
+  {
+    dds_entity *e;
+    if (dds_entity_lock (cs[i], DDS_KIND_DONTCARE, &e) == DDS_RETCODE_OK)
+    {
+      enum { NOP, PROP, CHANGE } todo;
+      switch (dds_entity_kind (e))
+      {
+        case DDS_KIND_READER: {
+          dds_reader *rd = (dds_reader *) e;
+          todo = (rd->m_topic->m_entity.m_hdllink.hdl == topic) ? CHANGE : NOP;
+          break;
+        }
+        case DDS_KIND_WRITER: {
+          dds_writer *wr = (dds_writer *) e;
+          todo = (wr->m_topic->m_entity.m_hdllink.hdl == topic) ? CHANGE : NOP;
+          break;
+        case DDS_KIND_PUBLISHER:
+        case DDS_KIND_SUBSCRIBER:
+          todo = PROP;
+          break;
+        default:
+          todo = NOP;
+          break;
+        }
+      }
+      if (todo == CHANGE)
+      {
+        dds_topic *tp;
+        if (dds_topic_lock (topic, &tp) == DDS_RETCODE_OK)
+        {
+          dds_set_qos_locked_impl (e, tp->m_entity.m_qos, QP_TOPIC_DATA);
+          dds_topic_unlock (tp);
+        }
+      }
+      dds_entity_unlock (e);
+      if (todo == PROP)
+      {
+        pushdown_topic_qos (cs[i], topic);
+      }
+    }
+  }
+  ddsrt_free (cs);
+}
+
 dds_return_t dds_set_qos (dds_entity_t entity, const dds_qos_t *qos)
 {
   dds_entity *e;
   dds_return_t ret;
-
   if (qos == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
-
-  if ((ret = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+  else if ((ret = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
     return ret;
-
-  if (e->m_deriver.set_qos == 0)
-    ret = DDS_RETCODE_ILLEGAL_OPERATION;
   else
   {
-    if ((ret = e->m_deriver.set_qos (e, qos, e->m_flags & DDS_ENTITY_ENABLED)) == DDS_RETCODE_OK)
+    const dds_entity_kind_t kind = dds_entity_kind (e);
+    dds_entity_t pphandle = e->m_participant->m_hdllink.hdl;
+    if (e->m_deriver.set_qos == 0)
+      ret = DDS_RETCODE_ILLEGAL_OPERATION;
+    else
+      ret = dds_set_qos_locked_impl (e, qos, entity_kind_qos_mask (kind));
+    dds_entity_unlock (e);
+    if (ret == DDS_RETCODE_OK)
     {
-      if (e->m_qos == NULL)
-        e->m_qos = dds_create_qos ();
-      ret = dds_copy_qos (e->m_qos, qos);
+      switch (dds_entity_kind (e))
+      {
+        case DDS_KIND_TOPIC:
+          pushdown_topic_qos (pphandle, entity);
+          break;
+        case DDS_KIND_PUBLISHER:
+        case DDS_KIND_SUBSCRIBER:
+          pushdown_pubsub_qos (entity);
+          break;
+        default:
+          break;
+      }
     }
   }
-  dds_entity_unlock (e);
   return ret;
 }
 

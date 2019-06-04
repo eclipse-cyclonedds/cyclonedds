@@ -17,7 +17,6 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_plist.h" /* for nn_keyhash */
 #include "dds__init.h"
-#include "dds__qos.h"
 #include "dds__domain.h"
 #include "dds__participant.h"
 #include "dds__types.h"
