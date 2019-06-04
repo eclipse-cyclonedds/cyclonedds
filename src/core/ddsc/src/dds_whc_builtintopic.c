@@ -62,7 +62,7 @@ static void bwhc_sample_iter_init (const struct whc *whc_generic, struct whc_sam
 static bool is_visible (const struct entity_common *e)
 {
   const nn_vendorid_t vendorid = get_entity_vendorid (e);
-  return ddsi_plugin.builtintopic_is_visible (e->guid.entityid, e->onlylocal, vendorid);
+  return ddsi_plugin.builtintopic_is_visible (&e->guid, vendorid);
 }
 
 static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, struct whc_borrowed_sample *sample)

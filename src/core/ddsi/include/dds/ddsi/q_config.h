@@ -397,7 +397,8 @@ struct ddsi_plugin
   int (*init_fn) (void);
   void (*fini_fn) (void);
 
-  bool (*builtintopic_is_visible) (nn_entityid_t entityid, bool onlylocal, nn_vendorid_t vendorid);
+  bool (*builtintopic_is_builtintopic) (const struct ddsi_sertopic *topic);
+  bool (*builtintopic_is_visible) (const nn_guid_t *guid, nn_vendorid_t vendorid);
   struct ddsi_tkmap_instance * (*builtintopic_get_tkmap_entry) (const struct nn_guid *guid);
   void (*builtintopic_write) (const struct entity_common *e, nn_wctime_t timestamp, bool alive);
 
