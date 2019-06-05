@@ -36,7 +36,7 @@ build_script:
   - mkdir build
   - cd build
   - conan install -s arch=%ARCH% -s build_type=%CONFIGURATION% ..
-  - cmake -DBUILD_TESTING=on -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DCMAKE_INSTALL_PREFIX=%CD%/install -G "%GENERATOR%" ../src
+  - cmake -DBUILD_TESTING=on -DWERROR=ON -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DCMAKE_INSTALL_PREFIX=%CD%/install -G "%GENERATOR%" ../src
   - cmake --build . --config %CONFIGURATION% --target install -- /maxcpucount
   - cd install/share/CycloneDDS/examples/helloworld
   - mkdir build

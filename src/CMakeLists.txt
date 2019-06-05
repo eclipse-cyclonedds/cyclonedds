@@ -22,6 +22,11 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+# By default don't treat warnings as errors, else anyone building it with a different compiler that
+# just happens to generate a warning, as well as anyone adding or modifying something and making a
+# small mistake would run into errors.  CI builds can be configured differently.
+option(WERROR "Treat compiler warnings as errors" OFF)
+
 FUNCTION(PREPEND var prefix)
    SET(listVar "")
    FOREACH(f ${ARGN})
@@ -86,18 +91,30 @@ endif()
 
 # Set reasonably strict warning options for clang, gcc, msvc
 # Enable coloured ouput if Ninja is used for building
-if(${CMAKE_C_COMPILER_ID} STREQUAL "Clang" OR ${CMAKE_C_COMPILER_ID} STREQUAL "AppleClang")
-  add_definitions(-Wall -Wextra -Wconversion -Wunused -Wmissing-prototypes)
-  if(${CMAKE_GENERATOR} STREQUAL "Ninja")
-    add_definitions(-Xclang -fcolor-diagnostics)
+if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang")
+  #message(STATUS clang)
+  add_compile_options(-Wall -Wextra -Wconversion -Wunused -Wmissing-prototypes)
+  if(${WERROR})
+    add_compile_options(-Werror)
   endif()
-elseif(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
-  add_definitions(-Wall -Wextra -Wconversion -Wmissing-prototypes)
-  if(${CMAKE_GENERATOR} STREQUAL "Ninja")
-    add_definitions(-fdiagnostics-color=always)
+  if("${CMAKE_GENERATOR}" STREQUAL "Ninja")
+    add_compile_options(-Xclang -fcolor-diagnostics)
   endif()
-elseif(${CMAKE_C_COMPILER_ID} STREQUAL "MSVC")
-  add_definitions(/W3)
+elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+  #message(STATUS gcc)
+  add_compile_options(-Wall -Wextra -Wconversion -Wmissing-prototypes)
+  if(${WERROR})
+    add_compile_options(-Werror)
+  endif()
+  if("${CMAKE_GENERATOR}" STREQUAL "Ninja")
+    add_compile_options(-fdiagnostics-color=always)
+  endif()
+elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+  #message(STATUS msvc)
+  add_compile_options(/W3)
+  if(${WERROR})
+    add_compile_options(/WX)
+  endif()
 endif()
 
 # I don't know how to enable warnings properly so that it ends up in Xcode projects as well

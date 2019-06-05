@@ -164,6 +164,7 @@ script:
           -DCMAKE_INSTALL_PREFIX=$(pwd)/install
           -DUSE_SANITIZER=${ASAN}
           -DBUILD_TESTING=on
+          -DWERROR=on
           -G "${GENERATOR}" ../src
   - ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install
   - CYCLONEDDS_URI='<CycloneDDS><DDSI2E><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></DDSI2E></CycloneDDS>' ctest -T test -C ${BUILD_TYPE}
