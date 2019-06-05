@@ -51,6 +51,8 @@ set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}/src")
 add_library(idll STATIC
     "${source_dir}/parser.c"
     "${source_dir}/tt_create.c"
+    "${source_dir}/gen_c99.c"
+    "${source_dir}/gen_ostream.c"
     "${BISON_parser_OUTPUTS}"
     "${FLEX_lexer_OUTPUTS}")
 
