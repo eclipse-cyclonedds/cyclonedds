@@ -343,7 +343,6 @@ CU_Test(parser, topic_keys)
     CU_ASSERT(struct_s->struct_def.keys != NULL);
     CU_ASSERT(struct_s->struct_def.keys->member == decl_a);
   ddsts_free_type(root_type);
-  
 }
 
 CU_Test(parser, errors)
@@ -399,6 +398,10 @@ CU_Test(parser, errors)
   CU_ASSERT(ddsts_idl_parse_string("struct s{map<char,char!> m;};", &root_type) == DDS_RETCODE_ERROR);
   CU_ASSERT(ddsts_idl_parse_string("struct s{map<char,!char> m;};", &root_type) == DDS_RETCODE_ERROR);
   CU_ASSERT(ddsts_idl_parse_string("struct s{map<char!,char> m;};", &root_type) == DDS_RETCODE_ERROR);
+  CU_ASSERT(ddsts_idl_parse_string("struct v{char c;};struct s{v", &root_type) == DDS_RETCODE_ERROR);
+  CU_ASSERT(ddsts_idl_parse_string("struct v{char c;};struct s{sequence<v>", &root_type) == DDS_RETCODE_ERROR);
+  CU_ASSERT(ddsts_idl_parse_string("struct v{char c;};struct s{sequence<v", &root_type) == DDS_RETCODE_ERROR);
+  CU_ASSERT(ddsts_idl_parse_string("struct v{char c;};struct s{map<v,v", &root_type) == DDS_RETCODE_ERROR);
   CU_ASSERT(ddsts_idl_parse_string("struct s{@key string a[4];};", &root_type) == DDS_RETCODE_ERROR);
   CU_ASSERT(ddsts_idl_parse_string("struct s{@key sequence<char> a;};", &root_type) == DDS_RETCODE_ERROR);
   CU_ASSERT(ddsts_idl_parse_string("struct s{@key struct{sequence<char> cs;} a;};", &root_type) == DDS_RETCODE_ERROR);
@@ -417,5 +420,6 @@ CU_Test(parser, errors)
   CU_ASSERT(ddsts_idl_parse_string("module a{ struct s{char c;};}; module b { struct t{@ key a::s x;};};", &root_type) == DDS_RETCODE_ERROR);
   CU_ASSERT(ddsts_idl_parse_string("module a{ struct s{char c;};}; module b { struct t{@key a ::s x;};};", &root_type) == DDS_RETCODE_ERROR);
   CU_ASSERT(ddsts_idl_parse_string("module a{ struct s{char c;};}; module b { struct t{@key a:: s x;};};", &root_type) == DDS_RETCODE_ERROR);
+  CU_ASSERT(ddsts_idl_parse_string("struct v;struct s{v a;};struct v{char x;};", &root_type) == DDS_RETCODE_ERROR);
 }
 

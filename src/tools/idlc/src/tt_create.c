@@ -387,9 +387,7 @@ static void context_free_annotations(ddsts_context_t *context)
 
 static void ddsts_context_close_member(ddsts_context_t *context)
 {
-  if (context->type_for_declarator != NULL && context->type_for_declarator->type.parent == NULL) {
-    ddsts_free_type(context->type_for_declarator);
-  }
+  ddsts_free_type(context->type_for_declarator);
   context->type_for_declarator = NULL;
   ddsts_context_free_array_sizes(context);
 }
@@ -512,12 +510,20 @@ extern bool ddsts_add_struct_extension_open(ddsts_context_t *context, ddsts_iden
   return true;
 }
 
-extern bool ddsts_add_struct_member(ddsts_context_t *context, ddsts_type_t **ref_spec_type)
+extern bool ddsts_add_struct_member(ddsts_context_t *context, ddsts_type_t **ref_type)
 {
   assert(cur_scope_is_definition_type(context, DDSTS_STRUCT));
   ddsts_context_close_member(context);
-  context->type_for_declarator = *ref_spec_type;
-  *ref_spec_type = NULL;
+  ddsts_type_t *type = *ref_type;
+  if (DDSTS_IS_TYPE(type, DDSTS_FORWARD_STRUCT)) {
+    if (type->forward.definition == NULL) {
+      DDS_ERROR("Cannot use forward struct as type for member declaration\n");
+      return false;
+    }
+    type = type->forward.definition;
+  }
+  context->type_for_declarator = type;
+  *ref_type = NULL;
   return true;
 }
 
@@ -817,4 +823,3 @@ extern void ddsts_accept(ddsts_context_t *context)
   assert(context != NULL);
   context->retcode = context->semantic_error ? DDS_RETCODE_ERROR : DDS_RETCODE_OK;
 }
-
