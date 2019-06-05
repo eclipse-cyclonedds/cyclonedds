@@ -99,7 +99,16 @@ DDS_EXPORT void ddsts_free_literal(ddsts_literal_t *literal);
 
 typedef union ddsts_type ddsts_type_t;
 
-DDS_EXPORT void ddsts_free_type(ddsts_type_t *type);
+/**
+ * @brief Frees a type with all its parts
+ *
+ * @param[in]  type   A pointer to a type. Pointer may be NULL.
+ *
+ * @returns A dds_return_t indicating success or failure. Returns failure
+ * when the type is part of another type.
+ */
+DDS_EXPORT dds_return_t
+ddsts_free_type(ddsts_type_t *type);
 
 typedef struct ddsts_typespec ddsts_typespec_t;
 struct ddsts_typespec {
@@ -334,7 +343,7 @@ typedef struct {
   ddsts_type_list_t members;
   ddsts_struct_key_t *keys;
 } ddsts_struct_t;
- 
+
 struct ddsts_struct_key {
   ddsts_type_t *member;
   ddsts_struct_key_t *next;
@@ -435,5 +444,31 @@ union ddsts_type {
   ddsts_struct_t struct_def;
   ddsts_declaration_t declaration;
 };
+
+/* Utility functions */
+
+/* Some of the algorithms on the type tree, need to know the path through which
+ * the type was reached, for example, when a reference to another part of the
+ * type tree was followed.
+ */
+
+typedef struct ddsts_call_path ddsts_call_path_t;
+struct ddsts_call_path {
+  ddsts_type_t *type;
+  ddsts_call_path_t *call_parent;
+};
+
+/**
+ * @brief Calculates whether a given declaration is a key in a given path
+ *
+ * @param[in]  path     An call path to a struct member declaration
+ * @param[out] is_key   Is set to true when declaration is a key in the given
+ *                      path, otherwise false. Undefined in case of failure
+ *                      due to error.
+ *
+ * @returns A dds_return_t indication success or failure.
+ */
+DDS_EXPORT dds_return_t
+ddsts_declaration_is_key(ddsts_call_path_t *path, bool *is_key);
 
 #endif /* DDS_TYPE_TYPETREE_H */
