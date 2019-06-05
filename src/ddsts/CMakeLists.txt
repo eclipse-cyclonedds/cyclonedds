@@ -12,7 +12,9 @@
 
 include(GenerateExportHeader)
 
-PREPEND(srcs_ddsts "${CMAKE_CURRENT_SOURCE_DIR}/src" typetree.c)
+PREPEND(srcs_ddsts "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    typetree.c
+    type_walk.c)
 set(headers
     "include/dds/ddsts/typetree.h")
 

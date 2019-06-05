@@ -17,6 +17,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsts/typetree.h"
 #include "parser.h"
+#include "gen_c99.h"
 
 static void
 usage(const char *prog)
@@ -32,12 +33,12 @@ main(int argc, char *argv[])
     return EXIT_FAILURE;
   }
 
-  dds_set_log_mask(DDS_LC_ALL);
-
   ddsts_type_t *root_type = NULL;
   if (ddsts_idl_parse_file(argv[1], &root_type) != DDS_RETCODE_OK) {
     return EXIT_FAILURE;
   }
+
+  ddsts_generate_C99(argv[1], root_type);
 
   ddsts_free_type(root_type);
 
