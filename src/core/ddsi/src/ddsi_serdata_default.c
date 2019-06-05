@@ -333,7 +333,7 @@ static struct ddsi_serdata *serdata_default_from_ser_nokey (const struct ddsi_se
   return fix_serdata_default_nokey (d, tpcmn->serdata_basehash);
 }
 
-struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
+static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
 {
   /* FIXME: not quite sure this is correct, though a check against a specially hacked OpenSplice suggests it is */
   const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
@@ -360,7 +360,7 @@ struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_sertopic *
   }
 }
 
-struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr_nokey (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
+static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr_nokey (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
 {
   const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
   struct ddsi_serdata_default *d = serdata_default_new(tp, SDK_KEY);

@@ -14,7 +14,6 @@
 #include <assert.h>
 
 #include "mpt/mpt.h"
-#include "rwdata.h"
 
 #include "dds/dds.h"
 
@@ -22,6 +21,9 @@
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/heap.h"
+
+#include "ppud.h"
+#include "rwdata.h"
 
 void ppud_init (void) { }
 void ppud_fini (void) { }

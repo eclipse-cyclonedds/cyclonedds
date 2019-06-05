@@ -24,7 +24,7 @@
 static dds_entity_t entity = -1;
 
 /* Fixture to create prerequisite entity */
-void create_entity(void)
+static void create_entity(void)
 {
     CU_ASSERT_EQUAL_FATAL(entity, -1);
     entity = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
@@ -32,7 +32,7 @@ void create_entity(void)
 }
 
 /* Fixture to delete prerequisite entity */
-void delete_entity(void)
+static void delete_entity(void)
 {
     CU_ASSERT_FATAL(entity > 0);
     dds_return_t ret = dds_delete(entity);
@@ -66,7 +66,7 @@ CU_Test(ddsc_entity, enable, .init = create_entity, .fini = delete_entity)
     CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 }
 
-void entity_qos_get_set(dds_entity_t e, const char* info)
+static void entity_qos_get_set(dds_entity_t e, const char* info)
 {
     dds_return_t status;
     dds_qos_t *qos = dds_create_qos();

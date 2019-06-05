@@ -943,7 +943,7 @@ void setqos_from_args(dds_entity_kind_t qt, dds_qos_t *q, int n, const char *arg
 
 #define DDS_ERR_MSG_MAX 128
 
-void dds_fail (const char * msg, const char * where)
+static void dds_fail (const char * msg, const char * where)
 {
   fprintf (stderr, "Aborting Failure: %s %s\n", where, msg);
   abort ();

@@ -44,6 +44,7 @@ extern "C" {
 
 #define CU_Theory(signature, suite, test, ...)                            \
   static void CU_TestName(suite, test) signature;                         \
+  void CU_TestProxyName(suite, test)(void);                               \
                                                                           \
   void CU_TestProxyName(suite, test)(void) {                              \
     cu_data_t data = CU_Fixture(__VA_ARGS__);                             \

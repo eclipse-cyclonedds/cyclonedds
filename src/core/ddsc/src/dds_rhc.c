@@ -217,12 +217,14 @@ static int lwregs_delete (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
   return ddsrt_ehh_remove (rt->regs, &dummy);
 }
 
+#if 0
 void lwregs_dump (struct lwregs *rt)
 {
   struct ddsrt_ehh_iter it;
   for (struct lwreg *r = ddsrt_ehh_iter_first(rt->regs, &it); r; r = ddsrt_ehh_iter_next(&it))
     printf("iid=%"PRIu64" wr_iid=%"PRIu64"\n", r->iid, r->wr_iid);
 }
+#endif
 
 /*************************
  ******     RHC     ******

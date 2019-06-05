@@ -5,7 +5,6 @@
 #include "mpt/mpt.h"
 
 #include "dds/dds.h"
-#include "helloworlddata.h"
 
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/strtol.h"
@@ -14,6 +13,8 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/sync.h"
 
+#include "hello.h"
+#include "helloworlddata.h"
 
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1

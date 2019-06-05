@@ -384,24 +384,6 @@ void copy_addrset_into_addrset_no_ssm (struct addrset *as, const struct addrset 
   copy_addrset_into_addrset_uc (as, asadd);
   copy_addrset_into_addrset_no_ssm_mc (as, asadd);
 }
-
-void addrset_purge_ssm (struct addrset *as)
-{
-  struct addrset_node *n;
-  LOCK (as);
-  n = ddsrt_avl_cfind_min (&addrset_treedef, &as->mcaddrs);
-  while (n)
-  {
-    struct addrset_node *n1 = n;
-    n = ddsrt_avl_cfind_succ (&addrset_treedef, &as->mcaddrs, n);
-    if (ddsi_is_ssm_mcaddr (&n1->loc))
-    {
-      ddsrt_avl_cdelete (&addrset_treedef, &as->mcaddrs, n1);
-      ddsrt_free (n1);
-    }
-  }
-  UNLOCK (as);
-}
 #endif
 
 size_t addrset_count (const struct addrset *as)
