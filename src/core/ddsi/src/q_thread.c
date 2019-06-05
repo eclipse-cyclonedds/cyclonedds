@@ -46,7 +46,7 @@ extern inline void thread_state_awake_to_awake_no_nest (struct thread_state1 *ts
 
 static struct thread_state1 *init_thread_state (const char *tname, enum thread_state state);
 
-void *ddsrt_malloc_aligned_cacheline (size_t size)
+static void *ddsrt_malloc_aligned_cacheline (size_t size)
 {
   /* This wastes some space, but we use it only once and it isn't a
      huge amount of memory, just a little over a cache line.

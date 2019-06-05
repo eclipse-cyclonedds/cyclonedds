@@ -139,6 +139,9 @@ ddsrt_cdtor(
   #pragma data_seg()
  #endif
 #else /* _WIN32 */
+void __attribute__((constructor)) ddsrt_ctor(void);
+void __attribute__((destructor)) ddsrt_dtor(void);
+
 void __attribute__((constructor)) ddsrt_ctor(void)
 {
   ddsrt_init();

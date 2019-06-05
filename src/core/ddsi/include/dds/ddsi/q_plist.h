@@ -230,6 +230,7 @@ DDS_EXPORT nn_plist_t *nn_plist_dup (const nn_plist_t *src);
  */
 DDS_EXPORT dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const nn_plist_src_t *src);
 DDS_EXPORT void nn_plist_fini (nn_plist_t *ps);
+DDS_EXPORT void nn_plist_unalias (nn_plist_t *plist);
 DDS_EXPORT void nn_plist_addtomsg (struct nn_xmsg *m, const nn_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
 DDS_EXPORT void nn_plist_init_default_participant (nn_plist_t *plist);
 

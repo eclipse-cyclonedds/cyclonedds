@@ -133,7 +133,7 @@ static bool dds_waitset_remove_from_list (dds_attachment **list, dds_entity_t ob
   return true;
 }
 
-dds_return_t dds_waitset_close (struct dds_entity *e)
+static dds_return_t dds_waitset_close (struct dds_entity *e)
 {
   dds_waitset *ws = (dds_waitset *) e;
   dds_waitset_close_list (&ws->observed,  e->m_hdllink.hdl);
@@ -206,7 +206,7 @@ static void dds_waitset_remove (dds_waitset *ws, dds_entity_t observed)
 }
 
 /* This is called when the observed entity signals a status change. */
-void dds_waitset_observer (dds_entity_t observer, dds_entity_t observed, uint32_t status)
+static void dds_waitset_observer (dds_entity_t observer, dds_entity_t observed, uint32_t status)
 {
   dds_waitset *ws;
   if (dds_waitset_lock (observer, &ws) == DDS_RETCODE_OK) {

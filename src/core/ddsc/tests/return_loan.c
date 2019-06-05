@@ -15,9 +15,9 @@
 #include <stdio.h>
 #include "CUnit/Test.h"
 
-dds_entity_t participant = 0, topic = 0, reader = 0, read_condition = 0;
+static dds_entity_t participant = 0, topic = 0, reader = 0, read_condition = 0;
 
-void create_entities(void)
+static void create_entities(void)
 {
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant > 0);
@@ -32,7 +32,7 @@ void create_entities(void)
     CU_ASSERT_FATAL(read_condition > 0);
 }
 
-void delete_entities(void)
+static void delete_entities(void)
 {
     dds_return_t result;
     result = dds_delete(participant);

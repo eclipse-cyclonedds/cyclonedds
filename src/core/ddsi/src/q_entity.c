@@ -190,7 +190,7 @@ static void entity_common_fini (struct entity_common *e)
   ddsrt_mutex_destroy (&e->lock);
 }
 
-void local_reader_ary_init (struct local_reader_ary *x)
+static void local_reader_ary_init (struct local_reader_ary *x)
 {
   ddsrt_mutex_init (&x->rdary_lock);
   x->valid = 1;
@@ -200,13 +200,13 @@ void local_reader_ary_init (struct local_reader_ary *x)
   x->rdary[0] = NULL;
 }
 
-void local_reader_ary_fini (struct local_reader_ary *x)
+static void local_reader_ary_fini (struct local_reader_ary *x)
 {
   ddsrt_free (x->rdary);
   ddsrt_mutex_destroy (&x->rdary_lock);
 }
 
-void local_reader_ary_insert (struct local_reader_ary *x, struct reader *rd)
+static void local_reader_ary_insert (struct local_reader_ary *x, struct reader *rd)
 {
   ddsrt_mutex_lock (&x->rdary_lock);
   x->n_readers++;
@@ -216,7 +216,7 @@ void local_reader_ary_insert (struct local_reader_ary *x, struct reader *rd)
   ddsrt_mutex_unlock (&x->rdary_lock);
 }
 
-void local_reader_ary_remove (struct local_reader_ary *x, struct reader *rd)
+static void local_reader_ary_remove (struct local_reader_ary *x, struct reader *rd)
 {
   uint32_t i;
   ddsrt_mutex_lock (&x->rdary_lock);
@@ -242,7 +242,7 @@ void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_
   ddsrt_mutex_unlock (&x->rdary_lock);
 }
 
-void local_reader_ary_setinvalid (struct local_reader_ary *x)
+static void local_reader_ary_setinvalid (struct local_reader_ary *x)
 {
   ddsrt_mutex_lock (&x->rdary_lock);
   x->valid = 0;

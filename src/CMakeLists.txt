@@ -87,12 +87,12 @@ endif()
 # Set reasonably strict warning options for clang, gcc, msvc
 # Enable coloured ouput if Ninja is used for building
 if(${CMAKE_C_COMPILER_ID} STREQUAL "Clang" OR ${CMAKE_C_COMPILER_ID} STREQUAL "AppleClang")
-  add_definitions(-Wall -Wextra -Wconversion -Wunused)
+  add_definitions(-Wall -Wextra -Wconversion -Wunused -Wmissing-prototypes)
   if(${CMAKE_GENERATOR} STREQUAL "Ninja")
     add_definitions(-Xclang -fcolor-diagnostics)
   endif()
 elseif(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
-  add_definitions(-Wall -Wextra -Wconversion)
+  add_definitions(-Wall -Wextra -Wconversion -Wmissing-prototypes)
   if(${CMAKE_GENERATOR} STREQUAL "Ninja")
     add_definitions(-fdiagnostics-color=always)
   endif()
@@ -131,6 +131,7 @@ if(${CMAKE_GENERATOR} STREQUAL "Xcode")
   set (CMAKE_XCODE_ATTRIBUTE_GCC_WARN_UNUSED_VALUE YES)
   set (CMAKE_XCODE_ATTRIBUTE_GCC_WARN_UNUSED_VARIABLE YES)
   set (CMAKE_XCODE_ATTRIBUTE_CLANG_WARN_DOCUMENTATION_COMMENTS YES)
+  set (CMAKE_XCODE_ATTRIBUTE_CLANG_WARN_MISSING_PROTOTYPES YES)
 endif()
 
 # Make it easy to enable one of Clang's/gcc's analyzers, and default to using

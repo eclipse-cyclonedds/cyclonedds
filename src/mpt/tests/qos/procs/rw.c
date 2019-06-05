@@ -16,7 +16,6 @@
 #include "mpt/mpt.h"
 
 #include "dds/dds.h"
-#include "rwdata.h"
 
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/process.h"
@@ -24,6 +23,9 @@
 #include "dds/ddsrt/heap.h"
 
 #include "dds/ddsi/q_xqos.h"
+
+#include "rwdata.h"
+#include "rw.h"
 
 #define NPUB 10
 #define NWR_PUB 2

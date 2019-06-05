@@ -65,7 +65,7 @@ typedef struct {
   ddsrt_threadattr_t *attr;
 } thread_arg_t;
 
-uint32_t thread_main(void *ptr)
+static uint32_t thread_main(void *ptr)
 {
   thread_arg_t *arg = (thread_arg_t *)ptr;
   ddsrt_threadattr_t *attr;
@@ -193,7 +193,7 @@ CU_Test(ddsrt_thread, thread_id)
 
 static ddsrt_mutex_t locks[2];
 
-uint32_t thread_main_waitforme(void *ptr)
+static uint32_t thread_main_waitforme(void *ptr)
 {
   uint32_t ret = 0;
   (void)ptr;
@@ -203,7 +203,7 @@ uint32_t thread_main_waitforme(void *ptr)
   return ret;
 }
 
-uint32_t thread_main_waitforit(void *ptr)
+static uint32_t thread_main_waitforit(void *ptr)
 {
   uint32_t res = 0;
   ddsrt_thread_t *thr = (ddsrt_thread_t *)ptr;

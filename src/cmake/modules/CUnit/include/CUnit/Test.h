@@ -28,21 +28,24 @@ typedef struct {
 #define CU_TestProxyName(suite, test) \
   CU_TestProxy_ ## suite ## _ ## test
 
-#define CU_Init(suite) \
-  int CU_InitName(suite)(void)
 #define CU_InitDecl(suite) \
-  extern CU_Init(suite)
+  extern int CU_InitName(suite)(void)
+#define CU_Init(suite) \
+  CU_InitDecl(suite); \
+  int CU_InitName(suite)(void)
 
-#define CU_Clean(suite) \
-  int CU_CleanName(suite)(void)
 #define CU_CleanDecl(suite) \
-  extern CU_Clean(suite)
+  extern int CU_CleanName(suite)(void)
+#define CU_Clean(suite) \
+  CU_CleanDecl(suite); \
+  int CU_CleanName(suite)(void)
 
 /* CU_Test generates a wrapper function that takes care of per-test
    initialization and deinitialization, if provided in the CU_Test
    signature. */
 #define CU_Test(suite, test, ...)                          \
   static void CU_TestName(suite, test)(void);              \
+  void CU_TestProxyName(suite, test)(void);                \
                                                            \
   void CU_TestProxyName(suite, test)(void) {               \
     cu_data_t data = CU_Fixture(__VA_ARGS__);              \

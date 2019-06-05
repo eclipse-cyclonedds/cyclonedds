@@ -408,7 +408,7 @@ static void ddsi_udp_release_conn (ddsi_tran_conn_t conn)
   ddsrt_free (conn);
 }
 
-void ddsi_udp_fini (void)
+static void ddsi_udp_fini (void)
 {
     if(ddsrt_atomic_dec32_nv (&ddsi_udp_init_g) == 0) {
         free_group_membership(ddsi_udp_config_g.mship);
