@@ -18,19 +18,23 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsts/typetree.h"
-
-#define YYSTYPE DDSTS_PARSER_STYPE
-#define YYLTYPE DDSTS_PARSER_LTYPE
-
-#define YY_TYPEDEF_YY_SCANNER_T
-typedef void* yyscan_t;
-
-#define YY_NO_UNISTD_H 1 /* to suppress #include <unistd.h> */
-
 #include "parser.h"
 #include "idl.parser.h"
 #include "yy_decl.h"
+#define YY_NO_UNISTD_H 1 /* to suppress #include <unistd.h> in: */
 #include "idl.lexer.h"
+
+static void log_write_to_file(void *ptr, const dds_log_data_t *data)
+{
+  if (data->priority == DDS_LC_ERROR) {
+    fprintf((FILE *)ptr, "Error at ");
+  }
+  else if (data->priority == DDS_LC_WARNING) {
+    fprintf((FILE *)ptr, "Warning at ");
+  }
+  fprintf((FILE *)ptr, "%*.*s\n", (int)data->size, (int)data->size, data->message);
+  fflush((FILE *)ptr);
+}
 
 dds_return_t ddsts_idl_parse_file(const char *file, ddsts_type_t **ref_root_type)
 {
@@ -52,6 +56,9 @@ DDSRT_WARNING_MSVC_ON(4996);
   if (context == NULL) {
     return DDS_RETCODE_OUT_OF_RESOURCES;
   }
+  uint32_t log_mask = dds_get_log_mask();
+  dds_set_log_mask(DDS_LC_FATAL | DDS_LC_ERROR | DDS_LC_WARNING);
+  dds_set_log_sink(log_write_to_file, stderr);
   yyscan_t scanner;
   ddsts_parser_lex_init(&scanner);
   ddsts_parser_set_in(fh, scanner);
@@ -62,6 +69,8 @@ DDSRT_WARNING_MSVC_ON(4996);
   }
   ddsts_free_context(context);
   ddsts_parser_lex_destroy(scanner);
+  dds_set_log_sink(0, NULL);
+  dds_set_log_mask(log_mask);
   (void)fclose(fh);
 
   return rc;
@@ -78,6 +87,9 @@ dds_return_t ddsts_idl_parse_string(const char *str, ddsts_type_t **ref_root_typ
   if (context == NULL) {
     return DDS_RETCODE_OUT_OF_RESOURCES;
   }
+  uint32_t log_mask = dds_get_log_mask();
+  dds_set_log_mask(DDS_LC_FATAL | DDS_LC_ERROR | DDS_LC_WARNING);
+  dds_set_log_sink(log_write_to_file, stderr);
   yyscan_t scanner;
   ddsts_parser_lex_init(&scanner);
   ddsts_parser__scan_string(str, scanner);
@@ -88,6 +100,8 @@ dds_return_t ddsts_idl_parse_string(const char *str, ddsts_type_t **ref_root_typ
   }
   ddsts_free_context(context);
   ddsts_parser_lex_destroy(scanner);
+  dds_set_log_sink(0, NULL);
+  dds_set_log_mask(log_mask);
 
   return rc;
 }

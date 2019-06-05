@@ -16,10 +16,6 @@
 #include <string.h>
 #include "dds/ddsrt/strtol.h"
 
-/* YYSTYPE and YYLTYPE defines are required because idl.y defines api.prefix */
-#define YYSTYPE DDSTS_PARSER_STYPE
-#define YYLTYPE DDSTS_PARSER_LTYPE
-
 #include "idl.parser.h"
 /* YY_DECL must be defined here because yyparse passes an additional argument */
 #include "yy_decl.h"
@@ -37,9 +33,6 @@
       } \
     }
 
-#define yyerror ddsts_parser_error
-int yyerror(YYLTYPE *yylloc, yyscan_t yyscanner, ddsts_context_t *context, char *text);
-
 #define yyterminate() return DDSTS_END_TOKEN
 
 %}
@@ -48,7 +41,7 @@ int yyerror(YYLTYPE *yylloc, yyscan_t yyscanner, ddsts_context_t *context, char 
 %x COMMENT
 %x INSTRING
 %x INWSTRING
-%x NOWS
+%x NO_WS
 %x DIRECTIVE
 
 %option noyywrap
@@ -61,26 +54,26 @@ int yyerror(YYLTYPE *yylloc, yyscan_t yyscanner, ddsts_context_t *context, char 
 
 number                    [1-9][0-9]*
 octal_number              0[0-7]*
-hexadecimal_number        0[xX][a-fA-F0-9]*
+hexadecimal_number        0[xX][a-fA-F0-9]+
 integer_literal           ({number}|{octal_number}|{hexadecimal_number})
 identifier                [a-zA-Z_][a-zA-Z0-9_]*
 
 %%
 
-<INITIAL,NOWS>[ \t\r]     { BEGIN(INITIAL); }
-<INITIAL,NOWS>[\n]        { BEGIN(INITIAL); }
+<INITIAL,NO_WS>[ \t\r]    { BEGIN(INITIAL); }
+<INITIAL,NO_WS>[\n]       { BEGIN(INITIAL); }
 
-<INITIAL,NOWS>"/*"        { BEGIN(MULTILINE_COMMENT); }
+<INITIAL,NO_WS>"/*"       { BEGIN(MULTILINE_COMMENT); }
 <MULTILINE_COMMENT>.      { }
 <MULTILINE_COMMENT>"\n"   { }
 <MULTILINE_COMMENT>"*/"   { BEGIN(INITIAL); }
 
-<INITIAL,NOWS>"//"        { BEGIN(COMMENT); }
+<INITIAL,NO_WS>"//"       { BEGIN(COMMENT); }
 <COMMENT>.                { }
 <COMMENT>"\n"             { BEGIN(INITIAL); }
 
 
-<INITIAL,NOWS>{integer_literal} {
+<INITIAL,NO_WS>{integer_literal} {
                             BEGIN(INITIAL);
                             yylval->literal.flags = DDSTS_ULONGLONG;
                             yylval->literal.value.ullng = 0u;
@@ -98,19 +91,16 @@ identifier                [a-zA-Z_][a-zA-Z0-9_]*
                               return token_number;
                             }
                             yylval->identifier = yytext;
-                            if (yylval->identifier == NULL) {
-                              yyerror(yylloc_param, yyscanner, context, "Could not copy identifier");
-                            }
-                            BEGIN(NOWS);
+                            BEGIN(NO_WS);
                             return DDSTS_IDENTIFIER_TOKEN;
                           }
 
 <INITIAL>"::"             {
-                            BEGIN(NOWS);
+                            BEGIN(NO_WS);
                             return DDSTS_COLON_COLON_TOKEN;
                           }
 
-<NOWS>{identifier}        {
+<NO_WS>{identifier}       {
                             int token_number;
                             if (ddsts_parser_token_matches_keyword(yytext, &token_number)) {
                               return token_number;
@@ -122,22 +112,22 @@ identifier                [a-zA-Z_][a-zA-Z0-9_]*
                             return DDSTS_NOWS_IDENTIFIER_TOKEN;
                           }
 
-<NOWS>"::"                {
+<NO_WS>"::"               {
                             return DDSTS_NOWS_COLON_COLON_TOKEN;
                           }
 
 
 <INITIAL>"@"              {
-                            BEGIN(NOWS);
-                            return DDSTS_AT_TOKEN;
+                            BEGIN(NO_WS);
+                            return '@';
                           }
 
-<INITIAL,NOWS>.           {
+<INITIAL,NO_WS>.          {
                             BEGIN(INITIAL);
                             return yytext[0];
                           }
 
-<INITIAL,NOWS>"#pragma"   {
+<INITIAL>"#pragma"        {
                             BEGIN(DIRECTIVE);
                             return DDSTS_PRAGMA_TOKEN;
                           }

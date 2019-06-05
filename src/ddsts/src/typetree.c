@@ -24,11 +24,15 @@ void ddsts_free_literal(ddsts_literal_t *literal)
   }
 }
 
-void ddsts_free_type(ddsts_type_t *type)
+dds_return_t ddsts_free_type(ddsts_type_t *type)
 {
   if (type != NULL) {
+    if (type->type.parent != NULL) {
+      return DDS_RETCODE_ERROR;
+    }
     type->type.free_func(type);
   }
+  return DDS_RETCODE_OK;
 }
 
 static void init_type_ref(ddsts_type_t **ref_type, ddsts_type_t *type, ddsts_type_t *parent, ddsts_flags_t ref_flag)
@@ -47,7 +51,7 @@ static void init_type_ref(ddsts_type_t **ref_type, ddsts_type_t *type, ddsts_typ
 static void free_type_ref(ddsts_type_t *type, ddsts_type_t *parent, ddsts_flags_t ref_flag)
 {
   if (type != NULL && (parent->type.flags & ref_flag) == 0) {
-    ddsts_free_type(type);
+    type->type.free_func(type);
   }
 }
 
@@ -55,7 +59,7 @@ static void free_children(ddsts_type_t *type)
 {
   while (type != NULL) {
     ddsts_type_t *next = type->type.next;
-    ddsts_free_type(type);
+    type->type.free_func(type);
     type = next;
   }
 }
@@ -372,6 +376,38 @@ dds_return_t ddsts_declaration_set_type(ddsts_type_t *declaration, ddsts_type_t 
 {
   assert(declaration->declaration.decl_type == NULL);
   init_type_ref(&declaration->declaration.decl_type, type, declaration, DDSTS_REFERENCE_1);
+  return DDS_RETCODE_OK;
+}
+
+/* Utility functions */
+
+dds_return_t
+ddsts_declaration_is_key(ddsts_call_path_t *path, bool *is_key)
+{
+  *is_key = false;
+  while (path != NULL && DDSTS_IS_TYPE(path->type, DDSTS_DECLARATION)) {
+    ddsts_call_path_t *struct_path = path->call_parent;
+    if (struct_path == NULL || !DDSTS_IS_TYPE(struct_path->type, DDSTS_STRUCT)) {
+      return DDS_RETCODE_ERROR;
+    }
+    *is_key = false;
+    if (struct_path->type->struct_def.keys != NULL) {
+      for (ddsts_struct_key_t *key = struct_path->type->struct_def.keys; key != NULL; key = key->next) {
+        if (key->member == path->type) {
+          *is_key = true;
+          break;
+        }
+      }
+      if (!*is_key) {
+        /* The structure has keys, but the declartion is not one of them. */
+        return DDS_RETCODE_OK;
+      }
+    }
+    path = struct_path->call_parent;
+  }
+  if (path == NULL || !DDSTS_IS_TYPE(path->type, DDSTS_MODULE)) {
+    return DDS_RETCODE_ERROR;
+  }
   return DDS_RETCODE_OK;
 }
 
