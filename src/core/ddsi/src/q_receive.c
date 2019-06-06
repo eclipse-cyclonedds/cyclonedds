@@ -104,20 +104,12 @@ static void maybe_set_reader_in_sync (struct proxy_writer *pwr, struct pwr_rd_ma
 
 static int valid_sequence_number_set (const nn_sequence_number_set_t *snset)
 {
-  if (fromSN (snset->bitmap_base) <= 0)
-    return 0;
-  if (snset->numbits <= 0 || snset->numbits > 256)
-    return 0;
-  return 1;
+  return (fromSN (snset->bitmap_base) > 0 && snset->numbits <= 256);
 }
 
 static int valid_fragment_number_set (const nn_fragment_number_set_t *fnset)
 {
-  if (fnset->bitmap_base <= 0)
-    return 0;
-  if (fnset->numbits <= 0 || fnset->numbits > 256)
-    return 0;
-  return 1;
+  return (fnset->bitmap_base > 0 && fnset->numbits <= 256);
 }
 
 static int valid_AckNack (AckNack_t *msg, size_t size, int byteswap)
@@ -136,25 +128,7 @@ static int valid_AckNack (AckNack_t *msg, size_t size, int byteswap)
   msg->writerId = nn_ntoh_entityid (msg->writerId);
   /* Validation following 8.3.7.1.3 + 8.3.5.5 */
   if (!valid_sequence_number_set (&msg->readerSNState))
-  {
-    if (NN_STRICT_P)
-      return 0;
-    else
-    {
-      /* RTI generates AckNacks with bitmapBase = 0 and numBits = 0
-         (and possibly others that I don't know about) - their
-         Wireshark RTPS dissector says that such a message has a
-         length-0 bitmap, which is to expected given the way the
-         length is computed from numbits */
-      if (fromSN (msg->readerSNState.bitmap_base) == 0 &&
-          msg->readerSNState.numbits == 0)
-        ; /* accept this one known case */
-      else if (msg->readerSNState.numbits == 0)
-        ; /* maybe RTI, definitely Twinoaks */
-      else
-        return 0;
-    }
-  }
+    return 0;
   /* Given the number of bits, we can compute the size of the AckNack
      submessage, and verify that the submessage is large enough */
   if (size < ACKNACK_SIZE (msg->readerSNState.numbits))
@@ -182,10 +156,7 @@ static int valid_Gap (Gap_t *msg, size_t size, int byteswap)
   if (fromSN (msg->gapStart) <= 0)
     return 0;
   if (!valid_sequence_number_set (&msg->gapList))
-  {
-    if (NN_STRICT_P || msg->gapList.numbits != 0)
-      return 0;
-  }
+    return 0;
   /* One would expect gapStart < gapList.base, but it is not required by
      the spec for the GAP to valid. */
   if (size < GAP_SIZE (msg->gapList.numbits))
@@ -564,7 +535,6 @@ static int add_Gap (struct nn_xmsg *msg, struct writer *wr, struct proxy_reader 
   struct nn_xmsg_marker sm_marker;
   Gap_t *gap;
   ASSERT_MUTEX_HELD (wr->e.lock);
-  assert (numbits > 0);
   gap = nn_xmsg_append (msg, &sm_marker, GAP_SIZE (numbits));
   nn_xmsg_submsg_init (msg, sm_marker, SMID_GAP);
   gap->readerId = nn_hton_entityid (prd->e.guid.entityid);
@@ -972,13 +942,6 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
          retransmit those messages anyway, so no need for round-trip
          to the remote reader. */
       gapend = grow_gap_to_next_seq (wr, gapend);
-    }
-    if (gapnumbits == 0)
-    {
-      /* Avoid sending an invalid bitset */
-      gapnumbits = 1;
-      nn_bitset_set (gapnumbits, gapbits, 0);
-      gapend--;
     }
     /* The non-bitmap part of a gap message says everything <=
        gapend-1 is no more (so the maximum sequence number it informs
