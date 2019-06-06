@@ -351,7 +351,6 @@ struct proxy_writer {
   unsigned last_fragnum_reset: 1; /* iff set, heartbeat advertising last_seq as highest seq resets last_fragnum */
   unsigned deliver_synchronously: 1; /* iff 1, delivery happens straight from receive thread for non-historical data; else through delivery queue "dqueue" */
   unsigned have_seen_heartbeat: 1; /* iff 1, we have received at least on heartbeat from this proxy writer */
-  unsigned assert_pp_lease: 1; /* iff 1, renew the proxy-participant's lease when data comes in */
   unsigned local_matching_inprogress: 1; /* iff 1, we are still busy matching local readers; this is so we don't deliver incoming data to some but not all readers initially */
 #ifdef DDSI_INCLUDE_SSM
   unsigned supports_ssm: 1; /* iff 1, this proxy writer supports SSM */
@@ -370,7 +369,6 @@ struct proxy_reader {
   struct proxy_endpoint_common c;
   unsigned deleting: 1; /* set when being deleted */
   unsigned is_fict_trans_reader: 1; /* only true when it is certain that is a fictitious transient data reader (affects built-in topic generation) */
-  unsigned assert_pp_lease: 1; /* iff 1, renew the proxy-participant's lease when data comes in */
 #ifdef DDSI_INCLUDE_SSM
   unsigned favours_ssm: 1; /* iff 1, this proxy reader favours SSM when available */
 #endif

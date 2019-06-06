@@ -4128,11 +4128,6 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   pwr->supports_ssm = (addrset_contains_ssm (as) && config.allowMulticast & AMC_SSM) ? 1 : 0;
 #endif
 
-  /* Only assert PP lease on receipt of data if enabled (duh) and the proxy participant is a
-     "real" participant, rather than the thing we use for endpoints discovered via the DS */
-  pwr->assert_pp_lease =
-    (unsigned) !!config.arrival_of_data_asserts_pp_and_ep_liveliness;
-
   assert (pwr->c.xqos->present & QP_LIVELINESS);
   if (pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC)
     DDS_LOG(DDS_LC_DISCOVERY, " FIXME: only AUTOMATIC liveliness supported");
@@ -4336,9 +4331,6 @@ int new_proxy_reader (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   prd->favours_ssm = (favours_ssm && config.allowMulticast & AMC_SSM) ? 1 : 0;
 #endif
   prd->is_fict_trans_reader = 0;
-  /* Only assert PP lease on receipt of data if enabled (duh) and the proxy participant is a
-     "real" participant, rather than the thing we use for endpoints discovered via the DS */
-  prd->assert_pp_lease = (unsigned) !!config.arrival_of_data_asserts_pp_and_ep_liveliness;
 
   ddsrt_avl_init (&prd_writers_treedef, &prd->writers);
 

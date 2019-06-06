@@ -372,7 +372,6 @@ struct config
   enum nn_standards_conformance standards_conformance;
   int explicitly_publish_qos_set_to_default;
   enum many_sockets_mode many_sockets_mode;
-  int arrival_of_data_asserts_pp_and_ep_liveliness;
   int assume_rti_has_pmd_endpoints;
 
   int port_dg;

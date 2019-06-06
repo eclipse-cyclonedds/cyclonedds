@@ -363,8 +363,9 @@ void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t time
         {
           /* Renew lease if arrival of this message didn't already do so, also renew the lease
              of the virtual participant used for DS-discovered endpoints */
-          if (!config.arrival_of_data_asserts_pp_and_ep_liveliness)
-            lease_renew (ddsrt_atomic_ldvoidp (&pp->lease), now_et ());
+#if 0 // FIXME: superfluous ... receipt of the message already did it */
+          lease_renew (ddsrt_atomic_ldvoidp (&pp->lease), now_et ());
+#endif
         }
       }
       break;

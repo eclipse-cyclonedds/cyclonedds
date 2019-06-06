@@ -432,8 +432,6 @@ static const struct cfgelem compatibility_cfgelems[] = {
   { LEAF ("ManySocketsMode"), 1, "single", ABSOFF (many_sockets_mode), 0, uf_many_sockets_mode, 0, pf_many_sockets_mode,
     BLURB("<p>This option specifies whether a network socket will be created for each domain participant on a host. The specification seems to assume that each participant has a unique address, and setting this option will ensure this to be the case. This is not the defeault.</p>\n\
 <p>Disabling it slightly improves performance and reduces network traffic somewhat. It also causes the set of port numbers needed by DDSI2E to become predictable, which may be useful for firewall and NAT configuration.</p>") },
-  { LEAF("ArrivalOfDataAssertsPpAndEpLiveliness"), 1, "true", ABSOFF(arrival_of_data_asserts_pp_and_ep_liveliness), 0, uf_boolean, 0, pf_boolean,
-    BLURB("<p>When set to true, arrival of a message from a peer asserts liveliness of that peer. When set to false, only SPDP and explicit lease renewals have this effect.</p>") },
   { LEAF("AssumeRtiHasPmdEndpoints"), 1, "false", ABSOFF(assume_rti_has_pmd_endpoints), 0, uf_boolean, 0, pf_boolean,
     BLURB("<p>This option assumes ParticipantMessageData endpoints required by the liveliness protocol are present in RTI participants even when not properly advertised by the participant discovery protocol.</p>") },
   END_MARKER
