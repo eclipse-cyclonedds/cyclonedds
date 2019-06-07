@@ -706,6 +706,7 @@ static ddsrt_socket_t ddsi_tcp_conn_handle (ddsi_tran_base_t base)
   return ((ddsi_tcp_conn_t) base)->m_sock;
 }
 
+ddsrt_attribute_no_sanitize (("thread"))
 static bool ddsi_tcp_supports (int32_t kind)
 {
   return kind == ddsi_tcp_factory_g.m_kind;
@@ -770,7 +771,7 @@ static ddsi_tran_conn_t ddsi_tcp_accept (ddsi_tran_listener_t listener)
     {
       rc = ddsrt_accept(tl->m_sock, NULL, NULL, &sock);
     }
-    if (! gv.rtps_keepgoing)
+    if (!ddsrt_atomic_ld32(&gv.rtps_keepgoing))
     {
       ddsi_tcp_sock_free (sock, NULL);
       return NULL;

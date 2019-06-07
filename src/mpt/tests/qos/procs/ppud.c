@@ -98,8 +98,8 @@ MPT_ProcessEntry (ppud,
             exp = "X";
           const size_t expsz = strlen (exp);
           bool eq = (usz == expsz && (usz == 0 || memcmp (ud, exp, usz) == 0));
-          printf ("%d: expected %u %zu/%s received %zu/%s\n",
-                  id, exp_index, expsz, exp, usz, ud ? (char *) ud : "(null)");
+          //printf ("%d: expected %u %zu/%s received %zu/%s\n",
+          //        id, exp_index, expsz, exp, usz, ud ? (char *) ud : "(null)");
           MPT_ASSERT (eq, "User data mismatch: expected %u %zu/%s received %zu/%s\n",
                       exp_index, expsz, exp, usz, ud ? (char *) ud : "(null)");
           if (strcmp (exp, "X") != 0 && ++exp_index == sizeof (exp_ud) / sizeof (exp_ud[0]))
@@ -235,8 +235,8 @@ MPT_ProcessEntry (rwud,
             exp = "X";
           const size_t expsz = first ? 1 : strlen (exp);
           bool eq = (usz == expsz && (usz == 0 || memcmp (ud, exp, usz) == 0));
-          printf ("%d: expected %u %zu/%s received %zu/%s\n",
-                  id, exp_index, expsz, exp, usz, ud ? (char *) ud : "(null)");
+          //printf ("%d: expected %u %zu/%s received %zu/%s\n",
+          //        id, exp_index, expsz, exp, usz, ud ? (char *) ud : "(null)");
           MPT_ASSERT (eq, "User data mismatch: expected %u %zu/%s received %zu/%s\n",
                       exp_index, expsz, exp, usz, ud ? (char *) ud : "(null)");
           if (strcmp (exp, "X") != 0 && ++exp_index == sizeof (exp_ud) / sizeof (exp_ud[0]))
@@ -372,8 +372,8 @@ MPT_ProcessEntry (rwtd,
             exp = "X";
           const size_t expsz = first ? 1 : strlen (exp);
           bool eq = (tsz == expsz && (tsz == 0 || memcmp (td, exp, tsz) == 0));
-          printf ("%d: expected %u %zu/%s received %zu/%s\n",
-                  id, exp_index, expsz, exp, tsz, td ? (char *) td : "(null)");
+          //printf ("%d: expected %u %zu/%s received %zu/%s\n",
+          //        id, exp_index, expsz, exp, tsz, td ? (char *) td : "(null)");
           MPT_ASSERT (eq, "Topic data mismatch: expected %u %zu/%s received %zu/%s\n",
                       exp_index, expsz, exp, tsz, td ? (char *) td : "(null)");
           if (strcmp (exp, "X") != 0 && ++exp_index == sizeof (exp_ud) / sizeof (exp_ud[0]))
@@ -511,8 +511,8 @@ MPT_ProcessEntry (rwgd,
             exp = "X";
           const size_t expsz = first ? 1 : strlen (exp);
           bool eq = (gsz == expsz && (gsz == 0 || memcmp (gd, exp, gsz) == 0));
-          printf ("%d: expected %u %zu/%s received %zu/%s\n",
-                  id, exp_index, expsz, exp, gsz, gd ? (char *) gd : "(null)");
+          //printf ("%d: expected %u %zu/%s received %zu/%s\n",
+          //        id, exp_index, expsz, exp, gsz, gd ? (char *) gd : "(null)");
           MPT_ASSERT (eq, "Group data mismatch: expected %u %zu/%s received %zu/%s\n",
                       exp_index, expsz, exp, gsz, gd ? (char *) gd : "(null)");
           if (strcmp (exp, "X") != 0 && ++exp_index == sizeof (exp_ud) / sizeof (exp_ud[0]))

@@ -968,7 +968,7 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
     whc_get_state (wr->whc, &whcst);
   }
 
-  while (gv.rtps_keepgoing && !writer_may_continue (wr, &whcst))
+  while (ddsrt_atomic_ld32 (&gv.rtps_keepgoing) && !writer_may_continue (wr, &whcst))
   {
     int64_t reltimeout;
     tnow = now_mt ();

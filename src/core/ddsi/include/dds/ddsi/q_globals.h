@@ -221,7 +221,7 @@ struct q_globals {
   struct thread_state1 *listen_ts;
 
   /* Flag cleared when stopping (receive threads). FIXME. */
-  int rtps_keepgoing;
+  ddsrt_atomic_uint32_t rtps_keepgoing;
 
   /* Start time of the DDSI2 service, for logging relative time stamps,
      should I ever so desire. */

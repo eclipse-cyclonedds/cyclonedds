@@ -597,8 +597,8 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
     return;
   }
 
-  assert (wr->reliable);
   ddsrt_mutex_lock (&wr->e.lock);
+  assert (wr->reliable);
   whc_get_state(wr->whc, &whcst);
   if (!writer_must_have_hb_scheduled (wr, &whcst))
   {
