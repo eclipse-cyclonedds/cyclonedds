@@ -102,17 +102,13 @@ static void *serdata_default_append (struct ddsi_serdata_default **d, size_t n)
 
 static void *serdata_default_append_aligned (struct ddsi_serdata_default **d, size_t n, size_t a)
 {
-#if CLEAR_PADDING
-  size_t pos0 = st->pos;
-#endif
+  size_t pos0 = (*d)->pos;
   char *p;
   assert (ispowerof2_size (a));
   (*d)->pos = (uint32_t) alignup_size ((*d)->pos, a);
   p = serdata_default_append (d, n);
-#if CLEAR_PADDING
-  if (p && (*d)->pos > pos0)
-    memset ((*d)->data + pos0, 0, (*d)->pos - pos0);
-#endif
+  while (pos0 < (*d)->pos)
+    (*d)->data[pos0++] = 0;
   return p;
 }
 
@@ -512,6 +508,7 @@ static struct ddsi_serdata *serdata_default_from_sample_rawcdr (const struct dds
     return NULL;
   assert (sample->keysize <= 16);
   serdata_default_append_blob (&d, 1, sample->size, sample->blob);
+  serdata_default_append_aligned (&d, 0, 4);
   d->keyhash.m_set = 1;
   d->keyhash.m_iskey = 1;
   if (sample->keysize == 0)

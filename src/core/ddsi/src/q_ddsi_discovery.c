@@ -289,6 +289,7 @@ int spdp_write (struct participant *pp)
   /* Add PrismTech specific version information */
   {
     ps.present |= PP_PRISMTECH_PARTICIPANT_VERSION_INFO;
+    memset (&ps.prismtech_participant_version_info, 0, sizeof (ps.prismtech_participant_version_info));
     ps.prismtech_participant_version_info.version = 0;
     ps.prismtech_participant_version_info.flags =
       NN_PRISMTECH_FL_DDSI2_PARTICIPANT_FLAG |

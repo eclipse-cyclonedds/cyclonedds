@@ -506,7 +506,7 @@ void *nn_xmsg_submsg_from_marker (struct nn_xmsg *msg, struct nn_xmsg_marker mar
   return msg->data->payload + marker.offset;
 }
 
-void * nn_xmsg_append (struct nn_xmsg *m, struct nn_xmsg_marker *marker, size_t sz)
+void *nn_xmsg_append (struct nn_xmsg *m, struct nn_xmsg_marker *marker, size_t sz)
 {
   static const size_t a = 4;
 
@@ -809,13 +809,10 @@ void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len)
   phdr->parameterid = pid;
   phdr->length = (uint16_t) len4;
   p = (char *) (phdr + 1);
-  if (len4 > len)
-  {
-    /* zero out padding bytes added to satisfy parameter alignment --
-       alternative: zero out, but this way valgrind/purify can tell us
-       where we forgot to initialize something */
-    memset (p + len, 0, len4 - len);
-  }
+  /* zero out padding bytes added to satisfy parameter alignment: this way
+     valgrind can tell us where we forgot to initialize something */
+  while (len < len4)
+    p[len++] = 0;
   return p;
 }
 

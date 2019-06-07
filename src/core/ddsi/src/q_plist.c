@@ -158,8 +158,13 @@ static const void *deser_generic_src (const void * __restrict src, size_t *srcof
 
 static void *ser_generic_align4 (char * __restrict p, size_t * __restrict off)
 {
-  *off = align4size (*off);
-  return p + *off;
+  const size_t off1 = align4size (*off);
+  size_t pad = off1 - *off;
+  char *dst = p + *off;
+  *off = off1;
+  while (pad--)
+    *dst++ = 0;
+  return dst;
 }
 
 static dds_return_t deser_uint32 (uint32_t *dst, const struct dd * __restrict dd, size_t * __restrict off)
