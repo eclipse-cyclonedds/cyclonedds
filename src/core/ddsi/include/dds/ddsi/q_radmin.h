@@ -47,15 +47,15 @@ struct nn_rmsg_chunk {
      nn_rmsg_setsize after receiving a packet from the kernel and
      before processing it.  */
   uint32_t size;
-  union {
-    /* payload array stretched to whatever it really is */
-    unsigned char payload[1];
 
-    /* to ensure reasonable alignment of payload[] */
+  /* to ensure reasonable alignment of payload[] */
+  union {
     int64_t l;
     double d;
     void *p;
   } u;
+  /* payload array stretched to whatever it really is */
+  unsigned char payload[];
 };
 
 struct nn_rmsg {
@@ -95,7 +95,7 @@ struct nn_rmsg {
 
   struct nn_rmsg_chunk chunk;
 };
-#define NN_RMSG_PAYLOAD(m) ((m)->chunk.u.payload)
+#define NN_RMSG_PAYLOAD(m) ((m)->chunk.payload)
 #define NN_RMSG_PAYLOADOFF(m, o) (NN_RMSG_PAYLOAD (m) + (o))
 
 struct receiver_state {

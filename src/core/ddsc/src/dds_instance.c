@@ -238,6 +238,9 @@ dds_return_t dds_dispose_ts (dds_entity_t writer, const void *data, dds_time_t t
   dds_return_t ret;
   dds_writer *wr;
 
+  if (data == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 

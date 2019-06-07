@@ -320,8 +320,8 @@ static uint32_t max_rmsg_size_w_hdr (uint32_t max_rmsg_size)
      allocate for the worst case, and may waste a few bytes here or
      there. */
   return
-    max_uint32 ((uint32_t) offsetof (struct nn_rmsg, chunk.u.payload),
-                (uint32_t) offsetof (struct nn_rmsg_chunk, u.payload))
+    max_uint32 ((uint32_t) offsetof (struct nn_rmsg, chunk.payload),
+                (uint32_t) offsetof (struct nn_rmsg_chunk, payload))
     + max_rmsg_size;
 }
 
@@ -405,15 +405,15 @@ struct nn_rbuf {
      approach.  Changes would be confined rmsg_new and rmsg_free. */
   unsigned char *freeptr;
 
+  /* to ensure reasonable alignment of raw[] */
   union {
-    /* raw data array, nn_rbuf::size bytes long in reality */
-    unsigned char raw[1];
-
-    /* to ensure reasonable alignment of raw[] */
     int64_t l;
     double d;
     void *p;
   } u;
+
+  /* raw data array, nn_rbuf::size bytes long in reality */
+  unsigned char raw[];
 };
 
 static struct nn_rbuf *nn_rbuf_alloc_new (struct nn_rbufpool *rbufpool)
@@ -421,17 +421,17 @@ static struct nn_rbuf *nn_rbuf_alloc_new (struct nn_rbufpool *rbufpool)
   struct nn_rbuf *rb;
   ASSERT_RBUFPOOL_OWNER (rbufpool);
 
-  if ((rb = ddsrt_malloc (offsetof (struct nn_rbuf, u.raw) + rbufpool->rbuf_size)) == NULL)
+  if ((rb = ddsrt_malloc (sizeof (struct nn_rbuf) + rbufpool->rbuf_size)) == NULL)
     return NULL;
 #if USE_VALGRIND
-  VALGRIND_MAKE_MEM_NOACCESS (rb->u.raw, rbufpool->rbuf_size);
+  VALGRIND_MAKE_MEM_NOACCESS (rb->raw, rbufpool->rbuf_size);
 #endif
 
   rb->rbufpool = rbufpool;
   ddsrt_atomic_st32 (&rb->n_live_rmsg_chunks, 1);
   rb->size = rbufpool->rbuf_size;
   rb->max_rmsg_size = rbufpool->max_rmsg_size;
-  rb->freeptr = rb->u.raw;
+  rb->freeptr = rb->raw;
   DDS_LOG(DDS_LC_RADMIN, "rbuf_alloc_new(%p) = %p\n", (void *) rbufpool, (void *) rb);
   return rb;
 }
@@ -488,17 +488,17 @@ static void *nn_rbuf_alloc (struct nn_rbufpool *rbufpool)
   ASSERT_RBUFPOOL_OWNER (rbufpool);
   rb = rbufpool->current;
   assert (rb != NULL);
-  assert (rb->freeptr >= rb->u.raw);
-  assert (rb->freeptr <= rb->u.raw + rb->size);
+  assert (rb->freeptr >= rb->raw);
+  assert (rb->freeptr <= rb->raw + rb->size);
 
-  if ((uint32_t) (rb->u.raw + rb->size - rb->freeptr) < asize)
+  if ((uint32_t) (rb->raw + rb->size - rb->freeptr) < asize)
   {
     /* not enough space left for new rmsg */
     if ((rb = nn_rbuf_new (rbufpool)) == NULL)
       return NULL;
 
     /* a new one should have plenty of space */
-    assert ((uint32_t) (rb->u.raw + rb->size - rb->freeptr) >= asize);
+    assert ((uint32_t) (rb->raw + rb->size - rb->freeptr) >= asize);
   }
 
   DDS_LOG(DDS_LC_RADMIN, "rmsg_rbuf_alloc(%p, %"PRIu32") = %p\n", (void *) rbufpool, asize, (void *) rb->freeptr);
@@ -587,7 +587,7 @@ static void commit_rmsg_chunk (struct nn_rmsg_chunk *chunk)
 {
   struct nn_rbuf *rbuf = chunk->rbuf;
   DDS_LOG(DDS_LC_RADMIN, "commit_rmsg_chunk(%p)\n", (void *) chunk);
-  rbuf->freeptr = chunk->u.payload + chunk->size;
+  rbuf->freeptr = chunk->payload + chunk->size;
 }
 
 void nn_rmsg_commit (struct nn_rmsg *rmsg)
@@ -688,7 +688,7 @@ void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
     chunk = newchunk;
   }
 
-  ptr = chunk->u.payload + chunk->size;
+  ptr = chunk->payload + chunk->size;
   chunk->size += size8;
   DDS_LOG(DDS_LC_RADMIN, "rmsg_alloc(%p, %"PRIu32") = %p\n", (void *) rmsg, size, ptr);
 #if USE_VALGRIND

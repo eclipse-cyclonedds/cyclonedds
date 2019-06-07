@@ -52,7 +52,7 @@ struct nn_xmsgpool {
 struct nn_xmsg_data {
   InfoSRC_t src;
   InfoDST_t dst;
-  char payload[1]; /* of size maxsz */
+  char payload[]; /* of size maxsz */
 };
 
 struct nn_xmsg_chain_elem {

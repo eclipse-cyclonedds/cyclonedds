@@ -35,8 +35,8 @@ typedef struct {
 typedef struct nn_sequence_number_set {
   nn_sequence_number_t bitmap_base;
   uint32_t numbits;
-  uint32_t bits[1];
-} nn_sequence_number_set_t; /* Why strict C90? zero-length/flexible array members are far nicer */
+  uint32_t bits[];
+} nn_sequence_number_set_t;
 /* SequenceNumberSet size is base (2 words) + numbits (1 word) +
    bitmap ((numbits+31)/32 words), and this at 4 bytes/word */
 #define NN_SEQUENCE_NUMBER_SET_BITS_SIZE(numbits) ((unsigned) (4 * (((numbits) + 31) / 32)))
@@ -45,7 +45,7 @@ typedef unsigned nn_fragment_number_t;
 typedef struct nn_fragment_number_set {
   nn_fragment_number_t bitmap_base;
   uint32_t numbits;
-  uint32_t bits[1];
+  uint32_t bits[];
 } nn_fragment_number_set_t;
 /* FragmentNumberSet size is base (2 words) + numbits (1 word) +
    bitmap ((numbits+31)/32 words), and this at 4 bytes/word */
@@ -69,12 +69,6 @@ typedef struct nn_udpv4mcgen_address {
   uint8_t count;
   uint8_t idx; /* must be last: then sorting will put them consecutively */
 } nn_udpv4mcgen_address_t;
-
-
-struct cdrstring {
-  uint32_t length;
-  unsigned char contents[1]; /* C90 does not support flex. array members */
-};
 
 #define NN_STATUSINFO_DISPOSE      0x1u
 #define NN_STATUSINFO_UNREGISTER   0x2u
@@ -317,7 +311,7 @@ typedef struct ParticipantMessageData {
   nn_guid_prefix_t participantGuidPrefix;
   uint32_t kind; /* really 4 octets */
   uint32_t length;
-  char value[1 /* length */];
+  char value[];
 } ParticipantMessageData_t;
 #define PARTICIPANT_MESSAGE_DATA_KIND_UNKNOWN 0x0u
 #define PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE 0x1u
