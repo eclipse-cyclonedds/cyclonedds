@@ -712,9 +712,9 @@ static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict 
     {
       case XSTOP:
         return 0;
-      case XO: COMPLEX (XO, ddsi_octetseq_t, x->value = ddsrt_memdup (x->value, x->length)); break;
-      case XS: COMPLEX (XS, char *, *x = ddsrt_strdup (*x)); break;
-      case XZ: COMPLEX (XZ, ddsi_stringseq_t, {
+      case XO: COMPLEX (XO, ddsi_octetseq_t, if (x->value) { x->value = ddsrt_memdup (x->value, x->length); }); break;
+      case XS: COMPLEX (XS, char *, if (*x) { *x = ddsrt_strdup (*x); }); break;
+      case XZ: COMPLEX (XZ, ddsi_stringseq_t, if (x->n) {
         x->strs = ddsrt_memdup (x->strs, x->n * sizeof (*x->strs));
         for (uint32_t i = 0; i < x->n; i++)
           x->strs[i] = ddsrt_strdup (x->strs[i]);

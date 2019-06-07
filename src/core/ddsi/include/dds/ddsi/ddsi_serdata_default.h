@@ -66,7 +66,7 @@ struct ddsi_serdata_default {
      serdata is 8-byte aligned */
   char pad[8 - ((sizeof (struct ddsi_serdata) + 4) % 8)];
   struct CDRHeader hdr;
-  char data[1];
+  char data[];
 };
 
 struct dds_key_descriptor;

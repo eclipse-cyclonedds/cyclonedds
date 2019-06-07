@@ -22,7 +22,7 @@ static void dds_qos_data_copy_in (ddsi_octetseq_t *data, const void * __restrict
   if (overwrite && data->value)
     ddsrt_free (data->value);
   data->length = (uint32_t) sz;
-  data->value = ddsrt_memdup (value, sz);
+  data->value = value ? ddsrt_memdup (value, sz) : NULL;
 }
 
 static bool dds_qos_data_copy_out (const ddsi_octetseq_t *data, void **value, size_t *sz)

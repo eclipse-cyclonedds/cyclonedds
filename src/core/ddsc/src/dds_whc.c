@@ -60,11 +60,7 @@ struct whc_idxnode {
   seqno_t prune_seq;
   struct ddsi_tkmap_instance *tk;
   uint32_t headidx;
-#if __STDC_VERSION__ >= 199901L
   struct whc_node *hist[];
-#else
-  struct whc_node *hist[1];
-#endif
 };
 
 #if USE_EHH
