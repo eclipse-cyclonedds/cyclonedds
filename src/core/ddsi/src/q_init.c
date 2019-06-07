@@ -679,9 +679,9 @@ static void rtps_term_prep (void)
 {
   /* Stop all I/O */
   ddsrt_mutex_lock (&gv.lock);
-  if (gv.rtps_keepgoing)
+  if (ddsrt_atomic_ld32 (&gv.rtps_keepgoing))
   {
-    gv.rtps_keepgoing = 0; /* so threads will stop once they get round to checking */
+    ddsrt_atomic_st32 (&gv.rtps_keepgoing, 0); /* so threads will stop once they get round to checking */
     ddsrt_atomic_fence ();
     /* can't wake up throttle_writer, currently, but it'll check every few seconds */
     trigger_recv_threads ();
@@ -1252,7 +1252,7 @@ int rtps_init (void)
 
   gv.gcreq_queue = gcreq_queue_new ();
 
-  gv.rtps_keepgoing = 1;
+  ddsrt_atomic_st32 (&gv.rtps_keepgoing, 1);
   ddsrt_rwlock_init (&gv.qoslock);
 
   if (config.xpack_send_async)

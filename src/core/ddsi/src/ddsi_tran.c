@@ -91,6 +91,7 @@ static ddsi_tran_factory_t ddsi_factory_find_with_len (const char * type, size_t
   return factory;
 }
 
+ddsrt_attribute_no_sanitize (("thread"))
 ddsi_tran_factory_t ddsi_factory_find_supported_kind (int32_t kind)
 {
   /* FIXME: MUST speed up */
@@ -124,7 +125,7 @@ void ddsi_conn_free (ddsi_tran_conn_t conn)
         for (uint32_t i = 0; i < gv.n_recv_threads; i++)
         {
           if (!gv.recv_threads[i].ts)
-            assert (!gv.rtps_keepgoing);
+            assert (!ddsrt_atomic_ld32 (&gv.rtps_keepgoing));
           else
           {
             switch (gv.recv_threads[i].arg.mode)

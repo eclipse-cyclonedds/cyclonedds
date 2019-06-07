@@ -13,6 +13,7 @@
 #define DDSRT_ATOMICS_GCC_H
 
 #include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/attributes.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -25,19 +26,51 @@ extern "C" {
 
 /* LD, ST */
 
-inline uint32_t ddsrt_atomic_ld32(const volatile ddsrt_atomic_uint32_t *x) { return x->v; }
+ddsrt_attribute_no_sanitize (("thread"))
+inline uint32_t ddsrt_atomic_ld32(const volatile ddsrt_atomic_uint32_t *x)
+{
+  return x->v;
+}
 #if DDSRT_HAVE_ATOMIC64
-inline uint64_t ddsrt_atomic_ld64(const volatile ddsrt_atomic_uint64_t *x) { return x->v; }
+ddsrt_attribute_no_sanitize (("thread"))
+inline uint64_t ddsrt_atomic_ld64(const volatile ddsrt_atomic_uint64_t *x)
+{
+  return x->v;
+}
 #endif
-inline uintptr_t ddsrt_atomic_ldptr(const volatile ddsrt_atomic_uintptr_t *x) { return x->v; }
-inline void *ddsrt_atomic_ldvoidp(const volatile ddsrt_atomic_voidp_t *x) { return (void *) ddsrt_atomic_ldptr(x); }
+ddsrt_attribute_no_sanitize (("thread"))
+inline uintptr_t ddsrt_atomic_ldptr(const volatile ddsrt_atomic_uintptr_t *x)
+{
+  return x->v;
+}
+ddsrt_attribute_no_sanitize (("thread"))
+inline void *ddsrt_atomic_ldvoidp(const volatile ddsrt_atomic_voidp_t *x)
+{
+  return (void *) ddsrt_atomic_ldptr(x);
+}
 
-inline void ddsrt_atomic_st32(volatile ddsrt_atomic_uint32_t *x, uint32_t v) { x->v = v; }
+ddsrt_attribute_no_sanitize (("thread"))
+inline void ddsrt_atomic_st32(volatile ddsrt_atomic_uint32_t *x, uint32_t v)
+{
+  x->v = v;
+}
 #if DDSRT_HAVE_ATOMIC64
-inline void ddsrt_atomic_st64(volatile ddsrt_atomic_uint64_t *x, uint64_t v) { x->v = v; }
+ddsrt_attribute_no_sanitize (("thread"))
+inline void ddsrt_atomic_st64(volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+{
+  x->v = v;
+}
 #endif
-inline void ddsrt_atomic_stptr(volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) { x->v = v; }
-inline void ddsrt_atomic_stvoidp(volatile ddsrt_atomic_voidp_t *x, void *v) { ddsrt_atomic_stptr(x, (uintptr_t)v); }
+ddsrt_attribute_no_sanitize (("thread"))
+inline void ddsrt_atomic_stptr(volatile ddsrt_atomic_uintptr_t *x, uintptr_t v)
+{
+  x->v = v;
+}
+ddsrt_attribute_no_sanitize (("thread"))
+inline void ddsrt_atomic_stvoidp(volatile ddsrt_atomic_voidp_t *x, void *v)
+{
+  ddsrt_atomic_stptr(x, (uintptr_t)v);
+}
 
 /* INC */
 

@@ -3156,7 +3156,7 @@ uint32_t listen_thread (struct ddsi_tran_listener * listener)
 {
   ddsi_tran_conn_t conn;
 
-  while (gv.rtps_keepgoing)
+  while (ddsrt_atomic_ld32 (&gv.rtps_keepgoing))
   {
     /* Accept connection from listener */
 
@@ -3310,7 +3310,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
   nn_rbufpool_setowner (rbpool, ddsrt_thread_self ());
   if (waitset == NULL)
   {
-    while (gv.rtps_keepgoing)
+    while (ddsrt_atomic_ld32 (&gv.rtps_keepgoing))
     {
       LOG_THREAD_CPUTIME (next_thread_cputime);
       (void) do_packet (ts1, recv_thread_arg->u.single.conn, NULL, rbpool);
@@ -3343,7 +3343,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
       num_fixed += (unsigned)rc;
     }
 
-    while (gv.rtps_keepgoing)
+    while (ddsrt_atomic_ld32 (&gv.rtps_keepgoing))
     {
       int rebuildws;
       LOG_THREAD_CPUTIME (next_thread_cputime);

@@ -20,6 +20,7 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
 
 /**************************************************************************************************
@@ -36,7 +37,7 @@ typedef enum thread_state_t {
 
 typedef struct thread_arg_t {
     ddsrt_thread_t tid;
-    thread_state_t state;
+    ddsrt_atomic_uint32_t state;
     dds_entity_t   expected;
 } thread_arg_t;
 
@@ -1056,26 +1057,26 @@ waiting_thread(void *a)
     dds_attach_t triggered;
     dds_return_t ret;
 
-    arg->state = WAITING;
+    ddsrt_atomic_st32 (&arg->state, WAITING);
     /* This should block until the main test released all claims. */
     ret = dds_waitset_wait(waitset, &triggered, 1, DDS_SECS(1000));
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_EQUAL_FATAL(arg->expected, (dds_entity_t)(intptr_t)triggered);
-    arg->state = STOPPED;
+    ddsrt_atomic_st32 (&arg->state, STOPPED);
 
     return 0;
 }
 
 static dds_return_t
-thread_reached_state(thread_state_t *actual, thread_state_t expected, int32_t msec)
+thread_reached_state(ddsrt_atomic_uint32_t *actual, thread_state_t expected, int32_t msec)
 {
     /* Convenience function. */
     dds_time_t msec10 = DDS_MSECS(10);
-    while ((msec > 0) && (*actual != expected)) {
+    while ((msec > 0) && ((thread_state_t) ddsrt_atomic_ld32 (actual) != expected)) {
         dds_sleepfor(msec10);
         msec -= 10;
     }
-    return (*actual == expected) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
+    return ((thread_state_t) ddsrt_atomic_ld32 (actual) == expected) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
 }
 
 static void
@@ -1089,7 +1090,7 @@ waiting_thread_start(struct thread_arg_t *arg, dds_entity_t expected)
 
     /* Create an other thread that will blocking wait on the waitset. */
     arg->expected = expected;
-    arg->state   = STARTING;
+    ddsrt_atomic_st32 (&arg->state, STARTING);
     ddsrt_threadattr_init(&thread_attr);
     rc = ddsrt_thread_create(&thread_id, "waiting_thread", &thread_attr, waiting_thread, arg);
     CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);

@@ -111,4 +111,16 @@
 # define ddsrt_attribute_packed
 #endif
 
+#if ddsrt_has_attribute(no_sanitize)
+# define ddsrt_attribute_no_sanitize(params) __attribute__ ((__no_sanitize__ params))
+#else
+# define ddsrt_attribute_no_sanitize(params)
+#endif
+
+#if defined(__has_feature)
+# define ddsrt_has_feature_thread_sanitizer __has_feature(thread_sanitizer)
+#else
+# define ddsrt_has_feature_thread_sanitizer 0
+#endif
+
 #endif /* DDSRT_ATTRIBUTES_H */

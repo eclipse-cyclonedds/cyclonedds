@@ -44,7 +44,7 @@ static void threads_vtime_gather_for_wait (unsigned *nivs, struct idx_vtime *ivs
   uint32_t i, j;
   for (i = j = 0; i < thread_states.nthreads; i++)
   {
-    vtime_t vtime = thread_states.ts[i].vtime;
+    vtime_t vtime = ddsrt_atomic_ld32 (&thread_states.ts[i].vtime);
     if (vtime_awake_p (vtime))
     {
       ivs[j].idx = i;
@@ -63,7 +63,7 @@ static int threads_vtime_check (uint32_t *nivs, struct idx_vtime *ivs)
   while (i < *nivs)
   {
     uint32_t thridx = ivs[i].idx;
-    vtime_t vtime = thread_states.ts[thridx].vtime;
+    vtime_t vtime = ddsrt_atomic_ld32 (&thread_states.ts[thridx].vtime);
     assert (vtime_awake_p (ivs[i].vtime));
     if (!vtime_gt (vtime, ivs[i].vtime))
       ++i;
