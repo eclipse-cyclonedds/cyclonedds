@@ -64,14 +64,6 @@ static dds_return_t dds_participant_delete (dds_entity *e)
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t dds_participant_instance_hdl (dds_entity *e, dds_instance_handle_t *i) ddsrt_nonnull_all;
-
-static dds_return_t dds_participant_instance_hdl (dds_entity *e, dds_instance_handle_t *i)
-{
-  *i = participant_instance_id (&e->m_guid);
-  return DDS_RETCODE_OK;
-}
-
 static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
   /* note: e->m_qos is still the old one to allow for failure here */
@@ -134,11 +126,11 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
     goto err_entity_init;
 
   pp->m_entity.m_guid = guid;
+  pp->m_entity.m_iid = get_entity_instance_id (&guid);
   pp->m_entity.m_domain = dds_domain_create (dds_domain_default ());
   pp->m_entity.m_domainid = dds_domain_default ();
   pp->m_entity.m_deriver.delete = dds_participant_delete;
   pp->m_entity.m_deriver.set_qos = dds_participant_qos_set;
-  pp->m_entity.m_deriver.get_instance_hdl = dds_participant_instance_hdl;
   pp->m_entity.m_deriver.validate_status = dds_participant_status_validate;
   pp->m_builtin_subscriber = 0;
 

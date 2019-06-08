@@ -271,6 +271,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
     /* Create topic */
     top = dds_alloc (sizeof (*top));
     hdl = dds_entity_init (&top->m_entity, &par->m_entity, DDS_KIND_TOPIC, new_qos, listener, DDS_TOPIC_STATUS_MASK);
+    top->m_entity.m_iid = ddsi_iid_gen ();
     top->m_entity.m_deriver.delete = dds_topic_delete;
     top->m_entity.m_deriver.set_qos = dds_topic_qos_set;
     top->m_entity.m_deriver.validate_status = dds_topic_status_validate;

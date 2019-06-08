@@ -542,9 +542,9 @@ void xeventq_free (struct xeventq *evq)
       handle_nontimed_xevent (getnext_from_non_timed_xmit_list (evq), xp);
     }
     ddsrt_mutex_unlock (&evq->lock);
-    thread_state_asleep (lookup_thread_state ());
     nn_xpack_send (xp, false);
     nn_xpack_free (xp);
+    thread_state_asleep (lookup_thread_state ());
   }
 
   assert (ddsrt_avl_is_empty (&evq->msg_xevents));

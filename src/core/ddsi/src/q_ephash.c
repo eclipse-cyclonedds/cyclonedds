@@ -121,6 +121,7 @@ void *ephash_lookup_guid_untyped (const struct nn_guid *guid)
   /* FIXME: could (now) require guid to be first in entity_common; entity_common already is first in entity */
   struct entity_common e;
   e.guid = *guid;
+  assert (thread_is_awake ());
   return ddsrt_chh_lookup (gv.guid_hash->hash, &e);
 }
 

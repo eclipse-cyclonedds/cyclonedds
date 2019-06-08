@@ -14,6 +14,7 @@
 #include "dds__readcond.h"
 #include "dds__rhc.h"
 #include "dds__entity.h"
+#include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
@@ -31,6 +32,7 @@ dds_readcond *dds_create_readcond (dds_reader *rd, dds_entity_kind_t kind, uint3
   dds_readcond *cond = dds_alloc (sizeof (*cond));
   assert ((kind == DDS_KIND_COND_READ && filter == 0) || (kind == DDS_KIND_COND_QUERY && filter != 0));
   (void) dds_entity_init (&cond->m_entity, &rd->m_entity, kind, NULL, NULL, 0);
+  cond->m_entity.m_iid = ddsi_iid_gen ();
   cond->m_entity.m_deriver.delete = dds_readcond_delete;
   cond->m_rhc = rd->m_rd->rhc;
   cond->m_sample_states = mask & DDS_ANY_SAMPLE_STATE;

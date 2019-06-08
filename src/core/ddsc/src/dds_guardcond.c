@@ -14,6 +14,7 @@
 #include "dds__reader.h"
 #include "dds__guardcond.h"
 #include "dds__participant.h"
+#include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
@@ -29,8 +30,9 @@ dds_entity_t dds_create_guardcondition (dds_entity_t participant)
     return rc;
   else
   {
-    dds_guardcond * gcond = dds_alloc (sizeof (*gcond));
+    dds_guardcond *gcond = dds_alloc (sizeof (*gcond));
     dds_entity_t hdl = dds_entity_init (&gcond->m_entity, &pp->m_entity, DDS_KIND_COND_GUARD, NULL, NULL, 0);
+    gcond->m_entity.m_iid = ddsi_iid_gen ();
     dds_participant_unlock (pp);
     return hdl;
   }
