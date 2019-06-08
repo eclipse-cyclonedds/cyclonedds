@@ -39,14 +39,6 @@ DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
                          DDS_SAMPLE_LOST_STATUS                  |\
                          DDS_SUBSCRIPTION_MATCHED_STATUS)
 
-static dds_return_t dds_reader_instance_hdl (dds_entity *e, dds_instance_handle_t *i) ddsrt_nonnull_all;
-
-static dds_return_t dds_reader_instance_hdl (dds_entity *e, dds_instance_handle_t *i)
-{
-  *i = reader_instance_id (&e->m_guid);
-  return DDS_RETCODE_OK;
-}
-
 static dds_return_t dds_reader_close (dds_entity *e) ddsrt_nonnull_all;
 
 static dds_return_t dds_reader_close (dds_entity *e)
@@ -392,7 +384,6 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   rd->m_entity.m_deriver.delete = dds_reader_delete;
   rd->m_entity.m_deriver.set_qos = dds_reader_qos_set;
   rd->m_entity.m_deriver.validate_status = dds_reader_status_validate;
-  rd->m_entity.m_deriver.get_instance_hdl = dds_reader_instance_hdl;
 
   /* Extra claim of this reader to make sure that the delete waits until DDSI
      has deleted its reader as well. This can be known through the callback. */
@@ -407,6 +398,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   ddsrt_mutex_lock (&tp->m_entity.m_mutex);
   assert (ret == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
   thread_state_asleep (lookup_thread_state ());
+  rd->m_entity.m_iid = get_entity_instance_id (&rd->m_entity.m_guid);
 
   /* For persistent data register reader with durability */
   if (dds_global.m_dur_reader && (rd->m_entity.m_qos->durability.kind > DDS_DURABILITY_TRANSIENT_LOCAL)) {

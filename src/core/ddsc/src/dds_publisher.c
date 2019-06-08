@@ -24,15 +24,6 @@ DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_publisher)
 
 #define DDS_PUBLISHER_STATUS_MASK   (0u)
 
-static dds_return_t dds_publisher_instance_hdl (dds_entity *e, dds_instance_handle_t *i) ddsrt_nonnull_all;
-
-static dds_return_t dds_publisher_instance_hdl (dds_entity *e, dds_instance_handle_t *i)
-{
-  /* FIXME: Get/generate proper handle. */
-  (void) e; (void) i;
-  return DDS_RETCODE_UNSUPPORTED;
-}
-
 static dds_return_t dds_publisher_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
   /* note: e->m_qos is still the old one to allow for failure here */
@@ -70,8 +61,8 @@ dds_entity_t dds_create_publisher (dds_entity_t participant, const dds_qos_t *qo
   }
   pub = dds_alloc (sizeof (*pub));
   hdl = dds_entity_init (&pub->m_entity, &par->m_entity, DDS_KIND_PUBLISHER, new_qos, listener, DDS_PUBLISHER_STATUS_MASK);
+  pub->m_entity.m_iid = ddsi_iid_gen ();
   pub->m_entity.m_deriver.set_qos = dds_publisher_qos_set;
-  pub->m_entity.m_deriver.get_instance_hdl = dds_publisher_instance_hdl;
   pub->m_entity.m_deriver.validate_status = dds_publisher_status_validate;
   dds_participant_unlock (par);
   return hdl;

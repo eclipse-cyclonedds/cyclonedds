@@ -18,6 +18,7 @@
 #include "dds__querycond.h"
 #include "dds__readcond.h"
 #include "dds__rhc.h"
+#include "dds/ddsi/ddsi_iid.h"
 
 DEFINE_ENTITY_LOCK_UNLOCK (static, dds_waitset, DDS_KIND_WAITSET)
 
@@ -153,6 +154,7 @@ dds_entity_t dds_create_waitset (dds_entity_t participant)
 
   dds_waitset *waitset = dds_alloc (sizeof (*waitset));
   hdl = dds_entity_init (&waitset->m_entity, &par->m_entity, DDS_KIND_WAITSET, NULL, NULL, 0);
+  waitset->m_entity.m_iid = ddsi_iid_gen ();
   waitset->m_entity.m_deriver.close = dds_waitset_close;
   waitset->observed = NULL;
   waitset->triggered = NULL;

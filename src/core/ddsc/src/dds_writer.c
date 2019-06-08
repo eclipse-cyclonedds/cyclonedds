@@ -36,14 +36,6 @@ DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_writer)
                          DDS_OFFERED_INCOMPATIBLE_QOS_STATUS     |\
                          DDS_PUBLICATION_MATCHED_STATUS)
 
-static dds_return_t dds_writer_instance_hdl (dds_entity *e, dds_instance_handle_t *i) ddsrt_nonnull_all;
-
-static dds_return_t dds_writer_instance_hdl (dds_entity *e, dds_instance_handle_t *i)
-{
-  *i = writer_instance_id(&e->m_guid);
-  return DDS_RETCODE_OK;
-}
-
 static dds_return_t dds_writer_status_validate (uint32_t mask)
 {
   return (mask & ~DDS_WRITER_STATUS_MASK) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
@@ -305,7 +297,6 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->m_entity.m_deriver.delete = dds_writer_delete;
   wr->m_entity.m_deriver.set_qos = dds_writer_qos_set;
   wr->m_entity.m_deriver.validate_status = dds_writer_status_validate;
-  wr->m_entity.m_deriver.get_instance_hdl = dds_writer_instance_hdl;
   wr->m_whc = make_whc (wqos);
 
   /* Extra claim of this writer to make sure that the delete waits until DDSI
@@ -321,6 +312,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   ddsrt_mutex_lock (&tp->m_entity.m_mutex);
   assert(rc == DDS_RETCODE_OK);
   thread_state_asleep (lookup_thread_state ());
+  wr->m_entity.m_iid = get_entity_instance_id (&wr->m_entity.m_guid);
   dds_topic_unlock (tp);
   dds_publisher_unlock (pub);
   return writer;

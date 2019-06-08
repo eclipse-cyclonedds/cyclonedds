@@ -23,15 +23,6 @@ DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_subscriber)
 #define DDS_SUBSCRIBER_STATUS_MASK                               \
                         (DDS_DATA_ON_READERS_STATUS)
 
-static dds_return_t dds_subscriber_instance_hdl (dds_entity *e, dds_instance_handle_t *i) ddsrt_nonnull_all;
-
-static dds_return_t dds_subscriber_instance_hdl (dds_entity *e, dds_instance_handle_t *i)
-{
-  (void) e; (void) i;
-  /* FIXME: Get/generate proper handle. */
-  return DDS_RETCODE_UNSUPPORTED;
-}
-
 static dds_return_t dds_subscriber_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
   /* note: e->m_qos is still the old one to allow for failure here */
@@ -64,9 +55,9 @@ dds_entity_t dds__create_subscriber_l (dds_participant *participant, const dds_q
 
   sub = dds_alloc (sizeof (*sub));
   subscriber = dds_entity_init (&sub->m_entity, &participant->m_entity, DDS_KIND_SUBSCRIBER, new_qos, listener, DDS_SUBSCRIBER_STATUS_MASK);
+  sub->m_entity.m_iid = ddsi_iid_gen ();
   sub->m_entity.m_deriver.set_qos = dds_subscriber_qos_set;
   sub->m_entity.m_deriver.validate_status = dds_subscriber_status_validate;
-  sub->m_entity.m_deriver.get_instance_hdl = dds_subscriber_instance_hdl;
   return subscriber;
 }
 

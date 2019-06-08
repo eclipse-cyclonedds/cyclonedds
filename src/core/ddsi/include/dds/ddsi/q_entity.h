@@ -529,6 +529,7 @@ dds_return_t new_participant (struct nn_guid *ppguid, unsigned flags, const stru
 */
 dds_return_t delete_participant (const struct nn_guid *ppguid);
 void update_participant_plist (struct participant *pp, const struct nn_plist *plist);
+uint64_t get_entity_instance_id (const struct nn_guid *guid);
 
 /* To obtain the builtin writer to be used for publishing SPDP, SEDP,
    PMD stuff for PP and its endpoints, given the entityid.  If PP has
@@ -559,7 +560,6 @@ dds_return_t delete_writer_nolinger (const struct nn_guid *guid);
 dds_return_t delete_writer_nolinger_locked (struct writer *wr);
 
 dds_return_t delete_reader (const struct nn_guid *guid);
-uint64_t reader_instance_id (const struct nn_guid *guid);
 
 struct local_orphan_writer {
   struct writer wr;
@@ -593,7 +593,6 @@ void delete_local_orphan_writer (struct local_orphan_writer *wr);
 
 void new_proxy_participant (const struct nn_guid *guid, unsigned bes, unsigned prismtech_bes, const struct nn_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct nn_plist *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, nn_wctime_t timestamp, seqno_t seq);
 int delete_proxy_participant_by_guid (const struct nn_guid * guid, nn_wctime_t timestamp, int isimplicit);
-uint64_t participant_instance_id (const struct nn_guid *guid);
 
 enum update_proxy_participant_source {
   UPD_PROXYPP_SPDP,
@@ -628,8 +627,6 @@ void update_proxy_writer (struct proxy_writer *pwr, struct addrset *as, const st
 
 int new_proxy_group (const struct nn_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp);
 void delete_proxy_group (const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit);
-
-uint64_t writer_instance_id (const struct nn_guid *guid);
 
 /* Call this to empty all address sets of all writers to stop all outgoing traffic, or to
    rebuild them all (which only makes sense after previously having emptied them all). */

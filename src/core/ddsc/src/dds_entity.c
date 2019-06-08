@@ -889,14 +889,10 @@ dds_return_t dds_get_instance_handle (dds_entity_t entity, dds_instance_handle_t
   if (ihdl == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if ((ret = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+  if ((ret = dds_entity_claim (entity, &e)) != DDS_RETCODE_OK)
     return ret;
-
-  if (e->m_deriver.get_instance_hdl)
-    ret = e->m_deriver.get_instance_hdl (e, ihdl);
-  else
-    ret = DDS_RETCODE_ILLEGAL_OPERATION;
-  dds_entity_unlock(e);
+  *ihdl = e->m_iid;
+  dds_entity_release(e);
   return ret;
 }
 

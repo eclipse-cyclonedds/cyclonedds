@@ -3124,20 +3124,6 @@ dds_return_t delete_writer (const struct nn_guid *guid)
   return 0;
 }
 
-uint64_t writer_instance_id (const struct nn_guid *guid)
-{
-    struct entity_common *e;
-    e = (struct entity_common*)ephash_lookup_writer_guid(guid);
-    if (e) {
-        return e->iid;
-    }
-    e = (struct entity_common*)ephash_lookup_proxy_writer_guid(guid);
-    if (e) {
-        return e->iid;
-    }
-    return 0;
-}
-
 /* READER ----------------------------------------------------------- */
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -3462,20 +3448,6 @@ dds_return_t delete_reader (const struct nn_guid *guid)
   ephash_remove_reader_guid (rd);
   gcreq_reader (rd);
   return 0;
-}
-
-uint64_t reader_instance_id (const struct nn_guid *guid)
-{
-    struct entity_common *e;
-    e = (struct entity_common*)ephash_lookup_reader_guid(guid);
-    if (e) {
-        return e->iid;
-    }
-    e = (struct entity_common*)ephash_lookup_proxy_reader_guid(guid);
-    if (e) {
-        return e->iid;
-    }
-    return 0;
 }
 
 void update_reader_qos (struct reader *rd, const dds_qos_t *xqos)
@@ -3967,18 +3939,16 @@ int delete_proxy_participant_by_guid (const struct nn_guid * guid, nn_wctime_t t
   return 0;
 }
 
-uint64_t participant_instance_id (const struct nn_guid *guid)
+uint64_t get_entity_instance_id (const struct nn_guid *guid)
 {
-    struct entity_common *e;
-    e = (struct entity_common*)ephash_lookup_participant_guid(guid);
-    if (e) {
-        return e->iid;
-    }
-    e = (struct entity_common*)ephash_lookup_proxy_participant_guid(guid);
-    if (e) {
-        return e->iid;
-    }
-    return 0;
+  struct thread_state1 *ts1 = lookup_thread_state ();
+  struct entity_common *e;
+  uint64_t iid = 0;
+  thread_state_awake (ts1);
+  if ((e = ephash_lookup_guid_untyped (guid)) != NULL)
+    iid = e->iid;
+  thread_state_asleep (ts1);
+  return iid;
 }
 
 /* PROXY-GROUP --------------------------------------------------- */

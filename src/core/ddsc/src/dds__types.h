@@ -103,41 +103,45 @@ dds_domain;
 
 struct dds_entity;
 typedef struct dds_entity_deriver {
-    /* Close can be used to terminate (blocking) actions on a entity before actually deleting it. */
-    dds_return_t (*close)(struct dds_entity *e) ddsrt_nonnull_all;
-    /* Delete is used to actually free the entity. */
-    dds_return_t (*delete)(struct dds_entity *e) ddsrt_nonnull_all;
-    dds_return_t (*set_qos)(struct dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
-    dds_return_t (*validate_status)(uint32_t mask);
-    dds_return_t (*get_instance_hdl)(struct dds_entity *e, dds_instance_handle_t *i) ddsrt_nonnull_all;
-}
-dds_entity_deriver;
+  /* Close can be used to terminate (blocking) actions on a entity before actually deleting it. */
+  dds_return_t (*close)(struct dds_entity *e) ddsrt_nonnull_all;
+  /* Delete is used to actually free the entity. */
+  dds_return_t (*delete)(struct dds_entity *e) ddsrt_nonnull_all;
+  dds_return_t (*set_qos)(struct dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
+  dds_return_t (*validate_status)(uint32_t mask);
+} dds_entity_deriver;
 
 typedef void (*dds_entity_callback)(dds_entity_t observer, dds_entity_t observed, uint32_t status);
 
-typedef struct dds_entity_observer
-{
-    dds_entity_callback m_cb;
-    dds_entity_t m_observer;
-    struct dds_entity_observer *m_next;
-}
-dds_entity_observer;
+typedef struct dds_entity_observer {
+  dds_entity_callback m_cb;
+  dds_entity_t m_observer;
+  struct dds_entity_observer *m_next;
+} dds_entity_observer;
 
-typedef struct dds_entity
-{
-  struct dds_handle_link m_hdllink;
-  dds_entity_kind_t m_kind;
-  dds_entity_deriver m_deriver;
-  uint32_t m_refc;
-  struct dds_entity * m_next;
-  struct dds_entity * m_parent;
-  struct dds_entity * m_children;
-  struct dds_entity * m_participant;
-  struct dds_domain * m_domain;
-  dds_qos_t * m_qos;
-  dds_domainid_t m_domainid;
-  nn_guid_t m_guid;
-  uint32_t m_flags;
+typedef struct dds_entity {
+  struct dds_handle_link m_hdllink; /* handle is constant, cnt_flags private to dds_handle.c */
+  dds_entity_kind_t m_kind;         /* constant */
+  dds_entity_deriver m_deriver;     /* constant; FIXME: no point in having function pointers embedded */
+  uint32_t m_refc;                  /* [m_mutex] */
+  struct dds_entity *m_next;        /* [m_mutex] */
+  struct dds_entity *m_parent;      /* constant */
+  struct dds_entity *m_children;    /* [m_mutex] */
+  struct dds_entity *m_participant; /* constant */
+  struct dds_domain *m_domain;      /* constant */
+  dds_qos_t *m_qos;                 /* [m_mutex] */
+  dds_domainid_t m_domainid;        /* constant; FIXME: why? hardly ever used, m_domain should give that info, too */
+  nn_guid_t m_guid;                 /* ~ constant: FIXME: set during creation, but possibly after becoming visible */
+  dds_instance_handle_t m_iid;      /* ~ constant: FIXME: like GUID */
+  uint32_t m_flags;                 /* [m_mutex] */
+
+  /* Allowed:
+     - locking parent->...->m_mutex while holding m_mutex
+     - locking topic::m_mutex while holding {publisher,subscriber}::m_mutex
+       (no hierarchical relationship there)
+     - locking topic::m_mutex while holding {reader,writer}::m_mutex
+     - locking observers_lock while holding m_mutex
+   */
   ddsrt_mutex_t m_mutex;
   ddsrt_cond_t m_cond;
 
