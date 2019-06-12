@@ -161,3 +161,208 @@ void ddsrt_atomic_lifo_pushmany (ddsrt_atomic_lifo_t *head, void *first, void *l
   } while (!ddsrt_atomic_casvoidp2 (&head->aba_head, a0, b0, a0+1, (uintptr_t)first));
 }
 #endif
+
+#if DDSRT_HAVE_ATOMIC64
+void ddsrt_atomics_init (void)
+{
+}
+
+void ddsrt_atomics_fini (void)
+{
+}
+
+#else
+
+/* Emulation by hashing the variable's address to a small set of mutexes.  */
+#include "dds/ddsrt/sync.h"
+
+#define N_MUTEXES_LG2 4
+#define N_MUTEXES     (1 << N_MUTEXES_LG2)
+static ddsrt_mutex_t mutexes[N_MUTEXES];
+
+void ddsrt_atomics_init (void)
+{
+  for (int i = 0; i < N_MUTEXES; i++)
+    ddsrt_mutex_init (&mutexes[i]);
+}
+
+void ddsrt_atomics_fini (void)
+{
+  for (int i = 0; i < N_MUTEXES; i++)
+    ddsrt_mutex_destroy (&mutexes[i]);
+}
+
+static uint32_t atomic64_lock_index (const volatile ddsrt_atomic_uint64_t *x)
+{
+  const uint32_t u = (uint16_t) ((uintptr_t) x >> 3);
+  const uint32_t v = u * 0xb4817365;
+  return v >> (32 - N_MUTEXES_LG2);
+}
+
+int ddsrt_atomic_cas64 (volatile ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_t des)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  if (x->v == exp)
+  {
+    x->v = des;
+    ddsrt_mutex_unlock (&mutexes[idx]);
+    return true;
+  }
+  else
+  {
+    ddsrt_mutex_unlock (&mutexes[idx]);
+    return false;
+  }
+}
+
+uint64_t ddsrt_atomic_ld64(const volatile ddsrt_atomic_uint64_t *x)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  const uint64_t v = x->v;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+  return v;
+}
+
+void ddsrt_atomic_st64(volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  x->v = v;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+}
+
+void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  ++x->v;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+}
+
+uint64_t ddsrt_atomic_inc64_nv (volatile ddsrt_atomic_uint64_t *x)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  const uint64_t nv = ++x->v;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+  return nv;
+}
+
+void ddsrt_atomic_dec64 (volatile ddsrt_atomic_uint64_t *x)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  --x->v;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+}
+
+uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_uint64_t *x)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  const uint64_t nv = --x->v;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+  return nv;
+}
+
+void ddsrt_atomic_add64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  x->v += v;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+}
+
+uint64_t ddsrt_atomic_add64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  const uint64_t ov = x->v;
+  const uint64_t nv = ov + v;
+  x->v = nv;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+  return nv;
+}
+
+void ddsrt_atomic_sub64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  x->v -= v;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+}
+
+uint64_t ddsrt_atomic_sub64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  const uint64_t ov = x->v;
+  const uint64_t nv = ov - v;
+  x->v = nv;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+  return nv;
+}
+
+void ddsrt_atomic_and64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  x->v &= v;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+}
+
+uint64_t ddsrt_atomic_and64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  const uint64_t ov = x->v;
+  const uint64_t nv = ov & v;
+  x->v = nv;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+  return ov;
+}
+
+uint64_t ddsrt_atomic_and64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  const uint64_t ov = x->v;
+  const uint64_t nv = ov & v;
+  x->v = nv;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+  return nv;
+}
+
+void ddsrt_atomic_or64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  x->v |= v;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+}
+
+uint64_t ddsrt_atomic_or64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  const uint64_t ov = x->v;
+  const uint64_t nv = ov | v;
+  x->v = nv;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+  return ov;
+}
+
+uint64_t ddsrt_atomic_or64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+{
+  const uint32_t idx = atomic64_lock_index (x);
+  ddsrt_mutex_lock (&mutexes[idx]);
+  const uint64_t ov = x->v;
+  const uint64_t nv = ov | v;
+  x->v = nv;
+  ddsrt_mutex_unlock (&mutexes[idx]);
+  return nv;
+}
+
+#endif /* DDSRT_HAVE_ATOMIC64 */

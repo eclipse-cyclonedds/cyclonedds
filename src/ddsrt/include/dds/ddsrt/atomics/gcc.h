@@ -318,10 +318,18 @@ inline void ddsrt_atomic_fence_ldld (void) {
 #endif
 }
 inline void ddsrt_atomic_fence_acq (void) {
+#if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
   ddsrt_atomic_fence ();
+#else
+  asm volatile ("" ::: "memory");
+#endif
 }
 inline void ddsrt_atomic_fence_rel (void) {
+#if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
   ddsrt_atomic_fence ();
+#else
+  asm volatile ("" ::: "memory");
+#endif
 }
 
 #if defined (__cplusplus)
