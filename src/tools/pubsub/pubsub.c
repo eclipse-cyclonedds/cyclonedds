@@ -567,7 +567,7 @@ static int read_value(char *command, int *key, struct tstamp_t *tstamp, char **a
                 return 1;
             }
             break;
-        case 'p': case 'S': case ':': {
+        case 'p': case 'S': case ':': case 'Q': {
             int i = 0;
             *command = (char) c;
             while ((c = getc(stdin)) != EOF && !isspace((unsigned char) c)) {
@@ -1424,6 +1424,13 @@ static char *pub_do_nonarb(const struct writerspec *spec, uint32_t *seq) {
                 dds_sleepfor(DDS_SECS(k));
             }
             break;
+        case 'Q': {
+            dds_qos_t *qos = dds_create_qos ();
+            setqos_from_args (DDS_KIND_PARTICIPANT, qos, 1, (const char **) &arg);
+            dds_set_qos (dp, qos);
+            dds_delete_qos (qos);
+            break;
+          }
         case 'Y': case 'B': case 'E': case 'W':
             non_data_operation(command, spec->wr);
             break;
