@@ -1886,7 +1886,7 @@ int main (int argc, char *argv[])
      have a reader or will never really be receiving data) */
   struct subthread_arg subarg_data, subarg_ping, subarg_pong;
   init_eseq_admin (&eseq_admin, nkeyvals);
-  subthread_arg_init (&subarg_data, rd_data, 100);
+  subthread_arg_init (&subarg_data, rd_data, 1000);
   subthread_arg_init (&subarg_ping, rd_ping, 100);
   subthread_arg_init (&subarg_pong, rd_pong, 100);
   uint32_t (*subthread_func) (void *arg) = 0;
