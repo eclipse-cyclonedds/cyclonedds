@@ -64,9 +64,6 @@ enum recvips_mode {
   RECVIPS_MODE_SOME             /* explicit list of interfaces; only one requiring recvips */
 };
 
-#define N_LEASE_LOCKS_LG2 4
-#define N_LEASE_LOCKS ((int) (1 << N_LEASE_LOCKS_LG2))
-
 enum recv_thread_mode {
   RTM_SINGLE,
   RTM_MANY
@@ -109,7 +106,6 @@ struct q_globals {
 
   /* Lease junk */
   ddsrt_mutex_t leaseheap_lock;
-  ddsrt_mutex_t lease_locks[N_LEASE_LOCKS];
   ddsrt_fibheap_t leaseheap;
 
   /* Transport factory */
