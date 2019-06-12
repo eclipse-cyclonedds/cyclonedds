@@ -43,6 +43,7 @@ retry:
     ddsrt_time_init();
 #endif
     ddsrt_random_init();
+    ddsrt_atomics_init();
     ddsrt_atomic_or32(&init_status, INIT_STATUS_OK);
   } else {
     while (v > 1 && !(v & INIT_STATUS_OK)) {
@@ -68,6 +69,7 @@ void ddsrt_fini (void)
   {
     ddsrt_mutex_destroy(&init_mutex);
     ddsrt_random_fini();
+    ddsrt_atomics_fini();
 #if _WIN32
     ddsrt_winsock_fini();
     ddsrt_time_fini();
