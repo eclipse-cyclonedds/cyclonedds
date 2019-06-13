@@ -561,7 +561,7 @@ DDSRT_STATIC_ASSERT ((int) DDS_NOT_REJECTED == 0);
 
 DDS_GET_STATUS (reader, subscription_matched,       SUBSCRIPTION_MATCHED,       total_count_change, current_count_change)
 DDS_GET_STATUS (reader, liveliness_changed,         LIVELINESS_CHANGED,         alive_count_change, not_alive_count_change)
-DDS_GET_STATUS (reader, sample_rejected,            SAMPLE_REJECTED,            total_count_change, last_reason)
+DDS_GET_STATUS (reader, sample_rejected,            SAMPLE_REJECTED,            total_count_change)
 DDS_GET_STATUS (reader, sample_lost,                SAMPLE_LOST,                total_count_change)
 DDS_GET_STATUS (reader, requested_deadline_missed,  REQUESTED_DEADLINE_MISSED,  total_count_change)
 DDS_GET_STATUS (reader, requested_incompatible_qos, REQUESTED_INCOMPATIBLE_QOS, total_count_change)
