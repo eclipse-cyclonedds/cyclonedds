@@ -145,6 +145,15 @@ CU_Test(ddsc_entity_status, publication_matched, .init=init_entity_status, .fini
     CU_ASSERT_EQUAL_FATAL(publication_matched.total_count_change,   1);
     CU_ASSERT_EQUAL_FATAL(publication_matched.last_subscription_handle, reader_i_hdl);
 
+    /* Second call should reset the changed count. */
+    ret = dds_get_publication_matched_status(wri, &publication_matched);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.current_count,        1);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.current_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.total_count,          1);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.total_count_change,   0);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.last_subscription_handle, reader_i_hdl);
+
     /* Getting the status should have reset the trigger,
      * meaning that the wait should timeout. */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, shortTimeout);
@@ -162,6 +171,15 @@ CU_Test(ddsc_entity_status, publication_matched, .init=init_entity_status, .fini
     CU_ASSERT_EQUAL_FATAL(publication_matched.current_count_change, -1);
     CU_ASSERT_EQUAL_FATAL(publication_matched.total_count,           1);
     CU_ASSERT_EQUAL_FATAL(publication_matched.total_count_change,    0);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.last_subscription_handle, reader_i_hdl);
+
+    /* Second call should reset the changed count. */
+    ret = dds_get_publication_matched_status(wri, &publication_matched);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.current_count,        0);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.current_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.total_count,          1);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.total_count_change,   0);
     CU_ASSERT_EQUAL_FATAL(publication_matched.last_subscription_handle, reader_i_hdl);
 }
 
@@ -182,6 +200,15 @@ CU_Test(ddsc_entity_status, subscription_matched, .init=init_entity_status, .fin
     CU_ASSERT_EQUAL_FATAL(subscription_matched.total_count_change,   1);
     CU_ASSERT_EQUAL_FATAL(subscription_matched.last_publication_handle, writer_i_hdl);
 
+    /* Second call should reset the changed count. */
+    ret = dds_get_subscription_matched_status(rea, &subscription_matched);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.current_count,        1);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.current_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.total_count,          1);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.total_count_change,   0);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.last_publication_handle, writer_i_hdl);
+
     /* Getting the status should have reset the trigger,
      * meaning that the wait should timeout. */
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, shortTimeout);
@@ -199,6 +226,15 @@ CU_Test(ddsc_entity_status, subscription_matched, .init=init_entity_status, .fin
     CU_ASSERT_EQUAL_FATAL(subscription_matched.current_count_change, -1);
     CU_ASSERT_EQUAL_FATAL(subscription_matched.total_count,           1);
     CU_ASSERT_EQUAL_FATAL(subscription_matched.total_count_change,    0);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.last_publication_handle, writer_i_hdl);
+
+    /* Second call should reset the changed count. */
+    ret = dds_get_subscription_matched_status(rea, &subscription_matched);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.current_count,        0);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.current_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.total_count,          1);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.total_count_change,   0);
     CU_ASSERT_EQUAL_FATAL(subscription_matched.last_publication_handle, writer_i_hdl);
 }
 
@@ -238,6 +274,13 @@ CU_Test(ddsc_entity, incompatible_qos, .init=init_entity_status, .fini=fini_enti
     CU_ASSERT_EQUAL_FATAL(req_incompatible_qos.total_count_change,    1);
     CU_ASSERT_EQUAL_FATAL(req_incompatible_qos.last_policy_id, DDS_DURABILITY_QOS_POLICY_ID);
 
+    /* Second call should reset the changed count. */
+    ret = dds_get_requested_incompatible_qos_status (reader2, &req_incompatible_qos);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(req_incompatible_qos.total_count,           1);
+    CU_ASSERT_EQUAL_FATAL(req_incompatible_qos.total_count_change,    0);
+    CU_ASSERT_EQUAL_FATAL(req_incompatible_qos.last_policy_id, DDS_DURABILITY_QOS_POLICY_ID);
+
     /*Getting the status should have reset the trigger, waitset should timeout */
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, shortTimeout);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -249,6 +292,13 @@ CU_Test(ddsc_entity, incompatible_qos, .init=init_entity_status, .fini=fini_enti
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(off_incompatible_qos.total_count,           1);
     CU_ASSERT_EQUAL_FATAL(off_incompatible_qos.total_count_change,    1);
+    CU_ASSERT_EQUAL_FATAL(off_incompatible_qos.last_policy_id, DDS_DURABILITY_QOS_POLICY_ID);
+
+    /* Second call should reset the changed count. */
+    ret = dds_get_offered_incompatible_qos_status (wri, &off_incompatible_qos);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(off_incompatible_qos.total_count,           1);
+    CU_ASSERT_EQUAL_FATAL(off_incompatible_qos.total_count_change,    0);
     CU_ASSERT_EQUAL_FATAL(off_incompatible_qos.last_policy_id, DDS_DURABILITY_QOS_POLICY_ID);
 
     /*Getting the status should have reset the trigger, waitset should timeout */
@@ -285,6 +335,15 @@ CU_Test(ddsc_entity, liveliness_changed, .init=init_entity_status, .fini=fini_en
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count_change,0);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.last_publication_handle, writer_i_hdl);
 
+    /* Second call should reset the changed count. */
+    ret = dds_get_liveliness_changed_status (rea, &liveliness_changed);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count,           1);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count_change,    0);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count,       0);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count_change,0);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.last_publication_handle, writer_i_hdl);
+
     /*Getting the status should have reset the trigger, waitset should timeout */
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, shortTimeout);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -304,6 +363,15 @@ CU_Test(ddsc_entity, liveliness_changed, .init=init_entity_status, .fini=fini_en
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count_change,    0);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count,       1);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count_change,1);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.last_publication_handle, writer_i_hdl);
+
+    /* Second call should reset the changed count. */
+    ret = dds_get_liveliness_changed_status (rea, &liveliness_changed);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count,           0);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count_change,    0);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count,       1);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count_change,0);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.last_publication_handle, writer_i_hdl);
 }
 
@@ -344,6 +412,13 @@ CU_Test(ddsc_entity, sample_rejected, .init=init_entity_status, .fini=fini_entit
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(sample_rejected.total_count,        4);
     CU_ASSERT_EQUAL_FATAL(sample_rejected.total_count_change, 4);
+    CU_ASSERT_EQUAL_FATAL(sample_rejected.last_reason, DDS_REJECTED_BY_SAMPLES_LIMIT);
+
+    /* Second call should reset the changed count. */
+    ret = dds_get_sample_rejected_status (rea, &sample_rejected);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(sample_rejected.total_count,        4);
+    CU_ASSERT_EQUAL_FATAL(sample_rejected.total_count_change, 0);
     CU_ASSERT_EQUAL_FATAL(sample_rejected.last_reason, DDS_REJECTED_BY_SAMPLES_LIMIT);
 
     /*Getting the status should have reset the trigger, waitset should timeout */
@@ -433,8 +508,14 @@ CU_Test(ddsc_entity, sample_lost, .init=init_entity_status, .fini=fini_entity_st
     CU_ASSERT_EQUAL_FATAL(ret, (dds_return_t)wsresultsize);
     ret = dds_get_sample_lost_status (rea, &sample_lost);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    CU_ASSERT_EQUAL_FATAL(sample_lost.total_count,          1);
+    CU_ASSERT_EQUAL_FATAL(sample_lost.total_count,        1);
     CU_ASSERT_EQUAL_FATAL(sample_lost.total_count_change, 1);
+
+    /* Second call should reset the changed count. */
+    ret = dds_get_sample_lost_status (rea, &sample_lost);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(sample_lost.total_count,        1);
+    CU_ASSERT_EQUAL_FATAL(sample_lost.total_count_change, 0);
 
     /*Getting the status should have reset the trigger, waitset should timeout */
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, shortTimeout);

@@ -692,6 +692,7 @@ CU_Test(ddsc_listener, matched, .init=init_triggering_base, .fini=fini_triggerin
 
 CU_Test(ddsc_listener, publication_matched, .init=init_triggering_test, .fini=fini_triggering_test)
 {
+    dds_publication_matched_status_t publication_matched;
     dds_instance_handle_t reader_hdl;
     dds_return_t ret;
     uint32_t triggered;
@@ -716,6 +717,15 @@ CU_Test(ddsc_listener, publication_matched, .init=init_triggering_test, .fini=fi
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(status, 0);
 
+    /* The listener should have reset the count_change. */
+    ret = dds_get_publication_matched_status(g_writer, &publication_matched);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.current_count,        1);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.current_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.total_count,          1);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.total_count_change,   0);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.last_subscription_handle, reader_hdl);
+
     /* Reset the trigger flags. */
     cb_called = 0;
 
@@ -731,10 +741,20 @@ CU_Test(ddsc_listener, publication_matched, .init=init_triggering_test, .fini=fi
     CU_ASSERT_EQUAL_FATAL(cb_publication_matched_status.total_count, 1);
     CU_ASSERT_EQUAL_FATAL(cb_publication_matched_status.total_count_change, 0);
     CU_ASSERT_EQUAL_FATAL(cb_publication_matched_status.last_subscription_handle, reader_hdl);
+
+    /* The listener should have reset the count_change. */
+    ret = dds_get_publication_matched_status(g_writer, &publication_matched);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.current_count,        0);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.current_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.total_count,          1);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.total_count_change,   0);
+    CU_ASSERT_EQUAL_FATAL(publication_matched.last_subscription_handle, reader_hdl);
 }
 
 CU_Test(ddsc_listener, subscription_matched, .init=init_triggering_test, .fini=fini_triggering_test)
 {
+    dds_subscription_matched_status_t subscription_matched;
     dds_instance_handle_t writer_hdl;
     dds_return_t ret;
     uint32_t triggered;
@@ -759,6 +779,15 @@ CU_Test(ddsc_listener, subscription_matched, .init=init_triggering_test, .fini=f
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(status, 0);
 
+    /* The listener should have reset the count_change. */
+    ret = dds_get_subscription_matched_status(g_reader, &subscription_matched);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.current_count, 1);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.current_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.total_count, 1);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.total_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.last_publication_handle, writer_hdl);
+
     /* Reset the trigger flags. */
     cb_called = 0;
 
@@ -774,10 +803,21 @@ CU_Test(ddsc_listener, subscription_matched, .init=init_triggering_test, .fini=f
     CU_ASSERT_EQUAL_FATAL(cb_subscription_matched_status.total_count, 1);
     CU_ASSERT_EQUAL_FATAL(cb_subscription_matched_status.total_count_change, 0);
     CU_ASSERT_EQUAL_FATAL(cb_subscription_matched_status.last_publication_handle, writer_hdl);
+
+    /* The listener should have reset the count_change. */
+    ret = dds_get_subscription_matched_status(g_reader, &subscription_matched);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.current_count, 0);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.current_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.total_count, 1);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.total_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(subscription_matched.last_publication_handle, writer_hdl);
 }
 
 CU_Test(ddsc_listener, incompatible_qos, .init=init_triggering_base, .fini=fini_triggering_base)
 {
+    dds_offered_incompatible_qos_status_t offered_incompatible_qos;
+    dds_requested_incompatible_qos_status_t requested_incompatible_qos;
     dds_return_t ret;
     uint32_t triggered;
     uint32_t status;
@@ -814,6 +854,18 @@ CU_Test(ddsc_listener, incompatible_qos, .init=init_triggering_base, .fini=fini_
     ret = dds_read_status(g_reader, &status, DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(status, 0);
+
+    /* The listener should have reset the count_change. */
+    ret = dds_get_offered_incompatible_qos_status(g_writer, &offered_incompatible_qos);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    ret = dds_get_requested_incompatible_qos_status(g_reader, &requested_incompatible_qos);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(offered_incompatible_qos.total_count, 1);
+    CU_ASSERT_EQUAL_FATAL(offered_incompatible_qos.total_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(offered_incompatible_qos.last_policy_id, DDS_DURABILITY_QOS_POLICY_ID);
+    CU_ASSERT_EQUAL_FATAL(requested_incompatible_qos.total_count, 1);
+    CU_ASSERT_EQUAL_FATAL(requested_incompatible_qos.total_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(requested_incompatible_qos.last_policy_id, DDS_DURABILITY_QOS_POLICY_ID);
 
     dds_delete(g_writer);
     dds_delete(g_reader);
@@ -997,6 +1049,7 @@ CU_Test(ddsc_listener, data_on_readers, .init=init_triggering_test, .fini=fini_t
 
 CU_Test(ddsc_listener, sample_lost, .init=init_triggering_test, .fini=fini_triggering_test)
 {
+    dds_sample_lost_status_t sample_lost;
     dds_return_t ret;
     uint32_t triggered;
     dds_time_t the_past;
@@ -1031,10 +1084,17 @@ CU_Test(ddsc_listener, sample_lost, .init=init_triggering_test, .fini=fini_trigg
     ret = dds_read_status(g_reader, &status, DDS_SAMPLE_LOST_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(status, 0);
+
+    /* The listener should have reset the count_change. */
+    ret = dds_get_sample_lost_status(g_reader, &sample_lost);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(sample_lost.total_count, 1);
+    CU_ASSERT_EQUAL_FATAL(sample_lost.total_count_change, 0);
 }
 
 CU_Test(ddsc_listener, sample_rejected, .init=init_triggering_test, .fini=fini_triggering_test)
 {
+    dds_sample_rejected_status_t sample_rejected;
     dds_return_t ret;
     uint32_t triggered;
     uint32_t status;
@@ -1060,15 +1120,24 @@ CU_Test(ddsc_listener, sample_rejected, .init=init_triggering_test, .fini=fini_t
     CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
     CU_ASSERT_EQUAL_FATAL(cb_sample_rejected_status.total_count, 2);
     CU_ASSERT_EQUAL_FATAL(cb_sample_rejected_status.total_count_change, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_sample_rejected_status.last_reason, DDS_REJECTED_BY_SAMPLES_LIMIT);
 
     /* The listener should have swallowed the status. */
     ret = dds_read_status(g_reader, &status, DDS_SAMPLE_REJECTED_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(status, 0);
+
+    /* The listener should have reset the count_change. */
+    ret = dds_get_sample_rejected_status(g_reader, &sample_rejected);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(sample_rejected.total_count, 2);
+    CU_ASSERT_EQUAL_FATAL(sample_rejected.total_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(cb_sample_rejected_status.last_reason, DDS_REJECTED_BY_SAMPLES_LIMIT);
 }
 
 CU_Test(ddsc_listener, liveliness_changed, .init=init_triggering_test, .fini=fini_triggering_base)
 {
+    dds_liveliness_changed_status_t liveliness_changed;
     dds_instance_handle_t writer_hdl;
     dds_return_t ret;
     uint32_t triggered;
@@ -1095,6 +1164,15 @@ CU_Test(ddsc_listener, liveliness_changed, .init=init_triggering_test, .fini=fin
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(status, 0);
 
+    /* The listener should have reset the count_change. */
+    ret = dds_get_liveliness_changed_status(g_reader, &liveliness_changed);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count, 1);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count, 0);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.last_publication_handle, writer_hdl);
+
     /* Reset the trigger flags. */
     cb_called = 0;
 
@@ -1110,6 +1188,15 @@ CU_Test(ddsc_listener, liveliness_changed, .init=init_triggering_test, .fini=fin
     CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.not_alive_count, 1);
     CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.not_alive_count_change, 1);
     CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.last_publication_handle, writer_hdl);
+
+    /* The listener should have reset the count_change. */
+    ret = dds_get_liveliness_changed_status(g_reader, &liveliness_changed);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count, 0);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count, 1);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count_change, 0);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.last_publication_handle, writer_hdl);
 }
 
 #if 0
