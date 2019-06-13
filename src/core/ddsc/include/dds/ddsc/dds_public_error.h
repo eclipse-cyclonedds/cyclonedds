@@ -39,7 +39,7 @@ extern "C" {
 /* Error code handling functions */
 
 /** Macro to extract error number */
-#define dds_err_nr(e) (e))
+#define dds_err_nr(e) (e)
 
 /** Macro to extract line number */
 #define dds_err_line(e) (0)
