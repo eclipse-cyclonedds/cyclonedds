@@ -92,7 +92,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
       socklen_t dest_len = sizeof (dest);
       if (ddsrt_getsockname (((ddsi_udp_conn_t) conn)->m_sock, (struct sockaddr *) &dest, &dest_len) != DDS_RETCODE_OK)
         memset(&dest, 0, sizeof(dest));
-      write_pcap_received(gv.pcap_fp, now(), &src, &dest, buf, ret);
+      write_pcap_received(gv.pcap_fp, now(), &src, &dest, buf, (size_t) ret);
     }
 
     /* Check for udp packet truncation */
