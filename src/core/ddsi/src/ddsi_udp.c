@@ -86,6 +86,15 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
     if (srcloc)
       ddsi_ipaddr_to_loc(srcloc, (struct sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
 
+    if(gv.pcap_fp)
+    {
+      struct sockaddr_storage dest;
+      socklen_t dest_len = sizeof (dest);
+      if (ddsrt_getsockname (((ddsi_udp_conn_t) conn)->m_sock, (struct sockaddr *) &dest, &dest_len) != DDS_RETCODE_OK)
+        memset(&dest, 0, sizeof(dest));
+      write_pcap_received(gv.pcap_fp, now(), &src, &dest, buf, (size_t) ret);
+    }
+
     /* Check for udp packet truncation */
     if ((((size_t) ret) > len)
 #if DDSRT_MSGHDR_FLAGS
