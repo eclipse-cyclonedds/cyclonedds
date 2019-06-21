@@ -27,8 +27,8 @@ MPT_Test(qos, ppuserdata, .init=ppud_init, .fini=ppud_fini);
 /*
  * Checks whether reader/writer user_data QoS changes work.
  */
-#define TEST_A_ARGS MPT_ArgValues(DDS_DOMAIN_DEFAULT, "rwuserdata", true, 10)
-#define TEST_B_ARGS MPT_ArgValues(DDS_DOMAIN_DEFAULT, "rwuserdata", false, 0)
+#define TEST_A_ARGS MPT_ArgValues(DDS_DOMAIN_DEFAULT, "rwuserdata", true, 10, RWUD_USERDATA)
+#define TEST_B_ARGS MPT_ArgValues(DDS_DOMAIN_DEFAULT, "rwuserdata", false, 0, RWUD_USERDATA)
 MPT_TestProcess(qos, rwuserdata, a, rwud, TEST_A_ARGS);
 MPT_TestProcess(qos, rwuserdata, b, rwud, TEST_B_ARGS);
 MPT_Test(qos, rwuserdata, .init=ppud_init, .fini=ppud_fini);
@@ -38,10 +38,10 @@ MPT_Test(qos, rwuserdata, .init=ppud_init, .fini=ppud_fini);
 /*
  * Checks whether topic_data QoS changes become visible in reader/writer.
  */
-#define TEST_A_ARGS MPT_ArgValues(DDS_DOMAIN_DEFAULT, "rwtopicdata", true, 10)
-#define TEST_B_ARGS MPT_ArgValues(DDS_DOMAIN_DEFAULT, "rwtopicdata", false, 0)
-MPT_TestProcess(qos, rwtopicdata, a, rwtd, TEST_A_ARGS);
-MPT_TestProcess(qos, rwtopicdata, b, rwtd, TEST_B_ARGS);
+#define TEST_A_ARGS MPT_ArgValues(DDS_DOMAIN_DEFAULT, "rwtopicdata", true, 10, RWUD_TOPICDATA)
+#define TEST_B_ARGS MPT_ArgValues(DDS_DOMAIN_DEFAULT, "rwtopicdata", false, 0, RWUD_TOPICDATA)
+MPT_TestProcess(qos, rwtopicdata, a, rwud, TEST_A_ARGS);
+MPT_TestProcess(qos, rwtopicdata, b, rwud, TEST_B_ARGS);
 MPT_Test(qos, rwtopicdata, .init=ppud_init, .fini=ppud_fini);
 #undef TEST_A_ARGS
 #undef TEST_B_ARGS
@@ -49,10 +49,10 @@ MPT_Test(qos, rwtopicdata, .init=ppud_init, .fini=ppud_fini);
 /*
  * Checks whether group_data QoS changes become visible in reader/writer.
  */
-#define TEST_A_ARGS MPT_ArgValues(DDS_DOMAIN_DEFAULT, "rwgroupdata", true, 10)
-#define TEST_B_ARGS MPT_ArgValues(DDS_DOMAIN_DEFAULT, "rwgroupdata", false, 0)
-MPT_TestProcess(qos, rwgroupdata, a, rwgd, TEST_A_ARGS);
-MPT_TestProcess(qos, rwgroupdata, b, rwgd, TEST_B_ARGS);
+#define TEST_A_ARGS MPT_ArgValues(DDS_DOMAIN_DEFAULT, "rwgroupdata", true, 10, RWUD_GROUPDATA)
+#define TEST_B_ARGS MPT_ArgValues(DDS_DOMAIN_DEFAULT, "rwgroupdata", false, 0, RWUD_GROUPDATA)
+MPT_TestProcess(qos, rwgroupdata, a, rwud, TEST_A_ARGS);
+MPT_TestProcess(qos, rwgroupdata, b, rwud, TEST_B_ARGS);
 MPT_Test(qos, rwgroupdata, .init=ppud_init, .fini=ppud_fini);
 #undef TEST_A_ARGS
 #undef TEST_B_ARGS
