@@ -30,6 +30,7 @@ extern inline void ddsrt_atomic_inc32 (volatile ddsrt_atomic_uint32_t *x);
 extern inline void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x);
 #endif
 extern inline void ddsrt_atomic_incptr (volatile ddsrt_atomic_uintptr_t *x);
+extern inline uint32_t ddsrt_atomic_inc32_ov (volatile ddsrt_atomic_uint32_t *x);
 extern inline uint32_t ddsrt_atomic_inc32_nv (volatile ddsrt_atomic_uint32_t *x);
 #if DDSRT_HAVE_ATOMIC64
 extern inline uint64_t ddsrt_atomic_inc64_nv (volatile ddsrt_atomic_uint64_t *x);
@@ -58,6 +59,7 @@ extern inline void ddsrt_atomic_add64 (volatile ddsrt_atomic_uint64_t *x, uint64
 #endif
 extern inline void ddsrt_atomic_addptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
 extern inline void ddsrt_atomic_addvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v);
+extern inline uint32_t ddsrt_atomic_add32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 extern inline uint32_t ddsrt_atomic_add32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
 extern inline uint64_t ddsrt_atomic_add64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
@@ -71,6 +73,7 @@ extern inline void ddsrt_atomic_sub64 (volatile ddsrt_atomic_uint64_t *x, uint64
 #endif
 extern inline void ddsrt_atomic_subptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
 extern inline void ddsrt_atomic_subvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v);
+extern inline uint32_t ddsrt_atomic_sub32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 extern inline uint32_t ddsrt_atomic_sub32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
 extern inline uint64_t ddsrt_atomic_sub64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);

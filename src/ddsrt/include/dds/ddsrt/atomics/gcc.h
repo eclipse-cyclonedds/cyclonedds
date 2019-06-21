@@ -85,6 +85,9 @@ inline void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x) {
 inline void ddsrt_atomic_incptr (volatile ddsrt_atomic_uintptr_t *x) {
   __sync_fetch_and_add (&x->v, 1);
 }
+inline uint32_t ddsrt_atomic_inc32_ov (volatile ddsrt_atomic_uint32_t *x) {
+  return __sync_fetch_and_add (&x->v, 1);
+}
 inline uint32_t ddsrt_atomic_inc32_nv (volatile ddsrt_atomic_uint32_t *x) {
   return __sync_add_and_fetch (&x->v, 1);
 }
@@ -149,6 +152,9 @@ inline void ddsrt_atomic_addptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v
 inline void ddsrt_atomic_addvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
   ddsrt_atomic_addptr ((volatile ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
 }
+inline uint32_t ddsrt_atomic_add32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
+  return __sync_fetch_and_add (&x->v, v);
+}
 inline uint32_t ddsrt_atomic_add32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_add_and_fetch (&x->v, v);
 }
@@ -179,6 +185,9 @@ inline void ddsrt_atomic_subptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v
 }
 inline void ddsrt_atomic_subvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
   ddsrt_atomic_subptr ((volatile ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
+}
+inline uint32_t ddsrt_atomic_sub32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
+  return __sync_fetch_and_sub (&x->v, v);
 }
 inline uint32_t ddsrt_atomic_sub32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_sub_and_fetch (&x->v, v);

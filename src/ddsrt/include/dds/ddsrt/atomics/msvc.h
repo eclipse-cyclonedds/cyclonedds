@@ -74,6 +74,9 @@ inline void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x) {
 inline void ddsrt_atomic_incptr (volatile ddsrt_atomic_uintptr_t *x) {
   DDSRT_ATOMIC_PTROP (InterlockedIncrement) (&x->v);
 }
+inline uint32_t ddsrt_atomic_inc32_ov (volatile ddsrt_atomic_uint32_t *x) {
+  return InterlockedIncrement (&x->v) - 1;
+}
 inline uint32_t ddsrt_atomic_inc32_nv (volatile ddsrt_atomic_uint32_t *x) {
   return InterlockedIncrement (&x->v);
 }
@@ -138,6 +141,9 @@ inline void ddsrt_atomic_addptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v
 inline void ddsrt_atomic_addvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
   ddsrt_atomic_addptr ((volatile ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
 }
+inline uint32_t ddsrt_atomic_add32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
+  return InterlockedExchangeAdd (&x->v, v);
+}
 inline uint32_t ddsrt_atomic_add32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return InterlockedExchangeAdd (&x->v, v) + v;
 }
@@ -177,6 +183,12 @@ inline void ddsrt_atomic_subptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v
 }
 inline void ddsrt_atomic_subvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
   ddsrt_atomic_subptr ((volatile ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
+}
+inline uint32_t ddsrt_atomic_sub32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
+  /* disable unary minus applied to unsigned type, result still unsigned */
+  DDSRT_WARNING_MSVC_OFF(4146)
+  return InterlockedExchangeAdd (&x->v, -v);
+  DDSRT_WARNING_MSVC_ON(4146)
 }
 inline uint32_t ddsrt_atomic_sub32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   /* disable unary minus applied to unsigned type, result still unsigned */
