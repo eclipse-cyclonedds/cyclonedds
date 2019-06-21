@@ -2063,19 +2063,12 @@ static void writer_qos_mismatch (struct writer * wr, dds_qos_policy_id_t reason)
 {
   /* When the reason is DDS_INVALID_QOS_POLICY_ID, it means that we compared
    * readers/writers from different topics: ignore that. */
-  if (reason != DDS_INVALID_QOS_POLICY_ID)
+  if (reason != DDS_INVALID_QOS_POLICY_ID && wr->status_cb)
   {
-    if (wr->topic->status_cb) {
-      /* Handle INCONSISTENT_TOPIC on topic */
-      (wr->topic->status_cb) (wr->topic->status_cb_entity);
-    }
-    if (wr->status_cb)
-    {
-      status_cb_data_t data;
-      data.raw_status_id = (int) DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID;
-      data.extra = reason;
-      (wr->status_cb) (wr->status_cb_entity, &data);
-    }
+    status_cb_data_t data;
+    data.raw_status_id = (int) DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID;
+    data.extra = reason;
+    (wr->status_cb) (wr->status_cb_entity, &data);
   }
 }
 
@@ -2083,20 +2076,12 @@ static void reader_qos_mismatch (struct reader * rd, dds_qos_policy_id_t reason)
 {
   /* When the reason is DDS_INVALID_QOS_POLICY_ID, it means that we compared
    * readers/writers from different topics: ignore that. */
-  if (reason != DDS_INVALID_QOS_POLICY_ID)
+  if (reason != DDS_INVALID_QOS_POLICY_ID && rd->status_cb)
   {
-    if (rd->topic->status_cb)
-    {
-      /* Handle INCONSISTENT_TOPIC on topic */
-      (rd->topic->status_cb) (rd->topic->status_cb_entity);
-    }
-    if (rd->status_cb)
-    {
-      status_cb_data_t data;
-      data.raw_status_id = (int) DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID;
-      data.extra = reason;
-      (rd->status_cb) (rd->status_cb_entity, &data);
-    }
+    status_cb_data_t data;
+    data.raw_status_id = (int) DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID;
+    data.extra = reason;
+    (rd->status_cb) (rd->status_cb_entity, &data);
   }
 }
 

@@ -16,6 +16,7 @@
 #include "dds__qos.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_globals.h"
+#include "dds/ddsrt/heap.h"
 #include "dds/version.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_subscriber)
@@ -34,6 +35,13 @@ static dds_return_t dds_subscriber_status_validate (uint32_t mask)
 {
   return (mask & ~DDS_SUBSCRIBER_STATUS_MASK) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
 }
+
+const struct dds_entity_deriver dds_entity_deriver_subscriber = {
+  .close = dds_entity_deriver_dummy_close,
+  .delete = dds_entity_deriver_dummy_delete,
+  .set_qos = dds_subscriber_qos_set,
+  .validate_status = dds_subscriber_status_validate
+};
 
 dds_entity_t dds__create_subscriber_l (dds_participant *participant, const dds_qos_t *qos, const dds_listener_t *listener)
 {
@@ -56,8 +64,7 @@ dds_entity_t dds__create_subscriber_l (dds_participant *participant, const dds_q
   sub = dds_alloc (sizeof (*sub));
   subscriber = dds_entity_init (&sub->m_entity, &participant->m_entity, DDS_KIND_SUBSCRIBER, new_qos, listener, DDS_SUBSCRIBER_STATUS_MASK);
   sub->m_entity.m_iid = ddsi_iid_gen ();
-  sub->m_entity.m_deriver.set_qos = dds_subscriber_qos_set;
-  sub->m_entity.m_deriver.validate_status = dds_subscriber_status_validate;
+  dds_entity_register_child (&participant->m_entity, &sub->m_entity);
   return subscriber;
 }
 
@@ -77,19 +84,10 @@ dds_return_t dds_notify_readers (dds_entity_t subscriber)
 {
   dds_subscriber *sub;
   dds_return_t ret;
-
   if ((ret = dds_subscriber_lock (subscriber, &sub)) != DDS_RETCODE_OK)
     return ret;
-
-  ret = DDS_RETCODE_UNSUPPORTED;
-  for (dds_entity *iter = sub->m_entity.m_children; iter; iter = iter->m_next)
-  {
-    ddsrt_mutex_lock (&iter->m_mutex);
-    // FIXME: check if reader has data available, call listener
-    ddsrt_mutex_unlock(&iter->m_mutex);
-  }
   dds_subscriber_unlock (sub);
-  return ret;
+  return DDS_RETCODE_UNSUPPORTED;
 }
 
 dds_return_t dds_subscriber_begin_coherent (dds_entity_t e)

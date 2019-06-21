@@ -33,15 +33,8 @@ dds_entity_t dds_create_querycondition (dds_entity_t reader, uint32_t mask, dds_
     dds_entity_t hdl;
     dds_readcond *cond = dds_create_readcond (r, DDS_KIND_COND_QUERY, mask, filter);
     assert (cond);
-    const bool success = (cond->m_entity.m_deriver.delete != 0);
     dds_reader_unlock (r);
-    if (success)
-      hdl = cond->m_entity.m_hdllink.hdl;
-    else
-    {
-      dds_delete (cond->m_entity.m_hdllink.hdl);
-      hdl = DDS_RETCODE_OUT_OF_RESOURCES;
-    }
+    hdl = cond->m_entity.m_hdllink.hdl;
     return hdl;
   }
 }

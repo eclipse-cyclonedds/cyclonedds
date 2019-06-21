@@ -13,6 +13,7 @@
 
 #include "dds/dds.h"
 #include "dds/version.h"
+#include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_entity.h"
@@ -57,7 +58,7 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
   {
     /* Release the initial claim that was done during the create. This
      * will indicate that further API deletion is now possible. */
-    dds_handle_release (&entity->m_hdllink);
+    dds_handle_unpin (&entity->m_hdllink);
     return;
   }
 
@@ -74,7 +75,7 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
 
   /* Reset the status for possible Listener call.
    * When a listener is not called, the status will be set (again). */
-  dds_entity_status_reset (entity, 1u << status_id);
+  dds_entity_status_reset (entity, (status_mask_t) (1u << status_id));
 
   /* Update status metrics. */
   dds_writer * const wr = (dds_writer *) entity;
@@ -146,7 +147,7 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
   }
   else
   {
-    dds_entity_status_set (entity, 1u << status_id);
+    dds_entity_status_set (entity, (status_mask_t) (1u << status_id));
   }
 
   entity->m_cb_count--;
@@ -236,6 +237,13 @@ static struct whc *make_whc (const dds_qos_t *qos)
   return whc_new (handle_as_transient_local, hdepth, tldepth);
 }
 
+const struct dds_entity_deriver dds_entity_deriver_writer = {
+  .close = dds_writer_close,
+  .delete = dds_writer_delete,
+  .set_qos = dds_writer_qos_set,
+  .validate_status = dds_writer_status_validate
+};
+
 dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   dds_return_t rc;
@@ -249,13 +257,13 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
   {
     dds_entity *p_or_p;
-    if ((rc = dds_entity_claim (participant_or_publisher, &p_or_p)) != DDS_RETCODE_OK)
+    if ((rc = dds_entity_pin (participant_or_publisher, &p_or_p)) != DDS_RETCODE_OK)
       return rc;
     if (dds_entity_kind (p_or_p) == DDS_KIND_PARTICIPANT)
       publisher = dds_create_publisher(participant_or_publisher, qos, NULL);
     else
       publisher = participant_or_publisher;
-    dds_entity_release (p_or_p);
+    dds_entity_unpin (p_or_p);
   }
 
   if ((rc = dds_publisher_lock (publisher, &pub)) != DDS_RETCODE_OK)
@@ -291,17 +299,13 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   writer = dds_entity_init (&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, wqos, listener, DDS_WRITER_STATUS_MASK);
 
   wr->m_topic = tp;
-  dds_entity_add_ref_nolock (&tp->m_entity);
+  dds_entity_add_ref_locked (&tp->m_entity);
   wr->m_xp = nn_xpack_new (conn, get_bandwidth_limit (wqos->transport_priority), config.xpack_send_async);
-  wr->m_entity.m_deriver.close = dds_writer_close;
-  wr->m_entity.m_deriver.delete = dds_writer_delete;
-  wr->m_entity.m_deriver.set_qos = dds_writer_qos_set;
-  wr->m_entity.m_deriver.validate_status = dds_writer_status_validate;
   wr->m_whc = make_whc (wqos);
 
   /* Extra claim of this writer to make sure that the delete waits until DDSI
    * has deleted its writer as well. This can be known through the callback. */
-  dds_handle_claim_inc (&wr->m_entity.m_hdllink);
+  dds_handle_repin (&wr->m_entity.m_hdllink);
 
   ddsrt_mutex_unlock (&tp->m_entity.m_mutex);
   ddsrt_mutex_unlock (&pub->m_entity.m_mutex);
@@ -312,7 +316,10 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   ddsrt_mutex_lock (&tp->m_entity.m_mutex);
   assert(rc == DDS_RETCODE_OK);
   thread_state_asleep (lookup_thread_state ());
+
   wr->m_entity.m_iid = get_entity_instance_id (&wr->m_entity.m_guid);
+  dds_entity_register_child (&pub->m_entity, &wr->m_entity);
+
   dds_topic_unlock (tp);
   dds_publisher_unlock (pub);
   return writer;
@@ -331,7 +338,7 @@ dds_entity_t dds_get_publisher (dds_entity_t writer)
 {
   dds_entity *e;
   dds_return_t rc;
-  if ((rc = dds_entity_claim (writer, &e)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_pin (writer, &e)) != DDS_RETCODE_OK)
     return rc;
   else
   {
@@ -343,7 +350,7 @@ dds_entity_t dds_get_publisher (dds_entity_t writer)
       assert (dds_entity_kind (e->m_parent) == DDS_KIND_PUBLISHER);
       pubh = e->m_parent->m_hdllink.hdl;
     }
-    dds_entity_release (e);
+    dds_entity_unpin (e);
     return pubh;
   }
 }

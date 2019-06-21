@@ -21,6 +21,13 @@
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_guardcond)
 
+const struct dds_entity_deriver dds_entity_deriver_guardcondition = {
+  .close = dds_entity_deriver_dummy_close,
+  .delete = dds_entity_deriver_dummy_delete,
+  .set_qos = dds_entity_deriver_dummy_set_qos,
+  .validate_status = dds_entity_deriver_dummy_validate_status
+};
+
 dds_entity_t dds_create_guardcondition (dds_entity_t participant)
 {
   dds_participant *pp;
@@ -33,6 +40,7 @@ dds_entity_t dds_create_guardcondition (dds_entity_t participant)
     dds_guardcond *gcond = dds_alloc (sizeof (*gcond));
     dds_entity_t hdl = dds_entity_init (&gcond->m_entity, &pp->m_entity, DDS_KIND_COND_GUARD, NULL, NULL, 0);
     gcond->m_entity.m_iid = ddsi_iid_gen ();
+    dds_entity_register_child (&pp->m_entity, &gcond->m_entity);
     dds_participant_unlock (pp);
     return hdl;
   }
@@ -47,12 +55,10 @@ dds_return_t dds_set_guardcondition (dds_entity_t condition, bool triggered)
     return rc;
   else
   {
-    ddsrt_mutex_lock (&gcond->m_entity.m_observers_lock);
     if (triggered)
-      dds_entity_status_set (&gcond->m_entity, DDS_WAITSET_TRIGGER_STATUS);
+      dds_entity_trigger_set (&gcond->m_entity, 1);
     else
-      dds_entity_status_reset (&gcond->m_entity, DDS_WAITSET_TRIGGER_STATUS);
-    ddsrt_mutex_unlock (&gcond->m_entity.m_observers_lock);
+      ddsrt_atomic_st32 (&gcond->m_entity.m_status.m_trigger, 0);
     dds_guardcond_unlock (gcond);
     return DDS_RETCODE_OK;
   }
@@ -71,9 +77,7 @@ dds_return_t dds_read_guardcondition (dds_entity_t condition, bool *triggered)
     return rc;
   else
   {
-    ddsrt_mutex_lock (&gcond->m_entity.m_observers_lock);
-    *triggered = dds_entity_status_match (&gcond->m_entity, DDS_WAITSET_TRIGGER_STATUS);
-    ddsrt_mutex_unlock (&gcond->m_entity.m_observers_lock);
+    *triggered = (ddsrt_atomic_ld32 (&gcond->m_entity.m_status.m_trigger) != 0);
     dds_guardcond_unlock (gcond);
     return DDS_RETCODE_OK;
   }
@@ -92,10 +96,7 @@ dds_return_t dds_take_guardcondition (dds_entity_t condition, bool *triggered)
     return rc;
   else
   {
-    ddsrt_mutex_lock (&gcond->m_entity.m_observers_lock);
-    *triggered = dds_entity_status_match (&gcond->m_entity, DDS_WAITSET_TRIGGER_STATUS);
-    dds_entity_status_reset (&gcond->m_entity, DDS_WAITSET_TRIGGER_STATUS);
-    ddsrt_mutex_unlock (&gcond->m_entity.m_observers_lock);
+    *triggered = (ddsrt_atomic_and32_ov (&gcond->m_entity.m_status.m_trigger, 0) != 0);
     dds_guardcond_unlock (gcond);
     return DDS_RETCODE_OK;
   }

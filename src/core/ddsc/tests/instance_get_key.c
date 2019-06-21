@@ -63,7 +63,7 @@ CU_Test(ddsc_instance_get_key, bad_entity, .init=setup, .fini=teardown)
     dds_return_t ret;
 
     ret = dds_instance_get_key(participant, handle, &data);
-    CU_ASSERT_EQUAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 
 CU_Test(ddsc_instance_get_key, null_data, .init=setup, .fini=teardown)

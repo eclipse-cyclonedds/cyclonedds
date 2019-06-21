@@ -29,7 +29,7 @@
   { \
     if (status) \
       *status = ent->m_##status_##_status; \
-    if (ent->m_entity.m_status_enable & DDS_##STATUS_##_STATUS) { \
+    if (ddsrt_atomic_ld32 (&ent->m_entity.m_status.m_status_and_mask) & (DDS_##STATUS_##_STATUS << SAM_ENABLED_SHIFT)) { \
       do { DDS_GET_STATUS_LOCKED_RESET_N (DDSRT_COUNT_ARGS (__VA_ARGS__), status_, __VA_ARGS__) } while (0); \
       dds_entity_status_reset (&ent->m_entity, DDS_##STATUS_##_STATUS); \
     } \

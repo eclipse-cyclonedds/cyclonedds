@@ -134,12 +134,11 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
 
   /* read/take resets data available status -- must reset before reading because
      the actual writing is protected by RHC lock, not by rd->m_entity.m_lock */
-  ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
   dds_entity_status_reset (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
+
   /* reset DATA_ON_READERS status on subscriber after successful read/take */
-  if (dds_entity_kind (rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER)
-    dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
-  ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
+  assert (dds_entity_kind (rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER);
+  dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
 
   if (take)
     ret = dds_rhc_take (rd->m_rd->rhc, lock, buf, si, maxs, mask, hand, cond);
@@ -158,7 +157,7 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
     if (nodata_cleanups & NC_RESET_BUF)
       buf[0] = NULL;
   }
-  dds_read_unlock(rd, cond);
+  dds_read_unlock (rd, cond);
   thread_state_asleep (ts1);
   return ret;
 
@@ -191,13 +190,12 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
   if ((ret = dds_read_lock (reader_or_condition, &rd, &cond, false)) == DDS_RETCODE_OK)
   {
     /* read/take resets data available status -- must reset before reading because
-       the actual writing is protected by RHC lock, not by rd->m_entity.m_lock */
-    ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
+     the actual writing is protected by RHC lock, not by rd->m_entity.m_lock */
     dds_entity_status_reset (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
+
     /* reset DATA_ON_READERS status on subscriber after successful read/take */
-    if (dds_entity_kind (rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER)
-      dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
-    ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
+    assert (dds_entity_kind (rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER);
+    dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
 
     ret = dds_rhc_takecdr (rd->m_rd->rhc, lock, buf, si, maxs, mask & DDS_ANY_SAMPLE_STATE, mask & DDS_ANY_VIEW_STATE, mask & DDS_ANY_INSTANCE_STATE, hand);
     dds_read_unlock (rd, cond);
