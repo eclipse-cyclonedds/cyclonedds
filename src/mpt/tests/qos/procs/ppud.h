@@ -26,6 +26,12 @@ extern "C" {
 void ppud_init (void);
 void ppud_fini (void);
 
+enum rwud {
+  RWUD_USERDATA,
+  RWUD_GROUPDATA,
+  RWUD_TOPICDATA
+};
+
 MPT_ProcessEntry (ppud,
                   MPT_Args (dds_domainid_t domainid,
                             bool active,
@@ -35,19 +41,9 @@ MPT_ProcessEntry (rwud,
                   MPT_Args (dds_domainid_t domainid,
                             const char *topic_name,
                             bool active,
-                            unsigned ncycles));
+                            unsigned ncycles,
+                            enum rwud which));
 
-MPT_ProcessEntry (rwtd,
-                  MPT_Args (dds_domainid_t domainid,
-                            const char *topic_name,
-                            bool active,
-                            unsigned ncycles));
-
-MPT_ProcessEntry (rwgd,
-                  MPT_Args (dds_domainid_t domainid,
-                            const char *topic_name,
-                            bool active,
-                            unsigned ncycles));
 #if defined (__cplusplus)
 }
 #endif
