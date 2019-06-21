@@ -79,7 +79,6 @@ DDS_EXPORT dds_domainid_t dds_domain_default (void);
 
 /** @name Communication Status definitions
   @{**/
-/** Another topic exists with the same name but with different characteristics. */
 typedef enum dds_status_id {
   DDS_INCONSISTENT_TOPIC_STATUS_ID,
   DDS_OFFERED_DEADLINE_MISSED_STATUS_ID,
@@ -94,8 +93,9 @@ typedef enum dds_status_id {
   DDS_LIVELINESS_CHANGED_STATUS_ID,
   DDS_PUBLICATION_MATCHED_STATUS_ID,
   DDS_SUBSCRIPTION_MATCHED_STATUS_ID
-}
-dds_status_id_t;
+} dds_status_id_t;
+
+/** Another topic exists with the same name but with different characteristics. */
 #define DDS_INCONSISTENT_TOPIC_STATUS          (1u << DDS_INCONSISTENT_TOPIC_STATUS_ID)
 /** The deadline that the writer has committed through its deadline QoS policy was not respected for a specific instance. */
 #define DDS_OFFERED_DEADLINE_MISSED_STATUS     (1u << DDS_OFFERED_DEADLINE_MISSED_STATUS_ID)

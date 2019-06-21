@@ -982,6 +982,7 @@ int main (int argc, char **argv)
   for (size_t i = 0; i < sizeof (rres_iseq) / sizeof (rres_iseq[0]); i++)
     RhcTypes_T_free (&rres_mseq[i], DDS_FREE_CONTENTS);
 
+  ddsi_sertopic_unref (mdtopic);
   dds_delete(pp);
   return 0;
 }

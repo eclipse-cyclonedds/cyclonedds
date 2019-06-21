@@ -29,7 +29,6 @@ typedef void (*topic_cb_t) (struct dds_topic * topic);
 struct ddsi_sertopic_ops;
 
 struct ddsi_sertopic {
-  ddsrt_avl_node_t avlnode; /* index on name_typename */
   const struct ddsi_sertopic_ops *ops;
   const struct ddsi_serdata_ops *serdata_ops;
   uint32_t serdata_basehash;
@@ -38,9 +37,6 @@ struct ddsi_sertopic {
   char *type_name;
   uint64_t iid;
   ddsrt_atomic_uint32_t refc; /* counts refs from entities, not from data */
-
-  topic_cb_t status_cb;
-  struct dds_topic * status_cb_entity;
 };
 
 /* Called when the refcount dropped to zero */

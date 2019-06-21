@@ -28,7 +28,19 @@
 #define USE_CHH 0
 
 #define HDL_FLAG_CLOSED    (0x80000000u)
-#define HDL_COUNT_MASK     (0x00ffffffu)
+
+/* ref count: # outstanding references to this handle/object (not so sure it is
+   ideal to have a one-to-one mapping between the two, but that is what the rest
+   of the code assumes at the moment); so this limits one to having, e.g., no
+   more than 64k endpoints referencing the same topic */
+#define HDL_REFCOUNT_MASK  (0x0ffff000u)
+#define HDL_REFCOUNT_UNIT  (0x00001000u)
+#define HDL_REFCOUNT_SHIFT 12
+
+/* pin count: # concurrent operations, so allowing up to 4096 threads had better
+   be enough ... */
+#define HDL_PINCOUNT_MASK  (0x00000fffu)
+#define HDL_PINCOUNT_UNIT  (0x00000001u)
 
 /* Maximum number of handles is INT32_MAX - 1, but as the allocator relies on a
    random generator for finding a free one, the time spent in the dds_handle_create
@@ -105,7 +117,7 @@ static bool hhadd (struct ddsrt_hh *ht, void *elem) { return ddsrt_hh_add (ht, e
 #endif
 static dds_handle_t dds_handle_create_int (struct dds_handle_link *link)
 {
-  ddsrt_atomic_st32 (&link->cnt_flags, 0);
+  ddsrt_atomic_st32 (&link->cnt_flags, HDL_REFCOUNT_UNIT);
   do {
     do {
       link->hdl = (int32_t) (ddsrt_random () & INT32_MAX);
@@ -159,11 +171,12 @@ int32_t dds_handle_delete (struct dds_handle_link *link, dds_duration_t timeout)
 #endif
   assert (ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_FLAG_CLOSED);
   ddsrt_mutex_lock (&handles.lock);
-  if ((ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_COUNT_MASK) != 0)
+  if ((ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_PINCOUNT_MASK) != 0)
   {
-    /* FIXME: */
+    /* FIXME: there is no sensible solution when this times out, so it must
+       never do that ... */
     const dds_time_t abstimeout = dds_time () + timeout;
-    while ((ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_COUNT_MASK) != 0)
+    while ((ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_PINCOUNT_MASK) != 0)
     {
       if (!ddsrt_cond_waituntil (&handles.cond, &handles.lock, abstimeout))
       {
@@ -188,7 +201,7 @@ int32_t dds_handle_delete (struct dds_handle_link *link, dds_duration_t timeout)
   return DDS_RETCODE_OK;
 }
 
-int32_t dds_handle_claim (dds_handle_t hdl, struct dds_handle_link **link)
+int32_t dds_handle_pin (dds_handle_t hdl, struct dds_handle_link **link)
 {
 #if USE_CHH
   struct thread_state1 * const ts1 = lookup_thread_state ();
@@ -196,7 +209,7 @@ int32_t dds_handle_claim (dds_handle_t hdl, struct dds_handle_link **link)
   struct dds_handle_link dummy = { .hdl = hdl };
   int32_t rc;
   /* it makes sense to check here for initialization: the first thing any operation
-     (other than create_participant) does is to call dds_handle_claim on the supplied
+     (other than create_participant) does is to call dds_handle_pin on the supplied
      entity, so checking here whether the library has been initialised helps avoid
      crashes if someone forgets to create a participant (or allows a program to
      continue after failing to create one).
@@ -228,7 +241,7 @@ int32_t dds_handle_claim (dds_handle_t hdl, struct dds_handle_link **link)
         rc = DDS_RETCODE_BAD_PARAMETER;
         break;
       }
-    } while (!ddsrt_atomic_cas32 (&(*link)->cnt_flags, cnt_flags, cnt_flags + 1));
+    } while (!ddsrt_atomic_cas32 (&(*link)->cnt_flags, cnt_flags, cnt_flags + HDL_PINCOUNT_UNIT));
   }
 #if USE_CHH
   thread_state_asleep (ts1);
@@ -238,21 +251,42 @@ int32_t dds_handle_claim (dds_handle_t hdl, struct dds_handle_link **link)
   return rc;
 }
 
-void dds_handle_claim_inc (struct dds_handle_link *link)
+void dds_handle_repin (struct dds_handle_link *link)
 {
+  DDSRT_STATIC_ASSERT (HDL_PINCOUNT_UNIT == 1);
   uint32_t x = ddsrt_atomic_inc32_nv (&link->cnt_flags);
   assert (!(x & HDL_FLAG_CLOSED));
   (void) x;
 }
 
-void dds_handle_release (struct dds_handle_link *link)
+void dds_handle_unpin (struct dds_handle_link *link)
 {
-  if (ddsrt_atomic_dec32_ov (&link->cnt_flags) == (HDL_FLAG_CLOSED | 1))
+  DDSRT_STATIC_ASSERT (HDL_PINCOUNT_UNIT == 1);
+  if ((ddsrt_atomic_dec32_ov (&link->cnt_flags) & (HDL_FLAG_CLOSED | HDL_PINCOUNT_MASK)) == (HDL_FLAG_CLOSED | HDL_PINCOUNT_UNIT))
   {
     ddsrt_mutex_lock (&handles.lock);
     ddsrt_cond_broadcast (&handles.cond);
     ddsrt_mutex_unlock (&handles.lock);
   }
+}
+
+void dds_handle_add_ref (struct dds_handle_link *link)
+{
+  ddsrt_atomic_add32 (&link->cnt_flags, HDL_REFCOUNT_UNIT);
+}
+
+bool dds_handle_drop_ref (struct dds_handle_link *link)
+{
+  assert ((ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_REFCOUNT_MASK) != 0);
+  uint32_t old, new;
+  do {
+    old = ddsrt_atomic_ld32 (&link->cnt_flags);
+    if ((old & HDL_REFCOUNT_MASK) != HDL_REFCOUNT_UNIT)
+      new = old - HDL_REFCOUNT_UNIT;
+    else
+      new = (old - HDL_REFCOUNT_UNIT) | HDL_FLAG_CLOSED;
+  } while (!ddsrt_atomic_cas32 (&link->cnt_flags, old, new));
+  return (new & HDL_REFCOUNT_MASK) == 0;
 }
 
 bool dds_handle_is_closed (struct dds_handle_link *link)

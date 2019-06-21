@@ -62,46 +62,6 @@ static void dds_instance_remove (const dds_topic *topic, const void *data, dds_i
   }
 }
 
-static const dds_topic *dds_instance_info (dds_entity *e)
-{
-  const dds_topic *topic;
-  switch (dds_entity_kind (e))
-  {
-    case DDS_KIND_READER:
-      topic = ((dds_reader*) e)->m_topic;
-      break;
-    case DDS_KIND_WRITER:
-      topic = ((dds_writer*) e)->m_topic;
-      break;
-    default:
-      assert (0);
-      topic = NULL;
-  }
-  return topic;
-}
-
-static const dds_topic *dds_instance_info_by_hdl (dds_entity_t e)
-{
-  const dds_topic *topic;
-  dds_entity *w_or_r;
-
-  if (dds_entity_lock (e, DDS_KIND_DONTCARE, &w_or_r) != DDS_RETCODE_OK)
-    return NULL;
-
-  switch (dds_entity_kind (w_or_r))
-  {
-    case DDS_KIND_WRITER:
-    case DDS_KIND_READER:
-      topic = dds_instance_info (w_or_r);
-      break;
-    default:
-      topic = NULL;
-      break;
-  }
-  dds_entity_unlock (w_or_r);
-  return topic;
-}
-
 dds_return_t dds_register_instance (dds_entity_t writer, dds_instance_handle_t *handle, const void *data)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
@@ -284,18 +244,32 @@ dds_instance_handle_t dds_lookup_instance (dds_entity_t entity, const void *data
   dds_instance_handle_t ih = DDS_HANDLE_NIL;
   const dds_topic *topic;
   struct ddsi_serdata *sd;
+  dds_entity *w_or_r;
 
   if (data == NULL)
     return DDS_HANDLE_NIL;
 
-  if ((topic = dds_instance_info_by_hdl (entity)) == NULL)
+  if (dds_entity_lock (entity, DDS_KIND_DONTCARE, &w_or_r) < 0)
     return DDS_HANDLE_NIL;
+  switch (dds_entity_kind (w_or_r))
+  {
+    case DDS_KIND_WRITER:
+      topic = ((dds_writer *) w_or_r)->m_topic;
+      break;
+    case DDS_KIND_READER:
+      topic = ((dds_reader *) w_or_r)->m_topic;
+      break;
+    default:
+      dds_entity_unlock (w_or_r);
+      return DDS_HANDLE_NIL;
+  }
 
   thread_state_awake (ts1);
   sd = ddsi_serdata_from_sample (topic->m_stopic, SDK_KEY, data);
   ih = ddsi_tkmap_lookup (gv.m_tkmap, sd);
   ddsi_serdata_unref (sd);
   thread_state_asleep (ts1);
+  dds_entity_unlock (w_or_r);
   return ih;
 }
 
@@ -310,12 +284,25 @@ dds_return_t dds_instance_get_key (dds_entity_t entity, dds_instance_handle_t ih
   dds_return_t ret;
   const dds_topic *topic;
   struct ddsi_tkmap_instance *tk;
+  dds_entity *w_or_r;
 
   if (data == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if ((topic = dds_instance_info_by_hdl (entity)) == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
+  if ((ret = dds_entity_lock (entity, DDS_KIND_DONTCARE, &w_or_r)) < 0)
+    return ret;
+  switch (dds_entity_kind (w_or_r))
+  {
+    case DDS_KIND_WRITER:
+      topic = ((dds_writer *) w_or_r)->m_topic;
+      break;
+    case DDS_KIND_READER:
+      topic = ((dds_reader *) w_or_r)->m_topic;
+      break;
+    default:
+      dds_entity_unlock (w_or_r);
+      return DDS_RETCODE_ILLEGAL_OPERATION;
+  }
 
   thread_state_awake (ts1);
   if ((tk = ddsi_tkmap_find_by_id (gv.m_tkmap, ih)) == NULL)
@@ -328,5 +315,6 @@ dds_return_t dds_instance_get_key (dds_entity_t entity, dds_instance_handle_t ih
     ret = DDS_RETCODE_OK;
   }
   thread_state_asleep (ts1);
+  dds_entity_unlock (w_or_r);
   return ret;
 }

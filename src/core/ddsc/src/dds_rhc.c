@@ -153,6 +153,7 @@
    the tkmap data. */
 
 #define MAX_ATTACHED_QUERYCONDS (CHAR_BIT * sizeof (dds_querycond_mask_t))
+#define MAX_FAST_TRIGGERS 32
 
 #define INCLUDE_TRACE 1
 #if INCLUDE_TRACE
@@ -381,7 +382,7 @@ static void topicless_to_clean_invsample (const struct ddsi_sertopic *topic, con
 }
 
 static unsigned qmask_of_inst (const struct rhc_instance *inst);
-static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc, const struct rhc_instance *inst);
+static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc, const struct rhc_instance *inst, struct dds_entity *triggers[], size_t *ntriggers);
 #ifndef NDEBUG
 static int rhc_check_counts_locked (struct rhc *rhc, bool check_conds, bool check_qcmask);
 #endif
@@ -769,16 +770,19 @@ static bool add_sample (struct rhc *rhc, struct rhc_instance *inst, const struct
   return true;
 }
 
-static bool content_filter_accepts (const struct ddsi_sertopic *sertopic, const struct ddsi_serdata *sample)
+static bool content_filter_accepts (const dds_reader *reader, const struct ddsi_serdata *sample)
 {
   bool ret = true;
-  const struct dds_topic *tp = sertopic->status_cb_entity;
-  if (tp->filter_fn)
+  if (reader)
   {
-    char *tmp = ddsi_sertopic_alloc_sample (sertopic);
-    ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
-    ret = (tp->filter_fn) (tmp, tp->filter_ctx);
-    ddsi_sertopic_free_sample (sertopic, tmp, DDS_FREE_ALL);
+    const struct dds_topic *tp = reader->m_topic;
+    if (tp->filter_fn)
+    {
+      char *tmp = ddsi_sertopic_alloc_sample (tp->m_stopic);
+      ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
+      ret = (tp->filter_fn) (tmp, tp->filter_ctx);
+      ddsi_sertopic_free_sample (tp->m_stopic, tmp, DDS_FREE_ALL);
+    }
   }
   return ret;
 }
@@ -822,7 +826,7 @@ static int inst_accepts_sample (const struct rhc *rhc, const struct rhc_instance
       return 0;
     }
   }
-  if (has_data && !content_filter_accepts (rhc->topic, sample))
+  if (has_data && !content_filter_accepts (rhc->reader, sample))
   {
     return 0;
   }
@@ -1166,7 +1170,7 @@ static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst
      attribute (rather than a key), an empty instance should be
      instantiated. */
 
-  if (has_data && !content_filter_accepts (rhc->topic, sample))
+  if (has_data && !content_filter_accepts (rhc->reader, sample))
   {
     return RHC_FILTERED;
   }
@@ -1225,7 +1229,6 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
   struct trigger_info_pre pre;
   struct trigger_info_post post;
   struct trigger_info_qcond trig_qc;
-  bool trigger_waitsets;
   rhc_store_result_t stored;
   status_cb_data_t cb_data;   /* Callback data for reader status callback */
   bool delivered = true;
@@ -1440,7 +1443,10 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
 
   TRACE (")\n");
 
-  trigger_waitsets = trigger_info_differs (rhc, &pre, &post, &trig_qc) && update_conditions_locked (rhc, true, &pre, &post, &trig_qc, inst);
+  dds_entity *triggers[MAX_FAST_TRIGGERS];
+  size_t ntriggers = 0;
+  if (trigger_info_differs (rhc, &pre, &post, &trig_qc))
+    update_conditions_locked (rhc, true, &pre, &post, &trig_qc, inst, triggers, &ntriggers);
 
   assert (rhc_check_counts_locked (rhc, true, true));
 
@@ -1450,8 +1456,8 @@ bool dds_rhc_store (struct rhc * __restrict rhc, const struct proxy_writer_info 
   {
     if (notify_data_available)
       dds_reader_data_available_cb (rhc->reader);
-    if (trigger_waitsets)
-      dds_entity_status_signal (&rhc->reader->m_entity);
+    for (size_t i = 0; i < ntriggers; i++)
+      dds_entity_status_signal (triggers[i], 0);
   }
 
   return delivered;
@@ -1490,12 +1496,13 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
      need to get two IIDs: the one visible to the application in the
      built-in topics and in get_instance_handle, and one used internally
      for tracking registrations and unregistrations. */
-  bool trigger_waitsets = false;
   bool notify_data_available = false;
   struct rhc_instance *inst;
   struct ddsrt_hh_iter iter;
   const uint64_t wr_iid = pwr_info->iid;
   const int auto_dispose = pwr_info->auto_dispose;
+
+  size_t ntriggers = SIZE_MAX;
 
   ddsrt_mutex_lock (&rhc->lock);
   TRACE ("rhc_unregister_wr_iid(%"PRIx64",%d:\n", wr_iid, auto_dispose);
@@ -1538,8 +1545,8 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
       TRACE ("\n");
 
       notify_data_available = true;
-      if (trigger_info_differs (rhc, &pre, &post, &trig_qc) && update_conditions_locked (rhc, true, &pre, &post, &trig_qc, inst))
-        trigger_waitsets = true;
+      if (trigger_info_differs (rhc, &pre, &post, &trig_qc))
+        update_conditions_locked (rhc, true, &pre, &post, &trig_qc, inst, NULL, &ntriggers);
       assert (rhc_check_counts_locked (rhc, true, false));
     }
   }
@@ -1551,8 +1558,6 @@ void dds_rhc_unregister_wr (struct rhc * __restrict rhc, const struct proxy_writ
   {
     if (notify_data_available)
       dds_reader_data_available_cb (rhc->reader);
-    if (trigger_waitsets)
-      dds_entity_status_signal (&rhc->reader->m_entity);
   }
 }
 
@@ -1726,10 +1731,11 @@ static bool read_sample_update_conditions (struct rhc *rhc, struct trigger_info_
   trig_qc->dec_sample_read = sample_wasread;
   trig_qc->inc_sample_read = true;
   get_trigger_info_cmn (&post->c, inst);
-  const bool trigger_waitsets = update_conditions_locked (rhc, false, pre, post, trig_qc, inst);
+  size_t ntriggers = SIZE_MAX;
+  update_conditions_locked (rhc, false, pre, post, trig_qc, inst, NULL, &ntriggers);
   trig_qc->dec_conds_sample = trig_qc->inc_conds_sample = 0;
   pre->c = post->c;
-  return trigger_waitsets;
+  return false;
 }
 
 static bool take_sample_update_conditions (struct rhc *rhc, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc, struct rhc_instance *inst, dds_querycond_mask_t conds, bool sample_wasread)
@@ -1742,15 +1748,15 @@ static bool take_sample_update_conditions (struct rhc *rhc, struct trigger_info_
   trig_qc->dec_conds_sample = conds;
   trig_qc->dec_sample_read = sample_wasread;
   get_trigger_info_cmn (&post->c, inst);
-  const bool trigger_waitsets = update_conditions_locked (rhc, false, pre, post, trig_qc, inst);
+  size_t ntriggers = SIZE_MAX;
+  update_conditions_locked (rhc, false, pre, post, trig_qc, inst, NULL, &ntriggers);
   trig_qc->dec_conds_sample = 0;
   pre->c = post->c;
-  return trigger_waitsets;
+  return false;
 }
 
 static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, unsigned qminv, dds_instance_handle_t handle, dds_readcond *cond)
 {
-  bool trigger_waitsets = false;
   uint32_t n = 0;
 
   if (lock)
@@ -1797,8 +1803,7 @@ static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
                 if (!sample->isread)
                 {
                   TRACE ("s");
-                  if (read_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, sample->conds, false))
-                    trigger_waitsets = true;
+                  read_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, sample->conds, false);
                   sample->isread = true;
                   inst->nvread++;
                   rhc->n_vread++;
@@ -1820,8 +1825,7 @@ static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
             if (!inst->inv_isread)
             {
               TRACE ("i");
-              if (read_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, inst->conds, false))
-                trigger_waitsets = true;
+              read_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, inst->conds, false);
               inst->inv_isread = 1;
               rhc->n_invread++;
             }
@@ -1837,13 +1841,13 @@ static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
           }
           if (nread != inst_nread (inst) || inst_became_old)
           {
+            size_t ntriggers = SIZE_MAX;
             get_trigger_info_cmn (&post.c, inst);
             assert (trig_qc.dec_conds_invsample == 0);
             assert (trig_qc.dec_conds_sample == 0);
             assert (trig_qc.inc_conds_invsample == 0);
             assert (trig_qc.inc_conds_sample == 0);
-            if (update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst))
-              trigger_waitsets = true;
+            update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst, NULL, &ntriggers);
           }
 
           if (n > n_first) {
@@ -1862,19 +1866,15 @@ static int dds_rhc_read_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
   TRACE ("read: returning %"PRIu32"\n", n);
   assert (rhc_check_counts_locked (rhc, true, false));
   ddsrt_mutex_unlock (&rhc->lock);
-
-  if (trigger_waitsets)
-    dds_entity_status_signal (&rhc->reader->m_entity);
-
   assert (n <= INT_MAX);
   return (int)n;
 }
 
 static int dds_rhc_take_w_qminv (struct rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, unsigned qminv, dds_instance_handle_t handle, dds_readcond *cond)
 {
-  bool trigger_waitsets = false;
   uint64_t iid;
   uint32_t n = 0;
+  size_t ntriggers = SIZE_MAX;
 
   if (lock)
   {
@@ -1923,8 +1923,7 @@ static int dds_rhc_take_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
               }
               else
               {
-                if (take_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, sample->conds, sample->isread))
-                  trigger_waitsets = true;
+                take_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, sample->conds, sample->isread);
 
                 set_sample_info (info_seq + n, inst, sample);
                 ddsi_serdata_to_sample (sample->sample, values[n], 0, 0);
@@ -1963,8 +1962,7 @@ static int dds_rhc_take_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
 #ifndef NDEBUG
             init_trigger_info_qcond (&dummy_trig_qc);
 #endif
-            if (take_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, inst->conds, inst->inv_isread))
-              trigger_waitsets = true;
+            take_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, inst->conds, inst->inv_isread);
             set_sample_info_invsample (info_seq + n, inst);
             topicless_to_clean_invsample (rhc->topic, inst->tk->m_sample, values[n], 0, 0);
             inst_clear_invsample (rhc, inst, &dummy_trig_qc);
@@ -1986,8 +1984,7 @@ static int dds_rhc_take_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
             assert (trig_qc.dec_conds_sample == 0);
             assert (trig_qc.inc_conds_invsample == 0);
             assert (trig_qc.inc_conds_sample == 0);
-            if (update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst))
-              trigger_waitsets = true;
+            update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst, NULL, &ntriggers);
           }
 
           if (inst_is_empty (inst))
@@ -2024,17 +2021,12 @@ static int dds_rhc_take_w_qminv (struct rhc *rhc, bool lock, void **values, dds_
   TRACE ("take: returning %"PRIu32"\n", n);
   assert (rhc_check_counts_locked (rhc, true, false));
   ddsrt_mutex_unlock (&rhc->lock);
-
-  if (trigger_waitsets)
-    dds_entity_status_signal(&rhc->reader->m_entity);
-
   assert (n <= INT_MAX);
   return (int)n;
 }
 
 static int dds_rhc_takecdr_w_qminv (struct rhc *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples, unsigned qminv, dds_instance_handle_t handle, dds_readcond *cond)
 {
-  bool trigger_waitsets = false;
   uint64_t iid;
   uint32_t n = 0;
   (void)cond;
@@ -2085,9 +2077,7 @@ static int dds_rhc_takecdr_w_qminv (struct rhc *rhc, bool lock, struct ddsi_serd
               }
               else
               {
-                if (take_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, sample->conds, sample->isread))
-                  trigger_waitsets = true;
-
+                take_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, sample->conds, sample->isread);
                 set_sample_info (info_seq + n, inst, sample);
                 values[n] = ddsi_serdata_ref(sample->sample);
                 rhc->n_vsamples--;
@@ -2119,8 +2109,7 @@ static int dds_rhc_takecdr_w_qminv (struct rhc *rhc, bool lock, struct ddsi_serd
 #ifndef NDEBUG
             init_trigger_info_qcond (&dummy_trig_qc);
 #endif
-            if (take_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, inst->conds, inst->inv_isread))
-              trigger_waitsets = true;
+            take_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, inst->conds, inst->inv_isread);
             set_sample_info_invsample (info_seq + n, inst);
             values[n] = ddsi_serdata_ref(inst->tk->m_sample);
             inst_clear_invsample (rhc, inst, &dummy_trig_qc);
@@ -2137,9 +2126,9 @@ static int dds_rhc_takecdr_w_qminv (struct rhc *rhc, bool lock, struct ddsi_serd
           {
             /* if nsamples = 0, it won't match anything, so no need to do
              anything here for drop_instance_noupdate_no_writers */
+            size_t ntriggers = SIZE_MAX;
             get_trigger_info_cmn (&post.c, inst);
-            if (update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst))
-              trigger_waitsets = true;
+            update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst, NULL, &ntriggers);
           }
 
           if (inst_is_empty (inst))
@@ -2176,10 +2165,6 @@ static int dds_rhc_takecdr_w_qminv (struct rhc *rhc, bool lock, struct ddsi_serd
   TRACE ("take: returning %"PRIu32"\n", n);
   assert (rhc_check_counts_locked (rhc, true, false));
   ddsrt_mutex_unlock (&rhc->lock);
-
-  if (trigger_waitsets)
-    dds_entity_status_signal (&rhc->reader->m_entity);
-
   assert (n <= INT_MAX);
   return (int)n;
 }
@@ -2239,7 +2224,7 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
 
   assert ((dds_entity_kind (&cond->m_entity) == DDS_KIND_COND_READ && cond->m_query.m_filter == 0) ||
           (dds_entity_kind (&cond->m_entity) == DDS_KIND_COND_QUERY && cond->m_query.m_filter != 0));
-  assert (cond->m_entity.m_trigger == 0);
+  assert (ddsrt_atomic_ld32 (&cond->m_entity.m_status.m_trigger) == 0);
   assert (cond->m_query.m_qcmask == 0);
 
   cond->m_qminv = qmask_from_dcpsquery (cond->m_sample_states, cond->m_view_states, cond->m_instance_states);
@@ -2270,6 +2255,7 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
   cond->m_next = rhc->conds;
   rhc->conds = cond;
 
+  uint32_t trigger = 0;
   if (cond->m_query.m_filter == 0)
   {
     /* Read condition is not cached inside the instances and samples, so it only needs
@@ -2278,7 +2264,7 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
     {
       struct rhc_instance *inst = rhc->nonempty_instances;
       do {
-        cond->m_entity.m_trigger += rhc_get_cond_trigger (inst, cond);
+        trigger += rhc_get_cond_trigger (inst, cond);
         inst = inst->next;
       } while (inst != rhc->nonempty_instances);
     }
@@ -2296,7 +2282,6 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
     /* Attaching a query condition means clearing the allocated bit in all instances and
        samples, except for those that match the predicate. */
     const dds_querycond_mask_t qcmask = cond->m_query.m_qcmask;
-    uint32_t trigger = 0;
     for (struct rhc_instance *inst = ddsrt_hh_iter_first (rhc->instances, &it); inst != NULL; inst = ddsrt_hh_iter_next (&it))
     {
       const bool instmatch = eval_predicate_invsample (rhc, inst, cond->m_query.m_filter);;
@@ -2317,12 +2302,14 @@ bool dds_rhc_add_readcondition (dds_readcond *cond)
       if (!inst_is_empty (inst) && rhc_get_cond_trigger (inst, cond))
         trigger += (inst->inv_exists ? instmatch : 0) + matches;
     }
-    cond->m_entity.m_trigger = trigger;
   }
 
-  if (cond->m_entity.m_trigger)
-    dds_entity_status_signal (&cond->m_entity);
-
+  if (trigger)
+  {
+    ddsrt_atomic_st32 (&cond->m_entity.m_status.m_trigger, trigger);
+    dds_entity_status_signal (&cond->m_entity, DDS_DATA_AVAILABLE_STATUS);
+  }
+  
   TRACE ("add_readcondition(%p, %"PRIx32", %"PRIx32", %"PRIx32") => %p qminv %"PRIx32" ; rhc %"PRIu32" conds\n",
     (void *) rhc, cond->m_sample_states, cond->m_view_states,
     cond->m_instance_states, (void *) cond, cond->m_qminv, rhc->nconds);
@@ -2356,7 +2343,7 @@ void dds_rhc_remove_readcondition (dds_readcond *cond)
   ddsrt_mutex_unlock (&rhc->lock);
 }
 
-static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc, const struct rhc_instance *inst)
+static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc, const struct rhc_instance *inst, struct dds_entity *triggers[], size_t *ntriggers)
 {
   /* Pre: rhc->lock held; returns 1 if triggering required, else 0. */
   bool trigger = false;
@@ -2417,14 +2404,14 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
       else if (m_pre < m_post)
       {
         TRACE ("now matches");
-        trigger = (iter->m_entity.m_trigger++ == 0);
+        trigger = (ddsrt_atomic_inc32_ov (&iter->m_entity.m_status.m_trigger) == 0);
         if (trigger)
           TRACE (" (cond now triggers)");
       }
       else
       {
         TRACE ("no longer matches");
-        if (--iter->m_entity.m_trigger == 0)
+        if (ddsrt_atomic_dec32_nv (&iter->m_entity.m_status.m_trigger) == 0)
           TRACE (" (cond no longer triggers)");
       }
     }
@@ -2477,19 +2464,19 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
            there is always space for a valid and an invalid sample, both add and remove
            inserting an update always has unread data added, but a read pretends it is a removal
            of whatever and an insertion of read data */
-        assert (mdelta >= 0 || iter->m_entity.m_trigger >= (uint32_t) -mdelta);
+        assert (mdelta >= 0 || ddsrt_atomic_ld32 (&iter->m_entity.m_status.m_trigger) >= (uint32_t) -mdelta);
         if (mdelta == 0)
-          TRACE ("no change @ %"PRIu32" (0)", iter->m_entity.m_trigger);
+          TRACE ("no change @ %"PRIu32" (0)", ddsrt_atomic_ld32 (&iter->m_entity.m_status.m_trigger));
         else
-          TRACE ("m=%"PRId32" @ %"PRIu32" (0)", mdelta, iter->m_entity.m_trigger + (uint32_t) mdelta);
+          TRACE ("m=%"PRId32" @ %"PRIu32" (0)", mdelta, ddsrt_atomic_ld32 (&iter->m_entity.m_status.m_trigger) + (uint32_t) mdelta);
         /* even though it matches now and matched before, it is not a given that any of the samples
            matched before, so m_trigger may still be 0 */
-        if (mdelta > 0 && iter->m_entity.m_trigger == 0)
+        const uint32_t ov = ddsrt_atomic_add32_ov (&iter->m_entity.m_status.m_trigger, (uint32_t) mdelta);
+        if (mdelta > 0 && ov == 0)
           trigger = true;
-        iter->m_entity.m_trigger += (uint32_t) mdelta;
         if (trigger)
           TRACE (" (cond now triggers)");
-        else if (mdelta < 0 && iter->m_entity.m_trigger == 0)
+        else if (mdelta < 0 && ov == (uint32_t) -mdelta)
           TRACE (" (cond no longer triggers)");
       }
       else
@@ -2509,7 +2496,7 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
           } while (sample != end);
         }
         if (mdelta == 0 && mcurrent == 0)
-          TRACE ("no change @ %"PRIu32" (2)", iter->m_entity.m_trigger);
+          TRACE ("no change @ %"PRIu32" (2)", ddsrt_atomic_ld32 (&iter->m_entity.m_status.m_trigger));
         else if (m_pre < m_post)
         {
           /* No match previously, so the instance wasn't accounted for at all in the trigger value.
@@ -2519,10 +2506,9 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
              sample, so mrem reflects the state before the change, and the incremental change needs
              to be taken into account. */
           const int32_t m = called_from_insert ? mcurrent : mcurrent + mdelta;
-          TRACE ("mdelta=%"PRId32" mcurrent=%"PRId32" => %"PRId32" => %"PRIu32" (2a)", mdelta, mcurrent, m, iter->m_entity.m_trigger + (uint32_t) m);
-          assert (m >= 0 || iter->m_entity.m_trigger >= (uint32_t) -m);
-          trigger = (iter->m_entity.m_trigger == 0) && m > 0;
-          iter->m_entity.m_trigger += (uint32_t) m;
+          TRACE ("mdelta=%"PRId32" mcurrent=%"PRId32" => %"PRId32" => %"PRIu32" (2a)", mdelta, mcurrent, m, ddsrt_atomic_ld32 (&iter->m_entity.m_status.m_trigger) + (uint32_t) m);
+          assert (m >= 0 || ddsrt_atomic_ld32 (&iter->m_entity.m_status.m_trigger) >= (uint32_t) -m);
+          trigger = (ddsrt_atomic_add32_ov (&iter->m_entity.m_status.m_trigger, (uint32_t) m) == 0 && m > 0);
           if (trigger)
             TRACE (" (cond now triggers)");
         }
@@ -2532,18 +2518,21 @@ static bool update_conditions_locked (struct rhc *rhc, bool called_from_insert, 
              of matches as well as those that were removed just before, hence need the incremental
              change as well */
           const int32_t m = mcurrent - mdelta;
-          TRACE ("mdelta=%"PRId32" mcurrent=%"PRId32" => %"PRId32" => %"PRIu32" (2b)", mdelta, mcurrent, m, iter->m_entity.m_trigger - (uint32_t) m);
-          assert (m < 0 || iter->m_entity.m_trigger >= (uint32_t) m);
-          iter->m_entity.m_trigger -= (uint32_t) m;
-          if (iter->m_entity.m_trigger == 0)
+          TRACE ("mdelta=%"PRId32" mcurrent=%"PRId32" => %"PRId32" => %"PRIu32" (2b)", mdelta, mcurrent, m, ddsrt_atomic_ld32 (&iter->m_entity.m_status.m_trigger) - (uint32_t) m);
+          assert (m < 0 || ddsrt_atomic_ld32 (&iter->m_entity.m_status.m_trigger) >= (uint32_t) m);
+          if (ddsrt_atomic_sub32_nv (&iter->m_entity.m_status.m_trigger, (uint32_t) m) == 0)
             TRACE (" (cond no longer triggers)");
         }
       }
     }
 
-    if (iter->m_entity.m_trigger)
-      dds_entity_status_signal (&iter->m_entity);
-
+    if (trigger)
+    {
+      if (*ntriggers < MAX_FAST_TRIGGERS)
+        triggers[(*ntriggers)++] = &iter->m_entity;
+      else
+        dds_entity_status_signal (&iter->m_entity, DDS_DATA_AVAILABLE_STATUS);
+    }
     TRACE ("\n");
     iter = iter->m_next;
   }
@@ -2717,7 +2706,9 @@ static int rhc_check_counts_locked (struct rhc *rhc, bool check_conds, bool chec
   if (check_conds)
   {
     for (i = 0, rciter = rhc->conds; i < ncheck; i++, rciter = rciter->m_next)
-      assert (cond_match_count[i] == rciter->m_entity.m_trigger);
+    {
+      assert (cond_match_count[i] == ddsrt_atomic_ld32 (&rciter->m_entity.m_status.m_trigger));
+    }
    }
 
   if (rhc->n_nonempty_instances == 0)

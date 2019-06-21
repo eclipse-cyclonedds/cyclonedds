@@ -98,19 +98,18 @@ dds_topic_descriptor_t;
 
 typedef enum dds_entity_kind
 {
-  DDS_KIND_DONTCARE    = 0x00000000,
-  DDS_KIND_TOPIC       = 0x01000000,
-  DDS_KIND_PARTICIPANT = 0x02000000,
-  DDS_KIND_READER      = 0x03000000,
-  DDS_KIND_WRITER      = 0x04000000,
-  DDS_KIND_SUBSCRIBER  = 0x05000000,
-  DDS_KIND_PUBLISHER   = 0x06000000,
-  DDS_KIND_COND_READ   = 0x07000000,
-  DDS_KIND_COND_QUERY  = 0x08000000,
-  DDS_KIND_COND_GUARD  = 0x09000000,
-  DDS_KIND_WAITSET     = 0x0A000000
-}
-dds_entity_kind_t;
+  DDS_KIND_DONTCARE,
+  DDS_KIND_TOPIC,
+  DDS_KIND_PARTICIPANT,
+  DDS_KIND_READER,
+  DDS_KIND_WRITER,
+  DDS_KIND_SUBSCRIBER,
+  DDS_KIND_PUBLISHER,
+  DDS_KIND_COND_READ,
+  DDS_KIND_COND_QUERY,
+  DDS_KIND_COND_GUARD,
+  DDS_KIND_WAITSET
+} dds_entity_kind_t;
 
 /* Handles are opaque pointers to implementation types */
 typedef uint64_t dds_instance_handle_t;

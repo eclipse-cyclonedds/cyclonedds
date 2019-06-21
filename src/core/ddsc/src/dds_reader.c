@@ -96,13 +96,11 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
      overhead really matters.  Otherwise, it is pretty much like
      dds_reader_status_cb. */
 
-  ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
-  if (!(rd->m_entity.m_status_enable & DDS_DATA_AVAILABLE_STATUS))
-  {
-    ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
+  const bool data_av_enabled = (ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask) & (DDS_DATA_AVAILABLE_STATUS << SAM_ENABLED_SHIFT));
+  if (!data_av_enabled)
     return;
-  }
 
+  ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
   while (rd->m_entity.m_cb_count > 0)
     ddsrt_cond_wait (&rd->m_entity.m_observers_cond, &rd->m_entity.m_observers_lock);
   rd->m_entity.m_cb_count++;
@@ -136,7 +134,6 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
   else
   {
     dds_entity_status_set (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
-
     ddsrt_mutex_lock (&sub->m_observers_lock);
     dds_entity_status_set (sub, DDS_DATA_ON_READERS_STATUS);
     ddsrt_mutex_unlock (&sub->m_observers_lock);
@@ -156,7 +153,7 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
   {
     /* Release the initial claim that was done during the create. This
      * will indicate that further API deletion is now possible. */
-    dds_handle_release (&entity->m_hdllink);
+    dds_handle_unpin (&entity->m_hdllink);
     return;
   }
 
@@ -270,7 +267,7 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
   if (invoke)
   {
     ddsrt_mutex_unlock (&entity->m_observers_lock);
-    dds_entity_invoke_listener(entity, status_id, vst);
+    dds_entity_invoke_listener (entity, status_id, vst);
     ddsrt_mutex_lock (&entity->m_observers_lock);
     *reset[0] = 0;
     if (reset[1])
@@ -278,13 +275,20 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
   }
   else
   {
-    dds_entity_status_set (entity, 1u << status_id);
+    dds_entity_status_set (entity, (status_mask_t) (1u << status_id));
   }
 
   entity->m_cb_count--;
   ddsrt_cond_broadcast (&entity->m_observers_cond);
   ddsrt_mutex_unlock (&entity->m_observers_lock);
 }
+
+const struct dds_entity_deriver dds_entity_deriver_reader = {
+  .close = dds_reader_close,
+  .delete = dds_reader_delete,
+  .set_qos = dds_reader_qos_set,
+  .validate_status = dds_reader_status_validate
+};
 
 dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
 {
@@ -312,13 +316,13 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
 
     default: {
       dds_entity *p_or_s;
-      if ((ret = dds_entity_claim (participant_or_subscriber, &p_or_s)) != DDS_RETCODE_OK)
+      if ((ret = dds_entity_pin (participant_or_subscriber, &p_or_s)) != DDS_RETCODE_OK)
         return ret;
       if (dds_entity_kind (p_or_s) == DDS_KIND_PARTICIPANT)
         subscriber = dds_create_subscriber (participant_or_subscriber, qos, NULL);
       else
         subscriber = participant_or_subscriber;
-      dds_entity_release (p_or_s);
+      dds_entity_unpin (p_or_s);
       internal_topic = false;
       t = topic;
       break;
@@ -379,15 +383,11 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
   rd->m_topic = tp;
   rhc = dds_rhc_new (rd, tp->m_stopic);
-  dds_entity_add_ref_nolock (&tp->m_entity);
-  rd->m_entity.m_deriver.close = dds_reader_close;
-  rd->m_entity.m_deriver.delete = dds_reader_delete;
-  rd->m_entity.m_deriver.set_qos = dds_reader_qos_set;
-  rd->m_entity.m_deriver.validate_status = dds_reader_status_validate;
+  dds_entity_add_ref_locked (&tp->m_entity);
 
   /* Extra claim of this reader to make sure that the delete waits until DDSI
      has deleted its reader as well. This can be known through the callback. */
-  dds_handle_claim_inc (&rd->m_entity.m_hdllink);
+  dds_handle_repin (&rd->m_entity.m_hdllink);
 
   ddsrt_mutex_unlock (&tp->m_entity.m_mutex);
   ddsrt_mutex_unlock (&sub->m_entity.m_mutex);
@@ -398,7 +398,9 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   ddsrt_mutex_lock (&tp->m_entity.m_mutex);
   assert (ret == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
   thread_state_asleep (lookup_thread_state ());
+  
   rd->m_entity.m_iid = get_entity_instance_id (&rd->m_entity.m_guid);
+  dds_entity_register_child (&sub->m_entity, &rd->m_entity);
 
   /* For persistent data register reader with durability */
   if (dds_global.m_dur_reader && (rd->m_entity.m_qos->durability.kind > DDS_DURABILITY_TRANSIENT_LOCAL)) {
@@ -429,11 +431,11 @@ err_sub_lock:
 void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb, void *cbarg)
 {
   dds_entity *dds_entity;
-  if (dds_entity_claim (entity, &dds_entity) != DDS_RETCODE_OK)
+  if (dds_entity_pin (entity, &dds_entity) != DDS_RETCODE_OK)
     return;
   if (dds_entity_kind (dds_entity) != DDS_KIND_READER)
   {
-    dds_entity_release (dds_entity);
+    dds_entity_unpin (dds_entity);
     return;
   }
 
@@ -473,7 +475,7 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
     ddsrt_mutex_lock (&rd->e.lock);
   }
   ddsrt_mutex_unlock (&rd->e.lock);
-  dds_entity_release (dds_entity);
+  dds_entity_unpin (dds_entity);
 }
 
 uint32_t dds_reader_lock_samples (dds_entity_t reader)
@@ -513,7 +515,7 @@ dds_entity_t dds_get_subscriber (dds_entity_t entity)
 {
   dds_entity *e;
   dds_return_t ret;
-  if ((ret = dds_entity_claim (entity, &e)) != DDS_RETCODE_OK)
+  if ((ret = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
     return ret;
   else
   {
@@ -534,7 +536,7 @@ dds_entity_t dds_get_subscriber (dds_entity_t entity)
         subh = DDS_RETCODE_ILLEGAL_OPERATION;
         break;
     }
-    dds_entity_release (e);
+    dds_entity_unpin (e);
     return subh;
   }
 }

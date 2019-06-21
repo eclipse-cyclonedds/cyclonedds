@@ -84,6 +84,13 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
   return DDS_RETCODE_OK;
 }
 
+const struct dds_entity_deriver dds_entity_deriver_participant = {
+  .close = dds_entity_deriver_dummy_close,
+  .delete = dds_participant_delete,
+  .set_qos = dds_participant_qos_set,
+  .validate_status = dds_participant_status_validate
+};
+
 dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   dds_entity_t ret;
@@ -128,10 +135,6 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   pp->m_entity.m_guid = guid;
   pp->m_entity.m_iid = get_entity_instance_id (&guid);
   pp->m_entity.m_domain = dds_domain_create (dds_domain_default ());
-  pp->m_entity.m_domainid = dds_domain_default ();
-  pp->m_entity.m_deriver.delete = dds_participant_delete;
-  pp->m_entity.m_deriver.set_qos = dds_participant_qos_set;
-  pp->m_entity.m_deriver.validate_status = dds_participant_status_validate;
   pp->m_builtin_subscriber = 0;
 
   /* Add participant to extent */
@@ -175,7 +178,7 @@ dds_entity_t dds_lookup_participant (dds_domainid_t domain_id, dds_entity_t *par
     ddsrt_mutex_lock (&dds_global.m_mutex);
     for (dds_entity *iter = dds_pp_head; iter; iter = iter->m_next)
     {
-      if (iter->m_domainid == domain_id)
+      if (iter->m_domain->m_id == domain_id)
       {
         if ((size_t) ret < size)
           participants[ret] = iter->m_hdllink.hdl;

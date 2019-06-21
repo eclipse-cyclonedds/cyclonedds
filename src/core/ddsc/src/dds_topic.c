@@ -37,12 +37,20 @@ DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_topic)
 #define DDS_TOPIC_STATUS_MASK                                    \
                         (DDS_INCONSISTENT_TOPIC_STATUS)
 
-static int strcmp_wrapper (const void *va, const void *vb)
+struct topic_sertopic_node {
+  ddsrt_avl_node_t avlnode;
+  uint32_t refc;
+  const struct ddsi_sertopic *st;
+};
+
+static int topic_sertopic_node_cmp (const void *va, const void *vb)
 {
-  return strcmp (va, vb);
+  const struct ddsi_sertopic *a = va;
+  const struct ddsi_sertopic *b = vb;
+  return strcmp (a->name, b->name);
 }
 
-const ddsrt_avl_treedef_t dds_topictree_def = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct ddsi_sertopic, avlnode), offsetof (struct ddsi_sertopic, name_type_name), strcmp_wrapper, 0);
+const ddsrt_avl_treedef_t dds_topictree_def = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct topic_sertopic_node, avlnode), offsetof (struct topic_sertopic_node, st), topic_sertopic_node_cmp, 0);
 
 static bool is_valid_name (const char *name) ddsrt_nonnull_all;
 
@@ -72,9 +80,10 @@ static dds_return_t dds_topic_status_validate (uint32_t mask)
 
 /*
   Topic status change callback handler. Supports INCONSISTENT_TOPIC
-  status (only defined status on a topic).
+  status (only defined status on a topic).  Irrelevant until inconsistent topic
+  definitions can be detected, so until topic discovery is added.
 */
-
+#if 0
 static void dds_topic_status_cb (struct dds_topic *tp)
 {
   struct dds_listener const * const lst = &tp->m_entity.m_listener;
@@ -99,66 +108,31 @@ static void dds_topic_status_cb (struct dds_topic *tp)
   ddsrt_cond_broadcast (&tp->m_entity.m_observers_cond);
   ddsrt_mutex_unlock (&tp->m_entity.m_observers_lock);
 }
-
-struct ddsi_sertopic *dds_topic_lookup_locked (dds_domain *domain, const char *name) ddsrt_nonnull_all;
-
-struct ddsi_sertopic *dds_topic_lookup_locked (dds_domain *domain, const char *name)
-{
-  ddsrt_avl_iter_t iter;
-  for (struct ddsi_sertopic *st = ddsrt_avl_iter_first (&dds_topictree_def, &domain->m_topics, &iter); st; st = ddsrt_avl_iter_next (&iter))
-    if (strcmp (st->name, name) == 0)
-      return st;
-  return NULL;
-}
+#endif
 
 struct ddsi_sertopic *dds_topic_lookup (dds_domain *domain, const char *name)
 {
+  const struct ddsi_sertopic key = { .name = (char *) name };
   struct ddsi_sertopic *st;
+  struct topic_sertopic_node *nst;
   ddsrt_mutex_lock (&dds_global.m_mutex);
-  st = dds_topic_lookup_locked (domain, name);
+  if ((nst = ddsrt_avl_lookup (&dds_topictree_def, &domain->m_topics, &key)) == NULL)
+    st = NULL;
+  else
+    st = ddsi_sertopic_ref (nst->st);
   ddsrt_mutex_unlock (&dds_global.m_mutex);
   return st;
 }
 
-void dds_topic_free (dds_domainid_t domainid, struct ddsi_sertopic *st)
+static bool dds_find_topic_check_and_add_ref (dds_entity_t participant, dds_entity_t topic, const char *name)
 {
-  dds_domain *domain;
-  ddsrt_mutex_lock (&dds_global.m_mutex);
-  domain = ddsrt_avl_lookup (&dds_domaintree_def, &dds_global.m_domains, &domainid);
-  if (domain != NULL)
-  {
-    assert (ddsrt_avl_lookup (&dds_topictree_def, &domain->m_topics, st->name_type_name) != NULL);
-    ddsrt_avl_delete (&dds_topictree_def, &domain->m_topics, st);
-  }
-  ddsrt_mutex_unlock (&dds_global.m_mutex);
-  st->status_cb_entity = NULL;
-  ddsi_sertopic_unref (st);
-}
+  dds_topic *tp;
+  if (dds_topic_lock (topic, &tp) != DDS_RETCODE_OK)
+    return false;
 
-static void dds_topic_add_locked (dds_domainid_t id, struct ddsi_sertopic *st)
-{
-  dds_domain *dom = dds_domain_find_locked (id);
-  assert (dom);
-  assert (ddsrt_avl_lookup (&dds_topictree_def, &dom->m_topics, st->name_type_name) == NULL);
-  ddsrt_avl_insert (&dds_topictree_def, &dom->m_topics, st);
-}
-
-dds_entity_t dds_find_topic (dds_entity_t participant, const char *name)
-{
-  dds_entity_t tp;
-  dds_participant *p;
-  struct ddsi_sertopic *st;
-  dds_return_t rc;
-
-  if (name == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  if ((rc = dds_participant_lock (participant, &p)) != DDS_RETCODE_OK)
-    return rc;
-
-  ddsrt_mutex_lock (&dds_global.m_mutex);
-  if ((st = dds_topic_lookup_locked (p->m_entity.m_domain, name)) == NULL)
-    tp = DDS_RETCODE_PRECONDITION_NOT_MET;
+  bool ret;
+  if (tp->m_entity.m_participant->m_hdllink.hdl != participant || strcmp (tp->m_stopic->name, name) != 0)
+    ret = false;
   else
   {
     /* FIXME: calling addref is wrong because the Cyclone library has no
@@ -166,19 +140,76 @@ dds_entity_t dds_find_topic (dds_entity_t participant, const char *name)
        won't make the ref count drop to 0.  On the other hand, the DDS spec
        says find_topic (and a second call to create_topic) return a new
        proxy that must separately be deleted.  */
-    dds_entity_add_ref (&st->status_cb_entity->m_entity);
-    tp = st->status_cb_entity->m_entity.m_hdllink.hdl;
+    dds_entity_add_ref_locked (&tp->m_entity);
+    ret = true;
   }
-  ddsrt_mutex_unlock (&dds_global.m_mutex);
-  dds_participant_unlock (p);
-  return tp;
+  dds_topic_unlock (tp);
+  return ret;
+}
+
+dds_entity_t dds_find_topic (dds_entity_t participant, const char *name)
+{
+  dds_entity *pe;
+  dds_return_t ret;
+  dds_entity_t topic;
+
+  if (name == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  /* claim participant handle to guarantee the handle remains valid after
+     unlocking the participant prior to verifying the found topic still
+     exists */
+  if ((ret = dds_entity_pin (participant, &pe)) < 0)
+    return ret;
+  if (dds_entity_kind (pe) != DDS_KIND_PARTICIPANT)
+  {
+    dds_entity_unpin (pe);
+    return DDS_RETCODE_ILLEGAL_OPERATION;
+  }
+
+  do {
+    dds_participant *p;
+    topic = DDS_RETCODE_PRECONDITION_NOT_MET;
+    if ((ret = dds_participant_lock (participant, &p)) == DDS_RETCODE_OK)
+    {
+      ddsrt_avl_iter_t it;
+      for (dds_entity *e = ddsrt_avl_iter_first (&dds_entity_children_td, &p->m_entity.m_children, &it); e != NULL; e = ddsrt_avl_iter_next (&it))
+      {
+        if (dds_entity_kind (e) == DDS_KIND_TOPIC && strcmp (((dds_topic *) e)->m_stopic->name, name) == 0)
+        {
+          topic = e->m_hdllink.hdl;
+          break;
+        }
+      }
+      dds_participant_unlock (p);
+    }
+  } while (topic > 0 && !dds_find_topic_check_and_add_ref (participant, topic, name));
+
+  dds_entity_unpin (pe);
+  return topic;
 }
 
 static dds_return_t dds_topic_delete (dds_entity *e) ddsrt_nonnull_all;
 
 static dds_return_t dds_topic_delete (dds_entity *e)
 {
-  dds_topic_free (e->m_domainid, ((dds_topic *) e)->m_stopic);
+  dds_topic *tp = (dds_topic *) e;
+  dds_domain *domain = tp->m_entity.m_domain;
+  ddsrt_avl_dpath_t dp;
+  struct topic_sertopic_node *stn;
+
+  ddsrt_mutex_lock (&dds_global.m_mutex);
+
+  stn = ddsrt_avl_lookup_dpath (&dds_topictree_def, &domain->m_topics, tp->m_stopic, &dp);
+  assert (stn != NULL);
+  if (--stn->refc == 0)
+  {
+    ddsrt_avl_delete_dpath (&dds_topictree_def, &domain->m_topics, stn, &dp);
+    ddsrt_free (stn);
+  }
+
+  ddsi_sertopic_unref (tp->m_stopic);
+  ddsrt_mutex_unlock (&dds_global.m_mutex);
   return DDS_RETCODE_OK;
 }
 
@@ -189,14 +220,14 @@ static dds_return_t dds_topic_qos_set (dds_entity *e, const dds_qos_t *qos, bool
   return DDS_RETCODE_OK;
 }
 
-static bool dupdef_qos_ok (const dds_qos_t *qos, const struct ddsi_sertopic *st)
+static bool dupdef_qos_ok (const dds_qos_t *qos, const dds_topic *tp)
 {
-  if ((qos == NULL) != (st->status_cb_entity->m_entity.m_qos == NULL))
+  if ((qos == NULL) != (tp->m_entity.m_qos == NULL))
     return false;
   else if (qos == NULL)
     return true;
   else
-    return dds_qos_equal (st->status_cb_entity->m_entity.m_qos, qos);
+    return dds_qos_equal (tp->m_entity.m_qos, qos);
 }
 
 static bool sertopic_equivalent (const struct ddsi_sertopic *a, const struct ddsi_sertopic *b)
@@ -212,11 +243,46 @@ static bool sertopic_equivalent (const struct ddsi_sertopic *a, const struct dds
   return true;
 }
 
+static dds_return_t create_topic_topic_arbirary_check_sertopic (dds_entity_t participant, dds_entity_t topic, struct ddsi_sertopic *sertopic, const dds_qos_t *qos)
+{
+  dds_topic *tp;
+  dds_return_t ret;
+
+  if (dds_topic_lock (topic, &tp) < 0)
+    return DDS_RETCODE_NOT_FOUND;
+
+  if (tp->m_entity.m_participant->m_hdllink.hdl != participant)
+    ret = DDS_RETCODE_NOT_FOUND;
+  else if (!sertopic_equivalent (tp->m_stopic, sertopic))
+    ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+  else if (!dupdef_qos_ok (qos, tp))
+    ret = DDS_RETCODE_INCONSISTENT_POLICY;
+  else
+  {
+    /* FIXME: calling addref is wrong because the Cyclone library has no
+       knowledge of the reference and hence simply deleting the participant
+       won't make the ref count drop to 0.  On the other hand, the DDS spec
+       says find_topic (and a second call to create_topic) return a new
+       proxy that must separately be deleted.  */
+    dds_entity_add_ref_locked (&tp->m_entity);
+    ret = DDS_RETCODE_OK;
+  }
+  dds_topic_unlock (tp);
+  return ret;
+}
+
+const struct dds_entity_deriver dds_entity_deriver_topic = {
+  .close = dds_entity_deriver_dummy_close,
+  .delete = dds_topic_delete,
+  .set_qos = dds_topic_qos_set,
+  .validate_status = dds_topic_status_validate
+};
+
 dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const nn_plist_t *sedp_plist)
 {
-  struct ddsi_sertopic *stgeneric;
   dds_return_t rc;
   dds_participant *par;
+  dds_entity *par_ent;
   dds_topic *top;
   dds_qos_t *new_qos = NULL;
   dds_entity_t hdl;
@@ -242,68 +308,146 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
   if ((rc = nn_xqos_valid (new_qos)) != DDS_RETCODE_OK)
     goto err_invalid_qos;
 
+  /* Claim participant handle so we can be sure the handle will not be
+     reused if we temporarily unlock the participant to check the an
+     existing topic's compatibility */
+  if ((rc = dds_entity_pin (participant, &par_ent)) < 0)
+    goto err_claim_participant;
+
+  /* FIXME: just mutex_lock ought to be good enough, but there is the
+     pesky "closed" check still ... */
   if ((rc = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
     goto err_lock_participant;
 
-  /* Check if topic already exists with same name */
-  ddsrt_mutex_lock (&dds_global.m_mutex);
-  if ((stgeneric = dds_topic_lookup_locked (par->m_entity.m_domain, sertopic->name)) != NULL) {
-    if (!sertopic_equivalent (stgeneric, sertopic)) {
-      /* FIXME: should copy the type, perhaps? but then the pointers will no longer be the same */
-      rc = DDS_RETCODE_PRECONDITION_NOT_MET;
-      goto err_mismatch;
-    } else if (!dupdef_qos_ok (new_qos, stgeneric)) {
-      /* FIXME: should copy the type, perhaps? but then the pointers will no longer be the same */
-      rc = DDS_RETCODE_INCONSISTENT_POLICY;
-      goto err_mismatch;
-    } else {
-      /* FIXME: calling addref is wrong because the Cyclone library has no
-         knowledge of the reference and hence simply deleting the participant
-         won't make the ref count drop to 0.  On the other hand, the DDS spec
-         says find_topic (and a second call to create_topic) return a new
-         proxy that must separately be deleted.  */
-      dds_entity_add_ref (&stgeneric->status_cb_entity->m_entity);
-      hdl = stgeneric->status_cb_entity->m_entity.m_hdllink.hdl;
-      dds_delete_qos (new_qos);
-    }
-    ddsrt_mutex_unlock (&dds_global.m_mutex);
-  } else {
-    /* Create topic */
-    top = dds_alloc (sizeof (*top));
-    hdl = dds_entity_init (&top->m_entity, &par->m_entity, DDS_KIND_TOPIC, new_qos, listener, DDS_TOPIC_STATUS_MASK);
-    top->m_entity.m_iid = ddsi_iid_gen ();
-    top->m_entity.m_deriver.delete = dds_topic_delete;
-    top->m_entity.m_deriver.set_qos = dds_topic_qos_set;
-    top->m_entity.m_deriver.validate_status = dds_topic_status_validate;
-    top->m_stopic = ddsi_sertopic_ref (sertopic);
-    sertopic->status_cb_entity = top;
+  bool retry_lookup;
+  do {
+    dds_entity_t topic;
 
-    /* Add topic to extent */
-    dds_topic_add_locked (par->m_entity.m_domainid, sertopic);
-    ddsrt_mutex_unlock (&dds_global.m_mutex);
-
-    /* Publish Topic */
-    thread_state_awake (lookup_thread_state ());
-    ddsi_pp = ephash_lookup_participant_guid (&par->m_entity.m_guid);
-    assert (ddsi_pp);
-    if (sedp_plist)
+    /* claim participant handle to guarantee the handle remains valid after
+        unlocking the participant prior to verifying the found topic still
+        exists */
+    topic = DDS_RETCODE_PRECONDITION_NOT_MET;
+    ddsrt_avl_iter_t it;
+    for (dds_entity *e = ddsrt_avl_iter_first (&dds_entity_children_td, &par->m_entity.m_children, &it); e != NULL; e = ddsrt_avl_iter_next (&it))
     {
-      nn_plist_t plist;
-      nn_plist_init_empty (&plist);
-      nn_plist_mergein_missing (&plist, sedp_plist, ~(uint64_t)0, ~(uint64_t)0);
-      nn_xqos_mergein_missing (&plist.qos, new_qos, ~(uint64_t)0);
-      sedp_write_topic (ddsi_pp, &plist);
-      nn_plist_fini (&plist);
+      if (dds_entity_kind (e) == DDS_KIND_TOPIC && strcmp (((dds_topic *) e)->m_stopic->name, sertopic->name) == 0)
+      {
+        topic = e->m_hdllink.hdl;
+        break;
+      }
     }
-    thread_state_asleep (lookup_thread_state ());
+    if (topic < 0)
+    {
+      /* no topic with the name exists; we have locked the participant, and
+         so we can proceed with creating the topic */
+      retry_lookup = false;
+    }
+    else
+    {
+      /* some topic with the same name exists; need to lock the topic to
+         perform the checks, but locking the topic while holding the
+         participant lock violates the lock order (child -> parent).  So
+         unlock that participant and check the topic while accounting
+         for the various scary cases. */
+      dds_participant_unlock (par);
+
+      rc = create_topic_topic_arbirary_check_sertopic (participant, topic, sertopic, new_qos);
+      switch (rc)
+      {
+        case DDS_RETCODE_OK: /* duplicate definition */
+          dds_entity_unpin (par_ent);
+          dds_delete_qos (new_qos);
+          return topic;
+
+        case DDS_RETCODE_NOT_FOUND:
+          /* either participant is now being deleted, topic was deleted, or
+             topic was deleted & the handle reused for something else -- so */
+          retry_lookup = true;
+          break;
+
+        case DDS_RETCODE_PRECONDITION_NOT_MET: /* incompatible sertopic */
+        case DDS_RETCODE_INCONSISTENT_POLICY: /* different QoS */
+          /* inconsistent definition */
+          dds_entity_unpin (par_ent);
+          dds_delete_qos (new_qos);
+          return rc;
+
+        default:
+          abort ();
+      }
+
+      if ((rc = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
+        goto err_lock_participant;
+    }
+  } while (retry_lookup);
+
+  /* FIXME: make this a function
+     Add sertopic to domain -- but note that it may have been created by another thread
+     on another participant that is attached to the same domain */
+  {
+    struct dds_domain *domain = par->m_entity.m_domain;
+
+    ddsrt_avl_ipath_t ip;
+    struct topic_sertopic_node *stn;
+
+    ddsrt_mutex_lock (&dds_global.m_mutex);
+
+    stn = ddsrt_avl_lookup_ipath (&dds_topictree_def, &domain->m_topics, sertopic, &ip);
+    if (stn == NULL)
+    {
+      /* no existing definition: use new */
+      stn = ddsrt_malloc (sizeof (*stn));
+      stn->refc = 1;
+      stn->st = ddsi_sertopic_ref (sertopic);
+      ddsrt_avl_insert (&dds_topictree_def, &domain->m_topics, stn);
+      ddsrt_mutex_unlock (&dds_global.m_mutex);
+    }
+    else if (sertopic_equivalent (stn->st, sertopic))
+    {
+      /* ok -- same definition, so use existing one instead */
+      sertopic = ddsi_sertopic_ref (stn->st);
+      stn->refc++;
+      ddsrt_mutex_unlock (&dds_global.m_mutex);
+    }
+    else
+    {
+      /* bummer, delete */
+      ddsrt_mutex_unlock (&dds_global.m_mutex);
+      rc = DDS_RETCODE_PRECONDITION_NOT_MET;
+      goto err_sertopic_reuse;
+    }
   }
+
+  /* Create topic */
+  top = dds_alloc (sizeof (*top));
+  hdl = dds_entity_init (&top->m_entity, &par->m_entity, DDS_KIND_TOPIC, new_qos, listener, DDS_TOPIC_STATUS_MASK);
+  top->m_entity.m_iid = ddsi_iid_gen ();
+  dds_entity_register_child (&par->m_entity, &top->m_entity);
+  top->m_stopic = sertopic;
+
+  /* Publish Topic */
+  thread_state_awake (lookup_thread_state ());
+  ddsi_pp = ephash_lookup_participant_guid (&par->m_entity.m_guid);
+  assert (ddsi_pp);
+  if (sedp_plist)
+  {
+    nn_plist_t plist;
+    nn_plist_init_empty (&plist);
+    nn_plist_mergein_missing (&plist, sedp_plist, ~(uint64_t)0, ~(uint64_t)0);
+    nn_xqos_mergein_missing (&plist.qos, new_qos, ~(uint64_t)0);
+    sedp_write_topic (ddsi_pp, &plist);
+    nn_plist_fini (&plist);
+  }
+  thread_state_asleep (lookup_thread_state ());
   dds_participant_unlock (par);
+  dds_entity_unpin (par_ent);
   return hdl;
 
-err_mismatch:
-  ddsrt_mutex_unlock (&dds_global.m_mutex);
+err_sertopic_reuse:
   dds_participant_unlock (par);
 err_lock_participant:
+  dds_entity_unpin (par_ent);
+err_claim_participant:
 err_invalid_qos:
   dds_delete_qos (new_qos);
   return rc;
@@ -330,8 +474,6 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
 
   ddsrt_atomic_st32 (&st->c.refc, 1);
   st->c.iid = ddsi_iid_gen ();
-  st->c.status_cb = dds_topic_status_cb;
-  st->c.status_cb_entity = NULL; /* set by dds_create_topic_arbitrary */
   st->c.name_type_name = key;
   st->c.name = ddsrt_strdup (name);
   st->c.type_name = ddsrt_strdup (typename);

@@ -38,8 +38,6 @@ struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic
   tp->c.ops = &ddsi_sertopic_ops_builtintopic;
   tp->c.serdata_ops = &ddsi_serdata_ops_builtintopic;
   tp->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (tp->c.serdata_ops);
-  tp->c.status_cb = 0;
-  tp->c.status_cb_entity = NULL;
   ddsrt_atomic_st32 (&tp->c.refc, 1);
   tp->type = type;
   return &tp->c;
