@@ -118,7 +118,7 @@ os_sockWaitset os_sockWaitsetNew (void)
   ws->ctx.nevs = 0;
   ws->ctx.index = 0;
   ws->ctx.evs_sz = sz;
-  if ((ws->ctx.evs = malloc (ws->ctx.evs_sz * sizeof (*ws->ctx.evs))) == NULL)
+  if ((ws->ctx.evs = ddsrt_malloc (ws->ctx.evs_sz * sizeof (*ws->ctx.evs))) == NULL)
     goto fail_ctx_evs;
   if ((ws->kqueue = kqueue ()) == -1)
     goto fail_kqueue;
