@@ -200,7 +200,7 @@ struct nn_xpack
   ddsi_tran_conn_t conn;
   ddsi_sem_t sem;
   size_t niov;
-  ddsrt_iovec_t iov[NN_XMSG_MAX_MESSAGE_IOVECS];
+  ddsrt_iovec_t *iov;
   enum nn_xmsg_dstmode dstmode;
 
   union
@@ -978,6 +978,7 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
   xp = ddsrt_malloc (sizeof (*xp));
   memset (xp, 0, sizeof (*xp));
   xp->async_mode = async_mode;
+  xp->iov = NULL;
 
   /* Fixed header fields, initialized just once */
   xp->hdr.protocol.id[0] = 'R';
@@ -1030,6 +1031,7 @@ void nn_xpack_free (struct nn_xpack *xp)
 #endif
   if (gv.thread_pool)
     ddsi_sem_destroy (&xp->sem);
+  ddsrt_free (xp->iov);
   ddsrt_free (xp);
 }
 
@@ -1410,6 +1412,9 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   assert ((xp->msg_len.length % 4) == 0);
   assert ((m->sz % 4) == 0);
   assert (m->refd_payload == NULL || (m->refd_payload_iov.iov_len % 4) == 0);
+
+  if (xp->iov == NULL)
+    xp->iov = malloc (NN_XMSG_MAX_MESSAGE_IOVECS * sizeof (*xp->iov));
 
   if (!nn_xpack_mayaddmsg (xp, m, flags))
   {

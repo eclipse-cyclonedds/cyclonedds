@@ -1103,6 +1103,22 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
       ddsrt_free (plist);
     }
   }
+  else if (addrset_empty (wr->as) && (wr->as_group == NULL || addrset_empty (wr->as_group)))
+  {
+    /* No network destination, so no point in doing all the work involved
+       in going all the way.  We do have to record that we "transmitted"
+       this sample, or it might not be retransmitted on request.
+
+      (Note that no network destination is very nearly the same as no
+      matching proxy readers.  The exception is the SPDP writer.) */
+    UPDATE_SEQ_XMIT_LOCKED (wr, seq);
+    ddsrt_mutex_unlock (&wr->e.lock);
+    if (plist != NULL)
+    {
+      nn_plist_fini (plist);
+      ddsrt_free (plist);
+    }
+  }
   else
   {
     /* Note the subtlety of enqueueing with the lock held but
