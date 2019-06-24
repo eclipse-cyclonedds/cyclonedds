@@ -366,11 +366,11 @@ struct whc *whc_new (int is_transient_local, uint32_t hdepth, uint32_t tldepth)
 #if USE_EHH
   whc->seq_hash = ddsrt_ehh_new (sizeof (struct whc_seq_entry), 32, whc_seq_entry_hash, whc_seq_entry_eq);
 #else
-  whc->seq_hash = ddsrt_hh_new (32, whc_node_hash, whc_node_eq);
+  whc->seq_hash = ddsrt_hh_new (1, whc_node_hash, whc_node_eq);
 #endif
 
   if (whc->idxdepth > 0)
-    whc->idx_hash = ddsrt_hh_new (32, whc_idxnode_hash_key, whc_idxnode_eq_key);
+    whc->idx_hash = ddsrt_hh_new (1, whc_idxnode_hash_key, whc_idxnode_eq_key);
   else
     whc->idx_hash = NULL;
 
