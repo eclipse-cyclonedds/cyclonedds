@@ -192,30 +192,33 @@ static int lwreg_equals (const void *va, const void *vb)
 
 static void lwregs_init (struct lwregs *rt)
 {
-  rt->regs = ddsrt_ehh_new (sizeof (struct lwreg), 1, lwreg_hash, lwreg_equals);
+  rt->regs = NULL;
 }
 
 static void lwregs_fini (struct lwregs *rt)
 {
-  ddsrt_ehh_free (rt->regs);
+  if (rt->regs)
+    ddsrt_ehh_free (rt->regs);
 }
 
 static int lwregs_contains (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
 {
   struct lwreg dummy = { .iid = iid, .wr_iid = wr_iid };
-  return ddsrt_ehh_lookup (rt->regs, &dummy) != NULL;
+  return rt->regs != NULL && ddsrt_ehh_lookup (rt->regs, &dummy) != NULL;
 }
 
 static int lwregs_add (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
 {
   struct lwreg dummy = { .iid = iid, .wr_iid = wr_iid };
+  if (rt->regs == NULL)
+    rt->regs = ddsrt_ehh_new (sizeof (struct lwreg), 1, lwreg_hash, lwreg_equals);
   return ddsrt_ehh_add (rt->regs, &dummy);
 }
 
 static int lwregs_delete (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
 {
   struct lwreg dummy = { .iid = iid, .wr_iid = wr_iid };
-  return ddsrt_ehh_remove (rt->regs, &dummy);
+  return rt->regs != NULL && ddsrt_ehh_remove (rt->regs, &dummy);
 }
 
 #if 0
