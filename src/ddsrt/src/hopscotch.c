@@ -39,10 +39,16 @@ struct ddsrt_hh {
 
 static void ddsrt_hh_init (struct ddsrt_hh *rt, uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals)
 {
-  uint32_t size = HH_HOP_RANGE;
+  uint32_t size;
   uint32_t i;
-  while (size < init_size) {
-    size *= 2;
+  /* degenerate case to minimize memory use */
+  if (init_size == 1) {
+    size = 1;
+  } else {
+    size = HH_HOP_RANGE;
+    while (size < init_size) {
+      size *= 2;
+    }
   }
   rt->hash = hash;
   rt->equals = equals;
@@ -125,34 +131,54 @@ static uint32_t ddsrt_hh_find_closer_free_bucket (struct ddsrt_hh *rt, uint32_t 
 
 static void ddsrt_hh_resize (struct ddsrt_hh *rt)
 {
-  struct ddsrt_hh_bucket *bs1;
-  uint32_t i, idxmask0, idxmask1;
+  if (rt->size == 1) {
+    assert (rt->size == 1);
+    assert (rt->buckets[0].hopinfo == 1);
+    assert (rt->buckets[0].data != NULL);
 
-  bs1 = ddsrt_malloc (2 * rt->size * sizeof (*rt->buckets));
+    rt->size = HH_HOP_RANGE;
+    const uint32_t hash = rt->hash (rt->buckets[0].data);
+    const uint32_t idxmask = rt->size - 1;
+    const uint32_t start_bucket = hash & idxmask;
 
-  for (i = 0; i < 2 * rt->size; i++) {
-    bs1[i].hopinfo = 0;
-    bs1[i].data = NULL;
-  }
-  idxmask0 = rt->size - 1;
-  idxmask1 = 2 * rt->size - 1;
-  for (i = 0; i < rt->size; i++) {
-    void *data = rt->buckets[i].data;
-    if (data) {
-      const uint32_t hash = rt->hash (data);
-      const uint32_t old_start_bucket = hash & idxmask0;
-      const uint32_t new_start_bucket = hash & idxmask1;
-      const uint32_t dist = (i >= old_start_bucket) ? (i - old_start_bucket) : (rt->size + i - old_start_bucket);
-      const uint32_t newb = (new_start_bucket + dist) & idxmask1;
-      assert (dist < HH_HOP_RANGE);
-      bs1[new_start_bucket].hopinfo |= 1u << dist;
-      bs1[newb].data = data;
+    struct ddsrt_hh_bucket *newbs = ddsrt_malloc (rt->size * sizeof (*newbs));
+    for (uint32_t i = 0; i < rt->size; i++) {
+      newbs[i].hopinfo = 0;
+      newbs[i].data = NULL;
     }
-  }
+    newbs[start_bucket] = rt->buckets[0];
+    ddsrt_free (rt->buckets);
+    rt->buckets = newbs;
+  } else {
+    struct ddsrt_hh_bucket *bs1;
+    uint32_t i, idxmask0, idxmask1;
 
-  ddsrt_free (rt->buckets);
-  rt->size *= 2;
-  rt->buckets = bs1;
+    bs1 = ddsrt_malloc (2 * rt->size * sizeof (*rt->buckets));
+
+    for (i = 0; i < 2 * rt->size; i++) {
+      bs1[i].hopinfo = 0;
+      bs1[i].data = NULL;
+    }
+    idxmask0 = rt->size - 1;
+    idxmask1 = 2 * rt->size - 1;
+    for (i = 0; i < rt->size; i++) {
+      void *data = rt->buckets[i].data;
+      if (data) {
+        const uint32_t hash = rt->hash (data);
+        const uint32_t old_start_bucket = hash & idxmask0;
+        const uint32_t new_start_bucket = hash & idxmask1;
+        const uint32_t dist = (i >= old_start_bucket) ? (i - old_start_bucket) : (rt->size + i - old_start_bucket);
+        const uint32_t newb = (new_start_bucket + dist) & idxmask1;
+        assert (dist < HH_HOP_RANGE);
+        bs1[new_start_bucket].hopinfo |= 1u << dist;
+        bs1[newb].data = data;
+      }
+    }
+
+    ddsrt_free (rt->buckets);
+    rt->size *= 2;
+    rt->buckets = bs1;
+  }
 }
 
 int ddsrt_hh_add (struct ddsrt_hh * __restrict rt, const void * __restrict data)
