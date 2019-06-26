@@ -466,6 +466,7 @@ send_error_to_retcode(int errnum)
 {
   switch (errnum) {
     case EACCES:
+    case EPERM:
       return DDS_RETCODE_NOT_ALLOWED;
     case EAGAIN:
 #if EAGAIN != EWOULDBLOCK
