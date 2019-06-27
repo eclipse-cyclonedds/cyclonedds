@@ -396,9 +396,6 @@ struct ddsi_sertopic;
 struct entity_common;
 struct ddsi_plugin
 {
-  int (*init_fn) (void);
-  void (*fini_fn) (void);
-
   bool (*builtintopic_is_builtintopic) (const struct ddsi_sertopic *topic);
   bool (*builtintopic_is_visible) (const nn_guid_t *guid, nn_vendorid_t vendorid);
   struct ddsi_tkmap_instance * (*builtintopic_get_tkmap_entry) (const struct nn_guid *guid);

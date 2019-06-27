@@ -1001,8 +1001,6 @@ int rtps_init (void)
   }
 #endif
 
-  (ddsi_plugin.init_fn) ();
-
   gv.xmsgpool = nn_xmsgpool_new ();
   gv.serpool = ddsi_serdatapool_new ();
 
@@ -1330,7 +1328,6 @@ err_unicast_sockets:
   ddsi_serdatapool_free (gv.serpool);
   nn_xmsgpool_free (gv.xmsgpool);
   ddsi_iid_fini ();
-  (ddsi_plugin.fini_fn) ();
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 err_network_partition_addrset:
   for (struct config_networkpartition_listelem *np = config.networkPartitions; np; np = np->next)
@@ -1678,6 +1675,5 @@ void rtps_fini (void)
   ddsi_serdatapool_free (gv.serpool);
   nn_xmsgpool_free (gv.xmsgpool);
   ddsi_iid_fini ();
-  (ddsi_plugin.fini_fn) ();
   DDS_LOG(DDS_LC_CONFIG, "Finis.\n");
 }

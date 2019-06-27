@@ -402,10 +402,6 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   rd->m_entity.m_iid = get_entity_instance_id (&rd->m_entity.m_guid);
   dds_entity_register_child (&sub->m_entity, &rd->m_entity);
 
-  /* For persistent data register reader with durability */
-  if (dds_global.m_dur_reader && (rd->m_entity.m_qos->durability.kind > DDS_DURABILITY_TRANSIENT_LOCAL)) {
-    (dds_global.m_dur_reader) (rd, &rd->m_rhc->common.rhc);
-  }
   dds_topic_unlock (tp);
   dds_subscriber_unlock (sub);
 
@@ -493,6 +489,7 @@ dds_return_t dds_reader_wait_for_historical_data (dds_entity_t reader, dds_durat
 {
   dds_reader *rd;
   dds_return_t ret;
+  (void) max_wait;
   if ((ret = dds_reader_lock (reader, &rd)) != DDS_RETCODE_OK)
     return ret;
   switch (rd->m_entity.m_qos->durability.kind)
@@ -504,7 +501,6 @@ dds_return_t dds_reader_wait_for_historical_data (dds_entity_t reader, dds_durat
       break;
     case DDS_DURABILITY_TRANSIENT:
     case DDS_DURABILITY_PERSISTENT:
-      ret = (dds_global.m_dur_wait) (rd, max_wait);
       break;
   }
   dds_reader_unlock(rd);
