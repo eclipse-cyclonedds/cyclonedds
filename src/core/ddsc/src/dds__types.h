@@ -18,6 +18,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds__handles.h"
 
 #if defined (__cplusplus)
@@ -92,10 +93,19 @@ struct dds_listener {
 #define DDS_ENTITY_IMPLICIT     0x0002u
 
 typedef struct dds_domain {
+  /* FIXME: protected by dds_global.lock -- for now */
   ddsrt_avl_node_t m_node;
   dds_domainid_t m_id;
   ddsrt_avl_tree_t m_topics;
+  struct dds_entity *ppants;
   uint32_t m_refc;
+  struct cfgst *cfgst;
+
+  struct local_orphan_writer *builtintopic_writer_participant;
+  struct local_orphan_writer *builtintopic_writer_publications;
+  struct local_orphan_writer *builtintopic_writer_subscriptions;
+
+  struct ddsi_builtin_topic_interface btif;
 } dds_domain;
 
 struct dds_entity;
@@ -295,10 +305,13 @@ typedef struct dds_waitset {
 /* Globals */
 
 typedef struct dds_globals {
-  dds_domainid_t m_default_domain;
   int32_t m_init_count;
   ddsrt_avl_tree_t m_domains;
   ddsrt_mutex_t m_mutex;
+
+  struct ddsi_sertopic *builtin_participant_topic;
+  struct ddsi_sertopic *builtin_reader_topic;
+  struct ddsi_sertopic *builtin_writer_topic;
 } dds_globals;
 
 DDS_EXPORT extern dds_globals dds_global;

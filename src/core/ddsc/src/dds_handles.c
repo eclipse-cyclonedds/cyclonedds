@@ -76,13 +76,12 @@ static int handle_equal (const void *va, const void *vb)
   return a->hdl == b->hdl;
 }
 
-dds_return_t dds_handle_server_init (void (*free_via_gc) (void *x))
+dds_return_t dds_handle_server_init (void)
 {
 #if USE_CHH
   handles.ht = ddsrt_chh_new (128, handle_hash, handle_equal, free_via_gc);
 #else
   handles.ht = ddsrt_hh_new (128, handle_hash, handle_equal);
-  (void) free_via_gc;
 #endif
   handles.count = 0;
   ddsrt_mutex_init (&handles.lock);

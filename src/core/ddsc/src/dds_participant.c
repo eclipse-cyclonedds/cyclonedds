@@ -27,10 +27,6 @@ DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_participant)
 
 #define DDS_PARTICIPANT_STATUS_MASK    (0u)
 
-
-/* List of created participants */
-static dds_entity *dds_pp_head = NULL;
-
 static dds_return_t dds_participant_status_validate (uint32_t mask)
 {
   return (mask & ~DDS_PARTICIPANT_STATUS_MASK) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
@@ -40,13 +36,17 @@ static dds_return_t dds_participant_delete (dds_entity *e) ddsrt_nonnull_all;
 
 static dds_return_t dds_participant_delete (dds_entity *e)
 {
+  struct dds_domain *dom;
+  dds_return_t ret;
+  dds_entity *prev, *iter;
   assert (dds_entity_kind (e) == DDS_KIND_PARTICIPANT);
 
   thread_state_awake (lookup_thread_state ());
-  dds_domain_free (e->m_domain);
+  if ((ret = delete_participant (&e->m_guid)) < 0)
+    DDS_ERROR ("dds_participant_delete: internal error %"PRId32"\n", ret);
   ddsrt_mutex_lock (&dds_global.m_mutex);
-  dds_entity *prev, *iter;
-  for (iter = dds_pp_head, prev = NULL; iter; prev = iter, iter = iter->m_next)
+  dom = e->m_domain;
+  for (iter = dom->ppants, prev = NULL; iter; prev = iter, iter = iter->m_next)
   {
     if (iter == e)
       break;
@@ -55,11 +55,12 @@ static dds_return_t dds_participant_delete (dds_entity *e)
   if (prev)
     prev->m_next = iter->m_next;
   else
-    dds_pp_head = iter->m_next;
+    dom->ppants = iter->m_next;
   ddsrt_mutex_unlock (&dds_global.m_mutex);
   thread_state_asleep (lookup_thread_state ());
 
   /* Every dds_init needs a dds_fini. */
+  dds_domain_free (e->m_domain);
   dds_fini ();
   return DDS_RETCODE_OK;
 }
@@ -93,6 +94,7 @@ const struct dds_entity_deriver dds_entity_deriver_participant = {
 
 dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener)
 {
+  dds_domain *dom;
   dds_entity_t ret;
   nn_guid_t guid;
   dds_participant * pp;
@@ -100,12 +102,11 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   dds_qos_t *new_qos = NULL;
 
   /* Make sure DDS instance is initialized. */
-  if ((ret = dds_init (domain)) != DDS_RETCODE_OK)
+  if ((ret = dds_init ()) < 0)
     goto err_dds_init;
 
-  /* Check domain id */
-  if ((ret = dds__check_domain (domain)) != DDS_RETCODE_OK)
-    goto err_domain_check;
+  if ((ret = dds_domain_create (&dom, domain)) < 0)
+    goto err_domain_create;
 
   new_qos = dds_create_qos ();
   if (qos != NULL)
@@ -134,13 +135,13 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
 
   pp->m_entity.m_guid = guid;
   pp->m_entity.m_iid = get_entity_instance_id (&guid);
-  pp->m_entity.m_domain = dds_domain_create (dds_domain_default ());
+  pp->m_entity.m_domain = dom;
   pp->m_builtin_subscriber = 0;
 
   /* Add participant to extent */
   ddsrt_mutex_lock (&dds_global.m_mutex);
-  pp->m_entity.m_next = dds_pp_head;
-  dds_pp_head = &pp->m_entity;
+  pp->m_entity.m_next = pp->m_entity.m_domain->ppants;
+  pp->m_entity.m_domain->ppants = &pp->m_entity;
   ddsrt_mutex_unlock (&dds_global.m_mutex);
   return ret;
 
@@ -149,7 +150,8 @@ err_entity_init:
 err_new_participant:
 err_qos_validation:
   dds_delete_qos (new_qos);
-err_domain_check:
+  dds_domain_free (dom);
+err_domain_create:
   dds_fini ();
 err_dds_init:
   return ret;
@@ -157,16 +159,11 @@ err_dds_init:
 
 dds_entity_t dds_lookup_participant (dds_domainid_t domain_id, dds_entity_t *participants, size_t size)
 {
-  ddsrt_mutex_t *init_mutex;
+  if ((participants != NULL && (size <= 0 || size >= INT32_MAX)) || (participants == NULL && size != 0))
+    return DDS_RETCODE_BAD_PARAMETER;
 
   ddsrt_init ();
-  init_mutex = ddsrt_get_singleton_mutex ();
-
-  if ((participants != NULL && (size <= 0 || size >= INT32_MAX)) || (participants == NULL && size != 0))
-  {
-    ddsrt_fini ();
-    return DDS_RETCODE_BAD_PARAMETER;
-  }
+  ddsrt_mutex_t * const init_mutex = ddsrt_get_singleton_mutex ();
 
   if (participants)
     participants[0] = 0;
@@ -175,10 +172,11 @@ dds_entity_t dds_lookup_participant (dds_domainid_t domain_id, dds_entity_t *par
   ddsrt_mutex_lock (init_mutex);
   if (dds_global.m_init_count > 0)
   {
+    struct dds_domain *dom;
     ddsrt_mutex_lock (&dds_global.m_mutex);
-    for (dds_entity *iter = dds_pp_head; iter; iter = iter->m_next)
+    if ((dom = dds_domain_find_locked (domain_id)) != NULL)
     {
-      if (iter->m_domain->m_id == domain_id)
+      for (dds_entity *iter = dom->ppants; iter; iter = iter->m_next)
       {
         if ((size_t) ret < size)
           participants[ret] = iter->m_hdllink.hdl;

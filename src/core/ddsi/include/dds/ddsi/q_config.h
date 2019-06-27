@@ -392,18 +392,7 @@ struct config
   struct prune_deleted_ppant prune_deleted_ppant;
 };
 
-struct ddsi_sertopic;
-struct entity_common;
-struct ddsi_plugin
-{
-  bool (*builtintopic_is_builtintopic) (const struct ddsi_sertopic *topic);
-  bool (*builtintopic_is_visible) (const nn_guid_t *guid, nn_vendorid_t vendorid);
-  struct ddsi_tkmap_instance * (*builtintopic_get_tkmap_entry) (const struct nn_guid *guid);
-  void (*builtintopic_write) (const struct entity_common *e, nn_wctime_t timestamp, bool alive);
-};
-
 extern struct config DDS_EXPORT config;
-extern struct ddsi_plugin ddsi_plugin;
 
 struct cfgst;
 

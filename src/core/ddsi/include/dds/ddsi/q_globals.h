@@ -24,7 +24,6 @@
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_sockwaitset.h"
-#include "dds/ddsi/ddsi_iid.h"
 
 #ifdef DDSI_INCLUDE_ENCRYPTION
 #include "dds/ddsi/q_security.h" /* for q_securityDecoderSet */
@@ -91,7 +90,6 @@ struct q_globals {
   volatile int mute;
 
   struct ddsi_tkmap * m_tkmap;
-  struct ddsi_iid dds_iid;
 
   /* Hash tables for participants, readers, writers, proxy
      participants, proxy readers and proxy writers by GUID
@@ -295,6 +293,8 @@ struct q_globals {
   /* File for dumping captured packets, NULL if disabled */
   FILE *pcap_fp;
   ddsrt_mutex_t pcap_lock;
+
+  struct ddsi_builtin_topic_interface *builtin_topic_interface;
 
   struct nn_group_membership *mship;
 };

@@ -569,7 +569,7 @@ int rtps_config_prep (struct cfgst *cfgst)
      lease, gc, debmon; once thread state admin has been inited, upgrade the
      main thread one participating in the thread tracking stuff as
      if it had been created using create_thread(). */
-
+#if 0 /* FIXME: threads are per-process, not per-domain */
   {
   /* Temporary: thread states for each application thread is managed using thread_states structure
   */
@@ -582,6 +582,7 @@ int rtps_config_prep (struct cfgst *cfgst)
 #endif
     thread_states_init (max_threads);
   }
+#endif
 
   /* Now the per-thread-log-buffers are set up, so print the configuration.  After this there
      is no value to the source information for the various configuration elements, so free those. */
@@ -852,8 +853,6 @@ int rtps_init (void)
 
   gv.tstart = now ();    /* wall clock time, used in logs */
 
-  ddsi_plugin_init ();
-  ddsi_iid_init ();
   nn_plist_init_tables ();
 
   gv.disc_conn_uc = NULL;
@@ -1327,7 +1326,6 @@ err_unicast_sockets:
   nn_plist_fini (&gv.default_plist_pp);
   ddsi_serdatapool_free (gv.serpool);
   nn_xmsgpool_free (gv.xmsgpool);
-  ddsi_iid_fini ();
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 err_network_partition_addrset:
   for (struct config_networkpartition_listelem *np = config.networkPartitions; np; np = np->next)
@@ -1674,6 +1672,5 @@ void rtps_fini (void)
 
   ddsi_serdatapool_free (gv.serpool);
   nn_xmsgpool_free (gv.xmsgpool);
-  ddsi_iid_fini ();
   DDS_LOG(DDS_LC_CONFIG, "Finis.\n");
 }

@@ -14,6 +14,7 @@
 #include "dds__participant.h"
 #include "dds__subscriber.h"
 #include "dds__qos.h"
+#include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsrt/heap.h"
