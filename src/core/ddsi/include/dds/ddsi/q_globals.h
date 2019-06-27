@@ -83,9 +83,10 @@ struct recv_thread_arg {
   } u;
 };
 
+struct deleted_participants_admin;
+
 struct q_globals {
   volatile int terminate;
-  volatile int exception;
   volatile int deaf;
   volatile int mute;
 
@@ -149,6 +150,9 @@ struct q_globals {
      of it pops up! */
   struct participant *privileged_pp;
   ddsrt_mutex_t privileged_pp_lock;
+
+  /* For tracking (recently) deleted participants */
+  struct deleted_participants_admin *deleted_participants;
 
   /* GUID to be used in next call to new_participant; also protected
      by privileged_pp_lock */

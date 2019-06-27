@@ -1508,7 +1508,8 @@ static int handle_InfoDST (struct receiver_state *rst, const InfoDST_t *msg, con
     nn_guid_t dst;
     dst.prefix = rst->dst_guid_prefix;
     dst.entityid = to_entityid(NN_ENTITYID_PARTICIPANT);
-    rst->forme = (ephash_lookup_participant_guid (&dst) != NULL) || is_deleted_participant_guid (&dst, DPG_LOCAL);
+    rst->forme = (ephash_lookup_participant_guid (&dst) != NULL ||
+                  is_deleted_participant_guid (gv.deleted_participants, &dst, DPG_LOCAL));
   }
   return 1;
 }

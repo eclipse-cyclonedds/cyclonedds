@@ -567,7 +567,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
      consequently the looped back packet may appear to be from an
      unknown participant.  So we handle that, too. */
 
-  if (is_deleted_participant_guid (&datap->participant_guid, DPG_REMOTE))
+  if (is_deleted_participant_guid (gv.deleted_participants, &datap->participant_guid, DPG_REMOTE))
   {
     DDS_LOG(DDS_LC_TRACE, "SPDP ST0 "PGUIDFMT" (recently deleted)", PGUID (datap->participant_guid));
     return 1;
@@ -1126,7 +1126,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
 
   ppguid.prefix = datap->endpoint_guid.prefix;
   ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
-  if (is_deleted_participant_guid (&ppguid, DPG_REMOTE))
+  if (is_deleted_participant_guid (gv.deleted_participants, &ppguid, DPG_REMOTE))
     E (" local dead pp?\n", err);
 
   if (ephash_lookup_participant_guid (&ppguid) != NULL)

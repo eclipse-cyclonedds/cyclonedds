@@ -77,7 +77,6 @@ dds_init(dds_domainid_t domain)
   }
 
   gv.tstart = now ();
-  gv.exception = false;
   ddsrt_mutex_init (&dds_global.m_mutex);
   thread_states_init_static();
 
