@@ -1029,7 +1029,7 @@ int rtps_init (void)
   ddsrt_mutex_init (&gv.participant_set_lock);
   ddsrt_cond_init (&gv.participant_set_cond);
   lease_management_init ();
-  deleted_participants_admin_init ();
+  gv.deleted_participants = deleted_participants_admin_new ();
   gv.guid_hash = ephash_new ();
 
   ddsrt_mutex_init (&gv.privileged_pp_lock);
@@ -1306,7 +1306,7 @@ err_unicast_sockets:
   ddsrt_mutex_destroy (&gv.privileged_pp_lock);
   ephash_free (gv.guid_hash);
   gv.guid_hash = NULL;
-  deleted_participants_admin_fini ();
+  deleted_participants_admin_free (gv.deleted_participants);
   lease_management_term ();
   ddsrt_cond_destroy (&gv.participant_set_cond);
   ddsrt_mutex_destroy (&gv.participant_set_lock);
@@ -1640,7 +1640,7 @@ void rtps_fini (void)
 
   ephash_free (gv.guid_hash);
   gv.guid_hash = NULL;
-  deleted_participants_admin_fini ();
+  deleted_participants_admin_free (gv.deleted_participants);
   lease_management_term ();
   ddsrt_mutex_destroy (&gv.participant_set_lock);
   ddsrt_cond_destroy (&gv.participant_set_cond);

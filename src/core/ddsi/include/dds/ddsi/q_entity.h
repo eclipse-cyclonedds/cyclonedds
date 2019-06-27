@@ -386,10 +386,10 @@ extern const ddsrt_avl_treedef_t deleted_participants_treedef;
 
 #define DPG_LOCAL 1
 #define DPG_REMOTE 2
-
-int deleted_participants_admin_init (void);
-void deleted_participants_admin_fini (void);
-int is_deleted_participant_guid (const struct nn_guid *guid, unsigned for_what);
+struct deleted_participants_admin;
+struct deleted_participants_admin *deleted_participants_admin_new (void);
+void deleted_participants_admin_free (struct deleted_participants_admin *admin);
+int is_deleted_participant_guid (struct deleted_participants_admin *admin, const struct nn_guid *guid, unsigned for_what);
 
 nn_entityid_t to_entityid (unsigned u);
 int is_builtin_entityid (nn_entityid_t id, nn_vendorid_t vendorid);
