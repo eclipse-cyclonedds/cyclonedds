@@ -416,15 +416,6 @@ static void ddsi_udp_release_conn (ddsi_tran_conn_t conn)
   ddsrt_free (conn);
 }
 
-static void ddsi_udp_fini (void)
-{
-    if(ddsrt_atomic_dec32_nv (&ddsi_udp_init_g) == 0) {
-        free_group_membership(ddsi_udp_config_g.mship);
-        memset (&ddsi_udp_factory_g, 0, sizeof (ddsi_udp_factory_g));
-        DDS_LOG(DDS_LC_CONFIG, "udp finalized\n");
-    }
-}
-
 static int ddsi_udp_is_mcaddr (const ddsi_tran_factory_t tran, const nn_locator_t *loc)
 {
   (void) tran;
@@ -506,12 +497,12 @@ static char *ddsi_udp_locator_to_string (ddsi_tran_factory_t tran, char *dst, si
   }
 }
 
-static void ddsi_udp_deinit(void)
+static void ddsi_udp_fini (void)
 {
-  if (ddsrt_atomic_dec32_nv(&ddsi_udp_init_g) == 0) {
-    if (ddsi_udp_config_g.mship)
-      free_group_membership(ddsi_udp_config_g.mship);
-    DDS_LOG(DDS_LC_CONFIG, "udp de-initialized\n");
+  if (ddsrt_atomic_dec32_nv (&ddsi_udp_init_g) == 0) {
+    free_group_membership (ddsi_udp_config_g.mship);
+    memset (&ddsi_udp_factory_g, 0, sizeof (ddsi_udp_factory_g));
+    DDS_LOG (DDS_LC_CONFIG, "udp finalized\n");
   }
 }
 
@@ -524,7 +515,7 @@ int ddsi_udp_init (void)
   if (ddsrt_atomic_inc32_nv (&ddsi_udp_init_g) == 1)
   {
     memset (&ddsi_udp_factory_g, 0, sizeof (ddsi_udp_factory_g));
-    ddsi_udp_factory_g.m_free_fn = ddsi_udp_deinit;
+    ddsi_udp_factory_g.m_free_fn = ddsi_udp_fini;
     ddsi_udp_factory_g.m_kind = NN_LOCATOR_KIND_UDPv4;
     ddsi_udp_factory_g.m_typename = "udp";
     ddsi_udp_factory_g.m_default_spdp_address = "udp/239.255.0.1";
@@ -532,7 +523,6 @@ int ddsi_udp_init (void)
     ddsi_udp_factory_g.m_supports_fn = ddsi_udp_supports;
     ddsi_udp_factory_g.m_create_conn_fn = ddsi_udp_create_conn;
     ddsi_udp_factory_g.m_release_conn_fn = ddsi_udp_release_conn;
-    ddsi_udp_factory_g.m_free_fn = ddsi_udp_fini;
     ddsi_udp_factory_g.m_join_mc_fn = ddsi_udp_join_mc;
     ddsi_udp_factory_g.m_leave_mc_fn = ddsi_udp_leave_mc;
     ddsi_udp_factory_g.m_is_mcaddr_fn = ddsi_udp_is_mcaddr;
