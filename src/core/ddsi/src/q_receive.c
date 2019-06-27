@@ -44,6 +44,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_receive.h"
+#include "dds/ddsi/q_rhc.h"
 
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_globals.h"
@@ -1966,7 +1967,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
         for (uint32_t i = 0; rdary[i]; i++)
         {
           DDS_TRACE("reader "PGUIDFMT"\n", PGUID (rdary[i]->e.guid));
-          if (! (ddsi_plugin.rhc_plugin.rhc_store_fn) (rdary[i]->rhc, &pwr_info, payload, tk))
+          if (!rhc_store (rdary[i]->rhc, &pwr_info, payload, tk))
           {
             if (pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
             ddsrt_mutex_unlock (&pwr->rdary.rdary_lock);
@@ -1997,7 +1998,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
           if ((rd = ephash_lookup_reader_guid (&m->rd_guid)) != NULL && m->in_sync == PRMSS_SYNC)
           {
             DDS_TRACE("reader-via-guid "PGUIDFMT"\n", PGUID (rd->e.guid));
-            (void) (ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk);
+            (void) rhc_store (rd->rhc, &pwr_info, payload, tk);
           }
         }
         if (!pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
@@ -2009,7 +2010,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     {
       struct reader *rd = ephash_lookup_reader_guid (rdguid);;
       DDS_TRACE(" %"PRId64"=>"PGUIDFMT"%s\n", sampleinfo->seq, PGUID (*rdguid), rd ? "" : "?");
-      while (rd && ! (ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk) && ephash_lookup_proxy_writer_guid (&pwr->e.guid))
+      while (rd && ! rhc_store (rd->rhc, &pwr_info, payload, tk) && ephash_lookup_proxy_writer_guid (&pwr->e.guid))
       {
         if (pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
         dds_sleepfor (DDS_MSECS (1));

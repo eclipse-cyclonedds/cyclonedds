@@ -19,6 +19,7 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_init.c
     dds_publisher.c
     dds_rhc.c
+    dds_rhc_default.c
     dds_domain.c
     dds_instance.c
     dds_qos.c
@@ -67,6 +68,7 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__guardcond.h
     dds__reader.h
     dds__rhc.h
+    dds__rhc_default.h
     dds__stream.h
     dds__subscriber.h
     dds__topic.h

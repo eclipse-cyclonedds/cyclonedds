@@ -211,6 +211,7 @@ typedef struct dds_participant {
 typedef struct dds_reader {
   struct dds_entity m_entity;
   const struct dds_topic *m_topic;
+  struct dds_rhc *m_rhc; /* aliases m_rd->rhc with a wider interface, FIXME: but m_rd owns it for resource management */
   struct reader *m_rd;
   bool m_data_on_readers;
   bool m_loan_out;
@@ -263,7 +264,7 @@ typedef uint32_t dds_querycond_mask_t;
 
 typedef struct dds_readcond {
   dds_entity m_entity;
-  struct rhc *m_rhc;
+  struct dds_rhc *m_rhc;
   uint32_t m_qminv;
   uint32_t m_sample_states;
   uint32_t m_view_states;

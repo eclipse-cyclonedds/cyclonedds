@@ -117,9 +117,9 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
   dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
 
   if (take)
-    ret = dds_rhc_take (rd->m_rd->rhc, lock, buf, si, maxs, mask, hand, cond);
+    ret = dds_rhc_take (rd->m_rhc, lock, buf, si, maxs, mask, hand, cond);
   else
-    ret = dds_rhc_read (rd->m_rd->rhc, lock, buf, si, maxs, mask, hand, cond);
+    ret = dds_rhc_read (rd->m_rhc, lock, buf, si, maxs, mask, hand, cond);
 
   /* if no data read, restore the state to what it was before the call, with the sole
      exception of holding on to a buffer we just allocated and that is pointed to by
@@ -186,7 +186,7 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
   assert (dds_entity_kind (rd->m_entity.m_parent) == DDS_KIND_SUBSCRIBER);
   dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
 
-  ret = dds_rhc_takecdr (rd->m_rd->rhc, lock, buf, si, maxs, mask & DDS_ANY_SAMPLE_STATE, mask & DDS_ANY_VIEW_STATE, mask & DDS_ANY_INSTANCE_STATE, hand);
+  ret = dds_rhc_takecdr (rd->m_rhc, lock, buf, si, maxs, mask & DDS_ANY_SAMPLE_STATE, mask & DDS_ANY_VIEW_STATE, mask & DDS_ANY_INSTANCE_STATE, hand);
   dds_entity_unpin (entity);
 
 fail_awake:

@@ -19,6 +19,7 @@
 #include "dds__listener.h"
 #include "dds__init.h"
 #include "dds__rhc.h"
+#include "dds__rhc_default.h"
 #include "dds__topic.h"
 #include "dds__get_status.h"
 #include "dds__qos.h"
@@ -296,7 +297,6 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   dds_subscriber *sub = NULL;
   dds_entity_t subscriber;
   dds_reader *rd;
-  struct rhc *rhc;
   dds_topic *tp;
   dds_entity_t reader;
   dds_entity_t t;
@@ -382,7 +382,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   reader = dds_entity_init (&rd->m_entity, &sub->m_entity, DDS_KIND_READER, rqos, listener, DDS_READER_STATUS_MASK);
   rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
   rd->m_topic = tp;
-  rhc = dds_rhc_new (rd, tp->m_stopic);
+  rd->m_rhc = dds_rhc_default_new (rd, tp->m_stopic);
   dds_entity_add_ref_locked (&tp->m_entity);
 
   /* Extra claim of this reader to make sure that the delete waits until DDSI
@@ -393,7 +393,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   ddsrt_mutex_unlock (&sub->m_entity.m_mutex);
 
   thread_state_awake (lookup_thread_state ());
-  ret = new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, &sub->m_entity.m_participant->m_guid, tp->m_stopic, rqos, rhc, dds_reader_status_cb, rd);
+  ret = new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, &sub->m_entity.m_participant->m_guid, tp->m_stopic, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   ddsrt_mutex_lock (&sub->m_entity.m_mutex);
   ddsrt_mutex_lock (&tp->m_entity.m_mutex);
   assert (ret == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
@@ -404,7 +404,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
 
   /* For persistent data register reader with durability */
   if (dds_global.m_dur_reader && (rd->m_entity.m_qos->durability.kind > DDS_DURABILITY_TRANSIENT_LOCAL)) {
-    (dds_global.m_dur_reader) (rd, rhc);
+    (dds_global.m_dur_reader) (rd, &rd->m_rhc->common.rhc);
   }
   dds_topic_unlock (tp);
   dds_subscriber_unlock (sub);
@@ -484,7 +484,7 @@ uint32_t dds_reader_lock_samples (dds_entity_t reader)
   uint32_t n;
   if (dds_reader_lock (reader, &rd) != DDS_RETCODE_OK)
     return 0;
-  n = dds_rhc_lock_samples (rd->m_rd->rhc);
+  n = dds_rhc_lock_samples (rd->m_rhc);
   dds_reader_unlock (rd);
   return n;
 }
