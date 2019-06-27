@@ -97,6 +97,10 @@ struct cfgst {
 
   enum implicit_toplevel implicit_toplevel;
 
+  /* We want the tracing/verbosity settings to be fixed while parsing
+     the configuration, so we update this variable instead. */
+  uint32_t enabled_logcats;
+
   /* current input, mask with 1 bit set */
   uint32_t source;
 
@@ -107,10 +111,6 @@ struct cfgst {
   const struct cfgelem *path[MAX_PATH_DEPTH];
   void *parent[MAX_PATH_DEPTH];
 };
-
-/* We want the tracing/verbosity settings to be fixed while parsing
-   the configuration, so we update this variable instead. */
-static uint32_t enabled_logcats;
 
 static int cfgst_node_cmp(const void *va, const void *vb);
 static const ddsrt_avl_treedef_t cfgst_found_treedef =
@@ -768,7 +768,7 @@ static const struct cfgelem tracing_cfgelems[] = {
 <li><i>finest</i>: <i>finer</i> + trace</li></ul>\n\
 <p>While <i>none</i> prevents any message from being written to a DDSI2 log file.</p>\n\
 <p>The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are <i>config</i>, <i>fine</i> and <i>finest</i>.</p>") },
-  { LEAF("OutputFile"), 1, DDS_PROJECT_NAME_NOSPACE_SMALL".log", ABSOFF(tracingOutputFileName), 0, uf_tracingOutputFileName, ff_free, pf_string,
+  { LEAF("OutputFile"), 1, "cyclonedds.log", ABSOFF(tracingOutputFileName), 0, uf_tracingOutputFileName, ff_free, pf_string,
     BLURB("<p>This option specifies where the logging is printed to. Note that <i>stdout</i> and <i>stderr</i> are treated as special values, representing \"standard out\" and \"standard error\" respectively. No file is created unless logging categories are enabled using the Tracing/Verbosity or Tracing/EnabledCategory settings.</p>") },
   { LEAF("AppendToFile"), 1, "false", ABSOFF(tracingAppendToFile), 0, uf_boolean, 0, pf_boolean,
     BLURB("<p>This option specifies whether the output is to be appended to an existing log file. The default is to create a new log file each time, which is generally the best option if a detailed log is generated.</p>") },
@@ -824,7 +824,7 @@ static const struct cfgelem root_cfgelems[] = {
 };
 
 static const struct cfgelem cyclonedds_root_cfgelems[] = {
-  { DDS_PROJECT_NAME_NOSPACE, root_cfgelems, NULL, NODATA, NULL },
+  { "CycloneDDS", root_cfgelems, NULL, NODATA, NULL },
   END_MARKER
 };
 
@@ -1471,7 +1471,7 @@ static const uint32_t logcat_codes[] = {
 
 static int uf_logcat (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
 {
-  return do_uint32_bitset (cfgst, &enabled_logcats, logcat_names, logcat_codes, value);
+  return do_uint32_bitset (cfgst, &cfgst->enabled_logcats, logcat_names, logcat_codes, value);
 }
 
 static int uf_verbosity (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
@@ -1487,7 +1487,7 @@ static int uf_verbosity (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_
   if (idx < 0)
     return cfg_error (cfgst, "'%s': undefined value", value);
   for (int i = (int) (sizeof (vs) / sizeof (*vs)) - 1; i >= idx; i--)
-    enabled_logcats |= lc[i];
+    cfgst->enabled_logcats |= lc[i];
   return 1;
 }
 
@@ -2559,6 +2559,7 @@ struct cfgst *config_init (const char *configfile)
   cfgst->cfg = &config;
   cfgst->error = 0;
   cfgst->source = 0;
+  cfgst->enabled_logcats = 0;
 
   /* configfile == NULL will get you the default configuration */
   if (configfile) {
@@ -2762,7 +2763,7 @@ struct cfgst *config_init (const char *configfile)
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
 
   /* Now switch to configured tracing settings */
-  config.enabled_logcats = enabled_logcats;
+  config.enabled_logcats = cfgst->enabled_logcats;
 
   if (ok)
   {
