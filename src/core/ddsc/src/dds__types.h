@@ -203,8 +203,6 @@ typedef struct dds_publisher {
 
 typedef struct dds_participant {
   struct dds_entity m_entity;
-  struct dds_entity * m_dur_reader;
-  struct dds_entity * m_dur_writer;
   dds_entity_t m_builtin_subscriber;
 } dds_participant;
 
@@ -299,10 +297,6 @@ typedef struct dds_waitset {
 typedef struct dds_globals {
   dds_domainid_t m_default_domain;
   int32_t m_init_count;
-  void (*m_dur_reader) (struct dds_reader * reader, struct rhc * rhc);
-  int (*m_dur_wait) (struct dds_reader * reader, dds_duration_t timeout);
-  void (*m_dur_init) (void);
-  void (*m_dur_fini) (void);
   ddsrt_avl_tree_t m_domains;
   ddsrt_mutex_t m_mutex;
 } dds_globals;

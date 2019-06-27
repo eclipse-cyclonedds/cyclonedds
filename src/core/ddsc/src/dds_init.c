@@ -252,22 +252,8 @@ extern void dds_fini (void)
   ddsrt_fini();
 }
 
-static int dds__init_plugin (void)
-{
-  if (dds_global.m_dur_init) (dds_global.m_dur_init) ();
-  return 0;
-}
-
-static void dds__fini_plugin (void)
-{
-  if (dds_global.m_dur_fini) (dds_global.m_dur_fini) ();
-}
-
 void ddsi_plugin_init (void)
 {
-  ddsi_plugin.init_fn = dds__init_plugin;
-  ddsi_plugin.fini_fn = dds__fini_plugin;
-
   ddsi_plugin.builtintopic_is_builtintopic = dds__builtin_is_builtintopic;
   ddsi_plugin.builtintopic_is_visible = dds__builtin_is_visible;
   ddsi_plugin.builtintopic_get_tkmap_entry = dds__builtin_get_tkmap_entry;
