@@ -16,6 +16,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/q_rhc.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds__stream.h"
 #include "dds/ddsi/q_transmit.h"
@@ -71,7 +72,7 @@ dds_return_t dds_write_ts (dds_entity_t writer, const void *data, dds_time_t tim
 
 static dds_return_t try_store (struct rhc *rhc, const struct proxy_writer_info *pwr_info, struct ddsi_serdata *payload, struct ddsi_tkmap_instance *tk, dds_duration_t *max_block_ms)
 {
-  while (!(ddsi_plugin.rhc_plugin.rhc_store_fn) (rhc, pwr_info, payload, tk))
+  while (! rhc_store (rhc, pwr_info, payload, tk))
   {
     if (*max_block_ms > 0)
     {

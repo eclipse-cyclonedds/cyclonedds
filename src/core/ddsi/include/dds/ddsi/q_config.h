@@ -20,7 +20,6 @@
 #include "dds/ddsi/q_xqos.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/q_feature_check.h"
-#include "dds/ddsi/ddsi_rhc_plugin.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -393,6 +392,8 @@ struct config
   struct prune_deleted_ppant prune_deleted_ppant;
 };
 
+struct ddsi_sertopic;
+struct entity_common;
 struct ddsi_plugin
 {
   int (*init_fn) (void);
@@ -402,9 +403,6 @@ struct ddsi_plugin
   bool (*builtintopic_is_visible) (const nn_guid_t *guid, nn_vendorid_t vendorid);
   struct ddsi_tkmap_instance * (*builtintopic_get_tkmap_entry) (const struct nn_guid *guid);
   void (*builtintopic_write) (const struct entity_common *e, nn_wctime_t timestamp, bool alive);
-
-  /* Read cache */
-  struct ddsi_rhc_plugin rhc_plugin;
 };
 
 extern struct config DDS_EXPORT config;

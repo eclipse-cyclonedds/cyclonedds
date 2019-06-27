@@ -31,6 +31,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds__topic.h"
 #include "dds__rhc.h"
+#include "dds__rhc_default.h"
 #include "dds/ddsi/ddsi_iid.h"
 
 #include "RhcTypes.h"
@@ -103,7 +104,7 @@ static struct ddsi_serdata *mkkeysample (int32_t keyval, unsigned statusinfo)
   return sd;
 }
 
-static uint64_t store (struct rhc *rhc, struct proxy_writer *wr, struct ddsi_serdata *sd, bool print)
+static uint64_t store (struct dds_rhc *rhc, struct proxy_writer *wr, struct ddsi_serdata *sd, bool print)
 {
   /* beware: unrefs sd */
   struct ddsi_tkmap_instance *tk;
@@ -161,9 +162,9 @@ static void fwr (struct proxy_writer *wr)
   free (wr);
 }
 
-static struct rhc *mkrhc (dds_reader *rd, dds_history_kind_t hk, int32_t hdepth, dds_destination_order_kind_t dok)
+static struct dds_rhc *mkrhc (dds_reader *rd, dds_history_kind_t hk, int32_t hdepth, dds_destination_order_kind_t dok)
 {
-  struct rhc *rhc;
+  struct dds_rhc *rhc;
   dds_qos_t rqos;
   nn_xqos_init_empty (&rqos);
   rqos.present |= QP_HISTORY | QP_DESTINATION_ORDER;
@@ -172,13 +173,13 @@ static struct rhc *mkrhc (dds_reader *rd, dds_history_kind_t hk, int32_t hdepth,
   rqos.destination_order.kind = dok;
   nn_xqos_mergein_missing (&rqos, &gv.default_xqos_rd, ~(uint64_t)0);
   thread_state_awake (lookup_thread_state ());
-  rhc = dds_rhc_new (rd, mdtopic);
+  rhc = dds_rhc_default_new (rd, mdtopic);
   dds_rhc_set_qos(rhc, &rqos);
   thread_state_asleep (lookup_thread_state ());
   return rhc;
 }
 
-static void frhc (struct rhc *rhc)
+static void frhc (struct dds_rhc *rhc)
 {
   thread_state_awake (lookup_thread_state ());
   dds_rhc_free (rhc);
@@ -281,7 +282,7 @@ static void print_seq (int n, const dds_sample_info_t *iseq, const RhcTypes_T *m
   }
 }
 
-static void rdtkcond (struct rhc *rhc, dds_readcond *cond, const struct check *chk, bool print, int max, const char *opname, int (*op) (struct rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond), uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
+static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct check *chk, bool print, int max, const char *opname, int (*op) (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond), uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
 {
   int cnt;
 
@@ -379,12 +380,12 @@ static void rdtkcond (struct rhc *rhc, dds_readcond *cond, const struct check *c
   }
 }
 
-static void rdall (struct rhc *rhc, const struct check *chk, bool print, uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
+static void rdall (struct dds_rhc *rhc, const struct check *chk, bool print, uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
 {
   rdtkcond (rhc, NULL, chk, print, 0, "READ ALL", dds_rhc_read, states_seen);
 }
 
-static void tkall (struct rhc *rhc, const struct check *chk, bool print, uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
+static void tkall (struct dds_rhc *rhc, const struct check *chk, bool print, uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
 {
   rdtkcond (rhc, NULL, chk, print, 0, "TAKE ALL", dds_rhc_take, states_seen);
 }
@@ -440,7 +441,7 @@ static void print_condmask (char *buf, size_t bufsz, const dds_readcond *cond)
   snprintf (buf + pos, bufsz - pos, "]");
 }
 
-static void rdcond (struct rhc *rhc, dds_readcond *cond, const struct check *chk, int max, bool print, uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
+static void rdcond (struct dds_rhc *rhc, dds_readcond *cond, const struct check *chk, int max, bool print, uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
 {
   char buf[100];
   int pos;
@@ -449,7 +450,7 @@ static void rdcond (struct rhc *rhc, dds_readcond *cond, const struct check *chk
   rdtkcond (rhc, cond, chk, print, max, buf, dds_rhc_read, states_seen);
 }
 
-static void tkcond (struct rhc *rhc, dds_readcond *cond, const struct check *chk, int max, bool print, uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
+static void tkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct check *chk, int max, bool print, uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
 {
   char buf[100];
   int pos;
@@ -539,14 +540,14 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
   dds_entity_t rd[] = { dds_create_reader (pp, tp, qos, NULL), dds_create_reader (pp, tp, qos, NULL) };
   const size_t nrd = sizeof (rd) / sizeof (rd[0]);
   dds_delete_qos (qos);
-  struct rhc *rhc[sizeof (rd) / sizeof (rd[0])];
+  struct dds_rhc *rhc[sizeof (rd) / sizeof (rd[0])];
   for (size_t i = 0; i < sizeof (rd) / sizeof (rd[0]); i++)
   {
     struct dds_entity *x;
     if (dds_entity_lock (rd[i], DDS_KIND_READER, &x) < 0)
       abort ();
     dds_reader *rdp = (dds_reader *) x;
-    rhc[i] = rdp->m_rd->rhc;
+    rhc[i] = rdp->m_rhc;
     dds_entity_unlock (x);
   }
   struct proxy_writer *wr[] = { mkwr (0), mkwr (1), mkwr (1) };
@@ -848,7 +849,7 @@ int main (int argc, char **argv)
   {
     if (print)
       printf ("************* 0 *************\n");
-    struct rhc *rhc = mkrhc (NULL, DDS_HISTORY_KEEP_LAST, 1, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
+    struct dds_rhc *rhc = mkrhc (NULL, DDS_HISTORY_KEEP_LAST, 1, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
     struct proxy_writer *wr0 = mkwr (1);
     uint64_t iid0, iid1, iid_t;
     iid0 = store (rhc, wr0, mksample (0, 0), print);
@@ -894,7 +895,7 @@ int main (int argc, char **argv)
   {
     if (print)
       printf ("************* 1 *************\n");
-    struct rhc *rhc = mkrhc (NULL, DDS_HISTORY_KEEP_LAST, 4, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
+    struct dds_rhc *rhc = mkrhc (NULL, DDS_HISTORY_KEEP_LAST, 4, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
     struct proxy_writer *wr[] = { mkwr (0), mkwr (0), mkwr (0) };
     uint64_t iid0, iid_t;
     int nregs = 3, isreg[] = { 1, 1, 1 };

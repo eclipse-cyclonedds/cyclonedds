@@ -42,6 +42,7 @@
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
+#include "dds/ddsi/q_rhc.h"
 
 #include "dds/ddsi/sysdeps.h"
 #include "dds__whc.h"
@@ -1448,7 +1449,7 @@ static void reader_drop_connection (const struct nn_guid *rd_guid, const struct 
     {
       struct proxy_writer_info pwr_info;
       make_proxy_writer_info(&pwr_info, &pwr->e, pwr->c.xqos);
-      (ddsi_plugin.rhc_plugin.rhc_unregister_wr_fn) (rd->rhc, &pwr_info);
+      rhc_unregister_wr (rd->rhc, &pwr_info);
     }
     if (rd->status_cb)
     {
@@ -1483,7 +1484,7 @@ static void reader_drop_local_connection (const struct nn_guid *rd_guid, const s
       /* FIXME: */
       struct proxy_writer_info pwr_info;
       make_proxy_writer_info(&pwr_info, &wr->e, wr->xqos);
-      (ddsi_plugin.rhc_plugin.rhc_unregister_wr_fn) (rd->rhc, &pwr_info);
+      rhc_unregister_wr (rd->rhc, &pwr_info);
     }
     if (rd->status_cb)
     {
@@ -1704,7 +1705,7 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
       /* FIXME: whc has tk reference in its index nodes, which is what we really should be iterating over anyway, and so we don't really have to look them up anymore */
       struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref(payload);
       make_proxy_writer_info(&pwr_info, &wr->e, wr->xqos);
-      (void)(ddsi_plugin.rhc_plugin.rhc_store_fn) (rd->rhc, &pwr_info, payload, tk);
+      (void) rhc_store (rd->rhc, &pwr_info, payload, tk);
       ddsi_tkmap_instance_unref(tk);
     }
   }
@@ -3267,7 +3268,7 @@ static dds_return_t new_reader_guid
   /* set rhc qos for reader */
   if (rhc)
   {
-    (ddsi_plugin.rhc_plugin.rhc_set_qos_fn) (rd->rhc, rd->xqos);
+    rhc_set_qos (rd->rhc, rd->xqos);
   }
   assert (rd->xqos->present & QP_LIVELINESS);
   if (rd->xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC || rd->xqos->liveliness.lease_duration != T_NEVER)
@@ -3396,7 +3397,7 @@ static void gc_delete_reader (struct gcreq *gcreq)
 #endif
   if (rd->rhc)
   {
-    (ddsi_plugin.rhc_plugin.rhc_free_fn) (rd->rhc);
+    rhc_free (rd->rhc);
   }
   if (rd->status_cb)
   {
