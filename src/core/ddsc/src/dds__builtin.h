@@ -12,7 +12,7 @@
 #ifndef _DDS_BUILTIN_H_
 #define _DDS_BUILTIN_H_
 
-#include "dds/ddsi/q_time.h"
+#include "dds/ddsi/ddsi_builtin_topic_if.h"
 
 #if defined (__cplusplus)
 extern "C"
@@ -20,25 +20,23 @@ extern "C"
 #endif
 
 /* Get actual topic in related participant related to topic 'id'. */
-dds_entity_t dds__get_builtin_topic ( dds_entity_t e, dds_entity_t topic);
+dds_entity_t dds__get_builtin_topic (dds_entity_t e, dds_entity_t topic);
 
 /* Subscriber singleton within related participant. */
-dds_entity_t dds__get_builtin_subscriber(dds_entity_t e);
+dds_entity_t dds__get_builtin_subscriber (dds_entity_t e);
 
 /* Checks whether the reader QoS is valid for use with built-in topic TOPIC */
-bool dds__validate_builtin_reader_qos(dds_entity_t topic, const dds_qos_t *qos);
+bool dds__validate_builtin_reader_qos (const dds_domain *dom, dds_entity_t topic, const dds_qos_t *qos);
+
+/* Init/fini for builtin-topic support that is global across domains */
+void dds__builtin_init_global (void);
+void dds__builtin_fini_global (void);
+
+void dds__builtin_init (struct dds_domain *dom);
+void dds__builtin_fini (struct dds_domain *dom);
 
 struct entity_common;
-struct nn_guid;
-struct ddsi_tkmap_instance;
-
-void dds__builtin_init (void);
-void dds__builtin_fini (void);
-bool dds__builtin_is_builtintopic (const struct ddsi_sertopic *tp);
-bool dds__builtin_is_visible (const nn_guid_t *guid, nn_vendorid_t vendorid);
-struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct nn_guid *guid);
 struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, nn_wctime_t timestamp, bool alive);
-void dds__builtin_write (const struct entity_common *e, nn_wctime_t timestamp, bool alive);
 
 #if defined (__cplusplus)
 }

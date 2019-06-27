@@ -844,7 +844,6 @@ static const struct cfgelem root_cfgelem = {
 #undef CO
 
 struct config config;
-struct ddsi_plugin ddsi_plugin;
 
 static const struct unit unittab_duration[] = {
   { "ns", 1 },

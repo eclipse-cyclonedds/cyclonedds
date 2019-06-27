@@ -104,6 +104,11 @@ static int gcreq_proxy_participant (struct proxy_participant *proxypp);
 static int gcreq_proxy_writer (struct proxy_writer *pwr);
 static int gcreq_proxy_reader (struct proxy_reader *prd);
 
+extern inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct nn_guid *guid, nn_vendorid_t vendorid);
+extern inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertopic *topic);
+extern inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct nn_guid *guid);
+extern inline void builtintopic_write (const struct ddsi_builtin_topic_interface *btif, const struct entity_common *e, nn_wctime_t timestamp, bool alive);
+
 static int compare_guid (const void *va, const void *vb)
 {
   return memcmp (va, vb, sizeof (nn_guid_t));
@@ -174,9 +179,9 @@ static void entity_common_init (struct entity_common *e, const struct nn_guid *g
   e->name = ddsrt_strdup (name ? name : "");
   e->onlylocal = onlylocal;
   ddsrt_mutex_init (&e->lock);
-  if (ddsi_plugin.builtintopic_is_visible (guid, vendorid))
+  if (builtintopic_is_visible (gv.builtin_topic_interface, guid, vendorid))
   {
-    e->tk = ddsi_plugin.builtintopic_get_tkmap_entry (guid);
+    e->tk = builtintopic_get_tkmap_entry (gv.builtin_topic_interface, guid);
     e->iid = e->tk->m_iid;
   }
   else
@@ -407,7 +412,7 @@ static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, cons
 
   nn_xqos_fini_mask (ent_qos, mask);
   nn_xqos_mergein_missing (ent_qos, xqos, mask);
-  ddsi_plugin.builtintopic_write (e, timestamp, true);
+  builtintopic_write (gv.builtin_topic_interface, e, timestamp, true);
   return true;
 }
 
@@ -662,7 +667,7 @@ dds_return_t new_participant_guid (const nn_guid_t *ppguid, unsigned flags, cons
     trigger_recv_threads ();
   }
 
-  ddsi_plugin.builtintopic_write (&pp->e, now(), true);
+  builtintopic_write (gv.builtin_topic_interface, &pp->e, now(), true);
 
   /* SPDP periodic broadcast uses the retransmit path, so the initial
      publication must be done differently. Must be later than making
@@ -906,7 +911,7 @@ dds_return_t delete_participant (const struct nn_guid *ppguid)
   struct participant *pp;
   if ((pp = ephash_lookup_participant_guid (ppguid)) == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
-  ddsi_plugin.builtintopic_write (&pp->e, now(), false);
+  builtintopic_write (gv.builtin_topic_interface, &pp->e, now(), false);
   remember_deleted_participant_guid (gv.deleted_participants, &pp->e.guid);
   ephash_remove_participant_guid (pp);
   gcreq_participant (pp);
@@ -2857,7 +2862,7 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct nn_gui
    delete_participant won't interfere with our ability to address
    the participant */
 
-  const bool onlylocal = topic && ddsi_plugin.builtintopic_is_builtintopic (topic);
+  const bool onlylocal = topic && builtintopic_is_builtintopic (gv.builtin_topic_interface, topic);
   endpoint_common_init (&wr->e, &wr->c, EK_WRITER, guid, group_guid, pp, onlylocal);
   new_writer_guid_common_init(wr, topic, xqos, whc, status_cb, status_entity);
 
@@ -2868,7 +2873,7 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct nn_gui
    the other. */
   ddsrt_mutex_lock (&wr->e.lock);
   ephash_insert_writer_guid (wr);
-  ddsi_plugin.builtintopic_write (&wr->e, now(), true);
+  builtintopic_write (gv.builtin_topic_interface, &wr->e, now(), true);
   ddsrt_mutex_unlock (&wr->e.lock);
 
   /* once it exists, match it with proxy writers and broadcast
@@ -2927,7 +2932,7 @@ struct local_orphan_writer *new_local_orphan_writer (nn_entityid_t entityid, str
   memset (&wr->c.group_guid, 0, sizeof (wr->c.group_guid));
   new_writer_guid_common_init (wr, topic, xqos, whc, 0, NULL);
   ephash_insert_writer_guid (wr);
-  ddsi_plugin.builtintopic_write (&wr->e, now(), true);
+  builtintopic_write (gv.builtin_topic_interface, &wr->e, now(), true);
   match_writer_with_local_readers (wr, tnow);
   return lowr;
 }
@@ -3034,7 +3039,7 @@ dds_return_t delete_writer_nolinger_locked (struct writer *wr)
 {
   DDS_LOG(DDS_LC_DISCOVERY, "delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (wr->e.guid));
   ASSERT_MUTEX_HELD (&wr->e.lock);
-  ddsi_plugin.builtintopic_write (&wr->e, now(), false);
+  builtintopic_write (gv.builtin_topic_interface, &wr->e, now(), false);
   local_reader_ary_setinvalid (&wr->rdary);
   ephash_remove_writer_guid (wr);
   writer_set_state (wr, WRST_DELETING);
@@ -3235,7 +3240,7 @@ static dds_return_t new_reader_guid
   if (rd_out)
     *rd_out = rd;
 
-  const bool onlylocal = topic && ddsi_plugin.builtintopic_is_builtintopic (topic);
+  const bool onlylocal = topic && builtintopic_is_builtintopic (gv.builtin_topic_interface, topic);
   endpoint_common_init (&rd->e, &rd->c, EK_READER, guid, group_guid, pp, onlylocal);
 
   /* Copy QoS, merging in defaults */
@@ -3336,7 +3341,7 @@ static dds_return_t new_reader_guid
 
   ddsrt_mutex_lock (&rd->e.lock);
   ephash_insert_reader_guid (rd);
-  ddsi_plugin.builtintopic_write (&rd->e, now(), true);
+  builtintopic_write (gv.builtin_topic_interface, &rd->e, now(), true);
   ddsrt_mutex_unlock (&rd->e.lock);
 
   match_reader_with_proxy_writers (rd, tnow);
@@ -3429,7 +3434,7 @@ dds_return_t delete_reader (const struct nn_guid *guid)
     return DDS_RETCODE_BAD_PARAMETER;
   }
   DDS_LOG(DDS_LC_DISCOVERY, "delete_reader_guid(guid "PGUIDFMT") ...\n", PGUID (*guid));
-  ddsi_plugin.builtintopic_write (&rd->e, now(), false);
+  builtintopic_write (gv.builtin_topic_interface, &rd->e, now(), false);
   ephash_remove_reader_guid (rd);
   gcreq_reader (rd);
   return 0;
@@ -3665,7 +3670,7 @@ void new_proxy_participant
   if (proxypp->owns_lease)
     lease_register (ddsrt_atomic_ldvoidp (&proxypp->lease));
 
-  ddsi_plugin.builtintopic_write (&proxypp->e, timestamp, true);
+  builtintopic_write (gv.builtin_topic_interface, &proxypp->e, timestamp, true);
   ddsrt_mutex_unlock (&proxypp->e.lock);
 }
 
@@ -3915,7 +3920,7 @@ int delete_proxy_participant_by_guid (const struct nn_guid * guid, nn_wctime_t t
     return DDS_RETCODE_BAD_PARAMETER;
   }
   DDS_LOG(DDS_LC_DISCOVERY, "- deleting\n");
-  ddsi_plugin.builtintopic_write (&ppt->e, timestamp, false);
+  builtintopic_write (gv.builtin_topic_interface, &ppt->e, timestamp, false);
   remember_deleted_participant_guid (gv.deleted_participants, &ppt->e.guid);
   ephash_remove_proxy_participant_guid (ppt);
   ddsrt_mutex_unlock (&gv.lock);
@@ -4161,7 +4166,7 @@ int new_proxy_writer (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   /* locking the entity prevents matching while the built-in topic hasn't been published yet */
   ddsrt_mutex_lock (&pwr->e.lock);
   ephash_insert_proxy_writer_guid (pwr);
-  ddsi_plugin.builtintopic_write (&pwr->e, timestamp, true);
+  builtintopic_write (gv.builtin_topic_interface, &pwr->e, timestamp, true);
   ddsrt_mutex_unlock (&pwr->e.lock);
 
   match_proxy_writer_with_readers (pwr, tnow);
@@ -4299,7 +4304,7 @@ int delete_proxy_writer (const struct nn_guid *guid, nn_wctime_t timestamp, int 
      from removing themselves from the proxy writer's rdary[]. */
   local_reader_ary_setinvalid (&pwr->rdary);
   DDS_LOG(DDS_LC_DISCOVERY, "- deleting\n");
-  ddsi_plugin.builtintopic_write (&pwr->e, timestamp, false);
+  builtintopic_write (gv.builtin_topic_interface, &pwr->e, timestamp, false);
   ephash_remove_proxy_writer_guid (pwr);
   ddsrt_mutex_unlock (&gv.lock);
   gcreq_proxy_writer (pwr);
@@ -4341,7 +4346,7 @@ int new_proxy_reader (const struct nn_guid *ppguid, const struct nn_guid *guid, 
   /* locking the entity prevents matching while the built-in topic hasn't been published yet */
   ddsrt_mutex_lock (&prd->e.lock);
   ephash_insert_proxy_reader_guid (prd);
-  ddsi_plugin.builtintopic_write (&prd->e, timestamp, true);
+  builtintopic_write (gv.builtin_topic_interface, &prd->e, timestamp, true);
   ddsrt_mutex_unlock (&prd->e.lock);
 
   match_proxy_reader_with_writers (prd, tnow);
@@ -4426,7 +4431,7 @@ int delete_proxy_reader (const struct nn_guid *guid, nn_wctime_t timestamp, int 
     DDS_LOG(DDS_LC_DISCOVERY, "- unknown\n");
     return DDS_RETCODE_BAD_PARAMETER;
   }
-  ddsi_plugin.builtintopic_write (&prd->e, timestamp, false);
+  builtintopic_write (gv.builtin_topic_interface, &prd->e, timestamp, false);
   ephash_remove_proxy_reader_guid (prd);
   ddsrt_mutex_unlock (&gv.lock);
   DDS_LOG(DDS_LC_DISCOVERY, "- deleting\n");

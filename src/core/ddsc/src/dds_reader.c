@@ -370,7 +370,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   /* Additional checks required for built-in topics: we don't want to
      run into a resource limit on a built-in topic, it is a needless
      complication */
-  if (internal_topic && !dds__validate_builtin_reader_qos (topic, rqos))
+  if (internal_topic && !dds__validate_builtin_reader_qos (tp->m_entity.m_domain, topic, rqos))
   {
     dds_delete_qos (rqos);
     reader = DDS_RETCODE_INCONSISTENT_POLICY;

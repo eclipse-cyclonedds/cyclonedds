@@ -78,7 +78,7 @@ struct dds_handle_link {
  * Initialize handleserver singleton.
  */
 DDS_EXPORT dds_return_t
-dds_handle_server_init(void (*free_via_gc) (void *x));
+dds_handle_server_init(void);
 
 
 /*

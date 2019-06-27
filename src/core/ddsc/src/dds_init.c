@@ -37,249 +37,60 @@
 
 struct q_globals gv;
 
-dds_globals dds_global = { .m_default_domain = DDS_DOMAIN_DEFAULT };
-static struct cfgst * dds_cfgst = NULL;
+dds_globals dds_global;
 
-static void free_via_gc_cb (struct gcreq *gcreq)
+dds_return_t dds_init (void)
 {
-  void *bs = gcreq->arg;
-  gcreq_free (gcreq);
-  ddsrt_free (bs);
-}
+  dds_return_t ret;
 
-static void free_via_gc (void *bs)
-{
-  struct gcreq *gcreq = gcreq_new (gv.gcreq_queue, free_via_gc_cb);
-  gcreq->arg = bs;
-  gcreq_enqueue (gcreq);
-}
-
-dds_return_t
-dds_init(dds_domainid_t domain)
-{
-  dds_return_t ret = DDS_RETCODE_OK;
-  char * uri = NULL;
-  char progname[50] = "UNKNOWN"; /* FIXME: once retrieving process names is back in */
-  char hostname[64];
-  uint32_t len;
-  ddsrt_mutex_t *init_mutex;
-
-  /* Be sure the DDS lifecycle resources are initialized. */
-  ddsrt_init();
-  init_mutex = ddsrt_get_singleton_mutex();
-
-  ddsrt_mutex_lock(init_mutex);
-
-  dds_global.m_init_count++;
-  if (dds_global.m_init_count > 1)
+  ddsrt_init ();
+  ddsrt_mutex_t * const init_mutex = ddsrt_get_singleton_mutex ();
+  ddsrt_mutex_lock (init_mutex);
+  if (dds_global.m_init_count++ != 0)
   {
-    goto skip;
+    ddsrt_mutex_unlock (init_mutex);
+    return DDS_RETCODE_OK;
   }
 
-  gv.tstart = now ();
   ddsrt_mutex_init (&dds_global.m_mutex);
-  thread_states_init_static();
+  ddsi_iid_init ();
+  thread_states_init_static ();
+  thread_states_init (64);
+  upgrade_main_thread ();
+  dds__builtin_init_global ();
 
-  (void)ddsrt_getenv (DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", &uri);
-  dds_cfgst = config_init (uri);
-  if (dds_cfgst == NULL)
-  {
-    DDS_LOG(DDS_LC_CONFIG, "Failed to parse configuration XML file %s\n", uri);
-    ret = DDS_RETCODE_ERROR;
-    goto fail_config;
-  }
-
-  /* if a domain id was explicitly given, check & fix up the configuration */
-  if (domain != DDS_DOMAIN_DEFAULT)
-  {
-    if (domain < 0 || domain > 230)
-    {
-      DDS_ERROR("requested domain id %"PRId32" is out of range\n", domain);
-      ret = DDS_RETCODE_ERROR;
-      goto fail_config_domainid;
-    }
-    else if (config.domainId.isdefault)
-    {
-      config.domainId.value = domain;
-    }
-    else if (domain != config.domainId.value)
-    {
-      DDS_ERROR("requested domain id %"PRId32" is inconsistent with configured value %"PRId32"\n", domain, config.domainId.value);
-      ret = DDS_RETCODE_ERROR;
-      goto fail_config_domainid;
-    }
-  }
-
-  /* The config.domainId can change internally in DDSI. So, remember what the
-   * main configured domain id is. */
-  dds_global.m_default_domain = config.domainId.value;
-
-  if (rtps_config_prep(dds_cfgst) != 0)
-  {
-    DDS_LOG(DDS_LC_CONFIG, "Failed to configure RTPS\n");
-    ret = DDS_RETCODE_ERROR;
-    goto fail_rtps_config;
-  }
-
-  upgrade_main_thread();
-  ddsrt_avl_init(&dds_domaintree_def, &dds_global.m_domains);
-
-  /* Start monitoring the liveliness of all threads. */
-  if (!config.liveliness_monitoring)
-    gv.threadmon = NULL;
-  else
-  {
-    gv.threadmon = ddsi_threadmon_new ();
-    if (gv.threadmon == NULL)
-    {
-      DDS_ERROR("Failed to create a thread monitor\n");
-      ret = DDS_RETCODE_OUT_OF_RESOURCES;
-      goto fail_threadmon_new;
-    }
-  }
-
-  if (rtps_init () < 0)
-  {
-    DDS_LOG(DDS_LC_CONFIG, "Failed to initialize RTPS\n");
-    ret = DDS_RETCODE_ERROR;
-    goto fail_rtps_init;
-  }
-
-  if (dds_handle_server_init (free_via_gc) != DDS_RETCODE_OK)
+  if (dds_handle_server_init () != DDS_RETCODE_OK)
   {
     DDS_ERROR("Failed to initialize internal handle server\n");
     ret = DDS_RETCODE_ERROR;
     goto fail_handleserver;
   }
 
-  dds__builtin_init ();
-
-  if (rtps_start () < 0)
-  {
-    DDS_LOG(DDS_LC_CONFIG, "Failed to start RTPS\n");
-    ret = DDS_RETCODE_ERROR;
-    goto fail_rtps_start;
-  }
-
-  if (gv.threadmon && ddsi_threadmon_start(gv.threadmon) < 0)
-  {
-    DDS_ERROR("Failed to start the servicelease\n");
-    ret = DDS_RETCODE_ERROR;
-    goto fail_threadmon_start;
-  }
-
-  /* Set additional default participant properties */
-
-  gv.default_plist_pp.process_id = (unsigned)ddsrt_getpid();
-  gv.default_plist_pp.present |= PP_PRISMTECH_PROCESS_ID;
-  gv.default_plist_pp.exec_name = dds_string_alloc(32);
-  (void) snprintf(gv.default_plist_pp.exec_name, 32, "%s: %u", DDS_PROJECT_NAME, gv.default_plist_pp.process_id);
-  len = (uint32_t) (13 + strlen(gv.default_plist_pp.exec_name));
-  gv.default_plist_pp.present |= PP_PRISMTECH_EXEC_NAME;
-  if (ddsrt_gethostname(hostname, sizeof(hostname)) == DDS_RETCODE_OK)
-  {
-    gv.default_plist_pp.node_name = dds_string_dup(hostname);
-    gv.default_plist_pp.present |= PP_PRISMTECH_NODE_NAME;
-  }
-  gv.default_plist_pp.entity_name = dds_alloc(len);
-  (void) snprintf(gv.default_plist_pp.entity_name, len, "%s<%u>", progname,
-                  gv.default_plist_pp.process_id);
-  gv.default_plist_pp.present |= PP_ENTITY_NAME;
-
-skip:
-  ddsrt_mutex_unlock(init_mutex);
+  ddsrt_mutex_unlock (init_mutex);
   return DDS_RETCODE_OK;
 
-fail_threadmon_start:
-  if (gv.threadmon)
-    ddsi_threadmon_stop (gv.threadmon);
-  dds_handle_server_fini();
 fail_handleserver:
-  rtps_stop ();
-fail_rtps_start:
-  dds__builtin_fini ();
-  rtps_fini ();
-fail_rtps_init:
-  if (gv.threadmon)
-  {
-    ddsi_threadmon_free (gv.threadmon);
-    gv.threadmon = NULL;
-  }
-fail_threadmon_new:
-  downgrade_main_thread ();
-  thread_states_fini();
-fail_rtps_config:
-fail_config_domainid:
-  dds_global.m_default_domain = DDS_DOMAIN_DEFAULT;
-  config_fini (dds_cfgst);
-  dds_cfgst = NULL;
-fail_config:
   ddsrt_mutex_destroy (&dds_global.m_mutex);
   dds_global.m_init_count--;
-  ddsrt_mutex_unlock(init_mutex);
-  ddsrt_fini();
+  ddsrt_mutex_unlock (init_mutex);
+  ddsrt_fini ();
   return ret;
 }
 
 extern void dds_fini (void)
 {
-  ddsrt_mutex_t *init_mutex;
-  init_mutex = ddsrt_get_singleton_mutex();
-  ddsrt_mutex_lock(init_mutex);
-  assert(dds_global.m_init_count > 0);
-  dds_global.m_init_count--;
-  if (dds_global.m_init_count == 0)
+  ddsrt_mutex_t * const init_mutex = ddsrt_get_singleton_mutex ();
+  ddsrt_mutex_lock (init_mutex);
+  assert (dds_global.m_init_count > 0);
+  if (--dds_global.m_init_count == 0)
   {
-    if (gv.threadmon)
-      ddsi_threadmon_stop (gv.threadmon);
-    dds_handle_server_fini();
-    rtps_stop ();
-    dds__builtin_fini ();
-    rtps_fini ();
-    if (gv.threadmon)
-      ddsi_threadmon_free (gv.threadmon);
-    gv.threadmon = NULL;
+    dds_handle_server_fini ();
+    dds__builtin_fini_global ();
     downgrade_main_thread ();
     thread_states_fini ();
-
-    config_fini (dds_cfgst);
-    dds_cfgst = NULL;
+    ddsi_iid_fini ();
     ddsrt_mutex_destroy (&dds_global.m_mutex);
-    dds_global.m_default_domain = DDS_DOMAIN_DEFAULT;
   }
-  ddsrt_mutex_unlock(init_mutex);
-  ddsrt_fini();
-}
-
-void ddsi_plugin_init (void)
-{
-  ddsi_plugin.builtintopic_is_builtintopic = dds__builtin_is_builtintopic;
-  ddsi_plugin.builtintopic_is_visible = dds__builtin_is_visible;
-  ddsi_plugin.builtintopic_get_tkmap_entry = dds__builtin_get_tkmap_entry;
-  ddsi_plugin.builtintopic_write = dds__builtin_write;
-}
-
-//provides explicit default domain id.
-dds_domainid_t dds_domain_default (void)
-{
-  return dds_global.m_default_domain;
-}
-
-dds_return_t
-dds__check_domain(
-  dds_domainid_t domain)
-{
-  dds_return_t ret = DDS_RETCODE_OK;
-  /* If domain is default: use configured id. */
-  if (domain != DDS_DOMAIN_DEFAULT)
-  {
-    /* Specific domain has to be the same as the configured domain. */
-    if (domain != dds_global.m_default_domain)
-    {
-      DDS_ERROR("Inconsistent domain configuration detected: domain on "
-                "configuration: %"PRId32", domain %"PRId32"\n", dds_global.m_default_domain, domain);
-      ret = DDS_RETCODE_ERROR;
-    }
-  }
-  return ret;
+  ddsrt_mutex_unlock (init_mutex);
+  ddsrt_fini ();
 }

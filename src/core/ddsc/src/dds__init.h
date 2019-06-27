@@ -18,9 +18,6 @@
 extern "C" {
 #endif
 
-dds_return_t
-dds__check_domain(dds_domainid_t domain);
-
 /**
  *Description : Initialization function, called from main. This operation
  *initializes all the required DDS resources,
@@ -30,8 +27,7 @@ dds__check_domain(dds_domainid_t domain);
  *Arguments :
  *-# Returns 0 on success or a non-zero error status
  **/
-dds_return_t
-dds_init(dds_domainid_t domain);
+dds_return_t dds_init (void);
 
 /* Finalization function, called from main */
 
@@ -42,16 +38,7 @@ dds_init(dds_domainid_t domain);
  *Arguments :
  *-# None
  **/
-void
-dds_fini(void);
-
-/**
- * Description : Function that provides the explicit ID of default domain
- * It should be called after DDS initialization.
- * @return Valid domain id. Undetermined behaviour if DDS is not initialized.
- */
-dds_domainid_t dds_domain_default (void);
-
+void dds_fini (void);
 
 #if defined (__cplusplus)
 }

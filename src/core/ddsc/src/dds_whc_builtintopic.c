@@ -19,6 +19,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__serdata_builtintopic.h"
 #include "dds__whc_builtintopic.h"
@@ -62,7 +63,7 @@ static void bwhc_sample_iter_init (const struct whc *whc_generic, struct whc_sam
 static bool is_visible (const struct entity_common *e)
 {
   const nn_vendorid_t vendorid = get_entity_vendorid (e);
-  return ddsi_plugin.builtintopic_is_visible (&e->guid, vendorid);
+  return builtintopic_is_visible (gv.builtin_topic_interface, &e->guid, vendorid);
 }
 
 static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, struct whc_borrowed_sample *sample)
