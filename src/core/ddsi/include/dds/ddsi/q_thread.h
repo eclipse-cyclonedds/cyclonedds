@@ -65,10 +65,10 @@ struct logbuf;
  */
 #define THREAD_BASE                             \
   ddsrt_atomic_uint32_t vtime;                  \
+  enum thread_state state;                      \
   ddsrt_thread_t tid;                           \
   ddsrt_thread_t extTid;                        \
-  enum thread_state state;                      \
-  char *name /* note: no semicolon! */
+  char name[24] /* note: no semicolon! */
 
 struct thread_state_base {
   THREAD_BASE;

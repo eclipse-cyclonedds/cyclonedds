@@ -93,7 +93,7 @@ void thread_states_init (unsigned maxthreads)
   {
     thread_states.ts[i].state = THREAD_STATE_ZERO;
     ddsrt_atomic_st32 (&thread_states.ts[i].vtime, 0);
-    thread_states.ts[i].name = NULL;
+    memset (thread_states.ts[i].name, 0, sizeof (thread_states.ts[i].name));
   }
   DDSRT_WARNING_MSVC_ON(6386);
 }
@@ -211,7 +211,8 @@ void upgrade_main_thread (void)
     assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts1->vtime)));
   ts1->state = THREAD_STATE_LAZILY_CREATED;
   ts1->tid = ddsrt_thread_self ();
-  ts1->name = main_thread_name;
+  strncpy (ts1->name, main_thread_name, sizeof (ts1->name));
+  ts1->name[sizeof (ts1->name) - 1] = 0;
   ddsrt_mutex_unlock (&thread_states.lock);
   tsd_thread_state = ts1;
 }
@@ -235,7 +236,8 @@ static struct thread_state1 *init_thread_state (const char *tname, enum thread_s
 
   ts = &thread_states.ts[cand];
   assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts->vtime)));
-  ts->name = ddsrt_strdup (tname);
+  strncpy (ts->name, tname, sizeof (ts->name));
+  ts->name[sizeof (ts->name) - 1] = 0;
   ts->state = state;
 
   return ts;
@@ -285,14 +287,10 @@ dds_return_t create_thread (struct thread_state1 **ts1, const char *name, uint32
   return DDS_RETCODE_ERROR;
 }
 
-static void reap_thread_state (struct thread_state1 *ts1, int sync_with_servicelease)
+static void reap_thread_state (struct thread_state1 *ts1)
 {
   ddsrt_mutex_lock (&thread_states.lock);
   ts1->state = THREAD_STATE_ZERO;
-  if (sync_with_servicelease && gv.threadmon)
-    ddsi_threadmon_statechange_barrier (gv.threadmon);
-  if (ts1->name != main_thread_name)
-    ddsrt_free (ts1->name);
   ddsrt_mutex_unlock (&thread_states.lock);
 }
 
@@ -302,17 +300,14 @@ dds_return_t join_thread (struct thread_state1 *ts1)
   assert (ts1->state == THREAD_STATE_ALIVE);
   ret = ddsrt_thread_join (ts1->extTid, NULL);
   assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts1->vtime)));
-  reap_thread_state (ts1, 1);
+  reap_thread_state (ts1);
   return ret;
 }
 
 void reset_thread_state (struct thread_state1 *ts1)
 {
   if (ts1)
-  {
-    reap_thread_state (ts1, 1);
-    ts1->name = NULL;
-  }
+    reap_thread_state (ts1);
 }
 
 void downgrade_main_thread (void)
@@ -320,7 +315,7 @@ void downgrade_main_thread (void)
   struct thread_state1 *ts1 = lookup_thread_state ();
   assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts1->vtime)));
   /* no need to sync with service lease: already stopped */
-  reap_thread_state (ts1, 0);
+  reap_thread_state (ts1);
   thread_states_init_static ();
 }
 

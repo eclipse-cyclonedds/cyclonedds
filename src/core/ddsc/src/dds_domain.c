@@ -93,16 +93,17 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   }
 
   /* Start monitoring the liveliness of all threads. */
-  if (!config.liveliness_monitoring)
-    gv.threadmon = NULL;
-  else
+  if (config.liveliness_monitoring)
   {
-    gv.threadmon = ddsi_threadmon_new ();
-    if (gv.threadmon == NULL)
+    if (++dds_global.threadmon_count == 0)
     {
-      DDS_ERROR ("Failed to create a thread monitor\n");
-      ret = DDS_RETCODE_OUT_OF_RESOURCES;
-      goto fail_threadmon_new;
+      dds_global.threadmon = ddsi_threadmon_new ();
+      if (dds_global.threadmon == NULL)
+      {
+        DDS_ERROR ("Failed to create a thread liveliness monitor\n");
+        ret = DDS_RETCODE_OUT_OF_RESOURCES;
+        goto fail_threadmon_new;
+      }
     }
   }
 
@@ -122,11 +123,14 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
     goto fail_rtps_start;
   }
 
-  if (gv.threadmon && ddsi_threadmon_start (gv.threadmon) < 0)
+  if (config.liveliness_monitoring && dds_global.threadmon_count == 1)
   {
-    DDS_ERROR ("Failed to start the servicelease\n");
-    ret = DDS_RETCODE_ERROR;
-    goto fail_threadmon_start;
+    if (ddsi_threadmon_start (dds_global.threadmon) < 0)
+    {
+      DDS_ERROR ("Failed to start the thread liveliness monitor\n");
+      ret = DDS_RETCODE_ERROR;
+      goto fail_threadmon_start;
+    }
   }
 
   /* Set additional default participant properties */
@@ -151,16 +155,19 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   return DDS_RETCODE_OK;
 
 fail_threadmon_start:
-  if (gv.threadmon)
-    ddsi_threadmon_stop (gv.threadmon);
+  if (config.liveliness_monitoring && dds_global.threadmon_count == 1)
+    ddsi_threadmon_stop (dds_global.threadmon);
   rtps_stop ();
 fail_rtps_start:
   rtps_fini ();
 fail_rtps_init:
-  if (gv.threadmon)
+  if (config.liveliness_monitoring)
   {
-    ddsi_threadmon_free (gv.threadmon);
-    gv.threadmon = NULL;
+    if (--dds_global.threadmon_count == 0)
+    {
+      ddsi_threadmon_free (dds_global.threadmon);
+      dds_global.threadmon = NULL;
+    }
   }
 fail_threadmon_new:
   downgrade_main_thread ();
@@ -174,14 +181,19 @@ fail_config:
 
 static void dds_domain_fini (struct dds_domain *domain)
 {
-  if (gv.threadmon)
-    ddsi_threadmon_stop (gv.threadmon);
+  if (config.liveliness_monitoring && dds_global.threadmon_count == 1)
+    ddsi_threadmon_stop (dds_global.threadmon);
   rtps_stop ();
   dds__builtin_fini (domain);
   rtps_fini ();
-  if (gv.threadmon)
-    ddsi_threadmon_free (gv.threadmon);
-  gv.threadmon = NULL;
+  if (config.liveliness_monitoring)
+  {
+    if (--dds_global.threadmon_count == 0)
+    {
+      ddsi_threadmon_free (dds_global.threadmon);
+      dds_global.threadmon = NULL;
+    }
+  }
   config_fini (domain->cfgst);
 }
 

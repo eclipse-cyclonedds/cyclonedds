@@ -180,12 +180,6 @@ dds_return_t ddsi_threadmon_start (struct ddsi_threadmon *sl)
   return DDS_RETCODE_ERROR;
 }
 
-void ddsi_threadmon_statechange_barrier (struct ddsi_threadmon *sl)
-{
-  ddsrt_mutex_lock (&sl->lock);
-  ddsrt_mutex_unlock (&sl->lock);
-}
-
 void ddsi_threadmon_stop (struct ddsi_threadmon *sl)
 {
   if (sl->keepgoing != -1)
