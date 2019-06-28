@@ -1265,7 +1265,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
         assert (!is_builtin_entityid (datap->endpoint_guid.entityid, vendorid));
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
         {
-          struct config_channel_listelem *channel = find_channel (xqos->transport_priority);
+          struct config_channel_listelem *channel = find_channel (&config, xqos->transport_priority);
           new_proxy_writer (&ppguid, &datap->endpoint_guid, as, datap, channel->dqueue, channel->evq ? channel->evq : gv.xevents, timestamp);
         }
 #else
