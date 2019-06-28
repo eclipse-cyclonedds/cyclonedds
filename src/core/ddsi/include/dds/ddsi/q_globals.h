@@ -101,7 +101,6 @@ struct q_globals {
 
   /* Queue for garbage collection requests */
   struct gcreq_queue *gcreq_queue;
-  struct ddsi_threadmon *threadmon;
 
   /* Lease junk */
   ddsrt_mutex_t leaseheap_lock;

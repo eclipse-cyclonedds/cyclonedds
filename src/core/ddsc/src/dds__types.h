@@ -309,6 +309,9 @@ typedef struct dds_globals {
   ddsrt_avl_tree_t m_domains;
   ddsrt_mutex_t m_mutex;
 
+  uint32_t threadmon_count;
+  struct ddsi_threadmon *threadmon;
+
   struct ddsi_sertopic *builtin_participant_topic;
   struct ddsi_sertopic *builtin_reader_topic;
   struct ddsi_sertopic *builtin_writer_topic;
