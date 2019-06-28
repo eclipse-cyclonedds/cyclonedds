@@ -52,7 +52,7 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   gv.tstart = now ();
 
   (void) ddsrt_getenv ("CYCLONEDDS_URI", &uri);
-  domain->cfgst = config_init (uri);
+  domain->cfgst = config_init (uri, &config);
   if (domain->cfgst == NULL)
   {
     DDS_LOG (DDS_LC_CONFIG, "Failed to parse configuration XML file %s\n", uri);

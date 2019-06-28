@@ -158,7 +158,7 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
 static uint32_t get_bandwidth_limit (dds_transport_priority_qospolicy_t transport_priority)
 {
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-  struct config_channel_listelem *channel = find_channel (transport_priority);
+  struct config_channel_listelem *channel = find_channel (&config, transport_priority);
   return channel->data_bandwidth_limit;
 #else
   (void) transport_priority;

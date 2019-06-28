@@ -396,18 +396,18 @@ extern struct config DDS_EXPORT config;
 
 struct cfgst;
 
-struct cfgst *config_init (const char *configfile);
+struct cfgst *config_init (const char *configfile, struct config *cfg);
 void config_print_cfgst (struct cfgst *cfgst);
 void config_free_source_info (struct cfgst *cfgst);
 void config_fini (struct cfgst *cfgst);
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-struct config_partitionmapping_listelem *find_partitionmapping (const char *partition, const char *topic);
-struct config_networkpartition_listelem *find_networkpartition_by_id (uint32_t id);
-int is_ignored_partition (const char *partition, const char *topic);
+struct config_partitionmapping_listelem *find_partitionmapping (const struct config *cfg, const char *partition, const char *topic);
+struct config_networkpartition_listelem *find_networkpartition_by_id (const struct config *cfg, uint32_t id);
+int is_ignored_partition (const struct config *cfg, const char *partition, const char *topic);
 #endif
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-struct config_channel_listelem *find_channel (nn_transport_priority_qospolicy_t transport_priority);
+struct config_channel_listelem *find_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority);
 #endif
 
 #if defined (__cplusplus)

@@ -2501,7 +2501,7 @@ static int set_topic_type_name (dds_qos_t *xqos, const struct ddsi_sertopic * to
 static uint32_t get_partitionid_from_mapping (const char *partition, const char *topic)
 {
   struct config_partitionmapping_listelem *pm;
-  if ((pm = find_partitionmapping (partition, topic)) == NULL)
+  if ((pm = find_partitionmapping (&config, partition, topic)) == NULL)
     return 0;
   else
   {
@@ -2767,7 +2767,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
     }
     else
     {
-      const struct config_networkpartition_listelem *np = find_networkpartition_by_id (wr->partition_id);
+      const struct config_networkpartition_listelem *np = find_networkpartition_by_id (&config, wr->partition_id);
       assert (np);
       if (addrset_any_ssm (np->as, &loc))
         have_loc = 1;
@@ -2789,7 +2789,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   if (!is_builtin_entityid (wr->e.guid.entityid, ownvendorid))
   {
-    struct config_channel_listelem *channel = find_channel (wr->xqos->transport_priority);
+    struct config_channel_listelem *channel = find_channel (&config, wr->xqos->transport_priority);
     DDS_LOG(DDS_LC_DISCOVERY, "writer "PGUIDFMT": transport priority %d => channel '%s' priority %d\n",
             PGUID (wr->e.guid), wr->xqos->transport_priority.value, channel->name, channel->priority);
     wr->evq = channel->evq ? channel->evq : gv.xevents;
@@ -3121,7 +3121,7 @@ static struct addrset * get_as_from_mapping (const char *partition, const char *
 {
   struct config_partitionmapping_listelem *pm;
   struct addrset *as = new_addrset ();
-  if ((pm = find_partitionmapping (partition, topic)) != NULL)
+  if ((pm = find_partitionmapping (&config, partition, topic)) != NULL)
   {
     DDS_LOG(DDS_LC_DISCOVERY, "matched reader for topic \"%s\" in partition \"%s\" to networkPartition \"%s\"\n", topic, partition, pm->networkPartition);
     assert (pm->partition->as);

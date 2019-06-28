@@ -1500,7 +1500,7 @@ static void pf_logcat (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_AR
   assert (key.e != NULL);
   if ((n = ddsrt_avl_lookup_succ_eq (&cfgst_found_treedef, &cfgst->found, &key)) != NULL && n->key.e == key.e)
     sources |= n->sources;
-  do_print_uint32_bitset (cfgst, config.enabled_logcats, sizeof (logcat_codes) / sizeof (*logcat_codes), logcat_names, logcat_codes, sources, "");
+  do_print_uint32_bitset (cfgst, cfgst->cfg->enabled_logcats, sizeof (logcat_codes) / sizeof (*logcat_codes), logcat_names, logcat_codes, sources, "");
 }
 
 static const char *xcheck_names[] = {
@@ -2535,30 +2535,30 @@ static FILE *config_open_file (char *tok, char **cursor)
   return fp;
 }
 
-struct cfgst *config_init (const char *configfile)
+struct cfgst *config_init (const char *configfile, struct config *cfg)
 {
   int ok = 1;
   struct cfgst *cfgst;
 
-  memset (&config, 0, sizeof (config));
+  memset (cfg, 0, sizeof (*cfg));
 
-  config.tracingOutputFile = stderr;
-  config.enabled_logcats = DDS_LC_ERROR | DDS_LC_WARNING;
+  cfgst = ddsrt_malloc (sizeof (*cfgst));
+  memset (cfgst, 0, sizeof (*cfgst));
+  ddsrt_avl_init (&cfgst_found_treedef, &cfgst->found);
+  cfgst->cfg = cfg;
+  cfgst->error = 0;
+  cfgst->source = 0;
+  cfgst->enabled_logcats = 0;
+
+  /* Initial logging configuration: configuration errors and warnings are dumped to stderr */
+  cfgst->cfg->tracingOutputFile = stderr;
+  cfgst->cfg->enabled_logcats = DDS_LC_ERROR | DDS_LC_WARNING;
 
   /* eventually, we domainId.value will be the real domain id selected, even if it was configured
      to the default of "any" and has "isdefault" set; initializing it to the default-default
      value of 0 means "any" in the config & DDS_DOMAIN_DEFAULT in create participant automatically
      ends up on the right value */
-  config.domainId.value = 0;
-
-  cfgst = ddsrt_malloc (sizeof (*cfgst));
-  memset (cfgst, 0, sizeof (*cfgst));
-
-  ddsrt_avl_init (&cfgst_found_treedef, &cfgst->found);
-  cfgst->cfg = &config;
-  cfgst->error = 0;
-  cfgst->source = 0;
-  cfgst->enabled_logcats = 0;
+  cfgst->cfg->domainId.value = 0;
 
   /* configfile == NULL will get you the default configuration */
   if (configfile) {
@@ -2597,7 +2597,7 @@ struct cfgst *config_init (const char *configfile)
       }
 
       cfgst->implicit_toplevel = (fp == NULL) ? ITL_ALLOWED : ITL_DISALLOWED;
-      cfgst_push (cfgst, 0, &root_cfgelem, &config);
+      cfgst_push (cfgst, 0, &root_cfgelem, cfgst->cfg);
       ok = (ddsrt_xmlp_parse (qx) >= 0) && !cfgst->error;
       assert (!ok ||
               (cfgst->path_depth == 1 && cfgst->implicit_toplevel != ITL_INSERTED) ||
@@ -2632,9 +2632,9 @@ struct cfgst *config_init (const char *configfile)
     {
       case TRANS_DEFAULT:
         if (cfgst->cfg->compat_tcp_enable == BOOLDEF_TRUE)
-          cfgst->cfg->transport_selector = (config.compat_use_ipv6 == BOOLDEF_TRUE) ? TRANS_TCP6 : TRANS_TCP;
+          cfgst->cfg->transport_selector = (cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE) ? TRANS_TCP6 : TRANS_TCP;
         else
-          cfgst->cfg->transport_selector = (config.compat_use_ipv6 == BOOLDEF_TRUE) ? TRANS_UDP6 : TRANS_UDP;
+          cfgst->cfg->transport_selector = (cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE) ? TRANS_UDP6 : TRANS_UDP;
             break;
       case TRANS_TCP:
         ok1 = !(cfgst->cfg->compat_tcp_enable == BOOLDEF_FALSE || cfgst->cfg->compat_use_ipv6 == BOOLDEF_TRUE);
@@ -2671,7 +2671,7 @@ struct cfgst *config_init (const char *configfile)
 #ifdef DDSI_INCLUDE_ENCRYPTION
   /* Check security profiles */
   {
-    struct config_securityprofile_listelem *s = config.securityProfiles;
+    struct config_securityprofile_listelem *s = cfgst->cfg->securityProfiles;
     while (s)
     {
       switch (s->cipher)
@@ -2708,8 +2708,8 @@ struct cfgst *config_init (const char *configfile)
      securityProfiles and signal errors if profiles do not exist */
 #endif /* DDSI_INCLUDE_ENCRYPTION */
   {
-    struct config_networkpartition_listelem *p = config.networkPartitions;
-    config.nof_networkPartitions = 0;
+    struct config_networkpartition_listelem *p = cfgst->cfg->networkPartitions;
+    cfgst->cfg->nof_networkPartitions = 0;
     while (p)
     {
 #ifdef DDSI_INCLUDE_ENCRYPTION
@@ -2717,7 +2717,7 @@ struct cfgst *config_init (const char *configfile)
         p->securityProfile = NULL;
       else
       {
-        struct config_securityprofile_listelem *s = config.securityProfiles;
+        struct config_securityprofile_listelem *s = cfgst->cfg->securityProfiles;
         while (s && ddsrt_strcasecmp(p->profileName, s->name) != 0)
           s = s->next;
         if (s)
@@ -2729,12 +2729,12 @@ struct cfgst *config_init (const char *configfile)
         }
       }
 #endif /* DDSI_INCLUDE_ENCRYPTION */
-      config.nof_networkPartitions++;
+      cfgst->cfg->nof_networkPartitions++;
       /* also use crc32 just like native nw and ordinary ddsi2e, only
          for interoperability because it is asking for trouble &
          forces us to include a crc32 routine when we have md5
          available anyway */
-      p->partitionId = config.nof_networkPartitions; /* starting at 1 */
+      p->partitionId = cfgst->cfg->nof_networkPartitions; /* starting at 1 */
       p->partitionHash = crc32_calc(p->name, strlen(p->name));
       p = p->next;
     }
@@ -2743,10 +2743,10 @@ struct cfgst *config_init (const char *configfile)
   /* Create links from the partitionmappings to the network partitions
      and signal errors if partitions do not exist */
   {
-    struct config_partitionmapping_listelem * m = config.partitionMappings;
+    struct config_partitionmapping_listelem * m = cfgst->cfg->partitionMappings;
     while (m)
     {
-      struct config_networkpartition_listelem * p = config.networkPartitions;
+      struct config_networkpartition_listelem * p = cfgst->cfg->networkPartitions;
       while (p && ddsrt_strcasecmp(m->networkPartition, p->name) != 0)
         p = p->next;
       if (p)
@@ -2762,11 +2762,11 @@ struct cfgst *config_init (const char *configfile)
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
 
   /* Now switch to configured tracing settings */
-  config.enabled_logcats = cfgst->enabled_logcats;
+  cfgst->cfg->enabled_logcats = cfgst->enabled_logcats;
 
   if (ok)
   {
-    config.valid = 1;
+    cfgst->cfg->valid = 1;
     return cfgst;
   }
 
@@ -2793,18 +2793,16 @@ void config_free_source_info (struct cfgst *cfgst)
 void config_fini (struct cfgst *cfgst)
 {
   assert (cfgst);
-  assert (cfgst->cfg == &config);
-  assert (config.valid);
+  assert (cfgst->cfg != NULL);
+  assert (cfgst->cfg->valid);
 
   free_all_elements (cfgst, cfgst->cfg, root_cfgelems);
   dds_set_log_file (stderr);
   dds_set_trace_file (stderr);
-  if (config.tracingOutputFile && config.tracingOutputFile != stdout && config.tracingOutputFile != stderr) {
-    fclose(config.tracingOutputFile);
+  if (cfgst->cfg->tracingOutputFile && cfgst->cfg->tracingOutputFile != stdout && cfgst->cfg->tracingOutputFile != stderr) {
+    fclose(cfgst->cfg->tracingOutputFile);
   }
-  memset (&config, 0, sizeof (config));
-  config.valid = 0;
-
+  memset (cfgst->cfg, 0, sizeof (*cfgst->cfg));
   ddsrt_avl_free (&cfgst_found_treedef, &cfgst->found, ddsrt_free);
   ddsrt_free (cfgst);
 }
@@ -2818,31 +2816,31 @@ static char *get_partition_search_pattern (const char *partition, const char *to
   return pt;
 }
 
-struct config_partitionmapping_listelem *find_partitionmapping (const char *partition, const char *topic)
+struct config_partitionmapping_listelem *find_partitionmapping (const struct config *cfg, const char *partition, const char *topic)
 {
   char *pt = get_partition_search_pattern (partition, topic);
   struct config_partitionmapping_listelem *pm;
-  for (pm = config.partitionMappings; pm; pm = pm->next)
+  for (pm = cfg->partitionMappings; pm; pm = pm->next)
     if (WildcardOverlap (pt, pm->DCPSPartitionTopic))
       break;
   ddsrt_free (pt);
   return pm;
 }
 
-struct config_networkpartition_listelem *find_networkpartition_by_id (uint32_t id)
+struct config_networkpartition_listelem *find_networkpartition_by_id (const struct config *cfg, uint32_t id)
 {
   struct config_networkpartition_listelem *np;
-  for (np = config.networkPartitions; np; np = np->next)
+  for (np = cfg->networkPartitions; np; np = np->next)
     if (np->partitionId == id)
       return np;
   return 0;
 }
 
-int is_ignored_partition (const char *partition, const char *topic)
+int is_ignored_partition (const struct config *cfg, const char *partition, const char *topic)
 {
   char *pt = get_partition_search_pattern (partition, topic);
   struct config_ignoredpartition_listelem *ip;
-  for (ip = config.ignoredPartitions; ip; ip = ip->next)
+  for (ip = cfg->ignoredPartitions; ip; ip = ip->next)
     if (WildcardOverlap(pt, ip->DCPSPartitionTopic))
       break;
   ddsrt_free (pt);
@@ -2851,20 +2849,20 @@ int is_ignored_partition (const char *partition, const char *topic)
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-struct config_channel_listelem *find_channel (nn_transport_priority_qospolicy_t transport_priority)
+struct config_channel_listelem *find_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority)
 {
   struct config_channel_listelem *c;
   /* Channel selection is to use the channel with the lowest priority
      not less than transport_priority, or else the one with the
      highest priority. */
-  assert(config.channels != NULL);
-  assert(config.max_channel != NULL);
-  for (c = config.channels; c; c = c->next)
+  assert(cfg->channels != NULL);
+  assert(cfg->max_channel != NULL);
+  for (c = cfg->channels; c; c = c->next)
   {
     assert(c->next == NULL || c->next->priority > c->priority);
     if (transport_priority.value <= c->priority)
       return c;
   }
-  return config.max_channel;
+  return cfg->max_channel;
 }
 #endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
