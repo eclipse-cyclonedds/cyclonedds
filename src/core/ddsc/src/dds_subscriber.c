@@ -55,7 +55,7 @@ dds_entity_t dds__create_subscriber_l (dds_participant *participant, const dds_q
   new_qos = dds_create_qos ();
   if (qos)
     nn_xqos_mergein_missing (new_qos, qos, DDS_SUBSCRIBER_QOS_MASK);
-  nn_xqos_mergein_missing (new_qos, &gv.default_xqos_sub, ~(uint64_t)0);
+  nn_xqos_mergein_missing (new_qos, &participant->m_entity.m_domain->gv.default_xqos_sub, ~(uint64_t)0);
   if ((ret = nn_xqos_valid (new_qos)) != DDS_RETCODE_OK)
   {
     dds_delete_qos (new_qos);

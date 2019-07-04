@@ -426,8 +426,8 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
   top->m_stopic = sertopic;
 
   /* Publish Topic */
-  thread_state_awake (lookup_thread_state ());
-  ddsi_pp = ephash_lookup_participant_guid (&par->m_entity.m_guid);
+  thread_state_awake (lookup_thread_state (), &par->m_entity.m_domain->gv);
+  ddsi_pp = ephash_lookup_participant_guid (par->m_entity.m_domain->gv.guid_hash, &par->m_entity.m_guid);
   assert (ddsi_pp);
   if (sedp_plist)
   {
@@ -461,9 +461,14 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   nn_plist_t plist;
   dds_entity_t hdl;
   size_t keysz;
+  struct dds_entity *ppent;
+  dds_return_t ret;
 
   if (desc == NULL || name == NULL || !is_valid_name (name))
     return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((ret = dds_entity_pin (participant, &ppent)) < 0)
+    return ret;
 
   typename = desc->m_typename;
   keysz = strlen (name) + strlen (typename) + 2;
@@ -481,7 +486,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   st->c.serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey;
   st->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (st->c.serdata_ops);
   st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE);
-
+  st->serpool = ppent->m_domain->gv.serpool;
   st->type = (void*) desc;
   st->nkeys = desc->m_nkeys;
   st->keys = desc->m_keys;
@@ -513,6 +518,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
 
   hdl = dds_create_topic_arbitrary (participant, &st->c, qos, listener, &plist);
   ddsi_sertopic_unref (&st->c);
+  dds_entity_unpin (ppent);
   nn_plist_fini (&plist);
   return hdl;
 }

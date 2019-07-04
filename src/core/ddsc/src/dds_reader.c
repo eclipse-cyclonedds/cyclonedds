@@ -45,8 +45,8 @@ static dds_return_t dds_reader_close (dds_entity *e) ddsrt_nonnull_all;
 static dds_return_t dds_reader_close (dds_entity *e)
 {
   dds_return_t ret = DDS_RETCODE_OK;
-  thread_state_awake (lookup_thread_state ());
-  if (delete_reader (&e->m_guid) != 0)
+  thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
+  if (delete_reader (&e->m_domain->gv, &e->m_guid) != 0)
     ret = DDS_RETCODE_ERROR;
   thread_state_asleep (lookup_thread_state ());
   return ret;
@@ -76,8 +76,8 @@ static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, boo
   if (enabled)
   {
     struct reader *rd;
-    thread_state_awake (lookup_thread_state ());
-    if ((rd = ephash_lookup_reader_guid (&e->m_guid)) != NULL)
+    thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
+    if ((rd = ephash_lookup_reader_guid (e->m_domain->gv.guid_hash, &e->m_guid)) != NULL)
       update_reader_qos (rd, qos);
     thread_state_asleep (lookup_thread_state ());
   }
@@ -347,6 +347,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
     goto err_tp_lock;
   }
   assert (tp->m_stopic);
+  /* FIXME: domain check */
   assert (sub->m_entity.m_domain == tp->m_entity.m_domain);
 
   /* Merge qos from topic and subscriber, dds_copy_qos only fails when it is passed a null
@@ -358,7 +359,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
     nn_xqos_mergein_missing (rqos, sub->m_entity.m_qos, ~(uint64_t)0);
   if (tp->m_entity.m_qos)
     nn_xqos_mergein_missing (rqos, tp->m_entity.m_qos, ~(uint64_t)0);
-  nn_xqos_mergein_missing (rqos, &gv.default_xqos_rd, ~(uint64_t)0);
+  nn_xqos_mergein_missing (rqos, &sub->m_entity.m_domain->gv.default_xqos_rd, ~(uint64_t)0);
 
   if ((ret = nn_xqos_valid (rqos)) != DDS_RETCODE_OK)
   {
@@ -392,14 +393,14 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   ddsrt_mutex_unlock (&tp->m_entity.m_mutex);
   ddsrt_mutex_unlock (&sub->m_entity.m_mutex);
 
-  thread_state_awake (lookup_thread_state ());
-  ret = new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, &sub->m_entity.m_participant->m_guid, tp->m_stopic, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
+  thread_state_awake (lookup_thread_state (), &sub->m_entity.m_domain->gv);
+  ret = new_reader (&rd->m_rd, &rd->m_entity.m_domain->gv, &rd->m_entity.m_guid, NULL, &sub->m_entity.m_participant->m_guid, tp->m_stopic, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   ddsrt_mutex_lock (&sub->m_entity.m_mutex);
   ddsrt_mutex_lock (&tp->m_entity.m_mutex);
   assert (ret == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
   thread_state_asleep (lookup_thread_state ());
   
-  rd->m_entity.m_iid = get_entity_instance_id (&rd->m_entity.m_guid);
+  rd->m_entity.m_iid = get_entity_instance_id (&rd->m_entity.m_domain->gv, &rd->m_entity.m_guid);
   dds_entity_register_child (&sub->m_entity, &rd->m_entity);
 
   dds_topic_unlock (tp);
@@ -460,7 +461,7 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
       pwrguid_next.entityid.u = (pwrguid_next.entityid.u & ~(uint32_t)0xff) | NN_ENTITYID_KIND_WRITER_NO_KEY;
     }
     ddsrt_mutex_unlock (&rd->e.lock);
-    if ((pwr = ephash_lookup_proxy_writer_guid (&pwrguid)) != NULL)
+    if ((pwr = ephash_lookup_proxy_writer_guid (dds_entity->m_domain->gv.guid_hash, &pwrguid)) != NULL)
     {
       ddsrt_mutex_lock (&pwr->e.lock);
       pwr->ddsi2direct_cb = cb;

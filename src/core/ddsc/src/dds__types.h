@@ -17,6 +17,7 @@
 #include "dds/dds.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds__handles.h"
@@ -97,15 +98,20 @@ typedef struct dds_domain {
   ddsrt_avl_node_t m_node;
   dds_domainid_t m_id;
   ddsrt_avl_tree_t m_topics;
-  struct dds_entity *ppants;
+  ddsrt_avl_tree_t m_ppants;
   uint32_t m_refc;
   struct cfgst *cfgst;
+
+  struct ddsi_sertopic *builtin_participant_topic;
+  struct ddsi_sertopic *builtin_reader_topic;
+  struct ddsi_sertopic *builtin_writer_topic;
 
   struct local_orphan_writer *builtintopic_writer_participant;
   struct local_orphan_writer *builtintopic_writer_publications;
   struct local_orphan_writer *builtintopic_writer_subscriptions;
 
   struct ddsi_builtin_topic_interface btif;
+  struct q_globals gv;
 } dds_domain;
 
 struct dds_entity;
@@ -242,6 +248,7 @@ typedef struct dds_writer {
   struct nn_xpack *m_xp;
   struct writer *m_wr;
   struct whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
+  bool whc_batch; /* FIXME: channels + latency budget */
 
   /* Status metrics */
 
@@ -311,10 +318,6 @@ typedef struct dds_globals {
 
   uint32_t threadmon_count;
   struct ddsi_threadmon *threadmon;
-
-  struct ddsi_sertopic *builtin_participant_topic;
-  struct ddsi_sertopic *builtin_reader_topic;
-  struct ddsi_sertopic *builtin_writer_topic;
 } dds_globals;
 
 DDS_EXPORT extern dds_globals dds_global;

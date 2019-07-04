@@ -92,7 +92,7 @@ void nn_xmsg_set_data_readerId (struct nn_xmsg *m, nn_entityid_t *readerId);
    Returns 1 if merge was successful, else 0.  On failure, neither
    message will have been changed and both should be sent as if there
    had been no merging. */
-int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct nn_xmsg *m, const struct nn_xmsg *madd);
+int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct q_globals *gv, struct nn_xmsg *m, const struct nn_xmsg *madd);
 
 /* To set writer ids for updating last transmitted sequence number;
    wrfragid is 0 based, unlike DDSI but like other places where
@@ -135,10 +135,10 @@ int64_t nn_xpack_maxdelay (const struct nn_xpack *xp);
 unsigned nn_xpack_packetid (const struct nn_xpack *xp);
 
 /* SENDQ */
-void nn_xpack_sendq_init (void);
-void nn_xpack_sendq_start (void);
-void nn_xpack_sendq_stop (void);
-void nn_xpack_sendq_fini (void);
+void nn_xpack_sendq_init (struct q_globals *gv);
+void nn_xpack_sendq_start (struct q_globals *gv);
+void nn_xpack_sendq_stop (struct q_globals *gv);
+void nn_xpack_sendq_fini (struct q_globals *gv);
 
 #if defined (__cplusplus)
 }

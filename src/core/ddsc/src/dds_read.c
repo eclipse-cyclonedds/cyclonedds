@@ -43,27 +43,27 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
   if (buf == NULL || si == NULL || maxs == 0 || bufsz == 0 || bufsz < maxs)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  thread_state_awake (ts1);
-
   if ((ret = dds_entity_pin (reader_or_condition, &entity)) < 0) {
-    goto fail_awake;
+    goto fail;
   } else if (dds_entity_kind (entity) == DDS_KIND_READER) {
     rd = (dds_reader *) entity;
     cond = NULL;
   } else if (only_reader) {
     ret = DDS_RETCODE_ILLEGAL_OPERATION;
-    goto fail_awake_pinned;
+    goto fail_pinned;
   } else if (dds_entity_kind (entity) != DDS_KIND_COND_READ && dds_entity_kind (entity) != DDS_KIND_COND_QUERY) {
     ret = DDS_RETCODE_ILLEGAL_OPERATION;
-    goto fail_awake_pinned;
+    goto fail_pinned;
   } else {
     rd = (dds_reader *) entity->m_parent;
     cond = (dds_readcond *) entity;
   }
 
+  thread_state_awake (ts1, &entity->m_domain->gv);
+
   if (hand != DDS_HANDLE_NIL)
   {
-    if (ddsi_tkmap_find_by_id (gv.m_tkmap, hand) == NULL) {
+    if (ddsi_tkmap_find_by_id (entity->m_domain->gv.m_tkmap, hand) == NULL) {
       ret = DDS_RETCODE_PRECONDITION_NOT_MET;
       goto fail_awake_pinned;
     }
@@ -144,9 +144,10 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
 #undef NC_RESET_BUF
 
 fail_awake_pinned:
-  dds_entity_unpin (entity);
-fail_awake:
   thread_state_asleep (ts1);
+fail_pinned:
+  dds_entity_unpin (entity);
+fail:
   return ret;
 }
 
@@ -164,19 +165,18 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
   assert (maxs > 0);
   (void)take;
 
-  thread_state_awake (ts1);
-
   if ((ret = dds_entity_pin (reader_or_condition, &entity)) < 0) {
-    goto fail_awake;
+    return ret;
   } else if (dds_entity_kind (entity) == DDS_KIND_READER) {
     rd = (dds_reader *) entity;
   } else if (dds_entity_kind (entity) != DDS_KIND_COND_READ && dds_entity_kind (entity) != DDS_KIND_COND_QUERY) {
     dds_entity_unpin (entity);
-    ret = DDS_RETCODE_ILLEGAL_OPERATION;
-    goto fail_awake;
+    return DDS_RETCODE_ILLEGAL_OPERATION;
   } else {
     rd = (dds_reader *) entity->m_parent;
   }
+
+  thread_state_awake (ts1, &entity->m_domain->gv);
 
   /* read/take resets data available status -- must reset before reading because
      the actual writing is protected by RHC lock, not by rd->m_entity.m_lock */
@@ -188,8 +188,6 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
 
   ret = dds_rhc_takecdr (rd->m_rhc, lock, buf, si, maxs, mask & DDS_ANY_SAMPLE_STATE, mask & DDS_ANY_VIEW_STATE, mask & DDS_ANY_INSTANCE_STATE, hand);
   dds_entity_unpin (entity);
-
-fail_awake:
   thread_state_asleep (ts1);
   return ret;
 }

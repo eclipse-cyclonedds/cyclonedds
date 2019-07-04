@@ -245,7 +245,10 @@ inline void ddsrt_atomic_fence (void) {
   membar_enter ();
 }
 inline void ddsrt_atomic_fence_ldld (void) {
-  membar_enter ();
+  membar_consumer ();
+}
+inline void ddsrt_atomic_fence_stst (void) {
+  membar_producer ();
 }
 inline void ddsrt_atomic_fence_acq (void) {
   membar_enter ();

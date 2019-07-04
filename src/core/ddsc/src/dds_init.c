@@ -35,8 +35,6 @@
 #define DOMAIN_ID_MIN 0
 #define DOMAIN_ID_MAX 230
 
-struct q_globals gv;
-
 dds_globals dds_global;
 
 dds_return_t dds_init (void)
@@ -57,7 +55,6 @@ dds_return_t dds_init (void)
   thread_states_init_static ();
   thread_states_init (64);
   upgrade_main_thread ();
-  dds__builtin_init_global ();
 
   if (dds_handle_server_init () != DDS_RETCODE_OK)
   {
@@ -85,7 +82,6 @@ extern void dds_fini (void)
   if (--dds_global.m_init_count == 0)
   {
     dds_handle_server_fini ();
-    dds__builtin_fini_global ();
     downgrade_main_thread ();
     thread_states_fini ();
     ddsi_iid_fini ();

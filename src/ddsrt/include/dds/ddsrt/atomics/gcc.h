@@ -326,6 +326,11 @@ inline void ddsrt_atomic_fence_ldld (void) {
   __sync_synchronize ();
 #endif
 }
+inline void ddsrt_atomic_fence_stst (void) {
+#if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
+  __sync_synchronize ();
+#endif
+}
 inline void ddsrt_atomic_fence_acq (void) {
 #if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
   ddsrt_atomic_fence ();

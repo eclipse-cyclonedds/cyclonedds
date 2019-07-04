@@ -76,8 +76,11 @@ struct whc_impl {
   uint32_t seq_size;
   size_t unacked_bytes;
   size_t sample_overhead;
+  uint32_t fragment_size;
   uint64_t total_bytes; /* total number of bytes pushed in */
   unsigned is_transient_local: 1;
+  unsigned xchecks: 1;
+  struct ddsi_tkmap *tkmap;
   uint32_t hdepth; /* 0 = unlimited */
   uint32_t tldepth; /* 0 = disabled/unlimited (no need to maintain an index if KEEP_ALL <=> is_transient_local + tldepth=0) */
   uint32_t idxdepth; /* = max (hdepth, tldepth) */
@@ -264,7 +267,7 @@ static void check_whc (const struct whc_impl *whc)
   assert (whc->maxseq_node == whc_findmax_procedurally (whc));
 
 #if !defined (NDEBUG)
-  if (config.enabled_xchecks & DDS_XCHECK_WHC)
+  if (whc->xchecks)
   {
     struct whc_intvnode *firstintv;
     struct whc_node *cur;
@@ -332,7 +335,7 @@ static struct whc_node *whc_findkey (const struct whc_impl *whc, const struct dd
   } template;
   struct whc_idxnode *n;
   check_whc (whc);
-  template.idxn.iid = ddsi_tkmap_lookup (gv.m_tkmap, serdata_key);
+  template.idxn.iid = ddsi_tkmap_lookup (whc->tkmap, serdata_key);
   n = ddsrt_hh_lookup (whc->idx_hash, &template.idxn);
   if (n == NULL)
     return NULL;
@@ -343,7 +346,7 @@ static struct whc_node *whc_findkey (const struct whc_impl *whc, const struct dd
   }
 }
 
-struct whc *whc_new (int is_transient_local, uint32_t hdepth, uint32_t tldepth)
+struct whc *whc_new (struct q_globals *gv, int is_transient_local, uint32_t hdepth, uint32_t tldepth)
 {
   size_t sample_overhead = 80; /* INFO_TS, DATA (estimate), inline QoS */
   struct whc_impl *whc;
@@ -355,6 +358,8 @@ struct whc *whc_new (int is_transient_local, uint32_t hdepth, uint32_t tldepth)
   whc->common.ops = &whc_ops;
   ddsrt_mutex_init (&whc->lock);
   whc->is_transient_local = is_transient_local ? 1 : 0;
+  whc->xchecks = (gv->config.enabled_xchecks & DDS_XCHECK_WHC) != 0;
+  whc->tkmap = gv->m_tkmap;
   whc->hdepth = hdepth;
   whc->tldepth = tldepth;
   whc->idxdepth = hdepth > tldepth ? hdepth : tldepth;
@@ -363,6 +368,7 @@ struct whc *whc_new (int is_transient_local, uint32_t hdepth, uint32_t tldepth)
   whc->unacked_bytes = 0;
   whc->total_bytes = 0;
   whc->sample_overhead = sample_overhead;
+  whc->fragment_size = gv->config.fragment_size;
 #if USE_EHH
   whc->seq_hash = ddsrt_ehh_new (sizeof (struct whc_seq_entry), 32, whc_seq_entry_hash, whc_seq_entry_eq);
 #else
@@ -550,7 +556,7 @@ static void delete_one_sample_from_idx (struct whc_impl *whc, struct whc_node *w
 #endif
     if (!ddsrt_hh_remove (whc->idx_hash, idxn))
       assert (0);
-    ddsi_tkmap_instance_unref (idxn->tk);
+    ddsi_tkmap_instance_unref (whc->tkmap, idxn->tk);
     ddsrt_free (idxn);
   }
   whcn->idxnode = NULL;
@@ -647,7 +653,7 @@ static uint32_t whc_default_downgrade_to_volatile (struct whc *whc_generic, stru
 static size_t whcn_size (const struct whc_impl *whc, const struct whc_node *whcn)
 {
   size_t sz = ddsi_serdata_size (whcn->serdata);
-  return sz + ((sz + config.fragment_size - 1) / config.fragment_size) * whc->sample_overhead;
+  return sz + ((sz + whc->fragment_size - 1) / whc->fragment_size) * whc->sample_overhead;
 }
 
 static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_intv, struct whc_node **p_whcn)

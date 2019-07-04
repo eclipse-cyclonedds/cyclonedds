@@ -16,7 +16,6 @@
 #include "dds/ddsrt/misc.h"
 
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_config.h"
 #include "dds/ddsi/sysdeps.h"
 
 #if DDSRT_WITH_FREERTOS || !(defined __APPLE__ || defined __linux) || (__GNUC__ > 0 && (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) < 40100)
@@ -47,40 +46,33 @@ static void log_stacktrace_sigh (int sig __attribute__ ((unused)))
 
 void log_stacktrace (const char *name, ddsrt_thread_t tid)
 {
-  if (dds_get_log_mask() == 0)
-    ; /* no op if nothing logged */
-  else if (!config.noprogress_log_stacktraces)
-    DDS_LOG(~DDS_LC_FATAL, "-- stack trace of %s requested, but traces disabled --\n", name);
+  const dds_time_t d = 1000000;
+  struct sigaction act, oact;
+  char **strs;
+  int i;
+  DDS_LOG(~DDS_LC_FATAL, "-- stack trace of %s requested --\n", name);
+  act.sa_handler = log_stacktrace_sigh;
+  act.sa_flags = 0;
+  sigfillset (&act.sa_mask);
+  while (!ddsrt_atomic_cas32 (&log_stacktrace_flag, 0, 1))
+    dds_sleepfor (d);
+  sigaction (SIGXCPU, &act, &oact);
+  pthread_kill (tid.v, SIGXCPU);
+  while (!ddsrt_atomic_cas32 (&log_stacktrace_flag, 2, 3) && pthread_kill (tid.v, 0) == 0)
+    dds_sleepfor (d);
+  sigaction (SIGXCPU, &oact, NULL);
+  if (pthread_kill (tid.v, 0) != 0)
+    DDS_LOG(~DDS_LC_FATAL, "-- thread exited --\n");
   else
   {
-    const dds_time_t d = 1000000;
-    struct sigaction act, oact;
-    char **strs;
-    int i;
-    DDS_LOG(~DDS_LC_FATAL, "-- stack trace of %s requested --\n", name);
-    act.sa_handler = log_stacktrace_sigh;
-    act.sa_flags = 0;
-    sigfillset (&act.sa_mask);
-    while (!ddsrt_atomic_cas32 (&log_stacktrace_flag, 0, 1))
-      dds_sleepfor (d);
-    sigaction (SIGXCPU, &act, &oact);
-    pthread_kill (tid.v, SIGXCPU);
-    while (!ddsrt_atomic_cas32 (&log_stacktrace_flag, 2, 3) && pthread_kill (tid.v, 0) == 0)
-      dds_sleepfor (d);
-    sigaction (SIGXCPU, &oact, NULL);
-    if (pthread_kill (tid.v, 0) != 0)
-      DDS_LOG(~DDS_LC_FATAL, "-- thread exited --\n");
-    else
-    {
-      DDS_LOG(~DDS_LC_FATAL, "-- stack trace follows --\n");
-      strs = backtrace_symbols (log_stacktrace_stk.stk, log_stacktrace_stk.depth);
-      for (i = 0; i < log_stacktrace_stk.depth; i++)
-        DDS_LOG(~DDS_LC_FATAL, "%s\n", strs[i]);
-      free (strs);
-      DDS_LOG(~DDS_LC_FATAL, "-- end of stack trace --\n");
-    }
-    ddsrt_atomic_st32 (&log_stacktrace_flag, 0);
+    DDS_LOG(~DDS_LC_FATAL, "-- stack trace follows --\n");
+    strs = backtrace_symbols (log_stacktrace_stk.stk, log_stacktrace_stk.depth);
+    for (i = 0; i < log_stacktrace_stk.depth; i++)
+      DDS_LOG(~DDS_LC_FATAL, "%s\n", strs[i]);
+    free (strs);
+    DDS_LOG(~DDS_LC_FATAL, "-- end of stack trace --\n");
   }
+  ddsrt_atomic_st32 (&log_stacktrace_flag, 0);
 }
 #endif
 

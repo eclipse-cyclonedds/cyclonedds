@@ -31,7 +31,8 @@
 
 struct ddsi_tkmap
 {
-  struct ddsrt_chh * m_hh;
+  struct ddsrt_chh *m_hh;
+  struct q_globals *gv;
   ddsrt_mutex_t m_lock;
   ddsrt_cond_t m_cond;
 };
@@ -42,9 +43,10 @@ static void gc_buckets_impl (struct gcreq *gcreq)
   gcreq_free (gcreq);
 }
 
-static void gc_buckets (void *a)
+static void gc_buckets (void *a, void *arg)
 {
-  struct gcreq *gcreq = gcreq_new (gv.gcreq_queue, gc_buckets_impl);
+  const struct ddsi_tkmap *tkmap = arg;
+  struct gcreq *gcreq = gcreq_new (tkmap->gv->gcreq_queue, gc_buckets_impl);
   gcreq->arg = a;
   gcreq_enqueue (gcreq);
 }
@@ -57,19 +59,19 @@ static void gc_tkmap_instance_impl (struct gcreq *gcreq)
   gcreq_free (gcreq);
 }
 
-static void gc_tkmap_instance (struct ddsi_tkmap_instance *tk)
+static void gc_tkmap_instance (struct ddsi_tkmap_instance *tk, struct gcreq_queue *gcreq_queue)
 {
-  struct gcreq *gcreq = gcreq_new (gv.gcreq_queue, gc_tkmap_instance_impl);
+  struct gcreq *gcreq = gcreq_new (gcreq_queue, gc_tkmap_instance_impl);
   gcreq->arg = tk;
   gcreq_enqueue (gcreq);
 }
 
-static uint32_t dds_tk_hash (const struct ddsi_tkmap_instance * inst)
+static uint32_t dds_tk_hash (const struct ddsi_tkmap_instance *inst)
 {
   return inst->m_sample->hash;
 }
 
-static uint32_t dds_tk_hash_void (const void * inst)
+static uint32_t dds_tk_hash_void (const void *inst)
 {
   return dds_tk_hash (inst);
 }
@@ -84,10 +86,11 @@ static int dds_tk_equals_void (const void *a, const void *b)
   return dds_tk_equals (a, b);
 }
 
-struct ddsi_tkmap *ddsi_tkmap_new (void)
+struct ddsi_tkmap *ddsi_tkmap_new (struct q_globals *gv)
 {
   struct ddsi_tkmap *tkmap = dds_alloc (sizeof (*tkmap));
-  tkmap->m_hh = ddsrt_chh_new (1, dds_tk_hash_void, dds_tk_equals_void, gc_buckets);
+  tkmap->m_hh = ddsrt_chh_new (1, dds_tk_hash_void, dds_tk_equals_void, gc_buckets, tkmap);
+  tkmap->gv = gv;
   ddsrt_mutex_init (&tkmap->m_lock);
   ddsrt_cond_init (&tkmap->m_cond);
   return tkmap;
@@ -137,7 +140,7 @@ struct ddsi_tkmap_instance *ddsi_tkmap_find_by_id (struct ddsi_tkmap *map, uint6
     return tk;
   else
     /* Let key value lookup handle the possible CAS loop and the complicated cases */
-    return ddsi_tkmap_find (tk->m_sample, false, false);
+    return ddsi_tkmap_find (map, tk->m_sample, false, false);
 }
 
 /* Debug keyhash generation for debug and coverage builds */
@@ -152,15 +155,10 @@ struct ddsi_tkmap_instance *ddsi_tkmap_find_by_id (struct ddsi_tkmap *map, uint6
 #define DDS_DEBUG_KEYHASH 1
 #endif
 
-struct ddsi_tkmap_instance *
-ddsi_tkmap_find(
-  struct ddsi_serdata * sd,
-  const bool rd,
-  const bool create)
+struct ddsi_tkmap_instance *ddsi_tkmap_find (struct ddsi_tkmap *map, struct ddsi_serdata *sd, const bool rd, const bool create)
 {
   struct ddsi_tkmap_instance dummy;
-  struct ddsi_tkmap_instance * tk;
-  struct ddsi_tkmap * map = gv.m_tkmap;
+  struct ddsi_tkmap_instance *tk;
 
   assert (thread_is_awake ());
   dummy.m_sample = sd;
@@ -208,9 +206,9 @@ retry:
   return tk;
 }
 
-struct ddsi_tkmap_instance * ddsi_tkmap_lookup_instance_ref (struct ddsi_serdata * sd)
+struct ddsi_tkmap_instance *ddsi_tkmap_lookup_instance_ref (struct ddsi_tkmap *map, struct ddsi_serdata *sd)
 {
-  return ddsi_tkmap_find (sd, true, true);
+  return ddsi_tkmap_find (map, sd, true, true);
 }
 
 void ddsi_tkmap_instance_ref (struct ddsi_tkmap_instance *tk)
@@ -218,7 +216,7 @@ void ddsi_tkmap_instance_ref (struct ddsi_tkmap_instance *tk)
   ddsrt_atomic_inc32 (&tk->m_refc);
 }
 
-void ddsi_tkmap_instance_unref (struct ddsi_tkmap_instance * tk)
+void ddsi_tkmap_instance_unref (struct ddsi_tkmap *map, struct ddsi_tkmap_instance *tk)
 {
   uint32_t old, new;
   assert (thread_is_awake ());
@@ -234,8 +232,6 @@ void ddsi_tkmap_instance_unref (struct ddsi_tkmap_instance * tk)
   } while (!ddsrt_atomic_cas32(&tk->m_refc, old, new));
   if (new == REFC_DELETE)
   {
-    struct ddsi_tkmap *map = gv.m_tkmap;
-
     /* Remove from hash table */
     int removed = ddsrt_chh_remove(map->m_hh, tk);
     assert (removed);
@@ -248,6 +244,6 @@ void ddsi_tkmap_instance_unref (struct ddsi_tkmap_instance * tk)
 
     /* Schedule freeing of memory until after all those who may have found a pointer have
      progressed to where they no longer hold that pointer */
-    gc_tkmap_instance(tk);
+    gc_tkmap_instance(tk, map->gv->gcreq_queue);
   }
 }

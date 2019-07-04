@@ -52,6 +52,7 @@ struct debug_monitor {
   ddsi_tran_listener_t servsock;
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
+  struct q_globals *gv;
   struct plugin *plugins;
   int stop;
 };
@@ -85,7 +86,7 @@ static void print_address (const nn_locator_t *n, void *varg)
 {
   struct print_address_arg *arg = varg;
   char buf[DDSI_LOCSTRLEN];
-  arg->count += cpf (arg->conn, " %s", ddsi_locator_to_string (buf, sizeof(buf), n));
+  arg->count += cpf (arg->conn, " %s", ddsi_locator_to_string (arg->conn->m_base.gv, buf, sizeof(buf), n));
 }
 
 static int print_addrset (ddsi_tran_conn_t conn, const char *prefix, struct addrset *as, const char *suffix)
@@ -140,13 +141,13 @@ static int print_proxy_endpoint_common (ddsi_tran_conn_t conn, const char *label
 }
 
 
-static int print_participants (struct thread_state1 * const ts1, ddsi_tran_conn_t conn)
+static int print_participants (struct thread_state1 * const ts1, struct q_globals *gv, ddsi_tran_conn_t conn)
 {
   struct ephash_enum_participant e;
   struct participant *p;
   int x = 0;
-  thread_state_awake (ts1);
-  ephash_enum_participant_init (&e);
+  thread_state_awake_fixed_domain (ts1);
+  ephash_enum_participant_init (&e, gv->guid_hash);
   while ((p = ephash_enum_participant_next (&e)) != NULL)
   {
     ddsrt_mutex_lock (&p->e.lock);
@@ -156,7 +157,7 @@ static int print_participants (struct thread_state1 * const ts1, ddsi_tran_conn_
     {
       struct ephash_enum_reader er;
       struct reader *r;
-      ephash_enum_reader_init (&er);
+      ephash_enum_reader_init (&er, gv->guid_hash);
       while ((r = ephash_enum_reader_next (&er)) != NULL)
       {
         ddsrt_avl_iter_t writ;
@@ -178,7 +179,7 @@ static int print_participants (struct thread_state1 * const ts1, ddsi_tran_conn_
     {
       struct ephash_enum_writer ew;
       struct writer *w;
-      ephash_enum_writer_init (&ew);
+      ephash_enum_writer_init (&ew, gv->guid_hash);
       while ((w = ephash_enum_writer_next (&ew)) != NULL)
       {
         ddsrt_avl_iter_t rdit;
@@ -225,13 +226,13 @@ static int print_participants (struct thread_state1 * const ts1, ddsi_tran_conn_
   return x;
 }
 
-static int print_proxy_participants (struct thread_state1 * const ts1, ddsi_tran_conn_t conn)
+static int print_proxy_participants (struct thread_state1 * const ts1, struct q_globals *gv, ddsi_tran_conn_t conn)
 {
   struct ephash_enum_proxy_participant e;
   struct proxy_participant *p;
   int x = 0;
-  thread_state_awake (ts1);
-  ephash_enum_proxy_participant_init (&e);
+  thread_state_awake_fixed_domain (ts1);
+  ephash_enum_proxy_participant_init (&e, gv->guid_hash);
   while ((p = ephash_enum_proxy_participant_next (&e)) != NULL)
   {
     ddsrt_mutex_lock (&p->e.lock);
@@ -243,7 +244,7 @@ static int print_proxy_participants (struct thread_state1 * const ts1, ddsi_tran
     {
       struct ephash_enum_proxy_reader er;
       struct proxy_reader *r;
-      ephash_enum_proxy_reader_init (&er);
+      ephash_enum_proxy_reader_init (&er, gv->guid_hash);
       while ((r = ephash_enum_proxy_reader_next (&er)) != NULL)
       {
         ddsrt_avl_iter_t writ;
@@ -262,7 +263,7 @@ static int print_proxy_participants (struct thread_state1 * const ts1, ddsi_tran
     {
       struct ephash_enum_proxy_writer ew;
       struct proxy_writer *w;
-      ephash_enum_proxy_writer_init (&ew);
+      ephash_enum_proxy_writer_init (&ew, gv->guid_hash);
       while ((w = ephash_enum_proxy_writer_next (&ew)) != NULL)
       {
         ddsrt_avl_iter_t rdit;
@@ -303,9 +304,9 @@ static void debmon_handle_connection (struct debug_monitor *dm, ddsi_tran_conn_t
   struct thread_state1 * const ts1 = lookup_thread_state ();
   struct plugin *p;
   int r = 0;
-  r += print_participants (ts1, conn);
+  r += print_participants (ts1, dm->gv, conn);
   if (r == 0)
-    r += print_proxy_participants (ts1, conn);
+    r += print_proxy_participants (ts1, dm->gv, conn);
 
   /* Note: can only add plugins (at the tail) */
   ddsrt_mutex_lock (&dm->lock);
@@ -344,21 +345,22 @@ static uint32_t debmon_main (void *vdm)
   return 0;
 }
 
-struct debug_monitor *new_debug_monitor (int port)
+struct debug_monitor *new_debug_monitor (struct q_globals *gv, int port)
 {
   struct debug_monitor *dm;
 
-  if (config.monitor_port < 0)
+  if (gv->config.monitor_port < 0)
     return NULL;
 
-  if (ddsi_tcp_init () < 0)
+  if (ddsi_tcp_init (gv) < 0)
     return NULL;
 
   dm = ddsrt_malloc (sizeof (*dm));
 
+  dm->gv = gv;
   dm->plugins = NULL;
-  if ((dm->tran_factory = ddsi_factory_find ("tcp")) == NULL)
-    dm->tran_factory = ddsi_factory_find ("tcp6");
+  if ((dm->tran_factory = ddsi_factory_find (gv, "tcp")) == NULL)
+    dm->tran_factory = ddsi_factory_find (gv, "tcp6");
   dm->servsock = ddsi_factory_create_listener (dm->tran_factory, port, NULL);
   if (dm->servsock == NULL)
   {
@@ -370,7 +372,7 @@ struct debug_monitor *new_debug_monitor (int port)
     nn_locator_t loc;
     char buf[DDSI_LOCSTRLEN];
     (void) ddsi_listener_locator(dm->servsock, &loc);
-    DDS_LOG(DDS_LC_CONFIG, "debmon at %s\n", ddsi_locator_to_string (buf, sizeof(buf), &loc));
+    DDS_LOG(DDS_LC_CONFIG, "debmon at %s\n", ddsi_locator_to_string (gv, buf, sizeof(buf), &loc));
   }
 
   ddsrt_mutex_init (&dm->lock);
@@ -378,7 +380,7 @@ struct debug_monitor *new_debug_monitor (int port)
   if (ddsi_listener_listen (dm->servsock) < 0)
     goto err_listen;
   dm->stop = 0;
-  create_thread(&dm->servts, "debmon", debmon_main, dm);
+  create_thread (&dm->servts, gv, "debmon", debmon_main, dm);
   return dm;
 
 err_listen:

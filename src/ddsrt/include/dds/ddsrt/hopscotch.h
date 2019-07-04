@@ -30,20 +30,20 @@ extern "C" {
  * When proper distributed hash values are generated, then hopscotch
  * works nice and quickly.
  */
-typedef uint32_t (*ddsrt_hh_hash_fn) (const void *);
+typedef uint32_t (*ddsrt_hh_hash_fn) (const void *a);
 
 /*
  * Hopscotch needs to be able to compare two elements.
  * Returns 0 when not equal.
  */
-typedef int (*ddsrt_hh_equals_fn) (const void *, const void *);
+typedef int (*ddsrt_hh_equals_fn) (const void *a, const void *b);
 
 /*
  * Hopscotch is will resize its internal buckets list when needed. It will
  * call this garbage collection function with the old buckets list. The
  * caller has to delete the list when it deems it safe to do so.
  */
-typedef void (*ddsrt_hh_buckets_gc_fn) (void *);
+typedef void (*ddsrt_hh_buckets_gc_fn) (void *bs, void *arg);
 
 /* Sequential version */
 struct ddsrt_hh;
@@ -79,7 +79,7 @@ struct ddsrt_chh_iter {
 };
 #endif
 
-DDS_EXPORT struct ddsrt_chh *ddsrt_chh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets);
+DDS_EXPORT struct ddsrt_chh *ddsrt_chh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets, void *gc_buckets_arg);
 DDS_EXPORT void ddsrt_chh_free (struct ddsrt_chh * __restrict hh);
 DDS_EXPORT void *ddsrt_chh_lookup (struct ddsrt_chh * __restrict rt, const void * __restrict template);
 DDS_EXPORT int ddsrt_chh_add (struct ddsrt_chh * __restrict rt, const void * __restrict data);

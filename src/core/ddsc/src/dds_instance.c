@@ -41,16 +41,16 @@ dds_return_t dds_dispose_ih (dds_entity_t writer, dds_instance_handle_t handle)
 static struct ddsi_tkmap_instance *dds_instance_find (const dds_topic *topic, const void *data, const bool create)
 {
   struct ddsi_serdata *sd = ddsi_serdata_from_sample (topic->m_stopic, SDK_KEY, data);
-  struct ddsi_tkmap_instance *inst = ddsi_tkmap_find (sd, false, create);
+  struct ddsi_tkmap_instance *inst = ddsi_tkmap_find (topic->m_entity.m_domain->gv.m_tkmap, sd, false, create);
   ddsi_serdata_unref (sd);
   return inst;
 }
 
-static void dds_instance_remove (const dds_topic *topic, const void *data, dds_instance_handle_t handle)
+static void dds_instance_remove (struct dds_domain *dom, const dds_topic *topic, const void *data, dds_instance_handle_t handle)
 {
   struct ddsi_tkmap_instance *inst;
   if (handle != DDS_HANDLE_NIL)
-    inst = ddsi_tkmap_find_by_id (gv.m_tkmap, handle);
+    inst = ddsi_tkmap_find_by_id (dom->gv.m_tkmap, handle);
   else
   {
     assert (data);
@@ -58,7 +58,7 @@ static void dds_instance_remove (const dds_topic *topic, const void *data, dds_i
   }
   if (inst)
   {
-    ddsi_tkmap_instance_unref (inst);
+    ddsi_tkmap_instance_unref (dom->gv.m_tkmap, inst);
   }
 }
 
@@ -74,7 +74,7 @@ dds_return_t dds_register_instance (dds_entity_t writer, dds_instance_handle_t *
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 
-  thread_state_awake (ts1);
+  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
   struct ddsi_tkmap_instance * const inst = dds_instance_find (wr->m_topic, data, true);
   if (inst == NULL)
     ret = DDS_RETCODE_ERROR;
@@ -115,10 +115,10 @@ dds_return_t dds_unregister_instance_ts (dds_entity_t writer, const void *data, 
   if (wr->m_entity.m_qos)
     dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
 
-  thread_state_awake (ts1);
+  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
   if (autodispose)
   {
-    dds_instance_remove (wr->m_topic, data, DDS_HANDLE_NIL);
+    dds_instance_remove (wr->m_entity.m_domain, wr->m_topic, data, DDS_HANDLE_NIL);
     action |= DDS_WR_DISPOSE_BIT;
   }
   ret = dds_write_impl (wr, data, timestamp, action);
@@ -142,20 +142,20 @@ dds_return_t dds_unregister_instance_ih_ts (dds_entity_t writer, dds_instance_ha
   if (wr->m_entity.m_qos)
     dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
 
-  thread_state_awake (ts1);
+  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
   if (autodispose)
   {
-    dds_instance_remove (wr->m_topic, NULL, handle);
+    dds_instance_remove (wr->m_entity.m_domain, wr->m_topic, NULL, handle);
     action |= DDS_WR_DISPOSE_BIT;
   }
-  if ((tk = ddsi_tkmap_find_by_id (gv.m_tkmap, handle)) == NULL)
+  if ((tk = ddsi_tkmap_find_by_id (wr->m_entity.m_domain->gv.m_tkmap, handle)) == NULL)
     ret = DDS_RETCODE_PRECONDITION_NOT_MET;
   else
   {
     struct ddsi_sertopic *tp = wr->m_topic->m_stopic;
     void *sample = ddsi_sertopic_alloc_sample (tp);
     ddsi_serdata_topicless_to_sample (tp, tk->m_sample, sample, NULL, NULL);
-    ddsi_tkmap_instance_unref (tk);
+    ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
     ret = dds_write_impl (wr, sample, timestamp, action);
     ddsi_sertopic_free_sample (tp, sample, DDS_FREE_ALL);
   }
@@ -173,9 +173,9 @@ dds_return_t dds_writedispose_ts (dds_entity_t writer, const void *data, dds_tim
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 
-  thread_state_awake (ts1);
+  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
   if ((ret = dds_write_impl (wr, data, timestamp, DDS_WR_ACTION_WRITE_DISPOSE)) == DDS_RETCODE_OK)
-    dds_instance_remove (wr->m_topic, data, DDS_HANDLE_NIL);
+    dds_instance_remove (wr->m_entity.m_domain, wr->m_topic, data, DDS_HANDLE_NIL);
   thread_state_asleep (ts1);
   dds_writer_unlock (wr);
   return ret;
@@ -188,7 +188,7 @@ static dds_return_t dds_dispose_impl (dds_writer *wr, const void *data, dds_inst
   dds_return_t ret;
   assert (thread_is_awake ());
   if ((ret = dds_write_impl (wr, data, timestamp, DDS_WR_ACTION_DISPOSE)) == DDS_RETCODE_OK)
-    dds_instance_remove (wr->m_topic, data, handle);
+    dds_instance_remove (wr->m_entity.m_domain, wr->m_topic, data, handle);
   return ret;
 }
 
@@ -204,7 +204,7 @@ dds_return_t dds_dispose_ts (dds_entity_t writer, const void *data, dds_time_t t
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 
-  thread_state_awake (ts1);
+  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
   ret = dds_dispose_impl (wr, data, DDS_HANDLE_NIL, timestamp);
   thread_state_asleep (ts1);
   dds_writer_unlock(wr);
@@ -221,15 +221,15 @@ dds_return_t dds_dispose_ih_ts (dds_entity_t writer, dds_instance_handle_t handl
     return ret;
 
   struct ddsi_tkmap_instance *tk;
-  thread_state_awake (ts1);
-  if ((tk = ddsi_tkmap_find_by_id (gv.m_tkmap, handle)) == NULL)
+  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
+  if ((tk = ddsi_tkmap_find_by_id (wr->m_entity.m_domain->gv.m_tkmap, handle)) == NULL)
     ret = DDS_RETCODE_PRECONDITION_NOT_MET;
   else
   {
     struct ddsi_sertopic *tp = wr->m_topic->m_stopic;
     void *sample = ddsi_sertopic_alloc_sample (tp);
     ddsi_serdata_topicless_to_sample (tp, tk->m_sample, sample, NULL, NULL);
-    ddsi_tkmap_instance_unref (tk);
+    ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
     ret = dds_dispose_impl (wr, sample, handle, timestamp);
     ddsi_sertopic_free_sample (tp, sample, DDS_FREE_ALL);
   }
@@ -264,9 +264,9 @@ dds_instance_handle_t dds_lookup_instance (dds_entity_t entity, const void *data
       return DDS_HANDLE_NIL;
   }
 
-  thread_state_awake (ts1);
+  thread_state_awake (ts1, &w_or_r->m_domain->gv);
   sd = ddsi_serdata_from_sample (topic->m_stopic, SDK_KEY, data);
-  ih = ddsi_tkmap_lookup (gv.m_tkmap, sd);
+  ih = ddsi_tkmap_lookup (w_or_r->m_domain->gv.m_tkmap, sd);
   ddsi_serdata_unref (sd);
   thread_state_asleep (ts1);
   dds_entity_unlock (w_or_r);
@@ -308,14 +308,14 @@ dds_return_t dds_instance_get_key (dds_entity_t entity, dds_instance_handle_t ih
       return DDS_RETCODE_ILLEGAL_OPERATION;
   }
 
-  thread_state_awake (ts1);
-  if ((tk = ddsi_tkmap_find_by_id (gv.m_tkmap, ih)) == NULL)
+  thread_state_awake (ts1, &e->m_domain->gv);
+  if ((tk = ddsi_tkmap_find_by_id (e->m_domain->gv.m_tkmap, ih)) == NULL)
     ret = DDS_RETCODE_BAD_PARAMETER;
   else
   {
     ddsi_sertopic_zero_sample (topic->m_stopic, data);
     ddsi_serdata_topicless_to_sample (topic->m_stopic, tk->m_sample, data, NULL, NULL);
-    ddsi_tkmap_instance_unref (tk);
+    ddsi_tkmap_instance_unref (e->m_domain->gv.m_tkmap, tk);
     ret = DDS_RETCODE_OK;
   }
   thread_state_asleep (ts1);

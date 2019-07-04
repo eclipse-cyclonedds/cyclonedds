@@ -20,6 +20,7 @@ struct dds_rhc;
 struct dds_reader;
 struct ddsi_sertopic;
 
+DDS_EXPORT struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_tkmap *tkmap, const struct ddsi_sertopic *topic, bool xchecks);
 DDS_EXPORT struct dds_rhc *dds_rhc_default_new (struct dds_reader *reader, const struct ddsi_sertopic *topic);
 
 #if defined (__cplusplus)

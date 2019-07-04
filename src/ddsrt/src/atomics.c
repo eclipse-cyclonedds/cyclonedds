@@ -125,6 +125,7 @@ extern inline int ddsrt_atomic_casvoidp2 (volatile ddsrt_atomic_uintptr2_t *x, u
 /* FENCES */
 extern inline void ddsrt_atomic_fence (void);
 extern inline void ddsrt_atomic_fence_ldld (void);
+extern inline void ddsrt_atomic_fence_stst (void);
 extern inline void ddsrt_atomic_fence_acq (void);
 extern inline void ddsrt_atomic_fence_rel (void);
 

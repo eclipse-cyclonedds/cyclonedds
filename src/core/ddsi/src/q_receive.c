@@ -224,24 +224,9 @@ static int valid_Heartbeat (Heartbeat_t *msg, size_t size, int byteswap)
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
-  /* Validation following 8.3.7.5.3 */
-  if (fromSN (msg->firstSN) <= 0 ||
-      /* fromSN (msg->lastSN) <= 0 || -- implicit in last < first */
-      fromSN (msg->lastSN) < fromSN (msg->firstSN))
-  {
-    if (NN_STRICT_P)
-      return 0;
-    else
-    {
-      /* Note that we don't actually know the set of all possible
-         malformed messages that we have to process, so we stick to
-         the ones we've seen */
-      if (fromSN (msg->firstSN) == fromSN (msg->lastSN) + 1)
-        ; /* ok */
-      else
-        return 0;
-    }
-  }
+  /* Validation following 8.3.7.5.3; lastSN + 1 == firstSN: no data */
+  if (fromSN (msg->firstSN) <= 0 || fromSN (msg->lastSN) + 1 < fromSN (msg->firstSN))
+    return 0;
   return 1;
 }
 
@@ -293,9 +278,9 @@ static int valid_NackFrag (NackFrag_t *msg, size_t size, int byteswap)
   return 1;
 }
 
-static void set_sampleinfo_proxy_writer (struct nn_rsample_info *sampleinfo, nn_guid_t * pwr_guid)
+static void set_sampleinfo_proxy_writer (struct nn_rsample_info *sampleinfo, nn_guid_t *pwr_guid)
 {
-  struct proxy_writer * pwr = ephash_lookup_proxy_writer_guid (pwr_guid);
+  struct proxy_writer * pwr = ephash_lookup_proxy_writer_guid (sampleinfo->rst->gv->guid_hash, pwr_guid);
   sampleinfo->pwr = pwr;
 }
 
@@ -432,7 +417,7 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
   pwr_guid.prefix = rst->src_guid_prefix;
   pwr_guid.entityid = msg->x.writerId;
 
-  if (NN_STRICT_P && msg->fragmentSize <= 1024 && msg->fragmentSize < config.fragment_size)
+  if (NN_STRICT_P (rst->gv->config) && msg->fragmentSize <= 1024 && msg->fragmentSize < rst->gv->config.fragment_size)
   {
     /* Spec says fragments must > 1kB; not allowing 1024 bytes is IMHO
        totally ridiculous; and I really don't care how small the
@@ -443,7 +428,7 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
   }
   if (msg->fragmentSize == 0 || msg->fragmentStartingNum == 0 || msg->fragmentsInSubmessage == 0)
     return 0;
-  if (NN_STRICT_P && msg->fragmentSize >= msg->sampleSize)
+  if (NN_STRICT_P (rst->gv->config) && msg->fragmentSize >= msg->sampleSize)
     /* may not fragment if not needed -- but I don't care */
     return 0;
   if ((msg->fragmentStartingNum + msg->fragmentsInSubmessage - 2) * msg->fragmentSize >= msg->sampleSize)
@@ -554,7 +539,7 @@ static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *
   ASSERT_MUTEX_HELD (&wr->e.lock);
   assert (wr->reliable);
 
-  m = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
+  m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
   if (nn_xmsg_setdstPRD (m, prd) < 0)
   {
     /* If we don't have an address, give up immediately */
@@ -668,7 +653,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     return 1;
   }
 
-  if ((wr = ephash_lookup_writer_guid (&dst)) == NULL)
+  if ((wr = ephash_lookup_writer_guid (rst->gv->guid_hash, &dst)) == NULL)
   {
     DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT"?)", PGUID (src), PGUID (dst));
     return 1;
@@ -677,7 +662,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
      the normal pure ack steady state. If (a big "if"!) this shows up
      as a significant portion of the time, we can always rewrite it to
      only retrieve it when needed. */
-  if ((prd = ephash_lookup_proxy_reader_guid (&src)) == NULL)
+  if ((prd = ephash_lookup_proxy_reader_guid (rst->gv->guid_hash, &src)) == NULL)
   {
     DDS_TRACE(" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -724,7 +709,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
      work so well if the timestamp can be a left over from some other
      submessage -- but then, it is no more than a quick hack at the
      moment. */
-  if (config.meas_hb_to_ack_latency && timestamp.v)
+  if (rst->gv->config.meas_hb_to_ack_latency && timestamp.v)
   {
     nn_wctime_t tstamp_now = now ();
     nn_lat_estim_update (&rn->hb_to_ack_latency, tstamp_now.v - timestamp.v);
@@ -814,7 +799,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
       DDS_TRACE(" rebase ");
       force_heartbeat_to_peer (wr, &whcst, prd, 0);
       hb_sent_in_response = 1;
-      numbits = config.accelerate_rexmit_block_size;
+      numbits = rst->gv->config.accelerate_rexmit_block_size;
       seqbase = whcst.min_seq;
     }
   }
@@ -830,12 +815,12 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
       DDS_TRACE(" happy-now");
       rn->assumed_in_sync = 1;
     }
-    else if (msg->readerSNState.numbits < config.accelerate_rexmit_block_size)
+    else if (msg->readerSNState.numbits < rst->gv->config.accelerate_rexmit_block_size)
     {
       DDS_TRACE(" accelerating");
       accelerate_rexmit = 1;
-      if (accelerate_rexmit && numbits < config.accelerate_rexmit_block_size)
-        numbits = config.accelerate_rexmit_block_size;
+      if (accelerate_rexmit && numbits < rst->gv->config.accelerate_rexmit_block_size)
+        numbits = rst->gv->config.accelerate_rexmit_block_size;
     }
     else
     {
@@ -871,11 +856,11 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
         if (!wr->retransmitting && sample.unacked)
           writer_set_retransmitting (wr);
 
-        if (config.retransmit_merging != REXMIT_MERGE_NEVER && rn->assumed_in_sync)
+        if (rst->gv->config.retransmit_merging != REXMIT_MERGE_NEVER && rn->assumed_in_sync)
         {
           /* send retransmit to all receivers, but skip if recently done */
           nn_mtime_t tstamp = now_mt ();
-          if (tstamp.v > sample.last_rexmit_ts.v + config.retransmit_merging_period)
+          if (tstamp.v > sample.last_rexmit_ts.v + rst->gv->config.retransmit_merging_period)
           {
             DDS_TRACE(" RX%"PRId64, seqbase + i);
             enqueued = (enqueue_sample_wrlock_held (wr, seq, sample.plist, sample.serdata, NULL, 0) >= 0);
@@ -951,7 +936,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     DDS_TRACE(" XGAP%"PRId64"..%"PRId64"/%u:", gapstart, gapend, gapnumbits);
     for (uint32_t i = 0; i < gapnumbits; i++)
       DDS_TRACE("%c", nn_bitset_isset (gapnumbits, gapbits, i) ? '1' : '0');
-    m = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
+    m = nn_xmsg_new (rst->gv->xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     nn_xmsg_setencoderid (m, wr->partition_id);
 #endif
@@ -1054,6 +1039,7 @@ struct handle_Heartbeat_helper_arg {
 
 static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct handle_Heartbeat_helper_arg * const arg)
 {
+  struct receiver_state * const rst = arg->rst;
   Heartbeat_t const * const msg = arg->msg;
   struct proxy_writer * const pwr = arg->pwr;
   seqno_t refseq;
@@ -1090,11 +1076,11 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
     if (pwr->last_seq > refseq)
     {
       DDS_TRACE("/NAK");
-      if (arg->tnow_mt.v >= wn->t_last_nack.v + config.nack_delay || refseq >= wn->seq_last_nack)
+      if (arg->tnow_mt.v >= wn->t_last_nack.v + rst->gv->config.nack_delay || refseq >= wn->seq_last_nack)
         tsched = arg->tnow_mt;
       else
       {
-        tsched.v = arg->tnow_mt.v + config.nack_delay;
+        tsched.v = arg->tnow_mt.v + rst->gv->config.nack_delay;
         DDS_TRACE("d");
       }
     }
@@ -1104,7 +1090,7 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
     }
     if (resched_xevent_if_earlier (wn->acknack_xevent, tsched))
     {
-      if (config.meas_hb_to_ack_latency && arg->timestamp.v)
+      if (rst->gv->config.meas_hb_to_ack_latency && arg->timestamp.v)
         wn->hb_timestamp = arg->timestamp;
     }
   }
@@ -1142,7 +1128,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
     return 1;
   }
 
-  if ((pwr = ephash_lookup_proxy_writer_guid (&src)) == NULL)
+  if ((pwr = ephash_lookup_proxy_writer_guid (rst->gv->guid_hash, &src)) == NULL)
   {
     DDS_TRACE(PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -1279,7 +1265,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
     return 1;
   }
 
-  if ((pwr = ephash_lookup_proxy_writer_guid (&src)) == NULL)
+  if ((pwr = ephash_lookup_proxy_writer_guid (rst->gv->guid_hash, &src)) == NULL)
   {
     DDS_TRACE(" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -1360,7 +1346,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
       {
         /* Yes we are (note that this potentially also happens for
            samples we no longer care about) */
-        int64_t delay = config.nack_delay;
+        int64_t delay = rst->gv->config.nack_delay;
         DDS_TRACE("/nackfrag");
         resched_xevent_if_earlier (m->acknack_xevent, add_duration_to_mtime (now_mt(), delay));
       }
@@ -1397,7 +1383,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
     return 1;
   }
 
-  if ((wr = ephash_lookup_writer_guid (&dst)) == NULL)
+  if ((wr = ephash_lookup_writer_guid (rst->gv->guid_hash, &dst)) == NULL)
   {
     DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT"?)", PGUID (src), PGUID (dst));
     return 1;
@@ -1406,7 +1392,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
      the normal pure ack steady state. If (a big "if"!) this shows up
      as a significant portion of the time, we can always rewrite it to
      only retrieve it when needed. */
-  if ((prd = ephash_lookup_proxy_reader_guid (&src)) == NULL)
+  if ((prd = ephash_lookup_proxy_reader_guid (rst->gv->guid_hash, &src)) == NULL)
   {
     DDS_TRACE(" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -1462,7 +1448,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
     static uint32_t zero = 0;
     struct nn_xmsg *m;
     DDS_TRACE(" msg not available: scheduling Gap\n");
-    m = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
+    m = nn_xmsg_new (rst->gv->xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     nn_xmsg_setencoderid (m, wr->partition_id);
 #endif
@@ -1508,8 +1494,8 @@ static int handle_InfoDST (struct receiver_state *rst, const InfoDST_t *msg, con
     nn_guid_t dst;
     dst.prefix = rst->dst_guid_prefix;
     dst.entityid = to_entityid(NN_ENTITYID_PARTICIPANT);
-    rst->forme = (ephash_lookup_participant_guid (&dst) != NULL ||
-                  is_deleted_participant_guid (gv.deleted_participants, &dst, DPG_LOCAL));
+    rst->forme = (ephash_lookup_participant_guid (rst->gv->guid_hash, &dst) != NULL ||
+                  is_deleted_participant_guid (rst->gv->deleted_participants, &dst, DPG_LOCAL));
   }
   return 1;
 }
@@ -1653,7 +1639,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
     return 1;
   }
 
-  if ((pwr = ephash_lookup_proxy_writer_guid (&src)) == NULL)
+  if ((pwr = ephash_lookup_proxy_writer_guid (rst->gv->guid_hash, &src)) == NULL)
   {
     DDS_TRACE(""PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -1788,7 +1774,7 @@ static struct ddsi_serdata *extract_sample_from_data
   {
     /* RTI always tries to make us survive on the keyhash. RTI must
        mend its ways. */
-    if (NN_STRICT_P)
+    if (NN_STRICT_P (sampleinfo->rst->gv->config))
       failmsg = "no content";
     else if (!(qos->present & PP_KEYHASH))
       failmsg = "qos present but without keyhash";
@@ -1911,6 +1897,8 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     src.encoding = (msg->smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
     src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
+    src.strict = NN_STRICT_P (rst->gv->config);
+    src.factory = rst->gv->m_factory;
     if ((plist_ret = nn_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET, 0, &src)) < 0)
     {
       if (plist_ret != DDS_RETCODE_UNSUPPORTED)
@@ -1940,11 +1928,11 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
 
   /* Generate the DDS_SampleInfo (which is faked to some extent
      because we don't actually have a data reader) */
-  struct ddsi_tkmap_instance * tk;
-  if ((tk = ddsi_tkmap_lookup_instance_ref(payload)) != NULL)
+  struct ddsi_tkmap_instance *tk;
+  if ((tk = ddsi_tkmap_lookup_instance_ref (pwr->e.gv->m_tkmap, payload)) != NULL)
   {
     struct proxy_writer_info pwr_info;
-    make_proxy_writer_info(&pwr_info, &pwr->e, pwr->c.xqos);
+    make_proxy_writer_info (&pwr_info, &pwr->e, pwr->c.xqos);
 
     if (rdguid == NULL)
     {
@@ -1996,7 +1984,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
         for (m = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, &it); m != NULL; m = ddsrt_avl_iter_next (&it))
         {
           struct reader *rd;
-          if ((rd = ephash_lookup_reader_guid (&m->rd_guid)) != NULL && m->in_sync == PRMSS_SYNC)
+          if ((rd = ephash_lookup_reader_guid (pwr->e.gv->guid_hash, &m->rd_guid)) != NULL && m->in_sync == PRMSS_SYNC)
           {
             DDS_TRACE("reader-via-guid "PGUIDFMT"\n", PGUID (rd->e.guid));
             (void) rhc_store (rd->rhc, &pwr_info, payload, tk);
@@ -2009,16 +1997,16 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     }
     else
     {
-      struct reader *rd = ephash_lookup_reader_guid (rdguid);;
+      struct reader *rd = ephash_lookup_reader_guid (pwr->e.gv->guid_hash, rdguid);
       DDS_TRACE(" %"PRId64"=>"PGUIDFMT"%s\n", sampleinfo->seq, PGUID (*rdguid), rd ? "" : "?");
-      while (rd && ! rhc_store (rd->rhc, &pwr_info, payload, tk) && ephash_lookup_proxy_writer_guid (&pwr->e.guid))
+      while (rd && ! rhc_store (rd->rhc, &pwr_info, payload, tk) && ephash_lookup_proxy_writer_guid (pwr->e.gv->guid_hash, &pwr->e.guid))
       {
         if (pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
         dds_sleepfor (DDS_MSECS (1));
         if (pwr_locked) ddsrt_mutex_lock (&pwr->e.lock);
       }
     }
-    ddsi_tkmap_instance_unref (tk);
+    ddsi_tkmap_instance_unref (pwr->e.gv->m_tkmap, tk);
   }
   ddsi_serdata_unref (payload);
  no_payload:
@@ -2255,18 +2243,19 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
 
 static int handle_SPDP (const struct nn_rsample_info *sampleinfo, struct nn_rdata *rdata)
 {
+  struct q_globals * const gv = sampleinfo->rst->gv;
   struct nn_rsample *rsample;
   struct nn_rsample_chain sc;
   struct nn_rdata *fragchain;
   nn_reorder_result_t rres;
   int refc_adjust = 0;
-  ddsrt_mutex_lock (&gv.spdp_lock);
-  rsample = nn_defrag_rsample (gv.spdp_defrag, rdata, sampleinfo);
+  ddsrt_mutex_lock (&gv->spdp_lock);
+  rsample = nn_defrag_rsample (gv->spdp_defrag, rdata, sampleinfo);
   fragchain = nn_rsample_fragchain (rsample);
-  if ((rres = nn_reorder_rsample (&sc, gv.spdp_reorder, rsample, &refc_adjust, nn_dqueue_is_full (gv.builtins_dqueue))) > 0)
-    nn_dqueue_enqueue (gv.builtins_dqueue, &sc, rres);
+  if ((rres = nn_reorder_rsample (&sc, gv->spdp_reorder, rsample, &refc_adjust, nn_dqueue_is_full (gv->builtins_dqueue))) > 0)
+    nn_dqueue_enqueue (gv->builtins_dqueue, &sc, rres);
   nn_fragchain_adjust_refcount (fragchain, refc_adjust);
-  ddsrt_mutex_unlock (&gv.spdp_lock);
+  ddsrt_mutex_unlock (&gv->spdp_lock);
   return 0;
 }
 
@@ -2281,7 +2270,7 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
     if (msg->writerId.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
     {
       DDS_WARNING ("dropping oversize (%"PRIu32" > %"PRIu32") SPDP sample %"PRId64" from remote writer "PGUIDFMT"\n",
-                   sampleinfo->size, config.max_sample_size, sampleinfo->seq,
+                   sampleinfo->size, rst->gv->config.max_sample_size, sampleinfo->seq,
                    PGUIDPREFIX (rst->src_guid_prefix), msg->writerId.u);
     }
   }
@@ -2311,7 +2300,7 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
       const char *tname = pwr->c.topic ? pwr->c.topic->name : "(null)";
       const char *ttname = pwr->c.topic ? pwr->c.topic->type_name : "(null)";
       DDS_WARNING ("dropping oversize (%"PRIu32" > %"PRIu32") sample %"PRId64" from remote writer "PGUIDFMT" %s/%s\n",
-                   sampleinfo->size, config.max_sample_size, sampleinfo->seq,
+                   sampleinfo->size, rst->gv->config.max_sample_size, sampleinfo->seq,
                    PGUIDPREFIX (rst->src_guid_prefix), msg->writerId.u,
                    tname, ttname);
     }
@@ -2330,7 +2319,7 @@ static int handle_Data (struct receiver_state *rst, nn_etime_t tnow, struct nn_r
     return 1;
   }
 
-  if (sampleinfo->size > config.max_sample_size)
+  if (sampleinfo->size > rst->gv->config.max_sample_size)
     drop_oversize (rst, rmsg, &msg->x, sampleinfo);
   else
   {
@@ -2375,7 +2364,7 @@ static int handle_DataFrag (struct receiver_state *rst, nn_etime_t tnow, struct 
     return 1;
   }
 
-  if (sampleinfo->size > config.max_sample_size)
+  if (sampleinfo->size > rst->gv->config.max_sample_size)
     drop_oversize (rst, rmsg, &msg->x, sampleinfo);
   else
   {
@@ -2595,6 +2584,7 @@ static struct receiver_state *rst_cow_if_needed (int *rst_live, struct nn_rmsg *
 static int handle_submsg_sequence
 (
   struct thread_state1 * const ts1,
+  struct q_globals *gv,
   ddsi_tran_conn_t conn,
   const nn_locator_t *srcloc,
   nn_wctime_t tnowWC,
@@ -2640,12 +2630,13 @@ static int handle_submsg_sequence
   rst->vendor = hdr->vendorid;
   rst->protocol_version = hdr->version;
   rst->srcloc = *srcloc;
+  rst->gv = gv;
   rst_live = 0;
   ts_for_latmeas = 0;
   timestamp = NN_WCTIME_INVALID;
 
   assert (thread_is_asleep ());
-  thread_state_awake (ts1);
+  thread_state_awake_fixed_domain (ts1);
   while (submsg <= (end - sizeof (SubmessageHeader_t)))
   {
     Submessage_t *sm = (Submessage_t *) submsg;
@@ -2911,6 +2902,7 @@ malformed_asleep:
 static bool do_packet
 (
   struct thread_state1 * const ts1,
+  struct q_globals *gv,
   ddsi_tran_conn_t conn,
   const nn_guid_prefix_t * guidprefix,
   struct nn_rbufpool *rbpool
@@ -2918,7 +2910,7 @@ static bool do_packet
 {
   /* UDP max packet size is 64kB */
 
-  const size_t maxsz = config.rmsg_chunk_size < 65536 ? config.rmsg_chunk_size : 65536;
+  const size_t maxsz = gv->config.rmsg_chunk_size < 65536 ? gv->config.rmsg_chunk_size : 65536;
   const size_t ddsi_msg_len_size = 8;
   const size_t stream_hdr_size = RTPS_MESSAGE_HEADER_SIZE + ddsi_msg_len_size;
   ssize_t sz;
@@ -2995,7 +2987,7 @@ static bool do_packet
     sz = ddsi_conn_read (conn, buff, buff_len, true, &srcloc);
   }
 
-  if (sz > 0 && !gv.deaf)
+  if (sz > 0 && !gv->deaf)
   {
     nn_rmsg_setsize (rmsg, (uint32_t) sz);
     assert (thread_is_asleep ());
@@ -3009,7 +3001,7 @@ static bool do_packet
       if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
         DDS_TRACE("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
                   PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
-      if (NN_PEDANTIC_P)
+      if (NN_PEDANTIC_P (gv->config))
         malformed_packet_received_nosubmsg (buff, sz, "header", hdr->vendorid);
     }
     else
@@ -3019,12 +3011,12 @@ static bool do_packet
       if (dds_get_log_mask() & DDS_LC_TRACE)
       {
         char addrstr[DDSI_LOCSTRLEN];
-        ddsi_locator_to_string(addrstr, sizeof(addrstr), &srcloc);
+        ddsi_locator_to_string(gv, addrstr, sizeof(addrstr), &srcloc);
         DDS_TRACE("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s\n",
                   PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
       }
 
-      handle_submsg_sequence (ts1, conn, &srcloc, now (), now_et (), &hdr->guid_prefix, guidprefix, buff, (size_t) sz, buff + RTPS_MESSAGE_HEADER_SIZE, rmsg);
+      handle_submsg_sequence (ts1, gv, conn, &srcloc, now (), now_et (), &hdr->guid_prefix, guidprefix, buff, (size_t) sz, buff + RTPS_MESSAGE_HEADER_SIZE, rmsg);
     }
   }
   nn_rmsg_commit (rmsg);
@@ -3077,11 +3069,11 @@ struct local_participant_set {
   uint32_t gen;
 };
 
-static void local_participant_set_init (struct local_participant_set *lps)
+static void local_participant_set_init (struct local_participant_set *lps, ddsrt_atomic_uint32_t *ppset_generation)
 {
   lps->ps = NULL;
   lps->nps = 0;
-  lps->gen = ddsrt_atomic_ld32 (&gv.participant_set_generation) - 1;
+  lps->gen = ddsrt_atomic_ld32 (ppset_generation) - 1;
 }
 
 static void local_participant_set_fini (struct local_participant_set *lps)
@@ -3089,23 +3081,23 @@ static void local_participant_set_fini (struct local_participant_set *lps)
   ddsrt_free (lps->ps);
 }
 
-static void rebuild_local_participant_set (struct thread_state1 * const ts1, struct local_participant_set *lps)
+static void rebuild_local_participant_set (struct thread_state1 * const ts1, struct q_globals *gv, struct local_participant_set *lps)
 {
   struct ephash_enum_participant est;
   struct participant *pp;
   unsigned nps_alloc;
-  DDS_TRACE("pp set gen changed: local %"PRIu32" global %"PRIu32"\n", lps->gen, ddsrt_atomic_ld32(&gv.participant_set_generation));
-  thread_state_awake (ts1);
+  DDS_TRACE("pp set gen changed: local %"PRIu32" global %"PRIu32"\n", lps->gen, ddsrt_atomic_ld32 (&gv->participant_set_generation));
+  thread_state_awake_fixed_domain (ts1);
  restart:
-  lps->gen = ddsrt_atomic_ld32 (&gv.participant_set_generation);
+  lps->gen = ddsrt_atomic_ld32 (&gv->participant_set_generation);
   /* Actual local set of participants may never be older than the
      local generation count => membar to guarantee the ordering */
   ddsrt_atomic_fence_acq ();
-  nps_alloc = gv.nparticipants;
+  nps_alloc = gv->nparticipants;
   ddsrt_free (lps->ps);
   lps->nps = 0;
   lps->ps = (nps_alloc == 0) ? NULL : ddsrt_malloc (nps_alloc * sizeof (*lps->ps));
-  ephash_enum_participant_init (&est);
+  ephash_enum_participant_init (&est, gv->guid_hash);
   while ((pp = ephash_enum_participant_next (&est)) != NULL)
   {
     if (lps->nps == nps_alloc)
@@ -3135,7 +3127,7 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
      explicit destination. Membar because we must have completed
      the loop before testing the generation again. */
   ddsrt_atomic_fence_acq ();
-  if (lps->gen != ddsrt_atomic_ld32 (&gv.participant_set_generation))
+  if (lps->gen != ddsrt_atomic_ld32 (&gv->participant_set_generation))
   {
     DDS_TRACE("  set changed - restarting\n");
     goto restart;
@@ -3155,19 +3147,20 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
   DDS_TRACE("  nparticipants %u\n", lps->nps);
 }
 
-uint32_t listen_thread (struct ddsi_tran_listener * listener)
+uint32_t listen_thread (struct ddsi_tran_listener *listener)
 {
+  struct q_globals *gv = listener->m_base.gv;
   ddsi_tran_conn_t conn;
 
-  while (ddsrt_atomic_ld32 (&gv.rtps_keepgoing))
+  while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing))
   {
     /* Accept connection from listener */
 
     conn = ddsi_listener_accept (listener);
     if (conn)
     {
-      os_sockWaitsetAdd (gv.recv_threads[0].arg.u.many.ws, conn);
-      os_sockWaitsetTrigger (gv.recv_threads[0].arg.u.many.ws);
+      os_sockWaitsetAdd (gv->recv_threads[0].arg.u.many.ws, conn);
+      os_sockWaitsetTrigger (gv->recv_threads[0].arg.u.many.ws);
     }
   }
   return 0;
@@ -3177,10 +3170,14 @@ static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t con
 {
   if (conn == NULL)
     return 0;
-  for (uint32_t i = 0; i < gv.n_recv_threads; i++)
-    if (gv.recv_threads[i].arg.mode == RTM_SINGLE && gv.recv_threads[i].arg.u.single.conn == conn)
-      return 0;
-  return os_sockWaitsetAdd (ws, conn);
+  else
+  {
+    struct q_globals *gv = conn->m_base.gv;
+    for (uint32_t i = 0; i < gv->n_recv_threads; i++)
+      if (gv->recv_threads[i].arg.mode == RTM_SINGLE && gv->recv_threads[i].arg.u.single.conn == conn)
+        return 0;
+    return os_sockWaitsetAdd (ws, conn);
+  }
 }
 
 enum local_deaf_state_recover {
@@ -3194,7 +3191,7 @@ struct local_deaf_state {
   nn_mtime_t tnext;
 };
 
-static int check_and_handle_deafness_recover(struct local_deaf_state *st, unsigned num_fixed_uc)
+static int check_and_handle_deafness_recover (struct q_globals *gv, struct local_deaf_state *st, unsigned num_fixed_uc)
 {
   int rebuildws = 0;
   if (now_mt().v < st->tnext.v)
@@ -3208,19 +3205,19 @@ static int check_and_handle_deafness_recover(struct local_deaf_state *st, unsign
       assert(0);
       break;
     case LDSR_DEAF: {
-      ddsi_tran_conn_t disc = gv.disc_conn_mc, data = gv.data_conn_mc;
-      DDS_TRACE("check_and_handle_deafness_recover: state %d create new sockets\n", (int)st->state);
-      if (!create_multicast_sockets())
+      ddsi_tran_conn_t disc = gv->disc_conn_mc, data = gv->data_conn_mc;
+      DDS_TRACE("check_and_handle_deafness_recover: state %d create new sockets\n", (int) st->state);
+      if (!create_multicast_sockets (gv))
         goto error;
-      DDS_TRACE("check_and_handle_deafness_recover: state %d transfer group membership admin\n", (int)st->state);
-      ddsi_transfer_group_membership(disc, gv.disc_conn_mc);
-      ddsi_transfer_group_membership(data, gv.data_conn_mc);
-      DDS_TRACE("check_and_handle_deafness_recover: state %d drop from waitset and add new\n", (int)st->state);
+      DDS_TRACE("check_and_handle_deafness_recover: state %d transfer group membership admin\n", (int) st->state);
+      ddsi_transfer_group_membership (gv->mship, disc, gv->disc_conn_mc);
+      ddsi_transfer_group_membership (gv->mship, data, gv->data_conn_mc);
+      DDS_TRACE("check_and_handle_deafness_recover: state %d drop from waitset and add new\n", (int) st->state);
       /* see waitset construction code in recv_thread */
-      os_sockWaitsetPurge (gv.recv_threads[0].arg.u.many.ws, num_fixed_uc);
-      if (recv_thread_waitset_add_conn (gv.recv_threads[0].arg.u.many.ws, gv.disc_conn_mc) < 0)
+      os_sockWaitsetPurge (gv->recv_threads[0].arg.u.many.ws, num_fixed_uc);
+      if (recv_thread_waitset_add_conn (gv->recv_threads[0].arg.u.many.ws, gv->disc_conn_mc) < 0)
         DDS_FATAL("check_and_handle_deafness_recover: failed to add disc_conn_mc to waitset\n");
-      if (recv_thread_waitset_add_conn (gv.recv_threads[0].arg.u.many.ws, gv.data_conn_mc) < 0)
+      if (recv_thread_waitset_add_conn (gv->recv_threads[0].arg.u.many.ws, gv->data_conn_mc) < 0)
         DDS_FATAL("check_and_handle_deafness_recover: failed to add data_conn_mc to waitset\n");
       DDS_TRACE("check_and_handle_deafness_recover: state %d close sockets\n", (int)st->state);
       ddsi_conn_free(disc);
@@ -3231,10 +3228,10 @@ static int check_and_handle_deafness_recover(struct local_deaf_state *st, unsign
       /* FALLS THROUGH */
     case LDSR_REJOIN:
       DDS_TRACE("check_and_handle_deafness_recover: state %d rejoin on disc socket\n", (int)st->state);
-      if (ddsi_rejoin_transferred_mcgroups(gv.disc_conn_mc) < 0)
+      if (ddsi_rejoin_transferred_mcgroups (gv, gv->mship, gv->disc_conn_mc) < 0)
         goto error;
       DDS_TRACE("check_and_handle_deafness_recover: state %d rejoin on data socket\n", (int)st->state);
-      if (ddsi_rejoin_transferred_mcgroups(gv.data_conn_mc) < 0)
+      if (ddsi_rejoin_transferred_mcgroups (gv, gv->mship, gv->data_conn_mc) < 0)
         goto error;
       DDS_TRACE("check_and_handle_deafness_recover: state %d done\n", (int)st->state);
       st->state = LDSR_NORMAL;
@@ -3249,9 +3246,9 @@ DDS_TRACE("check_and_handle_deafness_recover: state %d failed, returning %d\n", 
   return rebuildws;
 }
 
-static int check_and_handle_deafness(struct local_deaf_state *st, unsigned num_fixed_uc)
+static int check_and_handle_deafness (struct q_globals *gv, struct local_deaf_state *st, unsigned num_fixed_uc)
 {
-  const int gv_deaf = gv.deaf;
+  const int gv_deaf = gv->deaf;
   assert (gv_deaf == 0 || gv_deaf == 1);
   if (gv_deaf == (int)st->state)
     return 0;
@@ -3262,7 +3259,7 @@ static int check_and_handle_deafness(struct local_deaf_state *st, unsigned num_f
     st->tnext = now_mt();
     return 0;
   }
-  else if (!config.allowMulticast)
+  else if (!gv->config.allowMulticast)
   {
     DDS_TRACE("check_and_handle_deafness: no longer deaf (multicast disabled)\n");
     st->state = LDSR_NORMAL;
@@ -3270,32 +3267,32 @@ static int check_and_handle_deafness(struct local_deaf_state *st, unsigned num_f
   }
   else
   {
-    return check_and_handle_deafness_recover(st, num_fixed_uc);
+    return check_and_handle_deafness_recover (gv, st, num_fixed_uc);
   }
 }
 
-void trigger_recv_threads (void)
+void trigger_recv_threads (const struct q_globals *gv)
 {
-  for (uint32_t i = 0; i < gv.n_recv_threads; i++)
+  for (uint32_t i = 0; i < gv->n_recv_threads; i++)
   {
-    if (gv.recv_threads[i].ts == NULL)
+    if (gv->recv_threads[i].ts == NULL)
       continue;
-    switch (gv.recv_threads[i].arg.mode)
+    switch (gv->recv_threads[i].arg.mode)
     {
       case RTM_SINGLE: {
         char buf[DDSI_LOCSTRLEN];
         char dummy = 0;
-        const nn_locator_t *dst = gv.recv_threads[i].arg.u.single.loc;
+        const nn_locator_t *dst = gv->recv_threads[i].arg.u.single.loc;
         ddsrt_iovec_t iov;
         iov.iov_base = &dummy;
         iov.iov_len = 1;
-        DDS_TRACE("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
-        ddsi_conn_write (gv.data_conn_uc, dst, 1, &iov, 0);
+        DDS_TRACE("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (gv, buf, sizeof (buf), dst));
+        ddsi_conn_write (gv->data_conn_uc, dst, 1, &iov, 0);
         break;
       }
       case RTM_MANY: {
-        DDS_TRACE("trigger_recv_threads: %d many %p\n", i, (void *) gv.recv_threads[i].arg.u.many.ws);
-        os_sockWaitsetTrigger (gv.recv_threads[i].arg.u.many.ws);
+        DDS_TRACE("trigger_recv_threads: %d many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
+        os_sockWaitsetTrigger (gv->recv_threads[i].arg.u.many.ws);
         break;
       }
     }
@@ -3306,6 +3303,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
   struct recv_thread_arg *recv_thread_arg = vrecv_thread_arg;
+  struct q_globals * const gv = recv_thread_arg->gv;
   struct nn_rbufpool *rbpool = recv_thread_arg->rbpool;
   os_sockWaitset waitset = recv_thread_arg->mode == RTM_MANY ? recv_thread_arg->u.many.ws : NULL;
   nn_mtime_t next_thread_cputime = { 0 };
@@ -3313,10 +3311,11 @@ uint32_t recv_thread (void *vrecv_thread_arg)
   nn_rbufpool_setowner (rbpool, ddsrt_thread_self ());
   if (waitset == NULL)
   {
-    while (ddsrt_atomic_ld32 (&gv.rtps_keepgoing))
+    struct ddsi_tran_conn *conn = recv_thread_arg->u.single.conn;
+    while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing))
     {
       LOG_THREAD_CPUTIME (next_thread_cputime);
-      (void) do_packet (ts1, recv_thread_arg->u.single.conn, NULL, rbpool);
+      (void) do_packet (ts1, gv, conn, NULL, rbpool);
     }
   }
   else
@@ -3325,46 +3324,46 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     unsigned num_fixed = 0, num_fixed_uc = 0;
     os_sockWaitsetCtx ctx;
     struct local_deaf_state lds;
-    lds.state = gv.deaf ? LDSR_DEAF : LDSR_NORMAL;
+    lds.state = gv->deaf ? LDSR_DEAF : LDSR_NORMAL;
     lds.tnext = now_mt();
-    local_participant_set_init (&lps);
-    if (gv.m_factory->m_connless)
+    local_participant_set_init (&lps, &gv->participant_set_generation);
+    if (gv->m_factory->m_connless)
     {
       int rc;
-      if ((rc = recv_thread_waitset_add_conn (waitset, gv.disc_conn_uc)) < 0)
+      if ((rc = recv_thread_waitset_add_conn (waitset, gv->disc_conn_uc)) < 0)
         DDS_FATAL("recv_thread: failed to add disc_conn_uc to waitset\n");
       num_fixed_uc += (unsigned)rc;
-      if ((rc = recv_thread_waitset_add_conn (waitset, gv.data_conn_uc)) < 0)
+      if ((rc = recv_thread_waitset_add_conn (waitset, gv->data_conn_uc)) < 0)
         DDS_FATAL("recv_thread: failed to add data_conn_uc to waitset\n");
       num_fixed_uc += (unsigned)rc;
       num_fixed += num_fixed_uc;
-      if ((rc = recv_thread_waitset_add_conn (waitset, gv.disc_conn_mc)) < 0)
+      if ((rc = recv_thread_waitset_add_conn (waitset, gv->disc_conn_mc)) < 0)
         DDS_FATAL("recv_thread: failed to add disc_conn_mc to waitset\n");
       num_fixed += (unsigned)rc;
-      if ((rc = recv_thread_waitset_add_conn (waitset, gv.data_conn_mc)) < 0)
+      if ((rc = recv_thread_waitset_add_conn (waitset, gv->data_conn_mc)) < 0)
         DDS_FATAL("recv_thread: failed to add data_conn_mc to waitset\n");
       num_fixed += (unsigned)rc;
     }
 
-    while (ddsrt_atomic_ld32 (&gv.rtps_keepgoing))
+    while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing))
     {
       int rebuildws;
       LOG_THREAD_CPUTIME (next_thread_cputime);
-      rebuildws = check_and_handle_deafness(&lds, num_fixed_uc);
-      if (config.many_sockets_mode != MSM_MANY_UNICAST)
+      rebuildws = check_and_handle_deafness (gv, &lds, num_fixed_uc);
+      if (gv->config.many_sockets_mode != MSM_MANY_UNICAST)
       {
         /* no other sockets to check */
       }
-      else if (ddsrt_atomic_ld32 (&gv.participant_set_generation) != lps.gen)
+      else if (ddsrt_atomic_ld32 (&gv->participant_set_generation) != lps.gen)
       {
         rebuildws = 1;
       }
 
-      if (rebuildws && waitset && config.many_sockets_mode == MSM_MANY_UNICAST)
+      if (rebuildws && waitset && gv->config.many_sockets_mode == MSM_MANY_UNICAST)
       {
         /* first rebuild local participant set - unless someone's toggling "deafness", this
          only happens when the participant set has changed, so might as well rebuild it */
-        rebuild_local_participant_set (ts1, &lps);
+        rebuild_local_participant_set (ts1, gv, &lps);
         os_sockWaitsetPurge (waitset, num_fixed);
         for (uint32_t i = 0; i < lps.nps; i++)
         {
@@ -3380,12 +3379,12 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         while ((idx = os_sockWaitsetNextEvent (ctx, &conn)) >= 0)
         {
           const nn_guid_prefix_t *guid_prefix;
-          if (((unsigned)idx < num_fixed) || config.many_sockets_mode != MSM_MANY_UNICAST)
+          if (((unsigned)idx < num_fixed) || gv->config.many_sockets_mode != MSM_MANY_UNICAST)
             guid_prefix = NULL;
           else
             guid_prefix = &lps.ps[(unsigned)idx - num_fixed].guid_prefix;
           /* Process message and clean out connection if failed or closed */
-          if (!do_packet (ts1, conn, guid_prefix, rbpool) && !conn->m_connless)
+          if (!do_packet (ts1, gv, conn, guid_prefix, rbpool) && !conn->m_connless)
             ddsi_conn_free (conn);
         }
       }

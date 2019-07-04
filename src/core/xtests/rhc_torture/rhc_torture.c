@@ -104,13 +104,14 @@ static struct ddsi_serdata *mkkeysample (int32_t keyval, unsigned statusinfo)
   return sd;
 }
 
-static uint64_t store (struct dds_rhc *rhc, struct proxy_writer *wr, struct ddsi_serdata *sd, bool print)
+static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct proxy_writer *wr, struct ddsi_serdata *sd, bool print)
 {
   /* beware: unrefs sd */
   struct ddsi_tkmap_instance *tk;
   struct proxy_writer_info pwr_info;
-  thread_state_awake (lookup_thread_state ());
-  tk = ddsi_tkmap_lookup_instance_ref(sd);
+  /* single-domain application ... so domain won't change */
+  thread_state_awake_domain_ok (lookup_thread_state ());
+  tk = ddsi_tkmap_lookup_instance_ref (tkmap, sd);
   uint64_t iid = tk->m_iid;
   if (print)
   {
@@ -132,13 +133,13 @@ static uint64_t store (struct dds_rhc *rhc, struct proxy_writer *wr, struct ddsi
   pwr_info.iid = wr->e.iid;
   pwr_info.ownership_strength = wr->c.xqos->ownership_strength.value;
   dds_rhc_store (rhc, &pwr_info, sd, tk);
-  ddsi_tkmap_instance_unref (tk);
+  ddsi_tkmap_instance_unref (tkmap, tk);
   thread_state_asleep (lookup_thread_state ());
   ddsi_serdata_unref (sd);
   return iid;
 }
 
-static struct proxy_writer *mkwr (bool auto_dispose)
+static struct proxy_writer *mkwr (const struct q_globals *gv, bool auto_dispose)
 {
   struct proxy_writer *pwr;
   struct dds_qos *xqos;
@@ -148,7 +149,7 @@ static struct proxy_writer *mkwr (bool auto_dispose)
   wr_iid = ddsi_iid_gen ();
   memset (pwr, 0, sizeof (*pwr));
   nn_xqos_init_empty (xqos);
-  nn_xqos_mergein_missing (xqos, &gv.default_xqos_wr, ~(uint64_t)0);
+  nn_xqos_mergein_missing (xqos, &gv->default_xqos_wr, ~(uint64_t)0);
   xqos->ownership_strength.value = 0;
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = auto_dispose;
   pwr->e.iid = wr_iid;
@@ -162,7 +163,7 @@ static void fwr (struct proxy_writer *wr)
   free (wr);
 }
 
-static struct dds_rhc *mkrhc (dds_reader *rd, dds_history_kind_t hk, int32_t hdepth, dds_destination_order_kind_t dok)
+static struct dds_rhc *mkrhc (const struct q_globals *gv, dds_reader *rd, dds_history_kind_t hk, int32_t hdepth, dds_destination_order_kind_t dok)
 {
   struct dds_rhc *rhc;
   dds_qos_t rqos;
@@ -171,9 +172,9 @@ static struct dds_rhc *mkrhc (dds_reader *rd, dds_history_kind_t hk, int32_t hde
   rqos.history.kind = hk;
   rqos.history.depth = hdepth;
   rqos.destination_order.kind = dok;
-  nn_xqos_mergein_missing (&rqos, &gv.default_xqos_rd, ~(uint64_t)0);
-  thread_state_awake (lookup_thread_state ());
-  rhc = dds_rhc_default_new (rd, mdtopic);
+  nn_xqos_mergein_missing (&rqos, &gv->default_xqos_rd, ~(uint64_t)0);
+  thread_state_awake_domain_ok (lookup_thread_state ());
+  rhc = dds_rhc_default_new_xchecks (rd, gv->m_tkmap, mdtopic, true);
   dds_rhc_set_qos(rhc, &rqos);
   thread_state_asleep (lookup_thread_state ());
   return rhc;
@@ -181,7 +182,7 @@ static struct dds_rhc *mkrhc (dds_reader *rd, dds_history_kind_t hk, int32_t hde
 
 static void frhc (struct dds_rhc *rhc)
 {
-  thread_state_awake (lookup_thread_state ());
+  thread_state_awake_domain_ok (lookup_thread_state ());
   dds_rhc_free (rhc);
   thread_state_asleep (lookup_thread_state ());
 }
@@ -289,7 +290,7 @@ static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct chec
   if (print)
     printf ("%s:\n", opname);
 
-  thread_state_awake (lookup_thread_state ());
+  thread_state_awake_domain_ok (lookup_thread_state ());
   cnt = op (rhc, true, rres_ptrs, rres_iseq, (max <= 0) ? (uint32_t) (sizeof (rres_iseq) / sizeof (rres_iseq[0])) : (uint32_t) max, cond ? NO_STATE_MASK_SET : (DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE), 0, cond);
   thread_state_asleep (lookup_thread_state ());
   if (max > 0 && cnt > max) {
@@ -468,10 +469,10 @@ static void wait_gc_cycle_impl (struct gcreq *gcreq)
   gcreq_free (gcreq);
 }
 
-static void wait_gc_cycle (void)
+static void wait_gc_cycle (struct gcreq_queue *gcreq_queue)
 {
   /* only single-threaded for now */
-  struct gcreq *gcreq = gcreq_new (gv.gcreq_queue, wait_gc_cycle_impl);
+  struct gcreq *gcreq = gcreq_new (gcreq_queue, wait_gc_cycle_impl);
 #ifndef NDEBUG
   ddsrt_mutex_lock (&wait_gc_cycle_lock);
   assert (wait_gc_cycle_trig == 0);
@@ -531,6 +532,17 @@ static dds_entity_t readcond_wrapper (dds_entity_t reader, uint32_t mask, dds_qu
   return dds_create_readcondition (reader, mask);
 }
 
+static struct q_globals *get_gv (dds_entity_t e)
+{
+  struct q_globals *gv;
+  dds_entity *x;
+  if (dds_entity_pin (e, &x) < 0)
+    abort ();
+  gv = &x->m_domain->gv;
+  dds_entity_unpin (x);
+  return gv;
+}
+
 static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, dds_entity_t (*create_cond) (dds_entity_t reader, uint32_t mask, dds_querycondition_filter_fn filter), dds_querycondition_filter_fn filter0, dds_querycondition_filter_fn filter1, bool print)
 {
   dds_qos_t *qos = dds_create_qos ();
@@ -550,7 +562,10 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     rhc[i] = rdp->m_rhc;
     dds_entity_unlock (x);
   }
-  struct proxy_writer *wr[] = { mkwr (0), mkwr (1), mkwr (1) };
+
+  const struct q_globals *gv = get_gv (pp);
+  struct ddsi_tkmap *tkmap = gv->m_tkmap;
+  struct proxy_writer *wr[] = { mkwr (gv, 0), mkwr (gv, 1), mkwr (gv, 1) };
 
   static const uint32_t stab[] = {
     DDS_READ_SAMPLE_STATE, DDS_NOT_READ_SAMPLE_STATE,
@@ -700,42 +715,42 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
       case 0: { /* wr */
         struct ddsi_serdata *s = mksample (keyval, 0);
         for (size_t k = 0; k < nrd; k++)
-          store (rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0);
+          store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0);
         ddsi_serdata_unref (s);
         break;
       }
       case 1: { /* wr disp */
         struct ddsi_serdata *s = mksample (keyval, NN_STATUSINFO_DISPOSE);
         for (size_t k = 0; k < nrd; k++)
-          store (rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0);
+          store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0);
         ddsi_serdata_unref (s);
         break;
       }
       case 2: { /* disp */
         struct ddsi_serdata *s = mkkeysample (keyval, NN_STATUSINFO_DISPOSE);
         for (size_t k = 0; k < nrd; k++)
-          store (rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0);
+          store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0);
         ddsi_serdata_unref (s);
         break;
       }
       case 3: { /* unreg */
         struct ddsi_serdata *s = mkkeysample (keyval, NN_STATUSINFO_UNREGISTER);
         for (size_t k = 0; k < nrd; k++)
-          store (rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0);
+          store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0);
         ddsi_serdata_unref (s);
         break;
       }
       case 4: { /* disp unreg */
         struct ddsi_serdata *s = mkkeysample (keyval, NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER);
         for (size_t k = 0; k < nrd; k++)
-          store (rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0);
+          store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0);
         ddsi_serdata_unref (s);
         break;
       }
       case 5: { /* wr disp unreg */
         struct ddsi_serdata *s = mksample (keyval, NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER);
         for (size_t k = 0; k < nrd; k++)
-          store (rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0);
+          store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0);
         ddsi_serdata_unref (s);
         break;
       }
@@ -766,7 +781,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
         break;
       }
       case 11: {
-        thread_state_awake (lookup_thread_state ());
+        thread_state_awake_domain_ok (lookup_thread_state ());
         struct proxy_writer_info wr_info;
         wr_info.auto_dispose = wr[which]->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
         wr_info.guid = wr[which]->e.guid;
@@ -780,7 +795,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     }
 
     if ((i % 200) == 0)
-      wait_gc_cycle ();
+      wait_gc_cycle (gv->gcreq_queue);
   }
 
   for (size_t oper = 0; oper < sizeof (opcount) / sizeof (opcount[0]); oper++)
@@ -838,6 +853,7 @@ int main (int argc, char **argv)
 
   tref_dds = dds_time();
   mainthread = lookup_thread_state ();
+  assert (ddsrt_atomic_ldvoidp (&mainthread->gv) != NULL);
   {
     struct dds_entity *x;
     if (dds_entity_lock(tp, DDS_KIND_TOPIC, &x) < 0) abort();
@@ -847,20 +863,22 @@ int main (int argc, char **argv)
 
   if (0 >= first)
   {
+    struct q_globals *gv = get_gv (pp);
+    struct ddsi_tkmap *tkmap = gv->m_tkmap;
     if (print)
       printf ("************* 0 *************\n");
-    struct dds_rhc *rhc = mkrhc (NULL, DDS_HISTORY_KEEP_LAST, 1, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
-    struct proxy_writer *wr0 = mkwr (1);
+    struct dds_rhc *rhc = mkrhc (gv, NULL, DDS_HISTORY_KEEP_LAST, 1, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
+    struct proxy_writer *wr0 = mkwr (gv, 1);
     uint64_t iid0, iid1, iid_t;
-    iid0 = store (rhc, wr0, mksample (0, 0), print);
-    iid1 = store (rhc, wr0, mksample (1, NN_STATUSINFO_DISPOSE), print);
+    iid0 = store (tkmap, rhc, wr0, mksample (0, 0), print);
+    iid1 = store (tkmap, rhc, wr0, mksample (1, NN_STATUSINFO_DISPOSE), print);
     const struct check c0[] = {
       { "NNA", iid0, wr0->e.iid, 0,0, 1, 0,1 },
       { "NND", iid1, wr0->e.iid, 0,0, 1, 1,2 },
       { 0, 0, 0, 0, 0, 0, 0, 0 }
     };
     rdall (rhc, c0, print, states_seen);
-    iid_t = store (rhc, wr0, mkkeysample (0, NN_STATUSINFO_UNREGISTER), print);
+    iid_t = store (tkmap, rhc, wr0, mkkeysample (0, NN_STATUSINFO_UNREGISTER), print);
     assert (iid_t == iid0);
     (void)iid0;
     (void)iid_t;
@@ -871,7 +889,7 @@ int main (int argc, char **argv)
       { 0, 0, 0, 0, 0, 0, 0, 0 }
     };
     rdall (rhc, c1, print, states_seen);
-    thread_state_awake (lookup_thread_state ());
+    thread_state_awake_domain_ok (lookup_thread_state ());
     struct proxy_writer_info wr0_info;
     wr0_info.auto_dispose = wr0->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
     wr0_info.guid = wr0->e.guid;
@@ -893,15 +911,17 @@ int main (int argc, char **argv)
 
   if (1 >= first)
   {
+    struct q_globals *gv = get_gv (pp);
+    struct ddsi_tkmap *tkmap = gv->m_tkmap;
     if (print)
       printf ("************* 1 *************\n");
-    struct dds_rhc *rhc = mkrhc (NULL, DDS_HISTORY_KEEP_LAST, 4, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
-    struct proxy_writer *wr[] = { mkwr (0), mkwr (0), mkwr (0) };
+    struct dds_rhc *rhc = mkrhc (gv, NULL, DDS_HISTORY_KEEP_LAST, 4, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
+    struct proxy_writer *wr[] = { mkwr (gv, 0), mkwr (gv, 0), mkwr (gv, 0) };
     uint64_t iid0, iid_t;
     int nregs = 3, isreg[] = { 1, 1, 1 };
-    iid0 = store (rhc, wr[0], mksample (0, 0), print);
-    iid_t = store (rhc, wr[1], mksample (0, 0), print); assert (iid0 == iid_t);
-    iid_t = store (rhc, wr[2], mksample (0, 0), print); assert (iid0 == iid_t);
+    iid0 = store (tkmap, rhc, wr[0], mksample (0, 0), print);
+    iid_t = store (tkmap, rhc, wr[1], mksample (0, 0), print); assert (iid0 == iid_t);
+    iid_t = store (tkmap, rhc, wr[2], mksample (0, 0), print); assert (iid0 == iid_t);
     (void)iid0;
     tkall (rhc, NULL, print, states_seen);
     for (int i = 0; i < 3*3 * 3*3 * 3*3 * 3*3; i++)
@@ -913,17 +933,17 @@ int main (int argc, char **argv)
         switch (oper)
         {
           case 0:
-            iid_t = store (rhc, wr[which], mksample (0, 0), print);
+            iid_t = store (tkmap, rhc, wr[which], mksample (0, 0), print);
             if (!isreg[which]) { nregs++; isreg[which] = 1; }
             break;
           case 1:
-            iid_t = store (rhc, wr[which], mkkeysample (0, NN_STATUSINFO_DISPOSE), print);
+            iid_t = store (tkmap, rhc, wr[which], mkkeysample (0, NN_STATUSINFO_DISPOSE), print);
             if (!isreg[which]) { nregs++; isreg[which] = 1; }
             break;
           case 2:
             if (nregs > 1 || !isreg[which])
             {
-              iid_t = store (rhc, wr[which], mkkeysample (0, NN_STATUSINFO_UNREGISTER), print);
+              iid_t = store (tkmap, rhc, wr[which], mkkeysample (0, NN_STATUSINFO_UNREGISTER), print);
               if (isreg[which]) { isreg[which] = 0; nregs--; }
             }
             break;
@@ -932,13 +952,13 @@ int main (int argc, char **argv)
       }
     }
     tkall (rhc, 0, print, states_seen);
-    wait_gc_cycle ();
+    wait_gc_cycle (gv->gcreq_queue);
     assert (nregs > 0);
     for (int i = 0; i < 3; i++)
     {
       if (isreg[i])
       {
-        iid_t = store (rhc, wr[i], mkkeysample (0, NN_STATUSINFO_UNREGISTER), print);
+        iid_t = store (tkmap, rhc, wr[i], mkkeysample (0, NN_STATUSINFO_UNREGISTER), print);
         assert (iid_t == iid0);
         isreg[i] = 0;
         nregs--;
@@ -946,11 +966,11 @@ int main (int argc, char **argv)
     }
     assert (nregs == 0);
     tkall (rhc, 0, print, states_seen);
-    wait_gc_cycle ();
-    iid_t = store (rhc, wr[0], mksample (0, 0), print);
+    wait_gc_cycle (gv->gcreq_queue);
+    iid_t = store (tkmap, rhc, wr[0], mksample (0, 0), print);
     assert (iid_t != iid0);
     iid0 = iid_t;
-    iid_t = store (rhc, wr[0], mkkeysample (0, NN_STATUSINFO_UNREGISTER), print);
+    iid_t = store (tkmap, rhc, wr[0], mkkeysample (0, NN_STATUSINFO_UNREGISTER), print);
     assert (iid_t == iid0);
     frhc (rhc);
 

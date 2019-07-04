@@ -69,18 +69,19 @@ static void gc_buckets_cb (struct gcreq *gcreq)
   ddsrt_free (bs);
 }
 
-static void gc_buckets (void *bs)
+static void gc_buckets (void *bs, void *varg)
 {
-  struct gcreq *gcreq = gcreq_new (gv.gcreq_queue, gc_buckets_cb);
+  struct q_globals *gv = varg;
+  struct gcreq *gcreq = gcreq_new (gv->gcreq_queue, gc_buckets_cb);
   gcreq->arg = bs;
   gcreq_enqueue (gcreq);
 }
 
-struct ephash *ephash_new (void)
+struct ephash *ephash_new (struct q_globals *gv)
 {
   struct ephash *ephash;
   ephash = ddsrt_malloc (sizeof (*ephash));
-  ephash->hash = ddsrt_chh_new (32, hash_entity_guid_wrapper, entity_guid_eq_wrapper, gc_buckets);
+  ephash->hash = ddsrt_chh_new (32, hash_entity_guid_wrapper, entity_guid_eq_wrapper, gc_buckets, gv);
   if (ephash->hash == NULL) {
     ddsrt_free (ephash);
     return NULL;
@@ -96,195 +97,190 @@ void ephash_free (struct ephash *ephash)
   ddsrt_free (ephash);
 }
 
-static void ephash_guid_insert (struct entity_common *e)
+static void ephash_guid_insert (struct ephash *gh, struct entity_common *e)
 {
   int x;
-  assert(gv.guid_hash);
-  assert(gv.guid_hash->hash);
-  x = ddsrt_chh_add (gv.guid_hash->hash, e);
+  x = ddsrt_chh_add (gh->hash, e);
   (void)x;
   assert (x);
 }
 
-static void ephash_guid_remove (struct entity_common *e)
+static void ephash_guid_remove (struct ephash *gh, struct entity_common *e)
 {
   int x;
-  assert(gv.guid_hash);
-  assert(gv.guid_hash->hash);
-  x = ddsrt_chh_remove (gv.guid_hash->hash, e);
+  x = ddsrt_chh_remove (gh->hash, e);
   (void)x;
   assert (x);
 }
 
-void *ephash_lookup_guid_untyped (const struct nn_guid *guid)
+void *ephash_lookup_guid_untyped (const struct ephash *gh, const struct nn_guid *guid)
 {
   /* FIXME: could (now) require guid to be first in entity_common; entity_common already is first in entity */
   struct entity_common e;
   e.guid = *guid;
   assert (thread_is_awake ());
-  return ddsrt_chh_lookup (gv.guid_hash->hash, &e);
+  return ddsrt_chh_lookup (gh->hash, &e);
 }
 
-static void *ephash_lookup_guid_int (const struct ephash *ephash, const struct nn_guid *guid, enum entity_kind kind)
+static void *ephash_lookup_guid_int (const struct ephash *gh, const struct nn_guid *guid, enum entity_kind kind)
 {
   struct entity_common *res;
-  (void)ephash;
-  if ((res = ephash_lookup_guid_untyped (guid)) != NULL && res->kind == kind)
+  if ((res = ephash_lookup_guid_untyped (gh, guid)) != NULL && res->kind == kind)
     return res;
   else
     return NULL;
 }
 
-void *ephash_lookup_guid (const struct nn_guid *guid, enum entity_kind kind)
+void *ephash_lookup_guid (const struct ephash *gh, const struct nn_guid *guid, enum entity_kind kind)
 {
-  return ephash_lookup_guid_int (NULL, guid, kind);
+  return ephash_lookup_guid_int (gh, guid, kind);
 }
 
-void ephash_insert_participant_guid (struct participant *pp)
+void ephash_insert_participant_guid (struct ephash *gh, struct participant *pp)
 {
-  ephash_guid_insert (&pp->e);
+  ephash_guid_insert (gh, &pp->e);
 }
 
-void ephash_insert_proxy_participant_guid (struct proxy_participant *proxypp)
+void ephash_insert_proxy_participant_guid (struct ephash *gh, struct proxy_participant *proxypp)
 {
-  ephash_guid_insert (&proxypp->e);
+  ephash_guid_insert (gh, &proxypp->e);
 }
 
-void ephash_insert_writer_guid (struct writer *wr)
+void ephash_insert_writer_guid (struct ephash *gh, struct writer *wr)
 {
-  ephash_guid_insert (&wr->e);
+  ephash_guid_insert (gh, &wr->e);
 }
 
-void ephash_insert_reader_guid (struct reader *rd)
+void ephash_insert_reader_guid (struct ephash *gh, struct reader *rd)
 {
-  ephash_guid_insert (&rd->e);
+  ephash_guid_insert (gh, &rd->e);
 }
 
-void ephash_insert_proxy_writer_guid (struct proxy_writer *pwr)
+void ephash_insert_proxy_writer_guid (struct ephash *gh, struct proxy_writer *pwr)
 {
-  ephash_guid_insert (&pwr->e);
+  ephash_guid_insert (gh, &pwr->e);
 }
 
-void ephash_insert_proxy_reader_guid (struct proxy_reader *prd)
+void ephash_insert_proxy_reader_guid (struct ephash *gh, struct proxy_reader *prd)
 {
-  ephash_guid_insert (&prd->e);
+  ephash_guid_insert (gh, &prd->e);
 }
 
-void ephash_remove_participant_guid (struct participant *pp)
+void ephash_remove_participant_guid (struct ephash *gh, struct participant *pp)
 {
-  ephash_guid_remove (&pp->e);
+  ephash_guid_remove (gh, &pp->e);
 }
 
-void ephash_remove_proxy_participant_guid (struct proxy_participant *proxypp)
+void ephash_remove_proxy_participant_guid (struct ephash *gh, struct proxy_participant *proxypp)
 {
-  ephash_guid_remove (&proxypp->e);
+  ephash_guid_remove (gh, &proxypp->e);
 }
 
-void ephash_remove_writer_guid (struct writer *wr)
+void ephash_remove_writer_guid (struct ephash *gh, struct writer *wr)
 {
-  ephash_guid_remove (&wr->e);
+  ephash_guid_remove (gh, &wr->e);
 }
 
-void ephash_remove_reader_guid (struct reader *rd)
+void ephash_remove_reader_guid (struct ephash *gh, struct reader *rd)
 {
-  ephash_guid_remove (&rd->e);
+  ephash_guid_remove (gh, &rd->e);
 }
 
-void ephash_remove_proxy_writer_guid (struct proxy_writer *pwr)
+void ephash_remove_proxy_writer_guid (struct ephash *gh, struct proxy_writer *pwr)
 {
-  ephash_guid_remove (&pwr->e);
+  ephash_guid_remove (gh, &pwr->e);
 }
 
-void ephash_remove_proxy_reader_guid (struct proxy_reader *prd)
+void ephash_remove_proxy_reader_guid (struct ephash *gh, struct proxy_reader *prd)
 {
-  ephash_guid_remove (&prd->e);
+  ephash_guid_remove (gh, &prd->e);
 }
 
-struct participant *ephash_lookup_participant_guid (const struct nn_guid *guid)
+struct participant *ephash_lookup_participant_guid (const struct ephash *gh, const struct nn_guid *guid)
 {
   assert (guid->entityid.u == NN_ENTITYID_PARTICIPANT);
   assert (offsetof (struct participant, e) == 0);
-  return ephash_lookup_guid_int (gv.guid_hash, guid, EK_PARTICIPANT);
+  return ephash_lookup_guid_int (gh, guid, EK_PARTICIPANT);
 }
 
-struct proxy_participant *ephash_lookup_proxy_participant_guid (const struct nn_guid *guid)
+struct proxy_participant *ephash_lookup_proxy_participant_guid (const struct ephash *gh, const struct nn_guid *guid)
 {
   assert (guid->entityid.u == NN_ENTITYID_PARTICIPANT);
   assert (offsetof (struct proxy_participant, e) == 0);
-  return ephash_lookup_guid_int (gv.guid_hash, guid, EK_PROXY_PARTICIPANT);
+  return ephash_lookup_guid_int (gh, guid, EK_PROXY_PARTICIPANT);
 }
 
-struct writer *ephash_lookup_writer_guid (const struct nn_guid *guid)
+struct writer *ephash_lookup_writer_guid (const struct ephash *gh, const struct nn_guid *guid)
 {
   assert (is_writer_entityid (guid->entityid));
   assert (offsetof (struct writer, e) == 0);
-  return ephash_lookup_guid_int (gv.guid_hash, guid, EK_WRITER);
+  return ephash_lookup_guid_int (gh, guid, EK_WRITER);
 }
 
-struct reader *ephash_lookup_reader_guid (const struct nn_guid *guid)
+struct reader *ephash_lookup_reader_guid (const struct ephash *gh, const struct nn_guid *guid)
 {
   assert (is_reader_entityid (guid->entityid));
   assert (offsetof (struct reader, e) == 0);
-  return ephash_lookup_guid_int (gv.guid_hash, guid, EK_READER);
+  return ephash_lookup_guid_int (gh, guid, EK_READER);
 }
 
-struct proxy_writer *ephash_lookup_proxy_writer_guid (const struct nn_guid *guid)
+struct proxy_writer *ephash_lookup_proxy_writer_guid (const struct ephash *gh, const struct nn_guid *guid)
 {
   assert (is_writer_entityid (guid->entityid));
   assert (offsetof (struct proxy_writer, e) == 0);
-  return ephash_lookup_guid_int (gv.guid_hash, guid, EK_PROXY_WRITER);
+  return ephash_lookup_guid_int (gh, guid, EK_PROXY_WRITER);
 }
 
-struct proxy_reader *ephash_lookup_proxy_reader_guid (const struct nn_guid *guid)
+struct proxy_reader *ephash_lookup_proxy_reader_guid (const struct ephash *gh, const struct nn_guid *guid)
 {
   assert (is_reader_entityid (guid->entityid));
   assert (offsetof (struct proxy_reader, e) == 0);
-  return ephash_lookup_guid_int (gv.guid_hash, guid, EK_PROXY_READER);
+  return ephash_lookup_guid_int (gh, guid, EK_PROXY_READER);
 }
 
 /* Enumeration */
 
-static void ephash_enum_init_int (struct ephash_enum *st, struct ephash *ephash, enum entity_kind kind)
+static void ephash_enum_init_int (struct ephash_enum *st, const struct ephash *gh, enum entity_kind kind)
 {
   st->kind = kind;
-  st->cur = ddsrt_chh_iter_first (ephash->hash, &st->it);
+  st->cur = ddsrt_chh_iter_first (gh->hash, &st->it);
   while (st->cur && st->cur->kind != st->kind)
     st->cur = ddsrt_chh_iter_next (&st->it);
 }
 
-void ephash_enum_init (struct ephash_enum *st, enum entity_kind kind)
+void ephash_enum_init (struct ephash_enum *st, const struct ephash *gh, enum entity_kind kind)
 {
-  ephash_enum_init_int(st, gv.guid_hash, kind);
+  ephash_enum_init_int(st, gh, kind);
 }
 
-void ephash_enum_writer_init (struct ephash_enum_writer *st)
+void ephash_enum_writer_init (struct ephash_enum_writer *st, const struct ephash *gh)
 {
-  ephash_enum_init (&st->st, EK_WRITER);
+  ephash_enum_init (&st->st, gh, EK_WRITER);
 }
 
-void ephash_enum_reader_init (struct ephash_enum_reader *st)
+void ephash_enum_reader_init (struct ephash_enum_reader *st, const struct ephash *gh)
 {
-  ephash_enum_init (&st->st, EK_READER);
+  ephash_enum_init (&st->st, gh, EK_READER);
 }
 
-void ephash_enum_proxy_writer_init (struct ephash_enum_proxy_writer *st)
+void ephash_enum_proxy_writer_init (struct ephash_enum_proxy_writer *st, const struct ephash *gh)
 {
-  ephash_enum_init (&st->st, EK_PROXY_WRITER);
+  ephash_enum_init (&st->st, gh, EK_PROXY_WRITER);
 }
 
-void ephash_enum_proxy_reader_init (struct ephash_enum_proxy_reader *st)
+void ephash_enum_proxy_reader_init (struct ephash_enum_proxy_reader *st, const struct ephash *gh)
 {
-  ephash_enum_init (&st->st, EK_PROXY_READER);
+  ephash_enum_init (&st->st, gh, EK_PROXY_READER);
 }
 
-void ephash_enum_participant_init (struct ephash_enum_participant *st)
+void ephash_enum_participant_init (struct ephash_enum_participant *st, const struct ephash *gh)
 {
-  ephash_enum_init (&st->st, EK_PARTICIPANT);
+  ephash_enum_init (&st->st, gh, EK_PARTICIPANT);
 }
 
-void ephash_enum_proxy_participant_init (struct ephash_enum_proxy_participant *st)
+void ephash_enum_proxy_participant_init (struct ephash_enum_proxy_participant *st, const struct ephash *gh)
 {
-  ephash_enum_init (&st->st, EK_PROXY_PARTICIPANT);
+  ephash_enum_init (&st->st, gh, EK_PROXY_PARTICIPANT);
 }
 
 void *ephash_enum_next (struct ephash_enum *st)

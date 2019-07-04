@@ -1613,12 +1613,13 @@ struct nn_reorder {
   enum nn_reorder_mode mode;
   uint32_t max_samples;
   uint32_t n_samples;
+  bool late_ack_mode;
 };
 
 static const ddsrt_avl_treedef_t reorder_sampleivtree_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct nn_rsample, u.reorder.avlnode), offsetof (struct nn_rsample, u.reorder.min), compare_seqno, 0);
 
-struct nn_reorder *nn_reorder_new (enum nn_reorder_mode mode, uint32_t max_samples)
+struct nn_reorder *nn_reorder_new (enum nn_reorder_mode mode, uint32_t max_samples, bool late_ack_mode)
 {
   struct nn_reorder *r;
   if ((r = ddsrt_malloc (sizeof (*r))) == NULL)
@@ -1629,6 +1630,7 @@ struct nn_reorder *nn_reorder_new (enum nn_reorder_mode mode, uint32_t max_sampl
   r->mode = mode;
   r->max_samples = max_samples;
   r->n_samples = 0;
+  r->late_ack_mode = late_ack_mode;
   return r;
 }
 
@@ -1988,7 +1990,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     struct nn_rsample *predeq, *immsucc;
     DDS_LOG(DDS_LC_RADMIN, "  hard case ...\n");
 
-    if (config.late_ack_mode && delivery_queue_full_p)
+    if (reorder->late_ack_mode && delivery_queue_full_p)
     {
       DDS_LOG(DDS_LC_RADMIN, "  discarding sample: delivery queue full\n");
       return NN_REORDER_REJECT;
@@ -2421,7 +2423,7 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
     q->sc.first = q->sc.last = NULL;
     ddsrt_mutex_unlock (&q->lock);
 
-    thread_state_awake (ts1);
+    thread_state_awake_fixed_domain (ts1);
     while (sc.first)
     {
       struct nn_rsample_chain_elem *e = sc.first;
@@ -2489,7 +2491,7 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
   return 0;
 }
 
-struct nn_dqueue *nn_dqueue_new (const char *name, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg)
+struct nn_dqueue *nn_dqueue_new (const char *name, const struct q_globals *gv, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg)
 {
   struct nn_dqueue *q;
   char *thrname;
@@ -2512,7 +2514,7 @@ struct nn_dqueue *nn_dqueue_new (const char *name, uint32_t max_samples, nn_dque
   if ((thrname = ddsrt_malloc (thrnamesz)) == NULL)
     goto fail_thrname;
   snprintf (thrname, thrnamesz, "dq.%s", name);
-  if (create_thread (&q->ts, thrname, (uint32_t (*) (void *)) dqueue_thread, q) != DDS_RETCODE_OK)
+  if (create_thread (&q->ts, gv, thrname, (uint32_t (*) (void *)) dqueue_thread, q) != DDS_RETCODE_OK)
     goto fail_thread;
   ddsrt_free (thrname);
   return q;

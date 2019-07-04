@@ -18,7 +18,6 @@
 #include "dds/ddsi/q_security.h"
 #endif /* DDSI_INCLUDE_ENCRYPTION */
 #include "dds/ddsi/q_xqos.h"
-#include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/q_feature_check.h"
 
 #if defined (__cplusplus)
@@ -37,8 +36,8 @@ enum nn_standards_conformance {
   NN_SC_LAX
 };
 
-#define NN_PEDANTIC_P (config.standards_conformance <= NN_SC_PEDANTIC)
-#define NN_STRICT_P (config.standards_conformance <= NN_SC_STRICT)
+#define NN_PEDANTIC_P(config) ((config).standards_conformance <= NN_SC_PEDANTIC)
+#define NN_STRICT_P(config) ((config).standards_conformance <= NN_SC_STRICT)
 
 enum besmode {
   BESMODE_FULL,
@@ -391,8 +390,6 @@ struct config
   int use_multicast_if_mreqn;
   struct prune_deleted_ppant prune_deleted_ppant;
 };
-
-extern struct config DDS_EXPORT config;
 
 struct cfgst;
 

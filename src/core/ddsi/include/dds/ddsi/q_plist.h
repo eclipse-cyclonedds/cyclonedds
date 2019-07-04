@@ -14,7 +14,7 @@
 
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/q_xqos.h"
-
+#include "dds/ddsi/ddsi_tran.h" /* FIXME: eliminate */
 
 #if defined (__cplusplus)
 extern "C" {
@@ -167,13 +167,14 @@ typedef struct nn_plist {
 
 /***/
 
-
 typedef struct nn_plist_src {
   nn_protocol_version_t protocol_version;
   nn_vendorid_t vendorid;
   int encoding;
   const unsigned char *buf;
   size_t bufsz;
+  bool strict;
+  ddsi_tran_factory_t factory; /* eliminate this */
 } nn_plist_src_t;
 
 void nn_plist_init_tables (void);

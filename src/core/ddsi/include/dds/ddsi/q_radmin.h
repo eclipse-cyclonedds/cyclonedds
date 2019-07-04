@@ -107,6 +107,7 @@ struct receiver_state {
   nn_protocol_version_t protocol_version; /* 2 => 44/48 */
   ddsi_tran_conn_t conn;                  /* Connection for request */
   nn_locator_t srcloc;
+  struct q_globals *gv;
 };
 
 struct nn_rsample_info {
@@ -215,7 +216,7 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
 void nn_defrag_notegap (struct nn_defrag *defrag, seqno_t min, seqno_t maxp1);
 int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct nn_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz);
 
-struct nn_reorder *nn_reorder_new (enum nn_reorder_mode mode, uint32_t max_samples);
+struct nn_reorder *nn_reorder_new (enum nn_reorder_mode mode, uint32_t max_samples, bool late_ack_mode);
 void nn_reorder_free (struct nn_reorder *r);
 struct nn_rsample *nn_reorder_rsample_dup_first (struct nn_rmsg *rmsg, struct nn_rsample *rsampleiv);
 struct nn_rdata *nn_rsample_fragchain (struct nn_rsample *rsample);
@@ -225,7 +226,7 @@ int nn_reorder_wantsample (struct nn_reorder *reorder, seqno_t seq);
 unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct nn_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail);
 seqno_t nn_reorder_next_seq (const struct nn_reorder *reorder);
 
-struct nn_dqueue *nn_dqueue_new (const char *name, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg);
+struct nn_dqueue *nn_dqueue_new (const char *name, const struct q_globals *gv, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg);
 void nn_dqueue_free (struct nn_dqueue *q);
 bool nn_dqueue_enqueue_deferred_wakeup (struct nn_dqueue *q, struct nn_rsample_chain *sc, nn_reorder_result_t rres);
 void dd_dqueue_enqueue_trigger (struct nn_dqueue *q);

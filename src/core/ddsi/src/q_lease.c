@@ -55,9 +55,9 @@ static int compare_lease_tsched (const void *va, const void *vb);
 
 static const ddsrt_fibheap_def_t lease_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct lease, heapnode), compare_lease_tsched);
 
-static void force_lease_check (void)
+static void force_lease_check (struct gcreq_queue *gcreq_queue)
 {
-  gcreq_enqueue(gcreq_new(gv.gcreq_queue, gcreq_free));
+  gcreq_enqueue (gcreq_new (gcreq_queue, gcreq_free));
 }
 
 static int compare_lease_tsched (const void *va, const void *vb)
@@ -67,16 +67,16 @@ static int compare_lease_tsched (const void *va, const void *vb)
   return (a->tsched.v == b->tsched.v) ? 0 : (a->tsched.v < b->tsched.v) ? -1 : 1;
 }
 
-void lease_management_init (void)
+void lease_management_init (struct q_globals *gv)
 {
-  ddsrt_mutex_init (&gv.leaseheap_lock);
-  ddsrt_fibheap_init (&lease_fhdef, &gv.leaseheap);
+  ddsrt_mutex_init (&gv->leaseheap_lock);
+  ddsrt_fibheap_init (&lease_fhdef, &gv->leaseheap);
 }
 
-void lease_management_term (void)
+void lease_management_term (struct q_globals *gv)
 {
-  assert (ddsrt_fibheap_min (&lease_fhdef, &gv.leaseheap) == NULL);
-  ddsrt_mutex_destroy (&gv.leaseheap_lock);
+  assert (ddsrt_fibheap_min (&lease_fhdef, &gv->leaseheap) == NULL);
+  ddsrt_mutex_destroy (&gv->leaseheap_lock);
 }
 
 struct lease *lease_new (nn_etime_t texpire, dds_duration_t tdur, struct entity_common *e)
@@ -92,34 +92,36 @@ struct lease *lease_new (nn_etime_t texpire, dds_duration_t tdur, struct entity_
   return l;
 }
 
-void lease_register (struct lease *l)
+void lease_register (struct lease *l) /* FIXME: make lease admin struct */
 {
+  struct q_globals * const gv = l->entity->gv;
   DDS_TRACE("lease_register(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
-  ddsrt_mutex_lock (&gv.leaseheap_lock);
+  ddsrt_mutex_lock (&gv->leaseheap_lock);
   assert (l->tsched.v == TSCHED_NOT_ON_HEAP);
   int64_t tend = (int64_t) ddsrt_atomic_ld64 (&l->tend);
   if (tend != T_NEVER)
   {
     l->tsched.v = tend;
-    ddsrt_fibheap_insert (&lease_fhdef, &gv.leaseheap, l);
+    ddsrt_fibheap_insert (&lease_fhdef, &gv->leaseheap, l);
   }
-  ddsrt_mutex_unlock (&gv.leaseheap_lock);
+  ddsrt_mutex_unlock (&gv->leaseheap_lock);
 
   /* check_and_handle_lease_expiration runs on GC thread and the only way to be sure that it wakes up in time is by forcing re-evaluation (strictly speaking only needed if this is the first lease to expire, but this operation is quite rare anyway) */
-  force_lease_check();
+  force_lease_check (gv->gcreq_queue);
 }
 
 void lease_free (struct lease *l)
 {
+  struct q_globals * const gv = l->entity->gv;
   DDS_TRACE("lease_free(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
-  ddsrt_mutex_lock (&gv.leaseheap_lock);
+  ddsrt_mutex_lock (&gv->leaseheap_lock);
   if (l->tsched.v != TSCHED_NOT_ON_HEAP)
-    ddsrt_fibheap_delete (&lease_fhdef, &gv.leaseheap, l);
-  ddsrt_mutex_unlock (&gv.leaseheap_lock);
+    ddsrt_fibheap_delete (&lease_fhdef, &gv->leaseheap, l);
+  ddsrt_mutex_unlock (&gv->leaseheap_lock);
   ddsrt_free (l);
 
   /* see lease_register() */
-  force_lease_check();
+  force_lease_check (gv->gcreq_queue);
 }
 
 void lease_renew (struct lease *l, nn_etime_t tnowE)
@@ -149,9 +151,10 @@ void lease_renew (struct lease *l, nn_etime_t tnowE)
 
 void lease_set_expiry (struct lease *l, nn_etime_t when)
 {
+  struct q_globals * const gv = l->entity->gv;
   bool trigger = false;
   assert (when.v >= 0);
-  ddsrt_mutex_lock (&gv.leaseheap_lock);
+  ddsrt_mutex_lock (&gv->leaseheap_lock);
   /* only possible concurrent action is to move tend into the future (renew_lease),
     all other operations occur with leaseheap_lock held */
   ddsrt_atomic_st64 (&l->tend, (uint64_t) when.v);
@@ -160,35 +163,35 @@ void lease_set_expiry (struct lease *l, nn_etime_t when)
     /* moved forward and currently scheduled (by virtue of
        TSCHED_NOT_ON_HEAP == INT64_MIN) */
     l->tsched = when;
-    ddsrt_fibheap_decrease_key (&lease_fhdef, &gv.leaseheap, l);
+    ddsrt_fibheap_decrease_key (&lease_fhdef, &gv->leaseheap, l);
     trigger = true;
   }
   else if (l->tsched.v == TSCHED_NOT_ON_HEAP && when.v < T_NEVER)
   {
     /* not currently scheduled, with a finite new expiry time */
     l->tsched = when;
-    ddsrt_fibheap_insert (&lease_fhdef, &gv.leaseheap, l);
+    ddsrt_fibheap_insert (&lease_fhdef, &gv->leaseheap, l);
     trigger = true;
   }
-  ddsrt_mutex_unlock (&gv.leaseheap_lock);
+  ddsrt_mutex_unlock (&gv->leaseheap_lock);
 
   /* see lease_register() */
   if (trigger)
-    force_lease_check();
+    force_lease_check (gv->gcreq_queue);
 }
 
-int64_t check_and_handle_lease_expiration (nn_etime_t tnowE)
+int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnowE)
 {
   struct lease *l;
   int64_t delay;
-  ddsrt_mutex_lock (&gv.leaseheap_lock);
-  while ((l = ddsrt_fibheap_min (&lease_fhdef, &gv.leaseheap)) != NULL && l->tsched.v <= tnowE.v)
+  ddsrt_mutex_lock (&gv->leaseheap_lock);
+  while ((l = ddsrt_fibheap_min (&lease_fhdef, &gv->leaseheap)) != NULL && l->tsched.v <= tnowE.v)
   {
     nn_guid_t g = l->entity->guid;
     enum entity_kind k = l->entity->kind;
 
     assert (l->tsched.v != TSCHED_NOT_ON_HEAP);
-    ddsrt_fibheap_extract_min (&lease_fhdef, &gv.leaseheap);
+    ddsrt_fibheap_extract_min (&lease_fhdef, &gv->leaseheap);
     /* only possible concurrent action is to move tend into the future (renew_lease),
        all other operations occur with leaseheap_lock held */
     int64_t tend = (int64_t) ddsrt_atomic_ld64 (&l->tend);
@@ -199,7 +202,7 @@ int64_t check_and_handle_lease_expiration (nn_etime_t tnowE)
         l->tsched.v = TSCHED_NOT_ON_HEAP;
       } else {
         l->tsched.v = tend;
-        ddsrt_fibheap_insert (&lease_fhdef, &gv.leaseheap, l);
+        ddsrt_fibheap_insert (&lease_fhdef, &gv->leaseheap, l);
       }
       continue;
     }
@@ -234,47 +237,47 @@ int64_t check_and_handle_lease_expiration (nn_etime_t tnowE)
     if (k == EK_PROXY_PARTICIPANT)
     {
       struct proxy_participant *proxypp;
-      if ((proxypp = ephash_lookup_proxy_participant_guid (&g)) != NULL &&
-          ephash_lookup_proxy_participant_guid (&proxypp->privileged_pp_guid) != NULL)
+      if ((proxypp = ephash_lookup_proxy_participant_guid (gv->guid_hash, &g)) != NULL &&
+          ephash_lookup_proxy_participant_guid (gv->guid_hash, &proxypp->privileged_pp_guid) != NULL)
       {
         DDS_LOG(DDS_LC_DISCOVERY, "but postponing because privileged pp "PGUIDFMT" is still live\n",
                 PGUID (proxypp->privileged_pp_guid));
         l->tsched = add_duration_to_etime (tnowE, 200 * T_MILLISECOND);
-        ddsrt_fibheap_insert (&lease_fhdef, &gv.leaseheap, l);
+        ddsrt_fibheap_insert (&lease_fhdef, &gv->leaseheap, l);
         continue;
       }
     }
 
     l->tsched.v = TSCHED_NOT_ON_HEAP;
-    ddsrt_mutex_unlock (&gv.leaseheap_lock);
+    ddsrt_mutex_unlock (&gv->leaseheap_lock);
 
     switch (k)
     {
       case EK_PARTICIPANT:
-        delete_participant (&g);
+        delete_participant (gv, &g);
         break;
       case EK_PROXY_PARTICIPANT:
-        delete_proxy_participant_by_guid (&g, now(), 1);
+        delete_proxy_participant_by_guid (gv, &g, now(), 1);
         break;
       case EK_WRITER:
-        delete_writer_nolinger (&g);
+        delete_writer_nolinger (gv, &g);
         break;
       case EK_PROXY_WRITER:
-        delete_proxy_writer (&g, now(), 1);
+        delete_proxy_writer (gv, &g, now(), 1);
         break;
       case EK_READER:
-        (void)delete_reader (&g);
+        delete_reader (gv, &g);
         break;
       case EK_PROXY_READER:
-        delete_proxy_reader (&g, now(), 1);
+        delete_proxy_reader (gv, &g, now(), 1);
         break;
     }
 
-    ddsrt_mutex_lock (&gv.leaseheap_lock);
+    ddsrt_mutex_lock (&gv->leaseheap_lock);
   }
 
   delay = (l == NULL) ? T_NEVER : (l->tsched.v - tnowE.v);
-  ddsrt_mutex_unlock (&gv.leaseheap_lock);
+  ddsrt_mutex_unlock (&gv->leaseheap_lock);
   return delay;
 }
 
@@ -295,7 +298,7 @@ static void debug_print_rawdata (const char *msg, const void *data, size_t len)
   DDS_TRACE(">");
 }
 
-void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len)
+void handle_PMD (const struct receiver_state *rst, nn_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len)
 {
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
   const int bswap = (data->identifier == CDR_LE) ^ (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
@@ -325,7 +328,7 @@ void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t time
           debug_print_rawdata ("", pmd->value, length);
         ppguid.prefix = p;
         ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
-        if ((pp = ephash_lookup_proxy_participant_guid (&ppguid)) == NULL)
+        if ((pp = ephash_lookup_proxy_participant_guid (rst->gv->guid_hash, &ppguid)) == NULL)
           DDS_TRACE(" PPunknown");
         else
         {
@@ -349,7 +352,7 @@ void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t time
       {
         ppguid.prefix = nn_ntoh_guid_prefix (*((nn_guid_prefix_t *) (data + 1)));
         ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
-        if (delete_proxy_participant_by_guid (&ppguid, timestamp, 0) < 0)
+        if (delete_proxy_participant_by_guid (rst->gv, &ppguid, timestamp, 0) < 0)
           DDS_TRACE(" unknown");
         else
           DDS_TRACE(" delete");

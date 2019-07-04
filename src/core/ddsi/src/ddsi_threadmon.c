@@ -34,6 +34,8 @@ struct ddsi_threadmon {
   struct alive_vt *av_ary;
   void (*renew_cb) (void *arg);
   void *renew_arg;
+  int64_t liveliness_monitoring_interval;
+  bool noprogress_log_stacktraces;
 
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
@@ -57,7 +59,7 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
   while (sl->keepgoing)
   {
     /* Guard against spurious wakeups by checking only when cond_waitfor signals a timeout */
-    if (ddsrt_cond_waitfor (&sl->cond, &sl->lock, config.liveliness_monitoring_interval))
+    if (ddsrt_cond_waitfor (&sl->cond, &sl->lock, sl->liveliness_monitoring_interval))
       continue;
 
     unsigned n_alive = 0, n_unused = 0;
@@ -111,8 +113,13 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
     else
     {
       DDS_TRACE(": [%u] FAIL\n", n_alive);
-      if (was_alive)
-        log_stack_traces ();
+      if (was_alive && dds_get_log_mask () != 0)
+      {
+        if (!sl->noprogress_log_stacktraces)
+          DDS_LOG (~DDS_LC_FATAL, "-- stack traces requested, but traces disabled --\n");
+        else
+          log_stack_traces ();
+      }
       was_alive = false;
     }
 
@@ -132,24 +139,20 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
       }
     }
 #endif /* DDSRT_HAVE_RUSAGE */
-
-    /* While deaf, we need to make sure the receive thread wakes up
-       every now and then to try recreating sockets & rejoining multicast
-       groups */
-    if (gv.deaf)
-      trigger_recv_threads ();
   }
   ddsrt_mutex_unlock (&sl->lock);
   return 0;
 }
 
-struct ddsi_threadmon *ddsi_threadmon_new (void)
+struct ddsi_threadmon *ddsi_threadmon_new (int64_t liveliness_monitoring_interval, bool noprogress_log_stacktraces)
 {
   struct ddsi_threadmon *sl;
 
   sl = ddsrt_malloc (sizeof (*sl));
   sl->keepgoing = -1;
   sl->ts = NULL;
+  sl->liveliness_monitoring_interval = liveliness_monitoring_interval;
+  sl->noprogress_log_stacktraces = noprogress_log_stacktraces;
 
   if ((sl->av_ary = ddsrt_malloc (thread_states.nthreads * sizeof (*sl->av_ary))) == NULL)
     goto fail_vtimes;
@@ -164,14 +167,14 @@ struct ddsi_threadmon *ddsi_threadmon_new (void)
   return NULL;
 }
 
-dds_return_t ddsi_threadmon_start (struct ddsi_threadmon *sl)
+dds_return_t ddsi_threadmon_start (struct ddsi_threadmon *sl, const char *name, const struct config_thread_properties_listelem *tprops)
 {
   ddsrt_mutex_lock (&sl->lock);
   assert (sl->keepgoing == -1);
   sl->keepgoing = 1;
   ddsrt_mutex_unlock (&sl->lock);
 
-  if (create_thread (&sl->ts, "lease", (uint32_t (*) (void *)) threadmon_thread, sl) != DDS_RETCODE_OK)
+  if (create_thread_with_properties (&sl->ts, tprops, name, (uint32_t (*) (void *)) threadmon_thread, sl) != DDS_RETCODE_OK)
     goto fail_thread;
   return 0;
 

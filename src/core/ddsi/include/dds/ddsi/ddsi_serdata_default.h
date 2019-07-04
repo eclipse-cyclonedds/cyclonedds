@@ -67,7 +67,7 @@ typedef struct dds_keyhash {
   uint32_t size;                      \
   DDSI_SERDATA_DEFAULT_DEBUG_FIELDS   \
   dds_keyhash_t keyhash;              \
-  struct serdatapool *pool;           \
+  struct serdatapool *serpool;        \
   struct ddsi_serdata_default *next /* in pool->freelist */
 #define DDSI_SERDATA_DEFAULT_POSTPAD  \
   struct CDRHeader hdr;               \

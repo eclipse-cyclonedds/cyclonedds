@@ -75,6 +75,7 @@ struct dd {
   unsigned bswap: 1;
   nn_protocol_version_t protocol_version;
   nn_vendorid_t vendorid;
+  ddsi_tran_factory_t factory;
 };
 
 #define PDF_QOS        1 /* part of dds_qos_t */
@@ -136,9 +137,10 @@ static dds_return_t validate_resource_limits_qospolicy (const dds_resource_limit
 static dds_return_t validate_history_and_resource_limits (const dds_history_qospolicy_t *qh, const dds_resource_limits_qospolicy_t *qr);
 static dds_return_t validate_external_duration (const ddsi_duration_t *d);
 static dds_return_t validate_durability_service_qospolicy_acceptzero (const dds_durability_service_qospolicy_t *q, bool acceptzero);
-static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t wanted, uint64_t fl, const struct dd *dd);
-static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero);
+static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t wanted, uint64_t fl, const struct dd *dd, const struct ddsi_tran_factory *factory);
+static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict);
 static int partitions_equal (const dds_partition_qospolicy_t *a, const dds_partition_qospolicy_t *b);
+static dds_return_t nn_xqos_valid_strictness (const dds_qos_t *xqos, bool strict);
 
 static size_t align4size (size_t x)
 {
@@ -271,7 +273,7 @@ static dds_return_t deser_locator (void * __restrict dst, size_t * __restrict ds
   struct dd tmpdd = *dd;
   tmpdd.buf += *srcoff;
   tmpdd.bufsz -= *srcoff;
-  if (do_locator (x, flagset->present, flagset->wanted, flag, &tmpdd) < 0)
+  if (do_locator (x, flagset->present, flagset->wanted, flag, &tmpdd, dd->factory) < 0)
     return DDS_RETCODE_BAD_PARAMETER;
   *srcoff += 24;
   *dstoff += sizeof (*x);
@@ -1457,7 +1459,7 @@ void nn_plist_unalias (nn_plist_t *plist)
   plist_or_xqos_unalias (plist, 0);
 }
 
-dds_return_t nn_xqos_valid (const dds_qos_t *xqos)
+static dds_return_t nn_xqos_valid_strictness (const dds_qos_t *xqos, bool strict)
 {
   dds_return_t ret;
   if (piddesc_unalias[0] == NULL)
@@ -1485,11 +1487,16 @@ dds_return_t nn_xqos_valid (const dds_qos_t *xqos)
       }
     }
   }
-  if ((ret = final_validation_qos (xqos, (nn_protocol_version_t) { RTPS_MAJOR, RTPS_MINOR }, NN_VENDORID_ECLIPSE, NULL)) < 0)
+  if ((ret = final_validation_qos (xqos, (nn_protocol_version_t) { RTPS_MAJOR, RTPS_MINOR }, NN_VENDORID_ECLIPSE, NULL, strict)) < 0)
   {
     DDS_LOG (DDS_LC_PLIST, "nn_xqos_valid: final validation failed\n");
   }
   return ret;
+}
+
+dds_return_t nn_xqos_valid (const dds_qos_t *xqos)
+{
+  return nn_xqos_valid_strictness (xqos, true);
 }
 
 uint64_t nn_xqos_delta (const dds_qos_t *x, const dds_qos_t *y, uint64_t mask)
@@ -1682,7 +1689,7 @@ static int locator_address_zero (const nn_locator_t *loc)
   return (u[0] == 0 && u[1] == 0 && u[2] == 0 && u[3] == 0);
 }
 
-static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t wanted, uint64_t fl, const struct dd *dd)
+static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t wanted, uint64_t fl, const struct dd *dd, const struct ddsi_tran_factory *factory)
 {
   nn_locator_t loc;
 
@@ -1711,7 +1718,7 @@ static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t w
       break;
     case NN_LOCATOR_KIND_UDPv4MCGEN: {
       const nn_udpv4mcgen_address_t *x = (const nn_udpv4mcgen_address_t *) loc.address;
-      if (!ddsi_factory_supports (gv.m_factory, NN_LOCATOR_KIND_UDPv4))
+      if (!ddsi_factory_supports (factory, NN_LOCATOR_KIND_UDPv4))
         return 0;
       if (loc.port <= 0 || loc.port > 65536)
         return DDS_RETCODE_BAD_PARAMETER;
@@ -1730,20 +1737,20 @@ static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t w
       /* silently dropped "reserved" locators. */
       return 0;
     default:
-      return NN_PEDANTIC_P ? DDS_RETCODE_BAD_PARAMETER : 0;
+      return 0;
   }
   return add_locator (ls, present, wanted, fl, &loc);
 }
 
-static void locator_from_ipv4address_port (nn_locator_t *loc, const nn_ipv4address_t *a, const nn_port_t *p)
+static void locator_from_ipv4address_port (nn_locator_t *loc, const nn_ipv4address_t *a, const nn_port_t *p, ddsi_tran_factory_t factory)
 {
-  loc->kind = gv.m_factory->m_connless ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_TCPv4;
+  loc->kind = factory->m_connless ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_TCPv4;
   loc->port = *p;
   memset (loc->address, 0, 12);
   memcpy (loc->address + 12, a, 4);
 }
 
-static dds_return_t do_ipv4address (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd)
+static dds_return_t do_ipv4address (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd, ddsi_tran_factory_t factory)
 {
   nn_ipv4address_t *a;
   nn_port_t *p;
@@ -1800,7 +1807,7 @@ static dds_return_t do_ipv4address (nn_plist_t *dest, nn_ipaddress_params_tmp_t 
        allows adding another pair. */
 
     nn_locator_t loc;
-    locator_from_ipv4address_port (&loc, a, p);
+    locator_from_ipv4address_port (&loc, a, p, factory);
     dest_tmp->present &= ~(fl_tmp | fl1_tmp);
     return add_locator (ls, &dest->present, wanted, fldest, &loc);
   }
@@ -1810,7 +1817,7 @@ static dds_return_t do_ipv4address (nn_plist_t *dest, nn_ipaddress_params_tmp_t 
   }
 }
 
-static dds_return_t do_port (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd)
+static dds_return_t do_port (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd, ddsi_tran_factory_t factory)
 {
   nn_ipv4address_t *a;
   nn_port_t *p;
@@ -1857,7 +1864,7 @@ static dds_return_t do_port (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_t
        both address & port from the set of present plist: this
        allows adding another pair. */
     nn_locator_t loc;
-    locator_from_ipv4address_port (&loc, a, p);
+    locator_from_ipv4address_port (&loc, a, p, factory);
     dest_tmp->present &= ~(fl_tmp | fl1_tmp);
     return add_locator (ls, &dest->present, wanted, fldest, &loc);
   }
@@ -1878,14 +1885,14 @@ static dds_return_t return_unrecognized_pid (nn_plist_t *plist, nn_parameterid_t
   }
 }
 
-static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t pwanted, uint64_t qwanted, uint16_t pid, const struct dd *dd)
+static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t pwanted, uint64_t qwanted, uint16_t pid, const struct dd *dd, ddsi_tran_factory_t factory)
 {
   /* special-cased ipv4address and port, because they have state beyond that what gets
      passed into the generic code */
   switch (pid)
   {
-#define XA(NAME_) case PID_##NAME_##_IPADDRESS: return do_ipv4address (plist, dest_tmp, pwanted, PPTMP_##NAME_##_IPADDRESS, dd)
-#define XP(NAME_) case PID_##NAME_##_PORT: return do_port (plist, dest_tmp, pwanted, PPTMP_##NAME_##_PORT, dd)
+#define XA(NAME_) case PID_##NAME_##_IPADDRESS: return do_ipv4address (plist, dest_tmp, pwanted, PPTMP_##NAME_##_IPADDRESS, dd, factory)
+#define XP(NAME_) case PID_##NAME_##_PORT: return do_port (plist, dest_tmp, pwanted, PPTMP_##NAME_##_PORT, dd, factory)
     XA (MULTICAST);
     XA (DEFAULT_UNICAST);
     XP (DEFAULT_UNICAST);
@@ -2014,7 +2021,7 @@ void nn_plist_init_empty (nn_plist_t *dest)
   nn_xqos_init_empty (&dest->qos);
 }
 
-static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero)
+static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict)
 {
   /* input is const, but we need to validate the combination of
      history & resource limits: so use a copy of those two policies */
@@ -2066,7 +2073,7 @@ static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_ver
       acceptzero = false;
     else if (protocol_version_is_newer (protocol_version))
       acceptzero = true;
-    else if (NN_STRICT_P)
+    else if (strict)
       acceptzero = vendor_is_twinoaks (vendorid);
     else
       acceptzero = !vendor_is_eclipse (vendorid);
@@ -2091,9 +2098,9 @@ static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_ver
   return 0;
 }
 
-static dds_return_t final_validation (nn_plist_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero)
+static dds_return_t final_validation (nn_plist_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict)
 {
-  return final_validation_qos (&dest->qos, protocol_version, vendorid, dursvc_accepted_allzero);
+  return final_validation_qos (&dest->qos, protocol_version, vendorid, dursvc_accepted_allzero, strict);
 }
 
 dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const nn_plist_src_t *src)
@@ -2110,6 +2117,7 @@ dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uin
     *nextafterplist = NULL;
   dd.protocol_version = src->protocol_version;
   dd.vendorid = src->vendorid;
+  dd.factory = src->factory;
   switch (src->encoding)
   {
     case PL_CDR_LE:
@@ -2153,7 +2161,7 @@ dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uin
       /* Sentinel terminates list, the length is ignored, DDSI 9.4.2.11. */
       bool dursvc_accepted_allzero;
       DDS_LOG(DDS_LC_PLIST, "%4"PRIx32" PID %"PRIx16"\n", (uint32_t) (pl - src->buf), pid);
-      if ((res = final_validation (dest, src->protocol_version, src->vendorid, &dursvc_accepted_allzero)) < 0)
+      if ((res = final_validation (dest, src->protocol_version, src->vendorid, &dursvc_accepted_allzero, src->strict)) < 0)
       {
         nn_plist_fini (dest);
         return res;
@@ -2194,7 +2202,7 @@ dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uin
 
     dd.buf = (const unsigned char *) (par + 1);
     dd.bufsz = length;
-    if ((res = init_one_parameter (dest, &dest_tmp, pwanted, qwanted, pid, &dd)) < 0)
+    if ((res = init_one_parameter (dest, &dest_tmp, pwanted, qwanted, pid, &dd, src->factory)) < 0)
     {
       /* make sure we print a trace message on error */
       DDS_TRACE("plist(vendor %u.%u): failed at pid=%"PRIx16"\n", src->vendorid.id[0], src->vendorid.id[1], pid);
