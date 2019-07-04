@@ -24,7 +24,7 @@ extern "C" {
 
 struct ddsi_ssl_plugins
 {
-  bool (*init) (void);
+  bool (*init) (struct q_globals *gv);
   void (*fini) (void);
   void (*ssl_free) (SSL *ssl);
   void (*bio_vfree) (BIO *bio);
@@ -39,13 +39,13 @@ struct ddsi_ssl_plugins
 }
 #endif
 
-#endif
+#endif /* DDSI_INCLUDE_SSL */
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-int ddsi_tcp_init (void);
+int ddsi_tcp_init (struct q_globals *gv);
 
 #if defined (__cplusplus)
 }

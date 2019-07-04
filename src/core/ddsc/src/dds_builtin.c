@@ -54,13 +54,13 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
   switch (topic)
   {
     case DDS_BUILTIN_TOPIC_DCPSPARTICIPANT:
-      sertopic = dds_global.builtin_participant_topic;
+      sertopic = e->m_domain->builtin_participant_topic;
       break;
     case DDS_BUILTIN_TOPIC_DCPSPUBLICATION:
-      sertopic = dds_global.builtin_writer_topic;
+      sertopic = e->m_domain->builtin_writer_topic;
       break;
     case DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION:
-      sertopic = dds_global.builtin_reader_topic;
+      sertopic = e->m_domain->builtin_reader_topic;
       break;
     default:
       assert (0);
@@ -165,14 +165,14 @@ static bool dds__builtin_is_visible (const nn_guid_t *guid, nn_vendorid_t vendor
 
 static struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct nn_guid *guid, void *vdomain)
 {
+  struct dds_domain *domain = vdomain;
   struct ddsi_tkmap_instance *tk;
   struct ddsi_serdata *sd;
   struct nn_keyhash kh;
-  (void) vdomain;
   memcpy (&kh, guid, sizeof (kh));
   /* any random builtin topic will do (provided it has a GUID for a key), because what matters is the "class" of the topic, not the actual topic; also, this is called early in the initialisation of the entity with this GUID, which simply causes serdata_from_keyhash to create a key-only serdata because the key lookup fails. */
-  sd = ddsi_serdata_from_keyhash (dds_global.builtin_participant_topic, &kh);
-  tk = ddsi_tkmap_find (sd, false, true);
+  sd = ddsi_serdata_from_keyhash (domain->builtin_participant_topic, &kh);
+  tk = ddsi_tkmap_find (domain->gv.m_tkmap, sd, false, true);
   ddsi_serdata_unref (sd);
   return tk;
 }
@@ -180,6 +180,7 @@ static struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct nn
 struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, nn_wctime_t timestamp, bool alive)
 {
   /* initialize to avoid gcc warning ultimately caused by C's horrible type system */
+  struct dds_domain *dom = e->gv->builtin_topic_interface->arg;
   struct ddsi_sertopic *topic = NULL;
   struct ddsi_serdata *serdata;
   struct nn_keyhash keyhash;
@@ -187,15 +188,15 @@ struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, nn
   {
     case EK_PARTICIPANT:
     case EK_PROXY_PARTICIPANT:
-      topic = dds_global.builtin_participant_topic;
+      topic = dom->builtin_participant_topic;
       break;
     case EK_WRITER:
     case EK_PROXY_WRITER:
-      topic = dds_global.builtin_writer_topic;
+      topic = dom->builtin_writer_topic;
       break;
     case EK_READER:
     case EK_PROXY_READER:
-      topic = dds_global.builtin_reader_topic;
+      topic = dom->builtin_reader_topic;
       break;
   }
   assert (topic != NULL);
@@ -230,22 +231,8 @@ static void dds__builtin_write (const struct entity_common *e, nn_wctime_t times
         bwr = dom->builtintopic_writer_subscriptions;
         break;
     }
-    dds_writecdr_impl_lowlevel (&bwr->wr, NULL, serdata);
+    dds_writecdr_impl_lowlevel (&bwr->wr, NULL, serdata, true);
   }
-}
-
-void dds__builtin_init_global (void)
-{
-  dds_global.builtin_participant_topic = new_sertopic_builtintopic (DSBT_PARTICIPANT, "DCPSParticipant", "org::eclipse::cyclonedds::builtin::DCPSParticipant");
-  dds_global.builtin_reader_topic = new_sertopic_builtintopic (DSBT_READER, "DCPSSubscription", "org::eclipse::cyclonedds::builtin::DCPSSubscription");
-  dds_global.builtin_writer_topic = new_sertopic_builtintopic (DSBT_WRITER, "DCPSPublication", "org::eclipse::cyclonedds::builtin::DCPSPublication");
-}
-
-void dds__builtin_fini_global (void)
-{
-  ddsi_sertopic_unref (dds_global.builtin_participant_topic);
-  ddsi_sertopic_unref (dds_global.builtin_reader_topic);
-  ddsi_sertopic_unref (dds_global.builtin_writer_topic);
 }
 
 void dds__builtin_init (struct dds_domain *dom)
@@ -257,11 +244,16 @@ void dds__builtin_init (struct dds_domain *dom)
   dom->btif.builtintopic_is_builtintopic = dds__builtin_is_builtintopic;
   dom->btif.builtintopic_is_visible = dds__builtin_is_visible;
   dom->btif.builtintopic_write = dds__builtin_write;
-  gv.builtin_topic_interface = &dom->btif;
+  dom->gv.builtin_topic_interface = &dom->btif;
 
-  dom->builtintopic_writer_participant = new_local_orphan_writer (to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER), dds_global.builtin_participant_topic, qos, builtintopic_whc_new (DSBT_PARTICIPANT));
-  dom->builtintopic_writer_publications = new_local_orphan_writer (to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER), dds_global.builtin_writer_topic, qos, builtintopic_whc_new (DSBT_WRITER));
-  dom->builtintopic_writer_subscriptions = new_local_orphan_writer (to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER), dds_global.builtin_reader_topic, qos, builtintopic_whc_new (DSBT_READER));
+  dom->builtin_participant_topic = new_sertopic_builtintopic (DSBT_PARTICIPANT, "DCPSParticipant", "org::eclipse::cyclonedds::builtin::DCPSParticipant", &dom->gv);
+  dom->builtin_reader_topic = new_sertopic_builtintopic (DSBT_READER, "DCPSSubscription", "org::eclipse::cyclonedds::builtin::DCPSSubscription", &dom->gv);
+  dom->builtin_writer_topic = new_sertopic_builtintopic (DSBT_WRITER, "DCPSPublication", "org::eclipse::cyclonedds::builtin::DCPSPublication", &dom->gv);
+
+  const struct ephash *gh = dom->gv.guid_hash;
+  dom->builtintopic_writer_participant = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER), dom->builtin_participant_topic, qos, builtintopic_whc_new (DSBT_PARTICIPANT, gh));
+  dom->builtintopic_writer_publications = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER), dom->builtin_writer_topic, qos, builtintopic_whc_new (DSBT_WRITER, gh));
+  dom->builtintopic_writer_subscriptions = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER), dom->builtin_reader_topic, qos, builtintopic_whc_new (DSBT_READER, gh));
 
   dds_delete_qos (qos);
 }
@@ -269,9 +261,13 @@ void dds__builtin_init (struct dds_domain *dom)
 void dds__builtin_fini (struct dds_domain *dom)
 {
   /* No more sources for builtin topic samples */
-  thread_state_awake (lookup_thread_state ());
+  thread_state_awake (lookup_thread_state (), &dom->gv);
   delete_local_orphan_writer (dom->builtintopic_writer_participant);
   delete_local_orphan_writer (dom->builtintopic_writer_publications);
   delete_local_orphan_writer (dom->builtintopic_writer_subscriptions);
   thread_state_asleep (lookup_thread_state ());
+
+  ddsi_sertopic_unref (dom->builtin_participant_topic);
+  ddsi_sertopic_unref (dom->builtin_reader_topic);
+  ddsi_sertopic_unref (dom->builtin_writer_topic);
 }

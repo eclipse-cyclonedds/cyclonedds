@@ -41,10 +41,12 @@ extern inline struct thread_state1 *lookup_thread_state (void);
 extern inline bool thread_is_asleep (void);
 extern inline bool thread_is_awake (void);
 extern inline void thread_state_asleep (struct thread_state1 *ts1);
-extern inline void thread_state_awake (struct thread_state1 *ts1);
+extern inline void thread_state_awake (struct thread_state1 *ts1, const struct q_globals *gv);
+extern inline void thread_state_awake_domain_ok (struct thread_state1 *ts1);
+extern inline void thread_state_awake_fixed_domain (struct thread_state1 *ts1);
 extern inline void thread_state_awake_to_awake_no_nest (struct thread_state1 *ts1);
 
-static struct thread_state1 *init_thread_state (const char *tname, enum thread_state state);
+static struct thread_state1 *init_thread_state (const char *tname, const struct q_globals *gv, enum thread_state state);
 
 static void *ddsrt_malloc_aligned_cacheline (size_t size)
 {
@@ -148,7 +150,7 @@ static struct thread_state1 *lazy_create_thread_state (ddsrt_thread_t self)
   char name[128];
   ddsrt_thread_getname (name, sizeof (name));
   ddsrt_mutex_lock (&thread_states.lock);
-  if ((ts1 = init_thread_state (name, THREAD_STATE_LAZILY_CREATED)) != NULL) {
+  if ((ts1 = init_thread_state (name, NULL, THREAD_STATE_LAZILY_CREATED)) != NULL) {
     ddsrt_init ();
     ts1->extTid = self;
     ts1->tid = self;
@@ -211,22 +213,24 @@ void upgrade_main_thread (void)
     assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts1->vtime)));
   ts1->state = THREAD_STATE_LAZILY_CREATED;
   ts1->tid = ddsrt_thread_self ();
+  DDSRT_WARNING_MSVC_OFF(4996);
   strncpy (ts1->name, main_thread_name, sizeof (ts1->name));
+  DDSRT_WARNING_MSVC_ON(4996);
   ts1->name[sizeof (ts1->name) - 1] = 0;
   ddsrt_mutex_unlock (&thread_states.lock);
   tsd_thread_state = ts1;
 }
 
-const struct config_thread_properties_listelem *lookup_thread_properties (const char *name)
+const struct config_thread_properties_listelem *lookup_thread_properties (const struct config *config, const char *name)
 {
   const struct config_thread_properties_listelem *e;
-  for (e = config.thread_properties; e != NULL; e = e->next)
+  for (e = config->thread_properties; e != NULL; e = e->next)
     if (strcmp (e->name, name) == 0)
       break;
   return e;
 }
 
-static struct thread_state1 *init_thread_state (const char *tname, enum thread_state state)
+static struct thread_state1 *init_thread_state (const char *tname, const struct q_globals *gv, enum thread_state state)
 {
   int cand;
   struct thread_state1 *ts;
@@ -235,24 +239,26 @@ static struct thread_state1 *init_thread_state (const char *tname, enum thread_s
     return NULL;
 
   ts = &thread_states.ts[cand];
+  ddsrt_atomic_stvoidp (&ts->gv, (struct q_globals *) gv);
   assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts->vtime)));
+  DDSRT_WARNING_MSVC_OFF(4996);
   strncpy (ts->name, tname, sizeof (ts->name));
+  DDSRT_WARNING_MSVC_ON(4996);
   ts->name[sizeof (ts->name) - 1] = 0;
   ts->state = state;
 
   return ts;
 }
 
-dds_return_t create_thread (struct thread_state1 **ts1, const char *name, uint32_t (*f) (void *arg), void *arg)
+static dds_return_t create_thread_int (struct thread_state1 **ts1, const struct q_globals *gv, struct config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg)
 {
-  struct config_thread_properties_listelem const * const tprops = lookup_thread_properties (name);
   ddsrt_threadattr_t tattr;
   ddsrt_thread_t tid;
   struct thread_context *ctxt;
   ctxt = ddsrt_malloc (sizeof (*ctxt));
   ddsrt_mutex_lock (&thread_states.lock);
 
-  *ts1 = init_thread_state (name, THREAD_STATE_ALIVE);
+  *ts1 = init_thread_state (name, gv, THREAD_STATE_ALIVE);
   if (*ts1 == NULL)
     goto fatal;
 
@@ -279,12 +285,23 @@ dds_return_t create_thread (struct thread_state1 **ts1, const char *name, uint32
   (*ts1)->extTid = tid; /* overwrite the temporary value with the correct external one */
   ddsrt_mutex_unlock (&thread_states.lock);
   return DDS_RETCODE_OK;
- fatal:
+fatal:
   ddsrt_mutex_unlock (&thread_states.lock);
   ddsrt_free (ctxt);
   *ts1 = NULL;
   abort ();
   return DDS_RETCODE_ERROR;
+}
+
+dds_return_t create_thread_with_properties (struct thread_state1 **ts1, struct config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg)
+{
+  return create_thread_int (ts1, NULL, tprops, name, f, arg);
+}
+
+dds_return_t create_thread (struct thread_state1 **ts1, const struct q_globals *gv, const char *name, uint32_t (*f) (void *arg), void *arg)
+{
+  struct config_thread_properties_listelem const * const tprops = lookup_thread_properties (&gv->config, name);
+  return create_thread_int (ts1, gv, tprops, name, f, arg);
 }
 
 static void reap_thread_state (struct thread_state1 *ts1)

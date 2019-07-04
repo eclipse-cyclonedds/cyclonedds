@@ -54,7 +54,7 @@ int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr
   return eq;
 }
 
-enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (ddsi_tran_factory_t tran, const nn_locator_t *loc, size_t ninterf, const struct nn_interface interf[])
+enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (ddsi_tran_factory_t tran, const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
 {
   struct sockaddr_storage tmp, iftmp, nmtmp, ownip;
   size_t i;
@@ -64,7 +64,7 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (ddsi_tran_factory
   {
     ddsi_ipaddr_from_loc(&iftmp, &interf[i].loc);
     ddsi_ipaddr_from_loc(&nmtmp, &interf[i].netmask);
-    ddsi_ipaddr_from_loc(&ownip, &gv.ownloc);
+    ddsi_ipaddr_from_loc(&ownip, ownloc);
     if (ddsrt_sockaddr_insamesubnet ((struct sockaddr *) &tmp, (struct sockaddr *) &iftmp, (struct sockaddr *) &nmtmp))
     {
       if (ddsi_ipaddr_compare((struct sockaddr *)&iftmp, (struct sockaddr *)&ownip) == 0)
@@ -120,38 +120,43 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_tran_factory_
 
 char *ddsi_ipaddr_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
 {
-  struct sockaddr_storage src;
-  size_t pos;
   (void)tran;
   assert (sizeof_dst > 1);
-  ddsi_ipaddr_from_loc(&src, loc);
-  switch (src.ss_family)
+  if (loc->kind == NN_LOCATOR_KIND_INVALID)
+    snprintf (dst, sizeof_dst, "(invalid)");
+  else
   {
-    case AF_INET:
-      ddsrt_sockaddrtostr ((const struct sockaddr *) &src, dst, sizeof_dst);
-      if (with_port) {
-        pos = strlen (dst);
-        assert(pos <= sizeof_dst);
-        snprintf (dst + pos, sizeof_dst - pos, ":%"PRIu32, loc->port);
-      }
-      break;
+    struct sockaddr_storage src;
+    size_t pos;
+    ddsi_ipaddr_from_loc(&src, loc);
+    switch (src.ss_family)
+    {
+      case AF_INET:
+        ddsrt_sockaddrtostr ((const struct sockaddr *) &src, dst, sizeof_dst);
+        if (with_port) {
+          pos = strlen (dst);
+          assert(pos <= sizeof_dst);
+          snprintf (dst + pos, sizeof_dst - pos, ":%"PRIu32, loc->port);
+        }
+        break;
 #if DDSRT_HAVE_IPV6
-    case AF_INET6:
-      dst[0] = '[';
-      ddsrt_sockaddrtostr ((const struct sockaddr *) &src, dst + 1, sizeof_dst);
-      pos = strlen (dst);
-      if (with_port) {
-        assert(pos <= sizeof_dst);
-        snprintf (dst + pos, sizeof_dst - pos, "]:%"PRIu32, loc->port);
-      } else {
-        snprintf (dst + pos, sizeof_dst - pos, "]");
-      }
-      break;
+      case AF_INET6:
+        dst[0] = '[';
+        ddsrt_sockaddrtostr ((const struct sockaddr *) &src, dst + 1, sizeof_dst);
+        pos = strlen (dst);
+        if (with_port) {
+          assert(pos <= sizeof_dst);
+          snprintf (dst + pos, sizeof_dst - pos, "]:%"PRIu32, loc->port);
+        } else {
+          snprintf (dst + pos, sizeof_dst - pos, "]");
+        }
+        break;
 #endif
-    default:
-      assert(0);
-      dst[0] = 0;
-      break;
+      default:
+        assert(0);
+        dst[0] = 0;
+        break;
+    }
   }
   return dst;
 }
@@ -209,11 +214,7 @@ void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const nn_locator_t *src
   switch (src->kind)
   {
     case NN_LOCATOR_KIND_INVALID:
-#if DDSRT_HAVE_IPV6
-      dst->ss_family = (config.transport_selector == TRANS_UDP6 || config.transport_selector == TRANS_TCP6) ? AF_INET6 : AF_INET;
-#else
-      dst->ss_family = AF_INET;
-#endif
+      assert (0);
       break;
     case NN_LOCATOR_KIND_UDPv4:
     case NN_LOCATOR_KIND_TCPv4:
@@ -234,7 +235,7 @@ void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const nn_locator_t *src
       memcpy (&x->sin6_addr.s6_addr, src->address, 16);
       if (IN6_IS_ADDR_LINKLOCAL (&x->sin6_addr))
       {
-        x->sin6_scope_id = gv.interfaceNo;
+        x->sin6_scope_id = 0;//FIXME: gv.interfaceNo;
       }
       break;
     }

@@ -215,6 +215,12 @@ inline void ddsrt_atomic_orptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v)
 inline void ddsrt_atomic_fence (void) {
   __asm volatile ("dmb" : : : "memory");
 }
+inline void ddsrt_atomic_fence_ldld (void) {
+    ddsrt_atomic_fence ();
+}
+inline void ddsrt_atomic_fence_stst (void) {
+    ddsrt_atomic_fence ();
+}
 inline void ddsrt_atomic_fence_acq (void) {
     ddsrt_atomic_fence ();
 }

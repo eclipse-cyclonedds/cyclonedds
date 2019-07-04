@@ -52,21 +52,19 @@ dds_entity_t dds_create_publisher (dds_entity_t participant, const dds_qos_t *qo
   dds_qos_t *new_qos;
   dds_return_t ret;
 
+  if ((ret = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
+    return ret;
+
   new_qos = dds_create_qos ();
   if (qos)
     nn_xqos_mergein_missing (new_qos, qos, DDS_PUBLISHER_QOS_MASK);
-  nn_xqos_mergein_missing (new_qos, &gv.default_xqos_pub, ~(uint64_t)0);
+  nn_xqos_mergein_missing (new_qos, &par->m_entity.m_domain->gv.default_xqos_pub, ~(uint64_t)0);
   if ((ret = nn_xqos_valid (new_qos)) != DDS_RETCODE_OK)
   {
-    dds_delete_qos (new_qos);
+    dds_participant_unlock (par);
     return ret;
   }
 
-  if ((ret = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
-  {
-    dds_delete_qos (new_qos);
-    return ret;
-  }
   pub = dds_alloc (sizeof (*pub));
   hdl = dds_entity_init (&pub->m_entity, &par->m_entity, DDS_KIND_PUBLISHER, new_qos, listener, DDS_PUBLISHER_STATUS_MASK);
   pub->m_entity.m_iid = ddsi_iid_gen ();

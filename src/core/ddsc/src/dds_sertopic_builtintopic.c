@@ -26,7 +26,7 @@
 
 /* FIXME: sertopic /= ddstopic so a lot of stuff needs to be moved here from dds_topic.c and the free function needs to be implemented properly */
 
-struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic_type type, const char *name, const char *typename)
+struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic_type type, const char *name, const char *typename, struct q_globals *gv)
 {
   struct ddsi_sertopic_builtintopic *tp = ddsrt_malloc (sizeof (*tp));
   tp->c.iid = ddsi_iid_gen();
@@ -40,6 +40,7 @@ struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic
   tp->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (tp->c.serdata_ops);
   ddsrt_atomic_st32 (&tp->c.refc, 1);
   tp->type = type;
+  tp->gv = gv;
   return &tp->c;
 }
 

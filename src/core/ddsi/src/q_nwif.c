@@ -91,16 +91,16 @@ static void set_socket_nodelay (ddsrt_socket_t sock)
 }
 #endif
 
-static int set_rcvbuf (ddsrt_socket_t socket)
+static int set_rcvbuf (ddsrt_socket_t socket, const struct config_maybe_uint32 *min_size)
 {
   uint32_t ReceiveBufferSize;
   socklen_t optlen = (socklen_t) sizeof (ReceiveBufferSize);
   uint32_t socket_min_rcvbuf_size;
   dds_return_t rc;
-  if (config.socket_min_rcvbuf_size.isdefault)
+  if (min_size->isdefault)
     socket_min_rcvbuf_size = 1048576;
   else
-    socket_min_rcvbuf_size = config.socket_min_rcvbuf_size.value;
+    socket_min_rcvbuf_size = min_size->value;
   rc = ddsrt_getsockopt(
     socket, SOL_SOCKET, SO_RCVBUF, (char *) &ReceiveBufferSize, &optlen);
   /* TCP/IP stack may not support SO_RCVBUF. */
@@ -128,7 +128,7 @@ static int set_rcvbuf (ddsrt_socket_t socket)
     if (ReceiveBufferSize < socket_min_rcvbuf_size)
     {
       /* NN_ERROR does more than just DDS_ERROR(), hence the duplication */
-      if (config.socket_min_rcvbuf_size.isdefault)
+      if (min_size->isdefault)
         DDS_LOG(DDS_LC_CONFIG, "failed to increase socket receive buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
       else
         DDS_ERROR("failed to increase socket receive buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
@@ -141,7 +141,7 @@ static int set_rcvbuf (ddsrt_socket_t socket)
   return 0;
 }
 
-static int set_sndbuf (ddsrt_socket_t socket)
+static int set_sndbuf (ddsrt_socket_t socket, uint32_t min_size)
 {
   unsigned SendBufferSize;
   socklen_t optlen = (socklen_t) sizeof(SendBufferSize);
@@ -155,10 +155,10 @@ static int set_sndbuf (ddsrt_socket_t socket)
     print_sockerror ("get SO_SNDBUF");
     return -2;
   }
-  if (SendBufferSize < config.socket_min_sndbuf_size )
+  if (SendBufferSize < min_size )
   {
     /* make sure the send buffersize is at least the minimum required */
-    SendBufferSize = config.socket_min_sndbuf_size;
+    SendBufferSize = min_size;
     if (ddsrt_setsockopt (socket, SOL_SOCKET, SO_SNDBUF, (const char *)&SendBufferSize, sizeof (SendBufferSize)) != DDS_RETCODE_OK)
     {
       print_sockerror ("SO_SNDBUF");
@@ -168,12 +168,12 @@ static int set_sndbuf (ddsrt_socket_t socket)
   return 0;
 }
 
-static int maybe_set_dont_route (ddsrt_socket_t socket)
+static int maybe_set_dont_route (ddsrt_socket_t socket, const struct config *config)
 {
-  if (config.dontRoute)
+  if (config->dontRoute)
   {
 #if DDSRT_HAVE_IPV6
-    if (config.transport_selector == TRANS_TCP6 || config.transport_selector == TRANS_UDP6)
+    if (config->transport_selector == TRANS_TCP6 || config->transport_selector == TRANS_UDP6)
     {
       unsigned ipv6Flag = 1;
       if (ddsrt_setsockopt (socket, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &ipv6Flag, sizeof (ipv6Flag)) != DDS_RETCODE_OK)
@@ -184,7 +184,7 @@ static int maybe_set_dont_route (ddsrt_socket_t socket)
     }
     else
 #endif
-    if (config.transport_selector == TRANS_TCP || config.transport_selector == TRANS_UDP)
+    if (config->transport_selector == TRANS_TCP || config->transport_selector == TRANS_UDP)
     {
       int one = 1;
       if (ddsrt_setsockopt (socket, SOL_SOCKET, SO_DONTROUTE, (char *) &one, sizeof (one)) != DDS_RETCODE_OK)
@@ -215,12 +215,12 @@ static int set_reuse_options (ddsrt_socket_t socket)
   return 0;
 }
 
-static int bind_socket (ddsrt_socket_t socket, unsigned short port)
+static int bind_socket (ddsrt_socket_t socket, unsigned short port, const struct q_globals *gv)
 {
   dds_return_t rc = DDS_RETCODE_ERROR;
 
 #if DDSRT_HAVE_IPV6
-  if (config.transport_selector == TRANS_TCP6 || config.transport_selector == TRANS_UDP6)
+  if (gv->config.transport_selector == TRANS_TCP6 || gv->config.transport_selector == TRANS_UDP6)
   {
     struct sockaddr_in6 socketname;
     memset (&socketname, 0, sizeof (socketname));
@@ -228,13 +228,13 @@ static int bind_socket (ddsrt_socket_t socket, unsigned short port)
     socketname.sin6_port = htons (port);
     socketname.sin6_addr = ddsrt_in6addr_any;
     if (IN6_IS_ADDR_LINKLOCAL (&socketname.sin6_addr)) {
-      socketname.sin6_scope_id = gv.interfaceNo;
+      socketname.sin6_scope_id = gv->interfaceNo;
     }
     rc = ddsrt_bind (socket, (struct sockaddr *) &socketname, sizeof (socketname));
   }
   else
 #endif
-  if (config.transport_selector == TRANS_TCP || config.transport_selector == TRANS_UDP)
+  if (gv->config.transport_selector == TRANS_TCP || gv->config.transport_selector == TRANS_UDP)
   {
     struct sockaddr_in socketname;
     socketname.sin_family = AF_INET;
@@ -250,10 +250,10 @@ static int bind_socket (ddsrt_socket_t socket, unsigned short port)
 }
 
 #if DDSRT_HAVE_IPV6
-static int set_mc_options_transmit_ipv6 (ddsrt_socket_t socket)
+static int set_mc_options_transmit_ipv6 (ddsrt_socket_t socket, const struct q_globals *gv)
 {
-  unsigned interfaceNo = gv.interfaceNo;
-  unsigned ttl = (unsigned) config.multicast_ttl;
+  unsigned interfaceNo = gv->interfaceNo;
+  unsigned ttl = (unsigned) gv->config.multicast_ttl;
   unsigned loop;
   if (ddsrt_setsockopt (socket, IPPROTO_IPV6, IPV6_MULTICAST_IF, &interfaceNo, sizeof (interfaceNo)) != DDS_RETCODE_OK)
   {
@@ -265,7 +265,7 @@ static int set_mc_options_transmit_ipv6 (ddsrt_socket_t socket)
     print_sockerror ("IPV6_MULTICAST_HOPS");
     return -2;
   }
-  loop = (unsigned) !!config.enableMulticastLoopback;
+  loop = (unsigned) !!gv->config.enableMulticastLoopback;
   if (ddsrt_setsockopt (socket, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &loop, sizeof (loop)) != DDS_RETCODE_OK)
   {
     print_sockerror ("IPV6_MULTICAST_LOOP");
@@ -275,30 +275,30 @@ static int set_mc_options_transmit_ipv6 (ddsrt_socket_t socket)
 }
 #endif
 
-static int set_mc_options_transmit_ipv4 (ddsrt_socket_t socket)
+static int set_mc_options_transmit_ipv4 (ddsrt_socket_t socket, const struct q_globals *gv)
 {
-  unsigned char ttl = (unsigned char) config.multicast_ttl;
+  unsigned char ttl = (unsigned char) gv->config.multicast_ttl;
   unsigned char loop;
   dds_return_t ret;
 
 #if (defined(__linux) || defined(__APPLE__)) && !LWIP_SOCKET
-  if (config.use_multicast_if_mreqn)
+  if (gv->config.use_multicast_if_mreqn)
   {
     struct ip_mreqn mreqn;
     memset (&mreqn, 0, sizeof (mreqn));
     /* looks like imr_multiaddr is not relevant, not sure about imr_address */
     mreqn.imr_multiaddr.s_addr = htonl (INADDR_ANY);
-    if (config.use_multicast_if_mreqn > 1)
-      memcpy (&mreqn.imr_address.s_addr, gv.ownloc.address + 12, 4);
+    if (gv->config.use_multicast_if_mreqn > 1)
+      memcpy (&mreqn.imr_address.s_addr, gv->ownloc.address + 12, 4);
     else
       mreqn.imr_address.s_addr = htonl (INADDR_ANY);
-    mreqn.imr_ifindex = (int) gv.interfaceNo;
+    mreqn.imr_ifindex = (int) gv->interfaceNo;
     ret = ddsrt_setsockopt (socket, IPPROTO_IP, IP_MULTICAST_IF, &mreqn, sizeof (mreqn));
   }
   else
 #endif
   {
-    ret = ddsrt_setsockopt (socket, IPPROTO_IP, IP_MULTICAST_IF, gv.ownloc.address + 12, 4);
+    ret = ddsrt_setsockopt (socket, IPPROTO_IP, IP_MULTICAST_IF, gv->ownloc.address + 12, 4);
   }
   if (ret != DDS_RETCODE_OK)
   {
@@ -310,7 +310,7 @@ static int set_mc_options_transmit_ipv4 (ddsrt_socket_t socket)
     print_sockerror ("IP_MULICAST_TTL");
     return -2;
   }
-  loop = (unsigned char) config.enableMulticastLoopback;
+  loop = (unsigned char) gv->config.enableMulticastLoopback;
 
   if (ddsrt_setsockopt (socket, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof (loop)) != DDS_RETCODE_OK)
   {
@@ -320,18 +320,18 @@ static int set_mc_options_transmit_ipv4 (ddsrt_socket_t socket)
   return 0;
 }
 
-static int set_mc_options_transmit (ddsrt_socket_t socket)
+static int set_mc_options_transmit (ddsrt_socket_t socket, const struct q_globals *gv)
 {
 #if DDSRT_HAVE_IPV6
-  if (config.transport_selector == TRANS_TCP6 || config.transport_selector == TRANS_UDP6)
+  if (gv->config.transport_selector == TRANS_TCP6 || gv->config.transport_selector == TRANS_UDP6)
   {
-    return set_mc_options_transmit_ipv6 (socket);
+    return set_mc_options_transmit_ipv6 (socket, gv);
   }
   else
 #endif
-  if (config.transport_selector == TRANS_TCP || config.transport_selector == TRANS_UDP)
+  if (gv->config.transport_selector == TRANS_TCP || gv->config.transport_selector == TRANS_UDP)
   {
-    return set_mc_options_transmit_ipv4 (socket);
+    return set_mc_options_transmit_ipv4 (socket, gv);
   }
   else
   {
@@ -339,25 +339,20 @@ static int set_mc_options_transmit (ddsrt_socket_t socket)
   }
 }
 
-int make_socket
-(
-  ddsrt_socket_t * sock,
-  uint16_t port,
-  bool stream,
-  bool reuse
-)
+int make_socket (ddsrt_socket_t *sock, uint16_t port, bool stream, bool reuse, const struct q_globals *gv)
 {
+  /* FIXME: this stuff has to move to the transports */
   int rc = -2;
   dds_return_t ret;
 
 #if DDSRT_HAVE_IPV6
-  if (config.transport_selector == TRANS_TCP6 || config.transport_selector == TRANS_UDP6)
+  if (gv->config.transport_selector == TRANS_TCP6 || gv->config.transport_selector == TRANS_UDP6)
   {
     ret = ddsrt_socket(sock, AF_INET6, stream ? SOCK_STREAM : SOCK_DGRAM, 0);
   }
   else
 #endif
-  if (config.transport_selector == TRANS_TCP || config.transport_selector == TRANS_UDP)
+  if (gv->config.transport_selector == TRANS_TCP || gv->config.transport_selector == TRANS_UDP)
   {
     ret = ddsrt_socket(sock, AF_INET, stream ? SOCK_STREAM : SOCK_DGRAM, 0);
   }
@@ -379,10 +374,10 @@ int make_socket
 
   if
   (
-    (rc = set_rcvbuf (*sock) < 0) ||
-    (rc = set_sndbuf (*sock) < 0) ||
-    ((rc = maybe_set_dont_route (*sock)) < 0) ||
-    ((rc = bind_socket (*sock, port)) < 0)
+    (rc = set_rcvbuf (*sock, &gv->config.socket_min_rcvbuf_size) < 0) ||
+    (rc = set_sndbuf (*sock, gv->config.socket_min_sndbuf_size) < 0) ||
+    ((rc = maybe_set_dont_route (*sock, &gv->config)) < 0) ||
+    ((rc = bind_socket (*sock, port, gv)) < 0)
   )
   {
     goto fail;
@@ -390,7 +385,7 @@ int make_socket
 
   if (! stream)
   {
-    if ((rc = set_mc_options_transmit (*sock)) < 0)
+    if ((rc = set_mc_options_transmit (*sock, gv)) < 0)
     {
       goto fail;
     }
@@ -402,7 +397,7 @@ int make_socket
     set_socket_nosigpipe (*sock);
 #endif
 #ifdef TCP_NODELAY
-    if (config.tcp_nodelay)
+    if (gv->config.tcp_nodelay)
     {
       set_socket_nodelay (*sock);
     }
@@ -418,9 +413,9 @@ fail:
   return rc;
 }
 
-static int multicast_override(const char *ifname)
+static int multicast_override(const char *ifname, const struct config *config)
 {
-  char *copy = ddsrt_strdup (config.assumeMulticastCapable), *cursor = copy, *tok;
+  char *copy = ddsrt_strdup (config->assumeMulticastCapable), *cursor = copy, *tok;
   int match = 0;
   if (copy != NULL)
   {
@@ -439,7 +434,7 @@ static int multicast_override(const char *ifname)
 #include <linux/if_packet.h>
 #endif
 
-int find_own_ip (const char *requested_address)
+int find_own_ip (struct q_globals *gv, const char *requested_address)
 {
   const char *sep = " ";
   char last_if_name[80] = "";
@@ -456,14 +451,14 @@ int find_own_ip (const char *requested_address)
 
   {
     int ret;
-    ret = ddsi_enumerate_interfaces(gv.m_factory, &ifa_root);
+    ret = ddsi_enumerate_interfaces(gv->m_factory, gv->config.transport_selector, &ifa_root);
     if (ret < 0) {
-      DDS_ERROR("ddsi_enumerate_interfaces(%s): %d\n", gv.m_factory->m_typename, ret);
+      DDS_ERROR("ddsi_enumerate_interfaces(%s): %d\n", gv->m_factory->m_typename, ret);
       return 0;
     }
   }
 
-  gv.n_interfaces = 0;
+  gv->n_interfaces = 0;
   last_if_name[0] = 0;
   for (ifa = ifa_root; ifa != NULL; ifa = ifa->next)
   {
@@ -501,7 +496,7 @@ int find_own_ip (const char *requested_address)
     if (ifa->addr->sa_family == AF_PACKET)
     {
       /* FIXME: weirdo warning warranted */
-      nn_locator_t *l = &gv.interfaces[gv.n_interfaces].loc;
+      nn_locator_t *l = &gv->interfaces[gv->n_interfaces].loc;
       l->kind = NN_LOCATOR_KIND_RAWETH;
       l->port = NN_LOCATOR_PORT_INVALID;
       memset(l->address, 0, 10);
@@ -510,12 +505,12 @@ int find_own_ip (const char *requested_address)
     else
 #endif
     {
-      ddsi_ipaddr_to_loc(&gv.interfaces[gv.n_interfaces].loc, ifa->addr, gv.m_factory->m_kind);
+      ddsi_ipaddr_to_loc(&gv->interfaces[gv->n_interfaces].loc, ifa->addr, gv->m_factory->m_kind);
     }
-    ddsi_locator_to_string_no_port(addrbuf, sizeof(addrbuf), &gv.interfaces[gv.n_interfaces].loc);
+    ddsi_locator_to_string_no_port(gv, addrbuf, sizeof(addrbuf), &gv->interfaces[gv->n_interfaces].loc);
     DDS_LOG(DDS_LC_CONFIG, " %s(", addrbuf);
 
-    if (!(ifa->flags & IFF_MULTICAST) && multicast_override (if_name))
+    if (!(ifa->flags & IFF_MULTICAST) && multicast_override (if_name, &gv->config))
     {
       DDS_LOG(DDS_LC_CONFIG, "assume-mc:");
       ifa->flags |= IFF_MULTICAST;
@@ -562,11 +557,11 @@ int find_own_ip (const char *requested_address)
 
     DDS_LOG(DDS_LC_CONFIG, "q%d)", q);
     if (q == quality) {
-      maxq_list[maxq_count] = gv.n_interfaces;
+      maxq_list[maxq_count] = gv->n_interfaces;
       maxq_strlen += 2 + strlen (if_name);
       maxq_count++;
     } else if (q > quality) {
-      maxq_list[0] = gv.n_interfaces;
+      maxq_list[0] = gv->n_interfaces;
       maxq_strlen += 2 + strlen (if_name);
       maxq_count = 1;
       quality = q;
@@ -574,20 +569,20 @@ int find_own_ip (const char *requested_address)
 
     if (ifa->addr->sa_family == AF_INET && ifa->netmask)
     {
-      ddsi_ipaddr_to_loc(&gv.interfaces[gv.n_interfaces].netmask, ifa->netmask, gv.m_factory->m_kind);
+      ddsi_ipaddr_to_loc(&gv->interfaces[gv->n_interfaces].netmask, ifa->netmask, gv->m_factory->m_kind);
     }
     else
     {
-      gv.interfaces[gv.n_interfaces].netmask.kind = gv.m_factory->m_kind;
-      gv.interfaces[gv.n_interfaces].netmask.port = NN_LOCATOR_PORT_INVALID;
-      memset(&gv.interfaces[gv.n_interfaces].netmask.address, 0, sizeof(gv.interfaces[gv.n_interfaces].netmask.address));
+      gv->interfaces[gv->n_interfaces].netmask.kind = gv->m_factory->m_kind;
+      gv->interfaces[gv->n_interfaces].netmask.port = NN_LOCATOR_PORT_INVALID;
+      memset(&gv->interfaces[gv->n_interfaces].netmask.address, 0, sizeof(gv->interfaces[gv->n_interfaces].netmask.address));
     }
-    gv.interfaces[gv.n_interfaces].mc_capable = ((ifa->flags & IFF_MULTICAST) != 0);
-    gv.interfaces[gv.n_interfaces].mc_flaky = ((ifa->type == DDSRT_IFTYPE_WIFI) != 0);
-    gv.interfaces[gv.n_interfaces].point_to_point = ((ifa->flags & IFF_POINTOPOINT) != 0);
-    gv.interfaces[gv.n_interfaces].if_index = ifa->index;
-    gv.interfaces[gv.n_interfaces].name = ddsrt_strdup (if_name);
-    gv.n_interfaces++;
+    gv->interfaces[gv->n_interfaces].mc_capable = ((ifa->flags & IFF_MULTICAST) != 0);
+    gv->interfaces[gv->n_interfaces].mc_flaky = ((ifa->type == DDSRT_IFTYPE_WIFI) != 0);
+    gv->interfaces[gv->n_interfaces].point_to_point = ((ifa->flags & IFF_POINTOPOINT) != 0);
+    gv->interfaces[gv->n_interfaces].if_index = ifa->index;
+    gv->interfaces[gv->n_interfaces].name = ddsrt_strdup (if_name);
+    gv->n_interfaces++;
   }
   DDS_LOG(DDS_LC_CONFIG, "\n");
   ddsrt_freeifaddrs (ifa_root);
@@ -599,13 +594,13 @@ int find_own_ip (const char *requested_address)
       const int idx = maxq_list[0];
       char *names;
       int p;
-      ddsi_locator_to_string_no_port (addrbuf, sizeof(addrbuf), &gv.interfaces[idx].loc);
+      ddsi_locator_to_string_no_port (gv, addrbuf, sizeof(addrbuf), &gv->interfaces[idx].loc);
       names = ddsrt_malloc (maxq_strlen + 1);
       p = 0;
       for (i = 0; i < maxq_count && (size_t) p < maxq_strlen; i++)
-        p += snprintf (names + p, maxq_strlen - (size_t) p, ", %s", gv.interfaces[maxq_list[i]].name);
+        p += snprintf (names + p, maxq_strlen - (size_t) p, ", %s", gv->interfaces[maxq_list[i]].name);
       DDS_WARNING("using network interface %s (%s) selected arbitrarily from: %s\n",
-                   gv.interfaces[idx].name, addrbuf, names + 2);
+                   gv->interfaces[idx].name, addrbuf, names + 2);
       ddsrt_free (names);
     }
 
@@ -618,32 +613,32 @@ int find_own_ip (const char *requested_address)
   {
     nn_locator_t req;
     /* Presumably an interface name */
-    for (i = 0; i < gv.n_interfaces; i++)
+    for (i = 0; i < gv->n_interfaces; i++)
     {
-      if (strcmp (gv.interfaces[i].name, config.networkAddressString) == 0)
+      if (strcmp (gv->interfaces[i].name, gv->config.networkAddressString) == 0)
         break;
     }
-    if (i < gv.n_interfaces)
+    if (i < gv->n_interfaces)
       ; /* got a match */
-    else if (ddsi_locator_from_string(&req, config.networkAddressString) != AFSR_OK)
-      ; /* not good, i = gv.n_interfaces, so error handling will kick in */
+    else if (ddsi_locator_from_string(gv, &req, gv->config.networkAddressString, gv->m_factory) != AFSR_OK)
+      ; /* not good, i = gv->n_interfaces, so error handling will kick in */
     else
     {
       /* Try an exact match on the address */
-      for (i = 0; i < gv.n_interfaces; i++)
-        if (compare_locators(&gv.interfaces[i].loc, &req) == 0)
+      for (i = 0; i < gv->n_interfaces; i++)
+        if (compare_locators(&gv->interfaces[i].loc, &req) == 0)
           break;
-      if (i == gv.n_interfaces && req.kind == NN_LOCATOR_KIND_UDPv4)
+      if (i == gv->n_interfaces && req.kind == NN_LOCATOR_KIND_UDPv4)
       {
         /* Try matching on network portion only, where the network
            portion is based on the netmask of the interface under
            consideration */
-        for (i = 0; i < gv.n_interfaces; i++)
+        for (i = 0; i < gv->n_interfaces; i++)
         {
           uint32_t req1, ip1, nm1;
           memcpy (&req1, req.address + 12, sizeof (req1));
-          memcpy (&ip1, gv.interfaces[i].loc.address + 12, sizeof (ip1));
-          memcpy (&nm1, gv.interfaces[i].netmask.address + 12, sizeof (nm1));
+          memcpy (&ip1, gv->interfaces[i].loc.address + 12, sizeof (ip1));
+          memcpy (&nm1, gv->interfaces[i].netmask.address + 12, sizeof (nm1));
 
           /* If the host portion of the requested address is non-zero,
              skip this interface */
@@ -656,33 +651,33 @@ int find_own_ip (const char *requested_address)
       }
     }
 
-    if (i < gv.n_interfaces)
+    if (i < gv->n_interfaces)
       selected_idx = i;
     else
-      DDS_ERROR("%s: does not match an available interface\n", config.networkAddressString);
+      DDS_ERROR("%s: does not match an available interface\n", gv->config.networkAddressString);
   }
 
   if (selected_idx < 0)
     return 0;
   else
   {
-    gv.ownloc = gv.interfaces[selected_idx].loc;
-    gv.selected_interface = selected_idx;
-    gv.interfaceNo = gv.interfaces[selected_idx].if_index;
+    gv->ownloc = gv->interfaces[selected_idx].loc;
+    gv->selected_interface = selected_idx;
+    gv->interfaceNo = gv->interfaces[selected_idx].if_index;
 #if DDSRT_HAVE_IPV6
-    if (gv.extloc.kind == NN_LOCATOR_KIND_TCPv6 || gv.extloc.kind == NN_LOCATOR_KIND_UDPv6)
+    if (gv->extloc.kind == NN_LOCATOR_KIND_TCPv6 || gv->extloc.kind == NN_LOCATOR_KIND_UDPv6)
     {
       struct sockaddr_in6 addr;
-      memcpy(&addr.sin6_addr, gv.ownloc.address, sizeof(addr.sin6_addr));
-      gv.ipv6_link_local = IN6_IS_ADDR_LINKLOCAL (&addr.sin6_addr) != 0;
+      memcpy(&addr.sin6_addr, gv->ownloc.address, sizeof(addr.sin6_addr));
+      gv->ipv6_link_local = IN6_IS_ADDR_LINKLOCAL (&addr.sin6_addr) != 0;
     }
     else
     {
-      gv.ipv6_link_local = 0;
+      gv->ipv6_link_local = 0;
     }
 #endif
     DDS_LOG(DDS_LC_CONFIG, "selected interface: %s (index %u)\n",
-            gv.interfaces[selected_idx].name, gv.interfaceNo);
+            gv->interfaces[selected_idx].name, gv->interfaceNo);
 
     return 1;
   }

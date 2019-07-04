@@ -302,6 +302,11 @@ inline void ddsrt_atomic_fence_ldld (void) {
   ddsrt_atomic_fence ();
 #endif
 }
+inline void ddsrt_atomic_fence_stst (void) {
+#if !(defined _M_IX86 || defined _M_X64)
+  ddsrt_atomic_fence ();
+#endif
+}
 inline void ddsrt_atomic_fence_acq (void) {
   ddsrt_atomic_fence ();
 }

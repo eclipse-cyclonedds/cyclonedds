@@ -18,6 +18,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_config.h"
@@ -43,12 +44,12 @@ static int compare_locators_vwrap (const void *va, const void *vb);
 static const ddsrt_avl_ctreedef_t addrset_treedef =
   DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct addrset_node, avlnode), offsetof (struct addrset_node, loc), compare_locators_vwrap, 0);
 
-static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int port_mode, const char *msgtag, int req_mc, int mcgen_base, int mcgen_count, int mcgen_idx)
+static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrset *as, const char *ip, int port_mode, const char *msgtag, int req_mc, int mcgen_base, int mcgen_count, int mcgen_idx)
 {
   char buf[DDSI_LOCSTRLEN];
   nn_locator_t loc;
 
-  switch (ddsi_locator_from_string(&loc, ip))
+  switch (ddsi_locator_from_string(gv, &loc, ip, gv->m_factory))
   {
     case AFSR_OK:
       break;
@@ -63,7 +64,7 @@ static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int p
       return -1;
   }
 
-  if (req_mc && !ddsi_is_mcaddr (&loc))
+  if (req_mc && !ddsi_is_mcaddr (gv, &loc))
   {
     DDS_ERROR ("%s: %s: not a multicast address\n", msgtag, ip);
     return -1;
@@ -71,7 +72,7 @@ static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int p
 
   if (mcgen_base == -1 && mcgen_count == -1 && mcgen_idx == -1)
     ;
-  else if (loc.kind == NN_LOCATOR_KIND_UDPv4 && ddsi_is_mcaddr(&loc) && mcgen_base >= 0 && mcgen_count > 0 && mcgen_base + mcgen_count < 28 && mcgen_idx >= 0 && mcgen_idx < mcgen_count)
+  else if (loc.kind == NN_LOCATOR_KIND_UDPv4 && ddsi_is_mcaddr(gv, &loc) && mcgen_base >= 0 && mcgen_count > 0 && mcgen_base + mcgen_count < 28 && mcgen_idx >= 0 && mcgen_idx < mcgen_count)
   {
     nn_udpv4mcgen_address_t x;
     memset(&x, 0, sizeof(x));
@@ -93,34 +94,34 @@ static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int p
   if (port_mode >= 0)
   {
     loc.port = (unsigned) port_mode;
-    DDS_LOG(DDS_LC_CONFIG, "%s: add %s", msgtag, ddsi_locator_to_string(buf, sizeof(buf), &loc));
-    add_to_addrset (as, &loc);
+    DDS_LOG(DDS_LC_CONFIG, "%s: add %s", msgtag, ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
+    add_to_addrset (gv, as, &loc);
   }
   else
   {
     DDS_LOG(DDS_LC_CONFIG, "%s: add ", msgtag);
-    if (!ddsi_is_mcaddr (&loc))
+    if (!ddsi_is_mcaddr (gv, &loc))
     {
       int i;
-      for (i = 0; i <= config.maxAutoParticipantIndex; i++)
+      for (i = 0; i <= gv->config.maxAutoParticipantIndex; i++)
       {
-        int port = config.port_base + config.port_dg * config.domainId.value + i * config.port_pg + config.port_d1;
+        int port = gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + i * gv->config.port_pg + gv->config.port_d1;
         loc.port = (unsigned) port;
         if (i == 0)
-          DDS_LOG(DDS_LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
+          DDS_LOG(DDS_LC_CONFIG, "%s", ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
         else
           DDS_LOG(DDS_LC_CONFIG, ", :%d", port);
-        add_to_addrset (as, &loc);
+        add_to_addrset (gv, as, &loc);
       }
     }
     else
     {
       int port = port_mode;
       if (port == -1)
-        port = config.port_base + config.port_dg * config.domainId.value + config.port_d0;
+        port = gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + gv->config.port_d0;
       loc.port = (unsigned) port;
-      DDS_LOG(DDS_LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
-      add_to_addrset (as, &loc);
+      DDS_LOG(DDS_LC_CONFIG, "%s", ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
+      add_to_addrset (gv, as, &loc);
     }
   }
 
@@ -128,7 +129,7 @@ static int add_addresses_to_addrset_1 (struct addrset *as, const char *ip, int p
   return 0;
 }
 
-int add_addresses_to_addrset (struct addrset *as, const char *addrs, int port_mode, const char *msgtag, int req_mc)
+int add_addresses_to_addrset (const struct q_globals *gv, struct addrset *as, const char *addrs, int port_mode, const char *msgtag, int req_mc)
 {
   /* port_mode: -1  => take from string, if 0 & unicast, add for a range of participant indices;
      port_mode >= 0 => always set port to port_mode
@@ -143,7 +144,7 @@ int add_addresses_to_addrset (struct addrset *as, const char *addrs, int port_mo
   {
     int port = 0, pos;
     int mcgen_base = -1, mcgen_count = -1, mcgen_idx = -1;
-    if (config.transport_selector == TRANS_UDP || config.transport_selector == TRANS_TCP)
+    if (gv->config.transport_selector == TRANS_UDP || gv->config.transport_selector == TRANS_TCP)
     {
       if (port_mode == -1 && sscanf (a, "%[^:]:%d%n", ip, &port, &pos) == 2 && a[pos] == 0)
         ; /* XYZ:PORT */
@@ -169,7 +170,7 @@ int add_addresses_to_addrset (struct addrset *as, const char *addrs, int port_mo
     }
 
     if ((port > 0 && port <= 65535) || (port_mode == -1 && port == -1)) {
-      if (add_addresses_to_addrset_1 (as, ip, port, msgtag, req_mc, mcgen_base, mcgen_count, mcgen_idx) < 0)
+      if (add_addresses_to_addrset_1 (gv, as, ip, port, msgtag, req_mc, mcgen_base, mcgen_count, mcgen_idx) < 0)
         goto error;
     } else {
       DDS_ERROR("%s: %s: port %d invalid\n", msgtag, a, port);
@@ -245,14 +246,14 @@ int is_unspec_locator (const nn_locator_t *loc)
 }
 
 #ifdef DDSI_INCLUDE_SSM
-int addrset_contains_ssm (const struct addrset *as)
+int addrset_contains_ssm (const struct q_globals *gv, const struct addrset *as)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
   LOCK (as);
   for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
-    if (ddsi_is_ssm_mcaddr (&n->loc))
+    if (ddsi_is_ssm_mcaddr (gv, &n->loc))
     {
       UNLOCK (as);
       return 1;
@@ -262,14 +263,14 @@ int addrset_contains_ssm (const struct addrset *as)
   return 0;
 }
 
-int addrset_any_ssm (const struct addrset *as, nn_locator_t *dst)
+int addrset_any_ssm (const struct q_globals *gv, const struct addrset *as, nn_locator_t *dst)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
   LOCK (as);
   for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
-    if (ddsi_is_ssm_mcaddr (&n->loc))
+    if (ddsi_is_ssm_mcaddr (gv, &n->loc))
     {
       *dst = n->loc;
       UNLOCK (as);
@@ -280,14 +281,14 @@ int addrset_any_ssm (const struct addrset *as, nn_locator_t *dst)
   return 0;
 }
 
-int addrset_any_non_ssm_mc (const struct addrset *as, nn_locator_t *dst)
+int addrset_any_non_ssm_mc (const struct q_globals *gv, const struct addrset *as, nn_locator_t *dst)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
   LOCK (as);
   for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
-    if (!ddsi_is_ssm_mcaddr (&n->loc))
+    if (!ddsi_is_ssm_mcaddr (gv, &n->loc))
     {
       *dst = n->loc;
       UNLOCK (as);
@@ -308,12 +309,12 @@ int addrset_purge (struct addrset *as)
   return 0;
 }
 
-void add_to_addrset (struct addrset *as, const nn_locator_t *loc)
+void add_to_addrset (const struct q_globals *gv, struct addrset *as, const nn_locator_t *loc)
 {
   if (!is_unspec_locator (loc))
   {
     ddsrt_avl_ipath_t path;
-    ddsrt_avl_ctree_t *tree = ddsi_is_mcaddr (loc) ? &as->mcaddrs : &as->ucaddrs;
+    ddsrt_avl_ctree_t *tree = ddsi_is_mcaddr (gv, loc) ? &as->mcaddrs : &as->ucaddrs;
     LOCK (as);
     if (ddsrt_avl_clookup_ipath (&addrset_treedef, tree, loc, &path) == NULL)
     {
@@ -325,10 +326,10 @@ void add_to_addrset (struct addrset *as, const nn_locator_t *loc)
   }
 }
 
-void remove_from_addrset (struct addrset *as, const nn_locator_t *loc)
+void remove_from_addrset (const struct q_globals *gv, struct addrset *as, const nn_locator_t *loc)
 {
   ddsrt_avl_dpath_t path;
-  ddsrt_avl_ctree_t *tree = ddsi_is_mcaddr (loc) ? &as->mcaddrs : &as->ucaddrs;
+  ddsrt_avl_ctree_t *tree = ddsi_is_mcaddr (gv, loc) ? &as->mcaddrs : &as->ucaddrs;
   struct addrset_node *n;
   LOCK (as);
   if ((n = ddsrt_avl_clookup_dpath (&addrset_treedef, tree, loc, &path)) != NULL)
@@ -339,51 +340,51 @@ void remove_from_addrset (struct addrset *as, const nn_locator_t *loc)
   UNLOCK (as);
 }
 
-void copy_addrset_into_addrset_uc (struct addrset *as, const struct addrset *asadd)
+void copy_addrset_into_addrset_uc (const struct q_globals *gv, struct addrset *as, const struct addrset *asadd)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
   LOCK (asadd);
   for (n = ddsrt_avl_citer_first (&addrset_treedef, &asadd->ucaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
-    add_to_addrset (as, &n->loc);
+    add_to_addrset (gv, as, &n->loc);
   UNLOCK (asadd);
 }
 
-void copy_addrset_into_addrset_mc (struct addrset *as, const struct addrset *asadd)
+void copy_addrset_into_addrset_mc (const struct q_globals *gv, struct addrset *as, const struct addrset *asadd)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
   LOCK (asadd);
   for (n = ddsrt_avl_citer_first (&addrset_treedef, &asadd->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
-    add_to_addrset (as, &n->loc);
+    add_to_addrset (gv, as, &n->loc);
   UNLOCK (asadd);
 }
 
-void copy_addrset_into_addrset (struct addrset *as, const struct addrset *asadd)
+void copy_addrset_into_addrset (const struct q_globals *gv, struct addrset *as, const struct addrset *asadd)
 {
-  copy_addrset_into_addrset_uc (as, asadd);
-  copy_addrset_into_addrset_mc (as, asadd);
+  copy_addrset_into_addrset_uc (gv, as, asadd);
+  copy_addrset_into_addrset_mc (gv, as, asadd);
 }
 
 #ifdef DDSI_INCLUDE_SSM
-void copy_addrset_into_addrset_no_ssm_mc (struct addrset *as, const struct addrset *asadd)
+void copy_addrset_into_addrset_no_ssm_mc (const struct q_globals *gv, struct addrset *as, const struct addrset *asadd)
 {
   struct addrset_node *n;
   ddsrt_avl_citer_t it;
   LOCK (asadd);
   for (n = ddsrt_avl_citer_first (&addrset_treedef, &asadd->mcaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
-    if (!ddsi_is_ssm_mcaddr (&n->loc))
-      add_to_addrset (as, &n->loc);
+    if (!ddsi_is_ssm_mcaddr (gv, &n->loc))
+      add_to_addrset (gv, as, &n->loc);
   }
   UNLOCK (asadd);
 
 }
 
-void copy_addrset_into_addrset_no_ssm (struct addrset *as, const struct addrset *asadd)
+void copy_addrset_into_addrset_no_ssm (const struct q_globals *gv, struct addrset *as, const struct addrset *asadd)
 {
-  copy_addrset_into_addrset_uc (as, asadd);
-  copy_addrset_into_addrset_no_ssm_mc (as, asadd);
+  copy_addrset_into_addrset_uc (gv, as, asadd);
+  copy_addrset_into_addrset_no_ssm_mc (gv, as, asadd);
 }
 #endif
 
@@ -548,6 +549,7 @@ int addrset_forone (struct addrset *as, addrset_forone_fun_t f, void *arg)
 struct log_addrset_helper_arg
 {
   uint32_t tf;
+  struct q_globals *gv;
 };
 
 static void log_addrset_helper (const nn_locator_t *n, void *varg)
@@ -555,15 +557,16 @@ static void log_addrset_helper (const nn_locator_t *n, void *varg)
   const struct log_addrset_helper_arg *arg = varg;
   char buf[DDSI_LOCSTRLEN];
   if (dds_get_log_mask() & arg->tf)
-    DDS_LOG(arg->tf, " %s", ddsi_locator_to_string(buf, sizeof(buf), n));
+    DDS_LOG(arg->tf, " %s", ddsi_locator_to_string(arg->gv, buf, sizeof(buf), n));
 }
 
-void nn_log_addrset (uint32_t tf, const char *prefix, const struct addrset *as)
+void nn_log_addrset (struct q_globals *gv, uint32_t tf, const char *prefix, const struct addrset *as)
 {
   if (dds_get_log_mask() & tf)
   {
     struct log_addrset_helper_arg arg;
     arg.tf = tf;
+    arg.gv = gv;
     DDS_LOG(tf, "%s", prefix);
     addrset_forall ((struct addrset *) as, log_addrset_helper, &arg); /* drop const, we know it is */
   }

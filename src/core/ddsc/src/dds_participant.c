@@ -36,26 +36,14 @@ static dds_return_t dds_participant_delete (dds_entity *e) ddsrt_nonnull_all;
 
 static dds_return_t dds_participant_delete (dds_entity *e)
 {
-  struct dds_domain *dom;
   dds_return_t ret;
-  dds_entity *prev, *iter;
   assert (dds_entity_kind (e) == DDS_KIND_PARTICIPANT);
 
-  thread_state_awake (lookup_thread_state ());
-  if ((ret = delete_participant (&e->m_guid)) < 0)
+  thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
+  if ((ret = delete_participant (&e->m_domain->gv, &e->m_guid)) < 0)
     DDS_ERROR ("dds_participant_delete: internal error %"PRId32"\n", ret);
   ddsrt_mutex_lock (&dds_global.m_mutex);
-  dom = e->m_domain;
-  for (iter = dom->ppants, prev = NULL; iter; prev = iter, iter = iter->m_next)
-  {
-    if (iter == e)
-      break;
-  }
-  assert (iter);
-  if (prev)
-    prev->m_next = iter->m_next;
-  else
-    dom->ppants = iter->m_next;
+  ddsrt_avl_delete (&dds_entity_children_td, &e->m_domain->m_ppants, e);
   ddsrt_mutex_unlock (&dds_global.m_mutex);
   thread_state_asleep (lookup_thread_state ());
 
@@ -71,8 +59,8 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
   if (enabled)
   {
     struct participant *pp;
-    thread_state_awake (lookup_thread_state ());
-    if ((pp = ephash_lookup_participant_guid (&e->m_guid)) != NULL)
+    thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
+    if ((pp = ephash_lookup_participant_guid (e->m_domain->gv.guid_hash, &e->m_guid)) != NULL)
     {
       nn_plist_t plist;
       nn_plist_init_empty (&plist);
@@ -111,7 +99,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   new_qos = dds_create_qos ();
   if (qos != NULL)
     nn_xqos_mergein_missing (new_qos, qos, DDS_PARTICIPANT_QOS_MASK);
-  nn_xqos_mergein_missing (new_qos, &gv.default_plist_pp.qos, ~(uint64_t)0);
+  nn_xqos_mergein_missing (new_qos, &dom->gv.default_plist_pp.qos, ~(uint64_t)0);
   if ((ret = nn_xqos_valid (new_qos)) < 0)
     goto err_qos_validation;
 
@@ -119,8 +107,8 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   nn_plist_init_empty (&plist);
   dds_merge_qos (&plist.qos, new_qos);
 
-  thread_state_awake (lookup_thread_state ());
-  ret = new_participant (&guid, 0, &plist);
+  thread_state_awake (lookup_thread_state (), &dom->gv);
+  ret = new_participant (&guid, &dom->gv, 0, &plist);
   thread_state_asleep (lookup_thread_state ());
   nn_plist_fini (&plist);
   if (ret < 0)
@@ -134,14 +122,13 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
     goto err_entity_init;
 
   pp->m_entity.m_guid = guid;
-  pp->m_entity.m_iid = get_entity_instance_id (&guid);
+  pp->m_entity.m_iid = get_entity_instance_id (&dom->gv, &guid);
   pp->m_entity.m_domain = dom;
   pp->m_builtin_subscriber = 0;
 
   /* Add participant to extent */
   ddsrt_mutex_lock (&dds_global.m_mutex);
-  pp->m_entity.m_next = pp->m_entity.m_domain->ppants;
-  pp->m_entity.m_domain->ppants = &pp->m_entity;
+  ddsrt_avl_insert (&dds_entity_children_td, &dom->m_ppants, &pp->m_entity);
   ddsrt_mutex_unlock (&dds_global.m_mutex);
   return ret;
 
@@ -176,10 +163,11 @@ dds_entity_t dds_lookup_participant (dds_domainid_t domain_id, dds_entity_t *par
     ddsrt_mutex_lock (&dds_global.m_mutex);
     if ((dom = dds_domain_find_locked (domain_id)) != NULL)
     {
-      for (dds_entity *iter = dom->ppants; iter; iter = iter->m_next)
+      ddsrt_avl_iter_t it;
+      for (dds_entity *e = ddsrt_avl_iter_first (&dds_entity_children_td, &dom->m_ppants, &it); e != NULL; e = ddsrt_avl_iter_next (&it))
       {
         if ((size_t) ret < size)
-          participants[ret] = iter->m_hdllink.hdl;
+          participants[ret] = e->m_hdllink.hdl;
         ret++;
       }
     }

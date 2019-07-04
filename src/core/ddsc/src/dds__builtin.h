@@ -28,10 +28,6 @@ dds_entity_t dds__get_builtin_subscriber (dds_entity_t e);
 /* Checks whether the reader QoS is valid for use with built-in topic TOPIC */
 bool dds__validate_builtin_reader_qos (const dds_domain *dom, dds_entity_t topic, const dds_qos_t *qos);
 
-/* Init/fini for builtin-topic support that is global across domains */
-void dds__builtin_init_global (void);
-void dds__builtin_fini_global (void);
-
 void dds__builtin_init (struct dds_domain *dom);
 void dds__builtin_fini (struct dds_domain *dom);
 

@@ -172,9 +172,9 @@ static dds_return_t dds_writer_close (dds_entity *e)
 {
   dds_writer * const wr = (dds_writer *) e;
   dds_return_t ret;
-  thread_state_awake (lookup_thread_state ());
+  thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   nn_xpack_send (wr->m_xp, false);
-  if ((ret = delete_writer (&e->m_guid)) < 0)
+  if ((ret = delete_writer (&e->m_domain->gv, &e->m_guid)) < 0)
     ret = DDS_RETCODE_ERROR;
   thread_state_asleep (lookup_thread_state ());
   return ret;
@@ -187,7 +187,7 @@ static dds_return_t dds_writer_delete (dds_entity *e)
   dds_writer * const wr = (dds_writer *) e;
   dds_return_t ret;
   /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
-  thread_state_awake (lookup_thread_state ());
+  thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   nn_xpack_free (wr->m_xp);
   thread_state_asleep (lookup_thread_state ());
   if ((ret = dds_delete (wr->m_topic->m_entity.m_hdllink.hdl)) == DDS_RETCODE_OK)
@@ -205,15 +205,15 @@ static dds_return_t dds_writer_qos_set (dds_entity *e, const dds_qos_t *qos, boo
   if (enabled)
   {
     struct writer *wr;
-    thread_state_awake (lookup_thread_state ());
-    if ((wr = ephash_lookup_writer_guid (&e->m_guid)) != NULL)
+    thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
+    if ((wr = ephash_lookup_writer_guid (e->m_domain->gv.guid_hash, &e->m_guid)) != NULL)
       update_writer_qos (wr, qos);
     thread_state_asleep (lookup_thread_state ());
   }
   return DDS_RETCODE_OK;
 }
 
-static struct whc *make_whc (const dds_qos_t *qos)
+static struct whc *make_whc (struct dds_domain *dom, const dds_qos_t *qos)
 {
   bool handle_as_transient_local;
   uint32_t hdepth, tldepth;
@@ -234,7 +234,7 @@ static struct whc *make_whc (const dds_qos_t *qos)
     else
       tldepth = (unsigned) qos->durability_service.history.depth;
   }
-  return whc_new (handle_as_transient_local, hdepth, tldepth);
+  return whc_new (&dom->gv, handle_as_transient_local, hdepth, tldepth);
 }
 
 const struct dds_entity_deriver dds_entity_deriver_writer = {
@@ -253,7 +253,6 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   dds_publisher *pub = NULL;
   dds_topic *tp;
   dds_entity_t publisher;
-  ddsi_tran_conn_t conn = gv.data_conn_uc;
 
   {
     dds_entity *p_or_p;
@@ -269,6 +268,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   if ((rc = dds_publisher_lock (publisher, &pub)) != DDS_RETCODE_OK)
     return rc;
 
+  ddsi_tran_conn_t conn = pub->m_entity.m_domain->gv.data_conn_uc;
   if (publisher != participant_or_publisher)
     pub->m_entity.m_flags |= DDS_ENTITY_IMPLICIT;
 
@@ -286,7 +286,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     nn_xqos_mergein_missing (wqos, pub->m_entity.m_qos, ~(uint64_t)0);
   if (tp->m_entity.m_qos)
     nn_xqos_mergein_missing (wqos, tp->m_entity.m_qos, ~(uint64_t)0);
-  nn_xqos_mergein_missing (wqos, &gv.default_xqos_wr, ~(uint64_t)0);
+  nn_xqos_mergein_missing (wqos, &pub->m_entity.m_domain->gv.default_xqos_wr, ~(uint64_t)0);
 
   if ((rc = nn_xqos_valid (wqos)) < 0)
   {
@@ -300,8 +300,9 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
   wr->m_topic = tp;
   dds_entity_add_ref_locked (&tp->m_entity);
-  wr->m_xp = nn_xpack_new (conn, get_bandwidth_limit (wqos->transport_priority), config.xpack_send_async);
-  wr->m_whc = make_whc (wqos);
+  wr->m_xp = nn_xpack_new (conn, get_bandwidth_limit (wqos->transport_priority), pub->m_entity.m_domain->gv.config.xpack_send_async);
+  wr->m_whc = make_whc (pub->m_entity.m_domain, wqos);
+  wr->whc_batch = pub->m_entity.m_domain->gv.config.whc_batch;
 
   /* Extra claim of this writer to make sure that the delete waits until DDSI
    * has deleted its writer as well. This can be known through the callback. */
@@ -310,14 +311,14 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   ddsrt_mutex_unlock (&tp->m_entity.m_mutex);
   ddsrt_mutex_unlock (&pub->m_entity.m_mutex);
 
-  thread_state_awake (lookup_thread_state ());
-  rc = new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, &pub->m_entity.m_participant->m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
+  thread_state_awake (lookup_thread_state (), &pub->m_entity.m_domain->gv);
+  rc = new_writer (&wr->m_wr, &wr->m_entity.m_domain->gv, &wr->m_entity.m_guid, NULL, &pub->m_entity.m_participant->m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
   ddsrt_mutex_lock (&pub->m_entity.m_mutex);
   ddsrt_mutex_lock (&tp->m_entity.m_mutex);
   assert(rc == DDS_RETCODE_OK);
   thread_state_asleep (lookup_thread_state ());
 
-  wr->m_entity.m_iid = get_entity_instance_id (&wr->m_entity.m_guid);
+  wr->m_entity.m_iid = get_entity_instance_id (&wr->m_entity.m_domain->gv, &wr->m_entity.m_guid);
   dds_entity_register_child (&pub->m_entity, &wr->m_entity);
 
   dds_topic_unlock (tp);

@@ -302,8 +302,10 @@ struct dds_rhc_default {
   bool by_source_ordering;           /* true if BY_SOURCE, false if BY_RECEPTION */
   bool exclusive_ownership;          /* true if EXCLUSIVE, false if SHARED */
   bool reliable;                     /* true if reliability RELIABLE */
+  bool xchecks;                      /* whether to do expensive checking if checking at all */
 
-  dds_reader *reader;                /* reader */
+  dds_reader *reader;                /* reader -- may be NULL (used by rhc_torture) */
+  struct ddsi_tkmap *tkmap;          /* back pointer to tkmap */
   const struct ddsi_sertopic *topic; /* topic description */
   uint32_t history_depth;            /* depth, 1 for KEEP_LAST_1, 2**32-1 for KEEP_ALL */
 
@@ -521,7 +523,7 @@ static void remove_inst_from_nonempty_list (struct dds_rhc_default *rhc, struct 
   rhc->n_nonempty_instances--;
 }
 
-struct dds_rhc *dds_rhc_default_new (dds_reader *reader, const struct ddsi_sertopic *topic)
+struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_tkmap *tkmap, const struct ddsi_sertopic *topic, bool xchecks)
 {
   struct dds_rhc_default *rhc = ddsrt_malloc (sizeof (*rhc));
   memset (rhc, 0, sizeof (*rhc));
@@ -532,8 +534,15 @@ struct dds_rhc *dds_rhc_default_new (dds_reader *reader, const struct ddsi_serto
   rhc->instances = ddsrt_hh_new (1, instance_iid_hash, instance_iid_eq);
   rhc->topic = topic;
   rhc->reader = reader;
+  rhc->tkmap = tkmap;
+  rhc->xchecks = xchecks;
 
   return &rhc->common;
+}
+
+struct dds_rhc *dds_rhc_default_new (dds_reader *reader, const struct ddsi_sertopic *topic)
+{
+  return dds_rhc_default_new_xchecks (reader, reader->m_entity.m_domain->gv.m_tkmap, topic, (reader->m_entity.m_domain->gv.config.enabled_xchecks & DDS_XCHECK_RHC) != 0);
 }
 
 static void dds_rhc_default_set_qos (struct dds_rhc_default * rhc, const dds_qos_t * qos)
@@ -635,10 +644,10 @@ static void inst_set_invsample (struct dds_rhc_default *rhc, struct rhc_instance
   }
 }
 
-static void free_empty_instance (struct rhc_instance *inst)
+static void free_empty_instance (struct rhc_instance *inst, struct dds_rhc_default *rhc)
 {
   assert (inst_is_empty (inst));
-  ddsi_tkmap_instance_unref (inst->tk);
+  ddsi_tkmap_instance_unref (rhc->tkmap, inst->tk);
   ddsrt_free (inst);
 }
 
@@ -667,7 +676,7 @@ static void free_instance_rhc_free (struct rhc_instance *inst, struct dds_rhc_de
   {
     remove_inst_from_nonempty_list (rhc, inst);
   }
-  ddsi_tkmap_instance_unref (inst->tk);
+  ddsi_tkmap_instance_unref (rhc->tkmap, inst->tk);
   ddsrt_free (inst);
 }
 
@@ -926,7 +935,7 @@ static void drop_instance_noupdate_no_writers (struct dds_rhc_default *rhc, stru
   assert (ret);
   (void) ret;
 
-  free_empty_instance (inst);
+  free_empty_instance (inst, rhc);
 }
 
 static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *inst, uint64_t wr_iid, bool iid_update)
@@ -1259,7 +1268,7 @@ static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst
   {
     if (!add_sample (rhc, inst, pwr_info, sample, cb_data, trig_qc))
     {
-      free_empty_instance (inst);
+      free_empty_instance (inst, rhc);
       return RHC_REJECTED;
     }
   }
@@ -2638,7 +2647,7 @@ static int dds_rhc_default_takecdr (struct dds_rhc_default *rhc, bool lock, stru
 #define CHECK_MAX_CONDS 64
 static int rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_conds, bool check_qcmask)
 {
-  if (!(config.enabled_xchecks & DDS_XCHECK_RHC))
+  if (!rhc->xchecks)
     return 1;
 
   const uint32_t ncheck = rhc->nconds < CHECK_MAX_CONDS ? rhc->nconds : CHECK_MAX_CONDS;

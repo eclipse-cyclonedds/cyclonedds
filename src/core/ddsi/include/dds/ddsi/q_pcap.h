@@ -23,24 +23,9 @@ struct msghdr;
 
 FILE * new_pcap_file (const char *name);
 
-void write_pcap_received
-(
-  FILE * fp,
-  nn_wctime_t tstamp,
-  const struct sockaddr_storage * src,
-  const struct sockaddr_storage * dst,
-  unsigned char * buf,
-  size_t sz
-);
-
-void write_pcap_sent
-(
-  FILE * fp,
-  nn_wctime_t tstamp,
-  const struct sockaddr_storage * src,
-  const ddsrt_msghdr_t * hdr,
-  size_t sz
-);
+void write_pcap_received (struct q_globals *gv, nn_wctime_t tstamp, const struct sockaddr_storage *src, const struct sockaddr_storage *dst, unsigned char *buf, size_t sz);
+void write_pcap_sent (struct q_globals *gv, nn_wctime_t tstamp, const struct sockaddr_storage *src,
+  const ddsrt_msghdr_t *hdr, size_t sz);
 
 #if defined (__cplusplus)
 }

@@ -24,6 +24,7 @@
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_sockwaitset.h"
+#include "dds/ddsi/q_config.h"
 
 #ifdef DDSI_INCLUDE_ENCRYPTION
 #include "dds/ddsi/q_security.h" /* for q_securityDecoderSet */
@@ -71,6 +72,7 @@ enum recv_thread_mode {
 struct recv_thread_arg {
   enum recv_thread_mode mode;
   struct nn_rbufpool *rbpool;
+  struct q_globals *gv;
   union {
     struct {
       const nn_locator_t *loc;
@@ -89,6 +91,8 @@ struct q_globals {
   volatile int deaf;
   volatile int mute;
 
+  struct config config;
+
   struct ddsi_tkmap * m_tkmap;
 
   /* Hash tables for participants, readers, writers, proxy
@@ -106,9 +110,9 @@ struct q_globals {
   ddsrt_mutex_t leaseheap_lock;
   ddsrt_fibheap_t leaseheap;
 
-  /* Transport factory */
-
-  struct ddsi_tran_factory * m_factory;
+  /* Transport factories & selected factory */
+  struct ddsi_tran_factory *ddsi_tran_factories;
+  struct ddsi_tran_factory *m_factory;
 
   /* Connections for multicast discovery & data, and those that correspond
      to the one DDSI participant index that the DDSI2 service uses. The
@@ -297,8 +301,6 @@ struct q_globals {
 
   struct nn_group_membership *mship;
 };
-
-extern struct q_globals DDS_EXPORT gv;
 
 #if defined (__cplusplus)
 }

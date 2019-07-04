@@ -134,7 +134,7 @@ struct nn_xmsg_chain {
 #define NN_BW_UNLIMITED (0)
 
 struct nn_bw_limiter {
-    uint32_t       bandwidth;   /*Config in bytes/s   (0 = UNLIMITED)*/
+    uint32_t       bandwidth;   /*gv.config in bytes/s   (0 = UNLIMITED)*/
     int64_t        balance;
     nn_mtime_t      last_update;
 };
@@ -202,6 +202,7 @@ struct nn_xpack
   size_t niov;
   ddsrt_iovec_t *iov;
   enum nn_xmsg_dstmode dstmode;
+  struct q_globals *gv;
 
   union
   {
@@ -651,7 +652,7 @@ static int readerId_compatible (const struct nn_xmsg *m, const struct nn_xmsg *m
   return e.u == NN_ENTITYID_UNKNOWN || e.u == eadd.u;
 }
 
-int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct nn_xmsg *m, const struct nn_xmsg *madd)
+int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct q_globals *gv, struct nn_xmsg *m, const struct nn_xmsg *madd)
 {
   assert (m->kindspecific.data.wrseq >= 1);
   assert (m->kindspecific.data.wrguid.prefix.u[0] != 0);
@@ -702,7 +703,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct nn_xmsg *m, const stru
                an addrset in rebuild_writer_addrset: then we don't
                need the lock anymore, and the '_wrlock_held' suffix
                can go and everyone's life will become easier! */
-            if ((wr = ephash_lookup_writer_guid (&m->kindspecific.data.wrguid)) == NULL)
+            if ((wr = ephash_lookup_writer_guid (gv->guid_hash, &m->kindspecific.data.wrguid)) == NULL)
             {
               DDS_TRACE("writer-dead)");
               return 0;
@@ -837,7 +838,7 @@ int nn_xmsg_addpar_sentinel_ifparam (struct nn_xmsg * m)
    pointer we compute the address of the xmsg from the address of the
    chain element, &c. */
 
-static void nn_xmsg_chain_release (struct nn_xmsg_chain *chain)
+static void nn_xmsg_chain_release (struct q_globals *gv, struct nn_xmsg_chain *chain)
 {
   nn_guid_t wrguid;
   memset (&wrguid, 0, sizeof (wrguid));
@@ -868,7 +869,7 @@ static void nn_xmsg_chain_release (struct nn_xmsg_chain *chain)
         struct writer *wr;
         assert (m->kindspecific.data.wrseq != 0);
         wrguid = m->kindspecific.data.wrguid;
-        if ((wr = ephash_lookup_writer_guid (&m->kindspecific.data.wrguid)) != NULL)
+        if ((wr = ephash_lookup_writer_guid (gv->guid_hash, &m->kindspecific.data.wrguid)) != NULL)
           UPDATE_SEQ_XMIT_UNLOCKED(wr, m->kindspecific.data.wrseq);
       }
     }
@@ -973,12 +974,13 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
 
   /* Disallow setting async_mode if not configured to enable async mode: this way we
      can avoid starting the async send thread altogether */
-  assert (!async_mode || config.xpack_send_async);
+  assert (!async_mode || conn->m_base.gv->config.xpack_send_async);
 
   xp = ddsrt_malloc (sizeof (*xp));
   memset (xp, 0, sizeof (*xp));
   xp->async_mode = async_mode;
   xp->iov = NULL;
+  xp->gv = conn->m_base.gv;
 
   /* Fixed header fields, initialized just once */
   xp->hdr.protocol.id[0] = 'R';
@@ -998,7 +1000,7 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
   xp->conn = conn;
   nn_xpack_reinit (xp);
 
-  if (gv.thread_pool)
+  if (xp->gv->thread_pool)
     ddsi_sem_init (&xp->sem, 0);
 
 #ifdef DDSI_INCLUDE_ENCRYPTION
@@ -1029,7 +1031,7 @@ void nn_xpack_free (struct nn_xpack *xp)
     (q_security_plugin.free_encoder) (xp->codec);
   }
 #endif
-  if (gv.thread_pool)
+  if (xp->gv->thread_pool)
     ddsi_sem_destroy (&xp->sem);
   ddsrt_free (xp->iov);
   ddsrt_free (xp);
@@ -1043,14 +1045,14 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
   if (dds_get_log_mask() & DDS_LC_TRACE)
   {
     char buf[DDSI_LOCSTRLEN];
-    DDS_TRACE(" %s", ddsi_locator_to_string (buf, sizeof(buf), loc));
+    DDS_TRACE(" %s", ddsi_locator_to_string (xp->gv, buf, sizeof(buf), loc));
   }
 
-  if (config.xmit_lossiness > 0)
+  if (xp->gv->config.xmit_lossiness > 0)
   {
     /* We drop APPROXIMATELY a fraction of xmit_lossiness * 10**(-3)
        of all packets to be sent */
-    if ((ddsrt_random () % 1000) < (uint32_t) config.xmit_lossiness)
+    if ((ddsrt_random () % 1000) < (uint32_t) xp->gv->config.xmit_lossiness)
     {
       DDS_TRACE("(dropped)");
       xp->call_flags = 0;
@@ -1068,7 +1070,7 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
   else
 #endif
   {
-    if (!gv.mute)
+    if (!xp->gv->mute)
     {
       nbytes = ddsi_conn_write (xp->conn, loc, xp->niov, xp->iov, xp->call_flags);
 #ifndef NDEBUG
@@ -1129,7 +1131,7 @@ static void nn_xpack_send1_threaded (const nn_locator_t *loc, void * varg)
   arg->xp = (struct nn_xpack *) varg;
   arg->loc = loc;
   ddsrt_atomic_inc32 (&arg->xp->calls);
-  ddsrt_thread_pool_submit (gv.thread_pool, nn_xpack_send1_thread, arg);
+  ddsrt_thread_pool_submit (arg->xp->gv->thread_pool, nn_xpack_send1_thread, arg);
 }
 
 static void nn_xpack_send_real (struct nn_xpack * xp)
@@ -1169,7 +1171,7 @@ static void nn_xpack_send_real (struct nn_xpack * xp)
     calls = 0;
     if (xp->dstaddr.all.as)
     {
-      if (gv.thread_pool == NULL)
+      if (xp->gv->thread_pool == NULL)
       {
         calls = addrset_forall_count (xp->dstaddr.all.as, nn_xpack_send1v, xp);
       }
@@ -1203,7 +1205,7 @@ static void nn_xpack_send_real (struct nn_xpack * xp)
   {
     DDS_LOG(DDS_LC_TRAFFIC, "traffic-xmit (%lu) %"PRIu32"\n", (unsigned long) calls, xp->msg_len.length);
   }
-  nn_xmsg_chain_release (&xp->included_msgs);
+  nn_xmsg_chain_release (xp->gv, &xp->included_msgs);
   nn_xpack_reinit (xp);
 }
 
@@ -1211,60 +1213,61 @@ static void nn_xpack_send_real (struct nn_xpack * xp)
 #define SENDQ_HW 10
 #define SENDQ_LW 0
 
-static uint32_t nn_xpack_sendq_thread (UNUSED_ARG (void *arg))
+static uint32_t nn_xpack_sendq_thread (void *vgv)
 {
-  ddsrt_mutex_lock (&gv.sendq_lock);
-  while (!(gv.sendq_stop && gv.sendq_head == NULL))
+  struct q_globals *gv = vgv;
+  ddsrt_mutex_lock (&gv->sendq_lock);
+  while (!(gv->sendq_stop && gv->sendq_head == NULL))
   {
     struct nn_xpack *xp;
-    if ((xp = gv.sendq_head) == NULL)
+    if ((xp = gv->sendq_head) == NULL)
     {
-      ddsrt_cond_waitfor (&gv.sendq_cond, &gv.sendq_lock, 1000000);
+      ddsrt_cond_waitfor (&gv->sendq_cond, &gv->sendq_lock, 1000000);
     }
     else
     {
-      gv.sendq_head = xp->sendq_next;
-      if (--gv.sendq_length == SENDQ_LW)
-        ddsrt_cond_broadcast (&gv.sendq_cond);
-      ddsrt_mutex_unlock (&gv.sendq_lock);
+      gv->sendq_head = xp->sendq_next;
+      if (--gv->sendq_length == SENDQ_LW)
+        ddsrt_cond_broadcast (&gv->sendq_cond);
+      ddsrt_mutex_unlock (&gv->sendq_lock);
       nn_xpack_send_real (xp);
       nn_xpack_free (xp);
-      ddsrt_mutex_lock (&gv.sendq_lock);
+      ddsrt_mutex_lock (&gv->sendq_lock);
     }
   }
-  ddsrt_mutex_unlock (&gv.sendq_lock);
+  ddsrt_mutex_unlock (&gv->sendq_lock);
   return 0;
 }
 
-void nn_xpack_sendq_init (void)
+void nn_xpack_sendq_init (struct q_globals *gv)
 {
-  gv.sendq_stop = 0;
-  gv.sendq_head = NULL;
-  gv.sendq_tail = NULL;
-  gv.sendq_length = 0;
-  ddsrt_mutex_init (&gv.sendq_lock);
-  ddsrt_cond_init (&gv.sendq_cond);
+  gv->sendq_stop = 0;
+  gv->sendq_head = NULL;
+  gv->sendq_tail = NULL;
+  gv->sendq_length = 0;
+  ddsrt_mutex_init (&gv->sendq_lock);
+  ddsrt_cond_init (&gv->sendq_cond);
 }
 
-void nn_xpack_sendq_start (void)
+void nn_xpack_sendq_start (struct q_globals *gv)
 {
-  create_thread (&gv.sendq_ts, "sendq", nn_xpack_sendq_thread, NULL);
+  create_thread (&gv->sendq_ts, gv, "sendq", nn_xpack_sendq_thread, NULL);
 }
 
-void nn_xpack_sendq_stop (void)
+void nn_xpack_sendq_stop (struct q_globals *gv)
 {
-  ddsrt_mutex_lock (&gv.sendq_lock);
-  gv.sendq_stop = 1;
-  ddsrt_cond_broadcast (&gv.sendq_cond);
-  ddsrt_mutex_unlock (&gv.sendq_lock);
+  ddsrt_mutex_lock (&gv->sendq_lock);
+  gv->sendq_stop = 1;
+  ddsrt_cond_broadcast (&gv->sendq_cond);
+  ddsrt_mutex_unlock (&gv->sendq_lock);
 }
 
-void nn_xpack_sendq_fini (void)
+void nn_xpack_sendq_fini (struct q_globals *gv)
 {
-  assert (gv.sendq_head == NULL);
-  join_thread(gv.sendq_ts);
-  ddsrt_cond_destroy(&gv.sendq_cond);
-  ddsrt_mutex_destroy(&gv.sendq_lock);
+  assert (gv->sendq_head == NULL);
+  join_thread (gv->sendq_ts);
+  ddsrt_cond_destroy (&gv->sendq_cond);
+  ddsrt_mutex_destroy (&gv->sendq_lock);
 }
 
 void nn_xpack_send (struct nn_xpack *xp, bool immediately)
@@ -1275,27 +1278,28 @@ void nn_xpack_send (struct nn_xpack *xp, bool immediately)
   }
   else
   {
+    struct q_globals * const gv = xp->gv;
     struct nn_xpack *xp1 = ddsrt_malloc (sizeof (*xp));
     memcpy (xp1, xp, sizeof (*xp1));
     nn_xpack_reinit (xp);
     xp1->sendq_next = NULL;
-    ddsrt_mutex_lock (&gv.sendq_lock);
-    if (immediately || gv.sendq_length == SENDQ_HW)
-      ddsrt_cond_broadcast (&gv.sendq_cond);
-    if (gv.sendq_length >= SENDQ_MAX)
+    ddsrt_mutex_lock (&gv->sendq_lock);
+    if (immediately || gv->sendq_length == SENDQ_HW)
+      ddsrt_cond_broadcast (&gv->sendq_cond);
+    if (gv->sendq_length >= SENDQ_MAX)
     {
-      while (gv.sendq_length > SENDQ_LW)
-        ddsrt_cond_wait (&gv.sendq_cond, &gv.sendq_lock);
+      while (gv->sendq_length > SENDQ_LW)
+        ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
     }
-    if (gv.sendq_head)
-      gv.sendq_tail->sendq_next = xp1;
+    if (gv->sendq_head)
+      gv->sendq_tail->sendq_next = xp1;
     else
     {
-      gv.sendq_head = xp1;
+      gv->sendq_head = xp1;
     }
-    gv.sendq_tail = xp1;
-    gv.sendq_length++;
-    ddsrt_mutex_unlock (&gv.sendq_lock);
+    gv->sendq_tail = xp1;
+    gv->sendq_length++;
+    ddsrt_mutex_unlock (&gv->sendq_lock);
   }
 }
 
@@ -1337,7 +1341,7 @@ static int addressing_info_eq_onesidederr (const struct nn_xpack *xp, const stru
 
 static int nn_xpack_mayaddmsg (const struct nn_xpack *xp, const struct nn_xmsg *m, const uint32_t flags)
 {
-  unsigned max_msg_size = config.max_msg_size;
+  unsigned max_msg_size = xp->gv->config.max_msg_size;
   unsigned payload_size;
 
   if (xp->niov == 0)
@@ -1574,9 +1578,9 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   xp->msg_len.length = (uint32_t) sz;
   xp->niov = niov;
 
-  if (xpo_niov > 0 && sz > config.max_msg_size)
+  if (xpo_niov > 0 && sz > xp->gv->config.max_msg_size)
   {
-    DDS_TRACE(" => now niov %d sz %"PRIuSIZE" > max_msg_size %"PRIu32", nn_xpack_send niov %d sz %"PRIu32" now\n", (int) niov, sz, config.max_msg_size, (int) xpo_niov, xpo_sz);
+    DDS_TRACE(" => now niov %d sz %"PRIuSIZE" > max_msg_size %"PRIu32", nn_xpack_send niov %d sz %"PRIu32" now\n", (int) niov, sz, xp->gv->config.max_msg_size, (int) xpo_niov, xpo_sz);
     xp->msg_len.length = xpo_sz;
     xp->niov = xpo_niov;
     nn_xpack_send (xp, false);

@@ -147,6 +147,9 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
   if (participant < 0)
     DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 
+  /* Enable write batching */
+  dds_write_set_batch (true);
+
   /* A topic is created for our sample type on the domain participant. */
   topic = dds_create_topic (participant, &ThroughputModule_DataType_desc, "Throughput", NULL, NULL);
   if (topic < 0)
@@ -170,9 +173,6 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
   if (*writer < 0)
     DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-*writer));
   dds_delete_qos (dwQos);
-
-  /* Enable write batching */
-  dds_write_set_batch (true);
 
   return participant;
 }

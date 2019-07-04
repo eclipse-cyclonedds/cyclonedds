@@ -77,14 +77,15 @@ static void writer_hbcontrol_note_hb (struct writer *wr, nn_mtime_t tnow, int an
 
 int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *whcst, UNUSED_ARG (nn_mtime_t tnow))
 {
+  struct q_globals const * const gv = wr->e.gv;
   struct hbcontrol const * const hbc = &wr->hbcontrol;
-  int64_t ret = config.const_hb_intv_sched;
+  int64_t ret = gv->config.const_hb_intv_sched;
   size_t n_unacked;
 
   if (hbc->hbs_since_last_write > 2)
   {
     unsigned cnt = hbc->hbs_since_last_write;
-    while (cnt-- > 2 && 2 * ret < config.const_hb_intv_sched_max)
+    while (cnt-- > 2 && 2 * ret < gv->config.const_hb_intv_sched_max)
       ret *= 2;
   }
 
@@ -95,13 +96,14 @@ int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *
     ret /= 2;
   if (wr->throttling)
     ret /= 2;
-  if (ret < config.const_hb_intv_sched_min)
-    ret = config.const_hb_intv_sched_min;
+  if (ret < gv->config.const_hb_intv_sched_min)
+    ret = gv->config.const_hb_intv_sched_min;
   return ret;
 }
 
 void writer_hbcontrol_note_asyncwrite (struct writer *wr, nn_mtime_t tnow)
 {
+  struct q_globals const * const gv = wr->e.gv;
   struct hbcontrol * const hbc = &wr->hbcontrol;
   nn_mtime_t tnext;
 
@@ -111,7 +113,7 @@ void writer_hbcontrol_note_asyncwrite (struct writer *wr, nn_mtime_t tnow)
 
   /* We know this is new data, so we want a heartbeat event after one
      base interval */
-  tnext.v = tnow.v + config.const_hb_intv_sched;
+  tnext.v = tnow.v + gv->config.const_hb_intv_sched;
   if (tnext.v < hbc->tsched.v)
   {
     /* Insertion of a message with WHC locked => must now have at
@@ -130,6 +132,7 @@ int writer_hbcontrol_must_send (const struct writer *wr, const struct whc_state 
 
 struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, int hbansreq, int issync)
 {
+  struct q_globals const * const gv = wr->e.gv;
   struct nn_xmsg *msg;
   const nn_guid_t *prd_guid;
 
@@ -137,7 +140,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   assert (wr->reliable);
   assert (hbansreq >= 0);
 
-  if ((msg = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
     /* out of memory at worst slows down traffic */
     return NULL;
 
@@ -196,7 +199,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   else
   {
     struct proxy_reader *prd;
-    if ((prd = ephash_lookup_proxy_reader_guid (prd_guid)) == NULL)
+    if ((prd = ephash_lookup_proxy_reader_guid (gv->guid_hash, prd_guid)) == NULL)
     {
       DDS_TRACE("writer_hbcontrol: wr "PGUIDFMT" unknown prd "PGUIDFMT"\n", PGUID (wr->e.guid), PGUID (*prd_guid));
       nn_xmsg_free (msg);
@@ -221,8 +224,9 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
 
 static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tlast, nn_mtime_t tnow, int piggyback)
 {
+  struct q_globals const * const gv = wr->e.gv;
   struct hbcontrol const * const hbc = &wr->hbcontrol;
-  const int64_t hb_intv_ack = config.const_hb_intv_sched;
+  const int64_t hb_intv_ack = gv->config.const_hb_intv_sched;
   assert(wr->heartbeat_xevent != NULL && whcst != NULL);
 
   if (piggyback)
@@ -245,9 +249,9 @@ static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const
 
   if (whcst->unacked_bytes >= wr->whc_low + (wr->whc_high - wr->whc_low) / 2)
   {
-    if (tnow.v >= hbc->t_of_last_ackhb.v + config.const_hb_intv_sched_min)
+    if (tnow.v >= hbc->t_of_last_ackhb.v + gv->config.const_hb_intv_sched_min)
       return 2;
-    else if (tnow.v >= hbc->t_of_last_ackhb.v + config.const_hb_intv_min)
+    else if (tnow.v >= hbc->t_of_last_ackhb.v + gv->config.const_hb_intv_min)
       return 1;
   }
 
@@ -311,6 +315,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
 
 void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, nn_entityid_t dst, int issync)
 {
+  struct q_globals const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
   Heartbeat_t * hb;
   seqno_t max = 0, min = 1;
@@ -320,7 +325,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
   assert (wr->reliable);
   assert (hbansreq >= 0);
 
-  if (config.meas_hb_to_ack_latency)
+  if (gv->config.meas_hb_to_ack_latency)
   {
     /* If configured to measure heartbeat-to-ack latency, we must add
        a timestamp.  No big deal if it fails. */
@@ -382,6 +387,7 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
   /* actual expected_inline_qos_size is typically 0, but always claiming 32 bytes won't make
      a difference, so no point in being precise */
   const size_t expected_inline_qos_size = /* statusinfo */ 8 + /* keyhash */ 20 + /* sentinel */ 4;
+  struct q_globals const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
   unsigned char contentflag = 0;
   Data_t *data;
@@ -405,7 +411,7 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
   /* INFO_TS: 12 bytes, Data_t: 24 bytes, expected inline QoS: 32 => should be single chunk */
-  if ((*pmsg = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (Data_t) + expected_inline_qos_size, NN_XMSG_KIND_DATA)) == NULL)
+  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (Data_t) + expected_inline_qos_size, NN_XMSG_KIND_DATA)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -466,6 +472,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
      actual expected_inline_qos_size is typically 0, but always claiming 32 bytes won't make
      a difference, so no point in being precise */
   const size_t expected_inline_qos_size = /* statusinfo */ 8 + /* keyhash */ 20 + /* sentinel */ 4;
+  struct q_globals const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
   void *sm;
   Data_DataFrag_common_t *ddcmn;
@@ -478,7 +485,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
-  if (fragnum * config.fragment_size >= size && size > 0)
+  if (fragnum * gv->config.fragment_size >= size && size > 0)
   {
     /* This is the first chance to detect an attempt at retransmitting
        an non-existent fragment, which a malicious (or buggy) remote
@@ -487,10 +494,10 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
     return DDS_RETCODE_BAD_PARAMETER;
   }
 
-  fragging = (config.fragment_size < size);
+  fragging = (gv->config.fragment_size < size);
 
   /* INFO_TS: 12 bytes, DataFrag_t: 36 bytes, expected inline QoS: 32 => should be single chunk */
-  if ((*pmsg = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (DataFrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
+  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (DataFrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -554,18 +561,18 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
 
     frag->fragmentStartingNum = fragnum + 1;
     frag->fragmentsInSubmessage = 1;
-    frag->fragmentSize = (unsigned short) config.fragment_size;
+    frag->fragmentSize = (unsigned short) gv->config.fragment_size;
     frag->sampleSize = (uint32_t)size;
 
-    fragstart = fragnum * config.fragment_size;
+    fragstart = fragnum * gv->config.fragment_size;
 #if MULTIPLE_FRAGS_IN_SUBMSG /* ugly hack for testing only */
-    if (fragstart + config.fragment_size < ddsi_serdata_size (serdata) &&
-        fragstart + 2 * config.fragment_size >= ddsi_serdata_size (serdata))
+    if (fragstart + gv->config.fragment_size < ddsi_serdata_size (serdata) &&
+        fragstart + 2 * gv->config.fragment_size >= ddsi_serdata_size (serdata))
       frag->fragmentsInSubmessage++;
     ret = frag->fragmentsInSubmessage;
 #endif
 
-    fraglen = config.fragment_size * frag->fragmentsInSubmessage;
+    fraglen = gv->config.fragment_size * frag->fragmentsInSubmessage;
     if (fragstart + fraglen > size)
       fraglen = (uint32_t)(size - fragstart);
     ddcmn->octetsToInlineQos = (unsigned short) ((char*) (frag+1) - ((char*) &ddcmn->octetsToInlineQos + 2));
@@ -624,10 +631,11 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
 
 static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragnum, struct proxy_reader *prd, struct nn_xmsg **pmsg)
 {
+  struct q_globals const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
   HeartbeatFrag_t *hbf;
   ASSERT_MUTEX_HELD (&wr->e.lock);
-  if ((*pmsg = nn_xmsg_new (gv.xmsgpool, &wr->e.guid.prefix, sizeof (HeartbeatFrag_t), NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (HeartbeatFrag_t), NN_XMSG_KIND_CONTROL)) == NULL)
     return; /* ignore out-of-memory: HeartbeatFrag is only advisory anyway */
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   nn_xmsg_setencoderid (*pmsg, wr->partition_id);
@@ -741,17 +749,18 @@ static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *
 static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
 {
   /* on entry: &wr->e.lock held; on exit: lock no longer held */
+  struct q_globals const * const gv = wr->e.gv;
   struct nn_xmsg *fmsg;
   uint32_t sz;
   assert(xp);
   assert((wr->heartbeat_xevent != NULL) == (whcst != NULL));
 
   sz = ddsi_serdata_size (serdata);
-  if (sz > config.fragment_size || !isnew || plist != NULL || prd != NULL)
+  if (sz > gv->config.fragment_size || !isnew || plist != NULL || prd != NULL)
   {
     uint32_t nfrags;
     ddsrt_mutex_unlock (&wr->e.lock);
-    nfrags = (sz + config.fragment_size - 1) / config.fragment_size;
+    nfrags = (sz + gv->config.fragment_size - 1) / gv->config.fragment_size;
     transmit_sample_lgmsg_unlocked (xp, wr, whcst, seq, plist, serdata, prd, isnew, nfrags);
     return;
   }
@@ -782,13 +791,14 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, 
 
 int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
 {
+  struct q_globals const * const gv = wr->e.gv;
   uint32_t i, sz, nfrags;
   int enqueued = 1;
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
   sz = ddsi_serdata_size (serdata);
-  nfrags = (sz + config.fragment_size - 1) / config.fragment_size;
+  nfrags = (sz + gv->config.fragment_size - 1) / gv->config.fragment_size;
   if (nfrags == 0)
   {
     /* end-of-transaction messages are empty, but still need to be sent */
@@ -924,7 +934,7 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
      resent to them, until a ACKNACK is received from that
      reader. This implicitly clears the whc and unblocks the
      writer. */
-
+  struct q_globals const * const gv = wr->e.gv;
   dds_return_t result = DDS_RETCODE_OK;
   nn_mtime_t tnow = now_mt ();
   const nn_mtime_t abstimeout = add_duration_to_mtime (tnow, wr->xqos->reliability.max_blocking_time);
@@ -958,7 +968,7 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
     whc_get_state (wr->whc, &whcst);
   }
 
-  while (ddsrt_atomic_ld32 (&gv.rtps_keepgoing) && !writer_may_continue (wr, &whcst))
+  while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing) && !writer_may_continue (wr, &whcst))
   {
     int64_t reltimeout;
     tnow = now_mt ();
@@ -969,7 +979,7 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
       thread_state_asleep (ts1);
       if (ddsrt_cond_waitfor (&wr->throttle_cond, &wr->e.lock, reltimeout))
         result = DDS_RETCODE_OK;
-      thread_state_awake (ts1);
+      thread_state_awake_domain_ok (ts1);
       whc_get_state(wr->whc, &whcst);
     }
     if (result == DDS_RETCODE_TIMEOUT)
@@ -991,14 +1001,15 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
 
 static int maybe_grow_whc (struct writer *wr)
 {
-  if (!wr->retransmitting && config.whc_adaptive && wr->whc_high < config.whc_highwater_mark)
+  struct q_globals const * const gv = wr->e.gv;
+  if (!wr->retransmitting && gv->config.whc_adaptive && wr->whc_high < gv->config.whc_highwater_mark)
   {
     nn_etime_t tnow = now_et();
     nn_etime_t tgrow = add_duration_to_etime (wr->t_whc_high_upd, 10 * T_MILLISECOND);
     if (tnow.v >= tgrow.v)
     {
-      uint32_t m = (config.whc_highwater_mark - wr->whc_high) / 32;
-      wr->whc_high = (m == 0) ? config.whc_highwater_mark : wr->whc_high + m;
+      uint32_t m = (gv->config.whc_highwater_mark - wr->whc_high) / 32;
+      wr->whc_high = (m == 0) ? gv->config.whc_highwater_mark : wr->whc_high + m;
       wr->t_whc_high_upd = tnow;
       return 1;
     }
@@ -1008,6 +1019,7 @@ static int maybe_grow_whc (struct writer *wr)
 
 static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
 {
+  struct q_globals const * const gv = wr->e.gv;
   int r;
   seqno_t seq;
   nn_mtime_t tnow;
@@ -1016,7 +1028,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
   assert(gc_allowed || (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST && wr->whc_low == INT32_MAX));
   (void)gc_allowed;
 
-  if (ddsi_serdata_size (serdata) > config.max_sample_size)
+  if (ddsi_serdata_size (serdata) > gv->config.max_sample_size)
   {
     char ppbuf[1024];
     int tmp;
@@ -1025,7 +1037,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
     ppbuf[0] = '\0';
     tmp = sizeof (ppbuf) - 1;
     DDS_WARNING ("dropping oversize (%"PRIu32" > %"PRIu32") sample from local writer "PGUIDFMT" %s/%s:%s%s\n",
-                 ddsi_serdata_size (serdata), config.max_sample_size,
+                 ddsi_serdata_size (serdata), gv->config.max_sample_size,
                  PGUID (wr->e.guid), tname, ttname, ppbuf,
                  tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
     r = DDS_RETCODE_BAD_PARAMETER;
@@ -1047,7 +1059,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
     {
       dds_return_t ores;
       assert(gc_allowed); /* also see beginning of the function */
-      if (config.prioritize_retransmit && wr->retransmitting)
+      if (gv->config.prioritize_retransmit && wr->retransmitting)
         ores = throttle_writer (ts1, xp, wr);
       else
       {
@@ -1177,9 +1189,9 @@ int write_sample_gc_notk (struct thread_state1 * const ts1, struct nn_xpack *xp,
   struct ddsi_tkmap_instance *tk;
   int res;
   assert (thread_is_awake ());
-  tk = ddsi_tkmap_lookup_instance_ref (serdata);
+  tk = ddsi_tkmap_lookup_instance_ref (wr->e.gv->m_tkmap, serdata);
   res = write_sample_eot (ts1, xp, wr, NULL, serdata, tk, 0, 1);
-  ddsi_tkmap_instance_unref (tk);
+  ddsi_tkmap_instance_unref (wr->e.gv->m_tkmap, tk);
   return res;
 }
 
@@ -1188,8 +1200,8 @@ int write_sample_nogc_notk (struct thread_state1 * const ts1, struct nn_xpack *x
   struct ddsi_tkmap_instance *tk;
   int res;
   assert (thread_is_awake ());
-  tk = ddsi_tkmap_lookup_instance_ref (serdata);
+  tk = ddsi_tkmap_lookup_instance_ref (wr->e.gv->m_tkmap, serdata);
   res = write_sample_eot (ts1, xp, wr, NULL, serdata, tk, 0, 0);
-  ddsi_tkmap_instance_unref (tk);
+  ddsi_tkmap_instance_unref (wr->e.gv->m_tkmap, tk);
   return res;
 }

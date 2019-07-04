@@ -33,15 +33,17 @@ enum ddsi_sertopic_builtintopic_type {
   DSBT_WRITER
 };
 
+struct q_globals;
 struct ddsi_sertopic_builtintopic {
   struct ddsi_sertopic c;
   enum ddsi_sertopic_builtintopic_type type;
+  struct q_globals *gv;
 };
 
 extern const struct ddsi_sertopic_ops ddsi_sertopic_ops_builtintopic;
 extern const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic;
 
-struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic_type type, const char *name, const char *typename);
+struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic_type type, const char *name, const char *typename, struct q_globals *gv);
 
 #if defined (__cplusplus)
 }

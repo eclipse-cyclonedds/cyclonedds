@@ -843,8 +843,6 @@ static const struct cfgelem root_cfgelem = {
 #undef ABSOFF
 #undef CO
 
-struct config config;
-
 static const struct unit unittab_duration[] = {
   { "ns", 1 },
   { "us", 1000 },

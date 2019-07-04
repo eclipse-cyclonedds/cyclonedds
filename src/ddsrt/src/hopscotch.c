@@ -299,6 +299,7 @@ struct ddsrt_chh {
     ddsrt_hh_equals_fn equals;
     ddsrt_rwlock_t resize_locks[N_RESIZE_LOCKS];
     ddsrt_hh_buckets_gc_fn gc_buckets;
+    void *gc_buckets_arg;
 };
 
 #define CHH_MAX_TRIES 4
@@ -309,7 +310,7 @@ static int ddsrt_chh_data_valid_p (void *data)
     return data != NULL && data != CHH_BUSY;
 }
 
-static int ddsrt_chh_init (struct ddsrt_chh *rt, uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets)
+static int ddsrt_chh_init (struct ddsrt_chh *rt, uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets, void *gc_buckets_arg)
 {
     uint32_t size;
     uint32_t i;
@@ -322,6 +323,7 @@ static int ddsrt_chh_init (struct ddsrt_chh *rt, uint32_t init_size, ddsrt_hh_ha
     rt->hash = hash;
     rt->equals = equals;
     rt->gc_buckets = gc_buckets;
+    rt->gc_buckets_arg = gc_buckets_arg;
 
     buckets = ddsrt_malloc (offsetof (struct ddsrt_chh_bucket_array, bs) + size * sizeof (*buckets->bs));
     ddsrt_atomic_stvoidp (&rt->buckets, buckets);
@@ -359,10 +361,10 @@ static void ddsrt_chh_fini (struct ddsrt_chh *rt)
     }
 }
 
-struct ddsrt_chh *ddsrt_chh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets)
+struct ddsrt_chh *ddsrt_chh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets, void *gc_buckets_arg)
 {
     struct ddsrt_chh *hh = ddsrt_malloc (sizeof (*hh));
-    if (ddsrt_chh_init (hh, init_size, hash, equals, gc_buckets) < 0) {
+    if (ddsrt_chh_init (hh, init_size, hash, equals, gc_buckets, gc_buckets_arg) < 0) {
         ddsrt_free (hh);
         return NULL;
     } else {
@@ -572,7 +574,7 @@ static void ddsrt_chh_resize (struct ddsrt_chh *rt)
 
     ddsrt_atomic_fence ();
     ddsrt_atomic_stvoidp (&rt->buckets, bsary1);
-    rt->gc_buckets (bsary0);
+    rt->gc_buckets (bsary0, rt->gc_buckets_arg);
 }
 
 int ddsrt_chh_add (struct ddsrt_chh * __restrict rt, const void * __restrict data)

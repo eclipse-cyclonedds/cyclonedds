@@ -216,7 +216,7 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
 {
   struct ddsi_serdata_default *d = (struct ddsi_serdata_default *)dcmn;
   assert(ddsrt_atomic_ld32(&d->c.refc) == 0);
-  if (d->size > MAX_SIZE_FOR_POOL || !nn_freelist_push (&gv.serpool->freelist, d))
+  if (d->size > MAX_SIZE_FOR_POOL || !nn_freelist_push (&d->serpool->freelist, d))
     dds_free (d);
 }
 
@@ -234,20 +234,20 @@ static void serdata_default_init(struct ddsi_serdata_default *d, const struct dd
   d->keyhash.m_iskey = 0;
 }
 
-static struct ddsi_serdata_default *serdata_default_allocnew (struct serdatapool *pool, uint32_t init_size)
+static struct ddsi_serdata_default *serdata_default_allocnew (struct serdatapool *serpool, uint32_t init_size)
 {
   struct ddsi_serdata_default *d = ddsrt_malloc (offsetof (struct ddsi_serdata_default, data) + init_size);
   d->size = init_size;
-  d->pool = pool;
+  d->serpool = serpool;
   return d;
 }
 
 static struct ddsi_serdata_default *serdata_default_new_size (const struct ddsi_sertopic_default *tp, enum ddsi_serdata_kind kind, uint32_t size)
 {
   struct ddsi_serdata_default *d;
-  if (size <= MAX_SIZE_FOR_POOL && (d = nn_freelist_pop (&gv.serpool->freelist)) != NULL)
+  if (size <= MAX_SIZE_FOR_POOL && (d = nn_freelist_pop (&tp->serpool->freelist)) != NULL)
     ddsrt_atomic_st32 (&d->c.refc, 1);
-  else if ((d = serdata_default_allocnew (gv.serpool, size)) == NULL)
+  else if ((d = serdata_default_allocnew (tp->serpool, size)) == NULL)
     return NULL;
   serdata_default_init (d, tp, kind);
   return d;
