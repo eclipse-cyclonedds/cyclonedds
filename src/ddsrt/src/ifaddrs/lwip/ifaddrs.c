@@ -67,13 +67,13 @@ sockaddr_from_ip_addr(
   }
 }
 
-static dds_retcode_t
+static dds_return_t
 copyaddr(
   ddsrt_ifaddrs_t **ifap,
   const struct netif *netif,
   const ip_addr_t *addr)
 {
-  dds_retcode_t rc = DDS_RETCODE_OK;
+  dds_return_t rc = DDS_RETCODE_OK;
   ddsrt_ifaddrs_t *ifa;
   struct sockaddr_storage sa;
 
@@ -122,12 +122,12 @@ copyaddr(
   return rc;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_getifaddrs(
   ddsrt_ifaddrs_t **ifap,
   const int *afs)
 {
-  dds_retcode_t rc = DDS_RETCODE_OK;
+  dds_return_t rc = DDS_RETCODE_OK;
   int use_ip4, use_ip6;
   struct netif *netif;
   ddsrt_ifaddrs_t *ifa, *next_ifa, *root_ifa;

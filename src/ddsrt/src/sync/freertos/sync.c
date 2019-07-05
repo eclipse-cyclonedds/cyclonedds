@@ -82,13 +82,13 @@ void ddsrt_mutex_unlock(ddsrt_mutex_t *mutex)
   }
 }
 
-static dds_retcode_t
+static dds_return_t
 cond_timedwait(
   ddsrt_cond_t *cond,
   ddsrt_mutex_t *mutex,
   dds_duration_t reltime)
 {
-  dds_retcode_t rc = DDS_RETCODE_OK;
+  dds_return_t rc = DDS_RETCODE_OK;
   dds_time_t abstime;
   TaskHandle_t task;
   TickType_t ticks = 0;
@@ -174,7 +174,7 @@ ddsrt_cond_waitfor(
   ddsrt_mutex_t *mutex,
   dds_duration_t reltime)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
 
   assert(cond != NULL);
   assert(mutex != NULL);
@@ -198,7 +198,7 @@ ddsrt_cond_waituntil(
   ddsrt_mutex_t *mutex,
   dds_time_t abstime)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   dds_time_t time;
   dds_duration_t reltime;
 

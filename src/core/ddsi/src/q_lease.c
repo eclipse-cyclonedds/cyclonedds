@@ -295,7 +295,7 @@ static void debug_print_rawdata (const char *msg, const void *data, size_t len)
   DDS_TRACE(">");
 }
 
-void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
+void handle_PMD (UNUSED_ARG (const struct receiver_state *rst), nn_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len)
 {
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
   const int bswap = (data->identifier == CDR_LE) ^ (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);

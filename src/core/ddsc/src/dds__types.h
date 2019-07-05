@@ -173,8 +173,9 @@ dds_return_t dds_entity_deriver_dummy_delete (struct dds_entity *e);
 dds_return_t dds_entity_deriver_dummy_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled);
 dds_return_t dds_entity_deriver_dummy_validate_status (uint32_t mask);
 
+
 inline dds_return_t dds_entity_deriver_close (struct dds_entity *e) {
-  return dds_entity_deriver_table[e->m_kind]->close (e);
+  return (dds_entity_deriver_table[e->m_kind]->close) (e);
 }
 inline dds_return_t dds_entity_deriver_delete (struct dds_entity *e) {
   return dds_entity_deriver_table[e->m_kind]->delete (e);

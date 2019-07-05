@@ -29,10 +29,10 @@
 #error "Time base for run time stats is not defined"
 #endif
 
-static dds_retcode_t
+static dds_return_t
 rusage_self(ddsrt_rusage_t *usage)
 {
-  dds_retcode_t rc = DDS_RETCODE_OK;
+  dds_return_t rc = DDS_RETCODE_OK;
   dds_duration_t nsecs;
   UBaseType_t cnt, len;
   TaskStatus_t *states = NULL, *ptr;
@@ -65,7 +65,7 @@ rusage_self(ddsrt_rusage_t *usage)
   return rc;
 }
 
-static dds_retcode_t
+static dds_return_t
 rusage_thread(ddsrt_rusage_t *usage)
 {
   TaskStatus_t states;
@@ -78,10 +78,10 @@ rusage_thread(ddsrt_rusage_t *usage)
   return DDS_RETCODE_OK;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_getrusage(int who, ddsrt_rusage_t *usage)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
 
   assert(who == DDSRT_RUSAGE_SELF || who == DDSRT_RUSAGE_THREAD);
   assert(usage != NULL);
