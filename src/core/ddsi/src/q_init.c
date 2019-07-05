@@ -1253,7 +1253,6 @@ int rtps_init (void)
   gv.gcreq_queue = gcreq_queue_new ();
 
   ddsrt_atomic_st32 (&gv.rtps_keepgoing, 1);
-  ddsrt_rwlock_init (&gv.qoslock);
 
   if (config.xpack_send_async)
   {
@@ -1645,7 +1644,6 @@ void rtps_fini (void)
   nn_plist_fini (&gv.default_plist_pp);
 
   ddsrt_mutex_destroy (&gv.lock);
-  ddsrt_rwlock_destroy (&gv.qoslock);
 
   while (gv.recvips)
   {
