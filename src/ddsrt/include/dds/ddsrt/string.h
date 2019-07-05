@@ -53,21 +53,6 @@ ddsrt_strncasecmp(
 ddsrt_nonnull((1,2));
 
 /**
- * @brief Split string into tokens.
- *
- * @param[in]     str      String to split into tokens.
- * @param[in]     delim    Characters that delimit a token.
- * @param[in,out] saveptr  Pointer to a char * used internally.
- *
- * @returns The next token or NULL if there are no more tokens.
- */
-DDS_EXPORT char *
-ddsrt_strtok_r(
-  char *str,
-  const char *delim,
-  char **saveptr);
-
-/**
  * @brief Extract token from string.
  *
  * Finds the first token in @stringp delimited by one of the characters in

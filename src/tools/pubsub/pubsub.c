@@ -2516,10 +2516,10 @@ int main(int argc, char *argv[]) {
         }
         break;
         case 'S': {
-            char *copy = dds_string_dup(optarg), *tok, *lasts;
+            char *copy = dds_string_dup(optarg), *tok, *cursor = copy;
             if (copy == NULL)
                 abort();
-            tok = ddsrt_strtok_r(copy, ",", &lasts);
+            tok = ddsrt_strsep(&cursor, ",");
             while (tok) {
                 if (strcmp(tok, "pr") == 0 || strcmp(tok, "pre-read") == 0)
                     spec[specidx].rd.print_match_pre_read = 1;
@@ -2551,7 +2551,7 @@ int main(int argc, char *argv[]) {
                     fprintf (stderr, "-S %s: invalid event\n", tok);
                     exit(2);
                 }
-                tok = ddsrt_strtok_r(NULL, ",", &lasts);
+                tok = ddsrt_strsep(&cursor, ",");
             }
             dds_free(copy);
         }
