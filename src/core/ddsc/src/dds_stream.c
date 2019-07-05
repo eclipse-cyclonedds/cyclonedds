@@ -1342,7 +1342,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
       dds_stream_swap_copy (dst, src, num, align);
 #else
-      dds_stream_read_fixed_buffer (is, dst, num, align);
+      memcpy (dst, src, num * align);
 #endif
       os->x.m_index += num * align;
       is->m_index += num * align;
