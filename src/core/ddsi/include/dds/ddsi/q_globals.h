@@ -195,10 +195,6 @@ struct q_globals {
   struct addrset *as_disc;
   struct addrset *as_disc_group;
 
-  /* qoslock serializes QoS changes, probably not strictly necessary,
-     but a lot more straightforward that way */
-  ddsrt_rwlock_t qoslock;
-
   ddsrt_mutex_t lock;
 
   /* Receive thread. (We can only has one for now, cos of the signal

@@ -1294,7 +1294,6 @@ void rebuild_or_clear_writer_addrsets(int rebuild)
   struct addrset *empty = rebuild ? NULL : new_addrset();
   DDS_LOG(DDS_LC_DISCOVERY, "rebuild_or_delete_writer_addrsets(%d)\n", rebuild);
   ephash_enum_writer_init (&est);
-  ddsrt_rwlock_read (&gv.qoslock);
   while ((wr = ephash_enum_writer_next (&est)) != NULL)
   {
     ddsrt_mutex_lock (&wr->e.lock);
@@ -1318,7 +1317,6 @@ void rebuild_or_clear_writer_addrsets(int rebuild)
     }
     ddsrt_mutex_unlock (&wr->e.lock);
   }
-  ddsrt_rwlock_unlock (&gv.qoslock);
   ephash_enum_writer_fini (&est);
   unref_addrset(empty);
   DDS_LOG(DDS_LC_DISCOVERY, "rebuild_or_delete_writer_addrsets(%d) done\n", rebuild);
@@ -2334,10 +2332,8 @@ static void generic_do_match (struct entity_common *e, nn_mtime_t tnow)
      enumerating), but we may visit a single proxy reader multiple
      times. */
     ephash_enum_init (&est, mkind);
-    ddsrt_rwlock_read (&gv.qoslock);
     while ((em = ephash_enum_next (&est)) != NULL)
       generic_do_match_connect(e, em, tnow);
-    ddsrt_rwlock_unlock (&gv.qoslock);
     ephash_enum_fini (&est);
   }
   else
@@ -2386,10 +2382,8 @@ static void generic_do_local_match (struct entity_common *e, nn_mtime_t tnow)
      enumerating), but we may visit a single proxy reader multiple
      times. */
   ephash_enum_init (&est, mkind);
-  ddsrt_rwlock_read (&gv.qoslock);
   while ((em = ephash_enum_next (&est)) != NULL)
     generic_do_local_match_connect(e, em, tnow);
-  ddsrt_rwlock_unlock (&gv.qoslock);
   ephash_enum_fini (&est);
 }
 
