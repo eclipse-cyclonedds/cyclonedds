@@ -1,0 +1,30 @@
+export CYCLONEDDS_URI='<Internal><MinimumSocketReceiveBufferSize>250kB</></><General><MaxMessageSize>65500B</><FragmentSize>65000B</>'
+set -x
+gen/ddsperf -D20 -L ping pon
+for x in 16 32 64 128 1024 4096 16384 ; do
+  gen/ddsperf -D20 -TKS -z$x -L ping pong
+done
+gen/ddsperf -D20 -L pub sub
+for x in 16 32 64 128 1024 4096 16384 ; do
+  gen/ddsperf -D20 -TKS -z$x -L pub sub
+done
+gen/ddsperf pong & pid=$!
+gen/ddsperf -D20 ping
+kill $pid
+wait
+gen/ddsperf -TKS pong & pid=$!	
+for x in 16 32 64 128 1024 4096 16384 ; do
+  gen/ddsperf -D20 -TKS -z$x ping
+done
+kill $pid
+wait
+gen/ddsperf sub & pid=$!
+gen/ddsperf -D20 pub
+kill $pid
+wait
+gen/ddsperf -TKS sub & pid=$!
+for x in 16 32 64 128 1024 4096 16384 ; do
+  gen/ddsperf -D20 -TKS -z$x pub
+done
+kill $pid
+wait

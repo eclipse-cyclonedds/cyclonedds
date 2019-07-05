@@ -28,6 +28,7 @@
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_vendor.h"
+#include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
 
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_globals.h"

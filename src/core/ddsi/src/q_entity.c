@@ -41,6 +41,7 @@
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/q_receive.h"
+#include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
 
 #include "dds/ddsi/sysdeps.h"
 #include "dds__whc.h"

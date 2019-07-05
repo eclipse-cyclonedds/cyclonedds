@@ -48,14 +48,6 @@
    != 0 -- and note that it had better be 2's complement machine! */
 #define TSCHED_DELETE ((int64_t) ((uint64_t) 1 << 63))
 
-#if __STDC_VERSION__ >= 199901L
-#define POS_INFINITY_DOUBLE INFINITY
-#else
-/* Hope for the best -- the only consequence of getting this wrong is
-   that T_NEVER may be printed as a fugly value instead of as +inf. */
-#define POS_INFINITY_DOUBLE (HUGE_VAL + HUGE_VAL)
-#endif
-
 enum xeventkind
 {
   XEVK_HEARTBEAT,
@@ -623,7 +615,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
           PGUID (wr->e.guid),
           hbansreq ? "" : " final",
           msg ? "sent" : "suppressed",
-          (t_next.v == T_NEVER) ? POS_INFINITY_DOUBLE : (double)(t_next.v - tnow.v) / 1e9,
+          (t_next.v == T_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
           ddsrt_avl_is_empty (&wr->readers) ? (seqno_t) -1 : ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->min_seq,
           ddsrt_avl_is_empty (&wr->readers) || ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
           whcst.max_seq, READ_SEQ_XMIT(wr));

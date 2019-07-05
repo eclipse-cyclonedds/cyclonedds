@@ -150,10 +150,10 @@ foreach(feature atomics cdtors environ heap ifaddrs random rusage
                 sockets string sync threads time md5 process)
   if(EXISTS "${include_path}/dds/ddsrt/${feature}.h")
     list(APPEND headers "${include_path}/dds/ddsrt/${feature}.h")
-    file(GLOB
+    file(GLOB_RECURSE
            files
          CONFIGURE_DEPENDS
-           "${include_path}/dds/ddsrt/${feature}/**.h")
+           "${include_path}/dds/ddsrt/${feature}/*.h")
     list(APPEND headers ${files})
 
     # Do not add any sources if a feature is not offered by the target. The
@@ -193,20 +193,20 @@ foreach(feature atomics cdtors environ heap ifaddrs random rusage
         # Headers that must remain private but are required by other runtime
         # source files must be located in src/<feature>/dds/ddsrt.
         if(IS_DIRECTORY "${source_path}/${feature}/include")
-          file(GLOB
+          file(GLOB_RECURSE
                  files
                CONFIGURE_DEPENDS
-                 "${source_path}/${feature}/include/**.h")
-          list(APPEND sources ${files})
+                 "${source_path}/${feature}/include/*.h")
+          list(APPEND headers ${files})
           target_include_directories(
             ddsrt INTERFACE
               "$<BUILD_INTERFACE:${source_path}/${feature}/include/>")
         endif()
         if(IS_DIRECTORY "${source_path}/${feature}/${system}")
-          file(GLOB
+          file(GLOB_RECURSE
                  files
                CONFIGURE_DEPENDS
-                 "${source_path}/${feature}/${system}/**.c")
+                 "${source_path}/${feature}/${system}/*.c")
           list(APPEND sources ${files})
           set(system_exists TRUE)
         endif()

@@ -9,26 +9,36 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDSI_UDP_H_
-#define _DDSI_UDP_H_
+#ifndef DDSRT_POSIX_SYNC_H
+#define DDSRT_POSIX_SYNC_H
+
+#include <stdint.h>
+#include <pthread.h>
+#if HAVE_LKST
+#include "lkst.h"
+#endif
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-  typedef struct nn_udpv4mcgen_address {
-    /* base IPv4 MC address is ipv4, host bits are bits base .. base+count-1, this machine is bit idx */
-    struct in_addr ipv4;
-    uint8_t base;
-    uint8_t count;
-    uint8_t idx; /* must be last: then sorting will put them consecutively */
-  } nn_udpv4mcgen_address_t;
+typedef struct {
+    pthread_cond_t cond;
+} ddsrt_cond_t;
 
+typedef struct {
+    pthread_mutex_t mutex;
+} ddsrt_mutex_t;
 
-int ddsi_udp_init (void);
+typedef struct {
+    pthread_mutex_t rwlock;
+} ddsrt_rwlock_t;
+
+typedef pthread_once_t ddsrt_once_t;
+#define DDSRT_ONCE_INIT PTHREAD_ONCE_INIT
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif
+#endif /* DDSRT_POSIX_SYNC_H */

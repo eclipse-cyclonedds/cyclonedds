@@ -23,6 +23,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_globals.h" /* gv.mattr */
+#include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
 
 /* So what does one do with const & mutexes? I need to take lock in a
    pure function just in case some other thread is trying to change

@@ -165,22 +165,30 @@ void ddsrt_atomic_lifo_pushmany (ddsrt_atomic_lifo_t *head, void *first, void *l
 }
 #endif
 
-#if DDSRT_HAVE_ATOMIC64
-void ddsrt_atomics_init (void)
-{
-}
+/* On platforms that don't provide 64-bit atomic operations, emulate them by hashing
+   the variable's address to a small set of mutexes.
 
-void ddsrt_atomics_fini (void)
-{
-}
+   This also defines the GCC builtins on SPARCv8 for 32-bit operations.  It would be
+   more appropriate to simply define the ddsrt_atomic_... functions properly in that
+   case and avoid squatting in the __sync_... namespace, but SPARCv8 support really
+   is just for fun and it doesn't seem worth the bother right now */
+
+#if DDSRT_HAVE_ATOMIC64
+
+void ddsrt_atomics_init (void) { }
+void ddsrt_atomics_fini (void) { }
 
 #else
 
-/* Emulation by hashing the variable's address to a small set of mutexes.  */
 #include "dds/ddsrt/sync.h"
 
+/* SPARCv8 depends on these mutexes already for one-shot initialisation of the ddsrt
+   code.  Using PTHREAD_MUTEX_INITIALIZER guarantees they are properly initialized.
+   Once a platform shows up that defines that macro where we don't used pthread mutexes
+   something else will have to be done. */
 #define N_MUTEXES_LG2 4
 #define N_MUTEXES     (1 << N_MUTEXES_LG2)
+#ifndef PTHREAD_MUTEX_INITIALIZER
 static ddsrt_mutex_t mutexes[N_MUTEXES];
 
 void ddsrt_atomics_init (void)
@@ -194,6 +202,20 @@ void ddsrt_atomics_fini (void)
   for (int i = 0; i < N_MUTEXES; i++)
     ddsrt_mutex_destroy (&mutexes[i]);
 }
+#else
+static ddsrt_mutex_t mutexes[N_MUTEXES] = {
+  { PTHREAD_MUTEX_INITIALIZER }, { PTHREAD_MUTEX_INITIALIZER },
+  { PTHREAD_MUTEX_INITIALIZER }, { PTHREAD_MUTEX_INITIALIZER },
+  { PTHREAD_MUTEX_INITIALIZER }, { PTHREAD_MUTEX_INITIALIZER },
+  { PTHREAD_MUTEX_INITIALIZER }, { PTHREAD_MUTEX_INITIALIZER },
+  { PTHREAD_MUTEX_INITIALIZER }, { PTHREAD_MUTEX_INITIALIZER },
+  { PTHREAD_MUTEX_INITIALIZER }, { PTHREAD_MUTEX_INITIALIZER },
+  { PTHREAD_MUTEX_INITIALIZER }, { PTHREAD_MUTEX_INITIALIZER },
+  { PTHREAD_MUTEX_INITIALIZER }, { PTHREAD_MUTEX_INITIALIZER }
+};
+void ddsrt_atomics_init (void) { }
+void ddsrt_atomics_fini (void) { }
+#endif
 
 static uint32_t atomic64_lock_index (const volatile ddsrt_atomic_uint64_t *x)
 {
@@ -219,7 +241,25 @@ int ddsrt_atomic_cas64 (volatile ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_
   }
 }
 
-uint64_t ddsrt_atomic_ld64(const volatile ddsrt_atomic_uint64_t *x)
+#define DDSRT_FAKE_ATOMIC64(name, oper, ret) \
+  uint64_t ddsrt_atomic_##name##64_##ret (volatile ddsrt_atomic_uint64_t *x, uint64_t v) \
+  { \
+    const uint64_t idx = atomic64_lock_index (x); \
+    ddsrt_mutex_lock (&mutexes[idx]); \
+    const uint64_t ov = x->v; \
+    const uint64_t nv = ov oper v; \
+    x->v = nv; \
+    ddsrt_mutex_unlock (&mutexes[idx]); \
+    return ret; \
+  }
+#define DDSRT_FAKE_ATOMIC64_TRIPLET(name, oper) \
+  DDSRT_FAKE_ATOMIC64(name, oper, nv) \
+  DDSRT_FAKE_ATOMIC64(name, oper, ov) \
+  void ddsrt_atomic_##name##64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) { \
+    (void) ddsrt_atomic_##name##64_ov (x, v); \
+  }
+
+uint64_t ddsrt_atomic_ld64 (const volatile ddsrt_atomic_uint64_t *x)
 {
   const uint32_t idx = atomic64_lock_index (x);
   ddsrt_mutex_lock (&mutexes[idx]);
@@ -228,7 +268,7 @@ uint64_t ddsrt_atomic_ld64(const volatile ddsrt_atomic_uint64_t *x)
   return v;
 }
 
-void ddsrt_atomic_st64(volatile ddsrt_atomic_uint64_t *x, uint64_t v)
+void ddsrt_atomic_st64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
 {
   const uint32_t idx = atomic64_lock_index (x);
   ddsrt_mutex_lock (&mutexes[idx]);
@@ -236,136 +276,70 @@ void ddsrt_atomic_st64(volatile ddsrt_atomic_uint64_t *x, uint64_t v)
   ddsrt_mutex_unlock (&mutexes[idx]);
 }
 
-void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x)
-{
-  const uint32_t idx = atomic64_lock_index (x);
-  ddsrt_mutex_lock (&mutexes[idx]);
-  ++x->v;
-  ddsrt_mutex_unlock (&mutexes[idx]);
+DDSRT_FAKE_ATOMIC64_TRIPLET(add, +)
+DDSRT_FAKE_ATOMIC64_TRIPLET(sub, -)
+DDSRT_FAKE_ATOMIC64_TRIPLET(or,  |)
+DDSRT_FAKE_ATOMIC64_TRIPLET(and, &)
+
+void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x) {
+  ddsrt_atomic_add64 (x, 1);
+}
+uint64_t ddsrt_atomic_inc64_nv (volatile ddsrt_atomic_uint64_t *x) {
+  return ddsrt_atomic_add64_nv (x, 1);
+}
+void ddsrt_atomic_dec64 (volatile ddsrt_atomic_uint64_t *x) {
+  ddsrt_atomic_sub64 (x, 1);
+}
+uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_uint64_t *x) {
+  return ddsrt_atomic_sub64_nv (x, 1);
 }
 
-uint64_t ddsrt_atomic_inc64_nv (volatile ddsrt_atomic_uint64_t *x)
+#undef DDSRT_FAKE_ATOMIC64_TRIPLET
+#undef DDSRT_FAKE_ATOMIC64
+
+/* SPARCv8 doesn't support any atomic operations beyond a simple atomic exchange.  GCC happily
+   compiles the __sync_* functions into library calls, and implementing them as such will do
+   the trick.  The rarity of SPARCv8 machines (EOL'd 2 decades ago) */
+#ifdef __sparc_v8__
+#define DDSRT_FAKE_SYNC(name, size, oper, ret)                          \
+  unsigned __sync_##name##_##size (volatile unsigned *x, unsigned v) \
+  {                                                                     \
+    const uint32_t idx = atomic64_lock_index ((const volatile ddsrt_atomic_uint64_t *) x); \
+    ddsrt_mutex_lock (&mutexes[idx]);                                   \
+    const uint32_t ov = *x;                                             \
+    const uint32_t nv = ov oper v;                                      \
+    *x = nv;                                                            \
+    ddsrt_mutex_unlock (&mutexes[idx]);                                 \
+    return ret;                                                         \
+  }
+#define DDSRT_FAKE_SYNC_PAIR(name, size, oper)          \
+  DDSRT_FAKE_SYNC(name##_and_fetch, size, oper, nv)     \
+  DDSRT_FAKE_SYNC(fetch_and_##name, size, oper, ov)
+
+DDSRT_FAKE_SYNC_PAIR (add, 4, +)
+DDSRT_FAKE_SYNC_PAIR (sub, 4, -)
+DDSRT_FAKE_SYNC_PAIR (or,  4, |)
+DDSRT_FAKE_SYNC_PAIR (and, 4, &)
+
+bool __sync_bool_compare_and_swap_4 (volatile unsigned *x, unsigned exp, unsigned des)
 {
-  const uint32_t idx = atomic64_lock_index (x);
+  const uint32_t idx = atomic64_lock_index ((const volatile ddsrt_atomic_uint64_t *) x);
   ddsrt_mutex_lock (&mutexes[idx]);
-  const uint64_t nv = ++x->v;
-  ddsrt_mutex_unlock (&mutexes[idx]);
-  return nv;
+  if (*x == exp)
+  {
+    *x = des;
+    ddsrt_mutex_unlock (&mutexes[idx]);
+    return true;
+  }
+  else
+  {
+    ddsrt_mutex_unlock (&mutexes[idx]);
+    return false;
+  }
 }
 
-void ddsrt_atomic_dec64 (volatile ddsrt_atomic_uint64_t *x)
-{
-  const uint32_t idx = atomic64_lock_index (x);
-  ddsrt_mutex_lock (&mutexes[idx]);
-  --x->v;
-  ddsrt_mutex_unlock (&mutexes[idx]);
-}
-
-uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_uint64_t *x)
-{
-  const uint32_t idx = atomic64_lock_index (x);
-  ddsrt_mutex_lock (&mutexes[idx]);
-  const uint64_t nv = --x->v;
-  ddsrt_mutex_unlock (&mutexes[idx]);
-  return nv;
-}
-
-void ddsrt_atomic_add64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
-{
-  const uint32_t idx = atomic64_lock_index (x);
-  ddsrt_mutex_lock (&mutexes[idx]);
-  x->v += v;
-  ddsrt_mutex_unlock (&mutexes[idx]);
-}
-
-uint64_t ddsrt_atomic_add64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
-{
-  const uint32_t idx = atomic64_lock_index (x);
-  ddsrt_mutex_lock (&mutexes[idx]);
-  const uint64_t ov = x->v;
-  const uint64_t nv = ov + v;
-  x->v = nv;
-  ddsrt_mutex_unlock (&mutexes[idx]);
-  return nv;
-}
-
-void ddsrt_atomic_sub64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
-{
-  const uint32_t idx = atomic64_lock_index (x);
-  ddsrt_mutex_lock (&mutexes[idx]);
-  x->v -= v;
-  ddsrt_mutex_unlock (&mutexes[idx]);
-}
-
-uint64_t ddsrt_atomic_sub64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
-{
-  const uint32_t idx = atomic64_lock_index (x);
-  ddsrt_mutex_lock (&mutexes[idx]);
-  const uint64_t ov = x->v;
-  const uint64_t nv = ov - v;
-  x->v = nv;
-  ddsrt_mutex_unlock (&mutexes[idx]);
-  return nv;
-}
-
-void ddsrt_atomic_and64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
-{
-  const uint32_t idx = atomic64_lock_index (x);
-  ddsrt_mutex_lock (&mutexes[idx]);
-  x->v &= v;
-  ddsrt_mutex_unlock (&mutexes[idx]);
-}
-
-uint64_t ddsrt_atomic_and64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
-{
-  const uint32_t idx = atomic64_lock_index (x);
-  ddsrt_mutex_lock (&mutexes[idx]);
-  const uint64_t ov = x->v;
-  const uint64_t nv = ov & v;
-  x->v = nv;
-  ddsrt_mutex_unlock (&mutexes[idx]);
-  return ov;
-}
-
-uint64_t ddsrt_atomic_and64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
-{
-  const uint32_t idx = atomic64_lock_index (x);
-  ddsrt_mutex_lock (&mutexes[idx]);
-  const uint64_t ov = x->v;
-  const uint64_t nv = ov & v;
-  x->v = nv;
-  ddsrt_mutex_unlock (&mutexes[idx]);
-  return nv;
-}
-
-void ddsrt_atomic_or64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
-{
-  const uint32_t idx = atomic64_lock_index (x);
-  ddsrt_mutex_lock (&mutexes[idx]);
-  x->v |= v;
-  ddsrt_mutex_unlock (&mutexes[idx]);
-}
-
-uint64_t ddsrt_atomic_or64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
-{
-  const uint32_t idx = atomic64_lock_index (x);
-  ddsrt_mutex_lock (&mutexes[idx]);
-  const uint64_t ov = x->v;
-  const uint64_t nv = ov | v;
-  x->v = nv;
-  ddsrt_mutex_unlock (&mutexes[idx]);
-  return ov;
-}
-
-uint64_t ddsrt_atomic_or64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v)
-{
-  const uint32_t idx = atomic64_lock_index (x);
-  ddsrt_mutex_lock (&mutexes[idx]);
-  const uint64_t ov = x->v;
-  const uint64_t nv = ov | v;
-  x->v = nv;
-  ddsrt_mutex_unlock (&mutexes[idx]);
-  return nv;
-}
+#undef DDSRT_FAKE_SYNC_PAIR
+#undef DDSRT_FAKE_SYNC
+#endif /* SPARCv8 hack */
 
 #endif /* DDSRT_HAVE_ATOMIC64 */

@@ -38,16 +38,6 @@
 #include "dds/ddsi/sysdeps.h"
 #include "dds__whc.h"
 
-#if __STDC_VERSION__ >= 199901L
-#define POS_INFINITY_DOUBLE INFINITY
-#elif defined HUGE_VAL
-/* Hope for the best -- the only consequence of getting this wrong is
-   that T_NEVER may be printed as a fugly value instead of as +inf. */
-#define POS_INFINITY_DOUBLE (HUGE_VAL + HUGE_VAL)
-#else
-#define POS_INFINITY_DOUBLE 1e1000
-#endif
-
 static const struct wr_prd_match *root_rdmatch (const struct writer *wr)
 {
   return ddsrt_avl_root (&wr_readers_treedef, &wr->readers);
@@ -310,7 +300,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
     DDS_TRACE("heartbeat(wr "PGUIDFMT"%s) piggybacked, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRId64", xmit %"PRId64")\n",
             PGUID (wr->e.guid),
             *hbansreq ? "" : " final",
-            (hbc->tsched.v == T_NEVER) ? POS_INFINITY_DOUBLE : (double) (hbc->tsched.v - tnow.v) / 1e9,
+            (hbc->tsched.v == T_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
             ddsrt_avl_is_empty (&wr->readers) ? -1 : root_rdmatch (wr)->min_seq,
             ddsrt_avl_is_empty (&wr->readers) || root_rdmatch (wr)->all_have_replied_to_hb ? "" : "!",
             whcst->max_seq, READ_SEQ_XMIT(wr));
