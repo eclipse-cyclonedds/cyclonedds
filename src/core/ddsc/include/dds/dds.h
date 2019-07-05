@@ -2939,7 +2939,7 @@ dds_instance_lookup(dds_entity_t entity, const void *data);
 /**
  * @brief This operation takes an instance handle and return a key-value corresponding to it.
  *
- * @param[in]  entity Reader or writer entity.
+ * @param[in]  entity Reader, writer, readcondition or querycondition entity.
  * @param[in]  inst   Instance handle.
  * @param[out] data   pointer to an instance, to which the key ID corresponding to the instance handle will be
  *    returned, the sample in the instance should be ignored.

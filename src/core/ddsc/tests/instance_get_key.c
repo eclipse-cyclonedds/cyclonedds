@@ -21,17 +21,30 @@
 static dds_entity_t participant = DDS_ENTITY_NIL;
 static dds_entity_t topic = DDS_ENTITY_NIL;
 static dds_entity_t publisher = DDS_ENTITY_NIL;
+static dds_entity_t subscriber = DDS_ENTITY_NIL;
 static dds_entity_t writer = DDS_ENTITY_NIL;
-
+static dds_entity_t reader = DDS_ENTITY_NIL;
+static dds_entity_t readcondition = DDS_ENTITY_NIL;
+static dds_entity_t querycondition = DDS_ENTITY_NIL;
 static dds_instance_handle_t handle = DDS_HANDLE_NIL;
+
+static bool
+filter(const void * sample)
+{
+    const RoundTripModule_Address *s = sample;
+    return (s->port == 1);
+}
 
 static RoundTripModule_Address data;
 
 /* Fixture to create prerequisite entity */
 static void setup(void)
 {
+    uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
+
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant > 0);
+
     topic = dds_create_topic(participant, &RoundTripModule_Address_desc, "ddsc_instance_get_key", NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
 
@@ -40,6 +53,18 @@ static void setup(void)
 
     writer = dds_create_writer(publisher, topic, NULL, NULL);
     CU_ASSERT_FATAL(writer > 0);
+
+    subscriber = dds_create_subscriber(participant, NULL, NULL);
+    CU_ASSERT_FATAL(subscriber > 0);
+
+    reader = dds_create_reader(subscriber, topic, NULL, NULL);
+    CU_ASSERT_FATAL(reader > 0);
+
+    readcondition = dds_create_readcondition(reader, mask);
+    CU_ASSERT_FATAL(readcondition > 0);
+
+    querycondition = dds_create_querycondition(reader, mask, filter);
+    CU_ASSERT_FATAL(readcondition > 0);
 
     memset(&data, 0, sizeof(data));
     data.ip = ddsrt_strdup("some data");
@@ -52,6 +77,9 @@ static void teardown(void)
 {
     RoundTripModule_Address_free(&data, DDS_FREE_CONTENTS);
 
+    dds_delete(readcondition);
+    dds_delete(reader);
+    dds_delete(subscriber);
     dds_delete(writer);
     dds_delete(publisher);
     dds_delete(topic);
@@ -104,3 +132,42 @@ CU_Test(ddsc_instance_get_key, registered_instance, .init=setup, .fini=teardown)
     RoundTripModule_Address_free(&key_data, DDS_FREE_CONTENTS);
 }
 
+CU_Test(ddsc_instance_get_key, readcondition, .init=setup, .fini=teardown)
+{
+    dds_return_t ret;
+    RoundTripModule_Address key_data;
+
+    ret = dds_register_instance(writer, &handle, &data);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+    memset(&key_data, 0, sizeof(key_data));
+
+    ret = dds_instance_get_key(readcondition, handle, &key_data);
+
+    CU_ASSERT_PTR_NOT_NULL_FATAL(key_data.ip);
+    CU_ASSERT_STRING_EQUAL_FATAL(key_data.ip, data.ip);
+    CU_ASSERT_EQUAL_FATAL(key_data.port, data.port);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+    RoundTripModule_Address_free(&key_data, DDS_FREE_CONTENTS);
+}
+
+CU_Test(ddsc_instance_get_key, querycondition, .init=setup, .fini=teardown)
+{
+    dds_return_t ret;
+    RoundTripModule_Address key_data;
+
+    ret = dds_register_instance(writer, &handle, &data);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+    memset(&key_data, 0, sizeof(key_data));
+
+    ret = dds_instance_get_key(querycondition, handle, &key_data);
+
+    CU_ASSERT_PTR_NOT_NULL_FATAL(key_data.ip);
+    CU_ASSERT_STRING_EQUAL_FATAL(key_data.ip, data.ip);
+    CU_ASSERT_EQUAL_FATAL(key_data.port, data.port);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+    RoundTripModule_Address_free(&key_data, DDS_FREE_CONTENTS);
+}
