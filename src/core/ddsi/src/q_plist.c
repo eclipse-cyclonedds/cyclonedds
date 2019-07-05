@@ -1105,10 +1105,12 @@ struct piddesc_index {
 
    Sizes are such that the highest PID (without flags) in
    table are the last entry in the array.  Checked by
-   nn_plist_init_tables. */
+   nn_plist_init_tables.
+
+   FIXME: should compute them at build-time */
 #ifdef DDSI_INCLUDE_SSM
 static const struct piddesc *piddesc_omg_index[115];
-#else
+#else /* status info is the highest */
 static const struct piddesc *piddesc_omg_index[114];
 #endif
 static const struct piddesc *piddesc_eclipse_index[19];
