@@ -72,6 +72,36 @@ CU_Test(ddsc_participant, create_with_no_conf_no_env)
 }
 
 
+/* Test for creating participants in multiple domains with no configuration file  */
+CU_Test(ddsc_participant, create_multiple_domains)
+{
+  dds_entity_t participant1, participant2;
+  dds_return_t status;
+  dds_domainid_t domain_id;
+
+  ddsrt_setenv("CYCLONEDDS_URI", "<Tracing><Verbosity>finest</><OutputFile>multi-domain-1.log</></>");
+
+  //valid specific domain value
+  participant1 = dds_create_participant (1, NULL, NULL);
+  CU_ASSERT_FATAL(participant1 > 0);
+  status = dds_get_domainid(participant1, &domain_id);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(domain_id, 1);
+
+  ddsrt_setenv("CYCLONEDDS_URI", "<Tracing><Verbosity>finest</><OutputFile>multi-domain-2.log</></>");
+
+  //DDS_DOMAIN_DEFAULT from user
+  participant2 = dds_create_participant (2, NULL, NULL);
+  CU_ASSERT_FATAL(participant2 > 0);
+  status = dds_get_domainid(participant2, &domain_id);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(domain_id, 2);
+
+  dds_delete(participant1);
+  dds_delete(participant2);
+}
+
+
 ////WITH CONF
 
 /* Test for creating participant with valid configuration file  */

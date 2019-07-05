@@ -218,10 +218,8 @@ dds_return_t dds_domain_create (dds_domain **domain_out, dds_domainid_t id)
   {
     if ((dom = dds_domain_find_locked (id)) == NULL)
       ret = DDS_RETCODE_NOT_FOUND;
-    else if (dom->m_id == id)
-      ret = DDS_RETCODE_OK;
     else
-      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+      ret = DDS_RETCODE_OK;
   }
   else
   {
