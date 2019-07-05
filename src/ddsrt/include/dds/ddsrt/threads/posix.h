@@ -49,7 +49,7 @@ typedef TASK_ID ddsrt_tid_t;
 # endif
 /* __VXWORKS__ */
 #else
-typedef uintmax_t ddsrt_tid_t;
+typedef uintptr_t ddsrt_tid_t;
 #define PRIdTID PRIuPTR
 #endif
 
