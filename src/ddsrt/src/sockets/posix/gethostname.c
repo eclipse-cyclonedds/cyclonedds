@@ -45,6 +45,10 @@ ddsrt_gethostname(
   return DDS_RETCODE_OK;
 }
 #else
+#ifndef HOST_NAME_MAX
+#define HOST_NAME_MAX 256
+#endif
+
 dds_return_t
 ddsrt_gethostname(
   char *name,

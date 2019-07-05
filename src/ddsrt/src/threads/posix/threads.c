@@ -80,7 +80,11 @@ ddsrt_thread_getname(char *str, size_t size)
   (void)pthread_get_name_np(pthread_self(), buf, sizeof(buf));
   cnt = ddsrt_strlcpy(str, buf, size);
 #elif defined(__sun)
+#if !(__SunOS_5_6 || __SunOS_5_7 || __SunOS_5_8 || __SunOS_5_9 || __SunOS_5_10)
   (void)pthread_getname_np(pthread_self(), buf, sizeof(buf));
+#else
+  buf[0] = 0;
+#endif
   cnt = ddsrt_strlcpy(str, buf, size);
 #elif defined(__VXWORKS__)
   {
@@ -125,7 +129,9 @@ ddsrt_thread_setname(const char *__restrict name)
 #elif defined(__sun)
   /* Thread names are limited to 31 bytes on Solaris. Excess bytes are
      silently truncated. */
+#if !(__SunOS_5_6 || __SunOS_5_7 || __SunOS_5_8 || __SunOS_5_9 || __SunOS_5_10)
   (void)pthread_setname_np(pthread_self(), name);
+#endif
 #else
   /* VxWorks does not support the task name to be set after a task is created.
      Setting the name of a task can be done through pthread_attr_setname. */

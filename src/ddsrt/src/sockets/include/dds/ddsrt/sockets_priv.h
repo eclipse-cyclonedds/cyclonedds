@@ -27,7 +27,6 @@ typedef long ddsrt_tv_sec_t;
 typedef long ddsrt_tv_usec_t;
 #else
 typedef time_t ddsrt_tv_sec_t;
-typedef suseconds_t ddsrt_tv_usec_t;
 #endif
 
 #define DDSRT_TIME_T_MAX \
@@ -62,7 +61,7 @@ ddsrt_duration_to_timeval_ceil(dds_duration_t reltime, struct timeval *tv)
     if (reltime < (max_nsecs - DDS_NSECS_IN_USEC - 1)) {
       reltime += (DDS_NSECS_IN_USEC - 1);
       tv->tv_sec = (ddsrt_tv_sec_t)(reltime / DDS_NSECS_IN_SEC);
-      tv->tv_usec = (ddsrt_tv_usec_t)((reltime % DDS_NSECS_IN_SEC) / DDS_NSECS_IN_USEC);
+      tv->tv_usec = (int)((reltime % DDS_NSECS_IN_SEC) / DDS_NSECS_IN_USEC);
     } else {
       tv->tv_sec = DDSRT_TIME_T_MAX;
       tv->tv_usec = 999999;

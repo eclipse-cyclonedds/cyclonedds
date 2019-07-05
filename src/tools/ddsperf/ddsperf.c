@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #define _ISOC99_SOURCE
+#define _POSIX_PTHREAD_SEMANTICS
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -19,7 +20,9 @@
 #include <assert.h>
 #include <limits.h>
 #include <math.h>
+#if _WIN32
 #include <getopt.h>
+#endif
 
 #include "dds/dds.h"
 #include "ddsperf_types.h"

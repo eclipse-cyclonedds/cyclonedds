@@ -186,13 +186,19 @@ ddsrt_sockaddrfromstr(int af, const char *str, void *sa)
   switch (af) {
     case AF_INET: {
       struct in_addr buf;
+#if DDSRT_HAVE_INET_PTON
       if (inet_pton(af, str, &buf) != 1) {
         return DDS_RETCODE_BAD_PARAMETER;
-      } else {
-        memset(sa, 0, sizeof(struct sockaddr_in));
-        ((struct sockaddr_in *)sa)->sin_family = AF_INET;
-        memcpy(&((struct sockaddr_in *)sa)->sin_addr, &buf, sizeof(buf));
       }
+#else
+      buf.s_addr = inet_addr (str);
+      if (buf.s_addr == (in_addr_t)-1) {
+        return DDS_RETCODE_BAD_PARAMETER;
+      }
+#endif
+      memset(sa, 0, sizeof(struct sockaddr_in));
+      ((struct sockaddr_in *)sa)->sin_family = AF_INET;
+      memcpy(&((struct sockaddr_in *)sa)->sin_addr, &buf, sizeof(buf));
     } break;
 #if DDSRT_HAVE_IPV6
     case AF_INET6: {
@@ -225,8 +231,16 @@ DDSRT_WARNING_GNUC_OFF(sign-conversion)
 #endif
   switch (((struct sockaddr *)sa)->sa_family) {
     case AF_INET:
+#if DDSRT_HAVE_INET_NTOP
       ptr = inet_ntop(
         AF_INET, &((struct sockaddr_in *)sa)->sin_addr, buf, (socklen_t)size);
+#else
+      {
+          in_addr_t x = ntohl(((struct sockaddr_in *)sa)->sin_addr.s_addr);
+          snprintf(buf,size,"%u.%u.%u.%u",(x>>24),(x>>16)&0xff,(x>>8)&0xff,x&0xff);
+          ptr = buf;
+      }
+#endif
       break;
 #if DDSRT_HAVE_IPV6
     case AF_INET6:
@@ -249,6 +263,7 @@ DDSRT_WARNING_GNUC_ON(sign-conversion)
 }
 
 #if DDSRT_HAVE_DNS
+#if DDSRT_HAVE_GETADDRINFO
 dds_return_t
 ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
 {
@@ -363,4 +378,23 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
   *hentp = hent;
   return DDS_RETCODE_OK;
 }
+#else
+dds_return_t
+ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
+{
+  struct hostent hest, *he;
+  char buf[256];
+  int err;
+  he = gethostbyname_r (name, &hest, buf, sizeof (buf), &err);
+  if (he == NULL) {
+    return DDS_RETCODE_HOST_NOT_FOUND;
+  } else {
+    size_t size = sizeof(**hentp) + (1 * sizeof((*hentp)->addrs[0]));
+    *hentp = ddsrt_calloc_s(1, size);
+    (*hentp)->naddrs = 1;
+    memcpy(&(*hentp)->addrs[0], he->h_addr, he->h_length);
+    return DDS_RETCODE_OK;
+  }
+}
+#endif /* DDSRT_HAVE_GETADDRINFO */
 #endif /* DDSRT_HAVE_DNS */

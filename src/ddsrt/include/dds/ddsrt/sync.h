@@ -22,6 +22,8 @@
 #include "dds/ddsrt/sync/freertos.h"
 #elif _WIN32
 #include "dds/ddsrt/sync/windows.h"
+#elif __SunOS_5_6
+#include "dds/ddsrt/sync/solaris2.6.h"
 #else
 #include "dds/ddsrt/sync/posix.h"
 #endif
