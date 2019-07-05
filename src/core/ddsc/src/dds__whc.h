@@ -18,7 +18,7 @@
 extern "C" {
 #endif
 
-struct whc *whc_new (int is_transient_local, unsigned hdepth, unsigned tldepth);
+struct whc *whc_new (int is_transient_local, uint32_t hdepth, uint32_t tldepth);
 
 #if defined (__cplusplus)
 }

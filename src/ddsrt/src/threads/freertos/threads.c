@@ -135,10 +135,10 @@ thread_context_find(TaskHandle_t task)
   return ctx;
 }
 
-static dds_retcode_t
+static dds_return_t
 thread_context_create(thread_context_t **ctxptr)
 {
-  dds_retcode_t rc = DDS_RETCODE_OK;
+  dds_return_t rc = DDS_RETCODE_OK;
   size_t len;
   thread_context_t *ctx = NULL, **ctxs = NULL;
 
@@ -172,10 +172,10 @@ thread_context_create(thread_context_t **ctxptr)
 
 #define thread_context_require() thread_context_acquire(NULL)
 
-static dds_retcode_t
+static dds_return_t
 thread_context_acquire(thread_context_t **ctxptr)
 {
-  dds_retcode_t rc = DDS_RETCODE_OK;
+  dds_return_t rc = DDS_RETCODE_OK;
   thread_context_t *ctx = thread_context;
 
   if (ctx == NULL) {
@@ -340,7 +340,7 @@ thread_start_routine(void *arg)
    the user to change it on a per-thread basis at runtime. */
 #define MIN_STACK_SIZE ((uint16_t)(configMINIMAL_STACK_SIZE * WORD_SIZE))
 
-dds_retcode_t
+dds_return_t
 ddsrt_thread_create(
   ddsrt_thread_t *thread,
   const char *name,
@@ -348,7 +348,7 @@ ddsrt_thread_create(
   ddsrt_thread_routine_t start_routine,
   void *arg)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   TaskHandle_t task;
   UBaseType_t prio;
   uint16_t size = MIN_STACK_SIZE;
@@ -437,10 +437,10 @@ ddsrt_thread_fini(void)
   }
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_thread_join(ddsrt_thread_t thread, uint32_t *thread_result)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   thread_context_t *ctx;
   eTaskState status;
 
@@ -502,10 +502,10 @@ ddsrt_thread_join(ddsrt_thread_t thread, uint32_t *thread_result)
   return rc;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_thread_cleanup_push(void (*routine)(void *), void *arg)
 {
-  dds_retcode_t rc = DDS_RETCODE_OK;
+  dds_return_t rc = DDS_RETCODE_OK;
   thread_cleanup_t *tail = NULL;
   thread_context_t *ctx;
 
@@ -525,7 +525,7 @@ ddsrt_thread_cleanup_push(void (*routine)(void *), void *arg)
   return rc;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_thread_cleanup_pop(int execute)
 {
   thread_cleanup_t *tail;
