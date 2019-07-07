@@ -27,9 +27,9 @@ char str_xllmin[99], str_xllmax[99];
 
 /* Really test with the maximum values supported on a platform, not some
    made up number. */
-long long llmin = DDSRT_MIN_INTEGER(long long);
-long long llmax = DDSRT_MAX_INTEGER(long long);
-unsigned long long ullmax = DDSRT_MAX_INTEGER(unsigned long long);
+long long llmin = INT64_MIN;
+long long llmax = INT64_MAX;
+unsigned long long ullmax = UINT64_MAX;
 
 CU_Init(ddsrt_strtoll)
 {
