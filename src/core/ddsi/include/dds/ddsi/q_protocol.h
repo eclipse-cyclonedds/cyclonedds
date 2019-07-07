@@ -32,25 +32,28 @@ typedef struct {
 #define NN_SEQUENCE_NUMBER_UNKNOWN_HIGH -1
 #define NN_SEQUENCE_NUMBER_UNKNOWN_LOW 0
 #define NN_SEQUENCE_NUMBER_UNKNOWN ((seqno_t) (((uint64_t)NN_SEQUENCE_NUMBER_UNKNOWN_HIGH << 32) | NN_SEQUENCE_NUMBER_UNKNOWN_LOW))
-typedef struct nn_sequence_number_set {
+/* C99 disallows flex array in nested struct, so only put the
+   header in.  (GCC and Clang allow it, but there are other
+   compilers in the world as well.) */
+typedef struct nn_sequence_number_set_header {
   nn_sequence_number_t bitmap_base;
   uint32_t numbits;
-  uint32_t bits[];
-} nn_sequence_number_set_t;
+} nn_sequence_number_set_header_t;
 /* SequenceNumberSet size is base (2 words) + numbits (1 word) +
    bitmap ((numbits+31)/32 words), and this at 4 bytes/word */
+#define NN_SEQUENCE_NUMBER_SET_MAX_BITS (256u)
 #define NN_SEQUENCE_NUMBER_SET_BITS_SIZE(numbits) ((unsigned) (4 * (((numbits) + 31) / 32)))
-#define NN_SEQUENCE_NUMBER_SET_SIZE(numbits) (offsetof (nn_sequence_number_set_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits))
+#define NN_SEQUENCE_NUMBER_SET_SIZE(numbits) (sizeof (nn_sequence_number_set_header_t) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits))
 typedef unsigned nn_fragment_number_t;
-typedef struct nn_fragment_number_set {
+typedef struct nn_fragment_number_set_header {
   nn_fragment_number_t bitmap_base;
   uint32_t numbits;
-  uint32_t bits[];
-} nn_fragment_number_set_t;
+} nn_fragment_number_set_header_t;
 /* FragmentNumberSet size is base (2 words) + numbits (1 word) +
    bitmap ((numbits+31)/32 words), and this at 4 bytes/word */
+#define NN_FRAGMENT_NUMBER_SET_MAX_BITS (256u)
 #define NN_FRAGMENT_NUMBER_SET_BITS_SIZE(numbits) ((unsigned) (4 * (((numbits) + 31) / 32)))
-#define NN_FRAGMENT_NUMBER_SET_SIZE(numbits) (offsetof (nn_fragment_number_set_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits))
+#define NN_FRAGMENT_NUMBER_SET_SIZE(numbits) (sizeof (nn_fragment_number_set_header_t) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits))
 typedef int32_t nn_count_t;
 #define DDSI_COUNT_MIN (-2147483647 - 1)
 #define DDSI_COUNT_MAX (2147483647)
@@ -224,11 +227,12 @@ typedef struct AckNack {
   SubmessageHeader_t smhdr;
   nn_entityid_t readerId;
   nn_entityid_t writerId;
-  nn_sequence_number_set_t readerSNState;
+  nn_sequence_number_set_header_t readerSNState;
+  uint32_t bits[];
   /* nn_count_t count; */
 } AckNack_t;
 #define ACKNACK_FLAG_FINAL 0x02u
-#define ACKNACK_SIZE(numbits) (offsetof (AckNack_t, readerSNState) + NN_SEQUENCE_NUMBER_SET_SIZE (numbits) + 4)
+#define ACKNACK_SIZE(numbits) (offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_SIZE (numbits) + 4)
 #define ACKNACK_SIZE_MAX ACKNACK_SIZE (256u)
 
 typedef struct Gap {
@@ -236,9 +240,10 @@ typedef struct Gap {
   nn_entityid_t readerId;
   nn_entityid_t writerId;
   nn_sequence_number_t gapStart;
-  nn_sequence_number_set_t gapList;
+  nn_sequence_number_set_header_t gapList;
+  uint32_t bits[];
 } Gap_t;
-#define GAP_SIZE(numbits) (offsetof (Gap_t, gapList) + NN_SEQUENCE_NUMBER_SET_SIZE (numbits))
+#define GAP_SIZE(numbits) (offsetof (Gap_t, bits) + NN_SEQUENCE_NUMBER_SET_SIZE (numbits))
 #define GAP_SIZE_MAX GAP_SIZE (256u)
 
 typedef struct InfoTS {
@@ -272,7 +277,8 @@ typedef struct NackFrag {
   nn_entityid_t readerId;
   nn_entityid_t writerId;
   nn_sequence_number_t writerSN;
-  nn_fragment_number_set_t fragmentNumberState;
+  nn_fragment_number_set_header_t fragmentNumberState;
+  uint32_t bits[];
   /* nn_count_t count; */
 } NackFrag_t;
 #define NACKFRAG_SIZE(numbits) (offsetof (NackFrag_t, fragmentNumberState) + NN_FRAGMENT_NUMBER_SET_SIZE (numbits) + 4)

@@ -320,8 +320,8 @@ static uint32_t max_rmsg_size_w_hdr (uint32_t max_rmsg_size)
      allocate for the worst case, and may waste a few bytes here or
      there. */
   return
-    max_uint32 ((uint32_t) offsetof (struct nn_rmsg, chunk.payload),
-                (uint32_t) offsetof (struct nn_rmsg_chunk, payload))
+    max_uint32 ((uint32_t) (offsetof (struct nn_rmsg, chunk) + sizeof (struct nn_rmsg_chunk)),
+                (uint32_t) sizeof (struct nn_rmsg_chunk))
     + max_rmsg_size;
 }
 
@@ -512,7 +512,7 @@ static void init_rmsg_chunk (struct nn_rmsg_chunk *chunk, struct nn_rbuf *rbuf)
 {
   chunk->rbuf = rbuf;
   chunk->next = NULL;
-  chunk->size = 0;
+  chunk->u.size = 0;
   ddsrt_atomic_inc32 (&rbuf->n_live_rmsg_chunks);
 }
 
@@ -544,10 +544,10 @@ void nn_rmsg_setsize (struct nn_rmsg *rmsg, uint32_t size)
   ASSERT_RBUFPOOL_OWNER (rmsg->chunk.rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
   assert (ddsrt_atomic_ld32 (&rmsg->refcount) == RMSG_REFCOUNT_UNCOMMITTED_BIAS);
-  assert (rmsg->chunk.size == 0);
+  assert (rmsg->chunk.u.size == 0);
   assert (size8 <= rmsg->chunk.rbuf->max_rmsg_size);
   assert (rmsg->lastchunk == &rmsg->chunk);
-  rmsg->chunk.size = size8;
+  rmsg->chunk.u.size = size8;
 #if USE_VALGRIND
   VALGRIND_MEMPOOL_CHANGE (rmsg->chunk.rbuf->rbufpool, rmsg, rmsg, offsetof (struct nn_rmsg, chunk.u.payload) + rmsg->chunk.size);
 #endif
@@ -587,7 +587,7 @@ static void commit_rmsg_chunk (struct nn_rmsg_chunk *chunk)
 {
   struct nn_rbuf *rbuf = chunk->rbuf;
   DDS_LOG(DDS_LC_RADMIN, "commit_rmsg_chunk(%p)\n", (void *) chunk);
-  rbuf->freeptr = chunk->payload + chunk->size;
+  rbuf->freeptr = (unsigned char *) (chunk + 1) + chunk->u.size;
 }
 
 void nn_rmsg_commit (struct nn_rmsg *rmsg)
@@ -602,11 +602,11 @@ void nn_rmsg_commit (struct nn_rmsg *rmsg)
      completed before we got to commit. */
   struct nn_rmsg_chunk *chunk = rmsg->lastchunk;
   DDS_LOG(DDS_LC_RADMIN, "rmsg_commit(%p) refcount 0x%"PRIx32" last-chunk-size %"PRIu32"\n",
-                 (void *) rmsg, rmsg->refcount.v, chunk->size);
+                 (void *) rmsg, rmsg->refcount.v, chunk->u.size);
   ASSERT_RBUFPOOL_OWNER (chunk->rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
-  assert (chunk->size <= chunk->rbuf->max_rmsg_size);
-  assert ((chunk->size % 8) == 0);
+  assert (chunk->u.size <= chunk->rbuf->max_rmsg_size);
+  assert ((chunk->u.size % 8) == 0);
   assert (ddsrt_atomic_ld32 (&rmsg->refcount) >= RMSG_REFCOUNT_UNCOMMITTED_BIAS);
   assert (ddsrt_atomic_ld32 (&rmsg->chunk.rbuf->n_live_rmsg_chunks) > 0);
   assert (ddsrt_atomic_ld32 (&chunk->rbuf->n_live_rmsg_chunks) > 0);
@@ -668,10 +668,10 @@ void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
   DDS_LOG(DDS_LC_RADMIN, "rmsg_alloc(%p, %"PRIu32" => %"PRIu32")\n", (void *) rmsg, size, size8);
   ASSERT_RBUFPOOL_OWNER (rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
-  assert ((chunk->size % 8) == 0);
+  assert ((chunk->u.size % 8) == 0);
   assert (size8 <= rbuf->max_rmsg_size);
 
-  if (chunk->size + size8 > rbuf->max_rmsg_size)
+  if (chunk->u.size + size8 > rbuf->max_rmsg_size)
   {
     struct nn_rbufpool *rbufpool = rbuf->rbufpool;
     struct nn_rmsg_chunk *newchunk;
@@ -688,8 +688,8 @@ void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
     chunk = newchunk;
   }
 
-  ptr = chunk->payload + chunk->size;
-  chunk->size += size8;
+  ptr = (unsigned char *) (chunk + 1) + chunk->u.size;
+  chunk->u.size += size8;
   DDS_LOG(DDS_LC_RADMIN, "rmsg_alloc(%p, %"PRIu32") = %p\n", (void *) rmsg, size, ptr);
 #if USE_VALGRIND
   if (chunk == &rmsg->chunk) {
@@ -1422,7 +1422,7 @@ void nn_defrag_notegap (struct nn_defrag *defrag, seqno_t min, seqno_t maxp1)
   defrag->max_sample = ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree);
 }
 
-int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct nn_fragment_number_set *map, uint32_t maxsz)
+int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct nn_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz)
 {
   struct nn_rsample *s;
   struct nn_defrag_iv *iv;
@@ -1446,7 +1446,7 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
       else
         map->numbits = maxfragnum + 1;
       map->bitmap_base = 0;
-      nn_bitset_one (map->numbits, map->bits);
+      nn_bitset_one (map->numbits, mapbits);
       return (int) map->numbits;
     }
   }
@@ -1491,7 +1491,7 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
   /* Clear bitmap, then set bits for gaps in available fragments */
   if (map->numbits > maxsz)
     map->numbits = maxsz;
-  nn_bitset_zero (map->numbits, map->bits);
+  nn_bitset_zero (map->numbits, mapbits);
   i = map->bitmap_base;
   while (iv && i < map->bitmap_base + map->numbits)
   {
@@ -1509,7 +1509,7 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
     for (; i < map->bitmap_base + map->numbits && i < bound; i++)
     {
       unsigned x = (unsigned) (i - map->bitmap_base);
-      nn_bitset_set (map->numbits, map->bits, x);
+      nn_bitset_set (map->numbits, mapbits, x);
     }
     /* next sequence of fragments to request retranmsission of starts
        at fragment containing maxp1 (because we don't have that byte
@@ -1521,7 +1521,7 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
   for (; i < map->bitmap_base + map->numbits; i++)
   {
     unsigned x = (unsigned) (i - map->bitmap_base);
-    nn_bitset_set (map->numbits, map->bits, x);
+    nn_bitset_set (map->numbits, mapbits, x);
   }
   return (int) map->numbits;
 }
@@ -2268,7 +2268,7 @@ int nn_reorder_wantsample (struct nn_reorder *reorder, seqno_t seq)
   return (s == NULL || s->u.reorder.maxp1 <= seq);
 }
 
-unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct nn_sequence_number_set *map, uint32_t maxsz, int notail)
+unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct nn_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail)
 {
   struct nn_rsample *iv;
   seqno_t i;
@@ -2305,7 +2305,7 @@ unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t m
     map->numbits = maxsz;
   else
     map->numbits = (uint32_t) (maxseq + 1 - base);
-  nn_bitset_zero (map->numbits, map->bits);
+  nn_bitset_zero (map->numbits, mapbits);
 
   if ((iv = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree)) != NULL)
     assert (iv->u.reorder.min > base);
@@ -2315,7 +2315,7 @@ unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t m
     for (; i < base + map->numbits && i < iv->u.reorder.min; i++)
     {
       unsigned x = (unsigned) (i - base);
-      nn_bitset_set (map->numbits, map->bits, x);
+      nn_bitset_set (map->numbits, mapbits, x);
     }
     i = iv->u.reorder.maxp1;
     iv = ddsrt_avl_find_succ (&reorder_sampleivtree_treedef, &reorder->sampleivtree, iv);
@@ -2327,7 +2327,7 @@ unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t m
     for (; i < base + map->numbits; i++)
     {
       unsigned x = (unsigned) (i - base);
-      nn_bitset_set (map->numbits, map->bits, x);
+      nn_bitset_set (map->numbits, mapbits, x);
     }
   }
   return map->numbits;

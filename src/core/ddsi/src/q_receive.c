@@ -102,12 +102,12 @@ static void maybe_set_reader_in_sync (struct proxy_writer *pwr, struct pwr_rd_ma
   }
 }
 
-static int valid_sequence_number_set (const nn_sequence_number_set_t *snset)
+static int valid_sequence_number_set (const nn_sequence_number_set_header_t *snset)
 {
   return (fromSN (snset->bitmap_base) > 0 && snset->numbits <= 256);
 }
 
-static int valid_fragment_number_set (const nn_fragment_number_set_t *fnset)
+static int valid_fragment_number_set (const nn_fragment_number_set_header_t *fnset)
 {
   return (fnset->bitmap_base > 0 && fnset->numbits <= 256);
 }
@@ -136,7 +136,7 @@ static int valid_AckNack (AckNack_t *msg, size_t size, int byteswap)
   count = (nn_count_t *) ((char *) &msg->readerSNState + NN_SEQUENCE_NUMBER_SET_SIZE (msg->readerSNState.numbits));
   if (byteswap)
   {
-    bswap_sequence_number_set_bitmap (&msg->readerSNState);
+    bswap_sequence_number_set_bitmap (&msg->readerSNState, msg->bits);
     *count = bswap4 (*count);
   }
   return 1;
@@ -162,7 +162,7 @@ static int valid_Gap (Gap_t *msg, size_t size, int byteswap)
   if (size < GAP_SIZE (msg->gapList.numbits))
     return 0;
   if (byteswap)
-    bswap_sequence_number_set_bitmap (&msg->gapList);
+    bswap_sequence_number_set_bitmap (&msg->gapList, msg->bits);
   return 1;
 }
 
@@ -287,7 +287,7 @@ static int valid_NackFrag (NackFrag_t *msg, size_t size, int byteswap)
                           NN_FRAGMENT_NUMBER_SET_SIZE (msg->fragmentNumberState.numbits));
   if (byteswap)
   {
-    bswap_fragment_number_set_bitmap (&msg->fragmentNumberState);
+    bswap_fragment_number_set_bitmap (&msg->fragmentNumberState, msg->bits);
     *count = bswap4 (*count);
   }
   return 1;
@@ -542,7 +542,7 @@ static int add_Gap (struct nn_xmsg *msg, struct writer *wr, struct proxy_reader 
   gap->gapStart = toSN (start);
   gap->gapList.bitmap_base = toSN (base);
   gap->gapList.numbits = numbits;
-  memcpy (gap->gapList.bits, bits, NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits));
+  memcpy (gap->bits, bits, NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits));
   nn_xmsg_submsg_setnext (msg, sm_marker);
   return 0;
 }
@@ -590,12 +590,12 @@ static int acknack_is_nack (const AckNack_t *msg)
        even we generate them) */
     return 0;
   for (i = 0; i < (int) NN_SEQUENCE_NUMBER_SET_BITS_SIZE (msg->readerSNState.numbits) / 4 - 1; i++)
-    x |= msg->readerSNState.bits[i];
+    x |= msg->bits[i];
   if ((msg->readerSNState.numbits % 32) == 0)
     mask = ~0u;
   else
     mask = ~(~0u >> (msg->readerSNState.numbits % 32));
-  x |= msg->readerSNState.bits[i] & mask;
+  x |= msg->bits[i] & mask;
   return x != 0;
 }
 
@@ -660,7 +660,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   DDS_TRACE("ACKNACK(%s#%"PRId32":%"PRId64"/%"PRIu32":", msg->smhdr.flags & ACKNACK_FLAG_FINAL ? "F" : "",
           *countp, fromSN (msg->readerSNState.bitmap_base), msg->readerSNState.numbits);
   for (uint32_t i = 0; i < msg->readerSNState.numbits; i++)
-    DDS_TRACE("%c", nn_bitset_isset (msg->readerSNState.numbits, msg->readerSNState.bits, i) ? '1' : '0');
+    DDS_TRACE("%c", nn_bitset_isset (msg->readerSNState.numbits, msg->bits, i) ? '1' : '0');
   seqbase = fromSN (msg->readerSNState.bitmap_base);
 
   if (!rst->forme)
@@ -863,7 +863,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
        contained in the acknack, and assumes all messages beyond the
        set are NACK'd -- don't feel like tracking where exactly we
        left off ... */
-    if (i >= msg->readerSNState.numbits || nn_bitset_isset (numbits, msg->readerSNState.bits, i))
+    if (i >= msg->readerSNState.numbits || nn_bitset_isset (numbits, msg->bits, i))
     {
       seqno_t seq = seqbase + i;
       struct whc_borrowed_sample sample;
@@ -1352,11 +1352,12 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
     else
     {
       /* Check if we are missing something */
-      union {
-        struct nn_fragment_number_set set;
-        char pad[NN_FRAGMENT_NUMBER_SET_SIZE (256)];
+      DDSRT_STATIC_ASSERT ((NN_FRAGMENT_NUMBER_SET_MAX_BITS % 32) == 0);
+      struct {
+        struct nn_fragment_number_set_header set;
+        uint32_t bits[NN_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
       } nackfrag;
-      if (nn_defrag_nackmap (pwr->defrag, seq, fragnum, &nackfrag.set, 256) > 0)
+      if (nn_defrag_nackmap (pwr->defrag, seq, fragnum, &nackfrag.set, nackfrag.bits, NN_FRAGMENT_NUMBER_SET_MAX_BITS) > 0)
       {
         /* Yes we are (note that this potentially also happens for
            samples we no longer care about) */
@@ -1389,7 +1390,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
 
   DDS_TRACE("NACKFRAG(#%"PRId32":%"PRId64"/%u/%"PRIu32":", *countp, seq, msg->fragmentNumberState.bitmap_base, msg->fragmentNumberState.numbits);
   for (uint32_t i = 0; i < msg->fragmentNumberState.numbits; i++)
-    DDS_TRACE("%c", nn_bitset_isset (msg->fragmentNumberState.numbits, msg->fragmentNumberState.bits, i) ? '1' : '0');
+    DDS_TRACE("%c", nn_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i) ? '1' : '0');
 
   if (!rst->forme)
   {
@@ -1446,7 +1447,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
     DDS_TRACE(" scheduling requested frags ...\n");
     for (uint32_t i = 0; i < msg->fragmentNumberState.numbits && enqueued; i++)
     {
-      if (nn_bitset_isset (msg->fragmentNumberState.numbits, msg->fragmentNumberState.bits, i))
+      if (nn_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i))
       {
         struct nn_xmsg *reply;
         if (create_fragment_message (wr, seq, sample.plist, sample.serdata, base + i, prd, &reply, 0) < 0)
@@ -1642,7 +1643,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
      1 bit, but check for it just in case, to reduce the number of
      sequence number gaps to be processed. */
   for (listidx = 0; listidx < msg->gapList.numbits; listidx++)
-    if (!nn_bitset_isset (msg->gapList.numbits, msg->gapList.bits, listidx))
+    if (!nn_bitset_isset (msg->gapList.numbits, msg->bits, listidx))
       break;
   last_included_rel = (int32_t) listidx - 1;
 
@@ -1693,13 +1694,13 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
     }
     while (listidx < msg->gapList.numbits)
     {
-      if (!nn_bitset_isset (msg->gapList.numbits, msg->gapList.bits, listidx))
+      if (!nn_bitset_isset (msg->gapList.numbits, msg->bits, listidx))
         listidx++;
       else
       {
         uint32_t j;
         for (j = listidx + 1; j < msg->gapList.numbits; j++)
-          if (!nn_bitset_isset (msg->gapList.numbits, msg->gapList.bits, j))
+          if (!nn_bitset_isset (msg->gapList.numbits, msg->bits, j))
             break;
         /* spec says gapList (2) identifies an additional list of sequence numbers that
            are invalid (8.3.7.4.2), so by that rule an insane start would simply mean the

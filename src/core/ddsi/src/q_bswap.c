@@ -53,28 +53,28 @@ nn_guid_t nn_ntoh_guid (nn_guid_t g)
   return g;
 }
 
-void bswap_sequence_number_set_hdr (nn_sequence_number_set_t *snset)
+void bswap_sequence_number_set_hdr (nn_sequence_number_set_header_t *snset)
 {
   bswapSN (&snset->bitmap_base);
   snset->numbits = bswap4u (snset->numbits);
 }
 
-void bswap_sequence_number_set_bitmap (nn_sequence_number_set_t *snset)
+void bswap_sequence_number_set_bitmap (nn_sequence_number_set_header_t *snset, uint32_t *bits)
 {
   const uint32_t n = (snset->numbits + 31) / 32;
   for (uint32_t i = 0; i < n; i++)
-    snset->bits[i] = bswap4u (snset->bits[i]);
+    bits[i] = bswap4u (bits[i]);
 }
 
-void bswap_fragment_number_set_hdr (nn_fragment_number_set_t *fnset)
+void bswap_fragment_number_set_hdr (nn_fragment_number_set_header_t *fnset)
 {
   fnset->bitmap_base = bswap4u (fnset->bitmap_base);
   fnset->numbits = bswap4u (fnset->numbits);
 }
 
-void bswap_fragment_number_set_bitmap (nn_fragment_number_set_t *fnset)
+void bswap_fragment_number_set_bitmap (nn_fragment_number_set_header_t *fnset, uint32_t *bits)
 {
   const uint32_t n = (fnset->numbits + 31) / 32;
   for (uint32_t i = 0; i < n; i++)
-    fnset->bits[i] = bswap4u (fnset->bits[i]);
+    bits[i] = bswap4u (bits[i]);
 }

@@ -698,9 +698,10 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
   uint32_t i, numbits;
   seqno_t base;
 
+  DDSRT_STATIC_ASSERT ((NN_FRAGMENT_NUMBER_SET_MAX_BITS % 32) == 0);
   union {
-    struct nn_fragment_number_set set;
-    char pad[NN_FRAGMENT_NUMBER_SET_SIZE (256)];
+    struct nn_fragment_number_set_header set;
+    uint32_t bits[NN_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
   } nackfrag;
   int nackfrag_numbits;
   seqno_t nackfrag_seq = 0;
@@ -735,7 +736,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
 
   /* Make bitmap; note that we've made sure to have room for the
      maximum bitmap size. */
-  numbits = nn_reorder_nackmap (reorder, bitmap_base, pwr->last_seq, &an->readerSNState, max_numbits, notail);
+  numbits = nn_reorder_nackmap (reorder, bitmap_base, pwr->last_seq, &an->readerSNState, an->bits, max_numbits, notail);
   base = fromSN (an->readerSNState.bitmap_base);
 
   /* Scan through bitmap, cutting it off at the first missing sample
@@ -746,13 +747,13 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
   {
     uint32_t fragnum;
     nackfrag_seq = base + i;
-    if (!nn_bitset_isset (numbits, an->readerSNState.bits, i))
+    if (!nn_bitset_isset (numbits, an->bits, i))
       continue;
     if (nackfrag_seq == pwr->last_seq)
       fragnum = pwr->last_fragnum;
     else
       fragnum = UINT32_MAX;
-    nackfrag_numbits = nn_defrag_nackmap (pwr->defrag, nackfrag_seq, fragnum, &nackfrag.set, max_numbits);
+    nackfrag_numbits = nn_defrag_nackmap (pwr->defrag, nackfrag_seq, fragnum, &nackfrag.set, nackfrag.bits, max_numbits);
   }
   if (nackfrag_numbits >= 0) {
     /* Cut the NACK short, NACKFRAG will be added after the NACK's is
@@ -800,7 +801,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
             PGUID (rwn->rd_guid), PGUID (pwr->e.guid), rwn->count,
             base, an->readerSNState.numbits);
     for (uint32_t ui = 0; ui != an->readerSNState.numbits; ui++)
-      DDS_TRACE("%c", nn_bitset_isset (numbits, an->readerSNState.bits, ui) ? '1' : '0');
+      DDS_TRACE("%c", nn_bitset_isset (numbits, an->bits, ui) ? '1' : '0');
   }
 
   if (nackfrag_numbits > 0)
@@ -819,7 +820,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
     nf->writerSN = toSN (nackfrag_seq);
     nf->fragmentNumberState.bitmap_base = nackfrag.set.bitmap_base + 1;
     nf->fragmentNumberState.numbits = nackfrag.set.numbits;
-    memcpy (nf->fragmentNumberState.bits, nackfrag.set.bits, NN_FRAGMENT_NUMBER_SET_BITS_SIZE (nackfrag_numbits));
+    memcpy (nf->bits, nackfrag.bits, NN_FRAGMENT_NUMBER_SET_BITS_SIZE (nackfrag_numbits));
 
     {
       nn_count_t *countp =
@@ -829,7 +830,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
 
       DDS_TRACE(" + nackfrag #%"PRId32":%"PRId64"/%u/%"PRIu32":", *countp, fromSN (nf->writerSN), nf->fragmentNumberState.bitmap_base, nf->fragmentNumberState.numbits);
       for (uint32_t ui = 0; ui != nf->fragmentNumberState.numbits; ui++)
-        DDS_TRACE("%c", nn_bitset_isset (nf->fragmentNumberState.numbits, nf->fragmentNumberState.bits, ui) ? '1' : '0');
+        DDS_TRACE("%c", nn_bitset_isset (nf->fragmentNumberState.numbits, nf->bits, ui) ? '1' : '0');
     }
   }
 

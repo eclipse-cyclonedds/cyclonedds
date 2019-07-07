@@ -46,16 +46,16 @@ struct nn_rmsg_chunk {
   /* Size is 0 after initial allocation, must be set with
      nn_rmsg_setsize after receiving a packet from the kernel and
      before processing it.  */
-  uint32_t size;
-
-  /* to ensure reasonable alignment of payload[] */
   union {
+    uint32_t size;
+
+    /* to ensure reasonable alignment of payload */
     int64_t l;
     double d;
     void *p;
   } u;
-  /* payload array stretched to whatever it really is */
-  unsigned char payload[];
+
+  /* unsigned char payload[] -- disallowed by C99 because of nesting */
 };
 
 struct nn_rmsg {
@@ -95,7 +95,7 @@ struct nn_rmsg {
 
   struct nn_rmsg_chunk chunk;
 };
-#define NN_RMSG_PAYLOAD(m) ((m)->chunk.payload)
+#define NN_RMSG_PAYLOAD(m) ((unsigned char *) (&(m)->chunk + 1))
 #define NN_RMSG_PAYLOADOFF(m, o) (NN_RMSG_PAYLOAD (m) + (o))
 
 struct receiver_state {
@@ -213,7 +213,7 @@ struct nn_defrag *nn_defrag_new (enum nn_defrag_drop_mode drop_mode, uint32_t ma
 void nn_defrag_free (struct nn_defrag *defrag);
 struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo);
 void nn_defrag_notegap (struct nn_defrag *defrag, seqno_t min, seqno_t maxp1);
-int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct nn_fragment_number_set *map, uint32_t maxsz);
+int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct nn_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz);
 
 struct nn_reorder *nn_reorder_new (enum nn_reorder_mode mode, uint32_t max_samples);
 void nn_reorder_free (struct nn_reorder *r);
@@ -222,7 +222,7 @@ struct nn_rdata *nn_rsample_fragchain (struct nn_rsample *rsample);
 nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_reorder *reorder, struct nn_rsample *rsampleiv, int *refcount_adjust, int delivery_queue_full_p);
 nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reorder *reorder, struct nn_rdata *rdata, seqno_t min, seqno_t maxp1, int *refcount_adjust);
 int nn_reorder_wantsample (struct nn_reorder *reorder, seqno_t seq);
-unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct nn_sequence_number_set *map, uint32_t maxsz, int notail);
+unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct nn_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail);
 seqno_t nn_reorder_next_seq (const struct nn_reorder *reorder);
 
 struct nn_dqueue *nn_dqueue_new (const char *name, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg);

@@ -95,10 +95,10 @@ nn_entityid_t nn_ntoh_entityid (nn_entityid_t e);
 nn_guid_t nn_hton_guid (nn_guid_t g);
 nn_guid_t nn_ntoh_guid (nn_guid_t g);
 
-void bswap_sequence_number_set_hdr (nn_sequence_number_set_t *snset);
-void bswap_sequence_number_set_bitmap (nn_sequence_number_set_t *snset);
-void bswap_fragment_number_set_hdr (nn_fragment_number_set_t *fnset);
-void bswap_fragment_number_set_bitmap (nn_fragment_number_set_t *fnset);
+void bswap_sequence_number_set_hdr (nn_sequence_number_set_header_t *snset);
+void bswap_sequence_number_set_bitmap (nn_sequence_number_set_header_t *snset, uint32_t *bits);
+void bswap_fragment_number_set_hdr (nn_fragment_number_set_header_t *fnset);
+void bswap_fragment_number_set_bitmap (nn_fragment_number_set_header_t *fnset, uint32_t *bits);
 
 #if defined (__cplusplus)
 }
