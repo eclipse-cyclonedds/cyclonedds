@@ -36,8 +36,13 @@ CU_Test(ddsrt_select, duration_to_timeval)
 {
   struct timeval tv, *tvptr;
   dds_duration_t nsecs_max;
-  dds_duration_t secs_max = DDSRT_MAX_INTEGER(ddsrt_tv_sec_t);
   dds_duration_t usecs_max = 999999;
+  dds_duration_t secs_max;
+  DDSRT_STATIC_ASSERT (CHAR_BIT * sizeof (ddsrt_tv_sec_t) == 32 || CHAR_BIT * sizeof (ddsrt_tv_sec_t) == 64);
+  if (CHAR_BIT * sizeof (ddsrt_tv_sec_t) == 32)
+    secs_max = INT32_MAX;
+  else
+    secs_max = INT64_MAX;
 
   if (DDS_INFINITY > secs_max) {
     CU_ASSERT_EQUAL_FATAL(secs_max, INT32_MAX);

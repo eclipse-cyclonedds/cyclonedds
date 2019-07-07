@@ -17,6 +17,10 @@
 #include <stdbool.h>
 
 #include "dds/export.h"
+
+/* DDS_EXPORT inline i.c.w. __attributes__((visibility...)) and some compilers: */
+#include "dds/ddsrt/attributes.h"
+
 #include "dds/ddsi/q_rtps.h"
 
 #if defined (__cplusplus)

@@ -1714,7 +1714,10 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     goto done_upd_deliv;
   }
 
-  timestamp = (sampleinfo->timestamp.v != NN_WCTIME_INVALID.v) ? sampleinfo->timestamp : now ();
+  if (sampleinfo->timestamp.v != NN_WCTIME_INVALID.v)
+    timestamp = sampleinfo->timestamp;
+  else
+    timestamp = now ();
   switch (srcguid.entityid.u)
   {
     case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:

@@ -53,23 +53,6 @@ extern "C" {
 #endif
 
 /**
- * @brief Calculate maximum value of an integer type
- *
- * A somewhat complex, but efficient way to calculate the maximum value of an
- * integer type at compile time.
- *
- * For unsigned numerical types the first part up to XOR is enough. The second
- * part is to make up for signed numerical types.
- */
-#define DDSRT_MAX_INTEGER(T) \
-    ((T)(((T)~0) ^ ((T)!((T)~0 > 0) << (CHAR_BIT * sizeof(T) - 1))))
-/**
- * @brief Calculate minimum value of an integer type
- */
-#define DDSRT_MIN_INTEGER(T) \
-    ((-DDSRT_MAX_INTEGER(T)) - 1)
-
-/**
  * @brief Macro to disable unused argument warnings
  */
 #define DDSRT_UNUSED_ARG(a) (void)(a)
