@@ -1614,6 +1614,8 @@ void dds_stream_extract_keyhash (dds_istream_t * __restrict is, dds_keyhash_t * 
  **
  *******************************************************************************************/
 
+DDSRT_STATIC_ASSERT ((offsetof (struct ddsi_serdata_default, data) % 8) == 0);
+
 void dds_istream_from_serdata_default (dds_istream_t * __restrict s, const struct ddsi_serdata_default * __restrict d)
 {
   s->m_buffer = (const unsigned char *) d;
