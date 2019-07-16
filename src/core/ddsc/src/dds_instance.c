@@ -284,23 +284,27 @@ dds_return_t dds_instance_get_key (dds_entity_t entity, dds_instance_handle_t ih
   dds_return_t ret;
   const dds_topic *topic;
   struct ddsi_tkmap_instance *tk;
-  dds_entity *w_or_r;
+  dds_entity *e;
 
   if (data == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if ((ret = dds_entity_lock (entity, DDS_KIND_DONTCARE, &w_or_r)) < 0)
+  if ((ret = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) < 0)
     return ret;
-  switch (dds_entity_kind (w_or_r))
+  switch (dds_entity_kind (e))
   {
     case DDS_KIND_WRITER:
-      topic = ((dds_writer *) w_or_r)->m_topic;
+      topic = ((dds_writer *) e)->m_topic;
       break;
     case DDS_KIND_READER:
-      topic = ((dds_reader *) w_or_r)->m_topic;
+      topic = ((dds_reader *) e)->m_topic;
+      break;
+    case DDS_KIND_COND_READ:
+    case DDS_KIND_COND_QUERY:
+      topic = ((dds_reader *) e->m_parent)->m_topic;
       break;
     default:
-      dds_entity_unlock (w_or_r);
+      dds_entity_unlock (e);
       return DDS_RETCODE_ILLEGAL_OPERATION;
   }
 
@@ -315,6 +319,6 @@ dds_return_t dds_instance_get_key (dds_entity_t entity, dds_instance_handle_t ih
     ret = DDS_RETCODE_OK;
   }
   thread_state_asleep (ts1);
-  dds_entity_unlock (w_or_r);
+  dds_entity_unlock (e);
   return ret;
 }
