@@ -184,7 +184,7 @@ struct prune_deleted_ppant {
   int enforce_delay;
 };
 
-/* allow multicast bits: */
+/* allow multicast bits (default depends on network type): */
 #define AMC_FALSE 0u
 #define AMC_SPDP 1u
 #define AMC_ASM 2u
@@ -194,6 +194,7 @@ struct prune_deleted_ppant {
 #else
 #define AMC_TRUE (AMC_SPDP | AMC_ASM)
 #endif
+#define AMC_DEFAULT 0x80000000u
 
 /* FIXME: this should be fully dynamic ... but this is easier for a quick hack */
 enum transport_selector {

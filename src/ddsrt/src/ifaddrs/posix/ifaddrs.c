@@ -21,8 +21,113 @@
 
 extern const int *const os_supp_afs;
 
+#if defined __linux
+#include <stdio.h>
+
+static enum ddsrt_iftype guess_iftype (const struct ifaddrs *sys_ifa)
+{
+  FILE *fp;
+  char ifnam[IFNAMSIZ + 1]; /* not sure whether IFNAMSIZ includes a terminating 0, can't be bothered */
+  int c;
+  size_t np;
+  enum ddsrt_iftype type = DDSRT_IFTYPE_UNKNOWN;
+  if ((fp = fopen ("/proc/net/wireless", "r")) == NULL)
+    return type;
+  /* expected format:
+     :Inter-| sta-|   Quality        |   Discarded packets               | Missed | WE
+     : face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22
+     : wlan0: 0000   67.  -43.  -256        0      0      0      0      0        0
+     (where : denotes the start of the line)
+
+     SKIP_HEADER_1 skips up to and including the first newline; then SKIP_TO_EOL skips
+     up to and including the second newline, so the first line that gets interpreted is
+     the third.
+   */
+  enum { SKIP_HEADER_1, SKIP_WHITE, READ_NAME, SKIP_TO_EOL } state = SKIP_HEADER_1;
+  np = 0;
+  while (type != DDSRT_IFTYPE_WIFI && (c = fgetc (fp)) != EOF) {
+    switch (state) {
+      case SKIP_HEADER_1:
+        if (c == '\n') {
+          state = SKIP_TO_EOL;
+        }
+        break;
+      case SKIP_WHITE:
+        if (c != ' ' && c != '\t') {
+          ifnam[np++] = (char) c;
+          state = READ_NAME;
+        }
+        break;
+      case READ_NAME:
+        if (c == ':') {
+          ifnam[np] = 0;
+          if (strcmp (ifnam, sys_ifa->ifa_name) == 0)
+            type = DDSRT_IFTYPE_WIFI;
+          state = SKIP_TO_EOL;
+          np = 0;
+        } else if (np < sizeof (ifnam) - 1) {
+          ifnam[np++] = (char) c;
+        }
+        break;
+      case SKIP_TO_EOL:
+        if (c == '\n') {
+          state = SKIP_WHITE;
+        }
+        break;
+    }
+  }
+  fclose (fp);
+  return type;
+}
+#elif defined __APPLE__ /* probably works for all BSDs */
+#include <sys/ioctl.h>
+#include <sys/sockio.h>
+#include <net/if.h>
+#include <net/if_media.h>
+
+static enum ddsrt_iftype guess_iftype (const struct ifaddrs *sys_ifa)
+{
+  int sock;
+  if ((sock = socket (sys_ifa->ifa_addr->sa_family, SOCK_DGRAM, 0)) == -1)
+    return DDSRT_IFTYPE_UNKNOWN;
+
+  struct ifmediareq ifmr;
+  enum ddsrt_iftype type;
+  memset (&ifmr, 0, sizeof (ifmr));
+  ddsrt_strlcpy (ifmr.ifm_name, sys_ifa->ifa_name, sizeof (ifmr.ifm_name));
+  if (ioctl (sock, SIOCGIFMEDIA, (caddr_t) &ifmr) < 0)
+  {
+    type = DDSRT_IFTYPE_UNKNOWN;
+  }
+  else
+  {
+    switch (IFM_TYPE (ifmr.ifm_active))
+    {
+      case IFM_ETHER:
+      case IFM_TOKEN:
+      case IFM_FDDI:
+        type = DDSRT_IFTYPE_WIRED;
+        break;
+      case IFM_IEEE80211:
+        type = DDSRT_IFTYPE_WIFI;
+        break;
+      default:
+        type = DDSRT_IFTYPE_UNKNOWN;
+        break;
+    }
+  }
+  close (sock);
+  return type;
+}
+#else
+static enum ddsrt_iftype guess_iftype (const struct ifaddrs *sys_ifa)
+{
+  return DDSRT_IFTYPE_UNKNOWN;
+}
+#endif
+
 static dds_return_t
-copyaddr(ddsrt_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
+copyaddr(ddsrt_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa, enum ddsrt_iftype type)
 {
   dds_return_t err = DDS_RETCODE_OK;
   ddsrt_ifaddrs_t *ifa;
@@ -37,6 +142,7 @@ copyaddr(ddsrt_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa)
     err = DDS_RETCODE_OUT_OF_RESOURCES;
   } else {
     ifa->index = if_nametoindex(sys_ifa->ifa_name);
+    ifa->type = type;
     ifa->flags = sys_ifa->ifa_flags;
     if ((ifa->name = ddsrt_strdup(sys_ifa->ifa_name)) == NULL ||
         (ifa->addr = ddsrt_memdup(sys_ifa->ifa_addr, sz)) == NULL ||
@@ -109,7 +215,8 @@ ddsrt_getifaddrs(
         }
 
         if (use) {
-          err = copyaddr(&ifa_next, sys_ifa);
+          enum ddsrt_iftype type = guess_iftype (sys_ifa);
+          err = copyaddr(&ifa_next, sys_ifa, type);
           if (err == DDS_RETCODE_OK) {
             if (ifa == NULL) {
               ifa = ifa_root = ifa_next;

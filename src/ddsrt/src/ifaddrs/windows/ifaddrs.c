@@ -152,6 +152,21 @@ getflags(const PIP_ADAPTER_ADDRESSES iface)
   return flags;
 }
 
+static enum ddsrt_iftype
+guess_iftype (const PIP_ADAPTER_ADDRESSES iface)
+{
+  switch (iface->IfType) {
+    case IF_TYPE_IEEE80211:
+      return DDSRT_IFTYPE_WIFI;
+    case IF_TYPE_ETHERNET_CSMACD:
+    case IF_TYPE_IEEE1394:
+    case IF_TYPE_ISO88025_TOKENRING:
+      return DDSRT_IFTYPE_WIRED;
+    default:
+      return DDSRT_IFTYPE_UNKNOWN;
+  }
+}
+
 static int
 copyaddr(
   ddsrt_ifaddrs_t **ifap,
@@ -175,6 +190,7 @@ copyaddr(
     err = DDS_RETCODE_OUT_OF_RESOURCES;
   } else {
     ifa->flags = getflags(iface);
+    ifa->type = guess_iftype(iface);
     ifa->addr = ddsrt_memdup(sa, sz);
     (void)ddsrt_asprintf(&ifa->name, "%wS", iface->FriendlyName);
     if (ifa->addr == NULL || ifa->name == NULL) {

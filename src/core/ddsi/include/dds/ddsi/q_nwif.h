@@ -28,6 +28,7 @@ struct nn_interface {
   nn_locator_t netmask;
   uint32_t if_index;
   unsigned mc_capable: 1;
+  unsigned mc_flaky: 1;
   unsigned point_to_point: 1;
   char *name;
 };

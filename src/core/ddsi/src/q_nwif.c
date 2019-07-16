@@ -485,6 +485,18 @@ int find_own_ip (const char *requested_address)
       continue;
     }
 
+    switch (ifa->type)
+    {
+      case DDSRT_IFTYPE_WIFI:
+        DDS_LOG(DDS_LC_CONFIG, " wireless");
+        break;
+      case DDSRT_IFTYPE_WIRED:
+        DDS_LOG(DDS_LC_CONFIG, " wired");
+        break;
+      case DDSRT_IFTYPE_UNKNOWN:
+        break;
+    }
+
 #if defined(__linux) && !LWIP_SOCKET
     if (ifa->addr->sa_family == AF_PACKET)
     {
@@ -571,6 +583,7 @@ int find_own_ip (const char *requested_address)
       memset(&gv.interfaces[gv.n_interfaces].netmask.address, 0, sizeof(gv.interfaces[gv.n_interfaces].netmask.address));
     }
     gv.interfaces[gv.n_interfaces].mc_capable = ((ifa->flags & IFF_MULTICAST) != 0);
+    gv.interfaces[gv.n_interfaces].mc_flaky = ((ifa->type == DDSRT_IFTYPE_WIFI) != 0);
     gv.interfaces[gv.n_interfaces].point_to_point = ((ifa->flags & IFF_POINTOPOINT) != 0);
     gv.interfaces[gv.n_interfaces].if_index = ifa->index;
     gv.interfaces[gv.n_interfaces].name = ddsrt_strdup (if_name);

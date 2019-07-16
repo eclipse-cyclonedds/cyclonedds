@@ -95,6 +95,7 @@ copyaddr(
   } else {
     ifa->flags = getflags(netif, addr);
     ifa->index = netif->num;
+    ifa->type = DDSRT_IFTYPE_UNKNOWN;
 
     if (IP_IS_V4(addr)) {
       static const size_t sz = sizeof(struct sockaddr_in);
