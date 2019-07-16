@@ -55,8 +55,21 @@ static void free_type_ref(ddsts_type_t *type, ddsts_type_t *parent, ddsts_flags_
   }
 }
 
-static void free_children(ddsts_type_t *type)
+static void init_children(ddsts_type_list_t *list)
 {
+  list->first = NULL;
+  list->ref_end = &list->first;
+}
+
+static void children_add(ddsts_type_list_t *list, ddsts_type_t *child)
+{
+  *list->ref_end = child;
+  list->ref_end = &child->type.next;
+}
+
+static void free_children(ddsts_type_list_t *list)
+{
+  ddsts_type_t *type = list->first; 
   while (type != NULL) {
     ddsts_type_t *next = type->type.next;
     type->type.free_func(type);
@@ -218,7 +231,7 @@ dds_return_t ddsts_create_map(ddsts_type_t *key_type, ddsts_type_t *value_type, 
 
 static void free_module(ddsts_type_t *type)
 {
-  free_children(type->module.members.first);
+  free_children(&type->module.members);
   free_type(type);
 }
 
@@ -229,8 +242,7 @@ dds_return_t ddsts_create_module(ddsts_identifier_t name, ddsts_type_t **result)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   }
   init_type(type, free_module, DDSTS_MODULE, name);
-  type->module.members.first = NULL;
-  type->module.members.ref_end = &type->module.members.first;
+  init_children(&type->module.members);
   type->module.previous = NULL;
   *result = type;
   return DDS_RETCODE_OK;
@@ -240,8 +252,7 @@ dds_return_t ddsts_module_add_member(ddsts_type_t *module, ddsts_type_t *member)
 {
   if (module != NULL) {
     member->type.parent = module;
-    *module->module.members.ref_end = member;
-    module->module.members.ref_end = &member->type.next;
+    children_add(&module->module.members, member);
 
     /* if the member is a module, find previous open of this module, if any */
     if (DDSTS_IS_TYPE(member, DDSTS_MODULE)) {
@@ -304,7 +315,7 @@ static void free_struct(ddsts_type_t *type)
     ddsrt_free(key);
     key = next;
   }
-  free_children(type->struct_def.members.first);
+  free_children(&type->struct_def.members);
   free_type(type);
 }
 
@@ -315,8 +326,7 @@ dds_return_t ddsts_create_struct(ddsts_identifier_t name, ddsts_type_t **result)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   }
   init_type(type, free_struct, DDSTS_STRUCT, name);
-  type->struct_def.members.first = NULL;
-  type->struct_def.members.ref_end = &type->struct_def.members.first;
+  init_children(&type->struct_def.members);
   type->struct_def.super = NULL;
   type->struct_def.keys = NULL;
   *result = type;
@@ -327,8 +337,7 @@ dds_return_t ddsts_struct_add_member(ddsts_type_t *struct_def, ddsts_type_t *mem
 {
   if (struct_def != NULL) {
     member->type.parent = struct_def;
-    *struct_def->struct_def.members.ref_end = member;
-    struct_def->struct_def.members.ref_end = &member->type.next;
+    children_add(&struct_def->struct_def.members, member);
   }
   return DDS_RETCODE_OK;
 }
@@ -379,6 +388,80 @@ dds_return_t ddsts_declaration_set_type(ddsts_type_t *declaration, ddsts_type_t 
   return DDS_RETCODE_OK;
 }
 
+dds_return_t ddsts_create_union_forward_dcl(ddsts_identifier_t name, ddsts_type_t **result)
+{
+  ddsts_type_t *type = (ddsts_type_t*)ddsrt_malloc_s(sizeof(ddsts_forward_t));
+  if (type == NULL) {
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  }
+  init_type(type, free_forward, DDSTS_FORWARD_UNION, name);
+  type->forward.definition = NULL;
+  *result = type;
+  return DDS_RETCODE_OK;
+}
+
+/* ddsts_union_t */
+
+static void free_union(ddsts_type_t *type)
+{
+  free_children(&type->union_def.cases);
+  free_type(type);
+}
+
+dds_return_t
+ddsts_create_union(ddsts_identifier_t name, ddsts_flags_t switch_type, ddsts_type_t **result)
+{
+  ddsts_type_t *type = (ddsts_type_t*)ddsrt_malloc_s(sizeof(ddsts_union_t));
+  if (type == NULL) {
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  }
+  init_type(type, free_union, DDSTS_UNION, name);
+  type->union_def.switch_type = switch_type;
+  init_children(&type->union_def.cases);
+  *result = type;
+  return DDS_RETCODE_OK;
+}
+
+void ddsts_free_union_case_labels(ddsts_union_case_label_t *labels)
+{
+  while (labels != NULL) {
+    ddsts_union_case_label_t *next = labels->next;
+    ddsts_free_literal(&labels->value);
+    ddsrt_free(labels);
+    labels = next;
+  }
+}
+
+static void free_union_case(ddsts_type_t *type)
+{
+  ddsts_free_union_case_labels(type->union_case.labels);
+  free_declaration(type);
+}
+
+dds_return_t
+ddsts_union_add_case(ddsts_type_t *union_def, ddsts_union_case_label_t *labels, bool default_label, ddsts_type_t **result)
+{
+  ddsts_type_t *type = (ddsts_type_t*)ddsrt_malloc_s(sizeof(ddsts_union_case_t));
+  if (type == NULL) {
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  }
+  init_type(type, free_union_case, DDSTS_UNION_CASE, NULL);
+  type->declaration.decl_type = NULL;
+  type->union_case.labels = labels;
+  type->union_case.default_label = default_label;
+  type->type.parent = union_def;
+  children_add(&union_def->union_def.cases, type);
+  *result = type;
+  return DDS_RETCODE_OK;
+}
+
+dds_return_t
+ddsts_union_case_set_decl(ddsts_type_t *union_case, ddsts_identifier_t name, ddsts_type_t *type)
+{
+  union_case->type.name = name;
+  ddsts_declaration_set_type(union_case, type);
+  return DDS_RETCODE_OK;
+}
 /* Utility functions */
 
 dds_return_t

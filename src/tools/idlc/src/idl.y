@@ -82,6 +82,7 @@ int yyerror(YYLTYPE *yylloc, yyscan_t yyscanner, ddsts_context_t *context, char 
 
 %type <base_type_flags>
   base_type_spec
+  switch_type_spec
   floating_pt_type
   integer_type
   signed_int
@@ -410,6 +411,7 @@ struct_type:
 
 constr_type_dcl:
     struct_dcl
+  | union_dcl
   ;
 
 struct_dcl:
@@ -452,7 +454,6 @@ member:
 /* Embedded struct extension: */
   | struct_def { ddsts_add_struct_member(context, &($1)); }
     declarators ';'
-
   ;
 
 struct_forward_dcl:
@@ -462,6 +463,88 @@ struct_forward_dcl:
           YYABORT;
         }
       };
+
+union_dcl:
+    union_def
+  | union_forward_dcl
+  ;
+
+union_def:
+    "union" identifier
+       {
+         if (!ddsts_add_union_open(context, $2)) {
+           YYABORT ;
+         }
+       }
+    "switch" '(' switch_type_spec ')'
+       {
+         if (!ddsts_union_set_switch_type(context, $6)) {
+           YYABORT ;
+         }
+       }
+    '{' switch_body '}'
+       { ddsts_union_close(context); }
+  ;
+switch_type_spec:
+    integer_type
+  | char_type
+  | boolean_type
+  | scoped_name
+      {
+        if (!ddsts_get_base_type_from_scoped_name(context, $1, &($$))) {
+          YYABORT;
+        }
+      }
+  ;
+
+switch_body: cases ;
+cases:
+    case cases
+  | case
+  ;
+
+case:
+    case_labels element_spec ';'
+  ;
+
+case_labels:
+    case_label case_labels
+  | case_label
+  ;
+
+case_label:
+    "case" const_expr ':'
+      {
+        if (!ddsts_union_add_case_label(context, &($2))) {
+          YYABORT;
+        }
+      }
+  | "default" ':'
+      {
+        if (!ddsts_union_add_case_default(context)) {
+          YYABORT;
+        }
+      }
+  ;
+
+element_spec:
+    type_spec
+      {
+        if (!ddsts_union_add_element(context, &($1))) {
+          YYABORT;
+        }
+      }
+    declarator
+  ;
+
+union_forward_dcl:
+    "union" identifier
+      {
+        if (!ddsts_add_union_forward(context, $2)) {
+          YYABORT;
+        }
+      }
+  ;
 
 array_declarator:
     identifier fixed_array_sizes
