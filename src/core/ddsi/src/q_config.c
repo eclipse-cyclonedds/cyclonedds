@@ -234,15 +234,16 @@ static const struct cfgelem general_cfgelems[] = {
     BLURB("<p>This element allows explicitly overruling the network address DDSI2E advertises in the discovery protocol, which by default is the address of the preferred network interface (General/NetworkInterfaceAddress), to allow DDSI2E to communicate across a Network Address Translation (NAT) device.</p>") },
   { LEAF("ExternalNetworkMask"), 1, "0.0.0.0", ABSOFF(externalMaskString), 0, uf_string, ff_free, pf_string,
     BLURB("<p>This element specifies the network mask of the external network address. This element is relevant only when an external network address (General/ExternalNetworkAddress) is explicitly configured. In this case locators received via the discovery protocol that are within the same external subnet (as defined by this mask) will be translated to an internal address by replacing the network portion of the external address with the corresponding portion of the preferred network interface address. This option is IPv4-only.</p>") },
-  { LEAF("AllowMulticast"), 1, "true", ABSOFF(allowMulticast), 0, uf_allow_multicast, 0, pf_allow_multicast,
+  { LEAF("AllowMulticast"), 1, "default", ABSOFF(allowMulticast), 0, uf_allow_multicast, 0, pf_allow_multicast,
     BLURB("<p>This element controls whether DDSI2E uses multicasts for data traffic.</p>\n\
-<p>It is a comma-separated list of some of the following keywords: \"spdp\", \"asm\", \"ssm\", or either of \"false\" or \"true\".</p>\n\
+<p>It is a comma-separated list of some of the following keywords: \"spdp\", \"asm\", \"ssm\", or either of \"false\" or \"true\", or \"default\".</p>\n\
 <ul>\n\
 <li><i>spdp</i>: enables the use of ASM (any-source multicast) for participant discovery, joining the multicast group on the discovery socket, transmitting SPDP messages to this group, but never advertising nor using any multicast address in any discovery message, thus forcing unicast communications for all endpoint discovery and user data.</li>\n\
 <li><i>asm</i>: enables the use of ASM for all traffic, including receiving SPDP but not transmitting SPDP messages via multicast</li>\n\
 <li><i>ssm</i>: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)</li>\n\
 </ul>\n\
-<p>When set to \"false\" all multicasting is disabled. The default, \"true\" enables full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>") },
+<p>When set to \"false\" all multicasting is disabled. The default, \"true\" enables full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>\n\
+<p>\"default\" maps on spdp if the network is a WiFi network, on true if it is a wired network</p>") },
   { LEAF("PreferMulticast"), 1, "false", ABSOFF(prefer_multicast), 0, uf_boolean, 0, pf_boolean,
     BLURB("<p>When false (default) Cyclone DDS uses unicast for data whenever there a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast address is available.</p>") },
   { LEAF("MulticastTimeToLive"), 1, "32", ABSOFF(multicast_ttl), 0, uf_natint_255, 0, pf_int,
@@ -532,12 +533,12 @@ static const struct cfgelem unsupp_cfgelems[] = {
     BLURB("<p>This elements configures the maximum number of DCPS domain participants this DDSI2E instance is willing to service. 0 is unlimited.</p>") },
   { LEAF("AccelerateRexmitBlockSize"), 1, "0", ABSOFF(accelerate_rexmit_block_size), 0, uf_uint, 0, pf_uint,
     BLURB("<p>Proxy readers that are assumed to sill be retrieving historical data get this many samples retransmitted when they NACK something, even if some of these samples have sequence numbers outside the set covered by the NACK.</p>") },
-  { LEAF("RetransmitMerging"), 1, "adaptive", ABSOFF(retransmit_merging), 0, uf_retransmit_merging, 0, pf_retransmit_merging,
+  { LEAF("RetransmitMerging"), 1, "never", ABSOFF(retransmit_merging), 0, uf_retransmit_merging, 0, pf_retransmit_merging,
     BLURB("<p>This elements controls the addressing and timing of retransmits. Possible values are:</p>\n\
 <ul><li><i>never</i>: retransmit only to the NACK-ing reader;</li>\n  \
 <li><i>adaptive</i>: attempt to combine retransmits needed for reliability, but send historical (transient-local) data to the requesting reader only;</li>\n\
 <li><i>always</i>: do not distinguish between different causes, always try to merge.</li></ul>\n\
-<p>The default is <i>adaptive</i>. See also Internal/RetransmitMergingPeriod.</p>") },
+<p>The default is <i>never</i>. See also Internal/RetransmitMergingPeriod.</p>") },
   { LEAF("RetransmitMergingPeriod"), 1, "5 ms", ABSOFF(retransmit_merging_period), 0, uf_duration_us_1s, 0, pf_duration,
     BLURB("<p>This setting determines the size of the time window in which a NACK of some sample is ignored because a retransmit of that sample has been multicasted too recently. This setting has no effect on unicasted retransmits.</p>\n\
 <p>See also Internal/RetransmitMerging.</p>") },
@@ -1760,13 +1761,29 @@ static const uint32_t allow_multicast_codes[] = { AMC_FALSE, AMC_SPDP, AMC_ASM, 
 static int uf_allow_multicast (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value)
 {
   uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
-  return do_uint32_bitset (cfgst, elem, allow_multicast_names, allow_multicast_codes, value);
+  if (ddsrt_strcasecmp (value, "default") == 0)
+  {
+    *elem = AMC_DEFAULT;
+    return 1;
+  }
+  else
+  {
+    *elem = 0;
+    return do_uint32_bitset (cfgst, elem, allow_multicast_names, allow_multicast_codes, value);
+  }
 }
 
 static void pf_allow_multicast(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
   uint32_t *p = cfg_address (cfgst, parent, cfgelem);
-  do_print_uint32_bitset (cfgst, *p, sizeof (allow_multicast_codes) / sizeof (*allow_multicast_codes), allow_multicast_names, allow_multicast_codes, sources, "");
+  if (*p == AMC_DEFAULT)
+  {
+    cfg_logelem (cfgst, sources, "default");
+  }
+  else
+  {
+    do_print_uint32_bitset (cfgst, *p, sizeof (allow_multicast_codes) / sizeof (*allow_multicast_codes), allow_multicast_names, allow_multicast_codes, sources, "");
+  }
 }
 
 static int uf_maybe_int32 (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)

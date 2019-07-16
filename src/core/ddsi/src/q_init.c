@@ -936,7 +936,24 @@ int rtps_init (void)
       config.participantIndex = PARTICIPANT_INDEX_AUTO;
       mc_available = false;
     }
+    else if (config.allowMulticast & AMC_DEFAULT)
+    {
+      /* default is dependent on network interface type: if multicast is believed to be flaky,
+         use multicast only for SPDP packets */
+      assert ((config.allowMulticast & ~AMC_DEFAULT) == 0);
+      if (gv.interfaces[gv.selected_interface].mc_flaky)
+      {
+        config.allowMulticast = AMC_SPDP;
+        DDS_LOG(DDS_LC_CONFIG, "presumed flaky multicast, use for SPDP only\n");
+      }
+      else
+      {
+        DDS_LOG(DDS_LC_CONFIG, "presumed robust multicast support, use for everything\n");
+        config.allowMulticast = AMC_TRUE;
+      }
+    }
   }
+  assert ((config.allowMulticast & AMC_DEFAULT) == 0);
   if (set_recvips () < 0)
     goto err_set_recvips;
   if (set_spdp_address () < 0)
