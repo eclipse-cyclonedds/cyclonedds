@@ -18,7 +18,10 @@
 #include "dds/ddsrt/string.h"
 #include "RoundTrip.h"
 
+#define MAX_SAMPLES 10
+
 static dds_entity_t participant = DDS_ENTITY_NIL;
+static dds_entity_t waitset = DDS_ENTITY_NIL;
 static dds_entity_t topic = DDS_ENTITY_NIL;
 static dds_entity_t publisher = DDS_ENTITY_NIL;
 static dds_entity_t subscriber = DDS_ENTITY_NIL;
@@ -41,9 +44,13 @@ static RoundTripModule_Address data;
 static void setup(void)
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
+    dds_return_t ret;
 
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant > 0);
+
+    waitset = dds_create_waitset(participant);
+    CU_ASSERT_FATAL(waitset > 0);
 
     topic = dds_create_topic(participant, &RoundTripModule_Address_desc, "ddsc_instance_get_key", NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
@@ -63,8 +70,14 @@ static void setup(void)
     readcondition = dds_create_readcondition(reader, mask);
     CU_ASSERT_FATAL(readcondition > 0);
 
+    ret = dds_waitset_attach(waitset, readcondition, readcondition);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
     querycondition = dds_create_querycondition(reader, mask, filter);
-    CU_ASSERT_FATAL(readcondition > 0);
+    CU_ASSERT_FATAL(querycondition > 0);
+
+    ret = dds_waitset_attach(waitset, querycondition, querycondition);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     memset(&data, 0, sizeof(data));
     data.ip = ddsrt_strdup("some data");
@@ -77,12 +90,6 @@ static void teardown(void)
 {
     RoundTripModule_Address_free(&data, DDS_FREE_CONTENTS);
 
-    dds_delete(readcondition);
-    dds_delete(reader);
-    dds_delete(subscriber);
-    dds_delete(writer);
-    dds_delete(publisher);
-    dds_delete(topic);
     dds_delete(participant);
 }
 
@@ -137,8 +144,18 @@ CU_Test(ddsc_instance_get_key, readcondition, .init=setup, .fini=teardown)
     dds_return_t ret;
     RoundTripModule_Address key_data;
 
-    ret = dds_register_instance(writer, &handle, &data);
+    /* The instance handle of a successful write is by
+     * design the same as the instance handle for the
+     * readers,readconditions and queryconditions.
+     * For that reason there is no need to actually read
+     * the data. It is sufficient to do a successful write
+     * and use the instance handle to obtain the key_data
+     * for the readcondition. */
+    ret = dds_write(writer, &data);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+    handle = dds_lookup_instance (writer, &data);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(handle);
 
     memset(&key_data, 0, sizeof(key_data));
 
@@ -157,8 +174,18 @@ CU_Test(ddsc_instance_get_key, querycondition, .init=setup, .fini=teardown)
     dds_return_t ret;
     RoundTripModule_Address key_data;
 
-    ret = dds_register_instance(writer, &handle, &data);
+    /* The instance handle of a successful write is by
+     * design the same as the instance handle for the
+     * readers,readconditions and queryconditions.
+     * For that reason there is no need to actually read
+     * the data. It is sufficient to do a successful write
+     * and use the instance handle to obtain the key_data
+     * for the querycondition. */
+    ret = dds_write(writer, &data);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+    handle = dds_lookup_instance (writer, &data);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(handle);
 
     memset(&key_data, 0, sizeof(key_data));
 
