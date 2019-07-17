@@ -291,6 +291,12 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
   if (sertopic == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
+  /* Claim participant handle so we can be sure the handle will not be
+     reused if we temporarily unlock the participant to check the an
+     existing topic's compatibility */
+  if ((rc = dds_entity_pin (participant, &par_ent)) < 0)
+    return rc;
+
   new_qos = dds_create_qos ();
   if (qos)
     nn_xqos_mergein_missing (new_qos, qos, DDS_TOPIC_QOS_MASK);
@@ -305,14 +311,8 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
    * Leaving the topic QoS sparse means a default-default topic QoS of
    * best-effort will do "the right thing" and let a writer still default to
    * reliable ... (and keep behaviour unchanged) */
-  if ((rc = nn_xqos_valid (new_qos)) != DDS_RETCODE_OK)
+  if ((rc = nn_xqos_valid (&par_ent->m_domain->gv.logconfig, new_qos)) != DDS_RETCODE_OK)
     goto err_invalid_qos;
-
-  /* Claim participant handle so we can be sure the handle will not be
-     reused if we temporarily unlock the participant to check the an
-     existing topic's compatibility */
-  if ((rc = dds_entity_pin (participant, &par_ent)) < 0)
-    goto err_claim_participant;
 
   /* FIXME: just mutex_lock ought to be good enough, but there is the
      pesky "closed" check still ... */
@@ -446,10 +446,9 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
 err_sertopic_reuse:
   dds_participant_unlock (par);
 err_lock_participant:
-  dds_entity_unpin (par_ent);
-err_claim_participant:
 err_invalid_qos:
   dds_delete_qos (new_qos);
+  dds_entity_unpin (par_ent);
   return rc;
 }
 
@@ -494,6 +493,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   /* Check if topic cannot be optimised (memcpy marshal) */
   if (!(desc->m_flagset & DDS_TOPIC_NO_OPTIMIZE)) {
     st->opt_size = dds_stream_check_optimize (desc);
+    DDS_CTRACE (&ppent->m_domain->gv.logconfig, "Marshalling for type: %s is %soptimised\n", desc->m_typename, st->opt_size ? "" : "not ");
   }
 
   nn_plist_init_empty (&plist);

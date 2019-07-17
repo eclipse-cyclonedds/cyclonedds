@@ -92,14 +92,12 @@ enum implicit_toplevel {
 struct cfgst {
   ddsrt_avl_tree_t found;
   struct config *cfg;
+  uint32_t domid;
+  const struct ddsrt_log_cfg *logcfg; /* for LOG_LC_CONFIG */
   /* error flag set so that we can continue parsing for some errors and still fail properly */
   int error;
 
   enum implicit_toplevel implicit_toplevel;
-
-  /* We want the tracing/verbosity settings to be fixed while parsing
-     the configuration, so we update this variable instead. */
-  uint32_t enabled_logcats;
 
   /* current input, mask with 1 bit set */
   uint32_t source;
@@ -624,19 +622,19 @@ static const struct cfgelem sizing_cfgelems[] = {
 };
 
 static const struct cfgelem discovery_ports_cfgelems[] = {
-  { LEAF("Base"), 1, "7400", ABSOFF(port_base), 0, uf_port, 0, pf_int,
+  { LEAF("Base"), 1, "7400", ABSOFF(port_base), 0, uf_port, 0, pf_uint,
     BLURB("<p>This element specifies the base port number (refer to the DDSI 2.1 specification, section 9.6.1, constant PB).</p>") },
-  { LEAF("DomainGain"), 1, "250", ABSOFF(port_dg), 0, uf_int, 0, pf_int,
+  { LEAF("DomainGain"), 1, "250", ABSOFF(port_dg), 0, uf_uint, 0, pf_uint,
     BLURB("<p>This element specifies the domain gain, relating domain ids to sets of port numbers (refer to the DDSI 2.1 specification, section 9.6.1, constant DG).</p>") },
-  { LEAF("ParticipantGain"), 1, "2", ABSOFF(port_pg), 0, uf_int, 0, pf_int,
+  { LEAF("ParticipantGain"), 1, "2", ABSOFF(port_pg), 0, uf_uint, 0, pf_uint,
     BLURB("<p>This element specifies the participant gain, relating p0, articipant index to sets of port numbers (refer to the DDSI 2.1 specification, section 9.6.1, constant PG).</p>") },
-  { LEAF("MulticastMetaOffset"), 1, "0", ABSOFF(port_d0), 0, uf_int, 0, pf_int,
+  { LEAF("MulticastMetaOffset"), 1, "0", ABSOFF(port_d0), 0, uf_uint, 0, pf_uint,
     BLURB("<p>This element specifies the port number for multicast meta traffic (refer to the DDSI 2.1 specification, section 9.6.1, constant d0).</p>") },
-  { LEAF("UnicastMetaOffset"), 1, "10", ABSOFF(port_d1), 0, uf_int, 0, pf_int,
+  { LEAF("UnicastMetaOffset"), 1, "10", ABSOFF(port_d1), 0, uf_uint, 0, pf_uint,
     BLURB("<p>This element specifies the port number for unicast meta traffic (refer to the DDSI 2.1 specification, section 9.6.1, constant d1).</p>") },
-  { LEAF("MulticastDataOffset"), 1, "1", ABSOFF(port_d2), 0, uf_int, 0, pf_int,
+  { LEAF("MulticastDataOffset"), 1, "1", ABSOFF(port_d2), 0, uf_uint, 0, pf_uint,
     BLURB("<p>This element specifies the port number for multicast meta traffic (refer to the DDSI 2.1 specification, section 9.6.1, constant d2).</p>") },
-  { LEAF("UnicastDataOffset"), 1, "11", ABSOFF(port_d3), 0, uf_int, 0, pf_int,
+  { LEAF("UnicastDataOffset"), 1, "11", ABSOFF(port_d3), 0, uf_uint, 0, pf_uint,
     BLURB("<p>This element specifies the port number for unicast meta traffic (refer to the DDSI 2.1 specification, section 9.6.1, constant d3).</p>") },
   END_MARKER
 };
@@ -1045,21 +1043,10 @@ static size_t cfg_note (struct cfgst *cfgst, uint32_t cat, size_t bsz, const cha
   }
 
   cfg_note_snprintf (&bb, "%s", suffix);
-  switch (cat)
-  {
-    case DDS_LC_CONFIG:
-      DDS_LOG (cat, "%s\n", bb.buf);
-      break;
-    case DDS_LC_WARNING:
-      DDS_WARNING ("%s\n", bb.buf);
-      break;
-    case DDS_LC_ERROR:
-      DDS_ERROR ("%s\n", bb.buf);
-      break;
-    default:
-      DDS_FATAL ("cfg_note unhandled category %u for message %s\n", (unsigned) cat, bb.buf);
-      break;
-  }
+  if (cfgst->logcfg)
+    DDS_CLOG (cat, cfgst->logcfg, "%s\n", bb.buf);
+  else
+    DDS_ILOG (cat, cfgst->domid, "%s\n", bb.buf);
 
   ddsrt_free (bb.buf);
   return 0;
@@ -1468,7 +1455,7 @@ static const uint32_t logcat_codes[] = {
 
 static int uf_logcat (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
 {
-  return do_uint32_bitset (cfgst, &cfgst->enabled_logcats, logcat_names, logcat_codes, value);
+  return do_uint32_bitset (cfgst, &cfgst->cfg->enabled_logcats, logcat_names, logcat_codes, value);
 }
 
 static int uf_verbosity (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
@@ -1484,7 +1471,7 @@ static int uf_verbosity (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_
   if (idx < 0)
     return cfg_error (cfgst, "'%s': undefined value", value);
   for (int i = (int) (sizeof (vs) / sizeof (*vs)) - 1; i >= idx; i--)
-    cfgst->enabled_logcats |= lc[i];
+    cfgst->cfg->enabled_logcats |= lc[i];
   return 1;
 }
 
@@ -1866,11 +1853,6 @@ static void pf_int (struct cfgst *cfgst, void *parent, struct cfgelem const * co
   cfg_logelem (cfgst, sources, "%d", *p);
 }
 
-static int uf_port(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
-{
-  return uf_int_min_max(cfgst, parent, cfgelem, first, value, 1, 65535);
-}
-
 static int uf_dyn_port(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {
   return uf_int_min_max(cfgst, parent, cfgelem, first, value, -1, 65535);
@@ -1903,6 +1885,17 @@ static void pf_uint (struct cfgst *cfgst, void *parent, struct cfgelem const * c
 {
   unsigned const * const p = cfg_address (cfgst, parent, cfgelem);
   cfg_logelem (cfgst, sources, "%u", *p);
+}
+
+static int uf_port(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
+{
+  int *elem = cfg_address (cfgst, parent, cfgelem);
+  if (!uf_uint (cfgst, parent, cfgelem, first, value))
+    return 0;
+  else if (*elem < 1 || *elem > 65535)
+    return cfg_error (cfgst, "%s: out of range", value);
+  else
+    return 1;
 }
 
 static int uf_duration_gen (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, const char *value, int64_t def_mult, int64_t min_ns, int64_t max_ns)
@@ -1953,28 +1946,28 @@ static void pf_duration (struct cfgst *cfgst, void *parent, struct cfgelem const
 static int uf_domainId (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   DDSRT_WARNING_MSVC_OFF(4996);
-  struct config_maybe_int32 * const elem = cfg_address (cfgst, parent, cfgelem);
+  struct config_maybe_uint32 * const elem = cfg_address (cfgst, parent, cfgelem);
   int pos;
   if (ddsrt_strcasecmp (value, "any") == 0) {
     elem->isdefault = 1;
     elem->value = 0;
     return 1;
-  } else if (sscanf (value, "%"SCNd32"%n", &elem->value, &pos) == 1 && value[pos] == 0 && elem->value >= 0 && elem->value <= 230) {
+  } else if (sscanf (value, "%"SCNu32"%n", &elem->value, &pos) == 1 && value[pos] == 0 && elem->value != (uint32_t) 0xffffffff) {
     elem->isdefault = 0;
     return 1;
   } else {
-    return cfg_error (cfgst, "'%s': neither 'any' nor a decimal integer in 0 .. 230\n", value);
+    return cfg_error (cfgst, "'%s': neither 'any' nor a less than 2**32-1\n", value);
   }
   DDSRT_WARNING_MSVC_ON(4996);
 }
 
 static void pf_domainId(struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 {
-  struct config_maybe_int32 const * const p = cfg_address (cfgst, parent, cfgelem);
+  struct config_maybe_uint32 const * const p = cfg_address (cfgst, parent, cfgelem);
   if (p->isdefault)
-    cfg_logelem (cfgst, sources, "any (%d)", p->value);
+    cfg_logelem (cfgst, sources, "any (%"PRIu32")", p->value);
   else
-    cfg_logelem (cfgst, sources, "%d", p->value);
+    cfg_logelem (cfgst, sources, "%"PRIu32, p->value);
 }
 
 static int uf_participantIndex (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
@@ -2361,7 +2354,7 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
 static int proc_update_cfgelem (struct cfgst * cfgst, const struct cfgelem *ce, const char *value, bool isattr)
 {
   void *parent = cfgst_parent (cfgst);
-  char *xvalue = ddsrt_expand_envvars (value);
+  char *xvalue = ddsrt_expand_envvars (value, cfgst->domid);
   int ok;
   cfgst_push (cfgst, isattr, isattr ? ce : NULL, parent);
   ok = do_update (cfgst, ce->update, parent, ce, xvalue, cfgst->source);
@@ -2463,7 +2456,7 @@ static int sort_channels_cmp (const void *va, const void *vb)
   return ((*a)->priority == (*b)->priority) ? 0 : ((*a)->priority < (*b)->priority) ? -1 : 1;
 }
 
-static int sort_channels_check_nodups (struct config *cfg)
+static int sort_channels_check_nodups (struct config *cfg, uint32_t domid)
 {
   /* Selecting a channel is much easier & more elegant if the channels
      are sorted on descending priority.  While we do retain the list
@@ -2488,7 +2481,7 @@ static int sort_channels_check_nodups (struct config *cfg)
   result = 0;
   for (i = 0; i < n - 1; i++) {
     if (ary[i]->priority == ary[i + 1]->priority) {
-      DDS_ERROR("config: duplicate channel definition for priority %u: channels %s and %s\n",
+      DDS_ILOG (DDS_LC_ERROR, domid, "config: duplicate channel definition for priority %u: channels %s and %s\n",
                 ary[i]->priority, ary[i]->name, ary[i + 1]->name);
       result = ERR_ENTITY_EXISTS;
     }
@@ -2508,7 +2501,7 @@ static int sort_channels_check_nodups (struct config *cfg)
 }
 #endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
 
-static FILE *config_open_file (char *tok, char **cursor)
+static FILE *config_open_file (char *tok, char **cursor, uint32_t domid)
 {
   assert (*tok && !(isspace ((unsigned char) *tok) || *tok == ','));
   FILE *fp;
@@ -2525,7 +2518,7 @@ static FILE *config_open_file (char *tok, char **cursor)
   {
     if (strncmp (tok, "file://", 7) != 0 || (fp = fopen (tok + 7, "r")) == NULL)
     {
-      DDS_ERROR ("can't open configuration file %s\n", tok);
+      DDS_ILOG (DDS_LC_ERROR, domid, "can't open configuration file %s\n", tok);
       return NULL;
     }
   }
@@ -2533,7 +2526,7 @@ static FILE *config_open_file (char *tok, char **cursor)
   return fp;
 }
 
-struct cfgst *config_init (const char *configfile, struct config *cfg)
+struct cfgst *config_init (const char *configfile, struct config *cfg, uint32_t domid)
 {
   int ok = 1;
   struct cfgst *cfgst;
@@ -2546,11 +2539,8 @@ struct cfgst *config_init (const char *configfile, struct config *cfg)
   cfgst->cfg = cfg;
   cfgst->error = 0;
   cfgst->source = 0;
-  cfgst->enabled_logcats = 0;
-
-  /* Initial logging configuration: configuration errors and warnings are dumped to stderr */
-  cfgst->cfg->tracingOutputFile = stderr;
-  cfgst->cfg->enabled_logcats = DDS_LC_ERROR | DDS_LC_WARNING;
+  cfgst->logcfg = NULL;
+  cfgst->domid = domid;
 
   /* eventually, we domainId.value will be the real domain id selected, even if it was configured
      to the default of "any" and has "isdefault" set; initializing it to the default-default
@@ -2584,7 +2574,7 @@ struct cfgst *config_init (const char *configfile, struct config *cfg)
         ddsrt_xmlp_set_options (qx, DDSRT_XMLP_ANONYMOUS_CLOSE_TAG | DDSRT_XMLP_MISSING_CLOSE_AS_EOF);
         fp = NULL;
       }
-      else if ((fp = config_open_file (tok, &cursor)) == NULL)
+      else if ((fp = config_open_file (tok, &cursor, domid)) == NULL)
       {
         ddsrt_free (copy);
         goto error;
@@ -2651,7 +2641,7 @@ struct cfgst *config_init (const char *configfile, struct config *cfg)
         break;
     }
     if (!ok1)
-      DDS_ERROR("config: invalid combination of Transport, IPv6, TCP\n");
+      DDS_ILOG (DDS_LC_ERROR, domid, "config: invalid combination of Transport, IPv6, TCP\n");
     ok = ok && ok1;
     cfgst->cfg->compat_use_ipv6 = (cfgst->cfg->transport_selector == TRANS_UDP6 || cfgst->cfg->transport_selector == TRANS_TCP6) ? BOOLDEF_TRUE : BOOLDEF_FALSE;
     cfgst->cfg->compat_tcp_enable = (cfgst->cfg->transport_selector == TRANS_TCP || cfgst->cfg->transport_selector == TRANS_TCP6) ? BOOLDEF_TRUE : BOOLDEF_FALSE;
@@ -2678,19 +2668,19 @@ struct cfgst *config_init (const char *configfile, struct config *cfg)
         case Q_CIPHER_NULL:
           /* nop */
           if (s->key && strlen(s->key) > 0)
-            DDS_INFO ("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s: cipher key not required\n", s->key);
+            DDS_ILOG (DDS_LC_INFO, domid, "config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s: cipher key not required\n", s->key);
           break;
 
         default:
           /* read the cipherkey if present */
           if (!s->key || strlen(s->key) == 0)
           {
-            DDS_ERROR ("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: cipher key missing\n");
+            DDS_ILOG (DDS_LC_ERROR, domid, "config: DDSI2Service/Security/SecurityProfile[@cipherkey]: cipher key missing\n");
             ok = 0;
           }
           else if (q_security_plugin.valid_uri && !(q_security_plugin.valid_uri) (s->cipher, s->key))
           {
-            DDS_ERROR ("config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s : incorrect key\n", s->key);
+            DDS_ILOG (DDS_LC_ERROR, domid, "config: DDSI2Service/Security/SecurityProfile[@cipherkey]: %s : incorrect key\n", s->key);
             ok = 0;
           }
       }
@@ -2722,7 +2712,7 @@ struct cfgst *config_init (const char *configfile, struct config *cfg)
           p->securityProfile = s;
         else
         {
-          DDS_ERROR("config: DDSI2Service/Partitioning/NetworkPartitions/NetworkPartition[@securityprofile]: %s: unknown securityprofile\n", p->profileName);
+          DDS_ILOG (DDS_LC_ERROR, domid, "config: DDSI2Service/Partitioning/NetworkPartitions/NetworkPartition[@securityprofile]: %s: unknown securityprofile\n", p->profileName);
           ok = 0;
         }
       }
@@ -2751,16 +2741,13 @@ struct cfgst *config_init (const char *configfile, struct config *cfg)
         m->partition = p;
       else
       {
-        DDS_ERROR ("config: DDSI2Service/Partitioning/PartitionMappings/PartitionMapping[@networkpartition]: %s: unknown partition\n", m->networkPartition);
+        DDS_ILOG (DDS_LC_ERROR, domid, "config: DDSI2Service/Partitioning/PartitionMappings/PartitionMapping[@networkpartition]: %s: unknown partition\n", m->networkPartition);
         ok = 0;
       }
       m = m->next;
     }
   }
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
-
-  /* Now switch to configured tracing settings */
-  cfgst->cfg->enabled_logcats = cfgst->enabled_logcats;
 
   if (ok)
   {
@@ -2775,10 +2762,12 @@ error:
   return NULL;
 }
 
-void config_print_cfgst (struct cfgst *cfgst)
+void config_print_cfgst (struct cfgst *cfgst, const struct ddsrt_log_cfg *logcfg)
 {
   if (cfgst == NULL)
     return;
+  assert (cfgst->logcfg == NULL);
+  cfgst->logcfg = logcfg;
   print_configitems (cfgst, cfgst->cfg, 0, root_cfgelems, 0);
 }
 

@@ -244,10 +244,10 @@ struct config
   enum boolean_default compat_tcp_enable;
   int dontRoute;
   int enableMulticastLoopback;
-  struct config_maybe_int32 domainId;
+  struct config_maybe_uint32 domainId;
   int participantIndex;
   int maxAutoParticipantIndex;
-  int port_base;
+  uint32_t port_base;
   char *spdpMulticastAddressString;
   char *defaultMulticastAddressString;
   char *assumeMulticastCapable;
@@ -373,12 +373,12 @@ struct config
   enum many_sockets_mode many_sockets_mode;
   int assume_rti_has_pmd_endpoints;
 
-  int port_dg;
-  int port_pg;
-  int port_d0;
-  int port_d1;
-  int port_d2;
-  int port_d3;
+  uint32_t port_dg;
+  uint32_t port_pg;
+  uint32_t port_d0;
+  uint32_t port_d1;
+  uint32_t port_d2;
+  uint32_t port_d3;
 
   int monitor_port;
 
@@ -393,8 +393,8 @@ struct config
 
 struct cfgst;
 
-struct cfgst *config_init (const char *configfile, struct config *cfg);
-void config_print_cfgst (struct cfgst *cfgst);
+struct cfgst *config_init (const char *configfile, struct config *cfg, uint32_t domid);
+void config_print_cfgst (struct cfgst *cfgst, const struct ddsrt_log_cfg *logcfg);
 void config_free_source_info (struct cfgst *cfgst);
 void config_fini (struct cfgst *cfgst);
 

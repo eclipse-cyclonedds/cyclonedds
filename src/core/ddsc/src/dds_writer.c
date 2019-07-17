@@ -288,7 +288,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     nn_xqos_mergein_missing (wqos, tp->m_entity.m_qos, ~(uint64_t)0);
   nn_xqos_mergein_missing (wqos, &pub->m_entity.m_domain->gv.default_xqos_wr, ~(uint64_t)0);
 
-  if ((rc = nn_xqos_valid (wqos)) < 0)
+  if ((rc = nn_xqos_valid (&pub->m_entity.m_domain->gv.logconfig, wqos)) < 0)
   {
     dds_delete_qos(wqos);
     goto err_bad_qos;

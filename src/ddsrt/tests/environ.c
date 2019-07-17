@@ -131,7 +131,7 @@ CU_Theory((const char *var, const char *expect), ddsrt_environ, expand)
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
 
   /* Expand a string with available environment variables. */
-  ptr = ddsrt_expand_envvars(var);
+  ptr = ddsrt_expand_envvars(var,UINT32_MAX);
   if (ptr) {
     /* printf("==== %10s: expand(%s), expect(%s))\n", var, ptr, expect); */
     CU_ASSERT_STRING_EQUAL(ptr, expect);
@@ -183,7 +183,7 @@ CU_Theory((const char *var, const char *expect), ddsrt_environ, expand_sh)
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
 
   /* Expand a string with available environment variables. */
-  ptr = ddsrt_expand_envvars_sh(var);
+  ptr = ddsrt_expand_envvars_sh(var,UINT32_MAX);
   if (ptr) {
     /* printf("==== %10s: expand(%s), expect(%s))\n", var, ptr, expect); */
     CU_ASSERT_STRING_EQUAL(ptr, expect);

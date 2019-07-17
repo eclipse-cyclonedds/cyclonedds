@@ -90,13 +90,13 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
       nn_locator_t tmp;
       ddsi_ipaddr_to_loc(&tmp, (struct sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
       ddsi_locator_to_string(conn->m_base.gv, addrbuf, sizeof(addrbuf), &tmp);
-      DDS_WARNING("%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
+      DDS_CWARNING(&conn->m_base.gv->logconfig, "%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
     }
   }
   else if (rc != DDS_RETCODE_BAD_PARAMETER &&
            rc != DDS_RETCODE_NO_CONNECTION)
   {
-    DDS_ERROR("UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) ((ddsi_udp_conn_t) conn)->m_sock, (int) ret, rc);
+    DDS_CERROR(&conn->m_base.gv->logconfig, "UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) ((ddsi_udp_conn_t) conn)->m_sock, (int) ret, rc);
     ret = -1;
   }
   return ret;
@@ -161,7 +161,7 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
            rc != DDS_RETCODE_NOT_ALLOWED &&
            rc != DDS_RETCODE_NO_CONNECTION)
   {
-    DDS_ERROR("ddsi_udp_conn_write failed with retcode %"PRId32"\n", rc);
+    DDS_CERROR(&conn->m_base.gv->logconfig, "ddsi_udp_conn_write failed with retcode %"PRId32"\n", rc);
   }
   return (rc == DDS_RETCODE_OK ? ret : -1);
 }
@@ -202,7 +202,7 @@ static int ddsi_udp_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t bas
   return ret;
 }
 
-static unsigned short get_socket_port (ddsrt_socket_t socket)
+static unsigned short get_socket_port (const struct ddsrt_log_cfg *logcfg, ddsrt_socket_t socket)
 {
   dds_return_t ret;
   struct sockaddr_storage addr;
@@ -211,7 +211,7 @@ static unsigned short get_socket_port (ddsrt_socket_t socket)
   ret = ddsrt_getsockname (socket, (struct sockaddr *)&addr, &addrlen);
   if (ret != DDS_RETCODE_OK)
   {
-    DDS_ERROR("ddsi_udp_get_socket_port: getsockname returned %"PRId32"\n", ret);
+    DDS_CERROR (logcfg, "ddsi_udp_get_socket_port: getsockname returned %"PRId32"\n", ret);
     return 0;
   }
 
@@ -242,7 +242,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t
 #endif
 
     ddsi_factory_conn_init (fact, &uc->m_base);
-    uc->m_base.m_base.m_port = get_socket_port (sock);
+    uc->m_base.m_base.m_port = get_socket_port (&fact->gv->logconfig, sock);
     uc->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
     uc->m_base.m_base.m_multicast = mcast;
     uc->m_base.m_base.m_handle_fn = ddsi_udp_conn_handle;
@@ -252,20 +252,18 @@ static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t
     uc->m_base.m_disable_multiplexing_fn = ddsi_udp_disable_multiplexing;
     uc->m_base.m_locator_fn = ddsi_udp_conn_locator;
 
-    DDS_TRACE
-    (
-      "ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
-      mcast ? "multicast" : "unicast",
-      uc->m_sock,
-      uc->m_base.m_base.m_port
-    );
+    DDS_CTRACE (&fact->gv->logconfig,
+                "ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
+                mcast ? "multicast" : "unicast",
+                uc->m_sock,
+                uc->m_base.m_base.m_port);
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
     if ((uc->m_diffserv != 0) && (fact->m_kind == NN_LOCATOR_KIND_UDPv4))
     {
       dds_return_t rc;
       rc = ddsrt_setsockopt(sock, IPPROTO_IP, IP_TOS, (char *)&uc->m_diffserv, sizeof(uc->m_diffserv));
       if (rc != DDS_RETCODE_OK)
-        DDS_ERROR("ddsi_udp_create_conn: set diffserv retcode %"PRId32"\n", rc);
+        DDS_CERROR (fact->gv->logconfig, "ddsi_udp_create_conn: set diffserv retcode %"PRId32"\n", rc);
     }
 #endif
   }
@@ -273,12 +271,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn (ddsi_tran_factory_t fact, uint32_t
   {
     if (fact->gv->config.participantIndex != PARTICIPANT_INDEX_AUTO)
     {
-      DDS_ERROR
-      (
-        "UDP make_socket failed for %s port %"PRIu32"\n",
-        mcast ? "multicast" : "unicast",
-        port
-      );
+      DDS_CERROR (&fact->gv->logconfig, "UDP make_socket failed for %s port %"PRIu32"\n", mcast ? "multicast" : "unicast", port);
     }
   }
 
@@ -374,13 +367,11 @@ static int ddsi_udp_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc,
 static void ddsi_udp_release_conn (ddsi_tran_conn_t conn)
 {
   ddsi_udp_conn_t uc = (ddsi_udp_conn_t) conn;
-  DDS_TRACE
-  (
-    "ddsi_udp_release_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
-    conn->m_base.m_multicast ? "multicast" : "unicast",
-    uc->m_sock,
-    uc->m_base.m_base.m_port
-  );
+  DDS_CTRACE (&conn->m_base.gv->logconfig,
+              "ddsi_udp_release_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
+              conn->m_base.m_multicast ? "multicast" : "unicast",
+              uc->m_sock,
+              uc->m_base.m_base.m_port);
   ddsrt_close (uc->m_sock);
 #if defined _WIN32 && !defined WINCE
   WSACloseEvent(uc->m_sockEvent);
@@ -471,7 +462,7 @@ static char *ddsi_udp_locator_to_string (ddsi_tran_factory_t tran, char *dst, si
 
 static void ddsi_udp_fini (ddsi_tran_factory_t fact)
 {
-  DDS_LOG (DDS_LC_CONFIG, "udp finalized\n");
+  DDS_CLOG (DDS_LC_CONFIG, &fact->gv->logconfig, "udp finalized\n");
   ddsrt_free (fact);
 }
 
@@ -508,6 +499,6 @@ int ddsi_udp_init (struct q_globals *gv)
 #endif
 
   ddsi_factory_add (gv, fact);
-  DDS_LOG(DDS_LC_CONFIG, "udp initialized\n");
+  GVLOG (DDS_LC_CONFIG, "udp initialized\n");
   return 0;
 }

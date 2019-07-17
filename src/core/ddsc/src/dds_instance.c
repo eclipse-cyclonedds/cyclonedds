@@ -41,7 +41,7 @@ dds_return_t dds_dispose_ih (dds_entity_t writer, dds_instance_handle_t handle)
 static struct ddsi_tkmap_instance *dds_instance_find (const dds_topic *topic, const void *data, const bool create)
 {
   struct ddsi_serdata *sd = ddsi_serdata_from_sample (topic->m_stopic, SDK_KEY, data);
-  struct ddsi_tkmap_instance *inst = ddsi_tkmap_find (topic->m_entity.m_domain->gv.m_tkmap, sd, false, create);
+  struct ddsi_tkmap_instance *inst = ddsi_tkmap_find (topic->m_entity.m_domain->gv.m_tkmap, sd, create);
   ddsi_serdata_unref (sd);
   return inst;
 }

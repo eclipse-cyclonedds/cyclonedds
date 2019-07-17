@@ -87,7 +87,7 @@ void dds_string_free (char * str)
   dds_free (str);
 }
 
-void dds_sample_free_contents (char * data, const uint32_t * ops)
+void dds_sample_free_contents (char *data, const uint32_t * ops)
 {
   uint32_t op;
   uint32_t type;

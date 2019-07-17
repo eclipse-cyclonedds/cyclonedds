@@ -62,7 +62,7 @@ mpt_export_env(const mpt_env_t *env)
 {
   if (env) {
     while ((env->name != NULL) && (env->value != NULL)) {
-      char *expanded = ddsrt_expand_envvars(env->value);
+      char *expanded = ddsrt_expand_envvars(env->value, UINT32_MAX);
       ddsrt_setenv(env->name, expanded);
       ddsrt_free(expanded);
       env++;

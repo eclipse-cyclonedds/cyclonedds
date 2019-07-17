@@ -92,7 +92,7 @@ dds_topic_descriptor_t;
 
 #define DDS_ANY_STATE (DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE)
 
-#define DDS_DOMAIN_DEFAULT -1
+#define DDS_DOMAIN_DEFAULT ((uint32_t) 0xffffffffu)
 #define DDS_HANDLE_NIL 0
 #define DDS_ENTITY_NIL 0
 
@@ -113,7 +113,7 @@ typedef enum dds_entity_kind
 
 /* Handles are opaque pointers to implementation types */
 typedef uint64_t dds_instance_handle_t;
-typedef int32_t dds_domainid_t;
+typedef uint32_t dds_domainid_t;
 
 
 /* Topic encoding instruction types */

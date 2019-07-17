@@ -73,7 +73,6 @@ static void serdata_free_wrap (void *elem)
 
 void ddsi_serdatapool_free (struct serdatapool * pool)
 {
-  DDS_TRACE("ddsi_serdatapool_free(%p)\n", (void *) pool);
   nn_freelist_fini (&pool->freelist, serdata_free_wrap);
   ddsrt_free (pool);
 }

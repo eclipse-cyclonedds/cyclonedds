@@ -175,6 +175,7 @@ typedef struct nn_plist_src {
   size_t bufsz;
   bool strict;
   ddsi_tran_factory_t factory; /* eliminate this */
+  struct ddsrt_log_cfg *logconfig;
 } nn_plist_src_t;
 
 void nn_plist_init_tables (void);

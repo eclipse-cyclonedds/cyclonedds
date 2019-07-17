@@ -41,7 +41,7 @@ static dds_return_t dds_participant_delete (dds_entity *e)
 
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   if ((ret = delete_participant (&e->m_domain->gv, &e->m_guid)) < 0)
-    DDS_ERROR ("dds_participant_delete: internal error %"PRId32"\n", ret);
+    DDS_CERROR (&e->m_domain->gv.logconfig, "dds_participant_delete: internal error %"PRId32"\n", ret);
   ddsrt_mutex_lock (&dds_global.m_mutex);
   ddsrt_avl_delete (&dds_entity_children_td, &e->m_domain->m_ppants, e);
   ddsrt_mutex_unlock (&dds_global.m_mutex);
@@ -100,7 +100,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   if (qos != NULL)
     nn_xqos_mergein_missing (new_qos, qos, DDS_PARTICIPANT_QOS_MASK);
   nn_xqos_mergein_missing (new_qos, &dom->gv.default_plist_pp.qos, ~(uint64_t)0);
-  if ((ret = nn_xqos_valid (new_qos)) < 0)
+  if ((ret = nn_xqos_valid (&dom->gv.logconfig, new_qos)) < 0)
     goto err_qos_validation;
 
   /* Translate qos */

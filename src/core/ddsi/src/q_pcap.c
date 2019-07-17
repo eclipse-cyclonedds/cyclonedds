@@ -77,7 +77,7 @@ static const ipv4_hdr_t ipv4_hdr_template = {
 #define IPV4_HDR_SIZE 20
 #define UDP_HDR_SIZE 8
 
-FILE *new_pcap_file (const char *name)
+FILE *new_pcap_file (const struct ddsrt_log_cfg *logcfg, const char *name)
 {
   DDSRT_WARNING_MSVC_OFF(4996);
   FILE *fp;
@@ -85,7 +85,7 @@ FILE *new_pcap_file (const char *name)
 
   if ((fp = fopen (name, "wb")) == NULL)
   {
-    DDS_WARNING ("packet capture disabled: file %s could not be opened for writing\n", name);
+    DDS_CWARNING (logcfg, "packet capture disabled: file %s could not be opened for writing\n", name);
     return NULL;
   }
 

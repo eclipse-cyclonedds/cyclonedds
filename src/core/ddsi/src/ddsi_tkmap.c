@@ -140,7 +140,7 @@ struct ddsi_tkmap_instance *ddsi_tkmap_find_by_id (struct ddsi_tkmap *map, uint6
     return tk;
   else
     /* Let key value lookup handle the possible CAS loop and the complicated cases */
-    return ddsi_tkmap_find (map, tk->m_sample, false, false);
+    return ddsi_tkmap_find (map, tk->m_sample, false);
 }
 
 /* Debug keyhash generation for debug and coverage builds */
@@ -155,7 +155,7 @@ struct ddsi_tkmap_instance *ddsi_tkmap_find_by_id (struct ddsi_tkmap *map, uint6
 #define DDS_DEBUG_KEYHASH 1
 #endif
 
-struct ddsi_tkmap_instance *ddsi_tkmap_find (struct ddsi_tkmap *map, struct ddsi_serdata *sd, const bool rd, const bool create)
+struct ddsi_tkmap_instance *ddsi_tkmap_find (struct ddsi_tkmap *map, struct ddsi_serdata *sd, const bool create)
 {
   struct ddsi_tkmap_instance dummy;
   struct ddsi_tkmap_instance *tk;
@@ -198,17 +198,12 @@ retry:
       goto retry;
     }
   }
-
-  if (tk && rd)
-  {
-    DDS_TRACE("tk=%p iid=%"PRIx64" ", (void *) tk, tk->m_iid);
-  }
   return tk;
 }
 
 struct ddsi_tkmap_instance *ddsi_tkmap_lookup_instance_ref (struct ddsi_tkmap *map, struct ddsi_serdata *sd)
 {
-  return ddsi_tkmap_find (map, sd, true, true);
+  return ddsi_tkmap_find (map, sd, true);
 }
 
 void ddsi_tkmap_instance_ref (struct ddsi_tkmap_instance *tk)

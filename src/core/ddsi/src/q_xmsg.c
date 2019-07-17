@@ -264,7 +264,6 @@ static void nn_xmsg_realfree_wrap (void *elem)
 void nn_xmsgpool_free (struct nn_xmsgpool *pool)
 {
   nn_freelist_fini (&pool->freelist, nn_xmsg_realfree_wrap);
-  DDS_TRACE("xmsgpool_free(%p)\n", (void *)pool);
   ddsrt_free (pool);
 }
 
@@ -596,7 +595,7 @@ dds_return_t nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *pr
   }
   else
   {
-    DDS_WARNING("nn_xmsg_setdstPRD: no address for "PGUIDFMT"", PGUID (prd->e.guid));
+    DDS_CWARNING (&prd->e.gv->logconfig, "nn_xmsg_setdstPRD: no address for "PGUIDFMT"", PGUID (prd->e.guid));
     return DDS_RETCODE_PRECONDITION_NOT_MET;
   }
 }
@@ -609,7 +608,7 @@ dds_return_t nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pw
     nn_xmsg_setdst1 (m, &pwr->e.guid.prefix, &loc);
     return 0;
   }
-  DDS_WARNING("nn_xmsg_setdstPRD: no address for "PGUIDFMT, PGUID (pwr->e.guid));
+  DDS_CWARNING (&pwr->e.gv->logconfig, "nn_xmsg_setdstPRD: no address for "PGUIDFMT, PGUID (pwr->e.guid));
   return DDS_RETCODE_PRECONDITION_NOT_MET;
 }
 
@@ -665,8 +664,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct q_globals *gv, struct 
   assert (m->kindspecific.data.readerId_off != 0);
   assert (madd->kindspecific.data.readerId_off != 0);
 
-  DDS_TRACE(" ("PGUIDFMT"#%"PRId64"/%u:",
-            PGUID (m->kindspecific.data.wrguid), m->kindspecific.data.wrseq, m->kindspecific.data.wrfragid + 1);
+  GVTRACE (" ("PGUIDFMT"#%"PRId64"/%u:", PGUID (m->kindspecific.data.wrguid), m->kindspecific.data.wrseq, m->kindspecific.data.wrfragid + 1);
 
   switch (m->dstmode)
   {
@@ -675,7 +673,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct q_globals *gv, struct 
       return 0;
 
     case NN_XMSG_DST_ALL:
-      DDS_TRACE("*->*)");
+      GVTRACE ("*->*)");
       return 1;
 
     case NN_XMSG_DST_ONE:
@@ -686,7 +684,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct q_globals *gv, struct 
           return 0;
 
         case NN_XMSG_DST_ALL:
-          DDS_TRACE("1+*->*)");
+          GVTRACE ("1+*->*)");
           clear_readerId (m);
           m->dstmode = NN_XMSG_DST_ALL;
           m->dstaddr.all.as = ref_addrset (madd->dstaddr.all.as);
@@ -705,12 +703,12 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct q_globals *gv, struct 
                can go and everyone's life will become easier! */
             if ((wr = ephash_lookup_writer_guid (gv->guid_hash, &m->kindspecific.data.wrguid)) == NULL)
             {
-              DDS_TRACE("writer-dead)");
+              GVTRACE ("writer-dead)");
               return 0;
             }
             else
             {
-              DDS_TRACE("1+1->*)");
+              GVTRACE ("1+1->*)");
               clear_readerId (m);
               m->dstmode = NN_XMSG_DST_ALL;
               m->dstaddr.all.as = ref_addrset (wr->as);
@@ -720,12 +718,12 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct q_globals *gv, struct 
           }
           else if (readerId_compatible (m, madd))
           {
-            DDS_TRACE("1+1->1)");
+            GVTRACE ("1+1->1)");
             return 1;
           }
           else
           {
-            DDS_TRACE("1+1->2)");
+            GVTRACE ("1+1->2)");
             clear_readerId (m);
             return 1;
           }
@@ -896,7 +894,7 @@ static void nn_xmsg_chain_add (struct nn_xmsg_chain *chain, struct nn_xmsg *m)
 
 #define NN_BW_LIMIT_MAX_BUFFER (-30 * T_MILLISECOND)
 #define NN_BW_LIMIT_MIN_SLEEP (2 * T_MILLISECOND)
-static void nn_bw_limit_sleep_if_needed(struct nn_bw_limiter* this, ssize_t size)
+static void nn_bw_limit_sleep_if_needed (struct q_globals const * const gv, struct nn_bw_limiter *this, ssize_t size)
 {
   if ( this->bandwidth > 0 ) {
     nn_mtime_t tnow = now_mt();
@@ -912,27 +910,27 @@ static void nn_bw_limit_sleep_if_needed(struct nn_bw_limiter* this, ssize_t size
     this->balance += (target_interval - actual_interval);
 
 
-    DDS_TRACE(" <limiter(us):%"PRId64"",(target_interval - actual_interval)/1000);
+    GVTRACE (" <limiter(us):%"PRId64"",(target_interval - actual_interval)/1000);
 
     if ( this->balance < NN_BW_LIMIT_MAX_BUFFER )
     {
       /* We're below the bandwidth limit, do not further accumulate  */
       this->balance = NN_BW_LIMIT_MAX_BUFFER;
-      DDS_TRACE(":%"PRId64":max",this->balance/1000);
+      GVTRACE (":%"PRId64":max",this->balance/1000);
     }
     else if ( this->balance > NN_BW_LIMIT_MIN_SLEEP )
     {
       /* We're over the bandwidth limit far enough, to warrent a sleep. */
-      DDS_TRACE(":%"PRId64":sleep",this->balance/1000);
+      GVTRACE (":%"PRId64":sleep",this->balance/1000);
       thread_state_blocked (lookup_thread_state ());
       dds_sleepfor (this->balance);
       thread_state_unblocked (lookup_thread_state ());
     }
     else
     {
-      DDS_TRACE(":%"PRId64"",this->balance/1000);
+      GVTRACE (":%"PRId64"",this->balance/1000);
     }
-    DDS_TRACE(">");
+    GVTRACE (">");
   }
 }
 
@@ -1039,22 +1037,23 @@ void nn_xpack_free (struct nn_xpack *xp)
 
 static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
 {
-  struct nn_xpack * xp = varg;
+  struct nn_xpack *xp = varg;
+  struct q_globals const * const gv = xp->gv;
   ssize_t nbytes = 0;
 
-  if (dds_get_log_mask() & DDS_LC_TRACE)
+  if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     char buf[DDSI_LOCSTRLEN];
-    DDS_TRACE(" %s", ddsi_locator_to_string (xp->gv, buf, sizeof(buf), loc));
+    GVTRACE (" %s", ddsi_locator_to_string (gv, buf, sizeof(buf), loc));
   }
 
-  if (xp->gv->config.xmit_lossiness > 0)
+  if (gv->config.xmit_lossiness > 0)
   {
     /* We drop APPROXIMATELY a fraction of xmit_lossiness * 10**(-3)
        of all packets to be sent */
-    if ((ddsrt_random () % 1000) < (uint32_t) xp->gv->config.xmit_lossiness)
+    if ((ddsrt_random () % 1000) < (uint32_t) gv->config.xmit_lossiness)
     {
-      DDS_TRACE("(dropped)");
+      GVTRACE ("(dropped)");
       xp->call_flags = 0;
       return 0;
     }
@@ -1070,7 +1069,7 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
   else
 #endif
   {
-    if (!xp->gv->mute)
+    if (!gv->mute)
     {
       nbytes = ddsi_conn_write (xp->conn, loc, xp->niov, xp->iov, xp->call_flags);
 #ifndef NDEBUG
@@ -1085,7 +1084,7 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
     }
     else
     {
-      DDS_TRACE("(dropped)");
+      GVTRACE ("(dropped)");
       nbytes = (ssize_t) xp->msg_len.length;
     }
   }
@@ -1097,7 +1096,7 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
   if (nbytes > 0)
   {
-    nn_bw_limit_sleep_if_needed (&xp->limiter, nbytes);
+    nn_bw_limit_sleep_if_needed (gv, &xp->limiter, nbytes);
   }
 #endif
 
@@ -1134,8 +1133,9 @@ static void nn_xpack_send1_threaded (const nn_locator_t *loc, void * varg)
   ddsrt_thread_pool_submit (arg->xp->gv->thread_pool, nn_xpack_send1_thread, arg);
 }
 
-static void nn_xpack_send_real (struct nn_xpack * xp)
+static void nn_xpack_send_real (struct nn_xpack *xp)
 {
+  struct q_globals const * const gv = xp->gv;
   size_t calls;
 
   assert (xp->niov <= NN_XMSG_MAX_MESSAGE_IOVECS);
@@ -1147,17 +1147,17 @@ static void nn_xpack_send_real (struct nn_xpack * xp)
 
   assert (xp->dstmode != NN_XMSG_DST_UNSET);
 
-  if (dds_get_log_mask() & DDS_LC_TRACE)
+  if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     int i;
-    DDS_TRACE("nn_xpack_send %"PRIu32":", xp->msg_len.length);
+    GVTRACE ("nn_xpack_send %"PRIu32":", xp->msg_len.length);
     for (i = 0; i < (int) xp->niov; i++)
     {
-      DDS_TRACE(" %p:%lu", (void *) xp->iov[i].iov_base, (unsigned long) xp->iov[i].iov_len);
+      GVTRACE (" %p:%lu", (void *) xp->iov[i].iov_base, (unsigned long) xp->iov[i].iov_len);
     }
   }
 
-  DDS_TRACE(" [");
+  GVTRACE (" [");
   if (xp->dstmode == NN_XMSG_DST_ONE)
   {
     calls = 1;
@@ -1200,10 +1200,10 @@ static void nn_xpack_send_real (struct nn_xpack * xp)
       unref_addrset (xp->dstaddr.all.as_group);
     }
   }
-  DDS_TRACE(" ]\n");
+  GVTRACE (" ]\n");
   if (calls)
   {
-    DDS_LOG(DDS_LC_TRAFFIC, "traffic-xmit (%lu) %"PRIu32"\n", (unsigned long) calls, xp->msg_len.length);
+    GVLOG (DDS_LC_TRAFFIC, "traffic-xmit (%lu) %"PRIu32"\n", (unsigned long) calls, xp->msg_len.length);
   }
   nn_xmsg_chain_release (xp->gv, &xp->included_msgs);
   nn_xpack_reinit (xp);
@@ -1393,7 +1393,7 @@ static int guid_prefix_eq (const nn_guid_prefix_t *a, const nn_guid_prefix_t *b)
 int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flags)
 {
   /* Returns > 0 if pack got sent out before adding m */
-
+  struct q_globals const * const gv = xp->gv;
   static InfoDST_t static_zero_dst = {
     { SMID_INFO_DST, (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0), sizeof (nn_guid_prefix_t) },
     { { 0,0,0,0, 0,0,0,0, 0,0,0,0 } }
@@ -1437,22 +1437,22 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
      But do make sure we can't run out of iovecs. */
   assert (niov + NN_XMSG_MAX_SUBMESSAGE_IOVECS <= NN_XMSG_MAX_MESSAGE_IOVECS);
 
-  DDS_TRACE("xpack_addmsg %p %p %"PRIu32"(", (void *) xp, (void *) m, flags);
+  GVTRACE ("xpack_addmsg %p %p %"PRIu32"(", (void *) xp, (void *) m, flags);
   switch (m->kind)
   {
     case NN_XMSG_KIND_CONTROL:
-      DDS_TRACE("control");
+      GVTRACE ("control");
       break;
     case NN_XMSG_KIND_DATA:
     case NN_XMSG_KIND_DATA_REXMIT:
-      DDS_TRACE("%s("PGUIDFMT":#%"PRId64"/%u)",
-              (m->kind == NN_XMSG_KIND_DATA) ? "data" : "rexmit",
-              PGUID (m->kindspecific.data.wrguid),
-              m->kindspecific.data.wrseq,
-              m->kindspecific.data.wrfragid + 1);
+      GVTRACE ("%s("PGUIDFMT":#%"PRId64"/%u)",
+               (m->kind == NN_XMSG_KIND_DATA) ? "data" : "rexmit",
+               PGUID (m->kindspecific.data.wrguid),
+               m->kindspecific.data.wrseq,
+               m->kindspecific.data.wrfragid + 1);
       break;
   }
-  DDS_TRACE("): niov %d sz %"PRIuSIZE, (int) niov, sz);
+  GVTRACE ("): niov %d sz %"PRIuSIZE, (int) niov, sz);
 
   /* If a fresh xp has been provided, add an RTPS header */
 
@@ -1580,7 +1580,8 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
 
   if (xpo_niov > 0 && sz > xp->gv->config.max_msg_size)
   {
-    DDS_TRACE(" => now niov %d sz %"PRIuSIZE" > max_msg_size %"PRIu32", nn_xpack_send niov %d sz %"PRIu32" now\n", (int) niov, sz, xp->gv->config.max_msg_size, (int) xpo_niov, xpo_sz);
+    GVTRACE (" => now niov %d sz %"PRIuSIZE" > max_msg_size %"PRIu32", nn_xpack_send niov %d sz %"PRIu32" now\n",
+             (int) niov, sz, gv->config.max_msg_size, (int) xpo_niov, xpo_sz);
     xp->msg_len.length = xpo_sz;
     xp->niov = xpo_niov;
     nn_xpack_send (xp, false);
@@ -1590,7 +1591,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   {
     xp->call_flags = flags;
     nn_xmsg_chain_add (&xp->included_msgs, m);
-    DDS_TRACE(" => now niov %d sz %"PRIuSIZE"\n", (int) niov, sz);
+    GVTRACE (" => now niov %d sz %"PRIuSIZE"\n", (int) niov, sz);
   }
 
   return result;

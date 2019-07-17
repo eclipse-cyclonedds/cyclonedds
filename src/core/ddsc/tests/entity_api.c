@@ -336,7 +336,7 @@ CU_Test(ddsc_entity, get_entities, .init = create_entity, .fini = delete_entity)
 CU_Test(ddsc_entity, get_domainid, .init = create_entity, .fini = delete_entity)
 {
     dds_return_t status;
-    dds_domainid_t id = -1;
+    dds_domainid_t id = DDS_DOMAIN_DEFAULT;
 
     /* Check getting ID with bad parameters. */
     status = dds_get_domainid (0, NULL);
@@ -349,7 +349,7 @@ CU_Test(ddsc_entity, get_domainid, .init = create_entity, .fini = delete_entity)
     /* Get and check the domain id. */
     status = dds_get_domainid (entity, &id);
     CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
-    CU_ASSERT_FATAL(id != -1);
+    CU_ASSERT_FATAL(id != DDS_DOMAIN_DEFAULT);
 }
 
 CU_Test(ddsc_entity, delete, .init = create_entity)

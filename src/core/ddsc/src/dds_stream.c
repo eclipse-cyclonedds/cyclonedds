@@ -252,9 +252,7 @@ static size_t dds_stream_check_optimize1 (const dds_topic_descriptor_t * __restr
 
 size_t dds_stream_check_optimize (const dds_topic_descriptor_t * __restrict desc)
 {
-  const size_t size = dds_stream_check_optimize1 (desc);
-  DDS_TRACE ("Marshalling for type: %s is %soptimised\n", desc->m_typename, size ? "" : "not ");
-  return size;
+  return dds_stream_check_optimize1 (desc);
 }
 
 static char *dds_stream_reuse_string (dds_istream_t * __restrict is, char * __restrict str, const uint32_t bound)

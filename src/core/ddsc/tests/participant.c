@@ -42,16 +42,12 @@ CU_Test(ddsc_participant, create_and_delete) {
 /* Test for creating participant with no configuration file  */
 CU_Test(ddsc_participant, create_with_no_conf_no_env)
 {
-  dds_entity_t participant, participant2, participant3;
+  dds_entity_t participant2, participant3;
   dds_return_t status;
   dds_domainid_t domain_id;
   dds_domainid_t valid_domain=3;
 
   ddsrt_unsetenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI");
-
-  //invalid domain
-  participant = dds_create_participant (-2, NULL, NULL);
-  CU_ASSERT_FATAL(participant < 0);
 
   //valid specific domain value
   participant2 = dds_create_participant (valid_domain, NULL, NULL);

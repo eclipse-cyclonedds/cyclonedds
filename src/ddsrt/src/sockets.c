@@ -302,7 +302,6 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
 
      NOTE: Error codes returned by getaddrinfo map directly onto Windows
            Socket error codes and WSAGetLastError can be used instead. */
-  DDS_TRACE("getaddrinfo for %s returned %d\n", name, gai_err);
   switch (gai_err) {
 #if defined(EAI_AGAIN)
     case EAI_AGAIN:
@@ -371,7 +370,7 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
       freeaddrinfo(res);
     } break;
     default:
-      DDS_ERROR("getaddrinfo returned unkown error %d\n", gai_err);
+      DDS_ERROR ("getaddrinfo returned unkown error %d\n", gai_err);
       return DDS_RETCODE_ERROR;
   }
 

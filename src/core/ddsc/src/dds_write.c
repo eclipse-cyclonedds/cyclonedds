@@ -82,7 +82,6 @@ static dds_return_t try_store (struct rhc *rhc, const struct proxy_writer_info *
     }
     else
     {
-      DDS_ERROR ("The writer could not deliver data on time, probably due to a local reader resources being full\n");
       return DDS_RETCODE_TIMEOUT;
     }
   }
@@ -102,7 +101,7 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
       struct proxy_writer_info pwr_info;
       make_proxy_writer_info (&pwr_info, &wr->e, wr->xqos);
       for (uint32_t i = 0; rdary[i]; i++) {
-        DDS_TRACE ("reader "PGUIDFMT"\n", PGUID (rdary[i]->e.guid));
+        DDS_CTRACE (&wr->e.gv->logconfig, "reader "PGUIDFMT"\n", PGUID (rdary[i]->e.guid));
         if ((ret = try_store (rdary[i]->rhc, &pwr_info, payload, tk, &max_block_ms)) != DDS_RETCODE_OK)
           break;
       }
@@ -132,13 +131,18 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
       struct reader *rd;
       if ((rd = ephash_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
       {
-        DDS_TRACE ("reader-via-guid "PGUIDFMT"\n", PGUID (rd->e.guid));
+        DDS_CTRACE (&wr->e.gv->logconfig, "reader-via-guid "PGUIDFMT"\n", PGUID (rd->e.guid));
         /* Copied the return value ignore from DDSI deliver_user_data () function. */
         if ((ret = try_store (rd->rhc, &pwr_info, payload, tk, &max_block_ms)) != DDS_RETCODE_OK)
           break;
       }
     }
     ddsrt_mutex_unlock (&wr->e.lock);
+  }
+
+  if (ret == DDS_RETCODE_TIMEOUT)
+  {
+    DDS_CERROR (&wr->e.gv->logconfig, "The writer could not deliver data on time, probably due to a local reader resources being full\n");
   }
   return ret;
 }

@@ -284,6 +284,8 @@ struct nn_rbufpool {
   struct nn_rbuf *current;
   uint32_t rbuf_size;
   uint32_t max_rmsg_size;
+  const struct ddsrt_log_cfg *logcfg;
+  bool trace;
 #ifndef NDEBUG
   /* Thread that owns this pool, so we can check that no other thread
      is calling functions only the owner may use. */
@@ -291,8 +293,15 @@ struct nn_rbufpool {
 #endif
 };
 
-static struct nn_rbuf *nn_rbuf_alloc_new (struct nn_rbufpool *rbufpool);
+static struct nn_rbuf *nn_rbuf_alloc_new (struct nn_rbufpool *rbp);
 static void nn_rbuf_release (struct nn_rbuf *rbuf);
+
+#define TRACE_CFG(obj, logcfg, ...) ((obj)->trace ? (void) DDS_CLOG (DDS_LC_RADMIN, (logcfg), __VA_ARGS__) : (void) 0)
+#define TRACE(obj, ...)             TRACE_CFG ((obj), (obj)->logcfg, __VA_ARGS__)
+#define RBPTRACE(...)               TRACE_CFG (rbp, rbp->logcfg, __VA_ARGS__)
+#define RBUFTRACE(...)              TRACE_CFG (rbuf, rbuf->rbufpool->logcfg, __VA_ARGS__)
+#define RMSGTRACE(...)              TRACE_CFG (rmsg, rmsg->chunk.rbuf->rbufpool->logcfg, __VA_ARGS__)
+#define RDATATRACE(rdata, ...)      TRACE_CFG ((rdata)->rmsg, (rdata)->rmsg->chunk.rbuf->rbufpool->logcfg, __VA_ARGS__)
 
 static uint32_t align8uint32 (uint32_t x)
 {
@@ -325,7 +334,7 @@ static uint32_t max_rmsg_size_w_hdr (uint32_t max_rmsg_size)
     + max_rmsg_size;
 }
 
-struct nn_rbufpool *nn_rbufpool_new (uint32_t rbuf_size, uint32_t max_rmsg_size)
+struct nn_rbufpool *nn_rbufpool_new (const struct ddsrt_log_cfg *logcfg, uint32_t rbuf_size, uint32_t max_rmsg_size)
 {
   struct nn_rbufpool *rbp;
 
@@ -348,6 +357,8 @@ struct nn_rbufpool *nn_rbufpool_new (uint32_t rbuf_size, uint32_t max_rmsg_size)
 
   rbp->rbuf_size = rbuf_size;
   rbp->max_rmsg_size = max_rmsg_size;
+  rbp->logcfg = logcfg;
+  rbp->trace = (logcfg->c.mask & DDS_LC_RADMIN) != 0;
 
 #if USE_VALGRIND
   VALGRIND_CREATE_MEMPOOL (rbp, 0, 0);
@@ -398,6 +409,7 @@ struct nn_rbuf {
   uint32_t size;
   uint32_t max_rmsg_size;
   struct nn_rbufpool *rbufpool;
+  bool trace;
 
   /* Allocating sequentially, releasing in random order, not bothering
      to reuse memory as soon as it becomes available again. I think
@@ -416,37 +428,38 @@ struct nn_rbuf {
   unsigned char raw[];
 };
 
-static struct nn_rbuf *nn_rbuf_alloc_new (struct nn_rbufpool *rbufpool)
+static struct nn_rbuf *nn_rbuf_alloc_new (struct nn_rbufpool *rbp)
 {
   struct nn_rbuf *rb;
-  ASSERT_RBUFPOOL_OWNER (rbufpool);
+  ASSERT_RBUFPOOL_OWNER (rbp);
 
-  if ((rb = ddsrt_malloc (sizeof (struct nn_rbuf) + rbufpool->rbuf_size)) == NULL)
+  if ((rb = ddsrt_malloc (sizeof (struct nn_rbuf) + rbp->rbuf_size)) == NULL)
     return NULL;
 #if USE_VALGRIND
-  VALGRIND_MAKE_MEM_NOACCESS (rb->raw, rbufpool->rbuf_size);
+  VALGRIND_MAKE_MEM_NOACCESS (rb->raw, rbp->rbuf_size);
 #endif
 
-  rb->rbufpool = rbufpool;
+  rb->rbufpool = rbp;
   ddsrt_atomic_st32 (&rb->n_live_rmsg_chunks, 1);
-  rb->size = rbufpool->rbuf_size;
-  rb->max_rmsg_size = rbufpool->max_rmsg_size;
+  rb->size = rbp->rbuf_size;
+  rb->max_rmsg_size = rbp->max_rmsg_size;
   rb->freeptr = rb->raw;
-  DDS_LOG(DDS_LC_RADMIN, "rbuf_alloc_new(%p) = %p\n", (void *) rbufpool, (void *) rb);
+  rb->trace = rbp->trace;
+  RBPTRACE ("rbuf_alloc_new(%p) = %p\n", (void *) rbp, (void *) rb);
   return rb;
 }
 
-static struct nn_rbuf *nn_rbuf_new (struct nn_rbufpool *rbufpool)
+static struct nn_rbuf *nn_rbuf_new (struct nn_rbufpool *rbp)
 {
   struct nn_rbuf *rb;
-  assert (rbufpool->current);
-  ASSERT_RBUFPOOL_OWNER (rbufpool);
-  if ((rb = nn_rbuf_alloc_new (rbufpool)) != NULL)
+  assert (rbp->current);
+  ASSERT_RBUFPOOL_OWNER (rbp);
+  if ((rb = nn_rbuf_alloc_new (rbp)) != NULL)
   {
-    ddsrt_mutex_lock (&rbufpool->lock);
-    nn_rbuf_release (rbufpool->current);
-    rbufpool->current = rb;
-    ddsrt_mutex_unlock (&rbufpool->lock);
+    ddsrt_mutex_lock (&rbp->lock);
+    nn_rbuf_release (rbp->current);
+    rbp->current = rb;
+    ddsrt_mutex_unlock (&rbp->lock);
   }
   return rb;
 }
@@ -454,10 +467,10 @@ static struct nn_rbuf *nn_rbuf_new (struct nn_rbufpool *rbufpool)
 static void nn_rbuf_release (struct nn_rbuf *rbuf)
 {
   struct nn_rbufpool *rbp = rbuf->rbufpool;
-  DDS_LOG(DDS_LC_RADMIN, "rbuf_release(%p) pool %p current %p\n", (void *) rbuf, (void *) rbp, (void *) rbp->current);
+  RBPTRACE ("rbuf_release(%p) pool %p current %p\n", (void *) rbuf, (void *) rbp, (void *) rbp->current);
   if (ddsrt_atomic_dec32_ov (&rbuf->n_live_rmsg_chunks) == 1)
   {
-    DDS_LOG(DDS_LC_RADMIN, "rbuf_release(%p) free\n", (void *) rbuf);
+    RBPTRACE ("rbuf_release(%p) free\n", (void *) rbuf);
     ddsrt_free (rbuf);
   }
 }
@@ -479,14 +492,14 @@ static void nn_rbuf_release (struct nn_rbuf *rbuf)
 #define ASSERT_RMSG_UNCOMMITTED(rmsg) ((void) 0)
 #endif
 
-static void *nn_rbuf_alloc (struct nn_rbufpool *rbufpool)
+static void *nn_rbuf_alloc (struct nn_rbufpool *rbp)
 {
   /* Note: only one thread calls nn_rmsg_new on a pool */
-  uint32_t asize = max_rmsg_size_w_hdr (rbufpool->max_rmsg_size);
+  uint32_t asize = max_rmsg_size_w_hdr (rbp->max_rmsg_size);
   struct nn_rbuf *rb;
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_rbuf_alloc(%p, %"PRIu32")\n", (void *) rbufpool, asize);
-  ASSERT_RBUFPOOL_OWNER (rbufpool);
-  rb = rbufpool->current;
+  RBPTRACE ("rmsg_rbuf_alloc(%p, %"PRIu32")\n", (void *) rbp, asize);
+  ASSERT_RBUFPOOL_OWNER (rbp);
+  rb = rbp->current;
   assert (rb != NULL);
   assert (rb->freeptr >= rb->raw);
   assert (rb->freeptr <= rb->raw + rb->size);
@@ -494,16 +507,16 @@ static void *nn_rbuf_alloc (struct nn_rbufpool *rbufpool)
   if ((uint32_t) (rb->raw + rb->size - rb->freeptr) < asize)
   {
     /* not enough space left for new rmsg */
-    if ((rb = nn_rbuf_new (rbufpool)) == NULL)
+    if ((rb = nn_rbuf_new (rbp)) == NULL)
       return NULL;
 
     /* a new one should have plenty of space */
     assert ((uint32_t) (rb->raw + rb->size - rb->freeptr) >= asize);
   }
 
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_rbuf_alloc(%p, %"PRIu32") = %p\n", (void *) rbufpool, asize, (void *) rb->freeptr);
+  RBPTRACE ("rmsg_rbuf_alloc(%p, %"PRIu32") = %p\n", (void *) rbp, asize, (void *) rb->freeptr);
 #if USE_VALGRIND
-  VALGRIND_MEMPOOL_ALLOC (rbufpool, rb->freeptr, asize);
+  VALGRIND_MEMPOOL_ALLOC (rbp, rb->freeptr, asize);
 #endif
   return rb->freeptr;
 }
@@ -516,31 +529,32 @@ static void init_rmsg_chunk (struct nn_rmsg_chunk *chunk, struct nn_rbuf *rbuf)
   ddsrt_atomic_inc32 (&rbuf->n_live_rmsg_chunks);
 }
 
-struct nn_rmsg *nn_rmsg_new (struct nn_rbufpool *rbufpool)
+struct nn_rmsg *nn_rmsg_new (struct nn_rbufpool *rbp)
 {
   /* Note: only one thread calls nn_rmsg_new on a pool */
   struct nn_rmsg *rmsg;
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_new(%p)\n", (void *) rbufpool);
+  RBPTRACE ("rmsg_new(%p)\n", (void *) rbp);
 
-  rmsg = nn_rbuf_alloc (rbufpool);
+  rmsg = nn_rbuf_alloc (rbp);
   if (rmsg == NULL)
     return NULL;
 
   /* Reference to this rmsg, undone by rmsg_commit(). */
   ddsrt_atomic_st32 (&rmsg->refcount, RMSG_REFCOUNT_UNCOMMITTED_BIAS);
   /* Initial chunk */
-  init_rmsg_chunk (&rmsg->chunk, rbufpool->current);
+  init_rmsg_chunk (&rmsg->chunk, rbp->current);
+  rmsg->trace = rbp->trace;
   rmsg->lastchunk = &rmsg->chunk;
   /* Incrementing freeptr happens in commit(), so that discarding the
      message is really simple. */
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_new(%p) = %p\n", (void *) rbufpool, (void *) rmsg);
+  RBPTRACE ("rmsg_new(%p) = %p\n", (void *) rbp, (void *) rmsg);
   return rmsg;
 }
 
 void nn_rmsg_setsize (struct nn_rmsg *rmsg, uint32_t size)
 {
   uint32_t size8 = align8uint32 (size);
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_setsize(%p, %"PRIu32" => %"PRIu32")\n", (void *) rmsg, size, size8);
+  RMSGTRACE ("rmsg_setsize(%p, %"PRIu32" => %"PRIu32")\n", (void *) rmsg, size, size8);
   ASSERT_RBUFPOOL_OWNER (rmsg->chunk.rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
   assert (ddsrt_atomic_ld32 (&rmsg->refcount) == RMSG_REFCOUNT_UNCOMMITTED_BIAS);
@@ -563,7 +577,7 @@ void nn_rmsg_free (struct nn_rmsg *rmsg)
      free() which we don't do currently.  And ideally, you'd use
      compare-and-swap for this. */
   struct nn_rmsg_chunk *c;
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_free(%p)\n", (void *) rmsg);
+  RMSGTRACE ("rmsg_free(%p)\n", (void *) rmsg);
   assert (ddsrt_atomic_ld32 (&rmsg->refcount) == 0);
   c = &rmsg->chunk;
   while (c)
@@ -586,7 +600,7 @@ void nn_rmsg_free (struct nn_rmsg *rmsg)
 static void commit_rmsg_chunk (struct nn_rmsg_chunk *chunk)
 {
   struct nn_rbuf *rbuf = chunk->rbuf;
-  DDS_LOG(DDS_LC_RADMIN, "commit_rmsg_chunk(%p)\n", (void *) chunk);
+  RBUFTRACE ("commit_rmsg_chunk(%p)\n", (void *) chunk);
   rbuf->freeptr = (unsigned char *) (chunk + 1) + chunk->u.size;
 }
 
@@ -601,8 +615,8 @@ void nn_rmsg_commit (struct nn_rmsg *rmsg)
      happens to be such that any asynchronous activities have
      completed before we got to commit. */
   struct nn_rmsg_chunk *chunk = rmsg->lastchunk;
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_commit(%p) refcount 0x%"PRIx32" last-chunk-size %"PRIu32"\n",
-                 (void *) rmsg, rmsg->refcount.v, chunk->u.size);
+  RMSGTRACE ("rmsg_commit(%p) refcount 0x%"PRIx32" last-chunk-size %"PRIu32"\n",
+             (void *) rmsg, rmsg->refcount.v, chunk->u.size);
   ASSERT_RBUFPOOL_OWNER (chunk->rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
   assert (chunk->u.size <= chunk->rbuf->max_rmsg_size);
@@ -617,7 +631,7 @@ void nn_rmsg_commit (struct nn_rmsg *rmsg)
   {
     /* Other references exist, so either stored in defrag, reorder
        and/or delivery queue */
-    DDS_LOG(DDS_LC_RADMIN, "rmsg_commit(%p) => keep\n", (void *) rmsg);
+    RMSGTRACE ("rmsg_commit(%p) => keep\n", (void *) rmsg);
     commit_rmsg_chunk (chunk);
   }
 }
@@ -630,7 +644,7 @@ static void nn_rmsg_addbias (struct nn_rmsg *rmsg)
 
      However, other threads (e.g., delivery threads) may have been
      triggered already, so the increment must be done atomically. */
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_addbias(%p)\n", (void *) rmsg);
+  RMSGTRACE ("rmsg_addbias(%p)\n", (void *) rmsg);
   ASSERT_RBUFPOOL_OWNER (rmsg->chunk.rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
   ddsrt_atomic_add32 (&rmsg->refcount, RMSG_REFCOUNT_RDATA_BIAS);
@@ -642,7 +656,7 @@ static void nn_rmsg_rmbias_and_adjust (struct nn_rmsg *rmsg, int adjust)
      progressing through the pipeline, but only by a receive
      thread.  Can't require it to be uncommitted. */
   uint32_t sub;
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_rmbias_and_adjust(%p, %d)\n", (void *) rmsg, adjust);
+  RMSGTRACE ("rmsg_rmbias_and_adjust(%p, %d)\n", (void *) rmsg, adjust);
   assert (adjust >= 0);
   assert ((uint32_t) adjust < RMSG_REFCOUNT_RDATA_BIAS);
   sub = RMSG_REFCOUNT_RDATA_BIAS - (uint32_t) adjust;
@@ -653,7 +667,7 @@ static void nn_rmsg_rmbias_and_adjust (struct nn_rmsg *rmsg, int adjust)
 
 static void nn_rmsg_unref (struct nn_rmsg *rmsg)
 {
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_unref(%p)\n", (void *) rmsg);
+  RMSGTRACE ("rmsg_unref(%p)\n", (void *) rmsg);
   assert (ddsrt_atomic_ld32 (&rmsg->refcount) > 0);
   if (ddsrt_atomic_dec32_ov (&rmsg->refcount) == 1)
     nn_rmsg_free (rmsg);
@@ -665,7 +679,7 @@ void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
   struct nn_rbuf *rbuf = chunk->rbuf;
   uint32_t size8 = align8uint32 (size);
   void *ptr;
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_alloc(%p, %"PRIu32" => %"PRIu32")\n", (void *) rmsg, size, size8);
+  RMSGTRACE ("rmsg_alloc(%p, %"PRIu32" => %"PRIu32")\n", (void *) rmsg, size, size8);
   ASSERT_RBUFPOOL_OWNER (rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
   assert ((chunk->u.size % 8) == 0);
@@ -673,24 +687,24 @@ void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
 
   if (chunk->u.size + size8 > rbuf->max_rmsg_size)
   {
-    struct nn_rbufpool *rbufpool = rbuf->rbufpool;
+    struct nn_rbufpool *rbp = rbuf->rbufpool;
     struct nn_rmsg_chunk *newchunk;
-    DDS_LOG(DDS_LC_RADMIN, "rmsg_alloc(%p, %"PRIu32") limit hit - new chunk\n", (void *) rmsg, size);
+    RMSGTRACE ("rmsg_alloc(%p, %"PRIu32") limit hit - new chunk\n", (void *) rmsg, size);
     commit_rmsg_chunk (chunk);
-    newchunk = nn_rbuf_alloc (rbufpool);
+    newchunk = nn_rbuf_alloc (rbp);
     if (newchunk == NULL)
     {
-      DDS_WARNING ("nn_rmsg_alloc: can't allocate more memory (%"PRIu32" bytes) ... giving up\n", size);
+      DDS_CWARNING (rbp->logcfg, "nn_rmsg_alloc: can't allocate more memory (%"PRIu32" bytes) ... giving up\n", size);
       return NULL;
     }
-    init_rmsg_chunk (newchunk, rbufpool->current);
+    init_rmsg_chunk (newchunk, rbp->current);
     rmsg->lastchunk = chunk->next = newchunk;
     chunk = newchunk;
   }
 
   ptr = (unsigned char *) (chunk + 1) + chunk->u.size;
   chunk->u.size += size8;
-  DDS_LOG(DDS_LC_RADMIN, "rmsg_alloc(%p, %"PRIu32") = %p\n", (void *) rmsg, size, ptr);
+  RMSGTRACE ("rmsg_alloc(%p, %"PRIu32") = %p\n", (void *) rmsg, size, ptr);
 #if USE_VALGRIND
   if (chunk == &rmsg->chunk) {
     VALGRIND_MEMPOOL_CHANGE (rbuf->rbufpool, rmsg, rmsg, offsetof (struct nn_rmsg, chunk.u.payload) + chunk->size);
@@ -717,35 +731,39 @@ struct nn_rdata *nn_rdata_new (struct nn_rmsg *rmsg, uint32_t start, uint32_t en
 #ifndef NDEBUG
   ddsrt_atomic_st32 (&d->refcount_bias_added, 0);
 #endif
-  DDS_LOG(DDS_LC_RADMIN, "rdata_new(%p, bytes [%"PRIu32",%"PRIu32"), submsg @ %u, payload @ %u) = %p\n", (void *) rmsg, start, endp1, NN_RDATA_SUBMSG_OFF (d), NN_RDATA_PAYLOAD_OFF (d), (void *) d);
+  RMSGTRACE ("rdata_new(%p, bytes [%"PRIu32",%"PRIu32"), submsg @ %u, payload @ %u) = %p\n",
+             (void *) rmsg, start, endp1, NN_RDATA_SUBMSG_OFF (d), NN_RDATA_PAYLOAD_OFF (d), (void *) d);
   return d;
 }
 
 static void nn_rdata_addbias (struct nn_rdata *rdata)
 {
-  DDS_LOG(DDS_LC_RADMIN, "rdata_addbias(%p)\n", (void *) rdata);
+  struct nn_rmsg *rmsg = rdata->rmsg;
+  RMSGTRACE ("rdata_addbias(%p)\n", (void *) rdata);
 #ifndef NDEBUG
-  ASSERT_RBUFPOOL_OWNER (rdata->rmsg->chunk.rbuf->rbufpool);
+  ASSERT_RBUFPOOL_OWNER (rmsg->chunk.rbuf->rbufpool);
   if (ddsrt_atomic_inc32_nv (&rdata->refcount_bias_added) != 1)
     abort ();
 #endif
-  nn_rmsg_addbias (rdata->rmsg);
+  nn_rmsg_addbias (rmsg);
 }
 
 static void nn_rdata_rmbias_and_adjust (struct nn_rdata *rdata, int adjust)
 {
-  DDS_LOG(DDS_LC_RADMIN, "rdata_rmbias_and_adjust(%p, %d)\n", (void *) rdata, adjust);
+  struct nn_rmsg *rmsg = rdata->rmsg;
+  RMSGTRACE ("rdata_rmbias_and_adjust(%p, %d)\n", (void *) rdata, adjust);
 #ifndef NDEBUG
   if (ddsrt_atomic_dec32_ov (&rdata->refcount_bias_added) != 1)
     abort ();
 #endif
-  nn_rmsg_rmbias_and_adjust (rdata->rmsg, adjust);
+  nn_rmsg_rmbias_and_adjust (rmsg, adjust);
 }
 
 static void nn_rdata_unref (struct nn_rdata *rdata)
 {
-  DDS_LOG(DDS_LC_RADMIN, "rdata_rdata_unref(%p)\n", (void *) rdata);
-  nn_rmsg_unref (rdata->rmsg);
+  struct nn_rmsg *rmsg = rdata->rmsg;
+  RMSGTRACE ("rdata_rdata_unref(%p)\n", (void *) rdata);
+  nn_rmsg_unref (rmsg);
 }
 
 /* DEFRAG --------------------------------------------------------------
@@ -842,6 +860,8 @@ struct nn_defrag {
   uint32_t n_samples;
   uint32_t max_samples;
   enum nn_defrag_drop_mode drop_mode;
+  const struct ddsrt_log_cfg *logcfg;
+  bool trace;
 };
 
 static int compare_uint32 (const void *va, const void *vb);
@@ -864,7 +884,7 @@ static int compare_seqno (const void *va, const void *vb)
   return (a == b) ? 0 : (a < b) ? -1 : 1;
 }
 
-struct nn_defrag *nn_defrag_new (enum nn_defrag_drop_mode drop_mode, uint32_t max_samples)
+struct nn_defrag *nn_defrag_new (const struct ddsrt_log_cfg *logcfg, enum nn_defrag_drop_mode drop_mode, uint32_t max_samples)
 {
   struct nn_defrag *d;
   assert (max_samples >= 1);
@@ -875,12 +895,14 @@ struct nn_defrag *nn_defrag_new (enum nn_defrag_drop_mode drop_mode, uint32_t ma
   d->max_samples = max_samples;
   d->n_samples = 0;
   d->max_sample = NULL;
+  d->logcfg = logcfg;
+  d->trace = (logcfg->c.mask & DDS_LC_RADMIN) != 0;
   return d;
 }
 
 void nn_fragchain_adjust_refcount (struct nn_rdata *frag, int adjust)
 {
-  DDS_LOG(DDS_LC_RADMIN, "fragchain_adjust_refcount(%p, %d)\n", (void *) frag, adjust);
+  RDATATRACE (frag, "fragchain_adjust_refcount(%p, %d)\n", (void *) frag, adjust);
   while (frag)
   {
     struct nn_rdata * const frag1 = frag->nextfrag;
@@ -905,7 +927,7 @@ static void defrag_rsample_drop (struct nn_defrag *defrag, struct nn_rsample *rs
      inorder treewalk does provide. */
   ddsrt_avl_iter_t iter;
   struct nn_defrag_iv *iv;
-  DDS_LOG(DDS_LC_RADMIN, "  defrag_rsample_drop (%p, %p)\n", (void *) defrag, (void *) rsample);
+  TRACE (defrag, "  defrag_rsample_drop (%p, %p)\n", (void *) defrag, (void *) rsample);
   ddsrt_avl_delete (&defrag_sampletree_treedef, &defrag->sampletree, rsample);
   assert (defrag->n_samples > 0);
   defrag->n_samples--;
@@ -923,7 +945,7 @@ void nn_defrag_free (struct nn_defrag *defrag)
   s = ddsrt_avl_find_min (&defrag_sampletree_treedef, &defrag->sampletree);
   while (s)
   {
-    DDS_LOG(DDS_LC_RADMIN, "defrag_free(%p, sample %p seq %"PRId64")\n", (void *) defrag, (void *) s, s->u.defrag.seq);
+    TRACE (defrag, "defrag_free(%p, sample %p seq %"PRId64")\n", (void *) defrag, (void *) s, s->u.defrag.seq);
     defrag_rsample_drop (defrag, s);
     s = ddsrt_avl_find_min (&defrag_sampletree_treedef, &defrag->sampletree);
   }
@@ -931,25 +953,24 @@ void nn_defrag_free (struct nn_defrag *defrag)
   ddsrt_free (defrag);
 }
 
-static int defrag_try_merge_with_succ (struct nn_rsample_defrag *sample, struct nn_defrag_iv *node)
+static int defrag_try_merge_with_succ (const struct nn_defrag *defrag, struct nn_rsample_defrag *sample, struct nn_defrag_iv *node)
 {
   struct nn_defrag_iv *succ;
 
-  DDS_LOG(DDS_LC_RADMIN, "  defrag_try_merge_with_succ(%p [%"PRIu32"..%"PRIu32")):\n",
-                 (void *) node, node->min, node->maxp1);
+  TRACE (defrag, "  defrag_try_merge_with_succ(%p [%"PRIu32"..%"PRIu32")):\n", (void *) node, node->min, node->maxp1);
   if (node == sample->lastfrag)
   {
     /* there is no interval following node */
-    DDS_LOG(DDS_LC_RADMIN, "  node is lastfrag\n");
+    TRACE (defrag, "  node is lastfrag\n");
     return 0;
   }
 
   succ = ddsrt_avl_find_succ (&rsample_defrag_fragtree_treedef, &sample->fragtree, node);
   assert (succ != NULL);
-  DDS_LOG(DDS_LC_RADMIN, "  succ is %p [%"PRIu32"..%"PRIu32")\n", (void *) succ, succ->min, succ->maxp1);
+  TRACE (defrag, "  succ is %p [%"PRIu32"..%"PRIu32")\n", (void *) succ, succ->min, succ->maxp1);
   if (succ->min > node->maxp1)
   {
-    DDS_LOG(DDS_LC_RADMIN, "  gap between node and succ\n");
+    TRACE (defrag, "  gap between node and succ\n");
     return 0;
   }
   else
@@ -962,7 +983,7 @@ static int defrag_try_merge_with_succ (struct nn_rsample_defrag *sample, struct 
     ddsrt_avl_delete (&rsample_defrag_fragtree_treedef, &sample->fragtree, succ);
     if (sample->lastfrag == succ)
     {
-      DDS_LOG(DDS_LC_RADMIN, "  succ is lastfrag\n");
+      TRACE (defrag, "  succ is lastfrag\n");
       sample->lastfrag = node;
     }
 
@@ -977,9 +998,9 @@ static int defrag_try_merge_with_succ (struct nn_rsample_defrag *sample, struct 
        references to rmsgs of the rdata in succ, freeing it may cause
        the rsample to be freed as well. */
     if (node->maxp1 < succ_maxp1)
-      DDS_LOG(DDS_LC_RADMIN, "  succ adds data to node\n");
+      TRACE (defrag, "  succ adds data to node\n");
     else
-      DDS_LOG(DDS_LC_RADMIN, "  succ is contained in node\n");
+      TRACE (defrag, "  succ is contained in node\n");
 
     node->last->nextfrag = succ->first;
     node->last = succ->last;
@@ -1133,7 +1154,7 @@ static void rsample_convert_defrag_to_reorder (struct nn_rsample *sample)
   sample->u.reorder.n_samples = 1;
 }
 
-static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo)
+static struct nn_rsample *defrag_add_fragment (const struct nn_defrag *defrag, struct nn_rsample *sample, struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo)
 {
   struct nn_rsample_defrag *dfsample = &sample->u.defrag;
   struct nn_defrag_iv *predeq, *succ;
@@ -1151,9 +1172,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct
   /* relatively expensive test: lastfrag, tree must be consistent */
   assert (dfsample->lastfrag == ddsrt_avl_find_max (&rsample_defrag_fragtree_treedef, &dfsample->fragtree));
 
-  DDS_LOG(DDS_LC_RADMIN, "  lastfrag %p [%"PRIu32"..%"PRIu32")\n",
-                 (void *) dfsample->lastfrag,
-                 dfsample->lastfrag->min, dfsample->lastfrag->maxp1);
+  TRACE (defrag, "  lastfrag %p [%"PRIu32"..%"PRIu32")\n", (void *) dfsample->lastfrag, dfsample->lastfrag->min, dfsample->lastfrag->maxp1);
 
   /* Interval tree is sorted on min offset; each key is unique:
      otherwise one would be wholly contained in another. */
@@ -1161,15 +1180,14 @@ static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct
   {
     /* Assumed normal case: fragment appends data */
     predeq = dfsample->lastfrag;
-    DDS_LOG(DDS_LC_RADMIN, "  fast path: predeq = lastfrag\n");
+    TRACE (defrag, "  fast path: predeq = lastfrag\n");
   }
   else
   {
     /* Slow path: find preceding fragment by tree search */
     predeq = ddsrt_avl_lookup_pred_eq (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &min);
     assert (predeq);
-    DDS_LOG(DDS_LC_RADMIN, "  slow path: predeq = lookup %"PRIu32" => %p [%"PRIu32"..%"PRIu32")\n",
-                   min, (void *) predeq, predeq->min, predeq->maxp1);
+    TRACE (defrag, "  slow path: predeq = lookup %"PRIu32" => %p [%"PRIu32"..%"PRIu32")\n", min, (void *) predeq, predeq->min, predeq->maxp1);
   }
 
   /* we have a sentinel interval of [0,0) until we receive a packet
@@ -1181,7 +1199,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct
   {
     /* new is contained in predeq, discard new; rdata did not cause
        completion of a sample */
-    DDS_LOG(DDS_LC_RADMIN, "  new contained in predeq\n");
+    TRACE (defrag, "  new contained in predeq\n");
     return NULL;
   }
   else if (min <= predeq->maxp1)
@@ -1189,7 +1207,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct
     /* new extends predeq, add it to the chain (necessarily at the
        end); this may close the gap to the successor of predeq; predeq
        need not have a fragment chain yet (it may be the sentinel) */
-    DDS_LOG(DDS_LC_RADMIN, "  grow predeq with new\n");
+    TRACE (defrag, "  grow predeq with new\n");
     nn_rdata_addbias (rdata);
     rdata->nextfrag = NULL;
     if (predeq->first)
@@ -1205,7 +1223,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct
     predeq->last = rdata;
     predeq->maxp1 = maxp1;
     /* it may now be possible to merge with the successor */
-    while (defrag_try_merge_with_succ (dfsample, predeq))
+    while (defrag_try_merge_with_succ (defrag, dfsample, predeq))
       ;
     return is_complete (dfsample) ? sample : NULL;
   }
@@ -1217,8 +1235,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct
        fragment in the chain adds value); but doesn't overlap with
        predeq so the tree structure doesn't change even though the key
        does change */
-    DDS_LOG(DDS_LC_RADMIN, "  extending succ %p [%"PRIu32"..%"PRIu32") at head\n",
-                   (void *) succ, succ->min, succ->maxp1);
+    TRACE (defrag, "  extending succ %p [%"PRIu32"..%"PRIu32") at head\n", (void *) succ, succ->min, succ->maxp1);
     nn_rdata_addbias (rdata);
     rdata->nextfrag = succ->first;
     succ->first = rdata;
@@ -1228,9 +1245,9 @@ static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct
        succ-succ */
     if (maxp1 > succ->maxp1)
     {
-      DDS_LOG(DDS_LC_RADMIN, "  extending succ at end as well\n");
+      TRACE (defrag, "  extending succ at end as well\n");
       succ->maxp1 = maxp1;
-      while (defrag_try_merge_with_succ (dfsample, succ))
+      while (defrag_try_merge_with_succ (defrag, dfsample, succ))
         ;
     }
     assert (!is_complete (dfsample));
@@ -1241,7 +1258,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_rsample *sample, struct
     /* doesn't extend either predeq at the end or succ at the head =>
        new interval; rdata did not cause completion of sample */
     ddsrt_avl_ipath_t path;
-    DDS_LOG(DDS_LC_RADMIN, "  new interval\n");
+    TRACE (defrag, "  new interval\n");
     if (ddsrt_avl_lookup_ipath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &min, &path))
       assert (0);
     defrag_rsample_addiv (dfsample, rdata, &path);
@@ -1264,25 +1281,25 @@ static int defrag_limit_samples (struct nn_defrag *defrag, seqno_t seq, seqno_t 
     return 1;
   /* max_samples >= 1 => some sample present => max_sample != NULL */
   assert (defrag->max_sample != NULL);
-  DDS_LOG(DDS_LC_RADMIN, "  max samples reached\n");
+  TRACE (defrag, "  max samples reached\n");
   switch (defrag->drop_mode)
   {
     case NN_DEFRAG_DROP_LATEST:
-      DDS_LOG(DDS_LC_RADMIN, "  drop mode = DROP_LATEST\n");
+      TRACE (defrag, "  drop mode = DROP_LATEST\n");
       if (seq > defrag->max_sample->u.defrag.seq)
       {
-        DDS_LOG(DDS_LC_RADMIN, "  new sample is new latest => discarding it\n");
+        TRACE (defrag, "  new sample is new latest => discarding it\n");
         return 0;
       }
       sample_to_drop = defrag->max_sample;
       break;
     case NN_DEFRAG_DROP_OLDEST:
-      DDS_LOG(DDS_LC_RADMIN, "  drop mode = DROP_OLDEST\n");
+      TRACE (defrag, "  drop mode = DROP_OLDEST\n");
       sample_to_drop = ddsrt_avl_find_min (&defrag_sampletree_treedef, &defrag->sampletree);
       assert (sample_to_drop);
       if (seq < sample_to_drop->u.defrag.seq)
       {
-        DDS_LOG(DDS_LC_RADMIN, "  new sample is new oldest => discarding it\n");
+        TRACE (defrag, "  new sample is new oldest => discarding it\n");
         return 0;
       }
       break;
@@ -1293,9 +1310,8 @@ static int defrag_limit_samples (struct nn_defrag *defrag, seqno_t seq, seqno_t 
   {
     defrag->max_sample = ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree);
     *max_seq = defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0;
-    DDS_LOG(DDS_LC_RADMIN, "  updating max_sample: now %p %"PRId64"\n",
-                   (void *) defrag->max_sample,
-                   defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0);
+    TRACE (defrag, "  updating max_sample: now %p %"PRId64"\n",
+           (void *) defrag->max_sample, defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0);
   }
   return 1;
 }
@@ -1340,20 +1356,20 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
      consistent. Max_sample must be consistent with tree */
   assert (defrag->max_sample == ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree));
   max_seq = defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0;
-  DDS_LOG(DDS_LC_RADMIN, "defrag_rsample(%p, %p [%"PRIu32"..%"PRIu32") msg %p, %p seq %"PRId64" size %"PRIu32") max_seq %p %"PRId64":\n",
-          (void *) defrag, (void *) rdata, rdata->min, rdata->maxp1, (void *) rdata->rmsg,
-          (void *) sampleinfo, sampleinfo->seq, sampleinfo->size,
-          (void *) defrag->max_sample, max_seq);
+  TRACE (defrag, "defrag_rsample(%p, %p [%"PRIu32"..%"PRIu32") msg %p, %p seq %"PRId64" size %"PRIu32") max_seq %p %"PRId64":\n",
+         (void *) defrag, (void *) rdata, rdata->min, rdata->maxp1, (void *) rdata->rmsg,
+         (void *) sampleinfo, sampleinfo->seq, sampleinfo->size,
+         (void *) defrag->max_sample, max_seq);
   /* fast path: rdata is part of message with the highest sequence
      number we're currently defragmenting, or is beyond that */
   if (sampleinfo->seq == max_seq)
   {
-    DDS_LOG(DDS_LC_RADMIN, "  add fragment to max_sample\n");
-    result = defrag_add_fragment (defrag->max_sample, rdata, sampleinfo);
+    TRACE (defrag, "  add fragment to max_sample\n");
+    result = defrag_add_fragment (defrag, defrag->max_sample, rdata, sampleinfo);
   }
   else if (!defrag_limit_samples (defrag, sampleinfo->seq, &max_seq))
   {
-    DDS_LOG(DDS_LC_RADMIN, "  discarding sample\n");
+    TRACE (defrag, "  discarding sample\n");
     result = NULL;
   }
   else if (sampleinfo->seq > max_seq)
@@ -1361,7 +1377,7 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
     /* a node with a key greater than the maximum always is the right
        child of the old maximum node */
     /* FIXME: MERGE THIS ONE WITH THE NEXT */
-    DDS_LOG(DDS_LC_RADMIN, "  new max sample\n");
+    TRACE (defrag, "  new max sample\n");
     ddsrt_avl_lookup_ipath (&defrag_sampletree_treedef, &defrag->sampletree, &sampleinfo->seq, &path);
     if ((sample = defrag_rsample_new (rdata, sampleinfo)) == NULL)
       return NULL;
@@ -1373,7 +1389,7 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
   else if ((sample = ddsrt_avl_lookup_ipath (&defrag_sampletree_treedef, &defrag->sampletree, &sampleinfo->seq, &path)) == NULL)
   {
     /* a new sequence number, but smaller than the maximum */
-    DDS_LOG(DDS_LC_RADMIN, "  new sample less than max\n");
+    TRACE (defrag, "  new sample less than max\n");
     assert (sampleinfo->seq < max_seq);
     if ((sample = defrag_rsample_new (rdata, sampleinfo)) == NULL)
       return NULL;
@@ -1384,8 +1400,8 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
   else
   {
     /* adds (or, as the case may be, doesn't add) to a known message */
-    DDS_LOG(DDS_LC_RADMIN, "  add fragment to %p\n", (void *) sample);
-    result = defrag_add_fragment (sample, rdata, sampleinfo);
+    TRACE (defrag, "  add fragment to %p\n", (void *) sample);
+    result = defrag_add_fragment (defrag, sample, rdata, sampleinfo);
   }
 
   if (result != NULL)
@@ -1393,16 +1409,15 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
     /* Once completed, remove from defrag sample tree and convert to
        reorder format. If it is the sample with the maximum sequence in
        the tree, an update of max_sample is required. */
-    DDS_LOG(DDS_LC_RADMIN, "  complete\n");
+    TRACE (defrag, "  complete\n");
     ddsrt_avl_delete (&defrag_sampletree_treedef, &defrag->sampletree, result);
     assert (defrag->n_samples > 0);
     defrag->n_samples--;
     if (result == defrag->max_sample)
     {
       defrag->max_sample = ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree);
-      DDS_LOG(DDS_LC_RADMIN, "  updating max_sample: now %p %"PRId64"\n",
-              (void *) defrag->max_sample,
-              defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0);
+      TRACE (defrag, "  updating max_sample: now %p %"PRId64"\n",
+             (void *) defrag->max_sample, defrag->max_sample ? defrag->max_sample->u.defrag.seq : 0);
     }
     rsample_convert_defrag_to_reorder (result);
   }
@@ -1613,13 +1628,15 @@ struct nn_reorder {
   enum nn_reorder_mode mode;
   uint32_t max_samples;
   uint32_t n_samples;
+  const struct ddsrt_log_cfg *logcfg;
   bool late_ack_mode;
+  bool trace;
 };
 
 static const ddsrt_avl_treedef_t reorder_sampleivtree_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct nn_rsample, u.reorder.avlnode), offsetof (struct nn_rsample, u.reorder.min), compare_seqno, 0);
 
-struct nn_reorder *nn_reorder_new (enum nn_reorder_mode mode, uint32_t max_samples, bool late_ack_mode)
+struct nn_reorder *nn_reorder_new (const struct ddsrt_log_cfg *logcfg, enum nn_reorder_mode mode, uint32_t max_samples, bool late_ack_mode)
 {
   struct nn_reorder *r;
   if ((r = ddsrt_malloc (sizeof (*r))) == NULL)
@@ -1631,6 +1648,8 @@ struct nn_reorder *nn_reorder_new (enum nn_reorder_mode mode, uint32_t max_sampl
   r->max_samples = max_samples;
   r->n_samples = 0;
   r->late_ack_mode = late_ack_mode;
+  r->logcfg = logcfg;
+  r->trace = (logcfg->c.mask & DDS_LC_RADMIN) != 0;
   return r;
 }
 
@@ -1701,28 +1720,28 @@ static int reorder_try_append_and_discard (struct nn_reorder *reorder, struct nn
 {
   if (todiscard == NULL)
   {
-    DDS_LOG(DDS_LC_RADMIN, "  try_append_and_discard: fail: todiscard = NULL\n");
+    TRACE (reorder, "  try_append_and_discard: fail: todiscard = NULL\n");
     return 0;
   }
   else if (appendto->u.reorder.maxp1 < todiscard->u.reorder.min)
   {
-    DDS_LOG(DDS_LC_RADMIN, "  try_append_and_discard: fail: appendto = [%"PRId64",%"PRId64") @ %p, "
-            "todiscard = [%"PRId64",%"PRId64") @ %p - gap\n",
-            appendto->u.reorder.min, appendto->u.reorder.maxp1, (void *) appendto,
-            todiscard->u.reorder.min, todiscard->u.reorder.maxp1, (void *) todiscard);
+    TRACE (reorder, "  try_append_and_discard: fail: appendto = [%"PRId64",%"PRId64") @ %p, "
+           "todiscard = [%"PRId64",%"PRId64") @ %p - gap\n",
+           appendto->u.reorder.min, appendto->u.reorder.maxp1, (void *) appendto,
+           todiscard->u.reorder.min, todiscard->u.reorder.maxp1, (void *) todiscard);
     return 0;
   }
   else
   {
-    DDS_LOG(DDS_LC_RADMIN, "  try_append_and_discard: success: appendto = [%"PRId64",%"PRId64") @ %p, "
-            "todiscard = [%"PRId64",%"PRId64") @ %p\n",
-            appendto->u.reorder.min, appendto->u.reorder.maxp1, (void *) appendto,
-            todiscard->u.reorder.min, todiscard->u.reorder.maxp1, (void *) todiscard);
+    TRACE (reorder, "  try_append_and_discard: success: appendto = [%"PRId64",%"PRId64") @ %p, "
+           "todiscard = [%"PRId64",%"PRId64") @ %p\n",
+           appendto->u.reorder.min, appendto->u.reorder.maxp1, (void *) appendto,
+           todiscard->u.reorder.min, todiscard->u.reorder.maxp1, (void *) todiscard);
     assert (todiscard->u.reorder.min == appendto->u.reorder.maxp1);
     ddsrt_avl_delete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, todiscard);
     append_rsample_interval (appendto, todiscard);
-    DDS_LOG(DDS_LC_RADMIN, "  try_append_and_discard: max_sampleiv needs update? %s\n",
-            (todiscard == reorder->max_sampleiv) ? "yes" : "no");
+    TRACE (reorder, "  try_append_and_discard: max_sampleiv needs update? %s\n",
+           (todiscard == reorder->max_sampleiv) ? "yes" : "no");
     /* Inform caller whether reorder->max must be updated -- the
        expected thing to do is to update it to appendto here, but that
        fails if appendto isn't actually in the tree.  And that happens
@@ -1798,7 +1817,7 @@ static void delete_last_sample (struct nn_reorder *reorder)
   {
     /* Last sample is in an interval of its own - delete it, and
        recalc max_sampleiv. */
-    DDS_LOG(DDS_LC_RADMIN, "  delete_last_sample: in singleton interval\n");
+    TRACE (reorder, "  delete_last_sample: in singleton interval\n");
     fragchain = last->sc.first->fragchain;
     ddsrt_avl_delete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, reorder->max_sampleiv);
     reorder->max_sampleiv = ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
@@ -1814,8 +1833,7 @@ static void delete_last_sample (struct nn_reorder *reorder)
        large!).  Can't be a singleton list, so might as well chop off
        one evaluation of the loop condition. */
     struct nn_rsample_chain_elem *e, *pe;
-    DDS_LOG(DDS_LC_RADMIN, "  delete_last_sample: scanning last interval [%"PRId64"..%"PRId64")\n",
-            last->min, last->maxp1);
+    TRACE (reorder, "  delete_last_sample: scanning last interval [%"PRId64"..%"PRId64")\n", last->min, last->maxp1);
     assert (last->n_samples >= 1);
     assert (last->min + last->n_samples <= last->maxp1);
     e = last->sc.first;
@@ -1845,7 +1863,9 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
      refcount_adjust is incremented if the sample is not discarded. */
   struct nn_rsample_reorder *s = &rsampleiv->u.reorder;
 
-  DDS_LOG(DDS_LC_RADMIN, "reorder_sample(%p %c, %"PRId64" @ %p) expecting %"PRId64":\n", (void *) reorder, reorder_mode_as_char (reorder), rsampleiv->u.reorder.min, (void *) rsampleiv, reorder->next_seq);
+  TRACE (reorder, "reorder_sample(%p %c, %"PRId64" @ %p) expecting %"PRId64":\n",
+         (void *) reorder, reorder_mode_as_char (reorder), rsampleiv->u.reorder.min,
+         (void *) rsampleiv, reorder->next_seq);
 
   /* Incoming rsample must be a singleton */
   assert (rsample_is_singleton (s));
@@ -1856,7 +1876,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
   {
     struct nn_rsample *min = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
     if (min)
-      DDS_LOG(DDS_LC_RADMIN, "  min = %"PRId64" @ %p\n", min->u.reorder.min, (void *) min);
+      TRACE (reorder, "  min = %"PRId64" @ %p\n", min->u.reorder.min, (void *) min);
     assert (min == NULL || reorder->next_seq < min->u.reorder.min);
     assert ((reorder->max_sampleiv == NULL && min == NULL) ||
             (reorder->max_sampleiv != NULL && min != NULL));
@@ -1866,7 +1886,8 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
   assert (reorder->max_sampleiv == NULL || reorder->max_sampleiv == ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree));
   assert (reorder->n_samples <= reorder->max_samples);
   if (reorder->max_sampleiv)
-    DDS_LOG(DDS_LC_RADMIN, "  max = [%"PRId64",%"PRId64") @ %p\n", reorder->max_sampleiv->u.reorder.min, reorder->max_sampleiv->u.reorder.maxp1, (void *) reorder->max_sampleiv);
+    TRACE (reorder, "  max = [%"PRId64",%"PRId64") @ %p\n", reorder->max_sampleiv->u.reorder.min,
+           reorder->max_sampleiv->u.reorder.maxp1, (void *) reorder->max_sampleiv);
 
   if (s->min == reorder->next_seq ||
       (s->min > reorder->next_seq && reorder->mode == NN_REORDER_MODE_MONOTONICALLY_INCREASING) ||
@@ -1880,7 +1901,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
        admin, or things go wrong very quickly.) */
     if (delivery_queue_full_p)
     {
-      DDS_LOG(DDS_LC_RADMIN, "  discarding deliverable sample: delivery queue is full\n");
+      TRACE (reorder, "  discarding deliverable sample: delivery queue is full\n");
       return NN_REORDER_REJECT;
     }
 
@@ -1891,14 +1912,14 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     if (reorder->max_sampleiv != NULL)
     {
       struct nn_rsample *min = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
-      DDS_LOG(DDS_LC_RADMIN, "  try append_and_discard\n");
+      TRACE (reorder, "  try append_and_discard\n");
       if (reorder_try_append_and_discard (reorder, rsampleiv, min))
         reorder->max_sampleiv = NULL;
     }
     reorder->next_seq = s->maxp1;
     *sc = rsampleiv->u.reorder.sc;
     (*refcount_adjust)++;
-    DDS_LOG(DDS_LC_RADMIN, "  return [%"PRId64",%"PRId64")\n", s->min, s->maxp1);
+    TRACE (reorder, "  return [%"PRId64",%"PRId64")\n", s->min, s->maxp1);
 
     /* Adjust reorder->n_samples, new sample is not counted yet */
     assert (s->maxp1 - s->min >= 1);
@@ -1912,7 +1933,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
   {
     /* we've moved beyond this one: discard it; no need to adjust
        n_samples */
-    DDS_LOG(DDS_LC_RADMIN, "  discard: too old\n");
+    TRACE (reorder, "  discard: too old\n");
     return NN_REORDER_TOO_OLD; /* don't want refcount increment */
   }
   else if (ddsrt_avl_is_empty (&reorder->sampleivtree))
@@ -1921,10 +1942,10 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
        is technically allowed, and potentially useful, so check for
        it */
     assert (reorder->n_samples == 0);
-    DDS_LOG(DDS_LC_RADMIN, "  adding to empty store\n");
+    TRACE (reorder, "  adding to empty store\n");
     if (reorder->max_samples == 0)
     {
-      DDS_LOG(DDS_LC_RADMIN, "  NOT - max_samples hit\n");
+      TRACE (reorder, "  NOT - max_samples hit\n");
       return NN_REORDER_REJECT;
     }
     else
@@ -1940,12 +1961,12 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     if (delivery_queue_full_p)
     {
       /* growing last inteval will not be accepted when this flag is set */
-      DDS_LOG(DDS_LC_RADMIN, "  discarding sample: only accepting delayed samples due to backlog in delivery queue\n");
+      TRACE (reorder, "  discarding sample: only accepting delayed samples due to backlog in delivery queue\n");
       return NN_REORDER_REJECT;
     }
 
     /* grow the last interval, if we're still accepting samples */
-    DDS_LOG(DDS_LC_RADMIN, "  growing last interval\n");
+    TRACE (reorder, "  growing last interval\n");
     if (reorder->n_samples < reorder->max_samples)
     {
       append_rsample_interval (reorder->max_sampleiv, rsampleiv);
@@ -1953,7 +1974,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     }
     else
     {
-       DDS_LOG(DDS_LC_RADMIN, "  discarding sample: max_samples reached and sample at end\n");
+      TRACE (reorder, "  discarding sample: max_samples reached and sample at end\n");
       return NN_REORDER_REJECT;
     }
   }
@@ -1962,19 +1983,19 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     if (delivery_queue_full_p)
     {
       /* new interval at the end will not be accepted when this flag is set */
-      DDS_LOG(DDS_LC_RADMIN, "  discarding sample: only accepting delayed samples due to backlog in delivery queue\n");
+      TRACE (reorder, "  discarding sample: only accepting delayed samples due to backlog in delivery queue\n");
       return NN_REORDER_REJECT;
     }
     if (reorder->n_samples < reorder->max_samples)
     {
-      DDS_LOG(DDS_LC_RADMIN, "  new interval at end\n");
+      TRACE (reorder, "  new interval at end\n");
       reorder_add_rsampleiv (reorder, rsampleiv);
       reorder->max_sampleiv = rsampleiv;
       reorder->n_samples++;
     }
     else
     {
-      DDS_LOG(DDS_LC_RADMIN, "  discarding sample: max_samples reached and sample at end\n");
+      TRACE (reorder, "  discarding sample: max_samples reached and sample at end\n");
       return NN_REORDER_REJECT;
     }
   }
@@ -1988,37 +2009,37 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
        - if immsucc exists we can prepend s to immsucc
        - and possibly join predeq, s, and immsucc */
     struct nn_rsample *predeq, *immsucc;
-    DDS_LOG(DDS_LC_RADMIN, "  hard case ...\n");
+    TRACE (reorder, "  hard case ...\n");
 
     if (reorder->late_ack_mode && delivery_queue_full_p)
     {
-      DDS_LOG(DDS_LC_RADMIN, "  discarding sample: delivery queue full\n");
+      TRACE (reorder, "  discarding sample: delivery queue full\n");
       return NN_REORDER_REJECT;
     }
 
     predeq = ddsrt_avl_lookup_pred_eq (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &s->min);
     if (predeq)
-      DDS_LOG(DDS_LC_RADMIN, "  predeq = [%"PRId64",%"PRId64") @ %p\n",
-              predeq->u.reorder.min, predeq->u.reorder.maxp1, (void *) predeq);
+      TRACE (reorder, "  predeq = [%"PRId64",%"PRId64") @ %p\n",
+             predeq->u.reorder.min, predeq->u.reorder.maxp1, (void *) predeq);
     else
-      DDS_LOG(DDS_LC_RADMIN, "  predeq = null\n");
+      TRACE (reorder, "  predeq = null\n");
     if (predeq && s->min >= predeq->u.reorder.min && s->min < predeq->u.reorder.maxp1)
     {
       /* contained in predeq */
-      DDS_LOG(DDS_LC_RADMIN, "  discard: contained in predeq\n");
+      TRACE (reorder, "  discard: contained in predeq\n");
       return NN_REORDER_REJECT;
     }
 
     immsucc = ddsrt_avl_lookup (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &s->maxp1);
     if (immsucc)
-      DDS_LOG(DDS_LC_RADMIN, "  immsucc = [%"PRId64",%"PRId64") @ %p\n",
-              immsucc->u.reorder.min, immsucc->u.reorder.maxp1, (void *) immsucc);
+      TRACE (reorder, "  immsucc = [%"PRId64",%"PRId64") @ %p\n",
+             immsucc->u.reorder.min, immsucc->u.reorder.maxp1, (void *) immsucc);
     else
-      DDS_LOG(DDS_LC_RADMIN, "  immsucc = null\n");
+      TRACE (reorder, "  immsucc = null\n");
     if (predeq && s->min == predeq->u.reorder.maxp1)
     {
       /* grow predeq at end, and maybe append immsucc as well */
-      DDS_LOG(DDS_LC_RADMIN, "  growing predeq at end ...\n");
+      TRACE (reorder, "  growing predeq at end ...\n");
       append_rsample_interval (predeq, rsampleiv);
       if (reorder_try_append_and_discard (reorder, predeq, immsucc))
         reorder->max_sampleiv = predeq;
@@ -2028,7 +2049,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
       /* no predecessor, grow immsucc at head, which _does_ alter the
          key of the node in the tree, but _doesn't_ change the tree's
          structure. */
-      DDS_LOG(DDS_LC_RADMIN, "  growing immsucc at head\n");
+      TRACE (reorder, "  growing immsucc at head\n");
       s->sc.last->next = immsucc->u.reorder.sc.first;
       immsucc->u.reorder.sc.first = s->sc.first;
       immsucc->u.reorder.min = s->min;
@@ -2054,7 +2075,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     else
     {
       /* neither extends predeq nor immsucc */
-      DDS_LOG(DDS_LC_RADMIN, "  new interval\n");
+      TRACE (reorder, "  new interval\n");
       reorder_add_rsampleiv (reorder, rsampleiv);
     }
 
@@ -2181,18 +2202,18 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
   struct nn_rsample *coalesced;
   int valuable;
 
-  DDS_LOG(DDS_LC_RADMIN, "reorder_gap(%p %c, [%"PRId64",%"PRId64") data %p) expecting %"PRId64":\n",
-                 (void *) reorder, reorder_mode_as_char (reorder),
-                 min, maxp1, (void *) rdata, reorder->next_seq);
+  TRACE (reorder, "reorder_gap(%p %c, [%"PRId64",%"PRId64") data %p) expecting %"PRId64":\n",
+         (void *) reorder, reorder_mode_as_char (reorder),
+         min, maxp1, (void *) rdata, reorder->next_seq);
 
   if (maxp1 <= reorder->next_seq)
   {
-    DDS_LOG(DDS_LC_RADMIN, "  too old\n");
+    TRACE (reorder, "  too old\n");
     return NN_REORDER_TOO_OLD;
   }
   if (reorder->mode != NN_REORDER_MODE_NORMAL)
   {
-    DDS_LOG(DDS_LC_RADMIN, "  special mode => don't care\n");
+    TRACE (reorder, "  special mode => don't care\n");
     return NN_REORDER_REJECT;
   }
 
@@ -2200,10 +2221,10 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
   if ((coalesced = coalesce_intervals_touching_range (reorder, min, maxp1, &valuable)) == NULL)
   {
     nn_reorder_result_t res;
-    DDS_LOG(DDS_LC_RADMIN, "  coalesced = null\n");
+    TRACE (reorder, "  coalesced = null\n");
     if (min <= reorder->next_seq)
     {
-      DDS_LOG(DDS_LC_RADMIN, "  next expected: %"PRId64"\n", maxp1);
+      TRACE (reorder, "  next expected: %"PRId64"\n", maxp1);
       reorder->next_seq = maxp1;
       res = NN_REORDER_ACCEPT;
     }
@@ -2211,17 +2232,17 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
              (reorder->max_sampleiv == NULL || min > reorder->max_sampleiv->u.reorder.maxp1))
     {
       /* n_samples = max_samples => (max_sampleiv = NULL <=> max_samples = 0) */
-      DDS_LOG(DDS_LC_RADMIN, "  discarding gap: max_samples reached and gap at end\n");
+      TRACE (reorder, "  discarding gap: max_samples reached and gap at end\n");
       res = NN_REORDER_REJECT;
     }
     else if (!reorder_insert_gap (reorder, rdata, min, maxp1))
     {
-      DDS_LOG(DDS_LC_RADMIN, "  store gap failed: no memory\n");
+      TRACE (reorder, "  store gap failed: no memory\n");
       res = NN_REORDER_REJECT;
     }
     else
     {
-      DDS_LOG(DDS_LC_RADMIN, "  storing gap\n");
+      TRACE (reorder, "  storing gap\n");
       res = NN_REORDER_ACCEPT;
       /* do not let radmin grow beyond max_samples; there is a small
          possibility that we insert it & delete it immediately
@@ -2237,15 +2258,15 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
   }
   else if (coalesced->u.reorder.min <= reorder->next_seq)
   {
-    DDS_LOG(DDS_LC_RADMIN, "  coalesced = [%"PRId64",%"PRId64") @ %p containing %"PRId32" samples\n",
-            coalesced->u.reorder.min, coalesced->u.reorder.maxp1,
-            (void *) coalesced, coalesced->u.reorder.n_samples);
+    TRACE (reorder, "  coalesced = [%"PRId64",%"PRId64") @ %p containing %"PRId32" samples\n",
+           coalesced->u.reorder.min, coalesced->u.reorder.maxp1,
+           (void *) coalesced, coalesced->u.reorder.n_samples);
     ddsrt_avl_delete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, coalesced);
     if (coalesced->u.reorder.min <= reorder->next_seq)
       assert (min <= reorder->next_seq);
     reorder->next_seq = coalesced->u.reorder.maxp1;
     reorder->max_sampleiv = ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
-    DDS_LOG(DDS_LC_RADMIN, "  next expected: %"PRId64"\n", reorder->next_seq);
+    TRACE (reorder, "  next expected: %"PRId64"\n", reorder->next_seq);
     *sc = coalesced->u.reorder.sc;
 
     /* Adjust n_samples */
@@ -2256,8 +2277,8 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
   }
   else
   {
-    DDS_LOG(DDS_LC_RADMIN, "  coalesced = [%"PRId64",%"PRId64") @ %p - that is all\n",
-            coalesced->u.reorder.min, coalesced->u.reorder.maxp1, (void *) coalesced);
+    TRACE (reorder, "  coalesced = [%"PRId64",%"PRId64") @ %p - that is all\n",
+           coalesced->u.reorder.min, coalesced->u.reorder.maxp1, (void *) coalesced);
     reorder->max_sampleiv = ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
     return valuable ? NN_REORDER_ACCEPT : NN_REORDER_REJECT;
   }
@@ -2297,13 +2318,13 @@ unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t m
 #else
   if (base > reorder->next_seq)
   {
-    DDS_ERROR("nn_reorder_nackmap: incorrect base sequence number supplied (%"PRId64" > %"PRId64")\n", base, reorder->next_seq);
+    DDS_CERROR (reorder->logcfg, "nn_reorder_nackmap: incorrect base sequence number supplied (%"PRId64" > %"PRId64")\n", base, reorder->next_seq);
     base = reorder->next_seq;
   }
 #endif
   if (maxseq + 1 < base)
   {
-    DDS_ERROR("nn_reorder_nackmap: incorrect max sequence number supplied (maxseq %"PRId64" base %"PRId64")\n", maxseq, base);
+    DDS_CERROR (reorder->logcfg, "nn_reorder_nackmap: incorrect max sequence number supplied (maxseq %"PRId64" base %"PRId64")\n", maxseq, base);
     maxseq = base - 1;
   }
 
@@ -2405,6 +2426,7 @@ static enum dqueue_elem_kind dqueue_elem_kind (const struct nn_rsample_chain_ele
 static uint32_t dqueue_thread (struct nn_dqueue *q)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct q_globals const * const gv = ddsrt_atomic_ldvoidp (&ts1->gv);
   nn_mtime_t next_thread_cputime = { 0 };
   int keepgoing = 1;
   nn_guid_t rdguid, *prdguid = NULL;
@@ -2415,7 +2437,7 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
   {
     struct nn_rsample_chain sc;
 
-    LOG_THREAD_CPUTIME (next_thread_cputime);
+    LOG_THREAD_CPUTIME (&gv->logconfig, next_thread_cputime);
 
     if (q->sc.first == NULL)
       ddsrt_cond_wait (&q->cond, &q->lock);

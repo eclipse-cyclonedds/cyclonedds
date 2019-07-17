@@ -159,7 +159,7 @@
 
 #define INCLUDE_TRACE 1
 #if INCLUDE_TRACE
-#define TRACE(...) DDS_LOG(DDS_LC_RHC, __VA_ARGS__)
+#define TRACE(...) DDS_CLOG (DDS_LC_RHC, &rhc->gv->logconfig, __VA_ARGS__)
 #else
 #define TRACE(...) ((void)0)
 #endif
@@ -306,6 +306,7 @@ struct dds_rhc_default {
 
   dds_reader *reader;                /* reader -- may be NULL (used by rhc_torture) */
   struct ddsi_tkmap *tkmap;          /* back pointer to tkmap */
+  struct q_globals *gv;              /* globals -- so far only for log config */
   const struct ddsi_sertopic *topic; /* topic description */
   uint32_t history_depth;            /* depth, 1 for KEEP_LAST_1, 2**32-1 for KEEP_ALL */
 
@@ -523,7 +524,7 @@ static void remove_inst_from_nonempty_list (struct dds_rhc_default *rhc, struct 
   rhc->n_nonempty_instances--;
 }
 
-struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_tkmap *tkmap, const struct ddsi_sertopic *topic, bool xchecks)
+struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct q_globals *gv, const struct ddsi_sertopic *topic, bool xchecks)
 {
   struct dds_rhc_default *rhc = ddsrt_malloc (sizeof (*rhc));
   memset (rhc, 0, sizeof (*rhc));
@@ -534,7 +535,8 @@ struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_tkm
   rhc->instances = ddsrt_hh_new (1, instance_iid_hash, instance_iid_eq);
   rhc->topic = topic;
   rhc->reader = reader;
-  rhc->tkmap = tkmap;
+  rhc->tkmap = gv->m_tkmap;
+  rhc->gv = gv;
   rhc->xchecks = xchecks;
 
   return &rhc->common;
@@ -542,7 +544,7 @@ struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_tkm
 
 struct dds_rhc *dds_rhc_default_new (dds_reader *reader, const struct ddsi_sertopic *topic)
 {
-  return dds_rhc_default_new_xchecks (reader, reader->m_entity.m_domain->gv.m_tkmap, topic, (reader->m_entity.m_domain->gv.config.enabled_xchecks & DDS_XCHECK_RHC) != 0);
+  return dds_rhc_default_new_xchecks (reader, &reader->m_entity.m_domain->gv, topic, (reader->m_entity.m_domain->gv.config.enabled_xchecks & DDS_XCHECK_RHC) != 0);
 }
 
 static void dds_rhc_default_set_qos (struct dds_rhc_default * rhc, const dds_qos_t * qos)

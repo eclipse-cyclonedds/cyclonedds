@@ -21,6 +21,7 @@
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/log.h"
 
 #include "dds/ddsi/q_xqos.h"
 
@@ -134,9 +135,11 @@ static bool pubsub_qos_eq_h (const dds_qos_t *a, dds_entity_t ent)
   uint64_t delta = nn_xqos_delta (a, b, QP_GROUP_DATA | QP_PRESENTATION | QP_PARTITION);
   if (delta)
   {
-    DDS_LOG (DDS_LC_ERROR, "pub/sub: delta = %"PRIx64"\n", delta);
-    nn_log_xqos (DDS_LC_ERROR, a); DDS_LOG (DDS_LC_ERROR, "\n");
-    nn_log_xqos (DDS_LC_ERROR, b); DDS_LOG (DDS_LC_ERROR, "\n");
+    struct ddsrt_log_cfg logcfg;
+    dds_log_cfg_init (&logcfg, 0, DDS_LC_ERROR, stderr, stderr);
+    DDS_CLOG (DDS_LC_ERROR, &logcfg, "pub/sub: delta = %"PRIx64"\n", delta);
+    nn_log_xqos (DDS_LC_ERROR, &logcfg, a); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+    nn_log_xqos (DDS_LC_ERROR, &logcfg, b); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
   }
   dds_delete_qos (b);
   return delta == 0;
@@ -154,9 +157,11 @@ static bool reader_qos_eq_h (const dds_qos_t *a, dds_entity_t ent)
   uint64_t delta = reader_qos_delta (a, b);
   if (delta)
   {
-    DDS_LOG (DDS_LC_ERROR, "reader: delta = %"PRIx64"\n", delta);
-    nn_log_xqos (DDS_LC_ERROR, a); DDS_LOG (DDS_LC_ERROR, "\n");
-    nn_log_xqos (DDS_LC_ERROR, b); DDS_LOG (DDS_LC_ERROR, "\n");
+    struct ddsrt_log_cfg logcfg;
+    dds_log_cfg_init (&logcfg, 0, DDS_LC_ERROR, stderr, stderr);
+    DDS_CLOG (DDS_LC_ERROR, &logcfg, "reader: delta = %"PRIx64"\n", delta);
+    nn_log_xqos (DDS_LC_ERROR, &logcfg, a); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+    nn_log_xqos (DDS_LC_ERROR, &logcfg, b); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
   }
   dds_delete_qos (b);
   return delta == 0;
@@ -174,9 +179,11 @@ static bool writer_qos_eq_h (const dds_qos_t *a, dds_entity_t ent)
   uint64_t delta = writer_qos_delta (a, b);
   if (delta)
   {
-    DDS_LOG (DDS_LC_ERROR, "writer: delta = %"PRIx64"\n", delta);
-    nn_log_xqos (DDS_LC_ERROR, a); DDS_LOG (DDS_LC_ERROR, "\n");
-    nn_log_xqos (DDS_LC_ERROR, b); DDS_LOG (DDS_LC_ERROR, "\n");
+    struct ddsrt_log_cfg logcfg;
+    dds_log_cfg_init (&logcfg, 0, DDS_LC_ERROR, stderr, stderr);
+    DDS_CLOG (DDS_LC_ERROR, &logcfg, "writer: delta = %"PRIx64"\n", delta);
+    nn_log_xqos (DDS_LC_ERROR, &logcfg, a); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+    nn_log_xqos (DDS_LC_ERROR, &logcfg, b); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
   }
   dds_delete_qos (b);
   return delta == 0;
@@ -257,9 +264,11 @@ MPT_ProcessEntry (rw_publisher,
           uint64_t delta = reader_qos_delta (qos, ep->qos);
           if (delta)
           {
-            DDS_LOG (DDS_LC_ERROR, "matched reader: delta = %"PRIx64"\n", delta);
-            nn_log_xqos (DDS_LC_ERROR, qos); DDS_LOG (DDS_LC_ERROR, "\n");
-            nn_log_xqos (DDS_LC_ERROR, ep->qos); DDS_LOG (DDS_LC_ERROR, "\n");
+            struct ddsrt_log_cfg logcfg;
+            dds_log_cfg_init (&logcfg, 0, DDS_LC_ERROR, stderr, stderr);
+            DDS_CLOG (DDS_LC_ERROR, &logcfg, "matched reader: delta = %"PRIx64"\n", delta);
+            nn_log_xqos (DDS_LC_ERROR, &logcfg, qos); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+            nn_log_xqos (DDS_LC_ERROR, &logcfg, ep->qos); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
           }
           MPT_ASSERT (delta == 0, "writer %zu %zu matched reader QoS mismatch\n", i, j);
           dds_delete_qos (ep->qos);
@@ -409,9 +418,11 @@ MPT_ProcessEntry (rw_subscriber,
           uint64_t delta = writer_qos_delta (qos, ep->qos);
           if (delta)
           {
-            DDS_LOG (DDS_LC_ERROR, "matched writer: delta = %"PRIx64"\n", delta);
-            nn_log_xqos (DDS_LC_ERROR, qos); DDS_LOG (DDS_LC_ERROR, "\n");
-            nn_log_xqos (DDS_LC_ERROR, ep->qos); DDS_LOG (DDS_LC_ERROR, "\n");
+            struct ddsrt_log_cfg logcfg;
+            dds_log_cfg_init (&logcfg, 0, DDS_LC_ERROR, stderr, stderr);
+            DDS_CLOG (DDS_LC_ERROR, &logcfg, "matched writer: delta = %"PRIx64"\n", delta);
+            nn_log_xqos (DDS_LC_ERROR, &logcfg, qos); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
+            nn_log_xqos (DDS_LC_ERROR, &logcfg, ep->qos); DDS_CLOG (DDS_LC_ERROR, &logcfg, "\n");
           }
           MPT_ASSERT (delta == 0, "reader %zu %zu matched writer QoS mismatch\n", i, j);
           dds_delete_qos (ep->qos);

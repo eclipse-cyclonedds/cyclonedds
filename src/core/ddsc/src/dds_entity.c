@@ -201,10 +201,7 @@ dds_return_t dds_delete_impl (dds_entity_t entity, bool keep_if_explicit)
   dds_return_t rc;
 
   if ((rc = dds_entity_pin (entity, &e)) < 0)
-  {
-    DDS_TRACE ("dds_delete_impl: error on locking entity %"PRIu32" keep_if_explicit %d\n", entity, (int) keep_if_explicit);
     return rc;
-  }
 
   ddsrt_mutex_lock (&e->m_mutex);
   if (keep_if_explicit == true && (e->m_flags & DDS_ENTITY_IMPLICIT) == 0)
@@ -460,7 +457,7 @@ static dds_return_t dds_set_qos_locked_impl (dds_entity *e, const dds_qos_t *qos
   dds_qos_t *newqos = dds_create_qos ();
   nn_xqos_mergein_missing (newqos, qos, mask);
   nn_xqos_mergein_missing (newqos, e->m_qos, ~(uint64_t)0);
-  if ((ret = nn_xqos_valid (newqos)) != DDS_RETCODE_OK)
+  if ((ret = nn_xqos_valid (&e->m_domain->gv.logconfig, newqos)) != DDS_RETCODE_OK)
     ; /* oops ... invalid or inconsistent */
   else if (!(e->m_flags & DDS_ENTITY_ENABLED))
     ; /* do as you please while the entity is not enabled (perhaps we should even allow invalid ones?) */
@@ -823,16 +820,16 @@ dds_return_t dds_enable (dds_entity_t entity)
   dds_entity *e;
   dds_return_t rc;
 
-  if ((rc = dds_entity_lock(entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
     return rc;
 
   if ((e->m_flags & DDS_ENTITY_ENABLED) == 0)
   {
     /* TODO: Really enable. */
     e->m_flags |= DDS_ENTITY_ENABLED;
-    DDS_ERROR ("Delayed entity enabling is not supported\n");
+    DDS_CERROR (&e->m_domain->gv.logconfig, "Delayed entity enabling is not supported\n");
   }
-  dds_entity_unlock(e);
+  dds_entity_unlock (e);
   return DDS_RETCODE_OK;
 }
 

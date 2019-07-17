@@ -361,7 +361,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
     nn_xqos_mergein_missing (rqos, tp->m_entity.m_qos, ~(uint64_t)0);
   nn_xqos_mergein_missing (rqos, &sub->m_entity.m_domain->gv.default_xqos_rd, ~(uint64_t)0);
 
-  if ((ret = nn_xqos_valid (rqos)) != DDS_RETCODE_OK)
+  if ((ret = nn_xqos_valid (&sub->m_entity.m_domain->gv.logconfig, rqos)) != DDS_RETCODE_OK)
   {
     dds_delete_qos (rqos);
     reader = ret;

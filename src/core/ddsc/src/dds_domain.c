@@ -52,10 +52,10 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   domain->gv.tstart = now ();
 
   (void) ddsrt_getenv ("CYCLONEDDS_URI", &uri);
-  domain->cfgst = config_init (uri, &domain->gv.config);
+  domain->cfgst = config_init (uri, &domain->gv.config, domain_id);
   if (domain->cfgst == NULL)
   {
-    DDS_LOG (DDS_LC_CONFIG, "Failed to parse configuration XML file %s\n", uri);
+    DDS_ILOG (DDS_LC_CONFIG, domain_id, "Failed to parse configuration XML file %s\n", uri);
     ret = DDS_RETCODE_ERROR;
     goto fail_config;
   }
@@ -63,9 +63,9 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   /* if a domain id was explicitly given, check & fix up the configuration */
   if (domain_id != DDS_DOMAIN_DEFAULT)
   {
-    if (domain_id < 0 || domain_id > 230)
+    if (domain_id > 230)
     {
-      DDS_ERROR ("requested domain id %"PRId32" is out of range\n", domain_id);
+      DDS_ILOG (DDS_LC_ERROR, domain_id, "requested domain id %"PRIu32" is out of range\n", domain_id);
       ret = DDS_RETCODE_ERROR;
       goto fail_config_domainid;
     }
@@ -75,7 +75,7 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
     }
     else if (domain_id != domain->gv.config.domainId.value)
     {
-      DDS_ERROR ("requested domain id %"PRId32" is inconsistent with configured value %"PRId32"\n", domain_id, domain->gv.config.domainId.value);
+      DDS_ILOG (DDS_LC_ERROR, domain_id, "requested domain id %"PRIu32" is inconsistent with configured value %"PRIu32"\n", domain_id, domain->gv.config.domainId.value);
       ret = DDS_RETCODE_ERROR;
       goto fail_config_domainid;
     }
@@ -87,31 +87,40 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
 
   if (rtps_config_prep (&domain->gv, domain->cfgst) != 0)
   {
-    DDS_LOG (DDS_LC_CONFIG, "Failed to configure RTPS\n");
+    DDS_ILOG (DDS_LC_CONFIG, domain->m_id, "Failed to configure RTPS\n");
     ret = DDS_RETCODE_ERROR;
     goto fail_rtps_config;
   }
 
-  /* Start monitoring the liveliness of all threads. */
+  if (rtps_init (&domain->gv) < 0)
+  {
+    DDS_ILOG (DDS_LC_CONFIG, domain->m_id, "Failed to initialize RTPS\n");
+    ret = DDS_RETCODE_ERROR;
+    goto fail_rtps_init;
+  }
+
+  /* Start monitoring the liveliness of threads if this is the first
+     domain to configured to do so. */
   if (domain->gv.config.liveliness_monitoring)
   {
-    if (++dds_global.threadmon_count == 0)
+    if (dds_global.threadmon_count++ == 0)
     {
-      dds_global.threadmon = ddsi_threadmon_new (domain->gv.config.liveliness_monitoring_interval, domain->gv.config.noprogress_log_stacktraces);
+      /* FIXME: configure settings */
+      dds_global.threadmon = ddsi_threadmon_new (DDS_MSECS (333), true);
       if (dds_global.threadmon == NULL)
       {
-        DDS_ERROR ("Failed to create a thread liveliness monitor\n");
+        DDS_ILOG (DDS_LC_CONFIG, domain->m_id, "Failed to create a thread liveliness monitor\n");
         ret = DDS_RETCODE_OUT_OF_RESOURCES;
         goto fail_threadmon_new;
       }
+      /* FIXME: thread properties */
+      if (ddsi_threadmon_start (dds_global.threadmon, "threadmon") < 0)
+      {
+        DDS_ILOG (DDS_LC_ERROR, domain->m_id, "Failed to start the thread liveliness monitor\n");
+        ret = DDS_RETCODE_ERROR;
+        goto fail_threadmon_start;
+      }
     }
-  }
-
-  if (rtps_init (&domain->gv) < 0)
-  {
-    DDS_LOG (DDS_LC_CONFIG, "Failed to initialize RTPS\n");
-    ret = DDS_RETCODE_ERROR;
-    goto fail_rtps_init;
   }
 
   dds__builtin_init (domain);
@@ -121,17 +130,6 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
     DDS_LOG (DDS_LC_CONFIG, "Failed to start RTPS\n");
     ret = DDS_RETCODE_ERROR;
     goto fail_rtps_start;
-  }
-
-  if (domain->gv.config.liveliness_monitoring && dds_global.threadmon_count == 1)
-  {
-    const char *name = "threadmon";
-    if (ddsi_threadmon_start (dds_global.threadmon, name, lookup_thread_properties (&domain->gv.config, name)) < 0)
-    {
-      DDS_ERROR ("Failed to start the thread liveliness monitor\n");
-      ret = DDS_RETCODE_ERROR;
-      goto fail_threadmon_start;
-    }
   }
 
   /* Set additional default participant properties */
@@ -153,26 +151,23 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   (void) snprintf (domain->gv.default_plist_pp.entity_name, len, "%s<%u>", progname, domain->gv.default_plist_pp.process_id);
   domain->gv.default_plist_pp.present |= PP_ENTITY_NAME;
 
+  if (domain->gv.config.liveliness_monitoring)
+    ddsi_threadmon_register_domain (dds_global.threadmon, &domain->gv);
   return DDS_RETCODE_OK;
 
-fail_threadmon_start:
-  if (domain->gv.config.liveliness_monitoring && dds_global.threadmon_count == 1)
-    ddsi_threadmon_stop (dds_global.threadmon);
   rtps_stop (&domain->gv);
 fail_rtps_start:
-  rtps_fini (&domain->gv);
-fail_rtps_init:
-  if (domain->gv.config.liveliness_monitoring)
+  if (domain->gv.config.liveliness_monitoring && dds_global.threadmon_count == 1)
+    ddsi_threadmon_stop (dds_global.threadmon);
+fail_threadmon_start:
+  if (domain->gv.config.liveliness_monitoring && --dds_global.threadmon_count == 0)
   {
-    if (--dds_global.threadmon_count == 0)
-    {
-      ddsi_threadmon_free (dds_global.threadmon);
-      dds_global.threadmon = NULL;
-    }
+    ddsi_threadmon_free (dds_global.threadmon);
+    dds_global.threadmon = NULL;
   }
 fail_threadmon_new:
-  downgrade_main_thread ();
-  thread_states_fini();
+  rtps_fini (&domain->gv);
+fail_rtps_init:
 fail_rtps_config:
 fail_config_domainid:
   config_fini (domain->cfgst);
@@ -182,19 +177,22 @@ fail_config:
 
 static void dds_domain_fini (struct dds_domain *domain)
 {
-  if (domain->gv.config.liveliness_monitoring && dds_global.threadmon_count == 1)
-    ddsi_threadmon_stop (dds_global.threadmon);
   rtps_stop (&domain->gv);
   dds__builtin_fini (domain);
-  rtps_fini (&domain->gv);
+
   if (domain->gv.config.liveliness_monitoring)
+    ddsi_threadmon_unregister_domain (dds_global.threadmon, &domain->gv);
+
+  rtps_fini (&domain->gv);
+
+  ddsrt_mutex_lock (&dds_global.m_mutex);
+  if (domain->gv.config.liveliness_monitoring && --dds_global.threadmon_count == 0)
   {
-    if (--dds_global.threadmon_count == 0)
-    {
-      ddsi_threadmon_free (dds_global.threadmon);
-      dds_global.threadmon = NULL;
-    }
+    ddsi_threadmon_stop (dds_global.threadmon);
+    ddsi_threadmon_free (dds_global.threadmon);
   }
+  ddsrt_mutex_unlock (&dds_global.m_mutex);
+
   config_fini (domain->cfgst);
 }
 
@@ -207,9 +205,6 @@ dds_return_t dds_domain_create (dds_domain **domain_out, dds_domainid_t id)
 {
   struct dds_domain *dom = NULL;
   dds_return_t ret;
-
-  if (id != DDS_DOMAIN_DEFAULT && (id < 0 || id > 230))
-    return DDS_RETCODE_BAD_PARAMETER;
 
   ddsrt_mutex_lock (&dds_global.m_mutex);
 
@@ -246,7 +241,7 @@ dds_return_t dds_domain_create (dds_domain **domain_out, dds_domainid_t id)
       }
       break;
     case DDS_RETCODE_PRECONDITION_NOT_MET:
-      DDS_ERROR("Inconsistent domain configuration detected: domain on configuration: %"PRId32", domain %"PRId32"\n", dom->m_id, id);
+      DDS_ILOG (DDS_LC_ERROR, id, "Inconsistent domain configuration detected: domain on configuration: %"PRIu32", domain %"PRIu32"\n", dom->m_id, id);
       break;
   }
   ddsrt_mutex_unlock (&dds_global.m_mutex);
@@ -301,12 +296,14 @@ void dds_write_set_batch (bool enable)
 {
   /* FIXME: get channels + latency budget working and get rid of this; in the mean time, any ugly hack will do.  */
   struct dds_domain *dom;
-  dds_domainid_t last_id = -1;
+  dds_domainid_t next_id = 0;
   dds_init ();
   ddsrt_mutex_lock (&dds_global.m_mutex);
-  while ((dom = ddsrt_avl_lookup_succ (&dds_domaintree_def, &dds_global.m_domains, &last_id)) != NULL)
+  while ((dom = ddsrt_avl_lookup_succ_eq (&dds_domaintree_def, &dds_global.m_domains, &next_id)) != NULL)
   {
-    last_id = dom->m_id;
+    /* Must be sure that the compiler doesn't reload curr_id from dom->m_id */
+    dds_domainid_t curr_id = *((volatile dds_domainid_t *) &dom->m_id);
+    next_id = curr_id + 1;
     dom->gv.config.whc_batch = enable;
 
     dds_instance_handle_t last_iid = 0;
@@ -322,7 +319,7 @@ void dds_write_set_batch (bool enable)
       pushdown_set_batch (e, enable);
       ddsrt_mutex_lock (&dds_global.m_mutex);
       dds_entity_unpin (e);
-      dom = ddsrt_avl_lookup (&dds_domaintree_def, &dds_global.m_domains, &last_id);
+      dom = ddsrt_avl_lookup (&dds_domaintree_def, &dds_global.m_domains, &curr_id);
     }
   }
   ddsrt_mutex_unlock (&dds_global.m_mutex);
