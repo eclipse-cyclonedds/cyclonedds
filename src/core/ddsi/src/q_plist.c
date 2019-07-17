@@ -131,7 +131,7 @@ struct piddesc {
   dds_return_t (*deser_validate_xform) (void * __restrict dst, const struct dd * __restrict dd);
 };
 
-static void log_octetseq (uint32_t cat, uint32_t n, const unsigned char *xs);
+static void log_octetseq (uint32_t cat, const struct ddsrt_log_cfg *logcfg, uint32_t n, const unsigned char *xs);
 static dds_return_t validate_history_qospolicy (const dds_history_qospolicy_t *q);
 static dds_return_t validate_resource_limits_qospolicy (const dds_resource_limits_qospolicy_t *q);
 static dds_return_t validate_history_and_resource_limits (const dds_history_qospolicy_t *qh, const dds_resource_limits_qospolicy_t *qr);
@@ -140,7 +140,7 @@ static dds_return_t validate_durability_service_qospolicy_acceptzero (const dds_
 static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t wanted, uint64_t fl, const struct dd *dd, const struct ddsi_tran_factory *factory);
 static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict);
 static int partitions_equal (const dds_partition_qospolicy_t *a, const dds_partition_qospolicy_t *b);
-static dds_return_t nn_xqos_valid_strictness (const dds_qos_t *xqos, bool strict);
+static dds_return_t nn_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
 
 static size_t align4size (size_t x)
 {
@@ -1459,7 +1459,7 @@ void nn_plist_unalias (nn_plist_t *plist)
   plist_or_xqos_unalias (plist, 0);
 }
 
-static dds_return_t nn_xqos_valid_strictness (const dds_qos_t *xqos, bool strict)
+static dds_return_t nn_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict)
 {
   dds_return_t ret;
   if (piddesc_unalias[0] == NULL)
@@ -1481,7 +1481,7 @@ static dds_return_t nn_xqos_valid_strictness (const dds_qos_t *xqos, bool strict
           ret = entry->op.f.valid (xqos, srcoff);
         if (ret < 0)
         {
-          DDS_LOG (DDS_LC_PLIST, "nn_xqos_valid: %s invalid\n", entry->name);
+          DDS_CLOG (DDS_LC_PLIST, logcfg, "nn_xqos_valid: %s invalid\n", entry->name);
           return ret;
         }
       }
@@ -1489,14 +1489,14 @@ static dds_return_t nn_xqos_valid_strictness (const dds_qos_t *xqos, bool strict
   }
   if ((ret = final_validation_qos (xqos, (nn_protocol_version_t) { RTPS_MAJOR, RTPS_MINOR }, NN_VENDORID_ECLIPSE, NULL, strict)) < 0)
   {
-    DDS_LOG (DDS_LC_PLIST, "nn_xqos_valid: final validation failed\n");
+    DDS_CLOG (DDS_LC_PLIST, logcfg, "nn_xqos_valid: final validation failed\n");
   }
   return ret;
 }
 
-dds_return_t nn_xqos_valid (const dds_qos_t *xqos)
+dds_return_t nn_xqos_valid (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos)
 {
-  return nn_xqos_valid_strictness (xqos, true);
+  return nn_xqos_valid_strictness (logcfg, xqos, true);
 }
 
 uint64_t nn_xqos_delta (const dds_qos_t *x, const dds_qos_t *y, uint64_t mask)
@@ -1885,7 +1885,7 @@ static dds_return_t return_unrecognized_pid (nn_plist_t *plist, nn_parameterid_t
   }
 }
 
-static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t pwanted, uint64_t qwanted, uint16_t pid, const struct dd *dd, ddsi_tran_factory_t factory)
+static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t pwanted, uint64_t qwanted, uint16_t pid, const struct dd *dd, ddsi_tran_factory_t factory, const ddsrt_log_cfg_t *logcfg)
 {
   /* special-cased ipv4address and port, because they have state beyond that what gets
      passed into the generic code */
@@ -1922,10 +1922,10 @@ static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_t
   assert (pid_without_flags (pid) == pid_without_flags (entry->pid));
   if (pid != entry->pid)
   {
-    DDS_LOG (DDS_LC_ERROR, "error processing parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" mapped to pid %"PRIx16"\n",
-             dd->vendorid.id[0], dd->vendorid.id[1],
-             dd->protocol_version.major, dd->protocol_version.minor,
-             pid, entry->pid);
+    DDS_CERROR (logcfg, "error processing parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" mapped to pid %"PRIx16"\n",
+                dd->vendorid.id[0], dd->vendorid.id[1],
+                dd->protocol_version.major, dd->protocol_version.minor,
+                pid, entry->pid);
     return return_unrecognized_pid (plist, pid);
   }
   assert (pid != PID_PAD);
@@ -1949,10 +1949,10 @@ static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_t
      memory if deserialized repeatedly */
   if ((*flagset.present & entry->present_flag) && !(entry->flags & PDF_ALLOWMULTI))
   {
-    DDS_LOG (DDS_LC_WARNING, "invalid parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" (%s) multiply defined\n",
-             dd->vendorid.id[0], dd->vendorid.id[1],
-             dd->protocol_version.major, dd->protocol_version.minor,
-             pid, entry->name);
+    DDS_CWARNING (logcfg, "invalid parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" (%s) multiply defined\n",
+                  dd->vendorid.id[0], dd->vendorid.id[1],
+                  dd->protocol_version.major, dd->protocol_version.minor,
+                  pid, entry->name);
     return DDS_RETCODE_BAD_PARAMETER;
   }
   if (!(flagset.wanted & entry->present_flag))
@@ -1977,12 +1977,12 @@ static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_t
     ret = entry->deser_validate_xform (dst, dd);
   if (ret < 0)
   {
-    DDS_LOG (DDS_LC_WARNING, "invalid parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" (%s) invalid, input = ",
-             dd->vendorid.id[0], dd->vendorid.id[1],
-             dd->protocol_version.major, dd->protocol_version.minor,
-             pid, entry->name);
-    log_octetseq (DDS_LC_WARNING, (uint32_t) dd->bufsz, dd->buf);
-    DDS_LOG (DDS_LC_WARNING, "\n");
+    DDS_CWARNING (logcfg, "invalid parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" (%s) invalid, input = ",
+                  dd->vendorid.id[0], dd->vendorid.id[1],
+                  dd->protocol_version.major, dd->protocol_version.minor,
+                  pid, entry->name);
+    log_octetseq (DDS_LC_WARNING, logcfg, (uint32_t) dd->bufsz, dd->buf);
+    DDS_CWARNING (logcfg, "\n");
   }
   return ret;
 }
@@ -2135,14 +2135,14 @@ dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uin
 #endif
       break;
     default:
-      DDS_WARNING ("plist(vendor %u.%u): unknown encoding (%d)\n",
-                   src->vendorid.id[0], src->vendorid.id[1], src->encoding);
+      DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): unknown encoding (%d)\n",
+                    src->vendorid.id[0], src->vendorid.id[1], src->encoding);
       return DDS_RETCODE_BAD_PARAMETER;
   }
   nn_plist_init_empty (dest);
   dest_tmp.present = 0;
 
-  DDS_LOG(DDS_LC_PLIST, "NN_PLIST_INIT (bswap %d)\n", dd.bswap);
+  DDS_CLOG (DDS_LC_PLIST, src->logconfig, "NN_PLIST_INIT (bswap %d)\n", dd.bswap);
 
   pl = src->buf;
   while (pl + sizeof (nn_parameter_t) <= src->buf + src->bufsz)
@@ -2160,7 +2160,7 @@ dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uin
     {
       /* Sentinel terminates list, the length is ignored, DDSI 9.4.2.11. */
       bool dursvc_accepted_allzero;
-      DDS_LOG(DDS_LC_PLIST, "%4"PRIx32" PID %"PRIx16"\n", (uint32_t) (pl - src->buf), pid);
+      DDS_CLOG (DDS_LC_PLIST, src->logconfig, "%4"PRIx32" PID %"PRIx16"\n", (uint32_t) (pl - src->buf), pid);
       if ((res = final_validation (dest, src->protocol_version, src->vendorid, &dursvc_accepted_allzero, src->strict)) < 0)
       {
         nn_plist_fini (dest);
@@ -2180,32 +2180,32 @@ dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uin
     }
     if (length > src->bufsz - sizeof (*par) - (uint32_t) (pl - src->buf))
     {
-      DDS_WARNING("plist(vendor %u.%u): parameter length %"PRIu16" out of bounds\n",
-                  src->vendorid.id[0], src->vendorid.id[1], length);
+      DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): parameter length %"PRIu16" out of bounds\n",
+                    src->vendorid.id[0], src->vendorid.id[1], length);
       nn_plist_fini (dest);
       return DDS_RETCODE_BAD_PARAMETER;
     }
     if ((length % 4) != 0) /* DDSI 9.4.2.11 */
     {
-      DDS_WARNING("plist(vendor %u.%u): parameter length %"PRIu16" mod 4 != 0\n",
-                  src->vendorid.id[0], src->vendorid.id[1], length);
+      DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): parameter length %"PRIu16" mod 4 != 0\n",
+                    src->vendorid.id[0], src->vendorid.id[1], length);
       nn_plist_fini (dest);
       return DDS_RETCODE_BAD_PARAMETER;
     }
 
-    if (dds_get_log_mask() & DDS_LC_PLIST)
+    if (src->logconfig->c.mask & DDS_LC_PLIST)
     {
-      DDS_LOG(DDS_LC_PLIST, "%4"PRIx32" PID %"PRIx16" len %"PRIu16" ", (uint32_t) (pl - src->buf), pid, length);
-      log_octetseq(DDS_LC_PLIST, length, (const unsigned char *) (par + 1));
-      DDS_LOG(DDS_LC_PLIST, "\n");
+      DDS_CLOG (DDS_LC_PLIST, src->logconfig, "%4"PRIx32" PID %"PRIx16" len %"PRIu16" ", (uint32_t) (pl - src->buf), pid, length);
+      log_octetseq (DDS_LC_PLIST, src->logconfig, length, (const unsigned char *) (par + 1));
+      DDS_CLOG (DDS_LC_PLIST, src->logconfig, "\n");
     }
 
     dd.buf = (const unsigned char *) (par + 1);
     dd.bufsz = length;
-    if ((res = init_one_parameter (dest, &dest_tmp, pwanted, qwanted, pid, &dd, src->factory)) < 0)
+    if ((res = init_one_parameter (dest, &dest_tmp, pwanted, qwanted, pid, &dd, src->factory, src->logconfig)) < 0)
     {
       /* make sure we print a trace message on error */
-      DDS_TRACE("plist(vendor %u.%u): failed at pid=%"PRIx16"\n", src->vendorid.id[0], src->vendorid.id[1], pid);
+      DDS_CTRACE (src->logconfig, "plist(vendor %u.%u): failed at pid=%"PRIx16"\n", src->vendorid.id[0], src->vendorid.id[1], pid);
       nn_plist_fini (dest);
       return res;
     }
@@ -2213,8 +2213,8 @@ dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uin
   }
   /* If we get here, that means we reached the end of the message
      without encountering a sentinel. That is an error */
-  DDS_WARNING("plist(vendor %u.%u): invalid parameter list: sentinel missing\n",
-              src->vendorid.id[0], src->vendorid.id[1]);
+  DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): invalid parameter list: sentinel missing\n",
+                src->vendorid.id[0], src->vendorid.id[1]);
   nn_plist_fini (dest);
   return DDS_RETCODE_BAD_PARAMETER;
 }
@@ -2262,11 +2262,11 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
 #endif
       break;
     default:
-      DDS_WARNING("plist(vendor %u.%u): quickscan: unknown encoding (%d)\n",
-                  src->vendorid.id[0], src->vendorid.id[1], src->encoding);
+      DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): quickscan: unknown encoding (%d)\n",
+                    src->vendorid.id[0], src->vendorid.id[1], src->encoding);
       return NULL;
   }
-  DDS_LOG(DDS_LC_PLIST, "NN_PLIST_QUICKSCAN (bswap %d)\n", dest->bswap);
+  DDS_CLOG (DDS_LC_PLIST, src->logconfig, "NN_PLIST_QUICKSCAN (bswap %d)\n", dest->bswap);
   pl = src->buf;
   while (pl + sizeof (nn_parameter_t) <= src->buf + src->bufsz)
   {
@@ -2280,14 +2280,14 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
       return (unsigned char *) pl;
     if (length > src->bufsz - (size_t)(pl - src->buf))
     {
-      DDS_WARNING("plist(vendor %u.%u): quickscan: parameter length %"PRIu16" out of bounds\n",
-                  src->vendorid.id[0], src->vendorid.id[1], length);
+      DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): quickscan: parameter length %"PRIu16" out of bounds\n",
+                    src->vendorid.id[0], src->vendorid.id[1], length);
       return NULL;
     }
     if ((length % 4) != 0) /* DDSI 9.4.2.11 */
     {
-      DDS_WARNING("plist(vendor %u.%u): quickscan: parameter length %"PRIu16" mod 4 != 0\n",
-                  src->vendorid.id[0], src->vendorid.id[1], length);
+      DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): quickscan: parameter length %"PRIu16" mod 4 != 0\n",
+                    src->vendorid.id[0], src->vendorid.id[1], length);
       return NULL;
     }
     switch (pid)
@@ -2297,8 +2297,8 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
       case PID_STATUSINFO:
         if (length < 4)
         {
-          DDS_TRACE("plist(vendor %u.%u): quickscan(PID_STATUSINFO): buffer too small\n",
-                    src->vendorid.id[0], src->vendorid.id[1]);
+          DDS_CTRACE (src->logconfig, "plist(vendor %u.%u): quickscan(PID_STATUSINFO): buffer too small\n",
+                      src->vendorid.id[0], src->vendorid.id[1]);
           return NULL;
         }
         else
@@ -2314,7 +2314,7 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
       case PID_KEYHASH:
         break;
       default:
-        DDS_LOG(DDS_LC_PLIST, "(pid=%"PRIx16" complex_qos=1)", pid);
+        DDS_CLOG (DDS_LC_PLIST, src->logconfig, "(pid=%"PRIx16" complex_qos=1)", pid);
         dest->complex_qos = 1;
         break;
     }
@@ -2322,8 +2322,8 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
   }
   /* If we get here, that means we reached the end of the message
      without encountering a sentinel. That is an error */
-  DDS_WARNING("plist(vendor %u.%u): quickscan: invalid parameter list: sentinel missing\n",
-              src->vendorid.id[0], src->vendorid.id[1]);
+  DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): quickscan: invalid parameter list: sentinel missing\n",
+                src->vendorid.id[0], src->vendorid.id[1]);
   return NULL;
 }
 
@@ -2670,7 +2670,7 @@ static uint32_t isprint_runlen (uint32_t n, const unsigned char *xs)
 }
 
 
-static void log_octetseq (uint32_t cat, uint32_t n, const unsigned char *xs)
+static void log_octetseq (uint32_t cat, const struct ddsrt_log_cfg *logcfg, uint32_t n, const unsigned char *xs)
 {
   uint32_t i = 0;
   while (i < n)
@@ -2678,7 +2678,7 @@ static void log_octetseq (uint32_t cat, uint32_t n, const unsigned char *xs)
     uint32_t m = isprint_runlen (n - i, xs);
     if (m >= 4 || (i == 0 && m == n))
     {
-      DDS_LOG (cat, "%s\"%*.*s\"", i == 0 ? "" : ",", m, m, xs);
+      DDS_CLOG (cat, logcfg, "%s\"%*.*s\"", i == 0 ? "" : ",", m, m, xs);
       xs += m;
       i += m;
     }
@@ -2688,23 +2688,19 @@ static void log_octetseq (uint32_t cat, uint32_t n, const unsigned char *xs)
         m = 1;
       while (m--)
       {
-        DDS_LOG (cat, "%s%u", i == 0 ? "" : ",", *xs++);
+        DDS_CLOG (cat, logcfg, "%s%u", i == 0 ? "" : ",", *xs++);
         i++;
       }
     }
   }
 }
 
-void nn_log_xqos (uint32_t cat, const dds_qos_t *xqos)
+void nn_log_xqos (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos)
 {
   uint64_t p = xqos->present;
   const char *prefix = "";
-#define LOGB0(fmt_) DDS_LOG(cat, "%s" fmt_, prefix)
-#define LOGB1(fmt_, arg0_) DDS_LOG(cat, "%s" fmt_, prefix, arg0_)
-#define LOGB2(fmt_, arg0_, arg1_) DDS_LOG(cat, "%s" fmt_, prefix, arg0_, arg1_)
-#define LOGB3(fmt_, arg0_, arg1_, arg2_) DDS_LOG(cat, "%s" fmt_, prefix, arg0_, arg1_, arg2_)
-#define LOGB4(fmt_, arg0_, arg1_, arg2_, arg3_) DDS_LOG(cat, "%s" fmt_, prefix, arg0_, arg1_, arg2_, arg3_)
-#define LOGB5(fmt_, arg0_, arg1_, arg2_, arg3_, arg4_) DDS_LOG(cat, "%s" fmt_, prefix, arg0_, arg1_, arg2_, arg3_, arg4_)
+#define LOGB0(fmt_) DDS_CLOG (cat, logcfg, "%s" fmt_, prefix)
+#define LOGB1(fmt_, ...) DDS_CLOG (cat, logcfg, "%s" fmt_, prefix, __VA_ARGS__)
 #define DO(name_, body_) do { if (p & QP_##name_) { { body_ } prefix = ","; } } while (0)
 
 #define FMT_DUR "%"PRId64".%09"PRId32
@@ -2712,58 +2708,58 @@ void nn_log_xqos (uint32_t cat, const dds_qos_t *xqos)
 
   DO (TOPIC_NAME, { LOGB1 ("topic=%s", xqos->topic_name); });
   DO (TYPE_NAME, { LOGB1 ("type=%s", xqos->type_name); });
-  DO (PRESENTATION, { LOGB3 ("presentation=%d:%u:%u", xqos->presentation.access_scope, xqos->presentation.coherent_access, xqos->presentation.ordered_access); });
+  DO (PRESENTATION, { LOGB1 ("presentation=%d:%u:%u", xqos->presentation.access_scope, xqos->presentation.coherent_access, xqos->presentation.ordered_access); });
   DO (PARTITION, {
       LOGB0 ("partition={");
       for (uint32_t i = 0; i < xqos->partition.n; i++) {
-        DDS_LOG(cat, "%s%s", (i == 0) ? "" : ",", xqos->partition.strs[i]);
+        DDS_CLOG (cat, logcfg, "%s%s", (i == 0) ? "" : ",", xqos->partition.strs[i]);
       }
-      DDS_LOG(cat, "}");
+      DDS_CLOG (cat, logcfg, "}");
     });
   DO (GROUP_DATA, {
     LOGB1 ("group_data=%"PRIu32"<", xqos->group_data.length);
-    log_octetseq (cat, xqos->group_data.length, xqos->group_data.value);
-    DDS_LOG(cat, ">");
+    log_octetseq (cat, logcfg, xqos->group_data.length, xqos->group_data.value);
+    DDS_CLOG (cat, logcfg, ">");
   });
   DO (TOPIC_DATA, {
     LOGB1 ("topic_data=%"PRIu32"<", xqos->topic_data.length);
-    log_octetseq (cat, xqos->topic_data.length, xqos->topic_data.value);
-    DDS_LOG(cat, ">");
+    log_octetseq (cat, logcfg, xqos->topic_data.length, xqos->topic_data.value);
+    DDS_CLOG(cat, logcfg, ">");
   });
   DO (DURABILITY, { LOGB1 ("durability=%d", xqos->durability.kind); });
   DO (DURABILITY_SERVICE, {
       LOGB0 ("durability_service=");
-      DDS_LOG(cat, FMT_DUR, PRINTARG_DUR (xqos->durability_service.service_cleanup_delay));
-      DDS_LOG(cat, ":{%u:%"PRId32"}", xqos->durability_service.history.kind, xqos->durability_service.history.depth);
-      DDS_LOG(cat, ":{%"PRId32":%"PRId32":%"PRId32"}", xqos->durability_service.resource_limits.max_samples, xqos->durability_service.resource_limits.max_instances, xqos->durability_service.resource_limits.max_samples_per_instance);
+      DDS_CLOG(cat, logcfg, FMT_DUR, PRINTARG_DUR (xqos->durability_service.service_cleanup_delay));
+      DDS_CLOG(cat, logcfg, ":{%u:%"PRId32"}", xqos->durability_service.history.kind, xqos->durability_service.history.depth);
+      DDS_CLOG(cat, logcfg, ":{%"PRId32":%"PRId32":%"PRId32"}", xqos->durability_service.resource_limits.max_samples, xqos->durability_service.resource_limits.max_instances, xqos->durability_service.resource_limits.max_samples_per_instance);
     });
   DO (DEADLINE, { LOGB1 ("deadline="FMT_DUR, PRINTARG_DUR (xqos->deadline.deadline)); });
   DO (LATENCY_BUDGET, { LOGB1 ("latency_budget="FMT_DUR, PRINTARG_DUR (xqos->latency_budget.duration)); });
-  DO (LIVELINESS, { LOGB2 ("liveliness=%d:"FMT_DUR, xqos->liveliness.kind, PRINTARG_DUR (xqos->liveliness.lease_duration)); });
-  DO (RELIABILITY, { LOGB2 ("reliability=%d:"FMT_DUR, xqos->reliability.kind, PRINTARG_DUR (xqos->reliability.max_blocking_time)); });
+  DO (LIVELINESS, { LOGB1 ("liveliness=%d:"FMT_DUR, xqos->liveliness.kind, PRINTARG_DUR (xqos->liveliness.lease_duration)); });
+  DO (RELIABILITY, { LOGB1 ("reliability=%d:"FMT_DUR, xqos->reliability.kind, PRINTARG_DUR (xqos->reliability.max_blocking_time)); });
   DO (DESTINATION_ORDER, { LOGB1 ("destination_order=%d", xqos->destination_order.kind); });
-  DO (HISTORY, { LOGB2 ("history=%d:%"PRId32, xqos->history.kind, xqos->history.depth); });
-  DO (RESOURCE_LIMITS, { LOGB3 ("resource_limits=%"PRId32":%"PRId32":%"PRId32, xqos->resource_limits.max_samples, xqos->resource_limits.max_instances, xqos->resource_limits.max_samples_per_instance); });
+  DO (HISTORY, { LOGB1 ("history=%d:%"PRId32, xqos->history.kind, xqos->history.depth); });
+  DO (RESOURCE_LIMITS, { LOGB1 ("resource_limits=%"PRId32":%"PRId32":%"PRId32, xqos->resource_limits.max_samples, xqos->resource_limits.max_instances, xqos->resource_limits.max_samples_per_instance); });
   DO (TRANSPORT_PRIORITY, { LOGB1 ("transport_priority=%"PRId32, xqos->transport_priority.value); });
   DO (LIFESPAN, { LOGB1 ("lifespan="FMT_DUR, PRINTARG_DUR (xqos->lifespan.duration)); });
   DO (USER_DATA, {
     LOGB1 ("user_data=%"PRIu32"<", xqos->user_data.length);
-    log_octetseq (cat, xqos->user_data.length, xqos->user_data.value);
-    DDS_LOG(cat, ">");
+    log_octetseq (cat, logcfg, xqos->user_data.length, xqos->user_data.value);
+    DDS_CLOG (cat, logcfg, ">");
   });
   DO (OWNERSHIP, { LOGB1 ("ownership=%d", xqos->ownership.kind); });
   DO (OWNERSHIP_STRENGTH, { LOGB1 ("ownership_strength=%"PRId32, xqos->ownership_strength.value); });
   DO (TIME_BASED_FILTER, { LOGB1 ("time_based_filter="FMT_DUR, PRINTARG_DUR (xqos->time_based_filter.minimum_separation)); });
-  DO (PRISMTECH_READER_DATA_LIFECYCLE, { LOGB2 ("reader_data_lifecycle="FMT_DUR":"FMT_DUR, PRINTARG_DUR (xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay), PRINTARG_DUR (xqos->reader_data_lifecycle.autopurge_disposed_samples_delay)); });
+  DO (PRISMTECH_READER_DATA_LIFECYCLE, { LOGB1 ("reader_data_lifecycle="FMT_DUR":"FMT_DUR, PRINTARG_DUR (xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay), PRINTARG_DUR (xqos->reader_data_lifecycle.autopurge_disposed_samples_delay)); });
   DO (PRISMTECH_WRITER_DATA_LIFECYCLE, {
     LOGB1 ("writer_data_lifecycle={%u}", xqos->writer_data_lifecycle.autodispose_unregistered_instances); });
-  DO (PRISMTECH_READER_LIFESPAN, { LOGB2 ("reader_lifespan={%u,"FMT_DUR"}", xqos->reader_lifespan.use_lifespan, PRINTARG_DUR (xqos->reader_lifespan.duration)); });
+  DO (PRISMTECH_READER_LIFESPAN, { LOGB1 ("reader_lifespan={%u,"FMT_DUR"}", xqos->reader_lifespan.use_lifespan, PRINTARG_DUR (xqos->reader_lifespan.duration)); });
   DO (PRISMTECH_SUBSCRIPTION_KEYS, {
     LOGB1 ("subscription_keys={%u,{", xqos->subscription_keys.use_key_list);
     for (uint32_t i = 0; i < xqos->subscription_keys.key_list.n; i++) {
-      DDS_LOG(cat, "%s%s", (i == 0) ? "" : ",", xqos->subscription_keys.key_list.strs[i]);
+      DDS_CLOG (cat, logcfg, "%s%s", (i == 0) ? "" : ",", xqos->subscription_keys.key_list.strs[i]);
     }
-    DDS_LOG(cat, "}}");
+    DDS_CLOG (cat, logcfg, "}}");
   });
   DO (PRISMTECH_ENTITY_FACTORY, { LOGB1 ("entity_factory=%u", xqos->entity_factory.autoenable_created_entities); });
   DO (CYCLONE_IGNORELOCAL, { LOGB1 ("ignorelocal=%u", xqos->ignorelocal.value); });

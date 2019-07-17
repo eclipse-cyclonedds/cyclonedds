@@ -364,7 +364,7 @@ struct debug_monitor *new_debug_monitor (struct q_globals *gv, int port)
   dm->servsock = ddsi_factory_create_listener (dm->tran_factory, port, NULL);
   if (dm->servsock == NULL)
   {
-    DDS_WARNING("debmon: can't create socket\n");
+    GVWARNING ("debmon: can't create socket\n");
     goto err_servsock;
   }
 
@@ -372,7 +372,7 @@ struct debug_monitor *new_debug_monitor (struct q_globals *gv, int port)
     nn_locator_t loc;
     char buf[DDSI_LOCSTRLEN];
     (void) ddsi_listener_locator(dm->servsock, &loc);
-    DDS_LOG(DDS_LC_CONFIG, "debmon at %s\n", ddsi_locator_to_string (gv, buf, sizeof(buf), &loc));
+    GVLOG (DDS_LC_CONFIG, "debmon at %s\n", ddsi_locator_to_string (gv, buf, sizeof(buf), &loc));
   }
 
   ddsrt_mutex_init (&dm->lock);

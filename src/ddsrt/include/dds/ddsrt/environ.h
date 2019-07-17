@@ -100,6 +100,10 @@ ddsrt_nonnull_all;
  * The result string should be freed with ddsrt_free().
  *
  * @param[in]  string  String to expand.
+ * @param[in]  domid   Domain id that this is relevant to
+ *                     UINT32_MAX means none (see logging)
+ *                     also made available as
+ *                        ${CYCLONEDDS_DOMAIN_ID}
  *
  * @returns Allocated char*.
  *
@@ -111,7 +115,8 @@ ddsrt_nonnull_all;
  */
 DDS_EXPORT char*
 ddsrt_expand_envvars(
-  const char *string);
+  const char *string,
+  uint32_t domid);
 
 /**
  * @brief Expand environment variables within string.
@@ -133,7 +138,8 @@ ddsrt_expand_envvars(
  */
 DDS_EXPORT char*
 ddsrt_expand_envvars_sh(
-  const char *string);
+  const char *string,
+  uint32_t domid);
 
 
 #if defined(__cplusplus)

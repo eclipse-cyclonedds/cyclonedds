@@ -21,7 +21,7 @@ extern "C" {
 
 struct msghdr;
 
-FILE * new_pcap_file (const char *name);
+FILE * new_pcap_file (const struct ddsrt_log_cfg *logcfg, const char *name);
 
 void write_pcap_received (struct q_globals *gv, nn_wctime_t tstamp, const struct sockaddr_storage *src, const struct sockaddr_storage *dst, unsigned char *buf, size_t sz);
 void write_pcap_sent (struct q_globals *gv, nn_wctime_t tstamp, const struct sockaddr_storage *src,

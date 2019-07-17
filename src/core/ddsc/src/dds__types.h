@@ -315,7 +315,6 @@ typedef struct dds_globals {
   int32_t m_init_count;
   ddsrt_avl_tree_t m_domains;
   ddsrt_mutex_t m_mutex;
-
   uint32_t threadmon_count;
   struct ddsi_threadmon *threadmon;
 } dds_globals;

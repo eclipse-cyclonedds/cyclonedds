@@ -172,7 +172,7 @@ static struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct nn
   memcpy (&kh, guid, sizeof (kh));
   /* any random builtin topic will do (provided it has a GUID for a key), because what matters is the "class" of the topic, not the actual topic; also, this is called early in the initialisation of the entity with this GUID, which simply causes serdata_from_keyhash to create a key-only serdata because the key lookup fails. */
   sd = ddsi_serdata_from_keyhash (domain->builtin_participant_topic, &kh);
-  tk = ddsi_tkmap_find (domain->gv.m_tkmap, sd, false, true);
+  tk = ddsi_tkmap_find (domain->gv.m_tkmap, sd, true);
   ddsi_serdata_unref (sd);
   return tk;
 }

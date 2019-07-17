@@ -56,7 +56,7 @@ enum thread_state {
 
 struct q_globals;
 struct config;
-struct logbuf;
+struct ddsrt_log_cfg;
 
 /*
  * vtime indicates progress for the garbage collector and the liveliness monitoring.
@@ -109,7 +109,7 @@ DDS_EXPORT dds_return_t create_thread_with_properties (struct thread_state1 **ts
 DDS_EXPORT dds_return_t create_thread (struct thread_state1 **ts, const struct q_globals *gv, const char *name, uint32_t (*f) (void *arg), void *arg);
 DDS_EXPORT struct thread_state1 *lookup_thread_state_real (void);
 DDS_EXPORT dds_return_t join_thread (struct thread_state1 *ts1);
-DDS_EXPORT void log_stack_traces (void);
+DDS_EXPORT void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct q_globals *gv);
 DDS_EXPORT void reset_thread_state (struct thread_state1 *ts1);
 DDS_EXPORT int thread_exists (const char *name);
 

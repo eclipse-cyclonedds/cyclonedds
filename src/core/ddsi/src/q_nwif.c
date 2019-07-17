@@ -33,9 +33,9 @@
 #include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsrt/avl.h"
 
-static void print_sockerror (const char *msg)
+static void print_sockerror (const struct ddsrt_log_cfg *logcfg, const char *msg)
 {
-  DDS_ERROR("SOCKET %s\n", msg);
+  DDS_CERROR (logcfg, "SOCKET %s\n", msg);
 }
 
 uint32_t locator_to_hopefully_unique_uint32 (const nn_locator_t *src)
@@ -53,45 +53,45 @@ uint32_t locator_to_hopefully_unique_uint32 (const nn_locator_t *src)
     ddsrt_md5_finish (&st, digest);
     memcpy (&id, digest, sizeof (id));
 #else
-    DDS_FATAL("IPv6 unavailable\n");
+    DDS_FATAL ("IPv6 unavailable\n");
 #endif
   }
   return id;
 }
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-void set_socket_diffserv (ddsrt_socket_t sock, int diffserv)
+void set_socket_diffserv (const struct ddsrt_log_cfg *logcfg, ddsrt_socket_t sock, int diffserv)
 {
   if (ddsrt_setsockopt (sock, IPPROTO_IP, IP_TOS, (char*) &diffserv, sizeof (diffserv)) != DDS_RETCODE_OK)
   {
-    print_sockerror ("IP_TOS");
+    print_sockerror (logcfg, "IP_TOS");
   }
 }
 #endif
 
 #ifdef SO_NOSIGPIPE
-static void set_socket_nosigpipe (ddsrt_socket_t sock)
+static void set_socket_nosigpipe (const struct ddsrt_log_cfg *logcfg, ddsrt_socket_t sock)
 {
   int val = 1;
   if (ddsrt_setsockopt (sock, SOL_SOCKET, SO_NOSIGPIPE, (char*) &val, sizeof (val)) != DDS_RETCODE_OK)
   {
-    print_sockerror ("SO_NOSIGPIPE");
+    print_sockerror (logcfg, "SO_NOSIGPIPE");
   }
 }
 #endif
 
 #ifdef TCP_NODELAY
-static void set_socket_nodelay (ddsrt_socket_t sock)
+static void set_socket_nodelay (const struct ddsrt_log_cfg *logcfg, ddsrt_socket_t sock)
 {
   int val = 1;
   if (ddsrt_setsockopt (sock, IPPROTO_TCP, TCP_NODELAY, (char*) &val, sizeof (val)) != DDS_RETCODE_OK)
   {
-    print_sockerror ("TCP_NODELAY");
+    print_sockerror (logcfg, "TCP_NODELAY");
   }
 }
 #endif
 
-static int set_rcvbuf (ddsrt_socket_t socket, const struct config_maybe_uint32 *min_size)
+static int set_rcvbuf (const struct ddsrt_log_cfg *logcfg, ddsrt_socket_t socket, const struct config_maybe_uint32 *min_size)
 {
   uint32_t ReceiveBufferSize;
   socklen_t optlen = (socklen_t) sizeof (ReceiveBufferSize);
@@ -105,10 +105,10 @@ static int set_rcvbuf (ddsrt_socket_t socket, const struct config_maybe_uint32 *
     socket, SOL_SOCKET, SO_RCVBUF, (char *) &ReceiveBufferSize, &optlen);
   /* TCP/IP stack may not support SO_RCVBUF. */
   if (rc == DDS_RETCODE_BAD_PARAMETER) {
-    DDS_LOG(DDS_LC_CONFIG, "cannot retrieve socket receive buffer size\n");
+    DDS_CLOG (DDS_LC_CONFIG, logcfg, "cannot retrieve socket receive buffer size\n");
     return 0;
   } else if (rc != DDS_RETCODE_OK) {
-    print_sockerror ("get SO_RCVBUF");
+    print_sockerror (logcfg, "get SO_RCVBUF");
     return -2;
   }
   if (ReceiveBufferSize < socket_min_rcvbuf_size)
@@ -122,26 +122,25 @@ static int set_rcvbuf (ddsrt_socket_t socket, const struct config_maybe_uint32 *
        the option value back and check it is now set correctly. */
     if (ddsrt_getsockopt (socket, SOL_SOCKET, SO_RCVBUF, (char *) &ReceiveBufferSize, &optlen) != DDS_RETCODE_OK)
     {
-      print_sockerror ("get SO_RCVBUF");
+      print_sockerror (logcfg, "get SO_RCVBUF");
       return -2;
     }
     if (ReceiveBufferSize < socket_min_rcvbuf_size)
     {
       /* NN_ERROR does more than just DDS_ERROR(), hence the duplication */
-      if (min_size->isdefault)
-        DDS_LOG(DDS_LC_CONFIG, "failed to increase socket receive buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
-      else
-        DDS_ERROR("failed to increase socket receive buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
+      DDS_CLOG (min_size->isdefault ? DDS_LC_CONFIG : DDS_LC_ERROR, logcfg,
+                "failed to increase socket receive buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n",
+                socket_min_rcvbuf_size, ReceiveBufferSize);
     }
     else
     {
-      DDS_LOG(DDS_LC_CONFIG, "socket receive buffer size set to %"PRIu32" bytes\n", ReceiveBufferSize);
+      DDS_CLOG (DDS_LC_CONFIG, logcfg, "socket receive buffer size set to %"PRIu32" bytes\n", ReceiveBufferSize);
     }
   }
   return 0;
 }
 
-static int set_sndbuf (ddsrt_socket_t socket, uint32_t min_size)
+static int set_sndbuf (const struct ddsrt_log_cfg *logcfg, ddsrt_socket_t socket, uint32_t min_size)
 {
   unsigned SendBufferSize;
   socklen_t optlen = (socklen_t) sizeof(SendBufferSize);
@@ -149,10 +148,10 @@ static int set_sndbuf (ddsrt_socket_t socket, uint32_t min_size)
   rc = ddsrt_getsockopt(
     socket, SOL_SOCKET, SO_SNDBUF,(char *)&SendBufferSize, &optlen);
   if (rc == DDS_RETCODE_BAD_PARAMETER) {
-    DDS_LOG(DDS_LC_CONFIG, "cannot retrieve socket send buffer size\n");
+    DDS_CLOG (DDS_LC_CONFIG, logcfg, "cannot retrieve socket send buffer size\n");
     return 0;
   } else if (rc != DDS_RETCODE_OK) {
-    print_sockerror ("get SO_SNDBUF");
+    print_sockerror (logcfg, "get SO_SNDBUF");
     return -2;
   }
   if (SendBufferSize < min_size )
@@ -161,14 +160,14 @@ static int set_sndbuf (ddsrt_socket_t socket, uint32_t min_size)
     SendBufferSize = min_size;
     if (ddsrt_setsockopt (socket, SOL_SOCKET, SO_SNDBUF, (const char *)&SendBufferSize, sizeof (SendBufferSize)) != DDS_RETCODE_OK)
     {
-      print_sockerror ("SO_SNDBUF");
+      print_sockerror (logcfg, "SO_SNDBUF");
       return -2;
     }
   }
   return 0;
 }
 
-static int maybe_set_dont_route (ddsrt_socket_t socket, const struct config *config)
+static int maybe_set_dont_route (const struct ddsrt_log_cfg *logcfg, ddsrt_socket_t socket, const struct config *config)
 {
   if (config->dontRoute)
   {
@@ -178,7 +177,7 @@ static int maybe_set_dont_route (ddsrt_socket_t socket, const struct config *con
       unsigned ipv6Flag = 1;
       if (ddsrt_setsockopt (socket, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &ipv6Flag, sizeof (ipv6Flag)) != DDS_RETCODE_OK)
       {
-        print_sockerror ("IPV6_UNICAST_HOPS");
+        print_sockerror (logcfg, "IPV6_UNICAST_HOPS");
         return -2;
       }
     }
@@ -189,7 +188,7 @@ static int maybe_set_dont_route (ddsrt_socket_t socket, const struct config *con
       int one = 1;
       if (ddsrt_setsockopt (socket, SOL_SOCKET, SO_DONTROUTE, (char *) &one, sizeof (one)) != DDS_RETCODE_OK)
       {
-        print_sockerror ("SO_DONTROUTE");
+        print_sockerror (logcfg, "SO_DONTROUTE");
         return -2;
       }
     }
@@ -197,7 +196,7 @@ static int maybe_set_dont_route (ddsrt_socket_t socket, const struct config *con
   return 0;
 }
 
-static int set_reuse_options (ddsrt_socket_t socket)
+static int set_reuse_options (const struct ddsrt_log_cfg *logcfg, ddsrt_socket_t socket)
 {
   /* Set REUSEADDR (if available on platform) for
      multicast sockets, leave unicast sockets alone. */
@@ -205,10 +204,10 @@ static int set_reuse_options (ddsrt_socket_t socket)
   dds_return_t rc = ddsrt_setsockopt (
       socket, SOL_SOCKET, SO_REUSEADDR, (char *) &one, sizeof (one));
   if (rc == DDS_RETCODE_BAD_PARAMETER) {
-    DDS_LOG(DDS_LC_CONFIG, "cannot enable address reuse on socket\n");
+    DDS_CLOG (DDS_LC_CONFIG, logcfg, "cannot enable address reuse on socket\n");
     return 0;
   } else if (rc != DDS_RETCODE_OK) {
-    print_sockerror ("SO_REUSEADDR");
+    print_sockerror (logcfg, "SO_REUSEADDR");
     return -2;
   }
 
@@ -244,7 +243,7 @@ static int bind_socket (ddsrt_socket_t socket, unsigned short port, const struct
   }
   if (rc != DDS_RETCODE_OK && rc != DDS_RETCODE_PRECONDITION_NOT_MET)
   {
-    print_sockerror ("bind");
+    print_sockerror (&gv->logconfig, "bind");
   }
   return (rc == DDS_RETCODE_OK) ? 0 : -1;
 }
@@ -257,18 +256,18 @@ static int set_mc_options_transmit_ipv6 (ddsrt_socket_t socket, const struct q_g
   unsigned loop;
   if (ddsrt_setsockopt (socket, IPPROTO_IPV6, IPV6_MULTICAST_IF, &interfaceNo, sizeof (interfaceNo)) != DDS_RETCODE_OK)
   {
-    print_sockerror ("IPV6_MULTICAST_IF");
+    print_sockerror (&gv->logconfig, "IPV6_MULTICAST_IF");
     return -2;
   }
   if (ddsrt_setsockopt (socket, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, (char *) &ttl, sizeof (ttl)) != DDS_RETCODE_OK)
   {
-    print_sockerror ("IPV6_MULTICAST_HOPS");
+    print_sockerror (&gv->logconfig, "IPV6_MULTICAST_HOPS");
     return -2;
   }
   loop = (unsigned) !!gv->config.enableMulticastLoopback;
   if (ddsrt_setsockopt (socket, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &loop, sizeof (loop)) != DDS_RETCODE_OK)
   {
-    print_sockerror ("IPV6_MULTICAST_LOOP");
+    print_sockerror (&gv->logconfig, "IPV6_MULTICAST_LOOP");
     return -2;
   }
   return 0;
@@ -302,19 +301,19 @@ static int set_mc_options_transmit_ipv4 (ddsrt_socket_t socket, const struct q_g
   }
   if (ret != DDS_RETCODE_OK)
   {
-    print_sockerror ("IP_MULTICAST_IF");
+    print_sockerror (&gv->logconfig, "IP_MULTICAST_IF");
     return -2;
   }
   if (ddsrt_setsockopt (socket, IPPROTO_IP, IP_MULTICAST_TTL, (char *) &ttl, sizeof (ttl)) != DDS_RETCODE_OK)
   {
-    print_sockerror ("IP_MULICAST_TTL");
+    print_sockerror (&gv->logconfig, "IP_MULICAST_TTL");
     return -2;
   }
   loop = (unsigned char) gv->config.enableMulticastLoopback;
 
   if (ddsrt_setsockopt (socket, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof (loop)) != DDS_RETCODE_OK)
   {
-    print_sockerror ("IP_MULTICAST_LOOP");
+    print_sockerror (&gv->logconfig, "IP_MULTICAST_LOOP");
     return -2;
   }
   return 0;
@@ -363,20 +362,20 @@ int make_socket (ddsrt_socket_t *sock, uint16_t port, bool stream, bool reuse, c
 
   if (ret != DDS_RETCODE_OK)
   {
-    print_sockerror ("socket");
+    print_sockerror (&gv->logconfig, "socket");
     return rc;
   }
 
-  if (port && reuse && ((rc = set_reuse_options (*sock)) < 0))
+  if (port && reuse && ((rc = set_reuse_options (&gv->logconfig, *sock)) < 0))
   {
     goto fail;
   }
 
   if
   (
-    (rc = set_rcvbuf (*sock, &gv->config.socket_min_rcvbuf_size) < 0) ||
-    (rc = set_sndbuf (*sock, gv->config.socket_min_sndbuf_size) < 0) ||
-    ((rc = maybe_set_dont_route (*sock, &gv->config)) < 0) ||
+    (rc = set_rcvbuf (&gv->logconfig, *sock, &gv->config.socket_min_rcvbuf_size) < 0) ||
+    (rc = set_sndbuf (&gv->logconfig, *sock, gv->config.socket_min_sndbuf_size) < 0) ||
+    ((rc = maybe_set_dont_route (&gv->logconfig, *sock, &gv->config)) < 0) ||
     ((rc = bind_socket (*sock, port, gv)) < 0)
   )
   {
@@ -394,12 +393,12 @@ int make_socket (ddsrt_socket_t *sock, uint16_t port, bool stream, bool reuse, c
   if (stream)
   {
 #ifdef SO_NOSIGPIPE
-    set_socket_nosigpipe (*sock);
+    set_socket_nosigpipe (&gv->logconfig, *sock);
 #endif
 #ifdef TCP_NODELAY
     if (gv->config.tcp_nodelay)
     {
-      set_socket_nodelay (*sock);
+      set_socket_nodelay (&gv->logconfig, *sock);
     }
 #endif
   }
@@ -447,13 +446,13 @@ int find_own_ip (struct q_globals *gv, const char *requested_address)
   int selected_idx = -1;
   char addrbuf[DDSI_LOCSTRLEN];
 
-  DDS_LOG(DDS_LC_CONFIG, "interfaces:");
+  GVLOG (DDS_LC_CONFIG, "interfaces:");
 
   {
     int ret;
     ret = ddsi_enumerate_interfaces(gv->m_factory, gv->config.transport_selector, &ifa_root);
     if (ret < 0) {
-      DDS_ERROR("ddsi_enumerate_interfaces(%s): %d\n", gv->m_factory->m_typename, ret);
+      GVERROR ("ddsi_enumerate_interfaces(%s): %d\n", gv->m_factory->m_typename, ret);
       return 0;
     }
   }
@@ -468,15 +467,15 @@ int find_own_ip (struct q_globals *gv, const char *requested_address)
     ddsrt_strlcpy(if_name, ifa->name, sizeof(if_name));
 
     if (strcmp (if_name, last_if_name))
-      DDS_LOG(DDS_LC_CONFIG, "%s%s", sep, if_name);
+      GVLOG (DDS_LC_CONFIG, "%s%s", sep, if_name);
     ddsrt_strlcpy(last_if_name, if_name, sizeof(last_if_name));
 
     /* interface must be up */
     if ((ifa->flags & IFF_UP) == 0) {
-      DDS_LOG(DDS_LC_CONFIG, " (interface down)");
+      GVLOG (DDS_LC_CONFIG, " (interface down)");
       continue;
     } else if (ddsrt_sockaddr_isunspecified(ifa->addr)) {
-      DDS_LOG(DDS_LC_CONFIG, " (address unspecified)");
+      GVLOG (DDS_LC_CONFIG, " (address unspecified)");
       continue;
     }
 
@@ -508,11 +507,11 @@ int find_own_ip (struct q_globals *gv, const char *requested_address)
       ddsi_ipaddr_to_loc(&gv->interfaces[gv->n_interfaces].loc, ifa->addr, gv->m_factory->m_kind);
     }
     ddsi_locator_to_string_no_port(gv, addrbuf, sizeof(addrbuf), &gv->interfaces[gv->n_interfaces].loc);
-    DDS_LOG(DDS_LC_CONFIG, " %s(", addrbuf);
+    GVLOG (DDS_LC_CONFIG, " %s(", addrbuf);
 
     if (!(ifa->flags & IFF_MULTICAST) && multicast_override (if_name, &gv->config))
     {
-      DDS_LOG(DDS_LC_CONFIG, "assume-mc:");
+      GVLOG (DDS_LC_CONFIG, "assume-mc:");
       ifa->flags |= IFF_MULTICAST;
     }
 
@@ -555,7 +554,7 @@ int find_own_ip (struct q_globals *gv, const char *requested_address)
         q += 2;
     }
 
-    DDS_LOG(DDS_LC_CONFIG, "q%d)", q);
+    GVLOG (DDS_LC_CONFIG, "q%d)", q);
     if (q == quality) {
       maxq_list[maxq_count] = gv->n_interfaces;
       maxq_strlen += 2 + strlen (if_name);
@@ -584,7 +583,7 @@ int find_own_ip (struct q_globals *gv, const char *requested_address)
     gv->interfaces[gv->n_interfaces].name = ddsrt_strdup (if_name);
     gv->n_interfaces++;
   }
-  DDS_LOG(DDS_LC_CONFIG, "\n");
+  GVLOG (DDS_LC_CONFIG, "\n");
   ddsrt_freeifaddrs (ifa_root);
 
   if (requested_address == NULL)
@@ -599,15 +598,15 @@ int find_own_ip (struct q_globals *gv, const char *requested_address)
       p = 0;
       for (i = 0; i < maxq_count && (size_t) p < maxq_strlen; i++)
         p += snprintf (names + p, maxq_strlen - (size_t) p, ", %s", gv->interfaces[maxq_list[i]].name);
-      DDS_WARNING("using network interface %s (%s) selected arbitrarily from: %s\n",
-                   gv->interfaces[idx].name, addrbuf, names + 2);
+      GVWARNING ("using network interface %s (%s) selected arbitrarily from: %s\n",
+                 gv->interfaces[idx].name, addrbuf, names + 2);
       ddsrt_free (names);
     }
 
     if (maxq_count > 0)
       selected_idx = maxq_list[0];
     else
-      DDS_ERROR("failed to determine default own IP address\n");
+      GVERROR ("failed to determine default own IP address\n");
   }
   else
   {
@@ -654,7 +653,7 @@ int find_own_ip (struct q_globals *gv, const char *requested_address)
     if (i < gv->n_interfaces)
       selected_idx = i;
     else
-      DDS_ERROR("%s: does not match an available interface\n", gv->config.networkAddressString);
+      GVERROR ("%s: does not match an available interface\n", gv->config.networkAddressString);
   }
 
   if (selected_idx < 0)
@@ -676,8 +675,8 @@ int find_own_ip (struct q_globals *gv, const char *requested_address)
       gv->ipv6_link_local = 0;
     }
 #endif
-    DDS_LOG(DDS_LC_CONFIG, "selected interface: %s (index %u)\n",
-            gv->interfaces[selected_idx].name, gv->interfaceNo);
+    GVLOG (DDS_LC_CONFIG, "selected interface: %s (index %u)\n",
+           gv->interfaces[selected_idx].name, gv->interfaceNo);
 
     return 1;
   }

@@ -100,7 +100,7 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
   ddsrt_mutex_lock (&q->lock);
   while (!(q->terminate && q->count == 0))
   {
-    LOG_THREAD_CPUTIME (next_thread_cputime);
+    LOG_THREAD_CPUTIME (&q->gv->logconfig, next_thread_cputime);
 
     /* While deaf, we need to make sure the receive thread wakes up
        every now and then to try recreating sockets & rejoining multicast
@@ -165,7 +165,7 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
            reasonable. */
         if (trace_shortsleep)
         {
-          DDS_TRACE("gc %p: not yet, shortsleep\n", (void*)gcreq);
+          DDS_CTRACE (&q->gv->logconfig, "gc %p: not yet, shortsleep\n", (void *) gcreq);
           trace_shortsleep = 0;
         }
         dds_sleepfor (shortsleep);
@@ -176,7 +176,7 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
            it; the callback is responsible for requeueing (if complex
            multi-phase delete) or freeing the delete request.  Reset
            the current gcreq as this one obviously is no more.  */
-        DDS_TRACE("gc %p: deleting\n", (void*)gcreq);
+        DDS_CTRACE (&q->gv->logconfig, "gc %p: deleting\n", (void *) gcreq);
         thread_state_awake_fixed_domain (ts1);
         gcreq->cb (gcreq);
         thread_state_asleep (ts1);

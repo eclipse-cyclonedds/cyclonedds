@@ -54,19 +54,19 @@ static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrse
     case AFSR_OK:
       break;
     case AFSR_INVALID:
-      DDS_ERROR("%s: %s: not a valid address\n", msgtag, ip);
+      GVERROR ("%s: %s: not a valid address\n", msgtag, ip);
       return -1;
     case AFSR_UNKNOWN:
-      DDS_ERROR("%s: %s: unknown address\n", msgtag, ip);
+      GVERROR ("%s: %s: unknown address\n", msgtag, ip);
       return -1;
     case AFSR_MISMATCH:
-      DDS_ERROR("%s: %s: address family mismatch\n", msgtag, ip);
+      GVERROR ("%s: %s: address family mismatch\n", msgtag, ip);
       return -1;
   }
 
   if (req_mc && !ddsi_is_mcaddr (gv, &loc))
   {
-    DDS_ERROR ("%s: %s: not a multicast address\n", msgtag, ip);
+    GVERROR ("%s: %s: not a multicast address\n", msgtag, ip);
     return -1;
   }
 
@@ -86,46 +86,48 @@ static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrse
   }
   else
   {
-    DDS_ERROR("%s: %s,%d,%d,%d: IPv4 multicast address generator invalid or out of place\n",
-              msgtag, ip, mcgen_base, mcgen_count, mcgen_idx);
+    GVERROR ("%s: %s,%d,%d,%d: IPv4 multicast address generator invalid or out of place\n",
+             msgtag, ip, mcgen_base, mcgen_count, mcgen_idx);
     return -1;
   }
 
   if (port_mode >= 0)
   {
     loc.port = (unsigned) port_mode;
-    DDS_LOG(DDS_LC_CONFIG, "%s: add %s", msgtag, ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
+    GVLOG (DDS_LC_CONFIG, "%s: add %s", msgtag, ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
     add_to_addrset (gv, as, &loc);
   }
   else
   {
-    DDS_LOG(DDS_LC_CONFIG, "%s: add ", msgtag);
+    GVLOG (DDS_LC_CONFIG, "%s: add ", msgtag);
     if (!ddsi_is_mcaddr (gv, &loc))
     {
-      int i;
-      for (i = 0; i <= gv->config.maxAutoParticipantIndex; i++)
+      assert (gv->config.maxAutoParticipantIndex >= 0);
+      for (uint32_t i = 0; i <= (uint32_t) gv->config.maxAutoParticipantIndex; i++)
       {
-        int port = gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + i * gv->config.port_pg + gv->config.port_d1;
+        uint32_t port = gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + i * gv->config.port_pg + gv->config.port_d1;
         loc.port = (unsigned) port;
         if (i == 0)
-          DDS_LOG(DDS_LC_CONFIG, "%s", ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
+          GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
         else
-          DDS_LOG(DDS_LC_CONFIG, ", :%d", port);
+          GVLOG (DDS_LC_CONFIG, ", :%"PRIu32, port);
         add_to_addrset (gv, as, &loc);
       }
     }
     else
     {
-      int port = port_mode;
-      if (port == -1)
+      uint32_t port;
+      if (port_mode == -1)
         port = gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + gv->config.port_d0;
+      else
+        port = (uint32_t) port_mode;
       loc.port = (unsigned) port;
-      DDS_LOG(DDS_LC_CONFIG, "%s", ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
+      GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
       add_to_addrset (gv, as, &loc);
     }
   }
 
-  DDS_LOG(DDS_LC_CONFIG, "\n");
+  GVLOG (DDS_LC_CONFIG, "\n");
   return 0;
 }
 
@@ -173,7 +175,7 @@ int add_addresses_to_addrset (const struct q_globals *gv, struct addrset *as, co
       if (add_addresses_to_addrset_1 (gv, as, ip, port, msgtag, req_mc, mcgen_base, mcgen_count, mcgen_idx) < 0)
         goto error;
     } else {
-      DDS_ERROR("%s: %s: port %d invalid\n", msgtag, a, port);
+      GVERROR ("%s: %s: port %d invalid\n", msgtag, a, port);
     }
   }
   retval = 0;
@@ -555,19 +557,20 @@ struct log_addrset_helper_arg
 static void log_addrset_helper (const nn_locator_t *n, void *varg)
 {
   const struct log_addrset_helper_arg *arg = varg;
+  const struct q_globals *gv = arg->gv;
   char buf[DDSI_LOCSTRLEN];
-  if (dds_get_log_mask() & arg->tf)
-    DDS_LOG(arg->tf, " %s", ddsi_locator_to_string(arg->gv, buf, sizeof(buf), n));
+  if (gv->logconfig.c.mask & arg->tf)
+    GVLOG (arg->tf, " %s", ddsi_locator_to_string (gv, buf, sizeof(buf), n));
 }
 
 void nn_log_addrset (struct q_globals *gv, uint32_t tf, const char *prefix, const struct addrset *as)
 {
-  if (dds_get_log_mask() & tf)
+  if (gv->logconfig.c.mask & tf)
   {
     struct log_addrset_helper_arg arg;
     arg.tf = tf;
     arg.gv = gv;
-    DDS_LOG(tf, "%s", prefix);
+    GVLOG (tf, "%s", prefix);
     addrset_forall ((struct addrset *) as, log_addrset_helper, &arg); /* drop const, we know it is */
   }
 }

@@ -163,7 +163,7 @@ static void fwr (struct proxy_writer *wr)
   free (wr);
 }
 
-static struct dds_rhc *mkrhc (const struct q_globals *gv, dds_reader *rd, dds_history_kind_t hk, int32_t hdepth, dds_destination_order_kind_t dok)
+static struct dds_rhc *mkrhc (struct q_globals *gv, dds_reader *rd, dds_history_kind_t hk, int32_t hdepth, dds_destination_order_kind_t dok)
 {
   struct dds_rhc *rhc;
   dds_qos_t rqos;
@@ -174,7 +174,7 @@ static struct dds_rhc *mkrhc (const struct q_globals *gv, dds_reader *rd, dds_hi
   rqos.destination_order.kind = dok;
   nn_xqos_mergein_missing (&rqos, &gv->default_xqos_rd, ~(uint64_t)0);
   thread_state_awake_domain_ok (lookup_thread_state ());
-  rhc = dds_rhc_default_new_xchecks (rd, gv->m_tkmap, mdtopic, true);
+  rhc = dds_rhc_default_new_xchecks (rd, gv, mdtopic, true);
   dds_rhc_set_qos(rhc, &rqos);
   thread_state_asleep (lookup_thread_state ());
   return rhc;

@@ -59,7 +59,7 @@ dds_entity_t dds_create_publisher (dds_entity_t participant, const dds_qos_t *qo
   if (qos)
     nn_xqos_mergein_missing (new_qos, qos, DDS_PUBLISHER_QOS_MASK);
   nn_xqos_mergein_missing (new_qos, &par->m_entity.m_domain->gv.default_xqos_pub, ~(uint64_t)0);
-  if ((ret = nn_xqos_valid (new_qos)) != DDS_RETCODE_OK)
+  if ((ret = nn_xqos_valid (&par->m_entity.m_domain->gv.logconfig, new_qos)) != DDS_RETCODE_OK)
   {
     dds_participant_unlock (par);
     return ret;

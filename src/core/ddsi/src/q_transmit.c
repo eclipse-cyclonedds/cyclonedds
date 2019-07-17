@@ -177,12 +177,12 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
     }
   }
 
-  DDS_TRACE("writer_hbcontrol: wr "PGUIDFMT" ", PGUID (wr->e.guid));
+  ETRACE (wr, "writer_hbcontrol: wr "PGUIDFMT" ", PGUID (wr->e.guid));
   if (prd_guid == NULL)
-    DDS_TRACE("multicasting ");
+    ETRACE (wr, "multicasting ");
   else
-    DDS_TRACE("unicasting to prd "PGUIDFMT" ", PGUID (*prd_guid));
-  DDS_TRACE("(rel-prd %d seq-eq-max %d seq %"PRId64" maxseq %"PRId64")\n",
+    ETRACE (wr, "unicasting to prd "PGUIDFMT" ", PGUID (*prd_guid));
+  ETRACE (wr, "(rel-prd %d seq-eq-max %d seq %"PRId64" maxseq %"PRId64")\n",
           wr->num_reliable_readers,
           ddsrt_avl_is_empty (&wr->readers) ? -1 : root_rdmatch (wr)->num_reliable_readers_where_seq_equals_max,
           wr->seq,
@@ -201,7 +201,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
     struct proxy_reader *prd;
     if ((prd = ephash_lookup_proxy_reader_guid (gv->guid_hash, prd_guid)) == NULL)
     {
-      DDS_TRACE("writer_hbcontrol: wr "PGUIDFMT" unknown prd "PGUIDFMT"\n", PGUID (wr->e.guid), PGUID (*prd_guid));
+      ETRACE (wr, "writer_hbcontrol: wr "PGUIDFMT" unknown prd "PGUIDFMT"\n", PGUID (wr->e.guid), PGUID (*prd_guid));
       nn_xmsg_free (msg);
       return NULL;
     }
@@ -301,7 +301,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
 
   if (msg)
   {
-    DDS_TRACE("heartbeat(wr "PGUIDFMT"%s) piggybacked, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRId64", xmit %"PRId64")\n",
+    ETRACE (wr, "heartbeat(wr "PGUIDFMT"%s) piggybacked, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRId64", xmit %"PRId64")\n",
             PGUID (wr->e.guid),
             *hbansreq ? "" : " final",
             (hbc->tsched.v == T_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
@@ -621,9 +621,9 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
   nn_xmsg_serdata (*pmsg, serdata, fragstart, fraglen);
   nn_xmsg_submsg_setnext (*pmsg, sm_marker);
 #if 0
-  DDS_TRACE("queue data%s "PGUIDFMT" #%lld/%u[%u..%u)\n",
-          fragging ? "frag" : "", PGUID (wr->e.guid),
-          seq, fragnum+1, fragstart, fragstart + fraglen);
+  GVTRACE ("queue data%s "PGUIDFMT" #%lld/%u[%u..%u)\n",
+           fragging ? "frag" : "", PGUID (wr->e.guid),
+           seq, fragnum+1, fragstart, fragstart + fraglen);
 #endif
 
   return ret;
@@ -851,7 +851,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
-  if (dds_get_log_mask() & DDS_LC_TRACE)
+  if (wr->e.gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     char ppbuf[1024];
     int tmp;
@@ -859,10 +859,10 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
     const char *ttname = wr->topic ? wr->topic->type_name : "(null)";
     ppbuf[0] = '\0';
     tmp = sizeof (ppbuf) - 1;
-    DDS_TRACE("write_sample "PGUIDFMT" #%"PRId64, PGUID (wr->e.guid), seq);
+    ETRACE (wr, "write_sample "PGUIDFMT" #%"PRId64, PGUID (wr->e.guid), seq);
     if (plist != 0 && (plist->present & PP_COHERENT_SET))
-      DDS_TRACE(" C#%"PRId64"", fromSN (plist->coherent_set_seqno));
-    DDS_TRACE(": ST%"PRIu32" %s/%s:%s%s\n", serdata->statusinfo, tname, ttname, ppbuf, tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
+      ETRACE (wr, " C#%"PRId64"", fromSN (plist->coherent_set_seqno));
+    ETRACE (wr, ": ST%"PRIu32" %s/%s:%s%s\n", serdata->statusinfo, tname, ttname, ppbuf, tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
   }
 
   assert (wr->reliable || have_reliable_subs (wr) == 0);
@@ -948,7 +948,9 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
     assert (!is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE));
   }
 
-  DDS_LOG(DDS_LC_THROTTLE, "writer "PGUIDFMT" waiting for whc to shrink below low-water mark (whc %"PRIuSIZE" low=%"PRIu32" high=%"PRIu32")\n", PGUID (wr->e.guid), whcst.unacked_bytes, wr->whc_low, wr->whc_high);
+  GVLOG (DDS_LC_THROTTLE,
+         "writer "PGUIDFMT" waiting for whc to shrink below low-water mark (whc %"PRIuSIZE" low=%"PRIu32" high=%"PRIu32")\n",
+         PGUID (wr->e.guid), whcst.unacked_bytes, wr->whc_low, wr->whc_high);
   wr->throttling++;
   wr->throttle_count++;
 
@@ -995,7 +997,9 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
     ddsrt_cond_broadcast (&wr->throttle_cond);
   }
 
-  DDS_LOG(DDS_LC_THROTTLE, "writer "PGUIDFMT" done waiting for whc to shrink below low-water mark (whc %"PRIuSIZE" low=%"PRIu32" high=%"PRIu32")\n", PGUID (wr->e.guid), whcst.unacked_bytes, wr->whc_low, wr->whc_high);
+  GVLOG (DDS_LC_THROTTLE,
+         "writer "PGUIDFMT" done waiting for whc to shrink below low-water mark (whc %"PRIuSIZE" low=%"PRIu32" high=%"PRIu32")\n",
+         PGUID (wr->e.guid), whcst.unacked_bytes, wr->whc_low, wr->whc_high);
   return result;
 }
 
@@ -1025,8 +1029,8 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
   nn_mtime_t tnow;
 
   /* If GC not allowed, we must be sure to never block when writing.  That is only the case for (true, aggressive) KEEP_LAST writers, and also only if there is no limit to how much unacknowledged data the WHC may contain. */
-  assert(gc_allowed || (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST && wr->whc_low == INT32_MAX));
-  (void)gc_allowed;
+  assert (gc_allowed || (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST && wr->whc_low == INT32_MAX));
+  (void) gc_allowed;
 
   if (ddsi_serdata_size (serdata) > gv->config.max_sample_size)
   {
@@ -1036,10 +1040,10 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
     const char *ttname = wr->topic ? wr->topic->type_name : "(null)";
     ppbuf[0] = '\0';
     tmp = sizeof (ppbuf) - 1;
-    DDS_WARNING ("dropping oversize (%"PRIu32" > %"PRIu32") sample from local writer "PGUIDFMT" %s/%s:%s%s\n",
-                 ddsi_serdata_size (serdata), gv->config.max_sample_size,
-                 PGUID (wr->e.guid), tname, ttname, ppbuf,
-                 tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
+    GVWARNING ("dropping oversize (%"PRIu32" > %"PRIu32") sample from local writer "PGUIDFMT" %s/%s:%s%s\n",
+               ddsi_serdata_size (serdata), gv->config.max_sample_size,
+               PGUID (wr->e.guid), tname, ttname, ppbuf,
+               tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
     r = DDS_RETCODE_BAD_PARAMETER;
     goto drop;
   }

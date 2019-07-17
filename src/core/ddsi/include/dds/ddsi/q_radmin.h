@@ -93,6 +93,9 @@ struct nn_rmsg {
      the real packet. */
   struct nn_rmsg_chunk *lastchunk;
 
+  /* whether to log */
+  bool trace;
+
   struct nn_rmsg_chunk chunk;
 };
 #define NN_RMSG_PAYLOAD(m) ((unsigned char *) (&(m)->chunk + 1))
@@ -195,7 +198,7 @@ typedef int32_t nn_reorder_result_t;
 
 typedef void (*nn_dqueue_callback_t) (void *arg);
 
-struct nn_rbufpool *nn_rbufpool_new (uint32_t rbuf_size, uint32_t max_rmsg_size);
+struct nn_rbufpool *nn_rbufpool_new (const struct ddsrt_log_cfg *logcfg, uint32_t rbuf_size, uint32_t max_rmsg_size);
 void nn_rbufpool_setowner (struct nn_rbufpool *rbp, ddsrt_thread_t tid);
 void nn_rbufpool_free (struct nn_rbufpool *rbp);
 
@@ -210,13 +213,13 @@ struct nn_rdata *nn_rdata_newgap (struct nn_rmsg *rmsg);
 void nn_fragchain_adjust_refcount (struct nn_rdata *frag, int adjust);
 void nn_fragchain_unref (struct nn_rdata *frag);
 
-struct nn_defrag *nn_defrag_new (enum nn_defrag_drop_mode drop_mode, uint32_t max_samples);
+struct nn_defrag *nn_defrag_new (const struct ddsrt_log_cfg *logcfg, enum nn_defrag_drop_mode drop_mode, uint32_t max_samples);
 void nn_defrag_free (struct nn_defrag *defrag);
 struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo);
 void nn_defrag_notegap (struct nn_defrag *defrag, seqno_t min, seqno_t maxp1);
 int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct nn_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz);
 
-struct nn_reorder *nn_reorder_new (enum nn_reorder_mode mode, uint32_t max_samples, bool late_ack_mode);
+struct nn_reorder *nn_reorder_new (const struct ddsrt_log_cfg *logcfg, enum nn_reorder_mode mode, uint32_t max_samples, bool late_ack_mode);
 void nn_reorder_free (struct nn_reorder *r);
 struct nn_rsample *nn_reorder_rsample_dup_first (struct nn_rmsg *rmsg, struct nn_rsample *rsampleiv);
 struct nn_rdata *nn_rsample_fragchain (struct nn_rsample *rsample);

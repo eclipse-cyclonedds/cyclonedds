@@ -154,7 +154,7 @@ static struct thread_state1 *lazy_create_thread_state (ddsrt_thread_t self)
     ddsrt_init ();
     ts1->extTid = self;
     ts1->tid = self;
-    DDS_TRACE ("started application thread %s\n", name);
+    DDS_LOG (DDS_LC_TRACE, "started application thread %s\n", name);
     ddsrt_thread_cleanup_push (&cleanup_thread_state, NULL);
   }
   ddsrt_mutex_unlock (&thread_states.lock);
@@ -185,7 +185,9 @@ static uint32_t create_thread_wrapper (void *ptr)
 {
   uint32_t ret;
   struct thread_context *ctx = ptr;
-  DDS_TRACE ("started new thread %"PRIdTID": %s\n", ddsrt_gettid (), ctx->self->name);
+  struct q_globals const * const gv = ddsrt_atomic_ldvoidp (&ctx->self->gv);
+  if (gv)
+    GVTRACE ("started new thread %"PRIdTID": %s\n", ddsrt_gettid (), ctx->self->name);
   ctx->self->tid = ddsrt_thread_self ();
   ret = ctx->f (ctx->arg);
   ddsrt_free (ctx);
@@ -197,7 +199,7 @@ static int find_free_slot (const char *name)
   for (uint32_t i = 0; i < thread_states.nthreads; i++)
     if (thread_states.ts[i].state == THREAD_STATE_ZERO)
       return (int) i;
-  DDS_FATAL("create_thread: %s: no free slot\n", name ? name : "(anon)");
+  DDS_FATAL ("create_thread: %s: no free slot\n", name ? name : "(anon)");
   return -1;
 }
 
@@ -274,12 +276,15 @@ static dds_return_t create_thread_int (struct thread_state1 **ts1, const struct 
     if (!tprops->stack_size.isdefault)
       tattr.stackSize = tprops->stack_size.value;
   }
-  DDS_TRACE("create_thread: %s: class %d priority %"PRId32" stack %"PRIu32"\n", name, (int) tattr.schedClass, tattr.schedPriority, tattr.stackSize);
+  if (gv)
+  {
+    GVTRACE ("create_thread: %s: class %d priority %"PRId32" stack %"PRIu32"\n", name, (int) tattr.schedClass, tattr.schedPriority, tattr.stackSize);
+  }
 
   if (ddsrt_thread_create (&tid, name, &tattr, &create_thread_wrapper, ctxt) != DDS_RETCODE_OK)
   {
     (*ts1)->state = THREAD_STATE_ZERO;
-    DDS_FATAL("create_thread: %s: ddsrt_thread_create failed\n", name);
+    DDS_FATAL ("create_thread: %s: ddsrt_thread_create failed\n", name);
     goto fatal;
   }
   (*ts1)->extTid = tid; /* overwrite the temporary value with the correct external one */
@@ -336,10 +341,15 @@ void downgrade_main_thread (void)
   thread_states_init_static ();
 }
 
-void log_stack_traces (void)
+void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct q_globals *gv)
 {
   for (uint32_t i = 0; i < thread_states.nthreads; i++)
-    if (thread_states.ts[i].state != THREAD_STATE_ZERO)
-      log_stacktrace (thread_states.ts[i].name, thread_states.ts[i].tid);
+  {
+    if (thread_states.ts[i].state != THREAD_STATE_ZERO &&
+        (gv == NULL || ddsrt_atomic_ldvoidp (&thread_states.ts[i].gv) == gv))
+    {
+      log_stacktrace (logcfg, thread_states.ts[i].name, thread_states.ts[i].tid);
+    }
+  }
 }
 

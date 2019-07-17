@@ -97,14 +97,14 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
       snprintf(addrbuf, sizeof(addrbuf), "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
                src.sll_addr[0], src.sll_addr[1], src.sll_addr[2],
                src.sll_addr[3], src.sll_addr[4], src.sll_addr[5], ntohs(src.sll_protocol));
-      DDS_WARNING("%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
+      DDS_CWARNING(&conn->m_base.gv->logconfig, "%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
     }
   }
   else if (rc != DDS_RETCODE_OK &&
            rc != DDS_RETCODE_BAD_PARAMETER &&
            rc != DDS_RETCODE_NO_CONNECTION)
   {
-    DDS_ERROR("UDP recvmsg sock %d: ret %d retcode %d\n", (int) ((ddsi_raweth_conn_t) conn)->m_sock, (int) ret, rc);
+    DDS_CERROR(&conn->m_base.gv->logconfig, "UDP recvmsg sock %d: ret %d retcode %d\n", (int) ((ddsi_raweth_conn_t) conn)->m_sock, (int) ret, rc);
   }
   return ret;
 }
@@ -144,7 +144,7 @@ static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const nn_locator_t
       rc != DDS_RETCODE_NOT_ALLOWED &&
       rc != DDS_RETCODE_NO_CONNECTION)
   {
-    DDS_ERROR("ddsi_raweth_conn_write failed with retcode %d", rc);
+    DDS_CERROR(&conn->m_base.gv->logconfig, "ddsi_raweth_conn_write failed with retcode %d", rc);
   }
   return (rc == DDS_RETCODE_OK ? ret : -1);
 }
@@ -187,14 +187,14 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (ddsi_tran_factory_t fact, uint3
 
   if (port == 0 || port > 65535)
   {
-    DDS_ERROR("ddsi_raweth_create_conn %s port %u - using port number as ethernet type, %u won't do\n", mcast ? "multicast" : "unicast", port, port);
+    DDS_CERROR (&fact->gv->logconfig, "ddsi_raweth_create_conn %s port %u - using port number as ethernet type, %u won't do\n", mcast ? "multicast" : "unicast", port, port);
     return NULL;
   }
 
   rc = ddsrt_socket(&sock, PF_PACKET, SOCK_DGRAM, htons((uint16_t)port));
   if (rc != DDS_RETCODE_OK)
   {
-    DDS_ERROR("ddsi_raweth_create_conn %s port %u failed ... retcode = %d\n", mcast ? "multicast" : "unicast", port, rc);
+    DDS_CERROR (&fact->gv->logconfig, "ddsi_raweth_create_conn %s port %u failed ... retcode = %d\n", mcast ? "multicast" : "unicast", port, rc);
     return NULL;
   }
 
@@ -207,7 +207,7 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (ddsi_tran_factory_t fact, uint3
   if (rc != DDS_RETCODE_OK)
   {
     ddsrt_close(sock);
-    DDS_ERROR("ddsi_raweth_create_conn %s bind port %u failed ... retcode = %d\n", mcast ? "multicast" : "unicast", port, rc);
+    DDS_CERROR (&fact->gv->logconfig, "ddsi_raweth_create_conn %s bind port %u failed ... retcode = %d\n", mcast ? "multicast" : "unicast", port, rc);
     return NULL;
   }
 
@@ -225,7 +225,7 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (ddsi_tran_factory_t fact, uint3
   uc->m_base.m_write_fn = ddsi_raweth_conn_write;
   uc->m_base.m_disable_multiplexing_fn = 0;
 
-  DDS_TRACE("ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sock, uc->m_base.m_base.m_port);
+  DDS_CTRACE (&fact->gv->logconfig, "ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sock, uc->m_base.m_base.m_port);
   return uc ? &uc->m_base : NULL;
 }
 
@@ -277,13 +277,11 @@ static int ddsi_raweth_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcl
 static void ddsi_raweth_release_conn (ddsi_tran_conn_t conn)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
-  DDS_TRACE
-  (
-    "ddsi_raweth_release_conn %s socket %d port %d\n",
-    conn->m_base.m_multicast ? "multicast" : "unicast",
-    uc->m_sock,
-    uc->m_base.m_base.m_port
-  );
+  DDS_CTRACE (&conn->m_base.gv->logconfig,
+              "ddsi_raweth_release_conn %s socket %d port %d\n",
+              conn->m_base.m_multicast ? "multicast" : "unicast",
+              uc->m_sock,
+              uc->m_base.m_base.m_port);
   ddsrt_close (uc->m_sock);
   ddsrt_free (conn);
 }
@@ -341,8 +339,8 @@ static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (dds
 
 static void ddsi_raweth_deinit(ddsi_tran_factory_t fact)
 {
+  DDS_CLOG (DDS_LC_CONFIG, &fact->gv->logconfig, "raweth de-initialized\n");
   ddsrt_free (fact);
-  DDS_LOG(DDS_LC_CONFIG, "raweth de-initialized\n");
 }
 
 static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t fact, enum transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)
@@ -375,7 +373,7 @@ int ddsi_raweth_init (struct q_globals *gv)
   fact->m_locator_to_string_fn = ddsi_raweth_to_string;
   fact->m_enumerate_interfaces_fn = ddsi_raweth_enumerate_interfaces;
   ddsi_factory_add (gv, fact);
-  DDS_LOG(DDS_LC_CONFIG, "raweth initialized\n");
+  GVLOG (DDS_LC_CONFIG, "raweth initialized\n");
   return 0;
 }
 

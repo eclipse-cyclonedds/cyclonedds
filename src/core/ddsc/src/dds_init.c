@@ -58,7 +58,7 @@ dds_return_t dds_init (void)
 
   if (dds_handle_server_init () != DDS_RETCODE_OK)
   {
-    DDS_ERROR("Failed to initialize internal handle server\n");
+    DDS_ERROR ("Failed to initialize internal handle server\n");
     ret = DDS_RETCODE_ERROR;
     goto fail_handleserver;
   }

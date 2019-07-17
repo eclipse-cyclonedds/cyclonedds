@@ -95,7 +95,7 @@ static void maybe_set_reader_in_sync (struct proxy_writer *pwr, struct pwr_rd_ma
       assert (nn_reorder_next_seq (wn->u.not_in_sync.reorder) <= nn_reorder_next_seq (pwr->reorder));
       if (pwr->have_seen_heartbeat && nn_reorder_next_seq (wn->u.not_in_sync.reorder) == nn_reorder_next_seq (pwr->reorder))
       {
-        DDS_TRACE(" msr_in_sync("PGUIDFMT" out-of-sync to tlcatchup)", PGUID (wn->rd_guid));
+        ETRACE (pwr, " msr_in_sync("PGUIDFMT" out-of-sync to tlcatchup)", PGUID (wn->rd_guid));
         wn->in_sync = PRMSS_TLCATCHUP;
         maybe_set_reader_in_sync (pwr, wn, last_deliv_seq);
       }
@@ -343,6 +343,8 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
     src.encoding = (msg->x.smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
     src.buf = ptr;
     src.bufsz = (unsigned) ((unsigned char *) msg + size - src.buf); /* end of message, that's all we know */
+    src.factory = NULL;
+    src.logconfig = &rst->gv->logconfig;
     /* just a quick scan, gathering only what we _really_ need */
     if ((ptr = nn_plist_quickscan (sampleinfo, rmsg, &src)) == NULL)
       return 0;
@@ -463,6 +465,8 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
     src.encoding = (msg->x.smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
     src.buf = ptr;
     src.bufsz = (unsigned) ((unsigned char *) msg + size - src.buf); /* end of message, that's all we know */
+    src.factory = NULL;
+    src.logconfig = &rst->gv->logconfig;
     /* just a quick scan, gathering only what we _really_ need */
     if ((ptr = nn_plist_quickscan (sampleinfo, rmsg, &src)) == NULL)
       return 0;
@@ -549,8 +553,8 @@ static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *
 
   /* Send a Heartbeat just to this peer */
   add_Heartbeat (m, wr, whcst, hbansreq, prd->e.guid.entityid, 0);
-  DDS_TRACE("force_heartbeat_to_peer: "PGUIDFMT" -> "PGUIDFMT" - queue for transmit\n",
-            PGUID (wr->e.guid), PGUID (prd->e.guid));
+  ETRACE (wr, "force_heartbeat_to_peer: "PGUIDFMT" -> "PGUIDFMT" - queue for transmit\n",
+          PGUID (wr->e.guid), PGUID (prd->e.guid));
   qxev_msg (wr->evq, m);
 }
 
@@ -641,21 +645,21 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   src.entityid = msg->readerId;
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->writerId;
-  DDS_TRACE("ACKNACK(%s#%"PRId32":%"PRId64"/%"PRIu32":", msg->smhdr.flags & ACKNACK_FLAG_FINAL ? "F" : "",
-          *countp, fromSN (msg->readerSNState.bitmap_base), msg->readerSNState.numbits);
+  RSTTRACE ("ACKNACK(%s#%"PRId32":%"PRId64"/%"PRIu32":", msg->smhdr.flags & ACKNACK_FLAG_FINAL ? "F" : "",
+            *countp, fromSN (msg->readerSNState.bitmap_base), msg->readerSNState.numbits);
   for (uint32_t i = 0; i < msg->readerSNState.numbits; i++)
-    DDS_TRACE("%c", nn_bitset_isset (msg->readerSNState.numbits, msg->bits, i) ? '1' : '0');
+    RSTTRACE ("%c", nn_bitset_isset (msg->readerSNState.numbits, msg->bits, i) ? '1' : '0');
   seqbase = fromSN (msg->readerSNState.bitmap_base);
 
   if (!rst->forme)
   {
-    DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT" not-for-me)", PGUID (src), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not-for-me)", PGUID (src), PGUID (dst));
     return 1;
   }
 
   if ((wr = ephash_lookup_writer_guid (rst->gv->guid_hash, &dst)) == NULL)
   {
-    DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT"?)", PGUID (src), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"?)", PGUID (src), PGUID (dst));
     return 1;
   }
   /* Always look up the proxy reader -- even though we don't need for
@@ -664,7 +668,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
      only retrieve it when needed. */
   if ((prd = ephash_lookup_proxy_reader_guid (rst->gv->guid_hash, &src)) == NULL)
   {
-    DDS_TRACE(" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
   }
 
@@ -673,14 +677,14 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
 
   if (!wr->reliable) /* note: reliability can't be changed */
   {
-    DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT" not a reliable writer!)", PGUID (src), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a reliable writer!)", PGUID (src), PGUID (dst));
     return 1;
   }
 
   ddsrt_mutex_lock (&wr->e.lock);
   if ((rn = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &src)) == NULL)
   {
-    DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT" not a connection)", PGUID (src), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a connection)", PGUID (src), PGUID (dst));
     goto out;
   }
 
@@ -700,10 +704,10 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
 
   if (!accept_ack_or_hb_w_timeout (*countp, &rn->next_acknack, tnow, &rn->t_acknack_accepted, is_preemptive_ack))
   {
-    DDS_TRACE(" ["PGUIDFMT" -> "PGUIDFMT"])", PGUID (src), PGUID (dst));
+    RSTTRACE (" ["PGUIDFMT" -> "PGUIDFMT"])", PGUID (src), PGUID (dst));
     goto out;
   }
-  DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT"", PGUID (src), PGUID (dst));
+  RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"", PGUID (src), PGUID (dst));
 
   /* Update latency estimates if we have a timestamp -- won't actually
      work so well if the timestamp can be a left over from some other
@@ -713,9 +717,9 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   {
     nn_wctime_t tstamp_now = now ();
     nn_lat_estim_update (&rn->hb_to_ack_latency, tstamp_now.v - timestamp.v);
-    if ((dds_get_log_mask() & DDS_LC_TRACE) && tstamp_now.v > rn->hb_to_ack_latency_tlastlog.v + 10 * T_SECOND)
+    if ((rst->gv->logconfig.c.mask & DDS_LC_TRACE) && tstamp_now.v > rn->hb_to_ack_latency_tlastlog.v + 10 * T_SECOND)
     {
-      nn_lat_estim_log (DDS_LC_TRACE, NULL, &rn->hb_to_ack_latency);
+      nn_lat_estim_log (DDS_LC_TRACE, &rst->gv->logconfig, NULL, &rn->hb_to_ack_latency);
       rn->hb_to_ack_latency_tlastlog = tstamp_now;
     }
   }
@@ -735,7 +739,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     }
     ddsrt_avl_augment_update (&wr_readers_treedef, rn);
     n = remove_acked_messages (wr, &whcst, &deferred_free_list);
-    DDS_TRACE(" ACK%"PRId64" RM%u", n_ack, n);
+    RSTTRACE (" ACK%"PRId64" RM%u", n_ack, n);
   }
   else
   {
@@ -761,7 +765,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
       rn->seq = wr->seq;
     }
     ddsrt_avl_augment_update (&wr_readers_treedef, rn);
-    DDS_LOG(DDS_LC_THROTTLE, "writer "PGUIDFMT" considering reader "PGUIDFMT" responsive again\n", PGUID (wr->e.guid), PGUID (rn->prd_guid));
+    DDS_CLOG (DDS_LC_THROTTLE, &rst->gv->logconfig, "writer "PGUIDFMT" considering reader "PGUIDFMT" responsive again\n", PGUID (wr->e.guid), PGUID (rn->prd_guid));
   }
 
   /* Second, the NACK bits (literally, that is). To do so, attempt to
@@ -773,7 +777,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   max_seq_in_reply = 0;
   if (!rn->has_replied_to_hb && seqbase > 1 && is_pure_nonhist_ack)
   {
-    DDS_TRACE(" setting-has-replied-to-hb");
+    RSTTRACE (" setting-has-replied-to-hb");
     rn->has_replied_to_hb = 1;
     /* walk the whole tree to ensure all proxy readers for this writer
        have their unack'ed info updated */
@@ -787,16 +791,16 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
        reader start-up and we respond with a heartbeat and, if we have
        data in our WHC, we start sending it regardless of whether the
        remote reader asked for it */
-    DDS_TRACE(" preemptive-nack");
+    RSTTRACE (" preemptive-nack");
     if (WHCST_ISEMPTY(&whcst))
     {
-      DDS_TRACE(" whc-empty ");
+      RSTTRACE (" whc-empty ");
       force_heartbeat_to_peer (wr, &whcst, prd, 0);
       hb_sent_in_response = 1;
     }
     else
     {
-      DDS_TRACE(" rebase ");
+      RSTTRACE (" rebase ");
       force_heartbeat_to_peer (wr, &whcst, prd, 0);
       hb_sent_in_response = 1;
       numbits = rst->gv->config.accelerate_rexmit_block_size;
@@ -812,19 +816,19 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
        that doesn't play too nicely with this. */
     if (is_pure_nonhist_ack)
     {
-      DDS_TRACE(" happy-now");
+      RSTTRACE (" happy-now");
       rn->assumed_in_sync = 1;
     }
     else if (msg->readerSNState.numbits < rst->gv->config.accelerate_rexmit_block_size)
     {
-      DDS_TRACE(" accelerating");
+      RSTTRACE (" accelerating");
       accelerate_rexmit = 1;
       if (accelerate_rexmit && numbits < rst->gv->config.accelerate_rexmit_block_size)
         numbits = rst->gv->config.accelerate_rexmit_block_size;
     }
     else
     {
-      DDS_TRACE(" complying");
+      RSTTRACE (" complying");
     }
   }
   /* Retransmit requested messages, including whatever we decided to
@@ -862,7 +866,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
           nn_mtime_t tstamp = now_mt ();
           if (tstamp.v > sample.last_rexmit_ts.v + rst->gv->config.retransmit_merging_period)
           {
-            DDS_TRACE(" RX%"PRId64, seqbase + i);
+            RSTTRACE (" RX%"PRId64, seqbase + i);
             enqueued = (enqueue_sample_wrlock_held (wr, seq, sample.plist, sample.serdata, NULL, 0) >= 0);
             if (enqueued)
             {
@@ -873,13 +877,13 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
           }
           else
           {
-            DDS_TRACE(" RX%"PRId64" (merged)", seqbase + i);
+            RSTTRACE (" RX%"PRId64" (merged)", seqbase + i);
           }
         }
         else
         {
           /* no merging, send directed retransmit */
-          DDS_TRACE(" RX%"PRId64"", seqbase + i);
+          RSTTRACE (" RX%"PRId64"", seqbase + i);
           enqueued = (enqueue_sample_wrlock_held (wr, seq, sample.plist, sample.serdata, prd, 0) >= 0);
           if (enqueued)
           {
@@ -893,21 +897,21 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
       }
       else if (gapstart == -1)
       {
-        DDS_TRACE(" M%"PRId64, seqbase + i);
+        RSTTRACE (" M%"PRId64, seqbase + i);
         gapstart = seqbase + i;
         gapend = gapstart + 1;
         msgs_lost++;
       }
       else if (seqbase + i == gapend)
       {
-        DDS_TRACE(" M%"PRId64, seqbase + i);
+        RSTTRACE (" M%"PRId64, seqbase + i);
         gapend = seqbase + i + 1;
         msgs_lost++;
       }
       else if (seqbase + i - gapend < 256)
       {
         uint32_t idx = (uint32_t) (seqbase + i - gapend);
-        DDS_TRACE(" M%"PRId64, seqbase + i);
+        RSTTRACE (" M%"PRId64, seqbase + i);
         gapnumbits = idx + 1;
         nn_bitset_set (gapnumbits, gapbits, idx);
         msgs_lost++;
@@ -915,7 +919,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     }
   }
   if (!enqueued)
-    DDS_TRACE(" rexmit-limit-hit");
+    RSTTRACE (" rexmit-limit-hit");
   /* Generate a Gap message if some of the sequence is missing */
   if (gapstart > 0)
   {
@@ -933,9 +937,9 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
        that. */
     if (gapend-1 + gapnumbits > max_seq_in_reply)
       max_seq_in_reply = gapend-1 + gapnumbits;
-    DDS_TRACE(" XGAP%"PRId64"..%"PRId64"/%u:", gapstart, gapend, gapnumbits);
+    RSTTRACE (" XGAP%"PRId64"..%"PRId64"/%u:", gapstart, gapend, gapnumbits);
     for (uint32_t i = 0; i < gapnumbits; i++)
-      DDS_TRACE("%c", nn_bitset_isset (gapnumbits, gapbits, i) ? '1' : '0');
+      RSTTRACE ("%c", nn_bitset_isset (gapnumbits, gapbits, i) ? '1' : '0');
     m = nn_xmsg_new (rst->gv->xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     nn_xmsg_setencoderid (m, wr->partition_id);
@@ -958,7 +962,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
      it might ... [NB writer->seq is the last msg sent so far] */
   if (msgs_sent && max_seq_in_reply < seq_xmit)
   {
-    DDS_TRACE(" rexmit#%"PRIu32" maxseq:%"PRId64"<%"PRId64"<=%"PRId64"", msgs_sent, max_seq_in_reply, seq_xmit, wr->seq);
+    RSTTRACE (" rexmit#%"PRIu32" maxseq:%"PRId64"<%"PRId64"<=%"PRId64"", msgs_sent, max_seq_in_reply, seq_xmit, wr->seq);
     force_heartbeat_to_peer (wr, &whcst, prd, 1);
     hb_sent_in_response = 1;
 
@@ -973,7 +977,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
      now if we haven't done so already */
   if (!(msg->smhdr.flags & ACKNACK_FLAG_FINAL) && !hb_sent_in_response)
     force_heartbeat_to_peer (wr, &whcst, prd, 0);
-  DDS_TRACE(")");
+  RSTTRACE (")");
  out:
   ddsrt_mutex_unlock (&wr->e.lock);
   whc_free_deferred_free_list (wr->whc, deferred_free_list);
@@ -1049,7 +1053,7 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
   /* Not supposed to respond to repeats and old heartbeats. */
   if (!accept_ack_or_hb_w_timeout (msg->count, &wn->next_heartbeat, arg->tnow, &wn->t_heartbeat_accepted, 0))
   {
-    DDS_TRACE(" ("PGUIDFMT")", PGUID (wn->rd_guid));
+    RSTTRACE (" ("PGUIDFMT")", PGUID (wn->rd_guid));
     return;
   }
 
@@ -1060,7 +1064,7 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
     refseq = nn_reorder_next_seq (pwr->reorder) - 1;
   else
     refseq = nn_reorder_next_seq (wn->u.not_in_sync.reorder) - 1;
-    DDS_TRACE(" "PGUIDFMT"@%"PRId64"%s", PGUID (wn->rd_guid), refseq, (wn->in_sync == PRMSS_SYNC) ? "(sync)" : (wn->in_sync == PRMSS_TLCATCHUP) ? "(tlcatchup)" : "");
+    RSTTRACE (" "PGUIDFMT"@%"PRId64"%s", PGUID (wn->rd_guid), refseq, (wn->in_sync == PRMSS_SYNC) ? "(sync)" : (wn->in_sync == PRMSS_TLCATCHUP) ? "(tlcatchup)" : "");
 
   /* Reschedule AckNack transmit if deemed appropriate; unreliable
      readers have acknack_xevent == NULL and can't do this.
@@ -1075,13 +1079,13 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
     tsched.v = T_NEVER;
     if (pwr->last_seq > refseq)
     {
-      DDS_TRACE("/NAK");
+      RSTTRACE ("/NAK");
       if (arg->tnow_mt.v >= wn->t_last_nack.v + rst->gv->config.nack_delay || refseq >= wn->seq_last_nack)
         tsched = arg->tnow_mt;
       else
       {
         tsched.v = arg->tnow_mt.v + rst->gv->config.nack_delay;
-        DDS_TRACE("d");
+        RSTTRACE ("d");
       }
     }
     else if (!(msg->smhdr.flags & HEARTBEAT_FLAG_FINAL))
@@ -1120,17 +1124,17 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->readerId;
 
-  DDS_TRACE("HEARTBEAT(%s#%"PRId32":%"PRId64"..%"PRId64" ", msg->smhdr.flags & HEARTBEAT_FLAG_FINAL ? "F" : "", msg->count, firstseq, lastseq);
+  RSTTRACE ("HEARTBEAT(%s#%"PRId32":%"PRId64"..%"PRId64" ", msg->smhdr.flags & HEARTBEAT_FLAG_FINAL ? "F" : "", msg->count, firstseq, lastseq);
 
   if (!rst->forme)
   {
-    DDS_TRACE(PGUIDFMT" -> "PGUIDFMT" not-for-me)", PGUID (src), PGUID (dst));
+    RSTTRACE (PGUIDFMT" -> "PGUIDFMT" not-for-me)", PGUID (src), PGUID (dst));
     return 1;
   }
 
   if ((pwr = ephash_lookup_proxy_writer_guid (rst->gv->guid_hash, &src)) == NULL)
   {
-    DDS_TRACE(PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
+    RSTTRACE (PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
   }
 
@@ -1138,13 +1142,13 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
      BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
   lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
 
-  DDS_TRACE(PGUIDFMT" -> "PGUIDFMT":", PGUID (src), PGUID (dst));
+  RSTTRACE (PGUIDFMT" -> "PGUIDFMT":", PGUID (src), PGUID (dst));
 
   ddsrt_mutex_lock (&pwr->e.lock);
 
   if (pwr->n_reliable_readers == 0)
   {
-    DDS_TRACE(PGUIDFMT" -> "PGUIDFMT" no-reliable-readers)", PGUID (src), PGUID (dst));
+    RSTTRACE (PGUIDFMT" -> "PGUIDFMT" no-reliable-readers)", PGUID (src), PGUID (dst));
     ddsrt_mutex_unlock (&pwr->e.lock);
     return 1;
   }
@@ -1226,7 +1230,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
         if (wn->u.not_in_sync.end_of_tl_seq == MAX_SEQ_NUMBER)
         {
           wn->u.not_in_sync.end_of_tl_seq = fromSN (msg->lastSN);
-          DDS_TRACE(" end-of-tl-seq(rd "PGUIDFMT" #%"PRId64")", PGUID(wn->rd_guid), wn->u.not_in_sync.end_of_tl_seq);
+          RSTTRACE (" end-of-tl-seq(rd "PGUIDFMT" #%"PRId64")", PGUID(wn->rd_guid), wn->u.not_in_sync.end_of_tl_seq);
         }
         maybe_set_reader_in_sync (pwr, wn, last_deliv_seq);
       }
@@ -1240,7 +1244,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
   arg.tnow = tnow;
   arg.tnow_mt = now_mt ();
   handle_forall_destinations (&dst, pwr, (ddsrt_avl_walk_t) handle_Heartbeat_helper, &arg);
-  DDS_TRACE(")");
+  RSTTRACE (")");
 
   ddsrt_mutex_unlock (&pwr->e.lock);
   return 1;
@@ -1258,23 +1262,23 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->readerId;
 
-  DDS_TRACE("HEARTBEATFRAG(#%"PRId32":%"PRId64"/[1,%u]", msg->count, seq, fragnum+1);
+  RSTTRACE ("HEARTBEATFRAG(#%"PRId32":%"PRId64"/[1,%u]", msg->count, seq, fragnum+1);
   if (!rst->forme)
   {
-    DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT" not-for-me)", PGUID (src), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not-for-me)", PGUID (src), PGUID (dst));
     return 1;
   }
 
   if ((pwr = ephash_lookup_proxy_writer_guid (rst->gv->guid_hash, &src)) == NULL)
   {
-    DDS_TRACE(" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
   }
 
   /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
   lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
 
-  DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT"", PGUID (src), PGUID (dst));
+  RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"", PGUID (src), PGUID (dst));
   ddsrt_mutex_lock (&pwr->e.lock);
 
   if (seq > pwr->last_seq)
@@ -1295,7 +1299,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
      handle_Heartbeat's scheduling of an AckNack event when it must
      respond.  Why?  Just because. */
   if (ddsrt_avl_is_empty (&pwr->readers) || pwr->local_matching_inprogress)
-    DDS_TRACE(" no readers");
+    RSTTRACE (" no readers");
   else
   {
     struct pwr_rd_match *m = NULL;
@@ -1333,7 +1337,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
     }
 
     if (m == NULL)
-      DDS_TRACE(" no interested reliable readers");
+      RSTTRACE (" no interested reliable readers");
     else
     {
       /* Check if we are missing something */
@@ -1347,12 +1351,12 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
         /* Yes we are (note that this potentially also happens for
            samples we no longer care about) */
         int64_t delay = rst->gv->config.nack_delay;
-        DDS_TRACE("/nackfrag");
+        RSTTRACE ("/nackfrag");
         resched_xevent_if_earlier (m->acknack_xevent, add_duration_to_mtime (now_mt(), delay));
       }
     }
   }
-  DDS_TRACE(")");
+  RSTTRACE (")");
   ddsrt_mutex_unlock (&pwr->e.lock);
   return 1;
 }
@@ -1373,19 +1377,19 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->writerId;
 
-  DDS_TRACE("NACKFRAG(#%"PRId32":%"PRId64"/%u/%"PRIu32":", *countp, seq, msg->fragmentNumberState.bitmap_base, msg->fragmentNumberState.numbits);
+  RSTTRACE ("NACKFRAG(#%"PRId32":%"PRId64"/%u/%"PRIu32":", *countp, seq, msg->fragmentNumberState.bitmap_base, msg->fragmentNumberState.numbits);
   for (uint32_t i = 0; i < msg->fragmentNumberState.numbits; i++)
-    DDS_TRACE("%c", nn_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i) ? '1' : '0');
+    RSTTRACE ("%c", nn_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i) ? '1' : '0');
 
   if (!rst->forme)
   {
-    DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT" not-for-me)", PGUID (src), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not-for-me)", PGUID (src), PGUID (dst));
     return 1;
   }
 
   if ((wr = ephash_lookup_writer_guid (rst->gv->guid_hash, &dst)) == NULL)
   {
-    DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT"?)", PGUID (src), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"?)", PGUID (src), PGUID (dst));
     return 1;
   }
   /* Always look up the proxy reader -- even though we don't need for
@@ -1394,7 +1398,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
      only retrieve it when needed. */
   if ((prd = ephash_lookup_proxy_reader_guid (rst->gv->guid_hash, &src)) == NULL)
   {
-    DDS_TRACE(" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
   }
 
@@ -1403,25 +1407,25 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
 
   if (!wr->reliable) /* note: reliability can't be changed */
   {
-    DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT" not a reliable writer)", PGUID (src), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a reliable writer)", PGUID (src), PGUID (dst));
     return 1;
   }
 
   ddsrt_mutex_lock (&wr->e.lock);
   if ((rn = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &src)) == NULL)
   {
-    DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT" not a connection", PGUID (src), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a connection", PGUID (src), PGUID (dst));
     goto out;
   }
 
   /* Ignore old NackFrags (see also handle_AckNack) */
   if (*countp < rn->next_nackfrag)
   {
-    DDS_TRACE(" ["PGUIDFMT" -> "PGUIDFMT"]", PGUID (src), PGUID (dst));
+    RSTTRACE (" ["PGUIDFMT" -> "PGUIDFMT"]", PGUID (src), PGUID (dst));
     goto out;
   }
   rn->next_nackfrag = *countp + 1;
-  DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT"", PGUID (src), PGUID (dst));
+  RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"", PGUID (src), PGUID (dst));
 
   /* Resend the requested fragments if we still have the sample, send
      a Gap if we don't have them anymore. */
@@ -1429,7 +1433,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
   {
     const unsigned base = msg->fragmentNumberState.bitmap_base - 1;
     int enqueued = 1;
-    DDS_TRACE(" scheduling requested frags ...\n");
+    RSTTRACE (" scheduling requested frags ...\n");
     for (uint32_t i = 0; i < msg->fragmentNumberState.numbits && enqueued; i++)
     {
       if (nn_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i))
@@ -1447,7 +1451,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
   {
     static uint32_t zero = 0;
     struct nn_xmsg *m;
-    DDS_TRACE(" msg not available: scheduling Gap\n");
+    RSTTRACE (" msg not available: scheduling Gap\n");
     m = nn_xmsg_new (rst->gv->xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     nn_xmsg_setencoderid (m, wr->partition_id);
@@ -1475,14 +1479,14 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
 
  out:
   ddsrt_mutex_unlock (&wr->e.lock);
-  DDS_TRACE(")");
+  RSTTRACE (")");
   return 1;
 }
 
 static int handle_InfoDST (struct receiver_state *rst, const InfoDST_t *msg, const nn_guid_prefix_t *dst_prefix)
 {
   rst->dst_guid_prefix = nn_ntoh_guid_prefix (msg->guid_prefix);
-  DDS_TRACE("INFODST(%"PRIx32":%"PRIx32":%"PRIx32")", PGUIDPREFIX (rst->dst_guid_prefix));
+  RSTTRACE ("INFODST(%"PRIx32":%"PRIx32":%"PRIx32")", PGUIDPREFIX (rst->dst_guid_prefix));
   if (rst->dst_guid_prefix.u[0] == 0 && rst->dst_guid_prefix.u[1] == 0 && rst->dst_guid_prefix.u[2] == 0)
   {
     if (dst_prefix)
@@ -1505,26 +1509,26 @@ static int handle_InfoSRC (struct receiver_state *rst, const InfoSRC_t *msg)
   rst->src_guid_prefix = nn_ntoh_guid_prefix (msg->guid_prefix);
   rst->protocol_version = msg->version;
   rst->vendor = msg->vendorid;
-  DDS_TRACE("INFOSRC(%"PRIx32":%"PRIx32":%"PRIx32" vendor %u.%u)",
+  RSTTRACE ("INFOSRC(%"PRIx32":%"PRIx32":%"PRIx32" vendor %u.%u)",
           PGUIDPREFIX (rst->src_guid_prefix), rst->vendor.id[0], rst->vendor.id[1]);
   return 1;
 }
 
-static int handle_InfoTS (const InfoTS_t *msg, nn_wctime_t *timestamp)
+static int handle_InfoTS (const struct receiver_state *rst, const InfoTS_t *msg, nn_wctime_t *timestamp)
 {
-  DDS_TRACE("INFOTS(");
+  RSTTRACE ("INFOTS(");
   if (msg->smhdr.flags & INFOTS_INVALIDATE_FLAG)
   {
     *timestamp = NN_WCTIME_INVALID;
-    DDS_TRACE("invalidate");
+    RSTTRACE ("invalidate");
   }
   else
   {
     *timestamp = nn_wctime_from_ddsi_time (msg->time);
-    if (dds_get_log_mask() & DDS_LC_TRACE)
-      DDS_TRACE("%d.%09d", (int) (timestamp->v / 1000000000), (int) (timestamp->v % 1000000000));
+    if (rst->gv->logconfig.c.mask & DDS_LC_TRACE)
+      RSTTRACE ("%d.%09d", (int) (timestamp->v / 1000000000), (int) (timestamp->v % 1000000000));
   }
-  DDS_TRACE(")");
+  RSTTRACE (")");
   return 1;
 }
 
@@ -1623,7 +1627,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
   dst.entityid = msg->readerId;
   gapstart = fromSN (msg->gapStart);
   listbase = fromSN (msg->gapList.bitmap_base);
-  DDS_TRACE("GAP(%"PRId64"..%"PRId64"/%"PRIu32" ", gapstart, listbase, msg->gapList.numbits);
+  RSTTRACE ("GAP(%"PRId64"..%"PRId64"/%"PRIu32" ", gapstart, listbase, msg->gapList.numbits);
 
   /* There is no _good_ reason for a writer to start the bitmap with a
      1 bit, but check for it just in case, to reduce the number of
@@ -1635,13 +1639,13 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
 
   if (!rst->forme)
   {
-    DDS_TRACE(""PGUIDFMT" -> "PGUIDFMT" not-for-me)", PGUID (src), PGUID (dst));
+    RSTTRACE (""PGUIDFMT" -> "PGUIDFMT" not-for-me)", PGUID (src), PGUID (dst));
     return 1;
   }
 
   if ((pwr = ephash_lookup_proxy_writer_guid (rst->gv->guid_hash, &src)) == NULL)
   {
-    DDS_TRACE(""PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
+    RSTTRACE (""PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
   }
 
@@ -1651,15 +1655,15 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
   ddsrt_mutex_lock (&pwr->e.lock);
   if ((wn = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &dst)) == NULL)
   {
-    DDS_TRACE(PGUIDFMT" -> "PGUIDFMT" not a connection)", PGUID (src), PGUID (dst));
+    RSTTRACE (PGUIDFMT" -> "PGUIDFMT" not a connection)", PGUID (src), PGUID (dst));
     ddsrt_mutex_unlock (&pwr->e.lock);
     return 1;
   }
-  DDS_TRACE(PGUIDFMT" -> "PGUIDFMT, PGUID (src), PGUID (dst));
+  RSTTRACE (PGUIDFMT" -> "PGUIDFMT, PGUID (src), PGUID (dst));
 
   if (!pwr->have_seen_heartbeat && pwr->n_reliable_readers > 0)
   {
-    DDS_TRACE(": no heartbeat seen yet");
+    RSTTRACE (": no heartbeat seen yet");
     ddsrt_mutex_unlock (&pwr->e.lock);
     return 1;
   }
@@ -1712,7 +1716,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
     pwr->last_fragnum = ~0u;
     pwr->last_fragnum_reset = 0;
   }
-  DDS_TRACE(")");
+  RSTTRACE (")");
   ddsrt_mutex_unlock (&pwr->e.lock);
   return 1;
 }
@@ -1746,11 +1750,11 @@ static struct ddsi_serdata *extract_sample_from_data
     {
       const struct proxy_writer *pwr = sampleinfo->pwr;
       nn_guid_t guid = pwr ? pwr->e.guid : null_guid; /* can't be null _yet_, but that might change some day */
-      DDS_TRACE("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64
-              ": write without proper payload (data_smhdr_flags 0x%x size %"PRIu32")\n",
-              sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
-              PGUID (guid), sampleinfo->seq,
-              data_smhdr_flags, sampleinfo->size);
+      DDS_CTRACE (&sampleinfo->rst->gv->logconfig,
+                  "data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": write without proper payload (data_smhdr_flags 0x%x size %"PRIu32")\n",
+                  sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
+                  PGUID (guid), sampleinfo->seq,
+                  data_smhdr_flags, sampleinfo->size);
       return NULL;
     }
     sample = get_serdata (topic, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
@@ -1795,14 +1799,12 @@ static struct ddsi_serdata *extract_sample_from_data
     /* No message => error out */
     const struct proxy_writer *pwr = sampleinfo->pwr;
     nn_guid_t guid = pwr ? pwr->e.guid : null_guid; /* can't be null _yet_, but that might change some day */
-    DDS_WARNING
-    (
-      "data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": deserialization %s/%s failed (%s)\n",
-      sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
-      PGUID (guid), sampleinfo->seq,
-      topic->name, topic->type_name,
-      failmsg ? failmsg : "for reasons unknown"
-    );
+    DDS_CWARNING (&sampleinfo->rst->gv->logconfig,
+                  "data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": deserialization %s/%s failed (%s)\n",
+                  sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
+                  PGUID (guid), sampleinfo->seq,
+                  topic->name, topic->type_name,
+                  failmsg ? failmsg : "for reasons unknown");
   }
   return sample;
 }
@@ -1899,11 +1901,13 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
     src.strict = NN_STRICT_P (rst->gv->config);
     src.factory = rst->gv->m_factory;
+    src.logconfig = &rst->gv->logconfig;
     if ((plist_ret = nn_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET, 0, &src)) < 0)
     {
       if (plist_ret != DDS_RETCODE_UNSUPPORTED)
-        DDS_WARNING ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": invalid inline qos\n",
-                     src.vendorid.id[0], src.vendorid.id[1], PGUID (pwr->e.guid), sampleinfo->seq);
+        DDS_CWARNING (&sampleinfo->rst->gv->logconfig,
+                      "data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": invalid inline qos\n",
+                      src.vendorid.id[0], src.vendorid.id[1], PGUID (pwr->e.guid), sampleinfo->seq);
       return 0;
     }
     statusinfo = (qos.present & PP_STATUSINFO) ? qos.statusinfo : 0;
@@ -1936,7 +1940,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
 
     if (rdguid == NULL)
     {
-      DDS_TRACE(" %"PRId64"=>EVERYONE\n", sampleinfo->seq);
+      ETRACE (pwr, " %"PRId64"=>EVERYONE\n", sampleinfo->seq);
 
       /* FIXME: pwr->rdary is an array of pointers to attached
        readers.  There's only one thread delivering data for the
@@ -1955,7 +1959,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
         struct reader ** const rdary = pwr->rdary.rdary;
         for (uint32_t i = 0; rdary[i]; i++)
         {
-          DDS_TRACE("reader "PGUIDFMT"\n", PGUID (rdary[i]->e.guid));
+          ETRACE (pwr, "reader "PGUIDFMT"\n", PGUID (rdary[i]->e.guid));
           if (!rhc_store (rdary[i]->rhc, &pwr_info, payload, tk))
           {
             if (pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
@@ -1986,7 +1990,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
           struct reader *rd;
           if ((rd = ephash_lookup_reader_guid (pwr->e.gv->guid_hash, &m->rd_guid)) != NULL && m->in_sync == PRMSS_SYNC)
           {
-            DDS_TRACE("reader-via-guid "PGUIDFMT"\n", PGUID (rd->e.guid));
+            ETRACE (pwr, "reader-via-guid "PGUIDFMT"\n", PGUID (rd->e.guid));
             (void) rhc_store (rd->rhc, &pwr_info, payload, tk);
           }
         }
@@ -1998,7 +2002,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     else
     {
       struct reader *rd = ephash_lookup_reader_guid (pwr->e.gv->guid_hash, rdguid);
-      DDS_TRACE(" %"PRId64"=>"PGUIDFMT"%s\n", sampleinfo->seq, PGUID (*rdguid), rd ? "" : "?");
+      ETRACE (pwr, " %"PRId64"=>"PGUIDFMT"%s\n", sampleinfo->seq, PGUID (*rdguid), rd ? "" : "?");
       while (rd && ! rhc_store (rd->rhc, &pwr_info, payload, tk) && ephash_lookup_proxy_writer_guid (pwr->e.gv->guid_hash, &pwr->e.guid))
       {
         if (pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
@@ -2073,7 +2077,7 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
     nn_guid_t src;
     src.prefix = rst->src_guid_prefix;
     src.entityid = msg->writerId;
-    DDS_TRACE(" "PGUIDFMT"? -> "PGUIDFMT, PGUID (src), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT"? -> "PGUIDFMT, PGUID (src), PGUID (dst));
     return;
   }
 
@@ -2099,14 +2103,14 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
   if (!pwr->have_seen_heartbeat && pwr->n_reliable_readers > 0)
   {
     ddsrt_mutex_unlock (&pwr->e.lock);
-    DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT": no heartbeat seen yet", PGUID (pwr->e.guid), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT": no heartbeat seen yet", PGUID (pwr->e.guid), PGUID (dst));
     return;
   }
 
   if (ddsrt_avl_is_empty (&pwr->readers) || pwr->local_matching_inprogress)
   {
     ddsrt_mutex_unlock (&pwr->e.lock);
-    DDS_TRACE(" "PGUIDFMT" -> "PGUIDFMT": no readers", PGUID (pwr->e.guid), PGUID (dst));
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT": no readers", PGUID (pwr->e.guid), PGUID (dst));
     return;
   }
 
@@ -2269,9 +2273,9 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
        cause periodic warnings. */
     if (msg->writerId.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
     {
-      DDS_WARNING ("dropping oversize (%"PRIu32" > %"PRIu32") SPDP sample %"PRId64" from remote writer "PGUIDFMT"\n",
-                   sampleinfo->size, rst->gv->config.max_sample_size, sampleinfo->seq,
-                   PGUIDPREFIX (rst->src_guid_prefix), msg->writerId.u);
+      DDS_CWARNING (&rst->gv->logconfig, "dropping oversize (%"PRIu32" > %"PRIu32") SPDP sample %"PRId64" from remote writer "PGUIDFMT"\n",
+                    sampleinfo->size, rst->gv->config.max_sample_size, sampleinfo->seq,
+                    PGUIDPREFIX (rst->src_guid_prefix), msg->writerId.u);
     }
   }
   else
@@ -2299,23 +2303,23 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
     {
       const char *tname = pwr->c.topic ? pwr->c.topic->name : "(null)";
       const char *ttname = pwr->c.topic ? pwr->c.topic->type_name : "(null)";
-      DDS_WARNING ("dropping oversize (%"PRIu32" > %"PRIu32") sample %"PRId64" from remote writer "PGUIDFMT" %s/%s\n",
-                   sampleinfo->size, rst->gv->config.max_sample_size, sampleinfo->seq,
-                   PGUIDPREFIX (rst->src_guid_prefix), msg->writerId.u,
-                   tname, ttname);
+      DDS_CWARNING (&rst->gv->logconfig, "dropping oversize (%"PRIu32" > %"PRIu32") sample %"PRId64" from remote writer "PGUIDFMT" %s/%s\n",
+                    sampleinfo->size, rst->gv->config.max_sample_size, sampleinfo->seq,
+                    PGUIDPREFIX (rst->src_guid_prefix), msg->writerId.u,
+                    tname, ttname);
     }
   }
 }
 
 static int handle_Data (struct receiver_state *rst, nn_etime_t tnow, struct nn_rmsg *rmsg, const Data_t *msg, size_t size, struct nn_rsample_info *sampleinfo, unsigned char *datap, struct nn_dqueue **deferred_wakeup)
 {
-  DDS_TRACE("DATA("PGUIDFMT" -> "PGUIDFMT" #%"PRId64,
-          PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
-          PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u,
-          fromSN (msg->x.writerSN));
+  RSTTRACE ("DATA("PGUIDFMT" -> "PGUIDFMT" #%"PRId64,
+            PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
+            PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u,
+            fromSN (msg->x.writerSN));
   if (!rst->forme)
   {
-    DDS_TRACE(" not-for-me)");
+    RSTTRACE (" not-for-me)");
     return 1;
   }
 
@@ -2347,20 +2351,20 @@ static int handle_Data (struct receiver_state *rst, nn_etime_t tnow, struct nn_r
       handle_regular (rst, tnow, rmsg, &msg->x, sampleinfo, ~0u, rdata, deferred_wakeup);
     }
   }
-  DDS_TRACE(")");
+  RSTTRACE (")");
   return 1;
 }
 
 static int handle_DataFrag (struct receiver_state *rst, nn_etime_t tnow, struct nn_rmsg *rmsg, const DataFrag_t *msg, size_t size, struct nn_rsample_info *sampleinfo, unsigned char *datap, struct nn_dqueue **deferred_wakeup)
 {
-  DDS_TRACE("DATAFRAG("PGUIDFMT" -> "PGUIDFMT" #%"PRId64"/[%u..%u]",
-          PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
-          PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u,
-          fromSN (msg->x.writerSN),
-          msg->fragmentStartingNum, msg->fragmentStartingNum + msg->fragmentsInSubmessage - 1);
+  RSTTRACE ("DATAFRAG("PGUIDFMT" -> "PGUIDFMT" #%"PRId64"/[%u..%u]",
+            PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
+            PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u,
+            fromSN (msg->x.writerSN),
+            msg->fragmentStartingNum, msg->fragmentStartingNum + msg->fragmentsInSubmessage - 1);
   if (!rst->forme)
   {
-    DDS_TRACE(" not-for-me)");
+    RSTTRACE (" not-for-me)");
     return 1;
   }
 
@@ -2373,9 +2377,9 @@ static int handle_DataFrag (struct receiver_state *rst, nn_etime_t tnow, struct 
     uint32_t begin, endp1;
     if (msg->x.writerId.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
     {
-      DDS_WARNING ("DATAFRAG("PGUIDFMT" #%"PRId64" -> "PGUIDFMT") - fragmented builtin data not yet supported\n",
-                   PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u, fromSN (msg->x.writerSN),
-                   PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u);
+      DDS_CWARNING (&rst->gv->logconfig, "DATAFRAG("PGUIDFMT" #%"PRId64" -> "PGUIDFMT") - fragmented builtin data not yet supported\n",
+                    PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u, fromSN (msg->x.writerSN),
+                    PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u);
       return 1;
     }
 
@@ -2406,7 +2410,7 @@ static int handle_DataFrag (struct receiver_state *rst, nn_etime_t tnow, struct 
          here */
       endp1 = msg->sampleSize;
     }
-    DDS_TRACE("/[%"PRIu32"..%"PRIu32") of %"PRIu32, begin, endp1, msg->sampleSize);
+    RSTTRACE ("/[%"PRIu32"..%"PRIu32") of %"PRIu32, begin, endp1, msg->sampleSize);
 
     rdata = nn_rdata_new (rmsg, begin, endp1, submsg_offset, payload_offset);
 
@@ -2419,7 +2423,7 @@ static int handle_DataFrag (struct receiver_state *rst, nn_etime_t tnow, struct 
        dealing with that. */
     handle_regular (rst, tnow, rmsg, &msg->x, sampleinfo, msg->fragmentStartingNum + msg->fragmentsInSubmessage - 2, rdata, deferred_wakeup);
   }
-  DDS_TRACE(")");
+  RSTTRACE (")");
   return 1;
 }
 
@@ -2439,12 +2443,7 @@ static size_t decode_container (unsigned char *submsg, size_t len)
 }
 #endif /* DDSI_INCLUDE_ENCRYPTION */
 
-static void malformed_packet_received_nosubmsg
-(
-  const unsigned char * msg,
-  ssize_t len,
-  const char *state,
-  nn_vendorid_t vendorid
+static void malformed_packet_received_nosubmsg (const struct q_globals *gv, const unsigned char * msg, ssize_t len, const char *state, nn_vendorid_t vendorid
 )
 {
   char tmp[1024];
@@ -2458,18 +2457,10 @@ static void malformed_packet_received_nosubmsg
   if (pos < sizeof (tmp))
     pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, "> (note: maybe partially bswap'd)");
   assert (pos < sizeof (tmp));
-  DDS_WARNING ("%s\n", tmp);
+  GVWARNING ("%s\n", tmp);
 }
 
-static void malformed_packet_received
-(
-  const unsigned char *msg,
-  const unsigned char *submsg,
-  size_t len,
-  const char *state,
-  SubmessageKind_t smkind,
-  nn_vendorid_t vendorid
-)
+static void malformed_packet_received (const struct q_globals *gv, const unsigned char *msg, const unsigned char *submsg, size_t len, const char *state, SubmessageKind_t smkind, nn_vendorid_t vendorid)
 {
   char tmp[1024];
   size_t i, pos, smsize;
@@ -2565,7 +2556,7 @@ static void malformed_packet_received
       break;
   }
 
-  DDS_WARNING ("%s\n", tmp);
+  GVWARNING ("%s\n", tmp);
 }
 
 static struct receiver_state *rst_cow_if_needed (int *rst_live, struct nn_rmsg *rmsg, struct receiver_state *rst)
@@ -2669,11 +2660,11 @@ static int handle_submsg_sequence
     {
       submsg_size = (unsigned) (end - submsg);
     }
-    /*DDS_TRACE(("submsg_size %d\n", submsg_size));*/
+    /*GVTRACE ("submsg_size %d\n", submsg_size);*/
 
     if (submsg + submsg_size > end)
     {
-      DDS_TRACE(" BREAK (%u %"PRIuSIZE": %p %u)\n", (unsigned) (submsg - msg), submsg_size, (void *) msg, (unsigned) len);
+      GVTRACE (" BREAK (%u %"PRIuSIZE": %p %u)\n", (unsigned) (submsg - msg), submsg_size, (void *) msg, (unsigned) len);
       break;
     }
 
@@ -2682,7 +2673,7 @@ static int handle_submsg_sequence
     switch (sm->smhdr.submessageId)
     {
       case SMID_PAD:
-        DDS_TRACE("PAD");
+        GVTRACE ("PAD");
         break;
       case SMID_ACKNACK:
         state = "parse:acknack";
@@ -2714,7 +2705,7 @@ static int handle_submsg_sequence
         state = "parse:info_ts";
         if (!valid_InfoTS (&sm->infots, submsg_size, byteswap))
           goto malformed;
-        handle_InfoTS (&sm->infots, &timestamp);
+        handle_InfoTS (rst, &sm->infots, &timestamp);
         ts_for_latmeas = 1;
         break;
       case SMID_INFO_SRC:
@@ -2729,7 +2720,7 @@ static int handle_submsg_sequence
 #if 0
         state = "parse:info_reply_ip4";
 #endif
-        DDS_TRACE("INFO_REPLY_IP4");
+        GVTRACE ("INFO_REPLY_IP4");
         /* no effect on ts_for_latmeas */
         break;
       case SMID_INFO_DST:
@@ -2744,7 +2735,7 @@ static int handle_submsg_sequence
 #if 0
         state = "parse:info_reply";
 #endif
-        DDS_TRACE("INFO_REPLY");
+        GVTRACE ("INFO_REPLY");
         /* no effect on ts_for_latmeas */
         break;
       case SMID_NACK_FRAG:
@@ -2796,7 +2787,7 @@ static int handle_submsg_sequence
         if (vendor_is_eclipse_or_prismtech (rst->vendor))
         {
           state = "parse:pt_info_container";
-          DDS_TRACE("PT_INFO_CONTAINER(");
+          GVTRACE ("PT_INFO_CONTAINER(");
           if (!valid_PT_InfoContainer (&sm->pt_infocontainer, submsg_size, byteswap))
             goto malformed;
           switch (sm->pt_infocontainer.id)
@@ -2822,7 +2813,7 @@ static int handle_submsg_sequence
 #endif /* DDSI_INCLUDE_ENCRYPTION */
               break;
             default:
-              DDS_TRACE("(unknown id %"PRIu32"?)\n", sm->pt_infocontainer.id);
+              GVTRACE ("(unknown id %"PRIu32"?)\n", sm->pt_infocontainer.id);
           }
         }
         break;
@@ -2831,7 +2822,7 @@ static int handle_submsg_sequence
 #if 0
         state = "parse:msg_len";
 #endif
-        DDS_TRACE("MSG_LEN(%"PRIu32")", ((MsgLen_t*) sm)->length);
+        GVTRACE ("MSG_LEN(%"PRIu32")", ((MsgLen_t*) sm)->length);
         break;
       }
       case SMID_PT_ENTITY_ID:
@@ -2839,12 +2830,12 @@ static int handle_submsg_sequence
 #if 0
         state = "parse:entity_id";
 #endif
-        DDS_TRACE("ENTITY_ID");
+        GVTRACE ("ENTITY_ID");
         break;
       }
       default:
         state = "parse:undefined";
-        DDS_TRACE("UNDEFINED(%x)", sm->smhdr.submessageId);
+        GVTRACE ("UNDEFINED(%x)", sm->smhdr.submessageId);
         if (sm->smhdr.submessageId <= 0x7f)
         {
           /* Other submessages in the 0 .. 0x7f range may be added in
@@ -2873,13 +2864,13 @@ static int handle_submsg_sequence
         break;
     }
     submsg += submsg_size;
-    DDS_TRACE("\n");
+    GVTRACE ("\n");
   }
   if (submsg != end)
   {
     state = "parse:shortmsg";
     state_smkind = SMID_PAD;
-    DDS_TRACE("short (size %"PRIuSIZE" exp %p act %p)", submsg_size, (void *) submsg, (void *) end);
+    GVTRACE ("short (size %"PRIuSIZE" exp %p act %p)", submsg_size, (void *) submsg, (void *) end);
     goto malformed_asleep;
   }
   thread_state_asleep (ts1);
@@ -2893,20 +2884,13 @@ malformed:
   assert (thread_is_asleep ());
 malformed_asleep:
   assert (thread_is_asleep ());
-  malformed_packet_received (msg, submsg, len, state, state_smkind, hdr->vendorid);
+  malformed_packet_received (rst->gv, msg, submsg, len, state, state_smkind, hdr->vendorid);
   if (deferred_wakeup)
     dd_dqueue_enqueue_trigger (deferred_wakeup);
   return -1;
 }
 
-static bool do_packet
-(
-  struct thread_state1 * const ts1,
-  struct q_globals *gv,
-  ddsi_tran_conn_t conn,
-  const nn_guid_prefix_t * guidprefix,
-  struct nn_rbufpool *rbpool
-)
+static bool do_packet (struct thread_state1 * const ts1, struct q_globals *gv, ddsi_tran_conn_t conn, const nn_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool)
 {
   /* UDP max packet size is 64kB */
 
@@ -2967,7 +2951,7 @@ static bool do_packet
 
       if (ml->smhdr.submessageId != SMID_PT_MSG_LEN)
       {
-        malformed_packet_received_nosubmsg (buff, sz, "header", hdr->vendorid);
+        malformed_packet_received_nosubmsg (gv, buff, sz, "header", hdr->vendorid);
         sz = -1;
       }
       else
@@ -2999,21 +2983,21 @@ static bool do_packet
     else if (hdr->version.major != RTPS_MAJOR || (hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
     {
       if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
-        DDS_TRACE("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
-                  PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
+        GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
+                 PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
       if (NN_PEDANTIC_P (gv->config))
-        malformed_packet_received_nosubmsg (buff, sz, "header", hdr->vendorid);
+        malformed_packet_received_nosubmsg (gv, buff, sz, "header", hdr->vendorid);
     }
     else
     {
       hdr->guid_prefix = nn_ntoh_guid_prefix (hdr->guid_prefix);
 
-      if (dds_get_log_mask() & DDS_LC_TRACE)
+      if (gv->logconfig.c.mask & DDS_LC_TRACE)
       {
         char addrstr[DDSI_LOCSTRLEN];
         ddsi_locator_to_string(gv, addrstr, sizeof(addrstr), &srcloc);
-        DDS_TRACE("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s\n",
-                  PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
+        GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s\n",
+                 PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
       }
 
       handle_submsg_sequence (ts1, gv, conn, &srcloc, now (), now_et (), &hdr->guid_prefix, guidprefix, buff, (size_t) sz, buff + RTPS_MESSAGE_HEADER_SIZE, rmsg);
@@ -3086,7 +3070,7 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
   struct ephash_enum_participant est;
   struct participant *pp;
   unsigned nps_alloc;
-  DDS_TRACE("pp set gen changed: local %"PRIu32" global %"PRIu32"\n", lps->gen, ddsrt_atomic_ld32 (&gv->participant_set_generation));
+  GVTRACE ("pp set gen changed: local %"PRIu32" global %"PRIu32"\n", lps->gen, ddsrt_atomic_ld32 (&gv->participant_set_generation));
   thread_state_awake_fixed_domain (ts1);
  restart:
   lps->gen = ddsrt_atomic_ld32 (&gv->participant_set_generation);
@@ -3107,14 +3091,14 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
          turns out we didn't allocate enough memory [an
          alternative would be to realloc on the fly]. */
       ephash_enum_participant_fini (&est);
-      DDS_TRACE("  need more memory - restarting\n");
+      GVTRACE ("  need more memory - restarting\n");
       goto restart;
     }
     else
     {
       lps->ps[lps->nps].m_conn = pp->m_conn;
       lps->ps[lps->nps].guid_prefix = pp->e.guid.prefix;
-      DDS_TRACE("  pp "PGUIDFMT" handle %"PRIdSOCK"\n", PGUID (pp->e.guid), ddsi_conn_handle (pp->m_conn));
+      GVTRACE ("  pp "PGUIDFMT" handle %"PRIdSOCK"\n", PGUID (pp->e.guid), ddsi_conn_handle (pp->m_conn));
       lps->nps++;
     }
   }
@@ -3129,7 +3113,7 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
   ddsrt_atomic_fence_acq ();
   if (lps->gen != ddsrt_atomic_ld32 (&gv->participant_set_generation))
   {
-    DDS_TRACE("  set changed - restarting\n");
+    GVTRACE ("  set changed - restarting\n");
     goto restart;
   }
   thread_state_asleep (ts1);
@@ -3144,7 +3128,7 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
     qsort (lps->ps, lps->nps, sizeof (*lps->ps), local_participant_cmp);
     lps->nps = (unsigned) dedup_sorted_array (lps->ps, lps->nps, sizeof (*lps->ps), local_participant_cmp);
   }
-  DDS_TRACE("  nparticipants %u\n", lps->nps);
+  GVTRACE ("  nparticipants %u\n", lps->nps);
 }
 
 uint32_t listen_thread (struct ddsi_tran_listener *listener)
@@ -3196,7 +3180,7 @@ static int check_and_handle_deafness_recover (struct q_globals *gv, struct local
   int rebuildws = 0;
   if (now_mt().v < st->tnext.v)
   {
-    DDS_TRACE("check_and_handle_deafness_recover: state %d too early\n", (int)st->state);
+    GVTRACE ("check_and_handle_deafness_recover: state %d too early\n", (int)st->state);
     return 0;
   }
   switch (st->state)
@@ -3206,20 +3190,20 @@ static int check_and_handle_deafness_recover (struct q_globals *gv, struct local
       break;
     case LDSR_DEAF: {
       ddsi_tran_conn_t disc = gv->disc_conn_mc, data = gv->data_conn_mc;
-      DDS_TRACE("check_and_handle_deafness_recover: state %d create new sockets\n", (int) st->state);
+      GVTRACE ("check_and_handle_deafness_recover: state %d create new sockets\n", (int) st->state);
       if (!create_multicast_sockets (gv))
         goto error;
-      DDS_TRACE("check_and_handle_deafness_recover: state %d transfer group membership admin\n", (int) st->state);
+      GVTRACE ("check_and_handle_deafness_recover: state %d transfer group membership admin\n", (int) st->state);
       ddsi_transfer_group_membership (gv->mship, disc, gv->disc_conn_mc);
       ddsi_transfer_group_membership (gv->mship, data, gv->data_conn_mc);
-      DDS_TRACE("check_and_handle_deafness_recover: state %d drop from waitset and add new\n", (int) st->state);
+      GVTRACE ("check_and_handle_deafness_recover: state %d drop from waitset and add new\n", (int) st->state);
       /* see waitset construction code in recv_thread */
       os_sockWaitsetPurge (gv->recv_threads[0].arg.u.many.ws, num_fixed_uc);
       if (recv_thread_waitset_add_conn (gv->recv_threads[0].arg.u.many.ws, gv->disc_conn_mc) < 0)
         DDS_FATAL("check_and_handle_deafness_recover: failed to add disc_conn_mc to waitset\n");
       if (recv_thread_waitset_add_conn (gv->recv_threads[0].arg.u.many.ws, gv->data_conn_mc) < 0)
         DDS_FATAL("check_and_handle_deafness_recover: failed to add data_conn_mc to waitset\n");
-      DDS_TRACE("check_and_handle_deafness_recover: state %d close sockets\n", (int)st->state);
+      GVTRACE ("check_and_handle_deafness_recover: state %d close sockets\n", (int)st->state);
       ddsi_conn_free(disc);
       ddsi_conn_free(data);
       rebuildws = 1;
@@ -3227,20 +3211,20 @@ static int check_and_handle_deafness_recover (struct q_globals *gv, struct local
     }
       /* FALLS THROUGH */
     case LDSR_REJOIN:
-      DDS_TRACE("check_and_handle_deafness_recover: state %d rejoin on disc socket\n", (int)st->state);
+      GVTRACE ("check_and_handle_deafness_recover: state %d rejoin on disc socket\n", (int)st->state);
       if (ddsi_rejoin_transferred_mcgroups (gv, gv->mship, gv->disc_conn_mc) < 0)
         goto error;
-      DDS_TRACE("check_and_handle_deafness_recover: state %d rejoin on data socket\n", (int)st->state);
+      GVTRACE ("check_and_handle_deafness_recover: state %d rejoin on data socket\n", (int)st->state);
       if (ddsi_rejoin_transferred_mcgroups (gv, gv->mship, gv->data_conn_mc) < 0)
         goto error;
-      DDS_TRACE("check_and_handle_deafness_recover: state %d done\n", (int)st->state);
+      GVTRACE ("check_and_handle_deafness_recover: state %d done\n", (int)st->state);
       st->state = LDSR_NORMAL;
       break;
   }
-  DDS_TRACE("check_and_handle_deafness_recover: state %d returning %d\n", (int)st->state, rebuildws);
+  GVTRACE ("check_and_handle_deafness_recover: state %d returning %d\n", (int)st->state, rebuildws);
   return rebuildws;
 error:
-DDS_TRACE("check_and_handle_deafness_recover: state %d failed, returning %d\n", (int)st->state, rebuildws);
+  GVTRACE ("check_and_handle_deafness_recover: state %d failed, returning %d\n", (int)st->state, rebuildws);
   st->state = LDSR_DEAF;
   st->tnext = add_duration_to_mtime(now_mt(), T_SECOND);
   return rebuildws;
@@ -3254,14 +3238,14 @@ static int check_and_handle_deafness (struct q_globals *gv, struct local_deaf_st
     return 0;
   else if (gv_deaf)
   {
-    DDS_TRACE("check_and_handle_deafness: going deaf (%d -> %d)\n", (int)st->state, (int)LDSR_DEAF);
+    GVTRACE ("check_and_handle_deafness: going deaf (%d -> %d)\n", (int)st->state, (int)LDSR_DEAF);
     st->state = LDSR_DEAF;
     st->tnext = now_mt();
     return 0;
   }
   else if (!gv->config.allowMulticast)
   {
-    DDS_TRACE("check_and_handle_deafness: no longer deaf (multicast disabled)\n");
+    GVTRACE ("check_and_handle_deafness: no longer deaf (multicast disabled)\n");
     st->state = LDSR_NORMAL;
     return 0;
   }
@@ -3286,12 +3270,12 @@ void trigger_recv_threads (const struct q_globals *gv)
         ddsrt_iovec_t iov;
         iov.iov_base = &dummy;
         iov.iov_len = 1;
-        DDS_TRACE("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (gv, buf, sizeof (buf), dst));
+        GVTRACE ("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (gv, buf, sizeof (buf), dst));
         ddsi_conn_write (gv->data_conn_uc, dst, 1, &iov, 0);
         break;
       }
       case RTM_MANY: {
-        DDS_TRACE("trigger_recv_threads: %d many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
+        GVTRACE ("trigger_recv_threads: %d many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
         os_sockWaitsetTrigger (gv->recv_threads[i].arg.u.many.ws);
         break;
       }
@@ -3314,7 +3298,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     struct ddsi_tran_conn *conn = recv_thread_arg->u.single.conn;
     while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing))
     {
-      LOG_THREAD_CPUTIME (next_thread_cputime);
+      LOG_THREAD_CPUTIME (&gv->logconfig, next_thread_cputime);
       (void) do_packet (ts1, gv, conn, NULL, rbpool);
     }
   }
@@ -3348,7 +3332,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing))
     {
       int rebuildws;
-      LOG_THREAD_CPUTIME (next_thread_cputime);
+      LOG_THREAD_CPUTIME (&gv->logconfig, next_thread_cputime);
       rebuildws = check_and_handle_deafness (gv, &lds, num_fixed_uc);
       if (gv->config.many_sockets_mode != MSM_MANY_UNICAST)
       {

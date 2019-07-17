@@ -49,6 +49,7 @@
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/q_debmon.h"
 #include "dds/ddsi/q_init.h"
+#include "dds/ddsi/ddsi_threadmon.h"
 
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_udp.h"
@@ -86,9 +87,9 @@ static int make_uc_sockets (struct q_globals *gv, uint32_t * pdisc, uint32_t * p
   if (ppid >= 0)
   {
     /* FIXME: verify port numbers are in range instead of truncating them like this */
-    int base = gv->config.port_base + (gv->config.port_dg * gv->config.domainId.value) + (ppid * gv->config.port_pg);
-    *pdisc = (uint32_t) (base + gv->config.port_d1);
-    *pdata = (uint32_t) (base + gv->config.port_d3);
+    uint32_t base = gv->config.port_base + (gv->config.port_dg * gv->config.domainId.value) + ((uint32_t) ppid * gv->config.port_pg);
+    *pdisc = base + gv->config.port_d1;
+    *pdata = base + gv->config.port_d3;
   }
   else if (ppid == PARTICIPANT_INDEX_NONE)
   {
@@ -97,7 +98,7 @@ static int make_uc_sockets (struct q_globals *gv, uint32_t * pdisc, uint32_t * p
   }
   else
   {
-    DDS_FATAL("make_uc_sockets: invalid participant index %d\n", ppid);
+    DDS_FATAL ("make_uc_sockets: invalid participant index %d\n", ppid);
     return -1;
   }
 
@@ -150,7 +151,7 @@ static int set_recvips (struct q_globals *gv)
 #if DDSRT_HAVE_IPV6
       if (gv->ipv6_link_local)
       {
-        DDS_WARNING("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' instead of 'all' because of IPv6 link-local address\n");
+        GVWARNING ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' instead of 'all' because of IPv6 link-local address\n");
         gv->recvips_mode = RECVIPS_MODE_PREFERRED;
       }
       else
@@ -164,7 +165,7 @@ static int set_recvips (struct q_globals *gv)
 #if DDSRT_HAVE_IPV6
       if (gv->ipv6_link_local)
       {
-        DDS_ERROR("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: 'any' is unsupported in combination with an IPv6 link-local address\n");
+        GVERROR ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: 'any' is unsupported in combination with an IPv6 link-local address\n");
         return -1;
       }
 #endif
@@ -190,7 +191,7 @@ static int set_recvips (struct q_globals *gv)
         nn_locator_t loc;
         if (ddsi_locator_from_string(gv, &loc, gv->config.networkRecvAddressStrings[i], gv->m_factory) != AFSR_OK)
         {
-          DDS_ERROR("%s: not a valid address in DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses\n", gv->config.networkRecvAddressStrings[i]);
+          GVERROR ("%s: not a valid address in DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses\n", gv->config.networkRecvAddressStrings[i]);
           return -1;
         }
         if (compare_locators(&loc, &gv->interfaces[gv->selected_interface].loc) == 0)
@@ -201,7 +202,7 @@ static int set_recvips (struct q_globals *gv)
       gv->recvips_mode = have_selected ? RECVIPS_MODE_PREFERRED : RECVIPS_MODE_NONE;
       if (have_others)
       {
-        DDS_WARNING("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' because of IPv6 local address\n");
+        GVWARNING ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' because of IPv6 local address\n");
       }
     }
 #endif
@@ -215,7 +216,7 @@ static int set_recvips (struct q_globals *gv)
         nn_locator_t loc;
         if (ddsi_locator_from_string(gv, &loc, gv->config.networkRecvAddressStrings[i], gv->m_factory) != AFSR_OK)
         {
-          DDS_ERROR("%s: not a valid address in DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses\n", gv->config.networkRecvAddressStrings[i]);
+          GVERROR ("%s: not a valid address in DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses\n", gv->config.networkRecvAddressStrings[i]);
           return -1;
         }
         for (j = 0; j < gv->n_interfaces; j++)
@@ -225,7 +226,7 @@ static int set_recvips (struct q_globals *gv)
         }
         if (j == gv->n_interfaces)
         {
-          DDS_ERROR("No interface bound to requested address '%s'\n", gv->config.networkRecvAddressStrings[i]);
+          GVERROR ("No interface bound to requested address '%s'\n", gv->config.networkRecvAddressStrings[i]);
           return -1;
         }
         *recvnode = ddsrt_malloc (sizeof (struct config_in_addr_node));
@@ -256,13 +257,13 @@ static int string_to_default_locator (const struct q_globals *gv, nn_locator_t *
     case AFSR_OK:
       break;
     case AFSR_INVALID:
-      DDS_ERROR("%s: not a valid address (%s)\n", string, tag);
+      GVERROR ("%s: not a valid address (%s)\n", string, tag);
       return -1;
     case AFSR_UNKNOWN:
-      DDS_ERROR("%s: address name resolution failure (%s)\n", string, tag);
+      GVERROR ("%s: address name resolution failure (%s)\n", string, tag);
       return -1;
     case AFSR_MISMATCH:
-      DDS_ERROR("%s: invalid address kind (%s)\n", string, tag);
+      GVERROR ("%s: invalid address kind (%s)\n", string, tag);
       return -1;
   }
   if (port != 0 && !is_unspec_locator(loc))
@@ -276,7 +277,7 @@ static int string_to_default_locator (const struct q_globals *gv, nn_locator_t *
     const int ismc = is_unspec_locator (loc) || ddsi_is_mcaddr (gv, loc);
     if (mc != ismc)
     {
-      DDS_ERROR("%s: %s %s be the unspecified address or a multicast address\n", string, tag, rel);
+      GVERROR ("%s: %s %s be the unspecified address or a multicast address\n", string, tag, rel);
       return -1;
     }
   }
@@ -308,7 +309,7 @@ static int set_spdp_address (struct q_globals *gv)
 #ifdef DDSI_INCLUDE_SSM
   if (gv->loc_spdp_mc.kind != NN_LOCATOR_KIND_INVALID && ddsi_is_ssm_mcaddr (gv, &gv->loc_spdp_mc))
   {
-    DDS_ERROR("%s: SPDP address may not be an SSM address\n", gv->config.spdpMulticastAddressString);
+    GVERROR ("%s: SPDP address may not be an SSM address\n", gv->config.spdpMulticastAddressString);
     return -1;
   }
 #endif
@@ -339,7 +340,7 @@ static int set_ext_address_and_mask (struct q_globals *gv)
   else if ((rc = string_to_default_locator (gv, &loc, gv->config.externalAddressString, 0, 0, "external address")) < 0)
     return rc;
   else if (rc == 0) {
-    DDS_WARNING("Ignoring ExternalNetworkAddress %s\n", gv->config.externalAddressString);
+    GVWARNING ("Ignoring ExternalNetworkAddress %s\n", gv->config.externalAddressString);
     gv->extloc = gv->ownloc;
   } else {
     gv->extloc = loc;
@@ -353,7 +354,7 @@ static int set_ext_address_and_mask (struct q_globals *gv)
   }
   else if (gv->config.transport_selector != TRANS_UDP)
   {
-    DDS_ERROR("external network masks only supported in IPv4 mode\n");
+    GVERROR ("external network masks only supported in IPv4 mode\n");
     return -1;
   }
   else
@@ -403,11 +404,11 @@ static int check_thread_properties (const struct q_globals *gv)
       }
       if (chanprefix[i] == NULL)
       {
-        DDS_ERROR("config: DDSI2Service/Threads/Thread[@name=\"%s\"]: unknown thread\n", e->name);
+        DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "config: DDSI2Service/Threads/Thread[@name=\"%s\"]: unknown thread\n", e->name);
         ok = 0;
       }
 #else
-      DDS_ERROR("config: DDSI2Service/Threads/Thread[@name=\"%s\"]: unknown thread\n", e->name);
+      DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "config: DDSI2Service/Threads/Thread[@name=\"%s\"]: unknown thread\n", e->name);
       ok = 0;
 #endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
     }
@@ -438,7 +439,7 @@ int rtps_config_open (struct q_globals *gv)
   }
   else if ((gv->config.tracingOutputFile = fopen (gv->config.tracingOutputFileName, gv->config.tracingAppendToFile ? "a" : "w")) == NULL)
   {
-    DDS_ERROR("%s: cannot open for writing\n", gv->config.tracingOutputFileName);
+    DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "%s: cannot open for writing\n", gv->config.tracingOutputFileName);
     status = 0;
   }
   else
@@ -446,9 +447,7 @@ int rtps_config_open (struct q_globals *gv)
     status = 1;
   }
 
-  dds_set_log_mask(gv->config.enabled_logcats);
-  dds_set_trace_file(gv->config.tracingOutputFile);
-
+  dds_log_cfg_init (&gv->logconfig, gv->config.domainId.value, gv->config.enabled_logcats, stderr, gv->config.tracingOutputFile);
   return status;
   DDSRT_WARNING_MSVC_ON(4996);
 }
@@ -467,7 +466,7 @@ int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
       gv->config.whc_init_highwater_mark.value < gv->config.whc_lowwater_mark ||
       gv->config.whc_init_highwater_mark.value > gv->config.whc_highwater_mark)
   {
-    DDS_ERROR("Invalid watermark settings\n");
+    DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "Invalid watermark settings\n");
     goto err_config_late_error;
   }
 
@@ -479,7 +478,7 @@ int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
        inherited by readers/writers), but in many sockets mode each
        participant has its own socket, and therefore unique address
        set */
-    DDS_ERROR ("Minimal built-in endpoint set mode and ManySocketsMode are incompatible\n");
+    DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "Minimal built-in endpoint set mode and ManySocketsMode are incompatible\n");
     goto err_config_late_error;
   }
 
@@ -500,7 +499,7 @@ int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
       double max = (double) gv->config.auxiliary_bandwidth_limit * ((double) gv->config.nack_delay / 1e9);
       if (max < 0)
       {
-        DDS_ERROR ("AuxiliaryBandwidthLimit * NackDelay = %g bytes is insane\n", max);
+        DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "AuxiliaryBandwidthLimit * NackDelay = %g bytes is insane\n", max);
         goto err_config_late_error;
       }
       gv->config.max_queued_rexmit_bytes = max > 2147483647.0 ? 2147483647u : (unsigned) max;
@@ -513,7 +512,6 @@ int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
   /* Verify thread properties refer to defined threads */
   if (!check_thread_properties (gv))
   {
-    DDS_TRACE ("Could not initialise configuration\n");
     goto err_config_late_error;
   }
 
@@ -537,7 +535,7 @@ int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
 
       if (gv->config.transport_selector != TRANS_UDP && chptr->diffserv_field != 0)
       {
-        DDS_ERROR ("channel %s specifies IPv4 DiffServ settings which is incompatible with IPv6 use\n", chptr->name);
+        DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "channel %s specifies IPv4 DiffServ settings which is incompatible with IPv6 use\n", chptr->name);
         error = 1;
       }
 
@@ -556,11 +554,9 @@ int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
   }
 #endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
 
-  /* Open tracing file after all possible gv->config errors have been
-   printed */
+  /* Open tracing file after all possible gv->config errors have been printed */
   if (! rtps_config_open (gv))
   {
-    DDS_TRACE ("Could not initialise configuration\n");
     goto err_config_late_error;
   }
 
@@ -586,7 +582,7 @@ int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
 
   /* Now the per-thread-log-buffers are set up, so print the configuration.  After this there
      is no value to the source information for the various configuration elements, so free those. */
-  config_print_cfgst (cfgst);
+  config_print_cfgst (cfgst, &gv->logconfig);
   config_free_source_info (cfgst);
   return 0;
 
@@ -637,7 +633,7 @@ int joinleave_spdp_defmcip (struct q_globals *gv, int dojoin)
   unref_addrset (as);
   if (arg.errcount)
   {
-    DDS_ERROR("rtps_init: failed to join multicast groups for domain %"PRId32" participant %d\n", gv->config.domainId.value, gv->config.participantIndex);
+    GVERROR ("rtps_init: failed to join multicast groups for domain %"PRIu32" participant %d\n", gv->config.domainId.value, gv->config.participantIndex);
     return -1;
   }
   return 0;
@@ -669,8 +665,8 @@ int create_multicast_sockets (struct q_globals *gv)
 
   gv->disc_conn_mc = disc;
   gv->data_conn_mc = data;
-  DDS_TRACE("Multicast Ports: discovery %"PRIu32" data %"PRIu32" \n",
-          ddsi_conn_port (gv->disc_conn_mc), ddsi_conn_port (gv->data_conn_mc));
+  GVTRACE ("Multicast Ports: discovery %"PRIu32" data %"PRIu32" \n",
+           ddsi_conn_port (gv->disc_conn_mc), ddsi_conn_port (gv->data_conn_mc));
   return 1;
 
 err_data:
@@ -719,7 +715,7 @@ static void wait_for_receive_threads (struct q_globals *gv)
     /* retrying is to deal a packet geting lost because the socket buffer is full or because the
        macOS firewall (and perhaps others) likes to ask if the process is allowed to receive data,
        dropping the packets until the user approves. */
-    DDS_WARNING("wait_for_receive_threads: failed to schedule periodic triggering of the receive threads to deal with packet loss\n");
+    GVWARNING ("wait_for_receive_threads: failed to schedule periodic triggering of the receive threads to deal with packet loss\n");
   }
   for (uint32_t i = 0; i < gv->n_recv_threads; i++)
   {
@@ -818,22 +814,22 @@ static int setup_and_start_recv_threads (struct q_globals *gv)
     /* We create the rbufpool for the receive thread, and so we'll
        become the initial owner thread. The receive thread will change
        it before it does anything with it. */
-    if ((gv->recv_threads[i].arg.rbpool = nn_rbufpool_new (gv->config.rbuf_size, gv->config.rmsg_chunk_size)) == NULL)
+    if ((gv->recv_threads[i].arg.rbpool = nn_rbufpool_new (&gv->logconfig, gv->config.rbuf_size, gv->config.rmsg_chunk_size)) == NULL)
     {
-      DDS_ERROR("rtps_init: can't allocate receive buffer pool for thread %s\n", gv->recv_threads[i].name);
+      GVERROR ("rtps_init: can't allocate receive buffer pool for thread %s\n", gv->recv_threads[i].name);
       goto fail;
     }
     if (gv->recv_threads[i].arg.mode == RTM_MANY)
     {
       if ((gv->recv_threads[i].arg.u.many.ws = os_sockWaitsetNew ()) == NULL)
       {
-        DDS_ERROR("rtps_init: can't allocate sock waitset for thread %s\n", gv->recv_threads[i].name);
+        GVERROR ("rtps_init: can't allocate sock waitset for thread %s\n", gv->recv_threads[i].name);
         goto fail;
       }
     }
     if (create_thread (&gv->recv_threads[i].ts, gv, gv->recv_threads[i].name, recv_thread, &gv->recv_threads[i].arg) != DDS_RETCODE_OK)
     {
-      DDS_ERROR("rtps_init: failed to start thread %s\n", gv->recv_threads[i].name);
+      GVERROR ("rtps_init: failed to start thread %s\n", gv->recv_threads[i].name);
       goto fail;
     }
   }
@@ -872,18 +868,16 @@ int rtps_init (struct q_globals *gv)
   gv->thread_pool = NULL;
   gv->debmon = NULL;
 
-  /* Print start time for referencing relative times in the remainder
-   of the DDS_LOG. */
+  /* Print start time for referencing relative times in the remainder of the DDS_LOG. */
   {
     int sec = (int) (gv->tstart.v / 1000000000);
     int usec = (int) (gv->tstart.v % 1000000000) / 1000;
-    char str[DDSRT_RFC3339STRLEN];
+    char str[DDSRT_RFC3339STRLEN+1];
     ddsrt_ctime(gv->tstart.v, str, sizeof(str));
-    DDS_LOG(DDS_LC_CONFIG, "started at %d.06%d -- %s\n", sec, usec, str);
+    GVLOG (DDS_LC_CONFIG, "started at %d.06%d -- %s\n", sec, usec, str);
   }
 
   /* Initialize thread pool */
-
   if (gv->config.tp_enable)
   {
     gv->thread_pool = ddsrt_thread_pool_new (gv->config.tp_threads, gv->config.tp_max_threads, 0, NULL);
@@ -927,14 +921,14 @@ int rtps_init (struct q_globals *gv)
   if (!find_own_ip (gv, gv->config.networkAddressString))
   {
     /* find_own_ip already logs a more informative error message */
-    DDS_LOG(DDS_LC_CONFIG, "No network interface selected\n");
+    GVLOG (DDS_LC_CONFIG, "No network interface selected\n");
     goto err_find_own_ip;
   }
   if (gv->config.allowMulticast)
   {
     if (!gv->interfaces[gv->selected_interface].mc_capable)
     {
-      DDS_WARNING("selected interface is not multicast-capable: disabling multicast\n");
+      GVWARNING ("selected interface is not multicast-capable: disabling multicast\n");
       gv->config.allowMulticast = AMC_FALSE;
       /* ensure discovery can work: firstly, that the process will be reachable on a "well-known" port
          number, and secondly, that the local interface's IP address gets added to the discovery
@@ -950,11 +944,11 @@ int rtps_init (struct q_globals *gv)
       if (gv->interfaces[gv->selected_interface].mc_flaky)
       {
         gv->config.allowMulticast = AMC_SPDP;
-        DDS_LOG(DDS_LC_CONFIG, "presumed flaky multicast, use for SPDP only\n");
+        GVLOG (DDS_LC_CONFIG, "presumed flaky multicast, use for SPDP only\n");
       }
       else
       {
-        DDS_LOG(DDS_LC_CONFIG, "presumed robust multicast support, use for everything\n");
+        GVLOG (DDS_LC_CONFIG, "presumed robust multicast support, use for everything\n");
         gv->config.allowMulticast = AMC_TRUE;
       }
     }
@@ -973,24 +967,24 @@ int rtps_init (struct q_globals *gv)
   {
     char buf[DDSI_LOCSTRLEN];
     /* the "ownip", "extip" labels in the trace have been there for so long, that it seems worthwhile to retain them even though they need not be IP any longer */
-    DDS_LOG(DDS_LC_CONFIG, "ownip: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->ownloc));
-    DDS_LOG(DDS_LC_CONFIG, "extip: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->extloc));
-    DDS_LOG(DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->extmask), gv->m_factory->m_kind != NN_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
-    DDS_LOG(DDS_LC_CONFIG, "networkid: 0x%lx\n", (unsigned long) gv->myNetworkId);
-    DDS_LOG(DDS_LC_CONFIG, "SPDP MC: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->loc_spdp_mc));
-    DDS_LOG(DDS_LC_CONFIG, "default MC: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->loc_default_mc));
+    GVLOG (DDS_LC_CONFIG, "ownip: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->ownloc));
+    GVLOG (DDS_LC_CONFIG, "extip: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->extloc));
+    GVLOG (DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->extmask), gv->m_factory->m_kind != NN_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
+    GVLOG (DDS_LC_CONFIG, "networkid: 0x%lx\n", (unsigned long) gv->myNetworkId);
+    GVLOG (DDS_LC_CONFIG, "SPDP MC: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->loc_spdp_mc));
+    GVLOG (DDS_LC_CONFIG, "default MC: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->loc_default_mc));
 #ifdef DDSI_INCLUDE_SSM
-    DDS_LOG(DDS_LC_CONFIG, "SSM support included\n");
+    GVLOG (DDS_LC_CONFIG, "SSM support included\n");
 #endif
   }
 
   if (gv->ownloc.kind != gv->extloc.kind)
-    DDS_FATAL("mismatch between network address kinds\n");
+    DDS_FATAL ("mismatch between network address kinds\n");
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   /* Convert address sets in partition mappings from string to address sets */
   {
-    const int port = gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + gv->config.port_d2;
+    const uint32_t port = gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + gv->config.port_d2;
     struct config_networkpartition_listelem *np;
     for (np = gv->config.networkPartitions; np; np = np->next)
     {
@@ -1000,7 +994,7 @@ int rtps_init (struct q_globals *gv)
       int rc;
       snprintf (msgtag, slen, "%s%s", np->name, msgtag_fixed);
       np->as = new_addrset ();
-      rc = add_addresses_to_addrset (gv, np->as, np->address_string, port, msgtag, 1);
+      rc = add_addresses_to_addrset (gv, np->as, np->address_string, (int) port, msgtag, 1);
       ddsrt_free (msgtag);
       if (rc < 0)
         goto err_network_partition_addrset;
@@ -1015,7 +1009,7 @@ int rtps_init (struct q_globals *gv)
   if (q_security_plugin.new_decoder)
   {
     gv->recvSecurityCodec = (q_security_plugin.new_decoder) ();
-    DDS_LOG(DDS_LC_CONFIG, "decoderset created\n");
+    GVLOG (DDS_LC_CONFIG, "decoderset created\n");
   }
 #endif
 
@@ -1050,8 +1044,8 @@ int rtps_init (struct q_globals *gv)
 
   ddsrt_mutex_init (&gv->lock);
   ddsrt_mutex_init (&gv->spdp_lock);
-  gv->spdp_defrag = nn_defrag_new (NN_DEFRAG_DROP_OLDEST, gv->config.defrag_unreliable_maxsamples);
-  gv->spdp_reorder = nn_reorder_new (NN_REORDER_MODE_ALWAYS_DELIVER, gv->config.primary_reorder_maxsamples, false);
+  gv->spdp_defrag = nn_defrag_new (&gv->logconfig, NN_DEFRAG_DROP_OLDEST, gv->config.defrag_unreliable_maxsamples);
+  gv->spdp_reorder = nn_reorder_new (&gv->logconfig, NN_REORDER_MODE_ALWAYS_DELIVER, gv->config.primary_reorder_maxsamples, false);
 
   gv->m_tkmap = ddsi_tkmap_new (gv);
 
@@ -1061,7 +1055,7 @@ int rtps_init (struct q_globals *gv)
     {
       if (make_uc_sockets (gv, &port_disc_uc, &port_data_uc, gv->config.participantIndex) < 0)
       {
-        DDS_ERROR("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", gv->config.domainId.value, gv->config.participantIndex);
+        GVERROR ("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", gv->config.domainId.value, gv->config.participantIndex);
         goto err_unicast_sockets;
       }
     }
@@ -1069,7 +1063,7 @@ int rtps_init (struct q_globals *gv)
     {
       /* try to find a free one, and update gv->config.participantIndex */
       int ppid;
-      DDS_LOG(DDS_LC_CONFIG, "rtps_init: trying to find a free participant index\n");
+      GVLOG (DDS_LC_CONFIG, "rtps_init: trying to find a free participant index\n");
       for (ppid = 0; ppid <= gv->config.maxAutoParticipantIndex; ppid++)
       {
         int r = make_uc_sockets (gv, &port_disc_uc, &port_data_uc, ppid);
@@ -1079,13 +1073,13 @@ int rtps_init (struct q_globals *gv)
           continue;
         else /* Oops! */
         {
-          DDS_ERROR("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", gv->config.domainId.value, ppid);
+          GVERROR ("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", gv->config.domainId.value, ppid);
           goto err_unicast_sockets;
         }
       }
       if (ppid > gv->config.maxAutoParticipantIndex)
       {
-        DDS_ERROR("rtps_init: failed to find a free participant index for domain %"PRId32"\n", gv->config.domainId.value);
+        GVERROR ("rtps_init: failed to find a free participant index for domain %"PRId32"\n", gv->config.domainId.value);
         goto err_unicast_sockets;
       }
       gv->config.participantIndex = ppid;
@@ -1094,13 +1088,13 @@ int rtps_init (struct q_globals *gv)
     {
       assert(0);
     }
-    DDS_LOG(DDS_LC_CONFIG, "rtps_init: uc ports: disc %"PRIu32" data %"PRIu32"\n", port_disc_uc, port_data_uc);
+    GVLOG (DDS_LC_CONFIG, "rtps_init: uc ports: disc %"PRIu32" data %"PRIu32"\n", port_disc_uc, port_data_uc);
   }
-  DDS_LOG(DDS_LC_CONFIG, "rtps_init: domainid %"PRId32" participantid %d\n", gv->config.domainId.value, gv->config.participantIndex);
+  GVLOG (DDS_LC_CONFIG, "rtps_init: domainid %"PRId32" participantid %d\n", gv->config.domainId.value, gv->config.participantIndex);
 
   if (gv->config.pcap_file && *gv->config.pcap_file)
   {
-    gv->pcap_fp = new_pcap_file (gv->config.pcap_file);
+    gv->pcap_fp = new_pcap_file (&gv->logconfig, gv->config.pcap_file);
     if (gv->pcap_fp)
     {
       ddsrt_mutex_init (&gv->pcap_lock);
@@ -1116,7 +1110,7 @@ int rtps_init (struct q_globals *gv)
   if (gv->m_factory->m_connless)
   {
     if (!(gv->config.many_sockets_mode == MSM_NO_UNICAST && gv->config.allowMulticast))
-      DDS_TRACE("Unicast Ports: discovery %"PRIu32" data %"PRIu32"\n", ddsi_conn_port (gv->disc_conn_uc), ddsi_conn_port (gv->data_conn_uc));
+      GVTRACE ("Unicast Ports: discovery %"PRIu32" data %"PRIu32"\n", ddsi_conn_port (gv->disc_conn_uc), ddsi_conn_port (gv->data_conn_uc));
 
     if (gv->config.allowMulticast)
     {
@@ -1151,7 +1145,7 @@ int rtps_init (struct q_globals *gv)
       gv->listener = ddsi_factory_create_listener (gv->m_factory, gv->config.tcp_port, NULL);
       if (gv->listener == NULL || ddsi_listener_listen (gv->listener) != 0)
       {
-        DDS_ERROR("Failed to create %s listener\n", gv->m_factory->m_typename);
+        GVERROR ("Failed to create %s listener\n", gv->m_factory->m_typename);
         if (gv->listener)
           ddsi_listener_free(gv->listener);
         goto err_mc_conn;
@@ -1170,7 +1164,7 @@ int rtps_init (struct q_globals *gv)
   /* Create shared transmit connection */
 
   gv->tev_conn = gv->data_conn_uc;
-  DDS_TRACE("Timed event transmit port: %d\n", (int) ddsi_conn_port (gv->tev_conn));
+  GVTRACE ("Timed event transmit port: %d\n", (int) ddsi_conn_port (gv->tev_conn));
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   {
@@ -1191,14 +1185,14 @@ int rtps_init (struct q_globals *gv)
         ddsi_tran_free_qos (qos);
         if (chptr->transmit_conn == NULL)
         {
-          DDS_FATAL("failed to create transmit connection for channel %s\n", chptr->name);
+          DDS_FATAL ("failed to create transmit connection for channel %s\n", chptr->name);
         }
       }
       else
       {
         chptr->transmit_conn = gv->data_conn_uc;
       }
-      DDS_TRACE("channel %s: transmit port %d\n", chptr->name, (int) ddsi_tran_port (chptr->transmit_conn));
+      GVTRACE ("channel %s: transmit port %d\n", chptr->name, (int) ddsi_tran_port (chptr->transmit_conn));
 
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
       if (chptr->auxiliary_bandwidth_limit > 0 || lookup_thread_properties (tname))
@@ -1303,7 +1297,7 @@ err_mc_conn:
     ddsi_conn_free (gv->disc_conn_uc);
   if (gv->data_conn_uc != gv->disc_conn_uc)
     ddsi_conn_free (gv->data_conn_uc);
-  free_group_membership(gv->mship);
+  free_group_membership (gv->mship);
 err_unicast_sockets:
   ddsi_tkmap_free (gv->m_tkmap);
   nn_reorder_free (gv->spdp_reorder);
@@ -1396,11 +1390,14 @@ int rtps_start (struct q_globals *gv)
   if (gv->listener)
   {
     create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) listen_thread, gv->listener);
+    /* FIXME: error handling */
   }
   if (gv->config.monitor_port >= 0)
   {
     gv->debmon = new_debug_monitor (gv, gv->config.monitor_port);
+    /* FIXME: clean up */
   }
+
   return 0;
 }
 
@@ -1680,5 +1677,5 @@ void rtps_fini (struct q_globals *gv)
 
   ddsi_serdatapool_free (gv->serpool);
   nn_xmsgpool_free (gv->xmsgpool);
-  DDS_LOG(DDS_LC_CONFIG, "Finis.\n");
+  GVLOG (DDS_LC_CONFIG, "Finis.\n");
 }
