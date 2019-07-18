@@ -231,6 +231,7 @@ struct q_globals {
      packets); plus the actual QoSs needed for the builtin
      endpoints. */
   nn_plist_t default_plist_pp;
+  nn_plist_t default_local_plist_pp;
   dds_qos_t default_xqos_rd;
   dds_qos_t default_xqos_wr;
   dds_qos_t default_xqos_wr_nad;

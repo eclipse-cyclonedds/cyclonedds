@@ -1014,6 +1014,7 @@ int rtps_init (struct q_globals *gv)
 #endif
 
   nn_plist_init_default_participant (&gv->default_plist_pp);
+  nn_plist_init_default_participant (&gv->default_local_plist_pp);
   nn_xqos_init_default_reader (&gv->default_xqos_rd);
   nn_xqos_init_default_writer (&gv->default_xqos_wr);
   nn_xqos_init_default_writer_noautodispose (&gv->default_xqos_wr_nad);
@@ -1325,6 +1326,7 @@ err_unicast_sockets:
   nn_xqos_fini (&gv->default_xqos_wr_nad);
   nn_xqos_fini (&gv->default_xqos_wr);
   nn_xqos_fini (&gv->default_xqos_rd);
+  nn_plist_fini (&gv->default_local_plist_pp);
   nn_plist_fini (&gv->default_plist_pp);
   ddsi_serdatapool_free (gv->serpool);
   nn_xmsgpool_free (gv->xmsgpool);
@@ -1658,6 +1660,7 @@ void rtps_fini (struct q_globals *gv)
   nn_xqos_fini (&gv->default_xqos_wr_nad);
   nn_xqos_fini (&gv->default_xqos_wr);
   nn_xqos_fini (&gv->default_xqos_rd);
+  nn_plist_fini (&gv->default_local_plist_pp);
   nn_plist_fini (&gv->default_plist_pp);
 
   ddsrt_mutex_destroy (&gv->lock);

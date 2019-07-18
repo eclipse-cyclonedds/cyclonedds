@@ -99,7 +99,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   new_qos = dds_create_qos ();
   if (qos != NULL)
     nn_xqos_mergein_missing (new_qos, qos, DDS_PARTICIPANT_QOS_MASK);
-  nn_xqos_mergein_missing (new_qos, &dom->gv.default_plist_pp.qos, ~(uint64_t)0);
+  nn_xqos_mergein_missing (new_qos, &dom->gv.default_local_plist_pp.qos, ~(uint64_t)0);
   if ((ret = nn_xqos_valid (&dom->gv.logconfig, new_qos)) < 0)
     goto err_qos_validation;
 
