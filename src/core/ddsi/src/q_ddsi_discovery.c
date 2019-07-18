@@ -1120,7 +1120,7 @@ static struct proxy_participant *implicitly_create_proxypp (struct q_globals *gv
   return ephash_lookup_proxy_participant_guid (gv->guid_hash, ppguid);
 }
 
-static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *datap /* note: potentially modifies datap */, const nn_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp)
+static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, nn_plist_t *datap /* note: potentially modifies datap */, const nn_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp)
 {
 #define E(msg, lbl) do { GVLOGDISC (msg); goto lbl; } while (0)
   struct q_globals * const gv = rst->gv;
@@ -1275,7 +1275,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
     {
       if (pwr)
       {
-        update_proxy_writer (pwr, as, xqos, timestamp);
+        update_proxy_writer (pwr, seq, as, xqos, timestamp);
       }
       else
       {
@@ -1287,7 +1287,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
           new_proxy_writer (&ppguid, &datap->endpoint_guid, as, datap, channel->dqueue, channel->evq ? channel->evq : gv->xevents, timestamp);
         }
 #else
-        new_proxy_writer (gv, &ppguid, &datap->endpoint_guid, as, datap, gv->user_dqueue, gv->xevents, timestamp);
+        new_proxy_writer (gv, &ppguid, &datap->endpoint_guid, as, datap, gv->user_dqueue, gv->xevents, timestamp, seq);
 #endif
       }
     }
@@ -1295,14 +1295,14 @@ static void handle_SEDP_alive (const struct receiver_state *rst, nn_plist_t *dat
     {
       if (prd)
       {
-        update_proxy_reader (prd, as, xqos, timestamp);
+        update_proxy_reader (prd, seq, as, xqos, timestamp);
       }
       else
       {
 #ifdef DDSI_INCLUDE_SSM
-        new_proxy_reader (gv, &ppguid, &datap->endpoint_guid, as, datap, timestamp, ssm);
+        new_proxy_reader (gv, &ppguid, &datap->endpoint_guid, as, datap, timestamp, seq, ssm);
 #else
-        new_proxy_reader (gv, &ppguid, &datap->endpoint_guid, as, datap, timestamp);
+        new_proxy_reader (gv, &ppguid, &datap->endpoint_guid, as, datap, timestamp, seq);
 #endif
       }
     }
@@ -1337,7 +1337,7 @@ static void handle_SEDP_dead (const struct receiver_state *rst, nn_plist_t *data
   GVLOGDISC (" %s\n", (res < 0) ? " unknown" : " delete");
 }
 
-static void handle_SEDP (const struct receiver_state *rst, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
+static void handle_SEDP (const struct receiver_state *rst, seqno_t seq, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
 {
   struct q_globals * const gv = rst->gv;
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
@@ -1370,7 +1370,7 @@ static void handle_SEDP (const struct receiver_state *rst, nn_wctime_t timestamp
     switch (statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
     {
       case 0:
-        handle_SEDP_alive (rst, &decoded_data, &rst->src_guid_prefix, rst->vendor, timestamp);
+        handle_SEDP_alive (rst, seq, &decoded_data, &rst->src_guid_prefix, rst->vendor, timestamp);
         break;
 
       case NN_STATUSINFO_DISPOSE:
@@ -1736,7 +1736,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
       break;
     case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER:
     case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER:
-      handle_SEDP (sampleinfo->rst, timestamp, statusinfo, datap, datasz);
+      handle_SEDP (sampleinfo->rst, sampleinfo->seq, timestamp, statusinfo, datap, datasz);
       break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
       handle_PMD (sampleinfo->rst, timestamp, statusinfo, datap, datasz);
