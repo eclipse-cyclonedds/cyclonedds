@@ -180,6 +180,7 @@ static void entity_common_init (struct entity_common *e, struct q_globals *gv, c
   e->onlylocal = onlylocal;
   e->gv = gv;
   ddsrt_mutex_init (&e->lock);
+  ddsrt_mutex_init (&e->qos_lock);
   if (builtintopic_is_visible (gv->builtin_topic_interface, guid, vendorid))
   {
     e->tk = builtintopic_get_tkmap_entry (gv->builtin_topic_interface, guid);
@@ -197,6 +198,7 @@ static void entity_common_fini (struct entity_common *e)
   if (e->tk)
     ddsi_tkmap_instance_unref (e->gv->m_tkmap, e->tk);
   ddsrt_free (e->name);
+  ddsrt_mutex_destroy (&e->qos_lock);
   ddsrt_mutex_destroy (&e->lock);
 }
 
@@ -392,8 +394,10 @@ static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, cons
     /* no change, or an as-yet unsupported one */
     return false;
 
+  ddsrt_mutex_lock (&e->qos_lock);
   nn_xqos_fini_mask (ent_qos, mask);
   nn_xqos_mergein_missing (ent_qos, xqos, mask);
+  ddsrt_mutex_unlock (&e->qos_lock);
   builtintopic_write (e->gv->builtin_topic_interface, e, timestamp, true);
   return true;
 }
@@ -2088,6 +2092,19 @@ static void reader_qos_mismatch (struct reader * rd, dds_qos_policy_id_t reason)
   }
 }
 
+static bool qos_match_p_lock (struct entity_common *ea, const dds_qos_t *a, struct entity_common *eb, const dds_qos_t *b, dds_qos_policy_id_t *reason)
+{
+  assert (ea != eb);
+  ddsrt_mutex_t * const locks[] = { &ea->qos_lock, &eb->qos_lock, &ea->qos_lock };
+  const int shift = (uintptr_t) ea > (uintptr_t) eb;
+  for (int i = 0; i < 2; i++)
+    ddsrt_mutex_lock (locks[i + shift]);
+  bool ret = qos_match_p (a, b, reason);
+  for (int i = 0; i < 2; i++)
+    ddsrt_mutex_unlock (locks[i + shift]);
+  return ret;
+}
+
 static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_reader *prd, nn_mtime_t tnow)
 {
   const int isb0 = (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
@@ -2098,7 +2115,7 @@ static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_re
     return;
   if (wr->e.onlylocal)
     return;
-  if (!isb0 && !qos_match_p (prd->c.xqos, wr->xqos, &reason))
+  if (!isb0 && !qos_match_p_lock (&prd->e, prd->c.xqos, &wr->e, wr->xqos, &reason))
   {
     writer_qos_mismatch (wr, reason);
     return;
@@ -2117,7 +2134,7 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
     return;
   if (rd->e.onlylocal)
     return;
-  if (!isb0 && !qos_match_p (rd->xqos, pwr->c.xqos, &reason))
+  if (!isb0 && !qos_match_p_lock (&rd->e, rd->xqos, &pwr->e, pwr->c.xqos, &reason))
   {
     reader_qos_mismatch (rd, reason);
     return;
@@ -2159,7 +2176,7 @@ static void connect_writer_with_reader (struct writer *wr, struct reader *rd, nn
     return;
   if (ignore_local_p (&wr->e.guid, &rd->e.guid, wr->xqos, rd->xqos))
     return;
-  if (!qos_match_p (rd->xqos, wr->xqos, &reason))
+  if (!qos_match_p_lock (&rd->e, rd->xqos, &wr->e, wr->xqos, &reason))
   {
     writer_qos_mismatch (wr, reason);
     reader_qos_mismatch (rd, reason);

@@ -131,11 +131,12 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi
   /* FIXME: not quite elegant to manage the creation of a serdata for a built-in topic via this function, but I also find it quite unelegant to let from_sample read straight from the underlying internal entity, and to_sample convert to the external format ... I could claim the internal entity is the "serialised form", but that forces wrapping it in a fragchain in one way or another, which, though possible, is also a bit lacking in elegance. */
   const struct ddsi_sertopic_builtintopic *tp = (const struct ddsi_sertopic_builtintopic *)tpcmn;
   /* keyhash must in host format (which the GUIDs always are internally) */
-  const struct entity_common *entity = ephash_lookup_guid_untyped (tp->gv->guid_hash, (const nn_guid_t *) keyhash->value);
+  struct entity_common *entity = ephash_lookup_guid_untyped (tp->gv->guid_hash, (const nn_guid_t *) keyhash->value);
   struct ddsi_serdata_builtintopic *d = serdata_builtin_new(tp, entity ? SDK_DATA : SDK_KEY);
   memcpy (&d->key, keyhash->value, sizeof (d->key));
   if (entity)
   {
+    ddsrt_mutex_lock (&entity->qos_lock);
     switch (entity->kind)
     {
       case EK_PARTICIPANT:
@@ -163,6 +164,7 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi
         from_entity_pwr (d, (const struct proxy_writer *) entity);
         break;
     }
+    ddsrt_mutex_unlock (&entity->qos_lock);
   }
   return fix_serdata_builtin(d, tp->c.serdata_basehash);
 }
