@@ -1726,7 +1726,7 @@ static int reorder_try_append_and_discard (struct nn_reorder *reorder, struct nn
   }
 }
 
-struct nn_rsample *nn_reorder_rsample_dup (struct nn_rmsg *rmsg, struct nn_rsample *rsampleiv)
+struct nn_rsample *nn_reorder_rsample_dup_first (struct nn_rmsg *rmsg, struct nn_rsample *rsampleiv)
 {
   /* Duplicates the rsampleiv without updating any reference counts:
      that is left to the caller, as they do not need to be updated if
@@ -1738,7 +1738,6 @@ struct nn_rsample *nn_reorder_rsample_dup (struct nn_rmsg *rmsg, struct nn_rsamp
      rsampleiv. */
   struct nn_rsample *rsampleiv_new;
   struct nn_rsample_chain_elem *sce;
-  assert (rsample_is_singleton (&rsampleiv->u.reorder));
 #ifndef NDEBUG
   {
     struct nn_rdata *d = rsampleiv->u.reorder.sc.first->fragchain;
@@ -1754,7 +1753,9 @@ struct nn_rsample *nn_reorder_rsample_dup (struct nn_rmsg *rmsg, struct nn_rsamp
   sce->fragchain = rsampleiv->u.reorder.sc.first->fragchain;
   sce->next = NULL;
   sce->sampleinfo = rsampleiv->u.reorder.sc.first->sampleinfo;
-  *rsampleiv_new = *rsampleiv;
+  rsampleiv_new->u.reorder.min = rsampleiv->u.reorder.min;
+  rsampleiv_new->u.reorder.maxp1 = rsampleiv_new->u.reorder.min + 1;
+  rsampleiv_new->u.reorder.n_samples = 1;
   rsampleiv_new->u.reorder.sc.first = rsampleiv_new->u.reorder.sc.last = sce;
   return rsampleiv_new;
 }

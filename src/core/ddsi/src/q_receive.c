@@ -2201,8 +2201,10 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
         nn_reorder_result_t rres2;
         if (wn->in_sync == PRMSS_SYNC)
           continue;
+        /* only need to get a copy of the first sample, because that's the one
+           that triggered delivery */
         if (!reuse_rsample_dup)
-          rsample_dup = nn_reorder_rsample_dup (rmsg, rsample);
+          rsample_dup = nn_reorder_rsample_dup_first (rmsg, rsample);
         rres2 = nn_reorder_rsample (&sc, wn->u.not_in_sync.reorder, rsample_dup, &refc_adjust, nn_dqueue_is_full (pwr->dqueue));
         switch (rres2)
         {
