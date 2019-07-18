@@ -484,7 +484,7 @@ dds_return_t new_participant_guid (const nn_guid_t *ppguid, struct q_globals *gv
   pp->lease_duration = gv->config.lease_duration;
   pp->plist = ddsrt_malloc (sizeof (*pp->plist));
   nn_plist_copy (pp->plist, plist);
-  nn_plist_mergein_missing (pp->plist, &gv->default_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
+  nn_plist_mergein_missing (pp->plist, &gv->default_local_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
 
   if (gv->logconfig.c.mask & DDS_LC_DISCOVERY)
   {
