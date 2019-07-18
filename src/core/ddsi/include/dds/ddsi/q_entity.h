@@ -142,6 +142,17 @@ struct entity_common {
   ddsrt_mutex_t lock;
   bool onlylocal;
   struct q_globals *gv;
+
+  /* QoS changes always lock the entity itself, and additionally
+     (and within the scope of the entity lock) acquire qos_lock
+     while manipulating the QoS.  So any thread that needs to read
+     the QoS without acquiring the entity's lock can still do so
+     (e.g., the materialisation of samples for built-in topics
+     when connecting a reader to a writer for a built-in topic).
+
+     qos_lock lock order across entities in is in increasing
+     order of entity addresses cast to uintptr_t. */
+  ddsrt_mutex_t qos_lock;
 };
 
 struct local_reader_ary {
