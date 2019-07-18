@@ -338,6 +338,7 @@ struct proxy_endpoint_common
   struct addrset *as; /* address set to use for communicating with this endpoint */
   nn_guid_t group_guid; /* 0:0:0:0 if not available */
   nn_vendorid_t vendor; /* cached from proxypp->vendor */
+  seqno_t seq; /* sequence number of most recent SEDP message */
 };
 
 struct proxy_writer {
@@ -608,8 +609,8 @@ void purge_proxy_participants (struct q_globals *gv, const nn_locator_t *loc, bo
 
 /* To create a new proxy writer or reader; the proxy participant is
    determined from the GUID and must exist. */
-  int new_proxy_writer (struct q_globals *gv, const struct nn_guid *ppguid, const struct nn_guid *guid, struct addrset *as, const struct nn_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, nn_wctime_t timestamp);
-int new_proxy_reader (struct q_globals *gv, const struct nn_guid *ppguid, const struct nn_guid *guid, struct addrset *as, const struct nn_plist *plist, nn_wctime_t timestamp
+  int new_proxy_writer (struct q_globals *gv, const struct nn_guid *ppguid, const struct nn_guid *guid, struct addrset *as, const struct nn_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, nn_wctime_t timestamp, seqno_t seq);
+int new_proxy_reader (struct q_globals *gv, const struct nn_guid *ppguid, const struct nn_guid *guid, struct addrset *as, const struct nn_plist *plist, nn_wctime_t timestamp, seqno_t seq
 #ifdef DDSI_INCLUDE_SSM
                       , int favours_ssm
 #endif
@@ -623,8 +624,8 @@ int new_proxy_reader (struct q_globals *gv, const struct nn_guid *ppguid, const 
 int delete_proxy_writer (struct q_globals *gv, const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit);
 int delete_proxy_reader (struct q_globals *gv, const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit);
 
-void update_proxy_reader (struct proxy_reader *prd, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
-void update_proxy_writer (struct proxy_writer *pwr, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
+void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
+void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
 
 int new_proxy_group (const struct nn_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp);
 void delete_proxy_group (struct ephash *guid_hash, const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit);
