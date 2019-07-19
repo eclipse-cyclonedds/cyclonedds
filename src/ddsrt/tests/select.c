@@ -109,30 +109,35 @@ sockets_pipe(ddsrt_socket_t socks[2])
 {
   dds_return_t rc;
   ddsrt_socket_t sock;
-  int reuseaddr = 1;
 
+  socklen_t addrlen;
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  addr.sin_port = htons(54321);
+  addr.sin_port = 0;
 
+  fprintf (stderr, "sockets_pipe ... begin\n");
   CU_ASSERT_PTR_NOT_NULL_FATAL(socks);
   rc = ddsrt_socket(&sock, AF_INET, SOCK_STREAM, 0);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
-  rc = ddsrt_setsockopt(
-    sock, SOL_SOCKET, SO_REUSEADDR, (void*)&reuseaddr, sizeof(reuseaddr));
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   rc = ddsrt_socket(&socks[1], AF_INET, SOCK_STREAM, 0);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   rc = ddsrt_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  addrlen = (socklen_t) sizeof(addr);
+  rc = ddsrt_getsockname(sock, (struct sockaddr *)&addr, &addrlen);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  fprintf (stderr, "sockets_pipe ... listen\n");
   rc = ddsrt_listen(sock, 1);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  fprintf (stderr, "sockets_pipe ... connect\n");
   rc = ddsrt_connect(socks[1], (struct sockaddr *)&addr, sizeof(addr));
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  fprintf (stderr, "sockets_pipe ... accept\n");
   rc = ddsrt_accept(sock, NULL, NULL, &socks[0]);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   ddsrt_close(sock);
+  fprintf (stderr, "sockets_pipe ... done\n");
 }
 
 static const char mesg[] = "foobar";
@@ -188,23 +193,26 @@ CU_Test(ddsrt_select, timeout)
 
   sockets_pipe(socks);
 
-  arg.delay = DDS_MSECS(100);
+  arg.delay = DDS_MSECS(300);
   /* Allow the delay to be off by x microseconds (arbitrarily chosen) for
      systems with a really poor clock. This test is just to get some
      confidence that time calculation is not completely broken, it is by
      no means proof that time calculation is entirely correct! */
-  arg.skew = DDS_MSECS(20);
+  arg.skew = DDS_MSECS(50);
   arg.sock = socks[0];
 
+  fprintf (stderr, "create thread\n");
   ddsrt_threadattr_init(&attr);
   rc = ddsrt_thread_create(&thr, "select_timeout", &attr, &select_timeout_routine, &arg);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   /* Allow the thread some time to get ready. */
   dds_sleepfor(arg.delay * 2);
   /* Send data to the read socket to avoid blocking indefinitely. */
+  fprintf (stderr, "write data\n");
   ssize_t sent = 0;
   rc = ddsrt_send(socks[1], mesg, sizeof(mesg), 0, &sent);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  fprintf (stderr, "join thread\n");
   rc = ddsrt_thread_join(thr, &res);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   CU_ASSERT_EQUAL(res, 1);
