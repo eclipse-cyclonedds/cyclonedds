@@ -11,7 +11,7 @@
 #
 include(${MPT_CMAKE})
 
-add_compile_options("-I${PROJECT_SOURCE_DIR}/core/ddsi/include")
+add_compile_options("-I${PROJECT_SOURCE_DIR}/src/core/ddsi/include")
 
 idlc_generate(mpt_rwdata_lib "procs/rwdata.idl")
 

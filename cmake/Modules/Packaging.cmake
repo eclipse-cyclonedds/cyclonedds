@@ -17,7 +17,7 @@ set(PACKAGING_INCLUDED true)
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
-set(PACKAGING_MODULE_DIR "${PROJECT_SOURCE_DIR}/cmake/modules/Packaging")
+set(PACKAGING_MODULE_DIR "${PROJECT_SOURCE_DIR}/cmake/Modules/Packaging")
 set(CMAKE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}")
 
 # Generates <Package>Config.cmake.
@@ -54,15 +54,13 @@ set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
 set(CPACK_PACKAGE_VERSION_TWEAK ${PROJECT_VERSION_TWEAK})
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 
-set(VENDOR_INSTALL_ROOT "ADLINK")
 set(CPACK_PACKAGE_NAME ${CMAKE_PROJECT_NAME})
-set(CPACK_PACKAGE_VENDOR "ADLINK Technology Inc.")
-set(CPACK_PACKAGE_CONTACT "${CMAKE_PROJECT_NAME} core developers <info@adlinktech.com>")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Leading OMG DDS implementation from ADLINK Technology")
-set(CPACK_PACKAGE_ICON "${PACKAGING_MODULE_DIR}/vortex.ico")
+set(CPACK_PACKAGE_VENDOR "Eclipse Cyclone DDS project")
+set(CPACK_PACKAGE_CONTACT "https://github.com/eclipse-cyclonedds/cyclonedds")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Implementation of the OMG DDS standard")
 
 # WiX requires a .txt file extension for CPACK_RESOURCE_FILE_LICENSE
-file(COPY "${PROJECT_SOURCE_DIR}/../LICENSE" DESTINATION "${CMAKE_BINARY_DIR}")
+file(COPY "${PROJECT_SOURCE_DIR}/LICENSE" DESTINATION "${CMAKE_BINARY_DIR}")
 file(RENAME "${CMAKE_BINARY_DIR}/LICENSE" "${CMAKE_BINARY_DIR}/license.txt")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_BINARY_DIR}/license.txt")
 
@@ -95,24 +93,7 @@ if(WIN32 AND NOT UNIX)
   set(CPACK_GENERATOR "WIX;ZIP;${CPACK_GENERATOR}" CACHE STRING "List of package generators")
 
   set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${__arch}")
-  set(CPACK_PACKAGE_INSTALL_DIRECTORY "${VENDOR_INSTALL_ROOT}/${CMAKE_PROJECT_NAME_FULL}")
-
-  set(CPACK_WIX_LIGHT_EXTENSIONS "WixUtilExtension")
-  set(CPACK_WIX_COMPONENT_INSTALL ON)
-  set(CPACK_WIX_ROOT_FEATURE_TITLE "${CMAKE_PROJECT_NAME_FULL}")
-  set(CPACK_WIX_PRODUCT_ICON "${PACKAGING_MODULE_DIR}/vortex.ico")
-  # Bitmap (.bmp) of size 493x58px
-  set(CPACK_WIX_UI_BANNER "${PACKAGING_MODULE_DIR}/banner.bmp")
-  # Bitmap (.bmp) of size 493x312px
-  set(CPACK_WIX_UI_DIALOG "${PACKAGING_MODULE_DIR}/dialog.png")
-  set(CPACK_WIX_PROGRAM_MENU_FOLDER "${CPACK_PACKAGE_NAME_FULL}")
-  set(CPACK_WIX_PATCH_FILE "${PACKAGING_MODULE_DIR}/examples.xml")
-  set(CPACK_WIX_PROPERTY_ARPHELPLINK "http://www.adlinktech.com/support")
-  set(CPACK_WIX_PROPERTY_ARPURLINFOABOUT "http://www.adlinktech.com/")
-  set(CPACK_WIX_PROPERTY_ARPURLUPDATEINFO "http://www.adlinktech.com/")
-
-  # A constant GUID allows installers to replace existing installations that use the same GUID.
-  set(CPACK_WIX_UPGRADE_GUID "1351F59A-972B-4624-A7F1-439381BFA41D")
+  set(CPACK_PACKAGE_INSTALL_DIRECTORY "${CMAKE_PROJECT_NAME_FULL}")
 
   include(InstallRequiredSystemLibraries)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -159,10 +140,6 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
     # Generic tgz package
     set(CPACK_GENERATOR "TGZ;${CPACK_GENERATOR}" CACHE STRING "List of package generators")
   endif()
-elseif(CMAKE_SYSTEM_NAME MATCHES "VxWorks")
-  # FIXME: Support for VxWorks packages must still be implemented (probably
-  #        just a compressed tarball)
-  message(STATUS "Packaging for VxWorks is unsupported")
 endif()
 
 # This must always be last!

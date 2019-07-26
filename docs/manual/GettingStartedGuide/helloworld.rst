@@ -195,7 +195,7 @@ example. Apart from the native build files, CMake build files
 are provided as well. See
 :code:`examples/helloworld/CMakeLists.txt`
 
-.. literalinclude:: ../../examples/helloworld/CMakeLists.export
+.. literalinclude:: ../../../examples/helloworld/CMakeLists.export
     :linenos:
     :language: cmake
 

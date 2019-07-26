@@ -8,21 +8,28 @@ market. Moreover, Cyclone DDS is developed completely in the open as an Eclipse 
 
 ## Building Eclipse Cyclone DDS
 
-In order to build Cyclone DDS you need a Linux, Mac or Windows 10 machine with the following
-installed on your host:
+In order to build Cyclone DDS you need a Linux, Mac or Windows 10 machine (or, with some caveats, an
+OpenIndiana one or a Solaris 2.6 one) with the following installed on your host:
 
-  * [CMake](https://cmake.org/download/), version 3.7 or later.  (Version 3.6 should work but you
-    will have to edit the ``cmake_minimum_required`` version and may have to disable building the
-    tests.)
-  * [OpenSSL](https://www.openssl.org/), preferably version 1.1 or later.  If you wish, you can
-    build without support for OpenSSL by setting DDSC\_ENABLE\_OPENSSL to FALSE on the ``cmake ``
-    command line (i.e., ``cmake -DDDSC_ENABLE_OPENSSL=FALSE`` ../src).  In that, there is no need to
-    have openssl available.
-  * Java JDK, version 8 or later, e.g., [OpenJDK 11](http://jdk.java.net/11/).
-  * [Apache Maven](http://maven.apache.org/download.cgi), version 3.5 or later.
+  * C compiler (most commonly GCC on Linux, Visual Studio on Windows, Xcode on macOS);
+  * GIT version control system;
+  * [CMake](https://cmake.org/download/), version 3.7 or later;
+  * [OpenSSL](https://www.openssl.org/), preferably version 1.1 or later if you want to use TLS over
+    TCP.  You can explicitly disable it by setting ``ENABLE_SSL=NO``, which is very useful for
+    reducing the footprint or when the FindOpenSSL CMake script gives you trouble;
+  * Java JDK, version 8 or later, e.g., [OpenJDK](https://jdk.java.net/);
+  * [Apache Maven](https://maven.apache.org/download.cgi), version 3.5 or later.
+
+On Ubuntu ``apt install maven default-jdk`` should do the trick for getting Java and Maven
+installed, and the rest should already be there.  On Windows, installing chocolatey and ``choco
+install git cmake openjdk maven`` should get you a long way.  On macOS, ``brew install maven cmake``
+and downloading and installing the JDK is easiest.
 
 The Java-based components are the preprocessor and a configurator tool.  The run-time libraries are
-pure C code, so there is no need to have Java available on "target" machines.
+pure C code, so there is no need to have Java available on "target" machines.  If desired, it is
+possible to do a build without Java or Maven installed by defining ``BUILD_IDLC=NO`` and
+``BUILD_CONFTOOL=NO``, but that effectively only gets you the core library.  For the
+current [ROS2 RMW layer](https://github.com/atolab/rmw_cyclonedds), that is sufficient.
 
 To obtain Eclipse Cyclone DDS, do
 
@@ -40,13 +47,13 @@ DDS requires a few simple steps. There are some small differences between Linux 
 hand, and Windows on the other. For Linux or macOS:
 
     $ cd build
-    $ cmake -DCMAKE_INSTALL_PREFIX=<install-location> ../src
+    $ cmake -DCMAKE_INSTALL_PREFIX=<install-location> ..
     $ cmake --build .
 
 and for Windows:
 
     $ cd build
-    $ cmake -G "<generator-name>" -DCMAKE_INSTALL_PREFIX=<install-location> ../src
+    $ cmake -G "<generator-name>" -DCMAKE_INSTALL_PREFIX=<install-location> ..
     $ cmake --build .
 
 where you should replace ``<install-location>`` by the directory under which you would like to
@@ -65,7 +72,6 @@ which will copy everything to:
   * ``<install-location>/bin``
   * ``<install-location>/include/ddsc``
   * ``<install-location>/share/CycloneDDS``
-  * ``<install-location>/etc/CycloneDDS``
 
 Depending on the installation location you may need administrator privileges.
 
@@ -85,7 +91,7 @@ present in the repository and that there is a test suite using CTest and CUnit t
 locally if desired.  To build it, set the cmake variable ``BUILD_TESTING`` to on when configuring, e.g.:
 
     $ cd build
-    $ cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ../src
+    $ cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ..
     $ cmake --build .
     $ ctest
 
@@ -100,10 +106,65 @@ also need to add switches to select the architecture and build type, e.g., ``con
 arch=x86_64 -s build_type=Debug ..`` This will automatically download and/or build CUnit (and, at
 the moment, OpenSSL).
 
+## Configuration
+
+The out-of-the-box configuration should usually be fine, but there are a great many options that can
+be tweaked by creating an XML file with the desired settings and defining the ``CYCLONEDDS_URI`` to
+point to it.  E.g. (on Linux):
+
+    $ cat cyclonedds.xml
+    <CycloneDDS>
+        <General>
+            <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>
+            <AllowMulticast>auto</AllowMulticast>
+            <MaxMessageSize>65500B</MaxMessageSize>
+            <FragmentSize>65000B</FragmentSize>
+        </General>
+        <Internal>
+            <Watermarks>
+                <WhcHigh>500kB</WhcHigh>
+            </Watermarks>
+        </Internal>
+        <Tracing>
+            <Verbosity>config</Verbosity>
+            <OutputFile>stdout</OutputFile>
+        </Tracing>
+    </CycloneDDS>
+    $ export CYCLONEDDS_URI=file://$PWD/cyclonedds.xml
+
+(on Windows, one would have to use ``set CYCLONEDDS_URI=file://...`` instead.)
+
+This example shows a few things:
+
+* ``NetworkInterfaceAddress`` can be used to override the interface selected by default (you can use
+  the address or the interface name).  Proper use of multiple network interfaces simultaneously will
+  come, but is not there yet.
+* ``AllowMulticast`` configures the circumstances under which multicast will be used.  If the
+  selected interface doesn't support it, it obviously wonn't be used (``false``); but if it does
+  support it, the type of the network adapter determines the default value.  For a wired network, it
+  will use multicast for initial discovery as well as for data when there are multiple peers that
+  the data needs to go to (``true``); but on a WiFi network it will use it only for initial
+  discovery (``spdp``), because multicast on WiFi is very unreliable.
+* ``Verbosity`` allows control over the tracing, "config" dumps the configuration to the trace
+  output (which defaults to "cyclonedds.log").  Which interface is used, what multicast settings are
+  used, etc., is all in the trace.  Setting the verbosity to "finest" gives way more output on the
+  inner workings, and there are various other levels as well.
+* ``MaxMessageSize`` and ``FragmentSize`` control the maximum size of the RTPS messages (basically
+  the size of the UDP payload), and the size of the fragments into which very large samples get
+  split (which needs to be "a bit" less).  Large values such as these typically improve performance
+  over the (current) default values.
+* ``WhcHigh`` determines when the sender will wait for acknolwedgements from the readers because it
+  has buffered too much unacknowledged data.  There is some auto-tuning, the (current) default value
+  is a bit small to get really high throughput.
+
+The configurator tool ``cycloneddsconf`` can help in discovering the settings, as can the config
+dump.  Background information on configuring Cyclone DDS can be
+found [here](https://docs/manual/config.rst).
+
 ## Documentation
 
 The documentation is still rather limited, and at the moment only available in the sources (in the
-form of restructured text files in ``src/docs`` and Doxygen comments in the header files), or as
+form of restructured text files in ``docs`` and Doxygen comments in the header files), or as
 a
 [PDF](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/pdf/CycloneDDS-0.1.0.pdf). The
 intent is to automate the process of building the documentation and have them available in more
@@ -133,7 +194,7 @@ We will show you how to build and run an example program that measures latency. 
 built automatically when you build Cyclone DDS, so you don't need to follow these steps to be able
 to run the program, it is merely to illustrate the process.
 
-    $ cd cyclonedds/src/examples/roundtrip
+    $ cd cyclonedds/examples/roundtrip
     $ mkdir build
     $ cd build
     $ cmake ..
