@@ -165,7 +165,7 @@ script:
           -DUSE_SANITIZER=${ASAN}
           -DBUILD_TESTING=on
           -DWERROR=on
-          -G "${GENERATOR}" ../src
+          -G "${GENERATOR}" ..
   - ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install
   - CYCLONEDDS_URI='<CycloneDDS><DDSI2E><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></DDSI2E></CycloneDDS>' ctest -T test -C ${BUILD_TYPE}
   - if [ "${ASAN}" != "none" ]; then

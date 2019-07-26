@@ -9,9 +9,11 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
+
 idlc_generate(ddsperf_types ddsperf_types.idl)
 add_executable(ddsperf ddsperf.c)
 target_link_libraries(ddsperf ddsperf_types ddsc)
+
 if(WIN32)
   target_compile_definitions(ddsperf PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()

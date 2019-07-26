@@ -77,7 +77,7 @@ There are a few ways to describe the structures that make up the
 data layer. The HelloWorld uses the IDL language to describe the
 data type in HelloWorldData.idl:
 
-.. literalinclude:: ../../examples/helloworld/HelloWorldData.idl
+.. literalinclude:: ../../../examples/helloworld/HelloWorldData.idl
     :linenos:
     :language: idl
 
@@ -202,7 +202,7 @@ business logic.
 Subscriber.c contains the source that will wait for a *Hello World!*
 message and reads it when it receives one.
 
-.. literalinclude:: ../../examples/helloworld/subscriber.c
+.. literalinclude:: ../../../examples/helloworld/subscriber.c
     :linenos:
     :language: c
 
@@ -331,7 +331,7 @@ automatically delete the topic and reader as well.
 Publisher.c contains the source that will write an *Hello World!* message
 on which the subscriber is waiting.
 
-.. literalinclude:: ../../examples/helloworld/publisher.c
+.. literalinclude:: ../../../examples/helloworld/publisher.c
     :linenos:
     :language: c
 

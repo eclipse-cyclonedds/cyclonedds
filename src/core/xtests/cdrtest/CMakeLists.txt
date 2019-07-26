@@ -11,16 +11,10 @@
 #
 cmake_minimum_required(VERSION 3.5)
 
-if (NOT TARGET CycloneDDS::ddsc)
-    # Find the CycloneDDS package. If it is not in a default location, try
-    # finding it relative to the example where it most likely resides.
-    find_package(CycloneDDS REQUIRED PATHS ../../)
-endif()
-
-add_compile_options("-I${PROJECT_SOURCE_DIR}/ddsrt/include")
-add_compile_options("-I${PROJECT_SOURCE_DIR}/core/ddsc/include")
-add_compile_options("-I${PROJECT_SOURCE_DIR}/core/ddsc/src")
-add_compile_options("-I${PROJECT_SOURCE_DIR}/core/ddsi/include")
+add_compile_options("-I${PROJECT_SOURCE_DIR}/src/ddsrt/include")
+add_compile_options("-I${PROJECT_SOURCE_DIR}/src/core/ddsc/include")
+add_compile_options("-I${PROJECT_SOURCE_DIR}/src/core/ddsc/src")
+add_compile_options("-I${PROJECT_SOURCE_DIR}/src/core/ddsi/include")
 
 add_compile_options("-I$ENV{OSPL_HOME}/src/abstraction/os/include")
 add_compile_options("-I$ENV{OSPL_HOME}/src/database/database/include")
