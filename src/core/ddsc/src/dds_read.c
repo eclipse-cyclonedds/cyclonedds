@@ -84,7 +84,10 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
       if (rd->m_loan)
       {
         if (rd->m_loan_size >= maxs)
-          buf[0] = rd->m_loan;
+        {
+          /* This ensures buf is properly initialized */
+          ddsi_sertopic_realloc_samples (buf, rd->m_topic->m_stopic, rd->m_loan, rd->m_loan_size, rd->m_loan_size);
+        }
         else
         {
           ddsi_sertopic_realloc_samples (buf, rd->m_topic->m_stopic, rd->m_loan, rd->m_loan_size, maxs);
