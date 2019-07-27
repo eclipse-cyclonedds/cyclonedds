@@ -93,7 +93,7 @@ static void sertopic_builtin_realloc_samples (void **ptrs, const struct ddsi_ser
 {
   const struct ddsi_sertopic_builtintopic *tp = (const struct ddsi_sertopic_builtintopic *)sertopic_common;
   const size_t size = get_size (tp->type);
-  char *new = dds_realloc (old, size * count);
+  char *new = (oldcount == count) ? old : dds_realloc (old, size * count);
   if (new && count > oldcount)
     memset (new + size * oldcount, 0, size * (count - oldcount));
   for (size_t i = 0; i < count; i++)
