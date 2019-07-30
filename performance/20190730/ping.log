@@ -1,0 +1,1247 @@
+[18996] participant perftest8:18996: new (self)
+[18996] participant perftest9:16343: new
+[18996] 2.000  perftest9:16343 size 12 mean 30.882us min 29.597us 50% 30.764us 90% 31.799us 99% 32.385us max 47.440us cnt 16134
+[18996] 2.000  rss:2.8MB recvUC:13%+9%
+[18996] 2.000  @perftest9:16343 rss:2.7MB recvUC:11%+10%
+[18996] 3.000  perftest9:16343 size 12 mean 30.905us min 29.455us 50% 30.791us 90% 31.813us 99% 32.236us max 34.870us cnt 16131
+[18996] 3.000  rss:3.3MB recvUC:14%+9%
+[18996] 3.000  @perftest9:16343 rss:2.7MB recvUC:13%+7%
+[18996] 3.000  eno2: xmit 2% recv 2% [31365328895 27274808393]
+[18996] 4.000  perftest9:16343 size 12 mean 30.881us min 29.508us 50% 30.765us 90% 31.795us 99% 32.234us max 40.026us cnt 16144
+[18996] 4.000  rss:3.3MB recvUC:13%+10%
+[18996] 4.000  @perftest9:16343 rss:2.7MB recvUC:15%+7%
+[18996] 4.000  eno2: xmit 2% recv 2% [31367748705 27277228835]
+[18996] 5.000  perftest9:16343 size 12 mean 30.759us min 29.426us 50% 30.655us 90% 31.638us 99% 32.138us max 35.231us cnt 16208
+[18996] 5.000  rss:3.3MB recvUC:14%+8%
+[18996] 5.000  @perftest9:16343 rss:2.7MB recvUC:10%+11%
+[18996] 5.000  eno2: xmit 2% recv 2% [31370170115 27279650397]
+[18996] 6.000  perftest9:16343 size 12 mean 30.723us min 29.435us 50% 30.620us 90% 31.627us 99% 32.073us max 40.281us cnt 16228
+[18996] 6.000  rss:3.3MB ddsperf:1%+0% recvUC:17%+6%
+[18996] 6.000  @perftest9:16343 rss:2.7MB recvUC:14%+7%
+[18996] 6.000  eno2: xmit 2% recv 2% [31372611889 27282092109]
+[18996] 7.000  perftest9:16343 size 12 mean 30.622us min 29.327us 50% 30.514us 90% 31.501us 99% 31.998us max 35.007us cnt 16280
+[18996] 7.000  rss:3.3MB recvUC:11%+12%
+[18996] 7.000  @perftest9:16343 rss:2.7MB recvUC:13%+10%
+[18996] 7.000  eno2: xmit 2% recv 2% [31375045899 27284526421]
+[18996] 8.000  perftest9:16343 size 12 mean 30.716us min 29.405us 50% 30.609us 90% 31.611us 99% 32.109us max 34.026us cnt 16230
+[18996] 8.000  rss:3.3MB recvUC:11%+12%
+[18996] 8.000  @perftest9:16343 rss:2.7MB recvUC:10%+10%
+[18996] 8.000  eno2: xmit 2% recv 2% [31377486209 27286966819]
+[18996] 9.000  perftest9:16343 size 12 mean 30.715us min 29.351us 50% 30.606us 90% 31.609us 99% 32.120us max 36.142us cnt 16230
+[18996] 9.000  rss:3.3MB recvUC:15%+7%
+[18996] 9.000  @perftest9:16343 rss:2.7MB recvUC:13%+9%
+[18996] 9.000  eno2: xmit 2% recv 2% [31379920719 27289401481]
+[18996] 10.000  perftest9:16343 size 12 mean 30.762us min 29.474us 50% 30.652us 90% 31.657us 99% 32.173us max 43.442us cnt 16206
+[18996] 10.000  rss:3.3MB ddsperf:1%+0% recvUC:14%+9%
+[18996] 10.000  @perftest9:16343 rss:2.7MB recvUC:11%+10%
+[18996] 10.000  eno2: xmit 2% recv 2% [31382353529 27291834379]
+[18996] 11.000  perftest9:16343 size 12 mean 30.670us min 29.442us 50% 30.567us 90% 31.565us 99% 32.042us max 35.025us cnt 16254
+[18996] 11.000  rss:3.3MB recvUC:12%+10%
+[18996] 11.000  @perftest9:16343 rss:2.7MB recvUC:13%+9%
+[18996] 11.000  eno2: xmit 2% recv 2% [31384785703 27294266705]
+[18996] 12.000  perftest9:16343 size 12 mean 30.652us min 29.216us 50% 30.540us 90% 31.543us 99% 32.042us max 42.678us cnt 16265
+[18996] 12.000  rss:3.3MB recvUC:10%+13%
+[18996] 12.000  @perftest9:16343 rss:2.7MB recvUC:11%+9%
+[18996] 12.000  eno2: xmit 2% recv 2% [31387222413 27296703353]
+[18996] 13.000  perftest9:16343 size 12 mean 30.619us min 29.139us 50% 30.521us 90% 31.507us 99% 32.003us max 35.536us cnt 16282
+[18996] 13.000  rss:3.3MB recvUC:14%+9%
+[18996] 13.000  @perftest9:16343 rss:2.7MB recvUC:14%+8%
+[18996] 13.000  eno2: xmit 2% recv 2% [31389662995 27299144237]
+[18996] 14.000  perftest9:16343 size 12 mean 30.679us min 29.481us 50% 30.570us 90% 31.573us 99% 32.038us max 34.633us cnt 16250
+[18996] 14.000  rss:3.3MB recvUC:14%+8%
+[18996] 14.000  @perftest9:16343 rss:2.7MB recvUC:15%+6%
+[18996] 14.000  eno2: xmit 2% recv 2% [31392103233 27301584413]
+[18996] 15.000  perftest9:16343 size 12 mean 30.639us min 29.429us 50% 30.530us 90% 31.521us 99% 32.022us max 41.194us cnt 16270
+[18996] 15.000  rss:3.3MB recvUC:16%+8%
+[18996] 15.000  @perftest9:16343 rss:2.7MB recvUC:12%+9%
+[18996] 15.000  eno2: xmit 2% recv 2% [31394540843 27304022175]
+[18996] 16.000  perftest9:16343 size 12 mean 30.655us min 29.301us 50% 30.547us 90% 31.544us 99% 32.066us max 35.757us cnt 16264
+[18996] 16.000  rss:3.3MB ddsperf:1%+0% recvUC:12%+10%
+[18996] 16.000  @perftest9:16343 rss:2.7MB recvUC:14%+7%
+[18996] 16.000  eno2: xmit 2% recv 2% [31396980753 27306462173]
+[18996] 17.000  perftest9:16343 size 12 mean 30.625us min 29.406us 50% 30.510us 90% 31.515us 99% 32.034us max 33.646us cnt 16279
+[18996] 17.000  rss:3.3MB recvUC:16%+7%
+[18996] 17.000  @perftest9:16343 rss:2.7MB recvUC:11%+10%
+[18996] 17.000  eno2: xmit 2% recv 2% [31399420613 27308902335]
+[18996] 18.000  perftest9:16343 size 12 mean 30.594us min 29.410us 50% 30.489us 90% 31.505us 99% 32.028us max 44.541us cnt 16295
+[18996] 18.000  rss:3.3MB recvUC:15%+7%
+[18996] 18.000  @perftest9:16343 rss:2.7MB recvUC:13%+9%
+[18996] 18.000  eno2: xmit 2% recv 2% [31401872073 27311353883]
+[18996] 19.000  perftest9:16343 size 12 mean 30.581us min 29.455us 50% 30.470us 90% 31.475us 99% 31.990us max 33.847us cnt 16302
+[18996] 19.000  rss:3.3MB recvUC:14%+10%
+[18996] 19.000  @perftest9:16343 rss:2.7MB recvUC:12%+8%
+[18996] 19.000  eno2: xmit 2% recv 2% [31404315233 27313797045]
+[18996] 20.000  perftest9:16343 size 12 mean 30.549us min 29.369us 50% 30.440us 90% 31.454us 99% 31.963us max 41.307us cnt 16320
+[18996] 20.000  rss:3.3MB ddsperf:1%+0% recvUC:13%+8%
+[18996] 20.000  @perftest9:16343 rss:2.7MB ddsperf:1%+0% recvUC:11%+10%
+[18996] 20.000  eno2: xmit 2% recv 2% [31406759743 27316241793]
+[19011] participant perftest8:19011: new (self)
+[19011] participant perftest9:16343: new
+[19011] 2.000  perftest9:16343 size 20 mean 30.569us min 29.154us 50% 30.457us 90% 31.454us 99% 32.287us max 47.529us cnt 16303
+[19011] 2.000  rss:2.7MB recvUC:13%+8%
+[19011] 2.000  @perftest9:16343 rss:2.7MB recvUC:13%+7%
+[19011] 2.000  eno2: xmit 1% recv 1% [31411496149 27320978459]
+[19011] 3.000  perftest9:16343 size 20 mean 30.557us min 28.886us 50% 30.454us 90% 31.468us 99% 32.104us max 39.441us cnt 16318
+[19011] 3.000  rss:3.2MB recvUC:13%+10%
+[19011] 3.000  @perftest9:16343 rss:2.7MB recvUC:13%+9%
+[19011] 3.000  eno2: xmit 2% recv 2% [31414073621 27323556047]
+[19011] 4.000  perftest9:16343 size 20 mean 30.516us min 29.215us 50% 30.391us 90% 31.302us 99% 32.919us max 43.585us cnt 16340
+[19011] 4.000  rss:3.2MB recvUC:12%+9%
+[19011] 4.000  @perftest9:16343 rss:2.7MB recvUC:12%+9%
+[19011] 4.000  eno2: xmit 2% recv 2% [31416665357 27326148537]
+[19011] 5.000  perftest9:16343 size 20 mean 30.489us min 29.179us 50% 30.366us 90% 31.282us 99% 32.880us max 43.405us cnt 16355
+[19011] 5.000  rss:3.2MB recvUC:14%+8%
+[19011] 5.000  @perftest9:16343 rss:2.7MB recvUC:12%+10%
+[19011] 5.000  eno2: xmit 2% recv 2% [31419249307 27328732209]
+[19011] 6.000  perftest9:16343 size 20 mean 30.545us min 29.242us 50% 30.419us 90% 31.316us 99% 32.931us max 35.710us cnt 16326
+[19011] 6.000  rss:3.2MB ddsperf:1%+0% recvUC:13%+9%
+[19011] 6.000  @perftest9:16343 rss:2.7MB recvUC:14%+7%
+[19011] 6.000  eno2: xmit 2% recv 2% [31421827819 27331310967]
+[19011] 7.000  perftest9:16343 size 20 mean 30.489us min 29.195us 50% 30.367us 90% 31.244us 99% 32.816us max 34.062us cnt 16356
+[19011] 7.000  rss:3.2MB recvUC:15%+7%
+[19011] 7.000  @perftest9:16343 rss:2.7MB recvUC:13%+9%
+[19011] 7.000  eno2: xmit 2% recv 2% [31424411181 27333894753]
+[19011] 8.000  perftest9:16343 size 20 mean 30.601us min 29.157us 50% 30.485us 90% 31.359us 99% 32.969us max 35.148us cnt 16296
+[19011] 8.000  rss:3.2MB recvUC:14%+9%
+[19011] 8.000  @perftest9:16343 rss:2.7MB recvUC:12%+9%
+[19011] 8.000  eno2: xmit 2% recv 2% [31426985967 27336469197]
+[19011] 9.000  perftest9:16343 size 20 mean 30.531us min 29.396us 50% 30.408us 90% 31.279us 99% 32.903us max 40.052us cnt 16332
+[19011] 9.000  rss:3.2MB recvUC:12%+9%
+[19011] 9.000  @perftest9:16343 rss:2.7MB recvUC:14%+8%
+[19011] 9.000  eno2: xmit 2% recv 2% [31429565537 27339049507]
+[19011] 10.000  perftest9:16343 size 20 mean 30.513us min 29.214us 50% 30.400us 90% 31.274us 99% 32.921us max 38.280us cnt 16339
+[19011] 10.000  rss:3.2MB ddsperf:1%+0% recvUC:14%+9%
+[19011] 10.000  @perftest9:16343 rss:2.7MB recvUC:14%+7%
+[19011] 10.000  eno2: xmit 2% recv 2% [31432146707 27341630335]
+[19011] 11.000  perftest9:16343 size 20 mean 30.395us min 28.302us 50% 30.273us 90% 31.137us 99% 32.814us max 39.108us cnt 16404
+[19011] 11.000  rss:3.2MB recvUC:14%+8%
+[19011] 11.000  @perftest9:16343 rss:2.7MB ddsperf:1%+0% recvUC:12%+10%
+[19011] 11.000  eno2: xmit 2% recv 2% [31434737495 27344221347]
+[19011] 12.000  perftest9:16343 size 20 mean 30.452us min 29.314us 50% 30.328us 90% 31.205us 99% 32.871us max 34.393us cnt 16372
+[19011] 12.000  rss:3.2MB recvUC:12%+10%
+[19011] 12.000  @perftest9:16343 rss:2.7MB recvUC:14%+7%
+[19011] 12.000  eno2: xmit 2% recv 2% [31437323591 27346807751]
+[19011] 13.000  perftest9:16343 size 20 mean 30.473us min 29.137us 50% 30.362us 90% 31.209us 99% 32.890us max 34.381us cnt 16361
+[19011] 13.000  rss:3.2MB recvUC:16%+6%
+[19011] 13.000  @perftest9:16343 rss:2.7MB recvUC:12%+10%
+[19011] 13.000  eno2: xmit 2% recv 2% [31439908015 27349392055]
+[19011] 14.000  perftest9:16343 size 20 mean 30.511us min 29.420us 50% 30.386us 90% 31.305us 99% 32.907us max 36.132us cnt 16342
+[19011] 14.000  rss:3.2MB recvUC:13%+9%
+[19011] 14.000  @perftest9:16343 rss:2.7MB recvUC:16%+5%
+[19011] 14.000  eno2: xmit 2% recv 2% [31442489639 27351974197]
+[19011] 15.000  perftest9:16343 size 20 mean 30.492us min 29.339us 50% 30.382us 90% 31.235us 99% 32.887us max 39.243us cnt 16353
+[19011] 15.000  rss:3.2MB recvUC:16%+6%
+[19011] 15.000  @perftest9:16343 rss:2.7MB recvUC:10%+11%
+[19011] 15.000  eno2: xmit 2% recv 2% [31445072957 27354557079]
+[19011] 16.000  perftest9:16343 size 20 mean 30.439us min 29.189us 50% 30.324us 90% 31.166us 99% 32.841us max 44.504us cnt 16382
+[19011] 16.000  rss:3.2MB ddsperf:1%+0% recvUC:15%+7%
+[19011] 16.000  @perftest9:16343 rss:2.7MB recvUC:14%+8%
+[19011] 16.000  eno2: xmit 2% recv 2% [31447671171 27357155811]
+[19011] 17.000  perftest9:16343 size 20 mean 30.464us min 29.292us 50% 30.341us 90% 31.247us 99% 32.850us max 40.886us cnt 16364
+[19011] 17.000  rss:3.2MB recvUC:11%+11%
+[19011] 17.000  @perftest9:16343 rss:2.7MB recvUC:11%+11%
+[19011] 17.000  eno2: xmit 2% recv 2% [31450256385 27359740747]
+[19011] 18.000  perftest9:16343 size 20 mean 30.498us min 29.073us 50% 30.378us 90% 31.210us 99% 32.929us max 35.350us cnt 16346
+[19011] 18.000  rss:3.2MB recvUC:12%+10%
+[19011] 18.000  @perftest9:16343 rss:2.7MB recvUC:16%+6%
+[19011] 18.000  eno2: xmit 2% recv 2% [31452838531 27362322981]
+[19011] 19.000  perftest9:16343 size 20 mean 30.468us min 29.181us 50% 30.344us 90% 31.232us 99% 32.913us max 35.696us cnt 16363
+[19011] 19.000  rss:3.2MB recvUC:14%+8%
+[19011] 19.000  @perftest9:16343 rss:2.7MB recvUC:15%+6%
+[19011] 19.000  eno2: xmit 2% recv 2% [31455422683 27364907873]
+[19011] 20.000  perftest9:16343 size 20 mean 30.503us min 29.217us 50% 30.389us 90% 31.260us 99% 32.918us max 35.378us cnt 16345
+[19011] 20.000  rss:3.2MB ddsperf:1%+0% recvUC:14%+8%
+[19011] 20.000  @perftest9:16343 rss:2.7MB recvUC:10%+11%
+[19011] 20.000  eno2: xmit 2% recv 2% [31458005053 27367489743]
+[19021] participant perftest8:19021: new (self)
+[19021] participant perftest9:16343: new
+[19021] 2.000  perftest9:16343 size 50 mean 31.132us min 29.637us 50% 31.003us 90% 32.051us 99% 32.485us max 46.099us cnt 16008
+[19021] 2.000  rss:2.8MB recvUC:12%+9%
+[19021] 2.000  @perftest9:16343 rss:2.7MB recvUC:11%+5%
+[19021] 2.000  eno2: xmit 1% recv 1% [31460676187 27370161563]
+[19021] 3.000  perftest9:16343 size 50 mean 31.034us min 29.570us 50% 30.924us 90% 31.963us 99% 32.406us max 35.210us cnt 16066
+[19021] 3.000  rss:3.3MB recvUC:13%+8%
+[19021] 3.000  @perftest9:16343 rss:2.7MB recvUC:14%+7%
+[19021] 3.000  eno2: xmit 2% recv 2% [31463741077 27373226745]
+[19021] 4.000  perftest9:16343 size 50 mean 31.093us min 29.894us 50% 30.967us 90% 31.998us 99% 32.478us max 40.631us cnt 16036
+[19021] 4.000  rss:3.3MB recvUC:16%+5%
+[19021] 4.000  @perftest9:16343 rss:2.7MB recvUC:14%+8%
+[19021] 4.000  eno2: xmit 2% recv 2% [31466787267 27376273481]
+[19021] 5.000  perftest9:16343 size 50 mean 31.043us min 29.521us 50% 30.941us 90% 31.951us 99% 32.420us max 34.910us cnt 16063
+[19021] 5.000  rss:3.3MB recvUC:14%+8%
+[19021] 5.000  @perftest9:16343 rss:2.7MB recvUC:13%+8%
+[19021] 5.000  eno2: xmit 2% recv 2% [31469837419 27379323669]
+[19021] 6.000  perftest9:16343 size 50 mean 31.081us min 29.791us 50% 30.954us 90% 32.011us 99% 32.507us max 39.392us cnt 16043
+[19021] 6.000  rss:3.3MB ddsperf:1%+0% recvUC:16%+6%
+[19021] 6.000  @perftest9:16343 rss:2.7MB recvUC:11%+10%
+[19021] 6.000  eno2: xmit 2% recv 2% [31472886187 27382372831]
+[19021] 7.000  perftest9:16343 size 50 mean 31.080us min 29.675us 50% 30.959us 90% 32.006us 99% 32.514us max 34.400us cnt 16043
+[19021] 7.000  rss:3.3MB recvUC:14%+6%
+[19021] 7.000  @perftest9:16343 rss:2.7MB recvUC:13%+9%
+[19021] 7.000  eno2: xmit 2% recv 2% [31475931807 27385418539]
+[19021] 8.000  perftest9:16343 size 50 mean 31.033us min 29.743us 50% 30.927us 90% 31.958us 99% 32.408us max 34.147us cnt 16068
+[19021] 8.000  rss:3.3MB recvUC:12%+10%
+[19021] 8.000  @perftest9:16343 rss:2.7MB recvUC:15%+7%
+[19021] 8.000  eno2: xmit 2% recv 2% [31478985297 27388471991]
+[19021] 9.000  perftest9:16343 size 50 mean 31.153us min 29.981us 50% 31.007us 90% 32.059us 99% 32.508us max 35.098us cnt 16006
+[19021] 9.000  rss:3.3MB recvUC:11%+11%
+[19021] 9.000  @perftest9:16343 rss:2.7MB recvUC:11%+10%
+[19021] 9.000  eno2: xmit 2% recv 2% [31482026421 27391513393]
+[19021] 10.000  perftest9:16343 size 50 mean 31.018us min 29.615us 50% 30.914us 90% 31.938us 99% 32.389us max 35.477us cnt 16074
+[19021] 10.000  rss:3.3MB ddsperf:1%+0% recvUC:12%+9%
+[19021] 10.000  @perftest9:16343 rss:2.7MB recvUC:13%+8%
+[19021] 10.000  eno2: xmit 2% recv 2% [31485078011 27394564757]
+[19021] 11.000  perftest9:16343 size 50 mean 31.065us min 29.897us 50% 30.943us 90% 31.973us 99% 32.404us max 41.340us cnt 16051
+[19021] 11.000  rss:3.3MB recvUC:16%+5%
+[19021] 11.000  @perftest9:16343 rss:2.7MB recvUC:14%+8%
+[19021] 11.000  eno2: xmit 2% recv 2% [31488127051 27397614263]
+[19021] 12.000  perftest9:16343 size 50 mean 31.065us min 29.700us 50% 30.956us 90% 31.984us 99% 32.406us max 34.385us cnt 16051
+[19021] 12.000  rss:3.3MB recvUC:14%+7%
+[19021] 12.000  @perftest9:16343 rss:2.7MB recvUC:10%+10%
+[19021] 12.000  eno2: xmit 2% recv 2% [31491176091 27400663265]
+[19021] 13.000  perftest9:16343 size 50 mean 31.145us min 29.812us 50% 31.011us 90% 32.053us 99% 32.544us max 43.584us cnt 16011
+[19021] 13.000  rss:3.3MB recvUC:13%+9%
+[19021] 13.000  @perftest9:16343 rss:2.7MB recvUC:14%+8%
+[19021] 13.000  eno2: xmit 2% recv 2% [31494218941 27403706393]
+[19021] 14.000  perftest9:16343 size 50 mean 31.100us min 29.569us 50% 30.970us 90% 32.030us 99% 32.445us max 40.540us cnt 16032
+[19021] 14.000  rss:3.3MB recvUC:11%+11%
+[19021] 14.000  @perftest9:16343 rss:2.7MB recvUC:12%+9%
+[19021] 14.000  eno2: xmit 2% recv 2% [31497263231 27406750645]
+[19021] 15.000  perftest9:16343 size 50 mean 31.073us min 29.696us 50% 30.961us 90% 31.989us 99% 32.453us max 34.084us cnt 16048
+[19021] 15.000  rss:3.3MB recvUC:13%+8%
+[19021] 15.000  @perftest9:16343 rss:2.7MB recvUC:10%+12%
+[19021] 15.000  eno2: xmit 2% recv 2% [31500322801 27409810303]
+[19021] 16.000  perftest9:16343 size 50 mean 31.064us min 29.385us 50% 30.940us 90% 31.991us 99% 32.445us max 36.172us cnt 16052
+[19021] 16.000  rss:3.3MB ddsperf:1%+0% recvUC:14%+7%
+[19021] 16.000  @perftest9:16343 rss:2.7MB recvUC:13%+8%
+[19021] 16.000  eno2: xmit 2% recv 2% [31503372031 27412859875]
+[19021] 17.000  perftest9:16343 size 50 mean 31.036us min 29.680us 50% 30.928us 90% 31.958us 99% 32.425us max 34.326us cnt 16066
+[19021] 17.000  rss:3.3MB recvUC:14%+8%
+[19021] 17.000  @perftest9:16343 rss:2.7MB recvUC:12%+9%
+[19021] 17.000  eno2: xmit 2% recv 2% [31506423197 27415911077]
+[19021] 18.000  perftest9:16343 size 50 mean 31.007us min 29.866us 50% 30.893us 90% 31.922us 99% 32.347us max 41.390us cnt 16081
+[19021] 18.000  rss:3.3MB recvUC:12%+9%
+[19021] 18.000  @perftest9:16343 rss:2.7MB recvUC:13%+9%
+[19021] 18.000  eno2: xmit 2% recv 2% [31509478425 27418966509]
+[19021] 19.000  perftest9:16343 size 50 mean 31.016us min 29.588us 50% 30.894us 90% 31.934us 99% 32.331us max 34.600us cnt 16075
+[19021] 19.000  rss:3.3MB recvUC:11%+10%
+[19021] 19.000  @perftest9:16343 rss:2.7MB recvUC:15%+6%
+[19021] 19.000  eno2: xmit 2% recv 2% [31512531455 27422019437]
+[19021] 20.000  perftest9:16343 size 50 mean 30.998us min 29.638us 50% 30.899us 90% 31.917us 99% 32.336us max 41.319us cnt 16086
+[19021] 20.000  rss:3.3MB ddsperf:1%+0% recvUC:14%+8%
+[19021] 20.000  @perftest9:16343 rss:2.7MB recvUC:11%+11%
+[19021] 20.000  eno2: xmit 2% recv 2% [31515587415 27425075549]
+[19031] participant perftest8:19031: new (self)
+[19031] participant perftest9:16343: new
+[19031] 1.000  @perftest9:16343 rss:2.7MB ddsperf:1%+0%
+[19031] 2.000  perftest9:16343 size 100 mean 32.259us min 30.926us 50% 32.152us 90% 33.162us 99% 33.627us max 46.210us cnt 15449
+[19031] 2.000  rss:2.7MB recvUC:10%+11%
+[19031] 2.000  @perftest9:16343 rss:2.7MB recvUC:7%+6%
+[19031] 2.000  eno2: xmit 2% recv 2% [31518743461 27428232113]
+[19031] 3.000  perftest9:16343 size 100 mean 32.086us min 30.843us 50% 31.970us 90% 32.994us 99% 33.471us max 36.806us cnt 15541
+[19031] 3.000  rss:2.9MB recvUC:15%+5%
+[19031] 3.000  @perftest9:16343 rss:2.7MB recvUC:12%+9%
+[19031] 3.000  eno2: xmit 3% recv 3% [31522450485 27431939253]
+[19031] 4.000  perftest9:16343 size 100 mean 32.131us min 30.942us 50% 32.018us 90% 33.058us 99% 33.476us max 36.152us cnt 15519
+[19031] 4.000  rss:2.9MB recvUC:14%+7%
+[19031] 4.000  @perftest9:16343 rss:2.7MB recvUC:9%+12%
+[19031] 4.000  eno2: xmit 3% recv 3% [31526144831 27435634081]
+[19031] 5.000  perftest9:16343 size 100 mean 32.133us min 30.725us 50% 32.028us 90% 33.055us 99% 33.493us max 43.264us cnt 15518
+[19031] 5.000  rss:2.9MB recvUC:11%+10%
+[19031] 5.000  @perftest9:16343 rss:2.7MB recvUC:12%+8%
+[19031] 5.000  eno2: xmit 3% recv 3% [31529836193 27439326025]
+[19031] 6.000  perftest9:16343 size 100 mean 32.088us min 30.779us 50% 31.970us 90% 32.997us 99% 33.468us max 36.578us cnt 15541
+[19031] 6.000  rss:2.9MB ddsperf:1%+0% recvUC:12%+9%
+[19031] 6.000  @perftest9:16343 rss:2.7MB recvUC:16%+5%
+[19031] 6.000  eno2: xmit 3% recv 3% [31533531555 27443021045]
+[19031] 7.000  perftest9:16343 size 100 mean 32.030us min 30.827us 50% 31.936us 90% 32.954us 99% 33.404us max 36.242us cnt 15569
+[19031] 7.000  rss:2.9MB recvUC:12%+9%
+[19031] 7.000  @perftest9:16343 rss:2.7MB recvUC:13%+7%
+[19031] 7.000  eno2: xmit 3% recv 3% [31537236721 27446727031]
+[19031] 8.000  perftest9:16343 size 100 mean 32.106us min 30.847us 50% 31.985us 90% 33.028us 99% 33.460us max 35.486us cnt 15533
+[19031] 8.000  rss:2.9MB recvUC:11%+11%
+[19031] 8.000  @perftest9:16343 rss:2.7MB recvUC:10%+10%
+[19031] 8.000  eno2: xmit 3% recv 3% [31540936129 27450425859]
+[19031] 9.000  perftest9:16343 size 100 mean 32.036us min 30.760us 50% 31.931us 90% 32.971us 99% 33.410us max 42.188us cnt 15566
+[19031] 9.000  rss:2.9MB recvUC:15%+5%
+[19031] 9.000  @perftest9:16343 rss:2.7MB recvUC:15%+6%
+[19031] 9.000  eno2: xmit 3% recv 3% [31544635345 27454125279]
+[19031] 10.000  perftest9:16343 size 100 mean 32.021us min 30.836us 50% 31.920us 90% 32.943us 99% 33.431us max 35.543us cnt 15574
+[19031] 10.000  rss:2.9MB ddsperf:1%+0% recvUC:12%+10%
+[19031] 10.000  @perftest9:16343 rss:2.7MB recvUC:11%+9%
+[19031] 10.000  eno2: xmit 3% recv 3% [31548340465 27457830435]
+[19031] 11.000  perftest9:16343 size 100 mean 32.072us min 30.923us 50% 31.954us 90% 32.996us 99% 33.430us max 35.456us cnt 15548
+[19031] 11.000  rss:2.9MB recvUC:11%+9%
+[19031] 11.000  @perftest9:16343 rss:2.7MB recvUC:17%+4%
+[19031] 11.000  eno2: xmit 3% recv 3% [31552043141 27461533501]
+[19031] 12.000  perftest9:16343 size 100 mean 32.022us min 30.823us 50% 31.928us 90% 32.931us 99% 33.408us max 35.639us cnt 15573
+[19031] 12.000  rss:2.9MB recvUC:15%+7%
+[19031] 12.000  @perftest9:16343 rss:2.7MB recvUC:12%+8%
+[19031] 12.000  eno2: xmit 3% recv 3% [31555745927 27465236567]
+[19031] 13.000  perftest9:16343 size 100 mean 32.112us min 30.835us 50% 31.988us 90% 33.024us 99% 33.498us max 35.499us cnt 15529
+[19031] 13.000  rss:2.9MB recvUC:14%+7%
+[19031] 13.000  @perftest9:16343 rss:2.7MB recvUC:15%+6%
+[19031] 13.000  eno2: xmit 3% recv 3% [31559441765 27468932127]
+[19031] 14.000  perftest9:16343 size 100 mean 32.093us min 30.844us 50% 31.983us 90% 33.012us 99% 33.491us max 36.787us cnt 15538
+[19031] 14.000  rss:2.9MB recvUC:10%+10%
+[19031] 14.000  @perftest9:16343 rss:2.7MB recvUC:12%+8%
+[19031] 14.000  eno2: xmit 3% recv 3% [31563139553 27472630671]
+[19031] 15.000  perftest9:16343 size 100 mean 32.060us min 30.736us 50% 31.949us 90% 32.995us 99% 33.461us max 36.622us cnt 15555
+[19031] 15.000  rss:2.9MB recvUC:11%+10%
+[19031] 15.000  @perftest9:16343 rss:2.7MB recvUC:10%+11%
+[19031] 15.000  eno2: xmit 3% recv 3% [31566855383 27476345985]
+[19031] 16.000  perftest9:16343 size 100 mean 32.106us min 30.676us 50% 31.986us 90% 33.016us 99% 33.496us max 35.185us cnt 15532
+[19031] 16.000  rss:2.9MB ddsperf:1%+0% recvUC:17%+5%
+[19031] 16.000  @perftest9:16343 rss:2.7MB recvUC:12%+8%
+[19031] 16.000  eno2: xmit 3% recv 3% [31570551395 27480042323]
+[19031] 17.000  perftest9:16343 size 100 mean 32.063us min 30.812us 50% 31.961us 90% 32.984us 99% 33.477us max 41.870us cnt 15553
+[19031] 17.000  rss:2.9MB recvUC:10%+11%
+[19031] 17.000  @perftest9:16343 rss:2.7MB ddsperf:1%+0% recvUC:14%+6%
+[19031] 17.000  eno2: xmit 3% recv 3% [31574251325 27483742617]
+[19031] 18.000  perftest9:16343 size 100 mean 32.044us min 30.858us 50% 31.931us 90% 32.943us 99% 33.411us max 35.540us cnt 15561
+[19031] 18.000  rss:2.9MB recvUC:12%+9%
+[19031] 18.000  @perftest9:16343 rss:2.7MB recvUC:12%+9%
+[19031] 18.000  eno2: xmit 3% recv 3% [31577951209 27487442159]
+[19031] 19.000  perftest9:16343 size 100 mean 32.051us min 30.761us 50% 31.947us 90% 32.963us 99% 33.418us max 35.462us cnt 15558
+[19031] 19.000  rss:2.9MB recvUC:12%+9%
+[19031] 19.000  @perftest9:16343 rss:2.7MB recvUC:14%+6%
+[19031] 19.000  eno2: xmit 3% recv 3% [31581653757 27491145527]
+[19031] 20.000  perftest9:16343 size 100 mean 32.103us min 30.820us 50% 31.994us 90% 33.018us 99% 33.467us max 35.444us cnt 15532
+[19031] 20.000  rss:2.9MB ddsperf:1%+0% recvUC:11%+10%
+[19031] 20.000  @perftest9:16343 rss:2.7MB recvUC:13%+8%
+[19031] 20.000  eno2: xmit 3% recv 3% [31585352451 27494843641]
+[19041] participant perftest8:19041: new (self)
+[19041] participant perftest9:16343: new
+[19041] 2.000  perftest9:16343 size 200 mean 35.072us min 33.641us 50% 34.973us 90% 35.980us 99% 36.686us max 50.888us cnt 14207
+[19041] 2.000  rss:2.7MB recvUC:14%+6%
+[19041] 2.000  @perftest9:16343 rss:2.7MB recvUC:9%+2%
+[19041] 2.000  eno2: xmit 1% recv 1% [31589292699 27498784475]
+[19041] 3.000  perftest9:16343 size 200 mean 34.838us min 33.627us 50% 34.729us 90% 35.700us 99% 36.378us max 45.308us cnt 14310
+[19041] 3.000  rss:3.0MB recvUC:14%+8%
+[19041] 3.000  @perftest9:16343 rss:2.7MB recvUC:9%+11%
+[19041] 3.000  eno2: xmit 4% recv 4% [31594112553 27503604381]
+[19041] 4.000  perftest9:16343 size 200 mean 34.651us min 33.453us 50% 34.549us 90% 35.560us 99% 36.094us max 38.003us cnt 14386
+[19041] 4.000  rss:3.0MB recvUC:14%+7%
+[19041] 4.000  @perftest9:16343 rss:2.7MB recvUC:12%+7%
+[19041] 4.000  eno2: xmit 4% recv 4% [31598976255 27508469397]
+[19041] 5.000  perftest9:16343 size 200 mean 34.695us min 33.484us 50% 34.581us 90% 35.611us 99% 36.118us max 43.819us cnt 14369
+[19041] 5.000  rss:3.0MB recvUC:15%+6%
+[19041] 5.000  @perftest9:16343 rss:2.7MB recvUC:9%+10%
+[19041] 5.000  eno2: xmit 4% recv 4% [31603831397 27513324627]
+[19041] 6.000  perftest9:16343 size 200 mean 34.647us min 33.314us 50% 34.536us 90% 35.575us 99% 36.059us max 37.919us cnt 14389
+[19041] 6.000  rss:3.0MB ddsperf:1%+0% recvUC:13%+9%
+[19041] 6.000  @perftest9:16343 rss:2.7MB recvUC:12%+7%
+[19041] 6.000  eno2: xmit 4% recv 4% [31608690569 27518183613]
+[19041] 7.000  perftest9:16343 size 200 mean 34.698us min 33.464us 50% 34.599us 90% 35.621us 99% 36.124us max 39.044us cnt 14368
+[19041] 7.000  rss:3.0MB recvUC:13%+8%
+[19041] 7.000  @perftest9:16343 rss:2.7MB recvUC:14%+6%
+[19041] 7.000  eno2: xmit 4% recv 4% [31613549429 27523042899]
+[19041] 8.000  perftest9:16343 size 200 mean 34.594us min 32.767us 50% 34.477us 90% 35.526us 99% 36.022us max 38.171us cnt 14411
+[19041] 8.000  rss:3.0MB recvUC:12%+10%
+[19041] 8.000  @perftest9:16343 rss:2.7MB ddsperf:0%+1% recvUC:10%+8%
+[19041] 8.000  eno2: xmit 4% recv 4% [31618411707 27527904633]
+[19041] 9.000  perftest9:16343 size 200 mean 34.561us min 33.138us 50% 34.462us 90% 35.500us 99% 35.987us max 38.306us cnt 14425
+[19041] 9.000  rss:3.0MB recvUC:14%+7%
+[19041] 9.000  @perftest9:16343 rss:2.7MB recvUC:12%+8%
+[19041] 9.000  eno2: xmit 4% recv 4% [31623286115 27532779845]
+[19041] 10.000  perftest9:16343 size 200 mean 34.589us min 32.931us 50% 34.480us 90% 35.521us 99% 36.004us max 44.133us cnt 14412
+[19041] 10.000  rss:3.0MB recvUC:10%+12%
+[19041] 10.000  @perftest9:16343 rss:2.7MB recvUC:11%+8%
+[19041] 10.000  eno2: xmit 4% recv 4% [31628155277 27537648769]
+[19041] 11.000  perftest9:16343 size 200 mean 34.405us min 33.155us 50% 34.287us 90% 35.293us 99% 35.874us max 43.069us cnt 14490
+[19041] 11.000  rss:3.0MB ddsperf:1%+0% recvUC:13%+7%
+[19041] 11.000  @perftest9:16343 rss:2.7MB recvUC:10%+9%
+[19041] 11.000  eno2: xmit 4% recv 4% [31633040989 27542534621]
+[19041] 12.000  perftest9:16343 size 200 mean 34.320us min 33.014us 50% 34.194us 90% 35.230us 99% 35.794us max 40.269us cnt 14526
+[19041] 12.000  rss:3.0MB recvUC:14%+7%
+[19041] 12.000  @perftest9:16343 rss:2.7MB recvUC:13%+5%
+[19041] 12.000  eno2: xmit 4% recv 4% [31637946493 27547440615]
+[19041] 13.000  perftest9:16343 size 200 mean 34.661us min 33.557us 50% 34.545us 90% 35.598us 99% 36.085us max 39.134us cnt 14383
+[19041] 13.000  rss:3.0MB recvUC:13%+9%
+[19041] 13.000  @perftest9:16343 rss:2.7MB recvUC:14%+6%
+[19041] 13.000  eno2: xmit 4% recv 4% [31642825945 27552319817]
+[19041] 14.000  perftest9:16343 size 200 mean 34.654us min 33.220us 50% 34.554us 90% 35.570us 99% 36.075us max 39.097us cnt 14386
+[19041] 14.000  rss:3.0MB recvUC:11%+10%
+[19041] 14.000  @perftest9:16343 rss:2.7MB recvUC:11%+8%
+[19041] 14.000  eno2: xmit 4% recv 4% [31647702381 27557196405]
+[19041] 15.000  perftest9:16343 size 200 mean 34.628us min 33.384us 50% 34.518us 90% 35.538us 99% 36.042us max 43.464us cnt 14397
+[19041] 15.000  rss:3.0MB recvUC:14%+7%
+[19041] 15.000  @perftest9:16343 rss:2.7MB recvUC:10%+9%
+[19041] 15.000  eno2: xmit 4% recv 4% [31652569217 27562062899]
+[19041] 16.000  perftest9:16343 size 200 mean 34.567us min 33.403us 50% 34.460us 90% 35.495us 99% 35.969us max 38.378us cnt 14422
+[19041] 16.000  rss:3.0MB recvUC:16%+6%
+[19041] 16.000  @perftest9:16343 rss:2.7MB recvUC:11%+9%
+[19041] 16.000  eno2: xmit 4% recv 4% [31657439003 27566933267]
+[19041] 17.000  perftest9:16343 size 200 mean 34.580us min 33.252us 50% 34.481us 90% 35.501us 99% 35.997us max 45.406us cnt 14417
+[19041] 17.000  rss:3.0MB ddsperf:1%+0% recvUC:13%+8%
+[19041] 17.000  @perftest9:16343 rss:2.7MB recvUC:10%+8%
+[19041] 17.000  eno2: xmit 4% recv 4% [31662310369 27571804721]
+[19041] 18.000  perftest9:16343 size 200 mean 34.513us min 33.405us 50% 34.398us 90% 35.440us 99% 35.915us max 38.063us cnt 14444
+[19041] 18.000  rss:3.0MB recvUC:15%+7%
+[19041] 18.000  @perftest9:16343 rss:2.7MB recvUC:10%+10%
+[19041] 18.000  eno2: xmit 4% recv 4% [31667185765 27576680269]
+[19041] 19.000  perftest9:16343 size 200 mean 34.526us min 33.209us 50% 34.433us 90% 35.446us 99% 35.928us max 38.912us cnt 14440
+[19041] 19.000  rss:3.0MB recvUC:16%+6%
+[19041] 19.000  @perftest9:16343 rss:2.7MB recvUC:11%+8%
+[19041] 19.000  eno2: xmit 4% recv 4% [31672066595 27581561187]
+[19041] 20.000  perftest9:16343 size 200 mean 34.515us min 33.484us 50% 34.399us 90% 35.429us 99% 35.911us max 37.863us cnt 14444
+[19041] 20.000  rss:3.0MB recvUC:13%+8%
+[19041] 20.000  @perftest9:16343 rss:2.7MB recvUC:13%+6%
+[19041] 20.000  eno2: xmit 4% recv 4% [31676947737 27586442103]
+[19052] participant perftest8:19052: new (self)
+[19052] participant perftest9:16343: new
+[19052] 2.000  perftest9:16343 size 500 mean 40.915us min 39.423us 50% 40.837us 90% 41.833us 99% 42.403us max 53.792us cnt 12185
+[19052] 2.000  rss:2.8MB recvUC:12%+6%
+[19052] 2.000  @perftest9:16343 rss:2.7MB recvUC:3%+4%
+[19052] 2.000  eno2: xmit 2% recv 2% [31682711969 27592207699]
+[19052] 3.000  perftest9:16343 size 500 mean 40.959us min 39.639us 50% 40.866us 90% 41.861us 99% 42.376us max 44.806us cnt 12179
+[19052] 3.000  rss:2.8MB recvUC:12%+8%
+[19052] 3.000  @perftest9:16343 rss:2.7MB recvUC:10%+9%
+[19052] 3.000  eno2: xmit 6% recv 6% [31690483191 27599979207]
+[19052] 4.000  perftest9:16343 size 500 mean 40.854us min 39.487us 50% 40.773us 90% 41.729us 99% 42.295us max 45.415us cnt 12211
+[19052] 4.000  rss:2.8MB recvUC:10%+8%
+[19052] 4.000  @perftest9:16343 rss:2.7MB recvUC:13%+5%
+[19052] 4.000  eno2: xmit 6% recv 6% [31698254519 27607750639]
+[19052] 5.000  perftest9:16343 size 500 mean 40.890us min 39.418us 50% 40.804us 90% 41.788us 99% 42.336us max 51.777us cnt 12200
+[19052] 5.000  rss:2.8MB recvUC:11%+8%
+[19052] 5.000  @perftest9:16343 rss:2.7MB recvUC:11%+8%
+[19052] 5.000  eno2: xmit 6% recv 6% [31706044081 27615540783]
+[19052] 6.000  perftest9:16343 size 500 mean 40.924us min 39.548us 50% 40.837us 90% 41.817us 99% 42.347us max 49.814us cnt 12189
+[19052] 6.000  rss:2.8MB recvUC:13%+7%
+[19052] 6.000  @perftest9:16343 rss:2.7MB recvUC:14%+4%
+[19052] 6.000  eno2: xmit 6% recv 6% [31713818761 27623315759]
+[19052] 7.000  perftest9:16343 size 500 mean 40.842us min 39.376us 50% 40.760us 90% 41.714us 99% 42.300us max 45.355us cnt 12214
+[19052] 7.000  rss:2.8MB ddsperf:0%+1% recvUC:11%+7%
+[19052] 7.000  @perftest9:16343 rss:2.7MB recvUC:11%+7%
+[19052] 7.000  eno2: xmit 6% recv 6% [31721600093 27631097295]
+[19052] 8.000  perftest9:16343 size 500 mean 40.776us min 39.206us 50% 40.682us 90% 41.625us 99% 42.199us max 44.291us cnt 12234
+[19052] 8.000  rss:2.8MB recvUC:11%+8%
+[19052] 8.000  @perftest9:16343 rss:2.7MB recvUC:11%+7%
+[19052] 8.000  eno2: xmit 6% recv 6% [31729399655 27638896255]
+[19052] 9.000  perftest9:16343 size 500 mean 40.753us min 39.269us 50% 40.670us 90% 41.586us 99% 42.190us max 43.731us cnt 12241
+[19052] 9.000  rss:2.8MB recvUC:14%+6%
+[19052] 9.000  @perftest9:16343 rss:2.7MB recvUC:11%+7%
+[19052] 9.000  eno2: xmit 6% recv 6% [31737204419 27646701171]
+[19052] 10.000  perftest9:16343 size 500 mean 40.744us min 39.127us 50% 40.650us 90% 41.554us 99% 42.197us max 44.403us cnt 12243
+[19052] 10.000  rss:2.8MB recvUC:13%+5%
+[19052] 10.000  @perftest9:16343 rss:2.7MB recvUC:15%+4%
+[19052] 10.000  eno2: xmit 6% recv 6% [31745006103 27654503373]
+[19052] 11.000  perftest9:16343 size 500 mean 40.714us min 39.238us 50% 40.623us 90% 41.517us 99% 42.147us max 44.211us cnt 12252
+[19052] 11.000  rss:2.8MB recvUC:13%+6%
+[19052] 11.000  @perftest9:16343 rss:2.7MB recvUC:12%+6%
+[19052] 11.000  eno2: xmit 6% recv 6% [31752824167 27662321797]
+[19052] 12.000  perftest9:16343 size 500 mean 40.734us min 39.257us 50% 40.647us 90% 41.515us 99% 42.169us max 52.555us cnt 12247
+[19052] 12.000  rss:2.8MB ddsperf:0%+1% recvUC:14%+4%
+[19052] 12.000  @perftest9:16343 rss:2.7MB recvUC:12%+7%
+[19052] 12.000  eno2: xmit 6% recv 6% [31760635421 27670133569]
+[19052] 13.000  perftest9:16343 size 500 mean 40.690us min 39.473us 50% 40.585us 90% 41.493us 99% 42.122us max 43.993us cnt 12260
+[19052] 13.000  rss:2.8MB recvUC:14%+6%
+[19052] 13.000  @perftest9:16343 rss:2.7MB recvUC:11%+7%
+[19052] 13.000  eno2: xmit 6% recv 6% [31768481557 27677979427]
+[19052] 14.000  perftest9:16343 size 500 mean 40.710us min 39.248us 50% 40.621us 90% 41.535us 99% 42.171us max 51.892us cnt 12252
+[19052] 14.000  rss:2.8MB recvUC:10%+8%
+[19052] 14.000  @perftest9:16343 rss:2.7MB recvUC:11%+8%
+[19052] 14.000  eno2: xmit 6% recv 6% [31776296529 27685793849]
+[19052] 15.000  perftest9:16343 size 500 mean 40.680us min 39.373us 50% 40.577us 90% 41.496us 99% 42.110us max 52.592us cnt 12263
+[19052] 15.000  rss:2.8MB recvUC:14%+6%
+[19052] 15.000  @perftest9:16343 rss:2.7MB recvUC:18%+0%
+[19052] 15.000  eno2: xmit 6% recv 6% [31784116239 27693614727]
+[19052] 16.000  perftest9:16343 size 500 mean 40.650us min 39.337us 50% 40.555us 90% 41.426us 99% 42.090us max 44.406us cnt 12271
+[19052] 16.000  rss:2.8MB recvUC:9%+9%
+[19052] 16.000  @perftest9:16343 rss:2.7MB recvUC:11%+7%
+[19052] 16.000  eno2: xmit 6% recv 6% [31791939245 27701436805]
+[19052] 17.000  perftest9:16343 size 500 mean 40.713us min 39.228us 50% 40.627us 90% 41.530us 99% 42.133us max 50.028us cnt 12253
+[19052] 17.000  rss:2.8MB recvUC:13%+6%
+[19052] 17.000  @perftest9:16343 rss:2.7MB recvUC:12%+6%
+[19052] 17.000  eno2: xmit 6% recv 6% [31799762621 27709260763]
+[19052] 18.000  perftest9:16343 size 500 mean 40.699us min 39.298us 50% 40.599us 90% 41.488us 99% 42.159us max 44.302us cnt 12257
+[19052] 18.000  rss:2.8MB recvUC:12%+7%
+[19052] 18.000  @perftest9:16343 rss:2.7MB recvUC:10%+8%
+[19052] 18.000  eno2: xmit 6% recv 6% [31807573029 27717071467]
+[19052] 19.000  perftest9:16343 size 500 mean 40.716us min 39.449us 50% 40.629us 90% 41.496us 99% 42.167us max 50.891us cnt 12252
+[19052] 19.000  rss:2.8MB ddsperf:0%+1% recvUC:15%+3%
+[19052] 19.000  @perftest9:16343 rss:2.7MB recvUC:9%+10%
+[19052] 19.000  eno2: xmit 6% recv 6% [31815398957 27724896961]
+[19052] 20.000  perftest9:16343 size 500 mean 40.704us min 38.883us 50% 40.598us 90% 41.513us 99% 42.182us max 44.728us cnt 12256
+[19052] 20.000  rss:2.8MB recvUC:10%+9%
+[19052] 20.000  @perftest9:16343 rss:2.7MB recvUC:10%+8%
+[19052] 20.000  eno2: xmit 6% recv 6% [31823206175 27732704853]
+[19062] participant perftest8:19062: new (self)
+[19062] participant perftest9:16343: new
+[19062] 2.000  perftest9:16343 size 1000 mean 50.883us min 49.471us 50% 50.757us 90% 51.829us 99% 52.530us max 74.013us cnt 9802
+[19062] 2.000  rss:2.6MB recvUC:9%+6%
+[19062] 2.000  @perftest9:16343 rss:2.7MB recvUC:2%+2%
+[19062] 2.000  eno2: xmit 2% recv 2% [31831369137 27740869177]
+[19062] 3.000  perftest9:16343 size 1000 mean 51.017us min 49.916us 50% 50.880us 90% 51.955us 99% 52.721us max 61.917us cnt 9782
+[19062] 3.000  rss:2.6MB recvUC:11%+6%
+[19062] 3.000  @perftest9:16343 rss:2.7MB recvUC:10%+5%
+[19062] 3.000  eno2: xmit 9% recv 9% [31842504577 27752003961]
+[19062] 4.000  perftest9:16343 size 1000 mean 50.889us min 49.621us 50% 50.756us 90% 51.830us 99% 52.386us max 63.153us cnt 9807
+[19062] 4.000  rss:2.6MB recvUC:10%+6%
+[19062] 4.000  @perftest9:16343 rss:2.7MB recvUC:12%+4%
+[19062] 4.000  eno2: xmit 9% recv 9% [31853645219 27763145149]
+[19062] 5.000  perftest9:16343 size 1000 mean 50.917us min 49.670us 50% 50.790us 90% 51.842us 99% 52.414us max 61.299us cnt 9801
+[19062] 5.000  rss:2.6MB recvUC:9%+8%
+[19062] 5.000  @perftest9:16343 rss:2.7MB recvUC:9%+6%
+[19062] 5.000  eno2: xmit 9% recv 9% [31864801143 27774301161]
+[19062] 6.000  perftest9:16343 size 1000 mean 50.844us min 49.560us 50% 50.707us 90% 51.794us 99% 52.342us max 54.140us cnt 9816
+[19062] 6.000  rss:2.6MB recvUC:9%+6%
+[19062] 6.000  @perftest9:16343 rss:2.7MB ddsperf:0%+1% recvUC:9%+6%
+[19062] 6.000  eno2: xmit 9% recv 9% [31875957717 27785457529]
+[19062] 7.000  perftest9:16343 size 1000 mean 50.884us min 49.570us 50% 50.759us 90% 51.822us 99% 52.421us max 62.196us cnt 9807
+[19062] 7.000  rss:2.6MB recvUC:9%+8%
+[19062] 7.000  @perftest9:16343 rss:2.7MB recvUC:10%+6%
+[19062] 7.000  eno2: xmit 9% recv 9% [31887119331 27796620747]
+[19062] 8.000  perftest9:16343 size 1000 mean 50.882us min 49.682us 50% 50.743us 90% 51.810us 99% 52.495us max 62.976us cnt 9808
+[19062] 8.000  rss:2.6MB ddsperf:0%+1% recvUC:10%+6%
+[19062] 8.000  @perftest9:16343 rss:2.7MB recvUC:10%+5%
+[19062] 8.000  eno2: xmit 9% recv 9% [31898272445 27807773583]
+[19062] 9.000  perftest9:16343 size 1000 mean 50.901us min 49.689us 50% 50.771us 90% 51.837us 99% 52.496us max 55.452us cnt 9805
+[19062] 9.000  rss:2.6MB recvUC:12%+5%
+[19062] 9.000  @perftest9:16343 rss:2.7MB recvUC:8%+6%
+[19062] 9.000  eno2: xmit 9% recv 9% [31909434169 27818934687]
+[19062] 10.000  perftest9:16343 size 1000 mean 50.960us min 49.773us 50% 50.827us 90% 51.901us 99% 52.579us max 55.353us cnt 9793
+[19062] 10.000  rss:2.6MB recvUC:12%+4%
+[19062] 10.000  @perftest9:16343 rss:2.7MB recvUC:10%+5%
+[19062] 10.000  eno2: xmit 9% recv 9% [31920583265 27830083935]
+[19062] 11.000  perftest9:16343 size 1000 mean 50.952us min 49.627us 50% 50.812us 90% 51.904us 99% 52.574us max 61.771us cnt 9795
+[19062] 11.000  rss:2.6MB recvUC:10%+7%
+[19062] 11.000  @perftest9:16343 rss:2.7MB recvUC:9%+6%
+[19062] 11.000  eno2: xmit 9% recv 9% [31931723907 27841224665]
+[19062] 12.000  perftest9:16343 size 1000 mean 50.953us min 49.539us 50% 50.826us 90% 51.883us 99% 52.546us max 55.001us cnt 9794
+[19062] 12.000  rss:2.6MB recvUC:10%+6%
+[19062] 12.000  @perftest9:16343 rss:2.7MB recvUC:7%+8%
+[19062] 12.000  eno2: xmit 9% recv 9% [31942866175 27852368223]
+[19062] 13.000  perftest9:16343 size 1000 mean 51.011us min 49.826us 50% 50.865us 90% 51.934us 99% 52.640us max 64.204us cnt 9784
+[19062] 13.000  rss:2.6MB recvUC:9%+8%
+[19062] 13.000  @perftest9:16343 rss:2.7MB recvUC:11%+4%
+[19062] 13.000  eno2: xmit 9% recv 9% [31954049951 27863550519]
+[19062] 14.000  perftest9:16343 size 1000 mean 51.002us min 49.674us 50% 50.869us 90% 51.944us 99% 52.655us max 60.609us cnt 9785
+[19062] 14.000  rss:2.6MB ddsperf:0%+1% recvUC:11%+5%
+[19062] 14.000  @perftest9:16343 rss:2.7MB recvUC:9%+6%
+[19062] 14.000  eno2: xmit 9% recv 9% [31965182087 27874683237]
+[19062] 15.000  perftest9:16343 size 1000 mean 50.925us min 49.650us 50% 50.787us 90% 51.872us 99% 52.558us max 61.973us cnt 9801
+[19062] 15.000  rss:2.6MB recvUC:8%+9%
+[19062] 15.000  @perftest9:16343 rss:2.7MB recvUC:7%+8%
+[19062] 15.000  eno2: xmit 9% recv 9% [31976317591 27885818829]
+[19062] 16.000  perftest9:16343 size 1000 mean 50.797us min 49.605us 50% 50.666us 90% 51.721us 99% 52.411us max 54.982us cnt 9825
+[19062] 16.000  rss:2.6MB recvUC:11%+5%
+[19062] 16.000  @perftest9:16343 rss:2.7MB recvUC:11%+4%
+[19062] 16.000  eno2: xmit 9% recv 9% [31987476441 27896977831]
+[19062] 17.000  perftest9:16343 size 1000 mean 50.844us min 49.466us 50% 50.713us 90% 51.773us 99% 52.473us max 61.026us cnt 9815
+[19062] 17.000  rss:2.6MB recvUC:12%+4%
+[19062] 17.000  @perftest9:16343 rss:2.7MB recvUC:9%+6%
+[19062] 17.000  eno2: xmit 9% recv 9% [31998649435 27908152051]
+[19062] 18.000  perftest9:16343 size 1000 mean 50.851us min 49.545us 50% 50.712us 90% 51.786us 99% 52.430us max 54.414us cnt 9814
+[19062] 18.000  rss:2.6MB recvUC:12%+5%
+[19062] 18.000  @perftest9:16343 rss:2.7MB recvUC:10%+5%
+[19062] 18.000  eno2: xmit 9% recv 9% [32009819665 27919320917]
+[19062] 19.000  perftest9:16343 size 1000 mean 50.832us min 49.511us 50% 50.704us 90% 51.774us 99% 52.436us max 61.485us cnt 9818
+[19062] 19.000  rss:2.6MB recvUC:8%+8%
+[19062] 19.000  @perftest9:16343 rss:2.7MB recvUC:9%+7%
+[19062] 19.000  eno2: xmit 9% recv 9% [32020980141 27930482997]
+[19062] 20.000  perftest9:16343 size 1000 mean 50.878us min 49.704us 50% 50.744us 90% 51.817us 99% 52.527us max 63.671us cnt 9809
+[19062] 20.000  rss:2.6MB recvUC:12%+5%
+[19062] 20.000  @perftest9:16343 rss:2.7MB recvUC:8%+6%
+[19062] 20.000  eno2: xmit 9% recv 9% [32032149123 27941650563]
+[19072] participant perftest8:19072: new (self)
+[19072] participant perftest9:16343: new
+[19072] 2.000  perftest9:16343 size 2000 mean 65.880us min 64.359us 50% 65.762us 90% 66.756us 99% 67.490us max 96.234us cnt 7573
+[19072] 2.000  rss:2.8MB recvUC:8%+6%
+[19072] 2.000  @perftest9:16343 rss:2.7MB recvUC:1%+2%
+[19072] 2.000  eno2: xmit 2% recv 2% [32043374141 27952875857]
+[19072] 3.000  perftest9:16343 size 2000 mean 65.874us min 64.355us 50% 65.761us 90% 66.726us 99% 68.253us max 70.560us cnt 7578
+[19072] 3.000  rss:2.8MB recvUC:10%+4%
+[19072] 3.000  @perftest9:16343 rss:2.7MB recvUC:10%+4%
+[19072] 3.000  eno2: xmit 13% recv 13% [32059853209 27969355901]
+[19072] 4.000  perftest9:16343 size 2000 mean 65.889us min 64.439us 50% 65.758us 90% 66.522us 99% 68.406us max 74.552us cnt 7577
+[19072] 4.000  rss:2.8MB recvUC:10%+4%
+[19072] 4.000  @perftest9:16343 rss:2.7MB recvUC:9%+6%
+[19072] 4.000  eno2: xmit 13% recv 13% [32076339235 27985841979]
+[19072] 5.000  perftest9:16343 size 2000 mean 65.863us min 64.144us 50% 65.743us 90% 66.547us 99% 68.399us max 77.505us cnt 7579
+[19072] 5.000  rss:2.8MB recvUC:8%+6%
+[19072] 5.000  @perftest9:16343 rss:2.7MB ddsperf:1%+0% recvUC:9%+6%
+[19072] 5.000  eno2: xmit 13% recv 13% [32092819821 28002323447]
+[19072] 6.000  perftest9:16343 size 2000 mean 65.872us min 64.207us 50% 65.761us 90% 66.444us 99% 68.391us max 70.630us cnt 7579
+[19072] 6.000  rss:2.8MB recvUC:10%+5%
+[19072] 6.000  @perftest9:16343 rss:2.7MB recvUC:8%+5%
+[19072] 6.000  eno2: xmit 13% recv 13% [32109306505 28018809509]
+[19072] 7.000  perftest9:16343 size 2000 mean 65.941us min 64.507us 50% 65.827us 90% 66.464us 99% 68.472us max 75.213us cnt 7570
+[19072] 7.000  rss:2.8MB recvUC:9%+5%
+[19072] 7.000  @perftest9:16343 rss:2.7MB recvUC:10%+5%
+[19072] 7.000  eno2: xmit 13% recv 13% [32125791991 28035295147]
+[19072] 8.000  perftest9:16343 size 2000 mean 65.930us min 64.343us 50% 65.809us 90% 66.567us 99% 68.499us max 86.746us cnt 7572
+[19072] 8.000  rss:2.8MB recvUC:9%+6%
+[19072] 8.000  @perftest9:16343 rss:2.7MB recvUC:11%+4%
+[19072] 8.000  eno2: xmit 13% recv 13% [32142251637 28051755259]
+[19072] 9.000  perftest9:16343 size 2000 mean 65.842us min 64.498us 50% 65.712us 90% 66.483us 99% 68.341us max 76.400us cnt 7582
+[19072] 9.000  rss:2.8MB ddsperf:1%+0% recvUC:10%+4%
+[19072] 9.000  @perftest9:16343 rss:2.7MB recvUC:9%+6%
+[19072] 9.000  eno2: xmit 13% recv 13% [32158730973 28068236545]
+[19072] 10.000  perftest9:16343 size 2000 mean 65.827us min 64.266us 50% 65.707us 90% 66.494us 99% 68.319us max 75.851us cnt 7583
+[19072] 10.000  rss:2.8MB recvUC:9%+6%
+[19072] 10.000  @perftest9:16343 rss:2.7MB recvUC:9%+5%
+[19072] 10.000  eno2: xmit 13% recv 13% [32175223097 28084727011]
+[19072] 11.000  perftest9:16343 size 2000 mean 65.873us min 64.218us 50% 65.750us 90% 66.564us 99% 68.450us max 70.873us cnt 7579
+[19072] 11.000  rss:2.8MB recvUC:8%+6%
+[19072] 11.000  @perftest9:16343 rss:2.7MB recvUC:11%+3%
+[19072] 11.000  eno2: xmit 13% recv 13% [32191720003 28101223639]
+[19072] 12.000  perftest9:16343 size 2000 mean 65.906us min 64.405us 50% 65.792us 90% 66.484us 99% 68.397us max 69.650us cnt 7574
+[19072] 12.000  rss:2.8MB recvUC:11%+4%
+[19072] 12.000  @perftest9:16343 rss:2.7MB recvUC:10%+5%
+[19072] 12.000  eno2: xmit 13% recv 13% [32208262065 28117767307]
+[19072] 13.000  perftest9:16343 size 2000 mean 65.808us min 64.151us 50% 65.685us 90% 66.472us 99% 68.348us max 76.528us cnt 7586
+[19072] 13.000  rss:2.8MB recvUC:8%+6%
+[19072] 13.000  @perftest9:16343 rss:2.7MB recvUC:6%+9%
+[19072] 13.000  eno2: xmit 13% recv 13% [32224746025 28134249901]
+[19072] 14.000  perftest9:16343 size 2000 mean 65.838us min 64.527us 50% 65.698us 90% 66.471us 99% 68.378us max 76.089us cnt 7583
+[19072] 14.000  rss:2.8MB recvUC:9%+5%
+[19072] 14.000  @perftest9:16343 rss:2.7MB recvUC:9%+4%
+[19072] 14.000  eno2: xmit 13% recv 13% [32241244567 28150748531]
+[19072] 15.000  perftest9:16343 size 2000 mean 65.816us min 64.153us 50% 65.692us 90% 66.367us 99% 68.348us max 75.771us cnt 7585
+[19072] 15.000  rss:2.8MB recvUC:9%+6%
+[19072] 15.000  @perftest9:16343 rss:2.7MB recvUC:11%+4%
+[19072] 15.000  eno2: xmit 13% recv 13% [32257743219 28167249941]
+[19072] 16.000  perftest9:16343 size 2000 mean 65.856us min 64.347us 50% 65.726us 90% 66.404us 99% 68.458us max 76.537us cnt 7580
+[19072] 16.000  rss:2.8MB ddsperf:1%+0% recvUC:9%+5%
+[19072] 16.000  @perftest9:16343 rss:2.7MB recvUC:10%+4%
+[19072] 16.000  eno2: xmit 13% recv 13% [32274237949 28183744329]
+[19072] 17.000  perftest9:16343 size 2000 mean 65.871us min 64.370us 50% 65.743us 90% 66.495us 99% 68.419us max 76.398us cnt 7579
+[19072] 17.000  rss:2.8MB recvUC:7%+7%
+[19072] 17.000  @perftest9:16343 rss:2.7MB recvUC:8%+6%
+[19072] 17.000  eno2: xmit 13% recv 13% [32290730073 28200236657]
+[19072] 18.000  perftest9:16343 size 2000 mean 65.854us min 64.111us 50% 65.732us 90% 66.475us 99% 68.359us max 76.635us cnt 7580
+[19072] 18.000  rss:2.8MB recvUC:10%+5%
+[19072] 18.000  @perftest9:16343 rss:2.7MB recvUC:8%+7%
+[19072] 18.000  eno2: xmit 13% recv 13% [32307211747 28216716191]
+[19072] 19.000  perftest9:16343 size 2000 mean 65.961us min 64.431us 50% 65.833us 90% 66.580us 99% 68.453us max 76.226us cnt 7569
+[19072] 19.000  rss:2.8MB recvUC:9%+6%
+[19072] 19.000  @perftest9:16343 rss:2.7MB recvUC:11%+4%
+[19072] 19.000  eno2: xmit 13% recv 13% [32323700927 28233206181]
+[19072] 20.000  perftest9:16343 size 2000 mean 66.002us min 64.048us 50% 65.880us 90% 66.656us 99% 68.566us max 75.633us cnt 7563
+[19072] 20.000  rss:2.8MB recvUC:9%+5%
+[19072] 20.000  @perftest9:16343 rss:2.7MB recvUC:9%+5%
+[19072] 20.000  eno2: xmit 13% recv 13% [32340161231 28249666293]
+[19082] participant perftest8:19082: new (self)
+[19082] participant perftest9:16343: new
+[19082] 2.000  perftest9:16343 size 5000 mean 97.953us min 96.075us 50% 97.853us 90% 98.823us 99% 99.788us max 124.024us cnt 5097
+[19082] 2.000  rss:2.7MB recvUC:8%+4%
+[19082] 2.000  @perftest9:16343 rss:2.7MB recvUC:1%+0%
+[19082] 2.000  eno2: xmit 1% recv 1% [32356176055 28265684341]
+[19082] 3.000  perftest9:16343 size 5000 mean 98.027us min 96.325us 50% 97.923us 90% 98.942us 99% 99.843us max 109.411us cnt 5095
+[19082] 3.000  rss:2.7MB recvUC:8%+4%
+[19082] 3.000  @perftest9:16343 rss:2.7MB recvUC:9%+4%
+[19082] 3.000  eno2: xmit 22% recv 22% [32383343637 28292847077]
+[19082] 4.000  perftest9:16343 size 5000 mean 97.978us min 96.416us 50% 97.868us 90% 98.895us 99% 99.788us max 109.296us cnt 5099
+[19082] 4.000  rss:2.7MB recvUC:9%+4%
+[19082] 4.000  @perftest9:16343 rss:2.7MB recvUC:6%+7%
+[19082] 4.000  eno2: xmit 22% recv 22% [32410479901 28319988837]
+[19082] 5.000  perftest9:16343 size 5000 mean 97.969us min 96.245us 50% 97.869us 90% 98.899us 99% 99.790us max 118.941us cnt 5099
+[19082] 5.000  rss:2.7MB recvUC:9%+5%
+[19082] 5.000  @perftest9:16343 rss:2.7MB recvUC:10%+3%
+[19082] 5.000  eno2: xmit 22% recv 22% [32437636827 28347140901]
+[19082] 6.000  perftest9:16343 size 5000 mean 98.115us min 96.486us 50% 98.011us 90% 98.974us 99% 100.048us max 111.164us cnt 5091
+[19082] 6.000  rss:2.7MB recvUC:8%+4%
+[19082] 6.000  @perftest9:16343 rss:2.7MB recvUC:8%+5%
+[19082] 6.000  eno2: xmit 22% recv 22% [32464794293 28374298089]
+[19082] 7.000  perftest9:16343 size 5000 mean 98.548us min 96.340us 50% 98.522us 90% 99.454us 99% 100.427us max 109.134us cnt 5069
+[19082] 7.000  rss:2.7MB recvUC:10%+4%
+[19082] 7.000  @perftest9:16343 rss:2.7MB recvUC:9%+4%
+[19082] 7.000  eno2: xmit 22% recv 22% [32491892785 28401402427]
+[19082] 8.000  perftest9:16343 size 5000 mean 98.318us min 96.267us 50% 98.273us 90% 99.243us 99% 100.223us max 110.176us cnt 5081
+[19082] 8.000  rss:2.7MB recvUC:8%+4%
+[19082] 8.000  @perftest9:16343 rss:2.7MB recvUC:9%+4%
+[19082] 8.000  eno2: xmit 22% recv 22% [32518889871 28428397373]
+[19082] 9.000  perftest9:16343 size 5000 mean 98.401us min 96.286us 50% 98.345us 90% 99.256us 99% 100.330us max 102.679us cnt 5077
+[19082] 9.000  rss:2.7MB recvUC:8%+5%
+[19082] 9.000  @perftest9:16343 rss:2.7MB recvUC:9%+4%
+[19082] 9.000  eno2: xmit 22% recv 22% [32545956871 28455466753]
+[19082] 10.000  perftest9:16343 size 5000 mean 98.553us min 95.935us 50% 98.524us 90% 99.439us 99% 100.385us max 109.324us cnt 5069
+[19082] 10.000  rss:2.7MB recvUC:7%+6%
+[19082] 10.000  @perftest9:16343 rss:2.7MB recvUC:9%+4%
+[19082] 10.000  eno2: xmit 22% recv 22% [32572991253 28482495959]
+[19082] 11.000  perftest9:16343 size 5000 mean 98.322us min 96.361us 50% 98.287us 90% 99.191us 99% 100.129us max 108.328us cnt 5081
+[19082] 11.000  rss:2.7MB ddsperf:1%+0% recvUC:9%+4%
+[19082] 11.000  @perftest9:16343 rss:2.7MB recvUC:11%+2%
+[19082] 11.000  eno2: xmit 22% recv 22% [32600100767 28509605131]
+[19082] 12.000  perftest9:16343 size 5000 mean 98.299us min 96.143us 50% 98.279us 90% 99.218us 99% 100.049us max 109.543us cnt 5082
+[19082] 12.000  rss:2.7MB recvUC:7%+6%
+[19082] 12.000  @perftest9:16343 rss:2.7MB recvUC:7%+6%
+[19082] 12.000  eno2: xmit 22% recv 22% [32627167227 28536677501]
+[19082] 13.000  perftest9:16343 size 5000 mean 98.242us min 96.241us 50% 98.209us 90% 99.186us 99% 100.030us max 101.916us cnt 5085
+[19082] 13.000  rss:2.7MB recvUC:8%+5%
+[19082] 13.000  @perftest9:16343 rss:2.7MB recvUC:8%+5%
+[19082] 13.000  eno2: xmit 22% recv 22% [32654237153 28563744049]
+[19082] 14.000  perftest9:16343 size 5000 mean 98.363us min 96.424us 50% 98.346us 90% 99.241us 99% 100.084us max 109.414us cnt 5078
+[19082] 14.000  rss:2.7MB recvUC:9%+4%
+[19082] 14.000  @perftest9:16343 rss:2.7MB recvUC:8%+5%
+[19082] 14.000  eno2: xmit 22% recv 22% [32681311233 28590821747]
+[19082] 15.000  perftest9:16343 size 5000 mean 98.333us min 96.073us 50% 98.302us 90% 99.277us 99% 100.173us max 102.047us cnt 5080
+[19082] 15.000  rss:2.7MB recvUC:7%+5%
+[19082] 15.000  @perftest9:16343 rss:2.7MB recvUC:9%+3%
+[19082] 15.000  eno2: xmit 22% recv 22% [32708357789 28617866873]
+[19082] 16.000  perftest9:16343 size 5000 mean 98.304us min 96.520us 50% 98.271us 90% 99.181us 99% 100.126us max 102.464us cnt 5082
+[19082] 16.000  rss:2.7MB recvUC:7%+7%
+[19082] 16.000  @perftest9:16343 rss:2.7MB recvUC:10%+4%
+[19082] 16.000  eno2: xmit 22% recv 22% [32735423271 28644928319]
+[19082] 17.000  perftest9:16343 size 5000 mean 98.279us min 96.154us 50% 98.257us 90% 99.203us 99% 100.155us max 106.550us cnt 5083
+[19082] 17.000  rss:2.7MB recvUC:8%+4%
+[19082] 17.000  @perftest9:16343 rss:2.7MB recvUC:5%+7%
+[19082] 17.000  eno2: xmit 22% recv 22% [32762489621 28671995135]
+[19082] 18.000  perftest9:16343 size 5000 mean 98.353us min 96.388us 50% 98.314us 90% 99.266us 99% 100.145us max 108.900us cnt 5079
+[19082] 18.000  rss:2.7MB recvUC:9%+4%
+[19082] 18.000  @perftest9:16343 rss:2.7MB recvUC:10%+3%
+[19082] 18.000  eno2: xmit 22% recv 22% [32789556511 28699066301]
+[19082] 19.000  perftest9:16343 size 5000 mean 98.338us min 96.401us 50% 98.300us 90% 99.264us 99% 100.225us max 107.136us cnt 5080
+[19082] 19.000  rss:2.7MB ddsperf:1%+0% recvUC:8%+5%
+[19082] 19.000  @perftest9:16343 rss:2.7MB recvUC:7%+6%
+[19082] 19.000  eno2: xmit 22% recv 22% [32816604695 28726112741]
+[19082] 20.000  perftest9:16343 size 5000 mean 98.202us min 96.116us 50% 98.176us 90% 99.148us 99% 99.944us max 109.268us cnt 5087
+[19082] 20.000  rss:2.7MB recvUC:7%+6%
+[19082] 20.000  @perftest9:16343 rss:2.7MB recvUC:7%+5%
+[19082] 20.000  eno2: xmit 22% recv 22% [32843668009 28753175433]
+[19092] participant perftest8:19092: new (self)
+[19092] participant perftest9:16343: new
+[19092] 2.000  perftest9:16343 size 10000 mean 147.313us min 145.949us 50% 147.165us 90% 148.215us 99% 149.176us max 185.307us cnt 3390
+[19092] 2.000  rss:2.7MB recvUC:5%+5%
+[19092] 2.000  @perftest9:16343 rss:3.0MB ddsperf:1%+0% recvUC:6%+4%
+[19092] 3.000  perftest9:16343 size 10000 mean 147.327us min 145.971us 50% 147.198us 90% 148.234us 99% 149.348us max 160.321us cnt 3391
+[19092] 3.000  rss:2.7MB recvUC:6%+5%
+[19092] 3.000  @perftest9:16343 rss:3.0MB recvUC:9%+3%
+[19092] 3.000  eno2: xmit 29% recv 29% [32903401923 28812904543]
+[19092] 4.000  perftest9:16343 size 10000 mean 147.122us min 145.678us 50% 146.986us 90% 148.093us 99% 148.991us max 151.616us cnt 3396
+[19092] 4.000  rss:2.7MB recvUC:7%+5%
+[19092] 4.000  @perftest9:16343 rss:3.0MB recvUC:7%+4%
+[19092] 4.000  eno2: xmit 28% recv 28% [32939017913 28848527035]
+[19092] 5.000  perftest9:16343 size 10000 mean 147.096us min 145.560us 50% 146.954us 90% 147.998us 99% 148.937us max 167.546us cnt 3397
+[19092] 5.000  rss:2.7MB recvUC:8%+3%
+[19092] 5.000  @perftest9:16343 rss:3.0MB recvUC:6%+5%
+[19092] 5.000  eno2: xmit 29% recv 29% [32974685893 28884195167]
+[19092] 6.000  perftest9:16343 size 10000 mean 147.145us min 145.669us 50% 147.008us 90% 148.040us 99% 148.922us max 150.521us cnt 3396
+[19092] 6.000  rss:2.7MB recvUC:6%+5%
+[19092] 6.000  @perftest9:16343 rss:3.0MB recvUC:7%+4%
+[19092] 6.000  eno2: xmit 29% recv 29% [33010357623 28919868383]
+[19092] 7.000  perftest9:16343 size 10000 mean 147.076us min 145.770us 50% 146.935us 90% 147.989us 99% 148.908us max 157.696us cnt 3397
+[19092] 7.000  rss:2.7MB recvUC:8%+2%
+[19092] 7.000  @perftest9:16343 rss:3.0MB recvUC:5%+6%
+[19092] 7.000  eno2: xmit 29% recv 29% [33046022567 28955526009]
+[19092] 8.000  perftest9:16343 size 10000 mean 147.200us min 145.720us 50% 147.071us 90% 148.108us 99% 148.995us max 167.101us cnt 3395
+[19092] 8.000  rss:2.7MB recvUC:6%+6%
+[19092] 8.000  @perftest9:16343 rss:3.0MB recvUC:8%+4%
+[19092] 8.000  eno2: xmit 29% recv 29% [33081701163 28991208159]
+[19092] 9.000  perftest9:16343 size 10000 mean 147.093us min 145.529us 50% 146.965us 90% 147.982us 99% 148.882us max 152.003us cnt 3397
+[19092] 9.000  rss:2.7MB recvUC:8%+2%
+[19092] 9.000  @perftest9:16343 rss:3.0MB recvUC:7%+4%
+[19092] 9.000  eno2: xmit 29% recv 29% [33117348671 29026862859]
+[19092] 10.000  perftest9:16343 size 10000 mean 147.195us min 145.752us 50% 147.068us 90% 148.090us 99% 148.995us max 157.364us cnt 3394
+[19092] 10.000  rss:2.7MB recvUC:8%+3%
+[19092] 10.000  @perftest9:16343 rss:3.0MB recvUC:6%+5%
+[19092] 10.000  eno2: xmit 29% recv 29% [33153174241 29062678011]
+[19092] 11.000  perftest9:16343 size 10000 mean 147.045us min 145.649us 50% 146.902us 90% 148.005us 99% 148.830us max 158.166us cnt 3398
+[19092] 11.000  rss:2.7MB recvUC:5%+7%
+[19092] 11.000  @perftest9:16343 rss:3.0MB recvUC:7%+4%
+[19092] 11.000  eno2: xmit 29% recv 29% [33188821859 29098333371]
+[19092] 12.000  perftest9:16343 size 10000 mean 147.312us min 146.002us 50% 147.160us 90% 148.243us 99% 149.164us max 166.600us cnt 3392
+[19092] 12.000  rss:2.7MB recvUC:9%+2%
+[19092] 12.000  @perftest9:16343 rss:3.0MB recvUC:9%+3%
+[19092] 12.000  eno2: xmit 29% recv 29% [33224510851 29134014861]
+[19092] 13.000  perftest9:16343 size 10000 mean 147.183us min 145.788us 50% 147.033us 90% 148.120us 99% 149.005us max 156.543us cnt 3395
+[19092] 13.000  rss:2.7MB ddsperf:0%+1% recvUC:10%+1%
+[19092] 13.000  @perftest9:16343 rss:3.0MB recvUC:5%+7%
+[19092] 13.000  eno2: xmit 28% recv 29% [33260131127 29169641619]
+[19092] 14.000  perftest9:16343 size 10000 mean 147.216us min 145.747us 50% 147.072us 90% 148.168us 99% 149.174us max 157.906us cnt 3394
+[19092] 14.000  rss:2.7MB recvUC:7%+4%
+[19092] 14.000  @perftest9:16343 rss:3.0MB recvUC:6%+5%
+[19092] 14.000  eno2: xmit 29% recv 29% [33295784425 29205293229]
+[19092] 15.000  perftest9:16343 size 10000 mean 147.181us min 145.717us 50% 147.029us 90% 148.078us 99% 149.102us max 158.165us cnt 3395
+[19092] 15.000  rss:2.7MB recvUC:5%+6%
+[19092] 15.000  @perftest9:16343 rss:3.0MB recvUC:8%+3%
+[19092] 15.000  eno2: xmit 29% recv 29% [33331431503 29240937475]
+[19092] 16.000  perftest9:16343 size 10000 mean 147.262us min 145.930us 50% 147.119us 90% 148.181us 99% 149.076us max 157.306us cnt 3393
+[19092] 16.000  rss:2.7MB recvUC:7%+4%
+[19092] 16.000  @perftest9:16343 rss:3.0MB recvUC:7%+4%
+[19092] 16.000  eno2: xmit 29% recv 29% [33367082047 29276594007]
+[19092] 17.000  perftest9:16343 size 10000 mean 147.173us min 145.892us 50% 147.033us 90% 148.107us 99% 148.959us max 158.824us cnt 3395
+[19092] 17.000  rss:2.7MB recvUC:7%+4%
+[19092] 17.000  @perftest9:16343 rss:3.0MB recvUC:7%+5%
+[19092] 17.000  eno2: xmit 29% recv 29% [33402715473 29312230621]
+[19092] 18.000  perftest9:16343 size 10000 mean 147.465us min 145.788us 50% 147.343us 90% 148.377us 99% 149.318us max 156.914us cnt 3389
+[19092] 18.000  rss:2.7MB recvUC:8%+3%
+[19092] 18.000  @perftest9:16343 rss:3.0MB ddsperf:1%+0% recvUC:8%+3%
+[19092] 18.000  eno2: xmit 29% recv 29% [33438373597 29347879845]
+[19092] 19.000  perftest9:16343 size 10000 mean 147.103us min 145.942us 50% 146.952us 90% 148.031us 99% 149.045us max 161.834us cnt 3396
+[19092] 19.000  rss:2.7MB recvUC:8%+3%
+[19092] 19.000  @perftest9:16343 rss:3.0MB recvUC:6%+5%
+[19092] 19.000  eno2: xmit 28% recv 28% [33473957529 29383471539]
+[19092] 20.000  perftest9:16343 size 10000 mean 147.228us min 145.766us 50% 147.072us 90% 148.148us 99% 149.112us max 157.589us cnt 3394
+[19092] 20.000  rss:2.7MB recvUC:6%+5%
+[19092] 20.000  @perftest9:16343 rss:3.0MB recvUC:7%+4%
+[19092] 20.000  eno2: xmit 29% recv 29% [33509636125 29419141545]
+[19102] participant perftest8:19102: new (self)
+[19102] participant perftest9:16343: new
+[19102] 2.000  perftest9:16343 size 20000 mean 241.691us min 240.310us 50% 241.476us 90% 242.641us 99% 243.920us max 293.183us cnt 2066
+[19102] 2.000  rss:2.6MB recvUC:8%+2%
+[19102] 2.000  @perftest9:16343 rss:3.0MB recvUC:5%+3%
+[19102] 2.000  eno2: xmit 16% recv 16% [33583715695 29493222923]
+[19102] 3.000  perftest9:16343 size 20000 mean 241.645us min 240.263us 50% 241.491us 90% 242.529us 99% 243.631us max 253.903us cnt 2068
+[19102] 3.000  rss:2.6MB recvUC:7%+3%
+[19102] 3.000  @perftest9:16343 rss:3.0MB recvUC:3%+7%
+[19102] 3.000  eno2: xmit 35% recv 35% [33627048933 29536545651]
+[19102] 4.000  perftest9:16343 size 20000 mean 241.715us min 240.286us 50% 241.563us 90% 242.590us 99% 243.834us max 252.255us cnt 2068
+[19102] 4.000  rss:2.6MB recvUC:6%+4%
+[19102] 4.000  @perftest9:16343 rss:3.0MB recvUC:5%+6%
+[19102] 4.000  eno2: xmit 35% recv 35% [33670378993 29579879371]
+[19102] 5.000  perftest9:16343 size 20000 mean 241.602us min 240.377us 50% 241.427us 90% 242.488us 99% 243.635us max 262.941us cnt 2069
+[19102] 5.000  rss:2.6MB recvUC:6%+5%
+[19102] 5.000  @perftest9:16343 rss:3.0MB recvUC:5%+5%
+[19102] 5.000  eno2: xmit 35% recv 35% [33713722191 29623233295]
+[19102] 6.000  perftest9:16343 size 20000 mean 241.589us min 240.334us 50% 241.427us 90% 242.486us 99% 243.811us max 254.210us cnt 2068
+[19102] 6.000  rss:2.6MB recvUC:7%+2%
+[19102] 6.000  @perftest9:16343 rss:3.0MB recvUC:5%+5%
+[19102] 6.000  eno2: xmit 35% recv 35% [33757068815 29666586419]
+[19102] 7.000  perftest9:16343 size 20000 mean 241.623us min 240.429us 50% 241.472us 90% 242.512us 99% 243.866us max 252.503us cnt 2069
+[19102] 7.000  rss:2.6MB recvUC:7%+4%
+[19102] 7.000  @perftest9:16343 rss:3.0MB recvUC:8%+3%
+[19102] 7.000  eno2: xmit 35% recv 35% [33800422477 29709926571]
+[19102] 8.000  perftest9:16343 size 20000 mean 241.722us min 240.247us 50% 241.611us 90% 242.625us 99% 244.005us max 251.715us cnt 2067
+[19102] 8.000  rss:2.6MB recvUC:7%+4%
+[19102] 8.000  @perftest9:16343 rss:3.0MB recvUC:5%+5%
+[19102] 8.000  eno2: xmit 35% recv 35% [33843755715 29753253395]
+[19102] 9.000  perftest9:16343 size 20000 mean 241.591us min 240.314us 50% 241.425us 90% 242.503us 99% 243.731us max 253.376us cnt 2069
+[19102] 9.000  rss:2.6MB recvUC:6%+4%
+[19102] 9.000  @perftest9:16343 rss:3.0MB recvUC:5%+6%
+[19102] 9.000  eno2: xmit 35% recv 35% [33887277199 29796776979]
+[19102] 10.000  perftest9:16343 size 20000 mean 241.565us min 240.240us 50% 241.406us 90% 242.486us 99% 243.817us max 253.220us cnt 2069
+[19102] 10.000  rss:2.6MB recvUC:7%+4%
+[19102] 10.000  @perftest9:16343 rss:3.0MB recvUC:5%+4%
+[19102] 10.000  eno2: xmit 35% recv 35% [33930631401 29840139947]
+[19102] 11.000  perftest9:16343 size 20000 mean 241.542us min 240.267us 50% 241.390us 90% 242.443us 99% 243.598us max 253.059us cnt 2069
+[19102] 11.000  rss:2.6MB recvUC:7%+3%
+[19102] 11.000  @perftest9:16343 rss:3.0MB recvUC:8%+3%
+[19102] 11.000  eno2: xmit 35% recv 35% [33973985173 29883504639]
+[19102] 12.000  perftest9:16343 size 20000 mean 241.585us min 240.221us 50% 241.429us 90% 242.513us 99% 243.755us max 252.958us cnt 2069
+[19102] 12.000  rss:2.6MB recvUC:8%+3%
+[19102] 12.000  @perftest9:16343 rss:3.0MB recvUC:4%+5%
+[19102] 12.000  eno2: xmit 35% recv 35% [34017338835 29926858389]
+[19102] 13.000  perftest9:16343 size 20000 mean 241.439us min 240.169us 50% 241.266us 90% 242.360us 99% 243.622us max 252.785us cnt 2070
+[19102] 13.000  rss:2.6MB recvUC:5%+5%
+[19102] 13.000  @perftest9:16343 rss:3.0MB recvUC:7%+4%
+[19102] 13.000  eno2: xmit 35% recv 35% [34060720247 29970233503]
+[19102] 14.000  perftest9:16343 size 20000 mean 241.546us min 240.057us 50% 241.412us 90% 242.461us 99% 243.670us max 245.127us cnt 2069
+[19102] 14.000  rss:2.6MB recvUC:8%+3%
+[19102] 14.000  @perftest9:16343 rss:3.0MB recvUC:6%+4%
+[19102] 14.000  eno2: xmit 35% recv 35% [34104086053 30013587631]
+[19102] 15.000  perftest9:16343 size 20000 mean 241.490us min 240.040us 50% 241.329us 90% 242.396us 99% 243.890us max 261.929us cnt 2069
+[19102] 15.000  rss:2.6MB ddsperf:0%+1% recvUC:6%+4%
+[19102] 15.000  @perftest9:16343 rss:3.0MB recvUC:5%+6%
+[19102] 15.000  eno2: xmit 35% recv 35% [34147455147 30056962519]
+[19102] 16.000  perftest9:16343 size 20000 mean 241.618us min 240.075us 50% 241.454us 90% 242.577us 99% 244.002us max 254.135us cnt 2069
+[19102] 16.000  rss:2.6MB recvUC:7%+3%
+[19102] 16.000  @perftest9:16343 rss:3.0MB recvUC:4%+6%
+[19102] 16.000  eno2: xmit 35% recv 35% [34190796775 30100312543]
+[19102] 17.000  perftest9:16343 size 20000 mean 241.463us min 240.152us 50% 241.287us 90% 242.440us 99% 243.946us max 252.202us cnt 2069
+[19102] 17.000  rss:2.6MB recvUC:5%+5%
+[19102] 17.000  @perftest9:16343 rss:3.0MB ddsperf:1%+0% recvUC:5%+5%
+[19102] 17.000  eno2: xmit 35% recv 35% [34234171563 30143681379]
+[19102] 18.000  perftest9:16343 size 20000 mean 241.491us min 240.166us 50% 241.338us 90% 242.381us 99% 243.535us max 252.163us cnt 2070
+[19102] 18.000  rss:2.6MB recvUC:5%+5%
+[19102] 18.000  @perftest9:16343 rss:3.0MB recvUC:7%+3%
+[19102] 18.000  eno2: xmit 35% recv 35% [34277546677 30187046007]
+[19102] 19.000  perftest9:16343 size 20000 mean 241.464us min 239.944us 50% 241.314us 90% 242.448us 99% 243.506us max 245.996us cnt 2070
+[19102] 19.000  rss:2.6MB recvUC:8%+3%
+[19102] 19.000  @perftest9:16343 rss:3.0MB recvUC:6%+5%
+[19102] 19.000  eno2: xmit 35% recv 35% [34320921303 30230420785]
+[19102] 20.000  perftest9:16343 size 20000 mean 241.506us min 240.237us 50% 241.348us 90% 242.413us 99% 243.530us max 261.674us cnt 2069
+[19102] 20.000  rss:2.6MB recvUC:8%+3%
+[19102] 20.000  @perftest9:16343 rss:3.0MB recvUC:5%+5%
+[19102] 20.000  eno2: xmit 35% recv 35% [34364281577 30273795609]
+[19112] participant perftest8:19112: new (self)
+[19112] participant perftest9:16343: new
+[19112] 2.000  perftest9:16343 size 50000 mean 537.411us min 535.682us 50% 537.137us 90% 538.447us 99% 541.286us max 613.554us cnt 929
+[19112] 2.000  rss:3.0MB recvUC:6%+2%
+[19112] 2.000  @perftest9:16343 rss:3.2MB recvUC:5%+2%
+[19112] 2.000  eno2: xmit 15% recv 15% [34406735627 30316205765]
+[19112] 3.000  perftest9:16343 size 50000 mean 537.270us min 535.234us 50% 537.102us 90% 538.344us 99% 540.676us max 546.504us cnt 931
+[19112] 3.000  rss:3.0MB recvUC:5%+4%
+[19112] 3.000  @perftest9:16343 rss:3.2MB recvUC:4%+4%
+[19112] 3.000  eno2: xmit 39% recv 39% [34455291687 30364762307]
+[19112] 4.000  perftest9:16343 size 50000 mean 537.150us min 535.632us 50% 537.037us 90% 538.199us 99% 539.786us max 540.896us cnt 930
+[19112] 4.000  rss:3.0MB recvUC:5%+4%
+[19112] 4.000  @perftest9:16343 rss:3.2MB recvUC:6%+4%
+[19112] 4.000  eno2: xmit 39% recv 39% [34503847097 30413347105]
+[19112] 5.000  perftest9:16343 size 50000 mean 537.268us min 535.427us 50% 537.144us 90% 538.327us 99% 540.262us max 548.728us cnt 931
+[19112] 5.000  rss:3.0MB recvUC:5%+3%
+[19112] 5.000  @perftest9:16343 rss:3.2MB recvUC:6%+2%
+[19112] 5.000  eno2: xmit 39% recv 39% [34552402617 30461926511]
+[19112] 6.000  perftest9:16343 size 50000 mean 537.356us min 535.581us 50% 537.217us 90% 538.430us 99% 540.567us max 543.978us cnt 930
+[19112] 6.000  rss:3.0MB recvUC:7%+3%
+[19112] 6.000  @perftest9:16343 rss:3.2MB recvUC:7%+3%
+[19112] 6.000  eno2: xmit 39% recv 39% [34600958567 30510466405]
+[19112] 7.000  perftest9:16343 size 50000 mean 537.352us min 535.423us 50% 537.194us 90% 538.464us 99% 540.053us max 541.619us cnt 930
+[19112] 7.000  rss:3.0MB recvUC:4%+4%
+[19112] 7.000  @perftest9:16343 rss:3.2MB recvUC:4%+4%
+[19112] 7.000  eno2: xmit 39% recv 39% [34649513977 30559020385]
+[19112] 8.000  perftest9:16343 size 50000 mean 537.289us min 535.458us 50% 537.116us 90% 538.383us 99% 540.289us max 564.479us cnt 931
+[19112] 8.000  rss:3.0MB recvUC:5%+4%
+[19112] 8.000  @perftest9:16343 rss:3.2MB ddsperf:1%+0% recvUC:6%+4%
+[19112] 8.000  eno2: xmit 39% recv 39% [34698278877 30607764205]
+[19112] 9.000  perftest9:16343 size 50000 mean 537.278us min 535.197us 50% 537.152us 90% 538.458us 99% 539.814us max 542.047us cnt 930
+[19112] 9.000  rss:3.0MB recvUC:5%+3%
+[19112] 9.000  @perftest9:16343 rss:3.2MB recvUC:6%+3%
+[19112] 9.000  eno2: xmit 39% recv 39% [34746834287 30656322739]
+[19112] 10.000  perftest9:16343 size 50000 mean 537.260us min 535.588us 50% 537.095us 90% 538.280us 99% 540.235us max 544.411us cnt 931
+[19112] 10.000  rss:3.0MB recvUC:6%+4%
+[19112] 10.000  @perftest9:16343 rss:3.2MB recvUC:6%+3%
+[19112] 10.000  eno2: xmit 39% recv 39% [34795390347 30704901721]
+[19112] 11.000  perftest9:16343 size 50000 mean 537.280us min 535.452us 50% 537.181us 90% 538.281us 99% 539.791us max 540.997us cnt 930
+[19112] 11.000  rss:3.0MB recvUC:4%+4%
+[19112] 11.000  @perftest9:16343 rss:3.2MB recvUC:4%+4%
+[19112] 11.000  eno2: xmit 39% recv 39% [34843945757 30753466327]
+[19112] 12.000  perftest9:16343 size 50000 mean 537.194us min 535.491us 50% 537.046us 90% 538.258us 99% 539.851us max 548.744us cnt 931
+[19112] 12.000  rss:3.0MB recvUC:6%+3%
+[19112] 12.000  @perftest9:16343 rss:3.2MB recvUC:6%+3%
+[19112] 12.000  eno2: xmit 39% recv 39% [34892514939 30802025685]
+[19112] 13.000  perftest9:16343 size 50000 mean 537.122us min 535.581us 50% 536.983us 90% 538.175us 99% 539.849us max 542.032us cnt 930
+[19112] 13.000  rss:3.0MB recvUC:6%+4%
+[19112] 13.000  @perftest9:16343 rss:3.2MB recvUC:7%+3%
+[19112] 13.000  eno2: xmit 39% recv 39% [34941107321 30850581671]
+[19112] 14.000  perftest9:16343 size 50000 mean 537.179us min 535.430us 50% 537.058us 90% 538.232us 99% 539.683us max 541.066us cnt 931
+[19112] 14.000  rss:3.0MB recvUC:4%+4%
+[19112] 14.000  @perftest9:16343 rss:3.2MB recvUC:5%+4%
+[19112] 14.000  eno2: xmit 39% recv 39% [34989664847 30899150895]
+[19112] 15.000  perftest9:16343 size 50000 mean 537.526us min 535.651us 50% 537.396us 90% 538.586us 99% 540.428us max 546.414us cnt 930
+[19112] 15.000  rss:3.0MB recvUC:6%+3%
+[19112] 15.000  @perftest9:16343 rss:3.2MB recvUC:5%+3%
+[19112] 15.000  eno2: xmit 39% recv 39% [35038220907 30947697935]
+[19112] 16.000  perftest9:16343 size 50000 mean 537.602us min 535.746us 50% 537.476us 90% 538.681us 99% 540.054us max 541.114us cnt 930
+[19112] 16.000  rss:3.0MB recvUC:6%+2%
+[19112] 16.000  @perftest9:16343 rss:3.2MB tev:1%+0% recvUC:7%+3%
+[19112] 16.000  eno2: xmit 39% recv 39% [35086724107 30996248959]
+[19112] 17.000  perftest9:16343 size 50000 mean 537.435us min 535.465us 50% 537.283us 90% 538.607us 99% 540.196us max 547.177us cnt 930
+[19112] 17.000  rss:3.0MB ddsperf:1%+0% recvUC:6%+4%
+[19112] 17.000  @perftest9:16343 rss:3.2MB recvUC:5%+4%
+[19112] 17.000  eno2: xmit 39% recv 39% [35135279627 31044772521]
+[19112] 18.000  perftest9:16343 size 50000 mean 537.238us min 535.431us 50% 537.097us 90% 538.376us 99% 540.035us max 541.749us cnt 931
+[19112] 18.000  rss:3.0MB recvUC:7%+2%
+[19112] 18.000  @perftest9:16343 rss:3.2MB recvUC:7%+2%
+[19112] 18.000  eno2: xmit 39% recv 39% [35183835577 31093346409]
+[19112] 19.000  perftest9:16343 size 50000 mean 537.475us min 535.642us 50% 537.392us 90% 538.488us 99% 540.294us max 541.816us cnt 930
+[19112] 19.000  rss:3.0MB recvUC:5%+3%
+[19112] 19.000  @perftest9:16343 rss:3.2MB recvUC:5%+3%
+[19112] 19.000  eno2: xmit 39% recv 39% [35232390987 31141885209]
+[19112] 20.000  perftest9:16343 size 50000 mean 537.635us min 535.352us 50% 537.483us 90% 538.783us 99% 540.491us max 549.894us cnt 929
+[19112] 20.000  rss:3.0MB recvUC:6%+3%
+[19112] 20.000  @perftest9:16343 rss:3.2MB recvUC:7%+3%
+[19112] 20.000  eno2: xmit 39% recv 39% [35281103741 31190623921]
+[19127] participant perftest8:19127: new (self)
+[19127] participant perftest9:16343: new
+[19127] 2.000  perftest9:16343 size 100000 mean 1001.662us min 996.924us 50% 1001.053us 90% 1007.832us 99% 1021.917us max 1104.320us cnt 498
+[19127] 2.000  rss:4.8MB recvUC:5%+3%
+[19127] 2.000  @perftest9:16343 rss:5.0MB recvUC:3%+3%
+[19127] 2.000  eno2: xmit 14% recv 14% [35326095709 31235623353]
+[19127] 3.000  perftest9:16343 size 100000 mean 998.629us min 996.382us 50% 998.218us 90% 999.774us 99% 1008.443us max 1010.113us cnt 501
+[19127] 3.000  rss:5.0MB recvUC:5%+5%
+[19127] 3.000  @perftest9:16343 rss:5.0MB recvUC:10%+0%
+[19127] 3.000  eno2: xmit 42% recv 42% [35378366865 31287805119]
+[19127] 4.000  perftest9:16343 size 100000 mean 998.577us min 996.898us 50% 998.327us 90% 1000.191us 99% 1001.301us max 1009.588us cnt 501
+[19127] 4.000  rss:5.0MB recvUC:7%+2%
+[19127] 4.000  @perftest9:16343 rss:5.3MB recvUC:6%+3%
+[19127] 4.000  eno2: xmit 42% recv 42% [35430562941 31340090419]
+[19127] 5.000  perftest9:16343 size 100000 mean 998.403us min 996.771us 50% 998.156us 90% 999.682us 99% 1001.609us max 1011.273us cnt 500
+[19127] 5.000  rss:5.0MB recvUC:6%+2%
+[19127] 5.000  @perftest9:16343 rss:5.3MB recvUC:8%+1%
+[19127] 5.000  eno2: xmit 42% recv 42% [35482848413 31392272875]
+[19127] 6.000  perftest9:16343 size 100000 mean 998.404us min 996.505us 50% 998.085us 90% 999.617us 99% 1007.061us max 1012.413us cnt 501
+[19127] 6.000  rss:5.0MB recvUC:6%+3%
+[19127] 6.000  @perftest9:16343 rss:5.3MB recvUC:10%+0%
+[19127] 6.000  eno2: xmit 42% recv 42% [35535030127 31444558609]
+[19127] 7.000  perftest9:16343 size 100000 mean 998.433us min 996.687us 50% 998.165us 90% 999.956us 99% 1001.446us max 1005.173us cnt 501
+[19127] 7.000  rss:5.0MB recvUC:7%+2%
+[19127] 7.000  @perftest9:16343 rss:5.3MB ddsperf:1%+0% recvUC:6%+3%
+[19127] 7.000  eno2: xmit 42% recv 42% [35587524433 31496959781]
+[19127] 8.000  perftest9:16343 size 100000 mean 998.549us min 996.477us 50% 998.184us 90% 999.815us 99% 1005.288us max 1010.023us cnt 501
+[19127] 8.000  rss:5.0MB recvUC:8%+1%
+[19127] 8.000  @perftest9:16343 rss:5.3MB recvUC:8%+2%
+[19127] 8.000  eno2: xmit 42% recv 42% [35639718227 31549234825]
+[19127] 9.000  perftest9:16343 size 100000 mean 998.379us min 996.343us 50% 998.164us 90% 999.638us 99% 1001.243us max 1007.781us cnt 500
+[19127] 9.000  rss:5.0MB recvUC:6%+3%
+[19127] 9.000  @perftest9:16343 rss:6.1MB recvUC:6%+2%
+[19127] 9.000  eno2: xmit 42% recv 42% [35691991665 31601437879]
+[19127] 10.000  perftest9:16343 size 100000 mean 998.327us min 996.437us 50% 998.058us 90% 999.845us 99% 1001.663us max 1008.376us cnt 501
+[19127] 10.000  rss:5.0MB recvUC:6%+3%
+[19127] 10.000  @perftest9:16343 rss:6.1MB recvUC:9%+1%
+[19127] 10.000  eno2: xmit 42% recv 42% [35744201779 31653702297]
+[19127] 11.000  perftest9:16343 size 100000 mean 998.101us min 996.131us 50% 997.834us 90% 999.406us 99% 1001.553us max 1009.576us cnt 501
+[19127] 11.000  rss:5.0MB recvUC:6%+2%
+[19127] 11.000  @perftest9:16343 rss:6.1MB recvUC:6%+3%
+[19127] 11.000  eno2: xmit 42% recv 42% [35796458897 31705956529]
+[19127] 12.000  perftest9:16343 size 100000 mean 997.989us min 995.939us 50% 997.770us 90% 999.149us 99% 1000.416us max 1004.635us cnt 501
+[19127] 12.000  rss:5.0MB recvUC:7%+3%
+[19127] 12.000  @perftest9:16343 rss:6.1MB recvUC:7%+3%
+[19127] 12.000  eno2: xmit 42% recv 42% [35848744369 31758190911]
+[19127] 13.000  perftest9:16343 size 100000 mean 998.077us min 995.649us 50% 997.827us 90% 999.386us 99% 1001.455us max 1007.593us cnt 501
+[19127] 13.000  rss:5.0MB recvUC:6%+3%
+[19127] 13.000  @perftest9:16343 rss:6.1MB recvUC:6%+3%
+[19127] 13.000  eno2: xmit 42% recv 42% [35901010971 31810455393]
+[19127] 14.000  perftest9:16343 size 100000 mean 998.039us min 996.433us 50% 997.834us 90% 999.269us 99% 1000.587us max 1009.794us cnt 501
+[19127] 14.000  rss:5.0MB recvUC:6%+3%
+[19127] 14.000  @perftest9:16343 rss:6.1MB recvUC:7%+3%
+[19127] 14.000  eno2: xmit 42% recv 42% [35953232853 31862741493]
+[19127] 15.000  perftest9:16343 size 100000 mean 998.023us min 996.242us 50% 997.794us 90% 999.305us 99% 1000.514us max 1008.132us cnt 501
+[19127] 15.000  rss:5.0MB recvUC:6%+3%
+[19127] 15.000  @perftest9:16343 rss:6.1MB recvUC:7%+2%
+[19127] 15.000  eno2: xmit 42% recv 42% [36005497613 31915001745]
+[19127] 16.000  perftest9:16343 size 100000 mean 998.237us min 996.334us 50% 997.999us 90% 999.433us 99% 1001.929us max 1007.985us cnt 501
+[19127] 16.000  rss:5.0MB recvUC:5%+4%
+[19127] 16.000  @perftest9:16343 rss:6.1MB recvUC:6%+3%
+[19127] 16.000  eno2: xmit 42% recv 42% [36057783195 31967208965]
+[19127] 17.000  perftest9:16343 size 100000 mean 998.187us min 996.410us 50% 997.960us 90% 999.487us 99% 1001.891us max 1007.007us cnt 500
+[19127] 17.000  rss:5.0MB ddsperf:1%+0% recvUC:6%+2%
+[19127] 17.000  @perftest9:16343 rss:6.1MB recvUC:8%+2%
+[19127] 17.000  eno2: xmit 42% recv 42% [36110000737 32019494589]
+[19127] 18.000  perftest9:16343 size 100000 mean 998.125us min 996.537us 50% 997.919us 90% 999.165us 99% 1001.184us max 1008.979us cnt 501
+[19127] 18.000  rss:5.0MB recvUC:6%+3%
+[19127] 18.000  @perftest9:16343 rss:6.1MB recvUC:7%+2%
+[19127] 18.000  eno2: xmit 42% recv 42% [36162250317 32071751741]
+[19127] 19.000  perftest9:16343 size 100000 mean 998.280us min 996.252us 50% 997.991us 90% 999.793us 99% 1001.114us max 1007.901us cnt 501
+[19127] 19.000  rss:5.0MB recvUC:7%+3%
+[19127] 19.000  @perftest9:16343 rss:6.1MB recvUC:8%+1%
+[19127] 19.000  eno2: xmit 42% recv 42% [36214744623 32124170785]
+[19127] 20.000  perftest9:16343 size 100000 mean 998.200us min 996.362us 50% 997.982us 90% 999.444us 99% 1001.222us max 1007.336us cnt 501
+[19127] 20.000  rss:5.0MB recvUC:5%+3%
+[19127] 20.000  @perftest9:16343 rss:6.1MB recvUC:5%+5%
+[19127] 20.000  eno2: xmit 42% recv 42% [36266958151 32176456455]
+[19137] participant perftest8:19137: new (self)
+[19137] participant perftest9:16343: new
+[19137] 2.000  perftest9:16343 size 200000 mean 1926.748us min 1913.828us 50% 1925.118us 90% 1935.200us 99% 1976.710us max 2094.602us cnt 259
+[19137] 2.000  rss:6.2MB recvUC:6%+3%
+[19137] 2.000  @perftest9:16343 rss:6.3MB recvUC:2%+2%
+[19137] 2.000  eno2: xmit 12% recv 12% [36313897497 32223311919]
+[19137] 3.000  perftest9:16343 size 200000 mean 1929.696us min 1913.915us 50% 1931.354us 90% 1941.330us 99% 1950.918us max 1976.506us cnt 259
+[19137] 3.000  rss:6.5MB recvUC:6%+3%
+[19137] 3.000  @perftest9:16343 rss:6.3MB recvUC:7%+2%
+[19137] 3.000  eno2: xmit 43% recv 43% [36368026309 32277452571]
+[19137] 4.000  perftest9:16343 size 200000 mean 1931.768us min 1921.350us 50% 1932.126us 90% 1941.803us 99% 1944.982us max 1950.866us cnt 259
+[19137] 4.000  rss:6.5MB recvUC:6%+3%
+[19137] 4.000  @perftest9:16343 rss:6.3MB recvUC:6%+4%
+[19137] 4.000  eno2: xmit 43% recv 43% [36422017841 32331389337]
+[19137] 5.000  perftest9:16343 size 200000 mean 1932.104us min 1921.534us 50% 1932.266us 90% 1942.060us 99% 1951.059us max 1953.755us cnt 259
+[19137] 5.000  rss:6.7MB recvUC:6%+4%
+[19137] 5.000  @perftest9:16343 rss:6.3MB recvUC:8%+1%
+[19137] 5.000  eno2: xmit 43% recv 43% [36475922251 32385427295]
+[19137] 6.000  perftest9:16343 size 200000 mean 1932.016us min 1920.896us 50% 1932.058us 90% 1941.734us 99% 1944.370us max 1944.734us cnt 258
+[19137] 6.000  rss:6.7MB recvUC:5%+4%
+[19137] 6.000  @perftest9:16343 rss:6.3MB ddsperf:1%+0% recvUC:4%+5%
+[19137] 6.000  eno2: xmit 43% recv 43% [36529931993 32439386385]
+[19137] 7.000  perftest9:16343 size 200000 mean 1932.021us min 1920.975us 50% 1931.972us 90% 1941.832us 99% 1944.283us max 1946.400us cnt 259
+[19137] 7.000  rss:6.7MB recvUC:7%+3%
+[19137] 7.000  @perftest9:16343 rss:6.3MB recvUC:5%+5%
+[19137] 7.000  eno2: xmit 43% recv 43% [36584174601 32493504009]
+[19137] 8.000  perftest9:16343 size 200000 mean 1931.660us min 1920.897us 50% 1931.858us 90% 1941.620us 99% 1944.181us max 1953.611us cnt 259
+[19137] 8.000  rss:6.7MB recvUC:6%+3%
+[19137] 8.000  @perftest9:16343 rss:6.3MB recvUC:5%+4%
+[19137] 8.000  eno2: xmit 43% recv 43% [36638076637 32547542681]
+[19137] 9.000  perftest9:16343 size 200000 mean 1931.502us min 1920.848us 50% 1931.936us 90% 1941.666us 99% 1943.723us max 1951.509us cnt 259
+[19137] 9.000  rss:6.7MB recvUC:4%+4%
+[19137] 9.000  @perftest9:16343 rss:6.3MB recvUC:6%+3%
+[19137] 9.000  eno2: xmit 43% recv 43% [36692046253 32601569215]
+[19137] 10.000  perftest9:16343 size 200000 mean 1931.442us min 1921.371us 50% 1931.735us 90% 1941.609us 99% 1944.337us max 1952.395us cnt 259
+[19137] 10.000  rss:6.7MB recvUC:6%+3%
+[19137] 10.000  @perftest9:16343 rss:6.3MB recvUC:5%+4%
+[19137] 10.000  eno2: xmit 43% recv 43% [36746084233 32655501207]
+[19137] 11.000  perftest9:16343 size 200000 mean 1932.083us min 1921.461us 50% 1932.025us 90% 1941.806us 99% 1944.224us max 1944.743us cnt 258
+[19137] 11.000  rss:6.7MB recvUC:8%+3%
+[19137] 11.000  @perftest9:16343 rss:6.3MB recvUC:6%+3%
+[19137] 11.000  eno2: xmit 43% recv 43% [36800120259 32709448629]
+[19137] 12.000  perftest9:16343 size 200000 mean 1932.121us min 1921.313us 50% 1931.953us 90% 1941.877us 99% 1944.251us max 1944.487us cnt 259
+[19137] 12.000  rss:6.7MB recvUC:5%+3%
+[19137] 12.000  @perftest9:16343 rss:6.3MB recvUC:6%+4%
+[19137] 12.000  eno2: xmit 43% recv 43% [36853967053 32763486651]
+[19137] 13.000  perftest9:16343 size 200000 mean 1932.247us min 1921.288us 50% 1932.071us 90% 1941.793us 99% 1944.500us max 1950.718us cnt 259
+[19137] 13.000  rss:6.7MB recvUC:7%+3%
+[19137] 13.000  @perftest9:16343 rss:6.3MB recvUC:6%+3%
+[19137] 13.000  eno2: xmit 43% recv 43% [36907990393 32817401571]
+[19137] 14.000  perftest9:16343 size 200000 mean 1931.564us min 1921.359us 50% 1932.052us 90% 1941.775us 99% 1943.790us max 1944.167us cnt 259
+[19137] 14.000  rss:6.7MB recvUC:4%+5%
+[19137] 14.000  @perftest9:16343 rss:6.3MB recvUC:6%+4%
+[19137] 14.000  eno2: xmit 43% recv 43% [36962025879 32871354641]
+[19137] 15.000  perftest9:16343 size 200000 mean 1931.625us min 1921.255us 50% 1932.032us 90% 1941.872us 99% 1943.773us max 1944.497us cnt 259
+[19137] 15.000  rss:6.7MB recvUC:6%+3%
+[19137] 15.000  @perftest9:16343 rss:6.3MB recvUC:4%+4%
+[19137] 15.000  eno2: xmit 43% recv 43% [37015930951 32925393249]
+[19137] 16.000  perftest9:16343 size 200000 mean 1932.205us min 1921.316us 50% 1931.954us 90% 1941.671us 99% 1944.907us max 1982.083us cnt 258
+[19137] 16.000  rss:6.7MB recvUC:6%+4%
+[19137] 16.000  @perftest9:16343 rss:6.3MB recvUC:6%+3%
+[19137] 16.000  eno2: xmit 43% recv 43% [37069896013 32979406185]
+[19137] 17.000  perftest9:16343 size 200000 mean 1932.436us min 1920.704us 50% 1931.960us 90% 1942.259us 99% 1945.317us max 1951.028us cnt 259
+[19137] 17.000  rss:6.7MB recvUC:6%+3%
+[19137] 17.000  @perftest9:16343 rss:6.3MB recvUC:7%+3%
+[19137] 17.000  eno2: xmit 43% recv 43% [37123933883 33033260589]
+[19137] 18.000  perftest9:16343 size 200000 mean 1931.778us min 1921.139us 50% 1931.846us 90% 1941.602us 99% 1944.926us max 1950.544us cnt 259
+[19137] 18.000  rss:6.7MB recvUC:6%+3%
+[19137] 18.000  @perftest9:16343 rss:6.3MB recvUC:6%+4%
+[19137] 18.000  eno2: xmit 43% recv 43% [37177839607 33087299261]
+[19137] 19.000  perftest9:16343 size 200000 mean 1931.467us min 1921.277us 50% 1931.879us 90% 1941.803us 99% 1944.444us max 1952.867us cnt 259
+[19137] 19.000  rss:6.7MB recvUC:5%+4%
+[19137] 19.000  @perftest9:16343 rss:6.3MB recvUC:6%+2%
+[19137] 19.000  eno2: xmit 43% recv 43% [37232010273 33141545859]
+[19137] 20.000  perftest9:16343 size 200000 mean 1931.833us min 1921.221us 50% 1932.033us 90% 1942.019us 99% 1945.658us max 1947.440us cnt 259
+[19137] 20.000  rss:6.7MB recvUC:7%+3%
+[19137] 20.000  @perftest9:16343 rss:6.3MB recvUC:5%+5%
+[19137] 20.000  eno2: xmit 43% recv 43% [37286048793 33195471469]
+[19157] participant perftest8:19157: new (self)
+[19157] participant perftest9:16343: new
+[19157] 2.000  perftest9:16343 size 500000 mean 4689.873us min 4680.469us 50% 4682.850us 90% 4688.205us 99% 4757.564us max 5117.571us cnt 106
+[19157] 2.000  rss:7.0MB recvUC:5%+3%
+[19157] 2.000  @perftest9:16343 rss:7.6MB recvUC:2%+1%
+[19157] 2.000  eno2: xmit 9% recv 9% [37334516111 33243570849]
+[19157] 3.000  perftest9:16343 size 500000 mean 4684.347us min 4680.617us 50% 4683.263us 90% 4686.516us 99% 4701.127us max 4737.998us cnt 107
+[19157] 3.000  rss:7.5MB recvUC:6%+3%
+[19157] 3.000  @perftest9:16343 rss:7.9MB ddsperf:1%+0% recvUC:7%+3%
+[19157] 3.000  eno2: xmit 44% recv 45% [37389955243 33299359295]
+[19157] 4.000  perftest9:16343 size 500000 mean 4683.913us min 4680.536us 50% 4682.862us 90% 4687.057us 99% 4700.438us max 4707.260us cnt 107
+[19157] 4.000  rss:7.8MB recvUC:4%+5%
+[19157] 4.000  @perftest9:16343 rss:7.9MB recvUC:4%+5%
+[19157] 4.000  eno2: xmit 45% recv 45% [37445608413 33354985605]
+[19157] 5.000  perftest9:16343 size 500000 mean 4683.394us min 4680.153us 50% 4682.722us 90% 4685.287us 99% 4696.093us max 4708.274us cnt 106
+[19157] 5.000  rss:7.8MB recvUC:5%+4%
+[19157] 5.000  @perftest9:16343 rss:7.9MB recvUC:5%+3%
+[19157] 5.000  eno2: xmit 45% recv 44% [37501396293 33410452579]
+[19157] 6.000  perftest9:16343 size 500000 mean 4683.109us min 4680.363us 50% 4682.753us 90% 4685.260us 99% 4688.062us max 4689.580us cnt 107
+[19157] 6.000  rss:7.8MB recvUC:5%+3%
+[19157] 6.000  @perftest9:16343 rss:7.9MB recvUC:4%+5%
+[19157] 6.000  eno2: xmit 45% recv 45% [37557184667 33466421061]
+[19157] 7.000  perftest9:16343 size 500000 mean 4683.457us min 4680.716us 50% 4682.941us 90% 4685.360us 99% 4689.773us max 4700.175us cnt 107
+[19157] 7.000  rss:7.8MB recvUC:5%+4%
+[19157] 7.000  @perftest9:16343 rss:7.9MB recvUC:6%+4%
+[19157] 7.000  eno2: xmit 45% recv 44% [37612927355 33521991123]
+[19157] 8.000  perftest9:16343 size 500000 mean 4683.236us min 4680.844us 50% 4682.616us 90% 4685.370us 99% 4689.879us max 4693.699us cnt 107
+[19157] 8.000  rss:7.8MB recvUC:6%+4%
+[19157] 8.000  @perftest9:16343 rss:7.9MB recvUC:7%+2%
+[19157] 8.000  eno2: xmit 44% recv 45% [37668382045 33577779091]
+[19157] 9.000  perftest9:16343 size 500000 mean 4683.324us min 4680.739us 50% 4682.734us 90% 4685.669us 99% 4692.421us max 4699.671us cnt 106
+[19157] 9.000  rss:7.8MB recvUC:4%+4%
+[19157] 9.000  @perftest9:16343 rss:7.9MB recvUC:5%+4%
+[19157] 9.000  eno2: xmit 45% recv 45% [37724027357 33633437111]
+[19157] 10.000  perftest9:16343 size 500000 mean 4683.139us min 4680.424us 50% 4682.854us 90% 4685.177us 99% 4688.297us max 4690.022us cnt 107
+[19157] 10.000  rss:7.8MB recvUC:6%+3%
+[19157] 10.000  @perftest9:16343 rss:7.9MB ddsperf:0%+1% recvUC:5%+4%
+[19157] 10.000  eno2: xmit 45% recv 44% [37779815127 33688915967]
+[19157] 11.000  perftest9:16343 size 500000 mean 4683.065us min 4680.232us 50% 4682.509us 90% 4686.061us 99% 4692.413us max 4695.071us cnt 107
+[19157] 11.000  rss:7.8MB recvUC:5%+3%
+[19157] 11.000  @perftest9:16343 rss:7.9MB recvUC:5%+4%
+[19157] 11.000  eno2: xmit 44% recv 45% [37835412721 33744622083]
+[19157] 12.000  perftest9:16343 size 500000 mean 4683.374us min 4681.072us 50% 4682.710us 90% 4685.307us 99% 4693.645us max 4698.510us cnt 107
+[19157] 12.000  rss:7.8MB recvUC:6%+4%
+[19157] 12.000  @perftest9:16343 rss:7.9MB recvUC:5%+4%
+[19157] 12.000  eno2: xmit 44% recv 45% [37890882081 33800410481]
+[19157] 13.000  perftest9:16343 size 500000 mean 4683.298us min 4680.417us 50% 4682.855us 90% 4685.483us 99% 4688.382us max 4693.416us cnt 106
+[19157] 13.000  rss:7.8MB recvUC:4%+5%
+[19157] 13.000  @perftest9:16343 rss:7.9MB recvUC:6%+3%
+[19157] 13.000  eno2: xmit 45% recv 44% [37946658247 33855936519]
+[19157] 14.000  perftest9:16343 size 500000 mean 4683.147us min 4680.305us 50% 4682.272us 90% 4685.212us 99% 4695.709us max 4699.275us cnt 107
+[19157] 14.000  rss:7.8MB recvUC:5%+3%
+[19157] 14.000  @perftest9:16343 rss:7.9MB recvUC:4%+4%
+[19157] 14.000  eno2: xmit 45% recv 44% [38002431295 33911465531]
+[19157] 15.000  perftest9:16343 size 500000 mean 4683.167us min 4680.515us 50% 4682.747us 90% 4685.623us 99% 4687.037us max 4688.881us cnt 107
+[19157] 15.000  rss:7.8MB ddsperf:0%+1% recvUC:6%+4%
+[19157] 15.000  @perftest9:16343 rss:7.9MB recvUC:6%+4%
+[19157] 15.000  eno2: xmit 44% recv 45% [38057915899 33967253563]
+[19157] 16.000  perftest9:16343 size 500000 mean 4683.316us min 4679.683us 50% 4682.967us 90% 4685.525us 99% 4689.214us max 4694.247us cnt 107
+[19157] 16.000  rss:7.8MB recvUC:5%+3%
+[19157] 16.000  @perftest9:16343 rss:7.9MB recvUC:6%+3%
+[19157] 16.000  eno2: xmit 44% recv 45% [38113500827 34022972009]
+[19157] 17.000  perftest9:16343 size 500000 mean 4683.453us min 4681.086us 50% 4682.832us 90% 4685.689us 99% 4695.504us max 4698.440us cnt 106
+[19157] 17.000  rss:7.8MB recvUC:5%+3%
+[19157] 17.000  @perftest9:16343 rss:7.9MB recvUC:6%+3%
+[19157] 17.000  eno2: xmit 45% recv 44% [38169288707 34078431405]
+[19157] 18.000  perftest9:16343 size 500000 mean 4683.124us min 4680.525us 50% 4682.331us 90% 4685.158us 99% 4691.698us max 4693.453us cnt 107
+[19157] 18.000  rss:7.8MB recvUC:6%+4%
+[19157] 18.000  @perftest9:16343 rss:7.9MB recvUC:4%+5%
+[19157] 18.000  eno2: xmit 45% recv 45% [38225077017 34134396775]
+[19157] 19.000  perftest9:16343 size 500000 mean 4683.163us min 4680.594us 50% 4682.890us 90% 4685.190us 99% 4687.836us max 4689.285us cnt 107
+[19157] 19.000  rss:7.8MB recvUC:5%+4%
+[19157] 19.000  @perftest9:16343 rss:7.9MB recvUC:5%+4%
+[19157] 19.000  eno2: xmit 45% recv 44% [38280864897 34189884933]
+[19157] 20.000  perftest9:16343 size 500000 mean 4683.943us min 4680.480us 50% 4682.593us 90% 4684.966us 99% 4698.839us max 4771.318us cnt 107
+[19157] 20.000  rss:7.8MB recvUC:5%+4%
+[19157] 20.000  @perftest9:16343 rss:7.9MB recvUC:6%+3%
+[19157] 20.000  eno2: xmit 44% recv 45% [38336347191 34245672901]
+[19167] participant perftest8:19167: new (self)
+[19167] participant perftest9:16343: new
+[19167] 2.000  perftest9:16343 size 1000000 mean 9351.527us min 9300.301us 50% 9307.987us 90% 9420.679us 99% 10070.652us max 10070.652us cnt 53
+[19167] 2.000  rss:10.2MB recvUC:4%+4%
+[19167] 2.000  @perftest9:16343 rss:9.8MB recvUC:1%+1%
+[19167] 2.000  eno2: xmit 5% recv 5% [38381496855 34291040909]
+[19167] 3.000  perftest9:16343 size 1000000 mean 9322.381us min 9299.518us 50% 9308.114us 90% 9397.908us 99% 9420.775us max 9420.775us cnt 54
+[19167] 3.000  rss:10.2MB recvUC:5%+4%
+[19167] 3.000  @perftest9:16343 rss:11.3MB recvUC:5%+5%
+[19167] 3.000  eno2: xmit 45% recv 44% [38437801469 34346476257]
+[19167] 4.000  perftest9:16343 size 1000000 mean 9327.366us min 9300.263us 50% 9310.877us 90% 9399.781us 99% 9406.277us max 9406.277us cnt 53
+[19167] 4.000  rss:10.2MB recvUC:5%+5%
+[19167] 4.000  @perftest9:16343 rss:11.3MB recvUC:4%+5%
+[19167] 4.000  eno2: xmit 45% recv 45% [38493455373 34402609139]
+[19167] 5.000  perftest9:16343 size 1000000 mean 9322.311us min 9301.232us 50% 9308.892us 90% 9398.656us 99% 9402.965us max 9402.965us cnt 54
+[19167] 5.000  rss:10.2MB recvUC:6%+3%
+[19167] 5.000  @perftest9:16343 rss:11.3MB recvUC:5%+4%
+[19167] 5.000  eno2: xmit 45% recv 45% [38549383851 34458913841]
+[19167] 6.000  perftest9:16343 size 1000000 mean 9320.631us min 9300.030us 50% 9306.938us 90% 9395.647us 99% 9400.074us max 9400.074us cnt 53
+[19167] 6.000  rss:10.2MB recvUC:7%+2%
+[19167] 6.000  @perftest9:16343 rss:11.3MB recvUC:7%+3%
+[19167] 6.000  eno2: xmit 45% recv 44% [38605673999 34514452661]
+[19167] 7.000  perftest9:16343 size 1000000 mean 9320.869us min 9299.531us 50% 9306.696us 90% 9398.076us 99% 9403.115us max 9403.115us cnt 54
+[19167] 7.000  rss:10.2MB recvUC:5%+4%
+[19167] 7.000  @perftest9:16343 rss:11.3MB recvUC:6%+3%
+[19167] 7.000  eno2: xmit 45% recv 45% [38661475813 34570481347]
+[19167] 8.000  perftest9:16343 size 1000000 mean 9320.591us min 9300.174us 50% 9309.433us 90% 9392.155us 99% 9414.748us max 9414.748us cnt 54
+[19167] 8.000  rss:10.2MB recvUC:4%+5%
+[19167] 8.000  @perftest9:16343 rss:11.3MB recvUC:6%+4%
+[19167] 8.000  eno2: xmit 45% recv 45% [38717240823 34626596021]
+[19167] 9.000  perftest9:16343 size 1000000 mean 9322.159us min 9300.715us 50% 9307.932us 90% 9394.805us 99% 9404.892us max 9404.892us cnt 53
+[19167] 9.000  rss:10.2MB recvUC:5%+4%
+[19167] 9.000  @perftest9:16343 rss:11.3MB recvUC:5%+3%
+[19167] 9.000  eno2: xmit 45% recv 44% [38773545815 34682048789]
+[19167] 10.000  perftest9:16343 size 1000000 mean 9324.463us min 9301.360us 50% 9309.468us 90% 9399.378us 99% 9411.554us max 9411.554us cnt 54
+[19167] 10.000  rss:10.2MB recvUC:7%+3%
+[19167] 10.000  @perftest9:16343 rss:11.3MB recvUC:6%+4%
+[19167] 10.000  eno2: xmit 44% recv 45% [38829000415 34738353555]
+[19167] 11.000  perftest9:16343 size 1000000 mean 9321.844us min 9299.960us 50% 9308.677us 90% 9398.119us 99% 9406.948us max 9406.948us cnt 54
+[19167] 11.000  rss:10.2MB recvUC:5%+4%
+[19167] 11.000  @perftest9:16343 rss:11.3MB recvUC:6%+3%
+[19167] 11.000  eno2: xmit 45% recv 45% [38885113017 34794075789]
+[19167] 12.000  perftest9:16343 size 1000000 mean 9320.257us min 9297.446us 50% 9306.477us 90% 9396.518us 99% 9406.077us max 9406.077us cnt 53
+[19167] 12.000  rss:10.2MB recvUC:6%+2%
+[19167] 12.000  @perftest9:16343 rss:11.3MB recvUC:6%+4%
+[19167] 12.000  eno2: xmit 45% recv 45% [38941111967 34849920997]
+[19167] 13.000  perftest9:16343 size 1000000 mean 9322.025us min 9299.267us 50% 9307.380us 90% 9396.745us 99% 9409.686us max 9409.686us cnt 54
+[19167] 13.000  rss:10.2MB recvUC:5%+5%
+[19167] 13.000  @perftest9:16343 rss:11.3MB ddsperf:1%+0% recvUC:7%+2%
+[19167] 13.000  eno2: xmit 44% recv 45% [38996680219 34906172489]
+[19167] 14.000  perftest9:16343 size 1000000 mean 9318.667us min 9300.524us 50% 9308.002us 90% 9393.542us 99% 9416.025us max 9416.025us cnt 54
+[19167] 14.000  rss:10.2MB recvUC:5%+4%
+[19167] 14.000  @perftest9:16343 rss:11.3MB recvUC:7%+2%
+[19167] 14.000  eno2: xmit 45% recv 44% [39052984833 34961643171]
+[19167] 15.000  perftest9:16343 size 1000000 mean 9324.972us min 9301.692us 50% 9310.081us 90% 9400.324us 99% 9405.302us max 9405.302us cnt 53
+[19167] 15.000  rss:10.2MB ddsperf:0%+1% recvUC:5%+4%
+[19167] 15.000  @perftest9:16343 rss:11.3MB recvUC:5%+4%
+[19167] 15.000  eno2: xmit 45% recv 45% [39108659271 35017793161]
+[19167] 16.000  perftest9:16343 size 1000000 mean 9321.897us min 9300.118us 50% 9308.431us 90% 9399.564us 99% 9405.485us max 9405.485us cnt 54
+[19167] 16.000  rss:10.2MB recvUC:4%+5%
+[19167] 16.000  @perftest9:16343 rss:11.3MB recvUC:4%+6%
+[19167] 16.000  eno2: xmit 45% recv 45% [39164552035 35073726189]
+[19167] 17.000  perftest9:16343 size 1000000 mean 9320.674us min 9301.283us 50% 9307.596us 90% 9397.843us 99% 9403.395us max 9403.395us cnt 53
+[19167] 17.000  rss:10.2MB recvUC:5%+4%
+[19167] 17.000  @perftest9:16343 rss:11.3MB recvUC:3%+6%
+[19167] 17.000  eno2: xmit 45% recv 45% [39220856649 35129656353]
+[19167] 18.000  perftest9:16343 size 1000000 mean 9323.995us min 9300.389us 50% 9308.441us 90% 9396.397us 99% 9412.912us max 9412.912us cnt 54
+[19167] 18.000  rss:10.2MB recvUC:7%+2%
+[19167] 18.000  @perftest9:16343 rss:11.3MB recvUC:6%+3%
+[19167] 18.000  eno2: xmit 45% recv 45% [39276657595 35185666019]
+[19167] 19.000  perftest9:16343 size 1000000 mean 9320.843us min 9299.901us 50% 9306.816us 90% 9398.310us 99% 9403.651us max 9403.651us cnt 54
+[19167] 19.000  rss:10.2MB recvUC:5%+4%
+[19167] 19.000  @perftest9:16343 rss:11.3MB recvUC:6%+4%
+[19167] 19.000  eno2: xmit 45% recv 45% [39332423851 35241743925]
+[19167] 20.000  perftest9:16343 size 1000000 mean 9318.154us min 9299.380us 50% 9307.409us 90% 9394.104us 99% 9411.836us max 9411.836us cnt 53
+[19167] 20.000  rss:10.2MB recvUC:6%+4%
+[19167] 20.000  @perftest9:16343 rss:11.3MB recvUC:5%+4%
+[19167] 20.000  eno2: xmit 45% recv 44% [39388728737 35297233083]

@@ -1,0 +1,85 @@
+System Info (2 identical machines)
+==================================
+
+** lsb_release -a **
+
+No LSB modules are available.
+Distributor ID:	Ubuntu
+Description:	Ubuntu 16.04.6 LTS
+Release:	16.04
+Codename:	xenial
+
+** uname -a **
+
+Linux perftest8 4.4.0-142-generic #168-Ubuntu SMP Wed Jan 16 21:00:45 UTC 2019 x86_64 x86_64 x86_64 GNU/Linux
+
+** cat /proc/cpuinfo **
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 58
+model name	: Intel(R) Xeon(R) CPU E3-1270 V2 @ 3.50GHz
+stepping	: 9
+microcode	: 0x20
+cpu MHz		: 3499.863
+cache size	: 8192 KB
+physical id	: 0
+siblings	: 8
+core id		: 0
+cpu cores	: 4
+apicid		: 0
+initial apicid	: 0
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm epb ssbd ibrs ibpb stibp kaiser tpr_shadow vnmi flexpriority ept vpid fsgsbase smep erms xsaveopt dtherm arat pln pts flush_l1d
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf
+bogomips	: 6983.92
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 36 bits physical, 48 bits virtual
+power management:
+[...]
+
+** cpupower frequency-info **
+
+analyzing CPU 0:
+  driver: intel_pstate
+  CPUs which run at the same hardware frequency: 0
+  CPUs which need to have their frequency coordinated by software: 0
+  maximum transition latency: 0.97 ms.
+  hardware limits: 1.60 GHz - 3.90 GHz
+  available cpufreq governors: performance, powersave
+  current policy: frequency should be within 3.30 GHz and 3.90 GHz.
+                  The governor "performance" may decide which speed to use
+                  within this range.
+  current CPU frequency is 3.50 GHz.
+  boost state support:
+    Supported: no
+    Active: no
+    25500 MHz max turbo 4 active cores
+    25500 MHz max turbo 3 active cores
+    25500 MHz max turbo 2 active cores
+    25500 MHz max turbo 1 active cores
+
+** Network hardware **
+
+[    2.856426] bnx2: QLogic bnx2 Gigabit Ethernet Driver v2.2.6 (January 29, 2014)
+[    2.877394] bnx2 0000:01:00.0 eth0: Broadcom NetXtreme II BCM5716 1000Base-T (C0) PCI Express found at mem c0000000, IRQ 16, node addr d
+4:ae:52:cf:56:7e
+[    2.899262] bnx2 0000:01:00.1 eth1: Broadcom NetXtreme II BCM5716 1000Base-T (C0) PCI Express found at mem c2000000, IRQ 17, node addr d4:ae:52:cf:56:7f
+[    3.153286] bnx2 0000:01:00.1 eno2: renamed from eth1
+[   13.758349] bnx2 0000:01:00.1 eno2: using MSIX
+[   16.644700] bnx2 0000:01:00.1 eno2: NIC Copper Link is Up, 1000 Mbps full duplex
+[   16.644706] , receive & transmit flow control ON
+
+eno2 is a quiet GbE with a switch (don't know the exact model)
+
+Test info
+=========
+
+using examples/perfscripts/latency-test and examples/perfscripts/throughput-test
+
+throughput: asynchronous delivery, listener mode
+latency: synchronous delivery, listener mode
