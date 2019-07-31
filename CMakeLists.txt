@@ -206,9 +206,7 @@ if(BUILD_IDLC)
 endif()
 
 option(BUILD_DOCS "Build documentation." OFF)
-if(BUILD_DOCS)
-  add_subdirectory(docs)
-endif()
+add_subdirectory(docs)
 
 # Pull-in CPack and support for generating <Package>Config.cmake and packages.
 include(Packaging)
