@@ -14,6 +14,8 @@
 
 #include "dds/ddsrt/types.h"
 
+#define DDSRT_HAVE_THREAD_SETNAME (1)
+
 #if defined (__cplusplus)
 extern "C" {
 #endif

@@ -14,7 +14,7 @@
 
 #include "dds/ddsrt/retcode.h"
 
-dds_retcode_t ddsts_generate_C99(const char *file, ddsts_type_t *root_type);
-dds_retcode_t ddsts_generate_C99_to_buffer(const char* file, ddsts_type_t *root_type, char *buffer, size_t buffer_len);
+dds_return_t ddsts_generate_C99(const char *file, ddsts_type_t *root_type);
+dds_return_t ddsts_generate_C99_to_buffer(const char* file, ddsts_type_t *root_type, char *buffer, size_t buffer_len);
 
 #endif /* DDSTS_GEN_C99_H */

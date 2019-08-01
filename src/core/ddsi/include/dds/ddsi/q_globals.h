@@ -18,7 +18,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/sync.h"
-#include "dds/util/ut_fibheap.h"
+#include "dds/ddsrt/fibheap.h"
 
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_protocol.h"
@@ -47,7 +47,7 @@ struct lease;
 struct ddsi_tran_conn;
 struct ddsi_tran_listener;
 struct ddsi_tran_factory;
-struct ut_thread_pool_s;
+struct ddsrt_thread_pool_s;
 struct debug_monitor;
 struct ddsi_tkmap;
 
@@ -63,9 +63,6 @@ enum recvips_mode {
   RECVIPS_MODE_NONE,            /* no interfaces at all */
   RECVIPS_MODE_SOME             /* explicit list of interfaces; only one requiring recvips */
 };
-
-#define N_LEASE_LOCKS_LG2 4
-#define N_LEASE_LOCKS ((int) (1 << N_LEASE_LOCKS_LG2))
 
 enum recv_thread_mode {
   RTM_SINGLE,
@@ -105,12 +102,11 @@ struct q_globals {
 
   /* Queue for garbage collection requests */
   struct gcreq_queue *gcreq_queue;
-  struct nn_servicelease *servicelease;
+  struct ddsi_threadmon *threadmon;
 
   /* Lease junk */
   ddsrt_mutex_t leaseheap_lock;
-  ddsrt_mutex_t lease_locks[N_LEASE_LOCKS];
-  ut_fibheap_t leaseheap;
+  ddsrt_fibheap_t leaseheap;
 
   /* Transport factory */
 
@@ -133,7 +129,7 @@ struct q_globals {
 
   /* Thread pool */
 
-  struct ut_thread_pool_s * thread_pool;
+  struct ddsrt_thread_pool_s * thread_pool;
 
   /* In many sockets mode, the receive threads maintain a local array
      with participant GUIDs and sockets, participant_set_generation is
@@ -199,10 +195,6 @@ struct q_globals {
   struct addrset *as_disc;
   struct addrset *as_disc_group;
 
-  /* qoslock serializes QoS changes, probably not strictly necessary,
-     but a lot more straightforward that way */
-  ddsrt_rwlock_t qoslock;
-
   ddsrt_mutex_t lock;
 
   /* Receive thread. (We can only has one for now, cos of the signal
@@ -210,7 +202,7 @@ struct q_globals {
      it is only a global variable because it needs to be freed way later
      than the receive thread itself terminates */
 #define MAX_RECV_THREADS 3
-  unsigned n_recv_threads;
+  uint32_t n_recv_threads;
   struct recv_thread {
     const char *name;
     struct thread_state1 *ts;
@@ -221,14 +213,7 @@ struct q_globals {
   struct thread_state1 *listen_ts;
 
   /* Flag cleared when stopping (receive threads). FIXME. */
-  int rtps_keepgoing;
-
-  /* Startup mode causes data to be treated as transient-local with
-     depth 1 (i.e., stored in the WHCs and regurgitated on request) to
-     cover the start-up delay of the discovery protocols. Because all
-     discovery data is shared, this is strictly a start-up issue of the
-     service. */
-  int startup_mode;
+  ddsrt_atomic_uint32_t rtps_keepgoing;
 
   /* Start time of the DDSI2 service, for logging relative time stamps,
      should I ever so desire. */
@@ -240,15 +225,15 @@ struct q_globals {
      packets); plus the actual QoSs needed for the builtin
      endpoints. */
   nn_plist_t default_plist_pp;
-  nn_xqos_t default_xqos_rd;
-  nn_xqos_t default_xqos_wr;
-  nn_xqos_t default_xqos_wr_nad;
-  nn_xqos_t default_xqos_tp;
-  nn_xqos_t default_xqos_sub;
-  nn_xqos_t default_xqos_pub;
-  nn_xqos_t spdp_endpoint_xqos;
-  nn_xqos_t builtin_endpoint_xqos_rd;
-  nn_xqos_t builtin_endpoint_xqos_wr;
+  dds_qos_t default_xqos_rd;
+  dds_qos_t default_xqos_wr;
+  dds_qos_t default_xqos_wr_nad;
+  dds_qos_t default_xqos_tp;
+  dds_qos_t default_xqos_sub;
+  dds_qos_t default_xqos_pub;
+  dds_qos_t spdp_endpoint_xqos;
+  dds_qos_t builtin_endpoint_xqos_rd;
+  dds_qos_t builtin_endpoint_xqos_wr;
 
   /* SPDP packets get very special treatment (they're the only packets
      we accept from writers we don't know) and have their very own

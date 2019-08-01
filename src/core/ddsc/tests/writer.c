@@ -57,13 +57,13 @@ CU_Test(ddsc_create_writer, null_parent, .init = setup, .fini = teardown)
     DDSRT_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
     writer = dds_create_writer(0, topic, NULL, NULL);
     DDSRT_WARNING_MSVC_ON(28020);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(writer), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(writer, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_create_writer, bad_parent, .init = setup, .fini = teardown)
 {
     writer = dds_create_writer(topic, topic, NULL, NULL);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(writer), DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQUAL_FATAL(writer, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 
 CU_Test(ddsc_create_writer, participant, .init = setup, .fini = teardown)
@@ -83,7 +83,7 @@ CU_Test(ddsc_create_writer, deleted_publisher, .init = setup, .fini = teardown)
     dds_delete(publisher);
 
     writer = dds_create_writer(publisher, topic, NULL, NULL);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(writer), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(writer, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_create_writer, null_topic, .init = setup, .fini = teardown)
@@ -91,13 +91,13 @@ CU_Test(ddsc_create_writer, null_topic, .init = setup, .fini = teardown)
     DDSRT_WARNING_MSVC_OFF(28020); /* Disable SAL warning on intentional misuse of the API */
     writer = dds_create_writer(publisher, 0, NULL, NULL);
     DDSRT_WARNING_MSVC_ON(28020);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(writer), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(writer, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_create_writer, bad_topic, .init = setup, .fini = teardown)
 {
     writer = dds_create_writer(publisher, publisher, NULL, NULL);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(writer), DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQUAL_FATAL(writer, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 
 CU_Test(ddsc_create_writer, deleted_topic, .init = setup, .fini = teardown)
@@ -105,5 +105,5 @@ CU_Test(ddsc_create_writer, deleted_topic, .init = setup, .fini = teardown)
     dds_delete(topic);
 
     writer = dds_create_writer(publisher, topic, NULL, NULL);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(writer), DDS_RETCODE_ALREADY_DELETED);
+    CU_ASSERT_EQUAL_FATAL(writer, DDS_RETCODE_BAD_PARAMETER);
 }

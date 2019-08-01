@@ -12,12 +12,43 @@
 #include <stddef.h>
 
 #include "dds/ddsrt/atomics.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsi/q_freelist.h"
 
-#if FREELIST_TYPE == FREELIST_ATOMIC_LIFO
+#if FREELIST_TYPE == FREELIST_NONE
+
+void nn_freelist_init (struct nn_freelist *fl, uint32_t max, off_t linkoff)
+{
+  (void) fl; (void) max; (void) linkoff;
+}
+
+void nn_freelist_fini (struct nn_freelist *fl, void (*free) (void *elem))
+{
+  (void) fl; (void) free;
+}
+
+bool nn_freelist_push (struct nn_freelist *fl, void *elem)
+{
+  (void) fl; (void) elem;
+  return false;
+}
+
+void *nn_freelist_pushmany (struct nn_freelist *fl, void *first, void *last, uint32_t n)
+{
+  (void) fl; (void) first; (void) last; (void) n;
+  return first;
+}
+
+void *nn_freelist_pop (struct nn_freelist *fl)
+{
+  (void) fl;
+  return NULL;
+}
+
+#elif FREELIST_TYPE == FREELIST_ATOMIC_LIFO
 
 void nn_freelist_init (struct nn_freelist *fl, uint32_t max, off_t linkoff)
 {
@@ -109,9 +140,9 @@ void nn_freelist_fini (struct nn_freelist *fl, void (*xfree) (void *))
       xfree (fl->inner[i].m->x[j]);
     ddsrt_free(fl->inner[i].m);
   }
-/* The compiler can't make sense of all these linked lists and doesn't
- * realize that the next pointers are always initialized here. */
-DDSRT_WARNING_MSVC_OFF(6001);
+  /* The compiler can't make sense of all these linked lists and doesn't
+   * realize that the next pointers are always initialized here. */
+  DDSRT_WARNING_MSVC_OFF(6001);
   while ((m = fl->mlist) != NULL)
   {
     fl->mlist = m->next;
@@ -124,7 +155,7 @@ DDSRT_WARNING_MSVC_OFF(6001);
     fl->emlist = m->next;
     ddsrt_free (m);
   }
-DDSRT_WARNING_MSVC_ON(6001);
+  DDSRT_WARNING_MSVC_ON(6001);
 }
 
 static ddsrt_atomic_uint32_t freelist_inner_idx_off = DDSRT_ATOMIC_UINT32_INIT(0);

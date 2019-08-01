@@ -34,7 +34,8 @@ struct ddsi_tkmap_instance;
 
 void dds__builtin_init (void);
 void dds__builtin_fini (void);
-bool dds__builtin_is_visible (nn_entityid_t entityid, bool onlylocal, nn_vendorid_t vendorid);
+bool dds__builtin_is_builtintopic (const struct ddsi_sertopic *tp);
+bool dds__builtin_is_visible (const nn_guid_t *guid, nn_vendorid_t vendorid);
 struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct nn_guid *guid);
 struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, nn_wctime_t timestamp, bool alive);
 void dds__builtin_write (const struct entity_common *e, nn_wctime_t timestamp, bool alive);

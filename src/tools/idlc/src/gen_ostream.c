@@ -64,7 +64,7 @@ static void null_ostream_put(ddsts_ostream_t *ostream, char ch)
   DDSRT_UNUSED_ARG(ch);
 }
 
-extern dds_retcode_t ddsts_create_ostream_to_null(ddsts_ostream_t **ref_ostream)
+extern dds_return_t ddsts_create_ostream_to_null(ddsts_ostream_t **ref_ostream)
 {
   ostream_to_null_t *ostream_to_null = (ostream_to_null_t*)ddsrt_malloc(sizeof(ostream_to_null_t));
   if (ostream_to_null == NULL) {
@@ -103,7 +103,7 @@ static void files_ostream_put(ddsts_ostream_t *ostream, char ch)
   fputc(ch, ((ostream_to_files_t*)ostream)->f);
 }
 
-extern dds_retcode_t ddsts_create_ostream_to_files(ddsts_ostream_t **ref_ostream)
+extern dds_return_t ddsts_create_ostream_to_files(ddsts_ostream_t **ref_ostream)
 {
   ostream_to_files_t *ostream_to_files = (ostream_to_files_t*)ddsrt_malloc(sizeof(ostream_to_files_t));
   if (ostream_to_files == NULL) {
@@ -146,7 +146,7 @@ static void buffer_ostream_close(ddsts_ostream_t *ostream)
   DDSRT_UNUSED_ARG(ostream);
 }
 
-extern dds_retcode_t ddsts_create_ostream_to_buffer(char *buffer, size_t len, ddsts_ostream_t **ref_ostream)
+extern dds_return_t ddsts_create_ostream_to_buffer(char *buffer, size_t len, ddsts_ostream_t **ref_ostream)
 {
   ostream_to_buffer_t *ostream_to_buffer = (ostream_to_buffer_t*)ddsrt_malloc(sizeof(ostream_to_buffer_t));
   if (ostream_to_buffer == NULL) {

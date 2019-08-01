@@ -14,6 +14,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/sockets.h"
 #include "ddsi_eth.h"
 #include "dds/ddsi/ddsi_tran.h"
@@ -24,6 +25,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_pcap.h"
+#include "dds/ddsi/q_globals.h"
 
 extern void ddsi_factory_conn_init (ddsi_tran_factory_t factory, ddsi_tran_conn_t conn);
 
@@ -52,7 +54,7 @@ static ddsrt_atomic_uint32_t ddsi_udp_init_g = DDSRT_ATOMIC_UINT32_INIT(0);
 
 static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ssize_t ret = 0;
   ddsrt_msghdr_t msghdr;
   struct sockaddr_storage src;
@@ -84,6 +86,15 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
     if (srcloc)
       ddsi_ipaddr_to_loc(srcloc, (struct sockaddr *)&src, src.ss_family == AF_INET ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
 
+    if(gv.pcap_fp)
+    {
+      struct sockaddr_storage dest;
+      socklen_t dest_len = sizeof (dest);
+      if (ddsrt_getsockname (((ddsi_udp_conn_t) conn)->m_sock, (struct sockaddr *) &dest, &dest_len) != DDS_RETCODE_OK)
+        memset(&dest, 0, sizeof(dest));
+      write_pcap_received(gv.pcap_fp, now(), &src, &dest, buf, (size_t) ret);
+    }
+
     /* Check for udp packet truncation */
     if ((((size_t) ret) > len)
 #if DDSRT_MSGHDR_FLAGS
@@ -101,7 +112,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, s
   else if (rc != DDS_RETCODE_BAD_PARAMETER &&
            rc != DDS_RETCODE_NO_CONNECTION)
   {
-    DDS_ERROR("UDP recvmsg sock %d: ret %d retcode %d\n", (int) ((ddsi_udp_conn_t) conn)->m_sock, (int) ret, rc);
+    DDS_ERROR("UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) ((ddsi_udp_conn_t) conn)->m_sock, (int) ret, rc);
     ret = -1;
   }
   return ret;
@@ -115,8 +126,8 @@ static void set_msghdr_iov (ddsrt_msghdr_t *mhdr, ddsrt_iovec_t *iov, size_t iov
 
 static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
 {
-  dds_retcode_t rc;
-  ssize_t ret;
+  dds_return_t rc;
+  ssize_t ret = -1;
   unsigned retry = 2;
   int sendflags = 0;
   ddsrt_msghdr_t msg;
@@ -138,7 +149,7 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
 #else
   DDSRT_UNUSED_ARG(flags);
 #endif
-#ifdef MSG_NOSIGNAL
+#if MSG_NOSIGNAL && !LWIP_SOCKET
   sendflags |= MSG_NOSIGNAL;
 #endif
   do {
@@ -166,9 +177,9 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *d
            rc != DDS_RETCODE_NOT_ALLOWED &&
            rc != DDS_RETCODE_NO_CONNECTION)
   {
-    DDS_ERROR("ddsi_udp_conn_write failed with retcode %d", rc);
+    DDS_ERROR("ddsi_udp_conn_write failed with retcode %"PRId32"\n", rc);
   }
-  return ret;
+  return (rc == DDS_RETCODE_OK ? ret : -1);
 }
 
 static void ddsi_udp_disable_multiplexing (ddsi_tran_conn_t base)
@@ -211,14 +222,14 @@ static int ddsi_udp_conn_locator (ddsi_tran_base_t base, nn_locator_t *loc)
 
 static unsigned short get_socket_port (ddsrt_socket_t socket)
 {
-  dds_retcode_t ret;
+  dds_return_t ret;
   struct sockaddr_storage addr;
   socklen_t addrlen = sizeof (addr);
 
   ret = ddsrt_getsockname (socket, (struct sockaddr *)&addr, &addrlen);
   if (ret != DDS_RETCODE_OK)
   {
-    DDS_ERROR("ddsi_udp_get_socket_port: getsockname returned %d\n", ret);
+    DDS_ERROR("ddsi_udp_get_socket_port: getsockname returned %"PRId32"\n", ret);
     return 0;
   }
 
@@ -271,7 +282,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
 
     DDS_TRACE
     (
-      "ddsi_udp_create_conn %s socket %"PRIdSOCK" port %u\n",
+      "ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
       mcast ? "multicast" : "unicast",
       uc->m_sock,
       uc->m_base.m_base.m_port
@@ -279,10 +290,10 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
     if ((uc->m_diffserv != 0) && (ddsi_udp_factory_g.m_kind == NN_LOCATOR_KIND_UDPv4))
     {
-      dds_retcode_t rc;
+      dds_return_t rc;
       rc = ddsrt_setsockopt(sock, IPPROTO_IP, IP_TOS, (char *)&uc->m_diffserv, sizeof(uc->m_diffserv));
       if (rc != DDS_RETCODE_OK)
-        DDS_ERROR("ddsi_udp_create_conn: set diffserv retcode %d\n", rc);
+        DDS_ERROR("ddsi_udp_create_conn: set diffserv retcode %"PRId32"\n", rc);
     }
 #endif
   }
@@ -292,7 +303,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
     {
       DDS_ERROR
       (
-        "UDP make_socket failed for %s port %u\n",
+        "UDP make_socket failed for %s port %"PRIu32"\n",
         mcast ? "multicast" : "unicast",
         port
       );
@@ -304,7 +315,7 @@ static ddsi_tran_conn_t ddsi_udp_create_conn
 
 static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const nn_locator_t *mcloc, const struct nn_interface *interf)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   struct sockaddr_storage mcip;
   ddsi_ipaddr_from_loc(&mcip, mcloc);
 #if DDSRT_HAVE_IPV6
@@ -333,7 +344,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const nn_loca
 #ifdef DDSI_INCLUDE_SSM
 static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const nn_locator_t *srcloc, const nn_locator_t *mcloc, const struct nn_interface *interf)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   struct sockaddr_storage mcip, srcip;
   ddsi_ipaddr_from_loc(&mcip, mcloc);
   ddsi_ipaddr_from_loc(&srcip, srcloc);
@@ -393,7 +404,7 @@ static void ddsi_udp_release_conn (ddsi_tran_conn_t conn)
   ddsi_udp_conn_t uc = (ddsi_udp_conn_t) conn;
   DDS_TRACE
   (
-    "ddsi_udp_release_conn %s socket %"PRIdSOCK" port %u\n",
+    "ddsi_udp_release_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
     conn->m_base.m_multicast ? "multicast" : "unicast",
     uc->m_sock,
     uc->m_base.m_base.m_port
@@ -405,7 +416,7 @@ static void ddsi_udp_release_conn (ddsi_tran_conn_t conn)
   ddsrt_free (conn);
 }
 
-void ddsi_udp_fini (void)
+static void ddsi_udp_fini (void)
 {
     if(ddsrt_atomic_dec32_nv (&ddsi_udp_init_g) == 0) {
         free_group_membership(ddsi_udp_config_g.mship);
@@ -489,7 +500,7 @@ static char *ddsi_udp_locator_to_string (ddsi_tran_factory_t tran, char *dst, si
       pos += (size_t)cnt;
     }
     if (with_port && pos < sizeof_dst) {
-      snprintf (dst + pos, sizeof_dst - pos, ":%d", loc->port);
+      snprintf (dst + pos, sizeof_dst - pos, ":%"PRIu32, loc->port);
     }
     return dst;
   }

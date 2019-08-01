@@ -15,7 +15,11 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/sync.h"
 
-#define FREELIST_SIMPLE 1
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
+#define FREELIST_NONE 1
 #define FREELIST_ATOMIC_LIFO 2
 #define FREELIST_DOUBLE 3
 
@@ -29,7 +33,13 @@
 #endif
 #endif
 
-#if FREELIST_TYPE == FREELIST_ATOMIC_LIFO
+#if FREELIST_TYPE == FREELIST_NONE
+
+struct nn_freelist {
+  char dummy;
+};
+
+#elif FREELIST_TYPE == FREELIST_ATOMIC_LIFO
 
 struct nn_freelist {
   ddsrt_atomic_lifo_t x;
@@ -73,5 +83,9 @@ void nn_freelist_fini (struct nn_freelist *fl, void (*free) (void *elem));
 bool nn_freelist_push (struct nn_freelist *fl, void *elem);
 void *nn_freelist_pushmany (struct nn_freelist *fl, void *first, void *last, uint32_t n);
 void *nn_freelist_pop (struct nn_freelist *fl);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* NN_FREELIST_H */

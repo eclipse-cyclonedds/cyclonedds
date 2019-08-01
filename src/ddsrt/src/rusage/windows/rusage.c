@@ -24,7 +24,7 @@ filetime_to_time(const FILETIME *ft)
     return ((ft->dwHighDateTime << 31) + (ft->dwLowDateTime)) * 100;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_getrusage(int who, ddsrt_rusage_t *usage)
 {
     FILETIME stime, utime, ctime, etime;

@@ -24,8 +24,8 @@ void ddsts_ostream_close(ddsts_ostream_t *ostream);
 void ddsts_ostream_put(ddsts_ostream_t *ostream, char ch);
 void ddsts_ostream_puts(ddsts_ostream_t *ostream, const char *str);
 
-dds_retcode_t ddsts_create_ostream_to_null(ddsts_ostream_t **ref_ostream);
-dds_retcode_t ddsts_create_ostream_to_files(ddsts_ostream_t **ref_ostream);
-dds_retcode_t ddsts_create_ostream_to_buffer(char *buffer, size_t len, ddsts_ostream_t **ref_ostream);
+dds_return_t ddsts_create_ostream_to_null(ddsts_ostream_t **ref_ostream);
+dds_return_t ddsts_create_ostream_to_files(ddsts_ostream_t **ref_ostream);
+dds_return_t ddsts_create_ostream_to_buffer(char *buffer, size_t len, ddsts_ostream_t **ref_ostream);
 
 #endif /* DDSTS_GEN_OSTREAM_H */

@@ -23,10 +23,10 @@
 
 extern const int *const os_supp_afs;
 
-static dds_retcode_t
+static dds_return_t
 getifaces(PIP_ADAPTER_ADDRESSES *ptr)
 {
-  dds_retcode_t err = DDS_RETCODE_NOT_ENOUGH_SPACE;
+  dds_return_t err = DDS_RETCODE_NOT_ENOUGH_SPACE;
   PIP_ADAPTER_ADDRESSES buf = NULL;
   ULONG bufsz = 0; /* Size is determined on first iteration. */
   ULONG ret;
@@ -72,10 +72,10 @@ getifaces(PIP_ADAPTER_ADDRESSES *ptr)
   return err;
 }
 
-static dds_retcode_t
+static dds_return_t
 getaddrtable(PMIB_IPADDRTABLE *ptr)
 {
-  dds_retcode_t err = DDS_RETCODE_NOT_ENOUGH_SPACE;
+  dds_return_t err = DDS_RETCODE_NOT_ENOUGH_SPACE;
   PMIB_IPADDRTABLE buf = NULL;
   ULONG bufsz = 0;
   DWORD ret;
@@ -152,6 +152,21 @@ getflags(const PIP_ADAPTER_ADDRESSES iface)
   return flags;
 }
 
+static enum ddsrt_iftype
+guess_iftype (const PIP_ADAPTER_ADDRESSES iface)
+{
+  switch (iface->IfType) {
+    case IF_TYPE_IEEE80211:
+      return DDSRT_IFTYPE_WIFI;
+    case IF_TYPE_ETHERNET_CSMACD:
+    case IF_TYPE_IEEE1394:
+    case IF_TYPE_ISO88025_TOKENRING:
+      return DDSRT_IFTYPE_WIRED;
+    default:
+      return DDSRT_IFTYPE_UNKNOWN;
+  }
+}
+
 static int
 copyaddr(
   ddsrt_ifaddrs_t **ifap,
@@ -159,7 +174,7 @@ copyaddr(
   const PMIB_IPADDRTABLE addrtable,
   const PIP_ADAPTER_UNICAST_ADDRESS addr)
 {
-  dds_retcode_t err = DDS_RETCODE_OK;
+  dds_return_t err = DDS_RETCODE_OK;
   ddsrt_ifaddrs_t *ifa;
   struct sockaddr *sa;
   size_t sz;
@@ -175,6 +190,7 @@ copyaddr(
     err = DDS_RETCODE_OUT_OF_RESOURCES;
   } else {
     ifa->flags = getflags(iface);
+    ifa->type = guess_iftype(iface);
     ifa->addr = ddsrt_memdup(sa, sz);
     (void)ddsrt_asprintf(&ifa->name, "%wS", iface->FriendlyName);
     if (ifa->addr == NULL || ifa->name == NULL) {
@@ -220,7 +236,7 @@ copyaddr(
   return err;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_getifaddrs(
   ddsrt_ifaddrs_t **ifap,
   const int *afs)

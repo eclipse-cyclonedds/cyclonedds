@@ -19,14 +19,13 @@ extern "C" {
 #endif
 
 struct rhc;
-struct nn_xqos;
+struct dds_qos;
 struct ddsi_serdata;
 struct ddsi_tkmap_instance;
 struct proxy_writer_info;
 
 DDS_EXPORT struct rhc *dds_rhc_new (dds_reader *reader, const struct ddsi_sertopic *topic);
 DDS_EXPORT void dds_rhc_free (struct rhc *rhc);
-DDS_EXPORT void dds_rhc_fini (struct rhc *rhc);
 
 DDS_EXPORT uint32_t dds_rhc_lock_samples (struct rhc *rhc);
 
@@ -55,7 +54,7 @@ dds_rhc_take(
         dds_instance_handle_t handle,
         dds_readcond *cond);
 
-DDS_EXPORT void dds_rhc_set_qos (struct rhc * rhc, const struct nn_xqos * qos);
+DDS_EXPORT void dds_rhc_set_qos (struct rhc * rhc, const struct dds_qos * qos);
 
 DDS_EXPORT bool dds_rhc_add_readcondition (dds_readcond * cond);
 DDS_EXPORT void dds_rhc_remove_readcondition (dds_readcond * cond);
@@ -63,8 +62,8 @@ DDS_EXPORT void dds_rhc_remove_readcondition (dds_readcond * cond);
 DDS_EXPORT int dds_rhc_takecdr
 (
   struct rhc *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq,
-  uint32_t max_samples, unsigned sample_states,
-  unsigned view_states, unsigned instance_states,
+  uint32_t max_samples, uint32_t sample_states,
+  uint32_t view_states, uint32_t instance_states,
   dds_instance_handle_t handle
 );
 

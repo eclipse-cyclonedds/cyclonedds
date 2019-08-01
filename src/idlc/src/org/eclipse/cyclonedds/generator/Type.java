@@ -29,5 +29,6 @@ public interface Type
   public int getMetaOpSize ();
   public Alignment getAlignment ();
   public Type dup ();
+  public boolean containsUnion ();
 }
 

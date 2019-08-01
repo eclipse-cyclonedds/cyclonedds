@@ -100,7 +100,7 @@ struct included_type {
   included_type_t *next;
 };
 
-static dds_retcode_t included_types_add(included_type_t **ref_included_nodes, ddsts_type_t *type)
+static dds_return_t included_types_add(included_type_t **ref_included_nodes, ddsts_type_t *type)
 {
   included_type_t *new_included_node = (included_type_t*)ddsrt_malloc(sizeof(included_type_t));
   if (new_included_node == NULL) {
@@ -134,9 +134,9 @@ static ddsts_type_t *get_struct_def(ddsts_type_t *type)
   return DDSTS_IS_TYPE(type, DDSTS_FORWARD_STRUCT) ? type->forward.definition : type;
 }
 
-static dds_retcode_t find_used_structs(included_type_t **ref_included_nodes, ddsts_type_t *struct_def);
+static dds_return_t find_used_structs(included_type_t **ref_included_nodes, ddsts_type_t *struct_def);
 
-static dds_retcode_t find_used_structs_in_type_def(included_type_t **ref_included_nodes, ddsts_type_t *type)
+static dds_return_t find_used_structs_in_type_def(included_type_t **ref_included_nodes, ddsts_type_t *type)
 {
   switch (DDSTS_TYPE_OF(type)) {
     case DDSTS_SEQUENCE:
@@ -155,11 +155,11 @@ static dds_retcode_t find_used_structs_in_type_def(included_type_t **ref_include
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t find_used_structs(included_type_t **ref_included_nodes, ddsts_type_t *struct_def)
+static dds_return_t find_used_structs(included_type_t **ref_included_nodes, ddsts_type_t *struct_def)
 {
   if (included_types_contains(*ref_included_nodes, struct_def))
     return DDS_RETCODE_OK;
-  dds_retcode_t rc = included_types_add(ref_included_nodes, struct_def);
+  dds_return_t rc = included_types_add(ref_included_nodes, struct_def);
   if (rc != DDS_RETCODE_OK) {
     return rc;
   }
@@ -244,7 +244,7 @@ static void output(ddsts_ostream_t *ostream, const char *fmt, ...)
 
 /* File name functions */
 
-static dds_retcode_t output_file_name(const char *file_name, const char *ext, const char **ref_result)
+static dds_return_t output_file_name(const char *file_name, const char *ext, const char **ref_result)
 {
   *ref_result = NULL;
   size_t file_name_len = strlen(file_name);
@@ -263,7 +263,7 @@ static dds_retcode_t output_file_name(const char *file_name, const char *ext, co
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t uppercase_file_name(const char *file_name, const char **ref_result)
+static dds_return_t uppercase_file_name(const char *file_name, const char **ref_result)
 {
   *ref_result = NULL;
   size_t file_name_len = strlen(file_name);
@@ -310,10 +310,10 @@ static void write_file_header(ddsts_ostream_t *ostream, const char *target_file_
 
 /* Generate C99 header file */
 
-static dds_retcode_t write_header_intro(ddsts_ostream_t *ostream, const char *file_name)
+static dds_return_t write_header_intro(ddsts_ostream_t *ostream, const char *file_name)
 {
   const char *uc_file_name = NULL;
-  dds_retcode_t rc = uppercase_file_name(file_name, &uc_file_name);
+  dds_return_t rc = uppercase_file_name(file_name, &uc_file_name);
   if (rc != DDS_RETCODE_OK) {
     return rc;
   }
@@ -337,10 +337,10 @@ static dds_retcode_t write_header_intro(ddsts_ostream_t *ostream, const char *fi
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t write_header_close(ddsts_ostream_t *ostream, const char *file_name)
+static dds_return_t write_header_close(ddsts_ostream_t *ostream, const char *file_name)
 {
   const char *uc_file_name = NULL;
-  dds_retcode_t rc = uppercase_file_name(file_name, &uc_file_name);
+  dds_return_t rc = uppercase_file_name(file_name, &uc_file_name);
   if (rc != DDS_RETCODE_OK) {
     return rc;
   }
@@ -404,7 +404,7 @@ static const char *name_with_module_prefix(ddsts_type_t *def_type, const char *i
 
 /* Functions called from walker for the include file */
 
-static dds_retcode_t write_header_forward_struct(ddsts_call_path_t *path, void *context)
+static dds_return_t write_header_forward_struct(ddsts_call_path_t *path, void *context)
 {
   ddsts_type_t *struct_def = NULL;
   if (DDSTS_IS_TYPE(path->type, DDSTS_STRUCT | DDSTS_FORWARD_STRUCT)) {
@@ -439,7 +439,7 @@ static dds_retcode_t write_header_forward_struct(ddsts_call_path_t *path, void *
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t write_header_seq_struct_with_name(ddsts_type_t *type, const char *element_type_name, ddsts_ostream_t *ostream)
+static dds_return_t write_header_seq_struct_with_name(ddsts_type_t *type, const char *element_type_name, ddsts_ostream_t *ostream)
 {
   const char *base_name = name_with_module_prefix(type, "_");
   if (base_name == NULL) {
@@ -469,7 +469,7 @@ static dds_retcode_t write_header_seq_struct_with_name(ddsts_type_t *type, const
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t write_header_open_struct(ddsts_call_path_t *path, void *context)
+static dds_return_t write_header_open_struct(ddsts_call_path_t *path, void *context)
 {
   assert(DDSTS_IS_TYPE(path->type, DDSTS_STRUCT));
 
@@ -495,7 +495,7 @@ static dds_retcode_t write_header_open_struct(ddsts_call_path_t *path, void *con
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t write_header_close_struct(ddsts_call_path_t *path, void *context)
+static dds_return_t write_header_close_struct(ddsts_call_path_t *path, void *context)
 {
   DDSRT_UNUSED_ARG(context);
 
@@ -532,7 +532,7 @@ static dds_retcode_t write_header_close_struct(ddsts_call_path_t *path, void *co
 }
 
 
-static dds_retcode_t write_header_struct_member(ddsts_call_path_t *path, void *context)
+static dds_return_t write_header_struct_member(ddsts_call_path_t *path, void *context)
 {
   DDSRT_UNUSED_ARG(context);
 
@@ -622,9 +622,9 @@ static dds_retcode_t write_header_struct_member(ddsts_call_path_t *path, void *c
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t write_header_struct(ddsts_call_path_t *path, void *context);
+static dds_return_t write_header_struct(ddsts_call_path_t *path, void *context);
 
-static dds_retcode_t write_header_struct_pre(ddsts_call_path_t *path, void *context)
+static dds_return_t write_header_struct_pre(ddsts_call_path_t *path, void *context)
 {
   switch (DDSTS_TYPE_OF(path->type)) {
     case DDSTS_STRUCT:
@@ -645,7 +645,7 @@ static dds_retcode_t write_header_struct_pre(ddsts_call_path_t *path, void *cont
           ddsts_call_path_t elem_path;
           elem_path.call_parent = path;
           elem_path.type = element_type;
-          dds_retcode_t rc;
+          dds_return_t rc;
           rc = write_header_forward_struct(&elem_path, context);
           if (rc != DDS_RETCODE_OK) {
             ddsrt_free((void*)element_type_name);
@@ -668,9 +668,9 @@ static dds_retcode_t write_header_struct_pre(ddsts_call_path_t *path, void *cont
    return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t write_header_struct(ddsts_call_path_t *path, void *context)
+static dds_return_t write_header_struct(ddsts_call_path_t *path, void *context)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   rc = ddsts_walk(path, 0, DDSTS_STRUCT | DDSTS_DECLARATION, write_header_struct_pre, context);
   if (rc != DDS_RETCODE_OK) {
     return rc;
@@ -687,7 +687,7 @@ static dds_retcode_t write_header_struct(ddsts_call_path_t *path, void *context)
   return write_header_close_struct(path, context);
 }
 
-static dds_retcode_t write_header_modules(ddsts_call_path_t *path, void *context)
+static dds_return_t write_header_modules(ddsts_call_path_t *path, void *context)
 {
   switch (DDSTS_TYPE_OF(path->type)) {
     case DDSTS_STRUCT:
@@ -703,11 +703,11 @@ static dds_retcode_t write_header_modules(ddsts_call_path_t *path, void *context
   return DDS_RETCODE_ERROR;
 }
 
-static dds_retcode_t generate_header_file(const char *file_name, ddsts_type_t *root_node, ddsts_ostream_t *ostream)
+static dds_return_t generate_header_file(const char *file_name, ddsts_type_t *root_node, ddsts_ostream_t *ostream)
 {
   DDSRT_UNUSED_ARG(root_node);
   const char *h_file_name = NULL;
-  dds_retcode_t rc;
+  dds_return_t rc;
   rc = output_file_name(file_name, "h", &h_file_name);
   if (rc != DDS_RETCODE_OK) {
     return rc;
@@ -862,7 +862,7 @@ static key_offset_t *op_codes_context_find_key(op_codes_context_t *context, ddst
 
 /*   Generate operation codes */
 
-static dds_retcode_t generate_op_codes_field_name(ddsts_call_path_t *path, bool top, ddsts_ostream_t *ostream)
+static dds_return_t generate_op_codes_field_name(ddsts_call_path_t *path, bool top, ddsts_ostream_t *ostream)
 {
   if (   DDSTS_IS_TYPE(path->type, DDSTS_STRUCT | DDSTS_FORWARD_STRUCT)
       && !DDSTS_IS_TYPE(path->call_parent->type, DDSTS_DECLARATION)) {
@@ -876,7 +876,7 @@ static dds_retcode_t generate_op_codes_field_name(ddsts_call_path_t *path, bool 
   }
   else {
     if (DDSTS_IS_TYPE(path->type, DDSTS_DECLARATION)) {
-      dds_retcode_t rc = generate_op_codes_field_name(path->call_parent, false, ostream);
+      dds_return_t rc = generate_op_codes_field_name(path->call_parent, false, ostream);
       if (rc != DDS_RETCODE_OK) {
         return rc;
       }
@@ -892,7 +892,7 @@ static dds_retcode_t generate_op_codes_field_name(ddsts_call_path_t *path, bool 
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t generate_op_codes_offsetof(ddsts_call_path_t *declaration, void *context)
+static dds_return_t generate_op_codes_offsetof(ddsts_call_path_t *declaration, void *context)
 {
   ddsts_ostream_t *ostream = ((op_codes_context_t*)context)->output_context.ostream;
 
@@ -901,7 +901,7 @@ static dds_retcode_t generate_op_codes_offsetof(ddsts_call_path_t *declaration, 
   }
   else {
     ddsts_ostream_puts(ostream, " offsetof (");
-    dds_retcode_t rc = generate_op_codes_field_name(declaration, true, ostream);
+    dds_return_t rc = generate_op_codes_field_name(declaration, true, ostream);
     if (rc != DDS_RETCODE_OK) {
       return rc;
     }
@@ -919,7 +919,7 @@ static void generate_op_codes_array_size(unsigned long long array_size, void *co
   ((op_codes_context_t*)context)->cur_offset += 1U;
 }
 
-static dds_retcode_t generate_op_codes_simple_type(ddsts_call_path_t *declaration, uint32_t dds_op_type, unsigned long long array_size, void *context)
+static dds_return_t generate_op_codes_simple_type(ddsts_call_path_t *declaration, uint32_t dds_op_type, unsigned long long array_size, void *context)
 {
   ddsts_ostream_t *ostream = ((op_codes_context_t*)context)->output_context.ostream;
   ddsts_ostream_puts(ostream, "  DDS_OP_ADR");
@@ -942,7 +942,7 @@ static dds_retcode_t generate_op_codes_simple_type(ddsts_call_path_t *declaratio
       break;
   }
   bool declaration_is_key = false;
-  dds_retcode_t rc;
+  dds_return_t rc;
   rc = ddsts_declaration_is_key(declaration, &declaration_is_key);
 
   if (declaration_is_key) {
@@ -971,7 +971,7 @@ static dds_retcode_t generate_op_codes_simple_type(ddsts_call_path_t *declaratio
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t generate_op_codes_sequence(ddsts_call_path_t *declaration, uint32_t dds_op_type, void *context)
+static dds_return_t generate_op_codes_sequence(ddsts_call_path_t *declaration, uint32_t dds_op_type, void *context)
 {
   ddsts_ostream_t *ostream = ((op_codes_context_t*)context)->output_context.ostream;
   ddsts_ostream_puts(ostream, "  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_");
@@ -993,7 +993,7 @@ static dds_retcode_t generate_op_codes_sequence(ddsts_call_path_t *declaration, 
   ((op_codes_context_t*)context)->cur_offset += 1U;
   ((op_codes_context_t*)context)->nr_ops += 1U;
 
-  dds_retcode_t rc = generate_op_codes_offsetof(declaration, context);
+  dds_return_t rc = generate_op_codes_offsetof(declaration, context);
   if (rc != DDS_RETCODE_OK) {
     return rc;
   }
@@ -1001,9 +1001,9 @@ static dds_retcode_t generate_op_codes_sequence(ddsts_call_path_t *declaration, 
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t generate_op_codes_sequence_struct(ddsts_call_path_t *declaration, uint32_t dds_op_type, const char* struct_name, uint32_t op_code_size, void *context)
+static dds_return_t generate_op_codes_sequence_struct(ddsts_call_path_t *declaration, uint32_t dds_op_type, const char* struct_name, uint32_t op_code_size, void *context)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   rc = generate_op_codes_sequence(declaration, dds_op_type, context);
   if (rc != DDS_RETCODE_OK) {
     return rc;
@@ -1018,7 +1018,7 @@ static dds_retcode_t generate_op_codes_sequence_struct(ddsts_call_path_t *declar
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t generate_op_codes_struct(ddsts_call_path_t *path, void *context);
+static dds_return_t generate_op_codes_struct(ddsts_call_path_t *path, void *context);
 
 static void generate_op_codes_generated_struct(type_dim_t *type_dim, void *context)
 {
@@ -1033,7 +1033,7 @@ static void generate_op_codes_generated_struct(type_dim_t *type_dim, void *conte
   ((op_codes_context_t*)context)->nr_ops += 2U;
 }
 
-static dds_retcode_t generate_op_codes_seq_element(ddsts_call_path_t *path, ddsts_call_path_t *declaration, void *context)
+static dds_return_t generate_op_codes_seq_element(ddsts_call_path_t *path, ddsts_call_path_t *declaration, void *context)
 {
   ddsts_ostream_t *ostream = ((op_codes_context_t*)context)->output_context.ostream;
   ddsts_type_t *type = path->type;
@@ -1057,7 +1057,7 @@ static dds_retcode_t generate_op_codes_seq_element(ddsts_call_path_t *path, ddst
         ddsts_ostream_puts(ostream, "  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_BST,");
         ((op_codes_context_t*)context)->cur_offset += 1U;
         ((op_codes_context_t*)context)->nr_ops += 1U;
-        dds_retcode_t rc = generate_op_codes_offsetof(declaration, context);
+        dds_return_t rc = generate_op_codes_offsetof(declaration, context);
         if (rc != DDS_RETCODE_OK) {
           return rc;
         }
@@ -1081,7 +1081,7 @@ static dds_retcode_t generate_op_codes_seq_element(ddsts_call_path_t *path, ddst
       if (type_dim == NULL) {
         return DDS_RETCODE_OUT_OF_RESOURCES;
       }
-      dds_retcode_t rc;
+      dds_return_t rc;
       rc = generate_op_codes_sequence_struct(declaration, DDS_OP_TYPE_SEQ, "dds_sequence_t", type_dim->size, context);
       if (rc != DDS_RETCODE_OK) {
         return rc;
@@ -1117,7 +1117,7 @@ static dds_retcode_t generate_op_codes_seq_element(ddsts_call_path_t *path, ddst
         return DDS_RETCODE_OUT_OF_RESOURCES;
       }
       if (type_dim->generated) {
-        dds_retcode_t rc = generate_op_codes_sequence_struct(declaration, DDS_OP_TYPE_STU, struct_full_name, 3, context);
+        dds_return_t rc = generate_op_codes_sequence_struct(declaration, DDS_OP_TYPE_STU, struct_full_name, 3, context);
         if (rc != DDS_RETCODE_OK) {
           ddsrt_free((void*)struct_full_name);
           return rc;
@@ -1125,7 +1125,7 @@ static dds_retcode_t generate_op_codes_seq_element(ddsts_call_path_t *path, ddst
         generate_op_codes_generated_struct(type_dim, context);
       }
       else {
-        dds_retcode_t rc;
+        dds_return_t rc;
         rc = generate_op_codes_sequence_struct(declaration, DDS_OP_TYPE_STU, struct_full_name, type_dim->size, context);
         if (rc != DDS_RETCODE_OK) {
           ddsrt_free((void*)struct_full_name);
@@ -1152,7 +1152,7 @@ static dds_retcode_t generate_op_codes_seq_element(ddsts_call_path_t *path, ddst
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t generate_op_codes_array_struct(ddsts_call_path_t *declaration, uint32_t dds_op_type, unsigned long long array_size, uint32_t op_code_size, void *context)
+static dds_return_t generate_op_codes_array_struct(ddsts_call_path_t *declaration, uint32_t dds_op_type, unsigned long long array_size, uint32_t op_code_size, void *context)
 {
   ddsts_ostream_t *ostream = ((op_codes_context_t*)context)->output_context.ostream;
   ddsts_ostream_puts(ostream, "  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_");
@@ -1167,7 +1167,7 @@ static dds_retcode_t generate_op_codes_array_struct(ddsts_call_path_t *declarati
   ddsts_ostream_puts(ostream, ",");
   ((op_codes_context_t*)context)->cur_offset += 1U;
   ((op_codes_context_t*)context)->nr_ops += 1U;
-  dds_retcode_t rc;
+  dds_return_t rc;
   rc = generate_op_codes_offsetof(declaration, context);
   if (rc != DDS_RETCODE_OK) {
     return rc;
@@ -1181,7 +1181,7 @@ static dds_retcode_t generate_op_codes_array_struct(ddsts_call_path_t *declarati
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t generate_op_codes_declaration(ddsts_call_path_t *path, void *context)
+static dds_return_t generate_op_codes_declaration(ddsts_call_path_t *path, void *context)
 {
   op_codes_context_t *op_codes_context = (op_codes_context_t*)context;
   ddsts_ostream_t *ostream = op_codes_context->output_context.ostream;
@@ -1201,7 +1201,7 @@ static dds_retcode_t generate_op_codes_declaration(ddsts_call_path_t *path, void
     ddsts_call_path_t struct_path;
     struct_path.type = struct_def;
     struct_path.call_parent = path;
-    dds_retcode_t rc = ddsts_walk(&struct_path, 0, DDSTS_DECLARATION, generate_op_codes_declaration, context);
+    dds_return_t rc = ddsts_walk(&struct_path, 0, DDSTS_DECLARATION, generate_op_codes_declaration, context);
     if (rc != DDS_RETCODE_OK) {
       return rc;
     }
@@ -1253,7 +1253,7 @@ static dds_retcode_t generate_op_codes_declaration(ddsts_call_path_t *path, void
           }
           op_codes_context->cur_offset += 1U;
           op_codes_context->nr_ops += 1U;
-          dds_retcode_t rc = generate_op_codes_offsetof(declaration, context);
+          dds_return_t rc = generate_op_codes_offsetof(declaration, context);
           if (rc != DDS_RETCODE_OK) {
             return rc;
           }
@@ -1283,7 +1283,7 @@ static dds_retcode_t generate_op_codes_declaration(ddsts_call_path_t *path, void
           if (type_dim == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
           }
-          dds_retcode_t rc;
+          dds_return_t rc;
           rc = generate_op_codes_array_struct(declaration, DDS_OP_TYPE_SEQ, array_size, type_dim->size, context);
           if (rc != DDS_RETCODE_OK) {
             return rc;
@@ -1339,7 +1339,7 @@ static dds_retcode_t generate_op_codes_declaration(ddsts_call_path_t *path, void
           return DDS_RETCODE_OUT_OF_RESOURCES;
         }
         if (type_dim->generated) {
-          dds_retcode_t rc = generate_op_codes_array_struct(declaration, DDS_OP_TYPE_STU, array_size, 3, context);
+          dds_return_t rc = generate_op_codes_array_struct(declaration, DDS_OP_TYPE_STU, array_size, 3, context);
           if (rc != DDS_RETCODE_OK) {
             ddsrt_free((void*)struct_full_name);
             return rc;
@@ -1349,7 +1349,7 @@ static dds_retcode_t generate_op_codes_declaration(ddsts_call_path_t *path, void
           generate_op_codes_generated_struct(type_dim, context);
         }
         else {
-          dds_retcode_t rc;
+          dds_return_t rc;
           rc = generate_op_codes_array_struct(declaration, DDS_OP_TYPE_STU, array_size, type_dim->size, context);
           if (rc != DDS_RETCODE_OK) {
             ddsrt_free((void*)struct_full_name);
@@ -1381,7 +1381,7 @@ static dds_retcode_t generate_op_codes_declaration(ddsts_call_path_t *path, void
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t generate_op_codes_struct(ddsts_call_path_t *path, void *context)
+static dds_return_t generate_op_codes_struct(ddsts_call_path_t *path, void *context)
 {
   op_codes_context_t *op_codes_context = (op_codes_context_t*)context;
 
@@ -1396,7 +1396,7 @@ static dds_retcode_t generate_op_codes_struct(ddsts_call_path_t *path, void *con
   type_dim->generated = true;
   type_dim->start = op_codes_context->cur_offset;
 
-  dds_retcode_t rc = ddsts_walk(path, 0, DDSTS_DECLARATION, generate_op_codes_declaration, context);
+  dds_return_t rc = ddsts_walk(path, 0, DDSTS_DECLARATION, generate_op_codes_declaration, context);
   if (rc != DDS_RETCODE_OK) {
     return rc;
   }
@@ -1423,9 +1423,9 @@ static void meta_data_context_init(meta_data_context_t *context, ddsts_ostream_t
   context->included_types = included_types;
 }
 
-static dds_retcode_t write_meta_data_elem(ddsts_call_path_t *path, void *context);
+static dds_return_t write_meta_data_elem(ddsts_call_path_t *path, void *context);
 
-static dds_retcode_t write_meta_data_type_spec(ddsts_call_path_t *path, void *context)
+static dds_return_t write_meta_data_type_spec(ddsts_call_path_t *path, void *context)
 {
   ddsts_type_t *type = path->type;
   switch (DDSTS_TYPE_OF(type)) {
@@ -1461,7 +1461,7 @@ static dds_retcode_t write_meta_data_type_spec(ddsts_call_path_t *path, void *co
       ddsts_call_path_t element_path;
       element_path.type = path->type->array.element_type;
       element_path.call_parent = path;
-      dds_retcode_t rc = write_meta_data_type_spec(&element_path, context);
+      dds_return_t rc = write_meta_data_type_spec(&element_path, context);
       if (rc != DDS_RETCODE_OK) {
         return rc;
       }
@@ -1480,7 +1480,7 @@ static dds_retcode_t write_meta_data_type_spec(ddsts_call_path_t *path, void *co
       ddsts_call_path_t element_path;
       element_path.type = path->type->sequence.element_type;
       element_path.call_parent = path;
-      dds_retcode_t rc = write_meta_data_type_spec(&element_path, context);
+      dds_return_t rc = write_meta_data_type_spec(&element_path, context);
       if (rc != DDS_RETCODE_OK) {
         return rc;
       }
@@ -1524,13 +1524,13 @@ static dds_retcode_t write_meta_data_type_spec(ddsts_call_path_t *path, void *co
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t write_meta_data_elem(ddsts_call_path_t *path, void *context)
+static dds_return_t write_meta_data_elem(ddsts_call_path_t *path, void *context)
 {
   switch (DDSTS_TYPE_OF(path->type)) {
     case DDSTS_MODULE:
       if (included_types_contains(((meta_data_context_t*)context)->included_types, path->type)) {
         output(((output_context_t*)context)->ostream, "<Module name=\\\"$N\\\">", 'N', path->type->type.name, '\0');
-        dds_retcode_t rc = ddsts_walk(path, 0, DDSTS_MODULE | DDSTS_STRUCT, write_meta_data_elem, context);
+        dds_return_t rc = ddsts_walk(path, 0, DDSTS_MODULE | DDSTS_STRUCT, write_meta_data_elem, context);
         if (rc != DDS_RETCODE_OK) {
           return rc;
         }
@@ -1540,7 +1540,7 @@ static dds_retcode_t write_meta_data_elem(ddsts_call_path_t *path, void *context
     case DDSTS_STRUCT:
       if (included_types_contains(((meta_data_context_t*)context)->included_types, path->type)) {
         output(((output_context_t*)context)->ostream, "<Struct name=\\\"$N\\\">", 'N', path->type->type.name, '\0');
-        dds_retcode_t rc = ddsts_walk(path, 0, DDSTS_DECLARATION, write_meta_data_elem, context);
+        dds_return_t rc = ddsts_walk(path, 0, DDSTS_DECLARATION, write_meta_data_elem, context);
         if (rc != DDS_RETCODE_OK) {
           return rc;
         }
@@ -1552,7 +1552,7 @@ static dds_retcode_t write_meta_data_elem(ddsts_call_path_t *path, void *context
       ddsts_call_path_t type_spec_path;
       type_spec_path.type = path->type->declaration.decl_type;
       type_spec_path.call_parent = path;
-      dds_retcode_t rc = write_meta_data_type_spec(&type_spec_path, context);
+      dds_return_t rc = write_meta_data_type_spec(&type_spec_path, context);
       if (rc != DDS_RETCODE_OK) {
         return rc;
       }
@@ -1567,11 +1567,11 @@ static dds_retcode_t write_meta_data_elem(ddsts_call_path_t *path, void *context
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t write_meta_data(ddsts_ostream_t *ostream, ddsts_type_t *struct_def)
+static dds_return_t write_meta_data(ddsts_ostream_t *ostream, ddsts_type_t *struct_def)
 {
   /* Determine which structs should be include */
   included_type_t *included_types = NULL;
-  dds_retcode_t rc = find_used_structs(&included_types, struct_def);
+  dds_return_t rc = find_used_structs(&included_types, struct_def);
   if (rc != DDS_RETCODE_OK) {
     return rc;
   }
@@ -1720,7 +1720,7 @@ static bool ddsts_type_optimizable(ddsts_type_t *type)
   return ddsts_type_alignment(type) != ALIGNMENT_PTR;
 }
 
-static dds_retcode_t walk_struct_keys(ddsts_call_path_t *path, bool top, ddsts_walk_call_func_t func, op_codes_context_t *context)
+static dds_return_t walk_struct_keys(ddsts_call_path_t *path, bool top, ddsts_walk_call_func_t func, op_codes_context_t *context)
 {
   assert(path != NULL && DDSTS_IS_TYPE(path->type, DDSTS_STRUCT));
   ddsts_type_t *struct_def = get_struct_def(path->type);
@@ -1748,13 +1748,13 @@ static dds_retcode_t walk_struct_keys(ddsts_call_path_t *path, bool top, ddsts_w
           ddsts_call_path_t struct_decl_path;
           struct_decl_path.type = struct_def;
           struct_decl_path.call_parent = &declaration_path;
-          dds_retcode_t rc = walk_struct_keys(&struct_decl_path, false, func, context);
+          dds_return_t rc = walk_struct_keys(&struct_decl_path, false, func, context);
           if (rc != DDS_RETCODE_OK) {
             return rc;
           }
         }
         else {
-          dds_retcode_t rc = func(&declaration_path, context);
+          dds_return_t rc = func(&declaration_path, context);
           if (rc != DDS_RETCODE_OK) {
             return rc;
           }
@@ -1766,7 +1766,7 @@ static dds_retcode_t walk_struct_keys(ddsts_call_path_t *path, bool top, ddsts_w
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t collect_key_properties(ddsts_call_path_t *path, void *context)
+static dds_return_t collect_key_properties(ddsts_call_path_t *path, void *context)
 {
   ((op_codes_context_t*)context)->nr_keys++;
   ddsts_type_t *type = path->type->declaration.decl_type;
@@ -1834,7 +1834,7 @@ static void write_key_name(ddsts_call_path_t *path, bool top, ddsts_ostream_t *o
   }
 }
 
-static dds_retcode_t write_key_description(ddsts_call_path_t *path, void *context)
+static dds_return_t write_key_description(ddsts_call_path_t *path, void *context)
 {
   ddsts_ostream_t *ostream = ((op_codes_context_t*)context)->output_context.ostream;
 
@@ -1857,7 +1857,7 @@ static dds_retcode_t write_key_description(ddsts_call_path_t *path, void *contex
  return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t write_source_struct(ddsts_call_path_t *path, void *context)
+static dds_return_t write_source_struct(ddsts_call_path_t *path, void *context)
 {
   DDSRT_UNUSED_ARG(context);
 
@@ -1877,7 +1877,7 @@ static dds_retcode_t write_source_struct(ddsts_call_path_t *path, void *context)
    * the sizes of the various types and the positions of the topic keys
    */
   ddsts_ostream_t *null_ostream = NULL;
-  dds_retcode_t rc;
+  dds_return_t rc;
   rc = ddsts_create_ostream_to_null(&null_ostream);
   if (rc != DDS_RETCODE_OK) {
     ddsrt_free((void*)full_name);
@@ -1985,11 +1985,11 @@ static dds_retcode_t write_source_struct(ddsts_call_path_t *path, void *context)
   return DDS_RETCODE_OK;
 }
 
-static dds_retcode_t generate_source_file(const char *file_name, ddsts_type_t *root_node, ddsts_ostream_t *ostream)
+static dds_return_t generate_source_file(const char *file_name, ddsts_type_t *root_node, ddsts_ostream_t *ostream)
 {
   DDSRT_UNUSED_ARG(root_node);
   const char *c_file_name = NULL;
-  dds_retcode_t rc;
+  dds_return_t rc;
   rc = output_file_name(file_name, "c", &c_file_name);
   if (rc != DDS_RETCODE_OK) {
     return rc;
@@ -2027,19 +2027,19 @@ static dds_retcode_t generate_source_file(const char *file_name, ddsts_type_t *r
 
 /* Function for generating C99 files */
 
-static dds_retcode_t ddsts_generate_C99_to_ostream(const char *file_name, ddsts_type_t *root_node, ddsts_ostream_t *ostream)
+static dds_return_t ddsts_generate_C99_to_ostream(const char *file_name, ddsts_type_t *root_node, ddsts_ostream_t *ostream)
 {
-  dds_retcode_t rc = generate_header_file(file_name, root_node, ostream);
+  dds_return_t rc = generate_header_file(file_name, root_node, ostream);
   if (rc != DDS_RETCODE_OK) {
     return rc;
   }
   return generate_source_file(file_name, root_node, ostream);
 }
 
-extern dds_retcode_t ddsts_generate_C99(const char *file_name, ddsts_type_t *root_node)
+extern dds_return_t ddsts_generate_C99(const char *file_name, ddsts_type_t *root_node)
 {
   ddsts_ostream_t *ostream = NULL;
-  dds_retcode_t rc;
+  dds_return_t rc;
   rc = ddsts_create_ostream_to_files(&ostream);
   if (rc != DDS_RETCODE_OK) {
     return rc;
@@ -2049,10 +2049,10 @@ extern dds_retcode_t ddsts_generate_C99(const char *file_name, ddsts_type_t *roo
   return rc;
 }
 
-extern dds_retcode_t ddsts_generate_C99_to_buffer(const char *file_name, ddsts_type_t *root_node, char *buffer, size_t buffer_len)
+extern dds_return_t ddsts_generate_C99_to_buffer(const char *file_name, ddsts_type_t *root_node, char *buffer, size_t buffer_len)
 {
   ddsts_ostream_t *ostream = NULL;
-  dds_retcode_t rc;
+  dds_return_t rc;
   rc = ddsts_create_ostream_to_buffer(buffer, buffer_len, &ostream);
   if (rc != DDS_RETCODE_OK) {
     return rc;

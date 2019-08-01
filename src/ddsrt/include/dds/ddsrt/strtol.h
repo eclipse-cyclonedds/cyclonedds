@@ -37,7 +37,7 @@ extern "C" {
  *                      determine from @str.
  * @param[out]  llng    A long long integer where the number is stored.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             String successfully converted to an integer.
@@ -46,7 +46,7 @@ extern "C" {
  * @retval DDS_RETCODE_OUT_OF_RANGE
  *             String converted to an integer, but was out of range.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_strtoll(
   const char *str,
   char **endptr,
@@ -69,7 +69,7 @@ ddsrt_strtoll(
  *                      determine from @str.
  * @param[out]  ullng   A long long integer where the number is stored.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             String successfully converted to an integer.
@@ -78,7 +78,7 @@ ddsrt_strtoll(
  * @retval DDS_RETCODE_OUT_OF_RANGE
  *             String converted to an integer, but was out of range.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_strtoull(
   const char *str,
   char **endptr,
@@ -91,7 +91,7 @@ ddsrt_strtoull(
  * @param[in]  str   String to convert into a long long integer.
  * @param[in]  llng  A long long integer where the number is stored.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             String successfully converted to an integer.
@@ -100,7 +100,7 @@ ddsrt_strtoull(
  * @retval DDS_RETCODE_OUT_OF_RANGE
  *             String converted to an integer, but was out of range.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_atoll(
   const char *str,
   long long *llng);
@@ -111,7 +111,7 @@ ddsrt_atoll(
  * @param[in]   str    String to conver into an unsigned long long integer.
  * @param[out]  ullng  An unsigned long long integer where the number is stored.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             String successfully converted to an integer.
@@ -120,7 +120,7 @@ ddsrt_atoll(
  * @retval DDS_RETCODE_OUT_OF_RANGE
  *             String converted to an integer, but was out of range.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_atoull(
   const char *str,
   unsigned long long *ullng);

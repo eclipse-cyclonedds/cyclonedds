@@ -17,8 +17,6 @@
 #include "dds/version.h"
 #include "dds/ddsrt/environ.h"
 
-#define cu_assert_status_eq(s1, s2) CU_ASSERT_EQUAL_FATAL(dds_err_nr(s1), s2)
-
 
 CU_Test(ddsc_participant, create_and_delete) {
 
@@ -59,14 +57,14 @@ CU_Test(ddsc_participant, create_with_no_conf_no_env)
   participant2 = dds_create_participant (valid_domain, NULL, NULL);
   CU_ASSERT_FATAL(participant2 > 0);
   status = dds_get_domainid(participant2, &domain_id);
-  cu_assert_status_eq(status, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
   CU_ASSERT_EQUAL_FATAL(domain_id, valid_domain);
 
   //DDS_DOMAIN_DEFAULT from user
   participant3 = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_FATAL(participant3 > 0);
   status = dds_get_domainid(participant3, &domain_id);
-  cu_assert_status_eq(status, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
   CU_ASSERT_EQUAL_FATAL(domain_id, valid_domain);
 
   dds_delete(participant2);
@@ -92,14 +90,13 @@ CU_Test(ddsc_participant, create_with_conf_no_env) {
 
     //invalid domain
     participant = dds_create_participant (1, NULL, NULL);
-    printf("\n participant is %d\n", participant);
     CU_ASSERT_FATAL(participant < 0);
 
     //valid specific domain value
     participant2 = dds_create_participant (valid_domain, NULL, NULL);
     CU_ASSERT_FATAL(participant2 > 0);
     status = dds_get_domainid(participant2, &domain_id);
-    cu_assert_status_eq(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(domain_id, valid_domain);
 
 
@@ -107,7 +104,7 @@ CU_Test(ddsc_participant, create_with_conf_no_env) {
     participant3 = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant3 > 0);
     status = dds_get_domainid(participant3, &domain_id);
-    cu_assert_status_eq(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(domain_id, valid_domain);
 
     dds_delete(participant2);
@@ -128,7 +125,7 @@ CU_Test(ddsc_participant_lookup, one) {
 
   /* Get domain id */
   status = dds_get_domainid(participant, &domain_id);
-  cu_assert_status_eq(status, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
   num_of_found_pp = dds_lookup_participant( domain_id, participants, size);
   CU_ASSERT_EQUAL_FATAL(num_of_found_pp, 1);
@@ -154,7 +151,7 @@ CU_Test(ddsc_participant_lookup, multiple) {
 
   /* Get domain id */
   status = dds_get_domainid(participant, &domain_id);
-  cu_assert_status_eq(status, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
   num_of_found_pp = dds_lookup_participant( domain_id, participants, size);
   CU_ASSERT_EQUAL_FATAL(num_of_found_pp, 2);
@@ -186,7 +183,7 @@ CU_Test(ddsc_participant_lookup, array_too_small) {
 
   /* Get domain id */
   status = dds_get_domainid(participant, &domain_id);
-  cu_assert_status_eq(status, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
   num_of_found_pp = dds_lookup_participant( domain_id, participants, size);
   CU_ASSERT_EQUAL_FATAL(num_of_found_pp, 3);
@@ -212,7 +209,7 @@ CU_Test(ddsc_participant_lookup, null_zero){
 
   /* Get domain id */
   status = dds_get_domainid(participant, &domain_id);
-  cu_assert_status_eq(status, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
   num_of_found_pp = dds_lookup_participant( domain_id, NULL, size);
   CU_ASSERT_EQUAL_FATAL(num_of_found_pp, 1);
@@ -233,10 +230,10 @@ CU_Test(ddsc_participant_lookup, null_nonzero){
 
   /* Get domain id */
   status = dds_get_domainid(participant, &domain_id);
-  cu_assert_status_eq(status, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
   num_of_found_pp = dds_lookup_participant( domain_id, NULL, size);
-  cu_assert_status_eq(num_of_found_pp, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQUAL_FATAL(num_of_found_pp, DDS_RETCODE_BAD_PARAMETER);
 
   dds_delete (participant);
 }
@@ -255,7 +252,7 @@ CU_Test(ddsc_participant_lookup, unknown_id) {
 
   /* Get domain id */
   status = dds_get_domainid(participant, &domain_id);
-  cu_assert_status_eq(status, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
   domain_id ++;
 
   num_of_found_pp = dds_lookup_participant( domain_id, participants, size);
@@ -288,7 +285,7 @@ CU_Test(ddsc_participant_lookup, no_more) {
 
   /* Get domain id */
   status = dds_get_domainid(participant, &domain_id);
-  cu_assert_status_eq(status, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
   dds_delete (participant);
 
@@ -313,7 +310,7 @@ CU_Test(ddsc_participant_lookup, deleted) {
 
   /* Get domain id */
   status = dds_get_domainid(participant, &domain_id);
-  cu_assert_status_eq(status, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
   dds_delete (participant2);
 

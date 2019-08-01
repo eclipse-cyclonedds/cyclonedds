@@ -14,8 +14,24 @@
 
 #include <stddef.h>
 
+#if DDSRT_WITH_FREERTOS
+#include <FreeRTOS.h>
+# if configUSE_TRACE_FACILITY == 1 && \
+     configGENERATE_RUN_TIME_STATS == 1
+#   define DDSRT_HAVE_RUSAGE 1
+# else
+#   define DDSRT_HAVE_RUSAGE 0
+#endif
+#else
+# define DDSRT_HAVE_RUSAGE 1
+#endif
+
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/retcode.h"
+
+#if defined (__cplusplus)
+extern "C" {
+#endif
 
 typedef struct {
   dds_time_t utime; /* User CPU time used. */
@@ -36,7 +52,7 @@ typedef struct {
  * @param[in]  who    DDSRT_RUSAGE_SELF or DDSRT_RUSAGE_THREAD.
  * @param[in]  usage  Structure where resource usage is returned.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Resource usage successfully returned in @usage.
@@ -45,6 +61,10 @@ typedef struct {
  * @retval DDS_RETCODE_ERROR
  *             An unidentified error occurred.
  */
-DDS_EXPORT dds_retcode_t ddsrt_getrusage(int who, ddsrt_rusage_t *usage);
+DDS_EXPORT dds_return_t ddsrt_getrusage(int who, ddsrt_rusage_t *usage);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* DDSRT_RUSAGE_H */

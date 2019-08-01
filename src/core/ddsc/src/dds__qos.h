@@ -12,24 +12,43 @@
 #ifndef _DDS_QOS_H_
 #define _DDS_QOS_H_
 
-#include "dds__entity.h"
 #include "dds/ddsi/q_xqos.h"
-#include "dds/ddsi/q_time.h"
-#include "dds/ddsi/q_plist.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-bool validate_deadline_and_timebased_filter (const nn_duration_t deadline, const nn_duration_t minimum_separation);
-bool validate_entityfactory_qospolicy (const nn_entity_factory_qospolicy_t * entityfactory);
-bool validate_octetseq (const nn_octetseq_t* seq);
-bool validate_partition_qospolicy (const nn_partition_qospolicy_t * partition);
-bool validate_reliability_qospolicy (const nn_reliability_qospolicy_t * reliability);
-bool validate_stringseq (const nn_stringseq_t* seq);
+#define DDS_TOPIC_QOS_MASK                                              \
+  (QP_TOPIC_DATA | QP_DURABILITY | QP_DURABILITY_SERVICE |              \
+   QP_DEADLINE | QP_LATENCY_BUDGET | QP_OWNERSHIP | QP_LIVELINESS |     \
+   QP_RELIABILITY | QP_TRANSPORT_PRIORITY | QP_LIFESPAN |               \
+   QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS)
 
-bool dds_qos_validate_common (const dds_qos_t *qos);
-dds_return_t dds_qos_validate_mutable_common (const dds_qos_t *qos);
+#define DDS_PARTICIPANT_QOS_MASK                                        \
+  (QP_USER_DATA | QP_PRISMTECH_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL)
+
+#define DDS_PUBLISHER_QOS_MASK                                          \
+  (QP_PARTITION | QP_PRESENTATION | QP_GROUP_DATA |                     \
+   QP_PRISMTECH_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL)
+
+#define DDS_READER_QOS_MASK                                             \
+  (QP_USER_DATA | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET |     \
+   QP_OWNERSHIP | QP_LIVELINESS | QP_TIME_BASED_FILTER |                \
+   QP_RELIABILITY | QP_DESTINATION_ORDER | QP_HISTORY |                 \
+   QP_RESOURCE_LIMITS | QP_PRISMTECH_READER_DATA_LIFECYCLE |            \
+   QP_CYCLONE_IGNORELOCAL)
+
+#define DDS_SUBSCRIBER_QOS_MASK                                         \
+  (QP_PARTITION | QP_PRESENTATION | QP_GROUP_DATA |                     \
+   QP_PRISMTECH_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL)
+
+#define DDS_WRITER_QOS_MASK                                             \
+  (QP_USER_DATA | QP_DURABILITY | QP_DURABILITY_SERVICE | QP_DEADLINE | \
+   QP_LATENCY_BUDGET | QP_OWNERSHIP | QP_OWNERSHIP_STRENGTH |           \
+   QP_LIVELINESS | QP_RELIABILITY | QP_TRANSPORT_PRIORITY |             \
+   QP_LIFESPAN | QP_DESTINATION_ORDER | QP_HISTORY |                    \
+   QP_RESOURCE_LIMITS | QP_PRISMTECH_WRITER_DATA_LIFECYCLE |            \
+   QP_CYCLONE_IGNORELOCAL)
 
 #if defined (__cplusplus)
 }

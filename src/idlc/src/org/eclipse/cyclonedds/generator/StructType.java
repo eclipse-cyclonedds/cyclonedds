@@ -176,6 +176,23 @@ public class StructType extends AbstractType implements NamedType
     return false;
   }
 
+  public boolean containsUnion ()
+  {
+    for (Member m : members)
+    {
+      Type mtype = m.type;
+      while (mtype instanceof TypedefType)
+      {
+        mtype = ((TypedefType)mtype).getRef ();
+      }
+      if (mtype.containsUnion ())
+      {
+        return true;
+      }
+    }
+    return false;
+  }
+
   public long getKeySize ()
   {
     Type mtype;

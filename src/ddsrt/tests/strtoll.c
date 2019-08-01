@@ -52,7 +52,7 @@ CU_Clean(ddstr_strtoll)
 
 CU_Test(ddsrt_strtoll, strtoll)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   long long ll;
   static char dummy[] = "dummy";
 
@@ -248,7 +248,7 @@ CU_Test(ddsrt_strtoll, strtoll)
 
 CU_Test(ddsrt_strtoll, strtoull)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   unsigned long long ull;
 
   str = "0xffffffffffffffff";
@@ -272,7 +272,7 @@ CU_Test(ddsrt_strtoll, strtoull)
 
 CU_Test(ddsrt_strtoll, atoll)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   long long ll;
 
   str = "10";
@@ -284,7 +284,7 @@ CU_Test(ddsrt_strtoll, atoll)
 
 CU_Test(ddsrt_strtoll, atoull)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   unsigned long long ull;
 
   str = "10";

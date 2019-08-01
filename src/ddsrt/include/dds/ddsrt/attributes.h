@@ -24,6 +24,10 @@
 # define ddsrt_clang (0)
 #endif
 
+#ifdef __SUNPRO_C
+# define __attribute__(x)
+#endif
+
 #if defined(__has_attribute)
 # define ddsrt_has_attribute(params) __has_attribute(params)
 #elif ddsrt_gnuc
@@ -99,6 +103,24 @@
 # define ddsrt_attribute_assume_aligned(params) __attribute__ ((__assume_aligned__ params))
 #else
 # define ddsrt_attribute_assume_aligned(params)
+#endif
+
+#if ddsrt_has_attribute(packed)
+# define ddsrt_attribute_packed __attribute__ ((__packed__))
+#else
+# define ddsrt_attribute_packed
+#endif
+
+#if ddsrt_has_attribute(no_sanitize)
+# define ddsrt_attribute_no_sanitize(params) __attribute__ ((__no_sanitize__ params))
+#else
+# define ddsrt_attribute_no_sanitize(params)
+#endif
+
+#if defined(__has_feature)
+# define ddsrt_has_feature_thread_sanitizer __has_feature(thread_sanitizer)
+#else
+# define ddsrt_has_feature_thread_sanitizer 0
 #endif
 
 #endif /* DDSRT_ATTRIBUTES_H */

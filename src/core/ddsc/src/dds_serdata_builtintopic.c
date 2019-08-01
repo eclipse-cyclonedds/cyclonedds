@@ -15,11 +15,11 @@
 #include <string.h>
 
 #include "dds/ddsrt/heap.h"
-#include "dds/ddsi/q_md5.h"
+#include "dds/ddsrt/md5.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
-#include "dds__key.h"
+#include "dds/ddsi/q_plist.h"
 #include "dds__stream.h"
 #include "dds__serdata_builtintopic.h"
 #include "dds/ddsi/ddsi_tkmap.h"
@@ -73,11 +73,13 @@ static struct ddsi_serdata_builtintopic *serdata_builtin_new(const struct ddsi_s
 static void from_entity_pp (struct ddsi_serdata_builtintopic *d, const struct participant *pp)
 {
   nn_xqos_copy(&d->xqos, &pp->plist->qos);
+  d->pphandle = pp->e.iid;
 }
 
 static void from_entity_proxypp (struct ddsi_serdata_builtintopic *d, const struct proxy_participant *proxypp)
 {
   nn_xqos_copy(&d->xqos, &proxypp->plist->qos);
+  d->pphandle = proxypp->e.iid;
 }
 
 static void set_topic_type_from_sertopic (struct ddsi_serdata_builtintopic *d, const struct ddsi_sertopic *tp)
@@ -89,19 +91,21 @@ static void set_topic_type_from_sertopic (struct ddsi_serdata_builtintopic *d, c
   }
   if (!(d->xqos.present & QP_TYPE_NAME))
   {
-    d->xqos.type_name = dds_string_dup (tp->typename);
+    d->xqos.type_name = dds_string_dup (tp->type_name);
     d->xqos.present |= QP_TYPE_NAME;
   }
 }
 
 static void from_entity_rd (struct ddsi_serdata_builtintopic *d, const struct reader *rd)
 {
+  d->pphandle = rd->c.pp->e.iid;
   nn_xqos_copy(&d->xqos, rd->xqos);
   set_topic_type_from_sertopic(d, rd->topic);
 }
 
 static void from_entity_prd (struct ddsi_serdata_builtintopic *d, const struct proxy_reader *prd)
 {
+  d->pphandle = prd->c.proxypp->e.iid;
   nn_xqos_copy(&d->xqos, prd->c.xqos);
   assert (d->xqos.present & QP_TOPIC_NAME);
   assert (d->xqos.present & QP_TYPE_NAME);
@@ -109,18 +113,20 @@ static void from_entity_prd (struct ddsi_serdata_builtintopic *d, const struct p
 
 static void from_entity_wr (struct ddsi_serdata_builtintopic *d, const struct writer *wr)
 {
+  d->pphandle = wr->c.pp->e.iid;
   nn_xqos_copy(&d->xqos, wr->xqos);
   set_topic_type_from_sertopic(d, wr->topic);
 }
 
 static void from_entity_pwr (struct ddsi_serdata_builtintopic *d, const struct proxy_writer *pwr)
 {
+  d->pphandle = pwr->c.proxypp->e.iid;
   nn_xqos_copy(&d->xqos, pwr->c.xqos);
   assert (d->xqos.present & QP_TOPIC_NAME);
   assert (d->xqos.present & QP_TYPE_NAME);
 }
 
-struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
+static struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
 {
   /* FIXME: not quite elegant to manage the creation of a serdata for a built-in topic via this function, but I also find it quite unelegant to let from_sample read straight from the underlying internal entity, and to_sample convert to the external format ... I could claim the internal entity is the "serialised form", but that forces wrapping it in a fragchain in one way or another, which, though possible, is also a bit lacking in elegance. */
   const struct ddsi_sertopic_builtintopic *tp = (const struct ddsi_sertopic_builtintopic *)tpcmn;
@@ -181,24 +187,16 @@ static char *dds_string_dup_reuse (char *old, const char *src)
   return memcpy (new, src, size);
 }
 
-static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const nn_xqos_t *src)
+static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const dds_qos_t *src)
 {
   if (old == NULL)
-  {
     old = ddsrt_malloc (sizeof (*old));
-    nn_xqos_init_empty (old);
-    old->present |= QP_TOPIC_NAME | QP_TYPE_NAME;
-    nn_xqos_mergein_missing (old, src);
-    old->present &= ~(QP_TOPIC_NAME | QP_TYPE_NAME);
-  }
   else
   {
     nn_xqos_fini (old);
-    nn_xqos_init_empty (old);
-    old->present |= QP_TOPIC_NAME | QP_TYPE_NAME;
-    nn_xqos_mergein_missing (old, src);
-    old->present &= ~(QP_TOPIC_NAME | QP_TYPE_NAME);
   }
+  nn_xqos_init_empty (old);
+  nn_xqos_mergein_missing (old, src, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
   return old;
 }
 
@@ -219,6 +217,7 @@ static bool to_sample_endpoint (const struct ddsi_serdata_builtintopic *d, struc
   ppguid = d->key;
   ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
   convkey (&sample->participant_key, &ppguid);
+  sample->participant_instance_handle = d->pphandle;
   if (d->c.kind == SDK_DATA)
   {
     assert (d->xqos.present & QP_TOPIC_NAME);

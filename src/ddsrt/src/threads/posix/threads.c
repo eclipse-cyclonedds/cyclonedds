@@ -31,6 +31,12 @@
 #include "dds/ddsrt/threads_priv.h"
 #include "dds/ddsrt/types.h"
 
+typedef struct {
+  char *name;
+  ddsrt_thread_routine_t routine;
+  void *arg;
+} thread_context_t;
+
 #if defined(__linux)
 #include <sys/syscall.h>
 #define MAXTHREADNAMESIZE (15) /* 16 bytes including null-terminating byte. */
@@ -74,7 +80,11 @@ ddsrt_thread_getname(char *str, size_t size)
   (void)pthread_get_name_np(pthread_self(), buf, sizeof(buf));
   cnt = ddsrt_strlcpy(str, buf, size);
 #elif defined(__sun)
+#if !(__SunOS_5_6 || __SunOS_5_7 || __SunOS_5_8 || __SunOS_5_9 || __SunOS_5_10)
   (void)pthread_getname_np(pthread_self(), buf, sizeof(buf));
+#else
+  buf[0] = 0;
+#endif
   cnt = ddsrt_strlcpy(str, buf, size);
 #elif defined(__VXWORKS__)
   {
@@ -119,7 +129,9 @@ ddsrt_thread_setname(const char *__restrict name)
 #elif defined(__sun)
   /* Thread names are limited to 31 bytes on Solaris. Excess bytes are
      silently truncated. */
+#if !(__SunOS_5_6 || __SunOS_5_7 || __SunOS_5_8 || __SunOS_5_9 || __SunOS_5_10)
   (void)pthread_setname_np(pthread_self(), name);
+#endif
 #else
   /* VxWorks does not support the task name to be set after a task is created.
      Setting the name of a task can be done through pthread_attr_setname. */
@@ -181,7 +193,7 @@ static void *os_startRoutineWrapper (void *threadContext)
   return (void *)resultValue;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_thread_create (
   ddsrt_thread_t *threadptr,
   const char *name,
@@ -193,6 +205,7 @@ ddsrt_thread_create (
   thread_context_t *ctx;
   ddsrt_threadattr_t tattr;
   int result, create_ret;
+  sigset_t set, oset;
 
   assert (threadptr != NULL);
   assert (name != NULL);
@@ -281,11 +294,18 @@ ddsrt_thread_create (
   strcpy (ctx->name, name);
   ctx->routine = start_routine;
   ctx->arg = arg;
+
+  /* Block signal delivery in our own threads (SIGXCPU is excluded so we have a way of
+     dumping stack traces, but that should be improved upon) */
+  sigfillset (&set);
+  sigdelset (&set, SIGXCPU);
+  sigprocmask (SIG_BLOCK, &set, &oset);
   if ((create_ret = pthread_create (&threadptr->v, &attr, os_startRoutineWrapper, ctx)) != 0)
   {
     DDS_ERROR ("os_threadCreate(%s): pthread_create failed with error %d\n", name, create_ret);
     goto err_create;
   }
+  sigprocmask (SIG_SETMASK, &oset, NULL);
   pthread_attr_destroy (&attr);
   return DDS_RETCODE_OK;
 
@@ -332,7 +352,7 @@ bool ddsrt_thread_equal(ddsrt_thread_t a, ddsrt_thread_t b)
   return (pthread_equal(a.v, b.v) != 0);
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_thread_join(ddsrt_thread_t thread, uint32_t *thread_result)
 {
   int err;
@@ -372,7 +392,7 @@ static void thread_init(void)
   (void)pthread_once(&thread_once, &thread_init_once);
 }
 
-dds_retcode_t ddsrt_thread_cleanup_push (void (*routine) (void *), void *arg)
+dds_return_t ddsrt_thread_cleanup_push (void (*routine) (void *), void *arg)
 {
   int err;
   thread_cleanup_t *prev, *tail;
@@ -394,7 +414,7 @@ dds_retcode_t ddsrt_thread_cleanup_push (void (*routine) (void *), void *arg)
   return DDS_RETCODE_OUT_OF_RESOURCES;
 }
 
-dds_retcode_t ddsrt_thread_cleanup_pop (int execute)
+dds_return_t ddsrt_thread_cleanup_pop (int execute)
 {
   int err;
   thread_cleanup_t *tail;

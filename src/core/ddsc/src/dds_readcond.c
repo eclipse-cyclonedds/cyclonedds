@@ -14,102 +14,108 @@
 #include "dds__readcond.h"
 #include "dds__rhc.h"
 #include "dds__entity.h"
-#include "dds__err.h"
+#include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 
-static dds_return_t
-dds_readcond_delete(
-    dds_entity *e)
+static dds_return_t dds_readcond_delete (dds_entity *e) ddsrt_nonnull_all;
+
+static dds_return_t dds_readcond_delete (dds_entity *e)
 {
-    dds_rhc_remove_readcondition((dds_readcond*)e);
-    return DDS_RETCODE_OK;
+  dds_rhc_remove_readcondition ((dds_readcond *) e);
+  return DDS_RETCODE_OK;
 }
 
-dds_readcond*
-dds_create_readcond(
-    dds_reader *rd,
-    dds_entity_kind_t kind,
-    uint32_t mask,
-    dds_querycondition_filter_fn filter)
+const struct dds_entity_deriver dds_entity_deriver_readcondition = {
+  .close = dds_entity_deriver_dummy_close,
+  .delete = dds_readcond_delete,
+  .set_qos = dds_entity_deriver_dummy_set_qos,
+  .validate_status = dds_entity_deriver_dummy_validate_status
+};
+
+dds_readcond *dds_create_readcond (dds_reader *rd, dds_entity_kind_t kind, uint32_t mask, dds_querycondition_filter_fn filter)
 {
-    dds_readcond * cond = dds_alloc(sizeof(*cond));
-    assert((kind == DDS_KIND_COND_READ && filter == 0) || (kind == DDS_KIND_COND_QUERY && filter != 0));
-    cond->m_entity.m_hdl = dds_entity_init(&cond->m_entity, (dds_entity*)rd, kind, NULL, NULL, 0);
-    cond->m_entity.m_deriver.delete = dds_readcond_delete;
-    cond->m_rhc = rd->m_rd->rhc;
-    cond->m_sample_states = mask & DDS_ANY_SAMPLE_STATE;
-    cond->m_view_states = mask & DDS_ANY_VIEW_STATE;
-    cond->m_instance_states = mask & DDS_ANY_INSTANCE_STATE;
-    cond->m_rd_guid = rd->m_entity.m_guid;
-    if (kind == DDS_KIND_COND_QUERY) {
-        cond->m_query.m_filter = filter;
-        cond->m_query.m_qcmask = 0;
-    }
-    if (!dds_rhc_add_readcondition (cond)) {
-        /* FIXME: current entity management code can't deal with an error late in the creation of the
-           entity because it doesn't allow deleting it again ... instead use a hack to signal a problem
-           to the caller and let that one handle it. */
-        cond->m_entity.m_deriver.delete = 0;
-    }
-    return cond;
+  dds_readcond *cond = dds_alloc (sizeof (*cond));
+  assert ((kind == DDS_KIND_COND_READ && filter == 0) || (kind == DDS_KIND_COND_QUERY && filter != 0));
+  (void) dds_entity_init (&cond->m_entity, &rd->m_entity, kind, NULL, NULL, 0);
+  cond->m_entity.m_iid = ddsi_iid_gen ();
+  dds_entity_register_child (&rd->m_entity, &cond->m_entity);
+  cond->m_rhc = rd->m_rd->rhc;
+  cond->m_sample_states = mask & DDS_ANY_SAMPLE_STATE;
+  cond->m_view_states = mask & DDS_ANY_VIEW_STATE;
+  cond->m_instance_states = mask & DDS_ANY_INSTANCE_STATE;
+  cond->m_rd_guid = rd->m_entity.m_guid;
+  if (kind == DDS_KIND_COND_QUERY)
+  {
+    cond->m_query.m_filter = filter;
+    cond->m_query.m_qcmask = 0;
+  }
+  if (!dds_rhc_add_readcondition (cond))
+  {
+    /* FIXME: current entity management code can't deal with an error late in the creation of the
+       entity because it doesn't allow deleting it again ... */
+    abort();
+  }
+  return cond;
 }
 
-dds_entity_t
-dds_create_readcondition(
-    dds_entity_t reader,
-    uint32_t mask)
+dds_entity_t dds_create_readcondition (dds_entity_t reader, uint32_t mask)
 {
+  dds_reader *rd;
+  dds_return_t rc;
+  if ((rc = dds_reader_lock (reader, &rd)) != DDS_RETCODE_OK)
+    return rc;
+  else
+  {
     dds_entity_t hdl;
-    dds_reader * rd;
-    dds_retcode_t rc;
-
-    rc = dds_reader_lock(reader, &rd);
-    if (rc == DDS_RETCODE_OK) {
-        dds_readcond *cond = dds_create_readcond(rd, DDS_KIND_COND_READ, mask, 0);
-        assert(cond);
-        assert(cond->m_entity.m_deriver.delete);
-        hdl = cond->m_entity.m_hdl;
-        dds_reader_unlock(rd);
-    } else {
-        DDS_ERROR("Error occurred on locking reader\n");
-        hdl = DDS_ERRNO(rc);
-    }
-
+    dds_readcond *cond = dds_create_readcond(rd, DDS_KIND_COND_READ, mask, 0);
+    assert (cond);
+    hdl = cond->m_entity.m_hdllink.hdl;
+    dds_reader_unlock (rd);
     return hdl;
+  }
 }
 
 dds_entity_t dds_get_datareader (dds_entity_t condition)
 {
-    dds_entity_t hdl;
-
-    if (dds_entity_kind_from_handle(condition) == DDS_KIND_COND_READ) {
-        hdl = dds_get_parent(condition);
-    } else if (dds_entity_kind_from_handle(condition) == DDS_KIND_COND_QUERY) {
-        hdl = dds_get_parent(condition);
-    } else {
-        DDS_ERROR("Argument condition is not valid\n");
-        hdl = DDS_ERRNO(dds_valid_hdl(condition, DDS_KIND_COND_READ));
+  struct dds_entity *e;
+  dds_return_t rc;
+  if ((rc = dds_entity_pin (condition, &e)) != DDS_RETCODE_OK)
+    return rc;
+  else
+  {
+    dds_entity_t rdh;
+    switch (dds_entity_kind (e))
+    {
+      case DDS_KIND_COND_READ:
+      case DDS_KIND_COND_QUERY:
+        assert (dds_entity_kind (e->m_parent) == DDS_KIND_READER);
+        rdh = e->m_parent->m_hdllink.hdl;
+        break;
+      default:
+        rdh = DDS_RETCODE_ILLEGAL_OPERATION;
+        break;
     }
-
-    return hdl;
+    dds_entity_unpin (e);
+    return rdh;
+  }
 }
 
 dds_return_t dds_get_mask (dds_entity_t condition, uint32_t *mask)
 {
   dds_entity *entity;
-  dds_retcode_t rc;
+  dds_return_t rc;
 
   if (mask == NULL)
-    return DDS_ERRNO (DDS_RETCODE_BAD_PARAMETER);
+    return DDS_RETCODE_BAD_PARAMETER;
 
   if ((rc = dds_entity_lock (condition, DDS_KIND_DONTCARE, &entity)) != DDS_RETCODE_OK)
-    return DDS_ERRNO (rc);
+    return rc;
   else if (dds_entity_kind (entity) != DDS_KIND_COND_READ && dds_entity_kind (entity) != DDS_KIND_COND_QUERY)
   {
     dds_entity_unlock (entity);
-    return DDS_ERRNO (dds_valid_hdl (condition, DDS_KIND_COND_READ));
+    return DDS_RETCODE_ILLEGAL_OPERATION;
   }
   else
   {

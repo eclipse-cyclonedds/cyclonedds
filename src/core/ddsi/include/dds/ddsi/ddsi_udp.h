@@ -12,6 +12,23 @@
 #ifndef _DDSI_UDP_H_
 #define _DDSI_UDP_H_
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
+  typedef struct nn_udpv4mcgen_address {
+    /* base IPv4 MC address is ipv4, host bits are bits base .. base+count-1, this machine is bit idx */
+    struct in_addr ipv4;
+    uint8_t base;
+    uint8_t count;
+    uint8_t idx; /* must be last: then sorting will put them consecutively */
+  } nn_udpv4mcgen_address_t;
+
+
 int ddsi_udp_init (void);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

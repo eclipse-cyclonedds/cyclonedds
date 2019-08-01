@@ -24,7 +24,7 @@
 #define MAX_SAMPLES 10
 
 #define MAX_DURATION_BUFSZ 21
-char *qp_duration_str (char *buf, size_t bufsz, dds_duration_t d)
+static char *qp_duration_str (char *buf, size_t bufsz, dds_duration_t d)
 {
   if (d == DDS_INFINITY)
     snprintf (buf, bufsz, "infinite");
@@ -33,7 +33,7 @@ char *qp_duration_str (char *buf, size_t bufsz, dds_duration_t d)
   return buf;
 }
 
-size_t printable_seq_length (const unsigned char *as, size_t n)
+static size_t printable_seq_length (const unsigned char *as, size_t n)
 {
   size_t i;
   for (i = 0; i < n; i++) {
@@ -43,7 +43,7 @@ size_t printable_seq_length (const unsigned char *as, size_t n)
   return i;
 }
 
-void print_octetseq (const unsigned char *v, size_t sz, FILE *fp)
+static void print_octetseq (const unsigned char *v, size_t sz, FILE *fp)
 {
   size_t i, n;
   fprintf (fp, "%zu<", sz);
@@ -69,7 +69,7 @@ void print_octetseq (const unsigned char *v, size_t sz, FILE *fp)
   fprintf (fp, ">");
 }
 
-void qp_user_data (const dds_qos_t *q, FILE *fp)
+static void qp_user_data (const dds_qos_t *q, FILE *fp)
 {
   void *ud;
   size_t udsz;
@@ -82,7 +82,7 @@ void qp_user_data (const dds_qos_t *q, FILE *fp)
   }
 }
 
-void qp_topic_data (const dds_qos_t *q, FILE *fp)
+static void qp_topic_data (const dds_qos_t *q, FILE *fp)
 {
   void *ud;
   size_t udsz;
@@ -95,7 +95,7 @@ void qp_topic_data (const dds_qos_t *q, FILE *fp)
   }
 }
 
-void qp_group_data (const dds_qos_t *q, FILE *fp)
+static void qp_group_data (const dds_qos_t *q, FILE *fp)
 {
   void *ud;
   size_t udsz;
@@ -108,7 +108,7 @@ void qp_group_data (const dds_qos_t *q, FILE *fp)
   }
 }
 
-void qp_durability (const dds_qos_t *q, FILE *fp)
+static void qp_durability (const dds_qos_t *q, FILE *fp)
 {
   dds_durability_kind_t kind;
   if (dds_qget_durability (q, &kind))
@@ -125,7 +125,7 @@ void qp_durability (const dds_qos_t *q, FILE *fp)
   }
 }
 
-void qp_history (const dds_qos_t *q, FILE *fp)
+static void qp_history (const dds_qos_t *q, FILE *fp)
 {
   dds_history_kind_t kind;
   int32_t depth;
@@ -144,33 +144,33 @@ void qp_history (const dds_qos_t *q, FILE *fp)
   }
 }
 
-void qp_resource_limits_1 (FILE *fp, int32_t max_samples, int32_t max_instances, int32_t max_samples_per_instance, int indent)
+static void qp_resource_limits_1 (FILE *fp, int32_t max_samples, int32_t max_instances, int32_t max_samples_per_instance, int indent)
 {
   fprintf (fp, "%*.*sresource_limits: max_samples = ", indent, indent, "");
   if (max_samples == DDS_LENGTH_UNLIMITED)
     fprintf (fp, "unlimited");
   else
-    fprintf (fp, "%d", max_samples);
+    fprintf (fp, "%"PRId32, max_samples);
   fprintf (fp, ", max_instances = ");
   if (max_instances == DDS_LENGTH_UNLIMITED)
     fprintf (fp, "unlimited");
   else
-    fprintf (fp, "%d", max_instances);
+    fprintf (fp, "%"PRId32, max_instances);
   fprintf (fp, ", max_samples_per_instance = ");
   if (max_samples_per_instance == DDS_LENGTH_UNLIMITED)
     fprintf (fp, "unlimited\n");
   else
-    fprintf (fp, "%d\n", max_samples_per_instance);
+    fprintf (fp, "%"PRId32"\n", max_samples_per_instance);
 }
 
-void qp_resource_limits (const dds_qos_t *q, FILE *fp)
+static void qp_resource_limits (const dds_qos_t *q, FILE *fp)
 {
   int32_t max_samples, max_instances, max_samples_per_instance;
   if (dds_qget_resource_limits (q, &max_samples, &max_instances, &max_samples_per_instance))
     qp_resource_limits_1 (fp, max_samples, max_instances, max_samples_per_instance, 2);
 }
 
-void qp_presentation (const dds_qos_t *q, FILE *fp)
+static void qp_presentation (const dds_qos_t *q, FILE *fp)
 {
   dds_presentation_access_scope_kind_t access_scope;
   bool coherent_access, ordered_access;
@@ -187,7 +187,7 @@ void qp_presentation (const dds_qos_t *q, FILE *fp)
   }
 }
 
-void qp_duration_qos (const dds_qos_t *q, FILE *fp, const char *what, bool (*qget) (const dds_qos_t * __restrict qos, dds_duration_t *d))
+static void qp_duration_qos (const dds_qos_t *q, FILE *fp, const char *what, bool (*qget) (const dds_qos_t * __restrict qos, dds_duration_t *d))
 {
   dds_duration_t d;
   char buf[MAX_DURATION_BUFSZ];
@@ -195,27 +195,27 @@ void qp_duration_qos (const dds_qos_t *q, FILE *fp, const char *what, bool (*qge
     fprintf (fp, "  %s = %s\n", what, qp_duration_str (buf, sizeof (buf), d));
 }
 
-void qp_lifespan (const dds_qos_t *q, FILE *fp)
+static void qp_lifespan (const dds_qos_t *q, FILE *fp)
 {
   qp_duration_qos (q, fp, "lifespan: duration", dds_qget_lifespan);
 }
 
-void qp_deadline (const dds_qos_t *q, FILE *fp)
+static void qp_deadline (const dds_qos_t *q, FILE *fp)
 {
   qp_duration_qos (q, fp, "deadline: period", dds_qget_deadline);
 }
 
-void qp_latency_budget (const dds_qos_t *q, FILE *fp)
+static void qp_latency_budget (const dds_qos_t *q, FILE *fp)
 {
   qp_duration_qos (q, fp, "latency_budget: duration", dds_qget_latency_budget);
 }
 
-void qp_time_based_filter (const dds_qos_t *q, FILE *fp)
+static void qp_time_based_filter (const dds_qos_t *q, FILE *fp)
 {
   qp_duration_qos (q, fp, "time_based_filter: minimum_separation", dds_qget_time_based_filter);
 }
 
-void qp_ownership (const dds_qos_t *q, FILE *fp)
+static void qp_ownership (const dds_qos_t *q, FILE *fp)
 {
   dds_ownership_kind_t kind;
   char *s = "?";
@@ -230,14 +230,14 @@ void qp_ownership (const dds_qos_t *q, FILE *fp)
   }
 }
 
-void qp_ownership_strength (const dds_qos_t *q, FILE *fp)
+static void qp_ownership_strength (const dds_qos_t *q, FILE *fp)
 {
   int32_t value;
   if (dds_qget_ownership_strength (q, &value))
     fprintf (fp, "  ownership_strength: value = %"PRId32"\n", value);
 }
 
-void qp_liveliness (const dds_qos_t *q, FILE *fp)
+static void qp_liveliness (const dds_qos_t *q, FILE *fp)
 {
   dds_liveliness_kind_t kind;
   dds_duration_t lease_duration;
@@ -255,7 +255,7 @@ void qp_liveliness (const dds_qos_t *q, FILE *fp)
   }
 }
 
-void qp_reliability (const dds_qos_t *q, FILE *fp)
+static void qp_reliability (const dds_qos_t *q, FILE *fp)
 {
   dds_reliability_kind_t kind;
   dds_duration_t max_blocking_time;
@@ -272,14 +272,14 @@ void qp_reliability (const dds_qos_t *q, FILE *fp)
   }
 }
 
-void qp_transport_priority (const dds_qos_t *q, FILE *fp)
+static void qp_transport_priority (const dds_qos_t *q, FILE *fp)
 {
   int32_t value;
   if (dds_qget_transport_priority (q, &value))
     fprintf (fp, "  transport_priority: priority = %"PRId32"\n", value);
 }
 
-void qp_destination_order (const dds_qos_t *q, FILE *fp)
+static void qp_destination_order (const dds_qos_t *q, FILE *fp)
 {
   dds_destination_order_kind_t kind;
   if (dds_qget_destination_order (q, &kind))
@@ -294,14 +294,14 @@ void qp_destination_order (const dds_qos_t *q, FILE *fp)
   }
 }
 
-void qp_writer_data_lifecycle (const dds_qos_t *q, FILE *fp)
+static void qp_writer_data_lifecycle (const dds_qos_t *q, FILE *fp)
 {
   bool value;
   if (dds_qget_writer_data_lifecycle (q, &value))
     fprintf (fp, "  writer_data_lifecycle: autodispose_unregistered_instances = %s\n", value ? "true" : "false");
 }
 
-void qp_reader_data_lifecycle (const dds_qos_t *q, FILE *fp)
+static void qp_reader_data_lifecycle (const dds_qos_t *q, FILE *fp)
 {
   dds_duration_t autopurge_nowriter_samples_delay, autopurge_disposed_samples_delay;
   if (dds_qget_reader_data_lifecycle (q, &autopurge_nowriter_samples_delay, &autopurge_disposed_samples_delay))
@@ -311,7 +311,7 @@ void qp_reader_data_lifecycle (const dds_qos_t *q, FILE *fp)
   }
 }
 
-void qp_durability_service (const dds_qos_t *q, FILE *fp)
+static void qp_durability_service (const dds_qos_t *q, FILE *fp)
 {
   dds_duration_t service_cleanup_delay;
   dds_history_kind_t history_kind;
@@ -335,7 +335,7 @@ void qp_durability_service (const dds_qos_t *q, FILE *fp)
   }
 }
 
-void qp_partition (const dds_qos_t *q, FILE *fp)
+static void qp_partition (const dds_qos_t *q, FILE *fp)
 {
   uint32_t n;
   char **ps;
@@ -360,7 +360,7 @@ void qp_partition (const dds_qos_t *q, FILE *fp)
   }
 }
 
-void qp_qos (const dds_qos_t *q, FILE *fp)
+static void qp_qos (const dds_qos_t *q, FILE *fp)
 {
   qp_reliability (q, fp);
   qp_durability (q, fp);
@@ -385,7 +385,7 @@ void qp_qos (const dds_qos_t *q, FILE *fp)
   qp_group_data (q, fp);
 }
 
-void print_key(FILE *fp, const char *label, const dds_builtintopic_guid_t *key)
+static void print_key(FILE *fp, const char *label, const dds_builtintopic_guid_t *key)
 {
   fprintf(fp, "%s", label);
   for(size_t j = 0; j < sizeof (key->v); j++) {
@@ -422,7 +422,7 @@ void print_dcps_topic (FILE *fp, dds_entity_t pp)
 }
 #endif
 
-void print_dcps_participant (FILE *fp, dds_entity_t pp)
+static void print_dcps_participant (FILE *fp, dds_entity_t pp)
 {
   dds_entity_t rd = dds_create_reader (pp, DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, NULL, NULL);
   (void)dds_reader_wait_for_historical_data (rd, DDS_SECS (5));
@@ -448,7 +448,7 @@ void print_dcps_participant (FILE *fp, dds_entity_t pp)
   dds_delete (rd);
 }
 
-void print_dcps_endpoint (FILE *fp, dds_entity_t pp, const char *type, dds_entity_t topic)
+static void print_dcps_endpoint (FILE *fp, dds_entity_t pp, const char *type, dds_entity_t topic)
 {
   dds_entity_t rd = dds_create_reader (pp, topic, NULL, NULL);
   (void)dds_reader_wait_for_historical_data (rd, DDS_SECS (5));
@@ -477,12 +477,12 @@ void print_dcps_endpoint (FILE *fp, dds_entity_t pp, const char *type, dds_entit
   dds_delete (rd);
 }
 
-void print_dcps_subscription (FILE *fp, dds_entity_t pp)
+static void print_dcps_subscription (FILE *fp, dds_entity_t pp)
 {
   print_dcps_endpoint (fp, pp, "SUBSCRIPTION", DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION);
 }
 
-void print_dcps_publication (FILE *fp, dds_entity_t pp)
+static void print_dcps_publication (FILE *fp, dds_entity_t pp)
 {
   print_dcps_endpoint (fp, pp, "PUBLICATION", DDS_BUILTIN_TOPIC_DCPSPUBLICATION);
 }
@@ -504,7 +504,7 @@ static struct topictab {
 };
 #define TOPICTAB_SIZE (sizeof(topictab)/sizeof(struct topictab))
 
-void usage (void)
+static void usage (void)
 {
   fprintf (stderr, "Usage: ddsls [OPTIONS] TOPIC...  for specified topics\n\n");
   fprintf (stderr, "   or: ddsls [OPTIONS] -a        for all topics\n");

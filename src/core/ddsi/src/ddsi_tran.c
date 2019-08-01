@@ -19,6 +19,7 @@
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_globals.h"
 
 static ddsi_tran_factory_t ddsi_tran_factories = NULL;
 
@@ -90,6 +91,7 @@ static ddsi_tran_factory_t ddsi_factory_find_with_len (const char * type, size_t
   return factory;
 }
 
+ddsrt_attribute_no_sanitize (("thread"))
 ddsi_tran_factory_t ddsi_factory_find_supported_kind (int32_t kind)
 {
   /* FIXME: MUST speed up */
@@ -120,11 +122,10 @@ void ddsi_conn_free (ddsi_tran_conn_t conn)
       /* FIXME: rethink the socket waitset & the deleting of entries; the biggest issue is TCP handling that can open & close sockets at will and yet expects the waitset to wake up at the apprioriate times.  (This pretty much works with the select-based version, but not the kqueue-based one.)  TCP code can also have connections without a socket ...  Calling sockWaitsetRemove here (where there shouldn't be any knowledge of it) at least ensures that it is removed in time and that there can't be aliasing of connections and sockets.   */
       if (ddsi_conn_handle (conn) != DDSRT_INVALID_SOCKET)
       {
-        unsigned i;
-        for (i = 0; i < gv.n_recv_threads; i++)
+        for (uint32_t i = 0; i < gv.n_recv_threads; i++)
         {
           if (!gv.recv_threads[i].ts)
-            assert (!gv.rtps_keepgoing);
+            assert (!ddsrt_atomic_ld32 (&gv.rtps_keepgoing));
           else
           {
             switch (gv.recv_threads[i].arg.mode)

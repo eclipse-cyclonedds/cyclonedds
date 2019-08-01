@@ -48,6 +48,16 @@ public class SequenceType extends AbstractType
     return new SequenceType (subtype.dup (), name);
   }
 
+  public boolean containsUnion ()
+  {
+    Type t = subtype;
+    while (t instanceof TypedefType)
+    {
+      t = ((TypedefType)t).getRef ();
+    }
+    return t.containsUnion ();
+  }
+
   public ArrayList <String> getMetaOp (String myname, String structname)
   {
     ArrayList <String> result = new ArrayList <String> ();

@@ -15,13 +15,12 @@
 #include <string.h>
 
 #include "dds/ddsrt/heap.h"
-#include "dds/ddsi/q_md5.h"
+#include "dds/ddsrt/md5.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/q_md5.h"
 
 struct ddsi_sertopic *ddsi_sertopic_ref (const struct ddsi_sertopic *sertopic_const)
 {
@@ -37,29 +36,25 @@ void ddsi_sertopic_unref (struct ddsi_sertopic *sertopic)
   {
     if (ddsrt_atomic_dec32_ov (&sertopic->refc) == 1)
     {
-      ddsi_sertopic_deinit (sertopic);
-      ddsrt_free (sertopic->name_typename);
-      ddsrt_free (sertopic->name);
-      ddsrt_free (sertopic->typename);
-      ddsrt_free (sertopic);
+      ddsi_sertopic_free (sertopic);
     }
   }
 }
 
 uint32_t ddsi_sertopic_compute_serdata_basehash (const struct ddsi_serdata_ops *ops)
 {
-  md5_state_t md5st;
-  md5_byte_t digest[16];
+  ddsrt_md5_state_t md5st;
+  ddsrt_md5_byte_t digest[16];
   uint32_t res;
-  md5_init (&md5st);
-  md5_append (&md5st, (const md5_byte_t *) &ops, sizeof (ops));
-  md5_append (&md5st, (const md5_byte_t *) ops, sizeof (*ops));
-  md5_finish (&md5st, digest);
+  ddsrt_md5_init (&md5st);
+  ddsrt_md5_append (&md5st, (const ddsrt_md5_byte_t *) &ops, sizeof (ops));
+  ddsrt_md5_append (&md5st, (const ddsrt_md5_byte_t *) ops, sizeof (*ops));
+  ddsrt_md5_finish (&md5st, digest);
   memcpy (&res, digest, sizeof (res));
   return res;
 }
 
-extern inline void ddsi_sertopic_deinit (struct ddsi_sertopic *tp);
+extern inline void ddsi_sertopic_free (struct ddsi_sertopic *tp);
 extern inline void ddsi_sertopic_zero_samples (const struct ddsi_sertopic *tp, void *samples, size_t count);
 extern inline void ddsi_sertopic_realloc_samples (void **ptrs, const struct ddsi_sertopic *tp, void *old, size_t oldcount, size_t count);
 extern inline void ddsi_sertopic_free_samples (const struct ddsi_sertopic *tp, void **ptrs, size_t count, dds_free_op_t op);
