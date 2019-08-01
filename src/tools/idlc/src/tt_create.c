@@ -310,7 +310,7 @@ static void context_pop_annotations_stack(ddsts_context_t *context)
   ddsrt_free(annotations_stack);
 }
 
-extern ddsts_context_t* ddsts_create_context()
+extern ddsts_context_t* ddsts_create_context(void)
 {
   ddsts_context_t *context = (ddsts_context_t*)ddsrt_malloc(sizeof(ddsts_context_t));
   if (context == NULL) {
