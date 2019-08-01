@@ -20,11 +20,11 @@
 typedef struct ddsts_scoped_name ddsts_scoped_name_t;
 typedef struct ddsts_context ddsts_context_t;
 
-ddsts_context_t* ddsts_create_context();
+ddsts_context_t* ddsts_create_context(void);
 void ddsts_context_error(ddsts_context_t *context, int line, int column, const char *msg);
 void ddsts_context_set_error_func(ddsts_context_t *context, void (*error)(int line, int column, const char *msg));
 dds_return_t ddsts_context_get_retcode(ddsts_context_t* context);
-ddsts_type_t* ddsts_context_take_root_type();
+ddsts_type_t* ddsts_context_take_root_type(ddsts_context_t *context);
 void ddsts_free_context(ddsts_context_t* context);
 
 bool ddsts_context_copy_identifier(ddsts_context_t *context, ddsts_identifier_t source, ddsts_identifier_t *dest);

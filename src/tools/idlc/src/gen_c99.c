@@ -713,7 +713,7 @@ static dds_return_t generate_header_file(const char *file_name, ddsts_type_t *ro
     return rc;
   }
   if (!ddsts_ostream_open(ostream, h_file_name)) {
-    DDS_ERROR("generate_header_file", "Could not open file '%s' for writing", h_file_name);
+    DDS_ERROR("Could not open file '%s' for writing", h_file_name);
     ddsrt_free((void*)h_file_name);
     return DDS_RETCODE_OUT_OF_RESOURCES;
   }
@@ -1628,7 +1628,7 @@ alignment_t alignment_types[8] = {
   { 8, 8, "8u"}
 };
 
-alignment_t *max_alignment(alignment_t *a, alignment_t *b)
+static alignment_t *max_alignment(alignment_t *a, alignment_t *b)
 {
    if (   (a == ALIGNMENT_BOOL && b == ALIGNMENT_ONE)
        || (b == ALIGNMENT_BOOL && a == ALIGNMENT_ONE)) {
