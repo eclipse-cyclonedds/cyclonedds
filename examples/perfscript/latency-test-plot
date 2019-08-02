@@ -1,0 +1,46 @@
+#!/bin/bash
+
+`dirname $0`/latency-test-extract "$@" > data.txt
+gnuplot <<\EOF
+set term pngcairo size 1024,768
+set output "latency-sync-listener.png"
+set st d lp
+set st li 1 lw 2
+set st li 2 lw 2
+set st li 3 lw 2
+set st li 4 lw 2
+set st li 5 lw 2
+
+set multiplot
+set logscale xy
+set title "Latency"
+set ylabel "[us]"
+set grid xtics ytics mytics
+set xlabel "payload size [bytes]"
+p "data.txt" u 1:3 ti "min", "" u 1:4 ti "median", "" u 1:5 ti "90%", "" u 1:6 ti "99%", "" u 1:7 ti "max"
+unset logscale y
+unset xlabel
+unset ylabel
+unset title
+set grid nomytics
+set origin .1, .43
+set size .55, .5
+clear
+p [10:1000]  "data.txt" u 1:3 ti "min", "" u 1:4 ti "median", "" u 1:5 ti "90%", "" u 1:6 ti "99%", "" u 1:7 ti "max"
+unset multiplot
+
+unset origin
+unset size
+
+unset logscale
+set logscale x
+set output "latency-sync-listener-bwcpu.png"
+set title "Latency: network bandwidth and CPU usage"
+set y2tics
+set ylabel "[Mbps]"
+set y2label "CPU [%]"
+set xlabel "payload size [bytes]"
+set key at graph 1, 0.7
+p "data.txt" u 1:(10*$8) ti "GbE transmit bandwidth (left)", "" u 1:(10*$9) ti "GbE receive bandwidth (left)", "" u 1:13 axes x1y2 ti "ping CPU (right)", "" u 1:15 axes x1y2 ti "pong CPU (right)"
+
+EOF

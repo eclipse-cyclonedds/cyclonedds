@@ -1,8 +1,11 @@
 # Eclipse Cyclone DDS
 
-Eclipse Cyclone DDS is by far the most performant and robust DDS implementation available on the
-market. Moreover, Cyclone DDS is developed completely in the open as an Eclipse IoT project
+Eclipse Cyclone DDS is a very performant and robust open-source DDS implementation.  Cyclone DDS is developed completely in the open as an Eclipse IoT project
 (see [eclipse-cyclone-dds](https://projects.eclipse.org/projects/iot.cyclonedds)).
+
+* [Getting Started](#getting-started)
+* [Performance](#performance)
+* [Configuration](#configuration)
 
 # Getting Started
 
@@ -106,7 +109,76 @@ also need to add switches to select the architecture and build type, e.g., ``con
 arch=x86_64 -s build_type=Debug ..`` This will automatically download and/or build CUnit (and, at
 the moment, OpenSSL).
 
-## Configuration
+## Documentation
+
+The documentation is still rather limited, and at the moment only available in the sources (in the
+form of restructured text files in ``docs`` and Doxygen comments in the header files), or as
+a
+[PDF](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/pdf/CycloneDDS-0.1.0.pdf). The
+intent is to automate the process of building the documentation and have them available in more
+convenient formats and in the usual locations.
+
+## Building and Running the Roundtrip Example
+
+We will show you how to build and run an example program that measures latency.  The examples are
+built automatically when you build Cyclone DDS, so you don't need to follow these steps to be able
+to run the program, it is merely to illustrate the process.
+
+    $ cd cyclonedds/examples/roundtrip
+    $ mkdir build
+    $ cd build
+    $ cmake ..
+    $ make
+    
+On one terminal start the application that will be responding to pings:
+
+    $ ./RoundtripPong
+
+On another terminal, start the application that will be sending the pings:
+    
+    $ ./RoundtripPing 0 0 0 
+    # payloadSize: 0 | numSamples: 0 | timeOut: 0
+    # Waiting for startup jitter to stabilise
+    # Warm up complete.
+    # Latency measurements (in us)
+    #             Latency [us]                                   Write-access time [us]       Read-access time [us]
+    # Seconds     Count   median      min      99%      max      Count   median      min      Count   median      min
+        1     28065       17       16       23       87      28065        8        6      28065        1        0
+        2     28115       17       16       23       46      28115        8        6      28115        1        0
+        3     28381       17       16       22       46      28381        8        6      28381        1        0
+        4     27928       17       16       24      127      27928        8        6      27928        1        0
+        5     28427       17       16       20       47      28427        8        6      28427        1        0
+        6     27685       17       16       26       51      27685        8        6      27685        1        0
+        7     28391       17       16       23       47      28391        8        6      28391        1        0
+        8     27938       17       16       24       63      27938        8        6      27938        1        0
+        9     28242       17       16       24      132      28242        8        6      28242        1        0
+       10     28075       17       16       23       46      28075        8        6      28075        1        0
+
+The numbers above were measured on Mac running a 4.2 GHz Intel Core i7 on December 12th 2018.  From
+these numbers you can see how the roundtrip is very stable and the minimal latency is now down to 17
+micro-seconds (used to be 25 micro-seconds) on this HW.
+
+# Performance
+
+Reliable message throughput is over 1MS/s for very small samples and is roughly 90% of GbE with 100
+byte samples, and latency is about 30us when measured using [ddsperf](src/tools/ddsperf) between two
+Intel(R) Xeon(R) CPU E3-1270 V2 @ 3.50GHz (that's 2012 hardware ...) running Ubuntu 16.04, with the
+executables built on Ubuntu 18.04 using gcc 7.4.0 for a default (i.e., "RelWithDebInfo") build.
+
+<img src="https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/20190730/throughput-async-listener-rate.png" alt="Throughput" height="400"><img src="https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/20190730/latency-sync-listener.png" alt="Throughput" height="400">
+
+This is with the subscriber in listener mode, using asynchronous delivery for the throughput
+test. The configuration is a marginally tweaked out-of-the-box configuration: an increased maximum
+message size and fragment size, and an increased high-water mark for the reliability window on the
+writer side. For details, see the [scripts](examples/perfscript) directory,
+the
+[environment details](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/20190730/config.txt) and
+the
+[throughput](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/20190730/sub.log) and
+[latency](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/20190730/ping.log) data
+underlying the graphs.  These also include CPU usage ([thoughput](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/20190730/throughput-async-listener-cpu.png) and [latency](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/20190730/latency-sync-listener-bwcpu.png)) and [memory usage](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/20190730/throughput-async-listener-memory.png).
+
+# Configuration
 
 The out-of-the-box configuration should usually be fine, but there are a great many options that can
 be tweaked by creating an XML file with the desired settings and defining the ``CYCLONEDDS_URI`` to
@@ -160,73 +232,6 @@ This example shows a few things:
 The configurator tool ``cycloneddsconf`` can help in discovering the settings, as can the config
 dump.  Background information on configuring Cyclone DDS can be
 found [here](https://docs/manual/config.rst).
-
-## Documentation
-
-The documentation is still rather limited, and at the moment only available in the sources (in the
-form of restructured text files in ``docs`` and Doxygen comments in the header files), or as
-a
-[PDF](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/pdf/CycloneDDS-0.1.0.pdf). The
-intent is to automate the process of building the documentation and have them available in more
-convenient formats and in the usual locations.
-
-## Performance
-
-Median small message throughput measured using the Throughput example between two Intel(R) Xeon(R)
-CPU E3-1270 V2 @ 3.50GHz (that's 2012 hardware ...) running Linux 3.8.13-rt14.20.el6rt.x86_64,
-connected via a quiet GbE and when using gcc-6.2.0 for a default (i.e., "RelWithDebInfo") build is:
-
-<img src="https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/throughput-polling.png" alt="Throughput" height="400">
-
-This is with the subscriber in polling mode. Listener mode is marginally slower; using a waitset the
-message rate for minimal size messages drops to 600k sample/s in synchronous delivery mode and about
-750k samples/s in asynchronous delivery mode. The configuration is an out-of-the-box configuration,
-tweaked only to increase the high-water mark for the reliability window on the writer side. For
-details, see the scripts in the ``performance`` directory and
-the
-[data](https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/throughput.txt).
-
-There is some data on roundtrip latency below.
-
-## Building and Running the Roundtrip Example
-
-We will show you how to build and run an example program that measures latency.  The examples are
-built automatically when you build Cyclone DDS, so you don't need to follow these steps to be able
-to run the program, it is merely to illustrate the process.
-
-    $ cd cyclonedds/examples/roundtrip
-    $ mkdir build
-    $ cd build
-    $ cmake ..
-    $ make
-    
-On one terminal start the application that will be responding to pings:
-
-    $ ./RoundtripPong
-
-On another terminal, start the application that will be sending the pings:
-    
-    $ ./RoundtripPing 0 0 0 
-    # payloadSize: 0 | numSamples: 0 | timeOut: 0
-    # Waiting for startup jitter to stabilise
-    # Warm up complete.
-    # Round trip measurements (in us)
-    #             Round trip time [us]                           Write-access time [us]       Read-access time [us]
-    # Seconds     Count   median      min      99%      max      Count   median      min      Count   median      min
-        1     28065       17       16       23       87      28065        8        6      28065        1        0
-        2     28115       17       16       23       46      28115        8        6      28115        1        0
-        3     28381       17       16       22       46      28381        8        6      28381        1        0
-        4     27928       17       16       24      127      27928        8        6      27928        1        0
-        5     28427       17       16       20       47      28427        8        6      28427        1        0
-        6     27685       17       16       26       51      27685        8        6      27685        1        0
-        7     28391       17       16       23       47      28391        8        6      28391        1        0
-        8     27938       17       16       24       63      27938        8        6      27938        1        0
-        9     28242       17       16       24      132      28242        8        6      28242        1        0
-       10     28075       17       16       23       46      28075        8        6      28075        1        0
-
-The numbers above were measured on Mac running a 4.2 GHz Intel Core i7 on December 12th 2018.  From
-these numbers you can see how the roundtrip is very stable and the minimal latency is now down to 17
-micro-seconds (used to be 25 micro-seconds) on this HW.
 
 # Trademarks
 
