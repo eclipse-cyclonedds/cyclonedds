@@ -26,7 +26,7 @@ macro(_Sphinx_find_executable _exe)
       RESULT_VARIABLE _result
       OUTPUT_VARIABLE _output
       OUTPUT_STRIP_TRAILING_WHITESPACE)
-    if(_result EQUAL 0 AND _output MATCHES " ([0-9]+\\.[0-9]+\\.[0-9]+)$")
+    if(_result EQUAL 0 AND _output MATCHES " v?([0-9]+\\.[0-9]+\\.[0-9]+)$")
       set(SPHINX_${_uc}_VERSION "${CMAKE_MATCH_1}")
     endif()
 
@@ -85,8 +85,8 @@ _Sphinx_find_executable(quickstart)
 #
 if(SPHINX_BUILD_EXECUTABLE AND SPHINX_QUICKSTART_EXECUTABLE)
   if(NOT SPHINX_BUILD_VERSION STREQUAL SPHINX_QUICKSTART_VERSION)
-    message(FATAL_ERROR "Versions for sphinx-build (${SPHINX_BUILD_VERSION})"
-                        "and sphinx-quickstart (${SPHINX_QUICKSTART_VERSION})"
+    message(FATAL_ERROR "Versions for sphinx-build (${SPHINX_BUILD_VERSION}) "
+                        "and sphinx-quickstart (${SPHINX_QUICKSTART_VERSION}) "
                         "do not match")
   endif()
 endif()
