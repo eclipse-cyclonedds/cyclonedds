@@ -214,6 +214,53 @@ ddsrt_thread_setname(
   const char *__restrict name);
 #endif
 
+#if DDSRT_HAVE_THREAD_LIST
+/**
+ * @brief Get a list of threads in the calling process
+ *
+ * @param[out]  tids    Array of size elements to be filled with thread
+ *                      identifiers, may be NULL if size is 0
+ * @param[in]   size    The size of the tids array; 0 is allowed
+ *
+ * @returns A dds_return_t indicating the number of threads in the process
+ * or an error code on failure.
+ *
+ * @retval > 0
+ *             Number of threads in the process, may be larger than size
+ *             tids[0 .. (return - 1)] are valid
+ * @retval DDS_RETCODE_ERROR
+ *             Something went wrong, contents of tids is undefined
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *             Not supported on the platform
+ */
+DDS_EXPORT dds_return_t ddsrt_thread_list (ddsrt_thread_list_id_t * __restrict tids, size_t size);
+
+/**
+ * @brief Get the name of the specified thread (in the calling process)
+ *
+ * @param[in]   tid     Thread identifier for which the name is sought
+ * @param[out]  name    Filled with the thread name (or a synthesized one)
+ *                      on successful return; name is silently truncated
+ *                      if the actual name is longer than name can hold;
+ *                      always 0-terminated if size > 0
+ * @param[in]   size    Number of bytes of name that may be assigned, size
+ *                      is 0 is allowed, though somewhat useless
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             Possibly truncated name is returned as a null-terminated
+ *             string in name (provided size > 0).
+ * @retval DDS_RETCODE_NOT_FOUND
+ *             Thread not found; the contents of name is unchanged
+ * @retval DDS_RETCODE_ERROR
+ *             Unspecified failure, the contents of name is undefined
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *             Not supported on the platform
+ */
+DDS_EXPORT dds_return_t ddsrt_thread_getname_anythread (ddsrt_thread_list_id_t tid, char *__restrict name, size_t size);
+#endif
+
 /**
  * @brief Push cleanup handler onto the cleanup stack
  *

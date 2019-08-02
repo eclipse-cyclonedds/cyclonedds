@@ -16,6 +16,7 @@
 #include <task.h>
 
 #define DDSRT_HAVE_THREAD_SETNAME (0)
+#define DDSRT_HAVE_THREAD_LIST (0)
 
 #if defined(__cplusplus)
 extern "C" {
