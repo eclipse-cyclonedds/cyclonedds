@@ -16,18 +16,20 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/process.h"
+#include "dds/ddsrt/heap.h"
 #include "dds__init.h"
 #include "dds__rhc.h"
 #include "dds__domain.h"
-#include "dds__err.h"
 #include "dds__builtin.h"
 #include "dds__whc_builtintopic.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/q_servicelease.h"
+#include "dds/ddsi/ddsi_threadmon.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds/version.h"
 
 #define DOMAIN_ID_MIN 0
@@ -37,6 +39,20 @@ struct q_globals gv;
 
 dds_globals dds_global = { .m_default_domain = DDS_DOMAIN_DEFAULT };
 static struct cfgst * dds_cfgst = NULL;
+
+static void free_via_gc_cb (struct gcreq *gcreq)
+{
+  void *bs = gcreq->arg;
+  gcreq_free (gcreq);
+  ddsrt_free (bs);
+}
+
+static void free_via_gc (void *bs)
+{
+  struct gcreq *gcreq = gcreq_new (gv.gcreq_queue, free_via_gc_cb);
+  gcreq->arg = bs;
+  gcreq_enqueue (gcreq);
+}
 
 dds_return_t
 dds_init(dds_domainid_t domain)
@@ -60,13 +76,6 @@ dds_init(dds_domainid_t domain)
     goto skip;
   }
 
-  if (ut_handleserver_init() != UT_HANDLE_OK)
-  {
-    DDS_ERROR("Failed to initialize internal handle server\n");
-    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
-    goto fail_handleserver;
-  }
-
   gv.tstart = now ();
   gv.exception = false;
   ddsrt_mutex_init (&dds_global.m_mutex);
@@ -77,7 +86,7 @@ dds_init(dds_domainid_t domain)
   if (dds_cfgst == NULL)
   {
     DDS_LOG(DDS_LC_CONFIG, "Failed to parse configuration XML file %s\n", uri);
-    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+    ret = DDS_RETCODE_ERROR;
     goto fail_config;
   }
 
@@ -86,8 +95,8 @@ dds_init(dds_domainid_t domain)
   {
     if (domain < 0 || domain > 230)
     {
-      DDS_ERROR("requested domain id %d is out of range\n", domain);
-      ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+      DDS_ERROR("requested domain id %"PRId32" is out of range\n", domain);
+      ret = DDS_RETCODE_ERROR;
       goto fail_config_domainid;
     }
     else if (config.domainId.isdefault)
@@ -96,8 +105,8 @@ dds_init(dds_domainid_t domain)
     }
     else if (domain != config.domainId.value)
     {
-      DDS_ERROR("requested domain id %d is inconsistent with configured value %d\n", domain, config.domainId.value);
-      ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+      DDS_ERROR("requested domain id %"PRId32" is inconsistent with configured value %"PRId32"\n", domain, config.domainId.value);
+      ret = DDS_RETCODE_ERROR;
       goto fail_config_domainid;
     }
   }
@@ -109,43 +118,56 @@ dds_init(dds_domainid_t domain)
   if (rtps_config_prep(dds_cfgst) != 0)
   {
     DDS_LOG(DDS_LC_CONFIG, "Failed to configure RTPS\n");
-    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+    ret = DDS_RETCODE_ERROR;
     goto fail_rtps_config;
   }
 
-  ut_avlInit(&dds_domaintree_def, &dds_global.m_domains);
+  upgrade_main_thread();
+  ddsrt_avl_init(&dds_domaintree_def, &dds_global.m_domains);
 
   /* Start monitoring the liveliness of all threads. */
   if (!config.liveliness_monitoring)
-    gv.servicelease = NULL;
+    gv.threadmon = NULL;
   else
   {
-    gv.servicelease = nn_servicelease_new(0, 0);
-    if (gv.servicelease == NULL)
+    gv.threadmon = ddsi_threadmon_new ();
+    if (gv.threadmon == NULL)
     {
-      DDS_ERROR("Failed to create a servicelease\n");
-      ret = DDS_ERRNO(DDS_RETCODE_OUT_OF_RESOURCES);
-      goto fail_servicelease_new;
+      DDS_ERROR("Failed to create a thread monitor\n");
+      ret = DDS_RETCODE_OUT_OF_RESOURCES;
+      goto fail_threadmon_new;
     }
   }
 
-  if (rtps_init() < 0)
+  if (rtps_init () < 0)
   {
     DDS_LOG(DDS_LC_CONFIG, "Failed to initialize RTPS\n");
-    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+    ret = DDS_RETCODE_ERROR;
     goto fail_rtps_init;
+  }
+
+  if (dds_handle_server_init (free_via_gc) != DDS_RETCODE_OK)
+  {
+    DDS_ERROR("Failed to initialize internal handle server\n");
+    ret = DDS_RETCODE_ERROR;
+    goto fail_handleserver;
   }
 
   dds__builtin_init ();
 
-  if (gv.servicelease && nn_servicelease_start_renewing(gv.servicelease) < 0)
+  if (rtps_start () < 0)
   {
-    DDS_ERROR("Failed to start the servicelease\n");
-    ret = DDS_ERRNO(DDS_RETCODE_ERROR);
-    goto fail_servicelease_start;
+    DDS_LOG(DDS_LC_CONFIG, "Failed to start RTPS\n");
+    ret = DDS_RETCODE_ERROR;
+    goto fail_rtps_start;
   }
 
-  upgrade_main_thread();
+  if (gv.threadmon && ddsi_threadmon_start(gv.threadmon) < 0)
+  {
+    DDS_ERROR("Failed to start the servicelease\n");
+    ret = DDS_RETCODE_ERROR;
+    goto fail_threadmon_start;
+  }
 
   /* Set additional default participant properties */
 
@@ -169,18 +191,23 @@ skip:
   ddsrt_mutex_unlock(init_mutex);
   return DDS_RETCODE_OK;
 
-fail_servicelease_start:
-  if (gv.servicelease)
-    nn_servicelease_stop_renewing (gv.servicelease);
+fail_threadmon_start:
+  if (gv.threadmon)
+    ddsi_threadmon_stop (gv.threadmon);
+  dds_handle_server_fini();
+fail_handleserver:
   rtps_stop ();
+fail_rtps_start:
+  dds__builtin_fini ();
   rtps_fini ();
 fail_rtps_init:
-  if (gv.servicelease)
+  if (gv.threadmon)
   {
-    nn_servicelease_free (gv.servicelease);
-    gv.servicelease = NULL;
+    ddsi_threadmon_free (gv.threadmon);
+    gv.threadmon = NULL;
   }
-fail_servicelease_new:
+fail_threadmon_new:
+  downgrade_main_thread ();
   thread_states_fini();
 fail_rtps_config:
 fail_config_domainid:
@@ -189,8 +216,6 @@ fail_config_domainid:
   dds_cfgst = NULL;
 fail_config:
   ddsrt_mutex_destroy (&dds_global.m_mutex);
-  ut_handleserver_fini();
-fail_handleserver:
   dds_global.m_init_count--;
   ddsrt_mutex_unlock(init_mutex);
   ddsrt_fini();
@@ -206,21 +231,21 @@ extern void dds_fini (void)
   dds_global.m_init_count--;
   if (dds_global.m_init_count == 0)
   {
-    if (gv.servicelease)
-      nn_servicelease_stop_renewing (gv.servicelease);
+    if (gv.threadmon)
+      ddsi_threadmon_stop (gv.threadmon);
+    dds_handle_server_fini();
     rtps_stop ();
     dds__builtin_fini ();
     rtps_fini ();
-    if (gv.servicelease)
-      nn_servicelease_free (gv.servicelease);
-    gv.servicelease = NULL;
+    if (gv.threadmon)
+      ddsi_threadmon_free (gv.threadmon);
+    gv.threadmon = NULL;
     downgrade_main_thread ();
     thread_states_fini ();
 
     config_fini (dds_cfgst);
     dds_cfgst = NULL;
     ddsrt_mutex_destroy (&dds_global.m_mutex);
-    ut_handleserver_fini();
     dds_global.m_default_domain = DDS_DOMAIN_DEFAULT;
   }
   ddsrt_mutex_unlock(init_mutex);
@@ -243,12 +268,12 @@ void ddsi_plugin_init (void)
   ddsi_plugin.init_fn = dds__init_plugin;
   ddsi_plugin.fini_fn = dds__fini_plugin;
 
+  ddsi_plugin.builtintopic_is_builtintopic = dds__builtin_is_builtintopic;
   ddsi_plugin.builtintopic_is_visible = dds__builtin_is_visible;
   ddsi_plugin.builtintopic_get_tkmap_entry = dds__builtin_get_tkmap_entry;
   ddsi_plugin.builtintopic_write = dds__builtin_write;
 
   ddsi_plugin.rhc_plugin.rhc_free_fn = dds_rhc_free;
-  ddsi_plugin.rhc_plugin.rhc_fini_fn = dds_rhc_fini;
   ddsi_plugin.rhc_plugin.rhc_store_fn = dds_rhc_store;
   ddsi_plugin.rhc_plugin.rhc_unregister_wr_fn = dds_rhc_unregister_wr;
   ddsi_plugin.rhc_plugin.rhc_relinquish_ownership_fn = dds_rhc_relinquish_ownership;
@@ -273,8 +298,8 @@ dds__check_domain(
     if (domain != dds_global.m_default_domain)
     {
       DDS_ERROR("Inconsistent domain configuration detected: domain on "
-                "configuration: %d, domain %d\n", dds_global.m_default_domain, domain);
-      ret = DDS_ERRNO(DDS_RETCODE_ERROR);
+                "configuration: %"PRId32", domain %"PRId32"\n", dds_global.m_default_domain, domain);
+      ret = DDS_RETCODE_ERROR;
     }
   }
   return ret;

@@ -184,7 +184,7 @@ struct prune_deleted_ppant {
   int enforce_delay;
 };
 
-/* allow multicast bits: */
+/* allow multicast bits (default depends on network type): */
 #define AMC_FALSE 0u
 #define AMC_SPDP 1u
 #define AMC_ASM 2u
@@ -194,6 +194,7 @@ struct prune_deleted_ppant {
 #else
 #define AMC_TRUE (AMC_SPDP | AMC_ASM)
 #endif
+#define AMC_DEFAULT 0x80000000u
 
 /* FIXME: this should be fully dynamic ... but this is easier for a quick hack */
 enum transport_selector {
@@ -218,10 +219,15 @@ struct ssl_min_version {
 };
 #endif
 
+/* Expensive checks (compiled in when NDEBUG not defined, enabled only if flag set in xchecks) */
+#define DDS_XCHECK_WHC 1u
+#define DDS_XCHECK_RHC 2u
+
 struct config
 {
   int valid;
   uint32_t enabled_logcats;
+  uint32_t enabled_xchecks;
   char *servicename;
   char *pcap_file;
 
@@ -232,9 +238,9 @@ struct config
   FILE *tracingOutputFile;
   char *tracingOutputFileName;
   int tracingTimestamps;
-  int tracingRelativeTimestamps;
   int tracingAppendToFile;
-  unsigned allowMulticast;
+  uint32_t allowMulticast;
+  int prefer_multicast;
   enum transport_selector transport_selector;
   enum boolean_default compat_use_ipv6;
   enum boolean_default compat_tcp_enable;
@@ -249,7 +255,6 @@ struct config
   char *assumeMulticastCapable;
   int64_t spdp_interval;
   int64_t spdp_response_delay_max;
-  int64_t startup_mode_duration;
   int64_t lease_duration;
   int64_t const_hb_intv_sched;
   int64_t const_hb_intv_sched_min;
@@ -258,10 +263,9 @@ struct config
   enum retransmit_merging retransmit_merging;
   int64_t retransmit_merging_period;
   int squash_participants;
-  int startup_mode_full;
-  int forward_all_messages;
   int liveliness_monitoring;
   int noprogress_log_stacktraces;
+  int64_t liveliness_monitoring_interval;
   int prioritize_retransmit;
   int xpack_send_async;
   int multiple_recv_threads;
@@ -272,13 +276,6 @@ struct config
 
   unsigned delivery_queue_maxsamples;
 
-  float servicelease_expiry_time;
-  float servicelease_update_factor;
-
-  int enableLoopback;
-  enum durability_cdr durability_cdr;
-
-  int buggy_datafrag_flags_mode;
   int do_topic_discovery;
 
   uint32_t max_msg_size;
@@ -295,9 +292,7 @@ struct config
   int tcp_use_peeraddr_for_unicast;
 
 #ifdef DDSI_INCLUDE_SSL
-
   /* SSL support for TCP */
-
   int ssl_enable;
   int ssl_verify;
   int ssl_verify_client;
@@ -307,16 +302,12 @@ struct config
   char * ssl_key_pass;
   char * ssl_ciphers;
   struct ssl_min_version ssl_min_version;
-
 #endif
 
   /* Thread pool configuration */
-
   int tp_enable;
   uint32_t tp_threads;
   uint32_t tp_max_threads;
-
-  int advertise_builtin_topic_writers;
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   struct config_channel_listelem *channels;
@@ -340,10 +331,7 @@ struct config
   uint32_t rmsg_chunk_size;          /**<< size of a chunk in the receive buffer */
   uint32_t rbuf_size;                /* << size of a single receiver buffer */
   enum besmode besmode;
-  int aggressive_keep_last_whc;
-  int conservative_builtin_reader_startup;
   int meas_hb_to_ack_latency;
-  int suppress_spdp_multicast;
   int unicast_response_to_spdp_messages;
   int synchronous_delivery_priority_threshold;
   int64_t synchronous_delivery_latency_bound;
@@ -385,9 +373,6 @@ struct config
   enum nn_standards_conformance standards_conformance;
   int explicitly_publish_qos_set_to_default;
   enum many_sockets_mode many_sockets_mode;
-  int arrival_of_data_asserts_pp_and_ep_liveliness;
-  int acknack_numbits_emptyset;
-  int respond_to_rti_init_zero_ack_with_invalid_heartbeat;
   int assume_rti_has_pmd_endpoints;
 
   int port_dg;
@@ -403,14 +388,9 @@ struct config
   int initial_deaf;
   int initial_mute;
   int64_t initial_deaf_mute_reset;
+
   int use_multicast_if_mreqn;
   struct prune_deleted_ppant prune_deleted_ppant;
-
-  /* not used by ddsi2, only validated; user layer directly accesses
-     the configuration tree */
-  ddsrt_sched_t watchdog_sched_class;
-  int32_t watchdog_sched_priority;
-  q__schedPrioClass watchdog_sched_priority_class;
 };
 
 struct ddsi_plugin
@@ -418,7 +398,8 @@ struct ddsi_plugin
   int (*init_fn) (void);
   void (*fini_fn) (void);
 
-  bool (*builtintopic_is_visible) (nn_entityid_t entityid, bool onlylocal, nn_vendorid_t vendorid);
+  bool (*builtintopic_is_builtintopic) (const struct ddsi_sertopic *topic);
+  bool (*builtintopic_is_visible) (const nn_guid_t *guid, nn_vendorid_t vendorid);
   struct ddsi_tkmap_instance * (*builtintopic_get_tkmap_entry) (const struct nn_guid *guid);
   void (*builtintopic_write) (const struct entity_common *e, nn_wctime_t timestamp, bool alive);
 
@@ -433,6 +414,7 @@ struct cfgst;
 
 struct cfgst *config_init (const char *configfile);
 void config_print_cfgst (struct cfgst *cfgst);
+void config_free_source_info (struct cfgst *cfgst);
 void config_fini (struct cfgst *cfgst);
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS

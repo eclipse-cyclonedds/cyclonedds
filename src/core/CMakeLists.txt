@@ -19,22 +19,27 @@ FUNCTION(PREPEND var prefix)
    SET(${var} "${listVar}" PARENT_SCOPE)
 ENDFUNCTION(PREPEND)
 
-option(DDSC_SHARED "Build DDSC as a shared library" ON)
-
-if(DDSC_SHARED AND ((NOT DEFINED BUILD_SHARED_LIBS) OR BUILD_SHARED_LIBS))
-  # BUILD_SHARED_LIBS is set to off by for example VxWorks DKM environment
-  add_library(ddsc SHARED "")
+if (BUILD_SHARED_LIBS OR NOT DEFINED BUILD_SHARED_LIBS)
+  add_library(ddsc SHARED)
 else()
-  if(DDSC_SHARED)
-    message(STATUS "Option DDSC_SHARED ignored. Only static libraries supported on this platform.")
-  endif()
-  add_library(ddsc "")
+  add_library(ddsc)
 endif()
 
 add_definitions(-DDDSI_INCLUDE_NETWORK_PARTITIONS -DDDSI_INCLUDE_SSM)
 
-option(DDSC_ENABLE_OPENSSL "Enable openssl support" ON)
-if(DDSC_ENABLE_OPENSSL)
+# OpenSSL is huge, raising the RSS by 1MB or so, and moreover find_package(OpenSSL) causes
+# trouble on some older CMake versions that otherwise work fine, so provide an option to avoid
+# all OpenSSL related things.
+#
+# Historically the option was DDSC_ENABLE_OPENSSL so make some allowance for those who are
+# currently relying on it.
+option(ENABLE_SSL "Enable openssl support" ON)
+option(DDSC_ENABLE_OPENSSL "Deprecated: please use ENABLE_SSL instead" ON)
+if(NOT DDSC_ENABLE_OPENSSL)
+  message(ERROR "DDSC_ENABLE_OPENSSL is deprecated, please use ENABLE_SSL instead")
+  set(ENABLE_SSL OFF)
+endif()
+if(ENABLE_SSL)
   find_package(OpenSSL)
   if(OPENSSL_FOUND)
     add_definitions(-DDDSI_INCLUDE_SSL)
@@ -42,23 +47,25 @@ if(DDSC_ENABLE_OPENSSL)
     if(CMAKE_GENERATOR MATCHES "Visual Studio")
       set_target_properties(ddsc PROPERTIES LINK_FLAGS "/ignore:4099")
     endif()
+    message(STATUS "Building with OpenSSL support")
   else()
-    message(FATAL_ERROR "To build without openssl support, set DDSC_ENABLE_OPENSSL to OFF")
+    message(STATUS "Building without OpenSSL support")
   endif()
 endif()
 
 include(ddsi/CMakeLists.txt)
 include(ddsc/CMakeLists.txt)
 
-target_link_libraries(ddsc PRIVATE util)
 target_link_libraries(ddsc PRIVATE ddsrt)
+target_compile_definitions(
+  ddsc PUBLIC
+  $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_COMPILE_DEFINITIONS>>)
 target_include_directories(
-  ddsc PUBLIC $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>)
+  ddsc PUBLIC
+  $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 # SOVERSION should increase on incompatible ABI change
 set_target_properties(ddsc PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
-
-set_target_file_ids(ddsc)
 
 # Create a pseudo-target that other targets (i.e. examples, tests) can depend
 # on and can also be provided as import-target by a package-file when building
@@ -73,4 +80,6 @@ install(
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
 )
 
-add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/xtests")
+if(BUILD_IDLC)
+  add_subdirectory(xtests)
+endif()

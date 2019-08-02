@@ -19,6 +19,10 @@
 #include "dds/ddsi/q_rtps.h" /* for nn_guid_t, nn_guid_prefix_t */
 #include "dds/ddsi/q_protocol.h" /* for nn_sequence_number_t */
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 inline uint16_t bswap2u (uint16_t x)
 {
   return (uint16_t) ((x >> 8) | (x << 8));
@@ -82,10 +86,6 @@ inline void bswapSN (nn_sequence_number_t *sn)
 #define fromBE4u(x) (x)
 #define fromBE8(x) (x)
 #define fromBE8u(x) (x)
-#endif
-
-#if defined (__cplusplus)
-extern "C" {
 #endif
 
 nn_guid_prefix_t nn_hton_guid_prefix (nn_guid_prefix_t p);

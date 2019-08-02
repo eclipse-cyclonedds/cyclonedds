@@ -49,7 +49,7 @@ static void config__check_env(
         }
 
         if ( !env_ok ) {
-            dds_retcode_t r;
+            dds_return_t r;
 
             r = ddsrt_setenv(env_variable, expected_value);
             CU_ASSERT_EQUAL_FATAL(r, DDS_RETCODE_OK);

@@ -11,6 +11,7 @@
 #
 add_executable(pubsub pubsub.c common.c testtype.c porting.c)
 target_link_libraries(pubsub ddsc)
+
 if(WIN32)
   target_compile_definitions(pubsub PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()

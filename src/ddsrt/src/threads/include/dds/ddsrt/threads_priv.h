@@ -14,12 +14,6 @@
 
 #include "dds/ddsrt/threads.h"
 
-typedef struct {
-  char *name;
-  ddsrt_thread_routine_t routine;
-  void *arg;
-} thread_context_t;
-
 /** \brief Internal structure used to store cleanup handlers (private) */
 typedef struct {
   void *prev;

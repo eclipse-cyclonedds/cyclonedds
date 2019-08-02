@@ -54,20 +54,6 @@ typedef struct dds_allocator
 }
 dds_allocator_t;
 
-DDS_EXPORT void dds_set_allocator (const dds_allocator_t * __restrict n, dds_allocator_t * __restrict o);
-
-typedef struct dds_aligned_allocator
-{
-  /* size is a multiple of align, align is a power of 2 no less than
-     the machine's page size, returned pointer MUST be aligned to at
-     least align. */
-  void * (*alloc) (size_t size, size_t align);
-  void (*free) (size_t size, void *ptr);
-}
-dds_aligned_allocator_t;
-
-DDS_EXPORT void dds_set_aligned_allocator (const dds_aligned_allocator_t * __restrict n, dds_aligned_allocator_t * __restrict o);
-
 DDS_EXPORT void * dds_alloc (size_t size);
 DDS_EXPORT void * dds_realloc (void * ptr, size_t size);
 DDS_EXPORT void * dds_realloc_zero (void * ptr, size_t size);

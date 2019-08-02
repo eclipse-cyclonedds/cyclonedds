@@ -35,8 +35,8 @@ typedef struct {
 typedef struct nn_sequence_number_set {
   nn_sequence_number_t bitmap_base;
   uint32_t numbits;
-  uint32_t bits[1];
-} nn_sequence_number_set_t; /* Why strict C90? zero-length/flexible array members are far nicer */
+  uint32_t bits[];
+} nn_sequence_number_set_t;
 /* SequenceNumberSet size is base (2 words) + numbits (1 word) +
    bitmap ((numbits+31)/32 words), and this at 4 bytes/word */
 #define NN_SEQUENCE_NUMBER_SET_BITS_SIZE(numbits) ((unsigned) (4 * (((numbits) + 31) / 32)))
@@ -45,7 +45,7 @@ typedef unsigned nn_fragment_number_t;
 typedef struct nn_fragment_number_set {
   nn_fragment_number_t bitmap_base;
   uint32_t numbits;
-  uint32_t bits[1];
+  uint32_t bits[];
 } nn_fragment_number_set_t;
 /* FragmentNumberSet size is base (2 words) + numbits (1 word) +
    bitmap ((numbits+31)/32 words), and this at 4 bytes/word */
@@ -61,20 +61,6 @@ typedef struct {
   uint32_t port;
   unsigned char address[16];
 } nn_locator_t;
-
-typedef struct nn_udpv4mcgen_address {
-  /* base IPv4 MC address is ipv4, host bits are bits base .. base+count-1, this machine is bit idx */
-  struct in_addr ipv4;
-  uint8_t base;
-  uint8_t count;
-  uint8_t idx; /* must be last: then sorting will put them consecutively */
-} nn_udpv4mcgen_address_t;
-
-
-struct cdrstring {
-  uint32_t length;
-  unsigned char contents[1]; /* C90 does not support flex. array members */
-};
 
 #define NN_STATUSINFO_DISPOSE      0x1u
 #define NN_STATUSINFO_UNREGISTER   0x2u
@@ -130,8 +116,10 @@ typedef struct Header {
 } Header_t;
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 #define NN_PROTOCOLID_AS_UINT32 (((uint32_t)'R' << 0) | ((uint32_t)'T' << 8) | ((uint32_t)'P' << 16) | ((uint32_t)'S' << 24))
-#else
+#elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
 #define NN_PROTOCOLID_AS_UINT32 (((uint32_t)'R' << 24) | ((uint32_t)'T' << 16) | ((uint32_t)'P' << 8) | ((uint32_t)'S' << 0))
+#else
+#error "DDSRT_ENDIAN neither LITTLE nor BIG"
 #endif
 #define RTPS_MESSAGE_HEADER_SIZE (sizeof (Header_t))
 
@@ -165,7 +153,7 @@ typedef enum SubmessageKind {
 
 typedef struct InfoTimestamp {
   SubmessageHeader_t smhdr;
-  nn_ddsi_time_t time;
+  ddsi_time_t time;
 } InfoTimestamp_t;
 
 typedef struct EntityId {
@@ -194,7 +182,7 @@ typedef struct InfoSRC {
 #define PL_CDR_LE 0x0003u
 #endif
 
-typedef unsigned short nn_parameterid_t; /* spec says short */
+typedef uint16_t nn_parameterid_t; /* spec says short */
 typedef struct nn_parameter {
   nn_parameterid_t parameterid;
   uint16_t length; /* spec says signed short */
@@ -255,7 +243,7 @@ typedef struct Gap {
 
 typedef struct InfoTS {
   SubmessageHeader_t smhdr;
-  nn_ddsi_time_t time;
+  ddsi_time_t time;
 } InfoTS_t;
 #define INFOTS_INVALIDATE_FLAG 0x2u
 
@@ -315,7 +303,7 @@ typedef struct ParticipantMessageData {
   nn_guid_prefix_t participantGuidPrefix;
   uint32_t kind; /* really 4 octets */
   uint32_t length;
-  char value[1 /* length */];
+  char value[];
 } ParticipantMessageData_t;
 #define PARTICIPANT_MESSAGE_DATA_KIND_UNKNOWN 0x0u
 #define PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE 0x1u
@@ -387,14 +375,6 @@ typedef struct ParticipantMessageData {
 /* Security related PID values. */
 #define PID_IDENTITY_TOKEN                      0x1001u
 #define PID_PERMISSIONS_TOKEN                   0x1002u
-
-#define PID_RTI_TYPECODE                        (PID_VENDORSPECIFIC_FLAG | 0x4u)
-
-#ifdef DDSI_INCLUDE_SSM
-/* To indicate whether a reader favours the use of SSM.  Iff the
-   reader favours SSM, it will use SSM if available. */
-#define PID_READER_FAVOURS_SSM                  0x72u
-#endif
 
 #ifdef DDSI_INCLUDE_SSM
 /* To indicate whether a reader favours the use of SSM.  Iff the

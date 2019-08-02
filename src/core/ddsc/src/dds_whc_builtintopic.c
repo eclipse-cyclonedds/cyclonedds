@@ -44,9 +44,7 @@ struct bwhc_iter {
 };
 
 /* check that our definition of whc_sample_iter fits in the type that callers allocate */
-struct bwhc_sample_iter_sizecheck {
-  char fits_in_generic_type[sizeof(struct bwhc_iter) <= sizeof(struct whc_sample_iter) ? 1 : -1];
-};
+DDSRT_STATIC_ASSERT (sizeof (struct bwhc_iter) <= sizeof (struct whc_sample_iter));
 
 static void bwhc_free (struct whc *whc_generic)
 {
@@ -64,7 +62,7 @@ static void bwhc_sample_iter_init (const struct whc *whc_generic, struct whc_sam
 static bool is_visible (const struct entity_common *e)
 {
   const nn_vendorid_t vendorid = get_entity_vendorid (e);
-  return ddsi_plugin.builtintopic_is_visible (e->guid.entityid, e->onlylocal, vendorid);
+  return ddsi_plugin.builtintopic_is_visible (&e->guid, vendorid);
 }
 
 static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, struct whc_borrowed_sample *sample)

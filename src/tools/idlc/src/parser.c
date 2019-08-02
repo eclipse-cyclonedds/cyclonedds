@@ -36,7 +36,7 @@ static void log_write_to_file(void *ptr, const dds_log_data_t *data)
   fflush((FILE *)ptr);
 }
 
-dds_retcode_t ddsts_idl_parse_file(const char *file, ddsts_type_t **ref_root_type)
+dds_return_t ddsts_idl_parse_file(const char *file, ddsts_type_t **ref_root_type)
 {
   if (file == NULL || ref_root_type == NULL) {
     return DDS_RETCODE_BAD_PARAMETER;
@@ -63,7 +63,7 @@ DDSRT_WARNING_MSVC_ON(4996);
   ddsts_parser_lex_init(&scanner);
   ddsts_parser_set_in(fh, scanner);
   int parse_result = ddsts_parser_parse(scanner, context);
-  dds_retcode_t rc = parse_result == 2 ? DDS_RETCODE_OUT_OF_RESOURCES : ddsts_context_get_retcode(context);
+  dds_return_t rc = parse_result == 2 ? DDS_RETCODE_OUT_OF_RESOURCES : ddsts_context_get_retcode(context);
   if (rc == DDS_RETCODE_OK) {
     *ref_root_type = ddsts_context_take_root_type(context);
   }
@@ -77,7 +77,7 @@ DDSRT_WARNING_MSVC_ON(4996);
 }
 
 
-dds_retcode_t ddsts_idl_parse_string(const char *str, ddsts_type_t **ref_root_type)
+dds_return_t ddsts_idl_parse_string(const char *str, ddsts_type_t **ref_root_type)
 {
   if (str == NULL || ref_root_type == NULL) {
     return DDS_RETCODE_BAD_PARAMETER;
@@ -95,7 +95,7 @@ dds_retcode_t ddsts_idl_parse_string(const char *str, ddsts_type_t **ref_root_ty
   ddsts_parser_lex_init(&scanner);
   ddsts_parser__scan_string(str, scanner);
   int parse_result = ddsts_parser_parse(scanner, context);
-  dds_retcode_t rc = parse_result == 2 ? DDS_RETCODE_OUT_OF_RESOURCES : ddsts_context_get_retcode(context);
+  dds_return_t rc = parse_result == 2 ? DDS_RETCODE_OUT_OF_RESOURCES : ddsts_context_get_retcode(context);
   if (rc == DDS_RETCODE_OK) {
     *ref_root_type = ddsts_context_take_root_type(context);
   }

@@ -104,10 +104,10 @@ typedef union ddsts_type ddsts_type_t;
  *
  * @param[in]  type   A pointer to a type. Pointer may be NULL.
  *
- * @returns A dds_retcode_t indicating success or failure. Returns failure
+ * @returns A dds_return_t indicating success or failure. Returns failure
  * when the type is part of another type.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_free_type(ddsts_type_t *type);
 
 typedef struct ddsts_typespec ddsts_typespec_t;
@@ -135,9 +135,9 @@ typedef struct {
  * @param[in]   flags   One of DDSTS_SHORT to and including DDSTS_ANY.
  * @param[out]  result  Pointer to the created ddsts_base_type_t struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_create_base_type(ddsts_flags_t flags, ddsts_type_t **result);
 
 /* Sequence type (sequence_type) */
@@ -159,9 +159,9 @@ typedef struct {
  *                            sequence.
  * @param[out]  result        Pointer to the created ddsts_sequence_t struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_create_sequence(ddsts_type_t *element_type, unsigned long long max, ddsts_type_t **result);
 
 /* Array type */
@@ -182,9 +182,9 @@ typedef struct {
  *                            array.
  * @param[out]  result        Pointer to the created ddsts_array_t struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_create_array(ddsts_type_t *element_type, unsigned long long size, ddsts_type_t **result);
 
 /**
@@ -197,9 +197,9 @@ ddsts_create_array(ddsts_type_t *element_type, unsigned long long size, ddsts_ty
  *                             is not owned yet, it will be owned by the created
  *                             ddsts_array_t struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_array_set_element_type(ddsts_type_t *array, ddsts_type_t *element_type);
 
 /* (Wide) string type (string_type, wide_string_type) */
@@ -217,9 +217,9 @@ typedef struct {
  *                       string.
  * @param[out]  result   Pointer to the created ddsts_string_t struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_create_string(ddsts_flags_t flags, unsigned long long max, ddsts_type_t **result);
 
 /* Fixed point type (fixed_pt_type) */
@@ -238,9 +238,9 @@ typedef struct {
  *                               fraction digits.
  * @param[out]  result           Pointer to the created ddsts_fixed_pt_t struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_create_fixed_pt(unsigned long long digits, unsigned long long fraction_digits, ddsts_type_t **result);
 
 /* Map type (map_type) */
@@ -265,9 +265,9 @@ typedef struct {
  *                          map.
  * @param[out]  result      Pointer to the created ddsts_map_t struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_create_map(ddsts_type_t *key_type, ddsts_type_t *value_type, unsigned long long max, ddsts_type_t **result);
 
 /* Module declaration (module_dcl)
@@ -287,9 +287,9 @@ struct ddsts_module {
  *                      owned by the created ddsts_module_t struct.
  * @param[out]  result  Pointer to the created ddsts_module_t struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_create_module(ddsts_identifier_t name, ddsts_type_t **result);
 
 /**
@@ -306,9 +306,9 @@ ddsts_create_module(ddsts_identifier_t name, ddsts_type_t **result);
  *                       struct member of matching previous forward declaration
  *                       are set to this struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_module_add_member(ddsts_type_t *module, ddsts_type_t *member);
 
 /* Forward declaration */
@@ -329,9 +329,9 @@ typedef struct {
  *                      owned by the created ddsts_forward_t struct.
  * @param[out]  result  Pointer to the created ddsts_forward_t struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_create_struct_forward_dcl(ddsts_identifier_t name, ddsts_type_t **result);
 
 /* Struct declaration (struct_def)
@@ -357,9 +357,9 @@ struct ddsts_struct_key {
  *                      owned by the created ddsts_struct_t struct.
  * @param[out]  result  Pointer to the created ddsts_struct_t struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_create_struct(ddsts_identifier_t name, ddsts_type_t **result);
 
 /**
@@ -370,9 +370,9 @@ ddsts_create_struct(ddsts_identifier_t name, ddsts_type_t **result);
  *                           owned yet. If the function returns success, the
  *                           member type will be owned by the struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_struct_add_member(ddsts_type_t *struct_def, ddsts_type_t *member);
 
 /**
@@ -382,12 +382,12 @@ ddsts_struct_add_member(ddsts_type_t *struct_def, ddsts_type_t *member);
  * @param[in]    member      A non-NULL pointer to a member type that
  *                           belongs to the struct.
  *
- * @returns A dds_retcode_t indicating success or failure. On success a
+ * @returns A dds_return_t indicating success or failure. On success a
  * struct ddsts_struct_key_t pointing to the member will be added to the
  * keys of struct_def. DDS_RETCODE_ERROR is returned when the member is
  * already included as a key.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_struct_add_key(ddsts_type_t *struct_def, ddsts_type_t *member);
 
 /* Declaration
@@ -409,9 +409,9 @@ typedef struct {
  *                         ddsts_declaration_t struct.
  * @param[out]  result     Pointer to the created ddsts_declaration_t struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_create_declaration(ddsts_identifier_t name, ddsts_type_t *decl_type, ddsts_type_t **result);
 
 /**
@@ -424,9 +424,9 @@ ddsts_create_declaration(ddsts_identifier_t name, ddsts_type_t *decl_type, ddsts
  *                             is not owned yet, it will be owned by the created
  *                             ddsts_declaration_t struct.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_declaration_set_type(ddsts_type_t *declaration, ddsts_type_t *type);
 
 
@@ -466,9 +466,9 @@ struct ddsts_call_path {
  *                      path, otherwise false. Undefined in case of failure
  *                      due to error.
  *
- * @returns A dds_retcode_t indication success or failure.
+ * @returns A dds_return_t indication success or failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsts_declaration_is_key(ddsts_call_path_t *path, bool *is_key);
 
 #endif /* DDS_TYPE_TYPETREE_H */

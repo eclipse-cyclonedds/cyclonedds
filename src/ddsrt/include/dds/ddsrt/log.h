@@ -25,6 +25,7 @@
 #include <stdio.h>
 
 #include "dds/export.h"
+#include "dds/ddsrt/attributes.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -199,7 +200,8 @@ dds_log(
     uint32_t line,
     const char *func,
     const char *fmt,
-    ...);
+    ...)
+  ddsrt_attribute_format((__printf__, 5, 6));
 
 /**
  * @brief Undecorated function name of the current function.

@@ -207,6 +207,11 @@ public class UnionType extends AbstractType implements NamedType
     less than the alignment of the members. */
   }
 
+  public boolean containsUnion ()
+  {
+    return true;
+  }
+
   public Alignment getAlignment ()
   {
     Alignment result = discriminant.getAlignment ();

@@ -14,10 +14,6 @@
 #include "dds/ddsrt/time.h"
 #include "dds/ddsi/q_time.h"
 
-const nn_ddsi_time_t invalid_ddsi_timestamp = { -1, UINT32_MAX };
-const nn_ddsi_time_t ddsi_time_infinite = { INT32_MAX, UINT32_MAX };
-const nn_duration_t duration_infinite = { INT32_MAX, UINT32_MAX };
-
 nn_wctime_t now (void)
 {
   /* This function uses the wall clock.
@@ -51,23 +47,23 @@ nn_etime_t now_et (void)
   return t;
 }
 
-static void time_to_sec_usec (int * __restrict sec, int * __restrict usec, int64_t t)
+static void time_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, int64_t t)
 {
-  *sec = (int) (t / T_SECOND);
-  *usec = (int) (t % T_SECOND) / 1000;
+  *sec = (int32_t) (t / T_SECOND);
+  *usec = (int32_t) (t % T_SECOND) / 1000;
 }
 
-void mtime_to_sec_usec (int * __restrict sec, int * __restrict usec, nn_mtime_t t)
-{
-  time_to_sec_usec (sec, usec, t.v);
-}
-
-void wctime_to_sec_usec (int * __restrict sec, int * __restrict usec, nn_wctime_t t)
+void mtime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, nn_mtime_t t)
 {
   time_to_sec_usec (sec, usec, t.v);
 }
 
-void etime_to_sec_usec (int * __restrict sec, int * __restrict usec, nn_etime_t t)
+void wctime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, nn_wctime_t t)
+{
+  time_to_sec_usec (sec, usec, t.v);
+}
+
+void etime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, nn_etime_t t)
 {
   time_to_sec_usec (sec, usec, t.v);
 }
@@ -131,21 +127,21 @@ nn_etime_t add_duration_to_etime (nn_etime_t t, int64_t d)
   return u;
 }
 
-int valid_ddsi_timestamp (nn_ddsi_time_t t)
+int valid_ddsi_timestamp (ddsi_time_t t)
 {
-  return t.seconds != invalid_ddsi_timestamp.seconds && t.fraction != invalid_ddsi_timestamp.fraction;
+  return t.seconds != DDSI_TIME_INVALID.seconds && t.fraction != DDSI_TIME_INVALID.fraction;
 }
 
-static nn_ddsi_time_t nn_to_ddsi_time (int64_t t)
+static ddsi_time_t nn_to_ddsi_time (int64_t t)
 {
   if (t == T_NEVER)
-    return ddsi_time_infinite;
+    return DDSI_TIME_INFINITE;
   else
   {
     /* ceiling(ns * 2^32/10^9) -- can't change the ceiling to round-to-nearest
        because that would break backwards compatibility, but round-to-nearest
        of the inverse is correctly rounded anyway, so it shouldn't ever matter. */
-    nn_ddsi_time_t x;
+    ddsi_time_t x;
     int ns = (int) (t % T_SECOND);
     x.seconds = (int) (t / T_SECOND);
     x.fraction = (unsigned) (((T_SECOND-1) + ((int64_t) ns << 32)) / T_SECOND);
@@ -153,14 +149,14 @@ static nn_ddsi_time_t nn_to_ddsi_time (int64_t t)
   }
 }
 
-nn_ddsi_time_t nn_wctime_to_ddsi_time (nn_wctime_t t)
+ddsi_time_t nn_wctime_to_ddsi_time (nn_wctime_t t)
 {
   return nn_to_ddsi_time (t.v);
 }
 
-static int64_t nn_from_ddsi_time (nn_ddsi_time_t x)
+static int64_t nn_from_ddsi_time (ddsi_time_t x)
 {
-  if (x.seconds == ddsi_time_infinite.seconds && x.fraction == ddsi_time_infinite.fraction)
+  if (x.seconds == DDSI_TIME_INFINITE.seconds && x.fraction == DDSI_TIME_INFINITE.fraction)
     return T_NEVER;
   else
   {
@@ -170,19 +166,19 @@ static int64_t nn_from_ddsi_time (nn_ddsi_time_t x)
   }
 }
 
-nn_wctime_t nn_wctime_from_ddsi_time (nn_ddsi_time_t x)
+nn_wctime_t nn_wctime_from_ddsi_time (ddsi_time_t x)
 {
   nn_wctime_t t;
   t.v = nn_from_ddsi_time (x);
   return t;
 }
 
-nn_duration_t nn_to_ddsi_duration (int64_t x)
+ddsi_duration_t nn_to_ddsi_duration (int64_t x)
 {
   return nn_to_ddsi_time (x);
 }
 
-int64_t nn_from_ddsi_duration (nn_duration_t x)
+int64_t nn_from_ddsi_duration (ddsi_duration_t x)
 {
   return nn_from_ddsi_time (x);
 }

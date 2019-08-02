@@ -16,11 +16,12 @@
 
 #include "dds/dds.h"
 #include "dds/ddsrt/heap.h"
-#include "dds/ddsi/q_md5.h"
+#include "dds/ddsrt/md5.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_iid.h"
 #include "dds__serdata_builtintopic.h"
 
 /* FIXME: sertopic /= ddstopic so a lot of stuff needs to be moved here from dds_topic.c and the free function needs to be implemented properly */
@@ -30,23 +31,24 @@ struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic
   struct ddsi_sertopic_builtintopic *tp = ddsrt_malloc (sizeof (*tp));
   tp->c.iid = ddsi_iid_gen();
   tp->c.name = dds_string_dup (name);
-  tp->c.typename = dds_string_dup (typename);
-  const size_t name_typename_size = strlen (tp->c.name) + 1 + strlen (tp->c.typename) + 1;
-  tp->c.name_typename = dds_alloc (name_typename_size);
-  snprintf (tp->c.name_typename, name_typename_size, "%s/%s", tp->c.name, tp->c.typename);
+  tp->c.type_name = dds_string_dup (typename);
+  const size_t name_typename_size = strlen (tp->c.name) + 1 + strlen (tp->c.type_name) + 1;
+  tp->c.name_type_name = dds_alloc (name_typename_size);
+  snprintf (tp->c.name_type_name, name_typename_size, "%s/%s", tp->c.name, tp->c.type_name);
   tp->c.ops = &ddsi_sertopic_ops_builtintopic;
   tp->c.serdata_ops = &ddsi_serdata_ops_builtintopic;
   tp->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (tp->c.serdata_ops);
-  tp->c.status_cb = 0;
-  tp->c.status_cb_entity = NULL;
   ddsrt_atomic_st32 (&tp->c.refc, 1);
   tp->type = type;
   return &tp->c;
 }
 
-static void sertopic_builtin_deinit (struct ddsi_sertopic *tp)
+static void sertopic_builtin_free (struct ddsi_sertopic *tp)
 {
-  (void)tp;
+  ddsrt_free (tp->name_type_name);
+  ddsrt_free (tp->name);
+  ddsrt_free (tp->type_name);
+  ddsrt_free (tp);
 }
 
 static void free_pp (void *vsample)
@@ -140,7 +142,7 @@ static void sertopic_builtin_free_samples (const struct ddsi_sertopic *sertopic_
 }
 
 const struct ddsi_sertopic_ops ddsi_sertopic_ops_builtintopic = {
-  .deinit = sertopic_builtin_deinit,
+  .free = sertopic_builtin_free,
   .zero_samples = sertopic_builtin_zero_samples,
   .realloc_samples = sertopic_builtin_realloc_samples,
   .free_samples = sertopic_builtin_free_samples

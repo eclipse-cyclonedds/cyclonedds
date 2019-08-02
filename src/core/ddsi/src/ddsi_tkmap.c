@@ -22,7 +22,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/util/ut_hopscotch.h"
+#include "dds/ddsrt/hopscotch.h"
 #include "dds__stream.h"
 #include "dds/ddsi/ddsi_serdata.h"
 
@@ -31,7 +31,7 @@
 
 struct ddsi_tkmap
 {
-  struct ut_chh * m_hh;
+  struct ddsrt_chh * m_hh;
   ddsrt_mutex_t m_lock;
   ddsrt_cond_t m_cond;
 };
@@ -87,7 +87,7 @@ static int dds_tk_equals_void (const void *a, const void *b)
 struct ddsi_tkmap *ddsi_tkmap_new (void)
 {
   struct ddsi_tkmap *tkmap = dds_alloc (sizeof (*tkmap));
-  tkmap->m_hh = ut_chhNew (1, dds_tk_hash_void, dds_tk_equals_void, gc_buckets);
+  tkmap->m_hh = ddsrt_chh_new (1, dds_tk_hash_void, dds_tk_equals_void, gc_buckets);
   ddsrt_mutex_init (&tkmap->m_lock);
   ddsrt_cond_init (&tkmap->m_cond);
   return tkmap;
@@ -102,8 +102,8 @@ static void free_tkmap_instance (void *vtk, UNUSED_ARG(void *f_arg))
 
 void ddsi_tkmap_free (struct ddsi_tkmap * map)
 {
-  ut_chhEnumUnsafe (map->m_hh, free_tkmap_instance, NULL);
-  ut_chhFree (map->m_hh);
+  ddsrt_chh_enum_unsafe (map->m_hh, free_tkmap_instance, NULL);
+  ddsrt_chh_free (map->m_hh);
   ddsrt_cond_destroy (&map->m_cond);
   ddsrt_mutex_destroy (&map->m_lock);
   dds_free (map);
@@ -113,20 +113,20 @@ uint64_t ddsi_tkmap_lookup (struct ddsi_tkmap * map, const struct ddsi_serdata *
 {
   struct ddsi_tkmap_instance dummy;
   struct ddsi_tkmap_instance * tk;
-  assert (vtime_awake_p(lookup_thread_state()->vtime));
+  assert (thread_is_awake ());
   dummy.m_sample = (struct ddsi_serdata *) sd;
-  tk = ut_chhLookup (map->m_hh, &dummy);
+  tk = ddsrt_chh_lookup (map->m_hh, &dummy);
   return (tk) ? tk->m_iid : DDS_HANDLE_NIL;
 }
 
 struct ddsi_tkmap_instance *ddsi_tkmap_find_by_id (struct ddsi_tkmap *map, uint64_t iid)
 {
   /* This is not a function that should be used liberally, as it linearly scans the key-to-iid map. */
-  struct ut_chhIter it;
+  struct ddsrt_chh_iter it;
   struct ddsi_tkmap_instance *tk;
   uint32_t refc;
-  assert (vtime_awake_p(lookup_thread_state()->vtime));
-  for (tk = ut_chhIterFirst (map->m_hh, &it); tk; tk = ut_chhIterNext (&it))
+  assert (thread_is_awake ());
+  for (tk = ddsrt_chh_iter_first (map->m_hh, &it); tk; tk = ddsrt_chh_iter_next (&it))
     if (tk->m_iid == iid)
       break;
   if (tk == NULL)
@@ -162,10 +162,10 @@ ddsi_tkmap_find(
   struct ddsi_tkmap_instance * tk;
   struct ddsi_tkmap * map = gv.m_tkmap;
 
-  assert (vtime_awake_p(lookup_thread_state()->vtime));
+  assert (thread_is_awake ());
   dummy.m_sample = sd;
 retry:
-  if ((tk = ut_chhLookup(map->m_hh, &dummy)) != NULL)
+  if ((tk = ddsrt_chh_lookup(map->m_hh, &dummy)) != NULL)
   {
     uint32_t new;
     new = ddsrt_atomic_inc32_nv(&tk->m_refc);
@@ -178,7 +178,7 @@ retry:
        we can block until someone signals some entry is removed from the map if we take
        some lock & wait for some condition */
       ddsrt_mutex_lock(&map->m_lock);
-      while ((tk = ut_chhLookup(map->m_hh, &dummy)) != NULL && (ddsrt_atomic_ld32(&tk->m_refc) & REFC_DELETE))
+      while ((tk = ddsrt_chh_lookup(map->m_hh, &dummy)) != NULL && (ddsrt_atomic_ld32(&tk->m_refc) & REFC_DELETE))
         ddsrt_cond_wait(&map->m_cond, &map->m_lock);
       ddsrt_mutex_unlock(&map->m_lock);
       goto retry;
@@ -192,7 +192,7 @@ retry:
     tk->m_sample = ddsi_serdata_to_topicless (sd);
     ddsrt_atomic_st32 (&tk->m_refc, 1);
     tk->m_iid = ddsi_iid_gen ();
-    if (!ut_chhAdd (map->m_hh, tk))
+    if (!ddsrt_chh_add (map->m_hh, tk))
     {
       /* Lost a race from another thread, retry */
       ddsi_serdata_unref (tk->m_sample);
@@ -203,7 +203,7 @@ retry:
 
   if (tk && rd)
   {
-    DDS_TRACE("tk=%p iid=%"PRIx64" ", (void *) &tk, tk->m_iid);
+    DDS_TRACE("tk=%p iid=%"PRIx64" ", (void *) tk, tk->m_iid);
   }
   return tk;
 }
@@ -221,7 +221,7 @@ void ddsi_tkmap_instance_ref (struct ddsi_tkmap_instance *tk)
 void ddsi_tkmap_instance_unref (struct ddsi_tkmap_instance * tk)
 {
   uint32_t old, new;
-  assert (vtime_awake_p(lookup_thread_state()->vtime));
+  assert (thread_is_awake ());
   do {
     old = ddsrt_atomic_ld32(&tk->m_refc);
     if (old == 1)
@@ -237,7 +237,7 @@ void ddsi_tkmap_instance_unref (struct ddsi_tkmap_instance * tk)
     struct ddsi_tkmap *map = gv.m_tkmap;
 
     /* Remove from hash table */
-    int removed = ut_chhRemove(map->m_hh, tk);
+    int removed = ddsrt_chh_remove(map->m_hh, tk);
     assert (removed);
     (void)removed;
 

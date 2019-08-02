@@ -18,6 +18,7 @@
 #include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_globals.h"
 
 int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr *const sa2)
 {
@@ -131,7 +132,7 @@ char *ddsi_ipaddr_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_
       if (with_port) {
         pos = strlen (dst);
         assert(pos <= sizeof_dst);
-        snprintf (dst + pos, sizeof_dst - pos, ":%d", loc->port);
+        snprintf (dst + pos, sizeof_dst - pos, ":%"PRIu32, loc->port);
       }
       break;
 #if DDSRT_HAVE_IPV6
@@ -141,7 +142,7 @@ char *ddsi_ipaddr_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_
       pos = strlen (dst);
       if (with_port) {
         assert(pos <= sizeof_dst);
-        snprintf (dst + pos, sizeof_dst - pos, "]:%u", loc->port);
+        snprintf (dst + pos, sizeof_dst - pos, "]:%"PRIu32, loc->port);
       } else {
         snprintf (dst + pos, sizeof_dst - pos, "]");
       }

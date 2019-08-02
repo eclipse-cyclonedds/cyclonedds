@@ -11,6 +11,10 @@
  */
 #include <atomic.h>
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 #define DDSRT_ATOMIC64_SUPPORT 1
 
 /* LD, ST */
@@ -35,6 +39,11 @@ inline void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x) {
 }
 inline void ddsrt_atomic_incptr (volatile ddsrt_atomic_uintptr_t *x) {
   atomic_inc_ulong (&x->v);
+}
+inline uint32_t ddsrt_atomic_inc32_ov (volatile ddsrt_atomic_uint32_t *x) {
+  uint32_t oldval, newval;
+  do { oldval = x->v; newval = oldval + 1; } while (atomic_cas_32 (&x->v, oldval, newval) != oldval);
+  return oldval;
 }
 inline uint32_t ddsrt_atomic_inc32_nv (volatile ddsrt_atomic_uint32_t *x) {
   return atomic_inc_32_nv (&x->v);
@@ -96,6 +105,9 @@ inline void ddsrt_atomic_addptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v
 inline void ddsrt_atomic_addvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
   atomic_add_ptr (&x->v, v);
 }
+inline uint32_t ddsrt_atomic_add32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
+  return atomic_add_32_nv (&x->v, v) - v;
+}
 inline uint32_t ddsrt_atomic_add32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return atomic_add_32_nv (&x->v, v);
 }
@@ -122,6 +134,9 @@ inline void ddsrt_atomic_subptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v
 }
 inline void ddsrt_atomic_subvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
   atomic_add_ptr (&x->v, -v);
+}
+inline uint32_t ddsrt_atomic_sub32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
+  return atomic_add_32_nv (&x->v, -v) + v;
 }
 inline uint32_t ddsrt_atomic_sub32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return atomic_add_32_nv (&x->v, -v);
@@ -239,3 +254,6 @@ inline void ddsrt_atomic_fence_rel (void) {
   membar_exit ();
 }
 
+#if defined (__cplusplus)
+}
+#endif

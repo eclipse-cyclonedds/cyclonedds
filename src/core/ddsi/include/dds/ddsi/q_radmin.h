@@ -14,7 +14,6 @@
 
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/threads.h"
-#include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/ddsi_tran.h"
 
 #if defined (__cplusplus)
@@ -48,15 +47,15 @@ struct nn_rmsg_chunk {
      nn_rmsg_setsize after receiving a packet from the kernel and
      before processing it.  */
   uint32_t size;
-  union {
-    /* payload array stretched to whatever it really is */
-    unsigned char payload[1];
 
-    /* to ensure reasonable alignment of payload[] */
+  /* to ensure reasonable alignment of payload[] */
+  union {
     int64_t l;
     double d;
     void *p;
   } u;
+  /* payload array stretched to whatever it really is */
+  unsigned char payload[];
 };
 
 struct nn_rmsg {
@@ -96,7 +95,7 @@ struct nn_rmsg {
 
   struct nn_rmsg_chunk chunk;
 };
-#define NN_RMSG_PAYLOAD(m) ((m)->chunk.u.payload)
+#define NN_RMSG_PAYLOAD(m) ((m)->chunk.payload)
 #define NN_RMSG_PAYLOADOFF(m, o) (NN_RMSG_PAYLOAD (m) + (o))
 
 struct receiver_state {
@@ -116,7 +115,7 @@ struct nn_rsample_info {
   struct proxy_writer *pwr;
   uint32_t size;
   uint32_t fragsize;
-  nn_ddsi_time_t timestamp;
+  nn_wctime_t timestamp;
   nn_wctime_t reception_timestamp; /* OpenSplice extension -- but we get it essentially for free, so why not? */
   unsigned statusinfo: 2;       /* just the two defined bits from the status info */
   unsigned pt_wr_info_zoff: 16; /* PrismTech writer info offset */
@@ -228,6 +227,8 @@ seqno_t nn_reorder_next_seq (const struct nn_reorder *reorder);
 
 struct nn_dqueue *nn_dqueue_new (const char *name, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg);
 void nn_dqueue_free (struct nn_dqueue *q);
+bool nn_dqueue_enqueue_deferred_wakeup (struct nn_dqueue *q, struct nn_rsample_chain *sc, nn_reorder_result_t rres);
+void dd_dqueue_enqueue_trigger (struct nn_dqueue *q);
 void nn_dqueue_enqueue (struct nn_dqueue *q, struct nn_rsample_chain *sc, nn_reorder_result_t rres);
 void nn_dqueue_enqueue1 (struct nn_dqueue *q, const nn_guid_t *rdguid, struct nn_rsample_chain *sc, nn_reorder_result_t rres);
 void nn_dqueue_enqueue_callback (struct nn_dqueue *q, nn_dqueue_callback_t cb, void *arg);

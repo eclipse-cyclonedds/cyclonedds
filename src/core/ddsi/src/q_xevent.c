@@ -16,8 +16,8 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 
-#include "dds/util/ut_avl.h"
-#include "dds/util/ut_fibheap.h"
+#include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/fibheap.h"
 
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_log.h"
@@ -30,7 +30,6 @@
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_transmit.h"
-#include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_misc.h"
@@ -49,28 +48,19 @@
    != 0 -- and note that it had better be 2's complement machine! */
 #define TSCHED_DELETE ((int64_t) ((uint64_t) 1 << 63))
 
-#if __STDC_VERSION__ >= 199901L
-#define POS_INFINITY_DOUBLE INFINITY
-#else
-/* Hope for the best -- the only consequence of getting this wrong is
-   that T_NEVER may be printed as a fugly value instead of as +inf. */
-#define POS_INFINITY_DOUBLE (HUGE_VAL + HUGE_VAL)
-#endif
-
 enum xeventkind
 {
   XEVK_HEARTBEAT,
   XEVK_ACKNACK,
   XEVK_SPDP,
   XEVK_PMD_UPDATE,
-  XEVK_END_STARTUP_MODE,
   XEVK_DELETE_WRITER,
   XEVK_CALLBACK
 };
 
 struct xevent
 {
-  ut_fibheapNode_t heapnode;
+  ddsrt_fibheap_node_t heapnode;
   struct xeventq *evq;
   nn_mtime_t tsched;
   enum xeventkind kind;
@@ -93,10 +83,6 @@ struct xevent
 #if 0
     struct {
     } info;
-#endif
-#if 0
-    struct {
-    } end_startup_mode;
 #endif
     struct {
       nn_guid_t guid;
@@ -133,7 +119,7 @@ struct xevent_nt
       /* xmsg is self-contained / relies on reference counts */
       struct nn_xmsg *msg;
       size_t queued_rexmit_bytes;
-      ut_avlNode_t msg_avlnode;
+      ddsrt_avl_node_t msg_avlnode;
     } msg_rexmit;
     struct {
       /* xmsg is self-contained / relies on reference counts */
@@ -143,8 +129,8 @@ struct xevent_nt
 };
 
 struct xeventq {
-  ut_fibheap_t xevents;
-  ut_avlTree_t msg_xevents;
+  ddsrt_fibheap_t xevents;
+  ddsrt_avl_tree_t msg_xevents;
   struct xevent_nt *non_timed_xmit_list_oldest;
   struct xevent_nt *non_timed_xmit_list_newest; /* undefined if ..._oldest == NULL */
   size_t queued_rexmit_bytes;
@@ -163,10 +149,11 @@ static uint32_t xevent_thread (struct xeventq *xevq);
 static nn_mtime_t earliest_in_xeventq (struct xeventq *evq);
 static int msg_xevents_cmp (const void *a, const void *b);
 static int compare_xevent_tsched (const void *va, const void *vb);
+static void handle_nontimed_xevent (struct xevent_nt *xev, struct nn_xpack *xp);
 
-static const ut_avlTreedef_t msg_xevents_treedef = UT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct xevent_nt, u.msg_rexmit.msg_avlnode), offsetof (struct xevent_nt, u.msg_rexmit.msg), msg_xevents_cmp, 0);
+static const ddsrt_avl_treedef_t msg_xevents_treedef = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct xevent_nt, u.msg_rexmit.msg_avlnode), offsetof (struct xevent_nt, u.msg_rexmit.msg), msg_xevents_cmp, 0);
 
-static const ut_fibheapDef_t evq_xevents_fhdef = UT_FIBHEAPDEF_INITIALIZER(offsetof (struct xevent, heapnode), compare_xevent_tsched);
+static const ddsrt_fibheap_def_t evq_xevents_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct xevent, heapnode), compare_xevent_tsched);
 
 static int compare_xevent_tsched (const void *va, const void *vb)
 {
@@ -178,7 +165,7 @@ static int compare_xevent_tsched (const void *va, const void *vb)
 static void update_rexmit_counts (struct xeventq *evq, struct xevent_nt *ev)
 {
 #if 0
-  DDS_TRACE(("ZZZ(%p,%"PA_PRIuSIZE")", (void *) ev, ev->u.msg_rexmit.queued_rexmit_bytes);
+  DDS_TRACE("ZZZ(%p,%"PRIuSIZE")", (void *) ev, ev->u.msg_rexmit.queued_rexmit_bytes);
 #endif
   assert (ev->kind == XEVK_MSG_REXMIT);
   assert (ev->u.msg_rexmit.queued_rexmit_bytes <= evq->queued_rexmit_bytes);
@@ -196,7 +183,7 @@ static void trace_msg (const char *func, const struct nn_xmsg *m)
     seqno_t wrseq;
     nn_fragment_number_t wrfragid;
     nn_xmsg_guid_seq_fragid (m, &wrguid, &wrseq, &wrfragid);
-    DDS_TRACE(" %s(%x:%x:%x:%x/%"PRId64"/%u)", func, PGUID (wrguid), wrseq, wrfragid);
+    DDS_TRACE(" %s("PGUIDFMT"/%"PRId64"/%u)", func, PGUID (wrguid), wrseq, wrfragid);
   }
 }
 #else
@@ -209,21 +196,21 @@ static struct xevent_nt *lookup_msg (struct xeventq *evq, struct nn_xmsg *msg)
 {
   assert (nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT);
   trace_msg ("lookup-msg", msg);
-  return ut_avlLookup (&msg_xevents_treedef, &evq->msg_xevents, msg);
+  return ddsrt_avl_lookup (&msg_xevents_treedef, &evq->msg_xevents, msg);
 }
 
 static void remember_msg (struct xeventq *evq, struct xevent_nt *ev)
 {
   assert (ev->kind == XEVK_MSG_REXMIT);
   trace_msg ("remember-msg", ev->u.msg_rexmit.msg);
-  ut_avlInsert (&msg_xevents_treedef, &evq->msg_xevents, ev);
+  ddsrt_avl_insert (&msg_xevents_treedef, &evq->msg_xevents, ev);
 }
 
 static void forget_msg (struct xeventq *evq, struct xevent_nt *ev)
 {
   assert (ev->kind == XEVK_MSG_REXMIT);
   trace_msg ("forget-msg", ev->u.msg_rexmit.msg);
-  ut_avlDelete (&msg_xevents_treedef, &evq->msg_xevents, ev);
+  ddsrt_avl_delete (&msg_xevents_treedef, &evq->msg_xevents, ev);
 }
 
 static void add_to_non_timed_xmit_list (struct xeventq *evq, struct xevent_nt *ev)
@@ -312,31 +299,10 @@ static void free_xevent (struct xeventq *evq, struct xevent *ev)
       case XEVK_ACKNACK:
       case XEVK_SPDP:
       case XEVK_PMD_UPDATE:
-      case XEVK_END_STARTUP_MODE:
       case XEVK_DELETE_WRITER:
       case XEVK_CALLBACK:
         break;
     }
-  }
-  ddsrt_free (ev);
-}
-
-static void free_xevent_nt (struct xeventq *evq, struct xevent_nt *ev)
-{
-  assert (!nontimed_xevent_in_queue (evq, ev));
-  switch (ev->kind)
-  {
-    case XEVK_MSG:
-      nn_xmsg_free (ev->u.msg.msg);
-      break;
-    case XEVK_MSG_REXMIT:
-      assert (ut_avlLookup (&msg_xevents_treedef, &evq->msg_xevents, ev->u.msg_rexmit.msg) == NULL);
-      update_rexmit_counts (evq, ev);
-      nn_xmsg_free (ev->u.msg_rexmit.msg);
-      break;
-    case XEVK_ENTITYID:
-      nn_xmsg_free (ev->u.entityid.msg);
-      break;
   }
   ddsrt_free (ev);
 }
@@ -351,12 +317,12 @@ void delete_xevent (struct xevent *ev)
   if (ev->tsched.v != T_NEVER)
   {
     ev->tsched.v = TSCHED_DELETE;
-    ut_fibheapDecreaseKey (&evq_xevents_fhdef, &evq->xevents, ev);
+    ddsrt_fibheap_decrease_key (&evq_xevents_fhdef, &evq->xevents, ev);
   }
   else
   {
     ev->tsched.v = TSCHED_DELETE;
-    ut_fibheapInsert (&evq_xevents_fhdef, &evq->xevents, ev);
+    ddsrt_fibheap_insert (&evq_xevents_fhdef, &evq->xevents, ev);
   }
   /* TSCHED_DELETE is absolute minimum time, so chances are we need to
      wake up the thread.  The superfluous signal is harmless. */
@@ -384,12 +350,12 @@ int resched_xevent_if_earlier (struct xevent *ev, nn_mtime_t tsched)
     if (ev->tsched.v != T_NEVER)
     {
       ev->tsched = tsched;
-      ut_fibheapDecreaseKey (&evq_xevents_fhdef, &evq->xevents, ev);
+      ddsrt_fibheap_decrease_key (&evq_xevents_fhdef, &evq->xevents, ev);
     }
     else
     {
       ev->tsched = tsched;
-      ut_fibheapInsert (&evq_xevents_fhdef, &evq->xevents, ev);
+      ddsrt_fibheap_insert (&evq_xevents_fhdef, &evq->xevents, ev);
     }
     is_resched = 1;
     if (tsched.v < tbefore.v)
@@ -435,7 +401,7 @@ static nn_mtime_t earliest_in_xeventq (struct xeventq *evq)
 {
   struct xevent *min;
   ASSERT_MUTEX_HELD (&evq->lock);
-  if ((min = ut_fibheapMin (&evq_xevents_fhdef, &evq->xevents)) != NULL)
+  if ((min = ddsrt_fibheap_min (&evq_xevents_fhdef, &evq->xevents)) != NULL)
     return min->tsched;
   else
   {
@@ -453,7 +419,7 @@ static void qxev_insert (struct xevent *ev)
   if (ev->tsched.v != T_NEVER)
   {
     nn_mtime_t tbefore = earliest_in_xeventq (evq);
-    ut_fibheapInsert (&evq_xevents_fhdef, &evq->xevents, ev);
+    ddsrt_fibheap_insert (&evq_xevents_fhdef, &evq->xevents, ev);
     if (ev->tsched.v < tbefore.v)
       ddsrt_cond_signal (&evq->cond);
   }
@@ -485,8 +451,8 @@ struct xeventq * xeventq_new
   /* limit to 2GB to prevent overflow (4GB - 64kB should be ok, too) */
   if (max_queued_rexmit_bytes > 2147483648u)
     max_queued_rexmit_bytes = 2147483648u;
-  ut_fibheapInit (&evq_xevents_fhdef, &evq->xevents);
-  ut_avlInit (&msg_xevents_treedef, &evq->msg_xevents);
+  ddsrt_fibheap_init (&evq_xevents_fhdef, &evq->xevents);
+  ddsrt_avl_init (&msg_xevents_treedef, &evq->msg_xevents);
   evq->non_timed_xmit_list_oldest = NULL;
   evq->non_timed_xmit_list_newest = NULL;
   evq->terminate = 0;
@@ -502,8 +468,9 @@ struct xeventq * xeventq_new
   return evq;
 }
 
-int xeventq_start (struct xeventq *evq, const char *name)
+dds_return_t xeventq_start (struct xeventq *evq, const char *name)
 {
+  dds_return_t rc;
   char * evqname = "tev";
   assert (evq->ts == NULL);
 
@@ -515,13 +482,13 @@ int xeventq_start (struct xeventq *evq, const char *name)
   }
 
   evq->terminate = 0;
-  evq->ts = create_thread (evqname, (uint32_t (*) (void *)) xevent_thread, evq);
+  rc = create_thread (&evq->ts, evqname, (uint32_t (*) (void *)) xevent_thread, evq);
 
   if (name)
   {
     ddsrt_free (evqname);
   }
-  return (evq->ts == NULL) ? ERR_UNSPECIFIED : 0;
+  return rc;
 }
 
 void xeventq_stop (struct xeventq *evq)
@@ -539,7 +506,7 @@ void xeventq_free (struct xeventq *evq)
 {
   struct xevent *ev;
   assert (evq->ts == NULL);
-  while ((ev = ut_fibheapExtractMin (&evq_xevents_fhdef, &evq->xevents)) != NULL)
+  while ((ev = ddsrt_fibheap_extract_min (&evq_xevents_fhdef, &evq->xevents)) != NULL)
   {
     if (ev->tsched.v == TSCHED_DELETE || ev->kind != XEVK_CALLBACK)
       free_xevent (evq, ev);
@@ -556,9 +523,23 @@ void xeventq_free (struct xeventq *evq)
       }
     }
   }
-  while (!non_timed_xmit_list_is_empty(evq))
-    free_xevent_nt (evq, getnext_from_non_timed_xmit_list (evq));
-  assert (ut_avlIsEmpty (&evq->msg_xevents));
+
+  {
+    struct nn_xpack *xp = nn_xpack_new (evq->tev_conn, evq->auxiliary_bandwidth_limit, false);
+    thread_state_awake (lookup_thread_state ());
+    ddsrt_mutex_lock (&evq->lock);
+    while (!non_timed_xmit_list_is_empty (evq))
+    {
+      thread_state_awake_to_awake_no_nest (lookup_thread_state ());
+      handle_nontimed_xevent (getnext_from_non_timed_xmit_list (evq), xp);
+    }
+    ddsrt_mutex_unlock (&evq->lock);
+    nn_xpack_send (xp, false);
+    nn_xpack_free (xp);
+    thread_state_asleep (lookup_thread_state ());
+  }
+
+  assert (ddsrt_avl_is_empty (&evq->msg_xevents));
   ddsrt_cond_destroy (&evq->cond);
   ddsrt_mutex_destroy (&evq->lock);
   ddsrt_free (evq);
@@ -603,13 +584,13 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
 
   if ((wr = ephash_lookup_writer_guid (&ev->u.heartbeat.wr_guid)) == NULL)
   {
-    DDS_TRACE("heartbeat(wr %x:%x:%x:%x) writer gone\n",
+    DDS_TRACE("heartbeat(wr "PGUIDFMT") writer gone\n",
             PGUID (ev->u.heartbeat.wr_guid));
     return;
   }
 
-  assert (wr->reliable);
   ddsrt_mutex_lock (&wr->e.lock);
+  assert (wr->reliable);
   whc_get_state(wr->whc, &whcst);
   if (!writer_must_have_hb_scheduled (wr, &whcst))
   {
@@ -630,13 +611,13 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
     t_next.v = tnow.v + writer_hbcontrol_intv (wr, &whcst, tnow);
   }
 
-  DDS_TRACE("heartbeat(wr %x:%x:%x:%x%s) %s, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRId64", xmit %"PRId64")\n",
+  DDS_TRACE("heartbeat(wr "PGUIDFMT"%s) %s, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRId64", xmit %"PRId64")\n",
           PGUID (wr->e.guid),
           hbansreq ? "" : " final",
           msg ? "sent" : "suppressed",
-          (t_next.v == T_NEVER) ? POS_INFINITY_DOUBLE : (double)(t_next.v - tnow.v) / 1e9,
-          ut_avlIsEmpty (&wr->readers) ? (seqno_t) -1 : ((struct wr_prd_match *) ut_avlRootNonEmpty (&wr_readers_treedef, &wr->readers))->min_seq,
-          ut_avlIsEmpty (&wr->readers) || ((struct wr_prd_match *) ut_avlRootNonEmpty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
+          (t_next.v == T_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
+          ddsrt_avl_is_empty (&wr->readers) ? (seqno_t) -1 : ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->min_seq,
+          ddsrt_avl_is_empty (&wr->readers) || ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
           whcst.max_seq, READ_SEQ_XMIT(wr));
   resched_xevent_if_earlier (ev, t_next);
   wr->hbcontrol.tsched = t_next;
@@ -714,9 +695,8 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
   struct nn_reorder *reorder;
   AckNack_t *an;
   struct nn_xmsg_marker sm_marker;
-  unsigned i, numbits;
+  uint32_t i, numbits;
   seqno_t base;
-  unsigned ui;
 
   union {
     struct nn_fragment_number_set set;
@@ -804,15 +784,6 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
     an->smhdr.flags |= ACKNACK_FLAG_FINAL;
   }
 
-  /* If we refuse to send invalid AckNacks, grow a length-0 bitmap and
-     zero-fill it. Cleared bits are meaningless (DDSI 2.1, table 8.33,
-     although RTI seems to think otherwise). */
-  if (numbits == 0 && config.acknack_numbits_emptyset > 0)
-  {
-    an->readerSNState.numbits = (unsigned) config.acknack_numbits_emptyset;
-    nn_bitset_zero (an->readerSNState.numbits, an->readerSNState.bits);
-  }
-
   {
     /* Count field is at a variable offset ... silly DDSI spec. */
     nn_count_t *countp =
@@ -825,10 +796,10 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
     nn_xmsg_shrink (msg, sm_marker, ACKNACK_SIZE (an->readerSNState.numbits));
     nn_xmsg_submsg_setnext (msg, sm_marker);
 
-    DDS_TRACE("acknack %x:%x:%x:%x -> %x:%x:%x:%x: #%d:%"PRId64"/%u:",
+    DDS_TRACE("acknack "PGUIDFMT" -> "PGUIDFMT": #%"PRId32":%"PRId64"/%"PRIu32":",
             PGUID (rwn->rd_guid), PGUID (pwr->e.guid), rwn->count,
             base, an->readerSNState.numbits);
-    for (ui = 0; ui != an->readerSNState.numbits; ui++)
+    for (uint32_t ui = 0; ui != an->readerSNState.numbits; ui++)
       DDS_TRACE("%c", nn_bitset_isset (numbits, an->readerSNState.bits, ui) ? '1' : '0');
   }
 
@@ -856,8 +827,8 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
       *countp = ++pwr->nackfragcount;
       nn_xmsg_submsg_setnext (msg, sm_marker);
 
-      DDS_TRACE(" + nackfrag #%d:%"PRId64"/%u/%u:", *countp, fromSN (nf->writerSN), nf->fragmentNumberState.bitmap_base, nf->fragmentNumberState.numbits);
-      for (ui = 0; ui != nf->fragmentNumberState.numbits; ui++)
+      DDS_TRACE(" + nackfrag #%"PRId32":%"PRId64"/%u/%"PRIu32":", *countp, fromSN (nf->writerSN), nf->fragmentNumberState.bitmap_base, nf->fragmentNumberState.numbits);
+      for (uint32_t ui = 0; ui != nf->fragmentNumberState.numbits; ui++)
         DDS_TRACE("%c", nn_bitset_isset (nf->fragmentNumberState.numbits, nf->fragmentNumberState.bits, ui) ? '1' : '0');
     }
   }
@@ -887,7 +858,7 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
   }
 
   ddsrt_mutex_lock (&pwr->e.lock);
-  if ((rwn = ut_avlLookup (&pwr_readers_treedef, &pwr->readers, &ev->u.acknack.rd_guid)) == NULL)
+  if ((rwn = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &ev->u.acknack.rd_guid)) == NULL)
   {
     ddsrt_mutex_unlock (&pwr->e.lock);
     return;
@@ -921,12 +892,12 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
          eventually. */
       resched_xevent_if_earlier (ev, add_duration_to_mtime (tnow, config.auto_resched_nack_delay));
     }
-    DDS_TRACE("send acknack(rd %x:%x:%x:%x -> pwr %x:%x:%x:%x)\n",
+    DDS_TRACE("send acknack(rd "PGUIDFMT" -> pwr "PGUIDFMT")\n",
             PGUID (ev->u.acknack.rd_guid), PGUID (ev->u.acknack.pwr_guid));
   }
   else
   {
-    DDS_TRACE("skip acknack(rd %x:%x:%x:%x -> pwr %x:%x:%x:%x): no address\n",
+    DDS_TRACE("skip acknack(rd "PGUIDFMT" -> pwr "PGUIDFMT"): no address\n",
             PGUID (ev->u.acknack.rd_guid), PGUID (ev->u.acknack.pwr_guid));
     msg = NULL;
   }
@@ -1008,7 +979,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
 
   if ((pp = ephash_lookup_participant_guid (&ev->u.spdp.pp_guid)) == NULL)
   {
-    DDS_TRACE("handle_xevk_spdp %x:%x:%x:%x - unknown guid\n",
+    DDS_TRACE("handle_xevk_spdp "PGUIDFMT" - unknown guid\n",
             PGUID (ev->u.spdp.pp_guid));
     if (ev->u.spdp.directed)
       delete_xevent (ev);
@@ -1017,7 +988,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
 
   if ((spdp_wr = get_builtin_writer (pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)) == NULL)
   {
-    DDS_TRACE("handle_xevk_spdp %x:%x:%x:%x - spdp writer of participant not found\n",
+    DDS_TRACE("handle_xevk_spdp "PGUIDFMT" - spdp writer of participant not found\n",
             PGUID (ev->u.spdp.pp_guid));
     if (ev->u.spdp.directed)
       delete_xevent (ev);
@@ -1039,7 +1010,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     prd = ephash_lookup_proxy_reader_guid (&guid);
     do_write = (prd != NULL);
     if (!do_write)
-      DDS_TRACE("xmit spdp: no proxy reader %x:%x:%x:%x\n", PGUID (guid));
+      DDS_TRACE("xmit spdp: no proxy reader "PGUIDFMT"\n", PGUID (guid));
   }
 
   if (do_write && !resend_spdp_sample_by_guid_key (spdp_wr, &ev->u.spdp.pp_guid, prd))
@@ -1064,7 +1035,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     }
     else
     {
-      DDS_TRACE("xmit spdp: suppressing early spdp response from %x:%x:%x:%x to %x:%x:%x:%x\n",
+      DDS_TRACE("xmit spdp: suppressing early spdp response from "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x\n",
                 PGUID (pp->e.guid), PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_PARTICIPANT);
     }
 #endif
@@ -1079,7 +1050,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     else
     {
       nn_mtime_t tnext = add_duration_to_mtime (tnow, T_SECOND);
-      DDS_TRACE("xmit spdp %x:%x:%x:%x to %x:%x:%x:%x (resched %gs)\n",
+      DDS_TRACE("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %gs)\n",
                 PGUID (pp->e.guid),
                 PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
                 (double)(tnext.v - tnow.v) / 1e9);
@@ -1091,8 +1062,8 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     /* schedule next when 80% of the interval has elapsed, or 2s
        before the lease ends, whichever comes first (similar to PMD),
        but never wait longer than spdp_interval */
-    const int64_t mindelta = 10 * T_MILLISECOND;
-    const int64_t ldur = pp->lease_duration;
+    const dds_duration_t mindelta = 10 * T_MILLISECOND;
+    const dds_duration_t ldur = pp->lease_duration;
     nn_mtime_t tnext;
     int64_t intv;
 
@@ -1106,7 +1077,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
       intv = config.spdp_interval;
 
     tnext = add_duration_to_mtime (tnow, intv);
-    DDS_TRACE("xmit spdp %x:%x:%x:%x to %x:%x:%x:%x (resched %gs)\n",
+    DDS_TRACE("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %gs)\n",
             PGUID (pp->e.guid),
             PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
             (double)(tnext.v - tnow.v) / 1e9);
@@ -1114,7 +1085,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   }
 }
 
-static void write_pmd_message (struct nn_xpack *xp, struct participant *pp, unsigned pmd_kind)
+static void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, struct participant *pp, unsigned pmd_kind)
 {
 #define PMD_DATA_LENGTH 1
   struct writer *wr;
@@ -1127,7 +1098,7 @@ static void write_pmd_message (struct nn_xpack *xp, struct participant *pp, unsi
 
   if ((wr = get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER)) == NULL)
   {
-    DDS_TRACE("write_pmd_message(%x:%x:%x:%x) - builtin pmd writer not found\n", PGUID (pp->e.guid));
+    DDS_TRACE("write_pmd_message("PGUIDFMT") - builtin pmd writer not found\n", PGUID (pp->e.guid));
     return;
   }
 
@@ -1146,15 +1117,15 @@ static void write_pmd_message (struct nn_xpack *xp, struct participant *pp, unsi
   serdata->timestamp = now ();
 
   tk = ddsi_tkmap_lookup_instance_ref(serdata);
-  write_sample_nogc (xp, wr, serdata, tk);
+  write_sample_nogc (ts1, xp, wr, serdata, tk);
   ddsi_tkmap_instance_unref(tk);
 #undef PMD_DATA_LENGTH
 }
 
-static void handle_xevk_pmd_update (struct nn_xpack *xp, struct xevent *ev, nn_mtime_t tnow)
+static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_xpack *xp, struct xevent *ev, nn_mtime_t tnow)
 {
   struct participant *pp;
-  int64_t intv;
+  dds_duration_t intv;
   nn_mtime_t tnext;
 
   if ((pp = ephash_lookup_participant_guid (&ev->u.pmd_update.pp_guid)) == NULL)
@@ -1162,7 +1133,7 @@ static void handle_xevk_pmd_update (struct nn_xpack *xp, struct xevent *ev, nn_m
     return;
   }
 
-  write_pmd_message (xp, pp, PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE);
+  write_pmd_message (ts1, xp, pp, PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE);
 
   /* QoS changes can't change lease durations. So the only thing that
      could cause trouble here is that the addition or removal of a
@@ -1177,7 +1148,7 @@ static void handle_xevk_pmd_update (struct nn_xpack *xp, struct xevent *ev, nn_m
   if (intv == T_NEVER)
   {
     tnext.v = T_NEVER;
-    DDS_TRACE("resched pmd(%x:%x:%x:%x): never\n", PGUID (pp->e.guid));
+    DDS_TRACE("resched pmd("PGUIDFMT"): never\n", PGUID (pp->e.guid));
   }
   else
   {
@@ -1187,37 +1158,22 @@ static void handle_xevk_pmd_update (struct nn_xpack *xp, struct xevent *ev, nn_m
       tnext.v = tnow.v + intv - 2 * T_SECOND;
     else
       tnext.v = tnow.v + 4 * intv / 5;
-    DDS_TRACE("resched pmd(%x:%x:%x:%x): %gs\n", PGUID (pp->e.guid), (double)(tnext.v - tnow.v) / 1e9);
+    DDS_TRACE("resched pmd("PGUIDFMT"): %gs\n", PGUID (pp->e.guid), (double)(tnext.v - tnow.v) / 1e9);
   }
 
   resched_xevent_if_earlier (ev, tnext);
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 
-static void handle_xevk_end_startup_mode (UNUSED_ARG (struct nn_xpack *xp), struct xevent *ev, UNUSED_ARG (nn_mtime_t tnow))
-{
-  struct ephash_enum_writer est;
-  struct writer *wr;
-  assert (gv.startup_mode);
-  DDS_LOG(DDS_LC_DISCOVERY, "end startup mode\n");
-  gv.startup_mode = 0;
-  /* FIXME: MEMBAR needed for startup mode (or use a lock) */
-  ephash_enum_writer_init (&est);
-  while ((wr = ephash_enum_writer_next (&est)) != NULL)
-    writer_exit_startup_mode (wr);
-  ephash_enum_writer_fini (&est);
-  delete_xevent (ev);
-}
-
 static void handle_xevk_delete_writer (UNUSED_ARG (struct nn_xpack *xp), struct xevent *ev, UNUSED_ARG (nn_mtime_t tnow))
 {
   /* don't worry if the writer is already gone by the time we get here. */
-  DDS_TRACE("handle_xevk_delete_writer: %x:%x:%x:%x\n", PGUID (ev->u.delete_writer.guid));
+  DDS_TRACE("handle_xevk_delete_writer: "PGUIDFMT"\n", PGUID (ev->u.delete_writer.guid));
   delete_writer_nolinger (&ev->u.delete_writer.guid);
   delete_xevent (ev);
 }
 
-static void handle_individual_xevent (struct xevent *xev, struct nn_xpack *xp, nn_mtime_t tnow)
+static void handle_individual_xevent (struct thread_state1 * const ts1, struct xevent *xev, struct nn_xpack *xp, nn_mtime_t tnow)
 {
   switch (xev->kind)
   {
@@ -1231,10 +1187,7 @@ static void handle_individual_xevent (struct xevent *xev, struct nn_xpack *xp, n
       handle_xevk_spdp (xp, xev, tnow);
       break;
     case XEVK_PMD_UPDATE:
-      handle_xevk_pmd_update (xp, xev, tnow);
-      break;
-    case XEVK_END_STARTUP_MODE:
-      handle_xevk_end_startup_mode (xp, xev, tnow);
+      handle_xevk_pmd_update (ts1, xp, xev, tnow);
       break;
     case XEVK_DELETE_WRITER:
       handle_xevk_delete_writer (xp, xev, tnow);
@@ -1262,7 +1215,7 @@ static void handle_individual_xevent_nt (struct xevent_nt *xev, struct nn_xpack 
   ddsrt_free (xev);
 }
 
-static void handle_timed_xevent (struct thread_state1 *self, struct xevent *xev, struct nn_xpack *xp, nn_mtime_t tnow /* monotonic */)
+static void handle_timed_xevent (struct thread_state1 * const ts1, struct xevent *xev, struct nn_xpack *xp, nn_mtime_t tnow /* monotonic */)
 {
    /* This function handles the individual xevent irrespective of
       whether it is a "timed" or "non-timed" xevent */
@@ -1276,14 +1229,13 @@ static void handle_timed_xevent (struct thread_state1 *self, struct xevent *xev,
   assert (xev->tsched.v != TSCHED_DELETE);
 
   ddsrt_mutex_unlock (&xevq->lock);
-  thread_state_awake (self);
-  handle_individual_xevent (xev, xp, tnow /* monotonic */);
+  handle_individual_xevent (ts1, xev, xp, tnow /* monotonic */);
   ddsrt_mutex_lock (&xevq->lock);
 
   ASSERT_MUTEX_HELD (&xevq->lock);
 }
 
-static void handle_nontimed_xevent (struct thread_state1 *self, struct xevent_nt *xev, struct nn_xpack *xp)
+static void handle_nontimed_xevent (struct xevent_nt *xev, struct nn_xpack *xp)
 {
    /* This function handles the individual xevent irrespective of
       whether it is a "timed" or "non-timed" xevent */
@@ -1296,7 +1248,6 @@ static void handle_nontimed_xevent (struct thread_state1 *self, struct xevent_nt
   assert (xev->evq == xevq);
 
   ddsrt_mutex_unlock (&xevq->lock);
-  thread_state_awake (self);
   handle_individual_xevent_nt (xev, xp);
   /* non-timed xevents are freed by the handlers */
   ddsrt_mutex_lock (&xevq->lock);
@@ -1304,11 +1255,12 @@ static void handle_nontimed_xevent (struct thread_state1 *self, struct xevent_nt
   ASSERT_MUTEX_HELD (&xevq->lock);
 }
 
-static void handle_xevents (struct thread_state1 *self, struct xeventq *xevq, struct nn_xpack *xp, nn_mtime_t tnow /* monotonic */)
+static void handle_xevents (struct thread_state1 * const ts1, struct xeventq *xevq, struct nn_xpack *xp, nn_mtime_t tnow /* monotonic */)
 {
   int xeventsToProcess = 1;
 
   ASSERT_MUTEX_HELD (&xevq->lock);
+  assert (thread_is_awake ());
 
   /* The following loops give priority to the "timed" events (heartbeats,
      acknacks etc) if there are any.  The algorithm is that we handle all
@@ -1322,7 +1274,7 @@ static void handle_xevents (struct thread_state1 *self, struct xeventq *xevq, st
   {
     while (earliest_in_xeventq(xevq).v <= tnow.v)
     {
-      struct xevent *xev = ut_fibheapExtractMin (&evq_xevents_fhdef, &xevq->xevents);
+      struct xevent *xev = ddsrt_fibheap_extract_min (&evq_xevents_fhdef, &xevq->xevents);
       if (xev->tsched.v == TSCHED_DELETE)
       {
         free_xevent (xevq, xev);
@@ -1334,7 +1286,8 @@ static void handle_xevents (struct thread_state1 *self, struct xeventq *xevq, st
            scheduled or not), so set to TSCHED_NEVER to indicate it
            currently isn't. */
         xev->tsched.v = T_NEVER;
-        handle_timed_xevent (self, xev, xp, tnow);
+        thread_state_awake_to_awake_no_nest (ts1);
+        handle_timed_xevent (ts1, xev, xp, tnow);
       }
 
       /* Limited-bandwidth channels means events can take a LONG time
@@ -1345,7 +1298,8 @@ static void handle_xevents (struct thread_state1 *self, struct xeventq *xevq, st
     if (!non_timed_xmit_list_is_empty (xevq))
     {
       struct xevent_nt *xev = getnext_from_non_timed_xmit_list (xevq);
-      handle_nontimed_xevent (self, xev, xp);
+      thread_state_awake_to_awake_no_nest (ts1);
+      handle_nontimed_xevent (xev, xp);
       tnow = now_mt ();
     }
     else
@@ -1359,7 +1313,7 @@ static void handle_xevents (struct thread_state1 *self, struct xeventq *xevq, st
 
 static uint32_t xevent_thread (struct xeventq * xevq)
 {
-  struct thread_state1 *self = lookup_thread_state ();
+  struct thread_state1 * const ts1 = lookup_thread_state ();
   struct nn_xpack *xp;
   nn_mtime_t next_thread_cputime = { 0 };
 
@@ -1372,15 +1326,13 @@ static uint32_t xevent_thread (struct xeventq * xevq)
 
     LOG_THREAD_CPUTIME (next_thread_cputime);
 
-    handle_xevents (self, xevq, xp, tnow);
-
-    /* Send to the network unlocked, as it may sleep due to bandwidth
-       limitation */
+    thread_state_awake (ts1);
+    handle_xevents (ts1, xevq, xp, tnow);
+    /* Send to the network unlocked, as it may sleep due to bandwidth limitation */
     ddsrt_mutex_unlock (&xevq->lock);
     nn_xpack_send (xp, false);
     ddsrt_mutex_lock (&xevq->lock);
-
-    thread_state_asleep (self);
+    thread_state_asleep (ts1);
 
     if (!non_timed_xmit_list_is_empty (xevq) || xevq->terminate)
     {
@@ -1439,7 +1391,7 @@ void qxev_prd_entityid (struct proxy_reader * prd, nn_guid_prefix_t * id)
     msg = nn_xmsg_new (gv.xmsgpool, id, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
     if (nn_xmsg_setdstPRD (msg, prd) == 0)
     {
-      DDS_TRACE("  qxev_prd_entityid (%x:%x:%x)\n", PGUIDPREFIX (*id));
+      DDS_TRACE("  qxev_prd_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (*id));
       nn_xmsg_add_entityid (msg);
       ddsrt_mutex_lock (&gv.xevents->lock);
       ev = qxev_common_nt (gv.xevents, XEVK_ENTITYID);
@@ -1466,7 +1418,7 @@ void qxev_pwr_entityid (struct proxy_writer * pwr, nn_guid_prefix_t * id)
     msg = nn_xmsg_new (gv.xmsgpool, id, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
     if (nn_xmsg_setdstPWR (msg, pwr) == 0)
     {
-      DDS_TRACE("  qxev_pwr_entityid (%x:%x:%x)\n", PGUIDPREFIX (*id));
+      DDS_TRACE("  qxev_pwr_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (*id));
       nn_xmsg_add_entityid (msg);
       ddsrt_mutex_lock (&pwr->evq->lock);
       ev = qxev_common_nt (pwr->evq, XEVK_ENTITYID);
@@ -1577,16 +1529,6 @@ struct xevent *qxev_pmd_update (nn_mtime_t tsched, const nn_guid_t *pp_guid)
   ddsrt_mutex_lock (&gv.xevents->lock);
   ev = qxev_common (gv.xevents, tsched, XEVK_PMD_UPDATE);
   ev->u.pmd_update.pp_guid = *pp_guid;
-  qxev_insert (ev);
-  ddsrt_mutex_unlock (&gv.xevents->lock);
-  return ev;
-}
-
-struct xevent *qxev_end_startup_mode (nn_mtime_t tsched)
-{
-  struct xevent *ev;
-  ddsrt_mutex_lock (&gv.xevents->lock);
-  ev = qxev_common (gv.xevents, tsched, XEVK_END_STARTUP_MODE);
   qxev_insert (ev);
   ddsrt_mutex_unlock (&gv.xevents->lock);
   return ev;

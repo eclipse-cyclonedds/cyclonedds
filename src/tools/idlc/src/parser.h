@@ -14,8 +14,8 @@
 
 #include "dds/ddsrt/retcode.h"
 
-dds_retcode_t ddsts_idl_parse_file(const char *file, ddsts_type_t **ref_root_type);
-dds_retcode_t ddsts_idl_parse_string(const char *str, ddsts_type_t **ref_root_type);
+dds_return_t ddsts_idl_parse_file(const char *file, ddsts_type_t **ref_root_type);
+dds_return_t ddsts_idl_parse_string(const char *str, ddsts_type_t **ref_root_type);
 
 #endif /* IDL_PARSER_H */
 

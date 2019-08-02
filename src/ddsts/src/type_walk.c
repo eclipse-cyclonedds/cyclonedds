@@ -16,7 +16,7 @@
 #include "dds/ddsts/typetree.h"
 #include "dds/ddsts/type_walk.h"
 
-dds_retcode_t ddsts_walk(ddsts_call_path_t *path, ddsts_flags_t visit, ddsts_flags_t call, ddsts_walk_call_func_t func, void *context)
+dds_return_t ddsts_walk(ddsts_call_path_t *path, ddsts_flags_t visit, ddsts_flags_t call, ddsts_walk_call_func_t func, void *context)
 {
   ddsts_call_path_t child_path;
   child_path.call_parent = path;
@@ -30,13 +30,13 @@ dds_retcode_t ddsts_walk(ddsts_call_path_t *path, ddsts_flags_t visit, ddsts_fla
   for (; child != NULL; child = child->type.next) {
     child_path.type = child;
     if ((DDSTS_TYPE_OF(child) & call) != 0) {
-      dds_retcode_t rc = func(&child_path, context);
+      dds_return_t rc = func(&child_path, context);
       if (rc != DDS_RETCODE_OK) {
         return rc;
       }
     }
     if ((DDSTS_TYPE_OF(child) & visit) != 0) {
-      dds_retcode_t rc = ddsts_walk(&child_path, visit, call, func, context);
+      dds_return_t rc = ddsts_walk(&child_path, visit, call, func, context);
       if (rc != DDS_RETCODE_OK) {
         return rc;
       }

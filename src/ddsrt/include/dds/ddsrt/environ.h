@@ -24,13 +24,9 @@ extern "C" {
  * @brief Get value for environment variable.
  *
  * @param[in]  name   Environment variable name.
- * @param[in]  buf    Buffer to write value to.
- * @param[in]  sz     Size of buffer.
- * @param[out] reqsz  Number of bytes written (excluding the terminating null
- *                    byte), or would have been written would @buf have been
- *                    sufficiently large enough.
+ * @param[out] value  Alias to value of environment variable - must not be modified
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Environment variable written to @buf.
@@ -43,7 +39,7 @@ extern "C" {
  * @retval DDS_RETCODE_ERROR
  *             Unspecified error.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_getenv(
   const char *name,
   char **value)
@@ -58,7 +54,7 @@ ddsrt_nonnull_all;
  * @param[in]  name   Environment variable name.
  * @param[in]  value  Value to set environment variable to.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Environment variable successfully set to @value.
@@ -69,7 +65,7 @@ ddsrt_nonnull_all;
  * @retval DDS_RETCODE_ERROR
  *             Unspecified system error.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_setenv(
   const char *name,
   const char *value)
@@ -80,7 +76,7 @@ ddsrt_nonnull_all;
  *
  * @param[in]  name  Environment variable name.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Environment variable successfully unset.
@@ -91,10 +87,54 @@ ddsrt_nonnull_all;
  * @retval DDS_RETCODE_ERROR
  *             Unspecified system error.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_unsetenv(
   const char *name)
 ddsrt_nonnull_all;
+
+/**
+ * @brief Expand environment variables within string.
+ *
+ * Expands ${X}, ${X:-Y}, ${X:+Y}, ${X:?Y} forms, but not $X.
+ *
+ * The result string should be freed with ddsrt_free().
+ *
+ * @param[in]  string  String to expand.
+ *
+ * @returns Allocated char*.
+ *
+ * @retval NULL
+ *             Expansion failed.
+ * @retval Pointer
+ *             Copy of the string argument with the environment
+ *             variables expanded.
+ */
+DDS_EXPORT char*
+ddsrt_expand_envvars(
+  const char *string);
+
+/**
+ * @brief Expand environment variables within string.
+ *
+ * Expands $X, ${X}, ${X:-Y}, ${X:+Y}, ${X:?Y} forms, $ and \
+ * can be escaped with \.
+ *
+ * The result string should be freed with ddsrt_free().
+ *
+ * @param[in]  string  String to expand.
+ *
+ * @returns Allocated char*.
+ *
+ * @retval NULL
+ *             Expansion failed.
+ * @retval Pointer
+ *             Copy of the string argument with the environment
+ *             variables expanded.
+ */
+DDS_EXPORT char*
+ddsrt_expand_envvars_sh(
+  const char *string);
+
 
 #if defined(__cplusplus)
 }

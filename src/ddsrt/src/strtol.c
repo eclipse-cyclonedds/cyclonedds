@@ -16,7 +16,7 @@
 
 #include "dds/ddsrt/strtol.h"
 
-int ddsrt_todigit(const int chr)
+static int ddsrt_todigit(const int chr)
 {
   if (chr >= '0' && chr <= '9') {
     return chr - '0';
@@ -29,7 +29,7 @@ int ddsrt_todigit(const int chr)
   return -1;
 }
 
-static dds_retcode_t
+static dds_return_t
 ullfstr(
   const char *str,
   char **endptr,
@@ -37,7 +37,7 @@ ullfstr(
   unsigned long long *ullng,
   unsigned long long max)
 {
-  dds_retcode_t rc = DDS_RETCODE_OK;
+  dds_return_t rc = DDS_RETCODE_OK;
   int num;
   size_t cnt = 0;
   unsigned long long tot = 0;
@@ -86,14 +86,14 @@ ullfstr(
   return rc;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_strtoll(
   const char *str,
   char **endptr,
   int32_t base,
   long long *llng)
 {
-  dds_retcode_t rc = DDS_RETCODE_OK;
+  dds_return_t rc = DDS_RETCODE_OK;
   size_t cnt = 0;
   long long tot = 1;
   unsigned long long ullng = 0, max = INT64_MAX;
@@ -122,14 +122,14 @@ ddsrt_strtoll(
   return rc;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_strtoull(
   const char *str,
   char **endptr,
   int32_t base,
   unsigned long long *ullng)
 {
-  dds_retcode_t rc = DDS_RETCODE_OK;
+  dds_return_t rc = DDS_RETCODE_OK;
   size_t cnt = 0;
   unsigned long long tot = 1;
   unsigned long long max = UINT64_MAX;
@@ -157,7 +157,7 @@ ddsrt_strtoull(
   return rc;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_atoll(
   const char *str,
   long long *llng)
@@ -165,7 +165,7 @@ ddsrt_atoll(
   return ddsrt_strtoll(str, NULL, 10, llng);
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_atoull(
   const char *str,
   unsigned long long *ullng)

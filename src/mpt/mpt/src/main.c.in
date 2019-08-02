@@ -1,0 +1,555 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include "mpt/mpt.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/environ.h"
+
+#ifndef _WIN32
+#include <sysexits.h>
+#else
+#define EX_USAGE (64)
+#define EX_SOFTWARE (70)
+#endif /* _WIN32 */
+
+
+
+/************************************************
+ * Support functions.
+ ************************************************/
+int
+mpt_patmatch(const char *pat, const char *str)
+{
+  while (*pat) {
+    if (*pat == '?') {
+      /* any character will do */
+      if (*str++ == 0) {
+        return 0;
+      }
+      pat++;
+    } else if (*pat == '*') {
+      /* collapse a sequence of wildcards, requiring as many
+         characters in str as there are ?s in the sequence */
+      while (*pat == '*' || *pat == '?') {
+        if (*pat == '?' && *str++ == 0) {
+          return 0;
+        }
+        pat++;
+      }
+      /* try matching on all positions where str matches pat */
+      while (*str) {
+        if (*str == *pat && mpt_patmatch(pat+1, str+1)) {
+          return 1;
+        }
+        str++;
+      }
+      return *pat == 0;
+    } else {
+      /* only an exact match */
+      if (*str++ != *pat++) {
+        return 0;
+      }
+    }
+  }
+
+  return *str == 0;
+}
+
+void
+mpt_export_env(const mpt_env_t *env)
+{
+  if (env) {
+    while ((env->name != NULL) && (env->value != NULL)) {
+      char *expanded = ddsrt_expand_envvars(env->value);
+      ddsrt_setenv(env->name, expanded);
+      ddsrt_free(expanded);
+      env++;
+    }
+  }
+}
+
+void
+mpt_ipc_send(MPT_ProcessArgsSyntax, const char *str)
+{
+  (void)str;
+  (void)mpt__args__;
+  /* TODO: implement. */
+  MPT_ASSERT(0, "mpt_ipc_send not implemented");
+}
+
+void
+mpt_ipc_wait(MPT_ProcessArgsSyntax, const char *str)
+{
+  (void)str;
+  (void)mpt__args__;
+  /* TODO: implement. */
+  MPT_ASSERT(0, "mpt_ipc_wait not implemented");
+}
+
+
+
+/************************************************
+ * Processes.
+ ************************************************/
+@procdecls@
+
+typedef void(*mpt_func_proc_t)(
+  const mpt_data_t *mpt__args__, mpt_retval_t *mpt__retval__);
+
+typedef struct mpt_process_ {
+  const char* name;
+  ddsrt_pid_t pid;
+  mpt_func_proc_t process;
+  struct mpt_process_ *next;
+} mpt_process_t;
+
+static mpt_process_t*
+mpt_process_new(const char* name, mpt_func_proc_t process)
+{
+  mpt_process_t *proc;
+  proc = ddsrt_malloc(sizeof(mpt_process_t));
+  proc->pid = 0;
+  proc->name = name;
+  proc->process = process;
+  proc->next = NULL;
+  return proc;
+}
+
+static void
+mpt_process_freelist(mpt_process_t *proc)
+{
+  if (proc) {
+    mpt_process_freelist(proc->next);
+    if (proc->pid != 0) {
+      printf("Process %s kill(%d)\n", proc->name, (int)proc->pid);
+      ddsrt_proc_kill(proc->pid);
+    }
+    ddsrt_free(proc);
+  }
+}
+
+
+
+/************************************************
+ * Tests.
+ ************************************************/
+typedef struct mpt_test_ {
+  const char* name;
+  bool xfail;
+  dds_duration_t timeout;
+  mpt_process_t *procs;
+  struct mpt_test_ *next;
+} mpt_test_t;
+
+static mpt_test_t*
+mpt_test_new(const char* name, int secs, bool xf)
+{
+  mpt_test_t *test;
+  test = ddsrt_malloc(sizeof(mpt_test_t));
+  test->procs = NULL;
+  test->name = name;
+  test->xfail = xf;
+
+  /* This test will stop after a given timeout. However, when running in
+   * ctest, we'd like to use the ctest provided timeout functionality.
+   * So, make sure that the 'manual' timeout takes longer than the ctest
+   * timeout. */
+  if (secs == 0) {
+    secs = MPT_DEFAULT_TIMEOUT;
+  }
+  test->timeout = DDS_SECS(secs + 5);
+
+  return test;
+}
+
+static void
+mpt_test_freelist(mpt_test_t *test)
+{
+  if (test) {
+    mpt_process_freelist(test->procs);
+    mpt_test_freelist(test->next);
+  }
+  ddsrt_free(test);
+}
+
+static void
+mpt_test_add_process(mpt_test_t *test, mpt_process_t *proc)
+{
+  /* Prepend */
+  proc->next = test->procs;
+  test->procs = proc;
+}
+
+
+
+/************************************************
+ * Suites.
+ ************************************************/
+typedef struct mpt_suite_ {
+  const char* name;
+  mpt_test_t *tests;
+  struct mpt_suite_ *next;
+} mpt_suite_t;
+
+static mpt_suite_t*
+mpt_suite_new(const char* name)
+{
+  mpt_suite_t *suite;
+  suite = ddsrt_malloc(sizeof(mpt_suite_t));
+  suite->tests = NULL;
+  suite->name = name;
+  return suite;
+}
+
+static void
+mpt_suite_freelist(mpt_suite_t *suite)
+{
+  if (suite) {
+    mpt_test_freelist(suite->tests);
+    mpt_suite_freelist(suite->next);
+  }
+  ddsrt_free(suite);
+}
+
+static void
+mpt_suite_add_test(mpt_suite_t *suite, mpt_test_t *test)
+{
+  /* Prepend */
+  test->next = suite->tests;
+  suite->tests = test;
+}
+
+static mpt_test_t*
+mpt_suite_find_test(
+  mpt_suite_t *suite, const char *tname)
+{
+  mpt_test_t *found = suite->tests;
+  while (found) {
+    if (mpt_patmatch(tname, found->name)) {
+      break;
+    }
+    found = found->next;
+  }
+  return found;
+}
+
+
+
+/************************************************
+ * Root.
+ ************************************************/
+mpt_suite_t *root = NULL;
+
+static void
+mpt_add_suite(mpt_suite_t *suite)
+{
+  /* Prepend */
+  suite->next = root;
+  root = suite;
+}
+
+static mpt_suite_t*
+mpt_find_suite(const char *sname)
+{
+  mpt_suite_t *found = root;
+  while (found) {
+    if (mpt_patmatch(sname, found->name)) {
+      break;
+    }
+    found = found->next;
+  }
+  return found;
+}
+
+static void
+mpt_add_test(const char *sname, mpt_test_t *test)
+{
+  mpt_suite_t *suite = mpt_find_suite(sname);
+  assert(suite);
+  mpt_suite_add_test(suite, test);
+}
+
+static void
+mpt_add_process(const char *sname, const char *tname, mpt_process_t *proc)
+{
+  mpt_suite_t *suite = mpt_find_suite(sname);
+  mpt_test_t *test = mpt_suite_find_test(suite, tname);
+  assert(suite);
+  assert(test);
+  mpt_test_add_process(test, proc);
+}
+
+static void
+mpt_free(void)
+{
+  mpt_suite_freelist(root);
+  root = NULL;
+}
+
+
+
+/************************************************
+ * Runner.
+ ************************************************/
+static int
+mpt_run_test(const char *exe, mpt_suite_t *suite, mpt_test_t *test)
+{
+  int result = EXIT_SUCCESS;
+  mpt_process_t *proc;
+  dds_return_t retcode;
+  char *argv[] = { NULL, NULL,   NULL, NULL,   NULL, NULL,   NULL, NULL };
+
+  argv[0] = "-s";
+  argv[1] = (char*)suite->name;
+  argv[2] = "-t";
+  argv[3] = (char*)test->name;
+
+  /* Start the processes. */
+  proc = test->procs;
+  while ((proc) && (result == EXIT_SUCCESS)) {
+    if (proc == test->procs) {
+      printf("\n\n");
+      printf("=====================================================\n");
+      printf("Suite: %s\n", suite->name);
+      printf("Test:  %s\n", test->name);
+      printf("=====================================================\n");
+    }
+    argv[4] = "-p";
+    argv[5] = (char*)proc->name;
+    retcode = ddsrt_proc_create(exe, argv, &proc->pid);
+    if (retcode != DDS_RETCODE_OK) {
+      printf("Start %s::%s::%s failed\n", suite->name, test->name, proc->name);
+      proc->pid = 0;
+      result = EXIT_FAILURE;
+    }
+    proc = proc->next;
+  }
+
+  /* Wait for the processes. */
+  retcode = DDS_RETCODE_OK;
+  while ((result == EXIT_SUCCESS) && (retcode == DDS_RETCODE_OK)) {
+    int32_t status;
+    ddsrt_pid_t pid;
+    /* A second/third/etc wait will restart the timeout.
+     * This means that the end timeout can take longer than the requested
+     * test timeout. However, that's good enough for our purpose. */
+    retcode = ddsrt_proc_waitpids(test->timeout, &pid, &status);
+    if (retcode == DDS_RETCODE_OK) {
+      proc = test->procs;
+      while (proc) {
+        if (proc->pid == pid) {
+          break;
+        }
+        proc = proc->next;
+      }
+      if (proc) {
+        proc->pid = 0;
+        if (status != 0) {
+          printf("Process %s::%s::%s failed (%d)\n", suite->name, test->name, proc->name, status);
+          result = EXIT_FAILURE;
+        }
+      } else {
+        printf("Wait for processes of %s::%s return unknown pid %d\n", suite->name, test->name, (int)pid);
+        result = EXIT_FAILURE;
+      }
+    } else if (retcode != DDS_RETCODE_NOT_FOUND) {
+      for (proc = test->procs; proc; proc = proc->next) {
+        if (proc->pid != 0)
+          break;
+      }
+      if (proc != NULL) {
+        printf("Wait for processes of %s::%s failed (%d)\n", suite->name, test->name, (int)retcode);
+        result = EXIT_FAILURE;
+      }
+    }
+  }
+
+  /* Be sure to kill all remaining processes when needed. */
+  if (result != EXIT_SUCCESS) {
+    proc = test->procs;
+    while (proc) {
+      if (proc->pid != 0) {
+        printf("Process %s::%s::%s kill(%d)\n", suite->name, test->name, proc->name, (int)proc->pid);
+        ddsrt_proc_kill(proc->pid);
+        ddsrt_proc_waitpid(proc->pid, DDS_SECS(10), NULL);
+        proc->pid = 0;
+      }
+      proc = proc->next;
+    }
+  }
+
+  /* Revert result when we expect the test to have failed. */
+  if (test->xfail) {
+    result = ((result == EXIT_SUCCESS) ? EXIT_FAILURE : EXIT_SUCCESS);
+  }
+
+  return result;
+}
+
+static int
+mpt_run_tests(const char *exe, const char *spattern, const char *tpattern)
+{
+  int result = EXIT_SUCCESS;
+  mpt_suite_t *suite = root;
+  while (suite) {
+    if (mpt_patmatch(spattern, suite->name)) {
+      mpt_test_t *test = suite->tests;
+      while (test) {
+        if (mpt_patmatch(tpattern, test->name)) {
+          int run = mpt_run_test(exe, suite, test);
+          if (run != EXIT_SUCCESS) {
+            result = run;
+          }
+        }
+        test = test->next;
+      }
+    }
+    suite = suite->next;
+  }
+  return result;
+}
+
+static int
+mpt_run_proc(mpt_process_t *proc)
+{
+    mpt_retval_t retval = MPT_SUCCESS;
+    mpt_data_t   args;
+    proc->process(&args, &retval);
+    return (retval == MPT_SUCCESS) ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+static int
+mpt_run_procs(const char *spattern, const char *tpattern, const char *ppattern)
+{
+  int result = EXIT_SUCCESS;
+  mpt_suite_t *suite = root;
+  while (suite) {
+    if (mpt_patmatch(spattern, suite->name)) {
+      mpt_test_t *test = suite->tests;
+      while (test) {
+        if (mpt_patmatch(tpattern, test->name)) {
+          mpt_process_t *proc = test->procs;
+          while (proc) {
+            if (mpt_patmatch(ppattern, proc->name)) {
+              int run = mpt_run_proc(proc);
+              if (run != EXIT_SUCCESS) {
+                result = run;
+              }
+            }
+            proc = proc->next;
+          }
+        }
+        test = test->next;
+      }
+    }
+    suite = suite->next;
+  }
+  return result;
+}
+
+
+
+/************************************************
+ * Main functionality.
+ ************************************************/
+static struct {
+  bool print_help;
+  const char *suite;
+  const char *test;
+  const char *process;
+} opts = {
+  false,
+  "*",
+  "*",
+  NULL
+};
+
+static int parse_options(int argc, char *argv[])
+{
+  int err = 0;
+
+  for (int i = 1; err == 0 && i < argc; i++) {
+    switch ((argv[i][0] == '-') ? argv[i][1] : 0) {
+      case 'h':
+        opts.print_help = true;
+        break;
+      case 's':
+        if ((i+1) < argc) {
+          opts.suite = argv[++i];
+          break;
+        }
+        /* FALLS THROUGH */
+      case 't':
+        if ((i+1) < argc) {
+          opts.test = argv[++i];
+          break;
+        }
+        /* FALLS THROUGH */
+      case 'p':
+        if ((i+1) < argc) {
+          opts.process = argv[++i];
+          break;
+        }
+        /* FALLS THROUGH */
+      default:
+        err = 1;
+        break;
+    }
+  }
+
+  return err;
+}
+
+static void usage(const char *name)
+{
+  fprintf(stderr, "Usage: %s OPTIONS\n", name);
+  fprintf(stderr, "Try '%s -h' for more information\n", name);
+}
+
+static void help(const char *name)
+{
+  printf("Usage: %s [OPTIONS]\n", name);
+  printf("\n");
+  printf("Possible options:\n");
+  printf("  -h           display this help and exit\n");
+  printf("  -s PATTERN   run only tests in suites matching pattern\n");
+  printf("  -t PATTERN   run only test matching pattern\n");
+  printf("  -p PROCESS   run only process matching pattern\n");
+  printf("\n");
+  printf("Exit codes:\n");
+  printf("  %-2d  Successful termination\n", EXIT_SUCCESS);
+  printf("  %-2d  One or more failing test cases\n", EXIT_FAILURE);
+  printf("  %-2d  Command line usage error\n", EX_USAGE);
+  printf("  %-2d  Internal software error\n", EX_SOFTWARE);
+}
+
+int main(int argc, char *argv[])
+{
+  int result = EXIT_SUCCESS;
+
+  if (parse_options(argc, argv) != 0) {
+    usage(argv[0]);
+    return EX_USAGE;
+  } else if (opts.print_help) {
+    help(argv[0]);
+    return result;
+  }
+
+  atexit(mpt_free);
+  @addsuites@
+  @addtests@
+  @addprocs@
+
+  if (opts.process == NULL) {
+    /* Run test(s). */
+    result = mpt_run_tests(argv[0], opts.suite, opts.test);
+  } else {
+    /* Run process(es). */
+    result = mpt_run_procs(opts.suite, opts.test, opts.process);
+  }
+
+  return result;
+}
+

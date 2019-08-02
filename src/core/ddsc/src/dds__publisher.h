@@ -13,10 +13,13 @@
 #define _DDS_PUBLISHER_H_
 
 #include "dds/dds.h"
+#include "dds__entity.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
+
+DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_publisher, DDS_KIND_PUBLISHER)
 
 dds_return_t dds_publisher_begin_coherent (dds_entity_t e);
 dds_return_t dds_publisher_end_coherent (dds_entity_t e);

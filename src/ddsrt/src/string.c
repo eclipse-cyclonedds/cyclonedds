@@ -12,9 +12,6 @@
 #include <assert.h>
 #include <ctype.h>
 #include <stdint.h>
-#if defined(__IAR_SYSTEMS_ICC__)
-#define _DLIB_ADD_EXTRA_SYMBOLS /* Export strtok_r. */
-#endif
 #include <string.h>
 
 #include "dds/ddsrt/heap.h"
@@ -63,19 +60,6 @@ ddsrt_strncasecmp(
     cr = tolower((unsigned char)*s1) - tolower((unsigned char)*s2);
   }
   return cr;
-}
-
-char *
-ddsrt_strtok_r(
-  char *str,
-  const char *delim,
-  char **saveptr)
-{
-#if _WIN32
-  return strtok_s(str, delim, saveptr);
-#else
-  return strtok_r(str, delim, saveptr);
-#endif
 }
 
 char *

@@ -16,6 +16,10 @@
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 struct nn_rdata;
 struct nn_keyhash;
 
@@ -40,37 +44,62 @@ struct ddsi_serdata {
   nn_mtime_t twrite; /* write time, not source timestamp, set post-throttling */
 };
 
-/* Serialised size of sample: uint32_t because the protocol can't handle samples larger than 4GB anyway */
+/* Serialised size of sample inclusive of DDSI encoding header
+   - uint32_t because the protocol can't handle samples larger than 4GB anyway
+   - FIXME: get the encoding header out of the serialised data */
 typedef uint32_t (*ddsi_serdata_size_t) (const struct ddsi_serdata *d);
 
 /* Free a serdata (called by unref when refcount goes to 0) */
 typedef void (*ddsi_serdata_free_t) (struct ddsi_serdata *d);
 
-/* Construct a serdata from a fragchain received over the network */
+/* Construct a serdata from a fragchain received over the network
+   - "kind" is KEY or DATA depending on the type of payload
+   - "size" is the serialised size of the sample, inclusive of DDSI encoding header
+   - the first fragchain always contains the encoding header in its entirety
+   - fragchains may overlap, though I have never seen any DDS implementation
+     actually send such nasty fragments
+   - FIXME: get the encoding header out of the serialised data */
 typedef struct ddsi_serdata * (*ddsi_serdata_from_ser_t) (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size);
 
 /* Construct a serdata from a keyhash (an SDK_KEY by definition) */
 typedef struct ddsi_serdata * (*ddsi_serdata_from_keyhash_t) (const struct ddsi_sertopic *topic, const struct nn_keyhash *keyhash);
 
-/* Construct a serdata from an application sample */
+/* Construct a serdata from an application sample
+   - "kind" is KEY or DATA depending on the operation invoked by the application;
+     e.g., write results in kind = DATA, dispose in kind = KEY.  The important bit
+     is to not assume anything of the contents of non-key fields if kind = KEY
+     unless additional application knowledge is available */
 typedef struct ddsi_serdata * (*ddsi_serdata_from_sample_t) (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, const void *sample);
 
-/* Construct a topic-less serdata with a keyvalue given a normal serdata (either key or data) - used for tkmap */
+/* Construct a topic-less serdata with just a keyvalue given a normal serdata (either key or data)
+   - used for mapping key values to instance ids in tkmap
+   - two reasons: size (keys are typically smaller than samples), and data in tkmap
+     is shared across topics
+   - whether a serdata is topicless or not is known from the context, and the topic
+     field may have any value for a topicless serdata (so in some cases, one can
+     simply do "return ddsi_serdata_ref(d);"
+ */
 typedef struct ddsi_serdata * (*ddsi_serdata_to_topicless_t) (const struct ddsi_serdata *d);
 
-/* Fill buffer with 'size' bytes of serialised data, starting from 'off'; 0 <= off < off+sz <=
-   alignup4(size(d)) */
+/* Fill buffer with 'size' bytes of serialised data, starting from 'off'
+   - 0 <= off < off+sz <= alignup4(size(d))
+   - bytes at offsets 0 .. 3 are DDSI encoding header, size(d) includes that header
+   - what to copy for bytes in [size(d), alignup4(size(d))) depends on the serdata
+     implementation, the protocol treats them as undefined
+   - FIXME: get the encoding header out of the serialised data */
 typedef void (*ddsi_serdata_to_ser_t) (const struct ddsi_serdata *d, size_t off, size_t sz, void *buf);
 
-/* Provide a pointer to 'size' bytes of serialised data, starting from 'off'; 0 <= off < off+sz <=
-   alignup4(size(d)); it must remain valid until the corresponding call to to_ser_unref.  Multiple
-   calls to to_ser_ref() may be issued in parallel, the separate ref/unref bit is there to at least
-   have the option of lazily creating the serialised representation and freeing it when no one needs
-   it, while the sample itself remains valid */
+/* Provide a pointer to 'size' bytes of serialised data, starting from 'off'
+   - see ddsi_serdata_to_ser_t above
+   - instead of copying, this gives a reference that must remain valid until the
+     corresponding call to to_ser_unref
+   - multiple calls to to_ser_ref() may be issued in parallel
+   - lazily creating the serialised representation is allowed (though I'm not sure
+     how that would work with knowing the serialised size beforehand ...) */
 typedef struct ddsi_serdata * (*ddsi_serdata_to_ser_ref_t) (const struct ddsi_serdata *d, size_t off, size_t sz, ddsrt_iovec_t *ref);
 
-/* Release a lock on serialised data, ref must be a pointer previously obtained by calling
-   to_ser_ref(d, off, sz) for some offset off. */
+/* Release a lock on serialised data
+   - ref was previousy filled by ddsi_serdata_to_ser_ref_t */
 typedef void (*ddsi_serdata_to_ser_unref_t) (struct ddsi_serdata *d, const ddsrt_iovec_t *ref);
 
 /* Turn serdata into an application sample (or just the key values if only key values are
@@ -83,11 +112,11 @@ typedef void (*ddsi_serdata_to_ser_unref_t) (struct ddsi_serdata *d, const ddsrt
    by the caller.) */
 typedef bool (*ddsi_serdata_to_sample_t) (const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
 
-/* Create a sample from a topicless serdata, as returned by serdata_to_topicless. This sample
-   obviously has just the key fields filled in, and is used for generating invalid samples. */
+/* Create a sample from a topicless serdata, as returned by serdata_to_topicless.  This sample
+   obviously has just the key fields filled in and is used for generating invalid samples. */
 typedef bool (*ddsi_serdata_topicless_to_sample_t) (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
 
-/* Test key values of two serdatas for equality. The two will have the same ddsi_serdata_ops,
+/* Test key values of two serdatas for equality.  The two will have the same ddsi_serdata_ops,
    but are not necessarily of the same topic (one can decide to never consider them equal if they
    are of different topics, of course; but the nice thing about _not_ doing that is that all
    instances with a certain key value with have the same instance id, and that in turn makes
@@ -165,5 +194,9 @@ DDS_EXPORT inline bool ddsi_serdata_topicless_to_sample (const struct ddsi_serto
 DDS_EXPORT inline bool ddsi_serdata_eqkey (const struct ddsi_serdata *a, const struct ddsi_serdata *b) {
   return a->ops->eqkey (a, b);
 }
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

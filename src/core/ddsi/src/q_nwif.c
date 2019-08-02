@@ -17,39 +17,40 @@
 
 #include "dds/ddsrt/ifaddrs.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sockets.h"
 
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_nwif.h"
+
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_md5.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_addrset.h" /* unspec locator */
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/ddsi_ipaddr.h"
-#include "dds/util/ut_avl.h"
+#include "dds/ddsrt/avl.h"
 
 static void print_sockerror (const char *msg)
 {
   DDS_ERROR("SOCKET %s\n", msg);
 }
 
-unsigned locator_to_hopefully_unique_uint32 (const nn_locator_t *src)
+uint32_t locator_to_hopefully_unique_uint32 (const nn_locator_t *src)
 {
-  unsigned id;
+  uint32_t id = 0;
   if (src->kind == NN_LOCATOR_KIND_UDPv4 || src->kind == NN_LOCATOR_KIND_TCPv4)
     memcpy (&id, src->address + 12, sizeof (id));
   else
   {
 #if DDSRT_HAVE_IPV6
-    md5_state_t st;
-    md5_byte_t digest[16];
-    md5_init (&st);
-    md5_append (&st, (const md5_byte_t *) ((const struct sockaddr_in6 *) src)->sin6_addr.s6_addr, 16);
-    md5_finish (&st, digest);
+    ddsrt_md5_state_t st;
+    ddsrt_md5_byte_t digest[16];
+    ddsrt_md5_init (&st);
+    ddsrt_md5_append (&st, (const ddsrt_md5_byte_t *) ((const struct sockaddr_in6 *) src)->sin6_addr.s6_addr, 16);
+    ddsrt_md5_finish (&st, digest);
     memcpy (&id, digest, sizeof (id));
 #else
     DDS_FATAL("IPv6 unavailable\n");
@@ -93,14 +94,20 @@ static void set_socket_nodelay (ddsrt_socket_t sock)
 static int set_rcvbuf (ddsrt_socket_t socket)
 {
   uint32_t ReceiveBufferSize;
-  uint32_t optlen = (uint32_t) sizeof (ReceiveBufferSize);
+  socklen_t optlen = (socklen_t) sizeof (ReceiveBufferSize);
   uint32_t socket_min_rcvbuf_size;
+  dds_return_t rc;
   if (config.socket_min_rcvbuf_size.isdefault)
     socket_min_rcvbuf_size = 1048576;
   else
     socket_min_rcvbuf_size = config.socket_min_rcvbuf_size.value;
-  if (ddsrt_getsockopt (socket, SOL_SOCKET, SO_RCVBUF, (char *) &ReceiveBufferSize, &optlen) != DDS_RETCODE_OK)
-  {
+  rc = ddsrt_getsockopt(
+    socket, SOL_SOCKET, SO_RCVBUF, (char *) &ReceiveBufferSize, &optlen);
+  /* TCP/IP stack may not support SO_RCVBUF. */
+  if (rc == DDS_RETCODE_BAD_PARAMETER) {
+    DDS_LOG(DDS_LC_CONFIG, "cannot retrieve socket receive buffer size\n");
+    return 0;
+  } else if (rc != DDS_RETCODE_OK) {
     print_sockerror ("get SO_RCVBUF");
     return -2;
   }
@@ -122,13 +129,13 @@ static int set_rcvbuf (ddsrt_socket_t socket)
     {
       /* NN_ERROR does more than just DDS_ERROR(), hence the duplication */
       if (config.socket_min_rcvbuf_size.isdefault)
-        DDS_LOG(DDS_LC_CONFIG, "failed to increase socket receive buffer size to %u bytes, continuing with %u bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
+        DDS_LOG(DDS_LC_CONFIG, "failed to increase socket receive buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
       else
-        DDS_ERROR("failed to increase socket receive buffer size to %u bytes, continuing with %u bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
+        DDS_ERROR("failed to increase socket receive buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n", socket_min_rcvbuf_size, ReceiveBufferSize);
     }
     else
     {
-      DDS_LOG(DDS_LC_CONFIG, "socket receive buffer size set to %u bytes\n", ReceiveBufferSize);
+      DDS_LOG(DDS_LC_CONFIG, "socket receive buffer size set to %"PRIu32" bytes\n", ReceiveBufferSize);
     }
   }
   return 0;
@@ -137,9 +144,14 @@ static int set_rcvbuf (ddsrt_socket_t socket)
 static int set_sndbuf (ddsrt_socket_t socket)
 {
   unsigned SendBufferSize;
-  uint32_t optlen = (uint32_t) sizeof(SendBufferSize);
-  if (ddsrt_getsockopt(socket, SOL_SOCKET, SO_SNDBUF,(char *)&SendBufferSize, &optlen) != DDS_RETCODE_OK)
-  {
+  socklen_t optlen = (socklen_t) sizeof(SendBufferSize);
+  dds_return_t rc;
+  rc = ddsrt_getsockopt(
+    socket, SOL_SOCKET, SO_SNDBUF,(char *)&SendBufferSize, &optlen);
+  if (rc == DDS_RETCODE_BAD_PARAMETER) {
+    DDS_LOG(DDS_LC_CONFIG, "cannot retrieve socket send buffer size\n");
+    return 0;
+  } else if (rc != DDS_RETCODE_OK) {
     print_sockerror ("get SO_SNDBUF");
     return -2;
   }
@@ -190,18 +202,22 @@ static int set_reuse_options (ddsrt_socket_t socket)
   /* Set REUSEADDR (if available on platform) for
      multicast sockets, leave unicast sockets alone. */
   int one = 1;
-
-  if (ddsrt_setsockopt (socket, SOL_SOCKET, SO_REUSEADDR, (char *) &one, sizeof (one)) != DDS_RETCODE_OK)
-  {
+  dds_return_t rc = ddsrt_setsockopt (
+      socket, SOL_SOCKET, SO_REUSEADDR, (char *) &one, sizeof (one));
+  if (rc == DDS_RETCODE_BAD_PARAMETER) {
+    DDS_LOG(DDS_LC_CONFIG, "cannot enable address reuse on socket\n");
+    return 0;
+  } else if (rc != DDS_RETCODE_OK) {
     print_sockerror ("SO_REUSEADDR");
     return -2;
   }
+
   return 0;
 }
 
 static int bind_socket (ddsrt_socket_t socket, unsigned short port)
 {
-  dds_retcode_t rc = DDS_RETCODE_ERROR;
+  dds_return_t rc = DDS_RETCODE_ERROR;
 
 #if DDSRT_HAVE_IPV6
   if (config.transport_selector == TRANS_TCP6 || config.transport_selector == TRANS_UDP6)
@@ -263,9 +279,9 @@ static int set_mc_options_transmit_ipv4 (ddsrt_socket_t socket)
 {
   unsigned char ttl = (unsigned char) config.multicast_ttl;
   unsigned char loop;
-  dds_retcode_t ret;
+  dds_return_t ret;
 
-#if defined __linux || defined __APPLE__
+#if (defined(__linux) || defined(__APPLE__)) && !LWIP_SOCKET
   if (config.use_multicast_if_mreqn)
   {
     struct ip_mreqn mreqn;
@@ -326,13 +342,13 @@ static int set_mc_options_transmit (ddsrt_socket_t socket)
 int make_socket
 (
   ddsrt_socket_t * sock,
-  unsigned short port,
+  uint16_t port,
   bool stream,
   bool reuse
 )
 {
   int rc = -2;
-  dds_retcode_t ret;
+  dds_return_t ret;
 
 #if DDSRT_HAVE_IPV6
   if (config.transport_selector == TRANS_TCP6 || config.transport_selector == TRANS_UDP6)
@@ -469,7 +485,19 @@ int find_own_ip (const char *requested_address)
       continue;
     }
 
-#ifdef __linux
+    switch (ifa->type)
+    {
+      case DDSRT_IFTYPE_WIFI:
+        DDS_LOG(DDS_LC_CONFIG, " wireless");
+        break;
+      case DDSRT_IFTYPE_WIRED:
+        DDS_LOG(DDS_LC_CONFIG, " wired");
+        break;
+      case DDSRT_IFTYPE_UNKNOWN:
+        break;
+    }
+
+#if defined(__linux) && !LWIP_SOCKET
     if (ifa->addr->sa_family == AF_PACKET)
     {
       /* FIXME: weirdo warning warranted */
@@ -544,9 +572,7 @@ int find_own_ip (const char *requested_address)
       quality = q;
     }
 
-    /* FIXME: HACK HACK */
-    //ddsi_ipaddr_to_loc(&gv.interfaces[gv.n_interfaces].loc, &tmpip, gv.m_factory->m_kind);
-    if (ifa->addr->sa_family == AF_INET || ifa->addr->sa_family == AF_INET6)
+    if (ifa->addr->sa_family == AF_INET && ifa->netmask)
     {
       ddsi_ipaddr_to_loc(&gv.interfaces[gv.n_interfaces].netmask, ifa->netmask, gv.m_factory->m_kind);
     }
@@ -557,6 +583,7 @@ int find_own_ip (const char *requested_address)
       memset(&gv.interfaces[gv.n_interfaces].netmask.address, 0, sizeof(gv.interfaces[gv.n_interfaces].netmask.address));
     }
     gv.interfaces[gv.n_interfaces].mc_capable = ((ifa->flags & IFF_MULTICAST) != 0);
+    gv.interfaces[gv.n_interfaces].mc_flaky = ((ifa->type == DDSRT_IFTYPE_WIFI) != 0);
     gv.interfaces[gv.n_interfaces].point_to_point = ((ifa->flags & IFF_POINTOPOINT) != 0);
     gv.interfaces[gv.n_interfaces].if_index = ifa->index;
     gv.interfaces[gv.n_interfaces].name = ddsrt_strdup (if_name);

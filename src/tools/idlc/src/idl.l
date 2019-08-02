@@ -77,7 +77,7 @@ identifier                [a-zA-Z_][a-zA-Z0-9_]*
                             BEGIN(INITIAL);
                             yylval->literal.flags = DDSTS_ULONGLONG;
                             /* strtoll recognizes if the value is dec, oct or hex if base is zero */
-                            dds_retcode_t retcode = ddsrt_strtoull(yytext, NULL, 0, &yylval->literal.value.ullng);
+                            dds_return_t retcode = ddsrt_strtoull(yytext, NULL, 0, &yylval->literal.value.ullng);
                             if (retcode != DDS_RETCODE_OK) {
                               yyerror(yylloc_param, yyscanner, context, "Integer value invalid");
                             }

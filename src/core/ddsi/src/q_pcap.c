@@ -77,9 +77,9 @@ static const ipv4_hdr_t ipv4_hdr_template = {
 #define IPV4_HDR_SIZE 20
 #define UDP_HDR_SIZE 8
 
-DDSRT_WARNING_MSVC_OFF(4996);
 FILE *new_pcap_file (const char *name)
 {
+  DDSRT_WARNING_MSVC_OFF(4996);
   FILE *fp;
   pcap_hdr_t hdr;
 
@@ -99,8 +99,8 @@ FILE *new_pcap_file (const char *name)
   fwrite (&hdr, sizeof (hdr), 1, fp);
 
   return fp;
+  DDSRT_WARNING_MSVC_ON(4996);
 }
-DDSRT_WARNING_MSVC_ON(4996);
 
 static void write_data (FILE *fp, const ddsrt_msghdr_t *msghdr, size_t sz)
 {

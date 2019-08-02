@@ -13,7 +13,9 @@
 #include <assert.h>
 
 #include "dds/ddsrt/heap.h"
-#include "dds/util/ut_hopscotch.h"
+#include "dds/ddsrt/misc.h"
+
+#include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_globals.h"
@@ -23,7 +25,7 @@
 #include "dds/ddsi/q_thread.h" /* for assert(thread is awake) */
 
 struct ephash {
-  struct ut_chh *hash;
+  struct ddsrt_chh *hash;
 };
 
 static const uint64_t unihashconsts[] = {
@@ -78,7 +80,7 @@ struct ephash *ephash_new (void)
 {
   struct ephash *ephash;
   ephash = ddsrt_malloc (sizeof (*ephash));
-  ephash->hash = ut_chhNew (32, hash_entity_guid_wrapper, entity_guid_eq_wrapper, gc_buckets);
+  ephash->hash = ddsrt_chh_new (32, hash_entity_guid_wrapper, entity_guid_eq_wrapper, gc_buckets);
   if (ephash->hash == NULL) {
     ddsrt_free (ephash);
     return NULL;
@@ -89,7 +91,7 @@ struct ephash *ephash_new (void)
 
 void ephash_free (struct ephash *ephash)
 {
-  ut_chhFree (ephash->hash);
+  ddsrt_chh_free (ephash->hash);
   ephash->hash = NULL;
   ddsrt_free (ephash);
 }
@@ -99,7 +101,7 @@ static void ephash_guid_insert (struct entity_common *e)
   int x;
   assert(gv.guid_hash);
   assert(gv.guid_hash->hash);
-  x = ut_chhAdd (gv.guid_hash->hash, e);
+  x = ddsrt_chh_add (gv.guid_hash->hash, e);
   (void)x;
   assert (x);
 }
@@ -109,7 +111,7 @@ static void ephash_guid_remove (struct entity_common *e)
   int x;
   assert(gv.guid_hash);
   assert(gv.guid_hash->hash);
-  x = ut_chhRemove (gv.guid_hash->hash, e);
+  x = ddsrt_chh_remove (gv.guid_hash->hash, e);
   (void)x;
   assert (x);
 }
@@ -119,7 +121,8 @@ void *ephash_lookup_guid_untyped (const struct nn_guid *guid)
   /* FIXME: could (now) require guid to be first in entity_common; entity_common already is first in entity */
   struct entity_common e;
   e.guid = *guid;
-  return ut_chhLookup (gv.guid_hash->hash, &e);
+  assert (thread_is_awake ());
+  return ddsrt_chh_lookup (gv.guid_hash->hash, &e);
 }
 
 static void *ephash_lookup_guid_int (const struct ephash *ephash, const struct nn_guid *guid, enum entity_kind kind)
@@ -244,9 +247,9 @@ struct proxy_reader *ephash_lookup_proxy_reader_guid (const struct nn_guid *guid
 static void ephash_enum_init_int (struct ephash_enum *st, struct ephash *ephash, enum entity_kind kind)
 {
   st->kind = kind;
-  st->cur = ut_chhIterFirst (ephash->hash, &st->it);
+  st->cur = ddsrt_chh_iter_first (ephash->hash, &st->it);
   while (st->cur && st->cur->kind != st->kind)
-    st->cur = ut_chhIterNext (&st->it);
+    st->cur = ddsrt_chh_iter_next (&st->it);
 }
 
 void ephash_enum_init (struct ephash_enum *st, enum entity_kind kind)
@@ -289,9 +292,9 @@ void *ephash_enum_next (struct ephash_enum *st)
   void *res = st->cur;
   if (st->cur)
   {
-    st->cur = ut_chhIterNext (&st->it);
+    st->cur = ddsrt_chh_iter_next (&st->it);
     while (st->cur && st->cur->kind != st->kind)
-      st->cur = ut_chhIterNext (&st->it);
+      st->cur = ddsrt_chh_iter_next (&st->it);
   }
   return res;
 }

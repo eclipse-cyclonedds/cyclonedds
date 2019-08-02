@@ -14,6 +14,10 @@
 
 #include "dds/ddsi/ddsi_tran.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 struct nn_group_membership;
 
 struct nn_group_membership *new_group_membership (void);
@@ -22,5 +26,9 @@ int ddsi_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcip, const nn_loc
 int ddsi_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcip, const nn_locator_t *mcip);
 void ddsi_transfer_group_membership (ddsi_tran_conn_t conn, ddsi_tran_conn_t newconn);
 int ddsi_rejoin_transferred_mcgroups (ddsi_tran_conn_t conn);
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif

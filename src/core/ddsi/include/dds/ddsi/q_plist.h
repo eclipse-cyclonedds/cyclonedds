@@ -46,22 +46,16 @@ extern "C" {
 #define PP_STATUSINFO                           ((uint64_t)1 << 22)
 #define PP_ORIGINAL_WRITER_INFO                 ((uint64_t)1 << 23)
 #define PP_ENDPOINT_GUID                        ((uint64_t)1 << 24)
-#define PP_PRISMTECH_WRITER_INFO                ((uint64_t)1 << 25)
 #define PP_PRISMTECH_PARTICIPANT_VERSION_INFO   ((uint64_t)1 << 26)
 #define PP_PRISMTECH_NODE_NAME                  ((uint64_t)1 << 27)
 #define PP_PRISMTECH_EXEC_NAME                  ((uint64_t)1 << 28)
 #define PP_PRISMTECH_PROCESS_ID                 ((uint64_t)1 << 29)
-#define PP_PRISMTECH_SERVICE_TYPE               ((uint64_t)1 << 30)
-#define PP_PRISMTECH_WATCHDOG_SCHEDULING        ((uint64_t)1 << 31)
-#define PP_PRISMTECH_LISTENER_SCHEDULING        ((uint64_t)1 << 32)
 #define PP_PRISMTECH_BUILTIN_ENDPOINT_SET       ((uint64_t)1 << 33)
 #define PP_PRISMTECH_TYPE_DESCRIPTION           ((uint64_t)1 << 34)
 #define PP_COHERENT_SET                         ((uint64_t)1 << 37)
-#define PP_PRISMTECH_EOTINFO                    ((uint64_t)1 << 38)
 #ifdef DDSI_INCLUDE_SSM
 #define PP_READER_FAVOURS_SSM                   ((uint64_t)1 << 39)
 #endif
-#define PP_RTI_TYPECODE                         ((uint64_t)1 << 40)
 /* Security extensions. */
 #define PP_IDENTITY_TOKEN                       ((uint64_t)1 << 41)
 #define PP_PERMISSIONS_TOKEN                    ((uint64_t)1 << 42)
@@ -93,14 +87,14 @@ struct nn_locators_one {
 };
 
 typedef struct nn_locators {
-  int n;
+  uint32_t n;
   struct nn_locators_one *first;
   struct nn_locators_one *last;
 } nn_locators_t;
 
-typedef unsigned nn_ipv4address_t;
+typedef uint32_t nn_ipv4address_t;
 
-typedef unsigned nn_port_t;
+typedef uint32_t nn_port_t;
 
 typedef struct nn_keyhash {
   unsigned char value[16];
@@ -109,15 +103,15 @@ typedef struct nn_keyhash {
 
 #ifdef DDSI_INCLUDE_SSM
 typedef struct nn_reader_favours_ssm {
-  unsigned state; /* default is false */
+  uint32_t state; /* default is false */
 } nn_reader_favours_ssm_t;
 #endif
 
 typedef struct nn_prismtech_participant_version_info
 {
-  unsigned version;
-  unsigned flags;
-  unsigned unused[3];
+  uint32_t version;
+  uint32_t flags;
+  uint32_t unused[3];
   char *internals;
 } nn_prismtech_participant_version_info_t;
 
@@ -126,18 +120,11 @@ typedef struct nn_prismtech_eotgroup_tid {
   uint32_t transactionId;
 } nn_prismtech_eotgroup_tid_t;
 
-typedef struct nn_prismtech_eotinfo {
-  uint32_t transactionId;
-  uint32_t n;
-  nn_prismtech_eotgroup_tid_t *tids;
-} nn_prismtech_eotinfo_t;
-
 typedef struct nn_plist {
   uint64_t present;
   uint64_t aliased;
-  int unalias_needs_bswap;
 
-  nn_xqos_t qos;
+  dds_qos_t qos;
 
   nn_protocol_version_t protocol_version;
   nn_vendorid_t vendorid;
@@ -150,8 +137,8 @@ typedef struct nn_plist {
 
   unsigned char expects_inline_qos;
   nn_count_t participant_manual_liveliness_count;
-  unsigned participant_builtin_endpoints;
-  nn_duration_t participant_lease_duration;
+  uint32_t participant_builtin_endpoints;
+  dds_duration_t participant_lease_duration;
   /* nn_content_filter_property_t content_filter_property; */
   nn_guid_t participant_guid;
   nn_guid_t endpoint_guid;
@@ -160,21 +147,18 @@ typedef struct nn_plist {
   nn_entityid_t participant_entityid;
   nn_entityid_t group_entityid;
 #endif
-  unsigned builtin_endpoint_set;
-  unsigned prismtech_builtin_endpoint_set;
+  uint32_t builtin_endpoint_set;
+  uint32_t prismtech_builtin_endpoint_set;
   /* int type_max_size_serialized; */
   char *entity_name;
   nn_keyhash_t keyhash;
-  unsigned statusinfo;
+  uint32_t statusinfo;
   nn_prismtech_participant_version_info_t prismtech_participant_version_info;
   char *node_name;
   char *exec_name;
-  unsigned char is_service;
-  unsigned service_type;
-  unsigned process_id;
+  uint32_t process_id;
   char *type_description;
   nn_sequence_number_t coherent_set_seqno;
-  nn_prismtech_eotinfo_t eotinfo;
 #ifdef DDSI_INCLUDE_SSM
   nn_reader_favours_ssm_t reader_favours_ssm;
 #endif
@@ -192,29 +176,63 @@ typedef struct nn_plist_src {
   size_t bufsz;
 } nn_plist_src_t;
 
+void nn_plist_init_tables (void);
 DDS_EXPORT void nn_plist_init_empty (nn_plist_t *dest);
-DDS_EXPORT void nn_plist_mergein_missing (nn_plist_t *a, const nn_plist_t *b);
+DDS_EXPORT void nn_plist_mergein_missing (nn_plist_t *a, const nn_plist_t *b, uint64_t pmask, uint64_t qmask);
 DDS_EXPORT void nn_plist_copy (nn_plist_t *dst, const nn_plist_t *src);
 DDS_EXPORT nn_plist_t *nn_plist_dup (const nn_plist_t *src);
-DDS_EXPORT int nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const nn_plist_src_t *src);
+
+/**
+ * @brief Initialize an nn_plist_t from a PL_CDR_{LE,BE} paylaod.
+ *
+ * @param[in]  pwanted
+ *               PP_... flags indicating which non-QoS parameters are of interest, treated as
+ *               a hint.  Parameters in the input that are outside the mask may or may not be
+ *               ignored.
+ * @param[in]  qwanted
+ *               QP_... flags indicating which QoS settings are of interest, and is treated as
+ *               a hint.  Parameters in the input that are outside the mask may or may not be
+ *               ignored.
+ * @param[in]  src
+ *               Serialized payload to be parsed, validated and copied into dest
+ *               - protocol_version is the version protocol version according to which the list
+ *                 should be parsed
+ *               - vendorid is the vendor id code for the source of the parameter list (for
+ *                 handling vendor-specific parameters and compatibility workarounds)
+ *               - encoding is PL_CDR_LE or PL_CDR_BE
+ *               - buf is a pointer to the first parameter header
+ *               - bufsz is the size in bytes of the input buffer
+ * @param[out] dest
+ *               Filled with the recognized parameters in the input if successful, otherwise
+ *               initialized to an empty parameter list.  Where possible, pointers alias the
+ *               input (indicated by the "aliased" bits in the plist/xqos structures), but
+ *               some things cannot be aliased (e.g., the array of pointers to strings for a
+ *               sequence of strings).
+ *               Generally, nn_plist_fini should be called when done with the parameter list,
+ *               even when nn_plist_unlias or nn_xqos_unlias hasn't been called.
+ * @param[out] nextafterplist
+ *               If non-NULL, *nextafterplist is set to the first byte following the parameter
+ *               list sentinel on successful parse, or to NULL on failure
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *               All parameters valid (or ignored), dest and *nextafterplist have been set
+ *               accordingly.
+ * @retval DDS_INCONSISTENT_POLICY
+ *               All individual settings are valid, but there are inconsistencies between
+ *               dependent settings.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *               Input contained invalid data; dest is cleared, *nextafterplist is NULL.
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *               Input contained an unrecognized parameter with the "incompatible-if-unknown"
+ *               flag set; dest is cleared, *nextafterplist is NULL.
+ */
+DDS_EXPORT dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const nn_plist_src_t *src);
 DDS_EXPORT void nn_plist_fini (nn_plist_t *ps);
+DDS_EXPORT void nn_plist_unalias (nn_plist_t *plist);
 DDS_EXPORT void nn_plist_addtomsg (struct nn_xmsg *m, const nn_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
-DDS_EXPORT int nn_plist_init_default_participant (nn_plist_t *plist);
-
-DDS_EXPORT int validate_history_qospolicy (const nn_history_qospolicy_t *q);
-DDS_EXPORT int validate_durability_qospolicy (const nn_durability_qospolicy_t *q);
-DDS_EXPORT int validate_resource_limits_qospolicy (const nn_resource_limits_qospolicy_t *q);
-DDS_EXPORT int validate_history_and_resource_limits (const nn_history_qospolicy_t *qh, const nn_resource_limits_qospolicy_t *qr);
-DDS_EXPORT int validate_durability_service_qospolicy (const nn_durability_service_qospolicy_t *q);
-DDS_EXPORT int validate_liveliness_qospolicy (const nn_liveliness_qospolicy_t *q);
-DDS_EXPORT int validate_destination_order_qospolicy (const nn_destination_order_qospolicy_t *q);
-DDS_EXPORT int validate_ownership_qospolicy (const nn_ownership_qospolicy_t *q);
-DDS_EXPORT int validate_ownership_strength_qospolicy (const nn_ownership_strength_qospolicy_t *q);
-DDS_EXPORT int validate_presentation_qospolicy (const nn_presentation_qospolicy_t *q);
-DDS_EXPORT int validate_transport_priority_qospolicy (const nn_transport_priority_qospolicy_t *q);
-DDS_EXPORT int validate_reader_data_lifecycle (const nn_reader_data_lifecycle_qospolicy_t *q);
-DDS_EXPORT int validate_duration (const nn_duration_t *d);
-
+DDS_EXPORT void nn_plist_init_default_participant (nn_plist_t *plist);
 
 struct nn_rmsg;
 struct nn_rsample_info;

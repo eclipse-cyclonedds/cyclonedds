@@ -26,6 +26,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_iid.c
     ddsi_tkmap.c
     ddsi_vendor.c
+    ddsi_threadmon.c
     q_addrset.c
     q_bitset_inlines.c
     q_bswap.c
@@ -39,7 +40,6 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_init.c
     q_lat_estim.c
     q_lease.c
-    q_md5.c
     q_misc.c
     q_nwif.c
     q_pcap.c
@@ -48,10 +48,8 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_radmin.c
     q_receive.c
     q_security.c
-    q_servicelease.c
     q_sockwaitset.c
     q_thread.c
-    q_thread_inlines.c
     q_time.c
     q_transmit.c
     q_inverse_uint32_set.c
@@ -79,7 +77,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_iid.h
     ddsi_tkmap.h
     ddsi_vendor.h
-    probes-constants.h
+    ddsi_threadmon.h
     q_addrset.h
     q_bitset.h
     q_bswap.h
@@ -88,7 +86,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_debmon.h
     q_entity.h
     q_ephash.h
-    q_error.h
     q_feature_check.h
     q_freelist.h
     q_gc.h
@@ -97,7 +94,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_lat_estim.h
     q_lease.h
     q_log.h
-    q_md5.h
     q_misc.h
     q_nwif.h
     q_pcap.h
@@ -108,9 +104,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_receive.h
     q_rtps.h
     q_security.h
-    q_servicelease.h
     q_sockwaitset.h
-    q_static_assert.h
     q_thread.h
     q_time.h
     q_transmit.h
@@ -128,3 +122,8 @@ target_sources(ddsc
 
 target_include_directories(ddsc
   PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
+
+install(
+  DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/dds"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  COMPONENT dev)

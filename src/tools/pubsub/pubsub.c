@@ -45,7 +45,7 @@
 //#define NUMSTR "0123456789"
 //#define HOSTNAMESTR "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-." NUMSTR
 
-typedef int (*write_oper_t) (dds_entity_t wr, const void *d, const dds_time_t ts);
+typedef dds_return_t (*write_oper_t) (dds_entity_t wr, const void *d, const dds_time_t ts);
 
 enum topicsel { UNSPEC, KS, K32, K64, K128, K256, OU, ARB };
 enum readermode { MODE_PRINT, MODE_CHECK, MODE_ZEROLOAD, MODE_DUMP, MODE_NONE };
@@ -62,6 +62,7 @@ enum readermode { MODE_PRINT, MODE_CHECK, MODE_ZEROLOAD, MODE_DUMP, MODE_NONE };
 #define PM_STATE 512u
 
 static volatile sig_atomic_t termflag = 0;
+static int flushflag = 0;
 static int pid;
 static dds_entity_t termcond;
 static unsigned nkeyvals = 1;
@@ -566,7 +567,7 @@ static int read_value(char *command, int *key, struct tstamp_t *tstamp, char **a
                 return 1;
             }
             break;
-        case 'p': case 'S': case ':': {
+        case 'p': case 'S': case ':': case 'Q': {
             int i = 0;
             *command = (char) c;
             while ((c = getc(stdin)) != EOF && !isspace((unsigned char) c)) {
@@ -859,11 +860,11 @@ static void print_K(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd, const 
     print_sampleinfo(tstart, tnow, si, tag);
     if (si->valid_data) {
         if(printmode == TGPM_MULTILINE) {
-            printf ("{\n%*.*s.seq = %u,\n%*.*s.keyval = %d }\n", 4, 4, "", seq, 4, 4, "", keyval);
+            printf ("{\n%*.*s.seq = %"PRIu32",\n%*.*s.keyval = %"PRId32" }\n", 4, 4, "", seq, 4, 4, "", keyval);
         } else if(printmode == TGPM_DENSE) {
-            printf ("{%u,%d}\n", seq, keyval);
+            printf ("{%"PRIu32",%"PRId32"}\n", seq, keyval);
         } else {
-            printf ("{ .seq = %u, .keyval = %d }\n", seq, keyval);
+            printf ("{ .seq = %"PRIu32", .keyval = %"PRId32" }\n", seq, keyval);
         }
     } else {
         /* May not look at mseq->_buffer[i] but want the key value
@@ -876,14 +877,17 @@ static void print_K(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd, const 
         int32_t d_key;
         if ((result = getkeyval(rd, &d_key, si->instance_handle)) == DDS_RETCODE_OK) {
             if(printmode == TGPM_MULTILINE) {
-                printf ("{\n%*.*s.seq = NA,\n%*.*s.keyval = %d }\n", 4, 4, "", 4, 4, "", keyval);
+                printf ("{\n%*.*s.seq = NA,\n%*.*s.keyval = %"PRId32" }\n", 4, 4, "", 4, 4, "", keyval);
             } else if(printmode == TGPM_DENSE) {
-                printf ("{NA,%d}\n", keyval);
+                printf ("{NA,%"PRId32"}\n", keyval);
             } else {
-                printf ("{ .seq = NA, .keyval = %d }\n", keyval);
+                printf ("{ .seq = NA, .keyval = %"PRId32" }\n", keyval);
             }
         } else
             printf ("get_key_value: error (%s)\n", dds_err_str(result));
+    }
+    if (flushflag) {
+        fflush (stdout);
     }
     ddsrt_mutex_unlock(&output_mutex);
 }
@@ -926,14 +930,17 @@ static void print_seq_OU(dds_time_t *tstart, dds_time_t tnow, dds_entity_t rd __
         print_sampleinfo(tstart, tnow, si, tag);
         if (si->valid_data) {
             if(printmode == TGPM_MULTILINE) {
-                printf ("{\n%*.*s.seq = %u }\n", 4, 4, "", mseq[i]->seq);
+                printf ("{\n%*.*s.seq = %"PRIu32" }\n", 4, 4, "", mseq[i]->seq);
             } else if(printmode == TGPM_DENSE) {
-                printf ("{%u}\n", mseq[i]->seq);
+                printf ("{%"PRIu32"}\n", mseq[i]->seq);
             } else {
-                printf ("{ .seq = %u }\n", mseq[i]->seq);
+                printf ("{ .seq = %"PRIu32" }\n", mseq[i]->seq);
             }
         } else {
             printf ("NA\n");
+        }
+        if (flushflag) {
+            fflush (stdout);
         }
         ddsrt_mutex_unlock(&output_mutex);
     }
@@ -967,10 +974,16 @@ static void rd_on_liveliness_changed(dds_entity_t rd __attribute__ ((unused)), c
             status.alive_count, status.alive_count_change,
             status.not_alive_count, status.not_alive_count_change,
             status.last_publication_handle);
+    if (flushflag) {
+      fflush (stdout);
+    }
 }
 
 static void rd_on_sample_lost(dds_entity_t rd __attribute__ ((unused)), const dds_sample_lost_status_t status, void* arg  __attribute__ ((unused))) {
     printf ("[sample-lost: total=(%"PRIu32" change %"PRId32")]\n", status.total_count, status.total_count_change);
+    if (flushflag) {
+      fflush (stdout);
+    }
 }
 
 static void rd_on_sample_rejected(dds_entity_t rd __attribute__ ((unused)), const dds_sample_rejected_status_t status, void* arg  __attribute__ ((unused))) {
@@ -985,6 +998,9 @@ static void rd_on_sample_rejected(dds_entity_t rd __attribute__ ((unused)), cons
             status.total_count, status.total_count_change,
             reasonstr,
             status.last_instance_handle);
+    if (flushflag) {
+      fflush (stdout);
+    }
 }
 
 static void rd_on_subscription_matched(dds_entity_t rd __attribute__((unused)), const dds_subscription_matched_status_t status, void* arg  __attribute__((unused))) {
@@ -992,12 +1008,18 @@ static void rd_on_subscription_matched(dds_entity_t rd __attribute__((unused)), 
             status.total_count, status.total_count_change,
             status.current_count, status.current_count_change,
             status.last_publication_handle);
+    if (flushflag) {
+      fflush (stdout);
+    }
 }
 
 static void rd_on_requested_deadline_missed(dds_entity_t rd __attribute__((unused)), const dds_requested_deadline_missed_status_t status, void* arg  __attribute__ ((unused))) {
     printf ("[requested-deadline-missed: total=(%"PRIu32" change %"PRId32") handle=%"PRIu64"]\n",
             status.total_count, status.total_count_change,
             status.last_instance_handle);
+    if (flushflag) {
+      fflush (stdout);
+    }
 }
 
 static const char *policystr(uint32_t id) {
@@ -1048,21 +1070,33 @@ static const char *policystr(uint32_t id) {
 static void rd_on_requested_incompatible_qos(dds_entity_t rd __attribute__((unused)), const dds_requested_incompatible_qos_status_t status, void* arg __attribute__((unused))) {
     printf ("[requested-incompatible-qos: total=(%"PRIu32" change %"PRId32") last_policy=%s]\n",
             status.total_count, status.total_count_change, policystr(status.last_policy_id));
+    if (flushflag) {
+      fflush (stdout);
+    }
 }
 
 static void wr_on_offered_incompatible_qos(dds_entity_t wr __attribute__((unused)), const dds_offered_incompatible_qos_status_t status, void* arg __attribute__((unused))) {
     printf ("[offered-incompatible-qos: total=(%"PRIu32" change %"PRId32") last_policy=%s]\n",
             status.total_count, status.total_count_change, policystr(status.last_policy_id));
+    if (flushflag) {
+      fflush (stdout);
+    }
 }
 
 static void wr_on_liveliness_lost(dds_entity_t wr __attribute__((unused)), const dds_liveliness_lost_status_t status, void* arg  __attribute__ ((unused))) {
     printf ("[liveliness-lost: total=(%"PRIu32" change %"PRId32")]\n",
             status.total_count, status.total_count_change);
+    if (flushflag) {
+      fflush (stdout);
+    }
 }
 
 static void wr_on_offered_deadline_missed(dds_entity_t wr __attribute__((unused)), const dds_offered_deadline_missed_status_t status, void* arg __attribute__((unused))) {
     printf ("[offered-deadline-missed: total=(%"PRIu32" change %"PRId32") handle=%"PRIu64"]\n",
             status.total_count, status.total_count_change, status.last_instance_handle);
+    if (flushflag) {
+      fflush (stdout);
+    }
 }
 
 static void wr_on_publication_matched(dds_entity_t wr __attribute__((unused)), const dds_publication_matched_status_t status, void* arg __attribute__((unused))) {
@@ -1070,9 +1104,12 @@ static void wr_on_publication_matched(dds_entity_t wr __attribute__((unused)), c
             status.total_count, status.total_count_change,
             status.current_count, status.current_count_change,
             status.last_subscription_handle);
+    if (flushflag) {
+      fflush (stdout);
+    }
 }
 
-static int register_instance_wrapper(dds_entity_t wr, const void *d, const dds_time_t tstamp) {
+static dds_return_t register_instance_wrapper(dds_entity_t wr, const void *d, const dds_time_t tstamp) {
     dds_instance_handle_t handle;
     (void)tstamp;
     return dds_register_instance(wr, &handle, d);
@@ -1105,6 +1142,9 @@ static void non_data_operation(char command, dds_entity_t wr) {
     switch (command) {
     case 'Y':
         printf ("Dispose all: not supported\n");
+        if (flushflag) {
+            fflush (stdout);
+        }
 //        TODO Implement application side tracking of alive instances for use with a 'dispose all' function
 //        if ((result = DDS_Topic_dispose_all_data(DDS_DataWriter_get_topic(wr))) != DDS_RETCODE_OK)
 //            error ("DDS_Topic_dispose_all: error %d\n", (int) result);
@@ -1207,6 +1247,9 @@ static void pub_do_auto(const struct writerspec *spec) {
         while (!termflag && tprev < tstop) {
             if ((result = dds_write(spec->wr, &d)) != DDS_RETCODE_OK) {
                 printf ("write: error %d (%s)\n", (int) result, dds_err_str(result));
+                if (flushflag) {
+                    fflush (stdout);
+                }
                 if (result != DDS_RETCODE_TIMEOUT)
                     break;
             } else {
@@ -1232,6 +1275,9 @@ static void pub_do_auto(const struct writerspec *spec) {
         while (!termflag && tprev < tstop) {
             if ((result = dds_write(spec->wr, &d)) != DDS_RETCODE_OK) {
                 printf ("write: error %d (%s)\n", (int) result, dds_err_str(result));
+                if (flushflag) {
+                    fflush (stdout);
+                }
                 if (result != DDS_RETCODE_TIMEOUT)
                     break;
             }
@@ -1265,6 +1311,9 @@ static void pub_do_auto(const struct writerspec *spec) {
     hist_print(hist, tlast - tfirst, 0);
     hist_free(hist);
     printf ("total writes: %" PRId64 " (%e/s)\n", ntot, (double)ntot * 1e9 / (double)(tlast - tfirst0));
+    if (flushflag) {
+        fflush (stdout);
+    }
     if (spec->topicsel == KS) {
         dds_free(d.ks.baggage._buffer);
     }
@@ -1319,6 +1368,9 @@ static char *pub_do_nonarb(const struct writerspec *spec, uint32_t *seq) {
             tstamp = (tstamp_spec.t % T_SECOND) + ((int) (tstamp_spec.t / T_SECOND) * DDS_NSECS_IN_SEC);
             if ((result = fn(spec->wr, &d, tstamp)) != DDS_RETCODE_OK) {
                 printf ("%s %d: error %d (%s)\n", get_write_operstr(command), k, (int) result, dds_err_str(result));
+                if (flushflag) {
+                    fflush (stdout);
+                }
                 if (!accept_error(command, result))
                     exit(1);
             }
@@ -1326,6 +1378,9 @@ static char *pub_do_nonarb(const struct writerspec *spec, uint32_t *seq) {
             dds_write_flush(spec->wr);
             if (spec->dupwr && (result = fn(spec->dupwr, &d, tstamp)) != DDS_RETCODE_OK) {
                 printf ("%s %d(dup): error %d (%s)\n", get_write_operstr(command), k, (int) result, dds_err_str(result));
+                if (flushflag) {
+                    fflush (stdout);
+                }
                 if (!accept_error(command, result))
                     exit(1);
             }
@@ -1337,11 +1392,17 @@ static char *pub_do_nonarb(const struct writerspec *spec, uint32_t *seq) {
             break;
         }
         case 'z':
-            if (spec->topicsel != KS)
+            if (spec->topicsel != KS) {
                 printf ("payload size cannot be set for selected type\n");
-            else if (k < 12 && k != 0)
+                if (flushflag) {
+                    fflush (stdout);
+                }
+            } else if (k < 12 && k != 0) {
                 printf ("invalid payload size: %d\n", k);
-            else {
+                if (flushflag) {
+                    fflush (stdout);
+                }
+            } else {
                 uint32_t baggagesize = (k != 0) ? (uint32_t) (k - 12) : 0;
                 if (d.ks.baggage._buffer)
                     dds_free (d.ks.baggage._buffer);
@@ -1354,12 +1415,22 @@ static char *pub_do_nonarb(const struct writerspec *spec, uint32_t *seq) {
             set_pub_partition(spec->pub, arg);
             break;
         case 's':
-            if (k < 0)
+            if (k < 0) {
                 printf ("invalid sleep duration: %ds\n", k);
-            else {
+                if (flushflag) {
+                    fflush (stdout);
+                }
+            } else {
                 dds_sleepfor(DDS_SECS(k));
             }
             break;
+        case 'Q': {
+            dds_qos_t *qos = dds_create_qos ();
+            setqos_from_args (DDS_KIND_PARTICIPANT, qos, 1, (const char **) &arg);
+            dds_set_qos (dp, qos);
+            dds_delete_qos (qos);
+            break;
+          }
         case 'Y': case 'B': case 'E': case 'W':
             non_data_operation(command, spec->wr);
             break;
@@ -1524,6 +1595,9 @@ static uint32_t pubthread(void *vwrspecs) {
                             cand = cursor;
                         else {
                             printf ("%s: ambiguous writer specification\n", nextspec);
+                            if (flushflag) {
+                                fflush (stdout);
+                            }
                             break;
                         }
                     }
@@ -1531,6 +1605,9 @@ static uint32_t pubthread(void *vwrspecs) {
                 } while (cursor != endm);
                 if (cand == NULL) {
                     printf ("%s: no matching writer specification\n", nextspec);
+                    if (flushflag) {
+                        fflush (stdout);
+                    }
                 } else if (cursor != endm) { /* ambiguous case */
                     cursor = endm;
                 } else {
@@ -1699,6 +1776,9 @@ static uint32_t subthread(void *vspec) {
                 rc = dds_waitset_wait(ws, xs, nxs, DDS_INFINITY);
                 if (rc < DDS_RETCODE_OK) {
                     printf ("wait: error %d\n", (int) rc);
+                    if (flushflag) {
+                        fflush (stdout);
+                    }
                     break;
                 } else if (rc == DDS_RETCODE_OK) {
                     continue;
@@ -1722,11 +1802,14 @@ static uint32_t subthread(void *vspec) {
                     rc = dds_get_subscription_matched_status(rd, &status);
                     error_report(rc, "dds_get_subscription_matched_status failed");
                     if (rc == DDS_RETCODE_OK) {
-                        printf("[pre-read: subscription-matched: total=(%"PRIu32" change %d) current=(%"PRIu32" change %d) handle=%"PRIu64"]\n",
+                        printf("[pre-read: subscription-matched: total=(%"PRIu32" change %"PRId32") current=(%"PRIu32" change %"PRId32") handle=%"PRIu64"]\n",
                                 status.total_count, status.total_count_change,
                                 status.current_count,
                                 status.current_count_change,
                                 status.last_publication_handle);
+                        if (flushflag) {
+                            fflush (stdout);
+                        }
                     }
                 }
 
@@ -1767,8 +1850,14 @@ static uint32_t subthread(void *vspec) {
                         ; /* expected */
                     } else if (spec->mode == MODE_CHECK || spec->mode == MODE_DUMP || spec->polling) {
                         printf ("%s: %d (%s) on %s\n", (!spec->use_take && spec->mode == MODE_DUMP) ? "read" : "take", (int) nread, dds_err_str(nread), spec->polling ? "poll" : "stcond");
+                        if (flushflag) {
+                            fflush (stdout);
+                        }
                     } else {
                         printf ("%s: %d (%s) on rdcond%s\n", spec->use_take ? "take" : "read", (int) nread, dds_err_str(nread), (cond == rdcondA) ? "A" : (cond == rdcondD) ? "D" : "?");
+                        if (flushflag) {
+                            fflush (stdout);
+                        }
                     }
                     continue;
                 }
@@ -1825,6 +1914,9 @@ static uint32_t subthread(void *vspec) {
                             const double rate_Mbps = (double)(nreceived_bytes - last_nreceived_bytes) * 8 / 1e6;
                             printf ("%"PRId64".%03"PRId64" ntot %lld nseq %lld ndelta %lld rate %.2f Mb/s\n",
                                     tdelta_s, tdelta_ms, nreceived, out_of_seq, ndelta, rate_Mbps);
+                            if (flushflag) {
+                                fflush (stdout);
+                            }
                             last_nreceived = nreceived;
                             last_nreceived_bytes = nreceived_bytes;
                             tprint = tnow;
@@ -1854,10 +1946,14 @@ static uint32_t subthread(void *vspec) {
             dds_return_t nread;
             nread = dds_take_mask(rd, mseq, iseq, spec->read_maxsamples, spec->read_maxsamples, DDS_ANY_STATE);
             if (nread == 0) {
-                if (!once_mode)
+                if (!once_mode) {
                     printf ("-- final take: data reader empty --\n");
-                else
+                    if (flushflag) {
+                        fflush (stdout);
+                    }
+                } else {
                     exitcode = 1;
+                }
             } else if (nread < DDS_RETCODE_OK) {
                 if (!once_mode) {
                     error_report(rc, "-- final take --\n");
@@ -1888,8 +1984,12 @@ static uint32_t subthread(void *vspec) {
         }
         dds_free(iseq);
         dds_free(mseq);
-        if (spec->mode == MODE_CHECK)
+        if (spec->mode == MODE_CHECK) {
             printf ("received: %lld, out of seq: %lld\n", nreceived, out_of_seq);
+            if (flushflag) {
+                fflush (stdout);
+            }
+        }
         fini_eseq_admin(&eseq_admin);
     }
 
@@ -1950,6 +2050,9 @@ static uint32_t autotermthread(void *varg __attribute__((unused))) {
 
         if ((rc = dds_waitset_wait(ws, wsresults, wsresultsize, timeout)) < DDS_RETCODE_OK) {
             printf ("wait: error %s\n", dds_err_str(rc));
+            if (flushflag) {
+                fflush (stdout);
+            }
             break;
         }
         tnow = dds_time();
@@ -2020,8 +2123,12 @@ static dds_entity_t find_topic(dds_entity_t dpFindTopic, const char *name, const
 //    }
 
 //    TODO Note: the implementation for dds_topic_find blocks infinitely if the topic does not exist in the domain
-    if (!(tp = dds_find_topic(dpFindTopic, name)))
+    if (!(tp = dds_find_topic(dpFindTopic, name))) {
         printf ("topic %s not found\n", name);
+        if (flushflag) {
+            fflush (stdout);
+        }
+    }
 
 //    if (!isbuiltin) {
 //        char *tn = DDS_Topic_get_type_name(tp);
@@ -2240,7 +2347,7 @@ int main(int argc, char *argv[]) {
             wait_for_matching_reader_arg = optarg + pos;
             break;
         case 'F':
-            setvbuf(stdout, (char *) NULL, _IOLBF, 0);
+            flushflag = 1;
             break;
         case 'K':
             addspec(SPEC_TOPICSEL, &spec_sofar, &specidx, &spec, want_reader);
@@ -2409,10 +2516,10 @@ int main(int argc, char *argv[]) {
         }
         break;
         case 'S': {
-            char *copy = dds_string_dup(optarg), *tok, *lasts;
+            char *copy = dds_string_dup(optarg), *tok, *cursor = copy;
             if (copy == NULL)
                 abort();
-            tok = ddsrt_strtok_r(copy, ",", &lasts);
+            tok = ddsrt_strsep(&cursor, ",");
             while (tok) {
                 if (strcmp(tok, "pr") == 0 || strcmp(tok, "pre-read") == 0)
                     spec[specidx].rd.print_match_pre_read = 1;
@@ -2444,7 +2551,7 @@ int main(int argc, char *argv[]) {
                     fprintf (stderr, "-S %s: invalid event\n", tok);
                     exit(2);
                 }
-                tok = ddsrt_strtok_r(NULL, ",", &lasts);
+                tok = ddsrt_strsep(&cursor, ",");
             }
             dds_free(copy);
         }
@@ -2629,6 +2736,9 @@ int main(int argc, char *argv[]) {
 
     if (want_writer && wait_for_matching_reader_arg) {
         printf("Wait for matching reader: unsupported\n");
+        if (flushflag) {
+            fflush (stdout);
+        }
 //        TODO Reimplement wait_for_matching_reader functionality via wait on status subscription matched
 //        struct qos *q = NULL;
 //        uint64_t tnow = dds_time();
@@ -2689,7 +2799,7 @@ int main(int argc, char *argv[]) {
 
     ddsrt_threadattr_t attr;
     ddsrt_threadattr_init(&attr);
-    dds_retcode_t osres;
+    dds_return_t osres;
 
     if (want_writer) {
         for (i = 0; i <= specidx; i++) {

@@ -30,7 +30,7 @@ struct proxy_reader;
 typedef void (*gcreq_cb_t) (struct gcreq *gcreq);
 
 struct idx_vtime {
-  unsigned idx;
+  uint32_t idx;
   vtime_t vtime;
 };
 
@@ -39,8 +39,8 @@ struct gcreq {
   struct gcreq_queue *queue;
   gcreq_cb_t cb;
   void *arg;
-  unsigned nvtimes;
-  struct idx_vtime vtimes[1 /* really a flex ary */];
+  uint32_t nvtimes;
+  struct idx_vtime vtimes[];
 };
 
 DDS_EXPORT struct gcreq_queue *gcreq_queue_new (void);

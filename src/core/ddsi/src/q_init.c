@@ -13,15 +13,15 @@
 #include <stddef.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sync.h"
 
-#include "dds/util/ut_avl.h"
-#include "dds/util/ut_thread_pool.h"
+#include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/thread_pool.h"
 
-#include "dds/ddsi/q_md5.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"
@@ -36,7 +36,6 @@
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_lease.h"
@@ -132,12 +131,12 @@ static int make_uc_sockets (uint32_t * pdisc, uint32_t * pdata, int ppid)
   return gv.data_conn_uc ? 0 : -1;
 }
 
-static void make_builtin_endpoint_xqos (nn_xqos_t *q, const nn_xqos_t *template)
+static void make_builtin_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
 {
   nn_xqos_copy (q, template);
-  q->reliability.kind = NN_RELIABLE_RELIABILITY_QOS;
-  q->reliability.max_blocking_time = nn_to_ddsi_duration (100 * T_MILLISECOND);
-  q->durability.kind = NN_TRANSIENT_LOCAL_DURABILITY_QOS;
+  q->reliability.kind = DDS_RELIABILITY_RELIABLE;
+  q->reliability.max_blocking_time = 100 * T_MILLISECOND;
+  q->durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
 }
 
 static int set_recvips (void)
@@ -313,11 +312,6 @@ static int set_spdp_address (void)
     return -1;
   }
 #endif
-  if (!(config.allowMulticast & AMC_SPDP) || config.suppress_spdp_multicast)
-  {
-    /* Explicitly disabling SPDP multicasting is always possible */
-    set_unspec_locator (&gv.loc_spdp_mc);
-  }
   return 0;
 }
 
@@ -331,11 +325,6 @@ static int set_default_mc_address (void)
     return rc;
   else if (rc == 0)
     gv.loc_default_mc = gv.loc_spdp_mc;
-  if (!(config.allowMulticast & ~AMC_SPDP))
-  {
-    /* no multicasting beyond SPDP */
-    set_unspec_locator (&gv.loc_default_mc);
-  }
   gv.loc_meta_mc = gv.loc_default_mc;
   return 0;
 }
@@ -426,43 +415,43 @@ static int check_thread_properties (void)
   return ok;
 }
 
-DDSRT_WARNING_MSVC_OFF(4996);
 int rtps_config_open (void)
 {
-    int status;
+  DDSRT_WARNING_MSVC_OFF(4996);
+  int status;
 
-    if (config.tracingOutputFileName == NULL || *config.tracingOutputFileName == 0 || config.enabled_logcats == 0)
-    {
-        config.enabled_logcats = 0;
-        config.tracingOutputFile = NULL;
-        status = 1;
-    }
-    else if (ddsrt_strcasecmp (config.tracingOutputFileName, "stdout") == 0)
-    {
-        config.tracingOutputFile = stdout;
-        status = 1;
-    }
-    else if (ddsrt_strcasecmp (config.tracingOutputFileName, "stderr") == 0)
-    {
-        config.tracingOutputFile = stderr;
-        status = 1;
-    }
-    else if ((config.tracingOutputFile = fopen (config.tracingOutputFileName, config.tracingAppendToFile ? "a" : "w")) == NULL)
-    {
-        DDS_ERROR("%s: cannot open for writing\n", config.tracingOutputFileName);
-        status = 0;
-    }
-    else
-    {
-        status = 1;
-    }
+  if (config.tracingOutputFileName == NULL || *config.tracingOutputFileName == 0 || config.enabled_logcats == 0)
+  {
+    config.enabled_logcats = 0;
+    config.tracingOutputFile = NULL;
+    status = 1;
+  }
+  else if (ddsrt_strcasecmp (config.tracingOutputFileName, "stdout") == 0)
+  {
+    config.tracingOutputFile = stdout;
+    status = 1;
+  }
+  else if (ddsrt_strcasecmp (config.tracingOutputFileName, "stderr") == 0)
+  {
+    config.tracingOutputFile = stderr;
+    status = 1;
+  }
+  else if ((config.tracingOutputFile = fopen (config.tracingOutputFileName, config.tracingAppendToFile ? "a" : "w")) == NULL)
+  {
+    DDS_ERROR("%s: cannot open for writing\n", config.tracingOutputFileName);
+    status = 0;
+  }
+  else
+  {
+    status = 1;
+  }
 
-    dds_set_log_mask(config.enabled_logcats);
-    dds_set_trace_file(config.tracingOutputFile);
+  dds_set_log_mask(config.enabled_logcats);
+  dds_set_trace_file(config.tracingOutputFile);
 
-    return status;
+  return status;
+  DDSRT_WARNING_MSVC_ON(4996);
 }
-DDSRT_WARNING_MSVC_ON(4996);
 
 int rtps_config_prep (struct cfgst *cfgst)
 {
@@ -500,12 +489,6 @@ int rtps_config_prep (struct cfgst *cfgst)
   {
     if (config.max_participants == 0)
       config.max_participants = 100;
-  }
-  if (NN_STRICT_P)
-  {
-    /* Should not be sending invalid messages when strict */
-    config.respond_to_rti_init_zero_ack_with_invalid_heartbeat = 0;
-    config.acknack_numbits_emptyset = 1;
   }
   if (config.max_queued_rexmit_bytes == 0)
   {
@@ -600,8 +583,10 @@ int rtps_config_prep (struct cfgst *cfgst)
     thread_states_init (max_threads);
   }
 
-  /* Now the per-thread-log-buffers are set up, so print the configuration */
+  /* Now the per-thread-log-buffers are set up, so print the configuration.  After this there
+     is no value to the source information for the various configuration elements, so free those. */
   config_print_cfgst (cfgst);
+  config_free_source_info (cfgst);
   return 0;
 
 err_config_late_error:
@@ -647,7 +632,7 @@ int joinleave_spdp_defmcip (int dojoin)
   unref_addrset (as);
   if (arg.errcount)
   {
-    DDS_ERROR("rtps_init: failed to join multicast groups for domain %d participant %d\n", config.domainId.value, config.participantIndex);
+    DDS_ERROR("rtps_init: failed to join multicast groups for domain %"PRId32" participant %d\n", config.domainId.value, config.participantIndex);
     return -1;
   }
   return 0;
@@ -679,7 +664,7 @@ int create_multicast_sockets(void)
 
   gv.disc_conn_mc = disc;
   gv.data_conn_mc = data;
-  DDS_TRACE("Multicast Ports: discovery %d data %d \n",
+  DDS_TRACE("Multicast Ports: discovery %"PRIu32" data %"PRIu32" \n",
           ddsi_conn_port (gv.disc_conn_mc), ddsi_conn_port (gv.data_conn_mc));
   return 1;
 
@@ -694,9 +679,9 @@ static void rtps_term_prep (void)
 {
   /* Stop all I/O */
   ddsrt_mutex_lock (&gv.lock);
-  if (gv.rtps_keepgoing)
+  if (ddsrt_atomic_ld32 (&gv.rtps_keepgoing))
   {
-    gv.rtps_keepgoing = 0; /* so threads will stop once they get round to checking */
+    ddsrt_atomic_st32 (&gv.rtps_keepgoing, 0); /* so threads will stop once they get round to checking */
     ddsrt_atomic_fence ();
     /* can't wake up throttle_writer, currently, but it'll check every few seconds */
     trigger_recv_threads ();
@@ -720,7 +705,6 @@ static void wait_for_receive_threads_helper (struct xevent *xev, void *varg, nn_
 static void wait_for_receive_threads (void)
 {
   struct xevent *trigev;
-  unsigned i;
   struct wait_for_receive_threads_helper_arg cbarg;
   cbarg.count = 0;
   if ((trigev = qxev_callback (add_duration_to_mtime (now_mt (), T_SECOND), wait_for_receive_threads_helper, &cbarg)) == NULL)
@@ -730,7 +714,7 @@ static void wait_for_receive_threads (void)
        dropping the packets until the user approves. */
     DDS_WARNING("wait_for_receive_threads: failed to schedule periodic triggering of the receive threads to deal with packet loss\n");
   }
-  for (i = 0; i < gv.n_recv_threads; i++)
+  for (uint32_t i = 0; i < gv.n_recv_threads; i++)
   {
     if (gv.recv_threads[i].ts)
     {
@@ -781,8 +765,7 @@ static void free_special_topics (void)
 
 static int setup_and_start_recv_threads (void)
 {
-  unsigned i;
-  for (i = 0; i < MAX_RECV_THREADS; i++)
+  for (uint32_t i = 0; i < MAX_RECV_THREADS; i++)
   {
     gv.recv_threads[i].ts = NULL;
     gv.recv_threads[i].arg.mode = RTM_SINGLE;
@@ -797,7 +780,7 @@ static int setup_and_start_recv_threads (void)
   gv.recv_threads[0].arg.mode = RTM_MANY;
   if (gv.m_factory->m_connless && config.many_sockets_mode != MSM_NO_UNICAST && config.multiple_recv_threads)
   {
-    if (ddsi_is_mcaddr (&gv.loc_default_mc) && !ddsi_is_ssm_mcaddr (&gv.loc_default_mc))
+    if (ddsi_is_mcaddr (&gv.loc_default_mc) && !ddsi_is_ssm_mcaddr (&gv.loc_default_mc) && (config.allowMulticast & AMC_ASM))
     {
       /* Multicast enabled, but it isn't an SSM address => handle data multicasts on a separate thread (the trouble with SSM addresses is that we only join matching writers, which our own sockets typically would not be) */
       gv.recv_threads[gv.n_recv_threads].name = "recvMC";
@@ -821,7 +804,7 @@ static int setup_and_start_recv_threads (void)
   assert (gv.n_recv_threads <= MAX_RECV_THREADS);
 
   /* For each thread, create rbufpool and waitset if needed, then start it */
-  for (i = 0; i < gv.n_recv_threads; i++)
+  for (uint32_t i = 0; i < gv.n_recv_threads; i++)
   {
     /* We create the rbufpool for the receive thread, and so we'll
        become the initial owner thread. The receive thread will change
@@ -839,7 +822,7 @@ static int setup_and_start_recv_threads (void)
         goto fail;
       }
     }
-    if ((gv.recv_threads[i].ts = create_thread (gv.recv_threads[i].name, recv_thread, &gv.recv_threads[i].arg)) == NULL)
+    if (create_thread (&gv.recv_threads[i].ts, gv.recv_threads[i].name, recv_thread, &gv.recv_threads[i].arg) != DDS_RETCODE_OK)
     {
       DDS_ERROR("rtps_init: failed to start thread %s\n", gv.recv_threads[i].name);
       goto fail;
@@ -851,7 +834,7 @@ fail:
   /* to trigger any threads we already started to stop - xevent thread has already been started */
   rtps_term_prep ();
   wait_for_receive_threads ();
-  for (i = 0; i < gv.n_recv_threads; i++)
+  for (uint32_t i = 0; i < gv.n_recv_threads; i++)
   {
     if (gv.recv_threads[i].arg.mode == RTM_MANY && gv.recv_threads[i].arg.u.many.ws)
       os_sockWaitsetFree (gv.recv_threads[i].arg.u.many.ws);
@@ -867,10 +850,11 @@ int rtps_init (void)
   uint32_t port_data_uc = 0;
   bool mc_available = true;
 
+  gv.tstart = now ();    /* wall clock time, used in logs */
+
   ddsi_plugin_init ();
   ddsi_iid_init ();
-
-  gv.tstart = now ();    /* wall clock time, used in logs */
+  nn_plist_init_tables ();
 
   gv.disc_conn_uc = NULL;
   gv.data_conn_uc = NULL;
@@ -895,7 +879,7 @@ int rtps_init (void)
 
   if (config.tp_enable)
   {
-    gv.thread_pool = ut_thread_pool_new
+    gv.thread_pool = ddsrt_thread_pool_new
       (config.tp_threads, config.tp_max_threads, 0, NULL);
   }
 
@@ -917,7 +901,6 @@ int rtps_init (void)
       config.publish_uc_locators = (config.tcp_port != -1);
       config.enable_uc_locators = 1;
       /* TCP affects what features are supported/required */
-      config.suppress_spdp_multicast = 1;
       config.many_sockets_mode = MSM_SINGLE_UNICAST;
       config.allowMulticast = AMC_FALSE;
       if (ddsi_tcp_init () < 0)
@@ -946,7 +929,6 @@ int rtps_init (void)
     if (!gv.interfaces[gv.selected_interface].mc_capable)
     {
       DDS_WARNING("selected interface is not multicast-capable: disabling multicast\n");
-      config.suppress_spdp_multicast = 1;
       config.allowMulticast = AMC_FALSE;
       /* ensure discovery can work: firstly, that the process will be reachable on a "well-known" port
          number, and secondly, that the local interface's IP address gets added to the discovery
@@ -954,7 +936,24 @@ int rtps_init (void)
       config.participantIndex = PARTICIPANT_INDEX_AUTO;
       mc_available = false;
     }
+    else if (config.allowMulticast & AMC_DEFAULT)
+    {
+      /* default is dependent on network interface type: if multicast is believed to be flaky,
+         use multicast only for SPDP packets */
+      assert ((config.allowMulticast & ~AMC_DEFAULT) == 0);
+      if (gv.interfaces[gv.selected_interface].mc_flaky)
+      {
+        config.allowMulticast = AMC_SPDP;
+        DDS_LOG(DDS_LC_CONFIG, "presumed flaky multicast, use for SPDP only\n");
+      }
+      else
+      {
+        DDS_LOG(DDS_LC_CONFIG, "presumed robust multicast support, use for everything\n");
+        config.allowMulticast = AMC_TRUE;
+      }
+    }
   }
+  assert ((config.allowMulticast & AMC_DEFAULT) == 0);
   if (set_recvips () < 0)
     goto err_set_recvips;
   if (set_spdp_address () < 0)
@@ -1002,9 +1001,6 @@ int rtps_init (void)
   }
 #endif
 
-  gv.startup_mode = (config.startup_mode_duration > 0) ? 1 : 0;
-  DDS_LOG(DDS_LC_CONFIG, "startup-mode: %s\n", gv.startup_mode ? "enabled" : "disabled");
-
   (ddsi_plugin.init_fn) ();
 
   gv.xmsgpool = nn_xmsgpool_new ();
@@ -1026,7 +1022,7 @@ int rtps_init (void)
   nn_xqos_init_default_subscriber (&gv.default_xqos_sub);
   nn_xqos_init_default_publisher (&gv.default_xqos_pub);
   nn_xqos_copy (&gv.spdp_endpoint_xqos, &gv.default_xqos_rd);
-  gv.spdp_endpoint_xqos.durability.kind = NN_TRANSIENT_LOCAL_DURABILITY_QOS;
+  gv.spdp_endpoint_xqos.durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
   make_builtin_endpoint_xqos (&gv.builtin_endpoint_xqos_rd, &gv.default_xqos_rd);
   make_builtin_endpoint_xqos (&gv.builtin_endpoint_xqos_wr, &gv.default_xqos_wr);
 
@@ -1060,7 +1056,7 @@ int rtps_init (void)
     {
       if (make_uc_sockets (&port_disc_uc, &port_data_uc, config.participantIndex) < 0)
       {
-        DDS_ERROR("rtps_init: failed to create unicast sockets for domain %d participant %d\n", config.domainId.value, config.participantIndex);
+        DDS_ERROR("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", config.domainId.value, config.participantIndex);
         goto err_unicast_sockets;
       }
     }
@@ -1078,13 +1074,13 @@ int rtps_init (void)
           continue;
         else /* Oops! */
         {
-          DDS_ERROR("rtps_init: failed to create unicast sockets for domain %d participant %d\n", config.domainId.value, ppid);
+          DDS_ERROR("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", config.domainId.value, ppid);
           goto err_unicast_sockets;
         }
       }
       if (ppid > config.maxAutoParticipantIndex)
       {
-        DDS_ERROR("rtps_init: failed to find a free participant index for domain %d\n", config.domainId.value);
+        DDS_ERROR("rtps_init: failed to find a free participant index for domain %"PRId32"\n", config.domainId.value);
         goto err_unicast_sockets;
       }
       config.participantIndex = ppid;
@@ -1093,9 +1089,9 @@ int rtps_init (void)
     {
       assert(0);
     }
-    DDS_LOG(DDS_LC_CONFIG, "rtps_init: uc ports: disc %u data %u\n", port_disc_uc, port_data_uc);
+    DDS_LOG(DDS_LC_CONFIG, "rtps_init: uc ports: disc %"PRIu32" data %"PRIu32"\n", port_disc_uc, port_data_uc);
   }
-  DDS_LOG(DDS_LC_CONFIG, "rtps_init: domainid %d participantid %d\n", config.domainId.value, config.participantIndex);
+  DDS_LOG(DDS_LC_CONFIG, "rtps_init: domainid %"PRId32" participantid %d\n", config.domainId.value, config.participantIndex);
 
   if (config.pcap_file && *config.pcap_file)
   {
@@ -1115,7 +1111,7 @@ int rtps_init (void)
   if (gv.m_factory->m_connless)
   {
     if (!(config.many_sockets_mode == MSM_NO_UNICAST && config.allowMulticast))
-      DDS_TRACE("Unicast Ports: discovery %d data %d\n", ddsi_conn_port (gv.disc_conn_uc), ddsi_conn_port (gv.data_conn_uc));
+      DDS_TRACE("Unicast Ports: discovery %"PRIu32" data %"PRIu32"\n", ddsi_conn_port (gv.disc_conn_uc), ddsi_conn_port (gv.data_conn_uc));
 
     if (config.allowMulticast)
     {
@@ -1243,7 +1239,8 @@ int rtps_init (void)
   );
 
   gv.as_disc = new_addrset ();
-  add_to_addrset (gv.as_disc, &gv.loc_spdp_mc);
+  if (config.allowMulticast & AMC_SPDP)
+    add_to_addrset (gv.as_disc, &gv.loc_spdp_mc);
   /* If multicast was enabled but not available, always add the local interface to the discovery address set.
      Conversion via string and add_peer_addresses has the benefit that the port number expansion happens
      automatically. */
@@ -1272,17 +1269,7 @@ int rtps_init (void)
 
   gv.gcreq_queue = gcreq_queue_new ();
 
-  gv.rtps_keepgoing = 1;
-  ddsrt_rwlock_init (&gv.qoslock);
-
-  {
-    int r;
-    gv.builtins_dqueue = nn_dqueue_new ("builtins", config.delivery_queue_maxsamples, builtins_dqueue_handler, NULL);
-    if ((r = xeventq_start (gv.xevents, NULL)) < 0)
-    {
-      DDS_FATAL("failed to start global event processing thread (%d)\n", r);
-    }
-  }
+  ddsrt_atomic_st32 (&gv.rtps_keepgoing, 1);
 
   if (config.xpack_send_async)
   {
@@ -1290,45 +1277,13 @@ int rtps_init (void)
     nn_xpack_sendq_start();
   }
 
+  gv.builtins_dqueue = nn_dqueue_new ("builtins", config.delivery_queue_maxsamples, builtins_dqueue_handler, NULL);
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-  /* Create a delivery queue and start tev for each channel */
-  {
-    struct config_channel_listelem * chptr = config.channels;
-    while (chptr)
-    {
-      chptr->dqueue = nn_dqueue_new (chptr->name, config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
-      if (chptr->evq)
-      {
-        int r;
-        if ((r = xeventq_start (chptr->evq, chptr->name)) < 0)
-          DDS_FATAL("failed to start event processing thread for channel '%s' (%d)\n", chptr->name, r);
-      }
-      chptr = chptr->next;
-    }
-  }
+  for (struct config_channel_listelem *chptr = config.channels; chptr; chptr = chptr->next)
+    chptr->dqueue = nn_dqueue_new (chptr->name, config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
 #else
   gv.user_dqueue = nn_dqueue_new ("user", config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
 #endif
-
-  if (setup_and_start_recv_threads () < 0)
-  {
-    DDS_FATAL("failed to start receive threads\n");
-  }
-
-  if (gv.listener)
-  {
-    gv.listen_ts = create_thread ("listen", (uint32_t (*) (void *)) listen_thread, gv.listener);
-  }
-
-  if (gv.startup_mode)
-  {
-    qxev_end_startup_mode (add_duration_to_mtime (now_mt (), config.startup_mode_duration));
-  }
-
-  if (config.monitor_port >= 0)
-  {
-    gv.debmon = new_debug_monitor (config.monitor_port);
-  }
 
   return 0;
 
@@ -1389,17 +1344,61 @@ err_set_ext_address:
     ddsrt_free (n);
   }
 err_set_recvips:
-  {
-    int i;
-    for (i = 0; i < gv.n_interfaces; i++)
-      ddsrt_free (gv.interfaces[i].name);
-  }
 err_find_own_ip:
-    ddsi_tran_factories_fini ();
+  for (int i = 0; i < gv.n_interfaces; i++)
+    ddsrt_free (gv.interfaces[i].name);
+  ddsi_tran_factories_fini ();
 err_udp_tcp_init:
   if (config.tp_enable)
-    ut_thread_pool_free (gv.thread_pool);
+    ddsrt_thread_pool_free (gv.thread_pool);
   return -1;
+}
+
+#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+static void stop_all_xeventq_upto (struct config_channel_listelem *chptr)
+{
+  for (struct config_channel_listelem *chptr1 = config.channels; chptr1 != chptr; chptr1 = chptr1->next)
+    if (chptr1->evq)
+      xeventq_stop (chptr1->evq);
+}
+#endif
+
+int rtps_start (void)
+{
+  if (xeventq_start (gv.xevents, NULL) < 0)
+    return -1;
+#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+  for (struct config_channel_listelem *chptr = config.channels; chptr; chptr = chptr->next)
+  {
+    if (chptr->evq)
+    {
+      if (xeventq_start (chptr->evq, chptr->name) < 0)
+      {
+        stop_all_xeventq_upto (chptr);
+        xeventq_stop (gv.xevents);
+        return -1;
+      }
+    }
+  }
+#endif
+
+  if (setup_and_start_recv_threads () < 0)
+  {
+#ifdef DDSI_INCLUDE_NETWORK_CHANNELS
+    stop_all_xeventq_upto (NULL);
+#endif
+    xeventq_stop (gv.xevents);
+    return -1;
+  }
+  if (gv.listener)
+  {
+    create_thread (&gv.listen_ts, "listen", (uint32_t (*) (void *)) listen_thread, gv.listener);
+  }
+  if (config.monitor_port >= 0)
+  {
+    gv.debmon = new_debug_monitor (config.monitor_port);
+  }
+  return 0;
 }
 
 struct dq_builtins_ready_arg {
@@ -1419,7 +1418,8 @@ static void builtins_dqueue_ready_cb (void *varg)
 
 void rtps_stop (void)
 {
-  struct thread_state1 *self = lookup_thread_state ();
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   struct config_channel_listelem * chptr;
 #endif
@@ -1486,14 +1486,14 @@ void rtps_stop (void)
     /* Clean up proxy readers, proxy writers and proxy
        participants. Deleting a proxy participants deletes all its
        readers and writers automatically */
-    thread_state_awake (self);
+    thread_state_awake (ts1);
     ephash_enum_proxy_participant_init (&est);
     while ((proxypp = ephash_enum_proxy_participant_next (&est)) != NULL)
     {
       delete_proxy_participant_by_guid(&proxypp->e.guid, tnow, 1);
     }
     ephash_enum_proxy_participant_fini (&est);
-    thread_state_asleep (self);
+    thread_state_asleep (ts1);
   }
 
   {
@@ -1508,7 +1508,7 @@ void rtps_stop (void)
        rwriters to get all SEDP and SPDP dispose+unregister messages
        out. FIXME: need to keep xevent thread alive for a while
        longer. */
-    thread_state_awake (self);
+    thread_state_awake (ts1);
     ephash_enum_writer_init (&est_wr);
     while ((wr = ephash_enum_writer_next (&est_wr)) != NULL)
     {
@@ -1516,7 +1516,7 @@ void rtps_stop (void)
         delete_writer_nolinger (&wr->e.guid);
     }
     ephash_enum_writer_fini (&est_wr);
-    thread_state_awake (self);
+    thread_state_awake_to_awake_no_nest (ts1);
     ephash_enum_reader_init (&est_rd);
     while ((rd = ephash_enum_reader_next (&est_rd)) != NULL)
     {
@@ -1524,14 +1524,14 @@ void rtps_stop (void)
         (void)delete_reader (&rd->e.guid);
     }
     ephash_enum_reader_fini (&est_rd);
-    thread_state_awake (self);
+    thread_state_awake_to_awake_no_nest (ts1);
     ephash_enum_participant_init (&est_pp);
     while ((pp = ephash_enum_participant_next (&est_pp)) != NULL)
     {
       delete_participant (&pp->e.guid);
     }
     ephash_enum_participant_fini (&est_pp);
-    thread_state_asleep (self);
+    thread_state_asleep (ts1);
   }
 
   /* Wait until all participants are really gone => by then we can be
@@ -1598,7 +1598,7 @@ void rtps_fini (void)
   }
 #endif
 
-  ut_thread_pool_free (gv.thread_pool);
+  ddsrt_thread_pool_free (gv.thread_pool);
 
   (void) joinleave_spdp_defmcip (0);
 
@@ -1632,14 +1632,11 @@ void rtps_fini (void)
      been dropped, which only happens once all receive threads have
      stopped, defrags and reorders have been freed, and all delivery
      queues been drained.  I.e., until very late in the game. */
+  for (uint32_t i = 0; i < gv.n_recv_threads; i++)
   {
-    unsigned i;
-    for (i = 0; i < gv.n_recv_threads; i++)
-    {
-      if (gv.recv_threads[i].arg.mode == RTM_MANY)
-        os_sockWaitsetFree (gv.recv_threads[i].arg.u.many.ws);
-      nn_rbufpool_free (gv.recv_threads[i].arg.rbpool);
-    }
+    if (gv.recv_threads[i].arg.mode == RTM_MANY)
+      os_sockWaitsetFree (gv.recv_threads[i].arg.u.many.ws);
+    nn_rbufpool_free (gv.recv_threads[i].arg.rbpool);
   }
 
   ddsi_tkmap_free (gv.m_tkmap);
@@ -1664,23 +1661,19 @@ void rtps_fini (void)
   nn_plist_fini (&gv.default_plist_pp);
 
   ddsrt_mutex_destroy (&gv.lock);
-  ddsrt_rwlock_destroy (&gv.qoslock);
 
   while (gv.recvips)
   {
     struct config_in_addr_node *n = gv.recvips;
-/* The compiler doesn't realize that n->next is always initialized. */
-DDSRT_WARNING_MSVC_OFF(6001);
+    /* The compiler doesn't realize that n->next is always initialized. */
+    DDSRT_WARNING_MSVC_OFF(6001);
     gv.recvips = n->next;
-DDSRT_WARNING_MSVC_ON(6001);
+    DDSRT_WARNING_MSVC_ON(6001);
     ddsrt_free (n);
   }
 
-  {
-    int i;
-    for (i = 0; i < (int) gv.n_interfaces; i++)
-      ddsrt_free (gv.interfaces[i].name);
-  }
+  for (int i = 0; i < (int) gv.n_interfaces; i++)
+    ddsrt_free (gv.interfaces[i].name);
 
   ddsi_serdatapool_free (gv.serpool);
   nn_xmsgpool_free (gv.xmsgpool);

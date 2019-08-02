@@ -11,14 +11,14 @@
  */
 #include <assert.h>
 #include <string.h>
+#include "dds/ddsrt/string.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_config.h"
+#include "dds/ddsi/q_plist.h" /* for nn_keyhash */
 #include "dds__init.h"
-#include "dds__qos.h"
 #include "dds__domain.h"
 #include "dds__participant.h"
-#include "dds__err.h"
 #include "dds__types.h"
 #include "dds__builtin.h"
 #include "dds__subscriber.h"
@@ -65,12 +65,11 @@ void dds__builtin_init (void)
 void dds__builtin_fini (void)
 {
   /* No more sources for builtin topic samples */
-  struct thread_state1 * const self = lookup_thread_state ();
-  thread_state_awake (self);
+  thread_state_awake (lookup_thread_state ());
   delete_local_orphan_writer (builtintopic_writer_participant);
   delete_local_orphan_writer (builtintopic_writer_publications);
   delete_local_orphan_writer (builtintopic_writer_subscriptions);
-  thread_state_asleep (self);
+  thread_state_asleep (lookup_thread_state ());
 
   ddsi_sertopic_unref (builtin_participant_topic);
   ddsi_sertopic_unref (builtin_reader_topic);
@@ -94,17 +93,18 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t e, dds_entity_t topic)
     sertopic = builtin_reader_topic;
   } else {
     assert (0);
-    return DDS_ERRNO(DDS_RETCODE_BAD_PARAMETER);
+    return DDS_RETCODE_BAD_PARAMETER;
   }
 
   dds_qos_t *qos = dds__create_builtin_qos ();
-  tp = dds_create_topic_arbitrary (pp, sertopic, sertopic->name, qos, NULL, NULL);
+  tp = dds_create_topic_arbitrary (pp, sertopic, qos, NULL, NULL);
   dds_delete_qos (qos);
   return tp;
 }
 
 static bool qos_has_resource_limits (const dds_qos_t *qos)
 {
+  assert (qos->present & QP_RESOURCE_LIMITS);
   return (qos->resource_limits.max_samples != DDS_LENGTH_UNLIMITED ||
           qos->resource_limits.max_instances != DDS_LENGTH_UNLIMITED ||
           qos->resource_limits.max_samples_per_instance != DDS_LENGTH_UNLIMITED);
@@ -117,8 +117,9 @@ bool dds__validate_builtin_reader_qos (dds_entity_t topic, const dds_qos_t *qos)
     return true;
   else
   {
-    /* failing writes on built-in topics are unwelcome complications, so we simply forbid the creation of
-       a reader matching a built-in topics writer that has resource limits */
+    /* failing writes on built-in topics are unwelcome complications, so we simply
+       forbid the creation of a reader matching a built-in topics writer that has
+       resource limits */
     struct local_orphan_writer *bwr;
     if (topic == DDS_BUILTIN_TOPIC_DCPSPARTICIPANT) {
       bwr = builtintopic_writer_participant;
@@ -130,11 +131,19 @@ bool dds__validate_builtin_reader_qos (dds_entity_t topic, const dds_qos_t *qos)
       assert (0);
       return false;
     }
-    return qos_match_p (qos, bwr->wr.xqos) && !qos_has_resource_limits (qos);
+
+    /* FIXME: DDSI-level readers, writers have topic, type name in their QoS, but
+       DDSC-level ones don't and that gives an automatic mismatch when comparing
+       the full QoS object ...  Here the two have the same topic by construction
+       so ignoring them in the comparison makes things work.  The discrepancy
+       should be addressed one day. */
+    const uint64_t qmask = ~(QP_TOPIC_NAME | QP_TYPE_NAME);
+    dds_qos_policy_id_t dummy;
+    return qos_match_mask_p (qos, bwr->wr.xqos, qmask, &dummy) && !qos_has_resource_limits (qos);
   }
 }
 
-static dds_entity_t dds__create_builtin_subscriber (dds_entity *participant)
+static dds_entity_t dds__create_builtin_subscriber (dds_participant *participant)
 {
   dds_qos_t *qos = dds__create_builtin_qos ();
   dds_entity_t sub = dds__create_subscriber_l (participant, qos, NULL);
@@ -155,16 +164,23 @@ dds_entity_t dds__get_builtin_subscriber (dds_entity_t e)
     return ret;
 
   if (p->m_builtin_subscriber <= 0) {
-    p->m_builtin_subscriber = dds__create_builtin_subscriber (&p->m_entity);
+    p->m_builtin_subscriber = dds__create_builtin_subscriber (p);
   }
   sub = p->m_builtin_subscriber;
   dds_participant_unlock(p);
   return sub;
 }
 
-bool dds__builtin_is_visible (nn_entityid_t entityid, bool onlylocal, nn_vendorid_t vendorid)
+bool dds__builtin_is_builtintopic (const struct ddsi_sertopic *tp)
 {
-  return !(onlylocal || is_builtin_endpoint (entityid, vendorid));
+  return tp->ops == &ddsi_sertopic_ops_builtintopic;
+}
+
+bool dds__builtin_is_visible (const nn_guid_t *guid, nn_vendorid_t vendorid)
+{
+  if (is_builtin_endpoint (guid->entityid, vendorid))
+    return false;
+  return true;
 }
 
 struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct nn_guid *guid)
@@ -211,7 +227,7 @@ struct ddsi_serdata *dds__builtin_make_sample (const struct entity_common *e, nn
 
 void dds__builtin_write (const struct entity_common *e, nn_wctime_t timestamp, bool alive)
 {
-  if (ddsi_plugin.builtintopic_is_visible (e->guid.entityid, e->onlylocal, get_entity_vendorid (e)))
+  if (dds__builtin_is_visible (&e->guid, get_entity_vendorid (e)))
   {
     /* initialize to avoid gcc warning ultimately caused by C's horrible type system */
     struct local_orphan_writer *bwr = NULL;

@@ -122,7 +122,7 @@ static void
 setup(
   struct thread_argument *arg)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ddsrt_thread_t thr;
   ddsrt_threadattr_t attr;
 

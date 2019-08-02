@@ -16,6 +16,12 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/threads_priv.h"
 
+typedef struct {
+  char *name;
+  ddsrt_thread_routine_t routine;
+  void *arg;
+} thread_context_t;
+
 static uint32_t
 os_startRoutineWrapper(
   void *threadContext)
@@ -37,7 +43,7 @@ os_startRoutineWrapper(
   return resultValue;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_thread_create(
   ddsrt_thread_t *thrptr,
   const char *name,
@@ -133,7 +139,7 @@ bool ddsrt_thread_equal(ddsrt_thread_t a, ddsrt_thread_t b)
  * should not be closed until the os_threadWaitExit(...) call is called.
  * CloseHandle (threadHandle);
  */
-dds_retcode_t
+dds_return_t
 ddsrt_thread_join(
   ddsrt_thread_t thread,
   uint32_t *thread_result)
@@ -242,7 +248,7 @@ ddsrt_thread_setname(
 
 static ddsrt_thread_local thread_cleanup_t *thread_cleanup = NULL;
 
-dds_retcode_t ddsrt_thread_cleanup_push(void (*routine)(void *), void *arg)
+dds_return_t ddsrt_thread_cleanup_push(void (*routine)(void *), void *arg)
 {
   thread_cleanup_t *tail;
 
@@ -259,7 +265,7 @@ dds_retcode_t ddsrt_thread_cleanup_push(void (*routine)(void *), void *arg)
   return DDS_RETCODE_OUT_OF_RESOURCES;
 }
 
-dds_retcode_t ddsrt_thread_cleanup_pop(int execute)
+dds_return_t ddsrt_thread_cleanup_pop(int execute)
 {
   thread_cleanup_t *tail;
 

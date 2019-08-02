@@ -24,7 +24,7 @@ void ddsts_free_literal(ddsts_literal_t *literal)
   }
 }
 
-dds_retcode_t ddsts_free_type(ddsts_type_t *type)
+dds_return_t ddsts_free_type(ddsts_type_t *type)
 {
   if (type != NULL) {
     if (type->type.parent != NULL) {
@@ -81,7 +81,7 @@ static void free_type(ddsts_type_t *type)
 
 /* ddsts_base_type_t */
 
-dds_retcode_t ddsts_create_base_type(ddsts_flags_t flags, ddsts_type_t **result)
+dds_return_t ddsts_create_base_type(ddsts_flags_t flags, ddsts_type_t **result)
 {
   ddsts_type_t *type = (ddsts_type_t*)ddsrt_malloc_s(sizeof(ddsts_base_type_t));
   if (type == NULL) {
@@ -100,7 +100,7 @@ static void free_sequence(ddsts_type_t *type)
   free_type(type);
 }
 
-dds_retcode_t ddsts_create_sequence(ddsts_type_t* element_type, unsigned long long max, ddsts_type_t **result)
+dds_return_t ddsts_create_sequence(ddsts_type_t* element_type, unsigned long long max, ddsts_type_t **result)
 {
   ddsts_type_t *type = (ddsts_type_t*)ddsrt_malloc_s(sizeof(ddsts_sequence_t));
   if (type == NULL) {
@@ -125,7 +125,7 @@ static void free_array(ddsts_type_t *type)
   free_type(type);
 }
 
-dds_retcode_t ddsts_create_array(ddsts_type_t* element_type, unsigned long long size, ddsts_type_t **result)
+dds_return_t ddsts_create_array(ddsts_type_t* element_type, unsigned long long size, ddsts_type_t **result)
 {
   ddsts_type_t *type = (ddsts_type_t*)ddsrt_malloc_s(sizeof(ddsts_array_t));
   if (type == NULL) {
@@ -138,7 +138,7 @@ dds_retcode_t ddsts_create_array(ddsts_type_t* element_type, unsigned long long 
   return DDS_RETCODE_OK;
 }
 
-dds_retcode_t ddsts_array_set_element_type(ddsts_type_t *array, ddsts_type_t *element_type)
+dds_return_t ddsts_array_set_element_type(ddsts_type_t *array, ddsts_type_t *element_type)
 {
   assert(array->array.element_type == NULL);
   init_type_ref(&array->array.element_type, element_type, array, DDSTS_REFERENCE_1);
@@ -152,7 +152,7 @@ static void free_string(ddsts_type_t *type)
   free_type(type);
 }
 
-dds_retcode_t ddsts_create_string(ddsts_flags_t flags, unsigned long long max, ddsts_type_t **result)
+dds_return_t ddsts_create_string(ddsts_flags_t flags, unsigned long long max, ddsts_type_t **result)
 {
   ddsts_type_t *type = (ddsts_type_t*)ddsrt_malloc_s(sizeof(ddsts_string_t));
   if (type == NULL) {
@@ -174,7 +174,7 @@ static void free_fixed_pt(ddsts_type_t *type)
   free_type(type);
 }
 
-dds_retcode_t ddsts_create_fixed_pt(unsigned long long digits, unsigned long long fraction_digits, ddsts_type_t **result)
+dds_return_t ddsts_create_fixed_pt(unsigned long long digits, unsigned long long fraction_digits, ddsts_type_t **result)
 {
   ddsts_type_t *type = (ddsts_type_t*)ddsrt_malloc_s(sizeof(ddsts_fixed_pt_t));
   if (type == NULL) {
@@ -196,7 +196,7 @@ static void free_map(ddsts_type_t *type)
   free_type(type);
 }
 
-dds_retcode_t ddsts_create_map(ddsts_type_t *key_type, ddsts_type_t *value_type, unsigned long long max, ddsts_type_t **result)
+dds_return_t ddsts_create_map(ddsts_type_t *key_type, ddsts_type_t *value_type, unsigned long long max, ddsts_type_t **result)
 {
   ddsts_type_t *type = (ddsts_type_t*)ddsrt_malloc_s(sizeof(ddsts_map_t));
   if (type == NULL) {
@@ -222,7 +222,7 @@ static void free_module(ddsts_type_t *type)
   free_type(type);
 }
 
-dds_retcode_t ddsts_create_module(ddsts_identifier_t name, ddsts_type_t **result)
+dds_return_t ddsts_create_module(ddsts_identifier_t name, ddsts_type_t **result)
 {
   ddsts_type_t *type = (ddsts_type_t*)ddsrt_malloc_s(sizeof(ddsts_module_t));
   if (type == NULL) {
@@ -236,7 +236,7 @@ dds_retcode_t ddsts_create_module(ddsts_identifier_t name, ddsts_type_t **result
   return DDS_RETCODE_OK;
 }
 
-dds_retcode_t ddsts_module_add_member(ddsts_type_t *module, ddsts_type_t *member)
+dds_return_t ddsts_module_add_member(ddsts_type_t *module, ddsts_type_t *member)
 {
   if (module != NULL) {
     member->type.parent = module;
@@ -282,7 +282,7 @@ static void free_forward(ddsts_type_t *type)
   free_type(type);
 }
 
-dds_retcode_t ddsts_create_struct_forward_dcl(ddsts_identifier_t name, ddsts_type_t **result)
+dds_return_t ddsts_create_struct_forward_dcl(ddsts_identifier_t name, ddsts_type_t **result)
 {
   ddsts_type_t *type = (ddsts_type_t*)ddsrt_malloc_s(sizeof(ddsts_forward_t));
   if (type == NULL) {
@@ -308,7 +308,7 @@ static void free_struct(ddsts_type_t *type)
   free_type(type);
 }
 
-dds_retcode_t ddsts_create_struct(ddsts_identifier_t name, ddsts_type_t **result)
+dds_return_t ddsts_create_struct(ddsts_identifier_t name, ddsts_type_t **result)
 {
   ddsts_type_t *type = (ddsts_type_t*)ddsrt_malloc_s(sizeof(ddsts_struct_t));
   if (type == NULL) {
@@ -323,7 +323,7 @@ dds_retcode_t ddsts_create_struct(ddsts_identifier_t name, ddsts_type_t **result
   return DDS_RETCODE_OK;
 }
 
-dds_retcode_t ddsts_struct_add_member(ddsts_type_t *struct_def, ddsts_type_t *member)
+dds_return_t ddsts_struct_add_member(ddsts_type_t *struct_def, ddsts_type_t *member)
 {
   if (struct_def != NULL) {
     member->type.parent = struct_def;
@@ -333,7 +333,7 @@ dds_retcode_t ddsts_struct_add_member(ddsts_type_t *struct_def, ddsts_type_t *me
   return DDS_RETCODE_OK;
 }
 
-dds_retcode_t ddsts_struct_add_key(ddsts_type_t *struct_def, ddsts_type_t *member)
+dds_return_t ddsts_struct_add_key(ddsts_type_t *struct_def, ddsts_type_t *member)
 {
   /* We traverse the list to the end and check if 'member' is already included */
   ddsts_struct_key_t **ref_key = &struct_def->struct_def.keys;
@@ -360,7 +360,7 @@ static void free_declaration(ddsts_type_t *type)
   free_type(type);
 }
 
-dds_retcode_t ddsts_create_declaration(ddsts_identifier_t name, ddsts_type_t *decl_type, ddsts_type_t **result)
+dds_return_t ddsts_create_declaration(ddsts_identifier_t name, ddsts_type_t *decl_type, ddsts_type_t **result)
 {
   ddsts_type_t *type = (ddsts_type_t*)ddsrt_malloc_s(sizeof(ddsts_declaration_t));
   if (type == NULL) {
@@ -372,7 +372,7 @@ dds_retcode_t ddsts_create_declaration(ddsts_identifier_t name, ddsts_type_t *de
   return DDS_RETCODE_OK;
 }
 
-dds_retcode_t ddsts_declaration_set_type(ddsts_type_t *declaration, ddsts_type_t *type)
+dds_return_t ddsts_declaration_set_type(ddsts_type_t *declaration, ddsts_type_t *type)
 {
   assert(declaration->declaration.decl_type == NULL);
   init_type_ref(&declaration->declaration.decl_type, type, declaration, DDSTS_REFERENCE_1);
@@ -381,7 +381,7 @@ dds_retcode_t ddsts_declaration_set_type(ddsts_type_t *declaration, ddsts_type_t
 
 /* Utility functions */
 
-dds_retcode_t
+dds_return_t
 ddsts_declaration_is_key(ddsts_call_path_t *path, bool *is_key)
 {
   *is_key = false;

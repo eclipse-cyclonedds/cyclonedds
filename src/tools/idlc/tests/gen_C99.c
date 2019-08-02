@@ -18,7 +18,7 @@
 #include "parser.h"
 #include "gen_c99.h"
 
-bool test_parse_gen_C99(const char *input, const char *str)
+static bool test_parse_gen_C99(const char *input, const char *str)
 {
   ddsts_type_t *root_type = NULL;
   if (ddsts_idl_parse_string(input, &root_type) != DDS_RETCODE_OK) {
@@ -38,7 +38,7 @@ bool test_parse_gen_C99(const char *input, const char *str)
   return false;
 }
 
-bool test_parse_gen_C99_descr(const char *input, const char *name, const char *align, const char *flags)
+static bool test_parse_gen_C99_descr(const char *input, const char *name, const char *align, const char *flags)
 {
   ddsts_type_t *root_type = NULL;
   if (ddsts_idl_parse_string(input, &root_type) != DDS_RETCODE_OK) {

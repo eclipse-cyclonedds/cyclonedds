@@ -67,35 +67,3 @@ CU_Theory((const char *s1, const char *s2, size_t n, eq_t e), ddsrt_strncasecmp,
   CU_ASSERT((e == eq && r == 0) || (e == lt && r < 0) || (e == gt && r > 0));
 }
 
-CU_Test(ddsrt_string, strtok_r)
-{
-  char *res;
-  char *saveptr;
-  char ts1[] = "123,234";
-  char ts2[] = ",;,123abc,,456,:,";
-  char ts3[] = ",,,123,,456,789,,,";
-
-  res = ddsrt_strtok_r(ts1, ",", &saveptr);
-  CU_ASSERT(strcmp(res, "123") == 0);
-  res = ddsrt_strtok_r( NULL, ",", &saveptr);
-  CU_ASSERT(strcmp(res, "234") == 0);
-  res = ddsrt_strtok_r( NULL, ",", &saveptr);
-  CU_ASSERT(res == NULL);
-
-  res = ddsrt_strtok_r(ts2, ",;", &saveptr);
-  CU_ASSERT(strcmp(res, "123abc") == 0);
-  res = ddsrt_strtok_r( NULL, ",", &saveptr);
-  CU_ASSERT(strcmp(res, "456") == 0);
-  res = ddsrt_strtok_r( NULL, ",:", &saveptr);
-  CU_ASSERT(res == NULL);
-
-  res = ddsrt_strtok_r(ts3, ",", &saveptr);
-  CU_ASSERT(strcmp(res, "123") == 0);
-  res = ddsrt_strtok_r( NULL, ",", &saveptr);
-  CU_ASSERT(strcmp(res, "456") == 0);
-  res = ddsrt_strtok_r( NULL, ",", &saveptr);
-  CU_ASSERT(strcmp(res, "789") == 0);
-  res = ddsrt_strtok_r( NULL, ",:", &saveptr);
-  CU_ASSERT(res == NULL);
-}
-

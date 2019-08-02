@@ -53,7 +53,7 @@ struct ddsts_context {
   array_size_t *array_sizes;
   annotations_stack_t *annotations_stack;
   pragma_arg_t *pragma_args;
-  dds_retcode_t retcode;
+  dds_return_t retcode;
   bool semantic_error;
   ddsts_identifier_t dangling_identifier;
 };
@@ -62,7 +62,7 @@ extern bool ddsts_new_base_type(ddsts_context_t *context, ddsts_flags_t flags, d
 {
   assert(context != NULL);
   ddsts_type_t *base_type;
-  dds_retcode_t rc = ddsts_create_base_type(flags, &base_type);
+  dds_return_t rc = ddsts_create_base_type(flags, &base_type);
   if (rc != DDS_RETCODE_OK) {
     context->retcode = rc;
     return false;
@@ -75,7 +75,7 @@ static bool new_sequence(ddsts_context_t *context, ddsts_type_t *element_type, u
 {
   assert(context != NULL);
   ddsts_type_t *sequence;
-  dds_retcode_t rc = ddsts_create_sequence(element_type, max, &sequence);
+  dds_return_t rc = ddsts_create_sequence(element_type, max, &sequence);
   if (rc != DDS_RETCODE_OK) {
     context->retcode = rc;
     return false;
@@ -99,7 +99,7 @@ static bool new_string(ddsts_context_t *context, ddsts_flags_t flags, unsigned l
 {
   assert(context != NULL);
   ddsts_type_t *string;
-  dds_retcode_t rc = ddsts_create_string(flags, max, &string);
+  dds_return_t rc = ddsts_create_string(flags, max, &string);
   if (rc != DDS_RETCODE_OK) {
     context->retcode = rc;
     return false;
@@ -136,7 +136,7 @@ extern bool ddsts_new_fixed_pt(ddsts_context_t *context, ddsts_literal_t *digits
   assert(digits->flags == DDSTS_ULONGLONG);
   assert(fraction_digits->flags == DDSTS_ULONGLONG);
   ddsts_type_t *fixed_pt;
-  dds_retcode_t rc = ddsts_create_fixed_pt(digits->value.ullng, fraction_digits->value.ullng, &fixed_pt);
+  dds_return_t rc = ddsts_create_fixed_pt(digits->value.ullng, fraction_digits->value.ullng, &fixed_pt);
   if (rc != DDS_RETCODE_OK) {
     context->retcode = rc;
     return false;
@@ -148,7 +148,7 @@ extern bool ddsts_new_fixed_pt(ddsts_context_t *context, ddsts_literal_t *digits
 static bool new_map(ddsts_context_t *context, ddsts_type_t *key_type, ddsts_type_t *value_type, unsigned long long max, ddsts_type_t **result)
 {
   ddsts_type_t *map;
-  dds_retcode_t rc = ddsts_create_map(key_type, value_type, max, &map);
+  dds_return_t rc = ddsts_create_map(key_type, value_type, max, &map);
   if (rc != DDS_RETCODE_OK) {
     context->retcode = rc;
     return false;
@@ -278,7 +278,7 @@ static bool new_module_definition(ddsts_context_t *context, ddsts_identifier_t n
   assert(context != NULL);
   assert(context->dangling_identifier == name);
   ddsts_type_t *module;
-  dds_retcode_t rc = ddsts_create_module(name, &module);
+  dds_return_t rc = ddsts_create_module(name, &module);
   if (rc != DDS_RETCODE_OK) {
     context->retcode = rc;
     return false;
@@ -310,7 +310,7 @@ static void context_pop_annotations_stack(ddsts_context_t *context)
   ddsrt_free(annotations_stack);
 }
 
-extern ddsts_context_t* ddsts_create_context()
+extern ddsts_context_t* ddsts_create_context(void)
 {
   ddsts_context_t *context = (ddsts_context_t*)ddsrt_malloc(sizeof(ddsts_context_t));
   if (context == NULL) {
@@ -338,7 +338,7 @@ extern ddsts_context_t* ddsts_create_context()
   return context;
 }
 
-extern dds_retcode_t ddsts_context_get_retcode(ddsts_context_t* context)
+extern dds_return_t ddsts_context_get_retcode(ddsts_context_t* context)
 {
   assert(context != NULL);
   return context->retcode;
@@ -449,7 +449,7 @@ extern bool ddsts_add_struct_forward(ddsts_context_t *context, ddsts_identifier_
   assert(cur_scope_is_definition_type(context, DDSTS_MODULE));
   assert(context->dangling_identifier == name);
   ddsts_type_t *forward_dcl;
-  dds_retcode_t rc = ddsts_create_struct_forward_dcl(name, &forward_dcl);
+  dds_return_t rc = ddsts_create_struct_forward_dcl(name, &forward_dcl);
   if (rc != DDS_RETCODE_OK) {
     context->retcode = rc;
     return false;
@@ -465,7 +465,7 @@ extern bool ddsts_add_struct_open(ddsts_context_t *context, ddsts_identifier_t n
          || cur_scope_is_definition_type(context, DDSTS_STRUCT));
   assert(context->dangling_identifier == name);
   ddsts_type_t *new_struct;
-  dds_retcode_t rc = ddsts_create_struct(name, &new_struct);
+  dds_return_t rc = ddsts_create_struct(name, &new_struct);
   if (rc != DDS_RETCODE_OK) {
     context->retcode = rc;
     return false;
@@ -489,7 +489,7 @@ extern bool ddsts_add_struct_extension_open(ddsts_context_t *context, ddsts_iden
   assert(cur_scope_is_definition_type(context, DDSTS_MODULE));
   assert(context->dangling_identifier == name);
   ddsts_type_t *new_struct;
-  dds_retcode_t rc = ddsts_create_struct(name, &new_struct);
+  dds_return_t rc = ddsts_create_struct(name, &new_struct);
   if (rc != DDS_RETCODE_OK) {
     context->retcode = rc;
     return false;
@@ -554,7 +554,7 @@ static ddsts_type_t *create_array_type(array_size_t *array_size, ddsts_type_t *t
     return type;
   }
   ddsts_type_t *array;
-  dds_retcode_t rc = ddsts_create_array(NULL, array_size->size, &array);
+  dds_return_t rc = ddsts_create_array(NULL, array_size->size, &array);
   if (rc != DDS_RETCODE_OK) {
     return NULL;
   }
@@ -609,7 +609,7 @@ extern bool ddsts_add_declarator(ddsts_context_t *context, ddsts_identifier_t na
   if (DDSTS_IS_TYPE(context->cur_type, DDSTS_STRUCT)) {
     assert(context->type_for_declarator != NULL);
     ddsts_type_t *decl = NULL;
-    dds_retcode_t rc;
+    dds_return_t rc;
     rc = ddsts_create_declaration(name, NULL, &decl);
     if (rc != DDS_RETCODE_OK) {
       ddsts_context_free_array_sizes(context);
@@ -791,7 +791,7 @@ bool ddsts_pragma_close(ddsts_context_t *context)
         context->semantic_error = true;
       }
       else if (keyable_type(declaration->declaration.decl_type)) {
-        dds_retcode_t rc = ddsts_struct_add_key(struct_def, declaration);
+        dds_return_t rc = ddsts_struct_add_key(struct_def, declaration);
         if (rc == DDS_RETCODE_ERROR) {
           DDS_ERROR("Field '%s' already defined as key\n", pragma_arg->arg);
           context->semantic_error = true;

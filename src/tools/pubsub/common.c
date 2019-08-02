@@ -390,7 +390,6 @@ static void inapplicable_qos(dds_entity_kind_t qt, const char *n) {
     case DDS_KIND_COND_READ: en = "cond read"; break;
     case DDS_KIND_COND_QUERY: en = "cond query"; break;
     case DDS_KIND_WAITSET: en = "waitset"; break;
-    case DDS_KIND_INTERNAL: en = "internal"; break;
     default: en = "?"; break;
     }
     fprintf(stderr, "warning: %s entity ignoring inapplicable QoS \"%s\"\n", en, n);
@@ -401,6 +400,7 @@ static void inapplicable_qos(dds_entity_kind_t qt, const char *n) {
 #define   get_qos_W(qt, q, n) ((qt == DDS_KIND_WRITER)                                                              ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
 #define  get_qos_TW(qt, q, n) ((qt == DDS_KIND_TOPIC)     || (qt == DDS_KIND_WRITER)                                ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
 #define  get_qos_RW(qt, q, n) ((qt == DDS_KIND_READER)    || (qt == DDS_KIND_WRITER)                                ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
+#define  get_qos_MRW(qt, q, n) ((qt == DDS_KIND_READER) || (qt == DDS_KIND_WRITER) || (qt == DDS_KIND_PARTICIPANT)  ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
 #define  get_qos_PS(qt, q, n) ((qt == DDS_KIND_PUBLISHER) || (qt == DDS_KIND_SUBSCRIBER)                            ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
 #define get_qos_TRW(qt, q, n) ((qt == DDS_KIND_TOPIC)     || (qt == DDS_KIND_READER)     || (qt == DDS_KIND_WRITER) ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
 
@@ -564,7 +564,7 @@ static void *unescape(const char *str, size_t *len) {
 }
 
 void qos_user_data(dds_entity_kind_t qt, dds_qos_t *q, const char *arg) {
-    dds_qos_t *qp = get_qos_RW(qt, q, "user_data");
+    dds_qos_t *qp = get_qos_MRW(qt, q, "user_data");
     size_t len;
     if (qp == NULL)
         return;
@@ -705,7 +705,7 @@ static int one_resource_limit(int32_t *val, const char **arg) {
         *val = DDS_LENGTH_UNLIMITED;
         (*arg) += 3;
         return 1;
-    } else if (sscanf(*arg, "%d%n", val, &pos) == 1) {
+    } else if (sscanf(*arg, "%"PRId32"%n", val, &pos) == 1) {
         (*arg) += pos;
         return 1;
     } else {
@@ -944,7 +944,7 @@ void setqos_from_args(dds_entity_kind_t qt, dds_qos_t *q, int n, const char *arg
 
 #define DDS_ERR_MSG_MAX 128
 
-void dds_fail (const char * msg, const char * where)
+static void dds_fail (const char * msg, const char * where)
 {
   fprintf (stderr, "Aborting Failure: %s %s\n", where, msg);
   abort ();
@@ -957,7 +957,7 @@ bool dds_err_check (dds_return_t err, unsigned flags, const char * where)
     if (flags & (DDS_CHECK_REPORT | DDS_CHECK_FAIL))
     {
       char msg[DDS_ERR_MSG_MAX];
-      (void) snprintf (msg, DDS_ERR_MSG_MAX, "Error %d:M%d:%s", dds_err_file_id(err), dds_err_line(err), dds_err_str(err));
+      (void) snprintf (msg, DDS_ERR_MSG_MAX, "Error %"PRId32":M%"PRId32":%s", dds_err_file_id(err), dds_err_line(err), dds_err_str(err));
       if (flags & DDS_CHECK_REPORT)
       {
         printf ("%s: %s\n", where, msg);
