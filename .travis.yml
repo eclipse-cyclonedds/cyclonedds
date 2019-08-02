@@ -127,7 +127,7 @@ macos1015_xcode11_5: &macos1015_xcode11_5
     - eval "export BUILD_TOOL_OPTIONS='-j 4'"
     - eval "export GENERATOR='Unix Makefiles'"
     - eval "export PATH=\"${PATH}:$(python3 -m site --user-base)/bin\""
-    - eval "export PATH=\"/usr/local/opt/bison/bin:${PATH}\""
+    - eval "export PATH=\"/usr/local/opt/flex/bin:/usr/local/opt/bison/bin:${PATH}\""
   install:
     - python3 -m pip install conan --upgrade --user
 
