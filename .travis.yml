@@ -82,12 +82,12 @@ osx_xcode10_2: &osx_xcode10_2
     - eval "export CXX=clang++"
     - eval "export COV_COMPTYPE=clang COV_PLATFORM=macOSX"
   install:
-    - brew link --force bison flex;
     - eval "$(pyenv init -)"
     - pyenv virtualenv conan
     - pyenv rehash
     - pyenv activate conan
     - pip install conan --upgrade
+    - export PATH="/usr/local/opt/flex/bin:/usr/local/opt/bison/bin:${PATH}"
 
 windows_vs2017: &windows_vs2017
   os: windows
