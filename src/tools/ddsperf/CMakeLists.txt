@@ -11,7 +11,7 @@
 #
 
 idlc_generate(ddsperf_types ddsperf_types.idl)
-add_executable(ddsperf ddsperf.c)
+add_executable(ddsperf ddsperf.c cputime.c cputime.h netload.c netload.h)
 target_link_libraries(ddsperf ddsperf_types ddsc)
 
 if(WIN32)
