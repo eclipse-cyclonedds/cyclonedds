@@ -1833,7 +1833,9 @@ static void init_cpu_macro (
                 , NULL,},
             { "__x86_64__", "__amd64__", NULL,},
             { "__ppc__", "__powerpc__", NULL,},
-            { "__ppc64__", "__powerpc64__", NULL,}
+            { "__ppc64__", "__powerpc64__", NULL,},
+            { "__arm__", NULL,},
+            { "__aarch64__", NULL,}
 #elif   SYS_FAMILY == SYS_WIN
             { "_WIN32", "__WIN32__", "_X86_"
 #if SYSTEM == SYS_MINGW
@@ -1843,7 +1845,9 @@ static void init_cpu_macro (
             { "_WIN32", "_WIN64", "__WIN64__", "_M_AMD64", "_AMD64_", "_X64_"
                 , NULL,},       /* "_WIN32" is defined even on Windows 64   */
             { NULL,},                               /* Not supported  */
-            { NULL,}                                /* Not supported  */
+            { NULL,},                               /* Not supported  */
+            { "_M_ARM", "_WIN32", NULL, },
+            { "_M_ARM64", "_WIN32", "_WIN64", NULL, }
 #endif
         };
     const char **   macro;
@@ -1857,6 +1861,10 @@ static void init_cpu_macro (
         index = 2;
     else if (str_eq( arch, "ppc64"))
         index = 3;
+    else if (str_eq( arch, "arm"))
+        index = 4;
+    else if (str_eq( arch, "aarch64"))
+        index = 5;
     else
         index = 9;
 
@@ -2171,14 +2179,19 @@ static void set_env_dirs( void)
  * Add to include path those specified by environment variables.
  */
 {
+#if defined(ENV_C_INCLUDE_DIR) || defined(ENV_CPLUS_INCLUDE_DIR)
     const char *    env;
-
+#endif
+#if defined(ENV_CPLUS_INCLUDE_DIR)
     if (cplus_val) {
         if ((env = getenv( ENV_CPLUS_INCLUDE_DIR)) != NULL)
             parse_env( env);
     }
+#endif
+#if defined(ENV_C_INCLUDE_DIR)
     if ((env = getenv( ENV_C_INCLUDE_DIR)) != NULL)
         parse_env( env);
+#endif
 }
 
 static void parse_env(

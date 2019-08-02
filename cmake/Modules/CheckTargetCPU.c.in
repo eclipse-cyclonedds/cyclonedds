@@ -1,0 +1,49 @@
+/*
+ * Copyright(c) 2019 Jeroen Koekkoek <jeroen@koekkoek.nl>
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+/* Simple source file to determine CPU architecture (CheckTypeSize.c.in from
+   CMake served as an example). Support for additional processor architectures
+   and/or compilers may be added in the future. A good source for predefined
+   macros is the Pre-defined Compiler Macros page on SourceForge:
+   https://sourceforge.net/projects/predef/ */
+
+#if defined(__i386) || defined(_M_IX86)
+# define CPU 'i','3','8','6'
+#elif defined(__x86_64) || defined(_M_AMD64)
+# define CPU 'x','8','6','_','6','4'
+#elif defined(__ppc__)
+# define CPU 'p','p','c'
+#elif defined(__ppc64__)
+# define CPU 'p','p','c','6','4'
+#elif defined(__arm__) || defined(_M_ARM)
+# define CPU 'a','r','m'
+#elif defined(__aarch64__) || defined(_M_ARM64)
+# define CPU 'a','a','r','c','h','6','4'
+#endif
+
+#ifdef __CLASSIC_C__
+int main(argc, argv) int argc; char *argv[];
+#else
+int main(int argc, char *argv[])
+#endif
+{
+  static const char cpu[] = {'I','N','F','O',':','c','p','u','[',
+#ifdef CPU
+  CPU,
+#else
+  'u', 'n', 'k', 'n', 'o', 'w', 'n',
+#endif
+  ']', '\0'};
+
+  return 0;
+}
+
