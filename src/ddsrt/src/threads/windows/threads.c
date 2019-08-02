@@ -16,6 +16,60 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/threads_priv.h"
 
+/* tlhelp32 for ddsrt_thread_list */
+#include <stdio.h>
+#include <stdlib.h>
+#include <tlhelp32.h>
+
+/* {Get,Set}ThreadDescription is the Windows 10 interface for dealing with thread names, but it at
+   least in some setups the linker can't find the symbols in kernel32.lib, even though kernel32.dll
+   exports them.  (Perhaps it is just a broken installation, who knows ...)  Looking them up
+   dynamically works fine.  */
+typedef HRESULT (WINAPI *SetThreadDescription_t) (HANDLE hThread, PCWSTR lpThreadDescription);
+typedef HRESULT (WINAPI *GetThreadDescription_t) (HANDLE hThread, PWSTR *ppszThreadDescription);
+static volatile SetThreadDescription_t SetThreadDescription_ptr = 0;
+static volatile GetThreadDescription_t GetThreadDescription_ptr = 0;
+
+static HRESULT WINAPI SetThreadDescription_dummy (HANDLE hThread, PCWSTR lpThreadDescription)
+{
+  (void) hThread;
+  (void) lpThreadDescription;
+  return E_FAIL;
+}
+
+static HRESULT WINAPI GetThreadDescription_dummy (HANDLE hThread, PWSTR *ppszThreadDescription)
+{
+  (void) hThread;
+  return E_FAIL;
+}
+
+static void getset_threaddescription_addresses (void)
+{
+  /* Rely on MSVC's interpretation of the meaning of volatile
+     to order checking & setting the pointers */
+  if (GetThreadDescription_ptr == 0)
+  {
+    HMODULE mod;
+    FARPROC p;
+    if (!GetModuleHandleExA (GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, "kernel32.dll", &mod))
+    {
+      SetThreadDescription_ptr = SetThreadDescription_dummy;
+      GetThreadDescription_ptr = GetThreadDescription_dummy;
+    }
+    else
+    {
+      if ((p = GetProcAddress (mod, "SetThreadDescription")) != 0)
+        SetThreadDescription_ptr = (SetThreadDescription_t) p;
+      else
+        SetThreadDescription_ptr = SetThreadDescription_dummy;
+      if ((p = GetProcAddress (mod, "GetThreadDescription")) != 0)
+        GetThreadDescription_ptr = (GetThreadDescription_t) p;
+      else
+        GetThreadDescription_ptr = GetThreadDescription_dummy;
+    }
+  }
+}
+
 typedef struct {
   char *name;
   ddsrt_thread_routine_t routine;
@@ -176,7 +230,10 @@ ddsrt_thread_join(
 }
 
 /* Thread names on Linux are limited to 16 bytes, no reason to provide
-   more storage than that as internal threads must adhere to that limit. */
+   more storage than that as internal threads must adhere to that limit.
+   Use the thread-local variable instead of relying on GetThreadDescription
+   to avoid the dynamic memory allocation, as the thread name is used by
+   the logging code and the overhead there matters. */
 static ddsrt_thread_local char thread_name[16] = "";
 
 size_t
@@ -197,6 +254,16 @@ ddsrt_thread_getname(
   return cnt;
 }
 
+/** \brief Set thread name for debugging and system monitoring
+ *
+ * Windows 10 introduced the SetThreadDescription function, which is
+ * obviously the sane interface.  For reasons unknown to me, the
+ * linker claims to have no knowledge of the function, even though
+ * they appear present, and so it seems to sensible to retain the
+ * old exception-based trick as a fall-back mechanism.  At least
+ * until the reason for {Get,Set}Description's absence from the
+ * regular libraries.
+ */
 static const DWORD MS_VC_EXCEPTION=0x406D1388;
 
 #pragma pack(push,8)
@@ -209,19 +276,23 @@ typedef struct tagTHREADNAME_INFO
 } THREADNAME_INFO;
 #pragma pack(pop)
 
-/** \brief Wrap thread start routine
- *
- * \b os_startRoutineWrapper wraps a threads starting routine.
- * before calling the user routine. It tries to set a thread name
- * that will be visible if the process is running under the MS
- * debugger.
- */
 void
 ddsrt_thread_setname(
   const char *__restrict name)
 {
-    assert(name != NULL);
-
+  assert (name != NULL);
+  getset_threaddescription_addresses ();
+  if (SetThreadDescription_ptr != SetThreadDescription_dummy)
+  {
+    size_t size = strlen (name) + 1;
+    wchar_t *wname = malloc (size * sizeof (*wname));
+    size_t cnt = 0;
+    mbstowcs_s (&cnt, wname, size, name, _TRUNCATE);
+    SetThreadDescription_ptr (GetCurrentThread (), wname);
+    free (wname);
+  }
+  else
+  {
     THREADNAME_INFO info;
     info.dwType = 0x1000;
     info.szName = name;
@@ -241,10 +312,73 @@ ddsrt_thread_setname(
         /* Suppress warnings. */
     }
 #pragma warning(pop)
-
-    ddsrt_strlcpy(thread_name, name, sizeof(thread_name));
+  }
+  ddsrt_strlcpy (thread_name, name, sizeof (thread_name));
 }
 
+dds_return_t
+ddsrt_thread_list (
+  ddsrt_thread_list_id_t * __restrict tids,
+  size_t size)
+{
+  HANDLE hThreadSnap;
+  THREADENTRY32 te32;
+  const DWORD pid = GetCurrentProcessId ();
+  int32_t n = 0;
+
+  if ((hThreadSnap = CreateToolhelp32Snapshot (TH32CS_SNAPTHREAD, 0)) == INVALID_HANDLE_VALUE)
+    return 0;
+
+  memset (&te32, 0, sizeof (te32));
+  te32.dwSize = sizeof (THREADENTRY32);
+  if (!Thread32First (hThreadSnap, &te32))
+  {
+    CloseHandle (hThreadSnap);
+    return 0;
+  }
+
+  do {
+    if (te32.th32OwnerProcessID != pid)
+      continue;
+    if ((size_t) n < size)
+    {
+      /* get a handle to the thread, not counting the thread the thread if no such
+         handle is obtainable */
+      if ((tids[n] = OpenThread (THREAD_QUERY_INFORMATION, FALSE, te32.th32ThreadID)) == NULL)
+        continue;
+    }
+    n++;
+  } while (Thread32Next (hThreadSnap, &te32));
+  CloseHandle (hThreadSnap);
+  return n;
+}
+
+dds_return_t
+ddsrt_thread_getname_anythread (
+  ddsrt_thread_list_id_t tid,
+  char * __restrict name,
+  size_t size)
+{
+  getset_threaddescription_addresses ();
+  if (size > 0)
+  {
+    PWSTR data;
+    HRESULT hr = GetThreadDescription_ptr (tid, &data);
+    if (! SUCCEEDED (hr))
+      name[0] = 0;
+    else
+    {
+      size_t cnt;
+      wcstombs_s (&cnt, name, size, data, _TRUNCATE);
+      LocalFree (data);
+    }
+    if (name[0] == 0)
+    {
+      snprintf (name, sizeof (name), "%"PRIdTID, GetThreadId (tid));
+    }
+  }
+  return DDS_RETCODE_OK;
+}
 
 static ddsrt_thread_local thread_cleanup_t *thread_cleanup = NULL;
 

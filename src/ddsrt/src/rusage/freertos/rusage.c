@@ -78,8 +78,18 @@ rusage_thread(ddsrt_rusage_t *usage)
   return DDS_RETCODE_OK;
 }
 
+#if ! DDSRT_HAVE_THREAD_LIST
+static
+#endif
 dds_return_t
-ddsrt_getrusage(int who, ddsrt_rusage_t *usage)
+ddsrt_getrusage_anythread(ddsrt_thread_list_id_t tid, ddsrt_rusage_t *__restrict usage)
+{
+  assert(usage != NULL);
+  return rusage_thread(tid, usage);
+}
+
+dds_return_t
+ddsrt_getrusage(enum ddsrt_getrusage_who who, ddsrt_rusage_t *usage)
 {
   dds_return_t rc;
 
@@ -87,7 +97,7 @@ ddsrt_getrusage(int who, ddsrt_rusage_t *usage)
   assert(usage != NULL);
 
   if (who == DDSRT_RUSAGE_THREAD) {
-    rc = rusage_thread(usage);
+    rc = rusage_thread_anythread(xTaskGetCurrentTaskHandle(), usage);
   } else {
     rc = rusage_self(usage);
   }

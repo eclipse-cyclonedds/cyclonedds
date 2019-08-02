@@ -19,6 +19,11 @@
 #else
 #define DDSRT_HAVE_THREAD_SETNAME (1)
 #endif
+#if defined (__linux) || defined (__APPLE__)
+#define DDSRT_HAVE_THREAD_LIST (1)
+#else
+#define DDSRT_HAVE_THREAD_LIST (0)
+#endif
 
 #if defined (__cplusplus)
 extern "C" {
@@ -27,6 +32,7 @@ extern "C" {
 #if defined(__linux)
 typedef long int ddsrt_tid_t;
 #define PRIdTID "ld"
+typedef long int ddsrt_thread_list_id_t;
 /* __linux */
 #elif defined(__FreeBSD__) && (__FreeBSD_version >= 900031)
 /* FreeBSD >= 9.0 */
@@ -38,6 +44,8 @@ typedef int ddsrt_tid_t;
 /* macOS X >= 10.6 */
 typedef uint64_t ddsrt_tid_t;
 #define PRIdTID PRIu64
+/* ddsrt_thread_list_id_t is actually a mach_port_t */
+typedef uint32_t ddsrt_thread_list_id_t;
 /* __APPLE__ */
 #elif defined(__VXWORKS__)
 /* TODO: Verify taskIdSelf is the right function to use on VxWorks */
