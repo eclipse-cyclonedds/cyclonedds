@@ -26,13 +26,15 @@ macro(_Sphinx_find_executable _exe)
       RESULT_VARIABLE _result
       OUTPUT_VARIABLE _output
       OUTPUT_STRIP_TRAILING_WHITESPACE)
-    if(_result EQUAL 0 AND _output MATCHES " ([0-9]+\\.[0-9]+\\.[0-9]+)$")
+    if(_result EQUAL 0 AND _output MATCHES " v?([0-9]+\\.[0-9]+\\.[0-9]+)$")
       set(SPHINX_${_uc}_VERSION "${CMAKE_MATCH_1}")
     endif()
 
-    add_executable(Sphinx::${_exe} IMPORTED GLOBAL)
-    set_target_properties(Sphinx::${_exe} PROPERTIES
-      IMPORTED_LOCATION "${SPHINX_${_uc}_EXECUTABLE}")
+    if(NOT TARGET Sphinx::${_exe})
+      add_executable(Sphinx::${_exe} IMPORTED GLOBAL)
+      set_target_properties(Sphinx::${_exe} PROPERTIES
+        IMPORTED_LOCATION "${SPHINX_${_uc}_EXECUTABLE}")
+    endif()
     set(Sphinx_${_exe}_FOUND TRUE)
   else()
     set(Sphinx_${_exe}_FOUND FALSE)
@@ -83,8 +85,8 @@ _Sphinx_find_executable(quickstart)
 #
 if(SPHINX_BUILD_EXECUTABLE AND SPHINX_QUICKSTART_EXECUTABLE)
   if(NOT SPHINX_BUILD_VERSION STREQUAL SPHINX_QUICKSTART_VERSION)
-    message(FATAL_ERROR "Versions for sphinx-build (${SPHINX_BUILD_VERSION})"
-                        "and sphinx-quickstart (${SPHINX_QUICKSTART_VERSION})"
+    message(FATAL_ERROR "Versions for sphinx-build (${SPHINX_BUILD_VERSION}) "
+                        "and sphinx-quickstart (${SPHINX_QUICKSTART_VERSION}) "
                         "do not match")
   endif()
 endif()
@@ -120,7 +122,7 @@ endforeach()
 
 find_package_handle_standard_args(
   Sphinx
-  VERSION_VAR SPHINX_VERSION
+  VERSION_VAR SPHINX_BUILD_VERSION
   REQUIRED_VARS SPHINX_BUILD_EXECUTABLE SPHINX_BUILD_VERSION
   HANDLE_COMPONENTS)
 
@@ -160,6 +162,10 @@ function(_Sphinx_generate_confpy _target _cachedir)
     set(SPHINX_LANGUAGE "en")
   endif()
 
+  if(NOT DEFINED SPHINX_MASTER)
+    set(SPHINX_MASTER "index")
+  endif()
+
   set(_known_exts autodoc doctest intersphinx todo coverage imgmath mathjax
                   ifconfig viewcode githubpages)
 
@@ -197,6 +203,7 @@ function(_Sphinx_generate_confpy _target _cachedir)
               -v "${SPHINX_VERSION}"
               -r "${SPHINX_RELEASE}"
               -l "${SPHINX_LANGUAGE}"
+              --master "${SPHINX_MASTER}"
               ${_opts} ${_exts} "${_templatedir}"
     RESULT_VARIABLE _result
     OUTPUT_QUIET)
