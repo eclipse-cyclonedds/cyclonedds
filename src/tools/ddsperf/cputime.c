@@ -49,7 +49,7 @@ bool print_cputime (const struct CPUStats *s, const char *prefix, bool print_hos
     {
       int n = (int) strlen (s->hostname);
       if (n > 100) n = 100;
-      pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " @%*.*s:%"PRId32, n, n, s->hostname, s->pid);
+      pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " @%*.*s:%"PRIu32, n, n, s->hostname, s->pid);
     }
     if (s->maxrss > 1048576)
       pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " rss:%.1fMB", s->maxrss / 1048576.0);
@@ -58,6 +58,7 @@ bool print_cputime (const struct CPUStats *s, const char *prefix, bool print_hos
     else {
       /* non-sensical value -- presumably maxrss is not available */
     }
+    pos += (size_t) snprintf (line + pos, sizeof (line) - pos, " vcsw:%"PRIu32" ivcsw:%"PRIu32, s->vcsw, s->ivcsw);
     const size_t init_pos = pos;
     for (uint32_t i = 0; i < s->cpu._length; i++)
     {
@@ -81,6 +82,8 @@ struct record_cputime_state_thr {
 struct record_cputime_state {
   bool supported;
   dds_time_t tprev;
+  uint32_t vcswprev;
+  uint32_t ivcswprev;
   size_t nthreads;
   struct record_cputime_state_thr *threads;
   dds_entity_t wr;
@@ -118,13 +121,20 @@ bool record_cputime (struct record_cputime_state *state, const char *prefix, dds
 
   ddsrt_rusage_t usage;
   if (ddsrt_getrusage (DDSRT_RUSAGE_SELF, &usage) < 0)
+  {
     usage.maxrss = 0;
+    usage.nvcsw = usage.nivcsw = 0;
+  }
   double max = 0;
   double du_skip = 0.0, ds_skip = 0.0;
   const double dt = (double) (tnow - state->tprev) / 1e9;
   bool some_above = false;
 
   state->s.maxrss = (double) usage.maxrss;
+  state->s.vcsw = (uint32_t) ((double) (usage.nvcsw - state->vcswprev) / dt + 0.5);
+  state->s.ivcsw = (uint32_t) ((double) (usage.nivcsw - state->ivcswprev) / dt + 0.5);
+  state->vcswprev = (uint32_t) usage.nvcsw;
+  state->ivcswprev = (uint32_t) usage.nivcsw;
   state->s.cpu._length = 0;
   for (size_t i = 0; i < state->nthreads; i++)
   {
@@ -187,14 +197,18 @@ struct record_cputime_state *record_cputime_new (dds_entity_t wr)
   }
 
   struct record_cputime_state *state = malloc (sizeof (*state));
+  ddsrt_rusage_t usage;
+  if (ddsrt_getrusage (DDSRT_RUSAGE_SELF, &usage) < 0)
+    usage.nvcsw = usage.nivcsw = 0;
   state->tprev = dds_time ();
   state->wr = wr;
+  state->vcswprev = (uint32_t) usage.nvcsw;
+  state->ivcswprev = (uint32_t) usage.nivcsw;
   state->threads = malloc ((size_t) n * sizeof (*state->threads));
   state->nthreads = 0;
   for (int32_t i = 0; i < n; i++)
   {
     struct record_cputime_state_thr * const thr = &state->threads[state->nthreads];
-    ddsrt_rusage_t usage;
     if (ddsrt_getrusage_anythread (tids[i], &usage) < 0)
       continue;
     thr->tid = tids[i];

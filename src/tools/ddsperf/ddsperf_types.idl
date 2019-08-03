@@ -40,6 +40,8 @@ struct CPUStats
   string hostname;
   unsigned long pid;
   double maxrss;
+  unsigned long vcsw;
+  unsigned long ivcsw;
   boolean some_above;
   sequence<CPUStatThread> cpu;
 };
