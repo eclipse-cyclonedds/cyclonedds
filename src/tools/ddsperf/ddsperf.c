@@ -1524,29 +1524,36 @@ static void sigxfsz_handler (int sig __attribute__ ((unused)))
 static void usage (void)
 {
   printf ("\
-%s help\n\
+%s help                (this text)\n\
+%s sanity              (ping 1Hz)\n\
 %s [OPTIONS] MODE...\n\
 \n\
 OPTIONS:\n\
+  -L                  allow matching with endpoints in the same process\n\
+                      to get throughput/latency in the same ddsperf process\n\
   -T KS|K32|K256|OU   topic (KS is default):\n\
                         KS   seq num, key value, sequence-of-octets\n\
                         K32  seq num, key value, array of 24 octets\n\
                         K256 seq num, key value, array of 248 octets\n\
                         OU   seq num\n\
-  -L                  allow matching with local endpoints\n\
+  -n N                number of key values to use for data (only for\n\
+                      topics with a key value)\n\
   -u                  best-effort instead of reliable\n\
   -k all|N            keep-all or keep-last-N for data (ping/pong is\n\
                       always keep-last-1)\n\
-  -n N                number of key values to use for data (only for\n\
-                      topics with a key value)\n\
+  -c                  subscribe to CPU stats from peers and show them\n\
+  -d DEV:BW           report network load for device DEV with nominal\n\
+                      bandwidth BW in bits/s (e.g., eth0:1e9)\n\
   -D DUR              run for at most DUR seconds\n\
   -N COUNT            require at least COUNT matching participants\n\
   -M DUR              require those participants to match within DUR seconds\n\
+  -R TREF             timestamps in the output relative to TREF instead of\n\
+                      process start\n\
 \n\
 MODE... is zero or more of:\n\
-  ping [R[Hz]] [size N] [waitset|listener]\n\
+  ping [R[Hz]] [size S] [waitset|listener]\n\
     Send a ping upon receiving all expected pongs, or send a ping at\n\
-    rate R (optionally suffixed with Hz).  The triggering mode is either\n\
+    rate R (optionally suffixed with Hz/kHz).  The triggering mode is either\n\
     a listener (default, unless -L has been specified) or a waitset.\n\
   pong [waitset|listener]\n\
     A \"dummy\" mode that serves two purposes: configuring the triggering.\n\
@@ -1555,11 +1562,12 @@ MODE... is zero or more of:\n\
   sub [waitset|listener|polling]\n\
     Subscribe to data, with calls to take occurring either in a listener\n\
     (default), when a waitset is triggered, or by polling at 1kHz.\n\
-  pub [R[Hz]] [size N] [burst N] [[ping] X%%]\n\
-    Publish bursts of data at rate R, optionally suffixed with Hz.  If\n\
+  pub [R[Hz]] [size S] [burst N] [[ping] X%%]\n\
+    Publish bursts of data at rate R, optionally suffixed with Hz/kHz.  If\n\
     no rate is given or R is \"inf\", data is published as fast as\n\
     possible.  Each burst is a single sample by default, but can be set\n\
-    to larger value using \"burst N\".\n\
+    to larger value using \"burst N\".  Sample size is controlled using\n\
+    \"size S\", S may be suffixed with k/M/kB/MB/KiB/MiB.\n\
     If desired, a fraction of the samples can be treated as if it were a\n\
     ping, for this, specify a percentage either as \"ping X%%\" (the\n\
     \"ping\" keyword is optional, the %% sign is not).\n\
@@ -1569,8 +1577,23 @@ MODE... is zero or more of:\n\
   the last one given determines it for all) and should be either 0 (minimal,\n\
   equivalent to 12) or >= 12.\n\
 \n\
-If no MODE specified, it defaults to a 1Hz ping + responding to any pings.\n\
-", argv0, argv0);
+EXIT STATUS:\n\
+\n\
+  0  all is well\n\
+  1  not enough peers discovered, other matching issues, unexpected sample\n\
+     loss detected\n\
+  2  unexpected failure of some DDS operation\n\
+  3  incorrect arguments\n\
+\n\
+EXAMPLES:\n\
+  ddsperf pub size 1k & ddsperf sub\n\
+    basic throughput test with 1024-bytes large samples\n\
+  ddsperf ping & ddsperf pong\n\
+    basic latency test\n\
+  ddsperf -L -TOU -D10 pub sub\n\
+    basic throughput test within the process with tiny, keyless samples,\n\
+    running for 10s\n\
+", argv0, argv0, argv0);
   fflush (stdout);
   exit (3);
 }
@@ -1628,18 +1651,57 @@ static int string_int_map_lookup (const struct string_int_map_elem *elems, const
   return (match == SIZE_MAX) ? -1 : elems[match].value;
 }
 
-static bool set_simple_uint32 (int *xoptind, int xargc, char * const xargv[], const char *token, uint32_t *val)
+struct multiplier {
+  const char *suffix;
+  int mult;
+};
+
+static const struct multiplier frequency_units[] = {
+  { "Hz", 1 },
+  { "kHz", 1024 },
+  { NULL, 0 }
+};
+
+static const struct multiplier size_units[] = {
+  { "B", 1 },
+  { "k", 1024 },
+  { "M", 1048576 },
+  { "kB", 1024 },
+  { "KiB", 1024 },
+  { "MB", 1048576 },
+  { "MiB", 1048576 },
+  { NULL, 0 }
+};
+
+static int lookup_multiplier (const struct multiplier *units, const char *suffix)
+{
+  while (*suffix == ' ')
+    suffix++;
+  if (*suffix == 0)
+    return 1;
+  else if (units == NULL)
+    return 0;
+  else
+  {
+    for (size_t i = 0; units[i].suffix; i++)
+      if (strcmp (units[i].suffix, suffix) == 0)
+        return units[i].mult;
+    return 0;
+  }
+}
+
+static bool set_simple_uint32 (int *xoptind, int xargc, char * const xargv[], const char *token, const struct multiplier *units, uint32_t *val)
 {
   if (strcmp (xargv[*xoptind], token) != 0)
     return false;
   else
   {
     unsigned x;
-    int pos;
+    int pos, mult;
     if (++(*xoptind) == xargc)
       error3 ("argument missing in %s specification\n", token);
-    if (sscanf (xargv[*xoptind], "%u%n", &x, &pos) == 1 && xargv[*xoptind][pos] == 0)
-      *val = x;
+    if (sscanf (xargv[*xoptind], "%u%n", &x, &pos) == 1 && (mult = lookup_multiplier (units, xargv[*xoptind] + pos)) > 0)
+      *val = x * (unsigned) mult;
     else
       error3 ("%s: invalid %s specification\n", xargv[*xoptind], token);
     return true;
@@ -1652,19 +1714,20 @@ static void set_mode_ping (int *xoptind, int xargc, char * const xargv[])
   pingpongmode = SM_LISTENER;
   while (*xoptind < xargc && exact_string_int_map_lookup (modestrings, "mode string", xargv[*xoptind], false) == -1)
   {
-    int pos;
+    int pos = 0, mult = 1;
     double ping_rate;
-    if (strcmp (xargv[*xoptind], "inf") == 0)
+    if (strcmp (xargv[*xoptind], "inf") == 0 && lookup_multiplier (frequency_units, xargv[*xoptind] + 3) > 0)
     {
       ping_intv = 0;
     }
-    else if (sscanf (xargv[*xoptind], "%lf%n", &ping_rate, &pos) == 1 && (xargv[*xoptind][pos] == 0 || strcmp (xargv[*xoptind] + pos, "Hz") == 0))
+    else if (sscanf (xargv[*xoptind], "%lf%n", &ping_rate, &pos) == 1 && (mult = lookup_multiplier (frequency_units, xargv[*xoptind] + pos)) > 0)
     {
+      ping_rate *= mult;
       if (ping_rate == 0) ping_intv = DDS_INFINITY;
       else if (ping_rate > 0) ping_intv = (dds_duration_t) (1e9 / ping_rate + 0.5);
       else error3 ("%s: invalid ping rate\n", xargv[*xoptind]);
     }
-    else if (set_simple_uint32 (xoptind, xargc, xargv, "size", &baggagesize))
+    else if (set_simple_uint32 (xoptind, xargc, xargv, "size", size_units, &baggagesize))
     {
       /* no further work needed */
     }
@@ -1709,22 +1772,22 @@ static void set_mode_pub (int *xoptind, int xargc, char * const xargv[])
   ping_frac = 0;
   while (*xoptind < xargc && exact_string_int_map_lookup (modestrings, "mode string", xargv[*xoptind], false) == -1)
   {
-    int pos = 0;
+    int pos = 0, mult = 1;
     double r;
-    if (strcmp (xargv[*xoptind], "inf") == 0 || strcmp (xargv[*xoptind], "infHz") == 0)
+    if (strncmp (xargv[*xoptind], "inf", 3) == 0 && lookup_multiplier (frequency_units, xargv[*xoptind] + 3) > 0)
     {
       pub_rate = HUGE_VAL;
     }
-    else if (sscanf (xargv[*xoptind], "%lf%n", &r, &pos) == 1 && (xargv[*xoptind][pos] == 0 || strcmp (xargv[*xoptind] + pos, "Hz") == 0))
+    else if (sscanf (xargv[*xoptind], "%lf%n", &r, &pos) == 1 && (mult = lookup_multiplier (frequency_units, xargv[*xoptind] + pos)) > 0)
     {
       if (r < 0) error3 ("%s: invalid publish rate\n", xargv[*xoptind]);
-      pub_rate = r;
+      pub_rate = r * mult;
     }
-    else if (set_simple_uint32 (xoptind, xargc, xargv, "burst", &burstsize))
+    else if (set_simple_uint32 (xoptind, xargc, xargv, "burst", NULL, &burstsize))
     {
       /* no further work needed */
     }
-    else if (set_simple_uint32 (xoptind, xargc, xargv, "size", &baggagesize))
+    else if (set_simple_uint32 (xoptind, xargc, xargv, "size", size_units, &baggagesize))
     {
       /* no further work needed */
     }
@@ -1753,7 +1816,7 @@ static void set_mode (int xoptind, int xargc, char * const xargv[])
   pub_rate = 0.0;
   submode = SM_NONE;
   pingpongmode = SM_LISTENER;
-  ping_intv = (xoptind == xargc) ? DDS_SECS (1) : DDS_INFINITY;
+  ping_intv = DDS_INFINITY;
   ping_frac = 0;
   while (xoptind < xargc && (code = exact_string_int_map_lookup (modestrings, "mode string", xargv[xoptind], true)) != -1)
   {
@@ -1793,8 +1856,6 @@ int main (int argc, char *argv[])
 
   argv0 = argv[0];
 
-  if (argc == 2 && strcmp (argv[1], "help") == 0)
-    usage ();
   while ((opt = getopt (argc, argv, "cd:D:n:k:uLK:T:M:N:R:h")) != EOF)
   {
     switch (opt)
@@ -1829,7 +1890,18 @@ int main (int argc, char *argv[])
       default: error3 ("-%c: unknown option\n", opt); break;
     }
   }
-  set_mode (optind, argc, argv);
+
+  if (optind == argc || (optind + 1 == argc && strcmp (argv[optind], "help") == 0))
+    usage ();
+  else if (optind + 1 == argc && strcmp (argv[optind], "sanity") == 0)
+  {
+    char * const sanity[] = { "ping", "1Hz" };
+    set_mode (0, 2, sanity);
+  }
+  else
+  {
+    set_mode (optind, argc, argv);
+  }
 
   if (nkeyvals == 0)
     nkeyvals = 1;

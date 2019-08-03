@@ -212,7 +212,7 @@ This example shows a few things:
   the address or the interface name).  Proper use of multiple network interfaces simultaneously will
   come, but is not there yet.
 * ``AllowMulticast`` configures the circumstances under which multicast will be used.  If the
-  selected interface doesn't support it, it obviously wonn't be used (``false``); but if it does
+  selected interface doesn't support it, it obviously won't be used (``false``); but if it does
   support it, the type of the network adapter determines the default value.  For a wired network, it
   will use multicast for initial discovery as well as for data when there are multiple peers that
   the data needs to go to (``true``); but on a WiFi network it will use it only for initial
@@ -225,13 +225,13 @@ This example shows a few things:
   the size of the UDP payload), and the size of the fragments into which very large samples get
   split (which needs to be "a bit" less).  Large values such as these typically improve performance
   over the (current) default values.
-* ``WhcHigh`` determines when the sender will wait for acknolwedgements from the readers because it
+* ``WhcHigh`` determines when the sender will wait for acknowledgements from the readers because it
   has buffered too much unacknowledged data.  There is some auto-tuning, the (current) default value
   is a bit small to get really high throughput.
 
 The configurator tool ``cycloneddsconf`` can help in discovering the settings, as can the config
 dump.  Background information on configuring Cyclone DDS can be
-found [here](https://docs/manual/config.rst).
+found [here](docs/manual/config.rst).
 
 # Trademarks
 
