@@ -14,7 +14,6 @@ if(BUILD_TESTING)
   add_subdirectory(tests)
 endif()
 
-# Find Bison and Flex
 find_package(BISON REQUIRED)
 find_package(FLEX REQUIRED)
 
@@ -22,14 +21,12 @@ find_package(FLEX REQUIRED)
 set(GENERATED_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/src")
 file(MAKE_DIRECTORY "${GENERATED_SOURCE_DIR}")
 
-set(PARSER_BASENAME "idl.parser.c")
-set(PARSER_PATH "${GENERATED_SOURCE_DIR}/${PARSER_BASENAME}")
-set(LEXER_BASENAME "idl.lexer.c")
-set(LEXER_PATH "${GENERATED_SOURCE_DIR}/${LEXER_BASENAME}")
+set(parser_path "${GENERATED_SOURCE_DIR}/idl.parser.c")
+set(lexer_path "${GENERATED_SOURCE_DIR}/idl.lexer.c")
 
-bison_target(parser "src/idl.y" "${PARSER_PATH}")
+bison_target(parser "src/idl.y" "${parser_path}")
 flex_target(
-  lexer "src/idl.l" "${LEXER_PATH}"
+  lexer "src/idl.l" "${lexer_path}"
   COMPILE_FLAGS
     "--header-file=${GENERATED_SOURCE_DIR}/idl.lexer.h")
 
@@ -37,31 +34,41 @@ if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
   # Microsoft Visual Studio does not define __STDC_VERSION__. As a result,
   # Flex defines the C99 limit macros, which causes redefinition warnings.
   set_source_files_properties(
-    "${LEXER_PATH}" PROPERTIES COMPILE_DEFINITIONS __STDC_VERSION__=199901L)
+    "${lexer_path}" PROPERTIES COMPILE_DEFINITIONS __STDC_VERSION__=199901L)
 elseif(CMAKE_C_COMPILER_ID MATCHES "GNU" OR
-       CMAKE_C_COMPILER_ID MATCHES "Clang") # Takes care of AppleClang too.
+       CMAKE_C_COMPILER_ID MATCHES "Clang")
+  set(lexer_cflags "-Wno-sign-conversion"
+                   "-Wno-conversion"
+                   "-Wno-sign-compare"
+                   "-Wno-unused-parameter"
+                   "-Wno-unused-function"
+                   "-Wno-documentation"
+                   "-Wno-missing-prototypes")
+  set(parser_cflags "-Wno-sign-conversion")
+  list(JOIN lexer_cflags " " lexer_cflags)
+  list(JOIN parser_cflags " " parser_cflags)
   set_source_files_properties(
-    "${LEXER_PATH}" PROPERTIES COMPILE_FLAGS "-Wno-sign-conversion -Wno-conversion -Wno-sign-compare -Wno-unused-parameter -Wno-unused-function")
+    "${lexer_path}" PROPERTIES COMPILE_FLAGS "${lexer_cflags}")
   set_source_files_properties(
-    "${PARSER_PATH}" PROPERTIES COMPILE_FLAGS "-Wno-sign-conversion")
+    "${parser_path}" PROPERTIES COMPILE_FLAGS "${parser_cflags}")
 endif()
 
 set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
-add_library(idll STATIC
-    "${source_dir}/parser.c"
-    "${source_dir}/tt_create.c"
-    "${source_dir}/gen_c99.c"
-    "${source_dir}/gen_ostream.c"
+add_library(idlc-lib STATIC
+    "src/parser.c"
+    "src/tt_create.c"
+    "src/gen_c99.c"
+    "src/gen_ostream.c"
     "${BISON_parser_OUTPUTS}"
     "${FLEX_lexer_OUTPUTS}")
 
-target_include_directories(idll PUBLIC "src")
-target_include_directories(idll PRIVATE "${GENERATED_SOURCE_DIR}")
+target_include_directories(idlc-lib PUBLIC "src")
+target_include_directories(idlc-lib PRIVATE "${GENERATED_SOURCE_DIR}")
 
-target_link_libraries(idll PUBLIC ddsc)
-target_link_libraries(idll PUBLIC ddsts)
+target_link_libraries(idlc-lib PUBLIC ddsc)
+target_link_libraries(idlc-lib PUBLIC ddsts)
 
-add_executable(idlpp "src/main.c")
-target_link_libraries(idlpp PRIVATE idll)
+add_executable(idlc "src/main.c")
+target_link_libraries(idlc PRIVATE idlc-lib)
 
