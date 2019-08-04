@@ -482,9 +482,9 @@ static void     conv_case(
 #endif
         {
             if (upper)
-                *sp = toupper( c);
+                *sp = (char)toupper( c);
             else
-                *sp = tolower( c);
+                *sp = (char)tolower( c);
         }
     }
 }
@@ -665,12 +665,12 @@ static size_t   mb_read_iso2022_jp(
 
     do {
 
-        *out_p++ = c2 = *in_p++;
+        *out_p++ = (char)(c2 = *in_p++);
         if (! (char_type[ c2 & UCHARMAX] & IS2)) {
             error = TRUE;
             break;
         }
-        *out_p++ = c3 = *in_p++;
+        *out_p++ = (char)(c3 = *in_p++);
         if (! (char_type[ c3 & UCHARMAX] & IS3)) {
             error = TRUE;
             break;
@@ -682,7 +682,7 @@ static size_t   mb_read_iso2022_jp(
             case 0x42   :   /* 0x1b 0x24 0x42:  JIS X 0208-1983 */
                 break;
             case 0x28   :
-                *out_p++ = c4 = *in_p++;
+                *out_p++ = (char)(c4 = *in_p++);
                 if (! (char_type[ c4 & UCHARMAX] & IS4))
                     error = TRUE;
                 /* else:    0x1b 0x24 0x28 0x44:    JIS X 0212  */
@@ -694,7 +694,7 @@ static size_t   mb_read_iso2022_jp(
         case 0x28   :
             switch (c3) {
             case 0x42   :   /* 0x1b 0x28 0x42:  ASCII   */
-                c1 = *out_p++ = *in_p++ & UCHARMAX;
+                c1 = *out_p++ = (char)(*in_p++ & UCHARMAX);
                 continue;
             default :
                 error = TRUE;
@@ -704,8 +704,9 @@ static size_t   mb_read_iso2022_jp(
         if (error)
             break;
 
-        while (char_type[ c1 = *out_p++ = (*in_p++ & UCHARMAX)] & IJP) {
-            if (! (char_type[ *out_p++ = (*in_p++ & UCHARMAX)] & IJP)) {
+        while (char_type[ c1 = *out_p++ = (char)(*in_p++ & UCHARMAX)] & IJP) {
+            c1 = (*out_p++ = (char)(*in_p++ & UCHARMAX));
+            if (! (char_type[ c1] & IJP)) {
                 error = TRUE;
                 break;
             }
@@ -741,21 +742,23 @@ static size_t   mb_read_utf8(
 
     do {
         unsigned int    codepoint;
-        int             i, bytes;
+        unsigned int    i, bytes = 0;
 
         if ((char_type[ c1 & UCHARMAX] & U4_1) == U4_1)
-            bytes = 4;                          /* 4-byte character */
+            bytes = 4;                                  /* 4-byte character  */
         else if ((char_type[ c1 & UCHARMAX] & U3_1) == U3_1)
-            bytes = 3;                          /* 3-byte character */
+            bytes = 3;                                  /* 3-byte character  */
         else if ((char_type[ c1 & UCHARMAX] & U2_1) == U2_1)
-            bytes = 2;                          /* 2-byte character */
+            bytes = 2;                                  /* 2-byte character  */
 
         /* Must ensure that the sequence is not reserved as a surrogate */
-        codepoint = ((2 << (6-bytes)) - 1) & c1;    /* mask off top bits    */
+        codepoint = (unsigned int)
+            ((2 << (6-bytes)) - 1) & (unsigned int)c1;  /* mask off top bits */
 
         /* All bytes left in the sequence must be in 0x80 - 0xBF    */
         for (i = bytes - 1; i && !error; i--) {
-            codepoint = (codepoint << 6) + ((*in_p) & 0x3fU);
+            codepoint = (unsigned int)
+                (codepoint << 6) + ((unsigned int)(*in_p) & 0x3fU);
             if (! (char_type[ (*out_p++ = *in_p++) & UCHARMAX] & UCONT))
                 error = TRUE;
         }
@@ -776,7 +779,7 @@ static size_t   mb_read_utf8(
         if (error)
             break;
         len++;
-    } while (char_type[ (*out_p++ = c1 = *in_p++) & UCHARMAX] & mbstart);
+    } while (char_type[ (c1 = *out_p++ = *in_p++) & UCHARMAX] & mbstart);
                         /* Start of the next multi-byte character   */
     *in_pp = --in_p;
     *(--out_p) = EOS;
@@ -800,7 +803,7 @@ uexpr_t     mb_eval(
 
     if (! (char_type[ c = *seq++ & UCHARMAX] & mbstart)) {
         *seq_pp = seq;
-        return  c;                  /* Not a multi-byte character   */
+        return  (uexpr_t)c;         /* Not a multi-byte character   */
     }
 
     switch (mbchar) {
@@ -809,7 +812,7 @@ uexpr_t     mb_eval(
     case KSC5601:
     case SJIS   :
     case BIGFIVE:
-        val = (c << 8) + (*seq++ & UCHARMAX);
+        val = ((unsigned)c << 8) + (*seq++ & UCHARMAX);
         /* Evaluate the 2-byte sequence */
         break;
     case ISO2022_JP :
@@ -826,10 +829,11 @@ uexpr_t     mb_eval(
                 }
             }
         }
-        val = (c << 8) + (*seq++ & UCHARMAX);       /* Evaluate the 2-bytes */
+        /* Evaluate the 2-bytes */
+        val = ((unsigned)c << 8) + (*seq++ & UCHARMAX);
         break;
     case UTF8   :   /* Evaluate the sequence of 2, 3 or 4 bytes as it is    */
-        val = (c << 8) + (*seq++ & UCHARMAX);
+        val = ((unsigned)c << 8) + (*seq++ & UCHARMAX);
         if (char_type[ c & UCHARMAX] & U3_1) {
             val = (val << 8) + (*seq++ & UCHARMAX);
         } else if (char_type[ c & UCHARMAX] & U4_1) {
@@ -845,7 +849,7 @@ uexpr_t     mb_eval(
 
 int  last_is_mbchar(
     const char *  in,               /* Input physical line          */
-    int     len                     /* Length of the line minus 2   */
+    size_t  len                     /* Length of the line minus 2   */
 )
 /*
  * Return 2, if the last char of the line is second byte of SJIS or BIGFIVE,
