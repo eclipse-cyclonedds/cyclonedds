@@ -190,7 +190,7 @@ ddsts_create_array(ddsts_type_t *element_type, unsigned long long size, ddsts_ty
 /**
  * @brief Sets the element type of a ddsts_array_t.
  *
- * @param[inout] array         A non-NULL pointer to an ddsts_array_t struct
+ * @param[in,out] array        A non-NULL pointer to an ddsts_array_t struct
  *                             with a NULL element type.
  * @param[in]    element_type  A non-NULL pointer to the element type. If the
  *                             function returns success and the element type
@@ -295,16 +295,16 @@ ddsts_create_module(ddsts_identifier_t name, ddsts_type_t **result);
 /**
  * @brief Adds a member at the end of the members of a ddsts_module_t struct.
  *
- * @param[inout] module  A non-NULL pointer to a ddsts_module_t struct.
- * @param[in]    member  A non-NULL pointer to a member type that is not owned
- *                       yet. If the function returns success, the member type
- *                       will be owned by the module.
- *                       In case the member type is a module and the module
- *                       is reopened the 'previous' struct member is set to
- *                       point to the previous opening of the module.
- *                       In case the member type is a struct, the 'definition'
- *                       struct member of matching previous forward declaration
- *                       are set to this struct.
+ * @param[in,out] module  A non-NULL pointer to a ddsts_module_t struct.
+ * @param[in]     member  A non-NULL pointer to a member type that is not owned
+ *                        yet. If the function returns success, the member type
+ *                        will be owned by the module.
+ *                        In case the member type is a module and the module
+ *                        is reopened the 'previous' struct member is set to
+ *                        point to the previous opening of the module.
+ *                        In case the member type is a struct, the 'definition'
+ *                        struct member of matching previous forward declaration
+ *                        are set to this struct.
  *
  * @returns A dds_return_t indicating success or failure.
  */
@@ -365,10 +365,10 @@ ddsts_create_struct(ddsts_identifier_t name, ddsts_type_t **result);
 /**
  * @brief Adds a member at the end of the members of a ddsts_struct_t struct.
  *
- * @param[inout] struct_def  A non-NULL pointer to a ddsts_struct_t struct.
- * @param[in]    member      A non-NULL pointer to a member type that is not
- *                           owned yet. If the function returns success, the
- *                           member type will be owned by the struct.
+ * @param[in,out]  struct_def  A non-NULL pointer to a ddsts_struct_t struct.
+ * @param[in]      member      A non-NULL pointer to a member type that is not
+ *                             owned yet. If the function returns success, the
+ *                             member type will be owned by the struct.
  *
  * @returns A dds_return_t indicating success or failure.
  */
@@ -378,9 +378,9 @@ ddsts_struct_add_member(ddsts_type_t *struct_def, ddsts_type_t *member);
 /**
  * @brief Adds a key at the end of the keys of a ddsts_struct_t struct.
  *
- * @param[inout] struct_def  A non-NULL pointer to a ddsts_struct_t struct.
- * @param[in]    member      A non-NULL pointer to a member type that
- *                           belongs to the struct.
+ * @param[in,out] struct_def  A non-NULL pointer to a ddsts_struct_t struct.
+ * @param[in]     member      A non-NULL pointer to a member type that
+ *                            belongs to the struct.
  *
  * @returns A dds_return_t indicating success or failure. On success a
  * struct ddsts_struct_key_t pointing to the member will be added to the
@@ -417,12 +417,12 @@ ddsts_create_declaration(ddsts_identifier_t name, ddsts_type_t *decl_type, ddsts
 /**
  * @brief Sets the declaration type of a ddsts_declaration_t.
  *
- * @param[inout] array         A non-NULL pointer to an ddsts_declaration_t
- *                             struct with a NULL element type.
- * @param[in]    element_type  A non-NULL pointer to the declaration type. If the
- *                             function returns success and the element type
- *                             is not owned yet, it will be owned by the created
- *                             ddsts_declaration_t struct.
+ * @param[in,out]  declaration  A non-NULL pointer to an ddsts_declaration_t
+ *                              struct with a NULL element type.
+ * @param[in]      type         A non-NULL pointer to the declaration type. If
+ *                              the function returns success and the element
+ *                              type is not owned yet, it will be owned by the
+ *                              created ddsts_declaration_t struct.
  *
  * @returns A dds_return_t indicating success or failure.
  */

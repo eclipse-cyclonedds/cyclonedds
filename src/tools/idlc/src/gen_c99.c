@@ -943,7 +943,7 @@ static dds_return_t generate_op_codes_simple_type(ddsts_call_path_t *declaration
   }
   bool declaration_is_key = false;
   dds_return_t rc;
-  rc = ddsts_declaration_is_key(declaration, &declaration_is_key);
+  (void)ddsts_declaration_is_key(declaration, &declaration_is_key);
 
   if (declaration_is_key) {
     ddsts_ostream_puts(ostream, " | DDS_OP_FLAG_KEY");
@@ -1741,12 +1741,12 @@ static dds_return_t walk_struct_keys(ddsts_call_path_t *path, bool top, ddsts_wa
         declaration_path.type = member;
         declaration_path.call_parent = path;
         if (DDSTS_IS_TYPE(member->declaration.decl_type, DDSTS_STRUCT | DDSTS_FORWARD_STRUCT)) {
-          ddsts_type_t *struct_def = get_struct_def(member->declaration.decl_type);
-          if (struct_def == NULL) {
+          ddsts_type_t *sd = get_struct_def(member->declaration.decl_type);
+          if (sd == NULL) {
             return DDS_RETCODE_ERROR;
           }
           ddsts_call_path_t struct_decl_path;
-          struct_decl_path.type = struct_def;
+          struct_decl_path.type = sd;
           struct_decl_path.call_parent = &declaration_path;
           dds_return_t rc = walk_struct_keys(&struct_decl_path, false, func, context);
           if (rc != DDS_RETCODE_OK) {
