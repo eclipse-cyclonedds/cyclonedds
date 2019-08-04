@@ -43,9 +43,9 @@
 #endif
 
 typedef struct optab {
-    char    op;                     /* Operator                     */
-    char    prec;                   /* Its precedence               */
-    char    skip;                   /* Short-circuit: non-0 to skip */
+    int     op;                     /* Operator                     */
+    int     prec;                   /* Its precedence               */
+    int     skip;                   /* Short-circuit: non-0 to skip */
 } OPTAB;
 
 static int      eval_lex( void);
@@ -194,7 +194,7 @@ typedef struct sizes {
 #define S_PLINT     (sizeof (long int *))
 #define S_PFLOAT    (sizeof (float *))
 #define S_PDOUBLE   (sizeof (double *))
-#define S_PFPTR     (sizeof (int (*)()))
+#define S_PFPTR     (sizeof (int (*)(void)))
 #if HAVE_LONG_LONG
 #if (HOST_COMPILER == BORLANDC) \
         || (HOST_COMPILER == MSC && defined(_MSC_VER) && (_MSC_VER < 1300))
@@ -296,6 +296,8 @@ expr_t  eval_if( void)
     opp->op = OP_END;               /* Mark bottom of stack         */
     opp->prec = opdope[ OP_END];    /* And its precedence           */
     skip = skip_cur = opp->skip = 0;        /* Not skipping now     */
+
+    memset( value, 0, sizeof(value));
 
     while (1) {
         if (mcpp_debug & EXPRESSION)
@@ -451,7 +453,8 @@ expr_t  eval_if( void)
                             , opname[opp->op], 0L, NULL);
                     return  0L;
                 }
-                /* Evaluate op1.            Fall through            */
+                /* Evaluate op1.                                    */
+                /* Fall through */
             default:                        /* Others:              */
                 opp--;                      /* Unstack the operator */
                 if (mcpp_debug & EXPRESSION) {
@@ -520,7 +523,7 @@ static int  eval_lex( void)
             c1 = c = skip_ws();
             if (c == '(')                   /* Allow defined (name) */
                 c = skip_ws();
-            if (scan_token( c, (workp = work_buf, &workp), work_end) == NAM) {
+            if (scan_token( c, ((void)(workp = work_buf), &workp), work_end) == NAM) {
                 DEFBUF *    defp = look_id( identifier);
                 if (warn) {
                     ev.val = (defp != NULL);
@@ -867,9 +870,9 @@ VAL_SIGN *  eval_num(
             c1 -= '0';
         if (c1 < 0 || base <= c1)
             break;
-        v1 *= base;
-        v1 += c1;
-        if (v1 / base < v) {                /* Overflow             */
+        v1 *= (unsigned int)base;
+        v1 += (unsigned int)c1;
+        if (v1 / (unsigned int)base < v) {  /* Overflow             */
             if (! skip)
                 goto  range_err;
             else
@@ -884,7 +887,7 @@ VAL_SIGN *  eval_num(
         c = *cp++ & UCHARMAX;
     }
 
-    value = v;
+    value = (expr_t)v;
     while (c == 'u' || c == 'U' || c == 'l' || c == 'L') {
         if (c == 'u' || c == 'U') {
             if (uflag)
@@ -1005,25 +1008,25 @@ static VAL_SIGN *   eval_char(
         bits = mbits;
     }
     if (char_type[ *cp & UCHARMAX] & mbchk) {
-        cl = mb_eval( &cp);
+        cl = (expr_t)mb_eval( &cp);
         bits = mbits;
-    } else if ((cl = eval_one( &cp, wide, mbits, (ucn8 = FALSE, &ucn8)))
+    } else if ((cl = eval_one( &cp, wide, mbits, ((void)(ucn8 = FALSE), &ucn8)))
                 == -1L) {
         ev.sign = VAL_ERROR;
         return  & ev;
     }
     bits_save = bits;
-    value = cl;
+    value = (uexpr_t)cl;
 
     for (i = 0; *cp != '\'' && *cp != EOS; i++) {
         if (char_type[ *cp & UCHARMAX] & mbchk) {
-            cl = mb_eval( &cp);
+            cl = (expr_t)mb_eval( &cp);
             if (cl == 0)
                 /* Shift-out sequence of multi-byte or wide character   */
                 continue;
             bits = mbits;
         } else {
-            cl = eval_one( &cp, wide, mbits, (ucn8 = FALSE, &ucn8));
+            cl = eval_one( &cp, wide, mbits, ((void)(ucn8 = FALSE), &ucn8));
             if (cl == -1L) {
                 ev.sign = VAL_ERROR;
                 return  & ev;
@@ -1036,7 +1039,7 @@ static VAL_SIGN *   eval_char(
 #endif
         }
         tmp = value;
-        value = (value << bits) | cl;   /* Multi-char or multi-byte char    */
+        value = (value << bits) | (uexpr_t)cl;  /* Multi-char or multi-byte char    */
         if ((value >> bits) < tmp) {    /* Overflow                 */
             if (! skip)
                 goto  range_err;
@@ -1051,7 +1054,7 @@ static VAL_SIGN *   eval_char(
     }
 
     ev.sign = ((expr_t) value >= 0L);
-    ev.val = value;
+    ev.val = (expr_t)value;
 
     if (erange && skip && (warn_level & 8)) {
         if (wide)
@@ -1111,13 +1114,13 @@ static expr_t   eval_one(
 #endif
     const char * const  out_of_range
         = "%s%ld bits can't represent escape sequence '%s'";    /* _E_ _W8_ */
-    uexpr_t         value;
+    expr_t          value;
     int             erange = FALSE;
     char *          seq = *seq_pp;  /* Initial seq_pp for diagnostic*/
     const char *    cp;
     const char *    digits;
-    unsigned        uc;
-    unsigned        uc1;
+    int             uc;
+    int             uc1;
     int             count;
     int             bits;
     size_t          wchar_max;
@@ -1149,8 +1152,8 @@ static expr_t   eval_one(
         if (! stdc2)
             goto  undefined;
         /* Else Universal character name    */
-        /* Fall through */
 #endif
+        /* Fall through */
     case 'x':                               /* '\xFF'               */
         if (! standard)
             goto  undefined;
@@ -1191,9 +1194,9 @@ static expr_t   eval_one(
 #endif
         value = (value << bits) | (cp - digits);
 #if OK_UCN
-        if (wchar_max < value && uc1 != 'u' && uc1 != 'U')
+        if (wchar_max < (uexpr_t)value && uc1 != 'u' && uc1 != 'U')
 #else
-        if (wchar_max < value)
+        if (wchar_max < (uexpr_t)value)
 #endif
         {
             if (! skip)
@@ -1206,7 +1209,7 @@ static expr_t   eval_one(
     (*seq_pp)--;
 
     if (erange) {
-        value &= wchar_max;
+        value &= (expr_t)wchar_max;
         goto  range_err;
     }
 
@@ -1233,7 +1236,7 @@ static expr_t   eval_one(
         value &= UCHARMAX;
         goto  range_err;
     }
-    return  (expr_t) value;
+    return  value;
 
 undefined:
     uc1 = **seq_pp;
@@ -1242,7 +1245,7 @@ undefined:
         cwarn(
     "Undefined escape sequence%s %.0ld'%s'"         /* _W1_ _W8_    */
                 , skip ? non_eval : NULL, 0L, seq);
-    **seq_pp = uc1;
+    **seq_pp = (char)uc1;
     *seq_pp = seq + 1;
     return  (expr_t) '\\';              /* Returns the escape char  */
 
@@ -1261,7 +1264,7 @@ range_err:
             cwarn( out_of_range, non_eval, (long) CHARBIT, seq);
     }
 
-    **seq_pp = uc1;
+    **seq_pp = (char)uc1;
     if (! skip)
         return  -1L;
     else
@@ -1318,18 +1321,18 @@ static VAL_SIGN *   eval_eval(
             expr_t  v3;
 
             v3 = (sign1 == SIGNED ? v1 : v2);
-            sprintf( negate, neg_format, v3, v3);
+            snprintf( negate, sizeof(negate), neg_format, v3, v3);
             cwarn( negate, skip ? non_eval : NULL, 0L, NULL);
         }
         valp->sign = sign1 = sign2 = UNSIGNED;
     }
     if ((op == OP_SL || op == OP_SR)
             && ((! skip && (warn_level & 1)) || (skip && (warn_level & 8)))) {
-        if (v2 < 0L || v2 >= sizeof (expr_t) * CHARBIT)
+        if (v2 < 0L || (uexpr_t)v2 >= sizeof (expr_t) * CHARBIT)
             cwarn( "Illegal shift count %.0s\"%ld\"%s"      /* _W1_ _W8_    */
                 , NULL, (long) v2, skip ? non_eval : NULL);
 #if HAVE_LONG_LONG
-        else if (! stdc3 && v2 >= sizeof (long) * CHARBIT
+        else if (! stdc3 && (uexpr_t)v2 >= sizeof (long) * CHARBIT
                 && ((! skip && (warn_level & w_level))
                     || (skip && (warn_level & 8))))
             cwarn(
@@ -1354,7 +1357,7 @@ static VAL_SIGN *   eval_eval(
     if (! standard || sign1 == SIGNED)
         v1 = eval_signed( & valp, v1, v2, op);
     else
-        v1 = eval_unsigned( & valp, (uexpr_t) v1, (uexpr_t) v2, op);
+        v1 = (expr_t)eval_unsigned( & valp, (uexpr_t) v1, (uexpr_t) v2, op);
 
     if (valp->sign == VAL_ERROR)                /* Out of range */
         return  valp;
@@ -1526,7 +1529,13 @@ static expr_t   eval_unsigned(
     case OP_EOE:
     case OP_PLU:    v1 = v1u;           break;
     case OP_NEG:
+#if HOST_COMPILER == MSC
+#pragma warning (disable: 4146)
+#endif
         v1 = -v1u;
+#if HOST_COMPILER == MSC
+#pragma warning (default: 4146)
+#endif
         if (v1u)
             overflow( op_name, valpp, TRUE);
         break;
@@ -1593,7 +1602,7 @@ static expr_t   eval_unsigned(
     }
 
     *valpp = valp;
-    return  v1;
+    return  (expr_t)v1;
 }
 
 static void overflow(

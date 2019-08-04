@@ -110,6 +110,7 @@ void    directive( void)
     int     token_type;
     int     hash;
     int     c;
+    long    n;
     char *  tp;
 
     in_directive = TRUE;
@@ -120,7 +121,7 @@ void    directive( void)
     c = skip_ws();
     if (c == '\n')                              /* 'null' directive */
         goto  ret;
-    token_type = scan_token( c, (workp = work_buf, &workp), work_end);
+    token_type = scan_token( c, ((void)(workp = work_buf), &workp), work_end);
     if (in_asm && (token_type != NAM
             || (! str_eq( identifier, "asm")
                 && ! str_eq( identifier, "endasm"))))
@@ -246,7 +247,7 @@ ifdo:
             mcpp_fprintf( DBG
                     , "#if (#elif, #ifdef, #ifndef) evaluate to %s.\n"
                     , compiling ? "TRUE" : "FALSE");
-            mcpp_fprintf( DBG, "line %ld: %s", src_line, infile->buffer);
+            mcpp_fprintf( DBG, "line %zu: %s", src_line, infile->buffer);
         }
         if (c == FALSE) {                   /* Error                */
             compiling = FALSE;              /* Skip this group      */
@@ -275,7 +276,7 @@ ifdo:
         }
         if ((mcpp_debug & MACRO_CALL) && (ifptr->stat & WAS_COMPILING)) {
             sync_linenum();
-            mcpp_fprintf( OUT, "/*else %ld:%c*/\n", src_line
+            mcpp_fprintf( OUT, "/*else %zu:%c*/\n", src_line
                     , compiling ? 'T' : 'F');   /* Show that #else is seen  */
         }
         break;
@@ -294,7 +295,7 @@ ifdo:
         compiling = (ifptr->stat & WAS_COMPILING);
         if ((mcpp_debug & MACRO_CALL) && compiling) {
             sync_linenum();
-            mcpp_fprintf( OUT, "/*endif %ld*/\n", src_line);
+            mcpp_fprintf( OUT, "/*endif %zu*/\n", src_line);
             /* Show that #if block has ended    */
         }
         --ifptr;
@@ -309,8 +310,8 @@ ifdo:
         break;
 
     case L_line:
-        if ((c = do_line()) > 0) {
-            src_line = c;
+        if ((n = do_line()) > 0) {
+            src_line = (size_t)n;
             sharp( NULL, 0);    /* Putout the new line number and file name */
             infile->line = --src_line;  /* Next line number is 'src_line'   */
             newlines = -1;
@@ -403,7 +404,7 @@ nest_err:
     goto  skip_line;
 else_seen_err:
     cerror( "Already seen #else at line %.0s%ld"            /* _E_  */
-            , NULL, ifptr->elseline, NULL);
+            , NULL, (long)ifptr->elseline, NULL);
 skip_line:
     skip_nl();                              /* Ignore rest of line  */
     goto  ret;
@@ -440,7 +441,7 @@ static int  do_if( int hash, const char * directive_name)
     }
     if (mcpp_debug & MACRO_CALL) {
         sync_linenum();
-        mcpp_fprintf( OUT, "/*%s %ld*/", directive_name, src_line);
+        mcpp_fprintf( OUT, "/*%s %zu*/", directive_name, src_line);
     }
     if (hash == L_if) {                 /* #if or #elif             */
         unget_ch();
@@ -449,7 +450,7 @@ static int  do_if( int hash, const char * directive_name)
             in_if = FALSE;      /* 'in_if' is dynamically set in eval_lex() */
         hash = L_ifdef;                 /* #if is now like #ifdef   */
     } else {                            /* #ifdef or #ifndef        */
-        if (scan_token( c, (workp = work_buf, &workp), work_end) != NAM) {
+        if (scan_token( c, ((void)(workp = work_buf), &workp), work_end) != NAM) {
             cerror( not_ident, work_buf, 0L, NULL);
             return  FALSE;      /* Next token is not an identifier  */
         }
@@ -522,7 +523,7 @@ static long do_line( void)
             goto  no_num;
         if (token_type != NUM)
             goto  illeg_num;
-    } else if (scan_token( c, (workp = work_buf, &workp), work_end) != NUM) {
+    } else if (scan_token( c, ((void)(workp = work_buf), &workp), work_end) != NUM) {
         goto  illeg_num;
     }
     for (workp = work_buf; *workp != EOS; workp++) {
@@ -539,12 +540,12 @@ static long do_line( void)
     if (valp->sign == VAL_ERROR) {  /* Error diagnosed by eval_num()*/
         return  -1;
     } else if (standard
-            && (std_limits.line_num < valp->val || valp->val <= 0L)) {
-        if (valp->val < LINE99LIMIT && valp->val > 0L) {
+            && (valp->val <= 0L || std_limits.line_num < (size_t)valp->val)) {
+        if (valp->val > 0L && valp->val < LINE99LIMIT) {
             if (warn_level & 1)
-                cwarn( out_of_range, work_buf, std_limits.line_num, NULL);
+                cwarn( out_of_range, work_buf, (long)std_limits.line_num, NULL);
         } else {
-            cerror( out_of_range, work_buf, std_limits.line_num, NULL);
+            cerror( out_of_range, work_buf, (long)std_limits.line_num, NULL);
             return  -1L;
         }
     }
@@ -565,7 +566,7 @@ static long do_line( void)
             unget_ch();
             return  (long) valp->val;
         }
-        if (scan_token( c, (workp = work_buf, &workp), work_end) != STR)
+        if (scan_token( c, ((void)(workp = work_buf), &workp), work_end) != STR)
             goto  not_fname;
     }
 #if COMPILER == GNUC
@@ -591,7 +592,7 @@ static long do_line( void)
         unget_ch();
     } else {
         if (warn_level & 1) {
-            scan_token( c, (workp = work_buf, &workp), work_end);
+            scan_token( c, ((void)(workp = work_buf), &workp), work_end);
             cwarn( excess, work_buf, 0, NULL);
         }
         skip_nl();
@@ -702,16 +703,17 @@ DEFBUF *    do_define(
     int     cmp;                    /* Result of name comparison    */
     size_t  def_start, def_end;     /* Column of macro definition   */
 
+    def_start = def_end = 0;
     repl_base = repl_list;
     repl_end = & repl_list[ NMACWORK];
     c = skip_ws();
     if ((mcpp_debug & MACRO_CALL) && src_line)      /* Start of definition  */
-        def_start = infile->bptr - infile->buffer - 1;
+        def_start = (size_t)(infile->bptr - infile->buffer - 1);
     if (c == '\n') {
         cerror( no_ident, NULL, 0L, NULL);
         unget_ch();
         return  NULL;
-    } else if (scan_token( c, (workp = work_buf, &workp), work_end) != NAM) {
+    } else if (scan_token( c, ((void)(workp = work_buf), &workp), work_end) != NAM) {
         cerror( not_ident, work_buf, 0L, NULL);
         return  NULL;
     } else {
@@ -727,8 +729,8 @@ DEFBUF *    do_define(
             "\"%s\" shouldn't be defined", identifier, 0L, NULL);   /* _E_  */
                     return  NULL;
                 }
-                redefined = FALSE;          /* Quite new definition */
-            } else {                        /* It's known:          */
+                redefined = FALSE;                  /* Quite new definition */
+            } else {                                /* It's known:          */
                 if (ignore_redef)
                     return  defp;
                 dnargs = (defp->nargs == DEF_NOARGS_STANDARD
@@ -741,13 +743,13 @@ DEFBUF *    do_define(
                     cerror( predef, identifier, 0L, NULL);
                     return  NULL;
                 } else {
-                    redefined = TRUE;       /* Remember this fact   */
+                    redefined = TRUE;               /* Remember this fact   */
                 }
             }
         } else {
             if (cmp) {
-                redefined = FALSE;          /* Quite new definition */
-            } else {                        /* It's known:          */
+                redefined = FALSE;                  /* Quite new definition */
+            } else {                                /* It's known:          */
                 if (ignore_redef)
                     return  defp;
                 dnargs = (defp->nargs == DEF_NOARGS_STANDARD
@@ -758,65 +760,65 @@ DEFBUF *    do_define(
             }
         }
     }
-    strcpy( macroname, identifier);         /* Remember the name    */
+    strcpy( macroname, identifier);                 /* Remember the name    */
 
-    in_define = TRUE;                       /* Recognize '#', '##'  */
-    if (get_parm() == FALSE) {              /* Get parameter list   */
+    in_define = TRUE;                               /* Recognize '#', '##'  */
+    if (get_parm() == FALSE) {                      /* Get parameter list   */
         in_define = FALSE;
-        return  NULL;                       /* Syntax error         */
+        return  NULL;                               /* Syntax error         */
     }
-    if (get_repl( macroname) == FALSE) {    /* Get replacement text */
+    if (get_repl( macroname) == FALSE) {            /* Get replacement text */
         in_define = FALSE;
-        return  NULL;                       /* Syntax error         */
+        return  NULL;                               /* Syntax error         */
     }
     if ((mcpp_debug & MACRO_CALL) && src_line) {
-                                    /* Remember location on source  */
+                                            /* Remember location on source  */
         char *  cp;
-        cp = infile->bptr - 1;              /* Before '\n'          */
+        cp = infile->bptr - 1;                      /* Before '\n'          */
         while (char_type[ *cp & UCHARMAX] & HSP)
-            cp--;                           /* Trailing space       */
-        cp++;                       /* Just after the last token    */
-        def_end = cp - infile->buffer;      /* End of definition    */
+            cp--;                                   /* Trailing space       */
+        cp++;                               /* Just after the last token    */
+        def_end = (size_t)(cp - infile->buffer);    /* End of definition    */
     }
 
     in_define = FALSE;
     if (redefined) {
         if (dnargs != nargs || ! str_eq( defp->repl, repl_list)
                 || (mcpp_mode == STD && ! str_eq( defp->parmnames, work_buf))
-                ) {             /* Warn if differently redefined    */
+                ) {                     /* Warn if differently redefined    */
             if (warn_level & 1) {
                 cwarn(
-            "The macro is redefined", NULL, 0L, NULL);      /* _W1_ */
+            "The macro is redefined", NULL, 0L, NULL);              /* _W1_ */
                 if (! option_flags.no_source_line)
                     dump_a_def( "    previously macro", defp, FALSE, TRUE
                             , fp_err);
             }
-        } else {                        /* Identical redefinition   */
+        } else {                                /* Identical redefinition   */
             return  defp;
         }
-    }                                   /* Else new or re-definition*/
+    }                                           /* Else new or re-definition*/
     defp = install_macro( macroname, nargs, work_buf, repl_list, prevp, cmp
             , predefine);
     if ((mcpp_debug & MACRO_CALL) && src_line) {
-                                    /* Get location on source file  */
+                                            /* Get location on source file  */
         LINE_COL    s_line_col, e_line_col;
         s_line_col.line = src_line;
         s_line_col.col = def_start;
         get_src_location( & s_line_col);
-                            /* Convert to pre-line-splicing data    */
+                                    /* Convert to pre-line-splicing data    */
         e_line_col.line = src_line;
         e_line_col.col = def_end;
         get_src_location( & e_line_col);
-        /* Putout the macro definition information embedded in comment  */
-        mcpp_fprintf( OUT, "/*m%s %ld:%d-%ld:%d*/\n", defp->name
+        /* Putout the macro definition information embedded in comment      */
+        mcpp_fprintf( OUT, "/*m%s %zu:%zu-%zu:%zu*/\n", defp->name
                 , s_line_col.line, s_line_col.col
                 , e_line_col.line, e_line_col.col);
-        wrong_line = TRUE;                      /* Need #line later */
+        wrong_line = TRUE;                              /* Need #line later */
     }
     if (mcpp_mode == STD && cplus_val && id_operator( macroname)
             && (warn_level & 1))
         /* These are operators, not identifiers, in C++98   */
-        cwarn( "\"%s\" is defined as macro", macroname      /* _W1_ */
+        cwarn( "\"%s\" is defined as macro", macroname              /* _W1_ */
                 , 0L, NULL);
     return  defp;
 }
@@ -1148,24 +1150,24 @@ static char *   is_formal(
                     && memcmp( name, parm.name, parm.len) == 0)
                 || (standard && (nargs & VA_ARGS)
                     && i == (nargs & ~AVA_ARGS) - 1 && conv
-                    && str_eq( name, va_arg))) {    /* __VA_ARGS__  */
-                                            /* If it's known        */
+                    && str_eq( name, va_arg))) {            /* __VA_ARGS__  */
+                                                    /* If it's known        */
 #if COMPILER == GNUC
             if (gcc2_va_arg && str_eq( name, va_arg))
-                return  NULL;               /* GCC2 variadic macro  */
+                return  NULL;                       /* GCC2 variadic macro  */
 #endif
             if (conv) {
-                repl_cur = token_p;         /* Overwrite on the name*/
-                *repl_cur++ = MAC_PARM;     /* Save the signal      */
-                *repl_cur++ = i + 1;        /* Save the parm number */
-                return  repl_cur;           /* Return "gotcha"      */
+                repl_cur = token_p;                 /* Overwrite on the name*/
+                *repl_cur++ = MAC_PARM;             /* Save the signal      */
+                *repl_cur++ = (char)(i + 1);        /* Save the parm number */
+                return  repl_cur;                   /* Return "gotcha"      */
             } else {
-                return  parm.name;          /* Duplicate parm name  */
+                return  parm.name;                  /* Duplicate parm name  */
             }
         }
     }
 
-    return  NULL;                           /* Not a formal param   */
+    return  NULL;                                   /* Not a formal param   */
 }
 
 static char *   def_stringization( char * repl_cur)
@@ -1247,7 +1249,7 @@ static char *   str_parm_scan( char * string_end)
         if ((tp = is_formal( token_p, TRUE)) != NULL)
             wp = tp;
     }
-    *wp++ = delim;
+    *wp++ = (char)delim;
     return  wp;
 }
 
@@ -1265,7 +1267,7 @@ static void do_undef( void)
         unget_ch();
         return;
     }
-    if (scan_token( c, (workp = work_buf, &workp), work_end) != NAM) {
+    if (scan_token( c, ((void)(workp = work_buf), &workp), work_end) != NAM) {
         cerror( not_ident, work_buf, 0L, NULL);
         skip_nl();
         unget_ch();
@@ -1346,7 +1348,7 @@ DEFBUF **   look_prev(
 
     for (hash = 0, np = name; *np != EOS; )
         hash += *np++;
-    hash += s_name = (size_t)(np - name);
+    hash += (int)(s_name = (size_t)(np - name));
     s_name++;
     prevp = & symtab[ hash & SBMASK];
     *cmp = -1;                              /* Initialize           */
@@ -1473,7 +1475,7 @@ int undefine(
     *prevp = dp->link;          /* Link the previous and the next   */
     if ((mcpp_debug & MACRO_CALL) && dp->mline) {
         /* Notice this directive unless the macro is predefined     */
-        mcpp_fprintf( OUT, "/*undef %ld*//*%s*/\n", src_line, dp->name);
+        mcpp_fprintf( OUT, "/*undef %zu*//*%s*/\n", src_line, dp->name);
         wrong_line = TRUE;
     }
     free( dp);                          /* Delete the definition    */
@@ -1600,13 +1602,16 @@ void    dump_a_def(
             const char *    appendix = null;
             if (! newdef) {
                 /* Make parms[] for dump_repl() */
-                for (i = 0, cp = dp->parmnames; i < numargs;
-                        i++, cp = cp1 + 1) {
-                    if ((cp1 = strchr( cp, ',')) == NULL)   /* The last arg */
-                        parms[ i].len = strlen( cp);
-                    else
-                        parms[ i].len = (size_t) (cp1 - cp);
+                for (i = 0, cp = dp->parmnames; i < numargs; i++) {
                     parms[ i].name = cp;
+                    if ((cp1 = strchr( cp, ',')) == NULL) {  /* The last arg */
+                        parms[ i].len = strlen( cp);
+                        assert( (i + 1) == numargs);
+                    } else {
+                        parms[ i].len = (size_t) (cp1 - cp);
+                        assert( (i + 1)  < numargs);
+                        cp = cp1 + 1;
+                    }
                 }
             }
 #if COMPILER == GNUC
