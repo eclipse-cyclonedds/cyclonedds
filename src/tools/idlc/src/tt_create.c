@@ -780,9 +780,9 @@ bool ddsts_pragma_close(ddsts_context_t *context)
     for (pragma_arg = pragma_arg->next; pragma_arg != NULL; pragma_arg = pragma_arg->next) {
       /* Find declarator in struct */
       ddsts_type_t *declaration = NULL;
-      for (ddsts_type_t *member = struct_def->struct_def.members.first; member != NULL && declaration == NULL; member = member->type.next) {
-        if (DDSTS_IS_TYPE(member, DDSTS_DECLARATION) && strcmp(member->type.name, pragma_arg->arg) == 0) {
-          declaration = member;
+      for (ddsts_type_t *m = struct_def->struct_def.members.first; m != NULL && declaration == NULL; m = m->type.next) {
+        if (DDSTS_IS_TYPE(m, DDSTS_DECLARATION) && strcmp(m->type.name, pragma_arg->arg) == 0) {
+          declaration = m;
           break;
         }
       }
