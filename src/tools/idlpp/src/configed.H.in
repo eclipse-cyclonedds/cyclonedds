@@ -265,9 +265,18 @@ something so go through the trouble of defining it!
 /* Define the host compiler name. */
 #define HOST_CMP_NAME       "@idlpp_host_cmp_name@"
 
+#if HOST_COMPILER == GNUC
+#define MCPP_ATTRIBUTE(...) __attribute__(__VA_ARGS__)
+#else
+#define MCPP_ATTRIBUTE(...) /* empty */
+#endif
+
 /*
  * Declaration of standard library functions and macros.
  */
+
+/* assert() */
+#include <assert.h>
 
 /* stdin, stdout, stderr, FILE, NULL, fgets(), fputs() and other functions. */
 #include <stdio.h>
