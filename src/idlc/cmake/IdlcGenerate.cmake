@@ -36,7 +36,7 @@ if(NOT ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows"))
     execute_process(COMMAND chmod +x "${IDLC_DIR}/${IDLC}")
 endif()
 
-add_custom_target(idlc ALL DEPENDS "${IDLC_JAR}")
+add_custom_target(idlc-jar ALL DEPENDS "${IDLC_JAR}")
 
 function(IDLC_GENERATE _target)
   if(NOT ARGN)
@@ -69,7 +69,7 @@ function(IDLC_GENERATE _target)
       OUTPUT   "${_source}" "${_header}"
       COMMAND  "${IDLC_DIR}/${IDLC}"
       ARGS     ${IDLC_ARGS} ${ABS_FIL}
-      DEPENDS  "${_files}" idlc
+      DEPENDS  "${_files}" idlc-jar
       COMMENT  "Running idlc on ${FIL}"
       VERBATIM)
   endforeach()
