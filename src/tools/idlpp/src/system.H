@@ -165,7 +165,7 @@
 /* The values of 'mcpp_mode'.   */
 #define OLD_PREP            1           /* "Reiser" cpp mode    */
 #define KR                  2           /* K&R 1st mode         */
-#define STD                 3           /* Standard moce        */
+#define STD                 3           /* Standard mode        */
 #define POST_STD            9           /* Special mode of MCPP */
 
 /*
@@ -193,9 +193,9 @@
 
 #if     HAVE_INTMAX_T
 #if     HAVE_STDINT_H
-#include    "stdint.h"
+#include    <stdint.h>
 #elif   HAVE_INTTYPES_H
-#include    "inttypes.h"
+#include    <inttypes.h>
 #endif
 typedef intmax_t    expr_t;
 typedef uintmax_t   uexpr_t;
@@ -224,6 +224,11 @@ typedef long            expr_t;
 #endif
 #else
 #define EXPR_MAX            4294967295UL
+#endif
+
+#if     HOST_COMPILER == MSC
+#include    <BaseTsd.h>
+typedef SSIZE_T ssize_t;
 #endif
 
 /*

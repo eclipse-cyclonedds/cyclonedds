@@ -213,12 +213,12 @@
  */
 typedef struct defbuf {
         struct defbuf * link;       /* Pointer to next def in chain */
-        short           nargs;      /* Number of parameters         */
+        int             nargs;      /* Number of parameters         */
         char *          parmnames;  /* -> Parameter names catenated by ','  */
         char *          repl;       /* Pointer to replacement text  */
         const char *    fname;      /* Macro is defined in the source file  */
-        long            mline;      /*          at the line.        */
-        char            push;       /* Push level indicator         */
+        size_t          mline;      /*          at the line.        */
+        int             push;       /* Push level indicator         */
         char            name[1];    /* Macro name                   */
 } DEFBUF;
 
@@ -228,7 +228,7 @@ typedef struct defbuf {
  */
 typedef struct fileinfo {
         char *          bptr;       /* Current pointer into buffer  */
-        long            line;       /* Current line number of file  */
+        size_t          line;       /* Current line number of file  */
         FILE *          fp;         /* Source file if non-null      */
         long            pos;        /* Position next to #include    */
         struct fileinfo *   parent; /* Link to includer             */
@@ -245,7 +245,8 @@ typedef struct fileinfo {
         /* Save output functions during push/pop of #includes   */
         int (* last_fputc)  ( int c, OUTDEST od);
         int (* last_fputs)  ( const char * s, OUTDEST od);
-        int (* last_fprintf)( OUTDEST od, const char * format, ...);
+        int (* last_fprintf)( OUTDEST od, const char * format, ...)
+                MCPP_ATTRIBUTE((format (printf, 2, 3)));
 #endif
 } FILEINFO;
 
@@ -254,8 +255,8 @@ typedef struct fileinfo {
  */
 typedef struct ifinfo {
         int             stat;       /* State of compilation         */
-        long            ifline;     /* Line #if started             */
-        long            elseline;   /* Line #else started           */
+        size_t          ifline;     /* Line #if started             */
+        size_t          elseline;   /* Line #else started           */
 } IFINFO;
 
 /*
@@ -286,7 +287,7 @@ typedef struct val_sign {
 
 /* LINE_COL stores information of line and column data  */
 typedef struct line_col {
-        long            line;
+        size_t          line;
         size_t          col;
 } LINE_COL;
 
@@ -316,14 +317,14 @@ typedef struct line_col {
 
 /* The minimum translation limits specified by the Standards.       */
 extern struct std_limits_ {
-        long    str_len;            /* Least maximum of string len. */
+        size_t  str_len;            /* Least maximum of string len. */
         size_t  id_len;             /* Least maximum of ident len.  */
         int     n_mac_pars;         /* Least maximum of num of pars.*/
         int     exp_nest;           /* Least maximum of expr nest   */
         int     blk_nest;           /* Least maximum of block nest  */
         int     inc_nest;           /* Least maximum of include nest*/
         long    n_macro;            /* Least maximum of num of macro*/
-        long    line_num;           /* Maximum source line number   */
+        size_t  line_num;           /* Maximum source line number   */
 } std_limits;
 /* The boolean flags specified by the execution options.    */
 extern struct option_flags_ {
@@ -350,7 +351,7 @@ extern int      standard;           /* mcpp_mode is STD or POST_STD */
 extern int      std_line_prefix;    /* #line in C source style      */
 extern int      warn_level;         /* Level of warning             */
 extern int      errors;             /* Error counter                */
-extern long     src_line;           /* Current source line number   */
+extern size_t   src_line;           /* Current source line number   */
 extern int      wrong_line;         /* Force #line to compiler      */
 extern int      newlines;           /* Count of blank lines         */
 extern int      keep_comments;      /* Don't remove comments        */
@@ -365,7 +366,7 @@ extern int      in_define;          /* In #define line              */
 extern int      in_getarg;          /* Collecting arguments of macro*/
 extern int      in_include;         /* In #include line             */
 extern int      in_if;              /* In #if and non-skipped expr. */
-extern long     macro_line;         /* Line number of macro call    */
+ssize_t         macro_line;         /* Line number of macro call    */
 extern char *   macro_name;         /* Currently expanding macro    */
 extern int      openum;             /* Number of operator or punct. */
 extern IFINFO *     ifptr;          /* -> current ifstack item      */
@@ -381,9 +382,9 @@ extern int      mbchk;              /* Possible multi-byte char     */
 extern int      bsl_in_mbchar;      /* 2nd byte of mbchar has '\\'  */
 extern int      bsl_need_escape;/* '\\' in mbchar should be escaped */
 extern int      mcpp_debug;         /* Class of debug information   */
-extern long     in_asm;             /* In #asm - #endasm block      */
+extern size_t   in_asm;             /* In #asm - #endasm block      */
 extern jmp_buf  error_exit;         /* Exit on fatal error          */
-extern char *   cur_fullname;       /* Full name of current source  */
+extern const char * cur_fullname;   /* Full name of current source  */
 extern short *  char_type;          /* Character classifier         */
 extern char *   workp;              /* Free space in work[]         */
 extern char * const     work_end;   /* End of work[] buffer         */
@@ -444,7 +445,7 @@ extern void     mb_init( void);
                 /* Initialize mbchar variables  */
 extern uexpr_t  mb_eval( char ** seq_pp);
                 /* Evaluate mbchar in #if       */
-extern int      last_is_mbchar( const char * in, int len);
+extern int      last_is_mbchar( const char * in, size_t len);
                 /* The line ends with MBCHAR ?  */
 
 /* support.c    */
@@ -486,7 +487,8 @@ extern char *   (xrealloc)( char * ptr, size_t size);
 extern LINE_COL *   get_src_location( LINE_COL * p_line_col);
                 /* Get location on source file  */
 extern void     cfatal( const char * format, const char * arg1, long arg2
-        , const char * arg3);
+        , const char * arg3)
+        MCPP_ATTRIBUTE((noreturn));
                 /* Print a fatal error and exit */
 extern void     cerror( const char * format, const char * arg1, long arg2
         , const char * arg3);
@@ -499,9 +501,10 @@ extern void     dump_string( const char * why, const char * text);
 extern void     dump_unget( const char * why);
                 /* Dump all ungotten junk       */
 /* Support for alternate output mechanisms (e.g. memory buffers) */
-extern int      (* mcpp_fputc)( int c, OUTDEST od),
-                (* mcpp_fputs)( const char * s, OUTDEST od),
-                (* mcpp_fprintf)( OUTDEST od, const char * format, ...);
+extern int      (* mcpp_fputc)( int c, OUTDEST od);
+extern int      (* mcpp_fputs)( const char * s, OUTDEST od);
+extern int      (* mcpp_fprintf)( OUTDEST od, const char * format, ...)
+        MCPP_ATTRIBUTE((format (printf, 2, 3)));
 
 /* system.c */
 extern void     do_options( int argc, char ** argv, char ** in_pp
@@ -557,6 +560,3 @@ extern void     init_system( void);
 #endif
 #endif
 
-#if HOST_HAVE_STPCPY
-extern char *   stpcpy( char * dest, const char * src);
-#endif
