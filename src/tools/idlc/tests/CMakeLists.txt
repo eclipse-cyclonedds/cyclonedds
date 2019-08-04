@@ -11,10 +11,6 @@
 #
 include(CUnit)
 
-set(sources
-  "parser.c"
-  "gen_C99.c")
-
-add_cunit_executable(testidlparser ${sources})
-target_link_libraries(testidlparser PRIVATE idll)
+add_cunit_executable(cunit_idlc "parser.c" "gen_C99.c")
+target_link_libraries(cunit_idlc PRIVATE idlc-lib)
 
