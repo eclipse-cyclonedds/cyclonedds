@@ -166,8 +166,18 @@ script:
           -DBUILD_TESTING=on
           -DWERROR=on
           -G "${GENERATOR}" ..
-  - ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install
-  - CYCLONEDDS_URI='<CycloneDDS><DDSI2E><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></DDSI2E></CycloneDDS>' ctest -T test -C ${BUILD_TYPE}
+  - case "${GENERATOR}" in
+      "Unix Makefiles")
+        ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- -j 4
+        ;;
+      "Visual Studio "*)
+        ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- -nologo -verbosity:minimal -maxcpucount -p:CL_MPCount=2
+        ;;
+      *)
+        ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install
+        ;;
+    esac
+  - CYCLONEDDS_URI='<CycloneDDS><DDSI2E><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></DDSI2E></CycloneDDS>' ctest -j 4 --output-on-failure -T test -C ${BUILD_TYPE}
   - if [ "${ASAN}" != "none" ]; then
       CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
       CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
