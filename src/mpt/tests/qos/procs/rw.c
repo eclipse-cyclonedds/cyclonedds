@@ -182,6 +182,9 @@ static bool writer_qos_eq_h (const dds_qos_t *a, dds_entity_t ent)
   return delta == 0;
 }
 
+#define UD_QMPUB "qosmatch_publisher"
+#define UD_QMPUBDONE UD_QMPUB ":ok"
+
 MPT_ProcessEntry (rw_publisher,
                   MPT_Args (dds_domainid_t domainid,
                             const char *topic_name))
@@ -192,16 +195,18 @@ MPT_ProcessEntry (rw_publisher,
   dds_entity_t wr[NPUB][NWR_PUB];
   bool chk[NPUB][NWR_PUB] = { { false } };
   dds_return_t rc;
-  dds_qos_t *qos;
+  dds_qos_t *qos, *ppqos;
   int id = (int) ddsrt_getpid ();
 
   printf ("=== [Publisher(%d)] Start(%d) ...\n", id, (int) domainid);
 
-  qos = dds_create_qos ();
-  setqos (qos, 0, false, true);
-  dp = dds_create_participant (domainid, NULL, NULL);
+  ppqos = dds_create_qos ();
+  dds_qset_userdata (ppqos, UD_QMPUB, sizeof (UD_QMPUB) - 1);
+  dp = dds_create_participant (domainid, ppqos, NULL);
   MPT_ASSERT_FATAL_GT (dp, 0, "Could not create participant: %s\n", dds_strretcode (dp));
 
+  qos = dds_create_qos ();
+  setqos (qos, 0, false, true);
   tp = dds_create_topic (dp, &RWData_Msg_desc, topic_name, qos, NULL);
   MPT_ASSERT_FATAL_GT (tp, 0, "Could not create topic: %s\n", dds_strretcode (tp));
 
@@ -269,7 +274,13 @@ MPT_ProcessEntry (rw_publisher,
     dds_sleepfor (DDS_MSECS (100));
   }
 
+  dds_qset_userdata (ppqos, UD_QMPUBDONE, sizeof (UD_QMPUBDONE) - 1);
+  rc = dds_set_qos (dp, ppqos);
+  MPT_ASSERT_FATAL_EQ (rc, DDS_RETCODE_OK, "failed to participant QoS: %s\n", dds_strretcode (rc));
+
   /* Wait until subscribers terminate */
+  printf ("wait for subscribers to terminate\n");
+  fflush (stdout);
   while (true)
   {
     for (size_t i = 0; i < NPUB; i++)
@@ -281,7 +292,11 @@ MPT_ProcessEntry (rw_publisher,
         MPT_ASSERT_FATAL_EQ (rc, DDS_RETCODE_OK, "dds_get_matched_publication_status failed for writer %zu %zu: %s\n",
                              i, j, dds_strretcode (rc));
         if (st.current_count)
+        {
+          printf ("%zu %zu: %d\n", i, j, (int) st.current_count);
+          fflush (stdout);
           goto have_matches;
+        }
       }
     }
     break;
@@ -290,16 +305,43 @@ MPT_ProcessEntry (rw_publisher,
   }
 
   dds_delete_qos (qos);
+  dds_delete_qos (ppqos);
   rc = dds_delete (dp);
   MPT_ASSERT_EQ (rc, DDS_RETCODE_OK, "teardown failed\n");
   printf ("=== [Publisher(%d)] Done\n", id);
+}
+
+static void wait_for_done (dds_entity_t rd, const char *userdata)
+{
+  int32_t n;
+  void *raw = NULL;
+  dds_sample_info_t si;
+  bool done = false;
+  while (!done)
+  {
+    while (!done && (n = dds_take (rd, &raw, &si, 1, 1)) == 1)
+    {
+      const dds_builtintopic_participant_t *sample = raw;
+      void *ud = NULL;
+      size_t usz = 0;
+      if (!si.valid_data || !dds_qget_userdata (sample->qos, &ud, &usz))
+        continue;
+      if (ud && strcmp (ud, userdata) == 0)
+        done = true;
+      dds_free (ud);
+      dds_return_loan (rd, &raw, 1);
+    }
+
+    if (!done)
+      dds_sleepfor (DDS_MSECS (100));
+  }
 }
 
 MPT_ProcessEntry (rw_subscriber,
                   MPT_Args (dds_domainid_t domainid,
                             const char *topic_name))
 {
-  dds_entity_t dp;
+  dds_entity_t dp, pprd;
   dds_entity_t tp;
   dds_entity_t sub[NPUB];
   dds_entity_t rd[NPUB][NWR_PUB];
@@ -310,11 +352,13 @@ MPT_ProcessEntry (rw_subscriber,
 
   printf ("=== [Subscriber(%d)] Start(%d) ...\n", id, (int) domainid);
 
-  qos = dds_create_qos ();
-  setqos (qos, 0, true, true);
   dp = dds_create_participant (domainid, NULL, NULL);
   MPT_ASSERT_FATAL_GT (dp, 0, "Could not create participant: %s\n", dds_strretcode (dp));
+  pprd = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, NULL, NULL);
+  MPT_ASSERT_FATAL_GT (pprd, 0, "Could not create DCPSParticipant reader: %s\n", dds_strretcode (pprd));
 
+  qos = dds_create_qos ();
+  setqos (qos, 0, true, true);
   tp = dds_create_topic (dp, &RWData_Msg_desc, topic_name, qos, NULL);
   MPT_ASSERT_FATAL_GT (tp, 0, "Could not create topic: %s\n", dds_strretcode (tp));
 
@@ -381,6 +425,9 @@ MPT_ProcessEntry (rw_subscriber,
     }
     dds_sleepfor (DDS_MSECS (100));
   }
+
+  printf ("wait for publisher to have completed its checks\n");
+  wait_for_done (pprd, UD_QMPUBDONE);
 
   dds_delete_qos (qos);
   rc = dds_delete (dp);

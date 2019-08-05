@@ -34,13 +34,13 @@ enum rwud {
 
 MPT_ProcessEntry (ppud,
                   MPT_Args (dds_domainid_t domainid,
-                            bool active,
+                            bool master,
                             unsigned ncycles));
 
 MPT_ProcessEntry (rwud,
                   MPT_Args (dds_domainid_t domainid,
                             const char *topic_name,
-                            bool active,
+                            bool master,
                             unsigned ncycles,
                             enum rwud which));
 
