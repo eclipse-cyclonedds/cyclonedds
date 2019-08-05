@@ -27,7 +27,7 @@
 #include "cputime.h"
 #include "ddsperf_types.h"
 
-static void print (char *line, size_t sz, size_t *pos, const char *name, double du, double ds)
+static void print_one (char *line, size_t sz, size_t *pos, const char *name, double du, double ds)
 {
   if (*pos < sz)
     *pos += (size_t) snprintf (line + *pos, sz - *pos, " %s:%.0f%%+%.0f%%", name, 100.0 * du, 100.0 * ds);
@@ -62,7 +62,7 @@ bool print_cputime (const struct CPUStats *s, const char *prefix, bool print_hos
     for (uint32_t i = 0; i < s->cpu._length; i++)
     {
       struct CPUStatThread * const thr = &s->cpu._buffer[i];
-      print (line, sizeof (line), &pos, thr->name, thr->u_pct / 100.0, thr->s_pct / 100.0);
+      print_one (line, sizeof (line), &pos, thr->name, thr->u_pct / 100.0, thr->s_pct / 100.0);
     }
     if (pos > init_pos)
       puts (line);
