@@ -910,7 +910,11 @@ static void defrag_rsample_drop (struct nn_defrag *defrag, struct nn_rsample *rs
   assert (defrag->n_samples > 0);
   defrag->n_samples--;
   for (iv = ddsrt_avl_iter_first (&rsample_defrag_fragtree_treedef, &rsample->u.defrag.fragtree, &iter); iv; iv = ddsrt_avl_iter_next (&iter))
-    nn_fragchain_rmbias (iv->first);
+  {
+    if (iv->first)
+      /* if the first fragment is missing, a sentinel "iv" is inserted with an empty chain */
+      nn_fragchain_rmbias (iv->first);
+  }
 }
 
 void nn_defrag_free (struct nn_defrag *defrag)
