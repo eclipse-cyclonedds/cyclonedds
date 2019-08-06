@@ -100,9 +100,23 @@ endif()
 
 # Set reasonably strict warning options for clang, gcc, msvc
 # Enable coloured ouput if Ninja is used for building
-if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang")
+if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" OR
+   "${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang")
   #message(STATUS clang)
-  add_compile_options(-Wall -Wextra -Wconversion -Wunused -Wmissing-prototypes)
+  set(wflags "-Wall"
+             "-Wextra"
+             "-Wconversion"
+             "-Wunused"
+             "-Wmissing-prototypes"
+             "-Winfinite-recursion"
+             "-Wassign-enum"
+             "-Wcomma"
+             "-Wmissing-prototypes"
+             "-Wdocumentation"
+             "-Wstrict-prototypes"
+             "-Wconditional-uninitialized"
+             "-Wshadow")
+  add_compile_options(${wflags})
   if(${WERROR})
     add_compile_options(-Werror)
   endif()
