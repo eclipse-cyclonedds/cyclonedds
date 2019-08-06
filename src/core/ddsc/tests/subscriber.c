@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds/dds.h"
+#include "dds/ddsrt/misc.h"
 
 #include <stdio.h>
 #include "CUnit/Test.h"
@@ -82,14 +83,18 @@ CU_Test(ddsc_subscriber, create) {
   dds_delete_qos(sqos);
 
   sqos = dds_create_qos();
+  DDSRT_WARNING_CLANG_OFF(assign-enum);
   dds_qset_destination_order(sqos, 3); /* Set invalid dest. order (ignored, not applicable for subscriber) */
+  DDSRT_WARNING_CLANG_ON(assign-enum);
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   CU_ASSERT_FATAL(subscriber > 0);
   dds_delete(subscriber);
   dds_delete_qos(sqos);
 
   sqos = dds_create_qos();
+  DDSRT_WARNING_CLANG_OFF(assign-enum);
   dds_qset_presentation(sqos, 123, 1, 1); /* Set invalid presentation policy */
+  DDSRT_WARNING_CLANG_ON(assign-enum);
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   CU_ASSERT_EQUAL_FATAL(subscriber, DDS_RETCODE_BAD_PARAMETER);
   dds_delete_qos(sqos);
