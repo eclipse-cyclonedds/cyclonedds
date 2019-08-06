@@ -699,7 +699,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
   seqno_t base;
 
   DDSRT_STATIC_ASSERT ((NN_FRAGMENT_NUMBER_SET_MAX_BITS % 32) == 0);
-  union {
+  struct {
     struct nn_fragment_number_set_header set;
     uint32_t bits[NN_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
   } nackfrag;
@@ -788,8 +788,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
   {
     /* Count field is at a variable offset ... silly DDSI spec. */
     nn_count_t *countp =
-      (nn_count_t *) ((char *) an + offsetof (AckNack_t, readerSNState) +
-                      NN_SEQUENCE_NUMBER_SET_SIZE (an->readerSNState.numbits));
+      (nn_count_t *) ((char *) an + offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (an->readerSNState.numbits));
     *countp = ++rwn->count;
 
     /* Reset submessage size, now that we know the real size, and update
@@ -824,7 +823,7 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
 
     {
       nn_count_t *countp =
-        (nn_count_t *) ((char *) nf + offsetof (NackFrag_t, fragmentNumberState) + NN_FRAGMENT_NUMBER_SET_SIZE (nf->fragmentNumberState.numbits));
+        (nn_count_t *) ((char *) nf + offsetof (NackFrag_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (nf->fragmentNumberState.numbits));
       *countp = ++pwr->nackfragcount;
       nn_xmsg_submsg_setnext (msg, sm_marker);
 
