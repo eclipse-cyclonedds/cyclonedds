@@ -131,26 +131,30 @@ windows_vs2017: &windows_vs2017
 jobs:
   include:
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, GENERATOR="Unix Makefiles", COVERITY_SCAN=true ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Unix Makefiles", COVERITY_SCAN=true ]
       if: type = cron
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
+    - <<: *linux_gcc8
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=NO, GENERATOR="Unix Makefiles" ]
+    - <<: *linux_gcc8
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
-      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *osx_xcode10_2
-      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *osx_xcode10_2
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86, ASAN=none, BUILD_TYPE=Debug, GENERATOR="Visual Studio 15 2017" ]
+      env: [ ARCH=x86, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Visual Studio 15 2017" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, GENERATOR="Visual Studio 15 2017 Win64" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, GENERATOR="Visual Studio 15 2017 Win64" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
 
 before_script:
   - conan profile new default --detect
@@ -163,6 +167,7 @@ script:
   - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
           -DCMAKE_INSTALL_PREFIX=$(pwd)/install
           -DUSE_SANITIZER=${ASAN}
+          -DENABLE_SSL=${SSL}
           -DBUILD_TESTING=on
           -DWERROR=on
           -G "${GENERATOR}" ..
