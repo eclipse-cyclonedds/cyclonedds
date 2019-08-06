@@ -232,7 +232,7 @@ typedef struct AckNack {
   /* nn_count_t count; */
 } AckNack_t;
 #define ACKNACK_FLAG_FINAL 0x02u
-#define ACKNACK_SIZE(numbits) (offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_SIZE (numbits) + 4)
+#define ACKNACK_SIZE(numbits) (offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits) + 4)
 #define ACKNACK_SIZE_MAX ACKNACK_SIZE (256u)
 
 typedef struct Gap {
@@ -243,7 +243,7 @@ typedef struct Gap {
   nn_sequence_number_set_header_t gapList;
   uint32_t bits[];
 } Gap_t;
-#define GAP_SIZE(numbits) (offsetof (Gap_t, bits) + NN_SEQUENCE_NUMBER_SET_SIZE (numbits))
+#define GAP_SIZE(numbits) (offsetof (Gap_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits))
 #define GAP_SIZE_MAX GAP_SIZE (256u)
 
 typedef struct InfoTS {
@@ -281,7 +281,7 @@ typedef struct NackFrag {
   uint32_t bits[];
   /* nn_count_t count; */
 } NackFrag_t;
-#define NACKFRAG_SIZE(numbits) (offsetof (NackFrag_t, fragmentNumberState) + NN_FRAGMENT_NUMBER_SET_SIZE (numbits) + 4)
+#define NACKFRAG_SIZE(numbits) (offsetof (NackFrag_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits) + 4)
 #define NACKFRAG_SIZE_MAX NACKFRAG_SIZE (256u)
 
 typedef struct PT_InfoContainer {

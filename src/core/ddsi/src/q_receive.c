@@ -133,7 +133,7 @@ static int valid_AckNack (AckNack_t *msg, size_t size, int byteswap)
      submessage, and verify that the submessage is large enough */
   if (size < ACKNACK_SIZE (msg->readerSNState.numbits))
     return 0;
-  count = (nn_count_t *) ((char *) &msg->readerSNState + NN_SEQUENCE_NUMBER_SET_SIZE (msg->readerSNState.numbits));
+  count = (nn_count_t *) ((char *) &msg->bits + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (msg->readerSNState.numbits));
   if (byteswap)
   {
     bswap_sequence_number_set_bitmap (&msg->readerSNState, msg->bits);
@@ -283,8 +283,7 @@ static int valid_NackFrag (NackFrag_t *msg, size_t size, int byteswap)
      submessage, and verify that the submessage is large enough */
   if (size < NACKFRAG_SIZE (msg->fragmentNumberState.numbits))
     return 0;
-  count = (nn_count_t *) ((char *) &msg->fragmentNumberState +
-                          NN_FRAGMENT_NUMBER_SET_SIZE (msg->fragmentNumberState.numbits));
+  count = (nn_count_t *) ((char *) &msg->bits + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (msg->fragmentNumberState.numbits));
   if (byteswap)
   {
     bswap_fragment_number_set_bitmap (&msg->fragmentNumberState, msg->bits);
@@ -651,8 +650,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   struct whc_state whcst;
   int hb_sent_in_response = 0;
   memset (gapbits, 0, sizeof (gapbits));
-  countp = (nn_count_t *) ((char *) msg + offsetof (AckNack_t, readerSNState) +
-                           NN_SEQUENCE_NUMBER_SET_SIZE (msg->readerSNState.numbits));
+  countp = (nn_count_t *) ((char *) msg + offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (msg->readerSNState.numbits));
   src.prefix = rst->src_guid_prefix;
   src.entityid = msg->readerId;
   dst.prefix = rst->dst_guid_prefix;
@@ -1382,7 +1380,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
   nn_count_t *countp;
   seqno_t seq = fromSN (msg->writerSN);
 
-  countp = (nn_count_t *) ((char *) msg + offsetof (NackFrag_t, fragmentNumberState) + NN_FRAGMENT_NUMBER_SET_SIZE (msg->fragmentNumberState.numbits));
+  countp = (nn_count_t *) ((char *) msg + offsetof (NackFrag_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (msg->fragmentNumberState.numbits));
   src.prefix = rst->src_guid_prefix;
   src.entityid = msg->readerId;
   dst.prefix = rst->dst_guid_prefix;
