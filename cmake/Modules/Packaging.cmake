@@ -140,6 +140,9 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
     # Generic tgz package
     set(CPACK_GENERATOR "TGZ;${CPACK_GENERATOR}" CACHE STRING "List of package generators")
   endif()
+else()
+    # Fallback to zip package
+    set(CPACK_GENERATOR "ZIP;${CPACK_GENERATOR}" CACHE STRING "List of package generators")
 endif()
 
 # This must always be last!
