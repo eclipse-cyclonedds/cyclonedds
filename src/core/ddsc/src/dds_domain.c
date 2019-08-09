@@ -45,11 +45,32 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   char * uri = NULL;
   uint32_t len;
 
-  domain->m_id = domain_id;
+  domain->gv.tstart = now ();
   domain->m_refc = 1;
   ddsrt_avl_init (&dds_topictree_def, &domain->m_topics);
 
-  domain->gv.tstart = now ();
+  /* | domain_id | domain id in config | result
+     +-----------+---------------------+----------
+     | DEFAULT   | any (or absent)     | 0
+     | DEFAULT   | n                   | n
+     | n         | any (or absent)     | n
+     | n         | m = n               | n
+     | n         | m /= n              | n, entire config ignored
+
+     Config models:
+     1: <CycloneDDS>
+          <Domain id="X">...</Domain>
+          <Domain .../>
+        </CycloneDDS>
+        where ... is all that can today be set in children of CycloneDDS
+        with the exception of the id
+     2: <CycloneDDS>
+          <Domain><Id>X</Id></Domain>
+          ...
+        </CycloneDDS>
+        legacy form, domain id must be the first element in the file with
+        a value (if nothing has been set previously, it a warning is good
+        enough) */
 
   (void) ddsrt_getenv ("CYCLONEDDS_URI", &uri);
   domain->cfgst = config_init (uri, &domain->gv.config, domain_id);
@@ -60,30 +81,8 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
     goto fail_config;
   }
 
-  /* if a domain id was explicitly given, check & fix up the configuration */
-  if (domain_id != DDS_DOMAIN_DEFAULT)
-  {
-    if (domain_id > 230)
-    {
-      DDS_ILOG (DDS_LC_ERROR, domain_id, "requested domain id %"PRIu32" is out of range\n", domain_id);
-      ret = DDS_RETCODE_ERROR;
-      goto fail_config_domainid;
-    }
-    else if (domain->gv.config.domainId.isdefault)
-    {
-      domain->gv.config.domainId.value = domain_id;
-    }
-    else if (domain_id != domain->gv.config.domainId.value)
-    {
-      DDS_ILOG (DDS_LC_ERROR, domain_id, "requested domain id %"PRIu32" is inconsistent with configured value %"PRIu32"\n", domain_id, domain->gv.config.domainId.value);
-      ret = DDS_RETCODE_ERROR;
-      goto fail_config_domainid;
-    }
-  }
-
-  /* FIXME: The gv.config.domainId can change internally in DDSI. So, remember what the
-   * main configured domain id is. */
-  domain->m_id = domain->gv.config.domainId.value;
+  assert (domain_id == DDS_DOMAIN_DEFAULT || domain_id == domain->gv.config.domainId);
+  domain->m_id = domain->gv.config.domainId;
 
   if (rtps_config_prep (&domain->gv, domain->cfgst) != 0)
   {
@@ -146,7 +145,7 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
 
   if (rtps_start (&domain->gv) < 0)
   {
-    DDS_LOG (DDS_LC_CONFIG, "Failed to start RTPS\n");
+    DDS_ILOG (DDS_LC_CONFIG, domain->m_id, "Failed to start RTPS\n");
     ret = DDS_RETCODE_ERROR;
     goto fail_rtps_start;
   }
@@ -169,7 +168,6 @@ fail_threadmon_new:
   rtps_fini (&domain->gv);
 fail_rtps_init:
 fail_rtps_config:
-fail_config_domainid:
   config_fini (domain->cfgst);
 fail_config:
   return ret;

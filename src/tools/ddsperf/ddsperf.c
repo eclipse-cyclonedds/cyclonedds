@@ -1549,6 +1549,7 @@ OPTIONS:\n\
   -M DUR              require those participants to match within DUR seconds\n\
   -R TREF             timestamps in the output relative to TREF instead of\n\
                       process start\n\
+  -i ID               use domain ID instead of the default domain\n\
 \n\
 MODE... is zero or more of:\n\
   ping [R[Hz]] [size S] [waitset|listener]\n\
@@ -1856,7 +1857,7 @@ int main (int argc, char *argv[])
 
   argv0 = argv[0];
 
-  while ((opt = getopt (argc, argv, "cd:D:n:k:uLK:T:M:N:R:h")) != EOF)
+  while ((opt = getopt (argc, argv, "cd:D:i:n:k:uLK:T:M:N:R:h")) != EOF)
   {
     switch (opt)
     {
@@ -1872,6 +1873,7 @@ int main (int argc, char *argv[])
         break;
       }
       case 'D': dur = atof (optarg); if (dur <= 0) dur = HUGE_VAL; break;
+      case 'i': did = (dds_domainid_t) atoi (optarg); break;
       case 'n': nkeyvals = (unsigned) atoi (optarg); break;
       case 'u': reliable = false; break;
       case 'k': histdepth = atoi (optarg); if (histdepth < 0) histdepth = 0; break;

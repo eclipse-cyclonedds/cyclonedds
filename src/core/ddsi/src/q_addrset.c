@@ -105,7 +105,7 @@ static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrse
       assert (gv->config.maxAutoParticipantIndex >= 0);
       for (uint32_t i = 0; i <= (uint32_t) gv->config.maxAutoParticipantIndex; i++)
       {
-        uint32_t port = gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + i * gv->config.port_pg + gv->config.port_d1;
+        uint32_t port = gv->config.port_base + gv->config.port_dg * gv->config.domainId + i * gv->config.port_pg + gv->config.port_d1;
         loc.port = (unsigned) port;
         if (i == 0)
           GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
@@ -118,7 +118,7 @@ static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrse
     {
       uint32_t port;
       if (port_mode == -1)
-        port = gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + gv->config.port_d0;
+        port = gv->config.port_base + gv->config.port_dg * gv->config.domainId + gv->config.port_d0;
       else
         port = (uint32_t) port_mode;
       loc.port = (unsigned) port;

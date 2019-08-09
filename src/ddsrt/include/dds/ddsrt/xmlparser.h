@@ -20,10 +20,10 @@
 extern "C" {
 #endif
 
-    typedef int (*ddsrt_xmlp_proc_elem_open_t) (void *varg, uintptr_t parentinfo, uintptr_t *eleminfo, const char *name);
-    typedef int (*ddsrt_xmlp_proc_attr_t) (void *varg, uintptr_t eleminfo, const char *name, const char *value);
-    typedef int (*ddsrt_xmlp_proc_elem_data_t) (void *varg, uintptr_t eleminfo, const char *data);
-    typedef int (*ddsrt_xmlp_proc_elem_close_t) (void *varg, uintptr_t eleminfo);
+    typedef int (*ddsrt_xmlp_proc_elem_open_t) (void *varg, uintptr_t parentinfo, uintptr_t *eleminfo, const char *name, int line);
+    typedef int (*ddsrt_xmlp_proc_attr_t) (void *varg, uintptr_t eleminfo, const char *name, const char *value, int line);
+    typedef int (*ddsrt_xmlp_proc_elem_data_t) (void *varg, uintptr_t eleminfo, const char *data, int line);
+    typedef int (*ddsrt_xmlp_proc_elem_close_t) (void *varg, uintptr_t eleminfo, int line);
     typedef void (*ddsrt_xmlp_error) (void *varg, const char *msg, int line);
 
     struct ddsrt_xmlp_callbacks {
@@ -45,8 +45,6 @@ extern "C" {
     DDS_EXPORT size_t ddsrt_xmlp_get_bufpos (const struct ddsrt_xmlp_state *st);
     DDS_EXPORT void ddsrt_xmlp_free (struct ddsrt_xmlp_state *st);
     DDS_EXPORT int ddsrt_xmlp_parse (struct ddsrt_xmlp_state *st);
-
-    DDS_EXPORT int ddsrt_xmlUnescapeInsitu (char *buffer, size_t *n);
 
 #if defined (__cplusplus)
 }

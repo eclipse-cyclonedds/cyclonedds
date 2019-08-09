@@ -186,21 +186,23 @@ point to it.  E.g. (on Linux):
 
     $ cat cyclonedds.xml
     <CycloneDDS>
-        <General>
-            <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>
-            <AllowMulticast>auto</AllowMulticast>
-            <MaxMessageSize>65500B</MaxMessageSize>
-            <FragmentSize>65000B</FragmentSize>
-        </General>
-        <Internal>
-            <Watermarks>
-                <WhcHigh>500kB</WhcHigh>
-            </Watermarks>
-        </Internal>
-        <Tracing>
-            <Verbosity>config</Verbosity>
-            <OutputFile>stdout</OutputFile>
-        </Tracing>
+        <Domain id="any">
+            <General>
+                <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>
+                <AllowMulticast>auto</AllowMulticast>
+                <MaxMessageSize>65500B</MaxMessageSize>
+                <FragmentSize>4000B</FragmentSize>
+            </General>
+            <Internal>
+                <Watermarks>
+                    <WhcHigh>500kB</WhcHigh>
+                </Watermarks>
+            </Internal>
+            <Tracing>
+                <Verbosity>config</Verbosity>
+                <OutputFile>stdout</OutputFile>
+            </Tracing>
+        </Domain>
     </CycloneDDS>
     $ export CYCLONEDDS_URI=file://$PWD/cyclonedds.xml
 

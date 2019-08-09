@@ -46,5 +46,5 @@ build_script:
   - cd ../../../../../..
 
 test_script:
-  - set "CYCLONEDDS_URI=<CycloneDDS><DDSI2E><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></DDSI2E></CycloneDDS>"
+  - set "CYCLONEDDS_URI=<CycloneDDS><Domain><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></Domain></CycloneDDS>"
   - ctest --output-on-failure --parallel 4 --test-action test --build-config %CONFIGURATION%

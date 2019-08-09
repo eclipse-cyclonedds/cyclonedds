@@ -109,11 +109,21 @@ typedef struct {
 } dds_log_data_t;
 
 /** Function signature that log and trace callbacks must adhere too. */
-typedef void(*dds_log_write_fn_t)(void *, const dds_log_data_t *);
+typedef void (*dds_log_write_fn_t) (void *, const dds_log_data_t *);
 
 /** Semi-opaque type for log/trace configuration. */
 struct ddsrt_log_cfg_common {
+  /** Mask for testing whether the xLOG macro should forward to the
+      function (and so incur the cost of constructing the parameters).
+      Messages in DDS_LOG_MASK are rare, so the overhead of calling
+      the function and then dropping the message is not an issue, unlike
+      for messages in DDS_TRACE_MASK. */
   uint32_t mask;
+
+  /** The actual configured trace mask */
+  uint32_t tracemask;
+
+  /** Domain id for reporting; UINT32_MAX = no domain */
   uint32_t domid;
 };
 
@@ -225,7 +235,7 @@ dds_set_trace_sink(
  *                            other parameters.
  * @param[in]  domid          Numerical identifier in log/trace, UINT32_MAX is
  *                            reserved for global logging.
- * @param[in]  mask           Mask determining what to log/trace.
+ * @param[in]  tracemask      Mask determining which traces should be written.
  * @param[in]  log_fp         File for default sink.
  * @param[in]  trace_fp       File for default sink.
  */
@@ -233,7 +243,7 @@ DDS_EXPORT void
 dds_log_cfg_init(
     struct ddsrt_log_cfg *cfg,
     uint32_t domid,
-    uint32_t mask,
+    uint32_t tracemask,
     FILE *log_fp,
     FILE *trace_fp);
 
@@ -244,7 +254,7 @@ dds_log_cfg_init(
  * Direct use of #dds_log is discouraged. Use #DDS_CINFO, #DDS_CWARNING,
  * #DDS_CERROR, #DDS_CTRACE or #DDS_CLOG instead.
  */
-DDS_EXPORT int
+DDS_EXPORT void
 dds_log_cfg(
     const struct ddsrt_log_cfg *cfg,
     uint32_t prio,
@@ -264,7 +274,7 @@ dds_log_cfg(
  *
  * Direct use of #dds_log_id is discouraged. Use #DDS_ILOG instead.
  */
-DDS_EXPORT int
+DDS_EXPORT void
 dds_log_id(
     uint32_t prio,
     uint32_t domid,
@@ -283,7 +293,7 @@ dds_log_id(
  * Direct use of #dds_log is discouraged. Use #DDS_INFO, #DDS_WARNING,
  * #DDS_ERROR, #DDS_FATAL or #DDS_LOG instead.
  */
-DDS_EXPORT int
+DDS_EXPORT void
 dds_log(
     uint32_t prio,
     const char *file,

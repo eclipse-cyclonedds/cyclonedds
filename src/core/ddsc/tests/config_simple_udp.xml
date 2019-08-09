@@ -13,24 +13,23 @@
 <CycloneDDS>
   <!-- Simple config-file for testing whether a config-file can be picked up
        correctly. -->
-  <Domain>
-    <Id>3</Id>
+  <Domain id="3">
+    <General>
+      <NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress>
+      <AllowMulticast>true</AllowMulticast>
+      <EnableMulticastLoopback>true</EnableMulticastLoopback>
+    </General>
+    <Compatibility>
+      <StandardsConformance>lax</StandardsConformance>
+    </Compatibility>
+    <Tracing>
+      <Verbosity>warning</Verbosity>
+      <OutputFile>&#118;&#x6F;rtexdds-<![CDATA[trace]]>.${NON_EXISTENT_ENV_VARIABLE:-l}${CYCLONEDDS_URI:+o}g </OutputFile>
+    </Tracing>
+    <Internal>
+      <MaxParticipants>${MAX_PARTICIPANTS}</MaxParticipants>
+      <HeartbeatInterval max="10 s"> 100 ms </HeartbeatInterval>
+      <RediscoveryBlacklistDuration></RediscoveryBlacklistDuration>
+    </Internal>
   </Domain>
-  <General>
-    <NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress>
-    <AllowMulticast>true</AllowMulticast>
-    <EnableMulticastLoopback>true</EnableMulticastLoopback>
-  </General>
-  <Compatibility>
-    <StandardsConformance>lax</StandardsConformance>
-  </Compatibility>
-  <Tracing>
-    <Verbosity>warning</Verbosity>
-    <OutputFile>&#118;&#x6F;rtexdds-<![CDATA[trace]]>.${NON_EXISTENT_ENV_VARIABLE:-l}${CYCLONEDDS_URI:+o}g </OutputFile>
-  </Tracing>
-  <Internal>
-    <MaxParticipants>${MAX_PARTICIPANTS}</MaxParticipants>
-    <HeartbeatInterval max="10 s"> 100 ms </HeartbeatInterval>
-    <RediscoveryBlacklistDuration></RediscoveryBlacklistDuration>
-  </Internal>
 </CycloneDDS>

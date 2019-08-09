@@ -224,7 +224,7 @@ struct ssl_min_version {
 struct config
 {
   int valid;
-  uint32_t enabled_logcats;
+  uint32_t tracemask;
   uint32_t enabled_xchecks;
   char *servicename;
   char *pcap_file;
@@ -233,8 +233,8 @@ struct config
   char **networkRecvAddressStrings;
   char *externalAddressString;
   char *externalMaskString;
-  FILE *tracingOutputFile;
-  char *tracingOutputFileName;
+  FILE *tracefp;
+  char *tracefile;
   int tracingTimestamps;
   int tracingAppendToFile;
   uint32_t allowMulticast;
@@ -244,7 +244,7 @@ struct config
   enum boolean_default compat_tcp_enable;
   int dontRoute;
   int enableMulticastLoopback;
-  struct config_maybe_uint32 domainId;
+  uint32_t domainId;
   int participantIndex;
   int maxAutoParticipantIndex;
   uint32_t port_base;
