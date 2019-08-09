@@ -182,7 +182,7 @@ script:
         ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install
         ;;
     esac
-  - CYCLONEDDS_URI='<CycloneDDS><DDSI2E><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></DDSI2E></CycloneDDS>' ctest -j 4 --output-on-failure -T test -C ${BUILD_TYPE}
+  - CYCLONEDDS_URI='<CycloneDDS><Domain><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal></Domain></CycloneDDS>' ctest -j 4 --output-on-failure -T test -C ${BUILD_TYPE}
   - if [ "${ASAN}" != "none" ]; then
       CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
       CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";

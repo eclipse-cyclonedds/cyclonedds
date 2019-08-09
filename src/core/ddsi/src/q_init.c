@@ -76,7 +76,7 @@ static int make_uc_sockets (struct q_globals *gv, uint32_t * pdisc, uint32_t * p
   if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
   {
     assert (ppid == PARTICIPANT_INDEX_NONE);
-    *pdata = *pdisc = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId.value);
+    *pdata = *pdisc = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId);
     if (gv->config.allowMulticast)
     {
       /* FIXME: ugly hack - but we'll fix up after creating the multicast sockets */
@@ -87,7 +87,7 @@ static int make_uc_sockets (struct q_globals *gv, uint32_t * pdisc, uint32_t * p
   if (ppid >= 0)
   {
     /* FIXME: verify port numbers are in range instead of truncating them like this */
-    uint32_t base = gv->config.port_base + (gv->config.port_dg * gv->config.domainId.value) + ((uint32_t) ppid * gv->config.port_pg);
+    uint32_t base = gv->config.port_base + (gv->config.port_dg * gv->config.domainId) + ((uint32_t) ppid * gv->config.port_pg);
     *pdisc = base + gv->config.port_d1;
     *pdata = base + gv->config.port_d3;
   }
@@ -286,7 +286,7 @@ static int string_to_default_locator (const struct q_globals *gv, nn_locator_t *
 
 static int set_spdp_address (struct q_globals *gv)
 {
-  const uint32_t port = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + gv->config.port_d0);
+  const uint32_t port = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId + gv->config.port_d0);
   int rc = 0;
   /* FIXME: FIXME: FIXME: */
   gv->loc_spdp_mc.kind = NN_LOCATOR_KIND_INVALID;
@@ -318,7 +318,7 @@ static int set_spdp_address (struct q_globals *gv)
 
 static int set_default_mc_address (struct q_globals *gv)
 {
-  const uint32_t port = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + gv->config.port_d2);
+  const uint32_t port = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId + gv->config.port_d2);
   int rc;
   if (!gv->config.defaultMulticastAddressString)
     gv->loc_default_mc = gv->loc_spdp_mc;
@@ -404,11 +404,11 @@ static int check_thread_properties (const struct q_globals *gv)
       }
       if (chanprefix[i] == NULL)
       {
-        DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "config: DDSI2Service/Threads/Thread[@name=\"%s\"]: unknown thread\n", e->name);
+        DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "config: DDSI2Service/Threads/Thread[@name=\"%s\"]: unknown thread\n", e->name);
         ok = 0;
       }
 #else
-      DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "config: DDSI2Service/Threads/Thread[@name=\"%s\"]: unknown thread\n", e->name);
+      DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "config: DDSI2Service/Threads/Thread[@name=\"%s\"]: unknown thread\n", e->name);
       ok = 0;
 #endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
     }
@@ -416,30 +416,30 @@ static int check_thread_properties (const struct q_globals *gv)
   return ok;
 }
 
-int rtps_config_open (struct q_globals *gv)
+int rtps_config_open_trace (struct q_globals *gv)
 {
   DDSRT_WARNING_MSVC_OFF(4996);
   int status;
 
-  if (gv->config.tracingOutputFileName == NULL || *gv->config.tracingOutputFileName == 0 || gv->config.enabled_logcats == 0)
+  if (gv->config.tracefile == NULL || *gv->config.tracefile == 0 || gv->config.tracemask == 0)
   {
-    gv->config.enabled_logcats = 0;
-    gv->config.tracingOutputFile = NULL;
+    gv->config.tracemask = 0;
+    gv->config.tracefp = NULL;
     status = 1;
   }
-  else if (ddsrt_strcasecmp (gv->config.tracingOutputFileName, "stdout") == 0)
+  else if (ddsrt_strcasecmp (gv->config.tracefile, "stdout") == 0)
   {
-    gv->config.tracingOutputFile = stdout;
+    gv->config.tracefp = stdout;
     status = 1;
   }
-  else if (ddsrt_strcasecmp (gv->config.tracingOutputFileName, "stderr") == 0)
+  else if (ddsrt_strcasecmp (gv->config.tracefile, "stderr") == 0)
   {
-    gv->config.tracingOutputFile = stderr;
+    gv->config.tracefp = stderr;
     status = 1;
   }
-  else if ((gv->config.tracingOutputFile = fopen (gv->config.tracingOutputFileName, gv->config.tracingAppendToFile ? "a" : "w")) == NULL)
+  else if ((gv->config.tracefp = fopen (gv->config.tracefile, gv->config.tracingAppendToFile ? "a" : "w")) == NULL)
   {
-    DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "%s: cannot open for writing\n", gv->config.tracingOutputFileName);
+    DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "%s: cannot open for writing\n", gv->config.tracefile);
     status = 0;
   }
   else
@@ -447,7 +447,7 @@ int rtps_config_open (struct q_globals *gv)
     status = 1;
   }
 
-  dds_log_cfg_init (&gv->logconfig, gv->config.domainId.value, gv->config.enabled_logcats, stderr, gv->config.tracingOutputFile);
+  dds_log_cfg_init (&gv->logconfig, gv->config.domainId, gv->config.tracemask, stderr, gv->config.tracefp);
   return status;
   DDSRT_WARNING_MSVC_ON(4996);
 }
@@ -466,7 +466,7 @@ int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
       gv->config.whc_init_highwater_mark.value < gv->config.whc_lowwater_mark ||
       gv->config.whc_init_highwater_mark.value > gv->config.whc_highwater_mark)
   {
-    DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "Invalid watermark settings\n");
+    DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "Invalid watermark settings\n");
     goto err_config_late_error;
   }
 
@@ -478,7 +478,7 @@ int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
        inherited by readers/writers), but in many sockets mode each
        participant has its own socket, and therefore unique address
        set */
-    DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "Minimal built-in endpoint set mode and ManySocketsMode are incompatible\n");
+    DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "Minimal built-in endpoint set mode and ManySocketsMode are incompatible\n");
     goto err_config_late_error;
   }
 
@@ -554,8 +554,8 @@ int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
   }
 #endif /* DDSI_INCLUDE_NETWORK_CHANNELS */
 
-  /* Open tracing file after all possible gv->config errors have been printed */
-  if (! rtps_config_open (gv))
+  /* Open tracing file after all possible config errors have been printed */
+  if (! rtps_config_open_trace (gv))
   {
     goto err_config_late_error;
   }
@@ -633,7 +633,7 @@ int joinleave_spdp_defmcip (struct q_globals *gv, int dojoin)
   unref_addrset (as);
   if (arg.errcount)
   {
-    GVERROR ("rtps_init: failed to join multicast groups for domain %"PRIu32" participant %d\n", gv->config.domainId.value, gv->config.participantIndex);
+    GVERROR ("rtps_init: failed to join multicast groups for domain %"PRIu32" participant %d\n", gv->config.domainId, gv->config.participantIndex);
     return -1;
   }
   return 0;
@@ -647,7 +647,7 @@ int create_multicast_sockets (struct q_globals *gv)
   qos->m_multicast = 1;
 
   /* FIXME: should check for overflow */
-  port = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + gv->config.port_d0);
+  port = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId + gv->config.port_d0);
   if ((disc = ddsi_factory_create_conn (gv->m_factory, port, qos)) == NULL)
     goto err_disc;
   if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
@@ -657,7 +657,7 @@ int create_multicast_sockets (struct q_globals *gv)
   }
   else
   {
-    port = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + gv->config.port_d2);
+    port = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId + gv->config.port_d2);
     if ((data = ddsi_factory_create_conn (gv->m_factory, port, qos)) == NULL)
       goto err_data;
   }
@@ -984,7 +984,7 @@ int rtps_init (struct q_globals *gv)
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   /* Convert address sets in partition mappings from string to address sets */
   {
-    const uint32_t port = gv->config.port_base + gv->config.port_dg * gv->config.domainId.value + gv->config.port_d2;
+    const uint32_t port = gv->config.port_base + gv->config.port_dg * gv->config.domainId + gv->config.port_d2;
     struct config_networkpartition_listelem *np;
     for (np = gv->config.networkPartitions; np; np = np->next)
     {
@@ -1056,7 +1056,7 @@ int rtps_init (struct q_globals *gv)
     {
       if (make_uc_sockets (gv, &port_disc_uc, &port_data_uc, gv->config.participantIndex) < 0)
       {
-        GVERROR ("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", gv->config.domainId.value, gv->config.participantIndex);
+        GVERROR ("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", gv->config.domainId, gv->config.participantIndex);
         goto err_unicast_sockets;
       }
     }
@@ -1074,13 +1074,13 @@ int rtps_init (struct q_globals *gv)
           continue;
         else /* Oops! */
         {
-          GVERROR ("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", gv->config.domainId.value, ppid);
+          GVERROR ("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", gv->config.domainId, ppid);
           goto err_unicast_sockets;
         }
       }
       if (ppid > gv->config.maxAutoParticipantIndex)
       {
-        GVERROR ("rtps_init: failed to find a free participant index for domain %"PRId32"\n", gv->config.domainId.value);
+        GVERROR ("rtps_init: failed to find a free participant index for domain %"PRId32"\n", gv->config.domainId);
         goto err_unicast_sockets;
       }
       gv->config.participantIndex = ppid;
@@ -1091,7 +1091,7 @@ int rtps_init (struct q_globals *gv)
     }
     GVLOG (DDS_LC_CONFIG, "rtps_init: uc ports: disc %"PRIu32" data %"PRIu32"\n", port_disc_uc, port_data_uc);
   }
-  GVLOG (DDS_LC_CONFIG, "rtps_init: domainid %"PRId32" participantid %d\n", gv->config.domainId.value, gv->config.participantIndex);
+  GVLOG (DDS_LC_CONFIG, "rtps_init: domainid %"PRId32" participantid %d\n", gv->config.domainId, gv->config.participantIndex);
 
   if (gv->config.pcap_file && *gv->config.pcap_file)
   {

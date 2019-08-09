@@ -102,7 +102,7 @@ CU_Test(ddsc_participant, create_multiple_domains)
 
 /* Test for creating participant with valid configuration file  */
 CU_Test(ddsc_participant, create_with_conf_no_env) {
-    dds_entity_t participant, participant2, participant3;
+    dds_entity_t participant2, participant3;
     dds_return_t status;
     dds_domainid_t domain_id;
     dds_domainid_t valid_domain=3;
@@ -113,10 +113,6 @@ CU_Test(ddsc_participant, create_with_conf_no_env) {
     char * env_uri = NULL;
     ddsrt_getenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", &env_uri);
     CU_ASSERT_PTR_NOT_EQUAL_FATAL(env_uri, NULL);
-
-    //invalid domain
-    participant = dds_create_participant (1, NULL, NULL);
-    CU_ASSERT_FATAL(participant < 0);
 
     //valid specific domain value
     participant2 = dds_create_participant (valid_domain, NULL, NULL);

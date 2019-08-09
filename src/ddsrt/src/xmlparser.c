@@ -54,36 +54,40 @@ struct ddsrt_xmlp_state {
     struct ddsrt_xmlp_callbacks cb; /* user-supplied callbacks (or stubs) */
 };
 
-static int cb_null_elem_open (void *varg, uintptr_t parentinfo, uintptr_t *eleminfo, const char *name)
+static int cb_null_elem_open (void *varg, uintptr_t parentinfo, uintptr_t *eleminfo, const char *name, int line)
 {
     DDSRT_UNUSED_ARG (varg);
     DDSRT_UNUSED_ARG (parentinfo);
     DDSRT_UNUSED_ARG (eleminfo);
     DDSRT_UNUSED_ARG (name);
+    DDSRT_UNUSED_ARG (line);
     return 0;
 }
 
-static int cb_null_attr (void *varg, uintptr_t eleminfo, const char *name, const char *value)
+static int cb_null_attr (void *varg, uintptr_t eleminfo, const char *name, const char *value, int line)
 {
     DDSRT_UNUSED_ARG (varg);
     DDSRT_UNUSED_ARG (eleminfo);
     DDSRT_UNUSED_ARG (name);
     DDSRT_UNUSED_ARG (value);
+    DDSRT_UNUSED_ARG (line);
     return 0;
 }
 
-static int cb_null_elem_data (void *varg, uintptr_t eleminfo, const char *data)
+static int cb_null_elem_data (void *varg, uintptr_t eleminfo, const char *data, int line)
 {
     DDSRT_UNUSED_ARG (varg);
     DDSRT_UNUSED_ARG (eleminfo);
     DDSRT_UNUSED_ARG (data);
+    DDSRT_UNUSED_ARG (line);
     return 0;
 }
 
-static int cb_null_elem_close (void *varg, uintptr_t eleminfo)
+static int cb_null_elem_close (void *varg, uintptr_t eleminfo, int line)
 {
     DDSRT_UNUSED_ARG (varg);
     DDSRT_UNUSED_ARG (eleminfo);
+    DDSRT_UNUSED_ARG (line);
     return 0;
 }
 
@@ -606,7 +610,7 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
         PE_LOCAL_ERROR ("expecting '<'", 0);
     }
 
-    if ((ret = st->cb.elem_open (st->varg, parentinfo, &eleminfo, name)) < 0) {
+    if ((ret = st->cb.elem_open (st->varg, parentinfo, &eleminfo, name, st->line)) < 0) {
         PE_ERROR ("failed in element open callback", name);
     }
 
@@ -620,7 +624,7 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
             ddsrt_free (content);
             PE_LOCAL_ERROR ("expecting string value for attribute", aname);
         }
-        ret = st->cb.attr (st->varg, eleminfo, aname, content);
+        ret = st->cb.attr (st->varg, eleminfo, aname, content, st->line);
         ddsrt_free (content);
         if (ret < 0) {
             PE_ERROR2 ("failed in attribute callback", name, aname);
@@ -633,7 +637,7 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
     switch (tok)
     {
         case TOK_SHORTHAND_CLOSE_TAG:
-            ret = st->cb.elem_close (st->varg, eleminfo);
+            ret = st->cb.elem_close (st->varg, eleminfo, st->line);
             goto ok;
         case '>':
             st->nest++;
@@ -679,7 +683,7 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
                     PE_ERROR ("invalid character sequence", 0);
                 } else if (content != NULL) {
                     if (*content != '\0') {
-                        ret = st->cb.elem_data (st->varg, eleminfo, content);
+                        ret = st->cb.elem_data (st->varg, eleminfo, content, st->line);
                         ddsrt_free (content);
                         if (ret < 0) {
                             PE_ERROR ("failed in data callback", 0);
@@ -706,7 +710,7 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
             if (have_input_marker (st)) {
                 discard_input_marker (st);
             }
-            ret = st->cb.elem_close (st->varg, eleminfo);
+            ret = st->cb.elem_close (st->varg, eleminfo, st->line);
             goto ok;
         default:
             PE_LOCAL_ERROR ("expecting '/>' or '>'", 0);
@@ -741,8 +745,4 @@ int ddsrt_xmlp_parse (struct ddsrt_xmlp_state *st)
             return -1;
         }
     }
-}
-
-int ddsrt_xmlUnescapeInsitu (char *buffer, size_t *n) {
-    return unescape_insitu (buffer, n);
 }

@@ -15,17 +15,16 @@ import org.eclipse.cyclonedds.common.util.Initializer;
 import org.eclipse.cyclonedds.common.util.Report;
 import org.eclipse.cyclonedds.config.swing.ConfigWindow;
 
-public class SpliceConfig extends Initializer {
+public class CycloneConfig extends Initializer {
 
     /**
-     * Starts Splice Tuner. This function is the main class of Splice Tuner;
-     * - It checks for the right version of the JVM, this must be 1.5.0.
+     * Starts configuration. This function is the main class.
+     *
      * - It passes on the commandline arguments. Arguments that are supported
      *   are:
      *      -# <java_properties_file>
      *
-     * @param args These are passed on to the initialize function of the
-     *             SpliceTuner object.
+     * @param args These are passed on to the initialize function
      */
     public static void main(String[] args) {
         boolean redirect = true;
@@ -33,7 +32,7 @@ public class SpliceConfig extends Initializer {
         String[] args2;
         String uri = null;
 
-        SpliceConfig t = new SpliceConfig();
+        CycloneConfig t = new CycloneConfig();
 
         for (int i = 0; i < args.length; i++) {
             if ("-noredirect".equals(args[i])) {

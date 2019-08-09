@@ -44,7 +44,7 @@ static char *expand_env (const char *name, char op, const char *alt, expand_fn e
     } else if (strcmp (name, "$") == 0 || strcmp (name, "CYCLONEDDS_PID") == 0) {
         snprintf (idstr, sizeof (idstr), "%"PRIdPID, ddsrt_getpid ());
         env = idstr;
-    } else if (strcmp (name, "CYCLONEDDS_DOMAIN_ID") == 0) {
+    } else if (strcmp (name, "CYCLONEDDS_DOMAIN_ID") == 0 && domid != UINT32_MAX) {
         snprintf (idstr, sizeof (idstr), "%"PRIu32, domid);
         env = idstr;
     }

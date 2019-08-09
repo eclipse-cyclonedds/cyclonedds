@@ -9,47 +9,36 @@
   http://www.eclipse.org/org/documents/edl-v10.php.
 
   SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+  ===
+  generated from src/core/ddsi/src/q_config.c using excx.pl
 -->
 <splice_meta_config version="1.0">
   <!--xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.splice-dds.org/splice_metaconfig.xsd"-->
-  <rootElement name="@CMAKE_PROJECT_NAME@" minOccurrences="1" maxOccurrences="1">
+  <rootElement name="CycloneDDS" minOccurrences="0" maxOccurrences="1">
     <comment><![CDATA[
-            <p>@CMAKE_PROJECT_NAME@ is highly configurable, allowing many configuration parameters 
-              to be chosen by the user at deployment time by means of easily maintainable XML-file(s).</p>
-        ]]></comment>
+CycloneDDS configuration
+      ]]></comment>
+    <maxLength>0</maxLength>
   </rootElement>
   <element name="Domain" minOccurrences="1" maxOccurrences="1">
     <comment><![CDATA[
-            <p>The Domain identifies the scope of communication.</p>
-        ]]></comment>
-
-     <leafString name="Id" minOccurrences="1" maxOccurrences="1">
-          <comment>
-                      <![CDATA[
-                    This element specifies the domain Id of the instantiated DDS domain. If several different DDS domains are required to run
-                    simultaneously, then they all need to have their own unique domain Id.
-                    Note - for maximum interoperability it is recommended that you only select a domain Id from the range 0 &lt;= n &lt;= 230. The domain Id
-                    value is used by the DDSI2 service to derive values for the required network communiction endpoints and service reconfiguration is
-                    required to use domain id values outside of this range. The special value "any" takes the domain id from the domain argument of the dds_create_participant operation.
-                    Please see section 9.6.1 of the Real-time Publish-Subscribe Wire Protocol DDS Interoperability Wire Protocol specification (DDSI), v2.1, formal/2009-01-05 at
-                    http://www.omg.org/spec/DDSI/2.1/ for further information.
-                    ]]></comment>
-          <maxLength>0</maxLength>
-          <default>any</default>
-     </leafString>
-</element>
-
-<!-- DDSI2E CONFIGURATION AUTOMAGICALLY GENERATED (see extract-config-xml.pl) -->
-  <element name="DDSI2E" minOccurrences="0" maxOccurrences="0">
-    <comment><![CDATA[
-<p>DDSI2 settings ...</p>
+<p>The General element specifying Domain related settings.</p>
       ]]></comment>
-    <value>CDR_CLIENT</value>
+    <maxLength>0</maxLength>
+    <leafString name="Id" minOccurrences="0" maxOccurrences="1">
+      <comment><![CDATA[
+<p>Domain id this configuration applies to, or "any" if it applies to all domain ids.</p>
+        ]]></comment>
+      <maxLength>0</maxLength>
+      <default>any</default>
+    </leafString>
     <element name="Channels" minOccurrences="0" maxOccurrences="1">
       <comment><![CDATA[
-<p>This element is used to group a set of channels. The channels are independent data paths through DDSI2E and by using separate threads and setting their priorities appropriately, chanenls can be used to map transport priorities to operating system scheduler priorities, ensuring system-wide end-to-end priority preservation.</p>
+<p>This element is used to group a set of channels. The channels are independent data paths through Cyclone DDS and by using separate threads and setting their priorities appropriately, chanenls can be used to map transport priorities to operating system scheduler priorities, ensuring system-wide end-to-end priority preservation.</p>
         ]]></comment>
-      <element name="Channel" minOccurrences="0" maxOccurrences="42">
+      <maxLength>0</maxLength>
+      <element name="Channel" minOccurrences="0" maxOccurrences="0">
         <comment><![CDATA[
 <p>This element defines a channel.</p>
           ]]></comment>
@@ -68,7 +57,7 @@
         </attributeInt>
         <leafString name="AuxiliaryBandwidthLimit" minOccurrences="0" maxOccurrences="1">
           <comment><![CDATA[
-<p>This element specifies the maximum transmit rate of auxiliary traffic on this channel (e.g. retransmits, heartbeats, etc). Bandwidth limiting uses a leaky bucket scheme. The default value "inf" means DDSI2E imposes no limitation, the underlying operating system and hardware will likely limit the maimum transmit rate.</p>
+<p>This element specifies the maximum transmit rate of auxiliary traffic on this channel (e.g. retransmits, heartbeats, etc). Bandwidth limiting uses a leaky bucket scheme. The default value "inf" means Cyclone DDS imposes no limitation, the underlying operating system and hardware will likely limit the maimum transmit rate.</p>
 <p>The unit must be specified explicitly. Recognised units: <i>X</i>b/s, <i>X</i>bps for bits/s or <i>X</i>B/s, <i>X</i>Bps for bytes/s; where <i>X</i> is an optional prefix: k for 10<sup>3</sup>, Ki for 2<sup>10</sup>, M for 10<sup>6</sup>, Mi for 2<sup>20</sup>, G for 10<sup>9</sup>, Gi for 2<sup>30</sup>.</p>
             ]]></comment>
           <maxLength>0</maxLength>
@@ -76,7 +65,7 @@
         </leafString>
         <leafString name="DataBandwidthLimit" minOccurrences="0" maxOccurrences="1">
           <comment><![CDATA[
-<p>This element specifies the maximum transmit rate of new samples and directly related data, for this channel. Bandwidth limiting uses a leaky bucket scheme. The default value "inf" means DDSI2E imposes no limitation, the underlying operating system and hardware will likely limit the maimum transmit rate.</p>
+<p>This element specifies the maximum transmit rate of new samples and directly related data, for this channel. Bandwidth limiting uses a leaky bucket scheme. The default value "inf" means Cyclone DDS imposes no limitation, the underlying operating system and hardware will likely limit the maimum transmit rate.</p>
 <p>The unit must be specified explicitly. Recognised units: <i>X</i>b/s, <i>X</i>bps for bits/s or <i>X</i>B/s, <i>X</i>Bps for bytes/s; where <i>X</i> is an optional prefix: k for 10<sup>3</sup>, Ki for 2<sup>10</sup>, M for 10<sup>6</sup>, Mi for 2<sup>20</sup>, G for 10<sup>9</sup>, Gi for 2<sup>30</sup>.</p>
             ]]></comment>
           <maxLength>0</maxLength>
@@ -101,19 +90,7 @@ When an application is run without Administrative priveleges then only the diffs
       <comment><![CDATA[
 <p>The Compatibility elements allows specifying various settings related to compatability with standards and with other DDSI implementations.</p>
         ]]></comment>
-      <leafInt name="AckNackNumbitsEmptySet" minOccurrences="0" maxOccurrences="1">
-        <comment><![CDATA[
-<p>This element governs the representation of an acknowledgement message that does not also negatively-acknowledge some samples. If set to 0, the generated acknowledgements have an invalid form and will be reject by the strict and pedantic conformance modes, but several other implementation require this setting for smooth interoperation.</p>
-<p>If set to 1, all acknowledgements sent by DDSI2E adhere the form of acknowledgement messages allowed by the standard, but this causes problems when interoperating with these other implementations. The strict and pedantic standards conformance modes always overrule an AckNackNumbitsEmptySet=0 to prevent the transmitting of invalid messages.</p>
-          ]]></comment>
-        <default>0</default>
-      </leafInt>
-      <leafBoolean name="ArrivalOfDataAssertsPpAndEpLiveliness" minOccurrences="0" maxOccurrences="1">
-        <comment><![CDATA[
-<p>When set to true, arrival of a message from a peer asserts liveliness of that peer. When set to false, only SPDP and explicit lease renewals have this effect.</p>
-          ]]></comment>
-        <default>true</default>
-      </leafBoolean>
+      <maxLength>0</maxLength>
       <leafBoolean name="AssumeRtiHasPmdEndpoints" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <p>This option assumes ParticipantMessageData endpoints required by the liveliness protocol are present in RTI participants even when not properly advertised by the participant discovery protocol.</p>
@@ -130,7 +107,7 @@ When an application is run without Administrative priveleges then only the diffs
       <leafEnum name="ManySocketsMode" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <p>This option specifies whether a network socket will be created for each domain participant on a host. The specification seems to assume that each participant has a unique address, and setting this option will ensure this to be the case. This is not the defeault.</p>
-<p>Disabling it slightly improves performance and reduces network traffic somewhat. It also causes the set of port numbers needed by DDSI2E to become predictable, which may be useful for firewall and NAT configuration.</p>
+<p>Disabling it slightly improves performance and reduces network traffic somewhat. It also causes the set of port numbers needed by Cyclone DDS to become predictable, which may be useful for firewall and NAT configuration.</p>
           ]]></comment>
         <value>false</value>
         <value>true</value>
@@ -139,16 +116,9 @@ When an application is run without Administrative priveleges then only the diffs
         <value>many</value>
         <default>single</default>
       </leafEnum>
-      <leafBoolean name="RespondToRtiInitZeroAckWithInvalidHeartbeat" minOccurrences="0" maxOccurrences="1">
-        <comment><![CDATA[
-<p>This element allows a closer mimicking of the behaviour of some other DDSI implementations, albeit at the cost of generating even more invalid messages. Setting it to true ensures a Heartbeat can be sent at any time when a remote node requests one, setting it to false delays it until a valid one can be sent.</p>
-<p>The latter is fully compliant with the specification, and no adverse effects have been observed. It is the default.</p>
-          ]]></comment>
-        <default>false</default>
-      </leafBoolean>
       <leafEnum name="StandardsConformance" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<p>This element sets the level of standards conformance of this instance of the DDSI2E Service. Stricter conformance typically means less interoperability with other implementations. Currently three modes are defined:</p>
+<p>This element sets the level of standards conformance of this instance of the Cyclone DDS Service. Stricter conformance typically means less interoperability with other implementations. Currently three modes are defined:</p>
 <ul><li><i>pedantic</i>: very strictly conform to the specification, ultimately for compliancy testing, but currently of little value because it adheres even to what will most likely turn out to be editing errors in the DDSI standard. Arguably, as long as no errata have been published it is the current text that is in effect, and that is what pedantic currently does.</li>
 <li><i>strict</i>: a slightly less strict view of the standard than does pedantic: it follows the established behaviour where the standard is obviously in error.</li>
 <li><i>lax</i>: attempt to provide the smoothest possible interoperability, anticipating future revisions of elements in the standard in areas that other implementations do not adhere to, even though there is no good reason not to.</li></ul>
@@ -164,12 +134,7 @@ When an application is run without Administrative priveleges then only the diffs
       <comment><![CDATA[
 <p>The Discovery element allows specifying various parameters related to the discovery of peers.</p>
         ]]></comment>
-      <leafBoolean name="AdvertiseBuiltinTopicWriters" minOccurrences="0" maxOccurrences="1">
-        <comment><![CDATA[
-<p>This element controls whether or not DDSI2E advertises writers for the built-in topics from its discovery for backwards compatibility with older OpenSplice versions.</p>
-          ]]></comment>
-        <default>true</default>
-      </leafBoolean>
+      <maxLength>0</maxLength>
       <leafString name="DSGracePeriod" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <p>This setting controls for how long endpoints discovered via a Cloud discovery service will survive after the discovery service disappeared, allowing reconnect without loss of data when the discovery service restarts (or another instance takes over).</p>
@@ -193,13 +158,13 @@ When an application is run without Administrative priveleges then only the diffs
       </leafBoolean>
       <leafInt name="MaxAutoParticipantIndex" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<p>This element specifies the maximum DDSI participant index selected by this instance of the DDSI2E service if the Discovery/ParticipantIndex is "auto".</p>
+<p>This element specifies the maximum DDSI participant index selected by this instance of the Cyclone DDS service if the Discovery/ParticipantIndex is "auto".</p>
           ]]></comment>
         <default>9</default>
       </leafInt>
       <leafString name="ParticipantIndex" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<p>This element specifies the DDSI participant index used by this instance of the DDSI2E service for discovery purposes. Only one such participant id is used, independent of the number of actual DomainParticipants on the node. It is either:</p>
+<p>This element specifies the DDSI participant index used by this instance of the Cyclone DDS service for discovery purposes. Only one such participant id is used, independent of the number of actual DomainParticipants on the node. It is either:</p>
 <ul><li><i>auto</i>: which will attempt to automatically determine an available participant index (see also Discovery/MaxAutoParticipantIndex), or</li>
 <li>a non-negative integer less than 120, or</li>
 <li><i>none</i>:, which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible.</li></ul>
@@ -313,21 +278,23 @@ When an application is run without Administrative priveleges then only the diffs
     </element>
     <element name="General" minOccurrences="0" maxOccurrences="1">
       <comment><![CDATA[
-<p>The General element specifies overall DDSI2E service settings.</p>
+<p>The General element specifies overall Cyclone DDS service settings.</p>
         ]]></comment>
+      <maxLength>0</maxLength>
       <leafString name="AllowMulticast" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<p>This element controls whether DDSI2E uses multicasts for data traffic.</p>
-<p>It is a comma-separated list of some of the following keywords: "spdp", "asm", "ssm", or either of "false" or "true".</p>
+<p>This element controls whether Cyclone DDS uses multicasts for data traffic.</p>
+<p>It is a comma-separated list of some of the following keywords: "spdp", "asm", "ssm", or either of "false" or "true", or "default".</p>
 <ul>
-<li><i>spdp</i>: enables the use of ASM (any-source multicast) for participant discovery</li>
-<li><i>asm</i>: enables the use of ASM for all traffic (including SPDP)</li>
+<li><i>spdp</i>: enables the use of ASM (any-source multicast) for participant discovery, joining the multicast group on the discovery socket, transmitting SPDP messages to this group, but never advertising nor using any multicast address in any discovery message, thus forcing unicast communications for all endpoint discovery and user data.</li>
+<li><i>asm</i>: enables the use of ASM for all traffic, including receiving SPDP but not transmitting SPDP messages via multicast</li>
 <li><i>ssm</i>: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)</li>
 </ul>
 <p>When set to "false" all multicasting is disabled. The default, "true" enables full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>
+<p>"default" maps on spdp if the network is a WiFi network, on true if it is a wired network</p>
           ]]></comment>
         <maxLength>0</maxLength>
-        <default>true</default>
+        <default>default</default>
       </leafString>
       <leafBoolean name="DontRoute" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
@@ -335,22 +302,15 @@ When an application is run without Administrative priveleges then only the diffs
           ]]></comment>
         <default>false</default>
       </leafBoolean>
-      <leafBoolean name="EnableLoopback" minOccurrences="0" maxOccurrences="1">
-        <comment><![CDATA[
-[DEPRECATED] 
-"<p>This element specifies whether DDSI packets are visible to all DDSI participants in the same process. It must be "true" for intra-process communications, i.e. a reader and writer communicating in the same address space. If enabled and using multicast then EnableMulticastLoopback must also be enabled.</p>
-          ]]></comment>
-        <default>false</default>
-      </leafBoolean>
       <leafBoolean name="EnableMulticastLoopback" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<p>This element specifies whether DDSI2E allows IP multicast packets to be visible to all DDSI participants in the same node, including itself. It must be "true" for intra-node multicast communications, but if a node runs only a single DDSI2E service and does not host any other DDSI-capable programs, it should be set to "false" for improved performance.</p>
+<p>This element specifies whether Cyclone DDS allows IP multicast packets to be visible to all DDSI participants in the same node, including itself. It must be "true" for intra-node multicast communications, but if a node runs only a single Cyclone DDS service and does not host any other DDSI-capable programs, it should be set to "false" for improved performance.</p>
           ]]></comment>
         <default>true</default>
       </leafBoolean>
       <leafString name="ExternalNetworkAddress" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<p>This element allows explicitly overruling the network address DDSI2E advertises in the discovery protocol, which by default is the address of the preferred network interface (General/NetworkInterfaceAddress), to allow DDSI2E to communicate across a Network Address Translation (NAT) device.</p>
+<p>This element allows explicitly overruling the network address Cyclone DDS advertises in the discovery protocol, which by default is the address of the preferred network interface (General/NetworkInterfaceAddress), to allow Cyclone DDS to communicate across a Network Address Translation (NAT) device.</p>
           ]]></comment>
         <maxLength>0</maxLength>
         <default>auto</default>
@@ -364,7 +324,7 @@ When an application is run without Administrative priveleges then only the diffs
       </leafString>
       <leafString name="FragmentSize" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<p>This element specifies the size of DDSI sample fragments generated by DDSI2E. Samples larger than FragmentSize are fragmented into fragments of FragmentSize bytes each, except the last one, which may be smaller. The DDSI spec mandates a minimum fragment size of 1025 bytes, but DDSI2E will do whatever size is requested, accepting fragments of which the size is at least the minimum of 1025 and FragmentSize.</p>
+<p>This element specifies the size of DDSI sample fragments generated by Cyclone DDS. Samples larger than FragmentSize are fragmented into fragments of FragmentSize bytes each, except the last one, which may be smaller. The DDSI spec mandates a minimum fragment size of 1025 bytes, but Cyclone DDS will do whatever size is requested, accepting fragments of which the size is at least the minimum of 1025 and FragmentSize.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
           ]]></comment>
         <maxLength>0</maxLength>
@@ -372,7 +332,7 @@ When an application is run without Administrative priveleges then only the diffs
       </leafString>
       <leafString name="MaxMessageSize" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<p>This element specifies the maximum size of the UDP payload that DDSI2E will generate. DDSI2E will try to maintain this limit within the bounds of the DDSI specification, which means that in some cases (especially for very low values of MaxMessageSize) larger payloads may sporadically be observed (currently up to 1192 B).</p>
+<p>This element specifies the maximum size of the UDP payload that Cyclone DDS will generate. Cyclone DDS will try to maintain this limit within the bounds of the DDSI specification, which means that in some cases (especially for very low values of MaxMessageSize) larger payloads may sporadically be observed (currently up to 1192 B).</p>
 <p>On some networks it may be necessary to set this item to keep the packetsize below the MTU to prevent IP fragmentation. In those cases, it is generally advisable to also consider reducing Internal/FragmentSize.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
           ]]></comment>
@@ -381,15 +341,15 @@ When an application is run without Administrative priveleges then only the diffs
       </leafString>
       <leafString name="MulticastRecvNetworkInterfaceAddresses" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<p>This element specifies on which network interfaces DDSI2E listens to multicasts. The following options are available:</p>
+<p>This element specifies on which network interfaces Cyclone DDS listens to multicasts. The following options are available:</p>
 <ul>
 <li><i>all</i>: listen for multicasts on all multicast-capable interfaces; or</li>
 <li><i>any</i>: listen for multicasts on the operating system default interface; or</li>
 <li><i>preferred</i>: listen for multicasts on the preferred interface (General/NetworkInterfaceAddress); or</li>
 <li><i>none</i>: does not listen for multicasts on any interface; or</li>
-<li>a comma-separated list of network addresses: configures DDSI2E to listen for multicasts on all of the listed addresses.</li>
+<li>a comma-separated list of network addresses: configures Cyclone DDS to listen for multicasts on all of the listed addresses.</li>
 </ul>
-<p>If DDSI2E is in IPv6 mode and the address of the preferred network interface is a link-local address, "all" is treated as a synonym for "preferred" and a comma-separated list is treated as "preferred" if it contains the preferred interface and as "none" if not.</p>
+<p>If Cyclone DDS is in IPv6 mode and the address of the preferred network interface is a link-local address, "all" is treated as a synonym for "preferred" and a comma-separated list is treated as "preferred" if it contains the preferred interface and as "none" if not.</p>
           ]]></comment>
         <maxLength>0</maxLength>
         <default>preferred</default>
@@ -404,29 +364,17 @@ When an application is run without Administrative priveleges then only the diffs
       </leafInt>
       <leafString name="NetworkInterfaceAddress" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<p>This element specifies the preferred network interface for use by DDSI2E. The preferred network interface determines the IP address that DDSI2E advertises in the discovery protocol (but see also General/ExternalNetworkAddress), and is also the only interface over which multicasts are transmitted. The interface can be identified by its IP address, network interface name or network portion of the address. If the value "auto" is entered here, DDSI2E will select what it considers the most suitable interface.</p>
+<p>This element specifies the preferred network interface for use by Cyclone DDS. The preferred network interface determines the IP address that Cyclone DDS advertises in the discovery protocol (but see also General/ExternalNetworkAddress), and is also the only interface over which multicasts are transmitted. The interface can be identified by its IP address, network interface name or network portion of the address. If the value "auto" is entered here, Cyclone DDS will select what it considers the most suitable interface.</p>
           ]]></comment>
         <maxLength>0</maxLength>
         <default>auto</default>
       </leafString>
-      <leafBoolean name="StartupModeCoversTransient" minOccurrences="0" maxOccurrences="1">
+      <leafBoolean name="PreferMulticast" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<p>This element configures whether startup-mode should also cover transient and persistent data, for configurations where the durability service does not take care of it. Configurations without defined merge policies best leave this enabled.</p>
+<p>When false (default) Cyclone DDS uses unicast for data whenever there a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast address is available.</p>
           ]]></comment>
-        <default>true</default>
+        <default>false</default>
       </leafBoolean>
-      <leafString name="StartupModeDuration" minOccurrences="0" maxOccurrences="1">
-        <comment><![CDATA[
-<p>This element specifies how long the DDSI2E remains in its "startup" mode. While in "startup" mode all volatile reliable data published on the local node is retained as-if it were transient-local data, allowing existing readers on remote nodes to obtain the data even though discovering them takes some time. Best-effort data by definition need not arrive, and transient and persistent data are covered by the durability service.</p>
-<p>Once the system is stable, DDSI2E keeps track of the existence of remote readers whether or not matching writers exist locally, avoiding this discovery delay and ensuring this is merely a node startup issue.</p>
-<p>Setting General/StartupModeDuration to 0s will disable it.</p>
-<p>The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.</p>
-          ]]></comment>
-        <minimum>0</minimum>
-        <maximum>60000</maximum>
-        <maxLength>0</maxLength>
-        <default>2 s</default>
-      </leafString>
       <leafString name="Transport" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <p>This element allows selecting the transport to be used (udp, udp6, tcp, tcp6, raweth)</p>
@@ -448,18 +396,13 @@ When an application is run without Administrative priveleges then only the diffs
       <comment><![CDATA[
 <p>The Internal elements deal with a variety of settings that evolving and that are not necessarily fully supported. For the vast majority of the Internal settings, the functionality per-se is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.</p>
         ]]></comment>
+      <maxLength>0</maxLength>
       <leafInt name="AccelerateRexmitBlockSize" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <b>Internal</b><p>Proxy readers that are assumed to sill be retrieving historical data get this many samples retransmitted when they NACK something, even if some of these samples have sequence numbers outside the set covered by the NACK.</p>
           ]]></comment>
         <default>0</default>
       </leafInt>
-      <leafBoolean name="AggressiveKeepLastWhc" minOccurrences="0" maxOccurrences="1">
-        <comment><![CDATA[
-<b>Internal</b><p>This element controls whether to drop a reliable sample from a DDSI2E WHC before all readers have acknowledged it as soon as a later sample becomes available. It only affects DCPS data writers with a history QoS setting of KEEP_LAST with depth 1. The default setting, <i>false</i>, mimics the behaviour of the OpenSplice RT networking and is necessary to make the behaviour of wait_for_acknowledgements() consistent across the networking services.</p>
-          ]]></comment>
-        <default>true</default>
-      </leafBoolean>
       <leafString name="AssumeMulticastCapable" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <b>Internal</b><p>This element controls which network interfaces are assumed to be capable of multicasting even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). It is a comma-separated lists of patterns (with ? and * wildcards) against which the interface names are matched.</p>
@@ -477,7 +420,7 @@ When an application is run without Administrative priveleges then only the diffs
       </leafString>
       <leafString name="AuxiliaryBandwidthLimit" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<b>Internal</b><p>This element specifies the maximum transmit rate of auxiliary traffic not bound to a specific channel, such as discovery traffic, as well as auxiliary traffic related to a certain channel if that channel has elected to share this global AuxiliaryBandwidthLimit. Bandwidth limiting uses a leaky bucket scheme. The default value "inf" means DDSI2E imposes no limitation, the underlying operating system and hardware will likely limit the maimum transmit rate.</p>
+<b>Internal</b><p>This element specifies the maximum transmit rate of auxiliary traffic not bound to a specific channel, such as discovery traffic, as well as auxiliary traffic related to a certain channel if that channel has elected to share this global AuxiliaryBandwidthLimit. Bandwidth limiting uses a leaky bucket scheme. The default value "inf" means Cyclone DDS imposes no limitation, the underlying operating system and hardware will likely limit the maimum transmit rate.</p>
 <p>The unit must be specified explicitly. Recognised units: <i>X</i>b/s, <i>X</i>bps for bits/s or <i>X</i>B/s, <i>X</i>Bps for bytes/s; where <i>X</i> is an optional prefix: k for 10<sup>3</sup>, Ki for 2<sup>10</sup>, M for 10<sup>6</sup>, Mi for 2<sup>20</sup>, G for 10<sup>9</sup>, Gi for 2<sup>30</sup>.</p>
           ]]></comment>
         <maxLength>0</maxLength>
@@ -496,53 +439,10 @@ When an application is run without Administrative priveleges then only the diffs
         <value>minimal</value>
         <default>writers</default>
       </leafEnum>
-      <leafBoolean name="ConservativeBuiltinReaderStartup" minOccurrences="0" maxOccurrences="1">
-        <comment><![CDATA[
-<b>Internal</b><p>This element forces all DDSI2E built-in discovery-related readers to request all historical data, instead of just one for each "topic". There is no indication that any of the current DDSI implementations requires changing of this setting, but it is conceivable that an implementation might track which participants have been informed of the existence of endpoints and which have not been, refusing communication with those that have "can't" know.</p>
-<p>Should it be necessary to hide DDSI2E's shared discovery behaviour, set this to <i>true</i> and Internal/BuiltinEndpointSet to <i>full</i>.</p>
-          ]]></comment>
-        <default>false</default>
-      </leafBoolean>
       <element name="ControlTopic" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<b>Internal</b><p>The ControlTopic element allows configured whether DDSI2E provides a special control interface via a predefined topic or not.<p>
+<b>Internal</b><p>The ControlTopic element allows configured whether Cyclone DDS provides a special control interface via a predefined topic or not.<p>
           ]]></comment>
-        <attributeBoolean name="Enable" required="false">
-          <comment><![CDATA[
-<b>Internal</b>[DEPRECATED] 
-      "<p>This element controls whether DDSI2E should create a topic to control DDSI2E's behaviour dynamically.<p>"
-    },
-
-            ]]></comment>
-          <default>false</default>
-        </attributeBoolean>
-        <attributeString name="InitialReset" required="false">
-          <comment><![CDATA[
-<b>Internal</b>[DEPRECATED] 
-      "<p>This element controls after how much time an initial deaf/mute state will automatically reset.<p>"
-    },
-
-<p>Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.</p>
-            ]]></comment>
-          <maxLength>0</maxLength>
-          <default>inf</default>
-        </attributeString>
-        <leafString name="Deaf" minOccurrences="0" maxOccurrences="1">
-          <comment><![CDATA[
-<b>Internal</b>[DEPRECATED] 
-    "<p>This element controls whether DDSI2E defaults to deaf mode or to normal mode. This controls both the initial behaviour and what behaviour it auto-reverts to.</p>
-            ]]></comment>
-          <maxLength>0</maxLength>
-          <default>false</default>
-        </leafString>
-        <leafString name="Mute" minOccurrences="0" maxOccurrences="1">
-          <comment><![CDATA[
-<b>Internal</b>[DEPRECATED] 
-    "<p>This element controls whether DDSI2E defaults to mute mode or to normal mode. This controls both the initial behaviour and what behaviour it auto-reverts to.</p>
-            ]]></comment>
-          <maxLength>0</maxLength>
-          <default>false</default>
-        </leafString>
       </element>
       <leafInt name="DDSI2DirectMaxThreads" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
@@ -568,12 +468,16 @@ When an application is run without Administrative priveleges then only the diffs
           ]]></comment>
         <default>256</default>
       </leafInt>
-      <leafBoolean name="ForwardAllMessages" minOccurrences="0" maxOccurrences="1">
+      <leafString name="EnableExpensiveChecks" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<b>Internal</b><p>Forward all messages from a writer, rather than trying to forward each sample only once. The default of trying to forward each sample only once filters out duplicates for writers in multiple partitions under nearly all circumstances, but may still publish the odd duplicate. Note: the current implementation also can lose in contrived test cases, that publish more than 2**32 samples using a single data writer in conjunction with carefully controlled management of the writer history via cooperating local readers.</p>
+<b>Internal</b><p>This element enables expensive checks in builds with assertions enabled and is ignored otherwise. Recognised categories are:</p>
+      <ul><li><i>whc</i>: writer history cache checking</li>
+      <li><i>rhc</i>: reader history cache checking</li>
+      <p>In addition, there is the keyword <i>all</i> that enables all checks.</p>
           ]]></comment>
-        <default>false</default>
-      </leafBoolean>
+        <maxLength>0</maxLength>
+        <default></default>
+      </leafString>
       <leafBoolean name="GenerateKeyhash" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <b>Internal</b><p>When true, include keyhashes in outgoing data for topics with keys.</p>
@@ -628,27 +532,31 @@ When an application is run without Administrative priveleges then only the diffs
         <maxLength>0</maxLength>
         <default>10 s</default>
       </leafString>
-      <leafBoolean name="LegacyFragmentation" minOccurrences="0" maxOccurrences="1">
-        <comment><![CDATA[
-<b>Internal</b><p>This option enables a backwards-compatible, non-compliant setting and interpretation of the control flags in fragmented data messages. To be enabled <i>only</i> when requiring interoperability between compliant and non-compliant versions of DDSI2E for large messages.</p>
-          ]]></comment>
-        <default>false</default>
-      </leafBoolean>
       <leafBoolean name="LivelinessMonitoring" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <b>Internal</b><p>This element controls whether or not implementation should internally monitor its own liveliness. If liveliness monitoring is enabled, stack traces can be dumped automatically when some thread appears to have stopped making progress.</p>
           ]]></comment>
         <default>false</default>
+        <attributeString name="Interval" required="false">
+          <comment><![CDATA[
+<b>Internal</b><p>This element controls the interval at which to check whether threads have been making progress.</p>
+<p>The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.</p>
+            ]]></comment>
+          <minimum>100ms</minimum>
+          <maximum>1hr</maximum>
+          <maxLength>0</maxLength>
+          <default>1s</default>
+        </attributeString>
         <attributeBoolean name="StackTraces" required="false">
           <comment><![CDATA[
-<b>Internal</b><p>This element controls whether or not to write stack traces to the DDSI2 trace when a thread fails to make progress (on select platforms only).</p>
+<b>Internal</b><p>This element controls whether or not to write stack traces to the Cyclone DDS trace when a thread fails to make progress (on select platforms only).</p>
             ]]></comment>
           <default>true</default>
         </attributeBoolean>
       </leafBoolean>
       <leafInt name="MaxParticipants" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<b>Internal</b><p>This elements configures the maximum number of DCPS domain participants this DDSI2E instance is willing to service. 0 is unlimited.</p>
+<b>Internal</b><p>This elements configures the maximum number of DCPS domain participants this Cyclone DDS instance is willing to service. 0 is unlimited.</p>
           ]]></comment>
         <default>0</default>
       </leafInt>
@@ -668,7 +576,7 @@ When an application is run without Administrative priveleges then only the diffs
       </leafInt>
       <leafString name="MaxSampleSize" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<b>Internal</b><p>This setting controls the maximum (CDR) serialised size of samples that DDSI2E will forward in either direction. Samples larger than this are discarded with a warning.</p>
+<b>Internal</b><p>This setting controls the maximum (CDR) serialised size of samples that Cyclone DDS will forward in either direction. Samples larger than this are discarded with a warning.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
           ]]></comment>
         <maxLength>0</maxLength>
@@ -676,14 +584,14 @@ When an application is run without Administrative priveleges then only the diffs
       </leafString>
       <leafBoolean name="MeasureHbToAckLatency" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<b>Internal</b><p>This element enables heartbeat-to-ack latency among DDSI2E services by prepending timestamps to Heartbeat and AckNack messages and calculating round trip times. This is non-standard behaviour. The measured latencies are quite noisy and are currently not used anywhere.</p>
+<b>Internal</b><p>This element enables heartbeat-to-ack latency among Cyclone DDS services by prepending timestamps to Heartbeat and AckNack messages and calculating round trip times. This is non-standard behaviour. The measured latencies are quite noisy and are currently not used anywhere.</p>
           ]]></comment>
         <default>false</default>
       </leafBoolean>
       <leafString name="MinimumSocketReceiveBufferSize" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <b>Internal</b><p>This setting controls the minimum size of socket receive buffers. The operating system provides some size receive buffer upon creation of the socket, this option can be used to increase the size of the buffer beyond that initially provided by the operating system. If the buffer size cannot be increased to the specified size, an error is reported.</p>
-<p>The default setting is the word "default", which means DDSI2E will attempt to increase the buffer size to 1MB, but will silently accept a smaller buffer should that attempt fail.</p>
+<p>The default setting is the word "default", which means Cyclone DDS will attempt to increase the buffer size to 1MB, but will silently accept a smaller buffer should that attempt fail.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
           ]]></comment>
         <maxLength>0</maxLength>
@@ -708,13 +616,12 @@ When an application is run without Administrative priveleges then only the diffs
 <b>Internal</b><p>This element controls whether all traffic is handled by a single receive thread or whether multiple receive threads may be used to improve latency. Currently multiple receive threads are only used for connectionless transport (e.g., UDP) and ManySocketsMode not set to single (the default).</p>
           ]]></comment>
         <default>true</default>
-        <attributeString name="maxretries" required="false">
+        <attributeInt name="maxretries" required="false">
           <comment><![CDATA[
 <b>Internal</b><p>Receive threads dedicated to a single socket can only be triggered for termination by sending a packet. Reception of any packet will do, so termination failure due to packet loss is exceedingly unlikely, but to eliminate all risks, it will retry as many times as specified by this attribute before aborting.</p>
             ]]></comment>
-          <maxLength>0</maxLength>
-          <default>4294967295</default>
-        </attributeString>
+          <default>2000000000</default>
+        </attributeInt>
       </leafBoolean>
       <leafString name="NackDelay" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
@@ -740,7 +647,7 @@ When an application is run without Administrative priveleges then only the diffs
         <comment><![CDATA[
 <b>Internal</b><p>This element sets the maximum size in samples of a primary re-order administration. Each proxy writer has one primary re-order administration to buffer the packet flow in case some packets arrive out of order. Old samples are forwarded to secondary re-order administrations associated with readers in need of historical data.</p>
           ]]></comment>
-        <default>64</default>
+        <default>128</default>
       </leafInt>
       <leafBoolean name="PrioritizeRetransmit" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
@@ -750,14 +657,14 @@ When an application is run without Administrative priveleges then only the diffs
       </leafBoolean>
       <leafString name="RediscoveryBlacklistDuration" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<b>Internal</b><p>This element controls for how long a remote participant that was previously deleted will remain on a blacklist to prevent rediscovery, giving the software on a node time to perform any cleanup actions it needs to do. To some extent this delay is required internally by DDSI2E, but in the default configuration with the 'enforce' attribute set to false, DDSI2E will reallow rediscovery as soon as it has cleared its internal administration. Setting it to too small a value may result in the entry being pruned from the blacklist before DDSI2E is ready, it is therefore recommended to set it to at least several seconds.</p>
+<b>Internal</b><p>This element controls for how long a remote participant that was previously deleted will remain on a blacklist to prevent rediscovery, giving the software on a node time to perform any cleanup actions it needs to do. To some extent this delay is required internally by Cyclone DDS, but in the default configuration with the 'enforce' attribute set to false, Cyclone DDS will reallow rediscovery as soon as it has cleared its internal administration. Setting it to too small a value may result in the entry being pruned from the blacklist before Cyclone DDS is ready, it is therefore recommended to set it to at least several seconds.</p>
 <p>Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.</p>
           ]]></comment>
         <maxLength>0</maxLength>
         <default>10s</default>
         <attributeBoolean name="enforce" required="false">
           <comment><![CDATA[
-<b>Internal</b><p>This attribute controls whether the configured time during which recently deleted participants will not be rediscovered (i.e., "black listed") is enforced and following complete removal of the participant in DDSI2E, or whether it can be rediscovered earlier provided all traces of that participant have been removed already.</p>
+<b>Internal</b><p>This attribute controls whether the configured time during which recently deleted participants will not be rediscovered (i.e., "black listed") is enforced and following complete removal of the participant in Cyclone DDS, or whether it can be rediscovered earlier provided all traces of that participant have been removed already.</p>
             ]]></comment>
           <default>false</default>
         </attributeBoolean>
@@ -768,12 +675,12 @@ When an application is run without Administrative priveleges then only the diffs
 <ul><li><i>never</i>: retransmit only to the NACK-ing reader;</li>
 <li><i>adaptive</i>: attempt to combine retransmits needed for reliability, but send historical (transient-local) data to the requesting reader only;</li>
 <li><i>always</i>: do not distinguish between different causes, always try to merge.</li></ul>
-<p>The default is <i>adaptive</i>. See also Internal/RetransmitMergingPeriod.</p>
+<p>The default is <i>never</i>. See also Internal/RetransmitMergingPeriod.</p>
           ]]></comment>
         <value>never</value>
         <value>adaptive</value>
         <value>always</value>
-        <default>adaptive</default>
+        <default>never</default>
       </leafEnum>
       <leafString name="RetransmitMergingPeriod" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
@@ -816,7 +723,7 @@ When an application is run without Administrative priveleges then only the diffs
         <comment><![CDATA[
 <b>Internal</b><p>This element sets the maximum size in samples of a secondary re-order administration. The secondary re-order administration is per reader in need of historical data.</p>
           ]]></comment>
-        <default>16</default>
+        <default>128</default>
       </leafInt>
       <leafBoolean name="SendAsync" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
@@ -826,14 +733,7 @@ When an application is run without Administrative priveleges then only the diffs
       </leafBoolean>
       <leafBoolean name="SquashParticipants" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<b>Internal</b><p>This element controls whether DDSI2E advertises all the domain participants it serves in DDSI (when set to <i>false</i>), or rather only one domain participant (the one corresponding to the DDSI2E process; when set to <i>true</i>). In the latter case DDSI2E becomes the virtual owner of all readers and writers of all domain participants, dramatically reducing discovery traffic (a similar effect can be obtained by setting Internal/BuiltinEndpointSet to "minimal" but with less loss of information).</p>
-          ]]></comment>
-        <default>false</default>
-      </leafBoolean>
-      <leafBoolean name="SuppressSPDPMulticast" minOccurrences="0" maxOccurrences="1">
-        <comment><![CDATA[
-<b>Internal</b><p>The element controls whether the mandatory multicasting of the participant discovery packets occurs. Completely disabling multicasting requires this element be set to <i>true</i>, and generally requires explicitly listing peers to ping for unicast discovery.</p>
-<p>See also General/AllowMulticast.</p>
+<b>Internal</b><p>This element controls whether Cyclone DDS advertises all the domain participants it serves in DDSI (when set to <i>false</i>), or rather only one domain participant (the one corresponding to the Cyclone DDS process; when set to <i>true</i>). In the latter case Cyclone DDS becomes the virtual owner of all readers and writers of all domain participants, dramatically reducing discovery traffic (a similar effect can be obtained by setting Internal/BuiltinEndpointSet to "minimal" but with less loss of information).</p>
           ]]></comment>
         <default>false</default>
       </leafBoolean>
@@ -880,13 +780,13 @@ When an application is run without Administrative priveleges then only the diffs
           ]]></comment>
         <leafBoolean name="WhcAdaptive" minOccurrences="0" maxOccurrences="1">
           <comment><![CDATA[
-<b>Internal</b><p>This element controls whether DDSI2E will adapt the high-water mark to current traffic conditions, based on retransmit requests and transmit pressure.</p>
+<b>Internal</b><p>This element controls whether Cyclone DDS will adapt the high-water mark to current traffic conditions, based on retransmit requests and transmit pressure.</p>
             ]]></comment>
           <default>true</default>
         </leafBoolean>
         <leafString name="WhcHigh" minOccurrences="0" maxOccurrences="1">
           <comment><![CDATA[
-<b>Internal</b><p>This element sets the maximum allowed high-water mark for the DDSI2E WHCs, expressed in bytes. A writer is suspended when the WHC reaches this size.</p>
+<b>Internal</b><p>This element sets the maximum allowed high-water mark for the Cyclone DDS WHCs, expressed in bytes. A writer is suspended when the WHC reaches this size.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
             ]]></comment>
           <maxLength>0</maxLength>
@@ -894,7 +794,7 @@ When an application is run without Administrative priveleges then only the diffs
         </leafString>
         <leafString name="WhcHighInit" minOccurrences="0" maxOccurrences="1">
           <comment><![CDATA[
-<b>Internal</b><p>This element sets the initial level of the high-water mark for the DDSI2E WHCs, expressed in bytes.</p>
+<b>Internal</b><p>This element sets the initial level of the high-water mark for the Cyclone DDS WHCs, expressed in bytes.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
             ]]></comment>
           <maxLength>0</maxLength>
@@ -902,7 +802,7 @@ When an application is run without Administrative priveleges then only the diffs
         </leafString>
         <leafString name="WhcLow" minOccurrences="0" maxOccurrences="1">
           <comment><![CDATA[
-<b>Internal</b><p>This element sets the low-water mark for the DDSI2E WHCs, expressed in bytes. A suspended writer resumes transmitting when its DDSI2E WHC shrinks to this size.</p>
+<b>Internal</b><p>This element sets the low-water mark for the Cyclone DDS WHCs, expressed in bytes. A suspended writer resumes transmitting when its Cyclone DDS WHC shrinks to this size.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
             ]]></comment>
           <maxLength>0</maxLength>
@@ -928,19 +828,20 @@ When an application is run without Administrative priveleges then only the diffs
     </element>
     <element name="Partitioning" minOccurrences="0" maxOccurrences="1">
       <comment><![CDATA[
-<p>The Partitioning element specifies DDSI2E network partitions and how DCPS partition/topic combinations are mapped onto the network partitions.</p>
+<p>The Partitioning element specifies Cyclone DDS network partitions and how DCPS partition/topic combinations are mapped onto the network partitions.</p>
         ]]></comment>
+      <maxLength>0</maxLength>
       <element name="IgnoredPartitions" minOccurrences="0" maxOccurrences="0">
         <comment><![CDATA[
 <p>The IgnoredPartitions element specifies DCPS partition/topic combinations that are not distributed over the network.</p>
           ]]></comment>
         <element name="IgnoredPartition" minOccurrences="0" maxOccurrences="0">
           <comment><![CDATA[
-<p>This element can be used to prevent certain combinations of DCPS partition and topic from being transmitted over the network. DDSI2E will complete ignore readers and writers for which all DCPS partitions as well as their topic is ignored, not even creating DDSI readers and writers to mirror the DCPS ones.</p>
+<p>This element can be used to prevent certain combinations of DCPS partition and topic from being transmitted over the network. Cyclone DDS will complete ignore readers and writers for which all DCPS partitions as well as their topic is ignored, not even creating DDSI readers and writers to mirror the DCPS ones.</p>
             ]]></comment>
           <attributeString name="DCPSPartitionTopic" required="true">
             <comment><![CDATA[
-<p>This attribute specifies a partition and a topic expression, separated by a single '.', that are used to determine if a given partition and topic will be ignored or not. The expressions may use the usual wildcards '*' and '?'. DDSI2E will consider an wildcard DCPS partition to match an expression iff there exists a string that satisfies both expressions.</p>
+<p>This attribute specifies a partition and a topic expression, separated by a single '.', that are used to determine if a given partition and topic will be ignored or not. The expressions may use the usual wildcards '*' and '?'. Cyclone DDS will consider an wildcard DCPS partition to match an expression iff there exists a string that satisfies both expressions.</p>
               ]]></comment>
             <maxLength>0</maxLength>
             <default></default>
@@ -949,11 +850,11 @@ When an application is run without Administrative priveleges then only the diffs
       </element>
       <element name="NetworkPartitions" minOccurrences="0" maxOccurrences="0">
         <comment><![CDATA[
-<p>The NetworkPartitions element specifies the DDSI2E network partitions.</p>
+<p>The NetworkPartitions element specifies the Cyclone DDS network partitions.</p>
           ]]></comment>
         <element name="NetworkPartition" minOccurrences="0" maxOccurrences="0">
           <comment><![CDATA[
-<p>This element defines a DDSI2E network partition.</p>
+<p>This element defines a Cyclone DDS network partition.</p>
             ]]></comment>
           <attributeString name="Address" required="true">
             <comment><![CDATA[
@@ -970,14 +871,14 @@ When an application is run without Administrative priveleges then only the diffs
           </attributeBoolean>
           <attributeString name="Name" required="true">
             <comment><![CDATA[
-<p>This attribute specifies the name of this DDSI2E network partition. Two network partitions cannot have the same name.</p>
+<p>This attribute specifies the name of this Cyclone DDS network partition. Two network partitions cannot have the same name.</p>
               ]]></comment>
             <maxLength>0</maxLength>
             <default></default>
           </attributeString>
           <attributeString name="SecurityProfile" required="false">
             <comment><![CDATA[
-<p>This attribute selects the DDSI2E security profile for encrypting the traffic mapped to this DDSI2E network partition. The default "null" means the network partition is unsecured; any other name refers to a security profile defined using the Security/SecurityProfile elements.</p>
+<p>This attribute selects the Cyclone DDS security profile for encrypting the traffic mapped to this Cyclone DDS network partition. The default "null" means the network partition is unsecured; any other name refers to a security profile defined using the Security/SecurityProfile elements.</p>
               ]]></comment>
             <maxLength>0</maxLength>
             <default>null</default>
@@ -986,22 +887,22 @@ When an application is run without Administrative priveleges then only the diffs
       </element>
       <element name="PartitionMappings" minOccurrences="0" maxOccurrences="0">
         <comment><![CDATA[
-<p>The PartitionMappings element specifies the mapping from DCPS partition/topic combinations to DDSI2E network partitions.</p>
+<p>The PartitionMappings element specifies the mapping from DCPS partition/topic combinations to Cyclone DDS network partitions.</p>
           ]]></comment>
         <element name="PartitionMapping" minOccurrences="0" maxOccurrences="0">
           <comment><![CDATA[
-<p>This element defines a mapping from a DCPS partition/topic combination to a DDSI2E network partition. This allows partitioning data flows by using special multicast addresses for part of the data and possibly also encrypting the data flow.</p>
+<p>This element defines a mapping from a DCPS partition/topic combination to a Cyclone DDS network partition. This allows partitioning data flows by using special multicast addresses for part of the data and possibly also encrypting the data flow.</p>
             ]]></comment>
           <attributeString name="DCPSPartitionTopic" required="true">
             <comment><![CDATA[
-<p>This attribute specifies a partition and a topic expression, separated by a single '.', that are used to determine if a given partition and topic maps to the DDSI2E network partition named by the NetworkPartition attribute in this PartitionMapping element. The expressions may use the usual wildcards '*' and '?'. DDSI2E will consider a wildcard DCPS partition to match an expression if there exists a string that satisfies both expressions.</p>
+<p>This attribute specifies a partition and a topic expression, separated by a single '.', that are used to determine if a given partition and topic maps to the Cyclone DDS network partition named by the NetworkPartition attribute in this PartitionMapping element. The expressions may use the usual wildcards '*' and '?'. Cyclone DDS will consider a wildcard DCPS partition to match an expression if there exists a string that satisfies both expressions.</p>
               ]]></comment>
             <maxLength>0</maxLength>
             <default></default>
           </attributeString>
           <attributeString name="NetworkPartition" required="true">
             <comment><![CDATA[
-<p>This attribute specifies which DDSI2E network partition is to be used for DCPS partition/topic combinations matching the DCPSPartitionTopic attribute within this PartitionMapping element.</p>
+<p>This attribute specifies which Cyclone DDS network partition is to be used for DCPS partition/topic combinations matching the DCPSPartitionTopic attribute within this PartitionMapping element.</p>
               ]]></comment>
             <maxLength>0</maxLength>
             <default></default>
@@ -1013,6 +914,7 @@ When an application is run without Administrative priveleges then only the diffs
       <comment><![CDATA[
 <p>The SSL element allows specifying various parameters related to using SSL/TLS for DDSI over TCP.</p>
         ]]></comment>
+      <maxLength>0</maxLength>
       <leafBoolean name="CertificateVerification" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <p>If disabled this allows SSL connections to occur even if an X509 certificate fails verification.</p>
@@ -1053,14 +955,13 @@ When an application is run without Administrative priveleges then only the diffs
         <maxLength>0</maxLength>
         <default>keystore</default>
       </leafString>
-      <leafEnum name="MinimumTLSVersion" minOccurrences="0" maxOccurrences="1">
+      <leafString name="MinimumTLSVersion" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <p>The minimum TLS version that may be negotiated, valid values are 1.2 and 1.3.</p>
           ]]></comment>
-        <value>1.2</value>
-        <value>1.3</value>
+        <maxLength>0</maxLength>
         <default>1.3</default>
-      </leafEnum>
+      </leafString>
       <leafBoolean name="SelfSignedCertificates" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <p>This enables the use of self signed X509 certificates.</p>
@@ -1076,11 +977,12 @@ When an application is run without Administrative priveleges then only the diffs
     </element>
     <element name="Security" minOccurrences="0" maxOccurrences="1">
       <comment><![CDATA[
-<p>The Security element specifies DDSI2E security profiles that can be used to encrypt traffic mapped to DDSI2E network partitions.</p>
+<p>The Security element specifies Cyclone DDS security profiles that can be used to encrypt traffic mapped to Cyclone DDS network partitions.</p>
         ]]></comment>
+      <maxLength>0</maxLength>
       <element name="SecurityProfile" minOccurrences="0" maxOccurrences="0">
         <comment><![CDATA[
-<p>This element defines a DDSI2E security profile.</p>
+<p>This element defines a Cyclone DDS security profile.</p>
           ]]></comment>
         <attributeEnum name="Cipher" required="false">
           <comment><![CDATA[
@@ -1111,7 +1013,7 @@ When an application is run without Administrative priveleges then only the diffs
         </attributeString>
         <attributeString name="Name" required="true">
           <comment><![CDATA[
-<p>This attribute specifies the name of this DDSI2E security profile. Two security profiles cannot have the same name.</p>
+<p>This attribute specifies the name of this Cyclone DDS security profile. Two security profiles cannot have the same name.</p>
             ]]></comment>
           <maxLength>0</maxLength>
           <default></default>
@@ -1122,6 +1024,7 @@ When an application is run without Administrative priveleges then only the diffs
       <comment><![CDATA[
 <p>The Sizing element specifies a variety of configuration settings dealing with expected system sizes, buffer sizes, &c.</p>
         ]]></comment>
+      <maxLength>0</maxLength>
       <leafString name="ReceiveBufferChunkSize" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <p>This element specifies the size of one allocation unit in the receive buffer. Must be greater than the maximum packet size by a modest amount (too large packets are dropped). Each allocation is shrunk immediately after processing a message, or freed straightaway.</p>
@@ -1130,48 +1033,20 @@ When an application is run without Administrative priveleges then only the diffs
         <maxLength>0</maxLength>
         <default>128 KiB</default>
       </leafString>
-      <element name="Watermarks" minOccurrences="0" maxOccurrences="1">
+      <leafString name="ReceiveBufferSize" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-
-    { LEAF("ReceiveBufferSize"), 1, "1 MiB", ABSOFF(rbuf_size), 0, uf_memsize, 0, pf_memsize,
-    "<p>This element sets the size of a single receive buffer. Many receive buffers may be needed. Their size must be greater than ReceiveBufferChunkSize by a modest amount.</p>
+<p>This element sets the size of a single receive buffer. Many receive buffers may be needed. The minimum workable size a little bit larger than Sizing/ReceiveBufferChunkSize, and the value used is taken as the configured value and the actual minimum workable size.</p>
+<p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
           ]]></comment>
-        <leafBoolean name="WhcAdaptive" minOccurrences="0" maxOccurrences="1">
-          <comment><![CDATA[
-<p>This element controls whether DDSI2E will adapt the high-water mark to current traffic conditions, based on retransmit requests and transmit pressure.</p>
-            ]]></comment>
-          <default>true</default>
-        </leafBoolean>
-        <leafString name="WhcHigh" minOccurrences="0" maxOccurrences="1">
-          <comment><![CDATA[
-<p>This element sets the maximum allowed high-water mark for the DDSI2E WHCs, expressed in bytes. A writer is suspended when the WHC reaches this size.</p>
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
-            ]]></comment>
-          <maxLength>0</maxLength>
-          <default>100 kB</default>
-        </leafString>
-        <leafString name="WhcHighInit" minOccurrences="0" maxOccurrences="1">
-          <comment><![CDATA[
-<p>This element sets the initial level of the high-water mark for the DDSI2E WHCs, expressed in bytes.</p>
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
-            ]]></comment>
-          <maxLength>0</maxLength>
-          <default>30 kB</default>
-        </leafString>
-        <leafString name="WhcLow" minOccurrences="0" maxOccurrences="1">
-          <comment><![CDATA[
-<p>This element sets the low-water mark for the DDSI2E WHCs, expressed in bytes. A suspended writer resumes transmitting when its DDSI2E WHC shrinks to this size.</p>
-<p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
-            ]]></comment>
-          <maxLength>0</maxLength>
-          <default>1 kB</default>
-        </leafString>
-      </element>
+        <maxLength>0</maxLength>
+        <default>1 MiB</default>
+      </leafString>
     </element>
     <element name="TCP" minOccurrences="0" maxOccurrences="1">
       <comment><![CDATA[
 <p>The TCP element allows specifying various parameters related to running DDSI over TCP.</p>
         ]]></comment>
+      <maxLength>0</maxLength>
       <leafBoolean name="AlwaysUsePeeraddrForUnicast" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <p>Setting this to true means the unicast addresses in SPDP packets will be ignored and the peer address from the TCP connection will be used instead. This may help work around incorrectly advertised addresses when using TCP.</p>
@@ -1195,7 +1070,7 @@ When an application is run without Administrative priveleges then only the diffs
       </leafBoolean>
       <leafInt name="Port" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
-<p>This element specifies the TCP port number on which DDSI2E accepts connections. If the port is set it is used in entity locators, published with DDSI discovery. Dynamically allocated if zero. Disabled if -1 or not configured. If disabled other DDSI services will not be able to establish connections with the service, the service can only communicate by establishing connections to other services.</p>
+<p>This element specifies the TCP port number on which Cyclone DDS accepts connections. If the port is set it is used in entity locators, published with DDSI discovery. Dynamically allocated if zero. Disabled if -1 or not configured. If disabled other DDSI services will not be able to establish connections with the service, the service can only communicate by establishing connections to other services.</p>
           ]]></comment>
         <minimum>-1</minimum>
         <maximum>65535</maximum>
@@ -1226,6 +1101,7 @@ When an application is run without Administrative priveleges then only the diffs
       <comment><![CDATA[
 <p>The ThreadPool element allows specifying various parameters related to using a thread pool to send DDSI messages to multiple unicast addresses (TCP or UDP).</p>
         ]]></comment>
+      <maxLength>0</maxLength>
       <leafBoolean name="Enable" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <p>This element enables the optional thread pool.</p>
@@ -1249,7 +1125,8 @@ When an application is run without Administrative priveleges then only the diffs
       <comment><![CDATA[
 <p>This element is used to set thread properties.</p>
         ]]></comment>
-      <element name="Thread" minOccurrences="0" maxOccurrences="1000">
+      <maxLength>0</maxLength>
+      <element name="Thread" minOccurrences="0" maxOccurrences="0">
         <comment><![CDATA[
 <p>This element is used to set thread properties.</p>
           ]]></comment>
@@ -1304,6 +1181,7 @@ When an application is run without Administrative priveleges then only the diffs
       <comment><![CDATA[
 <p>The Tracing element controls the amount and type of information that is written into the tracing log by the DDSI service. This is useful to track the DDSI service during application development.</p>
         ]]></comment>
+      <maxLength>0</maxLength>
       <leafBoolean name="AppendToFile" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <p>This option specifies whether the output is to be appended to an existing log file. The default is to create a new log file each time, which is generally the best option if a detailed log is generated.</p>
@@ -1338,7 +1216,7 @@ When an application is run without Administrative priveleges then only the diffs
 <p>This option specifies where the logging is printed to. Note that <i>stdout</i> and <i>stderr</i> are treated as special values, representing "standard out" and "standard error" respectively. No file is created unless logging categories are enabled using the Tracing/Verbosity or Tracing/EnabledCategory settings.</p>
           ]]></comment>
         <maxLength>0</maxLength>
-        <default>.log</default>
+        <default>cyclonedds.log</default>
       </leafString>
       <leafString name="PacketCaptureFile" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
@@ -1347,22 +1225,10 @@ When an application is run without Administrative priveleges then only the diffs
         <maxLength>0</maxLength>
         <default></default>
       </leafString>
-      <leafBoolean name="Timestamps" minOccurrences="0" maxOccurrences="1">
-        <comment><![CDATA[
-<p>This option has no effect.</p>
-          ]]></comment>
-        <default>true</default>
-        <attributeBoolean name="absolute" required="false">
-          <comment><![CDATA[
-<p>This option has no effect</p>
-            ]]></comment>
-          <default>true</default>
-        </attributeBoolean>
-      </leafBoolean>
       <leafEnum name="Verbosity" minOccurrences="0" maxOccurrences="1">
         <comment><![CDATA[
 <p>This element enables standard groups of categories, based on a desired verbosity level. This is in addition to the categories enabled by the Tracing/EnableCategory setting. Recognised verbosity levels and the categories they map to are:</p>
-<ul><li><i>none</i>: no DDSI2E log</li>
+<ul><li><i>none</i>: no Cyclone DDS log</li>
 <li><i>severe</i>: error and fatal</li>
 <li><i>warning</i>: <i>severe</i> + warning</li>
 <li><i>info</i>: <i>warning</i> + info</li>
@@ -1370,7 +1236,7 @@ When an application is run without Administrative priveleges then only the diffs
 <li><i>fine</i>: <i>config</i> + discovery</li>
 <li><i>finer</i>: <i>fine</i> + traffic and timing</li>
 <li><i>finest</i>: <i>finer</i> + trace</li></ul>
-<p>While <i>none</i> prevents any message from being written to a DDSI2 log file.</p>
+<p>While <i>none</i> prevents any message from being written to a Cyclone DDS log file.</p>
 <p>The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are <i>config</i>, <i>fine</i> and <i>finest</i>.</p>
           ]]></comment>
         <value>finest</value>
@@ -1384,40 +1250,5 @@ When an application is run without Administrative priveleges then only the diffs
         <default>none</default>
       </leafEnum>
     </element>
-    <element name="Watchdog" minOccurrences="0" maxOccurrences="1">
-      <comment><![CDATA[
-<p>This element specifies the type of OS scheduling class will be used by the thread that announces its liveliness periodically.</p>
-        ]]></comment>
-      <element name="Scheduling" minOccurrences="0" maxOccurrences="1">
-        <comment><![CDATA[
-<p>This element specifies the type of OS scheduling class will be used by the thread that announces its liveliness periodically.</p>
-          ]]></comment>
-        <leafEnum name="Class" minOccurrences="0" maxOccurrences="1">
-          <comment><![CDATA[
-<p>This element specifies the thread scheduling class that will be used by the watchdog thread. The user may need the appropriate privileges from the underlying operating system to be able to assign some of the privileged scheduling classes.</p>
-            ]]></comment>
-          <value>realtime</value>
-          <value>timeshare</value>
-          <value>default</value>
-          <default>default</default>
-        </leafEnum>
-        <leafInt name="Priority" minOccurrences="0" maxOccurrences="1">
-          <comment><![CDATA[
-<p>This element specifies the thread priority. Only priorities that are supported by the underlying operating system can be assigned to this element. The user may need special privileges from the underlying operating system to be able to assign some of the privileged priorities.</p>
-            ]]></comment>
-          <default>0</default>
-          <attributeEnum name="priority_kind" required="false">
-            <comment><![CDATA[
-<p>This attribute specifies whether the specified Priority is a relative or absolute priority.</p>
-              ]]></comment>
-            <value>relative</value>
-            <value>absolute</value>
-            <default>relative</default>
-          </attributeEnum>
-        </leafInt>
-      </element>
-    </element>
   </element>
-<!-- END DDSI2E CONFIGURATION AUTOMAGICALLY GENERATED (see extract-config-xml.pl) -->
-
 </splice_meta_config>

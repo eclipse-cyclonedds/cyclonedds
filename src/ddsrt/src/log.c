@@ -33,7 +33,7 @@ typedef struct {
 } log_buffer_t;
 
 typedef struct {
-  dds_log_write_fn_t funcs[2];
+  dds_log_write_fn_t func;
   void *ptr;
   FILE *out;
 } log_sink_t;
@@ -52,25 +52,20 @@ DDSRT_STATIC_ASSERT (sizeof (struct ddsrt_log_cfg_impl) <= sizeof (struct ddsrt_
 
 static void default_sink (void *ptr, const dds_log_data_t *data)
 {
-  fwrite (data->message - data->hdrsize, 1, data->hdrsize + data->size + 1, (FILE *) ptr);
-  fflush ((FILE *) ptr);
-}
-
-static void nop_sink (void *ptr, const dds_log_data_t *data)
-{
-  (void) ptr;
-  (void) data;
-  return;
+  if (ptr)
+  {
+    fwrite (data->message - data->hdrsize, 1, data->hdrsize + data->size + 1, (FILE *) ptr);
+    fflush ((FILE *) ptr);
+  }
 }
 
 #define LOG (0)
 #define TRACE (1)
-#define USE (0)
-#define SET (1)
 
 static struct ddsrt_log_cfg_impl logconfig = {
   .c = {
     .mask = DDS_LC_ERROR | DDS_LC_WARNING,
+    .tracemask = 0,
     .domid = UINT32_MAX
   },
   .sink_fps = {
@@ -80,11 +75,11 @@ static struct ddsrt_log_cfg_impl logconfig = {
 };
 
 static log_sink_t sinks[2] = {
-  [LOG]   = { .funcs = { [USE] = default_sink, [SET] = default_sink }, .ptr = NULL, .out = NULL },
-  [TRACE] = { .funcs = { [USE] = default_sink, [SET] = default_sink }, .ptr = NULL, .out = NULL }
+  [LOG]   = { .func = default_sink, .ptr = NULL, .out = NULL },
+  [TRACE] = { .func = default_sink, .ptr = NULL, .out = NULL }
 };
 
-uint32_t *const dds_log_mask = &logconfig.c.mask;
+uint32_t * const dds_log_mask = &logconfig.c.mask;
 
 static void init_lock (void)
 {
@@ -112,17 +107,6 @@ static void unlock_sink (void)
   ddsrt_rwlock_unlock (&lock);
 }
 
-static void set_active_log_sinks (void)
-{
-  sinks[LOG].funcs[USE] = sinks[LOG].funcs[SET];
-  sinks[TRACE].funcs[USE] = sinks[TRACE].funcs[SET];
-  if (sinks[LOG].funcs[USE] == sinks[TRACE].funcs[USE])
-  {
-    if (sinks[LOG].funcs[USE] != default_sink && sinks[LOG].ptr == sinks[TRACE].ptr)
-      sinks[LOG].funcs[USE] = nop_sink;
-  }
-}
-
 static void set_log_sink (log_sink_t *sink, dds_log_write_fn_t func, void *ptr)
 {
   assert (sink != NULL);
@@ -132,9 +116,8 @@ static void set_log_sink (log_sink_t *sink, dds_log_write_fn_t func, void *ptr)
      responsible for that. Ensure this operation is deterministic and that on
      return, no thread in the DDS stack still uses the deprecated sink. */
   lock_sink (WRLOCK);
-  sink->funcs[SET] = (func != 0) ? func : default_sink;
+  sink->func = (func != 0) ? func : default_sink;
   sink->ptr = ptr;
-  set_active_log_sinks ();
   unlock_sink ();
 }
 
@@ -143,7 +126,6 @@ void dds_set_log_file (FILE *file)
 {
   lock_sink (WRLOCK);
   logconfig.sink_fps[LOG] = (file == NULL ? stderr : file);
-  set_active_log_sinks ();
   unlock_sink ();
 }
 
@@ -151,7 +133,6 @@ void dds_set_trace_file (FILE *file)
 {
   lock_sink (WRLOCK);
   logconfig.sink_fps[TRACE] = (file == NULL ? stderr : file);
-  set_active_log_sinks ();
   unlock_sink ();
 }
 
@@ -170,17 +151,18 @@ extern inline uint32_t dds_get_log_mask (void);
 void dds_set_log_mask (uint32_t cats)
 {
   lock_sink (WRLOCK);
-  *dds_log_mask = (cats & (DDS_LOG_MASK | DDS_TRACE_MASK));
-  set_active_log_sinks ();
+  logconfig.c.tracemask = cats & DDS_TRACE_MASK;
+  logconfig.c.mask = (cats & (DDS_LOG_MASK | DDS_TRACE_MASK)) | DDS_LC_FATAL;
   unlock_sink ();
 }
 
-void dds_log_cfg_init (struct ddsrt_log_cfg *cfg, uint32_t domid, uint32_t mask, FILE *log_fp, FILE *trace_fp)
+void dds_log_cfg_init (struct ddsrt_log_cfg *cfg, uint32_t domid, uint32_t tracemask, FILE *log_fp, FILE *trace_fp)
 {
   struct ddsrt_log_cfg_impl *cfgimpl = (struct ddsrt_log_cfg_impl *) cfg;
   assert (domid != UINT32_MAX); /* because that's reserved for global use */
   memset (cfgimpl, 0, sizeof (*cfgimpl));
-  cfgimpl->c.mask = mask;
+  cfgimpl->c.mask = tracemask | DDS_LOG_MASK;
+  cfgimpl->c.tracemask = tracemask;
   cfgimpl->c.domid = domid;
   cfgimpl->sink_fps[LOG] = log_fp;
   cfgimpl->sink_fps[TRACE] = trace_fp;
@@ -220,7 +202,7 @@ static size_t print_header (char *str, uint32_t id)
   return (size_t) cnt;
 }
 
-static void vlog (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t domid, const char *file, uint32_t line, const char *func, const char *fmt, va_list ap)
+static void vlog1 (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t domid, const char *file, uint32_t line, const char *func, const char *fmt, va_list ap)
 {
   int n, trunc = 0;
   size_t nrem;
@@ -242,8 +224,8 @@ static void vlog (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t d
   /* Thread-local buffer is always initialized with all zeroes. The pos
      member must always be greater or equal to BUF_OFFSET. */
   if (lb->pos < BUF_OFFSET) {
-      lb->pos = BUF_OFFSET;
-      lb->buf[lb->pos] = 0;
+    lb->pos = BUF_OFFSET;
+    lb->buf[lb->pos] = 0;
   }
   nrem = sizeof (lb->buf) - lb->pos;
   if (nrem > 0) {
@@ -263,7 +245,8 @@ static void vlog (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t d
     }
   }
 
-  if (fmt[strlen (fmt) - 1] == '\n') {
+  if (fmt[strlen (fmt) - 1] == '\n' && lb->pos > BUF_OFFSET + 1) {
+    assert (lb->pos > BUF_OFFSET);
     size_t hdrsize = print_header (lb->buf, domid);
 
     data.priority = cat;
@@ -271,32 +254,28 @@ static void vlog (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t d
     data.function = func;
     data.line = line;
     data.message = lb->buf + BUF_OFFSET;
-    data.size = strlen(data.message) - 1;
+    data.size = lb->pos - BUF_OFFSET - 1;
     data.hdrsize = hdrsize;
 
     dds_log_write_fn_t f = 0;
     void *f_arg = NULL;
-    for (size_t i = (cat & DDS_LOG_MASK) ? LOG : TRACE;
-                i < sizeof (sinks) / sizeof (sinks[0]);
-                i++)
+    if (cat & DDS_LOG_MASK)
     {
-      if (sinks[i].funcs[USE] != default_sink) {
-        if (sinks[i].funcs[USE] != f || sinks[i].ptr != f_arg) {
-          assert (sinks[i].funcs[USE]);
-          sinks[i].funcs[USE] (sinks[i].ptr, &data);
-          f = sinks[i].funcs[USE]; f_arg = sinks[i].ptr;
-        }
-      } else if (cfg->sink_fps[i]) {
-        if (default_sink != f || cfg->sink_fps[i] != f_arg) {
-          default_sink (cfg->sink_fps[i], &data);
-          f = default_sink; f_arg = cfg->sink_fps[i];
-        }
-      } else if (logconfig.sink_fps[i]) {
-        if (default_sink != f || logconfig.sink_fps[i] != f_arg) {
-          default_sink (logconfig.sink_fps[i], &data);
-          f = default_sink; f_arg = logconfig.sink_fps[i];
-        }
-      }
+      f = sinks[LOG].func;
+      f_arg = (f == default_sink) ? cfg->sink_fps[LOG] : sinks[LOG].ptr;
+      assert (f != 0);
+      f (f_arg, &data);
+    }
+    /* if tracing is enabled, then print to trace if it matches the
+       trace flags or if it got written to the log
+       (mask == (tracemask | DDS_LOG_MASK)) */
+    if (cfg->c.tracemask && (cat & cfg->c.mask))
+    {
+      dds_log_write_fn_t const g = sinks[TRACE].func;
+      void * const g_arg = (g == default_sink) ? cfg->sink_fps[TRACE] : sinks[TRACE].ptr;
+      assert (g != 0);
+      if (g != f || g_arg != f_arg)
+        g (g_arg, &data);
     }
 
     lb->pos = BUF_OFFSET;
@@ -304,51 +283,45 @@ static void vlog (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t d
   }
 }
 
-int dds_log_cfg (const struct ddsrt_log_cfg *cfg, uint32_t cat, const char *file, uint32_t line, const char *func, const char *fmt, ...)
+static void vlog (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t domid, const char *file, uint32_t line, const char *func, const char *fmt, va_list ap)
+{
+  lock_sink (RDLOCK);
+  vlog1 (cfg, cat, domid, file, line, func, fmt, ap);
+  unlock_sink ();
+  if (cat & DDS_LC_FATAL)
+    abort();
+}
+
+void dds_log_cfg (const struct ddsrt_log_cfg *cfg, uint32_t cat, const char *file, uint32_t line, const char *func, const char *fmt, ...)
 {
   const struct ddsrt_log_cfg_impl *cfgimpl = (const struct ddsrt_log_cfg_impl *) cfg;
-  if ((cfgimpl->c.mask & cat) || (cat & DDS_LC_FATAL)) {
+  /* cfgimpl->c.mask is too weak a test because it has all DDS_LOG_MASK bits set,
+     rather than just the ones in dds_get_log_mask() (so as not to cache the latter
+     and have to keep them synchronized */
+  if ((cfgimpl->c.mask & cat) && ((dds_get_log_mask () | cfgimpl->c.tracemask) & cat)) {
     va_list ap;
     va_start (ap, fmt);
-    lock_sink (RDLOCK);
     vlog (cfgimpl, cat, cfgimpl->c.domid, file, line, func, fmt, ap);
-    unlock_sink ();
     va_end (ap);
   }
-  if (cat & DDS_LC_FATAL) {
-    abort();
-  }
-  return 0;
 }
 
-int dds_log_id (uint32_t cat, uint32_t id, const char *file, uint32_t line, const char *func, const char *fmt, ...)
+void dds_log_id (uint32_t cat, uint32_t id, const char *file, uint32_t line, const char *func, const char *fmt, ...)
 {
-  if ((dds_get_log_mask () & cat) || (cat & DDS_LC_FATAL)) {
+  if (dds_get_log_mask () & cat) {
     va_list ap;
     va_start (ap, fmt);
-    lock_sink (RDLOCK);
     vlog (&logconfig, cat, id, file, line, func, fmt, ap);
-    unlock_sink ();
     va_end (ap);
   }
-  if (cat & DDS_LC_FATAL) {
-    abort ();
-  }
-  return 0;
 }
 
-int dds_log (uint32_t cat, const char *file, uint32_t line, const char *func, const char *fmt, ...)
+void dds_log (uint32_t cat, const char *file, uint32_t line, const char *func, const char *fmt, ...)
 {
-  if ((dds_get_log_mask () & cat) || (cat & DDS_LC_FATAL)) {
+  if (dds_get_log_mask () & cat) {
     va_list ap;
     va_start (ap, fmt);
-    lock_sink (RDLOCK);
     vlog (&logconfig, cat, UINT32_MAX, file, line, func, fmt, ap);
-    unlock_sink ();
     va_end (ap);
   }
-  if (cat & DDS_LC_FATAL) {
-    abort ();
-  }
-  return 0;
 }
