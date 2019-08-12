@@ -47,19 +47,19 @@ extern "C" {
   void CU_TestProxyName(suite, test)(void);                               \
                                                                           \
   void CU_TestProxyName(suite, test)(void) {                              \
-    cu_data_t data = CU_Fixture(__VA_ARGS__);                             \
+    cu_data_t cu_data = CU_Fixture(__VA_ARGS__);                          \
     size_t i, n;                                                          \
                                                                           \
-    if (data.init != NULL) {                                              \
-      data.init();                                                        \
+    if (cu_data.init != NULL) {                                           \
+      cu_data.init();                                                     \
     }                                                                     \
                                                                           \
     for (i = 0, n = CU_TheoryDataPointsSize(suite, test); i < n; i++) {   \
       CU_TestName(suite, test) CU_TheoryDataPointsSlice(suite, test, i) ; \
     }                                                                     \
                                                                           \
-    if (data.fini != NULL) {                                              \
-      data.fini();                                                        \
+    if (cu_data.fini != NULL) {                                           \
+      cu_data.fini();                                                     \
     }                                                                     \
   }                                                                       \
                                                                           \

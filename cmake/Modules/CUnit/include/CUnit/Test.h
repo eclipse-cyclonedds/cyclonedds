@@ -48,16 +48,16 @@ typedef struct {
   void CU_TestProxyName(suite, test)(void);                \
                                                            \
   void CU_TestProxyName(suite, test)(void) {               \
-    cu_data_t data = CU_Fixture(__VA_ARGS__);              \
+    cu_data_t cu_data = CU_Fixture(__VA_ARGS__);           \
                                                            \
-    if (data.init != NULL) {                               \
-      data.init();                                         \
+    if (cu_data.init != NULL) {                            \
+      cu_data.init();                                      \
     }                                                      \
                                                            \
     CU_TestName(suite, test)();                            \
                                                            \
-    if (data.fini != NULL) {                               \
-      data.fini();                                         \
+    if (cu_data.fini != NULL) {                            \
+      cu_data.fini();                                      \
     }                                                      \
   }                                                        \
                                                            \
