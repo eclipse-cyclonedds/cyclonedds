@@ -333,12 +333,14 @@ static void dds_streamBE_write_string (dds_ostreamBE_t * __restrict os, const ch
   }
 }
 
+#ifndef NDEBUG
 static bool insn_key_ok_p (uint32_t insn)
 {
   return (DDS_OP (insn) == DDS_OP_ADR && (insn & DDS_OP_FLAG_KEY) &&
           (DDS_OP_TYPE (insn) <= DDS_OP_VAL_BST ||
            (DDS_OP_TYPE (insn) == DDS_OP_VAL_ARR && DDS_OP_SUBTYPE (insn) <= DDS_OP_VAL_8BY)));
 }
+#endif
 
 static uint32_t read_union_discriminant (dds_istream_t * __restrict is, enum dds_stream_typecode type)
 {
@@ -1041,7 +1043,7 @@ static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bs
   for (uint32_t i = 0; i < desc->m_nkeys; i++)
   {
     const uint32_t *op = desc->m_ops + desc->m_keys[i].m_index;
-    insn_key_ok_p (*op);
+    assert (insn_key_ok_p (*op));
     switch (DDS_OP_TYPE (*op))
     {
       case DDS_OP_VAL_1BY: if (!normalize_uint8 (&off, size)) return false; break;
@@ -1116,7 +1118,7 @@ void dds_stream_read_key (dds_istream_t * __restrict is, char * __restrict sampl
   {
     const uint32_t *op = desc->m_ops + desc->m_keys[i].m_index;
     char *dst = sample + op[1];
-    insn_key_ok_p (*op);
+    assert (insn_key_ok_p (*op));
     switch (DDS_OP_TYPE (*op))
     {
       case DDS_OP_VAL_1BY: *((uint8_t *) dst) = dds_is_get1 (is); break;
