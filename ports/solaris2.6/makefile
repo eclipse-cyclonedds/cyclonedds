@@ -4,7 +4,7 @@ include $(dir $(lastword $(MAKEFILE_LIST)))/config.mk
 
 CPPFLAGS += -Isrc/core/ddsc/src -Isrc/core/ddsc/include -Isrc/core/ddsi/include -Isrc/ddsrt/include
 CPPFLAGS += $(addprefix -I, $(wildcard src/ddsrt/src/*/include))
-CPPFLAGS += -Ibuild/core/include -Ibuild/ddsrt/include
+CPPFLAGS += -Ibuild/src/core/include -Ibuild/src/ddsrt/include
 CPPFLAGS += -DDDSI_INCLUDE_NETWORK_PARTITIONS # -DDDSI_INCLUDE_BANDWIDTH_LIMITING -DDDSI_INCLUDE_NETWORK_CHANNELS
 
 SHLIBS = ddsc
@@ -42,11 +42,11 @@ $(GEN)/$(LIBPRE)ddsc$(SO): $(LIBCDDS_SRC)
 	$(LD) $(LDFLAGS) $(SHLIB_OFLAG)$@ $(LIBCDDS_SC:%=$(GEN)/%$O) $(LDLIBS)
 endif
 
-DDSPERF_SRCDIRS := src/tools/ddsperf build/tools/ddsperf
+DDSPERF_SRCDIRS := src/tools/ddsperf build/src/tools/ddsperf
 DDSPERF_SRC := $(wildcard $(DDSPERF_SRCDIRS:%=%/*.c))
 
 $(GEN)/ddsperf$X: LDLIBS += -L. -lddsc
-$(GEN)/ddsperf$X: CPPFLAGS += -Ibuild/tools/ddsperf
+$(GEN)/ddsperf$X: CPPFLAGS += -Ibuild/src/tools/ddsperf
 $(GEN)/ddsperf$X: $(DDSPERF_SRC:%.c=%.o) | $(GEN)/$(LIBPRE)ddsc$(SO)
 	$(make_exe)
 
