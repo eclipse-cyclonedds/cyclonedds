@@ -50,8 +50,8 @@ execute_process(COMMAND git submodule update
 # Set module path before defining project so platform files will work.
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 set(CMAKE_PROJECT_NAME_FULL "Eclipse Cyclone DDS")
-set(PROJECT_NAME "CycloneDDS")
-project(${PROJECT_NAME} VERSION 0.1.0)
+# The following line will set the variable PROJECT_NAME
+project(CycloneDDS VERSION 0.1.0)
 
 # Set some convenience variants of the project-name
 string(REPLACE " " "-" CMAKE_PROJECT_NAME_DASHED "${CMAKE_PROJECT_NAME_FULL}")
