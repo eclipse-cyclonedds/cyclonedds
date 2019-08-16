@@ -70,7 +70,7 @@ DDS_EXPORT inline void dds_rhc_free (struct dds_rhc *rhc) {
   rhc->common.ops->rhc_ops.free (&rhc->common.rhc);
 }
 DDS_EXPORT inline int dds_rhc_read (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond) {
-  return rhc->common.ops->read (rhc, lock, values, info_seq, max_samples, mask, handle, cond);
+  return (rhc->common.ops->read) (rhc, lock, values, info_seq, max_samples, mask, handle, cond);
 }
 DDS_EXPORT inline int dds_rhc_take (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond) {
   return rhc->common.ops->take (rhc, lock, values, info_seq, max_samples, mask, handle, cond);
