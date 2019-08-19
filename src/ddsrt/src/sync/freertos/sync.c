@@ -49,7 +49,6 @@ mutex_lock(ddsrt_mutex_t *mutex, int blk)
   assert(mutex != NULL);
 
   if (xSemaphoreTake(mutex->sem, (blk == 1 ? portMAX_DELAY : 0)) != pdPASS) {
-    DDS_TRACE("Failed to lock 0x%p", mutex);
     /* xSemaphoreTake will only return pdFAIL on timeout. The wait will be
        indefinite if INCLUDE_vTaskSuspend is set to 1 in FreeRTOSConfig.h
        and portMAX_DELAY was passed. */
@@ -63,7 +62,7 @@ mutex_lock(ddsrt_mutex_t *mutex, int blk)
 void ddsrt_mutex_lock(ddsrt_mutex_t *mutex)
 {
   if (!mutex_lock(mutex, 1)) {
-    abort();
+    DDS_FATAL("Failed to lock 0x%p", mutex);
   }
 }
 
@@ -77,8 +76,7 @@ void ddsrt_mutex_unlock(ddsrt_mutex_t *mutex)
   assert(mutex != NULL);
 
   if (xSemaphoreGive(mutex->sem) != pdPASS) {
-    DDS_TRACE("Failed to unlock 0x%p", mutex->sem);
-    abort();
+    DDS_FATAL("Failed to unlock 0x%p", mutex->sem);
   }
 }
 
