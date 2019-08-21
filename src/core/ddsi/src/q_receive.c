@@ -113,7 +113,7 @@ static int valid_fragment_number_set (const nn_fragment_number_set_header_t *fns
   return (fnset->bitmap_base > 0 && fnset->numbits <= 256);
 }
 
-static int valid_AckNack (AckNack_t *msg, size_t size, int byteswap)
+static int valid_AckNack (const struct receiver_state *rst, AckNack_t *msg, size_t size, int byteswap)
 {
   nn_count_t *count; /* this should've preceded the bitmap */
   if (size < ACKNACK_SIZE (0))
@@ -129,7 +129,14 @@ static int valid_AckNack (AckNack_t *msg, size_t size, int byteswap)
   msg->writerId = nn_ntoh_entityid (msg->writerId);
   /* Validation following 8.3.7.1.3 + 8.3.5.5 */
   if (!valid_sequence_number_set (&msg->readerSNState))
-    return 0;
+  {
+    /* FastRTPS sends invalid pre-emptive ACKs -- patch the message so we can process it */
+    if (! NN_STRICT_P (rst->gv->config) && vendor_is_eprosima (rst->vendor) &&
+        fromSN (msg->readerSNState.bitmap_base) == 0 && msg->readerSNState.numbits == 0)
+      msg->readerSNState.bitmap_base = toSN (1);
+    else
+      return 0;
+  }
   /* Given the number of bits, we can compute the size of the AckNack
      submessage, and verify that the submessage is large enough */
   if (size < ACKNACK_SIZE (msg->readerSNState.numbits))
@@ -2677,7 +2684,7 @@ static int handle_submsg_sequence
         break;
       case SMID_ACKNACK:
         state = "parse:acknack";
-        if (!valid_AckNack (&sm->acknack, submsg_size, byteswap))
+        if (!valid_AckNack (rst, &sm->acknack, submsg_size, byteswap))
           goto malformed;
         handle_AckNack (rst, tnowE, &sm->acknack, ts_for_latmeas ? timestamp : NN_WCTIME_INVALID);
         ts_for_latmeas = 0;
