@@ -744,15 +744,11 @@ static struct ddsi_sertopic *make_special_topic (struct serdatapool *serpool, ui
        (kinda natural if they stop being "default" ones) */
   struct ddsi_sertopic_default *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
-  ddsrt_atomic_st32 (&st->c.refc, 1);
-  st->c.ops = &ddsi_sertopic_ops_default;
-  st->c.serdata_ops = ops;
-  st->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (st->c.serdata_ops);
-  st->c.iid = ddsi_iid_gen ();
+  ddsi_sertopic_init_anon (&st->c, &ddsi_sertopic_ops_default, ops, false);
   st->native_encoding_identifier = enc_id;
   st->serpool = serpool;
   st->nkeys = 1;
-  return (struct ddsi_sertopic *)st;
+  return (struct ddsi_sertopic *) st;
 }
 
 static void make_special_topics (struct q_globals *gv)

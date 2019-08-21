@@ -410,6 +410,7 @@ int is_builtin_endpoint (nn_entityid_t id, nn_vendorid_t vendorid);
 bool is_local_orphan_endpoint (const struct entity_common *e);
 int is_writer_entityid (nn_entityid_t id);
 int is_reader_entityid (nn_entityid_t id);
+int is_keyed_endpoint_entityid (nn_entityid_t id);
 nn_vendorid_t get_entity_vendorid (const struct entity_common *e);
 
 /* Interface for glue code between the OpenSplice kernel and the DDSI

@@ -22,13 +22,9 @@
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 
-/* FIXME: sertopic /= ddstopic so a lot of stuff needs to be moved here from dds_topic.c and the free function needs to be implemented properly */
-
 static void sertopic_default_free (struct ddsi_sertopic *tp)
 {
-  ddsrt_free (tp->name_type_name);
-  ddsrt_free (tp->name);
-  ddsrt_free (tp->type_name);
+  ddsi_sertopic_fini (tp);
   ddsrt_free (tp);
 }
 
