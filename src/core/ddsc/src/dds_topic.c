@@ -454,12 +454,9 @@ err_invalid_qos:
 
 dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descriptor_t *desc, const char *name, const dds_qos_t *qos, const dds_listener_t *listener)
 {
-  char *key = NULL;
   struct ddsi_sertopic_default *st;
-  const char *typename;
   nn_plist_t plist;
   dds_entity_t hdl;
-  size_t keysz;
   struct dds_entity *ppent;
   dds_return_t ret;
 
@@ -469,21 +466,9 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   if ((ret = dds_entity_pin (participant, &ppent)) < 0)
     return ret;
 
-  typename = desc->m_typename;
-  keysz = strlen (name) + strlen (typename) + 2;
-  key = dds_alloc (keysz);
-  (void) snprintf (key, keysz, "%s/%s", name, typename);
-
   st = dds_alloc (sizeof (*st));
 
-  ddsrt_atomic_st32 (&st->c.refc, 1);
-  st->c.iid = ddsi_iid_gen ();
-  st->c.name_type_name = key;
-  st->c.name = ddsrt_strdup (name);
-  st->c.type_name = ddsrt_strdup (typename);
-  st->c.ops = &ddsi_sertopic_ops_default;
-  st->c.serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey;
-  st->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (st->c.serdata_ops);
+  ddsi_sertopic_init (&st->c, name, desc->m_typename, &ddsi_sertopic_ops_default, desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey, (desc->m_nkeys == 0));
   st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE);
   st->serpool = ppent->m_domain->gv.serpool;
   st->type = (void*) desc;

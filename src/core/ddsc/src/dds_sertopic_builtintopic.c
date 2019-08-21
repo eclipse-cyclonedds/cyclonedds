@@ -29,16 +29,7 @@
 struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic_type type, const char *name, const char *typename, struct q_globals *gv)
 {
   struct ddsi_sertopic_builtintopic *tp = ddsrt_malloc (sizeof (*tp));
-  tp->c.iid = ddsi_iid_gen();
-  tp->c.name = dds_string_dup (name);
-  tp->c.type_name = dds_string_dup (typename);
-  const size_t name_typename_size = strlen (tp->c.name) + 1 + strlen (tp->c.type_name) + 1;
-  tp->c.name_type_name = dds_alloc (name_typename_size);
-  snprintf (tp->c.name_type_name, name_typename_size, "%s/%s", tp->c.name, tp->c.type_name);
-  tp->c.ops = &ddsi_sertopic_ops_builtintopic;
-  tp->c.serdata_ops = &ddsi_serdata_ops_builtintopic;
-  tp->c.serdata_basehash = ddsi_sertopic_compute_serdata_basehash (tp->c.serdata_ops);
-  ddsrt_atomic_st32 (&tp->c.refc, 1);
+  ddsi_sertopic_init (&tp->c, name, typename, &ddsi_sertopic_ops_builtintopic, &ddsi_serdata_ops_builtintopic, false);
   tp->type = type;
   tp->gv = gv;
   return &tp->c;
@@ -46,9 +37,7 @@ struct ddsi_sertopic *new_sertopic_builtintopic (enum ddsi_sertopic_builtintopic
 
 static void sertopic_builtin_free (struct ddsi_sertopic *tp)
 {
-  ddsrt_free (tp->name_type_name);
-  ddsrt_free (tp->name);
-  ddsrt_free (tp->type_name);
+  ddsi_sertopic_fini (tp);
   ddsrt_free (tp);
 }
 

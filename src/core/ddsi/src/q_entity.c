@@ -145,6 +145,21 @@ int is_reader_entityid (nn_entityid_t id)
   }
 }
 
+int is_keyed_endpoint_entityid (nn_entityid_t id)
+{
+  switch (id.u & NN_ENTITYID_KIND_MASK)
+  {
+    case NN_ENTITYID_KIND_READER_WITH_KEY:
+    case NN_ENTITYID_KIND_WRITER_WITH_KEY:
+      return 1;
+    case NN_ENTITYID_KIND_READER_NO_KEY:
+    case NN_ENTITYID_KIND_WRITER_NO_KEY:
+      return 0;
+    default:
+      return 0;
+  }
+}
+
 int is_builtin_entityid (nn_entityid_t id, nn_vendorid_t vendorid)
 {
   if ((id.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_BUILTIN)
@@ -402,7 +417,7 @@ static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, cons
   return true;
 }
 
-static dds_return_t pp_allocate_entityid(nn_entityid_t *id, unsigned kind, struct participant *pp)
+static dds_return_t pp_allocate_entityid(nn_entityid_t *id, uint32_t kind, struct participant *pp)
 {
   uint32_t id1;
   int ret = 0;
@@ -2092,14 +2107,20 @@ static void reader_qos_mismatch (struct reader * rd, dds_qos_policy_id_t reason)
   }
 }
 
-static bool qos_match_p_lock (struct entity_common *ea, const dds_qos_t *a, struct entity_common *eb, const dds_qos_t *b, dds_qos_policy_id_t *reason)
+static bool topickind_qos_match_p_lock (struct entity_common *rd, const dds_qos_t *rdqos, struct entity_common *wr, const dds_qos_t *wrqos, dds_qos_policy_id_t *reason)
 {
-  assert (ea != eb);
-  ddsrt_mutex_t * const locks[] = { &ea->qos_lock, &eb->qos_lock, &ea->qos_lock };
-  const int shift = (uintptr_t) ea > (uintptr_t) eb;
+  assert (is_reader_entityid (rd->guid.entityid));
+  assert (is_writer_entityid (wr->guid.entityid));
+  if (is_keyed_endpoint_entityid (rd->guid.entityid) != is_keyed_endpoint_entityid (wr->guid.entityid))
+  {
+    *reason = DDS_INVALID_QOS_POLICY_ID;
+    return false;
+  }
+  ddsrt_mutex_t * const locks[] = { &rd->qos_lock, &wr->qos_lock, &rd->qos_lock };
+  const int shift = (uintptr_t) rd > (uintptr_t) wr;
   for (int i = 0; i < 2; i++)
     ddsrt_mutex_lock (locks[i + shift]);
-  bool ret = qos_match_p (a, b, reason);
+  bool ret = qos_match_p (rdqos, wrqos, reason);
   for (int i = 0; i < 2; i++)
     ddsrt_mutex_unlock (locks[i + shift]);
   return ret;
@@ -2115,7 +2136,7 @@ static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_re
     return;
   if (wr->e.onlylocal)
     return;
-  if (!isb0 && !qos_match_p_lock (&prd->e, prd->c.xqos, &wr->e, wr->xqos, &reason))
+  if (!isb0 && !topickind_qos_match_p_lock (&prd->e, prd->c.xqos, &wr->e, wr->xqos, &reason))
   {
     writer_qos_mismatch (wr, reason);
     return;
@@ -2134,7 +2155,7 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
     return;
   if (rd->e.onlylocal)
     return;
-  if (!isb0 && !qos_match_p_lock (&rd->e, rd->xqos, &pwr->e, pwr->c.xqos, &reason))
+  if (!isb0 && !topickind_qos_match_p_lock (&rd->e, rd->xqos, &pwr->e, pwr->c.xqos, &reason))
   {
     reader_qos_mismatch (rd, reason);
     return;
@@ -2176,7 +2197,7 @@ static void connect_writer_with_reader (struct writer *wr, struct reader *rd, nn
     return;
   if (ignore_local_p (&wr->e.guid, &rd->e.guid, wr->xqos, rd->xqos))
     return;
-  if (!qos_match_p_lock (&rd->e, rd->xqos, &wr->e, wr->xqos, &reason))
+  if (!topickind_qos_match_p_lock (&rd->e, rd->xqos, &wr->e, wr->xqos, &reason))
   {
     writer_qos_mismatch (wr, reason);
     reader_qos_mismatch (rd, reason);
@@ -2912,17 +2933,20 @@ dds_return_t new_writer (struct writer **wr_out, struct q_globals *gv, struct nn
 {
   struct participant *pp;
   dds_return_t rc;
+  uint32_t kind;
 
   if ((pp = ephash_lookup_participant_guid (gv->guid_hash, ppguid)) == NULL)
   {
     GVLOGDISC ("new_writer - participant "PGUIDFMT" not found\n", PGUID (*ppguid));
     return DDS_RETCODE_BAD_PARAMETER;
   }
+
   /* participant can't be freed while we're mucking around cos we are
      awake and do not touch the thread's vtime (ephash_lookup already
      verifies we're awake) */
   wrguid->prefix = pp->e.guid.prefix;
-  if ((rc = pp_allocate_entityid (&wrguid->entityid, NN_ENTITYID_KIND_WRITER_WITH_KEY, pp)) < 0)
+  kind = topic->topickind_no_key ? NN_ENTITYID_KIND_WRITER_NO_KEY : NN_ENTITYID_KIND_WRITER_WITH_KEY;
+  if ((rc = pp_allocate_entityid (&wrguid->entityid, kind, pp)) < 0)
     return rc;
   return new_writer_guid (wr_out, wrguid, group_guid, pp, topic, xqos, whc, status_cb, status_cb_arg);
 }
@@ -3391,6 +3415,7 @@ dds_return_t new_reader
 {
   struct participant * pp;
   dds_return_t rc;
+  uint32_t kind;
 
   if ((pp = ephash_lookup_participant_guid (gv->guid_hash, ppguid)) == NULL)
   {
@@ -3398,7 +3423,8 @@ dds_return_t new_reader
     return DDS_RETCODE_BAD_PARAMETER;
   }
   rdguid->prefix = pp->e.guid.prefix;
-  if ((rc = pp_allocate_entityid (&rdguid->entityid, NN_ENTITYID_KIND_READER_WITH_KEY, pp)) < 0)
+  kind = topic->topickind_no_key ? NN_ENTITYID_KIND_READER_NO_KEY : NN_ENTITYID_KIND_READER_WITH_KEY;
+  if ((rc = pp_allocate_entityid (&rdguid->entityid, kind, pp)) < 0)
     return rc;
   return new_reader_guid (rd_out, rdguid, group_guid, pp, topic, xqos, rhc, status_cb, status_cbarg);
 }
