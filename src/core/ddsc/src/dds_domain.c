@@ -73,7 +73,7 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
         enough) */
 
   (void) ddsrt_getenv ("CYCLONEDDS_URI", &uri);
-  domain->cfgst = config_init (uri, &domain->gv.config, domain_id);
+  domain->cfgst = config_init (uri, &domain->gv.config, (domain_id == DDS_DOMAIN_DEFAULT) ? UINT32_MAX : domain_id);
   if (domain->cfgst == NULL)
   {
     DDS_ILOG (DDS_LC_CONFIG, domain_id, "Failed to parse configuration XML file %s\n", uri);

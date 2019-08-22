@@ -103,6 +103,12 @@ struct cfgst {
   /* error flag set so that we can continue parsing for some errors and still fail properly */
   int error;
 
+  /* Whether creation of a specific domain is allowed, depends on the availability of Domain
+   * elements within the configuration and whether these elements are accepted or not.
+   * If the Domain element is not found, it's considered to be "any" and thus accepted. */
+  bool domid_found;
+  bool domid_accepted;
+
   /* Whether this is the first element in this source: used to reject about configurations
      where the deprecated Domain/Id element is used but is set after some other things
      have been set.  The underlying reason being that the configuration handling can't
@@ -2020,11 +2026,14 @@ static enum update_result uf_domainId (struct cfgst *cfgst, void *parent, struct
   uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
   uint32_t tmpval;
   int pos;
+  cfgst->domid_found = true;
   if (ddsrt_strcasecmp (value, "any") == 0) {
+    cfgst->domid_accepted = true;
     return URES_SUCCESS;
   } else if (sscanf (value, "%"SCNu32"%n", &tmpval, &pos) == 1 && value[pos] == 0 && tmpval != UINT32_MAX) {
     if (*elem == UINT32_MAX || *elem == tmpval)
     {
+      cfgst->domid_accepted = true;
       if (!cfgst->first_data_in_source)
         cfg_warning (cfgst, "not the first data in this source for compatible domain id");
       *elem = tmpval;
@@ -2708,6 +2717,8 @@ struct cfgst *config_init (const char *configfile, struct config *cfg, uint32_t 
   cfgst->first_data_in_source = true;
   cfgst->input = "init";
   cfgst->line = 1;
+  cfgst->domid_found = false;
+  cfgst->domid_accepted = false;
 
   /* eventually, we domainId.value will be the real domain id selected, even if it was configured
      to the default of "any" and has "isdefault" set; initializing it to the default-default
@@ -2792,6 +2803,16 @@ struct cfgst *config_init (const char *configfile, struct config *cfg, uint32_t 
      of warnings/errors being output without a domain id present. */
   if (cfgst->cfg->domainId == UINT32_MAX)
     cfgst->cfg->domainId = 0;
+
+  if (ok &&
+      /* Does the configuration contain at least one Domain element? */
+      cfgst->domid_found &&
+      /* Is any of the Domain elements accepted? */
+      !cfgst->domid_accepted)
+  {
+    DDS_ILOG (DDS_LC_ERROR, domid, "config: requested domain (%d) not found\n", (int)domid);
+    ok = 0;
+  }
 
   /* Compatibility settings of IPv6, TCP -- a bit too complicated for
      the poor framework */

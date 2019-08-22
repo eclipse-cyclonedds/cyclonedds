@@ -75,7 +75,7 @@ CU_Test(ddsc_participant, create_multiple_domains)
   dds_return_t status;
   dds_domainid_t domain_id;
 
-  ddsrt_setenv("CYCLONEDDS_URI", "<Tracing><Verbosity>finest</><OutputFile>multi-domain-1.log</></>");
+  ddsrt_setenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", "<Tracing><Verbosity>finest</><OutputFile>multi-domain-1.log</></>");
 
   //valid specific domain value
   participant1 = dds_create_participant (1, NULL, NULL);
@@ -84,7 +84,7 @@ CU_Test(ddsc_participant, create_multiple_domains)
   CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
   CU_ASSERT_EQUAL_FATAL(domain_id, 1);
 
-  ddsrt_setenv("CYCLONEDDS_URI", "<Tracing><Verbosity>finest</><OutputFile>multi-domain-2.log</></>");
+  ddsrt_setenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", "<Tracing><Verbosity>finest</><OutputFile>multi-domain-2.log</></>");
 
   //DDS_DOMAIN_DEFAULT from user
   participant2 = dds_create_participant (2, NULL, NULL);
@@ -341,4 +341,21 @@ CU_Test(ddsc_participant_lookup, deleted) {
   CU_ASSERT_FATAL(participants[0] == participant);
 
   dds_delete (participant);
+}
+
+
+/* Test for creating a participant with domain id not mentioned in config  */
+CU_Test(ddsc_participant, create_with_invalid_domain)
+{
+  dds_entity_t participant;
+
+  ddsrt_setenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", "<Domain id=\"3\"/>");
+
+  // invalid specific domain value
+  participant = dds_create_participant (2, NULL, NULL);
+
+  ddsrt_unsetenv(DDS_PROJECT_NAME_NOSPACE_CAPS"_URI");
+
+  // it should have failed
+  CU_ASSERT_FATAL(participant <= 0);
 }
