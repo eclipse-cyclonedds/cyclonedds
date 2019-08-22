@@ -51,17 +51,6 @@ extern "C" {
 
 struct ddsi_serdata;
 
-/**
- * @brief Returns the default domain identifier.
- *
- * The default domain identifier can be configured in the configuration file
- * or be set through an evironment variable ({DDSC_PROJECT_NAME_NOSPACE_CAPS}_DOMAIN).
- *
- * @returns Default domain identifier
- */
-DDS_EXPORT dds_domainid_t dds_domain_default (void);
-
-
 #define DDS_MIN_PSEUDO_HANDLE ((dds_entity_t) 0x7fff0000)
 
 /* @defgroup builtintopic_constants Convenience constants for referring to builtin topics
