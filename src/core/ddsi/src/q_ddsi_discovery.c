@@ -1643,7 +1643,6 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
 
   /* Built-ins still do their own deserialization (SPDP <=> pwr ==
      NULL)). */
-  assert (pwr == NULL || pwr->c.topic == NULL);
   if (statusinfo == 0)
   {
     if (datasz == 0 || !(data_smhdr_flags & DATA_FLAG_DATAFLAG))
