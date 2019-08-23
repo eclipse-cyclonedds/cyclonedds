@@ -1840,8 +1840,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   if (ddsrt_avl_lookup_ipath (&pwr_readers_treedef, &pwr->readers, &rd->e.guid, &path))
     goto already_matched;
 
-  if (pwr->c.topic == NULL && rd->topic)
-    pwr->c.topic = ddsi_sertopic_ref (rd->topic);
+  assert (rd->topic || is_builtin_endpoint (rd->e.guid.entityid, NN_VENDORID_ECLIPSE));
   if (pwr->ddsi2direct_cb == 0 && rd->ddsi2direct_cb != 0)
   {
     pwr->ddsi2direct_cb = rd->ddsi2direct_cb;
@@ -1966,7 +1965,6 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   return;
 
 already_matched:
-  assert (is_builtin_entityid (pwr->e.guid.entityid, pwr->c.vendor) ? (pwr->c.topic == NULL) : (pwr->c.topic != NULL));
   ELOGDISC (pwr, "  proxy_writer_add_connection(pwr "PGUIDFMT" rd "PGUIDFMT") - already connected\n",
             PGUID (pwr->e.guid), PGUID (rd->e.guid));
   ddsrt_mutex_unlock (&pwr->e.lock);
@@ -1981,8 +1979,6 @@ static void proxy_reader_add_connection (struct proxy_reader *prd, struct writer
 
   m->wr_guid = wr->e.guid;
   ddsrt_mutex_lock (&prd->e.lock);
-  if (prd->c.topic == NULL)
-    prd->c.topic = ddsi_sertopic_ref (wr->topic);
   if (ddsrt_avl_lookup_ipath (&prd_writers_treedef, &prd->writers, &wr->e.guid, &path))
   {
     ELOGDISC (prd, "  proxy_reader_add_connection(wr "PGUIDFMT" prd "PGUIDFMT") - already connected\n",
@@ -1992,6 +1988,7 @@ static void proxy_reader_add_connection (struct proxy_reader *prd, struct writer
   }
   else
   {
+    assert (wr->topic || is_builtin_endpoint (wr->e.guid.entityid, NN_VENDORID_ECLIPSE));
     ELOGDISC (prd, "  proxy_reader_add_connection(wr "PGUIDFMT" prd "PGUIDFMT")\n",
               PGUID (wr->e.guid), PGUID (prd->e.guid));
     ddsrt_avl_insert_ipath (&prd_writers_treedef, &prd->writers, m, &path);
@@ -3983,7 +3980,6 @@ static void proxy_endpoint_common_init (struct entity_common *e, struct proxy_en
   entity_common_init (e, proxypp->e.gv, guid, name, kind, tcreate, proxypp->vendor, false);
   c->xqos = nn_xqos_dup (&plist->qos);
   c->as = ref_addrset (as);
-  c->topic = NULL; /* set from first matching reader/writer */
   c->vendor = proxypp->vendor;
   c->seq = seq;
 
@@ -3998,12 +3994,9 @@ static void proxy_endpoint_common_init (struct entity_common *e, struct proxy_en
 static void proxy_endpoint_common_fini (struct entity_common *e, struct proxy_endpoint_common *c)
 {
   unref_proxy_participant (c->proxypp, c);
-
-  ddsi_sertopic_unref (c->topic);
   nn_xqos_fini (c->xqos);
   ddsrt_free (c->xqos);
   unref_addrset (c->as);
-
   entity_common_fini (e);
 }
 

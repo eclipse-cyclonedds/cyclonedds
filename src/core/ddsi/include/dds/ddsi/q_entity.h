@@ -345,7 +345,6 @@ struct proxy_endpoint_common
   struct proxy_endpoint_common *next_ep; /* next \ endpoint belonging to this proxy participant */
   struct proxy_endpoint_common *prev_ep; /* prev / -- this is in arbitrary ordering */
   struct dds_qos *xqos; /* proxy endpoint QoS lives here; FIXME: local ones should have it moved to common as well */
-  struct ddsi_sertopic * topic; /* topic may be NULL: for built-ins, but also for never-yet matched proxies (so we don't have to know the topic; when we match, we certainly do know) */
   struct addrset *as; /* address set to use for communicating with this endpoint */
   nn_guid_t group_guid; /* 0:0:0:0 if not available */
   nn_vendorid_t vendor; /* cached from proxypp->vendor */

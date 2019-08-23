@@ -107,8 +107,7 @@ static int print_addrset_if_notempty (ddsi_tran_conn_t conn, const char *prefix,
     return print_addrset (conn, prefix, as, suffix);
 }
 
-static int print_any_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e,
-                                      const struct dds_qos *xqos, const struct ddsi_sertopic *topic)
+static int print_any_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e, const struct dds_qos *xqos)
 {
   int x = 0;
   x += cpf (conn, "  %s %x:%x:%x:%x ", label, PGUID (e->guid));
@@ -118,24 +117,24 @@ static int print_any_endpoint_common (ddsi_tran_conn_t conn, const char *label, 
     for (uint32_t i = 0; i < xqos->partition.n; i++)
       x += cpf (conn, "%s%s", i == 0 ? "" : ",", xqos->partition.strs[i]);
     if (xqos->partition.n > 1) cpf (conn, "}");
-    x += cpf (conn, ".%s/%s",
-              topic && topic->name ? topic->name : (xqos->present & QP_TOPIC_NAME) ? xqos->topic_name : "(null)",
-              topic && topic->type_name ? topic->type_name : (xqos->present & QP_TYPE_NAME) ? xqos->type_name : "(null)");
+    const char *topic_name = (xqos->present & QP_TOPIC_NAME) ? xqos->topic_name : "null";
+    const char *topic_typename = (xqos->present & QP_TYPE_NAME) ? xqos->type_name : "null";
+    x += cpf (conn, ".%s/%s", topic_name, topic_typename);
   }
   cpf (conn, "\n");
   return x;
 }
 
-static int print_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e, const struct endpoint_common *c, const struct dds_qos *xqos, const struct ddsi_sertopic *topic)
+static int print_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e, const struct endpoint_common *c, const struct dds_qos *xqos)
 {
   DDSRT_UNUSED_ARG (c);
-  return print_any_endpoint_common (conn, label, e, xqos, topic);
+  return print_any_endpoint_common (conn, label, e, xqos);
 }
 
 static int print_proxy_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e, const struct proxy_endpoint_common *c)
 {
   int x = 0;
-  x += print_any_endpoint_common (conn, label, e, c->xqos, c->topic);
+  x += print_any_endpoint_common (conn, label, e, c->xqos);
   x += print_addrset_if_notempty (conn, "    as", c->as, "\n");
   return x;
 }
@@ -165,7 +164,7 @@ static int print_participants (struct thread_state1 * const ts1, struct q_global
         if (r->c.pp != p)
           continue;
         ddsrt_mutex_lock (&r->e.lock);
-        print_endpoint_common (conn, "rd", &r->e, &r->c, r->xqos, r->topic);
+        print_endpoint_common (conn, "rd", &r->e, &r->c, r->xqos);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
         x += print_addrset_if_notempty (conn, "    as", r->as, "\n");
 #endif
@@ -188,7 +187,7 @@ static int print_participants (struct thread_state1 * const ts1, struct q_global
         if (w->c.pp != p)
           continue;
         ddsrt_mutex_lock (&w->e.lock);
-        print_endpoint_common (conn, "wr", &w->e, &w->c, w->xqos, w->topic);
+        print_endpoint_common (conn, "wr", &w->e, &w->c, w->xqos);
         whc_get_state(w->whc, &whcst);
         x += cpf (conn, "    whc [%lld,%lld] unacked %"PRIuSIZE"%s [%u,%u] seq %lld seq_xmit %lld cs_seq %lld\n",
                   whcst.min_seq, whcst.max_seq, whcst.unacked_bytes,
