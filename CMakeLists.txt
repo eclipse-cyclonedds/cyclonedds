@@ -41,17 +41,10 @@ FUNCTION(PREPEND var prefix)
    SET(${var} "${listVar}" PARENT_SCOPE)
 ENDFUNCTION(PREPEND)
 
-# Update the git submodules
-execute_process(COMMAND git submodule init
-                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
-execute_process(COMMAND git submodule update
-                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
-
 # Set module path before defining project so platform files will work.
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 set(CMAKE_PROJECT_NAME_FULL "Eclipse Cyclone DDS")
-set(PROJECT_NAME "CycloneDDS")
-project(${PROJECT_NAME} VERSION 0.1.0)
+project(CycloneDDS VERSION 0.1.0)
 
 # Set some convenience variants of the project-name
 string(REPLACE " " "-" CMAKE_PROJECT_NAME_DASHED "${CMAKE_PROJECT_NAME_FULL}")
