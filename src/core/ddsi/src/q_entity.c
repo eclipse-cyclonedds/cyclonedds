@@ -686,18 +686,14 @@ dds_return_t new_participant_guid (const nn_guid_t *ppguid, struct q_globals *gv
 
 dds_return_t new_participant (nn_guid_t *p_ppguid, struct q_globals *gv, unsigned flags, const nn_plist_t *plist)
 {
-  nn_guid_t ppguid;
-
-  ddsrt_mutex_lock (&gv->privileged_pp_lock);
-  ppguid = gv->next_ppguid;
-  if (gv->next_ppguid.prefix.u[2]++ == ~0u)
-  {
-    ddsrt_mutex_unlock (&gv->privileged_pp_lock);
-    return DDS_RETCODE_OUT_OF_RESOURCES;
-  }
-  ddsrt_mutex_unlock (&gv->privileged_pp_lock);
-  *p_ppguid = ppguid;
-
+  union { uint64_t u64; uint32_t u32[2]; } u;
+  u.u32[0] = gv->ppguid_base.prefix.u[1];
+  u.u32[1] = gv->ppguid_base.prefix.u[2];
+  u.u64 += ddsi_iid_gen ();
+  p_ppguid->prefix.u[0] = gv->ppguid_base.prefix.u[0];
+  p_ppguid->prefix.u[1] = u.u32[0];
+  p_ppguid->prefix.u[2] = u.u32[1];
+  p_ppguid->entityid.u = NN_ENTITYID_PARTICIPANT;
   return new_participant_guid (p_ppguid, gv, flags, plist);
 }
 
