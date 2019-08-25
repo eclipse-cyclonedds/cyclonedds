@@ -1,5 +1,5 @@
 #
-# Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+# Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License v. 2.0 which is available at
@@ -9,12 +9,10 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-cmake_minimum_required(VERSION 3.7)
+include(${MPT_CMAKE})
 
-if(MPT_ENABLE_SELFTEST)
-  add_subdirectory(self)
-endif()
-
-add_subdirectory(basic)
-add_subdirectory(qos)
-add_subdirectory(disc)
+add_mpt_executable(mpt_discstress
+    "procs/createwriter.c"
+    "discstress.c")
+idlc_generate(mpt_discstress_discstressdata_lib "procs/createwriterdata.idl")
+target_link_libraries(mpt_discstress PRIVATE mpt_discstress_discstressdata_lib)
