@@ -1890,7 +1890,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
     /* builtins really don't care about multiple copies or anything */
     m->in_sync = PRMSS_SYNC;
   }
-  else if (!pwr->have_seen_heartbeat)
+  else if (!pwr->have_seen_heartbeat || !rd->handle_as_transient_local)
   {
     /* Proxy writer hasn't seen a heartbeat yet: means we have no
        clue from what sequence number to start accepting data, nor
@@ -1918,14 +1918,6 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
     else
       m->in_sync = PRMSS_SYNC;
     m->u.not_in_sync.end_of_tl_seq = MAX_SEQ_NUMBER;
-  }
-  else if (!rd->handle_as_transient_local)
-  {
-    /* volatile reader, writer has seen a heartbeat: it's in sync
-       (there is a risk of it getting some historical data: that
-       happens to be cached in the writer's reorder admin at this
-       point) */
-    m->in_sync = PRMSS_SYNC;
   }
   else
   {
