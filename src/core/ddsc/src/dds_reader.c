@@ -347,8 +347,11 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
     goto err_tp_lock;
   }
   assert (tp->m_stopic);
-  /* FIXME: domain check */
-  assert (sub->m_entity.m_domain == tp->m_entity.m_domain);
+  if (sub->m_entity.m_participant != tp->m_entity.m_participant)
+  {
+    reader = DDS_RETCODE_BAD_PARAMETER;
+    goto err_pp_mismatch;
+  }
 
   /* Merge qos from topic and subscriber, dds_copy_qos only fails when it is passed a null
      argument, but that isn't the case here */
@@ -414,6 +417,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   return reader;
 
 err_bad_qos:
+err_pp_mismatch:
   dds_topic_unlock (tp);
 err_tp_lock:
   dds_subscriber_unlock (sub);
