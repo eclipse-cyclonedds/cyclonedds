@@ -277,6 +277,17 @@ CU_Theory((dds_entity_t *par, dds_entity_t *top), ddsc_reader_create, non_partic
 }
 /*************************************************************************************************/
 
+/*************************************************************************************************/
+CU_Test(ddsc_reader_create, wrong_participant, .init=reader_init, .fini=reader_fini)
+{
+    dds_entity_t participant2 = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+    CU_ASSERT_FATAL(participant2 > 0);
+    dds_entity_t reader = dds_create_reader(participant2, g_topic, NULL, NULL);
+    CU_ASSERT_EQUAL_FATAL(reader, DDS_RETCODE_BAD_PARAMETER);
+    dds_delete(participant2);
+}
+/*************************************************************************************************/
+
 
 
 

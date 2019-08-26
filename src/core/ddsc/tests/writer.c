@@ -72,6 +72,15 @@ CU_Test(ddsc_create_writer, participant, .init = setup, .fini = teardown)
     CU_ASSERT_FATAL(writer > 0);
 }
 
+CU_Test(ddsc_create_writer, wrong_participant, .init = setup, .fini = teardown)
+{
+    dds_entity_t participant2 = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+    CU_ASSERT_FATAL(participant2 > 0);
+    writer = dds_create_writer(participant2, topic, NULL, NULL);
+    CU_ASSERT_EQUAL_FATAL(writer, DDS_RETCODE_BAD_PARAMETER);
+    dds_delete(participant2);
+}
+
 CU_Test(ddsc_create_writer, publisher, .init = setup, .fini = teardown)
 {
     writer = dds_create_writer(publisher, topic, NULL, NULL);

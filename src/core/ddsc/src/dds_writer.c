@@ -274,9 +274,13 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
   if ((rc = dds_topic_lock (topic, &tp)) != DDS_RETCODE_OK)
     goto err_tp_lock;
-
   assert (tp->m_stopic);
-  assert (pub->m_entity.m_domain == tp->m_entity.m_domain);
+
+  if (pub->m_entity.m_participant != tp->m_entity.m_participant)
+  {
+    rc = DDS_RETCODE_BAD_PARAMETER;
+    goto err_pp_mismatch;
+  }
 
   /* Merge Topic & Publisher qos */
   wqos = dds_create_qos ();
@@ -326,6 +330,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   return writer;
 
 err_bad_qos:
+err_pp_mismatch:
   dds_topic_unlock (tp);
 err_tp_lock:
   dds_publisher_unlock (pub);
