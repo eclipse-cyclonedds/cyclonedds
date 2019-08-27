@@ -107,11 +107,6 @@ dds_entity_observer_unregister(
   dds_entity *observed,
   dds_entity *observer);
 
-DDS_EXPORT dds_return_t
-dds_delete_impl(
-  dds_entity_t entity,
-  bool keep_if_explicit);
-
 DDS_EXPORT dds_domain *
 dds__entity_domain(
   dds_entity* e);

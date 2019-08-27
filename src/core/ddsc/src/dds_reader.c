@@ -58,14 +58,7 @@ static dds_return_t dds_reader_delete (dds_entity *e)
 {
   dds_reader * const rd = (dds_reader *) e;
   dds_return_t ret;
-  if ((ret = dds_delete (rd->m_topic->m_entity.m_hdllink.hdl)) == DDS_RETCODE_OK)
-  {
-    /* Delete an implicitly created parent; for normal ones, this is expected
-       to fail with BAD_PARAMETER - FIXME: there must be a cleaner way */
-    ret = dds_delete_impl (e->m_parent->m_hdllink.hdl, true);
-    if (ret == DDS_RETCODE_BAD_PARAMETER)
-      ret = DDS_RETCODE_OK;
-  }
+  ret = dds_delete (rd->m_topic->m_entity.m_hdllink.hdl);
   dds_free (rd->m_loan);
   return ret;
 }
