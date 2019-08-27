@@ -9,30 +9,31 @@ language: c
 # Coverity Scan quota are not checked as the Coverity enabled build must only
 # run from cron.
 install_coverity: &install_coverity
-  if [ -n "${COVERITY_SCAN}" ]; then
-    COVERITY_DIR="/tmp/coverity-scan-analysis";
-    COVERITY_ARCHIVE="/tmp/cov-analysis-${COV_PLATFORM}.tgz";
-    test ! -d "${COVERITY_DIR}" &&
-      mkdir -p "${COVERITY_DIR}" &&
-      curl -f -s -F project="${TRAVIS_REPO_SLUG}"
+  if [ "${COVERITY_SCAN}" = "true" ]; then
+    COV_DIR="/tmp/coverity-scan-analysis";
+    COV_ARC="/tmp/cov-analysis-${COV_PLATFORM}.tgz";
+    test ! -d "${COV_DIR}" &&
+      mkdir -p "${COV_DIR}" &&
+      curl -s -S -F project="${TRAVIS_REPO_SLUG}"
                  -F token="${COVERITY_SCAN_TOKEN}"
-                 -o "${COVERITY_ARCHIVE}"
+                 -o "${COV_ARC}"
                  "https://scan.coverity.com/download/cxx/${COV_PLATFORM}" &&
-      tar -xzf "${COVERITY_ARCHIVE}" -C "${COVERITY_DIR}";
-    COVERITY_ANALYSIS=$(find "${COVERITY_DIR}" -type d -name "cov-analysis*");
-    eval "export PATH=\"${PATH}:${COVERITY_ANALYSIS}/bin\"";
+      tar -xzf "${COV_ARC}" -C "${COV_DIR}";
+    COV_ANALYSIS=$(find "${COV_DIR}" -type d -name "cov-analysis*");
+    eval "export PATH=\"${PATH}:${COV_ANALYSIS}/bin\"";
     eval "export SCAN_BUILD=\"cov-build --dir cov-int\"";
     cov-configure --comptype ${COV_COMPTYPE} --compiler ${CC} --template;
   fi
 
 submit_to_coverity_scan: &submit_to_coverity_scan
-  if [ -n "${COVERITY_SCAN}" ]; then
+  if [ "${COVERITY_SCAN}" = "true" ]; then
     tar -czf analysis-results.tgz cov-int &&
-    curl -f -v -F project="${TRAVIS_REPO_SLUG}"
+    curl -s -S -F project="${TRAVIS_REPO_SLUG}"
                -F token="${COVERITY_SCAN_TOKEN}"
                -F file=@analysis-results.tgz
                -F version=$(git rev-parse --short HEAD)
                -F description="Travis CI build"
+               -F email="${COVERITY_SCAN_EMAIL:=cyclonedds-inbox@eclipse.org}"
                "https://scan.coverity.com/builds";
   fi
 
@@ -110,6 +111,7 @@ windows_vs2017: &windows_vs2017
   filter_secrets: false
   before_install:
     - eval "unset COVERITY_SCAN_TOKEN"
+    - eval "unset COVERITY_SCAN_EMAIL"
     - eval "unset CC"
     - eval "unset CXX"
     - eval "export COV_COMPTYPE=msvc COV_PLATFORM=win64"
@@ -196,6 +198,6 @@ script:
   - cmake --build . --config ${BUILD_TYPE}
   - cd "${TRAVIS_BUILD_DIR}/build"
 
-#after_success:
-#  - *submit_to_coverity_scan
+after_success:
+  - *submit_to_coverity_scan
 
