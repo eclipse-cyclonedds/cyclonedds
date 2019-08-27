@@ -176,11 +176,6 @@ void dds_entity_register_child (dds_entity *parent, dds_entity *child)
   ddsrt_avl_insert (&dds_entity_children_td, &parent->m_children, child);
 }
 
-dds_return_t dds_delete (dds_entity_t entity)
-{
-  return dds_delete_impl (entity, false);
-}
-
 static dds_entity *next_non_topic_child (ddsrt_avl_tree_t *remaining_children)
 {
   ddsrt_avl_iter_t it;
@@ -192,24 +187,31 @@ static dds_entity *next_non_topic_child (ddsrt_avl_tree_t *remaining_children)
   return NULL;
 }
 
-dds_return_t dds_delete_impl (dds_entity_t entity, bool keep_if_explicit)
+static dds_return_t dds_delete_impl (dds_entity_t entity, bool deleting_parent);
+static dds_return_t dds_delete_impl_pinned_and_locked (dds_entity *e, bool deleting_parent);
+
+dds_return_t dds_delete (dds_entity_t entity)
 {
-  dds_time_t timeout = DDS_SECS(10);
+  return dds_delete_impl (entity, false);
+}
+
+static dds_return_t dds_delete_impl (dds_entity_t entity, bool deleting_parent)
+{
   dds_entity *e;
-  dds_entity *child;
-  dds_return_t ret;
   dds_return_t rc;
 
   if ((rc = dds_entity_pin (entity, &e)) < 0)
     return rc;
 
   ddsrt_mutex_lock (&e->m_mutex);
-  if (keep_if_explicit == true && (e->m_flags & DDS_ENTITY_IMPLICIT) == 0)
-  {
-    ddsrt_mutex_unlock (&e->m_mutex);
-    dds_entity_unpin (e);
-    return DDS_RETCODE_OK;
-  }
+  return dds_delete_impl_pinned_and_locked (e, deleting_parent);
+}
+
+static dds_return_t dds_delete_impl_pinned_and_locked (dds_entity *e, bool deleting_parent)
+{
+  dds_time_t timeout = DDS_SECS (10);
+  dds_entity *child;
+  dds_return_t ret;
 
   if (! dds_handle_drop_ref (&e->m_hdllink))
   {
@@ -254,7 +256,7 @@ dds_return_t dds_delete_impl (dds_entity_t entity, bool keep_if_explicit)
   {
     dds_entity_t child_handle = child->m_hdllink.hdl;
     ddsrt_mutex_unlock (&e->m_mutex);
-    ret = dds_delete (child_handle);
+    ret = dds_delete_impl (child_handle, true);
     ddsrt_mutex_lock (&e->m_mutex);
   }
   while ((child = ddsrt_avl_find_min (&dds_entity_children_td, &e->m_children)) != NULL && ret == DDS_RETCODE_OK)
@@ -262,53 +264,73 @@ dds_return_t dds_delete_impl (dds_entity_t entity, bool keep_if_explicit)
     assert (dds_entity_kind (child) == DDS_KIND_TOPIC);
     dds_entity_t child_handle = child->m_hdllink.hdl;
     ddsrt_mutex_unlock (&e->m_mutex);
-    ret = dds_delete (child_handle);
+    ret = dds_delete_impl (child_handle, true);
     ddsrt_mutex_lock (&e->m_mutex);
   }
   ddsrt_mutex_unlock (&e->m_mutex);
   if (ret == DDS_RETCODE_OK)
     ret = dds_entity_deriver_close (e);
-
   dds_entity_unpin (e);
-  if (ret == DDS_RETCODE_OK)
-  {
-    /* The dds_handle_delete will wait until the last active claim on that handle
-     * is released. It is possible that this last release will be done by a thread
-     * that was kicked during the close(). */
-    if ((ret = dds_handle_delete (&e->m_hdllink, timeout)) != DDS_RETCODE_OK)
-      return ret;
-  }
 
-  if (ret == DDS_RETCODE_OK)
-  {
-    /* Remove all possible observers. */
-    dds_entity_observers_delete (e);
+  /* FIXME: deleting shouldn't fail, and bailing out halfway through deleting is also bad */
+  if (ret != DDS_RETCODE_OK)
+    return ret;
 
-    /* Remove from parent */
-    dds_entity *parent;
-    if ((parent = dds__nonself_parent(e)) != NULL)
+  /* The dds_handle_delete will wait until the last active claim on that handle
+     is released. It is possible that this last release will be done by a thread
+     that was kicked during the close(). */
+  if ((ret = dds_handle_delete (&e->m_hdllink, timeout)) != DDS_RETCODE_OK)
+    return ret;
+
+  /* Remove all possible observers. */
+  dds_entity_observers_delete (e);
+
+  /* Remove from parent; schedule deletion if it was created implicitly and no longer
+     has any remaining children */
+  dds_entity *parent_to_delete = NULL;
+  {
+    dds_entity * const parent = dds__nonself_parent (e);
+    if (parent != NULL)
     {
       ddsrt_mutex_lock (&parent->m_mutex);
       assert (ddsrt_avl_lookup (&dds_entity_children_td, &parent->m_children, &e->m_iid) != NULL);
       ddsrt_avl_delete (&dds_entity_children_td, &parent->m_children, e);
-      ddsrt_mutex_unlock (&parent->m_mutex);
+      if (!deleting_parent && ddsrt_avl_is_empty (&parent->m_children) && (parent->m_flags & DDS_ENTITY_IMPLICIT))
+      {
+        /* another thread might be attempting to delete the parent already, so an
+           error return is acceptable */
+        if (dds_entity_pin (parent->m_hdllink.hdl, &parent_to_delete) < 0)
+          parent_to_delete = NULL;
+        else
+          assert (parent == parent_to_delete);
+      }
+      if (parent_to_delete == NULL)
+      {
+        /* 'Tis admittedly ugly to unlock the parent only if we're not going to delete it
+           but the advantage of keeping it pinned & locked is that no-one else can delete
+           it or use it until we do; and deferring it means we can do tail recursion (which
+           might not be worth the bother ...) */
+        ddsrt_mutex_unlock (&parent->m_mutex);
+      }
     }
-
-    /* Do some specific deletion when needed. */
-    ret = dds_entity_deriver_delete (e);
   }
 
-  if (ret == DDS_RETCODE_OK)
+  /* Do some specific deletion when needed. */
+  if ((ret = dds_entity_deriver_delete (e)) != DDS_RETCODE_OK)
   {
-    dds_delete_qos (e->m_qos);
-    ddsrt_cond_destroy (&e->m_cond);
-    ddsrt_cond_destroy (&e->m_observers_cond);
-    ddsrt_mutex_destroy (&e->m_mutex);
-    ddsrt_mutex_destroy (&e->m_observers_lock);
-    dds_free (e);
+    if (parent_to_delete != NULL)
+      ddsrt_mutex_unlock (&parent_to_delete->m_mutex);
+    return ret;
   }
 
-  return ret;
+  dds_delete_qos (e->m_qos);
+  ddsrt_cond_destroy (&e->m_cond);
+  ddsrt_cond_destroy (&e->m_observers_cond);
+  ddsrt_mutex_destroy (&e->m_mutex);
+  ddsrt_mutex_destroy (&e->m_observers_lock);
+  dds_free (e);
+
+  return (parent_to_delete != NULL) ? dds_delete_impl_pinned_and_locked (parent_to_delete, false) : ret;
 }
 
 dds_entity_t dds_get_parent (dds_entity_t entity)

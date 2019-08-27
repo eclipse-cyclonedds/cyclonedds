@@ -190,12 +190,7 @@ static dds_return_t dds_writer_delete (dds_entity *e)
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   nn_xpack_free (wr->m_xp);
   thread_state_asleep (lookup_thread_state ());
-  if ((ret = dds_delete (wr->m_topic->m_entity.m_hdllink.hdl)) == DDS_RETCODE_OK)
-  {
-    ret = dds_delete_impl (e->m_parent->m_hdllink.hdl, true);
-    if (ret == DDS_RETCODE_BAD_PARAMETER)
-      ret = DDS_RETCODE_OK;
-  }
+  ret = dds_delete (wr->m_topic->m_entity.m_hdllink.hdl);
   return ret;
 }
 
