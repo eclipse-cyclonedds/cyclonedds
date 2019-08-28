@@ -78,6 +78,9 @@ DDS_EXPORT void dds_entity_status_signal (dds_entity *e, uint32_t status);
 
 DDS_EXPORT void dds_entity_invoke_listener (const dds_entity *entity, enum dds_status_id which, const void *vst);
 
+DDS_EXPORT dds_participant *dds_entity_participant (dds_entity *e);
+DDS_EXPORT void dds_entity_final_deinit_before_free (dds_entity *e);
+
 DDS_EXPORT dds_return_t
 dds_entity_pin (
   dds_entity_t hdl,
@@ -106,10 +109,6 @@ DDS_EXPORT dds_return_t
 dds_entity_observer_unregister(
   dds_entity *observed,
   dds_entity *observer);
-
-DDS_EXPORT dds_domain *
-dds__entity_domain(
-  dds_entity* e);
 
 DDS_EXPORT dds_return_t
 dds_generic_unimplemented_operation_manykinds(

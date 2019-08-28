@@ -131,7 +131,7 @@ static bool dds_find_topic_check_and_add_ref (dds_entity_t participant, dds_enti
     return false;
 
   bool ret;
-  if (tp->m_entity.m_participant->m_hdllink.hdl != participant || strcmp (tp->m_stopic->name, name) != 0)
+  if (dds_entity_participant (&tp->m_entity)->m_entity.m_hdllink.hdl != participant || strcmp (tp->m_stopic->name, name) != 0)
     ret = false;
   else
   {
@@ -251,7 +251,7 @@ static dds_return_t create_topic_topic_arbirary_check_sertopic (dds_entity_t par
   if (dds_topic_lock (topic, &tp) < 0)
     return DDS_RETCODE_NOT_FOUND;
 
-  if (tp->m_entity.m_participant->m_hdllink.hdl != participant)
+  if (dds_entity_participant (&tp->m_entity)->m_entity.m_hdllink.hdl != participant)
     ret = DDS_RETCODE_NOT_FOUND;
   else if (!sertopic_equivalent (tp->m_stopic, sertopic))
     ret = DDS_RETCODE_PRECONDITION_NOT_MET;
@@ -296,6 +296,14 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
      existing topic's compatibility */
   if ((rc = dds_entity_pin (participant, &par_ent)) < 0)
     return rc;
+  /* Verify that we've been given a participant, not strictly necessary
+     because dds_participant_lock below checks it, but this is more
+     obvious */
+  if (dds_entity_kind (par_ent) != DDS_KIND_PARTICIPANT)
+  {
+    dds_entity_unpin (par_ent);
+    return DDS_RETCODE_ILLEGAL_OPERATION;
+  }
 
   new_qos = dds_create_qos ();
   if (qos)

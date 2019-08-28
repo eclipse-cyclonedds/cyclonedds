@@ -66,6 +66,9 @@ struct ddsi_serdata;
 #define DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 4))
 /** @}*/
 
+/** Special handle representing the entity corresponding to the CycloneDDS library itself */
+#define DDS_CYCLONEDDS_HANDLE              ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 256))
+
 /** @name Communication Status definitions
   @{**/
 typedef enum dds_status_id {
@@ -860,7 +863,8 @@ dds_get_children(dds_entity_t entity, dds_entity_t *children, size_t size);
  * DataReaders), etc are also attached to that domain.
  *
  * This function will return the original domain ID when called on
- * any of the entities within that hierarchy.
+ * any of the entities within that hierarchy.  For entities not associated
+ * with a domain, the id is set to DDS_DOMAIN_DEFAULT.
  *
  * @param[in]  entity   Entity from which to get its children.
  * @param[out] id       Pointer to put the domain ID in.

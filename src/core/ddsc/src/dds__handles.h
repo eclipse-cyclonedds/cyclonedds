@@ -113,6 +113,14 @@ dds_handle_create(
 
 
 /*
+ * Register a specific handle.
+ */
+DDS_EXPORT dds_return_t
+dds_handle_register_special (
+        struct dds_handle_link *link, dds_handle_t handle);
+
+
+/*
  * This will close the handle. All information remains, only new claims will
  * fail.
  *

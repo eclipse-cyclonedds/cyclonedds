@@ -93,28 +93,9 @@ struct dds_listener {
 #define DDS_ENTITY_ENABLED      0x0001u
 #define DDS_ENTITY_IMPLICIT     0x0002u
 
-typedef struct dds_domain {
-  /* FIXME: protected by dds_global.lock -- for now */
-  ddsrt_avl_node_t m_node;
-  dds_domainid_t m_id;
-  ddsrt_avl_tree_t m_topics;
-  ddsrt_avl_tree_t m_ppants;
-  uint32_t m_refc;
-  struct cfgst *cfgst;
-
-  struct ddsi_sertopic *builtin_participant_topic;
-  struct ddsi_sertopic *builtin_reader_topic;
-  struct ddsi_sertopic *builtin_writer_topic;
-
-  struct local_orphan_writer *builtintopic_writer_participant;
-  struct local_orphan_writer *builtintopic_writer_publications;
-  struct local_orphan_writer *builtintopic_writer_subscriptions;
-
-  struct ddsi_builtin_topic_interface btif;
-  struct q_globals gv;
-} dds_domain;
-
+struct dds_domain;
 struct dds_entity;
+
 typedef struct dds_entity_deriver {
   /* Close can be used to terminate (blocking) actions on a entity before actually deleting it. */
   dds_return_t (*close)(struct dds_entity *e) ddsrt_nonnull_all;
@@ -141,7 +122,6 @@ typedef struct dds_entity {
   struct dds_entity *m_parent;      /* constant */
   ddsrt_avl_node_t m_avlnode_child; /* [m_mutex of m_parent] */
   ddsrt_avl_tree_t m_children;      /* [m_mutex] tree on m_iid using m_avlnode_child */
-  struct dds_entity *m_participant; /* constant */
   struct dds_domain *m_domain;      /* constant */
   dds_qos_t *m_qos;                 /* [m_mutex] */
   nn_guid_t m_guid;                 /* unique (if not 0) and constant; FIXME: set during creation, but possibly after becoming visible */
@@ -182,13 +162,14 @@ extern const struct dds_entity_deriver dds_entity_deriver_publisher;
 extern const struct dds_entity_deriver dds_entity_deriver_readcondition;
 extern const struct dds_entity_deriver dds_entity_deriver_guardcondition;
 extern const struct dds_entity_deriver dds_entity_deriver_waitset;
+extern const struct dds_entity_deriver dds_entity_deriver_domain;
+extern const struct dds_entity_deriver dds_entity_deriver_cyclonedds;
 extern const struct dds_entity_deriver *dds_entity_deriver_table[];
 
 dds_return_t dds_entity_deriver_dummy_close (struct dds_entity *e);
 dds_return_t dds_entity_deriver_dummy_delete (struct dds_entity *e);
 dds_return_t dds_entity_deriver_dummy_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled);
 dds_return_t dds_entity_deriver_dummy_validate_status (uint32_t mask);
-
 
 inline dds_return_t dds_entity_deriver_close (struct dds_entity *e) {
   return (dds_entity_deriver_table[e->m_kind]->close) (e);
@@ -208,6 +189,36 @@ inline bool dds_entity_supports_set_qos (struct dds_entity *e) {
 inline bool dds_entity_supports_validate_status (struct dds_entity *e) {
   return dds_entity_deriver_table[e->m_kind]->validate_status != dds_entity_deriver_dummy_validate_status;
 }
+
+typedef struct dds_cyclonedds_entity {
+  struct dds_entity m_entity;
+
+  ddsrt_mutex_t m_mutex;
+  ddsrt_cond_t m_cond;
+  ddsrt_avl_tree_t m_domains;
+  uint32_t threadmon_count;
+  struct ddsi_threadmon *threadmon;
+} dds_cyclonedds_entity;
+
+typedef struct dds_domain {
+  struct dds_entity m_entity;
+
+  ddsrt_avl_node_t m_node; /* for dds_global.m_domains */
+  dds_domainid_t m_id;
+  ddsrt_avl_tree_t m_topics;
+  struct cfgst *cfgst;
+
+  struct ddsi_sertopic *builtin_participant_topic;
+  struct ddsi_sertopic *builtin_reader_topic;
+  struct ddsi_sertopic *builtin_writer_topic;
+
+  struct local_orphan_writer *builtintopic_writer_participant;
+  struct local_orphan_writer *builtintopic_writer_publications;
+  struct local_orphan_writer *builtintopic_writer_subscriptions;
+
+  struct ddsi_builtin_topic_interface btif;
+  struct q_globals gv;
+} dds_domain;
 
 typedef struct dds_subscriber {
   struct dds_entity m_entity;
@@ -309,17 +320,7 @@ typedef struct dds_waitset {
   dds_attachment *entities; /* [m_entity.m_mutex] 0 .. ntriggered are triggred, ntriggred .. nentities are not */
 } dds_waitset;
 
-/* Globals */
-
-typedef struct dds_globals {
-  int32_t m_init_count;
-  ddsrt_avl_tree_t m_domains;
-  ddsrt_mutex_t m_mutex;
-  uint32_t threadmon_count;
-  struct ddsi_threadmon *threadmon;
-} dds_globals;
-
-DDS_EXPORT extern dds_globals dds_global;
+DDS_EXPORT extern dds_cyclonedds_entity dds_global;
 
 #if defined (__cplusplus)
 }

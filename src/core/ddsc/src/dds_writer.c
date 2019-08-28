@@ -246,6 +246,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   dds_writer *wr;
   dds_entity_t writer;
   dds_publisher *pub = NULL;
+  dds_participant *pp;
   dds_topic *tp;
   dds_entity_t publisher;
 
@@ -254,7 +255,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     if ((rc = dds_entity_pin (participant_or_publisher, &p_or_p)) != DDS_RETCODE_OK)
       return rc;
     if (dds_entity_kind (p_or_p) == DDS_KIND_PARTICIPANT)
-      publisher = dds_create_publisher(participant_or_publisher, qos, NULL);
+      publisher = dds_create_publisher (participant_or_publisher, qos, NULL);
     else
       publisher = participant_or_publisher;
     dds_entity_unpin (p_or_p);
@@ -271,7 +272,8 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     goto err_tp_lock;
   assert (tp->m_stopic);
 
-  if (pub->m_entity.m_participant != tp->m_entity.m_participant)
+  pp = dds_entity_participant (&pub->m_entity);
+  if (pp != dds_entity_participant (&tp->m_entity))
   {
     rc = DDS_RETCODE_BAD_PARAMETER;
     goto err_pp_mismatch;
@@ -311,7 +313,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   ddsrt_mutex_unlock (&pub->m_entity.m_mutex);
 
   thread_state_awake (lookup_thread_state (), &pub->m_entity.m_domain->gv);
-  rc = new_writer (&wr->m_wr, &wr->m_entity.m_domain->gv, &wr->m_entity.m_guid, NULL, &pub->m_entity.m_participant->m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
+  rc = new_writer (&wr->m_wr, &wr->m_entity.m_domain->gv, &wr->m_entity.m_guid, NULL, &pp->m_entity.m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
   ddsrt_mutex_lock (&pub->m_entity.m_mutex);
   ddsrt_mutex_lock (&tp->m_entity.m_mutex);
   assert(rc == DDS_RETCODE_OK);
@@ -329,9 +331,8 @@ err_pp_mismatch:
   dds_topic_unlock (tp);
 err_tp_lock:
   dds_publisher_unlock (pub);
-  if ((pub->m_entity.m_flags & DDS_ENTITY_IMPLICIT) != 0){
-    (void )dds_delete (publisher);
-  }
+  if ((pub->m_entity.m_flags & DDS_ENTITY_IMPLICIT) != 0)
+    (void) dds_delete (publisher);
   return rc;
 }
 
