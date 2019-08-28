@@ -31,6 +31,7 @@ set(ddsc_test_sources
     "publisher.c"
     "qos.c"
     "querycondition.c"
+    "guardcondition.c"
     "readcondition.c"
     "reader.c"
     "reader_iterator.c"

@@ -17,6 +17,7 @@
 #include "dds__participant.h"
 #include "dds__querycond.h"
 #include "dds__readcond.h"
+#include "dds__init.h"
 #include "dds__rhc.h"
 #include "dds/ddsi/ddsi_iid.h"
 
@@ -112,24 +113,48 @@ const struct dds_entity_deriver dds_entity_deriver_waitset = {
   .validate_status = dds_entity_deriver_dummy_validate_status
 };
 
-dds_entity_t dds_create_waitset (dds_entity_t participant)
+dds_entity_t dds_create_waitset (dds_entity_t owner)
 {
-  dds_entity_t hdl;
-  dds_participant *par;
+  dds_entity *e;
   dds_return_t rc;
 
-  if ((rc = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
+  /* If the owner is any ordinary (allowed) entity, the library is already initialised and calling
+     init here is cheap.  If it is DDS_CYCLONEDDS_HANDLE, we may have to initialise the library, so
+     have to call it.  If it is some bogus value and the library is not initialised yet ... so be
+     it.  Naturally, this requires us to call delete on DDS_CYCLONEDDS_HANDLE afterward. */
+  if ((rc = dds_init ()) < 0)
     return rc;
 
+  if ((rc = dds_entity_lock (owner, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+    goto err_entity_lock;
+
+  switch (dds_entity_kind (e))
+  {
+    case DDS_KIND_CYCLONEDDS:
+    case DDS_KIND_DOMAIN:
+    case DDS_KIND_PARTICIPANT:
+      break;
+    default:
+      rc = DDS_RETCODE_ILLEGAL_OPERATION;
+      goto err_entity_kind;
+  }
+
   dds_waitset *waitset = dds_alloc (sizeof (*waitset));
-  hdl = dds_entity_init (&waitset->m_entity, &par->m_entity, DDS_KIND_WAITSET, NULL, NULL, 0);
+  dds_entity_t hdl = dds_entity_init (&waitset->m_entity, e, DDS_KIND_WAITSET, NULL, NULL, 0);
   waitset->m_entity.m_iid = ddsi_iid_gen ();
-  dds_entity_register_child (&par->m_entity, &waitset->m_entity);
+  dds_entity_register_child (e, &waitset->m_entity);
   waitset->nentities = 0;
   waitset->ntriggered = 0;
   waitset->entities = NULL;
-  dds_participant_unlock (par);
+  dds_entity_unlock (e);
+  dds_delete (DDS_CYCLONEDDS_HANDLE);
   return hdl;
+
+ err_entity_kind:
+  dds_entity_unlock (e);
+ err_entity_lock:
+  dds_delete (DDS_CYCLONEDDS_HANDLE);
+  return rc;
 }
 
 dds_return_t dds_waitset_get_entities (dds_entity_t waitset, dds_entity_t *entities, size_t size)
