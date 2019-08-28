@@ -22,6 +22,7 @@
 #include "dds__participant.h"
 #include "dds__types.h"
 #include "dds__builtin.h"
+#include "dds__entity.h"
 #include "dds__subscriber.h"
 #include "dds__write.h"
 #include "dds__writer.h"
@@ -46,9 +47,15 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
   dds_entity_t tp;
   dds_return_t rc;
   dds_entity *e;
+  dds_participant *par;
 
   if ((rc = dds_entity_pin (entity, &e)) < 0)
     return rc;
+  if ((par = dds_entity_participant (e)) == NULL)
+  {
+    dds_entity_unpin (e);
+    return DDS_RETCODE_ILLEGAL_OPERATION;
+  }
 
   struct ddsi_sertopic *sertopic;
   switch (topic)
@@ -69,7 +76,7 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
   }
 
   dds_qos_t *qos = dds__create_builtin_qos ();
-  tp = dds_create_topic_arbitrary (e->m_participant->m_hdllink.hdl, sertopic, qos, NULL, NULL);
+  tp = dds_create_topic_arbitrary (par->m_entity.m_hdllink.hdl, sertopic, qos, NULL, NULL);
   dds_delete_qos (qos);
   dds_entity_unpin (e);
   return tp;

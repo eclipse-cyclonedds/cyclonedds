@@ -100,6 +100,13 @@ void dds_handle_server_fini (void)
 #else /* USE_CHH */
 #ifndef NDEBUG
   struct ddsrt_hh_iter it;
+  for (struct dds_handle_link *link = ddsrt_hh_iter_first (handles.ht, &it); link != NULL; link = ddsrt_hh_iter_next (&it))
+  {
+    uint32_t cf = ddsrt_atomic_ld32 (&link->cnt_flags);
+    DDS_ERROR ("handle %"PRId32" pin %"PRIu32" ref %"PRIu32" %s\n", link->hdl,
+               cf & HDL_PINCOUNT_MASK, (cf & HDL_REFCOUNT_MASK) >> HDL_REFCOUNT_SHIFT,
+               cf & HDL_FLAG_CLOSED ? "closed" : "open");
+  }
   assert (ddsrt_hh_iter_first (handles.ht, &it) == NULL);
 #endif
   ddsrt_hh_free (handles.ht);
@@ -148,6 +155,50 @@ dds_handle_t dds_handle_create (struct dds_handle_link *link)
     ret = dds_handle_create_int (link);
 #else
     ret = dds_handle_create_int (link);
+    ddsrt_mutex_unlock (&handles.lock);
+#endif
+    assert (ret > 0);
+  }
+#if USE_CHH
+  thread_state_asleep (ts1);
+#endif
+  return ret;
+}
+
+dds_return_t dds_handle_register_special (struct dds_handle_link *link, dds_handle_t handle)
+{
+#if USE_CHH
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+#endif
+  dds_return_t ret;
+  if (handle <= 0)
+    return DDS_RETCODE_BAD_PARAMETER;
+#if USE_CHH
+  thread_state_awake (ts1);
+#endif
+  ddsrt_mutex_lock (&handles.lock);
+  if (handles.count == MAX_HANDLES)
+  {
+    ddsrt_mutex_unlock (&handles.lock);
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
+  }
+  else
+  {
+    handles.count++;
+    ddsrt_atomic_st32 (&link->cnt_flags, HDL_REFCOUNT_UNIT);
+    link->hdl = handle;
+#if USE_CHH
+    ddsrt_mutex_unlock (&handles.lock);
+    if (hhadd (handles.ht, link))
+      ret = handle;
+    else
+      ret = DDS_RETCODE_BAD_PARAMETER;
+    return link->hdl;
+#else
+    if (hhadd (handles.ht, link))
+      ret = handle;
+    else
+      ret = DDS_RETCODE_BAD_PARAMETER;
     ddsrt_mutex_unlock (&handles.lock);
 #endif
     assert (ret > 0);

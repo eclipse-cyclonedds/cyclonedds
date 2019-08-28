@@ -288,6 +288,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
 {
   dds_qos_t *rqos;
   dds_subscriber *sub = NULL;
+  dds_participant *pp;
   dds_entity_t subscriber;
   dds_reader *rd;
   dds_topic *tp;
@@ -340,7 +341,8 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
     goto err_tp_lock;
   }
   assert (tp->m_stopic);
-  if (sub->m_entity.m_participant != tp->m_entity.m_participant)
+  pp = dds_entity_participant (&sub->m_entity);
+  if (pp != dds_entity_participant (&tp->m_entity))
   {
     reader = DDS_RETCODE_BAD_PARAMETER;
     goto err_pp_mismatch;
@@ -390,7 +392,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   ddsrt_mutex_unlock (&sub->m_entity.m_mutex);
 
   thread_state_awake (lookup_thread_state (), &sub->m_entity.m_domain->gv);
-  ret = new_reader (&rd->m_rd, &rd->m_entity.m_domain->gv, &rd->m_entity.m_guid, NULL, &sub->m_entity.m_participant->m_guid, tp->m_stopic, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
+  ret = new_reader (&rd->m_rd, &rd->m_entity.m_domain->gv, &rd->m_entity.m_guid, NULL, &pp->m_entity.m_guid, tp->m_stopic, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   ddsrt_mutex_lock (&sub->m_entity.m_mutex);
   ddsrt_mutex_lock (&tp->m_entity.m_mutex);
   assert (ret == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */

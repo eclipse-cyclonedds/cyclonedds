@@ -19,7 +19,6 @@ extern "C" {
 #endif
 
 DDS_EXPORT dds_return_t dds_domain_create (dds_domain **domain_out, dds_domainid_t id);
-DDS_EXPORT void dds_domain_free (dds_domain *domain);
 DDS_EXPORT dds_domain *dds_domain_find_locked (dds_domainid_t id);
 
 #if defined (__cplusplus)
