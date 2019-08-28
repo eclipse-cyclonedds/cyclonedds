@@ -256,6 +256,39 @@ CU_Theory((dds_entity_t *par), ddsc_waitset_create, non_participants, .init=ddsc
 }
 /*************************************************************************************************/
 
+/*************************************************************************************************/
+CU_Test (ddsc_waitset_create, domain)
+{
+    dds_entity_t par, dom, ws;
+    dds_return_t rc;
+    par = dds_create_participant (0, NULL, NULL);
+    CU_ASSERT_FATAL (par > 0);
+    dom = dds_get_parent (par);
+    CU_ASSERT_FATAL (dom > 0);
+    ws = dds_create_waitset (dom);
+    CU_ASSERT_FATAL (ws > 0);
+    rc = dds_delete (dom);
+    CU_ASSERT_FATAL (rc == 0);
+}
+/*************************************************************************************************/
+
+/*************************************************************************************************/
+CU_Test (ddsc_waitset_create, cyclonedds)
+{
+    dds_entity_t ws;
+    dds_return_t rc;
+    /* Expect an uninitialised library */
+    rc = dds_get_parent (DDS_CYCLONEDDS_HANDLE);
+    CU_ASSERT_FATAL (rc == DDS_RETCODE_PRECONDITION_NOT_MET);
+    ws = dds_create_waitset (DDS_CYCLONEDDS_HANDLE);
+    CU_ASSERT_FATAL (ws > 0);
+    rc = dds_delete (DDS_CYCLONEDDS_HANDLE);
+    CU_ASSERT_FATAL (rc == 0);
+    /* And the same afterward */
+    rc = dds_get_parent (DDS_CYCLONEDDS_HANDLE);
+    CU_ASSERT_FATAL (rc == DDS_RETCODE_PRECONDITION_NOT_MET);
+}
+/*************************************************************************************************/
 
 
 /**************************************************************************************************
