@@ -247,6 +247,16 @@ dds_return_t dds_waitset_attach (dds_entity_t waitset, dds_entity_t entity, dds_
   else if ((ret = dds_entity_pin (entity, &e)) < 0)
     goto err_waitset;
 
+  /* Entity must be "in scope": within the participant, domain or (self-evidently true) Cyclone DDS,
+     depending on the parent of the waitset, so that one can't use a waitset created in participant
+     A to wait for entities in participant B, &c.  While there is no technical obstacle (though
+     there might be one for cross-domain use one day), it seems rather unhygienic practice. */
+  if (!dds_entity_in_scope (e, ws->m_entity.m_parent))
+  {
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto err_entity;
+  }
+
   /* This will fail if given entity is already attached (or deleted). */
   if ((ret = dds_entity_observer_register (e, &ws->m_entity, dds_waitset_observer, dds_waitset_delete_observer)) != DDS_RETCODE_OK)
     goto err_entity;
