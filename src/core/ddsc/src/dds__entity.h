@@ -80,6 +80,7 @@ DDS_EXPORT void dds_entity_invoke_listener (const dds_entity *entity, enum dds_s
 
 DDS_EXPORT dds_participant *dds_entity_participant (dds_entity *e);
 DDS_EXPORT void dds_entity_final_deinit_before_free (dds_entity *e);
+DDS_EXPORT bool dds_entity_in_scope (const dds_entity *e, const dds_entity *root);
 
 DDS_EXPORT dds_return_t
 dds_entity_pin (

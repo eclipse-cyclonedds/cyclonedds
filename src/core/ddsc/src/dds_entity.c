@@ -398,6 +398,14 @@ static dds_return_t dds_delete_impl (dds_entity_t entity, enum delete_impl_state
   return (parent_handle != 0) ? dds_delete_impl (parent_handle, DIS_IMPLICIT, parent_iid) : DDS_RETCODE_OK;
 }
 
+bool dds_entity_in_scope (const dds_entity *e, const dds_entity *root)
+{
+  /* An entity is not an ancestor of itself */
+  while (e != NULL && e != root)
+    e = e->m_parent;
+  return (e != NULL);
+}
+
 dds_entity_t dds_get_parent (dds_entity_t entity)
 {
   dds_entity *e;
