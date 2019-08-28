@@ -102,17 +102,25 @@ void thread_states_init (unsigned maxthreads)
 
 void thread_states_fini (void)
 {
+  /* Some applications threads that, at some point, required a thread state, may still be around.
+     Of those, the cleanup routine is invoked when the thread terminates.  This should be rewritten
+     to not rely on this global thing and with each thread owning its own bit state, e.g., linked
+     together in a list to give the GC access to it.  Until then, we can't release these resources
+     if there are still users. */
+  uint32_t others = 0;
+  ddsrt_mutex_lock (&thread_states.lock);
   for (uint32_t i = 0; i < thread_states.nthreads; i++)
+  {
     assert (thread_states.ts[i].state != THREAD_STATE_ALIVE);
-  ddsrt_mutex_destroy (&thread_states.lock);
-  ddsrt_free_aligned (thread_states.ts);
-
-  /* All spawned threads are gone, but the main thread is still alive,
-     downgraded to an ordinary thread (we're on it right now). We
-     don't want to lose the ability to log messages, so set ts to a
-     NULL pointer and rely on lookup_thread_state()'s checks
-     thread_states.ts. */
-  thread_states.ts = NULL;
+    others += (thread_states.ts[i].state == THREAD_STATE_LAZILY_CREATED);
+  }
+  ddsrt_mutex_unlock (&thread_states.lock);
+  if (others == 0)
+  {
+    ddsrt_mutex_destroy (&thread_states.lock);
+    ddsrt_free_aligned (thread_states.ts);
+    thread_states.ts = NULL;
+  }
 }
 
 ddsrt_attribute_no_sanitize (("thread"))
@@ -121,7 +129,7 @@ static struct thread_state1 *find_thread_state (ddsrt_thread_t tid)
   if (thread_states.ts) {
     for (uint32_t i = 0; i < thread_states.nthreads; i++)
     {
-      if (ddsrt_thread_equal (thread_states.ts[i].tid, tid))
+      if (ddsrt_thread_equal (thread_states.ts[i].tid, tid) && thread_states.ts[i].state != THREAD_STATE_ZERO)
         return &thread_states.ts[i];
     }
   }
