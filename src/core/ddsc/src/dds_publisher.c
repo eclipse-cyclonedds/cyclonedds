@@ -52,7 +52,7 @@ dds_entity_t dds_create_publisher (dds_entity_t participant, const dds_qos_t *qo
   dds_qos_t *new_qos;
   dds_return_t ret;
 
-  if ((ret = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
+  if ((ret = dds_participant_lock_for_create (participant, &par)) != DDS_RETCODE_OK)
     return ret;
 
   new_qos = dds_create_qos ();

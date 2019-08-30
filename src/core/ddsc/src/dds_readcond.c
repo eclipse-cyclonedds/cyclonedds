@@ -64,7 +64,7 @@ dds_entity_t dds_create_readcondition (dds_entity_t reader, uint32_t mask)
 {
   dds_reader *rd;
   dds_return_t rc;
-  if ((rc = dds_reader_lock (reader, &rd)) != DDS_RETCODE_OK)
+  if ((rc = dds_reader_lock_for_create (reader, &rd)) != DDS_RETCODE_OK)
     return rc;
   else
   {

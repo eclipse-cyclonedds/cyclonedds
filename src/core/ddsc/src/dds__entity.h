@@ -36,7 +36,7 @@ dds_entity_register_child (
 DDS_EXPORT void
 dds_entity_add_ref_locked(dds_entity *e);
 
-#define DEFINE_ENTITY_LOCK_UNLOCK(qualifier_, type_, kind_) \
+#define DEFINE_ENTITY_LOCK_UNLOCK_ONLY(qualifier_, type_, kind_) \
   qualifier_ dds_return_t type_##_lock (dds_entity_t hdl, type_ **x) \
   { \
     dds_return_t rc; \
@@ -46,14 +46,28 @@ dds_entity_add_ref_locked(dds_entity *e);
     *x = (type_ *) e; \
     return DDS_RETCODE_OK; \
   } \
-  \
   qualifier_ void type_##_unlock (type_ *x) \
   { \
     dds_entity_unlock (&x->m_entity); \
   }
-#define DECL_ENTITY_LOCK_UNLOCK(qualifier_, type_) \
+#define DECL_ENTITY_LOCK_UNLOCK_ONLY(qualifier_, type_) \
   qualifier_ dds_return_t type_##_lock (dds_entity_t hdl, type_ **x); \
   qualifier_ void type_##_unlock (type_ *x);
+
+#define DEFINE_ENTITY_LOCK_UNLOCK(qualifier_, type_, kind_) \
+  DEFINE_ENTITY_LOCK_UNLOCK_ONLY (qualifier_, type_, kind_) \
+  qualifier_ dds_return_t type_##_lock_for_create (dds_entity_t hdl, type_ **x) \
+  { \
+    dds_return_t rc; \
+    dds_entity *e; \
+    if ((rc = dds_entity_lock_for_create (hdl, kind_, &e)) < 0) \
+      return rc; \
+    *x = (type_ *) e; \
+    return DDS_RETCODE_OK; \
+  }
+#define DECL_ENTITY_LOCK_UNLOCK(qualifier_, type_) \
+  DECL_ENTITY_LOCK_UNLOCK_ONLY (qualifier_, type_) \
+  qualifier_ dds_return_t type_##_lock_for_create (dds_entity_t hdl, type_ **x);
 
 DDS_EXPORT inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink) {
   return (dds_entity *) ((char *) hdllink - offsetof (struct dds_entity, m_hdllink));
@@ -92,6 +106,12 @@ DDS_EXPORT void dds_entity_unpin (
 
 DDS_EXPORT dds_return_t
 dds_entity_lock(
+  dds_entity_t hdl,
+  dds_entity_kind_t kind,
+  dds_entity **e);
+
+DDS_EXPORT dds_return_t
+dds_entity_lock_for_create(
   dds_entity_t hdl,
   dds_entity_kind_t kind,
   dds_entity **e);

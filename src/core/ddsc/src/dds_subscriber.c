@@ -74,7 +74,7 @@ dds_entity_t dds_create_subscriber (dds_entity_t participant, const dds_qos_t *q
   dds_participant *par;
   dds_entity_t hdl;
   dds_return_t ret;
-  if ((ret = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
+  if ((ret = dds_participant_lock_for_create (participant, &par)) != DDS_RETCODE_OK)
     return ret;
   hdl = dds__create_subscriber_l (par, qos, listener);
   dds_participant_unlock (par);

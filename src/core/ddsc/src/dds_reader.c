@@ -323,7 +323,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
     }
   }
 
-  if ((ret = dds_subscriber_lock (subscriber, &sub)) != DDS_RETCODE_OK)
+  if ((ret = dds_subscriber_lock_for_create (subscriber, &sub)) != DDS_RETCODE_OK)
   {
     reader = ret;
     goto err_sub_lock;
@@ -335,7 +335,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
     sub->m_entity.m_flags |= DDS_ENTITY_IMPLICIT;
   }
 
-  if ((ret = dds_topic_lock (t, &tp)) != DDS_RETCODE_OK)
+  if ((ret = dds_topic_lock_for_create (t, &tp)) != DDS_RETCODE_OK)
   {
     reader = ret;
     goto err_tp_lock;
@@ -397,7 +397,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   ddsrt_mutex_lock (&tp->m_entity.m_mutex);
   assert (ret == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
   thread_state_asleep (lookup_thread_state ());
-  
+
   rd->m_entity.m_iid = get_entity_instance_id (&rd->m_entity.m_domain->gv, &rd->m_entity.m_guid);
   dds_entity_register_child (&sub->m_entity, &rd->m_entity);
 

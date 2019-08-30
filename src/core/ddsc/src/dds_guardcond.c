@@ -41,7 +41,7 @@ dds_entity_t dds_create_guardcondition (dds_entity_t owner)
   if ((rc = dds_init ()) < 0)
     return rc;
 
-  if ((rc = dds_entity_lock (owner, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_lock_for_create (owner, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
     goto err_entity_lock;
 
   switch (dds_entity_kind (e))
