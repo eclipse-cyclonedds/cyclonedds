@@ -30,12 +30,24 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/threads_priv.h"
 #include "dds/ddsrt/types.h"
+#include "dds/ddsrt/static_assert.h"
+
+typedef struct {
+  char *name;
+  ddsrt_thread_routine_t routine;
+  void *arg;
+} thread_context_t;
 
 #if defined(__linux)
 #include <sys/syscall.h>
+#include <dirent.h>
 #define MAXTHREADNAMESIZE (15) /* 16 bytes including null-terminating byte. */
 #elif defined(__APPLE__)
+#include <mach/mach_init.h>
 #include <mach/thread_info.h> /* MAXTHREADNAMESIZE */
+#include <mach/task.h>
+#include <mach/task_info.h>
+#include <mach/vm_map.h>
 #elif defined(__sun)
 #define MAXTHREADNAMESIZE (31)
 #elif defined(__FreeBSD__)
@@ -74,7 +86,11 @@ ddsrt_thread_getname(char *str, size_t size)
   (void)pthread_get_name_np(pthread_self(), buf, sizeof(buf));
   cnt = ddsrt_strlcpy(str, buf, size);
 #elif defined(__sun)
+#if !(__SunOS_5_6 || __SunOS_5_7 || __SunOS_5_8 || __SunOS_5_9 || __SunOS_5_10)
   (void)pthread_getname_np(pthread_self(), buf, sizeof(buf));
+#else
+  buf[0] = 0;
+#endif
   cnt = ddsrt_strlcpy(str, buf, size);
 #elif defined(__VXWORKS__)
   {
@@ -119,7 +135,9 @@ ddsrt_thread_setname(const char *__restrict name)
 #elif defined(__sun)
   /* Thread names are limited to 31 bytes on Solaris. Excess bytes are
      silently truncated. */
+#if !(__SunOS_5_6 || __SunOS_5_7 || __SunOS_5_8 || __SunOS_5_9 || __SunOS_5_10)
   (void)pthread_setname_np(pthread_self(), name);
+#endif
 #else
   /* VxWorks does not support the task name to be set after a task is created.
      Setting the name of a task can be done through pthread_attr_setname. */
@@ -181,7 +199,7 @@ static void *os_startRoutineWrapper (void *threadContext)
   return (void *)resultValue;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_thread_create (
   ddsrt_thread_t *threadptr,
   const char *name,
@@ -340,7 +358,7 @@ bool ddsrt_thread_equal(ddsrt_thread_t a, ddsrt_thread_t b)
   return (pthread_equal(a.v, b.v) != 0);
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_thread_join(ddsrt_thread_t thread, uint32_t *thread_result)
 {
   int err;
@@ -351,7 +369,7 @@ ddsrt_thread_join(ddsrt_thread_t thread, uint32_t *thread_result)
 
   if ((err = pthread_join (thread.v, &vthread_result)) != 0)
   {
-    DDS_TRACE ("pthread_join(0x%"PRIxMAX") failed with error %d\n", (uintmax_t)((uintptr_t)thread.v), err);
+    DDS_ERROR ("pthread_join(0x%"PRIxMAX") failed with error %d\n", (uintmax_t)((uintptr_t)thread.v), err);
     return DDS_RETCODE_ERROR;
   }
 
@@ -359,6 +377,104 @@ ddsrt_thread_join(ddsrt_thread_t thread, uint32_t *thread_result)
     *thread_result = (uint32_t) ((uintptr_t) vthread_result);
   return DDS_RETCODE_OK;
 }
+
+#if defined __linux
+dds_return_t
+ddsrt_thread_list (
+  ddsrt_thread_list_id_t * __restrict tids,
+  size_t size)
+{
+  DIR *dir;
+  struct dirent *de;
+  if ((dir = opendir ("/proc/self/task")) == NULL)
+    return DDS_RETCODE_ERROR;
+  dds_return_t n = 0;
+  while ((de = readdir (dir)) != NULL)
+  {
+    if (de->d_name[0] == '.' && (de->d_name[1] == 0 || (de->d_name[1] == '.' && de->d_name[2] == 0)))
+      continue;
+    int pos;
+    long tid;
+    if (sscanf (de->d_name, "%ld%n", &tid, &pos) != 1 || de->d_name[pos] != 0)
+    {
+      n = DDS_RETCODE_ERROR;
+      break;
+    }
+    if ((size_t) n < size)
+      tids[n] = (ddsrt_thread_list_id_t) tid;
+    n++;
+  }
+  closedir (dir);
+  /* If there were no threads, something must've gone badly wrong */
+  return (n == 0) ? DDS_RETCODE_ERROR : n;
+}
+
+dds_return_t
+ddsrt_thread_getname_anythread (
+  ddsrt_thread_list_id_t tid,
+  char *__restrict name,
+  size_t size)
+{
+  char file[100];
+  FILE *fp;
+  int pos;
+  pos = snprintf (file, sizeof (file), "/proc/self/task/%lu/stat", (unsigned long) tid);
+  if (pos < 0 || pos >= (int) sizeof (file))
+    return DDS_RETCODE_ERROR;
+  if ((fp = fopen (file, "r")) == NULL)
+    return DDS_RETCODE_NOT_FOUND;
+  int c;
+  size_t namelen = 0, namepos = 0;
+  while ((c = fgetc (fp)) != EOF)
+    if (c == '(')
+      break;
+  while ((c = fgetc (fp)) != EOF)
+  {
+    if (c == ')')
+      namelen = namepos;
+    if (namepos + 1 < size)
+      name[namepos++] = (char) c;
+  }
+  fclose (fp);
+  assert (size == 0 || namelen < size);
+  if (size > 0)
+    name[namelen] = 0;
+  return DDS_RETCODE_OK;
+}
+#elif defined __APPLE__
+DDSRT_STATIC_ASSERT (sizeof (ddsrt_thread_list_id_t) == sizeof (mach_port_t));
+
+dds_return_t
+ddsrt_thread_list (
+  ddsrt_thread_list_id_t * __restrict tids,
+  size_t size)
+{
+  thread_act_array_t tasks;
+  mach_msg_type_number_t count;
+  if (task_threads (mach_task_self (), &tasks, &count) != KERN_SUCCESS)
+    return DDS_RETCODE_ERROR;
+  for (mach_msg_type_number_t i = 0; i < count && (size_t) i < size; i++)
+    tids[i] = (ddsrt_thread_list_id_t) tasks[i];
+  vm_deallocate (mach_task_self (), (vm_address_t) tasks, count * sizeof (thread_act_t));
+  return (dds_return_t) count;
+}
+
+dds_return_t
+ddsrt_thread_getname_anythread (
+  ddsrt_thread_list_id_t tid,
+  char *__restrict name,
+  size_t size)
+{
+  if (size > 0)
+  {
+    pthread_t pt = pthread_from_mach_thread_np ((mach_port_t) tid);
+    name[0] = '\0';
+    if (pt == NULL || pthread_getname_np (pt, name, size) != 0 || name[0] == 0)
+      snprintf (name, size, "task%"PRIu64, (uint64_t) tid);
+  }
+  return DDS_RETCODE_OK;
+}
+#endif
 
 
 static pthread_key_t thread_cleanup_key;
@@ -380,7 +496,7 @@ static void thread_init(void)
   (void)pthread_once(&thread_once, &thread_init_once);
 }
 
-dds_retcode_t ddsrt_thread_cleanup_push (void (*routine) (void *), void *arg)
+dds_return_t ddsrt_thread_cleanup_push (void (*routine) (void *), void *arg)
 {
   int err;
   thread_cleanup_t *prev, *tail;
@@ -402,7 +518,7 @@ dds_retcode_t ddsrt_thread_cleanup_push (void (*routine) (void *), void *arg)
   return DDS_RETCODE_OUT_OF_RESOURCES;
 }
 
-dds_retcode_t ddsrt_thread_cleanup_pop (int execute)
+dds_return_t ddsrt_thread_cleanup_pop (int execute)
 {
   int err;
   thread_cleanup_t *tail;

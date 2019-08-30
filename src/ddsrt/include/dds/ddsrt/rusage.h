@@ -14,8 +14,23 @@
 
 #include <stddef.h>
 
+#if DDSRT_WITH_FREERTOS
+#include <FreeRTOS.h>
+# if configUSE_TRACE_FACILITY == 1 && \
+     configGENERATE_RUN_TIME_STATS == 1
+#   define DDSRT_HAVE_RUSAGE 1
+# else
+#   define DDSRT_HAVE_RUSAGE 0
+#endif
+#elif defined (_WIN32) || defined (__linux) || defined (__APPLE__)
+# define DDSRT_HAVE_RUSAGE 1
+#else
+# define DDSRT_HAVE_RUSAGE 0
+#endif
+
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/retcode.h"
+#include "dds/ddsrt/threads.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -31,8 +46,10 @@ typedef struct {
   size_t nivcsw; /* Involuntary context switches. Not maintained on Windows. */
 } ddsrt_rusage_t;
 
-#define DDSRT_RUSAGE_SELF (0)
-#define DDSRT_RUSAGE_THREAD (1)
+enum ddsrt_getrusage_who {
+  DDSRT_RUSAGE_SELF,
+  DDSRT_RUSAGE_THREAD
+};
 
 /**
  * @brief Get resource usage for the current thread or process.
@@ -40,7 +57,7 @@ typedef struct {
  * @param[in]  who    DDSRT_RUSAGE_SELF or DDSRT_RUSAGE_THREAD.
  * @param[in]  usage  Structure where resource usage is returned.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Resource usage successfully returned in @usage.
@@ -49,7 +66,26 @@ typedef struct {
  * @retval DDS_RETCODE_ERROR
  *             An unidentified error occurred.
  */
-DDS_EXPORT dds_retcode_t ddsrt_getrusage(int who, ddsrt_rusage_t *usage);
+DDS_EXPORT dds_return_t ddsrt_getrusage(enum ddsrt_getrusage_who who, ddsrt_rusage_t *usage);
+
+#if DDSRT_HAVE_THREAD_LIST
+/**
+ * @brief Get resource usage for some thread.
+ *
+ * @param[in]  tid    id of the thread of to get the resource usage for
+ * @param[in]  usage  Structure where resource usage is returned.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             Resource usage successfully returned in @usage.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES
+ *             There were not enough resources to get resource usage.
+ * @retval DDS_RETCODE_ERROR
+ *             An unidentified error occurred.
+ */
+DDS_EXPORT dds_return_t ddsrt_getrusage_anythread (ddsrt_thread_list_id_t tid, ddsrt_rusage_t * __restrict usage);
+#endif
 
 #if defined (__cplusplus)
 }

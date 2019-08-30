@@ -24,13 +24,9 @@ extern "C" {
  * @brief Get value for environment variable.
  *
  * @param[in]  name   Environment variable name.
- * @param[in]  buf    Buffer to write value to.
- * @param[in]  sz     Size of buffer.
- * @param[out] reqsz  Number of bytes written (excluding the terminating null
- *                    byte), or would have been written would @buf have been
- *                    sufficiently large enough.
+ * @param[out] value  Alias to value of environment variable - must not be modified
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Environment variable written to @buf.
@@ -43,7 +39,7 @@ extern "C" {
  * @retval DDS_RETCODE_ERROR
  *             Unspecified error.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_getenv(
   const char *name,
   char **value)
@@ -58,7 +54,7 @@ ddsrt_nonnull_all;
  * @param[in]  name   Environment variable name.
  * @param[in]  value  Value to set environment variable to.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Environment variable successfully set to @value.
@@ -69,7 +65,7 @@ ddsrt_nonnull_all;
  * @retval DDS_RETCODE_ERROR
  *             Unspecified system error.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_setenv(
   const char *name,
   const char *value)
@@ -80,7 +76,7 @@ ddsrt_nonnull_all;
  *
  * @param[in]  name  Environment variable name.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Environment variable successfully unset.
@@ -91,7 +87,7 @@ ddsrt_nonnull_all;
  * @retval DDS_RETCODE_ERROR
  *             Unspecified system error.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_unsetenv(
   const char *name)
 ddsrt_nonnull_all;
@@ -104,6 +100,10 @@ ddsrt_nonnull_all;
  * The result string should be freed with ddsrt_free().
  *
  * @param[in]  string  String to expand.
+ * @param[in]  domid   Domain id that this is relevant to
+ *                     UINT32_MAX means none (see logging)
+ *                     also made available as
+ *                        ${CYCLONEDDS_DOMAIN_ID}
  *
  * @returns Allocated char*.
  *
@@ -115,7 +115,8 @@ ddsrt_nonnull_all;
  */
 DDS_EXPORT char*
 ddsrt_expand_envvars(
-  const char *string);
+  const char *string,
+  uint32_t domid);
 
 /**
  * @brief Expand environment variables within string.
@@ -137,7 +138,8 @@ ddsrt_expand_envvars(
  */
 DDS_EXPORT char*
 ddsrt_expand_envvars_sh(
-  const char *string);
+  const char *string,
+  uint32_t domid);
 
 
 #if defined(__cplusplus)

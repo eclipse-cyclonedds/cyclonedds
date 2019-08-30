@@ -400,6 +400,7 @@ static void inapplicable_qos(dds_entity_kind_t qt, const char *n) {
 #define   get_qos_W(qt, q, n) ((qt == DDS_KIND_WRITER)                                                              ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
 #define  get_qos_TW(qt, q, n) ((qt == DDS_KIND_TOPIC)     || (qt == DDS_KIND_WRITER)                                ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
 #define  get_qos_RW(qt, q, n) ((qt == DDS_KIND_READER)    || (qt == DDS_KIND_WRITER)                                ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
+#define  get_qos_MRW(qt, q, n) ((qt == DDS_KIND_READER) || (qt == DDS_KIND_WRITER) || (qt == DDS_KIND_PARTICIPANT)  ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
 #define  get_qos_PS(qt, q, n) ((qt == DDS_KIND_PUBLISHER) || (qt == DDS_KIND_SUBSCRIBER)                            ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
 #define get_qos_TRW(qt, q, n) ((qt == DDS_KIND_TOPIC)     || (qt == DDS_KIND_READER)     || (qt == DDS_KIND_WRITER) ? q : (inapplicable_qos((qt), n), (dds_qos_t*)0))
 
@@ -563,7 +564,7 @@ static void *unescape(const char *str, size_t *len) {
 }
 
 void qos_user_data(dds_entity_kind_t qt, dds_qos_t *q, const char *arg) {
-    dds_qos_t *qp = get_qos_RW(qt, q, "user_data");
+    dds_qos_t *qp = get_qos_MRW(qt, q, "user_data");
     size_t len;
     if (qp == NULL)
         return;
@@ -943,7 +944,7 @@ void setqos_from_args(dds_entity_kind_t qt, dds_qos_t *q, int n, const char *arg
 
 #define DDS_ERR_MSG_MAX 128
 
-void dds_fail (const char * msg, const char * where)
+static void dds_fail (const char * msg, const char * where)
 {
   fprintf (stderr, "Aborting Failure: %s %s\n", where, msg);
   abort ();

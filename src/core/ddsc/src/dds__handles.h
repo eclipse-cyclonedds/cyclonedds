@@ -78,7 +78,7 @@ struct dds_handle_link {
  * Initialize handleserver singleton.
  */
 DDS_EXPORT dds_return_t
-dds_handle_server_init(void (*free_via_gc) (void *x));
+dds_handle_server_init(void);
 
 
 /*
@@ -145,13 +145,13 @@ dds_handle_delete(
  * Returns OK when succeeded.
  */
 DDS_EXPORT int32_t
-dds_handle_claim(
+dds_handle_pin(
         dds_handle_t hdl,
         struct dds_handle_link **entity);
 
 
 DDS_EXPORT void
-dds_handle_claim_inc(
+dds_handle_repin(
         struct dds_handle_link *link);
 
 
@@ -159,7 +159,7 @@ dds_handle_claim_inc(
  * The active claims count is decreased.
  */
 DDS_EXPORT void
-dds_handle_release(
+dds_handle_unpin(
         struct dds_handle_link *link);
 
 
@@ -176,6 +176,9 @@ DDS_EXPORT bool
 dds_handle_is_closed(
         struct dds_handle_link *link);
 
+
+DDS_EXPORT void dds_handle_add_ref (struct dds_handle_link *link);
+DDS_EXPORT bool dds_handle_drop_ref (struct dds_handle_link *link);
 
 #if defined (__cplusplus)
 }

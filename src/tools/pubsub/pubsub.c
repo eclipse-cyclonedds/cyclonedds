@@ -567,7 +567,7 @@ static int read_value(char *command, int *key, struct tstamp_t *tstamp, char **a
                 return 1;
             }
             break;
-        case 'p': case 'S': case ':': {
+        case 'p': case 'S': case ':': case 'Q': {
             int i = 0;
             *command = (char) c;
             while ((c = getc(stdin)) != EOF && !isspace((unsigned char) c)) {
@@ -1424,6 +1424,13 @@ static char *pub_do_nonarb(const struct writerspec *spec, uint32_t *seq) {
                 dds_sleepfor(DDS_SECS(k));
             }
             break;
+        case 'Q': {
+            dds_qos_t *qos = dds_create_qos ();
+            setqos_from_args (DDS_KIND_PARTICIPANT, qos, 1, (const char **) &arg);
+            dds_set_qos (dp, qos);
+            dds_delete_qos (qos);
+            break;
+          }
         case 'Y': case 'B': case 'E': case 'W':
             non_data_operation(command, spec->wr);
             break;
@@ -2509,10 +2516,10 @@ int main(int argc, char *argv[]) {
         }
         break;
         case 'S': {
-            char *copy = dds_string_dup(optarg), *tok, *lasts;
+            char *copy = dds_string_dup(optarg), *tok, *cursor = copy;
             if (copy == NULL)
                 abort();
-            tok = ddsrt_strtok_r(copy, ",", &lasts);
+            tok = ddsrt_strsep(&cursor, ",");
             while (tok) {
                 if (strcmp(tok, "pr") == 0 || strcmp(tok, "pre-read") == 0)
                     spec[specidx].rd.print_match_pre_read = 1;
@@ -2544,7 +2551,7 @@ int main(int argc, char *argv[]) {
                     fprintf (stderr, "-S %s: invalid event\n", tok);
                     exit(2);
                 }
-                tok = ddsrt_strtok_r(NULL, ",", &lasts);
+                tok = ddsrt_strsep(&cursor, ",");
             }
             dds_free(copy);
         }
@@ -2792,7 +2799,7 @@ int main(int argc, char *argv[]) {
 
     ddsrt_threadattr_t attr;
     ddsrt_threadattr_init(&attr);
-    dds_retcode_t osres;
+    dds_return_t osres;
 
     if (want_writer) {
         for (i = 0; i <= specidx; i++) {

@@ -29,24 +29,24 @@ ddsrt_getpid(void)
 
 
 
-static HANDLE        pid_to_phdl          (ddsrt_pid_t pid);
-static dds_retcode_t process_get_exit_code(HANDLE phdl, int32_t *code);
-static dds_retcode_t process_kill         (HANDLE phdl);
-static char*         commandline          (const char *exe, char *const argv_in[]);
-static BOOL          child_add            (HANDLE phdl);
-static void          child_remove         (HANDLE phdl);
-static DWORD         child_list           (HANDLE *list, DWORD max);
-static HANDLE        child_handle         (ddsrt_pid_t pid);
+static HANDLE       pid_to_phdl          (ddsrt_pid_t pid);
+static dds_return_t process_get_exit_code(HANDLE phdl, int32_t *code);
+static dds_return_t process_kill         (HANDLE phdl);
+static char*        commandline          (const char *exe, char *const argv_in[]);
+static BOOL         child_add            (HANDLE phdl);
+static void         child_remove         (HANDLE phdl);
+static DWORD        child_list           (HANDLE *list, DWORD max);
+static HANDLE       child_handle         (ddsrt_pid_t pid);
 
 
 
-dds_retcode_t
+dds_return_t
 ddsrt_proc_create(
   const char *executable,
   char *const argv[],
   ddsrt_pid_t *pid)
 {
-  dds_retcode_t rv = DDS_RETCODE_ERROR;
+  dds_return_t rv = DDS_RETCODE_ERROR;
   PROCESS_INFORMATION process_info;
   STARTUPINFO si;
   char *cmd;
@@ -111,13 +111,13 @@ ddsrt_proc_create(
 
 
 
-dds_retcode_t
+dds_return_t
 ddsrt_proc_waitpid(
   ddsrt_pid_t pid,
   dds_duration_t timeout,
   int32_t *code)
 {
-  dds_retcode_t rv = DDS_RETCODE_OK;
+  dds_return_t rv = DDS_RETCODE_OK;
   HANDLE phdl;
   DWORD ret;
 
@@ -155,13 +155,13 @@ ddsrt_proc_waitpid(
 
 
 
-dds_retcode_t
+dds_return_t
 ddsrt_proc_waitpids(
   dds_duration_t timeout,
   ddsrt_pid_t *pid,
   int32_t *code)
 {
-  dds_retcode_t rv = DDS_RETCODE_OK;
+  dds_return_t rv = DDS_RETCODE_OK;
   HANDLE hdls[MAXIMUM_WAIT_OBJECTS];
   HANDLE phdl;
   DWORD cnt;
@@ -208,11 +208,11 @@ ddsrt_proc_waitpids(
 
 
 
-dds_retcode_t
+dds_return_t
 ddsrt_proc_exists(
   ddsrt_pid_t pid)
 {
-  dds_retcode_t rv = DDS_RETCODE_NOT_FOUND;
+  dds_return_t rv = DDS_RETCODE_NOT_FOUND;
   HANDLE phdl;
 
   phdl = pid_to_phdl(pid);
@@ -235,11 +235,11 @@ ddsrt_proc_exists(
 
 
 
-dds_retcode_t
+dds_return_t
 ddsrt_proc_kill(
   ddsrt_pid_t pid)
 {
-  dds_retcode_t rv = DDS_RETCODE_BAD_PARAMETER;
+  dds_return_t rv = DDS_RETCODE_BAD_PARAMETER;
   HANDLE phdl;
 
   phdl = pid_to_phdl(pid);
@@ -262,12 +262,12 @@ pid_to_phdl(ddsrt_pid_t pid)
 
 
 
-static dds_retcode_t
+static dds_return_t
 process_get_exit_code(
   HANDLE phdl,
   int32_t *code)
 {
-  dds_retcode_t rv = DDS_RETCODE_ERROR;
+  dds_return_t rv = DDS_RETCODE_ERROR;
   DWORD tr;
 
   assert(phdl != 0);
@@ -289,7 +289,7 @@ process_get_exit_code(
 
 
 /* Forcefully kill the given process. */
-static dds_retcode_t
+static dds_return_t
 process_kill(HANDLE phdl)
 {
   assert(phdl != 0);

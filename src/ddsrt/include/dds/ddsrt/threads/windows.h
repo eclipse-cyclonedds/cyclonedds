@@ -14,6 +14,9 @@
 
 #include "dds/ddsrt/types.h"
 
+#define DDSRT_HAVE_THREAD_SETNAME (1)
+#define DDSRT_HAVE_THREAD_LIST (1)
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -25,6 +28,8 @@ typedef struct {
 
 typedef DWORD ddsrt_tid_t;
 #define PRIdTID "u"
+
+typedef HANDLE ddsrt_thread_list_id_t;
 
 #if defined (__cplusplus)
 }

@@ -25,7 +25,9 @@
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/retcode.h"
 
-#if _WIN32
+#if DDSRT_WITH_FREERTOS
+#include "dds/ddsrt/threads/freertos.h"
+#elif _WIN32
 #include "dds/ddsrt/threads/windows.h"
 #else
 #include "dds/ddsrt/threads/posix.h"
@@ -119,14 +121,14 @@ ddsrt_nonnull_all;
  * @param[in]   start_routine  Function to execute in created thread.
  * @param[in]   arg            Argument passed to @start_routine.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Thread successfully created.
  * @retval DDS_RETCODE_ERROR
  *             Thread could not be created.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_thread_create(
   ddsrt_thread_t *thread,
   const char *name,
@@ -170,14 +172,14 @@ ddsrt_thread_equal(ddsrt_thread_t t1, ddsrt_thread_t t2);
  * @param[in]   thread         Id of thread to wait for.
  * @param[out]  thread_result  Location where thread result is stored.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Target thread terminated.
  * @retval DDS_RETCODE_ERROR
  *             An error occurred while waiting for the thread to terminate.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_thread_join(
   ddsrt_thread_t thread,
   uint32_t *thread_result);
@@ -206,9 +208,58 @@ ddsrt_thread_getname(
  *
  * @param[in]  name  Name for current thread.
  */
+#if DDSRT_HAVE_THREAD_SETNAME
 DDS_EXPORT void
 ddsrt_thread_setname(
   const char *__restrict name);
+#endif
+
+#if DDSRT_HAVE_THREAD_LIST
+/**
+ * @brief Get a list of threads in the calling process
+ *
+ * @param[out]  tids    Array of size elements to be filled with thread
+ *                      identifiers, may be NULL if size is 0
+ * @param[in]   size    The size of the tids array; 0 is allowed
+ *
+ * @returns A dds_return_t indicating the number of threads in the process
+ * or an error code on failure.
+ *
+ * @retval > 0
+ *             Number of threads in the process, may be larger than size
+ *             tids[0 .. (return - 1)] are valid
+ * @retval DDS_RETCODE_ERROR
+ *             Something went wrong, contents of tids is undefined
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *             Not supported on the platform
+ */
+DDS_EXPORT dds_return_t ddsrt_thread_list (ddsrt_thread_list_id_t * __restrict tids, size_t size);
+
+/**
+ * @brief Get the name of the specified thread (in the calling process)
+ *
+ * @param[in]   tid     Thread identifier for which the name is sought
+ * @param[out]  name    Filled with the thread name (or a synthesized one)
+ *                      on successful return; name is silently truncated
+ *                      if the actual name is longer than name can hold;
+ *                      always 0-terminated if size > 0
+ * @param[in]   size    Number of bytes of name that may be assigned, size
+ *                      is 0 is allowed, though somewhat useless
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             Possibly truncated name is returned as a null-terminated
+ *             string in name (provided size > 0).
+ * @retval DDS_RETCODE_NOT_FOUND
+ *             Thread not found; the contents of name is unchanged
+ * @retval DDS_RETCODE_ERROR
+ *             Unspecified failure, the contents of name is undefined
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *             Not supported on the platform
+ */
+DDS_EXPORT dds_return_t ddsrt_thread_getname_anythread (ddsrt_thread_list_id_t tid, char *__restrict name, size_t size);
+#endif
 
 /**
  * @brief Push cleanup handler onto the cleanup stack
@@ -220,7 +271,7 @@ ddsrt_thread_setname(
  * @param[in]  routine  Cleanup handler to push onto the thread cleanup stack.
  * @param[in]  arg      Argument that will be passed to the cleanup handler.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_thread_cleanup_push(
   void (*routine)(void*),
   void *arg);
@@ -231,7 +282,7 @@ ddsrt_thread_cleanup_push(
  * Remove routine at the top of the calling thread's cleanup stack and
  * optionally invoke it (if execute is non-zero).
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_thread_cleanup_pop(
   int execute);
 

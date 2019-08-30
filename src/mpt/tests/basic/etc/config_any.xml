@@ -14,7 +14,6 @@
     <Id>any</Id>
   </Domain>
   <General>
-    <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>
     <AllowMulticast>true</AllowMulticast>
     <EnableMulticastLoopback>true</EnableMulticastLoopback>
   </General>

@@ -88,13 +88,13 @@ static uint32_t ddsrt_thread_start_fn (void * arg)
     return 0;
 }
 
-static dds_retcode_t ddsrt_thread_pool_new_thread (ddsrt_thread_pool pool)
+static dds_return_t ddsrt_thread_pool_new_thread (ddsrt_thread_pool pool)
 {
     static unsigned char pools = 0; /* Pool counter - TODO make atomic */
 
     char name [64];
     ddsrt_thread_t id;
-    dds_retcode_t res;
+    dds_return_t res;
 
     (void) snprintf (name, sizeof (name), "OSPL-%u-%u", pools++, pool->m_count++);
     res = ddsrt_thread_create (&id, name, &pool->m_attr, &ddsrt_thread_start_fn, pool);
@@ -205,9 +205,9 @@ void ddsrt_thread_pool_free (ddsrt_thread_pool pool)
     ddsrt_free (pool);
 }
 
-dds_retcode_t ddsrt_thread_pool_submit (ddsrt_thread_pool pool, void (*fn) (void *arg), void * arg)
+dds_return_t ddsrt_thread_pool_submit (ddsrt_thread_pool pool, void (*fn) (void *arg), void * arg)
 {
-    dds_retcode_t res = DDS_RETCODE_OK;
+    dds_return_t res = DDS_RETCODE_OK;
     ddsi_work_queue_job_t job;
 
     ddsrt_mutex_lock (&pool->m_mutex);

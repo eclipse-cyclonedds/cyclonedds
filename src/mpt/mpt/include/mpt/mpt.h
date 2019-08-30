@@ -52,6 +52,7 @@ void MPT_ProcessEntryName(process)(args)
 #define MPT_TestProcess(suite, test, name, process, args, ...)    \
 MPT_TestInitDeclaration(suite, test);                             \
 MPT_TestFiniDeclaration(suite, test);                             \
+MPT_TestProcessDeclaration(suite, test, name);                    \
 MPT_TestProcessDeclaration(suite, test, name)                     \
 {                                                                 \
   mpt_data_t data = MPT_Fixture(__VA_ARGS__);                     \

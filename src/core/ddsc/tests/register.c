@@ -150,7 +150,7 @@ CU_Test(ddsc_register_instance, deleted_entity, .init=registering_init, .fini=re
     dds_instance_handle_t handle;
     dds_delete(g_writer);
     ret = dds_register_instance(g_writer, &handle, g_data);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 
 static dds_instance_handle_t hndle = 0;
@@ -169,7 +169,7 @@ CU_Theory((dds_instance_handle_t *hndl2, void *datap), ddsc_register_instance, i
     DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_register_instance(g_writer, hndl2, datap);
     DDSRT_WARNING_MSVC_ON(6387);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_TheoryDataPoints(ddsc_register_instance, invalid_writers) = {
@@ -177,12 +177,11 @@ CU_TheoryDataPoints(ddsc_register_instance, invalid_writers) = {
 };
 CU_Theory((dds_entity_t writer), ddsc_register_instance, invalid_writers, .init=registering_init, .fini=registering_fini)
 {
-    dds_entity_t exp = DDS_RETCODE_BAD_PARAMETER * -1;
     dds_return_t ret;
     dds_instance_handle_t handle;
 
     ret = dds_register_instance(writer, &handle, g_data);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), dds_err_nr(exp));
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_TheoryDataPoints(ddsc_register_instance, non_writers) = {
@@ -193,7 +192,7 @@ CU_Theory((dds_entity_t *writer), ddsc_register_instance, non_writers, .init=reg
     dds_return_t ret;
     dds_instance_handle_t handle;
     ret = dds_register_instance(*writer, &handle, g_data);
-    CU_ASSERT_EQUAL_FATAL(dds_err_nr(ret), DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 
 CU_Test(ddsc_register_instance, registering_new_instance, .init=registering_init, .fini=registering_fini)

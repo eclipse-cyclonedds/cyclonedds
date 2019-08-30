@@ -12,7 +12,6 @@
 #ifndef DDSRT_STRING_H
 #define DDSRT_STRING_H
 
-#include <stdbool.h>
 #include "dds/export.h"
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/retcode.h"
@@ -54,28 +53,13 @@ ddsrt_strncasecmp(
 ddsrt_nonnull((1,2));
 
 /**
- * @brief Split string into tokens.
- *
- * @param[in]     str      String to split into tokens.
- * @param[in]     delim    Characters that delimit a token.
- * @param[inout]  saveptr  Pointer to a char * used internally.
- *
- * @returns The next token or NULL if there are no more tokens.
- */
-DDS_EXPORT char *
-ddsrt_strtok_r(
-  char *str,
-  const char *delim,
-  char **saveptr);
-
-/**
  * @brief Extract token from string.
  *
  * Finds the first token in @stringp delimited by one of the characters in
  * @delim. The delimiter is overwritten with a null byte, terminating the
  * token and @stringp is updated to point past the delimiter.
  *
- * @param[inout]  stringp  String to extract token from.
+ * @param[in,out] stringp  String to extract token from.
  * @param[in]     delim    Characters that delimit a token.
  *
  * @returns The original value of @stringp.
@@ -154,7 +138,7 @@ ddsrt_nonnull((1,2));
  * string is truncated if there is not enough space. The resulting string
  * guaranteed to be null terminated if there is space.
  *
- * @param[inout]  dest  Destination buffer.
+ * @param[in,out] dest  Destination buffer.
  * @param[in]     src   Null terminated string to append to dest.
  * @param[in]     size  Number of bytes available in dest.
  *
@@ -170,8 +154,6 @@ ddsrt_strlcat(
   size_t size)
 ddsrt_nonnull((1,2));
 
-
-
 /**
  * @brief Get description for specified system error number.
  *
@@ -179,7 +161,7 @@ ddsrt_nonnull((1,2));
  * @param[in]  buf     Buffer where description is copied to.
  * @param[in]  buflen  Number of bytes available in @buf.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Description for @errnum was successfully copied to @buf.
@@ -188,7 +170,7 @@ ddsrt_nonnull((1,2));
  * @retval DDS_RETCODE_NOT_ENOUGH_SPACE
  *             Buffer was not large enough to hold the description.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_strerror_r(
     int errnum,
     char *buf,

@@ -28,19 +28,21 @@
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
+#include "dds/ddsi/q_globals.h"
 
 static SSL_CTX *ddsi_ssl_ctx = NULL;
+static bool ddsi_ssl_allow_self_signed_hack = false;
 
 static SSL *ddsi_ssl_new (void)
 {
   return SSL_new (ddsi_ssl_ctx);
 }
 
-static void ddsi_ssl_error (SSL *ssl, const char *str, int err)
+static void ddsi_ssl_error (const struct q_globals *gv, SSL *ssl, const char *str, int err)
 {
   char buff[128];
   ERR_error_string ((unsigned) SSL_get_error (ssl, err), buff);
-  DDS_ERROR ("tcp/ssl %s %s %d\n", str, buff, err);
+  GVERROR ("tcp/ssl %s %s %d\n", str, buff, err);
 }
 
 static int ddsi_ssl_verify (int ok, X509_STORE_CTX *store)
@@ -52,7 +54,7 @@ static int ddsi_ssl_verify (int ok, X509_STORE_CTX *store)
     int err = X509_STORE_CTX_get_error (store);
 
     /* Check if allowing self-signed certificates */
-    if (config.ssl_self_signed && ((err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) || (err == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN)))
+    if (ddsi_ssl_allow_self_signed_hack && ((err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) || (err == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN)))
       ok = 1;
     else
     {
@@ -63,7 +65,7 @@ static int ddsi_ssl_verify (int ok, X509_STORE_CTX *store)
   return ok;
 }
 
-static ssize_t ddsi_ssl_read (SSL *ssl, void *buf, size_t len, dds_retcode_t *rc)
+static ssize_t ddsi_ssl_read (SSL *ssl, void *buf, size_t len, dds_return_t *rc)
 {
   assert (len <= INT32_MAX);
   if (SSL_get_shutdown (ssl) != 0)
@@ -95,7 +97,7 @@ static ssize_t ddsi_ssl_read (SSL *ssl, void *buf, size_t len, dds_retcode_t *rc
   return rcvd;
 }
 
-static ssize_t ddsi_ssl_write (SSL *ssl, const void *buf, size_t len, dds_retcode_t *rc)
+static ssize_t ddsi_ssl_write (SSL *ssl, const void *buf, size_t len, dds_return_t *rc)
 {
   assert(len <= INT32_MAX);
 
@@ -176,76 +178,80 @@ static void ddsi_ssl_dynlock_destroy (CRYPTO_dynlock_value *lock, const char *fi
 
 static int ddsi_ssl_password (char *buf, int num, int rwflag, void *udata)
 {
+  struct q_globals *gv = udata;
   (void) rwflag;
-  (void) udata;
-  if (num < 0 || (size_t) num < strlen (config.ssl_key_pass) + 1)
+  if (num < 0 || (size_t) num < strlen (gv->config.ssl_key_pass) + 1)
     return 0;
   DDSRT_WARNING_MSVC_OFF(4996);
-  strcpy (buf, config.ssl_key_pass);
+  strcpy (buf, gv->config.ssl_key_pass);
   DDSRT_WARNING_MSVC_ON(4996);
-  return (int) strlen (config.ssl_key_pass);
+  return (int) strlen (gv->config.ssl_key_pass);
 }
 
-static SSL_CTX *ddsi_ssl_ctx_init (void)
+static SSL_CTX *ddsi_ssl_ctx_init (struct q_globals *gv)
 {
   SSL_CTX *ctx = SSL_CTX_new (SSLv23_method ());
   unsigned disallow_TLSv1_2;
 
   /* Load certificates */
-  if (! SSL_CTX_use_certificate_file (ctx, config.ssl_keystore, SSL_FILETYPE_PEM))
+  if (! SSL_CTX_use_certificate_file (ctx, gv->config.ssl_keystore, SSL_FILETYPE_PEM))
   {
-    DDS_LOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl failed to load certificate from file: %s\n", config.ssl_keystore);
+    GVLOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl failed to load certificate from file: %s\n", gv->config.ssl_keystore);
     goto fail;
   }
 
   /* Set password and callback */
   SSL_CTX_set_default_passwd_cb (ctx, ddsi_ssl_password);
+  SSL_CTX_set_default_passwd_cb_userdata (ctx, gv);
 
   /* Get private key */
-  if (! SSL_CTX_use_PrivateKey_file (ctx, config.ssl_keystore, SSL_FILETYPE_PEM))
+  if (! SSL_CTX_use_PrivateKey_file (ctx, gv->config.ssl_keystore, SSL_FILETYPE_PEM))
   {
-    DDS_LOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl failed to load private key from file: %s\n", config.ssl_keystore);
+    GVLOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl failed to load private key from file: %s\n", gv->config.ssl_keystore);
     goto fail;
   }
 
   /* Load CAs */
-  if (! SSL_CTX_load_verify_locations (ctx, config.ssl_keystore, 0))
+  if (! SSL_CTX_load_verify_locations (ctx, gv->config.ssl_keystore, 0))
   {
-    DDS_LOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl failed to load CA from file: %s\n", config.ssl_keystore);
+    GVLOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl failed to load CA from file: %s\n", gv->config.ssl_keystore);
     goto fail;
   }
 
   /* Set ciphers */
-  if (! SSL_CTX_set_cipher_list (ctx, config.ssl_ciphers))
+  if (! SSL_CTX_set_cipher_list (ctx, gv->config.ssl_ciphers))
   {
-    DDS_LOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl failed to set ciphers: %s\n", config.ssl_ciphers);
+    GVLOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl failed to set ciphers: %s\n", gv->config.ssl_ciphers);
     goto fail;
   }
 
   /* Load randomness from file (optional) */
-  if (config.ssl_rand_file[0] != '\0')
+  if (gv->config.ssl_rand_file[0] != '\0')
   {
-    if (! RAND_load_file (config.ssl_rand_file, 4096))
+    if (! RAND_load_file (gv->config.ssl_rand_file, 4096))
     {
-      DDS_LOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl failed to load random seed from file: %s\n", config.ssl_rand_file);
+      GVLOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl failed to load random seed from file: %s\n", gv->config.ssl_rand_file);
       goto fail;
     }
   }
 
   /* Set certificate verification policy from configuration */
-  if (!config.ssl_verify)
+  if (!gv->config.ssl_verify)
     SSL_CTX_set_verify (ctx, SSL_VERIFY_NONE, NULL);
   else
   {
     int i = SSL_VERIFY_PEER;
-    if (config.ssl_verify_client)
+    if (gv->config.ssl_verify_client)
       i |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+    /* FIXME: whether or not self-signed is allowed is per-config, SSL_set_ex_data can fix that (or hashing ctx) */
+    if (gv->config.ssl_self_signed)
+      ddsi_ssl_allow_self_signed_hack = true;
     SSL_CTX_set_verify (ctx, i, ddsi_ssl_verify);
   }
-  switch (config.ssl_min_version.major)
+  switch (gv->config.ssl_min_version.major)
   {
     case 1:
-      switch (config.ssl_min_version.minor)
+      switch (gv->config.ssl_min_version.minor)
       {
         case 2:
           disallow_TLSv1_2 = 0;
@@ -254,17 +260,17 @@ static SSL_CTX *ddsi_ssl_ctx_init (void)
 #ifdef SSL_OP_NO_TLSv1_2
           disallow_TLSv1_2 = SSL_OP_NO_TLSv1_2;
 #else
-          DDS_LOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl: openssl version does not support disabling TLSv1.2 as required by config\n");
+          GVLOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl: openssl version does not support disabling TLSv1.2 as required by gv->config\n");
           goto fail;
 #endif
           break;
         default:
-          DDS_LOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl: can't set minimum requested TLS version to %d.%d\n", config.ssl_min_version.major, config.ssl_min_version.minor);
+          GVLOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl: can't set minimum requested TLS version to %d.%d\n", gv->config.ssl_min_version.major, gv->config.ssl_min_version.minor);
           goto fail;
       }
       break;
     default:
-      DDS_LOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl: can't set minimum requested TLS version to %d.%d\n", config.ssl_min_version.major, config.ssl_min_version.minor);
+      GVLOG (DDS_LC_ERROR | DDS_LC_CONFIG, "tcp/ssl: can't set minimum requested TLS version to %d.%d\n", gv->config.ssl_min_version.major, gv->config.ssl_min_version.minor);
       goto fail;
   }
   SSL_CTX_set_options (ctx, SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | disallow_TLSv1_2);
@@ -275,18 +281,18 @@ fail:
   return NULL;
 }
 
-static void dds_report_tls_version (const SSL *ssl, const char *oper)
+static void dds_report_tls_version (const struct q_globals *gv, const SSL *ssl, const char *oper)
 {
   if (ssl)
   {
     char issuer[256], subject[256];
     X509_NAME_oneline (X509_get_issuer_name (SSL_get_peer_certificate (ssl)), issuer, sizeof (issuer));
     X509_NAME_oneline (X509_get_subject_name (SSL_get_peer_certificate (ssl)), subject, sizeof (subject));
-    DDS_TRACE("tcp/ssl %s %s issued by %s [%s]\n", oper, subject, issuer, SSL_get_version (ssl));
+    GVTRACE ("tcp/ssl %s %s issued by %s [%s]\n", oper, subject, issuer, SSL_get_version (ssl));
   }
 }
 
-static SSL *ddsi_ssl_connect (ddsrt_socket_t sock)
+static SSL *ddsi_ssl_connect (const struct q_globals *gv, ddsrt_socket_t sock)
 {
   SSL *ssl;
   int err;
@@ -302,11 +308,11 @@ static SSL *ddsi_ssl_connect (ddsrt_socket_t sock)
   err = SSL_connect (ssl);
   if (err != 1)
   {
-    ddsi_ssl_error (ssl, "connect failed", err);
+    ddsi_ssl_error (gv, ssl, "connect failed", err);
     SSL_free (ssl);
     ssl = NULL;
   }
-  dds_report_tls_version (ssl, "connected to");
+  dds_report_tls_version (gv, ssl, "connected to");
   return ssl;
 }
 
@@ -320,7 +326,7 @@ static BIO *ddsi_ssl_listen (ddsrt_socket_t sock)
   return bio;
 }
 
-static SSL *ddsi_ssl_accept (BIO *bio, ddsrt_socket_t *sock)
+static SSL *ddsi_ssl_accept (const struct q_globals *gv, BIO *bio, ddsrt_socket_t *sock)
 {
   SSL *ssl = NULL;
   BIO *nbio;
@@ -340,12 +346,13 @@ static SSL *ddsi_ssl_accept (BIO *bio, ddsrt_socket_t *sock)
       ssl = NULL;
     }
   }
-  dds_report_tls_version (ssl, "accepted from");
+  dds_report_tls_version (gv, ssl, "accepted from");
   return ssl;
 }
 
-static bool ddsi_ssl_init (void)
+static bool ddsi_ssl_init (struct q_globals *gv)
 {
+  /* FIXME: allocate this stuff ... don't copy gv into a global variable ... */
   ERR_load_BIO_strings ();
   SSL_load_error_strings ();
   SSL_library_init ();
@@ -368,7 +375,7 @@ static bool ddsi_ssl_init (void)
   CRYPTO_set_dynlock_create_callback (ddsi_ssl_dynlock_create);
   CRYPTO_set_dynlock_lock_callback (ddsi_ssl_dynlock_lock);
   CRYPTO_set_dynlock_destroy_callback (ddsi_ssl_dynlock_destroy);
-  ddsi_ssl_ctx = ddsi_ssl_ctx_init ();
+  ddsi_ssl_ctx = ddsi_ssl_ctx_init (gv);
 
   return (ddsi_ssl_ctx != NULL);
 }

@@ -13,7 +13,7 @@
 #define DDSI_SERDATA_DEFAULT_H
 
 #include "dds/ddsrt/endian.h"
-#include "dds/ddsi/q_plist.h" /* for nn_prismtech_writer_info */
+#include "dds/ddsi/q_protocol.h" /* for nn_parameterid_t */
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_serdata.h"
@@ -43,32 +43,57 @@ struct serdatapool {
   struct nn_freelist freelist;
 };
 
-typedef struct dds_key_hash {
-  char m_hash [16];          /* Key hash value. Also possibly key. Suitably aligned for accessing as uint32_t's */
+typedef struct dds_keyhash {
+  unsigned char m_hash [16]; /* Key hash value. Also possibly key. Suitably aligned for accessing as uint32_t's */
   unsigned m_set : 1;        /* has it been initialised? */
   unsigned m_iskey : 1;      /* m_hash is key value */
-}
-dds_key_hash_t;
+} dds_keyhash_t;
+
+/* Debug builds may want to keep some additional state */
+#ifndef NDEBUG
+#define DDSI_SERDATA_DEFAULT_DEBUG_FIELDS \
+  bool fixed;
+#else
+#define DDSI_SERDATA_DEFAULT_DEBUG_FIELDS
+#endif
+
+/* There is an alignment requirement on the raw data (it must be at
+   offset mod 8 for the conversion to/from a dds_stream to work).
+   So we define two types: one without any additional padding, and
+   one where the appropriate amount of padding is inserted */
+#define DDSI_SERDATA_DEFAULT_PREPAD   \
+  struct ddsi_serdata c;              \
+  uint32_t pos;                       \
+  uint32_t size;                      \
+  DDSI_SERDATA_DEFAULT_DEBUG_FIELDS   \
+  dds_keyhash_t keyhash;              \
+  struct serdatapool *serpool;        \
+  struct ddsi_serdata_default *next /* in pool->freelist */
+#define DDSI_SERDATA_DEFAULT_POSTPAD  \
+  struct CDRHeader hdr;               \
+  char data[]
+
+struct ddsi_serdata_default_unpadded {
+  DDSI_SERDATA_DEFAULT_PREPAD;
+  DDSI_SERDATA_DEFAULT_POSTPAD;
+};
+
+#ifdef __GNUC__
+#define DDSI_SERDATA_DEFAULT_PAD(n) ((n) % 8)
+#else
+#define DDSI_SERDATA_DEFAULT_PAD(n) (n)
+#endif
 
 struct ddsi_serdata_default {
-  struct ddsi_serdata c;
-  uint32_t pos;
-  uint32_t size;
-#ifndef NDEBUG
-  bool fixed;
-#endif
-  dds_key_hash_t keyhash;
-
-  struct serdatapool *pool;
-  struct ddsi_serdata_default *next; /* in pool->freelist */
-
-  /* padding to ensure CDRHeader is at an offset 4 mod 8 from the
-     start of the memory, so that data is 8-byte aligned provided
-     serdata is 8-byte aligned */
-  char pad[8 - ((sizeof (struct ddsi_serdata) + 4) % 8)];
-  struct CDRHeader hdr;
-  char data[1];
+  DDSI_SERDATA_DEFAULT_PREPAD;
+  char pad[DDSI_SERDATA_DEFAULT_PAD (8 - (offsetof (struct ddsi_serdata_default_unpadded, data) % 8))];
+  DDSI_SERDATA_DEFAULT_POSTPAD;
 };
+
+#undef DDSI_SERDATA_DEFAULT_PAD
+#undef DDSI_SERDATA_DEFAULT_POSTPAD
+#undef DDSI_SERDATA_DEFAULT_PREPAD
+#undef DDSI_SERDATA_DEFAULT_FIXED_FIELD
 
 struct dds_key_descriptor;
 struct dds_topic_descriptor;
@@ -81,6 +106,7 @@ typedef bool (*dds_topic_intern_filter_fn) (const void * sample, void *ctx);
 struct ddsi_sertopic_default {
   struct ddsi_sertopic c;
   uint16_t native_encoding_identifier; /* (PL_)?CDR_(LE|BE) */
+  struct serdatapool *serpool;
 
   struct dds_topic_descriptor * type;
   unsigned nkeys;

@@ -62,7 +62,7 @@ mpt_export_env(const mpt_env_t *env)
 {
   if (env) {
     while ((env->name != NULL) && (env->value != NULL)) {
-      char *expanded = ddsrt_expand_envvars(env->value);
+      char *expanded = ddsrt_expand_envvars(env->value, UINT32_MAX);
       ddsrt_setenv(env->name, expanded);
       ddsrt_free(expanded);
       env++;
@@ -298,7 +298,7 @@ mpt_run_test(const char *exe, mpt_suite_t *suite, mpt_test_t *test)
 {
   int result = EXIT_SUCCESS;
   mpt_process_t *proc;
-  dds_retcode_t retcode;
+  dds_return_t retcode;
   char *argv[] = { NULL, NULL,   NULL, NULL,   NULL, NULL,   NULL, NULL };
 
   argv[0] = "-s";
@@ -355,8 +355,14 @@ mpt_run_test(const char *exe, mpt_suite_t *suite, mpt_test_t *test)
         result = EXIT_FAILURE;
       }
     } else if (retcode != DDS_RETCODE_NOT_FOUND) {
-      printf("Wait for processes of %s::%s failed (%d)\n", suite->name, test->name, (int)retcode);
-      result = EXIT_FAILURE;
+      for (proc = test->procs; proc; proc = proc->next) {
+        if (proc->pid != 0)
+          break;
+      }
+      if (proc != NULL) {
+        printf("Wait for processes of %s::%s failed (%d)\n", suite->name, test->name, (int)retcode);
+        result = EXIT_FAILURE;
+      }
     }
   }
 

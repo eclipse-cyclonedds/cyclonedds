@@ -106,9 +106,11 @@ void qos_ownership(dds_entity_kind_t qt, dds_qos_t *q, const char *arg);
 void qos_transport_priority(dds_entity_kind_t qt, dds_qos_t *q, const char *arg);
 void qos_reliability(dds_entity_kind_t qt, dds_qos_t *q, const char *arg);
 void qos_resource_limits(dds_entity_kind_t qt, dds_qos_t *q, const char *arg);
+void qos_durability_service(dds_entity_kind_t qt, dds_qos_t *q, const char *arg);
 void qos_user_data(dds_entity_kind_t qt, dds_qos_t *q, const char *arg);
 void qos_latency_budget(dds_entity_kind_t qt, dds_qos_t *q, const char *arg);
 void qos_lifespan(dds_entity_kind_t qt, dds_qos_t *q, const char *arg);
+void qos_presentation(dds_entity_kind_t qt, dds_qos_t *q, const char *arg);
 void qos_autodispose_unregistered_instances(dds_entity_kind_t qt, dds_qos_t *q, const char *arg);
 void set_qosprovider(const char *arg);
 void setqos_from_args(dds_entity_kind_t qt, dds_qos_t *q, int n, const char *args[]);
@@ -119,7 +121,7 @@ bool dds_err_check (dds_return_t err, unsigned flags, const char *where);
 #define DDS_CHECK_FAIL 0x02
 #define DDS_CHECK_EXIT 0x04
 
-#define dds_err_str(x) (dds_strretcode(dds_err_nr(x)))
+#define dds_err_str(x) (dds_strretcode(x))
 
 #define DDS_TO_STRING(n) #n
 #define DDS_INT_TO_STRING(n) DDS_TO_STRING(n)

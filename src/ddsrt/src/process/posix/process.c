@@ -72,7 +72,7 @@ static void no_op(int sig)
 }
 
 
-static dds_retcode_t
+static dds_return_t
 waitpids(
   ddsrt_pid_t request_pid,
   dds_duration_t timeout,
@@ -81,7 +81,7 @@ waitpids(
 {
   struct sigaction sigactold;
   struct sigaction sigact;
-  dds_retcode_t rv;
+  dds_return_t rv;
   int options = 0;
   int ret;
   int s;
@@ -148,13 +148,13 @@ waitpids(
 
 
 
-dds_retcode_t
+dds_return_t
 ddsrt_proc_create(
   const char *executable,
   char *const argv[],
   ddsrt_pid_t *pid)
 {
-  dds_retcode_t rv;
+  dds_return_t rv;
   char **exec_argv;
   int exec_fds[2];
   int exec_err;
@@ -253,7 +253,7 @@ fail_pipe:
 
 
 
-dds_retcode_t
+dds_return_t
 ddsrt_proc_waitpid(
   ddsrt_pid_t pid,
   dds_duration_t timeout,
@@ -267,7 +267,7 @@ ddsrt_proc_waitpid(
 
 
 
-dds_retcode_t
+dds_return_t
 ddsrt_proc_waitpids(
   dds_duration_t timeout,
   ddsrt_pid_t *pid,
@@ -278,7 +278,7 @@ ddsrt_proc_waitpids(
 
 
 
-dds_retcode_t
+dds_return_t
 ddsrt_proc_exists(
   ddsrt_pid_t pid)
 {
@@ -294,7 +294,7 @@ ddsrt_proc_exists(
 
 
 
-dds_retcode_t
+dds_return_t
 ddsrt_proc_kill(
   ddsrt_pid_t pid)
 {

@@ -77,15 +77,15 @@ static const ipv4_hdr_t ipv4_hdr_template = {
 #define IPV4_HDR_SIZE 20
 #define UDP_HDR_SIZE 8
 
-DDSRT_WARNING_MSVC_OFF(4996);
-FILE *new_pcap_file (const char *name)
+FILE *new_pcap_file (const struct ddsrt_log_cfg *logcfg, const char *name)
 {
+  DDSRT_WARNING_MSVC_OFF(4996);
   FILE *fp;
   pcap_hdr_t hdr;
 
   if ((fp = fopen (name, "wb")) == NULL)
   {
-    DDS_WARNING ("packet capture disabled: file %s could not be opened for writing\n", name);
+    DDS_CWARNING (logcfg, "packet capture disabled: file %s could not be opened for writing\n", name);
     return NULL;
   }
 
@@ -99,8 +99,8 @@ FILE *new_pcap_file (const char *name)
   fwrite (&hdr, sizeof (hdr), 1, fp);
 
   return fp;
+  DDSRT_WARNING_MSVC_ON(4996);
 }
-DDSRT_WARNING_MSVC_ON(4996);
 
 static void write_data (FILE *fp, const ddsrt_msghdr_t *msghdr, size_t sz)
 {
@@ -127,17 +127,9 @@ static uint16_t calc_ipv4_checksum (const uint16_t *x)
   return (uint16_t) ~s;
 }
 
-void write_pcap_received
-(
-  FILE * fp,
-  nn_wctime_t tstamp,
-  const struct sockaddr_storage * src,
-  const struct sockaddr_storage * dst,
-  unsigned char * buf,
-  size_t sz
-)
+void write_pcap_received (struct q_globals *gv, nn_wctime_t tstamp, const struct sockaddr_storage *src, const struct sockaddr_storage *dst, unsigned char *buf, size_t sz)
 {
-  if (config.transport_selector == TRANS_UDP)
+  if (gv->config.transport_selector == TRANS_UDP)
   {
     pcaprec_hdr_t pcap_hdr;
     union {
@@ -147,37 +139,30 @@ void write_pcap_received
     udp_hdr_t udp_hdr;
     size_t sz_ud = sz + UDP_HDR_SIZE;
     size_t sz_iud = sz_ud + IPV4_HDR_SIZE;
-    ddsrt_mutex_lock (&gv.pcap_lock);
+    ddsrt_mutex_lock (&gv->pcap_lock);
     wctime_to_sec_usec (&pcap_hdr.ts_sec, &pcap_hdr.ts_usec, tstamp);
     pcap_hdr.incl_len = pcap_hdr.orig_len = (uint32_t) sz_iud;
-    fwrite (&pcap_hdr, sizeof (pcap_hdr), 1, fp);
+    fwrite (&pcap_hdr, sizeof (pcap_hdr), 1, gv->pcap_fp);
     u.ipv4_hdr = ipv4_hdr_template;
     u.ipv4_hdr.totallength = toBE2u ((unsigned short) sz_iud);
     u.ipv4_hdr.ttl = 128;
     u.ipv4_hdr.srcip = ((struct sockaddr_in*) src)->sin_addr.s_addr;
     u.ipv4_hdr.dstip = ((struct sockaddr_in*) dst)->sin_addr.s_addr;
     u.ipv4_hdr.checksum = calc_ipv4_checksum (u.x);
-    fwrite (&u.ipv4_hdr, sizeof (u.ipv4_hdr), 1, fp);
+    fwrite (&u.ipv4_hdr, sizeof (u.ipv4_hdr), 1, gv->pcap_fp);
     udp_hdr.srcport = ((struct sockaddr_in*) src)->sin_port;
     udp_hdr.dstport = ((struct sockaddr_in*) dst)->sin_port;
     udp_hdr.length = toBE2u ((unsigned short) sz_ud);
     udp_hdr.checksum = 0; /* don't have to compute a checksum for UDPv4 */
-    fwrite (&udp_hdr, sizeof (udp_hdr), 1, fp);
-    fwrite (buf, sz, 1, fp);
-    ddsrt_mutex_unlock (&gv.pcap_lock);
+    fwrite (&udp_hdr, sizeof (udp_hdr), 1, gv->pcap_fp);
+    fwrite (buf, sz, 1, gv->pcap_fp);
+    ddsrt_mutex_unlock (&gv->pcap_lock);
   }
 }
 
-void write_pcap_sent
-(
-  FILE * fp,
-  nn_wctime_t tstamp,
-  const struct sockaddr_storage * src,
-  const ddsrt_msghdr_t * hdr,
-  size_t sz
-)
+void write_pcap_sent (struct q_globals *gv, nn_wctime_t tstamp, const struct sockaddr_storage *src, const ddsrt_msghdr_t *hdr, size_t sz)
 {
-  if (config.transport_selector == TRANS_UDP)
+  if (gv->config.transport_selector == TRANS_UDP)
   {
     pcaprec_hdr_t pcap_hdr;
     union {
@@ -187,23 +172,23 @@ void write_pcap_sent
     udp_hdr_t udp_hdr;
     size_t sz_ud = sz + UDP_HDR_SIZE;
     size_t sz_iud = sz_ud + IPV4_HDR_SIZE;
-    ddsrt_mutex_lock (&gv.pcap_lock);
+    ddsrt_mutex_lock (&gv->pcap_lock);
     wctime_to_sec_usec (&pcap_hdr.ts_sec, &pcap_hdr.ts_usec, tstamp);
     pcap_hdr.incl_len = pcap_hdr.orig_len = (uint32_t) sz_iud;
-    fwrite (&pcap_hdr, sizeof (pcap_hdr), 1, fp);
+    fwrite (&pcap_hdr, sizeof (pcap_hdr), 1, gv->pcap_fp);
     u.ipv4_hdr = ipv4_hdr_template;
     u.ipv4_hdr.totallength = toBE2u ((unsigned short) sz_iud);
     u.ipv4_hdr.ttl = 255;
     u.ipv4_hdr.srcip = ((struct sockaddr_in*) src)->sin_addr.s_addr;
     u.ipv4_hdr.dstip = ((struct sockaddr_in*) hdr->msg_name)->sin_addr.s_addr;
     u.ipv4_hdr.checksum = calc_ipv4_checksum (u.x);
-    fwrite (&u.ipv4_hdr, sizeof (u.ipv4_hdr), 1, fp);
+    fwrite (&u.ipv4_hdr, sizeof (u.ipv4_hdr), 1, gv->pcap_fp);
     udp_hdr.srcport = ((struct sockaddr_in*) src)->sin_port;
     udp_hdr.dstport = ((struct sockaddr_in*) hdr->msg_name)->sin_port;
     udp_hdr.length = toBE2u ((unsigned short) sz_ud);
     udp_hdr.checksum = 0; /* don't have to compute a checksum for UDPv4 */
-    fwrite (&udp_hdr, sizeof (udp_hdr), 1, fp);
-    write_data (fp, hdr, sz);
-    ddsrt_mutex_unlock (&gv.pcap_lock);
+    fwrite (&udp_hdr, sizeof (udp_hdr), 1, gv->pcap_fp);
+    write_data (gv->pcap_fp, hdr, sz);
+    ddsrt_mutex_unlock (&gv->pcap_lock);
   }
 }

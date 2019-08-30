@@ -22,7 +22,7 @@ extern "C" {
 #define ASSERT_WRLOCK_HELD(x) ((void) 0)
 #define ASSERT_MUTEX_HELD(x) ((void) 0)
 
-void log_stacktrace (const char *name, ddsrt_thread_t tid);
+void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid);
 
 #if defined (__cplusplus)
 }
