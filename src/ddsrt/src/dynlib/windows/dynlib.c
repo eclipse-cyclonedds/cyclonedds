@@ -31,7 +31,7 @@ dds_return_t ddsrt_dlopen(const char *name, bool translate,
         size_t len = strlen(name) + sizeof(suffix);
         char* libName = ddsrt_malloc(len);
         sprintf_s(libName, len, "%s%s", name, suffix);
-        *handle = LoadLibrary(libName);
+        *handle = (ddsrt_dynlib_t)LoadLibrary(libName);
         ddsrt_free(libName);
     }
 
@@ -39,7 +39,7 @@ dds_return_t ddsrt_dlopen(const char *name, bool translate,
         /* Name contains a path,
         * (auto)translate is disabled or
         * LoadLibrary on translated name failed. */
-        *handle = LoadLibrary(name);
+        *handle = (ddsrt_dynlib_t)LoadLibrary(name);
     }
 
     if (*handle != NULL) {
@@ -54,7 +54,7 @@ dds_return_t ddsrt_dlopen(const char *name, bool translate,
 dds_return_t ddsrt_dlclose(ddsrt_dynlib_t handle) {
 
     assert ( handle );
-    return (FreeLibrary(handle) == 0) ? DDS_RETCODE_ERROR : DDS_RETCODE_OK;
+    return (FreeLibrary((HMODULE)handle) == 0) ? DDS_RETCODE_ERROR : DDS_RETCODE_OK;
 }
 
 dds_return_t ddsrt_dlsym(ddsrt_dynlib_t handle, const char *symbol,
@@ -65,7 +65,7 @@ dds_return_t ddsrt_dlsym(ddsrt_dynlib_t handle, const char *symbol,
     assert( address );
     assert( symbol );
 
-    *address = GetProcAddress(handle, symbol);
+    *address = GetProcAddress((HMODULE)handle, symbol);
     if ( *address == NULL ) {
         retcode = DDS_RETCODE_ERROR;
     }
