@@ -1099,6 +1099,20 @@ dds_return_t dds_entity_lock (dds_entity_t hdl, dds_entity_kind_t kind, dds_enti
   }
 }
 
+dds_return_t dds_entity_lock_for_create (dds_entity_t hdl, dds_entity_kind_t kind, dds_entity **eptr)
+{
+  dds_return_t res;
+  if ((res = dds_entity_lock (hdl, kind, eptr)) < 0)
+    return res;
+  else if (!dds_handle_is_closed (&(*eptr)->m_hdllink))
+    return DDS_RETCODE_OK;
+  else
+  {
+    ddsrt_mutex_unlock (&(*eptr)->m_mutex);
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+}
+
 void dds_entity_unlock (dds_entity *e)
 {
   ddsrt_mutex_unlock (&e->m_mutex);

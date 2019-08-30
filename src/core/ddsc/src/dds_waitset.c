@@ -21,7 +21,7 @@
 #include "dds__rhc.h"
 #include "dds/ddsi/ddsi_iid.h"
 
-DEFINE_ENTITY_LOCK_UNLOCK (static, dds_waitset, DDS_KIND_WAITSET)
+DEFINE_ENTITY_LOCK_UNLOCK_ONLY (static, dds_waitset, DDS_KIND_WAITSET)
 
 static bool is_triggered (struct dds_entity *e)
 {
@@ -125,7 +125,7 @@ dds_entity_t dds_create_waitset (dds_entity_t owner)
   if ((rc = dds_init ()) < 0)
     return rc;
 
-  if ((rc = dds_entity_lock (owner, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_lock_for_create (owner, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
     goto err_entity_lock;
 
   switch (dds_entity_kind (e))

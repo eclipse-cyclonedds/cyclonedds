@@ -324,7 +324,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
 
   /* FIXME: just mutex_lock ought to be good enough, but there is the
      pesky "closed" check still ... */
-  if ((rc = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
+  if ((rc = dds_participant_lock_for_create (participant, &par)) != DDS_RETCODE_OK)
     goto err_lock_participant;
 
   bool retry_lookup;
@@ -384,7 +384,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
           abort ();
       }
 
-      if ((rc = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
+      if ((rc = dds_participant_lock_for_create (participant, &par)) != DDS_RETCODE_OK)
         goto err_lock_participant;
     }
   } while (retry_lookup);

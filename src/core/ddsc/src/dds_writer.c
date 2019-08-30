@@ -261,14 +261,14 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     dds_entity_unpin (p_or_p);
   }
 
-  if ((rc = dds_publisher_lock (publisher, &pub)) != DDS_RETCODE_OK)
+  if ((rc = dds_publisher_lock_for_create (publisher, &pub)) != DDS_RETCODE_OK)
     return rc;
 
   ddsi_tran_conn_t conn = pub->m_entity.m_domain->gv.data_conn_uc;
   if (publisher != participant_or_publisher)
     pub->m_entity.m_flags |= DDS_ENTITY_IMPLICIT;
 
-  if ((rc = dds_topic_lock (topic, &tp)) != DDS_RETCODE_OK)
+  if ((rc = dds_topic_lock_for_create (topic, &tp)) != DDS_RETCODE_OK)
     goto err_tp_lock;
   assert (tp->m_stopic);
 
