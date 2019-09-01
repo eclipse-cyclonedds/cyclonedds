@@ -1818,6 +1818,21 @@ static struct ddsi_serdata *new_sample_from_data (struct ddsi_tkmap_instance **t
       ddsi_serdata_unref (sample);
       sample = NULL;
     }
+    else if (gv->logconfig.c.mask & DDS_LC_TRACE)
+    {
+      const struct proxy_writer *pwr = sampleinfo->pwr;
+      nn_guid_t guid;
+      char tmp[1024];
+      size_t res = 0;
+      tmp[0] = 0;
+      if (gv->logconfig.c.mask & DDS_LC_CONTENT)
+        res = ddsi_serdata_print (sample, tmp, sizeof (tmp));
+      if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
+      GVTRACE ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": ST%x %s/%s:%s%s",
+               sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
+               PGUID (guid), sampleinfo->seq, statusinfo, topic->name, topic->type_name,
+               tmp, res < sizeof (tmp) ? "" : "(trunc)");
+    }
   }
   return sample;
 }
@@ -1932,9 +1947,8 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     if ((plist_ret = nn_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET, 0, &src)) < 0)
     {
       if (plist_ret != DDS_RETCODE_UNSUPPORTED)
-        DDS_CWARNING (&gv->logconfig,
-                      "data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": invalid inline qos\n",
-                      src.vendorid.id[0], src.vendorid.id[1], PGUID (pwr->e.guid), sampleinfo->seq);
+        GVWARNING ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": invalid inline qos\n",
+                   src.vendorid.id[0], src.vendorid.id[1], PGUID (pwr->e.guid), sampleinfo->seq);
       return 0;
     }
     statusinfo = (qos.present & PP_STATUSINFO) ? qos.statusinfo : 0;
@@ -1947,8 +1961,6 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
 
   if (rdguid == NULL)
   {
-    ETRACE (pwr, " %"PRId64"=>EVERYONE\n", sampleinfo->seq);
-
     /* FIXME: Retry loop, for re-delivery of rejected reliable samples. Is a
        temporary hack till throttling back of writer is implemented (with late
        acknowledgement of sample and nack). */
@@ -1963,9 +1975,9 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
         struct ddsi_tkmap_instance *tk;
         if ((payload = new_sample_from_data (&tk, gv, sampleinfo, data_smhdr_flags, &qos, fragchain, statusinfo, tstamp, rdary[0]->topic)) != NULL)
         {
+          ETRACE (pwr, " => EVERYONE\n");
           uint32_t i = 0;
           do {
-            ETRACE (pwr, "reader "PGUIDFMT"\n", PGUID (rdary[i]->e.guid));
             if (!rhc_store (rdary[i]->rhc, &pwr_info, payload, tk))
             {
               if (pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
@@ -2005,12 +2017,14 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
         struct ddsi_tkmap_instance *tk;
         if ((payload = new_sample_from_data (&tk, gv, sampleinfo, data_smhdr_flags, &qos, fragchain, statusinfo, tstamp, rd->topic)) != NULL)
         {
+          ETRACE (pwr, " =>");
           do {
-            ETRACE (pwr, "reader-via-guid "PGUIDFMT"\n", PGUID (rd->e.guid));
+            ETRACE (pwr, " "PGUIDFMT, PGUID (rd->e.guid));
             (void) rhc_store (rd->rhc, &pwr_info, payload, tk);
             rd = proxy_writer_next_in_sync_reader (pwr, &it);
           } while (rd != NULL);
           free_sample_after_store (gv, payload, tk);
+          ETRACE (pwr, "\n");
         }
       }
       if (!pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
@@ -2021,13 +2035,13 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   else
   {
     struct reader *rd = ephash_lookup_reader_guid (gv->guid_hash, rdguid);
-    ETRACE (pwr, " %"PRId64"=>"PGUIDFMT"%s\n", sampleinfo->seq, PGUID (*rdguid), rd ? "" : "?");
     if (rd != NULL)
     {
       struct ddsi_serdata *payload;
       struct ddsi_tkmap_instance *tk;
       if ((payload = new_sample_from_data (&tk, gv, sampleinfo, data_smhdr_flags, &qos, fragchain, statusinfo, tstamp, rd->topic)) != NULL)
       {
+        ETRACE (pwr, " =>"PGUIDFMT"\n", PGUID (*rdguid));
         /* FIXME: why look up rd,pwr again? Their states remains valid while the thread stays
            "awake" (although a delete can be initiated), and blocking like this is a stopgap
            anyway -- quite possibly to abort once either is deleted */

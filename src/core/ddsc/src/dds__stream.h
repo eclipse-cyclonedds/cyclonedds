@@ -60,6 +60,10 @@ void dds_stream_extract_keyhash (dds_istream_t * __restrict is, dds_keyhash_t * 
 
 void dds_stream_read_key (dds_istream_t * __restrict is, char * __restrict sample, const struct ddsi_sertopic_default * __restrict topic);
 
+size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct ddsi_sertopic_default * __restrict topic, char * __restrict buf, size_t size);
+
+size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct ddsi_sertopic_default * __restrict topic, char * __restrict buf, size_t size);
+
 /* For marshalling op code handling */
 
 #define DDS_OP_MASK 0xff000000

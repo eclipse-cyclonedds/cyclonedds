@@ -276,6 +276,12 @@ static void serdata_builtin_to_ser_unref (struct ddsi_serdata *serdata_common, c
   (void)serdata_common; (void)ref;
 }
 
+static size_t serdata_builtin_topic_print (const struct ddsi_sertopic *topic, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
+{
+  (void)topic; (void)serdata_common;
+  return (size_t) snprintf (buf, size, "(blob)");
+}
+
 const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic = {
   .get_size = serdata_builtin_get_size,
   .eqkey = serdata_builtin_eqkey,
@@ -288,5 +294,6 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic = {
   .to_ser_ref = serdata_builtin_to_ser_ref,
   .to_ser_unref = serdata_builtin_to_ser_unref,
   .to_topicless = serdata_builtin_to_topicless,
-  .topicless_to_sample = serdata_builtin_topicless_to_sample
+  .topicless_to_sample = serdata_builtin_topicless_to_sample,
+  .print = serdata_builtin_topic_print
 };
