@@ -859,6 +859,8 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
     const char *ttname = wr->topic ? wr->topic->type_name : "(null)";
     ppbuf[0] = '\0';
     tmp = sizeof (ppbuf) - 1;
+    if (wr->e.gv->logconfig.c.mask & DDS_LC_CONTENT)
+      ddsi_serdata_print (serdata, ppbuf, sizeof (ppbuf));
     ETRACE (wr, "write_sample "PGUIDFMT" #%"PRId64, PGUID (wr->e.guid), seq);
     if (plist != 0 && (plist->present & PP_COHERENT_SET))
       ETRACE (wr, " C#%"PRId64"", fromSN (plist->coherent_set_seqno));

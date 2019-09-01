@@ -123,6 +123,15 @@ typedef bool (*ddsi_serdata_topicless_to_sample_t) (const struct ddsi_sertopic *
    computing equijoins across topics much simpler). */
 typedef bool (*ddsi_serdata_eqkey_t) (const struct ddsi_serdata *a, const struct ddsi_serdata *b);
 
+/* Print a serdata into the provided buffer (truncating as necessary)
+   - topic is present for supporting printing of "topicless" samples
+   - buf != NULL, bufsize > 0 on input
+   - buf must always be terminated with a nul character on return
+   - returns the number of characters (excluding the terminating 0) needed to print it
+     in full (or, as an optimization, it may pretend that it has printed it in full,
+     returning bufsize-1) if it had to truncate) */
+typedef size_t (*ddsi_serdata_print_t) (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, char *buf, size_t size);
+
 struct ddsi_serdata_ops {
   ddsi_serdata_eqkey_t eqkey;
   ddsi_serdata_size_t get_size;
@@ -136,7 +145,10 @@ struct ddsi_serdata_ops {
   ddsi_serdata_to_topicless_t to_topicless;
   ddsi_serdata_topicless_to_sample_t topicless_to_sample;
   ddsi_serdata_free_t free;
+  ddsi_serdata_print_t print;
 };
+
+#define DDSI_SERDATA_HAS_PRINT 1
 
 DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertopic *tp, enum ddsi_serdata_kind kind);
 
@@ -193,6 +205,20 @@ DDS_EXPORT inline bool ddsi_serdata_topicless_to_sample (const struct ddsi_serto
 
 DDS_EXPORT inline bool ddsi_serdata_eqkey (const struct ddsi_serdata *a, const struct ddsi_serdata *b) {
   return a->ops->eqkey (a, b);
+}
+
+DDS_EXPORT inline bool ddsi_serdata_print (const struct ddsi_serdata *d, char *buf, size_t size) {
+  return d->ops->print (d->topic, d, buf, size);
+}
+
+DDS_EXPORT inline bool ddsi_serdata_print_topicless (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, char *buf, size_t size) {
+  if (d->ops->print)
+    return d->ops->print (topic, d, buf, size);
+  else
+  {
+    buf[0] = 0;
+    return 0;
+  }
 }
 
 #if defined (__cplusplus)

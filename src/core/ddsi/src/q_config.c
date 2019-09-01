@@ -1317,14 +1317,17 @@ static enum update_result do_uint32_bitset (struct cfgst *cfgst, uint32_t *cats,
   char *copy = ddsrt_strdup (value), *cursor = copy, *tok;
   while ((tok = ddsrt_strsep (&cursor, ",")) != NULL)
   {
-    const int idx = list_index (names, tok);
+    const int idx = list_index (names, tok[0] == '-' ? tok+1 : tok);
     if (idx < 0)
     {
       const enum update_result ret = cfg_error (cfgst, "'%s' in '%s' undefined", tok, value);
       ddsrt_free (copy);
       return ret;
     }
-    *cats |= codes[idx];
+    if (tok[0] == '-')
+      *cats &= ~codes[idx];
+    else
+      *cats |= codes[idx];
   }
   ddsrt_free (copy);
   return URES_SUCCESS;
@@ -1517,10 +1520,10 @@ GENERIC_ENUM_CTYPE (standards_conformance, enum nn_standards_conformance)
 
 /* "trace" is special: it enables (nearly) everything */
 static const char *tracemask_names[] = {
-  "fatal", "error", "warning", "info", "config", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "rhc", "trace", NULL
+  "fatal", "error", "warning", "info", "config", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "rhc", "content", "trace", NULL
 };
 static const uint32_t tracemask_codes[] = {
-  DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_ALL
+  DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_CONTENT, DDS_LC_ALL
 };
 
 static enum update_result uf_tracemask (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
