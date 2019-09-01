@@ -2383,6 +2383,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         cfgst_push (cfgst, 0, &root_cfgelems[0], cfgst_parent (cfgst));
         cfgst->implicit_toplevel = ITL_INSERTED_2;
       }
+      cfgst->source = (cfgst->source == 0) ? 1 : cfgst->source << 1;
+      cfgst->first_data_in_source = true;
     }
   }
 
