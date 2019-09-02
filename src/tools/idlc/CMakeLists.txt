@@ -9,6 +9,7 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
+include(ListJoin)
 
 if(BUILD_TESTING)
   add_subdirectory(tests)
@@ -45,8 +46,8 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "GNU" OR
                    "-Wno-documentation"
                    "-Wno-missing-prototypes")
   set(parser_cflags "-Wno-sign-conversion")
-  list(JOIN lexer_cflags " " lexer_cflags)
-  list(JOIN parser_cflags " " parser_cflags)
+  list_join(lexer_cflags " " lexer_cflags)
+  list_join(parser_cflags " " parser_cflags)
   set_source_files_properties(
     "${lexer_path}" PROPERTIES COMPILE_FLAGS "${lexer_cflags}")
   set_source_files_properties(
