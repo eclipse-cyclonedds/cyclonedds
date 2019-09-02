@@ -390,6 +390,12 @@ static void dds_rhc_default_remove_readcondition_wrap (struct dds_rhc *rhc, dds_
 static uint32_t dds_rhc_default_lock_samples_wrap (struct dds_rhc *rhc) {
   return dds_rhc_default_lock_samples ((struct dds_rhc_default *) rhc);
 }
+static dds_return_t dds_rhc_default_associate (struct dds_rhc *rhc, dds_reader *reader, const struct ddsi_sertopic *topic, struct ddsi_tkmap *tkmap)
+{
+  /* ignored out of laziness */
+  (void) rhc; (void) reader; (void) topic; (void) tkmap;
+  return DDS_RETCODE_OK;
+}
 
 static const struct dds_rhc_ops dds_rhc_default_ops = {
   .rhc_ops = {
@@ -404,7 +410,8 @@ static const struct dds_rhc_ops dds_rhc_default_ops = {
   .takecdr = dds_rhc_default_takecdr_wrap,
   .add_readcondition = dds_rhc_default_add_readcondition_wrap,
   .remove_readcondition = dds_rhc_default_remove_readcondition_wrap,
-  .lock_samples = dds_rhc_default_lock_samples_wrap
+  .lock_samples = dds_rhc_default_lock_samples_wrap,
+  .associate = dds_rhc_default_associate
 };
 
 static unsigned qmask_of_sample (const struct rhc_sample *s)

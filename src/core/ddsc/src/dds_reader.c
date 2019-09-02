@@ -284,7 +284,7 @@ const struct dds_entity_deriver dds_entity_deriver_reader = {
   .validate_status = dds_reader_status_validate
 };
 
-dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
+static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
 {
   dds_qos_t *rqos;
   dds_subscriber *sub = NULL;
@@ -376,12 +376,17 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
     goto err_bad_qos;
   }
 
-  /* Create reader and associated read cache */
+  /* Create reader and associated read cache (if not provided by caller) */
   rd = dds_alloc (sizeof (*rd));
   reader = dds_entity_init (&rd->m_entity, &sub->m_entity, DDS_KIND_READER, rqos, listener, DDS_READER_STATUS_MASK);
   rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
   rd->m_topic = tp;
-  rd->m_rhc = dds_rhc_default_new (rd, tp->m_stopic);
+  rd->m_rhc = rhc ? rhc : dds_rhc_default_new (rd, tp->m_stopic);
+  if (dds_rhc_associate (rd->m_rhc, rd, tp->m_stopic, rd->m_entity.m_domain->gv.m_tkmap) < 0)
+  {
+    /* FIXME: see also create_querycond, need to be able to undo entity_init */
+    abort ();
+  }
   dds_entity_add_ref_locked (&tp->m_entity);
 
   /* Extra claim of this reader to make sure that the delete waits until DDSI
@@ -472,6 +477,18 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
   }
   ddsrt_mutex_unlock (&rd->e.lock);
   dds_entity_unpin (dds_entity);
+}
+
+dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
+{
+  return dds_create_reader_int (participant_or_subscriber, topic, qos, listener, NULL);
+}
+
+dds_entity_t dds_create_reader_rhc (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
+{
+  if (rhc == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  return dds_create_reader_int (participant_or_subscriber, topic, qos, listener, rhc);
 }
 
 uint32_t dds_reader_lock_samples (dds_entity_t reader)
