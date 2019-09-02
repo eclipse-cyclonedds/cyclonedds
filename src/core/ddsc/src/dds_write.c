@@ -16,7 +16,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_rhc.h"
+#include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds__stream.h"
 #include "dds/ddsi/q_transmit.h"
@@ -71,9 +71,9 @@ dds_return_t dds_write_ts (dds_entity_t writer, const void *data, dds_time_t tim
   return ret;
 }
 
-static dds_return_t try_store (struct rhc *rhc, const struct proxy_writer_info *pwr_info, struct ddsi_serdata *payload, struct ddsi_tkmap_instance *tk, dds_duration_t *max_block_ms)
+static dds_return_t try_store (struct ddsi_rhc *rhc, const struct ddsi_writer_info *pwr_info, struct ddsi_serdata *payload, struct ddsi_tkmap_instance *tk, dds_duration_t *max_block_ms)
 {
-  while (! rhc_store (rhc, pwr_info, payload, tk))
+  while (! ddsi_rhc_store (rhc, pwr_info, payload, tk))
   {
     if (*max_block_ms > 0)
     {
@@ -98,8 +98,8 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
     if (rdary[0])
     {
       dds_duration_t max_block_ms = wr->xqos->reliability.max_blocking_time;
-      struct proxy_writer_info pwr_info;
-      make_proxy_writer_info (&pwr_info, &wr->e, wr->xqos);
+      struct ddsi_writer_info pwr_info;
+      ddsi_make_writer_info (&pwr_info, &wr->e, wr->xqos);
       for (uint32_t i = 0; rdary[i]; i++) {
         DDS_CTRACE (&wr->e.gv->logconfig, "reader "PGUIDFMT"\n", PGUID (rdary[i]->e.guid));
         if ((ret = try_store (rdary[i]->rhc, &pwr_info, payload, tk, &max_block_ms)) != DDS_RETCODE_OK)
@@ -120,11 +120,11 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
        reliable samples that are rejected are simply discarded. */
     ddsrt_avl_iter_t it;
     struct pwr_rd_match *m;
-    struct proxy_writer_info pwr_info;
+    struct ddsi_writer_info wrinfo;
     const struct ephash *gh = wr->e.gv->guid_hash;
     dds_duration_t max_block_ms = wr->xqos->reliability.max_blocking_time;
     ddsrt_mutex_unlock (&wr->rdary.rdary_lock);
-    make_proxy_writer_info (&pwr_info, &wr->e, wr->xqos);
+    ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos);
     ddsrt_mutex_lock (&wr->e.lock);
     for (m = ddsrt_avl_iter_first (&wr_local_readers_treedef, &wr->local_readers, &it); m != NULL; m = ddsrt_avl_iter_next (&it))
     {
@@ -133,7 +133,7 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
       {
         DDS_CTRACE (&wr->e.gv->logconfig, "reader-via-guid "PGUIDFMT"\n", PGUID (rd->e.guid));
         /* Copied the return value ignore from DDSI deliver_user_data () function. */
-        if ((ret = try_store (rd->rhc, &pwr_info, payload, tk, &max_block_ms)) != DDS_RETCODE_OK)
+        if ((ret = try_store (rd->rhc, &wrinfo, payload, tk, &max_block_ms)) != DDS_RETCODE_OK)
           break;
       }
     }

@@ -158,7 +158,7 @@ struct q_globals {
 
   /* GUID to be used in next call to new_participant; also protected
      by privileged_pp_lock */
-  struct nn_guid ppguid_base;
+  struct ddsi_guid ppguid_base;
 
   /* number of up, non-loopback, IPv4/IPv6 interfaces, the index of
      the selected/preferred one, and the discovered interfaces. */

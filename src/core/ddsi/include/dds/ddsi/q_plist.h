@@ -116,7 +116,7 @@ typedef struct nn_prismtech_participant_version_info
 } nn_prismtech_participant_version_info_t;
 
 typedef struct nn_prismtech_eotgroup_tid {
-  nn_entityid_t writer_entityid;
+  ddsi_entityid_t writer_entityid;
   uint32_t transactionId;
 } nn_prismtech_eotgroup_tid_t;
 
@@ -140,9 +140,9 @@ typedef struct nn_plist {
   uint32_t participant_builtin_endpoints;
   dds_duration_t participant_lease_duration;
   /* nn_content_filter_property_t content_filter_property; */
-  nn_guid_t participant_guid;
-  nn_guid_t endpoint_guid;
-  nn_guid_t group_guid;
+  ddsi_guid_t participant_guid;
+  ddsi_guid_t endpoint_guid;
+  ddsi_guid_t group_guid;
 #if 0 /* reserved, rather than NIY */
   nn_entityid_t participant_entityid;
   nn_entityid_t group_entityid;

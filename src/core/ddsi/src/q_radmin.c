@@ -2407,7 +2407,7 @@ struct nn_dqueue_bubble {
       void *arg;
     } cb;
     struct {
-      nn_guid_t rdguid;
+      ddsi_guid_t rdguid;
       uint32_t count;
     } rdguid;
   } u;
@@ -2429,7 +2429,7 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
   struct q_globals const * const gv = ddsrt_atomic_ldvoidp (&ts1->gv);
   nn_mtime_t next_thread_cputime = { 0 };
   int keepgoing = 1;
-  nn_guid_t rdguid, *prdguid = NULL;
+  ddsi_guid_t rdguid, *prdguid = NULL;
   uint32_t rdguid_count = 0;
 
   ddsrt_mutex_lock (&q->lock);
@@ -2631,7 +2631,7 @@ void nn_dqueue_enqueue_callback (struct nn_dqueue *q, nn_dqueue_callback_t cb, v
   nn_dqueue_enqueue_bubble (q, b);
 }
 
-void nn_dqueue_enqueue1 (struct nn_dqueue *q, const nn_guid_t *rdguid, struct nn_rsample_chain *sc, nn_reorder_result_t rres)
+void nn_dqueue_enqueue1 (struct nn_dqueue *q, const ddsi_guid_t *rdguid, struct nn_rsample_chain *sc, nn_reorder_result_t rres)
 {
   struct nn_dqueue_bubble *b;
 

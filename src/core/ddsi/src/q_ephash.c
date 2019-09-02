@@ -113,7 +113,7 @@ static void ephash_guid_remove (struct ephash *gh, struct entity_common *e)
   assert (x);
 }
 
-void *ephash_lookup_guid_untyped (const struct ephash *gh, const struct nn_guid *guid)
+void *ephash_lookup_guid_untyped (const struct ephash *gh, const struct ddsi_guid *guid)
 {
   /* FIXME: could (now) require guid to be first in entity_common; entity_common already is first in entity */
   struct entity_common e;
@@ -122,7 +122,7 @@ void *ephash_lookup_guid_untyped (const struct ephash *gh, const struct nn_guid 
   return ddsrt_chh_lookup (gh->hash, &e);
 }
 
-static void *ephash_lookup_guid_int (const struct ephash *gh, const struct nn_guid *guid, enum entity_kind kind)
+static void *ephash_lookup_guid_int (const struct ephash *gh, const struct ddsi_guid *guid, enum entity_kind kind)
 {
   struct entity_common *res;
   if ((res = ephash_lookup_guid_untyped (gh, guid)) != NULL && res->kind == kind)
@@ -131,7 +131,7 @@ static void *ephash_lookup_guid_int (const struct ephash *gh, const struct nn_gu
     return NULL;
 }
 
-void *ephash_lookup_guid (const struct ephash *gh, const struct nn_guid *guid, enum entity_kind kind)
+void *ephash_lookup_guid (const struct ephash *gh, const struct ddsi_guid *guid, enum entity_kind kind)
 {
   return ephash_lookup_guid_int (gh, guid, kind);
 }
@@ -196,42 +196,42 @@ void ephash_remove_proxy_reader_guid (struct ephash *gh, struct proxy_reader *pr
   ephash_guid_remove (gh, &prd->e);
 }
 
-struct participant *ephash_lookup_participant_guid (const struct ephash *gh, const struct nn_guid *guid)
+struct participant *ephash_lookup_participant_guid (const struct ephash *gh, const struct ddsi_guid *guid)
 {
   assert (guid->entityid.u == NN_ENTITYID_PARTICIPANT);
   assert (offsetof (struct participant, e) == 0);
   return ephash_lookup_guid_int (gh, guid, EK_PARTICIPANT);
 }
 
-struct proxy_participant *ephash_lookup_proxy_participant_guid (const struct ephash *gh, const struct nn_guid *guid)
+struct proxy_participant *ephash_lookup_proxy_participant_guid (const struct ephash *gh, const struct ddsi_guid *guid)
 {
   assert (guid->entityid.u == NN_ENTITYID_PARTICIPANT);
   assert (offsetof (struct proxy_participant, e) == 0);
   return ephash_lookup_guid_int (gh, guid, EK_PROXY_PARTICIPANT);
 }
 
-struct writer *ephash_lookup_writer_guid (const struct ephash *gh, const struct nn_guid *guid)
+struct writer *ephash_lookup_writer_guid (const struct ephash *gh, const struct ddsi_guid *guid)
 {
   assert (is_writer_entityid (guid->entityid));
   assert (offsetof (struct writer, e) == 0);
   return ephash_lookup_guid_int (gh, guid, EK_WRITER);
 }
 
-struct reader *ephash_lookup_reader_guid (const struct ephash *gh, const struct nn_guid *guid)
+struct reader *ephash_lookup_reader_guid (const struct ephash *gh, const struct ddsi_guid *guid)
 {
   assert (is_reader_entityid (guid->entityid));
   assert (offsetof (struct reader, e) == 0);
   return ephash_lookup_guid_int (gh, guid, EK_READER);
 }
 
-struct proxy_writer *ephash_lookup_proxy_writer_guid (const struct ephash *gh, const struct nn_guid *guid)
+struct proxy_writer *ephash_lookup_proxy_writer_guid (const struct ephash *gh, const struct ddsi_guid *guid)
 {
   assert (is_writer_entityid (guid->entityid));
   assert (offsetof (struct proxy_writer, e) == 0);
   return ephash_lookup_guid_int (gh, guid, EK_PROXY_WRITER);
 }
 
-struct proxy_reader *ephash_lookup_proxy_reader_guid (const struct ephash *gh, const struct nn_guid *guid)
+struct proxy_reader *ephash_lookup_proxy_reader_guid (const struct ephash *gh, const struct ddsi_guid *guid)
 {
   assert (is_reader_entityid (guid->entityid));
   assert (offsetof (struct proxy_reader, e) == 0);

@@ -18,7 +18,7 @@
 #include "dds__reader.h"
 #include "dds__listener.h"
 #include "dds__init.h"
-#include "dds__rhc.h"
+#include "dds/ddsc/dds_rhc.h"
 #include "dds__rhc_default.h"
 #include "dds__topic.h"
 #include "dds__get_status.h"
@@ -437,7 +437,7 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
 
   dds_reader *dds_rd = (dds_reader *) dds_entity;
   struct reader *rd = dds_rd->m_rd;
-  nn_guid_t pwrguid;
+  ddsi_guid_t pwrguid;
   struct proxy_writer *pwr;
   struct rd_pwr_match *m;
   memset (&pwrguid, 0, sizeof (pwrguid));
@@ -450,7 +450,7 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
     /* have to be careful walking the tree -- pretty is different, but
        I want to check this before I write a lookup_succ function. */
     struct rd_pwr_match *m_next;
-    nn_guid_t pwrguid_next;
+    ddsi_guid_t pwrguid_next;
     pwrguid = m->pwr_guid;
     if ((m_next = ddsrt_avl_find_succ (&rd_writers_treedef, &rd->writers, m)) != NULL)
       pwrguid_next = m_next->pwr_guid;

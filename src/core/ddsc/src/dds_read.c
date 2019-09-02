@@ -14,7 +14,7 @@
 #include "dds__entity.h"
 #include "dds__reader.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds__rhc.h"
+#include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_entity.h"

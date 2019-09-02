@@ -18,7 +18,7 @@
 #include "dds__querycond.h"
 #include "dds__readcond.h"
 #include "dds__init.h"
-#include "dds__rhc.h"
+#include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsi/ddsi_iid.h"
 
 DEFINE_ENTITY_LOCK_UNLOCK_ONLY (static, dds_waitset, DDS_KIND_WAITSET)

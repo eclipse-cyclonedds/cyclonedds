@@ -42,7 +42,7 @@
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
-#include "dds/ddsi/q_rhc.h"
+#include "dds/ddsi/ddsi_rhc.h"
 
 #include "dds/ddsi/sysdeps.h"
 #include "dds__whc.h"
@@ -51,7 +51,7 @@
 
 struct deleted_participant {
   ddsrt_avl_node_t avlnode;
-  nn_guid_t guid;
+  ddsi_guid_t guid;
   unsigned for_what;
   nn_mtime_t t_prune;
 };
@@ -92,10 +92,10 @@ static const unsigned prismtech_builtin_writers_besmask =
   NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER |
   NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
 
-static dds_return_t new_writer_guid (struct writer **wr_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc, status_cb_t status_cb, void *status_cbarg);
-static dds_return_t new_reader_guid (struct reader **rd_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct rhc *rhc, status_cb_t status_cb, void *status_cbarg);
-static struct participant *ref_participant (struct participant *pp, const struct nn_guid *guid_of_refing_entity);
-static void unref_participant (struct participant *pp, const struct nn_guid *guid_of_refing_entity);
+static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc, status_cb_t status_cb, void *status_cbarg);
+static dds_return_t new_reader_guid (struct reader **rd_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct ddsi_rhc *rhc, status_cb_t status_cb, void *status_cbarg);
+static struct participant *ref_participant (struct participant *pp, const struct ddsi_guid *guid_of_refing_entity);
+static void unref_participant (struct participant *pp, const struct ddsi_guid *guid_of_refing_entity);
 
 static int gcreq_participant (struct participant *pp);
 static int gcreq_writer (struct writer *wr);
@@ -104,24 +104,24 @@ static int gcreq_proxy_participant (struct proxy_participant *proxypp);
 static int gcreq_proxy_writer (struct proxy_writer *pwr);
 static int gcreq_proxy_reader (struct proxy_reader *prd);
 
-extern inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct nn_guid *guid, nn_vendorid_t vendorid);
+extern inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid);
 extern inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertopic *topic);
-extern inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct nn_guid *guid);
+extern inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid);
 extern inline void builtintopic_write (const struct ddsi_builtin_topic_interface *btif, const struct entity_common *e, nn_wctime_t timestamp, bool alive);
 
 static int compare_guid (const void *va, const void *vb)
 {
-  return memcmp (va, vb, sizeof (nn_guid_t));
+  return memcmp (va, vb, sizeof (ddsi_guid_t));
 }
 
-nn_entityid_t to_entityid (unsigned u)
+ddsi_entityid_t to_entityid (unsigned u)
 {
-  nn_entityid_t e;
+  ddsi_entityid_t e;
   e.u = u;
   return e;
 }
 
-int is_writer_entityid (nn_entityid_t id)
+int is_writer_entityid (ddsi_entityid_t id)
 {
   switch (id.u & NN_ENTITYID_KIND_MASK)
   {
@@ -133,7 +133,7 @@ int is_writer_entityid (nn_entityid_t id)
   }
 }
 
-int is_reader_entityid (nn_entityid_t id)
+int is_reader_entityid (ddsi_entityid_t id)
 {
   switch (id.u & NN_ENTITYID_KIND_MASK)
   {
@@ -145,7 +145,7 @@ int is_reader_entityid (nn_entityid_t id)
   }
 }
 
-int is_keyed_endpoint_entityid (nn_entityid_t id)
+int is_keyed_endpoint_entityid (ddsi_entityid_t id)
 {
   switch (id.u & NN_ENTITYID_KIND_MASK)
   {
@@ -160,7 +160,7 @@ int is_keyed_endpoint_entityid (nn_entityid_t id)
   }
 }
 
-int is_builtin_entityid (nn_entityid_t id, nn_vendorid_t vendorid)
+int is_builtin_entityid (ddsi_entityid_t id, nn_vendorid_t vendorid)
 {
   if ((id.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_BUILTIN)
     return 1;
@@ -175,7 +175,7 @@ int is_builtin_entityid (nn_entityid_t id, nn_vendorid_t vendorid)
   }
 }
 
-int is_builtin_endpoint (nn_entityid_t id, nn_vendorid_t vendorid)
+int is_builtin_endpoint (ddsi_entityid_t id, nn_vendorid_t vendorid)
 {
   return is_builtin_entityid (id, vendorid) && id.u != NN_ENTITYID_PARTICIPANT;
 }
@@ -186,7 +186,7 @@ bool is_local_orphan_endpoint (const struct entity_common *e)
           is_builtin_endpoint (e->guid.entityid, NN_VENDORID_ECLIPSE));
 }
 
-static void entity_common_init (struct entity_common *e, struct q_globals *gv, const struct nn_guid *guid, const char *name, enum entity_kind kind, nn_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal)
+static void entity_common_init (struct entity_common *e, struct q_globals *gv, const struct ddsi_guid *guid, const char *name, enum entity_kind kind, nn_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal)
 {
   e->guid = *guid;
   e->kind = kind;
@@ -296,6 +296,14 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e)
   return NN_VENDORID_UNKNOWN;
 }
 
+void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_common *e, const struct dds_qos *xqos)
+{
+  wrinfo->guid = e->guid;
+  wrinfo->ownership_strength = xqos->ownership_strength.value;
+  wrinfo->auto_dispose = xqos->writer_data_lifecycle.autodispose_unregistered_instances;
+  wrinfo->iid = e->iid;
+}
+
 /* DELETED PARTICIPANTS --------------------------------------------- */
 
 struct deleted_participants_admin *deleted_participants_admin_new (int64_t delay)
@@ -340,7 +348,7 @@ static void prune_deleted_participant_guids (struct deleted_participants_admin *
   ddsrt_mutex_unlock (&admin->deleted_participants_lock);
 }
 
-static void remember_deleted_participant_guid (struct deleted_participants_admin *admin, const struct nn_guid *guid)
+static void remember_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid)
 {
   struct deleted_participant *n;
   ddsrt_avl_ipath_t path;
@@ -358,7 +366,7 @@ static void remember_deleted_participant_guid (struct deleted_participants_admin
   ddsrt_mutex_unlock (&admin->deleted_participants_lock);
 }
 
-int is_deleted_participant_guid (struct deleted_participants_admin *admin, const struct nn_guid *guid, unsigned for_what)
+int is_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what)
 {
   struct deleted_participant *n;
   int known;
@@ -372,7 +380,7 @@ int is_deleted_participant_guid (struct deleted_participants_admin *admin, const
   return known;
 }
 
-static void remove_deleted_participant_guid (ddsrt_log_cfg_t *logcfg, struct deleted_participants_admin *admin, const struct nn_guid *guid, unsigned for_what)
+static void remove_deleted_participant_guid (ddsrt_log_cfg_t *logcfg, struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what)
 {
   struct deleted_participant *n;
   DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "remove_deleted_participant_guid("PGUIDFMT" for_what=%x)\n", PGUID (*guid), for_what);
@@ -417,7 +425,7 @@ static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, cons
   return true;
 }
 
-static dds_return_t pp_allocate_entityid(nn_entityid_t *id, uint32_t kind, struct participant *pp)
+static dds_return_t pp_allocate_entityid(ddsi_entityid_t *id, uint32_t kind, struct participant *pp)
 {
   uint32_t id1;
   int ret = 0;
@@ -436,17 +444,17 @@ static dds_return_t pp_allocate_entityid(nn_entityid_t *id, uint32_t kind, struc
   return ret;
 }
 
-static void pp_release_entityid(struct participant *pp, nn_entityid_t id)
+static void pp_release_entityid(struct participant *pp, ddsi_entityid_t id)
 {
   ddsrt_mutex_lock (&pp->e.lock);
   inverse_uint32_set_free(&pp->avail_entityids.x, id.u / NN_ENTITYID_ALLOCSTEP);
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 
-dds_return_t new_participant_guid (const nn_guid_t *ppguid, struct q_globals *gv, unsigned flags, const nn_plist_t *plist)
+dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *gv, unsigned flags, const nn_plist_t *plist)
 {
   struct participant *pp;
-  nn_guid_t subguid, group_guid;
+  ddsi_guid_t subguid, group_guid;
 
   /* no reserved bits may be set */
   assert ((flags & ~(RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS | RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP | RTPS_PF_ONLY_LOCAL)) == 0);
@@ -699,7 +707,7 @@ dds_return_t new_participant_guid (const nn_guid_t *ppguid, struct q_globals *gv
   return 0;
 }
 
-dds_return_t new_participant (nn_guid_t *p_ppguid, struct q_globals *gv, unsigned flags, const nn_plist_t *plist)
+dds_return_t new_participant (ddsi_guid_t *p_ppguid, struct q_globals *gv, unsigned flags, const nn_plist_t *plist)
 {
   union { uint64_t u64; uint32_t u32[2]; } u;
   u.u32[0] = gv->ppguid_base.prefix.u[1];
@@ -720,9 +728,9 @@ void update_participant_plist (struct participant *pp, const nn_plist_t *plist)
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 
-static void delete_builtin_endpoint (struct q_globals *gv, const struct nn_guid *ppguid, unsigned entityid)
+static void delete_builtin_endpoint (struct q_globals *gv, const struct ddsi_guid *ppguid, unsigned entityid)
 {
-  nn_guid_t guid;
+  ddsi_guid_t guid;
   guid.prefix = ppguid->prefix;
   guid.entityid.u = entityid;
   assert (is_builtin_entityid (to_entityid (entityid), NN_VENDORID_ECLIPSE));
@@ -732,9 +740,9 @@ static void delete_builtin_endpoint (struct q_globals *gv, const struct nn_guid 
     (void)delete_reader (gv, &guid);
 }
 
-static struct participant *ref_participant (struct participant *pp, const struct nn_guid *guid_of_refing_entity)
+static struct participant *ref_participant (struct participant *pp, const struct ddsi_guid *guid_of_refing_entity)
 {
-  nn_guid_t stguid;
+  ddsi_guid_t stguid;
   ddsrt_mutex_lock (&pp->refc_lock);
   if (guid_of_refing_entity && is_builtin_endpoint (guid_of_refing_entity->entityid, NN_VENDORID_ECLIPSE))
     pp->builtin_refc++;
@@ -751,7 +759,7 @@ static struct participant *ref_participant (struct participant *pp, const struct
   return pp;
 }
 
-static void unref_participant (struct participant *pp, const struct nn_guid *guid_of_refing_entity)
+static void unref_participant (struct participant *pp, const struct ddsi_guid *guid_of_refing_entity)
 {
   static const unsigned builtin_endpoints_tab[] = {
     NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
@@ -772,7 +780,7 @@ static void unref_participant (struct participant *pp, const struct nn_guid *gui
     NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER,
     NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_READER
   };
-  nn_guid_t stguid;
+  ddsi_guid_t stguid;
 
   ddsrt_mutex_lock (&pp->refc_lock);
   if (guid_of_refing_entity && is_builtin_endpoint (guid_of_refing_entity->entityid, NN_VENDORID_ECLIPSE))
@@ -903,7 +911,7 @@ static void gc_delete_participant (struct gcreq *gcreq)
   unref_participant (pp, NULL);
 }
 
-dds_return_t delete_participant (struct q_globals *gv, const struct nn_guid *ppguid)
+dds_return_t delete_participant (struct q_globals *gv, const struct ddsi_guid *ppguid)
 {
   struct participant *pp;
   if ((pp = ephash_lookup_participant_guid (gv->guid_hash, ppguid)) == NULL)
@@ -917,7 +925,7 @@ dds_return_t delete_participant (struct q_globals *gv, const struct nn_guid *ppg
 
 struct writer *get_builtin_writer (const struct participant *pp, unsigned entityid)
 {
-  nn_guid_t bwr_guid;
+  ddsi_guid_t bwr_guid;
   unsigned bes_mask = 0, prismtech_bes_mask = 0;
 
   if (pp->e.onlylocal) {
@@ -1387,7 +1395,7 @@ static void free_wr_rd_match (struct wr_rd_match *m)
   if (m) ddsrt_free (m);
 }
 
-static void writer_drop_connection (const struct nn_guid *wr_guid, const struct proxy_reader *prd)
+static void writer_drop_connection (const struct ddsi_guid *wr_guid, const struct proxy_reader *prd)
 {
   struct writer *wr;
   if ((wr = ephash_lookup_writer_guid (prd->e.gv->guid_hash, wr_guid)) != NULL)
@@ -1417,7 +1425,7 @@ static void writer_drop_connection (const struct nn_guid *wr_guid, const struct 
   }
 }
 
-static void writer_drop_local_connection (const struct nn_guid *wr_guid, struct reader *rd)
+static void writer_drop_local_connection (const struct ddsi_guid *wr_guid, struct reader *rd)
 {
   /* Only called by gc_delete_reader, so we actually have a reader pointer */
   struct writer *wr;
@@ -1444,7 +1452,7 @@ static void writer_drop_local_connection (const struct nn_guid *wr_guid, struct 
   }
 }
 
-static void reader_drop_connection (const struct nn_guid *rd_guid, const struct proxy_writer *pwr)
+static void reader_drop_connection (const struct ddsi_guid *rd_guid, const struct proxy_writer *pwr)
 {
   struct reader *rd;
   if ((rd = ephash_lookup_reader_guid (pwr->e.gv->guid_hash, rd_guid)) != NULL)
@@ -1458,9 +1466,9 @@ static void reader_drop_connection (const struct nn_guid *rd_guid, const struct 
     {
       if (rd->rhc)
       {
-        struct proxy_writer_info pwr_info;
-        make_proxy_writer_info (&pwr_info, &pwr->e, pwr->c.xqos);
-        rhc_unregister_wr (rd->rhc, &pwr_info);
+        struct ddsi_writer_info wrinfo;
+        ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos);
+        ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
       }
       if (rd->status_cb)
       {
@@ -1480,7 +1488,7 @@ static void reader_drop_connection (const struct nn_guid *rd_guid, const struct 
   }
 }
 
-static void reader_drop_local_connection (const struct nn_guid *rd_guid, const struct writer *wr)
+static void reader_drop_local_connection (const struct ddsi_guid *rd_guid, const struct writer *wr)
 {
   struct reader *rd;
   if ((rd = ephash_lookup_reader_guid (wr->e.gv->guid_hash, rd_guid)) != NULL)
@@ -1495,9 +1503,9 @@ static void reader_drop_local_connection (const struct nn_guid *rd_guid, const s
       if (rd->rhc)
       {
         /* FIXME: */
-        struct proxy_writer_info pwr_info;
-        make_proxy_writer_info(&pwr_info, &wr->e, wr->xqos);
-        rhc_unregister_wr (rd->rhc, &pwr_info);
+        struct ddsi_writer_info wrinfo;
+        ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos);
+        ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
       }
       if (rd->status_cb)
       {
@@ -1517,7 +1525,7 @@ static void reader_drop_local_connection (const struct nn_guid *rd_guid, const s
   }
 }
 
-static void update_reader_init_acknack_count (const ddsrt_log_cfg_t *logcfg, const struct ephash *guid_hash, const struct nn_guid *rd_guid, nn_count_t count)
+static void update_reader_init_acknack_count (const ddsrt_log_cfg_t *logcfg, const struct ephash *guid_hash, const struct ddsi_guid *rd_guid, nn_count_t count)
 {
   struct reader *rd;
 
@@ -1539,7 +1547,7 @@ static void update_reader_init_acknack_count (const ddsrt_log_cfg_t *logcfg, con
   }
 }
 
-static void proxy_writer_drop_connection (const struct nn_guid *pwr_guid, struct reader *rd)
+static void proxy_writer_drop_connection (const struct ddsi_guid *pwr_guid, struct reader *rd)
 {
   /* Only called by gc_delete_reader, so we actually have a reader pointer */
   struct proxy_writer *pwr;
@@ -1574,7 +1582,7 @@ static void proxy_writer_drop_connection (const struct nn_guid *pwr_guid, struct
   }
 }
 
-static void proxy_reader_drop_connection (const struct nn_guid *prd_guid, struct writer *wr)
+static void proxy_reader_drop_connection (const struct ddsi_guid *prd_guid, struct writer *wr)
 {
   struct proxy_reader *prd;
   if ((prd = ephash_lookup_proxy_reader_guid (wr->e.gv->guid_hash, prd_guid)) != NULL)
@@ -1719,12 +1727,12 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
     whc_sample_iter_init(wr->whc, &it);
     while (whc_sample_iter_borrow_next(&it, &sample))
     {
-      struct proxy_writer_info pwr_info;
+      struct ddsi_writer_info wrinfo;
       struct ddsi_serdata *payload = sample.serdata;
       /* FIXME: whc has tk reference in its index nodes, which is what we really should be iterating over anyway, and so we don't really have to look them up anymore */
       struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (tkmap, payload);
-      make_proxy_writer_info (&pwr_info, &wr->e, wr->xqos);
-      (void) rhc_store (rd->rhc, &pwr_info, payload, tk);
+      ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos);
+      (void) ddsi_rhc_store (rd->rhc, &wrinfo, payload, tk);
       ddsi_tkmap_instance_unref (tkmap, tk);
     }
   }
@@ -2004,9 +2012,9 @@ static void proxy_reader_add_connection (struct proxy_reader *prd, struct writer
   }
 }
 
-static nn_entityid_t builtin_entityid_match (nn_entityid_t x)
+static ddsi_entityid_t builtin_entityid_match (ddsi_entityid_t x)
 {
-  nn_entityid_t res;
+  ddsi_entityid_t res;
   res.u = 0;
   switch (x.u)
   {
@@ -2153,7 +2161,7 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
   proxy_writer_add_connection (pwr, rd, tnow, init_count);
 }
 
-static bool ignore_local_p (const nn_guid_t *guid1, const nn_guid_t *guid2, const struct dds_qos *xqos1, const struct dds_qos *xqos2)
+static bool ignore_local_p (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2, const struct dds_qos *xqos1, const struct dds_qos *xqos2)
 {
   assert (xqos1->present & QP_CYCLONE_IGNORELOCAL);
   assert (xqos2->present & QP_CYCLONE_IGNORELOCAL);
@@ -2372,7 +2380,7 @@ static void generic_do_match (struct entity_common *e, nn_mtime_t tnow)
   else
   {
     /* Built-ins have fixed QoS */
-    nn_entityid_t tgt_ent = builtin_entityid_match (e->guid.entityid);
+    ddsi_entityid_t tgt_ent = builtin_entityid_match (e->guid.entityid);
     enum entity_kind pkind = generic_do_match_isproxy (e) ? EK_PARTICIPANT : EK_PROXY_PARTICIPANT;
     EELOGDISC (e, "match_%s_with_%ss(%s "PGUIDFMT") scanning %sparticipants tgt=%"PRIx32"\n",
                generic_do_match_kindstr_us (e->kind), generic_do_match_kindstr_us (mkind),
@@ -2385,7 +2393,7 @@ static void generic_do_match (struct entity_common *e, nn_mtime_t tnow)
       ephash_enum_init (&est, guid_hash, pkind);
       while ((ep = ephash_enum_next (&est)) != NULL)
       {
-        nn_guid_t tgt_guid;
+        ddsi_guid_t tgt_guid;
         tgt_guid.prefix = ep->guid.prefix;
         tgt_guid.entityid = tgt_ent;
         if ((em = ephash_lookup_guid (guid_hash, &tgt_guid, mkind)) != NULL)
@@ -2452,7 +2460,7 @@ static void match_proxy_reader_with_writers (struct proxy_reader *prd, nn_mtime_
 
 /* ENDPOINT --------------------------------------------------------- */
 
-static void new_reader_writer_common (const struct ddsrt_log_cfg *logcfg, const struct nn_guid *guid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos)
+static void new_reader_writer_common (const struct ddsrt_log_cfg *logcfg, const struct ddsi_guid *guid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos)
 {
   const char *partition = "(default)";
   const char *partition_suffix = "";
@@ -2478,7 +2486,7 @@ static void new_reader_writer_common (const struct ddsrt_log_cfg *logcfg, const 
             topic ? topic->type_name : "(null)");
 }
 
-static void endpoint_common_init (struct entity_common *e, struct endpoint_common *c, struct q_globals *gv, enum entity_kind kind, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, bool onlylocal)
+static void endpoint_common_init (struct entity_common *e, struct endpoint_common *c, struct q_globals *gv, enum entity_kind kind, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct participant *pp, bool onlylocal)
 {
   entity_common_init (e, gv, guid, NULL, kind, now (), NN_VENDORID_ECLIPSE, pp->e.onlylocal || onlylocal);
   c->pp = ref_participant (pp, &e->guid);
@@ -2867,7 +2875,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   local_reader_ary_init (&wr->rdary);
 }
 
-static dds_return_t new_writer_guid (struct writer **wr_out, const struct nn_guid *guid, const struct nn_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc, status_cb_t status_cb, void *status_entity)
+static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc, status_cb_t status_cb, void *status_entity)
 {
   struct writer *wr;
   nn_mtime_t tnow = now_mt ();
@@ -2918,7 +2926,7 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct nn_gui
   return 0;
 }
 
-dds_return_t new_writer (struct writer **wr_out, struct q_globals *gv, struct nn_guid *wrguid, const struct nn_guid *group_guid, const struct nn_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg)
+dds_return_t new_writer (struct writer **wr_out, struct q_globals *gv, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, const struct ddsi_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg)
 {
   struct participant *pp;
   dds_return_t rc;
@@ -2940,9 +2948,9 @@ dds_return_t new_writer (struct writer **wr_out, struct q_globals *gv, struct nn
   return new_writer_guid (wr_out, wrguid, group_guid, pp, topic, xqos, whc, status_cb, status_cb_arg);
 }
 
-struct local_orphan_writer *new_local_orphan_writer (struct q_globals *gv, nn_entityid_t entityid, struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc)
+struct local_orphan_writer *new_local_orphan_writer (struct q_globals *gv, ddsi_entityid_t entityid, struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc)
 {
-  nn_guid_t guid;
+  ddsi_guid_t guid;
   struct local_orphan_writer *lowr;
   struct writer *wr;
   nn_mtime_t tnow = now_mt ();
@@ -3073,7 +3081,7 @@ dds_return_t delete_writer_nolinger_locked (struct writer *wr)
   return 0;
 }
 
-dds_return_t delete_writer_nolinger (struct q_globals *gv, const struct nn_guid *guid)
+dds_return_t delete_writer_nolinger (struct q_globals *gv, const struct ddsi_guid *guid)
 {
   struct writer *wr;
   /* We take no care to ensure application writers are not deleted
@@ -3102,7 +3110,7 @@ void delete_local_orphan_writer (struct local_orphan_writer *lowr)
   ddsrt_mutex_unlock (&lowr->wr.e.lock);
 }
 
-dds_return_t delete_writer (struct q_globals *gv, const struct nn_guid *guid)
+dds_return_t delete_writer (struct q_globals *gv, const struct ddsi_guid *guid)
 {
   struct writer *wr;
   struct whc_state whcst;
@@ -3250,12 +3258,12 @@ static void leave_mcast_helper (const nn_locator_t *n, void *varg)
 static dds_return_t new_reader_guid
 (
   struct reader **rd_out,
-  const struct nn_guid *guid,
-  const struct nn_guid *group_guid,
+  const struct ddsi_guid *guid,
+  const struct ddsi_guid *group_guid,
   struct participant *pp,
   const struct ddsi_sertopic *topic,
   const struct dds_qos *xqos,
-  struct rhc *rhc,
+  struct ddsi_rhc *rhc,
   status_cb_t status_cb,
   void * status_entity
 )
@@ -3311,7 +3319,7 @@ static dds_return_t new_reader_guid
   /* set rhc qos for reader */
   if (rhc)
   {
-    rhc_set_qos (rd->rhc, rd->xqos);
+    ddsi_rhc_set_qos (rd->rhc, rd->xqos);
   }
   assert (rd->xqos->present & QP_LIVELINESS);
   if (rd->xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC || rd->xqos->liveliness.lease_duration != T_NEVER)
@@ -3392,12 +3400,12 @@ dds_return_t new_reader
 (
   struct reader **rd_out,
   struct q_globals *gv,
-  struct nn_guid *rdguid,
-  const struct nn_guid *group_guid,
-  const struct nn_guid *ppguid,
+  struct ddsi_guid *rdguid,
+  const struct ddsi_guid *group_guid,
+  const struct ddsi_guid *ppguid,
   const struct ddsi_sertopic *topic,
   const struct dds_qos *xqos,
-  struct rhc * rhc,
+  struct ddsi_rhc * rhc,
   status_cb_t status_cb,
   void * status_cbarg
 )
@@ -3452,7 +3460,7 @@ static void gc_delete_reader (struct gcreq *gcreq)
 #endif
   if (rd->rhc)
   {
-    rhc_free (rd->rhc);
+    ddsi_rhc_free (rd->rhc);
   }
   if (rd->status_cb)
   {
@@ -3470,7 +3478,7 @@ static void gc_delete_reader (struct gcreq *gcreq)
   ddsrt_free (rd);
 }
 
-dds_return_t delete_reader (struct q_globals *gv, const struct nn_guid *guid)
+dds_return_t delete_reader (struct q_globals *gv, const struct ddsi_guid *guid)
 {
   struct reader *rd;
   assert (!is_writer_entityid (guid->entityid));
@@ -3533,10 +3541,10 @@ void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct
 void new_proxy_participant
 (
   struct q_globals *gv,
-  const struct nn_guid *ppguid,
+  const struct ddsi_guid *ppguid,
   unsigned bes,
   unsigned prismtech_bes,
-  const struct nn_guid *privileged_pp_guid,
+  const struct ddsi_guid *privileged_pp_guid,
   struct addrset *as_default,
   struct addrset *as_meta,
   const nn_plist_t *plist,
@@ -3685,7 +3693,7 @@ void new_proxy_participant
       const struct bestab *te = &bestab[i];
       if ((proxypp->bes & te->besflag) || (proxypp->prismtech_bes & te->prismtech_besflag))
       {
-        nn_guid_t guid1;
+        ddsi_guid_t guid1;
         guid1.prefix = proxypp->e.guid.prefix;
         guid1.entityid.u = te->entityid;
         assert (is_builtin_entityid (guid1.entityid, proxypp->vendor));
@@ -3948,7 +3956,7 @@ void purge_proxy_participants (struct q_globals *gv, const nn_locator_t *loc, bo
   thread_state_asleep (ts1);
 }
 
-int delete_proxy_participant_by_guid (struct q_globals *gv, const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit)
+int delete_proxy_participant_by_guid (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit)
 {
   struct proxy_participant *ppt;
 
@@ -3971,7 +3979,7 @@ int delete_proxy_participant_by_guid (struct q_globals *gv, const struct nn_guid
   return 0;
 }
 
-uint64_t get_entity_instance_id (const struct q_globals *gv, const struct nn_guid *guid)
+uint64_t get_entity_instance_id (const struct q_globals *gv, const struct ddsi_guid *guid)
 {
   struct thread_state1 *ts1 = lookup_thread_state ();
   struct entity_common *e;
@@ -3985,7 +3993,7 @@ uint64_t get_entity_instance_id (const struct q_globals *gv, const struct nn_gui
 
 /* PROXY-ENDPOINT --------------------------------------------------- */
 
-static void proxy_endpoint_common_init (struct entity_common *e, struct proxy_endpoint_common *c, enum entity_kind kind, const struct nn_guid *guid, nn_wctime_t tcreate, seqno_t seq, struct proxy_participant *proxypp, struct addrset *as, const nn_plist_t *plist)
+static void proxy_endpoint_common_init (struct entity_common *e, struct proxy_endpoint_common *c, enum entity_kind kind, const struct ddsi_guid *guid, nn_wctime_t tcreate, seqno_t seq, struct proxy_participant *proxypp, struct addrset *as, const nn_plist_t *plist)
 {
   const char *name;
 
@@ -4020,7 +4028,7 @@ static void proxy_endpoint_common_fini (struct entity_common *e, struct proxy_en
 
 /* PROXY-WRITER ----------------------------------------------------- */
 
-int new_proxy_writer (struct q_globals *gv, const struct nn_guid *ppguid, const struct nn_guid *guid, struct addrset *as, const nn_plist_t *plist, struct nn_dqueue *dqueue, struct xeventq *evq, nn_wctime_t timestamp, seqno_t seq)
+int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const nn_plist_t *plist, struct nn_dqueue *dqueue, struct xeventq *evq, nn_wctime_t timestamp, seqno_t seq)
 {
   struct proxy_participant *proxypp;
   struct proxy_writer *pwr;
@@ -4153,7 +4161,7 @@ void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset 
 void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp)
 {
   struct prd_wr_match * m;
-  nn_guid_t wrguid;
+  ddsi_guid_t wrguid;
 
   memset (&wrguid, 0, sizeof (wrguid));
 
@@ -4174,7 +4182,7 @@ void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset 
       while ((m = ddsrt_avl_lookup_succ_eq (&prd_writers_treedef, &prd->writers, &wrguid)) != NULL)
       {
         struct prd_wr_match *next;
-        nn_guid_t guid_next;
+        ddsi_guid_t guid_next;
         struct writer * wr;
 
         wrguid = m->wr_guid;
@@ -4229,7 +4237,7 @@ static void gc_delete_proxy_writer (struct gcreq *gcreq)
   ddsrt_free (pwr);
 }
 
-int delete_proxy_writer (struct q_globals *gv, const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit)
+int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit)
 {
   struct proxy_writer *pwr;
   (void)isimplicit;
@@ -4256,7 +4264,7 @@ int delete_proxy_writer (struct q_globals *gv, const struct nn_guid *guid, nn_wc
 
 /* PROXY-READER ----------------------------------------------------- */
 
-int new_proxy_reader (struct q_globals *gv, const struct nn_guid *ppguid, const struct nn_guid *guid, struct addrset *as, const nn_plist_t *plist, nn_wctime_t timestamp, seqno_t seq
+int new_proxy_reader (struct q_globals *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const nn_plist_t *plist, nn_wctime_t timestamp, seqno_t seq
 #ifdef DDSI_INCLUDE_SSM
                       , int favours_ssm
 #endif
@@ -4298,7 +4306,7 @@ int new_proxy_reader (struct q_globals *gv, const struct nn_guid *ppguid, const 
 
 static void proxy_reader_set_delete_and_ack_all_messages (struct proxy_reader *prd)
 {
-  nn_guid_t wrguid;
+  ddsi_guid_t wrguid;
   struct writer *wr;
   struct prd_wr_match *m;
 
@@ -4310,7 +4318,7 @@ static void proxy_reader_set_delete_and_ack_all_messages (struct proxy_reader *p
     /* have to be careful walking the tree -- pretty is different, but
        I want to check this before I write a lookup_succ function. */
     struct prd_wr_match *m_a_next;
-    nn_guid_t wrguid_next;
+    ddsi_guid_t wrguid_next;
     wrguid = m->wr_guid;
     if ((m_a_next = ddsrt_avl_find_succ (&prd_writers_treedef, &prd->writers, m)) != NULL)
       wrguid_next = m_a_next->wr_guid;
@@ -4362,7 +4370,7 @@ static void gc_delete_proxy_reader (struct gcreq *gcreq)
   ddsrt_free (prd);
 }
 
-int delete_proxy_reader (struct q_globals *gv, const struct nn_guid *guid, nn_wctime_t timestamp, int isimplicit)
+int delete_proxy_reader (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit)
 {
   struct proxy_reader *prd;
   (void)isimplicit;

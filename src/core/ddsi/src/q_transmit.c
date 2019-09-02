@@ -134,7 +134,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
 {
   struct q_globals const * const gv = wr->e.gv;
   struct nn_xmsg *msg;
-  const nn_guid_t *prd_guid;
+  const ddsi_guid_t *prd_guid;
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
   assert (wr->reliable);
@@ -313,7 +313,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
   return msg;
 }
 
-void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, nn_entityid_t dst, int issync)
+void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, ddsi_entityid_t dst, int issync)
 {
   struct q_globals const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;

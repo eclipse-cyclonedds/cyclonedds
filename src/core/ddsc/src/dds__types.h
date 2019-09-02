@@ -39,7 +39,7 @@ struct dds_guardcond;
 struct dds_statuscond;
 
 struct ddsi_sertopic;
-struct rhc;
+struct ddsi_rhc;
 
 typedef uint16_t status_mask_t;
 typedef ddsrt_atomic_uint32_t status_and_enabled_t;
@@ -124,7 +124,7 @@ typedef struct dds_entity {
   ddsrt_avl_tree_t m_children;      /* [m_mutex] tree on m_iid using m_avlnode_child */
   struct dds_domain *m_domain;      /* constant */
   dds_qos_t *m_qos;                 /* [m_mutex] */
-  nn_guid_t m_guid;                 /* unique (if not 0) and constant; FIXME: set during creation, but possibly after becoming visible */
+  ddsi_guid_t m_guid;                 /* unique (if not 0) and constant; FIXME: set during creation, but possibly after becoming visible */
   dds_instance_handle_t m_iid;      /* unique for all time, constant; FIXME: like GUID */
   uint32_t m_flags;                 /* [m_mutex] */
 
@@ -290,12 +290,10 @@ typedef uint32_t dds_querycond_mask_t;
 
 typedef struct dds_readcond {
   dds_entity m_entity;
-  struct dds_rhc *m_rhc;
   uint32_t m_qminv;
   uint32_t m_sample_states;
   uint32_t m_view_states;
   uint32_t m_instance_states;
-  nn_guid_t m_rd_guid;
   struct dds_readcond *m_next;
   struct {
     dds_querycondition_filter_fn m_filter;

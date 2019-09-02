@@ -123,10 +123,10 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
   }
 }
 
-static dds_builtintopic_endpoint_t *make_builtintopic_endpoint (const nn_guid_t *guid, const nn_guid_t *ppguid, dds_instance_handle_t ppiid, const dds_qos_t *qos)
+static dds_builtintopic_endpoint_t *make_builtintopic_endpoint (const ddsi_guid_t *guid, const ddsi_guid_t *ppguid, dds_instance_handle_t ppiid, const dds_qos_t *qos)
 {
   dds_builtintopic_endpoint_t *ep;
-  nn_guid_t tmp;
+  ddsi_guid_t tmp;
   ep = dds_alloc (sizeof (*ep));
   tmp = nn_hton_guid (*guid);
   memcpy (&ep->key, &tmp, sizeof (ep->key));

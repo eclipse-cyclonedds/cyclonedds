@@ -352,7 +352,7 @@ int spdp_dispose_unregister (struct participant *pp)
   return ret;
 }
 
-static unsigned pseudo_random_delay (const nn_guid_t *x, const nn_guid_t *y, nn_mtime_t tnow)
+static unsigned pseudo_random_delay (const ddsi_guid_t *x, const ddsi_guid_t *y, nn_mtime_t tnow)
 {
   /* You know, an ordinary random generator would be even better, but
      the C library doesn't have a reentrant one and I don't feel like
@@ -381,7 +381,7 @@ static unsigned pseudo_random_delay (const nn_guid_t *x, const nn_guid_t *y, nn_
   return (unsigned) (m >> 32);
 }
 
-static void respond_to_spdp (const struct q_globals *gv, const nn_guid_t *dest_proxypp_guid)
+static void respond_to_spdp (const struct q_globals *gv, const ddsi_guid_t *dest_proxypp_guid)
 {
   struct ephash_enum_participant est;
   struct participant *pp;
@@ -409,7 +409,7 @@ static void respond_to_spdp (const struct q_globals *gv, const nn_guid_t *dest_p
 static int handle_SPDP_dead (const struct receiver_state *rst, nn_wctime_t timestamp, const nn_plist_t *datap, unsigned statusinfo)
 {
   struct q_globals * const gv = rst->gv;
-  nn_guid_t guid;
+  ddsi_guid_t guid;
 
   if (!(gv->logconfig.c.mask & DDS_LC_DISCOVERY))
     GVLOGDISC ("SPDP ST%x", statusinfo);
@@ -455,7 +455,7 @@ static void allowmulticast_aware_add_to_addrset (const struct q_globals *gv, uin
   add_to_addrset (gv, as, loc);
 }
 
-static struct proxy_participant *find_ddsi2_proxy_participant (const struct ephash *guid_hash, const nn_guid_t *ppguid)
+static struct proxy_participant *find_ddsi2_proxy_participant (const struct ephash *guid_hash, const ddsi_guid_t *ppguid)
 {
   struct ephash_enum_proxy_participant it;
   struct proxy_participant *pp;
@@ -469,7 +469,7 @@ static struct proxy_participant *find_ddsi2_proxy_participant (const struct epha
   return pp;
 }
 
-static void make_participants_dependent_on_ddsi2 (struct q_globals *gv, const nn_guid_t *ddsi2guid, nn_wctime_t timestamp)
+static void make_participants_dependent_on_ddsi2 (struct q_globals *gv, const ddsi_guid_t *ddsi2guid, nn_wctime_t timestamp)
 {
   struct ephash_enum_proxy_participant it;
   struct proxy_participant *pp, *d2pp;
@@ -517,7 +517,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
   struct proxy_participant *proxypp;
   unsigned builtin_endpoint_set;
   unsigned prismtech_builtin_endpoint_set;
-  nn_guid_t privileged_pp_guid;
+  ddsi_guid_t privileged_pp_guid;
   dds_duration_t lease_duration;
   unsigned custom_flags = 0;
 
@@ -646,7 +646,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
   privileged_pp_guid.prefix = rst->src_guid_prefix;
   privileged_pp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
   if ((builtin_endpoint_set & bes_sedp_announcer_mask) != bes_sedp_announcer_mask &&
-      memcmp (&privileged_pp_guid, &datap->participant_guid, sizeof (nn_guid_t)) != 0)
+      memcmp (&privileged_pp_guid, &datap->participant_guid, sizeof (ddsi_guid_t)) != 0)
   {
     GVLOGDISC (" (depends on "PGUIDFMT")", PGUID (privileged_pp_guid));
     /* never expire lease for this proxy: it won't actually expire
@@ -881,7 +881,7 @@ static void add_locator_to_ps (const nn_locator_t *loc, void *varg)
 
 static int sedp_write_endpoint
 (
-   struct writer *wr, int alive, const nn_guid_t *epguid,
+   struct writer *wr, int alive, const ddsi_guid_t *epguid,
    const struct entity_common *common, const struct endpoint_common *epcommon,
    const dds_qos_t *xqos, struct addrset *as)
 {
@@ -1040,9 +1040,9 @@ static const char *durability_to_string (dds_durability_kind_t k)
   return "undefined-durability";
 }
 
-static struct proxy_participant *implicitly_create_proxypp (struct q_globals *gv, const nn_guid_t *ppguid, nn_plist_t *datap /* note: potentially modifies datap */, const nn_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp, seqno_t seq)
+static struct proxy_participant *implicitly_create_proxypp (struct q_globals *gv, const ddsi_guid_t *ppguid, nn_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp, seqno_t seq)
 {
-  nn_guid_t privguid;
+  ddsi_guid_t privguid;
   nn_plist_t pp_plist;
 
   if (memcmp (&ppguid->prefix, src_guid_prefix, sizeof (ppguid->prefix)) == 0)
@@ -1120,14 +1120,14 @@ static struct proxy_participant *implicitly_create_proxypp (struct q_globals *gv
   return ephash_lookup_proxy_participant_guid (gv->guid_hash, ppguid);
 }
 
-static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, nn_plist_t *datap /* note: potentially modifies datap */, const nn_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp)
+static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, nn_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp)
 {
 #define E(msg, lbl) do { GVLOGDISC (msg); goto lbl; } while (0)
   struct q_globals * const gv = rst->gv;
   struct proxy_participant *pp;
   struct proxy_writer * pwr = NULL;
   struct proxy_reader * prd = NULL;
-  nn_guid_t ppguid;
+  ddsi_guid_t ppguid;
   dds_qos_t *xqos;
   int reliable;
   struct addrset *as;
@@ -1466,7 +1466,7 @@ int sedp_write_cm_participant (struct participant *pp, int alive)
   return ret;
 }
 
-static void handle_SEDP_CM (const struct receiver_state *rst, nn_entityid_t wr_entity_id, nn_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len)
+static void handle_SEDP_CM (const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, nn_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len)
 {
   struct q_globals * const gv = rst->gv;
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
@@ -1552,7 +1552,7 @@ static int defragment (unsigned char **datap, const struct nn_rdata *fragchain, 
   }
 }
 
-int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, UNUSED_ARG (const nn_guid_t *rdguid), UNUSED_ARG (void *qarg))
+int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, UNUSED_ARG (const ddsi_guid_t *rdguid), UNUSED_ARG (void *qarg))
 {
   struct q_globals * const gv = sampleinfo->rst->gv;
   struct proxy_writer *pwr;
@@ -1564,7 +1564,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
   } keyhash_payload;
   unsigned statusinfo;
   int need_keyhash;
-  nn_guid_t srcguid;
+  ddsi_guid_t srcguid;
   Data_DataFrag_common_t *msg;
   unsigned char data_smhdr_flags;
   nn_plist_t qos;

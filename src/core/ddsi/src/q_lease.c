@@ -188,7 +188,7 @@ int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnow
   ddsrt_mutex_lock (&gv->leaseheap_lock);
   while ((l = ddsrt_fibheap_min (&lease_fhdef, &gv->leaseheap)) != NULL && l->tsched.v <= tnowE.v)
   {
-    nn_guid_t g = l->entity->guid;
+    ddsi_guid_t g = l->entity->guid;
     enum entity_kind k = l->entity->kind;
 
     assert (l->tsched.v != TSCHED_NOT_ON_HEAP);
@@ -303,7 +303,7 @@ void handle_PMD (const struct receiver_state *rst, nn_wctime_t timestamp, uint32
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
   const int bswap = (data->identifier == CDR_LE) ^ (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
   struct proxy_participant *pp;
-  nn_guid_t ppguid;
+  ddsi_guid_t ppguid;
   RSTTRACE (" PMD ST%x", statusinfo);
   if (data->identifier != CDR_LE && data->identifier != CDR_BE)
   {
@@ -318,7 +318,7 @@ void handle_PMD (const struct receiver_state *rst, nn_wctime_t timestamp, uint32
       else
       {
         const ParticipantMessageData_t *pmd = (ParticipantMessageData_t *) (data + 1);
-        nn_guid_prefix_t p = nn_ntoh_guid_prefix (pmd->participantGuidPrefix);
+        ddsi_guid_prefix_t p = nn_ntoh_guid_prefix (pmd->participantGuidPrefix);
         uint32_t kind = ntohl (pmd->kind);
         uint32_t length = bswap ? bswap4u (pmd->length) : pmd->length;
         RSTTRACE (" pp %"PRIx32":%"PRIx32":%"PRIx32" kind %u data %u", p.u[0], p.u[1], p.u[2], kind, length);
@@ -346,11 +346,11 @@ void handle_PMD (const struct receiver_state *rst, nn_wctime_t timestamp, uint32
     case NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER:
       /* Serialized key; BE or LE doesn't matter as both fields are
          defined as octets.  */
-      if (len < sizeof (struct CDRHeader) + sizeof (nn_guid_prefix_t))
+      if (len < sizeof (struct CDRHeader) + sizeof (ddsi_guid_prefix_t))
         debug_print_rawdata (rst->gv, " SHORT3", data, len);
       else
       {
-        ppguid.prefix = nn_ntoh_guid_prefix (*((nn_guid_prefix_t *) (data + 1)));
+        ppguid.prefix = nn_ntoh_guid_prefix (*((ddsi_guid_prefix_t *) (data + 1)));
         ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
         if (delete_proxy_participant_by_guid (rst->gv, &ppguid, timestamp, 0) < 0)
           RSTTRACE (" unknown");
