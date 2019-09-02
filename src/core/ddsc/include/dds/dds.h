@@ -49,6 +49,7 @@ typedef int32_t dds_entity_t;
 extern "C" {
 #endif
 
+struct dds_rhc;
 struct ddsi_serdata;
 
 #define DDS_MIN_PSEUDO_HANDLE ((dds_entity_t) 0x7fff0000)
@@ -1194,6 +1195,34 @@ dds_create_reader(
   dds_entity_t topic,
   const dds_qos_t *qos,
   const dds_listener_t *listener);
+
+/**
+ * @brief Creates a new instance of a DDS reader with a custom history cache.
+ *
+ * This implicit subscriber will be deleted automatically when the created reader
+ * is deleted.
+ *
+ * @param[in]  participant_or_subscriber The participant or subscriber on which the reader is being created.
+ * @param[in]  topic                     The topic to read.
+ * @param[in]  qos                       The QoS to set on the new reader (can be NULL).
+ * @param[in]  listener                  Any listener functions associated with the new reader (can be NULL).
+ * @param[in]  rhc                       Reader history cache to use, reader becomes the owner
+ *
+ * @returns A valid reader handle or an error code.
+ *
+ * @retval >0
+ *            A valid reader handle.
+ * @retval DDS_RETCODE_ERROR
+ *            An internal error occurred.
+ */
+/* TODO: Complete list of error codes */
+DDS_EXPORT dds_entity_t
+dds_create_reader_rhc(
+  dds_entity_t participant_or_subscriber,
+  dds_entity_t topic,
+  const dds_qos_t *qos,
+  const dds_listener_t *listener,
+  struct dds_rhc *rhc);
 
 /**
  * @brief Wait until reader receives all historic data

@@ -58,11 +58,11 @@ struct ddsi_rhc {
   const struct ddsi_rhc_ops *ops;
 };
 
-DDS_EXPORT inline bool ddsi_rhc_store (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict pwr_info, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk) {
-  return rhc->ops->store (rhc, pwr_info, sample, tk);
+DDS_EXPORT inline bool ddsi_rhc_store (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk) {
+  return rhc->ops->store (rhc, wrinfo, sample, tk);
 }
-DDS_EXPORT inline void ddsi_rhc_unregister_wr (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict pwr_info) {
-  rhc->ops->unregister_wr (rhc, pwr_info);
+DDS_EXPORT inline void ddsi_rhc_unregister_wr (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo) {
+  rhc->ops->unregister_wr (rhc, wrinfo);
 }
 DDS_EXPORT inline void ddsi_rhc_relinquish_ownership (struct ddsi_rhc * __restrict rhc, const uint64_t wr_iid) {
   rhc->ops->relinquish_ownership (rhc, wr_iid);
