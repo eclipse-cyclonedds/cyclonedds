@@ -22,7 +22,7 @@ extern "C" {
 
 struct ddsi_serdata_builtintopic {
   struct ddsi_serdata c;
-  nn_guid_t key;
+  ddsi_guid_t key;
   dds_instance_handle_t pphandle;
   dds_qos_t xqos;
 };

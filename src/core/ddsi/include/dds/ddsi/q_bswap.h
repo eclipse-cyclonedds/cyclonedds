@@ -88,12 +88,12 @@ inline void bswapSN (nn_sequence_number_t *sn)
 #define fromBE8u(x) (x)
 #endif
 
-nn_guid_prefix_t nn_hton_guid_prefix (nn_guid_prefix_t p);
-nn_guid_prefix_t nn_ntoh_guid_prefix (nn_guid_prefix_t p);
-nn_entityid_t nn_hton_entityid (nn_entityid_t e);
-nn_entityid_t nn_ntoh_entityid (nn_entityid_t e);
-nn_guid_t nn_hton_guid (nn_guid_t g);
-nn_guid_t nn_ntoh_guid (nn_guid_t g);
+ddsi_guid_prefix_t nn_hton_guid_prefix (ddsi_guid_prefix_t p);
+ddsi_guid_prefix_t nn_ntoh_guid_prefix (ddsi_guid_prefix_t p);
+ddsi_entityid_t nn_hton_entityid (ddsi_entityid_t e);
+ddsi_entityid_t nn_ntoh_entityid (ddsi_entityid_t e);
+ddsi_guid_t nn_hton_guid (ddsi_guid_t g);
+ddsi_guid_t nn_ntoh_guid (ddsi_guid_t g);
 
 void bswap_sequence_number_set_hdr (nn_sequence_number_set_header_t *snset);
 void bswap_sequence_number_set_bitmap (nn_sequence_number_set_header_t *snset, uint32_t *bits);

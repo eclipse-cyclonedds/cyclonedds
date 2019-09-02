@@ -162,7 +162,7 @@ static bool dds__builtin_is_builtintopic (const struct ddsi_sertopic *tp, void *
   return tp->ops == &ddsi_sertopic_ops_builtintopic;
 }
 
-static bool dds__builtin_is_visible (const nn_guid_t *guid, nn_vendorid_t vendorid, void *vdomain)
+static bool dds__builtin_is_visible (const ddsi_guid_t *guid, nn_vendorid_t vendorid, void *vdomain)
 {
   (void) vdomain;
   if (is_builtin_endpoint (guid->entityid, vendorid))
@@ -170,7 +170,7 @@ static bool dds__builtin_is_visible (const nn_guid_t *guid, nn_vendorid_t vendor
   return true;
 }
 
-static struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct nn_guid *guid, void *vdomain)
+static struct ddsi_tkmap_instance *dds__builtin_get_tkmap_entry (const struct ddsi_guid *guid, void *vdomain)
 {
   struct dds_domain *domain = vdomain;
   struct ddsi_tkmap_instance *tk;

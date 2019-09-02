@@ -30,7 +30,7 @@
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds__topic.h"
-#include "dds__rhc.h"
+#include "dds/ddsc/dds_rhc.h"
 #include "dds__rhc_default.h"
 #include "dds/ddsi/ddsi_iid.h"
 
@@ -108,7 +108,7 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct pro
 {
   /* beware: unrefs sd */
   struct ddsi_tkmap_instance *tk;
-  struct proxy_writer_info pwr_info;
+  struct ddsi_writer_info pwr_info;
   /* single-domain application ... so domain won't change */
   thread_state_awake_domain_ok (lookup_thread_state ());
   tk = ddsi_tkmap_lookup_instance_ref (tkmap, sd);
@@ -782,7 +782,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
       }
       case 11: {
         thread_state_awake_domain_ok (lookup_thread_state ());
-        struct proxy_writer_info wr_info;
+        struct ddsi_writer_info wr_info;
         wr_info.auto_dispose = wr[which]->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
         wr_info.guid = wr[which]->e.guid;
         wr_info.iid = wr[which]->e.iid;
@@ -890,7 +890,7 @@ int main (int argc, char **argv)
     };
     rdall (rhc, c1, print, states_seen);
     thread_state_awake_domain_ok (lookup_thread_state ());
-    struct proxy_writer_info wr0_info;
+    struct ddsi_writer_info wr0_info;
     wr0_info.auto_dispose = wr0->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
     wr0_info.guid = wr0->e.guid;
     wr0_info.iid = wr0->e.iid;

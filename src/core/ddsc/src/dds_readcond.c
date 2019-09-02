@@ -12,7 +12,7 @@
 #include <assert.h>
 #include "dds__reader.h"
 #include "dds__readcond.h"
-#include "dds__rhc.h"
+#include "dds/ddsc/dds_rhc.h"
 #include "dds__entity.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/q_ephash.h"
@@ -23,7 +23,9 @@ static dds_return_t dds_readcond_delete (dds_entity *e) ddsrt_nonnull_all;
 
 static dds_return_t dds_readcond_delete (dds_entity *e)
 {
-  dds_rhc_remove_readcondition ((dds_readcond *) e);
+  struct dds_reader * const rd = (struct dds_reader *) e->m_parent;
+  assert (dds_entity_kind (&rd->m_entity) == DDS_KIND_READER);
+  dds_rhc_remove_readcondition (rd->m_rhc, (dds_readcond *) e);
   return DDS_RETCODE_OK;
 }
 
@@ -41,17 +43,15 @@ dds_readcond *dds_create_readcond (dds_reader *rd, dds_entity_kind_t kind, uint3
   (void) dds_entity_init (&cond->m_entity, &rd->m_entity, kind, NULL, NULL, 0);
   cond->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (&rd->m_entity, &cond->m_entity);
-  cond->m_rhc = rd->m_rhc;
   cond->m_sample_states = mask & DDS_ANY_SAMPLE_STATE;
   cond->m_view_states = mask & DDS_ANY_VIEW_STATE;
   cond->m_instance_states = mask & DDS_ANY_INSTANCE_STATE;
-  cond->m_rd_guid = rd->m_entity.m_guid;
   if (kind == DDS_KIND_COND_QUERY)
   {
     cond->m_query.m_filter = filter;
     cond->m_query.m_qcmask = 0;
   }
-  if (!dds_rhc_add_readcondition (cond))
+  if (!dds_rhc_add_readcondition (rd->m_rhc, cond))
   {
     /* FIXME: current entity management code can't deal with an error late in the creation of the
        entity because it doesn't allow deleting it again ... */

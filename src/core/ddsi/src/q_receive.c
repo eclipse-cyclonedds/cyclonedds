@@ -44,7 +44,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_receive.h"
-#include "dds/ddsi/q_rhc.h"
+#include "dds/ddsi/ddsi_rhc.h"
 
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_globals.h"
@@ -74,7 +74,7 @@ Notes:
 
 */
 
-static void deliver_user_data_synchronously (struct nn_rsample_chain *sc, const nn_guid_t *rdguid);
+static void deliver_user_data_synchronously (struct nn_rsample_chain *sc, const ddsi_guid_t *rdguid);
 
 static void maybe_set_reader_in_sync (struct proxy_writer *pwr, struct pwr_rd_match *wn, seqno_t last_deliv_seq)
 {
@@ -285,7 +285,7 @@ static int valid_NackFrag (NackFrag_t *msg, size_t size, int byteswap)
   return 1;
 }
 
-static void set_sampleinfo_proxy_writer (struct nn_rsample_info *sampleinfo, nn_guid_t *pwr_guid)
+static void set_sampleinfo_proxy_writer (struct nn_rsample_info *sampleinfo, ddsi_guid_t *pwr_guid)
 {
   struct proxy_writer * pwr = ephash_lookup_proxy_writer_guid (sampleinfo->rst->gv->guid_hash, pwr_guid);
   sampleinfo->pwr = pwr;
@@ -294,7 +294,7 @@ static void set_sampleinfo_proxy_writer (struct nn_rsample_info *sampleinfo, nn_
 static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, Data_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp)
 {
   /* on success: sampleinfo->{seq,rst,statusinfo,pt_wr_info_zoff,bswap,complex_qos} all set */
-  nn_guid_t pwr_guid;
+  ddsi_guid_t pwr_guid;
   unsigned char *ptr;
 
   if (size < sizeof (*msg))
@@ -405,7 +405,7 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
 {
   /* on success: sampleinfo->{rst,statusinfo,pt_wr_info_zoff,bswap,complex_qos} all set */
   uint32_t payloadsz;
-  nn_guid_t pwr_guid;
+  ddsi_guid_t pwr_guid;
   unsigned char *ptr;
 
   if (size < sizeof (*msg))
@@ -628,7 +628,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   struct proxy_reader *prd;
   struct wr_prd_match *rn;
   struct writer *wr;
-  nn_guid_t src, dst;
+  ddsi_guid_t src, dst;
   seqno_t seqbase;
   seqno_t seq_xmit;
   nn_count_t *countp;
@@ -991,7 +991,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   return 1;
 }
 
-static void handle_forall_destinations (const nn_guid_t *dst, struct proxy_writer *pwr, ddsrt_avl_walk_t fun, void *arg)
+static void handle_forall_destinations (const ddsi_guid_t *dst, struct proxy_writer *pwr, ddsrt_avl_walk_t fun, void *arg)
 {
   /* prefix:  id:   to:
      0        0     all matched readers
@@ -1023,7 +1023,7 @@ static void handle_forall_destinations (const nn_guid_t *dst, struct proxy_write
       break;
     case (1 << 1) | 0: /* all within one participant: walk a range of keyvalues */
       {
-        nn_guid_t a, b;
+        ddsi_guid_t a, b;
         a = *dst; a.entityid.u = 0;
         b = *dst; b.entityid.u = ~0u;
         ddsrt_avl_walk_range (&pwr_readers_treedef, &pwr->readers, &a, &b, fun, arg);
@@ -1124,7 +1124,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
   const seqno_t lastseq = fromSN (msg->lastSN);
   struct handle_Heartbeat_helper_arg arg;
   struct proxy_writer *pwr;
-  nn_guid_t src, dst;
+  ddsi_guid_t src, dst;
 
   src.prefix = rst->src_guid_prefix;
   src.entityid = msg->writerId;
@@ -1261,7 +1261,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
 {
   const seqno_t seq = fromSN (msg->writerSN);
   const nn_fragment_number_t fragnum = msg->lastFragmentNum - 1; /* we do 0-based */
-  nn_guid_t src, dst;
+  ddsi_guid_t src, dst;
   struct proxy_writer *pwr;
 
   src.prefix = rst->src_guid_prefix;
@@ -1374,7 +1374,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
   struct wr_prd_match *rn;
   struct writer *wr;
   struct whc_borrowed_sample sample;
-  nn_guid_t src, dst;
+  ddsi_guid_t src, dst;
   nn_count_t *countp;
   seqno_t seq = fromSN (msg->writerSN);
 
@@ -1490,7 +1490,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
   return 1;
 }
 
-static int handle_InfoDST (struct receiver_state *rst, const InfoDST_t *msg, const nn_guid_prefix_t *dst_prefix)
+static int handle_InfoDST (struct receiver_state *rst, const InfoDST_t *msg, const ddsi_guid_prefix_t *dst_prefix)
 {
   rst->dst_guid_prefix = nn_ntoh_guid_prefix (msg->guid_prefix);
   RSTTRACE ("INFODST(%"PRIx32":%"PRIx32":%"PRIx32")", PGUIDPREFIX (rst->dst_guid_prefix));
@@ -1502,7 +1502,7 @@ static int handle_InfoDST (struct receiver_state *rst, const InfoDST_t *msg, con
   }
   else
   {
-    nn_guid_t dst;
+    ddsi_guid_t dst;
     dst.prefix = rst->dst_guid_prefix;
     dst.entityid = to_entityid(NN_ENTITYID_PARTICIPANT);
     rst->forme = (ephash_lookup_participant_guid (rst->gv->guid_hash, &dst) != NULL ||
@@ -1623,7 +1623,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
 
   struct proxy_writer *pwr;
   struct pwr_rd_match *wn;
-  nn_guid_t src, dst;
+  ddsi_guid_t src, dst;
   seqno_t gapstart, listbase;
   int32_t last_included_rel;
   uint32_t listidx;
@@ -1750,7 +1750,7 @@ static struct ddsi_serdata *new_sample_from_data (struct ddsi_tkmap_instance **t
     if (!(data_smhdr_flags & DATA_FLAG_DATAFLAG) || sampleinfo->size == 0)
     {
       const struct proxy_writer *pwr = sampleinfo->pwr;
-      nn_guid_t guid;
+      ddsi_guid_t guid;
       /* pwr can't currently be null, but that might change some day, and this being
          an error path, it doesn't hurt to survive that */
       if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
@@ -1802,7 +1802,7 @@ static struct ddsi_serdata *new_sample_from_data (struct ddsi_tkmap_instance **t
   {
     /* No message => error out */
     const struct proxy_writer *pwr = sampleinfo->pwr;
-    nn_guid_t guid;
+    ddsi_guid_t guid;
     if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
     DDS_CWARNING (&gv->logconfig,
                   "data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": deserialization %s/%s failed (%s)\n",
@@ -1821,7 +1821,7 @@ static struct ddsi_serdata *new_sample_from_data (struct ddsi_tkmap_instance **t
     else if (gv->logconfig.c.mask & DDS_LC_TRACE)
     {
       const struct proxy_writer *pwr = sampleinfo->pwr;
-      nn_guid_t guid;
+      ddsi_guid_t guid;
       char tmp[1024];
       size_t res = 0;
       tmp[0] = 0;
@@ -1884,7 +1884,7 @@ static struct reader *proxy_writer_next_in_sync_reader (struct proxy_writer *pwr
   return NULL;
 }
 
-static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const nn_guid_t *rdguid, int pwr_locked)
+static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, int pwr_locked)
 {
   struct receiver_state const * const rst = sampleinfo->rst;
   struct q_globals * const gv = rst->gv;
@@ -1956,8 +1956,8 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
 
   /* FIXME: should it be 0, local wall clock time or INVALID? */
   const nn_wctime_t tstamp = (sampleinfo->timestamp.v != NN_WCTIME_INVALID.v) ? sampleinfo->timestamp : ((nn_wctime_t) {0});
-  struct proxy_writer_info pwr_info;
-  make_proxy_writer_info (&pwr_info, &pwr->e, pwr->c.xqos);
+  struct ddsi_writer_info wrinfo;
+  ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos);
 
   if (rdguid == NULL)
   {
@@ -1978,7 +1978,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
           ETRACE (pwr, " => EVERYONE\n");
           uint32_t i = 0;
           do {
-            if (!rhc_store (rdary[i]->rhc, &pwr_info, payload, tk))
+            if (!ddsi_rhc_store (rdary[i]->rhc, &wrinfo, payload, tk))
             {
               if (pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
               ddsrt_mutex_unlock (&pwr->rdary.rdary_lock);
@@ -2020,7 +2020,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
           ETRACE (pwr, " =>");
           do {
             ETRACE (pwr, " "PGUIDFMT, PGUID (rd->e.guid));
-            (void) rhc_store (rd->rhc, &pwr_info, payload, tk);
+            (void) ddsi_rhc_store (rd->rhc, &wrinfo, payload, tk);
             rd = proxy_writer_next_in_sync_reader (pwr, &it);
           } while (rd != NULL);
           free_sample_after_store (gv, payload, tk);
@@ -2045,7 +2045,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
         /* FIXME: why look up rd,pwr again? Their states remains valid while the thread stays
            "awake" (although a delete can be initiated), and blocking like this is a stopgap
            anyway -- quite possibly to abort once either is deleted */
-        while (!rhc_store (rd->rhc, &pwr_info, payload, tk))
+        while (!ddsi_rhc_store (rd->rhc, &wrinfo, payload, tk))
         {
           if (pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
           dds_sleepfor (DDS_MSECS (1));
@@ -2065,14 +2065,14 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   return 0;
 }
 
-int user_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const nn_guid_t *rdguid, UNUSED_ARG (void *qarg))
+int user_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, UNUSED_ARG (void *qarg))
 {
   int res;
   res = deliver_user_data (sampleinfo, fragchain, rdguid, 0);
   return res;
 }
 
-static void deliver_user_data_synchronously (struct nn_rsample_chain *sc, const nn_guid_t *rdguid)
+static void deliver_user_data_synchronously (struct nn_rsample_chain *sc, const ddsi_guid_t *rdguid)
 {
   while (sc->first)
   {
@@ -2113,7 +2113,7 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
 {
   struct proxy_writer *pwr;
   struct nn_rsample *rsample;
-  nn_guid_t dst;
+  ddsi_guid_t dst;
 
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->readerId;
@@ -2121,7 +2121,7 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
   pwr = sampleinfo->pwr;
   if (pwr == NULL)
   {
-    nn_guid_t src;
+    ddsi_guid_t src;
     src.prefix = rst->src_guid_prefix;
     src.entityid = msg->writerId;
     RSTTRACE (" "PGUIDFMT"? -> "PGUIDFMT, PGUID (src), PGUID (dst));
@@ -2333,7 +2333,7 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
        effect seems a reasonable approach. */
     int refc_adjust = 0;
     struct nn_rdata *gap = nn_rdata_newgap (rmsg);
-    nn_guid_t dst;
+    ddsi_guid_t dst;
     struct pwr_rd_match *wn;
     int gap_was_valuable;
 
@@ -2627,8 +2627,8 @@ static int handle_submsg_sequence
   const nn_locator_t *srcloc,
   nn_wctime_t tnowWC,
   nn_etime_t tnowE,
-  const nn_guid_prefix_t * const src_prefix,
-  const nn_guid_prefix_t * const dst_prefix,
+  const ddsi_guid_prefix_t * const src_prefix,
+  const ddsi_guid_prefix_t * const dst_prefix,
   unsigned char * const msg /* NOT const - we may byteswap it */,
   const size_t len,
   unsigned char * submsg /* aliases somewhere in msg */,
@@ -2937,7 +2937,7 @@ malformed_asleep:
   return -1;
 }
 
-static bool do_packet (struct thread_state1 * const ts1, struct q_globals *gv, ddsi_tran_conn_t conn, const nn_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool)
+static bool do_packet (struct thread_state1 * const ts1, struct q_globals *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool)
 {
   /* UDP max packet size is 64kB */
 
@@ -3057,7 +3057,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct q_globals *gv, d
 struct local_participant_desc
 {
   ddsi_tran_conn_t m_conn;
-  nn_guid_prefix_t guid_prefix;
+  ddsi_guid_prefix_t guid_prefix;
 };
 
 static int local_participant_cmp (const void *va, const void *vb)
@@ -3409,7 +3409,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         ddsi_tran_conn_t conn;
         while ((idx = os_sockWaitsetNextEvent (ctx, &conn)) >= 0)
         {
-          const nn_guid_prefix_t *guid_prefix;
+          const ddsi_guid_prefix_t *guid_prefix;
           if (((unsigned)idx < num_fixed) || gv->config.many_sockets_mode != MSM_MANY_UNICAST)
             guid_prefix = NULL;
           else

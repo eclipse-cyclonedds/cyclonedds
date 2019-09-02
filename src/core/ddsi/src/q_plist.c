@@ -353,7 +353,7 @@ static void fini_generic_partial (void * __restrict dst, size_t * __restrict dst
       case Xo: case Xox2: SIMPLE (Xo, unsigned char); break;
       case Xb: case Xbx2: SIMPLE (Xb, unsigned char); break;
       case XbCOND: SIMPLE (XbCOND, unsigned char); break;
-      case XG: SIMPLE (XG, nn_guid_t); break;
+      case XG: SIMPLE (XG, ddsi_guid_t); break;
       case XK: SIMPLE (XK, nn_keyhash_t); break;
     }
     desc++;
@@ -492,7 +492,7 @@ static dds_return_t deser_generic (void * __restrict dst, size_t * __restrict ds
         break;
       }
       case XG: { /* GUID */
-        nn_guid_t * const x = deser_generic_dst (dst, dstoff, alignof (nn_guid_t));
+        ddsi_guid_t * const x = deser_generic_dst (dst, dstoff, alignof (ddsi_guid_t));
         if (dd->bufsz - *srcoff < sizeof (*x))
           goto fail;
         memcpy (x, dd->buf + *srcoff, sizeof (*x));
@@ -552,7 +552,7 @@ static size_t ser_generic_size (const void *src, size_t srcoff, const enum psero
       case Xo: case Xox2: SIMPLE1 (Xo, unsigned char); break;
       case Xb: case Xbx2: SIMPLE1 (Xb, unsigned char); break;
       case XbCOND: SIMPLE1 (XbCOND, unsigned char); break;
-      case XG: SIMPLE1 (XG, nn_guid_t); break;
+      case XG: SIMPLE1 (XG, ddsi_guid_t); break;
       case XK: SIMPLE1 (XK, nn_keyhash_t); break;
     }
     desc++;
@@ -679,8 +679,8 @@ static dds_return_t ser_generic (struct nn_xmsg *xmsg, nn_parameterid_t pid, con
         break;
       }
       case XG: { /* GUID */
-        nn_guid_t const * const x = deser_generic_src (src, &srcoff, alignof (nn_guid_t));
-        const nn_guid_t xn = nn_hton_guid (*x);
+        ddsi_guid_t const * const x = deser_generic_src (src, &srcoff, alignof (ddsi_guid_t));
+        const ddsi_guid_t xn = nn_hton_guid (*x);
         char * const p = data + dstoff;
         memcpy (p, &xn, sizeof (xn));
         dstoff += sizeof (xn);
@@ -730,7 +730,7 @@ static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict 
       case Xo: case Xox2: SIMPLE (Xo, unsigned char); break;
       case Xb: case Xbx2: SIMPLE (Xb, unsigned char); break;
       case XbCOND: SIMPLE (XbCOND, unsigned char); break;
-      case XG: SIMPLE (XG, nn_guid_t); break;
+      case XG: SIMPLE (XG, ddsi_guid_t); break;
       case XK: SIMPLE (XK, nn_keyhash_t); break;
     }
     desc++;
@@ -798,7 +798,7 @@ static dds_return_t valid_generic (const void *src, size_t srcoff, const enum ps
       case Xo: case Xox2: TRIVIAL (Xo, unsigned char); break;
       case Xb: case Xbx2: SIMPLE (Xb, unsigned char, *x == 0 || *x == 1); break;
       case XbCOND: SIMPLE (XbCOND, unsigned char, *x == 0 || *x == 1); break;
-      case XG: TRIVIAL (XG, nn_guid_t); break;
+      case XG: TRIVIAL (XG, ddsi_guid_t); break;
       case XK: TRIVIAL (XK, nn_keyhash_t); break;
     }
     desc++;
@@ -857,7 +857,7 @@ static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, co
             return true;
         });
         break;
-      case XG: SIMPLE (XG, nn_guid_t, memcmp (x, y, sizeof (*x))); break;
+      case XG: SIMPLE (XG, ddsi_guid_t, memcmp (x, y, sizeof (*x))); break;
       case XK: SIMPLE (XK, nn_keyhash_t, memcmp (x, y, sizeof (*x))); break;
     }
     desc++;
@@ -904,7 +904,7 @@ static dds_return_t dvx_resource_limits (void * __restrict dst, const struct dd 
 
 static dds_return_t dvx_participant_guid (void * __restrict dst, const struct dd * __restrict dd)
 {
-  const nn_guid_t *g = dst;
+  const ddsi_guid_t *g = dst;
   (void) dd;
   if (g->prefix.u[0] == 0 && g->prefix.u[1] == 0 && g->prefix.u[2] == 0)
     return (g->entityid.u == 0) ? 0 : DDS_RETCODE_BAD_PARAMETER;
@@ -914,7 +914,7 @@ static dds_return_t dvx_participant_guid (void * __restrict dst, const struct dd
 
 static dds_return_t dvx_group_guid (void * __restrict dst, const struct dd * __restrict dd)
 {
-  const nn_guid_t *g = dst;
+  const ddsi_guid_t *g = dst;
   (void) dd;
   if (g->prefix.u[0] == 0 && g->prefix.u[1] == 0 && g->prefix.u[2] == 0)
     return (g->entityid.u == 0) ? 0 : DDS_RETCODE_BAD_PARAMETER;
@@ -924,7 +924,7 @@ static dds_return_t dvx_group_guid (void * __restrict dst, const struct dd * __r
 
 static dds_return_t dvx_endpoint_guid (void * __restrict dst, const struct dd * __restrict dd)
 {
-  nn_guid_t *g = dst;
+  ddsi_guid_t *g = dst;
   if (g->prefix.u[0] == 0 && g->prefix.u[1] == 0 && g->prefix.u[2] == 0)
     return (g->entityid.u == 0) ? 0 : DDS_RETCODE_BAD_PARAMETER;
   switch (g->entityid.u & NN_ENTITYID_KIND_MASK)

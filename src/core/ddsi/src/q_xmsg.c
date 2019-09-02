@@ -83,7 +83,7 @@ struct nn_xmsg {
   union {
     char control;
     struct {
-      nn_guid_t wrguid;
+      ddsi_guid_t wrguid;
       seqno_t wrseq;
       nn_fragment_number_t wrfragid;
       /* readerId encodes offset to destination readerId or 0 -- used
@@ -191,7 +191,7 @@ struct nn_xpack
   bool async_mode;
   Header_t hdr;
   MsgLen_t msg_len;
-  nn_guid_prefix_t *last_src;
+  ddsi_guid_prefix_t *last_src;
   InfoDST_t *last_dst;
   int64_t maxdelay;
   unsigned packetid;
@@ -329,7 +329,7 @@ static struct nn_xmsg *nn_xmsg_allocnew (struct nn_xmsgpool *pool, size_t expect
   return m;
 }
 
-struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const nn_guid_prefix_t *src_guid_prefix, size_t expected_size, enum nn_xmsg_kind kind)
+struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_prefix_t *src_guid_prefix, size_t expected_size, enum nn_xmsg_kind kind)
 {
   struct nn_xmsg *m;
   if ((m = nn_freelist_pop (&pool->freelist)) != NULL)
@@ -460,7 +460,7 @@ enum nn_xmsg_kind nn_xmsg_kind (const struct nn_xmsg *m)
   return m->kind;
 }
 
-void nn_xmsg_guid_seq_fragid (const struct nn_xmsg *m, nn_guid_t *wrguid, seqno_t *wrseq, nn_fragment_number_t *wrfragid)
+void nn_xmsg_guid_seq_fragid (const struct nn_xmsg *m, ddsi_guid_t *wrguid, seqno_t *wrseq, nn_fragment_number_t *wrfragid)
 {
   assert (m->kind != NN_XMSG_KIND_CONTROL);
   *wrguid = m->kindspecific.data.wrguid;
@@ -577,7 +577,7 @@ void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t of
   }
 }
 
-void nn_xmsg_setdst1 (struct nn_xmsg *m, const nn_guid_prefix_t *gp, const nn_locator_t *loc)
+void nn_xmsg_setdst1 (struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const nn_locator_t *loc)
 {
   assert (m->dstmode == NN_XMSG_DST_UNSET);
   m->dstmode = NN_XMSG_DST_ONE;
@@ -620,7 +620,7 @@ void nn_xmsg_setdstN (struct nn_xmsg *m, struct addrset *as, struct addrset *as_
   m->dstaddr.all.as_group = ref_addrset (as_group);
 }
 
-void nn_xmsg_set_data_readerId (struct nn_xmsg *m, nn_entityid_t *readerId)
+void nn_xmsg_set_data_readerId (struct nn_xmsg *m, ddsi_entityid_t *readerId)
 {
   assert (m->kind == NN_XMSG_KIND_DATA_REXMIT);
   assert (m->kindspecific.data.readerId_off == 0);
@@ -633,21 +633,21 @@ static void clear_readerId (struct nn_xmsg *m)
 {
   assert (m->kind == NN_XMSG_KIND_DATA_REXMIT);
   assert (m->kindspecific.data.readerId_off != 0);
-  *((nn_entityid_t *) (m->data->payload + m->kindspecific.data.readerId_off)) =
+  *((ddsi_entityid_t *) (m->data->payload + m->kindspecific.data.readerId_off)) =
     nn_hton_entityid (to_entityid (NN_ENTITYID_UNKNOWN));
 }
 
-static nn_entityid_t load_readerId (const struct nn_xmsg *m)
+static ddsi_entityid_t load_readerId (const struct nn_xmsg *m)
 {
   assert (m->kind == NN_XMSG_KIND_DATA_REXMIT);
   assert (m->kindspecific.data.readerId_off != 0);
-  return nn_ntoh_entityid (*((nn_entityid_t *) (m->data->payload + m->kindspecific.data.readerId_off)));
+  return nn_ntoh_entityid (*((ddsi_entityid_t *) (m->data->payload + m->kindspecific.data.readerId_off)));
 }
 
 static int readerId_compatible (const struct nn_xmsg *m, const struct nn_xmsg *madd)
 {
-  nn_entityid_t e = load_readerId (m);
-  nn_entityid_t eadd = load_readerId (madd);
+  ddsi_entityid_t e = load_readerId (m);
+  ddsi_entityid_t eadd = load_readerId (madd);
   return e.u == NN_ENTITYID_UNKNOWN || e.u == eadd.u;
 }
 
@@ -750,13 +750,13 @@ int nn_xmsg_setencoderid (struct nn_xmsg *msg, uint32_t encoderid)
 }
 #endif
 
-void nn_xmsg_setwriterseq (struct nn_xmsg *msg, const nn_guid_t *wrguid, seqno_t wrseq)
+void nn_xmsg_setwriterseq (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, seqno_t wrseq)
 {
   msg->kindspecific.data.wrguid = *wrguid;
   msg->kindspecific.data.wrseq = wrseq;
 }
 
-void nn_xmsg_setwriterseq_fragid (struct nn_xmsg *msg, const nn_guid_t *wrguid, seqno_t wrseq, nn_fragment_number_t wrfragid)
+void nn_xmsg_setwriterseq_fragid (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, seqno_t wrseq, nn_fragment_number_t wrfragid)
 {
   nn_xmsg_setwriterseq (msg, wrguid, wrseq);
   msg->kindspecific.data.wrfragid = wrfragid;
@@ -838,7 +838,7 @@ int nn_xmsg_addpar_sentinel_ifparam (struct nn_xmsg * m)
 
 static void nn_xmsg_chain_release (struct q_globals *gv, struct nn_xmsg_chain *chain)
 {
-  nn_guid_t wrguid;
+  ddsi_guid_t wrguid;
   memset (&wrguid, 0, sizeof (wrguid));
 
   while (chain->latest)
@@ -1385,7 +1385,7 @@ static int nn_xpack_mayaddmsg (const struct nn_xpack *xp, const struct nn_xmsg *
   return addressing_info_eq_onesidederr (xp, m);
 }
 
-static int guid_prefix_eq (const nn_guid_prefix_t *a, const nn_guid_prefix_t *b)
+static int guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_prefix_t *b)
 {
   return a->u[0] == b->u[0] && a->u[1] == b->u[1] && a->u[2] == b->u[2];
 }
@@ -1395,7 +1395,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   /* Returns > 0 if pack got sent out before adding m */
   struct q_globals const * const gv = xp->gv;
   static InfoDST_t static_zero_dst = {
-    { SMID_INFO_DST, (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0), sizeof (nn_guid_prefix_t) },
+    { SMID_INFO_DST, (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0), sizeof (ddsi_guid_prefix_t) },
     { { 0,0,0,0, 0,0,0,0, 0,0,0,0 } }
   };
   InfoDST_t *dst;

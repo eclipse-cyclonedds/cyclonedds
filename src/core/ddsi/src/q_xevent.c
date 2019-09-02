@@ -68,26 +68,26 @@ struct xevent
   enum xeventkind kind;
   union {
     struct {
-      nn_guid_t wr_guid;
+      ddsi_guid_t wr_guid;
     } heartbeat;
     struct {
-      nn_guid_t pwr_guid;
-      nn_guid_t rd_guid;
+      ddsi_guid_t pwr_guid;
+      ddsi_guid_t rd_guid;
     } acknack;
     struct {
-      nn_guid_t pp_guid;
-      nn_guid_prefix_t dest_proxypp_guid_prefix; /* only if "directed" */
+      ddsi_guid_t pp_guid;
+      ddsi_guid_prefix_t dest_proxypp_guid_prefix; /* only if "directed" */
       int directed; /* if 0, undirected; if > 0, number of directed ones to send in reasonably short succession */
     } spdp;
     struct {
-      nn_guid_t pp_guid;
+      ddsi_guid_t pp_guid;
     } pmd_update;
 #if 0
     struct {
     } info;
 #endif
     struct {
-      nn_guid_t guid;
+      ddsi_guid_t guid;
     } delete_writer;
     struct {
       void (*cb) (struct xevent *ev, void *arg, nn_mtime_t tnow);
@@ -937,7 +937,7 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
   resched_xevent_if_earlier (ev, add_duration_to_mtime (tnow, 100 * T_MILLISECOND));
 }
 
-static bool resend_spdp_sample_by_guid_key (struct writer *wr, const nn_guid_t *guid, struct proxy_reader *prd)
+static bool resend_spdp_sample_by_guid_key (struct writer *wr, const ddsi_guid_t *guid, struct proxy_reader *prd)
 {
   /* Look up data in (transient-local) WHC by key value -- FIXME: clearly
    a slightly more efficient and elegant way of looking up the key value
@@ -1009,7 +1009,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   }
   else
   {
-    nn_guid_t guid;
+    ddsi_guid_t guid;
     guid.prefix = ev->u.spdp.dest_proxypp_guid_prefix;
     guid.entityid.u = NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER;
     prd = ephash_lookup_proxy_reader_guid (gv->guid_hash, &guid);
@@ -1387,7 +1387,7 @@ void qxev_msg (struct xeventq *evq, struct nn_xmsg *msg)
   ddsrt_mutex_unlock (&evq->lock);
 }
 
-void qxev_prd_entityid (struct proxy_reader *prd, nn_guid_prefix_t *id)
+void qxev_prd_entityid (struct proxy_reader *prd, ddsi_guid_prefix_t *id)
 {
   struct q_globals * const gv = prd->e.gv;
   struct nn_xmsg *msg;
@@ -1415,7 +1415,7 @@ void qxev_prd_entityid (struct proxy_reader *prd, nn_guid_prefix_t *id)
   }
 }
 
-void qxev_pwr_entityid (struct proxy_writer *pwr, nn_guid_prefix_t *id)
+void qxev_pwr_entityid (struct proxy_writer *pwr, ddsi_guid_prefix_t *id)
 {
   struct q_globals * const gv = pwr->e.gv;
   struct nn_xmsg *msg;
@@ -1488,7 +1488,7 @@ int qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int f
   }
 }
 
-struct xevent *qxev_heartbeat (struct xeventq *evq, nn_mtime_t tsched, const nn_guid_t *wr_guid)
+struct xevent *qxev_heartbeat (struct xeventq *evq, nn_mtime_t tsched, const ddsi_guid_t *wr_guid)
 {
   /* Event _must_ be deleted before enough of the writer is freed to
      cause trouble.  Currently used exclusively for
@@ -1503,7 +1503,7 @@ struct xevent *qxev_heartbeat (struct xeventq *evq, nn_mtime_t tsched, const nn_
   return ev;
 }
 
-struct xevent *qxev_acknack (struct xeventq *evq, nn_mtime_t tsched, const nn_guid_t *pwr_guid, const nn_guid_t *rd_guid)
+struct xevent *qxev_acknack (struct xeventq *evq, nn_mtime_t tsched, const ddsi_guid_t *pwr_guid, const ddsi_guid_t *rd_guid)
 {
   struct xevent *ev;
   assert(evq);
@@ -1516,7 +1516,7 @@ struct xevent *qxev_acknack (struct xeventq *evq, nn_mtime_t tsched, const nn_gu
   return ev;
 }
 
-struct xevent *qxev_spdp (struct xeventq *evq, nn_mtime_t tsched, const nn_guid_t *pp_guid, const nn_guid_t *dest_proxypp_guid)
+struct xevent *qxev_spdp (struct xeventq *evq, nn_mtime_t tsched, const ddsi_guid_t *pp_guid, const ddsi_guid_t *dest_proxypp_guid)
 {
   struct xevent *ev;
   ddsrt_mutex_lock (&evq->lock);
@@ -1534,7 +1534,7 @@ struct xevent *qxev_spdp (struct xeventq *evq, nn_mtime_t tsched, const nn_guid_
   return ev;
 }
 
-struct xevent *qxev_pmd_update (struct xeventq *evq, nn_mtime_t tsched, const nn_guid_t *pp_guid)
+struct xevent *qxev_pmd_update (struct xeventq *evq, nn_mtime_t tsched, const ddsi_guid_t *pp_guid)
 {
   struct xevent *ev;
   ddsrt_mutex_lock (&evq->lock);
@@ -1545,7 +1545,7 @@ struct xevent *qxev_pmd_update (struct xeventq *evq, nn_mtime_t tsched, const nn
   return ev;
 }
 
-struct xevent *qxev_delete_writer (struct xeventq *evq, nn_mtime_t tsched, const nn_guid_t *guid)
+struct xevent *qxev_delete_writer (struct xeventq *evq, nn_mtime_t tsched, const ddsi_guid_t *guid)
 {
   struct xevent *ev;
   ddsrt_mutex_lock (&evq->lock);

@@ -15,7 +15,7 @@
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/heap.h"
 #include "dds__init.h"
-#include "dds__rhc.h"
+#include "dds/ddsc/dds_rhc.h"
 #include "dds__domain.h"
 #include "dds__builtin.h"
 #include "dds__whc_builtintopic.h"

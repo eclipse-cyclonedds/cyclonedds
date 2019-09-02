@@ -77,7 +77,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
 {
   dds_domain *dom;
   dds_entity_t ret;
-  nn_guid_t guid;
+  ddsi_guid_t guid;
   dds_participant * pp;
   nn_plist_t plist;
   dds_qos_t *new_qos = NULL;
