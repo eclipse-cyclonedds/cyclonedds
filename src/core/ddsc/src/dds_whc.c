@@ -981,21 +981,14 @@ static uint32_t whc_default_remove_acked_messages_full (struct whc_impl *whc, se
           /* Delete it - but this may not result in deleting the index node as
            there must still be a more recent one available */
 #ifndef NDEBUG
-          struct whc_node whcn_template;
-          union {
-            struct whc_idxnode idxn;
-            char pad[sizeof (struct whc_idxnode) + sizeof (struct whc_node *)];
-          } template;
-          template.idxn.headidx = 0;
-          template.idxn.hist[0] = &whcn_template;
-          whcn_template.serdata = ddsi_serdata_ref (oldn->serdata);
+          struct whc_idxnode template;
+          template.iid = idxn->iid;
           assert (oldn->seq < whcn->seq);
 #endif
           TRACE (" del %p %"PRId64, (void *) oldn, oldn->seq);
           whc_delete_one (whc, oldn);
 #ifndef NDEBUG
           assert (ddsrt_hh_lookup (whc->idx_hash, &template) == idxn);
-          ddsi_serdata_unref (whcn_template.serdata);
 #endif
         }
       }
