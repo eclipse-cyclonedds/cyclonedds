@@ -185,14 +185,3 @@ CU_Test(ddsrt_library, dlclose_error)
     CU_ASSERT_EQUAL(r, DDS_RETCODE_ERROR);
 
 }
-
-CU_Test(ddsrt_library, dlerror_notfound)
-{
-    char buffer[256];
-    dds_return_t r;
-    ddsrt_dlerror(buffer, sizeof(buffer));
-    r = ddsrt_dlerror(buffer, sizeof(buffer));
-    CU_ASSERT_EQUAL(r, DDS_RETCODE_NOT_FOUND);
-
-}
-

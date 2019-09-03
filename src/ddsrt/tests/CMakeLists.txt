@@ -10,6 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 include(CUnit)
+include(GenerateExportHeader)
 include(GenerateDummyExportHeader)
 
 list(APPEND sources
@@ -90,10 +91,7 @@ generate_dummy_export_header(
   BASE_NAME dds
   EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/export.h")
 
-generate_dummy_export_header(
-  ${test_lib_name}
-  BASE_NAME lib_test
-  EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/lib_test_export.h")
+generate_export_header(${test_lib_name} BASE_NAME LIB_TEST)
 
 if(HAVE_MULTI_PROCESS)
   # A separate application is required to test process management.
