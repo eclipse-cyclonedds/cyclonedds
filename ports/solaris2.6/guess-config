@@ -1,0 +1,52 @@
+#!/bin/sh
+
+s=`uname -s`
+case "$s" in
+    [Dd]arwin)
+	# default to G4 for now
+	m=`uname -m`
+	case "$m" in
+	    x86_64)
+		cfg="x86_64.darwin"
+		;;
+	    *)
+		echo "guess-config: darwin: didn't recognize machine type $m - please fix" 2>&1
+		;;
+	esac
+	;;
+    [Ll]inux)
+	m=`uname -m`
+	case "$m" in
+            arm*)
+                cfg=arm.linux.6
+                ;;
+            x86_64)
+                cfg=x86_64.linux.6
+                ;;
+	    *)
+        	cfg=x86.linux.6
+		;;
+	esac
+	;;
+    [Ss]un[Oo][Ss]|[Ss]olaris)
+	m=`uname -m`:`uname -r`
+        #should check OS rev
+	case "$m" in
+	    sun4m:5.6)
+		cfg="sparc.solaris2.6"
+		;;
+	    sun4u:*)
+		cfg="sparcv9.solaris"
+		;;
+	    *)
+        	cfg="x86_64.solaris"
+		;;
+	esac
+	;;
+    *)
+	echo "guess-config: didn't recognize system type $s - please fix" 2>&1
+	;;
+esac
+
+[ -z "$cfg" ] && cfg="asjemenou"
+echo $cfg

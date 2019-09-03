@@ -16,9 +16,11 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/string.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/ddsi_serdata.h"
 
@@ -39,6 +41,41 @@ void ddsi_sertopic_unref (struct ddsi_sertopic *sertopic)
       ddsi_sertopic_free (sertopic);
     }
   }
+}
+
+void ddsi_sertopic_init (struct ddsi_sertopic *tp, const char *name, const char *type_name, const struct ddsi_sertopic_ops *sertopic_ops, const struct ddsi_serdata_ops *serdata_ops, bool topickind_no_key)
+{
+  ddsrt_atomic_st32 (&tp->refc, 1);
+  tp->iid = ddsi_iid_gen ();
+  tp->name = ddsrt_strdup (name);
+  tp->type_name = ddsrt_strdup (type_name);
+  size_t ntn_sz = strlen (tp->name) + 1 + strlen (tp->type_name) + 1;
+  tp->name_type_name = ddsrt_malloc (ntn_sz);
+  (void) snprintf (tp->name_type_name, ntn_sz, "%s/%s", tp->name, tp->type_name);
+  tp->ops = sertopic_ops;
+  tp->serdata_ops = serdata_ops;
+  tp->serdata_basehash = ddsi_sertopic_compute_serdata_basehash (tp->serdata_ops);
+  tp->topickind_no_key = topickind_no_key;
+}
+
+void ddsi_sertopic_init_anon (struct ddsi_sertopic *tp, const struct ddsi_sertopic_ops *sertopic_ops, const struct ddsi_serdata_ops *serdata_ops, bool topickind_no_key)
+{
+  ddsrt_atomic_st32 (&tp->refc, 1);
+  tp->iid = ddsi_iid_gen ();
+  tp->name = NULL;
+  tp->type_name = NULL;
+  tp->name_type_name = NULL;
+  tp->ops = sertopic_ops;
+  tp->serdata_ops = serdata_ops;
+  tp->serdata_basehash = ddsi_sertopic_compute_serdata_basehash (tp->serdata_ops);
+  tp->topickind_no_key = topickind_no_key;
+}
+
+void ddsi_sertopic_fini (struct ddsi_sertopic *tp)
+{
+  ddsrt_free (tp->name);
+  ddsrt_free (tp->type_name);
+  ddsrt_free (tp->name_type_name);
 }
 
 uint32_t ddsi_sertopic_compute_serdata_basehash (const struct ddsi_serdata_ops *ops)

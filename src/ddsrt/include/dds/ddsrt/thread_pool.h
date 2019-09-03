@@ -55,7 +55,7 @@ DDS_EXPORT void ddsrt_thread_pool_purge (ddsrt_thread_pool pool);
   Note that if the pool queue has reached it's maximum DDS_RETCODE_TRY_AGAIN is returned.
 */
 
-DDS_EXPORT dds_retcode_t ddsrt_thread_pool_submit
+DDS_EXPORT dds_return_t ddsrt_thread_pool_submit
 (
   ddsrt_thread_pool pool,  /* Thread pool instance */
   void (*fn) (void *arg),  /* Function to be invoked by thread from pool */

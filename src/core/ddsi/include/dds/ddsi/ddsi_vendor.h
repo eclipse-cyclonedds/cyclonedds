@@ -60,6 +60,9 @@ inline bool vendor_is_opensplice (nn_vendorid_t vendor) {
 inline bool vendor_is_twinoaks (nn_vendorid_t vendor) {
   return vendor_equals (vendor, (nn_vendorid_t) {{ 0x01, NN_VENDORID_MINOR_TWINOAKS }});
 }
+inline bool vendor_is_eprosima (nn_vendorid_t vendor) {
+  return vendor_equals (vendor, (nn_vendorid_t) {{ 0x01, NN_VENDORID_MINOR_EPROSIMA }});
+}
 inline bool vendor_is_cloud (nn_vendorid_t vendor) {
   return vendor_equals (vendor, (nn_vendorid_t) {{ 0x01, NN_VENDORID_MINOR_PRISMTECH_CLOUD }});
 }

@@ -56,7 +56,7 @@ void nn_lat_estim_update (struct nn_lat_estim *le, int64_t est)
     le->smoothed = (1.0f - alpha) * le->smoothed + alpha * med;
 }
 
-int nn_lat_estim_log (uint32_t logcat, const char *tag, const struct nn_lat_estim *le)
+int nn_lat_estim_log (uint32_t logcat, const struct ddsrt_log_cfg *logcfg, const char *tag, const struct nn_lat_estim *le)
 {
   if (le->smoothed == 0.0f)
     return 0;
@@ -67,12 +67,12 @@ int nn_lat_estim_log (uint32_t logcat, const char *tag, const struct nn_lat_esti
     memcpy (tmp, le->window, sizeof (tmp));
     qsort (tmp, NN_LAT_ESTIM_MEDIAN_WINSZ, sizeof (tmp[0]), (int (*) (const void *, const void *)) cmpfloat);
     if (tag)
-      DDS_LOG(logcat, " LAT(%s: %e {", tag, le->smoothed);
+      DDS_CLOG (logcat, logcfg, " LAT(%s: %e {", tag, le->smoothed);
     else
-      DDS_LOG(logcat, " LAT(%e {", le->smoothed);
+      DDS_CLOG (logcat, logcfg, " LAT(%e {", le->smoothed);
     for (i = 0; i < NN_LAT_ESTIM_MEDIAN_WINSZ; i++)
-      DDS_LOG(logcat, "%s%e", (i > 0) ? "," : "", tmp[i]);
-    DDS_LOG(logcat, "})");
+      DDS_CLOG (logcat, logcfg, "%s%e", (i > 0) ? "," : "", tmp[i]);
+    DDS_CLOG (logcat, logcfg, "})");
     return 1;
   }
 }

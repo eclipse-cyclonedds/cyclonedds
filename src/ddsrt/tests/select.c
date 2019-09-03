@@ -9,10 +9,10 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "CUnit/Theory.h"
-#include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/sockets_priv.h"
+#include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/threads.h"
+#include "CUnit/Theory.h"
 
 CU_Init(ddsrt_select)
 {
@@ -36,8 +36,13 @@ CU_Test(ddsrt_select, duration_to_timeval)
 {
   struct timeval tv, *tvptr;
   dds_duration_t nsecs_max;
-  dds_duration_t secs_max = DDSRT_MAX_INTEGER(ddsrt_tv_sec_t);
   dds_duration_t usecs_max = 999999;
+  dds_duration_t secs_max;
+  DDSRT_STATIC_ASSERT (CHAR_BIT * sizeof (ddsrt_tv_sec_t) == 32 || CHAR_BIT * sizeof (ddsrt_tv_sec_t) == 64);
+  if (CHAR_BIT * sizeof (ddsrt_tv_sec_t) == 32)
+    secs_max = INT32_MAX;
+  else
+    secs_max = INT64_MAX;
 
   if (DDS_INFINITY > secs_max) {
     CU_ASSERT_EQUAL_FATAL(secs_max, INT32_MAX);
@@ -107,40 +112,45 @@ typedef struct {
 static void
 sockets_pipe(ddsrt_socket_t socks[2])
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ddsrt_socket_t sock;
-  int reuseaddr = 1;
 
+  socklen_t addrlen;
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  addr.sin_port = htons(54321);
+  addr.sin_port = 0;
 
+  fprintf (stderr, "sockets_pipe ... begin\n");
   CU_ASSERT_PTR_NOT_NULL_FATAL(socks);
   rc = ddsrt_socket(&sock, AF_INET, SOCK_STREAM, 0);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
-  rc = ddsrt_setsockopt(
-    sock, SOL_SOCKET, SO_REUSEADDR, (void*)&reuseaddr, sizeof(reuseaddr));
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   rc = ddsrt_socket(&socks[1], AF_INET, SOCK_STREAM, 0);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   rc = ddsrt_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  addrlen = (socklen_t) sizeof(addr);
+  rc = ddsrt_getsockname(sock, (struct sockaddr *)&addr, &addrlen);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  fprintf (stderr, "sockets_pipe ... listen\n");
   rc = ddsrt_listen(sock, 1);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  fprintf (stderr, "sockets_pipe ... connect\n");
   rc = ddsrt_connect(socks[1], (struct sockaddr *)&addr, sizeof(addr));
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  fprintf (stderr, "sockets_pipe ... accept\n");
   rc = ddsrt_accept(sock, NULL, NULL, &socks[0]);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   ddsrt_close(sock);
+  fprintf (stderr, "sockets_pipe ... done\n");
 }
 
 static const char mesg[] = "foobar";
 
 static uint32_t select_timeout_routine(void *ptr)
 {
-  int cnt = -1;
-  dds_retcode_t rc;
+  int32_t cnt = -1;
+  dds_return_t rc;
   dds_time_t before, after;
   dds_duration_t delay;
   fd_set rdset;
@@ -148,7 +158,13 @@ static uint32_t select_timeout_routine(void *ptr)
   uint32_t res = 0;
 
   FD_ZERO(&rdset);
+#if LWIP_SOCKET
+  DDSRT_WARNING_GNUC_OFF(sign-conversion)
+#endif
   FD_SET(arg->sock, &rdset);
+#if LWIP_SOCKET
+  DDSRT_WARNING_GNUC_ON(sign-conversion)
+#endif
 
   before = dds_time();
   rc = ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay, &cnt);
@@ -157,11 +173,15 @@ static uint32_t select_timeout_routine(void *ptr)
 
   fprintf(stderr, "Waited for %"PRId64" (nanoseconds)\n", delay);
   fprintf(stderr, "Expected to wait %"PRId64" (nanoseconds)\n", arg->delay);
-  fprintf(stderr, "ddsrt_select returned %d\n", rc);
-  fprintf(stderr, "ddsrt_select reported %d ready\n", cnt);
+  fprintf(stderr, "ddsrt_select returned %"PRId32"\n", rc);
+  fprintf(stderr, "ddsrt_select reported %"PRId32" ready\n", cnt);
 
   if (rc == DDS_RETCODE_TIMEOUT) {
     res = (((after - delay) >= (arg->delay - arg->skew)) && (cnt == 0));
+  /* Running in the FreeRTOS simulator causes some trouble as interrupts are
+     simulated using signals causing the select call to be interrupted. */
+  } else if (rc == DDS_RETCODE_INTERRUPTED) {
+    res = (cnt == -1);
   }
 
   return res;
@@ -169,7 +189,7 @@ static uint32_t select_timeout_routine(void *ptr)
 
 CU_Test(ddsrt_select, timeout)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ddsrt_socket_t socks[2];
   ddsrt_thread_t thr;
   ddsrt_threadattr_t attr;
@@ -178,23 +198,26 @@ CU_Test(ddsrt_select, timeout)
 
   sockets_pipe(socks);
 
-  arg.delay = DDS_MSECS(100);
+  arg.delay = DDS_MSECS(300);
   /* Allow the delay to be off by x microseconds (arbitrarily chosen) for
      systems with a really poor clock. This test is just to get some
      confidence that time calculation is not completely broken, it is by
      no means proof that time calculation is entirely correct! */
-  arg.skew = DDS_MSECS(20);
+  arg.skew = DDS_MSECS(50);
   arg.sock = socks[0];
 
+  fprintf (stderr, "create thread\n");
   ddsrt_threadattr_init(&attr);
   rc = ddsrt_thread_create(&thr, "select_timeout", &attr, &select_timeout_routine, &arg);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   /* Allow the thread some time to get ready. */
   dds_sleepfor(arg.delay * 2);
   /* Send data to the read socket to avoid blocking indefinitely. */
+  fprintf (stderr, "write data\n");
   ssize_t sent = 0;
   rc = ddsrt_send(socks[1], mesg, sizeof(mesg), 0, &sent);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  fprintf (stderr, "join thread\n");
   rc = ddsrt_thread_join(thr, &res);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   CU_ASSERT_EQUAL(res, 1);
@@ -207,13 +230,19 @@ static uint32_t recv_routine(void *ptr)
 {
   thread_arg_t *arg = (thread_arg_t*)ptr;
 
-  int nfds = 0;
+  int32_t nfds = 0;
   fd_set rdset;
   ssize_t rcvd = -1;
   char buf[sizeof(mesg)];
 
   FD_ZERO(&rdset);
+#if LWIP_SOCKET
+  DDSRT_WARNING_GNUC_OFF(sign-conversion)
+#endif
   FD_SET(arg->sock, &rdset);
+#if LWIP_SOCKET
+  DDSRT_WARNING_GNUC_ON(sign-conversion)
+#endif
 
   (void)ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay, &nfds);
 
@@ -226,7 +255,7 @@ static uint32_t recv_routine(void *ptr)
 
 CU_Test(ddsrt_select, send_recv)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ddsrt_socket_t socks[2];
   ddsrt_thread_t thr;
   ddsrt_threadattr_t attr;
@@ -260,7 +289,7 @@ static uint32_t recvmsg_routine(void *ptr)
 {
   thread_arg_t *arg = (thread_arg_t*)ptr;
 
-  int nfds = 0;
+  int32_t nfds = 0;
   fd_set rdset;
   ssize_t rcvd = -1;
   char buf[sizeof(mesg)];
@@ -274,7 +303,13 @@ static uint32_t recvmsg_routine(void *ptr)
   msg.msg_iovlen = 1;
 
   FD_ZERO(&rdset);
+#if LWIP_SOCKET
+  DDSRT_WARNING_GNUC_OFF(sign-conversion)
+#endif
   FD_SET(arg->sock, &rdset);
+#if LWIP_SOCKET
+  DDSRT_WARNING_GNUC_ON(sign-conversion)
+#endif
 
   (void)ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay, &nfds);
 
@@ -287,7 +322,7 @@ static uint32_t recvmsg_routine(void *ptr)
 
 CU_Test(ddsrt_select, sendmsg_recvmsg)
 {
-  dds_retcode_t rc;
+  dds_return_t rc;
   ddsrt_socket_t socks[2];
   ddsrt_thread_t thr;
   ddsrt_threadattr_t attr;

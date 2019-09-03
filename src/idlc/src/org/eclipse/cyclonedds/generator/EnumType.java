@@ -40,6 +40,11 @@ public class EnumType extends BasicType implements NamedType
     return SN.toString ("_");
   }
 
+  public boolean containsUnion ()
+  {
+    return false;
+  }
+
   public void addEnumerand (String val)
   {
     vals.add (val);

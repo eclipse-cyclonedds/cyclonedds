@@ -22,26 +22,31 @@ extern "C" {
 
 struct ddsi_serdata;
 struct ddsi_serdata_ops;
-
-struct dds_topic;
-typedef void (*topic_cb_t) (struct dds_topic * topic);
-
 struct ddsi_sertopic_ops;
 
 struct ddsi_sertopic {
-  ddsrt_avl_node_t avlnode; /* index on name_typename */
   const struct ddsi_sertopic_ops *ops;
   const struct ddsi_serdata_ops *serdata_ops;
   uint32_t serdata_basehash;
+  bool topickind_no_key;
   char *name_type_name;
   char *name;
   char *type_name;
   uint64_t iid;
   ddsrt_atomic_uint32_t refc; /* counts refs from entities, not from data */
-
-  topic_cb_t status_cb;
-  struct dds_topic * status_cb_entity;
 };
+
+/* The old and the new happen to have the same memory layout on a 64-bit machine
+   and so any user that memset's the ddsi_sertopic to 0 before filling out the
+   required fields gets unchanged behaviour.  32-bit machines have a different
+   layout and no such luck.
+
+   There are presumably very few users of this type outside Cyclone DDS itself,
+   but the ROS2 RMW implementation does use it -- indeed, it prompted the change.
+   This define makes it possible to have a single version of the source that is
+   compatible with the old and the new definition, even if it is only partially
+   binary compatible. */
+#define DDSI_SERTOPIC_HAS_TOPICKIND_NO_KEY 1
 
 /* Called when the refcount dropped to zero */
 typedef void (*ddsi_sertopic_free_t) (struct ddsi_sertopic *tp);
@@ -63,6 +68,9 @@ struct ddsi_sertopic_ops {
   ddsi_sertopic_free_samples_t free_samples;
 };
 
+DDS_EXPORT void ddsi_sertopic_init (struct ddsi_sertopic *tp, const char *name, const char *type_name, const struct ddsi_sertopic_ops *sertopic_ops, const struct ddsi_serdata_ops *serdata_ops, bool topickind_no_key);
+DDS_EXPORT void ddsi_sertopic_init_anon (struct ddsi_sertopic *tp, const struct ddsi_sertopic_ops *sertopic_ops, const struct ddsi_serdata_ops *serdata_ops, bool topickind_no_key);
+DDS_EXPORT void ddsi_sertopic_fini (struct ddsi_sertopic *tp);
 DDS_EXPORT struct ddsi_sertopic *ddsi_sertopic_ref (const struct ddsi_sertopic *tp);
 DDS_EXPORT void ddsi_sertopic_unref (struct ddsi_sertopic *tp);
 DDS_EXPORT uint32_t ddsi_sertopic_compute_serdata_basehash (const struct ddsi_serdata_ops *ops);

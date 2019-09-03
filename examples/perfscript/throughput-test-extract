@@ -1,0 +1,76 @@
+#!/usr/bin/perl -w
+
+# Note: this is specialized for async delivery, listener mode because of the way it deals with
+# thread names
+
+use strict;
+
+my %res = ();
+my %meas;
+while (<>) {
+  next unless s/^\[\d+\] \d+\.\d+\s+//;
+  if (/^size (\d+) .* rate (\d+\.\d+)\s*kS\/s\s+(\d+\.\d+)\s*Mb\/s/) {
+    # size is always the first line of an output block
+    # ddsperf doesn't print CPU loads, RSS, bandwidth if it is zero
+    my %tmp = %meas;
+    push @{$res{$meas{size}}}, \%tmp if %meas;
+    %meas = (size => $1, rate => $2, cookedbw => $3,
+             rawxmitbw => 0, rawrecvbw => 0,
+             subrss => 0, pubrss => 0,
+             subcpu => 0, subrecv => 0,
+             pubcpu => 0, pubrecv => 0);
+  } elsif (s/^(\@[^:]+:\d+\s+)?rss:(\d+\.\d+)([kM])B//) {
+    my $side = defined $1 ? "pub" : "sub";
+    $meas{"${side}rss"}  = $2 / ($3 eq "k" ? 1024.0 : 1);
+    $meas{"${side}cpu"}  = cpuload (($side eq "pub") ? "pub" : "dq.user", $_);
+    $meas{"${side}recv"} = cpuload ("recvUC", $_);
+  } elsif (/xmit\s+(\d+)%\s+recv\s+(\d+)%/) {
+    $meas{rawxmitbw} = $1;
+    $meas{rawrecvbw} = $2;
+  }
+}
+push @{$res{$meas{size}}}, \%meas if %meas;
+die "no data found" unless keys %res > 0;
+
+print "#size rate cookedbw rawxmitbw rawrecvbw pubrss subrss pubcpu pubrecv subcpu subrecv\n";
+my @sizes = sort { $a <=> $b } keys %res;
+for my $sz (@sizes) {
+  my $ms = $res{$sz};
+  my $rate = median ("rate", $ms);
+  my $cookedbw = median ("cookedbw", $ms);
+  my $rawxmitbw = median ("rawxmitbw", $ms);
+  my $rawrecvbw = median ("rawrecvbw", $ms);
+  my $pubrss = max ("pubrss", $ms);
+  my $subrss = max ("subrss", $ms);
+  my $pubcpu = median ("pubcpu", $ms);
+  my $pubrecv = median ("pubrecv", $ms);
+  my $subcpu = median ("subcpu", $ms);
+  my $subrecv = median ("subrecv", $ms);
+  print "$sz $rate $cookedbw $rawxmitbw $rawrecvbw $pubrss $subrss $pubcpu $pubrecv $subcpu $subrecv\n";
+}
+
+sub cpuload {
+  my ($thread, $line) = @_;
+  $thread =~ s/\./\\./g;
+  if ($line =~ /$thread:(\d+)%\+(\d+)%/) {
+    return $1+$2;
+  } else {
+    return 0;
+  }
+}
+
+sub max {
+  my $v;
+  for (extract (@_)) { $v = $_ unless defined $v; $v = $_ if $_ > $v; }
+  return $v;
+}
+
+sub median {
+  my @xs = sort { $a <=> $b } (extract (@_));
+  return (@xs % 2) ? $xs[(@xs - 1) / 2] : ($xs[@xs/2 - 1] + $xs[@xs/2]) / 2;
+}
+
+sub extract {
+  my ($key, $msref) = @_;
+  return map { $_->{$key} } @$msref;
+}

@@ -26,17 +26,10 @@
 
 #include "dds/export.h"
 
-/* TODO: Move to appropriate location */
-/**
- * Return code indicating success (DDS_RETCODE_OK) or failure. If a given
- * operation failed the value will be a unique error code and dds_err_nr() must
- * be used to extract the DDS_RETCODE_* value.
- */
-typedef int32_t dds_return_t;
 /**
  * Handle to an entity. A valid entity handle will always have a positive
- * integer value. Should the value be negative, the value represents a unique
- * error code. dds_err_nr() can be used to extract the DDS_RETCODE_* value.
+ * integer value. Should the value be negative, it is one of the DDS_RETCODE_*
+ * error codes.
  */
 typedef int32_t dds_entity_t;
 
@@ -45,7 +38,6 @@ typedef int32_t dds_entity_t;
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/log.h"
-#include "dds/ddsc/dds_public_stream.h"
 #include "dds/ddsc/dds_public_impl.h"
 #include "dds/ddsc/dds_public_alloc.h"
 #include "dds/ddsc/dds_public_qos.h"
@@ -87,7 +79,6 @@ DDS_EXPORT dds_domainid_t dds_domain_default (void);
 
 /** @name Communication Status definitions
   @{**/
-/** Another topic exists with the same name but with different characteristics. */
 typedef enum dds_status_id {
   DDS_INCONSISTENT_TOPIC_STATUS_ID,
   DDS_OFFERED_DEADLINE_MISSED_STATUS_ID,
@@ -102,8 +93,9 @@ typedef enum dds_status_id {
   DDS_LIVELINESS_CHANGED_STATUS_ID,
   DDS_PUBLICATION_MATCHED_STATUS_ID,
   DDS_SUBSCRIPTION_MATCHED_STATUS_ID
-}
-dds_status_id_t;
+} dds_status_id_t;
+
+/** Another topic exists with the same name but with different characteristics. */
 #define DDS_INCONSISTENT_TOPIC_STATUS          (1u << DDS_INCONSISTENT_TOPIC_STATUS_ID)
 /** The deadline that the writer has committed through its deadline QoS policy was not respected for a specific instance. */
 #define DDS_OFFERED_DEADLINE_MISSED_STATUS     (1u << DDS_OFFERED_DEADLINE_MISSED_STATUS_ID)
@@ -321,7 +313,7 @@ dds_delete(dds_entity_t entity);
  * For instance, it will return the Publisher that was used when
  * creating a DataWriter (when that DataWriter was provided here).
  *
- * @param[in]  entity  Entity from which to get its publisher.
+ * @param[in]  writer  Entity from which to get its publisher.
  *
  * @returns A valid entity or an error code.
  *
@@ -369,7 +361,7 @@ dds_get_subscriber(dds_entity_t entity);
  * For instance, it will return the DataReader that was used when
  * creating a ReadCondition (when that ReadCondition was provided here).
  *
- * @param[in]  entity  Entity from which to get its datareader.
+ * @param[in]  condition  Entity from which to get its datareader.
  *
  * @returns A valid reader handle or an error code.
  *
@@ -510,7 +502,7 @@ dds_get_status_changes(dds_entity_t entity, uint32_t *status);
  * This operation returns the status enabled on the entity
  *
  * @param[in]  entity  Entity to get the status.
- * @param[out] status  Status set on the entity.
+ * @param[out] mask    Mask of enabled statuses set on the entity.
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -960,6 +952,8 @@ dds_create_topic(
   const dds_qos_t *qos,
   const dds_listener_t *listener);
 
+struct ddsi_sertopic;
+struct nn_plist;
 /**
  * @brief Creates a new topic with arbitrary type handling.
  *
@@ -980,8 +974,6 @@ dds_create_topic(
  *             Either participant, descriptor, name or qos is invalid.
  */
 /* TODO: Check list of retcodes is complete. */
-struct ddsi_sertopic;
-struct nn_plist;
 DDS_EXPORT dds_entity_t
 dds_create_topic_arbitrary (
   dds_entity_t participant,
@@ -1224,7 +1216,7 @@ dds_create_reader(
  * @returns a status, 0 on success, TIMEOUT on timeout or a negative value to indicate error.
  */
 /* TODO: Complete list of error codes */
-DDS_EXPORT int
+DDS_EXPORT dds_return_t
 dds_reader_wait_for_historical_data(
   dds_entity_t reader,
   dds_duration_t max_wait);
@@ -1658,8 +1650,7 @@ dds_write_flush(dds_entity_t writer);
  * @brief Write a CDR serialized value of a data instance
  *
  * @param[in]  writer The writer entity.
- * @param[in]  cdr CDR serialized value to be written.
- * @param[in]  size Size (in bytes) of CDR encoded data to be written.
+ * @param[in]  serdata CDR serialized value to be written.
  *
  * @returns A dds_return_t indicating success or failure.
  */
@@ -2612,7 +2603,7 @@ dds_take_mask_wl(
   uint32_t maxs,
   uint32_t mask);
 
-DDS_EXPORT int
+DDS_EXPORT dds_return_t
 dds_takecdr(
   dds_entity_t reader_or_condition,
   struct ddsi_serdata **buf,
@@ -2906,7 +2897,7 @@ dds_read_next_wl(
  * the memory is released so that the buffer can be reused during a successive read/take operation.
  * When a condition is provided, the reader to which the condition belongs is looked up.
  *
- * @param[in] rd_or_cnd Reader or condition that belongs to a reader.
+ * @param[in] reader_or_condition Reader or condition that belongs to a reader.
  * @param[in] buf An array of (pointers to) samples.
  * @param[in] bufsz The number of (pointers to) samples stored in buf.
  *
@@ -2948,7 +2939,7 @@ dds_instance_lookup(dds_entity_t entity, const void *data);
 /**
  * @brief This operation takes an instance handle and return a key-value corresponding to it.
  *
- * @param[in]  entity Reader or writer entity.
+ * @param[in]  entity Reader, writer, readcondition or querycondition entity.
  * @param[in]  inst   Instance handle.
  * @param[out] data   pointer to an instance, to which the key ID corresponding to the instance handle will be
  *    returned, the sample in the instance should be ignored.
@@ -3069,6 +3060,140 @@ dds_triggered(dds_entity_t entity);
  */
 DDS_EXPORT dds_entity_t
 dds_get_topic(dds_entity_t entity);
+
+/**
+ * @brief Get instance handles of the data readers matching a writer
+ *
+ * This operation fills the provided array with the instance handles
+ * of the data readers that match the writer.  On successful output,
+ * the number of entries of "rds" set is the minimum of the return
+ * value and the value of "nrds".
+ *
+ * @param[in] writer   The writer.
+ * @param[in] rds      The array to be filled.
+ * @param[in] nrds     The size of the rds array, at most the first
+ *             nrds entries will be filled.  rds = NULL and nrds = 0
+ *             is a valid way of determining the number of matched
+ *             readers, but inefficient compared to relying on the
+ *             matched publication status.
+ *
+ * @returns A dds_return_t indicating the number of matched readers
+ *             or failure.  The return value may be larger than nrds
+ *             if there are more matching readers than the array can
+ *             hold.
+ *
+ * @retval >=0
+ *             The number of matching readers.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             The entity parameter is not valid or rds = NULL and
+ *             nrds > 0.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ */
+DDS_EXPORT dds_return_t
+dds_get_matched_subscriptions (
+  dds_entity_t writer,
+  dds_instance_handle_t *rds,
+  size_t nrds);
+
+/**
+ * @brief Get a description of a reader matched with the provided
+ * writer
+ *
+ * This operation looks up the reader instance handle in the set of
+ * readers matched with the specified writer, returning a freshly
+ * allocated sample of the DCPSSubscription built-in topic if found,
+ * and NULL if not.  The caller is responsible for freeing the
+ * memory allocated.
+ *
+ * This operation is similar to performing a read of the given
+ * instance handle on a reader of the DCPSSubscription built-in
+ * topic, but this operation additionally filters on whether the
+ * reader is matched by the provided writer.
+ *
+ * @param[in] writer   The writer.
+ * @param[in] ih       The instance handle of a reader.
+ *
+ * @returns A newly allocated sample containing the information on the
+ *             reader, or a NULL pointer for any kind of failure.
+ *
+ * @retval != NULL
+ *             The requested data
+ * @retval NULL
+ *             The writer is not valid or ih is not an instance handle
+ *             of a matched reader.
+ */
+DDS_EXPORT dds_builtintopic_endpoint_t *
+dds_get_matched_subscription_data (
+  dds_entity_t writer,
+  dds_instance_handle_t ih);
+
+/**
+ * @brief Get instance handles of the data writers matching a reader
+ *
+ * This operation fills the provided array with the instance handles
+ * of the data writers that match the reader.  On successful output,
+ * the number of entries of "wrs" set is the minimum of the return
+ * value and the value of "nwrs".
+ *
+ * @param[in] reader   The reader.
+ * @param[in] wrs      The array to be filled.
+ * @param[in] nwrs     The size of the wrs array, at most the first
+ *             nwrs entries will be filled.  wrs = NULL and wrds = 0
+ *             is a valid way of determining the number of matched
+ *             readers, but inefficient compared to relying on the
+ *             matched publication status.
+ *
+ * @returns A dds_return_t indicating the number of matched writers
+ *             or failure.  The return value may be larger than nwrs
+ *             if there are more matching writers than the array can
+ *             hold.
+ *
+ * @retval >=0
+ *             The number of matching writers.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             The entity parameter is not valid or wrs = NULL and
+ *             nwrs > 0.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ */
+DDS_EXPORT dds_return_t
+dds_get_matched_publications (
+  dds_entity_t reader,
+  dds_instance_handle_t *wrs,
+  size_t nwrs);
+
+/**
+ * @brief Get a description of a writer matched with the provided
+ * reader
+ *
+ * This operation looks up the writer instance handle in the set of
+ * writers matched with the specified reader, returning a freshly
+ * allocated sample of the DCPSPublication built-in topic if found,
+ * and NULL if not.  The caller is responsible for freeing the
+ * memory allocated.
+ *
+ * This operation is similar to performing a read of the given
+ * instance handle on a reader of the DCPSPublication built-in
+ * topic, but this operation additionally filters on whether the
+ * writer is matched by the provided reader.
+ *
+ * @param[in] reader   The reader.
+ * @param[in] ih       The instance handle of a writer.
+ *
+ * @returns A newly allocated sample containing the information on the
+ *             writer, or a NULL pointer for any kind of failure.
+ *
+ * @retval != NULL
+ *             The requested data
+ * @retval NULL
+ *             The reader is not valid or ih is not an instance handle
+ *             of a matched writer.
+ */
+DDS_EXPORT dds_builtintopic_endpoint_t *
+dds_get_matched_publication_data (
+  dds_entity_t reader,
+  dds_instance_handle_t ih);
 
 #if defined (__cplusplus)
 }

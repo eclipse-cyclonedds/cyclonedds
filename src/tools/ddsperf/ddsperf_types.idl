@@ -27,3 +27,22 @@ struct KeyedSeq
   sequence<octet> baggage;
 };
 #pragma keylist KeyedSeq keyval
+
+struct CPUStatThread
+{
+  string name;
+  long u_pct;
+  long s_pct;
+};
+
+struct CPUStats
+{
+  string hostname;
+  unsigned long pid;
+  double maxrss;
+  unsigned long vcsw;
+  unsigned long ivcsw;
+  boolean some_above;
+  sequence<CPUStatThread> cpu;
+};
+#pragma keylist CPUStats hostname pid

@@ -18,11 +18,9 @@
 extern "C" {
 #endif
 
-extern DDS_EXPORT const ddsrt_avl_treedef_t dds_domaintree_def;
-
-DDS_EXPORT dds_domain * dds_domain_create (dds_domainid_t id);
-DDS_EXPORT void dds_domain_free (dds_domain * domain);
-DDS_EXPORT dds_domain * dds_domain_find_locked (dds_domainid_t id);
+DDS_EXPORT dds_return_t dds_domain_create (dds_domain **domain_out, dds_domainid_t id);
+DDS_EXPORT void dds_domain_free (dds_domain *domain);
+DDS_EXPORT dds_domain *dds_domain_find_locked (dds_domainid_t id);
 
 #if defined (__cplusplus)
 }

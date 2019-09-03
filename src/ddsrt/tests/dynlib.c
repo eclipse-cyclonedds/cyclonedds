@@ -25,10 +25,10 @@
 #define TEST_ABORT_IF_NULL(var, msg) \
 do { \
   if (var == NULL) { \
-    char buffer[256]; \
-    r = ddsrt_dlerror(buffer, sizeof(buffer)); \
+    char err[256]; \
+    r = ddsrt_dlerror(err, sizeof(err)); \
     CU_ASSERT_EQUAL_FATAL(r, DDS_RETCODE_OK); \
-    printf("\n%s", buffer); \
+    printf("\n%s", err); \
     CU_FAIL_FATAL(msg); \
   } \
 } while(0)
@@ -39,7 +39,7 @@ do { \
  */
 CU_Test(ddsrt_library, dlopen_path)
 {
-  dds_retcode_t r;
+  dds_return_t r;
   ddsrt_dynlib_t  l;
 
   printf("Absolute lib: %s\n", TEST_LIB_ABSOLUTE);
@@ -54,7 +54,7 @@ CU_Test(ddsrt_library, dlopen_path)
 
 CU_Test(ddsrt_library, dlopen_file)
 {
-  dds_retcode_t r;
+  dds_return_t r;
   ddsrt_dynlib_t l;
 
   r = ddsrt_dlopen(TEST_LIB_FILE, false, &l);
@@ -68,7 +68,7 @@ CU_Test(ddsrt_library, dlopen_file)
 
 CU_Test(ddsrt_library, dlopen_name)
 {
-  dds_retcode_t r;
+  dds_return_t r;
   ddsrt_dynlib_t l;
 
   r = ddsrt_dlopen(TEST_LIB_NAME, true, &l);
@@ -83,7 +83,7 @@ CU_Test(ddsrt_library, dlopen_name)
 CU_Test(ddsrt_library, dlopen_unknown)
 {
   char buffer[256];
-  dds_retcode_t r;
+  dds_return_t r;
   ddsrt_dynlib_t l;
 
   r = ddsrt_dlopen("UnknownLib", false, &l);
@@ -97,7 +97,7 @@ CU_Test(ddsrt_library, dlopen_unknown)
 
 CU_Test(ddsrt_library, dlsym)
 {
-  dds_retcode_t r;
+  dds_return_t r;
   ddsrt_dynlib_t l;
   void* f;
 
@@ -118,7 +118,7 @@ CU_Test(ddsrt_library, dlsym)
 CU_Test(ddsrt_library, dlsym_unknown)
 {
   char buffer[256];
-  dds_retcode_t r;
+  dds_return_t r;
   ddsrt_dynlib_t l;
   void* f;
 
@@ -146,7 +146,7 @@ CU_Test(ddsrt_library, call)
   int set_int = 1234;
   func_get_int f_get;
   func_set_int f_set;
-  dds_retcode_t r;
+  dds_return_t r;
   ddsrt_dynlib_t l;
 
   r = ddsrt_dlopen(TEST_LIB_NAME, true, &l);
@@ -171,7 +171,7 @@ CU_Test(ddsrt_library, call)
 
 CU_Test(ddsrt_library, dlclose_error)
 {
-    dds_retcode_t r;
+    dds_return_t r;
     ddsrt_dynlib_t l;
 
     r = ddsrt_dlopen(TEST_LIB_NAME, true, &l);
@@ -189,9 +189,10 @@ CU_Test(ddsrt_library, dlclose_error)
 CU_Test(ddsrt_library, dlerror_notfound)
 {
     char buffer[256];
-    dds_retcode_t r;
+    dds_return_t r;
     ddsrt_dlerror(buffer, sizeof(buffer));
     r = ddsrt_dlerror(buffer, sizeof(buffer));
     CU_ASSERT_EQUAL(r, DDS_RETCODE_NOT_FOUND);
 
 }
+

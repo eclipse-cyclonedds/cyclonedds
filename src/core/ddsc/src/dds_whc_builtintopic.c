@@ -19,6 +19,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__serdata_builtintopic.h"
 #include "dds__whc_builtintopic.h"
@@ -27,6 +28,7 @@
 struct bwhc {
   struct whc common;
   enum ddsi_sertopic_builtintopic_type type;
+  const struct ephash *guid_hash;
 };
 
 enum bwhc_iter_state {
@@ -44,9 +46,7 @@ struct bwhc_iter {
 };
 
 /* check that our definition of whc_sample_iter fits in the type that callers allocate */
-struct bwhc_sample_iter_sizecheck {
-  char fits_in_generic_type[sizeof(struct bwhc_iter) <= sizeof(struct whc_sample_iter) ? 1 : -1];
-};
+DDSRT_STATIC_ASSERT (sizeof (struct bwhc_iter) <= sizeof (struct whc_sample_iter));
 
 static void bwhc_free (struct whc *whc_generic)
 {
@@ -64,7 +64,7 @@ static void bwhc_sample_iter_init (const struct whc *whc_generic, struct whc_sam
 static bool is_visible (const struct entity_common *e)
 {
   const nn_vendorid_t vendorid = get_entity_vendorid (e);
-  return ddsi_plugin.builtintopic_is_visible (e->guid.entityid, e->onlylocal, vendorid);
+  return builtintopic_is_visible (e->gv->builtin_topic_interface, &e->guid, vendorid);
 }
 
 static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, struct whc_borrowed_sample *sample)
@@ -92,7 +92,7 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
         case DSBT_READER:      kind = EK_READER; break;
       }
       assert (whc->type == DSBT_PARTICIPANT || kind != EK_PARTICIPANT);
-      ephash_enum_init (&it->it, kind);
+      ephash_enum_init (&it->it, whc->guid_hash, kind);
       it->st = BIS_LOCAL;
       /* FALLS THROUGH */
     case BIS_LOCAL:
@@ -115,7 +115,7 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
         case DSBT_READER:      kind = EK_PROXY_READER; break;
       }
       assert (kind != EK_PARTICIPANT);
-      ephash_enum_init (&it->it, kind);
+      ephash_enum_init (&it->it, whc->guid_hash, kind);
       it->st = BIS_PROXY;
       /* FALLS THROUGH */
     case BIS_PROXY:
@@ -192,10 +192,11 @@ static const struct whc_ops bwhc_ops = {
   .free = bwhc_free
 };
 
-struct whc *builtintopic_whc_new (enum ddsi_sertopic_builtintopic_type type)
+struct whc *builtintopic_whc_new (enum ddsi_sertopic_builtintopic_type type, const struct ephash *guid_hash)
 {
   struct bwhc *whc = ddsrt_malloc (sizeof (*whc));
   whc->common.ops = &bwhc_ops;
   whc->type = type;
+  whc->guid_hash = guid_hash;
   return (struct whc *) whc;
 }

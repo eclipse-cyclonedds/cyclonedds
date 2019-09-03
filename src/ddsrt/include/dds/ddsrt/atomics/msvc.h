@@ -74,6 +74,9 @@ inline void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x) {
 inline void ddsrt_atomic_incptr (volatile ddsrt_atomic_uintptr_t *x) {
   DDSRT_ATOMIC_PTROP (InterlockedIncrement) (&x->v);
 }
+inline uint32_t ddsrt_atomic_inc32_ov (volatile ddsrt_atomic_uint32_t *x) {
+  return InterlockedIncrement (&x->v) - 1;
+}
 inline uint32_t ddsrt_atomic_inc32_nv (volatile ddsrt_atomic_uint32_t *x) {
   return InterlockedIncrement (&x->v);
 }
@@ -138,6 +141,9 @@ inline void ddsrt_atomic_addptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v
 inline void ddsrt_atomic_addvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
   ddsrt_atomic_addptr ((volatile ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
 }
+inline uint32_t ddsrt_atomic_add32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
+  return InterlockedExchangeAdd (&x->v, v);
+}
 inline uint32_t ddsrt_atomic_add32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return InterlockedExchangeAdd (&x->v, v) + v;
 }
@@ -157,46 +163,52 @@ inline void *ddsrt_atomic_addvoidp_nv (volatile ddsrt_atomic_voidp_t *x, ptrdiff
 
 inline void ddsrt_atomic_sub32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   /* disable unary minus applied to unsigned type, result still unsigned */
-DDSRT_WARNING_MSVC_OFF(4146)
+  DDSRT_WARNING_MSVC_OFF(4146)
   InterlockedExchangeAdd (&x->v, -v);
-DDSRT_WARNING_MSVC_ON(4146)
+  DDSRT_WARNING_MSVC_ON(4146)
 }
 #if DDSRT_HAVE_ATOMIC64
 inline void ddsrt_atomic_sub64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   /* disable unary minus applied to unsigned type, result still unsigned */
-DDSRT_WARNING_MSVC_OFF(4146)
+  DDSRT_WARNING_MSVC_OFF(4146)
   InterlockedExchangeAdd64 (&x->v, -v);
-DDSRT_WARNING_MSVC_ON(4146)
+  DDSRT_WARNING_MSVC_ON(4146)
 }
 #endif
 inline void ddsrt_atomic_subptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
   /* disable unary minus applied to unsigned type, result still unsigned */
-DDSRT_WARNING_MSVC_OFF(4146)
+  DDSRT_WARNING_MSVC_OFF(4146)
   DDSRT_ATOMIC_PTROP (InterlockedExchangeAdd) (&x->v, -v);
-DDSRT_WARNING_MSVC_ON(4146)
+  DDSRT_WARNING_MSVC_ON(4146)
 }
 inline void ddsrt_atomic_subvoidp (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
   ddsrt_atomic_subptr ((volatile ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
 }
+inline uint32_t ddsrt_atomic_sub32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
+  /* disable unary minus applied to unsigned type, result still unsigned */
+  DDSRT_WARNING_MSVC_OFF(4146)
+  return InterlockedExchangeAdd (&x->v, -v);
+  DDSRT_WARNING_MSVC_ON(4146)
+}
 inline uint32_t ddsrt_atomic_sub32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   /* disable unary minus applied to unsigned type, result still unsigned */
-DDSRT_WARNING_MSVC_OFF(4146)
+  DDSRT_WARNING_MSVC_OFF(4146)
   return InterlockedExchangeAdd (&x->v, -v) - v;
-DDSRT_WARNING_MSVC_ON(4146)
+  DDSRT_WARNING_MSVC_ON(4146)
 }
 #if DDSRT_HAVE_ATOMIC64
 inline uint64_t ddsrt_atomic_sub64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   /* disable unary minus applied to unsigned type, result still unsigned */
-DDSRT_WARNING_MSVC_OFF(4146)
+  DDSRT_WARNING_MSVC_OFF(4146)
   return InterlockedExchangeAdd64 (&x->v, -v) - v;
-DDSRT_WARNING_MSVC_ON(4146)
+  DDSRT_WARNING_MSVC_ON(4146)
 }
 #endif
 inline uintptr_t ddsrt_atomic_subptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
   /* disable unary minus applied to unsigned type, result still unsigned */
-DDSRT_WARNING_MSVC_OFF(4146)
+  DDSRT_WARNING_MSVC_OFF(4146)
   return DDSRT_ATOMIC_PTROP (InterlockedExchangeAdd) (&x->v, -v) - v;
-DDSRT_WARNING_MSVC_ON(4146)
+  DDSRT_WARNING_MSVC_ON(4146)
 }
 inline void *ddsrt_atomic_subvoidp_nv (volatile ddsrt_atomic_voidp_t *x, ptrdiff_t v) {
   return (void *) ddsrt_atomic_subptr_nv ((volatile ddsrt_atomic_uintptr_t *) x, (uintptr_t) v);
@@ -280,12 +292,17 @@ inline void ddsrt_atomic_fence (void) {
   /* 28113: accessing a local variable tmp via an Interlocked
      function: This is an unusual usage which could be reconsidered.
      It is too heavyweight, true, but it does the trick. */
-DDSRT_WARNING_MSVC_OFF(28113)
+  DDSRT_WARNING_MSVC_OFF(28113)
   volatile LONG tmp = 0;
   InterlockedExchange (&tmp, 0);
-DDSRT_WARNING_MSVC_ON(28113)
+  DDSRT_WARNING_MSVC_ON(28113)
 }
 inline void ddsrt_atomic_fence_ldld (void) {
+#if !(defined _M_IX86 || defined _M_X64)
+  ddsrt_atomic_fence ();
+#endif
+}
+inline void ddsrt_atomic_fence_stst (void) {
 #if !(defined _M_IX86 || defined _M_X64)
   ddsrt_atomic_fence ();
 #endif

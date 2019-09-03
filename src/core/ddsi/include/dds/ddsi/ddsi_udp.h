@@ -16,7 +16,15 @@
 extern "C" {
 #endif
 
-int ddsi_udp_init (void);
+typedef struct nn_udpv4mcgen_address {
+  /* base IPv4 MC address is ipv4, host bits are bits base .. base+count-1, this machine is bit idx */
+  struct in_addr ipv4;
+  uint8_t base;
+  uint8_t count;
+  uint8_t idx; /* must be last: then sorting will put them consecutively */
+} nn_udpv4mcgen_address_t;
+
+int ddsi_udp_init (struct q_globals *gv);
 
 #if defined (__cplusplus)
 }

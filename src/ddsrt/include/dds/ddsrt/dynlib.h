@@ -47,7 +47,7 @@ typedef struct ddsrt_dynlib *ddsrt_dynlib_t;
  * @param[in]   translate   Automatic name translation on/off.
  * @param[out]  handle      Library handle that will be assigned after successfull operation. It is assigned to NULL if loading fails.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Library handle was successfully loaded.
@@ -57,7 +57,7 @@ typedef struct ddsrt_dynlib *ddsrt_dynlib_t;
  *             Loading failed.
  *             Use ddsrt_dlerror() to diagnose the failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_dlopen(
     const char *name,
     bool translate,
@@ -73,7 +73,7 @@ ddsrt_dlopen(
  *
  * @param[in]   handle      Library handle.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Library handle was successfully closed.
@@ -81,7 +81,7 @@ ddsrt_dlopen(
  *             Library closing failed.
  *             Use ddsrt_dlerror() to diagnose the failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_dlclose(
     ddsrt_dynlib_t handle);
 
@@ -95,7 +95,7 @@ ddsrt_dlclose(
  * @param[in]   symbol      Symbol name.
  * @param[out]  address     The memory address of the loaded symbol (void*).
  *
- * @returns  A dds_retcode_t indicating success or failure.
+ * @returns  A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Symbol was found in the loaded library.
@@ -104,7 +104,7 @@ ddsrt_dlclose(
  *             Symbol was not found.
  *             Use ddsrt_dlerror() to diagnose the failure.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_dlsym(
     ddsrt_dynlib_t handle,
     const char *symbol,
@@ -124,14 +124,14 @@ ddsrt_dlsym(
  * function should be called immediately after calling ddsrt_dlopen or ddsrt_dlsym
  * function.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Most recent library related error returned.
  * @retval DDS_RETCODE_NOT_FOUND
  *             No library related error found.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_dlerror(
     char *buf,
     size_t buflen);

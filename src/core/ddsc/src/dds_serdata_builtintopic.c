@@ -19,7 +19,7 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
-#include "dds__key.h"
+#include "dds/ddsi/q_plist.h"
 #include "dds__stream.h"
 #include "dds__serdata_builtintopic.h"
 #include "dds/ddsi/ddsi_tkmap.h"
@@ -126,16 +126,17 @@ static void from_entity_pwr (struct ddsi_serdata_builtintopic *d, const struct p
   assert (d->xqos.present & QP_TYPE_NAME);
 }
 
-struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
+static struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi_sertopic *tpcmn, const nn_keyhash_t *keyhash)
 {
   /* FIXME: not quite elegant to manage the creation of a serdata for a built-in topic via this function, but I also find it quite unelegant to let from_sample read straight from the underlying internal entity, and to_sample convert to the external format ... I could claim the internal entity is the "serialised form", but that forces wrapping it in a fragchain in one way or another, which, though possible, is also a bit lacking in elegance. */
   const struct ddsi_sertopic_builtintopic *tp = (const struct ddsi_sertopic_builtintopic *)tpcmn;
   /* keyhash must in host format (which the GUIDs always are internally) */
-  const struct entity_common *entity = ephash_lookup_guid_untyped ((const nn_guid_t *) keyhash->value);
+  struct entity_common *entity = ephash_lookup_guid_untyped (tp->gv->guid_hash, (const nn_guid_t *) keyhash->value);
   struct ddsi_serdata_builtintopic *d = serdata_builtin_new(tp, entity ? SDK_DATA : SDK_KEY);
   memcpy (&d->key, keyhash->value, sizeof (d->key));
   if (entity)
   {
+    ddsrt_mutex_lock (&entity->qos_lock);
     switch (entity->kind)
     {
       case EK_PARTICIPANT:
@@ -163,6 +164,7 @@ struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi_sertop
         from_entity_pwr (d, (const struct proxy_writer *) entity);
         break;
     }
+    ddsrt_mutex_unlock (&entity->qos_lock);
   }
   return fix_serdata_builtin(d, tp->c.serdata_basehash);
 }
@@ -187,24 +189,16 @@ static char *dds_string_dup_reuse (char *old, const char *src)
   return memcpy (new, src, size);
 }
 
-static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const nn_xqos_t *src)
+static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const dds_qos_t *src)
 {
   if (old == NULL)
-  {
     old = ddsrt_malloc (sizeof (*old));
-    nn_xqos_init_empty (old);
-    old->present |= QP_TOPIC_NAME | QP_TYPE_NAME;
-    nn_xqos_mergein_missing (old, src);
-    old->present &= ~(QP_TOPIC_NAME | QP_TYPE_NAME);
-  }
   else
   {
     nn_xqos_fini (old);
-    nn_xqos_init_empty (old);
-    old->present |= QP_TOPIC_NAME | QP_TYPE_NAME;
-    nn_xqos_mergein_missing (old, src);
-    old->present &= ~(QP_TOPIC_NAME | QP_TYPE_NAME);
   }
+  nn_xqos_init_empty (old);
+  nn_xqos_mergein_missing (old, src, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
   return old;
 }
 

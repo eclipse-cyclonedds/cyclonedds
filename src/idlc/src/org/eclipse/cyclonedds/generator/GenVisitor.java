@@ -1207,6 +1207,10 @@ public class GenVisitor extends org.eclipse.cyclonedds.parser.IDLBaseVisitor <Vo
       {
         topicST.add ("flags", "DDS_TOPIC_NO_OPTIMIZE");
       }
+      if (topicmeta.containsUnion ())
+      {
+        topicST.add ("flags", "DDS_TOPIC_CONTAINS_UNION");
+      }
       topicST.add ("alignment", topicmeta.getAlignment ());
     }
 

@@ -10,10 +10,14 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
-#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "dds/ddsrt/log.h"
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/sockets_priv.h"
+
+#if !LWIP_SOCKET
 #if defined(__VXWORKS__)
 #include <vxWorks.h>
 #include <sockLib.h>
@@ -21,6 +25,7 @@
 #else
 #include <sys/fcntl.h>
 #endif /* __VXWORKS__ */
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #ifdef __sun
@@ -30,12 +35,9 @@
 #ifdef __APPLE__
 #include <sys/sockio.h>
 #endif /* __APPLE__ */
+#endif /* LWIP_SOCKET */
 
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/sockets_priv.h"
-
-dds_retcode_t
+dds_return_t
 ddsrt_socket(ddsrt_socket_t *sockptr, int domain, int type, int protocol)
 {
   ddsrt_socket_t sock;
@@ -66,7 +68,7 @@ ddsrt_socket(ddsrt_socket_t *sockptr, int domain, int type, int protocol)
   return DDS_RETCODE_ERROR;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_close(
   ddsrt_socket_t sock)
 {
@@ -85,7 +87,7 @@ ddsrt_close(
   return DDS_RETCODE_ERROR;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_bind(
   ddsrt_socket_t sock,
   const struct sockaddr *addr,
@@ -110,7 +112,7 @@ ddsrt_bind(
   return DDS_RETCODE_ERROR;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_listen(
   ddsrt_socket_t sock,
   int backlog)
@@ -133,7 +135,7 @@ ddsrt_listen(
   return DDS_RETCODE_ERROR;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_connect(
   ddsrt_socket_t sock,
   const struct sockaddr *addr,
@@ -175,7 +177,7 @@ ddsrt_connect(
   return DDS_RETCODE_ERROR;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_accept(
   ddsrt_socket_t sock,
   struct sockaddr *addr,
@@ -222,7 +224,7 @@ ddsrt_accept(
   return DDS_RETCODE_ERROR;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_getsockname(
   ddsrt_socket_t sock,
   struct sockaddr *addr,
@@ -246,7 +248,7 @@ ddsrt_getsockname(
   return DDS_RETCODE_ERROR;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_getsockopt(
   ddsrt_socket_t sock,
   int32_t level,
@@ -254,6 +256,15 @@ ddsrt_getsockopt(
   void *optval,
   socklen_t *optlen)
 {
+#if LWIP_SOCKET
+  if (optname == SO_SNDBUF || optname == SO_RCVBUF)
+    return DDS_RETCODE_BAD_PARAMETER;
+# if !SO_REUSE
+  if (optname == SO_REUSEADDR)
+    return DDS_RETCODE_BAD_PARAMETER;
+# endif /* SO_REUSE */
+#endif /* LWIP_SOCKET */
+
   if (getsockopt(sock, level, optname, optval, optlen) == 0)
     return DDS_RETCODE_OK;
 
@@ -271,7 +282,7 @@ ddsrt_getsockopt(
   return DDS_RETCODE_ERROR;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_setsockopt(
   ddsrt_socket_t sock,
   int32_t level,
@@ -279,6 +290,15 @@ ddsrt_setsockopt(
   const void *optval,
   socklen_t optlen)
 {
+#if LWIP_SOCKET
+  if (optname == SO_SNDBUF || optname == SO_RCVBUF)
+    return DDS_RETCODE_BAD_PARAMETER;
+# if !SO_REUSE
+  if (optname == SO_REUSEADDR)
+    return DDS_RETCODE_BAD_PARAMETER;
+# endif /* SO_REUSE */
+#endif /* LWIP_SOCKET */
+
   switch (optname) {
     case SO_SNDBUF:
     case SO_RCVBUF:
@@ -319,7 +339,7 @@ err_setsockopt:
   return DDS_RETCODE_ERROR;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_setsocknonblocking(
   ddsrt_socket_t sock,
   bool nonblock)
@@ -357,7 +377,7 @@ err_fcntl:
   return DDS_RETCODE_ERROR;
 }
 
-static inline dds_retcode_t
+static inline dds_return_t
 recv_error_to_retcode(int errnum)
 {
   switch (errnum) {
@@ -386,7 +406,7 @@ recv_error_to_retcode(int errnum)
   return DDS_RETCODE_ERROR;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_recv(
   ddsrt_socket_t sock,
   void *buf,
@@ -405,7 +425,25 @@ ddsrt_recv(
   return recv_error_to_retcode(errno);
 }
 
-dds_retcode_t
+#if LWIP_SOCKET && !defined(recvmsg)
+static ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
+{
+  assert(msg->msg_iovlen == 1);
+  assert(msg->msg_controllen == 0);
+
+  msg->msg_flags = 0;
+
+  return recvfrom(
+    sockfd,
+    msg->msg_iov[0].iov_base,
+    msg->msg_iov[0].iov_len,
+    flags,
+    msg->msg_name,
+   &msg->msg_namelen);
+}
+#endif /* LWIP_SOCKET */
+
+dds_return_t
 ddsrt_recvmsg(
   ddsrt_socket_t sock,
   ddsrt_msghdr_t *msg,
@@ -423,11 +461,12 @@ ddsrt_recvmsg(
   return recv_error_to_retcode(errno);
 }
 
-static inline dds_retcode_t
+static inline dds_return_t
 send_error_to_retcode(int errnum)
 {
   switch (errnum) {
     case EACCES:
+    case EPERM:
       return DDS_RETCODE_NOT_ALLOWED;
     case EAGAIN:
 #if EAGAIN != EWOULDBLOCK
@@ -465,7 +504,7 @@ send_error_to_retcode(int errnum)
   return DDS_RETCODE_ERROR;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_send(
   ddsrt_socket_t sock,
   const void *buf,
@@ -484,7 +523,7 @@ ddsrt_send(
   return send_error_to_retcode(errno);
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_sendmsg(
   ddsrt_socket_t sock,
   const ddsrt_msghdr_t *msg,
@@ -502,7 +541,7 @@ ddsrt_sendmsg(
   return send_error_to_retcode(errno);
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_select(
   int32_t nfds,
   fd_set *readfds,

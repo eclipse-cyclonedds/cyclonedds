@@ -21,9 +21,10 @@
 #ifndef DDS_IMPL_H
 #define DDS_IMPL_H
 
+#include <stdint.h>
+#include <stdbool.h>
 #include "dds/export.h"
 #include "dds/ddsc/dds_public_alloc.h"
-#include "dds/ddsc/dds_public_stream.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -37,8 +38,6 @@ typedef struct dds_sequence
   bool _release;
 }
 dds_sequence_t;
-
-#define DDS_LENGTH_UNLIMITED -1
 
 typedef struct dds_key_descriptor
 {
@@ -71,6 +70,7 @@ dds_topic_descriptor_t;
 
 #define DDS_TOPIC_NO_OPTIMIZE 0x0001
 #define DDS_TOPIC_FIXED_KEY 0x0002
+#define DDS_TOPIC_CONTAINS_UNION 0x0004
 
 /*
   Masks for read condition, read, take: there is only one mask here,
@@ -92,115 +92,144 @@ dds_topic_descriptor_t;
 
 #define DDS_ANY_STATE (DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE)
 
-#define DDS_DOMAIN_DEFAULT -1
+#define DDS_DOMAIN_DEFAULT ((uint32_t) 0xffffffffu)
 #define DDS_HANDLE_NIL 0
 #define DDS_ENTITY_NIL 0
 
 typedef enum dds_entity_kind
 {
-  DDS_KIND_DONTCARE    = 0x00000000,
-  DDS_KIND_TOPIC       = 0x01000000,
-  DDS_KIND_PARTICIPANT = 0x02000000,
-  DDS_KIND_READER      = 0x03000000,
-  DDS_KIND_WRITER      = 0x04000000,
-  DDS_KIND_SUBSCRIBER  = 0x05000000,
-  DDS_KIND_PUBLISHER   = 0x06000000,
-  DDS_KIND_COND_READ   = 0x07000000,
-  DDS_KIND_COND_QUERY  = 0x08000000,
-  DDS_KIND_COND_GUARD  = 0x09000000,
-  DDS_KIND_WAITSET     = 0x0A000000
-}
-dds_entity_kind_t;
+  DDS_KIND_DONTCARE,
+  DDS_KIND_TOPIC,
+  DDS_KIND_PARTICIPANT,
+  DDS_KIND_READER,
+  DDS_KIND_WRITER,
+  DDS_KIND_SUBSCRIBER,
+  DDS_KIND_PUBLISHER,
+  DDS_KIND_COND_READ,
+  DDS_KIND_COND_QUERY,
+  DDS_KIND_COND_GUARD,
+  DDS_KIND_WAITSET
+} dds_entity_kind_t;
 
 /* Handles are opaque pointers to implementation types */
 typedef uint64_t dds_instance_handle_t;
-typedef int32_t dds_domainid_t;
+typedef uint32_t dds_domainid_t;
 
 
 /* Topic encoding instruction types */
 
-#define DDS_OP_RTS 0x00000000
-#define DDS_OP_ADR 0x01000000
-#define DDS_OP_JSR 0x02000000
-#define DDS_OP_JEQ 0x03000000
+enum dds_stream_opcode {
+  /* return from subroutine, exits top-level
+     [RTS,   0,   0, 0] */
+  DDS_OP_RTS = 0x00 << 24,
+  /* data field
+     [ADR, nBY,   0, k] [offset]
+     [ADR, STR,   0, k] [offset]
+     [ADR, BST,   0, k] [offset] [bound]
+     [ADR, SEQ, nBY, 0] [offset]
+     [ADR, SEQ, STR, 0] [offset]
+     [ADR, SEQ, BST, 0] [offset] [bound]
+     [ADR, SEQ,   s, 0] [offset] [elem-size] [next-insn, elem-insn]
+       where s = {SEQ,ARR,UNI,STU}
+     [ADR, ARR, nBY, k] [offset] [alen]
+     [ADR, ARR, STR, 0] [offset] [alen]
+     [ADR, ARR, BST, 0] [offset] [alen] [0] [bound]
+     [ADR, ARR,   s, 0] [offset] [alen] [next-insn, elem-insn] [elem-size]
+         where s = {SEQ,ARR,UNI,STU}
+     [ADR, UNI,   d, z] [offset] [alen] [next-insn, cases]
+       where
+         d = discriminant type of {1BY,2BY,4BY}
+         z = default present/not present (DDS_OP_FLAG_DEF)
+         offset = discriminant offset
+       followed by alen case labels: in JEQ format
+     note: [ADR, STU, ...] is illegal
+   where
+     s            = subtype
+     k            = key/not key (DDS_OP_FLAG_KEY)
+     [offset]     = field offset from start of element in memory
+     [elem-size]  = element size in memory
+     [bound]      = string bound + 1
+     [alen]       = array length, number of cases
+     [next-insn]  = (unsigned 16 bits) offset to instruction for next field, from start of insn
+     [elem-insn]  = (unsigned 16 bits) offset to first instruction for element, from start of insn
+     [cases]      = (unsigned 16 bits) offset to first case label, from start of insn
+   */
+  DDS_OP_ADR = 0x01 << 24,
+  /* jump-to-subroutine (apparently not used at the moment)
+     [JSR,   0, e]
+       where
+         e = (signed 16 bits) offset to first instruction in subroutine, from start of insn
+             instruction sequence must end in RTS, execution resumes at instruction
+             following JSR */
+  DDS_OP_JSR = 0x02 << 24,
+  /* union case
+     [JEQ, nBY, 0] [disc] [offset]
+     [JEQ, STR, 0] [disc] [offset]
+     [JEQ,   s, e] [disc] [offset]
+       where
+         s  = subtype other than {nBY,STR}
+         e  = (unsigned 16 bits) offset to first instruction for case, from start of insn
+              instruction sequence must end in RTS, at which point executes continues
+              at the next field's instruction as specified by the union */
+  DDS_OP_JEQ = 0x03 << 24
+};
 
-/* Core type flags
+enum dds_stream_typecode {
+  DDS_OP_VAL_1BY = 0x01, /* one byte simple type (char, octet, boolean) */
+  DDS_OP_VAL_2BY = 0x02, /* two byte simple type ((unsigned) short) */
+  DDS_OP_VAL_4BY = 0x03, /* four byte simple type ((unsigned) long, enums, float) */
+  DDS_OP_VAL_8BY = 0x04, /* eight byte simple type ((unsigned) long long, double) */
+  DDS_OP_VAL_STR = 0x05, /* string */
+  DDS_OP_VAL_BST = 0x06, /* bounded string */
+  DDS_OP_VAL_SEQ = 0x07, /* sequence */
+  DDS_OP_VAL_ARR = 0x08, /* array */
+  DDS_OP_VAL_UNI = 0x09, /* union */
+  DDS_OP_VAL_STU = 0x0a  /* struct */
+};
 
-  1BY : One byte simple type
-  2BY : Two byte simple type
-  4BY : Four byte simple type
-  8BY : Eight byte simple type
-  STR : String
-  BST : Bounded string
-  SEQ : Sequence
-  ARR : Array
-  UNI : Union
-  STU : Struct
-*/
-
-#define DDS_OP_VAL_1BY 0x01
-#define DDS_OP_VAL_2BY 0x02
-#define DDS_OP_VAL_4BY 0x03
-#define DDS_OP_VAL_8BY 0x04
-#define DDS_OP_VAL_STR 0x05
-#define DDS_OP_VAL_BST 0x06
-#define DDS_OP_VAL_SEQ 0x07
-#define DDS_OP_VAL_ARR 0x08
-#define DDS_OP_VAL_UNI 0x09
-#define DDS_OP_VAL_STU 0x0a
-
-#define DDS_OP_TYPE_1BY (DDS_OP_VAL_1BY << 16)
-#define DDS_OP_TYPE_2BY (DDS_OP_VAL_2BY << 16)
-#define DDS_OP_TYPE_4BY (DDS_OP_VAL_4BY << 16)
-#define DDS_OP_TYPE_8BY (DDS_OP_VAL_8BY << 16)
-#define DDS_OP_TYPE_STR (DDS_OP_VAL_STR << 16)
-#define DDS_OP_TYPE_SEQ (DDS_OP_VAL_SEQ << 16)
-#define DDS_OP_TYPE_ARR (DDS_OP_VAL_ARR << 16)
-#define DDS_OP_TYPE_UNI (DDS_OP_VAL_UNI << 16)
-#define DDS_OP_TYPE_STU (DDS_OP_VAL_STU << 16)
-#define DDS_OP_TYPE_BST (DDS_OP_VAL_BST << 16)
-
+/* primary type code for DDS_OP_ADR, DDS_OP_JEQ */
+enum dds_stream_typecode_primary {
+  DDS_OP_TYPE_1BY = DDS_OP_VAL_1BY << 16,
+  DDS_OP_TYPE_2BY = DDS_OP_VAL_2BY << 16,
+  DDS_OP_TYPE_4BY = DDS_OP_VAL_4BY << 16,
+  DDS_OP_TYPE_8BY = DDS_OP_VAL_8BY << 16,
+  DDS_OP_TYPE_STR = DDS_OP_VAL_STR << 16,
+  DDS_OP_TYPE_BST = DDS_OP_VAL_BST << 16,
+  DDS_OP_TYPE_SEQ = DDS_OP_VAL_SEQ << 16,
+  DDS_OP_TYPE_ARR = DDS_OP_VAL_ARR << 16,
+  DDS_OP_TYPE_UNI = DDS_OP_VAL_UNI << 16,
+  DDS_OP_TYPE_STU = DDS_OP_VAL_STU << 16
+};
 #define DDS_OP_TYPE_BOO DDS_OP_TYPE_1BY
+
+/* sub-type code:
+   - encodes element type for DDS_OP_TYPE_{SEQ,ARR},
+   - discriminant type for DDS_OP_TYPE_UNI */
+enum dds_stream_typecode_subtype {
+  DDS_OP_SUBTYPE_1BY = DDS_OP_VAL_1BY << 8,
+  DDS_OP_SUBTYPE_2BY = DDS_OP_VAL_2BY << 8,
+  DDS_OP_SUBTYPE_4BY = DDS_OP_VAL_4BY << 8,
+  DDS_OP_SUBTYPE_8BY = DDS_OP_VAL_8BY << 8,
+  DDS_OP_SUBTYPE_STR = DDS_OP_VAL_STR << 8,
+  DDS_OP_SUBTYPE_BST = DDS_OP_VAL_BST << 8,
+  DDS_OP_SUBTYPE_SEQ = DDS_OP_VAL_SEQ << 8,
+  DDS_OP_SUBTYPE_ARR = DDS_OP_VAL_ARR << 8,
+  DDS_OP_SUBTYPE_UNI = DDS_OP_VAL_UNI << 8,
+  DDS_OP_SUBTYPE_STU = DDS_OP_VAL_STU << 8
+};
 #define DDS_OP_SUBTYPE_BOO DDS_OP_SUBTYPE_1BY
 
-#define DDS_OP_SUBTYPE_1BY (DDS_OP_VAL_1BY << 8)
-#define DDS_OP_SUBTYPE_2BY (DDS_OP_VAL_2BY << 8)
-#define DDS_OP_SUBTYPE_4BY (DDS_OP_VAL_4BY << 8)
-#define DDS_OP_SUBTYPE_8BY (DDS_OP_VAL_8BY << 8)
-#define DDS_OP_SUBTYPE_STR (DDS_OP_VAL_STR << 8)
-#define DDS_OP_SUBTYPE_SEQ (DDS_OP_VAL_SEQ << 8)
-#define DDS_OP_SUBTYPE_ARR (DDS_OP_VAL_ARR << 8)
-#define DDS_OP_SUBTYPE_UNI (DDS_OP_VAL_UNI << 8)
-#define DDS_OP_SUBTYPE_STU (DDS_OP_VAL_STU << 8)
-#define DDS_OP_SUBTYPE_BST (DDS_OP_VAL_BST << 8)
-
-#define DDS_OP_FLAG_KEY 0x01
-#define DDS_OP_FLAG_DEF 0x02
+#define DDS_OP_FLAG_KEY 0x01 /* key field: applicable to {1,2,4,8}BY, STR, BST, ARR-of-{1,2,4,8}BY */
+#define DDS_OP_FLAG_DEF 0x02 /* union has a default case (for DDS_OP_ADR | DDS_OP_TYPE_UNI) */
 
 /**
  * Description : Enable or disable write batching. Overrides default configuration
- * setting for write batching (DDSI2E/Internal/WriteBatch).
+ * setting for write batching (Internal/WriteBatch).
  *
  * Arguments :
  *   -# enable Enables or disables write batching for all writers.
  */
 DDS_EXPORT void dds_write_set_batch (bool enable);
-
-/**
- * Description : Install tcp/ssl and encryption support. Depends on openssl.
- *
- * Arguments :
- *   -# None
- */
-DDS_EXPORT void dds_ssl_plugin (void);
-
-/**
- * Description : Install client durability support. Depends on OSPL server.
- *
- * Arguments :
- *   -# None
- */
-DDS_EXPORT void dds_durability_plugin (void);
 
 #if defined (__cplusplus)
 }

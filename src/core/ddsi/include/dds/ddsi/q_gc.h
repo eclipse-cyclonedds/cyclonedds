@@ -21,6 +21,7 @@ extern "C" {
 
 struct gcreq;
 struct gcreq_queue;
+struct q_globals;
 
 struct writer;
 struct reader;
@@ -30,7 +31,7 @@ struct proxy_reader;
 typedef void (*gcreq_cb_t) (struct gcreq *gcreq);
 
 struct idx_vtime {
-  unsigned idx;
+  uint32_t idx;
   vtime_t vtime;
 };
 
@@ -39,11 +40,11 @@ struct gcreq {
   struct gcreq_queue *queue;
   gcreq_cb_t cb;
   void *arg;
-  unsigned nvtimes;
-  struct idx_vtime vtimes[1 /* really a flex ary */];
+  uint32_t nvtimes;
+  struct idx_vtime vtimes[];
 };
 
-DDS_EXPORT struct gcreq_queue *gcreq_queue_new (void);
+DDS_EXPORT struct gcreq_queue *gcreq_queue_new (struct q_globals *gv);
 DDS_EXPORT void gcreq_queue_drain (struct gcreq_queue *q);
 DDS_EXPORT void gcreq_queue_free (struct gcreq_queue *q);
 

@@ -96,12 +96,12 @@ os_lcNumericReplace(char *str) {
   }
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
 {
   double dbl;
   int orig_errno;
-  dds_retcode_t ret = DDS_RETCODE_OK;
+  dds_return_t ret = DDS_RETCODE_OK;
 
   assert(nptr != NULL);
   assert(dblptr != NULL);
@@ -161,7 +161,7 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
   return ret;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_strtof(const char *nptr, char **endptr, float *fltptr)
 {
   /* Just use os_strtod(). */
@@ -169,7 +169,7 @@ ddsrt_strtof(const char *nptr, char **endptr, float *fltptr)
             point number is definitely not a double-precision floating point
             number. */
   double dbl = 0.0;
-  dds_retcode_t ret;
+  dds_return_t ret;
 
   assert(nptr != NULL);
   assert(fltptr != NULL);

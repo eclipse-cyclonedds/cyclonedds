@@ -36,6 +36,11 @@ public class BoundedStringType extends AbstractType
     return size;
   }
 
+  public boolean containsUnion ()
+  {
+    return false;
+  }
+
   public ArrayList <String> getMetaOp (String myname, String structname)
   {
     ArrayList <String> result = new ArrayList <String> ();

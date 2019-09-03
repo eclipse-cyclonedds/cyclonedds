@@ -92,6 +92,8 @@ extern "C" {
 typedef struct {
   /** Log category the message falls into. */
   uint32_t priority;
+  /** Log domain id, UINT32_MAX is global. */
+  uint32_t domid;
   /** Filename where message was generated. */
   const char *file;
   /** Line number in file where message was generated. */
@@ -102,10 +104,38 @@ typedef struct {
   const char *message;
   /** Size of log message. */
   size_t size;
+  /** Default log message header length */
+  size_t hdrsize;
 } dds_log_data_t;
 
 /** Function signature that log and trace callbacks must adhere too. */
-typedef void(*dds_log_write_fn_t)(void *, const dds_log_data_t *);
+typedef void (*dds_log_write_fn_t) (void *, const dds_log_data_t *);
+
+/** Semi-opaque type for log/trace configuration. */
+struct ddsrt_log_cfg_common {
+  /** Mask for testing whether the xLOG macro should forward to the
+      function (and so incur the cost of constructing the parameters).
+      Messages in DDS_LOG_MASK are rare, so the overhead of calling
+      the function and then dropping the message is not an issue, unlike
+      for messages in DDS_TRACE_MASK. */
+  uint32_t mask;
+
+  /** The actual configured trace mask */
+  uint32_t tracemask;
+
+  /** Domain id for reporting; UINT32_MAX = no domain */
+  uint32_t domid;
+};
+
+typedef struct ddsrt_log_cfg {
+  struct ddsrt_log_cfg_common c;
+  union {
+    dds_log_write_fn_t fnptr;
+    void *ptr;
+    uint32_t u32;
+    unsigned char pad[72];
+  } u;
+} ddsrt_log_cfg_t;
 
 DDS_EXPORT extern uint32_t *const dds_log_mask;
 
@@ -186,14 +216,84 @@ dds_set_trace_sink(
     void *userdata);
 
 /**
- * @brief Write a log or trace message.
+ * @brief Initialize a struct ddsrt_log_cfg for use with dds_log_cfg
+ *
+ * Callbacks registered to handle log messages will receive messages of type
+ * info, warning, error and fatal. Messages that fall into the trace category
+ * will never be delivered to the callback.
+ *
+ * Callbacks registered to handle trace messages will receive messages of type
+ * info, warning, error and fatal as well as all message types that fall into
+ * the trace category depending on the log mask.
+ *
+ * This operation is synchronous and only returns once the operation is
+ * registered with all threads. Meaning that neither callback or
+ * userdata will be referenced by the DDS stack on return.
+ *
+ * @param[out] cfg            On return, initialised to make dds_log_cfg invoked
+ *                            with this config object behave as specified by the
+ *                            other parameters.
+ * @param[in]  domid          Numerical identifier in log/trace, UINT32_MAX is
+ *                            reserved for global logging.
+ * @param[in]  tracemask      Mask determining which traces should be written.
+ * @param[in]  log_fp         File for default sink.
+ * @param[in]  trace_fp       File for default sink.
+ */
+DDS_EXPORT void
+dds_log_cfg_init(
+    struct ddsrt_log_cfg *cfg,
+    uint32_t domid,
+    uint32_t tracemask,
+    FILE *log_fp,
+    FILE *trace_fp);
+
+/**
+ * @brief Write a log or trace message for a specific logging configuraiton
+ * (categories, id, sinks).
+ *
+ * Direct use of #dds_log is discouraged. Use #DDS_CINFO, #DDS_CWARNING,
+ * #DDS_CERROR, #DDS_CTRACE or #DDS_CLOG instead.
+ */
+DDS_EXPORT void
+dds_log_cfg(
+    const struct ddsrt_log_cfg *cfg,
+    uint32_t prio,
+    const char *file,
+    uint32_t line,
+    const char *func,
+    const char *fmt,
+    ...)
+  ddsrt_attribute_format((__printf__, 6, 7));
+
+/**
+ * @brief Write a log or trace message to the global configuration but with
+ * specific domain (intended solely for use during domain start-up, while
+ * the domain-specific logging/tracing hasn't been set yet).
+ *
+ * Write a log or trace message to one (or both) of the currently active sinks.
+ *
+ * Direct use of #dds_log_id is discouraged. Use #DDS_ILOG instead.
+ */
+DDS_EXPORT void
+dds_log_id(
+    uint32_t prio,
+    uint32_t domid,
+    const char *file,
+    uint32_t line,
+    const char *func,
+    const char *fmt,
+    ...)
+  ddsrt_attribute_format((__printf__, 6, 7));
+
+/**
+ * @brief Write a log or trace message to the global log/trace.
  *
  * Write a log or trace message to one (or both) of the currently active sinks.
  *
  * Direct use of #dds_log is discouraged. Use #DDS_INFO, #DDS_WARNING,
  * #DDS_ERROR, #DDS_FATAL or #DDS_LOG instead.
  */
-DDS_EXPORT int
+DDS_EXPORT void
 dds_log(
     uint32_t prio,
     const char *file,
@@ -279,23 +379,70 @@ dds_log(
  */
 #define DDS_LOG(cat, ...) \
     ((dds_get_log_mask() & (cat)) ? \
-      dds_log(cat, __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__) : 0)
+      dds_log((cat), __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__) : 0)
 
-/** Write a log message of type #DDS_LC_INFO. */
+/**
+ * @brief Write a log message with a domain id override.
+ *
+ * Write a log or trace message to the currently active log and/or trace sinks
+ * if the log category is enabled. Whether or not the category is enabled is
+ * checked before any dds_log-related activities to save a couple of % CPU.
+ *
+ * Only messages that fall into one of the log categories are passed onto
+ * dds_log. While messages that fall into a trace category could have been
+ * passed just as easily, they are rejected so that tracing is kept entirely
+ * separate from logging, if only cosmetic.
+ */
+#define DDS_ILOG(cat, domid, ...) \
+    ((dds_get_log_mask() & (cat)) ? \
+      dds_log_id((cat), (domid), __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__) : 0)
+
+/**
+ * @brief Write a log message using a specific config.
+ *
+ * Write a log or trace message to the currently active log and/or trace sinks
+ * if the log category is enabled. Whether or not the category is enabled is
+ * checked before any dds_log-related activities to save a couple of % CPU.
+ *
+ * Only messages that fall into one of the log categories are passed onto
+ * dds_log. While messages that fall into a trace category could have been
+ * passed just as easily, they are rejected so that tracing is kept entirely
+ * separate from logging, if only cosmetic.
+ */
+#define DDS_CLOG(cat, cfg, ...) \
+    (((cfg)->c.mask & (cat)) ? \
+      dds_log_cfg((cfg), (cat), __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__) : 0)
+
+/** Write a log message of type #DDS_LC_INFO into global log. */
 #define DDS_INFO(...) \
   DDS_LOG(DDS_LC_INFO, __VA_ARGS__)
-/** Write a log message of type #DDS_LC_WARNING. */
+/** Write a log message of type #DDS_LC_WARNING into global log. */
 #define DDS_WARNING(...) \
   DDS_LOG(DDS_LC_WARNING, __VA_ARGS__)
-/** Write a log message of type #DDS_LC_ERROR. */
+/** Write a log message of type #DDS_LC_ERROR into global log. */
 #define DDS_ERROR(...) \
   DDS_LOG(DDS_LC_ERROR, __VA_ARGS__)
-/** Write a log message of type #DDS_LC_ERROR and abort. */
+/** Write a log message of type #DDS_LC_ERROR into global log and abort. */
 #define DDS_FATAL(...) \
   dds_log(DDS_LC_FATAL, __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__)
-/** Write a #DDS_LC_TRACE message. */
-#define DDS_TRACE(...) \
-  DDS_LOG(DDS_LC_TRACE, __VA_ARGS__)
+
+/* MSVC mishandles __VA_ARGS__ while claiming to be conforming -- and even
+   if they have a defensible implement, they still differ from every other
+   compiler out there.  An extra layer of macro expansion works around it. */
+#define DDS_CLOG_MSVC_WORKAROUND(x) x
+
+/** Write a log message of type #DDS_LC_INFO using specific logging config. */
+#define DDS_CINFO(...) \
+  DDS_CLOG_MSVC_WORKAROUND(DDS_CLOG(DDS_LC_INFO, __VA_ARGS__))
+/** Write a log message of type #DDS_LC_WARNING using specific logging config. */
+#define DDS_CWARNING(...) \
+  DDS_CLOG_MSVC_WORKAROUND(DDS_CLOG(DDS_LC_WARNING, __VA_ARGS__))
+/** Write a log message of type #DDS_LC_ERROR using specific logging config. */
+#define DDS_CERROR(...) \
+  DDS_CLOG_MSVC_WORKAROUND(DDS_CLOG(DDS_LC_ERROR, __VA_ARGS__))
+/** Write a #DDS_LC_TRACE message using specific logging config. */
+#define DDS_CTRACE(...) \
+  DDS_CLOG_MSVC_WORKAROUND(DDS_CLOG(DDS_LC_TRACE, __VA_ARGS__))
 
 #if defined (__cplusplus)
 }
