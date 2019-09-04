@@ -123,8 +123,9 @@ DDS_EXPORT dds_return_t
 dds_entity_observer_register(
   dds_entity *observed,
   dds_entity *observer,
-  dds_entity_callback cb,
-  dds_entity_delete_callback delete_cb);
+  dds_entity_callback_t cb,
+  dds_entity_attach_callback_t attach_cb, void *attach_arg,
+  dds_entity_delete_callback_t delete_cb);
 
 DDS_EXPORT dds_return_t
 dds_entity_observer_unregister(
