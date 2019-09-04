@@ -98,19 +98,20 @@ struct dds_entity;
 
 typedef struct dds_entity_deriver {
   /* Close can be used to terminate (blocking) actions on a entity before actually deleting it. */
-  dds_return_t (*close)(struct dds_entity *e) ddsrt_nonnull_all;
+  dds_return_t (*close) (struct dds_entity *e) ddsrt_nonnull_all;
   /* Delete is used to actually free the entity. */
-  dds_return_t (*delete)(struct dds_entity *e) ddsrt_nonnull_all;
-  dds_return_t (*set_qos)(struct dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
-  dds_return_t (*validate_status)(uint32_t mask);
+  dds_return_t (*delete) (struct dds_entity *e) ddsrt_nonnull_all;
+  dds_return_t (*set_qos) (struct dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
+  dds_return_t (*validate_status) (uint32_t mask);
 } dds_entity_deriver;
 
-typedef void (*dds_entity_callback)(struct dds_entity *observer, dds_entity_t observed, uint32_t status);
-typedef void (*dds_entity_delete_callback)(struct dds_entity *observer, dds_entity_t observed);
+typedef void (*dds_entity_callback_t) (struct dds_entity *observer, dds_entity_t observed, uint32_t status);
+typedef void (*dds_entity_attach_callback_t) (struct dds_entity *observer, struct dds_entity *observed, void *attach_arg);
+typedef void (*dds_entity_delete_callback_t) (struct dds_entity *observer, dds_entity_t observed);
 
 typedef struct dds_entity_observer {
-  dds_entity_callback m_cb;
-  dds_entity_delete_callback m_delete_cb;
+  dds_entity_callback_t m_cb;
+  dds_entity_delete_callback_t m_delete_cb;
   struct dds_entity *m_observer;
   struct dds_entity_observer *m_next;
 } dds_entity_observer;

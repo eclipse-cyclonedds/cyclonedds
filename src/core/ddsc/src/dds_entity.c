@@ -1143,7 +1143,7 @@ static bool in_observer_list_p (const struct dds_entity *observed, const dds_ent
   return false;
 }
 
-dds_return_t dds_entity_observer_register (dds_entity *observed, dds_entity *observer, dds_entity_callback cb, dds_entity_delete_callback delete_cb)
+dds_return_t dds_entity_observer_register (dds_entity *observed, dds_entity *observer, dds_entity_callback_t cb, dds_entity_attach_callback_t attach_cb, void *attach_arg, dds_entity_delete_callback_t delete_cb)
 {
   dds_return_t rc;
   assert (observed);
@@ -1158,6 +1158,7 @@ dds_return_t dds_entity_observer_register (dds_entity *observed, dds_entity *obs
     o->m_observer = observer;
     o->m_next = observed->m_observers;
     observed->m_observers = o;
+    attach_cb (observer, observed, attach_arg);
     rc = DDS_RETCODE_OK;
   }
   ddsrt_mutex_unlock (&observed->m_observers_lock);
@@ -1185,6 +1186,7 @@ dds_return_t dds_entity_observer_unregister (dds_entity *observed, dds_entity *o
       observed->m_observers = idx->m_next;
     else
       prev->m_next = idx->m_next;
+    idx->m_delete_cb (idx->m_observer, observed->m_hdllink.hdl);
     ddsrt_free (idx);
     rc = DDS_RETCODE_OK;
   }
