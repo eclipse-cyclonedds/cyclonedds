@@ -13,6 +13,7 @@
 #define NN_PROTOCOL_H
 
 #include "dds/ddsrt/endian.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsi/q_feature_check.h"
 
 #include "dds/ddsi/q_rtps.h"
@@ -223,6 +224,7 @@ typedef struct MsgLen {
   uint32_t length;
 } MsgLen_t;
 
+DDSRT_WARNING_MSVC_OFF(4200)
 typedef struct AckNack {
   SubmessageHeader_t smhdr;
   nn_entityid_t readerId;
@@ -231,10 +233,12 @@ typedef struct AckNack {
   uint32_t bits[];
   /* nn_count_t count; */
 } AckNack_t;
+DDSRT_WARNING_MSVC_ON(4200)
 #define ACKNACK_FLAG_FINAL 0x02u
 #define ACKNACK_SIZE(numbits) (offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits) + 4)
 #define ACKNACK_SIZE_MAX ACKNACK_SIZE (256u)
 
+DDSRT_WARNING_MSVC_OFF(4200)
 typedef struct Gap {
   SubmessageHeader_t smhdr;
   nn_entityid_t readerId;
@@ -243,6 +247,7 @@ typedef struct Gap {
   nn_sequence_number_set_header_t gapList;
   uint32_t bits[];
 } Gap_t;
+DDSRT_WARNING_MSVC_ON(4200)
 #define GAP_SIZE(numbits) (offsetof (Gap_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits))
 #define GAP_SIZE_MAX GAP_SIZE (256u)
 
@@ -272,6 +277,7 @@ typedef struct HeartbeatFrag {
   nn_count_t count;
 } HeartbeatFrag_t;
 
+DDSRT_WARNING_MSVC_OFF(4200)
 typedef struct NackFrag {
   SubmessageHeader_t smhdr;
   nn_entityid_t readerId;
@@ -281,6 +287,7 @@ typedef struct NackFrag {
   uint32_t bits[];
   /* nn_count_t count; */
 } NackFrag_t;
+DDSRT_WARNING_MSVC_ON(4200)
 #define NACKFRAG_SIZE(numbits) (offsetof (NackFrag_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits) + 4)
 #define NACKFRAG_SIZE_MAX NACKFRAG_SIZE (256u)
 
@@ -305,12 +312,14 @@ typedef union Submessage {
   PT_InfoContainer_t pt_infocontainer;
 } Submessage_t;
 
+DDSRT_WARNING_MSVC_OFF(4200)
 typedef struct ParticipantMessageData {
   nn_guid_prefix_t participantGuidPrefix;
   uint32_t kind; /* really 4 octets */
   uint32_t length;
   char value[];
 } ParticipantMessageData_t;
+DDSRT_WARNING_MSVC_ON(4200)
 #define PARTICIPANT_MESSAGE_DATA_KIND_UNKNOWN 0x0u
 #define PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE 0x1u
 #define PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE 0x2u
