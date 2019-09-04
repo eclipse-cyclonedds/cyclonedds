@@ -311,8 +311,8 @@ static ddsrt_mutex_t mutex;
 struct arg {
   ddsrt_cond_t *cond;
   ddsrt_mutex_t *mutex;
-  dds_time_t stamp;
-  dds_duration_t pause;
+  dds_time_t before;
+  dds_time_t after;
 };
 
 static void dummy(void *ptr, const dds_log_data_t *data)
@@ -326,10 +326,10 @@ static void block(void *ptr, const dds_log_data_t *data)
   (void)data;
   struct arg *arg = (struct arg *)ptr;
   ddsrt_mutex_lock(arg->mutex);
-  arg->stamp = dds_time();
+  arg->before = dds_time();
   ddsrt_cond_broadcast(arg->cond);
   ddsrt_mutex_unlock(arg->mutex);
-  dds_sleepfor(arg->pause);
+  arg->after = dds_time();
 }
 
 static uint32_t run(void *ptr)
@@ -347,17 +347,15 @@ static uint32_t run(void *ptr)
 CU_Test(dds_log, synchronous_sink_changes, .fini=reset)
 {
   struct arg arg;
-  dds_time_t diff, stamp;
   ddsrt_thread_t tid;
   ddsrt_threadattr_t tattr;
-  dds_retcode_t ret;
+  dds_return_t ret;
 
   ddsrt_mutex_init(&mutex);
   ddsrt_cond_init(&cond);
   (void)memset(&arg, 0, sizeof(arg));
   arg.mutex = &mutex;
   arg.cond = &cond;
-  arg.pause = 1000000;
 
   ddsrt_mutex_lock(&mutex);
   dds_set_log_sink(&block, &arg);
@@ -366,9 +364,7 @@ CU_Test(dds_log, synchronous_sink_changes, .fini=reset)
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
   ddsrt_cond_wait(&cond, &mutex);
   dds_set_log_sink(dummy, NULL);
-  stamp = dds_time();
 
-  CU_ASSERT(arg.stamp < stamp);
-  diff = stamp - arg.stamp;
-  CU_ASSERT(arg.pause < diff);
+  CU_ASSERT(arg.before < arg.after);
+  CU_ASSERT(arg.after < dds_time());
 }

@@ -19,12 +19,13 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_init.c
     dds_publisher.c
     dds_rhc.c
+    dds_rhc_default.c
     dds_domain.c
     dds_instance.c
     dds_qos.c
     dds_handles.c
     dds_entity.c
-    dds_key.c
+    dds_matched.c
     dds_querycond.c
     dds_topic.c
     dds_listener.c
@@ -47,8 +48,8 @@ PREPEND(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/dd
     ddsc/dds_public_impl.h
     ddsc/dds_public_listener.h
     ddsc/dds_public_qos.h
+    ddsc/dds_public_qosdefs.h
     ddsc/dds_public_status.h
-    ddsc/dds_public_stream.h
 )
 
 PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
@@ -58,7 +59,6 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__handles.h
     dds__entity.h
     dds__init.h
-    dds__key.h
     dds__listener.h
     dds__participant.h
     dds__publisher.h
@@ -68,6 +68,7 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__guardcond.h
     dds__reader.h
     dds__rhc.h
+    dds__rhc_default.h
     dds__stream.h
     dds__subscriber.h
     dds__topic.h
@@ -77,6 +78,7 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__whc.h
     dds__whc_builtintopic.h
     dds__serdata_builtintopic.h
+    dds__get_status.h
 )
 
 generate_export_header(

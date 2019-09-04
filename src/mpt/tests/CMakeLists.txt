@@ -16,4 +16,4 @@ if(MPT_ENABLE_SELFTEST)
 endif()
 
 add_subdirectory(basic)
-
+add_subdirectory(qos)

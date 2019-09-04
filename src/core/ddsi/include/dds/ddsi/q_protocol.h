@@ -32,25 +32,28 @@ typedef struct {
 #define NN_SEQUENCE_NUMBER_UNKNOWN_HIGH -1
 #define NN_SEQUENCE_NUMBER_UNKNOWN_LOW 0
 #define NN_SEQUENCE_NUMBER_UNKNOWN ((seqno_t) (((uint64_t)NN_SEQUENCE_NUMBER_UNKNOWN_HIGH << 32) | NN_SEQUENCE_NUMBER_UNKNOWN_LOW))
-typedef struct nn_sequence_number_set {
+/* C99 disallows flex array in nested struct, so only put the
+   header in.  (GCC and Clang allow it, but there are other
+   compilers in the world as well.) */
+typedef struct nn_sequence_number_set_header {
   nn_sequence_number_t bitmap_base;
   uint32_t numbits;
-  uint32_t bits[1];
-} nn_sequence_number_set_t; /* Why strict C90? zero-length/flexible array members are far nicer */
+} nn_sequence_number_set_header_t;
 /* SequenceNumberSet size is base (2 words) + numbits (1 word) +
    bitmap ((numbits+31)/32 words), and this at 4 bytes/word */
+#define NN_SEQUENCE_NUMBER_SET_MAX_BITS (256u)
 #define NN_SEQUENCE_NUMBER_SET_BITS_SIZE(numbits) ((unsigned) (4 * (((numbits) + 31) / 32)))
-#define NN_SEQUENCE_NUMBER_SET_SIZE(numbits) (offsetof (nn_sequence_number_set_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits))
+#define NN_SEQUENCE_NUMBER_SET_SIZE(numbits) (sizeof (nn_sequence_number_set_header_t) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits))
 typedef unsigned nn_fragment_number_t;
-typedef struct nn_fragment_number_set {
+typedef struct nn_fragment_number_set_header {
   nn_fragment_number_t bitmap_base;
   uint32_t numbits;
-  uint32_t bits[1];
-} nn_fragment_number_set_t;
+} nn_fragment_number_set_header_t;
 /* FragmentNumberSet size is base (2 words) + numbits (1 word) +
    bitmap ((numbits+31)/32 words), and this at 4 bytes/word */
+#define NN_FRAGMENT_NUMBER_SET_MAX_BITS (256u)
 #define NN_FRAGMENT_NUMBER_SET_BITS_SIZE(numbits) ((unsigned) (4 * (((numbits) + 31) / 32)))
-#define NN_FRAGMENT_NUMBER_SET_SIZE(numbits) (offsetof (nn_fragment_number_set_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits))
+#define NN_FRAGMENT_NUMBER_SET_SIZE(numbits) (sizeof (nn_fragment_number_set_header_t) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits))
 typedef int32_t nn_count_t;
 #define DDSI_COUNT_MIN (-2147483647 - 1)
 #define DDSI_COUNT_MAX (2147483647)
@@ -61,20 +64,6 @@ typedef struct {
   uint32_t port;
   unsigned char address[16];
 } nn_locator_t;
-
-typedef struct nn_udpv4mcgen_address {
-  /* base IPv4 MC address is ipv4, host bits are bits base .. base+count-1, this machine is bit idx */
-  struct in_addr ipv4;
-  uint8_t base;
-  uint8_t count;
-  uint8_t idx; /* must be last: then sorting will put them consecutively */
-} nn_udpv4mcgen_address_t;
-
-
-struct cdrstring {
-  uint32_t length;
-  unsigned char contents[1]; /* C90 does not support flex. array members */
-};
 
 #define NN_STATUSINFO_DISPOSE      0x1u
 #define NN_STATUSINFO_UNREGISTER   0x2u
@@ -167,7 +156,7 @@ typedef enum SubmessageKind {
 
 typedef struct InfoTimestamp {
   SubmessageHeader_t smhdr;
-  nn_ddsi_time_t time;
+  ddsi_time_t time;
 } InfoTimestamp_t;
 
 typedef struct EntityId {
@@ -196,7 +185,7 @@ typedef struct InfoSRC {
 #define PL_CDR_LE 0x0003u
 #endif
 
-typedef unsigned short nn_parameterid_t; /* spec says short */
+typedef uint16_t nn_parameterid_t; /* spec says short */
 typedef struct nn_parameter {
   nn_parameterid_t parameterid;
   uint16_t length; /* spec says signed short */
@@ -238,11 +227,12 @@ typedef struct AckNack {
   SubmessageHeader_t smhdr;
   nn_entityid_t readerId;
   nn_entityid_t writerId;
-  nn_sequence_number_set_t readerSNState;
+  nn_sequence_number_set_header_t readerSNState;
+  uint32_t bits[];
   /* nn_count_t count; */
 } AckNack_t;
 #define ACKNACK_FLAG_FINAL 0x02u
-#define ACKNACK_SIZE(numbits) (offsetof (AckNack_t, readerSNState) + NN_SEQUENCE_NUMBER_SET_SIZE (numbits) + 4)
+#define ACKNACK_SIZE(numbits) (offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits) + 4)
 #define ACKNACK_SIZE_MAX ACKNACK_SIZE (256u)
 
 typedef struct Gap {
@@ -250,14 +240,15 @@ typedef struct Gap {
   nn_entityid_t readerId;
   nn_entityid_t writerId;
   nn_sequence_number_t gapStart;
-  nn_sequence_number_set_t gapList;
+  nn_sequence_number_set_header_t gapList;
+  uint32_t bits[];
 } Gap_t;
-#define GAP_SIZE(numbits) (offsetof (Gap_t, gapList) + NN_SEQUENCE_NUMBER_SET_SIZE (numbits))
+#define GAP_SIZE(numbits) (offsetof (Gap_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits))
 #define GAP_SIZE_MAX GAP_SIZE (256u)
 
 typedef struct InfoTS {
   SubmessageHeader_t smhdr;
-  nn_ddsi_time_t time;
+  ddsi_time_t time;
 } InfoTS_t;
 #define INFOTS_INVALIDATE_FLAG 0x2u
 
@@ -286,10 +277,11 @@ typedef struct NackFrag {
   nn_entityid_t readerId;
   nn_entityid_t writerId;
   nn_sequence_number_t writerSN;
-  nn_fragment_number_set_t fragmentNumberState;
+  nn_fragment_number_set_header_t fragmentNumberState;
+  uint32_t bits[];
   /* nn_count_t count; */
 } NackFrag_t;
-#define NACKFRAG_SIZE(numbits) (offsetof (NackFrag_t, fragmentNumberState) + NN_FRAGMENT_NUMBER_SET_SIZE (numbits) + 4)
+#define NACKFRAG_SIZE(numbits) (offsetof (NackFrag_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits) + 4)
 #define NACKFRAG_SIZE_MAX NACKFRAG_SIZE (256u)
 
 typedef struct PT_InfoContainer {
@@ -317,7 +309,7 @@ typedef struct ParticipantMessageData {
   nn_guid_prefix_t participantGuidPrefix;
   uint32_t kind; /* really 4 octets */
   uint32_t length;
-  char value[1 /* length */];
+  char value[];
 } ParticipantMessageData_t;
 #define PARTICIPANT_MESSAGE_DATA_KIND_UNKNOWN 0x0u
 #define PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE 0x1u
@@ -389,14 +381,6 @@ typedef struct ParticipantMessageData {
 /* Security related PID values. */
 #define PID_IDENTITY_TOKEN                      0x1001u
 #define PID_PERMISSIONS_TOKEN                   0x1002u
-
-#define PID_RTI_TYPECODE                        (PID_VENDORSPECIFIC_FLAG | 0x4u)
-
-#ifdef DDSI_INCLUDE_SSM
-/* To indicate whether a reader favours the use of SSM.  Iff the
-   reader favours SSM, it will use SSM if available. */
-#define PID_READER_FAVOURS_SSM                  0x72u
-#endif
 
 #ifdef DDSI_INCLUDE_SSM
 /* To indicate whether a reader favours the use of SSM.  Iff the

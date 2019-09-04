@@ -21,130 +21,11 @@
 #define DDS_QOS_H
 
 #include "dds/export.h"
+#include "dds/ddsc/dds_public_qosdefs.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
-
-/* QoS identifiers */
-/** @name QoS identifiers
-  @{**/
-#define DDS_INVALID_QOS_POLICY_ID 0
-#define DDS_USERDATA_QOS_POLICY_ID 1
-#define DDS_DURABILITY_QOS_POLICY_ID 2
-#define DDS_PRESENTATION_QOS_POLICY_ID 3
-#define DDS_DEADLINE_QOS_POLICY_ID 4
-#define DDS_LATENCYBUDGET_QOS_POLICY_ID 5
-#define DDS_OWNERSHIP_QOS_POLICY_ID 6
-#define DDS_OWNERSHIPSTRENGTH_QOS_POLICY_ID 7
-#define DDS_LIVELINESS_QOS_POLICY_ID 8
-#define DDS_TIMEBASEDFILTER_QOS_POLICY_ID 9
-#define DDS_PARTITION_QOS_POLICY_ID 10
-#define DDS_RELIABILITY_QOS_POLICY_ID 11
-#define DDS_DESTINATIONORDER_QOS_POLICY_ID 12
-#define DDS_HISTORY_QOS_POLICY_ID 13
-#define DDS_RESOURCELIMITS_QOS_POLICY_ID 14
-#define DDS_ENTITYFACTORY_QOS_POLICY_ID 15
-#define DDS_WRITERDATALIFECYCLE_QOS_POLICY_ID 16
-#define DDS_READERDATALIFECYCLE_QOS_POLICY_ID 17
-#define DDS_TOPICDATA_QOS_POLICY_ID 18
-#define DDS_GROUPDATA_QOS_POLICY_ID 19
-#define DDS_TRANSPORTPRIORITY_QOS_POLICY_ID 20
-#define DDS_LIFESPAN_QOS_POLICY_ID 21
-#define DDS_DURABILITYSERVICE_QOS_POLICY_ID 22
-/** @}*/
-
-
-/* QoS structure is opaque */
-/** QoS structure */
-typedef struct nn_xqos dds_qos_t;
-
-/** Durability QoS: Applies to Topic, DataReader, DataWriter */
-typedef enum dds_durability_kind
-{
-    DDS_DURABILITY_VOLATILE,
-    DDS_DURABILITY_TRANSIENT_LOCAL,
-    DDS_DURABILITY_TRANSIENT,
-    DDS_DURABILITY_PERSISTENT
-}
-dds_durability_kind_t;
-
-/** History QoS: Applies to Topic, DataReader, DataWriter */
-typedef enum dds_history_kind
-{
-    DDS_HISTORY_KEEP_LAST,
-    DDS_HISTORY_KEEP_ALL
-}
-dds_history_kind_t;
-
-/** Ownership QoS: Applies to Topic, DataReader, DataWriter */
-typedef enum dds_ownership_kind
-{
-    DDS_OWNERSHIP_SHARED,
-    DDS_OWNERSHIP_EXCLUSIVE
-}
-dds_ownership_kind_t;
-
-/** Liveliness QoS: Applies to Topic, DataReader, DataWriter */
-typedef enum dds_liveliness_kind
-{
-    DDS_LIVELINESS_AUTOMATIC,
-    DDS_LIVELINESS_MANUAL_BY_PARTICIPANT,
-    DDS_LIVELINESS_MANUAL_BY_TOPIC
-}
-dds_liveliness_kind_t;
-
-/** Reliability QoS: Applies to Topic, DataReader, DataWriter */
-typedef enum dds_reliability_kind
-{
-    DDS_RELIABILITY_BEST_EFFORT,
-    DDS_RELIABILITY_RELIABLE
-}
-dds_reliability_kind_t;
-
-/** DestinationOrder QoS: Applies to Topic, DataReader, DataWriter */
-typedef enum dds_destination_order_kind
-{
-    DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP,
-    DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP
-}
-dds_destination_order_kind_t;
-
-/** History QoS: Applies to Topic, DataReader, DataWriter */
-typedef struct dds_history_qospolicy
-{
-    dds_history_kind_t kind;
-    int32_t depth;
-}
-dds_history_qospolicy_t;
-
-/** ResourceLimits QoS: Applies to Topic, DataReader, DataWriter */
-typedef struct dds_resource_limits_qospolicy
-{
-    int32_t max_samples;
-    int32_t max_instances;
-    int32_t max_samples_per_instance;
-}
-dds_resource_limits_qospolicy_t;
-
-/** Presentation QoS: Applies to Publisher, Subscriber */
-typedef enum dds_presentation_access_scope_kind
-{
-    DDS_PRESENTATION_INSTANCE,
-    DDS_PRESENTATION_TOPIC,
-    DDS_PRESENTATION_GROUP
-}
-dds_presentation_access_scope_kind_t;
-
-/** Ignore-local QoS: Applies to DataReader, DataWriter */
-typedef enum dds_ignorelocal_kind
-{
-    DDS_IGNORELOCAL_NONE,
-    DDS_IGNORELOCAL_PARTICIPANT,
-    DDS_IGNORELOCAL_PROCESS
-}
-dds_ignorelocal_kind_t;
-
 
 /**
  * @brief Allocate memory and initialize default QoS-policies
@@ -212,8 +93,8 @@ dds_qos_merge (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src);
  *
  * Policies are copied from src to dst, unless src already has the policy set to a non-default value.
  *
- * @param[in,out] dst - Pointer to the destination qos structure
- * @param[in] src - Pointer to the source qos structure
+ * @param[in,out] a - Pointer to the destination qos structure
+ * @param[in] b - Pointer to the source qos structure
  */
 DDS_EXPORT bool
 dds_qos_equal (const dds_qos_t * __restrict a, const dds_qos_t * __restrict b);
@@ -448,7 +329,7 @@ dds_qset_destination_order (
  * @brief Set the writer data-lifecycle policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
- * @param[in] autodispose_unregistered_instances - Automatic disposal of unregistered instances
+ * @param[in] autodispose - Automatic disposal of unregistered instances
  */
 DDS_EXPORT void
 dds_qset_writer_data_lifecycle (dds_qos_t * __restrict qos, bool autodispose);
@@ -493,7 +374,8 @@ dds_qset_durability_service (
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
  * @param[in] ignore - True if readers and writers owned by the same participant should be ignored
  */
-DDS_EXPORT void dds_qset_ignorelocal (
+DDS_EXPORT void
+dds_qset_ignorelocal (
   dds_qos_t * __restrict qos,
   dds_ignorelocal_kind_t ignore);
 
@@ -738,7 +620,7 @@ dds_qget_destination_order (
  * @brief Get the writer data-lifecycle qos policy
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
- * @param[in,out] autodispose_unregistered_instances - Pointer that will store the autodispose unregistered instances enable value
+ * @param[in,out] autodispose - Pointer that will store the autodispose unregistered instances enable value
  *
  * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
  */

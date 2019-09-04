@@ -18,11 +18,18 @@
 extern "C" {
 #endif
 
+enum ddsrt_iftype {
+  DDSRT_IFTYPE_UNKNOWN,
+  DDSRT_IFTYPE_WIRED,
+  DDSRT_IFTYPE_WIFI
+};
+
 struct ddsrt_ifaddrs {
   struct ddsrt_ifaddrs *next;
   char *name;
   uint32_t index;
   uint32_t flags;
+  enum ddsrt_iftype type;
   struct sockaddr *addr;
   struct sockaddr *netmask;
   struct sockaddr *broadaddr;
@@ -30,7 +37,7 @@ struct ddsrt_ifaddrs {
 
 typedef struct ddsrt_ifaddrs ddsrt_ifaddrs_t;
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_getifaddrs(
   ddsrt_ifaddrs_t **ifap,
   const int *afs);

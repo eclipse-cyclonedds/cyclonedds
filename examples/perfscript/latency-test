@@ -1,0 +1,153 @@
+#!/bin/bash
+
+export nwif=eth0
+bandwidth=1e9
+remotedir="$PWD"
+provision=false
+asynclist="sync async"
+modelist="listener waitset"
+sizelist="0 20 50 100 200 500 1000 2000 5000 10000 20000 50000 100000 200000 500000 1000000"
+timeout=30
+loopback=true
+resultdir="latency-result"
+
+usage () {
+    cat >&2 <<EOF
+usage: $0 [OPTIONS] user@remote [user@remote...]
+
+OPTIONS
+  -i IF        use network interface IF (default: $nwif)
+  -b 100|1000|B  network bandwidth (100Mbps/1000Gbps or B bits/sec) for
+               calculating load % given load in bytes/second (default: 1000)
+  -d DIR       use DIR on remote (default: PWD)
+  -p           provision required binaries in DIR (default: $provision)
+               first ssh's in to try mkdir -p DIR, then follows up with scp
+  -t DUR       run for DUR seconds per size (default $timeout)
+  -a ASYNCLIST run for delivery async settings ASYNCLIST (default:
+               "$asynclist")
+  -m MODELIST  run with subscriber mode settings MODELIST (default: 
+               "$modelist")
+  -s SIZELIST  run for sizes in SIZELIST (default: "$sizelist")
+               if SIZELIST is empty, it uses ddsperf's OU topic instead
+  -l LOOPBACK  enable/disable multicast loopback (true/false, default: $loopback)
+  -o DIR       store results in dir (default: $resultdir)
+
+Local host runs ddsperf in ping mode, remotes run pong.  It assumes these are
+available in DIR/bin.  It also assumes that ssh user@remote works without
+requiring a password.
+EOF
+    exit 1
+}
+
+while getopts "i:d:pa:m:s:t:o:l:" opt ; do
+    case $opt in
+        i) nwif="$OPTARG" ;;
+        b) case "$OPTARG" in
+               100) bandwidth=1e8 ;;
+               1000) bandwidth=1e9 ;;
+               *) bandwidth="$OPTARG" ;;
+           esac ;;
+        d) remotedir="$OPTARG" ;;
+        p) provision=true ;;
+        a) asynclist="$OPTARG" ;;
+        m) modelist="$OPTARG" ;;
+        s) sizelist="$OPTARG" ;;
+        l) loopback="OPTARG" ;;
+        t) timeout="$OPTARG" ;;
+        o) resultdir="$OPTARG" ;;
+        h) usage ;;
+    esac
+done
+shift $((OPTIND-1))
+if [ $# -lt 1 ] ; then usage ; fi
+
+cfg=cdds-simple.xml
+cat >$cfg <<EOF
+<CycloneDDS>
+  <Domain>
+    <Id>17</Id>
+  </Domain>
+  <General>
+    <NetworkInterfaceAddress>$nwif</NetworkInterfaceAddress>
+    <EnableMulticastLoopback>$loopback</EnableMulticastLoopback>
+    <MaxMessageSize>65500B</MaxMessageSize>
+    <FragmentSize>4000B</FragmentSize>
+  </General>
+  <Internal>
+    <Watermarks>
+      <WhcHigh>500kB</WhcHigh>
+    </Watermarks>
+    <SynchronousDeliveryPriorityThreshold>\${async:-0}</SynchronousDeliveryPriorityThreshold>
+    <LeaseDuration>3s</LeaseDuration>
+  </Internal>
+  <Tracing>
+    <Verbosity>config</Verbosity>
+  </Tracing>
+</CycloneDDS>
+EOF
+
+if [ ! -x bin/ddsperf ] ; then
+    echo "bin/ddsperf not found on the local machine" >&2
+    exit 1
+fi
+
+[ -d $resultdir ] || { echo "output directory $resultdir doesn't exist" >&2 ; exit 1 ; }
+
+if $provision ; then
+    echo "provisioning ..."
+    for r in $pubremote "$@" ; do
+        ssh $r mkdir -p $remotedir $remotedir/bin $remotedir/lib
+        scp lib/libddsc.so.0 $r:$remotedir/lib
+        scp bin/ddsperf $r:$remotedir/bin
+    done
+fi
+
+topic=KS
+[ -z "$sizelist" ] && topic=OU
+
+export CYCLONEDDS_URI=file://$PWD/$cfg
+for r in "$@" ; do
+    scp $cfg $r:$remotedir || { echo "failed to copy $cfg to $remote:$PWD" >&2 ; exit 1 ; }
+done
+
+for async_mode in $asynclist ; do
+    case "$async_mode" in
+        sync) async=0 ;;
+        async) async=1 ;;
+        *) echo "$async_mode: invalid setting for ASYNC" >&2 ; continue ;;
+    esac
+    export async
+    for sub_mode in $modelist ; do
+        echo "======== ASYNC $async MODE $sub_mode ========="
+
+        
+        cat > run-pong.tmp <<EOF
+export CYCLONEDDS_URI=file://$remotedir/$cfg
+export async=$async
+cd $remotedir
+nohup bin/ddsperf -T $topic pong $sub_mode > /dev/null &
+echo \$!
+EOF
+        killpongs=""
+        for r in "$@" ; do
+            scp run-pong.tmp $r:$remotedir
+            rpongpid=`ssh $r ". $remotedir/run-pong.tmp"`
+            killpongs="$killpongs ssh $r kill -9 $rpongpid &"
+        done
+
+        outdir=$resultdir/$async_mode-$sub_mode
+        mkdir $outdir
+
+        touch $outdir/ping.log
+        tail -f $outdir/ping.log & xpid=$!
+        for size in ${sizelist:-0} ; do
+            echo "size $size"
+            bin/ddsperf -d $nwif:$bandwidth -c -D $timeout -T $topic ping size $size $sub_mode >> $outdir/ping.log
+            sleep 5
+        done
+        eval $killpongs
+        sleep 1
+        kill $xpid
+        wait
+    done
+done

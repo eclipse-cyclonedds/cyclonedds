@@ -23,7 +23,7 @@ isenvvar(const char *name)
   return (*name == '\0' || strchr(name, '=') != NULL) == 0;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_getenv(const char *name, char **value)
 {
   char *env;
@@ -40,7 +40,7 @@ ddsrt_getenv(const char *name, char **value)
   return DDS_RETCODE_NOT_FOUND;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_setenv(const char *name, const char *value)
 {
   assert(name != NULL);
@@ -65,7 +65,7 @@ ddsrt_setenv(const char *name, const char *value)
   return DDS_RETCODE_ERROR;
 }
 
-dds_retcode_t
+dds_return_t
 ddsrt_unsetenv(const char *name)
 {
   assert(name != NULL);

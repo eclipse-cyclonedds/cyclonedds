@@ -17,7 +17,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
-#include "dds/ddsi/q_static_assert.h"
+#include "dds/ddsrt/static_assert.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -54,20 +54,27 @@ enum thread_state {
   THREAD_STATE_ALIVE /* known to be alive - for Cyclone internal threads */
 };
 
-struct logbuf;
+struct q_globals;
+struct config;
+struct ddsrt_log_cfg;
 
 /*
- * watchdog indicates progress for the service lease liveliness mechsanism, while vtime
- * indicates progress for the Garbage collection purposes.
- *  vtime even : thread awake
- *  vtime odd  : thread asleep
+ * vtime indicates progress for the garbage collector and the liveliness monitoring.
+ *
+ * vtime is updated without using atomic operations: only the owning thread updates
+ * them, and the garbage collection mechanism and the liveliness monitoring only
+ * observe the value
+ *
+ * gv is constant for internal threads, i.e., for threads with state = ALIVE
+ * gv is non-NULL for internal threads except thread liveliness monitoring
  */
 #define THREAD_BASE                             \
-  volatile vtime_t vtime;                       \
+  ddsrt_atomic_uint32_t vtime;                  \
+  ddsrt_atomic_voidp_t gv;                      \
+  enum thread_state state;                      \
   ddsrt_thread_t tid;                           \
   ddsrt_thread_t extTid;                        \
-  enum thread_state state;                      \
-  char *name /* note: no semicolon! */
+  char name[24] /* note: no semicolon! */
 
 struct thread_state_base {
   THREAD_BASE;
@@ -84,7 +91,7 @@ struct thread_state1 {
 
 struct thread_states {
   ddsrt_mutex_t lock;
-  unsigned nthreads;
+  uint32_t nthreads;
   struct thread_state1 *ts; /* [nthreads] */
 };
 
@@ -97,11 +104,12 @@ DDS_EXPORT void thread_states_fini (void);
 
 DDS_EXPORT void upgrade_main_thread (void);
 DDS_EXPORT void downgrade_main_thread (void);
-DDS_EXPORT const struct config_thread_properties_listelem *lookup_thread_properties (const char *name);
-DDS_EXPORT dds_retcode_t create_thread (struct thread_state1 **ts, const char *name, uint32_t (*f) (void *arg), void *arg);
+DDS_EXPORT const struct config_thread_properties_listelem *lookup_thread_properties (const struct config *config, const char *name);
+DDS_EXPORT dds_return_t create_thread_with_properties (struct thread_state1 **ts1, struct config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg);
+DDS_EXPORT dds_return_t create_thread (struct thread_state1 **ts, const struct q_globals *gv, const char *name, uint32_t (*f) (void *arg), void *arg);
 DDS_EXPORT struct thread_state1 *lookup_thread_state_real (void);
-DDS_EXPORT int join_thread (struct thread_state1 *ts1);
-DDS_EXPORT void log_stack_traces (void);
+DDS_EXPORT dds_return_t join_thread (struct thread_state1 *ts1);
+DDS_EXPORT void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct q_globals *gv);
 DDS_EXPORT void reset_thread_state (struct thread_state1 *ts1);
 DDS_EXPORT int thread_exists (const char *name);
 
@@ -125,23 +133,27 @@ DDS_EXPORT inline bool vtime_asleep_p (vtime_t vtime)
 
 DDS_EXPORT inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0)
 {
-  Q_STATIC_ASSERT_CODE (sizeof (vtime_t) == sizeof (svtime_t));
+  DDSRT_STATIC_ASSERT_CODE (sizeof (vtime_t) == sizeof (svtime_t));
   return (svtime_t) ((vtime1 & VTIME_TIME_MASK) - (vtime0 & VTIME_TIME_MASK)) > 0;
 }
 
 DDS_EXPORT inline bool thread_is_awake (void)
 {
-  return vtime_awake_p (lookup_thread_state ()->vtime);
+  struct thread_state1 *ts = lookup_thread_state ();
+  vtime_t vt = ddsrt_atomic_ld32 (&ts->vtime);
+  return vtime_awake_p (vt);
 }
 
 DDS_EXPORT inline bool thread_is_asleep (void)
 {
-  return vtime_asleep_p (lookup_thread_state ()->vtime);
+  struct thread_state1 *ts = lookup_thread_state ();
+  vtime_t vt = ddsrt_atomic_ld32 (&ts->vtime);
+  return vtime_asleep_p (vt);
 }
 
 DDS_EXPORT inline void thread_state_asleep (struct thread_state1 *ts1)
 {
-  vtime_t vt = ts1->vtime;
+  vtime_t vt = ddsrt_atomic_ld32 (&ts1->vtime);
   assert (vtime_awake_p (vt));
   /* nested calls a rare and an extra fence doesn't break things */
   ddsrt_atomic_fence_rel ();
@@ -149,24 +161,45 @@ DDS_EXPORT inline void thread_state_asleep (struct thread_state1 *ts1)
     vt += (1u << VTIME_TIME_SHIFT) - 1u;
   else
     vt -= 1u;
-  ts1->vtime = vt;
+  ddsrt_atomic_st32 (&ts1->vtime, vt);
 }
 
-DDS_EXPORT inline void thread_state_awake (struct thread_state1 *ts1)
+DDS_EXPORT inline void thread_state_awake (struct thread_state1 *ts1, const struct q_globals *gv)
 {
-  vtime_t vt = ts1->vtime;
+  vtime_t vt = ddsrt_atomic_ld32 (&ts1->vtime);
   assert ((vt & VTIME_NEST_MASK) < VTIME_NEST_MASK);
-  ts1->vtime = vt + 1u;
+  assert (gv != NULL);
+  assert (ts1->state != THREAD_STATE_ALIVE || gv == ddsrt_atomic_ldvoidp (&ts1->gv));
+  ddsrt_atomic_stvoidp (&ts1->gv, (struct q_globals *) gv);
+  ddsrt_atomic_fence_stst ();
+  ddsrt_atomic_st32 (&ts1->vtime, vt + 1u);
   /* nested calls a rare and an extra fence doesn't break things */
   ddsrt_atomic_fence_acq ();
 }
 
+DDS_EXPORT inline void thread_state_awake_domain_ok (struct thread_state1 *ts1)
+{
+  vtime_t vt = ddsrt_atomic_ld32 (&ts1->vtime);
+  assert ((vt & VTIME_NEST_MASK) < VTIME_NEST_MASK);
+  assert (ddsrt_atomic_ldvoidp (&ts1->gv) != NULL);
+  ddsrt_atomic_st32 (&ts1->vtime, vt + 1u);
+  /* nested calls a rare and an extra fence doesn't break things */
+  ddsrt_atomic_fence_acq ();
+}
+
+DDS_EXPORT inline void thread_state_awake_fixed_domain (struct thread_state1 *ts1)
+{
+  /* fixed domain -> must be an internal thread */
+  assert (ts1->state == THREAD_STATE_ALIVE);
+  thread_state_awake_domain_ok (ts1);
+}
+
 DDS_EXPORT inline void thread_state_awake_to_awake_no_nest (struct thread_state1 *ts1)
 {
-  vtime_t vt = ts1->vtime;
+  vtime_t vt = ddsrt_atomic_ld32 (&ts1->vtime);
   assert ((vt & VTIME_NEST_MASK) == 1);
   ddsrt_atomic_fence_rel ();
-  ts1->vtime = vt + (1u << VTIME_TIME_SHIFT);
+  ddsrt_atomic_st32 (&ts1->vtime, vt + (1u << VTIME_TIME_SHIFT));
   ddsrt_atomic_fence_acq ();
 }
 

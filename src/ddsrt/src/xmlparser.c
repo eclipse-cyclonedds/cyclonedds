@@ -35,6 +35,7 @@ struct ddsrt_xmlp_state {
     size_t cbufn; /* number of bytes in cbuf (cbufp <= cbufn) */
     size_t cbufmax; /* allocated size of cbuf (cbufn <= cbufmax) */
     size_t cbufmark; /* NORMARKER or marker position (cbufmark <= cbufp) for rewinding */
+    int eof; /* fake EOF (for treating missing close tags as EOF) */
     char *cbuf; /* parser input buffer */
     FILE *fp; /* file to refill cbuf from, or NULL if parsing a string */
     int line; /* current line number */
@@ -53,36 +54,40 @@ struct ddsrt_xmlp_state {
     struct ddsrt_xmlp_callbacks cb; /* user-supplied callbacks (or stubs) */
 };
 
-static int cb_null_elem_open (void *varg, uintptr_t parentinfo, uintptr_t *eleminfo, const char *name)
+static int cb_null_elem_open (void *varg, uintptr_t parentinfo, uintptr_t *eleminfo, const char *name, int line)
 {
     DDSRT_UNUSED_ARG (varg);
     DDSRT_UNUSED_ARG (parentinfo);
     DDSRT_UNUSED_ARG (eleminfo);
     DDSRT_UNUSED_ARG (name);
+    DDSRT_UNUSED_ARG (line);
     return 0;
 }
 
-static int cb_null_attr (void *varg, uintptr_t eleminfo, const char *name, const char *value)
+static int cb_null_attr (void *varg, uintptr_t eleminfo, const char *name, const char *value, int line)
 {
     DDSRT_UNUSED_ARG (varg);
     DDSRT_UNUSED_ARG (eleminfo);
     DDSRT_UNUSED_ARG (name);
     DDSRT_UNUSED_ARG (value);
+    DDSRT_UNUSED_ARG (line);
     return 0;
 }
 
-static int cb_null_elem_data (void *varg, uintptr_t eleminfo, const char *data)
+static int cb_null_elem_data (void *varg, uintptr_t eleminfo, const char *data, int line)
 {
     DDSRT_UNUSED_ARG (varg);
     DDSRT_UNUSED_ARG (eleminfo);
     DDSRT_UNUSED_ARG (data);
+    DDSRT_UNUSED_ARG (line);
     return 0;
 }
 
-static int cb_null_elem_close (void *varg, uintptr_t eleminfo)
+static int cb_null_elem_close (void *varg, uintptr_t eleminfo, int line)
 {
     DDSRT_UNUSED_ARG (varg);
     DDSRT_UNUSED_ARG (eleminfo);
+    DDSRT_UNUSED_ARG (line);
     return 0;
 }
 
@@ -97,6 +102,7 @@ static void ddsrt_xmlp_new_common (struct ddsrt_xmlp_state *st)
 {
     st->cbufp = 0;
     st->cbufmark = NOMARKER;
+    st->eof = 0;
     st->tpp = 0;
     st->tpescp = 0;
     st->tpsz = 1024;
@@ -170,6 +176,9 @@ void ddsrt_xmlp_free (struct ddsrt_xmlp_state *st)
 static int make_chars_available (struct ddsrt_xmlp_state *st, size_t nmin)
 {
     size_t n, pos;
+    if (st->eof) {
+        return 0;
+    }
     pos = (st->cbufmark != NOMARKER) ? st->cbufmark : st->cbufp;
     assert (st->cbufn >= st->cbufp);
     assert (st->cbufmax >= st->cbufn);
@@ -213,6 +222,11 @@ static void discard_input_marker (struct ddsrt_xmlp_state *st)
     assert (st->cbufmark != NOMARKER);
     st->cbufmark = NOMARKER;
     st->linemark = 0;
+}
+
+static int have_input_marker (struct ddsrt_xmlp_state *st)
+{
+    return (st->cbufmark != NOMARKER);
 }
 
 static void rewind_to_input_marker (struct ddsrt_xmlp_state *st)
@@ -295,9 +309,9 @@ static char *unescape_into_utf8 (char *dst, unsigned cp)
     return dst;
 }
 
-DDSRT_WARNING_MSVC_OFF(4996);
 static int unescape_insitu (char *buffer, size_t *n)
 {
+    DDSRT_WARNING_MSVC_OFF(4996);
     const char *src = buffer;
     char const * const srcend = buffer + *n;
     char *dst = buffer;
@@ -351,8 +365,8 @@ static int unescape_insitu (char *buffer, size_t *n)
     }
     *n = (size_t) (dst - buffer);
     return 0;
+    DDSRT_WARNING_MSVC_ON(4996);
 }
-DDSRT_WARNING_MSVC_ON(4996);
 
 static void discard_payload (struct ddsrt_xmlp_state *st)
 {
@@ -596,7 +610,7 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
         PE_LOCAL_ERROR ("expecting '<'", 0);
     }
 
-    if ((ret = st->cb.elem_open (st->varg, parentinfo, &eleminfo, name)) < 0) {
+    if ((ret = st->cb.elem_open (st->varg, parentinfo, &eleminfo, name, st->line)) < 0) {
         PE_ERROR ("failed in element open callback", name);
     }
 
@@ -610,7 +624,7 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
             ddsrt_free (content);
             PE_LOCAL_ERROR ("expecting string value for attribute", aname);
         }
-        ret = st->cb.attr (st->varg, eleminfo, aname, content);
+        ret = st->cb.attr (st->varg, eleminfo, aname, content, st->line);
         ddsrt_free (content);
         if (ret < 0) {
             PE_ERROR2 ("failed in attribute callback", name, aname);
@@ -623,7 +637,7 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
     switch (tok)
     {
         case TOK_SHORTHAND_CLOSE_TAG:
-            ret = st->cb.elem_close (st->varg, eleminfo);
+            ret = st->cb.elem_close (st->varg, eleminfo, st->line);
             goto ok;
         case '>':
             st->nest++;
@@ -668,8 +682,8 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
                 if (save_payload (&content, st, 1) < 0) {
                     PE_ERROR ("invalid character sequence", 0);
                 } else if (content != NULL) {
-                    if(*content != '\0') {
-                        ret = st->cb.elem_data (st->varg, eleminfo, content);
+                    if (*content != '\0') {
+                        ret = st->cb.elem_data (st->varg, eleminfo, content, st->line);
                         ddsrt_free (content);
                         if (ret < 0) {
                             PE_ERROR ("failed in data callback", 0);
@@ -680,13 +694,23 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
                 }
             }
             st->nest--;
+            set_input_marker (st);
             if (((tok = next_token (st, &ename)) != TOK_CLOSE_TAG && tok != TOK_SHORTHAND_CLOSE_TAG) || next_char (st) != '>') {
-                PE_LOCAL_ERROR ("expecting closing tag", name);
+                if (!(st->options & DDSRT_XMLP_MISSING_CLOSE_AS_EOF)) {
+                  PE_LOCAL_ERROR ("expecting closing tag", name);
+                } else {
+                    rewind_to_input_marker (st);
+                    st->eof = 1;
+                    tok = TOK_SHORTHAND_CLOSE_TAG;
+                }
             }
             if (tok != TOK_SHORTHAND_CLOSE_TAG && strcmp (name, ename) != 0) {
                 PE_LOCAL_ERROR ("open/close tag mismatch", ename);
             }
-            ret = st->cb.elem_close (st->varg, eleminfo);
+            if (have_input_marker (st)) {
+                discard_input_marker (st);
+            }
+            ret = st->cb.elem_close (st->varg, eleminfo, st->line);
             goto ok;
         default:
             PE_LOCAL_ERROR ("expecting '/>' or '>'", 0);
@@ -721,8 +745,4 @@ int ddsrt_xmlp_parse (struct ddsrt_xmlp_state *st)
             return -1;
         }
     }
-}
-
-int ddsrt_xmlUnescapeInsitu (char *buffer, size_t *n) {
-    return unescape_insitu (buffer, n);
 }

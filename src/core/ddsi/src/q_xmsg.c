@@ -31,7 +31,6 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_addrset.h"
-#include "dds/ddsi/q_error.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_unused.h"
@@ -53,7 +52,7 @@ struct nn_xmsgpool {
 struct nn_xmsg_data {
   InfoSRC_t src;
   InfoDST_t dst;
-  char payload[1]; /* of size maxsz */
+  char payload[]; /* of size maxsz */
 };
 
 struct nn_xmsg_chain_elem {
@@ -135,7 +134,7 @@ struct nn_xmsg_chain {
 #define NN_BW_UNLIMITED (0)
 
 struct nn_bw_limiter {
-    uint32_t       bandwidth;   /*Config in bytes/s   (0 = UNLIMITED)*/
+    uint32_t       bandwidth;   /*gv.config in bytes/s   (0 = UNLIMITED)*/
     int64_t        balance;
     nn_mtime_t      last_update;
 };
@@ -148,7 +147,7 @@ typedef struct {
   ddsrt_cond_t cv;
 } ddsi_sem_t;
 
-dds_retcode_t
+static dds_return_t
 ddsi_sem_init (ddsi_sem_t *sem, uint32_t value)
 {
   sem->value = value;
@@ -157,7 +156,7 @@ ddsi_sem_init (ddsi_sem_t *sem, uint32_t value)
   return DDS_RETCODE_OK;
 }
 
-dds_retcode_t
+static dds_return_t
 ddsi_sem_destroy (ddsi_sem_t *sem)
 {
   ddsrt_cond_destroy (&sem->cv);
@@ -165,7 +164,7 @@ ddsi_sem_destroy (ddsi_sem_t *sem)
   return DDS_RETCODE_OK;
 }
 
-dds_retcode_t
+static dds_return_t
 ddsi_sem_post (ddsi_sem_t *sem)
 {
   ddsrt_mutex_lock (&sem->mtx);
@@ -175,7 +174,7 @@ ddsi_sem_post (ddsi_sem_t *sem)
   return DDS_RETCODE_OK;
 }
 
-dds_retcode_t
+static dds_return_t
 ddsi_sem_wait (ddsi_sem_t *sem)
 {
   ddsrt_mutex_lock (&sem->mtx);
@@ -201,8 +200,9 @@ struct nn_xpack
   ddsi_tran_conn_t conn;
   ddsi_sem_t sem;
   size_t niov;
-  ddsrt_iovec_t iov[NN_XMSG_MAX_MESSAGE_IOVECS];
+  ddsrt_iovec_t *iov;
   enum nn_xmsg_dstmode dstmode;
+  struct q_globals *gv;
 
   union
   {
@@ -264,7 +264,6 @@ static void nn_xmsg_realfree_wrap (void *elem)
 void nn_xmsgpool_free (struct nn_xmsgpool *pool)
 {
   nn_freelist_fini (&pool->freelist, nn_xmsg_realfree_wrap);
-  DDS_TRACE("xmsgpool_free(%p)\n", (void *)pool);
   ddsrt_free (pool);
 }
 
@@ -507,7 +506,7 @@ void *nn_xmsg_submsg_from_marker (struct nn_xmsg *msg, struct nn_xmsg_marker mar
   return msg->data->payload + marker.offset;
 }
 
-void * nn_xmsg_append (struct nn_xmsg *m, struct nn_xmsg_marker *marker, size_t sz)
+void *nn_xmsg_append (struct nn_xmsg *m, struct nn_xmsg_marker *marker, size_t sz)
 {
   static const size_t a = 4;
 
@@ -586,7 +585,7 @@ void nn_xmsg_setdst1 (struct nn_xmsg *m, const nn_guid_prefix_t *gp, const nn_lo
   m->data->dst.guid_prefix = nn_hton_guid_prefix (*gp);
 }
 
-int nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
+dds_return_t nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
 {
   nn_locator_t loc;
   if (addrset_any_uc (prd->c.as, &loc) || addrset_any_mc (prd->c.as, &loc))
@@ -596,12 +595,12 @@ int nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
   }
   else
   {
-    DDS_WARNING("nn_xmsg_setdstPRD: no address for "PGUIDFMT"", PGUID (prd->e.guid));
-    return Q_ERR_NO_ADDRESS;
+    DDS_CWARNING (&prd->e.gv->logconfig, "nn_xmsg_setdstPRD: no address for "PGUIDFMT"", PGUID (prd->e.guid));
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
   }
 }
 
-int nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
+dds_return_t nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
 {
   nn_locator_t loc;
   if (addrset_any_uc (pwr->c.as, &loc) || addrset_any_mc (pwr->c.as, &loc))
@@ -609,8 +608,8 @@ int nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
     nn_xmsg_setdst1 (m, &pwr->e.guid.prefix, &loc);
     return 0;
   }
-  DDS_WARNING("nn_xmsg_setdstPRD: no address for "PGUIDFMT, PGUID (pwr->e.guid));
-  return Q_ERR_NO_ADDRESS;
+  DDS_CWARNING (&pwr->e.gv->logconfig, "nn_xmsg_setdstPRD: no address for "PGUIDFMT, PGUID (pwr->e.guid));
+  return DDS_RETCODE_PRECONDITION_NOT_MET;
 }
 
 void nn_xmsg_setdstN (struct nn_xmsg *m, struct addrset *as, struct addrset *as_group)
@@ -652,7 +651,7 @@ static int readerId_compatible (const struct nn_xmsg *m, const struct nn_xmsg *m
   return e.u == NN_ENTITYID_UNKNOWN || e.u == eadd.u;
 }
 
-int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct nn_xmsg *m, const struct nn_xmsg *madd)
+int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct q_globals *gv, struct nn_xmsg *m, const struct nn_xmsg *madd)
 {
   assert (m->kindspecific.data.wrseq >= 1);
   assert (m->kindspecific.data.wrguid.prefix.u[0] != 0);
@@ -665,8 +664,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct nn_xmsg *m, const stru
   assert (m->kindspecific.data.readerId_off != 0);
   assert (madd->kindspecific.data.readerId_off != 0);
 
-  DDS_TRACE(" ("PGUIDFMT"#%"PRId64"/%u:",
-            PGUID (m->kindspecific.data.wrguid), m->kindspecific.data.wrseq, m->kindspecific.data.wrfragid + 1);
+  GVTRACE (" ("PGUIDFMT"#%"PRId64"/%u:", PGUID (m->kindspecific.data.wrguid), m->kindspecific.data.wrseq, m->kindspecific.data.wrfragid + 1);
 
   switch (m->dstmode)
   {
@@ -675,7 +673,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct nn_xmsg *m, const stru
       return 0;
 
     case NN_XMSG_DST_ALL:
-      DDS_TRACE("*->*)");
+      GVTRACE ("*->*)");
       return 1;
 
     case NN_XMSG_DST_ONE:
@@ -686,7 +684,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct nn_xmsg *m, const stru
           return 0;
 
         case NN_XMSG_DST_ALL:
-          DDS_TRACE("1+*->*)");
+          GVTRACE ("1+*->*)");
           clear_readerId (m);
           m->dstmode = NN_XMSG_DST_ALL;
           m->dstaddr.all.as = ref_addrset (madd->dstaddr.all.as);
@@ -703,14 +701,14 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct nn_xmsg *m, const stru
                an addrset in rebuild_writer_addrset: then we don't
                need the lock anymore, and the '_wrlock_held' suffix
                can go and everyone's life will become easier! */
-            if ((wr = ephash_lookup_writer_guid (&m->kindspecific.data.wrguid)) == NULL)
+            if ((wr = ephash_lookup_writer_guid (gv->guid_hash, &m->kindspecific.data.wrguid)) == NULL)
             {
-              DDS_TRACE("writer-dead)");
+              GVTRACE ("writer-dead)");
               return 0;
             }
             else
             {
-              DDS_TRACE("1+1->*)");
+              GVTRACE ("1+1->*)");
               clear_readerId (m);
               m->dstmode = NN_XMSG_DST_ALL;
               m->dstaddr.all.as = ref_addrset (wr->as);
@@ -720,12 +718,12 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct nn_xmsg *m, const stru
           }
           else if (readerId_compatible (m, madd))
           {
-            DDS_TRACE("1+1->1)");
+            GVTRACE ("1+1->1)");
             return 1;
           }
           else
           {
-            DDS_TRACE("1+1->2)");
+            GVTRACE ("1+1->2)");
             clear_readerId (m);
             return 1;
           }
@@ -764,97 +762,22 @@ void nn_xmsg_setwriterseq_fragid (struct nn_xmsg *msg, const nn_guid_t *wrguid, 
   msg->kindspecific.data.wrfragid = wrfragid;
 }
 
-size_t nn_xmsg_add_string_padded(unsigned char *buf, char *str)
+void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len)
 {
-  size_t len = strlen (str) + 1;
-  assert (len <= UINT32_MAX);
-  if (buf) {
-    /* Add cdr string */
-    struct cdrstring *p = (struct cdrstring *) buf;
-    p->length = (uint32_t)len;
-    memcpy (p->contents, str, len);
-    /* clear padding */
-    if (len < align4u (len)) {
-      memset (p->contents + len, 0, align4u (len) - len);
-    }
-  }
-  len = 4 +           /* cdr string len arg + */
-        align4u(len); /* strlen + possible padding */
-  return len;
-}
-
-size_t nn_xmsg_add_octseq_padded(unsigned char *buf, nn_octetseq_t *seq)
-{
-  unsigned len = seq->length;
-  if (buf) {
-    /* Add cdr octet seq */
-    *((unsigned *)buf) = len;
-    buf += sizeof (int);
-    memcpy (buf, seq->value, len);
-    /* clear padding */
-    if (len < align4u (len)) {
-      memset (buf + len, 0, align4u (len) - len);
-    }
-  }
-  return 4 +           /* cdr sequence len arg + */
-         align4u(len); /* seqlen + possible padding */
-}
-
-void * nn_xmsg_addpar (struct nn_xmsg *m, unsigned pid, size_t len)
-{
-  const size_t len4 = (len + 3) & (size_t)-4; /* must alloc a multiple of 4 */
+  const size_t len4 = (len + 3) & ~(size_t)3; /* must alloc a multiple of 4 */
   nn_parameter_t *phdr;
   char *p;
+  assert (len4 < UINT16_MAX); /* FIXME: return error */
   m->have_params = 1;
   phdr = nn_xmsg_append (m, NULL, sizeof (nn_parameter_t) + len4);
-  phdr->parameterid = (nn_parameterid_t) pid;
-  phdr->length = (unsigned short) len4;
+  phdr->parameterid = pid;
+  phdr->length = (uint16_t) len4;
   p = (char *) (phdr + 1);
-  if (len4 > len)
-  {
-    /* zero out padding bytes added to satisfy parameter alignment --
-       alternative: zero out, but this way valgrind/purify can tell us
-       where we forgot to initialize something */
-    memset (p + len, 0, len4 - len);
-  }
+  /* zero out padding bytes added to satisfy parameter alignment: this way
+     valgrind can tell us where we forgot to initialize something */
+  while (len < len4)
+    p[len++] = 0;
   return p;
-}
-
-void nn_xmsg_addpar_string (struct nn_xmsg *m, unsigned pid, const char *str)
-{
-  struct cdrstring *p;
-  unsigned len = (unsigned) strlen (str) + 1;
-  p = nn_xmsg_addpar (m, pid, 4 + len);
-  p->length = len;
-  memcpy (p->contents, str, len);
-}
-
-void nn_xmsg_addpar_octetseq (struct nn_xmsg *m, unsigned pid, const nn_octetseq_t *oseq)
-{
-  char *p = nn_xmsg_addpar (m, pid, 4 + oseq->length);
-  *((unsigned *) p) = oseq->length;
-  memcpy (p + sizeof (int), oseq->value, oseq->length);
-}
-
-void nn_xmsg_addpar_stringseq (struct nn_xmsg *m, unsigned pid, const nn_stringseq_t *sseq)
-{
-  unsigned char *tmp;
-  uint32_t i;
-  size_t len = 0;
-
-  for (i = 0; i < sseq->n; i++)
-  {
-    len += nn_xmsg_add_string_padded(NULL, sseq->strs[i]);
-  }
-
-  tmp = nn_xmsg_addpar (m, pid, 4 + len);
-
-  *((uint32_t *) tmp) = sseq->n;
-  tmp += sizeof (uint32_t);
-  for (i = 0; i < sseq->n; i++)
-  {
-    tmp += nn_xmsg_add_string_padded(tmp, sseq->strs[i]);
-  }
 }
 
 void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serdata)
@@ -867,62 +790,9 @@ void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serda
   }
 }
 
-void nn_xmsg_addpar_guid (struct nn_xmsg *m, unsigned pid, const nn_guid_t *guid)
+static void nn_xmsg_addpar_BE4u (struct nn_xmsg *m, nn_parameterid_t pid, uint32_t x)
 {
-  unsigned *pu;
-  int i;
-  pu = nn_xmsg_addpar (m, pid, 16);
-  for (i = 0; i < 3; i++)
-  {
-    pu[i] = toBE4u (guid->prefix.u[i]);
-  }
-  pu[i] = toBE4u (guid->entityid.u);
-}
-
-void nn_xmsg_addpar_reliability (struct nn_xmsg *m, unsigned pid, const struct nn_reliability_qospolicy *rq)
-{
-  struct nn_external_reliability_qospolicy *p;
-  p = nn_xmsg_addpar (m, pid, sizeof (*p));
-  if (NN_PEDANTIC_P)
-  {
-    switch (rq->kind)
-    {
-      case NN_BEST_EFFORT_RELIABILITY_QOS:
-        p->kind = NN_PEDANTIC_BEST_EFFORT_RELIABILITY_QOS;
-        break;
-      case NN_RELIABLE_RELIABILITY_QOS:
-        p->kind = NN_PEDANTIC_RELIABLE_RELIABILITY_QOS;
-        break;
-      default:
-        assert (0);
-    }
-  }
-  else
-  {
-    switch (rq->kind)
-    {
-      case NN_BEST_EFFORT_RELIABILITY_QOS:
-        p->kind = NN_INTEROP_BEST_EFFORT_RELIABILITY_QOS;
-        break;
-      case NN_RELIABLE_RELIABILITY_QOS:
-        p->kind = NN_INTEROP_RELIABLE_RELIABILITY_QOS;
-        break;
-      default:
-        assert (0);
-    }
-  }
-  p->max_blocking_time = rq->max_blocking_time;
-}
-
-void nn_xmsg_addpar_4u (struct nn_xmsg *m, unsigned pid, unsigned x)
-{
-  unsigned *p = nn_xmsg_addpar (m, pid, 4);
-  *p = x;
-}
-
-void nn_xmsg_addpar_BE4u (struct nn_xmsg *m, unsigned pid, unsigned x)
-{
-  unsigned *p = nn_xmsg_addpar (m, pid, 4);
+  unsigned *p = nn_xmsg_addpar (m, pid, sizeof (x));
   *p = toBE4u (x);
 }
 
@@ -942,62 +812,6 @@ void nn_xmsg_addpar_statusinfo (struct nn_xmsg *m, unsigned statusinfo)
   }
 }
 
-
-void nn_xmsg_addpar_share (struct nn_xmsg *m, unsigned pid, const struct nn_share_qospolicy *q)
-{
-  /* Written thus to allow q->name to be a null pointer if enable = false */
-  const unsigned fixed_len = 4 + 4;
-  const unsigned len = (q->enable ? (unsigned) strlen (q->name) : 0) + 1;
-  unsigned char *p;
-  struct cdrstring *ps;
-  p = nn_xmsg_addpar (m, pid, fixed_len + len);
-  p[0] = q->enable;
-  p[1] = 0;
-  p[2] = 0;
-  p[3] = 0;
-  ps = (struct cdrstring *) (p + 4);
-  ps->length = len;
-  if (q->enable)
-    memcpy (ps->contents, q->name, len);
-  else
-    ps->contents[0] = 0;
-}
-
-void nn_xmsg_addpar_subscription_keys (struct nn_xmsg *m, unsigned pid, const struct nn_subscription_keys_qospolicy *q)
-{
-  unsigned char *tmp;
-  size_t len = 8; /* use_key_list, length of key_list */
-  unsigned i;
-
-  for (i = 0; i < q->key_list.n; i++)
-  {
-    size_t len1 = strlen (q->key_list.strs[i]) + 1;
-    len += 4 + align4u (len1);
-  }
-
-  tmp = nn_xmsg_addpar (m, pid, len);
-
-  tmp[0] = q->use_key_list;
-  for (i = 1; i < sizeof (int); i++)
-  {
-      tmp[i] = 0;
-  }
-  tmp += sizeof (int);
-  *((uint32_t *) tmp) = q->key_list.n;
-  tmp += sizeof (uint32_t);
-  for (i = 0; i < q->key_list.n; i++)
-  {
-    struct cdrstring *p = (struct cdrstring *) tmp;
-    size_t len1 = strlen (q->key_list.strs[i]) + 1;
-    assert (len1 <= UINT32_MAX);
-    p->length = (uint32_t)len1;
-    memcpy (p->contents, q->key_list.strs[i], len1);
-    if (len1 < align4u (len1))
-      memset (p->contents + len1, 0, align4u (len1) - len1);
-    tmp += 4 + align4u (len1);
-  }
-}
-
 void nn_xmsg_addpar_sentinel (struct nn_xmsg * m)
 {
   nn_xmsg_addpar (m, PID_SENTINEL, 0);
@@ -1013,40 +827,6 @@ int nn_xmsg_addpar_sentinel_ifparam (struct nn_xmsg * m)
   return 0;
 }
 
-void nn_xmsg_addpar_parvinfo (struct nn_xmsg *m, unsigned pid, const struct nn_prismtech_participant_version_info *pvi)
-{
-  int i;
-  unsigned slen;
-  unsigned *pu;
-  struct cdrstring *ps;
-
-  /* pvi->internals cannot be NULL here */
-  slen = (unsigned) strlen(pvi->internals) + 1; /* +1 for '\0' terminator */
-  pu = nn_xmsg_addpar (m, pid, NN_PRISMTECH_PARTICIPANT_VERSION_INFO_FIXED_CDRSIZE + slen);
-  pu[0] = pvi->version;
-  pu[1] = pvi->flags;
-  for (i = 0; i < 3; i++)
-  {
-    pu[i+2] = (pvi->unused[i]);
-  }
-  ps = (struct cdrstring *)&pu[5];
-  ps->length = slen;
-  memcpy(ps->contents, pvi->internals, slen);
-}
-
-void nn_xmsg_addpar_eotinfo (struct nn_xmsg *m, unsigned pid, const struct nn_prismtech_eotinfo *txnid)
-{
-  uint32_t *pu, i;
-  pu = nn_xmsg_addpar (m, pid, 2 * sizeof (uint32_t) + txnid->n * sizeof (txnid->tids[0]));
-  pu[0] = txnid->transactionId;
-  pu[1] = txnid->n;
-  for (i = 0; i < txnid->n; i++)
-  {
-    pu[2*i + 2] = toBE4u (txnid->tids[i].writer_entityid.u);
-    pu[2*i + 3] = txnid->tids[i].transactionId;
-  }
-}
-
 /* XMSG_CHAIN ----------------------------------------------------------
 
    Xpacks refer to xmsgs and need to release these after having been
@@ -1056,7 +836,7 @@ void nn_xmsg_addpar_eotinfo (struct nn_xmsg *m, unsigned pid, const struct nn_pr
    pointer we compute the address of the xmsg from the address of the
    chain element, &c. */
 
-static void nn_xmsg_chain_release (struct nn_xmsg_chain *chain)
+static void nn_xmsg_chain_release (struct q_globals *gv, struct nn_xmsg_chain *chain)
 {
   nn_guid_t wrguid;
   memset (&wrguid, 0, sizeof (wrguid));
@@ -1087,7 +867,7 @@ static void nn_xmsg_chain_release (struct nn_xmsg_chain *chain)
         struct writer *wr;
         assert (m->kindspecific.data.wrseq != 0);
         wrguid = m->kindspecific.data.wrguid;
-        if ((wr = ephash_lookup_writer_guid (&m->kindspecific.data.wrguid)) != NULL)
+        if ((wr = ephash_lookup_writer_guid (gv->guid_hash, &m->kindspecific.data.wrguid)) != NULL)
           UPDATE_SEQ_XMIT_UNLOCKED(wr, m->kindspecific.data.wrseq);
       }
     }
@@ -1114,7 +894,7 @@ static void nn_xmsg_chain_add (struct nn_xmsg_chain *chain, struct nn_xmsg *m)
 
 #define NN_BW_LIMIT_MAX_BUFFER (-30 * T_MILLISECOND)
 #define NN_BW_LIMIT_MIN_SLEEP (2 * T_MILLISECOND)
-static void nn_bw_limit_sleep_if_needed(struct nn_bw_limiter* this, ssize_t size)
+static void nn_bw_limit_sleep_if_needed (struct q_globals const * const gv, struct nn_bw_limiter *this, ssize_t size)
 {
   if ( this->bandwidth > 0 ) {
     nn_mtime_t tnow = now_mt();
@@ -1130,27 +910,27 @@ static void nn_bw_limit_sleep_if_needed(struct nn_bw_limiter* this, ssize_t size
     this->balance += (target_interval - actual_interval);
 
 
-    DDS_TRACE(" <limiter(us):%"PRId64"",(target_interval - actual_interval)/1000);
+    GVTRACE (" <limiter(us):%"PRId64"",(target_interval - actual_interval)/1000);
 
     if ( this->balance < NN_BW_LIMIT_MAX_BUFFER )
     {
       /* We're below the bandwidth limit, do not further accumulate  */
       this->balance = NN_BW_LIMIT_MAX_BUFFER;
-      DDS_TRACE(":%"PRId64":max",this->balance/1000);
+      GVTRACE (":%"PRId64":max",this->balance/1000);
     }
     else if ( this->balance > NN_BW_LIMIT_MIN_SLEEP )
     {
       /* We're over the bandwidth limit far enough, to warrent a sleep. */
-      DDS_TRACE(":%"PRId64":sleep",this->balance/1000);
+      GVTRACE (":%"PRId64":sleep",this->balance/1000);
       thread_state_blocked (lookup_thread_state ());
       dds_sleepfor (this->balance);
       thread_state_unblocked (lookup_thread_state ());
     }
     else
     {
-      DDS_TRACE(":%"PRId64"",this->balance/1000);
+      GVTRACE (":%"PRId64"",this->balance/1000);
     }
-    DDS_TRACE(">");
+    GVTRACE (">");
   }
 }
 
@@ -1192,11 +972,13 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
 
   /* Disallow setting async_mode if not configured to enable async mode: this way we
      can avoid starting the async send thread altogether */
-  assert (!async_mode || config.xpack_send_async);
+  assert (!async_mode || conn->m_base.gv->config.xpack_send_async);
 
   xp = ddsrt_malloc (sizeof (*xp));
   memset (xp, 0, sizeof (*xp));
   xp->async_mode = async_mode;
+  xp->iov = NULL;
+  xp->gv = conn->m_base.gv;
 
   /* Fixed header fields, initialized just once */
   xp->hdr.protocol.id[0] = 'R';
@@ -1216,7 +998,7 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
   xp->conn = conn;
   nn_xpack_reinit (xp);
 
-  if (gv.thread_pool)
+  if (xp->gv->thread_pool)
     ddsi_sem_init (&xp->sem, 0);
 
 #ifdef DDSI_INCLUDE_ENCRYPTION
@@ -1247,29 +1029,31 @@ void nn_xpack_free (struct nn_xpack *xp)
     (q_security_plugin.free_encoder) (xp->codec);
   }
 #endif
-  if (gv.thread_pool)
+  if (xp->gv->thread_pool)
     ddsi_sem_destroy (&xp->sem);
+  ddsrt_free (xp->iov);
   ddsrt_free (xp);
 }
 
 static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
 {
-  struct nn_xpack * xp = varg;
+  struct nn_xpack *xp = varg;
+  struct q_globals const * const gv = xp->gv;
   ssize_t nbytes = 0;
 
-  if (dds_get_log_mask() & DDS_LC_TRACE)
+  if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     char buf[DDSI_LOCSTRLEN];
-    DDS_TRACE(" %s", ddsi_locator_to_string (buf, sizeof(buf), loc));
+    GVTRACE (" %s", ddsi_locator_to_string (gv, buf, sizeof(buf), loc));
   }
 
-  if (config.xmit_lossiness > 0)
+  if (gv->config.xmit_lossiness > 0)
   {
     /* We drop APPROXIMATELY a fraction of xmit_lossiness * 10**(-3)
        of all packets to be sent */
-    if ((ddsrt_random () % 1000) < (uint32_t) config.xmit_lossiness)
+    if ((ddsrt_random () % 1000) < (uint32_t) gv->config.xmit_lossiness)
     {
-      DDS_TRACE("(dropped)");
+      GVTRACE ("(dropped)");
       xp->call_flags = 0;
       return 0;
     }
@@ -1285,7 +1069,7 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
   else
 #endif
   {
-    if (!gv.mute)
+    if (!gv->mute)
     {
       nbytes = ddsi_conn_write (xp->conn, loc, xp->niov, xp->iov, xp->call_flags);
 #ifndef NDEBUG
@@ -1300,7 +1084,7 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
     }
     else
     {
-      DDS_TRACE("(dropped)");
+      GVTRACE ("(dropped)");
       nbytes = (ssize_t) xp->msg_len.length;
     }
   }
@@ -1312,7 +1096,7 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
   if (nbytes > 0)
   {
-    nn_bw_limit_sleep_if_needed (&xp->limiter, nbytes);
+    nn_bw_limit_sleep_if_needed (gv, &xp->limiter, nbytes);
   }
 #endif
 
@@ -1346,11 +1130,12 @@ static void nn_xpack_send1_threaded (const nn_locator_t *loc, void * varg)
   arg->xp = (struct nn_xpack *) varg;
   arg->loc = loc;
   ddsrt_atomic_inc32 (&arg->xp->calls);
-  ddsrt_thread_pool_submit (gv.thread_pool, nn_xpack_send1_thread, arg);
+  ddsrt_thread_pool_submit (arg->xp->gv->thread_pool, nn_xpack_send1_thread, arg);
 }
 
-static void nn_xpack_send_real (struct nn_xpack * xp)
+static void nn_xpack_send_real (struct nn_xpack *xp)
 {
+  struct q_globals const * const gv = xp->gv;
   size_t calls;
 
   assert (xp->niov <= NN_XMSG_MAX_MESSAGE_IOVECS);
@@ -1362,17 +1147,17 @@ static void nn_xpack_send_real (struct nn_xpack * xp)
 
   assert (xp->dstmode != NN_XMSG_DST_UNSET);
 
-  if (dds_get_log_mask() & DDS_LC_TRACE)
+  if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     int i;
-    DDS_TRACE("nn_xpack_send %"PRIu32":", xp->msg_len.length);
+    GVTRACE ("nn_xpack_send %"PRIu32":", xp->msg_len.length);
     for (i = 0; i < (int) xp->niov; i++)
     {
-      DDS_TRACE(" %p:%lu", (void *) xp->iov[i].iov_base, (unsigned long) xp->iov[i].iov_len);
+      GVTRACE (" %p:%lu", (void *) xp->iov[i].iov_base, (unsigned long) xp->iov[i].iov_len);
     }
   }
 
-  DDS_TRACE(" [");
+  GVTRACE (" [");
   if (xp->dstmode == NN_XMSG_DST_ONE)
   {
     calls = 1;
@@ -1386,7 +1171,7 @@ static void nn_xpack_send_real (struct nn_xpack * xp)
     calls = 0;
     if (xp->dstaddr.all.as)
     {
-      if (gv.thread_pool == NULL)
+      if (xp->gv->thread_pool == NULL)
       {
         calls = addrset_forall_count (xp->dstaddr.all.as, nn_xpack_send1v, xp);
       }
@@ -1415,12 +1200,12 @@ static void nn_xpack_send_real (struct nn_xpack * xp)
       unref_addrset (xp->dstaddr.all.as_group);
     }
   }
-  DDS_TRACE(" ]\n");
+  GVTRACE (" ]\n");
   if (calls)
   {
-    DDS_LOG(DDS_LC_TRAFFIC, "traffic-xmit (%lu) %"PRIu32"\n", (unsigned long) calls, xp->msg_len.length);
+    GVLOG (DDS_LC_TRAFFIC, "traffic-xmit (%lu) %"PRIu32"\n", (unsigned long) calls, xp->msg_len.length);
   }
-  nn_xmsg_chain_release (&xp->included_msgs);
+  nn_xmsg_chain_release (xp->gv, &xp->included_msgs);
   nn_xpack_reinit (xp);
 }
 
@@ -1428,60 +1213,61 @@ static void nn_xpack_send_real (struct nn_xpack * xp)
 #define SENDQ_HW 10
 #define SENDQ_LW 0
 
-static uint32_t nn_xpack_sendq_thread (UNUSED_ARG (void *arg))
+static uint32_t nn_xpack_sendq_thread (void *vgv)
 {
-  ddsrt_mutex_lock (&gv.sendq_lock);
-  while (!(gv.sendq_stop && gv.sendq_head == NULL))
+  struct q_globals *gv = vgv;
+  ddsrt_mutex_lock (&gv->sendq_lock);
+  while (!(gv->sendq_stop && gv->sendq_head == NULL))
   {
     struct nn_xpack *xp;
-    if ((xp = gv.sendq_head) == NULL)
+    if ((xp = gv->sendq_head) == NULL)
     {
-      ddsrt_cond_waitfor (&gv.sendq_cond, &gv.sendq_lock, 1000000);
+      ddsrt_cond_waitfor (&gv->sendq_cond, &gv->sendq_lock, 1000000);
     }
     else
     {
-      gv.sendq_head = xp->sendq_next;
-      if (--gv.sendq_length == SENDQ_LW)
-        ddsrt_cond_broadcast (&gv.sendq_cond);
-      ddsrt_mutex_unlock (&gv.sendq_lock);
+      gv->sendq_head = xp->sendq_next;
+      if (--gv->sendq_length == SENDQ_LW)
+        ddsrt_cond_broadcast (&gv->sendq_cond);
+      ddsrt_mutex_unlock (&gv->sendq_lock);
       nn_xpack_send_real (xp);
       nn_xpack_free (xp);
-      ddsrt_mutex_lock (&gv.sendq_lock);
+      ddsrt_mutex_lock (&gv->sendq_lock);
     }
   }
-  ddsrt_mutex_unlock (&gv.sendq_lock);
+  ddsrt_mutex_unlock (&gv->sendq_lock);
   return 0;
 }
 
-void nn_xpack_sendq_init (void)
+void nn_xpack_sendq_init (struct q_globals *gv)
 {
-  gv.sendq_stop = 0;
-  gv.sendq_head = NULL;
-  gv.sendq_tail = NULL;
-  gv.sendq_length = 0;
-  ddsrt_mutex_init (&gv.sendq_lock);
-  ddsrt_cond_init (&gv.sendq_cond);
+  gv->sendq_stop = 0;
+  gv->sendq_head = NULL;
+  gv->sendq_tail = NULL;
+  gv->sendq_length = 0;
+  ddsrt_mutex_init (&gv->sendq_lock);
+  ddsrt_cond_init (&gv->sendq_cond);
 }
 
-void nn_xpack_sendq_start (void)
+void nn_xpack_sendq_start (struct q_globals *gv)
 {
-  create_thread (&gv.sendq_ts, "sendq", nn_xpack_sendq_thread, NULL);
+  create_thread (&gv->sendq_ts, gv, "sendq", nn_xpack_sendq_thread, NULL);
 }
 
-void nn_xpack_sendq_stop (void)
+void nn_xpack_sendq_stop (struct q_globals *gv)
 {
-  ddsrt_mutex_lock (&gv.sendq_lock);
-  gv.sendq_stop = 1;
-  ddsrt_cond_broadcast (&gv.sendq_cond);
-  ddsrt_mutex_unlock (&gv.sendq_lock);
+  ddsrt_mutex_lock (&gv->sendq_lock);
+  gv->sendq_stop = 1;
+  ddsrt_cond_broadcast (&gv->sendq_cond);
+  ddsrt_mutex_unlock (&gv->sendq_lock);
 }
 
-void nn_xpack_sendq_fini (void)
+void nn_xpack_sendq_fini (struct q_globals *gv)
 {
-  assert (gv.sendq_head == NULL);
-  join_thread(gv.sendq_ts);
-  ddsrt_cond_destroy(&gv.sendq_cond);
-  ddsrt_mutex_destroy(&gv.sendq_lock);
+  assert (gv->sendq_head == NULL);
+  join_thread (gv->sendq_ts);
+  ddsrt_cond_destroy (&gv->sendq_cond);
+  ddsrt_mutex_destroy (&gv->sendq_lock);
 }
 
 void nn_xpack_send (struct nn_xpack *xp, bool immediately)
@@ -1492,27 +1278,28 @@ void nn_xpack_send (struct nn_xpack *xp, bool immediately)
   }
   else
   {
+    struct q_globals * const gv = xp->gv;
     struct nn_xpack *xp1 = ddsrt_malloc (sizeof (*xp));
     memcpy (xp1, xp, sizeof (*xp1));
     nn_xpack_reinit (xp);
     xp1->sendq_next = NULL;
-    ddsrt_mutex_lock (&gv.sendq_lock);
-    if (immediately || gv.sendq_length == SENDQ_HW)
-      ddsrt_cond_broadcast (&gv.sendq_cond);
-    if (gv.sendq_length >= SENDQ_MAX)
+    ddsrt_mutex_lock (&gv->sendq_lock);
+    if (immediately || gv->sendq_length == SENDQ_HW)
+      ddsrt_cond_broadcast (&gv->sendq_cond);
+    if (gv->sendq_length >= SENDQ_MAX)
     {
-      while (gv.sendq_length > SENDQ_LW)
-        ddsrt_cond_wait (&gv.sendq_cond, &gv.sendq_lock);
+      while (gv->sendq_length > SENDQ_LW)
+        ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
     }
-    if (gv.sendq_head)
-      gv.sendq_tail->sendq_next = xp1;
+    if (gv->sendq_head)
+      gv->sendq_tail->sendq_next = xp1;
     else
     {
-      gv.sendq_head = xp1;
+      gv->sendq_head = xp1;
     }
-    gv.sendq_tail = xp1;
-    gv.sendq_length++;
-    ddsrt_mutex_unlock (&gv.sendq_lock);
+    gv->sendq_tail = xp1;
+    gv->sendq_length++;
+    ddsrt_mutex_unlock (&gv->sendq_lock);
   }
 }
 
@@ -1554,7 +1341,7 @@ static int addressing_info_eq_onesidederr (const struct nn_xpack *xp, const stru
 
 static int nn_xpack_mayaddmsg (const struct nn_xpack *xp, const struct nn_xmsg *m, const uint32_t flags)
 {
-  unsigned max_msg_size = config.max_msg_size;
+  unsigned max_msg_size = xp->gv->config.max_msg_size;
   unsigned payload_size;
 
   if (xp->niov == 0)
@@ -1606,7 +1393,7 @@ static int guid_prefix_eq (const nn_guid_prefix_t *a, const nn_guid_prefix_t *b)
 int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flags)
 {
   /* Returns > 0 if pack got sent out before adding m */
-
+  struct q_globals const * const gv = xp->gv;
   static InfoDST_t static_zero_dst = {
     { SMID_INFO_DST, (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0), sizeof (nn_guid_prefix_t) },
     { { 0,0,0,0, 0,0,0,0, 0,0,0,0 } }
@@ -1630,6 +1417,9 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   assert ((m->sz % 4) == 0);
   assert (m->refd_payload == NULL || (m->refd_payload_iov.iov_len % 4) == 0);
 
+  if (xp->iov == NULL)
+    xp->iov = malloc (NN_XMSG_MAX_MESSAGE_IOVECS * sizeof (*xp->iov));
+
   if (!nn_xpack_mayaddmsg (xp, m, flags))
   {
     assert (xp->niov > 0);
@@ -1647,22 +1437,22 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
      But do make sure we can't run out of iovecs. */
   assert (niov + NN_XMSG_MAX_SUBMESSAGE_IOVECS <= NN_XMSG_MAX_MESSAGE_IOVECS);
 
-  DDS_TRACE("xpack_addmsg %p %p %"PRIu32"(", (void *) xp, (void *) m, flags);
+  GVTRACE ("xpack_addmsg %p %p %"PRIu32"(", (void *) xp, (void *) m, flags);
   switch (m->kind)
   {
     case NN_XMSG_KIND_CONTROL:
-      DDS_TRACE("control");
+      GVTRACE ("control");
       break;
     case NN_XMSG_KIND_DATA:
     case NN_XMSG_KIND_DATA_REXMIT:
-      DDS_TRACE("%s("PGUIDFMT":#%"PRId64"/%u)",
-              (m->kind == NN_XMSG_KIND_DATA) ? "data" : "rexmit",
-              PGUID (m->kindspecific.data.wrguid),
-              m->kindspecific.data.wrseq,
-              m->kindspecific.data.wrfragid + 1);
+      GVTRACE ("%s("PGUIDFMT":#%"PRId64"/%u)",
+               (m->kind == NN_XMSG_KIND_DATA) ? "data" : "rexmit",
+               PGUID (m->kindspecific.data.wrguid),
+               m->kindspecific.data.wrseq,
+               m->kindspecific.data.wrfragid + 1);
       break;
   }
-  DDS_TRACE("): niov %d sz %"PRIuSIZE, (int) niov, sz);
+  GVTRACE ("): niov %d sz %"PRIuSIZE, (int) niov, sz);
 
   /* If a fresh xp has been provided, add an RTPS header */
 
@@ -1788,9 +1578,10 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   xp->msg_len.length = (uint32_t) sz;
   xp->niov = niov;
 
-  if (xpo_niov > 0 && sz > config.max_msg_size)
+  if (xpo_niov > 0 && sz > xp->gv->config.max_msg_size)
   {
-    DDS_TRACE(" => now niov %d sz %"PRIuSIZE" > max_msg_size %"PRIu32", nn_xpack_send niov %d sz %"PRIu32" now\n", (int) niov, sz, config.max_msg_size, (int) xpo_niov, xpo_sz);
+    GVTRACE (" => now niov %d sz %"PRIuSIZE" > max_msg_size %"PRIu32", nn_xpack_send niov %d sz %"PRIu32" now\n",
+             (int) niov, sz, gv->config.max_msg_size, (int) xpo_niov, xpo_sz);
     xp->msg_len.length = xpo_sz;
     xp->niov = xpo_niov;
     nn_xpack_send (xp, false);
@@ -1800,7 +1591,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   {
     xp->call_flags = flags;
     nn_xmsg_chain_add (&xp->included_msgs, m);
-    DDS_TRACE(" => now niov %d sz %"PRIuSIZE"\n", (int) niov, sz);
+    GVTRACE (" => now niov %d sz %"PRIuSIZE"\n", (int) niov, sz);
   }
 
   return result;

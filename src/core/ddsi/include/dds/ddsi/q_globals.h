@@ -24,7 +24,7 @@
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_sockwaitset.h"
-#include "dds/ddsi/ddsi_iid.h"
+#include "dds/ddsi/q_config.h"
 
 #ifdef DDSI_INCLUDE_ENCRYPTION
 #include "dds/ddsi/q_security.h" /* for q_securityDecoderSet */
@@ -64,9 +64,6 @@ enum recvips_mode {
   RECVIPS_MODE_SOME             /* explicit list of interfaces; only one requiring recvips */
 };
 
-#define N_LEASE_LOCKS_LG2 4
-#define N_LEASE_LOCKS ((int) (1 << N_LEASE_LOCKS_LG2))
-
 enum recv_thread_mode {
   RTM_SINGLE,
   RTM_MANY
@@ -75,6 +72,7 @@ enum recv_thread_mode {
 struct recv_thread_arg {
   enum recv_thread_mode mode;
   struct nn_rbufpool *rbpool;
+  struct q_globals *gv;
   union {
     struct {
       const nn_locator_t *loc;
@@ -86,14 +84,17 @@ struct recv_thread_arg {
   } u;
 };
 
+struct deleted_participants_admin;
+
 struct q_globals {
   volatile int terminate;
-  volatile int exception;
   volatile int deaf;
   volatile int mute;
 
+  struct ddsrt_log_cfg logconfig;
+  struct config config;
+
   struct ddsi_tkmap * m_tkmap;
-  struct ddsi_iid dds_iid;
 
   /* Hash tables for participants, readers, writers, proxy
      participants, proxy readers and proxy writers by GUID
@@ -105,16 +106,14 @@ struct q_globals {
 
   /* Queue for garbage collection requests */
   struct gcreq_queue *gcreq_queue;
-  struct ddsi_threadmon *threadmon;
 
   /* Lease junk */
   ddsrt_mutex_t leaseheap_lock;
-  ddsrt_mutex_t lease_locks[N_LEASE_LOCKS];
   ddsrt_fibheap_t leaseheap;
 
-  /* Transport factory */
-
-  struct ddsi_tran_factory * m_factory;
+  /* Transport factories & selected factory */
+  struct ddsi_tran_factory *ddsi_tran_factories;
+  struct ddsi_tran_factory *m_factory;
 
   /* Connections for multicast discovery & data, and those that correspond
      to the one DDSI participant index that the DDSI2 service uses. The
@@ -153,6 +152,9 @@ struct q_globals {
      of it pops up! */
   struct participant *privileged_pp;
   ddsrt_mutex_t privileged_pp_lock;
+
+  /* For tracking (recently) deleted participants */
+  struct deleted_participants_admin *deleted_participants;
 
   /* GUID to be used in next call to new_participant; also protected
      by privileged_pp_lock */
@@ -199,10 +201,6 @@ struct q_globals {
   struct addrset *as_disc;
   struct addrset *as_disc_group;
 
-  /* qoslock serializes QoS changes, probably not strictly necessary,
-     but a lot more straightforward that way */
-  ddsrt_rwlock_t qoslock;
-
   ddsrt_mutex_t lock;
 
   /* Receive thread. (We can only has one for now, cos of the signal
@@ -210,7 +208,7 @@ struct q_globals {
      it is only a global variable because it needs to be freed way later
      than the receive thread itself terminates */
 #define MAX_RECV_THREADS 3
-  unsigned n_recv_threads;
+  uint32_t n_recv_threads;
   struct recv_thread {
     const char *name;
     struct thread_state1 *ts;
@@ -221,7 +219,7 @@ struct q_globals {
   struct thread_state1 *listen_ts;
 
   /* Flag cleared when stopping (receive threads). FIXME. */
-  int rtps_keepgoing;
+  ddsrt_atomic_uint32_t rtps_keepgoing;
 
   /* Start time of the DDSI2 service, for logging relative time stamps,
      should I ever so desire. */
@@ -233,15 +231,16 @@ struct q_globals {
      packets); plus the actual QoSs needed for the builtin
      endpoints. */
   nn_plist_t default_plist_pp;
-  nn_xqos_t default_xqos_rd;
-  nn_xqos_t default_xqos_wr;
-  nn_xqos_t default_xqos_wr_nad;
-  nn_xqos_t default_xqos_tp;
-  nn_xqos_t default_xqos_sub;
-  nn_xqos_t default_xqos_pub;
-  nn_xqos_t spdp_endpoint_xqos;
-  nn_xqos_t builtin_endpoint_xqos_rd;
-  nn_xqos_t builtin_endpoint_xqos_wr;
+  nn_plist_t default_local_plist_pp;
+  dds_qos_t default_xqos_rd;
+  dds_qos_t default_xqos_wr;
+  dds_qos_t default_xqos_wr_nad;
+  dds_qos_t default_xqos_tp;
+  dds_qos_t default_xqos_sub;
+  dds_qos_t default_xqos_pub;
+  dds_qos_t spdp_endpoint_xqos;
+  dds_qos_t builtin_endpoint_xqos_rd;
+  dds_qos_t builtin_endpoint_xqos_wr;
 
   /* SPDP packets get very special treatment (they're the only packets
      we accept from writers we don't know) and have their very own
@@ -300,10 +299,10 @@ struct q_globals {
   FILE *pcap_fp;
   ddsrt_mutex_t pcap_lock;
 
+  struct ddsi_builtin_topic_interface *builtin_topic_interface;
+
   struct nn_group_membership *mship;
 };
-
-extern struct q_globals DDS_EXPORT gv;
 
 #if defined (__cplusplus)
 }

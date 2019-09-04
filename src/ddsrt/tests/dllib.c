@@ -13,12 +13,14 @@
 
 static int g_val = -1;
 
-LIB_TEST_EXPORT void set_int(int val)
+LIB_TEST_EXPORT void set_int(int val);
+void set_int(int val)
 {
   g_val = val;
 }
 
-LIB_TEST_EXPORT int get_int(void)
+LIB_TEST_EXPORT int get_int(void);
+int get_int(void)
 {
   return g_val;
 }

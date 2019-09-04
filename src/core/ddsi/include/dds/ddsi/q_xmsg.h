@@ -28,8 +28,6 @@ struct proxy_reader;
 struct proxy_writer;
 
 struct nn_prismtech_participant_version_info;
-struct nn_prismtech_writer_info;
-struct nn_prismtech_eotinfo;
 struct nn_xmsgpool;
 struct nn_xmsg_data;
 struct nn_xmsg;
@@ -64,8 +62,8 @@ void nn_xmsg_setdst1 (struct nn_xmsg *m, const nn_guid_prefix_t *gp, const nn_lo
 /* For sending to a particular proxy reader; this is a convenience
    routine that extracts a suitable address from the proxy reader's
    address sets and calls setdst1. */
-int nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd);
-int nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr);
+dds_return_t nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd);
+dds_return_t nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr);
 
 /* For sending to all in the address set AS -- typically, the writer's
    address set to multicast to all matched readers */
@@ -94,7 +92,7 @@ void nn_xmsg_set_data_readerId (struct nn_xmsg *m, nn_entityid_t *readerId);
    Returns 1 if merge was successful, else 0.  On failure, neither
    message will have been changed and both should be sent as if there
    had been no merging. */
-int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct nn_xmsg *m, const struct nn_xmsg *madd);
+int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct q_globals *gv, struct nn_xmsg *m, const struct nn_xmsg *madd);
 
 /* To set writer ids for updating last transmitted sequence number;
    wrfragid is 0 based, unlike DDSI but like other places where
@@ -121,21 +119,9 @@ void nn_xmsg_submsg_setnext (struct nn_xmsg *msg, struct nn_xmsg_marker marker);
 void nn_xmsg_submsg_init (struct nn_xmsg *msg, struct nn_xmsg_marker marker, SubmessageKind_t smkind);
 void nn_xmsg_add_timestamp (struct nn_xmsg *m, nn_wctime_t t);
 void nn_xmsg_add_entityid (struct nn_xmsg * m);
-void *nn_xmsg_addpar (struct nn_xmsg *m, unsigned pid, size_t len);
-void nn_xmsg_addpar_string (struct nn_xmsg *m, unsigned pid, const char *str);
-void nn_xmsg_addpar_octetseq (struct nn_xmsg *m, unsigned pid, const nn_octetseq_t *oseq);
-void nn_xmsg_addpar_stringseq (struct nn_xmsg *m, unsigned pid, const nn_stringseq_t *sseq);
-void nn_xmsg_addpar_guid (struct nn_xmsg *m, unsigned pid, const nn_guid_t *guid);
-void nn_xmsg_addpar_BE4u (struct nn_xmsg *m, unsigned pid, unsigned x);
-void nn_xmsg_addpar_4u (struct nn_xmsg *m, unsigned pid, unsigned x);
+void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len);
 void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serdata);
 void nn_xmsg_addpar_statusinfo (struct nn_xmsg *m, unsigned statusinfo);
-void nn_xmsg_addpar_reliability (struct nn_xmsg *m, unsigned pid, const struct nn_reliability_qospolicy *rq);
-void nn_xmsg_addpar_share (struct nn_xmsg *m, unsigned pid, const struct nn_share_qospolicy *rq);
-void nn_xmsg_addpar_subscription_keys (struct nn_xmsg *m, unsigned pid, const struct nn_subscription_keys_qospolicy *rq);
-
-void nn_xmsg_addpar_parvinfo (struct nn_xmsg *m, unsigned pid, const struct nn_prismtech_participant_version_info *pvi);
-void nn_xmsg_addpar_eotinfo (struct nn_xmsg *m, unsigned pid, const struct nn_prismtech_eotinfo *txnid);
 void nn_xmsg_addpar_sentinel (struct nn_xmsg *m);
 int nn_xmsg_addpar_sentinel_ifparam (struct nn_xmsg *m);
 
@@ -149,10 +135,10 @@ int64_t nn_xpack_maxdelay (const struct nn_xpack *xp);
 unsigned nn_xpack_packetid (const struct nn_xpack *xp);
 
 /* SENDQ */
-void nn_xpack_sendq_init (void);
-void nn_xpack_sendq_start (void);
-void nn_xpack_sendq_stop (void);
-void nn_xpack_sendq_fini (void);
+void nn_xpack_sendq_init (struct q_globals *gv);
+void nn_xpack_sendq_start (struct q_globals *gv);
+void nn_xpack_sendq_stop (struct q_globals *gv);
+void nn_xpack_sendq_fini (struct q_globals *gv);
 
 #if defined (__cplusplus)
 }

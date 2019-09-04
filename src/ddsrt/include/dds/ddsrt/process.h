@@ -17,19 +17,30 @@
 #include "dds/ddsrt/types.h"
 #include "dds/ddsrt/retcode.h"
 
-#if defined(_WIN32)
+#if DDSRT_WITH_FREERTOS
+#include <FreeRTOS.h>
+#include <task.h>
+typedef TaskHandle_t ddsrt_pid_t; /* typedef void *TaskHandle_t */
+#define PRIdPID "p"
+#define DDSRT_HAVE_MULTI_PROCESS 0
+/* DDSRT_WITH_FREERTOS */
+#elif defined(_WIN32)
 typedef DWORD ddsrt_pid_t;
 #define PRIdPID "u"
-#else /* _WIN32 */
+#define DDSRT_HAVE_MULTI_PROCESS 1
+/* _WIN32 */
+#else
 #include <unistd.h>
 #if defined(_WRS_KERNEL)
 typedef RTP_ID ddsrt_pid_t; /* typedef struct wind_rtp *RTP_ID */
 #define PRIdPID PRIuPTR
+#define DDSRT_HAVE_MULTI_PROCESS 0
 #else
 typedef pid_t ddsrt_pid_t;
 #define PRIdPID "d"
+#define DDSRT_HAVE_MULTI_PROCESS 1
 #endif
-#endif /* _WIN32 */
+#endif
 
 
 #if defined (__cplusplus)
@@ -44,6 +55,7 @@ extern "C" {
 DDS_EXPORT ddsrt_pid_t
 ddsrt_getpid(void);
 
+#if DDSRT_HAVE_MULTI_PROCESS
 
 /**
  * @brief Create new process.
@@ -60,7 +72,7 @@ ddsrt_getpid(void);
  * @param[in]   argv           Arguments array.
  * @param[out]  pid            ID of the created process.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Process successfully created.
@@ -73,7 +85,7 @@ ddsrt_getpid(void);
  * @retval DDS_RETCODE_ERROR
  *             Process could not be created.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_proc_create(
   const char *executable,
   char *const argv[],
@@ -94,10 +106,10 @@ ddsrt_proc_create(
  * See ddsrt_proc_waitpids() for waiting on all child processes.
  *
  * @param[in]   pid            Process ID (PID) to get the exit code from.
- * @param[in]   timemout       Time within the process is expected to finish.
+ * @param[in]   timeout        Time within the process is expected to finish.
  * @param[out]  code           The exit code of the process.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Process has terminated and its exit code has been captured.
@@ -112,7 +124,7 @@ ddsrt_proc_create(
  * @retval DDS_RETCODE_ERROR
  *             Getting the exit code failed for an unknown reason.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_proc_waitpid(
   ddsrt_pid_t pid,
   dds_duration_t timeout,
@@ -133,11 +145,11 @@ ddsrt_proc_waitpid(
  *
  * See ddsrt_proc_waitpid() for waiting on a specific child process.
  *
- * @param[in]   timemout       Time within a process is expected to finish.
+ * @param[in]   timeout        Time within a process is expected to finish.
  * @param[out]  pid            Process ID (PID) of the finished process.
  * @param[out]  code           The exit code of the process.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             A process has terminated.
@@ -153,7 +165,7 @@ ddsrt_proc_waitpid(
  * @retval DDS_RETCODE_ERROR
  *             Getting the exit code failed for an unknown reason.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_proc_waitpids(
   dds_duration_t timeout,
   ddsrt_pid_t *pid,
@@ -164,7 +176,7 @@ ddsrt_proc_waitpids(
  *
  * @param[in]   pid            Process ID (PID) to check if it exists.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             The process exists.
@@ -173,7 +185,7 @@ ddsrt_proc_waitpids(
  * @retval DDS_RETCODE_ERROR
  *             Determining if a process exists or not, failed.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_proc_exists(
   ddsrt_pid_t pid);
 
@@ -190,7 +202,7 @@ ddsrt_proc_exists(
  *
  * @param[in]   pid       Process ID (PID) of the process to terminate.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Kill attempt has been started.
@@ -201,10 +213,11 @@ ddsrt_proc_exists(
  * @retval DDS_RETCODE_ERROR
  *             Kill failed for an unknown reason.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_proc_kill(
   ddsrt_pid_t pid);
 
+#endif /* DDSRT_HAVE_MULTI_PROCESS */
 
 #if defined (__cplusplus)
 }

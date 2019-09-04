@@ -14,7 +14,6 @@
 #include "dds/ddsi/q_security.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_error.h"
 #include "os/os_stdlib.h"
 #include "os/os_process.h"
 #include "os/os_thread.h"
@@ -1657,16 +1656,15 @@ static os_ssize_t q_security_sendmsg
   char stbuf[2048], *buf;
   size_t sz, data_size;
   uint32_t sz32, data_size32;
-  ssize_t ret = Q_ERR_UNSPECIFIED;
+  ssize_t ret = DDS_RETCODE_ERROR;
   PT_InfoContainer_t * securityHeader;
-  unsigned i;
 
   assert (niov > 2);
   securityHeader = iov[1].iov_base;
   /* first determine the size of the message, then select the
      on-stack buffer or allocate one on the heap ... */
   sz = q_securityEncoderSetHeaderSize (*codec); /* reserve appropriate headersize */
-  for (i = 2; i < niov; i++)
+  for (uint32_t i = 2; i < niov; i++)
   {
     sz += iov[i].iov_len;
   }
@@ -1680,7 +1678,7 @@ static os_ssize_t q_security_sendmsg
   }
   /* ... then copy data into buffer */
   data_size = 0;
-  for (i = 2; i < niov; i++)
+  for (uint32_t i = 2; i < niov; i++)
   {
     memcpy (buf + data_size, iov[i].iov_base, iov[i].iov_len);
     data_size += iov[i].iov_len;

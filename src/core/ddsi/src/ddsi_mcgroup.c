@@ -136,14 +136,14 @@ static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn,
   int n;
 #ifdef DDSI_INCLUDE_SSM
   if (srcloc) {
-    ddsi_locator_to_string_no_port(srcstr, sizeof(srcstr), srcloc);
+    ddsi_locator_to_string_no_port(conn->m_base.gv, srcstr, sizeof(srcstr), srcloc);
   }
 #else
   DDSRT_UNUSED_ARG (srcloc);
 #endif
-  ddsi_locator_to_string_no_port (mcstr, sizeof(mcstr), mcloc);
+  ddsi_locator_to_string_no_port (conn->m_base.gv, mcstr, sizeof(mcstr), mcloc);
   if (interf)
-    ddsi_locator_to_string_no_port(interfstr, sizeof(interfstr), &interf->loc);
+    ddsi_locator_to_string_no_port(conn->m_base.gv, interfstr, sizeof(interfstr), &interf->loc);
   else
     (void) snprintf (interfstr, sizeof (interfstr), "(default)");
   n = err ? snprintf (buf, bufsz, "error %d in ", err) : 0;
@@ -156,20 +156,20 @@ static int joinleave_mcgroup (ddsi_tran_conn_t conn, int join, const nn_locator_
 {
   char buf[256];
   int err;
-  DDS_TRACE("%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, 0));
+  DDS_CTRACE(&conn->m_base.gv->logconfig, "%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, 0));
   if (join)
     err = ddsi_conn_join_mc(conn, srcloc, mcloc, interf);
   else
     err = ddsi_conn_leave_mc(conn, srcloc, mcloc, interf);
   if (err)
-    DDS_WARNING("%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, err));
+    DDS_CWARNING(&conn->m_base.gv->logconfig, "%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, err));
   return err ? -1 : 0;
 }
 
-static int interface_in_recvips_p (const struct nn_interface *interf)
+static int interface_in_recvips_p (const struct config_in_addr_node *recvips, const struct nn_interface *interf)
 {
-  struct config_in_addr_node *nodeaddr;
-  for (nodeaddr = gv.recvips; nodeaddr; nodeaddr = nodeaddr->next)
+  const struct config_in_addr_node *nodeaddr;
+  for (nodeaddr = recvips; nodeaddr; nodeaddr = nodeaddr->next)
   {
     if (locator_compare_no_port(&nodeaddr->loc, &interf->loc) == 0)
       return 1;
@@ -177,10 +177,10 @@ static int interface_in_recvips_p (const struct nn_interface *interf)
   return 0;
 }
 
-static int joinleave_mcgroups (ddsi_tran_conn_t conn, int join, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
+static int joinleave_mcgroups (const struct q_globals *gv, ddsi_tran_conn_t conn, int join, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
 {
   int rc;
-  switch (gv.recvips_mode)
+  switch (gv->recvips_mode)
   {
     case RECVIPS_MODE_NONE:
       break;
@@ -190,20 +190,20 @@ static int joinleave_mcgroups (ddsi_tran_conn_t conn, int join, const nn_locator
         return rc;
       break;
     case RECVIPS_MODE_PREFERRED:
-      if (gv.interfaces[gv.selected_interface].mc_capable)
-        return joinleave_mcgroup (conn, join, srcloc, mcloc, &gv.interfaces[gv.selected_interface]);
+      if (gv->interfaces[gv->selected_interface].mc_capable)
+        return joinleave_mcgroup (conn, join, srcloc, mcloc, &gv->interfaces[gv->selected_interface]);
       return 0;
     case RECVIPS_MODE_ALL:
     case RECVIPS_MODE_SOME:
     {
       int i, fails = 0, oks = 0;
-      for (i = 0; i < gv.n_interfaces; i++)
+      for (i = 0; i < gv->n_interfaces; i++)
       {
-        if (gv.interfaces[i].mc_capable)
+        if (gv->interfaces[i].mc_capable)
         {
-          if (gv.recvips_mode == RECVIPS_MODE_ALL || interface_in_recvips_p (&gv.interfaces[i]))
+          if (gv->recvips_mode == RECVIPS_MODE_ALL || interface_in_recvips_p (gv->recvips, &gv->interfaces[i]))
           {
-            if ((rc = joinleave_mcgroup (conn, join, srcloc, mcloc, &gv.interfaces[i])) < 0)
+            if ((rc = joinleave_mcgroup (conn, join, srcloc, mcloc, &gv->interfaces[i])) < 0)
               fails++;
             else
               oks++;
@@ -213,7 +213,7 @@ static int joinleave_mcgroups (ddsi_tran_conn_t conn, int join, const nn_locator
       if (fails > 0)
       {
         if (oks > 0)
-          DDS_TRACE("multicast join failed for some but not all interfaces, proceeding\n");
+          GVTRACE("multicast join failed for some but not all interfaces, proceeding\n");
         else
           return -2;
       }
@@ -223,43 +223,44 @@ static int joinleave_mcgroups (ddsi_tran_conn_t conn, int join, const nn_locator
   return 0;
 }
 
-int ddsi_join_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
+int ddsi_join_mc (const struct q_globals *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
 {
+  /* FIXME: gv to be reduced; perhaps mship, recvips, interfaces, ownloc should be combined into a single struct */
   int ret;
-  ddsrt_mutex_lock (&gv.mship->lock);
-  if (!reg_group_membership (gv.mship, conn, srcloc, mcloc))
+  ddsrt_mutex_lock (&mship->lock);
+  if (!reg_group_membership (mship, conn, srcloc, mcloc))
   {
     char buf[256];
-    DDS_TRACE("%s: already joined\n", make_joinleave_msg (buf, sizeof(buf), conn, 1, srcloc, mcloc, NULL, 0));
+    GVTRACE("%s: already joined\n", make_joinleave_msg (buf, sizeof(buf), conn, 1, srcloc, mcloc, NULL, 0));
     ret = 0;
   }
   else
   {
-    ret = joinleave_mcgroups (conn, 1, srcloc, mcloc);
+    ret = joinleave_mcgroups (gv, conn, 1, srcloc, mcloc);
   }
-  ddsrt_mutex_unlock (&gv.mship->lock);
+  ddsrt_mutex_unlock (&mship->lock);
   return ret;
 }
 
-int ddsi_leave_mc (ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
+int ddsi_leave_mc (const struct q_globals *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
 {
   int ret;
-  ddsrt_mutex_lock (&gv.mship->lock);
-  if (!unreg_group_membership (gv.mship, conn, srcloc, mcloc))
+  ddsrt_mutex_lock (&mship->lock);
+  if (!unreg_group_membership (mship, conn, srcloc, mcloc))
   {
     char buf[256];
-    DDS_TRACE("%s: not leaving yet\n", make_joinleave_msg (buf, sizeof(buf), conn, 0, srcloc, mcloc, NULL, 0));
+    GVTRACE("%s: not leaving yet\n", make_joinleave_msg (buf, sizeof(buf), conn, 0, srcloc, mcloc, NULL, 0));
     ret = 0;
   }
   else
   {
-    ret = joinleave_mcgroups (conn, 0, srcloc, mcloc);
+    ret = joinleave_mcgroups (gv, conn, 0, srcloc, mcloc);
   }
-  ddsrt_mutex_unlock (&gv.mship->lock);
+  ddsrt_mutex_unlock (&mship->lock);
   return ret;
 }
 
-void ddsi_transfer_group_membership (ddsi_tran_conn_t conn, ddsi_tran_conn_t newconn)
+void ddsi_transfer_group_membership (struct nn_group_membership *mship, ddsi_tran_conn_t conn, ddsi_tran_conn_t newconn)
 {
   struct nn_group_membership_node *n, min, max;
   memset(&min, 0, sizeof(min));
@@ -268,34 +269,35 @@ void ddsi_transfer_group_membership (ddsi_tran_conn_t conn, ddsi_tran_conn_t new
   /* ordering is on socket, then src IP, then mc IP; IP compare checks family first and AF_INET, AF_INET6
    are neither 0 nor maximum representable, min and max define the range of key values that relate to
    oldsock */
-  ddsrt_mutex_lock (&gv.mship->lock);
-  n = ddsrt_avl_lookup_succ_eq (&mship_td, &gv.mship->mships, &min);
+  ddsrt_mutex_lock (&mship->lock);
+  n = ddsrt_avl_lookup_succ_eq (&mship_td, &mship->mships, &min);
   while (n != NULL && cmp_group_membership (n, &max) <= 0)
   {
-    struct nn_group_membership_node * const nn = ddsrt_avl_find_succ (&mship_td, &gv.mship->mships, n);
-    ddsrt_avl_delete (&mship_td, &gv.mship->mships, n);
+    struct nn_group_membership_node * const nn = ddsrt_avl_find_succ (&mship_td, &mship->mships, n);
+    ddsrt_avl_delete (&mship_td, &mship->mships, n);
     n->conn = newconn;
-    ddsrt_avl_insert (&mship_td, &gv.mship->mships, n);
+    ddsrt_avl_insert (&mship_td, &mship->mships, n);
     n = nn;
   }
-  ddsrt_mutex_unlock (&gv.mship->lock);
+  ddsrt_mutex_unlock (&mship->lock);
 }
 
-int ddsi_rejoin_transferred_mcgroups (ddsi_tran_conn_t conn)
+int ddsi_rejoin_transferred_mcgroups (const struct q_globals *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn)
 {
+  /* FIXME: see gv should be reduced; perhaps recvips, ownloc, mship, interfaces should be a single struct */
   struct nn_group_membership_node *n, min, max;
   ddsrt_avl_iter_t it;
   int ret = 0;
   memset(&min, 0, sizeof(min));
   memset(&max, 0xff, sizeof(max));
   min.conn = max.conn = conn;
-  ddsrt_mutex_lock (&gv.mship->lock);
-  for (n = ddsrt_avl_iter_succ_eq (&mship_td, &gv.mship->mships, &it, &min); n != NULL && ret >= 0 && cmp_group_membership(n, &max) <= 0; n = ddsrt_avl_iter_next (&it))
+  ddsrt_mutex_lock (&mship->lock);
+  for (n = ddsrt_avl_iter_succ_eq (&mship_td, &mship->mships, &it, &min); n != NULL && ret >= 0 && cmp_group_membership(n, &max) <= 0; n = ddsrt_avl_iter_next (&it))
   {
     int have_srcloc = (memcmp(&n->srcloc, &min.srcloc, sizeof(n->srcloc)) != 0);
     assert (n->conn == conn);
-    ret = joinleave_mcgroups (conn, 1, have_srcloc ? &n->srcloc : NULL, &n->mcloc);
+    ret = joinleave_mcgroups (gv, conn, 1, have_srcloc ? &n->srcloc : NULL, &n->mcloc);
   }
-  ddsrt_mutex_unlock (&gv.mship->lock);
+  ddsrt_mutex_unlock (&mship->lock);
   return ret;
 }

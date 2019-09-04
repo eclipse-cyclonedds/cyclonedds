@@ -18,9 +18,7 @@
 #include "dds/ddsi/q_security.h"
 #endif /* DDSI_INCLUDE_ENCRYPTION */
 #include "dds/ddsi/q_xqos.h"
-#include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/q_feature_check.h"
-#include "dds/ddsi/ddsi_rhc_plugin.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -38,8 +36,8 @@ enum nn_standards_conformance {
   NN_SC_LAX
 };
 
-#define NN_PEDANTIC_P (config.standards_conformance <= NN_SC_PEDANTIC)
-#define NN_STRICT_P (config.standards_conformance <= NN_SC_STRICT)
+#define NN_PEDANTIC_P(config) ((config).standards_conformance <= NN_SC_PEDANTIC)
+#define NN_STRICT_P(config) ((config).standards_conformance <= NN_SC_STRICT)
 
 enum besmode {
   BESMODE_FULL,
@@ -184,7 +182,7 @@ struct prune_deleted_ppant {
   int enforce_delay;
 };
 
-/* allow multicast bits: */
+/* allow multicast bits (default depends on network type): */
 #define AMC_FALSE 0u
 #define AMC_SPDP 1u
 #define AMC_ASM 2u
@@ -194,6 +192,7 @@ struct prune_deleted_ppant {
 #else
 #define AMC_TRUE (AMC_SPDP | AMC_ASM)
 #endif
+#define AMC_DEFAULT 0x80000000u
 
 /* FIXME: this should be fully dynamic ... but this is easier for a quick hack */
 enum transport_selector {
@@ -225,7 +224,7 @@ struct ssl_min_version {
 struct config
 {
   int valid;
-  uint32_t enabled_logcats;
+  uint32_t tracemask;
   uint32_t enabled_xchecks;
   char *servicename;
   char *pcap_file;
@@ -234,20 +233,21 @@ struct config
   char **networkRecvAddressStrings;
   char *externalAddressString;
   char *externalMaskString;
-  FILE *tracingOutputFile;
-  char *tracingOutputFileName;
+  FILE *tracefp;
+  char *tracefile;
   int tracingTimestamps;
   int tracingAppendToFile;
-  unsigned allowMulticast;
+  uint32_t allowMulticast;
+  int prefer_multicast;
   enum transport_selector transport_selector;
   enum boolean_default compat_use_ipv6;
   enum boolean_default compat_tcp_enable;
   int dontRoute;
   int enableMulticastLoopback;
-  struct config_maybe_int32 domainId;
+  uint32_t domainId;
   int participantIndex;
   int maxAutoParticipantIndex;
-  int port_base;
+  uint32_t port_base;
   char *spdpMulticastAddressString;
   char *defaultMulticastAddressString;
   char *assumeMulticastCapable;
@@ -329,7 +329,6 @@ struct config
   uint32_t rmsg_chunk_size;          /**<< size of a chunk in the receive buffer */
   uint32_t rbuf_size;                /* << size of a single receiver buffer */
   enum besmode besmode;
-  int conservative_builtin_reader_startup;
   int meas_hb_to_ack_latency;
   int unicast_response_to_spdp_messages;
   int synchronous_delivery_priority_threshold;
@@ -372,15 +371,14 @@ struct config
   enum nn_standards_conformance standards_conformance;
   int explicitly_publish_qos_set_to_default;
   enum many_sockets_mode many_sockets_mode;
-  int arrival_of_data_asserts_pp_and_ep_liveliness;
   int assume_rti_has_pmd_endpoints;
 
-  int port_dg;
-  int port_pg;
-  int port_d0;
-  int port_d1;
-  int port_d2;
-  int port_d3;
+  uint32_t port_dg;
+  uint32_t port_pg;
+  uint32_t port_d0;
+  uint32_t port_d1;
+  uint32_t port_d2;
+  uint32_t port_d3;
 
   int monitor_port;
 
@@ -393,35 +391,20 @@ struct config
   struct prune_deleted_ppant prune_deleted_ppant;
 };
 
-struct ddsi_plugin
-{
-  int (*init_fn) (void);
-  void (*fini_fn) (void);
-
-  bool (*builtintopic_is_visible) (nn_entityid_t entityid, bool onlylocal, nn_vendorid_t vendorid);
-  struct ddsi_tkmap_instance * (*builtintopic_get_tkmap_entry) (const struct nn_guid *guid);
-  void (*builtintopic_write) (const struct entity_common *e, nn_wctime_t timestamp, bool alive);
-
-  /* Read cache */
-  struct ddsi_rhc_plugin rhc_plugin;
-};
-
-extern struct config DDS_EXPORT config;
-extern struct ddsi_plugin ddsi_plugin;
-
 struct cfgst;
 
-struct cfgst *config_init (const char *configfile);
-void config_print_cfgst (struct cfgst *cfgst);
+struct cfgst *config_init (const char *configfile, struct config *cfg, uint32_t domid);
+void config_print_cfgst (struct cfgst *cfgst, const struct ddsrt_log_cfg *logcfg);
+void config_free_source_info (struct cfgst *cfgst);
 void config_fini (struct cfgst *cfgst);
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
-struct config_partitionmapping_listelem *find_partitionmapping (const char *partition, const char *topic);
-struct config_networkpartition_listelem *find_networkpartition_by_id (uint32_t id);
-int is_ignored_partition (const char *partition, const char *topic);
+struct config_partitionmapping_listelem *find_partitionmapping (const struct config *cfg, const char *partition, const char *topic);
+struct config_networkpartition_listelem *find_networkpartition_by_id (const struct config *cfg, uint32_t id);
+int is_ignored_partition (const struct config *cfg, const char *partition, const char *topic);
 #endif
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-struct config_channel_listelem *find_channel (nn_transport_priority_qospolicy_t transport_priority);
+struct config_channel_listelem *find_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority);
 #endif
 
 #if defined (__cplusplus)

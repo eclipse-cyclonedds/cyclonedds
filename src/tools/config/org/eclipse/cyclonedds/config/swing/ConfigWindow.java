@@ -614,14 +614,8 @@ public class ConfigWindow extends MainWindow implements DataConfigurationListene
             try {
                 List<URL> imgUrls = new ArrayList<URL>(4);
                 // Expected location of the icons in tuner jar
-                URL url = getClass().getResource("/resources/ptlogoc16.png");
-                imgUrls.add(url != null ? url : getClass().getResource("/ptlogoc16.png"));
-                url = getClass().getResource("/resources/ptlogoc24.png");
-                imgUrls.add(url != null ? url : getClass().getResource("/ptlogoc24.png"));
-                url = getClass().getResource("/resources/ptlogoc32.png");
-                imgUrls.add(url != null ? url : getClass().getResource("/ptlogoc32.png"));
-                url = getClass().getResource("/resources/ptlogoc48.png");
-                imgUrls.add(url != null ? url : getClass().getResource("/ptlogoc48.png"));
+                //URL url = getClass().getResource("/resources/LOGO.png");
+                //imgUrls.add(url != null ? url : getClass().getResource("/ptlogoc16.png"));
 
                 appLogos = new ArrayList<Image>(4);
                 for (URL imgUrl : imgUrls) {

@@ -3,6 +3,10 @@
 
 #include <stdbool.h>
 
+#if !defined(DDSRT_WITH_DNS)
+# define DDSRT_WITH_DNS 1
+#endif
+
 #include "dds/export.h"
 #include "dds/ddsrt/types.h"
 #include "dds/ddsrt/attributes.h"
@@ -28,53 +32,53 @@ extern const struct in6_addr ddsrt_in6addr_loopback;
 
 #define DDSRT_AF_TERM (-1)
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_gethostname(
   char *hostname,
   size_t buffersize);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_socket(
   ddsrt_socket_t *sockptr,
   int domain,
   int type,
   int protocol);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_close(
   ddsrt_socket_t sock);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_connect(
   ddsrt_socket_t sock,
   const struct sockaddr *addr,
   socklen_t addrlen);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_accept(
   ddsrt_socket_t sock,
   struct sockaddr *addr,
   socklen_t *addrlen,
   ddsrt_socket_t *connptr);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_listen(
   ddsrt_socket_t sock,
   int backlog);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_bind(
   ddsrt_socket_t sock,
   const struct sockaddr *addr,
   socklen_t addrlen);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_getsockname(
   ddsrt_socket_t sock,
   struct sockaddr *addr,
   socklen_t *addrlen);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_send(
   ddsrt_socket_t sock,
   const void *buf,
@@ -82,14 +86,14 @@ ddsrt_send(
   int flags,
   ssize_t *sent);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_sendmsg(
   ddsrt_socket_t sock,
   const ddsrt_msghdr_t *msg,
   int flags,
   ssize_t *sent);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_recv(
   ddsrt_socket_t sock,
   void *buf,
@@ -97,14 +101,14 @@ ddsrt_recv(
   int flags,
   ssize_t *rcvd);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_recvmsg(
   ddsrt_socket_t sock,
   ddsrt_msghdr_t *msg,
   int flags,
   ssize_t *rcvd);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_getsockopt(
   ddsrt_socket_t sock,
   int32_t level, /* SOL_SOCKET */
@@ -112,7 +116,7 @@ ddsrt_getsockopt(
   void *optval,
   socklen_t *optlen);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_setsockopt(
   ddsrt_socket_t sock,
   int32_t level, /* SOL_SOCKET */
@@ -126,7 +130,7 @@ ddsrt_setsockopt(
  * @param[in]  sock      Socket to set I/O mode for.
  * @param[in]  nonblock  true for nonblocking, or false for blocking I/O.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             I/O mode successfully set to (non)blocking.
@@ -137,7 +141,7 @@ ddsrt_setsockopt(
  * @retval DDS_RETCODE_ERROR
  *             An unknown error error occurred.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_setsocknonblocking(
   ddsrt_socket_t sock,
   bool nonblock);
@@ -224,11 +228,11 @@ ddsrt_sockaddr_insamesubnet(
   const struct sockaddr *mask)
 ddsrt_nonnull_all;
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_sockaddrfromstr(
   int af, const char *str, void *sa);
 
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_sockaddrtostr(
   const void *sa, char *buf, size_t size);
 
@@ -243,9 +247,9 @@ typedef struct {
  *
  * @param[in]   name  Host name to resolve.
  * @param[in]   af    Address family, either AF_INET, AF_INET6 or AF_UNSPEC.
- * @param[out]  hent  Structure of type ddsrt_hostent_t.
+ * @param[out]  hentp Structure of type ddsrt_hostent_t.
  *
- * @returns A dds_retcode_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             Host name successfully resolved to address(es).
@@ -258,7 +262,7 @@ typedef struct {
  * @retval DDS_RETCODE_TRY_AGAIN
  *             Nonauthoratitative host not found.
  */
-DDS_EXPORT dds_retcode_t
+DDS_EXPORT dds_return_t
 ddsrt_gethostbyname(
   const char *name,
   int af,

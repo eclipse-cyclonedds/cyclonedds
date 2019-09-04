@@ -18,8 +18,12 @@
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/attributes.h"
 
-#if _WIN32
+#if DDSRT_WITH_FREERTOS
+#include "dds/ddsrt/sync/freertos.h"
+#elif _WIN32
 #include "dds/ddsrt/sync/windows.h"
+#elif __SunOS_5_6
+#include "dds/ddsrt/sync/solaris2.6.h"
 #else
 #include "dds/ddsrt/sync/posix.h"
 #endif

@@ -5,7 +5,6 @@
 #include "mpt/mpt.h"
 
 #include "dds/dds.h"
-#include "helloworlddata.h"
 
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/strtol.h"
@@ -14,6 +13,8 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/sync.h"
 
+#include "hello.h"
+#include "helloworlddata.h"
 
 /* An array of one message (aka sample in dds terms) will be used. */
 #define MAX_SAMPLES 1
@@ -173,13 +174,7 @@ MPT_ProcessEntry(hello_subscriber,
 
   printf("--- [Subscriber(%d)] Start(%d) ...\n", id, domainid);
 
-  /*
-   * A reliable volatile sample, written after publication matched, can still
-   * be lost when the subscriber wasn't able to match its subscription yet.
-   * Use transient_local reliable to make sure the sample is received.
-   */
   qos = dds_create_qos();
-  dds_qset_durability(qos, DDS_DURABILITY_TRANSIENT_LOCAL);
   dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
 
   /* Use listener to get data available trigger. */
@@ -206,8 +201,7 @@ MPT_ProcessEntry(hello_subscriber,
   ddsrt_mutex_lock(&g_mutex);
   recv_cnt = 0;
   while (recv_cnt < sample_cnt) {
-    /* Use a take with mask to work around the #146 issue. */
-    rc = dds_take_mask(reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES, DDS_NEW_VIEW_STATE);
+    rc = dds_take(reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
     MPT_ASSERT_GEQ(rc, 0, "Could not read: %s\n", dds_strretcode(-rc));
 
     /* Check if we read some data and it is valid. */

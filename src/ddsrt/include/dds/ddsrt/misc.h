@@ -18,28 +18,44 @@
 extern "C" {
 #endif
 
-#if defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 402
-# define DDSRT_GNUC_STR(s) #s
-# define DDSRT_GNUC_JOINSTR(x,y) DDSRT_GNUC_STR(x ## y)
-# define DDSRT_GNUC_DO_PRAGMA(x) _Pragma (#x)
-# define DDSRT_GNUC_PRAGMA(x) DDSRT_GNUC_DO_PRAGMA(GCC diagnostic x)
-# if ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406
+#if defined(__clang__) || \
+    defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 402
+# define DDSRT_STR(s) #s
+# define DDSRT_JOINSTR(x,y) DDSRT_STR(x ## y)
+# define DDSRT_DO_PRAGMA(x) _Pragma(#x)
+# define DDSRT_PRAGMA(x) DDSRT_DO_PRAGMA(GCC diagnostic x)
+
+# if defined(__clang__)
+#   define DDSRT_WARNING_CLANG_OFF(x) \
+      DDSRT_PRAGMA(push) \
+      DDSRT_PRAGMA(ignored DDSRT_JOINSTR(-W,x))
+#   define DDSRT_WARNING_CLANG_ON(x) \
+      DDSRT_PRAGMA(pop)
+# elif ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406
 #   define DDSRT_WARNING_GNUC_OFF(x) \
-      DDSRT_GNUC_PRAGMA(push) \
-      DDSRT_GNUC_PRAGMA(ignored DDSRT_GNUC_JOINSTR(-W,x))
+      DDSRT_PRAGMA(push) \
+      DDSRT_PRAGMA(ignored DDSRT_JOINSTR(-W,x))
 #   define DDSRT_WARNING_GNUC_ON(x) \
-      DDSRT_GNUC_PRAGMA(pop)
+      DDSRT_PRAGMA(pop)
 # else
 #   define DDSRT_WARNING_GNUC_OFF(x) \
-      DDSRT_GNUC_PRAGMA(ignored DDSRT_GNUC_JOINSTR(-W,x))
+      DDSRT_PRAGMA(ignored DDSRT_JOINSTR(-W,x))
 #   define DDSRT_WARNING_GNUC_ON(x) \
-      DDSRT_GNUC_PRAGMA(warning DDSRT_GNUC_JOINSTR(-W,x))
+      DDSRT_PRAGMA(warning DDSRT_JOINSTR(-W,x))
 # endif
-#else
+#endif
+
+#if !defined(DDSRT_WARNING_CLANG_OFF) && \
+    !defined(DDSRT_WARNING_CLANG_ON)
+# define DDSRT_WARNING_CLANG_OFF(x)
+# define DDSRT_WARNING_CLANG_ON(x)
+#endif
+
+#if !defined(DDSRT_WARNING_GNUC_OFF) && \
+    !defined(DDSRT_WARNING_GNUC_ON)
 # define DDSRT_WARNING_GNUC_OFF(x)
 # define DDSRT_WARNING_GNUC_ON(x)
 #endif
-
 
 #if defined(_MSC_VER)
 # define DDSRT_WARNING_MSVC_OFF(x) \
@@ -51,23 +67,6 @@ extern "C" {
 # define DDSRT_WARNING_MSVC_OFF(x)
 # define DDSRT_WARNING_MSVC_ON(x)
 #endif
-
-/**
- * @brief Calculate maximum value of an integer type
- *
- * A somewhat complex, but efficient way to calculate the maximum value of an
- * integer type at compile time.
- *
- * For unsigned numerical types the first part up to XOR is enough. The second
- * part is to make up for signed numerical types.
- */
-#define DDSRT_MAX_INTEGER(T) \
-    ((T)(((T)~0) ^ ((T)!((T)~0 > 0) << (CHAR_BIT * sizeof(T) - 1))))
-/**
- * @brief Calculate minimum value of an integer type
- */
-#define DDSRT_MIN_INTEGER(T) \
-    ((-DDSRT_MAX_INTEGER(T)) - 1)
 
 /**
  * @brief Macro to disable unused argument warnings

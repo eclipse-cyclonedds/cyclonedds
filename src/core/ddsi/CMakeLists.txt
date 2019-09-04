@@ -22,7 +22,6 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_serdata_default.c
     ddsi_sertopic.c
     ddsi_sertopic_default.c
-    ddsi_rhc_plugin.c
     ddsi_iid.c
     ddsi_tkmap.c
     ddsi_vendor.c
@@ -54,6 +53,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_transmit.c
     q_inverse_uint32_set.c
     q_whc.c
+    q_rhc.c
     q_xevent.c
     q_xmsg.c
     q_freelist.c
@@ -73,11 +73,11 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_serdata.h
     ddsi_sertopic.h
     ddsi_serdata_default.h
-    ddsi_rhc_plugin.h
     ddsi_iid.h
     ddsi_tkmap.h
     ddsi_vendor.h
     ddsi_threadmon.h
+    ddsi_builtin_topic_if.h
     q_addrset.h
     q_bitset.h
     q_bswap.h
@@ -86,7 +86,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_debmon.h
     q_entity.h
     q_ephash.h
-    q_error.h
     q_feature_check.h
     q_freelist.h
     q_gc.h
@@ -103,10 +102,10 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_qosmatch.h
     q_radmin.h
     q_receive.h
+    q_rhc.h
     q_rtps.h
     q_security.h
     q_sockwaitset.h
-    q_static_assert.h
     q_thread.h
     q_time.h
     q_transmit.h

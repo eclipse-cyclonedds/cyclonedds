@@ -13,13 +13,13 @@
 /* Environments */
 static mpt_env_t environment_any[] = {
     { "ETC_DIR",        MPT_SOURCE_ROOT_DIR"/tests/basic/etc"   },
-    { "CYCLONEDDS_URI", "file://${ETC_DIR}/config_any.xml"      },
+    { "CYCLONEDDS_URI", "${CYCLONEDDS_URI},file://${ETC_DIR}/config_any.xml" },
     { NULL,             NULL                                    }
 };
 static mpt_env_t environment_42[] = {
     { "ETC_DIR",        MPT_SOURCE_ROOT_DIR"/tests/basic/etc"   },
     { "DOMAIN_ID",      "42"                                    },
-    { "CYCLONEDDS_URI", "file://${ETC_DIR}/config_specific.xml" },
+    { "CYCLONEDDS_URI", "${CYCLONEDDS_URI},file://${ETC_DIR}/config_specific.xml" },
     { NULL,             NULL                                    }
 };
 

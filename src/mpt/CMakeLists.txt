@@ -20,4 +20,3 @@ set(MPT_DEFAULT_TIMEOUT "60")
 
 add_subdirectory(mpt)
 add_subdirectory(tests)
-

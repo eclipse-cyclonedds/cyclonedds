@@ -22,17 +22,18 @@ struct receiver_state;
 struct participant;
 struct lease;
 struct entity_common;
+struct q_globals; /* FIXME: make a special for the lease admin */
 
-void lease_management_init (void);
-void lease_management_term (void);
+void lease_management_init (struct q_globals *gv);
+void lease_management_term (struct q_globals *gv);
 struct lease *lease_new (nn_etime_t texpire, int64_t tdur, struct entity_common *e);
 void lease_register (struct lease *l);
 void lease_free (struct lease *l);
 void lease_renew (struct lease *l, nn_etime_t tnow);
 void lease_set_expiry (struct lease *l, nn_etime_t when);
-int64_t check_and_handle_lease_expiration (nn_etime_t tnow);
+int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnow);
 
-void handle_PMD (const struct receiver_state *rst, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len);
+void handle_PMD (const struct receiver_state *rst, nn_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len);
 
 #if defined (__cplusplus)
 }

@@ -48,6 +48,16 @@ public class ArrayType extends AbstractType
     return new ArrayType (dimensions, subtype);
   }
 
+  public boolean containsUnion ()
+  {
+    Type t = subtype;
+    while (t instanceof TypedefType)
+    {
+      t = ((TypedefType)t).getRef ();
+    }
+    return t.containsUnion ();
+  }
+
   public ArrayList <String> getMetaOp (String myname, String structname)
   {
     ArrayList <String> result = new ArrayList <String> ();

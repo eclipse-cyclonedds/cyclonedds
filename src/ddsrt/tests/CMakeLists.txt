@@ -11,63 +11,37 @@
 #
 include(CUnit)
 include(GenerateExportHeader)
+include(GenerateDummyExportHeader)
 
-set(sources
-    "atomics.c"
-    "dynlib.c"
-    "environ.c"
-    "heap.c"
-    "ifaddrs.c"
-    "sync.c"
-    "strtoll.c"
-    "thread.c"
-    "thread_cleanup.c"
-    "string.c"
-    "log.c"
-    "random.c"
-    "strlcpy.c"
-    "socket.c"
-    "process.c"
-    "select.c")
+list(APPEND sources
+  "atomics.c"
+  "dynlib.c"
+  "environ.c"
+  "heap.c"
+  "ifaddrs.c"
+  "sync.c"
+  "strtoll.c"
+  "thread.c"
+  "thread_cleanup.c"
+  "string.c"
+  "log.c"
+  "random.c"
+  "strlcpy.c"
+  "socket.c"
+  "select.c")
 
-add_cunit_executable(cunit_ddsrt ${sources})
-target_link_libraries(cunit_ddsrt PRIVATE ddsrt)
-
-# Create a dummy export header. generate_export_header can only be used with
-# library targets, but since the targets are linked statically,
-# __declspec(dllimport) is not required anyway.
-set(export_dir "${CMAKE_CURRENT_BINARY_DIR}/include/dds")
-set(export_header "${export_dir}/export.h")
-if(NOT EXISTS "${export_header}")
-  file(MAKE_DIRECTORY "${export_dir}")
-  file(WRITE "${export_header}" "#define DDS_EXPORT\n")
+if(HAVE_MULTI_PROCESS)
+  list(APPEND sources "process.c")
+endif()
+if(WITH_FREERTOS)
+  list(APPEND sources "tasklist.c")
 endif()
 
+add_cunit_executable(cunit_ddsrt ${sources})
+target_link_libraries(
+  cunit_ddsrt PRIVATE ddsrt)
 target_include_directories(
   cunit_ddsrt PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
-
-# Create a separate test application that will be used to
-# test process management.
-add_executable(process_app process_app.c)
-target_link_libraries(process_app PRIVATE ddsrt)
-target_include_directories(
-        process_app
-        PRIVATE
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
-# Force the app to be at the same location, no matter what platform or build type.
-set_target_properties(
-        process_app
-        PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY                ${CMAKE_CURRENT_BINARY_DIR}
-        RUNTIME_OUTPUT_DIRECTORY_DEBUG          ${CMAKE_CURRENT_BINARY_DIR}
-        RUNTIME_OUTPUT_DIRECTORY_RELEASE        ${CMAKE_CURRENT_BINARY_DIR}
-        RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_CURRENT_BINARY_DIR}
-        RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL     ${CMAKE_CURRENT_BINARY_DIR} )
-# Let the cunit application know the location and name of the test application.
-set(process_app_name "${CMAKE_CURRENT_BINARY_DIR}/process_app${CMAKE_EXECUTABLE_SUFFIX}")
-configure_file(
-        "process_test.h.in" "${CMAKE_CURRENT_BINARY_DIR}/include/process_test.h" @ONLY)
-
 
 
 # Create a separate shared library that will be used to
@@ -89,7 +63,7 @@ set_target_properties(
         LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_CURRENT_BINARY_DIR}
         LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL     ${CMAKE_CURRENT_BINARY_DIR} )
 # Use proper export for this test lib.
-generate_export_header(${test_lib_name} BASE_NAME LIB_TEST)
+#generate_dummy_export_header(${test_lib_name} BASE_NAME dds LIB_TEST)
 target_include_directories(${test_lib_name} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 # Let the cunit application know the location and name of the library.
 file(TO_NATIVE_PATH "${CMAKE_CURRENT_BINARY_DIR}" test_lib_native_dir)
@@ -111,4 +85,36 @@ foreach(libtest ${test_lib_tests})
     set_property(TEST ${libtestname} APPEND PROPERTY ENVIRONMENT "LD_LIBRARY_PATH=${test_lib_native_dir};$ENV{LD_LIBRARY_PATH}")
   endif()
 endforeach()
+
+generate_dummy_export_header(
+  cunit_ddsrt
+  BASE_NAME dds
+  EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/export.h")
+
+generate_export_header(${test_lib_name} BASE_NAME LIB_TEST)
+
+if(HAVE_MULTI_PROCESS)
+  # A separate application is required to test process management.
+  add_executable(process_app process_app.c)
+  target_link_libraries(process_app PRIVATE ddsrt)
+  target_include_directories(
+    process_app
+    PRIVATE
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
+  # Force the app to be at the same location, no matter what platform or build type.
+  # FIXME: What if custom targets are added?
+  # FIXME: What debug and release builds are mixed on Windows and macOS?
+  set_target_properties(
+    process_app
+    PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY                ${CMAKE_CURRENT_BINARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG          ${CMAKE_CURRENT_BINARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE        ${CMAKE_CURRENT_BINARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_CURRENT_BINARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL     ${CMAKE_CURRENT_BINARY_DIR} )
+  # Let the cunit application know the location and name of the test application.
+  set(process_app_name "${CMAKE_CURRENT_BINARY_DIR}/process_app${CMAKE_EXECUTABLE_SUFFIX}")
+  configure_file(
+    "process_test.h.in" "${CMAKE_CURRENT_BINARY_DIR}/include/process_test.h" @ONLY)
+endif()
 
