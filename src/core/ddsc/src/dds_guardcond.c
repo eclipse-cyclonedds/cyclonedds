@@ -23,6 +23,7 @@
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_guardcond)
 
 const struct dds_entity_deriver dds_entity_deriver_guardcondition = {
+  .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_entity_deriver_dummy_delete,
   .set_qos = dds_entity_deriver_dummy_set_qos,
@@ -41,7 +42,7 @@ dds_entity_t dds_create_guardcondition (dds_entity_t owner)
   if ((rc = dds_init ()) < 0)
     return rc;
 
-  if ((rc = dds_entity_lock_for_create (owner, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_lock (owner, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
     goto err_entity_lock;
 
   switch (dds_entity_kind (e))
@@ -59,14 +60,15 @@ dds_entity_t dds_create_guardcondition (dds_entity_t owner)
   dds_entity_t hdl = dds_entity_init (&gcond->m_entity, e, DDS_KIND_COND_GUARD, NULL, NULL, 0);
   gcond->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (e, &gcond->m_entity);
+  dds_entity_init_complete (&gcond->m_entity);
   dds_entity_unlock (e);
-  dds_delete (DDS_CYCLONEDDS_HANDLE);
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
   return hdl;
 
  err_entity_kind:
   dds_entity_unlock (e);
  err_entity_lock:
-  dds_delete (DDS_CYCLONEDDS_HANDLE);
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
   return rc;
 }
 

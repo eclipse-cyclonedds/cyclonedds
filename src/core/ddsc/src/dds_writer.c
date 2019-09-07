@@ -51,34 +51,36 @@ static dds_return_t dds_writer_status_validate (uint32_t mask)
 
 static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
 {
-  struct dds_entity * const entity = ventity;
+  dds_writer * const wr = ventity;
 
-  /* When data is NULL, it means that the writer is deleted. */
+  /* When data is NULL, it means that the DDSI reader is deleted. */
   if (data == NULL)
   {
     /* Release the initial claim that was done during the create. This
      * will indicate that further API deletion is now possible. */
-    dds_handle_unpin (&entity->m_hdllink);
+    ddsrt_mutex_lock (&wr->m_entity.m_mutex);
+    wr->m_wr = NULL;
+    ddsrt_cond_broadcast (&wr->m_entity.m_cond);
+    ddsrt_mutex_unlock (&wr->m_entity.m_mutex);
     return;
   }
 
-  struct dds_listener const * const lst = &entity->m_listener;
+  struct dds_listener const * const lst = &wr->m_entity.m_listener;
   enum dds_status_id status_id = (enum dds_status_id) data->raw_status_id;
   bool invoke = false;
   void *vst = NULL;
   int32_t *reset[2] = { NULL, NULL };
 
-  ddsrt_mutex_lock (&entity->m_observers_lock);
-  while (entity->m_cb_count > 0)
-    ddsrt_cond_wait (&entity->m_observers_cond, &entity->m_observers_lock);
-  entity->m_cb_count++;
+  /* FIXME: why wait if no listener is set? */
+  ddsrt_mutex_lock (&wr->m_entity.m_observers_lock);
+  while (wr->m_entity.m_cb_count > 0)
+    ddsrt_cond_wait (&wr->m_entity.m_observers_cond, &wr->m_entity.m_observers_lock);
 
   /* Reset the status for possible Listener call.
    * When a listener is not called, the status will be set (again). */
-  dds_entity_status_reset (entity, (status_mask_t) (1u << status_id));
+  dds_entity_status_reset (&wr->m_entity, (status_mask_t) (1u << status_id));
 
   /* Update status metrics. */
-  dds_writer * const wr = (dds_writer *) entity;
   switch (status_id)
   {
     case DDS_OFFERED_DEADLINE_MISSED_STATUS_ID: {
@@ -136,23 +138,31 @@ static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
       assert (0);
   }
 
-  if (invoke)
+  const uint32_t enabled = (ddsrt_atomic_ld32 (&wr->m_entity.m_status.m_status_and_mask) & ((1u << status_id) << SAM_ENABLED_SHIFT));
+  if (enabled == 0)
   {
-    ddsrt_mutex_unlock (&entity->m_observers_lock);
-    dds_entity_invoke_listener(entity, status_id, vst);
-    ddsrt_mutex_lock (&entity->m_observers_lock);
+    /* Don't invoke listeners or set status flag if masked */
+  }
+  else if (invoke)
+  {
+    wr->m_entity.m_cb_pending_count++;
+    wr->m_entity.m_cb_count++;
+    ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
+    dds_entity_invoke_listener (&wr->m_entity, status_id, vst);
+    ddsrt_mutex_lock (&wr->m_entity.m_observers_lock);
+    wr->m_entity.m_cb_count--;
+    wr->m_entity.m_cb_pending_count--;
     *reset[0] = 0;
     if (reset[1])
       *reset[1] = 0;
   }
   else
   {
-    dds_entity_status_set (entity, (status_mask_t) (1u << status_id));
+    dds_entity_status_set (&wr->m_entity, (status_mask_t) (1u << status_id));
   }
 
-  entity->m_cb_count--;
-  ddsrt_cond_broadcast (&entity->m_observers_cond);
-  ddsrt_mutex_unlock (&entity->m_observers_lock);
+  ddsrt_cond_broadcast (&wr->m_entity.m_observers_cond);
+  ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
 }
 
 static uint32_t get_bandwidth_limit (dds_transport_priority_qospolicy_t transport_priority)
@@ -166,18 +176,32 @@ static uint32_t get_bandwidth_limit (dds_transport_priority_qospolicy_t transpor
 #endif
 }
 
-static dds_return_t dds_writer_close (dds_entity *e) ddsrt_nonnull_all;
+static void dds_writer_interrupt (dds_entity *e) ddsrt_nonnull_all;
 
-static dds_return_t dds_writer_close (dds_entity *e)
+static void dds_writer_interrupt (dds_entity *e)
 {
-  dds_writer * const wr = (dds_writer *) e;
-  dds_return_t ret;
-  thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
-  nn_xpack_send (wr->m_xp, false);
-  if ((ret = delete_writer (&e->m_domain->gv, &e->m_guid)) < 0)
-    ret = DDS_RETCODE_ERROR;
+  struct q_globals * const gv = &e->m_domain->gv;
+  thread_state_awake (lookup_thread_state (), gv);
+  unblock_throttled_writer (gv, &e->m_guid);
   thread_state_asleep (lookup_thread_state ());
-  return ret;
+}
+
+static void dds_writer_close (dds_entity *e) ddsrt_nonnull_all;
+
+static void dds_writer_close (dds_entity *e)
+{
+  struct dds_writer * const wr = (struct dds_writer *) e;
+  struct q_globals * const gv = &e->m_domain->gv;
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+  thread_state_awake (ts1, gv);
+  nn_xpack_send (wr->m_xp, false);
+  (void) delete_writer (gv, &e->m_guid);
+  thread_state_asleep (ts1);
+
+  ddsrt_mutex_lock (&e->m_mutex);
+  while (wr->m_wr != NULL)
+    ddsrt_cond_wait (&e->m_cond, &e->m_mutex);
+  ddsrt_mutex_unlock (&e->m_mutex);
 }
 
 static dds_return_t dds_writer_delete (dds_entity *e) ddsrt_nonnull_all;
@@ -233,6 +257,7 @@ static struct whc *make_whc (struct dds_domain *dom, const dds_qos_t *qos)
 }
 
 const struct dds_entity_deriver dds_entity_deriver_writer = {
+  .interrupt = dds_writer_interrupt,
   .close = dds_writer_close,
   .delete = dds_writer_delete,
   .set_qos = dds_writer_qos_set,
@@ -261,14 +286,14 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     dds_entity_unpin (p_or_p);
   }
 
-  if ((rc = dds_publisher_lock_for_create (publisher, &pub)) != DDS_RETCODE_OK)
+  if ((rc = dds_publisher_lock (publisher, &pub)) != DDS_RETCODE_OK)
     return rc;
 
   ddsi_tran_conn_t conn = pub->m_entity.m_domain->gv.data_conn_uc;
   if (publisher != participant_or_publisher)
     pub->m_entity.m_flags |= DDS_ENTITY_IMPLICIT;
 
-  if ((rc = dds_topic_lock_for_create (topic, &tp)) != DDS_RETCODE_OK)
+  if ((rc = dds_topic_lock (topic, &tp)) != DDS_RETCODE_OK)
     goto err_tp_lock;
   assert (tp->m_stopic);
 
@@ -305,23 +330,15 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->m_whc = make_whc (pub->m_entity.m_domain, wqos);
   wr->whc_batch = pub->m_entity.m_domain->gv.config.whc_batch;
 
-  /* Extra claim of this writer to make sure that the delete waits until DDSI
-   * has deleted its writer as well. This can be known through the callback. */
-  dds_handle_repin (&wr->m_entity.m_hdllink);
-
-  ddsrt_mutex_unlock (&tp->m_entity.m_mutex);
-  ddsrt_mutex_unlock (&pub->m_entity.m_mutex);
-
   thread_state_awake (lookup_thread_state (), &pub->m_entity.m_domain->gv);
   rc = new_writer (&wr->m_wr, &wr->m_entity.m_domain->gv, &wr->m_entity.m_guid, NULL, &pp->m_entity.m_guid, tp->m_stopic, wqos, wr->m_whc, dds_writer_status_cb, wr);
-  ddsrt_mutex_lock (&pub->m_entity.m_mutex);
-  ddsrt_mutex_lock (&tp->m_entity.m_mutex);
   assert(rc == DDS_RETCODE_OK);
   thread_state_asleep (lookup_thread_state ());
 
   wr->m_entity.m_iid = get_entity_instance_id (&wr->m_entity.m_domain->gv, &wr->m_entity.m_guid);
   dds_entity_register_child (&pub->m_entity, &wr->m_entity);
 
+  dds_entity_init_complete (&wr->m_entity);
   dds_topic_unlock (tp);
   dds_publisher_unlock (pub);
   return writer;

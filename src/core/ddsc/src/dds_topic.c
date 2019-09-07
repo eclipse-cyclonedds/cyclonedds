@@ -243,7 +243,7 @@ static bool sertopic_equivalent (const struct ddsi_sertopic *a, const struct dds
   return true;
 }
 
-static dds_return_t create_topic_topic_arbirary_check_sertopic (dds_entity_t participant, dds_entity_t topic, struct ddsi_sertopic *sertopic, const dds_qos_t *qos)
+static dds_return_t create_topic_topic_arbitrary_check_sertopic (dds_entity_t participant, dds_entity_t topic, struct ddsi_sertopic *sertopic, const dds_qos_t *qos)
 {
   dds_topic *tp;
   dds_return_t ret;
@@ -272,6 +272,7 @@ static dds_return_t create_topic_topic_arbirary_check_sertopic (dds_entity_t par
 }
 
 const struct dds_entity_deriver dds_entity_deriver_topic = {
+  .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_topic_delete,
   .set_qos = dds_topic_qos_set,
@@ -324,7 +325,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
 
   /* FIXME: just mutex_lock ought to be good enough, but there is the
      pesky "closed" check still ... */
-  if ((rc = dds_participant_lock_for_create (participant, &par)) != DDS_RETCODE_OK)
+  if ((rc = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
     goto err_lock_participant;
 
   bool retry_lookup;
@@ -359,7 +360,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
          for the various scary cases. */
       dds_participant_unlock (par);
 
-      rc = create_topic_topic_arbirary_check_sertopic (participant, topic, sertopic, new_qos);
+      rc = create_topic_topic_arbitrary_check_sertopic (participant, topic, sertopic, new_qos);
       switch (rc)
       {
         case DDS_RETCODE_OK: /* duplicate definition */
@@ -384,7 +385,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
           abort ();
       }
 
-      if ((rc = dds_participant_lock_for_create (participant, &par)) != DDS_RETCODE_OK)
+      if ((rc = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
         goto err_lock_participant;
     }
   } while (retry_lookup);
@@ -447,6 +448,8 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
     nn_plist_fini (&plist);
   }
   thread_state_asleep (lookup_thread_state ());
+
+  dds_entity_init_complete (&top->m_entity);
   dds_participant_unlock (par);
   dds_entity_unpin (par_ent);
   return hdl;

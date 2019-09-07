@@ -67,6 +67,7 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
 }
 
 const struct dds_entity_deriver dds_entity_deriver_participant = {
+  .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_participant_delete,
   .set_qos = dds_participant_qos_set,
@@ -124,9 +125,10 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   dds_entity_register_child (&dom->m_entity, &pp->m_entity);
   ddsrt_mutex_unlock (&dds_global.m_entity.m_mutex);
 
+  dds_entity_init_complete (&pp->m_entity);
   /* drop temporary extra ref to domain, dds_init */
   dds_delete (dom->m_entity.m_hdllink.hdl);
-  dds_delete (DDS_CYCLONEDDS_HANDLE);
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
   return ret;
 
 err_entity_init:
@@ -136,7 +138,7 @@ err_qos_validation:
   dds_delete_qos (new_qos);
   dds_delete (dom->m_entity.m_hdllink.hdl);
 err_domain_create:
-  dds_delete (DDS_CYCLONEDDS_HANDLE);
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
 err_dds_init:
   return ret;
 }
@@ -168,6 +170,6 @@ dds_return_t dds_lookup_participant (dds_domainid_t domain_id, dds_entity_t *par
     }
   }
   ddsrt_mutex_unlock (&dds_global.m_mutex);
-  dds_delete (DDS_CYCLONEDDS_HANDLE);
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
   return ret;
 }

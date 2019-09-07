@@ -44,8 +44,11 @@ const struct dds_entity_deriver *dds_entity_deriver_table[] = {
   [DDS_KIND_CYCLONEDDS] = &dds_entity_deriver_cyclonedds
 };
 
-dds_return_t dds_entity_deriver_dummy_close (struct dds_entity *e) {
-  (void) e; return DDS_RETCODE_OK;
+void dds_entity_deriver_dummy_interrupt (struct dds_entity *e) {
+  (void) e;
+}
+void dds_entity_deriver_dummy_close (struct dds_entity *e) {
+  (void) e;
 }
 dds_return_t dds_entity_deriver_dummy_delete (struct dds_entity *e) {
   (void) e; return DDS_RETCODE_OK;
@@ -57,7 +60,8 @@ dds_return_t dds_entity_deriver_dummy_validate_status (uint32_t mask) {
   (void) mask; return DDS_RETCODE_ILLEGAL_OPERATION;
 }
 
-extern inline dds_return_t dds_entity_deriver_close (struct dds_entity *e);
+extern inline void dds_entity_deriver_interrupt (struct dds_entity *e);
+extern inline void dds_entity_deriver_close (struct dds_entity *e);
 extern inline dds_return_t dds_entity_deriver_delete (struct dds_entity *e);
 extern inline dds_return_t dds_entity_deriver_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled);
 extern inline dds_return_t dds_entity_deriver_validate_status (struct dds_entity *e, uint32_t mask);
@@ -75,7 +79,6 @@ const ddsrt_avl_treedef_t dds_entity_children_td = DDSRT_AVL_TREEDEF_INITIALIZER
 
 static void dds_entity_observers_signal (dds_entity *observed, uint32_t status);
 static void dds_entity_observers_signal_delete (dds_entity *observed);
-static void dds_entity_observers_delete (dds_entity *observed);
 
 void dds_entity_add_ref_locked (dds_entity *e)
 {
@@ -117,6 +120,7 @@ dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind
   e->m_kind = kind;
   e->m_qos = qos;
   e->m_cb_count = 0;
+  e->m_cb_pending_count = 0;
   e->m_observers = NULL;
 
   /* TODO: CHAM-96: Implement dynamic enabling of entity. */
@@ -171,6 +175,11 @@ dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind
   return (dds_entity_t) handle;
 }
 
+void dds_entity_init_complete (dds_entity *entity)
+{
+  dds_handle_unpend (&entity->m_hdllink);
+}
+
 void dds_entity_register_child (dds_entity *parent, dds_entity *child)
 {
   assert (child->m_iid != 0);
@@ -188,12 +197,6 @@ static dds_entity *next_non_topic_child (ddsrt_avl_tree_t *remaining_children)
   }
   return NULL;
 }
-
-enum delete_impl_state {
-  DIS_EXPLICIT,    /* explicit delete on this entity */
-  DIS_FROM_PARENT, /* called because the parent is being deleted */
-  DIS_IMPLICIT     /* called from child; delete if implicit w/o children */
-};
 
 #define TRACE_DELETE 0 /* FIXME: use DDS_LOG for this */
 #if TRACE_DELETE
@@ -229,11 +232,11 @@ static void print_delete (const dds_entity *e, enum delete_impl_state delstate ,
 }
 #endif
 
-static dds_return_t dds_delete_impl (dds_entity_t entity, enum delete_impl_state delstate, dds_instance_handle_t iid);
+static dds_return_t dds_delete_impl (dds_entity_t entity, enum delete_impl_state delstate);
 
 dds_return_t dds_delete (dds_entity_t entity)
 {
-  return dds_delete_impl (entity, DIS_EXPLICIT, 0);
+  return dds_delete_impl (entity, DIS_EXPLICIT);
 }
 
 void dds_entity_final_deinit_before_free (dds_entity *e)
@@ -245,64 +248,94 @@ void dds_entity_final_deinit_before_free (dds_entity *e)
   ddsrt_mutex_destroy (&e->m_observers_lock);
 }
 
-static dds_return_t dds_delete_impl (dds_entity_t entity, enum delete_impl_state delstate, dds_instance_handle_t iid)
+static dds_return_t dds_delete_impl (dds_entity_t entity, enum delete_impl_state delstate)
 {
-  dds_time_t timeout = DDS_SECS (10);
+  dds_entity *e;
+  dds_return_t ret;
+  if ((ret = dds_entity_pin (entity, &e)) < 0)
+    return ret;
+  else
+    return dds_delete_impl_pinned (e, delstate);
+}
+
+dds_return_t dds_delete_impl_pinned (dds_entity *e, enum delete_impl_state delstate)
+{
   dds_entity *child;
   dds_return_t ret;
-  dds_entity *e;
 
-  /* iid is used to guarantee that attempts at deleting implicit parents never touch the wrong
-     entity: there is a tiny chance that the parent got deleted in parallel and the handle has been
-     reused, but there is no risk of the iid getting reused.  There is no such risk for the other
-     cases, so there require iid = 0. */
-  assert ((delstate == DIS_IMPLICIT) == (iid != 0));
-
-  if ((ret = dds_entity_pin (entity, &e)) < 0)
-  {
-#if TRACE_DELETE
-    printf ("delete %"PRId32" - pin failed: %s\n", entity, dds_strretcode (ret));
-#endif
-    return ret;
-  }
+  /* Any number of threads pinning it, possibly in delete, or having pinned it and
+     trying to acquire m_mutex */
 
   ddsrt_mutex_lock (&e->m_mutex);
 #if TRACE_DELETE
   print_delete (e, delstate, iid);
 #endif
 
+  /* If another thread was racing us in delete, it will have set the CLOSING flag
+     while holding m_mutex and we had better bail out. */
+  if (dds_handle_is_closed (&e->m_hdllink))
+  {
+    dds_entity_unlock (e);
+    return DDS_RETCODE_OK;
+  }
+
+  /* Ignore children calling up to delete an implicit parent if there are still
+     (or again) children */
   if (delstate == DIS_IMPLICIT)
   {
-    /* Called after deleting a child; only delete if implicit & no remaining children.  There is a
-       tiny chance that the parent got deleted in parallel and the handle has been reused, but there
-       is no risk of the iid getting reused. */
-    if (!(e->m_iid == iid && (e->m_flags & DDS_ENTITY_IMPLICIT) && ddsrt_avl_is_empty (&e->m_children)))
+    if (!((e->m_flags & DDS_ENTITY_IMPLICIT) && ddsrt_avl_is_empty (&e->m_children)))
     {
-      ddsrt_mutex_unlock (&e->m_mutex);
-      dds_entity_unpin (e);
+      dds_entity_unlock (e);
       return DDS_RETCODE_OK;
     }
   }
 
+  /* Drop reference, atomically setting CLOSING if no other references remain.
+     FIXME: that's not quite right: this is really only for topics.  After a call
+     to delete, the handle ought to become invalid even if the topic stays (and
+     should perhaps even be revivable via find_topic). */
   if (! dds_handle_drop_ref (&e->m_hdllink))
   {
-    ddsrt_mutex_unlock (&e->m_mutex);
-    dds_entity_unpin (e);
+    dds_entity_unlock (e);
     return DDS_RETCODE_OK;
   }
 
+  /* No threads pinning it anymore, no need to worry about other threads deleting
+     it, but there can still be plenty of threads that have it pinned and are
+     trying to acquire m_mutex to do their thing (including creating children,
+     attaching to waitsets, &c.) */
+
+  assert (dds_handle_is_closed (&e->m_hdllink));
+
+  /* Trigger blocked threads (and, still, delete DDSI reader/writer to trigger
+     continued cleanup -- while that's quite safe given that GUIDs don't get
+     reused quickly, it needs an update) */
+  dds_entity_deriver_interrupt (e);
+
+  /* Prevent further listener invocations; dds_set_status_mask locks m_mutex and
+     checks for a pending delete to guarantee that once we clear the mask here,
+     no new listener invocations will occur beyond those already in progress.
+     (FIXME: or committed to?  I think in-progress only, better check.) */
   ddsrt_mutex_lock (&e->m_observers_lock);
   if (entity_has_status (e))
     ddsrt_atomic_and32 (&e->m_status.m_status_and_mask, SAM_STATUS_MASK);
-  dds_reset_listener (&e->m_listener);
 
-  /* Signal observers that this entity will be deleted and wait for
-     all listeners to complete. */
   ddsrt_mutex_unlock (&e->m_mutex);
-  dds_entity_observers_signal_delete (e);
-  while (e->m_cb_count > 0)
+
+  /* wait for all listeners to complete - FIXME: rely on pincount instead?
+     that would require all listeners to pin the entity instead, but it
+     would prevent them from doing much. */
+  while (e->m_cb_pending_count > 0)
     ddsrt_cond_wait (&e->m_observers_cond, &e->m_observers_lock);
   ddsrt_mutex_unlock (&e->m_observers_lock);
+
+  /* Wait for all other threads to unpin the entity */
+  dds_handle_close_wait (&e->m_hdllink);
+
+  /* Pin count dropped to one with CLOSING flag set: no other threads still
+     in operations involving this entity */
+  dds_entity_observers_signal_delete (e);
+  dds_entity_deriver_close (e);
 
   /*
    * Recursively delete children.
@@ -321,47 +354,36 @@ static dds_return_t dds_delete_impl (dds_entity_t entity, enum delete_impl_state
    *
    * To circumvent the problem. We ignore topics in the first loop.
    */
-  ret = DDS_RETCODE_OK;
   ddsrt_mutex_lock (&e->m_mutex);
-  while ((child = next_non_topic_child (&e->m_children)) && ret == DDS_RETCODE_OK)
+  while ((child = next_non_topic_child (&e->m_children)) != NULL)
   {
+    /* FIXME: dds_delete can fail if the child is being deleted in parallel, in which case: wait */
     dds_entity_t child_handle = child->m_hdllink.hdl;
     ddsrt_mutex_unlock (&e->m_mutex);
-    ret = dds_delete_impl (child_handle, DIS_FROM_PARENT, 0);
+    (void) dds_delete_impl (child_handle, DIS_FROM_PARENT);
     ddsrt_mutex_lock (&e->m_mutex);
   }
-  while ((child = ddsrt_avl_find_min (&dds_entity_children_td, &e->m_children)) != NULL && ret == DDS_RETCODE_OK)
+  while ((child = ddsrt_avl_find_min (&dds_entity_children_td, &e->m_children)) != NULL)
   {
     assert (dds_entity_kind (child) == DDS_KIND_TOPIC);
     dds_entity_t child_handle = child->m_hdllink.hdl;
     ddsrt_mutex_unlock (&e->m_mutex);
-    ret = dds_delete_impl (child_handle, DIS_FROM_PARENT, 0);
+    (void) dds_delete_impl (child_handle, DIS_FROM_PARENT);
     ddsrt_mutex_lock (&e->m_mutex);
   }
   ddsrt_mutex_unlock (&e->m_mutex);
-  if (ret == DDS_RETCODE_OK)
-    ret = dds_entity_deriver_close (e);
-  dds_entity_unpin (e);
-
-  /* FIXME: deleting shouldn't fail, and bailing out halfway through deleting is also
-     bad */
-  if (ret != DDS_RETCODE_OK)
-    return ret;
 
   /* The dds_handle_delete will wait until the last active claim on that handle is
      released. It is possible that this last release will be done by a thread that was
      kicked during the close(). */
-  if ((ret = dds_handle_delete (&e->m_hdllink, timeout)) != DDS_RETCODE_OK)
-    return ret;
-
-  /* Remove all possible observers. */
-  dds_entity_observers_delete (e);
+  ret = dds_handle_delete (&e->m_hdllink);
+  assert (ret == DDS_RETCODE_OK);
+  (void) ret;
 
   /* Remove from parent; schedule deletion of parent if it was created implicitly, no
      longer has any remaining children, and we didn't arrive here as a consequence of
      deleting the parent. */
-  dds_entity_t parent_handle = 0;
-  dds_instance_handle_t parent_iid = 0;
+  dds_entity *parent_to_delete = NULL;
   if (e->m_parent != NULL)
   {
     struct dds_entity * const p = e->m_parent;
@@ -369,11 +391,13 @@ static dds_return_t dds_delete_impl (dds_entity_t entity, enum delete_impl_state
     ddsrt_mutex_lock (&p->m_mutex);
     assert (ddsrt_avl_lookup (&dds_entity_children_td, &p->m_children, &e->m_iid) != NULL);
     ddsrt_avl_delete (&dds_entity_children_td, &p->m_children, e);
+    /* trigger parent in case it is waiting in delete */
+    ddsrt_cond_broadcast (&p->m_cond);
 
     if (delstate != DIS_FROM_PARENT && (p->m_flags & DDS_ENTITY_IMPLICIT) && ddsrt_avl_is_empty (&p->m_children))
     {
-      parent_handle = p->m_hdllink.hdl;
-      parent_iid = p->m_iid;
+      if ((ret = dds_entity_pin (p->m_hdllink.hdl, &parent_to_delete)) < 0)
+        parent_to_delete = NULL;
     }
 
     ddsrt_mutex_unlock (&p->m_mutex);
@@ -388,14 +412,18 @@ static dds_return_t dds_delete_impl (dds_entity_t entity, enum delete_impl_state
   if (ret == DDS_RETCODE_NO_DATA)
     ret = DDS_RETCODE_OK;
   else if (ret != DDS_RETCODE_OK)
+  {
+    if (parent_to_delete)
+      dds_entity_unpin (parent_to_delete);
     return ret;
+  }
   else
   {
     dds_entity_final_deinit_before_free (e);
     dds_free (e);
   }
 
-  return (parent_handle != 0) ? dds_delete_impl (parent_handle, DIS_IMPLICIT, parent_iid) : DDS_RETCODE_OK;
+  return (parent_to_delete != NULL) ? dds_delete_impl_pinned (parent_to_delete, DIS_IMPLICIT) : DDS_RETCODE_OK;
 }
 
 bool dds_entity_in_scope (const dds_entity *e, const dds_entity *root)
@@ -460,9 +488,15 @@ dds_return_t dds_get_children (dds_entity_t entity, dds_entity_t *children, size
     ddsrt_mutex_lock (&e->m_mutex);
     for (c = ddsrt_avl_iter_first (&dds_entity_children_td, &e->m_children, &it); c != NULL; c = ddsrt_avl_iter_next (&it))
     {
-      if (n < size)
-        children[n] = c->m_hdllink.hdl;
-      n++;
+      struct dds_entity *tmp;
+      /* Attempt at pinning the entity will fail if it is still pending */
+      if (dds_entity_pin (c->m_hdllink.hdl, &tmp) == DDS_RETCODE_OK)
+      {
+        if (n < size)
+          children[n] = c->m_hdllink.hdl;
+        n++;
+        dds_entity_unpin (tmp);
+      }
     }
     ddsrt_mutex_unlock (&e->m_mutex);
     dds_entity_unpin (e);
@@ -836,7 +870,7 @@ static void pushdown_listener (dds_entity *e)
       ddsrt_mutex_unlock (&e->m_mutex);
 
       ddsrt_mutex_lock (&c->m_observers_lock);
-      while (c->m_cb_count > 0)
+      while (c->m_cb_pending_count > 0)
         ddsrt_cond_wait (&c->m_observers_cond, &c->m_observers_lock);
 
       ddsrt_mutex_lock (&e->m_observers_lock);
@@ -864,7 +898,7 @@ dds_return_t dds_set_listener (dds_entity_t entity, const dds_listener_t *listen
     return rc;
 
   ddsrt_mutex_lock (&e->m_observers_lock);
-  while (e->m_cb_count > 0)
+  while (e->m_cb_pending_count > 0)
     ddsrt_cond_wait (&e->m_observers_cond, &e->m_observers_lock);
 
   /* new listener is constructed by combining "listener" with the ancestral listeners;
@@ -965,17 +999,26 @@ dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
   if ((mask & ~SAM_STATUS_MASK) != 0)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if ((ret = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
+  if ((ret = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
     return ret;
+
+  if (dds_handle_is_closed (&e->m_hdllink))
+  {
+    /* The sole reason for locking the mutex was so we can do this atomically with
+       respect to dds_delete (which in turn requires checking whether the handle
+       is still open), because delete relies on the mask to shut down all listener
+       invocations.  */
+    dds_entity_unlock (e);
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+  }
 
   if ((ret = dds_entity_deriver_validate_status (e, mask)) == DDS_RETCODE_OK)
   {
     assert (entity_has_status (e));
     ddsrt_mutex_lock (&e->m_observers_lock);
-    while (e->m_cb_count > 0)
+    while (e->m_cb_pending_count > 0)
       ddsrt_cond_wait (&e->m_observers_cond, &e->m_observers_lock);
 
-    /* Don't block internal status triggers. */
     uint32_t old, new;
     do {
       old = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask);
@@ -983,7 +1026,7 @@ dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
     } while (!ddsrt_atomic_cas32 (&e->m_status.m_status_and_mask, old, new));
     ddsrt_mutex_unlock (&e->m_observers_lock);
   }
-  dds_entity_unpin (e);
+  dds_entity_unlock (e);
   return ret;
 }
 
@@ -1018,7 +1061,6 @@ static dds_return_t dds_readtake_status (dds_entity_t entity, uint32_t *status, 
   dds_entity_unlock (e);
   return ret;
 }
-
 
 dds_return_t dds_read_status (dds_entity_t entity, uint32_t *status, uint32_t mask)
 {
@@ -1099,24 +1141,10 @@ dds_return_t dds_entity_lock (dds_entity_t hdl, dds_entity_kind_t kind, dds_enti
   }
 }
 
-dds_return_t dds_entity_lock_for_create (dds_entity_t hdl, dds_entity_kind_t kind, dds_entity **eptr)
-{
-  dds_return_t res;
-  if ((res = dds_entity_lock (hdl, kind, eptr)) < 0)
-    return res;
-  else if (!dds_handle_is_closed (&(*eptr)->m_hdllink))
-    return DDS_RETCODE_OK;
-  else
-  {
-    ddsrt_mutex_unlock (&(*eptr)->m_mutex);
-    return DDS_RETCODE_BAD_PARAMETER;
-  }
-}
-
 void dds_entity_unlock (dds_entity *e)
 {
   ddsrt_mutex_unlock (&e->m_mutex);
-  dds_handle_unpin (&e->m_hdllink);
+  dds_entity_unpin (e);
 }
 
 dds_return_t dds_triggered (dds_entity_t entity)
@@ -1134,7 +1162,7 @@ dds_return_t dds_triggered (dds_entity_t entity)
   return ret;
 }
 
-static bool in_observer_list_p (const struct dds_entity *observed, const dds_entity *observer)
+static bool in_observer_list_p (const struct dds_entity *observed, const dds_waitset *observer)
 {
   dds_entity_observer *cur;
   for (cur = observed->m_observers; cur != NULL; cur = cur->m_next)
@@ -1143,13 +1171,15 @@ static bool in_observer_list_p (const struct dds_entity *observed, const dds_ent
   return false;
 }
 
-dds_return_t dds_entity_observer_register (dds_entity *observed, dds_entity *observer, dds_entity_callback_t cb, dds_entity_attach_callback_t attach_cb, void *attach_arg, dds_entity_delete_callback_t delete_cb)
+dds_return_t dds_entity_observer_register (dds_entity *observed, dds_waitset *observer, dds_entity_callback_t cb, dds_entity_attach_callback_t attach_cb, void *attach_arg, dds_entity_delete_callback_t delete_cb)
 {
   dds_return_t rc;
   assert (observed);
   ddsrt_mutex_lock (&observed->m_observers_lock);
   if (in_observer_list_p (observed, observer))
     rc = DDS_RETCODE_PRECONDITION_NOT_MET;
+  else if (!attach_cb (observer, observed, attach_arg))
+    rc = DDS_RETCODE_BAD_PARAMETER;
   else
   {
     dds_entity_observer *o = ddsrt_malloc (sizeof (dds_entity_observer));
@@ -1158,14 +1188,13 @@ dds_return_t dds_entity_observer_register (dds_entity *observed, dds_entity *obs
     o->m_observer = observer;
     o->m_next = observed->m_observers;
     observed->m_observers = o;
-    attach_cb (observer, observed, attach_arg);
     rc = DDS_RETCODE_OK;
   }
   ddsrt_mutex_unlock (&observed->m_observers_lock);
   return rc;
 }
 
-dds_return_t dds_entity_observer_unregister (dds_entity *observed, dds_entity *observer)
+dds_return_t dds_entity_observer_unregister (dds_entity *observed, dds_waitset *observer, bool invoke_delete_cb)
 {
   dds_return_t rc;
   dds_entity_observer *prev, *idx;
@@ -1186,27 +1215,13 @@ dds_return_t dds_entity_observer_unregister (dds_entity *observed, dds_entity *o
       observed->m_observers = idx->m_next;
     else
       prev->m_next = idx->m_next;
-    idx->m_delete_cb (idx->m_observer, observed->m_hdllink.hdl);
+    if (invoke_delete_cb)
+      idx->m_delete_cb (idx->m_observer, observed->m_hdllink.hdl);
     ddsrt_free (idx);
     rc = DDS_RETCODE_OK;
   }
   ddsrt_mutex_unlock (&observed->m_observers_lock);
   return rc;
-}
-
-static void dds_entity_observers_delete (dds_entity *observed)
-{
-  dds_entity_observer *idx;
-  ddsrt_mutex_lock (&observed->m_observers_lock);
-  idx = observed->m_observers;
-  while (idx != NULL)
-  {
-    dds_entity_observer *next = idx->m_next;
-    ddsrt_free (idx);
-    idx = next;
-  }
-  observed->m_observers = NULL;
-  ddsrt_mutex_unlock (&observed->m_observers_lock);
 }
 
 static void dds_entity_observers_signal (dds_entity *observed, uint32_t status)
@@ -1217,8 +1232,16 @@ static void dds_entity_observers_signal (dds_entity *observed, uint32_t status)
 
 static void dds_entity_observers_signal_delete (dds_entity *observed)
 {
-  for (dds_entity_observer *idx = observed->m_observers; idx; idx = idx->m_next)
+  dds_entity_observer *idx;
+  idx = observed->m_observers;
+  while (idx != NULL)
+  {
+    dds_entity_observer *next = idx->m_next;
     idx->m_delete_cb (idx->m_observer, observed->m_hdllink.hdl);
+    ddsrt_free (idx);
+    idx = next;
+  }
+  observed->m_observers = NULL;
 }
 
 void dds_entity_status_signal (dds_entity *e, uint32_t status)
@@ -1247,11 +1270,13 @@ void dds_entity_trigger_set (dds_entity *e, uint32_t t)
 {
   assert (! entity_has_status (e));
   uint32_t oldst;
+  ddsrt_mutex_lock (&e->m_observers_lock);
   do {
     oldst = ddsrt_atomic_ld32 (&e->m_status.m_trigger);
   } while (!ddsrt_atomic_cas32 (&e->m_status.m_trigger, oldst, t));
   if (oldst == 0 && t != 0)
     dds_entity_observers_signal (e, t);
+  ddsrt_mutex_unlock (&e->m_observers_lock);
 }
 
 dds_entity_t dds_get_topic (dds_entity_t entity)

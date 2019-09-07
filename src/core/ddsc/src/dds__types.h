@@ -90,29 +90,32 @@ struct dds_listener {
 
 /* Entity flag values */
 
-#define DDS_ENTITY_ENABLED      0x0001u
-#define DDS_ENTITY_IMPLICIT     0x0002u
+#define DDS_ENTITY_ENABLED      ((uint32_t) 0x1) /* DDS "enabled" state */
+#define DDS_ENTITY_IMPLICIT     ((uint32_t) 0x2) /* implicit ones get deleted when the last child is deleted */
 
 struct dds_domain;
 struct dds_entity;
 
 typedef struct dds_entity_deriver {
-  /* Close can be used to terminate (blocking) actions on a entity before actually deleting it. */
-  dds_return_t (*close) (struct dds_entity *e) ddsrt_nonnull_all;
+  /* Pending close can be used to terminate (blocking) actions on a entity before actually deleting it. */
+  void (*interrupt) (struct dds_entity *e) ddsrt_nonnull_all;
+  /* Close can be used to do ... */
+  void (*close) (struct dds_entity *e) ddsrt_nonnull_all;
   /* Delete is used to actually free the entity. */
   dds_return_t (*delete) (struct dds_entity *e) ddsrt_nonnull_all;
   dds_return_t (*set_qos) (struct dds_entity *e, const dds_qos_t *qos, bool enabled) ddsrt_nonnull_all;
   dds_return_t (*validate_status) (uint32_t mask);
 } dds_entity_deriver;
 
-typedef void (*dds_entity_callback_t) (struct dds_entity *observer, dds_entity_t observed, uint32_t status);
-typedef void (*dds_entity_attach_callback_t) (struct dds_entity *observer, struct dds_entity *observed, void *attach_arg);
-typedef void (*dds_entity_delete_callback_t) (struct dds_entity *observer, dds_entity_t observed);
+struct dds_waitset;
+typedef void (*dds_entity_callback_t) (struct dds_waitset *observer, dds_entity_t observed, uint32_t status);
+typedef bool (*dds_entity_attach_callback_t) (struct dds_waitset *observer, struct dds_entity *observed, void *attach_arg);
+typedef void (*dds_entity_delete_callback_t) (struct dds_waitset *observer, dds_entity_t observed);
 
 typedef struct dds_entity_observer {
   dds_entity_callback_t m_cb;
   dds_entity_delete_callback_t m_delete_cb;
-  struct dds_entity *m_observer;
+  struct dds_waitset *m_observer;
   struct dds_entity_observer *m_next;
 } dds_entity_observer;
 
@@ -125,7 +128,7 @@ typedef struct dds_entity {
   ddsrt_avl_tree_t m_children;      /* [m_mutex] tree on m_iid using m_avlnode_child */
   struct dds_domain *m_domain;      /* constant */
   dds_qos_t *m_qos;                 /* [m_mutex] */
-  ddsi_guid_t m_guid;                 /* unique (if not 0) and constant; FIXME: set during creation, but possibly after becoming visible */
+  ddsi_guid_t m_guid;               /* unique (if not 0) and constant; FIXME: set during creation, but possibly after becoming visible */
   dds_instance_handle_t m_iid;      /* unique for all time, constant; FIXME: like GUID */
   uint32_t m_flags;                 /* [m_mutex] */
 
@@ -135,6 +138,7 @@ typedef struct dds_entity {
        (no hierarchical relationship there)
      - locking topic::m_mutex while holding {reader,writer}::m_mutex
      - locking observers_lock while holding m_mutex
+     - locking waitset::wait_lock
    */
   ddsrt_mutex_t m_mutex;
   ddsrt_cond_t m_cond;
@@ -148,6 +152,7 @@ typedef struct dds_entity {
   ddsrt_cond_t m_observers_cond;
   dds_listener_t m_listener;        /* [m_observers_lock] */
   uint32_t m_cb_count;              /* [m_observers_lock] */
+  uint32_t m_cb_pending_count;      /* [m_observers_lock] */
   dds_entity_observer *m_observers; /* [m_observers_lock] */
 } dds_entity;
 
@@ -167,13 +172,17 @@ extern const struct dds_entity_deriver dds_entity_deriver_domain;
 extern const struct dds_entity_deriver dds_entity_deriver_cyclonedds;
 extern const struct dds_entity_deriver *dds_entity_deriver_table[];
 
-dds_return_t dds_entity_deriver_dummy_close (struct dds_entity *e);
+void dds_entity_deriver_dummy_interrupt (struct dds_entity *e);
+void dds_entity_deriver_dummy_close (struct dds_entity *e);
 dds_return_t dds_entity_deriver_dummy_delete (struct dds_entity *e);
 dds_return_t dds_entity_deriver_dummy_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled);
 dds_return_t dds_entity_deriver_dummy_validate_status (uint32_t mask);
 
-inline dds_return_t dds_entity_deriver_close (struct dds_entity *e) {
-  return (dds_entity_deriver_table[e->m_kind]->close) (e);
+inline void dds_entity_deriver_interrupt (struct dds_entity *e) {
+  (dds_entity_deriver_table[e->m_kind]->interrupt) (e);
+}
+inline void dds_entity_deriver_close (struct dds_entity *e) {
+  (dds_entity_deriver_table[e->m_kind]->close) (e);
 }
 inline dds_return_t dds_entity_deriver_delete (struct dds_entity *e) {
   return dds_entity_deriver_table[e->m_kind]->delete (e);
@@ -314,9 +323,15 @@ typedef struct dds_attachment {
 
 typedef struct dds_waitset {
   dds_entity m_entity;
-  size_t nentities;         /* [m_entity.m_mutex] */
-  size_t ntriggered;        /* [m_entity.m_mutex] */
-  dds_attachment *entities; /* [m_entity.m_mutex] 0 .. ntriggered are triggred, ntriggred .. nentities are not */
+
+  /* Need a lock other than m_entity.m_mutex because the locking order an entity lock may not be
+     acquired while holding an ancestor's lock, but a waitset must be capable of triggering on
+     events on its parent */
+  ddsrt_mutex_t wait_lock;
+  ddsrt_cond_t wait_cond;
+  size_t nentities;         /* [wait_lock] */
+  size_t ntriggered;        /* [wait_lock] */
+  dds_attachment *entities; /* [wait_lock] 0 .. ntriggered are triggred, ntriggred .. nentities are not */
 } dds_waitset;
 
 DDS_EXPORT extern dds_cyclonedds_entity dds_global;

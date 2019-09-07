@@ -114,6 +114,11 @@ static int compare_guid (const void *va, const void *vb)
   return memcmp (va, vb, sizeof (ddsi_guid_t));
 }
 
+bool is_null_guid (const ddsi_guid_t *guid)
+{
+  return guid->prefix.u[0] == 0 && guid->prefix.u[1] == 0 && guid->prefix.u[2] == 0 && guid->entityid.u == 0;
+}
+
 ddsi_entityid_t to_entityid (unsigned u)
 {
   ddsi_entityid_t e;
@@ -3069,6 +3074,22 @@ static void writer_set_state (struct writer *wr, enum writer_state newstate)
   wr->state = newstate;
 }
 
+dds_return_t unblock_throttled_writer (struct q_globals *gv, const struct ddsi_guid *guid)
+{
+  struct writer *wr;
+  assert (is_writer_entityid (guid->entityid));
+  if ((wr = ephash_lookup_writer_guid (gv->guid_hash, guid)) == NULL)
+  {
+    GVLOGDISC ("unblock_throttled_writer(guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+  GVLOGDISC ("unblock_throttled_writer(guid "PGUIDFMT") ...\n", PGUID (*guid));
+  ddsrt_mutex_lock (&wr->e.lock);
+  writer_set_state (wr, WRST_INTERRUPT);
+  ddsrt_mutex_unlock (&wr->e.lock);
+  return 0;
+}
+
 dds_return_t delete_writer_nolinger_locked (struct writer *wr)
 {
   ELOGDISC (wr, "delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (wr->e.guid));
@@ -3105,6 +3126,7 @@ dds_return_t delete_writer_nolinger (struct q_globals *gv, const struct ddsi_gui
 
 void delete_local_orphan_writer (struct local_orphan_writer *lowr)
 {
+  assert (thread_is_awake ());
   ddsrt_mutex_lock (&lowr->wr.e.lock);
   delete_writer_nolinger_locked (&lowr->wr);
   ddsrt_mutex_unlock (&lowr->wr.e.lock);
@@ -3458,7 +3480,7 @@ static void gc_delete_reader (struct gcreq *gcreq)
     addrset_forall (rd->as, leave_mcast_helper, &arg);
   }
 #endif
-  if (rd->rhc)
+  if (rd->rhc && is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE))
   {
     ddsi_rhc_free (rd->rhc);
   }

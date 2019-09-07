@@ -33,10 +33,11 @@
 #include "dds/ddsi/q_globals.h"
 #include "dds/version.h"
 
-static dds_return_t dds_close (struct dds_entity *e);
+static void dds_close (struct dds_entity *e);
 static dds_return_t dds_fini (struct dds_entity *e);
 
 const struct dds_entity_deriver dds_entity_deriver_cyclonedds = {
+  .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_close,
   .delete = dds_fini,
   .set_qos = dds_entity_deriver_dummy_set_qos,
@@ -45,47 +46,34 @@ const struct dds_entity_deriver dds_entity_deriver_cyclonedds = {
 
 dds_cyclonedds_entity dds_global;
 
-enum dds_cyclonedds_state {
-  CDDS_STATE_ZERO,
-  CDDS_STATE_STARTING,
-  CDDS_STATE_READY,
-  CDDS_STATE_STOPPING
-};
-static enum dds_cyclonedds_state dds_state;
+#define CDDS_STATE_ZERO 0u
+#define CDDS_STATE_STARTING 1u
+#define CDDS_STATE_READY 2u
+#define CDDS_STATE_STOPPING 3u
+static ddsrt_atomic_uint32_t dds_state = DDSRT_ATOMIC_UINT32_INIT (CDDS_STATE_ZERO);
 
 static void common_cleanup (void)
 {
-  downgrade_main_thread ();
-  thread_states_fini ();
+  if (thread_states_fini ())
+    dds_handle_server_fini ();
+
   ddsi_iid_fini ();
   ddsrt_cond_destroy (&dds_global.m_cond);
   ddsrt_mutex_destroy (&dds_global.m_mutex);
 
-  dds_state = CDDS_STATE_ZERO;
+  ddsrt_atomic_st32 (&dds_state, CDDS_STATE_ZERO);
   ddsrt_cond_broadcast (ddsrt_get_singleton_cond ());
 }
 
-static bool cyclonedds_entity_ready (void)
+static bool cyclonedds_entity_ready (uint32_t s)
 {
-  assert (dds_state != CDDS_STATE_ZERO);
-  if (dds_state == CDDS_STATE_STARTING || dds_state == CDDS_STATE_STOPPING)
+  assert (s != CDDS_STATE_ZERO);
+  if (s == CDDS_STATE_STARTING || s == CDDS_STATE_STOPPING)
     return false;
   else
   {
     struct dds_handle_link *x;
-    bool ready;
-    if (dds_handle_pin (DDS_CYCLONEDDS_HANDLE, &x) < 0)
-      ready = false;
-    else
-    {
-      ddsrt_mutex_lock (&dds_global.m_entity.m_mutex);
-      ready = !dds_handle_is_closed (x);
-      if (ready)
-        dds_entity_add_ref_locked (&dds_global.m_entity);
-      ddsrt_mutex_unlock (&dds_global.m_entity.m_mutex);
-      dds_handle_unpin (x);
-    }
-    return ready;
+    return dds_handle_pin_and_ref (DDS_CYCLONEDDS_HANDLE, &x) == DDS_RETCODE_OK;
   }
 }
 
@@ -98,16 +86,20 @@ dds_return_t dds_init (void)
   ddsrt_cond_t * const init_cond = ddsrt_get_singleton_cond ();
 
   ddsrt_mutex_lock (init_mutex);
-  while (dds_state != CDDS_STATE_ZERO && !cyclonedds_entity_ready ())
+  uint32_t s = ddsrt_atomic_ld32 (&dds_state);
+  while (s != CDDS_STATE_ZERO && !cyclonedds_entity_ready (s))
+  {
     ddsrt_cond_wait (init_cond, init_mutex);
-  switch (dds_state)
+    s = ddsrt_atomic_ld32 (&dds_state);
+  }
+  switch (s)
   {
     case CDDS_STATE_READY:
       assert (dds_global.m_entity.m_hdllink.hdl == DDS_CYCLONEDDS_HANDLE);
       ddsrt_mutex_unlock (init_mutex);
       return DDS_RETCODE_OK;
     case CDDS_STATE_ZERO:
-      dds_state = CDDS_STATE_STARTING;
+      ddsrt_atomic_st32 (&dds_state, CDDS_STATE_STARTING);
       break;
     default:
       ddsrt_mutex_unlock (init_mutex);
@@ -118,9 +110,7 @@ dds_return_t dds_init (void)
   ddsrt_mutex_init (&dds_global.m_mutex);
   ddsrt_cond_init (&dds_global.m_cond);
   ddsi_iid_init ();
-  thread_states_init_static ();
   thread_states_init (64);
-  upgrade_main_thread ();
 
   if (dds_handle_server_init () != DDS_RETCODE_OK)
   {
@@ -132,39 +122,31 @@ dds_return_t dds_init (void)
   dds_entity_init (&dds_global.m_entity, NULL, DDS_KIND_CYCLONEDDS, NULL, NULL, 0);
   dds_global.m_entity.m_iid = ddsi_iid_gen ();
   dds_global.m_entity.m_flags = DDS_ENTITY_IMPLICIT;
-  ddsrt_mutex_lock (&dds_global.m_entity.m_mutex);
+  dds_handle_repin (&dds_global.m_entity.m_hdllink);
   dds_entity_add_ref_locked (&dds_global.m_entity);
-  ddsrt_mutex_unlock (&dds_global.m_entity.m_mutex);
-  dds_state = CDDS_STATE_READY;
+  dds_entity_init_complete (&dds_global.m_entity);
+  ddsrt_atomic_st32 (&dds_state, CDDS_STATE_READY);
   ddsrt_mutex_unlock (init_mutex);
   return DDS_RETCODE_OK;
 
 fail_handleserver:
-  assert (dds_state == CDDS_STATE_STARTING);
   common_cleanup ();
   ddsrt_mutex_unlock (init_mutex);
   ddsrt_fini ();
   return ret;
 }
 
-static dds_return_t dds_close (struct dds_entity *e)
+static void dds_close (struct dds_entity *e)
 {
   (void) e;
-  ddsrt_mutex_t * const init_mutex = ddsrt_get_singleton_mutex ();
-  ddsrt_cond_t * const init_cond = ddsrt_get_singleton_cond ();
-  ddsrt_mutex_lock (init_mutex);
-  assert (dds_state == CDDS_STATE_READY);
-  dds_state = CDDS_STATE_STOPPING;
-  ddsrt_cond_broadcast (init_cond);
-  ddsrt_mutex_unlock (init_mutex);
-  return DDS_RETCODE_OK;
+  assert (ddsrt_atomic_ld32 (&dds_state) == CDDS_STATE_READY);
+  ddsrt_atomic_st32 (&dds_state, CDDS_STATE_STOPPING);
 }
 
 static dds_return_t dds_fini (struct dds_entity *e)
 {
   (void) e;
   ddsrt_mutex_t * const init_mutex = ddsrt_get_singleton_mutex ();
-
   /* If there are multiple domains shutting down simultaneously, the one "deleting" the top-level
      entity (and thus arriving here) may have overtaken another thread that is still in the process
      of deleting its domain object.  For most entities such races are not an issue, but here we tear
@@ -175,9 +157,8 @@ static dds_return_t dds_fini (struct dds_entity *e)
   ddsrt_mutex_unlock (&dds_global.m_mutex);
 
   ddsrt_mutex_lock (init_mutex);
-  assert (dds_state == CDDS_STATE_STOPPING);
+  assert (ddsrt_atomic_ld32 (&dds_state) == CDDS_STATE_STOPPING);
   dds_entity_final_deinit_before_free (e);
-  dds_handle_server_fini ();
   common_cleanup ();
   ddsrt_mutex_unlock (init_mutex);
   ddsrt_fini ();
