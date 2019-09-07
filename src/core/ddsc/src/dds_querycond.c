@@ -26,15 +26,16 @@ dds_entity_t dds_create_querycondition (dds_entity_t reader, uint32_t mask, dds_
   dds_return_t rc;
   dds_reader *r;
 
-  if ((rc = dds_reader_lock_for_create (reader, &r)) != DDS_RETCODE_OK)
+  if ((rc = dds_reader_lock (reader, &r)) != DDS_RETCODE_OK)
     return rc;
   else
   {
     dds_entity_t hdl;
     dds_readcond *cond = dds_create_readcond (r, DDS_KIND_COND_QUERY, mask, filter);
     assert (cond);
-    dds_reader_unlock (r);
     hdl = cond->m_entity.m_hdllink.hdl;
+    dds_entity_init_complete (&cond->m_entity);
+    dds_reader_unlock (r);
     return hdl;
   }
 }

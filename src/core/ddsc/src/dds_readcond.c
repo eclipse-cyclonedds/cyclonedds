@@ -30,6 +30,7 @@ static dds_return_t dds_readcond_delete (dds_entity *e)
 }
 
 const struct dds_entity_deriver dds_entity_deriver_readcondition = {
+  .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_readcond_delete,
   .set_qos = dds_entity_deriver_dummy_set_qos,
@@ -64,7 +65,7 @@ dds_entity_t dds_create_readcondition (dds_entity_t reader, uint32_t mask)
 {
   dds_reader *rd;
   dds_return_t rc;
-  if ((rc = dds_reader_lock_for_create (reader, &rd)) != DDS_RETCODE_OK)
+  if ((rc = dds_reader_lock (reader, &rd)) != DDS_RETCODE_OK)
     return rc;
   else
   {
@@ -72,6 +73,7 @@ dds_entity_t dds_create_readcondition (dds_entity_t reader, uint32_t mask)
     dds_readcond *cond = dds_create_readcond(rd, DDS_KIND_COND_READ, mask, 0);
     assert (cond);
     hdl = cond->m_entity.m_hdllink.hdl;
+    dds_entity_init_complete (&cond->m_entity);
     dds_reader_unlock (rd);
     return hdl;
   }

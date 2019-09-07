@@ -28,6 +28,8 @@ dds_entity_init(
   const dds_listener_t *listener,
   status_mask_t mask);
 
+DDS_EXPORT void dds_entity_init_complete (dds_entity *entity);
+
 DDS_EXPORT void
 dds_entity_register_child (
   dds_entity *parent,
@@ -36,7 +38,7 @@ dds_entity_register_child (
 DDS_EXPORT void
 dds_entity_add_ref_locked(dds_entity *e);
 
-#define DEFINE_ENTITY_LOCK_UNLOCK_ONLY(qualifier_, type_, kind_) \
+#define DEFINE_ENTITY_LOCK_UNLOCK(qualifier_, type_, kind_) \
   qualifier_ dds_return_t type_##_lock (dds_entity_t hdl, type_ **x) \
   { \
     dds_return_t rc; \
@@ -50,24 +52,9 @@ dds_entity_add_ref_locked(dds_entity *e);
   { \
     dds_entity_unlock (&x->m_entity); \
   }
-#define DECL_ENTITY_LOCK_UNLOCK_ONLY(qualifier_, type_) \
+#define DECL_ENTITY_LOCK_UNLOCK(qualifier_, type_) \
   qualifier_ dds_return_t type_##_lock (dds_entity_t hdl, type_ **x); \
   qualifier_ void type_##_unlock (type_ *x);
-
-#define DEFINE_ENTITY_LOCK_UNLOCK(qualifier_, type_, kind_) \
-  DEFINE_ENTITY_LOCK_UNLOCK_ONLY (qualifier_, type_, kind_) \
-  qualifier_ dds_return_t type_##_lock_for_create (dds_entity_t hdl, type_ **x) \
-  { \
-    dds_return_t rc; \
-    dds_entity *e; \
-    if ((rc = dds_entity_lock_for_create (hdl, kind_, &e)) < 0) \
-      return rc; \
-    *x = (type_ *) e; \
-    return DDS_RETCODE_OK; \
-  }
-#define DECL_ENTITY_LOCK_UNLOCK(qualifier_, type_) \
-  DECL_ENTITY_LOCK_UNLOCK_ONLY (qualifier_, type_) \
-  qualifier_ dds_return_t type_##_lock_for_create (dds_entity_t hdl, type_ **x);
 
 DDS_EXPORT inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink) {
   return (dds_entity *) ((char *) hdllink - offsetof (struct dds_entity, m_hdllink));
@@ -96,6 +83,14 @@ DDS_EXPORT dds_participant *dds_entity_participant (dds_entity *e);
 DDS_EXPORT void dds_entity_final_deinit_before_free (dds_entity *e);
 DDS_EXPORT bool dds_entity_in_scope (const dds_entity *e, const dds_entity *root);
 
+enum delete_impl_state {
+  DIS_EXPLICIT,    /* explicit delete on this entity */
+  DIS_FROM_PARENT, /* called because the parent is being deleted */
+  DIS_IMPLICIT     /* called from child; delete if implicit w/o children */
+};
+
+DDS_EXPORT dds_return_t dds_delete_impl_pinned (dds_entity *e, enum delete_impl_state delstate);
+
 DDS_EXPORT dds_return_t
 dds_entity_pin (
   dds_entity_t hdl,
@@ -110,19 +105,13 @@ dds_entity_lock(
   dds_entity_kind_t kind,
   dds_entity **e);
 
-DDS_EXPORT dds_return_t
-dds_entity_lock_for_create(
-  dds_entity_t hdl,
-  dds_entity_kind_t kind,
-  dds_entity **e);
-
 DDS_EXPORT void
 dds_entity_unlock(dds_entity *e);
 
 DDS_EXPORT dds_return_t
 dds_entity_observer_register(
   dds_entity *observed,
-  dds_entity *observer,
+  dds_waitset *observer,
   dds_entity_callback_t cb,
   dds_entity_attach_callback_t attach_cb, void *attach_arg,
   dds_entity_delete_callback_t delete_cb);
@@ -130,7 +119,8 @@ dds_entity_observer_register(
 DDS_EXPORT dds_return_t
 dds_entity_observer_unregister(
   dds_entity *observed,
-  dds_entity *observer);
+  dds_waitset *observer,
+  bool invoke_delete_cb);
 
 DDS_EXPORT dds_return_t
 dds_generic_unimplemented_operation_manykinds(

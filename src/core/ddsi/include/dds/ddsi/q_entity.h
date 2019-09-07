@@ -198,6 +198,7 @@ struct generic_endpoint { /* FIXME: currently only local endpoints; proxies use 
 
 enum writer_state {
   WRST_OPERATIONAL, /* normal situation */
+  WRST_INTERRUPT, /* will be deleted, unblock throttle_writer but do not do anything further */
   WRST_LINGERING, /* writer deletion has been requested but still has unack'd data */
   WRST_DELETING /* writer is actually being deleted (removed from hash table) */
 };
@@ -403,6 +404,7 @@ struct deleted_participants_admin *deleted_participants_admin_new (int64_t delay
 void deleted_participants_admin_free (struct deleted_participants_admin *admin);
 int is_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what);
 
+bool is_null_guid (const ddsi_guid_t *guid);
 ddsi_entityid_t to_entityid (unsigned u);
 int is_builtin_entityid (ddsi_entityid_t id, nn_vendorid_t vendorid);
 int is_builtin_endpoint (ddsi_entityid_t id, nn_vendorid_t vendorid);
@@ -568,6 +570,7 @@ int writer_must_have_hb_scheduled (const struct writer *wr, const struct whc_sta
 void writer_set_retransmitting (struct writer *wr);
 void writer_clear_retransmitting (struct writer *wr);
 
+dds_return_t unblock_throttled_writer (struct q_globals *gv, const struct ddsi_guid *guid);
 dds_return_t delete_writer (struct q_globals *gv, const struct ddsi_guid *guid);
 dds_return_t delete_writer_nolinger (struct q_globals *gv, const struct ddsi_guid *guid);
 dds_return_t delete_writer_nolinger_locked (struct writer *wr);

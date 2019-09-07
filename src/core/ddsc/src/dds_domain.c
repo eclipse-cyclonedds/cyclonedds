@@ -33,6 +33,7 @@
 static dds_return_t dds_domain_free (dds_entity *vdomain);
 
 const struct dds_entity_deriver dds_entity_deriver_domain = {
+  .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_domain_free,
   .set_qos = dds_entity_deriver_dummy_set_qos,
@@ -168,6 +169,7 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
 
   if (domain->gv.config.liveliness_monitoring)
     ddsi_threadmon_register_domain (dds_global.threadmon, &domain->gv);
+  dds_entity_init_complete (&domain->m_entity);
   return DDS_RETCODE_OK;
 
   rtps_stop (&domain->gv);
@@ -186,8 +188,7 @@ fail_rtps_init:
 fail_rtps_config:
   config_fini (domain->cfgst);
 fail_config:
-  dds_handle_close (&domain->m_entity.m_hdllink);
-  dds_handle_delete (&domain->m_entity.m_hdllink, DDS_INFINITY);
+  dds_handle_delete (&domain->m_entity.m_hdllink);
   return ret;
 }
 
@@ -317,7 +318,8 @@ void dds_write_set_batch (bool enable)
   /* FIXME: get channels + latency budget working and get rid of this; in the mean time, any ugly hack will do.  */
   struct dds_domain *dom;
   dds_domainid_t next_id = 0;
-  dds_init ();
+  if (dds_init () < 0)
+    return;
   ddsrt_mutex_lock (&dds_global.m_mutex);
   while ((dom = ddsrt_avl_lookup_succ_eq (&dds_domaintree_def, &dds_global.m_domains, &next_id)) != NULL)
   {
@@ -343,6 +345,5 @@ void dds_write_set_batch (bool enable)
     }
   }
   ddsrt_mutex_unlock (&dds_global.m_mutex);
-  /* FIXME */
-  dds_delete (DDS_CYCLONEDDS_HANDLE);
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
 }

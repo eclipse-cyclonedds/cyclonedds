@@ -47,6 +47,7 @@ set(ddsc_test_sources
     "unregister.c"
     "unsupported.c"
     "waitset.c"
+    "waitset_torture.c"
     "write.c"
     "writer.c")
 

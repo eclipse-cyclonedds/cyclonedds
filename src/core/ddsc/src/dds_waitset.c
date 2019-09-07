@@ -21,8 +21,6 @@
 #include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsi/ddsi_iid.h"
 
-DEFINE_ENTITY_LOCK_UNLOCK_ONLY (static, dds_waitset, DDS_KIND_WAITSET)
-
 static bool is_triggered (struct dds_entity *e)
 {
   bool t;
@@ -64,7 +62,7 @@ static dds_return_t dds_waitset_wait_impl (dds_entity_t waitset, dds_attach_t *x
   }
 
   /* Move any previously but no longer triggering entities back to the observed list */
-  ddsrt_mutex_lock (&ws->m_entity.m_mutex);
+  ddsrt_mutex_lock (&ws->wait_lock);
   ws->ntriggered = 0;
   for (size_t i = 0; i < ws->nentities; i++)
   {
@@ -77,40 +75,64 @@ static dds_return_t dds_waitset_wait_impl (dds_entity_t waitset, dds_attach_t *x
   }
 
   /* Only wait/keep waiting when we have something to observe and there aren't any triggers yet. */
-  while (ws->nentities > 0 && ws->ntriggered == 0)
-    if (!ddsrt_cond_waituntil (&ws->m_entity.m_cond, &ws->m_entity.m_mutex, abstimeout))
+  while (ws->nentities > 0 && ws->ntriggered == 0 && !dds_handle_is_closed (&ws->m_entity.m_hdllink))
+    if (!ddsrt_cond_waituntil (&ws->wait_cond, &ws->wait_lock, abstimeout))
       break;
 
   ret = (int32_t) ws->ntriggered;
   for (size_t i = 0; i < ws->ntriggered && i < nxs; i++)
     xs[i] = ws->entities[i].arg;
-  ddsrt_mutex_unlock (&ws->m_entity.m_mutex);
+  ddsrt_mutex_unlock (&ws->wait_lock);
   dds_entity_unpin (&ws->m_entity);
   return ret;
 }
 
-static dds_return_t dds_waitset_close (struct dds_entity *e)
+static void dds_waitset_interrupt (struct dds_entity *e)
 {
-  /* deep in the process of deleting the entity, so this is the only thread */
   dds_waitset *ws = (dds_waitset *) e;
+  ddsrt_mutex_lock (&ws->wait_lock);
+  assert (dds_handle_is_closed (&ws->m_entity.m_hdllink));
+  ddsrt_cond_broadcast (&ws->wait_cond);
+  ddsrt_mutex_unlock (&ws->wait_lock);
+}
+
+static void dds_waitset_close (struct dds_entity *e)
+{
+  dds_waitset *ws = (dds_waitset *) e;
+  ddsrt_mutex_lock (&ws->wait_lock);
   while (ws->nentities > 0)
   {
-    dds_return_t rc = dds_entity_observer_unregister (ws->entities[0].entity, &ws->m_entity);
-    assert (rc == DDS_RETCODE_OK);
-    (void) rc;
+    dds_entity *observed;
+    if (dds_entity_pin (ws->entities[0].handle, &observed) < 0)
+    {
+      /* can't be pinned => being deleted => will be removed from wait set soon enough
+       and go through delete_observer (which will trigger the condition variable) */
+      ddsrt_cond_wait (&ws->wait_cond, &ws->wait_lock);
+    }
+    else
+    {
+      /* entity will remain in existence */
+      ddsrt_mutex_unlock (&ws->wait_lock);
+      (void) dds_entity_observer_unregister (observed, ws, true);
+      ddsrt_mutex_lock (&ws->wait_lock);
+      assert (ws->nentities == 0 || ws->entities[0].entity != observed);
+      dds_entity_unpin (observed);
+    }
   }
-  return DDS_RETCODE_OK;
+  ddsrt_mutex_unlock (&ws->wait_lock);
 }
 
 static dds_return_t dds_waitset_delete (struct dds_entity *e)
 {
-  /* deep in the process of deleting the entity, so this is the only thread */
   dds_waitset *ws = (dds_waitset *) e;
+  ddsrt_mutex_destroy (&ws->wait_lock);
+  ddsrt_cond_destroy (&ws->wait_cond);
   ddsrt_free (ws->entities);
   return DDS_RETCODE_OK;
 }
 
 const struct dds_entity_deriver dds_entity_deriver_waitset = {
+  .interrupt = dds_waitset_interrupt,
   .close = dds_waitset_close,
   .delete = dds_waitset_delete,
   .set_qos = dds_entity_deriver_dummy_set_qos,
@@ -129,7 +151,7 @@ dds_entity_t dds_create_waitset (dds_entity_t owner)
   if ((rc = dds_init ()) < 0)
     return rc;
 
-  if ((rc = dds_entity_lock_for_create (owner, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_lock (owner, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
     goto err_entity_lock;
 
   switch (dds_entity_kind (e))
@@ -145,48 +167,58 @@ dds_entity_t dds_create_waitset (dds_entity_t owner)
 
   dds_waitset *waitset = dds_alloc (sizeof (*waitset));
   dds_entity_t hdl = dds_entity_init (&waitset->m_entity, e, DDS_KIND_WAITSET, NULL, NULL, 0);
+  ddsrt_mutex_init (&waitset->wait_lock);
+  ddsrt_cond_init (&waitset->wait_cond);
   waitset->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (e, &waitset->m_entity);
   waitset->nentities = 0;
   waitset->ntriggered = 0;
   waitset->entities = NULL;
+  dds_entity_init_complete (&waitset->m_entity);
   dds_entity_unlock (e);
-  dds_delete (DDS_CYCLONEDDS_HANDLE);
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
   return hdl;
 
  err_entity_kind:
   dds_entity_unlock (e);
  err_entity_lock:
-  dds_delete (DDS_CYCLONEDDS_HANDLE);
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
   return rc;
 }
 
 dds_return_t dds_waitset_get_entities (dds_entity_t waitset, dds_entity_t *entities, size_t size)
 {
   dds_return_t ret;
-  dds_waitset *ws;
-
-  if ((ret = dds_waitset_lock (waitset, &ws)) != DDS_RETCODE_OK)
+  dds_entity *wsent;
+  if ((ret = dds_entity_pin (waitset, &wsent)) < 0)
     return ret;
-
-  if (entities != NULL)
+  else if (dds_entity_kind (wsent) != DDS_KIND_WAITSET)
   {
-    for (size_t i = 0; i < ws->nentities && i < size; i++)
-      entities[i] = ws->entities[i].handle;
+    dds_entity_unpin (wsent);
+    return DDS_RETCODE_ILLEGAL_OPERATION;
   }
-  ret = (int32_t) ws->nentities;
-  dds_waitset_unlock (ws);
-  return ret;
+  else
+  {
+    dds_waitset *ws = (dds_waitset *) wsent;
+    ddsrt_mutex_lock (&ws->wait_lock);
+    if (entities != NULL)
+    {
+      for (size_t i = 0; i < ws->nentities && i < size; i++)
+        entities[i] = ws->entities[i].handle;
+    }
+    ret = (int32_t) ws->nentities;
+    ddsrt_mutex_unlock (&ws->wait_lock);
+    dds_entity_unpin (&ws->m_entity);
+    return ret;
+  }
 }
 
 /* This is called when the observed entity signals a status change. */
-static void dds_waitset_observer (dds_entity *ent, dds_entity_t observed, uint32_t status)
+static void dds_waitset_observer (struct dds_waitset *ws, dds_entity_t observed, uint32_t status)
 {
-  assert (dds_entity_kind (ent) == DDS_KIND_WAITSET);
-  dds_waitset *ws = (dds_waitset *) ent;
   (void) status;
 
-  ddsrt_mutex_lock (&ws->m_entity.m_mutex);
+  ddsrt_mutex_lock (&ws->wait_lock);
   /* Move observed entity to triggered list. */
   size_t i;
   for (i = 0; i < ws->nentities; i++)
@@ -199,20 +231,18 @@ static void dds_waitset_observer (dds_entity *ent, dds_entity_t observed, uint32
     ws->entities[ws->ntriggered++] = tmp;
   }
   /* Trigger waitset to wake up. */
-  ddsrt_cond_broadcast (&ws->m_entity.m_cond);
-  ddsrt_mutex_unlock (&ws->m_entity.m_mutex);
+  ddsrt_cond_broadcast (&ws->wait_cond);
+  ddsrt_mutex_unlock (&ws->wait_lock);
 }
 
 struct dds_waitset_attach_observer_arg {
   dds_attach_t x;
 };
 
-static void dds_waitset_attach_observer (struct dds_entity *observer, struct dds_entity *observed, void *varg)
+static bool dds_waitset_attach_observer (struct dds_waitset *ws, struct dds_entity *observed, void *varg)
 {
-  assert (dds_entity_kind (observer) == DDS_KIND_WAITSET);
-  dds_waitset *ws = (dds_waitset *) observer;
   struct dds_waitset_attach_observer_arg *arg = varg;
-  ddsrt_mutex_lock (&ws->m_entity.m_mutex);
+  ddsrt_mutex_lock (&ws->wait_lock);
   ws->entities = ddsrt_realloc (ws->entities, (ws->nentities + 1) * sizeof (*ws->entities));
   ws->entities[ws->nentities].arg = arg->x;
   ws->entities[ws->nentities].entity = observed;
@@ -225,16 +255,15 @@ static void dds_waitset_attach_observer (struct dds_entity *observer, struct dds
     ws->entities[i] = ws->entities[ws->ntriggered];
     ws->entities[ws->ntriggered++] = tmp;
   }
-  ddsrt_cond_broadcast (&ws->m_entity.m_cond);
-  ddsrt_mutex_unlock (&ws->m_entity.m_mutex);
+  ddsrt_cond_broadcast (&ws->wait_cond);
+  ddsrt_mutex_unlock (&ws->wait_lock);
+  return true;
 }
 
-static void dds_waitset_delete_observer (dds_entity *ent, dds_entity_t observed)
+static void dds_waitset_delete_observer (struct dds_waitset *ws, dds_entity_t observed)
 {
-  assert (dds_entity_kind (ent) == DDS_KIND_WAITSET);
-  dds_waitset *ws = (dds_waitset *) ent;
   size_t i;
-  ddsrt_mutex_lock (&ws->m_entity.m_mutex);
+  ddsrt_mutex_lock (&ws->wait_lock);
   for (i = 0; i < ws->nentities; i++)
     if (ws->entities[i].handle == observed)
       break;
@@ -250,8 +279,8 @@ static void dds_waitset_delete_observer (dds_entity *ent, dds_entity_t observed)
       ws->entities[i] = ws->entities[--ws->nentities];
     }
   }
-  ddsrt_cond_broadcast (&ws->m_entity.m_cond);
-  ddsrt_mutex_unlock (&ws->m_entity.m_mutex);
+  ddsrt_cond_broadcast (&ws->wait_cond);
+  ddsrt_mutex_unlock (&ws->wait_lock);
 }
 
 dds_return_t dds_waitset_attach (dds_entity_t waitset, dds_entity_t entity, dds_attach_t x)
@@ -271,9 +300,7 @@ dds_return_t dds_waitset_attach (dds_entity_t waitset, dds_entity_t entity, dds_
   {
     dds_waitset *ws = (dds_waitset *) wsent;
 
-    if (waitset == entity)
-      e = &ws->m_entity;
-    else if ((ret = dds_entity_pin (entity, &e)) < 0)
+    if ((ret = dds_entity_pin (entity, &e)) < 0)
       goto err_entity;
 
     /* Entity must be "in scope": within the participant, domain or (self-evidently true) Cyclone DDS,
@@ -288,12 +315,10 @@ dds_return_t dds_waitset_attach (dds_entity_t waitset, dds_entity_t entity, dds_
 
     /* This will fail if given entity is already attached (or deleted). */
     struct dds_waitset_attach_observer_arg attach_arg = { .x = x };
-    if ((ret = dds_entity_observer_register (e, &ws->m_entity, dds_waitset_observer, dds_waitset_attach_observer, &attach_arg, dds_waitset_delete_observer)) != DDS_RETCODE_OK)
-      goto err_entity;
+    ret = dds_entity_observer_register (e, ws, dds_waitset_observer, dds_waitset_attach_observer, &attach_arg, dds_waitset_delete_observer);
 
   err_scope:
-    if (e != &ws->m_entity)
-      dds_entity_unpin (e);
+    dds_entity_unpin (e);
   err_entity:
     dds_entity_unpin (&ws->m_entity);
     return ret;
@@ -318,12 +343,12 @@ dds_return_t dds_waitset_detach (dds_entity_t waitset, dds_entity_t entity)
     dds_entity *e;
     /* Possibly fails when entity was not attached. */
     if (waitset == entity)
-      ret = dds_entity_observer_unregister (&ws->m_entity, &ws->m_entity);
+      ret = dds_entity_observer_unregister (&ws->m_entity, ws, true);
     else if ((ret = dds_entity_pin (entity, &e)) < 0)
       ; /* entity invalid */
     else
     {
-      ret = dds_entity_observer_unregister (e, &ws->m_entity);
+      ret = dds_entity_observer_unregister (e, ws, true);
       dds_entity_unpin (e);
     }
 
@@ -352,7 +377,6 @@ dds_return_t dds_waitset_set_trigger (dds_entity_t waitset, bool trigger)
 {
   dds_entity *ent;
   dds_return_t rc;
-
   if ((rc = dds_entity_pin (waitset, &ent)) != DDS_RETCODE_OK)
     return rc;
   else if (dds_entity_kind (ent) != DDS_KIND_WAITSET)
@@ -360,11 +384,10 @@ dds_return_t dds_waitset_set_trigger (dds_entity_t waitset, bool trigger)
     dds_entity_unpin (ent);
     return DDS_RETCODE_ILLEGAL_OPERATION;
   }
-
-  ddsrt_mutex_lock (&ent->m_observers_lock);
-  dds_entity_trigger_set (ent, trigger);
-  ddsrt_mutex_unlock (&ent->m_observers_lock);
-
-  dds_entity_unpin (ent);
-  return DDS_RETCODE_OK;
+  else
+  {
+    dds_entity_trigger_set (ent, trigger);
+    dds_entity_unpin (ent);
+    return DDS_RETCODE_OK;
+  }
 }

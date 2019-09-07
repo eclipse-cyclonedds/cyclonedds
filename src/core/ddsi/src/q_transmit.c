@@ -900,7 +900,6 @@ static int writer_may_continue (const struct writer *wr, const struct whc_state 
   return (whcst->unacked_bytes <= wr->whc_low && !wr->retransmitting) || (wr->state != WRST_OPERATIONAL);
 }
 
-
 static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr)
 {
   /* Sleep (cond_wait) without updating the thread's vtime: the
@@ -1082,6 +1081,13 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
         goto drop;
       }
     }
+  }
+
+  if (wr->state != WRST_OPERATIONAL)
+  {
+    r = DDS_RETCODE_PRECONDITION_NOT_MET;
+    ddsrt_mutex_unlock (&wr->e.lock);
+    goto drop;
   }
 
   /* Always use the current monotonic time */
