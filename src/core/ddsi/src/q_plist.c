@@ -38,6 +38,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_misc.h" /* for vendor_is_... */
 
+
 /* I am tempted to change LENGTH_UNLIMITED to 0 in the API (with -1
    supported for backwards compatibility) ... on the wire however
    it must be -1 */
@@ -103,6 +104,7 @@ enum pserop {
   Xo, Xox2, /* octet, 1 .. 2 in a row */
   Xb, Xbx2, /* boolean, 1 .. 2 in a row */
   XbCOND, /* boolean: compare to ignore remainder if false (for use_... flags) */
+  XbPROP, /* boolean: propagation onto the wire indication (not on the wire itself) */
   XG, /* GUID */
   XK /* keyhash */
 } ddsrt_attribute_packed;
@@ -126,6 +128,7 @@ struct piddesc {
       dds_return_t (*fini) (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag);
       dds_return_t (*valid) (const void *src, size_t srcoff);
       bool (*equal) (const void *srcx, const void *srcy, size_t srcoff);
+      void (*cpy) (void * __restrict dst, const void * __restrict src);
     } f;
   } op;
   dds_return_t (*deser_validate_xform) (void * __restrict dst, const struct dd * __restrict dd);
@@ -141,6 +144,16 @@ static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t w
 static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict);
 static int partitions_equal (const dds_partition_qospolicy_t *a, const dds_partition_qospolicy_t *b);
 static dds_return_t nn_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
+static void fini_generic_partial (void * __restrict dst, size_t * __restrict dstoff, const enum pserop *desc, const enum pserop * const desc_end, bool aliased);
+static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, const enum pserop * __restrict desc);
+static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, const enum pserop * __restrict desc);
+static dds_return_t valid_generic (const void *src, size_t srcoff, const enum pserop * __restrict desc);
+static dds_return_t deser_generic (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff, const enum pserop * __restrict desc);
+static dds_return_t ser_generic (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, const enum pserop * __restrict desc);
+static dds_return_t ser_generic_data (char * const data, size_t *dataoff, const void *src, size_t *srcoff, const enum pserop * __restrict desc);
+static size_t ser_generic_size (const void *src, size_t *srcoff, const enum pserop * __restrict desc);
+static bool propagate_generic (const void *src, size_t *srcoff, const enum pserop * __restrict desc);
+
 
 static size_t align4size (size_t x)
 {
@@ -235,6 +248,340 @@ static bool equal_reliability (const void *srcx, const void *srcy, size_t srcoff
   dds_reliability_qospolicy_t const * const x = deser_generic_src (srcx, &srcoff, alignof (dds_reliability_qospolicy_t));
   dds_reliability_qospolicy_t const * const y = deser_generic_src (srcy, &srcoff, alignof (dds_reliability_qospolicy_t));
   return x->kind == y->kind && x->max_blocking_time == y->max_blocking_time;
+}
+
+
+/* pserop representation of dds_property_t. */
+static const enum pserop dds_property_desc[]       = { XS, XS, XbPROP, XSTOP };
+
+/* pserop representation of dds_binaryproperty_t. */
+static const enum pserop dds_binaryproperty_desc[] = { XS, XO, XbPROP, XSTOP };
+
+
+static dds_return_t deser_struct_seq (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff, const enum pserop * __restrict desc, size_t size)
+{
+  static const enum pserop seq_len_desc[] = { Xu, XSTOP };
+  dds_return_t ret = DDS_RETCODE_OK;
+  size_t seqoff = *dstoff;
+  unsigned char *bufptr;
+  uint32_t i;
+
+  /* Translate dst to a sequence into which everything will be deserialized. */
+  ddsi_octetseq_t *seq = deser_generic_dst (dst, &seqoff, alignof (ddsi_octetseq_t));
+
+  /* Deserialize length. */
+  ret = deser_generic(dst, dstoff, flagset, flag, dd, srcoff, seq_len_desc);
+  if (ret == DDS_RETCODE_OK)
+  {
+    if (seq->length > 0)
+    {
+      /* Create buffer. */
+      seq->value = ddsrt_malloc(size * seq->length);
+
+      /* Add elements to the buffer. */
+      bufptr = seq->value;
+      for (i = 0; (ret == DDS_RETCODE_OK) && (i < seq->length); i++)
+      {
+        size_t nuloff = 0;
+        ret = deser_generic(bufptr, &nuloff, flagset, flag, dd, srcoff, desc);
+        bufptr += size;
+      }
+      if (ret != DDS_RETCODE_OK)
+      {
+        ddsrt_free(seq->value);
+      }
+    }
+
+    /* Add buffer pointer to destination offset. */
+    *dstoff += sizeof(void*);
+  }
+
+  return ret;
+}
+
+static dds_return_t ser_struct_seq (char * const data, size_t *dataoff, const void *src, size_t *srcoff, const enum pserop * __restrict desc)
+{
+  static const enum pserop seq_len_desc[] = { Xu, XSTOP };
+  const ddsi_octetseq_t *seq = deser_generic_src (src, srcoff, alignof (ddsi_octetseq_t));
+  dds_return_t ret = DDS_RETCODE_OK;
+  size_t bufoff = 0;
+  void *buf;
+  size_t lenoff;
+  char *len;
+  uint32_t i;
+  uint32_t cnt = 0;
+
+  /* Add length. */
+  len = data;
+  lenoff = *dataoff;
+  ret = ser_generic_data(data, dataoff, src, srcoff, seq_len_desc);
+
+  /* Add elements. */
+  buf = seq->value;
+  for (i = 0; (ret == DDS_RETCODE_OK) && (i < seq->length); i++)
+  {
+    size_t structoff = bufoff;
+    /* Only need to serialize when the struct will be propagated onto the wire. */
+    if (propagate_generic (buf, &bufoff, desc))
+    {
+      ret = ser_generic_data(data, dataoff, buf, &structoff, desc);
+      cnt++;
+    }
+    /* Align offset. */
+    (void)deser_generic_src (buf, &bufoff, alignof(void*));
+  }
+
+  if ((ret == DDS_RETCODE_OK) && (seq->length != cnt))
+  {
+    /* Update length value. */
+    size_t nuloff = 0;
+    ret = ser_generic_data(len, &lenoff, &cnt, &nuloff, seq_len_desc);
+  }
+
+  /* Add buffer pointer to source offset. */
+  *srcoff += sizeof(void*);
+
+  return ret;
+}
+
+static size_t ser_struct_seq_size (const void *src, size_t *srcoff, const enum pserop * __restrict desc)
+{
+  static const enum pserop seq_len_desc[] = { Xu, XSTOP };
+  const ddsi_octetseq_t *seq = deser_generic_src (src, srcoff, alignof (ddsi_octetseq_t));
+  size_t bufoff = 0;
+  void *buf;
+  size_t size;
+  uint32_t i;
+
+  /* Sequence length argument. */
+  size = ser_generic_size(src, srcoff, seq_len_desc);
+
+  /* Sequence elements sizes. */
+  buf = seq->value;
+  for (i = 0; i < seq->length; i++)
+  {
+    size_t structoff = bufoff;
+    /* Only need to get the size when the struct will be propagated onto the wire. */
+    if (propagate_generic (buf, &bufoff, desc))
+    {
+      size += align4size(ser_generic_size(buf, &structoff, desc));
+    }
+    /* Align offset. */
+    (void)deser_generic_src (buf, &bufoff, alignof(void*));
+  }
+
+  /* Add buffer pointer to source offset. */
+  *srcoff += sizeof(void*);
+
+  return size;
+}
+
+static dds_return_t valid_struct_seq (const void *src, size_t *srcoff, const enum pserop * __restrict desc, size_t size)
+{
+  static const enum pserop seq_desc[] = { XO, XSTOP };
+  dds_return_t ret = DDS_RETCODE_OK;
+  const ddsi_octetseq_t *seq;
+  size_t off = *srcoff;
+  unsigned char *buf;
+  uint32_t i;
+
+  ret = valid_generic(src, off, seq_desc);
+  if (ret == DDS_RETCODE_OK)
+  {
+    seq = deser_generic_src (src, &off, alignof (ddsi_octetseq_t));
+    buf = seq->value;
+    for (i = 0; (ret == DDS_RETCODE_OK) && (i < seq->length); i++)
+    {
+      ret = valid_generic(buf, 0, desc);
+      buf += size;
+    }
+    if (ret == DDS_RETCODE_OK)
+    {
+      *srcoff = (size_t)(buf - seq->value) + sizeof(seq->length);
+    }
+  }
+
+  return ret;
+}
+
+static bool equal_struct_seq (const void *srcx, const void *srcy, size_t *srcoff, const enum pserop * __restrict desc, size_t size)
+{
+  const ddsi_octetseq_t *seqx;
+  const ddsi_octetseq_t *seqy;
+  unsigned char *structx;
+  unsigned char *structy;
+  size_t offx = *srcoff;
+  size_t offy = *srcoff;
+  bool equal;
+  uint32_t i;
+
+  seqx = deser_generic_src (srcx, &offx, alignof (ddsi_octetseq_t));
+  seqy = deser_generic_src (srcy, &offy, alignof (ddsi_octetseq_t));
+
+  equal = (seqx->length == seqy->length);
+  structx = seqx->value;
+  if (equal)
+  {
+    structy = seqy->value;
+    for (i = 0; equal && (i < seqx->length); i++)
+    {
+      equal = equal_generic(structx, structy, 0, desc);
+      structx += size;
+      structy += size;
+    }
+  }
+
+  if (equal)
+  {
+    *srcoff = (size_t)(structx - seqx->value) + sizeof(seqx->length);
+  }
+
+  return equal;
+}
+
+static void unalias_struct_seq (void * __restrict dst, size_t * __restrict dstoff, const enum pserop * __restrict desc)
+{
+  ddsi_octetseq_t *seq = deser_generic_dst (dst, dstoff, alignof (ddsi_octetseq_t));
+  size_t bufoff = 0;
+  void *buf;
+  uint32_t i;
+
+  /* Unalias the contents of the structs within the sequence. */
+  buf = seq->value;
+  for (i = 0; i < seq->length; i++)
+  {
+    (void)unalias_generic(buf, &bufoff, desc);
+  }
+
+  /* The sequence buffer itself is already unaliased. */
+  *dstoff += sizeof(seq->length);
+  *dstoff += sizeof(seq->value);
+}
+
+static void fini_struct_seq(void * __restrict dst, size_t * __restrict dstoff, const enum pserop *desc, const enum pserop * const desc_end, bool aliased)
+{
+  ddsi_octetseq_t *seq = deser_generic_dst (dst, dstoff, alignof (ddsi_octetseq_t));
+  size_t bufoff = 0;
+  void *buf;
+  uint32_t i;
+
+  /* Free the contents of the structs within the sequence. */
+  buf = seq->value;
+  for (i = 0; i < seq->length; i++)
+  {
+    fini_generic_partial(buf, &bufoff, desc, desc_end, aliased);
+  }
+
+  /* The sequence buffer is never aliased. */
+  if (seq->length > 0) {
+    ddsrt_free(seq->value);
+  }
+
+  *dstoff += sizeof(seq->length);
+  *dstoff += sizeof(seq->value);
+}
+
+static void copy_struct_seq(void * __restrict dst, const void * __restrict src, const enum pserop * __restrict desc, size_t size)
+{
+  const ddsi_octetseq_t *seqsrc = src;
+  ddsi_octetseq_t *seqdst = dst;
+  size_t nuloff = 0;
+
+  /* Shallow copy. */
+  seqdst->length = seqsrc->length;
+  seqdst->value = ddsrt_memdup (seqsrc->value, size * seqsrc->length);
+
+  /* Unaliaze to make it a deep copy. */
+  unalias_struct_seq(dst, &nuloff, desc);
+}
+
+static dds_return_t deser_property_policy (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff)
+{
+  // Deserialize dds_property_qospolicy_t
+  if (deser_struct_seq(dst, dstoff, flagset, flag, dd, srcoff, dds_property_desc, sizeof(dds_property_t)) == DDS_RETCODE_OK)
+  {
+    (void)deser_generic_src (dst, dstoff, alignof(void*));
+    return deser_struct_seq(dst, dstoff, flagset, flag, dd, srcoff, dds_binaryproperty_desc, sizeof(dds_binaryproperty_t));
+  }
+  return DDS_RETCODE_BAD_PARAMETER;
+}
+
+
+static dds_return_t ser_property_policy (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff)
+{
+  // Serialize dds_property_qospolicy_t
+  dds_return_t ret = DDS_RETCODE_BAD_PARAMETER;
+  size_t parsize;
+  size_t dataoff;
+  size_t tmpoff;
+  char * data;
+
+  /* Get serialized property policy size. */
+  tmpoff = srcoff;
+  parsize  = ser_struct_seq_size(src, &tmpoff, dds_property_desc);
+  parsize += ser_struct_seq_size(src, &tmpoff, dds_binaryproperty_desc);
+
+  /* Add PID and length and get payload pointer. */
+  data = nn_xmsg_addpar (xmsg, pid, parsize);
+
+  /* Add the property sequences. */
+  dataoff = 0;
+  tmpoff = srcoff;
+  if (ser_struct_seq(data, &dataoff, src, &tmpoff, dds_property_desc) == DDS_RETCODE_OK)
+  {
+    ret = ser_struct_seq(data, &dataoff, src, &tmpoff, dds_binaryproperty_desc);
+  }
+
+  return ret;
+}
+
+static dds_return_t valid_property_policy (const void *src, size_t srcoff)
+{
+  // Validity check dds_property_qospolicy_t
+  size_t tmpoff = srcoff;
+  if (valid_struct_seq(src, &tmpoff, dds_property_desc, sizeof(dds_property_t)) == DDS_RETCODE_OK)
+  {
+    (void)deser_generic_src (src, &tmpoff, alignof(void*));
+    return valid_struct_seq(src, &tmpoff, dds_binaryproperty_desc, sizeof(dds_binaryproperty_t));
+  }
+  return DDS_RETCODE_BAD_PARAMETER;
+}
+
+static bool equal_property_policy (const void *srcx, const void *srcy, size_t srcoff)
+{
+  // Equal check dds_property_qospolicy_t
+  size_t tmpoff = srcoff;
+  if (equal_struct_seq(srcx, srcy, &tmpoff, dds_property_desc, sizeof(dds_property_t)))
+  {
+    (void)deser_generic_src (srcx, &tmpoff, alignof(void*));
+    return equal_struct_seq(srcx, srcy, &tmpoff, dds_binaryproperty_desc, sizeof(dds_binaryproperty_t));
+  }
+  return false;
+}
+
+
+static dds_return_t unalias_property_policy (void * __restrict dst, size_t * __restrict dstoff)
+{
+  // Unalias dds_property_qospolicy_t
+  unalias_struct_seq(dst, dstoff, dds_property_desc);
+  unalias_struct_seq(dst, dstoff, dds_binaryproperty_desc);
+  return 0;
+}
+
+static dds_return_t fini_property_policy (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag)
+{
+  // Freeing dds_property_qospolicy_t
+  fini_struct_seq(dst, dstoff, dds_property_desc,       NULL, *flagset->aliased & flag);
+  fini_struct_seq(dst, dstoff, dds_binaryproperty_desc, NULL, *flagset->aliased & flag);
+  return 0;
+}
+
+static void copy_property_policy(void * __restrict dst, const void * __restrict src)
+{
+  const dds_property_qospolicy_t *polsrc = src;
+  dds_property_qospolicy_t *poldst = dst;
+  copy_struct_seq(&(poldst->value),        &(polsrc->value),        dds_property_desc,       sizeof(dds_property_t));
+  copy_struct_seq(&(poldst->binary_value), &(polsrc->binary_value), dds_binaryproperty_desc, sizeof(dds_binaryproperty_t));
 }
 
 static dds_return_t deser_statusinfo (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff)
@@ -353,6 +700,7 @@ static void fini_generic_partial (void * __restrict dst, size_t * __restrict dst
       case Xo: case Xox2: SIMPLE (Xo, unsigned char); break;
       case Xb: case Xbx2: SIMPLE (Xb, unsigned char); break;
       case XbCOND: SIMPLE (XbCOND, unsigned char); break;
+      case XbPROP: SIMPLE (XbPROP, bool); break;
       case XG: SIMPLE (XG, nn_guid_t); break;
       case XK: SIMPLE (XK, nn_keyhash_t); break;
     }
@@ -361,6 +709,48 @@ static void fini_generic_partial (void * __restrict dst, size_t * __restrict dst
 #undef SIMPLE
 #undef COMPLEX
 }
+
+static bool propagate_generic (const void *src, size_t *srcoff, const enum pserop * __restrict desc)
+{
+  bool propagate = true;
+#define SKIP(basecase_, type_) do {                                   \
+    type_ const *x = deser_generic_src (src, srcoff, alignof (type_));  \
+    const uint32_t cnt = 1 + (uint32_t) (*desc - (basecase_));          \
+    *srcoff += cnt * sizeof (*x);                                       \
+  } while (0)
+  while (true)
+  {
+    switch (*desc)
+    {
+      case XSTOP: return propagate;
+      case XbPROP: { /* propagation boolean */
+        bool const * const x = deser_generic_src(src, srcoff, alignof(bool));
+        if (!(*x)) {
+          /* The related data should not be propagated onto the wire. */
+          propagate = false;
+        }
+        *srcoff += sizeof (bool);
+        break;
+      }
+      case XO: SKIP (XO, ddsi_octetseq_t); break;
+      case XS: SKIP (XS, const char *); break;
+      case XZ: SKIP (XZ, ddsi_stringseq_t); break;
+      case XE1: case XE2: case XE3: SKIP (*desc, unsigned); break;
+      case Xi: case Xix2: case Xix3: case Xix4: SKIP (Xi, int32_t); break;
+      case Xu: case Xux2: case Xux3: case Xux4: case Xux5: SKIP (Xu, uint32_t); break;
+      case Xl: SKIP (Xl, int32_t); break;
+      case XD: case XDx2: SKIP (XD, dds_duration_t); break;
+      case Xo: case Xox2: SKIP (Xo, unsigned char); break;
+      case Xb: case Xbx2: SKIP (Xb, unsigned char); break;
+      case XbCOND: SKIP (XbCOND, unsigned char); break;
+      case XG: SKIP (XG, nn_guid_t); break;
+      case XK: SKIP (XK, nn_keyhash_t); break;
+    }
+    desc++;
+  }
+#undef SKIP
+}
+
 
 static dds_return_t deser_generic (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff, const enum pserop * __restrict desc)
 {
@@ -491,6 +881,13 @@ static dds_return_t deser_generic (void * __restrict dst, size_t * __restrict ds
         *dstoff += cnt * sizeof (*x);
         break;
       }
+      case XbPROP: { /* propagation boolean */
+        bool * const x = deser_generic_dst(dst, dstoff, alignof(bool));
+        /* This boolean is not on the wire. Data is, so original boolean was true. */
+        x[0] = true;
+        *dstoff += sizeof(*x);
+        break;
+      }
       case XG: { /* GUID */
         nn_guid_t * const x = deser_generic_dst (dst, dstoff, alignof (nn_guid_t));
         if (dd->bufsz - *srcoff < sizeof (*x))
@@ -521,14 +918,19 @@ fail:
   return DDS_RETCODE_BAD_PARAMETER;
 }
 
-static size_t ser_generic_size (const void *src, size_t srcoff, const enum pserop * __restrict desc)
+static size_t ser_generic_size (const void *src, size_t *srcoff, const enum pserop * __restrict desc)
 {
   size_t dstoff = 0;
+#define SKIP(basecase_, type_) do {                                     \
+    type_ const *x = deser_generic_src (src, srcoff, alignof (type_));  \
+    const uint32_t cnt = 1 + (uint32_t) (*desc - (basecase_));          \
+    *srcoff += cnt * sizeof (*x);                                       \
+  } while (0)
 #define COMPLEX(basecase_, type_, dstoff_update_) do {                  \
-    type_ const *x = deser_generic_src (src, &srcoff, alignof (type_)); \
+    type_ const *x = deser_generic_src (src, srcoff, alignof (type_));  \
     const uint32_t cnt = 1 + (uint32_t) (*desc - (basecase_));          \
     for (uint32_t xi = 0; xi < cnt; xi++, x++) { dstoff_update_; }      \
-    srcoff += cnt * sizeof (*x);                                        \
+    *srcoff += cnt * sizeof (*x);                                       \
   } while (0)
 #define SIMPLE1(basecase_, type_) COMPLEX (basecase_, type_, dstoff = dstoff + sizeof (*x))
 #define SIMPLE4(basecase_, type_) COMPLEX (basecase_, type_, dstoff = align4size (dstoff) + sizeof (*x))
@@ -552,19 +954,29 @@ static size_t ser_generic_size (const void *src, size_t srcoff, const enum psero
       case Xo: case Xox2: SIMPLE1 (Xo, unsigned char); break;
       case Xb: case Xbx2: SIMPLE1 (Xb, unsigned char); break;
       case XbCOND: SIMPLE1 (XbCOND, unsigned char); break;
+      case XbPROP: SKIP (XbPROP, bool); break;
       case XG: SIMPLE1 (XG, nn_guid_t); break;
       case XK: SIMPLE1 (XK, nn_keyhash_t); break;
     }
     desc++;
   }
-#undef SIMPLE
+#undef SIMPLE4
+#undef SIMPLE1
 #undef COMPLEX
+#undef SKIP
 }
 
 static dds_return_t ser_generic (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, const enum pserop * __restrict desc)
 {
-  char * const data = nn_xmsg_addpar (xmsg, pid, ser_generic_size (src, srcoff, desc));
   size_t dstoff = 0;
+  size_t tmpoff = srcoff;
+  char * const data = nn_xmsg_addpar (xmsg, pid, ser_generic_size (src, &tmpoff, desc));
+  tmpoff = srcoff;
+  return ser_generic_data(data, &dstoff, src, &tmpoff, desc);
+}
+
+static dds_return_t ser_generic_data (char * const data, size_t *dataoff, const void *src, size_t *srcoff, const enum pserop * __restrict desc)
+{
   while (true)
   {
     switch (*desc)
@@ -572,127 +984,135 @@ static dds_return_t ser_generic (struct nn_xmsg *xmsg, nn_parameterid_t pid, con
       case XSTOP:
         return 0;
       case XO: { /* octet sequence */
-        ddsi_octetseq_t const * const x = deser_generic_src (src, &srcoff, alignof (ddsi_octetseq_t));
-        char * const p = ser_generic_align4 (data, &dstoff);
+        ddsi_octetseq_t const * const x = deser_generic_src (src, srcoff, alignof (ddsi_octetseq_t));
+        char * const p = ser_generic_align4 (data, dataoff);
         *((uint32_t *) p) = x->length;
         if (x->length) memcpy (p + 4, x->value, x->length);
-        dstoff += 4 + x->length;
-        srcoff += sizeof (*x);
+        *dataoff += 4 + x->length;
+        *srcoff += sizeof (*x);
         break;
       }
       case XS: { /* string */
-        char const * const * const x = deser_generic_src (src, &srcoff, alignof (char *));
+        char const * const * const x = deser_generic_src (src, srcoff, alignof (char *));
         const uint32_t size = (uint32_t) (strlen (*x) + 1);
-        char * const p = ser_generic_align4 (data, &dstoff);
+        char * const p = ser_generic_align4 (data, dataoff);
         *((uint32_t *) p) = size;
         memcpy (p + 4, *x, size);
-        dstoff += 4 + size;
-        srcoff += sizeof (*x);
+        *dataoff += 4 + size;
+        *srcoff += sizeof (*x);
         break;
       }
       case XZ: { /* string sequence */
-        ddsi_stringseq_t const * const x = deser_generic_src (src, &srcoff, alignof (ddsi_stringseq_t));
-        char * const p = ser_generic_align4 (data, &dstoff);
+        ddsi_stringseq_t const * const x = deser_generic_src (src, srcoff, alignof (ddsi_stringseq_t));
+        char * const p = ser_generic_align4 (data, dataoff);
         *((uint32_t *) p) = x->n;
-        dstoff += 4;
+        *dataoff += 4;
         for (uint32_t i = 0; i < x->n; i++)
         {
-          char * const q = ser_generic_align4 (data, &dstoff);
+          char * const q = ser_generic_align4 (data, dataoff);
           const uint32_t size = (uint32_t) (strlen (x->strs[i]) + 1);
           *((uint32_t *) q) = size;
           memcpy (q + 4, x->strs[i], size);
-          dstoff += 4 + size;
+          *dataoff += 4 + size;
         }
-        srcoff += sizeof (*x);
+        *srcoff += sizeof (*x);
         break;
       }
       case XE1: case XE2: case XE3: { /* enum */
-        unsigned const * const x = deser_generic_src (src, &srcoff, alignof (unsigned));
-        uint32_t * const p = ser_generic_align4 (data, &dstoff);
+        unsigned const * const x = deser_generic_src (src, srcoff, alignof (unsigned));
+        uint32_t * const p = ser_generic_align4 (data, dataoff);
         *p = (uint32_t) *x;
-        dstoff += 4;
-        srcoff += sizeof (*x);
+        *dataoff += 4;
+        *srcoff += sizeof (*x);
         break;
       }
       case Xi: case Xix2: case Xix3: case Xix4: { /* int32_t(s) */
-        int32_t const * const x = deser_generic_src (src, &srcoff, alignof (int32_t));
+        int32_t const * const x = deser_generic_src (src, srcoff, alignof (int32_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xi);
-        int32_t * const p = ser_generic_align4 (data, &dstoff);
+        int32_t * const p = ser_generic_align4 (data, dataoff);
         for (uint32_t i = 0; i < cnt; i++)
           p[i] = x[i];
-        dstoff += cnt * sizeof (*x);
-        srcoff += cnt * sizeof (*x);
+        *dataoff += cnt * sizeof (*x);
+        *srcoff += cnt * sizeof (*x);
         break;
       }
 
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5:  { /* uint32_t(s) */
-        uint32_t const * const x = deser_generic_src (src, &srcoff, alignof (uint32_t));
+        uint32_t const * const x = deser_generic_src (src, srcoff, alignof (uint32_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xu);
-        uint32_t * const p = ser_generic_align4 (data, &dstoff);
+        uint32_t * const p = ser_generic_align4 (data, dataoff);
         for (uint32_t i = 0; i < cnt; i++)
           p[i] = x[i];
-        dstoff += cnt * sizeof (*x);
-        srcoff += cnt * sizeof (*x);
+        *dataoff += cnt * sizeof (*x);
+        *srcoff += cnt * sizeof (*x);
         break;
       }
 
       case Xl: { /* int32_t(s) */
-        int32_t const * const x = deser_generic_src (src, &srcoff, alignof (uint32_t));
+        int32_t const * const x = deser_generic_src (src, srcoff, alignof (uint32_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xu);
-        int32_t * const p = ser_generic_align4 (data, &dstoff);
+        int32_t * const p = ser_generic_align4 (data, dataoff);
         for (uint32_t i = 0; i < cnt; i++)
           p[i] = x[i];
-        dstoff += cnt * sizeof (*x);
-        srcoff += cnt * sizeof (*x);
+        *dataoff += cnt * sizeof (*x);
+        *srcoff += cnt * sizeof (*x);
         break;
       }
       case XD: case XDx2: { /* duration(s): int64_t <=> int32_t.uint32_t (seconds.fraction) */
-        dds_duration_t const * const x = deser_generic_src (src, &srcoff, alignof (dds_duration_t));
+        dds_duration_t const * const x = deser_generic_src (src, srcoff, alignof (dds_duration_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - XD);
-        uint32_t * const p = ser_generic_align4 (data, &dstoff);
+        uint32_t * const p = ser_generic_align4 (data, dataoff);
         for (uint32_t i = 0; i < cnt; i++)
         {
           ddsi_duration_t tmp = nn_to_ddsi_duration (x[i]);
           p[2 * i + 0] = (uint32_t) tmp.seconds;
           p[2 * i + 1] = tmp.fraction;
         }
-        dstoff += 2 * cnt * sizeof (uint32_t);
-        srcoff += cnt * sizeof (*x);
+        *dataoff += 2 * cnt * sizeof (uint32_t);
+        *srcoff += cnt * sizeof (*x);
         break;
       }
       case Xo: case Xox2: { /* octet(s) */
-        unsigned char const * const x = deser_generic_src (src, &srcoff, alignof (unsigned char));
+        unsigned char const * const x = deser_generic_src (src, srcoff, alignof (unsigned char));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xo);
-        char * const p = data + dstoff;
+        char * const p = data + (*dataoff);
         memcpy (p, x, cnt);
-        dstoff += cnt;
-        srcoff += cnt * sizeof (*x);
+        *dataoff += cnt;
+        *srcoff += cnt * sizeof (*x);
         break;
       }
       case Xb: case Xbx2: case XbCOND: { /* boolean(s) */
-        unsigned char const * const x = deser_generic_src (src, &srcoff, alignof (unsigned char));
+        unsigned char const * const x = deser_generic_src (src, srcoff, alignof (unsigned char));
         const uint32_t cnt = (*desc == Xbx2) ? 2 : 1; /* <<<< beware! */
-        char * const p = data + dstoff;
+        char * const p = data + (*dataoff);
         memcpy (p, x, cnt);
-        dstoff += cnt;
-        srcoff += cnt * sizeof (*x);
+        *dataoff += cnt;
+        *srcoff += cnt * sizeof (*x);
+        break;
+      }
+      case XbPROP: { /* propagation boolean */
+        bool const * const x = deser_generic_src(src, srcoff, alignof(bool));
+        /* This boolean should not be on the wire and thus not be serialized.
+         * Also, structs in which this bool is 'false' shouldn't be serialized. */
+        assert(*x);
+        *srcoff += sizeof (*x);
         break;
       }
       case XG: { /* GUID */
-        nn_guid_t const * const x = deser_generic_src (src, &srcoff, alignof (nn_guid_t));
+        nn_guid_t const * const x = deser_generic_src (src, srcoff, alignof (nn_guid_t));
         const nn_guid_t xn = nn_hton_guid (*x);
-        char * const p = data + dstoff;
+        char * const p = data + (*dataoff);
         memcpy (p, &xn, sizeof (xn));
-        dstoff += sizeof (xn);
-        srcoff += sizeof (*x);
+        *dataoff += sizeof (xn);
+        *srcoff += sizeof (*x);
         break;
       }
       case XK: { /* keyhash */
-        nn_keyhash_t const * const x = deser_generic_src (src, &srcoff, alignof (nn_keyhash_t));
-        char * const p = data + dstoff;
+        nn_keyhash_t const * const x = deser_generic_src (src, srcoff, alignof (nn_keyhash_t));
+        char * const p = data + (*dataoff);
         memcpy (p, x, sizeof (*x));
-        dstoff += sizeof (*x);
-        srcoff += sizeof (*x);
+        *dataoff += sizeof (*x);
+        *srcoff += sizeof (*x);
         break;
       }
     }
@@ -730,6 +1150,7 @@ static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict 
       case Xo: case Xox2: SIMPLE (Xo, unsigned char); break;
       case Xb: case Xbx2: SIMPLE (Xb, unsigned char); break;
       case XbCOND: SIMPLE (XbCOND, unsigned char); break;
+      case XbPROP: SIMPLE (XbPROP, bool); break;
       case XG: SIMPLE (XG, nn_guid_t); break;
       case XK: SIMPLE (XK, nn_keyhash_t); break;
     }
@@ -798,6 +1219,7 @@ static dds_return_t valid_generic (const void *src, size_t srcoff, const enum ps
       case Xo: case Xox2: TRIVIAL (Xo, unsigned char); break;
       case Xb: case Xbx2: SIMPLE (Xb, unsigned char, *x == 0 || *x == 1); break;
       case XbCOND: SIMPLE (XbCOND, unsigned char, *x == 0 || *x == 1); break;
+      case XbPROP: TRIVIAL (XbPROP, bool); break;
       case XG: TRIVIAL (XG, nn_guid_t); break;
       case XK: TRIVIAL (XK, nn_keyhash_t); break;
     }
@@ -857,6 +1279,7 @@ static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, co
             return true;
         });
         break;
+      case XbPROP: TRIVIAL (XbPROP, bool); break;
       case XG: SIMPLE (XG, nn_guid_t, memcmp (x, y, sizeof (*x))); break;
       case XK: SIMPLE (XK, nn_keyhash_t, memcmp (x, y, sizeof (*x))); break;
     }
@@ -865,6 +1288,22 @@ static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, co
 #undef TRIVIAL
 #undef SIMPLE
 #undef COMPLEX
+}
+
+static void copy_generic(void * __restrict dst, const void * __restrict src, size_t off, struct piddesc const * const entry)
+{
+  /* bitwise copy, mark as aliased & unalias; have to unalias fields one-by-one rather than
+   do this for all fields and call "unalias" on the entire object because fields that are
+   already present may be aliased, and it would be somewhat impolite to change that.
+
+   Note: dst & src have the same type, so offset in src is the same;
+   Note: unalias may have to look at */
+  memcpy ((char *) dst + off, (const char *) src + off, entry->size);
+
+  if (!(entry->flags & PDF_FUNCTION))
+    unalias_generic (dst, &off, entry->op.desc);
+  else if (entry->op.f.unalias)
+    entry->op.f.unalias (dst, &off);
 }
 
 #define membersize(type, member) sizeof (((type *) 0)->member)
@@ -970,6 +1409,10 @@ static const struct piddesc piddesc_omg[] = {
   { PID_RELIABILITY, PDF_QOS | PDF_FUNCTION, QP_RELIABILITY, "RELIABILITY",
     offsetof (struct nn_plist, qos.reliability), membersize (struct nn_plist, qos.reliability),
     { .f = { .deser = deser_reliability, .ser = ser_reliability, .valid = valid_reliability, .equal = equal_reliability } }, 0 },
+  /* Property policy has to be broken up to become simple enough to be used with the generic functions. */
+  { PID_PROPERTY_LIST, PDF_QOS | PDF_FUNCTION, QP_PROPERTY_LIST, "PROPERTY_LIST",
+    offsetof (struct nn_plist, qos.property), membersize (struct nn_plist, qos.property),
+    { .f = { .deser = deser_property_policy, .ser = ser_property_policy, .unalias = unalias_property_policy, .fini = fini_property_policy, .valid = valid_property_policy, .equal = equal_property_policy, .cpy = copy_property_policy } }, 0 },
   QP  (LIFESPAN,                            lifespan, XD),
   QP  (DESTINATION_ORDER,                   destination_order, XE1),
   /* History depth is ignored when kind = KEEP_ALL, and must be >= 1 when KEEP_LAST, so can't use "l" */
@@ -1141,8 +1584,8 @@ static const struct piddesc_index piddesc_vendor_index[] = {
 /* List of entries that require unalias, fini processing;
    initialized by nn_plist_init_tables; will assert when
    table too small or too large */
-static const struct piddesc *piddesc_unalias[18];
-static const struct piddesc *piddesc_fini[18];
+static const struct piddesc *piddesc_unalias[19];
+static const struct piddesc *piddesc_fini[19];
 static ddsrt_once_t table_init_control = DDSRT_ONCE_INIT;
 
 static nn_parameterid_t pid_without_flags (nn_parameterid_t pid)
@@ -1388,18 +1831,13 @@ static void plist_or_xqos_mergein_missing (void * __restrict dst, const void * _
       /* skip if already present in dst or absent in src */
       if (!(*fs_dst->present & entry->present_flag) && (*fs_src->present & mask & entry->present_flag))
       {
-        /* bitwise copy, mark as aliased & unalias; have to unalias fields one-by-one rather than
-         do this for all fields and call "unalias" on the entire object because fields that are
-         already present may be aliased, and it would be somewhat impolite to change that.
+        /* Note: dst & src have the same type, so offset in src is the same; */
+        if (entry->op.f.cpy)
+          entry->op.f.cpy ((char *)dst + dstoff, (const char *)src + dstoff);
+        else
+          copy_generic(dst, src, dstoff, entry);
 
-         Note: dst & src have the same type, so offset in src is the same;
-         Note: unalias may have to look at */
-        memcpy ((char *) dst + dstoff, (const char *) src + dstoff, entry->size);
         *fs_dst->present |= entry->present_flag;
-        if (!(entry->flags & PDF_FUNCTION))
-          unalias_generic (dst, &dstoff, entry->op.desc);
-        else if (entry->op.f.unalias)
-          entry->op.f.unalias (dst, &dstoff);
       }
     }
   }
@@ -2773,4 +3211,24 @@ void nn_log_xqos (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qo
 #undef LOGB2
 #undef LOGB1
 #undef LOGB0
+}
+
+void nn_free_property_policy(dds_property_qospolicy_t *property)
+{
+  struct flagset flagset;
+  uint64_t present = QP_PROPERTY_LIST;
+  uint64_t aliased = 0;
+  flagset.present = &present;
+  flagset.aliased = &aliased;
+  flagset.wanted  = QP_PROPERTY_LIST;
+  (void)fini_property_policy((void*)property, 0, &flagset, QP_PROPERTY_LIST);
+}
+
+void nn_duplicate_property (dds_property_t *dest, const dds_property_t *src)
+{
+  size_t tmpoff = 0;
+  /* First, do a shallow copy. */
+  *dest = *src;
+  /* Unalias the shallow copy to get a deep copy. */
+  (void)unalias_generic(dest, &tmpoff, dds_property_desc);
 }

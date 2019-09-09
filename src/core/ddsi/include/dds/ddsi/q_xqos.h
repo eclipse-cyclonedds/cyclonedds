@@ -32,6 +32,37 @@ typedef ddsi_octetseq_t dds_userdata_qospolicy_t;
 typedef ddsi_octetseq_t dds_topicdata_qospolicy_t;
 typedef ddsi_octetseq_t dds_groupdata_qospolicy_t;
 
+typedef struct dds_property {
+  char *name;
+  char *value;
+  /* The propagate boolean will not be send over the wire.
+   * When the value is 'false', the complete struct shouldn't be send. */
+  bool propagate;
+} dds_property_t;
+
+typedef struct dds_propertyseq {
+  uint32_t n;
+  dds_property_t *props;
+} dds_propertyseq_t;
+
+typedef struct dds_binaryproperty {
+  char *name;
+  ddsi_octetseq_t value;
+  /* The propagate boolean will not be send over the wire.
+   * When the value is 'false', the complete struct shouldn't be send. */
+  bool propagate;
+} dds_binaryproperty_t;
+
+typedef struct dds_binarypropertyseq {
+  uint32_t n;
+  dds_binaryproperty_t *props;
+} dds_binarypropertyseq_t;
+
+typedef struct dds_property_qospolicy {
+  dds_propertyseq_t value;
+  dds_binarypropertyseq_t binary_value;
+} dds_property_qospolicy_t;
+
 typedef struct dds_durability_qospolicy {
   dds_durability_kind_t kind;
 } dds_durability_qospolicy_t;
@@ -212,6 +243,7 @@ typedef struct dds_ignorelocal_qospolicy {
 #define QP_PRISMTECH_SUBSCRIPTION_KEYS       ((uint64_t)1 << 25)
 #define QP_PRISMTECH_ENTITY_FACTORY          ((uint64_t)1 << 27)
 #define QP_CYCLONE_IGNORELOCAL               ((uint64_t)1 << 30)
+#define QP_PROPERTY_LIST                     ((uint64_t)1 << 31)
 
 /* Partition QoS is not RxO according to the specification (DDS 1.2,
    section 7.1.3), but communication will not take place unless it
@@ -263,6 +295,7 @@ struct dds_qos {
   /*x xR*/dds_subscription_keys_qospolicy_t subscription_keys;
   /*x xR*/dds_reader_lifespan_qospolicy_t reader_lifespan;
   /* x  */dds_ignorelocal_qospolicy_t ignorelocal;
+  /*xxx */dds_property_qospolicy_t property;
 };
 
 struct nn_xmsg;
