@@ -162,6 +162,22 @@ before_script:
   - conan profile new default --detect
   - conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
 
+# Notes on test settings:
+# - CYCLONEDDS_URI:
+#   - EnableExpensiveChecks: for the few horrendously expensive (but pretty thorough)
+#     integrity checks, in particular on the WHC and the RHC, but there may be more
+#   - config to stderr: gives the configuration used when running the test in conjunction
+#     with "--output-on-failure" (sadly that still doesn't output the failed
+#     assertions ...)
+# - -j 4: run 4 tests in parallel, this saves quite a bit of time because the VMs are
+#   all dual-core
+# - --output-on-failed: print whatever output the test generated when it failed, which
+#   can obviously be quite helpful for debugging
+# - -E ...: regex of tests to exclude:
+#     CUnit_ddsrt_random_default_random: performs a Chi-square test on the output of
+#     the random generator, but this does produce the odd failure (it should!).  The
+#     code has been vetted, the test has been run a great many times (with the odd
+#     failure), and so we now simply skip the test to avoid the spurious failures.
 script:
   - mkdir build
   - cd build
@@ -184,7 +200,7 @@ script:
         ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install
         ;;
     esac
-  - CYCLONEDDS_URI='<CycloneDDS><Domain><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal><Tracing><Verbosity>config</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 4 --output-on-failure -T test -C ${BUILD_TYPE}
+  - CYCLONEDDS_URI='<CycloneDDS><Domain><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal><Tracing><Verbosity>config</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${BUILD_TYPE}
   - if [ "${ASAN}" != "none" ]; then
       CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
       CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
