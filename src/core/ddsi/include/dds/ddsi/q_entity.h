@@ -400,7 +400,7 @@ extern const ddsrt_avl_treedef_t deleted_participants_treedef;
 #define DPG_LOCAL 1
 #define DPG_REMOTE 2
 struct deleted_participants_admin;
-struct deleted_participants_admin *deleted_participants_admin_new (int64_t delay);
+struct deleted_participants_admin *deleted_participants_admin_new (const ddsrt_log_cfg_t *logcfg, int64_t delay);
 void deleted_participants_admin_free (struct deleted_participants_admin *admin);
 int is_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what);
 

@@ -59,6 +59,7 @@ struct deleted_participant {
 struct deleted_participants_admin {
   ddsrt_mutex_t deleted_participants_lock;
   ddsrt_avl_tree_t deleted_participants;
+  const ddsrt_log_cfg_t *logcfg;
   int64_t delay;
 };
 
@@ -311,11 +312,12 @@ void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_
 
 /* DELETED PARTICIPANTS --------------------------------------------- */
 
-struct deleted_participants_admin *deleted_participants_admin_new (int64_t delay)
+struct deleted_participants_admin *deleted_participants_admin_new (const ddsrt_log_cfg_t *logcfg, int64_t delay)
 {
   struct deleted_participants_admin *admin = ddsrt_malloc (sizeof (*admin));
   ddsrt_mutex_init (&admin->deleted_participants_lock);
   ddsrt_avl_init (&deleted_participants_treedef, &admin->deleted_participants);
+  admin->logcfg = logcfg;
   admin->delay = delay;
   return admin;
 }
@@ -339,6 +341,7 @@ static void prune_deleted_participant_guids_unlocked (struct deleted_participant
     struct deleted_participant *dpp1 = ddsrt_avl_find_succ (&deleted_participants_treedef, &admin->deleted_participants, dpp);
     if (dpp->t_prune.v < tnow.v)
     {
+      DDS_CLOG (DDS_LC_DISCOVERY, admin->logcfg, "prune_deleted_participant_guid("PGUIDFMT")\n", PGUID (dpp->guid));
       ddsrt_avl_delete (&deleted_participants_treedef, &admin->deleted_participants, dpp);
       ddsrt_free (dpp);
     }
@@ -385,16 +388,15 @@ int is_deleted_participant_guid (struct deleted_participants_admin *admin, const
   return known;
 }
 
-static void remove_deleted_participant_guid (ddsrt_log_cfg_t *logcfg, struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what)
+static void remove_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what)
 {
   struct deleted_participant *n;
-  DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "remove_deleted_participant_guid("PGUIDFMT" for_what=%x)\n", PGUID (*guid), for_what);
+  DDS_CLOG (DDS_LC_DISCOVERY, admin->logcfg, "remove_deleted_participant_guid("PGUIDFMT" for_what=%x)\n", PGUID (*guid), for_what);
   ddsrt_mutex_lock (&admin->deleted_participants_lock);
   if ((n = ddsrt_avl_lookup (&deleted_participants_treedef, &admin->deleted_participants, guid)) != NULL)
     n->t_prune = add_duration_to_mtime (now_mt (), admin->delay);
   ddsrt_mutex_unlock (&admin->deleted_participants_lock);
 }
-
 
 /* PARTICIPANT ------------------------------------------------------ */
 
@@ -898,7 +900,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
     ddsrt_free (pp->plist);
     ddsrt_mutex_destroy (&pp->refc_lock);
     entity_common_fini (&pp->e);
-    remove_deleted_participant_guid (&pp->e.gv->logconfig, pp->e.gv->deleted_participants, &pp->e.guid, DPG_LOCAL);
+    remove_deleted_participant_guid (pp->e.gv->deleted_participants, &pp->e.guid, DPG_LOCAL);
     inverse_uint32_set_fini(&pp->avail_entityids.x);
     ddsrt_free (pp);
   }
@@ -3834,7 +3836,7 @@ static void unref_proxy_participant (struct proxy_participant *proxypp, struct p
     if (proxypp->owns_lease)
       lease_free (ddsrt_atomic_ldvoidp (&proxypp->lease));
     entity_common_fini (&proxypp->e);
-    remove_deleted_participant_guid (&proxypp->e.gv->logconfig, proxypp->e.gv->deleted_participants, &proxypp->e.guid, DPG_LOCAL | DPG_REMOTE);
+    remove_deleted_participant_guid (proxypp->e.gv->deleted_participants, &proxypp->e.guid, DPG_LOCAL | DPG_REMOTE);
     ddsrt_free (proxypp);
   }
   else if (proxypp->endpoints == NULL && proxypp->implicitly_created)
