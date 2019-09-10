@@ -130,7 +130,7 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
     if (nodata_cleanups & NC_CLEAR_LOAN_OUT)
       rd->m_loan_out = false;
     if (nodata_cleanups & NC_FREE_BUF)
-      ddsi_sertopic_free_samples (rd->m_topic->m_stopic, buf[0], maxs, DDS_FREE_ALL);
+      ddsi_sertopic_free_samples (rd->m_topic->m_stopic, buf, maxs, DDS_FREE_ALL);
     if (nodata_cleanups & NC_RESET_BUF)
       buf[0] = NULL;
     ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
