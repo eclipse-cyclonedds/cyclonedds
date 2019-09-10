@@ -921,6 +921,7 @@ static void gc_delete_participant (struct gcreq *gcreq)
 dds_return_t delete_participant (struct q_globals *gv, const struct ddsi_guid *ppguid)
 {
   struct participant *pp;
+  GVLOGDISC ("delete_participant("PGUIDFMT")\n", PGUID (*ppguid));
   if ((pp = ephash_lookup_participant_guid (gv->guid_hash, ppguid)) == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
   builtintopic_write (gv->builtin_topic_interface, &pp->e, now(), false);
@@ -4202,7 +4203,7 @@ void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset 
       prd->c.as = as;
 
       /* Rebuild writer endpoints */
-      
+
       while ((m = ddsrt_avl_lookup_succ_eq (&prd_writers_treedef, &prd->writers, &wrguid)) != NULL)
       {
         struct prd_wr_match *next;
