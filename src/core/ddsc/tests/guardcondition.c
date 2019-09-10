@@ -145,7 +145,7 @@ static uint32_t guardcond_thread (void *varg)
 {
   struct guardcond_thread_arg *arg = varg;
   /* 200ms sleep is hopefully always long enough for the main thread to
-     enter wait() and block; a further 800ms (see wait call) similarly
+     enter wait() and block; a further 1800ms (see wait call) similarly
      for the guard condition to actually trigger it. */
   dds_sleepfor (DDS_MSECS (200));
   arg->ret = dds_set_guardcondition (arg->gc, true);
@@ -174,7 +174,7 @@ CU_Test (ddsc_guardcond, waitset_thread)
   rc = ddsrt_thread_create (&tid, "guardcond_thread", &tattr, guardcond_thread, &arg);
   CU_ASSERT_FATAL (rc == 0);
 
-  rc = dds_waitset_wait (ws, xs, 1, DDS_SECS (1));
+  rc = dds_waitset_wait (ws, xs, 1, DDS_SECS (2));
   CU_ASSERT (rc == 1);
   CU_ASSERT (xs[0] == gc);
 
