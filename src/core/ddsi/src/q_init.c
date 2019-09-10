@@ -1027,7 +1027,7 @@ int rtps_init (struct q_globals *gv)
   ddsrt_mutex_init (&gv->participant_set_lock);
   ddsrt_cond_init (&gv->participant_set_cond);
   lease_management_init (gv);
-  gv->deleted_participants = deleted_participants_admin_new (gv->config.prune_deleted_ppant.delay);
+  gv->deleted_participants = deleted_participants_admin_new (&gv->logconfig, gv->config.prune_deleted_ppant.delay);
   gv->guid_hash = ephash_new (gv);
 
   ddsrt_mutex_init (&gv->privileged_pp_lock);
