@@ -949,7 +949,7 @@ int rtps_init (struct q_globals *gv)
       }
     }
   }
-  
+
   assert ((gv->config.allowMulticast & AMC_DEFAULT) == 0);
   if (set_recvips (gv) < 0)
     goto err_set_recvips;
@@ -1135,7 +1135,7 @@ int rtps_init (struct q_globals *gv)
   if (gv->m_factory->m_connless)
   {
     if (!(gv->config.many_sockets_mode == MSM_NO_UNICAST && gv->config.allowMulticast))
-      GVTRACE ("Unicast Ports: discovery %"PRIu32" data %"PRIu32"\n", ddsi_conn_port (gv->disc_conn_uc), ddsi_conn_port (gv->data_conn_uc));
+      GVLOG (DDS_LC_CONFIG, "Unicast Ports: discovery %"PRIu32" data %"PRIu32"\n", ddsi_conn_port (gv->disc_conn_uc), ddsi_conn_port (gv->data_conn_uc));
 
     if (gv->config.allowMulticast)
     {
@@ -1189,7 +1189,7 @@ int rtps_init (struct q_globals *gv)
   /* Create shared transmit connection */
 
   gv->tev_conn = gv->data_conn_uc;
-  GVTRACE ("Timed event transmit port: %d\n", (int) ddsi_conn_port (gv->tev_conn));
+  GVLOG (DDS_LC_CONFIG, "Timed event transmit port: %d\n", (int) ddsi_conn_port (gv->tev_conn));
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   {
@@ -1217,7 +1217,7 @@ int rtps_init (struct q_globals *gv)
       {
         chptr->transmit_conn = gv->data_conn_uc;
       }
-      GVTRACE ("channel %s: transmit port %d\n", chptr->name, (int) ddsi_tran_port (chptr->transmit_conn));
+      GVLOG (DDS_LC_CONFIG, "channel %s: transmit port %d\n", chptr->name, (int) ddsi_tran_port (chptr->transmit_conn));
 
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
       if (chptr->auxiliary_bandwidth_limit > 0 || lookup_thread_properties (tname))
