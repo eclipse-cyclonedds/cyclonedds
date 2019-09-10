@@ -411,8 +411,7 @@ static int handle_SPDP_dead (const struct receiver_state *rst, nn_wctime_t times
   struct q_globals * const gv = rst->gv;
   ddsi_guid_t guid;
 
-  if (!(gv->logconfig.c.mask & DDS_LC_DISCOVERY))
-    GVLOGDISC ("SPDP ST%x", statusinfo);
+  GVLOGDISC ("SPDP ST%x", statusinfo);
 
   if (datap->present & PP_PARTICIPANT_GUID)
   {
@@ -514,7 +513,6 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
     NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
     NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
   struct addrset *as_meta, *as_default;
-  struct proxy_participant *proxypp;
   unsigned builtin_endpoint_set;
   unsigned prismtech_builtin_endpoint_set;
   ddsi_guid_t privileged_pp_guid;
@@ -524,7 +522,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
   if (!(datap->present & PP_PARTICIPANT_GUID) || !(datap->present & PP_BUILTIN_ENDPOINT_SET))
   {
     GVWARNING ("data (SPDP, vendor %u.%u): no/invalid payload\n", rst->vendor.id[0], rst->vendor.id[1]);
-    return 1;
+    return 0;
   }
 
   /* At some point the RTI implementation didn't mention
@@ -563,49 +561,56 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
         prismtech_builtin_endpoint_set |= NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER | NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
   }
 
-  /* Local SPDP packets may be looped back, and that may include ones
-     currently being deleted.  The first thing that happens when
-     deleting a participant is removing it from the hash table, and
-     consequently the looped back packet may appear to be from an
-     unknown participant.  So we handle that, too. */
-
-  if (is_deleted_participant_guid (gv->deleted_participants, &datap->participant_guid, DPG_REMOTE))
+  /* Do we know this GUID already? */
   {
-    RSTTRACE ("SPDP ST0 "PGUIDFMT" (recently deleted)", PGUID (datap->participant_guid));
-    return 1;
-  }
-
-  {
-    int islocal = 0;
-    if (ephash_lookup_participant_guid (gv->guid_hash, &datap->participant_guid))
-      islocal = 1;
-    if (islocal)
+    struct entity_common *existing_entity;
+    if ((existing_entity = ephash_lookup_guid_untyped (gv->guid_hash, &datap->participant_guid)) == NULL)
     {
-      RSTTRACE ("SPDP ST0 "PGUIDFMT" (local %d)", PGUID (datap->participant_guid), islocal);
+      /* Local SPDP packets may be looped back, and that can include ones
+         for participants currently being deleted.  The first thing that
+         happens when deleting a participant is removing it from the hash
+         table, and consequently the looped back packet may appear to be
+         from an unknown participant.  So we handle that. */
+      if (is_deleted_participant_guid (gv->deleted_participants, &datap->participant_guid, DPG_REMOTE))
+      {
+        RSTTRACE ("SPDP ST0 "PGUIDFMT" (recently deleted)", PGUID (datap->participant_guid));
+        return 0;
+      }
+    }
+    else if (existing_entity->kind == EK_PARTICIPANT)
+    {
+      RSTTRACE ("SPDP ST0 "PGUIDFMT" (local)", PGUID (datap->participant_guid));
       return 0;
     }
-  }
-
-  if ((proxypp = ephash_lookup_proxy_participant_guid (gv->guid_hash, &datap->participant_guid)) != NULL)
-  {
-    /* SPDP processing is so different from normal processing that we
-       are even skipping the automatic lease renewal.  Therefore do it
-       regardless of
-       gv.config.arrival_of_data_asserts_pp_and_ep_liveliness. */
-    RSTTRACE ("SPDP ST0 "PGUIDFMT" (known)", PGUID (datap->participant_guid));
-    lease_renew (ddsrt_atomic_ldvoidp (&proxypp->lease), now_et ());
-    ddsrt_mutex_lock (&proxypp->e.lock);
-    if (proxypp->implicitly_created || seq > proxypp->seq)
+    else if (existing_entity->kind == EK_PROXY_PARTICIPANT)
     {
-      if (proxypp->implicitly_created)
-        GVLOGDISC (" (NEW was-implicitly-created)");
-      else
-        GVLOGDISC (" (update)");
-      proxypp->implicitly_created = 0;
-      update_proxy_participant_plist_locked (proxypp, seq, datap, UPD_PROXYPP_SPDP, timestamp);
+      struct proxy_participant *proxypp = (struct proxy_participant *) existing_entity;
+      int interesting = 0;
+      RSTTRACE ("SPDP ST0 "PGUIDFMT" (known)", PGUID (datap->participant_guid));
+      /* SPDP processing is so different from normal processing that we are
+         even skipping the automatic lease renewal.  Therefore do it regardless
+         of gv.config.arrival_of_data_asserts_pp_and_ep_liveliness. */
+      lease_renew (ddsrt_atomic_ldvoidp (&proxypp->lease), now_et ());
+      ddsrt_mutex_lock (&proxypp->e.lock);
+      if (proxypp->implicitly_created || seq > proxypp->seq)
+      {
+        interesting = 1;
+        if (!(gv->logconfig.c.mask & DDS_LC_TRACE))
+          GVLOGDISC ("SPDP ST0 "PGUIDFMT, PGUID (datap->participant_guid));
+        GVLOGDISC (proxypp->implicitly_created ? " (NEW was-implicitly-created)" : " (update)");
+        proxypp->implicitly_created = 0;
+        update_proxy_participant_plist_locked (proxypp, seq, datap, UPD_PROXYPP_SPDP, timestamp);
+      }
+      ddsrt_mutex_unlock (&proxypp->e.lock);
+      return interesting;
     }
-    ddsrt_mutex_unlock (&proxypp->e.lock);
-    return 0;
+    else
+    {
+      /* mismatch on entity kind: that should never have gotten past the
+         input validation */
+      GVWARNING ("data (SPDP, vendor %u.%u): "PGUIDFMT" kind mismatch\n", rst->vendor.id[0], rst->vendor.id[1], PGUID (datap->participant_guid));
+      return 0;
+    }
   }
 
   GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %x ptbes %x NEW", PGUID (datap->participant_guid), builtin_endpoint_set, prismtech_builtin_endpoint_set);
@@ -791,10 +796,9 @@ static void handle_SPDP (const struct receiver_state *rst, seqno_t seq, nn_wctim
 {
   struct q_globals * const gv = rst->gv;
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
-  RSTTRACE("SPDP ST%x", statusinfo);
   if (data == NULL)
   {
-    RSTTRACE(" no payload?\n");
+    RSTTRACE ("SPDP ST%x no payload?\n", statusinfo);
     return;
   }
   else
