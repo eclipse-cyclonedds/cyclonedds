@@ -726,7 +726,7 @@ dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
  * If no configuration file exists, the default domain is configured as 0.
  *
  *
- * @param[in]  domain The domain in which to create the participant (can be DDS_DOMAIN_DEFAULT). Valid values for domain id are between 0 and 230. DDS_DOMAIN_DEFAULT is for using the domain in the configuration.
+ * @param[in]  domain The domain in which to create the participant (can be DDS_DOMAIN_DEFAULT). DDS_DOMAIN_DEFAULT is for using the domain in the configuration.
  * @param[in]  qos The QoS to set on the new participant (can be NULL).
  * @param[in]  listener Any listener functions associated with the new participant (can be NULL).
 
@@ -742,6 +742,33 @@ dds_create_participant(
   const dds_domainid_t domain,
   const dds_qos_t *qos,
   const dds_listener_t *listener);
+
+/**
+ * @brief Creates a domain with a given configuration
+ *
+ * To explicitly create a domain based on a configuration passed as a string.
+ * Normally, the domain is created implicitly on the first call to
+ * dds_create_particiant based on the configuration specified throught
+ * the environment. This function allows to by-pass this behaviour.
+ *
+ *
+ * @param[in]  domain The domain to be created. DEFAULT_DOMAIN is not allowed.
+ * @param[in]  config A configuration string containing file names and/or XML fragments representing the configuration.
+ *
+ * @returns A return code
+ *
+ * @retval DDS_RETCODE_OK
+ *             The domain with the domain identifier has been created from
+ *             given configuration string.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Illegal value for domain id or the configfile parameter is NULL.
+ * @retval DDS_PRECONDITION_NOT_MET
+ *             The domain already existed and cannot be created again.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ */
+DDS_EXPORT dds_return_t
+dds_create_domain(const dds_domainid_t domain, const char *config);
 
 /**
  * @brief Get entity parent.

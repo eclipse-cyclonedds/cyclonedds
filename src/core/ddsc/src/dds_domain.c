@@ -11,7 +11,6 @@
  */
 #include <string.h>
 
-#include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/heap.h"
 #include "dds__init.h"
@@ -28,7 +27,6 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/q_globals.h"
-#include "dds/version.h"
 
 static dds_return_t dds_domain_free (dds_entity *vdomain);
 
@@ -50,7 +48,7 @@ static int dds_domain_compare (const void *va, const void *vb)
 static const ddsrt_avl_treedef_t dds_domaintree_def = DDSRT_AVL_TREEDEF_INITIALIZER (
   offsetof (dds_domain, m_node), offsetof (dds_domain, m_id), dds_domain_compare, 0);
 
-static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_id)
+static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_id, const char *config)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   char * uri = NULL;
@@ -89,8 +87,7 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
         a value (if nothing has been set previously, it a warning is good
         enough) */
 
-  (void) ddsrt_getenv ("CYCLONEDDS_URI", &uri);
-  domain->cfgst = config_init (uri, &domain->gv.config, domain_id);
+  domain->cfgst = config_init (config, &domain->gv.config, domain_id);
   if (domain->cfgst == NULL)
   {
     DDS_ILOG (DDS_LC_CONFIG, domain_id, "Failed to parse configuration XML file %s\n", uri);
@@ -197,7 +194,7 @@ dds_domain *dds_domain_find_locked (dds_domainid_t id)
   return ddsrt_avl_lookup (&dds_domaintree_def, &dds_global.m_domains, &id);
 }
 
-dds_return_t dds_domain_create (dds_domain **domain_out, dds_domainid_t id)
+dds_return_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t id, bool use_existing, const char *config)
 {
   struct dds_domain *dom;
   dds_return_t ret;
@@ -223,6 +220,11 @@ dds_return_t dds_domain_create (dds_domain **domain_out, dds_domainid_t id)
   switch (ret)
   {
     case DDS_RETCODE_OK:
+      if (!use_existing)
+      {
+        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+        break;
+      }
       ddsrt_mutex_lock (&dom->m_entity.m_mutex);
       if (dds_handle_is_closed (&dom->m_entity.m_hdllink))
       {
@@ -239,7 +241,7 @@ dds_return_t dds_domain_create (dds_domain **domain_out, dds_domainid_t id)
       break;
     case DDS_RETCODE_NOT_FOUND:
       dom = dds_alloc (sizeof (*dom));
-      if ((ret = dds_domain_init (dom, id)) < 0)
+      if ((ret = dds_domain_init (dom, id, config)) < 0)
         dds_free (dom);
       else
       {
@@ -253,6 +255,29 @@ dds_return_t dds_domain_create (dds_domain **domain_out, dds_domainid_t id)
       break;
   }
   ddsrt_mutex_unlock (&dds_global.m_mutex);
+  return ret;
+}
+
+dds_return_t dds_create_domain(const dds_domainid_t domain, const char *config)
+{
+  dds_domain *dom;
+  dds_entity_t ret;
+
+  if (domain == DDS_DOMAIN_DEFAULT || config == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  /* Make sure DDS instance is initialized. */
+  if ((ret = dds_init ()) < 0)
+    goto err_dds_init;
+
+  if ((ret = dds_domain_create_internal (&dom, domain, false, config)) < 0)
+    goto err_domain_create;
+
+  return DDS_RETCODE_OK;
+
+err_domain_create:
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
+err_dds_init:
   return ret;
 }
 

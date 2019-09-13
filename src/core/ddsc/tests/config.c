@@ -75,3 +75,46 @@ CU_Test(ddsc_config, simple_udp, .init = ddsrt_init, .fini = ddsrt_fini) {
 
     dds_delete(participant);
 }
+
+CU_Test(ddsc_config, user_config, .init = ddsrt_init, .fini = ddsrt_fini) {
+
+    CU_ASSERT_FATAL(dds_create_domain(1,
+         "<"DDS_PROJECT_NAME"><Domain><Id>any</Id></Domain>"
+           "<DDSI2E><Internal><MaxParticipants>2</MaxParticipants></Internal></DDSI2E>"
+         "</"DDS_PROJECT_NAME">") == DDS_RETCODE_OK);
+
+    dds_entity_t participant_1;
+    dds_entity_t participant_2;
+    dds_entity_t participant_3;
+
+    participant_1 = dds_create_participant(1, NULL, NULL);
+
+    CU_ASSERT_FATAL(participant_1 > 0);
+
+    participant_2 = dds_create_participant(1, NULL, NULL);
+
+    CU_ASSERT_FATAL(participant_2 > 0);
+
+    participant_3 = dds_create_participant(1, NULL, NULL);
+
+    CU_ASSERT(participant_3 <= 0);
+
+    dds_delete(participant_3);
+    dds_delete(participant_2);
+    dds_delete(participant_1);
+}
+
+CU_Test(ddsc_config, incorrect_config, .init = ddsrt_init, .fini = ddsrt_fini) {
+
+    CU_ASSERT_FATAL(dds_create_domain(1, NULL) == DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_FATAL(dds_create_domain(1, "<CycloneDDS incorrect XML") != DDS_RETCODE_OK);
+    CU_ASSERT_FATAL(dds_create_domain(DDS_DOMAIN_DEFAULT,
+         "<"DDS_PROJECT_NAME"><Domain><Id>any</Id></Domain>"
+           "<DDSI2E><Internal><MaxParticipants>2</MaxParticipants></Internal></DDSI2E>"
+         "</"DDS_PROJECT_NAME">") == DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_FATAL(dds_create_domain(2,
+         "<"DDS_PROJECT_NAME"><Domain><Id>any</Id></Domain>"
+           "<DDSI2E><Internal><MaxParticipants>2</MaxParticipants></Internal></DDSI2E>"
+         "</"DDS_PROJECT_NAME">") == DDS_RETCODE_OK);
+    CU_ASSERT_FATAL(dds_create_domain(2, "") == DDS_RETCODE_PRECONDITION_NOT_MET);
+}
