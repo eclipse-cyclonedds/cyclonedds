@@ -96,7 +96,6 @@ enum pserop {
   XS, /* string */
   XZ, /* string sequence */
   XE1, XE2, XE3, /* enum 0..1, 0..2, 0..3 */
-  Xl, /* length, int32_t, -1 or >= 1 */
   Xi, Xix2, Xix3, Xix4, /* int32_t, 1 .. 4 in a row */
   Xu, Xux2, Xux3, Xux4, Xux5, /* uint32_t, 1 .. 5 in a row */
   XD, XDx2, /* duration, 1 .. 2 in a row */
@@ -348,7 +347,6 @@ static void fini_generic_partial (void * __restrict dst, size_t * __restrict dst
       case XE1: case XE2: case XE3: COMPLEX (*desc, unsigned, (void) 0, (void) 0); break;
       case Xi: case Xix2: case Xix3: case Xix4: SIMPLE (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: SIMPLE (Xu, uint32_t); break;
-      case Xl: SIMPLE (Xl, int32_t); break;
       case XD: case XDx2: SIMPLE (XD, dds_duration_t); break;
       case Xo: case Xox2: SIMPLE (Xo, unsigned char); break;
       case Xb: case Xbx2: SIMPLE (Xb, unsigned char); break;
@@ -440,15 +438,6 @@ static dds_return_t deser_generic (void * __restrict dst, size_t * __restrict ds
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xu);
         for (uint32_t i = 0; i < cnt; i++)
           if (deser_uint32 (&x[i], dd, srcoff) < 0)
-            goto fail;
-        *dstoff += cnt * sizeof (*x);
-        break;
-      }
-      case Xl: { /* length(s): int32_t, -1 or >= 1 */
-        int32_t * const x = deser_generic_dst (dst, dstoff, alignof (uint32_t));
-        const uint32_t cnt = 1 + (uint32_t) (*desc - Xl);
-        for (uint32_t i = 0; i < cnt; i++)
-          if (deser_uint32 ((uint32_t *) &x[i], dd, srcoff) < 0 || (x[i] < 1 && x[i] != DDS_LENGTH_UNLIMITED))
             goto fail;
         *dstoff += cnt * sizeof (*x);
         break;
@@ -547,7 +536,6 @@ static size_t ser_generic_size (const void *src, size_t srcoff, const enum psero
       case XE1: case XE2: case XE3: COMPLEX (*desc, unsigned, dstoff = align4size (dstoff) + 4); break;
       case Xi: case Xix2: case Xix3: case Xix4: SIMPLE4 (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: SIMPLE4 (Xu, uint32_t); break;
-      case Xl: SIMPLE4 (Xl, int32_t); break;
       case XD: case XDx2: SIMPLE4 (XD, dds_duration_t); break;
       case Xo: case Xox2: SIMPLE1 (Xo, unsigned char); break;
       case Xb: case Xbx2: SIMPLE1 (Xb, unsigned char); break;
@@ -624,22 +612,10 @@ static dds_return_t ser_generic (struct nn_xmsg *xmsg, nn_parameterid_t pid, con
         srcoff += cnt * sizeof (*x);
         break;
       }
-
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5:  { /* uint32_t(s) */
         uint32_t const * const x = deser_generic_src (src, &srcoff, alignof (uint32_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xu);
         uint32_t * const p = ser_generic_align4 (data, &dstoff);
-        for (uint32_t i = 0; i < cnt; i++)
-          p[i] = x[i];
-        dstoff += cnt * sizeof (*x);
-        srcoff += cnt * sizeof (*x);
-        break;
-      }
-
-      case Xl: { /* int32_t(s) */
-        int32_t const * const x = deser_generic_src (src, &srcoff, alignof (uint32_t));
-        const uint32_t cnt = 1 + (uint32_t) (*desc - Xu);
-        int32_t * const p = ser_generic_align4 (data, &dstoff);
         for (uint32_t i = 0; i < cnt; i++)
           p[i] = x[i];
         dstoff += cnt * sizeof (*x);
@@ -725,7 +701,6 @@ static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict 
       case XE1: case XE2: case XE3: COMPLEX (*desc, unsigned, (void) 0); break;
       case Xi: case Xix2: case Xix3: case Xix4: SIMPLE (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: SIMPLE (Xu, uint32_t); break;
-      case Xl: SIMPLE (Xl, int32_t); break;
       case XD: case XDx2: SIMPLE (XD, dds_duration_t); break;
       case Xo: case Xox2: SIMPLE (Xo, unsigned char); break;
       case Xb: case Xbx2: SIMPLE (Xb, unsigned char); break;
@@ -793,7 +768,6 @@ static dds_return_t valid_generic (const void *src, size_t srcoff, const enum ps
       case XE1: case XE2: case XE3: SIMPLE (*desc, unsigned, *x <= 1 + (unsigned) *desc - XE1); break;
       case Xi: case Xix2: case Xix3: case Xix4: TRIVIAL (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: TRIVIAL (Xu, uint32_t); break;
-      case Xl: SIMPLE (Xl, int32_t, *x == DDS_LENGTH_UNLIMITED || *x > 1); break;
       case XD: case XDx2: SIMPLE (XD, dds_duration_t, *x >= 0); break;
       case Xo: case Xox2: TRIVIAL (Xo, unsigned char); break;
       case Xb: case Xbx2: SIMPLE (Xb, unsigned char, *x == 0 || *x == 1); break;
@@ -845,7 +819,6 @@ static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, co
       case XE1: case XE2: case XE3: TRIVIAL (*desc, unsigned); break;
       case Xi: case Xix2: case Xix3: case Xix4: TRIVIAL (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: TRIVIAL (Xu, uint32_t); break;
-      case Xl: TRIVIAL (Xl, int32_t); break;
       case XD: case XDx2: TRIVIAL (XD, dds_duration_t); break;
       case Xo: case Xox2: TRIVIAL (Xo, unsigned char); break;
       case Xb: case Xbx2: TRIVIAL (Xb, unsigned char); break;
