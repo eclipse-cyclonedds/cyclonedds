@@ -12,11 +12,13 @@
 #include <assert.h>
 
 #include "dds/ddsrt/cdtors.h"
+#include "dds/ddsrt/environ.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_globals.h"
+#include "dds/version.h"
 #include "dds__init.h"
 #include "dds__domain.h"
 #include "dds__participant.h"
@@ -82,12 +84,15 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   dds_participant * pp;
   nn_plist_t plist;
   dds_qos_t *new_qos = NULL;
+  char *config = "";
 
   /* Make sure DDS instance is initialized. */
   if ((ret = dds_init ()) < 0)
     goto err_dds_init;
 
-  if ((ret = dds_domain_create (&dom, domain)) < 0)
+  (void) ddsrt_getenv (DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", &config);
+
+  if ((ret = dds_domain_create_internal (&dom, domain, true, config)) < 0)
     goto err_domain_create;
 
   new_qos = dds_create_qos ();

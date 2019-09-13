@@ -172,8 +172,8 @@ int32_t dds_handle_delete (struct dds_handle_link *link)
   {
     assert (cf & HDL_FLAG_CLOSING);
     assert (cf & HDL_FLAG_CLOSED);
+    assert ((cf & HDL_REFCOUNT_MASK) == 0u);
   }
-  assert ((cf & HDL_REFCOUNT_MASK) == 0u);
   assert ((cf & HDL_PINCOUNT_MASK) == 1u);
 #endif
   ddsrt_mutex_lock (&handles.lock);
