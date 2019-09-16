@@ -15,13 +15,13 @@
 #include <stdbool.h>
 #include "CUnit/Test.h"
 #include "dds/ddsts/typetree.h"
-#include "parser.h"
+#include "idl.h"
 #include "gen_c99.h"
 
 static bool test_parse_gen_C99(const char *input, const char *str)
 {
   ddsts_type_t *root_type = NULL;
-  if (ddsts_idl_parse_string(input, &root_type) != DDS_RETCODE_OK) {
+  if (idl_parse_string(input, &root_type) != DDS_RETCODE_OK) {
     return false;
   }
 
@@ -41,7 +41,7 @@ static bool test_parse_gen_C99(const char *input, const char *str)
 static bool test_parse_gen_C99_descr(const char *input, const char *name, const char *align, const char *flags)
 {
   ddsts_type_t *root_type = NULL;
-  if (ddsts_idl_parse_string(input, &root_type) != DDS_RETCODE_OK) {
+  if (idl_parse_string(input, &root_type) != DDS_RETCODE_OK) {
     return false;
   }
 
