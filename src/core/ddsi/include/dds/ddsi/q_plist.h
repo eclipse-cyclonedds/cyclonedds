@@ -243,6 +243,9 @@ struct nn_rdata;
 DDS_EXPORT unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const nn_plist_src_t *src);
 DDS_EXPORT const unsigned char *nn_plist_findparam_native_unchecked (const void *src, nn_parameterid_t pid);
 
+DDS_EXPORT void nn_free_property_policy (dds_property_qospolicy_t *property);
+DDS_EXPORT void nn_duplicate_property (dds_property_t *dest, const dds_property_t *src);
+
 #if defined (__cplusplus)
 }
 #endif

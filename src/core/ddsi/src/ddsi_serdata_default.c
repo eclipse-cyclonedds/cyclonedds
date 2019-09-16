@@ -453,6 +453,7 @@ static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi
 #ifndef NDEBUG
   size_t keysize;
 #endif
+  assert(rawkey);
   switch (sample->keyparam)
   {
     case PID_PARTICIPANT_GUID:
