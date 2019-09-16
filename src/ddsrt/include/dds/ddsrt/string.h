@@ -93,7 +93,7 @@ ddsrt_attribute_malloc;
  * @brief Duplicate string.
  *
  * Copy string into a newly allocated block of memory. The memory is obtained
- * with @ddsrt_malloc and must freed with @ddsrt_free when it is no longer
+ * with @ddsrt_malloc and must be freed with @ddsrt_free when it is no longer
  * used.
  *
  * @param[in]  str  String to duplicate.
@@ -105,6 +105,26 @@ DDS_EXPORT char *
 ddsrt_strdup(
   const char *str)
 ddsrt_nonnull_all
+ddsrt_attribute_malloc;
+
+/**
+ * @brief Duplicate at most @len bytes of string @str.
+ *
+ * Copy at most @len number of bytes into a newly allocated block of memory.
+ * The memory is obtained with @ddsrt_malloc and must be freed with
+ * @ddsrt_free when it is no longer used.
+ *
+ * @param[in]  str  String to duplicate.
+ * @param[in]  len  Maximum number of bytes to copy.
+ *
+ * @returns A new string that is a duplicate of @str up to @len bytes or NULL
+ *          if not enough memory was available.
+ */
+DDS_EXPORT char *
+ddsrt_strndup(
+  const char *str,
+  size_t len)
+ddsrt_nonnull((1))
 ddsrt_attribute_malloc;
 
 /**
