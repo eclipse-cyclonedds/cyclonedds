@@ -712,7 +712,6 @@ void ddsts_pragma_open(ddsts_context_t *context)
 bool ddsts_pragma_add_identifier(ddsts_context_t *context, ddsts_identifier_t name)
 {
   assert(context != NULL);
-  assert(context->dangling_identifier == name);
 
   pragma_arg_t **ref_pragma_arg = &context->pragma_args;
   while (*ref_pragma_arg != NULL) {
@@ -735,83 +734,65 @@ bool ddsts_pragma_close(ddsts_context_t *context)
   assert(context->cur_type != NULL);
 
   pragma_arg_t *pragma_arg = context->pragma_args;
-  if (pragma_arg == NULL) {
-    DDS_ERROR("Empty pragma is ignored\n");
+
+  /* Find struct in currect context */
+  ddsts_type_t *member = NULL;
+  if (DDSTS_IS_TYPE(context->cur_type, DDSTS_MODULE)) {
+    member = context->cur_type->module.members.first;
+  } else if (DDSTS_IS_TYPE(context->cur_type, DDSTS_STRUCT)) {
+    member = context->cur_type->struct_def.members.first;
   }
-  else if (strcmp(pragma_arg->arg, "keylist") == 0) {
-    pragma_arg = pragma_arg->next;
 
-    if (pragma_arg == NULL) {
-      DDS_ERROR("Expect struct name after keylist pragma\n");
-      context->semantic_error = true;
-      context_free_pragma_args(context);
-      return true;
+  ddsts_type_t *struct_def = NULL;
+  for (; member != NULL; member = member->type.next) {
+    if (DDSTS_IS_TYPE(member, DDSTS_STRUCT) && strcmp(pragma_arg->arg, member->type.name) == 0) {
+      struct_def = member;
+      break;
     }
+  }
+  if (struct_def == NULL) {
+    DDS_ERROR("Struct '%s' for keylist pragma is undefined here\n", pragma_arg->arg);
+    context->semantic_error = true;
+    context_free_pragma_args(context);
+    return true;
+  }
+  /* The '@key' and '#pragma keylist' may not be mixed */
+  if (struct_def->struct_def.keys != NULL) {
+    DDS_ERROR("Cannot use keylist pragma for struct '%s' in combination with @key annotation\n", pragma_arg->arg);
+    context->semantic_error = true;
+    context_free_pragma_args(context);
+    return true;
+  }
 
-    /* Find struct in currect context */
-    ddsts_type_t *member = NULL;
-    if (DDSTS_IS_TYPE(context->cur_type, DDSTS_MODULE)) {
-      member = context->cur_type->module.members.first;
-    }
-    else if (DDSTS_IS_TYPE(context->cur_type, DDSTS_STRUCT)) {
-      member = context->cur_type->struct_def.members.first;
-    }
-    ddsts_type_t *struct_def = NULL;
-    for (; member != NULL; member = member->type.next) {
-      if (DDSTS_IS_TYPE(member, DDSTS_STRUCT) && strcmp(pragma_arg->arg, member->type.name) == 0) {
-        struct_def = member;
+  for (pragma_arg = pragma_arg->next; pragma_arg != NULL; pragma_arg = pragma_arg->next) {
+    /* Find declarator in struct */
+    ddsts_type_t *declaration = NULL;
+    for (ddsts_type_t *m = struct_def->struct_def.members.first; m != NULL && declaration == NULL; m = m->type.next) {
+      if (DDSTS_IS_TYPE(m, DDSTS_DECLARATION) && strcmp(m->type.name, pragma_arg->arg) == 0) {
+        declaration = m;
         break;
       }
     }
-    if (struct_def == NULL) {
-      DDS_ERROR("Struct '%s' for keylist pragma is undefined here\n", pragma_arg->arg);
+    if (declaration == NULL) {
+      DDS_ERROR("Member '%s' in struct '%s' for keylist pragma is undefined\n", pragma_arg->arg, struct_def->type.name);
       context->semantic_error = true;
-      context_free_pragma_args(context);
-      return true;
     }
-    /* The '@key' and '#pragma keylist' may not be mixed */
-    if (struct_def->struct_def.keys != NULL) {
-      DDS_ERROR("Cannot use keylist pragma for struct '%s' in combination with @key annotation\n", pragma_arg->arg);
-      context->semantic_error = true;
-      context_free_pragma_args(context);
-      return true;
-    }
-
-    for (pragma_arg = pragma_arg->next; pragma_arg != NULL; pragma_arg = pragma_arg->next) {
-      /* Find declarator in struct */
-      ddsts_type_t *declaration = NULL;
-      for (ddsts_type_t *m = struct_def->struct_def.members.first; m != NULL && declaration == NULL; m = m->type.next) {
-        if (DDSTS_IS_TYPE(m, DDSTS_DECLARATION) && strcmp(m->type.name, pragma_arg->arg) == 0) {
-          declaration = m;
-          break;
-        }
-      }
-      if (declaration == NULL) {
-        DDS_ERROR("Member '%s' in struct '%s' for keylist pragma is undefined\n", pragma_arg->arg, struct_def->type.name);
+    else if (keyable_type(declaration->declaration.decl_type)) {
+      dds_return_t rc = ddsts_struct_add_key(struct_def, declaration);
+      if (rc == DDS_RETCODE_ERROR) {
+        DDS_ERROR("Field '%s' already defined as key\n", pragma_arg->arg);
         context->semantic_error = true;
       }
-      else if (keyable_type(declaration->declaration.decl_type)) {
-        dds_return_t rc = ddsts_struct_add_key(struct_def, declaration);
-        if (rc == DDS_RETCODE_ERROR) {
-          DDS_ERROR("Field '%s' already defined as key\n", pragma_arg->arg);
-          context->semantic_error = true;
-        }
-        else if (rc != DDS_RETCODE_OK) {
-          context->retcode = rc;
-          context_free_pragma_args(context);
-          return false;
-        }
-      }
-      else {
-        DDS_ERROR("Type of '%s' is not valid for key\n", pragma_arg->arg);
-        context->semantic_error = true;
+      else if (rc != DDS_RETCODE_OK) {
+        context->retcode = rc;
+        context_free_pragma_args(context);
+        return false;
       }
     }
-  }
-  else {
-    DDS_WARNING("Unknown pragma '%s' is ignored\n", pragma_arg->arg);
-    context_free_pragma_args(context);
-    return true;
+    else {
+      DDS_ERROR("Type of '%s' is not valid for key\n", pragma_arg->arg);
+      context->semantic_error = true;
+    }
   }
 
   context_free_pragma_args(context);
