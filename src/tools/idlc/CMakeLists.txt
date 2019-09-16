@@ -19,23 +19,20 @@ find_package(BISON REQUIRED)
 find_package(FLEX REQUIRED)
 
 # Create directory where Bison and Flex generated sources will be placed.
-set(GENERATED_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/src")
-file(MAKE_DIRECTORY "${GENERATED_SOURCE_DIR}")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src")
 
-set(parser_path "${GENERATED_SOURCE_DIR}/idl.parser.c")
-set(lexer_path "${GENERATED_SOURCE_DIR}/idl.lexer.c")
+set(idl_l_h "${CMAKE_CURRENT_BINARY_DIR}/src/idl.l.h")
+set(idl_l_c "${CMAKE_CURRENT_BINARY_DIR}/src/idl.l.c")
+set(idl_y_c "${CMAKE_CURRENT_BINARY_DIR}/src/idl.y.c")
 
-bison_target(parser "src/idl.y" "${parser_path}")
-flex_target(
-  lexer "src/idl.l" "${lexer_path}"
-  COMPILE_FLAGS
-    "--header-file=${GENERATED_SOURCE_DIR}/idl.lexer.h")
+flex_target(lexer "src/idl.l" "${idl_l_c}" COMPILE_FLAGS "--header-file=${idl_l_h}")
+bison_target(parser "src/idl.y" "${idl_y_c}")
 
 if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
   # Microsoft Visual Studio does not define __STDC_VERSION__. As a result,
   # Flex defines the C99 limit macros, which causes redefinition warnings.
   set_source_files_properties(
-    "${lexer_path}" PROPERTIES COMPILE_DEFINITIONS __STDC_VERSION__=199901L)
+    "${idl_l_c}" PROPERTIES COMPILE_DEFINITIONS __STDC_VERSION__=199901L)
 elseif(CMAKE_C_COMPILER_ID MATCHES "GNU" OR
        CMAKE_C_COMPILER_ID MATCHES "Clang")
   set(lexer_cflags "-Wno-sign-conversion"
@@ -45,27 +42,28 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "GNU" OR
                    "-Wno-unused-function"
                    "-Wno-documentation"
                    "-Wno-missing-prototypes")
-  set(parser_cflags "-Wno-sign-conversion")
+  set(parser_cflags "-Wno-sign-conversion"
+                    "-Wno-conversion")
   list_join(lexer_cflags " " lexer_cflags)
   list_join(parser_cflags " " parser_cflags)
   set_source_files_properties(
-    "${lexer_path}" PROPERTIES COMPILE_FLAGS "${lexer_cflags}")
+    "${idl_l_c}" PROPERTIES COMPILE_FLAGS "${lexer_cflags}")
   set_source_files_properties(
-    "${parser_path}" PROPERTIES COMPILE_FLAGS "${parser_cflags}")
+    "${idl_y_c}" PROPERTIES COMPILE_FLAGS "${parser_cflags}")
 endif()
 
 set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 add_library(idlc-lib STATIC
-    "src/parser.c"
+    "src/idl.c"
     "src/tt_create.c"
     "src/gen_c99.c"
     "src/gen_ostream.c"
     "${BISON_parser_OUTPUTS}"
     "${FLEX_lexer_OUTPUTS}")
 
-target_include_directories(idlc-lib PUBLIC "src")
-target_include_directories(idlc-lib PRIVATE "${GENERATED_SOURCE_DIR}")
+target_include_directories(idlc-lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_include_directories(idlc-lib PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/src")
 
 target_link_libraries(idlc-lib PUBLIC ddsc)
 target_link_libraries(idlc-lib PUBLIC ddsts)

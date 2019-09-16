@@ -162,3 +162,21 @@ ddsrt_strdup(
 
   return ddsrt_memdup(str, strlen(str) + 1);
 }
+
+char *
+ddsrt_strndup(const char *str, size_t len)
+{
+  char *s;
+  size_t n = 0;
+
+  assert(str != NULL);
+
+  while (str[n] != '\0' && n < len) { n++; }
+
+  if ((s = ddsrt_malloc_s(n + 1)) != NULL) {
+    memcpy(s, str, n);
+    s[n] = '\0';
+  }
+
+  return s;
+}
