@@ -35,7 +35,8 @@ typedef ddsi_octetseq_t dds_groupdata_qospolicy_t;
 typedef struct dds_property {
   /* The propagate boolean will not be send over the wire.
    * When the value is 'false', the complete struct shouldn't be send.
-   * It has to be the first variable within the structure. */
+   * It has to be the first variable within the structure because it
+   * is mapped to XbPROP in the serialiser. */
   unsigned char propagate;
   char *name;
   char *value;
@@ -49,7 +50,8 @@ typedef struct dds_propertyseq {
 typedef struct dds_binaryproperty {
   /* The propagate boolean will not be send over the wire.
    * When the value is 'false', the complete struct shouldn't be send.
-   * It has to be the first variable within the structure. */
+   * It has to be the first variable within the structure because it
+   * is mapped to XbPROP in the serialiser. */
   unsigned char propagate;
   char *name;
   ddsi_octetseq_t value;
