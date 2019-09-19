@@ -32,7 +32,7 @@ The Java-based components are the preprocessor and a configurator tool.  The run
 pure C code, so there is no need to have Java available on "target" machines.  If desired, it is
 possible to do a build without Java or Maven installed by defining ``BUILD_IDLC=NO`` and
 ``BUILD_CONFTOOL=NO``, but that effectively only gets you the core library.  For the
-current [ROS2 RMW layer](https://github.com/atolab/rmw_cyclonedds), that is sufficient.
+current [ROS2 RMW layer](https://github.com/ros2/rmw_cyclonedds), that is sufficient.
 
 To obtain Eclipse Cyclone DDS, do
 
