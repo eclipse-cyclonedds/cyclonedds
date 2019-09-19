@@ -359,7 +359,7 @@ static size_t ser_generic_srcsize (const enum pserop * __restrict desc)
 #undef SIMPLE
 }
 
-static void fini_generic_partial (void * __restrict dst, size_t * __restrict dstoff, const enum pserop *desc, const enum pserop * const desc_end, bool aliased)
+static void fini_generic_embeddable (void * __restrict dst, size_t * __restrict dstoff, const enum pserop *desc, const enum pserop * const desc_end, bool aliased)
 {
 #define COMPLEX(basecase_, type_, cleanup_unaliased_, cleanup_always_) do { \
     type_ *x = deser_generic_dst (dst, dstoff, alignof (type_));            \
@@ -392,9 +392,10 @@ static void fini_generic_partial (void * __restrict dst, size_t * __restrict dst
         /* non-nested, so never a need to deallocate only some of the entries and no complications
            in locating the end of the sequence element description */
         COMPLEX (XQ, ddsi_octetseq_t, {
-          size_t elem_off = 0;
+          const size_t elem_size = ser_generic_srcsize (desc + 1);
           for (uint32_t i = 0; i < x->length; i++) {
-            fini_generic_partial (x->value, &elem_off, desc + 1, desc_end, aliased);
+            size_t elem_off = i * elem_size;
+            fini_generic_embeddable (x->value, &elem_off, desc + 1, desc_end, aliased);
           }
         }, ddsrt_free (x->value));
         while (desc + 1 != desc_end && *++desc != XSTOP) { }
@@ -540,10 +541,10 @@ static dds_return_t deser_generic (void * __restrict dst, size_t * __restrict ds
         if (deser_uint32 (&x->length, dd, srcoff) < 0 || x->length > dd->bufsz - *srcoff)
           goto fail;
         const size_t elem_size = ser_generic_srcsize (desc + 1);
-        size_t elem_off = 0;
         x->value = x->length ? ddsrt_malloc (x->length * elem_size) : NULL;
         for (uint32_t i = 0; i < x->length; i++)
         {
+          size_t elem_off = i * elem_size;
           if (deser_generic (x->value, &elem_off, flagset, flag, dd, srcoff, desc + 1) < 0)
             goto fail;
         }
@@ -556,21 +557,18 @@ static dds_return_t deser_generic (void * __restrict dst, size_t * __restrict ds
   }
 
 fail:
-  fini_generic_partial (dst, &dstoff_in, desc_in, desc, *flagset->aliased & flag);
+  fini_generic_embeddable (dst, &dstoff_in, desc_in, desc, *flagset->aliased & flag);
   *flagset->present &= ~flag;
   *flagset->aliased &= ~flag;
   return DDS_RETCODE_BAD_PARAMETER;
 }
 
-static void ser_generic_size_partial (size_t *dstoff, const void *src, size_t srcoff, const enum pserop * __restrict desc)
+static void ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t srcoff, const enum pserop * __restrict desc)
 {
-  bool suppressed = false;
 #define COMPLEX(basecase_, type_, dstoff_update_) do {                  \
     type_ const *x = deser_generic_src (src, &srcoff, alignof (type_)); \
     const uint32_t cnt = 1 + (uint32_t) (*desc - (basecase_));          \
-    if (!suppressed) {                                                  \
-      for (uint32_t xi = 0; xi < cnt; xi++, x++) { dstoff_update_; }    \
-    }                                                                   \
+    for (uint32_t xi = 0; xi < cnt; xi++, x++) { dstoff_update_; }      \
     srcoff += cnt * sizeof (*x);                                        \
   } while (0)
 #define SIMPLE1(basecase_, type_) COMPLEX (basecase_, type_, *dstoff = *dstoff + sizeof (*x))
@@ -591,12 +589,13 @@ static void ser_generic_size_partial (size_t *dstoff, const void *src, size_t sr
       case XbCOND: SIMPLE1 (XbCOND, unsigned char); break;
       case XG: SIMPLE1 (XG, nn_guid_t); break;
       case XK: SIMPLE1 (XK, nn_keyhash_t); break;
-      case XbPROP: COMPLEX (XbPROP, unsigned char, if (! *x) suppressed = true); break;
+      case XbPROP: /* "propagate" boolean: when 'false'; no serialisation; no size; force early out */
+               COMPLEX (XbPROP, unsigned char, if (! *x) return); break;
       case XQ: COMPLEX (XQ, ddsi_octetseq_t, {
         const size_t elem_size = ser_generic_srcsize (desc + 1);
         *dstoff = align4size (*dstoff) + 4;
         for (uint32_t i = 0; i < x->length; i++)
-          ser_generic_size_partial (dstoff, x->value, i * elem_size, desc + 1);
+          ser_generic_size_embeddable (dstoff, x->value, i * elem_size, desc + 1);
       }); while (*++desc != XSTOP) { } break;
     }
     desc++;
@@ -609,7 +608,7 @@ static void ser_generic_size_partial (size_t *dstoff, const void *src, size_t sr
 static size_t ser_generic_size (const void *src, size_t srcoff, const enum pserop * __restrict desc)
 {
   size_t dstoff = 0;
-  ser_generic_size_partial (&dstoff, src, srcoff, desc);
+  ser_generic_size_embeddable (&dstoff, src, srcoff, desc);
   return dstoff;
 }
 
@@ -628,7 +627,7 @@ static uint32_t ser_generic_count (const ddsi_octetseq_t *src, size_t elem_size,
   return count;
 }
 
-static dds_return_t ser_generic_partial (char * const data, size_t *dstoff, const void *src, size_t srcoff, const enum pserop * __restrict desc)
+static dds_return_t ser_generic_embeddable (char * const data, size_t *dstoff, const void *src, size_t srcoff, const enum pserop * __restrict desc)
 {
   while (true)
   {
@@ -749,7 +748,7 @@ static dds_return_t ser_generic_partial (char * const data, size_t *dstoff, cons
           const size_t elem_size = ser_generic_srcsize (desc + 1);
           *((uint32_t *) p) = ser_generic_count (x, elem_size, desc + 1);
           for (uint32_t i = 0; i < x->length; i++)
-            ser_generic_partial (data, dstoff, x->value, i * elem_size, desc + 1);
+            ser_generic_embeddable (data, dstoff, x->value, i * elem_size, desc + 1);
         }
         srcoff += sizeof (*x);
         while (*++desc != XSTOP) { }
@@ -764,7 +763,7 @@ static dds_return_t ser_generic (struct nn_xmsg *xmsg, nn_parameterid_t pid, con
 {
   char * const data = nn_xmsg_addpar (xmsg, pid, ser_generic_size (src, srcoff, desc));
   size_t dstoff = 0;
-  return ser_generic_partial (data, &dstoff, src, srcoff, desc);
+  return ser_generic_embeddable (data, &dstoff, src, srcoff, desc);
 }
 
 static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, const enum pserop * __restrict desc)
@@ -795,9 +794,10 @@ static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict 
       case XG: SIMPLE (XG, nn_guid_t); break;
       case XK: SIMPLE (XK, nn_keyhash_t); break;
       case XQ: COMPLEX (XQ, ddsi_octetseq_t, if (x->length) {
-        size_t elem_off = 0;
-        x->value = ddsrt_memdup (x->value, x->length * ser_generic_srcsize(desc + 1));
+        const size_t elem_size = ser_generic_srcsize (desc + 1);
+        x->value = ddsrt_memdup (x->value, x->length * elem_size);
         for (uint32_t i = 0; i < x->length; i++) {
+          size_t elem_off = i * elem_size;
           unalias_generic (x->value, &elem_off, desc + 1);
         }
       }); while (*++desc != XSTOP) { } break;
@@ -831,7 +831,7 @@ static bool fini_generic_required (const enum pserop * __restrict desc)
 
 static dds_return_t fini_generic (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const enum pserop * __restrict desc)
 {
-  fini_generic_partial (dst, dstoff, desc, NULL, *flagset->aliased & flag);
+  fini_generic_embeddable (dst, dstoff, desc, NULL, *flagset->aliased & flag);
   return 0;
 }
 
@@ -1027,14 +1027,6 @@ static dds_return_t dvx_reader_favours_ssm (void * __restrict dst, const struct 
 }
 #endif
 
-/* pserop representation of dds_propertyseq_t. */
-#define PROPERTYSEQ_PSEROP          XQ, XbPROP, XS, XS, XSTOP
-
-/* pserop representation of dds_binarypropertyseq_t. */
-#define BINPROPERTYSEQ_PSEROP       XQ, XbPROP, XS, XO, XSTOP
-
-/* pserop representation of dds_property_qospolicy_t. */
-#define PROPERTY_POLICY_PSEROP      PROPERTYSEQ_PSEROP, BINPROPERTYSEQ_PSEROP
 
 /* Standardized parameters -- QoS _MUST_ come first (nn_plist_init_tables verifies this) because
    it allows early-out when processing a dds_qos_t instead of an nn_plist_t */
@@ -1051,7 +1043,7 @@ static const struct piddesc piddesc_omg[] = {
   QP  (DEADLINE,                            deadline, XD),
   QP  (LATENCY_BUDGET,                      latency_budget, XD),
   QP  (LIVELINESS,                          liveliness, XE2, XD),
-  QP  (PROPERTY_LIST,                       property, PROPERTY_POLICY_PSEROP),
+  QP  (PROPERTY_LIST,                       property, XQ, XbPROP, XS, XS, XSTOP, XQ, XbPROP, XS, XO, XSTOP),
   /* Reliability encoding does not follow the rules (best-effort/reliable map to 1/2 instead of 0/1 */
   { PID_RELIABILITY, PDF_QOS | PDF_FUNCTION, QP_RELIABILITY, "RELIABILITY",
     offsetof (struct nn_plist, qos.reliability), membersize (struct nn_plist, qos.reliability),
@@ -2882,30 +2874,4 @@ void nn_log_xqos (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qo
 #undef LOGB2
 #undef LOGB1
 #undef LOGB0
-}
-
-void nn_free_property_policy(dds_property_qospolicy_t *property)
-{
-  const struct piddesc_index *index = &piddesc_vendor_index[0];
-  const struct piddesc *entry = index->index[PID_PROPERTY_LIST];
-  size_t niloff = 0;
-  fini_generic_partial ((void*)property, &niloff, entry->op.desc, NULL, true);
-}
-
-void nn_duplicate_property (dds_property_t *dest, const dds_property_t *src)
-{
-  const struct piddesc_index *index = &piddesc_vendor_index[0];
-  const struct piddesc *entry = index->index[PID_PROPERTY_LIST];
-  dds_property_qospolicy_t policy;
-  size_t niloff = 0;
-  /* First, do a shallow copy. */
-  *dest = *src;
-  /* Unalias the shallow copy to get a deep copy. */
-  policy.value.n = 1;
-  policy.value.props = dest;
-  policy.binary_value.n = 0;
-  policy.binary_value.props = NULL;
-  (void)unalias_generic(&policy, &niloff, entry->op.desc);
-  /* Shallow copy the deep copy. */
-  *dest = *policy.value.props;
 }
