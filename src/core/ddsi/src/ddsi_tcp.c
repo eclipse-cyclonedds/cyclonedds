@@ -554,8 +554,9 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const nn_locator_t *d
 
   /* If not connected attempt to conect */
 
-  if ((conn->m_sock == DDSRT_INVALID_SOCKET) && ! conn->m_base.m_server)
+  if (conn->m_sock == DDSRT_INVALID_SOCKET)
   {
+    assert (!conn->m_base.m_server);
     ddsi_tcp_conn_connect (conn, &msg);
     if (conn->m_sock == DDSRT_INVALID_SOCKET)
     {

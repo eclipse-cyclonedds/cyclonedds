@@ -366,6 +366,7 @@ CU_Test(ddsc_entity_get_children, null, .init=hierarchy_init, .fini=hierarchy_fi
 /*************************************************************************************************/
 
 /*************************************************************************************************/
+#if SIZE_MAX > INT32_MAX
 CU_Test(ddsc_entity_get_children, invalid_size, .init=hierarchy_init, .fini=hierarchy_fini)
 {
     dds_return_t ret;
@@ -373,6 +374,7 @@ CU_Test(ddsc_entity_get_children, invalid_size, .init=hierarchy_init, .fini=hier
     ret = dds_get_children(g_participant, &child, SIZE_MAX);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
+#endif
 /*************************************************************************************************/
 
 /*************************************************************************************************/

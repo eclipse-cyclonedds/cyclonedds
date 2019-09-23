@@ -618,10 +618,21 @@ static void os_sockWaitsetNewSet (os_sockWaitsetSet * set)
   set->n = 1;
 }
 
+static void os_sockWaitsetFreeSet (os_sockWaitsetSet * set)
+{
+  ddsrt_free (set->fds);
+  ddsrt_free (set->conns);
+}
+
 static void os_sockWaitsetNewCtx (os_sockWaitsetCtx ctx)
 {
   os_sockWaitsetNewSet (&ctx->set);
   FD_ZERO (&ctx->rdset);
+}
+
+static void os_sockWaitsetFreeCtx (os_sockWaitsetCtx ctx)
+{
+  os_sockWaitsetFreeSet (&ctx->set);
 }
 
 os_sockWaitset os_sockWaitsetNew (void)
@@ -642,40 +653,16 @@ os_sockWaitset os_sockWaitsetNew (void)
   ws->pipe[0] = -1;
   ws->pipe[1] = -1;
   result = 0;
-#elif defined(__VXWORKS__)
-  int make_pipe (int pfd[2])
-  {
-    char pipename[OSPL_PIPENAMESIZE];
-    int pipecount=0;
-    do
-    {
-      snprintf ((char*)&pipename, sizeof(pipename), "/pipe/ospl%d", pipecount++ );
-    }
-    while ((result = pipeDevCreate ((char*) &pipename, 1, 1)) == -1 && os_getErrno() == EINVAL);
-    if (result != -1)
-    {
-      result = open ((char*) &pipename, O_RDWR, 0644);
-      if (result != -1)
-      {
-        ws->pipe[0] = result;
-        result = open ((char*) &pipename, O_RDWR, 0644);
-        if (result != -1)
-        {
-          ws->pipe[1] = result;
-        }
-        else
-        {
-          close (ws->pipe[0]);
-          pipeDevDelete (pipename, 0);
-        }
-      }
-    }
-  }
 #else
   result = make_pipe (ws->pipe);
 #endif
-  assert (result != -1);
-  (void) result;
+  if (result == -1)
+  {
+    os_sockWaitsetFreeCtx (&ws->ctx);
+    os_sockWaitsetFreeSet (&ws->set);
+    ddsrt_free (ws);
+    return NULL;
+  }
 
 #if !defined(LWIP_SOCKET)
   ws->set.fds[0] = ws->pipe[0];
@@ -685,8 +672,8 @@ os_sockWaitset os_sockWaitsetNew (void)
   ws->set.conns[0] = NULL;
 
 #if !defined(__VXWORKS__) && !defined(_WIN32) && !defined(LWIP_SOCKET)
-  fcntl (ws->pipe[0], F_SETFD, fcntl (ws->pipe[0], F_GETFD) | FD_CLOEXEC);
-  fcntl (ws->pipe[1], F_SETFD, fcntl (ws->pipe[1], F_GETFD) | FD_CLOEXEC);
+  (void) fcntl (ws->pipe[0], F_SETFD, fcntl (ws->pipe[0], F_GETFD) | FD_CLOEXEC);
+  (void) fcntl (ws->pipe[1], F_SETFD, fcntl (ws->pipe[1], F_GETFD) | FD_CLOEXEC);
 #endif
 #if !defined(LWIP_SOCKET)
   FD_SET (ws->set.fds[0], &ws->ctx.rdset);
@@ -705,17 +692,6 @@ static void os_sockWaitsetGrow (os_sockWaitsetSet * set)
   set->sz += WAITSET_DELTA;
   set->conns = ddsrt_realloc (set->conns, set->sz * sizeof (*set->conns));
   set->fds = ddsrt_realloc (set->fds, set->sz * sizeof (*set->fds));
-}
-
-static void os_sockWaitsetFreeSet (os_sockWaitsetSet * set)
-{
-  ddsrt_free (set->fds);
-  ddsrt_free (set->conns);
-}
-
-static void os_sockWaitsetFreeCtx (os_sockWaitsetCtx ctx)
-{
-  os_sockWaitsetFreeSet (&ctx->set);
 }
 
 void os_sockWaitsetFree (os_sockWaitset ws)
