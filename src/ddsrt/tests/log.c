@@ -254,11 +254,8 @@ CU_Test(dds_log, no_sink, .init=setup, .fini=teardown)
   ptr = NULL;
   DDS_ERROR("foobaz\n");
   ret = fseek(fh, 0, SEEK_SET);
+  CU_ASSERT_EQUAL_FATAL(ret, 0);
   CU_ASSERT_PTR_NULL(ptr);
-  if (ptr != NULL) {
-    ddsrt_free(ptr);
-    ptr = NULL;
-  }
   buf[0]= '\0';
   cnt[1] = fread(buf, 1, sizeof(buf) - 1, fh);
 #ifdef _WIN32

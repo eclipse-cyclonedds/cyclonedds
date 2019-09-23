@@ -169,7 +169,6 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   dds_entity_init_complete (&domain->m_entity);
   return DDS_RETCODE_OK;
 
-  rtps_stop (&domain->gv);
 fail_rtps_start:
   if (domain->gv.config.liveliness_monitoring && dds_global.threadmon_count == 1)
     ddsi_threadmon_stop (dds_global.threadmon);

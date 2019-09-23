@@ -91,7 +91,7 @@ struct wr_prd_match {
   seqno_t min_seq; /* smallest ack'd seq nr in subtree */
   seqno_t max_seq; /* sort-of highest ack'd seq nr in subtree (see augment function) */
   seqno_t seq; /* highest acknowledged seq nr */
-  int num_reliable_readers_where_seq_equals_max;
+  int32_t num_reliable_readers_where_seq_equals_max;
   ddsi_guid_t arbitrary_unacked_reader;
   nn_count_t next_acknack; /* next acceptable acknack sequence number */
   nn_count_t next_nackfrag; /* next acceptable nackfrag sequence number */
@@ -260,7 +260,7 @@ struct writer
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
   nn_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
   nn_etime_t t_whc_high_upd; /* time "whc_high" was last updated for controlled ramp-up of throughput */
-  int num_reliable_readers; /* number of matching reliable PROXY readers */
+  int32_t num_reliable_readers; /* number of matching reliable PROXY readers */
   ddsrt_avl_tree_t readers; /* all matching PROXY readers, see struct wr_prd_match */
   ddsrt_avl_tree_t local_readers; /* all matching LOCAL readers, see struct wr_rd_match */
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -356,8 +356,8 @@ struct proxy_writer {
   struct entity_common e;
   struct proxy_endpoint_common c;
   ddsrt_avl_tree_t readers; /* matching LOCAL readers, see pwr_rd_match */
-  int n_reliable_readers; /* number of those that are reliable */
-  int n_readers_out_of_sync; /* number of those that require special handling (accepting historical data, waiting for historical data set to become complete) */
+  int32_t n_reliable_readers; /* number of those that are reliable */
+  int32_t n_readers_out_of_sync; /* number of those that require special handling (accepting historical data, waiting for historical data set to become complete) */
   seqno_t last_seq; /* highest known seq published by the writer, not last delivered */
   uint32_t last_fragnum; /* last known frag for last_seq, or ~0u if last_seq not partial */
   nn_count_t nackfragcount; /* last nackfrag seq number */

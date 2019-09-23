@@ -403,14 +403,17 @@ dds_return_t dds_delete_impl_pinned (dds_entity *e, enum delete_impl_state delst
     ddsrt_mutex_unlock (&p->m_mutex);
   }
 
-  /* Do some specific deletion when needed.  Bootstrapping and its inverse are always a
-     tricky business, and here it is no different: deleting the pseudo-top-level object
-     tears down all kinds of stuff that is supposed to remain in existence (like the
-     entire platform abstraction) and so it must be the final call.  Thus, we rely on it
-     to call "dds_entity_final_deinit_before_free" and return a special error code. */
+  /* Do some specific deletion when needed */
   ret = dds_entity_deriver_delete (e);
   if (ret == DDS_RETCODE_NO_DATA)
+  {
+    /* Bootstrapping and its inverse are always a tricky business, and here it is no different:
+       deleting the pseudo-top-level object tears down all kinds of stuff that is supposed to
+       remain in existence (like the entire platform abstraction) and so it must be the final
+       call.  Thus, we rely on it to call "dds_entity_final_deinit_before_free" and return a
+       special error code that we don't pass on to the caller. */
     ret = DDS_RETCODE_OK;
+  }
   else if (ret != DDS_RETCODE_OK)
   {
     if (parent_to_delete)
@@ -423,6 +426,8 @@ dds_return_t dds_delete_impl_pinned (dds_entity *e, enum delete_impl_state delst
     dds_free (e);
   }
 
+  assert (ret == DDS_RETCODE_OK);
+  (void) ret;
   return (parent_to_delete != NULL) ? dds_delete_impl_pinned (parent_to_delete, DIS_IMPLICIT) : DDS_RETCODE_OK;
 }
 

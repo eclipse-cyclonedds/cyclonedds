@@ -1696,7 +1696,7 @@ static bool prtf_simple_array (char * __restrict *buf, size_t * __restrict bufsi
         else
         {
           if (i != 0)
-            cont = prtf (buf, bufsize, ",");
+            (void) prtf (buf, bufsize, ",");
           cont = prtf_simple (buf, bufsize, is, type);
           i++;
         }
@@ -1708,7 +1708,7 @@ static bool prtf_simple_array (char * __restrict *buf, size_t * __restrict bufsi
       for (size_t i = 0; cont && i < num; i++)
       {
         if (i != 0)
-          cont = prtf (buf, bufsize, ",");
+          (void) prtf (buf, bufsize, ",");
         cont = prtf_simple (buf, bufsize, is, type);
       }
       break;

@@ -1071,7 +1071,7 @@ static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct hand
     refseq = nn_reorder_next_seq (pwr->reorder) - 1;
   else
     refseq = nn_reorder_next_seq (wn->u.not_in_sync.reorder) - 1;
-    RSTTRACE (" "PGUIDFMT"@%"PRId64"%s", PGUID (wn->rd_guid), refseq, (wn->in_sync == PRMSS_SYNC) ? "(sync)" : (wn->in_sync == PRMSS_TLCATCHUP) ? "(tlcatchup)" : "");
+  RSTTRACE (" "PGUIDFMT"@%"PRId64"%s", PGUID (wn->rd_guid), refseq, (wn->in_sync == PRMSS_SYNC) ? "(sync)" : (wn->in_sync == PRMSS_TLCATCHUP) ? "(tlcatchup)" : "");
 
   /* Reschedule AckNack transmit if deemed appropriate; unreliable
      readers have acknack_xevent == NULL and can't do this.
@@ -2437,7 +2437,7 @@ static int handle_DataFrag (struct receiver_state *rst, nn_etime_t tnow, struct 
       payload_offset = submsg_offset + (unsigned) size;
 
     begin = (msg->fragmentStartingNum - 1) * msg->fragmentSize;
-    if (msg->fragmentSize * msg->fragmentsInSubmessage > ((unsigned char *) msg + size - datap)) {
+    if ((uint32_t) msg->fragmentSize * msg->fragmentsInSubmessage > (uint32_t) ((unsigned char *) msg + size - datap)) {
       /* this happens for the last fragment (which usually is short) --
          and is included here merely as a sanity check, because that
          would mean the computed endp1'd be larger than the sample

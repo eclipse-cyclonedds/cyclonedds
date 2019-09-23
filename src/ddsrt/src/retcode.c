@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds/ddsrt/retcode.h"
+#include "dds/ddsrt/static_assert.h"
 
 static const char *retcodes[] = {
   "Success",
@@ -45,6 +46,7 @@ const char *dds_strretcode (dds_return_t rc)
 {
   const dds_return_t nretcodes = (dds_return_t) (sizeof (retcodes) / sizeof (retcodes[0]));
   const dds_return_t nxretcodes = (dds_return_t) (sizeof (xretcodes) / sizeof (xretcodes[0]));
+  DDSRT_STATIC_ASSERT (DDS_XRETCODE_BASE < 0);
   /* Retcodes used to be positive, but return values from the API would be a negative
      and so there are/were/may be places outside the core library where dds_strretcode
      is called with a -N for N a API return value, so ... play it safe and use the
@@ -53,8 +55,8 @@ const char *dds_strretcode (dds_return_t rc)
     rc = -rc;
   if (rc >= 0 && rc < nretcodes)
     return retcodes[rc];
-  else if (rc >= DDS_XRETCODE_BASE && rc < DDS_XRETCODE_BASE + nxretcodes)
-    return xretcodes[rc - DDS_XRETCODE_BASE];
+  else if (rc >= (-DDS_XRETCODE_BASE) && rc < (-DDS_XRETCODE_BASE) + nxretcodes)
+    return xretcodes[rc - (-DDS_XRETCODE_BASE)];
   else
     return "Unknown return code";
 }

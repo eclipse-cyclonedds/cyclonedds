@@ -163,7 +163,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   }
   else
   {
-    const int n_unacked = wr->num_reliable_readers - root_rdmatch (wr)->num_reliable_readers_where_seq_equals_max;
+    const int32_t n_unacked = wr->num_reliable_readers - root_rdmatch (wr)->num_reliable_readers_where_seq_equals_max;
     assert (n_unacked >= 0);
     if (n_unacked == 0)
       prd_guid = NULL;
@@ -182,7 +182,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
     ETRACE (wr, "multicasting ");
   else
     ETRACE (wr, "unicasting to prd "PGUIDFMT" ", PGUID (*prd_guid));
-  ETRACE (wr, "(rel-prd %d seq-eq-max %d seq %"PRId64" maxseq %"PRId64")\n",
+  ETRACE (wr, "(rel-prd %"PRId32" seq-eq-max %"PRId32" seq %"PRId64" maxseq %"PRId64")\n",
           wr->num_reliable_readers,
           ddsrt_avl_is_empty (&wr->readers) ? -1 : root_rdmatch (wr)->num_reliable_readers_where_seq_equals_max,
           wr->seq,

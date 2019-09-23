@@ -1012,6 +1012,8 @@ static size_t cfg_note_vsnprintf (struct cfg_note_buf *bb, const char *fmt, va_l
   return 0;
 }
 
+static void cfg_note_snprintf (struct cfg_note_buf *bb, const char *fmt, ...) ddsrt_attribute_format ((printf, 2, 3));
+
 static void cfg_note_snprintf (struct cfg_note_buf *bb, const char *fmt, ...)
 {
   /* The reason the 2nd call to os_vsnprintf is here and not inside
@@ -1123,6 +1125,8 @@ static size_t cfg_note (struct cfgst *cfgst, uint32_t cat, size_t bsz, const cha
   return 0;
 }
 
+static void cfg_warning (struct cfgst *cfgst, const char *fmt, ...) ddsrt_attribute_format ((printf, 2, 3));
+
 static void cfg_warning (struct cfgst *cfgst, const char *fmt, ...)
 {
   va_list ap;
@@ -1133,6 +1137,8 @@ static void cfg_warning (struct cfgst *cfgst, const char *fmt, ...)
     va_end (ap);
   } while (bsz > 0);
 }
+
+static enum update_result cfg_error (struct cfgst *cfgst, const char *fmt, ...) ddsrt_attribute_format ((printf, 2, 3));
 
 static enum update_result cfg_error (struct cfgst *cfgst, const char *fmt, ...)
 {
@@ -1145,6 +1151,8 @@ static enum update_result cfg_error (struct cfgst *cfgst, const char *fmt, ...)
   } while (bsz > 0);
   return URES_ERROR;
 }
+
+static void cfg_logelem (struct cfgst *cfgst, uint32_t sources, const char *fmt, ...) ddsrt_attribute_format ((printf, 3, 4));
 
 static void cfg_logelem (struct cfgst *cfgst, uint32_t sources, const char *fmt, ...)
 {
@@ -1444,7 +1452,7 @@ static void pf_int64_unit (struct cfgst *cfgst, int64_t value, uint32_t sources,
     }
     assert (m > 0);
     assert (unit != NULL);
-    cfg_logelem (cfgst, sources, "%lld %s", value / m, unit);
+    cfg_logelem (cfgst, sources, "%"PRId64" %s", value / m, unit);
   }
 }
 
