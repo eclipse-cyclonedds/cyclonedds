@@ -114,7 +114,6 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
   if (lst->on_data_on_readers)
   {
     ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
-
     ddsrt_mutex_lock (&sub->m_observers_lock);
     const uint32_t data_on_rds_enabled = (ddsrt_atomic_ld32 (&sub->m_status.m_status_and_mask) & (DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT));
     if (data_on_rds_enabled)
@@ -127,13 +126,13 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
 
       lst->on_data_on_readers (sub->m_hdllink.hdl, lst->on_data_on_readers_arg);
 
-      ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
       ddsrt_mutex_lock (&sub->m_observers_lock);
       sub->m_cb_count--;
       sub->m_cb_pending_count--;
       ddsrt_cond_broadcast (&sub->m_observers_cond);
     }
     ddsrt_mutex_unlock (&sub->m_observers_lock);
+    ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
   }
   else if (rd->m_entity.m_listener.on_data_available)
   {
