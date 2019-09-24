@@ -49,7 +49,13 @@ retry:
     ddsrt_atomic_or32(&init_status, INIT_STATUS_OK);
   } else {
     while (v > 1 && !(v & INIT_STATUS_OK)) {
+#ifndef __COVERITY__
+      /* This sleep makes Coverity warn about possibly sleeping while holding in a lock
+         in many places, all because just-in-time creation of a thread descriptor ends
+         up here.  Since sleeping is merely meant as a better alternative to spinning,
+         skip the sleep when being analyzed. */
       dds_sleepfor(10000000);
+#endif
       v = ddsrt_atomic_ld32(&init_status);
     }
     goto retry;
