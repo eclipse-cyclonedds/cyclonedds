@@ -38,6 +38,8 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_misc.h" /* for vendor_is_... */
 
+#include "dds/ddsi/ddsi_plist_generic.h"
+
 /* I am tempted to change LENGTH_UNLIMITED to 0 in the API (with -1
    supported for backwards compatibility) ... on the wire however
    it must be -1 */
@@ -87,25 +89,6 @@ struct flagset {
   uint64_t *aliased;
   uint64_t wanted;
 };
-
-/* Instructions for the generic serializer (&c) that handles most parameters.
-   The "packed" attribute means single-byte instructions on GCC and Clang. */
-enum pserop {
-  XSTOP,
-  XO, /* octet sequence */
-  XS, /* string */
-  XE1, XE2, XE3, /* enum 0..1, 0..2, 0..3 */
-  Xi, Xix2, Xix3, Xix4, /* int32_t, 1 .. 4 in a row */
-  Xu, Xux2, Xux3, Xux4, Xux5, /* uint32_t, 1 .. 5 in a row */
-  XD, XDx2, /* duration, 1 .. 2 in a row */
-  Xo, Xox2, /* octet, 1 .. 2 in a row */
-  Xb, Xbx2, /* boolean, 1 .. 2 in a row */
-  XbCOND, /* boolean: compare to ignore remainder if false (for use_... flags) */
-  XbPROP, /* boolean: omit in serialized form; skip serialization if false; always true on deserialize */
-  XG, /* GUID */
-  XK, /* keyhash */
-  XQ /* arbitary non-nested sequence */
-} ddsrt_attribute_packed;
 
 struct piddesc {
   nn_parameterid_t pid;  /* parameter id or PID_PAD if strictly local */
@@ -359,6 +342,11 @@ static size_t ser_generic_srcsize (const enum pserop * __restrict desc)
 #undef SIMPLE
 }
 
+size_t plist_memsize_generic (const enum pserop * __restrict desc)
+{
+  return ser_generic_srcsize (desc);
+}
+
 static void fini_generic_embeddable (void * __restrict dst, size_t * __restrict dstoff, const enum pserop *desc, const enum pserop * const desc_end, bool aliased)
 {
 #define COMPLEX(basecase_, type_, cleanup_unaliased_, cleanup_always_) do { \
@@ -546,7 +534,10 @@ static dds_return_t deser_generic (void * __restrict dst, size_t * __restrict ds
         {
           size_t elem_off = i * elem_size;
           if (deser_generic (x->value, &elem_off, flagset, flag, dd, srcoff, desc + 1) < 0)
+          {
+            ddsrt_free (x->value);
             goto fail;
+          }
         }
         *dstoff += sizeof (*x);
         while (*++desc != XSTOP) { }
@@ -561,6 +552,22 @@ fail:
   *flagset->present &= ~flag;
   *flagset->aliased &= ~flag;
   return DDS_RETCODE_BAD_PARAMETER;
+}
+
+dds_return_t plist_deser_generic (void * __restrict dst, const void * __restrict src, size_t srcsize, bool bswap, const enum pserop * __restrict desc)
+{
+  struct dd dd = {
+    .buf = src,
+    .bufsz = srcsize,
+    .bswap = bswap,
+    .protocol_version = {0,0},
+    .vendorid = NN_VENDORID_ECLIPSE,
+    .factory = NULL
+  };
+  uint64_t present = 0, aliased = 0;
+  struct flagset fs = { .present = &present, .aliased = &aliased, .wanted = 1 };
+  size_t dstoff = 0, srcoff = 0;
+  return deser_generic (dst, &dstoff, &fs, 1, &dd, &srcoff, desc);
 }
 
 static void ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t srcoff, const enum pserop * __restrict desc)
@@ -766,7 +773,20 @@ static dds_return_t ser_generic (struct nn_xmsg *xmsg, nn_parameterid_t pid, con
   return ser_generic_embeddable (data, &dstoff, src, srcoff, desc);
 }
 
-static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, const enum pserop * __restrict desc)
+dds_return_t plist_ser_generic (void **dst, size_t *dstsize, const void *src, const enum pserop * __restrict desc)
+{
+  const size_t srcoff = 0;
+  size_t dstoff = 0;
+  dds_return_t ret;
+  *dstsize = ser_generic_size (src, srcoff, desc);
+  if ((*dst = ddsrt_malloc (*dstsize == 0 ? 1 : *dstsize)) == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  ret = ser_generic_embeddable (*dst, &dstoff, src, srcoff, desc);
+  assert (dstoff == *dstsize);
+  return ret;
+}
+
+static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased, const enum pserop * __restrict desc)
 {
 #define COMPLEX(basecase_, type_, ...) do {                      \
     type_ *x = deser_generic_dst (dst, dstoff, alignof (type_)); \
@@ -795,10 +815,21 @@ static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict 
       case XK: SIMPLE (XK, nn_keyhash_t); break;
       case XQ: COMPLEX (XQ, ddsi_octetseq_t, if (x->length) {
         const size_t elem_size = ser_generic_srcsize (desc + 1);
-        x->value = ddsrt_memdup (x->value, x->length * elem_size);
+        if (gen_seq_aliased)
+        {
+          /* The memory for the elements of a generic sequence are owned by the plist, the only aliased bits
+             are the strings (XS) and octet sequences (XO) embedded in the elements.  So in principle, an
+             unalias operation on a generic sequence should only operate on the elements of the sequence,
+             not on the sequence buffer itself.
+
+             However, the "mergein_missing" operation (and consequently the copy & dup operations) memcpy the
+             source, then pretend it is aliased.  In this case, the sequence buffer is aliased, rather than
+             private, and hence a new copy needs to be allocated. */
+          x->value = ddsrt_memdup (x->value, x->length * elem_size);
+        }
         for (uint32_t i = 0; i < x->length; i++) {
           size_t elem_off = i * elem_size;
-          unalias_generic (x->value, &elem_off, desc + 1);
+          unalias_generic (x->value, &elem_off, gen_seq_aliased, desc + 1);
         }
       }); while (*++desc != XSTOP) { } break;
     }
@@ -806,6 +837,12 @@ static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict 
   }
 #undef SIMPLE
 #undef COMPLEX
+}
+
+dds_return_t plist_unalias_generic (void * __restrict dst, const enum pserop * __restrict desc)
+{
+  size_t dstoff = 0;
+  return unalias_generic (dst, &dstoff, false, desc);
 }
 
 static bool unalias_generic_required (const enum pserop * __restrict desc)
@@ -833,6 +870,12 @@ static dds_return_t fini_generic (void * __restrict dst, size_t * __restrict dst
 {
   fini_generic_embeddable (dst, dstoff, desc, NULL, *flagset->aliased & flag);
   return 0;
+}
+
+void plist_fini_generic (void * __restrict dst, const enum pserop *desc, bool aliased)
+{
+  size_t dstoff = 0;
+  fini_generic_embeddable (dst, &dstoff, desc, NULL, aliased);
 }
 
 static dds_return_t valid_generic (const void *src, size_t srcoff, const enum pserop * __restrict desc)
@@ -921,9 +964,9 @@ static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, co
             return true;
         });
         break;
-      case XbPROP: TRIVIAL (Xb, unsigned char); break;
-      case XG: SIMPLE (XG, ddsi_guid_t, memcmp (x, y, sizeof (*x))); break;
-      case XK: SIMPLE (XK, nn_keyhash_t, memcmp (x, y, sizeof (*x))); break;
+      case XbPROP: TRIVIAL (XbPROP, unsigned char); break;
+      case XG: SIMPLE (XG, ddsi_guid_t, memcmp (x, y, sizeof (*x)) == 0); break;
+      case XK: SIMPLE (XK, nn_keyhash_t, memcmp (x, y, sizeof (*x)) == 0); break;
       case XQ: COMPLEX (XQ, ddsi_octetseq_t, {
         if (x->length != y->length)
           return false;
@@ -941,6 +984,11 @@ static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, co
 #undef TRIVIAL
 #undef SIMPLE
 #undef COMPLEX
+}
+
+bool plist_equal_generic (const void *srcx, const void *srcy, const enum pserop * __restrict desc)
+{
+  return equal_generic (srcx, srcy, 0, desc);
 }
 
 #define membersize(type, member) sizeof (((type *) 0)->member)
@@ -1409,7 +1457,7 @@ static void plist_or_xqos_unalias (void * __restrict dst, size_t shift)
     if ((*fs->present & entry->present_flag) && (*fs->aliased & entry->present_flag))
     {
       if (!(entry->flags & PDF_FUNCTION))
-        unalias_generic (dst, &dstoff, entry->op.desc);
+        unalias_generic (dst, &dstoff, false, entry->op.desc);
       else if (entry->op.f.unalias)
         entry->op.f.unalias (dst, &dstoff);
       *fs->aliased &= ~entry->present_flag;
@@ -1467,15 +1515,15 @@ static void plist_or_xqos_mergein_missing (void * __restrict dst, const void * _
       if (!(*fs_dst->present & entry->present_flag) && (*fs_src->present & mask & entry->present_flag))
       {
         /* bitwise copy, mark as aliased & unalias; have to unalias fields one-by-one rather than
-         do this for all fields and call "unalias" on the entire object because fields that are
-         already present may be aliased, and it would be somewhat impolite to change that.
+           do this for all fields and call "unalias" on the entire object because fields that are
+           already present may be aliased, and it would be somewhat impolite to change that.
 
-         Note: dst & src have the same type, so offset in src is the same;
-         Note: unalias may have to look at */
+           Note: dst & src have the same type, so offset in src is the same;
+           Note: unalias may have to look at */
         memcpy ((char *) dst + dstoff, (const char *) src + dstoff, entry->size);
         *fs_dst->present |= entry->present_flag;
         if (!(entry->flags & PDF_FUNCTION))
-          unalias_generic (dst, &dstoff, entry->op.desc);
+          unalias_generic (dst, &dstoff, true, entry->op.desc);
         else if (entry->op.f.unalias)
           entry->op.f.unalias (dst, &dstoff);
       }
