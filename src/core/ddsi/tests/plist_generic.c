@@ -17,7 +17,7 @@
 #include "dds/ddsi/ddsi_plist_generic.h"
 
 struct desc {
-  const enum pserop desc[10];
+  const enum pserop desc[20];
   const void *data;
   size_t exp_sersize;
   const unsigned char *exp_ser;
@@ -104,6 +104,29 @@ struct desc descs[] = {
     },
     &(struct{char b; oseq seq;}){1, {3, (unsigned char *)(struct{char b;char *s;uint8_t o;}[]){
       {1,"orange",2}, {1,"fig",4}, {1,"prune",5}}}},
+  },
+  { {Xb,XQ,XbPROP,XS,Xo,XSTOP, Xopt,XQ,XbPROP,XS,Xo,XSTOP, XSTOP},
+    &(struct{char b; oseq seq, seq2;}){1,
+      {5, (unsigned char *)(struct{char b;char *s;uint8_t o;}[]){
+        {0,"apple",1}, {1,"orange",2}, {0,"cherry",3}, {1,"fig",4}, {1,"prune",5}}},
+      {2, (unsigned char *)(struct{char b;char *s;uint8_t o;}[]){
+        {1,"oak",8}, {0,"beech",9}}}
+    },
+    57, (raw){1, 0,0,0,
+      SER32(3),
+      SER32(7), 'o','r','a','n','g','e',0, 2,
+      SER32(4), 'f','i','g',0, 4, 0,0,0,
+      SER32(6), 'p','r','u','n','e',0, 5,
+      0,
+      SER32(1),
+      SER32(4), 'o','a','k',0, 8
+    },
+    &(struct{char b; oseq seq, seq2;}){1,
+      {3, (unsigned char *)(struct{char b;char *s;uint8_t o;}[]){
+        {1,"orange",2}, {1,"fig",4}, {1,"prune",5}}},
+      {1,  (unsigned char *)(struct{char b;char *s;uint8_t o;}[]){
+        {1,"oak",8}}}
+    }
   }
 };
 
@@ -235,4 +258,57 @@ CU_Test (ddsi_plist_generic, invalid_input)
     if (ret == DDS_RETCODE_OK)
       CU_ASSERT_FATAL (ret != DDS_RETCODE_OK);
   }
+}
+
+CU_Test (ddsi_plist_generic, optional)
+{
+  union {
+    uint64_t u;
+    void *p;
+    char buf[256];
+  } mem;
+
+  enum pserop ser_desc[] = {Xb,XQ,XbPROP,XS,Xo,XSTOP,XSTOP};
+  enum pserop deser_desc[] = {Xb,XQ,XbPROP,XS,Xo,XSTOP, Xopt,XQ,XbPROP,XS,Xo,XSTOP, XSTOP};
+  const void *data = &(struct{char b; oseq seq;}){
+    1, {5, (unsigned char *)(struct{char b;char *s;uint8_t o;}[]){
+      {0,"apple",1}, {1,"orange",2}, {0,"cherry",3}, {1,"fig",4}, {1,"prune",5}}}};
+  size_t exp_sersize = 43;
+  const unsigned char *exp_ser = (raw){
+    1, 0,0,0, SER32(3),
+    SER32(7), 'o','r','a','n','g','e',0, 2,
+    SER32(4), 'f','i','g',0, 4, 0,0,0,
+    SER32(6), 'p','r','u','n','e',0, 5
+  };
+  const void *exp_data = &(struct{char b; oseq seq; oseq seq2;}){
+    1, {3, (unsigned char *)(struct{char b;char *s;uint8_t o;}[]){
+      {1,"orange",2}, {1,"fig",4}, {1,"prune",5}}},
+    {0, NULL}};
+
+  size_t memsize;
+  void *ser;
+  size_t sersize;
+  dds_return_t ret;
+  ret = plist_ser_generic (&ser, &sersize, data, ser_desc);
+  CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+  CU_ASSERT (sersize == exp_sersize);
+  /* if sizes don't match, still check prefix */
+  size_t cmpsize = (sersize < exp_sersize) ? sersize : exp_sersize;
+  if (memcmp (ser, exp_ser, cmpsize) != 0)
+  {
+    printf ("ddsi_plist_generic_optional: memcmp\n");
+    for (size_t k = 0; k < cmpsize; k++)
+      printf ("  %3zu  %02x  %02x\n", k, ((unsigned char *)ser)[k], exp_ser[k]);
+    CU_ASSERT (!(bool)"memcmp");
+  }
+  /* check */
+  memsize = plist_memsize_generic (deser_desc);
+  CU_ASSERT_FATAL (memsize <= sizeof (mem));
+  memset (&mem, 0xee, sizeof (mem));
+  ret = plist_deser_generic (&mem, ser, sersize, false, deser_desc);
+  CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+  /* the compare function should be happy with it */
+  CU_ASSERT (plist_equal_generic (exp_data, &mem, deser_desc));
+  plist_fini_generic (&mem, deser_desc, true);
+  ddsrt_free (ser);
 }

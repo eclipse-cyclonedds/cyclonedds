@@ -98,10 +98,10 @@ struct piddesc {
   size_t plist_offset;   /* offset from start of nn_plist_t */
   size_t size;           /* in-memory size for copying */
   union {
-    /* descriptor for generic code: 11 is enough for the current set of
+    /* descriptor for generic code: 12 is enough for the current set of
        parameters, compiler will warn if one ever tries to use more than
-       will fit; on non-GCC/Clang and 32-bits machines */
-    const enum pserop desc[11];
+       will fit */
+    const enum pserop desc[12];
     struct {
       dds_return_t (*deser) (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff);
       dds_return_t (*ser) (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff);
@@ -113,6 +113,8 @@ struct piddesc {
   } op;
   dds_return_t (*deser_validate_xform) (void * __restrict dst, const struct dd * __restrict dd);
 };
+
+extern inline bool pserop_seralign_is_1 (enum pserop op);
 
 static void log_octetseq (uint32_t cat, const struct ddsrt_log_cfg *logcfg, uint32_t n, const unsigned char *xs);
 static dds_return_t validate_history_qospolicy (const dds_history_qospolicy_t *q);
@@ -336,6 +338,7 @@ static size_t ser_generic_srcsize (const enum pserop * __restrict desc)
       case XK: SIMPLE (XK, nn_keyhash_t); break;
       case XbPROP: SIMPLE (XbPROP, unsigned char); break;
       case XQ: SIMPLE (XQ, ddsi_octetseq_t); while (*++desc != XSTOP) { } break;
+      case Xopt: break;
     }
     desc++;
   }
@@ -388,11 +391,32 @@ static void fini_generic_embeddable (void * __restrict dst, size_t * __restrict 
         }, ddsrt_free (x->value));
         while (desc + 1 != desc_end && *++desc != XSTOP) { }
         break;
+      case Xopt: break;
     }
     desc++;
   }
 #undef SIMPLE
 #undef COMPLEX
+}
+
+static size_t pserop_memalign (enum pserop op)
+{
+  switch (op)
+  {
+    case XO: case XQ: return alignof (ddsi_octetseq_t);
+    case XS: return alignof (char *);
+    case XG: return alignof (ddsi_guid_t);
+    case XK: return alignof (nn_keyhash_t);
+    case Xb: case Xbx2: return 1;
+    case Xo: case Xox2: return 1;
+    case XbCOND: case XbPROP: return 1;
+    case XE1: case XE2: case XE3: return sizeof (uint32_t);
+    case Xi: case Xix2: case Xix3: case Xix4: return sizeof (int32_t);
+    case Xu: case Xux2: case Xux3: case Xux4: case Xux5: return sizeof (uint32_t);
+    case XD: case XDx2: return alignof (dds_duration_t);
+    case XSTOP: case Xopt: assert (0);
+  }
+  return 0;
 }
 
 static dds_return_t deser_generic (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff, const enum pserop * __restrict desc)
@@ -409,8 +433,7 @@ static dds_return_t deser_generic (void * __restrict dst, size_t * __restrict ds
     switch (*desc)
     {
       case XSTOP:
-        *flagset->present |= flag;
-        return 0;
+        goto success;
       case XO: { /* octet sequence */
         ddsi_octetseq_t * const x = deser_generic_dst (dst, dstoff, alignof (ddsi_octetseq_t));
         if (deser_uint32 (&x->length, dd, srcoff) < 0 || dd->bufsz - *srcoff < x->length)
@@ -543,9 +566,29 @@ static dds_return_t deser_generic (void * __restrict dst, size_t * __restrict ds
         while (*++desc != XSTOP) { }
         break;
       }
+      case Xopt: { /* remainder is optional; alignment is very nearly always 4 */
+        bool end_of_input;
+        if (pserop_seralign_is_1 (desc[1]))
+          end_of_input = (*srcoff + 1 > dd->bufsz);
+        else
+        {
+          *srcoff = (*srcoff + 3) & ~(size_t)3;
+          end_of_input = (*srcoff + 4 > dd->bufsz);
+        }
+        if (end_of_input)
+        {
+          void * const x = deser_generic_dst (dst, dstoff, pserop_memalign (desc[1]));
+          size_t rem_size = ser_generic_srcsize (desc + 1);
+          memset (x, 0, rem_size);
+          goto success;
+        }
+      }
     }
     desc++;
   }
+success:
+  *flagset->present |= flag;
+  return 0;
 
 fail:
   fini_generic_embeddable (dst, &dstoff_in, desc_in, desc, *flagset->aliased & flag);
@@ -604,6 +647,7 @@ static void ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t
         for (uint32_t i = 0; i < x->length; i++)
           ser_generic_size_embeddable (dstoff, x->value, i * elem_size, desc + 1);
       }); while (*++desc != XSTOP) { } break;
+      case Xopt: break;
     }
     desc++;
   }
@@ -761,6 +805,8 @@ static dds_return_t ser_generic_embeddable (char * const data, size_t *dstoff, c
         while (*++desc != XSTOP) { }
         break;
       }
+      case Xopt:
+        break;
     }
     desc++;
   }
@@ -832,6 +878,7 @@ static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict 
           unalias_generic (x->value, &elem_off, gen_seq_aliased, desc + 1);
         }
       }); while (*++desc != XSTOP) { } break;
+      case Xopt: break;
     }
     desc++;
   }
@@ -917,6 +964,7 @@ static dds_return_t valid_generic (const void *src, size_t srcoff, const enum ps
           }
         }
       }); while (*++desc != XSTOP) { } break;
+      case Xopt: break;
     }
     desc++;
   }
@@ -978,6 +1026,7 @@ static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, co
           }
         }
       }); while (*++desc != XSTOP) { } break;
+      case Xopt: break;
     }
     desc++;
   }
@@ -1091,7 +1140,9 @@ static const struct piddesc piddesc_omg[] = {
   QP  (DEADLINE,                            deadline, XD),
   QP  (LATENCY_BUDGET,                      latency_budget, XD),
   QP  (LIVELINESS,                          liveliness, XE2, XD),
-  QP  (PROPERTY_LIST,                       property, XQ, XbPROP, XS, XS, XSTOP, XQ, XbPROP, XS, XO, XSTOP),
+  /* Property list used to be of type [(String,String]), security changed into ([String,String],Maybe [(String,[Word8])]),
+     the "Xopt" here is to allow both forms on input, with an assumed empty second sequence if the old form was received */
+  QP  (PROPERTY_LIST,                       property, XQ, XbPROP, XS, XS, XSTOP, Xopt, XQ, XbPROP, XS, XO, XSTOP),
   /* Reliability encoding does not follow the rules (best-effort/reliable map to 1/2 instead of 0/1 */
   { PID_RELIABILITY, PDF_QOS | PDF_FUNCTION, QP_RELIABILITY, "RELIABILITY",
     offsetof (struct nn_plist, qos.reliability), membersize (struct nn_plist, qos.reliability),

@@ -13,6 +13,7 @@
 #define DDSI_PLIST_GENERIC_H
 
 #include <stddef.h>
+#include <assert.h>
 #include <stdbool.h>
 
 #include "dds/export.h"
@@ -39,8 +40,18 @@ enum pserop {
   XbPROP, /* boolean: omit in serialized form; skip serialization if false; always true on deserialize */
   XG, /* GUID */
   XK, /* keyhash */
-  XQ /* arbitary non-nested sequence */
+  XQ, /* arbitary non-nested sequence */
+  Xopt, /* remainder is optional on deser, 0-init if not present */
 } ddsrt_attribute_packed;
+
+inline bool pserop_seralign_is_1 (enum pserop op) {
+  /* NB: XbPROP is never serialized, so its alignment is irrelevant.  If ever there
+     is a need to allow calling this function when op = XbPROP, it needs to be changed
+     to taking the address of the pserop, and in that case inspect the following
+     operator */
+  assert (op != XbPROP && op != Xopt && op != XSTOP);
+  return (op >= Xo && op <= XK);
+}
 
 DDS_EXPORT void plist_fini_generic (void * __restrict dst, const enum pserop *desc, bool aliased);
 DDS_EXPORT dds_return_t plist_deser_generic (void * __restrict dst, const void * __restrict src, size_t srcsize, bool bswap, const enum pserop * __restrict desc);
