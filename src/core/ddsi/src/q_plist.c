@@ -1268,7 +1268,7 @@ static void plist_or_xqos_fini (void * __restrict dst, size_t shift, uint64_t pm
   if (shift > 0)
   {
     dds_qos_t *qos = dst;
-    pfs = (struct flagset) { 0 };
+    pfs = (struct flagset) { NULL, NULL, 0 };
     qfs = (struct flagset) { .present = &qos->present, .aliased = &qos->aliased };
   }
   else
@@ -1310,7 +1310,7 @@ static void plist_or_xqos_unalias (void * __restrict dst, size_t shift)
   if (shift > 0)
   {
     dds_qos_t *qos = dst;
-    pfs = (struct flagset) { 0 };
+    pfs = (struct flagset) { NULL, NULL, 0 };
     qfs = (struct flagset) { .present = &qos->present, .aliased = &qos->aliased };
   }
   else
@@ -1354,9 +1354,9 @@ static void plist_or_xqos_mergein_missing (void * __restrict dst, const void * _
   {
     dds_qos_t *qos_dst = dst;
     const dds_qos_t *qos_src = src;
-    pfs_dst = (struct flagset) { 0 };
+    pfs_dst = (struct flagset) { NULL, NULL, 0 };
     qfs_dst = (struct flagset) { .present = &qos_dst->present, .aliased = &qos_dst->aliased };
-    pfs_src = (struct flagset) { 0 };
+    pfs_src = (struct flagset) { NULL, NULL, 0 };
     qfs_src = (struct flagset) { .present = (uint64_t *) &qos_src->present, .aliased = (uint64_t *) &qos_src->aliased };
   }
   else
