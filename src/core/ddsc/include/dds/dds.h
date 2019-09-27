@@ -49,18 +49,8 @@ typedef int32_t dds_entity_t;
 extern "C" {
 #endif
 
+struct dds_rhc;
 struct ddsi_serdata;
-
-/**
- * @brief Returns the default domain identifier.
- *
- * The default domain identifier can be configured in the configuration file
- * or be set through an evironment variable ({DDSC_PROJECT_NAME_NOSPACE_CAPS}_DOMAIN).
- *
- * @returns Default domain identifier
- */
-DDS_EXPORT dds_domainid_t dds_domain_default (void);
-
 
 #define DDS_MIN_PSEUDO_HANDLE ((dds_entity_t) 0x7fff0000)
 
@@ -76,6 +66,9 @@ DDS_EXPORT dds_domainid_t dds_domain_default (void);
 #define DDS_BUILTIN_TOPIC_DCPSPUBLICATION  ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 3))
 #define DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 4))
 /** @}*/
+
+/** Special handle representing the entity corresponding to the CycloneDDS library itself */
+#define DDS_CYCLONEDDS_HANDLE              ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 256))
 
 /** @name Communication Status definitions
   @{**/
@@ -733,7 +726,7 @@ dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
  * If no configuration file exists, the default domain is configured as 0.
  *
  *
- * @param[in]  domain The domain in which to create the participant (can be DDS_DOMAIN_DEFAULT). Valid values for domain id are between 0 and 230. DDS_DOMAIN_DEFAULT is for using the domain in the configuration.
+ * @param[in]  domain The domain in which to create the participant (can be DDS_DOMAIN_DEFAULT). DDS_DOMAIN_DEFAULT is for using the domain in the configuration.
  * @param[in]  qos The QoS to set on the new participant (can be NULL).
  * @param[in]  listener Any listener functions associated with the new participant (can be NULL).
 
@@ -749,6 +742,33 @@ dds_create_participant(
   const dds_domainid_t domain,
   const dds_qos_t *qos,
   const dds_listener_t *listener);
+
+/**
+ * @brief Creates a domain with a given configuration
+ *
+ * To explicitly create a domain based on a configuration passed as a string.
+ * Normally, the domain is created implicitly on the first call to
+ * dds_create_particiant based on the configuration specified throught
+ * the environment. This function allows to by-pass this behaviour.
+ *
+ *
+ * @param[in]  domain The domain to be created. DEFAULT_DOMAIN is not allowed.
+ * @param[in]  config A configuration string containing file names and/or XML fragments representing the configuration.
+ *
+ * @returns A return code
+ *
+ * @retval DDS_RETCODE_OK
+ *             The domain with the domain identifier has been created from
+ *             given configuration string.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Illegal value for domain id or the configfile parameter is NULL.
+ * @retval DDS_PRECONDITION_NOT_MET
+ *             The domain already existed and cannot be created again.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ */
+DDS_EXPORT dds_return_t
+dds_create_domain(const dds_domainid_t domain, const char *config);
 
 /**
  * @brief Get entity parent.
@@ -871,7 +891,8 @@ dds_get_children(dds_entity_t entity, dds_entity_t *children, size_t size);
  * DataReaders), etc are also attached to that domain.
  *
  * This function will return the original domain ID when called on
- * any of the entities within that hierarchy.
+ * any of the entities within that hierarchy.  For entities not associated
+ * with a domain, the id is set to DDS_DOMAIN_DEFAULT.
  *
  * @param[in]  entity   Entity from which to get its children.
  * @param[out] id       Pointer to put the domain ID in.
@@ -1201,6 +1222,34 @@ dds_create_reader(
   dds_entity_t topic,
   const dds_qos_t *qos,
   const dds_listener_t *listener);
+
+/**
+ * @brief Creates a new instance of a DDS reader with a custom history cache.
+ *
+ * This implicit subscriber will be deleted automatically when the created reader
+ * is deleted.
+ *
+ * @param[in]  participant_or_subscriber The participant or subscriber on which the reader is being created.
+ * @param[in]  topic                     The topic to read.
+ * @param[in]  qos                       The QoS to set on the new reader (can be NULL).
+ * @param[in]  listener                  Any listener functions associated with the new reader (can be NULL).
+ * @param[in]  rhc                       Reader history cache to use, reader becomes the owner
+ *
+ * @returns A valid reader handle or an error code.
+ *
+ * @retval >0
+ *            A valid reader handle.
+ * @retval DDS_RETCODE_ERROR
+ *            An internal error occurred.
+ */
+/* TODO: Complete list of error codes */
+DDS_EXPORT dds_entity_t
+dds_create_reader_rhc(
+  dds_entity_t participant_or_subscriber,
+  dds_entity_t topic,
+  const dds_qos_t *qos,
+  const dds_listener_t *listener,
+  struct dds_rhc *rhc);
 
 /**
  * @brief Wait until reader receives all historic data

@@ -132,6 +132,7 @@ CU_Test(ddsc_instance_get_key, registered_instance, .init=setup, .fini=teardown)
     ret = dds_instance_get_key(writer, handle, &key_data);
 
     CU_ASSERT_PTR_NOT_NULL_FATAL(key_data.ip);
+    assert (key_data.ip != NULL); /* for the benefit of clang's static analyzer */
     CU_ASSERT_STRING_EQUAL_FATAL(key_data.ip, data.ip);
     CU_ASSERT_EQUAL_FATAL(key_data.port, data.port);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -162,6 +163,7 @@ CU_Test(ddsc_instance_get_key, readcondition, .init=setup, .fini=teardown)
     ret = dds_instance_get_key(readcondition, handle, &key_data);
 
     CU_ASSERT_PTR_NOT_NULL_FATAL(key_data.ip);
+    assert (key_data.ip != NULL); /* for the benefit of clang's static analyzer */
     CU_ASSERT_STRING_EQUAL_FATAL(key_data.ip, data.ip);
     CU_ASSERT_EQUAL_FATAL(key_data.port, data.port);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -192,6 +194,7 @@ CU_Test(ddsc_instance_get_key, querycondition, .init=setup, .fini=teardown)
     ret = dds_instance_get_key(querycondition, handle, &key_data);
 
     CU_ASSERT_PTR_NOT_NULL_FATAL(key_data.ip);
+    assert (key_data.ip != NULL); /* for the benefit of clang's static analyzer */
     CU_ASSERT_STRING_EQUAL_FATAL(key_data.ip, data.ip);
     CU_ASSERT_EQUAL_FATAL(key_data.port, data.port);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);

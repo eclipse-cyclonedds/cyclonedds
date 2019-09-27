@@ -12,11 +12,13 @@
 #include <assert.h>
 
 #include "dds/ddsrt/cdtors.h"
+#include "dds/ddsrt/environ.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_globals.h"
+#include "dds/version.h"
 #include "dds__init.h"
 #include "dds__domain.h"
 #include "dds__participant.h"
@@ -42,14 +44,7 @@ static dds_return_t dds_participant_delete (dds_entity *e)
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   if ((ret = delete_participant (&e->m_domain->gv, &e->m_guid)) < 0)
     DDS_CERROR (&e->m_domain->gv.logconfig, "dds_participant_delete: internal error %"PRId32"\n", ret);
-  ddsrt_mutex_lock (&dds_global.m_mutex);
-  ddsrt_avl_delete (&dds_entity_children_td, &e->m_domain->m_ppants, e);
-  ddsrt_mutex_unlock (&dds_global.m_mutex);
   thread_state_asleep (lookup_thread_state ());
-
-  /* Every dds_init needs a dds_fini. */
-  dds_domain_free (e->m_domain);
-  dds_fini ();
   return DDS_RETCODE_OK;
 }
 
@@ -74,6 +69,7 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
 }
 
 const struct dds_entity_deriver dds_entity_deriver_participant = {
+  .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_participant_delete,
   .set_qos = dds_participant_qos_set,
@@ -84,16 +80,19 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
 {
   dds_domain *dom;
   dds_entity_t ret;
-  nn_guid_t guid;
+  ddsi_guid_t guid;
   dds_participant * pp;
   nn_plist_t plist;
   dds_qos_t *new_qos = NULL;
+  char *config = "";
 
   /* Make sure DDS instance is initialized. */
   if ((ret = dds_init ()) < 0)
     goto err_dds_init;
 
-  if ((ret = dds_domain_create (&dom, domain)) < 0)
+  (void) ddsrt_getenv (DDS_PROJECT_NAME_NOSPACE_CAPS"_URI", &config);
+
+  if ((ret = dds_domain_create_internal (&dom, domain, true, config)) < 0)
     goto err_domain_create;
 
   new_qos = dds_create_qos ();
@@ -118,7 +117,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   }
 
   pp = dds_alloc (sizeof (*pp));
-  if ((ret = dds_entity_init (&pp->m_entity, NULL, DDS_KIND_PARTICIPANT, new_qos, listener, DDS_PARTICIPANT_STATUS_MASK)) < 0)
+  if ((ret = dds_entity_init (&pp->m_entity, &dom->m_entity, DDS_KIND_PARTICIPANT, new_qos, listener, DDS_PARTICIPANT_STATUS_MASK)) < 0)
     goto err_entity_init;
 
   pp->m_entity.m_guid = guid;
@@ -127,9 +126,14 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   pp->m_builtin_subscriber = 0;
 
   /* Add participant to extent */
-  ddsrt_mutex_lock (&dds_global.m_mutex);
-  ddsrt_avl_insert (&dds_entity_children_td, &dom->m_ppants, &pp->m_entity);
-  ddsrt_mutex_unlock (&dds_global.m_mutex);
+  ddsrt_mutex_lock (&dds_global.m_entity.m_mutex);
+  dds_entity_register_child (&dom->m_entity, &pp->m_entity);
+  ddsrt_mutex_unlock (&dds_global.m_entity.m_mutex);
+
+  dds_entity_init_complete (&pp->m_entity);
+  /* drop temporary extra ref to domain, dds_init */
+  dds_delete (dom->m_entity.m_hdllink.hdl);
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
   return ret;
 
 err_entity_init:
@@ -137,43 +141,40 @@ err_entity_init:
 err_new_participant:
 err_qos_validation:
   dds_delete_qos (new_qos);
-  dds_domain_free (dom);
+  dds_delete (dom->m_entity.m_hdllink.hdl);
 err_domain_create:
-  dds_fini ();
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
 err_dds_init:
   return ret;
 }
 
-dds_entity_t dds_lookup_participant (dds_domainid_t domain_id, dds_entity_t *participants, size_t size)
+dds_return_t dds_lookup_participant (dds_domainid_t domain_id, dds_entity_t *participants, size_t size)
 {
-  if ((participants != NULL && (size <= 0 || size >= INT32_MAX)) || (participants == NULL && size != 0))
-    return DDS_RETCODE_BAD_PARAMETER;
+  dds_return_t ret;
 
-  ddsrt_init ();
-  ddsrt_mutex_t * const init_mutex = ddsrt_get_singleton_mutex ();
+  if ((participants != NULL && (size == 0 || size >= INT32_MAX)) || (participants == NULL && size != 0))
+    return DDS_RETCODE_BAD_PARAMETER;
 
   if (participants)
     participants[0] = 0;
 
-  dds_return_t ret = 0;
-  ddsrt_mutex_lock (init_mutex);
-  if (dds_global.m_init_count > 0)
+  if ((ret = dds_init ()) < 0)
+    return ret;
+
+  ret = 0;
+  struct dds_domain *dom;
+  ddsrt_mutex_lock (&dds_global.m_mutex);
+  if ((dom = dds_domain_find_locked (domain_id)) != NULL)
   {
-    struct dds_domain *dom;
-    ddsrt_mutex_lock (&dds_global.m_mutex);
-    if ((dom = dds_domain_find_locked (domain_id)) != NULL)
+    ddsrt_avl_iter_t it;
+    for (dds_entity *e = ddsrt_avl_iter_first (&dds_entity_children_td, &dom->m_entity.m_children, &it); e != NULL; e = ddsrt_avl_iter_next (&it))
     {
-      ddsrt_avl_iter_t it;
-      for (dds_entity *e = ddsrt_avl_iter_first (&dds_entity_children_td, &dom->m_ppants, &it); e != NULL; e = ddsrt_avl_iter_next (&it))
-      {
-        if ((size_t) ret < size)
-          participants[ret] = e->m_hdllink.hdl;
-        ret++;
-      }
+      if ((size_t) ret < size)
+        participants[ret] = e->m_hdllink.hdl;
+      ret++;
     }
-    ddsrt_mutex_unlock (&dds_global.m_mutex);
   }
-  ddsrt_mutex_unlock (init_mutex);
-  ddsrt_fini ();
+  ddsrt_mutex_unlock (&dds_global.m_mutex);
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
   return ret;
 }

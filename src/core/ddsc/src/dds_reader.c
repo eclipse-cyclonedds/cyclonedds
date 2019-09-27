@@ -18,7 +18,7 @@
 #include "dds__reader.h"
 #include "dds__listener.h"
 #include "dds__init.h"
-#include "dds__rhc.h"
+#include "dds/ddsc/dds_rhc.h"
 #include "dds__rhc_default.h"
 #include "dds__topic.h"
 #include "dds__get_status.h"
@@ -40,16 +40,21 @@ DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
                          DDS_SAMPLE_LOST_STATUS                  |\
                          DDS_SUBSCRIPTION_MATCHED_STATUS)
 
-static dds_return_t dds_reader_close (dds_entity *e) ddsrt_nonnull_all;
+static void dds_reader_close (dds_entity *e) ddsrt_nonnull_all;
 
-static dds_return_t dds_reader_close (dds_entity *e)
+static void dds_reader_close (dds_entity *e)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
+  struct dds_reader * const rd = (struct dds_reader *) e;
+  assert (rd->m_rd != NULL);
+
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
-  if (delete_reader (&e->m_domain->gv, &e->m_guid) != 0)
-    ret = DDS_RETCODE_ERROR;
+  (void) delete_reader (&e->m_domain->gv, &e->m_guid);
   thread_state_asleep (lookup_thread_state ());
-  return ret;
+
+  ddsrt_mutex_lock (&e->m_mutex);
+  while (rd->m_rd != NULL)
+    ddsrt_cond_wait (&e->m_cond, &e->m_mutex);
+  ddsrt_mutex_unlock (&e->m_mutex);
 }
 
 static dds_return_t dds_reader_delete (dds_entity *e) ddsrt_nonnull_all;
@@ -57,17 +62,12 @@ static dds_return_t dds_reader_delete (dds_entity *e) ddsrt_nonnull_all;
 static dds_return_t dds_reader_delete (dds_entity *e)
 {
   dds_reader * const rd = (dds_reader *) e;
-  dds_return_t ret;
-  if ((ret = dds_delete (rd->m_topic->m_entity.m_hdllink.hdl)) == DDS_RETCODE_OK)
-  {
-    /* Delete an implicitly created parent; for normal ones, this is expected
-       to fail with BAD_PARAMETER - FIXME: there must be a cleaner way */
-    ret = dds_delete_impl (e->m_parent->m_hdllink.hdl, true);
-    if (ret == DDS_RETCODE_BAD_PARAMETER)
-      ret = DDS_RETCODE_OK;
-  }
+  (void) dds_delete (rd->m_topic->m_entity.m_hdllink.hdl);
   dds_free (rd->m_loan);
-  return ret;
+  thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
+  dds_rhc_free (rd->m_rhc);
+  thread_state_asleep (lookup_thread_state ());
+  return DDS_RETCODE_OK;
 }
 
 static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
@@ -97,11 +97,14 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
      overhead really matters.  Otherwise, it is pretty much like
      dds_reader_status_cb. */
 
-  const bool data_av_enabled = (ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask) & (DDS_DATA_AVAILABLE_STATUS << SAM_ENABLED_SHIFT));
-  if (!data_av_enabled)
+  const uint32_t data_av_enabled = (ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask) & (DDS_DATA_AVAILABLE_STATUS << SAM_ENABLED_SHIFT));
+  if (data_av_enabled == 0)
     return;
 
   ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
+  rd->m_entity.m_cb_pending_count++;
+
+  /* FIXME: why wait if no listener is set? */
   while (rd->m_entity.m_cb_count > 0)
     ddsrt_cond_wait (&rd->m_entity.m_observers_cond, &rd->m_entity.m_observers_lock);
   rd->m_entity.m_cb_count++;
@@ -111,20 +114,25 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
   if (lst->on_data_on_readers)
   {
     ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
-
     ddsrt_mutex_lock (&sub->m_observers_lock);
-    while (sub->m_cb_count > 0)
-      ddsrt_cond_wait (&sub->m_observers_cond, &sub->m_observers_lock);
-    sub->m_cb_count++;
+    const uint32_t data_on_rds_enabled = (ddsrt_atomic_ld32 (&sub->m_status.m_status_and_mask) & (DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT));
+    if (data_on_rds_enabled)
+    {
+      sub->m_cb_pending_count++;
+      while (sub->m_cb_count > 0)
+        ddsrt_cond_wait (&sub->m_observers_cond, &sub->m_observers_lock);
+      sub->m_cb_count++;
+      ddsrt_mutex_unlock (&sub->m_observers_lock);
+
+      lst->on_data_on_readers (sub->m_hdllink.hdl, lst->on_data_on_readers_arg);
+
+      ddsrt_mutex_lock (&sub->m_observers_lock);
+      sub->m_cb_count--;
+      sub->m_cb_pending_count--;
+      ddsrt_cond_broadcast (&sub->m_observers_cond);
+    }
     ddsrt_mutex_unlock (&sub->m_observers_lock);
-
-    lst->on_data_on_readers (sub->m_hdllink.hdl, lst->on_data_on_readers_arg);
-
     ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
-    ddsrt_mutex_lock (&sub->m_observers_lock);
-    sub->m_cb_count--;
-    ddsrt_cond_broadcast (&sub->m_observers_cond);
-    ddsrt_mutex_unlock (&sub->m_observers_lock);
   }
   else if (rd->m_entity.m_listener.on_data_available)
   {
@@ -141,24 +149,28 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
   }
 
   rd->m_entity.m_cb_count--;
+  rd->m_entity.m_cb_pending_count--;
   ddsrt_cond_broadcast (&rd->m_entity.m_observers_cond);
   ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 }
 
 void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
 {
-  struct dds_entity * const entity = ventity;
+  dds_reader * const rd = ventity;
 
   /* When data is NULL, it means that the DDSI reader is deleted. */
   if (data == NULL)
   {
     /* Release the initial claim that was done during the create. This
      * will indicate that further API deletion is now possible. */
-    dds_handle_unpin (&entity->m_hdllink);
+    ddsrt_mutex_lock (&rd->m_entity.m_mutex);
+    rd->m_rd = NULL;
+    ddsrt_cond_broadcast (&rd->m_entity.m_cond);
+    ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
     return;
   }
 
-  struct dds_listener const * const lst = &entity->m_listener;
+  struct dds_listener const * const lst = &rd->m_entity.m_listener;
   enum dds_status_id status_id = (enum dds_status_id) data->raw_status_id;
   bool invoke = false;
   void *vst = NULL;
@@ -175,13 +187,12 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
      m_observers_lock for the duration of the listener call itself,
      and that similarly the listener function and argument pointers
      are stable */
-  ddsrt_mutex_lock (&entity->m_observers_lock);
-  while (entity->m_cb_count > 0)
-    ddsrt_cond_wait (&entity->m_observers_cond, &entity->m_observers_lock);
-  entity->m_cb_count++;
+  /* FIXME: why do this if no listener is set? */
+  ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
+  while (rd->m_entity.m_cb_count > 0)
+    ddsrt_cond_wait (&rd->m_entity.m_observers_cond, &rd->m_entity.m_observers_lock);
 
   /* Update status metrics. */
-  dds_reader * const rd = (dds_reader *) entity;
   switch (status_id) {
     case DDS_REQUESTED_DEADLINE_MISSED_STATUS_ID: {
       struct dds_requested_deadline_missed_status * const st = vst = &rd->m_requested_deadline_missed_status;
@@ -265,36 +276,46 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
       assert (0);
   }
 
-  if (invoke)
+  const uint32_t enabled = (ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask) & ((1u << status_id) << SAM_ENABLED_SHIFT));
+  if (!enabled)
   {
-    ddsrt_mutex_unlock (&entity->m_observers_lock);
-    dds_entity_invoke_listener (entity, status_id, vst);
-    ddsrt_mutex_lock (&entity->m_observers_lock);
+    /* Don't invoke listeners or set status flag if masked */
+  }
+  else if (invoke)
+  {
+    rd->m_entity.m_cb_pending_count++;
+    rd->m_entity.m_cb_count++;
+    ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
+    dds_entity_invoke_listener (&rd->m_entity, status_id, vst);
+    ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
+    rd->m_entity.m_cb_count--;
+    rd->m_entity.m_cb_pending_count--;
     *reset[0] = 0;
     if (reset[1])
       *reset[1] = 0;
   }
   else
   {
-    dds_entity_status_set (entity, (status_mask_t) (1u << status_id));
+    dds_entity_status_set (&rd->m_entity, (status_mask_t) (1u << status_id));
   }
 
-  entity->m_cb_count--;
-  ddsrt_cond_broadcast (&entity->m_observers_cond);
-  ddsrt_mutex_unlock (&entity->m_observers_lock);
+  ddsrt_cond_broadcast (&rd->m_entity.m_observers_cond);
+  ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 }
 
 const struct dds_entity_deriver dds_entity_deriver_reader = {
+  .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_reader_close,
   .delete = dds_reader_delete,
   .set_qos = dds_reader_qos_set,
   .validate_status = dds_reader_status_validate
 };
 
-dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
+static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
 {
   dds_qos_t *rqos;
   dds_subscriber *sub = NULL;
+  dds_participant *pp;
   dds_entity_t subscriber;
   dds_reader *rd;
   dds_topic *tp;
@@ -347,8 +368,12 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
     goto err_tp_lock;
   }
   assert (tp->m_stopic);
-  /* FIXME: domain check */
-  assert (sub->m_entity.m_domain == tp->m_entity.m_domain);
+  pp = dds_entity_participant (&sub->m_entity);
+  if (pp != dds_entity_participant (&tp->m_entity))
+  {
+    reader = DDS_RETCODE_BAD_PARAMETER;
+    goto err_pp_mismatch;
+  }
 
   /* Merge qos from topic and subscriber, dds_copy_qos only fails when it is passed a null
      argument, but that isn't the case here */
@@ -378,28 +403,29 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
     goto err_bad_qos;
   }
 
-  /* Create reader and associated read cache */
+  /* Create reader and associated read cache (if not provided by caller) */
   rd = dds_alloc (sizeof (*rd));
   reader = dds_entity_init (&rd->m_entity, &sub->m_entity, DDS_KIND_READER, rqos, listener, DDS_READER_STATUS_MASK);
   rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
   rd->m_topic = tp;
-  rd->m_rhc = dds_rhc_default_new (rd, tp->m_stopic);
+  rd->m_rhc = rhc ? rhc : dds_rhc_default_new (rd, tp->m_stopic);
+  if (dds_rhc_associate (rd->m_rhc, rd, tp->m_stopic, rd->m_entity.m_domain->gv.m_tkmap) < 0)
+  {
+    /* FIXME: see also create_querycond, need to be able to undo entity_init */
+    abort ();
+  }
   dds_entity_add_ref_locked (&tp->m_entity);
 
-  /* Extra claim of this reader to make sure that the delete waits until DDSI
-     has deleted its reader as well. This can be known through the callback. */
-  dds_handle_repin (&rd->m_entity.m_hdllink);
-
-  ddsrt_mutex_unlock (&tp->m_entity.m_mutex);
-  ddsrt_mutex_unlock (&sub->m_entity.m_mutex);
+  /* FIXME: listeners can come too soon ... should set mask based on listeners
+     then atomically set the listeners, save the mask to a pending set and clear
+     it; and then invoke those listeners that are in the pending set */
+  dds_entity_init_complete (&rd->m_entity);
 
   thread_state_awake (lookup_thread_state (), &sub->m_entity.m_domain->gv);
-  ret = new_reader (&rd->m_rd, &rd->m_entity.m_domain->gv, &rd->m_entity.m_guid, NULL, &sub->m_entity.m_participant->m_guid, tp->m_stopic, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
-  ddsrt_mutex_lock (&sub->m_entity.m_mutex);
-  ddsrt_mutex_lock (&tp->m_entity.m_mutex);
+  ret = new_reader (&rd->m_rd, &rd->m_entity.m_domain->gv, &rd->m_entity.m_guid, NULL, &pp->m_entity.m_guid, tp->m_stopic, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   assert (ret == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
   thread_state_asleep (lookup_thread_state ());
-  
+
   rd->m_entity.m_iid = get_entity_instance_id (&rd->m_entity.m_domain->gv, &rd->m_entity.m_guid);
   dds_entity_register_child (&sub->m_entity, &rd->m_entity);
 
@@ -414,6 +440,7 @@ dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_enti
   return reader;
 
 err_bad_qos:
+err_pp_mismatch:
   dds_topic_unlock (tp);
 err_tp_lock:
   dds_subscriber_unlock (sub);
@@ -438,7 +465,7 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
 
   dds_reader *dds_rd = (dds_reader *) dds_entity;
   struct reader *rd = dds_rd->m_rd;
-  nn_guid_t pwrguid;
+  ddsi_guid_t pwrguid;
   struct proxy_writer *pwr;
   struct rd_pwr_match *m;
   memset (&pwrguid, 0, sizeof (pwrguid));
@@ -451,7 +478,7 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
     /* have to be careful walking the tree -- pretty is different, but
        I want to check this before I write a lookup_succ function. */
     struct rd_pwr_match *m_next;
-    nn_guid_t pwrguid_next;
+    ddsi_guid_t pwrguid_next;
     pwrguid = m->pwr_guid;
     if ((m_next = ddsrt_avl_find_succ (&rd_writers_treedef, &rd->writers, m)) != NULL)
       pwrguid_next = m_next->pwr_guid;
@@ -473,6 +500,18 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
   }
   ddsrt_mutex_unlock (&rd->e.lock);
   dds_entity_unpin (dds_entity);
+}
+
+dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
+{
+  return dds_create_reader_int (participant_or_subscriber, topic, qos, listener, NULL);
+}
+
+dds_entity_t dds_create_reader_rhc (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
+{
+  if (rhc == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  return dds_create_reader_int (participant_or_subscriber, topic, qos, listener, rhc);
 }
 
 uint32_t dds_reader_lock_samples (dds_entity_t reader)

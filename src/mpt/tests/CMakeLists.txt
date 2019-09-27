@@ -17,3 +17,4 @@ endif()
 
 add_subdirectory(basic)
 add_subdirectory(qos)
+add_subdirectory(disc)

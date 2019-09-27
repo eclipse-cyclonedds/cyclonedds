@@ -69,6 +69,13 @@ typedef int32_t dds_handle_t;
  * This handlelink is invalid after the related handle is deleted and should
  * never be used afterwards.
  */
+
+/* Closing & closed can be combined, but having two gives a means for enforcing
+   that close() be called first, then close_wait(), and then delete(). */
+#define HDL_FLAG_CLOSING   (0x80000000u)
+#define HDL_FLAG_CLOSED    (0x40000000u)
+#define HDL_FLAG_PENDING   (0x20000000u)
+
 struct dds_handle_link {
   dds_handle_t hdl;
   ddsrt_atomic_uint32_t cnt_flags;
@@ -113,15 +120,23 @@ dds_handle_create(
 
 
 /*
+ * Register a specific handle.
+ */
+DDS_EXPORT dds_return_t
+dds_handle_register_special (
+        struct dds_handle_link *link, dds_handle_t handle);
+
+DDS_EXPORT void dds_handle_unpend (struct dds_handle_link *link);
+
+/*
  * This will close the handle. All information remains, only new claims will
  * fail.
  *
  * This is a noop on an already closed handle.
  */
 DDS_EXPORT void
-dds_handle_close(
+dds_handle_close_wait (
         struct dds_handle_link *link);
-
 
 /*
  * This will remove the handle related information from the server administration
@@ -134,8 +149,7 @@ dds_handle_close(
  */
 DDS_EXPORT int32_t
 dds_handle_delete(
-        struct dds_handle_link *link,
-        dds_time_t timeout);
+        struct dds_handle_link *link);
 
 
 /*
@@ -146,6 +160,11 @@ dds_handle_delete(
  */
 DDS_EXPORT int32_t
 dds_handle_pin(
+        dds_handle_t hdl,
+        struct dds_handle_link **entity);
+
+DDS_EXPORT int32_t
+dds_handle_pin_and_ref(
         dds_handle_t hdl,
         struct dds_handle_link **entity);
 
@@ -172,13 +191,14 @@ dds_handle_unpin(
  * break of your process and release the handle, making the deletion
  * possible.
  */
-DDS_EXPORT bool
-dds_handle_is_closed(
-        struct dds_handle_link *link);
 
 
 DDS_EXPORT void dds_handle_add_ref (struct dds_handle_link *link);
 DDS_EXPORT bool dds_handle_drop_ref (struct dds_handle_link *link);
+
+DDS_EXPORT inline bool dds_handle_is_closed (struct dds_handle_link *link) {
+  return (ddsrt_atomic_ld32 (&link->cnt_flags) & (HDL_FLAG_CLOSED | HDL_FLAG_CLOSING)) != 0;
+}
 
 #if defined (__cplusplus)
 }

@@ -393,7 +393,7 @@ struct config
 
 struct cfgst;
 
-struct cfgst *config_init (const char *configfile, struct config *cfg, uint32_t domid);
+struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domid) ddsrt_nonnull((1,2));
 void config_print_cfgst (struct cfgst *cfgst, const struct ddsrt_log_cfg *logcfg);
 void config_free_source_info (struct cfgst *cfgst);
 void config_fini (struct cfgst *cfgst);

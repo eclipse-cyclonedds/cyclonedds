@@ -13,6 +13,7 @@
 #define NN_PROTOCOL_H
 
 #include "dds/ddsrt/endian.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsi/q_feature_check.h"
 
 #include "dds/ddsi/q_rtps.h"
@@ -115,7 +116,7 @@ typedef struct Header {
   nn_protocolid_t protocol;
   nn_protocol_version_t version;
   nn_vendorid_t vendorid;
-  nn_guid_prefix_t guid_prefix;
+  ddsi_guid_prefix_t guid_prefix;
 } Header_t;
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 #define NN_PROTOCOLID_AS_UINT32 (((uint32_t)'R' << 0) | ((uint32_t)'T' << 8) | ((uint32_t)'P' << 16) | ((uint32_t)'S' << 24))
@@ -161,12 +162,12 @@ typedef struct InfoTimestamp {
 
 typedef struct EntityId {
   SubmessageHeader_t smhdr;
-  nn_entityid_t entityid;
+  ddsi_entityid_t entityid;
 } EntityId_t;
 
 typedef struct InfoDST {
   SubmessageHeader_t smhdr;
-  nn_guid_prefix_t guid_prefix;
+  ddsi_guid_prefix_t guid_prefix;
 } InfoDST_t;
 
 typedef struct InfoSRC {
@@ -174,7 +175,7 @@ typedef struct InfoSRC {
   unsigned unused;
   nn_protocol_version_t version;
   nn_vendorid_t vendorid;
-  nn_guid_prefix_t guid_prefix;
+  ddsi_guid_prefix_t guid_prefix;
 } InfoSRC_t;
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
@@ -196,8 +197,8 @@ typedef struct Data_DataFrag_common {
   SubmessageHeader_t smhdr;
   uint16_t extraFlags;
   uint16_t octetsToInlineQos;
-  nn_entityid_t readerId;
-  nn_entityid_t writerId;
+  ddsi_entityid_t readerId;
+  ddsi_entityid_t writerId;
   nn_sequence_number_t writerSN;
 } Data_DataFrag_common_t;
 
@@ -223,26 +224,30 @@ typedef struct MsgLen {
   uint32_t length;
 } MsgLen_t;
 
+DDSRT_WARNING_MSVC_OFF(4200)
 typedef struct AckNack {
   SubmessageHeader_t smhdr;
-  nn_entityid_t readerId;
-  nn_entityid_t writerId;
+  ddsi_entityid_t readerId;
+  ddsi_entityid_t writerId;
   nn_sequence_number_set_header_t readerSNState;
   uint32_t bits[];
   /* nn_count_t count; */
 } AckNack_t;
+DDSRT_WARNING_MSVC_ON(4200)
 #define ACKNACK_FLAG_FINAL 0x02u
 #define ACKNACK_SIZE(numbits) (offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits) + 4)
 #define ACKNACK_SIZE_MAX ACKNACK_SIZE (256u)
 
+DDSRT_WARNING_MSVC_OFF(4200)
 typedef struct Gap {
   SubmessageHeader_t smhdr;
-  nn_entityid_t readerId;
-  nn_entityid_t writerId;
+  ddsi_entityid_t readerId;
+  ddsi_entityid_t writerId;
   nn_sequence_number_t gapStart;
   nn_sequence_number_set_header_t gapList;
   uint32_t bits[];
 } Gap_t;
+DDSRT_WARNING_MSVC_ON(4200)
 #define GAP_SIZE(numbits) (offsetof (Gap_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits))
 #define GAP_SIZE_MAX GAP_SIZE (256u)
 
@@ -254,8 +259,8 @@ typedef struct InfoTS {
 
 typedef struct Heartbeat {
   SubmessageHeader_t smhdr;
-  nn_entityid_t readerId;
-  nn_entityid_t writerId;
+  ddsi_entityid_t readerId;
+  ddsi_entityid_t writerId;
   nn_sequence_number_t firstSN;
   nn_sequence_number_t lastSN;
   nn_count_t count;
@@ -265,22 +270,24 @@ typedef struct Heartbeat {
 
 typedef struct HeartbeatFrag {
   SubmessageHeader_t smhdr;
-  nn_entityid_t readerId;
-  nn_entityid_t writerId;
+  ddsi_entityid_t readerId;
+  ddsi_entityid_t writerId;
   nn_sequence_number_t writerSN;
   nn_fragment_number_t lastFragmentNum;
   nn_count_t count;
 } HeartbeatFrag_t;
 
+DDSRT_WARNING_MSVC_OFF(4200)
 typedef struct NackFrag {
   SubmessageHeader_t smhdr;
-  nn_entityid_t readerId;
-  nn_entityid_t writerId;
+  ddsi_entityid_t readerId;
+  ddsi_entityid_t writerId;
   nn_sequence_number_t writerSN;
   nn_fragment_number_set_header_t fragmentNumberState;
   uint32_t bits[];
   /* nn_count_t count; */
 } NackFrag_t;
+DDSRT_WARNING_MSVC_ON(4200)
 #define NACKFRAG_SIZE(numbits) (offsetof (NackFrag_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits) + 4)
 #define NACKFRAG_SIZE_MAX NACKFRAG_SIZE (256u)
 
@@ -305,12 +312,14 @@ typedef union Submessage {
   PT_InfoContainer_t pt_infocontainer;
 } Submessage_t;
 
+DDSRT_WARNING_MSVC_OFF(4200)
 typedef struct ParticipantMessageData {
-  nn_guid_prefix_t participantGuidPrefix;
+  ddsi_guid_prefix_t participantGuidPrefix;
   uint32_t kind; /* really 4 octets */
   uint32_t length;
   char value[];
 } ParticipantMessageData_t;
+DDSRT_WARNING_MSVC_ON(4200)
 #define PARTICIPANT_MESSAGE_DATA_KIND_UNKNOWN 0x0u
 #define PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE 0x1u
 #define PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE 0x2u

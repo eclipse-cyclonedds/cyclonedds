@@ -28,6 +28,7 @@ extern void ddsrt_time_fini(void);
 #define INIT_STATUS_OK 0x80000000u
 static ddsrt_atomic_uint32_t init_status = DDSRT_ATOMIC_UINT32_INIT(0);
 static ddsrt_mutex_t init_mutex;
+static ddsrt_cond_t init_cond;
 
 void ddsrt_init (void)
 {
@@ -38,6 +39,7 @@ retry:
     return;
   else if (v == 1) {
     ddsrt_mutex_init(&init_mutex);
+    ddsrt_cond_init(&init_cond);
 #if _WIN32
     ddsrt_winsock_init();
     ddsrt_time_init();
@@ -47,7 +49,13 @@ retry:
     ddsrt_atomic_or32(&init_status, INIT_STATUS_OK);
   } else {
     while (v > 1 && !(v & INIT_STATUS_OK)) {
+#ifndef __COVERITY__
+      /* This sleep makes Coverity warn about possibly sleeping while holding in a lock
+         in many places, all because just-in-time creation of a thread descriptor ends
+         up here.  Since sleeping is merely meant as a better alternative to spinning,
+         skip the sleep when being analyzed. */
       dds_sleepfor(10000000);
+#endif
       v = ddsrt_atomic_ld32(&init_status);
     }
     goto retry;
@@ -67,6 +75,7 @@ void ddsrt_fini (void)
   } while (!ddsrt_atomic_cas32(&init_status, v, nv));
   if (nv == 1)
   {
+    ddsrt_cond_destroy(&init_cond);
     ddsrt_mutex_destroy(&init_mutex);
     ddsrt_random_fini();
     ddsrt_atomics_fini();
@@ -81,6 +90,11 @@ void ddsrt_fini (void)
 ddsrt_mutex_t *ddsrt_get_singleton_mutex(void)
 {
   return &init_mutex;
+}
+
+ddsrt_cond_t *ddsrt_get_singleton_cond(void)
+{
+  return &init_cond;
 }
 
 #ifdef _WIN32

@@ -131,7 +131,7 @@ static bool dds_find_topic_check_and_add_ref (dds_entity_t participant, dds_enti
     return false;
 
   bool ret;
-  if (tp->m_entity.m_participant->m_hdllink.hdl != participant || strcmp (tp->m_stopic->name, name) != 0)
+  if (dds_entity_participant (&tp->m_entity)->m_entity.m_hdllink.hdl != participant || strcmp (tp->m_stopic->name, name) != 0)
     ret = false;
   else
   {
@@ -243,7 +243,7 @@ static bool sertopic_equivalent (const struct ddsi_sertopic *a, const struct dds
   return true;
 }
 
-static dds_return_t create_topic_topic_arbirary_check_sertopic (dds_entity_t participant, dds_entity_t topic, struct ddsi_sertopic *sertopic, const dds_qos_t *qos)
+static dds_return_t create_topic_topic_arbitrary_check_sertopic (dds_entity_t participant, dds_entity_t topic, struct ddsi_sertopic *sertopic, const dds_qos_t *qos)
 {
   dds_topic *tp;
   dds_return_t ret;
@@ -251,7 +251,7 @@ static dds_return_t create_topic_topic_arbirary_check_sertopic (dds_entity_t par
   if (dds_topic_lock (topic, &tp) < 0)
     return DDS_RETCODE_NOT_FOUND;
 
-  if (tp->m_entity.m_participant->m_hdllink.hdl != participant)
+  if (dds_entity_participant (&tp->m_entity)->m_entity.m_hdllink.hdl != participant)
     ret = DDS_RETCODE_NOT_FOUND;
   else if (!sertopic_equivalent (tp->m_stopic, sertopic))
     ret = DDS_RETCODE_PRECONDITION_NOT_MET;
@@ -272,6 +272,7 @@ static dds_return_t create_topic_topic_arbirary_check_sertopic (dds_entity_t par
 }
 
 const struct dds_entity_deriver dds_entity_deriver_topic = {
+  .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_topic_delete,
   .set_qos = dds_topic_qos_set,
@@ -296,6 +297,14 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
      existing topic's compatibility */
   if ((rc = dds_entity_pin (participant, &par_ent)) < 0)
     return rc;
+  /* Verify that we've been given a participant, not strictly necessary
+     because dds_participant_lock below checks it, but this is more
+     obvious */
+  if (dds_entity_kind (par_ent) != DDS_KIND_PARTICIPANT)
+  {
+    dds_entity_unpin (par_ent);
+    return DDS_RETCODE_ILLEGAL_OPERATION;
+  }
 
   new_qos = dds_create_qos ();
   if (qos)
@@ -351,7 +360,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
          for the various scary cases. */
       dds_participant_unlock (par);
 
-      rc = create_topic_topic_arbirary_check_sertopic (participant, topic, sertopic, new_qos);
+      rc = create_topic_topic_arbitrary_check_sertopic (participant, topic, sertopic, new_qos);
       switch (rc)
       {
         case DDS_RETCODE_OK: /* duplicate definition */
@@ -439,6 +448,8 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
     nn_plist_fini (&plist);
   }
   thread_state_asleep (lookup_thread_state ());
+
+  dds_entity_init_complete (&top->m_entity);
   dds_participant_unlock (par);
   dds_entity_unpin (par_ent);
   return hdl;

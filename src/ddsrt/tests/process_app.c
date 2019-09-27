@@ -29,9 +29,13 @@ static int test_sleep(int argi, int argc, char **argv)
   argi++;
   if (argi < argc) {
     long long dorment;
-    ddsrt_strtoll(argv[argi], NULL, 0, &dorment);
-    printf(" Process: sleep %d seconds.\n", (int)dorment);
-    dds_sleepfor(DDS_SECS((int64_t)dorment));
+    if (ddsrt_strtoll(argv[argi], NULL, 0, &dorment) != DDS_RETCODE_OK || dorment < 0 || dorment > INT32_MAX) {
+      printf(" Process: invalid --sleep argument.\n");
+      return TEST_EXIT_WRONG_ARGS;
+    } else {
+      printf(" Process: sleep %d seconds.\n", (int)dorment);
+      dds_sleepfor(DDS_SECS((int64_t)dorment));
+    }
   } else {
     printf(" Process: no --sleep value.\n");
     return TEST_EXIT_WRONG_ARGS;

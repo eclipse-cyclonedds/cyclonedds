@@ -11,6 +11,7 @@
  */
 #include <assert.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/md5.h"
@@ -1606,6 +1607,292 @@ void dds_stream_extract_keyhash (dds_istream_t * __restrict is, dds_keyhash_t * 
     ddsrt_md5_finish (&md5st, kh->m_hash);
     dds_ostreamBE_fini (&os);
   }
+}
+
+/*******************************************************************************************
+ **
+ **  Pretty-printing
+ **
+ *******************************************************************************************/
+
+/* Returns true if buffer not yet exhausted, false otherwise */
+static bool prtf (char * __restrict *buf, size_t * __restrict bufsize, const char *fmt, ...)
+{
+  va_list ap;
+  if (*bufsize == 0)
+    return false;
+  va_start (ap, fmt);
+  int n = vsnprintf (*buf, *bufsize, fmt, ap);
+  va_end (ap);
+  if (n < 0)
+  {
+    **buf = 0;
+    return false;
+  }
+  else if ((size_t) n <= *bufsize)
+  {
+    *buf += (size_t) n;
+    *bufsize -= (size_t) n;
+    return (*bufsize > 0);
+  }
+  else
+  {
+    *buf += *bufsize;
+    *bufsize = 0;
+    return false;
+  }
+}
+
+static bool prtf_str (char * __restrict *buf, size_t * __restrict bufsize, dds_istream_t * __restrict is)
+{
+  size_t sz = dds_is_get4 (is);
+  bool ret = prtf (buf, bufsize, "\"%s\"", is->m_buffer + is->m_index);
+  is->m_index += (uint32_t) sz;
+  return ret;
+}
+
+static size_t isprint_runlen (const unsigned char *s, size_t n)
+{
+  size_t m;
+  for (m = 0; m < n && s[m] != '"' && isprint (s[m]); m++)
+    ;
+  return m;
+}
+
+static bool prtf_simple (char * __restrict *buf, size_t * __restrict bufsize, dds_istream_t * __restrict is, enum dds_stream_typecode type)
+{
+  switch (type)
+  {
+    case DDS_OP_VAL_1BY: return prtf (buf, bufsize, "%"PRIu8, dds_is_get1 (is));
+    case DDS_OP_VAL_2BY: return prtf (buf, bufsize, "%"PRIu16, dds_is_get2 (is));
+    case DDS_OP_VAL_4BY: return prtf (buf, bufsize, "%"PRIu32, dds_is_get4 (is));
+    case DDS_OP_VAL_8BY: return prtf (buf, bufsize, "%"PRIu64, dds_is_get8 (is));
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: return prtf_str (buf, bufsize, is);
+    case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
+      abort ();
+  }
+  return false;
+}
+
+static bool prtf_simple_array (char * __restrict *buf, size_t * __restrict bufsize, dds_istream_t * __restrict is, uint32_t num, enum dds_stream_typecode type)
+{
+  bool cont = prtf (buf, bufsize, "{");
+  switch (type)
+  {
+    case DDS_OP_VAL_1BY: {
+      size_t i = 0, j;
+      while (cont && i < num)
+      {
+        size_t m = isprint_runlen ((unsigned char *) (is->m_buffer + is->m_index), num - i);
+        if (m >= 4)
+        {
+          cont = prtf (buf, bufsize, "%s\"", i != 0 ? "," : "");
+          for (j = 0; cont && j < m; j++)
+            cont = prtf (buf, bufsize, "%c", is->m_buffer[is->m_index + j]);
+          cont = prtf (buf, bufsize, "\"");
+          is->m_index += (uint32_t) m;
+          i += m;
+        }
+        else
+        {
+          if (i != 0)
+            (void) prtf (buf, bufsize, ",");
+          cont = prtf_simple (buf, bufsize, is, type);
+          i++;
+        }
+      }
+      break;
+    }
+    case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+      for (size_t i = 0; cont && i < num; i++)
+      {
+        if (i != 0)
+          (void) prtf (buf, bufsize, ",");
+        cont = prtf_simple (buf, bufsize, is, type);
+      }
+      break;
+    default:
+      abort ();
+      break;
+  }
+  return cont;
+}
+
+static bool dds_stream_print_sample1 (char * __restrict *buf, size_t * __restrict bufsize, dds_istream_t * __restrict is, const uint32_t * __restrict ops, bool add_braces);
+
+static const uint32_t *prtf_seq (char * __restrict *buf, size_t *bufsize, dds_istream_t * __restrict is, const uint32_t * __restrict ops, uint32_t insn)
+{
+  const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
+  uint32_t num;
+  num = dds_is_get4 (is);
+  if (num == 0)
+  {
+    prtf (buf, bufsize, "{}");
+    return skip_sequence_insns (ops, insn);
+  }
+  switch (subtype)
+  {
+    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+      prtf_simple_array (buf, bufsize, is, num, subtype);
+      return ops + 2;
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+      prtf_simple_array (buf, bufsize, is, num, subtype);
+      return ops + (subtype == DDS_OP_VAL_STR ? 2 : 3);
+    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+      const uint32_t jmp = DDS_OP_ADR_JMP (ops[3]);
+      uint32_t const * const jsr_ops = ops + DDS_OP_ADR_JSR (ops[3]);
+      bool cont = prtf (buf, bufsize, "{");
+      for (uint32_t i = 0; cont && i < num; i++)
+      {
+        if (i > 0) prtf (buf, bufsize, ",");
+        cont = dds_stream_print_sample1 (buf, bufsize, is, jsr_ops, subtype == DDS_OP_VAL_STU);
+      }
+      prtf (buf, bufsize, "}");
+      return ops + (jmp ? jmp : 4); /* FIXME: why would jmp be 0? */
+    }
+  }
+  return NULL;
+}
+
+static const uint32_t *prtf_arr (char * __restrict *buf, size_t *bufsize, dds_istream_t * __restrict is, const uint32_t * __restrict ops, uint32_t insn)
+{
+  const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
+  const uint32_t num = ops[2];
+  switch (subtype)
+  {
+    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+      prtf_simple_array (buf, bufsize, is, num, subtype);
+      return ops + 3;
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+      prtf_simple_array (buf, bufsize, is, num, subtype);
+      return ops + (subtype == DDS_OP_VAL_STR ? 3 : 5);
+    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+      const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[3]);
+      const uint32_t jmp = DDS_OP_ADR_JMP (ops[3]);
+      bool cont = prtf (buf, bufsize, "{");
+      for (uint32_t i = 0; cont && i < num; i++)
+      {
+        if (i > 0) prtf (buf, bufsize, ",");
+        cont = dds_stream_print_sample1 (buf, bufsize, is, jsr_ops, subtype == DDS_OP_VAL_STU);
+      }
+      prtf (buf, bufsize, "}");
+      return ops + (jmp ? jmp : 5);
+    }
+  }
+  return NULL;
+}
+
+static const uint32_t *prtf_uni (char * __restrict *buf, size_t *bufsize, dds_istream_t * __restrict is, const uint32_t * __restrict ops, uint32_t insn)
+{
+  const uint32_t disc = read_union_discriminant (is, DDS_OP_SUBTYPE (insn));
+  uint32_t const * const jeq_op = find_union_case (ops, disc);
+  prtf (buf, bufsize, "%"PRIu32":", disc);
+  ops += DDS_OP_ADR_JMP (ops[3]);
+  if (jeq_op)
+  {
+    const enum dds_stream_typecode valtype = DDS_JEQ_TYPE (jeq_op[0]);
+    switch (valtype)
+    {
+      case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+      case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+        prtf_simple (buf, bufsize, is, valtype);
+        break;
+      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
+        dds_stream_print_sample1 (buf, bufsize, is, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), valtype == DDS_OP_VAL_STU);
+        break;
+    }
+  }
+  return ops;
+}
+
+static bool dds_stream_print_sample1 (char * __restrict *buf, size_t * __restrict bufsize, dds_istream_t * __restrict is, const uint32_t * __restrict ops, bool add_braces)
+{
+  uint32_t insn;
+  bool cont = true;
+  bool needs_comma = false;
+  if (add_braces)
+    prtf (buf, bufsize, "{");
+  while (cont && (insn = *ops) != DDS_OP_RTS)
+  {
+    if (needs_comma)
+      prtf (buf, bufsize, ",");
+    needs_comma = true;
+    switch (DDS_OP (insn))
+    {
+      case DDS_OP_ADR: {
+        switch (DDS_OP_TYPE (insn))
+        {
+          case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+          case DDS_OP_VAL_STR:
+            cont = prtf_simple (buf, bufsize, is, DDS_OP_TYPE (insn));
+            ops += 2;
+            break;
+          case DDS_OP_VAL_BST:
+            cont = prtf_simple (buf, bufsize, is, DDS_OP_TYPE (insn));
+            ops += 3;
+            break;
+          case DDS_OP_VAL_SEQ:
+            ops = prtf_seq (buf, bufsize, is, ops, insn);
+            break;
+          case DDS_OP_VAL_ARR:
+            ops = prtf_arr (buf, bufsize, is, ops, insn);
+            break;
+          case DDS_OP_VAL_UNI:
+            ops = prtf_uni (buf, bufsize, is, ops, insn);
+            break;
+          case DDS_OP_VAL_STU:
+            abort ();
+            break;
+        }
+        break;
+      }
+      case DDS_OP_JSR: {
+        cont = dds_stream_print_sample1 (buf, bufsize, is, ops + DDS_OP_JUMP (insn), true);
+        ops++;
+        break;
+      }
+      case DDS_OP_RTS: case DDS_OP_JEQ: {
+        abort ();
+        break;
+      }
+    }
+  }
+  if (add_braces)
+    prtf (buf, bufsize, "}");
+  return cont;
+}
+
+size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct ddsi_sertopic_default * __restrict topic, char * __restrict buf, size_t bufsize)
+{
+  dds_stream_print_sample1 (&buf, &bufsize, is, topic->type->m_ops, true);
+  return bufsize;
+}
+
+size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct ddsi_sertopic_default * __restrict topic, char * __restrict buf, size_t bufsize)
+{
+  const dds_topic_descriptor_t *desc = topic->type;
+  bool cont = prtf (&buf, &bufsize, ":k:{");
+  for (uint32_t i = 0; cont && i < desc->m_nkeys; i++)
+  {
+    const uint32_t *op = desc->m_ops + desc->m_keys[i].m_index;
+    assert (insn_key_ok_p (*op));
+    switch (DDS_OP_TYPE (*op))
+    {
+      case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+      case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+        cont = prtf_simple (&buf, &bufsize, is, DDS_OP_TYPE (*op));
+        break;
+      case DDS_OP_VAL_ARR:
+        cont = prtf_simple_array (&buf, &bufsize, is, op[2], DDS_OP_SUBTYPE (*op));
+        break;
+      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
+        abort ();
+        break;
+    }
+  }
+  prtf (&buf, &bufsize, "}");
+  return bufsize;
 }
 
 /*******************************************************************************************

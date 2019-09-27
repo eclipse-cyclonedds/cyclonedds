@@ -22,24 +22,24 @@ extern "C" {
 struct entity_common;
 struct ddsi_tkmap_instance;
 struct ddsi_sertopic;
-struct nn_guid;
+struct ddsi_guid;
 
 struct ddsi_builtin_topic_interface {
   void *arg;
 
   bool (*builtintopic_is_builtintopic) (const struct ddsi_sertopic *topic, void *arg);
-  bool (*builtintopic_is_visible) (const struct nn_guid *guid, nn_vendorid_t vendorid, void *arg);
-  struct ddsi_tkmap_instance * (*builtintopic_get_tkmap_entry) (const struct nn_guid *guid, void *arg);
+  bool (*builtintopic_is_visible) (const struct ddsi_guid *guid, nn_vendorid_t vendorid, void *arg);
+  struct ddsi_tkmap_instance * (*builtintopic_get_tkmap_entry) (const struct ddsi_guid *guid, void *arg);
   void (*builtintopic_write) (const struct entity_common *e, nn_wctime_t timestamp, bool alive, void *arg);
 };
 
-inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct nn_guid *guid, nn_vendorid_t vendorid) {
+inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid) {
   return btif ? btif->builtintopic_is_visible (guid, vendorid, btif->arg) : false;
 }
 inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertopic *topic) {
   return btif ? btif->builtintopic_is_builtintopic (topic, btif->arg) : false;
 }
-inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct nn_guid *guid) {
+inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid) {
   return btif ? btif->builtintopic_get_tkmap_entry (guid, btif->arg) : NULL;
 }
 inline void builtintopic_write (const struct ddsi_builtin_topic_interface *btif, const struct entity_common *e, nn_wctime_t timestamp, bool alive) {

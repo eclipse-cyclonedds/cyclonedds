@@ -727,7 +727,9 @@ CU_Test(ddsc_listener, publication_matched, .init=init_triggering_test, .fini=fi
     CU_ASSERT_EQUAL_FATAL(publication_matched.last_subscription_handle, reader_hdl);
 
     /* Reset the trigger flags. */
+    ddsrt_mutex_lock(&g_mutex);
     cb_called = 0;
+    ddsrt_mutex_unlock(&g_mutex);
 
     /* Un-match the publication by deleting the reader. */
     dds_delete(g_reader);
@@ -789,7 +791,9 @@ CU_Test(ddsc_listener, subscription_matched, .init=init_triggering_test, .fini=f
     CU_ASSERT_EQUAL_FATAL(subscription_matched.last_publication_handle, writer_hdl);
 
     /* Reset the trigger flags. */
+    ddsrt_mutex_lock(&g_mutex);
     cb_called = 0;
+    ddsrt_mutex_unlock(&g_mutex);
 
     /* Un-match the subscription by deleting the writer. */
     dds_delete(g_writer);
@@ -903,8 +907,10 @@ CU_Test(ddsc_listener, data_available, .init=init_triggering_test, .fini=fini_tr
 
     /* Deleting the writer causes unregisters (or dispose+unregister), and those
        should trigger DATA_AVAILABLE as well */
+    ddsrt_mutex_lock(&g_mutex);
     cb_called = 0;
     cb_reader = 0;
+    ddsrt_mutex_unlock(&g_mutex);
     ret = dds_delete (g_writer);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     g_writer = 0;
@@ -942,8 +948,10 @@ CU_Test(ddsc_listener, data_available_delete_writer, .init=init_triggering_test,
     CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
 
     /* Deleting the writer must trigger DATA_AVAILABLE as well */
+    ddsrt_mutex_lock(&g_mutex);
     cb_called = 0;
     cb_reader = 0;
+    ddsrt_mutex_unlock(&g_mutex);
     ret = dds_delete (g_writer);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     g_writer = 0;
@@ -991,8 +999,10 @@ CU_Test(ddsc_listener, data_available_delete_writer_disposed, .init=init_trigger
     } while (ret > 0);
 
     /* Deleting the writer should not trigger DATA_AVAILABLE with all instances empty & disposed */
+    ddsrt_mutex_lock(&g_mutex);
     cb_called = 0;
     cb_reader = 0;
+    ddsrt_mutex_unlock(&g_mutex);
     ret = dds_delete (g_writer);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     g_writer = 0;
@@ -1174,7 +1184,9 @@ CU_Test(ddsc_listener, liveliness_changed, .init=init_triggering_test, .fini=fin
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.last_publication_handle, writer_hdl);
 
     /* Reset the trigger flags. */
+    ddsrt_mutex_lock(&g_mutex);
     cb_called = 0;
+    ddsrt_mutex_unlock(&g_mutex);
 
     /* Change liveliness again by deleting the writer. */
     dds_delete(g_writer);

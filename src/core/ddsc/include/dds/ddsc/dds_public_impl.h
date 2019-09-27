@@ -108,7 +108,9 @@ typedef enum dds_entity_kind
   DDS_KIND_COND_READ,
   DDS_KIND_COND_QUERY,
   DDS_KIND_COND_GUARD,
-  DDS_KIND_WAITSET
+  DDS_KIND_WAITSET,
+  DDS_KIND_DOMAIN,
+  DDS_KIND_CYCLONEDDS
 } dds_entity_kind_t;
 
 /* Handles are opaque pointers to implementation types */

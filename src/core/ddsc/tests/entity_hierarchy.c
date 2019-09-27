@@ -313,7 +313,11 @@ CU_Test(ddsc_entity_get_parent, participant, .init=hierarchy_init, .fini=hierarc
 {
     dds_entity_t parent;
     parent = dds_get_parent(g_participant);
-    CU_ASSERT_EQUAL_FATAL(parent, DDS_ENTITY_NIL);
+    CU_ASSERT_NOT_EQUAL_FATAL(parent, DDS_ENTITY_NIL);
+    parent = dds_get_parent(parent);
+    CU_ASSERT_NOT_EQUAL_FATAL(parent, DDS_ENTITY_NIL);
+    parent = dds_get_parent(parent);
+    CU_ASSERT_NOT_EQUAL_FATAL(parent, DDS_CYCLONEDDS_HANDLE);
 }
 /*************************************************************************************************/
 
@@ -362,13 +366,15 @@ CU_Test(ddsc_entity_get_children, null, .init=hierarchy_init, .fini=hierarchy_fi
 /*************************************************************************************************/
 
 /*************************************************************************************************/
+#if SIZE_MAX > INT32_MAX
 CU_Test(ddsc_entity_get_children, invalid_size, .init=hierarchy_init, .fini=hierarchy_fini)
 {
     dds_return_t ret;
     dds_entity_t child;
-    ret = dds_get_children(g_participant, &child, INT32_MAX);
+    ret = dds_get_children(g_participant, &child, SIZE_MAX);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
+#endif
 /*************************************************************************************************/
 
 /*************************************************************************************************/
@@ -866,9 +872,8 @@ CU_Test(ddsc_entity_get_children, implicit_publisher)
     dds_delete(writer);
 
     ret = dds_get_children(participant, child2, 2);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_FATAL( (child2[0] == child[0]) || (child2[0] == child[1]) );
-    CU_ASSERT_FATAL( (child2[1] == child[0]) || (child2[1] == child[1]) );
 
     dds_delete(topic);
     dds_delete(participant);
@@ -911,9 +916,8 @@ CU_Test(ddsc_entity_get_children, implicit_subscriber)
     dds_delete(reader);
 
     ret = dds_get_children(participant, child2, 2);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_FATAL( (child2[0] == child[0]) || (child2[0] == child[1]) );
-    CU_ASSERT_FATAL( (child2[1] == child[0]) || (child2[1] == child[1]) );
 
     dds_delete(topic);
     dds_delete(participant);
@@ -947,7 +951,7 @@ CU_Test(ddsc_entity_get_parent, implicit_publisher)
     dds_delete(writer);
 
     ret = dds_delete(parent);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
     dds_delete(participant);
 }
 /*************************************************************************************************/
@@ -978,7 +982,7 @@ CU_Test(ddsc_entity_get_parent, implicit_subscriber)
     dds_delete(reader);
 
     ret = dds_delete(parent);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
     dds_delete(participant);
 
 }

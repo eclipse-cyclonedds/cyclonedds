@@ -265,7 +265,7 @@ void ddsi_threadmon_unregister_domain (struct ddsi_threadmon *sl, const struct q
     dummy.gv = gv;
     struct threadmon_domain *tmdom = ddsrt_hh_lookup (sl->domains, &dummy);
     assert (tmdom);
-    ddsrt_hh_remove (sl->domains, tmdom);
+    (void) ddsrt_hh_remove (sl->domains, tmdom);
     ddsrt_mutex_unlock (&sl->lock);
     ddsrt_free (tmdom);
   }

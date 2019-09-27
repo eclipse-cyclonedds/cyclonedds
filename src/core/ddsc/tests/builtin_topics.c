@@ -308,3 +308,35 @@ CU_Test(ddsc_builtin_topics, builtin_qos, .init = setup, .fini = teardown)
   CU_ASSERT_FATAL(dds_sub_subscriber > 0);
   check_default_qos_of_builtin_entity(dds_sub_subscriber, 0);
 }
+
+CU_Test(ddsc_builtin_topics, read_nothing)
+{
+  dds_entity_t pp;
+  dds_entity_t rd;
+  dds_return_t ret;
+  dds_sample_info_t si;
+  void *raw1, *raw2;
+  int32_t n1, n2;
+
+  pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_FATAL (pp > 0);
+  rd = dds_create_reader (pp, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL);
+  CU_ASSERT_FATAL (rd > 0);
+
+  /* Can't guarantee there's no other process around with a publication, but
+     we can take until nothing remains.  The point is checking handling of
+     freeing memory when a loan was outstanding, memory had to be allocated,
+     and subsequently had to be freed because of an absence of data. */
+  raw1 = raw2 = NULL;
+  n1 = dds_take (rd, &raw1, &si, 1, 1);
+  CU_ASSERT_FATAL (n1 >= 0);
+  n2 = dds_take (rd, &raw2, &si, 1, 1);
+  CU_ASSERT_FATAL (n2 >= 0);
+  ret = dds_return_loan (rd, &raw1, n1);
+  CU_ASSERT_FATAL (ret == 0);
+  ret = dds_return_loan (rd, &raw2, n2);
+  CU_ASSERT_FATAL (ret == 0);
+  
+  ret = dds_delete (pp);
+  CU_ASSERT_FATAL (ret == 0);
+}

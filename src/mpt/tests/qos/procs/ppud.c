@@ -355,7 +355,7 @@ MPT_ProcessEntry (rwud,
           size_t chkusz = 0;
           if (!qget (chk, &chkud, &chkusz))
             MPT_ASSERT (0, "Check QoS: no %s present\n", qname);
-          MPT_ASSERT (chkusz == expusz && (expusz == 0 || memcmp (chkud, expud, expusz) == 0),
+          MPT_ASSERT (chkusz == expusz && (expusz == 0 || (chkud != NULL && memcmp (chkud, expud, expusz) == 0)),
                       "Retrieved %s differs from group data just set (%zu/%s vs %zu/%s)\n", qname,
                       chkusz, chkud ? (char *) chkud : "(null)", expusz, expud ? (char *) expud : "(null)");
           dds_free (chkud);

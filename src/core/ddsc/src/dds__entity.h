@@ -28,6 +28,8 @@ dds_entity_init(
   const dds_listener_t *listener,
   status_mask_t mask);
 
+DDS_EXPORT void dds_entity_init_complete (dds_entity *entity);
+
 DDS_EXPORT void
 dds_entity_register_child (
   dds_entity *parent,
@@ -46,7 +48,6 @@ dds_entity_add_ref_locked(dds_entity *e);
     *x = (type_ *) e; \
     return DDS_RETCODE_OK; \
   } \
-  \
   qualifier_ void type_##_unlock (type_ *x) \
   { \
     dds_entity_unlock (&x->m_entity); \
@@ -78,6 +79,18 @@ DDS_EXPORT void dds_entity_status_signal (dds_entity *e, uint32_t status);
 
 DDS_EXPORT void dds_entity_invoke_listener (const dds_entity *entity, enum dds_status_id which, const void *vst);
 
+DDS_EXPORT dds_participant *dds_entity_participant (dds_entity *e);
+DDS_EXPORT void dds_entity_final_deinit_before_free (dds_entity *e);
+DDS_EXPORT bool dds_entity_in_scope (const dds_entity *e, const dds_entity *root);
+
+enum delete_impl_state {
+  DIS_EXPLICIT,    /* explicit delete on this entity */
+  DIS_FROM_PARENT, /* called because the parent is being deleted */
+  DIS_IMPLICIT     /* called from child; delete if implicit w/o children */
+};
+
+DDS_EXPORT dds_return_t dds_delete_impl_pinned (dds_entity *e, enum delete_impl_state delstate);
+
 DDS_EXPORT dds_return_t
 dds_entity_pin (
   dds_entity_t hdl,
@@ -98,23 +111,16 @@ dds_entity_unlock(dds_entity *e);
 DDS_EXPORT dds_return_t
 dds_entity_observer_register(
   dds_entity *observed,
-  dds_entity *observer,
-  dds_entity_callback cb,
-  dds_entity_delete_callback delete_cb);
+  dds_waitset *observer,
+  dds_entity_callback_t cb,
+  dds_entity_attach_callback_t attach_cb, void *attach_arg,
+  dds_entity_delete_callback_t delete_cb);
 
 DDS_EXPORT dds_return_t
 dds_entity_observer_unregister(
   dds_entity *observed,
-  dds_entity *observer);
-
-DDS_EXPORT dds_return_t
-dds_delete_impl(
-  dds_entity_t entity,
-  bool keep_if_explicit);
-
-DDS_EXPORT dds_domain *
-dds__entity_domain(
-  dds_entity* e);
+  dds_waitset *observer,
+  bool invoke_delete_cb);
 
 DDS_EXPORT dds_return_t
 dds_generic_unimplemented_operation_manykinds(

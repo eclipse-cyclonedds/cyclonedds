@@ -16,7 +16,7 @@
 #include "dds__entity.h"
 #include "dds__write.h"
 #include "dds__writer.h"
-#include "dds__rhc.h"
+#include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_entity.h"

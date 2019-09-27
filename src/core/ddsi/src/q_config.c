@@ -1012,6 +1012,8 @@ static size_t cfg_note_vsnprintf (struct cfg_note_buf *bb, const char *fmt, va_l
   return 0;
 }
 
+static void cfg_note_snprintf (struct cfg_note_buf *bb, const char *fmt, ...) ddsrt_attribute_format ((printf, 2, 3));
+
 static void cfg_note_snprintf (struct cfg_note_buf *bb, const char *fmt, ...)
 {
   /* The reason the 2nd call to os_vsnprintf is here and not inside
@@ -1123,6 +1125,8 @@ static size_t cfg_note (struct cfgst *cfgst, uint32_t cat, size_t bsz, const cha
   return 0;
 }
 
+static void cfg_warning (struct cfgst *cfgst, const char *fmt, ...) ddsrt_attribute_format ((printf, 2, 3));
+
 static void cfg_warning (struct cfgst *cfgst, const char *fmt, ...)
 {
   va_list ap;
@@ -1133,6 +1137,8 @@ static void cfg_warning (struct cfgst *cfgst, const char *fmt, ...)
     va_end (ap);
   } while (bsz > 0);
 }
+
+static enum update_result cfg_error (struct cfgst *cfgst, const char *fmt, ...) ddsrt_attribute_format ((printf, 2, 3));
 
 static enum update_result cfg_error (struct cfgst *cfgst, const char *fmt, ...)
 {
@@ -1145,6 +1151,8 @@ static enum update_result cfg_error (struct cfgst *cfgst, const char *fmt, ...)
   } while (bsz > 0);
   return URES_ERROR;
 }
+
+static void cfg_logelem (struct cfgst *cfgst, uint32_t sources, const char *fmt, ...) ddsrt_attribute_format ((printf, 3, 4));
 
 static void cfg_logelem (struct cfgst *cfgst, uint32_t sources, const char *fmt, ...)
 {
@@ -1317,14 +1325,17 @@ static enum update_result do_uint32_bitset (struct cfgst *cfgst, uint32_t *cats,
   char *copy = ddsrt_strdup (value), *cursor = copy, *tok;
   while ((tok = ddsrt_strsep (&cursor, ",")) != NULL)
   {
-    const int idx = list_index (names, tok);
+    const int idx = list_index (names, tok[0] == '-' ? tok+1 : tok);
     if (idx < 0)
     {
       const enum update_result ret = cfg_error (cfgst, "'%s' in '%s' undefined", tok, value);
       ddsrt_free (copy);
       return ret;
     }
-    *cats |= codes[idx];
+    if (tok[0] == '-')
+      *cats &= ~codes[idx];
+    else
+      *cats |= codes[idx];
   }
   ddsrt_free (copy);
   return URES_SUCCESS;
@@ -1441,7 +1452,7 @@ static void pf_int64_unit (struct cfgst *cfgst, int64_t value, uint32_t sources,
     }
     assert (m > 0);
     assert (unit != NULL);
-    cfg_logelem (cfgst, sources, "%lld %s", value / m, unit);
+    cfg_logelem (cfgst, sources, "%"PRId64" %s", value / m, unit);
   }
 }
 
@@ -1517,10 +1528,10 @@ GENERIC_ENUM_CTYPE (standards_conformance, enum nn_standards_conformance)
 
 /* "trace" is special: it enables (nearly) everything */
 static const char *tracemask_names[] = {
-  "fatal", "error", "warning", "info", "config", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "rhc", "trace", NULL
+  "fatal", "error", "warning", "info", "config", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "rhc", "content", "trace", NULL
 };
 static const uint32_t tracemask_codes[] = {
-  DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_ALL
+  DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_CONTENT, DDS_LC_ALL
 };
 
 static enum update_result uf_tracemask (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
@@ -2383,6 +2394,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         cfgst_push (cfgst, 0, &root_cfgelems[0], cfgst_parent (cfgst));
         cfgst->implicit_toplevel = ITL_INSERTED_2;
       }
+      cfgst->source = (cfgst->source == 0) ? 1 : cfgst->source << 1;
+      cfgst->first_data_in_source = true;
     }
   }
 
@@ -2691,10 +2704,13 @@ static FILE *config_open_file (char *tok, char **cursor, uint32_t domid)
   return fp;
 }
 
-struct cfgst *config_init (const char *configfile, struct config *cfg, uint32_t domid)
+struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domid)
 {
   int ok = 1;
   struct cfgst *cfgst;
+  char env_input[32];
+  char *copy, *cursor;
+  struct ddsrt_xmlp_callbacks cb;
 
   memset (cfg, 0, sizeof (*cfg));
 
@@ -2715,72 +2731,67 @@ struct cfgst *config_init (const char *configfile, struct config *cfg, uint32_t 
      ends up on the right value */
   cfgst->cfg->domainId = domid;
 
-  /* configfile == NULL will get you the default configuration */
-  if (configfile) {
-    char env_input[32];
-    char *copy = ddsrt_strdup (configfile), *cursor = copy;
-    struct ddsrt_xmlp_callbacks cb;
+  cb.attr = proc_attr;
+  cb.elem_close = proc_elem_close;
+  cb.elem_data = proc_elem_data;
+  cb.elem_open = proc_elem_open;
+  cb.error = proc_error;
 
-    cb.attr = proc_attr;
-    cb.elem_close = proc_elem_close;
-    cb.elem_data = proc_elem_data;
-    cb.elem_open = proc_elem_open;
-    cb.error = proc_error;
-
-    while (*cursor && (isspace ((unsigned char) *cursor) || *cursor == ','))
-      cursor++;
-    while (ok && cursor && cursor[0])
+  copy = ddsrt_strdup (config);
+  cursor = copy;
+  while (*cursor && (isspace ((unsigned char) *cursor) || *cursor == ','))
+    cursor++;
+  while (ok && cursor && cursor[0])
+  {
+    struct ddsrt_xmlp_state *qx;
+    FILE *fp;
+    char *tok;
+    tok = cursor;
+    if (tok[0] == '<')
     {
-      struct ddsrt_xmlp_state *qx;
-      FILE *fp;
-      char *tok;
-      tok = cursor;
-      if (tok[0] == '<')
-      {
-        /* Read XML directly from input string */
-        qx = ddsrt_xmlp_new_string (tok, cfgst, &cb);
-        ddsrt_xmlp_set_options (qx, DDSRT_XMLP_ANONYMOUS_CLOSE_TAG | DDSRT_XMLP_MISSING_CLOSE_AS_EOF);
-        fp = NULL;
-        snprintf (env_input, sizeof (env_input), "CYCLONEDDS_URI+%u", (unsigned) (tok - copy));
-        cfgst->input = env_input;
-        cfgst->line = 1;
-      }
-      else if ((fp = config_open_file (tok, &cursor, domid)) == NULL)
-      {
-        ddsrt_free (copy);
-        goto error;
-      }
-      else
-      {
-        qx = ddsrt_xmlp_new_file (fp, cfgst, &cb);
-        cfgst->input = tok;
-        cfgst->line = 1;
-      }
-
-      cfgst->implicit_toplevel = (fp == NULL) ? ITL_ALLOWED : ITL_DISALLOWED;
-      cfgst->first_data_in_source = true;
-      cfgst_push (cfgst, 0, &root_cfgelem, cfgst->cfg);
-      ok = (ddsrt_xmlp_parse (qx) >= 0) && !cfgst->error;
-      assert (!ok ||
-              (cfgst->path_depth == 1 && cfgst->implicit_toplevel == ITL_DISALLOWED) ||
-              (cfgst->path_depth == 1 + (int) cfgst->implicit_toplevel));
-      /* Pop until stack empty: error handling is rather brutal */
-      while (cfgst->path_depth > 0)
-        cfgst_pop (cfgst);
-      if (fp != NULL)
-        fclose (fp);
-      else if (ok)
-        cursor = tok + ddsrt_xmlp_get_bufpos (qx);
-      ddsrt_xmlp_free (qx);
-      assert (fp == NULL || cfgst->implicit_toplevel <= ITL_ALLOWED);
-      if (cursor)
-      {
-        while (*cursor && (isspace ((unsigned char) cursor[0]) || cursor[0] == ','))
-          cursor++;
-      }
+      /* Read XML directly from input string */
+      qx = ddsrt_xmlp_new_string (tok, cfgst, &cb);
+      ddsrt_xmlp_set_options (qx, DDSRT_XMLP_ANONYMOUS_CLOSE_TAG | DDSRT_XMLP_MISSING_CLOSE_AS_EOF);
+      fp = NULL;
+      snprintf (env_input, sizeof (env_input), "CYCLONEDDS_URI+%u", (unsigned) (tok - copy));
+      cfgst->input = env_input;
+      cfgst->line = 1;
     }
-    ddsrt_free (copy);
+    else if ((fp = config_open_file (tok, &cursor, domid)) == NULL)
+    {
+      ddsrt_free (copy);
+      goto error;
+    }
+    else
+    {
+      qx = ddsrt_xmlp_new_file (fp, cfgst, &cb);
+      cfgst->input = tok;
+      cfgst->line = 1;
+    }
+
+    cfgst->implicit_toplevel = (fp == NULL) ? ITL_ALLOWED : ITL_DISALLOWED;
+    cfgst->first_data_in_source = true;
+    cfgst_push (cfgst, 0, &root_cfgelem, cfgst->cfg);
+    ok = (ddsrt_xmlp_parse (qx) >= 0) && !cfgst->error;
+    assert (!ok ||
+            (cfgst->path_depth == 1 && cfgst->implicit_toplevel == ITL_DISALLOWED) ||
+            (cfgst->path_depth == 1 + (int) cfgst->implicit_toplevel));
+    /* Pop until stack empty: error handling is rather brutal */
+    while (cfgst->path_depth > 0)
+      cfgst_pop (cfgst);
+    if (fp != NULL)
+      fclose (fp);
+    else if (ok)
+      cursor = tok + ddsrt_xmlp_get_bufpos (qx);
+    ddsrt_xmlp_free (qx);
+    assert (fp == NULL || cfgst->implicit_toplevel <= ITL_ALLOWED);
+    if (cursor)
+    {
+      while (*cursor && (isspace ((unsigned char) cursor[0]) || cursor[0] == ','))
+        cursor++;
+    }
   }
+  ddsrt_free (copy);
 
   /* Set defaults for everything not set that we have a default value
      for, signal errors for things unset but without a default. */

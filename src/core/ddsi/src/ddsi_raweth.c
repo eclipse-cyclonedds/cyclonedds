@@ -211,7 +211,12 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (ddsi_tran_factory_t fact, uint3
     return NULL;
   }
 
-  uc = (ddsi_raweth_conn_t) ddsrt_malloc (sizeof (*uc));
+  if ((uc = (ddsi_raweth_conn_t) ddsrt_malloc (sizeof (*uc))) == NULL)
+  {
+    ddsrt_close(sock);
+    return NULL;
+  }
+
   memset (uc, 0, sizeof (*uc));
   uc->m_sock = sock;
   uc->m_ifindex = addr.sll_ifindex;
@@ -226,7 +231,7 @@ static ddsi_tran_conn_t ddsi_raweth_create_conn (ddsi_tran_factory_t fact, uint3
   uc->m_base.m_disable_multiplexing_fn = 0;
 
   DDS_CTRACE (&fact->gv->logconfig, "ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sock, uc->m_base.m_base.m_port);
-  return uc ? &uc->m_base : NULL;
+  return &uc->m_base;
 }
 
 static int isbroadcast(const nn_locator_t *loc)

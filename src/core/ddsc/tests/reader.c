@@ -277,7 +277,50 @@ CU_Theory((dds_entity_t *par, dds_entity_t *top), ddsc_reader_create, non_partic
 }
 /*************************************************************************************************/
 
+/*************************************************************************************************/
+CU_Test(ddsc_reader_create, wrong_participant, .init=reader_init, .fini=reader_fini)
+{
+    dds_entity_t participant2 = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+    CU_ASSERT_FATAL(participant2 > 0);
+    dds_entity_t reader = dds_create_reader(participant2, g_topic, NULL, NULL);
+    CU_ASSERT_EQUAL_FATAL(reader, DDS_RETCODE_BAD_PARAMETER);
+    dds_delete(participant2);
+}
+/*************************************************************************************************/
 
+/*************************************************************************************************/
+CU_Test(ddsc_reader_create, participant_mismatch)
+{
+    dds_entity_t par1 = 0;
+    dds_entity_t par2 = 0;
+    dds_entity_t sub1 = 0;
+    dds_entity_t top2 = 0;
+    dds_entity_t reader = 0;
+    char name[100];
+
+    par1 = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+    CU_ASSERT_FATAL(par1 > 0);
+    par2 = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+    CU_ASSERT_FATAL(par2 > 0);
+
+    sub1 = dds_create_subscriber(par1, NULL, NULL);
+    CU_ASSERT_FATAL(sub1 > 0);
+
+    top2 = dds_create_topic(par2, &Space_Type1_desc, create_topic_name("ddsc_reader_participant_mismatch", name, sizeof name), NULL, NULL);
+    CU_ASSERT_FATAL(top2 > 0);
+
+    /* Create reader with participant mismatch. */
+    reader = dds_create_reader(sub1, top2, NULL, NULL);
+
+    /* Expect the creation to have failed. */
+    CU_ASSERT_FATAL(reader <= 0);
+
+    dds_delete(top2);
+    dds_delete(sub1);
+    dds_delete(par2);
+    dds_delete(par1);
+}
+/*************************************************************************************************/
 
 
 

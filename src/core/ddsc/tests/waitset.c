@@ -256,6 +256,39 @@ CU_Theory((dds_entity_t *par), ddsc_waitset_create, non_participants, .init=ddsc
 }
 /*************************************************************************************************/
 
+/*************************************************************************************************/
+CU_Test (ddsc_waitset_create, domain)
+{
+    dds_entity_t par, dom, ws;
+    dds_return_t rc;
+    par = dds_create_participant (0, NULL, NULL);
+    CU_ASSERT_FATAL (par > 0);
+    dom = dds_get_parent (par);
+    CU_ASSERT_FATAL (dom > 0);
+    ws = dds_create_waitset (dom);
+    CU_ASSERT_FATAL (ws > 0);
+    rc = dds_delete (dom);
+    CU_ASSERT_FATAL (rc == 0);
+}
+/*************************************************************************************************/
+
+/*************************************************************************************************/
+CU_Test (ddsc_waitset_create, cyclonedds)
+{
+    dds_entity_t ws;
+    dds_return_t rc;
+    /* Expect an uninitialised library */
+    rc = dds_get_parent (DDS_CYCLONEDDS_HANDLE);
+    CU_ASSERT_FATAL (rc == DDS_RETCODE_PRECONDITION_NOT_MET);
+    ws = dds_create_waitset (DDS_CYCLONEDDS_HANDLE);
+    CU_ASSERT_FATAL (ws > 0);
+    rc = dds_delete (DDS_CYCLONEDDS_HANDLE);
+    CU_ASSERT_FATAL (rc == 0);
+    /* And the same afterward */
+    rc = dds_get_parent (DDS_CYCLONEDDS_HANDLE);
+    CU_ASSERT_FATAL (rc == DDS_RETCODE_PRECONDITION_NOT_MET);
+}
+/*************************************************************************************************/
 
 
 /**************************************************************************************************
@@ -315,6 +348,52 @@ CU_Test(ddsc_waitset_attach, deleted_waitset, .init=ddsc_waitset_basic_init, .fi
     dds_delete(waitset);
     ret = dds_waitset_attach(waitset, participant, 0);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+}
+/*************************************************************************************************/
+
+/*************************************************************************************************/
+CU_TheoryDataPoints(ddsc_waitset_attach, scoping) = {
+    CU_DataPoints (int, -9, -1, -2,  0,  0,  2), /* owner: -9: lib, -1: dom0, -2: dom1 */
+    CU_DataPoints (int,  0,  0,  2,  0,  0,  2), /* ok1: participant one can attach */
+    CU_DataPoints (int,  3,  1,  3, -1, -1, -1), /* ok2: other participant one can attach, or -1 */
+    CU_DataPoints (int, -1,  2,  0,  1,  2,  0), /* fail: participant that one cannot attach, or -1 */
+};
+CU_Theory ((int owner, int ok1, int ok2, int fail), ddsc_waitset_attach, scoping)
+{
+    dds_entity_t par[4], dom[2], ws, ownh;
+    dds_return_t rc;
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 2; j++) {
+            par[2*i+j] = dds_create_participant ((dds_domainid_t) i, NULL, NULL);
+            CU_ASSERT_FATAL (par[2*i+j] > 0);
+        }
+        dom[i] = dds_get_parent (par[2*i]);
+        CU_ASSERT_FATAL (dom[i] > 0);
+    }
+    if (owner == -9) {
+        ownh = DDS_CYCLONEDDS_HANDLE;
+    } else if (owner < 0) {
+        ownh = dom[-owner - 1];
+    } else {
+        ownh = par[owner];
+    }
+    printf ("%d %d %d %d | %"PRId32"\n", owner, ok1, ok2, fail, ownh);
+    ws = dds_create_waitset (ownh);
+    CU_ASSERT_FATAL (ws > 0);
+    rc = dds_waitset_attach (ws, par[ok1], 0);
+    CU_ASSERT_FATAL (rc == 0);
+    if (ok2 >= 0) {
+        rc = dds_waitset_attach (ws, par[ok2], 1);
+        CU_ASSERT_FATAL (rc == 0);
+    }
+    if (fail >= 0) {
+        rc = dds_waitset_attach (ws, par[fail], 2);
+        CU_ASSERT_FATAL (rc == DDS_RETCODE_BAD_PARAMETER);
+    }
+    rc = dds_delete (DDS_CYCLONEDDS_HANDLE);
+    CU_ASSERT_FATAL (rc == 0);
+    rc = dds_get_parent (DDS_CYCLONEDDS_HANDLE);
+    CU_ASSERT_FATAL (rc == DDS_RETCODE_PRECONDITION_NOT_MET);
 }
 /*************************************************************************************************/
 

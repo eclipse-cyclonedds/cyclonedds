@@ -199,7 +199,7 @@ static size_t print_header (char *str, uint32_t id)
   }
   assert (off + cnt == (HDR_LEN - 1));
   str[off + cnt] = ' '; /* Replace snprintf null byte by space. */
-  return (size_t) cnt;
+  return (size_t) (cnt + 1);
 }
 
 static void vlog1 (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t domid, const char *file, uint32_t line, const char *func, const char *fmt, va_list ap)

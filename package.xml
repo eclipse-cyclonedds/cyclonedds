@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+    <name>cyclonedds</name>
+    <version>0.1.0</version>
+    <description>Eclipse Cyclone DDS is a very performant and robust open-source DDS implementation. Cyclone DDS is developed completely in the open as an Eclipse IoT project.</description>
+    <maintainer email="cyclonedds-dev@eclipse.org">Eclipse Foundation, Inc.</maintainer>
+    <license>Eclipse Public License 2.0</license>
+
+    <url type="website">https://projects.eclipse.org/projects/iot.cyclonedds</url>
+    <url type="bugtracker">https://github.com/eclipse-cyclonedds/cyclonedds/issues</url>
+    <url type="repository">https://github.com/eclipse-cyclonedds/cyclonedds</url>
+
+    <buildtool_depend>cmake</buildtool_depend>
+    <buildtool_depend>java</buildtool_depend>
+    <buildtool_depend>maven</buildtool_depend>
+    <depend>openssl</depend>
+    <test_depend>libcunit-dev</test_depend>
+    <doc_depend>python3-sphinx</doc_depend>
+
+    <export>
+        <build_type>cmake</build_type>
+    </export>
+</package>
+
