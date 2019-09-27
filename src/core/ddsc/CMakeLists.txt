@@ -50,6 +50,7 @@ PREPEND(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/dd
     ddsc/dds_public_qos.h
     ddsc/dds_public_qosdefs.h
     ddsc/dds_public_status.h
+    ddsc/dds_rhc.h
 )
 
 PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
@@ -67,7 +68,6 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds__readcond.h
     dds__guardcond.h
     dds__reader.h
-    dds__rhc.h
     dds__rhc_default.h
     dds__stream.h
     dds__subscriber.h

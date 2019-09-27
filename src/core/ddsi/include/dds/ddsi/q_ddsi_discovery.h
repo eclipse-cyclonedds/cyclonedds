@@ -36,7 +36,7 @@ int sedp_dispose_unregister_reader (struct reader *rd);
 int sedp_write_topic (struct participant *pp, const struct nn_plist *datap);
 int sedp_write_cm_participant (struct participant *pp, int alive);
 
-int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const nn_guid_t *rdguid, void *qarg);
+int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);
 
 #if defined (__cplusplus)
 }

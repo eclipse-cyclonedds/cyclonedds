@@ -28,8 +28,6 @@
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/sysdeps.h"
 
-static char main_thread_name[] = "main";
-
 struct thread_states thread_states;
 ddsrt_thread_local struct thread_state1 *tsd_thread_state;
 
@@ -47,6 +45,7 @@ extern inline void thread_state_awake_fixed_domain (struct thread_state1 *ts1);
 extern inline void thread_state_awake_to_awake_no_nest (struct thread_state1 *ts1);
 
 static struct thread_state1 *init_thread_state (const char *tname, const struct q_globals *gv, enum thread_state state);
+static void reap_thread_state (struct thread_state1 *ts1);
 
 static void *ddsrt_malloc_aligned_cacheline (size_t size)
 {
@@ -74,45 +73,74 @@ static void ddsrt_free_aligned (void *ptr)
   }
 }
 
-void thread_states_init_static (void)
-{
-  static struct thread_state1 ts = {
-    .state = THREAD_STATE_ALIVE, .vtime = DDSRT_ATOMIC_UINT32_INIT (0), .name = "(anon)"
-  };
-  tsd_thread_state = &ts;
-}
-
 void thread_states_init (unsigned maxthreads)
 {
-  ddsrt_mutex_init (&thread_states.lock);
-  thread_states.nthreads = maxthreads;
-  thread_states.ts =
-    ddsrt_malloc_aligned_cacheline (maxthreads * sizeof (*thread_states.ts));
-  memset (thread_states.ts, 0, maxthreads * sizeof (*thread_states.ts));
-  /* The compiler doesn't realize that ts is large enough. */
-  DDSRT_WARNING_MSVC_OFF(6386);
-  for (uint32_t i = 0; i < thread_states.nthreads; i++)
+  /* Called with ddsrt's singleton mutex held (see dds_init/fini).  Application threads
+     remaining alive can result in thread_states remaining alive, and as those thread
+     cache the address, we must then re-use the old array. */
+  if (thread_states.ts == NULL)
   {
-    thread_states.ts[i].state = THREAD_STATE_ZERO;
-    ddsrt_atomic_st32 (&thread_states.ts[i].vtime, 0);
-    memset (thread_states.ts[i].name, 0, sizeof (thread_states.ts[i].name));
+    ddsrt_mutex_init (&thread_states.lock);
+    thread_states.nthreads = maxthreads;
+    thread_states.ts = ddsrt_malloc_aligned_cacheline (maxthreads * sizeof (*thread_states.ts));
+    memset (thread_states.ts, 0, maxthreads * sizeof (*thread_states.ts));
+    /* The compiler doesn't realize that ts is large enough. */
+    DDSRT_WARNING_MSVC_OFF(6386);
+    for (uint32_t i = 0; i < thread_states.nthreads; i++)
+    {
+      thread_states.ts[i].state = THREAD_STATE_ZERO;
+      ddsrt_atomic_st32 (&thread_states.ts[i].vtime, 0);
+      memset (thread_states.ts[i].name, 0, sizeof (thread_states.ts[i].name));
+    }
+    DDSRT_WARNING_MSVC_ON(6386);
   }
-  DDSRT_WARNING_MSVC_ON(6386);
+
+  /* This thread should be at the same address as before, or never have had a slot
+     in the past.  Also, allocate a slot for this thread if it didn't have one yet
+     (not strictly required, but it'll get one eventually anyway, and this makes
+     it rather more clear). */
+#ifndef NDEBUG
+  struct thread_state1 * const ts0 = tsd_thread_state;
+#endif
+  struct thread_state1 * const ts1 = lookup_thread_state_real ();
+  assert (ts0 == NULL || ts0 == ts1);
+  (void) ts1;
 }
 
-void thread_states_fini (void)
+bool thread_states_fini (void)
 {
-  for (uint32_t i = 0; i < thread_states.nthreads; i++)
-    assert (thread_states.ts[i].state != THREAD_STATE_ALIVE);
-  ddsrt_mutex_destroy (&thread_states.lock);
-  ddsrt_free_aligned (thread_states.ts);
+  /* Calling thread is the one shutting everything down, so it certainly won't (well, shouldn't)
+     need its slot anymore.  Clean it up so that if all other threads happen to have been stopped
+     already, we can release all resources. */
+  struct thread_state1 *ts1 = lookup_thread_state ();
+  assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts1->vtime)));
+  reap_thread_state (ts1);
+  tsd_thread_state = NULL;
 
-  /* All spawned threads are gone, but the main thread is still alive,
-     downgraded to an ordinary thread (we're on it right now). We
-     don't want to lose the ability to log messages, so set ts to a
-     NULL pointer and rely on lookup_thread_state()'s checks
-     thread_states.ts. */
-  thread_states.ts = NULL;
+  /* Some applications threads that, at some point, required a thread state, may still be around.
+     Of those, the cleanup routine is invoked when the thread terminates.  This should be rewritten
+     to not rely on this global thing and with each thread owning its own bit state, e.g., linked
+     together in a list to give the GC access to it.  Until then, we can't release these resources
+     if there are still users. */
+  uint32_t others = 0;
+  ddsrt_mutex_lock (&thread_states.lock);
+  for (uint32_t i = 0; i < thread_states.nthreads; i++)
+  {
+    assert (thread_states.ts[i].state != THREAD_STATE_ALIVE);
+    others += (thread_states.ts[i].state == THREAD_STATE_LAZILY_CREATED);
+  }
+  ddsrt_mutex_unlock (&thread_states.lock);
+  if (others == 0)
+  {
+    ddsrt_mutex_destroy (&thread_states.lock);
+    ddsrt_free_aligned (thread_states.ts);
+    thread_states.ts = NULL;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 }
 
 ddsrt_attribute_no_sanitize (("thread"))
@@ -121,7 +149,7 @@ static struct thread_state1 *find_thread_state (ddsrt_thread_t tid)
   if (thread_states.ts) {
     for (uint32_t i = 0; i < thread_states.nthreads; i++)
     {
-      if (ddsrt_thread_equal (thread_states.ts[i].tid, tid))
+      if (ddsrt_thread_equal (thread_states.ts[i].tid, tid) && thread_states.ts[i].state != THREAD_STATE_ZERO)
         return &thread_states.ts[i];
     }
   }
@@ -201,26 +229,6 @@ static int find_free_slot (const char *name)
       return (int) i;
   DDS_FATAL ("create_thread: %s: no free slot\n", name ? name : "(anon)");
   return -1;
-}
-
-void upgrade_main_thread (void)
-{
-  int cand;
-  struct thread_state1 *ts1;
-  ddsrt_mutex_lock (&thread_states.lock);
-  if ((cand = find_free_slot ("name")) < 0)
-    abort ();
-  ts1 = &thread_states.ts[cand];
-  if (ts1->state == THREAD_STATE_ZERO)
-    assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts1->vtime)));
-  ts1->state = THREAD_STATE_LAZILY_CREATED;
-  ts1->tid = ddsrt_thread_self ();
-  DDSRT_WARNING_MSVC_OFF(4996);
-  strncpy (ts1->name, main_thread_name, sizeof (ts1->name));
-  DDSRT_WARNING_MSVC_ON(4996);
-  ts1->name[sizeof (ts1->name) - 1] = 0;
-  ddsrt_mutex_unlock (&thread_states.lock);
-  tsd_thread_state = ts1;
 }
 
 const struct config_thread_properties_listelem *lookup_thread_properties (const struct config *config, const char *name)
@@ -330,15 +338,6 @@ void reset_thread_state (struct thread_state1 *ts1)
 {
   if (ts1)
     reap_thread_state (ts1);
-}
-
-void downgrade_main_thread (void)
-{
-  struct thread_state1 *ts1 = lookup_thread_state ();
-  assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts1->vtime)));
-  /* no need to sync with service lease: already stopped */
-  reap_thread_state (ts1);
-  thread_states_init_static ();
 }
 
 void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct q_globals *gv)

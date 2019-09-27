@@ -61,6 +61,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/process.h"
+#include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/static_assert.h"
 
 #define N DDSRT_MT19937_N
@@ -186,13 +187,15 @@ void ddsrt_random_init (void)
   ddsrt_prng_seed_t seed;
   if (!ddsrt_prng_makeseed (&seed))
   {
+    static ddsrt_atomic_uint32_t counter = DDSRT_ATOMIC_UINT32_INIT (0);
     /* Poor man's initialisation */
-    DDSRT_STATIC_ASSERT (sizeof (seed.key) / sizeof (seed.key[0]) >= 3);
+    DDSRT_STATIC_ASSERT (sizeof (seed.key) / sizeof (seed.key[0]) >= 4);
     memset (&seed, 0, sizeof (seed));
     dds_time_t now = dds_time ();
     seed.key[0] = (uint32_t) ddsrt_getpid ();
     seed.key[1] = (uint32_t) ((uint64_t) now >> 32);
     seed.key[2] = (uint32_t) now;
+    seed.key[3] = ddsrt_atomic_inc32_ov (&counter);
   }
   ddsrt_prng_init (&default_prng, &seed);
   ddsrt_mutex_init (&default_prng_lock);

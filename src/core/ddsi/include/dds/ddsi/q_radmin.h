@@ -30,14 +30,14 @@ struct nn_rsample_info;
 struct nn_defrag;
 struct nn_reorder;
 struct nn_dqueue;
-struct nn_guid;
+struct ddsi_guid;
 
 struct proxy_writer;
 
 struct nn_fragment_number_set;
 struct nn_sequence_number_set;
 
-typedef int (*nn_dqueue_handler_t) (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const struct nn_guid *rdguid, void *qarg);
+typedef int (*nn_dqueue_handler_t) (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const struct ddsi_guid *rdguid, void *qarg);
 
 struct nn_rmsg_chunk {
   struct nn_rbuf *rbuf;
@@ -102,8 +102,8 @@ struct nn_rmsg {
 #define NN_RMSG_PAYLOADOFF(m, o) (NN_RMSG_PAYLOAD (m) + (o))
 
 struct receiver_state {
-  nn_guid_prefix_t src_guid_prefix;       /* 12 */
-  nn_guid_prefix_t dst_guid_prefix;       /* 12 */
+  ddsi_guid_prefix_t src_guid_prefix;       /* 12 */
+  ddsi_guid_prefix_t dst_guid_prefix;       /* 12 */
   struct addrset *reply_locators;         /* 4/8 */
   int forme;                              /* 4 */
   nn_vendorid_t vendor;                   /* 2 */
@@ -234,7 +234,7 @@ void nn_dqueue_free (struct nn_dqueue *q);
 bool nn_dqueue_enqueue_deferred_wakeup (struct nn_dqueue *q, struct nn_rsample_chain *sc, nn_reorder_result_t rres);
 void dd_dqueue_enqueue_trigger (struct nn_dqueue *q);
 void nn_dqueue_enqueue (struct nn_dqueue *q, struct nn_rsample_chain *sc, nn_reorder_result_t rres);
-void nn_dqueue_enqueue1 (struct nn_dqueue *q, const nn_guid_t *rdguid, struct nn_rsample_chain *sc, nn_reorder_result_t rres);
+void nn_dqueue_enqueue1 (struct nn_dqueue *q, const ddsi_guid_t *rdguid, struct nn_rsample_chain *sc, nn_reorder_result_t rres);
 void nn_dqueue_enqueue_callback (struct nn_dqueue *q, nn_dqueue_callback_t cb, void *arg);
 int  nn_dqueue_is_full (struct nn_dqueue *q);
 void nn_dqueue_wait_until_empty_if_full (struct nn_dqueue *q);

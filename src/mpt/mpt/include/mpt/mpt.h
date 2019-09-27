@@ -111,45 +111,45 @@ MPT_TestFiniDeclaration(suite, test)                              \
  * Test asserts.
  * Printing is supported eg MPT_ASSERT_EQ(a, b, "foo: %s", bar")
  */
-#define MPT_ASSERT(cond, ...)   MPT__ASSERT__(cond, MPT_FATAL_NO, __VA_ARGS__)
+#define MPT_ASSERT(cond, ...)   MPT__ASSERT__((cond), MPT_FATAL_NO, __VA_ARGS__)
 
 #define MPT_ASSERT_FAIL(...)    MPT_ASSERT(0, __VA_ARGS__)
 
-#define MPT_ASSERT_EQ(value, expected, ...)  MPT_ASSERT((value == expected), __VA_ARGS__)
-#define MPT_ASSERT_NEQ(value, expected, ...) MPT_ASSERT((value != expected), __VA_ARGS__)
-#define MPT_ASSERT_LEQ(value, expected, ...) MPT_ASSERT((value <= expected), __VA_ARGS__)
-#define MPT_ASSERT_GEQ(value, expected, ...) MPT_ASSERT((value >= expected), __VA_ARGS__)
-#define MPT_ASSERT_LT(value, expected, ...)  MPT_ASSERT((value  < expected), __VA_ARGS__)
-#define MPT_ASSERT_GT(value, expected, ...)  MPT_ASSERT((value  > expected), __VA_ARGS__)
+#define MPT_ASSERT_EQ(value, expected, ...)  MPT_ASSERT(((value) == (expected)), __VA_ARGS__)
+#define MPT_ASSERT_NEQ(value, expected, ...) MPT_ASSERT(((value) != (expected)), __VA_ARGS__)
+#define MPT_ASSERT_LEQ(value, expected, ...) MPT_ASSERT(((value) <= (expected)), __VA_ARGS__)
+#define MPT_ASSERT_GEQ(value, expected, ...) MPT_ASSERT(((value) >= (expected)), __VA_ARGS__)
+#define MPT_ASSERT_LT(value, expected, ...)  MPT_ASSERT(((value)  < (expected)), __VA_ARGS__)
+#define MPT_ASSERT_GT(value, expected, ...)  MPT_ASSERT(((value)  > (expected)), __VA_ARGS__)
 
-#define MPT_ASSERT_NULL(value, ...)     MPT_ASSERT((value == NULL), __VA_ARGS__)
-#define MPT_ASSERT_NOT_NULL(value, ...) MPT_ASSERT((value != NULL), __VA_ARGS__)
+#define MPT_ASSERT_NULL(value, ...)     MPT_ASSERT(((value) == NULL), __VA_ARGS__)
+#define MPT_ASSERT_NOT_NULL(value, ...) MPT_ASSERT(((value) != NULL), __VA_ARGS__)
 
-#define MPT_ASSERT_STR_EQ(value, expected, ...)  MPT_ASSERT((MPT_STRCMP(value, expected, 1) == 0), __VA_ARGS__)
-#define MPT_ASSERT_STR_NEQ(value, expected, ...) MPT_ASSERT((MPT_STRCMP(value, expected, 0) != 0), __VA_ARGS__)
-#define MPT_ASSERT_STR_EMPTY(value, ...)         MPT_ASSERT((MPT_STRLEN(value, 1) == 0), __VA_ARGS__)
-#define MPT_ASSERT_STR_NOT_EMPTY(value, ...)     MPT_ASSERT((MPT_STRLEN(value, 0)  > 0), __VA_ARGS__)
+#define MPT_ASSERT_STR_EQ(value, expected, ...)  MPT_ASSERT((MPT_STRCMP((value), (expected), 1) == 0), __VA_ARGS__)
+#define MPT_ASSERT_STR_NEQ(value, expected, ...) MPT_ASSERT((MPT_STRCMP((value), (expected), 0) != 0), __VA_ARGS__)
+#define MPT_ASSERT_STR_EMPTY(value, ...)         MPT_ASSERT((MPT_STRLEN((value), 1) == 0), __VA_ARGS__)
+#define MPT_ASSERT_STR_NOT_EMPTY(value, ...)     MPT_ASSERT((MPT_STRLEN((value), 0)  > 0), __VA_ARGS__)
 
 
 /* Fatal just means that control is returned to the parent function. */
-#define MPT_ASSERT_FATAL(cond, ...)   MPT__ASSERT__(cond, MPT_FATAL_YES, __VA_ARGS__)
+#define MPT_ASSERT_FATAL(cond, ...)   MPT__ASSERT__((cond), MPT_FATAL_YES, __VA_ARGS__)
 
 #define MPT_ASSERT_FATAL_FAIL(...)    MPT_ASSERT_FATAL(0, __VA_ARGS__)
 
-#define MPT_ASSERT_FATAL_EQ(value, expected, ...)  MPT_ASSERT_FATAL((value == expected), __VA_ARGS__)
-#define MPT_ASSERT_FATAL_NEQ(value, expected, ...) MPT_ASSERT_FATAL((value != expected), __VA_ARGS__)
-#define MPT_ASSERT_FATAL_LEQ(value, expected, ...) MPT_ASSERT_FATAL((value <= expected), __VA_ARGS__)
-#define MPT_ASSERT_FATAL_GEQ(value, expected, ...) MPT_ASSERT_FATAL((value >= expected), __VA_ARGS__)
-#define MPT_ASSERT_FATAL_LT(value, expected, ...)  MPT_ASSERT_FATAL((value  < expected), __VA_ARGS__)
-#define MPT_ASSERT_FATAL_GT(value, expected, ...)  MPT_ASSERT_FATAL((value  > expected), __VA_ARGS__)
+#define MPT_ASSERT_FATAL_EQ(value, expected, ...)  MPT_ASSERT_FATAL(((value) == (expected)), __VA_ARGS__)
+#define MPT_ASSERT_FATAL_NEQ(value, expected, ...) MPT_ASSERT_FATAL(((value) != (expected)), __VA_ARGS__)
+#define MPT_ASSERT_FATAL_LEQ(value, expected, ...) MPT_ASSERT_FATAL(((value) <= (expected)), __VA_ARGS__)
+#define MPT_ASSERT_FATAL_GEQ(value, expected, ...) MPT_ASSERT_FATAL(((value) >= (expected)), __VA_ARGS__)
+#define MPT_ASSERT_FATAL_LT(value, expected, ...)  MPT_ASSERT_FATAL(((value)  < (expected)), __VA_ARGS__)
+#define MPT_ASSERT_FATAL_GT(value, expected, ...)  MPT_ASSERT_FATAL(((value)  > (expected)), __VA_ARGS__)
 
-#define MPT_ASSERT_FATAL_NULL(value, ...)     MPT_ASSERT_FATAL((value == NULL), __VA_ARGS__)
-#define MPT_ASSERT_FATAL_NOT_NULL(value, ...) MPT_ASSERT_FATAL((value != NULL), __VA_ARGS__)
+#define MPT_ASSERT_FATAL_NULL(value, ...)     MPT_ASSERT_FATAL(((value) == NULL), __VA_ARGS__)
+#define MPT_ASSERT_FATAL_NOT_NULL(value, ...) MPT_ASSERT_FATAL(((value) != NULL), __VA_ARGS__)
 
-#define MPT_ASSERT_FATAL_STR_EQ(value, expected, ...)  MPT_ASSERT_FATAL((MPT_STRCMP(value, expected, 1) == 0), __VA_ARGS__)
-#define MPT_ASSERT_FATAL_STR_NEQ(value, expected, ...) MPT_ASSERT_FATAL((MPT_STRCMP(value, expected, 0) != 0), __VA_ARGS__)
-#define MPT_ASSERT_FATAL_STR_EMPTY(value, ...)         MPT_ASSERT_FATAL((MPT_STRLEN(value, 1) == 0), __VA_ARGS__)
-#define MPT_ASSERT_FATAL_STR_NOT_EMPTY(value, ...)     MPT_ASSERT_FATAL((MPT_STRLEN(value, 0)  > 0), __VA_ARGS__)
+#define MPT_ASSERT_FATAL_STR_EQ(value, expected, ...)  MPT_ASSERT_FATAL((MPT_STRCMP((value), (expected), 1) == 0), __VA_ARGS__)
+#define MPT_ASSERT_FATAL_STR_NEQ(value, expected, ...) MPT_ASSERT_FATAL((MPT_STRCMP((value), (expected), 0) != 0), __VA_ARGS__)
+#define MPT_ASSERT_FATAL_STR_EMPTY(value, ...)         MPT_ASSERT_FATAL((MPT_STRLEN((value), 1) == 0), __VA_ARGS__)
+#define MPT_ASSERT_FATAL_STR_NOT_EMPTY(value, ...)     MPT_ASSERT_FATAL((MPT_STRLEN((value), 0)  > 0), __VA_ARGS__)
 
 
 /* Helpful function to check for patterns in log callbacks. */

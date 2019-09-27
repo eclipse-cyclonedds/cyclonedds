@@ -20,6 +20,7 @@ set(ddsc_test_sources
     "builtin_topics.c"
     "config.c"
     "dispose.c"
+    "domain.c"
     "entity_api.c"
     "entity_hierarchy.c"
     "entity_status.c"
@@ -30,6 +31,7 @@ set(ddsc_test_sources
     "publisher.c"
     "qos.c"
     "querycondition.c"
+    "guardcondition.c"
     "readcondition.c"
     "reader.c"
     "reader_iterator.c"
@@ -45,6 +47,7 @@ set(ddsc_test_sources
     "unregister.c"
     "unsupported.c"
     "waitset.c"
+    "waitset_torture.c"
     "write.c"
     "writer.c")
 

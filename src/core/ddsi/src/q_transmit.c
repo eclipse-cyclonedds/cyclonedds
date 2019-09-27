@@ -134,7 +134,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
 {
   struct q_globals const * const gv = wr->e.gv;
   struct nn_xmsg *msg;
-  const nn_guid_t *prd_guid;
+  const ddsi_guid_t *prd_guid;
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
   assert (wr->reliable);
@@ -163,7 +163,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   }
   else
   {
-    const int n_unacked = wr->num_reliable_readers - root_rdmatch (wr)->num_reliable_readers_where_seq_equals_max;
+    const int32_t n_unacked = wr->num_reliable_readers - root_rdmatch (wr)->num_reliable_readers_where_seq_equals_max;
     assert (n_unacked >= 0);
     if (n_unacked == 0)
       prd_guid = NULL;
@@ -182,7 +182,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
     ETRACE (wr, "multicasting ");
   else
     ETRACE (wr, "unicasting to prd "PGUIDFMT" ", PGUID (*prd_guid));
-  ETRACE (wr, "(rel-prd %d seq-eq-max %d seq %"PRId64" maxseq %"PRId64")\n",
+  ETRACE (wr, "(rel-prd %"PRId32" seq-eq-max %"PRId32" seq %"PRId64" maxseq %"PRId64")\n",
           wr->num_reliable_readers,
           ddsrt_avl_is_empty (&wr->readers) ? -1 : root_rdmatch (wr)->num_reliable_readers_where_seq_equals_max,
           wr->seq,
@@ -313,7 +313,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
   return msg;
 }
 
-void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, nn_entityid_t dst, int issync)
+void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, ddsi_entityid_t dst, int issync)
 {
   struct q_globals const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
@@ -859,6 +859,8 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
     const char *ttname = wr->topic ? wr->topic->type_name : "(null)";
     ppbuf[0] = '\0';
     tmp = sizeof (ppbuf) - 1;
+    if (wr->e.gv->logconfig.c.mask & DDS_LC_CONTENT)
+      ddsi_serdata_print (serdata, ppbuf, sizeof (ppbuf));
     ETRACE (wr, "write_sample "PGUIDFMT" #%"PRId64, PGUID (wr->e.guid), seq);
     if (plist != 0 && (plist->present & PP_COHERENT_SET))
       ETRACE (wr, " C#%"PRId64"", fromSN (plist->coherent_set_seqno));
@@ -897,7 +899,6 @@ static int writer_may_continue (const struct writer *wr, const struct whc_state 
 {
   return (whcst->unacked_bytes <= wr->whc_low && !wr->retransmitting) || (wr->state != WRST_OPERATIONAL);
 }
-
 
 static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr)
 {
@@ -1080,6 +1081,13 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
         goto drop;
       }
     }
+  }
+
+  if (wr->state != WRST_OPERATIONAL)
+  {
+    r = DDS_RETCODE_PRECONDITION_NOT_MET;
+    ddsrt_mutex_unlock (&wr->e.lock);
+    goto drop;
   }
 
   /* Always use the current monotonic time */

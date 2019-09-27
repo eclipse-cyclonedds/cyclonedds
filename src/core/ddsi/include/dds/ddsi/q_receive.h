@@ -25,7 +25,7 @@ struct recv_thread_arg;
 void trigger_recv_threads (const struct q_globals *gv);
 uint32_t recv_thread (void *vrecv_thread_arg);
 uint32_t listen_thread (struct ddsi_tran_listener * listener);
-int user_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const nn_guid_t *rdguid, void *qarg);
+int user_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);
 
 #if defined (__cplusplus)
 }

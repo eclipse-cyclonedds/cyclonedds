@@ -11,6 +11,7 @@
  */
 #include <assert.h>
 #include <string.h>
+#include "dds__init.h"
 #include "dds__reader.h"
 #include "dds__guardcond.h"
 #include "dds__participant.h"
@@ -22,28 +23,53 @@
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_guardcond)
 
 const struct dds_entity_deriver dds_entity_deriver_guardcondition = {
+  .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_entity_deriver_dummy_delete,
   .set_qos = dds_entity_deriver_dummy_set_qos,
   .validate_status = dds_entity_deriver_dummy_validate_status
 };
 
-dds_entity_t dds_create_guardcondition (dds_entity_t participant)
+dds_entity_t dds_create_guardcondition (dds_entity_t owner)
 {
-  dds_participant *pp;
+  dds_entity *e;
   dds_return_t rc;
 
-  if ((rc = dds_participant_lock (participant, &pp)) != DDS_RETCODE_OK)
+  /* If the owner is any ordinary (allowed) entity, the library is already initialised and calling
+     init here is cheap.  If it is DDS_CYCLONEDDS_HANDLE, we may have to initialise the library, so
+     have to call it.  If it is some bogus value and the library is not initialised yet ... so be
+     it.  Naturally, this requires us to call delete on DDS_CYCLONEDDS_HANDLE afterward. */
+  if ((rc = dds_init ()) < 0)
     return rc;
-  else
+
+  if ((rc = dds_entity_lock (owner, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+    goto err_entity_lock;
+
+  switch (dds_entity_kind (e))
   {
-    dds_guardcond *gcond = dds_alloc (sizeof (*gcond));
-    dds_entity_t hdl = dds_entity_init (&gcond->m_entity, &pp->m_entity, DDS_KIND_COND_GUARD, NULL, NULL, 0);
-    gcond->m_entity.m_iid = ddsi_iid_gen ();
-    dds_entity_register_child (&pp->m_entity, &gcond->m_entity);
-    dds_participant_unlock (pp);
-    return hdl;
+    case DDS_KIND_CYCLONEDDS:
+    case DDS_KIND_DOMAIN:
+    case DDS_KIND_PARTICIPANT:
+      break;
+    default:
+      rc = DDS_RETCODE_ILLEGAL_OPERATION;
+      goto err_entity_kind;
   }
+
+  dds_guardcond *gcond = dds_alloc (sizeof (*gcond));
+  dds_entity_t hdl = dds_entity_init (&gcond->m_entity, e, DDS_KIND_COND_GUARD, NULL, NULL, 0);
+  gcond->m_entity.m_iid = ddsi_iid_gen ();
+  dds_entity_register_child (e, &gcond->m_entity);
+  dds_entity_init_complete (&gcond->m_entity);
+  dds_entity_unlock (e);
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
+  return hdl;
+
+ err_entity_kind:
+  dds_entity_unlock (e);
+ err_entity_lock:
+  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
+  return rc;
 }
 
 dds_return_t dds_set_guardcondition (dds_entity_t condition, bool triggered)

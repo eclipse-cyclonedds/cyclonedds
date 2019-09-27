@@ -453,6 +453,7 @@ static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi
 #ifndef NDEBUG
   size_t keysize;
 #endif
+  assert(rawkey);
   switch (sample->keyparam)
   {
     case PID_PARTICIPANT_GUID:
@@ -629,6 +630,32 @@ static bool serdata_default_topicless_to_sample_cdr_nokey (const struct ddsi_ser
   return true;
 }
 
+static size_t serdata_default_print_cdr (const struct ddsi_sertopic *sertopic_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
+{
+  const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
+  const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)sertopic_common;
+  dds_istream_t is;
+  dds_istream_from_serdata_default (&is, d);
+  if (d->c.kind == SDK_KEY)
+    return dds_stream_print_key (&is, tp, buf, size);
+  else
+    return dds_stream_print_sample (&is, tp, buf, size);
+}
+
+static size_t serdata_default_print_plist (const struct ddsi_sertopic *sertopic_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
+{
+  /* FIXME: should change q_plist.c to print to a string instead of a log, and then drop the
+     logging of QoS in the rest of code, instead relying on this */
+  (void)sertopic_common; (void)serdata_common;
+  return (size_t) snprintf (buf, size, "(plist)");
+}
+
+static size_t serdata_default_print_raw (const struct ddsi_sertopic *sertopic_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
+{
+  (void)sertopic_common; (void)serdata_common;
+  return (size_t) snprintf (buf, size, "(blob)");
+}
+
 const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
   .get_size = serdata_default_get_size,
   .eqkey = serdata_default_eqkey,
@@ -641,7 +668,8 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
   .to_ser_ref = serdata_default_to_ser_ref,
   .to_ser_unref = serdata_default_to_ser_unref,
   .to_topicless = serdata_default_to_topicless,
-  .topicless_to_sample = serdata_default_topicless_to_sample_cdr
+  .topicless_to_sample = serdata_default_topicless_to_sample_cdr,
+  .print = serdata_default_print_cdr
 };
 
 const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey = {
@@ -656,7 +684,8 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey = {
   .to_ser_ref = serdata_default_to_ser_ref,
   .to_ser_unref = serdata_default_to_ser_unref,
   .to_topicless = serdata_default_to_topicless,
-  .topicless_to_sample = serdata_default_topicless_to_sample_cdr_nokey
+  .topicless_to_sample = serdata_default_topicless_to_sample_cdr_nokey,
+  .print = serdata_default_print_cdr
 };
 
 const struct ddsi_serdata_ops ddsi_serdata_ops_plist = {
@@ -671,7 +700,8 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_plist = {
   .to_ser_ref = serdata_default_to_ser_ref,
   .to_ser_unref = serdata_default_to_ser_unref,
   .to_topicless = serdata_default_to_topicless,
-  .topicless_to_sample = 0
+  .topicless_to_sample = 0,
+  .print = serdata_default_print_plist
 };
 
 const struct ddsi_serdata_ops ddsi_serdata_ops_rawcdr = {
@@ -686,5 +716,6 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_rawcdr = {
   .to_ser_ref = serdata_default_to_ser_ref,
   .to_ser_unref = serdata_default_to_ser_unref,
   .to_topicless = serdata_default_to_topicless,
-  .topicless_to_sample = 0
+  .topicless_to_sample = 0,
+  .print = serdata_default_print_raw
 };

@@ -27,15 +27,14 @@ dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_ha
 {
   dds_writer *wr;
   dds_return_t rc;
-  if (rds == NULL && nrds > 0)
+  if ((rds != NULL && (nrds == 0 || nrds > INT32_MAX)) || (rds == NULL && nrds != 0))
     return DDS_RETCODE_BAD_PARAMETER;
   if ((rc = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return rc;
   else
   {
     const struct ephash *gh = wr->m_entity.m_domain->gv.guid_hash;
-    const int32_t nrds_max = (nrds > INT32_MAX) ? INT32_MAX : (int32_t) nrds;
-    int32_t nrds_act = 0;
+    size_t nrds_act = 0;
     ddsrt_avl_iter_t it;
     /* FIXME: this ought not be so tightly coupled to the lower layer */
     thread_state_awake (lookup_thread_state (), &wr->m_entity.m_domain->gv);
@@ -47,7 +46,7 @@ dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_ha
       struct proxy_reader *prd;
       if ((prd = ephash_lookup_proxy_reader_guid (gh, &m->prd_guid)) != NULL)
       {
-        if (nrds_act < nrds_max)
+        if (nrds_act < nrds)
           rds[nrds_act] = prd->e.iid;
         nrds_act++;
       }
@@ -59,7 +58,7 @@ dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_ha
       struct reader *rd;
       if ((rd = ephash_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
       {
-        if (nrds_act < nrds_max)
+        if (nrds_act < nrds)
           rds[nrds_act] = rd->e.iid;
         nrds_act++;
       }
@@ -67,7 +66,10 @@ dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_ha
     ddsrt_mutex_unlock (&wr->m_wr->e.lock);
     thread_state_asleep (lookup_thread_state ());
     dds_writer_unlock (wr);
-    return nrds_act;
+    /* FIXME: is it really true that there can not be more than INT32_MAX matching readers?
+       (in practice it'll come to a halt long before that) */
+    assert (nrds_act <= INT32_MAX);
+    return (dds_return_t) nrds_act;
   }
 }
 
@@ -75,15 +77,14 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
 {
   dds_reader *rd;
   dds_return_t rc;
-  if (wrs == NULL && nwrs > 0)
+  if ((wrs != NULL && (nwrs == 0 || nwrs > INT32_MAX)) || (wrs == NULL && nwrs != 0))
     return DDS_RETCODE_BAD_PARAMETER;
   if ((rc = dds_reader_lock (reader, &rd)) != DDS_RETCODE_OK)
     return rc;
   else
   {
     const struct ephash *gh = rd->m_entity.m_domain->gv.guid_hash;
-    const int32_t nwrs_max = (nwrs > INT32_MAX) ? INT32_MAX : (int32_t) nwrs;
-    int32_t nwrs_act = 0;
+    size_t nwrs_act = 0;
     ddsrt_avl_iter_t it;
     /* FIXME: this ought not be so tightly coupled to the lower layer */
     thread_state_awake (lookup_thread_state (), &rd->m_entity.m_domain->gv);
@@ -95,7 +96,7 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
       struct proxy_writer *pwr;
       if ((pwr = ephash_lookup_proxy_writer_guid (gh, &m->pwr_guid)) != NULL)
       {
-        if (nwrs_act < nwrs_max)
+        if (nwrs_act < nwrs)
           wrs[nwrs_act] = pwr->e.iid;
         nwrs_act++;
       }
@@ -107,7 +108,7 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
       struct writer *wr;
       if ((wr = ephash_lookup_writer_guid (gh, &m->wr_guid)) != NULL)
       {
-        if (nwrs_act < nwrs_max)
+        if (nwrs_act < nwrs)
           wrs[nwrs_act] = wr->e.iid;
         nwrs_act++;
       }
@@ -115,14 +116,17 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
     ddsrt_mutex_unlock (&rd->m_rd->e.lock);
     thread_state_asleep (lookup_thread_state ());
     dds_reader_unlock (rd);
-    return nwrs_act;
+    /* FIXME: is it really true that there can not be more than INT32_MAX matching readers?
+     (in practice it'll come to a halt long before that) */
+    assert (nwrs_act <= INT32_MAX);
+    return (dds_return_t) nwrs_act;
   }
 }
 
-static dds_builtintopic_endpoint_t *make_builtintopic_endpoint (const nn_guid_t *guid, const nn_guid_t *ppguid, dds_instance_handle_t ppiid, const dds_qos_t *qos)
+static dds_builtintopic_endpoint_t *make_builtintopic_endpoint (const ddsi_guid_t *guid, const ddsi_guid_t *ppguid, dds_instance_handle_t ppiid, const dds_qos_t *qos)
 {
   dds_builtintopic_endpoint_t *ep;
-  nn_guid_t tmp;
+  ddsi_guid_t tmp;
   ep = dds_alloc (sizeof (*ep));
   tmp = nn_hton_guid (*guid);
   memcpy (&ep->key, &tmp, sizeof (ep->key));

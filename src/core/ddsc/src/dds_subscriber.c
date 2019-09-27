@@ -38,6 +38,7 @@ static dds_return_t dds_subscriber_status_validate (uint32_t mask)
 }
 
 const struct dds_entity_deriver dds_entity_deriver_subscriber = {
+  .interrupt = dds_entity_deriver_dummy_interrupt,
   .close = dds_entity_deriver_dummy_close,
   .delete = dds_entity_deriver_dummy_delete,
   .set_qos = dds_subscriber_qos_set,
@@ -66,6 +67,7 @@ dds_entity_t dds__create_subscriber_l (dds_participant *participant, const dds_q
   subscriber = dds_entity_init (&sub->m_entity, &participant->m_entity, DDS_KIND_SUBSCRIBER, new_qos, listener, DDS_SUBSCRIBER_STATUS_MASK);
   sub->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (&participant->m_entity, &sub->m_entity);
+  dds_entity_init_complete (&sub->m_entity);
   return subscriber;
 }
 

@@ -11,7 +11,7 @@
  */
 #include "dds/ddsi/q_bswap.h"
 
-nn_guid_prefix_t nn_hton_guid_prefix (nn_guid_prefix_t p)
+ddsi_guid_prefix_t nn_hton_guid_prefix (ddsi_guid_prefix_t p)
 {
   int i;
   for (i = 0; i < 3; i++)
@@ -19,7 +19,7 @@ nn_guid_prefix_t nn_hton_guid_prefix (nn_guid_prefix_t p)
   return p;
 }
 
-nn_guid_prefix_t nn_ntoh_guid_prefix (nn_guid_prefix_t p)
+ddsi_guid_prefix_t nn_ntoh_guid_prefix (ddsi_guid_prefix_t p)
 {
   int i;
   for (i = 0; i < 3; i++)
@@ -27,26 +27,26 @@ nn_guid_prefix_t nn_ntoh_guid_prefix (nn_guid_prefix_t p)
   return p;
 }
 
-nn_entityid_t nn_hton_entityid (nn_entityid_t e)
+ddsi_entityid_t nn_hton_entityid (ddsi_entityid_t e)
 {
   e.u = toBE4u (e.u);
   return e;
 }
 
-nn_entityid_t nn_ntoh_entityid (nn_entityid_t e)
+ddsi_entityid_t nn_ntoh_entityid (ddsi_entityid_t e)
 {
   e.u = fromBE4u (e.u);
   return e;
 }
 
-nn_guid_t nn_hton_guid (nn_guid_t g)
+ddsi_guid_t nn_hton_guid (ddsi_guid_t g)
 {
   g.prefix = nn_hton_guid_prefix (g.prefix);
   g.entityid = nn_hton_entityid (g.entityid);
   return g;
 }
 
-nn_guid_t nn_ntoh_guid (nn_guid_t g)
+ddsi_guid_t nn_ntoh_guid (ddsi_guid_t g)
 {
   g.prefix = nn_ntoh_guid_prefix (g.prefix);
   g.entityid = nn_ntoh_entityid (g.entityid);

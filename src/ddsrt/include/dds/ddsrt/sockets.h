@@ -12,6 +12,7 @@
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/time.h"
+#include "dds/ddsrt/misc.h"
 #if _WIN32
 #include "dds/ddsrt/sockets/windows.h"
 #else
@@ -237,10 +238,12 @@ ddsrt_sockaddrtostr(
   const void *sa, char *buf, size_t size);
 
 #if DDSRT_HAVE_DNS
+DDSRT_WARNING_MSVC_OFF(4200)
 typedef struct {
   size_t naddrs;
   struct sockaddr_storage addrs[];
 } ddsrt_hostent_t;
+DDSRT_WARNING_MSVC_ON(4200)
 
 /**
  * @brief Lookup addresses for given host name.

@@ -1,0 +1,12 @@
+module DiscStress {
+  module CreateWriter {
+    struct Msg {
+      long round;
+      unsigned long wrseq;
+      unsigned long wridx;
+      unsigned long histidx;
+      unsigned long seq;
+    };
+#pragma keylist Msg
+  };
+};

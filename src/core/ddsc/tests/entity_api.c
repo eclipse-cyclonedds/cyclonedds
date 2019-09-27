@@ -290,9 +290,12 @@ CU_Test(ddsc_entity, get_entities, .init = create_entity, .fini = delete_entity)
     par = dds_get_parent (0);
     CU_ASSERT_EQUAL_FATAL(par, DDS_RETCODE_BAD_PARAMETER);
 
-    /* Get Parent, a participant doesn't have a parent. */
+    /* Get Parent, a participant always has a parent (the domain). */
     par = dds_get_parent (entity);
-    CU_ASSERT_EQUAL_FATAL(par, DDS_ENTITY_NIL);
+    CU_ASSERT_NOT_EQUAL_FATAL(par, DDS_HANDLE_NIL);
+    /* The domain has a parent: the pseudo-entity for the library */
+    par = dds_get_parent (par);
+    CU_ASSERT_EQUAL_FATAL(par, DDS_CYCLONEDDS_HANDLE);
 
     /* ---------- Get Participant ------------ */
 

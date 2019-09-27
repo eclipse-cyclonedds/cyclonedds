@@ -25,12 +25,12 @@
 
 #include "dds__entity.h"
 #include "dds__reader.h"
-#include "dds__rhc.h"
+#include "dds/ddsc/dds_rhc.h"
 #include "dds__rhc_default.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_rhc.h"
+#include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/q_xqos.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_config.h"
@@ -263,7 +263,7 @@ struct rhc_instance {
   uint32_t disposed_gen;       /* bloody generation counters - worst invention of mankind */
   uint32_t no_writers_gen;     /* __/ */
   int32_t strength;            /* "current" ownership strength */
-  nn_guid_t wr_guid;           /* guid of last writer (if wr_iid != 0 then wr_guid is the corresponding guid, else undef) */
+  ddsi_guid_t wr_guid;           /* guid of last writer (if wr_iid != 0 then wr_guid is the corresponding guid, else undef) */
   nn_wctime_t tstamp;          /* source time stamp of last update */
   struct rhc_instance *next;   /* next non-empty instance in arbitrary ordering */
   struct rhc_instance *prev;
@@ -346,30 +346,30 @@ struct trigger_info_post {
 };
 
 static void dds_rhc_default_free (struct dds_rhc_default *rhc);
-static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk);
-static void dds_rhc_default_unregister_wr (struct dds_rhc_default * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info);
+static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk);
+static void dds_rhc_default_unregister_wr (struct dds_rhc_default * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo);
 static void dds_rhc_default_relinquish_ownership (struct dds_rhc_default * __restrict rhc, const uint64_t wr_iid);
 static void dds_rhc_default_set_qos (struct dds_rhc_default *rhc, const struct dds_qos *qos);
 static int dds_rhc_default_read (struct dds_rhc_default *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond);
 static int dds_rhc_default_take (struct dds_rhc_default *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond);
 static int dds_rhc_default_takecdr (struct dds_rhc_default *rhc, bool lock, struct ddsi_serdata ** values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle);
-static bool dds_rhc_default_add_readcondition (dds_readcond *cond);
-static void dds_rhc_default_remove_readcondition (dds_readcond *cond);
+static bool dds_rhc_default_add_readcondition (struct dds_rhc_default *rhc, dds_readcond *cond);
+static void dds_rhc_default_remove_readcondition (struct dds_rhc_default *rhc, dds_readcond *cond);
 static uint32_t dds_rhc_default_lock_samples (struct dds_rhc_default *rhc);
 
-static void dds_rhc_default_free_wrap (struct rhc *rhc) {
+static void dds_rhc_default_free_wrap (struct ddsi_rhc *rhc) {
   dds_rhc_default_free ((struct dds_rhc_default *) rhc);
 }
-static bool dds_rhc_default_store_wrap (struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk) {
-  return dds_rhc_default_store ((struct dds_rhc_default *) rhc, pwr_info, sample, tk);
+static bool dds_rhc_default_store_wrap (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk) {
+  return dds_rhc_default_store ((struct dds_rhc_default *) rhc, wrinfo, sample, tk);
 }
-static void dds_rhc_default_unregister_wr_wrap (struct rhc * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info) {
-  dds_rhc_default_unregister_wr ((struct dds_rhc_default *) rhc, pwr_info);
+static void dds_rhc_default_unregister_wr_wrap (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo) {
+  dds_rhc_default_unregister_wr ((struct dds_rhc_default *) rhc, wrinfo);
 }
-static void dds_rhc_default_relinquish_ownership_wrap (struct rhc * __restrict rhc, const uint64_t wr_iid) {
+static void dds_rhc_default_relinquish_ownership_wrap (struct ddsi_rhc * __restrict rhc, const uint64_t wr_iid) {
   dds_rhc_default_relinquish_ownership ((struct dds_rhc_default *) rhc, wr_iid);
 }
-static void dds_rhc_default_set_qos_wrap (struct rhc *rhc, const struct dds_qos *qos) {
+static void dds_rhc_default_set_qos_wrap (struct ddsi_rhc *rhc, const struct dds_qos *qos) {
   dds_rhc_default_set_qos ((struct dds_rhc_default *) rhc, qos);
 }
 static int dds_rhc_default_read_wrap (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond) {
@@ -381,14 +381,20 @@ static int dds_rhc_default_take_wrap (struct dds_rhc *rhc, bool lock, void **val
 static int dds_rhc_default_takecdr_wrap (struct dds_rhc *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle) {
   return dds_rhc_default_takecdr ((struct dds_rhc_default *) rhc, lock, values, info_seq, max_samples, sample_states, view_states, instance_states, handle);
 }
-static bool dds_rhc_default_add_readcondition_wrap (dds_readcond *cond) {
-  return dds_rhc_default_add_readcondition (cond);
+static bool dds_rhc_default_add_readcondition_wrap (struct dds_rhc *rhc, dds_readcond *cond) {
+  return dds_rhc_default_add_readcondition ((struct dds_rhc_default *) rhc, cond);
 }
-static void dds_rhc_default_remove_readcondition_wrap (dds_readcond *cond) {
-  dds_rhc_default_remove_readcondition (cond);
+static void dds_rhc_default_remove_readcondition_wrap (struct dds_rhc *rhc, dds_readcond *cond) {
+  dds_rhc_default_remove_readcondition ((struct dds_rhc_default *) rhc, cond);
 }
 static uint32_t dds_rhc_default_lock_samples_wrap (struct dds_rhc *rhc) {
   return dds_rhc_default_lock_samples ((struct dds_rhc_default *) rhc);
+}
+static dds_return_t dds_rhc_default_associate (struct dds_rhc *rhc, dds_reader *reader, const struct ddsi_sertopic *topic, struct ddsi_tkmap *tkmap)
+{
+  /* ignored out of laziness */
+  (void) rhc; (void) reader; (void) topic; (void) tkmap;
+  return DDS_RETCODE_OK;
 }
 
 static const struct dds_rhc_ops dds_rhc_default_ops = {
@@ -404,7 +410,8 @@ static const struct dds_rhc_ops dds_rhc_default_ops = {
   .takecdr = dds_rhc_default_takecdr_wrap,
   .add_readcondition = dds_rhc_default_add_readcondition_wrap,
   .remove_readcondition = dds_rhc_default_remove_readcondition_wrap,
-  .lock_samples = dds_rhc_default_lock_samples_wrap
+  .lock_samples = dds_rhc_default_lock_samples_wrap,
+  .associate = dds_rhc_default_associate
 };
 
 static unsigned qmask_of_sample (const struct rhc_sample *s)
@@ -758,7 +765,7 @@ static bool trigger_info_differs (const struct dds_rhc_default *rhc, const struc
             trig_qc->dec_sample_read != trig_qc->inc_sample_read);
 }
 
-static bool add_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct proxy_writer_info *pwr_info, const struct ddsi_serdata *sample, status_cb_data_t *cb_data, struct trigger_info_qcond *trig_qc)
+static bool add_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, const struct ddsi_serdata *sample, status_cb_data_t *cb_data, struct trigger_info_qcond *trig_qc)
 {
   struct rhc_sample *s;
 
@@ -832,7 +839,7 @@ static bool add_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst, 
   }
 
   s->sample = ddsi_serdata_ref (sample); /* drops const (tho refcount does change) */
-  s->wr_iid = pwr_info->iid;
+  s->wr_iid = wrinfo->iid;
   s->isread = false;
   s->disposed_gen = inst->disposed_gen;
   s->no_writers_gen = inst->no_writers_gen;
@@ -867,12 +874,12 @@ static bool content_filter_accepts (const dds_reader *reader, const struct ddsi_
   return ret;
 }
 
-static int inst_accepts_sample_by_writer_guid (const struct rhc_instance *inst, const struct proxy_writer_info *pwr_info)
+static int inst_accepts_sample_by_writer_guid (const struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo)
 {
-  return (inst->wr_iid_islive && inst->wr_iid == pwr_info->iid) || memcmp (&pwr_info->guid, &inst->wr_guid, sizeof (inst->wr_guid)) < 0;
+  return (inst->wr_iid_islive && inst->wr_iid == wrinfo->iid) || memcmp (&wrinfo->guid, &inst->wr_guid, sizeof (inst->wr_guid)) < 0;
 }
 
-static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct rhc_instance *inst, const struct proxy_writer_info *pwr_info, const struct ddsi_serdata *sample, const bool has_data)
+static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, const struct ddsi_serdata *sample, const bool has_data)
 {
   if (rhc->by_source_ordering)
   {
@@ -884,7 +891,7 @@ static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct 
     {
       return 0;
     }
-    else if (inst_accepts_sample_by_writer_guid (inst, pwr_info))
+    else if (inst_accepts_sample_by_writer_guid (inst, wrinfo))
     {
       /* ok */
     }
@@ -893,14 +900,14 @@ static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct 
       return 0;
     }
   }
-  if (rhc->exclusive_ownership && inst->wr_iid_islive && inst->wr_iid != pwr_info->iid)
+  if (rhc->exclusive_ownership && inst->wr_iid_islive && inst->wr_iid != wrinfo->iid)
   {
-    int32_t strength = pwr_info->ownership_strength;
+    int32_t strength = wrinfo->ownership_strength;
     if (strength > inst->strength) {
       /* ok */
     } else if (strength < inst->strength) {
       return 0;
-    } else if (inst_accepts_sample_by_writer_guid (inst, pwr_info)) {
+    } else if (inst_accepts_sample_by_writer_guid (inst, wrinfo)) {
       /* ok */
     } else {
       return 0;
@@ -913,17 +920,17 @@ static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct 
   return 1;
 }
 
-static void update_inst (struct rhc_instance *inst, const struct proxy_writer_info * __restrict pwr_info, bool wr_iid_valid, nn_wctime_t tstamp)
+static void update_inst (struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, bool wr_iid_valid, nn_wctime_t tstamp)
 {
   inst->tstamp = tstamp;
   inst->wr_iid_islive = wr_iid_valid;
   if (wr_iid_valid)
   {
-    inst->wr_iid = pwr_info->iid;
-    if (inst->wr_iid != pwr_info->iid)
-      inst->wr_guid = pwr_info->guid;
+    inst->wr_iid = wrinfo->iid;
+    if (inst->wr_iid != wrinfo->iid)
+      inst->wr_guid = wrinfo->guid;
   }
-  inst->strength = pwr_info->ownership_strength;
+  inst->strength = wrinfo->ownership_strength;
 }
 
 static void drop_instance_noupdate_no_writers (struct dds_rhc_default *rhc, struct rhc_instance *inst)
@@ -1109,13 +1116,13 @@ static int rhc_unregister_isreg_w_sideeffects (struct dds_rhc_default *rhc, cons
   }
 }
 
-static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct proxy_writer_info * __restrict pwr_info, nn_wctime_t tstamp, struct trigger_info_qcond *trig_qc, bool *nda)
+static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, nn_wctime_t tstamp, struct trigger_info_qcond *trig_qc, bool *nda)
 {
   assert (inst->wrcount > 0);
 
   if (--inst->wrcount > 0)
   {
-    if (inst->wr_iid_islive && pwr_info->iid == inst->wr_iid)
+    if (inst->wr_iid_islive && wrinfo->iid == inst->wr_iid)
     {
       /* Next register will have to do real work before we have a cached
        wr_iid again */
@@ -1142,7 +1149,7 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
       if (inst->latest == NULL || inst->latest->isread)
       {
         inst_set_invsample (rhc, inst, trig_qc, nda);
-        update_inst (inst, pwr_info, false, tstamp);
+        update_inst (inst, wrinfo, false, tstamp);
       }
       if (!inst->isdisposed)
       {
@@ -1164,7 +1171,7 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
       TRACE (",#0,empty,nowriters");
       assert (inst_is_empty (inst));
       inst_set_invsample (rhc, inst, trig_qc, nda);
-      update_inst (inst, pwr_info, false, tstamp);
+      update_inst (inst, wrinfo, false, tstamp);
       account_for_empty_to_nonempty_transition (rhc, inst);
       inst->wr_iid_islive = 0;
       return 0;
@@ -1172,18 +1179,18 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
   }
 }
 
-static bool dds_rhc_unregister (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct proxy_writer_info * __restrict pwr_info, nn_wctime_t tstamp, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
+static bool dds_rhc_unregister (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, nn_wctime_t tstamp, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
 {
   bool notify_data_available = false;
 
   /* 'post' always gets set; instance may have been freed upon return. */
   TRACE (" unregister:");
-  if (!rhc_unregister_isreg_w_sideeffects (rhc, inst, pwr_info->iid))
+  if (!rhc_unregister_isreg_w_sideeffects (rhc, inst, wrinfo->iid))
   {
     /* other registrations remain */
     get_trigger_info_cmn (&post->c, inst);
   }
-  else if (rhc_unregister_updateinst (rhc, inst, pwr_info, tstamp, trig_qc, &notify_data_available))
+  else if (rhc_unregister_updateinst (rhc, inst, wrinfo, tstamp, trig_qc, &notify_data_available))
   {
     /* instance dropped */
     init_trigger_info_cmn_nonmatch (&post->c);
@@ -1196,7 +1203,7 @@ static bool dds_rhc_unregister (struct dds_rhc_default *rhc, struct rhc_instance
   return notify_data_available;
 }
 
-static struct rhc_instance *alloc_new_instance (const struct dds_rhc_default *rhc, const struct proxy_writer_info *pwr_info, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+static struct rhc_instance *alloc_new_instance (const struct dds_rhc_default *rhc, const struct ddsi_writer_info *wrinfo, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   struct rhc_instance *inst;
 
@@ -1210,11 +1217,11 @@ static struct rhc_instance *alloc_new_instance (const struct dds_rhc_default *rh
   inst->isnew = 1;
   inst->a_sample_free = 1;
   inst->conds = 0;
-  inst->wr_iid = pwr_info->iid;
+  inst->wr_iid = wrinfo->iid;
   inst->wr_iid_islive = (inst->wrcount != 0);
-  inst->wr_guid = pwr_info->guid;
+  inst->wr_guid = wrinfo->guid;
   inst->tstamp = serdata->timestamp;
-  inst->strength = pwr_info->ownership_strength;
+  inst->strength = wrinfo->ownership_strength;
 
   if (rhc->nqconds != 0)
   {
@@ -1230,7 +1237,7 @@ static struct rhc_instance *alloc_new_instance (const struct dds_rhc_default *rh
   return inst;
 }
 
-static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst, struct dds_rhc_default *rhc, const struct proxy_writer_info *pwr_info, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk, const bool has_data, status_cb_data_t *cb_data, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
+static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst, struct dds_rhc_default *rhc, const struct ddsi_writer_info *wrinfo, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk, const bool has_data, status_cb_data_t *cb_data, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
 {
   struct rhc_instance *inst;
   int ret;
@@ -1265,10 +1272,10 @@ static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst
     return RHC_REJECTED;
   }
 
-  inst = alloc_new_instance (rhc, pwr_info, sample, tk);
+  inst = alloc_new_instance (rhc, wrinfo, sample, tk);
   if (has_data)
   {
-    if (!add_sample (rhc, inst, pwr_info, sample, cb_data, trig_qc))
+    if (!add_sample (rhc, inst, wrinfo, sample, cb_data, trig_qc))
     {
       free_empty_instance (inst, rhc);
       return RHC_REJECTED;
@@ -1298,9 +1305,9 @@ static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst
   delivered (true unless a reliable sample rejected).
 */
 
-static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk)
+static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk)
 {
-  const uint64_t wr_iid = pwr_info->iid;
+  const uint64_t wr_iid = wrinfo->iid;
   const unsigned statusinfo = sample->statusinfo;
   const bool has_data = (sample->kind == SDK_DATA);
   const int is_dispose = (statusinfo & NN_STATUSINFO_DISPOSE) != 0;
@@ -1347,7 +1354,7 @@ static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, cons
     else
     {
       TRACE (" new instance");
-      stored = rhc_store_new_instance (&inst, rhc, pwr_info, sample, tk, has_data, &cb_data, &post, &trig_qc);
+      stored = rhc_store_new_instance (&inst, rhc, wrinfo, sample, tk, has_data, &cb_data, &post, &trig_qc);
       if (stored != RHC_STORED)
       {
         goto error_or_nochange;
@@ -1356,7 +1363,7 @@ static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, cons
       notify_data_available = true;
     }
   }
-  else if (!inst_accepts_sample (rhc, inst, pwr_info, sample, has_data))
+  else if (!inst_accepts_sample (rhc, inst, wrinfo, sample, has_data))
   {
     /* Rejected samples (and disposes) should still register the writer;
        unregister *must* be processed, or we have a memory leak. (We
@@ -1372,7 +1379,7 @@ static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, cons
     }
     if (statusinfo & NN_STATUSINFO_UNREGISTER)
     {
-      if (dds_rhc_unregister (rhc, inst, pwr_info, sample->timestamp, &post, &trig_qc))
+      if (dds_rhc_unregister (rhc, inst, wrinfo, sample->timestamp, &post, &trig_qc))
         notify_data_available = true;
     }
     else
@@ -1450,7 +1457,7 @@ static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, cons
       if (has_data)
       {
         TRACE (" add_sample");
-        if (!add_sample (rhc, inst, pwr_info, sample, &cb_data, &trig_qc))
+        if (!add_sample (rhc, inst, wrinfo, sample, &cb_data, &trig_qc))
         {
           TRACE ("(reject)");
           stored = RHC_REJECTED;
@@ -1469,7 +1476,7 @@ static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, cons
       if (inst_became_disposed && inst->latest == NULL)
         inst_set_invsample (rhc, inst, &trig_qc, &notify_data_available);
 
-      update_inst (inst, pwr_info, true, sample->timestamp);
+      update_inst (inst, wrinfo, true, sample->timestamp);
 
       /* Can only add samples => only need to give special treatment
          to instances that were empty before.  It is, however, not
@@ -1513,7 +1520,7 @@ static bool dds_rhc_default_store (struct dds_rhc_default * __restrict rhc, cons
          mean an application reading "x" after the write and reading it
          again after the unregister will see a change in the
          no_writers_generation field? */
-      dds_rhc_unregister (rhc, inst, pwr_info, sample->timestamp, &post, &trig_qc);
+      dds_rhc_unregister (rhc, inst, wrinfo, sample->timestamp, &post, &trig_qc);
     }
     else
     {
@@ -1559,7 +1566,7 @@ error_or_nochange:
   return delivered;
 }
 
-static void dds_rhc_default_unregister_wr (struct dds_rhc_default * __restrict rhc, const struct proxy_writer_info * __restrict pwr_info)
+static void dds_rhc_default_unregister_wr (struct dds_rhc_default * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo)
 {
   /* Only to be called when writer with ID WR_IID has died.
 
@@ -1579,8 +1586,8 @@ static void dds_rhc_default_unregister_wr (struct dds_rhc_default * __restrict r
   bool notify_data_available = false;
   struct rhc_instance *inst;
   struct ddsrt_hh_iter iter;
-  const uint64_t wr_iid = pwr_info->iid;
-  const int auto_dispose = pwr_info->auto_dispose;
+  const uint64_t wr_iid = wrinfo->iid;
+  const int auto_dispose = wrinfo->auto_dispose;
 
   size_t ntriggers = SIZE_MAX;
 
@@ -1620,7 +1627,7 @@ static void dds_rhc_default_unregister_wr (struct dds_rhc_default * __restrict r
         }
       }
 
-      dds_rhc_unregister (rhc, inst, pwr_info, inst->tstamp, &post, &trig_qc);
+      dds_rhc_unregister (rhc, inst, wrinfo, inst->tstamp, &post, &trig_qc);
 
       TRACE ("\n");
 
@@ -2292,13 +2299,12 @@ static bool cond_is_sample_state_dependent (const struct dds_readcond *cond)
   }
 }
 
-static bool dds_rhc_default_add_readcondition (dds_readcond *cond)
+static bool dds_rhc_default_add_readcondition (struct dds_rhc_default *rhc, dds_readcond *cond)
 {
   /* On the assumption that a readcondition will be attached to a
      waitset for nearly all of its life, we keep track of all
      readconditions on a reader in one set, without distinguishing
      between those attached to a waitset or not. */
-  struct dds_rhc_default *rhc = (struct dds_rhc_default *) cond->m_rhc;
   struct ddsrt_hh_iter it;
 
   assert ((dds_entity_kind (&cond->m_entity) == DDS_KIND_COND_READ && cond->m_query.m_filter == 0) ||
@@ -2397,9 +2403,8 @@ static bool dds_rhc_default_add_readcondition (dds_readcond *cond)
   return true;
 }
 
-static void dds_rhc_default_remove_readcondition (dds_readcond *cond)
+static void dds_rhc_default_remove_readcondition (struct dds_rhc_default *rhc, dds_readcond *cond)
 {
-  struct dds_rhc_default *rhc = (struct dds_rhc_default *) cond->m_rhc;
   dds_readcond **ptr;
   ddsrt_mutex_lock (&rhc->lock);
   ptr = &rhc->conds;

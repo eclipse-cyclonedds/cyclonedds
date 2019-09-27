@@ -25,6 +25,8 @@ DDS_EXPORT void ddsrt_fini(void);
 
 DDS_EXPORT ddsrt_mutex_t *ddsrt_get_singleton_mutex(void);
 
+DDS_EXPORT ddsrt_cond_t *ddsrt_get_singleton_cond(void);
+
 #if defined (__cplusplus)
 }
 #endif

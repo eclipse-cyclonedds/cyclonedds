@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <stdlib.h>
+#include <assert.h>
 
 #include "CUnit/Theory.h"
 #include "dds/ddsrt/environ.h"
@@ -49,11 +50,13 @@ CU_Test(ddsrt_environ, setenv)
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
   ptr = getenv(name);
   CU_ASSERT_PTR_NOT_NULL(ptr);
+  assert (ptr != NULL); /* for the benefit of clang's static analyzer */
   CU_ASSERT_STRING_EQUAL(ptr, "bar");
   /* Ensure value is copied into the environment. */
   value[2] = 'z';
   ptr = getenv(name);
   CU_ASSERT_PTR_NOT_NULL(ptr);
+  assert (ptr != NULL); /* for the benefit of clang's static analyzer */
   CU_ASSERT_STRING_EQUAL(ptr, "bar");
   rc = ddsrt_setenv(name, "");
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);

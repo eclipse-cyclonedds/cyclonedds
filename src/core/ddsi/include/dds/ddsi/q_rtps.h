@@ -13,6 +13,7 @@
 #define NN_RTPS_H
 
 #include "dds/ddsi/ddsi_vendor.h"
+#include "dds/ddsi/ddsi_guid.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -21,17 +22,6 @@ extern "C" {
 typedef struct {
   uint8_t major, minor;
 } nn_protocol_version_t;
-typedef union nn_guid_prefix {
-  unsigned char s[12];
-  uint32_t u[3];
-} nn_guid_prefix_t;
-typedef union nn_entityid {
-  uint32_t u;
-} nn_entityid_t;
-typedef struct nn_guid {
-  nn_guid_prefix_t prefix;
-  nn_entityid_t entityid;
-} nn_guid_t;
 typedef int64_t seqno_t;
 #define MAX_SEQ_NUMBER INT64_MAX
 

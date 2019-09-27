@@ -949,7 +949,7 @@ int rtps_init (struct q_globals *gv)
       }
     }
   }
-  
+
   assert ((gv->config.allowMulticast & AMC_DEFAULT) == 0);
   if (set_recvips (gv) < 0)
     goto err_set_recvips;
@@ -1027,17 +1027,45 @@ int rtps_init (struct q_globals *gv)
   ddsrt_mutex_init (&gv->participant_set_lock);
   ddsrt_cond_init (&gv->participant_set_cond);
   lease_management_init (gv);
-  gv->deleted_participants = deleted_participants_admin_new (gv->config.prune_deleted_ppant.delay);
+  gv->deleted_participants = deleted_participants_admin_new (&gv->logconfig, gv->config.prune_deleted_ppant.delay);
   gv->guid_hash = ephash_new (gv);
 
   ddsrt_mutex_init (&gv->privileged_pp_lock);
   gv->privileged_pp = NULL;
 
-  /* Template PP guid -- protected by privileged_pp_lock for simplicity */
-  gv->next_ppguid.prefix.u[0] = locator_to_hopefully_unique_uint32 (&gv->ownloc);
-  gv->next_ppguid.prefix.u[1] = (unsigned) ddsrt_getpid ();
-  gv->next_ppguid.prefix.u[2] = 1;
-  gv->next_ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
+  /* Base participant GUID.  IID initialisation should be from a really good random
+     generator and yield almost-unique numbers, and with a fallback of using process
+     id, timestamp and a counter, so incorporating that should do a lot to construct
+     a pseudo-random ID.  (The assumption here is that feeding pseudo-random data in
+     MD5 will not change the randomness ...)  Mix in the network configuration to
+     make machines with very reproducible boot sequences and low-resolution clocks
+     distinguishable.
+
+     This base is kept constant, prefix.u[1] and prefix.u[2] are then treated as a
+     64-bit unsigned integer to which we add IIDs to generate a hopping sequence
+     that won't repeat in the lifetime of the process.  Seems like it ought to work
+     to keep the risks of collisions low. */
+  {
+    uint64_t iid = toBE8u (ddsi_iid_gen ());
+    ddsrt_md5_state_t st;
+    ddsrt_md5_byte_t digest[16];
+    ddsrt_md5_init (&st);
+    ddsrt_md5_append (&st, (const ddsrt_md5_byte_t *) &iid, sizeof (iid));
+    for (int i = 0; i < gv->n_interfaces; i++)
+    {
+      const struct nn_interface *intf = &gv->interfaces[i];
+      ddsrt_md5_append (&st, (const ddsrt_md5_byte_t *) &intf->loc.kind, sizeof (intf->loc.kind));
+      ddsrt_md5_append (&st, (const ddsrt_md5_byte_t *) intf->loc.address, sizeof (intf->loc.address));
+    }
+    ddsrt_md5_finish (&st, digest);
+    /* DDSI 2.2 requires the first two bytes of the GUID to be set to the vendor
+       code -- a terrible waste of entropy ... */
+    gv->ppguid_base.prefix.s[0] = NN_VENDORID_ECLIPSE.id[0];
+    gv->ppguid_base.prefix.s[1] = NN_VENDORID_ECLIPSE.id[1];
+    DDSRT_STATIC_ASSERT (sizeof (gv->ppguid_base.prefix.s) > 2 && sizeof (gv->ppguid_base.prefix.s) - 2 <= sizeof (digest));
+    memcpy (&gv->ppguid_base.prefix.s[2], digest, sizeof (gv->ppguid_base.prefix.s) - 2);
+    gv->ppguid_base.entityid.u = NN_ENTITYID_PARTICIPANT;
+  }
 
   ddsrt_mutex_init (&gv->lock);
   ddsrt_mutex_init (&gv->spdp_lock);
@@ -1107,7 +1135,7 @@ int rtps_init (struct q_globals *gv)
   if (gv->m_factory->m_connless)
   {
     if (!(gv->config.many_sockets_mode == MSM_NO_UNICAST && gv->config.allowMulticast))
-      GVTRACE ("Unicast Ports: discovery %"PRIu32" data %"PRIu32"\n", ddsi_conn_port (gv->disc_conn_uc), ddsi_conn_port (gv->data_conn_uc));
+      GVLOG (DDS_LC_CONFIG, "Unicast Ports: discovery %"PRIu32" data %"PRIu32"\n", ddsi_conn_port (gv->disc_conn_uc), ddsi_conn_port (gv->data_conn_uc));
 
     if (gv->config.allowMulticast)
     {
@@ -1161,7 +1189,7 @@ int rtps_init (struct q_globals *gv)
   /* Create shared transmit connection */
 
   gv->tev_conn = gv->data_conn_uc;
-  GVTRACE ("Timed event transmit port: %d\n", (int) ddsi_conn_port (gv->tev_conn));
+  GVLOG (DDS_LC_CONFIG, "Timed event transmit port: %d\n", (int) ddsi_conn_port (gv->tev_conn));
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   {
@@ -1189,7 +1217,7 @@ int rtps_init (struct q_globals *gv)
       {
         chptr->transmit_conn = gv->data_conn_uc;
       }
-      GVTRACE ("channel %s: transmit port %d\n", chptr->name, (int) ddsi_tran_port (chptr->transmit_conn));
+      GVLOG (DDS_LC_CONFIG, "channel %s: transmit port %d\n", chptr->name, (int) ddsi_tran_port (chptr->transmit_conn));
 
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
       if (chptr->auxiliary_bandwidth_limit > 0 || lookup_thread_properties (tname))
