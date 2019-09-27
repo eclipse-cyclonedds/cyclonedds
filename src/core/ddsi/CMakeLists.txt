@@ -70,6 +70,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_raweth.h
     ddsi_ipaddr.h
     ddsi_mcgroup.h
+    ddsi_plist_generic.h
     ddsi_serdata.h
     ddsi_sertopic.h
     ddsi_serdata_default.h
@@ -129,3 +130,8 @@ install(
   DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/dds"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   COMPONENT dev)
+
+# TODO: improve test inclusion.
+if((BUILD_TESTING) AND ((NOT DEFINED MSVC_VERSION) OR (MSVC_VERSION GREATER "1800")))
+  add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/tests")
+endif()
