@@ -13,6 +13,9 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/time.h>
+#if __APPLE__
+#include <AvailabilityMacros.h>
+#endif
 
 #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_12
 #include <mach/mach_time.h>
