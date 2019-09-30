@@ -399,9 +399,6 @@ DDSRT_WARNING_MSVC_ON(4200)
 /* To indicate whether a reader favours the use of SSM.  Iff the
    reader favours SSM, it will use SSM if available. */
 #define PID_READER_FAVOURS_SSM                  0x72u
-#define MAX_DEFAULT_OMG_PID                     PID_READER_FAVOURS_SSM
-#else
-#define MAX_DEFAULT_OMG_PID                     PID_STATUSINFO
 #endif
 
 /* Deprecated parameter IDs (accepted but ignored) */

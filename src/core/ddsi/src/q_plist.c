@@ -1173,12 +1173,14 @@ static const struct piddesc piddesc_omg[] = {
 #ifdef DDSI_INCLUDE_SSM
   PPV (READER_FAVOURS_SSM,                  reader_favours_ssm, Xu),
 #endif
+#ifdef DDSI_INCLUDE_SECURITY
   PP  (ENDPOINT_SECURITY_INFO,              endpoint_security_info, Xu, Xu),
   PP  (PARTICIPANT_SECURITY_INFO,           participant_security_info, Xu, Xu),
   PP  (IDENTITY_TOKEN,                      identity_token,        XS, XQ, XbPROP, XS, XS, XSTOP, XQ, XbPROP, XS, XO, XSTOP),
   PP  (PERMISSIONS_TOKEN,                   permissions_token,     XS, XQ, XbPROP, XS, XS, XSTOP, XQ, XbPROP, XS, XO, XSTOP),
   PP  (IDENTITY_STATUS_TOKEN,               identity_status_token, XS, XQ, XbPROP, XS, XS, XSTOP, XQ, XbPROP, XS, XO, XSTOP),
   PP  (DATA_TAGS,                           data_tags, XQ, XS, XS, XSTOP),
+#endif
   { PID_STATUSINFO, PDF_FUNCTION, PP_STATUSINFO, "STATUSINFO",
     offsetof (struct nn_plist, statusinfo), membersize (struct nn_plist, statusinfo),
     { .f = { .deser = deser_statusinfo, .ser = ser_statusinfo } }, 0 },
@@ -1294,10 +1296,21 @@ struct piddesc_index {
    nn_plist_init_tables.
 
    FIXME: should compute them at build-time */
-#define IS_SECURITY_PID(pid) ((pid >= PID_IDENTITY_TOKEN) && (pid <= PID_IDENTITY_STATUS_TOKEN))
-#define SECURITY_PID_TO_INDEX(pid) (pid - PID_IDENTITY_TOKEN + MAX_DEFAULT_OMG_PID + 1)
-#define PID_TO_INDEX(pid) (size_t)(IS_SECURITY_PID((size_t)pid) ? SECURITY_PID_TO_INDEX((size_t)pid) : (size_t)pid)
-static const struct piddesc *piddesc_omg_index[MAX_DEFAULT_OMG_PID+(PID_IDENTITY_STATUS_TOKEN-PID_IDENTITY_TOKEN)+2];
+#define DEFAULT_PROC_ARRAY_SIZE                19
+#ifdef DDSI_INCLUDE_SSM
+#define DEFAULT_OMG_PIDS_ARRAY_SIZE            (PID_READER_FAVOURS_SSM + 1)
+#else
+#define DEFAULT_OMG_PIDS_ARRAY_SIZE            (PID_STATUSINFO + 1)
+#endif
+#ifdef DDSI_INCLUDE_SECURITY
+#define SECURITY_OMG_PIDS_ARRAY_SIZE           (PID_IDENTITY_STATUS_TOKEN - PID_IDENTITY_TOKEN + 1)
+#define SECURITY_PROC_ARRAY_SIZE               4
+#else
+#define SECURITY_OMG_PIDS_ARRAY_SIZE           0
+#define SECURITY_PROC_ARRAY_SIZE               0
+#endif
+
+static const struct piddesc *piddesc_omg_index[DEFAULT_OMG_PIDS_ARRAY_SIZE + SECURITY_OMG_PIDS_ARRAY_SIZE];
 static const struct piddesc *piddesc_eclipse_index[19];
 static const struct piddesc *piddesc_prismtech_index[19];
 
@@ -1323,13 +1336,22 @@ static const struct piddesc_index piddesc_vendor_index[] = {
 /* List of entries that require unalias, fini processing;
    initialized by nn_plist_init_tables; will assert when
    table too small or too large */
-static const struct piddesc *piddesc_unalias[23];
-static const struct piddesc *piddesc_fini[23];
+static const struct piddesc *piddesc_unalias[DEFAULT_PROC_ARRAY_SIZE + SECURITY_PROC_ARRAY_SIZE];
+static const struct piddesc *piddesc_fini[DEFAULT_PROC_ARRAY_SIZE + SECURITY_PROC_ARRAY_SIZE];
 static ddsrt_once_t table_init_control = DDSRT_ONCE_INIT;
 
-static nn_parameterid_t pid_without_flags (nn_parameterid_t pid)
+static size_t pid_to_index (nn_parameterid_t pid)
 {
-  return (nn_parameterid_t) (pid & ~(PID_VENDORSPECIFIC_FLAG | PID_UNRECOGNIZED_INCOMPATIBLE_FLAG));
+  /* pid without flags. */
+  size_t idx = (size_t)(pid & ~(PID_VENDORSPECIFIC_FLAG | PID_UNRECOGNIZED_INCOMPATIBLE_FLAG));
+#ifdef DDSI_INCLUDE_SECURITY
+  if ((idx >= PID_IDENTITY_TOKEN) && (idx <= PID_IDENTITY_STATUS_TOKEN))
+  {
+    /* Security PIDs start after the 'normal' PIDs. */
+    idx = (idx - PID_IDENTITY_TOKEN) + DEFAULT_OMG_PIDS_ARRAY_SIZE;
+  }
+#endif
+  return idx;
 }
 
 static int piddesc_cmp_qos_addr (const void *va, const void *vb)
@@ -1353,13 +1375,13 @@ static void nn_plist_init_tables_real (void)
       continue;
     struct piddesc const **index = piddesc_vendor_index[i].index;
 #ifndef NDEBUG
-    nn_parameterid_t maxpid = 0;
+    size_t maxpididx = 0;
     bool only_qos_seen = true;
 #endif
     for (size_t j = 0; table[j].pid != PID_SENTINEL; j++)
     {
-      nn_parameterid_t pid = pid_without_flags (table[j].pid);
-      size_t pididx = PID_TO_INDEX(pid);
+      nn_parameterid_t pid = table[j].pid;
+      size_t pididx = pid_to_index(pid);
 #ifndef NDEBUG
       /* Table must first list QoS, then other parameters */
       assert (only_qos_seen || !(table[j].flags & PDF_QOS));
@@ -1367,8 +1389,8 @@ static void nn_plist_init_tables_real (void)
         only_qos_seen = false;
       /* Track max PID so we can verify the table is no larger
          than necessary */
-      if (pid > maxpid)
-        maxpid = pid;
+      if (pididx > maxpididx)
+          maxpididx = pididx;
 #endif
       /* PAD is used for entries that are never visible on the wire
          and the decoder assumes the PAD entries will be skipped
@@ -1379,7 +1401,7 @@ static void nn_plist_init_tables_real (void)
       assert (index[pididx] == NULL || index[pididx] == &table[j]);
       index[pididx] = &table[j];
     }
-    assert (PID_TO_INDEX(maxpid) == piddesc_vendor_index[i].index_max);
+    assert (maxpididx == piddesc_vendor_index[i].index_max);
   }
 
   /* PIDs requiring unalias; there is overlap between the tables
@@ -2100,10 +2122,10 @@ static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_t
     index = &piddesc_vendor_index[dd->vendorid.id[1]];
 
   const struct piddesc *entry;
-  size_t pididx = PID_TO_INDEX(pid_without_flags (pid));
+  size_t pididx = pid_to_index(pid);
   if (pididx > index->index_max || (entry = index->index[pididx]) == NULL)
     return return_unrecognized_pid (plist, pid);
-  assert (pid_without_flags (pid) == pid_without_flags (entry->pid));
+  assert (pid_to_index (pid) == pid_to_index (entry->pid));
   if (pid != entry->pid)
   {
     DDS_CERROR (logcfg, "error processing parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" mapped to pid %"PRIx16"\n",

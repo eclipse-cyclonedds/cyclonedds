@@ -104,6 +104,7 @@ typedef struct nn_keyhash {
   unsigned char value[16];
 } nn_keyhash_t;
 
+#ifdef DDSI_INCLUDE_SECURITY
 typedef struct nn_tag {
   char *name;
   char *value;
@@ -117,6 +118,7 @@ typedef struct nn_tagseq {
 typedef struct nn_datatags {
   nn_tagseq_t tags;
 } nn_datatags_t;
+#endif
 
 #ifdef DDSI_INCLUDE_SSM
 typedef struct nn_reader_favours_ssm {
@@ -124,6 +126,7 @@ typedef struct nn_reader_favours_ssm {
 } nn_reader_favours_ssm_t;
 #endif
 
+#ifdef DDSI_INCLUDE_SECURITY
 typedef struct nn_dataholder
 {
   char *class_id;
@@ -164,6 +167,7 @@ typedef struct nn_security_info
 #define NN_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AUTHENTICATED           (1u <<  3)
 #define NN_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_AUTHENTICATED      (1u <<  4)
 #define NN_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_AUTHENTICATED     (1u <<  5)
+#endif
 
 
 typedef struct nn_prismtech_participant_version_info
@@ -218,12 +222,14 @@ typedef struct nn_plist {
   uint32_t process_id;
   char *type_description;
   nn_sequence_number_t coherent_set_seqno;
+#ifdef DDSI_INCLUDE_SECURITY
   nn_token_t identity_token;
   nn_token_t permissions_token;
   nn_security_info_t endpoint_security_info;
   nn_security_info_t participant_security_info;
   nn_token_t identity_status_token;
   nn_datatags_t data_tags;
+#endif
 #ifdef DDSI_INCLUDE_SSM
   nn_reader_favours_ssm_t reader_favours_ssm;
 #endif

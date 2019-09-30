@@ -23,8 +23,8 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   nn_plist_t p0, p0memcpy;
   char *p0strs[7];
   nn_plist_init_empty (&p0);
-  p0.present = PP_PRISMTECH_PROCESS_ID | PP_ENTITY_NAME | PP_IDENTITY_TOKEN;
-  p0.aliased = PP_ENTITY_NAME | PP_IDENTITY_TOKEN;
+  p0.present = PP_PRISMTECH_PROCESS_ID | PP_ENTITY_NAME;
+  p0.aliased = PP_ENTITY_NAME;
   p0.process_id = 0x12345678;
   p0.entity_name = "nemo";
   p0.qos.present = QP_PARTITION;
@@ -34,6 +34,9 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   p0strs[0] = p0.qos.partition.strs[0] = "aap";
   p0strs[1] = p0.qos.partition.strs[1] = "noot";
   p0strs[2] = p0.qos.partition.strs[2] = "mies";
+#ifdef DDSI_INCLUDE_SECURITY
+  p0.present |= PP_IDENTITY_TOKEN;
+  p0.aliased |= PP_IDENTITY_TOKEN;
   p0.identity_token.class_id = "class_id";
   p0.identity_token.properties.n = 2;
   p0.identity_token.properties.props = ddsrt_malloc (p0.identity_token.properties.n * sizeof (*p0.identity_token.properties.props));
@@ -45,24 +48,29 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   p0strs[6] = p0.identity_token.properties.props[1].value = "value1";
   p0.identity_token.binary_properties.n = 0;
   p0.identity_token.binary_properties.props = NULL;
+#endif
   memcpy (&p0memcpy, &p0, sizeof (p0));
 
   /* manually alias one, so we can free it*/
   nn_plist_t p0alias;
   memcpy (&p0alias, &p0, sizeof (p0));
   p0alias.qos.partition.strs = ddsrt_memdup (p0alias.qos.partition.strs, p0.qos.partition.n * sizeof (*p0.qos.partition.strs));
+#ifdef DDSI_INCLUDE_SECURITY
   p0alias.identity_token.properties.props = ddsrt_memdup (p0alias.identity_token.properties.props,
                                               p0.identity_token.properties.n * sizeof (*p0.identity_token.properties.props));
+#endif
   nn_plist_fini (&p0alias);
   CU_ASSERT (memcmp (&p0, &p0memcpy, sizeof (p0)) == 0);
   CU_ASSERT_STRING_EQUAL (p0.entity_name, "nemo");
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[0], p0strs[0]);
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[1], p0strs[1]);
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[2], p0strs[2]);
+#ifdef DDSI_INCLUDE_SECURITY
   CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[0].name,  p0strs[3]);
   CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[0].value, p0strs[4]);
   CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[1].name,  p0strs[5]);
   CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[1].value, p0strs[6]);
+#endif
 
   /* copy an aliased one; the original must be unchanged, the copy unaliased */
   nn_plist_t p1;
@@ -84,6 +92,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p1.qos.partition.strs[0], p0.qos.partition.strs[0]);
   CU_ASSERT_STRING_EQUAL (p1.qos.partition.strs[1], p0.qos.partition.strs[1]);
   CU_ASSERT_STRING_EQUAL (p1.qos.partition.strs[2], p0.qos.partition.strs[2]);
+#ifdef DDSI_INCLUDE_SECURITY
   CU_ASSERT (p1.identity_token.class_id != p0.identity_token.class_id);
   CU_ASSERT_STRING_EQUAL (p1.identity_token.class_id, p0.identity_token.class_id);
   CU_ASSERT (p1.identity_token.properties.n == p0.identity_token.properties.n);
@@ -100,6 +109,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p1.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
   CU_ASSERT (p1.identity_token.binary_properties.n == 0);
   CU_ASSERT (p1.identity_token.binary_properties.props == NULL);
+#endif
 
   /* merge-in missing ones from an aliased copy: original must remain unchanged;
      existing ones should stay without touching "aliased" only new ones are
@@ -127,6 +137,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p2.qos.partition.strs[0], p0.qos.partition.strs[0]);
   CU_ASSERT_STRING_EQUAL (p2.qos.partition.strs[1], p0.qos.partition.strs[1]);
   CU_ASSERT_STRING_EQUAL (p2.qos.partition.strs[2], p0.qos.partition.strs[2]);
+#ifdef DDSI_INCLUDE_SECURITY
   CU_ASSERT (p2.identity_token.class_id != p0.identity_token.class_id);
   CU_ASSERT_STRING_EQUAL (p2.identity_token.class_id, p0.identity_token.class_id);
   CU_ASSERT (p2.identity_token.properties.n == p0.identity_token.properties.n);
@@ -143,6 +154,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p2.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
   CU_ASSERT (p2.identity_token.binary_properties.n == 0);
   CU_ASSERT (p2.identity_token.binary_properties.props == NULL);
+#endif
 
   /* unalias of p0, partition.strs mustn't change, because it, unlike its elements, wasn't aliased */
   nn_plist_unalias (&p0);
@@ -161,6 +173,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[0], p0strs[0]);
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[1], p0strs[1]);
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[2], p0strs[2]);
+#ifdef DDSI_INCLUDE_SECURITY
   CU_ASSERT (p0.identity_token.properties.props[0].name  != p0strs[3]);
   CU_ASSERT (p0.identity_token.properties.props[0].value != p0strs[4]);
   CU_ASSERT (p0.identity_token.properties.props[1].name  != p0strs[5]);
@@ -169,6 +182,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[0].value, p0strs[4]);
   CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[1].name,  p0strs[5]);
   CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[1].value, p0strs[6]);
+#endif
 
   memcpy (&p0memcpy, &p0, sizeof (p0));
 
@@ -192,6 +206,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p3.qos.partition.strs[0], p0.qos.partition.strs[0]);
   CU_ASSERT_STRING_EQUAL (p3.qos.partition.strs[1], p0.qos.partition.strs[1]);
   CU_ASSERT_STRING_EQUAL (p3.qos.partition.strs[2], p0.qos.partition.strs[2]);
+#ifdef DDSI_INCLUDE_SECURITY
   CU_ASSERT (p3.identity_token.class_id != p0.identity_token.class_id);
   CU_ASSERT_STRING_EQUAL (p3.identity_token.class_id, p0.identity_token.class_id);
   CU_ASSERT (p3.identity_token.properties.n == p0.identity_token.properties.n);
@@ -208,6 +223,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p3.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
   CU_ASSERT (p3.identity_token.binary_properties.n == 0);
   CU_ASSERT (p3.identity_token.binary_properties.props == NULL);
+#endif
 
   /* merge-in missing ones from an aliased copy: original must remain unchanged;
      existing ones should stay without touching "aliased" only new ones are
@@ -235,6 +251,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p4.qos.partition.strs[0], p0.qos.partition.strs[0]);
   CU_ASSERT_STRING_EQUAL (p4.qos.partition.strs[1], p0.qos.partition.strs[1]);
   CU_ASSERT_STRING_EQUAL (p4.qos.partition.strs[2], p0.qos.partition.strs[2]);
+#ifdef DDSI_INCLUDE_SECURITY
   CU_ASSERT (p4.identity_token.class_id != p0.identity_token.class_id);
   CU_ASSERT_STRING_EQUAL (p4.identity_token.class_id, p0.identity_token.class_id);
   CU_ASSERT (p4.identity_token.properties.n == p0.identity_token.properties.n);
@@ -251,6 +268,7 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT_STRING_EQUAL (p4.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
   CU_ASSERT (p4.identity_token.binary_properties.n == 0);
   CU_ASSERT (p4.identity_token.binary_properties.props == NULL);
+#endif
 
   nn_plist_fini (&p0);
   nn_plist_fini (&p1);
