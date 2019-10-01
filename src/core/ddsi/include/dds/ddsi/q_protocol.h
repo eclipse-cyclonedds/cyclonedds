@@ -390,6 +390,10 @@ DDSRT_WARNING_MSVC_ON(4200)
 /* Security related PID values. */
 #define PID_IDENTITY_TOKEN                      0x1001u
 #define PID_PERMISSIONS_TOKEN                   0x1002u
+#define PID_DATA_TAGS                           0x1003u
+#define PID_ENDPOINT_SECURITY_INFO              0x1004u
+#define PID_PARTICIPANT_SECURITY_INFO           0x1005u
+#define PID_IDENTITY_STATUS_TOKEN               0x1006u
 
 #ifdef DDSI_INCLUDE_SSM
 /* To indicate whether a reader favours the use of SSM.  Iff the

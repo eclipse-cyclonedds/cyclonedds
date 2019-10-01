@@ -52,7 +52,7 @@ typedef enum update_result (*update_fun_t) (struct cfgst *cfgst, void *parent, s
 typedef void (*free_fun_t) (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
 typedef void (*print_fun_t) (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources);
 
-#ifdef DDSI_INCLUDE_SECURITY
+#ifdef DDSI_INCLUDE_ENCRYPTION
 struct q_security_plugins q_security_plugin = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 #endif
 
