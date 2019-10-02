@@ -217,6 +217,9 @@ DI(if_partition_mapping);
 #endif
 DI(if_peer);
 DI(if_thread_properties);
+#ifdef DDSI_INCLUDE_SECURITY
+DI(if_omg_security);
+#endif
 #undef DI
 
 #define CO(name) ((int) offsetof (struct config, name))
@@ -313,6 +316,149 @@ static const struct cfgelem security_cfgelems[] = {
   END_MARKER
 };
 #endif /* DDSI_INCLUDE_ENCRYPTION */
+
+#ifdef DDSI_INCLUDE_SECURITY
+/** Security Configuration */
+static const struct cfgelem authentication_library_attributes[] = {
+  { ATTR ("path"), 1, "dds_security_auth", RELOFF (config_omg_security_listelem, cfg.authentication_plugin.library_path), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>This element points to the path of Authentication plugin library.</p>\n\
+<p>It can be either absolute path excluding file extension ( /usr/lib/dds_security_auth ) or single file without extension ( dds_security_auth ).</p>\n\
+<p>If single file is supplied, the library located by way of the current working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for Windows systems.</p>") },
+  { ATTR ("initFunction"), 1, "init_authentication", RELOFF (config_omg_security_listelem, cfg.authentication_plugin.library_init), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>This element names the initialization function of Authentication plugin. This function is called after loading the plugin library for instantiation purposes. Init function must return an object that implements DDS Security Authentication interface.</p>") },
+  { ATTR ("finalizeFunction"), 1, "finalize_authentication", RELOFF (config_omg_security_listelem, cfg.authentication_plugin.library_finalize), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>This element names the finalization function of Authentication plugin. This function is called to let the plugin release its resources.</p>") },
+  END_MARKER
+};
+
+static const struct cfgelem access_control_library_attributes[] = {
+  { ATTR ("path"), 1, "dds_security_ac", RELOFF (config_omg_security_listelem, cfg.access_control_plugin.library_path), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>This element points to the path of Access Control plugin library.</p>\n\
+<p>It can be either absolute path excluding file extension ( /usr/lib/dds_security_ac ) or single file without extension ( dds_security_ac ).</p>\n\
+<p>If single file is supplied, the library located by way of the current working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for Windows systems.</p>") },
+  { ATTR ("initFunction"), 1, "init_access_control", RELOFF (config_omg_security_listelem, cfg.access_control_plugin.library_init), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>This element names the initialization function of Access Control plugin. This function is called after loading the plugin library for instantiation purposes. Init function must return an object that implements DDS Security Access Control interface.</p>") },
+  { ATTR ("finalizeFunction"), 1, "finalize_access_control", RELOFF (config_omg_security_listelem, cfg.access_control_plugin.library_finalize), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>This element names the finalization function of Access Control plugin. This function is called to let the plugin release its resources.</p>") },
+  END_MARKER
+};
+
+static const struct cfgelem cryptography_library_attributes[] = {
+  { ATTR ("path"), 1, "dds_security_crypto", RELOFF (config_omg_security_listelem, cfg.cryptography_plugin.library_path), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>This element points to the path of Cryptographic plugin library.</p>\n\
+<p>It can be either absolute path excluding file extension ( /usr/lib/dds_security_crypto ) or single file without extension ( dds_security_crypto ).</p>\n\
+<p>If single file is supplied, the library located by way of the current working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for Windows systems.</p>") },
+  { ATTR ("initFunction"), 1, "init_crypto", RELOFF (config_omg_security_listelem, cfg.cryptography_plugin.library_init), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>This element names the initialization function of Cryptographic plugin. This function is called after loading the plugin library for instantiation purposes. Init function must return an object that implements DDS Security Cryptographic interface.</p>") },
+  { ATTR ("finalizeFunction"), 1, "finalize_crypto", RELOFF (config_omg_security_listelem, cfg.cryptography_plugin.library_finalize), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>This element names the finalization function of Cryptographic plugin. This function is called to let the plugin release its resources.</p>") },
+  END_MARKER
+};
+
+
+static const struct cfgelem authentication_config_elements[] = {
+  { LEAF_W_ATTRS("Library", authentication_library_attributes), 1, "", RELOFF (config_omg_security_listelem, cfg.authentication_plugin), 0, 0, 0, pf_string,
+    BLURB("<p>This element specifies the library to be loaded as the DDS Security Access Control plugin.</p>") },
+  { LEAF ("IdentityCertificate"), 1, NULL, RELOFF (config_omg_security_listelem, cfg.authentication_properties.identity_certificate), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>Identity certificate that will be used for identifying all participants in the OSPL instance.<br>The content is URI to a X509 certificate signed by the IdentityCA in PEM format containing the signed public key.</p>\n\
+<p>Supported URI schemes: file, data</p>\n\
+<p>Examples:</p>\n\
+<p><IdentityCertificate>file:participant1_identity_cert.pem</IdentityCertificate></p>\n\
+<p><IdentityCertificate>data:,-----BEGIN CERTIFICATE-----<br>\n\
+MIIDjjCCAnYCCQDCEu9...6rmT87dhTo=<br>\n\
+-----END CERTIFICATE-----</IdentityCertificate></p>") },
+  { LEAF ("IdentityCA"), 1, NULL, RELOFF (config_omg_security_listelem, cfg.authentication_properties.identity_ca), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>URI to the X509 certificate [39] of the Identity CA that is the signer of Identity Certificate.</p>\n\
+<p>Supported URI schemes: file, data</p>\n\
+<p>The file and data schemas shall refer to a X.509 v3 certificate (see X.509 v3 ITU-T Recommendation X.509 (2005) [39]) in PEM format.</p>\n\
+<p>Examples:</p>\n\
+<p><IdentityCA>file:identity_ca.pem</IdentityCA></p>\n\
+<p><IdentityCA>data:,-----BEGIN CERTIFICATE-----<br>\n\
+MIIC3DCCAcQCCQCWE5x+Z...PhovK0mp2ohhRLYI0ZiyYQ==<br>\n\
+-----END CERTIFICATE-----</IdentityCA></p>") },
+  { LEAF ("PrivateKey"), 1, NULL, RELOFF (config_omg_security_listelem, cfg.authentication_properties.private_key), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>URI to access the private Private Key for all of the participants in the OSPL federation.</p>\n\
+<p>Supported URI schemes: file, data</p>\n\
+<p>Examples:</p>\n\
+<p><PrivateKey>file:identity_ca_private_key.pem</PrivateKey></p>\n\
+<p><PrivateKey>data:,-----BEGIN RSA PRIVATE KEY-----<br>\n\
+MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>\n\
+-----END RSA PRIVATE KEY-----</PrivateKey></p>") },
+  { LEAF ("Password"), 1, "", RELOFF (config_omg_security_listelem, cfg.authentication_properties.password), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>A password used to decrypt the private_key.</p>\n\
+The value of the password property shall be interpreted as the Base64 encoding of the AES-128 key that shall be used to decrypt the private_key using AES128-CBC.</p>\n\
+If the password property is not present, then the value supplied in the private_key property must contain the unencrypted private key. </p>") },
+  { LEAF ("TrustedCADirectory"), 1, "", RELOFF (config_omg_security_listelem, cfg.authentication_properties.trusted_ca_dir), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>Trusted CA Directory which contains trusted CA certificates as separated files.</p>") },
+
+  END_MARKER
+};
+
+static const struct cfgelem access_control_config_elements[] = {
+  { LEAF_W_ATTRS("Library", access_control_library_attributes), 1, "", RELOFF (config_omg_security_listelem, cfg.access_control_plugin), 0, 0, 0, pf_string,
+    BLURB("<p>This element specifies the library to be loaded as the DDS Security Access Control plugin.</p>") },
+  { LEAF ("PermissionsCA"), 1, "", RELOFF (config_omg_security_listelem, cfg.access_control_properties.permissions_ca), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>URI to a X509 certificate for the PermissionsCA in PEM format.</p>\n\
+<p>Supported URI schemes: file, data</p>\n\
+<p>The file and data schemas shall refer to a X.509 v3 certificate (see X.509 v3 ITU-T Recommendation X.509 (2005) [39]) in PEM format.</p><br>\n\
+<p>Examples:</p><br>\n\
+<p><PermissionsCA>file:permissions_ca.pem</PermissionsCA></p>\n\
+<p><PermissionsCA>file:/home/myuser/permissions_ca.pem</PermissionsCA></p><br>\n\
+<p><PermissionsCA>data:<strong>,</strong>-----BEGIN CERTIFICATE-----</p>\n\
+<p>MIIC3DCCAcQCCQCWE5x+Z ... PhovK0mp2ohhRLYI0ZiyYQ==</p>\n\
+<p>-----END CERTIFICATE-----</PermissionsCA></p>") },
+  { LEAF ("Governance"), 1, "", RELOFF (config_omg_security_listelem, cfg.access_control_properties.governance), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>URI to the shared Governance Document signed by the Permissions CA in S/MIME format</p>\n\
+<p>URI schemes: file, data</p><br>\n\
+<p>Examples file URIs:</p>\n\
+<p><Governance>file:governance.smime</Governance></p>\n\
+<p><Governance>file:/home/myuser/governance.smime</Governance></p><br>\n\
+<p><Governance><![CDATA[data:,MIME-Version: 1.0</p>\n\
+<p>Content-Type: multipart/signed; protocol=\"application/x-pkcs7-signature\"; micalg=\"sha-256\"; boundary=\"----F9A8A198D6F08E1285A292ADF14DD04F\"</p>\n\
+<p>This is an S/MIME signed message </p>\n\
+<p>------F9A8A198D6F08E1285A292ADF14DD04F</p>\n\
+<p><?xml version=\"1.0\" encoding=\"UTF-8\"?></p>\n\
+<p><dds xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"</p>\n\
+<p>xsi:noNamespaceSchemaLocation=\"omg_shared_ca_governance.xsd\"></p>\n\
+<p><domain_access_rules></p>\n\
+<p> . . . </p>\n\
+<p></domain_access_rules></p>\n\
+<p></dds></p>\n\
+<p>...</p>\n\
+<p>------F9A8A198D6F08E1285A292ADF14DD04F</p>\n\
+<p>Content-Type: application/x-pkcs7-signature; name=\"smime.p7s\"</p>\n\
+<p>Content-Transfer-Encoding: base64</p>\n\
+<p>Content-Disposition: attachment; filename=\"smime.p7s\"</p>\n\
+<p>MIIDuAYJKoZIhv ...al5s=</p>\n\
+<p>------F9A8A198D6F08E1285A292ADF14DD04F-]]</Governance></p>") },
+  { LEAF ("Permissions"), 1, "", RELOFF (config_omg_security_listelem, cfg.access_control_properties.permissions), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>URI to the DomainParticipant permissions document signed by the Permissions CA in S/MIME format</p>\n\
+<p>The permissions document specifies the permissions to be applied to a domain.</p><br>\n\
+<p>Example file URIs:</p>\n\
+<p><Permissions>file:permissions_document.p7s</Permissions></p>\n\
+<p><Permissions>file:/path_to/permissions_document.p7s</Permissions></p>\n\
+<p>Example data URI:</p>\n\
+<p><Permissions><![CDATA[data:,.........]]</Permissions></p>") },
+  END_MARKER
+};
+
+static const struct cfgelem cryptography_config_elements[] = {
+  { LEAF_W_ATTRS("Library", cryptography_library_attributes), 1, "", RELOFF (config_omg_security_listelem, cfg.cryptography_plugin), 0, 0, 0, pf_string,
+    BLURB("<p>This element specifies the library to be loaded as the DDS Security Cryptographic plugin.</p>") },
+  END_MARKER
+};
+
+static const struct cfgelem security_omg_config_elements[] = {
+  { GROUP ("Authentication", authentication_config_elements),
+    BLURB("<p>This element configures the Authentication plugin of the DDS Security specification.</p>") },
+  { GROUP ("AccessControl", access_control_config_elements),
+    BLURB("<p>This element configures the Access Control plugin of the DDS Security specification.</p>") },
+  { GROUP ("Cryptographic", cryptography_config_elements),
+    BLURB("<p>This element configures the Cryptographic plugin of the DDS Security specification.</p>") },
+  END_MARKER
+};
+#endif /* DDSI_INCLUDE_SECURITY */
+
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
 static const struct cfgelem networkpartition_cfgattrs[] = {
@@ -814,6 +960,10 @@ static const struct cfgelem domain_cfgelems[] = {
   { GROUP("Security", security_cfgelems),
     BLURB("<p>The Security element specifies DDSI2E security profiles that can be used to encrypt traffic mapped to DDSI2E network partitions.</p>") },
 #endif
+#ifdef DDSI_INCLUDE_SECURITY
+  { MGROUP ("DDSSecurity", security_omg_config_elements, NULL), INT_MAX, NULL, ABSOFF(omg_security_configuration), if_omg_security, 0, 0, 0,
+    BLURB("<p>This element is used to configure DDSI2E with the DDS Security specification plugins and settings.</p>") },
+#endif
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   { GROUP("Partitioning", partitioning_cfgelems),
     BLURB("<p>The Partitioning element specifies DDSI2E network partitions and how DCPS partition/topic combinations are mapped onto the network partitions.</p>") },
@@ -866,6 +1016,9 @@ static const struct cfgelem root_cfgelems[] = {
   { MOVED("Internal|Unsupported", "CycloneDDS/Domain/Internal") },
   { MOVED("TCP", "CycloneDDS/Domain/TCP") },
   { MOVED("ThreadPool", "CycloneDDS/Domain/ThreadPool") },
+#ifdef DDSI_INCLUDE_SECURITY
+  { MOVED("DDSSecurity", "CycloneDDS/Domain/DDSSecurity") },
+#endif
 #ifdef DDSI_INCLUDE_SSL
   { MOVED("SSL", "CycloneDDS/Domain/SSL") },
 #endif
@@ -1309,6 +1462,17 @@ static int if_peer (struct cfgst *cfgst, void *parent, struct cfgelem const * co
   new->peer = NULL;
   return 0;
 }
+
+#ifdef DDSI_INCLUDE_SECURITY
+static int if_omg_security (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+{
+  struct config_omg_security_listelem *new = if_common (cfgst, parent, cfgelem, sizeof (struct config_omg_security_listelem));
+  if (new == NULL)
+    return -1;
+  memset(&new->cfg, 0, sizeof(new->cfg));
+  return 0;
+}
+#endif
 
 static void ff_free (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {

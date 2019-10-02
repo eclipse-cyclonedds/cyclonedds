@@ -516,6 +516,69 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   nn_plist_copy (pp->plist, plist);
   nn_plist_mergein_missing (pp->plist, &gv->default_local_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
 
+#ifdef DDSI_INCLUDE_SECURITY
+  if (gv->config.omg_security_configuration)
+  {
+    /* Add DDS Security configuration to the QoS as a Property policy,
+     * used by the security plugins to get their proper settings. */
+    omg_security_configuration_type *cfg = &(gv->config.omg_security_configuration->cfg);
+    dds_property_t *properties;
+    uint32_t idx;
+
+    /* No property should be present yet. */
+    assert(!(pp->plist->qos.present & QP_PROPERTY_LIST));
+
+    /* Prepare property. */
+    properties = ddsrt_malloc(8 /* max */ * sizeof (dds_property_t));
+    idx = 0;
+    properties[idx].name = ddsrt_strdup("dds.sec.auth.identity_ca");
+    properties[idx].value = ddsrt_strdup(cfg->authentication_properties.identity_ca);
+    properties[idx].propagate = false;
+    idx++;
+    properties[idx].name = ddsrt_strdup("dds.sec.auth.private_key");
+    properties[idx].value = ddsrt_strdup(cfg->authentication_properties.private_key);
+    properties[idx].propagate = false;
+    idx++;
+    properties[idx].name = ddsrt_strdup("dds.sec.auth.identity_certificate");
+    properties[idx].value = ddsrt_strdup(cfg->authentication_properties.identity_certificate);
+    properties[idx].propagate = false;
+    idx++;
+    properties[idx].name = ddsrt_strdup("dds.sec.access.permissions_ca");
+    properties[idx].value = ddsrt_strdup(cfg->access_control_properties.permissions_ca);
+    properties[idx].propagate = false;
+    idx++;
+    properties[idx].name = ddsrt_strdup("dds.sec.access.governance");
+    properties[idx].value = ddsrt_strdup(cfg->access_control_properties.governance);
+    properties[idx].propagate = false;
+    idx++;
+    properties[idx].name = ddsrt_strdup("dds.sec.access.permissions");
+    properties[idx].value = ddsrt_strdup(cfg->access_control_properties.permissions);
+    properties[idx].propagate = false;
+    idx++;
+    if (cfg->authentication_properties.password && (strlen(cfg->authentication_properties.password) != 0))
+    {
+      properties[idx].name = ddsrt_strdup("dds.sec.auth.password");
+      properties[idx].value = ddsrt_strdup(cfg->authentication_properties.password);
+      properties[idx].propagate = false;
+      idx++;
+    }
+    if (cfg->authentication_properties.trusted_ca_dir && (strlen(cfg->authentication_properties.trusted_ca_dir) != 0))
+    {
+      properties[idx].name = ddsrt_strdup("dds.sec.auth.trusted_ca_dir");
+      properties[idx].value = ddsrt_strdup(cfg->authentication_properties.trusted_ca_dir);
+      properties[idx].propagate = false;
+      idx++;
+    }
+
+    /* Add property. */
+    pp->plist->qos.present |= QP_PROPERTY_LIST;
+    pp->plist->qos.property.value.n = idx;
+    pp->plist->qos.property.value.props = properties;
+    pp->plist->qos.property.binary_value.n = 0;
+    pp->plist->qos.property.binary_value.props = NULL;
+  }
+#endif /* DDSI_INCLUDE_SECURITY */
+
   if (gv->logconfig.c.mask & DDS_LC_DISCOVERY)
   {
     GVLOGDISC ("PARTICIPANT "PGUIDFMT" QOS={", PGUID (pp->e.guid));
