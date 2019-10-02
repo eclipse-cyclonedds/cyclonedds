@@ -36,7 +36,7 @@
    because it runs on the source rather than on the output of the C preprocessor
    (a reasonable decision in itself).  Therefore, just skip the body of each test. */
 
-#if __APPLE__ && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_13
+#if __APPLE__ && !(defined MAC_OS_X_VERSION_10_13 && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_13)
 #define HAVE_FMEMOPEN 0
 #else
 #define HAVE_FMEMOPEN 1
