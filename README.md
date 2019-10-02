@@ -28,10 +28,10 @@ installed, and the rest should already be there.  On Windows, installing chocola
 install git cmake openjdk maven`` should get you a long way.  On macOS, ``brew install maven cmake``
 and downloading and installing the JDK is easiest.
 
-The Java-based components are the preprocessor and a configurator tool.  The run-time libraries are
-pure C code, so there is no need to have Java available on "target" machines.  If desired, it is
-possible to do a build without Java or Maven installed by defining ``BUILD_IDLC=NO`` and
-``BUILD_CONFTOOL=NO``, but that effectively only gets you the core library.  For the
+The Java-based components are the preprocessor and a configurator tool.  The run-time
+libraries are pure C code, so there is no need to have Java available on "target"
+machines.  If desired, it is possible to do a build without Java or Maven installed by
+defining ``BUILD_IDLC=NO``, but that effectively only gets you the core library.  For the
 current [ROS2 RMW layer](https://github.com/ros2/rmw_cyclonedds), that is sufficient.
 
 To obtain Eclipse Cyclone DDS, do
@@ -185,6 +185,8 @@ be tweaked by creating an XML file with the desired settings and defining the ``
 point to it.  E.g. (on Linux):
 
     $ cat cyclonedds.xml
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <CycloneDDS xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://github.com/eclipse-cyclonedds/cyclonedds/etc/cyclonedds.xsd">
     <CycloneDDS>
         <Domain id="any">
             <General>
@@ -231,9 +233,9 @@ This example shows a few things:
   has buffered too much unacknowledged data.  There is some auto-tuning, the (current) default value
   is a bit small to get really high throughput.
 
-The configurator tool ``cycloneddsconf`` can help in discovering the settings, as can the config
-dump.  Background information on configuring Cyclone DDS can be
-found [here](docs/manual/config.rst).
+Background information on configuring Cyclone DDS can be found
+[here](docs/manual/config.rst) and a list of settings is
+[available](docs/manual/options.md).
 
 # Trademarks
 
