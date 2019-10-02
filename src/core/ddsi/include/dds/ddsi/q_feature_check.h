@@ -11,9 +11,6 @@
  */
 /* Feature macros:
 
-   - ENCRYPTION: support for encryption
-     requires: NETWORK_PARTITIONS
-
    - SSM: support for source-specific multicast
      requires: NETWORK_PARTIITONS
      also requires platform support; SSM is silently disabled if the
@@ -30,12 +27,6 @@
    - NETWORK_CHANNELS: support for multiple network channels
 
 */
-
-#ifdef DDSI_INCLUDE_ENCRYPTION
-  #ifndef DDSI_INCLUDE_NETWORK_PARTITIONS
-    #error "ENCRYPTION requires NETWORK_PARTITIONS"
-  #endif
-#endif
 
 #ifdef DDSI_INCLUDE_SSM
   #ifndef DDSI_INCLUDE_NETWORK_PARTITIONS
