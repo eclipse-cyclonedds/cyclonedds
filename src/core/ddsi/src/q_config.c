@@ -52,10 +52,6 @@ typedef enum update_result (*update_fun_t) (struct cfgst *cfgst, void *parent, s
 typedef void (*free_fun_t) (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
 typedef void (*print_fun_t) (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources);
 
-#ifdef DDSI_INCLUDE_SECURITY
-struct q_security_plugins q_security_plugin = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
-#endif
-
 struct unit {
   const char *name;
   int64_t multiplier;
@@ -142,7 +138,7 @@ static const ddsrt_avl_treedef_t cfgst_found_treedef =
 #define DU(fname) static enum update_result uf_##fname (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 #define PF(fname) static void pf_##fname (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
 #define DUPF(fname) DU(fname) ; PF(fname)
-PF(nop);
+DUPF(nop);
 DUPF(networkAddress);
 DUPF(networkAddresses);
 DU(ipv4);
@@ -724,7 +720,7 @@ static const struct cfgelem discovery_cfgelems[] = {
 };
 
 static const struct cfgelem tracing_cfgelems[] = {
-  { LEAF("EnableCategory"), 1, "", 0, 0, 0, uf_tracemask, 0, pf_tracemask,
+  { LEAF("Category|EnableCategory"), 1, "", 0, 0, 0, uf_tracemask, 0, pf_tracemask,
     BLURB("<p>This element enables individual logging categories. These are enabled in addition to those enabled by Tracing/Verbosity. Recognised categories are:</p>\n\
 <ul><li><i>fatal</i>: all fatal errors, errors causing immediate termination</li>\n\
 <li><i>error</i>: failures probably impacting correctness but not necessarily causing immediate termination</li>\n\
@@ -743,7 +739,7 @@ static const struct cfgelem tracing_cfgelems[] = {
 <p>In addition, there is the keyword <i>trace</i> that enables all but <i>radmin</i>, <i>topic</i>, <i>plist</i> and <i>whc</i></p>.\n\
 <p>The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful is <i>trace</i>.</p>") },
   { LEAF("Verbosity"), 1, "none", 0, 0, 0, uf_verbosity, 0, pf_nop,
-    BLURB("<p>This element enables standard groups of categories, based on a desired verbosity level. This is in addition to the categories enabled by the Tracing/EnableCategory setting. Recognised verbosity levels and the categories they map to are:</p>\n\
+    BLURB("<p>This element enables standard groups of categories, based on a desired verbosity level. This is in addition to the categories enabled by the Tracing/Category setting. Recognised verbosity levels and the categories they map to are:</p>\n\
 <ul><li><i>none</i>: no DDSI2E log</li>\n\
 <li><i>severe</i>: error and fatal</li>\n\
 <li><i>warning</i>: <i>severe</i> + warning</li>\n\
@@ -764,7 +760,7 @@ static const struct cfgelem tracing_cfgelems[] = {
 };
 
 static const struct cfgelem domain_cfgattrs[] = {
-  { LEAF("Id"), 0, "any", ABSOFF(domainId), 0, uf_domainId, 0, pf_domainId,
+  { ATTR("Id"), 0, "any", ABSOFF(domainId), 0, uf_domainId, 0, pf_domainId,
     BLURB("<p>Domain id this configuration applies to, or \"any\" if it applies to all domain ids.</p>") },
   END_MARKER
 };
@@ -829,8 +825,14 @@ static const struct cfgelem root_cfgelems[] = {
   END_MARKER
 };
 
+static const struct cfgelem root_cfgattrs[] = {
+  { ATTR("xmlns:xsi"), 0, "", 0, 0, 0, uf_nop, 0, pf_nop, NULL },
+  { ATTR("xsi:noNamespaceSchemaLocation"), 0, "", 0, 0, 0, uf_nop, 0, pf_nop, NULL },
+  END_MARKER
+};
+
 static const struct cfgelem cyclonedds_root_cfgelems[] = {
-  { "CycloneDDS", root_cfgelems, NULL, NODATA, BLURB("CycloneDDS configuration") },
+  { "CycloneDDS", root_cfgelems, root_cfgattrs, NODATA, BLURB("CycloneDDS configuration") },
   END_MARKER
 };
 
@@ -1259,6 +1261,11 @@ static void ff_free (struct cfgst *cfgst, void *parent, struct cfgelem const * c
   ddsrt_free (*elem);
 }
 
+static enum update_result uf_nop (UNUSED_ARG (struct cfgst *cfgst), UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), UNUSED_ARG (const char *value))
+{
+  return URES_SUCCESS;
+}
+
 static void pf_nop (UNUSED_ARG (struct cfgst *cfgst), UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (uint32_t sources))
 {
 }
@@ -1501,7 +1508,7 @@ static enum update_result uf_verbosity (struct cfgst *cfgst, UNUSED_ARG (void *p
 
 static void pf_tracemask (struct cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), uint32_t sources)
 {
-  /* EnableCategory is also (and often) set by Verbosity, so make an effort to locate the sources for verbosity and merge them in */
+  /* Category is also (and often) set by Verbosity, so make an effort to locate the sources for verbosity and merge them in */
   struct cfgst_node *n;
   struct cfgst_nodekey key;
   bool isattr;
