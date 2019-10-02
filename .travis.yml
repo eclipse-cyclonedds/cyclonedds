@@ -87,6 +87,33 @@ osx_xcode10_3: &osx_xcode10_3
     - pyenv activate conan
     - pip install conan --upgrade
 
+# macOS 10.12 / Xcode 9 is the macOS platform for ROS2, and hence quite important.  Travis
+# supports it, but the homebrew version on that image is outdated, and updating it takes
+# forever.  Well, not quite forever, but much longer than building CMake from source.
+#
+# make -k install || true installs into /usr/local while ignoring any errors.  The first
+# is so CMake for Cyclone finds it without any complications; the second is because it
+# can't install into /usr/local/doc.
+#
+# It also means we have to do without conan -- but currently the build dependencies on
+# macOS are still simple enough to get away with that.
+osx_xcode9: &osx_xcode9
+  os: osx
+  osx_image: xcode9
+  compiler: clang
+  before_install:
+    - eval "export CC=clang"
+    - eval "export CXX=clang++"
+    - eval "export COV_COMPTYPE=clang COV_PLATFORM=macOSX"
+    - wget http://downloads.sourceforge.net/project/cunit/CUnit/2.1-2/CUnit-2.1-2-src.tar.bz2
+    - tar -xvjpf CUnit-2.1-2-src.tar.bz2
+    - cd CUnit-2.1-2
+    - ./configure
+    - make
+    - make -k install || true
+    - cd ..
+    - rm -rf CUnit-2.1-2
+
 windows_vs2017: &windows_vs2017
   os: windows
   # Conan will automatically determine the best compiler for a given platform
@@ -133,34 +160,38 @@ windows_vs2017: &windows_vs2017
 jobs:
   include:
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Unix Makefiles", COVERITY_SCAN=true ]
+      env: [ ARCH=x86_64, CONAN=true, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Unix Makefiles", COVERITY_SCAN=true ]
       if: type = cron
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, CONAN=true, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, CONAN=true, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=NO, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, CONAN=true, ASAN=none, BUILD_TYPE=Debug, SSL=NO, GENERATOR="Unix Makefiles" ]
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, CONAN=true, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
-      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, CONAN=true, ASAN=address, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, CONAN=true, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *osx_xcode10_3
-      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, CONAN=true, ASAN=address, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *osx_xcode10_3
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, CONAN=true, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
+    - <<: *osx_xcode9
+      env: [ ARCH=x86_64, CONAN=false, ASAN=none, BUILD_TYPE=Release, SSL=NO, GENERATOR="Unix Makefiles" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Visual Studio 15 2017" ]
+      env: [ ARCH=x86, CONAN=true, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Visual Studio 15 2017" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
+      env: [ ARCH=x86_64, CONAN=true, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
+      env: [ ARCH=x86_64, CONAN=true, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
 
 before_script:
-  - conan profile new default --detect
-  - conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
+  - if $CONAN ; then
+      conan profile new default --detect ;
+      conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan ;
+    fi
 
 # Notes on test settings:
 # - CYCLONEDDS_URI:
@@ -181,7 +212,7 @@ before_script:
 script:
   - mkdir build
   - cd build
-  - conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ..
+  - if $CONAN ; then conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} .. ; fi
   - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
           -DCMAKE_INSTALL_PREFIX=$(pwd)/install
           -DUSE_SANITIZER=${ASAN}
