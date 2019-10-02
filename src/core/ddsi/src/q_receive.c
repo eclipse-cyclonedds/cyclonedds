@@ -206,19 +206,6 @@ static int valid_InfoTS (InfoTS_t *msg, size_t size, int byteswap)
   }
 }
 
-static int valid_PT_InfoContainer (PT_InfoContainer_t *msg, size_t size, int byteswap)
-{
-  if (size < sizeof (PT_InfoContainer_t))
-    return 0;
-#if 0
-  if (msg->smhdr.flags)
-    return 0;
-#endif
-  if (byteswap)
-    msg->id = bswap4u (msg->id);
-  return 1;
-}
-
 static int valid_Heartbeat (Heartbeat_t *msg, size_t size, int byteswap)
 {
   if (size < sizeof (*msg))
@@ -2474,22 +2461,6 @@ static int handle_DataFrag (struct receiver_state *rst, nn_etime_t tnow, struct 
   return 1;
 }
 
-#ifdef DDSI_INCLUDE_ENCRYPTION
-static size_t decode_container (unsigned char *submsg, size_t len)
-{
-  size_t result = len;
-  if (gv.recvSecurityCodec && len > 0)
-  {
-    if (! (q_security_plugin.decode)
-      (gv.recvSecurityCodec, submsg, len, &result  /* in/out, decrements the length*/))
-    {
-      result = 0;
-    }
-  }
-  return result;
-}
-#endif /* DDSI_INCLUDE_ENCRYPTION */
-
 static void malformed_packet_received_nosubmsg (const struct q_globals *gv, const unsigned char * msg, ssize_t len, const char *state, nn_vendorid_t vendorid
 )
 {
@@ -2827,41 +2798,6 @@ static int handle_submsg_sequence
           handle_Data (rst, tnowE, rmsg, &sm->data, submsg_size, &sampleinfo, datap, &deferred_wakeup);
           rst_live = 1;
           ts_for_latmeas = 0;
-        }
-        break;
-
-      case SMID_PT_INFO_CONTAINER:
-        if (vendor_is_eclipse_or_prismtech (rst->vendor))
-        {
-          state = "parse:pt_info_container";
-          GVTRACE ("PT_INFO_CONTAINER(");
-          if (!valid_PT_InfoContainer (&sm->pt_infocontainer, submsg_size, byteswap))
-            goto malformed;
-          switch (sm->pt_infocontainer.id)
-          {
-            case PTINFO_ID_ENCRYPT:
-#ifdef DDSI_INCLUDE_ENCRYPTION
-              if (q_security_plugin.decode)
-              {
-                /* we have: msg .. submsg .. submsg+submsg_size-1 submsg .. msg+len-1
-                   our container: data starts immediately following the pt_infocontainer */
-                const size_t len1 = submsg_size - sizeof (PT_InfoContainer_t);
-                unsigned char * const submsg1 = submsg + sizeof (PT_InfoContainer_t);
-                size_t len2 = decode_container (submsg1, len1);
-                if ( len2 != 0 ) {
-                  TRACE ((")\n"));
-                  thread_state_asleep (ts1);
-                  if (handle_submsg_sequence (conn, srcloc, tnowWC, tnowE, src_prefix, dst_prefix, msg, (size_t) (submsg1 - msg) + len2, submsg1, rmsg) < 0)
-                    goto malformed_asleep;
-                  thread_state_awake (ts1);
-                }
-                TRACE (("PT_INFO_CONTAINER END"));
-              }
-#endif /* DDSI_INCLUDE_ENCRYPTION */
-              break;
-            default:
-              GVTRACE ("(unknown id %"PRIu32"?)\n", sm->pt_infocontainer.id);
-          }
         }
         break;
       case SMID_PT_MSG_LEN:
