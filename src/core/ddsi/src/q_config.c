@@ -116,6 +116,10 @@ struct cfgst {
      been inserted */
   enum implicit_toplevel implicit_toplevel;
 
+  /* Whether unique prefix matching on a name is allowed (again for environment
+     variables) */
+  bool partial_match_allowed;
+
   /* current input, mask with 1 bit set */
   uint32_t source;
 
@@ -2237,10 +2241,17 @@ static void free_configured_elements (struct cfgst *cfgst, void *parent, struct 
     free_configured_element (cfgst, parent, ce);
 }
 
-static int matching_name_index (const char *name_w_aliases, const char *name)
+static int matching_name_index (const char *name_w_aliases, const char *name, size_t *partial)
 {
-  const char *ns = name_w_aliases, *p = strchr (ns, '|');
+  const char *ns = name_w_aliases;
+  const char *aliases = strchr (ns, '|');
+  const char *p = aliases;
   int idx = 0;
+  if (partial)
+  {
+    /* may be set later on */
+    *partial = 0;
+  }
   while (p)
   {
     if (ddsrt_strncasecmp (ns, name, (size_t) (p - ns)) == 0 && name[p - ns] == 0)
@@ -2253,7 +2264,24 @@ static int matching_name_index (const char *name_w_aliases, const char *name)
     p = strchr (ns, '|');
     idx++;
   }
-  return (ddsrt_strcasecmp (ns, name) == 0) ? idx : -1;
+  if (ddsrt_strcasecmp (ns, name) == 0)
+    return idx;
+  else
+  {
+    if (partial)
+    {
+      /* try a partial match on the primary name (the aliases are for backwards compatibility,
+       and as partial matches are for hackability, I am of the opinion that backwards
+       compatibility on those is a bit over the top) */
+      size_t max_len = strlen (name);
+      if (aliases && (size_t) (aliases - name_w_aliases) < max_len)
+        max_len = (size_t) (aliases - name_w_aliases);
+      if (ddsrt_strncasecmp (name_w_aliases, name, max_len) == 0)
+        *partial = max_len;
+      /* it may be a partial match, but it is still not a match */
+    }
+    return -1;
+  }
 }
 
 static const struct cfgelem *lookup_element (const char *target, bool *isattr)
@@ -2284,7 +2312,7 @@ static const struct cfgelem *lookup_element (const char *target, bool *isattr)
     }
     for (; cfgelem->name; cfgelem++)
     {
-      if (matching_name_index (cfgelem->name, p) >= 0)
+      if (matching_name_index (cfgelem->name, p, NULL) >= 0)
       {
         /* not supporting chained redirects */
         assert (cfgelem->name[0] != '>');
@@ -2327,6 +2355,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
   const struct cfgelem *cfgelem = cfgst_tos (cfgst);
   const struct cfgelem *cfg_subelem;
   int moved = 0;
+  size_t partial = 0;
+  const struct cfgelem *partial_match = NULL;
 
   if (cfgelem == NULL)
   {
@@ -2337,11 +2367,12 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
   for (cfg_subelem = cfgelem->children; cfg_subelem && cfg_subelem->name && strcmp (cfg_subelem->name, "*") != 0; cfg_subelem++)
   {
     const char *csename = cfg_subelem->name;
+    size_t partial1;
     int idx;
     moved = (csename[0] == '>');
     if (moved)
       csename++;
-    idx = matching_name_index (csename, name);
+    idx = matching_name_index (csename, name, &partial1);
     if (idx > 0)
     {
       if (csename[0] == '|')
@@ -2355,15 +2386,34 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       }
     }
     if (idx >= 0)
+    {
+      /* an exact match is always good */
       break;
+    }
+    if (partial1 > partial)
+    {
+      /* a longer prefix match is a candidate ... */
+      partial = partial1;
+      partial_match = cfg_subelem;
+    }
+    else if (partial1 > 0 && partial1 == partial)
+    {
+      /* ... but an ambiguous prefix match won't do */
+      partial_match = NULL;
+    }
   }
   if (cfg_subelem == NULL || cfg_subelem->name == NULL)
   {
-    cfg_error (cfgst, "%s: unknown element", name);
-    cfgst_push (cfgst, 0, NULL, NULL);
-    return 0;
+    if (partial_match != NULL && cfgst->partial_match_allowed)
+      cfg_subelem = partial_match;
+    else
+    {
+      cfg_error (cfgst, "%s: unknown element", name);
+      cfgst_push (cfgst, 0, NULL, NULL);
+      return 0;
+    }
   }
-  else if (strcmp (cfg_subelem->name, "*") == 0)
+  if (strcmp (cfg_subelem->name, "*") == 0)
   {
     /* Push a marker that we are to ignore this part of the DOM tree */
     cfgst_push (cfgst, 0, NULL, NULL);
@@ -2695,6 +2745,7 @@ struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domi
     }
 
     cfgst->implicit_toplevel = (fp == NULL) ? ITL_ALLOWED : ITL_DISALLOWED;
+    cfgst->partial_match_allowed = (fp == NULL);
     cfgst->first_data_in_source = true;
     cfgst_push (cfgst, 0, &root_cfgelem, cfgst->cfg);
     ok = (ddsrt_xmlp_parse (qx) >= 0) && !cfgst->error;
