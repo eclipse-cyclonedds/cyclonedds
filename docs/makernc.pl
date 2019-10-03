@@ -5,13 +5,14 @@ if 0;
 use strict;
 use Data::Dumper;
 
-if (@ARGV != 2) {
-  print STDERR "usage: $0 input output_basename\n";
+if (@ARGV != 3) {
+  print STDERR "usage: $0 input output.md output.rnc\n";
   exit 2;
 }
 
 my $input = $ARGV[0];
-my $output = $ARGV[1];
+my $output_md = $ARGV[1];
+my $output_rnc = $ARGV[2];
 
 # This "perl" script extracts the configuration elements and their types and descriptions
 # from the source and generates a RELAX NG Compact Form (RNC) and a MarkDown version of
@@ -31,6 +32,13 @@ my $output = $ARGV[1];
 # - knowledge of conversion functions in here
 # - hard definitions of enums in here
 # - some other hard-coded knowledge of the top level nodes
+#
+# INCANTATION
+#
+# trang is a tool for converting (among other things) RNC to XSD
+#
+# perl -w ../docs/makernc.pl ../src/core/ddsi/src/q_config.c ../docs/manual/options.md ../etc/cyclonedds.rnc \
+#   && java -jar trang-20091111/trang.jar -I rnc -O xsd ../etc/cyclonedds.rnc ../etc/cyclonedds.xsd
 $|=1;
 my $debug = 0;
 
@@ -140,14 +148,15 @@ while (my ($k, $v) = each %typehint2xmltype) {
   die "script error: values of enum type $k unknown\n" if $v eq "Enum" && $enum_values{$k} eq "";
 }
 
-my %tab2elems;
 my %elem;
 my %typehint_seen;
+
+my %tables;
 
 my @root = read_config ($input);
 
 {
-  open my $fh, ">", "${output}.rnc" or die "can't open ${output}.rnc";
+  open my $fh, ">", "$output_rnc" or die "can't open $output_rnc";
   print $fh "namespace a = \"http://relaxng.org/ns/compatibility/annotations/1.0\"\n";
   print $fh "grammar {\n";
   print $fh "  start =\n";
@@ -161,7 +170,7 @@ my @root = read_config ($input);
 }
 
 {
-  open my $fh, ">", "${output}.md" or die "can't open ${output}.md";
+  open my $fh, ">", "$output_md" or die "can't open $output_md";
   my $sep_blurb = "";
   conv_table($fh, \&conv_to_md, \@root, "/", "  ", "", \$sep_blurb);
   close $fh;
@@ -216,7 +225,6 @@ sub store_entry {
   $name =~ s/\|.*//; # aliases are not visible in osplconf
   my $ltable = lc $table;
   my $lname = lc $name;
-  push @{$tab2elems{$ltable}}, $name;
   die "error: no mapping defined for type $typehint\n" if $typehint2xmltype{$typehint} eq "";
   my $ub = exists $typehint2unit{$typehint} && exists $unit_blurb{$typehint2unit{$typehint}} ? $unit_blurb{$typehint2unit{$typehint}} : "";
   if ($kind eq "GROUP" || $kind eq "MGROUP") {
@@ -250,15 +258,15 @@ sub store_entry {
 
   my $desc = clean_description($description).$ub;
   $desc .= "<p>The default value is: &quot;$defaultvalue&quot;.</p>" if defined $defaultvalue;
-  $elem{"$ltable/$lname"} = { kind => $kind, kstr => $kstr,
-                              subtables => $subtables, multiplicity => $multiplicity,
-                              min_occ => $min_occ, max_occ => $max_occ, root => 0,
-                              defaultvalue => $defaultvalue, typehint => $typehint,
-                              description => $desc };
+  my $fs;
+  push @{$tables{$table}}, { table => $table, name => $name,
+                             kind => $kind, kstr => $kstr,
+                             subtables => $subtables, multiplicity => $multiplicity,
+                             min_occ => $min_occ, max_occ => $max_occ, root => 0,
+                             defaultvalue => $defaultvalue, typehint => $typehint,
+                             description => $desc };
   # typehint_seen is for verifying no bogus type hints are defined in this script
   $typehint_seen{$typehint} = 1;
-  #printf "%s - $s\n", "$ltable/$lname", $elem{"$ltable/lname"};
-  #$typehint = "";
 }
 
 sub fmtblurb {
@@ -449,37 +457,54 @@ sub conv_to_md {
 }
 
 sub conv_table {
-  my ($fh, $convsub, $tablesref, $fqname, $indent, $prefix, $closure) = @_;
-  my (@ts, @ns);
-  for (@$tablesref) {
-    next unless exists $tab2elems{$_};
-    for (my $i = 0; $i < @{$tab2elems{$_}}; $i++) {
-      push @ts, $_;
-    }
-    push @ns, sort @{$tab2elems{$_}};
-  }
+  my ($fh, $convsub, $tablenames, $fqname, $indent, $prefix, $closure) = @_;
   my $elems = 0;
-  for (my $i = 0; $i < @ns; $i++) {
-    my $fs = $elem{lc "$ts[$i]/$ns[$i]"};
-    my $fqname1;
-    if ($fs->{kind} eq "ATTR") {
-      die unless $elems == 0;
-      $fqname1 = "${fqname}[\@$ns[$i]]";
-    } else {
-      $fqname1 = "$fqname/$ns[$i]";
-      $elems++;
+  for (@$tablenames) {
+    next unless exists $tables{$_};
+    for my $fs (sort { $a->{name} cmp $b->{name} } @{$tables{$_}}) {
+      my $fqname1;
+      if ($fs->{kind} eq "ATTR") {
+        die unless $elems == 0;
+        $fqname1 = "${fqname}[\@$fs->{name}]";
+      } else {
+        $fqname1 = "$fqname/$fs->{name}";
+        $elems++;
+      }
+      my $prefix1 = ($fs->{table} eq "unsupp_cfgelems") ? "<b>Internal</b>" : $prefix;
+      &$convsub ($fh, $fs, $fs->{name}, $fqname1, $indent, $prefix1, $closure);
     }
-    &$convsub ($fh, $fs, $ns[$i], $fqname1, $indent, ($ts[$i] eq "unsupp_cfgelems") ? "<b>Internal</b>" : $prefix, $closure);
   }
 }
 
 sub read_config {
+  my %incl = (# included options
+              'DDSI_INCLUDE_SSL' => 1,
+              'DDSI_INCLUDE_NETWORK_PARTITIONS' => 1,
+              'DDSI_INCLUDE_SSM' => 1,
+              # excluded options
+              'DDSI_INCLUDE_NETWORK_CHANNELS' => 0,
+              'DDSI_INCLUDE_BANDWIDTH_LIMITING' => 0);
   my ($input) = @_;
   my ($name, $table, $kind, @subtables, $multiplicity, $defaultvalue, $typehint, $description);
   my ($gobbling_description, $in_table, $rest, $deprecated);
+  my @stk = (); # stack of conditional nesting, for each: copy/discard/ignore
   open FH, "<", $input or die "can't open $input\n";
   while (<FH>) {
     chomp;
+
+    # ignore parts guarded by #if/#ifdef/#if!/#ifndef if $incl says so
+    if (/^\s*\#\s*if(n?def|\s*!)?\s*([A-Za-z_][A-Za-z_0-9]*)\s*(?:\/(?:\/.*|\*.*?\*\/)\s*)?$/) {
+      my $x = (not defined $1 || $1 eq "def") ? -1 : 1; my $var = $2;
+      die if $var =~ /^DDSI_INCLUDE_/ && !exists $incl{$var};
+      push @stk, (not defined $incl{$var}) ? 0 : $incl{$var} ? $x : -$x;
+    } elsif (/^\s*\#\s*if/) { # ignore any other conditional
+      push @stk, 0;
+    } elsif (/^\s*\#\s*else/) {
+      $stk[$#stk] = -$stk[$#stk];
+    } elsif (/^\s*\#\s*endif/) {
+      pop @stk;
+    }
+    next if grep {$_ < 0} @stk;
 
     if ($gobbling_description) {
       $description .= $_;
@@ -489,7 +514,8 @@ sub read_config {
     if ($gobbling_description && /(^|")(\s*\)) *\} *, *$/) {
       $gobbling_description = 0;
       my @st = @subtables;
-      store_entry ($name, $table, $kind, \@st, $multiplicity, $defaultvalue, $typehint, $description) unless $deprecated;
+      store_entry ($name, $table, $kind, \@st, $multiplicity, $defaultvalue, $typehint, $description)
+        unless $deprecated;
       next;
     }
 
@@ -624,7 +650,8 @@ sub read_config {
         # description ending on same line
         $description = $1;
         my @st = @subtables;
-        store_entry ($name, $table, $kind, \@st, $multiplicity, $defaultvalue, $typehint, $description) unless $deprecated;
+        store_entry ($name, $table, $kind, \@st, $multiplicity, $defaultvalue, $typehint, $description)
+          unless $deprecated;
       } else {
         # strip the quotes &c. once the full text has been gathered
         $description = $rest;
@@ -636,11 +663,10 @@ sub read_config {
   }
   close FH;
 
-  #print "$tab2elems{cyclonedds_root_cfgelems}\n";
-  my @rootnames = @{$tab2elems{cyclonedds_root_cfgelems}};
-  die "error: cyclonedds_root_cfgelems has no or multiple entries\n" if @rootnames != 1;
-  die "error: root_cfgelems doesn't exist\n" unless exists $tab2elems{root_cfgelems};
-  my $root = $elem{lc "cyclonedds_root_cfgelems/$rootnames[0]"};
+  my @roots = @{$tables{cyclonedds_root_cfgelems}};
+  die "error: cyclonedds_root_cfgelems has no or multiple entries\n" if @roots != 1;
+  die "error: root_cfgelems doesn't exist\n" unless exists $tables{root_cfgelems};
+  my $root = $roots[0];
   die "error: root_cfgelems doesn't exist\n" unless defined $root;
   $root->{min_occ} = $root->{max_occ} = $root->{isroot} = 1;
   while (my ($k, $v) = each %typehint_seen) {

@@ -18,7 +18,6 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="Channels"/>
         <xs:element minOccurs="0" ref="Compatibility"/>
         <xs:element minOccurs="0" ref="Discovery"/>
         <xs:element minOccurs="0" ref="General"/>
@@ -49,118 +48,6 @@ domain ids.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;any&amp;quot;.&lt;
         </xs:annotation>
       </xs:attribute>
     </xs:complexType>
-  </xs:element>
-  <xs:element name="Channels">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This element is used to group a set of channels. The channels are
-independent data paths through Cyclone DDS and by using separate threads
-and setting their priorities appropriately, chanenls can be used to map
-transport priorities to operating system scheduler priorities, ensuring
-system-wide end-to-end priority preservation.&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-    <xs:complexType>
-      <xs:sequence>
-        <xs:element minOccurs="0" maxOccurs="unbounded" ref="Channel"/>
-      </xs:sequence>
-    </xs:complexType>
-  </xs:element>
-  <xs:element name="Channel">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This element defines a channel.&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-    <xs:complexType>
-      <xs:all>
-        <xs:element minOccurs="0" name="AuxiliaryBandwidthLimit" type="bandwidth">
-          <xs:annotation>
-            <xs:documentation>
-&lt;p&gt;This element specifies the maximum transmit rate of auxiliary traffic
-on this channel (e.g. retransmits, heartbeats, etc). Bandwidth limiting
-uses a leaky bucket scheme. The default value "inf" means Cyclone DDS
-imposes no limitation, the underlying operating system and hardware will
-likely limit the maimum transmit rate.&lt;/p&gt;
-
-&lt;p&gt;The unit must be specified explicitly. Recognised units: &lt;i&gt;X&lt;/i&gt;b/s,
-&lt;i&gt;X&lt;/i&gt;bps for bits/s or &lt;i&gt;X&lt;/i&gt;B/s, &lt;i&gt;X&lt;/i&gt;Bps for bytes/s; where
-&lt;i&gt;X&lt;/i&gt; is an optional prefix: k for 10&lt;sup&gt;3&lt;/sup&gt;, Ki for
-2&lt;sup&gt;10&lt;/sup&gt;, M for 10&lt;sup&gt;6&lt;/sup&gt;, Mi for 2&lt;sup&gt;20&lt;/sup&gt;, G for
-10&lt;sup&gt;9&lt;/sup&gt;, Gi for 2&lt;sup&gt;30&lt;/sup&gt;.&lt;/p&gt;&lt;p&gt;The default value is:
-&amp;quot;inf&amp;quot;.&lt;/p&gt;</xs:documentation>
-          </xs:annotation>
-        </xs:element>
-        <xs:element minOccurs="0" ref="DataBandwidthLimit"/>
-        <xs:element minOccurs="0" ref="DiffServField"/>
-      </xs:all>
-      <xs:attribute name="Name" use="required">
-        <xs:annotation>
-          <xs:documentation>
-&lt;p&gt;This attribute specifies name of this channel. The name should
-uniquely identify the channel.&lt;/p&gt;</xs:documentation>
-        </xs:annotation>
-      </xs:attribute>
-      <xs:attribute name="TransportPriority" type="xs:integer">
-        <xs:annotation>
-          <xs:documentation>
-&lt;p&gt;This attribute sets the transport priority threshold for the channel.
-Each DCPS data writer has a "transport_priority" QoS and this QoS is used
-to select a channel for use by this writer. The selected channel is the
-one with the largest threshold not greater than the writer's transport
-priority, and if no such channel exists, the channel with the lowest
-threshold.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;0&amp;quot;.&lt;/p&gt;</xs:documentation>
-        </xs:annotation>
-      </xs:attribute>
-    </xs:complexType>
-  </xs:element>
-  <xs:element name="DataBandwidthLimit" type="bandwidth">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This element specifies the maximum transmit rate of new samples and
-directly related data, for this channel. Bandwidth limiting uses a leaky
-bucket scheme. The default value "inf" means Cyclone DDS imposes no
-limitation, the underlying operating system and hardware will likely
-limit the maimum transmit rate.&lt;/p&gt;
-
-&lt;p&gt;The unit must be specified explicitly. Recognised units: &lt;i&gt;X&lt;/i&gt;b/s,
-&lt;i&gt;X&lt;/i&gt;bps for bits/s or &lt;i&gt;X&lt;/i&gt;B/s, &lt;i&gt;X&lt;/i&gt;Bps for bytes/s; where
-&lt;i&gt;X&lt;/i&gt; is an optional prefix: k for 10&lt;sup&gt;3&lt;/sup&gt;, Ki for
-2&lt;sup&gt;10&lt;/sup&gt;, M for 10&lt;sup&gt;6&lt;/sup&gt;, Mi for 2&lt;sup&gt;20&lt;/sup&gt;, G for
-10&lt;sup&gt;9&lt;/sup&gt;, Gi for 2&lt;sup&gt;30&lt;/sup&gt;.&lt;/p&gt;&lt;p&gt;The default value is:
-&amp;quot;inf&amp;quot;.&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="DiffServField" type="xs:integer">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This element describes the DiffServ setting the channel will apply to
-the networking messages. This parameter determines the value of the
-diffserv field of the IP version 4 packets sent on this channel which
-allows QoS setting to be applied to the network traffic send on this
-channel.&lt;br/&gt;
-
-Windows platform support for setting the diffserv field is dependent on
-the OS version.&lt;br/&gt;
-
-For Windows versions XP SP2 and 2003 to use the diffserv field the
-following parameter should be added to the register:&lt;br/&gt;&lt;br&gt;
-
-HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\TcpIp\Parameters\DisableUserTOSSetting&lt;br/&gt;&lt;br/&gt;
-
-The type of this parameter is a DWORD and its value should be set to 0 to
-allow setting of the diffserv field.&lt;br/&gt;&lt;br/&gt;
-
-For Windows version 7 or higher a new API (qWAVE) has been introduced.
-For these platforms the specified diffserv value is mapped to one of the
-support traffic types.
-
-The mapping is as follows: 1-8 background traffic; 9-40 excellent
-traffic; 41-55 audio/video traffic; 56 voice traffic; 57-63 control
-traffic.
-
-When an application is run without Administrative priveleges then only
-the diffserv value of 0, 8, 40 or 56 is allowed.&lt;/p&gt;&lt;p&gt;The default value
-is: &amp;quot;0&amp;quot;.&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
   </xs:element>
   <xs:element name="Compatibility">
     <xs:annotation>
@@ -732,25 +619,6 @@ reserved. This includes renaming or moving options.&lt;/p&gt;</xs:documentation>
         <xs:element minOccurs="0" ref="AccelerateRexmitBlockSize"/>
         <xs:element minOccurs="0" ref="AssumeMulticastCapable"/>
         <xs:element minOccurs="0" ref="AutoReschedNackDelay"/>
-        <xs:element minOccurs="0" name="AuxiliaryBandwidthLimit" type="bandwidth">
-          <xs:annotation>
-            <xs:documentation>
-&lt;p&gt;This element specifies the maximum transmit rate of auxiliary traffic
-not bound to a specific channel, such as discovery traffic, as well as
-auxiliary traffic related to a certain channel if that channel has
-elected to share this global AuxiliaryBandwidthLimit. Bandwidth limiting
-uses a leaky bucket scheme. The default value "inf" means Cyclone DDS
-imposes no limitation, the underlying operating system and hardware will
-likely limit the maimum transmit rate.&lt;/p&gt;
-
-&lt;p&gt;The unit must be specified explicitly. Recognised units: &lt;i&gt;X&lt;/i&gt;b/s,
-&lt;i&gt;X&lt;/i&gt;bps for bits/s or &lt;i&gt;X&lt;/i&gt;B/s, &lt;i&gt;X&lt;/i&gt;Bps for bytes/s; where
-&lt;i&gt;X&lt;/i&gt; is an optional prefix: k for 10&lt;sup&gt;3&lt;/sup&gt;, Ki for
-2&lt;sup&gt;10&lt;/sup&gt;, M for 10&lt;sup&gt;6&lt;/sup&gt;, Mi for 2&lt;sup&gt;20&lt;/sup&gt;, G for
-10&lt;sup&gt;9&lt;/sup&gt;, Gi for 2&lt;sup&gt;30&lt;/sup&gt;.&lt;/p&gt;&lt;p&gt;The default value is:
-&amp;quot;inf&amp;quot;.&lt;/p&gt;</xs:documentation>
-          </xs:annotation>
-        </xs:element>
         <xs:element minOccurs="0" ref="BuiltinEndpointSet"/>
         <xs:element minOccurs="0" ref="ControlTopic"/>
         <xs:element minOccurs="0" ref="DDSI2DirectMaxThreads"/>

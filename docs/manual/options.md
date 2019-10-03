@@ -8,7 +8,7 @@ CycloneDDS configuration
 ## //CycloneDDS/Domain
 Attributes: [Id](#cycloneddsdomainid)
 
-Children: [Channels](#cycloneddsdomainchannels), [Compatibility](#cycloneddsdomaincompatibility), [Discovery](#cycloneddsdomaindiscovery), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [ThreadPool](#cycloneddsdomainthreadpool), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
+Children: [Compatibility](#cycloneddsdomaincompatibility), [Discovery](#cycloneddsdomaindiscovery), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [ThreadPool](#cycloneddsdomainthreadpool), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
 
 
 The General element specifying Domain related settings.
@@ -21,113 +21,6 @@ Domain id this configuration applies to, or "any" if it applies to all
 domain ids.
 
 The default value is: "any".
-
-
-### //CycloneDDS/Domain/Channels
-Children: [Channel](#cycloneddsdomainchannelschannel)
-
-
-This element is used to group a set of channels. The channels are
-independent data paths through Cyclone DDS and by using separate threads
-and setting their priorities appropriately, chanenls can be used to map
-transport priorities to operating system scheduler priorities, ensuring
-system-wide end-to-end priority preservation.
-
-
-#### //CycloneDDS/Domain/Channels/Channel
-Attributes: [Name](#cycloneddsdomainchannelschannelname), [TransportPriority](#cycloneddsdomainchannelschanneltransportpriority)
-
-Children: [AuxiliaryBandwidthLimit](#cycloneddsdomainchannelschannelauxiliarybandwidthlimit), [DataBandwidthLimit](#cycloneddsdomainchannelschanneldatabandwidthlimit), [DiffServField](#cycloneddsdomainchannelschanneldiffservfield)
-
-
-This element defines a channel.
-
-
-#### //CycloneDDS/Domain/Channels/Channel[@Name]
-Text
-
-This attribute specifies name of this channel. The name should uniquely
-identify the channel.
-
-
-#### //CycloneDDS/Domain/Channels/Channel[@TransportPriority]
-Integer
-
-This attribute sets the transport priority threshold for the channel.
-Each DCPS data writer has a "transport_priority" QoS and this QoS is used
-to select a channel for use by this writer. The selected channel is the
-one with the largest threshold not greater than the writer's transport
-priority, and if no such channel exists, the channel with the lowest
-threshold.
-
-The default value is: "0".
-
-
-##### //CycloneDDS/Domain/Channels/Channel/AuxiliaryBandwidthLimit
-Number-with-unit
-
-This element specifies the maximum transmit rate of auxiliary traffic on
-this channel (e.g. retransmits, heartbeats, etc). Bandwidth limiting uses
-a leaky bucket scheme. The default value "inf" means Cyclone DDS imposes
-no limitation, the underlying operating system and hardware will likely
-limit the maimum transmit rate.
-
-The unit must be specified explicitly. Recognised units: Xb/s, Xbps for
-bits/s or XB/s, XBps for bytes/s; where X is an optional prefix: k for
-10^3, Ki for 2<sup>10</sup>, M for 10<sup>6</sup>, Mi for 2<sup>20</sup>,
-G for 10<sup>9</sup>, Gi for 2<sup>30</sup>.
-
-The default value is: "inf".
-
-
-##### //CycloneDDS/Domain/Channels/Channel/DataBandwidthLimit
-Number-with-unit
-
-This element specifies the maximum transmit rate of new samples and
-directly related data, for this channel. Bandwidth limiting uses a leaky
-bucket scheme. The default value "inf" means Cyclone DDS imposes no
-limitation, the underlying operating system and hardware will likely
-limit the maimum transmit rate.
-
-The unit must be specified explicitly. Recognised units: Xb/s, Xbps for
-bits/s or XB/s, XBps for bytes/s; where X is an optional prefix: k for
-10^3, Ki for 2<sup>10</sup>, M for 10<sup>6</sup>, Mi for 2<sup>20</sup>,
-G for 10<sup>9</sup>, Gi for 2<sup>30</sup>.
-
-The default value is: "inf".
-
-
-##### //CycloneDDS/Domain/Channels/Channel/DiffServField
-Integer
-
-This element describes the DiffServ setting the channel will apply to the
-networking messages. This parameter determines the value of the diffserv
-field of the IP version 4 packets sent on this channel which allows QoS
-setting to be applied to the network traffic send on this channel.<br/>
-
-Windows platform support for setting the diffserv field is dependent on
-the OS version.<br/>
-
-For Windows versions XP SP2 and 2003 to use the diffserv field the
-following parameter should be added to the register:<br/><br>
-
-HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\TcpIp\Parameters\DisableUserTOSSetting<br/><br/>
-
-The type of this parameter is a DWORD and its value should be set to 0 to
-allow setting of the diffserv field.<br/><br/>
-
-For Windows version 7 or higher a new API (qWAVE) has been introduced.
-For these platforms the specified diffserv value is mapped to one of the
-support traffic types.
-
-The mapping is as follows: 1-8 background traffic; 9-40 excellent
-traffic; 41-55 audio/video traffic; 56 voice traffic; 57-63 control
-traffic.
-
-When an application is run without Administrative priveleges then only
-the diffserv value of 0, 8, 40 or 56 is allowed.
-
-The default value is: "0".
 
 
 ### //CycloneDDS/Domain/Compatibility
@@ -641,7 +534,7 @@ The default value is: "default".
 
 
 ### //CycloneDDS/Domain/Internal
-Children: [AccelerateRexmitBlockSize](#cycloneddsdomaininternalacceleraterexmitblocksize), [AssumeMulticastCapable](#cycloneddsdomaininternalassumemulticastcapable), [AutoReschedNackDelay](#cycloneddsdomaininternalautoreschednackdelay), [AuxiliaryBandwidthLimit](#cycloneddsdomaininternalauxiliarybandwidthlimit), [BuiltinEndpointSet](#cycloneddsdomaininternalbuiltinendpointset), [ControlTopic](#cycloneddsdomaininternalcontroltopic), [DDSI2DirectMaxThreads](#cycloneddsdomaininternalddsi2directmaxthreads), [DefragReliableMaxSamples](#cycloneddsdomaininternaldefragreliablemaxsamples), [DefragUnreliableMaxSamples](#cycloneddsdomaininternaldefragunreliablemaxsamples), [DeliveryQueueMaxSamples](#cycloneddsdomaininternaldeliveryqueuemaxsamples), [EnableExpensiveChecks](#cycloneddsdomaininternalenableexpensivechecks), [GenerateKeyhash](#cycloneddsdomaininternalgeneratekeyhash), [HeartbeatInterval](#cycloneddsdomaininternalheartbeatinterval), [LateAckMode](#cycloneddsdomaininternallateackmode), [LeaseDuration](#cycloneddsdomaininternalleaseduration), [LivelinessMonitoring](#cycloneddsdomaininternallivelinessmonitoring), [MaxParticipants](#cycloneddsdomaininternalmaxparticipants), [MaxQueuedRexmitBytes](#cycloneddsdomaininternalmaxqueuedrexmitbytes), [MaxQueuedRexmitMessages](#cycloneddsdomaininternalmaxqueuedrexmitmessages), [MaxSampleSize](#cycloneddsdomaininternalmaxsamplesize), [MeasureHbToAckLatency](#cycloneddsdomaininternalmeasurehbtoacklatency), [MinimumSocketReceiveBufferSize](#cycloneddsdomaininternalminimumsocketreceivebuffersize), [MinimumSocketSendBufferSize](#cycloneddsdomaininternalminimumsocketsendbuffersize), [MonitorPort](#cycloneddsdomaininternalmonitorport), [MultipleReceiveThreads](#cycloneddsdomaininternalmultiplereceivethreads), [NackDelay](#cycloneddsdomaininternalnackdelay), [PreEmptiveAckDelay](#cycloneddsdomaininternalpreemptiveackdelay), [PrimaryReorderMaxSamples](#cycloneddsdomaininternalprimaryreordermaxsamples), [PrioritizeRetransmit](#cycloneddsdomaininternalprioritizeretransmit), [RediscoveryBlacklistDuration](#cycloneddsdomaininternalrediscoveryblacklistduration), [RetransmitMerging](#cycloneddsdomaininternalretransmitmerging), [RetransmitMergingPeriod](#cycloneddsdomaininternalretransmitmergingperiod), [RetryOnRejectBestEffort](#cycloneddsdomaininternalretryonrejectbesteffort), [SPDPResponseMaxDelay](#cycloneddsdomaininternalspdpresponsemaxdelay), [ScheduleTimeRounding](#cycloneddsdomaininternalscheduletimerounding), [SecondaryReorderMaxSamples](#cycloneddsdomaininternalsecondaryreordermaxsamples), [SendAsync](#cycloneddsdomaininternalsendasync), [SquashParticipants](#cycloneddsdomaininternalsquashparticipants), [SynchronousDeliveryLatencyBound](#cycloneddsdomaininternalsynchronousdeliverylatencybound), [SynchronousDeliveryPriorityThreshold](#cycloneddsdomaininternalsynchronousdeliveryprioritythreshold), [Test](#cycloneddsdomaininternaltest), [UnicastResponseToSPDPMessages](#cycloneddsdomaininternalunicastresponsetospdpmessages), [UseMulticastIfMreqn](#cycloneddsdomaininternalusemulticastifmreqn), [Watermarks](#cycloneddsdomaininternalwatermarks), [WriteBatch](#cycloneddsdomaininternalwritebatch), [WriterLingerDuration](#cycloneddsdomaininternalwriterlingerduration)
+Children: [AccelerateRexmitBlockSize](#cycloneddsdomaininternalacceleraterexmitblocksize), [AssumeMulticastCapable](#cycloneddsdomaininternalassumemulticastcapable), [AutoReschedNackDelay](#cycloneddsdomaininternalautoreschednackdelay), [BuiltinEndpointSet](#cycloneddsdomaininternalbuiltinendpointset), [ControlTopic](#cycloneddsdomaininternalcontroltopic), [DDSI2DirectMaxThreads](#cycloneddsdomaininternalddsi2directmaxthreads), [DefragReliableMaxSamples](#cycloneddsdomaininternaldefragreliablemaxsamples), [DefragUnreliableMaxSamples](#cycloneddsdomaininternaldefragunreliablemaxsamples), [DeliveryQueueMaxSamples](#cycloneddsdomaininternaldeliveryqueuemaxsamples), [EnableExpensiveChecks](#cycloneddsdomaininternalenableexpensivechecks), [GenerateKeyhash](#cycloneddsdomaininternalgeneratekeyhash), [HeartbeatInterval](#cycloneddsdomaininternalheartbeatinterval), [LateAckMode](#cycloneddsdomaininternallateackmode), [LeaseDuration](#cycloneddsdomaininternalleaseduration), [LivelinessMonitoring](#cycloneddsdomaininternallivelinessmonitoring), [MaxParticipants](#cycloneddsdomaininternalmaxparticipants), [MaxQueuedRexmitBytes](#cycloneddsdomaininternalmaxqueuedrexmitbytes), [MaxQueuedRexmitMessages](#cycloneddsdomaininternalmaxqueuedrexmitmessages), [MaxSampleSize](#cycloneddsdomaininternalmaxsamplesize), [MeasureHbToAckLatency](#cycloneddsdomaininternalmeasurehbtoacklatency), [MinimumSocketReceiveBufferSize](#cycloneddsdomaininternalminimumsocketreceivebuffersize), [MinimumSocketSendBufferSize](#cycloneddsdomaininternalminimumsocketsendbuffersize), [MonitorPort](#cycloneddsdomaininternalmonitorport), [MultipleReceiveThreads](#cycloneddsdomaininternalmultiplereceivethreads), [NackDelay](#cycloneddsdomaininternalnackdelay), [PreEmptiveAckDelay](#cycloneddsdomaininternalpreemptiveackdelay), [PrimaryReorderMaxSamples](#cycloneddsdomaininternalprimaryreordermaxsamples), [PrioritizeRetransmit](#cycloneddsdomaininternalprioritizeretransmit), [RediscoveryBlacklistDuration](#cycloneddsdomaininternalrediscoveryblacklistduration), [RetransmitMerging](#cycloneddsdomaininternalretransmitmerging), [RetransmitMergingPeriod](#cycloneddsdomaininternalretransmitmergingperiod), [RetryOnRejectBestEffort](#cycloneddsdomaininternalretryonrejectbesteffort), [SPDPResponseMaxDelay](#cycloneddsdomaininternalspdpresponsemaxdelay), [ScheduleTimeRounding](#cycloneddsdomaininternalscheduletimerounding), [SecondaryReorderMaxSamples](#cycloneddsdomaininternalsecondaryreordermaxsamples), [SendAsync](#cycloneddsdomaininternalsendasync), [SquashParticipants](#cycloneddsdomaininternalsquashparticipants), [SynchronousDeliveryLatencyBound](#cycloneddsdomaininternalsynchronousdeliverylatencybound), [SynchronousDeliveryPriorityThreshold](#cycloneddsdomaininternalsynchronousdeliveryprioritythreshold), [Test](#cycloneddsdomaininternaltest), [UnicastResponseToSPDPMessages](#cycloneddsdomaininternalunicastresponsetospdpmessages), [UseMulticastIfMreqn](#cycloneddsdomaininternalusemulticastifmreqn), [Watermarks](#cycloneddsdomaininternalwatermarks), [WriteBatch](#cycloneddsdomaininternalwritebatch), [WriterLingerDuration](#cycloneddsdomaininternalwriterlingerduration)
 
 
 The Internal elements deal with a variety of settings that evolving and
@@ -685,25 +578,6 @@ Valid values are finite durations with an explicit unit or the keyword
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
 
 The default value is: "1 s".
-
-
-#### //CycloneDDS/Domain/Internal/AuxiliaryBandwidthLimit
-Number-with-unit
-
-This element specifies the maximum transmit rate of auxiliary traffic not
-bound to a specific channel, such as discovery traffic, as well as
-auxiliary traffic related to a certain channel if that channel has
-elected to share this global AuxiliaryBandwidthLimit. Bandwidth limiting
-uses a leaky bucket scheme. The default value "inf" means Cyclone DDS
-imposes no limitation, the underlying operating system and hardware will
-likely limit the maimum transmit rate.
-
-The unit must be specified explicitly. Recognised units: Xb/s, Xbps for
-bits/s or XB/s, XBps for bytes/s; where X is an optional prefix: k for
-10^3, Ki for 2<sup>10</sup>, M for 10<sup>6</sup>, Mi for 2<sup>20</sup>,
-G for 10<sup>9</sup>, Gi for 2<sup>30</sup>.
-
-The default value is: "inf".
 
 
 #### //CycloneDDS/Domain/Internal/BuiltinEndpointSet
