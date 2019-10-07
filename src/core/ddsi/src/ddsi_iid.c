@@ -15,7 +15,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_iid.h"
 
-static struct ddsi_iid dds_iid;
+static struct ddsi_iid ddsi_iid;
 
 static void dds_tea_encrypt (uint32_t v[2], const uint32_t k[4])
 {
@@ -48,16 +48,8 @@ uint64_t ddsi_iid_gen (void)
 {
   uint64_t iid;
   union { uint64_t u64; uint32_t u32[2]; } tmp;
-
-#if DDSRT_ATOMIC64_SUPPORT
-  tmp.u64 = ddsrt_atomic_inc64_nv (&dds_iid.counter);
-#else
-  ddsrt_mutex_lock (&dds_iid.lock);
-  tmp.u64 = ++dds_iid.counter;
-  ddsrt_mutex_unlock (&dds_iid.lock);
-#endif
-
-  dds_tea_encrypt (tmp.u32, dds_iid.key);
+  tmp.u64 = ddsrt_atomic_inc64_nv (&ddsi_iid.counter);
+  dds_tea_encrypt (tmp.u32, ddsi_iid.key);
   iid = tmp.u64;
   return iid;
 }
@@ -65,26 +57,14 @@ uint64_t ddsi_iid_gen (void)
 void ddsi_iid_init (void)
 {
   union { uint64_t u64; uint32_t u32[2]; } tmp;
-
-#if ! DDSRT_ATOMIC64_SUPPORT
-  ddsrt_mutex_init (&dds_iid.lock);
-#endif
-
-  for (size_t i = 0; i < sizeof (dds_iid.key) / sizeof (dds_iid.key[0]); i++)
-    dds_iid.key[0] = ddsrt_random ();
+  for (size_t i = 0; i < sizeof (ddsi_iid.key) / sizeof (ddsi_iid.key[0]); i++)
+    ddsi_iid.key[i] = ddsrt_random ();
 
   tmp.u64 = 0;
-  dds_tea_decrypt (tmp.u32, dds_iid.key);
-#if DDSRT_ATOMIC64_SUPPORT
-  ddsrt_atomic_st64 (&dds_iid.counter, tmp.u64);
-#else
-  dds_iid.counter = tmp.u64;
-#endif
+  dds_tea_decrypt (tmp.u32, ddsi_iid.key);
+  ddsrt_atomic_st64 (&ddsi_iid.counter, tmp.u64);
 }
 
 void ddsi_iid_fini (void)
 {
-#if ! DDSRT_ATOMIC64_SUPPORT
-  ddsrt_mutex_destroy (&dds_iid.lock);
-#endif
 }
