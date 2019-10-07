@@ -568,7 +568,7 @@ static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *
 static seqno_t grow_gap_to_next_seq (const struct writer *wr, seqno_t seq)
 {
   seqno_t next_seq = whc_next_seq (wr->whc, seq - 1);
-  seqno_t seq_xmit = READ_SEQ_XMIT(wr);
+  seqno_t seq_xmit = writer_read_seq_xmit (wr);
   if (next_seq == MAX_SEQ_NUMBER) /* no next sample */
     return seq_xmit + 1;
   else if (next_seq > seq_xmit)  /* next is beyond last actually transmitted */
@@ -849,7 +849,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
      that issue; if it has, then the timing is terribly unlucky, but
      a future request'll fix it. */
   enqueued = 1;
-  seq_xmit = READ_SEQ_XMIT(wr);
+  seq_xmit = writer_read_seq_xmit (wr);
   const bool gap_for_already_acked = vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE && seqbase <= rn->seq;
   const seqno_t min_seq_to_rexmit = gap_for_already_acked ? rn->seq + 1 : 0;
   for (uint32_t i = 0; i < numbits && seqbase + i <= seq_xmit && enqueued; i++)
@@ -1473,7 +1473,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
       qxev_msg (wr->evq, m);
     }
   }
-  if (seq < READ_SEQ_XMIT(wr))
+  if (seq < writer_read_seq_xmit (wr))
   {
     /* Not everything was retransmitted yet, so force a heartbeat out
        to give the reader a chance to nack the rest and make sure

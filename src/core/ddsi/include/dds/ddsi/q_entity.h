@@ -203,28 +203,7 @@ enum writer_state {
   WRST_DELETING /* writer is actually being deleted (removed from hash table) */
 };
 
-#if DDSRT_ATOMIC64_SUPPORT
 typedef ddsrt_atomic_uint64_t seq_xmit_t;
-#define INIT_SEQ_XMIT(wr, v) ddsrt_atomic_st64(&(wr)->seq_xmit, (uint64_t) (v))
-#define READ_SEQ_XMIT(wr) ((seqno_t) ddsrt_atomic_ld64(&(wr)->seq_xmit))
-#define UPDATE_SEQ_XMIT_LOCKED(wr, nv) do { uint64_t ov_; do { \
-  ov_ = ddsrt_atomic_ld64(&(wr)->seq_xmit); \
-  if ((uint64_t) nv <= ov_) break; \
-} while (!ddsrt_atomic_cas64(&(wr)->seq_xmit, ov_, (uint64_t) nv)); } while (0)
-#define UPDATE_SEQ_XMIT_UNLOCKED(sx, nv) UPDATE_SEQ_XMIT_LOCKED(sx, nv)
-#else
-typedef seqno_t seq_xmit_t;
-#define INIT_SEQ_XMIT(wr, v) ((wr)->seq_xmit = (v))
-#define READ_SEQ_XMIT(wr) ((wr)->seq_xmit)
-#define UPDATE_SEQ_XMIT_LOCKED(wr, nv) do { \
-  if ((nv) > (wr)->seq_xmit) { (wr)->seq_xmit = (nv); } \
-} while (0)
-#define UPDATE_SEQ_XMIT_UNLOCKED(wr, nv) do { \
-  ddsrt_mutex_lock (&(wr)->e.lock); \
-  if ((nv) > (wr)->seq_xmit) { (wr)->seq_xmit = (nv); } \
-  ddsrt_mutex_unlock (&(wr)->e.lock); \
-} while (0)
-#endif
 
 struct writer
 {
@@ -275,6 +254,18 @@ struct writer
   struct xeventq *evq; /* timed event queue to be used by this writer */
   struct local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
 };
+
+inline seqno_t writer_read_seq_xmit (const struct writer *wr) {
+  return (seqno_t) ddsrt_atomic_ld64 (&wr->seq_xmit);
+}
+
+inline void writer_update_seq_xmit (struct writer *wr, seqno_t nv) {
+  uint64_t ov;
+  do {
+    ov = ddsrt_atomic_ld64 (&wr->seq_xmit);
+    if ((uint64_t) nv <= ov) break;
+  } while (!ddsrt_atomic_cas64 (&wr->seq_xmit, ov, (uint64_t) nv));
+}
 
 struct reader
 {
