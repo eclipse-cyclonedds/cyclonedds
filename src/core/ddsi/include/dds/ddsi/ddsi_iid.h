@@ -21,12 +21,7 @@ extern "C" {
 #endif
 
 struct ddsi_iid {
-#if DDSRT_ATOMIC64_SUPPORT
   ddsrt_atomic_uint64_t counter;
-#else
-  ddsrt_mutex_t lock;
-  uint64_t counter;
-#endif
   uint32_t key[4];
 };
 
