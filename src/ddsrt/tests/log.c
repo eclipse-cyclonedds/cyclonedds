@@ -20,6 +20,7 @@
 #endif /* __APPLE__ */
 
 #include "CUnit/Test.h"
+#include "CUnit/Theory.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/misc.h"
@@ -401,5 +402,108 @@ CU_Test(dds_log, synchronous_sink_changes, .fini=reset)
 
   CU_ASSERT(arg.before < arg.after);
   CU_ASSERT(arg.after < dds_time());
+#endif
+}
+
+/* Sanity checks that FATAL calls abort() -- this is very much platform
+   dependent code, so we only do it on Linux and macOS, assuming that
+   the logging implementation doesn't make any distinction between different
+   platforms and that abort() is correctly implemented by the C library.
+
+   macOS: abort causes abnormal termination unless the handler doesn't return,
+   hence the setjmp/longjmp. */
+#if defined __linux || defined __APPLE__
+#define TEST_DDS_LC_FATAL 1
+#else
+#define TEST_DDS_LC_FATAL 0
+#endif
+
+#if TEST_DDS_LC_FATAL
+#include <signal.h>
+
+static sigjmp_buf abort_jmpbuf;
+static char abort_message[100];
+static char abort_message_trace[100];
+static ddsrt_log_cfg_t abort_logconfig;
+
+static void abort_handler (int sig)
+{
+  (void) sig;
+  siglongjmp (abort_jmpbuf, 1);
+}
+
+static void abort_log (void *arg, const dds_log_data_t *info)
+{
+  (void) arg;
+  ddsrt_strlcpy (abort_message, info->message, sizeof (abort_message));
+}
+
+static void abort_trace (void *arg, const dds_log_data_t *info)
+{
+  (void) arg;
+  ddsrt_strlcpy (abort_message_trace, info->message, sizeof (abort_message_trace));
+}
+
+CU_TheoryDataPoints(dds_log, fatal_aborts) = {
+  CU_DataPoints(bool, false, false, false,  true,  true,  true), /* global/config */
+  CU_DataPoints(int,      0,     1,     2,     0,     1,     2), /* mask init mode */
+  CU_DataPoints(bool, false, false,  true, false, false,  true)  /* expect in trace? */
+};
+#else
+CU_TheoryDataPoints(dds_log, fatal_aborts) = {
+  CU_DataPoints(bool, false), /* global/config */
+  CU_DataPoints(int,      0), /* mask init mode */
+  CU_DataPoints(bool, false)  /* expect in trace? */
+};
+#endif
+
+CU_Theory((bool local, int mode, bool expect_in_trace), dds_log, fatal_aborts)
+{
+#if TEST_DDS_LC_FATAL
+  struct sigaction action, oldaction;
+  action.sa_flags = 0;
+  action.sa_handler = abort_handler;
+
+  if (sigsetjmp (abort_jmpbuf, 0) != 0)
+  {
+    sigaction (SIGABRT, &oldaction, NULL);
+    CU_ASSERT_STRING_EQUAL (abort_message, "oops\n");
+    CU_ASSERT_STRING_EQUAL (abort_message_trace, expect_in_trace ? "oops\n" : "");
+  }
+  else
+  {
+    memset (abort_message, 0, sizeof (abort_message));
+    memset (abort_message_trace, 0, sizeof (abort_message_trace));
+    dds_set_log_sink (abort_log, NULL);
+    dds_set_trace_sink (abort_trace, NULL);
+    sigaction (SIGABRT, &action, &oldaction);
+    if (local)
+    {
+      switch (mode)
+      {
+        case 0:
+          /* FALL THROUGH */
+        case 1: dds_log_cfg_init (&abort_logconfig, 0, 0, 0, 0); break;
+        case 2: dds_log_cfg_init (&abort_logconfig, 0, DDS_LC_TRACE, 0, 0); break;
+      }
+      DDS_CLOG (DDS_LC_FATAL, &abort_logconfig, "oops\n");
+    }
+    else
+    {
+      switch (mode)
+      {
+        case 0: break;
+        case 1: dds_set_log_mask (0); break;
+        case 2: dds_set_log_mask (DDS_LC_TRACE); break;
+      }
+      DDS_FATAL ("oops\n");
+    }
+    sigaction (SIGABRT, &oldaction, NULL);
+    CU_ASSERT (0);
+  }
+#else
+  (void) local;
+  (void) mode;
+  (void) expect_in_trace;
 #endif
 }
