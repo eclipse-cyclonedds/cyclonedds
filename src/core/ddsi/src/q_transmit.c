@@ -307,7 +307,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
             (hbc->tsched.v == T_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
             ddsrt_avl_is_empty (&wr->readers) ? -1 : root_rdmatch (wr)->min_seq,
             ddsrt_avl_is_empty (&wr->readers) || root_rdmatch (wr)->all_have_replied_to_hb ? "" : "!",
-            whcst->max_seq, READ_SEQ_XMIT(wr));
+            whcst->max_seq, writer_read_seq_xmit (wr));
   }
 
   return msg;
@@ -354,7 +354,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
     seqno_t seq_xmit;
     min = whcst->min_seq;
     max = wr->seq;
-    seq_xmit = READ_SEQ_XMIT(wr);
+    seq_xmit = writer_read_seq_xmit (wr);
     assert (min <= max);
     /* Informing readers of samples that haven't even been transmitted makes little sense,
        but for transient-local data, we let the first heartbeat determine the time at which
@@ -1125,7 +1125,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
 
       (Note that no network destination is very nearly the same as no
       matching proxy readers.  The exception is the SPDP writer.) */
-    UPDATE_SEQ_XMIT_LOCKED (wr, seq);
+    writer_update_seq_xmit (wr, seq);
     ddsrt_mutex_unlock (&wr->e.lock);
     if (plist != NULL)
     {

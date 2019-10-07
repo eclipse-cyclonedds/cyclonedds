@@ -861,7 +861,7 @@ static void nn_xmsg_chain_release (struct q_globals *gv, struct nn_xmsg_chain *c
         assert (m->kindspecific.data.wrseq != 0);
         wrguid = m->kindspecific.data.wrguid;
         if ((wr = ephash_lookup_writer_guid (gv->guid_hash, &m->kindspecific.data.wrguid)) != NULL)
-          UPDATE_SEQ_XMIT_UNLOCKED(wr, m->kindspecific.data.wrseq);
+          writer_update_seq_xmit (wr, m->kindspecific.data.wrseq);
       }
     }
 
