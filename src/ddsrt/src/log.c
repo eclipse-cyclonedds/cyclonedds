@@ -64,7 +64,7 @@ static void default_sink (void *ptr, const dds_log_data_t *data)
 
 static struct ddsrt_log_cfg_impl logconfig = {
   .c = {
-    .mask = DDS_LC_ERROR | DDS_LC_WARNING,
+    .mask = DDS_LC_ERROR | DDS_LC_WARNING | DDS_LC_FATAL,
     .tracemask = 0,
     .domid = UINT32_MAX
   },
