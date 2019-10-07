@@ -34,6 +34,7 @@ enum pserop {
   Xi, Xix2, Xix3, Xix4, /* int32_t, 1 .. 4 in a row */
   Xu, Xux2, Xux3, Xux4, Xux5, /* uint32_t, 1 .. 5 in a row */
   XD, XDx2, /* duration, 1 .. 2 in a row */
+  Xll,      /* int64_t */
   Xo, Xox2, /* octet, 1 .. 2 in a row */
   Xb, Xbx2, /* boolean, 1 .. 2 in a row */
   XbCOND, /* boolean: compare to ignore remainder if false (for use_... flags) */
@@ -51,6 +52,15 @@ inline bool pserop_seralign_is_1 (enum pserop op) {
      operator */
   assert (op != XbPROP && op != Xopt && op != XSTOP);
   return (op >= Xo && op <= XK);
+}
+
+inline bool pserop_seralign_is_8 (enum pserop op) {
+  /* NB: XbPROP is never serialized, so its alignment is irrelevant.  If ever there
+     is a need to allow calling this function when op = XbPROP, it needs to be changed
+     to taking the address of the pserop, and in that case inspect the following
+     operator */
+  assert (op != XbPROP && op != Xopt && op != XSTOP);
+  return (op == Xll);
 }
 
 DDS_EXPORT void plist_fini_generic (void * __restrict dst, const enum pserop *desc, bool aliased);
