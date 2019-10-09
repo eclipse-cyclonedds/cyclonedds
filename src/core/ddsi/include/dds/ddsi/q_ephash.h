@@ -36,7 +36,7 @@ struct ddsi_guid;
     EK_PROXY_READER
   };
 #define EK_NKINDS ((int) EK_PROXY_READER + 1)
-  
+
 struct ephash_enum
 {
   struct ddsrt_chh_iter it;
@@ -80,15 +80,15 @@ void ephash_remove_reader_guid (struct ephash *eh, struct reader *rd);
 void ephash_remove_proxy_writer_guid (struct ephash *eh, struct proxy_writer *pwr);
 void ephash_remove_proxy_reader_guid (struct ephash *eh, struct proxy_reader *prd);
 
-void *ephash_lookup_guid_untyped (const struct ephash *eh, const struct ddsi_guid *guid);
-void *ephash_lookup_guid (const struct ephash *eh, const struct ddsi_guid *guid, enum entity_kind kind);
+DDS_EXPORT void *ephash_lookup_guid_untyped (const struct ephash *eh, const struct ddsi_guid *guid);
+DDS_EXPORT void *ephash_lookup_guid (const struct ephash *eh, const struct ddsi_guid *guid, enum entity_kind kind);
 
-struct participant *ephash_lookup_participant_guid (const struct ephash *eh, const struct ddsi_guid *guid);
-struct proxy_participant *ephash_lookup_proxy_participant_guid (const struct ephash *eh, const struct ddsi_guid *guid);
-struct writer *ephash_lookup_writer_guid (const struct ephash *eh, const struct ddsi_guid *guid);
-struct reader *ephash_lookup_reader_guid (const struct ephash *eh, const struct ddsi_guid *guid);
-struct proxy_writer *ephash_lookup_proxy_writer_guid (const struct ephash *eh, const struct ddsi_guid *guid);
-struct proxy_reader *ephash_lookup_proxy_reader_guid (const struct ephash *eh, const struct ddsi_guid *guid);
+DDS_EXPORT struct participant *ephash_lookup_participant_guid (const struct ephash *eh, const struct ddsi_guid *guid);
+DDS_EXPORT struct proxy_participant *ephash_lookup_proxy_participant_guid (const struct ephash *eh, const struct ddsi_guid *guid);
+DDS_EXPORT struct writer *ephash_lookup_writer_guid (const struct ephash *eh, const struct ddsi_guid *guid);
+DDS_EXPORT struct reader *ephash_lookup_reader_guid (const struct ephash *eh, const struct ddsi_guid *guid);
+DDS_EXPORT struct proxy_writer *ephash_lookup_proxy_writer_guid (const struct ephash *eh, const struct ddsi_guid *guid);
+DDS_EXPORT struct proxy_reader *ephash_lookup_proxy_reader_guid (const struct ephash *eh, const struct ddsi_guid *guid);
 
 
 /* Enumeration of entries in the hash table:
