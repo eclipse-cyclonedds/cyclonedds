@@ -22,6 +22,7 @@
 #include "dds__qos.h"
 #include "dds__topic.h"
 #include "dds/version.h"
+#include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/q_xqos.h"
 
 extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
@@ -1349,3 +1350,29 @@ dds_return_t dds_generic_unimplemented_operation (dds_entity_t handle, dds_entit
   return dds_generic_unimplemented_operation_manykinds (handle, 1, &kind);
 }
 
+dds_return_t dds_assert_liveliness (dds_entity_t entity)
+{
+  dds_return_t rc;
+  dds_entity *e;
+
+  if ((rc = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+    return rc;
+  switch (dds_entity_kind (e))
+  {
+    case DDS_KIND_PARTICIPANT: {
+      write_pmd_message_guid (&e->m_domain->gv, &e->m_guid, PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE);
+      break;
+    }
+    case DDS_KIND_WRITER: {
+      /* FIXME: implement liveliness manual-by-topic */
+      rc = DDS_RETCODE_UNSUPPORTED;
+      break;
+    }
+    default: {
+      rc = DDS_RETCODE_ILLEGAL_OPERATION;
+      break;
+    }
+  }
+  dds_entity_unlock (e);
+  return rc;
+}

@@ -27,6 +27,7 @@ set(ddsc_test_sources
     "err.c"
     "instance_get_key.c"
     "listener.c"
+    "liveliness.c"
     "participant.c"
     "publisher.c"
     "qos.c"
@@ -54,7 +55,9 @@ set(ddsc_test_sources
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
 target_include_directories(
   cunit_ddsc PRIVATE
-  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>")
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
 target_link_libraries(cunit_ddsc PRIVATE RoundTrip Space TypesArrayKey ddsc)
 
 # Setup environment for config-tests

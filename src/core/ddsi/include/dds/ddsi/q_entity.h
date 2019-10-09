@@ -12,8 +12,10 @@
 #ifndef Q_ENTITY_H
 #define Q_ENTITY_H
 
+#include "dds/export.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/fibheap.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_protocol.h"
@@ -184,6 +186,7 @@ struct participant
   int32_t user_refc; /* number of non-built-in endpoints in this participant [refc_lock] */
   int32_t builtin_refc; /* number of built-in endpoints in this participant [refc_lock] */
   int builtins_deleted; /* whether deletion of built-in endpoints has been initiated [refc_lock] */
+  ddsrt_fibheap_t ldur_auto_wr; /* Heap that contains lease duration for writers with automatic liveliness in this participant */
 };
 
 struct endpoint_common {
@@ -204,6 +207,11 @@ enum writer_state {
 };
 
 typedef ddsrt_atomic_uint64_t seq_xmit_t;
+
+struct ldur_fhnode {
+  ddsrt_fibheap_node_t heapnode;
+  dds_duration_t ldur;
+};
 
 struct writer
 {
@@ -234,7 +242,7 @@ struct writer
   struct addrset *as; /* set of addresses to publish to */
   struct addrset *as_group; /* alternate case, used for SPDP, when using Cloud with multiple bootstrap locators */
   struct xevent *heartbeat_xevent; /* timed event for "periodically" publishing heartbeats when unack'd data present, NULL <=> unreliable */
-  dds_duration_t lease_duration;
+  struct ldur_fhnode *lease_duration;
   struct whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
   nn_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
@@ -301,11 +309,15 @@ struct proxy_participant
   ddsi_guid_t privileged_pp_guid; /* if this PP depends on another PP for its SEDP writing */
   struct nn_plist *plist; /* settings/QoS for this participant */
   ddsrt_atomic_voidp_t lease; /* lease object for this participant, for automatic leases */
+  uint32_t manual_by_pp_writers; /* number of writers with liveliness qos manual-by-participant */
+  struct lease *pp_lease; /* lease for this proxy pp (parameters of member 'lease' will be set to minimal pwr lease) */
   struct addrset *as_default; /* default address set to use for user data traffic */
   struct addrset *as_meta; /* default address set to use for discovery traffic */
   struct proxy_endpoint_common *endpoints; /* all proxy endpoints can be reached from here */
   ddsrt_avl_tree_t groups; /* table of all groups (publisher, subscriber), see struct proxy_group */
   seqno_t seq; /* sequence number of most recent SPDP message */
+  ddsrt_fibheap_t leaseheap; /* keeps leases for pwrs and this proxypp */
+  ddsrt_mutex_t leaseheap_lock; /* specific lock for leaseheap */
   unsigned kernel_sequence_numbers : 1; /* whether this proxy participant generates OSPL kernel sequence numbers */
   unsigned implicitly_created : 1; /* participants are implicitly created for Cloud/Fog discovered endpoints */
   unsigned is_ddsi2_pp: 1; /* if this is the federation-leader on the remote node */
@@ -367,6 +379,7 @@ struct proxy_writer {
   struct local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
+  struct lease *lease;
 };
 
 struct proxy_reader {
@@ -537,10 +550,14 @@ dds_return_t delete_participant (struct q_globals *gv, const struct ddsi_guid *p
 void update_participant_plist (struct participant *pp, const struct nn_plist *plist);
 uint64_t get_entity_instance_id (const struct q_globals *gv, const struct ddsi_guid *guid);
 
+/* Gets the interval for PMD messages, which is the minimal lease duration for writers
+   with auto liveliness in this participant, or the participants lease duration if shorter */
+DDS_EXPORT dds_duration_t pp_get_pmd_interval(struct participant *pp);
+
 /* To obtain the builtin writer to be used for publishing SPDP, SEDP,
    PMD stuff for PP and its endpoints, given the entityid.  If PP has
    its own writer, use it; else use the privileged participant. */
-struct writer *get_builtin_writer (const struct participant *pp, unsigned entityid);
+DDS_EXPORT struct writer *get_builtin_writer (const struct participant *pp, unsigned entityid);
 
 /* To create a new DDSI writer or reader belonging to participant with
    GUID "ppguid". May return NULL if participant unknown or
@@ -611,6 +628,7 @@ int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t s
 void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct lease *newlease);
 
 void purge_proxy_participants (struct q_globals *gv, const nn_locator_t *loc, bool delete_from_as_disc);
+
 
 /* To create a new proxy writer or reader; the proxy participant is
    determined from the GUID and must exist. */

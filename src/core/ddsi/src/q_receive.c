@@ -666,9 +666,8 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     return 1;
   }
 
-  /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
-  lease_renew (ddsrt_atomic_ldvoidp (&prd->c.proxypp->lease), tnow);
-
+  if (prd->c.proxypp->manual_by_pp_writers == 0)
+    lease_renew (ddsrt_atomic_ldvoidp (&prd->c.proxypp->lease), tnow);
   if (!wr->reliable) /* note: reliability can't be changed */
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a reliable writer!)", PGUID (src), PGUID (dst));
@@ -1132,10 +1131,8 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
     return 1;
   }
 
-  /* liveliness is still only implemented partially (with all set to AUTOMATIC,
-     BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
-  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
-
+  if (pwr->c.proxypp->manual_by_pp_writers == 0)
+    lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
   RSTTRACE (PGUIDFMT" -> "PGUIDFMT":", PGUID (src), PGUID (dst));
 
   ddsrt_mutex_lock (&pwr->e.lock);
@@ -1269,9 +1266,8 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
     return 1;
   }
 
-  /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
-  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
-
+  if (pwr->c.proxypp->manual_by_pp_writers == 0)
+    lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
   RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"", PGUID (src), PGUID (dst));
   ddsrt_mutex_lock (&pwr->e.lock);
 
@@ -1396,9 +1392,8 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
     return 1;
   }
 
-  /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
-  lease_renew (ddsrt_atomic_ldvoidp (&prd->c.proxypp->lease), tnow);
-
+  if (prd->c.proxypp->manual_by_pp_writers == 0)
+    lease_renew (ddsrt_atomic_ldvoidp (&prd->c.proxypp->lease), tnow);
   if (!wr->reliable) /* note: reliability can't be changed */
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a reliable writer)", PGUID (src), PGUID (dst));
@@ -1643,9 +1638,8 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
     return 1;
   }
 
-  /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
-  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
-
+  if (pwr->c.proxypp->manual_by_pp_writers == 0)
+    lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
   ddsrt_mutex_lock (&pwr->e.lock);
   if ((wn = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &dst)) == NULL)
   {
@@ -2115,13 +2109,15 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
     return;
   }
 
-  /* liveliness is still only implemented partially (with all set to
-     AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy
-     participant's lease. */
   lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
 
   /* Shouldn't lock the full writer, but will do so for now */
   ddsrt_mutex_lock (&pwr->e.lock);
+
+  /* FIXME: implement liveliness manual-by-topic */
+  /* if (pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC && pwr->lease != NULL)
+    lease_renew (pwr->lease, tnow);
+  */
 
   /* Don't accept data when reliable readers exist and we haven't yet seen
      a heartbeat telling us what the "current" sequence number of the writer

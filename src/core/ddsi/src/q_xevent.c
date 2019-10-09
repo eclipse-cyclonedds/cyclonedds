@@ -37,9 +37,11 @@
 #include "dds/ddsi/q_bitset.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_pmd.h"
 #include "dds__whc.h"
 
 #include "dds/ddsi/sysdeps.h"
@@ -1090,44 +1092,6 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   }
 }
 
-static void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, struct participant *pp, unsigned pmd_kind)
-{
-#define PMD_DATA_LENGTH 1
-  struct q_globals * const gv = pp->e.gv;
-  struct writer *wr;
-  union {
-    ParticipantMessageData_t pmd;
-    char pad[offsetof (ParticipantMessageData_t, value) + PMD_DATA_LENGTH];
-  } u;
-  struct ddsi_serdata *serdata;
-  struct ddsi_tkmap_instance *tk;
-
-  if ((wr = get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER)) == NULL)
-  {
-    GVTRACE ("write_pmd_message("PGUIDFMT") - builtin pmd writer not found\n", PGUID (pp->e.guid));
-    return;
-  }
-
-  u.pmd.participantGuidPrefix = nn_hton_guid_prefix (pp->e.guid.prefix);
-  u.pmd.kind = ddsrt_toBE4u (pmd_kind);
-  u.pmd.length = PMD_DATA_LENGTH;
-  memset (u.pmd.value, 0, u.pmd.length);
-
-  struct ddsi_rawcdr_sample raw = {
-    .blob = &u,
-    .size = offsetof (ParticipantMessageData_t, value) + PMD_DATA_LENGTH,
-    .key = &u.pmd,
-    .keysize = 16
-  };
-  serdata = ddsi_serdata_from_sample (gv->rawcdr_topic, SDK_DATA, &raw);
-  serdata->timestamp = now ();
-
-  tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
-  write_sample_nogc (ts1, xp, wr, serdata, tk);
-  ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
-#undef PMD_DATA_LENGTH
-}
-
 static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_xpack *xp, struct xevent *ev, nn_mtime_t tnow)
 {
   struct q_globals * const gv = ev->evq->gv;
@@ -1142,16 +1106,7 @@ static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_
 
   write_pmd_message (ts1, xp, pp, PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE);
 
-  /* QoS changes can't change lease durations. So the only thing that
-     could cause trouble here is that the addition or removal of a
-     writer cause the interval to change for this participant.  If we
-     lock pp for reading out the lease duration we are guaranteed a
-     consistent value (can't assume 64-bit atomic reads on all support
-     platforms!) */
-  ddsrt_mutex_lock (&pp->e.lock);
-  intv = pp->lease_duration;
-
-  /* FIXME: need to use smallest liveliness duration of all automatic-liveliness writers */
+  intv = pp_get_pmd_interval (pp);
   if (intv == T_NEVER)
   {
     tnext.v = T_NEVER;
@@ -1169,7 +1124,6 @@ static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_
   }
 
   resched_xevent_if_earlier (ev, tnext);
-  ddsrt_mutex_unlock (&pp->e.lock);
 }
 
 static void handle_xevk_delete_writer (UNUSED_ARG (struct nn_xpack *xp), struct xevent *ev, UNUSED_ARG (nn_mtime_t tnow))

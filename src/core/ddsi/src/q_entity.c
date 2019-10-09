@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stddef.h>
 
+#include "dds/ddsrt/fibheap.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sockets.h"
@@ -403,6 +404,16 @@ static void remove_deleted_participant_guid (struct deleted_participants_admin *
 
 /* PARTICIPANT ------------------------------------------------------ */
 
+static int compare_ldur (const void *va, const void *vb)
+{
+  const struct ldur_fhnode *a = va;
+  const struct ldur_fhnode *b = vb;
+  return (a->ldur == b->ldur) ? 0 : (a->ldur < b->ldur) ? -1 : 1;
+}
+
+/* used in participant for keeping writer liveliness renewal */
+const ddsrt_fibheap_def_t ldur_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ldur_fhnode, heapnode), compare_ldur);
+
 static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, const dds_qos_t *xqos, nn_wctime_t timestamp)
 {
   uint64_t mask;
@@ -515,6 +526,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   ddsrt_mutex_init (&pp->refc_lock);
   inverse_uint32_set_init(&pp->avail_entityids.x, 1, UINT32_MAX / NN_ENTITYID_ALLOCSTEP);
   pp->lease_duration = gv->config.lease_duration;
+  ddsrt_fibheap_init (&ldur_fhdef, &pp->ldur_auto_wr);
   pp->plist = ddsrt_malloc (sizeof (*pp->plist));
   nn_plist_copy (pp->plist, plist);
   nn_plist_mergein_missing (pp->plist, &gv->default_local_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
@@ -1001,6 +1013,19 @@ struct writer *get_builtin_writer (const struct participant *pp, unsigned entity
   }
 
   return ephash_lookup_writer_guid (pp->e.gv->guid_hash, &bwr_guid);
+}
+
+dds_duration_t pp_get_pmd_interval (struct participant *pp)
+{
+  struct ldur_fhnode *ldur_node;
+  dds_duration_t intv;
+  ddsrt_mutex_lock (&pp->e.lock);
+  ldur_node = ddsrt_fibheap_min (&ldur_fhdef, &pp->ldur_auto_wr);
+  intv = (ldur_node != NULL) ? ldur_node->ldur : T_NEVER;
+  if (pp->lease_duration < intv)
+    intv = pp->lease_duration;
+  ddsrt_mutex_unlock (&pp->e.lock);
+  return intv;
 }
 
 /* WRITER/READER/PROXY-WRITER/PROXY-READER CONNECTION ---------------
@@ -2855,13 +2880,17 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   {
     wr->heartbeat_xevent = NULL;
   }
+
   assert (wr->xqos->present & QP_LIVELINESS);
-  if (wr->xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC || wr->xqos->liveliness.lease_duration != T_NEVER)
+  if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC && wr->xqos->liveliness.lease_duration != T_NEVER)
   {
-    ELOGDISC (wr, "writer "PGUIDFMT": incorrectly treating it as of automatic liveliness kind with lease duration = inf (%d, %"PRId64")\n",
-              PGUID (wr->e.guid), (int) wr->xqos->liveliness.kind, wr->xqos->liveliness.lease_duration);
+    wr->lease_duration = ddsrt_malloc (sizeof(*wr->lease_duration));
+    wr->lease_duration->ldur = wr->xqos->liveliness.lease_duration;
   }
-  wr->lease_duration = T_NEVER; /* FIXME */
+  else
+  {
+    wr->lease_duration = NULL;
+  }
 
   wr->whc = whc;
   if (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST)
@@ -2928,10 +2957,19 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_g
   match_writer_with_local_readers (wr, tnow);
   sedp_write_writer (wr);
 
-  if (wr->lease_duration != T_NEVER)
+  if (wr->lease_duration != NULL
+      && wr->lease_duration->ldur != T_NEVER
+      && wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
   {
-    nn_mtime_t tsched = { 0 };
-    resched_xevent_if_earlier (pp->pmd_update_xevent, tsched);
+    assert (!is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE));
+
+    /* Store writer lease duration in participant's heap in case of automatic liveliness */
+    ddsrt_mutex_lock (&pp->e.lock);
+    ddsrt_fibheap_insert (&ldur_fhdef, &pp->ldur_auto_wr, wr->lease_duration);
+    ddsrt_mutex_unlock (&pp->e.lock);
+
+    /* Trigger pmd update */
+    resched_xevent_if_earlier (pp->pmd_update_xevent, now_mt ());
   }
 
   return 0;
@@ -3024,6 +3062,8 @@ static void gc_delete_writer (struct gcreq *gcreq)
     reader_drop_local_connection (&m->rd_guid, wr);
     free_wr_rd_match (m);
   }
+  if (wr->lease_duration != NULL)
+    ddsrt_free (wr->lease_duration);
 
   /* Do last gasp on SEDP and free writer. */
   if (!is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE))
@@ -3104,6 +3144,13 @@ dds_return_t delete_writer_nolinger_locked (struct writer *wr)
   local_reader_ary_setinvalid (&wr->rdary);
   ephash_remove_writer_guid (wr->e.gv->guid_hash, wr);
   writer_set_state (wr, WRST_DELETING);
+  if (wr->lease_duration != NULL) {
+    ddsrt_mutex_lock (&wr->c.pp->e.lock);
+    ddsrt_fibheap_delete (&ldur_fhdef, &wr->c.pp->ldur_auto_wr, wr->lease_duration);
+    ddsrt_mutex_unlock (&wr->c.pp->e.lock);
+
+    resched_xevent_if_earlier (wr->c.pp->pmd_update_xevent, now_mt ());
+  }
   gcreq_writer (wr);
   return 0;
 }
@@ -3350,11 +3397,6 @@ static dds_return_t new_reader_guid
     ddsi_rhc_set_qos (rd->rhc, rd->xqos);
   }
   assert (rd->xqos->present & QP_LIVELINESS);
-  if (rd->xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC || rd->xqos->liveliness.lease_duration != T_NEVER)
-  {
-    ELOGDISC (rd, "reader "PGUIDFMT": incorrectly treating it as of automatic liveliness kind with lease duration = inf (%d, %"PRId64")\n",
-              PGUID (rd->e.guid), (int) rd->xqos->liveliness.kind, rd->xqos->liveliness.lease_duration);
-  }
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   rd->as = new_addrset ();
@@ -3531,6 +3573,8 @@ void update_reader_qos (struct reader *rd, const dds_qos_t *xqos)
 }
 
 /* PROXY-PARTICIPANT ------------------------------------------------ */
+const ddsrt_fibheap_def_t lease_fhdef_proxypp = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct lease, pp_heapnode), compare_lease_tdur);
+
 static void gc_proxy_participant_lease (struct gcreq *gcreq)
 {
   lease_free (gcreq->arg);
@@ -3628,6 +3672,7 @@ void new_proxy_participant
     {
       ddsrt_atomic_stvoidp (&proxypp->lease, ddsrt_atomic_ldvoidp (&privpp->lease));
       proxypp->owns_lease = 0;
+      proxypp->pp_lease = NULL;
     }
     else
     {
@@ -3636,6 +3681,17 @@ void new_proxy_participant
       dds_duration_t dur = (tlease_dur == T_NEVER) ? gv->config.lease_duration : tlease_dur;
       ddsrt_atomic_stvoidp (&proxypp->lease, lease_new (texp, dur, &proxypp->e));
       proxypp->owns_lease = 1;
+
+      /* Init heap for leases */
+      ddsrt_mutex_init (&proxypp->leaseheap_lock);
+      ddsrt_fibheap_init (&lease_fhdef_proxypp, &proxypp->leaseheap);
+
+      /* Add a clone of the proxypp lease to heap so that monitoring liveliness will include this lease
+          and uses the shortest duration for proxypp and all its pwr's. A clone is required because the
+          lease proxypp->lease will be updated with properties from the shortest lease when adding and
+          removing pwrs to this proxypp */
+      proxypp->pp_lease = lease_clone(ddsrt_atomic_ldvoidp (&proxypp->lease));
+      ddsrt_fibheap_insert (&lease_fhdef_proxypp, &proxypp->leaseheap, proxypp->pp_lease);
     }
   }
 
@@ -3838,7 +3894,11 @@ static void unref_proxy_participant (struct proxy_participant *proxypp, struct p
     nn_plist_fini (proxypp->plist);
     ddsrt_free (proxypp->plist);
     if (proxypp->owns_lease)
+    {
       lease_free (ddsrt_atomic_ldvoidp (&proxypp->lease));
+      lease_free (proxypp->pp_lease);
+      ddsrt_mutex_destroy (&proxypp->leaseheap_lock);
+    }
     entity_common_fini (&proxypp->e);
     remove_deleted_participant_guid (proxypp->e.gv->deleted_participants, &proxypp->e.guid, DPG_LOCAL | DPG_REMOTE);
     ddsrt_free (proxypp);
@@ -4105,17 +4165,37 @@ int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
 #endif
 
   assert (pwr->c.xqos->present & QP_LIVELINESS);
-  if (pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC)
-    GVLOGDISC (" FIXME: only AUTOMATIC liveliness supported");
-#if 0
-  pwr->tlease_dur = nn_from_ddsi_duration (pwr->c.xqos->liveliness.lease_duration);
-  if (pwr->tlease_dur == 0)
+  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER
+      && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC
+      && proxypp->owns_lease)
   {
-    GVLOGDISC (" FIXME: treating lease_duration=0 as inf");
-    pwr->tlease_dur = T_NEVER;
+    struct lease *minl_prev;
+    struct lease *minl_new;
+    nn_etime_t texpire;
+    proxypp->manual_by_pp_writers++;
+    texpire = add_duration_to_etime (now_et (), pwr->c.xqos->liveliness.lease_duration);
+    pwr->lease = lease_new (texpire, pwr->c.xqos->liveliness.lease_duration, &pwr->e);
+    ddsrt_mutex_lock (&pwr->c.proxypp->leaseheap_lock);
+    minl_prev = ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap);
+    ddsrt_fibheap_insert (&lease_fhdef_proxypp, &proxypp->leaseheap, pwr->lease);
+    minl_new = ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap);
+    /* proxypp lease should always exist on heap */
+    assert (minl_prev != NULL);
+    if (minl_prev != minl_new)
+    {
+      dds_duration_t ldur = (dds_duration_t) ddsrt_atomic_ld64 (&minl_new->tdur);
+      nn_etime_t texp = add_duration_to_etime (now_et (), (int64_t) ldur);
+      /* we can set expiry for the lease because the previous shortest lease was just renewed
+         by receiving a sedp for the new writer, and thus the previous lease is not expired
+         at this point */
+      lease_set_fields (ddsrt_atomic_ldvoidp (&proxypp->lease), texp, ldur, minl_new->entity);
+    }
+    ddsrt_mutex_unlock (&proxypp->leaseheap_lock);
   }
-  pwr->tlease_end = add_duration_to_wctime (tnow, pwr->tlease_dur);
-#endif
+  else
+  {
+    pwr->lease = NULL;
+  }
 
   if (isreliable)
   {
@@ -4267,6 +4347,7 @@ static void gc_delete_proxy_writer (struct gcreq *gcreq)
 
 int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit)
 {
+  struct proxy_participant *proxypp;
   struct proxy_writer *pwr;
   (void)isimplicit;
   GVLOGDISC ("delete_proxy_writer ("PGUIDFMT") ", PGUID (*guid));
@@ -4286,6 +4367,31 @@ int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_
   builtintopic_write (gv->builtin_topic_interface, &pwr->e, timestamp, false);
   ephash_remove_proxy_writer_guid (gv->guid_hash, pwr);
   ddsrt_mutex_unlock (&gv->lock);
+
+  proxypp = pwr->c.proxypp;
+  if (pwr->lease != NULL
+      && proxypp->owns_lease)
+  {
+    struct lease *minl;
+    proxypp->manual_by_pp_writers--;
+    ddsrt_mutex_lock (&proxypp->leaseheap_lock);
+    minl = ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap);
+    ddsrt_fibheap_delete (&lease_fhdef_proxypp, &proxypp->leaseheap, pwr->lease);
+    if (pwr->lease == minl)
+    {
+      dds_duration_t trem, ldur;
+      nn_etime_t texp;
+      /* pwr with min lease was deleted: update proxypp lease to use new minimal duration  */
+      minl = ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap);
+      ldur = (dds_duration_t) ddsrt_atomic_ld64 (&minl->tdur);
+      trem = ldur - (dds_duration_t) ddsrt_atomic_ld64 (&pwr->lease->tdur);
+      texp = add_duration_to_etime (now_et(), trem >= 0 ? trem : 0);
+      lease_set_fields (ddsrt_atomic_ldvoidp (&proxypp->lease), texp, ldur, minl->entity);
+    }
+    ddsrt_mutex_unlock (&proxypp->leaseheap_lock);
+    lease_free (pwr->lease);
+  }
+
   gcreq_proxy_writer (pwr);
   return 0;
 }
