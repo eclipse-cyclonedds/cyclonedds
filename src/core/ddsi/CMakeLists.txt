@@ -123,6 +123,17 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
 target_sources(ddsc
   PRIVATE ${srcs_ddsi} ${hdrs_private_ddsi})
 
+if(ENABLE_SECURITY)
+  PREPEND(security_srcs "${CMAKE_CURRENT_LIST_DIR}/src"
+          q_security_msg.c)
+
+  PREPEND(security_hdrs "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
+          q_security_msg.h)
+
+  target_sources(ddsc
+    PRIVATE ${security_srcs} ${security_hdrs})
+endif()
+
 target_include_directories(ddsc
   PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
 
