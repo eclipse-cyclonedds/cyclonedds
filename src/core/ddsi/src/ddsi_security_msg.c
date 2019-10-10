@@ -14,7 +14,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_security_msg.h"
+#include "dds/ddsi/ddsi_security_msg.h"
 #include "dds/ddsi/ddsi_plist_generic.h"
 
 const enum pserop pserop_participant_generic_message[] =
@@ -127,34 +127,6 @@ nn_participant_generic_message_deinit(
   assert(msg);
   plist_fini_generic(msg, pserop_participant_generic_message, true);
 }
-
-nn_participant_generic_message_t *
-nn_participant_generic_message_new(
-   const ddsi_guid_t *wrguid,
-   int64_t wrseq,
-   const ddsi_guid_t *dstpguid,
-   const ddsi_guid_t *dsteguid,
-   const ddsi_guid_t *srceguid,
-   const char *classid,
-   const nn_dataholderseq_t *mdata,
-   const nn_message_identity_t *rmid)
-{
-  nn_participant_generic_message_t *msg = ddsrt_malloc(sizeof(*msg));
-  nn_participant_generic_message_init(msg, wrguid, wrseq, dstpguid, dsteguid, srceguid, classid, mdata, rmid);
-  return msg;
-}
-
-void
-nn_participant_generic_message_free(
-   nn_participant_generic_message_t *msg)
-{
-  if (msg)
-  {
-    nn_participant_generic_message_deinit(msg);
-    ddsrt_free(msg);
-  }
-}
-
 
 dds_return_t
 nn_participant_generic_message_serialize(

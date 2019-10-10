@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef Q_SECURITY_MSG_H
-#define Q_SECURITY_MSG_H
+#ifndef DDSI_SECURITY_MSG_H
+#define DDSI_SECURITY_MSG_H
 
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/ddsi_guid.h"
@@ -65,27 +65,6 @@ nn_participant_generic_message_deinit(
    nn_participant_generic_message_t *msg);
 
 /*
- * The arguments are aliased in the resulting message structure.
- */
-DDS_EXPORT nn_participant_generic_message_t *
-nn_participant_generic_message_new(
-   const ddsi_guid_t *wrguid,
-   int64_t wrseq,
-   const ddsi_guid_t *dstpguid,
-   const ddsi_guid_t *dsteguid,
-   const ddsi_guid_t *srceguid,
-   const char *classid,
-   const nn_dataholderseq_t *mdata,
-   const nn_message_identity_t *rmid);
-
-/*
- * Aliased struct variables will not be freed.
- */
-DDS_EXPORT void
-nn_participant_generic_message_free(
-   nn_participant_generic_message_t *msg);
-
-/*
  * Some struct variables are aliased to the given buffer.
  * This means that the lifecycle of the data buffer should be
  * longer then that of the message.
@@ -109,4 +88,4 @@ DDS_EXPORT extern const enum pserop pserop_participant_generic_message[];
 }
 #endif
 
-#endif /* Q_SECURITY_MSG_H */
+#endif /* DDSI_SECURITY_MSG_H */

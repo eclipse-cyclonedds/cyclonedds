@@ -13,7 +13,8 @@ include(CUnit)
 
 set(ddsi_test_sources
     "plist_generic.c"
-    "plist.c")
+    "plist.c"
+    "mem_ser.h")
 
 if(ENABLE_SECURITY)
   set(ddsi_test_sources ${ddsi_test_sources} "security_msg.c")

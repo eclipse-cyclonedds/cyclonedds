@@ -13,45 +13,8 @@
 #include "CUnit/Theory.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_security_msg.h"
-
-#if DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
-#define SER32(v) \
-  (unsigned char)( (uint32_t)(v) >> 24        ), \
-  (unsigned char)(((uint32_t)(v) >> 16) & 0xff), \
-  (unsigned char)(((uint32_t)(v) >>  8) & 0xff), \
-  (unsigned char)( (uint32_t)(v)        & 0xff)
-#define SER32BE(v) SER32(v)
-#define SER64(v) \
-  (unsigned char)( (uint32_t)(v) >> 56),         \
-  (unsigned char)(((uint32_t)(v) >> 48) & 0xff), \
-  (unsigned char)(((uint32_t)(v) >> 40) & 0xff), \
-  (unsigned char)(((uint32_t)(v) >> 32) & 0xff), \
-  (unsigned char)(((uint32_t)(v) >> 24) & 0xff), \
-  (unsigned char)(((uint32_t)(v) >> 16) & 0xff), \
-  (unsigned char)(((uint32_t)(v) >>  8) & 0xff), \
-  (unsigned char)( (uint32_t)(v)        & 0xff)
-#else
-#define SER32(v) \
-  (unsigned char)( (uint32_t)(v)        & 0xff), \
-  (unsigned char)(((uint32_t)(v) >>  8) & 0xff), \
-  (unsigned char)(((uint32_t)(v) >> 16) & 0xff), \
-  (unsigned char)( (uint32_t)(v) >> 24        )
-#define SER32BE(v) \
-  (unsigned char)( (uint32_t)(v) >> 24        ), \
-  (unsigned char)(((uint32_t)(v) >> 16) & 0xff), \
-  (unsigned char)(((uint32_t)(v) >>  8) & 0xff), \
-  (unsigned char)( (uint32_t)(v)        & 0xff)
-#define SER64(v) \
-  (unsigned char)( (uint64_t)(v)        & 0xff), \
-  (unsigned char)(((uint64_t)(v) >>  8) & 0xff), \
-  (unsigned char)(((uint64_t)(v) >> 16) & 0xff), \
-  (unsigned char)(((uint64_t)(v) >> 24) & 0xff), \
-  (unsigned char)(((uint64_t)(v) >> 32) & 0xff), \
-  (unsigned char)(((uint64_t)(v) >> 40) & 0xff), \
-  (unsigned char)(((uint64_t)(v) >> 48) & 0xff), \
-  (unsigned char)( (uint64_t)(v) >> 56)
-#endif
+#include "dds/ddsi/ddsi_security_msg.h"
+#include "mem_ser.h"
 
 static nn_participant_generic_message_t test_msg_in =
 {
@@ -308,7 +271,7 @@ static unsigned char test_msg_ser[] = {
 
 CU_Test (ddsi_security_msg, serializer)
 {
-  nn_participant_generic_message_t *msg_in;
+  nn_participant_generic_message_t msg_in;
   nn_participant_generic_message_t msg_ser;
   unsigned char *data = NULL;
   dds_return_t ret;
@@ -316,7 +279,8 @@ CU_Test (ddsi_security_msg, serializer)
   bool equal;
 
   /* Create the message (normally with various arguments). */
-  msg_in = nn_participant_generic_message_new(
+  nn_participant_generic_message_init(
+              &msg_in,
               &test_msg_in.message_identity.source_guid,
                test_msg_in.message_identity.sequence_number,
               &test_msg_in.destinaton_participant_guid,
@@ -325,14 +289,13 @@ CU_Test (ddsi_security_msg, serializer)
                test_msg_in.message_class_id,
               &test_msg_in.message_data,
               &test_msg_in.related_message_identity);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(msg_in);
 
   /* Check creation result. */
-  equal = plist_equal_generic(msg_in, &test_msg_in, pserop_participant_generic_message);
+  equal = plist_equal_generic(&msg_in, &test_msg_in, pserop_participant_generic_message);
   CU_ASSERT_FATAL(equal == true);
 
   /* Serialize the message. */
-  ret = nn_participant_generic_message_serialize(msg_in, &data, &len);
+  ret = nn_participant_generic_message_serialize(&msg_in, &data, &len);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(data);
   CU_ASSERT(len > 0);
@@ -359,7 +322,7 @@ CU_Test (ddsi_security_msg, serializer)
   CU_ASSERT_FATAL(equal == true);
 
   /* Cleanup. */
-  nn_participant_generic_message_free(msg_in);
+  nn_participant_generic_message_deinit(&msg_in);
   nn_participant_generic_message_deinit(&msg_ser);
   ddsrt_free(data);
 }
