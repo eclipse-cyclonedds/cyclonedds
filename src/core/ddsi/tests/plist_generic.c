@@ -57,7 +57,7 @@ struct desc descs[] = {
   { {Xux3,XSTOP}, (raw32){4,5,6},       12, (raw){SER32(4), SER32(5), SER32(6)} },
   { {Xux4,XSTOP}, (raw32){7,8,9,10},    16, (raw){SER32(7), SER32(8), SER32(9), SER32(10)} },
   { {Xux5,XSTOP}, (raw32){7,8,9,10,11}, 20, (raw){SER32(7), SER32(8), SER32(9), SER32(10), SER32(11)} },
-  { {Xll,XSTOP},  (raw64){123456789},    8, (raw){SER64(123456789)} },
+  { {Xl,XSTOP},   (raw64){123456789},    8, (raw){SER64(123456789)} },
   { {XD,XSTOP},   (uint64_t[]){314159265358979324},
     /* note: fractional part depends on rounding rule used for converting nanoseconds to NTP time
        Cyclone currently rounds up, so we have to do that too */
@@ -77,7 +77,7 @@ struct desc descs[] = {
     7, (raw){SER32(3), 1,2,3} },
   { {XQ,XS,XSTOP,XSTOP}, &(ddsi_stringseq_t){2, (char*[]){"tree","flower"}},
     27, (raw){SER32(2), SER32(5),'t','r','e','e',0, 0,0,0, SER32(7), 'f','l','o','w','e','r',0} },
-  { {Xo,Xll,Xo,Xu,Xo,XSTOP},
+  { {Xo,Xl,Xo,Xu,Xo,XSTOP},
     &(struct{unsigned char a;int64_t b;unsigned char c;uint32_t d;unsigned char e;}){ 1, 2, 3, 4, 5 },
      25, (raw){1,0,0,0,0,0,0,0,SER64(2),3,0,0,0,SER32(4),5} },
   { {Xo,XQ,Xo,Xu,Xo,XSTOP,Xo,XSTOP},
@@ -92,7 +92,7 @@ struct desc descs[] = {
              0x21, /* pad */0,0,   SER32(0x22), 0x23,
           0x42}
   },
-  { {Xo,XQ,Xo,Xll,Xo,XSTOP,Xo,XSTOP},
+  { {Xo,XQ,Xo,Xl,Xo,XSTOP,Xo,XSTOP},
     &(struct{uint8_t b; oseq seq; uint8_t c;})
       {1, {2, (unsigned char *)(struct{uint8_t a; int64_t b; uint8_t c;}[])
               { {0x10, 0x11, 0x12},
@@ -263,7 +263,8 @@ struct desc_invalid descs_invalid[] = {
       SER32(7), 'o','r','a','n','g','e',0, 2,
       SER32(4), 'f','i','g',0, 4, 0,0,0,
       SER32(7), 'p','r','u','n','e',0, 5 // string not terminated
-    } }
+    } },
+  { {XQ,XQ,Xu,XSTOP,XSTOP}, 16, (raw){SER32(2),SER32(1),SER32(31415),SER32(3)} } // nested sequence failure
 };
 
 CU_Test (ddsi_plist_generic, invalid_input)

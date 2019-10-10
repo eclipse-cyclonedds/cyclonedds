@@ -20,8 +20,8 @@
 const enum pserop pserop_participant_generic_message[] =
 {
   /* nn_participant_generic_message */
-  XG, Xll,             /* nn_message_identity_t message_identity         */
-  XG, Xll,             /* nn_message_identity_t related_message_identity */
+  XG, Xl,              /* nn_message_identity_t message_identity         */
+  XG, Xl,              /* nn_message_identity_t related_message_identity */
   XG,                  /* ddsi_guid_t destinaton_participant_guid        */
   XG,                  /* ddsi_guid_t destination_endpoint_guid          */
   XG,                  /* ddsi_guid_t source_endpoint_guid               */
