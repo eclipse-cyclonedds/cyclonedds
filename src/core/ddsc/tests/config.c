@@ -19,6 +19,7 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsi/q_misc.h"
 
 #define FORCE_ENV
 
@@ -119,45 +120,6 @@ CU_Test(ddsc_config, incorrect_config, .init = ddsrt_init, .fini = ddsrt_fini) {
     CU_ASSERT_FATAL(dds_create_domain(2, "") == DDS_RETCODE_PRECONDITION_NOT_MET);
 }
 
-static bool patternmatch(const char* pattern, const char* string)
-{
-    char patterncharacter;
-
-    /* iterate over pattern string */
-    for (;;) {
-        patterncharacter = *pattern;
-        pattern++;
-        switch (patterncharacter) {
-        case '\0':
-            return (*string == '\0');
-        case '?':
-            if (*string == '\0') {
-                return false;
-            }
-            ++string;
-            break;
-        case '*':
-            if (*pattern == '\0'){
-                return true;
-            }
-            while (*string != '\0') {
-                if (patternmatch(pattern, string)) {
-                    return true;
-                }
-                ++string;
-            }
-            return false;
-            break;
-        default: /* Regular character */
-            if (*string != patterncharacter) {
-                return false;
-            }
-            string++;
-            break;
-        }
-    }
-}
-
 /*
  * The 'found' variable will contain flags related to the expected log
  * messages that were received.
@@ -169,7 +131,7 @@ static void logger(void *ptr, const dds_log_data_t *data)
 {
     char **expected = (char**)ptr;
     for (uint32_t i = 0; expected[i] != NULL; i++) {
-        if (patternmatch(expected[i], data->message)) {
+        if (ddsi2_patmatch(expected[i], data->message)) {
             found |= (uint32_t)(1 << i);
         }
     }
