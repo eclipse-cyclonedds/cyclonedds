@@ -516,6 +516,15 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   nn_plist_copy (pp->plist, plist);
   nn_plist_mergein_missing (pp->plist, &gv->default_local_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
 
+#ifdef DDSI_INCLUDE_SECURITY
+  if (gv->config.omg_security_configuration)
+  {
+    /* For security, configuration can be provided through the configuration.
+     * However, the specification (and the plugins) expect it to be in the QoS. */
+    nn_xqos_mergein_security_config(&(pp->plist->qos), &(gv->config.omg_security_configuration->cfg));
+  }
+#endif
+
   if (gv->logconfig.c.mask & DDS_LC_DISCOVERY)
   {
     GVLOGDISC ("PARTICIPANT "PGUIDFMT" QOS={", PGUID (pp->e.guid));

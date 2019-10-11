@@ -210,6 +210,41 @@ enum many_sockets_mode {
   MSM_MANY_UNICAST
 };
 
+#ifdef DDSI_INCLUDE_SECURITY
+typedef struct plugin_library_properties_type{
+  char *library_path;
+  char *library_init;
+  char *library_finalize;
+} plugin_library_properties_type;
+
+typedef struct authentication_properties_type{
+  char *identity_certificate;
+  char *identity_ca;
+  char *private_key;
+  char *password;
+  char *trusted_ca_dir;
+} authentication_properties_type;
+
+typedef struct access_control_properties_type{
+  char *permissions;
+  char *permissions_ca;
+  char *governance;
+} access_control_properties_type;
+
+typedef struct omg_security_configuration_type {
+  authentication_properties_type authentication_properties;
+  access_control_properties_type access_control_properties;
+  plugin_library_properties_type authentication_plugin;
+  plugin_library_properties_type access_control_plugin;
+  plugin_library_properties_type cryptography_plugin;
+} omg_security_configuration_type;
+
+struct config_omg_security_listelem {
+  struct config_omg_security_listelem *next;
+  omg_security_configuration_type cfg;
+};
+#endif /* DDSI_INCLUDE_SECURITY */
+
 #ifdef DDSI_INCLUDE_SSL
 struct ssl_min_version {
   int major;
@@ -389,6 +424,10 @@ struct config
 
   int use_multicast_if_mreqn;
   struct prune_deleted_ppant prune_deleted_ppant;
+
+#ifdef DDSI_INCLUDE_SECURITY
+  struct config_omg_security_listelem *omg_security_configuration;
+#endif
 };
 
 struct cfgst;

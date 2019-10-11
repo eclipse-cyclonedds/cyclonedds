@@ -321,6 +321,10 @@ DDS_EXPORT uint64_t nn_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uint6
 DDS_EXPORT void nn_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, uint64_t wanted);
 DDS_EXPORT void nn_log_xqos (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
 DDS_EXPORT dds_qos_t *nn_xqos_dup (const dds_qos_t *src);
+#ifdef DDSI_INCLUDE_SECURITY
+struct omg_security_configuration_type;
+DDS_EXPORT void nn_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security_configuration_type *cfg);
+#endif
 
 #if defined (__cplusplus)
 }
