@@ -115,7 +115,7 @@ CU_TheoryDataPoints(ddsrt_thread, create_and_join) = {
                                30303,                 40404)
 };
 
-CU_Theory((ddsrt_sched_t sched, int32_t *prio, uint32_t exp), ddsrt_thread, create_and_join)
+CU_Theory((ddsrt_sched_t sched, int32_t *prio, uint32_t exp), ddsrt_thread, create_and_join, .timeout=60)
 {
   int skip = 0;
   uint32_t res = 50505;
