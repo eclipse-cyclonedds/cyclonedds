@@ -341,15 +341,15 @@ void dds_qset_prop (dds_qos_t * __restrict qos, const char * __restrict name, co
   if (qos == NULL || name == NULL || value == NULL)
     return;
 
-  if (!(qos->present & QP_PROPERTY_LIST))
-  {
-    qos->property.binary_value.n = 0;
-    qos->property.binary_value.props = NULL;
-  }
   if (!(qos->present & QP_PROPERTY_LIST) || qos->property.value.n == 0)
   {
     qos->property.value.n = 0;
     qos->property.value.props = dds_alloc (sizeof (*qos->property.value.props));
+    if (!(qos->present & QP_PROPERTY_LIST))
+    {
+      qos->property.binary_value.n = 0;
+      qos->property.binary_value.props = NULL;
+    }
   }
   else
   {
@@ -415,15 +415,15 @@ void dds_qset_bprop (dds_qos_t * __restrict qos, const char * __restrict name, c
   if (qos == NULL || name == NULL || (value == NULL && sz > 0))
     return;
 
-  if (!(qos->present & QP_PROPERTY_LIST))
-  {
-    qos->property.value.n = 0;
-    qos->property.value.props = NULL;
-  }
   if (!(qos->present & QP_PROPERTY_LIST) || qos->property.binary_value.n == 0)
   {
     qos->property.binary_value.n = 0;
     qos->property.binary_value.props = dds_alloc (sizeof (*qos->property.binary_value.props));
+    if (!(qos->present & QP_PROPERTY_LIST))
+    {
+      qos->property.value.n = 0;
+      qos->property.value.props = NULL;
+    }
   }
   else
   {

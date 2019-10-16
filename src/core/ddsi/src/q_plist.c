@@ -2782,6 +2782,7 @@ bool nn_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security
     if (!(xqos->present & QP_PROPERTY_LIST))
     {
       xqos->property.binary_value.n = 0;
+      xqos->property.binary_value.props = NULL;
       xqos->present |= QP_PROPERTY_LIST;
     }
   }
