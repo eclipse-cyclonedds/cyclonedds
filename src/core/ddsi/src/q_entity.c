@@ -521,7 +521,10 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   {
     /* For security, configuration can be provided through the configuration.
      * However, the specification (and the plugins) expect it to be in the QoS. */
-    nn_xqos_mergein_security_config(&(pp->plist->qos), &(gv->config.omg_security_configuration->cfg));
+    if (!nn_xqos_mergein_security_config(&(pp->plist->qos), &(gv->config.omg_security_configuration->cfg)))
+    {
+      GVLOGDISC ("new_participant("PGUIDFMT"): using security settings from qos, ignoring configuration\n", PGUID (*ppguid));
+    }
   }
 #endif
 

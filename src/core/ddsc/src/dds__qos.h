@@ -25,7 +25,8 @@ extern "C" {
    QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS)
 
 #define DDS_PARTICIPANT_QOS_MASK                                        \
-  (QP_USER_DATA | QP_PRISMTECH_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL)
+  (QP_USER_DATA | QP_PRISMTECH_ENTITY_FACTORY |                         \
+   QP_CYCLONE_IGNORELOCAL | QP_PROPERTY_LIST)
 
 #define DDS_PUBLISHER_QOS_MASK                                          \
   (QP_PARTITION | QP_PRESENTATION | QP_GROUP_DATA |                     \
@@ -36,7 +37,7 @@ extern "C" {
    QP_OWNERSHIP | QP_LIVELINESS | QP_TIME_BASED_FILTER |                \
    QP_RELIABILITY | QP_DESTINATION_ORDER | QP_HISTORY |                 \
    QP_RESOURCE_LIMITS | QP_PRISMTECH_READER_DATA_LIFECYCLE |            \
-   QP_CYCLONE_IGNORELOCAL)
+   QP_CYCLONE_IGNORELOCAL | QP_PROPERTY_LIST)
 
 #define DDS_SUBSCRIBER_QOS_MASK                                         \
   (QP_PARTITION | QP_PRESENTATION | QP_GROUP_DATA |                     \
@@ -48,7 +49,7 @@ extern "C" {
    QP_LIVELINESS | QP_RELIABILITY | QP_TRANSPORT_PRIORITY |             \
    QP_LIFESPAN | QP_DESTINATION_ORDER | QP_HISTORY |                    \
    QP_RESOURCE_LIMITS | QP_PRISMTECH_WRITER_DATA_LIFECYCLE |            \
-   QP_CYCLONE_IGNORELOCAL)
+   QP_CYCLONE_IGNORELOCAL | QP_PROPERTY_LIST)
 
 #if defined (__cplusplus)
 }

@@ -323,7 +323,7 @@ DDS_EXPORT void nn_log_xqos (uint32_t cat, const struct ddsrt_log_cfg *logcfg, c
 DDS_EXPORT dds_qos_t *nn_xqos_dup (const dds_qos_t *src);
 #ifdef DDSI_INCLUDE_SECURITY
 struct omg_security_configuration_type;
-DDS_EXPORT void nn_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security_configuration_type *cfg);
+DDS_EXPORT bool nn_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security_configuration_type *cfg);
 #endif
 
 #if defined (__cplusplus)

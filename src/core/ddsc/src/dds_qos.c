@@ -335,6 +335,152 @@ void dds_qset_ignorelocal (dds_qos_t * __restrict qos, dds_ignorelocal_kind_t ig
   qos->present |= QP_CYCLONE_IGNORELOCAL;
 }
 
+void dds_qset_prop (dds_qos_t * __restrict qos, const char * __restrict name, const char * __restrict value)
+{
+  bool found = false;
+  if (qos == NULL || name == NULL || value == NULL)
+    return;
+
+  if (!(qos->present & QP_PROPERTY_LIST))
+  {
+    qos->property.binary_value.n = 0;
+    qos->property.binary_value.props = NULL;
+  }
+  if (!(qos->present & QP_PROPERTY_LIST) || qos->property.value.n == 0)
+  {
+    qos->property.value.n = 0;
+    qos->property.value.props = dds_alloc (sizeof (*qos->property.value.props));
+  }
+  else
+  {
+    for (uint32_t i = 0; !found && i < qos->property.value.n; i++)
+    {
+      if (strcmp (qos->property.value.props[i].name, name) == 0)
+      {
+        dds_free (qos->property.value.props[i].value);
+        qos->property.value.props[i].value = dds_string_dup (value);
+        found = true;
+      }
+    }
+    if (!found)
+      qos->property.value.props = dds_realloc (qos->property.value.props,
+        (qos->property.value.n + 1) * sizeof (*qos->property.value.props));
+  }
+  if (!found)
+  {
+    qos->property.value.props[qos->property.value.n].propagate = 0;
+    qos->property.value.props[qos->property.value.n].name = dds_string_dup (name);
+    qos->property.value.props[qos->property.value.n].value = dds_string_dup (value);
+    qos->property.value.n++;
+    qos->present |= QP_PROPERTY_LIST;
+  }
+}
+
+void dds_qunset_prop (dds_qos_t * __restrict qos, const char * __restrict name)
+{
+  if (qos == NULL || !(qos->present & QP_PROPERTY_LIST) || qos->property.value.n == 0)
+    return;
+
+  for (uint32_t i = 0; i < qos->property.value.n; i++)
+  {
+    if (strcmp (qos->property.value.props[i].name, name) == 0)
+    {
+      dds_free (qos->property.value.props[i].name);
+      dds_free (qos->property.value.props[i].value);
+      if (qos->property.value.n > 1)
+      {
+        if (i < (qos->property.value.n - 1))
+          memmove (qos->property.value.props + i, qos->property.value.props + i + 1,
+            (qos->property.value.n - i - 1) * sizeof (*qos->property.value.props));
+
+        qos->property.value.props = dds_realloc (qos->property.value.props,
+          (qos->property.value.n - 1) * sizeof (*qos->property.value.props));
+      }
+      else
+      {
+        dds_free (qos->property.value.props);
+        qos->property.value.props = NULL;
+        if (qos->property.binary_value.n == 0)
+          qos->present &= ~QP_PROPERTY_LIST;
+      }
+      qos->property.value.n--;
+      break;
+    }
+  }
+}
+
+void dds_qset_bprop (dds_qos_t * __restrict qos, const char * __restrict name, const void * __restrict value, const size_t sz)
+{
+  bool found = false;
+  if (qos == NULL || name == NULL || (value == NULL && sz > 0))
+    return;
+
+  if (!(qos->present & QP_PROPERTY_LIST))
+  {
+    qos->property.value.n = 0;
+    qos->property.value.props = NULL;
+  }
+  if (!(qos->present & QP_PROPERTY_LIST) || qos->property.binary_value.n == 0)
+  {
+    qos->property.binary_value.n = 0;
+    qos->property.binary_value.props = dds_alloc (sizeof (*qos->property.binary_value.props));
+  }
+  else
+  {
+    for (uint32_t i = 0; !found && i < qos->property.binary_value.n; i++)
+    {
+      if (strcmp (qos->property.binary_value.props[i].name, name) == 0)
+      {
+        dds_qos_data_copy_in (&qos->property.binary_value.props[i].value, value, sz, true);
+        found = true;
+      }
+    }
+    if (!found)
+      qos->property.binary_value.props = dds_realloc (qos->property.binary_value.props,
+        (qos->property.binary_value.n + 1) * sizeof (*qos->property.binary_value.props));
+  }
+  if (!found)
+  {
+    qos->property.binary_value.props[qos->property.binary_value.n].name = dds_string_dup (name);
+    dds_qos_data_copy_in (&qos->property.binary_value.props[qos->property.binary_value.n].value, value, sz, false);
+    qos->property.binary_value.n++;
+    qos->present |= QP_PROPERTY_LIST;
+  }
+}
+
+void dds_qunset_bprop (dds_qos_t * __restrict qos, const char * __restrict name)
+{
+  if (qos == NULL || !(qos->present & QP_PROPERTY_LIST) || qos->property.binary_value.n == 0)
+    return;
+
+  for (uint32_t i = 0; i < qos->property.binary_value.n; i++)
+  {
+    if (strcmp (qos->property.binary_value.props[i].name, name) == 0)
+    {
+      dds_free (qos->property.binary_value.props[i].name);
+      dds_free (qos->property.binary_value.props[i].value.value);
+      if (qos->property.binary_value.n > 1)
+      {
+        if (i < (qos->property.binary_value.n - 1))
+          memmove (qos->property.binary_value.props + i, qos->property.binary_value.props + i + 1,
+            (qos->property.binary_value.n - i - 1) * sizeof (*qos->property.binary_value.props));
+
+        qos->property.binary_value.props = dds_realloc (qos->property.binary_value.props,
+          (qos->property.binary_value.n - 1) * sizeof (*qos->property.binary_value.props));
+      }
+      else
+      {
+        dds_free (qos->property.binary_value.props);
+        qos->property.binary_value.props = NULL;
+        if (qos->property.value.n == 0)
+          qos->present &= ~QP_PROPERTY_LIST;
+      }
+      qos->property.binary_value.n--;
+      break;
+    }
+  }
+}
+
 bool dds_qget_userdata (const dds_qos_t * __restrict qos, void **value, size_t *sz)
 {
   if (qos == NULL || !(qos->present & QP_USER_DATA))
@@ -564,4 +710,94 @@ bool dds_qget_ignorelocal (const dds_qos_t * __restrict qos, dds_ignorelocal_kin
   if (ignore)
     *ignore = qos->ignorelocal.value;
   return true;
+}
+
+bool dds_qget_propnames (const dds_qos_t * __restrict qos, uint32_t * n, char *** __restrict names)
+{
+  if (qos == NULL || !(qos->present & QP_PROPERTY_LIST) || qos->property.value.n == 0)
+    return false;
+
+  if (n == NULL && names != NULL)
+    return false;
+  if (n)
+    *n = qos->property.value.n;
+  if (names)
+  {
+    if (qos->property.value.n == 0)
+      *names = NULL;
+    else
+    {
+      *names = dds_alloc (sizeof (char *) * qos->property.value.n);
+      for (uint32_t i = 0; i < qos->property.value.n; i++)
+        (*names)[i] = dds_string_dup (qos->property.value.props[i].name);
+    }
+  }
+  return true;
+}
+
+bool dds_qget_prop (const dds_qos_t * __restrict qos, const char * __restrict name, char ** value)
+{
+  bool found = false;
+  if (qos == NULL || !(qos->present & QP_PROPERTY_LIST) || qos->property.value.n == 0)
+    return false;
+
+  for (uint32_t i = 0; i < qos->property.value.n; i++)
+  {
+    if (strcmp (qos->property.value.props[i].name, name) == 0)
+    {
+      *value = dds_string_dup (qos->property.value.props[i].value);
+      found = true;
+      break;
+    }
+  }
+  if (!found && value != NULL)
+    *value = NULL;
+  return found;
+}
+
+bool dds_qget_bpropnames (const dds_qos_t * __restrict qos, uint32_t * n, char *** __restrict names)
+{
+  if (qos == NULL || !(qos->present & QP_PROPERTY_LIST) || qos->property.binary_value.n == 0)
+    return false;
+
+  if (n == NULL && names != NULL)
+    return false;
+  if (n)
+    *n = qos->property.binary_value.n;
+  if (names)
+  {
+    if (qos->property.binary_value.n == 0)
+      *names = NULL;
+    else
+    {
+      *names = dds_alloc (sizeof (char *) * qos->property.binary_value.n);
+      for (uint32_t i = 0; i < qos->property.binary_value.n; i++)
+        (*names)[i] = dds_string_dup (qos->property.binary_value.props[i].name);
+    }
+  }
+  return true;
+}
+
+bool dds_qget_bprop (const dds_qos_t * __restrict qos, const char * __restrict name, void ** value, size_t * sz)
+{
+  bool found = false;
+  if (qos == NULL || !(qos->present & QP_PROPERTY_LIST) || qos->property.binary_value.n == 0)
+    return false;
+
+  for (uint32_t i = 0; i < qos->property.binary_value.n; i++)
+  {
+    if (strcmp (qos->property.binary_value.props[i].name, name) == 0)
+    {
+      found = dds_qos_data_copy_out (&qos->property.binary_value.props[i].value, value, sz);
+      break;
+    }
+  }
+  if (!found)
+  {
+    if (sz != NULL)
+      *sz = 0;
+    if (value != NULL)
+      *value = NULL;
+  }
+  return found;
 }

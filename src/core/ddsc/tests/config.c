@@ -500,3 +500,187 @@ CU_Test(ddsc_config, security_deprecated, .init = ddsrt_init, .fini = ddsrt_fini
     CU_ASSERT_FATAL(found == 0x1fffff);
 #endif
 }
+
+CU_Test(ddsc_config, security_qos, .init = ddsrt_init, .fini = ddsrt_fini)
+{
+    /* Expected traces when creating participant with the security elements. */
+    const char *log_expected[] = {
+#ifdef DDSI_INCLUDE_SECURITY
+      /* The config should have been parsed into the participant QoS. */
+      "PARTICIPANT * QOS={*property_list={value={"
+        "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
+        "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
+        "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
+        "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
+        "{dds.sec.access.governance,file:Governance.p7s,0},"
+        "{dds.sec.access.permissions,file:Permissions.p7s,0},"
+        "{dds.sec.auth.password,testtext_Password_testtext,0},"
+        "{dds.sec.auth.trusted_ca_dir,file:/test/dir,0}"
+        "}binary_value={}}*}*",
+#endif
+      NULL
+    };
+
+    dds_entity_t participant;
+    dds_qos_t * qos;
+
+    /* Set up the trace sinks to detect the config parsing. */
+    dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
+    dds_set_log_sink(&logger, (void*)log_expected);
+    dds_set_trace_sink(&logger, (void*)log_expected);
+
+    /* Create the qos */
+    CU_ASSERT_FATAL ((qos = dds_create_qos()) != NULL);
+    dds_qset_prop (qos, "dds.sec.auth.identity_ca", "testtext_IdentityCA_testtext");
+    dds_qset_prop (qos, "dds.sec.auth.private_key", "testtext_PrivateKey_testtext");
+    dds_qset_prop (qos, "dds.sec.auth.identity_certificate", "testtext_IdentityCertificate_testtext");
+    dds_qset_prop (qos, "dds.sec.access.permissions_ca", "file:Permissions_CA.pem");
+    dds_qset_prop (qos, "dds.sec.access.governance", "file:Governance.p7s");
+    dds_qset_prop (qos, "dds.sec.access.permissions", "file:Permissions.p7s");
+    dds_qset_prop (qos, "dds.sec.auth.password", "testtext_Password_testtext");
+    dds_qset_prop (qos, "dds.sec.auth.trusted_ca_dir", "file:/test/dir");
+
+    /* Create participant with security config in qos. */
+    found = 0;
+    ddsrt_setenv(URI_VARIABLE, "<Tracing><Verbosity>finest</></>");
+    CU_ASSERT_FATAL ((participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL)) > 0);
+    ddsrt_setenv(URI_VARIABLE, "");
+    dds_delete(participant);
+    dds_delete_qos(qos);
+
+    /* All traces should have been provided. */
+#ifndef DDSI_INCLUDE_SECURITY
+    CU_ASSERT_FATAL(found == 0);
+#else
+    CU_ASSERT_FATAL(found == 0x1);
+#endif
+}
+
+CU_Test(ddsc_config, security_qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
+{
+    /* Expected traces when creating participant with the security elements. */
+    const char *log_expected[] = {
+#ifdef DDSI_INCLUDE_SECURITY
+      /* The config should have been parsed into the participant QoS. */
+      "PARTICIPANT * QOS={*property_list={value={"
+        "{test.prop1,testtext_value1_testtext,0},"
+        "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
+        "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
+        "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
+        "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
+        "{dds.sec.access.governance,file:Governance.p7s,0},"
+        "{dds.sec.access.permissions,file:Permissions.p7s,0},"
+        "{dds.sec.auth.password,testtext_Password_testtext,0},"
+        "{dds.sec.auth.trusted_ca_dir,file:/test/dir,0},"
+        "{test.prop2,testtext_value2_testtext,0}}"
+        "binary_value={{test.bprop1,(3,*),0}}}*}*",
+#endif
+      NULL
+    };
+
+    dds_entity_t participant;
+    dds_qos_t * qos;
+
+    /* Set up the trace sinks to detect the config parsing. */
+    dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
+    dds_set_log_sink(&logger, (void*)log_expected);
+    dds_set_trace_sink(&logger, (void*)log_expected);
+
+    /* Create the qos */
+    unsigned char bvalue[3] = { 0x01, 0x02, 0x03 };
+    CU_ASSERT_FATAL ((qos = dds_create_qos()) != NULL);
+    dds_qset_prop (qos, "test.prop1", "testtext_value1_testtext");
+    dds_qset_prop (qos, "dds.sec.auth.identity_ca", "testtext_IdentityCA_testtext");
+    dds_qset_prop (qos, "dds.sec.auth.private_key", "testtext_PrivateKey_testtext");
+    dds_qset_prop (qos, "dds.sec.auth.identity_certificate", "testtext_IdentityCertificate_testtext");
+    dds_qset_prop (qos, "dds.sec.access.permissions_ca", "file:Permissions_CA.pem");
+    dds_qset_prop (qos, "dds.sec.access.governance", "file:Governance.p7s");
+    dds_qset_prop (qos, "dds.sec.access.permissions", "file:Permissions.p7s");
+    dds_qset_prop (qos, "dds.sec.auth.password", "testtext_Password_testtext");
+    dds_qset_prop (qos, "dds.sec.auth.trusted_ca_dir", "file:/test/dir");
+    dds_qset_prop (qos, "test.prop2", "testtext_value2_testtext");
+    dds_qset_bprop (qos, "test.bprop1", bvalue, 3);
+
+    /* Create participant with security config in qos. */
+    found = 0;
+    ddsrt_setenv(URI_VARIABLE, "<Tracing><Verbosity>finest</></>");
+    CU_ASSERT_FATAL ((participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL)) > 0);
+    ddsrt_setenv(URI_VARIABLE, "");
+    dds_delete(participant);
+    dds_delete_qos(qos);
+
+    /* All traces should have been provided. */
+#ifndef DDSI_INCLUDE_SECURITY
+    CU_ASSERT_FATAL(found == 0);
+#else
+    CU_ASSERT_FATAL(found == 0x1);
+#endif
+}
+
+CU_Test(ddsc_config, security_config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
+{
+    /* Expect qos settings used when creating participant with config security elements and qos. */
+    const char *log_expected[] = {
+#ifndef DDSI_INCLUDE_SECURITY
+      "config: //CycloneDDS/Domain: DDSSecurity: unknown element*",
+#else
+      /* The security settings from qos properties should have been parsed into the participant QoS. */
+      "new_participant(*): using security settings from qos, ignoring configuration*",
+      "PARTICIPANT * QOS={*property_list={value={"
+        "{dds.sec.auth.identity_ca,testtext_QOS_IdentityCA_testtext,0},"
+        "{dds.sec.auth.private_key,testtext_QOS_PrivateKey_testtext,0},"
+        "{dds.sec.auth.identity_certificate,testtext_QOS_IdentityCertificate_testtext,0},"
+        "{dds.sec.access.permissions_ca,file:QOS_Permissions_CA.pem,0},"
+        "{dds.sec.access.governance,file:QOS_Governance.p7s,0},"
+        "{dds.sec.access.permissions,file:QOS_Permissions.p7s,0}"
+        "}binary_value={}}*}*",
+#endif
+      NULL
+    };
+
+    const char *sec_config =
+      "<Tracing><Verbosity>finest</></>"
+      "<DDSSecurity>"
+        "<Authentication>"
+          "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
+          "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
+          "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+        "</Authentication>"
+        "<AccessControl>"
+          "<Governance>file:Governance.p7s</Governance>"
+          "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+          "<Permissions>file:Permissions.p7s</Permissions>"
+        "</AccessControl>"
+      "</DDSSecurity>";
+
+    dds_entity_t participant;
+    dds_qos_t * qos;
+
+    CU_ASSERT_FATAL ((qos = dds_create_qos()) != NULL);
+    dds_qset_prop (qos, "dds.sec.auth.identity_ca", "testtext_QOS_IdentityCA_testtext");
+    dds_qset_prop (qos, "dds.sec.auth.private_key", "testtext_QOS_PrivateKey_testtext");
+    dds_qset_prop (qos, "dds.sec.auth.identity_certificate", "testtext_QOS_IdentityCertificate_testtext");
+    dds_qset_prop (qos, "dds.sec.access.permissions_ca", "file:QOS_Permissions_CA.pem");
+    dds_qset_prop (qos, "dds.sec.access.governance", "file:QOS_Governance.p7s");
+    dds_qset_prop (qos, "dds.sec.access.permissions", "file:QOS_Permissions.p7s");
+
+    /* Set up the trace sinks to detect the config parsing. */
+    dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
+    dds_set_log_sink(&logger, (void*)log_expected);
+    dds_set_trace_sink(&logger, (void*)log_expected);
+
+    /* Create participant with security elements. */
+    found = 0;
+    ddsrt_setenv(URI_VARIABLE, sec_config);
+    participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL);
+    ddsrt_setenv(URI_VARIABLE, "");
+    dds_delete(participant);
+    dds_delete_qos(qos);
+
+    /* All traces should have been provided. */
+#ifndef DDSI_INCLUDE_SECURITY
+    CU_ASSERT_FATAL(found == 0x1);
+#else
+    CU_ASSERT_FATAL(found == 0x3);
+#endif
+}
