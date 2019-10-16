@@ -2791,8 +2791,7 @@ bool nn_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security
     /* Check for existing security properties (name starts with dds.sec. conform DDS Security spec 7.2.4.1) */
     for (uint32_t i = 0; i < xqos->property.value.n; i++)
     {
-      if (strlen (xqos->property.value.props[i].name) >= strlen ("dds.sec.") &&
-        strncmp (xqos->property.value.props[i].name, "dds.sec.", strlen ("dds.sec.")) == 0)
+      if (strncmp (xqos->property.value.props[i].name, "dds.sec.", strlen ("dds.sec.")) == 0)
       {
         qos_cfg = true;
         break;
