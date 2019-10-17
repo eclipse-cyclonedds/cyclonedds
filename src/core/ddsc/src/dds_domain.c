@@ -51,7 +51,6 @@ static const ddsrt_avl_treedef_t dds_domaintree_def = DDSRT_AVL_TREEDEF_INITIALI
 static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_id, const char *config)
 {
   dds_return_t ret = DDS_RETCODE_OK;
-  char * uri = NULL;
   uint32_t len;
   dds_entity_t domain_handle;
 
@@ -90,7 +89,7 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   domain->cfgst = config_init (config, &domain->gv.config, domain_id);
   if (domain->cfgst == NULL)
   {
-    DDS_ILOG (DDS_LC_CONFIG, domain_id, "Failed to parse configuration XML file %s\n", uri);
+    DDS_ILOG (DDS_LC_CONFIG, domain_id, "Failed to parse configuration\n");
     ret = DDS_RETCODE_ERROR;
     goto fail_config;
   }

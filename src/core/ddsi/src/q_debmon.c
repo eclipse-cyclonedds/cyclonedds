@@ -195,7 +195,7 @@ static int print_participants (struct thread_state1 * const ts1, struct q_global
                   whcst.min_seq, whcst.max_seq, whcst.unacked_bytes,
                   w->throttling ? " THROTTLING" : "",
                   w->whc_low, w->whc_high,
-                  w->seq, READ_SEQ_XMIT(w), w->cs_seq);
+                  w->seq, writer_read_seq_xmit (w), w->cs_seq);
         if (w->reliable)
         {
           x += cpf (conn, "    hb %"PRIu32" ackhb %"PRId64" hb %"PRId64" wr %"PRId64" sched %"PRId64" #rel %"PRId32"\n",

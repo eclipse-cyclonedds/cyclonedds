@@ -26,7 +26,6 @@ endif()
 # core library is required, there's no need to build them, and that in turn eliminates the Maven and
 # JDK dependency.
 option(BUILD_IDLC "Build IDL preprocessor" ON)
-option(BUILD_CONFTOOL "Build configuration file edit tool" ON)
 
 # By default don't treat warnings as errors, else anyone building it with a different compiler that
 # just happens to generate a warning, as well as anyone adding or modifying something and making a

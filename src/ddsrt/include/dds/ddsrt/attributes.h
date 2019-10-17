@@ -12,13 +12,13 @@
 #ifndef DDSRT_ATTRIBUTES_H
 #define DDSRT_ATTRIBUTES_H
 
-#if __clang__
+#if __GNUC__
 # define ddsrt_gnuc (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 #else
 # define ddsrt_gnuc (0)
 #endif
 
-#if __GNUC__
+#if __clang__
 # define ddsrt_clang (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 #else
 # define ddsrt_clang (0)

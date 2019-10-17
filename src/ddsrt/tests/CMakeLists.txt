@@ -26,6 +26,7 @@ list(APPEND sources
   "string.c"
   "log.c"
   "random.c"
+  "retcode.c"
   "strlcpy.c"
   "socket.c"
   "select.c")

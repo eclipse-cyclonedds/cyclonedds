@@ -30,6 +30,7 @@ static const char *retcodes[] = {
 };
 
 static const char *xretcodes[] = {
+  "Unknown return code",
   "Operation in progress",
   "Try again",
   "Interrupted",
@@ -50,7 +51,11 @@ const char *dds_strretcode (dds_return_t rc)
   /* Retcodes used to be positive, but return values from the API would be a negative
      and so there are/were/may be places outside the core library where dds_strretcode
      is called with a -N for N a API return value, so ... play it safe and use the
-     magnitude */
+     magnitude.  Specially handle INT32_MIN to avoid undefined behaviour on integer
+     overflow. */
+  if (rc == INT32_MIN)
+    return xretcodes[0];
+
   if (rc < 0)
     rc = -rc;
   if (rc >= 0 && rc < nretcodes)
@@ -58,5 +63,5 @@ const char *dds_strretcode (dds_return_t rc)
   else if (rc >= (-DDS_XRETCODE_BASE) && rc < (-DDS_XRETCODE_BASE) + nxretcodes)
     return xretcodes[rc - (-DDS_XRETCODE_BASE)];
   else
-    return "Unknown return code";
+    return xretcodes[0];
 }

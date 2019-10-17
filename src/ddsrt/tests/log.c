@@ -16,9 +16,11 @@
 
 #ifdef __APPLE__
 #include <pthread.h>
+#include <AvailabilityMacros.h>
 #endif /* __APPLE__ */
 
 #include "CUnit/Test.h"
+#include "CUnit/Theory.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/misc.h"
@@ -27,7 +29,19 @@
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/time.h"
 
-static FILE *fh = NULL;
+/* On macOS, fmemopen was introduced in version 10.13.  The hassle of providing
+   an alternative implementation of it just for running a few sanity checks on an
+   old version of macOS isn't worth the bother.
+
+   The CUnit.cmake boiler-plate generator doesn't recognize #ifdef'ing tests away
+   because it runs on the source rather than on the output of the C preprocessor
+   (a reasonable decision in itself).  Therefore, just skip the body of each test. */
+
+#if __APPLE__ && !(defined MAC_OS_X_VERSION_10_13 && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_13)
+#define HAVE_FMEMOPEN 0
+#else
+#define HAVE_FMEMOPEN 1
+#endif
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -104,6 +118,9 @@ FILE *fmemopen(void *buf, size_t size, const char *mode)
 }
 #endif /* _WIN32 */
 
+#if HAVE_FMEMOPEN
+static FILE *fh = NULL;
+
 static void count(void *ptr, const dds_log_data_t *data)
 {
   (void)data;
@@ -114,6 +131,7 @@ static void copy(void *ptr, const dds_log_data_t *data)
 {
   *(char **)ptr = ddsrt_strdup(data->message);
 }
+#endif
 
 static void reset(void)
 {
@@ -125,14 +143,18 @@ static void reset(void)
 
 static void setup(void)
 {
+#if HAVE_FMEMOPEN
   fh = fmemopen(NULL, 1024, "wb+");
   CU_ASSERT_PTR_NOT_NULL_FATAL(fh);
+#endif
 }
 
 static void teardown(void)
 {
   reset();
+#if HAVE_FMEMOPEN
   (void)fclose(fh);
+#endif
 }
 
 /* By default only DDS_LC_FATAL and DDS_LC_ERROR are set. This means setting a
@@ -140,6 +162,7 @@ static void teardown(void)
    enabled. The message should end up in the log file. */
 CU_Test(dds_log, only_log_file, .init=setup, .fini=teardown)
 {
+#if HAVE_FMEMOPEN
   char buf[1024], *ptr;
   int cnt = 0;
   size_t nbytes;
@@ -157,6 +180,7 @@ CU_Test(dds_log, only_log_file, .init=setup, .fini=teardown)
   /* No trace categories are enabled by default, verify trace callback was
      not invoked. */
   CU_ASSERT_EQUAL(cnt, 0);
+#endif
 }
 
 /* Messages must be printed to the trace file if at least one trace category
@@ -164,6 +188,7 @@ CU_Test(dds_log, only_log_file, .init=setup, .fini=teardown)
    same as the log file. */
 CU_Test(dds_log, same_file, .init=setup, .fini=teardown)
 {
+#if HAVE_FMEMOPEN
   char buf[1024], *ptr;
   size_t nbytes;
 
@@ -182,6 +207,7 @@ CU_Test(dds_log, same_file, .init=setup, .fini=teardown)
      occur again. */
   ptr = strstr(ptr + 1, "foobar\n");
   CU_ASSERT_PTR_NULL(ptr);
+#endif
 }
 
 /* The sinks are considered to be the same only if the callback and userdata
@@ -189,6 +215,7 @@ CU_Test(dds_log, same_file, .init=setup, .fini=teardown)
    be called twice for log messages. */
 CU_Test(dds_log, same_sink_function, .fini=reset)
 {
+#if HAVE_FMEMOPEN
   int log_cnt = 0, trace_cnt = 0;
 
   dds_set_log_mask(DDS_LC_ALL);
@@ -197,10 +224,12 @@ CU_Test(dds_log, same_sink_function, .fini=reset)
   DDS_ERROR("foo%s\n", "bar");
   CU_ASSERT_EQUAL(log_cnt, 1);
   CU_ASSERT_EQUAL(trace_cnt, 1);
+#endif
 }
 
 CU_Test(dds_log, exact_same_sink, .fini=reset)
 {
+#if HAVE_FMEMOPEN
   int cnt = 0;
 
   dds_set_log_mask(DDS_LC_ALL);
@@ -208,6 +237,7 @@ CU_Test(dds_log, exact_same_sink, .fini=reset)
   dds_set_trace_sink(&count, &cnt);
   DDS_ERROR("foo%s\n", "bar");
   CU_ASSERT_EQUAL(cnt, 1);
+#endif
 }
 
 /* The log file must be restored if the sink is unregistered, verify the log
@@ -215,6 +245,7 @@ CU_Test(dds_log, exact_same_sink, .fini=reset)
    restored again when the sink is unregistered. */
 CU_Test(dds_log, no_sink, .init=setup, .fini=teardown)
 {
+#if HAVE_FMEMOPEN
   int ret;
   char buf[1024], *ptr = NULL;
   size_t cnt[2] = {0, 0};
@@ -267,6 +298,7 @@ CU_Test(dds_log, no_sink, .init=setup, .fini=teardown)
   buf[cnt[1]] = '\0';
   ptr = strstr(buf, "foobaz\n");
   CU_ASSERT_PTR_NOT_NULL_FATAL(ptr);
+#endif
 }
 
 /* A newline terminates the message. Until that a newline is encountered, the
@@ -274,6 +306,7 @@ CU_Test(dds_log, no_sink, .init=setup, .fini=teardown)
    NULL byte if it is flushed to a sink. */
 CU_Test(dds_log, newline_terminates, .fini=reset)
 {
+#if HAVE_FMEMOPEN
   char *msg = NULL;
 
   dds_set_log_sink(&copy, &msg);
@@ -285,11 +318,13 @@ CU_Test(dds_log, newline_terminates, .fini=reset)
   CU_ASSERT_PTR_NOT_NULL_FATAL(msg);
   CU_ASSERT(strcmp(msg, "foobarbaz\n") == 0);
   ddsrt_free(msg);
+#endif
 }
 
 /* Nothing must be written unless a category is enabled. */
 CU_Test(dds_log, disabled_categories_discarded, .fini=reset)
 {
+#if HAVE_FMEMOPEN
   char *msg = NULL;
   dds_set_log_sink(&copy, &msg);
   DDS_INFO("foobar\n");
@@ -299,9 +334,10 @@ CU_Test(dds_log, disabled_categories_discarded, .fini=reset)
   CU_ASSERT_PTR_NOT_NULL_FATAL(msg);
   CU_ASSERT(strcmp(msg, "foobar\n") == 0);
   ddsrt_free(msg);
+#endif
 }
 
-
+#if HAVE_FMEMOPEN
 static ddsrt_cond_t cond;
 static ddsrt_mutex_t mutex;
 
@@ -337,12 +373,14 @@ static uint32_t run(void *ptr)
 
   return 0;
 }
+#endif
 
 /* Log and trace sinks can be changed at runtime. However, the operation must
    be synchronous! Verify the dds_set_log_sink blocks while other threads
    reside in the log or trace sinks. */
 CU_Test(dds_log, synchronous_sink_changes, .fini=reset)
 {
+#if HAVE_FMEMOPEN
   struct arg arg;
   ddsrt_thread_t tid;
   ddsrt_threadattr_t tattr;
@@ -364,4 +402,108 @@ CU_Test(dds_log, synchronous_sink_changes, .fini=reset)
 
   CU_ASSERT(arg.before < arg.after);
   CU_ASSERT(arg.after < dds_time());
+#endif
+}
+
+/* Sanity checks that FATAL calls abort() -- this is very much platform
+   dependent code, so we only do it on Linux and macOS, assuming that
+   the logging implementation doesn't make any distinction between different
+   platforms and that abort() is correctly implemented by the C library.
+
+   macOS: abort causes abnormal termination unless the handler doesn't return,
+   hence the setjmp/longjmp. */
+#if defined __linux || defined __APPLE__
+#define TEST_DDS_LC_FATAL 1
+#else
+#define TEST_DDS_LC_FATAL 0
+#endif
+
+#if TEST_DDS_LC_FATAL
+#include <signal.h>
+
+static sigjmp_buf abort_jmpbuf;
+static char abort_message[100];
+static char abort_message_trace[100];
+static ddsrt_log_cfg_t abort_logconfig;
+
+static void abort_handler (int sig)
+{
+  (void) sig;
+  siglongjmp (abort_jmpbuf, 1);
+}
+
+static void abort_log (void *arg, const dds_log_data_t *info)
+{
+  (void) arg;
+  ddsrt_strlcpy (abort_message, info->message, sizeof (abort_message));
+}
+
+static void abort_trace (void *arg, const dds_log_data_t *info)
+{
+  (void) arg;
+  ddsrt_strlcpy (abort_message_trace, info->message, sizeof (abort_message_trace));
+}
+
+CU_TheoryDataPoints(dds_log, fatal_aborts) = {
+  CU_DataPoints(bool, false, false, false,  true,  true,  true), /* global/config */
+  CU_DataPoints(int,      0,     1,     2,     0,     1,     2), /* mask init mode */
+  CU_DataPoints(bool, false, false,  true, false, false,  true)  /* expect in trace? */
+};
+#else
+CU_TheoryDataPoints(dds_log, fatal_aborts) = {
+  CU_DataPoints(bool, false), /* global/config */
+  CU_DataPoints(int,      0), /* mask init mode */
+  CU_DataPoints(bool, false)  /* expect in trace? */
+};
+#endif
+
+CU_Theory((bool local, int mode, bool expect_in_trace), dds_log, fatal_aborts)
+{
+#if TEST_DDS_LC_FATAL
+  struct sigaction action, oldaction;
+  action.sa_flags = 0;
+  action.sa_handler = abort_handler;
+
+  if (sigsetjmp (abort_jmpbuf, 0) != 0)
+  {
+    sigaction (SIGABRT, &oldaction, NULL);
+    CU_ASSERT_STRING_EQUAL (abort_message, "oops\n");
+    CU_ASSERT_STRING_EQUAL (abort_message_trace, expect_in_trace ? "oops\n" : "");
+  }
+  else
+  {
+    memset (abort_message, 0, sizeof (abort_message));
+    memset (abort_message_trace, 0, sizeof (abort_message_trace));
+    dds_set_log_sink (abort_log, NULL);
+    dds_set_trace_sink (abort_trace, NULL);
+    sigaction (SIGABRT, &action, &oldaction);
+    if (local)
+    {
+      switch (mode)
+      {
+        case 0:
+          /* FALL THROUGH */
+        case 1: dds_log_cfg_init (&abort_logconfig, 0, 0, 0, 0); break;
+        case 2: dds_log_cfg_init (&abort_logconfig, 0, DDS_LC_TRACE, 0, 0); break;
+      }
+      DDS_CLOG (DDS_LC_FATAL, &abort_logconfig, "oops\n");
+    }
+    else
+    {
+      switch (mode)
+      {
+        case 0: break;
+        case 1: dds_set_log_mask (0); break;
+        case 2: dds_set_log_mask (DDS_LC_TRACE); break;
+      }
+      DDS_FATAL ("oops\n");
+    }
+    sigaction (SIGABRT, &oldaction, NULL);
+    CU_ASSERT (0);
+  }
+#else
+  (void) local;
+  (void) mode;
+  (void) expect_in_trace;
+#endif
 }
