@@ -164,8 +164,15 @@ static size_t alignN(const size_t off, const size_t align)
   return (off + align - 1) & ~(align - 1);
 }
 
-#define align4(off) alignN(off, 4)
-#define align8(off) alignN(off, 8)
+static size_t align4(const size_t off)
+{
+  return alignN(off, 4);
+}
+
+static size_t align8(const size_t off)
+{
+  return alignN(off, 8);
+}
 
 static void *deser_generic_dst (void * __restrict dst, size_t *dstoff, const size_t align)
 {
@@ -190,8 +197,15 @@ static void *ser_generic_aligned (char * __restrict p, size_t * __restrict off, 
   return dst;
 }
 
-#define ser_generic_align4(p, off) ser_generic_aligned(p, off, 4)
-#define ser_generic_align8(p, off) ser_generic_aligned(p, off, 8)
+static void *ser_generic_align4(char * __restrict p, size_t * __restrict off)
+{
+  return ser_generic_aligned(p, off, 4);
+}
+
+static void *ser_generic_align8(char * __restrict p, size_t * __restrict off)
+{
+  return ser_generic_aligned(p, off, 8);
+}
 
 static dds_return_t deser_uint32 (uint32_t *dst, const struct dd * __restrict dd, size_t * __restrict off)
 {
