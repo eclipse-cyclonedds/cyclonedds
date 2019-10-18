@@ -15,6 +15,7 @@
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsi/q_xqos.h"
 #include "dds/ddsi/ddsi_plist_generic.h"
+#include "mem_ser.h"
 
 struct desc {
   const enum pserop desc[20];
@@ -33,28 +34,9 @@ struct desc_invalid {
   const unsigned char *ser;
 };
 
-#if DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
-#define SER32(v) \
-  (unsigned char)((uint32_t)(v) >> 24), \
-  (unsigned char)(((uint32_t)(v) >> 16) & 0xff), \
-  (unsigned char)(((uint32_t)(v) >> 8) & 0xff), \
-  (unsigned char)((uint32_t)(v) & 0xff)
-#define SER32BE(v) SER32(v)
-#else
-#define SER32(v) \
-  (unsigned char)((uint32_t)(v) & 0xff), \
-  (unsigned char)(((uint32_t)(v) >> 8) & 0xff), \
-  (unsigned char)(((uint32_t)(v) >> 16) & 0xff), \
-  (unsigned char)((uint32_t)(v) >> 24)
-#define SER32BE(v) \
-  (unsigned char)((uint32_t)(v) >> 24), \
-  (unsigned char)(((uint32_t)(v) >> 16) & 0xff), \
-  (unsigned char)(((uint32_t)(v) >> 8) & 0xff), \
-  (unsigned char)((uint32_t)(v) & 0xff)
-#endif
-
 typedef unsigned char raw[];
 typedef uint32_t raw32[];
+typedef uint64_t raw64[];
 typedef ddsi_octetseq_t oseq;
 
 struct desc descs[] = {
@@ -75,6 +57,7 @@ struct desc descs[] = {
   { {Xux3,XSTOP}, (raw32){4,5,6},       12, (raw){SER32(4), SER32(5), SER32(6)} },
   { {Xux4,XSTOP}, (raw32){7,8,9,10},    16, (raw){SER32(7), SER32(8), SER32(9), SER32(10)} },
   { {Xux5,XSTOP}, (raw32){7,8,9,10,11}, 20, (raw){SER32(7), SER32(8), SER32(9), SER32(10), SER32(11)} },
+  { {Xl,XSTOP},   (raw64){123456789},    8, (raw){SER64(123456789)} },
   { {XD,XSTOP},   (uint64_t[]){314159265358979324},
     /* note: fractional part depends on rounding rule used for converting nanoseconds to NTP time
        Cyclone currently rounds up, so we have to do that too */
@@ -94,6 +77,46 @@ struct desc descs[] = {
     7, (raw){SER32(3), 1,2,3} },
   { {XQ,XS,XSTOP,XSTOP}, &(ddsi_stringseq_t){2, (char*[]){"tree","flower"}},
     27, (raw){SER32(2), SER32(5),'t','r','e','e',0, 0,0,0, SER32(7), 'f','l','o','w','e','r',0} },
+  { {Xo,Xl,Xo,Xu,Xo,XSTOP},
+    &(struct{unsigned char a;int64_t b;unsigned char c;uint32_t d;unsigned char e;}){ 1, 2, 3, 4, 5 },
+     25, (raw){1,0,0,0,0,0,0,0,SER64(2),3,0,0,0,SER32(4),5} },
+  { {Xo,XQ,Xo,Xu,Xo,XSTOP,Xo,XSTOP},
+    &(struct{uint8_t b; oseq seq; uint8_t c;})
+      {1, {2, (unsigned char *)(struct{uint8_t a; uint32_t b; uint8_t c;}[])
+              { {0x10, 0x11, 0x12},
+                {0x21, 0x22, 0x23} },
+      }, 0x42 },
+    26,
+    (raw){1, /* pad */0,0,0, SER32(2),
+             0x10, /* pad */0,0,0, SER32(0x11), 0x12,
+             0x21, /* pad */0,0,   SER32(0x22), 0x23,
+          0x42}
+  },
+  { {Xo,XQ,Xo,Xl,Xo,XSTOP,Xo,XSTOP},
+    &(struct{uint8_t b; oseq seq; uint8_t c;})
+      {1, {2, (unsigned char *)(struct{uint8_t a; int64_t b; uint8_t c;}[])
+              { {0x10, 0x11, 0x12},
+                {0x21, 0x22, 0x23} },
+      }, 0x42 },
+    42,
+    (raw){1, /* pad */0,0,0, SER32(2),
+             0x10, /* pad */0,0,0,0,0,0,0, SER64(0x11), 0x12,
+             0x21, /* pad */0,0,0,0,0,0,   SER64(0x22), 0x23,
+          0x42}
+  },
+  { {Xo,XQ,Xo,Xo,XQ,Xo,XSTOP,XSTOP,Xo,XSTOP},
+    &(struct{uint8_t b; oseq seq; uint8_t c;})
+      {1, {2, (unsigned char *)(struct{uint8_t a; uint8_t b; oseq seq;}[])
+        { {0x10, 0x11, { 3, (unsigned char *)(struct{uint8_t a;}[]){ {'a'}, {'b'}, {'c'}}}},
+          {0x21, 0x22, { 2, (unsigned char *)(struct{uint8_t a;}[]){ {'o'}, {'p'}}}}
+        },
+      }, 0x42 },
+    31,
+    (raw){1, /* pad */0,0,0, SER32(2),
+             0x10, 0x11, /* pad */0,0,   SER32(3), 'a','b','c',
+             0x21, 0x22, /* pad */0,0,0, SER32(2), 'o','p',
+          0x42}
+  },
   { {Xb,XQ,XbPROP,XS,Xo,XSTOP,XSTOP},
     &(struct{char b; oseq seq;}){1, {5, (unsigned char *)(struct{char b;char *s;uint8_t o;}[]){
       {0,"apple",1}, {1,"orange",2}, {0,"cherry",3}, {1,"fig",4}, {1,"prune",5}}}},
@@ -240,7 +263,8 @@ struct desc_invalid descs_invalid[] = {
       SER32(7), 'o','r','a','n','g','e',0, 2,
       SER32(4), 'f','i','g',0, 4, 0,0,0,
       SER32(7), 'p','r','u','n','e',0, 5 // string not terminated
-    } }
+    } },
+  { {XQ,XQ,Xu,XSTOP,XSTOP}, 16, (raw){SER32(2),SER32(1),SER32(31415),SER32(3)} } // nested sequence failure
 };
 
 CU_Test (ddsi_plist_generic, invalid_input)

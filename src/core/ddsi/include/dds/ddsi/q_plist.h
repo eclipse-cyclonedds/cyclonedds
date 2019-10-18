@@ -134,6 +134,11 @@ typedef struct nn_dataholder
   dds_binarypropertyseq_t binary_properties;
 } nn_dataholder_t;
 
+typedef struct nn_dataholderseq {
+  uint32_t n;
+  nn_dataholder_t *tags;
+} nn_dataholderseq_t;
+
 typedef nn_dataholder_t nn_token_t;
 
 /* Used for both nn_participant_security_info and nn_endpoint_security_info. */
