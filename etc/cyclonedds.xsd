@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns="https://cdds.io/config"
+           targetNamespace="https://cdds.io/config"
+           elementFormDefault="qualified">
   <xs:element name="CycloneDDS">
     <xs:annotation>
       <xs:documentation>
