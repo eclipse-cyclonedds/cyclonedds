@@ -70,11 +70,11 @@ set_target_properties(ddsc PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PRO
 # Create a pseudo-target that other targets (i.e. examples, tests) can depend
 # on and can also be provided as import-target by a package-file when building
 # those targets outside the regular Cyclone build-tree (i.e. the installed tree)
-add_library(${CMAKE_PROJECT_NAME}::ddsc ALIAS ddsc)
+add_library(${PROJECT_NAME}::ddsc ALIAS ddsc)
 
 install(
   TARGETS ddsc
-  EXPORT "${CMAKE_PROJECT_NAME}"
+  EXPORT "${PROJECT_NAME}"
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib

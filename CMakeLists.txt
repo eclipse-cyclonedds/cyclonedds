@@ -10,6 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 cmake_minimum_required(VERSION 3.7)
+project(CycloneDDS VERSION 0.1.0)
 
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
@@ -42,13 +43,12 @@ ENDFUNCTION(PREPEND)
 
 # Set module path before defining project so platform files will work.
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
-set(CMAKE_PROJECT_NAME_FULL "Eclipse Cyclone DDS")
-project(CycloneDDS VERSION 0.1.0)
+set(PROJECT_NAME_FULL "Eclipse Cyclone DDS")
 
 # Set some convenience variants of the project-name
-string(REPLACE " " "-" CMAKE_PROJECT_NAME_DASHED "${CMAKE_PROJECT_NAME_FULL}")
-string(TOUPPER ${CMAKE_PROJECT_NAME} CMAKE_PROJECT_NAME_CAPS)
-string(TOLOWER ${CMAKE_PROJECT_NAME} CMAKE_PROJECT_NAME_SMALL)
+string(REPLACE " " "-" PROJECT_NAME_DASHED "${PROJECT_NAME_FULL}")
+string(TOUPPER ${PROJECT_NAME} PROJECT_NAME_CAPS)
+string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_SMALL)
 
 set(CMAKE_C_STANDARD 99)
 if(CMAKE_SYSTEM_NAME STREQUAL "VxWorks")
