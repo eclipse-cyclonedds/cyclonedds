@@ -14,11 +14,11 @@
 #include <stddef.h>
 #include <winerror.h>
 
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/retcode.h"
-#include "dds/ddsrt/sockets_priv.h"
-#include "dds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/retcode.h"
+#include "cyclonedds/ddsrt/sockets_priv.h"
+#include "cyclonedds/ddsrt/time.h"
 
 #ifdef ddsrt_select
 #undef ddsrt_select /* See sockets.h for details. */

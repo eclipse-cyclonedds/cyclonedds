@@ -20,10 +20,10 @@
 #endif
 
 #include "CUnit/Theory.h"
-#include "dds/ddsrt/cdtors.h"
-#include "dds/ddsrt/retcode.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/cdtors.h"
+#include "cyclonedds/ddsrt/retcode.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/threads.h"
 
 static int32_t min_fifo_prio = 250;
 static int32_t max_fifo_prio = 250;

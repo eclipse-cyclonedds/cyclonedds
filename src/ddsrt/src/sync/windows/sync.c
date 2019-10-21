@@ -12,8 +12,8 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/timeconv.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/timeconv.h"
 
 void ddsrt_mutex_init(ddsrt_mutex_t *mutex)
 {

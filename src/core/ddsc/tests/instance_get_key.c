@@ -14,8 +14,8 @@
 #include <string.h>
 
 #include "CUnit/Test.h"
-#include "dds/dds.h"
-#include "dds/ddsrt/string.h"
+#include "cyclonedds/dds.h"
+#include "cyclonedds/ddsrt/string.h"
 #include "RoundTrip.h"
 
 #define MAX_SAMPLES 10

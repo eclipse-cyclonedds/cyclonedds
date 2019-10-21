@@ -11,12 +11,12 @@
  */
 #include <assert.h>
 #include <string.h>
-#include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_plist.h" /* for nn_keyhash */
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_plist.h" /* for nn_keyhash */
 #include "dds__init.h"
 #include "dds__domain.h"
 #include "dds__participant.h"
@@ -28,8 +28,8 @@
 #include "dds__writer.h"
 #include "dds__whc_builtintopic.h"
 #include "dds__serdata_builtintopic.h"
-#include "dds/ddsi/q_qosmatch.h"
-#include "dds/ddsi/ddsi_tkmap.h"
+#include "cyclonedds/ddsi/q_qosmatch.h"
+#include "cyclonedds/ddsi/ddsi_tkmap.h"
 
 static dds_qos_t *dds__create_builtin_qos (void)
 {

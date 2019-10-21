@@ -13,7 +13,7 @@
 #include <limits.h>
 #include <string.h>
 
-#include "dds/ddsrt/retcode.h"
+#include "cyclonedds/ddsrt/retcode.h"
 
 #ifdef _WRS_KERNEL
 

@@ -11,8 +11,8 @@
  */
 #include <stdlib.h>
 
-#include "dds/ddsrt/attributes.h"
-#include "dds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/attributes.h"
+#include "cyclonedds/ddsrt/heap.h"
 
 void *
 ddsrt_malloc_s(size_t size)

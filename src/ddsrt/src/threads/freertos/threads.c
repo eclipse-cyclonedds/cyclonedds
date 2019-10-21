@@ -13,11 +13,11 @@
 #include <task.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/retcode.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/threads_priv.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/retcode.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/threads_priv.h"
 
 typedef enum {
   THREAD_STARTING = 0,

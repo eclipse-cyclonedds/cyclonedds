@@ -12,8 +12,8 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
 #include "dds__entity.h"
 #include "dds__write.h"
 #include "dds__writer.h"
@@ -21,8 +21,8 @@
 #include "dds__listener.h"
 #include "dds__qos.h"
 #include "dds__topic.h"
-#include "dds/version.h"
-#include "dds/ddsi/q_xqos.h"
+#include "cyclonedds/version.h"
+#include "cyclonedds/ddsi/q_xqos.h"
 
 extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
 extern inline bool dds_entity_is_enabled (const dds_entity *e);

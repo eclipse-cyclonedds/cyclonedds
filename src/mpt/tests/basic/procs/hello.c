@@ -4,19 +4,19 @@
 
 #include "mpt/mpt.h"
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 
-#include "dds/ddsrt/time.h"
-#include "dds/ddsrt/strtol.h"
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/environ.h"
-#include "dds/ddsrt/cdtors.h"
-#include "dds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/strtol.h"
+#include "cyclonedds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/environ.h"
+#include "cyclonedds/ddsrt/cdtors.h"
+#include "cyclonedds/ddsrt/sync.h"
 
 #include "hello.h"
 #include "helloworlddata.h"
 
-/* An array of one message (aka sample in dds terms) will be used. */
+/* An array of one message (aka sample in cyclonedds terms) will be used. */
 #define MAX_SAMPLES 1
 
 static int g_publication_matched_count = 0;

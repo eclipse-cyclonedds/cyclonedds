@@ -12,7 +12,7 @@
 #include <string.h>
 
 #include "CUnit/Theory.h"
-#include "dds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/string.h"
 
 typedef enum { eq, lt, gt } eq_t;
 

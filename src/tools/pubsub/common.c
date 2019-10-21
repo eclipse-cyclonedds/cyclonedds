@@ -18,7 +18,7 @@
 #include <stdarg.h>
 #include <math.h>
 
-#include "dds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/string.h"
 
 #include "testtype.h"
 #include "common.h"
@@ -859,7 +859,7 @@ QOS (not all are universally applicable):\n\
 ";
 
 void set_qosprovider(const char *arg) {
-    //Todo: There is no qosprovider_create in dds.h, yet
+    //Todo: There is no qosprovider_create in cyclonedds.h, yet
     (void)arg;
 //    int result = DDS_RETCODE_OK;
 //    const char *p = strchr(arg, ',');
@@ -909,7 +909,7 @@ void setqos_from_args(dds_entity_kind_t qt, dds_qos_t *q, int n, const char *arg
             } else if (!qosprov) {
                 error_exit("QoS specification %s requires a QoS provider but none set\n", arg);
             } else {
-                printf ("Qos provider not supported\n"); //Todo: Commentted qos provider. Could not find in dds.h. Fix required.
+                printf ("Qos provider not supported\n"); //Todo: Commentted qos provider. Could not find in cyclonedds.h. Fix required.
 //                int result;
 //                if (*arg == 0)
 //                    arg = NULL;

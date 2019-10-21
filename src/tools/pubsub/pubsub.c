@@ -35,12 +35,12 @@
 #include "tglib.h"
 #include "porting.h"
 
-#include "dds/ddsrt/environ.h"
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/strtol.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/environ.h"
+#include "cyclonedds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/strtol.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/threads.h"
 
 //#define NUMSTR "0123456789"
 //#define HOSTNAMESTR "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-." NUMSTR
@@ -1667,7 +1667,7 @@ static int check_eseq(struct eseq_admin *ea, unsigned seq, unsigned keyval, cons
     return 1;
 }
 
-// TODO coherency - Reintroduce this into application logic where needed. dds.h has this, but returns UNSUPPORTED, so expect that for now
+// TODO coherency - Reintroduce this into application logic where needed. cyclonedds.h has this, but returns UNSUPPORTED, so expect that for now
 //static int subscriber_needs_access(dds_entity_t sub) {
 //    dds_qos_t *qos;
 //    int x;
@@ -2683,7 +2683,7 @@ int main(int argc, char *argv[]) {
                 if (!(spec[i].tp = find_topic(dp, spec[i].topicname, &spec[i].findtopic_timeout)))
                     error_exit("topic %s not found\n", spec[i].topicname);
             } else  {
-//                const dds_topic_descriptor_t* ts = dds_topic_descriptor_create(spec[i].typename, spec[i].keylist, spec[i].metadata); //Todo: Not available in cham dds.h
+//                const dds_topic_descriptor_t* ts = dds_topic_descriptor_create(spec[i].typename, spec[i].keylist, spec[i].metadata); //Todo: Not available in cham cyclonedds.h
                 const dds_topic_descriptor_t* ts = NULL;
                 if(ts == NULL)
                     error_exit("dds_topic_descriptor_create(%s) failed\n",spec[i].typename);

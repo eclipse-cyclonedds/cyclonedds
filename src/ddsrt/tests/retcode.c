@@ -12,7 +12,7 @@
 #include <string.h>
 
 #include "CUnit/Theory.h"
-#include "dds/ddsrt/retcode.h"
+#include "cyclonedds/ddsrt/retcode.h"
 
 CU_TheoryDataPoints(ddsrt_retcode, unknown) = {
   CU_DataPoints(dds_return_t,

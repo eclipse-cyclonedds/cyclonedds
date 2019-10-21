@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "mpt/mpt.h"
-#include "dds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/time.h"
 
 static int dummy;
 

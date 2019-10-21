@@ -14,8 +14,8 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/string.h"
 
 int
 ddsrt_strcasecmp(

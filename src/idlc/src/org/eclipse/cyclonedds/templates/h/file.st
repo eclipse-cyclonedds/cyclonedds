@@ -11,7 +11,7 @@
 file (banner, name, nameupper, declarations, dll, includes) ::= <<
 <banner>
 
-#include "dds/ddsc/dds_public_impl.h"
+#include "cyclonedds/ddsc/dds_public_impl.h"
 <includes:{n | #include "<n>.h"}; separator="\n">
 
 #ifndef _DDSL_<nameupper>_H_

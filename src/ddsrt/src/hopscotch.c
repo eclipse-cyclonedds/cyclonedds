@@ -12,11 +12,11 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/attributes.h"
-#include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/hopscotch.h"
+#include "cyclonedds/ddsrt/attributes.h"
+#include "cyclonedds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/hopscotch.h"
 
 #define HH_HOP_RANGE 32
 #define HH_ADD_RANGE 64

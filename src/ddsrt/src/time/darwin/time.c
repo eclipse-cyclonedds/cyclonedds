@@ -19,7 +19,7 @@
 #include <mach/mach_time.h>
 #endif
 
-#include "dds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/time.h"
 
 dds_time_t dds_time(void)
 {

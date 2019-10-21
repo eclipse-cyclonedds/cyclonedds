@@ -13,8 +13,8 @@
 #include <task.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/rusage.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/rusage.h"
 
 /* Task CPU time statistics require a high resolution timer. FreeRTOS
    recommends a time base between 10 and 100 times faster than the tick

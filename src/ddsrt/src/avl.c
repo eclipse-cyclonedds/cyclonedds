@@ -14,8 +14,8 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "dds/ddsrt/attributes.h"
-#include "dds/ddsrt/avl.h"
+#include "cyclonedds/ddsrt/attributes.h"
+#include "cyclonedds/ddsrt/avl.h"
 
 #define LOAD_DIRKEY(avlnode, tree) (((char *) (avlnode)) - (tree)->avlnodeoffset + (tree)->keyoffset)
 #define LOAD_INDKEY(avlnode, tree) (*((char **) (((char *) (avlnode)) - (tree)->avlnodeoffset + (tree)->keyoffset)))

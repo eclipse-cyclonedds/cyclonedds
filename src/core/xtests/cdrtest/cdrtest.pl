@@ -50,10 +50,10 @@ print CYC <<EOF;
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
-#include "dds/dds.h"
-#include "dds/ddsrt/random.h"
-#include "dds/ddsrt/sockets.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
+#include "cyclonedds/dds.h"
+#include "cyclonedds/ddsrt/random.h"
+#include "cyclonedds/ddsrt/sockets.h"
+#include "cyclonedds/ddsi/ddsi_serdata_default.h"
 #include "dds__stream.h"
 
 #include "c_base.h"

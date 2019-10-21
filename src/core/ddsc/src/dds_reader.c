@@ -11,23 +11,23 @@
  */
 #include <assert.h>
 #include <string.h>
-#include "dds/dds.h"
-#include "dds/version.h"
-#include "dds/ddsrt/static_assert.h"
+#include "cyclonedds/dds.h"
+#include "cyclonedds/version.h"
+#include "cyclonedds/ddsrt/static_assert.h"
 #include "dds__subscriber.h"
 #include "dds__reader.h"
 #include "dds__listener.h"
 #include "dds__init.h"
-#include "dds/ddsc/dds_rhc.h"
+#include "cyclonedds/ddsc/dds_rhc.h"
 #include "dds__rhc_default.h"
 #include "dds__topic.h"
 #include "dds__get_status.h"
 #include "dds__qos.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/q_globals.h"
 #include "dds__builtin.h"
-#include "dds/ddsi/ddsi_sertopic.h"
+#include "cyclonedds/ddsi/ddsi_sertopic.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
 

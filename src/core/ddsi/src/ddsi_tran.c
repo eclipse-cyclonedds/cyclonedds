@@ -14,12 +14,12 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/ifaddrs.h"
-#include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_globals.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/ifaddrs.h"
+#include "cyclonedds/ddsi/ddsi_tran.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_globals.h"
 
 extern inline uint32_t ddsi_conn_type (ddsi_tran_conn_t conn);
 extern inline uint32_t ddsi_conn_port (ddsi_tran_conn_t conn);

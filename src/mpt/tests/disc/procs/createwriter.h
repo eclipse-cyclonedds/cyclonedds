@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "mpt/mpt.h"
 
 #if defined (__cplusplus)

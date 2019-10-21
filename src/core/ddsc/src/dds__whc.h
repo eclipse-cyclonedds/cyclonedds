@@ -12,7 +12,7 @@
 #ifndef DDS__WHC_H
 #define DDS__WHC_H
 
-#include "dds/ddsi/q_whc.h"
+#include "cyclonedds/ddsi/q_whc.h"
 
 #if defined (__cplusplus)
 extern "C" {

@@ -13,13 +13,13 @@
 #include <string.h>
 #include "dds__entity.h"
 #include "dds__reader.h"
-#include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsc/dds_rhc.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_ephash.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/ddsi_sertopic.h"
+#include "cyclonedds/ddsi/ddsi_tkmap.h"
+#include "cyclonedds/ddsc/dds_rhc.h"
+#include "cyclonedds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/q_ephash.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/ddsi_sertopic.h"
 
 /*
   dds_read_impl: Core read/take function. Usually maxs is size of buf and si

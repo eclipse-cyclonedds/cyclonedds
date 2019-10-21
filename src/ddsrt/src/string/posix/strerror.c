@@ -19,7 +19,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include "dds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/string.h"
 
 dds_return_t
 ddsrt_strerror_r(int errnum, char *buf, size_t buflen)

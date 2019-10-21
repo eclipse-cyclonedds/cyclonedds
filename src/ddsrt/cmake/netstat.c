@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/netstat.h"
+#include "cyclonedds/ddsrt/netstat.h"
 
 #if DDSRT_HAVE_NETSTAT
 # error "cmake_HAVE_NETSTAT=true"

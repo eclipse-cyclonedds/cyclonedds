@@ -15,23 +15,23 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "dds/ddsrt/ifaddrs.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/md5.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/sockets.h"
+#include "cyclonedds/ddsrt/ifaddrs.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/md5.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/sockets.h"
 
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_nwif.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_nwif.h"
 
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_addrset.h" /* unspec locator */
-#include "dds/ddsi/q_feature_check.h"
-#include "dds/ddsi/ddsi_ipaddr.h"
-#include "dds/ddsrt/avl.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_unused.h"
+#include "cyclonedds/ddsi/q_misc.h"
+#include "cyclonedds/ddsi/q_addrset.h" /* unspec locator */
+#include "cyclonedds/ddsi/q_feature_check.h"
+#include "cyclonedds/ddsi/ddsi_ipaddr.h"
+#include "cyclonedds/ddsrt/avl.h"
 
 static void print_sockerror (const struct ddsrt_log_cfg *logcfg, const char *msg)
 {

@@ -11,15 +11,15 @@
  */
 #include <assert.h>
 #include <string.h>
-#include "dds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/misc.h"
 #include "dds__listener.h"
 #include "dds__participant.h"
 #include "dds__publisher.h"
 #include "dds__qos.h"
-#include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/version.h"
+#include "cyclonedds/ddsi/ddsi_iid.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/version.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_publisher)
 

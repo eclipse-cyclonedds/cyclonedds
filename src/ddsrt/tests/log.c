@@ -21,13 +21,13 @@
 
 #include "CUnit/Test.h"
 #include "CUnit/Theory.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/time.h"
 
 /* On macOS, fmemopen was introduced in version 10.13.  The hassle of providing
    an alternative implementation of it just for running a few sanity checks on an

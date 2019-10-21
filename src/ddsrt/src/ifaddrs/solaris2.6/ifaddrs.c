@@ -11,13 +11,13 @@
  */
 #include <assert.h>
 #include <errno.h>
-#include "dds/ddsrt/ifaddrs.h"
+#include "cyclonedds/ddsrt/ifaddrs.h"
 #include <string.h>
 #include <stdio.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/retcode.h"
-#include "dds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/retcode.h"
+#include "cyclonedds/ddsrt/string.h"
 
 extern const int *const os_supp_afs;
 

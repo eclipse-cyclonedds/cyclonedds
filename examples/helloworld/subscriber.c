@@ -1,10 +1,10 @@
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "HelloWorldData.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-/* An array of one message (aka sample in dds terms) will be used. */
+/* An array of one message (aka sample in cyclonedds terms) will be used. */
 #define MAX_SAMPLES 1
 
 int main (int argc, char ** argv)

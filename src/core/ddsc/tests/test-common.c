@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 
 const char*
 entity_kind_str(dds_entity_t ent) {

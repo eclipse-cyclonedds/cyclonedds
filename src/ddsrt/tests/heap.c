@@ -12,8 +12,8 @@
 #include <stdio.h>
 #include "CUnit/Test.h"
 
-#include "dds/ddsrt/cdtors.h"
-#include "dds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/cdtors.h"
+#include "cyclonedds/ddsrt/heap.h"
 
 CU_Init(ddsrt_heap)
 {

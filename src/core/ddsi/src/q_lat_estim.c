@@ -12,9 +12,9 @@
 #include <ctype.h>
 #include <stddef.h>
 
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_lat_estim.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_unused.h"
+#include "cyclonedds/ddsi/q_lat_estim.h"
 #include <stdlib.h>
 #include <string.h>
 

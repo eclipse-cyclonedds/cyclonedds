@@ -13,10 +13,10 @@
 #include <stdint.h>
 
 #include "CUnit/Test.h"
-#include "dds/ddsrt/cdtors.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/cdtors.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/threads.h"
 
 CU_Init(ddsrt_thread_cleanup)
 {

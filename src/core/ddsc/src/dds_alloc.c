@@ -14,8 +14,8 @@
 
 #include "dds__alloc.h"
 #include "dds__stream.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsi/q_config.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsi/q_config.h"
 
 /*
 #define OP_DEBUG_FREE 1

@@ -14,11 +14,11 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/md5.h"
-#include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/ddsi_serdata.h"
+#include "cyclonedds/ddsrt/md5.h"
+#include "cyclonedds/ddsi/q_bswap.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_freelist.h"
+#include "cyclonedds/ddsi/ddsi_serdata.h"
 
 void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertopic *tp, enum ddsi_serdata_kind kind)
 {

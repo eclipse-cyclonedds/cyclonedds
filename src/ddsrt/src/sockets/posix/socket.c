@@ -13,9 +13,9 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/sockets_priv.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/sockets_priv.h"
 
 #if !LWIP_SOCKET
 #if defined(__VXWORKS__)

@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsi/q_bitset.h"
+#include "cyclonedds/ddsi/q_bitset.h"
 
 extern inline int nn_bitset_isset (uint32_t numbits, const uint32_t *bits, uint32_t idx);
 extern inline void nn_bitset_set (uint32_t numbits, uint32_t *bits, uint32_t idx);

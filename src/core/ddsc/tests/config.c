@@ -11,14 +11,14 @@
  */
 #include <stdlib.h>
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "CUnit/Test.h"
 #include "config_env.h"
 
-#include "dds/version.h"
-#include "dds/ddsrt/cdtors.h"
-#include "dds/ddsrt/environ.h"
-#include "dds/ddsrt/heap.h"
+#include "cyclonedds/version.h"
+#include "cyclonedds/ddsrt/cdtors.h"
+#include "cyclonedds/ddsrt/environ.h"
+#include "cyclonedds/ddsrt/heap.h"
 
 #define FORCE_ENV
 

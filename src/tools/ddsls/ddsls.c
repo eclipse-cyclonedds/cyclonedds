@@ -13,9 +13,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/string.h"
-#include "dds/dds.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/dds.h"
 
 // FIXME Temporary workaround for lack of wait_for_historical implementation. Remove this on completion of CHAM-268.
 #define dds_reader_wait_for_historical_data(a,b) DDS_RETCODE_OK; dds_sleepfor(DDS_MSECS(200));

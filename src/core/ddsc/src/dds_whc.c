@@ -13,21 +13,21 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_config.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsi/ddsi_serdata.h"
+#include "cyclonedds/ddsi/q_unused.h"
+#include "cyclonedds/ddsi/q_config.h"
 #include "dds__whc.h"
-#include "dds/ddsi/ddsi_tkmap.h"
+#include "cyclonedds/ddsi/ddsi_tkmap.h"
 
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsrt/hopscotch.h"
-#include "dds/ddsi/q_time.h"
-#include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/q_globals.h"
+#include "cyclonedds/ddsrt/avl.h"
+#include "cyclonedds/ddsrt/hopscotch.h"
+#include "cyclonedds/ddsi/q_time.h"
+#include "cyclonedds/ddsi/q_rtps.h"
+#include "cyclonedds/ddsi/q_freelist.h"
+#include "cyclonedds/ddsi/q_globals.h"
 
 #define USE_EHH 0
 

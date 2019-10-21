@@ -18,23 +18,23 @@
 #include <limits.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/strtod.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/environ.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_addrset.h"
-#include "dds/ddsi/q_nwif.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/strtod.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/environ.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsrt/avl.h"
+#include "cyclonedds/ddsi/q_unused.h"
+#include "cyclonedds/ddsi/q_misc.h"
+#include "cyclonedds/ddsi/q_addrset.h"
+#include "cyclonedds/ddsi/q_nwif.h"
 
-#include "dds/ddsrt/xmlparser.h"
+#include "cyclonedds/ddsrt/xmlparser.h"
 
-#include "dds/version.h"
+#include "cyclonedds/version.h"
 
 #define MAX_PATH_DEPTH 10 /* max nesting level of configuration elements */
 

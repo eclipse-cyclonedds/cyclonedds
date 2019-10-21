@@ -11,21 +11,21 @@
  */
 #include <assert.h>
 #include <string.h>
-#include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/sockets.h"
+#include "cyclonedds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/sockets.h"
 #include "ddsi_eth.h"
-#include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/ddsi_udp.h"
-#include "dds/ddsi/ddsi_ipaddr.h"
-#include "dds/ddsi/ddsi_mcgroup.h"
-#include "dds/ddsi/q_nwif.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_pcap.h"
-#include "dds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/ddsi_tran.h"
+#include "cyclonedds/ddsi/ddsi_udp.h"
+#include "cyclonedds/ddsi/ddsi_ipaddr.h"
+#include "cyclonedds/ddsi/ddsi_mcgroup.h"
+#include "cyclonedds/ddsi/q_nwif.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_pcap.h"
+#include "cyclonedds/ddsi/q_globals.h"
 
 typedef struct ddsi_udp_conn {
   struct ddsi_tran_conn m_base;

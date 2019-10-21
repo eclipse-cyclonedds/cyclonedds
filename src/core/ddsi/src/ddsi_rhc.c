@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsi/ddsi_rhc.h"
+#include "cyclonedds/ddsi/ddsi_rhc.h"
 
 extern inline void ddsi_rhc_free (struct ddsi_rhc *rhc);
 extern inline bool ddsi_rhc_store (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk);

@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include "CUnit/Test.h"
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "RoundTrip.h"
 
 #include "test-common.h"

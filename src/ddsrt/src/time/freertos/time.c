@@ -14,7 +14,7 @@
 #define _POSIX_TIMERS
 #include <time.h>
 
-#include "dds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/time.h"
 
 extern inline TickType_t ddsrt_duration_to_ticks_ceil(dds_duration_t reltime);
 

@@ -13,7 +13,7 @@
 #define _DDS_ENTITY_H_
 
 #include "dds__types.h"
-#include "dds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/q_thread.h"
 
 #if defined (__cplusplus)
 extern "C" {

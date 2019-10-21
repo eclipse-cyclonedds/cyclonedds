@@ -14,11 +14,11 @@
 #include "dds__participant.h"
 #include "dds__subscriber.h"
 #include "dds__qos.h"
-#include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/version.h"
+#include "cyclonedds/ddsi/ddsi_iid.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/version.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_subscriber)
 

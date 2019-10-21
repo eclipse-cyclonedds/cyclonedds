@@ -11,12 +11,12 @@
  */
 #include <stddef.h>
 
-#include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsi/q_freelist.h"
+#include "cyclonedds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/threads.h"
+#include "cyclonedds/ddsi/q_freelist.h"
 
 #if FREELIST_TYPE == FREELIST_NONE
 

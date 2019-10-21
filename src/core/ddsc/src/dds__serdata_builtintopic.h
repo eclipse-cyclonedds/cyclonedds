@@ -12,9 +12,9 @@
 #ifndef DDSI_SERDATA_BUILTINTOPIC_H
 #define DDSI_SERDATA_BUILTINTOPIC_H
 
-#include "dds/ddsi/q_xqos.h"
-#include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_sertopic.h"
+#include "cyclonedds/ddsi/q_xqos.h"
+#include "cyclonedds/ddsi/ddsi_serdata.h"
+#include "cyclonedds/ddsi/ddsi_sertopic.h"
 
 #if defined (__cplusplus)
 extern "C" {

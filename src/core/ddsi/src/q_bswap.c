@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsi/q_bswap.h"
+#include "cyclonedds/ddsi/q_bswap.h"
 
 ddsi_guid_prefix_t nn_hton_guid_prefix (ddsi_guid_prefix_t p)
 {

@@ -13,8 +13,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/io.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/io.h"
 
 int
 ddsrt_asprintf(

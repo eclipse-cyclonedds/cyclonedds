@@ -14,7 +14,7 @@
 #include <limits.h>
 #include <string.h>
 
-#include "dds/ddsrt/strtol.h"
+#include "cyclonedds/ddsrt/strtol.h"
 
 static int ddsrt_todigit(const int chr)
 {

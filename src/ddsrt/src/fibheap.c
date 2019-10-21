@@ -13,8 +13,8 @@
 #include <limits.h>
 #include <assert.h>
 
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/fibheap.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/fibheap.h"
 
 /* max degree: n >= F_{d+2} >= \phi^d ==> d <= log_\phi n, where \phi
    (as usual) is the golden ratio ~= 1.618.  We know n <= (size of

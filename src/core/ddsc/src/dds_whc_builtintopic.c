@@ -13,14 +13,14 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_ephash.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/ddsi_tkmap.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsi/ddsi_serdata.h"
+#include "cyclonedds/ddsi/q_unused.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_ephash.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/ddsi_tkmap.h"
 #include "dds__serdata_builtintopic.h"
 #include "dds__whc_builtintopic.h"
 #include "dds__builtin.h"

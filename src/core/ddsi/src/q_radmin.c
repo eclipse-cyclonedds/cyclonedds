@@ -22,26 +22,26 @@
 #define USE_VALGRIND 0
 #endif
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/log.h"
 
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_protocol.h"
-#include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_misc.h"
+#include "cyclonedds/ddsrt/avl.h"
+#include "cyclonedds/ddsi/q_protocol.h"
+#include "cyclonedds/ddsi/q_rtps.h"
+#include "cyclonedds/ddsi/q_misc.h"
 
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_log.h"
 
-#include "dds/ddsi/q_plist.h"
-#include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_bitset.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_globals.h" /* for mattr, cattr */
+#include "cyclonedds/ddsi/q_plist.h"
+#include "cyclonedds/ddsi/q_unused.h"
+#include "cyclonedds/ddsi/q_radmin.h"
+#include "cyclonedds/ddsi/q_bitset.h"
+#include "cyclonedds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/q_globals.h" /* for mattr, cattr */
 
 /* OVERVIEW ------------------------------------------------------------
 

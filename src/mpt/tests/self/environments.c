@@ -3,7 +3,7 @@
 #include <assert.h>
 #include "mpt/mpt.h"
 #include "mpt/resource.h" /* MPT_SOURCE_ROOT_DIR */
-#include "dds/ddsrt/environ.h"
+#include "cyclonedds/ddsrt/environ.h"
 
 
 

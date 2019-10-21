@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/ifaddrs.h"
+#include "cyclonedds/ddsrt/ifaddrs.h"
 
 #if DDSRT_WITH_LWIP
 # if LWIP_SOCKET

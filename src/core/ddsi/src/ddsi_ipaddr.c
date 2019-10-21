@@ -12,13 +12,13 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/endian.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/sockets.h"
-#include "dds/ddsi/ddsi_ipaddr.h"
-#include "dds/ddsi/q_nwif.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
+#include "cyclonedds/ddsrt/endian.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/sockets.h"
+#include "cyclonedds/ddsi/ddsi_ipaddr.h"
+#include "cyclonedds/ddsi/q_nwif.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_globals.h"
 
 int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr *const sa2)
 {

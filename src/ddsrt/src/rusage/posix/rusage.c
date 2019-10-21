@@ -15,7 +15,7 @@
 #include <string.h>
 #include <sys/resource.h>
 
-#include "dds/ddsrt/rusage.h"
+#include "cyclonedds/ddsrt/rusage.h"
 
 #if defined __linux
 #include <stdio.h>

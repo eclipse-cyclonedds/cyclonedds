@@ -44,7 +44,11 @@ target_include_directories(
 generate_dummy_export_header(
   cunit_ddsrt
   BASE_NAME dds
-  EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/export.h")
+  EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/cyclonedds/export.h")
+
+include(RedirectHeader)
+redirect_header("dds/export.h" "cyclonedds/export.h"
+  DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/include")
 
 if(HAVE_MULTI_PROCESS)
   # A separate application is required to test process management.

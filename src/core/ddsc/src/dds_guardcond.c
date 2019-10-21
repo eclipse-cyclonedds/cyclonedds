@@ -15,10 +15,10 @@
 #include "dds__reader.h"
 #include "dds__guardcond.h"
 #include "dds__participant.h"
-#include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_ephash.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/ddsi_iid.h"
+#include "cyclonedds/ddsi/q_ephash.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_thread.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_guardcond)
 

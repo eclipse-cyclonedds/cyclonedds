@@ -15,10 +15,10 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/xmlparser.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/xmlparser.h"
 
 #define TOK_EOF -1
 #define TOK_OPEN_TAG -2

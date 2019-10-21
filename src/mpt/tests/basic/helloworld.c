@@ -1,4 +1,4 @@
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "mpt/mpt.h"
 #include "mpt/resource.h" /* MPT_SOURCE_ROOT_DIR */
 #include "procs/hello.h" /* publisher and subscriber entry points. */

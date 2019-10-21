@@ -9,11 +9,11 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/cdtors.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/time.h"
-#include "dds/ddsrt/random.h"
+#include "cyclonedds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/cdtors.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/random.h"
 
 #if _WIN32
 /* Sockets API initialization is only necessary on Microsoft Windows. The
@@ -98,7 +98,7 @@ ddsrt_cond_t *ddsrt_get_singleton_cond(void)
 }
 
 #ifdef _WIN32
-#include "dds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/threads.h"
 
 /* Executed before DllMain within the context of the thread. Located here too
    avoid removal due to link time optimization. */

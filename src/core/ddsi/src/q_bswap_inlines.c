@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsi/q_bswap.h"
+#include "cyclonedds/ddsi/q_bswap.h"
 
 extern inline uint16_t bswap2u (uint16_t x);
 extern inline uint32_t bswap4u (uint32_t x);

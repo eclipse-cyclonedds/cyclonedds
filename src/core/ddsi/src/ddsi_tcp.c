@@ -13,19 +13,19 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/sockets.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/sockets.h"
 #include "ddsi_eth.h"
-#include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/ddsi_tcp.h"
-#include "dds/ddsi/ddsi_ipaddr.h"
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_nwif.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/ddsi_tran.h"
+#include "cyclonedds/ddsi/ddsi_tcp.h"
+#include "cyclonedds/ddsi/ddsi_ipaddr.h"
+#include "cyclonedds/ddsrt/avl.h"
+#include "cyclonedds/ddsi/q_nwif.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_globals.h"
 
 #define INVALID_PORT (~0u)
 

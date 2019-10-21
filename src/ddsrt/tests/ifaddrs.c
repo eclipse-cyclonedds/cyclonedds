@@ -10,9 +10,9 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
-#include "dds/ddsrt/cdtors.h"
-#include "dds/ddsrt/ifaddrs.h"
-#include "dds/ddsrt/retcode.h"
+#include "cyclonedds/ddsrt/cdtors.h"
+#include "cyclonedds/ddsrt/ifaddrs.h"
+#include "cyclonedds/ddsrt/retcode.h"
 #include "CUnit/Test.h"
 
 /* FIXME: It's not possible to predict what network interfaces are available

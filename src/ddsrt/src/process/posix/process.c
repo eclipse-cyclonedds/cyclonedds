@@ -19,10 +19,10 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <sys/types.h>
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
 
 
 ddsrt_pid_t

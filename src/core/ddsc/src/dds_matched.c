@@ -12,13 +12,13 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/dds.h"
-#include "dds/version.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_bswap.h"
+#include "cyclonedds/dds.h"
+#include "cyclonedds/version.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/q_bswap.h"
 #include "dds__writer.h"
 #include "dds__reader.h"
 #include "dds__topic.h"

@@ -19,7 +19,7 @@
 
 *****************************************************************/
 #include <stddef.h>
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 
 #ifndef _DDSL_TESTTYPE_H_
 #define _DDSL_TESTTYPE_H_

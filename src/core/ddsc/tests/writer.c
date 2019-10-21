@@ -12,9 +12,9 @@
 #include <stdio.h>
 
 #include "CUnit/Test.h"
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "RoundTrip.h"
-#include "dds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/misc.h"
 
 static dds_entity_t participant = 0;
 static dds_entity_t topic = 0;

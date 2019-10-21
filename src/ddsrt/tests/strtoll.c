@@ -10,9 +10,9 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "CUnit/Test.h"
-#include "dds/ddsrt/cdtors.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/strtol.h"
+#include "cyclonedds/ddsrt/cdtors.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/strtol.h"
 
 const char *str;
 char *ptr;

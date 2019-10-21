@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/atomics.h"
 
 /* LD, ST */
 extern inline uint32_t ddsrt_atomic_ld32 (const volatile ddsrt_atomic_uint32_t *x);
@@ -181,7 +181,7 @@ void ddsrt_atomics_fini (void) { }
 
 #else
 
-#include "dds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/sync.h"
 
 /* SPARCv8 depends on these mutexes already for one-shot initialisation of the ddsrt
    code.  Using PTHREAD_MUTEX_INITIALIZER guarantees they are properly initialized.

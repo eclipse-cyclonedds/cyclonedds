@@ -12,10 +12,10 @@
 #ifndef DDS__HANDLES_H
 #define DDS__HANDLES_H
 
-#include "dds/ddsrt/time.h"
-#include "dds/ddsrt/retcode.h"
-#include "dds/ddsrt/atomics.h"
-#include "dds/dds.h"
+#include "cyclonedds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/retcode.h"
+#include "cyclonedds/ddsrt/atomics.h"
+#include "cyclonedds/dds.h"
 
 #if defined (__cplusplus)
 extern "C" {

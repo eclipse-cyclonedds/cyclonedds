@@ -10,9 +10,9 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 
-#include "dds/dds.h"
-#include "dds/ddsi/ddsi_rhc.h"
-#include "dds/ddsc/dds_rhc.h"
+#include "cyclonedds/dds.h"
+#include "cyclonedds/ddsi/ddsi_rhc.h"
+#include "cyclonedds/ddsc/dds_rhc.h"
 
 extern inline dds_return_t dds_rhc_associate (struct dds_rhc *rhc, struct dds_reader *reader, const struct ddsi_sertopic *topic, struct ddsi_tkmap *tkmap);
 extern inline bool dds_rhc_store (struct dds_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict pwr_info, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk);

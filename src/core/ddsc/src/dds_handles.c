@@ -11,12 +11,12 @@
  */
 #include <string.h>
 #include <assert.h>
-#include "dds/ddsrt/time.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/random.h"
-#include "dds/ddsrt/hopscotch.h"
-#include "dds/ddsi/q_thread.h"
+#include "cyclonedds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/random.h"
+#include "cyclonedds/ddsrt/hopscotch.h"
+#include "cyclonedds/ddsi/q_thread.h"
 #include "dds__handles.h"
 #include "dds__types.h"
 

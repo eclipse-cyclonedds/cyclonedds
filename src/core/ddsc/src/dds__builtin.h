@@ -12,7 +12,7 @@
 #ifndef _DDS_BUILTIN_H_
 #define _DDS_BUILTIN_H_
 
-#include "dds/ddsi/ddsi_builtin_topic_if.h"
+#include "cyclonedds/ddsi/ddsi_builtin_topic_if.h"
 
 #if defined (__cplusplus)
 extern "C"

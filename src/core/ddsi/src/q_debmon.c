@@ -13,30 +13,30 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/misc.h"
 
-#include "dds/ddsrt/avl.h"
+#include "cyclonedds/ddsrt/avl.h"
 
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_time.h"
-#include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_plist.h"
-#include "dds/ddsi/q_ephash.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_addrset.h"
-#include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
-#include "dds/ddsi/q_protocol.h" /* NN_ENTITYID_... */
-#include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_debmon.h"
-#include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/ddsi_tcp.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_time.h"
+#include "cyclonedds/ddsi/q_misc.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_plist.h"
+#include "cyclonedds/ddsi/q_ephash.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_addrset.h"
+#include "cyclonedds/ddsi/q_radmin.h"
+#include "cyclonedds/ddsi/q_ddsi_discovery.h"
+#include "cyclonedds/ddsi/q_protocol.h" /* NN_ENTITYID_... */
+#include "cyclonedds/ddsi/q_unused.h"
+#include "cyclonedds/ddsi/q_debmon.h"
+#include "cyclonedds/ddsi/ddsi_serdata.h"
+#include "cyclonedds/ddsi/ddsi_tran.h"
+#include "cyclonedds/ddsi/ddsi_tcp.h"
 
 #include "dds__whc.h"
 

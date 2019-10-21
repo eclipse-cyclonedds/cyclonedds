@@ -15,11 +15,11 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/environ.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/environ.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/process.h"
 
 typedef char * (*expand_fn)(const char *src0, uint32_t domid);
 

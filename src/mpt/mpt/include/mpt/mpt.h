@@ -16,7 +16,7 @@
 #include <stdbool.h>
 #include "mpt/resource.h"
 #include "mpt/private/mpt.h"
-#include "dds/ddsrt/environ.h"
+#include "cyclonedds/ddsrt/environ.h"
 
 
 /* Environment name/value pair. */

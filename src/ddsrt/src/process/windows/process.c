@@ -13,12 +13,12 @@
 #include <errno.h>
 #include <assert.h>
 #include <process.h>
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/time.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/timeconv.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/timeconv.h"
 
 
 ddsrt_pid_t

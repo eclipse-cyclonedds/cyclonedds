@@ -12,10 +12,10 @@
 #include <stdio.h>
 
 #include "CUnit/Theory.h"
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "RoundTrip.h"
 #include "Space.h"
-#include "dds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/misc.h"
 
 /* Tests in this file only concern themselves with very basic api tests of
    dds_write and dds_write_ts */

@@ -11,15 +11,15 @@
  */
 #include <assert.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
 #include "dds__entity.h"
 #include "dds__participant.h"
 #include "dds__querycond.h"
 #include "dds__readcond.h"
 #include "dds__init.h"
-#include "dds/ddsc/dds_rhc.h"
-#include "dds/ddsi/ddsi_iid.h"
+#include "cyclonedds/ddsc/dds_rhc.h"
+#include "cyclonedds/ddsi/ddsi_iid.h"
 
 static bool is_triggered (struct dds_entity *e)
 {

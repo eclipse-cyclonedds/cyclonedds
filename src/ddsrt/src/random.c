@@ -57,12 +57,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "dds/ddsrt/random.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/time.h"
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/static_assert.h"
+#include "cyclonedds/ddsrt/random.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/static_assert.h"
 
 #define N DDSRT_MT19937_N
 #define M 397

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include "dds/ddsrt/random.h"
+#include "cyclonedds/ddsrt/random.h"
 
 bool ddsrt_prng_makeseed (struct ddsrt_prng_seed *seed)
 {

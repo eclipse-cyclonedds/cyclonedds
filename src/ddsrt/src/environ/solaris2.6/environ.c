@@ -15,8 +15,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "dds/ddsrt/environ.h"
-#include "dds/ddsrt/retcode.h"
+#include "cyclonedds/ddsrt/environ.h"
+#include "cyclonedds/ddsrt/retcode.h"
 
 extern char **environ;
 

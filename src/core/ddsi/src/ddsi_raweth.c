@@ -9,19 +9,19 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/ddsi_raweth.h"
-#include "dds/ddsi/ddsi_ipaddr.h"
-#include "dds/ddsi/ddsi_mcgroup.h"
-#include "dds/ddsi/q_nwif.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_pcap.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/sockets.h"
+#include "cyclonedds/ddsi/ddsi_tran.h"
+#include "cyclonedds/ddsi/ddsi_raweth.h"
+#include "cyclonedds/ddsi/ddsi_ipaddr.h"
+#include "cyclonedds/ddsi/ddsi_mcgroup.h"
+#include "cyclonedds/ddsi/q_nwif.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_pcap.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/sockets.h"
 
 #if defined(__linux) && !LWIP_SOCKET
 #include <linux/if_packet.h>

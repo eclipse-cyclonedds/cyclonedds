@@ -12,14 +12,14 @@
 #include <assert.h>
 #include <errno.h>
 
-#include "dds/ddsrt/sockets.h"
+#include "cyclonedds/ddsrt/sockets.h"
 
 #include <iphlpapi.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/ifaddrs.h"
-#include "dds/ddsrt/io.h"
-#include "dds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/ifaddrs.h"
+#include "cyclonedds/ddsrt/io.h"
+#include "cyclonedds/ddsrt/string.h"
 
 extern const int *const os_supp_afs;
 

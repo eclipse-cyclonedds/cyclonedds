@@ -9,11 +9,11 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsi/ddsi_tcp.h"
-#include "dds/ddsi/ddsi_ssl.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/misc.h"
+#include "cyclonedds/ddsi/ddsi_tcp.h"
+#include "cyclonedds/ddsi/ddsi_ssl.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/misc.h"
 
 #ifdef DDSI_INCLUDE_SSL
 
@@ -24,11 +24,11 @@
 #include <openssl/err.h>
 #include <openssl/opensslconf.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/sockets.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsi/q_globals.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/sockets.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/threads.h"
+#include "cyclonedds/ddsi/q_globals.h"
 
 static SSL_CTX *ddsi_ssl_ctx = NULL;
 static bool ddsi_ssl_allow_self_signed_hack = false;

@@ -12,13 +12,13 @@
 #include <assert.h>
 #include <limits.h>
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "Space.h"
 #include "RoundTrip.h"
 #include "CUnit/Theory.h"
 
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/threads.h"
 
 /**************************************************************************************************
  *

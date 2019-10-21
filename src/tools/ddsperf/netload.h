@@ -12,7 +12,7 @@
 #ifndef NETLOAD_H
 #define NETLOAD_H
 
-#include <dds/dds.h>
+#include <cyclonedds/dds.h>
 
 struct record_netload_state;
 

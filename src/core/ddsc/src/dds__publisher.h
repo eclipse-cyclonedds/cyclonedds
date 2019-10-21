@@ -12,7 +12,7 @@
 #ifndef _DDS_PUBLISHER_H_
 #define _DDS_PUBLISHER_H_
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "dds__entity.h"
 
 #if defined (__cplusplus)

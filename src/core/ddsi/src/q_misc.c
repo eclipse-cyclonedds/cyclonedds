@@ -11,10 +11,10 @@
  */
 #include <string.h>
 
-#include "dds/ddsi/q_misc.h"
+#include "cyclonedds/ddsi/q_misc.h"
 
-#include "dds/ddsrt/md5.h"
-#include "dds/ddsi/q_bswap.h"
+#include "cyclonedds/ddsrt/md5.h"
+#include "cyclonedds/ddsi/q_bswap.h"
 
 extern inline seqno_t fromSN (const nn_sequence_number_t sn);
 extern inline nn_sequence_number_t toSN (seqno_t n);

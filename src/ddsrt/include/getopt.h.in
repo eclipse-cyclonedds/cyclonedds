@@ -12,7 +12,7 @@
 #ifndef GETOPT_H
 #define GETOPT_H
 
-#include "dds/export.h"
+#include "cyclonedds/export.h"
 
 DDS_EXPORT extern int opterr;
 DDS_EXPORT extern int optind;

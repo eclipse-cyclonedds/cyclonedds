@@ -11,7 +11,7 @@
  */
 #include <assert.h>
 
-#include "dds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/threads.h"
 
 void
 ddsrt_threadattr_init (

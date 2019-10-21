@@ -12,19 +12,19 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_gc.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsrt/hopscotch.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/q_unused.h"
+#include "cyclonedds/ddsi/q_gc.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/ddsi_iid.h"
+#include "cyclonedds/ddsi/ddsi_tkmap.h"
+#include "cyclonedds/ddsrt/hopscotch.h"
 #include "dds__stream.h"
-#include "dds/ddsi/ddsi_serdata.h"
+#include "cyclonedds/ddsi/ddsi_serdata.h"
 
 #define REFC_DELETE 0x80000000
 #define REFC_MASK   0x0fffffff

@@ -14,14 +14,14 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/dds.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/md5.h"
-#include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/ddsi_sertopic.h"
-#include "dds/ddsi/ddsi_iid.h"
+#include "cyclonedds/dds.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/md5.h"
+#include "cyclonedds/ddsi/q_bswap.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_freelist.h"
+#include "cyclonedds/ddsi/ddsi_sertopic.h"
+#include "cyclonedds/ddsi/ddsi_iid.h"
 #include "dds__serdata_builtintopic.h"
 
 /* FIXME: sertopic /= ddstopic so a lot of stuff needs to be moved here from dds_topic.c and the free function needs to be implemented properly */

@@ -65,8 +65,8 @@
 
 #include <string.h>
 
-#include "dds/ddsrt/endian.h" /* big or little endianness */
-#include "dds/ddsrt/md5.h"
+#include "cyclonedds/ddsrt/endian.h" /* big or little endianness */
+#include "cyclonedds/ddsrt/md5.h"
 
 /* Byte order stuff hacked to use OSPL's macros */
 #undef BYTE_ORDER       /* 1 = big-endian, -1 = little-endian, 0 = unknown */

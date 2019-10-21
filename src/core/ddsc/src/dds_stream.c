@@ -13,11 +13,11 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "dds/ddsrt/endian.h"
-#include "dds/ddsrt/md5.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_config.h"
+#include "cyclonedds/ddsrt/endian.h"
+#include "cyclonedds/ddsrt/md5.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsi/q_bswap.h"
+#include "cyclonedds/ddsi/q_config.h"
 #include "dds__stream.h"
 #include "dds__alloc.h"
 

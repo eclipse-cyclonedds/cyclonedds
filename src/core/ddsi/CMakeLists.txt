@@ -61,7 +61,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
 
 # The includes should reside close to the code. As long as that's not the case,
 # pull them in from this CMakeLists.txt.
-PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
+PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/cyclonedds/ddsi"
     ddsi_ssl.h
     ddsi_tcp.h
     ddsi_tran.h
@@ -117,6 +117,16 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_xqos.h
     sysdeps.h
 )
+
+include(RedirectHeader)
+redirect_header_directory(dds cyclonedds
+  SOURCE "${CMAKE_CURRENT_LIST_DIR}/include"
+  DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/include")
+
+install(
+  DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include/"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  COMPONENT dev)
 
 target_sources(ddsc
   PRIVATE ${srcs_ddsi} ${hdrs_private_ddsi})

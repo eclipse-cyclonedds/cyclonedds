@@ -12,11 +12,11 @@
 #include <limits.h>
 #include <stdlib.h>
 #include "CUnit/Theory.h"
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "RoundTrip.h"
 
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/threads.h"
 
 /****************************************************************************
  * Test globals.

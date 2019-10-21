@@ -11,10 +11,10 @@
  */
 #include <assert.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/threads_priv.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/threads_priv.h"
 
 /* tlhelp32 for ddsrt_thread_list */
 #include <stdio.h>

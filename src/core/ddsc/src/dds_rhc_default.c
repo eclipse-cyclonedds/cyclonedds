@@ -20,26 +20,26 @@
 #define USE_VALGRIND 0
 #endif
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/sync.h"
 
 #include "dds__entity.h"
 #include "dds__reader.h"
-#include "dds/ddsc/dds_rhc.h"
+#include "cyclonedds/ddsc/dds_rhc.h"
 #include "dds__rhc_default.h"
-#include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsrt/hopscotch.h"
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsi/ddsi_rhc.h"
-#include "dds/ddsi/q_xqos.h"
-#include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_radmin.h" /* sampleinfo */
-#include "dds/ddsi/q_entity.h" /* proxy_writer_info */
-#include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
-#include "dds/ddsi/sysdeps.h"
+#include "cyclonedds/ddsi/ddsi_tkmap.h"
+#include "cyclonedds/ddsrt/hopscotch.h"
+#include "cyclonedds/ddsrt/avl.h"
+#include "cyclonedds/ddsi/ddsi_rhc.h"
+#include "cyclonedds/ddsi/q_xqos.h"
+#include "cyclonedds/ddsi/q_unused.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_radmin.h" /* sampleinfo */
+#include "cyclonedds/ddsi/q_entity.h" /* proxy_writer_info */
+#include "cyclonedds/ddsi/ddsi_serdata.h"
+#include "cyclonedds/ddsi/ddsi_serdata_default.h"
+#include "cyclonedds/ddsi/sysdeps.h"
 
 /* INSTANCE MANAGEMENT
    ===================

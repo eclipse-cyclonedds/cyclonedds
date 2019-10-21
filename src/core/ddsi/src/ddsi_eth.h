@@ -12,8 +12,8 @@
 #ifndef DDSI_ETH_H
 #define DDSI_ETH_H
 
-#include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/ddsi_tran.h"
+#include "cyclonedds/ddsi/q_config.h"
 
 #if defined (__cplusplus)
 extern "C" {

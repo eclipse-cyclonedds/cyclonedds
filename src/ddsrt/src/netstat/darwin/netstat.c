@@ -15,9 +15,9 @@
 #include <net/if_mib.h>
 #include <errno.h>
 
-#include <dds/ddsrt/heap.h>
-#include <dds/ddsrt/string.h>
-#include <dds/ddsrt/netstat.h>
+#include <cyclonedds/ddsrt/heap.h>
+#include <cyclonedds/ddsrt/string.h>
+#include <cyclonedds/ddsrt/netstat.h>
 
 struct ddsrt_netstat_control {
   char *name;

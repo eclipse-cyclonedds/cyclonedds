@@ -11,13 +11,13 @@
  */
 #include <limits.h>
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "CUnit/Theory.h"
 #include "Space.h"
 
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/threads.h"
 
 /**************************************************************************************************
  *

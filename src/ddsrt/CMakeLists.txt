@@ -31,7 +31,7 @@ function(check_runtime_feature SOURCE_FILE)
   generate_dummy_export_header(
     ddsrt
     BASE_NAME dds
-    EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/cmake/include/dds/export.h")
+    EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/cmake/include/cyclonedds/export.h")
   set(_strincs "${CMAKE_CURRENT_BINARY_DIR}/cmake/include")
 
   get_target_property(_incs ddsrt INTERFACE_INCLUDE_DIRECTORIES)
@@ -87,9 +87,9 @@ target_include_directories(
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
 
 # Generate version header.
-configure_file("include/dds/version.h.in" "include/dds/version.h")
+configure_file("include/cyclonedds/version.h.in" "include/cyclonedds/version.h")
 target_sources(
-  ddsrt INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/include/dds/version.h")
+  ddsrt INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/include/cyclonedds/version.h")
 
 if(WIN32)
   configure_file("include/getopt.h.in" "include/getopt.h" COPYONLY)
@@ -101,19 +101,19 @@ set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(source_path "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 list(APPEND headers
-  "${include_path}/dds/ddsrt/log.h"
-  "${include_path}/dds/ddsrt/retcode.h"
-  "${include_path}/dds/ddsrt/attributes.h"
-  "${include_path}/dds/ddsrt/endian.h"
-  "${include_path}/dds/ddsrt/arch.h"
-  "${include_path}/dds/ddsrt/misc.h"
-  "${include_path}/dds/ddsrt/io.h"
-  "${include_path}/dds/ddsrt/process.h"
-  "${include_path}/dds/ddsrt/strtod.h"
-  "${include_path}/dds/ddsrt/strtol.h"
-  "${include_path}/dds/ddsrt/types.h"
-  "${include_path}/dds/ddsrt/countargs.h"
-  "${include_path}/dds/ddsrt/static_assert.h")
+  "${include_path}/cyclonedds/ddsrt/log.h"
+  "${include_path}/cyclonedds/ddsrt/retcode.h"
+  "${include_path}/cyclonedds/ddsrt/attributes.h"
+  "${include_path}/cyclonedds/ddsrt/endian.h"
+  "${include_path}/cyclonedds/ddsrt/arch.h"
+  "${include_path}/cyclonedds/ddsrt/misc.h"
+  "${include_path}/cyclonedds/ddsrt/io.h"
+  "${include_path}/cyclonedds/ddsrt/process.h"
+  "${include_path}/cyclonedds/ddsrt/strtod.h"
+  "${include_path}/cyclonedds/ddsrt/strtol.h"
+  "${include_path}/cyclonedds/ddsrt/types.h"
+  "${include_path}/cyclonedds/ddsrt/countargs.h"
+  "${include_path}/cyclonedds/ddsrt/static_assert.h")
 
 list(APPEND sources
   "${source_path}/io.c"
@@ -123,10 +123,10 @@ list(APPEND sources
   "${source_path}/strtol.c")
 
 list(APPEND headers
-  "${include_path}/dds/ddsrt/avl.h"
-  "${include_path}/dds/ddsrt/fibheap.h"
-  "${include_path}/dds/ddsrt/hopscotch.h"
-  "${include_path}/dds/ddsrt/thread_pool.h")
+  "${include_path}/cyclonedds/ddsrt/avl.h"
+  "${include_path}/cyclonedds/ddsrt/fibheap.h"
+  "${include_path}/cyclonedds/ddsrt/hopscotch.h"
+  "${include_path}/cyclonedds/ddsrt/thread_pool.h")
 
 list(APPEND sources
   "${source_path}/avl.c"
@@ -148,12 +148,12 @@ list(APPEND sources
 # operating systems, etc input from the build system is required.
 foreach(feature atomics cdtors environ heap ifaddrs random rusage
                 sockets string sync threads time md5 process netstat)
-  if(EXISTS "${include_path}/dds/ddsrt/${feature}.h")
-    list(APPEND headers "${include_path}/dds/ddsrt/${feature}.h")
+  if(EXISTS "${include_path}/cyclonedds/ddsrt/${feature}.h")
+    list(APPEND headers "${include_path}/cyclonedds/ddsrt/${feature}.h")
     file(GLOB_RECURSE
            files
          CONFIGURE_DEPENDS
-           "${include_path}/dds/ddsrt/${feature}/*.h")
+           "${include_path}/cyclonedds/ddsrt/${feature}/*.h")
     list(APPEND headers ${files})
 
     # Do not add any sources if a feature is not offered by the target. The
@@ -191,7 +191,7 @@ foreach(feature atomics cdtors environ heap ifaddrs random rusage
 
       foreach(system ${_system_name} posix)
         # Headers that must remain private but are required by other runtime
-        # source files must be located in src/<feature>/dds/ddsrt.
+        # source files must be located in src/<feature>/cyclonedds/ddsrt.
         if(IS_DIRECTORY "${source_path}/${feature}/include")
           file(GLOB_RECURSE
                  files
@@ -258,6 +258,17 @@ endif()
 if(BUILD_TESTING)
   add_subdirectory(tests)
 endif()
+
+include(RedirectHeader)
+redirect_header(dds/version.h cyclonedds/version.h
+  SOURCE "${CMAKE_CURRENT_LIST_DIR}/include"
+  DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/include")
+redirect_header(dds/export.h cyclonedds/export.h
+  SOURCE "${CMAKE_CURRENT_BINARY_DIR}/include"
+  DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/include")
+redirect_header_directory(dds cyclonedds
+  SOURCE "${CMAKE_CURRENT_LIST_DIR}/include"
+  DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/include")
 
 install(
   DIRECTORY

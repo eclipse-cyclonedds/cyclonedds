@@ -14,16 +14,16 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/md5.h"
-#include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/q_plist.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/md5.h"
+#include "cyclonedds/ddsi/q_bswap.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_freelist.h"
+#include "cyclonedds/ddsi/q_plist.h"
 #include "dds__stream.h"
 #include "dds__serdata_builtintopic.h"
-#include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/ddsi_tkmap.h"
+#include "cyclonedds/ddsi/q_entity.h"
 
 static const uint64_t unihashconsts[] = {
   UINT64_C (16292676669999574021),

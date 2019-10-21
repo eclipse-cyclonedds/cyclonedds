@@ -12,17 +12,17 @@
 #include <stddef.h>
 #include <assert.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/misc.h"
 
-#include "dds/ddsrt/hopscotch.h"
-#include "dds/ddsi/q_ephash.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_gc.h"
-#include "dds/ddsi/q_rtps.h" /* guid_t */
-#include "dds/ddsi/q_thread.h" /* for assert(thread is awake) */
+#include "cyclonedds/ddsrt/hopscotch.h"
+#include "cyclonedds/ddsi/q_ephash.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_gc.h"
+#include "cyclonedds/ddsi/q_rtps.h" /* guid_t */
+#include "cyclonedds/ddsi/q_thread.h" /* for assert(thread is awake) */
 
 struct ephash {
   struct ddsrt_chh *hash;

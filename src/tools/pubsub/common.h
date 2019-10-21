@@ -12,7 +12,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include <assert.h>
 
 #define DDS_USERDATA_QOS_POLICY_NAME                            "UserData"

@@ -12,8 +12,8 @@
 #include <assert.h>
 #include <time.h>
 
-#include "dds/ddsrt/timeconv.h"
-#include "dds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/timeconv.h"
+#include "cyclonedds/ddsrt/string.h"
 
 extern inline dds_time_t
 ddsrt_time_add_duration(dds_time_t abstime, dds_duration_t reltime);

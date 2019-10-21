@@ -11,14 +11,14 @@
  */
 #include <assert.h>
 
-#include "dds/dds.h"
-#include "dds/version.h"
-#include "dds/ddsrt/static_assert.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "cyclonedds/dds.h"
+#include "cyclonedds/version.h"
+#include "cyclonedds/ddsrt/static_assert.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/q_xmsg.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
 #include "dds__init.h"
@@ -26,7 +26,7 @@
 #include "dds__topic.h"
 #include "dds__get_status.h"
 #include "dds__qos.h"
-#include "dds/ddsi/ddsi_tkmap.h"
+#include "cyclonedds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_writer)

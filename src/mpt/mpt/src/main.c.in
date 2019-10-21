@@ -3,9 +3,9 @@
 #include <string.h>
 #include <assert.h>
 #include "mpt/mpt.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/environ.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/environ.h"
 
 #ifndef _WIN32
 #include <sysexits.h>

@@ -12,11 +12,11 @@
 #include <stdint.h>
 
 #include "CUnit/Theory.h"
-#include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/cdtors.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/cdtors.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/time.h"
 
 CU_Init(ddsrt_sync)
 {

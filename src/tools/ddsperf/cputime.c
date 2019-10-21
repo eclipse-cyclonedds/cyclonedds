@@ -15,14 +15,14 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/sockets.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/rusage.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/sockets.h"
+#include "cyclonedds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/rusage.h"
 
 #include "cputime.h"
 #include "ddsperf_types.h"

@@ -11,8 +11,8 @@
  */
 #include <assert.h>
 
-#include "dds/ddsrt/time.h"
-#include "dds/ddsi/q_time.h"
+#include "cyclonedds/ddsrt/time.h"
+#include "cyclonedds/ddsi/q_time.h"
 
 nn_wctime_t now (void)
 {

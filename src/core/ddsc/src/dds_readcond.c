@@ -12,12 +12,12 @@
 #include <assert.h>
 #include "dds__reader.h"
 #include "dds__readcond.h"
-#include "dds/ddsc/dds_rhc.h"
+#include "cyclonedds/ddsc/dds_rhc.h"
 #include "dds__entity.h"
-#include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_ephash.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/ddsi_iid.h"
+#include "cyclonedds/ddsi/q_ephash.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_thread.h"
 
 static dds_return_t dds_readcond_delete (dds_entity *e) ddsrt_nonnull_all;
 

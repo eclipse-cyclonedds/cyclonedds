@@ -9,11 +9,11 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/random.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsi/ddsi_iid.h"
+#include "cyclonedds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/random.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsi/ddsi_iid.h"
 
 static struct ddsi_iid ddsi_iid;
 

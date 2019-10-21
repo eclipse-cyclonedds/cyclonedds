@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/retcode.h"
-#include "dds/ddsrt/static_assert.h"
+#include "cyclonedds/ddsrt/retcode.h"
+#include "cyclonedds/ddsrt/static_assert.h"
 
 static const char *retcodes[] = {
   "Success",

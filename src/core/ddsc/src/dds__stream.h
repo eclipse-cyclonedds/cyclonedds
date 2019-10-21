@@ -12,8 +12,8 @@
 #ifndef _DDS_STREAM_H_
 #define _DDS_STREAM_H_
 
-#include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
+#include "cyclonedds/ddsi/ddsi_serdata.h"
+#include "cyclonedds/ddsi/ddsi_serdata_default.h"
 
 #if defined (__cplusplus)
 extern "C" {

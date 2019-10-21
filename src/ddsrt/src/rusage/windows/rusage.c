@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "dds/ddsrt/rusage.h"
+#include "cyclonedds/ddsrt/rusage.h"
 
 #include <psapi.h>
 

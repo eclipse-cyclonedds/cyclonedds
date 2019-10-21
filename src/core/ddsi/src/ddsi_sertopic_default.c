@@ -14,13 +14,13 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/md5.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/ddsi_sertopic.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
+#include "cyclonedds/ddsrt/md5.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsi/q_bswap.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_freelist.h"
+#include "cyclonedds/ddsi/ddsi_sertopic.h"
+#include "cyclonedds/ddsi/ddsi_serdata_default.h"
 
 static void sertopic_default_free (struct ddsi_sertopic *tp)
 {

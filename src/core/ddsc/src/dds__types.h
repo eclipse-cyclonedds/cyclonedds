@@ -14,12 +14,12 @@
 
 /* DDS internal type definitions */
 
-#include "dds/dds.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsi/ddsi_builtin_topic_if.h"
+#include "cyclonedds/dds.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsi/q_rtps.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsrt/avl.h"
+#include "cyclonedds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds__handles.h"
 
 #if defined (__cplusplus)

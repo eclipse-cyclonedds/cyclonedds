@@ -14,17 +14,17 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/md5.h"
-#include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/ddsi_tkmap.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/md5.h"
+#include "cyclonedds/ddsi/q_bswap.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_freelist.h"
+#include "cyclonedds/ddsi/ddsi_tkmap.h"
 #include "dds__stream.h"
-#include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
+#include "cyclonedds/ddsi/q_radmin.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/ddsi_serdata_default.h"
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 #define NATIVE_ENCODING CDR_LE

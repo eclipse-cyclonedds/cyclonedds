@@ -16,9 +16,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "dds/ddsrt/io.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/strtod.h"
+#include "cyclonedds/ddsrt/io.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/strtod.h"
 
 /*
  * Determine the maximum size that a string should have to be

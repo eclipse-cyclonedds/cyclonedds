@@ -11,14 +11,14 @@
  */
 #include <assert.h>
 
-#include "dds/ddsrt/cdtors.h"
-#include "dds/ddsrt/environ.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_plist.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/version.h"
+#include "cyclonedds/ddsrt/cdtors.h"
+#include "cyclonedds/ddsrt/environ.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_plist.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/version.h"
 #include "dds__init.h"
 #include "dds__domain.h"
 #include "dds__participant.h"

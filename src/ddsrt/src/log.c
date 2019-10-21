@@ -15,10 +15,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsrt/static_assert.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/static_assert.h"
 
 #define MAX_ID_LEN (10)
 #define MAX_TIMESTAMP_LEN (10 + 1 + 6)

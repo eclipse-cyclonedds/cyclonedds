@@ -15,7 +15,7 @@
 #include <string.h>
 
 #include "CUnit/Test.h"
-#include "dds/ddsrt/random.h"
+#include "cyclonedds/ddsrt/random.h"
 
 #define N_PRNG 4
 #define N_DATA 10

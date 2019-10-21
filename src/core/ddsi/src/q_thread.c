@@ -13,20 +13,20 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "dds/ddsrt/cdtors.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/cdtors.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/misc.h"
 
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/ddsi_threadmon.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/sysdeps.h"
+#include "cyclonedds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/ddsi_threadmon.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/sysdeps.h"
 
 struct thread_states thread_states;
 ddsrt_thread_local struct thread_state1 *tsd_thread_state;

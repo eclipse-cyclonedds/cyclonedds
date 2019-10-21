@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/dds.h"
-#include "dds/ddsrt/misc.h"
+#include "cyclonedds/dds.h"
+#include "cyclonedds/ddsrt/misc.h"
 
 #include <stdio.h>
 #include "CUnit/Test.h"

@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/ifaddrs.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/ifaddrs.h"
 
 void
 ddsrt_freeifaddrs(ddsrt_ifaddrs_t *ifa)

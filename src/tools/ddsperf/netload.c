@@ -14,11 +14,11 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/netstat.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/netstat.h"
 
 #include "netload.h"
 

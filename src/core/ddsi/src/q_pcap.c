@@ -12,13 +12,13 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "dds/ddsrt/endian.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_time.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_pcap.h"
+#include "cyclonedds/ddsrt/endian.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_time.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_bswap.h"
+#include "cyclonedds/ddsi/q_pcap.h"
 
 /* pcap format info taken from http://wiki.wireshark.org/Development/LibpcapFileFormat */
 

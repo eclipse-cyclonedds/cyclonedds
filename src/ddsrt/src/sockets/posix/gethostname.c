@@ -13,8 +13,8 @@
 #include <limits.h>
 #include <string.h>
 
-#include "dds/ddsrt/sockets.h"
-#include "dds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/sockets.h"
+#include "cyclonedds/ddsrt/string.h"
 
 #if !LWIP_SOCKET
 #include <errno.h>

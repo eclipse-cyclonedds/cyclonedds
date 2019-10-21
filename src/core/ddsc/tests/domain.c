@@ -11,11 +11,11 @@
  */
 #include <stdlib.h>
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "CUnit/Test.h"
 #include "config_env.h"
-#include "dds/version.h"
-#include "dds/ddsrt/environ.h"
+#include "cyclonedds/version.h"
+#include "cyclonedds/ddsrt/environ.h"
 
 CU_Test(ddsc_domain, get_domainid)
 {

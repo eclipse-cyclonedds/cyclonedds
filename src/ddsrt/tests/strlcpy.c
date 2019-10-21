@@ -13,7 +13,7 @@
 #include <string.h>
 
 #include "CUnit/Theory.h"
-#include "dds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/string.h"
 
 CU_TheoryDataPoints(ddsrt_strlcpy, dest_size) = {
   CU_DataPoints(char *, "foo", "foo", "foo", "foo", "foo", "", "", ""),

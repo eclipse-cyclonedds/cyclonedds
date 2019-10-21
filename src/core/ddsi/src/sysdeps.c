@@ -12,11 +12,11 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/misc.h"
 
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/sysdeps.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/sysdeps.h"
 
 #if DDSRT_WITH_FREERTOS || !(defined __APPLE__ || defined __linux) || (__GNUC__ > 0 && (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) < 40100)
 void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid)

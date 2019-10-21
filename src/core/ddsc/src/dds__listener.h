@@ -13,7 +13,7 @@
 #define _DDS_LISTENER_H_
 
 #include "dds__types.h"
-#include "dds/ddsc/dds_public_listener.h"
+#include "cyclonedds/ddsc/dds_public_listener.h"
 
 #if defined (__cplusplus)
 extern "C" {

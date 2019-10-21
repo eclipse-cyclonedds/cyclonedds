@@ -13,41 +13,41 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/sockets.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/sockets.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/misc.h"
 
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_time.h"
-#include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_plist.h"
-#include "dds/ddsi/q_lease.h"
-#include "dds/ddsi/q_qosmatch.h"
-#include "dds/ddsi/q_ephash.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_addrset.h"
-#include "dds/ddsi/q_xevent.h" /* qxev_spdp, &c. */
-#include "dds/ddsi/q_ddsi_discovery.h" /* spdp_write, &c. */
-#include "dds/ddsi/q_gc.h"
-#include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_protocol.h" /* NN_ENTITYID_... */
-#include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
-#include "dds/ddsi/ddsi_mcgroup.h"
-#include "dds/ddsi/q_receive.h"
-#include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
-#include "dds/ddsi/ddsi_rhc.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_time.h"
+#include "cyclonedds/ddsi/q_misc.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsrt/avl.h"
+#include "cyclonedds/ddsi/q_plist.h"
+#include "cyclonedds/ddsi/q_lease.h"
+#include "cyclonedds/ddsi/q_qosmatch.h"
+#include "cyclonedds/ddsi/q_ephash.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_addrset.h"
+#include "cyclonedds/ddsi/q_xevent.h" /* qxev_spdp, &c. */
+#include "cyclonedds/ddsi/q_ddsi_discovery.h" /* spdp_write, &c. */
+#include "cyclonedds/ddsi/q_gc.h"
+#include "cyclonedds/ddsi/q_radmin.h"
+#include "cyclonedds/ddsi/q_protocol.h" /* NN_ENTITYID_... */
+#include "cyclonedds/ddsi/q_unused.h"
+#include "cyclonedds/ddsi/ddsi_serdata_default.h"
+#include "cyclonedds/ddsi/ddsi_mcgroup.h"
+#include "cyclonedds/ddsi/q_receive.h"
+#include "cyclonedds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
+#include "cyclonedds/ddsi/ddsi_rhc.h"
 
-#include "dds/ddsi/sysdeps.h"
+#include "cyclonedds/ddsi/sysdeps.h"
 #include "dds__whc.h"
-#include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/ddsi_tkmap.h"
+#include "cyclonedds/ddsi/ddsi_iid.h"
+#include "cyclonedds/ddsi/ddsi_tkmap.h"
 
 struct deleted_participant {
   ddsrt_avl_node_t avlnode;

@@ -11,11 +11,11 @@
  */
 #include <assert.h>
 #include <stddef.h>
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_inverse_uint32_set.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/avl.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_inverse_uint32_set.h"
 
 static int uint32_t_cmp(const void *va, const void *vb);
 

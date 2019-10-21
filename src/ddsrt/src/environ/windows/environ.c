@@ -14,9 +14,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/environ.h"
-#include "dds/ddsrt/retcode.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/environ.h"
+#include "cyclonedds/ddsrt/retcode.h"
 
 static int
 isenvvar(const char *name)

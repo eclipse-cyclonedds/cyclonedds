@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/process.h"
 
 #include <FreeRTOS.h>
 #include <task.h>

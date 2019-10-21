@@ -11,11 +11,11 @@
  */
 #include <string.h>
 
-#include "dds/ddsrt/io.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsrt/thread_pool.h"
+#include "cyclonedds/ddsrt/io.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/thread_pool.h"
 
 typedef struct ddsi_work_queue_job
 {

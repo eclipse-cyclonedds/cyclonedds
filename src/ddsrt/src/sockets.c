@@ -15,9 +15,9 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/sockets_priv.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/sockets_priv.h"
 
 #if !LWIP_SOCKET
 # if !defined(_WIN32)

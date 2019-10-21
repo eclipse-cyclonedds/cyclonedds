@@ -11,7 +11,7 @@
  */
 #include <assert.h>
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "dds__listener.h"
 
 dds_listener_t *dds_create_listener (void* arg)

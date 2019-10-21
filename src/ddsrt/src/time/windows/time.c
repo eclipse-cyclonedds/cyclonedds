@@ -13,7 +13,7 @@
 #include <sys/timeb.h>
 #include <time.h>
 
-#include "dds/ddsrt/timeconv.h"
+#include "cyclonedds/ddsrt/timeconv.h"
 
 extern inline DWORD
 ddsrt_duration_to_msecs_ceil(dds_duration_t reltime);

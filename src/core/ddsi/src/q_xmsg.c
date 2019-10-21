@@ -19,28 +19,28 @@
 #include <limits.h> /* for IOV_MAX */
 #endif
 
-#include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/random.h"
+#include "cyclonedds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/random.h"
 
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsrt/thread_pool.h"
+#include "cyclonedds/ddsrt/avl.h"
+#include "cyclonedds/ddsrt/thread_pool.h"
 
-#include "dds/ddsi/q_protocol.h"
-#include "dds/ddsi/q_xqos.h"
-#include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_addrset.h"
-#include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_ephash.h"
-#include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
+#include "cyclonedds/ddsi/q_protocol.h"
+#include "cyclonedds/ddsi/q_xqos.h"
+#include "cyclonedds/ddsi/q_bswap.h"
+#include "cyclonedds/ddsi/q_rtps.h"
+#include "cyclonedds/ddsi/q_addrset.h"
+#include "cyclonedds/ddsi/q_misc.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_unused.h"
+#include "cyclonedds/ddsi/q_xmsg.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_ephash.h"
+#include "cyclonedds/ddsi/q_freelist.h"
+#include "cyclonedds/ddsi/ddsi_serdata_default.h"
 
 #define NN_XMSG_MAX_ALIGN 8
 #define NN_XMSG_CHUNK_SIZE 128

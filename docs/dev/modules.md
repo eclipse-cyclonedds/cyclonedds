@@ -39,7 +39,7 @@ However, all symbols not referenced by including *dds.h* or prefixed with
 *dds_* are considered internal and there are no guarantees with regard to api
 stability and backwards compatibility. That being said, they are not expected
 to change frequently. Module specific headers are located in the respective
-directory under `INSTALL_PREFIX/include/dds`.
+directory under `INSTALL_PREFIX/include/cyclonedds`.
 
 
 ## DDS Runtime (ddsrt)
@@ -95,9 +95,9 @@ feature-based implementations and sane fallback defaults.
 
 #### Header files
 The include directory must provide a header file per feature. e.g.
-`dds/ddsrt/sync.h` is used for synchronisation primitives. If there are
+`cyclonedds/ddsrt/sync.h` is used for synchronisation primitives. If there are
 only minor differences between targets, everything is contained within
-that file. If not, as is the case with `dds/ddsrt/types.h`, a header file per
+that file. If not, as is the case with `cyclonedds/ddsrt/types.h`, a header file per
 target is a better choice.
 
 Private headers may also be required to share type definitions between target
@@ -106,7 +106,7 @@ specific include directory with the sources.
 
     ddsrt
      |- include
-     |   \- dds
+     |   \- cyclonedds
      |       \- ddsrt
      |           |- atomics
      |           |   |- arm.h
@@ -123,7 +123,7 @@ specific include directory with the sources.
      \- src
          \- threads
              \- include
-                 \- dds
+                 \- cyclonedds
                      \- ddsrt
                          \- threads_priv.h
 
@@ -163,7 +163,7 @@ directory.
   use an ifdef.
 * Header and source files are not prefixed. Instead they reside in a directory
   named after the module that serves as a namespace. e.g. the threads feature
-  interface is defined in `dds/ddsrt/threads.h`.
+  interface is defined in `cyclonedds/ddsrt/threads.h`.
 * Macros that influence which implementation is used, must be prefixed by
   *DDSRT_USE_* followed by the feature name. e.g. *DDSRT_USE_LWIP* to indicate
   the lwIP TCP/IP stack must be used. Macros that are defined at compile time

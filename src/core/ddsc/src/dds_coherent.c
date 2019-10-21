@@ -11,7 +11,7 @@
  */
 #include <assert.h>
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "dds__entity.h"
 #include "dds__subscriber.h"
 #include "dds__publisher.h"

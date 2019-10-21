@@ -16,10 +16,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/timeconv.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/timeconv.h"
 
 void ddsrt_mutex_init(ddsrt_mutex_t *mutex)
 {

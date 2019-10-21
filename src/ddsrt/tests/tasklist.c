@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/sync.h"
 
 #include "CUnit/Theory.h"
 

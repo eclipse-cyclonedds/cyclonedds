@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/rusage.h"
+#include "cyclonedds/ddsrt/rusage.h"
 
 #if DDSRT_HAVE_RUSAGE
 # error "cmake_HAVE_RUSAGE=TRUE"

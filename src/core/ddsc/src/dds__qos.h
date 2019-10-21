@@ -12,7 +12,7 @@
 #ifndef _DDS_QOS_H_
 #define _DDS_QOS_H_
 
-#include "dds/ddsi/q_xqos.h"
+#include "cyclonedds/ddsi/q_xqos.h"
 
 #if defined (__cplusplus)
 extern "C" {

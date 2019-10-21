@@ -15,30 +15,30 @@
 #include <assert.h>
 #include <ctype.h>
 
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/static_assert.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/static_assert.h"
 
-#include "dds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_log.h"
 
-#include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_plist.h"
-#include "dds/ddsi/q_time.h"
-#include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/ddsi_vendor.h"
-#include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
+#include "cyclonedds/ddsi/q_bswap.h"
+#include "cyclonedds/ddsi/q_unused.h"
+#include "cyclonedds/ddsi/q_plist.h"
+#include "cyclonedds/ddsi/q_time.h"
+#include "cyclonedds/ddsi/q_xmsg.h"
+#include "cyclonedds/ddsi/ddsi_vendor.h"
+#include "cyclonedds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
 
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_protocol.h" /* for NN_STATUSINFO_... */
-#include "dds/ddsi/q_radmin.h" /* for nn_plist_quickscan */
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_protocol.h" /* for NN_STATUSINFO_... */
+#include "cyclonedds/ddsi/q_radmin.h" /* for nn_plist_quickscan */
 
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_misc.h" /* for vendor_is_... */
+#include "cyclonedds/ddsrt/avl.h"
+#include "cyclonedds/ddsi/q_misc.h" /* for vendor_is_... */
 
-#include "dds/ddsi/ddsi_plist_generic.h"
+#include "cyclonedds/ddsi/ddsi_plist_generic.h"
 
 /* I am tempted to change LENGTH_UNLIMITED to 0 in the API (with -1
    supported for backwards compatibility) ... on the wire however

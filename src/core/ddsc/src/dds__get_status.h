@@ -12,7 +12,7 @@
 #ifndef _DDS_GET_STATUS_H_
 #define _DDS_GET_STATUS_H_
 
-#include "dds/ddsrt/countargs.h"
+#include "cyclonedds/ddsrt/countargs.h"
 
 #define DDS_GET_STATUS_LOCKED_RESET_1(status_, reset0_) \
   (ent->m_##status_##_status.reset0_ = 0);

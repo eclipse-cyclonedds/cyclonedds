@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "CUnit/Test.h"
-#include "dds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/atomics.h"
 
 uint32_t _osuint32 = 0;
 uint64_t _osuint64 = 0;

@@ -14,15 +14,15 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/md5.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/ddsi_sertopic.h"
-#include "dds/ddsi/ddsi_serdata.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/md5.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsi/q_bswap.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_freelist.h"
+#include "cyclonedds/ddsi/ddsi_iid.h"
+#include "cyclonedds/ddsi/ddsi_sertopic.h"
+#include "cyclonedds/ddsi/ddsi_serdata.h"
 
 struct ddsi_sertopic *ddsi_sertopic_ref (const struct ddsi_sertopic *sertopic_const)
 {

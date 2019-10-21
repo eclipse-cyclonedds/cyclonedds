@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/process.h"
 
 #if DDSRT_HAVE_MULTI_PROCESS
 # error "cmake_HAVE_MULTI_PROCESS=true"

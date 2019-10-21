@@ -12,16 +12,16 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "dds__entity.h"
 #include "dds__write.h"
 #include "dds__writer.h"
-#include "dds/ddsc/dds_rhc.h"
-#include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_globals.h"
+#include "cyclonedds/ddsc/dds_rhc.h"
+#include "cyclonedds/ddsi/ddsi_tkmap.h"
+#include "cyclonedds/ddsi/ddsi_serdata.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/q_globals.h"
 
 dds_return_t dds_writedispose (dds_entity_t writer, const void *data)
 {

@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "CUnit/Test.h"
 
 /* We are deliberately testing some bad arguments that SAL will complain about.

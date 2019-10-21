@@ -12,7 +12,7 @@
 #include <assert.h>
 #include <limits.h>
 
-#include "dds/ddsrt/sockets.h"
+#include "cyclonedds/ddsrt/sockets.h"
 
 ddsrt_gethostname(
   char *name,

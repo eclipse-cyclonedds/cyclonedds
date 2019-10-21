@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/dds.h"
-#include "dds/ddsrt/atomics.h"
+#include "cyclonedds/dds.h"
+#include "cyclonedds/ddsrt/atomics.h"
 #include "InitSampleDelivData.h"
 #include <stdio.h>
 #include <stdlib.h>

@@ -9,9 +9,9 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/sockets_priv.h"
-#include "dds/ddsrt/cdtors.h"
-#include "dds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/sockets_priv.h"
+#include "cyclonedds/ddsrt/cdtors.h"
+#include "cyclonedds/ddsrt/threads.h"
 #include "CUnit/Theory.h"
 
 CU_Init(ddsrt_select)

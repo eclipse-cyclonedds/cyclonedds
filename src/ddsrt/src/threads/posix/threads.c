@@ -25,12 +25,12 @@
 
 #include <limits.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/threads_priv.h"
-#include "dds/ddsrt/types.h"
-#include "dds/ddsrt/static_assert.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/threads_priv.h"
+#include "cyclonedds/ddsrt/types.h"
+#include "cyclonedds/ddsrt/static_assert.h"
 
 typedef struct {
   char *name;

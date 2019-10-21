@@ -24,18 +24,18 @@
 #include <getopt.h>
 #endif
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 #include "ddsperf_types.h"
 
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/sockets.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsrt/random.h"
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsrt/fibheap.h"
-#include "dds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/sockets.h"
+#include "cyclonedds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/random.h"
+#include "cyclonedds/ddsrt/avl.h"
+#include "cyclonedds/ddsrt/fibheap.h"
+#include "cyclonedds/ddsrt/atomics.h"
 
 #include "cputime.h"
 #include "netload.h"

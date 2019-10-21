@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/sync.h"
 
 /* Task list is a buffer used to keep track of blocked tasks. The buffer is
    cyclic to avoid memory (re)allocation as much as possible. To avoid memory

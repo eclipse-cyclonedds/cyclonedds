@@ -13,14 +13,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/sockets.h"
-#include "dds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/sockets.h"
+#include "cyclonedds/ddsrt/sync.h"
 
-#include "dds/ddsi/q_sockwaitset.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/ddsi_tran.h"
+#include "cyclonedds/ddsi/q_sockwaitset.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/ddsi_tran.h"
 
 #define WAITSET_DELTA 8
 

@@ -9,12 +9,12 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsrt/sockets.h"
-#include "dds/ddsrt/cdtors.h"
-#include "dds/ddsrt/endian.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/sockets.h"
+#include "cyclonedds/ddsrt/cdtors.h"
+#include "cyclonedds/ddsrt/endian.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/string.h"
 #include "CUnit/Theory.h"
 
 #include <assert.h>

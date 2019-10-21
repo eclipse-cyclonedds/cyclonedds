@@ -13,9 +13,9 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/atomics.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/string.h"
 #include "dds__topic.h"
 #include "dds__listener.h"
 #include "dds__participant.h"
@@ -24,13 +24,13 @@
 #include "dds__domain.h"
 #include "dds__get_status.h"
 #include "dds__qos.h"
-#include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/ddsi_sertopic.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
-#include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_plist.h"
-#include "dds/ddsi/q_globals.h"
+#include "cyclonedds/ddsi/q_entity.h"
+#include "cyclonedds/ddsi/q_thread.h"
+#include "cyclonedds/ddsi/ddsi_sertopic.h"
+#include "cyclonedds/ddsi/q_ddsi_discovery.h"
+#include "cyclonedds/ddsi/ddsi_iid.h"
+#include "cyclonedds/ddsi/q_plist.h"
+#include "cyclonedds/ddsi/q_globals.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_topic)
 

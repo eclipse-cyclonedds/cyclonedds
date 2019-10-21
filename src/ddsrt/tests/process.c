@@ -14,10 +14,10 @@
 #include <assert.h>
 #include "CUnit/Test.h"
 #include "process_test.h"
-#include "dds/ddsrt/time.h"
-#include "dds/ddsrt/strtol.h"
-#include "dds/ddsrt/environ.h"
-#include "dds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/strtol.h"
+#include "cyclonedds/ddsrt/environ.h"
+#include "cyclonedds/ddsrt/process.h"
 
 
 /*

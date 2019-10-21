@@ -11,8 +11,8 @@
  */
 #include <assert.h>
 
-#include "dds/ddsrt/types.h"
-#include "dds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/types.h"
+#include "cyclonedds/ddsrt/string.h"
 
 /* WSAGetLastError, GetLastError and errno
 

@@ -15,14 +15,14 @@
 
 #include "mpt/mpt.h"
 
-#include "dds/dds.h"
+#include "cyclonedds/dds.h"
 
-#include "dds/ddsrt/time.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/sockets.h"
-#include "dds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/time.h"
+#include "cyclonedds/ddsrt/threads.h"
+#include "cyclonedds/ddsrt/sync.h"
+#include "cyclonedds/ddsrt/process.h"
+#include "cyclonedds/ddsrt/sockets.h"
+#include "cyclonedds/ddsrt/heap.h"
 
 #include "ppud.h"
 #include "rwdata.h"

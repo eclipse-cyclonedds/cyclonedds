@@ -42,7 +42,7 @@ PREPEND(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_sertopic_builtintopic.c
 )
 
-PREPEND(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/dds>$<INSTALL_INTERFACE:include/dds>"
+PREPEND(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/cyclonedds>$<INSTALL_INTERFACE:include/cyclonedds>"
     dds.h
     ddsc/dds_public_error.h
     ddsc/dds_public_impl.h
@@ -84,7 +84,7 @@ PREPEND(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src"
 generate_export_header(
     ddsc
     BASE_NAME DDS
-    EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/export.h"
+    EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/cyclonedds/export.h"
 )
 
 target_sources(ddsc
@@ -93,8 +93,16 @@ target_sources(ddsc
         ${hdrs_private_ddsc}
     PUBLIC
         ${hdrs_public_ddsc}
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>$<INSTALL_INTERFACE:include>/dds/export.h"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>$<INSTALL_INTERFACE:include>/cyclonedds/export.h"
 )
+
+include(RedirectHeader)
+redirect_header("ddsc/dds.h" "cyclonedds/dds.h"
+  SOURCE "${CMAKE_CURRENT_LIST_DIR}/include"
+  DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/include")
+redirect_header_directory("dds" "cyclonedds"
+  SOURCE "${CMAKE_CURRENT_LIST_DIR}/include"
+  DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/include")
 
 target_include_directories(ddsc
     PUBLIC

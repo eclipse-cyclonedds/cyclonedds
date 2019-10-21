@@ -11,11 +11,11 @@
  */
 
 #include "CUnit/Theory.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/endian.h"
-#include "dds/ddsi/q_xqos.h"
-#include "dds/ddsi/q_plist.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/endian.h"
+#include "cyclonedds/ddsi/q_xqos.h"
+#include "cyclonedds/ddsi/q_plist.h"
 
 CU_Test (ddsi_plist, unalias_copy_merge)
 {

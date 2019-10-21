@@ -12,10 +12,10 @@
 #include <assert.h>
 #include <string.h>
 #include <stdbool.h>
-#include "dds/dds.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_plist.h"
+#include "cyclonedds/dds.h"
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsi/q_plist.h"
 
 static void dds_qos_data_copy_in (ddsi_octetseq_t *data, const void * __restrict value, size_t sz, bool overwrite)
 {

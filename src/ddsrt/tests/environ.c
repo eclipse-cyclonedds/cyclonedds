@@ -13,9 +13,9 @@
 #include <assert.h>
 
 #include "CUnit/Theory.h"
-#include "dds/ddsrt/environ.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/environ.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/heap.h"
 
 CU_TheoryDataPoints(ddsrt_environ, bad_name) = {
   CU_DataPoints(const char *, "", "foo=")

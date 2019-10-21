@@ -13,18 +13,18 @@
 #include <stddef.h>
 #include <assert.h>
 
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/misc.h"
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_addrset.h"
-#include "dds/ddsi/q_globals.h" /* gv.mattr */
-#include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
+#include "cyclonedds/ddsrt/heap.h"
+#include "cyclonedds/ddsrt/log.h"
+#include "cyclonedds/ddsrt/string.h"
+#include "cyclonedds/ddsrt/misc.h"
+#include "cyclonedds/ddsrt/avl.h"
+#include "cyclonedds/ddsi/ddsi_tran.h"
+#include "cyclonedds/ddsi/q_log.h"
+#include "cyclonedds/ddsi/q_misc.h"
+#include "cyclonedds/ddsi/q_config.h"
+#include "cyclonedds/ddsi/q_addrset.h"
+#include "cyclonedds/ddsi/q_globals.h" /* gv.mattr */
+#include "cyclonedds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
 
 /* So what does one do with const & mutexes? I need to take lock in a
    pure function just in case some other thread is trying to change
