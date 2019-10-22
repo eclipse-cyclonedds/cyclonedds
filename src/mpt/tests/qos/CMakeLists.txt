@@ -11,14 +11,17 @@
 #
 include(${MPT_CMAKE})
 
-add_compile_options("-I${PROJECT_SOURCE_DIR}/src/core/ddsi/include")
-
 idlc_generate(mpt_rwdata_lib "procs/rwdata.idl")
 
 set(sources_qosmatch
     "procs/rw.c"
     "qosmatch.c")
 add_mpt_executable(mpt_qosmatch ${sources_qosmatch})
+
+target_include_directories(
+mpt_qosmatch PRIVATE
+"$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/include>")
+
 target_link_libraries(mpt_qosmatch PRIVATE mpt_rwdata_lib)
 
 set(sources_ppuserdata	
