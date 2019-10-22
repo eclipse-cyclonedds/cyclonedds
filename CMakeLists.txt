@@ -170,17 +170,17 @@ endif()
 # the address sanitizer for ordinary debug builds; gcc is giving some grief on
 # Travis, so don't enable it for gcc by default
 if(NOT USE_SANITIZER)
-  if(${CMAKE_BUILD_TYPE} STREQUAL "Debug" AND
-      NOT (${CMAKE_GENERATOR} STREQUAL "Xcode") AND
-      (${CMAKE_C_COMPILER_ID} STREQUAL "Clang"
-        OR ${CMAKE_C_COMPILER_ID} STREQUAL "AppleClang"))
+  if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug" AND
+      NOT ("${CMAKE_GENERATOR}" STREQUAL "Xcode") AND
+      ("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang"
+        OR "${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang"))
     message(STATUS "Enabling address sanitizer; set USE_SANITIZER=none to prevent this")
     set(USE_SANITIZER address)
   else()
     set(USE_SANITIZER none)
   endif()
 endif()
-if(NOT (${USE_SANITIZER} STREQUAL "none"))
+if(NOT ("${USE_SANITIZER}" STREQUAL "none"))
   message(STATUS "Sanitizer set to ${USE_SANITIZER}")
   add_compile_options(-fno-omit-frame-pointer -fsanitize=${USE_SANITIZER})
   link_libraries(-fno-omit-frame-pointer -fsanitize=${USE_SANITIZER})
