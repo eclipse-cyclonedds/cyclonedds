@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.5)
 if (NOT TARGET CycloneDDS::ddsc)
     # Find the CycloneDDS package. If it is not in a default location, try
     # finding it relative to the example where it most likely resides.
-    find_package(CycloneDDS REQUIRED PATHS "${CMAKE_SOURCE_DIR}/../../")
+    find_package(CycloneDDS REQUIRED PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 endif()
 
 # This is a convenience function, provided by the CycloneDDS package,
