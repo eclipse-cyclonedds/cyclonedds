@@ -223,13 +223,6 @@ struct nn_xpack
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   uint32_t encoderId;
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
-
-#ifdef DDSI_INCLUDE_ENCRYPTION
-  /* each partion is associated with a SecurityPolicy, this codecset will serve */
-  /* all of them, different cipher for each partition */
-  q_securityEncoderSet codec;
-  PT_InfoContainer_t SecurityHeader;
-#endif /* DDSI_INCLUDE_ENCRYPTION */
 };
 
 static size_t align4u (size_t x)
@@ -868,7 +861,7 @@ static void nn_xmsg_chain_release (struct q_globals *gv, struct nn_xmsg_chain *c
         assert (m->kindspecific.data.wrseq != 0);
         wrguid = m->kindspecific.data.wrguid;
         if ((wr = ephash_lookup_writer_guid (gv->guid_hash, &m->kindspecific.data.wrguid)) != NULL)
-          UPDATE_SEQ_XMIT_UNLOCKED(wr, m->kindspecific.data.wrseq);
+          writer_update_seq_xmit (wr, m->kindspecific.data.wrseq);
       }
     }
 
@@ -1001,16 +994,6 @@ struct nn_xpack * nn_xpack_new (ddsi_tran_conn_t conn, uint32_t bw_limit, bool a
   if (xp->gv->thread_pool)
     ddsi_sem_init (&xp->sem, 0);
 
-#ifdef DDSI_INCLUDE_ENCRYPTION
-  if (q_security_plugin.new_encoder)
-  {
-    xp->codec = (q_security_plugin.new_encoder) ();
-    xp->SecurityHeader.smhdr.submessageId = SMID_PT_INFO_CONTAINER;
-    xp->SecurityHeader.smhdr.flags = (DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
-    xp->SecurityHeader.smhdr.octetsToNextHeader = 4;
-    xp->SecurityHeader.id = PTINFO_ID_ENCRYPT;
-  }
-#endif
 #ifdef DDSI_INCLUDE_BANDWIDTH_LIMITING
   nn_bw_limit_init (&xp->limiter, bw_limit);
 #else
@@ -1023,12 +1006,6 @@ void nn_xpack_free (struct nn_xpack *xp)
 {
   assert (xp->niov == 0);
   assert (xp->included_msgs.latest == NULL);
-#ifdef DDSI_INCLUDE_ENCRYPTION
-  if (q_security_plugin.free_encoder)
-  {
-    (q_security_plugin.free_encoder) (xp->codec);
-  }
-#endif
   if (xp->gv->thread_pool)
     ddsi_sem_destroy (&xp->sem);
   ddsrt_free (xp->iov);
@@ -1059,34 +1036,23 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
     }
   }
 
-#ifdef DDSI_INCLUDE_ENCRYPTION
-  if (q_security_plugin.send_encoded && xp->encoderId != 0 && (q_security_plugin.encoder_type) (xp->codec, xp->encoderId) != Q_CIPHER_NONE)
+  if (!gv->mute)
   {
-    struct iovec iov[NN_XMSG_MAX_MESSAGE_IOVECS];
-    memcpy (iov, xp->iov, sizeof (iov));
-    nbytes = (q_security_plugin.send_encoded) (xp->conn, loc, xp->niov, iov, &xp->codec, xp->encoderId, xp->call_flags);
+    nbytes = ddsi_conn_write (xp->conn, loc, xp->niov, xp->iov, xp->call_flags);
+#ifndef NDEBUG
+    {
+      size_t i, len;
+      for (i = 0, len = 0; i < xp->niov; i++) {
+        len += xp->iov[i].iov_len;
+      }
+      assert (nbytes == -1 || (size_t) nbytes == len);
+    }
+#endif
   }
   else
-#endif
   {
-    if (!gv->mute)
-    {
-      nbytes = ddsi_conn_write (xp->conn, loc, xp->niov, xp->iov, xp->call_flags);
-#ifndef NDEBUG
-      {
-        size_t i, len;
-        for (i = 0, len = 0; i < xp->niov; i++) {
-          len += xp->iov[i].iov_len;
-        }
-        assert (nbytes == -1 || (size_t) nbytes == len);
-      }
-#endif
-    }
-    else
-    {
-      GVTRACE ("(dropped)");
-      nbytes = (ssize_t) xp->msg_len.length;
-    }
+    GVTRACE ("(dropped)");
+    nbytes = (ssize_t) xp->msg_len.length;
   }
 
   /* Clear call flags, as used on a per call basis */
@@ -1352,16 +1318,6 @@ static int nn_xpack_mayaddmsg (const struct nn_xpack *xp, const struct nn_xmsg *
 
   payload_size = m->refd_payload ? (unsigned) m->refd_payload_iov.iov_len : 0;
 
-#ifdef DDSI_INCLUDE_ENCRYPTION
-  if (xp->encoderId)
-  {
-    unsigned security_header;
-    security_header = (q_security_plugin.header_size) (xp->codec, xp->encoderId);
-    assert (security_header < max_msg_size);
-    max_msg_size -= security_header;
-  }
-#endif
-
   /* Check if max message size exceeded */
 
   if (xp->msg_len.length + m->sz + payload_size > max_msg_size)
@@ -1477,17 +1433,6 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     xp->encoderId = m->encoderid;
-#endif
-#ifdef DDSI_INCLUDE_ENCRYPTION
-    if (xp->encoderId > 0 && (q_security_plugin.encoder_type) (xp->codec, xp->encoderId) != Q_CIPHER_NONE)
-    {
-      /* Insert a reference to the security header
-         the correct size will be set upon encryption in q_xpack_sendmsg_encoded */
-      xp->iov[niov].iov_base = (void*) &xp->SecurityHeader;
-      xp->iov[niov].iov_len = sizeof (xp->SecurityHeader);
-      sz += xp->iov[niov].iov_len;
-      niov++;
-    }
 #endif
     xp->last_src = &xp->hdr.guid_prefix;
     xp->last_dst = NULL;
