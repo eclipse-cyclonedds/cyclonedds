@@ -12,8 +12,6 @@
     <url type="repository">https://github.com/eclipse-cyclonedds/cyclonedds</url>
 
     <buildtool_depend>cmake</buildtool_depend>
-    <buildtool_depend>java</buildtool_depend>
-    <buildtool_depend>maven</buildtool_depend>
     <depend>openssl</depend>
     <test_depend>libcunit-dev</test_depend>
     <doc_depend>python3-sphinx</doc_depend>
