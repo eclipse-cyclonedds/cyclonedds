@@ -125,7 +125,7 @@ target_include_directories(ddsc
   PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
 
 install(
-  DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/dds"
+  DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   COMPONENT dev)
 
