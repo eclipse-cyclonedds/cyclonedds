@@ -87,11 +87,6 @@ generate_export_header(
     EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/export.h"
 )
 
-target_include_directories(
-  ddsc PUBLIC
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
-
 target_sources(ddsc
     PRIVATE
         ${srcs_ddsc}
@@ -103,25 +98,19 @@ target_sources(ddsc
 
 target_include_directories(ddsc
     PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>"
     PRIVATE
-        "${CMAKE_CURRENT_LIST_DIR}/src")
-
-target_include_directories(ddsc INTERFACE $<INSTALL_INTERFACE:include>)
+        "${CMAKE_CURRENT_LIST_DIR}/src"
+    INTERFACE
+        $<INSTALL_INTERFACE:include>)
 
 install(
-  DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/dds"
+  DIRECTORY
+      "${CMAKE_CURRENT_LIST_DIR}/include/"
+      "${CMAKE_CURRENT_BINARY_DIR}/include/"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  COMPONENT dev)
-
-install(
-  DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/ddsc"
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  COMPONENT dev)
-
-install(
-  FILES "${CMAKE_CURRENT_BINARY_DIR}/include/dds/export.h"
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/dds"
   COMPONENT dev)
 
 # TODO: improve test inclusion.
