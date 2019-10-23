@@ -23,6 +23,7 @@ list(APPEND sources
   "thread_cleanup.c"
   "string.c"
   "log.c"
+  "hopscotch.c"
   "random.c"
   "retcode.c"
   "strlcpy.c"
