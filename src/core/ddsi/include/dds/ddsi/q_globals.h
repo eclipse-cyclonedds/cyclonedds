@@ -237,6 +237,10 @@ struct q_globals {
   dds_qos_t spdp_endpoint_xqos;
   dds_qos_t builtin_endpoint_xqos_rd;
   dds_qos_t builtin_endpoint_xqos_wr;
+#ifdef DDSI_INCLUDE_SECURITY
+  dds_qos_t builtin_stateless_xqos_rd;
+  dds_qos_t builtin_stateless_xqos_wr;
+#endif
 
   /* SPDP packets get very special treatment (they're the only packets
      we accept from writers we don't know) and have their very own

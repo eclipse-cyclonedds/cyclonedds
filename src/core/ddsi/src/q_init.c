@@ -1013,6 +1013,12 @@ int rtps_init (struct q_globals *gv)
   gv->spdp_endpoint_xqos.durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_rd, &gv->default_xqos_rd);
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_wr, &gv->default_xqos_wr);
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_xqos_copy (&gv->builtin_stateless_xqos_rd, &gv->default_xqos_rd);
+  nn_xqos_copy (&gv->builtin_stateless_xqos_wr, &gv->default_xqos_wr);
+  gv->builtin_stateless_xqos_wr.reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
+  gv->builtin_stateless_xqos_wr.durability.kind = DDS_DURABILITY_VOLATILE;
+#endif
 
   make_special_topics (gv);
 
@@ -1329,6 +1335,10 @@ err_unicast_sockets:
   ddsrt_cond_destroy (&gv->participant_set_cond);
   ddsrt_mutex_destroy (&gv->participant_set_lock);
   free_special_topics (gv);
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_xqos_fini (&gv->builtin_stateless_xqos_wr);
+  nn_xqos_fini (&gv->builtin_stateless_xqos_rd);
+#endif
   nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);
   nn_xqos_fini (&gv->spdp_endpoint_xqos);
@@ -1657,6 +1667,10 @@ void rtps_fini (struct q_globals *gv)
   ddsrt_cond_destroy (&gv->participant_set_cond);
   free_special_topics (gv);
 
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_xqos_fini (&gv->builtin_stateless_xqos_wr);
+  nn_xqos_fini (&gv->builtin_stateless_xqos_rd);
+#endif
   nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);
   nn_xqos_fini (&gv->spdp_endpoint_xqos);

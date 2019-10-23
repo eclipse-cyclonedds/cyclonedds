@@ -2305,7 +2305,8 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
     /* No proxy writer means nothing really gets done with, unless it
        is SPDP.  SPDP is periodic, so oversize discovery packets would
        cause periodic warnings. */
-    if (msg->writerId.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
+    if ((msg->writerId.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER) ||
+        (msg->writerId.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER))
     {
       DDS_CWARNING (&rst->gv->logconfig, "dropping oversize (%"PRIu32" > %"PRIu32") SPDP sample %"PRId64" from remote writer "PGUIDFMT"\n",
                     sampleinfo->size, rst->gv->config.max_sample_size, sampleinfo->seq,
@@ -2374,7 +2375,8 @@ static int handle_Data (struct receiver_state *rst, nn_etime_t tnow, struct nn_r
     }
     rdata = nn_rdata_new (rmsg, 0, sampleinfo->size, submsg_offset, payload_offset);
 
-    if (msg->x.writerId.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
+    if ((msg->x.writerId.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER) ||
+        (msg->x.writerId.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER))
       /* SPDP needs special treatment: there are no proxy writers for it
          and we accept data from unknown sources */
     {
@@ -2409,7 +2411,8 @@ static int handle_DataFrag (struct receiver_state *rst, nn_etime_t tnow, struct 
     struct nn_rdata *rdata;
     unsigned submsg_offset, payload_offset;
     uint32_t begin, endp1;
-    if (msg->x.writerId.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
+    if ((msg->x.writerId.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER) ||
+        (msg->x.writerId.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER))
     {
       DDS_CWARNING (&rst->gv->logconfig, "DATAFRAG("PGUIDFMT" #%"PRId64" -> "PGUIDFMT") - fragmented builtin data not yet supported\n",
                     PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u, fromSN (msg->x.writerSN),
