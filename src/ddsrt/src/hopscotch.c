@@ -84,10 +84,12 @@ static void *ddsrt_hh_lookup_internal (const struct ddsrt_hh *rt, const uint32_t
   uint32_t hopinfo = rt->buckets[bucket].hopinfo;
   uint32_t idx;
   for (idx = 0; hopinfo != 0; hopinfo >>= 1, idx++) {
-    const uint32_t bidx = (bucket + idx) & idxmask;
-    void *data = rt->buckets[bidx].data;
-    if (data && rt->equals (data, template))
-      return data;
+    if (hopinfo & 1) {
+      const uint32_t bidx = (bucket + idx) & idxmask;
+      void *data = rt->buckets[bidx].data;
+      if (data && rt->equals (data, template))
+        return data;
+    }
   }
   return NULL;
 }
@@ -453,10 +455,12 @@ static void *ddsrt_chh_lookup_internal (struct ddsrt_chh_bucket_array const * co
         ddsrt_atomic_fence_ldld ();
         hopinfo = ddsrt_atomic_ld32 (&bs[bucket].hopinfo);
         for (idx = 0; hopinfo != 0; hopinfo >>= 1, idx++) {
-            const uint32_t bidx = (bucket + idx) & idxmask;
-            void *data = ddsrt_atomic_ldvoidp (&bs[bidx].data);
-            if (ddsrt_chh_data_valid_p (data) && equals (data, template)) {
-                return data;
+            if (hopinfo & 1) {
+                const uint32_t bidx = (bucket + idx) & idxmask;
+                void *data = ddsrt_atomic_ldvoidp (&bs[bidx].data);
+                if (ddsrt_chh_data_valid_p (data) && equals (data, template)) {
+                    return data;
+                }
             }
         }
         ddsrt_atomic_fence_ldld ();
