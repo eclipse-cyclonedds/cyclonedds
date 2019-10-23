@@ -884,7 +884,9 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
     res = 1;
 
 #ifndef NDEBUG
-  if (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER && !is_local_orphan_endpoint (&wr->e))
+  if (((wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER) ||
+       (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER)) &&
+       !is_local_orphan_endpoint (&wr->e))
   {
     struct whc_state whcst;
     whc_get_state(wr->whc, &whcst);

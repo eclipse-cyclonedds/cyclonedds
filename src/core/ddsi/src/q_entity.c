@@ -48,6 +48,7 @@
 #include "dds__whc.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 
 struct deleted_participant {
   ddsrt_avl_node_t avlnode;
@@ -461,6 +462,76 @@ static void pp_release_entityid(struct participant *pp, ddsi_entityid_t id)
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 
+static void force_as_disc_address(struct q_globals *gv, const ddsi_guid_t *subguid)
+{
+  struct writer *wr = ephash_lookup_writer_guid (gv->guid_hash, subguid);
+  assert (wr != NULL);
+  ddsrt_mutex_lock (&wr->e.lock);
+  unref_addrset (wr->as);
+  unref_addrset (wr->as_group);
+  wr->as = ref_addrset (gv->as_disc);
+  wr->as_group = ref_addrset (gv->as_disc_group);
+  ddsrt_mutex_unlock (&wr->e.lock);
+}
+
+#ifdef DDSI_INCLUDE_SECURITY
+static void add_security_builtin_endpoints(struct participant *pp, ddsi_guid_t *subguid, const ddsi_guid_t *group_guid, struct q_globals *gv, bool add_writers, bool add_readers)
+{
+  if (add_writers)
+  {
+    subguid->entityid = to_entityid (NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
+    /* But we need the as_disc address set for SPDP, because we need to
+       send it to everyone regardless of the existence of readers. */
+    force_as_disc_address(gv, subguid);
+    pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER;
+
+    subguid->entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_stateless_xqos_wr, whc_new(gv, 0, 1, 1), NULL, NULL);
+    pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_ANNOUNCER;
+
+    subguid->entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
+    pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_SECURE_ANNOUNCER;
+
+    subguid->entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
+    pp->bes |= NN_BUILTIN_ENDPOINT_PUBLICATION_MESSAGE_SECURE_ANNOUNCER;
+
+    subguid->entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER);
+    new_writer_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
+    pp->bes |= NN_BUILTIN_ENDPOINT_SUBSCRIPTION_MESSAGE_SECURE_ANNOUNCER;
+  }
+
+  if (add_readers)
+  {
+    subguid->entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER);
+    new_reader_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
+    pp->bes |= NN_BUILTIN_ENDPOINT_SUBSCRIPTION_MESSAGE_SECURE_DETECTOR;
+
+    subguid->entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER);
+    new_reader_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
+    pp->bes |= NN_BUILTIN_ENDPOINT_PUBLICATION_MESSAGE_SECURE_DETECTOR;
+  }
+
+  /*
+   * When security is enabled configure the associated necessary builtin readers independent of the
+   * besmode flag setting, because all participant do require authentication.
+   */
+  subguid->entityid = to_entityid (NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER);
+  new_reader_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
+  pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_DETECTOR;
+
+  subguid->entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER);
+  new_reader_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_stateless_xqos_rd, NULL, NULL, NULL);
+  pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_DETECTOR;
+
+  subguid->entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER);
+  new_reader_guid (NULL, subguid, group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
+  pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_SECURE_DETECTOR;
+}
+#endif
+
 dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *gv, unsigned flags, const nn_plist_t *plist)
 {
   struct participant *pp;
@@ -591,16 +662,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
     new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->spdp_endpoint_xqos, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
     /* But we need the as_disc address set for SPDP, because we need to
        send it to everyone regardless of the existence of readers. */
-    {
-      struct writer *wr = ephash_lookup_writer_guid (gv->guid_hash, &subguid);
-      assert (wr != NULL);
-      ddsrt_mutex_lock (&wr->e.lock);
-      unref_addrset (wr->as);
-      unref_addrset (wr->as_group);
-      wr->as = ref_addrset (gv->as_disc);
-      wr->as_group = ref_addrset (gv->as_disc_group);
-      ddsrt_mutex_unlock (&wr->e.lock);
-    }
+    force_as_disc_address(gv, &subguid);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER;
   }
 
@@ -679,6 +741,14 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
     pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_READER;
 
   }
+
+#ifdef DDSI_INCLUDE_SECURITY
+  if (q_omg_participant_is_secure(pp))
+  {
+    add_security_builtin_endpoints(pp, &subguid, &group_guid, gv, !(flags & RTPS_PF_NO_BUILTIN_WRITERS), !(flags & RTPS_PF_NO_BUILTIN_READERS));
+  }
+#endif
+
 #undef LAST_WR_PARAMS
 
   /* If the participant doesn't have the full set of builtin writers
@@ -830,6 +900,17 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
     NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER,
     NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER,
     NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER,
+    /* Security ones: */
+    NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER,
+    NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER,
+    NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER,
+    NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER,
+    NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER,
+    NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER,
+    NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER,
+    NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER,
+    NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER,
+    NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER,
     /* PrismTech ones: */
     NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER,
     NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_READER,
@@ -913,7 +994,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
           (pp->prismtech_bes & prismtech_builtin_writers_besmask) != prismtech_builtin_writers_besmask)
       {
         /* Participant doesn't have a full complement of built-in
-           writers, therefore, it relies on gv.privileged_pp, and
+           writers, therefore, it relies on gv->privileged_pp, and
            therefore we must decrement the reference count of that one.
 
            Why read it with the lock held, only to release it and use it
@@ -1002,8 +1083,14 @@ struct writer *get_builtin_writer (const struct participant *pp, unsigned entity
     case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER:
       bes_mask = NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER;
       break;
+    case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER:
+      bes_mask = NN_BUILTIN_ENDPOINT_SUBSCRIPTION_MESSAGE_SECURE_ANNOUNCER;
+      break;
     case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER:
       bes_mask = NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
+      break;
+    case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER:
+      bes_mask = NN_BUILTIN_ENDPOINT_PUBLICATION_MESSAGE_SECURE_ANNOUNCER;
       break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
       bes_mask = NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
@@ -1019,6 +1106,15 @@ struct writer *get_builtin_writer (const struct participant *pp, unsigned entity
       break;
     case NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER:
       bes_mask = NN_DISC_BUILTIN_ENDPOINT_TOPIC_ANNOUNCER;
+      break;
+    case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
+      bes_mask = NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER;
+      break;
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
+      bes_mask = NN_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_ANNOUNCER;
+      break;
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
+      bes_mask = NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_SECURE_ANNOUNCER;
       break;
     default:
       DDS_FATAL ("get_builtin_writer called with entityid %x\n", entityid);
@@ -1385,7 +1481,7 @@ void rebuild_or_clear_writer_addrsets (struct q_globals *gv, int rebuild)
     else
     {
       /* SPDP writers have no matched readers, instead they all use the same address space,
-         gv.as_disc. Keep as_disc unchanged, and instead make the participants point to the
+         gv->as_disc. Keep as_disc unchanged, and instead make the participants point to the
          empty one. */
       unref_addrset(wr->as);
       if (rebuild)
@@ -2112,6 +2208,13 @@ static ddsi_entityid_t builtin_entityid_match (ddsi_entityid_t x)
       res.u = NN_ENTITYID_UNKNOWN;
       break;
 
+    case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
+      res.u = NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER;
+      break;
+    case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER:
+      res.u = NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER;
+      break;
+
     case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_READER:
       res.u = NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER;
       break;
@@ -2129,6 +2232,30 @@ static ddsi_entityid_t builtin_entityid_match (ddsi_entityid_t x)
       break;
     case NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER:
       res.u = NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_READER;
+      break;
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
+      res.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER;
+      break;
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER:
+      res.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER;
+      break;
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
+      res.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER;
+      break;
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER:
+      res.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER;
+      break;
+    case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER:
+      res.u = NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER;
+      break;
+    case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER:
+      res.u = NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER;
+      break;
+    case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER:
+      res.u = NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER;
+      break;
+    case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER:
+      res.u = NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER;
       break;
 
     default:
@@ -2815,7 +2942,8 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   if (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE))
   {
     assert (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST);
-    assert (wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
+    assert (wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL ||
+            wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER);
   }
   wr->handle_as_transient_local = (wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
   wr->include_keyhash =
@@ -3614,6 +3742,158 @@ void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct
   ddsrt_mutex_unlock (&proxypp->e.lock);
 }
 
+struct bestab {
+  unsigned besflag;
+  unsigned prismtech_besflag;
+  unsigned entityid;
+};
+
+static void create_proxy_builtin_endpoints(
+  struct q_globals *gv,
+  const struct bestab *bestab,
+  int nbes,
+  const struct ddsi_guid *ppguid,
+  struct proxy_participant *proxypp,
+  nn_wctime_t timestamp,
+  dds_qos_t *xqos_wr,
+  dds_qos_t *xqos_rd)
+{
+  nn_plist_t plist_rd, plist_wr;
+  int i;
+  /* Note: no entity name or group GUID supplied, but that shouldn't
+   * matter, as these are internal to DDSI and don't use group
+   * coherency
+   */
+  nn_plist_init_empty (&plist_wr);
+  nn_plist_init_empty (&plist_rd);
+  nn_xqos_copy (&plist_wr.qos, xqos_wr);
+  nn_xqos_copy (&plist_rd.qos, xqos_rd);
+  for (i = 0; i < nbes; i++)
+  {
+    const struct bestab *te = &bestab[i];
+    if ((proxypp->bes & te->besflag) || (proxypp->prismtech_bes & te->prismtech_besflag))
+    {
+      ddsi_guid_t guid1;
+      guid1.prefix = proxypp->e.guid.prefix;
+      guid1.entityid.u = te->entityid;
+      assert (is_builtin_entityid (guid1.entityid, proxypp->vendor));
+      if (is_writer_entityid (guid1.entityid))
+      {
+        new_proxy_writer (gv, ppguid, &guid1, proxypp->as_meta, &plist_wr, gv->builtins_dqueue, gv->xevents, timestamp, 0);
+      }
+      else
+      {
+#ifdef DDSI_INCLUDE_SSM
+        const int ssm = addrset_contains_ssm (gv, proxypp->as_meta);
+#else
+        const int ssm = 0;
+#endif
+        new_proxy_reader (gv, ppguid, &guid1, proxypp->as_meta, &plist_rd, timestamp, 0, ssm);
+      }
+    }
+  }
+  nn_plist_fini (&plist_wr);
+  nn_plist_fini (&plist_rd);
+}
+
+
+static void add_proxy_builtin_endpoints(
+  struct q_globals *gv,
+  const struct ddsi_guid *ppguid,
+  struct proxy_participant *proxypp,
+  nn_wctime_t timestamp)
+{
+  /* Add proxy endpoints based on the advertised (& possibly augmented
+     ...) built-in endpoint set. */
+#define PT_TE(ap_, a_, bp_, b_) { 0, NN_##ap_##BUILTIN_ENDPOINT_##a_, NN_ENTITYID_##bp_##_BUILTIN_##b_ }
+#define TE(ap_, a_, bp_, b_) { NN_##ap_##BUILTIN_ENDPOINT_##a_, 0, NN_ENTITYID_##bp_##_BUILTIN_##b_ }
+#define LTE(a_, bp_, b_) { NN_##BUILTIN_ENDPOINT_##a_, 0, NN_ENTITYID_##bp_##_BUILTIN_##b_ }
+
+  /* 'Default' proxy endpoints. */
+  static const struct bestab bestab_default[] = {
+#if 0
+    /* SPDP gets special treatment => no need for proxy
+       writers/readers */
+    TE (DISC_, PARTICIPANT_ANNOUNCER, SPDP, PARTICIPANT_WRITER),
+#endif
+    TE (DISC_, PARTICIPANT_DETECTOR, SPDP, PARTICIPANT_READER),
+    TE (DISC_, PUBLICATION_ANNOUNCER, SEDP, PUBLICATIONS_WRITER),
+    TE (DISC_, PUBLICATION_DETECTOR, SEDP, PUBLICATIONS_READER),
+    TE (DISC_, SUBSCRIPTION_ANNOUNCER, SEDP, SUBSCRIPTIONS_WRITER),
+    TE (DISC_, SUBSCRIPTION_DETECTOR, SEDP, SUBSCRIPTIONS_READER),
+    LTE (PARTICIPANT_MESSAGE_DATA_WRITER, P2P, PARTICIPANT_MESSAGE_WRITER),
+    LTE (PARTICIPANT_MESSAGE_DATA_READER, P2P, PARTICIPANT_MESSAGE_READER),
+    TE (DISC_, TOPIC_ANNOUNCER, SEDP, TOPIC_WRITER),
+    TE (DISC_, TOPIC_DETECTOR, SEDP, TOPIC_READER),
+    PT_TE (DISC_, CM_PARTICIPANT_READER, SEDP, CM_PARTICIPANT_READER),
+    PT_TE (DISC_, CM_PARTICIPANT_WRITER, SEDP, CM_PARTICIPANT_WRITER),
+    PT_TE (DISC_, CM_PUBLISHER_READER, SEDP, CM_PUBLISHER_READER),
+    PT_TE (DISC_, CM_PUBLISHER_WRITER, SEDP, CM_PUBLISHER_WRITER),
+    PT_TE (DISC_, CM_SUBSCRIBER_READER, SEDP, CM_SUBSCRIBER_READER),
+    PT_TE (DISC_, CM_SUBSCRIBER_WRITER, SEDP, CM_SUBSCRIBER_WRITER)
+  };
+  create_proxy_builtin_endpoints(gv,
+                                 bestab_default,
+                                 (int)(sizeof (bestab_default) / sizeof (*bestab_default)),
+                                 ppguid,
+                                 proxypp,
+                                 timestamp,
+                                 &gv->builtin_endpoint_xqos_wr,
+                                 &gv->builtin_endpoint_xqos_rd);
+
+#ifdef DDSI_INCLUDE_SECURITY
+  /* Security 'default' proxy endpoints. */
+  static const struct bestab bestab_security[] = {
+    LTE (PUBLICATION_MESSAGE_SECURE_ANNOUNCER, SEDP, PUBLICATIONS_SECURE_WRITER),
+    LTE (PUBLICATION_MESSAGE_SECURE_DETECTOR, SEDP, PUBLICATIONS_SECURE_READER),
+    LTE (SUBSCRIPTION_MESSAGE_SECURE_ANNOUNCER, SEDP, SUBSCRIPTIONS_SECURE_WRITER),
+    LTE (SUBSCRIPTION_MESSAGE_SECURE_DETECTOR, SEDP, SUBSCRIPTIONS_SECURE_READER),
+    LTE (PARTICIPANT_MESSAGE_SECURE_ANNOUNCER, P2P, PARTICIPANT_MESSAGE_SECURE_WRITER),
+    LTE (PARTICIPANT_MESSAGE_SECURE_DETECTOR, P2P, PARTICIPANT_MESSAGE_SECURE_READER),
+    TE (DISC_, PARTICIPANT_SECURE_ANNOUNCER, SPDP_RELIABLE, PARTICIPANT_SECURE_WRITER),
+    TE (DISC_, PARTICIPANT_SECURE_DETECTOR, SPDP_RELIABLE, PARTICIPANT_SECURE_READER)
+  };
+  create_proxy_builtin_endpoints(gv,
+                                 bestab_security,
+                                 (int)(sizeof (bestab_security) / sizeof (*bestab_security)),
+                                 ppguid,
+                                 proxypp,
+                                 timestamp,
+                                 &gv->builtin_endpoint_xqos_wr,
+                                 &gv->builtin_endpoint_xqos_rd);
+
+  /* Security 'stateless' proxy endpoints. */
+  static const struct bestab bestab_stateless[] = {
+    LTE (PARTICIPANT_STATELESS_MESSAGE_ANNOUNCER, P2P, PARTICIPANT_STATELESS_MESSAGE_WRITER),
+    LTE (PARTICIPANT_STATELESS_MESSAGE_DETECTOR, P2P, PARTICIPANT_STATELESS_MESSAGE_READER)
+  };
+  create_proxy_builtin_endpoints(gv,
+                                 bestab_stateless,
+                                 (int)(sizeof (bestab_stateless) / sizeof (*bestab_stateless)),
+                                 ppguid,
+                                 proxypp,
+                                 timestamp,
+                                 &gv->builtin_stateless_xqos_wr,
+                                 &gv->builtin_stateless_xqos_rd);
+#endif
+
+  /* Register lease, but be careful not to accidentally re-register
+     DDSI2's lease, as we may have become dependent on DDSI2 any time
+     after ephash_insert_proxy_participant_guid even if
+     privileged_pp_guid was NULL originally */
+  ddsrt_mutex_lock (&proxypp->e.lock);
+
+  if (proxypp->owns_lease)
+    lease_register (ddsrt_atomic_ldvoidp (&proxypp->lease));
+
+  builtintopic_write (gv->builtin_topic_interface, &proxypp->e, timestamp, true);
+  ddsrt_mutex_unlock (&proxypp->e.lock);
+
+#undef PT_TE
+#undef TE
+#undef LTE
+}
+
 void new_proxy_participant
 (
   struct q_globals *gv,
@@ -3720,89 +4000,8 @@ void new_proxy_participant
      new_proxy_{writer,reader} to work */
   ephash_insert_proxy_participant_guid (gv->guid_hash, proxypp);
 
-  /* Add proxy endpoints based on the advertised (& possibly augmented
-     ...) built-in endpoint set. */
-  {
-#define PT_TE(ap_, a_, bp_, b_) { 0, NN_##ap_##BUILTIN_ENDPOINT_##a_, NN_ENTITYID_##bp_##_BUILTIN_##b_ }
-#define TE(ap_, a_, bp_, b_) { NN_##ap_##BUILTIN_ENDPOINT_##a_, 0, NN_ENTITYID_##bp_##_BUILTIN_##b_ }
-#define LTE(a_, bp_, b_) { NN_##BUILTIN_ENDPOINT_##a_, 0, NN_ENTITYID_##bp_##_BUILTIN_##b_ }
-    static const struct bestab {
-      unsigned besflag;
-      unsigned prismtech_besflag;
-      unsigned entityid;
-    } bestab[] = {
-#if 0
-      /* SPDP gets special treatment => no need for proxy
-         writers/readers */
-      TE (DISC_, PARTICIPANT_ANNOUNCER, SPDP, PARTICIPANT_WRITER),
-#endif
-      TE (DISC_, PARTICIPANT_DETECTOR, SPDP, PARTICIPANT_READER),
-      TE (DISC_, PUBLICATION_ANNOUNCER, SEDP, PUBLICATIONS_WRITER),
-      TE (DISC_, PUBLICATION_DETECTOR, SEDP, PUBLICATIONS_READER),
-      TE (DISC_, SUBSCRIPTION_ANNOUNCER, SEDP, SUBSCRIPTIONS_WRITER),
-      TE (DISC_, SUBSCRIPTION_DETECTOR, SEDP, SUBSCRIPTIONS_READER),
-      LTE (PARTICIPANT_MESSAGE_DATA_WRITER, P2P, PARTICIPANT_MESSAGE_WRITER),
-      LTE (PARTICIPANT_MESSAGE_DATA_READER, P2P, PARTICIPANT_MESSAGE_READER),
-      TE (DISC_, TOPIC_ANNOUNCER, SEDP, TOPIC_WRITER),
-      TE (DISC_, TOPIC_DETECTOR, SEDP, TOPIC_READER),
-      PT_TE (DISC_, CM_PARTICIPANT_READER, SEDP, CM_PARTICIPANT_READER),
-      PT_TE (DISC_, CM_PARTICIPANT_WRITER, SEDP, CM_PARTICIPANT_WRITER),
-      PT_TE (DISC_, CM_PUBLISHER_READER, SEDP, CM_PUBLISHER_READER),
-      PT_TE (DISC_, CM_PUBLISHER_WRITER, SEDP, CM_PUBLISHER_WRITER),
-      PT_TE (DISC_, CM_SUBSCRIBER_READER, SEDP, CM_SUBSCRIBER_READER),
-      PT_TE (DISC_, CM_SUBSCRIBER_WRITER, SEDP, CM_SUBSCRIBER_WRITER)
-    };
-#undef PT_TE
-#undef TE
-#undef LTE
-    nn_plist_t plist_rd, plist_wr;
-    int i;
-    /* Note: no entity name or group GUID supplied, but that shouldn't
-       matter, as these are internal to DDSI and don't use group
-       coherency */
-    nn_plist_init_empty (&plist_wr);
-    nn_plist_init_empty (&plist_rd);
-    nn_xqos_copy (&plist_wr.qos, &gv->builtin_endpoint_xqos_wr);
-    nn_xqos_copy (&plist_rd.qos, &gv->builtin_endpoint_xqos_rd);
-    for (i = 0; i < (int) (sizeof (bestab) / sizeof (*bestab)); i++)
-    {
-      const struct bestab *te = &bestab[i];
-      if ((proxypp->bes & te->besflag) || (proxypp->prismtech_bes & te->prismtech_besflag))
-      {
-        ddsi_guid_t guid1;
-        guid1.prefix = proxypp->e.guid.prefix;
-        guid1.entityid.u = te->entityid;
-        assert (is_builtin_entityid (guid1.entityid, proxypp->vendor));
-        if (is_writer_entityid (guid1.entityid))
-        {
-          new_proxy_writer (gv, ppguid, &guid1, proxypp->as_meta, &plist_wr, gv->builtins_dqueue, gv->xevents, timestamp, 0);
-        }
-        else
-        {
-#ifdef DDSI_INCLUDE_SSM
-          const int ssm = addrset_contains_ssm (gv, proxypp->as_meta);
-          new_proxy_reader (gv, ppguid, &guid1, proxypp->as_meta, &plist_rd, timestamp, 0, ssm);
-#else
-          new_proxy_reader (gv, ppguid, &guid1, proxypp->as_meta, &plist_rd, timestamp, 0);
-#endif
-        }
-      }
-    }
-    nn_plist_fini (&plist_wr);
-    nn_plist_fini (&plist_rd);
-  }
-
-  /* Register lease, but be careful not to accidentally re-register
-     DDSI2's lease, as we may have become dependent on DDSI2 any time
-     after ephash_insert_proxy_participant_guid even if
-     privileged_pp_guid was NULL originally */
-  ddsrt_mutex_lock (&proxypp->e.lock);
-
-  if (proxypp->owns_lease)
-    lease_register (ddsrt_atomic_ldvoidp (&proxypp->lease));
-
-  builtintopic_write (gv->builtin_topic_interface, &proxypp->e, timestamp, true);
-  ddsrt_mutex_unlock (&proxypp->e.lock);
+  /* TODO: Do security checks on the proxy participant. Either add the endpoints or delete the proxy. */
+  add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
 }
 
 int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp)
@@ -4104,12 +4303,27 @@ static void proxy_endpoint_common_fini (struct entity_common *e, struct proxy_en
 
 /* PROXY-WRITER ----------------------------------------------------- */
 
+static enum nn_reorder_mode
+get_proxy_writer_reorder_mode(const ddsi_entityid_t pwr_entityid, int isreliable)
+{
+  if (isreliable)
+  {
+    return NN_REORDER_MODE_NORMAL;
+  }
+  if (pwr_entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER)
+  {
+    return NN_REORDER_MODE_ALWAYS_DELIVER;
+  }
+  return NN_REORDER_MODE_MONOTONICALLY_INCREASING;
+}
+
 int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const nn_plist_t *plist, struct nn_dqueue *dqueue, struct xeventq *evq, nn_wctime_t timestamp, seqno_t seq)
 {
   struct proxy_participant *proxypp;
   struct proxy_writer *pwr;
   int isreliable;
   nn_mtime_t tnow = now_mt ();
+  enum nn_reorder_mode reorder_mode;
 
   assert (is_writer_entityid (guid->entityid));
   assert (ephash_lookup_proxy_writer_guid (gv->guid_hash, guid) == NULL);
@@ -4168,13 +4382,13 @@ int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
   if (isreliable)
   {
     pwr->defrag = nn_defrag_new (&gv->logconfig, NN_DEFRAG_DROP_LATEST, gv->config.defrag_reliable_maxsamples);
-    pwr->reorder = nn_reorder_new (&gv->logconfig, NN_REORDER_MODE_NORMAL, gv->config.primary_reorder_maxsamples, gv->config.late_ack_mode);
   }
   else
   {
     pwr->defrag = nn_defrag_new (&gv->logconfig, NN_DEFRAG_DROP_OLDEST, gv->config.defrag_unreliable_maxsamples);
-    pwr->reorder = nn_reorder_new (&gv->logconfig, NN_REORDER_MODE_MONOTONICALLY_INCREASING, gv->config.primary_reorder_maxsamples, gv->config.late_ack_mode);
   }
+  reorder_mode = get_proxy_writer_reorder_mode(pwr->e.guid.entityid, isreliable);
+  pwr->reorder = nn_reorder_new (&gv->logconfig, reorder_mode, gv->config.primary_reorder_maxsamples, gv->config.late_ack_mode);
   pwr->dqueue = dqueue;
   pwr->evq = evq;
   pwr->ddsi2direct_cb = 0;

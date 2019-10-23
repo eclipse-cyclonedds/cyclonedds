@@ -43,6 +43,7 @@
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/q_feature_check.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 
 static int get_locator (const struct q_globals *gv, nn_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)
 {
@@ -327,16 +328,18 @@ int spdp_write (struct participant *pp)
   return ret;
 }
 
-int spdp_dispose_unregister (struct participant *pp)
+static int spdp_dispose_unregister_with_wr (struct participant *pp, unsigned entityid)
 {
   struct nn_xmsg *mpayload;
   nn_plist_t ps;
   struct writer *wr;
   int ret;
 
-  if ((wr = get_builtin_writer (pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)) == NULL)
+  if ((wr = get_builtin_writer (pp, entityid)) == NULL)
   {
-    ETRACE (pp, "spdp_dispose_unregister("PGUIDFMT") - builtin participant writer not found\n", PGUID (pp->e.guid));
+    ETRACE (pp, "spdp_dispose_unregister("PGUIDFMT") - builtin participant %s writer not found\n",
+            PGUID (pp->e.guid),
+            entityid == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER ? "secure" : "");
     return 0;
   }
 
@@ -350,6 +353,21 @@ int spdp_dispose_unregister (struct participant *pp)
 
   ret = write_mpayload (wr, 0, PID_PARTICIPANT_GUID, mpayload);
   nn_xmsg_free (mpayload);
+  return ret;
+}
+
+int spdp_dispose_unregister (struct participant *pp)
+{
+  /*
+   * When disposing a participant, it should be announced on both the
+   * non-secure and secure writers.
+   * The receiver will decide from which writer it accepts the dispose.
+   */
+  int ret = spdp_dispose_unregister_with_wr(pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
+  if ((ret > 0) && q_omg_participant_is_secure(pp))
+  {
+    ret = spdp_dispose_unregister_with_wr(pp, NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER);
+  }
   return ret;
 }
 
@@ -407,7 +425,7 @@ static void respond_to_spdp (const struct q_globals *gv, const ddsi_guid_t *dest
   ephash_enum_participant_fini (&est);
 }
 
-static int handle_SPDP_dead (const struct receiver_state *rst, nn_wctime_t timestamp, const nn_plist_t *datap, unsigned statusinfo)
+static int handle_SPDP_dead (const struct receiver_state *rst, ddsi_entityid_t pwr_entityid, nn_wctime_t timestamp, const nn_plist_t *datap, unsigned statusinfo)
 {
   struct q_globals * const gv = rst->gv;
   ddsi_guid_t guid;
@@ -419,13 +437,20 @@ static int handle_SPDP_dead (const struct receiver_state *rst, nn_wctime_t times
     guid = datap->participant_guid;
     GVLOGDISC (" %"PRIx32":%"PRIx32":%"PRIx32":%"PRIx32, PGUID (guid));
     assert (guid.entityid.u == NN_ENTITYID_PARTICIPANT);
-    if (delete_proxy_participant_by_guid (gv, &guid, timestamp, 0) < 0)
+    if (allow_proxy_participant_deletion(gv, &guid, pwr_entityid))
     {
-      GVLOGDISC (" unknown");
+      if (delete_proxy_participant_by_guid (gv, &guid, timestamp, 0) < 0)
+      {
+        GVLOGDISC (" unknown");
+      }
+      else
+      {
+        GVLOGDISC (" delete");
+      }
     }
     else
     {
-      GVLOGDISC (" delete");
+      GVLOGDISC (" not allowed");
     }
   }
   else
@@ -793,7 +818,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
   return 1;
 }
 
-static void handle_SPDP (const struct receiver_state *rst, seqno_t seq, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
+static void handle_SPDP (const struct receiver_state *rst, ddsi_entityid_t pwr_entityid, seqno_t seq, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
 {
   struct q_globals * const gv = rst->gv;
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
@@ -832,7 +857,7 @@ static void handle_SPDP (const struct receiver_state *rst, seqno_t seq, nn_wctim
       case NN_STATUSINFO_DISPOSE:
       case NN_STATUSINFO_UNREGISTER:
       case (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER):
-        interesting = handle_SPDP_dead (rst, timestamp, &decoded_data, statusinfo);
+        interesting = handle_SPDP_dead (rst, pwr_entityid, timestamp, &decoded_data, statusinfo);
         break;
     }
 
@@ -888,7 +913,7 @@ static int sedp_write_endpoint
 (
    struct writer *wr, int alive, const ddsi_guid_t *epguid,
    const struct entity_common *common, const struct endpoint_common *epcommon,
-   const dds_qos_t *xqos, struct addrset *as)
+   const dds_qos_t *xqos, struct addrset *as, nn_security_info_t *security)
 {
   struct q_globals * const gv = wr->e.gv;
   const dds_qos_t *defqos = is_writer_entityid (epguid->entityid) ? &gv->default_xqos_wr : &gv->default_xqos_rd;
@@ -907,6 +932,17 @@ static int sedp_write_endpoint
     ps.aliased |= PP_ENTITY_NAME;
     ps.entity_name = common->name;
   }
+
+#ifdef DDSI_INCLUDE_SECURITY
+  if (security)
+  {
+    ps.present |= PP_ENDPOINT_SECURITY_INFO;
+    memcpy(&ps.endpoint_security_info, security, sizeof(nn_security_info_t));
+  }
+#else
+  (void)security;
+  assert(security == NULL);
+#endif
 
   if (!alive)
   {
@@ -987,13 +1023,22 @@ int sedp_write_writer (struct writer *wr)
 {
   if ((!is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
   {
-    struct writer *sedp_wr = get_sedp_writer (wr->c.pp, NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER);
+    unsigned entityid = determine_publication_writer(wr);
+    struct writer *sedp_wr = get_sedp_writer (wr->c.pp, entityid);
+    nn_security_info_t *security = NULL;
 #ifdef DDSI_INCLUDE_SSM
     struct addrset *as = wr->ssm_as;
 #else
     struct addrset *as = NULL;
 #endif
-    return sedp_write_endpoint (sedp_wr, 1, &wr->e.guid, &wr->e, &wr->c, wr->xqos, as);
+#ifdef DDSI_INCLUDE_SECURITY
+    nn_security_info_t tmp;
+    if (q_omg_get_writer_security_info(wr, &tmp))
+    {
+      security = &tmp;
+    }
+#endif
+    return sedp_write_endpoint (sedp_wr, 1, &wr->e.guid, &wr->e, &wr->c, wr->xqos, as, security);
   }
   return 0;
 }
@@ -1002,13 +1047,22 @@ int sedp_write_reader (struct reader *rd)
 {
   if ((!is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!rd->e.onlylocal))
   {
-    struct writer *sedp_wr = get_sedp_writer (rd->c.pp, NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER);
+    unsigned entityid = determine_subscription_writer(rd);
+    struct writer *sedp_wr = get_sedp_writer (rd->c.pp, entityid);
+    nn_security_info_t *security = NULL;
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     struct addrset *as = rd->as;
 #else
     struct addrset *as = NULL;
 #endif
-    return sedp_write_endpoint (sedp_wr, 1, &rd->e.guid, &rd->e, &rd->c, rd->xqos, as);
+#ifdef DDSI_INCLUDE_SECURITY
+    nn_security_info_t tmp;
+    if (q_omg_get_reader_security_info(rd, &tmp))
+    {
+      security = &tmp;
+    }
+#endif
+    return sedp_write_endpoint (sedp_wr, 1, &rd->e.guid, &rd->e, &rd->c, rd->xqos, as, security);
   }
   return 0;
 }
@@ -1017,8 +1071,9 @@ int sedp_dispose_unregister_writer (struct writer *wr)
 {
   if ((!is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
   {
-    struct writer *sedp_wr = get_sedp_writer (wr->c.pp, NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER);
-    return sedp_write_endpoint (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL);
+    unsigned entityid = determine_publication_writer(wr);
+    struct writer *sedp_wr = get_sedp_writer (wr->c.pp, entityid);
+    return sedp_write_endpoint (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL, NULL);
   }
   return 0;
 }
@@ -1027,8 +1082,9 @@ int sedp_dispose_unregister_reader (struct reader *rd)
 {
   if ((!is_builtin_entityid(rd->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!rd->e.onlylocal))
   {
-    struct writer *sedp_wr = get_sedp_writer (rd->c.pp, NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER);
-    return sedp_write_endpoint (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL);
+    unsigned entityid = determine_subscription_writer(rd);
+    struct writer *sedp_wr = get_sedp_writer (rd->c.pp, entityid);
+    return sedp_write_endpoint (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL, NULL);
   }
   return 0;
 }
@@ -1594,7 +1650,13 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
 
   pwr = sampleinfo->pwr;
   if (pwr == NULL)
-    assert (srcguid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
+  {
+    /* NULL with NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER is normal. It is possible that
+     * NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER has NULL as well if there
+     * is a security mismatch being handled. */
+    assert ((srcguid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER) ||
+            (srcguid.entityid.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER));
+  }
   else
   {
     assert (is_builtin_entityid (pwr->e.guid.entityid, pwr->c.vendor));
@@ -1690,6 +1752,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
       {
         case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
         case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER:
+        case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
           pid = PID_PARTICIPANT_GUID;
           break;
         case NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER:
@@ -1698,6 +1761,8 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
           break;
         case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER:
         case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER:
+        case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER:
+        case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER:
           pid = PID_ENDPOINT_GUID;
           break;
         case NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER:
@@ -1736,18 +1801,27 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
   switch (srcguid.entityid.u)
   {
     case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
-      handle_SPDP (sampleinfo->rst, sampleinfo->seq, timestamp, statusinfo, datap, datasz);
+    case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
+      handle_SPDP (sampleinfo->rst, srcguid.entityid, sampleinfo->seq, timestamp, statusinfo, datap, datasz);
       break;
     case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER:
     case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER:
+    case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER:
+    case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER:
       handle_SEDP (sampleinfo->rst, sampleinfo->seq, timestamp, statusinfo, datap, datasz);
       break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
       handle_PMD (sampleinfo->rst, timestamp, statusinfo, datap, datasz);
       break;
     case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER:
       handle_SEDP_CM (sampleinfo->rst, srcguid.entityid, timestamp, statusinfo, datap, datasz);
       break;
+#ifdef DDSI_INCLUDE_SECURITY
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
+      /* TODO: Handshake */
+      break;
+#endif
     default:
       GVLOGDISC ("data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRId64": not handled\n",
                  sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
