@@ -70,12 +70,12 @@ target_compile_definitions(
 target_compile_options(
   freertos-sim
     PUBLIC
-      -m32
+      -m64
     PRIVATE
       -W -Wall -Werror -Wmissing-braces -Wno-cast-align -Wparentheses -Wshadow
       -Wno-sign-compare -Wswitch -Wuninitialized -Wunknown-pragmas
       -Wunused-function -Wunused-label -Wunused-parameter -Wunused-value
-      -Wunused-variable -Wmissing-prototypes)
+      -Wunused-variable -Wmissing-prototypes -mcmodel=large)
 target_include_directories(
   freertos-sim
     PUBLIC
@@ -84,7 +84,7 @@ target_include_directories(
       "$<BUILD_INTERFACE:${source_path}/portable/GCC/POSIX>"
       "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(
-  freertos-sim PUBLIC -m32 -pthread)
+  freertos-sim PUBLIC -m64 -pthread)
 
 if(CMAKE_BUILD_TYPE STREQUAL "DEBUG" OR
    CMAKE_BUILD_TYPE STREQUAL "RELWITHDEBINFO")

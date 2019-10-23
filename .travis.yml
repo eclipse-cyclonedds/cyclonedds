@@ -37,6 +37,77 @@ submit_to_coverity_scan: &submit_to_coverity_scan
                "https://scan.coverity.com/builds";
   fi
 
+freertos: &freertos
+  if [ "${FREERTOS}" = "true" ]; then
+    cd ports/freertos-posix;
+    git clone https://github.com/shlinym/FreeRTOS-Sim.git;
+    mkdir build;
+    cd build;
+    cmake -DCMAKE_INSTALL_PREFIX=$(pwd)/install ..;
+    cmake --build . --target install;
+    cd ../../..;
+    if [ "${LWIP}" = "true" ]; then
+      WITH_LWIP=on
+      cd ports/freertos-posix/lwip;
+      git clone https://git.savannah.nongnu.org/git/lwip.git;
+      cd lwip;
+      git checkout tags/STABLE-2_1_2_RELEASE -b STABLE-2_1_2_RELEASE;
+      cd ..;
+      git clone https://git.savannah.nongnu.org/git/lwip/lwip-contrib.git;
+      cd lwip-contrib;
+      git checkout tags/STABLE-2_1_0_RELEASE -b STABLE-2_1_0_RELEASE;
+      cd ..;
+      mkdir lwip-contrib/ports/unix/example_app/build;
+      cd lwip-contrib/ports/unix/example_app/build;
+      cmake ..;
+      cp ../../../../../lwipcfg.h ../../../../examples/example_app;
+      cmake --build . --target all;
+      cd ../../../../../..;
+      mkdir -p build;
+      cd build;
+      cmake -DCMAKE_INSTALL_PREFIX=$(pwd)/install ..;
+      cmake --build . --target install;
+      cd ../../..;
+    else
+      WITH_LWIP=off;
+    fi;
+    mkdir build;
+    cd build;
+    conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ..;
+    cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+          -DCMAKE_TOOLCHAIN_FILE=../ports/freertos-posix/toolchain.cmake
+          -DCMAKE_INSTALL_PREFIX=$(pwd)/install
+          -DUSE_SANITIZER=${ASAN}
+          -DENABLE_SSL=${SSL}
+          -DBUILD_TESTING=on
+          -DWITH_FREERTOS=on
+          -DWITH_LWIP=${WITH_LWIP}
+          -G "${GENERATOR}" .. || true;
+    case "${GENERATOR}" in
+      "Unix Makefiles")
+        ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- -j 4
+        ;;
+      "Visual Studio "*)
+        ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- -nologo -verbosity:minimal -maxcpucount -p:CL_MPCount=2
+        ;;
+      *)
+        ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install
+        ;;
+    esac;
+    CYCLONEDDS_URI='<CycloneDDS><Domain><General><NetworkInterfaceAddress>lo0</NetworkInterfaceAddress></General><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal><Tracing><Verbosity>finest</Verbosity><OutputFile>lite.log</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 1 --output-on-failure -T test -R "ddsrt_atomics|ddsrt_environ|ddsrt_heap|ddsrt_getifaddrs|ddsrt_sync|ddsrt_strtoll|ddsrt_thread|ddsrt_strcasecmp|ddsrt_strncasecmp|dds_log|ddsrt_random|ddsrt_strlcpy|ddsrt_strlcat|ddsrt_sockaddrfromstr|ddsrt_sockaddrtostr|ddsrt_sockets|ddsrt_gethostbyname|ddsrt_select|ddsrt_listener|ddsc_qos|ddsc_listener|ddsc_participant_lookup_none|ddsc_publisher_coherency" -E "ddsc_listener_propagation|ddsc_listener_matched|ddsc_listener_publication_matched|ddsc_listener_subscription_matched|ddsc_listener_incompatible_qos|ddsc_listener_data_available|ddsc_listener_data_available_delete_writer|ddsc_listener_data_available_delete_writer_disposed|ddsc_listener_data_on_readers|ddsc_listener_sample_lost|ddsc_listener_sample_rejected|ddsc_listener_liveliness_changed" -C ${BUILD_TYPE};
+  fi
+
+linux_gcc: &linux_gcc
+  os: linux
+  dist: xenial
+  compiler: gcc
+  before_install:
+    - eval "export CC=gcc"
+    - eval "export CXX=g++"
+    - eval "export COV_COMPTYPE=gcc COV_PLATFORM=linux64"
+  install:
+    - pip install conan --upgrade --user
+
 linux_gcc8: &linux_gcc8
   os: linux
   dist: xenial
@@ -175,6 +246,8 @@ jobs:
       env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
     - <<: *windows_vs2017
       env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
+    - <<: *linux_gcc
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=NO, GENERATOR="Unix Makefiles", FREERTOS=true, LWIP=true ]
 
 before_script:
   - conan profile new default --detect
@@ -197,40 +270,45 @@ before_script:
 #     code has been vetted, the test has been run a great many times (with the odd
 #     failure), and so we now simply skip the test to avoid the spurious failures.
 script:
-  - mkdir build
-  - cd build
-  - conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ..
-  - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
-          -DCMAKE_INSTALL_PREFIX=$(pwd)/install
-          -DUSE_SANITIZER=${ASAN}
-          -DENABLE_SSL=${SSL}
-          -DBUILD_TESTING=on
-          -DWERROR=on
-          -G "${GENERATOR}" ..
-  - case "${GENERATOR}" in
-      "Unix Makefiles")
-        ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- -j 4
-        ;;
-      "Visual Studio "*)
-        ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- -nologo -verbosity:minimal -maxcpucount -p:CL_MPCount=2
-        ;;
-      *)
-        ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install
-        ;;
-    esac
-  - CYCLONEDDS_URI='<CycloneDDS><Domain><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal><Tracing><Verbosity>config</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${BUILD_TYPE}
-  - if [ "${ASAN}" != "none" ]; then
-      CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
-      CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
+  - *freertos
+  - if [ "${FREERTOS}" = "true" ]; then
+      :;
+    else
+      mkdir build;
+      cd build;
+      conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ..;
+      cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+            -DCMAKE_INSTALL_PREFIX=$(pwd)/install
+            -DUSE_SANITIZER=${ASAN}
+            -DENABLE_SSL=${SSL}
+            -DBUILD_TESTING=on
+            -DWERROR=on
+            -G "${GENERATOR}" ..;
+      case "${GENERATOR}" in
+        "Unix Makefiles")
+          ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- -j 4
+          ;;
+        "Visual Studio "*)
+          ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- -nologo -verbosity:minimal -maxcpucount -p:CL_MPCount=2
+          ;;
+        *)
+          ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install
+          ;;
+      esac;
+      CYCLONEDDS_URI='<CycloneDDS><Domain><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal><Tracing><Verbosity>config</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${BUILD_TYPE};
+      if [ "${ASAN}" != "none" ]; then
+        CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
+        CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
+      fi;
+      mkdir install/share/CycloneDDS/examples/helloworld/build;
+      cd install/share/CycloneDDS/examples/helloworld/build;
+      cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+            ${CMAKE_C_FLAGS}
+            ${CMAKE_LINKER_FLAGS}
+            -G "${GENERATOR}" ..;
+      cmake --build . --config ${BUILD_TYPE};
+      cd "${TRAVIS_BUILD_DIR}/build";
     fi
-  - mkdir install/share/CycloneDDS/examples/helloworld/build
-  - cd install/share/CycloneDDS/examples/helloworld/build
-  - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
-          ${CMAKE_C_FLAGS}
-          ${CMAKE_LINKER_FLAGS}
-          -G "${GENERATOR}" ..
-  - cmake --build . --config ${BUILD_TYPE}
-  - cd "${TRAVIS_BUILD_DIR}/build"
 
 after_success:
   - *submit_to_coverity_scan

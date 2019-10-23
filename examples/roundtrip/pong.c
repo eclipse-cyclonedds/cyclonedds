@@ -65,7 +65,12 @@ static void data_available(dds_entity_t rd, void *arg)
   }
 }
 
+#if DDSRT_WITH_FREERTOS
+extern int real_main (int argc, char *argv[]);
+int real_main (int argc, char *argv[])
+#else
 int main (int argc, char *argv[])
+#endif
 {
   dds_duration_t waitTimeout = DDS_INFINITY;
   unsigned int i;

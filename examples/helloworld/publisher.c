@@ -3,7 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int main (int argc, char ** argv)
+#if DDSRT_WITH_FREERTOS
+extern int real_main (int argc, char *argv[]);
+int real_main (int argc, char *argv[])
+#else
+int main (int argc, char *argv[])
+#endif
 {
   dds_entity_t participant;
   dds_entity_t topic;

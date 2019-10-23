@@ -35,7 +35,12 @@ static void sigint (int sig)
   done = true;
 }
 
-int main (int argc, char **argv)
+#if DDSRT_WITH_FREERTOS
+extern int real_main (int argc, char *argv[]);
+int real_main (int argc, char *argv[])
+#else
+int main (int argc, char *argv[])
+#endif
 {
   uint32_t payloadSize = 8192;
   int burstInterval = 0;

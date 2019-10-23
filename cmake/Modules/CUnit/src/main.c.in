@@ -13,6 +13,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if DDSRT_WITH_FREERTOS
+#include <lwip/tcpip.h>
+#endif
+
 #define EX_USAGE (64)
 #define EX_SOFTWARE (70)
 
@@ -187,7 +191,12 @@ add_test(
 /* CMake will expand the macro below to declare generated functions. */
 @decls@
 
-int main(int argc, char *argv[])
+#if DDSRT_WITH_FREERTOS
+extern int real_main (int argc, char *argv[]);
+int real_main (int argc, char *argv[])
+#else
+int main (int argc, char *argv[])
+#endif
 {
     int ret = EXIT_SUCCESS;
 
@@ -201,6 +210,10 @@ int main(int argc, char *argv[])
         fprintf(stderr, "CU_initialize_registry: %s\n", CU_get_error_msg());
         return EX_SOFTWARE;
     }
+
+#if DDSRT_WITH_FREERTOS
+    tcpip_init(NULL, NULL);
+#endif
 
 /* CMake will expand the macro below to register all suites and tests. */
 @defns@
