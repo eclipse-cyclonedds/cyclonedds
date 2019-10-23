@@ -462,6 +462,7 @@ CU_Theory((bool local, int mode, bool expect_in_trace), dds_log, fatal_aborts)
 #if TEST_DDS_LC_FATAL
   struct sigaction action, oldaction;
   action.sa_flags = 0;
+  sigemptyset (&action.sa_mask);
   action.sa_handler = abort_handler;
 
   if (sigsetjmp (abort_jmpbuf, 0) != 0)
