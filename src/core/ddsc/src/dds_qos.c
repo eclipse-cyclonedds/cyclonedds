@@ -350,7 +350,7 @@ static void dds_qprop_init (dds_qos_t * qos)
 static bool dds_qprop_get_index (const dds_qos_t * qos, const char * name, uint32_t * index)
 {
   bool found = false;
-  if (qos == NULL || name == NULL || index == NULL)
+  if (qos == NULL || name == NULL || index == NULL || !(qos->present & QP_PROPERTY_LIST))
     return false;
   for (uint32_t i = 0; !found && i < qos->property.value.n; i++)
   {
@@ -366,7 +366,7 @@ static bool dds_qprop_get_index (const dds_qos_t * qos, const char * name, uint3
 static bool dds_qbprop_get_index (const dds_qos_t * qos, const char * name, uint32_t * index)
 {
   bool found = false;
-  if (qos == NULL || name == NULL || index == NULL)
+  if (qos == NULL || name == NULL || index == NULL || !(qos->present & QP_PROPERTY_LIST))
     return false;
   for (uint32_t i = 0; !found && i < qos->property.binary_value.n; i++)
   {
@@ -786,13 +786,13 @@ bool dds_qget_bprop (const dds_qos_t * __restrict qos, const char * name, void *
   found = dds_qbprop_get_index (qos, name, &i);
   if (found)
   {
-    if (value != NULL)
+    if (value != NULL || sz != NULL)
       dds_qos_data_copy_out (&qos->property.binary_value.props[i].value, value, sz);
-    else
-      *value = NULL;
   }
   else
   {
+    if (value != NULL)
+      *value = NULL;
     if (sz != NULL)
       *sz = 0;
   }
