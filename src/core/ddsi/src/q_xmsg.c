@@ -786,7 +786,7 @@ void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serda
 static void nn_xmsg_addpar_BE4u (struct nn_xmsg *m, nn_parameterid_t pid, uint32_t x)
 {
   unsigned *p = nn_xmsg_addpar (m, pid, sizeof (x));
-  *p = toBE4u (x);
+  *p = ddsrt_toBE4u (x);
 }
 
 void nn_xmsg_addpar_statusinfo (struct nn_xmsg *m, unsigned statusinfo)
@@ -800,8 +800,8 @@ void nn_xmsg_addpar_statusinfo (struct nn_xmsg *m, unsigned statusinfo)
     assert ((statusinfo & ~NN_STATUSINFO_STANDARDIZED) == NN_STATUSINFO_OSPL_AUTO);
     if (statusinfo & NN_STATUSINFO_OSPL_AUTO)
       statusinfox |= NN_STATUSINFOX_OSPL_AUTO;
-    p[0] = toBE4u (statusinfo & NN_STATUSINFO_STANDARDIZED);
-    p[1] = toBE4u (statusinfox);
+    p[0] = ddsrt_toBE4u (statusinfo & NN_STATUSINFO_STANDARDIZED);
+    p[1] = ddsrt_toBE4u (statusinfox);
   }
 }
 

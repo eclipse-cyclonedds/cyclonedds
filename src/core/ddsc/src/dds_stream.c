@@ -175,17 +175,17 @@ static void dds_os_put1be (dds_ostreamBE_t * __restrict s, uint8_t v)
 
 static void dds_os_put2be (dds_ostreamBE_t * __restrict s, uint16_t v)
 {
-  dds_os_put2 (&s->x, toBE2u (v));
+  dds_os_put2 (&s->x, ddsrt_toBE2u (v));
 }
 
 static void dds_os_put4be (dds_ostreamBE_t * __restrict s, uint32_t v)
 {
-  dds_os_put4 (&s->x, toBE4u (v));
+  dds_os_put4 (&s->x, ddsrt_toBE4u (v));
 }
 
 static void dds_os_put8be (dds_ostreamBE_t * __restrict s, uint64_t v)
 {
-  dds_os_put8 (&s->x, toBE8u (v));
+  dds_os_put8 (&s->x, ddsrt_toBE8u (v));
 }
 
 static void dds_os_put_bytes (dds_ostream_t * __restrict s, const void * __restrict b, uint32_t l)
@@ -782,7 +782,7 @@ static bool normalize_uint16 (char * __restrict data, uint32_t * __restrict off,
   if ((*off = check_align_prim (*off, size, 1)) == UINT32_MAX)
     return false;
   if (bswap)
-    *((uint16_t *) (data + *off)) = bswap2u (*((uint16_t *) (data + *off)));
+    *((uint16_t *) (data + *off)) = ddsrt_bswap2u (*((uint16_t *) (data + *off)));
   (*off) += 2;
   return true;
 }
@@ -792,7 +792,7 @@ static bool normalize_uint32 (char * __restrict data, uint32_t * __restrict off,
   if ((*off = check_align_prim (*off, size, 2)) == UINT32_MAX)
     return false;
   if (bswap)
-    *((uint32_t *) (data + *off)) = bswap4u (*((uint32_t *) (data + *off)));
+    *((uint32_t *) (data + *off)) = ddsrt_bswap4u (*((uint32_t *) (data + *off)));
   (*off) += 4;
   return true;
 }
@@ -802,7 +802,7 @@ static bool read_and_normalize_uint32 (uint32_t * __restrict val, char * __restr
   if ((*off = check_align_prim (*off, size, 2)) == UINT32_MAX)
     return false;
   if (bswap)
-    *((uint32_t *) (data + *off)) = bswap4u (*((uint32_t *) (data + *off)));
+    *((uint32_t *) (data + *off)) = ddsrt_bswap4u (*((uint32_t *) (data + *off)));
   *val = *((uint32_t *) (data + *off));
   (*off) += 4;
   return true;
@@ -813,7 +813,7 @@ static bool normalize_uint64 (char * __restrict data, uint32_t * __restrict off,
   if ((*off = check_align_prim (*off, size, 3)) == UINT32_MAX)
     return false;
   if (bswap)
-    *((uint64_t *) (data + *off)) = bswap8u (*((uint64_t *) (data + *off)));
+    *((uint64_t *) (data + *off)) = ddsrt_bswap8u (*((uint64_t *) (data + *off)));
   (*off) += 8;
   return true;
 }
@@ -847,7 +847,7 @@ static bool normalize_primarray (char * __restrict data, uint32_t * __restrict o
       {
         uint16_t *xs = (uint16_t *) (data + *off);
         for (uint32_t i = 0; i < num; i++)
-          xs[i] = bswap2u (xs[i]);
+          xs[i] = ddsrt_bswap2u (xs[i]);
       }
       *off += 2 * num;
       return true;
@@ -858,7 +858,7 @@ static bool normalize_primarray (char * __restrict data, uint32_t * __restrict o
       {
         uint32_t *xs = (uint32_t *) (data + *off);
         for (uint32_t i = 0; i < num; i++)
-          xs[i] = bswap4u (xs[i]);
+          xs[i] = ddsrt_bswap4u (xs[i]);
       }
       *off += 4 * num;
       return true;
@@ -869,7 +869,7 @@ static bool normalize_primarray (char * __restrict data, uint32_t * __restrict o
       {
         uint64_t *xs = (uint64_t *) (data + *off);
         for (uint32_t i = 0; i < num; i++)
-          xs[i] = bswap8u (xs[i]);
+          xs[i] = ddsrt_bswap8u (xs[i]);
       }
       *off += 8 * num;
       return true;
@@ -956,7 +956,7 @@ static bool normalize_uni_disc (uint32_t * __restrict val, char * __restrict dat
       if ((*off = check_align_prim (*off, size, 1)) == UINT32_MAX)
         return false;
       if (bswap)
-        *((uint16_t *) (data + *off)) = bswap2u (*((uint16_t *) (data + *off)));
+        *((uint16_t *) (data + *off)) = ddsrt_bswap2u (*((uint16_t *) (data + *off)));
       *val = *((uint16_t *) (data + *off));
       (*off) += 2;
       return true;
@@ -964,7 +964,7 @@ static bool normalize_uni_disc (uint32_t * __restrict val, char * __restrict dat
       if ((*off = check_align_prim (*off, size, 2)) == UINT32_MAX)
         return false;
       if (bswap)
-        *((uint32_t *) (data + *off)) = bswap4u (*((uint32_t *) (data + *off)));
+        *((uint32_t *) (data + *off)) = ddsrt_bswap4u (*((uint32_t *) (data + *off)));
       *val = *((uint32_t *) (data + *off));
       (*off) += 4;
       return true;
@@ -1180,19 +1180,19 @@ static void dds_stream_swap_insitu (void * __restrict vbuf, uint32_t size, uint3
     case 2: {
       uint16_t *buf = vbuf;
       for (uint32_t i = 0; i < num; i++)
-        buf[i] = bswap2u (buf[i]);
+        buf[i] = ddsrt_bswap2u (buf[i]);
       break;
     }
     case 4: {
       uint32_t *buf = vbuf;
       for (uint32_t i = 0; i < num; i++)
-        buf[i] = bswap4u (buf[i]);
+        buf[i] = ddsrt_bswap4u (buf[i]);
       break;
     }
     case 8: {
       uint64_t *buf = vbuf;
       for (uint32_t i = 0; i < num; i++)
-        buf[i] = bswap8u (buf[i]);
+        buf[i] = ddsrt_bswap8u (buf[i]);
       break;
     }
   }
@@ -1294,21 +1294,21 @@ static void dds_stream_swap_copy (void * __restrict vdst, const void * __restric
       const uint16_t *src = vsrc;
       uint16_t *dst = vdst;
       for (uint32_t i = 0; i < num; i++)
-        dst[i] = bswap2u (src[i]);
+        dst[i] = ddsrt_bswap2u (src[i]);
       break;
     }
     case 4: {
       const uint32_t *src = vsrc;
       uint32_t *dst = vdst;
       for (uint32_t i = 0; i < num; i++)
-        dst[i] = bswap4u (src[i]);
+        dst[i] = ddsrt_bswap4u (src[i]);
       break;
     }
     case 8: {
       const uint64_t *src = vsrc;
       uint64_t *dst = vdst;
       for (uint32_t i = 0; i < num; i++)
-        dst[i] = bswap8u (src[i]);
+        dst[i] = ddsrt_bswap8u (src[i]);
       break;
     }
   }
@@ -1943,7 +1943,7 @@ void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct dd
   (*d) = (void *) s->m_buffer;
   (*d)->pos = (s->m_index - (uint32_t) offsetof (struct ddsi_serdata_default, data));
   (*d)->size = (s->m_size - (uint32_t) offsetof (struct ddsi_serdata_default, data));
-  (*d)->hdr.options = toBE2u ((uint16_t) pad);
+  (*d)->hdr.options = ddsrt_toBE2u ((uint16_t) pad);
 }
 
 void dds_ostreamBE_from_serdata_default (dds_ostreamBE_t * __restrict s, struct ddsi_serdata_default * __restrict d)
@@ -1966,5 +1966,5 @@ void dds_ostreamBE_add_to_serdata_default (dds_ostreamBE_t * __restrict s, struc
   (*d) = (void *) s->x.m_buffer;
   (*d)->pos = (s->x.m_index - (uint32_t) offsetof (struct ddsi_serdata_default, data));
   (*d)->size = (s->x.m_size - (uint32_t) offsetof (struct ddsi_serdata_default, data));
-  (*d)->hdr.options = toBE2u ((uint16_t) pad);
+  (*d)->hdr.options = ddsrt_toBE2u ((uint16_t) pad);
 }
