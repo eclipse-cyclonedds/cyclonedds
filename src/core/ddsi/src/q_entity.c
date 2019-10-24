@@ -521,9 +521,23 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   {
     /* For security, configuration can be provided through the configuration.
      * However, the specification (and the plugins) expect it to be in the QoS. */
-    if (!nn_xqos_mergein_security_config(&(pp->plist->qos), &(gv->config.omg_security_configuration->cfg)))
+    if (!nn_xqos_mergein_security_config(&pp->plist->qos, &gv->config.omg_security_configuration->cfg))
     {
+      char *req[] = { DDS_SEC_PROP_AUTH_IDENTITY_CA,
+                      DDS_SEC_PROP_AUTH_PRIV_KEY,
+                      DDS_SEC_PROP_AUTH_IDENTITY_CERT,
+                      DDS_SEC_PROP_ACCESS_PERMISSIONS_CA,
+                      DDS_SEC_PROP_ACCESS_GOVERNANCE,
+                      DDS_SEC_PROP_ACCESS_PERMISSIONS };
+
       GVLOGDISC ("new_participant("PGUIDFMT"): using security settings from qos, ignoring configuration\n", PGUID (*ppguid));
+
+      /* check if all required security properties exist in qos */
+      for (size_t i = 0; i < sizeof(req) / sizeof(req[0]); i++)
+      {
+        if (!nn_xqos_has_prop (&pp->plist->qos, req[i], false))
+          GVLOGDISC ("new_participant("PGUIDFMT"): required security property %s missing in Property QoS\n", PGUID (*ppguid), req[i]);
+      }
     }
   }
 #endif

@@ -24,7 +24,7 @@ C_CLASS(q_securityEncoderSet);
 C_CLASS(q_securityDecoderSet);
 
 /* Set of supported ciphers */
-typedef enum 
+typedef enum
 {
   Q_CIPHER_UNDEFINED,
   Q_CIPHER_NULL,

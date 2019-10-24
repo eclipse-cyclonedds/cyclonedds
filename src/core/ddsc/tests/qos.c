@@ -654,8 +654,6 @@ CU_Test(ddsc_qos, property, .init=qos_init, .fini=qos_fini)
     char * value = NULL;
     char ** names = NULL;
     uint32_t cnt = 0;
-    char * str;
-    const size_t len = 0x6400000; /* 100 mbyte */
 
     /* NULLs shouldn't crash and be a noops. */
     CU_ASSERT_FATAL (!dds_qget_prop (g_qos, NULL, NULL));
@@ -680,18 +678,6 @@ CU_Test(ddsc_qos, property, .init=qos_init, .fini=qos_fini)
     CU_ASSERT_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value));
     CU_ASSERT_STRING_EQUAL_FATAL (value, c_property_values[0]);
     dds_free (value);
-
-    /* Create large string and set as property value */
-    str = dds_alloc (len + 1);
-    memset (str, 'a', len);
-    str[len] = 0;
-    dds_qset_prop (g_qos, c_property_names[0], str);
-
-    /* Check property value */
-    CU_ASSERT_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value));
-    CU_ASSERT_STRING_EQUAL_FATAL (value, str);
-    dds_free (value);
-    dds_free (str);
 
     /* Overwrite value for existing property (and reset value) */
     dds_qset_prop (g_qos, c_property_names[0], c_property_values[1]);
@@ -738,8 +724,6 @@ CU_Test(ddsc_qos, bproperty, .init=qos_init, .fini=qos_fini)
     size_t size = 0;
     char ** names = NULL;
     uint32_t cnt = 0;
-    unsigned char * data;
-    const size_t data_sz = 0x6400000; /* 100 mbyte */
 
     /* NULLs shouldn't crash and be a noops. */
     CU_ASSERT_FATAL (!dds_qget_bprop (g_qos, NULL, NULL, NULL));
@@ -764,18 +748,6 @@ CU_Test(ddsc_qos, bproperty, .init=qos_init, .fini=qos_fini)
     CU_ASSERT_EQUAL_FATAL (size, 3);
     CU_ASSERT_EQUAL_FATAL (memcmp (bvalue, c_bproperty_values[0], size), 0);
     dds_free (bvalue);
-
-    /* Create large string and set as property value */
-    data = dds_alloc (data_sz);
-    memset (data, 123, data_sz);
-    dds_qset_bprop (g_qos, c_bproperty_names[0], data, data_sz);
-
-    /* Check property value */
-    CU_ASSERT_FATAL (dds_qget_bprop (g_qos, c_bproperty_names[0], &bvalue, &size));
-    CU_ASSERT_EQUAL_FATAL (size, data_sz);
-    CU_ASSERT_EQUAL_FATAL (memcmp (bvalue, data, size), 0);
-    dds_free (bvalue);
-    dds_free (data);
 
     /* Overwrite value for existing binary property (and reset value) */
     dds_qset_bprop (g_qos, c_bproperty_names[0], c_bproperty_values[1], 3);

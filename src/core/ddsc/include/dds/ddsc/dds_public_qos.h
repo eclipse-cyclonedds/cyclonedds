@@ -394,8 +394,8 @@ dds_qset_ignorelocal (
 DDS_EXPORT void
 dds_qset_prop (
   dds_qos_t * __restrict qos,
-  const char * __restrict name,
-  const char * __restrict value);
+  const char * name,
+  const char * value);
 
 /**
  * @brief Removes the property with the provided name from a qos structure.
@@ -409,7 +409,7 @@ dds_qset_prop (
 DDS_EXPORT void
 dds_qunset_prop (
   dds_qos_t * __restrict qos,
-  const char * __restrict name);
+  const char * name);
 
 /**
  * @brief Stores the provided binary data as a property in a qos structure
@@ -427,8 +427,8 @@ dds_qunset_prop (
 DDS_EXPORT void
 dds_qset_bprop (
   dds_qos_t * __restrict qos,
-  const char * __restrict name,
-  const void * __restrict value,
+  const char * name,
+  const void * value,
   const size_t sz);
 
 /**
@@ -443,7 +443,7 @@ dds_qset_bprop (
 DDS_EXPORT void
 dds_qunset_bprop (
   dds_qos_t * __restrict qos,
-  const char * __restrict name);
+  const char * name);
 
 /**
  * @brief Get the userdata from a qos structure
@@ -756,7 +756,10 @@ dds_qget_ignorelocal (
  * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
  */
 DDS_EXPORT bool
-dds_qget_propnames (const dds_qos_t * __restrict qos, uint32_t * n, char *** __restrict names);
+dds_qget_propnames (
+  const dds_qos_t * __restrict qos,
+  uint32_t * n,
+  char *** names);
 
 /**
  * @brief Get the value of the property with the provided name from a qos structure.
@@ -773,7 +776,7 @@ dds_qget_propnames (const dds_qos_t * __restrict qos, uint32_t * n, char *** __r
 DDS_EXPORT bool
 dds_qget_prop (
   const dds_qos_t * __restrict qos,
-  const char * __restrict name,
+  const char * name,
   char ** value);
 
 /**
@@ -786,7 +789,10 @@ dds_qget_prop (
  * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
  */
 DDS_EXPORT bool
-dds_qget_bpropnames (const dds_qos_t * __restrict qos, uint32_t * n, char *** __restrict names);
+dds_qget_bpropnames (
+  const dds_qos_t * __restrict qos,
+  uint32_t * n,
+  char *** names);
 
 /**
  * @brief Get the value of the binary property with the provided name from a qos structure.
@@ -804,7 +810,7 @@ dds_qget_bpropnames (const dds_qos_t * __restrict qos, uint32_t * n, char *** __
 DDS_EXPORT bool
 dds_qget_bprop (
   const dds_qos_t * __restrict qos,
-  const char * __restrict name,
+  const char * name,
   void ** value,
   size_t * sz);
 
