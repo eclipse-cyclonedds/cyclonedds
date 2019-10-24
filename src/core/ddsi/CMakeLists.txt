@@ -47,7 +47,6 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_qosmatch.c
     q_radmin.c
     q_receive.c
-    q_security.c
     q_sockwaitset.c
     q_thread.c
     q_time.c
@@ -106,7 +105,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_radmin.h
     q_receive.h
     q_rtps.h
-    q_security.h
     q_sockwaitset.h
     q_thread.h
     q_time.h
@@ -122,6 +120,17 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
 
 target_sources(ddsc
   PRIVATE ${srcs_ddsi} ${hdrs_private_ddsi})
+
+if(ENABLE_SECURITY)
+  PREPEND(security_srcs "${CMAKE_CURRENT_LIST_DIR}/src"
+          ddsi_security_msg.c)
+
+  PREPEND(security_hdrs "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
+          ddsi_security_msg.h)
+
+  target_sources(ddsc
+    PRIVATE ${security_srcs} ${security_hdrs})
+endif()
 
 target_include_directories(ddsc
   PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")

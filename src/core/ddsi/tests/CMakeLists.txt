@@ -13,7 +13,12 @@ include(CUnit)
 
 set(ddsi_test_sources
     "plist_generic.c"
-    "plist.c")
+    "plist.c"
+    "mem_ser.h")
+
+if(ENABLE_SECURITY)
+  set(ddsi_test_sources ${ddsi_test_sources} "security_msg.c")
+endif()
 
 add_cunit_executable(cunit_ddsi ${ddsi_test_sources})
 target_include_directories(

@@ -110,6 +110,9 @@ extern inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic
 extern inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid);
 extern inline void builtintopic_write (const struct ddsi_builtin_topic_interface *btif, const struct entity_common *e, nn_wctime_t timestamp, bool alive);
 
+extern inline seqno_t writer_read_seq_xmit (const struct writer *wr);
+extern inline void writer_update_seq_xmit (struct writer *wr, seqno_t nv);
+
 static int compare_guid (const void *va, const void *vb)
 {
   return memcmp (va, vb, sizeof (ddsi_guid_t));
@@ -2752,7 +2755,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   ddsrt_cond_init (&wr->throttle_cond);
   wr->seq = 0;
   wr->cs_seq = 0;
-  INIT_SEQ_XMIT(wr, 0);
+  ddsrt_atomic_st64 (&wr->seq_xmit, (uint64_t) 0);
   wr->hbcount = 0;
   wr->state = WRST_OPERATIONAL;
   wr->hbfragcount = 0;

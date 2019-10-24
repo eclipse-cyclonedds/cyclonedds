@@ -1001,14 +1001,6 @@ int rtps_init (struct q_globals *gv)
   gv->xmsgpool = nn_xmsgpool_new ();
   gv->serpool = ddsi_serdatapool_new ();
 
-#ifdef DDSI_INCLUDE_ENCRYPTION
-  if (q_security_plugin.new_decoder)
-  {
-    gv->recvSecurityCodec = (q_security_plugin.new_decoder) ();
-    GVLOG (DDS_LC_CONFIG, "decoderset created\n");
-  }
-#endif
-
   nn_plist_init_default_participant (&gv->default_plist_pp);
   nn_plist_init_default_participant (&gv->default_local_plist_pp);
   nn_xqos_init_default_reader (&gv->default_xqos_rd);
@@ -1337,10 +1329,6 @@ err_unicast_sockets:
   ddsrt_cond_destroy (&gv->participant_set_cond);
   ddsrt_mutex_destroy (&gv->participant_set_lock);
   free_special_topics (gv);
-#ifdef DDSI_INCLUDE_ENCRYPTION
-  if (q_security_plugin.free_decoder)
-    q_security_plugin.free_decoder (gv->recvSecurityCodec);
-#endif
   nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);
   nn_xqos_fini (&gv->spdp_endpoint_xqos);
@@ -1498,12 +1486,6 @@ void rtps_stop (struct q_globals *gv)
   nn_reorder_free (gv->spdp_reorder);
   nn_defrag_free (gv->spdp_defrag);
   ddsrt_mutex_destroy (&gv->spdp_lock);
-#ifdef DDSI_INCLUDE_ENCRYPTION
-  if (q_security_plugin.free_decoder)
-  {
-    (q_security_plugin.free_decoder) (gv->recvSecurityCodec);
-  }
-#endif /* DDSI_INCLUDE_ENCRYPTION */
 
   {
     struct ephash_enum_proxy_participant est;

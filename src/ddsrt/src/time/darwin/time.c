@@ -13,8 +13,9 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/time.h>
+#include <AvailabilityMacros.h>
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_12
+#if !(defined MAC_OS_X_VERSION_10_12 && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12)
 #include <mach/mach_time.h>
 #endif
 
@@ -22,7 +23,7 @@
 
 dds_time_t dds_time(void)
 {
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
+#if defined MAC_OS_X_VERSION_10_12 && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
   return (int64_t) clock_gettime_nsec_np (CLOCK_REALTIME);
 #else
   struct timeval tv;
@@ -33,7 +34,7 @@ dds_time_t dds_time(void)
 
 dds_time_t ddsrt_time_monotonic(void)
 {
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
+#if defined MAC_OS_X_VERSION_10_12 && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
   return (int64_t) clock_gettime_nsec_np (CLOCK_UPTIME_RAW);
 #else
   static mach_timebase_info_data_t timeInfo;
@@ -62,7 +63,7 @@ dds_time_t ddsrt_time_monotonic(void)
 
 dds_time_t ddsrt_time_elapsed(void)
 {
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
+#if defined MAC_OS_X_VERSION_10_12 && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
   return (int64_t) clock_gettime_nsec_np (CLOCK_MONOTONIC_RAW);
 #else
   /* Elapsed time clock not (yet) supported on this platform. */

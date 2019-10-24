@@ -74,18 +74,36 @@ osx_xcode10_3: &osx_xcode10_3
   compiler: clang
   addons:
     homebrew:
-      packages:
-      - pyenv-virtualenv
+      packages: [ python3 ]
   before_install:
     - eval "export CC=clang"
     - eval "export CXX=clang++"
     - eval "export COV_COMPTYPE=clang COV_PLATFORM=macOSX"
+    - eval "export PATH=\"${PATH}:$(python3 -m site --user-base)/bin\""
   install:
-    - eval "$(pyenv init -)"
-    - pyenv virtualenv conan
-    - pyenv rehash
-    - pyenv activate conan
-    - pip install conan --upgrade
+    - pip3 install conan --upgrade --user
+
+osx_xcode9: &osx_xcode9
+  <<: *osx_xcode10_3
+  osx_image: xcode9
+  cache:
+    directories:
+      - $HOME/Library/Caches/Homebrew
+      - /usr/local/Homebrew
+  addons:
+    homebrew:
+      packages: [ python3 ]
+      # Homebrew must be updated before packages can be installed on outdated
+      # macOS images. The update process unfortunately takes a VERY long time
+      # and can even cause Travis to terminate the build. Travis caching is
+      # used to ensure Homebrew is kept up-to-date and build times are kept to
+      # a minimum.
+      update: true
+  before_cache:
+    - brew cleanup
+    - find /usr/local/Homebrew -type d -name .git |
+      xargs -I {} dirname {} |
+      xargs -I {} git --git-dir={}/.git --work-tree={} clean -f -d -x
 
 windows_vs2017: &windows_vs2017
   os: windows
@@ -149,6 +167,8 @@ jobs:
       env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=NO, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
       env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+    - <<: *osx_xcode9
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=NO, SECURITY=YES, GENERATOR="Unix Makefiles" ]
     - <<: *osx_xcode10_3
       env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
     - <<: *osx_xcode10_3
