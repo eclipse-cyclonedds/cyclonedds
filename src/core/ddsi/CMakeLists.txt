@@ -30,7 +30,6 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_addrset.c
     q_bitset_inlines.c
     q_bswap.c
-    q_bswap_inlines.c
     q_config.c
     q_ddsi_discovery.c
     q_debmon.c

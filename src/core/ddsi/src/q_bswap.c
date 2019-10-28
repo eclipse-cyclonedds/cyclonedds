@@ -11,6 +11,8 @@
  */
 #include "dds/ddsi/q_bswap.h"
 
+extern inline void bswapSN (nn_sequence_number_t *sn);
+
 ddsi_guid_prefix_t nn_hton_guid_prefix (ddsi_guid_prefix_t p)
 {
   int i;
@@ -78,3 +80,4 @@ void bswap_fragment_number_set_bitmap (nn_fragment_number_set_header_t *fnset, u
   for (uint32_t i = 0; i < n; i++)
     bits[i] = ddsrt_bswap4u (bits[i]);
 }
+
