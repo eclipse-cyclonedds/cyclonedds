@@ -1374,7 +1374,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   assert (m->refd_payload == NULL || (m->refd_payload_iov.iov_len % 4) == 0);
 
   if (xp->iov == NULL)
-    xp->iov = malloc (NN_XMSG_MAX_MESSAGE_IOVECS * sizeof (*xp->iov));
+    xp->iov = ddsrt_malloc (NN_XMSG_MAX_MESSAGE_IOVECS * sizeof (*xp->iov));
 
   if (!nn_xpack_mayaddmsg (xp, m, flags))
   {
