@@ -116,6 +116,7 @@ list(APPEND headers
   "${include_path}/dds/ddsrt/static_assert.h")
 
 list(APPEND sources
+  "${source_path}/bswap.c"
   "${source_path}/io.c"
   "${source_path}/log.c"
   "${source_path}/retcode.c"

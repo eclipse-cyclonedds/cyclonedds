@@ -320,7 +320,7 @@ void handle_PMD (const struct receiver_state *rst, nn_wctime_t timestamp, uint32
         const ParticipantMessageData_t *pmd = (ParticipantMessageData_t *) (data + 1);
         ddsi_guid_prefix_t p = nn_ntoh_guid_prefix (pmd->participantGuidPrefix);
         uint32_t kind = ntohl (pmd->kind);
-        uint32_t length = bswap ? bswap4u (pmd->length) : pmd->length;
+        uint32_t length = bswap ? ddsrt_bswap4u (pmd->length) : pmd->length;
         RSTTRACE (" pp %"PRIx32":%"PRIx32":%"PRIx32" kind %u data %u", p.u[0], p.u[1], p.u[2], kind, length);
         if (len - sizeof (struct CDRHeader) - offsetof (ParticipantMessageData_t, value) < length)
           debug_print_rawdata (rst->gv, " SHORT2", pmd->value, len - sizeof (struct CDRHeader) - offsetof (ParticipantMessageData_t, value));

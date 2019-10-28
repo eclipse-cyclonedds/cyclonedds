@@ -145,7 +145,7 @@ static int valid_AckNack (const struct receiver_state *rst, AckNack_t *msg, size
   if (byteswap)
   {
     bswap_sequence_number_set_bitmap (&msg->readerSNState, msg->bits);
-    *count = bswap4 (*count);
+    *count = ddsrt_bswap4 (*count);
   }
   return 1;
 }
@@ -199,8 +199,8 @@ static int valid_InfoTS (InfoTS_t *msg, size_t size, int byteswap)
   {
     if (byteswap)
     {
-      msg->time.seconds = bswap4 (msg->time.seconds);
-      msg->time.fraction = bswap4u (msg->time.fraction);
+      msg->time.seconds = ddsrt_bswap4 (msg->time.seconds);
+      msg->time.fraction = ddsrt_bswap4u (msg->time.fraction);
     }
     return valid_ddsi_timestamp (msg->time);
   }
@@ -214,7 +214,7 @@ static int valid_Heartbeat (Heartbeat_t *msg, size_t size, int byteswap)
   {
     bswapSN (&msg->firstSN);
     bswapSN (&msg->lastSN);
-    msg->count = bswap4 (msg->count);
+    msg->count = ddsrt_bswap4 (msg->count);
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
@@ -231,8 +231,8 @@ static int valid_HeartbeatFrag (HeartbeatFrag_t *msg, size_t size, int byteswap)
   if (byteswap)
   {
     bswapSN (&msg->writerSN);
-    msg->lastFragmentNum = bswap4u (msg->lastFragmentNum);
-    msg->count = bswap4 (msg->count);
+    msg->lastFragmentNum = ddsrt_bswap4u (msg->lastFragmentNum);
+    msg->count = ddsrt_bswap4 (msg->count);
   }
   msg->readerId = nn_ntoh_entityid (msg->readerId);
   msg->writerId = nn_ntoh_entityid (msg->writerId);
@@ -267,7 +267,7 @@ static int valid_NackFrag (NackFrag_t *msg, size_t size, int byteswap)
   if (byteswap)
   {
     bswap_fragment_number_set_bitmap (&msg->fragmentNumberState, msg->bits);
-    *count = bswap4 (*count);
+    *count = ddsrt_bswap4 (*count);
   }
   return 1;
 }
@@ -292,8 +292,8 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
     return 0;
   if (byteswap)
   {
-    msg->x.extraFlags = bswap2u (msg->x.extraFlags);
-    msg->x.octetsToInlineQos = bswap2u (msg->x.octetsToInlineQos);
+    msg->x.extraFlags = ddsrt_bswap2u (msg->x.extraFlags);
+    msg->x.octetsToInlineQos = ddsrt_bswap2u (msg->x.octetsToInlineQos);
     bswapSN (&msg->x.writerSN);
   }
   msg->x.readerId = nn_ntoh_entityid (msg->x.readerId);
@@ -400,13 +400,13 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
 
   if (byteswap)
   {
-    msg->x.extraFlags = bswap2u (msg->x.extraFlags);
-    msg->x.octetsToInlineQos = bswap2u (msg->x.octetsToInlineQos);
+    msg->x.extraFlags = ddsrt_bswap2u (msg->x.extraFlags);
+    msg->x.octetsToInlineQos = ddsrt_bswap2u (msg->x.octetsToInlineQos);
     bswapSN (&msg->x.writerSN);
-    msg->fragmentStartingNum = bswap4u (msg->fragmentStartingNum);
-    msg->fragmentsInSubmessage = bswap2u (msg->fragmentsInSubmessage);
-    msg->fragmentSize = bswap2u (msg->fragmentSize);
-    msg->sampleSize = bswap4u (msg->sampleSize);
+    msg->fragmentStartingNum = ddsrt_bswap4u (msg->fragmentStartingNum);
+    msg->fragmentsInSubmessage = ddsrt_bswap2u (msg->fragmentsInSubmessage);
+    msg->fragmentSize = ddsrt_bswap2u (msg->fragmentSize);
+    msg->sampleSize = ddsrt_bswap4u (msg->sampleSize);
   }
   msg->x.readerId = nn_ntoh_entityid (msg->x.readerId);
   msg->x.writerId = nn_ntoh_entityid (msg->x.writerId);
@@ -2662,7 +2662,7 @@ static int handle_submsg_sequence
     }
     if (byteswap)
     {
-      sm->smhdr.octetsToNextHeader = bswap2u (sm->smhdr.octetsToNextHeader);
+      sm->smhdr.octetsToNextHeader = ddsrt_bswap2u (sm->smhdr.octetsToNextHeader);
     }
 
     octetsToNextHeader = sm->smhdr.octetsToNextHeader;
@@ -2929,7 +2929,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct q_globals *gv, d
       }
       if (swap)
       {
-        ml->length = bswap4u (ml->length);
+        ml->length = ddsrt_bswap4u (ml->length);
       }
 
       if (ml->smhdr.submessageId != SMID_PT_MSG_LEN)

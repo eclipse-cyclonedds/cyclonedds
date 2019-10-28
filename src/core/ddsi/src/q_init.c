@@ -1038,7 +1038,7 @@ int rtps_init (struct q_globals *gv)
      that won't repeat in the lifetime of the process.  Seems like it ought to work
      to keep the risks of collisions low. */
   {
-    uint64_t iid = toBE8u (ddsi_iid_gen ());
+    uint64_t iid = ddsrt_toBE8u (ddsi_iid_gen ());
     ddsrt_md5_state_t st;
     ddsrt_md5_byte_t digest[16];
     ddsrt_md5_init (&st);

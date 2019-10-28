@@ -296,7 +296,7 @@ static struct ddsi_serdata_default *serdata_default_from_ser_common (const struc
 
   const bool needs_bswap = (d->hdr.identifier != NATIVE_ENCODING);
   d->hdr.identifier = NATIVE_ENCODING;
-  const uint32_t pad = fromBE2u (d->hdr.options) & 2;
+  const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & 2;
   if (d->pos < pad)
   {
     ddsi_serdata_unref (&d->c);
@@ -474,7 +474,7 @@ static struct ddsi_serdata *serdata_default_from_sample_plist (const struct ddsi
       ddsrt_md5_state_t md5st;
       ddsrt_md5_byte_t digest[16];
       topic_name_sz = (uint32_t) strlen (topic_name) + 1;
-      topic_name_sz_BE = toBE4u (topic_name_sz);
+      topic_name_sz_BE = ddsrt_toBE4u (topic_name_sz);
       d->keyhash.m_set = 1;
       d->keyhash.m_iskey = 0;
       ddsrt_md5_init (&md5st);
