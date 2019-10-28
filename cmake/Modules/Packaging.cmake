@@ -21,17 +21,10 @@ set(PACKAGING_MODULE_DIR "${PROJECT_SOURCE_DIR}/cmake/Modules/Packaging")
 set(CMAKE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}")
 
 # Generates <Package>Config.cmake.
-if(BUILD_IDLC)
-  configure_package_config_file(
-    "${PACKAGING_MODULE_DIR}/PackageConfig.cmake.in"
-    "${PROJECT_NAME}Config.cmake"
-    INSTALL_DESTINATION "${CMAKE_INSTALL_CMAKEDIR}")
-else()
-  configure_package_config_file(
-    "${PACKAGING_MODULE_DIR}/PackageConfigNoIdlc.cmake.in"
-    "${PROJECT_NAME}Config.cmake"
-    INSTALL_DESTINATION "${CMAKE_INSTALL_CMAKEDIR}")
-endif()
+configure_package_config_file(
+  "${PACKAGING_MODULE_DIR}/PackageConfig.cmake.in"
+  "${PROJECT_NAME}Config.cmake"
+  INSTALL_DESTINATION "${CMAKE_INSTALL_CMAKEDIR}")
 
 # Generates <Package>Version.cmake.
 write_basic_package_version_file(
