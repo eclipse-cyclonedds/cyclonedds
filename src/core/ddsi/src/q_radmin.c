@@ -1545,6 +1545,28 @@ int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnu
   return (int) map->numbits;
 }
 
+/* There is only one defrag per proxy writer. However for the Volatile Secure writer a filter
+ * is applied to filter on the destination participant. Note that there will be one
+ * builtin Volatile Secure reader for each local participant. When this local participant
+ * is deleted the defrag buffer may still contain fragments for the associated reader.
+ * The nn_defrag_prune is used to remove these fragments and should only be used when
+ * the Volatile Secure reader is deleted.
+ */
+void nn_defrag_prune (struct nn_defrag *defrag, ddsi_guid_prefix_t *dst, seqno_t min)
+{
+  struct nn_rsample *s = ddsrt_avl_lookup_succ_eq (&defrag_sampletree_treedef, &defrag->sampletree, &min);
+  while (s)
+  {
+    struct nn_rsample *s1 = ddsrt_avl_find_succ (&defrag_sampletree_treedef, &defrag->sampletree, s);
+    if (guid_prefix_eq(&s->u.defrag.sampleinfo->rst->dst_guid_prefix, dst))
+    {
+      defrag_rsample_drop (defrag, s);
+    }
+    s = s1;
+  }
+  defrag->max_sample = ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree);
+}
+
 /* REORDER -------------------------------------------------------------
 
    The reorder index tracks out-of-order messages as non-overlapping,
@@ -2364,6 +2386,11 @@ unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t m
 seqno_t nn_reorder_next_seq (const struct nn_reorder *reorder)
 {
   return reorder->next_seq;
+}
+
+void nn_reorder_set_next_seq (struct nn_reorder *reorder, seqno_t seq)
+{
+  reorder->next_seq = seq;
 }
 
 /* DQUEUE -------------------------------------------------------------- */

@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <string.h>
 #include <math.h>
 
 #include "dds/ddsrt/heap.h"
@@ -31,9 +32,11 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_hbcontrol.h"
+#include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/q_bitset.h"
 
 #include "dds/ddsi/sysdeps.h"
 #include "dds__whc.h"
@@ -103,8 +106,8 @@ int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *
 
 void writer_hbcontrol_note_asyncwrite (struct writer *wr, nn_mtime_t tnow)
 {
-  struct q_globals const * const gv = wr->e.gv;
   struct hbcontrol * const hbc = &wr->hbcontrol;
+  struct q_globals const * const gv = wr->e.gv;
   nn_mtime_t tnext;
 
   /* Reset number of heartbeats since last write: that means the
@@ -307,11 +310,52 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
             (hbc->tsched.v == T_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
             ddsrt_avl_is_empty (&wr->readers) ? -1 : root_rdmatch (wr)->min_seq,
             ddsrt_avl_is_empty (&wr->readers) || root_rdmatch (wr)->all_have_replied_to_hb ? "" : "!",
-            whcst->max_seq, writer_read_seq_xmit (wr));
+            whcst->max_seq, writer_read_seq_xmit(wr));
   }
 
   return msg;
 }
+
+#ifdef DDSI_INCLUDE_SECURITY
+struct nn_xmsg *writer_hbcontrol_p2p(struct writer *wr, const struct whc_state *whcst, int hbansreq, struct proxy_reader *prd)
+{
+  struct q_globals const * const gv = wr->e.gv;
+  struct nn_xmsg *msg;
+
+  ASSERT_MUTEX_HELD (&wr->e.lock);
+  assert (wr->reliable);
+
+  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
+    return NULL;
+
+  ETRACE (wr, "writer_hbcontrol_p2p: wr "PGUIDFMT" unicasting to prd "PGUIDFMT" ", PGUID (wr->e.guid), PGUID (prd->e.guid));
+  ETRACE (wr, "(rel-prd %d seq-eq-max %d seq %"PRId64" maxseq %"PRId64")\n",
+      wr->num_reliable_readers,
+      ddsrt_avl_is_empty (&wr->readers) ? -1 : root_rdmatch (wr)->num_reliable_readers_where_seq_equals_max,
+      wr->seq,
+      ddsrt_avl_is_empty (&wr->readers) ? (int64_t) -1 : root_rdmatch (wr)->max_seq);
+
+  /* set the destination explicitly to the unicast destination and the fourth
+     param of add_Heartbeat needs to be the guid of the reader */
+  if (nn_xmsg_setdstPRD (msg, prd) < 0)
+  {
+    nn_xmsg_free (msg);
+    return NULL;
+  }
+#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+  nn_xmsg_setencoderid (msg, wr->partition_id);
+#endif
+  add_Heartbeat (msg, wr, whcst, hbansreq, prd->e.guid.entityid, 1);
+
+  if (nn_xmsg_size(msg) == 0)
+  {
+    nn_xmsg_free (msg);
+    msg = NULL;
+  }
+
+  return msg;
+}
+#endif
 
 void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, ddsi_entityid_t dst, int issync)
 {
@@ -1022,6 +1066,117 @@ static int maybe_grow_whc (struct writer *wr)
     }
   }
   return 0;
+}
+
+int write_sample_p2p_wrlock_held(struct writer *wr, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, struct proxy_reader *prd)
+{
+  struct q_globals * const gv = wr->e.gv;
+  int r;
+  nn_mtime_t tnow;
+  int rexmit = 1;
+  struct wr_prd_match *wprd = NULL;
+  seqno_t gseq;
+  struct nn_xmsg *gap = NULL;
+  seqno_t gapstart = -1, gapend = -1, segstart;
+  unsigned gapbits[256 / 32];
+  unsigned gapnumbits = 0;
+
+  tnow = now_mt ();
+  serdata->twrite = tnow;
+  serdata->timestamp = now();
+
+  if (prd->filter)
+  {
+    if ((wprd = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
+    {
+      rexmit = prd->filter(wr, prd, serdata);
+      /* determine if gap has to added */
+      if (rexmit)
+      {
+        GVLOG (DDS_LC_DISCOVERY, "send filtered "PGUIDFMT" last_seq=%"PRIu64" seq=%"PRIu64"\n", PGUID (wr->e.guid), wprd->seq, seq);
+
+        segstart = wprd->seq + 1;
+        memset (gapbits, 0, sizeof (gapbits));
+        for (gseq = segstart; gseq < seq; gseq++)
+        {
+          struct whc_borrowed_sample sample;
+          if (whc_borrow_sample (wr->whc, seq, &sample))
+          {
+            if (prd->filter(wr, prd, sample.serdata) == 0)
+            {
+              if (gapstart == -1)
+              {
+                GVLOG (DDS_LC_DISCOVERY, " M%"PRId64, gseq);
+                gapstart = gseq;
+                gapend = gapstart + 1;
+              }
+              else if (gseq == gapend)
+              {
+                GVLOG (DDS_LC_DISCOVERY, " M%"PRId64, gseq);
+                gapend = gseq + 1;
+              }
+              else if (gseq - gapend < 256)
+              {
+                unsigned idx = (unsigned) (gseq - gapend);
+                GVLOG (DDS_LC_DISCOVERY, " M%"PRId64, gseq);
+                gapnumbits = idx + 1;
+                nn_bitset_set (gapnumbits, gapbits, idx);
+              }
+            }
+            whc_return_sample (wr->whc, &sample, false);
+          }
+        }
+
+        if (gapstart > 0)
+        {
+          if (gapnumbits == 0)
+          {
+            /* Avoid sending an invalid bitset */
+            gapnumbits = 1;
+            nn_bitset_set (gapnumbits, gapbits, 0);
+            gapend--;
+          }
+          gap = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (Gap_t), NN_XMSG_KIND_CONTROL);
+
+          if (nn_xmsg_setdstPRD (gap, prd) < 0) {
+               nn_xmsg_free (gap);
+               gap = NULL;
+          }
+          else
+          {
+            add_Gap (gap, wr, prd, gapstart, gapend, gapnumbits, gapbits);
+            if (nn_xmsg_size(gap) == 0)
+            {
+              nn_xmsg_free (gap);
+              gap = NULL;
+            }
+            if (gap)
+            {
+              unsigned i;
+              GVLOG (DDS_LC_DISCOVERY, " FXGAP%"PRId64"..%"PRId64"/%d:", gapstart, gapend, gapnumbits);
+              for (i = 0; i < gapnumbits; i++)
+                GVLOG (DDS_LC_DISCOVERY, "%c", nn_bitset_isset (gapnumbits, gapbits, i) ? '1' : '0');
+              GVLOG (DDS_LC_DISCOVERY, "\n");
+            }
+          }
+        }
+      }
+      wprd->lst_seq = seq;
+    }
+  }
+
+  if ((r = insert_sample_in_whc (wr, seq, plist, serdata, tk)) >= 0)
+  {
+    enqueue_sample_wrlock_held (wr, seq, plist, serdata, prd, 1);
+
+    if (gap)
+      qxev_msg (wr->evq, gap);
+
+    if (wr->heartbeat_xevent)
+      writer_hbcontrol_note_asyncwrite(wr, tnow);
+  }
+
+  return r;
 }
 
 static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
