@@ -749,6 +749,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   }
   return ret;
 
+#ifdef DDSI_INCLUDE_SECURITY
 new_pp_err_secprop:
   nn_plist_fini (pp->plist);
   ddsrt_free (pp->plist);
@@ -759,6 +760,7 @@ new_pp_err_secprop:
   ddsrt_mutex_lock (&gv->participant_set_lock);
   gv->nparticipants--;
   ddsrt_mutex_unlock (&gv->participant_set_lock);
+#endif
 new_pp_err:
   return ret;
 }
