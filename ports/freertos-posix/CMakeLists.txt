@@ -24,7 +24,7 @@ endif()
 # default system locations, i.e. /usr/lib and /usr/include on *NIX platforms.
 # The install prefix must therefore be postfixed with the project name.
 if(UNIX)
-  set(CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/${CMAKE_PROJECT_NAME}")
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}")
 endif()
 
 set(ENTRYPOINT "real_main"
@@ -119,7 +119,7 @@ install(
 
 install(
   TARGETS freertos-sim freertos-sim-loader
-  EXPORT "${CMAKE_PROJECT_NAME}"
+  EXPORT "${PROJECT_NAME}"
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")

@@ -14,6 +14,6 @@ package org.eclipse.cyclonedds;
 public class Project
 {
   public static String version  = "@PROJECT_VERSION@";
-  public static String name     = "@CMAKE_PROJECT_NAME@";
-  public static String nameCaps = "@CMAKE_PROJECT_NAME_CAPS@";
+  public static String name     = "@PROJECT_NAME@";
+  public static String nameCaps = "@PROJECT_NAME_CAPS@";
 }

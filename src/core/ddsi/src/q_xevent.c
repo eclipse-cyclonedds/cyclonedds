@@ -1109,7 +1109,7 @@ static void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack
   }
 
   u.pmd.participantGuidPrefix = nn_hton_guid_prefix (pp->e.guid.prefix);
-  u.pmd.kind = toBE4u (pmd_kind);
+  u.pmd.kind = ddsrt_toBE4u (pmd_kind);
   u.pmd.length = PMD_DATA_LENGTH;
   memset (u.pmd.value, 0, u.pmd.length);
 
