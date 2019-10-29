@@ -27,6 +27,7 @@
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/q_xqos.h"
 #include "dds/ddsi/ddsi_vendor.h"
 #include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
 
@@ -2887,6 +2888,21 @@ dds_qos_t * nn_xqos_dup (const dds_qos_t *src)
   return dst;
 }
 
+bool nn_xqos_has_prop (const dds_qos_t *xqos, const char *pname, bool startswith)
+{
+  if (!(xqos->present & QP_PROPERTY_LIST))
+    return false;
+
+  for (uint32_t i = 0; i < xqos->property.value.n; i++)
+  {
+    if (startswith && (strncmp (xqos->property.value.props[i].name, pname, strlen (pname)) == 0))
+      return true;
+    else if (!startswith && (strcmp (xqos->property.value.props[i].name, pname) == 0))
+      return true;
+  }
+  return false;
+}
+
 #ifdef DDSI_INCLUDE_SECURITY
 static void fill_property(dds_property_t *prop, const char *name, const char *value)
 {
@@ -2895,44 +2911,42 @@ static void fill_property(dds_property_t *prop, const char *name, const char *va
   prop->propagate = false;
 }
 
-void nn_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security_configuration_type *cfg)
+/**
+ * Add DDS Security configuration to the QoS as a Property policy used by the security
+ * plugins to get their proper settings. If security properties are already present in
+ * the QoS, the settings from configuration are ignored.
+ */
+bool nn_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security_configuration_type *cfg)
 {
-  if (cfg)
+  assert(cfg != NULL);
+
+  if (!(xqos->present & QP_PROPERTY_LIST))
   {
-    /* Add DDS Security configuration to the QoS as a Property policy,
-     * used by the security plugins to get their proper settings. */
-    dds_property_t *properties;
-    uint32_t idx = 0;
-
-    /* No property should be present yet. */
-    assert(!(xqos->present & QP_PROPERTY_LIST));
-
-    /* Prepare properties. */
-    properties = ddsrt_malloc(8 /* max */ * sizeof (dds_property_t));
-
-    /* Fill properties. */
-    fill_property(&(properties[idx++]), "dds.sec.auth.identity_ca", cfg->authentication_properties.identity_ca);
-    fill_property(&(properties[idx++]), "dds.sec.auth.private_key", cfg->authentication_properties.private_key);
-    fill_property(&(properties[idx++]), "dds.sec.auth.identity_certificate", cfg->authentication_properties.identity_certificate);
-    fill_property(&(properties[idx++]), "dds.sec.access.permissions_ca", cfg->access_control_properties.permissions_ca);
-    fill_property(&(properties[idx++]), "dds.sec.access.governance", cfg->access_control_properties.governance);
-    fill_property(&(properties[idx++]), "dds.sec.access.permissions", cfg->access_control_properties.permissions);
-    if (cfg->authentication_properties.password && (strlen(cfg->authentication_properties.password) != 0))
-    {
-      fill_property(&(properties[idx++]), "dds.sec.auth.password", cfg->authentication_properties.password);
-    }
-    if (cfg->authentication_properties.trusted_ca_dir && (strlen(cfg->authentication_properties.trusted_ca_dir) != 0))
-    {
-      fill_property(&(properties[idx++]), "dds.sec.auth.trusted_ca_dir", cfg->authentication_properties.trusted_ca_dir);
-    }
-
-    /* Add properties. */
-    xqos->present |= QP_PROPERTY_LIST;
-    xqos->property.value.n = idx;
-    xqos->property.value.props = properties;
+    xqos->property.value.n = 0;
+    xqos->property.value.props = NULL;
     xqos->property.binary_value.n = 0;
     xqos->property.binary_value.props = NULL;
+    xqos->present |= QP_PROPERTY_LIST;
   }
+
+  /* check for existing security properties (name starts with dds.sec. conform DDS Security spec 7.2.4.1)
+   * and return if any is found */
+  if (nn_xqos_has_prop (xqos, "dds.sec.", true))
+    return false;
+
+  /* no security properties exist in qos: fill QoS properties with values from configuration */
+  xqos->property.value.props = ddsrt_realloc (xqos->property.value.props, xqos->property.value.n + 8 /* max */ * sizeof (dds_property_t));
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_IDENTITY_CA, cfg->authentication_properties.identity_ca);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_PRIV_KEY, cfg->authentication_properties.private_key);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_IDENTITY_CERT, cfg->authentication_properties.identity_certificate);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_PERMISSIONS_CA, cfg->access_control_properties.permissions_ca);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_GOVERNANCE, cfg->access_control_properties.governance);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_PERMISSIONS, cfg->access_control_properties.permissions);
+  if (cfg->authentication_properties.password && (strlen(cfg->authentication_properties.password) != 0))
+    fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_PASSWORD, cfg->authentication_properties.password);
+  if (cfg->authentication_properties.trusted_ca_dir && (strlen(cfg->authentication_properties.trusted_ca_dir) != 0))
+    fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR, cfg->authentication_properties.trusted_ca_dir);
+  return true;
 }
 #endif /* DDSI_INCLUDE_SECURITY */
 

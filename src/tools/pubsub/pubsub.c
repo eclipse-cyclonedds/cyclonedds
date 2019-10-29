@@ -1051,6 +1051,7 @@ static const char *policystr(uint32_t id) {
     case DDS_READERLIFESPAN_QOS_POLICY_ID: return DDS_READERLIFESPAN_QOS_POLICY_NAME;
     case DDS_SHARE_QOS_POLICY_ID: return DDS_SHARE_QOS_POLICY_NAME;
     case DDS_SCHEDULING_QOS_POLICY_ID: return DDS_SCHEDULING_QOS_POLICY_NAME;
+    case DDS_PROPERTY_QOS_POLICY_ID: return DDS_PROPERTY_QOS_POLICY_NAME;
     default: return "?";
     }
 }
