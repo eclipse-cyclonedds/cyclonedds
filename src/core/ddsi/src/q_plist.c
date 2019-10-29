@@ -2929,24 +2929,24 @@ bool nn_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security
     xqos->present |= QP_PROPERTY_LIST;
   }
 
-  /* check for existing security properties (name starts with dds.sec. conform DDS Security spec 7.2.4.1) */
-  if (!nn_xqos_has_prop (xqos, "dds.sec.", true))
-  {
-    /* no security properties exist in qos: fill QoS properties with values from configuration */
-    xqos->property.value.props = ddsrt_realloc (xqos->property.value.props, xqos->property.value.n + 8 /* max */ * sizeof (dds_property_t));
-    fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_IDENTITY_CA, cfg->authentication_properties.identity_ca);
-    fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_PRIV_KEY, cfg->authentication_properties.private_key);
-    fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_IDENTITY_CERT, cfg->authentication_properties.identity_certificate);
-    fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_PERMISSIONS_CA, cfg->access_control_properties.permissions_ca);
-    fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_GOVERNANCE, cfg->access_control_properties.governance);
-    fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_PERMISSIONS, cfg->access_control_properties.permissions);
-    if (cfg->authentication_properties.password && (strlen(cfg->authentication_properties.password) != 0))
-      fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_PASSWORD, cfg->authentication_properties.password);
-    if (cfg->authentication_properties.trusted_ca_dir && (strlen(cfg->authentication_properties.trusted_ca_dir) != 0))
-      fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR, cfg->authentication_properties.trusted_ca_dir);
-    return true;
-  }
-  return false;
+  /* check for existing security properties (name starts with dds.sec. conform DDS Security spec 7.2.4.1)
+   * and return if any is found */
+  if (nn_xqos_has_prop (xqos, "dds.sec.", true))
+    return false;
+
+  /* no security properties exist in qos: fill QoS properties with values from configuration */
+  xqos->property.value.props = ddsrt_realloc (xqos->property.value.props, xqos->property.value.n + 8 /* max */ * sizeof (dds_property_t));
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_IDENTITY_CA, cfg->authentication_properties.identity_ca);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_PRIV_KEY, cfg->authentication_properties.private_key);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_IDENTITY_CERT, cfg->authentication_properties.identity_certificate);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_PERMISSIONS_CA, cfg->access_control_properties.permissions_ca);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_GOVERNANCE, cfg->access_control_properties.governance);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_PERMISSIONS, cfg->access_control_properties.permissions);
+  if (cfg->authentication_properties.password && (strlen(cfg->authentication_properties.password) != 0))
+    fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_PASSWORD, cfg->authentication_properties.password);
+  if (cfg->authentication_properties.trusted_ca_dir && (strlen(cfg->authentication_properties.trusted_ca_dir) != 0))
+    fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR, cfg->authentication_properties.trusted_ca_dir);
+  return true;
 }
 #endif /* DDSI_INCLUDE_SECURITY */
 

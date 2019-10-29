@@ -349,34 +349,32 @@ static void dds_qprop_init (dds_qos_t * qos)
 
 static bool dds_qprop_get_index (const dds_qos_t * qos, const char * name, uint32_t * index)
 {
-  bool found = false;
   if (qos == NULL || name == NULL || index == NULL || !(qos->present & QP_PROPERTY_LIST))
     return false;
-  for (uint32_t i = 0; !found && i < qos->property.value.n; i++)
+  for (uint32_t i = 0; i < qos->property.value.n; i++)
   {
     if (strcmp (qos->property.value.props[i].name, name) == 0)
     {
       *index = i;
-      found = true;
+      return true;
     }
   }
-  return found;
+  return false;
 }
 
 static bool dds_qbprop_get_index (const dds_qos_t * qos, const char * name, uint32_t * index)
 {
-  bool found = false;
   if (qos == NULL || name == NULL || index == NULL || !(qos->present & QP_PROPERTY_LIST))
     return false;
-  for (uint32_t i = 0; !found && i < qos->property.binary_value.n; i++)
+  for (uint32_t i = 0; i < qos->property.binary_value.n; i++)
   {
     if (strcmp (qos->property.binary_value.props[i].name, name) == 0)
     {
       *index = i;
-      found = true;
+      return true;
     }
   }
-  return found;
+  return false;
 }
 
 void dds_qset_prop (dds_qos_t * __restrict qos, const char * name, const char * value)
@@ -724,7 +722,7 @@ bool dds_qget_propnames (const dds_qos_t * __restrict qos, uint32_t * n, char **
 
   if (names != NULL)
   {
-    if (!props || qos->property.value.n == 0)
+    if (!props)
       *names = NULL;
     else
     {
@@ -763,7 +761,7 @@ bool dds_qget_bpropnames (const dds_qos_t * __restrict qos, uint32_t * n, char *
 
   if (names != NULL)
   {
-    if (!bprops || qos->property.binary_value.n == 0)
+    if (!bprops)
       *names = NULL;
     else
     {

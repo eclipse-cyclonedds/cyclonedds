@@ -807,9 +807,13 @@ CU_Test(ddsc_config, security_qos_invalid, .init = ddsrt_init, .fini = ddsrt_fin
     found = 0;
     ddsrt_setenv(URI_VARIABLE, sec_config);
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL);
-    ddsrt_setenv(URI_VARIABLE, "");
-    dds_delete(participant);
     dds_delete_qos(qos);
+#ifdef DDSI_INCLUDE_SECURITY
+    CU_ASSERT_EQUAL_FATAL (participant, DDS_RETCODE_ERROR);
+#else
+    dds_delete(participant);
+#endif
+    ddsrt_setenv(URI_VARIABLE, "");
 
     /* All traces should have been provided. */
 #ifndef DDSI_INCLUDE_SECURITY
@@ -817,4 +821,6 @@ CU_Test(ddsc_config, security_qos_invalid, .init = ddsrt_init, .fini = ddsrt_fin
 #else
     CU_ASSERT_FATAL(found == 0x7e);
 #endif
+    dds_set_log_sink(NULL, NULL);
+    dds_set_trace_sink(NULL, NULL);
 }

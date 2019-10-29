@@ -465,6 +465,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
 {
   struct participant *pp;
   ddsi_guid_t subguid, group_guid;
+  dds_return_t ret = DDS_RETCODE_OK;
 
   /* no reserved bits may be set */
   assert ((flags & ~(RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS | RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP | RTPS_PF_ONLY_LOCAL)) == 0);
@@ -499,7 +500,8 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
     {
       ddsrt_mutex_unlock (&gv->participant_set_lock);
       GVERROR ("new_participant("PGUIDFMT", %x) failed: max participants reached\n", PGUID (*ppguid), flags);
-      return DDS_RETCODE_OUT_OF_RESOURCES;
+      ret = DDS_RETCODE_OUT_OF_RESOURCES;
+      goto new_pp_err;
     }
   }
 
@@ -533,14 +535,19 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
                       DDS_SEC_PROP_ACCESS_GOVERNANCE,
                       DDS_SEC_PROP_ACCESS_PERMISSIONS };
 
-      GVLOGDISC ("new_participant("PGUIDFMT"): using security settings from qos, ignoring configuration\n", PGUID (*ppguid));
+      GVLOGDISC ("new_participant("PGUIDFMT"): using security settings from QoS, ignoring security configuration\n", PGUID (*ppguid));
 
       /* check if all required security properties exist in qos */
       for (size_t i = 0; i < sizeof(req) / sizeof(req[0]); i++)
       {
         if (!nn_xqos_has_prop (&pp->plist->qos, req[i], false))
-          GVLOGDISC ("new_participant("PGUIDFMT"): required security property %s missing in Property QoS\n", PGUID (*ppguid), req[i]);
+        {
+          GVERROR ("new_participant("PGUIDFMT"): required security property %s missing in Property QoS\n", PGUID (*ppguid), req[i]);
+          ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+        }
       }
+      if (ret != DDS_RETCODE_OK)
+        goto new_pp_err_secprop;
     }
   }
 #endif
@@ -740,7 +747,20 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
     tsched.v = (pp->lease_duration == T_NEVER) ? T_NEVER : 0;
     pp->pmd_update_xevent = qxev_pmd_update (gv->xevents, tsched, &pp->e.guid);
   }
-  return 0;
+  return ret;
+
+new_pp_err_secprop:
+  nn_plist_fini (pp->plist);
+  ddsrt_free (pp->plist);
+  inverse_uint32_set_fini (&pp->avail_entityids.x);
+  ddsrt_mutex_destroy (&pp->refc_lock);
+  entity_common_fini (&pp->e);
+  ddsrt_free (pp);
+  ddsrt_mutex_lock (&gv->participant_set_lock);
+  gv->nparticipants--;
+  ddsrt_mutex_unlock (&gv->participant_set_lock);
+new_pp_err:
+  return ret;
 }
 
 dds_return_t new_participant (ddsi_guid_t *p_ppguid, struct q_globals *gv, unsigned flags, const nn_plist_t *plist)
