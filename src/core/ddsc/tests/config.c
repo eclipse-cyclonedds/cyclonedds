@@ -626,7 +626,7 @@ CU_Test(ddsc_config, security_config_qos, .init = ddsrt_init, .fini = ddsrt_fini
       "config: //CycloneDDS/Domain: DDSSecurity: unknown element*",
 #else
       /* The security settings from qos properties should have been parsed into the participant QoS. */
-      "new_participant(*): using security settings from qos, ignoring configuration*",
+      "new_participant(*): using security settings from QoS, ignoring security configuration*",
       "PARTICIPANT * QOS={*property_list={value={"
         "{dds.sec.auth.identity_ca,testtext_QOS_IdentityCA_testtext,0},"
         "{dds.sec.auth.private_key,testtext_QOS_PrivateKey_testtext,0},"
