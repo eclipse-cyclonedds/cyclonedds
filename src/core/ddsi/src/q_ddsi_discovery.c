@@ -1821,6 +1821,9 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
       /* TODO: Handshake */
       break;
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER:
+      /* TODO: Key exchange */
+      break;
 #endif
     default:
       GVLOGDISC ("data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRId64": not handled\n",
