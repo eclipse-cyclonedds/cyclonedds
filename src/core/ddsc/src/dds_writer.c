@@ -209,13 +209,12 @@ static dds_return_t dds_writer_delete (dds_entity *e) ddsrt_nonnull_all;
 static dds_return_t dds_writer_delete (dds_entity *e)
 {
   dds_writer * const wr = (dds_writer *) e;
-  dds_return_t ret;
   /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   nn_xpack_free (wr->m_xp);
   thread_state_asleep (lookup_thread_state ());
-  ret = dds_delete (wr->m_topic->m_entity.m_hdllink.hdl);
-  return ret;
+  dds_entity_drop_ref (&wr->m_topic->m_entity);
+  return DDS_RETCODE_OK;
 }
 
 static dds_return_t dds_writer_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
@@ -277,21 +276,27 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
   {
     dds_entity *p_or_p;
-    if ((rc = dds_entity_pin (participant_or_publisher, &p_or_p)) != DDS_RETCODE_OK)
+    if ((rc = dds_entity_lock (participant_or_publisher, DDS_KIND_DONTCARE, &p_or_p)) != DDS_RETCODE_OK)
       return rc;
-    if (dds_entity_kind (p_or_p) == DDS_KIND_PARTICIPANT)
-      publisher = dds_create_publisher (participant_or_publisher, qos, NULL);
-    else
-      publisher = participant_or_publisher;
-    dds_entity_unpin (p_or_p);
+    switch (dds_entity_kind (p_or_p))
+    {
+      case DDS_KIND_PUBLISHER:
+        publisher = participant_or_publisher;
+        pub = (dds_publisher *) p_or_p;
+        break;
+      case DDS_KIND_PARTICIPANT:
+        publisher = dds__create_publisher_l ((dds_participant *) p_or_p, true, qos, NULL);
+        dds_entity_unlock (p_or_p);
+        if ((rc = dds_publisher_lock (publisher, &pub)) < 0)
+          return rc;
+        break;
+      default:
+        dds_entity_unlock (p_or_p);
+        return DDS_RETCODE_ILLEGAL_OPERATION;
+    }
   }
 
-  if ((rc = dds_publisher_lock (publisher, &pub)) != DDS_RETCODE_OK)
-    return rc;
-
   ddsi_tran_conn_t conn = pub->m_entity.m_domain->gv.data_conn_uc;
-  if (publisher != participant_or_publisher)
-    pub->m_entity.m_flags |= DDS_ENTITY_IMPLICIT;
 
   if ((rc = dds_topic_lock (topic, &tp)) != DDS_RETCODE_OK)
     goto err_tp_lock;
@@ -322,7 +327,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
   /* Create writer */
   wr = dds_alloc (sizeof (*wr));
-  writer = dds_entity_init (&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, wqos, listener, DDS_WRITER_STATUS_MASK);
+  writer = dds_entity_init (&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, false, wqos, listener, DDS_WRITER_STATUS_MASK);
 
   wr->m_topic = tp;
   dds_entity_add_ref_locked (&tp->m_entity);

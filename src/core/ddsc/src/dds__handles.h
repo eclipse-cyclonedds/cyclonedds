@@ -72,9 +72,11 @@ typedef int32_t dds_handle_t;
 
 /* Closing & closed can be combined, but having two gives a means for enforcing
    that close() be called first, then close_wait(), and then delete(). */
-#define HDL_FLAG_CLOSING   (0x80000000u)
-#define HDL_FLAG_CLOSED    (0x40000000u)
-#define HDL_FLAG_PENDING   (0x20000000u)
+#define HDL_FLAG_CLOSING         (0x80000000u)
+#define HDL_FLAG_DELETE_DEFERRED (0x40000000u)
+#define HDL_FLAG_PENDING         (0x20000000u)
+#define HDL_FLAG_IMPLICIT        (0x10000000u)
+#define HDL_FLAG_ALLOW_CHILDREN  (0x08000000u) /* refc counts children */
 
 struct dds_handle_link {
   dds_handle_t hdl;
@@ -116,7 +118,9 @@ dds_handle_server_fini(void);
  */
 DDS_EXPORT dds_handle_t
 dds_handle_create(
-        struct dds_handle_link *link);
+        struct dds_handle_link *link,
+        bool implicit,
+        bool allow_children);
 
 
 /*
@@ -124,7 +128,7 @@ dds_handle_create(
  */
 DDS_EXPORT dds_return_t
 dds_handle_register_special (
-        struct dds_handle_link *link, dds_handle_t handle);
+        struct dds_handle_link *link, bool implicit, bool allow_children, dds_handle_t handle);
 
 DDS_EXPORT void dds_handle_unpend (struct dds_handle_link *link);
 
@@ -181,6 +185,8 @@ DDS_EXPORT void
 dds_handle_unpin(
         struct dds_handle_link *link);
 
+int32_t dds_handle_pin_for_delete (dds_handle_t hdl, bool explicit, struct dds_handle_link **link);
+bool dds_handle_drop_childref_and_pin (struct dds_handle_link *link, bool may_delete_parent);
 
 /*
  * Check if the handle is closed.
@@ -195,10 +201,14 @@ dds_handle_unpin(
 
 DDS_EXPORT void dds_handle_add_ref (struct dds_handle_link *link);
 DDS_EXPORT bool dds_handle_drop_ref (struct dds_handle_link *link);
+DDS_EXPORT bool dds_handle_close (struct dds_handle_link *link);
+DDS_EXPORT bool dds_handle_unpin_and_drop_ref (struct dds_handle_link *link);
 
 DDS_EXPORT inline bool dds_handle_is_closed (struct dds_handle_link *link) {
-  return (ddsrt_atomic_ld32 (&link->cnt_flags) & (HDL_FLAG_CLOSED | HDL_FLAG_CLOSING)) != 0;
+  return (ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_FLAG_CLOSING) != 0;
 }
+
+DDS_EXPORT bool dds_handle_is_not_refd (struct dds_handle_link *link);
 
 #if defined (__cplusplus)
 }
