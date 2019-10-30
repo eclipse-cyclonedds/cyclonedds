@@ -131,7 +131,7 @@ bool dds__validate_builtin_reader_qos (const dds_domain *dom, dds_entity_t topic
 static dds_entity_t dds__create_builtin_subscriber (dds_participant *participant)
 {
   dds_qos_t *qos = dds__create_builtin_qos ();
-  dds_entity_t sub = dds__create_subscriber_l (participant, qos, NULL);
+  dds_entity_t sub = dds__create_subscriber_l (participant, false, qos, NULL);
   dds_delete_qos (qos);
   return sub;
 }

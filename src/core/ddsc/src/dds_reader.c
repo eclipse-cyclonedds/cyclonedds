@@ -62,11 +62,11 @@ static dds_return_t dds_reader_delete (dds_entity *e) ddsrt_nonnull_all;
 static dds_return_t dds_reader_delete (dds_entity *e)
 {
   dds_reader * const rd = (dds_reader *) e;
-  (void) dds_delete (rd->m_topic->m_entity.m_hdllink.hdl);
   dds_free (rd->m_loan);
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   dds_rhc_free (rd->m_rhc);
   thread_state_asleep (lookup_thread_state ());
+  dds_entity_drop_ref (&rd->m_topic->m_entity);
   return DDS_RETCODE_OK;
 }
 
@@ -332,34 +332,35 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     case DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION:
       internal_topic = true;
       subscriber = dds__get_builtin_subscriber (participant_or_subscriber);
+      if ((ret = dds_subscriber_lock (subscriber, &sub)) != DDS_RETCODE_OK)
+        return ret;
       t = dds__get_builtin_topic (subscriber, topic);
       break;
 
     default: {
       dds_entity *p_or_s;
-      if ((ret = dds_entity_pin (participant_or_subscriber, &p_or_s)) != DDS_RETCODE_OK)
+      if ((ret = dds_entity_lock (participant_or_subscriber, DDS_KIND_DONTCARE, &p_or_s)) != DDS_RETCODE_OK)
         return ret;
-      if (dds_entity_kind (p_or_s) == DDS_KIND_PARTICIPANT)
-        subscriber = dds_create_subscriber (participant_or_subscriber, qos, NULL);
-      else
-        subscriber = participant_or_subscriber;
-      dds_entity_unpin (p_or_s);
+      switch (dds_entity_kind (p_or_s))
+      {
+        case DDS_KIND_SUBSCRIBER:
+          subscriber = participant_or_subscriber;
+          sub = (dds_subscriber *) p_or_s;
+          break;
+        case DDS_KIND_PARTICIPANT:
+          subscriber = dds__create_subscriber_l ((dds_participant *) p_or_s, true, qos, NULL);
+          dds_entity_unlock (p_or_s);
+          if ((ret = dds_subscriber_lock (subscriber, &sub)) < 0)
+            return ret;
+          break;
+        default:
+          dds_entity_unlock (p_or_s);
+          return DDS_RETCODE_ILLEGAL_OPERATION;
+      }
       internal_topic = false;
       t = topic;
       break;
     }
-  }
-
-  if ((ret = dds_subscriber_lock (subscriber, &sub)) != DDS_RETCODE_OK)
-  {
-    reader = ret;
-    goto err_sub_lock;
-  }
-
-  if (subscriber != participant_or_subscriber && !internal_topic)
-  {
-    /* Delete implicit subscriber if reader creation fails */
-    sub->m_entity.m_flags |= DDS_ENTITY_IMPLICIT;
   }
 
   if ((ret = dds_topic_lock (t, &tp)) != DDS_RETCODE_OK)
@@ -405,7 +406,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
   /* Create reader and associated read cache (if not provided by caller) */
   rd = dds_alloc (sizeof (*rd));
-  reader = dds_entity_init (&rd->m_entity, &sub->m_entity, DDS_KIND_READER, rqos, listener, DDS_READER_STATUS_MASK);
+  reader = dds_entity_init (&rd->m_entity, &sub->m_entity, DDS_KIND_READER, false, rqos, listener, DDS_READER_STATUS_MASK);
   rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
   rd->m_topic = tp;
   rd->m_rhc = rhc ? rhc : dds_rhc_default_new (rd, tp->m_stopic);
@@ -431,12 +432,6 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
   dds_topic_unlock (tp);
   dds_subscriber_unlock (sub);
-
-  if (internal_topic)
-  {
-    /* If topic is builtin, then the topic entity is local and should be deleted because the application won't. */
-    dds_delete (t);
-  }
   return reader;
 
 err_bad_qos:
@@ -446,9 +441,6 @@ err_tp_lock:
   dds_subscriber_unlock (sub);
   if ((sub->m_entity.m_flags & DDS_ENTITY_IMPLICIT) != 0)
     (void) dds_delete (subscriber);
-err_sub_lock:
-  if (internal_topic)
-    dds_delete (t);
   return reader;
 }
 

@@ -45,16 +45,12 @@ const struct dds_entity_deriver dds_entity_deriver_publisher = {
   .validate_status = dds_publisher_status_validate
 };
 
-dds_entity_t dds_create_publisher (dds_entity_t participant, const dds_qos_t *qos, const dds_listener_t *listener)
+dds_entity_t dds__create_publisher_l (dds_participant *par, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener)
 {
-  dds_participant *par;
   dds_publisher *pub;
   dds_entity_t hdl;
   dds_qos_t *new_qos;
   dds_return_t ret;
-
-  if ((ret = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
-    return ret;
 
   new_qos = dds_create_qos ();
   if (qos)
@@ -67,10 +63,21 @@ dds_entity_t dds_create_publisher (dds_entity_t participant, const dds_qos_t *qo
   }
 
   pub = dds_alloc (sizeof (*pub));
-  hdl = dds_entity_init (&pub->m_entity, &par->m_entity, DDS_KIND_PUBLISHER, new_qos, listener, DDS_PUBLISHER_STATUS_MASK);
+  hdl = dds_entity_init (&pub->m_entity, &par->m_entity, DDS_KIND_PUBLISHER, implicit, new_qos, listener, DDS_PUBLISHER_STATUS_MASK);
   pub->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (&par->m_entity, &pub->m_entity);
   dds_entity_init_complete (&pub->m_entity);
+  return hdl;
+}
+
+dds_entity_t dds_create_publisher (dds_entity_t participant, const dds_qos_t *qos, const dds_listener_t *listener)
+{
+  dds_participant *par;
+  dds_entity_t hdl;
+  dds_return_t ret;
+  if ((ret = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
+    return ret;
+  hdl = dds__create_publisher_l (par, false, qos, listener);
   dds_participant_unlock (par);
   return hdl;
 }
