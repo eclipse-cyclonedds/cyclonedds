@@ -755,11 +755,8 @@ dds_create_participant(
  * @param[in]  domain The domain to be created. DEFAULT_DOMAIN is not allowed.
  * @param[in]  config A configuration string containing file names and/or XML fragments representing the configuration.
  *
- * @returns A return code
+ * @returns A valid entity handle or an error code.
  *
- * @retval DDS_RETCODE_OK
- *             The domain with the domain identifier has been created from
- *             given configuration string.
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             Illegal value for domain id or the configfile parameter is NULL.
  * @retval DDS_PRECONDITION_NOT_MET
@@ -767,7 +764,7 @@ dds_create_participant(
  * @retval DDS_RETCODE_ERROR
  *             An internal error has occurred.
  */
-DDS_EXPORT dds_return_t
+DDS_EXPORT dds_entity_t
 dds_create_domain(const dds_domainid_t domain, const char *config);
 
 /**

@@ -245,7 +245,7 @@ typedef struct dds_participant {
 
 typedef struct dds_reader {
   struct dds_entity m_entity;
-  const struct dds_topic *m_topic;
+  struct dds_topic *m_topic;
   struct dds_rhc *m_rhc; /* aliases m_rd->rhc with a wider interface, FIXME: but m_rd owns it for resource management */
   struct reader *m_rd;
   bool m_data_on_readers;
@@ -265,7 +265,7 @@ typedef struct dds_reader {
 
 typedef struct dds_writer {
   struct dds_entity m_entity;
-  const struct dds_topic *m_topic;
+  struct dds_topic *m_topic;
   struct nn_xpack *m_xp;
   struct writer *m_wr;
   struct whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/

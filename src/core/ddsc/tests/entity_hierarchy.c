@@ -192,6 +192,10 @@ CU_Test(ddsc_entity_delete, recursive_with_deleted_topic)
     ret = dds_delete(g_topic);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
+    /* Second call to delete a topic must fail */
+    ret = dds_delete(g_topic);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ALREADY_DELETED);
+
     /* Third, deleting the participant should delete all children of which
      * the writer with the last topic reference is one. */
     ret = dds_delete(g_participant);
