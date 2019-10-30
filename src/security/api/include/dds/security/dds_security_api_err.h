@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ * Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -47,13 +47,13 @@ extern "C" {
 #define DDS_SECURITY_ERR_INVALID_TRUSTED_CA_DIR_MESSAGE "Can not open trusted CA directory"
 #define DDS_SECURITY_ERR_CA_NOT_TRUSTED_CODE 121
 #define DDS_SECURITY_ERR_CA_NOT_TRUSTED_MESSAGE "Identity CA is not trusted"
-#define DDS_SECURITY_ERR_CERT_STARTDATE_INVALID_CODE 122
-#define DDS_SECURITY_ERR_CERT_STARTDATE_INVALID_MESSAGE "Certificate start date is in the future"
+#define DDS_SECURITY_ERR_CERT_STARTDATE_IN_FUTURE_CODE 122
+#define DDS_SECURITY_ERR_CERT_STARTDATE_IN_FUTURE_MESSAGE "Certificate start date is in the future"
 #define DDS_SECURITY_ERR_CERT_EXPIRED_CODE 123
 #define DDS_SECURITY_ERR_CERT_EXPIRED_MESSAGE "Certificate expired"
 #define DDS_SECURITY_ERR_INVALID_CRYPTO_RECEIVER_SIGN_CODE 124
-#define DDS_SECURITY_ERR_CERT_AUTHENTICATION_ALGO_KIND_UNKNOWN_CODE 125
-#define DDS_SECURITY_ERR_CERT_AUTHENTICATION_ALGO_KIND_UNKNOWN_MESSAGE "Certificate authentication algorithm unknown"
+#define DDS_SECURITY_ERR_CERT_AUTH_ALGO_KIND_UNKNOWN_CODE 125
+#define DDS_SECURITY_ERR_CERT_AUTH_ALGO_KIND_UNKNOWN_MESSAGE "Certificate authentication algorithm unknown"
 #define DDS_SECURITY_ERR_ALLOCATION_FAILED_CODE 126
 #define DDS_SECURITY_ERR_ALLOCATION_FAILED_MESSAGE "Failed to allocate internal structure"
 #define DDS_SECURITY_ERR_INVALID_SMIME_DOCUMENT_CODE 127

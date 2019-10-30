@@ -59,7 +59,7 @@ if(NOT ENABLE_SECURITY)
   message(STATUS "Building without OMG DDS Security support")
 else()
   add_definitions(-DDDSI_INCLUDE_SECURITY)
-  target_link_libraries(ddsc PRIVATE security_api)
+  target_link_libraries(ddsc PRIVATE security_core)
   target_include_directories(
     ddsc PUBLIC
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>)

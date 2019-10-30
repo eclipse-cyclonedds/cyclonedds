@@ -18,78 +18,78 @@
 #include "dds/ddsrt/io.h"
 
 dds_return_t ddsrt_dlopen(const char *name, bool translate,
-		ddsrt_dynlib_t *handle) {
-	dds_return_t retcode = DDS_RETCODE_OK;
+    ddsrt_dynlib_t *handle) {
+  dds_return_t retcode = DDS_RETCODE_OK;
 
-	assert( handle );
-	*handle = NULL;
+  assert( handle );
+  *handle = NULL;
 
-	if ((translate) && (strrchr(name, '/') == NULL )) {
-		/* Add lib and suffix to the name and try to open. */
+  if ((translate) && (strrchr(name, '/') == NULL )) {
+    /* Add lib and suffix to the name and try to open. */
 #if __APPLE__
-		static const char suffix[] = ".dylib";
+    static const char suffix[] = ".dylib";
 #else
-		static const char suffix[] = ".so";
+    static const char suffix[] = ".so";
 #endif
-		char* libName;
-		ddsrt_asprintf( &libName, "lib%s%s", name, suffix);
-		*handle = dlopen(libName, RTLD_GLOBAL | RTLD_NOW);
-		ddsrt_free(libName);
-	}
+    char* libName;
+    ddsrt_asprintf( &libName, "lib%s%s", name, suffix);
+    *handle = dlopen(libName, RTLD_GLOBAL | RTLD_NOW);
+    ddsrt_free(libName);
+  }
 
-	if (*handle == NULL ) {
-		/* name contains a path,
-		 * (auto)translate is disabled or
-		 * dlopen on translated name failed. */
-		*handle = dlopen(name, RTLD_GLOBAL | RTLD_NOW);
-	}
+  if (*handle == NULL ) {
+    /* name contains a path,
+     * (auto)translate is disabled or
+     * dlopen on translated name failed. */
+    *handle = dlopen(name, RTLD_GLOBAL | RTLD_NOW);
+  }
 
-	if (*handle != NULL) {
-		retcode = DDS_RETCODE_OK;
-	} else {
-		retcode = DDS_RETCODE_ERROR;
-	}
+  if (*handle != NULL) {
+    retcode = DDS_RETCODE_OK;
+  } else {
+    retcode = DDS_RETCODE_ERROR;
+  }
 
-	return retcode;
+  return retcode;
 }
 
 dds_return_t ddsrt_dlclose(ddsrt_dynlib_t handle) {
 
-	assert ( handle );
-	return (dlclose(handle) == 0) ? DDS_RETCODE_OK : DDS_RETCODE_ERROR;
+  assert ( handle );
+  return (dlclose(handle) == 0) ? DDS_RETCODE_OK : DDS_RETCODE_ERROR;
 
 }
 
 dds_return_t ddsrt_dlsym(ddsrt_dynlib_t handle, const char *symbol,
-		void **address) {
-	dds_return_t retcode = DDS_RETCODE_OK;
+    void **address) {
+  dds_return_t retcode = DDS_RETCODE_OK;
 
-	assert( handle );
-	assert( address );
-	assert( symbol );
+  assert( handle );
+  assert( address );
+  assert( symbol );
 
-	*address = dlsym(handle, symbol);
-	if (*address == NULL) {
-		retcode = DDS_RETCODE_ERROR;
-	}
+  *address = dlsym(handle, symbol);
+  if (*address == NULL) {
+    retcode = DDS_RETCODE_ERROR;
+  }
 
-	return retcode;
+  return retcode;
 }
 
 dds_return_t ddsrt_dlerror(char *buf, size_t buflen) {
 
-	const char *err;
-	dds_return_t retcode = DDS_RETCODE_OK;
+  const char *err;
+  dds_return_t retcode = DDS_RETCODE_OK;
 
-	assert (buf );
+  assert (buf );
 
-	err = dlerror();
-	if (err == NULL) {
-		retcode = DDS_RETCODE_NOT_FOUND;
-	} else {
-		snprintf(buf, buflen, "%s", err);
-	}
+  err = dlerror();
+  if (err == NULL) {
+    retcode = DDS_RETCODE_NOT_FOUND;
+  } else {
+    snprintf(buf, buflen, "%s", err);
+  }
 
-	return retcode;
+  return retcode;
 }
 

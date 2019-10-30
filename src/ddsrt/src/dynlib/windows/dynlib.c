@@ -86,7 +86,8 @@ dds_return_t ddsrt_dlerror(char *buf, size_t buflen) {
     if ( err == 0 ) {
         retcode = DDS_RETCODE_NOT_FOUND;
     } else {
-        retcode = ddsrt_strerror_r(err, buf, buflen);
+        ddsrt_strerror_r(err, buf, buflen);
+        SetLastError(0);
     }
 
     return retcode;
