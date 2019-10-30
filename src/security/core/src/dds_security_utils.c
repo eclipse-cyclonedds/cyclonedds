@@ -1,0 +1,1134 @@
+/*
+ * Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#include <assert.h>
+#include <string.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include "dds/security/dds_security_api.h"
+#include "dds/security/core/dds_security_utils.h"
+#include "dds/ddsrt/heap.h"
+#include "stdlib.h"
+#include "stdarg.h"
+#include "dds/ddsrt/string.h"
+#include "dds/ddsrt/misc.h"
+
+#if DDSI_INCLUDE_SSL
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#endif
+
+DDS_Security_BinaryProperty_t *
+DDS_Security_BinaryProperty_alloc (void)
+{
+  DDS_Security_BinaryProperty_t *property;
+
+  property = ddsrt_malloc(sizeof(DDS_Security_BinaryProperty_t));
+  memset(property, 0, sizeof(DDS_Security_BinaryProperty_t));
+  return property;
+}
+
+void
+DDS_Security_BinaryProperty_deinit(
+    DDS_Security_BinaryProperty_t *p)
+{
+    if (!p) {
+        return;
+    }
+
+    ddsrt_free(p->name);
+    ddsrt_free(p->value._buffer);
+}
+
+void
+DDS_Security_BinaryProperty_free(
+    DDS_Security_BinaryProperty_t *p)
+{
+    if (p) {
+        DDS_Security_BinaryProperty_deinit(p);
+        ddsrt_free(p);
+    }
+}
+
+void
+DDS_Security_BinaryProperty_copy(
+     DDS_Security_BinaryProperty_t *dst,
+     DDS_Security_BinaryProperty_t *src)
+{
+    dst->name = src->name ? ddsrt_strdup(src->name) : NULL;
+    dst->propagate = src->propagate;
+    dst->value._length = src->value._length;
+    dst->value._maximum = src->value._maximum;
+
+    if (src->value._buffer) {
+        dst->value._buffer = ddsrt_malloc(src->value._length);
+        memcpy(dst->value._buffer, src->value._buffer, src->value._length);
+    } else {
+        dst->value._buffer = NULL;
+    }
+}
+
+bool
+DDS_Security_BinaryProperty_equal(
+     DDS_Security_BinaryProperty_t *pa,
+     DDS_Security_BinaryProperty_t *pb)
+{
+    uint32_t i;
+
+    if (pa->name && pb->name) {
+        if (strcmp(pa->name, pb->name) != 0) {
+            return false;
+        }
+    } else if (pa->name || pb->name) {
+        return false;
+    }
+
+    if (pa->value._length != pb->value._length) {
+        return false;
+    }
+
+    for (i = 0; i < pa->value._length; i++) {
+        if (pa->value._buffer && pb->value._buffer) {
+            if (memcmp(pa->value._buffer, pb->value._buffer, pa->value._length) != 0) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void
+DDS_Security_BinaryProperty_set_by_value(
+     DDS_Security_BinaryProperty_t *bp,
+     const char *name,
+     const unsigned char *data,
+     uint32_t length)
+{
+    assert(bp);
+    assert(name);
+    assert(data);
+
+    bp->name = ddsrt_strdup(name);
+    bp->value._length = length;
+    bp->value._maximum = length;
+    if (length) {
+        bp->value._buffer = ddsrt_malloc(length);
+        memcpy(bp->value._buffer, data, length);
+    } else {
+        bp->value._buffer = NULL;
+    }
+}
+
+void
+DDS_Security_BinaryProperty_set_by_string(
+     DDS_Security_BinaryProperty_t *bp,
+     const char *name,
+     const char *data)
+{
+    uint32_t length;
+
+    assert(bp);
+    assert(name);
+    assert(data);
+
+    length = (uint32_t) strlen(data) + 1;
+    DDS_Security_BinaryProperty_set_by_value(bp, name, (unsigned char *)data, length);
+}
+
+void
+DDS_Security_BinaryProperty_set_by_ref(
+     DDS_Security_BinaryProperty_t *bp,
+     const char *name,
+     unsigned char *data,
+     uint32_t length)
+{
+    assert(bp);
+    assert(name);
+    assert(data);
+    assert(length > 0);
+
+    bp->name = ddsrt_strdup(name);
+    bp->value._length = length;
+    bp->value._maximum = length;
+    bp->value._buffer = data;
+}
+
+DDS_Security_BinaryPropertySeq *
+DDS_Security_BinaryPropertySeq_alloc (void)
+{
+    DDS_Security_BinaryPropertySeq *seq;
+
+    seq = ddsrt_malloc(sizeof(DDS_Security_BinaryPropertySeq));
+    memset(seq, 0, sizeof(DDS_Security_BinaryPropertySeq));
+    return seq;
+}
+
+DDS_Security_BinaryProperty_t *
+DDS_Security_BinaryPropertySeq_allocbuf (
+     DDS_Security_unsigned_long len)
+{
+    DDS_Security_BinaryProperty_t *buffer;
+
+    buffer = ddsrt_malloc(len * sizeof(DDS_Security_BinaryProperty_t));
+    memset(buffer, 0, len * sizeof(DDS_Security_BinaryProperty_t));
+    return buffer;
+}
+
+void
+DDS_Security_BinaryPropertySeq_deinit(
+     DDS_Security_BinaryPropertySeq *seq)
+{
+    uint32_t i;
+
+    if (!seq) {
+        return;
+    }
+    for (i = 0; i < seq->_length; i++) {
+        ddsrt_free(seq->_buffer[i].name);
+        DDS_Security_OctetSeq_deinit(&seq->_buffer[i].value);
+    }
+}
+
+void
+DDS_Security_BinaryPropertySeq_free(
+     DDS_Security_BinaryPropertySeq *seq)
+{
+    DDS_Security_BinaryPropertySeq_deinit(seq);
+    ddsrt_free(seq);
+}
+
+
+DDS_Security_Property_t *
+DDS_Security_Property_alloc (void)
+{
+  DDS_Security_Property_t *property;
+
+  property = ddsrt_malloc(sizeof(DDS_Security_Property_t));
+  memset(property, 0, sizeof(DDS_Security_Property_t));
+  return property;
+}
+
+void
+DDS_Security_Property_free(
+    DDS_Security_Property_t *p)
+{
+    if (p) {
+        DDS_Security_Property_deinit(p);
+        ddsrt_free(p);
+    }
+}
+
+void
+DDS_Security_Property_deinit(
+    DDS_Security_Property_t *p)
+{
+    if (!p) {
+        return;
+    }
+
+    ddsrt_free(p->name);
+    ddsrt_free(p->value);
+}
+
+void
+DDS_Security_Property_copy(
+     DDS_Security_Property_t *dst,
+     DDS_Security_Property_t *src)
+{
+    dst->name = src->name ? ddsrt_strdup(src->name) : NULL;
+    dst->value = src->value ? ddsrt_strdup(src->value) : NULL;
+    dst->propagate = src->propagate;
+}
+
+bool
+DDS_Security_Property_equal(
+     DDS_Security_Property_t *pa,
+     DDS_Security_Property_t *pb)
+{
+    if (pa->name && pb->name) {
+        if (strcmp(pa->name, pb->name) != 0) {
+            return false;
+        }
+    } else if (pa->name || pb->name) {
+        return false;
+    }
+
+    if (pa->value && pb->value) {
+        if (strcmp(pa->value, pb->value) != 0) {
+            return false;
+        }
+    } else if (pa->value || pb->value) {
+        return false;
+    }
+
+    return true;
+}
+
+char *
+DDS_Security_Property_get_value(
+     const DDS_Security_PropertySeq *properties,
+     const char *name)
+{
+    uint32_t i;
+    char *value = NULL;
+
+    assert(properties);
+    assert(name);
+
+    for (i = 0; !value && (i < properties->_length); i++) {
+        if (properties->_buffer[i].name &&
+            (strcmp(name, properties->_buffer[i].name) == 0)) {
+            if (properties->_buffer[i].value) {
+                value = ddsrt_strdup(properties->_buffer[i].value);
+            }
+        }
+    }
+
+    return value;
+}
+
+DDS_Security_PropertySeq *
+DDS_Security_PropertySeq_alloc (void)
+{
+    DDS_Security_PropertySeq *seq;
+
+    seq = ddsrt_malloc(sizeof(DDS_Security_PropertySeq));
+    memset(seq, 0, sizeof(DDS_Security_PropertySeq));
+    return seq;
+}
+
+DDS_Security_Property_t *
+DDS_Security_PropertySeq_allocbuf (
+     DDS_Security_unsigned_long len)
+{
+    DDS_Security_Property_t *buffer;
+
+    buffer = ddsrt_malloc(len * sizeof(DDS_Security_Property_t));
+    memset(buffer, 0, len * sizeof(DDS_Security_Property_t));
+
+    return buffer;
+}
+
+void
+DDS_Security_PropertySeq_freebuf(
+     DDS_Security_PropertySeq *seq)
+{
+  uint32_t i;
+
+  if (seq) {
+    for (i = 0; i < seq->_length; i++) {
+      ddsrt_free(seq->_buffer[i].name);
+      ddsrt_free(seq->_buffer[i].value);
+    }
+    ddsrt_free(seq->_buffer);
+    seq->_length = 0;
+    seq->_maximum = 0;
+    seq->_buffer = NULL;
+  }
+}
+
+void
+DDS_Security_PropertySeq_free(
+     DDS_Security_PropertySeq *seq)
+{
+    DDS_Security_PropertySeq_deinit(seq);
+    ddsrt_free(seq);
+}
+
+void
+DDS_Security_PropertySeq_deinit(
+    DDS_Security_PropertySeq *seq)
+{
+    uint32_t i;
+
+    if (!seq) {
+        return;
+    }
+    for (i = 0; i < seq->_length; i++) {
+        ddsrt_free(seq->_buffer[i].name);
+        ddsrt_free(seq->_buffer[i].value);
+    }
+    ddsrt_free(seq->_buffer);
+}
+
+const DDS_Security_Property_t *
+DDS_Security_PropertySeq_find_property (
+     const DDS_Security_PropertySeq *property_seq,
+     const char *name )
+{
+
+    DDS_Security_Property_t *result = NULL;
+    unsigned i, len;
+
+    assert(property_seq);
+    assert(name);
+
+    len = (unsigned)strlen(name);
+    for (i = 0; !result && (i < property_seq->_length); i++) {
+        if (property_seq->_buffer[i].name &&
+            (strncmp(name, property_seq->_buffer[i].name, len+ 1) == 0)) {
+            result = &property_seq->_buffer[i];
+        }
+    }
+
+    return result;
+}
+
+DDS_Security_DataHolder *
+DDS_Security_DataHolder_alloc(void)
+{
+    DDS_Security_DataHolder *holder;
+    holder = ddsrt_malloc(sizeof(*holder));
+    memset(holder, 0, sizeof(*holder));
+    return holder;
+}
+
+void
+DDS_Security_DataHolder_free(
+    DDS_Security_DataHolder *holder)
+{
+    if (!holder) {
+        return;
+    }
+    DDS_Security_DataHolder_deinit(holder);
+    ddsrt_free(holder);
+}
+
+void
+DDS_Security_DataHolder_deinit(
+    DDS_Security_DataHolder *holder)
+{
+    uint32_t i;
+
+    if (!holder) {
+        return;
+    }
+
+    ddsrt_free(holder->class_id);
+
+    for (i = 0; i < holder->properties._length; i++) {
+        DDS_Security_Property_deinit(&holder->properties._buffer[i]);
+    }
+    ddsrt_free(holder->properties._buffer);
+
+    for (i = 0; i < holder->binary_properties._length; i++) {
+        DDS_Security_BinaryProperty_deinit(&holder->binary_properties._buffer[i]);
+    }
+    ddsrt_free(holder->binary_properties._buffer);
+
+    memset(holder, 0, sizeof(*holder));
+}
+
+void
+DDS_Security_DataHolder_copy(
+     DDS_Security_DataHolder *dst,
+     const DDS_Security_DataHolder *src)
+{
+    uint32_t i;
+
+    assert(dst);
+    assert(src);
+
+    if (src->class_id) {
+        dst->class_id = ddsrt_strdup(src->class_id);
+    } else {
+        dst->class_id = NULL;
+    }
+
+    dst->properties = src->properties;
+    if (src->properties._buffer) {
+        dst->properties._buffer = DDS_Security_PropertySeq_allocbuf(src->properties._length);
+        for (i = 0; i < src->properties._length; i++) {
+            DDS_Security_Property_copy(&dst->properties._buffer[i], &src->properties._buffer[i]);
+        }
+    }
+
+    dst->binary_properties = src->binary_properties;
+    if (src->binary_properties._buffer) {
+        dst->binary_properties._buffer = DDS_Security_BinaryPropertySeq_allocbuf(src->binary_properties._length);
+        for (i = 0; i < src->binary_properties._length; i++) {
+            DDS_Security_BinaryProperty_copy(&dst->binary_properties._buffer[i], &src->binary_properties._buffer[i]);
+        }
+    }
+}
+
+bool
+DDS_Security_DataHolder_equal(
+     const DDS_Security_DataHolder *psa,
+     const DDS_Security_DataHolder *psb)
+{
+    uint32_t i;
+
+    if (psa->class_id && psb->class_id) {
+        if (strcmp(psa->class_id, psb->class_id) != 0) {
+            return false;
+        }
+    } else if (psa->class_id || psb->class_id) {
+        return false;
+    }
+
+    for (i = 0; i < psa->properties._length; i++) {
+        if (!DDS_Security_Property_equal(&psa->properties._buffer[i], &psb->properties._buffer[i])) {
+            return false;
+        }
+    }
+
+    for (i = 0; i < psa->binary_properties._length; i++) {
+        if (!DDS_Security_BinaryProperty_equal(&psa->binary_properties._buffer[i], &psb->binary_properties._buffer[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+const DDS_Security_Property_t *
+DDS_Security_DataHolder_find_property(
+     const DDS_Security_DataHolder *holder,
+     const char *name)
+{
+
+    assert(holder);
+    assert(name);
+
+    return DDS_Security_PropertySeq_find_property ( &(holder->properties), name );
+}
+
+const DDS_Security_BinaryProperty_t *
+DDS_Security_DataHolder_find_binary_property(
+     const DDS_Security_DataHolder *holder,
+     const char *name)
+{
+    DDS_Security_BinaryProperty_t *result = NULL;
+    unsigned i, len;
+
+    assert(holder);
+    assert(name);
+
+    len = (unsigned)strlen(name);
+
+    for (i = 0; !result && (i < holder->binary_properties._length); i++) {
+        if (holder->binary_properties._buffer[i].name &&
+           (strncmp(name, holder->binary_properties._buffer[i].name, len+1) == 0)) {
+            result = &holder->binary_properties._buffer[i];
+        }
+    }
+
+    return result;
+}
+
+DDS_Security_DataHolderSeq *
+DDS_Security_DataHolderSeq_alloc (void)
+{
+    DDS_Security_DataHolderSeq *holder;
+
+    holder = ddsrt_malloc(sizeof(DDS_Security_DataHolderSeq));
+    memset(holder, 0, sizeof(DDS_Security_DataHolderSeq));
+    return holder;
+}
+
+DDS_Security_DataHolder *
+DDS_Security_DataHolderSeq_allocbuf (
+     DDS_Security_unsigned_long len)
+{
+    DDS_Security_DataHolder *buffer;
+
+    buffer = ddsrt_malloc(len * sizeof(DDS_Security_DataHolder));
+    memset(buffer, 0, len * sizeof(DDS_Security_DataHolder));
+    return buffer;
+}
+
+void
+DDS_Security_DataHolderSeq_freebuf(
+     DDS_Security_DataHolderSeq *seq)
+{
+    uint32_t i;
+
+    if (seq) {
+        for (i = 0; i < seq->_length; i++) {
+            DDS_Security_DataHolder_deinit(&seq->_buffer[i]);
+        }
+        ddsrt_free(seq->_buffer);
+        seq->_buffer = NULL;
+        seq->_length = 0;
+        seq->_maximum = 0;
+    }
+}
+
+void
+DDS_Security_DataHolderSeq_free(
+     DDS_Security_DataHolderSeq *seq)
+{
+    if (seq) {
+        DDS_Security_DataHolderSeq_freebuf(seq);
+        ddsrt_free(seq);
+    }
+}
+
+void
+DDS_Security_DataHolderSeq_deinit(
+     DDS_Security_DataHolderSeq *seq)
+{
+    if (seq) {
+        DDS_Security_DataHolderSeq_freebuf(seq);
+    }
+}
+
+void
+DDS_Security_DataHolderSeq_copy(
+     DDS_Security_DataHolderSeq *dst,
+     const DDS_Security_DataHolderSeq *src)
+{
+    uint32_t i;
+
+    assert(dst);
+    assert(src);
+
+    *dst = *src;
+
+    if (src->_length) {
+        dst->_buffer = DDS_Security_DataHolderSeq_allocbuf(src->_length);
+    }
+
+    for (i = 0; i < src->_length; i++) {
+        DDS_Security_DataHolder_copy(&dst->_buffer[i], &src->_buffer[i]);
+    }
+}
+
+DDS_Security_ParticipantBuiltinTopicData *
+DDS_Security_ParticipantBuiltinTopicData_alloc(void)
+{
+    DDS_Security_ParticipantBuiltinTopicData *result;
+
+    result = ddsrt_malloc(sizeof(*result));
+    memset(result, 0, sizeof(*result));
+
+    return result;
+}
+
+void
+DDS_Security_ParticipantBuiltinTopicData_free(
+     DDS_Security_ParticipantBuiltinTopicData *data)
+{
+    DDS_Security_ParticipantBuiltinTopicData_deinit(data);
+    ddsrt_free(data);
+}
+
+void
+DDS_Security_ParticipantBuiltinTopicData_deinit(
+     DDS_Security_ParticipantBuiltinTopicData *data)
+{
+    if (!data) {
+        return;
+    }
+    DDS_Security_DataHolder_deinit(&data->identity_token);
+    DDS_Security_DataHolder_deinit(&data->permissions_token);
+    DDS_Security_PropertyQosPolicy_deinit(&data->property);
+    DDS_Security_OctetSeq_deinit(&data->user_data.value);
+}
+
+DDS_Security_OctetSeq *
+DDS_Security_OctetSeq_alloc (void)
+{
+  return (DDS_Security_OctetSeq *)ddsrt_malloc(sizeof(DDS_Security_OctetSeq ));
+}
+
+DDS_Security_octet *
+DDS_Security_OctetSeq_allocbuf (
+     DDS_Security_unsigned_long len)
+{
+  return (DDS_Security_octet*)ddsrt_malloc(sizeof(DDS_Security_octet)*len);
+}
+
+void
+DDS_Security_OctetSeq_freebuf(
+     DDS_Security_OctetSeq *seq)
+{
+    if (!seq) {
+        return;
+    }
+    ddsrt_free(seq->_buffer);
+    seq->_buffer = NULL;
+    seq->_length = 0;
+    seq->_maximum = 0;
+}
+
+void
+DDS_Security_OctetSeq_free(
+     DDS_Security_OctetSeq *seq)
+{
+    DDS_Security_OctetSeq_deinit(seq);
+    ddsrt_free(seq);
+}
+
+void
+DDS_Security_OctetSeq_deinit(
+     DDS_Security_OctetSeq *seq)
+{
+    DDS_Security_OctetSeq_freebuf(seq);
+}
+
+
+void
+DDS_Security_OctetSeq_copy(
+     DDS_Security_OctetSeq *dst,
+     const DDS_Security_OctetSeq *src)
+{
+    if (dst->_length > 0) {
+        DDS_Security_OctetSeq_deinit(dst);
+    }
+    dst->_length = src->_length;
+    dst->_maximum = src->_maximum;
+
+    if (src->_length) {
+        dst->_buffer = ddsrt_malloc(src->_length);
+        memcpy(dst->_buffer, src->_buffer, src->_length);
+    } else {
+        dst->_buffer = NULL;
+    }
+}
+
+DDS_Security_HandleSeq *
+DDS_Security_HandleSeq_alloc(void)
+{
+    DDS_Security_HandleSeq *seq;
+
+    seq = ddsrt_malloc(sizeof(*seq));
+    seq->_buffer = NULL;
+    seq->_length = 0;
+    seq->_maximum = 0;
+
+    return seq;
+}
+
+DDS_Security_long_long *
+DDS_Security_HandleSeq_allocbuf(
+     DDS_Security_unsigned_long length)
+{
+    DDS_Security_long_long *buffer;
+    buffer = ddsrt_malloc(length * sizeof(DDS_Security_long_long));
+    memset(buffer, 0, length * sizeof(DDS_Security_long_long));
+    return buffer;
+}
+
+void
+DDS_Security_HandleSeq_freebuf(
+     DDS_Security_HandleSeq *seq)
+{
+    if (!seq) {
+        return;
+    }
+    ddsrt_free(seq->_buffer);
+    seq->_maximum = 0;
+    seq->_length = 0;
+}
+
+void
+DDS_Security_HandleSeq_free(
+     DDS_Security_HandleSeq *seq)
+{
+    if (!seq) {
+        return;
+    }
+    DDS_Security_HandleSeq_freebuf(seq);
+    ddsrt_free(seq);
+}
+
+void
+DDS_Security_HandleSeq_deinit(
+     DDS_Security_HandleSeq *seq)
+{
+    if (!seq) {
+        return;
+    }
+    DDS_Security_HandleSeq_freebuf(seq);
+}
+
+
+
+
+void
+DDS_Security_Exception_set(
+     DDS_Security_SecurityException *ex,
+     const char *context,
+     int code,
+     int minor_code,
+     const char *fmt,
+    ...)
+{
+    int32_t ret;
+    size_t len;
+    char buf[1] = { '\0' };
+    char *str = NULL;
+    va_list args1, args2;
+
+    assert(context);
+    assert(fmt);
+    assert(ex);
+    DDSRT_UNUSED_ARG( context );
+
+    va_start(args1, fmt);
+    va_copy(args2, args1);
+
+    if ((ret = vsnprintf(buf, sizeof(buf), fmt, args1)) >= 0) {
+        len = (size_t)ret; /* +1 for null byte */
+        if ((str = ddsrt_malloc(len + 1)) == NULL) {
+            assert(false);
+        } else if ((ret = vsnprintf(str, len + 1, fmt, args2)) >= 0) {
+            assert((size_t) ret == len);
+        } else {
+            ddsrt_free(str);
+            str = NULL;
+        }
+    }
+
+    va_end(args1);
+    va_end(args2);
+
+    ex->message = str;
+    ex->code = code;
+    ex->minor_code = minor_code;
+}
+
+#if DDSI_INCLUDE_SSL
+DDS_EXPORT void
+DDS_Security_Exception_set_with_openssl_error(
+         DDS_Security_SecurityException *ex,
+         const char *context,
+         int code,
+         int minor_code,
+         const char *error_area
+        )
+{
+
+  BIO *bio;
+  char *buf = NULL;
+  char *str;
+  size_t len; /*BIO_get_mem_data requires long int */
+  assert(context);
+  assert(error_area);
+  assert(ex);
+  DDSRT_UNUSED_ARG( context );
+
+  bio = BIO_new(BIO_s_mem());
+
+  if (bio) {
+      size_t exception_msg_len;
+      ERR_print_errors(bio);
+      len = (size_t)BIO_get_mem_data (bio, &buf);
+      exception_msg_len = len + strlen(error_area) + 1;
+      str = ddsrt_malloc(  exception_msg_len );
+
+      ddsrt_strlcpy(str, error_area, exception_msg_len);
+      memcpy(str + strlen(error_area), buf, len );
+      str [ exception_msg_len -1 ] = '\0';
+      //snprintf( str, exception_msg_len, "%s%s", error_area, buf );
+
+      ex->message = str;
+      ex->code = code;
+      ex->minor_code = minor_code;
+
+      BIO_free(bio);
+
+  } else {
+      DDS_Security_Exception_set(ex, context, code,  minor_code, "BIO_new failed");
+  }
+
+}
+#endif
+
+void
+DDS_Security_Exception_reset(
+     DDS_Security_SecurityException *ex)
+{
+    if (ex) {
+        if (ex->message) {
+            ddsrt_free(ex->message);
+        }
+        DDS_Security_Exception_clean(ex);
+    }
+}
+
+void
+DDS_Security_Exception_clean(
+     DDS_Security_SecurityException *ex)
+{
+    if (ex) {
+        memset(ex, 0, sizeof(DDS_Security_SecurityException));
+    }
+}
+
+void
+DDS_Security_PropertyQosPolicy_deinit(
+     DDS_Security_PropertyQosPolicy *policy)
+{
+    if (!policy) {
+        return;
+    }
+    DDS_Security_PropertySeq_deinit(&policy->value);
+    DDS_Security_BinaryPropertySeq_deinit(&policy->binary_value);
+}
+
+void
+DDS_Security_PropertyQosPolicy_free(
+     DDS_Security_PropertyQosPolicy *policy)
+{
+    DDS_Security_PropertyQosPolicy_deinit(policy);
+    ddsrt_free(policy);
+}
+
+
+void
+DDS_Security_set_token_nil(
+     DDS_Security_DataHolder *token)
+{
+    DDS_Security_DataHolder_deinit(token);
+    memset(token, 0, sizeof(*token));
+    token->class_id = ddsrt_strdup("");
+}
+
+void
+DDS_Security_KeyMaterial_AES_GCM_GMAC_deinit(
+     DDS_Security_KeyMaterial_AES_GCM_GMAC *key_material)
+{
+    if (key_material) {
+        if (key_material->master_receiver_specific_key._buffer != NULL) {
+            ddsrt_free(key_material->master_receiver_specific_key._buffer);
+        }
+        if( key_material->master_salt._buffer != NULL){
+            ddsrt_free(key_material->master_salt._buffer);
+        }
+        if( key_material->master_sender_key._buffer != NULL){
+            ddsrt_free(key_material->master_sender_key._buffer);
+        }
+    }
+}
+
+
+DDS_Security_CryptoTransformKind_Enum
+DDS_Security_basicprotectionkind2transformationkind(
+     const DDS_Security_PropertySeq *properties, 
+     DDS_Security_BasicProtectionKind protection)
+{
+    int keysize=256;
+    const DDS_Security_Property_t *key_size_property = NULL;
+    if( properties != NULL ){
+        key_size_property = DDS_Security_PropertySeq_find_property(
+                    properties, "dds.sec.crypto.keysize");
+
+        if (key_size_property != NULL) {
+            if (strcmp(key_size_property->value, "128") == 0) {
+                keysize = 128;
+            }
+        }
+    }
+
+    switch (protection) {
+        case DDS_SECURITY_BASICPROTECTION_KIND_NONE:
+            return CRYPTO_TRANSFORMATION_KIND_NONE;
+        case DDS_SECURITY_BASICPROTECTION_KIND_SIGN:
+            if( keysize == 128 ){
+                return CRYPTO_TRANSFORMATION_KIND_AES128_GMAC;
+            } else{
+                return CRYPTO_TRANSFORMATION_KIND_AES256_GMAC;
+            }
+        case DDS_SECURITY_BASICPROTECTION_KIND_ENCRYPT:
+            if( keysize == 128 ){
+                return CRYPTO_TRANSFORMATION_KIND_AES128_GCM;
+            } else{
+                return CRYPTO_TRANSFORMATION_KIND_AES256_GCM;
+            }
+        default:
+            return CRYPTO_TRANSFORMATION_KIND_INVALID;
+    }
+}
+
+DDS_Security_CryptoTransformKind_Enum
+DDS_Security_protectionkind2transformationkind(
+     const DDS_Security_PropertySeq *properties,
+     DDS_Security_ProtectionKind protection)
+{
+    int keysize=256;
+    const DDS_Security_Property_t *key_size_property = NULL;
+    if( properties != NULL ){
+        key_size_property = DDS_Security_PropertySeq_find_property(
+                        properties, "dds.sec.crypto.keysize");
+        if (key_size_property != NULL) {
+            if (strcmp(key_size_property->value, "128") == 0) {
+                keysize = 128;
+            }
+        }
+    }
+
+    switch (protection) {
+        case DDS_SECURITY_PROTECTION_KIND_NONE:
+            return CRYPTO_TRANSFORMATION_KIND_NONE;
+        case DDS_SECURITY_PROTECTION_KIND_SIGN_WITH_ORIGIN_AUTHENTICATION:
+        case DDS_SECURITY_PROTECTION_KIND_SIGN:
+            if( keysize == 128 ){
+                return CRYPTO_TRANSFORMATION_KIND_AES128_GMAC;
+            } else{
+                return CRYPTO_TRANSFORMATION_KIND_AES256_GMAC;
+            }
+        case DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION:
+        case DDS_SECURITY_PROTECTION_KIND_ENCRYPT:
+            if( keysize == 128 ){
+                return CRYPTO_TRANSFORMATION_KIND_AES128_GCM;
+            } else {
+                return CRYPTO_TRANSFORMATION_KIND_AES256_GCM;
+            }
+        default:
+            return CRYPTO_TRANSFORMATION_KIND_INVALID;
+    }
+}
+
+/* for DEBUG purposes */
+void
+print_binary_debug(
+     char* name,
+     unsigned char *value,
+     uint32_t size)
+{
+    uint32_t i;
+    printf("%s: ",name );
+    for( i=0; i<  size; i++)
+    {
+        printf("%x",value[i]);
+    }
+    printf("\n");
+}
+
+void
+print_binary_properties_debug(
+     const DDS_Security_DataHolder *token)
+{
+    uint32_t i;
+    for (i = 0; i < token->binary_properties._length ; i++) {
+        print_binary_debug( token->binary_properties._buffer[i].name, token->binary_properties._buffer[i].value._buffer, token->binary_properties._buffer[i].value._length);
+    }
+
+}
+
+
+
+
+DDS_Security_config_item_prefix_t
+DDS_Security_get_conf_item_type(
+     const char *str,
+     char **data)
+{
+    DDS_Security_config_item_prefix_t kind = DDS_SECURITY_CONFIG_ITEM_PREFIX_UNKNOWN;
+    const char *CONFIG_FILE_PREFIX   = "file:";
+    const char *CONFIG_DATA_PREFIX   = "data:,";
+    const char *CONFIG_PKCS11_PREFIX = "pkcs11:";
+    size_t CONFIG_FILE_PREFIX_LEN   = strlen(CONFIG_FILE_PREFIX);
+    size_t CONFIG_DATA_PREFIX_LEN   = strlen(CONFIG_DATA_PREFIX);
+    size_t CONFIG_PKCS11_PREFIX_LEN = strlen(CONFIG_PKCS11_PREFIX);
+    char *ptr;
+
+    assert(str);
+    assert(data);
+    DDSRT_UNUSED_ARG(str);
+
+    ptr = ddssec_strchrs(str, " \t", false);
+
+    if (strncmp(ptr, CONFIG_FILE_PREFIX, CONFIG_FILE_PREFIX_LEN) == 0) {
+        const char *DOUBLE_SLASH   = "//";
+        size_t DOUBLE_SLASH_LEN = 2;
+        if (strncmp(&(ptr[CONFIG_FILE_PREFIX_LEN]), DOUBLE_SLASH, DOUBLE_SLASH_LEN) == 0) {
+            *data = ddsrt_strdup(&(ptr[CONFIG_FILE_PREFIX_LEN + DOUBLE_SLASH_LEN]));
+        } else {
+            *data = ddsrt_strdup(&(ptr[CONFIG_FILE_PREFIX_LEN]));
+        }
+        kind = DDS_SECURITY_CONFIG_ITEM_PREFIX_FILE;
+    } else if (strncmp(ptr, CONFIG_DATA_PREFIX, CONFIG_DATA_PREFIX_LEN) == 0) {
+        kind = DDS_SECURITY_CONFIG_ITEM_PREFIX_DATA;
+        *data = ddsrt_strdup(&(ptr[CONFIG_DATA_PREFIX_LEN]));
+    } else if (strncmp(ptr, CONFIG_PKCS11_PREFIX, CONFIG_PKCS11_PREFIX_LEN) == 0) {
+        kind = DDS_SECURITY_CONFIG_ITEM_PREFIX_PKCS11;
+        *data = ddsrt_strdup(&(ptr[CONFIG_PKCS11_PREFIX_LEN]));
+    }
+
+    return kind;
+}
+
+
+char *
+ddssec_strchrs (
+        const char *str,
+        const char *chrs,
+        bool inc)
+{
+    bool eq;
+    char *ptr = NULL;
+    size_t i, j;
+
+    assert (str != NULL);
+    assert (chrs != NULL);
+
+    for (i = 0; str[i] != '\0' && ptr == NULL; i++) {
+        for (j = 0, eq = false; chrs[j] != '\0' && eq == false; j++) {
+            if (str[i] == chrs[j]) {
+                eq = true;
+            }
+        }
+        if (eq == inc) {
+            ptr = (char *)str + i;
+        }
+    }
+
+    return ptr;
+}
+
+
+/* The result of os_fileNormalize should be freed with os_free */
+char *
+DDS_Security_normalize_file(
+    const char *filepath)
+{
+    char *norm;
+    const char *fpPtr;
+    char *normPtr;
+#if _WIN32
+  #define __FILESEPCHAR '\\'
+#else
+  #define __FILESEPCHAR '/'
+#endif
+    norm = NULL;
+    if ((filepath != NULL) && (*filepath != '\0')) {
+        norm = ddsrt_malloc(strlen(filepath) + 1);
+        /* replace any / or \ by OS_FILESEPCHAR */
+        fpPtr = (char *) filepath;
+        normPtr = norm;
+        while (*fpPtr != '\0') {
+            *normPtr = *fpPtr;
+            if ((*fpPtr == '/') || (*fpPtr == '\\')) {
+                *normPtr = __FILESEPCHAR;
+                normPtr++;
+            } else {
+                if (*fpPtr != '\"') {
+                    normPtr++;
+                }
+            }
+            fpPtr++;
+        }
+        *normPtr = '\0';
+    }
+#undef __FILESEPCHAR
+    return norm;
+
+}
+

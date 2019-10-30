@@ -117,6 +117,7 @@ list(APPEND headers
   "${include_path}/dds/ddsrt/static_assert.h")
 
 list(APPEND sources
+  "${source_path}/bswap.c"
   "${source_path}/io.c"
   "${source_path}/log.c"
   "${source_path}/retcode.c"
@@ -262,20 +263,9 @@ if(BUILD_TESTING)
 endif()
 
 install(
-  DIRECTORY "include/dds"
+  DIRECTORY
+      "include/"
+      ${CMAKE_CURRENT_BINARY_DIR}/include/
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   COMPONENT dev
   FILES_MATCHING PATTERN "*.h")
-
-install(
-  FILES "${CMAKE_CURRENT_BINARY_DIR}/include/dds/version.h"
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/dds"
-  COMPONENT dev)
-
-if(WIN32)
-  install(
-    FILES "${CMAKE_CURRENT_BINARY_DIR}/include/getopt.h"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-    COMPONENT dev)
-endif()
-

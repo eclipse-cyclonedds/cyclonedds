@@ -9,31 +9,37 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-set(CUNIT_HEADER "CUnit/CUnit.h")
-
-if(CONAN_INCLUDE_DIRS)
-  find_path(CUNIT_INCLUDE_DIR ${CUNIT_HEADER} HINTS ${CONAN_INCLUDE_DIRS})
+find_package(CUnit CONFIG QUIET)
+if(CUnit_FOUND)
+  message(STATUS "Found CUnit via Config file: ${CUnit_DIR}")
+  set(CUNIT_FOUND ${CUnit_FOUND})
 else()
-  find_path(CUNIT_INCLUDE_DIR ${CUNIT_HEADER})
-endif()
+  set(CUNIT_HEADER "CUnit/CUnit.h")
 
-mark_as_advanced(CUNIT_INCLUDE_DIR)
+  if(CONAN_INCLUDE_DIRS)
+    find_path(CUNIT_INCLUDE_DIR ${CUNIT_HEADER} HINTS ${CONAN_INCLUDE_DIRS})
+  else()
+    find_path(CUNIT_INCLUDE_DIR ${CUNIT_HEADER})
+  endif()
 
-if(CUNIT_INCLUDE_DIR AND EXISTS "${CUNIT_INCLUDE_DIR}/${CUNIT_HEADER}")
-  set(PATTERN "^#define CU_VERSION \"([0-9]+)\\.([0-9]+)\\-([0-9]+)\"$")
-  file(STRINGS "${CUNIT_INCLUDE_DIR}/${CUNIT_HEADER}" CUNIT_H REGEX "${PATTERN}")
+  mark_as_advanced(CUNIT_INCLUDE_DIR)
 
-  string(REGEX REPLACE "${PATTERN}" "\\1" CUNIT_VERSION_MAJOR "${CUNIT_H}")
-  string(REGEX REPLACE "${PATTERN}" "\\2" CUNIT_VERSION_MINOR "${CUNIT_H}")
-  string(REGEX REPLACE "${PATTERN}" "\\3" CUNIT_VERSION_PATCH "${CUNIT_H}")
+  if(CUNIT_INCLUDE_DIR AND EXISTS "${CUNIT_INCLUDE_DIR}/${CUNIT_HEADER}")
+    set(PATTERN "^#define CU_VERSION \"([0-9]+)\\.([0-9]+)\\-([0-9]+)\"$")
+    file(STRINGS "${CUNIT_INCLUDE_DIR}/${CUNIT_HEADER}" CUNIT_H REGEX "${PATTERN}")
 
-  set(CUNIT_VERSION "${CUNIT_VERSION_MAJOR}.${CUNIT_VERSION_MINOR}-${CUNIT_VERSION_PATCH}")
-endif()
+    string(REGEX REPLACE "${PATTERN}" "\\1" CUNIT_VERSION_MAJOR "${CUNIT_H}")
+    string(REGEX REPLACE "${PATTERN}" "\\2" CUNIT_VERSION_MINOR "${CUNIT_H}")
+    string(REGEX REPLACE "${PATTERN}" "\\3" CUNIT_VERSION_PATCH "${CUNIT_H}")
 
-if(CONAN_LIB_DIRS)
-  find_library(CUNIT_LIBRARY cunit HINTS ${CONAN_LIB_DIRS})
-else()
-  find_library(CUNIT_LIBRARY cunit)
+    set(CUNIT_VERSION "${CUNIT_VERSION_MAJOR}.${CUNIT_VERSION_MINOR}-${CUNIT_VERSION_PATCH}")
+  endif()
+
+  if(CONAN_LIB_DIRS)
+    find_library(CUNIT_LIBRARY cunit HINTS ${CONAN_LIB_DIRS})
+  else()
+    find_library(CUNIT_LIBRARY cunit)
+  endif()
 endif()
 
 include(FindPackageHandleStandardArgs)

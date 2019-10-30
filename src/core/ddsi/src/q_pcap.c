@@ -144,7 +144,7 @@ void write_pcap_received (struct q_globals *gv, nn_wctime_t tstamp, const struct
     pcap_hdr.incl_len = pcap_hdr.orig_len = (uint32_t) sz_iud;
     fwrite (&pcap_hdr, sizeof (pcap_hdr), 1, gv->pcap_fp);
     u.ipv4_hdr = ipv4_hdr_template;
-    u.ipv4_hdr.totallength = toBE2u ((unsigned short) sz_iud);
+    u.ipv4_hdr.totallength = ddsrt_toBE2u ((unsigned short) sz_iud);
     u.ipv4_hdr.ttl = 128;
     u.ipv4_hdr.srcip = ((struct sockaddr_in*) src)->sin_addr.s_addr;
     u.ipv4_hdr.dstip = ((struct sockaddr_in*) dst)->sin_addr.s_addr;
@@ -152,7 +152,7 @@ void write_pcap_received (struct q_globals *gv, nn_wctime_t tstamp, const struct
     fwrite (&u.ipv4_hdr, sizeof (u.ipv4_hdr), 1, gv->pcap_fp);
     udp_hdr.srcport = ((struct sockaddr_in*) src)->sin_port;
     udp_hdr.dstport = ((struct sockaddr_in*) dst)->sin_port;
-    udp_hdr.length = toBE2u ((unsigned short) sz_ud);
+    udp_hdr.length = ddsrt_toBE2u ((unsigned short) sz_ud);
     udp_hdr.checksum = 0; /* don't have to compute a checksum for UDPv4 */
     fwrite (&udp_hdr, sizeof (udp_hdr), 1, gv->pcap_fp);
     fwrite (buf, sz, 1, gv->pcap_fp);
@@ -177,7 +177,7 @@ void write_pcap_sent (struct q_globals *gv, nn_wctime_t tstamp, const struct soc
     pcap_hdr.incl_len = pcap_hdr.orig_len = (uint32_t) sz_iud;
     fwrite (&pcap_hdr, sizeof (pcap_hdr), 1, gv->pcap_fp);
     u.ipv4_hdr = ipv4_hdr_template;
-    u.ipv4_hdr.totallength = toBE2u ((unsigned short) sz_iud);
+    u.ipv4_hdr.totallength = ddsrt_toBE2u ((unsigned short) sz_iud);
     u.ipv4_hdr.ttl = 255;
     u.ipv4_hdr.srcip = ((struct sockaddr_in*) src)->sin_addr.s_addr;
     u.ipv4_hdr.dstip = ((struct sockaddr_in*) hdr->msg_name)->sin_addr.s_addr;
@@ -185,7 +185,7 @@ void write_pcap_sent (struct q_globals *gv, nn_wctime_t tstamp, const struct soc
     fwrite (&u.ipv4_hdr, sizeof (u.ipv4_hdr), 1, gv->pcap_fp);
     udp_hdr.srcport = ((struct sockaddr_in*) src)->sin_port;
     udp_hdr.dstport = ((struct sockaddr_in*) hdr->msg_name)->sin_port;
-    udp_hdr.length = toBE2u ((unsigned short) sz_ud);
+    udp_hdr.length = ddsrt_toBE2u ((unsigned short) sz_ud);
     udp_hdr.checksum = 0; /* don't have to compute a checksum for UDPv4 */
     fwrite (&udp_hdr, sizeof (udp_hdr), 1, gv->pcap_fp);
     write_data (gv->pcap_fp, hdr, sz);

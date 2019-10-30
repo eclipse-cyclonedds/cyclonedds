@@ -14,7 +14,7 @@
 
 #include <stdint.h>
 
-#include "dds/ddsrt/endian.h"
+#include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsi/q_rtps.h" /* for nn_guid_t, nn_guid_prefix_t */
 #include "dds/ddsi/q_protocol.h" /* for nn_sequence_number_t */
@@ -23,70 +23,11 @@
 extern "C" {
 #endif
 
-inline uint16_t bswap2u (uint16_t x)
-{
-  return (uint16_t) ((x >> 8) | (x << 8));
-}
-
-inline int16_t bswap2 (int16_t x)
-{
-  return (int16_t) bswap2u ((uint16_t) x);
-}
-
-inline uint32_t bswap4u (uint32_t x)
-{
-  return (x >> 24) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | (x << 24);
-}
-
-inline int32_t bswap4 (int32_t x)
-{
-  return (int32_t) bswap4u ((uint32_t) x);
-}
-
-inline uint64_t bswap8u (uint64_t x)
-{
-  const uint32_t newhi = bswap4u ((uint32_t) x);
-  const uint32_t newlo = bswap4u ((uint32_t) (x >> 32));
-  return ((uint64_t) newhi << 32) | (uint64_t) newlo;
-}
-
-inline int64_t bswap8 (int64_t x)
-{
-  return (int64_t) bswap8u ((uint64_t) x);
-}
-
 inline void bswapSN (nn_sequence_number_t *sn)
 {
-  sn->high = bswap4 (sn->high);
-  sn->low = bswap4u (sn->low);
+  sn->high = ddsrt_bswap4 (sn->high);
+  sn->low = ddsrt_bswap4u (sn->low);
 }
-
-#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-#define toBE2(x) bswap2 (x)
-#define toBE2u(x) bswap2u (x)
-#define toBE4(x) bswap4 (x)
-#define toBE4u(x) bswap4u (x)
-#define toBE8(x) bswap8 (x)
-#define toBE8u(x) bswap8u (x)
-#define fromBE2(x) bswap2 (x)
-#define fromBE2u(x) bswap2u (x)
-#define fromBE4(x) bswap4 (x)
-#define fromBE4u(x) bswap4u (x)
-#define fromBE8(x) bswap8 (x)
-#define fromBE8u(x) bswap8u (x)
-#else
-#define toBE2u(x) (x)
-#define toBE4(x) (x)
-#define toBE4u(x) (x)
-#define toBE8(x) (x)
-#define toBE8u(x) (x)
-#define fromBE2(x) (x)
-#define fromBE2u(x) (x)
-#define fromBE4(x) (x)
-#define fromBE4u(x) (x)
-#define fromBE8(x) (x)
-#define fromBE8u(x) (x)
-#endif
 
 ddsi_guid_prefix_t nn_hton_guid_prefix (ddsi_guid_prefix_t p);
 ddsi_guid_prefix_t nn_ntoh_guid_prefix (ddsi_guid_prefix_t p);
