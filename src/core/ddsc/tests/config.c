@@ -83,30 +83,3 @@ CU_Test (ddsc_config, user_config, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_delete (domain);
 }
 
-CU_Test (ddsc_config, incorrect_config, .init = ddsrt_init, .fini = ddsrt_fini)
-{
-  dds_entity_t dom;
-
-  dom = dds_create_domain (1, NULL);
-  CU_ASSERT_FATAL (dom == DDS_RETCODE_BAD_PARAMETER);
-
-  dom = dds_create_domain (1, "<CycloneDDS incorrect XML");
-  CU_ASSERT_FATAL (dom == DDS_RETCODE_ERROR); /* FIXME: "error" is rather unspecific for a bad configuration */
-
-  dom = dds_create_domain (DDS_DOMAIN_DEFAULT,
-                           "<"DDS_PROJECT_NAME"><Domain><Id>any</Id></Domain>"
-                           "<DDSI2E><Internal><MaxParticipants>2</MaxParticipants></Internal></DDSI2E>"
-                           "</"DDS_PROJECT_NAME">");
-  CU_ASSERT_FATAL (dom == DDS_RETCODE_BAD_PARAMETER);
-
-  dom = dds_create_domain (2,
-                           "<"DDS_PROJECT_NAME"><Domain><Id>any</Id></Domain>"
-                           "<DDSI2E><Internal><MaxParticipants>2</MaxParticipants></Internal></DDSI2E>"
-                           "</"DDS_PROJECT_NAME">");
-  CU_ASSERT_FATAL (dom > 0);
-
-  /* 2nd attempt at creating the same domain should fail */
-  CU_ASSERT_FATAL (dds_create_domain (2, "") == DDS_RETCODE_PRECONDITION_NOT_MET);
-
-  dds_delete (dom);
-}
