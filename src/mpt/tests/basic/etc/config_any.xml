@@ -13,9 +13,7 @@
   SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 -->
 <CycloneDDS xmlns="https://cdds.io/config">
-  <Domain>
-    <Id>any</Id>
-  </Domain>
+  <Domain Id="any">
   <General>
     <AllowMulticast>true</AllowMulticast>
     <EnableMulticastLoopback>true</EnableMulticastLoopback>
@@ -27,4 +25,5 @@
     <Verbosity>finest</Verbosity>
     <OutputFile>ddsi_${MPT_PROCESS_NAME}.log</OutputFile>
   </Tracing-->
+  </Domain>
 </CycloneDDS>
