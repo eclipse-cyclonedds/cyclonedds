@@ -302,8 +302,6 @@ MPT_ProcessEntry (rw_publisher,
                              i, j, dds_strretcode (rc));
         if (st.current_count)
         {
-          printf ("%zu %zu: %d\n", i, j, (int) st.current_count);
-          fflush (stdout);
           goto have_matches;
         }
       }
