@@ -830,6 +830,7 @@ static const struct cfgelem root_cfgelems[] = {
 };
 
 static const struct cfgelem root_cfgattrs[] = {
+  { ATTR("xmlns"), 0, "", 0, 0, 0, uf_nop, 0, pf_nop, NULL },
   { ATTR("xmlns:xsi"), 0, "", 0, 0, 0, uf_nop, 0, pf_nop, NULL },
   { ATTR("xsi:noNamespaceSchemaLocation"), 0, "", 0, 0, 0, uf_nop, 0, pf_nop, NULL },
   END_MARKER
