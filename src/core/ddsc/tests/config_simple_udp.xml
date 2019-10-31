@@ -30,8 +30,8 @@
     </Tracing>
     <Internal>
       <MaxParticipants>${MAX_PARTICIPANTS}</MaxParticipants>
-      <HeartbeatInterval max="10 s"> 100 ms </HeartbeatInterval>
-      <RediscoveryBlacklistDuration></RediscoveryBlacklistDuration>
+      <HeartbeatInterval>100 ms</HeartbeatInterval>
+      <RediscoveryBlacklistDuration>10s</RediscoveryBlacklistDuration>
     </Internal>
   </Domain>
 </CycloneDDS>
