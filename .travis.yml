@@ -68,9 +68,9 @@ linux_clang: &linux_clang
   install:
     - pip install conan --upgrade --user
 
-osx_xcode10_3: &osx_xcode10_3
+osx_xcode: &osx_xcode
   os: osx
-  osx_image: xcode10.3
+  osx_image: xcode11.1
   compiler: clang
   addons:
     homebrew:
@@ -84,7 +84,7 @@ osx_xcode10_3: &osx_xcode10_3
     - python3 -m pip install conan --upgrade --user
 
 osx_xcode9: &osx_xcode9
-  <<: *osx_xcode10_3
+  <<: *osx_xcode
   osx_image: xcode9
   cache:
     directories:
@@ -165,9 +165,9 @@ jobs:
       env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *osx_xcode9
       env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=NO, GENERATOR="Unix Makefiles" ]
-    - <<: *osx_xcode10_3
+    - <<: *osx_xcode
       env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Unix Makefiles" ]
-    - <<: *osx_xcode10_3
+    - <<: *osx_xcode
       env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, GENERATOR="Unix Makefiles" ]
     - <<: *windows_vs2017
       env: [ ARCH=x86, ASAN=none, BUILD_TYPE=Debug, SSL=YES, GENERATOR="Visual Studio 15 2017" ]
