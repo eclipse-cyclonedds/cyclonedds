@@ -495,7 +495,7 @@ sub read_config {
   my @stk = (); # stack of conditional nesting, for each: copy/discard/ignore
   open FH, "<", $input or die "can't open $input\n";
   while (<FH>) {
-    chomp;
+    s/[\r\n]+$//s;
 
     # ignore parts guarded by #if/#ifdef/#if!/#ifndef if $incl says so
     if (/^\s*\#\s*if(n?def|\s*!)?\s*([A-Za-z_][A-Za-z_0-9]*)\s*(?:\/(?:\/.*|\*.*?\*\/)\s*)?$/) {
