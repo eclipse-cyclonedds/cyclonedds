@@ -1,3 +1,4 @@
+default namespace = "https://cdds.io/config"
 namespace a = "http://relaxng.org/ns/compatibility/annotations/1.0"
 grammar {
   start =
@@ -558,7 +559,37 @@ heartbeats and the bounds within it can vary.</p>
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
 day.</p><p>The default value is: &quot;100 ms&quot;.</p>""" ] ]
         element HeartbeatInterval {
-          duration_inf
+          [ a:documentation [ xml:lang="en" """
+<p>This attribute sets the maximum interval for periodic heartbeats.</p>
+
+<p>Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
+day.</p><p>The default value is: &quot;8 s&quot;.</p>""" ] ]
+          attribute max {
+            duration_inf
+          }?
+          & [ a:documentation [ xml:lang="en" """
+<p>This attribute sets the minimum interval that must have passed since
+the most recent heartbeat from a writer, before another asynchronous (not
+directly related to writing) will be sent.</p>
+
+<p>Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
+day.</p><p>The default value is: &quot;5 ms&quot;.</p>""" ] ]
+          attribute min {
+            duration_inf
+          }?
+          & [ a:documentation [ xml:lang="en" """
+<p>This attribute sets the minimum interval for periodic heartbeats.
+Other events may still cause heartbeats to go out.</p>
+
+<p>Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
+day.</p><p>The default value is: &quot;20 ms&quot;.</p>""" ] ]
+          attribute minsched {
+            duration_inf
+          }?
+          & duration_inf
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>Ack a sample only when it has been delivered, instead of when
@@ -582,7 +613,23 @@ traces can be dumped automatically when some thread appears to have
 stopped making progress.</p><p>The default value is:
 &quot;false&quot;.</p>""" ] ]
         element LivelinessMonitoring {
-          xsd:boolean
+          [ a:documentation [ xml:lang="en" """
+<p>This element controls the interval at which to check whether threads
+have been making progress.</p>
+
+<p>The unit must be specified explicitly. Recognised units: ns, us, ms,
+s, min, hr, day.</p><p>The default value is: &quot;1s&quot;.</p>""" ] ]
+          attribute Interval {
+            duration
+          }?
+          & [ a:documentation [ xml:lang="en" """
+<p>This element controls whether or not to write stack traces to the
+Cyclone DDS trace when a thread fails to make progress (on select
+platforms only).</p><p>The default value is: &quot;true&quot;.</p>""" ] ]
+          attribute StackTraces {
+            xsd:boolean
+          }?
+          & xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This elements configures the maximum number of DCPS domain
@@ -678,7 +725,17 @@ latency. Currently multiple receive threads are only used for
 connectionless transport (e.g., UDP) and ManySocketsMode not set to
 single (the default).</p><p>The default value is: &quot;true&quot;.</p>""" ] ]
         element MultipleReceiveThreads {
-          xsd:boolean
+          [ a:documentation [ xml:lang="en" """
+<p>Receive threads dedicated to a single socket can only be triggered for
+termination by sending a packet. Reception of any packet will do, so
+termination failure due to packet loss is exceedingly unlikely, but to
+eliminate all risks, it will retry as many times as specified by this
+attribute before aborting.</p><p>The default value is:
+&quot;4294967295&quot;.</p>""" ] ]
+          attribute maxretries {
+            xsd:integer
+          }?
+          & xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This setting controls the delay between receipt of a HEARTBEAT
@@ -734,7 +791,17 @@ is therefore recommended to set it to at least several seconds.</p>
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
 day.</p><p>The default value is: &quot;10s&quot;.</p>""" ] ]
         element RediscoveryBlacklistDuration {
-          duration_inf
+          [ a:documentation [ xml:lang="en" """
+<p>This attribute controls whether the configured time during which
+recently deleted participants will not be rediscovered (i.e., "black
+listed") is enforced and following complete removal of the participant in
+Cyclone DDS, or whether it can be rediscovered earlier provided all
+traces of that participant have been removed already.</p><p>The default
+value is: &quot;false&quot;.</p>""" ] ]
+          attribute enforce {
+            xsd:boolean
+          }?
+          & duration_inf
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This elements controls the addressing and timing of retransmits.

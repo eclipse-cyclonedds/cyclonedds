@@ -672,6 +672,8 @@ The default value is: "false".
 
 
 #### //CycloneDDS/Domain/Internal/HeartbeatInterval
+Attributes: [max](#cycloneddsdomaininternalheartbeatintervalmax), [min](#cycloneddsdomaininternalheartbeatintervalmin), [minsched](#cycloneddsdomaininternalheartbeatintervalminsched)
+
 Number-with-unit
 
 This elemnents allows configuring the base interval for sending writer
@@ -681,6 +683,42 @@ Valid values are finite durations with an explicit unit or the keyword
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
 
 The default value is: "100 ms".
+
+
+#### //CycloneDDS/Domain/Internal/HeartbeatInterval[@max]
+Number-with-unit
+
+This attribute sets the maximum interval for periodic heartbeats.
+
+Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+
+The default value is: "8 s".
+
+
+#### //CycloneDDS/Domain/Internal/HeartbeatInterval[@min]
+Number-with-unit
+
+This attribute sets the minimum interval that must have passed since the
+most recent heartbeat from a writer, before another asynchronous (not
+directly related to writing) will be sent.
+
+Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+
+The default value is: "5 ms".
+
+
+#### //CycloneDDS/Domain/Internal/HeartbeatInterval[@minsched]
+Number-with-unit
+
+This attribute sets the minimum interval for periodic heartbeats. Other
+events may still cause heartbeats to go out.
+
+Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+
+The default value is: "20 ms".
 
 
 #### //CycloneDDS/Domain/Internal/LateAckMode
@@ -704,6 +742,8 @@ The default value is: "10 s".
 
 
 #### //CycloneDDS/Domain/Internal/LivelinessMonitoring
+Attributes: [Interval](#cycloneddsdomaininternallivelinessmonitoringinterval), [StackTraces](#cycloneddsdomaininternallivelinessmonitoringstacktraces)
+
 Boolean
 
 This element controls whether or not implementation should internally
@@ -712,6 +752,28 @@ traces can be dumped automatically when some thread appears to have
 stopped making progress.
 
 The default value is: "false".
+
+
+#### //CycloneDDS/Domain/Internal/LivelinessMonitoring[@Interval]
+Number-with-unit
+
+This element controls the interval at which to check whether threads have
+been making progress.
+
+The unit must be specified explicitly. Recognised units: ns, us, ms, s,
+min, hr, day.
+
+The default value is: "1s".
+
+
+#### //CycloneDDS/Domain/Internal/LivelinessMonitoring[@StackTraces]
+Boolean
+
+This element controls whether or not to write stack traces to the Cyclone
+DDS trace when a thread fails to make progress (on select platforms
+only).
+
+The default value is: "true".
 
 
 #### //CycloneDDS/Domain/Internal/MaxParticipants
@@ -819,6 +881,8 @@ The default value is: "-1".
 
 
 #### //CycloneDDS/Domain/Internal/MultipleReceiveThreads
+Attributes: [maxretries](#cycloneddsdomaininternalmultiplereceivethreadsmaxretries)
+
 Boolean
 
 This element controls whether all traffic is handled by a single receive
@@ -828,6 +892,18 @@ connectionless transport (e.g., UDP) and ManySocketsMode not set to
 single (the default).
 
 The default value is: "true".
+
+
+#### //CycloneDDS/Domain/Internal/MultipleReceiveThreads[@maxretries]
+Integer
+
+Receive threads dedicated to a single socket can only be triggered for
+termination by sending a packet. Reception of any packet will do, so
+termination failure due to packet loss is exceedingly unlikely, but to
+eliminate all risks, it will retry as many times as specified by this
+attribute before aborting.
+
+The default value is: "4294967295".
 
 
 #### //CycloneDDS/Domain/Internal/NackDelay
@@ -880,6 +956,8 @@ The default value is: "true".
 
 
 #### //CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration
+Attributes: [enforce](#cycloneddsdomaininternalrediscoveryblacklistdurationenforce)
+
 Number-with-unit
 
 This element controls for how long a remote participant that was
@@ -896,6 +974,18 @@ Valid values are finite durations with an explicit unit or the keyword
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
 
 The default value is: "10s".
+
+
+#### //CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration[@enforce]
+Boolean
+
+This attribute controls whether the configured time during which recently
+deleted participants will not be rediscovered (i.e., "black listed") is
+enforced and following complete removal of the participant in Cyclone
+DDS, or whether it can be rediscovered earlier provided all traces of
+that participant have been removed already.
+
+The default value is: "false".
 
 
 #### //CycloneDDS/Domain/Internal/RetransmitMerging
