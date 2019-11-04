@@ -294,8 +294,16 @@ int32_t dds_handle_pin_for_delete (dds_handle_t hdl, bool explicit, struct dds_h
            outstanding references.  This implies that there are no children, because then the
            entire hierarchy would simply have been deleted.  */
         assert (!(cf & HDL_FLAG_ALLOW_CHILDREN));
-        rc = DDS_RETCODE_ALREADY_DELETED;
-        break;
+        if (cf & HDL_REFCOUNT_MASK)
+        {
+          rc = DDS_RETCODE_ALREADY_DELETED;
+          break;
+        }
+        else
+        {
+          /* Refcount reached zero. Pin to allow deletion. */
+          cf1 = (cf + 1u) | HDL_FLAG_CLOSING;
+        }
       }
       else if (explicit)
       {
@@ -305,21 +313,24 @@ int32_t dds_handle_pin_for_delete (dds_handle_t hdl, bool explicit, struct dds_h
           /* Entity is implicit, so handle doesn't hold a reference */
           cf1 = (cf + 1u) | HDL_FLAG_CLOSING;
         }
-        else if (cf & HDL_FLAG_ALLOW_CHILDREN)
-        {
-          /* Entity is explicit, so handle held a reference, refc only counts children as so is not our concern */
-          assert ((cf & HDL_REFCOUNT_MASK) > 0);
-          cf1 = (cf - HDL_REFCOUNT_UNIT + 1u) | HDL_FLAG_CLOSING;
-        }
         else
         {
-          /* Entity is explicit, so handle held a reference, refc counts non-children, refc > 1 means drop ref and error (so don't pin) */
           assert ((cf & HDL_REFCOUNT_MASK) > 0);
           if ((cf & HDL_REFCOUNT_MASK) == HDL_REFCOUNT_UNIT)
+          {
+            /* Last reference is closing. Pin entity and indicate that it is closing. */
             cf1 = (cf - HDL_REFCOUNT_UNIT + 1u) | HDL_FLAG_CLOSING;
+          }
+          else if (!(cf & HDL_FLAG_ALLOW_CHILDREN))
+          {
+            /* The refcnt does not contain children.
+             * Indicate that the closing of the entity is deferred. */
+            cf1 = (cf - HDL_REFCOUNT_UNIT) | HDL_FLAG_DELETE_DEFERRED;
+          }
           else
           {
-            cf1 = (cf - HDL_REFCOUNT_UNIT) | HDL_FLAG_DELETE_DEFERRED;
+            /* Entity is explicit, so handle held a reference, refc only counts children as so is not our concern */
+            cf1 = (cf - HDL_REFCOUNT_UNIT + 1u) | HDL_FLAG_CLOSING;
           }
         }
       }
@@ -328,11 +339,21 @@ int32_t dds_handle_pin_for_delete (dds_handle_t hdl, bool explicit, struct dds_h
         /* Implicit call to dds_delete (child invoking delete on its parent) */
         if (cf & HDL_FLAG_IMPLICIT)
         {
+          assert ((cf & HDL_REFCOUNT_MASK) > 0);
           if ((cf & HDL_REFCOUNT_MASK) == HDL_REFCOUNT_UNIT)
+          {
+            /* Last reference is closing. Pin entity and indicate that it is closing. */
             cf1 = (cf - HDL_REFCOUNT_UNIT + 1u) | HDL_FLAG_CLOSING;
+          }
+          else if (!(cf & HDL_FLAG_ALLOW_CHILDREN))
+          {
+            /* The refcnt does not contain children.
+             * Indicate that the closing of the entity is deferred. */
+            cf1 = (cf - HDL_REFCOUNT_UNIT) | HDL_FLAG_DELETE_DEFERRED;
+          }
           else
           {
-            assert ((cf & HDL_REFCOUNT_MASK) > 0);
+            /* Just reduce the children refcount by one. */
             cf1 = (cf - HDL_REFCOUNT_UNIT);
           }
         }
@@ -373,7 +394,7 @@ bool dds_handle_drop_childref_and_pin (struct dds_handle_link *link, bool may_de
         /* Implicit parent: delete if last ref */
         if ((cf & HDL_REFCOUNT_MASK) == HDL_REFCOUNT_UNIT && may_delete_parent)
         {
-          cf1 = (cf - HDL_REFCOUNT_UNIT + 1u) | HDL_FLAG_CLOSING;
+          cf1 = (cf - HDL_REFCOUNT_UNIT + 1u);
           del_parent = true;
         }
         else
@@ -436,8 +457,6 @@ bool dds_handle_drop_ref (struct dds_handle_link *link)
     old = ddsrt_atomic_ld32 (&link->cnt_flags);
     assert ((old & HDL_REFCOUNT_MASK) > 0);
     new = old - HDL_REFCOUNT_UNIT;
-    if ((old & HDL_REFCOUNT_MASK) == HDL_REFCOUNT_UNIT)
-      new |= HDL_FLAG_CLOSING;
   } while (!ddsrt_atomic_cas32 (&link->cnt_flags, old, new));
   ddsrt_mutex_lock (&handles.lock);
   if ((new & (HDL_FLAG_CLOSING | HDL_PINCOUNT_MASK)) == (HDL_FLAG_CLOSING | 1u))
@@ -445,7 +464,7 @@ bool dds_handle_drop_ref (struct dds_handle_link *link)
     ddsrt_cond_broadcast (&handles.cond);
   }
   ddsrt_mutex_unlock (&handles.lock);
-  return (new & (HDL_FLAG_CLOSING | HDL_REFCOUNT_MASK)) == (HDL_FLAG_CLOSING | 0);
+  return ((new & HDL_REFCOUNT_MASK) == 0);
 }
 
 bool dds_handle_unpin_and_drop_ref (struct dds_handle_link *link)
@@ -456,8 +475,6 @@ bool dds_handle_unpin_and_drop_ref (struct dds_handle_link *link)
     assert ((old & HDL_REFCOUNT_MASK) > 0);
     assert ((old & HDL_PINCOUNT_MASK) > 0);
     new = old - HDL_REFCOUNT_UNIT - 1u;
-    if ((old & HDL_REFCOUNT_MASK) == HDL_REFCOUNT_UNIT && (old & HDL_FLAG_IMPLICIT))
-      new |= HDL_FLAG_CLOSING;
   } while (!ddsrt_atomic_cas32 (&link->cnt_flags, old, new));
   ddsrt_mutex_lock (&handles.lock);
   if ((new & (HDL_FLAG_CLOSING | HDL_PINCOUNT_MASK)) == (HDL_FLAG_CLOSING | 1u))
@@ -465,7 +482,7 @@ bool dds_handle_unpin_and_drop_ref (struct dds_handle_link *link)
     ddsrt_cond_broadcast (&handles.cond);
   }
   ddsrt_mutex_unlock (&handles.lock);
-  return (new & (HDL_FLAG_CLOSING | HDL_REFCOUNT_MASK)) == (HDL_FLAG_CLOSING | 0);
+  return ((new & HDL_REFCOUNT_MASK) == 0);
 }
 
 bool dds_handle_close (struct dds_handle_link *link)

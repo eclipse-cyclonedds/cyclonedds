@@ -48,7 +48,7 @@ static int dds_domain_compare (const void *va, const void *vb)
 static const ddsrt_avl_treedef_t dds_domaintree_def = DDSRT_AVL_TREEDEF_INITIALIZER (
   offsetof (dds_domain, m_node), offsetof (dds_domain, m_id), dds_domain_compare, 0);
 
-static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_id, const char *config, bool implicit)
+static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_id, const char *config, bool implicit)
 {
   dds_entity_t domh;
   uint32_t len;
@@ -193,27 +193,37 @@ dds_domain *dds_domain_find_locked (dds_domainid_t id)
 dds_entity_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t id, bool implicit, const char *config)
 {
   struct dds_domain *dom;
-  dds_entity_t domh;
+  dds_entity_t domh = DDS_RETCODE_ERROR;
 
   /* FIXME: should perhaps lock parent object just like everywhere */
   ddsrt_mutex_lock (&dds_global.m_mutex);
  retry:
   if (id != DDS_DOMAIN_DEFAULT)
+    dom = dds_domain_find_locked (id);
+  else
+    dom = ddsrt_avl_find_min (&dds_domaintree_def, &dds_global.m_domains);
+
+  if (dom)
   {
-    if ((dom = dds_domain_find_locked (id)) == NULL)
-      domh = DDS_RETCODE_NOT_FOUND;
+    if (!implicit)
+      domh = DDS_RETCODE_PRECONDITION_NOT_MET;
     else
+    {
+      ddsrt_mutex_lock (&dom->m_entity.m_mutex);
+      if (dds_handle_is_closed (&dom->m_entity.m_hdllink))
+      {
+        ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
+        ddsrt_cond_wait (&dds_global.m_cond, &dds_global.m_mutex);
+        goto retry;
+      }
+      dds_entity_add_ref_locked (&dom->m_entity);
+      dds_handle_repin (&dom->m_entity.m_hdllink);
       domh = dom->m_entity.m_hdllink.hdl;
+      ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
+      *domain_out = dom;
+    }
   }
   else
-  {
-    if ((dom = ddsrt_avl_find_min (&dds_domaintree_def, &dds_global.m_domains)) != NULL)
-      domh = dom->m_entity.m_hdllink.hdl;
-    else
-      domh = DDS_RETCODE_NOT_FOUND;
-  }
-
-  if (domh == DDS_RETCODE_NOT_FOUND)
   {
     dom = dds_alloc (sizeof (*dom));
     if ((domh = dds_domain_init (dom, id, config, implicit)) < 0)
@@ -228,35 +238,7 @@ dds_entity_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t
         dds_entity_add_ref_locked (&dom->m_entity);
         dds_handle_repin (&dom->m_entity.m_hdllink);
       }
-      ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
-      *domain_out = dom;
-    }
-  }
-  else if (domh <= DDS_RETCODE_OK)
-  {
-    assert (0);
-    domh = DDS_RETCODE_ERROR;
-  }
-  else if (!implicit)
-  {
-    domh = DDS_RETCODE_PRECONDITION_NOT_MET;
-  }
-  else
-  {
-    ddsrt_mutex_lock (&dom->m_entity.m_mutex);
-    if (dds_handle_is_closed (&dom->m_entity.m_hdllink))
-    {
-      ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
-      ddsrt_cond_wait (&dds_global.m_cond, &dds_global.m_mutex);
-      goto retry;
-    }
-    else
-    {
-      if (implicit)
-      {
-        dds_entity_add_ref_locked (&dom->m_entity);
-        dds_handle_repin (&dom->m_entity.m_hdllink);
-      }
+      domh = dom->m_entity.m_hdllink.hdl;
       ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
       *domain_out = dom;
     }
