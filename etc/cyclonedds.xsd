@@ -313,7 +313,7 @@ constant DG).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;250&amp;quot;.&l
   <xs:element name="MulticastDataOffset" type="xs:integer">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;This element specifies the port number for multicast meta traffic
+&lt;p&gt;This element specifies the port number for multicast data traffic
 (refer to the DDSI 2.1 specification, section 9.6.1, constant
 d2).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;1&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
@@ -338,7 +338,7 @@ section 9.6.1, constant PG).&lt;/p&gt;&lt;p&gt;The default value is:
   <xs:element name="UnicastDataOffset" type="xs:integer">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;This element specifies the port number for unicast meta traffic (refer
+&lt;p&gt;This element specifies the port number for unicast data traffic (refer
 to the DDSI 2.1 specification, section 9.6.1, constant d3).&lt;/p&gt;&lt;p&gt;The
 default value is: &amp;quot;11&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
