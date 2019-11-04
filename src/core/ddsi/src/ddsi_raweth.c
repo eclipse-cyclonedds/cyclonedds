@@ -356,6 +356,12 @@ static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t fact, enum tran
   return ddsrt_getifaddrs(ifs, afs);
 }
 
+static int ddsi_raweth_is_valid_port (ddsi_tran_factory_t fact, uint32_t port)
+{
+  (void) fact;
+  return (port >= 1 && port <= 65535);
+}
+
 int ddsi_raweth_init (struct q_globals *gv)
 {
   struct ddsi_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
@@ -377,6 +383,7 @@ int ddsi_raweth_init (struct q_globals *gv)
   fact->m_locator_from_string_fn = ddsi_raweth_address_from_string;
   fact->m_locator_to_string_fn = ddsi_raweth_to_string;
   fact->m_enumerate_interfaces_fn = ddsi_raweth_enumerate_interfaces;
+  fact->m_is_valid_port_fn = ddsi_raweth_is_valid_port;
   ddsi_factory_add (gv, fact);
   GVLOG (DDS_LC_CONFIG, "raweth initialized\n");
   return 0;

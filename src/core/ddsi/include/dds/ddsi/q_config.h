@@ -16,6 +16,7 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_xqos.h"
 #include "dds/ddsi/q_feature_check.h"
+#include "dds/ddsi/ddsi_portmapping.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -198,7 +199,6 @@ struct config
   uint32_t domainId;
   int participantIndex;
   int maxAutoParticipantIndex;
-  uint32_t port_base;
   char *spdpMulticastAddressString;
   char *defaultMulticastAddressString;
   char *assumeMulticastCapable;
@@ -321,12 +321,7 @@ struct config
   enum many_sockets_mode many_sockets_mode;
   int assume_rti_has_pmd_endpoints;
 
-  uint32_t port_dg;
-  uint32_t port_pg;
-  uint32_t port_d0;
-  uint32_t port_d1;
-  uint32_t port_d2;
-  uint32_t port_d3;
+  struct ddsi_portmapping ports;
 
   int monitor_port;
 

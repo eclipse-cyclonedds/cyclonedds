@@ -466,6 +466,12 @@ static void ddsi_udp_fini (ddsi_tran_factory_t fact)
   ddsrt_free (fact);
 }
 
+static int ddsi_udp_is_valid_port (ddsi_tran_factory_t fact, uint32_t port)
+{
+  (void) fact;
+  return (port <= 65535);
+}
+
 int ddsi_udp_init (struct q_globals *gv)
 {
   struct ddsi_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
@@ -489,6 +495,7 @@ int ddsi_udp_init (struct q_globals *gv)
   fact->m_locator_from_string_fn = ddsi_udp_address_from_string;
   fact->m_locator_to_string_fn = ddsi_udp_locator_to_string;
   fact->m_enumerate_interfaces_fn = ddsi_eth_enumerate_interfaces;
+  fact->m_is_valid_port_fn = ddsi_udp_is_valid_port;
 #if DDSRT_HAVE_IPV6
   if (gv->config.transport_selector == TRANS_UDP6)
   {
