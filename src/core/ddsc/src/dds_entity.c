@@ -92,10 +92,7 @@ void dds_entity_drop_ref (dds_entity *e)
 {
   if (dds_handle_drop_ref (&e->m_hdllink))
   {
-    /* increment pin count unconditionally to satisfy the "pinned" requirement */
-    dds_handle_repin (&e->m_hdllink);
-    ddsrt_mutex_lock (&e->m_mutex);
-    dds_return_t ret = really_delete_pinned_closed_locked (e, DIS_EXPLICIT);
+    dds_return_t ret = dds_delete_impl(e->m_hdllink.hdl, DIS_EXPLICIT);
     assert (ret == DDS_RETCODE_OK);
     (void) ret;
   }
@@ -105,10 +102,7 @@ void dds_entity_unpin_and_drop_ref (dds_entity *e)
 {
   if (dds_handle_unpin_and_drop_ref (&e->m_hdllink))
   {
-    /* increment pin count unconditionally to satisfy the "pinned" requirement */
-    dds_handle_repin (&e->m_hdllink);
-    ddsrt_mutex_lock (&e->m_mutex);
-    dds_return_t ret = really_delete_pinned_closed_locked (e, DIS_EXPLICIT);
+    dds_return_t ret = dds_delete_impl(e->m_hdllink.hdl, DIS_EXPLICIT);
     assert (ret == DDS_RETCODE_OK);
     (void) ret;
   }
@@ -223,15 +217,43 @@ void dds_entity_register_child (dds_entity *parent, dds_entity *child)
   dds_entity_add_ref_locked (parent);
 }
 
-static dds_entity *next_non_topic_child (ddsrt_avl_tree_t *remaining_children)
+static dds_entity *get_first_child (ddsrt_avl_tree_t *remaining_children, bool ignore_topics)
 {
   ddsrt_avl_iter_t it;
   for (dds_entity *e = ddsrt_avl_iter_first (&dds_entity_children_td, remaining_children, &it); e != NULL; e = ddsrt_avl_iter_next (&it))
   {
-    if (dds_entity_kind (e) != DDS_KIND_TOPIC)
+    if ((!ignore_topics) || (dds_entity_kind(e) != DDS_KIND_TOPIC))
       return e;
   }
   return NULL;
+}
+
+static void delete_children(struct dds_entity *parent, bool ignore_topics)
+{
+  dds_entity *child;
+  dds_return_t ret;
+  ddsrt_mutex_lock (&parent->m_mutex);
+  while ((child = get_first_child(&parent->m_children, ignore_topics)) != NULL)
+  {
+    dds_entity_t child_handle = child->m_hdllink.hdl;
+
+    /* The child will remove itself from the parent->m_children list. */
+    ddsrt_mutex_unlock (&parent->m_mutex);
+    ret = dds_delete_impl (child_handle, DIS_FROM_PARENT);
+    assert (ret == DDS_RETCODE_OK || ret == DDS_RETCODE_BAD_PARAMETER);
+    ddsrt_mutex_lock (&parent->m_mutex);
+
+    /* The dds_delete can fail if the child is being deleted in parallel,
+     * in which case: wait when its not deleted yet.
+     * The child will trigger the condition after it removed itself from
+     * the childrens list. */
+    if ((ret == DDS_RETCODE_BAD_PARAMETER) &&
+        (get_first_child(&parent->m_children, ignore_topics) == child))
+    {
+      ddsrt_cond_wait (&parent->m_cond, &parent->m_mutex);
+    }
+  }
+  ddsrt_mutex_unlock (&parent->m_mutex);
 }
 
 #define TRACE_DELETE 0 /* FIXME: use DDS_LOG for this */
@@ -312,7 +334,6 @@ dds_return_t dds_delete_impl_pinned (dds_entity *e, enum delete_impl_state delst
 
 static dds_return_t really_delete_pinned_closed_locked (struct dds_entity *e, enum delete_impl_state delstate)
 {
-  dds_entity *child;
   dds_return_t ret;
 
   /* No threads pinning it anymore, no need to worry about other threads deleting
@@ -369,32 +390,8 @@ static dds_return_t really_delete_pinned_closed_locked (struct dds_entity *e, en
    *
    * To circumvent the problem. We ignore topics in the first loop.
    */
-  ddsrt_mutex_lock (&e->m_mutex);
-  while ((child = next_non_topic_child (&e->m_children)) != NULL)
-  {
-    /* FIXME: dds_delete can fail if the child is being deleted in parallel, in which case: wait */
-    dds_entity_t child_handle = child->m_hdllink.hdl;
-    ddsrt_mutex_unlock (&e->m_mutex);
-    ret = dds_delete_impl (child_handle, DIS_FROM_PARENT);
-    assert (ret == DDS_RETCODE_OK || ret == DDS_RETCODE_BAD_PARAMETER);
-    (void) ret;
-    ddsrt_mutex_lock (&e->m_mutex);
-    if (ret == DDS_RETCODE_BAD_PARAMETER && child == next_non_topic_child (&e->m_children))
-    {
-      ddsrt_cond_wait (&e->m_cond, &e->m_mutex);
-    }
-  }
-  while ((child = ddsrt_avl_find_min (&dds_entity_children_td, &e->m_children)) != NULL)
-  {
-    assert (dds_entity_kind (child) == DDS_KIND_TOPIC);
-    dds_entity_t child_handle = child->m_hdllink.hdl;
-    ddsrt_mutex_unlock (&e->m_mutex);
-    ret = dds_delete_impl (child_handle, DIS_FROM_PARENT);
-    assert (ret == DDS_RETCODE_OK);
-    (void) ret;
-    ddsrt_mutex_lock (&e->m_mutex);
-  }
-  ddsrt_mutex_unlock (&e->m_mutex);
+  delete_children(e, true  /* ignore topics */);
+  delete_children(e, false /* delete topics */);
 
   /* The dds_handle_delete will wait until the last active claim on that handle is
      released. It is possible that this last release will be done by a thread that was
@@ -416,6 +413,7 @@ static dds_return_t really_delete_pinned_closed_locked (struct dds_entity *e, en
     ddsrt_avl_delete (&dds_entity_children_td, &p->m_children, e);
     if (dds_handle_drop_childref_and_pin (&p->m_hdllink, delstate != DIS_FROM_PARENT))
     {
+      dds_handle_close(&p->m_hdllink);
       assert (dds_handle_is_closed (&p->m_hdllink));
       assert (dds_handle_is_not_refd (&p->m_hdllink));
       assert (ddsrt_avl_is_empty (&p->m_children));
