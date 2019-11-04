@@ -198,7 +198,7 @@ static int make_chars_available (struct ddsrt_xmlp_state *st, size_t nmin)
             }
         }
         /* buffer is owned by caller if fp = NULL, and by us if fp != NULL */
-        if (st->cbufp + st->cbufmax < nmin) {
+        if (st->cbufmax < st->cbufp + nmin) {
             st->cbufmax = st->cbufp + nmin;
             st->cbuf = ddsrt_realloc (st->cbuf, st->cbufmax);
         }
