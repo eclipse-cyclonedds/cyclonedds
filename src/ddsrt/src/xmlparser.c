@@ -500,7 +500,7 @@ static int skip_comment (struct ddsrt_xmlp_state *st)
     if (!peek_chars (st, "<!--", 1)) {
         return 0;
     }
-    while ((peek_char (st) != TOK_EOF && peek_char (st) != '-') || !peek_chars (st, "-->", 0)) {
+    while (peek_char (st) != TOK_EOF && (peek_char (st) != '-' || !peek_chars (st, "-->", 0))) {
         next_char (st);
     }
     if (peek_chars (st, "-->", 1)) {
