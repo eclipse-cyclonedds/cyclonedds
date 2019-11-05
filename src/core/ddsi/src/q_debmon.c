@@ -389,7 +389,8 @@ struct debug_monitor *new_debug_monitor (struct q_globals *gv, int32_t port)
   if (ddsi_listener_listen (dm->servsock) < 0)
     goto err_listen;
   dm->stop = 0;
-  create_thread (&dm->servts, gv, "debmon", debmon_main, dm);
+  if (create_thread (&dm->servts, gv, "debmon", debmon_main, dm) != DDS_RETCODE_OK)
+    goto err_listen;
   return dm;
 
 err_listen:

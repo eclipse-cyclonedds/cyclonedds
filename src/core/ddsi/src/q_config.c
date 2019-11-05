@@ -1166,7 +1166,7 @@ static int64_t lookup_multiplier (struct cfgst *cfgst, const struct unit *unitta
          always allow 0 to be specified without a unit */
       return 1;
     } else if (def_mult == 0 && err_on_unrecognised) {
-      cfg_error (cfgst, "%s: unit is required", value);
+      (void) cfg_error (cfgst, "%s: unit is required", value);
       return 0;
     } else {
       cfg_warning (cfgst, "%s: use of default unit is deprecated", value);
@@ -1179,7 +1179,7 @@ static int64_t lookup_multiplier (struct cfgst *cfgst, const struct unit *unitta
       if (strcmp(unittab[i].name, value + unit_pos) == 0)
         return unittab[i].multiplier;
     if (err_on_unrecognised)
-      cfg_error(cfgst, "%s: unrecognised unit", value + unit_pos);
+      (void) cfg_error(cfgst, "%s: unrecognised unit", value + unit_pos);
     return 0;
   }
 }
@@ -2072,7 +2072,7 @@ static int set_default (struct cfgst *cfgst, void *parent, struct cfgelem const 
   enum update_result res;
   if (cfgelem->defvalue == NULL)
   {
-    cfg_error (cfgst, "element missing in configuration");
+    (void) cfg_error (cfgst, "element missing in configuration");
     return 0;
   }
   res = do_update (cfgst, cfgelem->update, parent, cfgelem, cfgelem->defvalue, 0);
@@ -2402,7 +2402,7 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       cfg_subelem = partial_match;
     else
     {
-      cfg_error (cfgst, "%s: unknown element", name);
+      (void) cfg_error (cfgst, "%s: unknown element", name);
       cfgst_push (cfgst, 0, NULL, NULL);
       return 0;
     }
@@ -2516,7 +2516,7 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
     return proc_update_cfgelem (cfgst, cfg_attr, value, true);
   else
   {
-    cfg_error (cfgst, "%s: unknown attribute", name);
+    (void) cfg_error (cfgst, "%s: unknown attribute", name);
     return 0;
   }
 }
@@ -2533,7 +2533,7 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
     return proc_update_cfgelem (cfgst, cfgelem, value, isattr);
   else
   {
-    cfg_error (cfgst, "%s: no data expected", value);
+    (void) cfg_error (cfgst, "%s: no data expected", value);
     return 0;
   }
 }
@@ -2560,7 +2560,7 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), int lin
 static void proc_error (void *varg, const char *msg, int line)
 {
   struct cfgst * const cfgst = varg;
-  cfg_error (cfgst, "parser error %s at line %d", msg, line);
+  (void) cfg_error (cfgst, "parser error %s at line %d", msg, line);
 }
 
 static int cfgst_node_cmp (const void *va, const void *vb)
@@ -2722,7 +2722,7 @@ struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domi
       qx = ddsrt_xmlp_new_string (tok, cfgst, &cb);
       ddsrt_xmlp_set_options (qx, DDSRT_XMLP_ANONYMOUS_CLOSE_TAG | DDSRT_XMLP_MISSING_CLOSE_AS_EOF);
       fp = NULL;
-      snprintf (env_input, sizeof (env_input), "CYCLONEDDS_URI+%u", (unsigned) (tok - copy));
+      (void) snprintf (env_input, sizeof (env_input), "CYCLONEDDS_URI+%u", (unsigned) (tok - copy));
       cfgst->input = env_input;
       cfgst->line = 1;
     }
@@ -2902,7 +2902,7 @@ static char *get_partition_search_pattern (const char *partition, const char *to
 {
   size_t sz = strlen (partition) + strlen (topic) + 2;
   char *pt = ddsrt_malloc (sz);
-  snprintf (pt, sz, "%s.%s", partition, topic);
+  (void) snprintf (pt, sz, "%s.%s", partition, topic);
   return pt;
 }
 

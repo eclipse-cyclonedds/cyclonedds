@@ -120,7 +120,7 @@ void writer_hbcontrol_note_asyncwrite (struct writer *wr, nn_mtime_t tnow)
        least one unacked msg if there are reliable readers, so must
        have a heartbeat scheduled.  Do so now */
     hbc->tsched = tnext;
-    resched_xevent_if_earlier (wr->heartbeat_xevent, tnext);
+    (void) resched_xevent_if_earlier (wr->heartbeat_xevent, tnext);
   }
 }
 

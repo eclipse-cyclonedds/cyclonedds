@@ -623,7 +623,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
            ddsrt_avl_is_empty (&wr->readers) ? (seqno_t) -1 : ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->min_seq,
            ddsrt_avl_is_empty (&wr->readers) || ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
            whcst.max_seq, writer_read_seq_xmit (wr));
-  resched_xevent_if_earlier (ev, t_next);
+  (void) resched_xevent_if_earlier (ev, t_next);
   wr->hbcontrol.tsched = t_next;
   ddsrt_mutex_unlock (&wr->e.lock);
 
@@ -895,7 +895,7 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
          HEARTBEAT, I've seen too many cases of not sending an NACK
          because the writing side got confused ...  Better to recover
          eventually. */
-      resched_xevent_if_earlier (ev, add_duration_to_mtime (tnow, gv->config.auto_resched_nack_delay));
+      (void) resched_xevent_if_earlier (ev, add_duration_to_mtime (tnow, gv->config.auto_resched_nack_delay));
     }
     GVTRACE ("send acknack(rd "PGUIDFMT" -> pwr "PGUIDFMT")\n",
              PGUID (ev->u.acknack.rd_guid), PGUID (ev->u.acknack.pwr_guid));
@@ -921,7 +921,7 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
       intv = 5;
     else
       intv = 10;
-    resched_xevent_if_earlier (ev, add_duration_to_mtime (tnow, intv * T_SECOND));
+    (void) resched_xevent_if_earlier (ev, add_duration_to_mtime (tnow, intv * T_SECOND));
   }
   ddsrt_mutex_unlock (&pwr->e.lock);
 
@@ -934,7 +934,7 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
  outofmem:
   /* What to do if out of memory?  Crash or burn? */
   ddsrt_mutex_unlock (&pwr->e.lock);
-  resched_xevent_if_earlier (ev, add_duration_to_mtime (tnow, 100 * T_MILLISECOND));
+  (void) resched_xevent_if_earlier (ev, add_duration_to_mtime (tnow, 100 * T_MILLISECOND));
 }
 
 static bool resend_spdp_sample_by_guid_key (struct writer *wr, const ddsi_guid_t *guid, struct proxy_reader *prd)
@@ -1059,7 +1059,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
                PGUID (pp->e.guid),
                PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
                (double)(tnext.v - tnow.v) / 1e9);
-      resched_xevent_if_earlier (ev, tnext);
+      (void) resched_xevent_if_earlier (ev, tnext);
     }
   }
   else
@@ -1086,7 +1086,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
              PGUID (pp->e.guid),
              PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
              (double)(tnext.v - tnow.v) / 1e9);
-    resched_xevent_if_earlier (ev, tnext);
+    (void) resched_xevent_if_earlier (ev, tnext);
   }
 }
 
@@ -1168,7 +1168,7 @@ static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_
     GVTRACE ("resched pmd("PGUIDFMT"): %gs\n", PGUID (pp->e.guid), (double)(tnext.v - tnow.v) / 1e9);
   }
 
-  resched_xevent_if_earlier (ev, tnext);
+  (void) resched_xevent_if_earlier (ev, tnext);
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 

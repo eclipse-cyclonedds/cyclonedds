@@ -157,7 +157,7 @@ CU_Test(ddsrt_sockets, gethostname)
 
   sysbuf[0] = '\0';
 #if LWIP_SOCKET
-  ddsrt_strlcpy(sysbuf, "localhost", sizeof(sysbuf));
+  (void) ddsrt_strlcpy(sysbuf, "localhost", sizeof(sysbuf));
 #else
   int ret = gethostname(sysbuf, sizeof(sysbuf));
   CU_ASSERT_EQUAL(ret, 0);

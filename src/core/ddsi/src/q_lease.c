@@ -263,13 +263,13 @@ int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnow
         delete_writer_nolinger (gv, &g);
         break;
       case EK_PROXY_WRITER:
-        delete_proxy_writer (gv, &g, now(), 1);
+        (void) delete_proxy_writer (gv, &g, now(), 1);
         break;
       case EK_READER:
         delete_reader (gv, &g);
         break;
       case EK_PROXY_READER:
-        delete_proxy_reader (gv, &g, now(), 1);
+        (void) delete_proxy_reader (gv, &g, now(), 1);
         break;
     }
 

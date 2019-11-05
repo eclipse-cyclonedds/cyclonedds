@@ -70,7 +70,7 @@ static char *print_tstamp (char *buf, size_t sz, dds_time_t t)
   if (d / 1000000000 != 0)
     pos += (size_t) snprintf (buf + pos, sz - pos, "%+ds", (int) (d / 1000000000));
   if (d % 1000000000 != 0)
-    snprintf (buf + pos, sz - pos, "%+dns", (int) (d % 1000000000));
+	(void) snprintf (buf + pos, sz - pos, "%+dns", (int) (d % 1000000000));
   return buf;
 }
 
@@ -439,7 +439,7 @@ static void print_condmask (char *buf, size_t bufsz, const dds_readcond *cond)
       pos += (size_t) snprintf (buf + pos, bufsz - pos, "%sALIVE | DISPOSED", sep);
       break;
   }
-  snprintf (buf + pos, bufsz - pos, "]");
+  (void) snprintf (buf + pos, bufsz - pos, "]");
 }
 
 static void rdcond (struct dds_rhc *rhc, dds_readcond *cond, const struct check *chk, int max, bool print, uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])

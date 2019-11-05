@@ -1110,7 +1110,7 @@ static int rhc_unregister_isreg_w_sideeffects (struct dds_rhc_default *rhc, cons
     if (inst->wrcount == 2 && inst->wr_iid_islive && inst->wr_iid != wr_iid)
     {
       TRACE (",delreg(remain)");
-      lwregs_delete (&rhc->registrations, inst->iid, inst->wr_iid);
+      (void) lwregs_delete (&rhc->registrations, inst->iid, inst->wr_iid);
     }
     return 1;
   }
@@ -1627,7 +1627,7 @@ static void dds_rhc_default_unregister_wr (struct dds_rhc_default * __restrict r
         }
       }
 
-      dds_rhc_unregister (rhc, inst, wrinfo, inst->tstamp, &post, &trig_qc);
+      (void) dds_rhc_unregister (rhc, inst, wrinfo, inst->tstamp, &post, &trig_qc);
 
       TRACE ("\n");
 

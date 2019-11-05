@@ -464,11 +464,11 @@ int find_own_ip (struct q_globals *gv, const char *requested_address)
     char if_name[sizeof (last_if_name)];
     int q = 0;
 
-    ddsrt_strlcpy(if_name, ifa->name, sizeof(if_name));
+    (void) ddsrt_strlcpy(if_name, ifa->name, sizeof(if_name));
 
     if (strcmp (if_name, last_if_name))
       GVLOG (DDS_LC_CONFIG, "%s%s", sep, if_name);
-    ddsrt_strlcpy(last_if_name, if_name, sizeof(last_if_name));
+    (void) ddsrt_strlcpy(last_if_name, if_name, sizeof(last_if_name));
 
     /* interface must be up */
     if ((ifa->flags & IFF_UP) == 0) {

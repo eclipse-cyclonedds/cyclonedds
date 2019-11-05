@@ -148,7 +148,7 @@ static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn,
     (void) snprintf (interfstr, sizeof (interfstr), "(default)");
   n = err ? snprintf (buf, bufsz, "error %d in ", err) : 0;
   if ((size_t) n  < bufsz)
-    snprintf (buf + n, bufsz - (size_t) n, "%s conn %p for (%s, %s) interface %s", join ? "join" : "leave", (void *) conn, mcstr, srcstr, interfstr);
+    (void) snprintf (buf + n, bufsz - (size_t) n, "%s conn %p for (%s, %s) interface %s", join ? "join" : "leave", (void *) conn, mcstr, srcstr, interfstr);
   return buf;
 }
 

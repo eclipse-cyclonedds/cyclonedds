@@ -2535,7 +2535,7 @@ struct nn_dqueue *nn_dqueue_new (const char *name, const struct q_globals *gv, u
   thrnamesz = 3 + strlen (name) + 1;
   if ((thrname = ddsrt_malloc (thrnamesz)) == NULL)
     goto fail_thrname;
-  snprintf (thrname, thrnamesz, "dq.%s", name);
+  (void) snprintf (thrname, thrnamesz, "dq.%s", name);
   if (create_thread (&q->ts, gv, thrname, (uint32_t (*) (void *)) dqueue_thread, q) != DDS_RETCODE_OK)
     goto fail_thread;
   ddsrt_free (thrname);
@@ -2648,7 +2648,7 @@ void nn_dqueue_enqueue1 (struct nn_dqueue *q, const ddsi_guid_t *rdguid, struct 
   ddsrt_atomic_add32 (&q->nof_samples, 1 + (uint32_t) rres);
   if (nn_dqueue_enqueue_bubble_locked (q, b))
     ddsrt_cond_broadcast (&q->cond);
-  nn_dqueue_enqueue_locked (q, sc);
+  (void) nn_dqueue_enqueue_locked (q, sc);
   ddsrt_mutex_unlock (&q->lock);
 }
 

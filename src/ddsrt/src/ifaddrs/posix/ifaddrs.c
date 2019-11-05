@@ -94,7 +94,7 @@ static enum ddsrt_iftype guess_iftype (const struct ifaddrs *sys_ifa)
   struct ifmediareq ifmr;
   enum ddsrt_iftype type;
   memset (&ifmr, 0, sizeof (ifmr));
-  ddsrt_strlcpy (ifmr.ifm_name, sys_ifa->ifa_name, sizeof (ifmr.ifm_name));
+  (void) ddsrt_strlcpy (ifmr.ifm_name, sys_ifa->ifa_name, sizeof (ifmr.ifm_name));
   if (ioctl (sock, SIOCGIFMEDIA, (caddr_t) &ifmr) < 0)
   {
     type = DDSRT_IFTYPE_UNKNOWN;

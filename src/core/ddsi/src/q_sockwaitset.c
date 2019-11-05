@@ -704,8 +704,8 @@ void os_sockWaitsetFree (os_sockWaitset ws)
   closesocket (ws->pipe[0]);
   closesocket (ws->pipe[1]);
 #elif !defined(LWIP_SOCKET)
-  close (ws->pipe[0]);
-  close (ws->pipe[1]);
+  (void) close (ws->pipe[0]);
+  (void) close (ws->pipe[1]);
 #endif
 #if defined(__VXWORKS__) && defined(__RTP__)
   pipeDevDelete ((char*) &nameBuf, 0);
