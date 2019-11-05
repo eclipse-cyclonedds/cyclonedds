@@ -150,6 +150,7 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
 
   rd->m_entity.m_cb_count--;
   rd->m_entity.m_cb_pending_count--;
+
   ddsrt_cond_broadcast (&rd->m_entity.m_observers_cond);
   ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 }
@@ -448,7 +449,7 @@ err_tp_lock:
     (void) dds_delete (subscriber);
 err_sub_lock:
   if (internal_topic)
-    dds_delete (t);
+    (void) dds_delete (t);
   return reader;
 }
 

@@ -285,7 +285,7 @@ char *ddsi_locator_to_string (const struct q_globals *gv, char *dst, size_t size
     if (0 < pos && (size_t)pos < sizeof_dst)
       (void) tran->m_locator_to_string_fn (tran, dst + (size_t)pos, sizeof_dst - (size_t)pos, loc, 1);
   } else {
-    snprintf (dst, sizeof_dst, "invalid/0:0");
+    (void) snprintf (dst, sizeof_dst, "invalid/0:0");
   }
   return dst;
 }
@@ -298,7 +298,7 @@ char *ddsi_locator_to_string_no_port (const struct q_globals *gv, char *dst, siz
     if (0 < pos && (size_t)pos < sizeof_dst)
       (void) tran->m_locator_to_string_fn (tran, dst + (size_t)pos, sizeof_dst - (size_t)pos, loc, 0);
   } else {
-    snprintf (dst, sizeof_dst, "invalid/0");
+    (void) snprintf (dst, sizeof_dst, "invalid/0");
   }
   return dst;
 }

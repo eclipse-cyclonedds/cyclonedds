@@ -701,7 +701,7 @@ static void wait_for_receive_threads_helper (struct xevent *xev, void *varg, nn_
   if (arg->count++ == arg->gv->config.recv_thread_stop_maxretries)
     abort ();
   trigger_recv_threads (arg->gv);
-  resched_xevent_if_earlier (xev, add_duration_to_mtime (tnow, T_SECOND));
+  (void) resched_xevent_if_earlier (xev, add_duration_to_mtime (tnow, T_SECOND));
 }
 
 static void wait_for_receive_threads (struct q_globals *gv)
@@ -1403,7 +1403,7 @@ int rtps_start (struct q_globals *gv)
   }
   if (gv->listener)
   {
-    create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) listen_thread, gv->listener);
+    (void) create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) listen_thread, gv->listener);
     /* FIXME: error handling */
   }
   if (gv->config.monitor_port >= 0)

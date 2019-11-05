@@ -27,9 +27,9 @@
 static char *qp_duration_str (char *buf, size_t bufsz, dds_duration_t d)
 {
   if (d == DDS_INFINITY)
-    snprintf (buf, bufsz, "infinite");
+    (void) snprintf (buf, bufsz, "infinite");
   else
-    snprintf (buf, bufsz, "%u.%09u", (unsigned)(d / DDS_NSECS_IN_SEC), (unsigned)(d % DDS_NSECS_IN_SEC));
+    (void) snprintf (buf, bufsz, "%u.%09u", (unsigned)(d / DDS_NSECS_IN_SEC), (unsigned)(d % DDS_NSECS_IN_SEC));
   return buf;
 }
 
@@ -443,9 +443,9 @@ static void print_dcps_participant (FILE *fp, dds_entity_t pp)
         qp_qos (data->qos, fp);
       }
     }
-    dds_return_loan (rd, ptrs, n);
+    (void) dds_return_loan (rd, ptrs, n);
   }
-  dds_delete (rd);
+  (void) dds_delete (rd);
 }
 
 static void print_dcps_endpoint (FILE *fp, dds_entity_t pp, const char *type, dds_entity_t topic)
@@ -472,9 +472,9 @@ static void print_dcps_endpoint (FILE *fp, dds_entity_t pp, const char *type, dd
         qp_qos (data->qos,fp);
       }
     }
-    dds_return_loan (rd, ptrs, n);
+    (void) dds_return_loan (rd, ptrs, n);
   }
-  dds_delete (rd);
+  (void) dds_delete (rd);
 }
 
 static void print_dcps_subscription (FILE *fp, dds_entity_t pp)

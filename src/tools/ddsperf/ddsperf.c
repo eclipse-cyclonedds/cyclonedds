@@ -1865,7 +1865,7 @@ int main (int argc, char *argv[])
       case 'd': {
         char *col;
         int pos;
-        ddsrt_strlcpy (netload_if, optarg, sizeof (netload_if));
+        (void) ddsrt_strlcpy (netload_if, optarg, sizeof (netload_if));
         if ((col = strrchr (netload_if, ':')) == NULL || col == netload_if ||
             (sscanf (col+1, "%lf%n", &netload_bw, &pos) != 1 || (col+1)[pos] != 0))
           error3 ("-d%s: expected DEVICE:BANDWIDTH\n", optarg);

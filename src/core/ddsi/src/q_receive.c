@@ -1346,7 +1346,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
            samples we no longer care about) */
         int64_t delay = rst->gv->config.nack_delay;
         RSTTRACE ("/nackfrag");
-        resched_xevent_if_earlier (m->acknack_xevent, add_duration_to_mtime (now_mt(), delay));
+        (void) resched_xevent_if_earlier (m->acknack_xevent, add_duration_to_mtime (now_mt(), delay));
       }
     }
   }
@@ -2896,7 +2896,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct q_globals *gv, d
 
   if (conn->m_stream)
   {
-    MsgLen_t * ml = (MsgLen_t*) (buff + RTPS_MESSAGE_HEADER_SIZE);
+    MsgLen_t * ml = (MsgLen_t*) (hdr + 1);
 
     /*
       Read in packet header to get size of packet in MsgLen_t, then read in

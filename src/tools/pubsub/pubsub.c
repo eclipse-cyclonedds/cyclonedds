@@ -280,7 +280,7 @@ static char *expand_envvars(const char *src0);
 // FIXME: This is the same as the expand function in util. Merge.
 static char *expand_env(const char *name, char op, const char *alt) {
     char *env = NULL;
-    ddsrt_getenv(name, &env);
+    (void) ddsrt_getenv(name, &env);
     switch (op) {
     case 0:
         return dds_string_dup(env ? env : "");
@@ -1427,7 +1427,7 @@ static char *pub_do_nonarb(const struct writerspec *spec, uint32_t *seq) {
         case 'Q': {
             dds_qos_t *qos = dds_create_qos ();
             setqos_from_args (DDS_KIND_PARTICIPANT, qos, 1, (const char **) &arg);
-            dds_set_qos (dp, qos);
+            (void) dds_set_qos (dp, qos);
             dds_delete_qos (qos);
             break;
           }
@@ -2058,8 +2058,8 @@ static uint32_t autotermthread(void *varg __attribute__((unused))) {
         tnow = dds_time();
     }
 
-    dds_waitset_detach(ws, termcond);
-    dds_delete(ws);
+    (void) dds_waitset_detach(ws, termcond);
+    (void) dds_delete(ws);
     return 0;
 }
 

@@ -113,7 +113,7 @@ dds_return_t dds_unregister_instance_ts (dds_entity_t writer, const void *data, 
     return ret;
 
   if (wr->m_entity.m_qos)
-    dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
+    (void) dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
 
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
   if (autodispose)
@@ -140,7 +140,7 @@ dds_return_t dds_unregister_instance_ih_ts (dds_entity_t writer, dds_instance_ha
     return ret;
 
   if (wr->m_entity.m_qos)
-    dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
+    (void) dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
 
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
   if (autodispose)

@@ -126,7 +126,7 @@ ddsrt_thread_setname(const char *__restrict name)
   /* Thread names are limited to 16 bytes on Linux. ERANGE is returned if the
      name exceeds the limit, so silently truncate. */
   char buf[MAXTHREADNAMESIZE + 1] = "";
-  ddsrt_strlcpy(buf, name, sizeof(buf));
+  (void)ddsrt_strlcpy(buf, name, sizeof(buf));
   (void)pthread_setname_np(pthread_self(), name);
 #elif defined(__APPLE__)
   (void)pthread_setname_np(name);

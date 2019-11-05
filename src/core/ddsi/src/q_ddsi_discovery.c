@@ -304,7 +304,7 @@ int spdp_write (struct participant *pp)
     ddsrt_mutex_unlock (&pp->e.gv->privileged_pp_lock);
 
     if (ddsrt_gethostname(node, sizeof(node)-1) < 0)
-      ddsrt_strlcpy (node, "unknown", sizeof (node));
+      (void) ddsrt_strlcpy (node, "unknown", sizeof (node));
     size = strlen(node) + strlen(DDS_VERSION) + strlen(DDS_HOST_NAME) + strlen(DDS_TARGET_NAME) + 4; /* + ///'\0' */
     ps.prismtech_participant_version_info.internals = ddsrt_malloc(size);
     (void) snprintf(ps.prismtech_participant_version_info.internals, size, "%s/%s/%s/%s", node, DDS_VERSION, DDS_HOST_NAME, DDS_TARGET_NAME);
@@ -400,7 +400,7 @@ static void respond_to_spdp (const struct q_globals *gv, const ddsi_guid_t *dest
     GVTRACE (" %"PRId64, delay);
     if (!pp->e.gv->config.unicast_response_to_spdp_messages)
       /* pp can't reach gc_delete_participant => can safely reschedule */
-      resched_xevent_if_earlier (pp->spdp_xevent, tsched);
+      (void) resched_xevent_if_earlier (pp->spdp_xevent, tsched);
     else
       qxev_spdp (gv->xevents, tsched, &pp->e.guid, dest_proxypp_guid);
   }

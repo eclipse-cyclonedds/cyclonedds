@@ -459,10 +459,10 @@ static int next_token_tag_withoutclose (struct ddsrt_xmlp_state *st, char **payl
     } else {
         int tok = TOK_OPEN_TAG;
         /* pre: peek_char(st) == '<' */
-        next_char (st);
+        (void) next_char (st);
         if (peek_char (st) == '/') {
             tok = TOK_CLOSE_TAG;
-            next_char (st);
+            (void) next_char (st);
         }
         /* we only do tag names that are identifiers */
         if (peek_char (st) == '>' && (st->options & DDSRT_XMLP_ANONYMOUS_CLOSE_TAG)) {
@@ -501,7 +501,7 @@ static int skip_comment (struct ddsrt_xmlp_state *st)
         return 0;
     }
     while (peek_char (st) != TOK_EOF && (peek_char (st) != '-' || !peek_chars (st, "-->", 0))) {
-        next_char (st);
+        (void) next_char (st);
     }
     if (peek_chars (st, "-->", 1)) {
         return 1;
@@ -514,7 +514,7 @@ static void processing_instruction (struct ddsrt_xmlp_state *st, const char *end
 {
     /* just after <?; skip everything up to and include ?> */
     while (peek_char (st) != TOK_EOF && !peek_chars (st, end, 1)) {
-        next_char (st);
+        (void) next_char (st);
     }
 }
 
@@ -551,7 +551,7 @@ static int next_token (struct ddsrt_xmlp_state *st, char **payload)
         st->prevline = st->line;
         do {
             while (qq_isspace (peek_char (st))) {
-                next_char (st);
+                (void) next_char (st);
             }
         } while ((cmt = skip_comment (st)) > 0);
         if (cmt == TOK_ERROR) {
