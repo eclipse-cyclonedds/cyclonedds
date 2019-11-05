@@ -123,7 +123,7 @@ char *ddsi_ipaddr_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_
   (void)tran;
   assert (sizeof_dst > 1);
   if (loc->kind == NN_LOCATOR_KIND_INVALID)
-    snprintf (dst, sizeof_dst, "(invalid)");
+    (void) snprintf (dst, sizeof_dst, "(invalid)");
   else
   {
     struct sockaddr_storage src;

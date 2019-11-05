@@ -1698,7 +1698,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
       if (tnext.v < wr->hbcontrol.tsched.v)
       {
         wr->hbcontrol.tsched = tnext;
-        resched_xevent_if_earlier (wr->heartbeat_xevent, tnext);
+        (void) resched_xevent_if_earlier (wr->heartbeat_xevent, tnext);
       }
       ddsrt_mutex_unlock (&wr->e.lock);
     }
@@ -1807,7 +1807,9 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
       /* FIXME: for now, assume that the ports match for datasock_mc --
        't would be better to dynamically create and destroy sockets on
        an as needed basis. */
-      ddsi_join_mc (rd->e.gv, rd->e.gv->mship, rd->e.gv->data_conn_mc, &m->ssm_src_loc, &m->ssm_mc_loc);
+      int ret = ddsi_join_mc (rd->e.gv, rd->e.gv->mship, rd->e.gv->data_conn_mc, &m->ssm_src_loc, &m->ssm_mc_loc);
+      if (ret < 0)
+        ELOGDISC (rd, "  unable to join\n");
     }
     else
     {
@@ -2931,7 +2933,7 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_g
   if (wr->lease_duration != T_NEVER)
   {
     nn_mtime_t tsched = { 0 };
-    resched_xevent_if_earlier (pp->pmd_update_xevent, tsched);
+    (void) resched_xevent_if_earlier (pp->pmd_update_xevent, tsched);
   }
 
   return 0;
@@ -3770,7 +3772,7 @@ int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, se
   switch (source)
   {
     case UPD_PROXYPP_SPDP:
-      update_qos_locked (&proxypp->e, &proxypp->plist->qos, &new_plist->qos, timestamp);
+      (void) update_qos_locked (&proxypp->e, &proxypp->plist->qos, &new_plist->qos, timestamp);
       nn_plist_fini (new_plist);
       ddsrt_free (new_plist);
       proxypp->proxypp_have_spdp = 1;
@@ -4181,7 +4183,7 @@ void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset 
       }
     }
 
-    update_qos_locked (&pwr->e, pwr->c.xqos, xqos, timestamp);
+    (void) update_qos_locked (&pwr->e, pwr->c.xqos, xqos, timestamp);
   }
   ddsrt_mutex_unlock (&pwr->e.lock);
 }
@@ -4239,7 +4241,7 @@ void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset 
       }
     }
 
-    update_qos_locked (&prd->e, prd->c.xqos, xqos, timestamp);
+    (void) update_qos_locked (&prd->e, prd->c.xqos, xqos, timestamp);
   }
   ddsrt_mutex_unlock (&prd->e.lock);
 }

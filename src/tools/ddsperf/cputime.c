@@ -180,7 +180,7 @@ bool record_cputime (struct record_cputime_state *state, const char *prefix, dds
   }
   state->tprev = tnow;
   state->s.some_above = some_above;
-  dds_write (state->wr, &state->s);
+  (void) dds_write (state->wr, &state->s);
   return print_cputime (&state->s, prefix, false, true);
 }
 

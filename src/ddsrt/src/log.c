@@ -54,7 +54,7 @@ static void default_sink (void *ptr, const dds_log_data_t *data)
 {
   if (ptr)
   {
-    fwrite (data->message - data->hdrsize, 1, data->hdrsize + data->size + 1, (FILE *) ptr);
+    (void) fwrite (data->message - data->hdrsize, 1, data->hdrsize + data->size + 1, (FILE *) ptr);
     fflush ((FILE *) ptr);
   }
 }

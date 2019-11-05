@@ -133,7 +133,7 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
         } else {
           to = delay;
         }
-        ddsrt_cond_waitfor (&q->cond, &q->lock, to);
+        (void) ddsrt_cond_waitfor (&q->cond, &q->lock, to);
       }
       if (q->first)
       {
