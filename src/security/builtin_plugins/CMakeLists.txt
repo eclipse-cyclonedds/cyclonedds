@@ -12,6 +12,7 @@
 cmake_minimum_required(VERSION 3.7)
 
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/authentication")
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/cryptographic")
 
 # TODO: improve test inclusion.
 if((BUILD_TESTING) AND ((NOT DEFINED MSVC_VERSION) OR (MSVC_VERSION GREATER "1800")))

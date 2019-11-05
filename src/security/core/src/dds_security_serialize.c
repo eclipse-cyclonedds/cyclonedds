@@ -13,6 +13,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/string.h"
@@ -91,7 +92,6 @@
 #define PID_ENDPOINT_SECURITY_INFO              0x1004u
 #define PID_PARTICIPANT_SECURITY_INFO           0x1005u
 #define PID_IDENTITY_STATUS_TOKEN               0x1006u
-
 
 struct DDS_Security_Serializer {
     unsigned char *buffer;
