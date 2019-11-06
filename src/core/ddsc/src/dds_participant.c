@@ -126,9 +126,9 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   pp->m_builtin_subscriber = 0;
 
   /* Add participant to extent */
-  ddsrt_mutex_lock (&dds_global.m_entity.m_mutex);
+  ddsrt_mutex_lock (&dom->m_entity.m_mutex);
   dds_entity_register_child (&dom->m_entity, &pp->m_entity);
-  ddsrt_mutex_unlock (&dds_global.m_entity.m_mutex);
+  ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
 
   dds_entity_init_complete (&pp->m_entity);
   /* drop temporary extra ref to domain, dds_init */

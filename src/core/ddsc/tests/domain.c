@@ -287,10 +287,3 @@ CU_Test(ddsc_domain_create, invalid_xml)
   domain = dds_create_domain(1, "<CycloneDDS incorrect XML");
   CU_ASSERT_FATAL(domain == DDS_RETCODE_ERROR);
 }
-
-CU_Test(ddsc_domain_create, invalid_id)
-{
-  dds_entity_t domain;
-  domain = dds_create_domain(321, "<"DDS_PROJECT_NAME"><Domain><Id>any</Id></Domain></"DDS_PROJECT_NAME">");
-  CU_ASSERT_FATAL(domain == DDS_RETCODE_BAD_PARAMETER);
-}
