@@ -252,7 +252,7 @@ dds_entity_t dds_create_domain (const dds_domainid_t domain, const char *config)
   dds_domain *dom;
   dds_entity_t ret;
 
-  if (domain > 230)
+  if (domain == DDS_DOMAIN_DEFAULT)
     return DDS_RETCODE_BAD_PARAMETER;
 
   if (config == NULL)
