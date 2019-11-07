@@ -17,11 +17,13 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_lat_estim.h"
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_hbcontrol.h"
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/q_inverse_uint32_set.h"
+#include "dds/ddsi/ddsi_handshake.h"
 
 #include "dds/ddsi/ddsi_tran.h"
 
@@ -184,6 +186,11 @@ struct participant
   int32_t user_refc; /* number of non-built-in endpoints in this participant [refc_lock] */
   int32_t builtin_refc; /* number of built-in endpoints in this participant [refc_lock] */
   int builtins_deleted; /* whether deletion of built-in endpoints has been initiated [refc_lock] */
+#ifdef DDSI_INCLUDE_SECURITY
+  int64_t local_identity_handle;   /* OMG DDS Security related member */
+  int64_t permissions_handle; /* OMG DDS Security related member */
+  struct participant_sec_attributes *sec_attr;
+#endif
 };
 
 struct endpoint_common {
@@ -314,6 +321,12 @@ struct proxy_participant
   unsigned proxypp_have_spdp: 1;
   unsigned proxypp_have_cm: 1;
   unsigned owns_lease: 1;
+#ifdef DDSI_INCLUDE_SECURITY
+  struct ddsi_hsadmin *handshake_admin;
+  int64_t remote_identity_handle;   /* OMG DDS Security related member */
+  nn_security_info_t security_info;
+  struct proxy_participant_sec_attributes *sec_attr;
+#endif
 };
 
 /* Representing proxy subscriber & publishers as "groups": until DDSI2
@@ -640,6 +653,10 @@ void delete_proxy_group (struct ephash *guid_hash, const struct ddsi_guid *guid,
 void rebuild_or_clear_writer_addrsets(struct q_globals *gv, int rebuild);
 
 void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_ok);
+
+void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_reader *prd, nn_mtime_t tnow);
+void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, nn_mtime_t tnow);
+
 
 struct ddsi_writer_info;
 DDS_EXPORT void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_common *e, const struct dds_qos *xqos);

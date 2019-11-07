@@ -94,10 +94,18 @@ static const unsigned prismtech_builtin_writers_besmask =
   NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER |
   NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
 
+
 static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc, status_cb_t status_cb, void *status_cbarg);
 static dds_return_t new_reader_guid (struct reader **rd_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct ddsi_rhc *rhc, status_cb_t status_cb, void *status_cbarg);
 static struct participant *ref_participant (struct participant *pp, const struct ddsi_guid *guid_of_refing_entity);
 static void unref_participant (struct participant *pp, const struct ddsi_guid *guid_of_refing_entity);
+
+#ifdef DDSI_INCLUDE_SECURITY
+static const unsigned BES_MASK_NON_SECURITY = 0xf000ffff;
+
+static void handshake_end_cb(struct ddsi_handshake *handshake, const struct ddsi_guid *lpguid, const struct ddsi_guid *ppguid, nn_wctime_t timestamp, enum ddsi_handshake_state result);
+static void downgrade_to_nonsecure(struct proxy_participant *proxypp);
+#endif
 
 static int gcreq_participant (struct participant *pp);
 static int gcreq_writer (struct writer *wr);
@@ -189,6 +197,48 @@ int is_builtin_endpoint (ddsi_entityid_t id, nn_vendorid_t vendorid)
 {
   return is_builtin_entityid (id, vendorid) && id.u != NN_ENTITYID_PARTICIPANT;
 }
+
+static int is_builtin_volatile_endpoint (ddsi_entityid_t id)
+{
+  int res = 0;
+  switch (id.u) {
+  case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER:
+  case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER:
+    res = 1;
+    break;
+  default:
+    res = 0;
+  }
+  return res;
+}
+
+#ifdef DDSI_INCLUDE_SECURITY
+
+static int is_builtin_security_endpoint (ddsi_entityid_t id)
+{
+  int res = 0;
+  switch (id.u) {
+    case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER:
+    case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER:
+    case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER:
+    case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER:
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER:
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER:
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER:
+    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER:
+    case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
+    case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER:
+      res = 1;
+      break;
+    default:
+      res = 0;
+      break;
+  }
+  return res;
+}
+#endif
 
 bool is_local_orphan_endpoint (const struct entity_common *e)
 {
@@ -532,6 +582,61 @@ static void add_security_builtin_endpoints(struct participant *pp, ddsi_guid_t *
 }
 #endif
 
+
+#ifdef DDSI_INCLUDE_SECURITY
+
+static void connect_participant_secure(struct q_globals *gv, struct participant *pp)
+{
+  struct proxy_participant *proxypp;
+  struct ephash_enum_proxy_participant it;
+  struct ddsi_handshake *handshake;
+  nn_wctime_t timestamp;
+
+  if (q_omg_participant_is_secure(pp))
+  {
+    timestamp = now();
+    ephash_enum_proxy_participant_init (&it, gv->guid_hash);
+    while ((proxypp = ephash_enum_proxy_participant_next (&it)) != NULL)
+    {
+      /* Do not start handshaking when security info doesn't match. */
+      if ((proxypp->handshake_admin) && (q_omg_is_similar_participant_security_info(pp, proxypp)))
+      {
+        ddsi_hsadmin_lock(proxypp->handshake_admin);
+        handshake = ddsi_hsadmin_register_locked(proxypp->handshake_admin, pp, proxypp, timestamp, handshake_end_cb);
+        assert(handshake);
+        if (!handshake) {
+          DDS_CWARNING (&gv->logconfig, "Failed to create handshake (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(pp->e.guid), PGUID(proxypp->e.guid));
+        }
+        ddsi_hsadmin_unlock(proxypp->handshake_admin);
+      }
+    }
+    ephash_enum_proxy_participant_fini (&it);
+  }
+}
+
+static void disconnect_participant_secure(struct participant *pp)
+{
+  struct proxy_participant *proxypp;
+  struct ephash_enum_proxy_participant it;
+  struct q_globals *gv;
+
+  gv = pp->e.gv;
+
+  if (q_omg_participant_is_secure(pp))
+  {
+    ephash_enum_proxy_participant_init (&it, gv->guid_hash);
+    while ((proxypp = ephash_enum_proxy_participant_next (&it)) != NULL)
+    {
+      if (proxypp->handshake_admin)
+      {
+        ddsi_hsadmin_remove_by_guid(proxypp->handshake_admin, &pp->e.guid);
+      }
+    }
+    ephash_enum_proxy_participant_fini (&it);
+  }
+}
+#endif
+
 dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *gv, unsigned flags, const nn_plist_t *plist)
 {
   struct participant *pp;
@@ -620,7 +725,22 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
       if (ret != DDS_RETCODE_OK)
         goto new_pp_err_secprop;
     }
+
+    if (!q_omg_security_check_create_participant (pp, gv->config.domainId))
+    {
+      ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+      goto not_allowed;
+    }
   }
+  else if (nn_xqos_has_prop (&pp->plist->qos, "dds.sec.", true))
+  {
+    if (!q_omg_security_check_create_participant (pp, gv->config.domainId))
+    {
+      ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+      goto not_allowed;
+    }
+  }
+
 #endif
 
   if (gv->logconfig.c.mask & DDS_LC_DISCOVERY)
@@ -817,9 +937,18 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
     tsched.v = (pp->lease_duration == T_NEVER) ? T_NEVER : 0;
     pp->pmd_update_xevent = qxev_pmd_update (gv->xevents, tsched, &pp->e.guid);
   }
+
+#ifdef DDSI_INCLUDE_SECURITY
+  if (q_omg_participant_is_secure(pp))
+  {
+    connect_participant_secure (gv, pp);
+  }
+#endif
+
   return ret;
 
 #ifdef DDSI_INCLUDE_SECURITY
+not_allowed:
 new_pp_err_secprop:
   nn_plist_fini (pp->plist);
   ddsrt_free (pp->plist);
@@ -1059,6 +1188,9 @@ dds_return_t delete_participant (struct q_globals *gv, const struct ddsi_guid *p
   builtintopic_write (gv->builtin_topic_interface, &pp->e, now(), false);
   remember_deleted_participant_guid (gv->deleted_participants, &pp->e.guid);
   ephash_remove_participant_guid (gv->guid_hash, pp);
+#ifdef DDSI_INCLUDE_SECURITY
+  disconnect_participant_secure (pp);
+#endif
   gcreq_participant (pp);
   return 0;
 }
@@ -2309,6 +2441,20 @@ static bool topickind_qos_match_p_lock (struct entity_common *rd, const dds_qos_
   return ret;
 }
 
+void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_reader *prd, nn_mtime_t tnow)
+{
+  DDSRT_UNUSED_ARG(tnow);
+  proxy_reader_add_connection (prd, wr);
+  writer_add_connection (wr, prd);
+}
+
+void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, nn_mtime_t tnow)
+{
+  nn_count_t init_count;
+  reader_add_connection (rd, pwr, &init_count);
+  proxy_writer_add_connection (pwr, rd, tnow, init_count);
+}
+
 static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_reader *prd, nn_mtime_t tnow)
 {
   const int isb0 = (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
@@ -2324,8 +2470,24 @@ static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_re
     writer_qos_mismatch (wr, reason);
     return;
   }
-  proxy_reader_add_connection (prd, wr);
-  writer_add_connection (wr, prd);
+  if (q_omg_security_check_remote_reader_permissions (prd, wr->e.gv->config.domainId, wr->c.pp))
+  {
+    if (q_omg_security_match_remote_reader_enabled (wr, prd))
+    {
+      proxy_reader_add_connection (prd, wr);
+      writer_add_connection (wr, prd);
+    }
+    else
+    {
+      EELOGDISC (&wr->e, "connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") waiting for approval by security\n",
+                 PGUID (wr->e.guid), PGUID (prd->e.guid));
+    }
+  }
+  else
+  {
+    EELOGDISC (&wr->e, "connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") not allowed by security\n",
+               PGUID (wr->e.guid), PGUID (prd->e.guid));
+  }
 }
 
 static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct reader *rd, nn_mtime_t tnow)
@@ -2343,8 +2505,24 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
     reader_qos_mismatch (rd, reason);
     return;
   }
-  reader_add_connection (rd, pwr, &init_count);
-  proxy_writer_add_connection (pwr, rd, tnow, init_count);
+  if (q_omg_security_check_remote_writer_permissions(pwr, rd->e.gv->config.domainId, rd->c.pp))
+  {
+    if (q_omg_security_match_remote_writer_enabled(rd, pwr))
+    {
+      reader_add_connection (rd, pwr, &init_count);
+      proxy_writer_add_connection (pwr, rd, tnow, init_count);
+    }
+    else
+    {
+      EELOGDISC (&rd->e, "connect_proxy_writer_with_reader (pwr "PGUIDFMT") with  (rd "PGUIDFMT") waiting for approval by security\n",
+          PGUID (pwr->e.guid), PGUID (rd->e.guid));
+    }
+  }
+  else
+  {
+    EELOGDISC (&rd->e, "connect_proxy_writer_with_reader (pwr "PGUIDFMT") with (rd "PGUIDFMT") not allowed by security\n",
+        PGUID (pwr->e.guid), PGUID (rd->e.guid));
+  }
 }
 
 static bool ignore_local_p (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2, const struct dds_qos *xqos1, const struct dds_qos *xqos2)
@@ -2642,6 +2820,143 @@ static void match_proxy_writer_with_readers (struct proxy_writer *pwr, nn_mtime_
 static void match_proxy_reader_with_writers (struct proxy_reader *prd, nn_mtime_t tnow)
 {
   generic_do_match(&prd->e, tnow);
+}
+
+static void match_volatile_secure_endpoints (struct participant *pp, struct proxy_participant *proxypp)
+{
+  struct reader *rd;
+  struct writer *wr;
+  struct proxy_reader *prd;
+  struct proxy_writer *pwr;
+  ddsi_guid_t guid;
+  nn_mtime_t tnow = now_mt ();
+
+  EELOGDISC (&pp->e, "match volatile endpoints (pp "PGUIDFMT") with (proxypp "PGUIDFMT")\n",
+             PGUID(pp->e.guid), PGUID(proxypp->e.guid));
+
+  guid = pp->e.guid;
+  guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER;
+  rd = ephash_lookup_reader_guid (pp->e.gv->guid_hash, &guid);
+  assert(rd);
+  guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER;
+  wr = ephash_lookup_writer_guid (pp->e.gv->guid_hash, &guid);
+  assert(wr);
+
+  guid = proxypp->e.guid;
+  guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER;
+  prd = ephash_lookup_proxy_reader_guid (pp->e.gv->guid_hash, &guid);
+  assert(rd);
+  guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER;
+  pwr = ephash_lookup_proxy_writer_guid (pp->e.gv->guid_hash, &guid);
+  assert(wr);
+
+  if (q_omg_security_match_remote_writer_enabled (rd, pwr))
+  {
+    nn_count_t init_count;
+    reader_add_connection (rd, pwr, &init_count);
+    proxy_writer_add_connection (pwr, rd, tnow, init_count);
+  }
+
+  if (q_omg_security_match_remote_reader_enabled (wr, prd))
+  {
+    proxy_reader_add_connection (prd, wr);
+    writer_add_connection (wr, prd);
+  }
+}
+
+static void match_proxy_writer_with_participant_readers (struct proxy_writer *pwr, struct participant *pp, nn_mtime_t tnow)
+{
+  struct ephash * const guid_hash = pp->e.gv->guid_hash;
+  struct ephash_enum_reader rst;
+  struct reader *rd;
+
+  if (!is_builtin_entityid (pwr->e.guid.entityid, NN_VENDORID_ECLIPSE))
+  {
+    EELOGDISC (&pwr->e, "match_proxy_writer_with_participant_readers(pwr "PGUIDFMT" pp "PGUIDFMT")\n",
+               PGUID (pwr->e.guid), PGUID (pp->e.guid));
+
+    ephash_enum_reader_init (&rst, pp->e.gv->guid_hash);
+    while ((rd = ephash_enum_reader_next (&rst)) != NULL)
+      if (rd->c.pp == pp)
+        generic_do_match_connect(&pwr->e, &rd->e, tnow);
+    ephash_enum_reader_fini (&rst);
+  }
+  else
+  {
+    /* Built-ins have fixed QoS */
+    ddsi_entityid_t tgt_ent = builtin_entityid_match (pwr->e.guid.entityid);
+    EELOGDISC (&pwr->e, "match_proxy_writer_with_participant_readers(pwr "PGUIDFMT" pp "PGUIDFMT") tgt=%"PRIx32"\n",
+               PGUID (pwr->e.guid), PGUID (pp->e.guid), tgt_ent.u);
+
+    if (tgt_ent.u != NN_ENTITYID_UNKNOWN)
+    {
+      ddsi_guid_t tgt_guid;
+      tgt_guid.prefix = pp->e.guid.prefix;
+      tgt_guid.entityid = tgt_ent;
+      if ((rd = ephash_lookup_reader_guid (guid_hash, &tgt_guid)) != NULL)
+        generic_do_match_connect(&pwr->e, &rd->e, tnow);
+    }
+  }
+}
+
+static void match_proxy_reader_with_participant_writers (struct proxy_reader *prd, struct participant *pp, nn_mtime_t tnow)
+{
+  struct ephash * const guid_hash = pp->e.gv->guid_hash;
+  struct ephash_enum_writer wst;
+  struct writer *wr;
+
+  if (!is_builtin_entityid (prd->e.guid.entityid, NN_VENDORID_ECLIPSE))
+  {
+    EELOGDISC (&prd->e, "match_proxy_reader_with_participant_writers(pwr "PGUIDFMT" pp "PGUIDFMT")\n",
+               PGUID (prd->e.guid), PGUID (pp->e.guid));
+
+    ephash_enum_writer_init (&wst, pp->e.gv->guid_hash);
+    while ((wr = ephash_enum_writer_next (&wst)) != NULL)
+      if (wr->c.pp == pp)
+        generic_do_match_connect(&prd->e, &wr->e, tnow);
+    ephash_enum_writer_fini (&wst);
+  }
+  else
+  {
+    /* Built-ins have fixed QoS */
+    ddsi_entityid_t tgt_ent = builtin_entityid_match (prd->e.guid.entityid);
+    EELOGDISC (&prd->e, "match_proxy_reader_with_participant_writers(pwr "PGUIDFMT" pp "PGUIDFMT") tgt=%"PRIx32"\n",
+               PGUID (prd->e.guid), PGUID (pp->e.guid), tgt_ent.u);
+
+    if (tgt_ent.u != NN_ENTITYID_UNKNOWN)
+    {
+      ddsi_guid_t tgt_guid;
+      tgt_guid.prefix = pp->e.guid.prefix;
+      tgt_guid.entityid = tgt_ent;
+      if ((wr = ephash_lookup_writer_guid (guid_hash, &tgt_guid)) != NULL)
+        generic_do_match_connect(&prd->e, &wr->e, tnow);
+    }
+  }
+}
+
+static void update_proxy_participant_endpoint_matching (struct proxy_participant *proxypp, struct participant *pp)
+{
+  struct ephash * const guid_hash = pp->e.gv->guid_hash;
+  struct ephash_enum_proxy_writer wst;
+  struct proxy_writer *pwr;
+  struct ephash_enum_proxy_reader rst;
+  struct proxy_reader *prd;
+  nn_mtime_t tnow = now_mt ();
+
+  EELOGDISC (&proxypp->e, "update_proxy_participant_endpoint_matching (proxypp "PGUIDFMT" pp "PGUIDFMT")\n",
+             PGUID (proxypp->e.guid), PGUID (pp->e.guid));
+
+  ephash_enum_proxy_writer_init (&wst, guid_hash);
+  while ((pwr = ephash_enum_proxy_writer_next (&wst)) != NULL)
+    if (pwr->c.proxypp == proxypp && !is_builtin_volatile_endpoint (pwr->e.guid.entityid))
+      match_proxy_writer_with_participant_readers (pwr, pp, tnow);
+  ephash_enum_proxy_writer_fini (&wst);
+
+  ephash_enum_proxy_reader_init (&rst, guid_hash);
+  while ((prd = ephash_enum_proxy_reader_next (&rst)) != NULL)
+    if (prd->c.proxypp == proxypp && !is_builtin_volatile_endpoint (prd->e.guid.entityid))
+      match_proxy_reader_with_participant_writers(prd, pp, tnow);
+  ephash_enum_proxy_reader_fini (&rst);
 }
 
 /* ENDPOINT --------------------------------------------------------- */
@@ -3894,6 +4209,132 @@ static void add_proxy_builtin_endpoints(
 #undef LTE
 }
 
+#ifdef DDSI_INCLUDE_SECURITY
+
+void handshake_end_cb
+(
+  struct ddsi_handshake *handshake,
+  const struct ddsi_guid *lpguid,
+  const struct ddsi_guid *ppguid,
+  nn_wctime_t timestamp,
+  enum ddsi_handshake_state result)
+{
+  struct proxy_participant *proxypp;
+  struct participant *pp;
+  int64_t shared_secret;
+  int64_t permissions_hdl;
+  struct q_globals *gv;
+
+  DDSRT_UNUSED_ARG(timestamp);
+
+  assert(handshake);
+  assert(lpguid);
+  assert(ppguid);
+
+  gv = ddsi_handshake_get_globals(handshake);
+  assert(gv);
+
+  proxypp = ephash_lookup_proxy_participant_guid (gv->guid_hash, ppguid);
+  if (proxypp) {
+    pp = ephash_lookup_participant_guid (gv->guid_hash, lpguid);
+    if (pp) {
+      switch(result)
+      {
+      case STATE_HANDSHAKE_PROCESSED:
+        shared_secret = ddsi_handshake_get_shared_secret(handshake);
+        DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") processed\n", PGUID (*lpguid), PGUID (*ppguid));
+        permissions_hdl = q_omg_security_check_remote_participant_permissions(gv->config.domainId, pp, proxypp);
+        if (permissions_hdl != 0) {
+          q_omg_security_register_remote_participant(pp, proxypp, shared_secret, permissions_hdl);
+          match_volatile_secure_endpoints(pp, proxypp);
+        }
+        break;
+
+      case STATE_HANDSHAKE_SEND_TOKENS:
+        DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") send tokens\n", PGUID (*lpguid), PGUID (*ppguid));
+        q_omg_security_participant_send_tokens(pp, proxypp);
+        break;
+
+      case STATE_HANDSHAKE_OK:
+        DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") succeeded\n", PGUID (*lpguid), PGUID (*ppguid));
+        update_proxy_participant_endpoint_matching(proxypp, pp);
+        ddsi_hsadmin_remove_from_fsm(proxypp->handshake_admin, handshake);
+        break;
+
+      case STATE_HANDSHAKE_TIMED_OUT:
+        DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Timed out\n", PGUID (*lpguid), PGUID (*ppguid), (int)result);
+        if (q_omg_participant_allow_unauthenticated(pp)) {
+          downgrade_to_nonsecure(proxypp);
+          update_proxy_participant_endpoint_matching(proxypp, pp);
+        }
+        ddsi_hsadmin_remove_from_fsm(proxypp->handshake_admin, handshake);
+        break;
+      case STATE_HANDSHAKE_FAILED:
+        DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Failed\n", PGUID (*lpguid), PGUID (*ppguid), (int)result);
+        if (q_omg_participant_allow_unauthenticated(pp)) {
+          downgrade_to_nonsecure(proxypp);
+          update_proxy_participant_endpoint_matching(proxypp, pp);
+        }
+        ddsi_hsadmin_remove_from_fsm(proxypp->handshake_admin, handshake);
+        break;
+      default:
+        DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Unknown failure\n", PGUID (*lpguid), PGUID (*ppguid), (int)result);
+        ddsi_hsadmin_remove_from_fsm(proxypp->handshake_admin, handshake);
+        break;
+      }
+    }
+  }
+}
+
+static int proxy_participant_check_security_info(struct q_globals *gv, struct proxy_participant *proxypp)
+{
+  int r = 1;
+  struct participant *pp;
+  struct ephash_enum_participant est;
+
+  ephash_enum_participant_init (&est, gv->guid_hash);
+  while (((pp = ephash_enum_participant_next (&est)) != NULL) && (r == 1)) {
+    if (!q_omg_is_similar_participant_security_info(pp, proxypp)) {
+      /* Do not allow secure proxy participant if security info doesn't match. */
+      r = 0;
+    }
+  }
+  ephash_enum_participant_fini(&est);
+  return r;
+}
+
+static int proxy_participant_create_handshake(struct q_globals *gv, struct proxy_participant *proxypp, nn_wctime_t timestamp)
+{
+  int r = 1;
+  struct participant *pp;
+  struct ddsi_handshake *handshake;
+  struct ephash_enum_participant est;
+
+  ddsi_hsadmin_lock(proxypp->handshake_admin);
+  ephash_enum_participant_init (&est, gv->guid_hash);
+  while (((pp = ephash_enum_participant_next (&est)) != NULL)  && (r == 1)) {
+    /* Check if local participant is ready to communicate handshake messages. */
+    if (((pp->bes & NN_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_ANNOUNCER) == 0) ||
+        ((pp->bes & NN_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_DETECTOR ) == 0) ){
+      /* Expect the creation of the local participant to be in progress. That means that the
+       * local participant will start the handshake (see connect_participant_secure()). */
+      ELOG (DDS_LC_INFO, pp, "Local participant "PGUIDFMT" will start handshake for "PGUIDFMT"\n", PGUID (pp->e.guid), PGUID(proxypp->e.guid));
+    } else {
+      handshake = ddsi_hsadmin_register_locked(proxypp->handshake_admin, pp, proxypp, timestamp, handshake_end_cb);
+      if (!handshake)
+      {
+        DDS_CWARNING (&pp->e.gv->logconfig, "Failed to create handshake (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(pp->e.guid), PGUID(proxypp->e.guid));
+        r = 0;
+      }
+    }
+  }
+  ddsi_hsadmin_unlock(proxypp->handshake_admin);
+  ephash_enum_participant_fini(&est);
+  return r;
+}
+
+#endif
+
 void new_proxy_participant
 (
   struct q_globals *gv,
@@ -3915,6 +4356,9 @@ void new_proxy_participant
      runs on a single thread, it can't go wrong. FIXME, maybe? The
      same holds for the other functions for creating entities. */
   struct proxy_participant *proxypp;
+#ifdef DDSI_INCLUDE_SECURITY
+  bool secure = false;
+#endif
 
   assert (ppguid->entityid.u == NN_ENTITYID_PARTICIPANT);
   assert (ephash_lookup_proxy_participant_guid (gv->guid_hash, ppguid) == NULL);
@@ -3974,6 +4418,18 @@ void new_proxy_participant
   nn_xqos_mergein_missing (&proxypp->plist->qos, &gv->default_plist_pp.qos, ~(uint64_t)0);
   ddsrt_avl_init (&proxypp_groups_treedef, &proxypp->groups);
 
+#ifdef DDSI_INCLUDE_SECURITY
+  proxypp->handshake_admin = NULL;
+  proxypp->remote_identity_handle = 0;
+  proxypp->sec_attr = NULL;
+  secure = ((bes & NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0);
+  if (!secure)
+  {
+    /* Make sure we don't create any security builtin endpoint when it's considered unsecure. */
+    proxypp->bes &= BES_MASK_NON_SECURITY;
+  }
+#endif
+
   if (custom_flags & CF_INC_KERNEL_SEQUENCE_NUMBERS)
     proxypp->kernel_sequence_numbers = 1;
   else
@@ -4000,8 +4456,46 @@ void new_proxy_participant
      new_proxy_{writer,reader} to work */
   ephash_insert_proxy_participant_guid (gv->guid_hash, proxypp);
 
-  /* TODO: Do security checks on the proxy participant. Either add the endpoints or delete the proxy. */
+#ifdef DDSI_INCLUDE_SECURITY
+  if (secure)
+  {
+    /* Secure participant detected: start handshake. */
+    if ((plist->present & PP_IDENTITY_TOKEN))
+    {
+      /* initialize the security attributes associated with the proxy participant */
+      q_omg_security_init_remote_participant(proxypp);
+      /* Check if this secure participant is allowed. */
+      if (proxy_participant_check_security_info(gv, proxypp)) {
+        /* Create builtin endpoints, of which a few are used in the handshake. */
+        add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
+        /* Create and start handshake. */
+        proxypp->handshake_admin = ddsi_hsadmin_create();
+        if (!proxypp->handshake_admin || !proxy_participant_create_handshake(gv, proxypp, timestamp)) {
+          DDS_CWARNING(&gv->logconfig, "Failed to start handshake with participant "PGUIDFMT"\n", PGUID (*ppguid));
+          delete_proxy_participant_by_guid(gv, ppguid, timestamp, 0);
+        }
+      } else {
+        DDS_CWARNING(&gv->logconfig, "Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
+        delete_proxy_participant_by_guid(gv, ppguid, timestamp, 0);
+      }
+    }
+    else
+    {
+      /* Do not communicate with un-secure participants. */
+      DDS_CWARNING(&gv->logconfig, "Don't communicate with secure participant "PGUIDFMT" which does not provide an identity token\n", PGUID (*ppguid));
+      delete_proxy_participant_by_guid(gv, ppguid, timestamp, 0);
+    }
+  }
+  else
+  {
+    /* Remote is un-secure. Try the discovery anyway. Maybe there's a local secure
+     * participant that allowed communication with remote non-secure ones */
+    add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
+    DDS_CLOG (DDS_LC_INFO, &gv->logconfig, "Un-secure participant "PGUIDFMT" tries to connect.\n", PGUID (*ppguid));
+  }
+#else
   add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
+#endif
 }
 
 int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp)
@@ -4080,6 +4574,15 @@ static void unref_proxy_participant (struct proxy_participant *proxypp, struct p
     assert (proxypp->endpoints == NULL);
     ddsrt_mutex_unlock (&proxypp->e.lock);
     ELOGDISC (proxypp, "unref_proxy_participant("PGUIDFMT"): refc=0, freeing\n", PGUID (proxypp->e.guid));
+
+#ifdef DDSI_INCLUDE_SECURITY
+    q_omg_security_deregister_remote_participant(proxypp);
+    if (proxypp->handshake_admin)
+    {
+      ddsi_hsadmin_delete(proxypp->handshake_admin);
+      proxypp->handshake_admin = NULL;
+    }
+#endif
     unref_addrset (proxypp->as_default);
     unref_addrset (proxypp->as_meta);
     nn_plist_fini (proxypp->plist);
@@ -4194,6 +4697,46 @@ static void delete_ppt (struct proxy_participant *proxypp, nn_wctime_t timestamp
 
   gcreq_proxy_participant (proxypp);
 }
+
+#ifdef DDSI_INCLUDE_SECURITY
+
+static void downgrade_to_nonsecure(struct proxy_participant *proxypp)
+{
+  struct proxy_endpoint_common * c;
+  const nn_wctime_t tnow = now();
+
+  ddsrt_mutex_lock (&proxypp->e.lock);
+
+  DDS_CWARNING (&proxypp->e.gv->logconfig, "downgrade participant "PGUIDFMT" to non-secure\n", PGUID (proxypp->e.guid));
+
+  /* Remove security related endpoints. */
+  c = proxypp->endpoints;
+  while (c)
+  {
+    struct proxy_endpoint_common * next = c->next_ep;
+    struct entity_common *e = entity_common_from_proxy_endpoint_common (c);
+    if (is_builtin_security_endpoint(e->guid.entityid))
+    {
+      if (is_writer_entityid (e->guid.entityid))
+      {
+        (void)delete_proxy_writer (proxypp->e.gv, &e->guid, tnow, 0);
+      }
+      else
+      {
+        (void)delete_proxy_reader (proxypp->e.gv, &e->guid, tnow, 0);
+      }
+    }
+    c = next;
+  }
+
+  /* Cleanup all kinds of related security information. */
+  q_omg_security_deregister_remote_participant(proxypp);
+  proxypp->bes &= BES_MASK_NON_SECURITY;
+
+  ddsrt_mutex_unlock (&proxypp->e.lock);
+}
+#endif
+
 
 typedef struct proxy_purge_data {
   struct proxy_participant *proxypp;
