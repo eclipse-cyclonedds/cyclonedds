@@ -3999,7 +3999,6 @@ static void unref_proxy_participant (struct proxy_participant *proxypp, struct p
       ddsrt_mutex_unlock (&proxypp->e.lock);
       lease_free (ddsrt_atomic_ldvoidp (&proxypp->minl_auto));
       lease_free (proxypp->lease);
-      ddsrt_mutex_destroy (&proxypp->e.lock);
     }
     entity_common_fini (&proxypp->e);
     remove_deleted_participant_guid (proxypp->e.gv->deleted_participants, &proxypp->e.guid, DPG_LOCAL | DPG_REMOTE);
