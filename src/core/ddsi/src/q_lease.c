@@ -61,7 +61,7 @@ int compare_lease_tdur (const void *va, const void *vb)
 {
   const struct lease *a = va;
   const struct lease *b = vb;
-  return (a->tdur.v == b->tdur.v) ? 0 : (a->tdur.v < b->tdur.v) ? -1 : 1;
+  return (a->tdur == b->tdur) ? 0 : (a->tdur < b->tdur) ? -1 : 1;
 }
 
 void lease_management_init (struct q_globals *gv)
@@ -82,19 +82,24 @@ struct lease *lease_new (nn_etime_t texpire, dds_duration_t tdur, struct entity_
   if ((l = ddsrt_malloc (sizeof (*l))) == NULL)
     return NULL;
   EETRACE (e, "lease_new(tdur %"PRId64" guid "PGUIDFMT") @ %p\n", tdur, PGUID (e->guid), (void *) l);
-  ddsrt_atomic_st64 (&l->tdur, (uint64_t) tdur);
+  l->tdur = tdur;
   ddsrt_atomic_st64 (&l->tend, (uint64_t) texpire.v);
   l->tsched.v = TSCHED_NOT_ON_HEAP;
   l->entity = e;
   return l;
 }
 
-struct lease *lease_clone (struct lease *l)
+/**
+ * Returns a clone of the provided lease. Note that this function does not use
+ * locking and should therefore only be called from a context where lease 'l'
+ * cannot be changed by another thread during the function call.
+ */
+struct lease *lease_clone (const struct lease *l)
 {
   nn_etime_t texp;
   dds_duration_t tdur;
   texp.v = (int64_t) ddsrt_atomic_ld64 (&l->tend);
-  tdur = (dds_duration_t) ddsrt_atomic_ld64 (&l->tdur);
+  tdur = l->tdur;
   return lease_new (texp, tdur, l->entity);
 }
 
@@ -116,9 +121,10 @@ void lease_register (struct lease *l) /* FIXME: make lease admin struct */
   force_lease_check (gv->gcreq_queue);
 }
 
-void lease_unregister (struct lease *l)
+void lease_free (struct lease *l)
 {
   struct q_globals * const gv = l->entity->gv;
+  GVTRACE ("lease_free(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
   ddsrt_mutex_lock (&gv->leaseheap_lock);
   if (l->tsched.v != TSCHED_NOT_ON_HEAP)
   {
@@ -126,13 +132,6 @@ void lease_unregister (struct lease *l)
     l->tsched.v = TSCHED_NOT_ON_HEAP;
   }
   ddsrt_mutex_unlock (&gv->leaseheap_lock);
-}
-
-void lease_free (struct lease *l)
-{
-  struct q_globals * const gv = l->entity->gv;
-  GVTRACE ("lease_free(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
-  lease_unregister (l);
   ddsrt_free (l);
 
   /* see lease_register() */
@@ -141,9 +140,8 @@ void lease_free (struct lease *l)
 
 void lease_renew (struct lease *l, nn_etime_t tnowE)
 {
-  struct q_globals const * const gv = l->entity->gv;
-  uint64_t tdur = ddsrt_atomic_ld64 (&l->tdur);
-  nn_etime_t tend_new = add_duration_to_etime (tnowE, (int64_t) tdur);
+  struct q_globals const * gv;
+  nn_etime_t tend_new = add_duration_to_etime (tnowE, l->tdur);
 
   /* do not touch tend if moving forward or if already expired */
   int64_t tend;
@@ -153,6 +151,7 @@ void lease_renew (struct lease *l, nn_etime_t tnowE)
       return;
   } while (!ddsrt_atomic_cas64 (&l->tend, (uint64_t) tend, (uint64_t) tend_new.v));
 
+  gv = l->entity->gv;
   if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     int32_t tsec, tusec;
@@ -166,11 +165,12 @@ void lease_renew (struct lease *l, nn_etime_t tnowE)
   }
 }
 
-static bool lease_set_expiry_locked (struct q_globals * const gv, struct lease *l, nn_etime_t when)
+void lease_set_expiry (struct lease *l, nn_etime_t when)
 {
+  struct q_globals * const gv = l->entity->gv;
   bool trigger = false;
   assert (when.v >= 0);
-
+  ddsrt_mutex_lock (&gv->leaseheap_lock);
   /* only possible concurrent action is to move tend into the future (renew_lease),
     all other operations occur with leaseheap_lock held */
   ddsrt_atomic_st64 (&l->tend, (uint64_t) when.v);
@@ -189,33 +189,11 @@ static bool lease_set_expiry_locked (struct q_globals * const gv, struct lease *
     ddsrt_fibheap_insert (&lease_fhdef, &gv->leaseheap, l);
     trigger = true;
   }
-
-  return trigger;
-}
-
-void lease_set_expiry (struct lease *l, nn_etime_t when)
-{
-  struct q_globals * const gv = l->entity->gv;
-  bool trigger;
-  ddsrt_mutex_lock (&gv->leaseheap_lock);
-  trigger = lease_set_expiry_locked (gv, l, when);
   ddsrt_mutex_unlock (&gv->leaseheap_lock);
 
   /* see lease_register() */
   if (trigger)
     force_lease_check (gv->gcreq_queue);
-}
-
-void lease_set_fields (struct lease *l, nn_etime_t texpire, dds_duration_t tdur, struct entity_common *e)
-{
-  struct q_globals * const gv = l->entity->gv;
-  assert (l != NULL);
-  ddsrt_mutex_lock (&gv->leaseheap_lock);
-  l->entity = e;
-  ddsrt_atomic_st64 (&l->tdur, (uint64_t) tdur);
-  lease_set_expiry_locked (gv, l, texpire);
-  ddsrt_mutex_unlock (&gv->leaseheap_lock);
-  force_lease_check (gv->gcreq_queue);
 }
 
 int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnowE)
@@ -290,23 +268,17 @@ int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnow
 
     switch (k)
     {
-      case EK_PARTICIPANT:
-        delete_participant (gv, &g);
-        break;
       case EK_PROXY_PARTICIPANT:
         delete_proxy_participant_by_guid (gv, &g, now(), 1);
         break;
-      case EK_WRITER:
-        delete_writer_nolinger (gv, &g);
-        break;
       case EK_PROXY_WRITER:
-        delete_proxy_writer (gv, &g, now(), 1);
+        proxy_writer_set_alive_guid (gv, &g, false);
         break;
+      case EK_PARTICIPANT:
       case EK_READER:
-        delete_reader (gv, &g);
-        break;
+      case EK_WRITER:
       case EK_PROXY_READER:
-        delete_proxy_reader (gv, &g, now(), 1);
+        assert (false);
         break;
     }
 

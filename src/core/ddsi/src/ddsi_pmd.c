@@ -18,6 +18,7 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_protocol.h"
@@ -75,7 +76,7 @@ void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, s
   }
 
   u.pmd.participantGuidPrefix = nn_hton_guid_prefix (pp->e.guid.prefix);
-  u.pmd.kind = toBE4u (pmd_kind);
+  u.pmd.kind = ddsrt_toBE4u (pmd_kind);
   u.pmd.length = PMD_DATA_LENGTH;
   memset (u.pmd.value, 0, u.pmd.length);
 
@@ -98,14 +99,16 @@ void handle_pmd_message (const struct receiver_state *rst, nn_wctime_t timestamp
 {
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
   const int bswap = (data->identifier == CDR_LE) ^ (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
-  struct proxy_participant *pp;
+  struct proxy_participant *proxypp;
   ddsi_guid_t ppguid;
+  struct lease *l;
   RSTTRACE (" PMD ST%x", statusinfo);
   if (data->identifier != CDR_LE && data->identifier != CDR_BE)
   {
     RSTTRACE (" PMD data->identifier %u !?\n", ntohs (data->identifier));
     return;
   }
+
   switch (statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
   {
     case 0:
@@ -116,7 +119,7 @@ void handle_pmd_message (const struct receiver_state *rst, nn_wctime_t timestamp
         const ParticipantMessageData_t *pmd = (ParticipantMessageData_t *) (data + 1);
         ddsi_guid_prefix_t p = nn_ntoh_guid_prefix (pmd->participantGuidPrefix);
         uint32_t kind = ntohl (pmd->kind);
-        uint32_t length = bswap ? bswap4u (pmd->length) : pmd->length;
+        uint32_t length = bswap ? ddsrt_bswap4u (pmd->length) : pmd->length;
         RSTTRACE (" pp %"PRIx32":%"PRIx32":%"PRIx32" kind %u data %u", p.u[0], p.u[1], p.u[2], kind, length);
         if (len - sizeof (struct CDRHeader) - offsetof (ParticipantMessageData_t, value) < length)
           debug_print_rawdata (rst->gv, " SHORT2", pmd->value, len - sizeof (struct CDRHeader) - offsetof (ParticipantMessageData_t, value));
@@ -124,9 +127,15 @@ void handle_pmd_message (const struct receiver_state *rst, nn_wctime_t timestamp
           debug_print_rawdata (rst->gv, "", pmd->value, length);
         ppguid.prefix = p;
         ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
-        if ((pp = ephash_lookup_proxy_participant_guid (rst->gv->guid_hash, &ppguid)) == NULL)
+        if ((proxypp = ephash_lookup_proxy_participant_guid (rst->gv->guid_hash, &ppguid)) == NULL)
           RSTTRACE (" PPunknown");
-        /* Lease renewal not required here, receipt of the message already did it */
+
+        if (kind == PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE &&
+            (l = ddsrt_atomic_ldvoidp (&proxypp->minl_man)) != NULL)
+        {
+          /* Renew lease for entity with shortest manual-by-participant lease */
+          lease_renew (l, now_et ());
+        }
       }
       break;
 

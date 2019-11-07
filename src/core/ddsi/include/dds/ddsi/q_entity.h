@@ -242,7 +242,7 @@ struct writer
   struct addrset *as; /* set of addresses to publish to */
   struct addrset *as_group; /* alternate case, used for SPDP, when using Cloud with multiple bootstrap locators */
   struct xevent *heartbeat_xevent; /* timed event for "periodically" publishing heartbeats when unack'd data present, NULL <=> unreliable */
-  struct ldur_fhnode *lease_duration;
+  struct ldur_fhnode *lease_duration; /* fibheap node to keep lease duration for this writer, NULL in case of automatic liveliness with inifite duration  */
   struct whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
   nn_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
@@ -308,16 +308,16 @@ struct proxy_participant
   unsigned prismtech_bes; /* prismtech-specific extension of built-in endpoints set */
   ddsi_guid_t privileged_pp_guid; /* if this PP depends on another PP for its SEDP writing */
   struct nn_plist *plist; /* settings/QoS for this participant */
-  ddsrt_atomic_voidp_t lease; /* lease object for this participant, for automatic leases */
-  uint32_t manual_by_pp_writers; /* number of writers with liveliness qos manual-by-participant */
-  struct lease *pp_lease; /* lease for this proxy pp (parameters of member 'lease' will be set to minimal pwr lease) */
+  ddsrt_atomic_voidp_t minl_auto; /* lease object for shortest automatic liveliness pwr's lease (includes this proxypp's lease) */
+  ddsrt_fibheap_t leaseheap_auto; /* keeps leases for this proxypp and leases for pwrs (with liveliness automatic) */
+  ddsrt_atomic_voidp_t minl_man; /* lease object for shortest manual-by-participant liveliness pwr's lease */
+  ddsrt_fibheap_t leaseheap_man; /* keeps leases for this proxypp and leases for pwrs (with liveliness manual-by-participant) */
+  struct lease *lease; /* lease for this proxypp */
   struct addrset *as_default; /* default address set to use for user data traffic */
   struct addrset *as_meta; /* default address set to use for discovery traffic */
   struct proxy_endpoint_common *endpoints; /* all proxy endpoints can be reached from here */
   ddsrt_avl_tree_t groups; /* table of all groups (publisher, subscriber), see struct proxy_group */
   seqno_t seq; /* sequence number of most recent SPDP message */
-  ddsrt_fibheap_t leaseheap; /* keeps leases for pwrs and this proxypp */
-  ddsrt_mutex_t leaseheap_lock; /* specific lock for leaseheap */
   unsigned kernel_sequence_numbers : 1; /* whether this proxy participant generates OSPL kernel sequence numbers */
   unsigned implicitly_created : 1; /* participants are implicitly created for Cloud/Fog discovered endpoints */
   unsigned is_ddsi2_pp: 1; /* if this is the federation-leader on the remote node */
@@ -369,6 +369,7 @@ struct proxy_writer {
   unsigned deliver_synchronously: 1; /* iff 1, delivery happens straight from receive thread for non-historical data; else through delivery queue "dqueue" */
   unsigned have_seen_heartbeat: 1; /* iff 1, we have received at least on heartbeat from this proxy writer */
   unsigned local_matching_inprogress: 1; /* iff 1, we are still busy matching local readers; this is so we don't deliver incoming data to some but not all readers initially */
+  unsigned alive: 1; /* iff 1, the proxy writer is alive (lease for this proxy writer is not expired) */
 #ifdef DDSI_INCLUDE_SSM
   unsigned supports_ssm: 1; /* iff 1, this proxy writer supports SSM */
 #endif
@@ -644,11 +645,14 @@ int new_proxy_reader (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
    reader or writer. Actual deletion is scheduled in the future, when
    no outstanding references may still exist (determined by checking
    thread progress, &c.). */
-int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
+int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit, bool proxypp_locked);
 int delete_proxy_reader (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
 
 void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
 void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
+
+int proxy_writer_set_alive_locked (struct q_globals *gv, struct proxy_writer *pwr, bool alive);
+int proxy_writer_set_alive_guid (struct q_globals *gv, const struct ddsi_guid *guid, bool alive);
 
 int new_proxy_group (const struct ddsi_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp);
 void delete_proxy_group (struct ephash *guid_hash, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
