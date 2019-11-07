@@ -125,13 +125,42 @@ CU_Test(ddsc_topic_create, non_participants, .init=ddsc_topic_init, .fini=ddsc_t
 /*************************************************************************************************/
 CU_Test(ddsc_topic_create, duplicate, .init=ddsc_topic_init, .fini=ddsc_topic_fini)
 {
+    char name1[MAX_NAME_SIZE];
+    char name2[MAX_NAME_SIZE];
     dds_entity_t topic;
     dds_return_t ret;
+
     /* Creating the same topic should succeed.  */
     topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, g_topicRtmDataTypeName, NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
+
+    /* It should be a different handle, but same names. */
+    CU_ASSERT_FATAL(topic != g_topicRtmDataType);
+    ret = dds_get_name(g_topicRtmDataType, name1, MAX_NAME_SIZE);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    ret = dds_get_name(topic, name2, MAX_NAME_SIZE);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_STRING_EQUAL_FATAL(name1, name2);
+
+    /* Multiple deletions. Second should gracefully fail,
+     * even when a duplicate is still alive. */
     ret = dds_delete(topic);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    ret = dds_delete(topic);
+    CU_ASSERT_NOT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+    /* We should still have access to a duplicate after
+     * deletion of the other one. */
+    ret = dds_get_name(g_topicRtmDataType, name2, MAX_NAME_SIZE);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_STRING_EQUAL_FATAL(name2, g_topicRtmDataTypeName);
+
+    /* Multiple deletions. Only second should gracefully fail,
+     * even after a duplicate was already deleted. */
+    ret = dds_delete(g_topicRtmDataType);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    ret = dds_delete(g_topicRtmDataType);
+    CU_ASSERT_NOT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 }
 /*************************************************************************************************/
 

@@ -248,26 +248,70 @@ static bool sertopic_equivalent (const struct ddsi_sertopic *a, const struct dds
   return true;
 }
 
-static dds_return_t create_topic_topic_arbitrary_check_sertopic (dds_entity_t participant, dds_entity_t topic, struct ddsi_sertopic *sertopic, const dds_qos_t *qos)
+static dds_return_t check_topic_qos_par_locked(dds_participant **par, const dds_qos_t *qos, const char *name)
 {
+  dds_return_t ret = DDS_RETCODE_NOT_FOUND;
+  dds_entity_t topic = -1;
+  bool retry_lookup;
   dds_topic *tp;
-  dds_return_t ret;
+  ddsrt_avl_iter_t it;
 
-  if (dds_topic_lock (topic, &tp) < 0)
-    return DDS_RETCODE_NOT_FOUND;
+  do {
+    /* It's possible we have to re-do the lookup if the topic or participant
+       are being deleted. This interference can happen because we have to
+       unlock the participant for a small while. */
+    retry_lookup = false;
 
-  if (dds_entity_participant (&tp->m_entity)->m_entity.m_hdllink.hdl != participant)
-    ret = DDS_RETCODE_NOT_FOUND;
-  else if (!sertopic_equivalent (tp->m_stopic, sertopic))
-    ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-  else if (!dupdef_qos_ok (qos, tp))
-    ret = DDS_RETCODE_INCONSISTENT_POLICY;
-  else
-  {
-    /* See dds_find_topic_check_and_add_ref */
-    ret = DDS_RETCODE_OK;
-  }
-  dds_topic_unlock (tp);
+    /* Find the (first) related topic on this participant. */
+    for (dds_entity *e = ddsrt_avl_iter_first (&dds_entity_children_td, &((*par)->m_entity.m_children), &it); e != NULL; e = ddsrt_avl_iter_next (&it))
+    {
+      if ((dds_entity_kind (e) == DDS_KIND_TOPIC) &&
+          (strcmp (((dds_topic *) e)->m_stopic->name, name) == 0))
+      {
+        topic = e->m_hdllink.hdl;
+        break;
+      }
+    }
+
+    if (topic > 0)
+    {
+      retry_lookup = true;
+
+      /* some topic with the same name exists; need to lock the topic to
+         perform the checks, but locking the topic while holding the
+         participant lock violates the lock order (child -> parent).  So
+         unlock that participant and check the topic while accounting
+         for the various scary cases. */
+      dds_entity_t participant = (*par)->m_entity.m_hdllink.hdl;
+      dds_participant_unlock ((*par));
+
+      if (dds_topic_lock (topic, &tp) == DDS_RETCODE_OK)
+      {
+        if (dds_entity_participant (&tp->m_entity)->m_entity.m_hdllink.hdl == participant)
+        {
+          /* if we didn't come here, then either participant is now being
+             deleted, topic was deleted, or topic was deleted & the handle
+             reused for something else -- so */
+
+          if (dupdef_qos_ok (qos, tp))
+            ret = DDS_RETCODE_OK;
+          else
+            ret = DDS_RETCODE_INCONSISTENT_POLICY;
+
+          retry_lookup = false;
+        }
+        dds_topic_unlock (tp);
+      }
+
+      if (dds_participant_lock (participant, par) != DDS_RETCODE_OK)
+      {
+        (*par) = NULL;
+        retry_lookup = false;
+        ret = DDS_RETCODE_ERROR;
+      }
+    }
+  } while (retry_lookup);
+
   return ret;
 }
 
@@ -328,68 +372,6 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
   if ((rc = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
     goto err_lock_participant;
 
-  bool retry_lookup;
-  do {
-    dds_entity_t topic;
-
-    /* claim participant handle to guarantee the handle remains valid after
-        unlocking the participant prior to verifying the found topic still
-        exists */
-    topic = DDS_RETCODE_PRECONDITION_NOT_MET;
-    ddsrt_avl_iter_t it;
-    for (dds_entity *e = ddsrt_avl_iter_first (&dds_entity_children_td, &par->m_entity.m_children, &it); e != NULL; e = ddsrt_avl_iter_next (&it))
-    {
-      if (dds_entity_kind (e) == DDS_KIND_TOPIC && strcmp (((dds_topic *) e)->m_stopic->name, sertopic->name) == 0)
-      {
-        topic = e->m_hdllink.hdl;
-        break;
-      }
-    }
-    if (topic < 0)
-    {
-      /* no topic with the name exists; we have locked the participant, and
-         so we can proceed with creating the topic */
-      retry_lookup = false;
-    }
-    else
-    {
-      /* some topic with the same name exists; need to lock the topic to
-         perform the checks, but locking the topic while holding the
-         participant lock violates the lock order (child -> parent).  So
-         unlock that participant and check the topic while accounting
-         for the various scary cases. */
-      dds_participant_unlock (par);
-
-      rc = create_topic_topic_arbitrary_check_sertopic (participant, topic, sertopic, new_qos);
-      switch (rc)
-      {
-        case DDS_RETCODE_OK: /* duplicate definition */
-          dds_entity_unpin (par_ent);
-          dds_delete_qos (new_qos);
-          return topic;
-
-        case DDS_RETCODE_NOT_FOUND:
-          /* either participant is now being deleted, topic was deleted, or
-             topic was deleted & the handle reused for something else -- so */
-          retry_lookup = true;
-          break;
-
-        case DDS_RETCODE_PRECONDITION_NOT_MET: /* incompatible sertopic */
-        case DDS_RETCODE_INCONSISTENT_POLICY: /* different QoS */
-          /* inconsistent definition */
-          dds_entity_unpin (par_ent);
-          dds_delete_qos (new_qos);
-          return rc;
-
-        default:
-          abort ();
-      }
-
-      if ((rc = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
-        goto err_lock_participant;
-    }
-  } while (retry_lookup);
-
   /* FIXME: make this a function
      Add sertopic to domain -- but note that it may have been created by another thread
      on another participant that is attached to the same domain */
@@ -413,6 +395,12 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
     }
     else if (sertopic_equivalent (stn->st, sertopic))
     {
+      /* same definition, also same qos? (can currently only check on participant). */
+      rc = check_topic_qos_par_locked (&par, new_qos, sertopic->name);
+      if (!par)
+        goto err_lock_participant;
+      if ((rc != DDS_RETCODE_NOT_FOUND) && (rc != DDS_RETCODE_OK))
+        goto err_sertopic_reuse;
       /* ok -- same definition, so use existing one instead */
       sertopic = ddsi_sertopic_ref (stn->st);
       stn->refc++;
