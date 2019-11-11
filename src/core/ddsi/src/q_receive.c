@@ -2891,6 +2891,9 @@ static bool do_packet (struct thread_state1 * const ts1, struct q_globals *gv, d
   {
     return false;
   }
+
+  assert(sizeof(struct nn_rmsg) == offsetof(struct nn_rmsg, chunk) + sizeof(struct nn_rmsg_chunk));
+
   buff = (unsigned char *) NN_RMSG_PAYLOAD (rmsg);
   hdr = (Header_t*) buff;
 

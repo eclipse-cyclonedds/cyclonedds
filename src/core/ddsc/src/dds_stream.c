@@ -256,24 +256,25 @@ size_t dds_stream_check_optimize (const dds_topic_descriptor_t * __restrict desc
   return dds_stream_check_optimize1 (desc);
 }
 
-static char *dds_stream_reuse_string (dds_istream_t * __restrict is, char * __restrict str, const uint32_t bound)
+static void dds_stream_reuse_string_bound (dds_istream_t * __restrict is, char * __restrict str, const uint32_t bound)
 {
   const uint32_t length = dds_is_get4 (is);
   const void *src = is->m_buffer + is->m_index;
-  if (bound)
-  {
-    /* FIXME: validation now rejects data containing an oversize bounded string,
-       so this check is superfluous, but perhaps rejecting such a sample is the
-       wrong thing to do */
-    assert (str != NULL);
-    memcpy (str, src, length > bound ? bound : length);
-  }
-  else
-  {
-    if (str == NULL || strlen (str) + 1 < length)
-      str = dds_realloc (str, length);
-    memcpy (str, src, length);
-  }
+  /* FIXME: validation now rejects data containing an oversize bounded string,
+     so this check is superfluous, but perhaps rejecting such a sample is the
+     wrong thing to do */
+  assert (str != NULL);
+  memcpy (str, src, length > bound ? bound : length);
+  is->m_index += length;
+}
+
+static char *dds_stream_reuse_string (dds_istream_t * __restrict is, char * __restrict str)
+{
+  const uint32_t length = dds_is_get4 (is);
+  const void *src = is->m_buffer + is->m_index;
+  if (str == NULL || strlen (str) + 1 < length)
+    str = dds_realloc (str, length);
+  memcpy (str, src, length);
   is->m_index += length;
   return str;
 }
@@ -596,7 +597,7 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char 
       seq->_length = (num <= seq->_maximum) ? num : seq->_maximum;
       char **ptr = (char **) seq->_buffer;
       for (uint32_t i = 0; i < seq->_length; i++)
-        ptr[i] = dds_stream_reuse_string (is, ptr[i], 0);
+        ptr[i] = dds_stream_reuse_string (is, ptr[i]);
       for (uint32_t i = seq->_length; i < num; i++)
         dds_stream_skip_string (is);
       return ops + 2;
@@ -607,7 +608,7 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char 
       seq->_length = (num <= seq->_maximum) ? num : seq->_maximum;
       char *ptr = (char *) seq->_buffer;
       for (uint32_t i = 0; i < seq->_length; i++)
-        (void) dds_stream_reuse_string (is, ptr + i * elem_size, elem_size);
+        dds_stream_reuse_string_bound (is, ptr + i * elem_size, elem_size);
       for (uint32_t i = seq->_length; i < num; i++)
         dds_stream_skip_string (is);
       return ops + 3;
@@ -641,14 +642,14 @@ static const uint32_t *dds_stream_read_arr (dds_istream_t * __restrict is, char 
     case DDS_OP_VAL_STR: {
       char **ptr = (char **) addr;
       for (uint32_t i = 0; i < num; i++)
-        ptr[i] = dds_stream_reuse_string (is, ptr[i], 0);
+        ptr[i] = dds_stream_reuse_string (is, ptr[i]);
       return ops + 3;
     }
     case DDS_OP_VAL_BST: {
       char *ptr = (char *) addr;
       const uint32_t elem_size = ops[4];
       for (uint32_t i = 0; i < num; i++)
-        (void) dds_stream_reuse_string (is, ptr + i * elem_size, elem_size);
+        dds_stream_reuse_string_bound (is, ptr + i * elem_size, elem_size);
       return ops + 5;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
@@ -685,7 +686,7 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
       case DDS_OP_VAL_2BY: *((uint16_t *) valaddr) = dds_is_get2 (is); break;
       case DDS_OP_VAL_4BY: *((uint32_t *) valaddr) = dds_is_get4 (is); break;
       case DDS_OP_VAL_8BY: *((uint64_t *) valaddr) = dds_is_get8 (is); break;
-      case DDS_OP_VAL_STR: *(char **) valaddr = dds_stream_reuse_string (is, *((char **) valaddr), 0); break;
+      case DDS_OP_VAL_STR: *(char **) valaddr = dds_stream_reuse_string (is, *((char **) valaddr)); break;
       case DDS_OP_VAL_BST: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
         dds_stream_read (is, valaddr, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]));
         break;
@@ -709,8 +710,8 @@ static void dds_stream_read (dds_istream_t * __restrict is, char * __restrict da
           case DDS_OP_VAL_2BY: *((uint16_t *) addr) = dds_is_get2 (is); ops += 2; break;
           case DDS_OP_VAL_4BY: *((uint32_t *) addr) = dds_is_get4 (is); ops += 2; break;
           case DDS_OP_VAL_8BY: *((uint64_t *) addr) = dds_is_get8 (is); ops += 2; break;
-          case DDS_OP_VAL_STR: *((char **) addr) = dds_stream_reuse_string (is, *((char **) addr), 0); ops += 2; break;
-          case DDS_OP_VAL_BST: addr = (void *) dds_stream_reuse_string (is, (char *) addr, ops[2]); ops += 3; break;
+          case DDS_OP_VAL_STR: *((char **) addr) = dds_stream_reuse_string (is, *((char **) addr)); ops += 2; break;
+          case DDS_OP_VAL_BST: dds_stream_reuse_string_bound (is, (char *) addr, ops[2]); ops += 3; break;
           case DDS_OP_VAL_SEQ: ops = dds_stream_read_seq (is, addr, ops, insn); break;
           case DDS_OP_VAL_ARR: ops = dds_stream_read_arr (is, addr, ops, insn); break;
           case DDS_OP_VAL_UNI: ops = dds_stream_read_uni (is, addr, data, ops, insn); break;
@@ -1126,8 +1127,8 @@ void dds_stream_read_key (dds_istream_t * __restrict is, char * __restrict sampl
       case DDS_OP_VAL_2BY: *((uint16_t *) dst) = dds_is_get2 (is); break;
       case DDS_OP_VAL_4BY: *((uint32_t *) dst) = dds_is_get4 (is); break;
       case DDS_OP_VAL_8BY: *((uint64_t *) dst) = dds_is_get8 (is); break;
-      case DDS_OP_VAL_STR: *((char **) dst) = dds_stream_reuse_string (is, *((char **) dst), 0); break;
-      case DDS_OP_VAL_BST: dst = dds_stream_reuse_string (is, dst, op[2]); break;
+      case DDS_OP_VAL_STR: *((char **) dst) = dds_stream_reuse_string (is, *((char **) dst)); break;
+      case DDS_OP_VAL_BST: dds_stream_reuse_string_bound (is, dst, op[2]); break;
       case DDS_OP_VAL_ARR:
         dds_is_get_bytes (is, dst, op[2], get_type_size (DDS_OP_SUBTYPE (*op)));
         break;

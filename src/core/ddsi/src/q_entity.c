@@ -1807,7 +1807,9 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
       /* FIXME: for now, assume that the ports match for datasock_mc --
        't would be better to dynamically create and destroy sockets on
        an as needed basis. */
-      (void) ddsi_join_mc (rd->e.gv, rd->e.gv->mship, rd->e.gv->data_conn_mc, &m->ssm_src_loc, &m->ssm_mc_loc);
+      int ret = ddsi_join_mc (rd->e.gv, rd->e.gv->mship, rd->e.gv->data_conn_mc, &m->ssm_src_loc, &m->ssm_mc_loc);
+      if (ret < 0)
+        ELOGDISC (rd, "  unable to join\n");
     }
     else
     {

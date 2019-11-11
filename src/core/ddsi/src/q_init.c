@@ -1403,7 +1403,8 @@ int rtps_start (struct q_globals *gv)
   }
   if (gv->listener)
   {
-    (void) create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) listen_thread, gv->listener);
+    if (create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) listen_thread, gv->listener) != DDS_RETCODE_OK)
+      GVERROR ("rtps_start: can't create listener thread\n");
     /* FIXME: error handling */
   }
   if (gv->config.monitor_port >= 0)
