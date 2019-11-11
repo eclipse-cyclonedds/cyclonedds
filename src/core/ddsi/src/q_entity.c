@@ -1509,10 +1509,8 @@ static void reader_drop_connection (const struct ddsi_guid *rd_guid, const struc
       if (rd->status_cb)
       {
         status_cb_data_t data;
-
         data.add = false;
         data.handle = pwr->e.iid;
-
         data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
         (rd->status_cb) (rd->status_cb_entity, &data);
 
@@ -3680,7 +3678,8 @@ static void proxy_participant_remove_pwr_lease_locked (struct proxy_participant 
     if ((minl = ddsrt_fibheap_min (&lease_fhdef_proxypp, lh)) != NULL)
     {
       dds_duration_t trem = minl->tdur - pwr->lease->tdur;
-      nn_etime_t texp = add_duration_to_etime (now_et(), trem >= 0 ? trem : 0);
+      assert (trem >= 0);
+      nn_etime_t texp = add_duration_to_etime (now_et(), trem);
       struct lease *lnew = lease_new (texp, minl->tdur, minl->entity);
       proxy_participant_replace_minl (proxypp, manbypp, lnew);
       lease_register (lnew);
@@ -3986,22 +3985,23 @@ static void unref_proxy_participant (struct proxy_participant *proxypp, struct p
   if (refc == 0)
   {
     assert (proxypp->endpoints == NULL);
+    if (proxypp->owns_lease)
+    {
+      struct lease * minl_auto = ddsrt_atomic_ldvoidp (&proxypp->minl_auto);
+      ddsrt_fibheap_delete (&lease_fhdef_proxypp, &proxypp->leaseheap_auto, proxypp->lease);
+      assert (ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_auto) == NULL);
+      assert (ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_man) == NULL);
+      assert (ddsrt_atomic_ldvoidp (&proxypp->minl_man) == NULL);
+      assert (!compare_guid (&minl_auto->entity->guid, &proxypp->e.guid));
+      lease_free (minl_auto);
+      lease_free (proxypp->lease);
+    }
     ddsrt_mutex_unlock (&proxypp->e.lock);
     ELOGDISC (proxypp, "unref_proxy_participant("PGUIDFMT"): refc=0, freeing\n", PGUID (proxypp->e.guid));
     unref_addrset (proxypp->as_default);
     unref_addrset (proxypp->as_meta);
     nn_plist_fini (proxypp->plist);
     ddsrt_free (proxypp->plist);
-    if (proxypp->owns_lease)
-    {
-      ddsrt_mutex_lock (&proxypp->e.lock);
-      ddsrt_fibheap_delete (&lease_fhdef_proxypp, &proxypp->leaseheap_auto, proxypp->lease);
-      assert (ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_auto) == NULL);
-      assert (ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_man) == NULL);
-      ddsrt_mutex_unlock (&proxypp->e.lock);
-      lease_free (ddsrt_atomic_ldvoidp (&proxypp->minl_auto));
-      lease_free (proxypp->lease);
-    }
     entity_common_fini (&proxypp->e);
     remove_deleted_participant_guid (proxypp->e.gv->deleted_participants, &proxypp->e.guid, DPG_LOCAL | DPG_REMOTE);
     ddsrt_free (proxypp);
@@ -4461,17 +4461,33 @@ int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_
 int proxy_writer_set_alive_locked (struct q_globals *gv, struct proxy_writer *pwr, bool alive)
 {
   ddsrt_avl_iter_t it;
-  GVLOGDISC ("proxy_writer_set_alive_locked ("PGUIDFMT") ", PGUID (pwr->e.guid));
   assert (pwr->alive != alive);
   pwr->alive = alive;
-  GVLOGDISC ("- alive=%d\n", pwr->alive);
-  if (!pwr->alive)
+  GVLOGDISC (" alive=%d", pwr->alive);
+  if (pwr->alive)
+  {
+    for (struct pwr_rd_match *m = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, &it); m != NULL; m = ddsrt_avl_iter_next (&it))
+    {
+      struct reader *rd;
+      if ((rd = ephash_lookup_reader_guid (pwr->e.gv->guid_hash, &m->rd_guid)) != NULL)
+      {
+        status_cb_data_t data;
+        data.add = true;
+        data.handle = pwr->e.iid;
+        data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
+        (rd->status_cb) (rd->status_cb_entity, &data);
+      }
+    }
+    if (pwr->c.xqos->liveliness.lease_duration != T_NEVER && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
+      proxy_participant_add_pwr_lease (pwr->c.proxypp, pwr);
+  }
+  else
   {
     for (struct pwr_rd_match *m = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, &it); m != NULL; m = ddsrt_avl_iter_next (&it))
       reader_drop_connection (&m->rd_guid, pwr, false);
+    if (pwr->c.xqos->liveliness.lease_duration != T_NEVER && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
+      proxy_participant_remove_pwr_lease (pwr->c.proxypp, pwr);
   }
-  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
-    pwr->alive ? proxy_participant_add_pwr_lease (pwr->c.proxypp, pwr) : proxy_participant_remove_pwr_lease (pwr->c.proxypp, pwr);
   return 0;
 }
 
@@ -4483,7 +4499,7 @@ int proxy_writer_set_alive_guid (struct q_globals *gv, const struct ddsi_guid *g
   if ((pwr = ephash_lookup_proxy_writer_guid (gv->guid_hash, guid)) == NULL)
   {
     ddsrt_mutex_unlock (&gv->lock);
-    GVLOGDISC ("proxy_writer_set_alive_guid ("PGUIDFMT") - unknown\n", PGUID (*guid));
+    GVLOGDISC (" "PGUIDFMT"?\n", PGUID (*guid));
     return DDS_RETCODE_BAD_PARAMETER;
   }
   ddsrt_mutex_unlock (&gv->lock);

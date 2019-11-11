@@ -272,7 +272,9 @@ int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnow
         delete_proxy_participant_by_guid (gv, &g, now(), 1);
         break;
       case EK_PROXY_WRITER:
+        GVLOGDISC ("proxy_writer_set_alive ("PGUIDFMT")", PGUID (g));
         (void) proxy_writer_set_alive_guid (gv, &g, false);
+        GVLOGDISC ("\n");
         break;
       case EK_PARTICIPANT:
       case EK_READER:

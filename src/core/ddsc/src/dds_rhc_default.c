@@ -2394,7 +2394,7 @@ static bool dds_rhc_default_add_readcondition (struct dds_rhc_default *rhc, dds_
     ddsrt_atomic_st32 (&cond->m_entity.m_status.m_trigger, trigger);
     dds_entity_status_signal (&cond->m_entity, DDS_DATA_AVAILABLE_STATUS);
   }
-  
+
   TRACE ("add_readcondition(%p, %"PRIx32", %"PRIx32", %"PRIx32") => %p qminv %"PRIx32" ; rhc %"PRIu32" conds\n",
     (void *) rhc, cond->m_sample_states, cond->m_view_states,
     cond->m_instance_states, (void *) cond, cond->m_qminv, rhc->nconds);
