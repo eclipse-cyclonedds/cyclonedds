@@ -473,13 +473,13 @@ CU_Test(ddsc_liveliness, create_delete_writer_stress, .init = liveliness_init, .
 	dds_entity_t writers[MAX_WRITERS];
 	dds_entity_t waitset;
 	dds_qos_t *wqos;
-	dds_attach_t triggered;
 	struct dds_liveliness_changed_status lstatus;
-	size_t wr_cnt = 0, wr_dead_cnt = 0;
+	size_t wr_cnt = 0;
 	char name[100];
 	dds_qos_t *rqos;
-	uint32_t n;
-	uint32_t wr_del = MAX_WRITERS / 2;
+	dds_attach_t triggered;
+	uint32_t n, status;
+	Space_Type1 sample = { 0, 0, 0 };
 
 	/* topics */
 	create_topic_name("ddsc_liveliness_wr_stress", 1, name, sizeof name);
@@ -492,41 +492,47 @@ CU_Test(ddsc_liveliness, create_delete_writer_stress, .init = liveliness_init, .
 	CU_ASSERT_FATAL((reader = dds_create_reader(g_sub_participant, sub_topic, rqos, NULL)) > 0);
 	dds_delete_qos(rqos);
 	CU_ASSERT_EQUAL_FATAL(dds_set_status_mask(reader, DDS_LIVELINESS_CHANGED_STATUS), DDS_RETCODE_OK);
-
 	CU_ASSERT_FATAL((waitset = dds_create_waitset(g_sub_participant)) > 0);
 	CU_ASSERT_EQUAL_FATAL(dds_waitset_attach(waitset, reader, reader), DDS_RETCODE_OK);
 
-	/* create writers */
+	/* create 1st writer and wait for it to become alive */
 	CU_ASSERT_FATAL((wqos = dds_create_qos()) != NULL);
-	for (n = 0; n < MAX_WRITERS; n++)
+	dds_qset_liveliness(wqos, DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, DDS_MSECS (500));
+	CU_ASSERT_FATAL((writers[0] = dds_create_writer(g_pub_participant, pub_topic, wqos, NULL)) > 0);
+	CU_ASSERT_EQUAL_FATAL(dds_waitset_wait(waitset, &triggered, 1, DDS_MSECS(1000)), 1);
+	CU_ASSERT_EQUAL_FATAL(dds_take_status(reader, &status, DDS_LIVELINESS_CHANGED_STATUS), DDS_RETCODE_OK);
+
+	/* create writers */
+	for (n = 1; n < MAX_WRITERS; n++)
 	{
-		dds_qset_liveliness(wqos, n % 1 ? DDS_LIVELINESS_AUTOMATIC : DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, DDS_MSECS (2000 - n));
+		dds_qset_liveliness(wqos, n % 1 ? DDS_LIVELINESS_AUTOMATIC : DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, DDS_MSECS (500 - n));
 		CU_ASSERT_FATAL((writers[n] = dds_create_writer(g_pub_participant, pub_topic, wqos, NULL)) > 0);
-		if (n >= wr_del)
-			CU_ASSERT_EQUAL_FATAL(dds_delete(writers[n - wr_del]), DDS_RETCODE_OK);
+		dds_write (writers[n], &sample);
+		if (n % 3 == 2)
+			dds_delete(writers[n]);
 	}
 	dds_delete_qos(wqos);
 
 	/* wait for all writers to become alive */
-	while (wr_cnt < MAX_WRITERS || wr_dead_cnt < wr_del)
+	while (wr_cnt < MAX_WRITERS)
 	{
-		CU_ASSERT_FATAL((dds_waitset_wait (waitset, &triggered, 1, DDS_MSECS (1000))) >= 0);
 		CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status (reader, &lstatus), DDS_RETCODE_OK);
 		wr_cnt += (uint32_t)lstatus.alive_count_change;
-		wr_dead_cnt += (uint32_t)lstatus.not_alive_count_change;
+		dds_sleepfor (DDS_MSECS(50));
 	}
 	CU_ASSERT_EQUAL_FATAL (wr_cnt, MAX_WRITERS);
-	CU_ASSERT_EQUAL_FATAL (wr_dead_cnt, wr_del);
-	CU_ASSERT_EQUAL_FATAL(dds_waitset_detach(waitset, reader), DDS_RETCODE_OK);
-	CU_ASSERT_EQUAL_FATAL(dds_delete(waitset), DDS_RETCODE_OK);
-
 
 	/* cleanup remaining writers */
-	for (n = wr_del; n < wr_cnt; n++)
-		CU_ASSERT_EQUAL_FATAL(dds_delete(writers[n]), DDS_RETCODE_OK);
+	for (n = 0; n < wr_cnt; n++)
+	{
+		if (n % 3 != 2)
+			CU_ASSERT_EQUAL_FATAL(dds_delete(writers[n]), DDS_RETCODE_OK);
+	}
+	CU_ASSERT_EQUAL_FATAL(dds_waitset_detach(waitset, reader), DDS_RETCODE_OK);
+	CU_ASSERT_EQUAL_FATAL(dds_delete(waitset), DDS_RETCODE_OK);
+	CU_ASSERT_EQUAL_FATAL(dds_delete(reader), DDS_RETCODE_OK);
 	CU_ASSERT_EQUAL_FATAL(dds_delete(sub_topic), DDS_RETCODE_OK);
 	CU_ASSERT_EQUAL_FATAL(dds_delete(pub_topic), DDS_RETCODE_OK);
-	CU_ASSERT_EQUAL_FATAL(dds_delete(reader), DDS_RETCODE_OK);
 }
 #undef MAX_WRITERS
 
