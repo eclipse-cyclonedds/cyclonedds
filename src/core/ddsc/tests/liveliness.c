@@ -129,7 +129,7 @@ CU_TheoryDataPoints(ddsc_liveliness, pmd_count) = {
 };
 #undef A
 #undef MP
-CU_Theory((dds_liveliness_kind_t kind, uint32_t ldur, double mult), ddsc_liveliness, pmd_count, .init = liveliness_init, .fini = liveliness_fini, .timeout = 10)
+CU_Theory((dds_liveliness_kind_t kind, uint32_t ldur, double mult), ddsc_liveliness, pmd_count, .init = liveliness_init, .fini = liveliness_fini, .timeout = 30)
 {
 	dds_entity_t pub_topic;
 	dds_entity_t sub_topic;
@@ -185,7 +185,8 @@ CU_Theory((dds_liveliness_kind_t kind, uint32_t ldur, double mult), ddsc_livelin
 				 (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000,
 				 start_seqno, end_seqno);
 
-	CU_ASSERT(end_seqno - start_seqno >= (kind == DDS_LIVELINESS_AUTOMATIC ? mult - 1 : 0))
+	/* end-start should be mult - 1, but allow 1 pmd sample to be lost */
+	CU_ASSERT(end_seqno - start_seqno >= (kind == DDS_LIVELINESS_AUTOMATIC ? mult - 2 : 0))
 	if (kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT)
 		CU_ASSERT(get_pmd_seqno(g_pub_participant) - start_seqno < mult)
 
@@ -571,11 +572,11 @@ CU_Test(ddsc_liveliness, status_counts, .init = liveliness_init, .fini = livelin
 	CU_ASSERT_FATAL((wqos = dds_create_qos()) != NULL);
 	dds_qset_liveliness(wqos, DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, ldur);
 	CU_ASSERT_FATAL((writer = dds_create_writer(g_pub_participant, pub_topic, wqos, NULL)) > 0);
+	dds_delete_qos(wqos);
 
 	/* wait for writer to be alive */
 	CU_ASSERT_EQUAL_FATAL(dds_waitset_wait(waitset, &triggered, 1, DDS_SECS(5)), 1);
 	CU_ASSERT_EQUAL_FATAL(dds_take_status(reader, &status, DDS_LIVELINESS_CHANGED_STATUS), DDS_RETCODE_OK);
-	dds_delete_qos(wqos);
 
 	/* check status counts before proxy writer is expired */
 	dds_get_liveliness_changed_status(reader, &lstatus);
@@ -583,7 +584,10 @@ CU_Test(ddsc_liveliness, status_counts, .init = liveliness_init, .fini = livelin
 	dds_get_subscription_matched_status(reader, &sstatus);
 	CU_ASSERT_EQUAL_FATAL(sstatus.current_count, 1);
 
+	/* sleep for more than lease duration, writer should be set not-alive but subscription still matched */
 	dds_sleepfor(ldur + DDS_MSECS(100));
+	CU_ASSERT_EQUAL_FATAL(dds_waitset_wait(waitset, &triggered, 1, DDS_SECS(5)), 1);
+	CU_ASSERT_EQUAL_FATAL(dds_take_status(reader, &status, DDS_LIVELINESS_CHANGED_STATUS), DDS_RETCODE_OK);
 
 	dds_get_liveliness_changed_status(reader, &lstatus);
 	CU_ASSERT_EQUAL_FATAL(lstatus.alive_count, 0);
@@ -592,8 +596,9 @@ CU_Test(ddsc_liveliness, status_counts, .init = liveliness_init, .fini = livelin
 
 	/* write sample and re-check status counts */
 	dds_write (writer, &sample);
-
 	CU_ASSERT_EQUAL_FATAL(dds_waitset_wait(waitset, &triggered, 1, DDS_SECS(5)), 1);
+	CU_ASSERT_EQUAL_FATAL(dds_take_status(reader, &status, DDS_LIVELINESS_CHANGED_STATUS), DDS_RETCODE_OK);
+
 	dds_get_liveliness_changed_status(reader, &lstatus);
 	CU_ASSERT_EQUAL_FATAL(lstatus.alive_count, 1);
 	dds_get_subscription_matched_status(reader, &sstatus);
