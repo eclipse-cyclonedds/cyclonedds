@@ -16,6 +16,13 @@ if(NOT ${PROJECT_NAME} STREQUAL "CycloneDDS")
   message(FATAL_ERROR "Top-level CMakeLists.txt was moved to the top-level directory.  Please run cmake on ${dir} instead of ${CMAKE_CURRENT_LIST_DIR}")
 endif()
 
+
+# Support the OMG DDS Security within ddsc adds quite a bit of code.
+option(ENABLE_SECURITY "Enable OMG DDS Security support" ON)
+if(NOT ENABLE_SECURITY)
+  message(STATUS "Building without OMG DDS Security support")
+endif()
+
 add_subdirectory(ddsrt)
 
 # some of the tests in the core rely on preprocessing IDL, so idlc has to
