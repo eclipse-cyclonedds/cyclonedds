@@ -54,10 +54,7 @@ if(ENABLE_SSL)
 endif()
 
 # Support the OMG DDS Security within ddsc adds quite a bit of code.
-option(ENABLE_SECURITY "Enable OMG DDS Security support" ON)
-if(NOT ENABLE_SECURITY)
-  message(STATUS "Building without OMG DDS Security support")
-else()
+if(ENABLE_SECURITY)
   add_definitions(-DDDSI_INCLUDE_SECURITY)
   target_link_libraries(ddsc PRIVATE security_core)
   target_include_directories(
