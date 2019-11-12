@@ -1,3 +1,0 @@
-{
-  "cmake-args": [ "-DBUILD_IDLC=OFF" ]
-}
