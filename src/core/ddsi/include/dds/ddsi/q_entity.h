@@ -323,6 +323,7 @@ struct proxy_participant
   unsigned is_ddsi2_pp: 1; /* if this is the federation-leader on the remote node */
   unsigned minimal_bes_mode: 1;
   unsigned lease_expired: 1;
+  unsigned deleting: 1;
   unsigned proxypp_have_spdp: 1;
   unsigned proxypp_have_cm: 1;
   unsigned owns_lease: 1;
@@ -369,7 +370,7 @@ struct proxy_writer {
   unsigned deliver_synchronously: 1; /* iff 1, delivery happens straight from receive thread for non-historical data; else through delivery queue "dqueue" */
   unsigned have_seen_heartbeat: 1; /* iff 1, we have received at least on heartbeat from this proxy writer */
   unsigned local_matching_inprogress: 1; /* iff 1, we are still busy matching local readers; this is so we don't deliver incoming data to some but not all readers initially */
-  unsigned alive: 1; /* iff 1, the proxy writer is alive (lease for this proxy writer is not expired) */
+  unsigned alive: 1; /* iff 1, the proxy writer is alive (lease for this proxy writer is not expired); field may be modified only when holding both pwr->e.lock and pwr->c.proxypp->e.lock */
 #ifdef DDSI_INCLUDE_SSM
   unsigned supports_ssm: 1; /* iff 1, this proxy writer supports SSM */
 #endif
@@ -645,14 +646,14 @@ int new_proxy_reader (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
    reader or writer. Actual deletion is scheduled in the future, when
    no outstanding references may still exist (determined by checking
    thread progress, &c.). */
-int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit, bool proxypp_locked);
+int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
 int delete_proxy_reader (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
 
 void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
 void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
 
-int proxy_writer_set_alive_locked (struct q_globals *gv, struct proxy_writer *pwr, bool alive);
-int proxy_writer_set_alive_guid (struct q_globals *gv, const struct ddsi_guid *guid, bool alive);
+int proxy_writer_set_alive (struct proxy_writer *pwr);
+int proxy_writer_set_notalive (struct proxy_writer *pwr);
 
 int new_proxy_group (const struct ddsi_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp);
 void delete_proxy_group (struct ephash *guid_hash, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
@@ -660,6 +661,8 @@ void delete_proxy_group (struct ephash *guid_hash, const struct ddsi_guid *guid,
 /* Call this to empty all address sets of all writers to stop all outgoing traffic, or to
    rebuild them all (which only makes sense after previously having emptied them all). */
 void rebuild_or_clear_writer_addrsets(struct q_globals *gv, int rebuild);
+
+void reader_drop_connection (const struct ddsi_guid *rd_guid, const struct proxy_writer *pwr, bool unmatch);
 
 void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_ok);
 

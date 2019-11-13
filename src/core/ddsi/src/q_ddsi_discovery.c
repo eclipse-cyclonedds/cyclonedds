@@ -1357,13 +1357,9 @@ static void handle_SEDP_dead (const struct receiver_state *rst, nn_plist_t *data
   }
   GVLOGDISC (" "PGUIDFMT, PGUID (datap->endpoint_guid));
   if (is_writer_entityid (datap->endpoint_guid.entityid))
-  {
-    res = delete_proxy_writer (gv, &datap->endpoint_guid, timestamp, 0, false);
-  }
+    res = delete_proxy_writer (gv, &datap->endpoint_guid, timestamp, 0);
   else
-  {
     res = delete_proxy_reader (gv, &datap->endpoint_guid, timestamp, 0);
-  }
   GVLOGDISC (" %s\n", (res < 0) ? " unknown" : " delete");
 }
 

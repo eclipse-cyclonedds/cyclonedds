@@ -24,6 +24,7 @@
 #include "dds/version.h"
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/q_transmit.h"
 
 extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
 extern inline bool dds_entity_is_enabled (const dds_entity *e);
@@ -1387,9 +1388,9 @@ dds_return_t dds_generic_unimplemented_operation (dds_entity_t handle, dds_entit
 dds_return_t dds_assert_liveliness (dds_entity_t entity)
 {
   dds_return_t rc;
-  dds_entity *e;
+  dds_entity *e, *ewr;
 
-  if ((rc = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
     return rc;
   switch (dds_entity_kind (e))
   {
@@ -1398,8 +1399,11 @@ dds_return_t dds_assert_liveliness (dds_entity_t entity)
       break;
     }
     case DDS_KIND_WRITER: {
-      /* FIXME: implement liveliness manual-by-topic */
-      rc = DDS_RETCODE_UNSUPPORTED;
+      if ((rc = dds_entity_lock (entity, DDS_KIND_WRITER, &ewr)) != DDS_RETCODE_OK)
+        return rc;
+      if ((rc = write_hb_liveliness (&e->m_domain->gv, &e->m_guid, ((struct dds_writer *)ewr)->m_xp)) != DDS_RETCODE_OK)
+        return rc;
+      dds_entity_unlock (e);
       break;
     }
     default: {
@@ -1407,6 +1411,6 @@ dds_return_t dds_assert_liveliness (dds_entity_t entity)
       break;
     }
   }
-  dds_entity_unlock (e);
+  dds_entity_unpin (e);
   return rc;
 }

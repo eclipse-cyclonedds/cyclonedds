@@ -140,7 +140,6 @@ void lease_free (struct lease *l)
 
 void lease_renew (struct lease *l, nn_etime_t tnowE)
 {
-  struct q_globals const * gv;
   nn_etime_t tend_new = add_duration_to_etime (tnowE, l->tdur);
 
   /* do not touch tend if moving forward or if already expired */
@@ -151,7 +150,11 @@ void lease_renew (struct lease *l, nn_etime_t tnowE)
       return;
   } while (!ddsrt_atomic_cas64 (&l->tend, (uint64_t) tend, (uint64_t) tend_new.v));
 
-  gv = l->entity->gv;
+  /* Only at this point we can assume that gv can be recovered from the entity in the
+   * lease (i.e. the entity still exists). In cases where dereferencing l->entity->gv
+   * is not safe (e.g. the deletion of entities), the early out in the loop above
+   * will be the case because tend is set to T_NEVER. */
+  struct q_globals const * gv = l->entity->gv;
   if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     int32_t tsec, tusec;
@@ -272,10 +275,27 @@ int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnow
         delete_proxy_participant_by_guid (gv, &g, now(), 1);
         break;
       case EK_PROXY_WRITER:
-        GVLOGDISC ("proxy_writer_set_alive ("PGUIDFMT")", PGUID (g));
-        (void) proxy_writer_set_alive_guid (gv, &g, false);
+      {
+        struct proxy_writer *pwr;
+        ddsrt_avl_iter_t it;
+        if ((pwr = ephash_lookup_proxy_writer_guid (gv->guid_hash, &g)) == NULL)
+        {
+          GVLOGDISC (" "PGUIDFMT"?\n", PGUID (g));
+          ddsrt_mutex_lock (&gv->leaseheap_lock);
+          continue;
+        }
+        GVLOGDISC ("proxy_writer_set_notalive ("PGUIDFMT")", PGUID (g));
+        if (proxy_writer_set_notalive (pwr) == DDS_RETCODE_PRECONDITION_NOT_MET)
+        {
+          GVLOGDISC (" pwr was not alive");
+          ddsrt_mutex_lock (&gv->leaseheap_lock);
+          continue;
+        }
         GVLOGDISC ("\n");
+        for (struct pwr_rd_match *m = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, &it); m != NULL; m = ddsrt_avl_iter_next (&it))
+          reader_drop_connection (&m->rd_guid, pwr, false);
         break;
+      }
       case EK_PARTICIPANT:
       case EK_READER:
       case EK_WRITER:
@@ -283,7 +303,6 @@ int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnow
         assert (false);
         break;
     }
-
     ddsrt_mutex_lock (&gv->leaseheap_lock);
   }
 
