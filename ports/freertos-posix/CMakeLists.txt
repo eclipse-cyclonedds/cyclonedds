@@ -27,7 +27,7 @@ if(UNIX)
   set(CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}")
 endif()
 
-set(ENTRYPOINT "real_main"
+set(ENTRYPOINT "_main"
       CACHE STRING "Alternate name of original entrypoint")
 set(FREERTOS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/FreeRTOS-Sim"
       CACHE STRING "Location of FreeRTOS POSIX Port sources")

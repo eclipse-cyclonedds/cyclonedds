@@ -57,12 +57,7 @@ static uint32_t get_subscription_matched_count (dds_entity_t rd)
   return status.current_count;
 }
 
-#if DDSRT_WITH_FREERTOS
-extern int real_main (int argc, char *argv[]);
-int real_main (int argc, char *argv[])
-#else
 int main (int argc, char *argv[])
-#endif
 {
   dds_entity_t ppant;
   dds_entity_t tp;

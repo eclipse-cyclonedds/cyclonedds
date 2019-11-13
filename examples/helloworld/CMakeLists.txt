@@ -14,6 +14,16 @@ idlc_generate(HelloWorldData_lib "HelloWorldData.idl")
 add_executable(HelloworldPublisher publisher.c)
 add_executable(HelloworldSubscriber subscriber.c)
 
+if(WITH_FREERTOS)
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/publisher.c"
+    PROPERTIES COMPILE_DEFINITIONS main=_main)
+
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/subscriber.c"
+    PROPERTIES COMPILE_DEFINITIONS main=_main)
+endif()
+
 target_link_libraries(HelloworldPublisher HelloWorldData_lib CycloneDDS::ddsc)
 target_link_libraries(HelloworldSubscriber HelloWorldData_lib CycloneDDS::ddsc)
 

@@ -301,6 +301,11 @@ function(add_cunit_executable TARGET)
     set_property(
       SOURCE "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.c"
       PROPERTY COMPILE_DEFINITIONS HAVE_ENABLE_JUNIT_XML)
+if(WITH_FREERTOS)
+    set_property(
+      SOURCE "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.c"
+      PROPERTY COMPILE_DEFINITIONS main=_main)
+endif()
   endif()
 
   add_executable(

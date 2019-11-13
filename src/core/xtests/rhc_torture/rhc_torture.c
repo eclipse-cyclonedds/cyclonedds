@@ -821,12 +821,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     fwr (wr[i]);
 }
 
-#if DDSRT_WITH_FREERTOS
-extern int real_main (int argc, char *argv[]);
-int real_main (int argc, char *argv[])
-#else
 int main (int argc, char *argv[])
-#endif
 {
   dds_entity_t pp = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
   dds_entity_t tp = dds_create_topic(pp, &RhcTypes_T_desc, "RhcTypes_T", NULL, NULL);

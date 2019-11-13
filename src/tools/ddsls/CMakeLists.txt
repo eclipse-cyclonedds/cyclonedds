@@ -10,6 +10,13 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 add_executable(ddsls ddsls.c)
+
+if(WITH_FREERTOS)
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/ddsls.c"
+    PROPERTIES COMPILE_DEFINITIONS main=_main)
+endif()
+
 target_link_libraries(ddsls ddsc)
 
 install(
