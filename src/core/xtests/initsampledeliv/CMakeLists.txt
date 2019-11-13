@@ -16,5 +16,15 @@ idlc_generate(InitSampleDeliv_lib InitSampleDelivData.idl)
 add_executable(InitSampleDelivPub publisher.c)
 add_executable(InitSampleDelivSub subscriber.c)
 
+if(WITH_FREERTOS)
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/publisher.c"
+    PROPERTIES COMPILE_DEFINITIONS main=_main)
+
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/subscriber.c"
+    PROPERTIES COMPILE_DEFINITIONS main=_main)
+endif()
+
 target_link_libraries(InitSampleDelivPub InitSampleDeliv_lib ddsc)
 target_link_libraries(InitSampleDelivSub InitSampleDeliv_lib ddsc)

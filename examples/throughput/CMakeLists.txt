@@ -14,6 +14,16 @@ idlc_generate(Throughput_lib Throughput.idl)
 add_executable(ThroughputPublisher publisher.c)
 add_executable(ThroughputSubscriber subscriber.c)
 
+if(WITH_FREERTOS)
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/publisher.c"
+    PROPERTIES COMPILE_DEFINITIONS main=_main)
+
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/subscriber.c"
+    PROPERTIES COMPILE_DEFINITIONS main=_main)
+endif()
+
 target_link_libraries(ThroughputPublisher Throughput_lib CycloneDDS::ddsc)
 target_link_libraries(ThroughputSubscriber Throughput_lib CycloneDDS::ddsc)
 

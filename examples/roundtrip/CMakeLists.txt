@@ -14,6 +14,16 @@ idlc_generate(RoundTrip_lib RoundTrip.idl)
 add_executable(RoundtripPing ping.c)
 add_executable(RoundtripPong pong.c)
 
+if(WITH_FREERTOS)
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/ping.c"
+    PROPERTIES COMPILE_DEFINITIONS main=_main)
+
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/pong.c"
+    PROPERTIES COMPILE_DEFINITIONS main=_main)
+endif()
+
 target_link_libraries(RoundtripPing RoundTrip_lib CycloneDDS::ddsc)
 target_link_libraries(RoundtripPong RoundTrip_lib CycloneDDS::ddsc)
 

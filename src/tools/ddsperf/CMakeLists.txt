@@ -12,6 +12,13 @@
 
 idlc_generate(ddsperf_types ddsperf_types.idl)
 add_executable(ddsperf ddsperf.c cputime.c cputime.h netload.c netload.h)
+
+if(WITH_FREERTOS)
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/ddsperf.c"
+    PROPERTIES COMPILE_DEFINITIONS main=_main)
+endif()
+
 target_link_libraries(ddsperf ddsperf_types ddsc)
 
 if(WIN32)

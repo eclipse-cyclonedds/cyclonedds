@@ -35,9 +35,21 @@
 #include <FreeRTOS.h>
 #include <task.h>
 
+#if DDSRT_WITH_FREERTOS
+#if DDSRT_WITH_LWIP
+#include <lwip/tcpip.h>
+#endif
+#endif
+
 /* Setup system hardware. */
 void prvSetupHardware(void)
 {
+#if DDSRT_WITH_FREERTOS
+#if DDSRT_WITH_LWIP
+  tcpip_init(NULL, NULL);
+#endif
+#endif
+
   /* No hardware to setup when running in the simulator. */
   return;
 }
