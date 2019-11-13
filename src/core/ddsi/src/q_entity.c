@@ -4274,6 +4274,8 @@ int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
     pwr->lease = lease_new (texpire, pwr->c.xqos->liveliness.lease_duration, &pwr->e);
     if (pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
       proxy_participant_add_pwr_lease (proxypp, pwr);
+    else
+      lease_register (pwr->lease);
   }
 
   if (isreliable)

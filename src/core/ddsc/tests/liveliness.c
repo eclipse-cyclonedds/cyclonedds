@@ -122,13 +122,15 @@ static dds_duration_t get_ldur_config(dds_entity_t participant)
 
 #define A DDS_LIVELINESS_AUTOMATIC
 #define MP DDS_LIVELINESS_MANUAL_BY_PARTICIPANT
+#define MT DDS_LIVELINESS_MANUAL_BY_TOPIC
 CU_TheoryDataPoints(ddsc_liveliness, pmd_count) = {
-		CU_DataPoints(dds_liveliness_kind_t,  A,   A,  MP), /* liveliness kind */
-		CU_DataPoints(uint32_t,             200, 200, 200), /* lease duration */
-		CU_DataPoints(double,                 5,  10,   5),	/* delay (n times lease duration) */
+		CU_DataPoints(dds_liveliness_kind_t,  A,   A,  MP,  MT), /* liveliness kind */
+		CU_DataPoints(uint32_t,             200, 200, 200, 200), /* lease duration */
+		CU_DataPoints(double,                 5,  10,   5,   5), /* delay (n times lease duration) */
 };
-#undef A
+#undef MT
 #undef MP
+#undef A
 CU_Theory((dds_liveliness_kind_t kind, uint32_t ldur, double mult), ddsc_liveliness, pmd_count, .init = liveliness_init, .fini = liveliness_fini, .timeout = 30)
 {
 	dds_entity_t pub_topic;
@@ -187,7 +189,7 @@ CU_Theory((dds_liveliness_kind_t kind, uint32_t ldur, double mult), ddsc_livelin
 
 	/* end-start should be mult - 1, but allow 1 pmd sample to be lost */
 	CU_ASSERT(end_seqno - start_seqno >= (kind == DDS_LIVELINESS_AUTOMATIC ? mult - 2 : 0))
-	if (kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT)
+	if (kind != DDS_LIVELINESS_AUTOMATIC)
 		CU_ASSERT(get_pmd_seqno(g_pub_participant) - start_seqno < mult)
 
 	/* cleanup */
@@ -197,36 +199,36 @@ CU_Theory((dds_liveliness_kind_t kind, uint32_t ldur, double mult), ddsc_livelin
 	CU_ASSERT_EQUAL_FATAL(dds_delete(reader), DDS_RETCODE_OK);
 }
 
-/* FIXME: add DDS_LIVELINESS_MANUAL_BY_TOPIC */
 CU_TheoryDataPoints(ddsc_liveliness, expire_liveliness_kinds) = {
-		CU_DataPoints(uint32_t,  200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200), /* lease duration */
-		CU_DataPoints(double,    0.3, 0.3, 0.3, 0.3,   2,   2,   2,   2,   2,   2,   2,   2,   2), /* delay (n times lease duration) */
-		CU_DataPoints(size_t,      1,   0,   2,   0,   1,   0,   1,   2,   0,   5,   0,  15,  15), /* number of writers with automatic liveliness */
-		CU_DataPoints(size_t,      1,   1,   2,   2,   1,   1,   0,   2,   2,   5,  10,   0,  15), /* number of writers with manual-by-participant liveliness */
+		CU_DataPoints(uint32_t,  200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200), /* lease duration */
+		CU_DataPoints(double,    0.3, 0.3, 0.3, 0.3, 0.3, 0.3,   2,   2,   2,   2,   2,   2,   2,   2,   2), /* delay (n times lease duration) */
+		CU_DataPoints(size_t,      1,   0,   2,   0,   1,   0,   0,   1,   1,   2,   0,   5,   0,  15,  15), /* number of writers with automatic liveliness */
+		CU_DataPoints(size_t,      1,   1,   2,   2,   0,   0,   0,   1,   0,   2,   2,   5,  10,   0,  15), /* number of writers with manual-by-participant liveliness */
+		CU_DataPoints(size_t,      1,   1,   2,   2,   1,   1,   1,   1,   0,   1,   1,   2,   5,   0,  10), /* number of writers with manual-by-topic liveliness */
 };
-CU_Theory((uint32_t ldur, double mult, size_t wr_cnt_auto, size_t wr_cnt_man_pp), ddsc_liveliness, expire_liveliness_kinds, .init = liveliness_init, .fini = liveliness_fini, .timeout = 60)
+CU_Theory((uint32_t ldur, double mult, size_t wr_cnt_auto, size_t wr_cnt_man_pp, size_t wr_cnt_man_tp), ddsc_liveliness, expire_liveliness_kinds, .init = liveliness_init, .fini = liveliness_fini, .timeout = 60)
 {
 	dds_entity_t pub_topic;
 	dds_entity_t sub_topic;
 	dds_entity_t reader;
 	dds_entity_t *writers;
-	dds_qos_t *rqos, *wqos_auto, *wqos_man_pp;
+	dds_qos_t *rqos, *wqos_auto, *wqos_man_pp, *wqos_man_tp;
 	dds_entity_t waitset;
 	dds_attach_t triggered;
 	struct dds_liveliness_changed_status lstatus;
 	uint32_t status;
 	size_t n, run = 1;
 	char name[100];
-	size_t wr_cnt = wr_cnt_auto + wr_cnt_man_pp;
+	size_t wr_cnt = wr_cnt_auto + wr_cnt_man_pp + wr_cnt_man_tp;
 	dds_time_t tstart, t;
 	bool test_finished = false;
 
 	do
 	{
 		tstart = dds_time();
-		printf("%d.%06d running test: lease duration %d, delay %f, auto/manual-by-participant %zu/%zu\n",
+		printf("%d.%06d running test: lease duration %d, delay %f, auto/man-by-part/man-by-topic %zu/%zu/%zu\n",
 					 (int32_t)(tstart / DDS_NSECS_IN_SEC), (int32_t)(tstart % DDS_NSECS_IN_SEC) / 1000,
-					 ldur, mult, wr_cnt_auto, wr_cnt_man_pp);
+					 ldur, mult, wr_cnt_auto, wr_cnt_man_pp, wr_cnt_man_tp);
 
 		/* topics */
 		create_topic_name("ddsc_liveliness_test", g_topic_nr++, name, sizeof name);
@@ -245,6 +247,8 @@ CU_Theory((uint32_t ldur, double mult, size_t wr_cnt_auto, size_t wr_cnt_man_pp)
 		dds_qset_liveliness(wqos_auto, DDS_LIVELINESS_AUTOMATIC, DDS_MSECS(ldur));
 		CU_ASSERT_FATAL((wqos_man_pp = dds_create_qos()) != NULL);
 		dds_qset_liveliness(wqos_man_pp, DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, DDS_MSECS(ldur));
+		CU_ASSERT_FATAL((wqos_man_tp = dds_create_qos()) != NULL);
+		dds_qset_liveliness(wqos_man_tp, DDS_LIVELINESS_MANUAL_BY_TOPIC, DDS_MSECS(ldur));
 
 		CU_ASSERT_FATAL((waitset = dds_create_waitset(g_sub_participant)) > 0);
 		CU_ASSERT_EQUAL_FATAL(dds_waitset_attach(waitset, reader, reader), DDS_RETCODE_OK);
@@ -252,12 +256,15 @@ CU_Theory((uint32_t ldur, double mult, size_t wr_cnt_auto, size_t wr_cnt_man_pp)
 		writers = dds_alloc(wr_cnt * sizeof(dds_entity_t));
 		for (n = 0; n < wr_cnt; n++)
 		{
-			CU_ASSERT_FATAL((writers[n] = dds_create_writer(g_pub_participant, pub_topic, n < wr_cnt_auto ? wqos_auto : wqos_man_pp, NULL)) > 0);
+			dds_qos_t *wqos;
+			wqos = n < wr_cnt_auto ? wqos_auto : (n < (wr_cnt_auto + wr_cnt_man_pp) ? wqos_man_pp : wqos_man_tp);
+			CU_ASSERT_FATAL((writers[n] = dds_create_writer(g_pub_participant, pub_topic, wqos, NULL)) > 0);
 			CU_ASSERT_EQUAL_FATAL(dds_waitset_wait(waitset, &triggered, 1, DDS_SECS(5)), 1);
 			CU_ASSERT_EQUAL_FATAL(dds_take_status(reader, &status, DDS_LIVELINESS_CHANGED_STATUS), DDS_RETCODE_OK);
 		}
 		dds_delete_qos(wqos_auto);
 		dds_delete_qos(wqos_man_pp);
+		dds_delete_qos(wqos_man_tp);
 
 		t = dds_time();
 		if (t - tstart > DDS_MSECS(0.5 * ldur))
@@ -286,7 +293,7 @@ CU_Theory((uint32_t ldur, double mult, size_t wr_cnt_auto, size_t wr_cnt_man_pp)
 			printf("%d.%06d writers stopped: %zu\n",
 						 (int32_t)(t / DDS_NSECS_IN_SEC), (int32_t)(t % DDS_NSECS_IN_SEC) / 1000, stopped);
 
-			size_t exp_stopped = mult < 1 ? 0 : wr_cnt_man_pp;
+			size_t exp_stopped = mult < 1 ? 0 : (wr_cnt_man_pp + wr_cnt_man_tp);
 			if (stopped != exp_stopped)
 			{
 				ldur *= 10;
@@ -395,6 +402,9 @@ CU_Test(ddsc_liveliness, lease_duration, .init = liveliness_init, .fini = liveli
 	CU_ASSERT_EQUAL_FATAL(get_pmd_interval(g_pub_participant), DDS_MSECS(500));
 
 	add_and_check_writer(DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, DDS_MSECS(100), &writers[wr_cnt++], pub_topic, reader);
+	CU_ASSERT_EQUAL_FATAL(get_pmd_interval(g_pub_participant), DDS_MSECS(500));
+
+	add_and_check_writer(DDS_LIVELINESS_MANUAL_BY_TOPIC, DDS_MSECS(100), &writers[wr_cnt++], pub_topic, reader);
 	CU_ASSERT_EQUAL_FATAL(get_pmd_interval(g_pub_participant), DDS_MSECS(500));
 
 	/* cleanup */
@@ -506,7 +516,7 @@ CU_Test(ddsc_liveliness, create_delete_writer_stress, .init = liveliness_init, .
 	/* create writers */
 	for (n = 1; n < MAX_WRITERS; n++)
 	{
-		dds_qset_liveliness(wqos, n % 1 ? DDS_LIVELINESS_AUTOMATIC : DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, DDS_MSECS (500 - n));
+		dds_qset_liveliness(wqos, n % 2 ? DDS_LIVELINESS_AUTOMATIC : DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, DDS_MSECS (500 + (n % 3 ? n : -n)));
 		CU_ASSERT_FATAL((writers[n] = dds_create_writer(g_pub_participant, pub_topic, wqos, NULL)) > 0);
 		dds_write (writers[n], &sample);
 		if (n % 3 == 2)
@@ -612,3 +622,91 @@ CU_Test(ddsc_liveliness, status_counts, .init = liveliness_init, .fini = livelin
 	CU_ASSERT_EQUAL_FATAL(dds_delete(sub_topic), DDS_RETCODE_OK);
 	CU_ASSERT_EQUAL_FATAL(dds_delete(pub_topic), DDS_RETCODE_OK);
 }
+
+#define MAX_WRITERS 100
+CU_TheoryDataPoints(ddsc_liveliness, assert_liveliness) = {
+		CU_DataPoints(size_t,      1, 0, 0, 1), /* number of writers with automatic liveliness */
+		CU_DataPoints(size_t,      1, 1, 0, 0), /* number of writers with manual-by-participant liveliness */
+		CU_DataPoints(size_t,      1, 1, 1, 2), /* number of writers with manual-by-topic liveliness */
+};
+CU_Theory((size_t wr_cnt_auto, size_t wr_cnt_man_pp, size_t wr_cnt_man_tp), ddsc_liveliness, assert_liveliness, .init = liveliness_init, .fini = liveliness_fini, .timeout=30)
+{
+	dds_entity_t pub_topic;
+	dds_entity_t sub_topic;
+	dds_entity_t reader;
+	dds_entity_t writers[MAX_WRITERS];
+	dds_qos_t *rqos;
+	struct dds_liveliness_changed_status lstatus;
+	char name[100];
+	dds_duration_t ldur = DDS_MSECS (300);
+	size_t wr_cnt = 0;
+	dds_time_t tstop;
+	size_t stopped;
+
+	assert (wr_cnt_auto + wr_cnt_man_pp + wr_cnt_man_tp < MAX_WRITERS);
+	printf("running test assert_liveliness: auto/man-by-part/man-by-topic %zu/%zu/%zu\n", wr_cnt_auto, wr_cnt_man_pp, wr_cnt_man_tp);
+
+	/* topics */
+	create_topic_name("ddsc_liveliness_assert", g_topic_nr++, name, sizeof name);
+	CU_ASSERT_FATAL((pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
+	CU_ASSERT_FATAL((sub_topic = dds_create_topic(g_sub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
+
+	/* reader */
+	CU_ASSERT_FATAL((rqos = dds_create_qos()) != NULL);
+	dds_qset_liveliness(rqos, DDS_LIVELINESS_AUTOMATIC, DDS_INFINITY);
+	CU_ASSERT_FATAL((reader = dds_create_reader(g_sub_participant, sub_topic, rqos, NULL)) > 0);
+	dds_delete_qos(rqos);
+	CU_ASSERT_EQUAL_FATAL(dds_set_status_mask(reader, DDS_LIVELINESS_CHANGED_STATUS), DDS_RETCODE_OK);
+
+	/* writers */
+	for (size_t n = 0; n < wr_cnt_auto; n++)
+		add_and_check_writer(DDS_LIVELINESS_AUTOMATIC, ldur, &writers[wr_cnt++], pub_topic, reader);
+	for (size_t n = 0; n < wr_cnt_man_pp; n++)
+		add_and_check_writer(DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, ldur, &writers[wr_cnt++], pub_topic, reader);
+	for (size_t n = 0; n < wr_cnt_man_tp; n++)
+		add_and_check_writer(DDS_LIVELINESS_MANUAL_BY_TOPIC, ldur, &writers[wr_cnt++], pub_topic, reader);
+
+	/* check status counts before proxy writer is expired */
+	dds_get_liveliness_changed_status(reader, &lstatus);
+	CU_ASSERT_EQUAL_FATAL(lstatus.alive_count, wr_cnt_auto + wr_cnt_man_pp + wr_cnt_man_tp);
+
+	/* delay for more than lease duration and assert liveliness on writers:
+	   all writers (including man-by-pp) should be kept alive */
+	tstop = dds_time() + 4 * ldur / 3;
+	stopped = 0;
+	do
+	{
+		for (size_t n = wr_cnt - wr_cnt_man_tp; n < wr_cnt; n++)
+			dds_assert_liveliness (writers[n]);
+		CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status(reader, &lstatus), DDS_RETCODE_OK);
+		stopped += (uint32_t)lstatus.not_alive_count_change;
+		dds_sleepfor (DDS_MSECS(50));
+	} while (dds_time() < tstop);
+	CU_ASSERT_EQUAL_FATAL(stopped, 0);
+	dds_get_liveliness_changed_status(reader, &lstatus);
+	CU_ASSERT_EQUAL_FATAL(lstatus.alive_count, wr_cnt_auto + wr_cnt_man_pp + wr_cnt_man_tp);
+
+	/* delay for more than lease duration and assert liveliness on participant:
+	   writers with liveliness man-by-pp should be kept alive, man-by-topic writers
+	   should stop */
+	tstop = dds_time() + 4 * ldur / 3;
+	stopped = 0;
+	do
+	{
+		dds_assert_liveliness (g_pub_participant);
+		CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status(reader, &lstatus), DDS_RETCODE_OK);
+		stopped += (uint32_t)lstatus.not_alive_count_change;
+		dds_sleepfor (DDS_MSECS(50));
+	} while (dds_time() < tstop);
+	CU_ASSERT_EQUAL_FATAL(stopped, wr_cnt_man_tp);
+	dds_get_liveliness_changed_status(reader, &lstatus);
+	CU_ASSERT_EQUAL_FATAL(lstatus.alive_count, wr_cnt_auto + wr_cnt_man_pp);
+
+	/* cleanup */
+	CU_ASSERT_EQUAL_FATAL(dds_delete(reader), DDS_RETCODE_OK);
+	for (size_t n = 0; n < wr_cnt; n++)
+		CU_ASSERT_EQUAL_FATAL(dds_delete(writers[n]), DDS_RETCODE_OK);
+	CU_ASSERT_EQUAL_FATAL(dds_delete(sub_topic), DDS_RETCODE_OK);
+	CU_ASSERT_EQUAL_FATAL(dds_delete(pub_topic), DDS_RETCODE_OK);
+}
+#undef MAX_WRITERS

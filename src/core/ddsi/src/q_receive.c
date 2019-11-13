@@ -546,7 +546,7 @@ static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *
   }
 
   /* Send a Heartbeat just to this peer */
-  add_Heartbeat (m, wr, whcst, hbansreq, prd->e.guid.entityid, 0);
+  add_Heartbeat (m, wr, whcst, hbansreq, 0, prd->e.guid.entityid, 0);
   ETRACE (wr, "force_heartbeat_to_peer: "PGUIDFMT" -> "PGUIDFMT" - queue for transmit\n",
           PGUID (wr->e.guid), PGUID (prd->e.guid));
   qxev_msg (wr->evq, m);
@@ -1129,12 +1129,18 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
     RSTTRACE (PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
   }
-
   lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto), tnow);
   RSTTRACE (PGUIDFMT" -> "PGUIDFMT":", PGUID (src), PGUID (dst));
-
   ddsrt_mutex_lock (&pwr->e.lock);
-
+  if (msg->smhdr.flags & HEARTBEAT_FLAG_LIVELINESS &&
+      pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC &&
+      pwr->c.xqos->liveliness.lease_duration != T_NEVER)
+  {
+    struct lease *lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_man);
+    if (lease != NULL)
+      lease_renew (lease, tnow);
+    lease_renew (pwr->lease, tnow);
+  }
   if (pwr->n_reliable_readers == 0)
   {
     RSTTRACE (PGUIDFMT" -> "PGUIDFMT" no-reliable-readers)", PGUID (src), PGUID (dst));
@@ -2085,7 +2091,8 @@ static void clean_defrag (struct proxy_writer *pwr)
   nn_defrag_notegap (pwr->defrag, 1, seq);
 }
 
-static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct nn_rmsg *rmsg, const Data_DataFrag_common_t *msg, const struct nn_rsample_info *sampleinfo, uint32_t fragnum, struct nn_rdata *rdata, struct nn_dqueue **deferred_wakeup, bool renew_manbypp_lease)
+static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct nn_rmsg *rmsg, const Data_DataFrag_common_t *msg, const struct nn_rsample_info *sampleinfo,
+    uint32_t fragnum, struct nn_rdata *rdata, struct nn_dqueue **deferred_wakeup, bool renew_manbypp_lease)
 {
   struct proxy_writer *pwr;
   struct nn_rsample *rsample;
@@ -2112,10 +2119,8 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
   /* Shouldn't lock the full writer, but will do so for now */
   ddsrt_mutex_lock (&pwr->e.lock);
 
-  /* FIXME: implement liveliness manual-by-topic */
-  /* if (pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
+  if (pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC && pwr->c.xqos->liveliness.lease_duration != T_NEVER)
     lease_renew (pwr->lease, tnow);
-  */
 
   if (!pwr->alive)
     proxy_writer_set_alive_locked (pwr->e.gv, pwr, true);
