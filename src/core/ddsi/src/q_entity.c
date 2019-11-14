@@ -98,6 +98,7 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_g
 static dds_return_t new_reader_guid (struct reader **rd_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct ddsi_rhc *rhc, status_cb_t status_cb, void *status_cbarg);
 static struct participant *ref_participant (struct participant *pp, const struct ddsi_guid *guid_of_refing_entity);
 static void unref_participant (struct participant *pp, const struct ddsi_guid *guid_of_refing_entity);
+static int delete_proxy_writer_w_proxypp_locked (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
 
 static int gcreq_participant (struct participant *pp);
 static int gcreq_writer (struct writer *wr);
@@ -3617,16 +3618,20 @@ void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct
 
 static void proxy_participant_replace_minl (struct proxy_participant *proxypp, bool manbypp, struct lease *lnew)
 {
+  /* By loading/storing the pointer atomically, we ensure we always
+     read a valid (or once valid) lease. By delaying freeing the lease
+     through the garbage collector, we ensure whatever lease update
+     occurs in parallel completes before the memory is released. */
   const nn_etime_t never = { T_NEVER };
   struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, gc_proxy_participant_lease);
-  struct lease *lease_old = (struct lease *) ddsrt_atomic_ldvoidp (manbypp ? &proxypp->minl_man : &proxypp->minl_auto);
-  lease_renew (lease_old, never);
-  gcreq->arg = (void *) lease_old;
+  struct lease *lease_old = ddsrt_atomic_ldvoidp (manbypp ? &proxypp->minl_man : &proxypp->minl_auto);
+  lease_renew (lease_old, never); /* ensures lease will not expire while it is replaced */
+  gcreq->arg = lease_old;
   gcreq_enqueue (gcreq);
-  ddsrt_atomic_stvoidp (manbypp ? &proxypp->minl_man : &proxypp->minl_auto, (void *) lnew);
+  ddsrt_atomic_stvoidp (manbypp ? &proxypp->minl_man : &proxypp->minl_auto, lnew);
 }
 
-static void proxy_participant_add_pwr_lease (struct proxy_participant * proxypp, const struct proxy_writer * pwr)
+static void proxy_participant_add_pwr_lease_locked (struct proxy_participant * proxypp, const struct proxy_writer * pwr)
 {
   struct lease *minl_prev;
   struct lease *minl_new;
@@ -3635,7 +3640,6 @@ static void proxy_participant_add_pwr_lease (struct proxy_participant * proxypp,
 
   assert (pwr->lease != NULL);
   manbypp = (pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
-  ddsrt_mutex_lock (&proxypp->e.lock);
   lh = manbypp ? &proxypp->leaseheap_man : &proxypp->leaseheap_auto;
   minl_prev = ddsrt_fibheap_min (&lease_fhdef_proxypp, lh);
   ddsrt_fibheap_insert (&lease_fhdef_proxypp, lh, pwr->lease);
@@ -3645,10 +3649,11 @@ static void proxy_participant_add_pwr_lease (struct proxy_participant * proxypp,
   {
     nn_etime_t texp = add_duration_to_etime (now_et (), minl_new->tdur);
     struct lease *lnew = lease_new (texp, minl_new->tdur, minl_new->entity);
-    if (manbypp && minl_prev == NULL)
+    if (minl_prev == NULL)
     {
+      assert (manbypp);
       assert (ddsrt_atomic_ldvoidp (&proxypp->minl_man) == NULL);
-      ddsrt_atomic_stvoidp (&proxypp->minl_man, (void *) lnew);
+      ddsrt_atomic_stvoidp (&proxypp->minl_man, lnew);
     }
     else
     {
@@ -3656,7 +3661,6 @@ static void proxy_participant_add_pwr_lease (struct proxy_participant * proxypp,
     }
     lease_register (lnew);
   }
-  ddsrt_mutex_unlock (&proxypp->e.lock);
 }
 
 static void proxy_participant_remove_pwr_lease_locked (struct proxy_participant * proxypp, struct proxy_writer * pwr)
@@ -3682,23 +3686,12 @@ static void proxy_participant_remove_pwr_lease_locked (struct proxy_participant 
       proxy_participant_replace_minl (proxypp, manbypp, lnew);
       lease_register (lnew);
     }
-    else if (manbypp)
-    {
-      proxy_participant_replace_minl (proxypp, manbypp, NULL);
-    }
     else
     {
-      /* minl should not be null for leaseheap_auto because proxypp's lease is in */
-      assert (false);
+      assert (manbypp);
+      proxy_participant_replace_minl (proxypp, manbypp, NULL);
     }
   }
-}
-
-static void proxy_participant_remove_pwr_lease (struct proxy_participant * proxypp, struct proxy_writer * pwr)
-{
-  ddsrt_mutex_lock (&proxypp->e.lock);
-  proxy_participant_remove_pwr_lease_locked (proxypp, pwr);
-  ddsrt_mutex_unlock (&proxypp->e.lock);
 }
 
 void new_proxy_participant
@@ -3787,8 +3780,11 @@ void new_proxy_participant
          and uses the shortest duration for proxypp and all its pwr's (with automatic liveliness) */
       ddsrt_fibheap_insert (&lease_fhdef_proxypp, &proxypp->leaseheap_auto, proxypp->lease);
 
-      /* Set the shortest lease for auto liveliness: clone proxypp's lease (as there are no pwr's
-          at this point, this is the shortest lease) */
+      /* Set the shortest lease for auto liveliness: clone proxypp's lease and store the clone in
+         proxypp->minl_auto. As there are no pwr's at this point, the proxy pp's lease is the
+         shortest lease. When a pwr with a shorter is added, the lease in minl_auto is replaced
+         by the lease from the proxy writer in proxy_participant_add_pwr_lease_locked. This old shortest
+         lease is freed, so that's why we need a clone and not the proxypp's lease in the heap.  */
       ddsrt_atomic_stvoidp (&proxypp->minl_auto, (void *) lease_clone (proxypp->lease));
       ddsrt_atomic_stvoidp (&proxypp->minl_man, NULL);
     }
@@ -4096,7 +4092,7 @@ static void delete_ppt (struct proxy_participant *proxypp, nn_wctime_t timestamp
     struct entity_common *e = entity_common_from_proxy_endpoint_common (c);
     if (is_writer_entityid (e->guid.entityid))
     {
-      ret = delete_proxy_writer (proxypp->e.gv, &e->guid, timestamp, isimplicit, true);
+      ret = delete_proxy_writer_w_proxypp_locked (proxypp->e.gv, &e->guid, timestamp, isimplicit);
     }
     else
     {
@@ -4273,9 +4269,19 @@ int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
     nn_etime_t texpire = add_duration_to_etime (now_et (), pwr->c.xqos->liveliness.lease_duration);
     pwr->lease = lease_new (texpire, pwr->c.xqos->liveliness.lease_duration, &pwr->e);
     if (pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
-      proxy_participant_add_pwr_lease (proxypp, pwr);
+    {
+      ddsrt_mutex_lock (&proxypp->e.lock);
+      proxy_participant_add_pwr_lease_locked (proxypp, pwr);
+      ddsrt_mutex_unlock (&proxypp->e.lock);
+    }
     else
+    {
       lease_register (pwr->lease);
+    }
+  }
+  else
+  {
+    pwr->lease = NULL;
   }
 
   if (isreliable)
@@ -4425,7 +4431,7 @@ static void gc_delete_proxy_writer (struct gcreq *gcreq)
   ddsrt_free (pwr);
 }
 
-int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit, bool proxypp_locked)
+static int delete_proxy_writer_impl (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit, bool lock_proxypp)
 {
   struct proxy_writer *pwr;
   (void)isimplicit;
@@ -4446,23 +4452,36 @@ int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_
   builtintopic_write (gv->builtin_topic_interface, &pwr->e, timestamp, false);
   ephash_remove_proxy_writer_guid (gv->guid_hash, pwr);
   ddsrt_mutex_unlock (&gv->lock);
+  if (lock_proxypp)
+    ddsrt_mutex_lock (&pwr->c.proxypp->e.lock);
   if (pwr->c.xqos->liveliness.lease_duration != T_NEVER)
   {
-    ddsrt_mutex_lock (&pwr->e.lock);
     if (pwr->alive && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
-      proxypp_locked ? proxy_participant_remove_pwr_lease_locked (pwr->c.proxypp, pwr) : proxy_participant_remove_pwr_lease (pwr->c.proxypp, pwr);
-    ddsrt_mutex_unlock (&pwr->e.lock);
+      proxy_participant_remove_pwr_lease_locked (pwr->c.proxypp, pwr);
     lease_free (pwr->lease);
   }
+  if (lock_proxypp)
+    ddsrt_mutex_unlock (&pwr->c.proxypp->e.lock);
   gcreq_proxy_writer (pwr);
   return 0;
+}
+
+static int delete_proxy_writer_w_proxypp_locked (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit)
+{
+  return delete_proxy_writer_impl (gv, guid, timestamp, isimplicit, false);
+}
+
+int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit)
+{
+  return delete_proxy_writer_impl (gv, guid, timestamp, isimplicit, true);
 }
 
 int proxy_writer_set_alive_locked (struct q_globals *gv, struct proxy_writer *pwr, bool alive)
 {
   ddsrt_avl_iter_t it;
+  ddsrt_mutex_lock (&pwr->c.proxypp->e.lock);
   assert (pwr->alive != alive);
-  pwr->alive = alive;
+  pwr->alive = alive; /* setting pwr->alive requires both pwr->proxypp->e.lock and pwr->e.lock */
   GVLOGDISC (" alive=%d", pwr->alive);
   if (pwr->alive)
   {
@@ -4479,15 +4498,16 @@ int proxy_writer_set_alive_locked (struct q_globals *gv, struct proxy_writer *pw
       }
     }
     if (pwr->c.xqos->liveliness.lease_duration != T_NEVER && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
-      proxy_participant_add_pwr_lease (pwr->c.proxypp, pwr);
+      proxy_participant_add_pwr_lease_locked (pwr->c.proxypp, pwr);
   }
   else
   {
     for (struct pwr_rd_match *m = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, &it); m != NULL; m = ddsrt_avl_iter_next (&it))
       reader_drop_connection (&m->rd_guid, pwr, false);
     if (pwr->c.xqos->liveliness.lease_duration != T_NEVER && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
-      proxy_participant_remove_pwr_lease (pwr->c.proxypp, pwr);
+      proxy_participant_remove_pwr_lease_locked (pwr->c.proxypp, pwr);
   }
+  ddsrt_mutex_unlock (&pwr->c.proxypp->e.lock);
   return 0;
 }
 
@@ -4495,14 +4515,11 @@ int proxy_writer_set_alive_guid (struct q_globals *gv, const struct ddsi_guid *g
 {
   struct proxy_writer *pwr;
   int ret;
-  ddsrt_mutex_lock (&gv->lock);
   if ((pwr = ephash_lookup_proxy_writer_guid (gv->guid_hash, guid)) == NULL)
   {
-    ddsrt_mutex_unlock (&gv->lock);
     GVLOGDISC (" "PGUIDFMT"?\n", PGUID (*guid));
     return DDS_RETCODE_BAD_PARAMETER;
   }
-  ddsrt_mutex_unlock (&gv->lock);
 
   ddsrt_mutex_lock (&pwr->e.lock);
   ret = proxy_writer_set_alive_locked (gv, pwr, alive);

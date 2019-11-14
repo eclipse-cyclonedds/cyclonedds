@@ -140,7 +140,6 @@ void lease_free (struct lease *l)
 
 void lease_renew (struct lease *l, nn_etime_t tnowE)
 {
-  struct q_globals const * gv;
   nn_etime_t tend_new = add_duration_to_etime (tnowE, l->tdur);
 
   /* do not touch tend if moving forward or if already expired */
@@ -151,7 +150,11 @@ void lease_renew (struct lease *l, nn_etime_t tnowE)
       return;
   } while (!ddsrt_atomic_cas64 (&l->tend, (uint64_t) tend, (uint64_t) tend_new.v));
 
-  gv = l->entity->gv;
+  /* Only at this point we can assume that gv can be recovered from the entity in the
+   * lease (i.e. the entity still exists). In cases where dereferencing l->entity->gv
+   * is not safe (e.g. the deletion of entities), the early out in the loop above
+   * will be the case because tend is set to T_NEVER. */
+  struct q_globals const * gv = l->entity->gv;
   if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     int32_t tsec, tusec;
