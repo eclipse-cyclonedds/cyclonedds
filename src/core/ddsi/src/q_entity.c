@@ -4476,7 +4476,7 @@ int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_
   return delete_proxy_writer_impl (gv, guid, timestamp, isimplicit, true);
 }
 
-int proxy_writer_set_alive_locked (struct q_globals *gv, struct proxy_writer *pwr, bool alive)
+void proxy_writer_set_alive_locked (struct q_globals *gv, struct proxy_writer *pwr, bool alive)
 {
   ddsrt_avl_iter_t it;
   ddsrt_mutex_lock (&pwr->c.proxypp->e.lock);
@@ -4508,13 +4508,11 @@ int proxy_writer_set_alive_locked (struct q_globals *gv, struct proxy_writer *pw
       proxy_participant_remove_pwr_lease_locked (pwr->c.proxypp, pwr);
   }
   ddsrt_mutex_unlock (&pwr->c.proxypp->e.lock);
-  return 0;
 }
 
 int proxy_writer_set_alive_guid (struct q_globals *gv, const struct ddsi_guid *guid, bool alive)
 {
   struct proxy_writer *pwr;
-  int ret;
   if ((pwr = ephash_lookup_proxy_writer_guid (gv->guid_hash, guid)) == NULL)
   {
     GVLOGDISC (" "PGUIDFMT"?\n", PGUID (*guid));
@@ -4522,9 +4520,14 @@ int proxy_writer_set_alive_guid (struct q_globals *gv, const struct ddsi_guid *g
   }
 
   ddsrt_mutex_lock (&pwr->e.lock);
-  ret = proxy_writer_set_alive_locked (gv, pwr, alive);
+  if (pwr->alive == alive)
+  {
+    ddsrt_mutex_unlock (&pwr->e.lock);
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+  }
+  proxy_writer_set_alive_locked (gv, pwr, alive);
   ddsrt_mutex_unlock (&pwr->e.lock);
-  return ret;
+  return DDS_RETCODE_OK;
 }
 
 /* PROXY-READER ----------------------------------------------------- */

@@ -651,7 +651,7 @@ int delete_proxy_reader (struct q_globals *gv, const struct ddsi_guid *guid, nn_
 void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
 void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
 
-int proxy_writer_set_alive_locked (struct q_globals *gv, struct proxy_writer *pwr, bool alive);
+void proxy_writer_set_alive_locked (struct q_globals *gv, struct proxy_writer *pwr, bool alive);
 int proxy_writer_set_alive_guid (struct q_globals *gv, const struct ddsi_guid *guid, bool alive);
 
 int new_proxy_group (const struct ddsi_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp);

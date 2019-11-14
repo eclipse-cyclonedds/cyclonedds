@@ -276,7 +276,11 @@ int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnow
         break;
       case EK_PROXY_WRITER:
         GVLOGDISC ("proxy_writer_set_alive ("PGUIDFMT")", PGUID (g));
-        proxy_writer_set_alive_guid (gv, &g, false);
+        int ret = proxy_writer_set_alive_guid (gv, &g, false);
+        if (ret == DDS_RETCODE_PRECONDITION_NOT_MET)
+          GVLOGDISC (" pwr not alive");
+        else if (ret != DDS_RETCODE_OK)
+          GVLOGDISC (" err %d", ret);
         GVLOGDISC ("\n");
         break;
       case EK_PARTICIPANT:
