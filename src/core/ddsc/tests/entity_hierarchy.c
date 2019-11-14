@@ -192,6 +192,10 @@ CU_Test(ddsc_entity_delete, recursive_with_deleted_topic)
     ret = dds_delete(g_topic);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
+    /* Second call to delete a topic must fail */
+    ret = dds_delete(g_topic);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ALREADY_DELETED);
+
     /* Third, deleting the participant should delete all children of which
      * the writer with the last topic reference is one. */
     ret = dds_delete(g_participant);
@@ -985,6 +989,70 @@ CU_Test(ddsc_entity_get_parent, implicit_subscriber)
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
     dds_delete(participant);
 
+}
+/*************************************************************************************************/
+
+/*************************************************************************************************/
+CU_Test(ddsc_entity_implicit, delete_publisher)
+{
+    dds_entity_t participant;
+    dds_entity_t writer;
+    dds_entity_t parent;
+    dds_entity_t topic;
+    dds_return_t ret;
+    char name[100];
+
+    participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+    CU_ASSERT_FATAL(participant > 0);
+
+    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_entity_implicit_delete_publisher", name, 100), NULL, NULL);
+    CU_ASSERT_FATAL(topic > 0);
+
+    writer = dds_create_writer(participant, topic, NULL, NULL);
+    CU_ASSERT_FATAL(writer > 0);
+
+    parent = dds_get_parent(writer);
+    CU_ASSERT_FATAL(parent > 0);
+
+    ret = dds_delete(parent);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+    ret = dds_delete(writer);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+
+    dds_delete(participant);
+}
+/*************************************************************************************************/
+
+/*************************************************************************************************/
+CU_Test(ddsc_entity_implicit, delete_subscriber)
+{
+    dds_entity_t participant;
+    dds_entity_t reader;
+    dds_entity_t parent;
+    dds_entity_t topic;
+    dds_return_t ret;
+    char name[100];
+
+    participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+    CU_ASSERT_FATAL(participant > 0);
+
+    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, create_topic_name("ddsc_entity_implicit_delete_subscriber", name, 100), NULL, NULL);
+    CU_ASSERT_FATAL(topic > 0);
+
+    reader = dds_create_reader(participant, topic, NULL, NULL);
+    CU_ASSERT_FATAL(reader > 0);
+
+    parent = dds_get_parent(reader);
+    CU_ASSERT_FATAL(parent > 0);
+
+    ret = dds_delete(parent);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+    ret = dds_delete(reader);
+    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+
+    dds_delete(participant);
 }
 /*************************************************************************************************/
 

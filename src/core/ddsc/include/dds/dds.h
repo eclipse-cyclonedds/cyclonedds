@@ -747,27 +747,50 @@ dds_create_participant(
  * @brief Creates a domain with a given configuration
  *
  * To explicitly create a domain based on a configuration passed as a string.
- * Normally, the domain is created implicitly on the first call to
- * dds_create_particiant based on the configuration specified throught
- * the environment. This function allows to by-pass this behaviour.
+ *
+ * It will not be created if a domain with the given domain id already exists.
+ * This could have been created implicitly by a dds_create_participant().
+ *
+ * Please be aware that the given domain_id always takes precedence over the
+ * configuration.
+ *
+ *   | domain_id | domain id in config | result
+ *   +-----------+---------------------+----------
+ *   | n         | any (or absent)     | n, config is used
+ *   | n         | m == n              | n, config is used
+ *   | n         | m != n              | n, config is ignored: default
+ *
+ *     Config models:
+ *     1: <CycloneDDS>
+ *          <Domain id="X">...</Domain>
+ *          <Domain .../>
+ *        </CycloneDDS>
+ *        where ... is all that can today be set in children of CycloneDDS
+ *        with the exception of the id
+ *     2: <CycloneDDS>
+ *          <Domain><Id>X</Id></Domain>
+ *          ...
+ *        </CycloneDDS>
+ *        legacy form, domain id must be the first element in the file with
+ *        a value (if nothing has been set previously, it a warning is good
+ *        enough)
+ *
+ * Using NULL or "" as config will create a domain with default settings.
  *
  *
  * @param[in]  domain The domain to be created. DEFAULT_DOMAIN is not allowed.
  * @param[in]  config A configuration string containing file names and/or XML fragments representing the configuration.
  *
- * @returns A return code
+ * @returns A valid entity handle or an error code.
  *
- * @retval DDS_RETCODE_OK
- *             The domain with the domain identifier has been created from
- *             given configuration string.
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             Illegal value for domain id or the configfile parameter is NULL.
- * @retval DDS_PRECONDITION_NOT_MET
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
  *             The domain already existed and cannot be created again.
  * @retval DDS_RETCODE_ERROR
  *             An internal error has occurred.
  */
-DDS_EXPORT dds_return_t
+DDS_EXPORT dds_entity_t
 dds_create_domain(const dds_domainid_t domain, const char *config);
 
 /**
@@ -777,15 +800,10 @@ dds_create_domain(const dds_domainid_t domain, const char *config);
  * For instance, it will return the Participant that was used when
  * creating a Publisher (when that Publisher was provided here).
  *
- * When a reader or a writer are created with a partition, then a
- * subscriber or publisher respectively are created implicitly. These
- * implicit subscribers or publishers will be deleted automatically
- * when the reader or writer is deleted. However, when this function
- * returns such an implicit entity, it is from there on out considered
- * 'explicit'. This means that it isn't deleted automatically anymore.
- * The application should explicitly call dds_delete on those entities
- * now (or delete the parent participant which will delete all entities
- * within its hierarchy).
+ * When a reader or a writer are created with a participant, then a
+ * subscriber or publisher are created implicitly.
+ * This function will return the implicit parent and not the used
+ * participant.
  *
  * @param[in]  entity  Entity from which to get its parent.
  *
@@ -852,15 +870,10 @@ dds_get_participant(dds_entity_t entity);
  * When supplying NULL as list and 0 as size, you can use this to acquire
  * the number of children without having to pre-allocate a list.
  *
- * When a reader or a writer are created with a partition, then a
- * subscriber or publisher respectively are created implicitly. These
- * implicit subscribers or publishers will be deleted automatically
- * when the reader or writer is deleted. However, when this function
- * returns such an implicit entity, it is from there on out considered
- * 'explicit'. This means that it isn't deleted automatically anymore.
- * The application should explicitly call dds_delete on those entities
- * now (or delete the parent participant which will delete all entities
- * within its hierarchy).
+ * When a reader or a writer are created with a participant, then a
+ * subscriber or publisher are created implicitly.
+ * When used on the participant, this function will return the implicit
+ * subscriber and/or publisher and not the related reader/writer.
  *
  * @param[in]  entity   Entity from which to get its children.
  * @param[out] children Pre-allocated array to contain the found children.
@@ -869,7 +882,7 @@ dds_get_participant(dds_entity_t entity);
  * @returns Number of children or an error code.
  *
  * @retval >=0
- *             Number of childer found children (can be larger than 'size').
+ *             Number of found children (can be larger than 'size').
  * @retval DDS_RETCODE_ERROR
  *             An internal error has occurred.
  * @retval DDS_RETCODE_BAD_PARAMETER
@@ -1200,6 +1213,7 @@ dds_wait_for_acks(dds_entity_t publisher_or_writer, dds_duration_t timeout);
 /**
  * @brief Creates a new instance of a DDS reader.
  *
+ * When a participant is used to create a reader, an implicit subscriber is created.
  * This implicit subscriber will be deleted automatically when the created reader
  * is deleted.
  *
@@ -1226,6 +1240,7 @@ dds_create_reader(
 /**
  * @brief Creates a new instance of a DDS reader with a custom history cache.
  *
+ * When a participant is used to create a reader, an implicit subscriber is created.
  * This implicit subscriber will be deleted automatically when the created reader
  * is deleted.
  *
@@ -1273,6 +1288,7 @@ dds_reader_wait_for_historical_data(
 /**
  * @brief Creates a new instance of a DDS writer.
  *
+ * When a participant is used to create a writer, an implicit publisher is created.
  * This implicit publisher will be deleted automatically when the created writer
  * is deleted.
  *
