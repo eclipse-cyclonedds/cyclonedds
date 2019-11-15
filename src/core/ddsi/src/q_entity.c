@@ -4291,6 +4291,11 @@ static void proxy_endpoint_common_init (struct entity_common *e, struct proxy_en
   else
     memset (&c->group_guid, 0, sizeof (c->group_guid));
 
+#ifdef DDSI_INCLUDE_SECURITY
+  c->security_info.security_attributes = 0;
+  c->security_info.plugin_security_attributes = 0;
+#endif
+
   ref_proxy_participant (proxypp, c);
 }
 

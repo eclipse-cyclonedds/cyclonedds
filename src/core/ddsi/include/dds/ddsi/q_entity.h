@@ -345,6 +345,9 @@ struct proxy_endpoint_common
   ddsi_guid_t group_guid; /* 0:0:0:0 if not available */
   nn_vendorid_t vendor; /* cached from proxypp->vendor */
   seqno_t seq; /* sequence number of most recent SEDP message */
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_security_info_t security_info;
+#endif
 };
 
 struct proxy_writer {
@@ -371,9 +374,6 @@ struct proxy_writer {
   struct local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
-#ifdef DDSI_INCLUDE_SECURITY
-  nn_security_info_t security_info;
-#endif
 };
 
 struct proxy_reader {
@@ -385,9 +385,6 @@ struct proxy_reader {
   unsigned favours_ssm: 1; /* iff 1, this proxy reader favours SSM when available */
 #endif
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
-#ifdef DDSI_INCLUDE_SECURITY
-  nn_security_info_t security_info;
-#endif
 };
 
 extern const ddsrt_avl_treedef_t wr_readers_treedef;

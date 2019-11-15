@@ -12,9 +12,11 @@
 #ifndef DDSI_OMG_SECURITY_H
 #define DDSI_OMG_SECURITY_H
 
-#include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/q_xmsg.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -233,6 +235,101 @@ decode_DataFrag(
   uint32_t payloadsz,
   size_t *submsg_len);
 
+/**
+ * @brief Encode datareader submessage when necessary.
+ *
+ * When encoding is necessary, the original submessage will be replaced
+ * by a new encoded submessage.
+ * If the encoding fails, the original submessage will be removed.
+ *
+ * If no encoding is necessary, nothing changes.
+ *
+ * @param[in,out] msg       Complete message.
+ * @param[in,out] sm_marker Submessage location within message.
+ * @param[in]     pwr       Writer for which the message is intended.
+ * @param[in]     rd_guid   Origin reader guid.
+ */
+void
+encode_datareader_submsg(
+  struct nn_xmsg *msg,
+  struct nn_xmsg_marker sm_marker,
+  struct proxy_writer *pwr,
+  const struct ddsi_guid *rd_guid);
+
+/**
+ * @brief Encode datawriter submessage when necessary.
+ *
+ * When encoding is necessary, the original submessage will be replaced
+ * by a new encoded submessage.
+ * If the encoding fails, the original submessage will be removed.
+ *
+ * If no encoding is necessary, nothing changes.
+ *
+ * @param[in,out] msg       Complete message.
+ * @param[in,out] sm_marker Submessage location within message.
+ * @param[in]     wr        Origin writer guid.
+ */
+void
+encode_datawriter_submsg(
+  struct nn_xmsg *msg,
+  struct nn_xmsg_marker sm_marker,
+  struct writer *wr);
+
+/**
+ * @brief Check if given submessage is properly decoded.
+ *
+ * When decoding is necessary, it should be checked if a plain submessage was
+ * actually decoded. Otherwise data can be injected just by inserting a plain
+ * submessage directly.
+ *
+ * @param[in] e         Entity information.
+ * @param[in] c         Proxy endpoint information.
+ * @param[in] proxypp   Related proxy participant.
+ * @param[in] rst       Receiver information.
+ * @param[in] prev_smid Previously handled submessage ID.
+ *
+ * @returns bool
+ * @retval true   Decoding succeeded or was not necessary.
+ * @retval false  Decoding was necessary, but not detected.
+ */
+bool
+validate_msg_decoding(
+  const struct entity_common *e,
+  const struct proxy_endpoint_common *c,
+  struct proxy_participant *proxypp,
+  struct receiver_state *rst,
+  SubmessageKind_t prev_smid);
+
+/**
+ * @brief Decode not only SecPrefix, but also the SecBody and SecPostfix
+ * sub-messages.
+ *
+ * When encrypted, the original SecBody will be replaced by the decrypted
+ * submessage. Then the normal sequence can continue as if there was no
+ * encrypted data.
+ *
+ * @param[in]     rst         Receiver information.
+ * @param[in,out] submsg      Pointer to SecPrefix/(SecBody|Submsg)/SecPostfix.
+ * @param[in]     submsg_size Size of SecPrefix submessage.
+ * @param[in]     msg_end     End of the complete message.
+ * @param[in]     src_prefix  Prefix of the source entity.
+ * @param[in]     dst_prefix  Prefix of the destination entity.
+ * @param[in]     byteswap    Do the bytes need swapping?
+ *
+ * @returns int
+ * @retval >= 0   Decoding succeeded.
+ * @retval <  0   Decoding failed.
+ */
+int
+decode_SecPrefix(
+  struct receiver_state *rst,
+  unsigned char *submsg,
+  size_t submsg_size,
+  unsigned char * const msg_end,
+  const ddsi_guid_prefix_t * const src_prefix,
+  const ddsi_guid_prefix_t * const dst_prefix,
+  int byteswap);
+
 #else /* DDSI_INCLUDE_SECURITY */
 
 #include "dds/ddsi/q_unused.h"
@@ -308,6 +405,48 @@ decode_DataFrag(
   UNUSED_ARG(uint32_t payloadsz),
   UNUSED_ARG(size_t *submsg_len))
 {
+  return true;
+}
+
+inline void
+encode_datareader_submsg(
+  UNUSED_ARG(struct nn_xmsg *msg),
+  UNUSED_ARG(struct nn_xmsg_marker sm_marker),
+  UNUSED_ARG(struct proxy_writer *pwr),
+  UNUSED_ARG(const struct ddsi_guid *rd_guid))
+{
+}
+
+inline void
+encode_datawriter_submsg(
+  UNUSED_ARG(struct nn_xmsg *msg),
+  UNUSED_ARG(struct nn_xmsg_marker sm_marker),
+  UNUSED_ARG(struct writer *wr))
+{
+}
+
+inline bool
+validate_msg_decoding(
+  UNUSED_ARG(const struct entity_common *e),
+  UNUSED_ARG(const struct proxy_endpoint_common *c),
+  UNUSED_ARG(struct proxy_participant *proxypp),
+  UNUSED_ARG(struct receiver_state *rst),
+  UNUSED_ARG(SubmessageKind_t prev_smid))
+{
+  return true;
+}
+
+inline int
+decode_SecPrefix(
+  UNUSED_ARG(struct receiver_state *rst),
+  UNUSED_ARG(unsigned char *submsg),
+  UNUSED_ARG(size_t submsg_size),
+  UNUSED_ARG(unsigned char * const msg_end),
+  UNUSED_ARG(const ddsi_guid_prefix_t * const src_prefix),
+  UNUSED_ARG(const ddsi_guid_prefix_t * const dst_prefix),
+  UNUSED_ARG(int byteswap))
+{
+  /* Just let the parsing ignore the security sub-messages. */
   return true;
 }
 

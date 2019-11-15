@@ -396,6 +396,11 @@ static int submsg_is_compatible (const struct nn_xmsg *msg, SubmessageKind_t smk
         case SMID_DATA: case SMID_DATA_FRAG:
           /* but data is strictly verboten */
           return 0;
+        case SMID_SEC_BODY:
+        case SMID_SEC_PREFIX:
+        case SMID_SEC_POSTFIX:
+          /* and the security sm are basically data. */
+          return 0;
       }
       assert (0);
       break;
@@ -416,6 +421,11 @@ static int submsg_is_compatible (const struct nn_xmsg *msg, SubmessageKind_t smk
              ensure rexmits have only one data submessages -- the test
              won't work for initial transmits, but those currently
              don't allow a readerId */
+          return msg->kindspecific.data.readerId_off == 0;
+        case SMID_SEC_BODY:
+        case SMID_SEC_PREFIX:
+        case SMID_SEC_POSTFIX:
+          /* Just do the same as 'normal' data sm. */
           return msg->kindspecific.data.readerId_off == 0;
         case SMID_ACKNACK:
         case SMID_HEARTBEAT:
@@ -504,6 +514,80 @@ void nn_xmsg_submsg_setnext (struct nn_xmsg *msg, struct nn_xmsg_marker marker)
   hdr->octetsToNextHeader = (unsigned short)
     ((unsigned)(msg->data->payload + msg->sz + plsize - (char *) hdr) - RTPS_SUBMESSAGE_HEADER_SIZE);
 }
+
+#ifdef DDSI_INCLUDE_SECURITY
+
+size_t nn_xmsg_submsg_size (struct nn_xmsg *msg, struct nn_xmsg_marker marker)
+{
+  SubmessageHeader_t *hdr = (SubmessageHeader_t*)nn_xmsg_submsg_from_marker(msg, marker);
+  return align4u(hdr->octetsToNextHeader + sizeof(SubmessageHeader_t));
+}
+
+void nn_xmsg_submsg_remove(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker)
+{
+  /* Just reset the message size to the start of the current sub-message. */
+  msg->sz = sm_marker.offset;
+}
+
+void nn_xmsg_submsg_replace(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, unsigned char *new_submsg, size_t new_len)
+{
+  /* Size of current sub-message. */
+  size_t old_len = msg->sz - sm_marker.offset;
+
+  /* Adjust the message size to the new sub-message. */
+  if (old_len < new_len)
+  {
+    nn_xmsg_append(msg, NULL, new_len - old_len);
+  }
+  else if (old_len > new_len)
+  {
+    nn_xmsg_shrink(msg, sm_marker, new_len);
+  }
+
+  /* Just a sanity check: assert(msg_end == submsg_end) */
+  assert((msg->data->payload + msg->sz) == (msg->data->payload + sm_marker.offset + new_len));
+
+  /* Replace the sub-message. */
+  memcpy(msg->data->payload + sm_marker.offset, new_submsg, new_len);
+}
+
+void nn_xmsg_submsg_append_refd_payload(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker)
+{
+  DDSRT_UNUSED_ARG(sm_marker);
+  /*
+   * Normally, the refd payload pointer is moved around until it is added to
+   * the iov of the socket. This reduces the amount of allocations and copies.
+   *
+   * However, in a few cases (like security), the sub-message should be one
+   * complete blob.
+   * Appending the payload will just do that.
+   */
+  if (msg->refd_payload)
+  {
+    void *dst;
+
+    /* Get payload information. */
+    char  *payload_ptr = msg->refd_payload_iov.iov_base;
+    size_t payload_len = msg->refd_payload_iov.iov_len;
+
+    /* Make space for the payload (dst points to the start of the appended space). */
+    dst = nn_xmsg_append(msg, NULL, payload_len);
+
+    /* Copy the payload into the submessage. */
+    memcpy(dst, payload_ptr, payload_len);
+
+    /* No need to remember the payload now. */
+    ddsi_serdata_unref(msg->refd_payload);
+    msg->refd_payload = NULL;
+    if (msg->refd_payload_encoded)
+    {
+      ddsrt_free(msg->refd_payload_encoded);
+      msg->refd_payload_encoded = NULL;
+    }
+  }
+}
+
+#endif /* DDSI_INCLUDE_SECURITY */
 
 void *nn_xmsg_submsg_from_marker (struct nn_xmsg *msg, struct nn_xmsg_marker marker)
 {
@@ -605,6 +689,16 @@ void nn_xmsg_setdst1 (struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const nn_
   m->dstmode = NN_XMSG_DST_ONE;
   m->dstaddr.one.loc = *loc;
   m->data->dst.guid_prefix = nn_hton_guid_prefix (*gp);
+}
+
+bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp)
+{
+  if (m->dstmode == NN_XMSG_DST_ONE)
+  {
+    *gp = nn_hton_guid_prefix(m->data->dst.guid_prefix);
+    return true;
+  }
+  return false;
 }
 
 dds_return_t nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)

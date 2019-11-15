@@ -39,6 +39,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
 
@@ -182,7 +183,7 @@ static void trace_msg (struct xeventq *evq, const char *func, const struct nn_xm
 {
   if (dds_get_log_mask() & DDS_LC_TRACE)
   {
-    nn_guid_t wrguid;
+    ddsi_guid_t wrguid;
     seqno_t wrseq;
     nn_fragment_number_t wrfragid;
     nn_xmsg_guid_seq_fragid (m, &wrguid, &wrseq, &wrfragid);
@@ -805,6 +806,9 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
             base, an->readerSNState.numbits);
     for (uint32_t ui = 0; ui != an->readerSNState.numbits; ui++)
       ETRACE (pwr, "%c", nn_bitset_isset (numbits, an->bits, ui) ? '1' : '0');
+
+    /* Encode the sub-message when needed. */
+    encode_datareader_submsg(msg, sm_marker, pwr, &rwn->rd_guid);
   }
 
   if (nackfrag_numbits > 0)
@@ -835,6 +839,9 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
       for (uint32_t ui = 0; ui != nf->fragmentNumberState.numbits; ui++)
         ETRACE (pwr, "%c", nn_bitset_isset (nf->fragmentNumberState.numbits, nf->bits, ui) ? '1' : '0');
     }
+
+    /* Encode the sub-message when needed. */
+    encode_datareader_submsg(msg, sm_marker, pwr, &rwn->rd_guid);
   }
 
   ETRACE (pwr, "\n");
@@ -886,7 +893,13 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
       rwn->hb_timestamp.v = 0;
     }
     add_AckNack (msg, pwr, rwn, &nack_seq);
-    if (nack_seq)
+    if (nn_xmsg_size(msg) == 0)
+    {
+      /* No AckNack added. */
+      nn_xmsg_free(msg);
+      msg = NULL;
+    }
+    else if (nack_seq)
     {
       rwn->t_last_nack = tnow;
       rwn->seq_last_nack = nack_seq;
