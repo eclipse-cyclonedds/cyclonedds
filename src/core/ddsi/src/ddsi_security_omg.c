@@ -19,14 +19,19 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/process.h"
 
+#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_sertopic.h"
+
 
 
 static bool
 q_omg_writer_is_payload_protected(
   const struct writer *wr);
+
+
 
 static bool endpoint_is_DCPSParticipantSecure(const ddsi_guid_t *guid)
 {
@@ -70,10 +75,11 @@ static bool endpoint_is_DCPSParticipantVolatileMessageSecure(const ddsi_guid_t *
 #endif
 }
 
-static bool
-q_omg_security_enabled()
+
+bool
+q_omg_security_enabled(void)
 {
-  return true;
+  return false;
 }
 
 bool
@@ -82,7 +88,7 @@ q_omg_participant_is_secure(
 {
   /* TODO: Register local participant. */
   DDSRT_UNUSED_ARG(pp);
-  return true;
+  return false;
 }
 
 static bool
@@ -142,11 +148,29 @@ q_omg_get_reader_security_info(
 
 static bool
 q_omg_proxyparticipant_is_authenticated(
+  const struct proxy_participant *proxy_pp)
+{
+  /* TODO: Handshake */
+  DDSRT_UNUSED_ARG(proxy_pp);
+  return false;
+}
+
+int64_t
+q_omg_security_get_local_participant_handle(
+  struct participant *pp)
+{
+  /* TODO: Local registration */
+  DDSRT_UNUSED_ARG(pp);
+  return 0;
+}
+
+int64_t
+q_omg_security_get_remote_participant_handle(
   struct proxy_participant *proxypp)
 {
   /* TODO: Handshake */
   DDSRT_UNUSED_ARG(proxypp);
-  return false;
+  return 0;
 }
 
 unsigned
@@ -195,6 +219,28 @@ allow_proxy_participant_deletion(
     return false;
   }
   return (!q_omg_proxyparticipant_is_authenticated(proxypp));
+}
+
+bool
+q_omg_security_is_remote_rtps_protected(
+  struct proxy_participant *proxy_pp,
+  ddsi_entityid_t entityid)
+{
+  /* TODO: Handshake */
+  DDSRT_UNUSED_ARG(proxy_pp);
+  DDSRT_UNUSED_ARG(entityid);
+  return false;
+}
+
+bool
+q_omg_security_is_local_rtps_protected(
+  struct participant *pp,
+  ddsi_entityid_t entityid)
+{
+  /* TODO: Handshake */
+  DDSRT_UNUSED_ARG(pp);
+  DDSRT_UNUSED_ARG(entityid);
+  return false;
 }
 
 void
@@ -417,6 +463,44 @@ q_omg_security_decode_serialized_payload(
 {
   /* TODO: Use proper keys to actually decode (need key-exchange). */
   DDSRT_UNUSED_ARG(pwr);
+  DDSRT_UNUSED_ARG(src_buf);
+  DDSRT_UNUSED_ARG(src_len);
+  DDSRT_UNUSED_ARG(dst_buf);
+  DDSRT_UNUSED_ARG(dst_len);
+  return false;
+}
+
+bool
+q_omg_security_encode_rtps_message(
+  int64_t                 src_handle,
+  ddsi_guid_t            *src_guid,
+  const unsigned char    *src_buf,
+  const unsigned int      src_len,
+  unsigned char        **dst_buf,
+  unsigned int          *dst_len,
+  int64_t                dst_handle)
+{
+  /* TODO: Use proper keys to actually encode (need key-exchange). */
+  DDSRT_UNUSED_ARG(src_handle);
+  DDSRT_UNUSED_ARG(src_guid);
+  DDSRT_UNUSED_ARG(src_buf);
+  DDSRT_UNUSED_ARG(src_len);
+  DDSRT_UNUSED_ARG(dst_buf);
+  DDSRT_UNUSED_ARG(dst_len);
+  DDSRT_UNUSED_ARG(dst_handle);
+  return false;
+}
+
+static bool
+q_omg_security_decode_rtps_message(
+  struct proxy_participant *proxypp,
+  const unsigned char      *src_buf,
+  const unsigned int        src_len,
+  unsigned char          **dst_buf,
+  unsigned int            *dst_len)
+{
+  /* TODO: Use proper keys to actually decode (need key-exchange). */
+  DDSRT_UNUSED_ARG(proxypp);
   DDSRT_UNUSED_ARG(src_buf);
   DDSRT_UNUSED_ARG(src_len);
   DDSRT_UNUSED_ARG(dst_buf);
@@ -707,10 +791,12 @@ validate_msg_decoding(
     }
   }
 
-  /* Use e, proxypp and rst for RTPS checks. */
-  (void)e;
-  (void)rst;
-  (void)proxypp;
+  /* At this point, we should also check if the complete RTPS message was encoded when
+   * that is expected. */
+  if (q_omg_security_is_remote_rtps_protected(proxypp, e->guid.entityid) && !rst->rtps_encoded)
+  {
+    return 0;
+  }
 
   return true;
 }
@@ -872,9 +958,123 @@ decode_SecPrefix(
   return result;
 }
 
+static nn_rtps_msg_state_t
+check_rtps_message_is_secure(
+    struct q_globals *gv,
+    Header_t *hdr,
+    unsigned char *buff,
+    bool isstream,
+    struct proxy_participant **proxypp)
+{
+  nn_rtps_msg_state_t ret = NN_RTPS_MSG_STATE_ERROR;
+
+  SubmessageHeader_t *submsg;
+  uint32_t offset = RTPS_MESSAGE_HEADER_SIZE + (isstream ? sizeof(MsgLen_t) : 0);
+
+  submsg = (SubmessageHeader_t *)(buff + offset);
+  if (submsg->submessageId == SMID_SRTPS_PREFIX)
+  {
+    ddsi_guid_t guid;
+
+    guid.prefix = hdr->guid_prefix;
+    guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+
+    GVTRACE(" from "PGUIDFMT, PGUID(guid));
+
+    *proxypp = ephash_lookup_proxy_participant_guid(gv->guid_hash, &guid);
+    if (*proxypp)
+    {
+      if (q_omg_proxyparticipant_is_authenticated(*proxypp))
+      {
+        ret = NN_RTPS_MSG_STATE_ENCODED;
+      }
+      else
+      {
+        GVTRACE ("received encoded rtps message from unauthenticated participant");
+      }
+    }
+    else
+    {
+      GVTRACE ("received encoded rtps message from unknown participant");
+    }
+    GVTRACE("\n");
+  }
+  else
+  {
+    ret = NN_RTPS_MSG_STATE_PLAIN;
+  }
+
+  return ret;
+}
+
+nn_rtps_msg_state_t
+decode_rtps_message(
+  struct thread_state1 * const ts1,
+  struct q_globals *gv,
+  struct nn_rmsg **rmsg,
+  Header_t **hdr,
+  unsigned char **buff,
+  ssize_t *sz,
+  struct nn_rbufpool *rbpool,
+  bool isstream)
+{
+  nn_rtps_msg_state_t ret = NN_RTPS_MSG_STATE_ERROR;
+  struct proxy_participant *proxypp = NULL;
+  unsigned char *dstbuf;
+  unsigned char *srcbuf;
+  uint32_t srclen, dstlen;
+  bool decoded;
+
+  /* Currently the decode_rtps_message returns a new allocated buffer.
+   * This could be optimized by providing a pre-allocated nn_rmsg buffer to
+   * copy the decoded rtps message in.
+   */
+  thread_state_awake_fixed_domain (ts1);
+  ret = check_rtps_message_is_secure(gv, *hdr, *buff, isstream, &proxypp);
+  if (ret == NN_RTPS_MSG_STATE_ENCODED)
+  {
+    if (isstream)
+    {
+      /* Remove MsgLen Submessage which was only needed for a stream to determine the end of the message */
+      srcbuf = *buff + sizeof(MsgLen_t);
+      srclen = (uint32_t)((size_t)(*sz) - sizeof(MsgLen_t));
+      memmove(srcbuf, *buff, RTPS_MESSAGE_HEADER_SIZE);
+    }
+    else
+    {
+      srcbuf = *buff;
+      srclen = (uint32_t)*sz;
+    }
+
+    decoded = q_omg_security_decode_rtps_message(proxypp, srcbuf, srclen, &dstbuf, &dstlen);
+    if (decoded)
+    {
+      nn_rmsg_commit (*rmsg);
+      *rmsg = nn_rmsg_new (rbpool);
+
+      *buff = (unsigned char *) NN_RMSG_PAYLOAD (*rmsg);
+
+      memcpy(*buff, dstbuf, dstlen);
+      nn_rmsg_setsize (*rmsg, dstlen);
+
+      ddsrt_free(dstbuf);
+
+      *hdr = (Header_t*) *buff;
+      (*hdr)->guid_prefix = nn_ntoh_guid_prefix ((*hdr)->guid_prefix);
+      *sz = (ssize_t)dstlen;
+    } else {
+      ret = NN_RTPS_MSG_STATE_ERROR;
+    }
+  }
+  thread_state_asleep (ts1);
+  return ret;
+}
+
 #else /* DDSI_INCLUDE_SECURITY */
 
 #include "dds/ddsi/ddsi_security_omg.h"
+
+extern inline bool q_omg_security_enabled(void);
 
 extern inline bool q_omg_participant_is_secure(
   UNUSED_ARG(const struct participant *pp));
@@ -942,5 +1142,15 @@ extern inline int decode_SecPrefix(
   UNUSED_ARG(const ddsi_guid_prefix_t * const src_prefix),
   UNUSED_ARG(const ddsi_guid_prefix_t * const dst_prefix),
   UNUSED_ARG(int byteswap));
+
+extern inline nn_rtps_msg_state_t decode_rtps_message(
+  UNUSED_ARG(struct thread_state1 * const ts1),
+  UNUSED_ARG(struct q_globals *gv),
+  UNUSED_ARG(struct nn_rmsg **rmsg),
+  UNUSED_ARG(Header_t **hdr),
+  UNUSED_ARG(unsigned char **buff),
+  UNUSED_ARG(ssize_t *sz),
+  UNUSED_ARG(struct nn_rbufpool *rbpool),
+  UNUSED_ARG(bool isstream));
 
 #endif /* DDSI_INCLUDE_SECURITY */

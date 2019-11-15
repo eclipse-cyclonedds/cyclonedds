@@ -27,6 +27,7 @@ struct addrset;
 struct proxy_reader;
 struct proxy_writer;
 struct writer;
+struct participant;
 
 struct nn_prismtech_participant_version_info;
 struct nn_xmsgpool;
@@ -55,10 +56,10 @@ void nn_xmsgpool_free (struct nn_xmsgpool *pool);
 /* To allocate a new xmsg from the pool; if expected_size is NOT
    exceeded, no reallocs will be performed, else the address of the
    xmsg may change because of reallocing when appending to it. */
-struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_prefix_t *src_guid_prefix, size_t expected_size, enum nn_xmsg_kind kind);
+struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_t *src_guid, struct participant *pp, size_t expected_size, enum nn_xmsg_kind kind);
 
 /* For sending to a particular destination (participant) */
-void nn_xmsg_setdst1 (struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const nn_locator_t *addr);
+void nn_xmsg_setdst1 (struct q_globals *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const nn_locator_t *addr);
 bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp);
 
 /* For sending to a particular proxy reader; this is a convenience

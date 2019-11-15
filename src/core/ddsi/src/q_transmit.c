@@ -141,7 +141,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   assert (wr->reliable);
   assert (hbansreq >= 0);
 
-  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
     /* out of memory at worst slows down traffic */
     return NULL;
 
@@ -420,7 +420,7 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
   /* INFO_TS: 12 bytes, Data_t: 24 bytes, expected inline QoS: 32 => should be single chunk */
-  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (Data_t) + expected_inline_qos_size, NN_XMSG_KIND_DATA)) == NULL)
+  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTimestamp_t) + sizeof (Data_t) + expected_inline_qos_size, NN_XMSG_KIND_DATA)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -506,7 +506,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
   fragging = (gv->config.fragment_size < size);
 
   /* INFO_TS: 12 bytes, DataFrag_t: 36 bytes, expected inline QoS: 32 => should be single chunk */
-  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (InfoTimestamp_t) + sizeof (DataFrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
+  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTimestamp_t) + sizeof (DataFrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -653,7 +653,7 @@ static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragn
   struct nn_xmsg_marker sm_marker;
   HeartbeatFrag_t *hbf;
   ASSERT_MUTEX_HELD (&wr->e.lock);
-  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (HeartbeatFrag_t), NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (HeartbeatFrag_t), NN_XMSG_KIND_CONTROL)) == NULL)
     return; /* ignore out-of-memory: HeartbeatFrag is only advisory anyway */
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   nn_xmsg_setencoderid (*pmsg, wr->partition_id);

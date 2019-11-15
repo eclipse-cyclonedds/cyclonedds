@@ -46,8 +46,8 @@ DDS_EXPORT dds_return_t xeventq_start (struct xeventq *evq, const char *name); /
 DDS_EXPORT void xeventq_stop (struct xeventq *evq);
 
 DDS_EXPORT void qxev_msg (struct xeventq *evq, struct nn_xmsg *msg);
-DDS_EXPORT void qxev_pwr_entityid (struct proxy_writer * pwr, ddsi_guid_prefix_t * id);
-DDS_EXPORT void qxev_prd_entityid (struct proxy_reader * prd, ddsi_guid_prefix_t * id);
+DDS_EXPORT void qxev_pwr_entityid (struct proxy_writer * pwr, const ddsi_guid_t *guid);
+DDS_EXPORT void qxev_prd_entityid (struct proxy_reader * prd, const ddsi_guid_t *guid);
 
 /* Returns 1 if queued, 0 otherwise (no point in returning the
    event, you can't do anything with it anyway) */

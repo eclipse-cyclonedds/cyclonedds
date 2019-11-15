@@ -530,7 +530,7 @@ static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *
   ASSERT_MUTEX_HELD (&wr->e.lock);
   assert (wr->reliable);
 
-  m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
+  m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
   if (nn_xmsg_setdstPRD (m, prd) < 0)
   {
     /* If we don't have an address, give up immediately */
@@ -933,7 +933,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     RSTTRACE (" XGAP%"PRId64"..%"PRId64"/%u:", gapstart, gapend, gapnumbits);
     for (uint32_t i = 0; i < gapnumbits; i++)
       RSTTRACE ("%c", nn_bitset_isset (gapnumbits, gapbits, i) ? '1' : '0');
-    m = nn_xmsg_new (rst->gv->xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
+    m = nn_xmsg_new (rst->gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     nn_xmsg_setencoderid (m, wr->partition_id);
 #endif
@@ -1463,7 +1463,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
     static uint32_t zero = 0;
     struct nn_xmsg *m;
     RSTTRACE (" msg not available: scheduling Gap\n");
-    m = nn_xmsg_new (rst->gv->xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
+    m = nn_xmsg_new (rst->gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     nn_xmsg_setencoderid (m, wr->partition_id);
 #endif
@@ -2647,7 +2647,8 @@ static int handle_submsg_sequence
   unsigned char * const msg /* NOT const - we may byteswap it */,
   const size_t len,
   unsigned char * submsg /* aliases somewhere in msg */,
-  struct nn_rmsg * const rmsg
+  struct nn_rmsg * const rmsg,
+  bool rtps_encoded /* indicate if the message was rtps encoded */
 )
 {
   const char *state;
@@ -2681,6 +2682,7 @@ static int handle_submsg_sequence
      false at any time. That's ok: it's real purpose is to filter out
      discovery data accidentally sent by Cloud */
   rst->forme = 1;
+  rst->rtps_encoded = rtps_encoded;
   rst->vendor = hdr->vendorid;
   rst->protocol_version = hdr->version;
   rst->srcloc = *srcloc;
@@ -2899,6 +2901,18 @@ static int handle_submsg_sequence
           GVTRACE ("SEC_POSTFIX");
         }
         break;
+      case SMID_SRTPS_PREFIX:
+        {
+          /* Ignore: it should already have been handled. */
+          GVTRACE ("SRTPS_PREFIX");
+        }
+        break;
+      case SMID_SRTPS_POSTFIX:
+        {
+          /* Ignore: it should already have been handled. */
+          GVTRACE ("SRTPS_POSTFIX");
+        }
+        break;
       default:
         state = "parse:undefined";
         GVTRACE ("UNDEFINED(%x)", sm->smhdr.submessageId);
@@ -3066,8 +3080,36 @@ static bool do_packet (struct thread_state1 * const ts1, struct q_globals *gv, d
         GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s\n",
                  PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
       }
+      nn_rtps_msg_state_t res = decode_rtps_message(ts1,
+                                                    gv,
+                                                    &rmsg,
+                                                    &hdr,
+                                                    &buff,
+                                                    &sz,
+                                                    rbpool,
+                                                    conn->m_stream);
 
-      handle_submsg_sequence (ts1, gv, conn, &srcloc, now (), now_et (), &hdr->guid_prefix, guidprefix, buff, (size_t) sz, buff + RTPS_MESSAGE_HEADER_SIZE, rmsg);
+      if (res != NN_RTPS_MSG_STATE_ERROR)
+      {
+        handle_submsg_sequence (ts1,
+                                gv,
+                                conn,
+                                &srcloc,
+                                now (),
+                                now_et (),
+                                &hdr->guid_prefix,
+                                guidprefix,
+                                buff,
+                                (size_t) sz,
+                                buff + RTPS_MESSAGE_HEADER_SIZE,
+                                rmsg,
+                                res == NN_RTPS_MSG_STATE_ENCODED);
+      }
+      else
+      {
+        /* drop message */
+        sz = 1;
+      }
     }
   }
   nn_rmsg_commit (rmsg);

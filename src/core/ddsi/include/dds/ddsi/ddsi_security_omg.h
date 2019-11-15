@@ -22,7 +22,29 @@
 extern "C" {
 #endif
 
+typedef enum {
+  NN_RTPS_MSG_STATE_ERROR,
+  NN_RTPS_MSG_STATE_PLAIN,
+  NN_RTPS_MSG_STATE_ENCODED
+} nn_rtps_msg_state_t;
+
 #ifdef DDSI_INCLUDE_SECURITY
+
+typedef struct nn_msg_sec_info {
+  int64_t src_pp_handle;
+  int64_t dst_pp_handle;
+  bool use_rtps_encoding;
+} nn_msg_sec_info_t;
+
+
+/**
+ * @brief Check if any participant has security enabled.
+ *
+ * @returns bool
+ * @retval true   Some participant is secure
+ * @retval false  No participant is not secure
+ */
+bool q_omg_security_enabled(void);
 
 /**
  * @brief Check if security is enabled for the participant.
@@ -34,6 +56,26 @@ extern "C" {
  * @retval false  Participant is not secure
  */
 bool q_omg_participant_is_secure(const struct participant *pp);
+
+/**
+ * @brief Get the security handle of the given local participant.
+ *
+ * @param[in] pp  Participant to check if it is secure.
+ *
+ * @returns int64_t
+ * @retval Local participant security handle
+ */
+int64_t q_omg_security_get_local_participant_handle(struct participant *pp);
+
+/**
+ * @brief Get the security handle of the given remote participant.
+ *
+ * @param[in] proxypp  Participant to check if it is secure.
+ *
+ * @returns int64_t
+ * @retval Remote participant security handle
+ */
+int64_t q_omg_security_get_remote_participant_handle(struct proxy_participant *proxypp);
 
 /**
  * @brief Get security info flags of the given writer.
@@ -116,6 +158,38 @@ allow_proxy_participant_deletion(
   const ddsi_entityid_t pwr_entityid);
 
 /**
+ * @brief Determine if the messages, related to the given remote
+ * entity, are RTPS protected or not.
+ *
+ * @param[in] proxy_pp  Related proxy participant.
+ * @param[in] entityid  ID of the entity to check.
+ *
+ * @returns bool
+ * @retval true   The entity messages are RTPS protected.
+ * @retval false  The entity messages are not RTPS protected.
+ */
+bool
+q_omg_security_is_remote_rtps_protected(
+  struct proxy_participant *proxy_pp,
+  ddsi_entityid_t entityid);
+
+/**
+ * @brief Determine if the messages, related to the given local
+ * entity, are RTPS protected or not.
+ *
+ * @param[in] pp        Related participant.
+ * @param[in] entityid  ID of the entity to check.
+ *
+ * @returns bool
+ * @retval true   The entity messages are RTPS protected.
+ * @retval false  The entity messages are not RTPS protected.
+ */
+bool
+q_omg_security_is_local_rtps_protected(
+  struct participant *pp,
+  ddsi_entityid_t entityid);
+
+/**
  * @brief Set security information, depending on plist, into the given
  * proxy participant.
  *
@@ -150,6 +224,31 @@ void
 set_proxy_writer_security_info(
   struct proxy_writer *pwr,
   const nn_plist_t *plist);
+
+/**
+ * @brief Encode RTPS message.
+ *
+ * @param[in]     src_handle  Security handle of data source.
+ * @param[in]     src_guid    GUID of the entity data source.
+ * @param[in]     src_buf     Original RTPS message.
+ * @param[in]     src_len     Original RTPS message size.
+ * @param[out]    dst_buf     Encoded RTPS message.
+ * @param[out]    dst_len     Encoded RTPS message size.
+ * @param[in]     dst_handle  Security handle of data destination.
+ *
+ * @returns bool
+ * @retval true   Encoding succeeded.
+ * @retval false  Encoding failed.
+ */
+bool
+q_omg_security_encode_rtps_message(
+  int64_t                 src_handle,
+  ddsi_guid_t            *src_guid,
+  const unsigned char    *src_buf,
+  const unsigned int      src_len,
+  unsigned char        **dst_buf,
+  unsigned int          *dst_len,
+  int64_t                dst_handle);
 
 /**
  * @brief Encode payload when necessary.
@@ -330,9 +429,47 @@ decode_SecPrefix(
   const ddsi_guid_prefix_t * const dst_prefix,
   int byteswap);
 
+/**
+ * @brief Decode the RTPS message.
+ *
+ * When encrypted, the original buffers and information will be replaced
+ * by the decrypted RTPS message. Then the normal sequence can continue
+ * as if there was no encrypted data.
+ *
+ * @param[in]     ts1         Thread information.
+ * @param[in]     gv          Global information.
+ * @param[in,out] rmsg        Message information.
+ * @param[in,out] hdr         Message header.
+ * @param[in,out] buff        Message buffer.
+ * @param[in,out] sz          Message size.
+ * @param[in]     rbpool      Buffers pool.
+ * @param[in]     isstream    Is message a stream variant?
+ *
+ * @returns nn_rtps_msg_state_t
+ * @retval NN_RTPS_MSG_STATE_PLAIN    No decoding was necessary.
+ * @retval NN_RTPS_MSG_STATE_ENCODED  Decoding succeeded.
+ * @retval NN_RTPS_MSG_STATE_ERROR    Decoding failed.
+ */
+nn_rtps_msg_state_t
+decode_rtps_message(
+  struct thread_state1 * const ts1,
+  struct q_globals *gv,
+  struct nn_rmsg **rmsg,
+  Header_t **hdr,
+  unsigned char **buff,
+  ssize_t *sz,
+  struct nn_rbufpool *rbpool,
+  bool isstream);
+
 #else /* DDSI_INCLUDE_SECURITY */
 
 #include "dds/ddsi/q_unused.h"
+
+inline bool
+q_omg_security_enabled(void)
+{
+  return false;
+}
 
 inline bool
 q_omg_participant_is_secure(
@@ -448,6 +585,20 @@ decode_SecPrefix(
 {
   /* Just let the parsing ignore the security sub-messages. */
   return true;
+}
+
+inline nn_rtps_msg_state_t
+decode_rtps_message(
+  UNUSED_ARG(struct thread_state1 * const ts1),
+  UNUSED_ARG(struct q_globals *gv),
+  UNUSED_ARG(struct nn_rmsg **rmsg),
+  UNUSED_ARG(Header_t **hdr),
+  UNUSED_ARG(unsigned char **buff),
+  UNUSED_ARG(ssize_t *sz),
+  UNUSED_ARG(struct nn_rbufpool *rbpool),
+  UNUSED_ARG(bool isstream))
+{
+  return NN_RTPS_MSG_STATE_PLAIN;
 }
 
 #endif /* DDSI_INCLUDE_SECURITY */

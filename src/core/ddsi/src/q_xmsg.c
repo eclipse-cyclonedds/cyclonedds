@@ -76,6 +76,7 @@ struct nn_xmsg {
 #ifdef DDSI_INCLUDE_SECURITY
   /* Used as pointer to contain encoded payload to which iov can alias. */
   unsigned char *refd_payload_encoded;
+  nn_msg_sec_info_t sec_info;
 #endif
   int64_t maxdelay;
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
@@ -228,6 +229,9 @@ struct nn_xpack
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   uint32_t encoderId;
 #endif /* DDSI_INCLUDE_NETWORK_PARTITIONS */
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_msg_sec_info_t sec_info;
+#endif
 };
 
 static size_t align4u (size_t x)
@@ -290,6 +294,9 @@ static void nn_xmsg_reinit (struct nn_xmsg *m, enum nn_xmsg_kind kind)
   m->maxdelay = 0;
 #ifdef DDSI_INCLUDE_SECURITY
   m->refd_payload_encoded = NULL;
+  m->sec_info.use_rtps_encoding = 0;
+  m->sec_info.src_pp_handle = 0;
+  m->sec_info.dst_pp_handle = 0;
 #endif
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   m->encoderid = 0;
@@ -330,14 +337,29 @@ static struct nn_xmsg *nn_xmsg_allocnew (struct nn_xmsgpool *pool, size_t expect
   return m;
 }
 
-struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_prefix_t *src_guid_prefix, size_t expected_size, enum nn_xmsg_kind kind)
+struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_t *src_guid, struct participant *pp, size_t expected_size, enum nn_xmsg_kind kind)
 {
   struct nn_xmsg *m;
   if ((m = nn_freelist_pop (&pool->freelist)) != NULL)
     nn_xmsg_reinit (m, kind);
   else if ((m = nn_xmsg_allocnew (pool, expected_size, kind)) == NULL)
     return NULL;
-  m->data->src.guid_prefix = nn_hton_guid_prefix (*src_guid_prefix);
+  m->data->src.guid_prefix = nn_hton_guid_prefix (src_guid->prefix);
+
+#ifdef DDSI_INCLUDE_SECURITY
+  m->sec_info.use_rtps_encoding = 0;
+  if (pp && q_omg_participant_is_secure(pp))
+  {
+    if (q_omg_security_is_local_rtps_protected(pp, src_guid->entityid))
+    {
+      m->sec_info.use_rtps_encoding = 1;
+      m->sec_info.src_pp_handle = q_omg_security_get_local_participant_handle(pp);
+    }
+  }
+#else
+  DDSRT_UNUSED_ARG(pp);
+#endif
+
   return m;
 }
 
@@ -399,6 +421,8 @@ static int submsg_is_compatible (const struct nn_xmsg *msg, SubmessageKind_t smk
         case SMID_SEC_BODY:
         case SMID_SEC_PREFIX:
         case SMID_SEC_POSTFIX:
+        case SMID_SRTPS_PREFIX:
+        case SMID_SRTPS_POSTFIX:
           /* and the security sm are basically data. */
           return 0;
       }
@@ -425,6 +449,8 @@ static int submsg_is_compatible (const struct nn_xmsg *msg, SubmessageKind_t smk
         case SMID_SEC_BODY:
         case SMID_SEC_PREFIX:
         case SMID_SEC_POSTFIX:
+        case SMID_SRTPS_PREFIX:
+        case SMID_SRTPS_POSTFIX:
           /* Just do the same as 'normal' data sm. */
           return msg->kindspecific.data.readerId_off == 0;
         case SMID_ACKNACK:
@@ -683,12 +709,28 @@ void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t of
   }
 }
 
-void nn_xmsg_setdst1 (struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const nn_locator_t *loc)
+void nn_xmsg_setdst1 (struct q_globals *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const nn_locator_t *loc)
 {
   assert (m->dstmode == NN_XMSG_DST_UNSET);
   m->dstmode = NN_XMSG_DST_ONE;
   m->dstaddr.one.loc = *loc;
   m->data->dst.guid_prefix = nn_hton_guid_prefix (*gp);
+#ifdef DDSI_INCLUDE_SECURITY
+  if (m->sec_info.use_rtps_encoding && !m->sec_info.dst_pp_handle)
+  {
+    struct proxy_participant *proxypp;
+    ddsi_guid_t guid;
+
+    guid.prefix = *gp;
+    guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+
+    proxypp = ephash_lookup_proxy_participant_guid(gv->guid_hash, &guid);
+    if (proxypp)
+      m->sec_info.dst_pp_handle = q_omg_security_get_remote_participant_handle(proxypp);
+  }
+#else
+    DDSRT_UNUSED_ARG(gv);
+#endif
 }
 
 bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp)
@@ -706,7 +748,7 @@ dds_return_t nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *pr
   nn_locator_t loc;
   if (addrset_any_uc (prd->c.as, &loc) || addrset_any_mc (prd->c.as, &loc))
   {
-    nn_xmsg_setdst1 (m, &prd->e.guid.prefix, &loc);
+    nn_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &loc);
     return 0;
   }
   else
@@ -721,7 +763,7 @@ dds_return_t nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pw
   nn_locator_t loc;
   if (addrset_any_uc (pwr->c.as, &loc) || addrset_any_mc (pwr->c.as, &loc))
   {
-    nn_xmsg_setdst1 (m, &pwr->e.guid.prefix, &loc);
+    nn_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &loc);
     return 0;
   }
   DDS_CWARNING (&pwr->e.gv->logconfig, "nn_xmsg_setdstPRD: no address for "PGUIDFMT, PGUID (pwr->e.guid));
@@ -1076,6 +1118,9 @@ static void nn_xpack_reinit (struct nn_xpack *xp)
   xp->msg_len.length = 0;
   xp->included_msgs.latest = NULL;
   xp->maxdelay = T_NEVER;
+#ifdef DDSI_INCLUDE_SECURITY
+  xp->sec_info.use_rtps_encoding = 0;
+#endif
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   xp->encoderId = 0;
 #endif
@@ -1135,6 +1180,109 @@ void nn_xpack_free (struct nn_xpack *xp)
   ddsrt_free (xp);
 }
 
+static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const nn_locator_t *loc)
+{
+  ssize_t ret = -1;
+
+#ifdef DDSI_INCLUDE_SECURITY
+  /* Only encode when needed. */
+  if (xp->sec_info.use_rtps_encoding)
+  {
+    unsigned i;
+    Header_t *hdr;
+    ddsi_guid_t guid;
+    unsigned char stbuf[2048];
+    unsigned char *srcbuf;
+    unsigned char *dstbuf = NULL;
+    uint32_t srclen, dstlen;
+    int64_t dst_handle = 0;
+
+    assert(xp->niov > 0);
+
+    hdr = (Header_t *)xp->iov[0].iov_base;
+    guid.prefix = nn_ntoh_guid_prefix(hdr->guid_prefix);
+    guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+
+    /* first determine the size of the message, then select the
+     *  on-stack buffer or allocate one on the heap ...
+     */
+    srclen = 0;
+    for (i = 0; i < (unsigned)xp->niov; i++)
+    {
+      /* Do not copy MsgLen submessage in case of a stream connection */
+      if ((i != 1) || !xp->conn->m_stream)
+        srclen += (uint32_t) xp->iov[i].iov_len;
+    }
+    if (srclen <= sizeof (stbuf))
+    {
+      srcbuf = stbuf;
+    }
+    else
+    {
+      srcbuf = ddsrt_malloc (srclen);
+    }
+
+    /* ... then copy data into buffer */
+    srclen = 0;
+    for (i = 0; i < (unsigned)xp->niov; i++)
+    {
+      if ((i != 1) || !xp->conn->m_stream)
+      {
+        memcpy(srcbuf + srclen,xp->iov[i].iov_base, xp->iov[i].iov_len);
+        srclen += (uint32_t) xp->iov[i].iov_len;
+      }
+    }
+
+    if (xp->dstmode == NN_XMSG_DST_ONE)
+    {
+      dst_handle = xp->sec_info.dst_pp_handle;
+    }
+
+    if (q_omg_security_encode_rtps_message(xp->sec_info.src_pp_handle, &guid, srcbuf, srclen, &dstbuf, &dstlen, dst_handle))
+    {
+      ddsrt_iovec_t iov[3];
+      size_t niov;
+
+      if (xp->conn->m_stream)
+      {
+        /* Add MsgLen submessage after Header */
+        xp->msg_len.length = dstlen + (uint32_t)sizeof(xp->msg_len);
+
+        iov[0].iov_base = dstbuf;
+        iov[0].iov_len = RTPS_MESSAGE_HEADER_SIZE;
+        iov[1].iov_base = (void*) &xp->msg_len;
+        iov[1].iov_len = sizeof (xp->msg_len);
+        iov[2].iov_base = dstbuf + RTPS_MESSAGE_HEADER_SIZE;
+        iov[2].iov_len = dstlen - RTPS_MESSAGE_HEADER_SIZE;
+        niov = 3;
+      }
+      else
+      {
+        xp->msg_len.length = dstlen;
+
+        iov[0].iov_base = dstbuf;
+        iov[0].iov_len = dstlen;
+        niov = 1;
+      }
+      ret = ddsi_conn_write (xp->conn, loc, niov, iov, xp->call_flags);
+    }
+
+    if (srcbuf != stbuf)
+    {
+      ddsrt_free (srcbuf);
+    }
+
+    ddsrt_free(dstbuf);
+  }
+  else
+#endif /* DDSI_INCLUDE_SECURITY */
+  {
+    ret = ddsi_conn_write (xp->conn, loc, xp->niov, xp->iov, xp->call_flags);
+  }
+
+  return ret;
+}
+
 static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
 {
   struct nn_xpack *xp = varg;
@@ -1161,14 +1309,17 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
 
   if (!gv->mute)
   {
-    nbytes = ddsi_conn_write (xp->conn, loc, xp->niov, xp->iov, xp->call_flags);
+    nbytes = nn_xpack_send_rtps(xp, loc);
+
 #ifndef NDEBUG
     {
       size_t i, len;
       for (i = 0, len = 0; i < xp->niov; i++) {
         len += xp->iov[i].iov_len;
       }
-      assert (nbytes == -1 || (size_t) nbytes == len);
+      /* Possible number of bytes written can be larger
+       * due to security. */
+      assert (nbytes == -1 || (size_t) nbytes >= len);
     }
 #endif
   }
@@ -1461,6 +1612,12 @@ static int nn_xpack_mayaddmsg (const struct nn_xpack *xp, const struct nn_xmsg *
     return 0;
 #endif
 
+#ifdef DDSI_INCLUDE_SECURITY
+  /* Don't mix up encoded and plain rtps messages */
+  if (xp->sec_info.use_rtps_encoding != m->sec_info.use_rtps_encoding)
+    return 0;
+#endif
+
   return addressing_info_eq_onesidederr (xp, m);
 }
 
@@ -1554,6 +1711,9 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
       niov++;
     }
 
+#ifdef DDSI_INCLUDE_SECURITY
+    xp->sec_info = m->sec_info;
+#endif
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     xp->encoderId = m->encoderid;
 #endif

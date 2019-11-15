@@ -2119,7 +2119,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   ddsrt_avl_insert_ipath (&pwr_readers_treedef, &pwr->readers, m, &path);
   local_reader_ary_insert(&pwr->rdary, rd);
   ddsrt_mutex_unlock (&pwr->e.lock);
-  qxev_pwr_entityid (pwr, &rd->e.guid.prefix);
+  qxev_pwr_entityid (pwr, &rd->e.guid);
 
   ELOGDISC (pwr, "\n");
 
@@ -2163,7 +2163,7 @@ static void proxy_reader_add_connection (struct proxy_reader *prd, struct writer
               PGUID (wr->e.guid), PGUID (prd->e.guid));
     ddsrt_avl_insert_ipath (&prd_writers_treedef, &prd->writers, m, &path);
     ddsrt_mutex_unlock (&prd->e.lock);
-    qxev_prd_entityid (prd, &wr->e.guid.prefix);
+    qxev_prd_entityid (prd, &wr->e.guid);
   }
 }
 
@@ -4446,7 +4446,7 @@ void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset 
         rd = ephash_lookup_reader_guid (pwr->e.gv->guid_hash, &m->rd_guid);
         if (rd)
         {
-          qxev_pwr_entityid (pwr, &rd->e.guid.prefix);
+          qxev_pwr_entityid (pwr, &rd->e.guid);
         }
         m = ddsrt_avl_iter_next (&iter);
       }
@@ -4503,7 +4503,7 @@ void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset 
           ddsrt_mutex_lock (&wr->e.lock);
           rebuild_writer_addrset (wr);
           ddsrt_mutex_unlock (&wr->e.lock);
-          qxev_prd_entityid (prd, &wr->e.guid.prefix);
+          qxev_prd_entityid (prd, &wr->e.guid);
         }
         wrguid = guid_next;
         ddsrt_mutex_lock (&prd->e.lock);
