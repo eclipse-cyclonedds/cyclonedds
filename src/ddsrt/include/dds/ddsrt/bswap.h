@@ -85,3 +85,4 @@ inline int64_t ddsrt_bswap8 (int64_t x)
 #endif
 
 #endif /* DDSRT_BSWAP_H */
+
