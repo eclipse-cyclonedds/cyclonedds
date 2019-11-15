@@ -107,7 +107,131 @@ unsigned determine_publication_writer(const struct writer *wr);
  * @retval true   The proxy participant may be deleted.
  * @retval false  The proxy participant may not be deleted by this writer.
  */
-bool allow_proxy_participant_deletion(struct q_globals * const gv, const struct ddsi_guid *guid, const ddsi_entityid_t pwr_entityid);
+bool
+allow_proxy_participant_deletion(
+  struct q_globals * const gv,
+  const struct ddsi_guid *guid,
+  const ddsi_entityid_t pwr_entityid);
+
+/**
+ * @brief Set security information, depending on plist, into the given
+ * proxy participant.
+ *
+ * @param[in] proxypp  Proxy participant to set security info on.
+ * @param[in] plist    Paramater list, possibly contains security info.
+ */
+void
+set_proxy_participant_security_info(
+  struct proxy_participant *proxypp,
+  const nn_plist_t *plist);
+
+/**
+ * @brief Set security information, depending on plist and proxy participant,
+ * into the given proxy reader.
+ *
+ * @param[in] prd      Proxy reader to set security info on.
+ * @param[in] plist    Paramater list, possibly contains security info.
+ */
+void
+set_proxy_reader_security_info(
+  struct proxy_reader *prd,
+  const nn_plist_t *plist);
+
+/**
+ * @brief Set security information, depending on plist and proxy participant,
+ * into the given proxy writer.
+ *
+ * @param[in] pwr      Proxy writer to set security info on.
+ * @param[in] plist    Paramater list, possibly contains security info.
+ */
+void
+set_proxy_writer_security_info(
+  struct proxy_writer *pwr,
+  const nn_plist_t *plist);
+
+/**
+ * @brief Encode payload when necessary.
+ *
+ * When encoding is necessary, *buf will be allocated and the vec contents
+ * will change to point to that buffer.
+ * It is expected that the vec contents is always aliased.
+ *
+ * If no encoding is necessary, nothing changes.
+ *
+ * encoding(    not needed) -> return( true), vec(untouched), buf(NULL)
+ * encoding(needed&success) -> return( true), vec( buf(new))
+ * encoding(needed&failure) -> return(false), vec(untouched), buf(NULL)
+ *
+ * @param[in]     wr   Writer that writes the payload.
+ * @param[in,out] vec  An iovec that contains the payload.
+ * @param[out]    buf  Buffer to contain the encoded payload.
+ *
+ * @returns bool
+ * @retval true   Encoding succeeded or not necessary. Either way, vec
+ *                contains the payload that should be send.
+ * @retval false  Encoding was necessary, but failed.
+ */
+bool
+encode_payload(
+  struct writer *wr,
+  ddsrt_iovec_t *vec,
+  unsigned char **buf);
+
+/**
+ * @brief Decode the payload of a Data submessage.
+ *
+ * When decoding is necessary, the payloadp memory will be replaced
+ * by the decoded payload. This means that the original submessage
+ * now contains payload that can be deserialized.
+ *
+ * If no decoding is necessary, nothing changes.
+ *
+ * @param[in]     gv          Global information.
+ * @param[in]     sampleinfo  Sample information.
+ * @param[in,out] payloadp    Pointer to payload memory.
+ * @param[in]     payloadsz   Size of payload.
+ * @param[in,out] submsg_len  Size of submessage.
+ *
+ * @returns bool
+ * @retval true   Decoding succeeded or not necessary. Either way, payloadp
+ *                contains the data that should be deserialized.
+ * @retval false  Decoding was necessary, but failed.
+ */
+bool
+decode_Data(
+  const struct q_globals *gv,
+  struct nn_rsample_info *sampleinfo,
+  unsigned char *payloadp,
+  uint32_t payloadsz,
+  size_t *submsg_len);
+
+/**
+ * @brief Decode the payload of a DataFrag submessage.
+ *
+ * When decoding is necessary, the payloadp memory will be replaced
+ * by the decoded payload. This means that the original submessage
+ * now contains payload that can be deserialized.
+ *
+ * If no decoding is necessary, nothing changes.
+ *
+ * @param[in]     gv          Global information.
+ * @param[in]     sampleinfo  Sample information.
+ * @param[in,out] payloadp    Pointer to payload memory.
+ * @param[in]     payloadsz   Size of payload.
+ * @param[in,out] submsg_len  Size of submessage.
+ *
+ * @returns bool
+ * @retval true   Decoding succeeded or not necessary. Either way, payloadp
+ *                contains the data that should be deserialized.
+ * @retval false  Decoding was necessary, but failed.
+ */
+bool
+decode_DataFrag(
+  const struct q_globals *gv,
+  struct nn_rsample_info *sampleinfo,
+  unsigned char *payloadp,
+  uint32_t payloadsz,
+  size_t *submsg_len);
 
 #else /* DDSI_INCLUDE_SECURITY */
 
@@ -139,6 +263,50 @@ allow_proxy_participant_deletion(
   UNUSED_ARG(struct q_globals * const gv),
   UNUSED_ARG(const struct ddsi_guid *guid),
   UNUSED_ARG(const ddsi_entityid_t pwr_entityid))
+{
+  return true;
+}
+
+inline void
+set_proxy_participant_security_info(
+  UNUSED_ARG(struct proxy_participant *prd),
+  UNUSED_ARG(const nn_plist_t *plist))
+{
+}
+
+inline void
+set_proxy_reader_security_info(
+  UNUSED_ARG(struct proxy_reader *prd),
+  UNUSED_ARG(const nn_plist_t *plist))
+{
+}
+
+inline void
+set_proxy_writer_security_info(
+  UNUSED_ARG(struct proxy_writer *pwr),
+  UNUSED_ARG(const nn_plist_t *plist))
+{
+}
+
+
+inline bool
+decode_Data(
+  UNUSED_ARG(const struct q_globals *gv),
+  UNUSED_ARG(struct nn_rsample_info *sampleinfo),
+  UNUSED_ARG(unsigned char *payloadp),
+  UNUSED_ARG(uint32_t payloadsz),
+  UNUSED_ARG(size_t *submsg_len))
+{
+  return true;
+}
+
+inline bool
+decode_DataFrag(
+  UNUSED_ARG(const struct q_globals *gv),
+  UNUSED_ARG(struct nn_rsample_info *sampleinfo),
+  UNUSED_ARG(unsigned char *payloadp),
+  UNUSED_ARG(uint32_t payloadsz),
+  UNUSED_ARG(size_t *submsg_len))
 {
   return true;
 }

@@ -53,6 +53,7 @@
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_serdata_default.h" /* FIXME: get rid of this */
+#include "dds/ddsi/ddsi_security_omg.h"
 
 #include "dds/ddsi/sysdeps.h"
 #include "dds__whc.h"
@@ -278,7 +279,34 @@ static void set_sampleinfo_proxy_writer (struct nn_rsample_info *sampleinfo, dds
   sampleinfo->pwr = pwr;
 }
 
-static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, Data_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp)
+static int set_sampleinfo_bswap (struct nn_rsample_info *sampleinfo, struct CDRHeader *hdr)
+{
+  if (hdr)
+  {
+    switch (hdr->identifier)
+    {
+      case CDR_BE:
+      case PL_CDR_BE:
+      {
+        sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 1 : 0;
+        break;
+      }
+      case CDR_LE:
+      case PL_CDR_LE:
+      {
+        sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 0 : 1;
+        break;
+      }
+      default:
+      {
+        return 0;
+      }
+    }
+  }
+  return 1;
+}
+
+static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, Data_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp, uint32_t *payloadsz)
 {
   /* on success: sampleinfo->{seq,rst,statusinfo,pt_wr_info_zoff,bswap,complex_qos} all set */
   ddsi_guid_t pwr_guid;
@@ -354,6 +382,7 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
   {
     /*TRACE (("no payload\n"));*/
     *payloadp = NULL;
+    *payloadsz = 0;
     sampleinfo->size = 0;
   }
   else if ((size_t) ((char *) ptr + 4 - (char *) msg) > size)
@@ -363,35 +392,16 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
   }
   else
   {
-    struct CDRHeader *hdr;
     sampleinfo->size = (uint32_t) ((char *) msg + size - (char *) ptr);
+    *payloadsz = sampleinfo->size;
     *payloadp = ptr;
-    hdr = (struct CDRHeader *) ptr;
-    switch (hdr->identifier)
-    {
-      case CDR_BE:
-      case PL_CDR_BE:
-      {
-        sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? 1 : 0);
-        break;
-      }
-      case CDR_LE:
-      case PL_CDR_LE:
-      {
-        sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? 0 : 1);
-        break;
-      }
-      default:
-        return 0;
-    }
   }
   return 1;
 }
 
-static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rmsg, DataFrag_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp)
+static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rmsg, DataFrag_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, unsigned char **payloadp, uint32_t *payloadsz)
 {
   /* on success: sampleinfo->{rst,statusinfo,pt_wr_info_zoff,bswap,complex_qos} all set */
-  uint32_t payloadsz;
   ddsi_guid_t pwr_guid;
   unsigned char *ptr;
 
@@ -473,41 +483,23 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
   }
 
   *payloadp = ptr;
-  payloadsz = (uint32_t) ((char *) msg + size - (char *) ptr);
-  if ((uint32_t) msg->fragmentsInSubmessage * msg->fragmentSize <= payloadsz)
+  *payloadsz = (uint32_t) ((char *) msg + size - (char *) ptr);
+  if ((uint32_t) msg->fragmentsInSubmessage * msg->fragmentSize <= (*payloadsz))
     ; /* all spec'd fragments fit in payload */
-  else if ((uint32_t) (msg->fragmentsInSubmessage - 1) * msg->fragmentSize >= payloadsz)
+  else if ((uint32_t) (msg->fragmentsInSubmessage - 1) * msg->fragmentSize >= (*payloadsz))
     return 0; /* I can live with a short final fragment, but _only_ the final one */
-  else if ((uint32_t) (msg->fragmentStartingNum - 1) * msg->fragmentSize + payloadsz >= msg->sampleSize)
+  else if ((uint32_t) (msg->fragmentStartingNum - 1) * msg->fragmentSize + (*payloadsz) >= msg->sampleSize)
     ; /* final fragment is long enough to cover rest of sample */
   else
     return 0;
   if (msg->fragmentStartingNum == 1)
   {
-    struct CDRHeader *hdr = (struct CDRHeader *) ptr;
     if ((size_t) ((char *) ptr + 4 - (char *) msg) > size)
     {
       /* no space for the header -- technically, allowing small
          fragments would also mean allowing a partial header, but I
          prefer this */
       return 0;
-    }
-    switch (hdr->identifier)
-    {
-      case CDR_BE:
-      case PL_CDR_BE:
-      {
-        sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? 1 : 0);
-        break;
-      }
-      case CDR_LE:
-      case PL_CDR_LE:
-      {
-        sampleinfo->bswap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? 0 : 1);
-        break;
-      }
-      default:
-        return 0;
     }
   }
   return 1;
@@ -2777,13 +2769,23 @@ static int handle_submsg_sequence
         state = "parse:datafrag";
         {
           struct nn_rsample_info sampleinfo;
+          uint32_t datasz = 0;
           unsigned char *datap;
+          size_t submsg_len = submsg_size;
           /* valid_DataFrag does not validate the payload */
-          if (!valid_DataFrag (rst, rmsg, &sm->datafrag, submsg_size, byteswap, &sampleinfo, &datap))
+          if (!valid_DataFrag (rst, rmsg, &sm->datafrag, submsg_size, byteswap, &sampleinfo, &datap, &datasz))
             goto malformed;
+          /* This only decodes the payload when needed (possibly reducing the submsg size). */
+          if (!decode_DataFrag (rst->gv, &sampleinfo, datap, datasz, &submsg_len))
+            goto malformed;
+          /* Set the sample bswap according to the payload info (only first fragment has proper header). */
+          if (sm->datafrag.fragmentStartingNum == 1) {
+            if (!set_sampleinfo_bswap(&sampleinfo, (struct CDRHeader *)datap))
+              goto malformed;
+          }
           sampleinfo.timestamp = timestamp;
           sampleinfo.reception_timestamp = tnowWC;
-          handle_DataFrag (rst, tnowE, rmsg, &sm->datafrag, submsg_size, &sampleinfo, datap, &deferred_wakeup);
+          handle_DataFrag (rst, tnowE, rmsg, &sm->datafrag, submsg_len, &sampleinfo, datap, &deferred_wakeup);
           rst_live = 1;
           ts_for_latmeas = 0;
         }
@@ -2793,12 +2795,20 @@ static int handle_submsg_sequence
         {
           struct nn_rsample_info sampleinfo;
           unsigned char *datap;
+          uint32_t datasz = 0;
+          size_t submsg_len = submsg_size;
           /* valid_Data does not validate the payload */
-          if (!valid_Data (rst, rmsg, &sm->data, submsg_size, byteswap, &sampleinfo, &datap))
+          if (!valid_Data (rst, rmsg, &sm->data, submsg_size, byteswap, &sampleinfo, &datap, &datasz))
+            goto malformed;
+          /* This only decodes the payload when needed (possibly reducing the submsg size). */
+          if (!decode_Data (rst->gv, &sampleinfo, datap, datasz, &submsg_len))
+            goto malformed;
+          /* Set the sample bswap according to the payload info. */
+          if (!set_sampleinfo_bswap(&sampleinfo, (struct CDRHeader *)datap))
             goto malformed;
           sampleinfo.timestamp = timestamp;
           sampleinfo.reception_timestamp = tnowWC;
-          handle_Data (rst, tnowE, rmsg, &sm->data, submsg_size, &sampleinfo, datap, &deferred_wakeup);
+          handle_Data (rst, tnowE, rmsg, &sm->data, submsg_len, &sampleinfo, datap, &deferred_wakeup);
           rst_live = 1;
           ts_for_latmeas = 0;
         }

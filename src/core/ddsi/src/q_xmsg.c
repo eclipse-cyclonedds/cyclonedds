@@ -41,6 +41,7 @@
 #include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 
 #define NN_XMSG_MAX_ALIGN 8
 #define NN_XMSG_CHUNK_SIZE 128
@@ -72,6 +73,10 @@ struct nn_xmsg {
   int have_params;
   struct ddsi_serdata *refd_payload;
   ddsrt_iovec_t refd_payload_iov;
+#ifdef DDSI_INCLUDE_SECURITY
+  /* Used as pointer to contain encoded payload to which iov can alias. */
+  unsigned char *refd_payload_encoded;
+#endif
   int64_t maxdelay;
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   uint32_t encoderid;
@@ -283,6 +288,9 @@ static void nn_xmsg_reinit (struct nn_xmsg *m, enum nn_xmsg_kind kind)
   m->dstmode = NN_XMSG_DST_UNSET;
   m->kind = kind;
   m->maxdelay = 0;
+#ifdef DDSI_INCLUDE_SECURITY
+  m->refd_payload_encoded = NULL;
+#endif
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   m->encoderid = 0;
 #endif
@@ -344,6 +352,9 @@ void nn_xmsg_free (struct nn_xmsg *m)
   struct nn_xmsgpool *pool = m->pool;
   if (m->refd_payload)
     ddsi_serdata_to_ser_unref (m->refd_payload, &m->refd_payload_iov);
+#ifdef DDSI_INCLUDE_SECURITY
+  ddsrt_free(m->refd_payload_encoded);
+#endif
   if (m->dstmode == NN_XMSG_DST_ALL)
   {
     unref_addrset (m->dstaddr.all.as);
@@ -560,13 +571,31 @@ void nn_xmsg_add_entityid (struct nn_xmsg * m)
   nn_xmsg_submsg_setnext (m, sm);
 }
 
-void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t off, size_t len)
+void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t off, size_t len, struct writer *wr)
 {
   if (serdata->kind != SDK_EMPTY)
   {
     size_t len4 = align4u (len);
     assert (m->refd_payload == NULL);
     m->refd_payload = ddsi_serdata_to_ser_ref (serdata, off, len4, &m->refd_payload_iov);
+
+#ifdef DDSI_INCLUDE_SECURITY
+    assert (m->refd_payload_encoded == NULL);
+    /* When encoding is necessary, m->refd_payload_encoded will be allocated
+     * and m->refd_payload_iov contents will change to point to that buffer.
+     * If no encoding is necessary, nothing changes. */
+    if (!encode_payload(wr, &(m->refd_payload_iov), &(m->refd_payload_encoded)))
+    {
+      DDS_CWARNING (&wr->e.gv->logconfig, "nn_xmsg_serdata: failed to encrypt data for "PGUIDFMT"", PGUID (wr->e.guid));
+      ddsi_serdata_to_ser_unref (m->refd_payload, &m->refd_payload_iov);
+      assert (m->refd_payload_encoded == NULL);
+      m->refd_payload_iov.iov_base = NULL;
+      m->refd_payload_iov.iov_len = 0;
+      m->refd_payload = NULL;
+    }
+#else
+    DDSRT_UNUSED_ARG(wr);
+#endif
   }
 }
 

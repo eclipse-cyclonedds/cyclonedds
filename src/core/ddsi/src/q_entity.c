@@ -3974,6 +3974,8 @@ void new_proxy_participant
   nn_xqos_mergein_missing (&proxypp->plist->qos, &gv->default_plist_pp.qos, ~(uint64_t)0);
   ddsrt_avl_init (&proxypp_groups_treedef, &proxypp->groups);
 
+  set_proxy_participant_security_info(proxypp, plist);
+
   if (custom_flags & CF_INC_KERNEL_SEQUENCE_NUMBERS)
     proxypp->kernel_sequence_numbers = 1;
   else
@@ -4394,6 +4396,8 @@ int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
   pwr->ddsi2direct_cb = 0;
   pwr->ddsi2direct_cbarg = 0;
 
+  set_proxy_writer_security_info(pwr, plist);
+
   local_reader_ary_init (&pwr->rdary);
 
   /* locking the entity prevents matching while the built-in topic hasn't been published yet */
@@ -4581,6 +4585,8 @@ int new_proxy_reader (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
   prd->favours_ssm = (favours_ssm && gv->config.allowMulticast & AMC_SSM) ? 1 : 0;
 #endif
   prd->is_fict_trans_reader = 0;
+
+  set_proxy_reader_security_info(prd, plist);
 
   ddsrt_avl_init (&prd_writers_treedef, &prd->writers);
 

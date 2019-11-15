@@ -448,9 +448,9 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
 
 #if TEST_KEYHASH
   if (serdata->kind != SDK_KEY || !wr->include_keyhash)
-    nn_xmsg_serdata (*pmsg, serdata, 0, ddsi_serdata_size (serdata));
+    nn_xmsg_serdata (*pmsg, serdata, 0, ddsi_serdata_size (serdata), wr);
 #else
-  nn_xmsg_serdata (*pmsg, serdata, 0, ddsi_serdata_size (serdata));
+  nn_xmsg_serdata (*pmsg, serdata, 0, ddsi_serdata_size (serdata), wr);
 #endif
   nn_xmsg_submsg_setnext (*pmsg, sm_marker);
   return 0;
@@ -618,7 +618,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
     }
   }
 
-  nn_xmsg_serdata (*pmsg, serdata, fragstart, fraglen);
+  nn_xmsg_serdata (*pmsg, serdata, fragstart, fraglen, wr);
   nn_xmsg_submsg_setnext (*pmsg, sm_marker);
 #if 0
   GVTRACE ("queue data%s "PGUIDFMT" #%lld/%u[%u..%u)\n",
