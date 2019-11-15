@@ -21,12 +21,6 @@
 extern "C" {
 #endif
 
-/* FIXME: should eventually move to abstraction layer */
-typedef enum q__schedPrioClass {
-  Q__SCHED_PRIO_RELATIVE,
-  Q__SCHED_PRIO_ABSOLUTE
-} q__schedPrioClass;
-
 enum nn_standards_conformance {
   NN_SC_PEDANTIC,
   NN_SC_STRICT,
@@ -52,14 +46,6 @@ enum boolean_default {
   BOOLDEF_DEFAULT,
   BOOLDEF_FALSE,
   BOOLDEF_TRUE
-};
-
-enum durability_cdr
-{
-  DUR_CDR_LE,
-  DUR_CDR_BE,
-  DUR_CDR_SERVER,
-  DUR_CDR_CLIENT
 };
 
 #define PARTICIPANT_INDEX_AUTO -1
