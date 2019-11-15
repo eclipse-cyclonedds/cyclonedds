@@ -4,6 +4,20 @@ struct OneULong
 };
 #pragma keylist OneULong
 
+struct Unkeyed16
+{
+  unsigned long seq;
+  octet baggage[12];
+};
+#pragma keylist Unkeyed16
+
+struct Unkeyed1024
+{
+  unsigned long seq;
+  octet baggage[1020];
+};
+#pragma keylist Unkeyed1024
+
 struct Keyed32
 {
   unsigned long seq;
