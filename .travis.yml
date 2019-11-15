@@ -116,16 +116,16 @@ build_target: &build_target
 #     code has been vetted, the test has been run a great many times (with the odd
 #     failure), and so we now simply skip the test to avoid the spurious failures.
 run_ctest: &run_ctest
-  - if [ "${FREERTOS}" = "true" ]; then
-      CYCLONEDDS_URI='<CycloneDDS><Domain><General><NetworkInterfaceAddress>lo0</NetworkInterfaceAddress></General><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal><Tracing><Verbosity>finest</Verbosity><OutputFile>lite.log</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 1 --output-on-failure -T test -R "ddsrt_atomics|ddsrt_environ|ddsrt_heap|ddsrt_getifaddrs|ddsrt_sync|ddsrt_strtoll|ddsrt_thread|ddsrt_strcasecmp|ddsrt_strncasecmp|dds_log|ddsrt_random|ddsrt_strlcpy|ddsrt_strlcat|ddsrt_sockaddrfromstr|ddsrt_sockaddrtostr|ddsrt_sockets|ddsrt_gethostbyname|ddsrt_select|ddsrt_listener|ddsc_qos|ddsc_listener|ddsc_participant_lookup_none|ddsc_publisher_coherency" -E "ddsc_listener_propagation|ddsc_listener_matched|ddsc_listener_publication_matched|ddsc_listener_subscription_matched|ddsc_listener_incompatible_qos|ddsc_listener_data_available|ddsc_listener_data_available_delete_writer|ddsc_listener_data_available_delete_writer_disposed|ddsc_listener_data_on_readers|ddsc_listener_sample_lost|ddsc_listener_sample_rejected|ddsc_listener_liveliness_changed" -C ${BUILD_TYPE};
-    else
-      CYCLONEDDS_URI='<CycloneDDS><Domain><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal><Tracing><Verbosity>config</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${BUILD_TYPE};
-    fi
+  if [ "${FREERTOS}" = "true" ]; then
+    CYCLONEDDS_URI='<CycloneDDS><Domain><General><NetworkInterfaceAddress>lo0</NetworkInterfaceAddress></General><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal><Tracing><Verbosity>finest</Verbosity><OutputFile>lite.log</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 1 --output-on-failure -T test -R "ddsrt_atomics|""ddsrt_environ|""ddsrt_heap|""ddsrt_getifaddrs|""ddsrt_sync|""ddsrt_strtoll|""ddsrt_thread|""ddsrt_strcasecmp|""ddsrt_strncasecmp|""dds_log|""ddsrt_random|""ddsrt_strlcpy|""ddsrt_strlcat|""ddsrt_sockaddrfromstr|ddsrt_sockaddrtostr|ddsrt_sockets|ddsrt_gethostbyname|ddsrt_select|ddsrt_listener|ddsc_qos|ddsc_listener|ddsc_participant_lookup_none|ddsc_publisher_coherency" -E "ddsc_listener_propagation|ddsc_listener_matched|ddsc_listener_publication_matched|ddsc_listener_subscription_matched|ddsc_listener_incompatible_qos|ddsc_listener_data_available|ddsc_listener_data_available_delete_writer|ddsc_listener_data_available_delete_writer_disposed|ddsc_listener_data_on_readers|ddsc_listener_sample_lost|ddsc_listener_sample_rejected|ddsc_listener_liveliness_changed" -C ${BUILD_TYPE};
+  else
+    CYCLONEDDS_URI='<CycloneDDS><Domain><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal><Tracing><Verbosity>config</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${BUILD_TYPE};
+  fi
 
 build_example: &build_example
   - if [ "${ASAN}" != "none" ]; then
-        CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
-        CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
+      CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
+      CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
     fi
   - mkdir install/share/CycloneDDS/examples/helloworld/build
   - cd install/share/CycloneDDS/examples/helloworld/build
@@ -144,9 +144,7 @@ build_the_target: &build_the_target
     fi
   - *build_target
   - *run_ctest
-  - if [ "${FREERTOS}" = "true" ]; then
-      :;
-    else
+  - if [ "${FREERTOS}" != "true" ]; then
       *build_example;
     fi
 
@@ -312,4 +310,3 @@ script:
 
 after_success:
   - *submit_to_coverity_scan
-
