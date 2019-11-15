@@ -1675,7 +1675,7 @@ struct multiplier {
 
 static const struct multiplier frequency_units[] = {
   { "Hz", 1 },
-  { "kHz", 1024 },
+  { "kHz", 1000 },
   { NULL, 0 }
 };
 
