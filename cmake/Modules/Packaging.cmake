@@ -18,7 +18,7 @@ include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
 set(PACKAGING_MODULE_DIR "${PROJECT_SOURCE_DIR}/cmake/Modules/Packaging")
-set(CMAKE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}")
+set(CMAKE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
 
 # Generates <Package>Config.cmake.
 configure_package_config_file(

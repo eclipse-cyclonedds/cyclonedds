@@ -124,11 +124,10 @@ We will show you how to build and run an example program that measures latency. 
 built automatically when you build Cyclone DDS, so you don't need to follow these steps to be able
 to run the program, it is merely to illustrate the process.
 
-    $ cd cyclonedds/examples/roundtrip
-    $ mkdir build
-    $ cd build
-    $ cmake ..
-    $ make
+    $ mkdir roundtrip
+    $ cd roundtrip
+    $ cmake <install-location>/share/CycloneDDS/examples/helloworld
+    $ cmake --build .
     
 On one terminal start the application that will be responding to pings:
 

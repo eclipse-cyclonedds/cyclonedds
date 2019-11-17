@@ -206,13 +206,12 @@ look in the default locations for the code:`CycloneDDS` package.
 
 .. _`IdlcGenerate`:
 
-The :code:`CycloneDDS` package provides the :code:`ddsc` library
-that contains the DDS API that the application needs. But apart
-from that, it also contains helper functionality
-(:code:`idlc_generate`) to generate library targets from IDL
-files. These library targets can be easily used when compiling
-an application that depends on a data type described
-in an IDL file.
+The :code:`CycloneDDS` package provides the :code:`ddsc` library that
+contains the DDS API that the application needs. It also provides a
+component "idlc" that provides helper functionality for generating
+library targets from IDL files (:code:`idlc_generate`). These library
+targets can be easily used when compiling an application that depends on
+a data type described in an IDL file.
 
 Two applications will be created, :code:`HelloworldPublisher`
 and :code:`HelloworldSubscriber`. Both consist only out of one
@@ -241,7 +240,7 @@ Here, we can let CMake configure the build environment for
 us by typing:
 ::
 
-    cmake ../
+    cmake ..
 
 .. note::
     CMake does a pretty good job at guessing which generator to use, but some
