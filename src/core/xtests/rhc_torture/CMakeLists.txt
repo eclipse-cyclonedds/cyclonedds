@@ -13,6 +13,12 @@ idlc_generate(RhcTypes RhcTypes.idl)
 
 add_executable(rhc_torture rhc_torture.c)
 
+if(WITH_FREERTOS)
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/rhc_torture.c"
+    PROPERTIES COMPILE_DEFINITIONS main=_main)
+endif()
+
 target_include_directories(
   rhc_torture PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"

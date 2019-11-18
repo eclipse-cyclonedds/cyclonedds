@@ -821,7 +821,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     fwr (wr[i]);
 }
 
-int main (int argc, char **argv)
+int main (int argc, char *argv[])
 {
   dds_entity_t pp = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
   dds_entity_t tp = dds_create_topic(pp, &RhcTypes_T_desc, "RhcTypes_T", NULL, NULL);

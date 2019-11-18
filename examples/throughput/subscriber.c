@@ -67,7 +67,7 @@ static void sigint (int sig)
   done = true;
 }
 
-int main (int argc, char **argv)
+int main (int argc, char *argv[])
 {
   unsigned long long maxCycles = 0;
   char *partitionName = "Throughput example";

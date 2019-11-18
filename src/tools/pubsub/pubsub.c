@@ -2267,7 +2267,7 @@ static void set_print_mode(const char *modestr) {
     dds_free(copy);
 }
 
-int main(int argc, char *argv[]) {
+int main (int argc, char *argv[]) {
     dds_entity_t sub = 0;
     dds_entity_t pub = 0;
     dds_listener_t *rdlistener = dds_create_listener(NULL);

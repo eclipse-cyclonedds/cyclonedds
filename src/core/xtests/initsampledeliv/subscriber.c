@@ -57,7 +57,7 @@ static uint32_t get_subscription_matched_count (dds_entity_t rd)
   return status.current_count;
 }
 
-int main (int argc, char ** argv)
+int main (int argc, char *argv[])
 {
   dds_entity_t ppant;
   dds_entity_t tp;

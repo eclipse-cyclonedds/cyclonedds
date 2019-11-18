@@ -60,7 +60,7 @@ static uint32_t get_publication_matched_count (dds_entity_t wr)
   return status.current_count;
 }
 
-int main (int argc, char ** argv)
+int main (int argc, char *argv[])
 {
   dds_entity_t ppant;
   dds_entity_t tp;

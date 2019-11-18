@@ -35,9 +35,21 @@
 #include <FreeRTOS.h>
 #include <task.h>
 
+#if DDSRT_WITH_FREERTOS
+#if DDSRT_WITH_LWIP
+#include <lwip/tcpip.h>
+#endif
+#endif
+
 /* Setup system hardware. */
 void prvSetupHardware(void)
 {
+#if DDSRT_WITH_FREERTOS
+#if DDSRT_WITH_LWIP
+  tcpip_init(NULL, NULL);
+#endif
+#endif
+
   /* No hardware to setup when running in the simulator. */
   return;
 }
@@ -91,14 +103,15 @@ extern int real_main(int argc, char *argv[]);
 static void vMainTask(void *ptr)
 {
   args_t *args = (args_t *)ptr;
+  int ret = 0;
   /* Reset getopt global variables. */
   opterr = 1;
   optind = 1;
-  (void)real_main(args->argc, args->argv);
+  ret = real_main(args->argc, args->argv);
   vPortFree(args->argv);
   vPortFree(args);
-  vTaskDelete(NULL);
-  _Exit(0);
+  /*vTaskEndScheduler();*/
+  _Exit(ret);
 }
 
 int
@@ -122,25 +135,6 @@ main(int argc, char *argv[])
   }
 
   memset(args, 0, sizeof(*args));
-
-  /* Parse command line options. */
-  while ((opt = getopt(argc, argv, ":a:dg:hn:")) != -1) {
-    switch (opt) {
-      case 'h':
-        help(name);
-        exit(EX_OK);
-      case '?':
-        fprintf(stderr, "Unknown option '%c'"LF, opt);
-        usage(name);
-        exit(EX_USAGE);
-      case ':':
-      /* fall through */
-      default:
-        fprintf(stderr, "Option '%c' requires an argument"LF, opt);
-        usage(name);
-        exit(EX_USAGE);
-    }
-  }
 
   /* Copy leftover arguments into a new array. */
   args->argc = (argc - optind) + 1;

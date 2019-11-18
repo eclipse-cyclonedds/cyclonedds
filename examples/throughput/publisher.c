@@ -35,7 +35,7 @@ static void sigint (int sig)
   done = true;
 }
 
-int main (int argc, char **argv)
+int main (int argc, char *argv[])
 {
   uint32_t payloadSize = 8192;
   int burstInterval = 0;
