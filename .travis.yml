@@ -305,7 +305,19 @@ before_script:
   - conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
 
 script:
-  - *build_the_target
+  - if [ "${FREERTOS}" = "true" ]; then
+      if [ "${LWIP}" = "true" ]; then
+        ./scripts/build_the_target freertos lwip "${RM}";
+      else
+        ./scripts/build_the_target freertos "${RM}";
+      fi;
+    else
+      if [ "${LWIP}" = "true" ]; then
+        ./scripts/build_the_target lwip "${RM}";
+      else
+        ./scripts/build_the_target "${RM}";
+      fi;
+    fi
   - cd "${TRAVIS_BUILD_DIR}/build"
 
 after_success:

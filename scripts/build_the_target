@@ -1,0 +1,138 @@
+#!/bin/bash
+
+function build_target() {
+    cd ${ROOT_DIR}
+    [ "${RM}" = "true" ] && rm -rf build;
+    mkdir -p build;
+    cd build;
+    conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ..;
+    if [ "${FREERTOS}" = "true" ]; then
+        cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_TOOLCHAIN_FILE=../ports/freertos-posix/toolchain.cmake -DCMAKE_INSTALL_PREFIX=$(pwd)/install -DUSE_SANITIZER=${ASAN} -DENABLE_SSL=${SSL} -DBUILD_TESTING=on -DWITH_FREERTOS=on -DWITH_LWIP=${LWIP} -G "${GENERATOR}" .. || true
+    else
+        cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=$(pwd)/install -DUSE_SANITIZER=${ASAN} -DENABLE_SSL=${SSL} -DBUILD_TESTING=on -DWERROR=on -G "${GENERATOR}" ..
+    fi
+    case "${GENERATOR}" in
+      "Unix Makefiles")
+        ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- -j 1
+        ;;
+      "Visual Studio "*)
+        ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install -- -nologo -verbosity:minimal -maxcpucount -p:CL_MPCount=2
+        ;;
+      *)
+        ${SCAN_BUILD} cmake --build . --config ${BUILD_TYPE} --target install
+        ;;
+    esac
+}
+
+function run_tests() {
+    if [ "${FREERTOS}" = "true" ]; then
+    	CYCLONEDDS_URI='<CycloneDDS><Domain><General><NetworkInterfaceAddress>lo0</NetworkInterfaceAddress></General><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal><Tracing><Verbosity>finest</Verbosity><OutputFile>lite.log</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 1 --output-on-failure -T test -R "ddsrt_atomics|ddsrt_environ|ddsrt_heap|ddsrt_getifaddrs|ddsrt_sync|ddsrt_strtoll|ddsrt_thread|ddsrt_strcasecmp|ddsrt_strncasecmp|dds_log|ddsrt_random|ddsrt_strlcpy|ddsrt_strlcat|ddsrt_sockaddrfromstr|ddsrt_sockaddrtostr|ddsrt_sockets|ddsrt_gethostbyname|ddsrt_select|ddsrt_listener|ddsc_qos|ddsc_listener|ddsc_participant_lookup_none|ddsc_publisher_coherency" -E "ddsc_listener_propagation|ddsc_listener_matched|ddsc_listener_publication_matched|ddsc_listener_subscription_matched|ddsc_listener_incompatible_qos|ddsc_listener_data_available|ddsc_listener_data_available_delete_writer|ddsc_listener_data_available_delete_writer_disposed|ddsc_listener_data_on_readers|ddsc_listener_sample_lost|ddsc_listener_sample_rejected|ddsc_listener_liveliness_changed" -C ${BUILD_TYPE};
+    else
+    	CYCLONEDDS_URI='<CycloneDDS><Domain><Internal><EnableExpensiveChecks>all</EnableExpensiveChecks></Internal><Tracing><Verbosity>config</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>' ctest -j 1 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${BUILD_TYPE};
+    fi
+}
+
+function build_simulator() {
+    cd ${FREERTOS_POSIX_DIR};
+    [ "${RM}" = "true" ] && echo "remove freertos-sim" && rm -rf FreeRTOS-Sim;
+    git clone -b "v9.0.0" --single-branch https://github.com/shlinym/FreeRTOS-Sim.git FreeRTOS-Sim;
+    [ "${RM}" = "true" ] && echo "remove build" && rm -rf build;
+    mkdir build;
+    cd build;
+    cmake -DCMAKE_INSTALL_PREFIX=$(pwd)/install ..
+    cmake --build . --target install
+}
+
+function build_lwip() {
+    cd ${LWIP_DIR};
+    [ "${RM}" = "true" ] && echo "remove lwip" && rm -rf lwip;
+    git clone -b STABLE-2_1_2_RELEASE --single-branch https://git.savannah.nongnu.org/git/lwip.git lwip;
+    [ "${RM}" = "true" ] && echo "remove lwip-contrib" && rm -rf lwip-contrib;
+    git clone -b STABLE-2_1_0_RELEASE --single-branch https://git.savannah.nongnu.org/git/lwip/lwip-contrib.git lwip-contrib;
+    [ "${RM}" = "true" ] && echo "remove example_app/build" && rm -rf ${EXAMPLE_APP}/build;
+    mkdir ${EXAMPLE_APP}/build;
+    cd ${EXAMPLE_APP}/build;
+    cmake ..
+    cp ${LWIP_DIR}/lwipcfg.h ${EXAMPLE_APP};
+    cmake --build . --target lwipcontribportunix
+    cmake --build . --target lwipcore
+    cd ${FREERTOS_POSIX_DIR};
+    [ "${RM}" = "true" ] && echo "remove build" && rm -rf build;
+    mkdir -p build;
+    cd build;
+    cmake -DCMAKE_INSTALL_PREFIX=$(pwd)/install ..
+    cmake --build . --target install
+}
+
+function build_with_freertos() {
+    build_simulator
+    if [ "${LWIP}" = "true" ]; then
+        build_lwip
+    fi
+    build_target
+    run_tests
+}
+
+function build_helloworld() {
+    if [ "${ASAN}" != "none" ]; then
+      CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
+      CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
+    fi;
+    mkdir install/share/CycloneDDS/examples/helloworld/build;
+    cd install/share/CycloneDDS/examples/helloworld/build;
+    cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${CMAKE_C_FLAGS} ${CMAKE_LINKER_FLAGS} -G "${GENERATOR}" ..
+    cmake --build . --config ${BUILD_TYPE}
+    cd "${ROOT_DIR}/build";
+}
+
+function build_without_freertos() {
+    build_target
+    run_tests
+    build_helloworld
+}
+
+#ARCH=x86_64
+#ASAN=none
+#BUILD_TYPE="Debug"
+#GENERATOR="Unix Makefiles"
+#SSL=NO
+
+for arg in "$@"
+do
+  case "${arg}" in
+  "freertos")
+    FREERTOS=true;
+    ;;
+  "lwip")
+    LWIP=true;
+    ;;
+  "rm")
+    RM=true
+    ;;
+  esac;
+done
+
+echo FREERTOS:${FREERTOS}
+echo LWIP:${LWIP}
+echo RM:${RM}
+
+echo "building with FREERTOS=${FREERTOS} and LWIP=${LWIP}"
+
+TRAVIS_BUILD_DIR=/home/bart/eclipse_cyclone/fork2
+
+ROOT_DIR=${TRAVIS_BUILD_DIR}/cyclonedds
+FREERTOS_POSIX_DIR=${ROOT_DIR}/ports/freertos-posix
+LWIP_DIR=${FREERTOS_POSIX_DIR}/lwip
+EXAMPLE_APP=${LWIP_DIR}/lwip-contrib/ports/unix/example_app
+
+if [ "${FREERTOS}" = "true" ]; then
+
+    build_with_freertos
+
+else
+
+    build_without_freertos
+
+fi
+
+echo "built with FREERTOS=${FREERTOS} and LWIP=${LWIP}"
