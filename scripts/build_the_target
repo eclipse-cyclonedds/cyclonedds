@@ -118,8 +118,6 @@ echo RM:${RM}
 
 echo "building with FREERTOS=${FREERTOS} and LWIP=${LWIP}"
 
-TRAVIS_BUILD_DIR=/home/bart/eclipse_cyclone/fork2
-
 ROOT_DIR=${TRAVIS_BUILD_DIR}/cyclonedds
 FREERTOS_POSIX_DIR=${ROOT_DIR}/ports/freertos-posix
 LWIP_DIR=${FREERTOS_POSIX_DIR}/lwip
