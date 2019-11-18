@@ -34,9 +34,9 @@ function run_tests() {
 
 function build_simulator() {
     cd ${FREERTOS_POSIX_DIR};
-    [ "${RM}" = "true" ] && echo "remove freertos-sim" && rm -rf FreeRTOS-Sim;
+    [ "${RM}" = "true" ] && rm -rf FreeRTOS-Sim;
     git clone -b "v9.0.0" --single-branch https://github.com/shlinym/FreeRTOS-Sim.git FreeRTOS-Sim;
-    [ "${RM}" = "true" ] && echo "remove build" && rm -rf build;
+    [ "${RM}" = "true" ] && rm -rf build;
     mkdir build;
     cd build;
     cmake -DCMAKE_INSTALL_PREFIX=$(pwd)/install ..
@@ -45,11 +45,11 @@ function build_simulator() {
 
 function build_lwip() {
     cd ${LWIP_DIR};
-    [ "${RM}" = "true" ] && echo "remove lwip" && rm -rf lwip;
+    [ "${RM}" = "true" ] && rm -rf lwip;
     git clone -b STABLE-2_1_2_RELEASE --single-branch https://git.savannah.nongnu.org/git/lwip.git lwip;
-    [ "${RM}" = "true" ] && echo "remove lwip-contrib" && rm -rf lwip-contrib;
+    [ "${RM}" = "true" ] && rm -rf lwip-contrib;
     git clone -b STABLE-2_1_0_RELEASE --single-branch https://git.savannah.nongnu.org/git/lwip/lwip-contrib.git lwip-contrib;
-    [ "${RM}" = "true" ] && echo "remove example_app/build" && rm -rf ${EXAMPLE_APP}/build;
+    [ "${RM}" = "true" ] && rm -rf ${EXAMPLE_APP}/build;
     mkdir ${EXAMPLE_APP}/build;
     cd ${EXAMPLE_APP}/build;
     cmake ..
@@ -57,7 +57,7 @@ function build_lwip() {
     cmake --build . --target lwipcontribportunix
     cmake --build . --target lwipcore
     cd ${FREERTOS_POSIX_DIR};
-    [ "${RM}" = "true" ] && echo "remove build" && rm -rf build;
+    [ "${RM}" = "true" ] && rm -rf build;
     mkdir -p build;
     cd build;
     cmake -DCMAKE_INSTALL_PREFIX=$(pwd)/install ..
@@ -91,12 +91,6 @@ function build_without_freertos() {
     build_helloworld
 }
 
-#ARCH=x86_64
-#ASAN=none
-#BUILD_TYPE="Debug"
-#GENERATOR="Unix Makefiles"
-#SSL=NO
-
 for arg in "$@"
 do
   case "${arg}" in
@@ -112,13 +106,7 @@ do
   esac;
 done
 
-echo FREERTOS:${FREERTOS}
-echo LWIP:${LWIP}
-echo RM:${RM}
-
-echo "building with FREERTOS=${FREERTOS} and LWIP=${LWIP}"
-
-ROOT_DIR=${TRAVIS_BUILD_DIR}/cyclonedds
+ROOT_DIR=${TRAVIS_BUILD_DIR}
 FREERTOS_POSIX_DIR=${ROOT_DIR}/ports/freertos-posix
 LWIP_DIR=${FREERTOS_POSIX_DIR}/lwip
 EXAMPLE_APP=${LWIP_DIR}/lwip-contrib/ports/unix/example_app
@@ -132,5 +120,3 @@ else
     build_without_freertos
 
 fi
-
-echo "built with FREERTOS=${FREERTOS} and LWIP=${LWIP}"
