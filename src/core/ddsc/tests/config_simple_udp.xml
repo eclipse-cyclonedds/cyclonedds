@@ -15,7 +15,7 @@
 <CycloneDDS xmlns="https://cdds.io/config">
   <!-- Simple config-file for testing whether a config-file can be picked up
        correctly. -->
-  <Domain id="3">
+  <Domain Id="3">
     <General>
       <NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress>
       <AllowMulticast>true</AllowMulticast>
