@@ -196,6 +196,8 @@ struct config
   int dontRoute;
   int enableMulticastLoopback;
   uint32_t domainId;
+  struct config_maybe_uint32 extDomainId; // domain id advertised in discovery
+  char *domainTag;
   int participantIndex;
   int maxAutoParticipantIndex;
   char *spdpMulticastAddressString;

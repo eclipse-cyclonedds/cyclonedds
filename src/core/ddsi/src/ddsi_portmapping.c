@@ -89,7 +89,7 @@ static const char *portname (enum ddsi_port which)
   return n;
 }
 
-bool ddsi_valid_portmapping (const struct ddsi_portmapping *map, uint32_t domain_id, int32_t participant_index, char *msg, size_t msgsize)
+bool ddsi_valid_portmapping (const struct config *config, int32_t participant_index, char *msg, size_t msgsize)
 {
   DDSRT_STATIC_ASSERT (DDSI_PORT_MULTI_DISC >= 0 &&
                        DDSI_PORT_MULTI_DISC + 1 == DDSI_PORT_MULTI_DATA &&
@@ -103,7 +103,7 @@ bool ddsi_valid_portmapping (const struct ddsi_portmapping *map, uint32_t domain
   int n = snprintf (msg, msgsize, "port number(s) of out range:");
   size_t pos = (n >= 0 && (size_t) n <= msgsize) ? (size_t) n : msgsize;
   do {
-    if (!get_port_int (&dummy_port, map, which, domain_id, participant_index, str, sizeof (str)))
+    if (!get_port_int (&dummy_port, &config->ports, which, config->extDomainId.value, participant_index, str, sizeof (str)))
     {
       n = snprintf (msg + pos, msgsize - pos, "%s %s %s", ok ? "" : ",", portname (which), str);
       if (n >= 0 && (size_t) n <= msgsize - pos)
@@ -114,12 +114,12 @@ bool ddsi_valid_portmapping (const struct ddsi_portmapping *map, uint32_t domain
   return ok;
 }
 
-uint32_t ddsi_get_port (const struct ddsi_portmapping *map, enum ddsi_port which, uint32_t domain_id, int32_t participant_index)
+uint32_t ddsi_get_port (const struct config *config, enum ddsi_port which, int32_t participant_index)
 {
   /* Not supposed to come here if port mapping is invalid */
   uint32_t port;
   char str[32];
-  bool ok = get_port_int (&port, map, which, domain_id, participant_index, str, sizeof (str));
+  bool ok = get_port_int (&port, &config->ports, which, config->extDomainId.value, participant_index, str, sizeof (str));
   assert (ok);
   (void) ok;
   return port;
