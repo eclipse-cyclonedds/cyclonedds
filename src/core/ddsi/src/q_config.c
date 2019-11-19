@@ -2822,12 +2822,7 @@ struct cfgst *config_init (const char *config, struct config *cfg, uint32_t domi
     while (p)
     {
       cfgst->cfg->nof_networkPartitions++;
-      /* also use crc32 just like native nw and ordinary ddsi2e, only
-         for interoperability because it is asking for trouble &
-         forces us to include a crc32 routine when we have md5
-         available anyway */
       p->partitionId = cfgst->cfg->nof_networkPartitions; /* starting at 1 */
-      p->partitionHash = crc32_calc(p->name, strlen(p->name));
       p = p->next;
     }
   }
