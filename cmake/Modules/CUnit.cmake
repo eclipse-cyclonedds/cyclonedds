@@ -274,7 +274,7 @@ function(add_cunit_executable TARGET)
 
         add_test(
           NAME ${ctest}
-          COMMAND ${TARGET} -a -r "${suite}-${test}" -s ${suite} -t ${test})
+          COMMAND ${TARGET} -s ${suite} -t ${test})
         set_property(TEST ${ctest} PROPERTY TIMEOUT ${timeout})
         set_property(TEST ${ctest} PROPERTY DISABLED ${disabled})
         if(APPLE)
