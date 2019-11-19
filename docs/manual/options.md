@@ -101,7 +101,7 @@ The default value is: "lax".
 
 
 ### //CycloneDDS/Domain/Discovery
-Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [EnableTopicDiscovery](#cycloneddsdomaindiscoveryenabletopicdiscovery), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress)
+Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [EnableTopicDiscovery](#cycloneddsdomaindiscoveryenabletopicdiscovery), [ExternalDomainId](#cycloneddsdomaindiscoveryexternaldomainid), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress), [Tag](#cycloneddsdomaindiscoverytag)
 
 
 The Discovery element allows specifying various parameters related to the
@@ -138,6 +138,17 @@ Boolean
 Do not use.
 
 The default value is: "true".
+
+
+#### //CycloneDDS/Domain/Discovery/ExternalDomainId
+Text
+
+An override for the domain id, to be used in discovery and for
+determining the port number mapping. This allows creating multiple
+domains in a single process while making them appear as a single domain
+on the network. The value "default" disables the override.
+
+The default value is: "default".
 
 
 #### //CycloneDDS/Domain/Discovery/MaxAutoParticipantIndex
@@ -326,6 +337,15 @@ ff02::ffff:239.255.0.1, which is a non-standardised link-local multicast
 address.
 
 The default value is: "239.255.0.1".
+
+
+#### //CycloneDDS/Domain/Discovery/Tag
+Text
+
+String extension for domain id that remote participants must match to be
+discovered.
+
+The default value is: "".
 
 
 ### //CycloneDDS/Domain/General

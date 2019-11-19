@@ -330,6 +330,8 @@ DDSRT_WARNING_MSVC_ON(4200)
 
 #define PID_PAD                                 0x0u
 #define PID_SENTINEL                            0x1u
+#define PID_DOMAIN_ID                           0xfu
+#define PID_DOMAIN_TAG                          (0x14u | PID_UNRECOGNIZED_INCOMPATIBLE_FLAG)
 #define PID_USER_DATA                           0x2cu
 #define PID_TOPIC_NAME                          0x5u
 #define PID_TYPE_NAME                           0x7u

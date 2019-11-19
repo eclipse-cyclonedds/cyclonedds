@@ -697,6 +697,10 @@ static const struct cfgelem discovery_peers_cfgelems[] = {
 };
 
 static const struct cfgelem discovery_cfgelems[] = {
+  { LEAF("Tag"), 0, "", ABSOFF(domainTag), 0, uf_string, ff_free, pf_string,
+    BLURB("<p>String extension for domain id that remote participants must match to be discovered.</p>") },
+  { LEAF ("ExternalDomainId"), 1, "default", ABSOFF (extDomainId), 0, uf_maybe_int32, 0, pf_maybe_int32,
+    BLURB("<p>An override for the domain id, to be used in discovery and for determining the port number mapping. This allows creating multiple domains in a single process while making them appear as a single domain on the network.  The value \"default\" disables the override.</p>") },
   { LEAF("DSGracePeriod"), 1, "30 s", ABSOFF(ds_grace_period), 0, uf_duration_inf, 0, pf_duration,
     BLURB("<p>This setting controls for how long endpoints discovered via a Cloud discovery service will survive after the discovery service disappeared, allowing reconnect without loss of data when the discovery service restarts (or another instance takes over).</p>") },
   { GROUP("Peers", discovery_peers_cfgelems),

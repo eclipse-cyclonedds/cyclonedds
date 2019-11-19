@@ -111,6 +111,15 @@ Discovery/SPDPMulticastAddress.</p><p>The default value is:
           xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
+<p>An override for the domain id, to be used in discovery and for
+determining the port number mapping. This allows creating multiple
+domains in a single process while making them appear as a single domain
+on the network. The value "default" disables the override.</p><p>The
+default value is: &quot;default&quot;.</p>""" ] ]
+        element ExternalDomainId {
+          text
+        }?
+        & [ a:documentation [ xml:lang="en" """
 <p>This element specifies the maximum DDSI participant index selected by
 this instance of the Cyclone DDS service if the
 Discovery/ParticipantIndex is "auto".</p><p>The default value is:
@@ -255,6 +264,12 @@ default is the (standardised) 239.255.0.1, in IPv6 mode it becomes
 ff02::ffff:239.255.0.1, which is a non-standardised link-local multicast
 address.</p><p>The default value is: &quot;239.255.0.1&quot;.</p>""" ] ]
         element SPDPMulticastAddress {
+          text
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>String extension for domain id that remote participants must match to
+be discovered.</p><p>The default value is: &quot;&quot;.</p>""" ] ]
+        element Tag {
           text
         }?
       }?
