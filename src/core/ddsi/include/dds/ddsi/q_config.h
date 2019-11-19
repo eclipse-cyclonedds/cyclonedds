@@ -64,7 +64,6 @@ struct config_networkpartition_listelem {
   char *address_string;
   struct addrset *as;
   int connected;
-  uint32_t partitionHash;
   uint32_t partitionId;
 };
 
