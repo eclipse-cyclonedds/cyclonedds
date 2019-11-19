@@ -94,7 +94,8 @@ if(BUILD_DOCS)
     "__attribute__="
     "__declspec(x)="
     "DDS_EXPORT="
-    "DDS_DEPRECATED_EXPORT=")
+    "DDS_DEPRECATED_EXPORT="
+    "DDSRT_STATIC_ASSERT(x)=")
   find_package(Doxygen REQUIRED)
   doxygen_add_docs(ddsc_api_docs "ddsc/include")
 endif()
