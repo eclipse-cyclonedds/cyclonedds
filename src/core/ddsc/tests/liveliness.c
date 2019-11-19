@@ -31,7 +31,8 @@
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
 #define DDS_CONFIG_NO_PORT_GAIN "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<General><NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress></General><Discovery><Ports><DomainGain>0</DomainGain></Ports></Discovery>"
-#define DDS_CONFIG_NO_PORT_GAIN_LOG "<"DDS_PROJECT_NAME"><Domain><Discovery><Ports><DomainGain>0</DomainGain></Ports></Discovery><Tracing><OutputFile>cyclonedds_liveliness.log</OutputFile><Verbosity>finest</Verbosity></Tracing></Domain></"DDS_PROJECT_NAME">"
+#define DDS_CONFIG_NO_PORT_GAIN_PUB_LOG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Tracing><OutputFile>cyclonedds_liveliness.pub.${CYCLONEDDS_PID}.log</OutputFile><Verbosity>finest</Verbosity></Tracing><General><NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress></General><Discovery><MaxAutoParticipantIndex>40</MaxAutoParticipantIndex><Ports><DomainGain>0</DomainGain></Ports></Discovery>"
+#define DDS_CONFIG_NO_PORT_GAIN_SUB_LOG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Tracing><OutputFile>cyclonedds_liveliness.sub.${CYCLONEDDS_PID}.log</OutputFile><Verbosity>finest</Verbosity></Tracing><General><NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress></General><Discovery><MaxAutoParticipantIndex>40</MaxAutoParticipantIndex><Ports><DomainGain>0</DomainGain></Ports></Discovery>"
 
 uint32_t g_topic_nr = 0;
 static dds_entity_t g_pub_domain = 0;
@@ -44,19 +45,24 @@ static dds_entity_t g_sub_subscriber = 0;
 
 static char *create_topic_name(const char *prefix, uint32_t nr, char *name, size_t size)
 {
-	/* Get semi random g_topic name. */
+	/* Get unique g_topic name. */
 	ddsrt_pid_t pid = ddsrt_getpid();
 	ddsrt_tid_t tid = ddsrt_gettid();
 	(void)snprintf(name, size, "%s%d_pid%" PRIdPID "_tid%" PRIdTID "", prefix, nr, pid, tid);
 	return name;
 }
 
-static void liveliness_init(void)
+static void liveliness_init()
 {
-	char *conf = ddsrt_expand_envvars(DDS_CONFIG_NO_PORT_GAIN, UINT32_MAX);
-	g_pub_domain = dds_create_domain(DDS_DOMAINID_PUB, conf);
-	g_sub_domain = dds_create_domain(DDS_DOMAINID_SUB, conf);
-	dds_free(conf);
+	/* Domains for pub and sub use a different domain id, but the portgain setting
+	 * in configuration is 0, so that both domains will map to the same port number.
+	 * This allows to create two domains in a single test process. */
+	char *conf_pub = ddsrt_expand_envvars(DDS_CONFIG_NO_PORT_GAIN_PUB_LOG, UINT32_MAX);
+	char *conf_sub = ddsrt_expand_envvars(DDS_CONFIG_NO_PORT_GAIN_SUB_LOG, UINT32_MAX);
+	g_pub_domain = dds_create_domain(DDS_DOMAINID_PUB, conf_pub);
+	g_sub_domain = dds_create_domain(DDS_DOMAINID_SUB, conf_sub);
+	dds_free(conf_pub);
+	dds_free(conf_sub);
 
 	g_pub_participant = dds_create_participant(DDS_DOMAINID_PUB, NULL, NULL);
 	CU_ASSERT_FATAL(g_pub_participant > 0);
@@ -79,6 +85,11 @@ static void liveliness_fini(void)
 	dds_delete(g_pub_domain);
 }
 
+/**
+ * Gets the current PMD sequence number for the participant. This
+ * can be used to count the number of PMD messages that is sent by
+ * the participant.
+ */
 static seqno_t get_pmd_seqno(dds_entity_t participant)
 {
 	seqno_t seqno;
@@ -96,6 +107,9 @@ static seqno_t get_pmd_seqno(dds_entity_t participant)
 	return seqno;
 }
 
+/**
+ * Gets the current PMD interval for the participant
+ */
 static dds_duration_t get_pmd_interval(dds_entity_t participant)
 {
 	dds_duration_t intv;
@@ -110,6 +124,9 @@ static dds_duration_t get_pmd_interval(dds_entity_t participant)
 	return intv;
 }
 
+/**
+ * Gets the current lease duration for the participant
+ */
 static dds_duration_t get_ldur_config(dds_entity_t participant)
 {
 	struct dds_entity *pp_entity;
@@ -120,6 +137,11 @@ static dds_duration_t get_ldur_config(dds_entity_t participant)
 	return ldur;
 }
 
+
+/**
+ * Test that the correct number of PMD messages is sent for
+ * the various liveliness kinds.
+ */
 #define A DDS_LIVELINESS_AUTOMATIC
 #define MP DDS_LIVELINESS_MANUAL_BY_PARTICIPANT
 #define MT DDS_LIVELINESS_MANUAL_BY_TOPIC
@@ -152,7 +174,7 @@ CU_Theory((dds_liveliness_kind_t kind, uint32_t ldur, double mult), ddsc_livelin
 				 kind == 0 ? "A" : "MP", ldur, mult);
 
 	/* topics */
-	create_topic_name("ddsc_liveliness_test", g_topic_nr++, name, sizeof name);
+	create_topic_name("ddsc_liveliness_pmd_count", g_topic_nr++, name, sizeof name);
 	CU_ASSERT_FATAL((pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
 	CU_ASSERT_FATAL((sub_topic = dds_create_topic(g_sub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
 
@@ -199,12 +221,17 @@ CU_Theory((dds_liveliness_kind_t kind, uint32_t ldur, double mult), ddsc_livelin
 	CU_ASSERT_EQUAL_FATAL(dds_delete(reader), DDS_RETCODE_OK);
 }
 
+/**
+ * Test that the expected number of proxy writers expires (set to not-alive)
+ * after a certain delay for various combinations of writers with different
+ * liveliness kinds.
+ */
 CU_TheoryDataPoints(ddsc_liveliness, expire_liveliness_kinds) = {
 		CU_DataPoints(uint32_t,  200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200), /* lease duration for initial test run (increased for each retry when test fails) */
 		CU_DataPoints(double,    0.3, 0.3, 0.3, 0.3, 0.3, 0.3,   2,   2,   2,   2,   2,   2,   2,   2,   2), /* delay (n times lease duration) */
-		CU_DataPoints(uint32_t,      1,   0,   2,   0,   1,   0,   0,   1,   1,   2,   0,   5,   0,  15,  15), /* number of writers with automatic liveliness */
-		CU_DataPoints(uint32_t,      1,   1,   2,   2,   0,   0,   0,   1,   0,   2,   2,   5,  10,   0,  15), /* number of writers with manual-by-participant liveliness */
-		CU_DataPoints(uint32_t,      1,   1,   2,   2,   1,   1,   1,   1,   0,   1,   1,   2,   5,   0,  10), /* number of writers with manual-by-topic liveliness */
+		CU_DataPoints(uint32_t,    1,   0,   2,   0,   1,   0,   0,   1,   1,   2,   0,   5,   0,  15,  15), /* number of writers with automatic liveliness */
+		CU_DataPoints(uint32_t,    1,   1,   2,   2,   0,   0,   0,   1,   0,   2,   2,   5,  10,   0,  15), /* number of writers with manual-by-participant liveliness */
+		CU_DataPoints(uint32_t,    1,   1,   2,   2,   1,   1,   1,   1,   0,   1,   1,   2,   5,   0,  10), /* number of writers with manual-by-topic liveliness */
 };
 CU_Theory((uint32_t ldur, double mult, uint32_t wr_cnt_auto, uint32_t wr_cnt_man_pp, uint32_t wr_cnt_man_tp), ddsc_liveliness, expire_liveliness_kinds, .init = liveliness_init, .fini = liveliness_fini, .timeout = 120)
 {
@@ -229,7 +256,7 @@ CU_Theory((uint32_t ldur, double mult, uint32_t wr_cnt_auto, uint32_t wr_cnt_man
 					 ldur, mult, wr_cnt_auto, wr_cnt_man_pp, wr_cnt_man_tp);
 
 		/* topics */
-		create_topic_name("ddsc_liveliness_test", g_topic_nr++, name, sizeof name);
+		create_topic_name("ddsc_liveliness_expire_kinds", g_topic_nr++, name, sizeof name);
 		CU_ASSERT_FATAL((pub_topic = dds_create_topic(g_pub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
 		CU_ASSERT_FATAL((sub_topic = dds_create_topic(g_sub_participant, &Space_Type1_desc, name, NULL, NULL)) > 0);
 
@@ -359,6 +386,10 @@ static void add_and_check_writer(dds_liveliness_kind_t kind, dds_duration_t ldur
 	CU_ASSERT_EQUAL_FATAL(dds_delete(waitset), DDS_RETCODE_OK);
 }
 
+/**
+ * Test that the correct PMD interval is set for the participant
+ * based on the lease duration of the writers.
+ */
 #define MAX_WRITERS 10
 CU_Test(ddsc_liveliness, lease_duration, .init = liveliness_init, .fini = liveliness_fini)
 {
@@ -414,6 +445,9 @@ CU_Test(ddsc_liveliness, lease_duration, .init = liveliness_init, .fini = liveli
 }
 #undef MAX_WRITERS
 
+/**
+ * Check that the correct lease duration is set in the matched
+ * publications in the readers. */
 CU_Test(ddsc_liveliness, lease_duration_pwr, .init = liveliness_init, .fini = liveliness_fini)
 {
 	dds_entity_t pub_topic;
@@ -473,6 +507,12 @@ CU_Test(ddsc_liveliness, lease_duration_pwr, .init = liveliness_init, .fini = li
 	CU_ASSERT_EQUAL_FATAL(dds_delete(reader), DDS_RETCODE_OK);
 }
 
+/**
+ * Create a relative large number of writers with liveliness kinds automatic and
+ * manual-by-participant and with decreasing lease duration, and check that all
+ * writers become alive. During the writer creation loop, every third writer
+ * is deleted immediately after creating.
+ */
 #define MAX_WRITERS 100
 CU_Test(ddsc_liveliness, create_delete_writer_stress, .init = liveliness_init, .fini = liveliness_fini)
 {
@@ -544,6 +584,9 @@ CU_Test(ddsc_liveliness, create_delete_writer_stress, .init = liveliness_init, .
 }
 #undef MAX_WRITERS
 
+/**
+ * Check the counts in liveliness_changed_status result.
+ */
 CU_Test(ddsc_liveliness, status_counts, .init = liveliness_init, .fini = liveliness_fini)
 {
 	dds_entity_t pub_topic;
@@ -616,6 +659,10 @@ CU_Test(ddsc_liveliness, status_counts, .init = liveliness_init, .fini = livelin
 	CU_ASSERT_EQUAL_FATAL(dds_delete(pub_topic), DDS_RETCODE_OK);
 }
 
+/**
+ * Test that dds_assert_liveliness works as expected for liveliness
+ * kinds manual-by-participant and manual-by-topic.
+ */
 #define MAX_WRITERS 100
 CU_TheoryDataPoints(ddsc_liveliness, assert_liveliness) = {
 		CU_DataPoints(uint32_t,      1, 0, 0, 1), /* number of writers with automatic liveliness */
@@ -693,6 +740,7 @@ CU_Theory((uint32_t wr_cnt_auto, uint32_t wr_cnt_man_pp, uint32_t wr_cnt_man_tp)
 	} while (dds_time() < tstop);
 	CU_ASSERT_EQUAL_FATAL(stopped, wr_cnt_man_tp);
 	dds_get_liveliness_changed_status(reader, &lstatus);
+	printf("writers alive_count: %d\n", lstatus.alive_count);
 	CU_ASSERT_EQUAL_FATAL(lstatus.alive_count, wr_cnt_auto + wr_cnt_man_pp);
 
 	/* cleanup */

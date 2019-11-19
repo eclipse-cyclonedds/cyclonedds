@@ -2123,7 +2123,7 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
     lease_renew (pwr->lease, tnow);
 
   if (!pwr->alive)
-    proxy_writer_set_alive_locked (pwr->e.gv, pwr, true);
+    proxy_writer_set_alive (pwr);
 
   /* Don't accept data when reliable readers exist and we haven't yet seen
      a heartbeat telling us what the "current" sequence number of the writer

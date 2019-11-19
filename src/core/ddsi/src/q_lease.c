@@ -275,14 +275,27 @@ int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnow
         delete_proxy_participant_by_guid (gv, &g, now(), 1);
         break;
       case EK_PROXY_WRITER:
-        GVLOGDISC ("proxy_writer_set_alive ("PGUIDFMT")", PGUID (g));
-        int ret = proxy_writer_set_alive_guid (gv, &g, false);
-        if (ret == DDS_RETCODE_PRECONDITION_NOT_MET)
-          GVLOGDISC (" pwr not alive");
-        else if (ret != DDS_RETCODE_OK)
-          GVLOGDISC (" err %d", ret);
+      {
+        struct proxy_writer *pwr;
+        ddsrt_avl_iter_t it;
+        if ((pwr = ephash_lookup_proxy_writer_guid (gv->guid_hash, &g)) == NULL)
+        {
+          GVLOGDISC (" "PGUIDFMT"?\n", PGUID (g));
+          ddsrt_mutex_lock (&gv->leaseheap_lock);
+          continue;
+        }
+        GVLOGDISC ("proxy_writer_set_notalive ("PGUIDFMT")", PGUID (g));
+        if (proxy_writer_set_notalive (pwr) == DDS_RETCODE_PRECONDITION_NOT_MET)
+        {
+          GVLOGDISC (" pwr was not alive");
+          ddsrt_mutex_lock (&gv->leaseheap_lock);
+          continue;
+        }
         GVLOGDISC ("\n");
+        for (struct pwr_rd_match *m = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, &it); m != NULL; m = ddsrt_avl_iter_next (&it))
+          reader_drop_connection (&m->rd_guid, pwr, false);
         break;
+      }
       case EK_PARTICIPANT:
       case EK_READER:
       case EK_WRITER:
@@ -290,7 +303,6 @@ int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnow
         assert (false);
         break;
     }
-
     ddsrt_mutex_lock (&gv->leaseheap_lock);
   }
 
