@@ -2959,9 +2959,10 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_g
   match_writer_with_local_readers (wr, tnow);
   sedp_write_writer (wr);
 
-  if (wr->lease_duration != NULL && wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
+  if (wr->lease_duration != NULL)
   {
     assert (wr->lease_duration->ldur != T_NEVER);
+    assert (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC);
     assert (!is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE));
 
     /* Store writer lease duration in participant's heap in case of automatic liveliness */
