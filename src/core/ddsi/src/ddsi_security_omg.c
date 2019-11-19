@@ -680,8 +680,6 @@ encode_datareader_submsg(
         unsigned int   src_len;
         unsigned char *dst_buf;
         unsigned int   dst_len;
-        ddsi_guid_prefix_t dst_guid_prefix;
-        ddsi_guid_prefix_t *dst = NULL;
 
         /* Make one blob of the current sub-message by appending the serialized payload. */
         nn_xmsg_submsg_append_refd_payload(msg, sm_marker);
@@ -690,13 +688,8 @@ encode_datareader_submsg(
         src_buf = (unsigned char*)nn_xmsg_submsg_from_marker(msg, sm_marker);
         src_len = (unsigned int)nn_xmsg_submsg_size(msg, sm_marker);
 
-        if (nn_xmsg_getdst1prefix(msg, &dst_guid_prefix))
-        {
-          dst = &dst_guid_prefix;
-        }
-
         /* Do the actual encryption. */
-        if (q_omg_security_encode_datareader_submessage(rd, dst, src_buf, src_len, &dst_buf, &dst_len))
+        if (q_omg_security_encode_datareader_submessage(rd, &(pwr->e.guid.prefix), src_buf, src_len, &dst_buf, &dst_len))
         {
           /* Replace the old sub-message with the new encoded one(s). */
           nn_xmsg_submsg_replace(msg, sm_marker, dst_buf, dst_len);
