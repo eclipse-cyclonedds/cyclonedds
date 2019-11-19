@@ -37,8 +37,6 @@ int WildcardOverlap(char * p1, char * p2);
 
 int ddsi2_patmatch (const char *pat, const char *str);
 
-uint32_t crc32_calc (const void *buf, size_t length);
-
 #if defined (__cplusplus)
 }
 #endif
