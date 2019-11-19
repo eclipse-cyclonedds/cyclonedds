@@ -856,7 +856,7 @@ static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, dd
   return conn;
 }
 
-static ddsi_tran_listener_t ddsi_tcp_create_listener (ddsi_tran_factory_t fact, int port, ddsi_tran_qos_t qos)
+static ddsi_tran_listener_t ddsi_tcp_create_listener (ddsi_tran_factory_t fact, uint32_t port, ddsi_tran_qos_t qos)
 {
   char buff[DDSI_LOCSTRLEN];
   ddsrt_socket_t sock;
@@ -1055,6 +1055,12 @@ static enum ddsi_nearby_address_result ddsi_tcp_is_nearby_address (ddsi_tran_fac
   return ddsi_ipaddr_is_nearby_address(tran, loc, ownloc, ninterf, interf);
 }
 
+static int ddsi_tcp_is_valid_port (ddsi_tran_factory_t fact, uint32_t port)
+{
+  (void) fact;
+  return (port <= 65535);
+}
+
 int ddsi_tcp_init (struct q_globals *gv)
 {
   struct ddsi_tran_factory_tcp *fact = ddsrt_malloc (sizeof (*fact));
@@ -1079,6 +1085,7 @@ int ddsi_tcp_init (struct q_globals *gv)
   fact->fact.m_is_mcaddr_fn = ddsi_tcp_is_mcaddr;
   fact->fact.m_is_ssm_mcaddr_fn = ddsi_tcp_is_ssm_mcaddr;
   fact->fact.m_is_nearby_address_fn = ddsi_tcp_is_nearby_address;
+  fact->fact.m_is_valid_port_fn = ddsi_tcp_is_valid_port;
   ddsi_factory_add (gv, &fact->fact);
 
 #if DDSRT_HAVE_IPV6

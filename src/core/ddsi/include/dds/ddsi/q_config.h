@@ -16,16 +16,11 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_xqos.h"
 #include "dds/ddsi/q_feature_check.h"
+#include "dds/ddsi/ddsi_portmapping.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
-
-/* FIXME: should eventually move to abstraction layer */
-typedef enum q__schedPrioClass {
-  Q__SCHED_PRIO_RELATIVE,
-  Q__SCHED_PRIO_ABSOLUTE
-} q__schedPrioClass;
 
 enum nn_standards_conformance {
   NN_SC_PEDANTIC,
@@ -52,14 +47,6 @@ enum boolean_default {
   BOOLDEF_DEFAULT,
   BOOLDEF_FALSE,
   BOOLDEF_TRUE
-};
-
-enum durability_cdr
-{
-  DUR_CDR_LE,
-  DUR_CDR_BE,
-  DUR_CDR_SERVER,
-  DUR_CDR_CLIENT
 };
 
 #define PARTICIPANT_INDEX_AUTO -1
@@ -212,7 +199,6 @@ struct config
   uint32_t domainId;
   int participantIndex;
   int maxAutoParticipantIndex;
-  uint32_t port_base;
   char *spdpMulticastAddressString;
   char *defaultMulticastAddressString;
   char *assumeMulticastCapable;
@@ -335,12 +321,7 @@ struct config
   enum many_sockets_mode many_sockets_mode;
   int assume_rti_has_pmd_endpoints;
 
-  uint32_t port_dg;
-  uint32_t port_pg;
-  uint32_t port_d0;
-  uint32_t port_d1;
-  uint32_t port_d2;
-  uint32_t port_d3;
+  struct ddsi_portmapping ports;
 
   int monitor_port;
 

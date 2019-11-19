@@ -191,11 +191,12 @@ before_script:
 #     code has been vetted, the test has been run a great many times (with the odd
 #     failure), and so we now simply skip the test to avoid the spurious failures.
 script:
+  - INSTALLPREFIX="$(pwd)/install"
   - mkdir build
   - cd build
   - conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ..
   - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
-          -DCMAKE_INSTALL_PREFIX=$(pwd)/install
+          -DCMAKE_INSTALL_PREFIX=${INSTALLPREFIX}
           -DUSE_SANITIZER=${ASAN}
           -DENABLE_SSL=${SSL}
           -DBUILD_TESTING=on
@@ -217,12 +218,15 @@ script:
       CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
       CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
     fi
-  - mkdir install/share/CycloneDDS/examples/helloworld/build
-  - cd install/share/CycloneDDS/examples/helloworld/build
-  - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+  - cd ..
+  - mkdir helloworld_build
+  - cd helloworld_build
+  - cmake -DCMAKE_PREFIX_PATH=${INSTALLPREFIX}
+          -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
           ${CMAKE_C_FLAGS}
           ${CMAKE_LINKER_FLAGS}
-          -G "${GENERATOR}" ..
+          -G "${GENERATOR}"
+          ${INSTALLPREFIX}/share/CycloneDDS/examples/helloworld
   - cmake --build . --config ${BUILD_TYPE}
   - cd "${TRAVIS_BUILD_DIR}/build"
 

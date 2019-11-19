@@ -130,9 +130,11 @@ static int valid_AckNack (const struct receiver_state *rst, AckNack_t *msg, size
   /* Validation following 8.3.7.1.3 + 8.3.5.5 */
   if (!valid_sequence_number_set (&msg->readerSNState))
   {
-    /* FastRTPS sends invalid pre-emptive ACKs -- patch the message so we can process it */
-    if (! NN_STRICT_P (rst->gv->config) && vendor_is_eprosima (rst->vendor) &&
-        fromSN (msg->readerSNState.bitmap_base) == 0 && msg->readerSNState.numbits == 0)
+    /* FastRTPS, Connext send invalid pre-emptive ACKs -- patch the message to
+       make it well-formed and process it as normal */
+    if (! NN_STRICT_P (rst->gv->config) &&
+        (fromSN (msg->readerSNState.bitmap_base) == 0 && msg->readerSNState.numbits == 0) &&
+        (vendor_is_eprosima (rst->vendor) || vendor_is_rti (rst->vendor)))
       msg->readerSNState.bitmap_base = toSN (1);
     else
       return 0;

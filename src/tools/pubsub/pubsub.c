@@ -292,7 +292,7 @@ static char *expand_env(const char *name, char op, const char *alt) {
         else {
             char *altx = expand_envvars(alt);
             error_exit("%s: %s\n", name, altx);
-            dds_free(altx);
+            //dds_free(altx);
             return NULL;
         }
     case '+':
@@ -2103,6 +2103,7 @@ static int get_metadata(char **metadata, char **typename, char **keylist, const 
     return 1;
 }
 
+#if 0
 static dds_entity_t find_topic(dds_entity_t dpFindTopic, const char *name, const dds_duration_t *timeout) {
     dds_entity_t tp;
     (void)timeout;
@@ -2157,6 +2158,7 @@ static dds_entity_t find_topic(dds_entity_t dpFindTopic, const char *name, const
 
     return tp;
 }
+#endif
 
 static void set_systemid_env(void) {
 //    TODO Determine encoding of dds_instance_handle_t, and see what sort of value can be extracted from it, if any
@@ -2678,7 +2680,9 @@ int main(int argc, char *argv[]) {
         case OU:   spec[i].tp = new_topic(spec[i].topicname, ts_OneULong, qos); break;
         case ARB:
             // TODO ARB type support
+#if 1
             error_exit("Currently doesn't support ARB type\n");
+#else
             if (spec[i].metadata == NULL) {
                 if (!(spec[i].tp = find_topic(dp, spec[i].topicname, &spec[i].findtopic_timeout)))
                     error_exit("topic %s not found\n", spec[i].topicname);
@@ -2691,6 +2695,7 @@ int main(int argc, char *argv[]) {
 //                dds_topic_descriptor_delete((dds_topic_descriptor_t*) ts);
             }
 //            spec[i].rd.tgtp = spec[i].wr.tgtp = tgnew(spec[i].tp, printtype);
+#endif
             break;
         }
         assert(spec[i].tp);

@@ -261,7 +261,7 @@ The default value is: "250".
 ##### //CycloneDDS/Domain/Discovery/Ports/MulticastDataOffset
 Integer
 
-This element specifies the port number for multicast meta traffic (refer
+This element specifies the port number for multicast data traffic (refer
 to the DDSI 2.1 specification, section 9.6.1, constant d2).
 
 The default value is: "1".
@@ -289,7 +289,7 @@ The default value is: "2".
 ##### //CycloneDDS/Domain/Discovery/Ports/UnicastDataOffset
 Integer
 
-This element specifies the port number for unicast meta traffic (refer to
+This element specifies the port number for unicast data traffic (refer to
 the DDSI 2.1 specification, section 9.6.1, constant d3).
 
 The default value is: "11".
