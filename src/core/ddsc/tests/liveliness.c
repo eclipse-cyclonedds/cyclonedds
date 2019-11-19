@@ -30,9 +30,8 @@
 
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
-#define DDS_CONFIG_NO_PORT_GAIN "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<General><NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress></General><Discovery><Ports><DomainGain>0</DomainGain></Ports></Discovery>"
-#define DDS_CONFIG_NO_PORT_GAIN_PUB_LOG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Tracing><OutputFile>cyclonedds_liveliness.pub.${CYCLONEDDS_PID}.log</OutputFile><Verbosity>finest</Verbosity></Tracing><General><NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress></General><Discovery><MaxAutoParticipantIndex>40</MaxAutoParticipantIndex><Ports><DomainGain>0</DomainGain></Ports></Discovery>"
-#define DDS_CONFIG_NO_PORT_GAIN_SUB_LOG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Tracing><OutputFile>cyclonedds_liveliness.sub.${CYCLONEDDS_PID}.log</OutputFile><Verbosity>finest</Verbosity></Tracing><General><NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress></General><Discovery><MaxAutoParticipantIndex>40</MaxAutoParticipantIndex><Ports><DomainGain>0</DomainGain></Ports></Discovery>"
+#define DDS_CONFIG_NO_PORT_GAIN "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><Ports><DomainGain>0</DomainGain></Ports></Discovery>"
+#define DDS_CONFIG_NO_PORT_GAIN_LOG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Tracing><OutputFile>cyclonedds_liveliness_tests.${CYCLONEDDS_DOMAIN_ID}.${CYCLONEDDS_PID}.log</OutputFile><Verbosity>finest</Verbosity></Tracing><Discovery><Ports><DomainGain>0</DomainGain></Ports></Discovery>"
 
 uint32_t g_topic_nr = 0;
 static dds_entity_t g_pub_domain = 0;
@@ -52,13 +51,13 @@ static char *create_topic_name(const char *prefix, uint32_t nr, char *name, size
 	return name;
 }
 
-static void liveliness_init()
+static void liveliness_init(void)
 {
 	/* Domains for pub and sub use a different domain id, but the portgain setting
 	 * in configuration is 0, so that both domains will map to the same port number.
 	 * This allows to create two domains in a single test process. */
-	char *conf_pub = ddsrt_expand_envvars(DDS_CONFIG_NO_PORT_GAIN_PUB_LOG, UINT32_MAX);
-	char *conf_sub = ddsrt_expand_envvars(DDS_CONFIG_NO_PORT_GAIN_SUB_LOG, UINT32_MAX);
+	char *conf_pub = ddsrt_expand_envvars(DDS_CONFIG_NO_PORT_GAIN, DDS_DOMAINID_PUB);
+	char *conf_sub = ddsrt_expand_envvars(DDS_CONFIG_NO_PORT_GAIN, DDS_DOMAINID_SUB);
 	g_pub_domain = dds_create_domain(DDS_DOMAINID_PUB, conf_pub);
 	g_sub_domain = dds_create_domain(DDS_DOMAINID_SUB, conf_sub);
 	dds_free(conf_pub);
