@@ -17,6 +17,9 @@
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsrt/retcode.h"
+#include "dds/ddsrt/types.h"
+
 
 #if defined (__cplusplus)
 extern "C" {
@@ -30,11 +33,15 @@ typedef enum {
 
 #ifdef DDSI_INCLUDE_SECURITY
 
+#include "dds/security/dds_security_api.h"
+
 typedef struct nn_msg_sec_info {
   int64_t src_pp_handle;
   int64_t dst_pp_handle;
   bool use_rtps_encoding;
 } nn_msg_sec_info_t;
+
+
 
 
 /**
@@ -489,6 +496,38 @@ secure_conn_write(
     bool dst_one,
     nn_msg_sec_info_t *sec_info,
     ddsi_tran_write_fn_t conn_write_cb);
+    
+
+/**
+ * @brief Loads the security plugins with the given configuration.
+ *        This function tries to load the plugins only once. Returns the same
+ *        result on subsequent calls.
+ *        It logs the reason and returns error if can not load a plugin.
+ *
+ * @param[in] qos   Participant qos which owns the Property list
+ *                             that contains security configurations and
+ *                             plugin properties that are required for loading libraries
+ * @returns dds_return_t
+ * @retval DDS_RETCODE_OK   All plugins are successfully loaded
+ * @retval DDS_RETCODE_ERROR  One or more security plugins are not loaded.
+ */
+dds_return_t q_omg_security_load( const dds_qos_t *qos );
+
+
+
+dds_security_authentication*
+q_omg_security_get_authentication_instance( void );
+
+dds_security_access_control*
+q_omg_security_get_access_control_instance( void );
+
+dds_security_cryptography*
+q_omg_security_get_cryptography_instance( void );
+
+void q_omg_security_init(void);
+
+void q_omg_security_deinit(void);
+    
 
 #else /* DDSI_INCLUDE_SECURITY */
 
@@ -629,6 +668,17 @@ decode_rtps_message(
 {
   return NN_RTPS_MSG_STATE_PLAIN;
 }
+
+inline dds_return_t q_omg_security_load( UNUSED_ARG( const dds_qos_t *property_seq) )
+{
+  return DDS_RETCODE_ERROR;
+}
+
+inline void q_omg_security_init( void ) {}
+
+inline void q_omg_security_deinit( void ) {}
+
+
 
 #endif /* DDSI_INCLUDE_SECURITY */
 

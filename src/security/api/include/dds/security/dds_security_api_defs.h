@@ -183,6 +183,30 @@ typedef enum {
 #define DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE_128 16
 #define DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE_256 32
 
+/**************************************************************************
+ *                                                                        *
+ * Security Property Key Names                                                     *
+ *                                                                        *
+ *************************************************************************/
+#define DDS_SEC_PROP_AUTH_LIBRARY_PATH "dds.sec.auth.library.path"
+#define DDS_SEC_PROP_AUTH_LIBRARY_INIT "dds.sec.auth.library.init"
+#define DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE "dds.sec.auth.library.finalize"
+#define DDS_SEC_PROP_CRYPTO_LIBRARY_PATH "dds.sec.crypto.library.path"
+#define DDS_SEC_PROP_CRYPTO_LIBRARY_INIT "dds.sec.crypto.library.init"
+#define DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE "dds.sec.crypto.library.finalize"
+#define DDS_SEC_PROP_ACCESS_LIBRARY_PATH "dds.sec.access.library.path"
+#define DDS_SEC_PROP_ACCESS_LIBRARY_INIT "dds.sec.access.library.init"
+#define DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE "dds.sec.access.library.finalize"
+
+#define DDS_SEC_PROP_AUTH_IDENTITY_CA "dds.sec.auth.identity_ca"
+#define DDS_SEC_PROP_AUTH_PRIV_KEY "dds.sec.auth.private_key"
+#define DDS_SEC_PROP_AUTH_IDENTITY_CERT "dds.sec.auth.identity_certificate"
+#define DDS_SEC_PROP_AUTH_PASSWORD "dds.sec.auth.password"
+#define DDS_SEC_PROP_ACCESS_PERMISSIONS_CA "dds.sec.access.permissions_ca"
+#define DDS_SEC_PROP_ACCESS_GOVERNANCE "dds.sec.access.governance"
+#define DDS_SEC_PROP_ACCESS_PERMISSIONS "dds.sec.access.permissions"
+#define DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "dds.sec.auth.trusted_ca_dir"
+
 
 #if defined (__cplusplus)
 }

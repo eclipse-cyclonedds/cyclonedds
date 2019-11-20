@@ -50,9 +50,10 @@ set(security_crypto_test_sources
 
 add_cunit_executable(cunit_security_plugins ${security_auth_test_sources} ${security_crypto_test_sources})
 if(OPENSSL_FOUND)
+  target_link_libraries(cunit_security_plugins PRIVATE ddsc dds_security_crypto)
   target_link_libraries(cunit_security_plugins PRIVATE OpenSSL::SSL)
 else()
-  message(FATAL_ERROR "To build without openssl support, set DDSC_ENABLE_OPENSSL to OFF")
+  message(FATAL_ERROR "To build with openssl support, set ENABLE_OPENSSL to ON")
 endif()
 
 target_include_directories(
@@ -65,7 +66,7 @@ target_include_directories(
       "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
 )
 
-target_link_libraries(cunit_security_plugins PRIVATE ddsc security_api dds_security_crypto)
+
 
 set(CUnit_builtin_plugins_tests_dir "${CMAKE_CURRENT_LIST_DIR}")
 
