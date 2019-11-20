@@ -253,7 +253,7 @@ static DDS_Security_boolean retrieve_datawriter_keys(DDS_Security_DatawriterCryp
 
         if (!deserializer)
             result = false;
-        else if (!DDD_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(deserializer, key_mat))
+        else if (!DDS_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(deserializer, key_mat))
             result = false;
 
         DDS_Security_Deserializer_free(deserializer);
@@ -274,7 +274,7 @@ static DDS_Security_boolean retrieve_datareader_keys(DDS_Security_DatareaderCryp
 
     if (!deserializer)
         result = false;
-    else if (!DDD_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(deserializer, key_mat))
+    else if (!DDS_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(deserializer, key_mat))
         result = false;
     DDS_Security_Deserializer_free(deserializer);
 

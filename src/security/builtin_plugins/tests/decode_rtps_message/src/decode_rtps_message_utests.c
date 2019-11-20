@@ -354,7 +354,7 @@ static bool set_remote_participant_tokens(
         &exception);
   }
 
-  DDS_Security_DataHolderSeq_deinit((DDS_Security_DataHolderSeq *)&tokens);
+  DDS_Security_DataHolderSeq_deinit(&tokens);
 
   return (bool)result;
 }

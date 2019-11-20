@@ -1082,7 +1082,7 @@ serializer_participant_data(
     DDS_Security_Serializer serializer;
     serializer = DDS_Security_Serializer_new(1024, 1024);
 
-    DDD_Security_Serialize_ParticipantBuiltinTopicData(serializer, pdata);
+    DDS_Security_Serialize_ParticipantBuiltinTopicData(serializer, pdata);
     DDS_Security_Serializer_buffer(serializer, buffer, size);
     DDS_Security_Serializer_free(serializer);
 }

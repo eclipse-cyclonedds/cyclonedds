@@ -256,7 +256,7 @@ static void create_key_material(DDS_Security_OctetSeq *seq, bool include_specifi
   }
 
   serializer = DDS_Security_Serializer_new(256, 256);
-  DDD_Security_Serialize_KeyMaterial_AES_GCM_GMAC(serializer, &keymat);
+  DDS_Security_Serialize_KeyMaterial_AES_GCM_GMAC(serializer, &keymat);
   DDS_Security_Serializer_buffer(serializer, &buffer, &length);
   DDS_Security_Serializer_free(serializer);
 
@@ -333,7 +333,7 @@ static void serialize_key_material(DDS_Security_OctetSeq *seq, DDS_Security_KeyM
   size_t length;
 
   serializer = DDS_Security_Serializer_new(256, 256);
-  DDD_Security_Serialize_KeyMaterial_AES_GCM_GMAC(serializer, keymat);
+  DDS_Security_Serialize_KeyMaterial_AES_GCM_GMAC(serializer, keymat);
   DDS_Security_Serializer_buffer(serializer, &buffer, &length);
   DDS_Security_Serializer_free(serializer);
 
@@ -366,7 +366,7 @@ CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, happy_day, .init = s
   if (!result)
     printf("set_remote_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-  DDS_Security_DataHolderSeq_deinit((DDS_Security_DataHolderSeq *)&tokens);
+  DDS_Security_DataHolderSeq_deinit(&tokens);
   CU_ASSERT_FATAL(result);
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
@@ -396,7 +396,7 @@ CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, single_token, .init 
   if (!result)
     printf("set_remote_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-  DDS_Security_DataHolderSeq_deinit((DDS_Security_DataHolderSeq *)&tokens);
+  DDS_Security_DataHolderSeq_deinit(&tokens);
   CU_ASSERT_FATAL(result);
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
@@ -495,7 +495,7 @@ CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, invalid_args, .init 
   CU_ASSERT(exception.code != 0);
   CU_ASSERT(exception.message != NULL);
   reset_exception(&exception);
-  DDS_Security_DataHolderSeq_deinit((DDS_Security_DataHolderSeq *)&tokens);
+  DDS_Security_DataHolderSeq_deinit(&tokens);
 }
 
 CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, invalid_tokens, .init = suite_set_remote_datawriter_crypto_tokens_init, .fini = suite_set_remote_datawriter_crypto_tokens_fini)
@@ -549,7 +549,7 @@ CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, invalid_tokens, .ini
     CU_ASSERT(exception.code != 0);
     CU_ASSERT(exception.message != NULL);
     reset_exception(&exception);
-    DDS_Security_DataHolderSeq_deinit((DDS_Security_DataHolderSeq *)&empty_tokens);
+    DDS_Security_DataHolderSeq_deinit(&empty_tokens);
   }
 
   /* invalid token class id */
@@ -705,7 +705,7 @@ CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, invalid_tokens, .ini
     tokens._buffer[1].binary_properties._buffer[0].name = ddsrt_strdup(CRYPTO_TOKEN_PROPERTY_NAME);
   }
 
-  DDS_Security_DataHolderSeq_deinit((DDS_Security_DataHolderSeq *)&tokens);
+  DDS_Security_DataHolderSeq_deinit(&tokens);
 }
 
 CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, invalid_key_material, .init = suite_set_remote_datawriter_crypto_tokens_init, .fini = suite_set_remote_datawriter_crypto_tokens_fini)
@@ -1025,5 +1025,5 @@ CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, invalid_key_material
     deinit_key_material(&keymat);
   }
 
-  DDS_Security_DataHolderSeq_deinit((DDS_Security_DataHolderSeq *)&tokens);
+  DDS_Security_DataHolderSeq_deinit(&tokens);
 }

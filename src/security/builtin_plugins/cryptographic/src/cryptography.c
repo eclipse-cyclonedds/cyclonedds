@@ -55,7 +55,7 @@ int init_crypto (const char *argument, void **context)
   DDSRT_UNUSED_ARG (argument);
 
   /* allocate new instance */
-  cryptography = (dds_security_cryptography_impl*) ddsrt_malloc (sizeof(dds_security_cryptography_impl));
+  cryptography = ddsrt_malloc (sizeof(*cryptography));
 
   /* assign the sub components */
   crypto_key_exchange = dds_security_crypto_key_exchange__alloc ((dds_security_cryptography *)cryptography);

@@ -227,8 +227,7 @@ static void master_key_material__free(CryptoObject *obj)
 
 master_key_material * crypto_master_key_material_new(void)
 {
-  master_key_material *keymat = (master_key_material *)ddsrt_malloc (sizeof(master_key_material));
-  memset(keymat, 0, sizeof(master_key_material));
+  master_key_material *keymat = ddsrt_calloc (1, sizeof(*keymat));
   crypto_object_init((CryptoObject *)keymat, CRYPTO_OBJECT_KIND_KEY_MATERIAL, master_key_material__free);
   return keymat;
 }
@@ -262,7 +261,7 @@ static void session_key_material__free(CryptoObject *obj)
 
 session_key_material * crypto_session_key_material_new(master_key_material *master_key)
 {
-  session_key_material *session = (session_key_material *)ddsrt_malloc(sizeof(session_key_material));
+  session_key_material *session = ddsrt_malloc(sizeof(*session));
   crypto_object_init((CryptoObject *)session, CRYPTO_OBJECT_KIND_SESSION_KEY_MATERIAL, session_key_material__free);
 
   memset(session->key.data, 0, CRYPTO_KEY_SIZE);
@@ -299,11 +298,9 @@ static void local_participant_crypto__free(CryptoObject *obj)
 
 local_participant_crypto * crypto_local_participant_crypto__new(DDS_Security_IdentityHandle participant_identity)
 {
-  local_participant_crypto *participant_crypto;
   assert (participant_identity);
   assert (sizeof(DDS_Security_ParticipantCryptoHandle) == 8);
-  participant_crypto = (local_participant_crypto *)ddsrt_malloc (sizeof(local_participant_crypto));
-  memset (participant_crypto, 0, sizeof(*participant_crypto));
+  local_participant_crypto *participant_crypto = ddsrt_calloc (1, sizeof(*participant_crypto));
   participant_crypto->identity_handle = participant_identity;
   crypto_object_init ((CryptoObject *)participant_crypto, CRYPTO_OBJECT_KIND_LOCAL_CRYPTO, local_participant_crypto__free);
   return participant_crypto;
@@ -325,15 +322,11 @@ static void remote_participant_crypto__free(CryptoObject *obj)
 
 remote_participant_crypto * crypto_remote_participant_crypto__new(DDS_Security_IdentityHandle participant_identity)
 {
-  remote_participant_crypto *participant_crypto;
   assert (participant_identity);
-
-  participant_crypto = (remote_participant_crypto *)ddsrt_malloc (sizeof(remote_participant_crypto));
-  memset (participant_crypto, 0, sizeof(*participant_crypto));
+  remote_participant_crypto *participant_crypto = ddsrt_calloc (1, sizeof(*participant_crypto));
   crypto_object_init ((CryptoObject *)participant_crypto, CRYPTO_OBJECT_KIND_REMOTE_CRYPTO, remote_participant_crypto__free);
   participant_crypto->identity_handle = participant_identity;
-  participant_crypto->key_material =
-      crypto_object_table_new (participant_key_material_hash, participant_key_material_equal, participant_key_material_find);
+  participant_crypto->key_material = crypto_object_table_new (participant_key_material_hash, participant_key_material_equal, participant_key_material_find);
 
   return participant_crypto;
 }
@@ -358,9 +351,7 @@ static void participant_key_material_free(CryptoObject *obj)
 
 participant_key_material * crypto_participant_key_material_new(const local_participant_crypto *pplocal)
 {
-  participant_key_material *keymaterial = ddsrt_malloc(sizeof(*keymaterial));
-  memset(keymaterial, 0, sizeof(*keymaterial));
-
+  participant_key_material *keymaterial = ddsrt_calloc(1, sizeof(*keymaterial));
   crypto_object_init((CryptoObject *)keymaterial, CRYPTO_OBJECT_KIND_PARTICIPANT_KEY_MATERIAL, participant_key_material_free);
   keymaterial->pp_local_handle = pplocal->_parent.handle;
   keymaterial->endpoint_relations = crypto_object_table_new(NULL, NULL, NULL);
@@ -416,9 +407,7 @@ static void local_datawriter_crypto__free(CryptoObject *obj)
 local_datawriter_crypto * crypto_local_datawriter_crypto__new(const local_participant_crypto *participant,
     DDS_Security_ProtectionKind meta_protection, DDS_Security_BasicProtectionKind data_protection)
 {
-  local_datawriter_crypto *writer_crypto = (local_datawriter_crypto *)ddsrt_malloc(sizeof(local_datawriter_crypto));
-  memset(writer_crypto, 0, sizeof(local_datawriter_crypto));
-
+  local_datawriter_crypto *writer_crypto = ddsrt_calloc(1, sizeof(*writer_crypto));
   crypto_object_init((CryptoObject *)writer_crypto, CRYPTO_OBJECT_KIND_LOCAL_WRITER_CRYPTO, local_datawriter_crypto__free);
   writer_crypto->participant = (local_participant_crypto *)CRYPTO_OBJECT_KEEP(participant);
   writer_crypto->metadata_protectionKind = meta_protection;
@@ -448,9 +437,7 @@ static void remote_datawriter_crypto__free(CryptoObject *obj)
 remote_datawriter_crypto * crypto_remote_datawriter_crypto__new(const remote_participant_crypto *participant,
     DDS_Security_ProtectionKind meta_protection, DDS_Security_BasicProtectionKind data_protection, DDS_Security_DatareaderCryptoHandle local_reader_handle)
 {
-  remote_datawriter_crypto *writer_crypto = (remote_datawriter_crypto *)ddsrt_malloc(sizeof(remote_datawriter_crypto));
-  memset(writer_crypto, 0, sizeof(remote_datawriter_crypto));
-
+  remote_datawriter_crypto *writer_crypto = ddsrt_calloc(1, sizeof(*writer_crypto));
   crypto_object_init((CryptoObject *)writer_crypto, CRYPTO_OBJECT_KIND_REMOTE_WRITER_CRYPTO, remote_datawriter_crypto__free);
   writer_crypto->participant = (remote_participant_crypto *)CRYPTO_OBJECT_KEEP(participant);
   writer_crypto->metadata_protectionKind = meta_protection;
@@ -465,7 +452,6 @@ remote_datawriter_crypto * crypto_remote_datawriter_crypto__new(const remote_par
 static void local_datareader_crypto__free(CryptoObject *obj)
 {
   local_datareader_crypto *datareader_crypto = (local_datareader_crypto *)obj;
-
   if (datareader_crypto)
   {
     CHECK_CRYPTO_OBJECT_KIND(obj, CRYPTO_OBJECT_KIND_LOCAL_READER_CRYPTO);
@@ -480,9 +466,7 @@ static void local_datareader_crypto__free(CryptoObject *obj)
 local_datareader_crypto * crypto_local_datareader_crypto__new(const local_participant_crypto *participant,
     DDS_Security_ProtectionKind meta_protection, DDS_Security_BasicProtectionKind data_protection)
 {
-  local_datareader_crypto *reader_crypto = (local_datareader_crypto *)ddsrt_malloc(sizeof(local_datareader_crypto));
-  memset(reader_crypto, 0, sizeof(local_datareader_crypto));
-
+  local_datareader_crypto *reader_crypto = ddsrt_calloc(1, sizeof(*reader_crypto));
   crypto_object_init((CryptoObject *)reader_crypto, CRYPTO_OBJECT_KIND_LOCAL_READER_CRYPTO, local_datareader_crypto__free);
   reader_crypto->participant = (local_participant_crypto *)CRYPTO_OBJECT_KEEP(participant);
   reader_crypto->metadata_protectionKind = meta_protection;
@@ -512,9 +496,7 @@ static void remote_datareader_crypto__free(CryptoObject *obj)
 remote_datareader_crypto *crypto_remote_datareader_crypto__new(const remote_participant_crypto *participant, DDS_Security_ProtectionKind metadata_protectionKind,
     DDS_Security_BasicProtectionKind data_protectionKind, DDS_Security_DatawriterCryptoHandle local_writer_handle)
 {
-  remote_datareader_crypto *reader_crypto = ddsrt_malloc(sizeof(remote_datareader_crypto));
-  memset(reader_crypto, 0, sizeof(remote_datareader_crypto));
-
+  remote_datareader_crypto *reader_crypto = ddsrt_calloc(1, sizeof(*reader_crypto));
   crypto_object_init((CryptoObject *)reader_crypto, CRYPTO_OBJECT_KIND_REMOTE_READER_CRYPTO, remote_datareader_crypto__free);
   reader_crypto->participant = (remote_participant_crypto *)CRYPTO_OBJECT_KEEP(participant);
   reader_crypto->metadata_protectionKind = metadata_protectionKind;

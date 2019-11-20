@@ -263,7 +263,7 @@ static bool check_key_material(DDS_Security_OctetSeq *data)
   DDS_Security_KeyMaterial_AES_GCM_GMAC key_mat;
 
   deserializer = DDS_Security_Deserializer_new(data->_buffer, data->_length);
-  if (DDD_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(deserializer, &key_mat))
+  if (DDS_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(deserializer, &key_mat))
   {
     if (CRYPTO_TRANSFORM_KIND(key_mat.transformation_kind) == CRYPTO_TRANSFORMATION_KIND_AES256_GCM)
     {

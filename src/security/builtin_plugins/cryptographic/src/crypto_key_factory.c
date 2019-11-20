@@ -35,8 +35,8 @@
  * while giving only the interface definition to user
  */
 
-static const char *kxKeyCookie = "key exchange key";
-static const char *kxSaltCookie = "keyexchange salt";
+#define KXKEYCOOKIE "key exchange key"
+#define KXSALTCOOKIE "keyexchange salt"
 
 typedef struct dds_security_crypto_key_factory_impl
 {
@@ -71,15 +71,13 @@ calculateKxKeys(
   bool result = false;
   const DDS_Security_octet *challenge1, *challenge2, *shared_secret_key;
   DDS_Security_octet *kxMaster_salt, *kxMaster_sender_key;
-  size_t salt_cookie_size = strlen(kxSaltCookie);
-  size_t key_cookie_size = strlen(kxKeyCookie);
   size_t shared_secret_size = get_secret_size_from_secret_handle(shared_secret);
   unsigned char hash[SHA256_DIGEST_LENGTH];
-  size_t concatenated_bytes1_size = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE * 2 + salt_cookie_size;
-  size_t concatenated_bytes2_size = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE * 2 + key_cookie_size;
+  size_t concatenated_bytes1_size = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE * 2 + sizeof(KXSALTCOOKIE);
+  size_t concatenated_bytes2_size = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE * 2 + sizeof(KXKEYCOOKIE);
   DDS_Security_octet *concatenated_bytes1, *concatenated_bytes2;
 
-  memset(ex, 0, sizeof(DDS_Security_SecurityException));
+  memset(ex, 0, sizeof(*ex));
 
   if (shared_secret_size > UINT32_MAX)
   {
@@ -94,8 +92,8 @@ calculateKxKeys(
 
   /* master_salt */
   memcpy(concatenated_bytes1, challenge1, DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
-  memcpy(concatenated_bytes1 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE, kxSaltCookie, salt_cookie_size);
-  memcpy(concatenated_bytes1 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE + salt_cookie_size, challenge2,
+  memcpy(concatenated_bytes1 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE, KXSALTCOOKIE, sizeof(KXSALTCOOKIE));
+  memcpy(concatenated_bytes1 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE + sizeof(KXSALTCOOKIE), challenge2,
          DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
 
   (void) SHA256(concatenated_bytes1, concatenated_bytes1_size, hash);
@@ -106,8 +104,8 @@ calculateKxKeys(
 
   /* master_sender_key */
   memcpy(concatenated_bytes2, challenge2, DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
-  memcpy(concatenated_bytes2 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE, kxKeyCookie, key_cookie_size);
-  memcpy(concatenated_bytes2 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE + key_cookie_size, challenge1,
+  memcpy(concatenated_bytes2 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE, KXKEYCOOKIE, sizeof(KXKEYCOOKIE));
+  memcpy(concatenated_bytes2 + DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE + sizeof(KXKEYCOOKIE), challenge1,
          DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
 
   (void) SHA256(concatenated_bytes2, concatenated_bytes2_size, hash);
@@ -153,7 +151,7 @@ generate_key(
         DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_MESSAGE);
     return DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_CODE;
   }
-  key_material->sender_key_id = ddsrt_atomic_inc32_nv(&implementation->next_key_id);
+  key_material->sender_key_id = ddsrt_atomic_inc32_ov(&implementation->next_key_id);
 
   return DDS_SECURITY_ERR_OK_CODE;
 }
@@ -475,7 +473,7 @@ register_matched_remote_participant(
             DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_MESSAGE);
         goto err_random_generation;
       }
-      p2p_key_material->receiver_specific_key_id = ddsrt_atomic_inc32_nv(&implementation->next_key_id);
+      p2p_key_material->receiver_specific_key_id = ddsrt_atomic_inc32_ov(&implementation->next_key_id);
     }
     participant_crypto->session = (session_key_material *)CRYPTO_OBJECT_KEEP(local_participant_crypto_ref->session);
 
@@ -515,7 +513,7 @@ register_local_datawriter(
   DDS_Security_ProtectionKind metadata_protection;
   DDS_Security_BasicProtectionKind data_protection;
 
-  memset(ex, 0, sizeof(DDS_Security_SecurityException));
+  memset(ex, 0, sizeof(*ex));
 
   if (participant_crypto_handle == DDS_SECURITY_HANDLE_NIL)
   {
@@ -600,7 +598,7 @@ register_matched_remote_datareader(
   DDS_Security_ProtectionKind metadata_protectionKind;
   DDS_Security_BasicProtectionKind data_protectionKind;
 
-  memset(ex, 0, sizeof(DDS_Security_SecurityException));
+  memset(ex, 0, sizeof(*ex));
 
   DDSRT_UNUSED_ARG(shared_secret);
   DDSRT_UNUSED_ARG(relay_only);
@@ -664,7 +662,7 @@ register_matched_remote_datareader(
               DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_MESSAGE);
           goto err_random_generation;
         }
-        reader_crypto->writer2reader_key_material_message->receiver_specific_key_id = ddsrt_atomic_inc32_nv(&implementation->next_key_id);
+        reader_crypto->writer2reader_key_material_message->receiver_specific_key_id = ddsrt_atomic_inc32_ov(&implementation->next_key_id);
       }
       reader_crypto->writer_session = (session_key_material *)CRYPTO_OBJECT_KEEP(local_writer->writer_session_message);
     }
@@ -840,7 +838,7 @@ register_matched_remote_datawriter(
                                    DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_MESSAGE);
         goto err_random_generation;
       }
-      writer_crypto->reader2writer_key_material->receiver_specific_key_id = ddsrt_atomic_inc32_nv (&implementation->next_key_id);
+      writer_crypto->reader2writer_key_material->receiver_specific_key_id = ddsrt_atomic_inc32_ov(&implementation->next_key_id);
       writer_crypto->reader_session = (session_key_material *)CRYPTO_OBJECT_KEEP(local_reader->reader_session);
     }
   }
@@ -967,9 +965,7 @@ dds_security_crypto_key_factory *
 dds_security_crypto_key_factory__alloc(
     const dds_security_cryptography *crypto)
 {
-  dds_security_crypto_key_factory_impl *instance;
-  instance = (dds_security_crypto_key_factory_impl *)ddsrt_malloc(
-      sizeof(dds_security_crypto_key_factory_impl));
+  dds_security_crypto_key_factory_impl *instance = ddsrt_malloc(sizeof(*instance));
 
   ddsrt_mutex_init(&instance->lock);
 

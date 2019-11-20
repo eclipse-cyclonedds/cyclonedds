@@ -31,20 +31,15 @@ char *crypto_openssl_error_message(void)
   char *buf = NULL;
   size_t len;
 
-  if (bio)
-  {
-    ERR_print_errors(bio);
-    len = (size_t) BIO_get_mem_data(bio, &buf);
-    msg = ddsrt_malloc(len + 1);
-    memset(msg, 0, len + 1);
-    memcpy(msg, buf, len);
-    BIO_free(bio);
-  }
-  else
-  {
-    msg = ddsrt_strdup ("BIO_new failed");
-  }
+  if (!bio)
+    return ddsrt_strdup ("BIO_new failed");
 
+  ERR_print_errors(bio);
+  len = (size_t) BIO_get_mem_data(bio, &buf);
+  msg = ddsrt_malloc(len + 1);
+  memset(msg, 0, len + 1);
+  memcpy(msg, buf, len);
+  BIO_free(bio);
   return msg;
 }
 
@@ -124,9 +119,7 @@ uint32_t
 crypto_get_random_uint32(void)
 {
   uint32_t val;
-
-  (void)RAND_bytes((unsigned char *)&val, sizeof(uint32_t));
-
+  RAND_bytes((unsigned char *)&val, sizeof(uint32_t));
   return val;
 }
 
@@ -134,9 +127,7 @@ uint64_t
 crypto_get_random_uint64(void)
 {
   uint64_t val;
-
-  (void)RAND_bytes((unsigned char *)&val, sizeof(uint64_t));
-
+  RAND_bytes((unsigned char *)&val, sizeof(uint64_t));
   return val;
 }
 
@@ -152,20 +143,16 @@ crypto_hmac256(
 
   if (key_size > INT32_MAX)
   {
-    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT,
-      DDS_SECURITY_ERR_UNDEFINED_CODE, 0, "Failed to init hashing context: invalid key size");
-    result = NULL;
+    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, 0, "Failed to init hashing context: invalid key size");
+    return NULL;
   }
-  else
+
+  result = ddsrt_malloc(key_size);
+  if (HMAC(EVP_sha256(), key, (int) key_size, data, data_size, result, NULL) == NULL)
   {
-    result = ddsrt_malloc(key_size);
-    if (HMAC(EVP_sha256(), key, (int) key_size, data, data_size, result, NULL) == NULL)
-    {
-      DDS_Security_Exception_set_with_openssl_error(ex, DDS_CRYPTO_PLUGIN_CONTEXT,
-        DDS_SECURITY_ERR_UNDEFINED_CODE, 0, "Failed to init hashing context: ");
-      ddsrt_free(result);
-      result = NULL;
-    }
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, 0, "Failed to init hashing context: ");
+    ddsrt_free(result);
+    return NULL;
   }
   return result;
 }

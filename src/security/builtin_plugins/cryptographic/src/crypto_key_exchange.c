@@ -116,7 +116,6 @@ serialize_master_key_material(
 
   *buffer = ddsrt_malloc(sizeof(struct serialized_key_material));
   *length = sizeof(struct serialized_key_material);
-
   sd = (struct serialized_key_material *)(*buffer);
 
   sd->transformation_kind = ddsrt_toBE4u(keymat->transformation_kind);
@@ -210,7 +209,7 @@ set_remote_participant_crypto_tokens(
     return false;
   }
 
-  if (!check_crypto_tokens((DDS_Security_DataHolderSeq *)tokens))
+  if (!check_crypto_tokens(tokens))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
         "set_remote_participant_crypto_tokens: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
@@ -226,7 +225,7 @@ set_remote_participant_crypto_tokens(
         "set_remote_participant_crypto_tokens: " DDS_SECURITY_ERR_INVALID_CRYPTO_TOKEN_MESSAGE);
     result = false;
   }
-  else if (!DDD_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(deserializer, &remote_key_mat))
+  else if (!DDS_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(deserializer, &remote_key_mat))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_TOKEN_CODE, 0,
         "set_remote_participant_crypto_tokens: " DDS_SECURITY_ERR_INVALID_CRYPTO_TOKEN_MESSAGE);
@@ -320,7 +319,7 @@ set_remote_datawriter_crypto_tokens(
     return false;
   }
 
-  if (!check_crypto_tokens((DDS_Security_DataHolderSeq *)tokens))
+  if (!check_crypto_tokens(tokens))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
         "set_remote_datawriter_crypto_tokens: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
@@ -337,19 +336,14 @@ set_remote_datawriter_crypto_tokens(
   for (i = 0; result && (i < tokens->_length); i++)
   {
     const DDS_Security_OctetSeq *tdata = &tokens->_buffer[i].binary_properties._buffer[0].value;
-    DDS_Security_Deserializer deserializer;
-
-    memset(&(remote_key_mat[i]), 0, sizeof(DDS_Security_KeyMaterial_AES_GCM_GMAC));
-
-    deserializer = DDS_Security_Deserializer_new(tdata->_buffer, tdata->_length);
-
+    DDS_Security_Deserializer deserializer = DDS_Security_Deserializer_new(tdata->_buffer, tdata->_length);
     if (!deserializer)
     {
       DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_TOKEN_CODE, 0,
           "set_remote_datawriter_crypto_tokens: " DDS_SECURITY_ERR_INVALID_CRYPTO_TOKEN_MESSAGE);
       result = false;
     }
-    else if (!DDD_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(deserializer, &remote_key_mat[i]))
+    else if (!DDS_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(deserializer, &remote_key_mat[i]))
     {
       DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_TOKEN_CODE, 0,
           "set_remote_datawriter_crypto_tokens: " DDS_SECURITY_ERR_INVALID_CRYPTO_TOKEN_MESSAGE);
@@ -452,14 +446,12 @@ set_remote_datareader_crypto_tokens(
     return false;
   }
 
-  if (!check_crypto_tokens((DDS_Security_DataHolderSeq *)tokens))
+  if (!check_crypto_tokens(tokens))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
         "set_remote_datareader_crypto_tokens: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
     return false;
   }
-
-  memset(&remote_key_mat, 0, sizeof(DDS_Security_KeyMaterial_AES_GCM_GMAC));
 
   tdata = &tokens->_buffer[0].binary_properties._buffer[0].value;
 
@@ -470,7 +462,7 @@ set_remote_datareader_crypto_tokens(
         "set_remote_datareader_crypto_tokens: " DDS_SECURITY_ERR_INVALID_CRYPTO_TOKEN_MESSAGE);
     result = false;
   }
-  else if (!DDD_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(deserializer, &remote_key_mat))
+  else if (!DDS_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(deserializer, &remote_key_mat))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_TOKEN_CODE, 0,
         "set_remote_datareader_crypto_tokens: " DDS_SECURITY_ERR_INVALID_CRYPTO_TOKEN_MESSAGE);
@@ -510,7 +502,7 @@ return_crypto_tokens(
     goto fail_invalid_arg;
   }
 
-  if (!check_crypto_tokens((DDS_Security_DataHolderSeq *)tokens))
+  if (!check_crypto_tokens(tokens))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
         "set_remote_participant_crypto_tokens: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
@@ -529,10 +521,7 @@ dds_security_crypto_key_exchange *
 dds_security_crypto_key_exchange__alloc(
     const dds_security_cryptography *crypto)
 {
-  dds_security_crypto_key_exchange_impl *instance;
-  instance = (dds_security_crypto_key_exchange_impl *)ddsrt_malloc(
-      sizeof(dds_security_crypto_key_exchange_impl));
-
+  dds_security_crypto_key_exchange_impl *instance = ddsrt_malloc(sizeof(*instance));
   instance->crypto = crypto;
   instance->base.create_local_participant_crypto_tokens = &create_local_participant_crypto_tokens;
   instance->base.set_remote_participant_crypto_tokens = &set_remote_participant_crypto_tokens;
@@ -541,7 +530,6 @@ dds_security_crypto_key_exchange__alloc(
   instance->base.create_local_datareader_crypto_tokens = &create_local_datareader_crypto_tokens;
   instance->base.set_remote_datareader_crypto_tokens = &set_remote_datareader_crypto_tokens;
   instance->base.return_crypto_tokens = &return_crypto_tokens;
-
   return (dds_security_crypto_key_exchange *)instance;
 }
 

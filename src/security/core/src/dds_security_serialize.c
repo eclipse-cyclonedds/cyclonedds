@@ -416,7 +416,7 @@ DDS_Security_Serialize_ParticipantSecurityInfo(
 
 
 void
-DDD_Security_Serialize_ParticipantBuiltinTopicData(
+DDS_Security_Serialize_ParticipantBuiltinTopicData(
      DDS_Security_Serializer ser,
      DDS_Security_ParticipantBuiltinTopicData *pdata)
 {
@@ -432,7 +432,7 @@ DDD_Security_Serialize_ParticipantBuiltinTopicData(
 }
 
 static void
-DDD_Security_Serialize_OctetArray(
+DDS_Security_Serialize_OctetArray(
      DDS_Security_Serializer ser,
      const DDS_Security_octet *data,
      uint32_t length)
@@ -443,15 +443,15 @@ DDD_Security_Serialize_OctetArray(
 }
 
 void
-DDD_Security_Serialize_KeyMaterial_AES_GCM_GMAC(
+DDS_Security_Serialize_KeyMaterial_AES_GCM_GMAC(
      DDS_Security_Serializer ser,
      const DDS_Security_KeyMaterial_AES_GCM_GMAC *data)
 {
-    DDD_Security_Serialize_OctetArray(ser, data->transformation_kind, sizeof(data->transformation_kind));
+    DDS_Security_Serialize_OctetArray(ser, data->transformation_kind, sizeof(data->transformation_kind));
     DDS_Security_Serialize_OctetSeq(ser, &data->master_salt);
-    DDD_Security_Serialize_OctetArray(ser, data->sender_key_id, sizeof(data->sender_key_id));
+    DDS_Security_Serialize_OctetArray(ser, data->sender_key_id, sizeof(data->sender_key_id));
     DDS_Security_Serialize_OctetSeq(ser, &data->master_sender_key);
-    DDD_Security_Serialize_OctetArray(ser, data->receiver_specific_key_id, sizeof(data->receiver_specific_key_id));
+    DDS_Security_Serialize_OctetArray(ser, data->receiver_specific_key_id, sizeof(data->receiver_specific_key_id));
     DDS_Security_Serialize_OctetSeq(ser, &data->master_receiver_specific_key);
 }
 
@@ -719,7 +719,7 @@ DDS_Security_Deserialize_ParticipantSecurityInfo(
 }
 
 int
-DDD_Security_Deserialize_ParticipantBuiltinTopicData(
+DDS_Security_Deserialize_ParticipantBuiltinTopicData(
      DDS_Security_Deserializer dser,
      DDS_Security_ParticipantBuiltinTopicData *pdata,
      DDS_Security_SecurityException *ex)
@@ -786,7 +786,7 @@ DDD_Security_Deserialize_ParticipantBuiltinTopicData(
 }
 
 void
-DDD_Security_BuiltinTopicKeyBE(
+DDS_Security_BuiltinTopicKeyBE(
      DDS_Security_BuiltinTopicKey_t dst,
      const  DDS_Security_BuiltinTopicKey_t src)
 {
@@ -796,18 +796,16 @@ DDD_Security_BuiltinTopicKeyBE(
 }
 
 int
-DDD_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(
+DDS_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(
      DDS_Security_Deserializer dser,
      DDS_Security_KeyMaterial_AES_GCM_GMAC *data)
 {
-    int r = 0;
-
-    r = DDS_Security_Deserialize_OctetArray(dser, data->transformation_kind, sizeof(data->transformation_kind)) &&
+    memset(data, 0, sizeof(*data));
+    return
+        DDS_Security_Deserialize_OctetArray(dser, data->transformation_kind, sizeof(data->transformation_kind)) &&
         DDS_Security_Deserialize_OctetSeq(dser, &data->master_salt) &&
         DDS_Security_Deserialize_OctetArray(dser, data->sender_key_id, sizeof(data->sender_key_id)) &&
         DDS_Security_Deserialize_OctetSeq(dser, &data->master_sender_key) &&
         DDS_Security_Deserialize_OctetArray(dser, data->receiver_specific_key_id, sizeof(data->receiver_specific_key_id)) &&
         DDS_Security_Deserialize_OctetSeq(dser, &data->master_receiver_specific_key);
-
-    return r;
 }

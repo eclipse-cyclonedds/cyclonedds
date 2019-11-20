@@ -341,7 +341,7 @@ read_crypto_header(
     unsigned char **ptr,
     uint32_t *remain)
 {
-  return crypto_buffer_read_bytes((unsigned char *)header, sizeof(struct crypto_header), ptr, remain);
+  return crypto_buffer_read_bytes((unsigned char *)header, sizeof(*header), ptr, remain);
 }
 
 /**
@@ -430,7 +430,7 @@ read_submsg_header(
     uint32_t *remain)
 {
   int swap;
-  bool result = crypto_buffer_read_bytes((unsigned char *)submsg, sizeof(struct submsg_header), ptr, remain);
+  bool result = crypto_buffer_read_bytes((unsigned char *)submsg, sizeof(*submsg), ptr, remain);
   if (result)
   {
     if ((submsg->flags & 0x01) == 0)
@@ -765,7 +765,7 @@ set_crypto_header(
   s.ivh = (uint32_t)(ivs >> 32);
   s.ivl = (uint32_t)ivs;
 
-  memcpy(header, &s, sizeof(struct crypto_header));
+  memcpy(header, &s, sizeof(*header));
 }
 
 /*

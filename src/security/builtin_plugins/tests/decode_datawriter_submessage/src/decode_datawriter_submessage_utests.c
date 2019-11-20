@@ -374,7 +374,7 @@ static bool set_remote_datawriter_tokens(
         &exception);
   }
 
-  DDS_Security_DataHolderSeq_deinit((DDS_Security_DataHolderSeq *)&tokens);
+  DDS_Security_DataHolderSeq_deinit(&tokens);
 
   if (result)
   {
@@ -396,7 +396,7 @@ static bool set_remote_datawriter_tokens(
         &exception);
   }
 
-  DDS_Security_DataHolderSeq_deinit((DDS_Security_DataHolderSeq *)&tokens);
+  DDS_Security_DataHolderSeq_deinit(&tokens);
 
   return (bool)result;
 }
