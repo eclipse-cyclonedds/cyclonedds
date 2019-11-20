@@ -220,6 +220,7 @@ struct participant
   int64_t local_identity_handle;   /* OMG DDS Security related member */
   int64_t permissions_handle; /* OMG DDS Security related member */
   struct participant_sec_attributes *sec_attr;
+  nn_security_info_t security_info;
 #endif
 };
 

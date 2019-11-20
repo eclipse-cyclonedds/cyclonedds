@@ -199,7 +199,6 @@ typedef struct HandshakeInfo {
 
 typedef struct dds_security_authentication_impl {
     dds_security_authentication base;
-    int id; //sample internal member
     ddsrt_mutex_t lock;
     struct ddsrt_hh *objectHash;
     struct ddsrt_hh *remoteGuidHash;
@@ -968,8 +967,6 @@ validate_local_identity(
         DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "validate_local_identity: Invalid parameter provided");
         goto err_bad_param;
     }
-
-    implementation->id = 2;
 
     identityCertPEM = DDS_Security_Property_get_value(&participant_qos->property.value, PROPERTY_IDENTITY_CERT);
     if (!identityCertPEM) {
@@ -3387,7 +3384,8 @@ DDS_Security_boolean return_sharedsecret_handle(
     return true;
 }
 
-int32_t init_authentication( const char *argument, void **context)
+int32_t
+init_authentication( const char *argument, void **context)
 {
 
     dds_security_authentication_impl *authentication;
@@ -3441,9 +3439,6 @@ int32_t init_authentication( const char *argument, void **context)
     authentication->base.return_identity_handle = &return_identity_handle;
 
     authentication->base.return_sharedsecret_handle = &return_sharedsecret_handle;
-
-    //prepare implementation wrapper
-    authentication->id = 1;
 
     ddsrt_mutex_init(&authentication->lock);
 
