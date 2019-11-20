@@ -321,21 +321,14 @@ DDS_EXPORT uint64_t nn_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uint6
 DDS_EXPORT void nn_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, uint64_t wanted);
 DDS_EXPORT void nn_log_xqos (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
 DDS_EXPORT dds_qos_t *nn_xqos_dup (const dds_qos_t *src);
-DDS_EXPORT bool nn_xqos_has_prop (const dds_qos_t *xqos, const char *pname, bool startswith);
+DDS_EXPORT bool nn_xqos_has_prop (const dds_qos_t *xqos, const char *pname, bool startswith, bool check_non_empty);
 
 #ifdef DDSI_INCLUDE_SECURITY
 
-#define DDS_SEC_PROP_AUTH_IDENTITY_CA "dds.sec.auth.identity_ca"
-#define DDS_SEC_PROP_AUTH_PRIV_KEY "dds.sec.auth.private_key"
-#define DDS_SEC_PROP_AUTH_IDENTITY_CERT "dds.sec.auth.identity_certificate"
-#define DDS_SEC_PROP_AUTH_PASSWORD "dds.sec.auth.password"
-#define DDS_SEC_PROP_ACCESS_PERMISSIONS_CA "dds.sec.access.permissions_ca"
-#define DDS_SEC_PROP_ACCESS_GOVERNANCE "dds.sec.access.governance"
-#define DDS_SEC_PROP_ACCESS_PERMISSIONS "dds.sec.access.permissions"
-#define DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "dds.sec.auth.trusted_ca_dir"
+
 
 struct omg_security_configuration_type;
-DDS_EXPORT bool nn_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security_configuration_type *cfg);
+DDS_EXPORT void nn_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security_configuration_type *cfg);
 #endif
 
 #if defined (__cplusplus)

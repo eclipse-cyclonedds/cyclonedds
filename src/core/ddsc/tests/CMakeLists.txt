@@ -74,10 +74,40 @@ set(CUnit_ddsc_config_simple_udp_uri "file://${CUnit_ddsc_config_simple_udp_file
 set(CUnit_ddsc_config_simple_udp_max_participants "0")
 set(CUnit_ddsc_config_simple_udp_env "${PROJECT_NAME_CAPS}_URI=${CUnit_ddsc_config_simple_udp_uri};MAX_PARTICIPANTS=${CUnit_ddsc_config_simple_udp_max_participants};${CUnit_ddsc_config_simple_udp_env}")
 
+
+unset(test_lib_tests)
+# Let the cunit application know the location and name of the security mock libraries.
+#file(TO_NATIVE_PATH "${CMAKE_CURRENT_BINARY_DIR}/../../../security/core/tests/plugin_loading" test_lib_native_dir)
+
+
+file(TO_NATIVE_PATH "${PROJECT_BINARY_DIR}/src/security/core/tests/plugin_loading" test_lib_native_dir)
+file(TO_NATIVE_PATH "/" test_lib_sep)
+string(REPLACE "\\" "\\\\" test_lib_dir ${test_lib_native_dir})
+string(REPLACE "\\" "\\\\" test_lib_sep ${test_lib_sep})
+
+process_cunit_source_file("config.c" test_lib_header test_lib_suites test_lib_tests)
+foreach(libtest ${test_lib_tests})
+	string(REPLACE ":" ";" libtest ${libtest})
+	list(GET libtest 0 suite)
+	list(GET libtest 1 test)
+	set(libtestname "CUnit_${suite}_${test}")
+	if("${CMAKE_HOST_SYSTEM}" MATCHES ".*Windows.*")
+		set_property(TEST ${libtestname} APPEND PROPERTY ENVIRONMENT "${test_lib_native_dir}")
+	else()
+		set_property(TEST ${libtestname} APPEND PROPERTY ENVIRONMENT "LD_LIBRARY_PATH=${test_lib_native_dir};$ENV{LD_LIBRARY_PATH}")
+	endif()
+endforeach()
+
+
+
 set_tests_properties(
 	CUnit_ddsc_config_simple_udp
 	PROPERTIES
 		REQUIRED_FILES ${CUnit_ddsc_config_simple_udp_file}
 		ENVIRONMENT "${CUnit_ddsc_config_simple_udp_env}")
 
-configure_file("config_env.h.in" "config_env.h")
+configure_file("config_env.h.in" "config_env.h" @ONLY)
+
+
+
+

@@ -12,19 +12,23 @@
 PREPEND(srcs_security_core "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_security_serialize.c
     dds_security_utils.c
+    dds_security_plugins.c
     shared_secret.c
 )
  
 PREPEND(hdrs_public_security_core "${CMAKE_CURRENT_LIST_DIR}/include/security/core"
-    dds_security_core_if.h
     dds_security_serialize.h
     dds_security_types.h
     dds_security_utils.h
+    dds_security_plugins.h
     shared_secret.h
 )
 
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC" )
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC" )
+if(NOT WIN32)
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC" )
+  set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC" )
+endif()
+
 add_library(security_core INTERFACE)
 
 
@@ -48,10 +52,4 @@ install(
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/dds/security/core/"
   COMPONENT dev)
 
-#install(
-# TARGETS security_core
-# EXPORT "${PROJECT_NAME}"
-#  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
-#  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
-#  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
-#)
+add_subdirectory(tests/plugin_loading)
