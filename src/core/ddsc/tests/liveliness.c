@@ -530,7 +530,7 @@ CU_Test(ddsc_liveliness, create_delete_writer_stress, .init = liveliness_init, .
         dds_entity_t waitset;
         dds_qos_t *wqos;
         struct dds_liveliness_changed_status lstatus;
-        uint32_t wr_cnt = 0;
+        uint32_t alive_writers_auto = 0, alive_writers_man = 0;
         char name[100];
         dds_qos_t *rqos;
         dds_attach_t triggered;
@@ -556,6 +556,7 @@ CU_Test(ddsc_liveliness, create_delete_writer_stress, .init = liveliness_init, .
         dds_qset_liveliness(wqos, DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, DDS_MSECS (500));
         CU_ASSERT_FATAL((writers[0] = dds_create_writer(g_pub_participant, pub_topic, wqos, NULL)) > 0);
         CU_ASSERT_EQUAL_FATAL(dds_waitset_wait(waitset, &triggered, 1, DDS_MSECS(1000)), 1);
+        alive_writers_man++;
 
         /* create writers */
         for (n = 1; n < MAX_WRITERS; n++)
@@ -565,24 +566,37 @@ CU_Test(ddsc_liveliness, create_delete_writer_stress, .init = liveliness_init, .
                 dds_write (writers[n], &sample);
                 if (n % 3 == 2)
                         dds_delete(writers[n]);
+                else if (n % 2)
+                        alive_writers_auto++;
+                else
+                        alive_writers_man++;
         }
         dds_delete_qos(wqos);
+        printf("alive_writers_auto: %d, alive_writers_man: %d\n", alive_writers_auto, alive_writers_man);
 
-        /* wait for all writers to become alive */
-        while (wr_cnt < MAX_WRITERS)
+        /* wait for auto liveliness writers to become alive and manual-by-pp writers to become not-alive */
+        do
         {
                 CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status (reader, &lstatus), DDS_RETCODE_OK);
-                wr_cnt += (uint32_t)lstatus.alive_count_change;
+                printf("alive: %d, not-alive: %d\n", lstatus.alive_count, lstatus.not_alive_count);
                 dds_sleepfor (DDS_MSECS(50));
         }
-        CU_ASSERT_EQUAL_FATAL (wr_cnt, MAX_WRITERS);
+        while (lstatus.alive_count != alive_writers_auto || lstatus.not_alive_count != alive_writers_man);
 
         /* cleanup remaining writers */
-        for (n = 0; n < wr_cnt; n++)
+        for (n = 0; n < MAX_WRITERS; n++)
         {
                 if (n % 3 != 2)
                         CU_ASSERT_EQUAL_FATAL(dds_delete(writers[n]), DDS_RETCODE_OK);
         }
+        /* wait for alive_count and not_alive_count to become 0 */
+        do
+        {
+                CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status (reader, &lstatus), DDS_RETCODE_OK);
+                printf("alive: %d, not: %d\n", lstatus.alive_count, lstatus.not_alive_count);
+                dds_sleepfor (DDS_MSECS(50));
+        }
+        while (lstatus.alive_count > 0 || lstatus.not_alive_count > 0);
         CU_ASSERT_EQUAL_FATAL(dds_waitset_detach(waitset, reader), DDS_RETCODE_OK);
         CU_ASSERT_EQUAL_FATAL(dds_delete(waitset), DDS_RETCODE_OK);
         CU_ASSERT_EQUAL_FATAL(dds_delete(reader), DDS_RETCODE_OK);

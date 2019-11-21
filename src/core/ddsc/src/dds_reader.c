@@ -252,25 +252,26 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
           st->not_alive_count_change++;
           break;
         case LIVELINESS_CHANGED_REMOVE_NOT_ALIVE:
+          st->not_alive_count--;
+          st->not_alive_count_change--;
           break;
         case LIVELINESS_CHANGED_REMOVE_ALIVE:
           st->alive_count--;
-          st->not_alive_count++;
-          st->not_alive_count_change++;
+          st->alive_count_change--;
           break;
         case LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE:
           st->alive_count--;
+          st->alive_count_change--;
           st->not_alive_count++;
           st->not_alive_count_change++;
           break;
         case LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE:
           st->not_alive_count--;
+          st->not_alive_count_change--;
           st->alive_count++;
           st->alive_count_change++;
           break;
         case LIVELINESS_CHANGED_TWITCH:
-          st->alive_count_change++;
-          st->not_alive_count_change++;
           break;
       }
       st->last_publication_handle = data->handle;
