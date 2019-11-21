@@ -16,7 +16,7 @@
 
 #include "dds/ddsrt/strtol.h"
 
-static int ddsrt_todigit(const int chr)
+int32_t ddsrt_todigit(const int chr)
 {
   if (chr >= '0' && chr <= '9') {
     return chr - '0';
