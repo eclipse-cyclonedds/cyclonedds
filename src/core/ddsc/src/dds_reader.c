@@ -232,16 +232,46 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
     }
     case DDS_LIVELINESS_CHANGED_STATUS_ID: {
       struct dds_liveliness_changed_status * const st = vst = &rd->m_liveliness_changed_status;
-      if (data->add) {
-        st->alive_count++;
-        st->alive_count_change++;
-        if (st->not_alive_count > 0) {
+      DDSRT_STATIC_ASSERT ((uint32_t) LIVELINESS_CHANGED_ADD_ALIVE == 0 &&
+                           LIVELINESS_CHANGED_ADD_ALIVE < LIVELINESS_CHANGED_ADD_NOT_ALIVE &&
+                           LIVELINESS_CHANGED_ADD_NOT_ALIVE < LIVELINESS_CHANGED_REMOVE_NOT_ALIVE &&
+                           LIVELINESS_CHANGED_REMOVE_NOT_ALIVE < LIVELINESS_CHANGED_REMOVE_ALIVE &&
+                           LIVELINESS_CHANGED_REMOVE_ALIVE < LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE &&
+                           LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE < LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE &&
+                           LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE < LIVELINESS_CHANGED_TWITCH &&
+                           (uint32_t) LIVELINESS_CHANGED_TWITCH < UINT32_MAX);
+      assert (data->extra <= (uint32_t) LIVELINESS_CHANGED_TWITCH);
+      switch ((enum liveliness_changed_data_extra) data->extra)
+      {
+        case LIVELINESS_CHANGED_ADD_ALIVE:
+          st->alive_count++;
+          st->alive_count_change++;
+          break;
+        case LIVELINESS_CHANGED_ADD_NOT_ALIVE:
+          st->not_alive_count++;
+          st->not_alive_count_change++;
+          break;
+        case LIVELINESS_CHANGED_REMOVE_NOT_ALIVE:
+          break;
+        case LIVELINESS_CHANGED_REMOVE_ALIVE:
+          st->alive_count--;
+          st->not_alive_count++;
+          st->not_alive_count_change++;
+          break;
+        case LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE:
+          st->alive_count--;
+          st->not_alive_count++;
+          st->not_alive_count_change++;
+          break;
+        case LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE:
           st->not_alive_count--;
-        }
-      } else {
-        st->alive_count--;
-        st->not_alive_count++;
-        st->not_alive_count_change++;
+          st->alive_count++;
+          st->alive_count_change++;
+          break;
+        case LIVELINESS_CHANGED_TWITCH:
+          st->alive_count_change++;
+          st->not_alive_count_change++;
+          break;
       }
       st->last_publication_handle = data->handle;
       invoke = (lst->on_liveliness_changed != 0);

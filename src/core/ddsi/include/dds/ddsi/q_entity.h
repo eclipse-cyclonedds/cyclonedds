@@ -48,14 +48,25 @@ struct proxy_group;
 struct proxy_endpoint_common;
 typedef void (*ddsi2direct_directread_cb_t) (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, void *arg);
 
+/* Liveliness changed is more complicated than just add/remove. Encode the event
+   in status_cb_data_t::extra and ignore status_cb_data_t::add */
+enum liveliness_changed_data_extra {
+  LIVELINESS_CHANGED_ADD_ALIVE,
+  LIVELINESS_CHANGED_ADD_NOT_ALIVE,
+  LIVELINESS_CHANGED_REMOVE_NOT_ALIVE,
+  LIVELINESS_CHANGED_REMOVE_ALIVE,
+  LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE,
+  LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE,
+  LIVELINESS_CHANGED_TWITCH
+};
+
 typedef struct status_cb_data
 {
   int raw_status_id;
   uint32_t extra;
   uint64_t handle;
   bool add;
-}
-status_cb_data_t;
+} status_cb_data_t;
 
 typedef void (*status_cb_t) (void *entity, const status_cb_data_t *data);
 
@@ -67,6 +78,8 @@ struct prd_wr_match {
 struct rd_pwr_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t pwr_guid;
+  unsigned pwr_alive: 1; /* tracks pwr's alive state */
+  uint32_t pwr_alive_vclock; /* used to ensure progress */
 #ifdef DDSI_INCLUDE_SSM
   nn_locator_t ssm_mc_loc;
   nn_locator_t ssm_src_loc;
@@ -374,6 +387,7 @@ struct proxy_writer {
 #ifdef DDSI_INCLUDE_SSM
   unsigned supports_ssm: 1; /* iff 1, this proxy writer supports SSM */
 #endif
+  uint32_t alive_vclock; /* virtual clock counting transitions between alive/not-alive */
   struct nn_defrag *defrag; /* defragmenter for this proxy writer; FIXME: perhaps shouldn't be for historical data */
   struct nn_reorder *reorder; /* message reordering for this proxy writer, out-of-sync readers can have their own, see pwr_rd_match */
   struct nn_dqueue *dqueue; /* delivery queue for asynchronous delivery (historical data is always delivered asynchronously) */
@@ -652,8 +666,9 @@ int delete_proxy_reader (struct q_globals *gv, const struct ddsi_guid *guid, nn_
 void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
 void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
 
-int proxy_writer_set_alive (struct proxy_writer *pwr);
-int proxy_writer_set_notalive (struct proxy_writer *pwr);
+void proxy_writer_set_alive_may_unlock (struct proxy_writer *pwr, bool notify);
+int proxy_writer_set_notalive (struct proxy_writer *pwr, bool notify);
+void proxy_writer_set_notalive_guid (struct q_globals *gv, const struct ddsi_guid *pwrguid, bool notify);
 
 int new_proxy_group (const struct ddsi_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp);
 void delete_proxy_group (struct ephash *guid_hash, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
@@ -661,8 +676,6 @@ void delete_proxy_group (struct ephash *guid_hash, const struct ddsi_guid *guid,
 /* Call this to empty all address sets of all writers to stop all outgoing traffic, or to
    rebuild them all (which only makes sense after previously having emptied them all). */
 void rebuild_or_clear_writer_addrsets(struct q_globals *gv, int rebuild);
-
-void reader_drop_connection (const struct ddsi_guid *rd_guid, const struct proxy_writer *pwr, bool unmatch);
 
 void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_ok);
 

@@ -129,9 +129,8 @@ void handle_pmd_message (const struct receiver_state *rst, nn_wctime_t timestamp
         ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
         if ((proxypp = ephash_lookup_proxy_participant_guid (rst->gv->guid_hash, &ppguid)) == NULL)
           RSTTRACE (" PPunknown");
-
-        if (kind == PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE &&
-            (l = ddsrt_atomic_ldvoidp (&proxypp->minl_man)) != NULL)
+        else if (kind == PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE &&
+                 (l = ddsrt_atomic_ldvoidp (&proxypp->minl_man)) != NULL)
         {
           /* Renew lease for entity with shortest manual-by-participant lease */
           lease_renew (l, now_et ());
