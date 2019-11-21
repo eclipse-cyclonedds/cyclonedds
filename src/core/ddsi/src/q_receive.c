@@ -2114,18 +2114,26 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
     return;
   }
 
+  /* Proxy participant's "automatic" lease has to be renewed always, manual-by-participant one only
+     for data published by the application.  If pwr->lease exists, it is in some manual lease mode,
+     so check whether it is actually in manual-by-topic mode before renewing it.  As pwr->lease is
+     set once (during entity creation) we can read it outside the lock, keeping all the lease
+     renewals together. */
   lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto), tnow);
   if ((lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_man)) != NULL && renew_manbypp_lease)
     lease_renew (lease, tnow);
+  if (pwr->lease && pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
+    lease_renew (pwr->lease, tnow);
 
   /* Shouldn't lock the full writer, but will do so for now */
   ddsrt_mutex_lock (&pwr->e.lock);
 
-  if (pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC && pwr->c.xqos->liveliness.lease_duration != T_NEVER)
-    lease_renew (pwr->lease, tnow);
-
+  /* A change in transition from not-alive to alive is relatively complicated
+     and may involve temporarily unlocking the proxy writer during the process
+     (to avoid unnecessarily holding pwr->e.lock while invoking listeners on
+     the reader) */
   if (!pwr->alive)
-    proxy_writer_set_alive (pwr);
+    proxy_writer_set_alive_may_unlock (pwr, true);
 
   /* Don't accept data when reliable readers exist and we haven't yet seen
      a heartbeat telling us what the "current" sequence number of the writer

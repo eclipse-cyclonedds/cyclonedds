@@ -64,6 +64,11 @@ struct deleted_participants_admin {
   int64_t delay;
 };
 
+struct proxy_writer_alive_state {
+  bool alive;
+  uint32_t vclock;
+};
+
 static int compare_guid (const void *va, const void *vb);
 static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vright);
 
@@ -1431,6 +1436,19 @@ static void free_wr_rd_match (struct wr_rd_match *m)
   if (m) ddsrt_free (m);
 }
 
+static void proxy_writer_get_alive_state_locked (struct proxy_writer *pwr, struct proxy_writer_alive_state *st)
+{
+  st->alive = pwr->alive;
+  st->vclock = pwr->alive_vclock;
+}
+
+static void proxy_writer_get_alive_state (struct proxy_writer *pwr, struct proxy_writer_alive_state *st)
+{
+  ddsrt_mutex_lock (&pwr->e.lock);
+  proxy_writer_get_alive_state_locked (pwr, st);
+  ddsrt_mutex_unlock (&pwr->e.lock);
+}
+
 static void writer_drop_connection (const struct ddsi_guid *wr_guid, const struct proxy_reader *prd)
 {
   struct writer *wr;
@@ -1488,14 +1506,63 @@ static void writer_drop_local_connection (const struct ddsi_guid *wr_guid, struc
   }
 }
 
-void reader_drop_connection (const struct ddsi_guid *rd_guid, const struct proxy_writer *pwr, bool unmatch)
+static void reader_update_notify_pwr_alive_state (struct reader *rd, const struct proxy_writer *pwr, const struct proxy_writer_alive_state *alive_state)
+{
+  struct rd_pwr_match *m;
+  bool notify = false;
+  int delta = 0; /* -1: alive -> not_alive; 0: unchanged; 1: not_alive -> alive */
+  ddsrt_mutex_lock (&rd->e.lock);
+  if ((m = ddsrt_avl_lookup (&rd_writers_treedef, &rd->writers, &pwr->e.guid)) != NULL)
+  {
+    if ((int32_t) (alive_state->vclock - m->pwr_alive_vclock) > 0)
+    {
+      delta = (int) alive_state->alive - (int) m->pwr_alive;
+      notify = true;
+      m->pwr_alive = alive_state->alive;
+      m->pwr_alive_vclock = alive_state->vclock;
+    }
+  }
+  ddsrt_mutex_unlock (&rd->e.lock);
+
+  if (delta < 0 && rd->rhc)
+  {
+    struct ddsi_writer_info wrinfo;
+    ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos);
+    ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
+  }
+
+  /* Liveliness changed events can race each other and can, potentially, be delivered
+   in a different order. */
+  if (notify && rd->status_cb)
+  {
+    status_cb_data_t data;
+    data.handle = pwr->e.iid;
+    if (delta == 0)
+      data.extra = (uint32_t) LIVELINESS_CHANGED_TWITCH;
+    else if (delta < 0)
+      data.extra = (uint32_t) LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE;
+    else
+      data.extra = (uint32_t) LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE;
+    data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
+    (rd->status_cb) (rd->status_cb_entity, &data);
+  }
+}
+
+static void reader_update_notify_pwr_alive_state_guid (const struct ddsi_guid *rd_guid, const struct proxy_writer *pwr, const struct proxy_writer_alive_state *alive_state)
+{
+  struct reader *rd;
+  if ((rd = ephash_lookup_reader_guid (pwr->e.gv->guid_hash, rd_guid)) != NULL)
+    reader_update_notify_pwr_alive_state (rd, pwr, alive_state);
+}
+
+static void reader_drop_connection (const struct ddsi_guid *rd_guid, const struct proxy_writer *pwr)
 {
   struct reader *rd;
   if ((rd = ephash_lookup_reader_guid (pwr->e.gv->guid_hash, rd_guid)) != NULL)
   {
     struct rd_pwr_match *m;
     ddsrt_mutex_lock (&rd->e.lock);
-    if ((m = ddsrt_avl_lookup (&rd_writers_treedef, &rd->writers, &pwr->e.guid)) != NULL && unmatch)
+    if ((m = ddsrt_avl_lookup (&rd_writers_treedef, &rd->writers, &pwr->e.guid)) != NULL)
       ddsrt_avl_delete (&rd_writers_treedef, &rd->writers, m);
     ddsrt_mutex_unlock (&rd->e.lock);
     if (m != NULL)
@@ -1509,20 +1576,18 @@ void reader_drop_connection (const struct ddsi_guid *rd_guid, const struct proxy
       if (rd->status_cb)
       {
         status_cb_data_t data;
-        data.add = false;
         data.handle = pwr->e.iid;
+        data.add = false;
+        data.extra = (uint32_t) (m->pwr_alive ? LIVELINESS_CHANGED_REMOVE_ALIVE : LIVELINESS_CHANGED_REMOVE_NOT_ALIVE);
+
         data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
         (rd->status_cb) (rd->status_cb_entity, &data);
 
-        if (unmatch)
-        {
-          data.raw_status_id = (int) DDS_SUBSCRIPTION_MATCHED_STATUS_ID;
-          (rd->status_cb) (rd->status_cb_entity, &data);
-        }
+        data.raw_status_id = (int) DDS_SUBSCRIPTION_MATCHED_STATUS_ID;
+        (rd->status_cb) (rd->status_cb_entity, &data);
       }
     }
-    if (unmatch)
-      free_rd_pwr_match (pwr->e.gv, m);
+    free_rd_pwr_match (pwr->e.gv, m);
   }
 }
 
@@ -1548,9 +1613,9 @@ static void reader_drop_local_connection (const struct ddsi_guid *rd_guid, const
       if (rd->status_cb)
       {
         status_cb_data_t data;
-
-        data.add = false;
         data.handle = wr->e.iid;
+        data.add = false;
+        data.extra = (uint32_t) LIVELINESS_CHANGED_REMOVE_ALIVE;
 
         data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
         (rd->status_cb) (rd->status_cb_entity, &data);
@@ -1789,12 +1854,14 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
   }
 }
 
-static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, nn_count_t *init_count)
+static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, nn_count_t *init_count, const struct proxy_writer_alive_state *alive_state)
 {
   struct rd_pwr_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
 
   m->pwr_guid = pwr->e.guid;
+  m->pwr_alive = alive_state->alive;
+  m->pwr_alive_vclock = alive_state->vclock;
 
   ddsrt_mutex_lock (&rd->e.lock);
 
@@ -1848,9 +1915,14 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
     if (rd->status_cb)
     {
       status_cb_data_t data;
-      data.raw_status_id = (int) DDS_SUBSCRIPTION_MATCHED_STATUS_ID;
-      data.add = true;
       data.handle = pwr->e.iid;
+      data.add = true;
+      data.extra = (uint32_t) (alive_state->alive ? LIVELINESS_CHANGED_ADD_ALIVE : LIVELINESS_CHANGED_ADD_NOT_ALIVE);
+
+      data.raw_status_id = (int) DDS_SUBSCRIPTION_MATCHED_STATUS_ID;
+      (rd->status_cb) (rd->status_cb_entity, &data);
+
+      data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
       (rd->status_cb) (rd->status_cb_entity, &data);
     }
   }
@@ -1882,13 +1954,14 @@ static void reader_add_local_connection (struct reader *rd, struct writer *wr)
     if (rd->status_cb)
     {
       status_cb_data_t data;
-      data.add = true;
       data.handle = wr->e.iid;
-
-      data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
-      (rd->status_cb) (rd->status_cb_entity, &data);
+      data.add = true;
+      data.extra = (uint32_t) LIVELINESS_CHANGED_ADD_ALIVE;
 
       data.raw_status_id = (int) DDS_SUBSCRIPTION_MATCHED_STATUS_ID;
+      (rd->status_cb) (rd->status_cb_entity, &data);
+
+      data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
       (rd->status_cb) (rd->status_cb_entity, &data);
     }
   }
@@ -2007,16 +2080,6 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   qxev_pwr_entityid (pwr, &rd->e.guid.prefix);
 
   ELOGDISC (pwr, "\n");
-
-  if (rd->status_cb)
-  {
-    status_cb_data_t data;
-    data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
-    data.add = true;
-    data.handle = pwr->e.iid;
-    (rd->status_cb) (rd->status_cb_entity, &data);
-  }
-
   return;
 
 already_matched:
@@ -2188,6 +2251,7 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
   const int isb1 = (is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
   dds_qos_policy_id_t reason;
   nn_count_t init_count;
+  struct proxy_writer_alive_state alive_state;
   if (isb0 != isb1)
     return;
   if (rd->e.onlylocal)
@@ -2197,8 +2261,18 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
     reader_qos_mismatch (rd, reason);
     return;
   }
-  reader_add_connection (rd, pwr, &init_count);
+
+  /* Initialze the reader's tracking information for the writer liveliness state to something
+     sensible, but that may be outdated by the time the reader gets added to the writer's list
+     of matching readers. */
+  proxy_writer_get_alive_state (pwr, &alive_state);
+  reader_add_connection (rd, pwr, &init_count, &alive_state);
   proxy_writer_add_connection (pwr, rd, tnow, init_count);
+
+  /* Once everything is set up: update with the latest state, any updates to the alive state
+     happening in parallel will cause this to become a no-op. */
+  proxy_writer_get_alive_state (pwr, &alive_state);
+  reader_update_notify_pwr_alive_state (rd, pwr, &alive_state);
 }
 
 static bool ignore_local_p (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2, const struct dds_qos *xqos1, const struct dds_qos *xqos2)
@@ -4274,6 +4348,7 @@ int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
   pwr->nackfragcount = 0;
   pwr->last_fragnum_reset = 0;
   pwr->alive = 1;
+  pwr->alive_vclock = 0;
   ddsrt_atomic_st32 (&pwr->next_deliv_seq_lowword, 1);
   if (is_builtin_entityid (pwr->e.guid.entityid, pwr->c.vendor)) {
     /* The DDSI built-in proxy writers always deliver
@@ -4453,7 +4528,7 @@ static void gc_delete_proxy_writer (struct gcreq *gcreq)
   {
     struct pwr_rd_match *m = ddsrt_avl_root_non_empty (&pwr_readers_treedef, &pwr->readers);
     ddsrt_avl_delete (&pwr_readers_treedef, &pwr->readers, m);
-    reader_drop_connection (&m->rd_guid, pwr, true);
+    reader_drop_connection (&m->rd_guid, pwr);
     update_reader_init_acknack_count (&pwr->e.gv->logconfig, pwr->e.gv->guid_hash, &m->rd_guid, m->count);
     free_pwr_rd_match (m);
   }
@@ -4490,62 +4565,86 @@ int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_
   builtintopic_write (gv->builtin_topic_interface, &pwr->e, timestamp, false);
   ephash_remove_proxy_writer_guid (gv->guid_hash, pwr);
   ddsrt_mutex_unlock (&gv->lock);
-  if (proxy_writer_set_notalive (pwr) != DDS_RETCODE_OK)
+  if (proxy_writer_set_notalive (pwr, false) != DDS_RETCODE_OK)
     GVLOGDISC ("proxy_writer_set_notalive failed for "PGUIDFMT"\n", PGUID(*guid));
-  /* Set lease expiry for this pwr to never so that the pwr will not be set
-     to alive again while it is scheduled for being deleted. */
-  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER)
-    lease_renew (pwr->lease, (nn_etime_t){ T_NEVER });
   gcreq_proxy_writer (pwr);
   return DDS_RETCODE_OK;
 }
 
-int proxy_writer_set_alive (struct proxy_writer *pwr)
+static void proxy_writer_notify_liveliness_change_may_unlock (struct proxy_writer *pwr)
 {
-  /* Caller has pwr->e.lock, so we can safely read pwr->alive. For updating
-   * this field this function is also taking pwr->c.proxypp->e.lock */
-  ddsrt_avl_iter_t it;
-  if (pwr->alive)
-    return DDS_RETCODE_PRECONDITION_NOT_MET;
+  struct proxy_writer_alive_state alive_state;
+  proxy_writer_get_alive_state_locked (pwr, &alive_state);
+
+  struct ddsi_guid rdguid;
+  struct pwr_rd_match *m;
+  memset (&rdguid, 0, sizeof (rdguid));
+  while (pwr->alive_vclock == alive_state.vclock &&
+         (m = ddsrt_avl_lookup_succ (&pwr_readers_treedef, &pwr->readers, &rdguid)) != NULL)
+  {
+    rdguid = m->rd_guid;
+    ddsrt_mutex_unlock (&pwr->e.lock);
+    /* unlocking pwr means alive state may have changed already; we break out of the loop once we
+       detect this but there for the reader in the current iteration, anything is possible */
+    reader_update_notify_pwr_alive_state_guid (&rdguid, pwr, &alive_state);
+    ddsrt_mutex_lock (&pwr->e.lock);
+  }
+}
+
+void proxy_writer_set_alive_may_unlock (struct proxy_writer *pwr, bool notify)
+{
+  /* Caller has pwr->e.lock, so we can safely read pwr->alive.  Updating pwr->alive requires
+     also taking pwr->c.proxypp->e.lock because pwr->alive <=> (pwr->lease in proxypp's lease
+     heap). */
+  assert (!pwr->alive);
+
   ddsrt_mutex_lock (&pwr->c.proxypp->e.lock);
   pwr->alive = true;
-
-  for (struct pwr_rd_match *m = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, &it); m != NULL; m = ddsrt_avl_iter_next (&it))
-  {
-    struct reader *rd;
-    if ((rd = ephash_lookup_reader_guid (pwr->e.gv->guid_hash, &m->rd_guid)) != NULL)
-    {
-      status_cb_data_t data;
-      data.add = true;
-      data.handle = pwr->e.iid;
-      data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
-      (rd->status_cb) (rd->status_cb_entity, &data);
-    }
-  }
+  pwr->alive_vclock++;
   if (pwr->c.xqos->liveliness.lease_duration != T_NEVER && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
     proxy_participant_add_pwr_lease_locked (pwr->c.proxypp, pwr);
   ddsrt_mutex_unlock (&pwr->c.proxypp->e.lock);
-  return DDS_RETCODE_OK;
+
+  if (notify)
+    proxy_writer_notify_liveliness_change_may_unlock (pwr);
 }
 
-int proxy_writer_set_notalive (struct proxy_writer *pwr)
+int proxy_writer_set_notalive (struct proxy_writer *pwr, bool notify)
 {
   /* Caller should not have taken pwr->e.lock and pwr->c.proxypp->e.lock;
    * this function takes both locks to update pwr->alive value */
-  int ret = DDS_RETCODE_OK;
   ddsrt_mutex_lock (&pwr->e.lock);
   if (!pwr->alive)
-    ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+  {
+    ddsrt_mutex_unlock (&pwr->e.lock);
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+  }
+
+  ddsrt_mutex_lock (&pwr->c.proxypp->e.lock);
+  pwr->alive = false;
+  pwr->alive_vclock++;
+  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
+    proxy_participant_remove_pwr_lease_locked (pwr->c.proxypp, pwr);
+  ddsrt_mutex_unlock (&pwr->c.proxypp->e.lock);
+
+  if (notify)
+    proxy_writer_notify_liveliness_change_may_unlock (pwr);
+  ddsrt_mutex_unlock (&pwr->e.lock);
+  return DDS_RETCODE_OK;
+}
+
+void proxy_writer_set_notalive_guid (struct q_globals *gv, const struct ddsi_guid *pwrguid, bool notify)
+{
+  struct proxy_writer *pwr;
+  if ((pwr = ephash_lookup_proxy_writer_guid (gv->guid_hash, pwrguid)) == NULL)
+    GVLOGDISC (" "PGUIDFMT"?\n", PGUID (*pwrguid));
   else
   {
-    ddsrt_mutex_lock (&pwr->c.proxypp->e.lock);
-    pwr->alive = false;
-    if (pwr->c.xqos->liveliness.lease_duration != T_NEVER && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
-      proxy_participant_remove_pwr_lease_locked (pwr->c.proxypp, pwr);
-    ddsrt_mutex_unlock (&pwr->c.proxypp->e.lock);
+    GVLOGDISC ("proxy_writer_set_notalive_guid ("PGUIDFMT")", PGUID (*pwrguid));
+    if (proxy_writer_set_notalive (pwr, notify) == DDS_RETCODE_PRECONDITION_NOT_MET)
+      GVLOGDISC (" pwr was not alive");
+    GVLOGDISC ("\n");
   }
-  ddsrt_mutex_unlock (&pwr->e.lock);
-  return ret;
 }
 
 /* PROXY-READER ----------------------------------------------------- */
