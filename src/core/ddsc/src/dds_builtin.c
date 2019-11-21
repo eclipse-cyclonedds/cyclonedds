@@ -76,7 +76,7 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
   }
 
   dds_qos_t *qos = dds__create_builtin_qos ();
-  tp = dds_create_topic_arbitrary (par->m_entity.m_hdllink.hdl, sertopic, qos, NULL, NULL);
+  tp = dds_create_topic_impl (par->m_entity.m_hdllink.hdl, sertopic, qos, NULL, NULL);
   dds_delete_qos (qos);
   dds_entity_unpin (e);
   return tp;

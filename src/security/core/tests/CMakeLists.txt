@@ -15,6 +15,7 @@ include (CUnit)
 set(security_core_test_sources
     "tc_fsm.c"
     "dds_security_core.c"
+    "security_utils.c"
   )
 
 add_definitions(-DDDSI_INCLUDE_SECURITY)

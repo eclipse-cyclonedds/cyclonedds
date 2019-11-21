@@ -13,10 +13,12 @@
 #ifndef DSCMN_SECURITY_UTILS_H_
 #define DSCMN_SECURITY_UTILS_H_
 
-#include "dds/export.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "dds/export.h"
+#include "dds/ddsrt/strtol.h"
+#include "dds/ddsrt/time.h"
 #include "dds/security/core/dds_security_types.h"
 #include "dds/security/dds_security_api.h"
 
@@ -338,6 +340,10 @@ ddssec_strchrs (
         const char *str,
         const char *chrs,
         bool inc);
+
+DDS_EXPORT dds_time_t
+DDS_Security_parse_xml_date(
+        char *buf);
 
 
 #define DDS_Security_ParticipantCryptoTokenSeq_alloc() \

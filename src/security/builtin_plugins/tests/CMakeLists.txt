@@ -23,6 +23,16 @@ set(security_auth_test_sources
     "validate_remote_identity/src/validate_remote_identity_utests.c"
 )
 
+set(security_ac_test_sources
+    "access_control_fnmatch/src/access_control_fnmatch_utests.c"
+    "get_permissions_credential_token/src/get_permissions_credential_token_utests.c"
+    "get_permissions_token/src/get_permissions_token_utests.c"
+    "get_xxx_sec_attributes/src/get_xxx_sec_attributes_utests.c"
+    # "listeners_access_control/src/listeners_access_control_utests.c"
+    "validate_local_permissions/src/validate_local_permissions_utests.c"
+    "validate_remote_permissions/src/validate_remote_permissions_utests.c"
+)
+
 set(security_crypto_test_sources
     "common/src/crypto_helper.c"
     "create_local_datareader_crypto_tokens/src/create_local_datareader_crypto_tokens_utests.c"
@@ -48,9 +58,21 @@ set(security_crypto_test_sources
     "set_remote_participant_crypto_tokens/src/set_remote_participant_crypto_tokens_utests.c"
 )
 
-add_cunit_executable(cunit_security_plugins ${security_auth_test_sources} ${security_crypto_test_sources})
+add_cunit_executable(cunit_security_plugins ${security_auth_test_sources} ${security_ac_test_sources} ${security_crypto_test_sources})
+target_include_directories(
+  cunit_security_plugins PRIVATE
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
+  "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>"
+  "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_core,INTERFACE_INCLUDE_DIRECTORIES>>"
+  "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
+)
+target_link_libraries(cunit_security_plugins PRIVATE ddsc security_api)
+
 if(OPENSSL_FOUND)
-  target_link_libraries(cunit_security_plugins PRIVATE ddsc dds_security_crypto)
+target_link_libraries(cunit_security_plugins PRIVATE ddsc dds_security_ac)
+target_link_libraries(cunit_security_plugins PRIVATE ddsc dds_security_crypto)
   target_link_libraries(cunit_security_plugins PRIVATE OpenSSL::SSL)
 else()
   message(FATAL_ERROR "To build with openssl support, set ENABLE_OPENSSL to ON")
@@ -58,6 +80,7 @@ endif()
 
 target_include_directories(
   cunit_security_plugins PRIVATE
+      "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../access_control/src/>"
       "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../cryptographic/src/>"
       "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>"
       "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_core,INTERFACE_INCLUDE_DIRECTORIES>>"

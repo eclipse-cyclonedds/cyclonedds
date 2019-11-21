@@ -280,7 +280,7 @@ const struct dds_entity_deriver dds_entity_deriver_topic = {
   .validate_status = dds_topic_status_validate
 };
 
-dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const nn_plist_t *sedp_plist)
+dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const nn_plist_t *sedp_plist)
 {
   dds_return_t rc;
   dds_participant *par;
@@ -463,6 +463,15 @@ err_invalid_qos:
   dds_delete_qos (new_qos);
   dds_entity_unpin (par_ent);
   return rc;
+}
+
+dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const nn_plist_t *sedp_plist)
+{
+  assert(sertopic);
+  assert(sertopic->name);
+  if (!strncmp(sertopic->name, "DCPS", 4))
+    return DDS_RETCODE_BAD_PARAMETER;
+  return dds_create_topic_impl (participant, sertopic, qos, listener, sedp_plist);
 }
 
 dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descriptor_t *desc, const char *name, const dds_qos_t *qos, const dds_listener_t *listener)
