@@ -1,0 +1,95 @@
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----E0088C6C0B487BC746E35E87718DA89E"
+
+This is an S/MIME signed message
+
+------E0088C6C0B487BC746E35E87718DA89E
+Content-Type: text/plain
+
+<?xml version="1.0" encoding="utf-8"?>
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_permissions.xsd">
+    <permissions>
+        <grant name="OpenSplicePermissions">
+            <subject_name>/O=Internet Widgits Pty Ltd/ST=Some-State/C=NL/CN=CHAM500 cert</subject_name>
+            <validity>
+                <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
+                <not_after>2115-09-15T01:00:00</not_after>
+            </validity>
+            <allow_rule>
+                <domains>
+                    <id_range>
+                        <min>0</min>
+                        <max>230</max>
+                    </id_range>
+                </domains>
+                <publish>
+                    <topics>
+                        <topic>K*</topic>
+                        <topic>*OldMessage</topic>
+                        <topic>OldMessanger</topic>
+                        <topic>NewMessage</topic>
+                    </topics>
+        <partitions>
+      <partition>Apart</partition>
+      <partition>Bpa?t*</partition>
+        </partitions>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>K*</topic>
+                        <topic>*OldMessage</topic>
+                        <topic>OldMessanger</topic>
+                        <topic>NewMessage</topic>
+                    </topics>
+                </subscribe>
+            </allow_rule>
+
+            <default>ALLOW</default>
+        </grant>
+    </permissions>
+</dds>
+
+------E0088C6C0B487BC746E35E87718DA89E
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+
+MIIGXgYJKoZIhvcNAQcCoIIGTzCCBksCAQExDzANBglghkgBZQMEAgEFADALBgkq
+hkiG9w0BBwGgggORMIIDjTCCAnWgAwIBAgIJANsr3sm0NrypMA0GCSqGSIb3DQEB
+CwUAMFwxCzAJBgNVBAYTAk5MMRMwEQYDVQQIDApTb21lLVN0YXRlMR8wHQYDVQQK
+DBZBRExJTksgVGVjaG5vbG9jeSBJbmMuMRcwFQYDVQQDDA5hZGxpbmt0ZWNoLmNv
+bTAgFw0xODA3MzAxMjQ1NTVaGA8yMTE4MDcwNjEyNDU1NVowXDELMAkGA1UEBhMC
+TkwxEzARBgNVBAgMClNvbWUtU3RhdGUxHzAdBgNVBAoMFkFETElOSyBUZWNobm9s
+b2N5IEluYy4xFzAVBgNVBAMMDmFkbGlua3RlY2guY29tMIIBIjANBgkqhkiG9w0B
+AQEFAAOCAQ8AMIIBCgKCAQEAu7jfnJ0wYVuXgG+PgNawdN38+dRpa8jceqi+blID
+ehV6XCxrnGXusTCDuFmo7HMOBVMVNDXlcBWgoGd+u5EultnOEiIeGTgtHc1O6V9w
+icp3BGSpZZax/TcONjMVORaqHCADbQ2J8wsz1FHxuKDwX6BJElYOlK77lb/x3yLs
+DFFC+a0qn2RFh37rcWBRAHy8VEASXKZElT9ZmfKd+KUq34KojhNJ4DepKStTq074
+BRDXVivx+wVD951LFNPiQXq+mgHcLj1k37KlZflTFhdP5oEMtATNsXNJPHlEymiy
+SogRWAmKhysLQudukHfNKN+r0FEQMk/hzpYcFeZSOvbfNQIDAQABo1AwTjAdBgNV
+HQ4EFgQURWMbWvBKZwJvRV1/tyc1R82k0+gwHwYDVR0jBBgwFoAURWMbWvBKZwJv
+RV1/tyc1R82k0+gwDAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAkPF+
+ysVtvHnk2hpu9yNDLCJ96ZzIoKOyY7uRj4ovzlAHFdpNOJQdcJihTmN8i7Trht9X
+Vh0rGoR/6nHzo3TIeiogRC80RlDtuA3PF2dDQBMVDStlZMTZPb693hfjdAjhyyw9
+yghhKHHqNDvSsAL0KfBqjG4yGfGpJylYXIT5fWuKlo/ln/yyPa5s54T5XDo+CMbt
+lLX3QnwVOmaRyzylPiTcPCDIkdLBdXmlfyJcmW6fWa6kPx+35MOxPsXZbujCo+42
++OyLqcH1rKT6XhcshjXBEf+kdgUfSClrM1pNRWsw2ChIYim0F+nry5JFy0Y+8Hbb
+6SDB340BFmtgDHbFHTGCApEwggKNAgEBMGkwXDELMAkGA1UEBhMCTkwxEzARBgNV
+BAgMClNvbWUtU3RhdGUxHzAdBgNVBAoMFkFETElOSyBUZWNobm9sb2N5IEluYy4x
+FzAVBgNVBAMMDmFkbGlua3RlY2guY29tAgkA2yveybQ2vKkwDQYJYIZIAWUDBAIB
+BQCggfowGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcN
+MTkwMzI5MTMwODAzWjAvBgkqhkiG9w0BCQQxIgQgOCgkm0Mu6pRSDhlMd5/7OGhr
+3TedLdpw5DQNC60vDgYwgY4GCSqGSIb3DQEJDzGBgDB+MAsGCWCGSAFlAwQBKjAI
+BgYqhQMCAgkwCAYGKoUDAgIVMAsGCWCGSAFlAwQBFjALBglghkgBZQMEAQIwCgYI
+KoZIhvcNAwcwDgYIKoZIhvcNAwICAgCAMA0GCCqGSIb3DQMCAgFAMAcGBSsOAwIH
+MA0GCCqGSIb3DQMCAgEoMA0GCSqGSIb3DQEBAQUABIIBALYwxGivvBYfCdRADnYd
+ysgBOITPhEY+TqqqEtiX4cIyeEdZGMFxcciMxbXVB1qy7js7PM+tbZ/+ICutyA7J
+dkU9cNO9hLM/LYASv9B9zpgxMecYcA9rx7OEpM3Sr2eXOTbu2j3gUoCun7y8f+yv
+iiYUORa0cX8oFnq++rQXHE/0rOVd17tboLvsy97Tro8o1e7WFA2gkJsCyo4QF+Lg
+yz8IKdKMIRLpEl07bGIcIq4gvarQnN3qT1KuOMrDQD29CFZMwCO/TSGVeZYRHdW9
+s1hhmrTlkmlhPyXG9yxm9PH9UHZyfhkbrhIXZtN6M/7SO8VfTMfotyTbFtuatzzL
+fz4=
+
+------E0088C6C0B487BC746E35E87718DA89E--
+
