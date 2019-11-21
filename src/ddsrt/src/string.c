@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/types.h"
 
@@ -182,6 +183,7 @@ ddsrt_str_replace(
     cur = tmp + lsrch;
   if (!(tmp = r = ddsrt_malloc(lstr + cnt * (lsubst - lsrch) + 1)))
     return NULL;
+  DDSRT_WARNING_MSVC_OFF(4996);
   while (cnt--)
   {
     cur = strstr(str, srch);
@@ -193,5 +195,6 @@ ddsrt_str_replace(
     str += offset + lsrch;
   }
   strcpy(tmp, str);
+  DDSRT_WARNING_MSVC_ON(4996);
   return r;
 }
