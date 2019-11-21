@@ -1110,21 +1110,3 @@ an endless loop.
 There is furthermore also a difference of interpretation of the meaning of the
 ‘autodispose_unregistered_instances’ QoS on the writer.  Eclipse Cyclone DDS aligns with
 OpenSplice.
-
-
-.. _`Compatibility issues with TwinOaks`:
-
-Compatibility issues with TwinOaks
-----------------------------------
-
-In the default configuration there should be no interoperability issues with TwinOaks CoreDX,
-although there is the aforementioned difference in interpretation of the meaning of the
-‘autodispose_unregistered_instances’ QoS on the writer.
-
-Interoperability with very old versions of CoreDX may require setting:
-
-+ ``Compatibility/ManySocketsMode``: *true*
-+ ``Compatibility/ExplicitlyPublishQosSetToDefault``: *true*
-
-The exact version number of CoreDX starting with which these settings are no longer needed is
-unknown, but it has certainly not been needed for several years.

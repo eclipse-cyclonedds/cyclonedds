@@ -1173,6 +1173,8 @@ static const struct piddesc piddesc_omg[] = {
 #ifdef DDSI_INCLUDE_SSM
   PPV (READER_FAVOURS_SSM,                  reader_favours_ssm, Xu),
 #endif
+  PP  (DOMAIN_ID,                           domain_id, Xu),
+  PP  (DOMAIN_TAG,                          domain_tag, XS),
   { PID_STATUSINFO, PDF_FUNCTION, PP_STATUSINFO, "STATUSINFO",
     offsetof (struct nn_plist, statusinfo), membersize (struct nn_plist, statusinfo),
     { .f = { .deser = deser_statusinfo, .ser = ser_statusinfo } }, 0 },
@@ -1318,8 +1320,8 @@ static const struct piddesc_index piddesc_vendor_index[] = {
 /* List of entries that require unalias, fini processing;
    initialized by nn_plist_init_tables; will assert when
    table too small or too large */
-static const struct piddesc *piddesc_unalias[19];
-static const struct piddesc *piddesc_fini[19];
+static const struct piddesc *piddesc_unalias[20];
+static const struct piddesc *piddesc_fini[20];
 static ddsrt_once_t table_init_control = DDSRT_ONCE_INIT;
 
 static nn_parameterid_t pid_without_flags (nn_parameterid_t pid)
@@ -2098,13 +2100,7 @@ static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_t
     return return_unrecognized_pid (plist, pid);
   assert (pid_without_flags (pid) == pid_without_flags (entry->pid));
   if (pid != entry->pid)
-  {
-    DDS_CERROR (logcfg, "error processing parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" mapped to pid %"PRIx16"\n",
-                dd->vendorid.id[0], dd->vendorid.id[1],
-                dd->protocol_version.major, dd->protocol_version.minor,
-                pid, entry->pid);
     return return_unrecognized_pid (plist, pid);
-  }
   assert (pid != PID_PAD);
 
   struct flagset flagset;

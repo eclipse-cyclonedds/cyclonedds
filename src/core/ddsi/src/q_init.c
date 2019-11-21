@@ -82,7 +82,7 @@ static enum make_uc_sockets_ret make_uc_sockets (struct q_globals *gv, uint32_t 
   if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
   {
     assert (ppid == PARTICIPANT_INDEX_NONE);
-    *pdata = *pdisc = ddsi_get_port (&gv->config.ports, DDSI_PORT_MULTI_DISC, gv->config.domainId, ppid);
+    *pdata = *pdisc = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, ppid);
     if (gv->config.allowMulticast)
     {
       /* FIXME: ugly hack - but we'll fix up after creating the multicast sockets */
@@ -90,8 +90,8 @@ static enum make_uc_sockets_ret make_uc_sockets (struct q_globals *gv, uint32_t 
     }
   }
 
-  *pdisc = ddsi_get_port (&gv->config.ports, DDSI_PORT_UNI_DISC, gv->config.domainId, ppid);
-  *pdata = ddsi_get_port (&gv->config.ports, DDSI_PORT_UNI_DATA, gv->config.domainId, ppid);
+  *pdisc = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, ppid);
+  *pdata = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DATA, ppid);
 
   if (!ddsi_is_valid_port (gv->m_factory, *pdisc) || !ddsi_is_valid_port (gv->m_factory, *pdata))
     return MUSRET_INVALID_PORTS;
@@ -279,7 +279,7 @@ static int string_to_default_locator (const struct q_globals *gv, nn_locator_t *
 
 static int set_spdp_address (struct q_globals *gv)
 {
-  const uint32_t port = ddsi_get_port (&gv->config.ports, DDSI_PORT_MULTI_DISC, gv->config.domainId, 0);
+  const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
   int rc = 0;
   /* FIXME: FIXME: FIXME: */
   gv->loc_spdp_mc.kind = NN_LOCATOR_KIND_INVALID;
@@ -311,7 +311,7 @@ static int set_spdp_address (struct q_globals *gv)
 
 static int set_default_mc_address (struct q_globals *gv)
 {
-  const uint32_t port = ddsi_get_port (&gv->config.ports, DDSI_PORT_MULTI_DATA, gv->config.domainId, 0);
+  const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DATA, 0);
   int rc;
   if (!gv->config.defaultMulticastAddressString)
     gv->loc_default_mc = gv->loc_spdp_mc;
@@ -452,6 +452,14 @@ int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
   unsigned num_channel_threads = 0;
 #endif
 
+  /* advertised domain id defaults to the real domain id; clear "isdefault" so the config
+     dump includes the actually used value rather than "default" */
+  if (gv->config.extDomainId.isdefault)
+  {
+    gv->config.extDomainId.value = gv->config.domainId;
+    gv->config.extDomainId.isdefault = 0;
+  }
+
   {
     char message[256];
     int32_t ppidx;
@@ -464,7 +472,7 @@ int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
       assert (0);
       ppidx = 0;
     }
-    if (!ddsi_valid_portmapping (&gv->config.ports, gv->config.domainId, ppidx, message, sizeof (message)))
+    if (!ddsi_valid_portmapping (&gv->config, ppidx, message, sizeof (message)))
     {
       DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "Invalid port mapping: %s\n", message);
       goto err_config_late_error;
@@ -658,11 +666,11 @@ int create_multicast_sockets (struct q_globals *gv)
   uint32_t port;
   qos->m_multicast = 1;
 
-  port = ddsi_get_port (&gv->config.ports, DDSI_PORT_MULTI_DISC, gv->config.domainId, 0);
+  port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
   if (!ddsi_is_valid_port (gv->m_factory, port))
   {
     GVERROR ("Failed to create discovery multicast socket for domain %"PRIu32": resulting port number (%"PRIu32") is out of range\n",
-             gv->config.domainId, port);
+             gv->config.extDomainId.value, port);
     goto err_disc;
   }
   if ((disc = ddsi_factory_create_conn (gv->m_factory, port, qos)) == NULL)
@@ -674,11 +682,11 @@ int create_multicast_sockets (struct q_globals *gv)
   }
   else
   {
-    port = ddsi_get_port (&gv->config.ports, DDSI_PORT_MULTI_DATA, gv->config.domainId, 0);
+    port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DATA, 0);
     if (!ddsi_is_valid_port (gv->m_factory, port))
     {
       GVERROR ("Failed to create data multicast socket for domain %"PRIu32": resulting port number (%"PRIu32") is out of range\n",
-               gv->config.domainId, port);
+               gv->config.extDomainId.value, port);
       goto err_disc;
     }
     if ((data = ddsi_factory_create_conn (gv->m_factory, port, qos)) == NULL)
@@ -1005,7 +1013,7 @@ int rtps_init (struct q_globals *gv)
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   /* Convert address sets in partition mappings from string to address sets */
   {
-    const uint32_t port = ddsi_get_port (&gv->config.ports, DDSI_PORT_MULTI_DATA, gv->config.domainId, 0);
+    const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DATA, 0);
     struct config_networkpartition_listelem *np;
     for (np = gv->config.networkPartitions; np; np = np->next)
     {
@@ -1102,10 +1110,10 @@ int rtps_init (struct q_globals *gv)
           break;
         case MUSRET_INVALID_PORTS:
           GVERROR ("Failed to create unicast sockets for domain %"PRIu32" participant index %d: resulting port numbers (%"PRIu32", %"PRIu32") are out of range\n",
-                   gv->config.domainId, gv->config.participantIndex, port_disc_uc, port_data_uc);
+                   gv->config.extDomainId.value, gv->config.participantIndex, port_disc_uc, port_data_uc);
           goto err_unicast_sockets;
         case MUSRET_NOSOCKET:
-          GVERROR ("rtps_init: failed to create unicast sockets for domain %"PRId32" participant index %d (ports %"PRIu32", %"PRIu32")\n", gv->config.domainId, gv->config.participantIndex, port_disc_uc, port_data_uc);
+          GVERROR ("rtps_init: failed to create unicast sockets for domain %"PRId32" participant index %d (ports %"PRIu32", %"PRIu32")\n", gv->config.extDomainId.value, gv->config.participantIndex, port_disc_uc, port_data_uc);
           goto err_unicast_sockets;
       }
     }
@@ -1124,7 +1132,7 @@ int rtps_init (struct q_globals *gv)
             break;
           case MUSRET_INVALID_PORTS:
             GVERROR ("Failed to create unicast sockets for domain %"PRIu32" participant index %d: resulting port numbers (%"PRIu32", %"PRIu32") are out of range\n",
-                     gv->config.domainId, ppid, port_disc_uc, port_data_uc);
+                     gv->config.extDomainId.value, ppid, port_disc_uc, port_data_uc);
             goto err_unicast_sockets;
           case MUSRET_NOSOCKET: /* Try next one */
             break;
@@ -1132,7 +1140,7 @@ int rtps_init (struct q_globals *gv)
       }
       if (ppid > gv->config.maxAutoParticipantIndex)
       {
-        GVERROR ("Failed to find a free participant index for domain %"PRIu32"\n", gv->config.domainId);
+        GVERROR ("Failed to find a free participant index for domain %"PRIu32"\n", gv->config.extDomainId.value);
         goto err_unicast_sockets;
       }
       gv->config.participantIndex = ppid;

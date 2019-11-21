@@ -157,12 +157,14 @@ the discovery of peers.&lt;/p&gt;</xs:documentation>
         <xs:element minOccurs="0" ref="config:DSGracePeriod"/>
         <xs:element minOccurs="0" ref="config:DefaultMulticastAddress"/>
         <xs:element minOccurs="0" ref="config:EnableTopicDiscovery"/>
+        <xs:element minOccurs="0" ref="config:ExternalDomainId"/>
         <xs:element minOccurs="0" ref="config:MaxAutoParticipantIndex"/>
         <xs:element minOccurs="0" ref="config:ParticipantIndex"/>
         <xs:element minOccurs="0" ref="config:Peers"/>
         <xs:element minOccurs="0" ref="config:Ports"/>
         <xs:element minOccurs="0" ref="config:SPDPInterval"/>
         <xs:element minOccurs="0" ref="config:SPDPMulticastAddress"/>
+        <xs:element minOccurs="0" ref="config:Tag"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -192,6 +194,16 @@ Discovery/SPDPMulticastAddress.&lt;/p&gt;&lt;p&gt;The default value is:
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;Do not use.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;true&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="ExternalDomainId" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;An override for the domain id, to be used in discovery and for
+determining the port number mapping. This allows creating multiple
+domains in a single process while making them appear as a single domain
+on the network. The value "default" disables the override.&lt;/p&gt;&lt;p&gt;The
+default value is: &amp;quot;default&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="MaxAutoParticipantIndex" type="xs:integer">
@@ -369,6 +381,13 @@ destination for the participant discovery packets. In IPv4 mode the
 default is the (standardised) 239.255.0.1, in IPv6 mode it becomes
 ff02::ffff:239.255.0.1, which is a non-standardised link-local multicast
 address.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;239.255.0.1&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="Tag" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;String extension for domain id that remote participants must match to
+be discovered.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="General">

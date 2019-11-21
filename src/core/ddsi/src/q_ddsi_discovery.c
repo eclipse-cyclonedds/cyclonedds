@@ -217,12 +217,25 @@ int spdp_write (struct participant *pp)
 
   nn_plist_init_empty (&ps);
   ps.present |= PP_PARTICIPANT_GUID | PP_BUILTIN_ENDPOINT_SET |
-    PP_PROTOCOL_VERSION | PP_VENDORID | PP_PARTICIPANT_LEASE_DURATION;
+    PP_PROTOCOL_VERSION | PP_VENDORID | PP_PARTICIPANT_LEASE_DURATION |
+    PP_DOMAIN_ID;
   ps.participant_guid = pp->e.guid;
   ps.builtin_endpoint_set = pp->bes;
   ps.protocol_version.major = RTPS_MAJOR;
   ps.protocol_version.minor = RTPS_MINOR;
   ps.vendorid = NN_VENDORID_ECLIPSE;
+  ps.domain_id = pp->e.gv->config.extDomainId.value;
+  /* Be sure not to send a DOMAIN_TAG when it is the default (an empty)
+     string: it is an "incompatible-if-unrecognized" parameter, and so
+     implementations that don't understand the parameter will refuse to
+     discover us, and so sending the default would break backwards
+     compatibility. */
+  if (strcmp (pp->e.gv->config.domainTag, "") != 0)
+  {
+    ps.present |= PP_DOMAIN_TAG;
+    ps.aliased |= PP_DOMAIN_TAG;
+    ps.domain_tag = pp->e.gv->config.domainTag;
+  }
   if (pp->prismtech_bes)
   {
     ps.present |= PP_PRISMTECH_BUILTIN_ENDPOINT_SET;
@@ -518,6 +531,18 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
   ddsi_guid_t privileged_pp_guid;
   dds_duration_t lease_duration;
   unsigned custom_flags = 0;
+
+  /* If advertised domain id or domain tag doesn't match, ignore the message.  Do this first to
+     minimize the impact such messages have. */
+  {
+    const uint32_t domain_id = (datap->present & PP_DOMAIN_ID) ? datap->domain_id : gv->config.extDomainId.value;
+    const char *domain_tag = (datap->present & PP_DOMAIN_TAG) ? datap->domain_tag : "";
+    if (domain_id != gv->config.extDomainId.value || strcmp (domain_tag, gv->config.domainTag) != 0)
+    {
+      GVTRACE ("ignore remote participant in mismatching domain %"PRIu32" tag \"%s\"\n", domain_id, domain_tag);
+      return 0;
+    }
+  }
 
   if (!(datap->present & PP_PARTICIPANT_GUID) || !(datap->present & PP_BUILTIN_ENDPOINT_SET))
   {
