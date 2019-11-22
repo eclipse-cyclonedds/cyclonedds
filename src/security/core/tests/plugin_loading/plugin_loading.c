@@ -20,6 +20,7 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
+#include "plugin_mock_common.h"
 //#include "dds/ddsi/ddsi_security_omg.h"
 
 #define FORCE_ENV
@@ -112,9 +113,9 @@ CU_Test(ddssec_security_plugin_loading, all_ok, .init = ddsrt_init, .fini = ddsr
           "<DDSSecurity>"
             "<Authentication>"
               "<Library path=\"dds_security_authentication_all_ok\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
-              "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-              "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-              "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+              "<IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_ALL_OK"</IdentityCertificate>"
+              "<IdentityCA>"TEST_CA_CERTIFICATE_ALL_OK"</IdentityCA>"
+              "<PrivateKey>"TEST_PRIVATE_KEY_ALL_OK"</PrivateKey>"
               "<Password>testtext_Password_testtext</Password>"
               "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
             "</Authentication>"
