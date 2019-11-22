@@ -141,6 +141,7 @@ static int register_local_datareader(void)
   memset(&datareader_properties, 0, sizeof(datareader_properties));
   memset(&datareader_security_attributes, 0, sizeof(datareader_security_attributes));
   datareader_security_attributes.is_discovery_protected = true;
+  datareader_security_attributes.is_submessage_protected = true;
 
   local_reader_crypto =
       crypto->crypto_key_factory->register_local_datareader(

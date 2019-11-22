@@ -109,7 +109,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
 static struct entity_common *entity_common_from_proxy_endpoint_common (const struct proxy_endpoint_common *c);
 
 #ifdef DDSI_INCLUDE_SECURITY
-static void handshake_end_cb(struct ddsi_domaingv const * const gv, struct ddsi_handshake *handshake, const struct ddsi_guid *lpguid, const struct ddsi_guid *ppguid, enum ddsi_handshake_state result);
+static void handshake_end_cb(struct ddsi_handshake *handshake, struct participant *pp, struct proxy_participant *proxypp, enum ddsi_handshake_state result);
 static void downgrade_to_nonsecure(struct proxy_participant *proxypp);
 #endif
 
@@ -215,6 +215,13 @@ static int is_builtin_volatile_endpoint (ddsi_entityid_t id)
   default:
     break;
   }
+  return 0;
+}
+#else
+
+static int is_builtin_volatile_endpoint (ddsi_entityid_t id)
+{
+  DDSRT_UNUSED_ARG(id);
   return 0;
 }
 
@@ -637,14 +644,14 @@ static void connect_participant_secure(struct ddsi_domaingv *gv, struct particip
 
   if (q_omg_participant_is_secure(pp))
   {
+    q_omg_security_participant_set_initialized(pp);
+
     entidx_enum_proxy_participant_init (&it, gv->entity_index);
     while ((proxypp = entidx_enum_proxy_participant_next (&it)) != NULL)
     {
       /* Do not start handshaking when security info doesn't match. */
-      if (q_omg_is_similar_participant_security_info(pp, proxypp))
-      {
+      if (q_omg_security_remote_participant_is_initialized(proxypp) && q_omg_is_similar_participant_security_info(pp, proxypp))
         ddsi_handshake_register(pp, proxypp, handshake_end_cb);
-      }
     }
     entidx_enum_proxy_participant_fini (&it);
   }
@@ -743,7 +750,7 @@ static void participant_remove_wr_lease_locked (struct participant * pp, struct 
   }
 }
 
-dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
+dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
 {
   struct participant *pp;
   ddsi_guid_t subguid, group_guid;
@@ -806,6 +813,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domain
   ddsi_plist_mergein_missing (pp->plist, &gv->default_local_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
 
 #ifdef DDSI_INCLUDE_SECURITY
+  pp->sec_attr = NULL;
   /*
    * if there there are security properties check them .
    * if there are no security properties, then merge from security configuration if there is
@@ -876,6 +884,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domain
       ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
       goto not_allowed;
     }
+    *ppguid = pp->e.guid;
   }
 #endif
 
@@ -1257,6 +1266,9 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
          while longer for it to wakeup. */
       ddsi_conn_free (pp->m_conn);
     }
+#ifdef DDSI_INCLUDE_SECURITY
+    q_omg_security_deregister_participant(pp);
+#endif
     ddsi_plist_fini (pp->plist);
     ddsrt_free (pp->plist);
     ddsrt_mutex_destroy (&pp->refc_lock);
@@ -1735,19 +1747,30 @@ void rebuild_or_clear_writer_addrsets (struct ddsi_domaingv *gv, int rebuild)
   GVLOGDISC ("rebuild_or_delete_writer_addrsets(%d) done\n", rebuild);
 }
 
-static void free_wr_prd_match (struct wr_prd_match *m)
+static void free_wr_prd_match (const struct ddsi_domaingv *gv, const ddsi_guid_t *wr_guid, struct wr_prd_match *m)
 {
   if (m)
   {
+#ifdef DDSI_INCLUDE_SECURITY
+    q_omg_security_deregister_remote_reader_match (gv, wr_guid, m);
+#else
+    (void) gv;
+    (void) wr_guid;
+#endif
     nn_lat_estim_fini (&m->hb_to_ack_latency);
     ddsrt_free (m);
   }
 }
 
-static void free_rd_pwr_match (struct ddsi_domaingv *gv, struct rd_pwr_match *m)
+static void free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_guid, struct rd_pwr_match *m)
 {
   if (m)
   {
+#ifdef DDSI_INCLUDE_SECURITY
+    q_omg_security_deregister_remote_writer_match (gv, rd_guid, m);
+#else
+    (void) rd_guid;
+#endif
 #ifdef DDSI_INCLUDE_SSM
     if (!is_unspec_locator (&m->ssm_mc_loc))
     {
@@ -1756,7 +1779,8 @@ static void free_rd_pwr_match (struct ddsi_domaingv *gv, struct rd_pwr_match *m)
       if (ddsi_leave_mc (gv, gv->mship, gv->data_conn_mc, &m->ssm_src_loc, &m->ssm_mc_loc) < 0)
         GVWARNING ("failed to leave network partition ssm group\n");
     }
-#else
+#endif
+#if !(defined DDSI_INCLUDE_SECURITY || defined DDSI_INCLUDE_SSM)
     (void) gv;
 #endif
     ddsrt_free (m);
@@ -1829,8 +1853,10 @@ static void writer_drop_connection (const struct ddsi_guid *wr_guid, const struc
       ddsrt_avl_delete (&wr_readers_treedef, &wr->readers, m);
       rebuild_writer_addrset (wr);
       remove_acked_messages (wr, &whcst, &deferred_free_list);
+      wr->num_readers--;
       wr->num_reliable_readers -= m->is_reliable;
     }
+
     ddsrt_mutex_unlock (&wr->e.lock);
     if (m != NULL && wr->status_cb)
     {
@@ -1841,7 +1867,7 @@ static void writer_drop_connection (const struct ddsi_guid *wr_guid, const struc
       (wr->status_cb) (wr->status_cb_entity, &data);
     }
     whc_free_deferred_free_list (wr->whc, deferred_free_list);
-    free_wr_prd_match (m);
+    free_wr_prd_match (wr->e.gv, &wr->e.guid, m);
   }
 }
 
@@ -1981,7 +2007,11 @@ static void reader_drop_connection (const struct ddsi_guid *rd_guid, const struc
     struct rd_pwr_match *m;
     ddsrt_mutex_lock (&rd->e.lock);
     if ((m = ddsrt_avl_lookup (&rd_writers_treedef, &rd->writers, &pwr->e.guid)) != NULL)
+    {
       ddsrt_avl_delete (&rd_writers_treedef, &rd->writers, m);
+      rd->num_writers--;
+    }
+
     ddsrt_mutex_unlock (&rd->e.lock);
     if (m != NULL)
     {
@@ -2005,7 +2035,7 @@ static void reader_drop_connection (const struct ddsi_guid *rd_guid, const struc
         (rd->status_cb) (rd->status_cb_entity, &data);
       }
     }
-    free_rd_pwr_match (pwr->e.gv, m);
+    free_rd_pwr_match (pwr->e.gv, &rd->e.guid, m);
   }
 }
 
@@ -2122,7 +2152,7 @@ static void proxy_reader_drop_connection (const struct ddsi_guid *prd_guid, stru
   }
 }
 
-static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
+static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, int64_t crypto_handle)
 {
   struct wr_prd_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
@@ -2134,6 +2164,11 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
   m->all_have_replied_to_hb = 0;
   m->non_responsive_count = 0;
   m->rexmit_requests = 0;
+#ifdef DDSI_INCLUDE_SECURITY
+  m->crypto_handle = crypto_handle;
+#else
+  DDSRT_UNUSED_ARG(crypto_handle);
+#endif
   /* m->demoted: see below */
   ddsrt_mutex_lock (&prd->e.lock);
   if (prd->deleting)
@@ -2179,6 +2214,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
               PGUID (wr->e.guid), PGUID (prd->e.guid), m->seq);
     ddsrt_avl_insert_ipath (&wr_readers_treedef, &wr->readers, m, &path);
     rebuild_writer_addrset (wr);
+    wr->num_readers++;
     wr->num_reliable_readers += m->is_reliable;
     ddsrt_mutex_unlock (&wr->e.lock);
 
@@ -2275,7 +2311,7 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
   }
 }
 
-static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, nn_count_t *init_count, const struct alive_state *alive_state)
+static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, nn_count_t *init_count, const struct alive_state *alive_state, int64_t crypto_handle)
 {
   struct rd_pwr_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
@@ -2283,6 +2319,11 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
   m->pwr_guid = pwr->e.guid;
   m->pwr_alive = alive_state->alive;
   m->pwr_alive_vclock = alive_state->vclock;
+#ifdef DDSI_INCLUDE_SECURITY
+  m->crypto_handle = crypto_handle;
+#else
+  DDSRT_UNUSED_ARG(crypto_handle);
+#endif
 
   ddsrt_mutex_lock (&rd->e.lock);
 
@@ -2307,7 +2348,9 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
   {
     ELOGDISC (rd, "  reader_add_connection(pwr "PGUIDFMT" rd "PGUIDFMT")\n",
               PGUID (pwr->e.guid), PGUID (rd->e.guid));
+
     ddsrt_avl_insert_ipath (&rd_writers_treedef, &rd->writers, m, &path);
+    rd->num_writers++;
     ddsrt_mutex_unlock (&rd->e.lock);
 
 #ifdef DDSI_INCLUDE_SSM
@@ -2390,7 +2433,7 @@ static void reader_add_local_connection (struct reader *rd, struct writer *wr, c
   }
 }
 
-static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader *rd, nn_mtime_t tnow, nn_count_t init_count)
+static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader *rd, nn_mtime_t tnow, nn_count_t init_count, int64_t crypto_handle)
 {
   struct pwr_rd_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
@@ -2427,6 +2470,12 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   m->seq_last_nack = 0;
   m->last_seq = 0;
   m->filtered = 0;
+
+#ifdef DDSI_INCLUDE_SECURITY
+  m->crypto_handle = crypto_handle;
+#else
+  DDSRT_UNUSED_ARG(crypto_handle);
+#endif
 
   /* These can change as a consequence of handling data and/or
      discovery activities. The safe way of dealing with them is to
@@ -2525,12 +2574,18 @@ already_matched:
 
 
 
-static void proxy_reader_add_connection (struct proxy_reader *prd, struct writer *wr)
+static void proxy_reader_add_connection (struct proxy_reader *prd, struct writer *wr, int64_t crypto_handle)
 {
   struct prd_wr_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
 
   m->wr_guid = wr->e.guid;
+#ifdef DDSI_INCLUDE_SECURITY
+  m->crypto_handle = crypto_handle;
+#else
+  DDSRT_UNUSED_ARG(crypto_handle);
+#endif
+
   ddsrt_mutex_lock (&prd->e.lock);
   if (ddsrt_avl_lookup_ipath (&prd_writers_treedef, &prd->writers, &wr->e.guid, &path))
   {
@@ -2547,6 +2602,7 @@ static void proxy_reader_add_connection (struct proxy_reader *prd, struct writer
     ddsrt_avl_insert_ipath (&prd_writers_treedef, &prd->writers, m, &path);
     ddsrt_mutex_unlock (&prd->e.lock);
     qxev_prd_entityid (prd, &wr->e.guid);
+
   }
 }
 
@@ -2680,14 +2736,14 @@ static bool topickind_qos_match_p_lock (struct entity_common *rd, const dds_qos_
   return ret;
 }
 
-void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_reader *prd, nn_mtime_t tnow)
+void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_reader *prd, nn_mtime_t tnow, int64_t crypto_handle)
 {
   DDSRT_UNUSED_ARG(tnow);
-  proxy_reader_add_connection (prd, wr);
-  writer_add_connection (wr, prd);
+  proxy_reader_add_connection (prd, wr, crypto_handle);
+  writer_add_connection (wr, prd, crypto_handle);
 }
 
-void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, nn_mtime_t tnow)
+void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, nn_mtime_t tnow, int64_t crypto_handle)
 {
   nn_count_t init_count;
   struct alive_state alive_state;
@@ -2696,8 +2752,8 @@ void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_wri
      sensible, but that may be outdated by the time the reader gets added to the writer's list
      of matching readers. */
   proxy_writer_get_alive_state (pwr, &alive_state);
-  reader_add_connection (rd, pwr, &init_count,  &alive_state);
-  proxy_writer_add_connection (pwr, rd, tnow, init_count);
+  reader_add_connection (rd, pwr, &init_count,  &alive_state, crypto_handle);
+  proxy_writer_add_connection (pwr, rd, tnow, init_count, crypto_handle);
 
   /* Once everything is set up: update with the latest state, any updates to the alive state
      happening in parallel will cause this to become a no-op. */
@@ -2710,6 +2766,8 @@ static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_re
   const int isb0 = (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
   const int isb1 = (is_builtin_entityid (prd->e.guid.entityid, prd->c.vendor) != 0);
   dds_qos_policy_id_t reason;
+  int64_t crypto_handle;
+
   DDSRT_UNUSED_ARG(tnow);
   if (isb0 != isb1)
     return;
@@ -2726,15 +2784,15 @@ static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_re
     EELOGDISC (&wr->e, "connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") not allowed by security\n",
                    PGUID (wr->e.guid), PGUID (prd->e.guid));
   }
-  else if (!q_omg_security_match_remote_reader_enabled (wr, prd))
+  else if (!q_omg_security_match_remote_reader_enabled (wr, prd, &crypto_handle))
   {
     EELOGDISC (&wr->e, "connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") waiting for approval by security\n",
                      PGUID (wr->e.guid), PGUID (prd->e.guid));
   }
   else
   {
-    proxy_reader_add_connection (prd, wr);
-    writer_add_connection (wr, prd);
+    proxy_reader_add_connection (prd, wr, crypto_handle);
+    writer_add_connection (wr, prd, crypto_handle);
   }
 }
 
@@ -2745,6 +2803,8 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
   dds_qos_policy_id_t reason;
   nn_count_t init_count;
   struct alive_state alive_state;
+  int64_t crypto_handle;
+
   if (isb0 != isb1)
     return;
   if (rd->e.onlylocal)
@@ -2760,7 +2820,7 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
     EELOGDISC (&rd->e, "connect_proxy_writer_with_reader (pwr "PGUIDFMT") with (rd "PGUIDFMT") not allowed by security\n",
         PGUID (pwr->e.guid), PGUID (rd->e.guid));
   }
-  else if (!q_omg_security_match_remote_writer_enabled(rd, pwr))
+  else if (!q_omg_security_match_remote_writer_enabled(rd, pwr, &crypto_handle))
   {
     EELOGDISC (&rd->e, "connect_proxy_writer_with_reader (pwr "PGUIDFMT") with  (rd "PGUIDFMT") waiting for approval by security\n",
         PGUID (pwr->e.guid), PGUID (rd->e.guid));
@@ -2771,8 +2831,8 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
        sensible, but that may be outdated by the time the reader gets added to the writer's list
        of matching readers. */
     proxy_writer_get_alive_state (pwr, &alive_state);
-    reader_add_connection (rd, pwr, &init_count, &alive_state);
-    proxy_writer_add_connection (pwr, rd, tnow, init_count);
+    reader_add_connection (rd, pwr, &init_count, &alive_state, crypto_handle);
+    proxy_writer_add_connection (pwr, rd, tnow, init_count, crypto_handle);
 
     /* Once everything is set up: update with the latest state, any updates to the alive state
        happening in parallel will cause this to become a no-op. */
@@ -3108,7 +3168,7 @@ static void update_proxy_participant_endpoint_matching (struct proxy_participant
     enum entity_kind mkind;
 
     guid.entityid = endpoint_ids[i];
-    if ((e = entidx_lookup_guid_untyped(proxypp->e.gv->entity_index, &guid)) == NULL)
+    if ((e = entidx_lookup_guid_untyped(entidx, &guid)) == NULL)
       continue;
 
     mkind = generic_do_match_mkind (e->kind, false);
@@ -3119,10 +3179,10 @@ static void update_proxy_participant_endpoint_matching (struct proxy_participant
       struct match_entities_range_key max;
       const char *tp = entity_topic_name (e);
 
-      entidx_enum_init_topic_w_prefix (&it, entidx, mkind, tp, &pp->e.guid.prefix, &max);
+      entidx_enum_init_topic(&it, entidx, mkind, tp, &max);
       while ((em = entidx_enum_next_max (&it, &max)) != NULL)
       {
-        if (&pp->e == get_entity_parent(e))
+        if (&pp->e == get_entity_parent(em))
           generic_do_match_connect (e, em, tnow, false);
       }
       entidx_enum_fini (&it);
@@ -3498,6 +3558,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->retransmitting = 0;
   wr->t_rexmit_end.v = 0;
   wr->t_whc_high_upd.v = 0;
+  wr->num_readers = 0;
   wr->num_reliable_readers = 0;
   wr->num_acks_received = 0;
   wr->num_nacks_received = 0;
@@ -3511,6 +3572,9 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
 
   wr->status_cb = status_cb;
   wr->status_cb_entity = status_entity;
+#ifdef DDSI_INCLUDE_SECURITY
+  wr->sec_attr = NULL;
+#endif
 
   /* Copy QoS, merging in defaults */
 
@@ -3646,8 +3710,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
     wr->whc_low = wr->e.gv->config.whc_lowwater_mark;
     wr->whc_high = wr->e.gv->config.whc_init_highwater_mark.value;
   }
-  assert (!(wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
-          ||
+  assert (!(is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE) && !is_builtin_volatile_endpoint(wr->e.guid.entityid)) ||
            (wr->whc_low == wr->whc_high && wr->whc_low == INT32_MAX));
 
   /* Connection admin */
@@ -3678,6 +3741,10 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_g
   const bool onlylocal = topic && builtintopic_is_builtintopic (pp->e.gv->builtin_topic_interface, topic);
   endpoint_common_init (&wr->e, &wr->c, pp->e.gv, EK_WRITER, guid, group_guid, pp, onlylocal);
   new_writer_guid_common_init(wr, topic, xqos, whc, status_cb, status_entity);
+
+#ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_register_writer(wr);
+#endif
 
   /* entity_index needed for protocol handling, so add it before we send
    out our first message.  Also: needed for matching, and swapping
@@ -3745,6 +3812,16 @@ dds_return_t new_writer (struct writer **wr_out, struct ddsi_domaingv *gv, struc
     return DDS_RETCODE_BAD_PARAMETER;
   }
 
+#ifdef DDSI_INCLUDE_SECURITY
+  /* Check if DDS Security is enabled */
+  if (q_omg_participant_is_secure (pp))
+  {
+    /* ask to access control security plugin for create writer permissions */
+    if (!q_omg_security_check_create_writer (pp, gv->config.domainId, topic->name, xqos))
+      return DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+  }
+#endif
+
   /* participant can't be freed while we're mucking around cos we are
      awake and do not touch the thread's vtime (entidx_lookup already
      verifies we're awake) */
@@ -3811,7 +3888,7 @@ static void gc_delete_writer (struct gcreq *gcreq)
     struct wr_prd_match *m = ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers);
     ddsrt_avl_delete (&wr_readers_treedef, &wr->readers, m);
     proxy_reader_drop_connection (&m->prd_guid, wr);
-    free_wr_prd_match (m);
+    free_wr_prd_match (wr->e.gv, &wr->e.guid, m);
   }
   while (!ddsrt_avl_is_empty (&wr->local_readers))
   {
@@ -3835,6 +3912,9 @@ static void gc_delete_writer (struct gcreq *gcreq)
   if (wr->status_cb)
     (wr->status_cb) (wr->status_cb_entity, NULL);
 
+#ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_deregister_writer(wr);
+#endif
 #ifdef DDSI_INCLUDE_SSM
   if (wr->ssm_as)
     unref_addrset (wr->ssm_as);
@@ -3956,6 +4036,9 @@ dds_return_t delete_writer_nolinger (struct ddsi_domaingv *gv, const struct ddsi
     return DDS_RETCODE_BAD_PARAMETER;
   }
   GVLOGDISC ("delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (*guid));
+#ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_deregister_writer(wr);
+#endif
   ddsrt_mutex_lock (&wr->e.lock);
   delete_writer_nolinger_locked (wr);
   ddsrt_mutex_unlock (&wr->e.lock);
@@ -4174,8 +4257,12 @@ static dds_return_t new_reader_guid
   rd->ddsi2direct_cb = 0;
   rd->ddsi2direct_cbarg = 0;
   rd->init_acknack_count = 0;
+  rd->num_writers = 0;
 #ifdef DDSI_INCLUDE_SSM
   rd->favours_ssm = 0;
+#endif
+#ifdef DDSI_INCLUDE_SECURITY
+  rd->sec_attr = NULL;
 #endif
   if (topic == NULL)
   {
@@ -4190,6 +4277,10 @@ static dds_return_t new_reader_guid
     ddsi_rhc_set_qos (rd->rhc, rd->xqos);
   }
   assert (rd->xqos->present & QP_LIVELINESS);
+
+#ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_register_reader(rd);
+#endif
 
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   rd->as = new_addrset ();
@@ -4282,6 +4373,17 @@ dds_return_t new_reader
     GVLOGDISC ("new_reader - participant "PGUIDFMT" not found\n", PGUID (*ppguid));
     return DDS_RETCODE_BAD_PARAMETER;
   }
+
+#ifdef DDSI_INCLUDE_SECURITY
+  /* Check if DDS Security is enabled */
+  if (q_omg_participant_is_secure (pp))
+  {
+    /* ask to access control security plugin for create writer permissions */
+    if (!q_omg_security_check_create_reader (pp, gv->config.domainId, topic->name, xqos))
+      return DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+  }
+#endif
+
   rdguid->prefix = pp->e.guid.prefix;
   kind = topic->topickind_no_key ? NN_ENTITYID_KIND_READER_NO_KEY : NN_ENTITYID_KIND_READER_WITH_KEY;
   if ((rc = pp_allocate_entityid (&rdguid->entityid, kind, pp)) < 0)
@@ -4301,7 +4403,7 @@ static void gc_delete_reader (struct gcreq *gcreq)
     struct rd_pwr_match *m = ddsrt_avl_root_non_empty (&rd_writers_treedef, &rd->writers);
     ddsrt_avl_delete (&rd_writers_treedef, &rd->writers, m);
     proxy_writer_drop_connection (&m->pwr_guid, rd);
-    free_rd_pwr_match (rd->e.gv, m);
+    free_rd_pwr_match (rd->e.gv, &rd->e.guid, m);
   }
   while (!ddsrt_avl_is_empty (&rd->local_writers))
   {
@@ -4310,6 +4412,10 @@ static void gc_delete_reader (struct gcreq *gcreq)
     writer_drop_local_connection (&m->wr_guid, rd);
     free_rd_wr_match (m);
   }
+
+#ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_deregister_reader(rd);
+#endif
 
   if (!is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE))
     sedp_dispose_unregister_reader (rd);
@@ -4353,6 +4459,9 @@ dds_return_t delete_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *gu
   GVLOGDISC ("delete_reader_guid(guid "PGUIDFMT") ...\n", PGUID (*guid));
   builtintopic_write (rd->e.gv->builtin_topic_interface, &rd->e, now(), false);
   entidx_remove_reader_guid (gv->entity_index, rd);
+#ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_deregister_reader(rd);
+#endif
   gcreq_reader (rd);
   return 0;
 }
@@ -4639,58 +4748,34 @@ static void proxy_participant_remove_pwr_lease_locked (struct proxy_participant 
 
 #ifdef DDSI_INCLUDE_SECURITY
 
-void handshake_end_cb
-(
-  struct ddsi_domaingv const * const gv,
-  struct ddsi_handshake *handshake,
-  const struct ddsi_guid *lpguid,
-  const struct ddsi_guid *ppguid,
-  enum ddsi_handshake_state result)
+void handshake_end_cb(struct ddsi_handshake *handshake, struct participant *pp, struct proxy_participant *proxypp, enum ddsi_handshake_state result)
 {
-  struct proxy_participant *proxypp;
-  struct participant *pp;
+  const struct ddsi_domaingv * const gv = pp->e.gv;
   int64_t shared_secret;
-  int64_t permissions_hdl;
-
-  assert(handshake);
-  assert(lpguid);
-  assert(ppguid);
-
-  assert(gv);
-
-  proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid);
-  if (!proxypp)
-    return;
-
-  pp = entidx_lookup_participant_guid (gv->entity_index, lpguid);
-  if (!pp)
-    return;
 
   switch(result)
   {
   case STATE_HANDSHAKE_PROCESSED:
     shared_secret = ddsi_handshake_get_shared_secret(handshake);
-    DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") processed\n", PGUID (*lpguid), PGUID (*ppguid));
-    permissions_hdl = q_omg_security_check_remote_participant_permissions(gv->config.domainId, pp, proxypp);
-    if (permissions_hdl != 0) {
-      q_omg_security_register_remote_participant(pp, proxypp, shared_secret, permissions_hdl);
+    DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") processed\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
+    if (q_omg_security_register_remote_participant(pp, proxypp, shared_secret)) {
       match_volatile_secure_endpoints(pp, proxypp);
     }
     break;
 
   case STATE_HANDSHAKE_SEND_TOKENS:
-    DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") send tokens\n", PGUID (*lpguid), PGUID (*ppguid));
+    DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") send tokens\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
     q_omg_security_participant_send_tokens(pp, proxypp);
     break;
 
   case STATE_HANDSHAKE_OK:
-    DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") succeeded\n", PGUID (*lpguid), PGUID (*ppguid));
+    DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") succeeded\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
     update_proxy_participant_endpoint_matching(proxypp, pp);
     ddsi_handshake_remove(pp, proxypp, handshake);
     break;
 
   case STATE_HANDSHAKE_TIMED_OUT:
-    DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Timed out\n", PGUID (*lpguid), PGUID (*ppguid), (int)result);
+    DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Timed out\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), (int)result);
     if (q_omg_participant_allow_unauthenticated(pp)) {
       downgrade_to_nonsecure(proxypp);
       update_proxy_participant_endpoint_matching(proxypp, pp);
@@ -4698,7 +4783,7 @@ void handshake_end_cb
     ddsi_handshake_remove(pp, proxypp, handshake);
     break;
   case STATE_HANDSHAKE_FAILED:
-    DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Failed\n", PGUID (*lpguid), PGUID (*ppguid), (int)result);
+    DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Failed\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), (int)result);
     if (q_omg_participant_allow_unauthenticated(pp)) {
       downgrade_to_nonsecure(proxypp);
       update_proxy_participant_endpoint_matching(proxypp, pp);
@@ -4706,7 +4791,7 @@ void handshake_end_cb
     ddsi_handshake_remove(pp, proxypp, handshake);
     break;
   default:
-    DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Unknown failure\n", PGUID (*lpguid), PGUID (*ppguid), (int)result);
+    DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Unknown failure\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), (int)result);
     ddsi_handshake_remove(pp, proxypp, handshake);
     break;
   }
@@ -4729,22 +4814,37 @@ static int proxy_participant_check_security_info(struct ddsi_domaingv *gv, struc
   return r;
 }
 
-
 static void proxy_participant_create_handshakes(struct ddsi_domaingv *gv, struct proxy_participant *proxypp)
 {
   struct participant *pp;
   struct entidx_enum_participant est;
 
+  q_omg_security_remote_participant_set_initialized(proxypp);
+
   entidx_enum_participant_init (&est, gv->entity_index);
   while (((pp = entidx_enum_participant_next (&est)) != NULL)) {
-    if (q_omg_participant_is_secure(pp))
-    {
+    if (q_omg_security_participant_is_initialized(pp))
       ddsi_handshake_register(pp, proxypp, handshake_end_cb);
-    }
   }
   entidx_enum_participant_fini(&est);
 }
 
+static void disconnect_proxy_participant_secure(struct proxy_participant *proxypp)
+{
+  struct participant *pp;
+  struct entidx_enum_participant it;
+  struct ddsi_domaingv * const gv = proxypp->e.gv;
+
+  if (q_omg_proxy_participant_is_secure(proxypp))
+  {
+    entidx_enum_participant_init (&it, gv->entity_index);
+    while ((pp = entidx_enum_participant_next (&it)) != NULL)
+    {
+      ddsi_handshake_remove(pp, proxypp, NULL);
+    }
+    entidx_enum_participant_fini (&it);
+  }
+}
 #endif
 
 static void free_proxy_participant(struct proxy_participant *proxypp)
@@ -4765,6 +4865,7 @@ static void free_proxy_participant(struct proxy_participant *proxypp)
     lease_free (proxypp->lease);
   }
 #ifdef DDSI_INCLUDE_SECURITY
+  disconnect_proxy_participant_secure(proxypp);
   q_omg_security_deregister_remote_participant(proxypp);
 #endif
   unref_addrset (proxypp->as_default);
@@ -4870,7 +4971,6 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
   ddsrt_avl_init (&proxypp_groups_treedef, &proxypp->groups);
 
 #ifdef DDSI_INCLUDE_SECURITY
-  proxypp->remote_identity_handle = 0;
   proxypp->sec_attr = NULL;
   set_proxy_participant_security_info (proxypp, plist);
   if (is_secure)
@@ -4879,7 +4979,7 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
     /* check if the proxy participant has a match with a local participant */
     if (!proxy_participant_check_security_info (gv, proxypp))
     {
-      GVWARNING ("Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
+ //     GVWARNING ("Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
       free_proxy_participant (proxypp);
       return;
     }
@@ -4903,7 +5003,9 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
 
 #ifdef DDSI_INCLUDE_SECURITY
   if (is_secure)
+  {
     proxy_participant_create_handshakes (gv, proxypp);
+  }
 #endif
 }
 
@@ -5399,7 +5501,10 @@ int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
   pwr->ddsi2direct_cb = 0;
   pwr->ddsi2direct_cbarg = 0;
 
+#ifdef DDSI_INCLUDE_SECURITY
   set_proxy_writer_security_info(pwr, plist);
+  q_omg_get_proxy_writer_security_info(pwr, plist, &(pwr->security_info));
+#endif
 
   local_reader_ary_init (&pwr->rdary);
 
@@ -5678,11 +5783,14 @@ int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, 
 #endif
   prd->is_fict_trans_reader = 0;
 
+#ifdef DDSI_INCLUDE_SECURITY
   set_proxy_reader_security_info(prd, plist);
+#endif
 
   ddsrt_avl_init (&prd_writers_treedef, &prd->writers);
 
 #ifdef DDSI_INCLUDE_SECURITY
+  q_omg_get_proxy_reader_security_info(prd, plist, &(prd->security_info));
   if (prd->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER)
     prd->filter = volatile_secure_data_filter;
   else
@@ -5762,7 +5870,6 @@ static void gc_delete_proxy_reader (struct gcreq *gcreq)
     writer_drop_connection (&m->wr_guid, prd);
     free_prd_wr_match (m);
   }
-
   proxy_endpoint_common_fini (&prd->e, &prd->c);
   ddsrt_free (prd);
 }

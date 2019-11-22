@@ -920,22 +920,31 @@ void nn_xmsg_setwriterseq_fragid (struct nn_xmsg *msg, const ddsi_guid_t *wrguid
   msg->kindspecific.data.wrfragid = wrfragid;
 }
 
-void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len)
+void *nn_xmsg_addpar_bo (struct nn_xmsg *m, nn_parameterid_t pid, size_t len, bool be)
 {
+#define BO2U(x)  (be ? ddsrt_toBE2u((x)) : (x))
+
   const size_t len4 = (len + 3) & ~(size_t)3; /* must alloc a multiple of 4 */
   nn_parameter_t *phdr;
   char *p;
   assert (len4 < UINT16_MAX); /* FIXME: return error */
   m->have_params = 1;
   phdr = nn_xmsg_append (m, NULL, sizeof (nn_parameter_t) + len4);
-  phdr->parameterid = pid;
-  phdr->length = (uint16_t) len4;
+  phdr->parameterid = BO2U(pid);
+  phdr->length = BO2U((uint16_t) len4);
   p = (char *) (phdr + 1);
   /* zero out padding bytes added to satisfy parameter alignment: this way
      valgrind can tell us where we forgot to initialize something */
   while (len < len4)
     p[len++] = 0;
   return p;
+
+#undef BO2U
+}
+
+void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len)
+{
+  return nn_xmsg_addpar_bo(m, pid, len, false);
 }
 
 void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serdata, bool force_md5)
@@ -972,6 +981,11 @@ void nn_xmsg_addpar_statusinfo (struct nn_xmsg *m, unsigned statusinfo)
 void nn_xmsg_addpar_sentinel (struct nn_xmsg * m)
 {
   nn_xmsg_addpar (m, PID_SENTINEL, 0);
+}
+
+void nn_xmsg_addpar_sentinel_bo (struct nn_xmsg * m, bool be)
+{
+  nn_xmsg_addpar_bo (m, PID_SENTINEL, 0, be);
 }
 
 int nn_xmsg_addpar_sentinel_ifparam (struct nn_xmsg * m)
@@ -1188,6 +1202,7 @@ static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const nn_locator_t *loc)
   if (xp->sec_info.use_rtps_encoding)
   {
     ret = secure_conn_write(
+                      xp->gv,
                       xp->conn,
                       loc,
                       xp->niov,

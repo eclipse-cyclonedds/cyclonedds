@@ -42,6 +42,11 @@ int WildcardOverlap(char * p1, char * p2)
 }
 #endif
 
+bool guid_prefix_zero (const ddsi_guid_prefix_t *a)
+{
+  return a->u[0] == 0 && a->u[1] == 0 && a->u[2] == 0;
+}
+
 int guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_prefix_t *b)
 {
   return a->u[0] == b->u[0] && a->u[1] == b->u[1] && a->u[2] == b->u[2];

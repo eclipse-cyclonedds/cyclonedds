@@ -958,8 +958,10 @@ static int permissions_element_open_cb(void *varg, uintptr_t parentinfo, uintptr
   {
     parser->current = new_element(ELEMENT_KIND_IGNORED, parser->current, sizeof(struct element));
     /*if this is the first element in the IGNORED branch, then give warning for the user*/
+#if 0
     if (parser->current->parent->kind != ELEMENT_KIND_IGNORED)
       printf("Warning: Unsupported element \"%s\" has been ignored in permissions file.\n", name);
+#endif
   }
   else
   {

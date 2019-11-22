@@ -12,9 +12,7 @@
 #ifndef DDSI_HANDSHAKE_H
 #define DDSI_HANDSHAKE_H
 
-#include "q_unused.h"
-#include "q_entity.h"
-#include "ddsi_security_msg.h"
+#include "dds/ddsi/q_entity.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -37,10 +35,9 @@ enum ddsi_handshake_state {
 /* The handshake will not use the related handshake object after this callback
  * was executed. This means that it can be deleted in this callback. */
 typedef void (*ddsi_handshake_end_cb_t)(
-    struct ddsi_domaingv const * const gv,
     struct ddsi_handshake *handshake,
-    const ddsi_guid_t *lpguid, /* Local participant */
-    const ddsi_guid_t *ppguid, /* Proxy participant */
+    struct participant *pp,
+    struct proxy_participant *proxypp,
     enum ddsi_handshake_state result);
 
 #ifdef DDSI_INCLUDE_SECURITY
@@ -123,7 +120,7 @@ int64_t ddsi_handshake_get_handle(const struct ddsi_handshake *handshake);
  * @param[in] callback   The callback function.
  *
  */
-void ddsi_handshake_register(const struct participant *pp, const struct proxy_participant *proxypp, ddsi_handshake_end_cb_t callback);
+void ddsi_handshake_register(struct participant *pp, struct proxy_participant *proxypp, ddsi_handshake_end_cb_t callback);
 
 /**
  * @brief Remove the handshake associated with the specified participants.
@@ -137,7 +134,7 @@ void ddsi_handshake_register(const struct participant *pp, const struct proxy_pa
  * @param[in] handshake  The handshake.
  *
  */
-void ddsi_handshake_remove(const struct participant *pp, const struct proxy_participant *proxypp, struct ddsi_handshake *handshake);
+void ddsi_handshake_remove(struct participant *pp, struct proxy_participant *proxypp, struct ddsi_handshake *handshake);
 
 /**
  * @brief Searches for the handshake associated with the specified participants
@@ -150,12 +147,42 @@ void ddsi_handshake_remove(const struct participant *pp, const struct proxy_part
  *
  * @returns The handshake
  */
-struct ddsi_handshake * ddsi_handshake_find(const struct participant *pp, const struct proxy_participant *proxypp);
+struct ddsi_handshake * ddsi_handshake_find(struct participant *pp, struct proxy_participant *proxypp);
+
+/**
+ * @brief Searches for the handshake associated with the specified participants
+ *
+ * This function will search through the handshake administration to find the handshake
+ * corresponding the to specified local and remote participant.
+ *
+ * @param[in] pp         The local participant.
+ * @param[in] proxypp    The remote participant.
+ *
+ * @returns The handshake
+ */
+struct ddsi_handshake * ddsi_handshake_find(struct participant *pp, struct proxy_participant *proxypp);
+
+/**
+ * @brief Initialize the handshake administration
+ *
+ * @param[in] gv         The global parameters
+ */
+void ddsi_handshake_admin_init(struct ddsi_domaingv *gv);
+
+/**
+ * @brief Deinitialze the handshake administration.
+ *
+ * @param[in] gv         The global parameters
+ */
+void ddsi_handshake_admin_deinit(struct ddsi_domaingv *gv);
 
 #else /* DDSI_INCLUDE_SECURITY */
 
 #include "dds/ddsi/q_unused.h"
 
+inline void ddsi_handshake_register(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp), UNUSED_ARG(ddsi_handshake_end_cb_t callback))
+{
+}
 
 inline void ddsi_handshake_release(UNUSED_ARG(struct ddsi_handshake *handshake))
 {
@@ -175,15 +202,11 @@ inline int64_t ddsi_handshake_get_handle(UNUSED_ARG(const struct ddsi_handshake 
   return 0;
 }
 
-inline void ddsi_handshake_register(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(ddsi_handshake_end_cb_t callback))
+inline void ddsi_handshake_remove(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp), UNUSED_ARG(struct ddsi_handshake *handshake))
 {
 }
 
-inline void ddsi_handshake_remove(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(struct ddsi_handshake *handshake))
-{
-}
-
-inline struct ddsi_handshake * ddsi_handshake_find(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp))
+inline struct ddsi_handshake * ddsi_handshake_find(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
 {
   return NULL;
 }

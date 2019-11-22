@@ -1225,7 +1225,8 @@ get_trusted_ca_list ( const char* trusted_ca_dir,
                         if( loading_result == DDS_SECURITY_VALIDATION_OK ){
                             ca_buffer_array[ca_buffer_array_size] = identityCA;
                             ca_buffer_array_size++;
-
+                        } else {
+                          DDS_Security_Exception_reset(ex);
                         }
                     }
                 }

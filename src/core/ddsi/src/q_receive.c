@@ -80,11 +80,6 @@ static void deliver_user_data_synchronously (struct nn_rsample_chain *sc, const 
 
 static void maybe_set_reader_in_sync (struct proxy_writer *pwr, struct pwr_rd_match *wn, seqno_t last_deliv_seq)
 {
-  if (wn->filtered)
-  {
-    wn->in_sync = PRMSS_OUT_OF_SYNC;
-    return;
-  }
   switch (wn->in_sync)
   {
     case PRMSS_SYNC:
@@ -99,12 +94,15 @@ static void maybe_set_reader_in_sync (struct proxy_writer *pwr, struct pwr_rd_ma
       }
       break;
     case PRMSS_OUT_OF_SYNC:
-      assert (nn_reorder_next_seq (wn->u.not_in_sync.reorder) <= nn_reorder_next_seq (pwr->reorder));
-      if (pwr->have_seen_heartbeat && nn_reorder_next_seq (wn->u.not_in_sync.reorder) == nn_reorder_next_seq (pwr->reorder))
+      if (!wn->filtered)
       {
-        ETRACE (pwr, " msr_in_sync("PGUIDFMT" out-of-sync to tlcatchup)", PGUID (wn->rd_guid));
-        wn->in_sync = PRMSS_TLCATCHUP;
-        maybe_set_reader_in_sync (pwr, wn, last_deliv_seq);
+        assert (nn_reorder_next_seq (wn->u.not_in_sync.reorder) <= nn_reorder_next_seq (pwr->reorder));
+        if (pwr->have_seen_heartbeat && nn_reorder_next_seq (wn->u.not_in_sync.reorder) == nn_reorder_next_seq (pwr->reorder))
+        {
+          ETRACE (pwr, " msr_in_sync("PGUIDFMT" out-of-sync to tlcatchup)", PGUID (wn->rd_guid));
+          wn->in_sync = PRMSS_TLCATCHUP;
+          maybe_set_reader_in_sync (pwr, wn, last_deliv_seq);
+        }
       }
       break;
   }
@@ -1929,6 +1927,12 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
       failmsg = "no content";
     else if (!(qos->present & PP_KEYHASH))
       failmsg = "qos present but without keyhash";
+    else if (q_omg_plist_keyhash_is_protected(qos))
+    {
+      /* If the keyhash is protected, then it is forced to be an actual MD5
+       * hash. This means the keyhash can't be decoded into a sample. */
+      failmsg = "keyhash is protected";
+    }
     else if ((sample = ddsi_serdata_from_keyhash (topic, &qos->keyhash)) == NULL)
       failmsg = "keyhash is MD5 and can't be converted to key value";
     else
@@ -3018,7 +3022,7 @@ static int handle_submsg_sequence
       case SMID_SEC_PREFIX:
         state = "parse:sec_prefix";
         {
-          GVTRACE ("SEC_PREFIX");
+          GVTRACE ("SEC_PREFIX ");
           if (!decode_SecPrefix(rst, submsg, submsg_size, end, &rst->src_guid_prefix, &rst->dst_guid_prefix, byteswap))
             goto malformed;
         }

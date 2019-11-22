@@ -29,6 +29,11 @@ int generate_key_pairs(
     char **private_key,
     char **public_key);
 
+bool crypto_factory_get_protection_kind(
+    const dds_security_crypto_key_factory *factory,
+    int64_t handle,
+    DDS_Security_ProtectionKind *kind);
+
 bool crypto_factory_get_participant_crypto_tokens(
     const dds_security_crypto_key_factory *factory,
     DDS_Security_ParticipantCryptoHandle local_id,

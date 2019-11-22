@@ -369,16 +369,19 @@ static const uint32_t TransitionsSize = sizeof(Transitions)/sizeof(Transitions[0
  **********************************************************************/
 
 typedef enum {
-    eventToTimeout, eventToEnd,
+    eventToTimeout, eventToInterupt, eventToEnd,
 } timeout_events;
+
+struct fsm_timeout_arg {
+  int id;
+};
 
 static struct dds_security_fsm *fsm_timeout;
 static uint32_t visited_timeout = 0;
 static uint32_t correct_fsm_timeout = 0;
 static uint32_t correct_arg_timeout = 0;
-static ddsrt_cond_t stop_timeout_cond;
-static ddsrt_mutex_t stop_timeout_cond_mutex;
-static uint32_t stop_timeout_cond_cnt = 0;
+static struct fsm_timeout_arg fsm_arg = { .id = FSM_AUTH_ARG };
+
 
 /* The functions called from the state-machine. */
 static void doInterupt(struct dds_security_fsm *fsm, void *arg)
@@ -393,24 +396,15 @@ static void doInterupt(struct dds_security_fsm *fsm, void *arg)
 
 static void doTimeout(struct dds_security_fsm *fsm, void *arg)
 {
-  dds_duration_t delay4 = 4 * DDS_NSECS_IN_SEC;
-
   DDSRT_UNUSED_ARG(arg);
 
   if (DB_TC_PRINT_DEBUG) {
-    printf("Transition >>>> %s %d\n", __FUNCTION__, stop_timeout_cond_cnt);
+    printf("Transition >>>> %s\n", __FUNCTION__);
   }
   visited_timeout |= 1UL << 1;
 
-  stop_timeout_cond_cnt++;
-  ddsrt_mutex_lock(&stop_timeout_cond_mutex);
-  (void) ddsrt_cond_waitfor(&stop_timeout_cond, &stop_timeout_cond_mutex,
-                            delay4);
-  ddsrt_mutex_unlock(&stop_timeout_cond_mutex);
-  stop_timeout_cond_cnt--;
-
   if (DB_TC_PRINT_DEBUG) {
-    printf("Transition <<<< %s %d\n", __FUNCTION__, stop_timeout_cond_cnt);
+    printf("Transition <<<< %s\n", __FUNCTION__);
   }
 
   dds_security_fsm_dispatch(fsm, eventToTimeout, false);
@@ -418,7 +412,7 @@ static void doTimeout(struct dds_security_fsm *fsm, void *arg)
 
 static void TimeoutCallback(struct dds_security_fsm *fsm, void *arg)
 {
-  int *fsm_arg;
+  struct fsm_timeout_arg *farg = arg;
 
   if (DB_TC_PRINT_DEBUG) {
     printf("TimeoutCallback\n");
@@ -426,10 +420,8 @@ static void TimeoutCallback(struct dds_security_fsm *fsm, void *arg)
 
   visited_timeout |= 1UL << 2;
 
-  if (arg != NULL) {
-    fsm_arg = (int *) arg;
-
-    if (*fsm_arg == FSM_AUTH_ARG) {
+  if (farg != NULL) {
+    if (farg->id == FSM_AUTH_ARG) {
       correct_arg_timeout = 1;
     } else {
       correct_arg_timeout = 0;
@@ -452,14 +444,17 @@ static void TimeoutCallback2(struct dds_security_fsm *fsm, void *arg)
   visited_timeout |= 1UL << 3;
 }
 
-static dds_security_fsm_state StateTimeout  = {doTimeout,  0};static int fsm_arg = FSM_AUTH_ARG;
+static dds_security_fsm_state StateInitial     = {doTimeout,  0};
+static dds_security_fsm_state StateWaitTimeout = {NULL, DDS_SECS(4)};
+static dds_security_fsm_state StateInterupt    = {doInterupt, 0};
 
-static dds_security_fsm_state StateInterupt = {doInterupt, 0};
 
 static const dds_security_fsm_transition TimeoutTransitions[] = {
-    {NULL,          DDS_SECURITY_FSM_EVENT_AUTO, NULL, &StateTimeout},  // NULL state is the start state
-    {&StateTimeout, eventToTimeout,              NULL, &StateInterupt},
-    {&StateInterupt,eventToEnd,                  NULL, NULL},           // Reaching NULL means end of state-diagram
+    {NULL,              DDS_SECURITY_FSM_EVENT_AUTO,    NULL, &StateInitial},  // NULL state is the start state
+    {&StateInitial,     eventToTimeout,                 NULL, &StateWaitTimeout},
+    {&StateWaitTimeout, DDS_SECURITY_FSM_EVENT_TIMEOUT, NULL, &StateInterupt},
+    {&StateWaitTimeout, eventToInterupt,                NULL, &StateInterupt},
+    {&StateInterupt,    eventToEnd,                     NULL, NULL},           // Reaching NULL means end of state-diagram
 };
 static const uint32_t TimeoutTransitionsSize = sizeof(TimeoutTransitions)/sizeof(TimeoutTransitions[0]);
 
@@ -541,16 +536,10 @@ static void fsm_control_init(void)
 
   rc = dds_security_fsm_control_start (g_fsm_control, NULL);
   CU_ASSERT_FATAL(rc == 0);
-
-  ddsrt_mutex_init(&stop_timeout_cond_mutex);
-  ddsrt_cond_init(&stop_timeout_cond);
 }
 
 static void fsm_control_fini(void)
 {
-  ddsrt_cond_destroy(&stop_timeout_cond);
-  ddsrt_mutex_destroy(&stop_timeout_cond_mutex);
-
   dds_security_fsm_control_stop(g_fsm_control);
   dds_security_fsm_control_free(g_fsm_control);
 
@@ -697,12 +686,10 @@ CU_Test(ddssec_fsm, timeout, .init = fsm_control_init, .fini = fsm_control_fini)
     timeout--;
   }
   CU_ASSERT(timeout > 0);
-  CU_ASSERT(
-          CHECK_BIT(visited_timeout, 0) && CHECK_BIT(visited_timeout, 1) && CHECK_BIT(visited_timeout, 2));
+  CU_ASSERT(CHECK_BIT(visited_timeout, 0) && CHECK_BIT(visited_timeout, 1) && CHECK_BIT(visited_timeout, 2));
   CU_ASSERT(correct_arg_timeout && correct_fsm_timeout);
 
   dds_security_fsm_free(fsm_timeout);
-
 }
 
 /**
@@ -740,10 +727,6 @@ CU_Test(ddssec_fsm, double_timeout, .init = fsm_control_init, .fini = fsm_contro
   CU_ASSERT(CHECK_BIT(visited_timeout, 3));
   dds_security_fsm_free(fsm_timeout);
   dds_security_fsm_free(fsm_timeout2);
-  ddsrt_mutex_lock(&stop_timeout_cond_mutex);
-  ddsrt_cond_signal(&stop_timeout_cond);
-  ddsrt_mutex_unlock(&stop_timeout_cond_mutex);
-
 }
 
 /**
@@ -840,15 +823,5 @@ CU_Test(ddssec_fsm, delete_with_timeout, .init = fsm_control_init, .fini = fsm_c
   }
 
   dds_security_fsm_free(fsm_timeout);
-  dds_sleepfor(100 * DDS_NSECS_IN_MSEC);
-
-  /* Just for safety to be certain that the condition isn't used anymore before destroying it. */
-  while (stop_timeout_cond_cnt > 0) {
-    dds_time_t d = DDS_NSECS_IN_SEC;
-    ddsrt_cond_signal(&stop_timeout_cond);
-    dds_sleepfor(d);
-  }
-
-
 }
 

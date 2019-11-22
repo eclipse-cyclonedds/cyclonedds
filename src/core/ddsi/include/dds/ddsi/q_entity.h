@@ -45,6 +45,10 @@ struct whc;
 struct dds_qos;
 struct ddsi_plist;
 struct lease;
+struct participant_sec_attributes;
+struct proxy_participant_sec_attributes;
+struct writer_sec_attributes;
+struct reader_sec_attributes;
 
 struct proxy_group;
 struct proxy_endpoint_common;
@@ -83,6 +87,9 @@ typedef void (*status_cb_t) (void *entity, const status_cb_data_t *data);
 struct prd_wr_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t wr_guid;
+#ifdef DDSI_INCLUDE_SECURITY
+  int64_t crypto_handle;
+#endif
 };
 
 struct rd_pwr_match {
@@ -93,6 +100,9 @@ struct rd_pwr_match {
 #ifdef DDSI_INCLUDE_SSM
   nn_locator_t ssm_mc_loc;
   nn_locator_t ssm_src_loc;
+#endif
+#ifdef DDSI_INCLUDE_SECURITY
+  int64_t crypto_handle;
 #endif
 };
 
@@ -128,6 +138,9 @@ struct wr_prd_match {
   nn_wctime_t hb_to_ack_latency_tlastlog;
   uint32_t non_responsive_count;
   uint32_t rexmit_requests;
+#ifdef DDSI_INCLUDE_SECURITY
+  int64_t crypto_handle;
+#endif
 };
 
 enum pwr_rd_match_syncstate {
@@ -156,6 +169,9 @@ struct pwr_rd_match {
       struct nn_reorder *reorder; /* can be done (mostly) per proxy writer, but that is harder; only when state=OUT_OF_SYNC */
     } not_in_sync;
   } u;
+#ifdef DDSI_INCLUDE_SECURITY
+  int64_t crypto_handle;
+#endif
 };
 
 struct nn_rsample_info;
@@ -218,8 +234,6 @@ struct participant
   ddsrt_atomic_voidp_t minl_man; /* lease object for shortest manual-by-participant liveliness writer's lease */
   ddsrt_fibheap_t leaseheap_man; /* keeps leases for this participant's writers (with liveliness manual-by-participant) */
 #ifdef DDSI_INCLUDE_SECURITY
-  int64_t local_identity_handle;   /* OMG DDS Security related member */
-  int64_t permissions_handle; /* OMG DDS Security related member */
   struct participant_sec_attributes *sec_attr;
   nn_security_info_t security_info;
 #endif
@@ -286,6 +300,7 @@ struct writer
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
   nn_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
   nn_etime_t t_whc_high_upd; /* time "whc_high" was last updated for controlled ramp-up of throughput */
+  uint32_t num_readers; /* total number of matching PROXY readers */
   int32_t num_reliable_readers; /* number of matching reliable PROXY readers */
   ddsrt_avl_tree_t readers; /* all matching PROXY readers, see struct wr_prd_match */
   ddsrt_avl_tree_t local_readers; /* all matching LOCAL readers, see struct wr_rd_match */
@@ -301,6 +316,9 @@ struct writer
   struct xeventq *evq; /* timed event queue to be used by this writer */
   struct local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
   struct lease *lease; /* for liveliness administration (writer can only become inactive when using manual liveliness) */
+#ifdef DDSI_INCLUDE_SECURITY
+  struct writer_sec_attributes *sec_attr;
+#endif
 };
 
 inline seqno_t writer_read_seq_xmit (const struct writer *wr) {
@@ -333,10 +351,14 @@ struct reader
   struct addrset *as;
 #endif
   const struct ddsi_sertopic * topic; /* topic is NULL for built-in readers */
+  uint32_t num_writers; /* total number of matching PROXY writers */
   ddsrt_avl_tree_t writers; /* all matching PROXY writers, see struct rd_pwr_match */
   ddsrt_avl_tree_t local_writers; /* all matching LOCAL writers, see struct rd_wr_match */
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
+#ifdef DDSI_INCLUDE_SECURITY
+  struct reader_sec_attributes *sec_attr;
+#endif
 };
 
 struct proxy_participant
@@ -366,7 +388,6 @@ struct proxy_participant
   unsigned proxypp_have_spdp: 1;
   unsigned owns_lease: 1;
 #ifdef DDSI_INCLUDE_SECURITY
-  int64_t remote_identity_handle;   /* OMG DDS Security related member */
   nn_security_info_t security_info;
   struct proxy_participant_sec_attributes *sec_attr;
 #endif
@@ -435,6 +456,9 @@ struct proxy_writer {
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
   struct lease *lease;
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_security_info_t security_info;
+#endif
 };
 
 
@@ -450,6 +474,9 @@ struct proxy_reader {
 #endif
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
   filter_fn_t filter;
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_security_info_t security_info;
+#endif
 };
 
 DDS_EXPORT extern const ddsrt_avl_treedef_t wr_readers_treedef;
@@ -533,8 +560,8 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e);
 /**
  * @brief Create a new participant with a given GUID in the domain.
  *
- * @param[in]  ppguid
- *               The GUID of the new participant.
+ * @param[in,out]  ppguid
+ *               The GUID of the new participant, may be adjusted by security.
  * @param[in]  flags
  *               Zero or more of:
  *               - RTPS_PF_NO_BUILTIN_READERS   do not create discovery readers in new ppant
@@ -555,7 +582,7 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e);
  * @retval DDS_RETCODE_OUT_OF_RESOURCES
  *               The configured maximum number of participants has been reached.
  */
-dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
+dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
 
 /**
  * @brief Create a new participant in the domain.  See also new_participant_guid.
@@ -720,8 +747,8 @@ void rebuild_or_clear_writer_addrsets(struct ddsi_domaingv *gv, int rebuild);
 
 void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_ok);
 
-void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_reader *prd, nn_mtime_t tnow);
-void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, nn_mtime_t tnow);
+void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_reader *prd, nn_mtime_t tnow, int64_t crypto_handle);
+void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, nn_mtime_t tnow, int64_t crypto_handle);
 
 
 struct ddsi_writer_info;
