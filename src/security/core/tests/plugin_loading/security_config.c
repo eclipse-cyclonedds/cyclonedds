@@ -21,6 +21,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_xqos.h"
+#include "plugin_mock_common.h"
 
 #include "dds/security/dds_security_api_defs.h"
 
@@ -50,9 +51,9 @@
   "0:\"dds.sec.access.library.path\":\""ac"\","                         \
   "0:\"dds.sec.access.library.init\":\"init_access_control\","          \
   "0:\"dds.sec.access.library.finalize\":\"finalize_access_control\","  \
-  "0:\"dds.sec.auth.identity_ca\":\"testtext_IdentityCA_testtext\","    \
-  "0:\"dds.sec.auth.private_key\":\"testtext_PrivateKey_testtext\","    \
-  "0:\"dds.sec.auth.identity_certificate\":\"testtext_IdentityCertificate_testtext\"," \
+  "0:\"dds.sec.auth.identity_ca\":\"" TEST_CA_CERTIFICATE_ALL_OK "\","  \
+  "0:\"dds.sec.auth.private_key\":\"" TEST_PRIVATE_KEY_ALL_OK "\","     \
+  "0:\"dds.sec.auth.identity_certificate\":\"" TEST_IDENTITY_CERTIFICATE_ALL_OK "\"," \
   "0:\"dds.sec.access.permissions_ca\":\"file:Permissions_CA.pem\","    \
   "0:\"dds.sec.access.governance\":\"file:Governance.p7s\","            \
   "0:\"dds.sec.access.permissions\":\"file:Permissions.p7s\""           \
@@ -206,9 +207,9 @@ CU_Test(ddsc_security_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
     "config: Domain/DDSSecurity/Authentication/Library[@path]: "MOCKLIB_PATH("dds_security_authentication_all_ok")"*",
     "config: Domain/DDSSecurity/Authentication/Library[@initFunction]: init_authentication*",
     "config: Domain/DDSSecurity/Authentication/Library[@finalizeFunction]: finalize_authentication*",
-    "config: Domain/DDSSecurity/Authentication/IdentityCertificate/#text: testtext_IdentityCertificate_testtext*",
-    "config: Domain/DDSSecurity/Authentication/IdentityCA/#text: testtext_IdentityCA_testtext*",
-    "config: Domain/DDSSecurity/Authentication/PrivateKey/#text: testtext_PrivateKey_testtext*",
+    "config: Domain/DDSSecurity/Authentication/IdentityCertificate/#text: "TEST_IDENTITY_CERTIFICATE_ALL_OK"*",
+    "config: Domain/DDSSecurity/Authentication/IdentityCA/#text: "TEST_CA_CERTIFICATE_ALL_OK"*",
+    "config: Domain/DDSSecurity/Authentication/PrivateKey/#text: "TEST_PRIVATE_KEY_ALL_OK"*",
     "config: Domain/DDSSecurity/Authentication/Password/#text: testtext_Password_testtext*",
     "config: Domain/DDSSecurity/Authentication/TrustedCADirectory/#text: testtext_Dir_testtext*",
     "config: Domain/DDSSecurity/AccessControl/Library/#text: "MOCKLIB_PATH("dds_security_access_control_all_ok")"*",
@@ -233,9 +234,9 @@ CU_Test(ddsc_security_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
     "    <DDSSecurity>"
     "      <Authentication>"
     "        "MOCKLIB_ELEM_AUTH("dds_security_authentication_all_ok")
-    "        <IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-    "        <IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-    "        <PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+    "        <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_ALL_OK"</IdentityCertificate>"
+    "        <IdentityCA>"TEST_CA_CERTIFICATE_ALL_OK"</IdentityCA>"
+    "        <PrivateKey>"TEST_PRIVATE_KEY_ALL_OK"</PrivateKey>"
     "        <Password>testtext_Password_testtext</Password>"
     "        <TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
     "      </Authentication>"
@@ -281,9 +282,9 @@ CU_Test(ddsc_security_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
     "config: Domain/DDSSecurity/Authentication/Library[@path]: "MOCKLIB_PATH("dds_security_authentication_all_ok")"*",
     "config: Domain/DDSSecurity/Authentication/Library[@initFunction]: init_authentication*",
     "config: Domain/DDSSecurity/Authentication/Library[@finalizeFunction]: finalize_authentication*",
-    "config: Domain/DDSSecurity/Authentication/IdentityCertificate/#text: testtext_IdentityCertificate_testtext*",
-    "config: Domain/DDSSecurity/Authentication/IdentityCA/#text: testtext_IdentityCA_testtext*",
-    "config: Domain/DDSSecurity/Authentication/PrivateKey/#text: testtext_PrivateKey_testtext*",
+    "config: Domain/DDSSecurity/Authentication/IdentityCertificate/#text: "TEST_IDENTITY_CERTIFICATE_ALL_OK"*",
+    "config: Domain/DDSSecurity/Authentication/IdentityCA/#text: "TEST_CA_CERTIFICATE_ALL_OK"*",
+    "config: Domain/DDSSecurity/Authentication/PrivateKey/#text: "TEST_PRIVATE_KEY_ALL_OK"*",
     "config: Domain/DDSSecurity/Authentication/Password/#text:  {}*",
     "config: Domain/DDSSecurity/Authentication/TrustedCADirectory/#text:  {}*",
     "config: Domain/DDSSecurity/AccessControl/Library/#text: "MOCKLIB_PATH("dds_security_access_control_all_ok")"*",
@@ -307,9 +308,9 @@ CU_Test(ddsc_security_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
     "<DDSSecurity>"
     "  <Authentication>"
     "    "MOCKLIB_ELEM_AUTH("dds_security_authentication_all_ok")
-    "    <IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-    "    <IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-    "    <PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+    "    <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_ALL_OK"</IdentityCertificate>"
+    "    <IdentityCA>"TEST_CA_CERTIFICATE_ALL_OK"</IdentityCA>"
+    "    <PrivateKey>"TEST_PRIVATE_KEY_ALL_OK"</PrivateKey>"
     "  </Authentication>"
     "  <Cryptographic>"
     "    "MOCKLIB_ELEM_CRYPTO("dds_security_cryptography_all_ok")
@@ -351,9 +352,9 @@ CU_Test(ddsc_security_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini
     "config: Domain/DDSSecurity/Authentication/Library[@path]: "MOCKLIB_PATH("dds_security_authentication_all_ok")"*",
     "config: Domain/DDSSecurity/Authentication/Library[@initFunction]: init_authentication*",
     "config: Domain/DDSSecurity/Authentication/Library[@finalizeFunction]: finalize_authentication*",
-    "config: Domain/DDSSecurity/Authentication/IdentityCertificate/#text: testtext_IdentityCertificate_testtext*",
-    "config: Domain/DDSSecurity/Authentication/IdentityCA/#text: testtext_IdentityCA_testtext*",
-    "config: Domain/DDSSecurity/Authentication/PrivateKey/#text: testtext_PrivateKey_testtext*",
+    "config: Domain/DDSSecurity/Authentication/IdentityCertificate/#text: "TEST_IDENTITY_CERTIFICATE_ALL_OK"*",
+    "config: Domain/DDSSecurity/Authentication/IdentityCA/#text: "TEST_CA_CERTIFICATE_ALL_OK"*",
+    "config: Domain/DDSSecurity/Authentication/PrivateKey/#text: "TEST_PRIVATE_KEY_ALL_OK"*",
     "config: Domain/DDSSecurity/Authentication/Password/#text: testtext_Password_testtext*",
     "config: Domain/DDSSecurity/Authentication/TrustedCADirectory/#text: testtext_Dir_testtext*",
     "config: Domain/DDSSecurity/AccessControl/Library/#text: "MOCKLIB_PATH("dds_security_access_control_all_ok")"*",
@@ -378,9 +379,9 @@ CU_Test(ddsc_security_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini
     "    <DDSSecurity>"
     "      <Authentication>"
     "        "MOCKLIB_ELEM_AUTH("dds_security_authentication_all_ok")
-    "        <IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-    "        <IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-    "        <PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+    "        <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_ALL_OK"</IdentityCertificate>"
+    "        <IdentityCA>"TEST_CA_CERTIFICATE_ALL_OK"</IdentityCA>"
+    "        <PrivateKey>"TEST_PRIVATE_KEY_ALL_OK"</PrivateKey>"
     "        <Password>testtext_Password_testtext</Password>"
     "        <TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
     "      </Authentication>"
@@ -448,9 +449,9 @@ CU_Test(ddsc_security_config, qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_prop(qos, "dds.sec.access.library.path", ""MOCKLIB_PATH("dds_security_access_control_all_ok")"");
   dds_qset_prop(qos, "dds.sec.access.library.init", "init_access_control");
   dds_qset_prop(qos, "dds.sec.access.library.finalize", "finalize_access_control");
-  dds_qset_prop(qos, "dds.sec.auth.identity_ca", "testtext_IdentityCA_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.private_key", "testtext_PrivateKey_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", "testtext_IdentityCertificate_testtext");
+  dds_qset_prop(qos, "dds.sec.auth.identity_ca", TEST_CA_CERTIFICATE_ALL_OK);
+  dds_qset_prop(qos, "dds.sec.auth.private_key", TEST_PRIVATE_KEY_ALL_OK);
+  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", TEST_IDENTITY_CERTIFICATE_ALL_OK);
   dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:Permissions_CA.pem");
   dds_qset_prop(qos, "dds.sec.access.governance", "file:Governance.p7s");
   dds_qset_prop(qos, "dds.sec.access.permissions", "file:Permissions.p7s");
@@ -503,9 +504,9 @@ CU_Test(ddsc_security_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_prop(qos, "dds.sec.access.library.path", ""MOCKLIB_PATH("dds_security_access_control_all_ok")"");
   dds_qset_prop(qos, "dds.sec.access.library.init", "init_access_control");
   dds_qset_prop(qos, "dds.sec.access.library.finalize", "finalize_access_control");
-  dds_qset_prop(qos, "dds.sec.auth.identity_ca", "testtext_IdentityCA_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.private_key", "testtext_PrivateKey_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", "testtext_IdentityCertificate_testtext");
+  dds_qset_prop(qos, "dds.sec.auth.identity_ca", TEST_CA_CERTIFICATE_ALL_OK);
+  dds_qset_prop(qos, "dds.sec.auth.private_key", TEST_PRIVATE_KEY_ALL_OK);
+  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", TEST_IDENTITY_CERTIFICATE_ALL_OK);
   dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:Permissions_CA.pem");
   dds_qset_prop(qos, "dds.sec.access.governance", "file:Governance.p7s");
   dds_qset_prop(qos, "dds.sec.access.permissions", "file:Permissions.p7s");
@@ -546,9 +547,9 @@ CU_Test(ddsc_security_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini
     "<Tracing><Verbosity>finest</></>"
     "<DDSSecurity>"
     "  <Authentication>"
-    "    <IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-    "    <IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-    "    <PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+    "    <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_ALL_OK"</IdentityCertificate>"
+    "    <IdentityCA>"TEST_CA_CERTIFICATE_ALL_OK"</IdentityCA>"
+    "    <PrivateKey>"TEST_PRIVATE_KEY_ALL_OK"</PrivateKey>"
     "  </Authentication>"
     "  <AccessControl>"
     "    <Governance>file:Governance.p7s</Governance>"
@@ -572,9 +573,9 @@ CU_Test(ddsc_security_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini
   dds_qset_prop(qos, "dds.sec.access.library.path", ""MOCKLIB_PATH("dds_security_access_control_all_ok")"");
   dds_qset_prop(qos, "dds.sec.access.library.init", "init_access_control");
   dds_qset_prop(qos, "dds.sec.access.library.finalize", "finalize_access_control");
-  dds_qset_prop(qos, "dds.sec.auth.identity_ca", "testtext_IdentityCA_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.private_key", "testtext_PrivateKey_testtext");
-  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", "testtext_IdentityCertificate_testtext");
+  dds_qset_prop(qos, "dds.sec.auth.identity_ca", TEST_CA_CERTIFICATE_ALL_OK);
+  dds_qset_prop(qos, "dds.sec.auth.private_key", TEST_PRIVATE_KEY_ALL_OK);
+  dds_qset_prop(qos, "dds.sec.auth.identity_certificate", TEST_IDENTITY_CERTIFICATE_ALL_OK);
   dds_qset_prop(qos, "dds.sec.access.permissions_ca", "file:Permissions_CA.pem");
   dds_qset_prop(qos, "dds.sec.access.governance", "file:Governance.p7s");
   dds_qset_prop(qos, "dds.sec.access.permissions", "file:Permissions.p7s");
@@ -614,9 +615,9 @@ CU_Test(ddsc_security_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini
     "<DDSSecurity>"
     "  <Authentication>"
     "    "MOCKLIB_ELEM_AUTH("dds_security_authentication_all_ok")
-    "    <IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-    "    <IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-    "    <PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+    "    <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_ALL_OK"</IdentityCertificate>"
+    "    <IdentityCA>"TEST_CA_CERTIFICATE_ALL_OK"</IdentityCA>"
+    "    <PrivateKey>"TEST_PRIVATE_KEY_ALL_OK"</PrivateKey>"
     "    <Password>testtext_Password_testtext</Password>"
     "    <TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
     "  </Authentication>"
@@ -685,9 +686,9 @@ CU_Test(ddsc_security_config, qos_invalid, .init = ddsrt_init, .fini = ddsrt_fin
     "<Tracing><Verbosity>finest</></>"
     "<DDSSecurity>"
     "  <Authentication>"
-    "    <IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-    "    <IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-    "    <PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+    "    <IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_ALL_OK"</IdentityCertificate>"
+    "    <IdentityCA>"TEST_CA_CERTIFICATE_ALL_OK"</IdentityCA>"
+    "    <PrivateKey>"TEST_PRIVATE_KEY_ALL_OK"</PrivateKey>"
     "  </Authentication>"
     "  <AccessControl>"
     "    <Governance>file:Governance.p7s</Governance>"

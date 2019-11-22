@@ -92,15 +92,6 @@ nn_participant_generic_message_serialize(
 DDS_EXPORT extern const enum pserop pserop_participant_generic_message[];
 
 DDS_EXPORT int
-write_crypto_exchange_message(
-   const struct participant *pp,
-   const ddsi_guid_t *dst_pguid,
-   const ddsi_guid_t *src_eguid,
-   const ddsi_guid_t *dst_eguid,
-   const char *classid,
-   const nn_dataholderseq_t *tokens);
-
-DDS_EXPORT int
 volatile_secure_data_filter(
    struct writer *wr,
    struct proxy_reader *prd,

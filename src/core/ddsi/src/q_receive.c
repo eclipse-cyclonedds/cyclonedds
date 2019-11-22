@@ -1929,6 +1929,12 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
       failmsg = "no content";
     else if (!(qos->present & PP_KEYHASH))
       failmsg = "qos present but without keyhash";
+    else if (q_omg_plist_keyhash_is_protected(qos))
+    {
+      /* If the keyhash is protected, then it is forced to be an actual MD5
+       * hash. This means the keyhash can't be decoded into a sample. */
+      failmsg = "keyhash is protected";
+    }
     else if ((sample = ddsi_serdata_from_keyhash (topic, &qos->keyhash)) == NULL)
       failmsg = "keyhash is MD5 and can't be converted to key value";
     else

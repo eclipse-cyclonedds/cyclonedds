@@ -14,7 +14,6 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_transmit.h"
@@ -23,6 +22,9 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_msg.h"
 #include "dds/ddsi/ddsi_plist_generic.h"
+#include "dds/ddsi/ddsi_plist.h"
+#include "dds/security/core/dds_security_utils.h"
+
 
 const enum pserop pserop_participant_generic_message[] =
 {
@@ -153,76 +155,6 @@ nn_participant_generic_message_deseralize(
 {
   assert(sizeof(nn_participant_generic_message_t) == plist_memsize_generic(pserop_participant_generic_message));
   return plist_deser_generic (msg, data, len, bswap, pserop_participant_generic_message);
-}
-
-int
-write_crypto_exchange_message(
-   const struct participant *pp,
-   const ddsi_guid_t *dst_pguid,
-   const ddsi_guid_t *src_eguid,
-   const ddsi_guid_t *dst_eguid,
-   const char *classid,
-   const nn_dataholderseq_t *tokens)
-{
-  struct ddsi_domaingv * const gv = pp->e.gv;
-  struct nn_participant_generic_message pmg;
-  struct ddsi_tkmap_instance *tk;
-  struct ddsi_serdata *serdata;
-  struct proxy_reader *prd;
-  ddsi_guid_t prd_guid;
-  unsigned char *data;
-  size_t len;
-  struct writer *wr;
-  seqno_t seq;
-  int r;
-
-  if ((wr = get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)) == NULL)
-  {
-    GVLOG (DDS_LC_DISCOVERY, "write_crypto_exchange_message("PGUIDFMT") - builtin volatile secure writer not found\n", PGUID (pp->e.guid));
-    return -1;
-  }
-
-  prd_guid.prefix = dst_pguid->prefix;
-  prd_guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER;
-  if ((prd = entidx_lookup_proxy_reader_guid (gv->entity_index, &prd_guid)) == NULL)
-  {
-    return -1;
-  }
-
-  GVLOG (DDS_LC_DISCOVERY, "send crypto tokens("PGUIDFMT" --> "PGUIDFMT")\n", PGUID (wr->e.guid), PGUID (prd_guid));
-
-  ddsrt_mutex_lock (&wr->e.lock);
-  seq = ++wr->seq;
-
-  /* Get serialized message. */
-  nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, dst_pguid, dst_eguid, src_eguid, classid, tokens, NULL);
-  nn_participant_generic_message_serialize(&pmg, &data, &len);
-
-  /* Get the key value. */
-  ddsrt_md5_state_t md5st;
-  ddsrt_md5_byte_t digest[16];
-  ddsrt_md5_init (&md5st);
-  ddsrt_md5_append (&md5st, (const ddsrt_md5_byte_t *)data, sizeof (nn_message_identity_t));
-  ddsrt_md5_finish (&md5st, digest);
-
-  /* Write the sample. */
-  struct ddsi_rawcdr_sample raw = {
-    .blob = data,
-    .size = len,
-    .key = digest,
-    .keysize = 16
-  };
-  serdata = ddsi_serdata_from_sample (gv->rawcdr_topic, SDK_DATA, &raw);
-  tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
-  r = write_sample_p2p_wrlock_held(wr, seq, NULL, serdata, tk, prd);
-  ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
-  ddsi_serdata_unref (serdata);
-
-  nn_participant_generic_message_deinit(&pmg);
-
-  ddsrt_mutex_unlock (&wr->e.lock);
-
-  return r;
 }
 
 int volatile_secure_data_filter(struct writer *wr, struct proxy_reader *prd, struct ddsi_serdata *serdata)

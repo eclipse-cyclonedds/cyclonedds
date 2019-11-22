@@ -726,7 +726,7 @@ void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_gu
 
     proxypp = entidx_lookup_proxy_participant_guid(gv->entity_index, &guid);
     if (proxypp)
-      m->sec_info.dst_pp_handle = q_omg_security_get_remote_participant_handle(proxypp);
+      m->sec_info.dst_pp_handle = q_omg_security_get_remote_participant_handle(m->sec_info.dst_pp_handle, proxypp);
   }
 #else
     DDSRT_UNUSED_ARG(gv);

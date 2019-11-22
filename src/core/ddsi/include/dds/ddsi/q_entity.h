@@ -45,6 +45,10 @@ struct whc;
 struct dds_qos;
 struct ddsi_plist;
 struct lease;
+struct participant_sec_attributes;
+struct proxy_participant_sec_attributes;
+struct writer_sec_attributes;
+struct reader_sec_attributes;
 
 struct proxy_group;
 struct proxy_endpoint_common;
@@ -83,6 +87,9 @@ typedef void (*status_cb_t) (void *entity, const status_cb_data_t *data);
 struct prd_wr_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t wr_guid;
+#ifdef DDSI_INCLUDE_SECURITY
+  int64_t crypto_handle;
+#endif
 };
 
 struct rd_pwr_match {
@@ -156,6 +163,9 @@ struct pwr_rd_match {
       struct nn_reorder *reorder; /* can be done (mostly) per proxy writer, but that is harder; only when state=OUT_OF_SYNC */
     } not_in_sync;
   } u;
+#ifdef DDSI_INCLUDE_SECURITY
+  int64_t crypto_handle;
+#endif
 };
 
 struct nn_rsample_info;
@@ -301,6 +311,9 @@ struct writer
   struct xeventq *evq; /* timed event queue to be used by this writer */
   struct local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
   struct lease *lease; /* for liveliness administration (writer can only become inactive when using manual liveliness) */
+#ifdef DDSI_INCLUDE_SECURITY
+  struct writer_sec_attributes *sec_attr;
+#endif
 };
 
 inline seqno_t writer_read_seq_xmit (const struct writer *wr) {
@@ -337,6 +350,9 @@ struct reader
   ddsrt_avl_tree_t local_writers; /* all matching LOCAL writers, see struct rd_wr_match */
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
+#ifdef DDSI_INCLUDE_SECURITY
+  struct reader_sec_attributes *sec_attr;
+#endif
 };
 
 struct proxy_participant
@@ -366,7 +382,6 @@ struct proxy_participant
   unsigned proxypp_have_spdp: 1;
   unsigned owns_lease: 1;
 #ifdef DDSI_INCLUDE_SECURITY
-  int64_t remote_identity_handle;   /* OMG DDS Security related member */
   nn_security_info_t security_info;
   struct proxy_participant_sec_attributes *sec_attr;
 #endif
@@ -435,6 +450,9 @@ struct proxy_writer {
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
   struct lease *lease;
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_security_info_t security_info;
+#endif
 };
 
 
@@ -450,6 +468,9 @@ struct proxy_reader {
 #endif
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
   filter_fn_t filter;
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_security_info_t security_info;
+#endif
 };
 
 DDS_EXPORT extern const ddsrt_avl_treedef_t wr_readers_treedef;
@@ -720,8 +741,8 @@ void rebuild_or_clear_writer_addrsets(struct ddsi_domaingv *gv, int rebuild);
 
 void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_ok);
 
-void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_reader *prd, nn_mtime_t tnow);
-void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, nn_mtime_t tnow);
+void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_reader *prd, nn_mtime_t tnow, int64_t crypto_handle);
+void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, nn_mtime_t tnow, int64_t crypto_handle);
 
 
 struct ddsi_writer_info;

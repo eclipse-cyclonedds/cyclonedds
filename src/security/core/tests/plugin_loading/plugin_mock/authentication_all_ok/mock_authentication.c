@@ -28,6 +28,11 @@ typedef struct dds_security_authentication_impl {
   int id; //sample internal member
 } dds_security_authentication_impl;
 
+
+static const char *test_identity_certificate = TEST_IDENTITY_CERTIFICATE_ALL_OK;
+static const char *test_ca_certificate       = TEST_CA_CERTIFICATE_ALL_OK;
+static const char *test_private_key          = TEST_PRIVATE_KEY_ALL_OK;
+
 DDS_Security_ValidationResult_t validate_local_identity(
     dds_security_authentication *instance,
      DDS_Security_IdentityHandle *local_identity_handle,
@@ -76,14 +81,17 @@ DDS_Security_ValidationResult_t validate_local_identity(
   }
 
   if( strcmp(identity_certificate, test_identity_certificate) != 0){
-
+    printf("identity received=%s\n", identity_certificate);
+    printf("identity expected=%s\n", test_identity_certificate);
     result = DDS_SECURITY_VALIDATION_FAILED;
     printf("FAILED: Could not get identity_certificate value properly\n");
   }
   else if( strcmp(identity_ca, test_ca_certificate) != 0){
+    printf("ca received=%s\n", identity_ca);
+    printf("ca expected=%s\n", test_ca_certificate);
     printf("FAILED: Could not get identity_ca value properly\n");
     result = DDS_SECURITY_VALIDATION_FAILED;
-  }else if( strcmp(private_key, test_privatekey) != 0){
+  }else if( strcmp(private_key, test_private_key) != 0){
     printf("FAILED: Could not get private_key value properly\n");
     result = DDS_SECURITY_VALIDATION_FAILED;
   }
