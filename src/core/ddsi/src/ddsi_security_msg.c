@@ -16,6 +16,9 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/ddsi_security_msg.h"
 #include "dds/ddsi/ddsi_plist_generic.h"
+#include "dds/ddsi/q_plist.h"
+#include "dds/security/core/dds_security_utils.h"
+
 
 const enum pserop pserop_participant_generic_message[] =
 {

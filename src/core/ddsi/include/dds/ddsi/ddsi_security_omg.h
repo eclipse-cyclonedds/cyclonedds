@@ -15,12 +15,20 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_xqos.h"
+
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
 #ifdef DDSI_INCLUDE_SECURITY
+
+struct participant_sec_attributes;
+struct proxy_participant_sec_attributes;
+struct writer_sec_attributes;
+struct reader_sec_attributes;
+
 
 /**
  * @brief Check if security is enabled for the participant.
@@ -90,6 +98,74 @@ unsigned determine_subscription_writer(const struct reader *rd);
  * @retval NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER
  */
 unsigned determine_publication_writer(const struct writer *wr);
+
+bool
+q_omg_security_check_create_participant(
+    struct participant *pp,
+    uint32_t domain_id);
+
+void
+q_omg_security_deregister_participant(
+    struct participant *pp);
+
+int64_t
+q_omg_security_get_local_participant_handle(
+    struct participant *pp);
+
+bool
+q_omg_security_check_create_topic(
+    struct participant *pp,
+    uint32_t domain_id,
+    const char *topic_name,
+    const struct dds_qos *qos);
+
+bool
+q_omg_security_check_create_writer(
+    struct participant *pp,
+    uint32_t domain_id,
+    const char *topic_name,
+    const struct dds_qos *writer_qos);
+
+void
+q_omg_security_register_writer(
+    struct writer *wr);
+
+void
+q_omg_security_deregister_writer(
+    struct writer *wr);
+
+bool
+q_omg_security_check_create_reader(
+    struct participant *pp,
+    uint32_t domain_id,
+    const char *topic_name,
+    const struct dds_qos *reader_qos);
+
+void
+q_omg_security_register_reader(
+    struct reader *rd);
+
+void
+q_omg_security_deregister_reader(
+    struct reader *rd);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /**
  * @brief Determine if the proxy participant is allowed to be deleted
@@ -201,6 +277,21 @@ void q_omg_security_deregister_remote_participant(struct proxy_participant *prox
  * @param[in] proxypp            The proxy participant.
  */
 void q_omg_security_participant_send_tokens(struct participant *pp, struct proxy_participant *proxypp);
+
+/**
+ * @brief Get the cypto handle associated with the proxy participant.
+ *
+ * This function returns the handle which is the association between
+ * the proxy participant and the crypto plugin. This handle is created
+ * when the proxy participant is registered with the crypto plugin.
+ *
+ * @param[in] proxypp            The proxy participant.
+ *
+ * @returns handle
+ * @retval !0  Valid cypto handle associated with the proxy participant.
+ * @retval 0   Otherwise.
+ */
+int64_t q_omg_security_get_remote_participant_handle(struct proxy_participant *proxypp);
 
 /**
  * @brief Check if the remote writer is allowed to communicate with endpoints of the
@@ -332,6 +423,81 @@ inline bool q_omg_participant_allow_unauthenticated(UNUSED_ARG(struct participan
   return true;
 }
 
+inline bool
+q_omg_security_check_create_participant(
+    UNUSED_ARG(struct participant *pp),
+    UNUSED_ARG(uint32_t domain_id))
+{
+  return true;
+}
+
+inline void
+q_omg_security_deregister_participant(
+    UNUSED_ARG(struct participant *pp))
+{
+}
+
+inline bool
+q_omg_security_check_create_topic(
+    UNUSED_ARG(struct participant *pp),
+    UNUSED_ARG(uint32_t domain_id),
+    UNUSED_ARG(const char *topic_name),
+    UNUSED_ARG(const struct dds_qos *qos))
+{
+  return true;
+}
+
+inline int64_t
+q_omg_security_get_local_participant_handle(
+    UNUSED_ARG(struct participant *pp)
+{
+  return 0;
+}
+
+inline bool
+q_omg_security_check_create_writer(
+    UNUSED_ARG(struct participant *pp),
+    UNUSED_ARG(uint32_t domain_id),
+    UNUSED_ARG(const char *topic_name),
+    UNUSED_ARG(const struct dds_qos *writer_qos))
+{
+  return true;
+}
+
+inline void
+q_omg_security_register_writer(
+    UNUSED_ARG(struct writer *wr))
+{
+}
+
+inline void
+q_omg_security_deregister_writer(
+    UNUSED_ARG(struct writer *wr))
+{
+}
+
+inline bool
+q_omg_security_check_create_reader(
+    UNUSED_ARG(struct participant *pp),
+    UNUSED_ARG(uint32_t domain_id),
+    UNUSED_ARG(const char *topic_name),
+    UNUSED_ARG(const struct dds_qos *reader_qos))
+{
+  return true;
+}
+
+inline void
+q_omg_security_register_reader(
+    UNUSED_ARG(struct reader *rd))
+{
+}
+
+inline void
+q_omg_security_deregister_reader(
+    UNUSED_ARG(struct reader *rd))
+{
+}
+
 inline void q_omg_security_init_remote_participant(UNUSED_ARG(struct proxy_participant *proxypp))
 {
 }
@@ -351,6 +517,11 @@ inline void q_omg_security_deregister_remote_participant(UNUSED_ARG(struct proxy
 
 inline void q_omg_security_participant_send_tokens(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
 {
+}
+
+inline int64_t q_omg_security_get_remote_participant_handle(UNUSED_ARG(struct proxy_participant *proxypp))
+{
+  return 0;
 }
 
 inline bool

@@ -260,6 +260,9 @@ struct writer
   uint32_t rexmit_lost_count; /* cum samples lost but retransmit requested (also counting events) */
   struct xeventq *evq; /* timed event queue to be used by this writer */
   struct local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
+#ifdef DDSI_INCLUDE_SECURITY
+  struct writer_sec_attributes *sec_attr;
+#endif
 };
 
 inline seqno_t writer_read_seq_xmit (const struct writer *wr) {
@@ -296,6 +299,9 @@ struct reader
   ddsrt_avl_tree_t local_writers; /* all matching LOCAL writers, see struct rd_wr_match */
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
+#ifdef DDSI_INCLUDE_SECURITY
+  struct reader_sec_attributes *sec_attr;
+#endif
 };
 
 struct proxy_participant

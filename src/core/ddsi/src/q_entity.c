@@ -698,6 +698,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   nn_plist_mergein_missing (pp->plist, &gv->default_local_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
 
 #ifdef DDSI_INCLUDE_SECURITY
+  pp->sec_attr = NULL;
   if (gv->config.omg_security_configuration)
   {
     /* For security, configuration can be provided through the configuration.
@@ -3222,6 +3223,9 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
 
   wr->status_cb = status_cb;
   wr->status_cb_entity = status_entity;
+#ifdef DDSI_INCLUDE_SECURITY
+  wr->sec_attr = NULL;
+#endif
 
   /* Copy QoS, merging in defaults */
 
@@ -3811,6 +3815,9 @@ static dds_return_t new_reader_guid
   rd->init_acknack_count = 0;
 #ifdef DDSI_INCLUDE_SSM
   rd->favours_ssm = 0;
+#endif
+#ifdef DDSI_INCLUDE_SECURITY
+  rd->sec_attr = NULL;
 #endif
   if (topic == NULL)
   {
