@@ -4597,8 +4597,7 @@ void proxy_writer_set_alive_may_unlock (struct proxy_writer *pwr, bool notify)
   assert (!pwr->alive);
 
   /* check that proxy writer still exists (when deleting it is removed from guid hash) */
-  struct proxy_writer *pwr_tmp;
-  if ((pwr_tmp = ephash_lookup_proxy_writer_guid (pwr->e.gv->guid_hash, &pwr->e.guid)) == NULL)
+  if (ephash_lookup_proxy_writer_guid (pwr->e.gv->guid_hash, &pwr->e.guid) == NULL)
   {
     ELOGDISC (pwr, "proxy_writer_set_alive_may_unlock("PGUIDFMT") - not in guid_hash, pwr deleting\n", PGUID (pwr->e.guid));
     return;
