@@ -12,27 +12,26 @@
 #ifdef DDSI_INCLUDE_SECURITY
 
 #include <string.h>
+#include <stdarg.h>
 
-#include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/avl.h"
 
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_security_msg.h"
+#include "dds/ddsi/ddsi_security_omg.h"
+#include "dds/security/core/dds_security_utils.h"
+#include "dds/ddsi/ddsi_security_util.h"
 
 
-
-static bool
-q_omg_writer_is_payload_protected(
-  const struct writer *wr);
-
-
+static bool q_omg_writer_is_payload_protected(const struct writer *wr);
 
 static bool endpoint_is_DCPSParticipantSecure(const ddsi_guid_t *guid)
 {
@@ -77,52 +76,862 @@ static bool endpoint_is_DCPSParticipantVolatileMessageSecure(const ddsi_guid_t *
 }
 
 
-bool
-q_omg_security_enabled(void)
+bool q_omg_security_enabled(void)
 {
   return false;
 }
 
-bool
-q_omg_participant_is_secure(
-  const struct participant *pp)
+#define EXCEPTION_LOG(sc,e,cat, ...) \
+  log_exception(sc, cat, e, __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__)
+
+#define EXCEPTION_ERROR(s, e, ...)     EXCEPTION_LOG(s, e, DDS_LC_ERROR, __VA_ARGS__)
+#define EXCEPTION_WARNING(s, e, ...)   EXCEPTION_LOG(s, e, DDS_LC_WARNING, __VA_ARGS__)
+
+#define ENDPOINT_IS_DCPSPublicationsSecure(guid) \
+           ((guid.entityid.u == NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER) || \
+            (guid.entityid.u == NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER) )
+
+#define ENDPOINT_IS_DCPSSubscriptionsSecure(guid) \
+           ((guid.entityid.u == NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER) || \
+            (guid.entityid.u == NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER) )
+
+#define ENDPOINT_IS_DCPSParticipantStatelessMessage(guid) \
+           ((guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER) || \
+            (guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER) )
+
+#define ENDPOINT_IS_DCPSParticipantMessageSecure(guid) \
+           ((guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER) || \
+            (guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER) )
+
+#define ENDPOINT_IS_DCPSParticipantVolatileMessageSecure(guid) \
+           ((guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER) || \
+            (guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER) )
+
+#define ENDPOINT_IS_DCPSParticipantSecure(guid) \
+           ((guid.entityid.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER) || \
+            (guid.entityid.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER) )
+
+
+
+/* The secure context contains the reference to the security plugins.
+ * Currently this structure is used as a place holder to provide access
+ * to the security plugins. This has to be reworked then the plugin loading
+ * becomes available.
+ *
+ * TODO: Rework the access to the security plugins.
+ */
+struct secure_context {
+  dds_security_authentication *authentication;
+  dds_security_access_control *access_control;
+  dds_security_cryptography *crypto;
+  struct q_globals *gv;
+};
+
+struct guid_pair {
+  ddsi_guid_t src;
+  ddsi_guid_t dst;
+};
+
+struct pending_tokens {
+  ddsrt_avl_node_t avlnode;
+  ddsrt_mutex_t lock;
+  struct guid_pair guids;
+  DDS_Security_ParticipantCryptoTokenSeq tokens;
+};
+
+struct proxypp_pp_match {
+  ddsrt_avl_node_t avlnode;
+  DDS_Security_IdentityHandle participant_identity;
+  DDS_Security_PermissionsHandle permissions_handle;
+  DDS_Security_SharedSecretHandle shared_secret;
+  bool tokens_available;
+};
+
+struct participant_sec_attributes {
+  struct secure_context *sc;
+  DDS_Security_ParticipantSecurityAttributes attr;
+  DDS_Security_ParticipantCryptoHandle crypto_handle;
+  bool plugin_attr;
+};
+
+struct proxy_participant_sec_attributes {
+  dds_security_access_control *access_control;
+  DDS_Security_ParticipantCryptoHandle crypto_handle;
+  ddsrt_avl_tree_t local_participants;
+};
+
+struct writer_sec_attributes {
+  DDS_Security_EndpointSecurityAttributes attr;
+  DDS_Security_DatawriterCryptoHandle crypto_handle;
+  bool plugin_attr;
+};
+
+struct reader_sec_attributes {
+  DDS_Security_EndpointSecurityAttributes attr;
+  DDS_Security_DatareaderCryptoHandle crypto_handle;
+  bool plugin_attr;
+};
+
+
+static int compare_identity_handle (const void *va, const void *vb);
+static int compare_guid_pair(const void *va, const void *vb);
+
+const ddsrt_avl_treedef_t proxypp_pp_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct proxypp_pp_match, avlnode), offsetof (struct proxypp_pp_match, participant_identity), compare_identity_handle, 0);
+const ddsrt_avl_treedef_t pending_tokens_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct pending_tokens, avlnode), offsetof (struct pending_tokens, guids), compare_guid_pair, 0);
+
+static int compare_identity_handle (const void *va, const void *vb)
+{
+  const DDS_Security_IdentityHandle *ha = va;
+  const DDS_Security_IdentityHandle *hb = vb;
+
+  return ((*ha > *hb) ? 1 : (*ha < *hb) ?  -1 : 0);
+}
+
+static int guid_compare (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2)
+{
+  return memcmp (guid1, guid2, sizeof (ddsi_guid_t));
+}
+
+static int compare_guid_pair(const void *va, const void *vb)
+{
+  const struct guid_pair *na = va;
+  const struct guid_pair *nb = vb;
+  int r;
+
+  if ((r = guid_compare(&na->src, &nb->src)) == 0)
+    r = guid_compare(&na->dst, &nb->dst);
+  return r;
+}
+
+static void
+security_exception_clear(
+    DDS_Security_SecurityException *exception)
+{
+  if (exception->message) {
+    ddsrt_free(exception->message);
+    exception->message = NULL;
+  }
+}
+
+static void log_exception(struct secure_context *sc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, ...)
+{
+  char logbuffer[512];
+  va_list ap;
+  int l;
+
+  va_start (ap, fmt);
+  l = vsnprintf(logbuffer, sizeof(logbuffer), fmt, ap);
+  va_end (ap);
+  if ((size_t) l >= sizeof(logbuffer))
+  {
+    logbuffer[sizeof(logbuffer)-1] = '\0';
+  }
+  dds_log_cfg(&sc->gv->logconfig, cat, file, line, func, "%s: %s(code: %d)", logbuffer, exception->message ? exception->message : "",  exception->code);
+  security_exception_clear(exception);
+}
+
+static int q_omg_create_secure_context (struct participant *pp, struct secure_context **secure_context)
+{
+  DDSRT_UNUSED_ARG(pp);
+
+  *secure_context = NULL;
+
+  return 0;
+}
+
+static struct secure_context * q_omg_security_get_secure_context(const struct participant *pp)
+{
+  if (pp->sec_attr)
+    return pp->sec_attr->sc;
+  return NULL;
+}
+
+static const char * get_builtin_topic_name(ddsi_entityid_t id)
+{
+  switch (id.u) {
+  case NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER:
+  case NN_ENTITYID_SEDP_BUILTIN_TOPIC_READER:
+    return "DCPSTopic";
+    break;
+  case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER:
+  case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER:
+    return "DCPSPublication";
+    break;
+  case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER:
+  case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER:
+    return "DCPSSubscription";
+    break;
+  case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
+  case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER:
+    return "DCPSParticipant";
+    break;
+  case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
+  case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER:
+    return "DCPSParticipantMessage";
+    break;
+  case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER:
+  case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER:
+    return "DCPSPublicationsSecure";
+    break;
+  case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER:
+  case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER:
+    return "DCPSSubscriptionsSecure";
+    break;
+  case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
+  case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER:
+    return "DCPSParticipantStatelessMessage";
+    break;
+  case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
+  case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER:
+    return "DCPSParticipantMessageSecure";
+    break;
+  case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER:
+  case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER:
+    return "DCPSParticipantVolatileMessageSecure";
+    break;
+  case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
+  case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER:
+    return "DCPSParticipantsSecure";
+    break;
+  case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER:
+  case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_READER:
+    return "CMParticipant";
+    break;
+  case NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER:
+  case NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_READER:
+    return "CMPublisher";
+    break;
+  case NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER:
+  case NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_READER:
+    return "CMSubscriber";
+    break;
+  default:
+    return "(null)";
+    break;
+  }
+
+  return NULL;
+}
+
+static void pending_tokens_free(struct pending_tokens *item)
+{
+  if (item) {
+     DDS_Security_ParticipantCryptoTokenSeq_freebuf(&item->tokens);
+     ddsrt_free(item);
+   }
+}
+
+static void add_pending_tokens(struct ddsi_security_globals *gs, const ddsi_guid_t *src, const ddsi_guid_t *dst, const DDS_Security_ParticipantCryptoTokenSeq *tokens)
+{
+  struct pending_tokens *item;
+
+  item = ddsrt_malloc(sizeof(*item));
+
+  item->guids.src = *src;
+  item->guids.dst = *dst;
+  DDS_Security_ParticipantCryptoTokenSeq_copy(&item->tokens, tokens);
+
+  ddsrt_mutex_lock(&gs->pending_tokens_lock);
+  ddsrt_avl_insert(&pending_tokens_treedef, &gs->pending_tokens, item);
+  ddsrt_mutex_unlock(&gs->pending_tokens_lock);
+}
+
+static struct pending_tokens * find_pending_tokens_locked(struct ddsi_security_globals *gs, const ddsi_guid_t *src, const ddsi_guid_t *dst)
+{
+  struct pending_tokens *tokens;
+  struct guid_pair guids;
+  ddsrt_avl_dpath_t dpath;
+
+  guids.src = *src;
+  guids.dst = *dst;
+
+  tokens = ddsrt_avl_lookup_dpath(&pending_tokens_treedef, &gs->pending_tokens, &guids, &dpath);
+  if (tokens)
+    ddsrt_avl_delete_dpath(&pending_tokens_treedef, &gs->pending_tokens, tokens, &dpath);
+
+  return tokens;
+}
+
+static struct pending_tokens * find_pending_tokens(struct ddsi_security_globals *gs, const ddsi_guid_t *src, const ddsi_guid_t *dst)
+{
+  struct pending_tokens *tokens;
+
+  ddsrt_mutex_lock(&gs->pending_tokens_lock);
+  tokens = find_pending_tokens_locked(gs, src, dst);
+  ddsrt_mutex_unlock(&gs->pending_tokens_lock);
+
+  return tokens;
+}
+
+static void remove_pending_tokens(struct ddsi_security_globals *gs, const ddsi_guid_t *src, const ddsi_guid_t *dst)
+{
+  struct pending_tokens *tokens;
+
+  ddsrt_mutex_lock(&gs->pending_tokens_lock);
+  tokens = find_pending_tokens_locked(gs, src, dst);
+  pending_tokens_free(tokens);
+  ddsrt_mutex_unlock(&gs->pending_tokens_lock);
+}
+
+static void notify_handshake_recv_token(const struct participant *pp, const struct proxy_participant *proxypp)
+{
+  DDSRT_UNUSED_ARG(pp);
+  DDSRT_UNUSED_ARG(proxypp);
+}
+
+static const char * get_reader_topic_name(struct reader *rd)
+{
+  if (rd->topic) {
+    return rd->topic->name;
+  }
+  return get_builtin_topic_name(rd->e.guid.entityid);
+}
+
+static const char * get_writer_topic_name(struct writer *wr)
+{
+  if (wr->topic) {
+    return wr->topic->name;
+  }
+  return get_builtin_topic_name(wr->e.guid.entityid);
+}
+
+bool q_omg_participant_is_secure(const struct participant *pp)
 {
   /* TODO: Register local participant. */
   DDSRT_UNUSED_ARG(pp);
   return false;
 }
 
-bool
-q_omg_proxy_participant_is_secure(
-    const struct proxy_participant *proxypp)
+bool q_omg_proxy_participant_is_secure(const struct proxy_participant *proxypp)
 {
   /* TODO: Register remote participant */
   DDSRT_UNUSED_ARG(proxypp);
   return false;
 }
 
-static bool
-q_omg_writer_is_discovery_protected(
-  const struct writer *wr)
+struct ddsi_security_globals * q_omg_security_globals_new(void)
+{
+  struct ddsi_security_globals *gs;
+
+  gs = ddsrt_malloc(sizeof(*gs));
+  gs->hsadmin = ddsi_handshake_admin_create();
+  ddsrt_mutex_init(&gs->pending_tokens_lock);
+  ddsrt_avl_init (&pending_tokens_treedef, &gs->pending_tokens);
+
+  return gs;
+}
+
+static void pending_tokens_free_wrapper(void *arg)
+{
+  struct pending_tokens *tokens = arg;
+  pending_tokens_free(tokens);
+}
+
+void q_omg_security_globals_free(struct ddsi_security_globals *gs)
+{
+  ddsi_handshake_admin_delete(gs->hsadmin);
+  ddsrt_avl_free (&pending_tokens_treedef, &gs->pending_tokens, pending_tokens_free_wrapper);
+  ddsrt_mutex_destroy(&gs->pending_tokens_lock);
+  ddsrt_free(gs);
+}
+
+void q_omg_security_init_remote_participant(struct proxy_participant *proxypp)
+{
+  DDSRT_UNUSED_ARG(proxypp);
+}
+
+static bool q_omg_proxyparticipant_is_authenticated(const struct proxy_participant *proxy_pp)
+{
+  /* TODO: Handshake */
+  DDSRT_UNUSED_ARG(proxy_pp);
+  return false;
+}
+
+bool q_omg_participant_allow_unauthenticated(struct participant *pp)
+{
+  DDSRT_UNUSED_ARG(pp);
+
+  return true;
+}
+
+bool q_omg_security_check_create_participant(struct participant *pp, uint32_t domain_id)
+{
+  bool allowed = false;
+  DDS_Security_IdentityHandle identity_handle = DDS_SECURITY_HANDLE_NIL;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  DDS_Security_ValidationResult_t result = 0;
+  DDS_Security_IdentityToken identity_token;
+  DDS_Security_PermissionsToken permissions_token = DDS_SECURITY_TOKEN_INIT;
+  DDS_Security_PermissionsCredentialToken credential_token = DDS_SECURITY_TOKEN_INIT;
+  struct secure_context *sc;
+  DDS_Security_Qos par_qos;
+  ddsi_guid_t candidate_guid;
+  ddsi_guid_t adjusted_guid;
+  int r;
+
+  r = q_omg_create_secure_context(pp, &sc);
+  if (r < 0)
+    goto no_plugin;
+  else if (r == 0)
+    return true;
+
+  /* Validate local identity */
+  ETRACE (pp, "validate_local_identity: candidate_guid: "PGUIDFMT, PGUID (pp->e.guid));
+
+  pp->sec_attr = ddsrt_malloc(sizeof(struct participant_sec_attributes));
+  memset(pp->sec_attr, 0, sizeof(struct participant_sec_attributes));
+
+  pp->sec_attr->sc = sc;
+
+  candidate_guid = nn_hton_guid(pp->e.guid);
+  q_omg_shallow_copy_security_qos(&par_qos, &(pp->plist->qos));
+
+  result = sc->authentication->validate_local_identity(
+      sc->authentication, &identity_handle,
+      (DDS_Security_GUID_t *) &adjusted_guid, (DDS_Security_DomainId) domain_id, &par_qos,
+      (DDS_Security_GUID_t *) &candidate_guid, &exception);
+  if (result != DDS_SECURITY_VALIDATION_OK)
+  {
+    EXCEPTION_ERROR(sc, &exception, "Error occurred while validating local permission");
+    goto validation_failed;
+  }
+  pp->e.guid = nn_ntoh_guid(adjusted_guid);
+
+  ETRACE (pp, " adjusted_guid: "PGUIDFMT"", PGUID (pp->e.guid));
+
+  /* Get the identity token and add this to the plist of the participant */
+  if (!sc->authentication->get_identity_token(sc->authentication, &identity_token, identity_handle, &exception))
+  {
+    EXCEPTION_ERROR(sc, &exception, "Error occurred while retrieving the identity token");
+    goto validation_failed;
+  }
+
+  assert(identity_token.class_id);
+  q_omg_security_dataholder_copyin(&pp->plist->identity_token, &identity_token);
+  DDS_Security_DataHolder_deinit(&identity_token);
+  pp->plist->present |= PP_IDENTITY_TOKEN;
+
+  /* ask to access control security plugin for create participant permissions related to this identity*/
+  allowed = sc->access_control->check_create_participant(sc->access_control, pp->permissions_handle, (DDS_Security_DomainId) domain_id, &par_qos, &exception);
+  if (!allowed)
+  {
+    EXCEPTION_ERROR(sc, &exception, "It is not allowed to create participant");
+    goto not_allowed;
+  }
+
+  /* Get the identity token and add this to the plist of the participant */
+  if (!sc->access_control->get_permissions_token(sc->access_control, &permissions_token, pp->permissions_handle, &exception))
+  {
+    EXCEPTION_ERROR(sc, &exception, "Error occurred while retrieving the permissions token");
+    goto not_allowed;
+  }
+
+  assert(permissions_token.class_id);
+  q_omg_security_dataholder_copyin(&pp->plist->permissions_token, &permissions_token);
+  pp->plist->present |= PP_PERMISSIONS_TOKEN;
+
+  if (!sc->access_control->get_permissions_credential_token(sc->access_control, &credential_token, pp->permissions_handle, &exception))
+  {
+    EXCEPTION_ERROR(sc, &exception, "Error occurred while retrieving the permissions credential token");
+    goto no_credentials;
+  }
+
+  if (!sc->authentication->set_permissions_credential_and_token(sc->authentication, pp->local_identity_handle, &credential_token, &permissions_token, &exception))
+  {
+    EXCEPTION_ERROR(sc, &exception, "Error occurred while setting the permissions credential token");
+    goto no_credentials;
+  }
+
+  if (!sc->access_control->get_participant_sec_attributes(sc->access_control, pp->permissions_handle, &pp->sec_attr->attr, &exception))
+  {
+    EXCEPTION_ERROR(sc, &exception, "Failed to get participant security attributes");
+    goto no_sec_attr;
+  }
+
+  pp->sec_attr->plugin_attr = true;
+  pp->sec_attr->crypto_handle = sc->crypto->crypto_key_factory->register_local_participant(
+            sc->crypto->crypto_key_factory, pp->local_identity_handle, pp->permissions_handle, NULL, &pp->sec_attr->attr, &exception);
+  if (!pp->sec_attr->crypto_handle) {
+    EXCEPTION_ERROR(sc, &exception, "Failed to register participant with crypto key factory");
+    goto no_crypto;
+  }
+
+  allowed = true;
+
+no_crypto:
+no_sec_attr:
+  if (permissions_token.class_id)
+    (void)sc->access_control->return_permissions_token(sc->access_control, &permissions_token, NULL);
+  if (credential_token.class_id)
+    (void)sc->access_control->return_permissions_credential_token(sc->access_control, &credential_token, NULL);
+no_credentials:
+  (void)sc->access_control->return_permissions_token(sc->access_control, &permissions_token, NULL);
+not_allowed:
+validation_failed:
+  q_omg_shallow_free_security_qos(&par_qos);
+no_plugin:
+  return allowed;
+}
+
+static struct proxypp_pp_match * proxypp_pp_match_new(DDS_Security_IdentityHandle participant_handle, DDS_Security_PermissionsHandle permissions_hdl, DDS_Security_SharedSecretHandle shared_secret)
+{
+  struct proxypp_pp_match *pm;
+
+  pm = ddsrt_malloc(sizeof(*pm));
+  pm->participant_identity = participant_handle;
+  pm->permissions_handle = permissions_hdl;
+  pm->shared_secret = shared_secret;
+
+  return pm;
+}
+
+static void proxypp_pp_match_free(struct secure_context *sc, struct proxypp_pp_match *pm)
+{
+  if (pm->permissions_handle != DDS_SECURITY_HANDLE_NIL) {
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+
+    if (!sc->access_control->return_permissions_handle(sc->access_control, pm->permissions_handle, &exception))
+    {
+      EXCEPTION_ERROR(sc, &exception, "Failed to return permissions handle");
+    }
+  }
+  ddsrt_free(pm);
+}
+
+static void q_omg_proxypp_pp_unrelate(struct secure_context *sc, struct proxy_participant *proxypp, struct participant *pp)
+{
+  if (proxypp->sec_attr) {
+    struct proxypp_pp_match *pm;
+
+    if ((pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->local_identity_handle)) != NULL) {
+      if (!pm->tokens_available)
+        remove_pending_tokens(pp->e.gv->g_security, &proxypp->e.guid, &pp->e.guid);
+      proxypp_pp_match_free(sc, pm);
+    }
+  }
+}
+
+static void remove_participant_from_remote_entities(struct secure_context *sc, struct participant *pp)
+{
+  struct proxy_participant *proxypp;
+  struct entidx_enum_proxy_participant it;
+
+  entidx_enum_proxy_participant_init(&it, pp->e.gv->entity_index);
+  while ((proxypp = entidx_enum_proxy_participant_next(&it)) != NULL)
+  {
+    ddsrt_mutex_lock(&proxypp->e.lock);
+    q_omg_proxypp_pp_unrelate(sc, proxypp, pp);
+    ddsrt_mutex_unlock(&proxypp->e.lock);
+  }
+  entidx_enum_proxy_participant_fini(&it);
+}
+
+struct cleanup_participant_crypto_handle_arg {
+  struct secure_context *sc;
+  ddsi_guid_t guid;
+  DDS_Security_ParticipantCryptoHandle handle;
+};
+
+static void cleanup_participant_crypto_handle(void *arg)
+{
+  struct cleanup_participant_crypto_handle_arg *info = arg;
+
+  (void)info->sc->crypto->crypto_key_factory->unregister_participant(info->sc->crypto->crypto_key_factory, info->handle, NULL);
+
+  ddsrt_free(arg);
+}
+
+void q_omg_security_deregister_participant(struct participant *pp)
+{
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  struct secure_context *sc;
+
+  assert(pp);
+
+  if ((sc = q_omg_security_get_secure_context(pp)) != NULL) {
+    remove_participant_from_remote_entities(sc, pp);
+
+    /* When the participant is deleted the timed event queue may still contain
+     * messages from this participant. Therefore the crypto handle should still
+     * be available to ensure that the rtps message can be encoded.
+     * For this purpose the cleanup of the associated crypto handle is delayed.
+     * A callback is scheduled to be called after some delay to cleanup this
+     * crypto handle.
+     */
+    if (pp->sec_attr->crypto_handle != DDS_SECURITY_HANDLE_NIL) {
+      struct cleanup_participant_crypto_handle_arg *arg = ddsrt_malloc (sizeof (*arg));
+      arg->sc = sc;
+      arg->handle = pp->sec_attr->crypto_handle;
+      arg->guid = pp->e.guid;
+      qxev_nt_callback(pp->e.gv->xevents, cleanup_participant_crypto_handle, arg);
+    }
+
+    if (pp->permissions_handle != DDS_SECURITY_HANDLE_NIL)
+    {
+      if (!sc->access_control->return_permissions_handle(sc->access_control, pp->permissions_handle, &exception))
+      {
+        EXCEPTION_ERROR(sc, &exception, "Failed to return permissions handle");
+      }
+    }
+    if (pp->local_identity_handle != DDS_SECURITY_HANDLE_NIL)
+    {
+      if (!sc->authentication->return_identity_handle(sc->authentication, pp->local_identity_handle, &exception))
+      {
+        EXCEPTION_ERROR(sc, &exception, "Failed to return identity handle");
+      }
+
+    }
+    if (pp->sec_attr->plugin_attr)
+    {
+      if (!sc->access_control->return_participant_sec_attributes(sc->access_control, &pp->sec_attr->attr, &exception))
+      {
+        EXCEPTION_ERROR(sc, &exception, "Failed to return participant security attributes");
+      }
+    }
+
+    ddsrt_free(pp->sec_attr);
+  }
+}
+
+int64_t q_omg_security_get_local_participant_handle(struct participant *pp)
+{
+  assert(pp);
+
+  if (pp->sec_attr) {
+    return pp->sec_attr->crypto_handle;
+  }
+  return 0;
+}
+
+static bool q_omg_participant_is_access_protected(struct participant *pp)
+{
+  if (pp->sec_attr) {
+    return pp->sec_attr->attr.is_access_protected;
+  }
+  return false;
+}
+
+bool q_omg_get_participant_security_info(struct participant *pp, nn_security_info_t *info)
+{
+  assert(pp);
+  assert(info);
+
+  if (q_omg_participant_is_secure(pp)) {
+    DDS_Security_ParticipantSecurityAttributes *attr = &(pp->sec_attr->attr);
+
+    info->security_attributes = NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
+    info->plugin_security_attributes = attr->plugin_participant_attributes;
+
+    if (attr->is_discovery_protected)
+      info->security_attributes |= NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED;
+
+    if (attr->is_liveliness_protected)
+      info->security_attributes |= NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED;
+
+    if (attr->is_rtps_protected)
+      info->security_attributes |= NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PROTECTED;
+
+    return true;
+  }
+
+  info->security_attributes = 0;
+  info->plugin_security_attributes = 0;
+
+  return false;
+}
+
+static bool is_topic_discovery_protected(DDS_Security_PermissionsHandle permission_handle, dds_security_access_control *access_control, const char *topic_name)
+{
+  DDS_Security_TopicSecurityAttributes attributes = {0,0,0,0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+
+  if (access_control->get_topic_sec_attributes(access_control, permission_handle, topic_name, &attributes, &exception))
+    return attributes.is_discovery_protected;
+  else
+    security_exception_clear(&exception);
+  return false;
+}
+
+bool q_omg_security_check_create_topic(const struct q_globals *gv, const ddsi_guid_t *pp_guid, const char *topic_name, const struct dds_qos *qos)
+{
+  bool result = true;
+  struct participant *pp;
+  struct secure_context *sc;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  DDS_Security_Qos topic_qos;
+
+  thread_state_awake (lookup_thread_state (), gv);
+  pp = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
+
+  if ((sc = q_omg_security_get_secure_context(pp)) != NULL)
+  {
+    q_omg_shallow_copy_security_qos(&topic_qos, qos);
+    result = sc->access_control->check_create_topic(sc->access_control, pp->permissions_handle, (DDS_Security_DomainId)gv->config.domainId, topic_name, &topic_qos, &exception);
+    if (!result)
+    {
+      /*log if the topic discovery is not protected*/
+      if (!is_topic_discovery_protected(pp->permissions_handle, sc->access_control, topic_name))
+        EXCEPTION_ERROR(sc, &exception, "Local topic permission denied");
+      else
+        security_exception_clear(&exception);
+    }
+    q_omg_shallow_free_security_qos(&topic_qos);
+  }
+  thread_state_asleep (lookup_thread_state ());
+
+  return result;
+}
+
+static struct writer_sec_attributes * writer_sec_attributes_new(void)
+{
+  struct writer_sec_attributes *attr;
+
+  attr = ddsrt_malloc(sizeof(*attr));
+  attr->crypto_handle = DDS_SECURITY_HANDLE_NIL;
+  attr->plugin_attr = false;
+  return attr;
+}
+
+static void writer_sec_attributes_free(struct writer_sec_attributes *attr)
+{
+  if (attr) {
+    ddsrt_free(attr);
+  }
+}
+
+bool q_omg_security_check_create_writer(struct participant *pp, uint32_t domain_id, const char *topic_name, const struct dds_qos *writer_qos)
+{
+  struct secure_context *sc;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  DDS_Security_PartitionQosPolicy partitions;
+  DDS_Security_Qos security_qos;
+  bool result;
+
+  if ((sc = q_omg_security_get_secure_context(pp)) == NULL)
+    return true;
+
+  if (writer_qos->present & QP_PARTITION)
+    g_omg_shallow_copy_StringSeq(&partitions.name, &(writer_qos->partition));
+  else
+    memset(&(partitions), 0, sizeof(DDS_Security_PartitionQosPolicy));
+
+  q_omg_shallow_copy_security_qos(&security_qos, writer_qos);
+
+  result = sc->access_control->check_create_datawriter(sc->access_control, pp->permissions_handle, (DDS_Security_DomainId)domain_id, topic_name, &security_qos, &partitions, NULL, &exception);
+  if (!result)
+  {
+    /*log if the topic discovery is not protected*/
+    if (!is_topic_discovery_protected( pp->permissions_handle, sc->access_control, topic_name))
+      EXCEPTION_ERROR(sc, &exception, "Local topic permission denied");
+    else
+      security_exception_clear(&exception);
+  }
+
+  q_omg_shallow_free_security_qos(&security_qos);
+  g_omg_shallow_free_StringSeq(&partitions.name);
+
+  return result;
+}
+
+void q_omg_security_register_writer(struct writer *wr)
+{
+  struct secure_context *sc;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  DDS_Security_PartitionQosPolicy partitions;
+  DDS_Security_PropertySeq properties;
+  struct participant *pp = NULL;
+  const char *topic_name;
+
+  assert(wr);
+
+  pp = wr->c.pp;
+
+  if ((sc = q_omg_security_get_secure_context(pp)) == NULL)
+     return;
+
+  if (wr->xqos->present & QP_PARTITION)
+    g_omg_shallow_copy_StringSeq(&partitions.name, &(wr->xqos->partition));
+  else
+    memset(&(partitions), 0, sizeof(DDS_Security_PartitionQosPolicy));
+
+  wr->sec_attr = writer_sec_attributes_new();
+  topic_name = get_writer_topic_name(wr);
+  if (!sc->access_control->get_datawriter_sec_attributes(sc->access_control, pp->permissions_handle, topic_name, &partitions, NULL, &wr->sec_attr->attr, &exception))
+  {
+    EXCEPTION_ERROR(sc, &exception, "Failed to retrieve writer security attributes");
+    goto no_attr;
+  }
+  wr->sec_attr->plugin_attr = true;
+
+  if (wr->sec_attr->attr.is_payload_protected || wr->sec_attr->attr.is_submessage_protected)
+  {
+    if (wr->xqos->present & QP_PROPERTY_LIST)
+      q_omg_copy_PropertySeq(&properties, &wr->xqos->property.value);
+    else
+      memset(&properties, 0, sizeof(DDS_Security_PropertySeq));
+
+    wr->sec_attr->crypto_handle = sc->crypto->crypto_key_factory->register_local_datawriter(
+        sc->crypto->crypto_key_factory, pp->sec_attr->crypto_handle, &properties, &wr->sec_attr->attr, &exception);
+    DDS_Security_PropertySeq_freebuf(&properties);
+    if (wr->sec_attr->crypto_handle == DDS_SECURITY_HANDLE_NIL)
+    {
+      EXCEPTION_ERROR(sc, &exception, "Failed to register writer with crypto");
+      goto not_registered;
+    }
+  }
+
+  if (wr->sec_attr->attr.is_key_protected)
+    wr->include_keyhash = 1;
+
+not_registered:
+no_attr:
+  g_omg_shallow_free_StringSeq(&partitions.name);
+}
+
+void q_omg_security_deregister_writer(struct writer *wr)
+{
+  struct secure_context *sc;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+
+  assert(wr);
+
+  if (wr->c.pp == NULL)
+    return;
+
+  if ((sc = q_omg_security_get_secure_context(wr->c.pp)) == NULL)
+    return;
+
+  if (wr->sec_attr)
+  {
+    if (wr->sec_attr->crypto_handle != DDS_SECURITY_HANDLE_NIL)
+    {
+      if (!sc->crypto->crypto_key_factory->unregister_datawriter(sc->crypto->crypto_key_factory, wr->sec_attr->crypto_handle, &exception))
+      {
+        EXCEPTION_ERROR(sc, &exception, "Failed to unregister writer with crypto");
+      }
+    }
+    if (wr->sec_attr->plugin_attr)
+    {
+      if (!sc->access_control->return_datawriter_sec_attributes(sc->access_control, &wr->sec_attr->attr, &exception))
+      {
+        EXCEPTION_ERROR(sc, &exception, "Failed to return writer security attributes");
+      }
+    }
+    writer_sec_attributes_free(wr->sec_attr);
+    wr->sec_attr = NULL;
+  }
+}
+
+static bool q_omg_writer_is_discovery_protected(const struct writer *wr)
 {
   /* TODO: Register local writer. */
   DDSRT_UNUSED_ARG(wr);
   return false;
 }
 
-static bool
-q_omg_reader_is_discovery_protected(
-  const struct reader *rd)
-{
-  /* TODO: Register local reader. */
-  DDSRT_UNUSED_ARG(rd);
-  return false;
-}
-
-bool
-q_omg_get_writer_security_info(
-  const struct writer *wr,
-  nn_security_info_t *info)
+bool q_omg_get_writer_security_info(const struct writer *wr, nn_security_info_t *info)
 {
   assert(wr);
   assert(info);
@@ -142,10 +951,155 @@ q_omg_get_writer_security_info(
   return true;
 }
 
-bool
-q_omg_get_reader_security_info(
-  const struct reader *rd,
-  nn_security_info_t *info)
+
+
+static struct reader_sec_attributes * reader_sec_attributes_new(void)
+{
+  struct reader_sec_attributes *attr;
+
+  attr = ddsrt_malloc(sizeof(*attr));
+  attr->crypto_handle = DDS_SECURITY_HANDLE_NIL;
+  attr->plugin_attr = false;
+
+  return attr;
+}
+
+static void reader_sec_attributes_free(struct reader_sec_attributes *attr)
+{
+  if (attr) {
+    ddsrt_free(attr);
+  }
+}
+
+bool q_omg_security_check_create_reader(struct participant *pp, uint32_t domain_id, const char *topic_name, const struct dds_qos *reader_qos)
+{
+  struct secure_context *sc;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  DDS_Security_PartitionQosPolicy partitions;
+  DDS_Security_Qos security_qos;
+  bool result;
+
+  if ((sc = q_omg_security_get_secure_context(pp)) == NULL)
+    return true;
+
+  if (reader_qos->present & QP_PARTITION)
+    g_omg_shallow_copy_StringSeq(&partitions.name, &(reader_qos->partition));
+  else
+    memset(&(partitions), 0, sizeof(DDS_Security_PartitionQosPolicy));
+
+  q_omg_shallow_copy_security_qos(&security_qos, reader_qos);
+
+  result = sc->access_control->check_create_datareader(sc->access_control, pp->permissions_handle, (DDS_Security_DomainId)domain_id, topic_name, &security_qos, &partitions, NULL, &exception);
+  if (!result)
+  {
+    /*log if the topic discovery is not protected*/
+    if (!is_topic_discovery_protected( pp->permissions_handle, sc->access_control, topic_name))
+      EXCEPTION_ERROR(sc, &exception, "Reader is not permitted");
+    else
+      security_exception_clear(&exception);
+  }
+
+  q_omg_shallow_free_security_qos(&security_qos);
+  g_omg_shallow_free_StringSeq(&partitions.name);
+
+  return result;
+}
+
+void q_omg_security_register_reader(struct reader *rd)
+{
+  struct secure_context *sc;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  DDS_Security_PartitionQosPolicy partitions;
+  DDS_Security_PropertySeq properties;
+  struct participant *pp = NULL;
+  const char *topic_name;
+
+  assert(rd);
+
+  pp = rd->c.pp;
+
+  if ((sc = q_omg_security_get_secure_context(pp)) == NULL)
+    return;
+
+  if (rd->xqos->present & QP_PARTITION)
+    g_omg_shallow_copy_StringSeq(&partitions.name, &(rd->xqos->partition));
+  else
+    memset(&(partitions), 0, sizeof(DDS_Security_PartitionQosPolicy));
+
+  rd->sec_attr = reader_sec_attributes_new();
+
+  topic_name = get_reader_topic_name(rd);
+  if (!sc->access_control->get_datareader_sec_attributes(sc->access_control, pp->permissions_handle, topic_name, &partitions, NULL, &rd->sec_attr->attr, &exception))
+  {
+    EXCEPTION_ERROR(sc, &exception, "Failed to retrieve reader security attributes");
+    goto no_attr;
+  }
+  rd->sec_attr->plugin_attr = true;
+
+  if (rd->sec_attr->attr.is_payload_protected || rd->sec_attr->attr.is_submessage_protected)
+  {
+    if (rd->xqos->present & QP_PROPERTY_LIST)
+      q_omg_copy_PropertySeq(&properties, &rd->xqos->property.value);
+    else
+      memset(&properties, 0, sizeof(DDS_Security_PropertySeq));
+
+    rd->sec_attr->crypto_handle = sc->crypto->crypto_key_factory->register_local_datareader(
+        sc->crypto->crypto_key_factory, pp->sec_attr->crypto_handle, &properties, &rd->sec_attr->attr, &exception);
+    DDS_Security_PropertySeq_freebuf(&properties);
+    if (rd->sec_attr->crypto_handle == DDS_SECURITY_HANDLE_NIL)
+    {
+      EXCEPTION_ERROR(sc, &exception, "Failed to register reader with crypto");
+      goto not_registered;
+    }
+  }
+
+not_registered:
+no_attr:
+  g_omg_shallow_free_StringSeq(&partitions.name);
+}
+
+void q_omg_security_deregister_reader(struct reader *rd)
+{
+  struct secure_context *sc;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+
+  assert(rd);
+
+  if (rd->c.pp == NULL)
+     return;
+
+  if ((sc = q_omg_security_get_secure_context(rd->c.pp)) == NULL)
+     return;
+
+  if (rd->sec_attr)
+  {
+    if (rd->sec_attr->crypto_handle != DDS_SECURITY_HANDLE_NIL)
+    {
+      if (!sc->crypto->crypto_key_factory->unregister_datareader(sc->crypto->crypto_key_factory, rd->sec_attr->crypto_handle, &exception))
+      {
+        EXCEPTION_ERROR(sc, &exception, "Failed to unregister reader with crypto");
+      }
+    }
+    if (rd->sec_attr->plugin_attr)
+    {
+      if (!sc->access_control->return_datareader_sec_attributes(sc->access_control, &rd->sec_attr->attr, &exception))
+      {
+        EXCEPTION_ERROR(sc, &exception, "Failed to return reader security attributes");
+      }
+    }
+    reader_sec_attributes_free(rd->sec_attr);
+    rd->sec_attr = NULL;
+  }
+}
+
+static bool q_omg_reader_is_discovery_protected(const struct reader *rd)
+{
+  /* TODO: Register local reader. */
+  DDSRT_UNUSED_ARG(rd);
+  return false;
+}
+
+bool q_omg_get_reader_security_info(const struct reader *rd, nn_security_info_t *info)
 {
   assert(rd);
   assert(info);
@@ -156,50 +1110,7 @@ q_omg_get_reader_security_info(
   return false;
 }
 
-void
-q_omg_security_init_remote_participant(struct proxy_participant *proxypp)
-{
-  DDSRT_UNUSED_ARG(proxypp);
-}
-
-static bool
-q_omg_proxyparticipant_is_authenticated(
-  const struct proxy_participant *proxy_pp)
-{
-  /* TODO: Handshake */
-  DDSRT_UNUSED_ARG(proxy_pp);
-  return false;
-}
-
-int64_t
-q_omg_security_get_local_participant_handle(
-  struct participant *pp)
-{
-  /* TODO: Local registration */
-  DDSRT_UNUSED_ARG(pp);
-  return 0;
-}
-
-int64_t
-q_omg_security_get_remote_participant_handle(
-  struct proxy_participant *proxypp)
-{
-  /* TODO: Handshake */
-  DDSRT_UNUSED_ARG(proxypp);
-  return 0;
-}
-
-bool
-q_omg_participant_allow_unauthenticated(struct participant *pp)
-{
-  DDSRT_UNUSED_ARG(pp);
-
-  return true;
-}
-
-unsigned
-determine_subscription_writer(
-  const struct reader *rd)
+unsigned determine_subscription_writer(const struct reader *rd)
 {
   if (q_omg_reader_is_discovery_protected(rd))
   {
@@ -208,9 +1119,7 @@ determine_subscription_writer(
   return NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER;
 }
 
-unsigned
-determine_publication_writer(
-  const struct writer *wr)
+unsigned determine_publication_writer(const struct writer *wr)
 {
   if (q_omg_writer_is_discovery_protected(wr))
   {
@@ -219,26 +1128,167 @@ determine_publication_writer(
   return NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER;
 }
 
-void
-q_omg_security_register_remote_participant(struct participant *pp, struct proxy_participant *proxypp, int64_t shared_secret, int64_t proxy_permissions)
+int64_t q_omg_security_check_remote_participant_permissions(uint32_t domain_id, struct participant *pp, struct proxy_participant *proxypp)
+{
+  struct secure_context *sc;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  struct ddsi_handshake *handshake;
+  DDS_Security_PermissionsToken permissions_token = DDS_SECURITY_TOKEN_INIT;
+  DDS_Security_AuthenticatedPeerCredentialToken peer_credential_token = DDS_SECURITY_TOKEN_INIT;
+  int64_t permissions_hdl = DDS_SECURITY_HANDLE_NIL;
+
+  if ((sc = q_omg_security_get_secure_context(pp)) == NULL)
+  {
+    assert(false);
+    return 0;
+  }
+
+  ddsrt_mutex_lock(&proxypp->e.lock);
+
+  if (proxypp->plist->present & PP_PERMISSIONS_TOKEN)
+      q_omg_shallow_copyin_DataHolder(&permissions_token, &proxypp->plist->permissions_token);
+  else
+      memset(&permissions_token, 0, sizeof(DDS_Security_PermissionsToken));
+
+  handshake = ddsi_handshake_find(pp, proxypp);
+  if (!handshake)
+  {
+    ELOG(DDS_LC_ERROR, pp, "Could not find handshake local participant "PGUIDFMT" and remote participant "PGUIDFMT,
+                PGUID(pp->e.guid), PGUID(proxypp->e.guid));
+      goto no_handshake;
+  }
+
+  if (!sc->authentication->get_authenticated_peer_credential_token(sc->authentication, &peer_credential_token, ddsi_handshake_get_handle(handshake), &exception))
+  {
+    if (q_omg_participant_is_access_protected(pp))
+    {
+      EXCEPTION_ERROR(sc, &exception, "Could not authenticate_peer_credential_token for local participant "PGUIDFMT" and remote participant "PGUIDFMT,
+          PGUID(pp->e.guid), PGUID(proxypp->e.guid));
+      goto no_credentials;
+    }
+    /* Failing is allowed due to the non-protection of access. */
+    EXCEPTION_WARNING(sc, &exception, "Could not authenticate_peer_credential_token for local participant "PGUIDFMT" and remote participant "PGUIDFMT ,
+        PGUID(pp->e.guid), PGUID(proxypp->e.guid));
+  }
+
+  permissions_hdl = sc->access_control->validate_remote_permissions(
+      sc->access_control, sc->authentication, pp->local_identity_handle, proxypp->remote_identity_handle, &permissions_token, &peer_credential_token, &exception);
+  if (permissions_hdl == DDS_SECURITY_HANDLE_NIL)
+  {
+    if (q_omg_participant_is_access_protected(pp))
+    {
+      EXCEPTION_ERROR(sc, &exception, "Could not get remote participant "PGUIDFMT" permissions from plugin", PGUID(proxypp->e.guid));
+      goto no_permissions;
+    }
+    /* Failing is allowed due to the non-protection of access. */
+    EXCEPTION_WARNING(sc, &exception, "Could not get remote participant "PGUIDFMT" permissions from plugin", PGUID(proxypp->e.guid));
+  }
+
+  /* Only check remote participant if joining access is protected. */
+  if (q_omg_participant_is_access_protected(pp))
+  {
+    DDS_Security_ParticipantBuiltinTopicDataSecure participant_data;
+
+    q_omg_shallow_copy_ParticipantBuiltinTopicDataSecure(&participant_data, &(proxypp->e.guid), proxypp->plist);
+    if (!sc->access_control->check_remote_participant(sc->access_control, permissions_hdl, (DDS_Security_DomainId)domain_id, &participant_data, &exception))
+    {
+      EXCEPTION_WARNING(sc, &exception, "Plugin does not allow remote participant "PGUIDFMT,  PGUID(proxypp->e.guid));
+      if (!sc->access_control->return_permissions_handle(sc->access_control, permissions_hdl, &exception))
+      {
+        EXCEPTION_ERROR(sc, &exception, "Failed to return permissions handle");
+      }
+      permissions_hdl = DDS_SECURITY_HANDLE_NIL;
+    }
+    q_omg_shallow_free_ParticipantBuiltinTopicDataSecure(&participant_data);
+  }
+
+no_permissions:
+  if (!sc->authentication->return_authenticated_peer_credential_token(sc->authentication, &peer_credential_token, &exception))
+  {
+    EXCEPTION_ERROR(sc, &exception, "Failed to return peer credential token");
+  }
+no_credentials:
+  ddsi_handshake_release(handshake);
+no_handshake:
+  q_omg_shallow_free_DataHolder(&permissions_token);
+  ddsrt_mutex_unlock(&proxypp->e.lock);
+  return permissions_hdl;
+}
+
+static void send_participant_crypto_tokens(struct participant *pp, struct proxy_participant *proxypp, DDS_Security_ParticipantCryptoHandle local_crypto, DDS_Security_ParticipantCryptoHandle remote_crypto)
 {
   DDSRT_UNUSED_ARG(pp);
   DDSRT_UNUSED_ARG(proxypp);
-  DDSRT_UNUSED_ARG(shared_secret);
-  DDSRT_UNUSED_ARG(proxy_permissions);
+  DDSRT_UNUSED_ARG(local_crypto);
+  DDSRT_UNUSED_ARG(remote_crypto);
 }
 
-void
-q_omg_security_deregister_remote_participant(struct proxy_participant *proxypp)
+void q_omg_security_register_remote_participant(struct participant *pp, struct proxy_participant *proxypp, int64_t shared_secret, int64_t proxy_permissions)
+{
+  bool r;
+  struct q_globals *gv = pp->e.gv;
+  struct secure_context *sc;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  DDS_Security_ParticipantCryptoHandle crypto_handle;
+  struct proxypp_pp_match *pm;
+  struct pending_tokens *pending;
+
+  if ((sc = q_omg_security_get_secure_context(pp)) == NULL)
+    return;
+
+  GVTRACE("register remote participant "PGUIDFMT" with "PGUIDFMT"\n", PGUID(proxypp->e.guid), PGUID(pp->e.guid));
+
+  crypto_handle = sc->crypto->crypto_key_factory->register_matched_remote_participant(
+      sc->crypto->crypto_key_factory, pp->sec_attr->crypto_handle,
+      proxypp->remote_identity_handle, proxy_permissions, shared_secret, &exception);
+  if (crypto_handle == DDS_SECURITY_HANDLE_NIL)
+  {
+    EXCEPTION_ERROR(sc, &exception, "Failed to register matched remote participant "PGUIDFMT" with participant "PGUIDFMT, PGUID(proxypp->e.guid), PGUID(pp->e.guid));
+    goto register_failed;
+  }
+
+  if (proxypp->sec_attr->crypto_handle == DDS_SECURITY_HANDLE_NIL)
+    proxypp->sec_attr->crypto_handle = crypto_handle;
+  else
+    assert(proxypp->sec_attr->crypto_handle == crypto_handle);
+
+  pending = find_pending_tokens(sc->gv->g_security, &proxypp->e.guid, &pp->e.guid);
+
+  pm = proxypp_pp_match_new(pp->local_identity_handle, proxy_permissions, shared_secret);
+  ddsrt_mutex_lock(&proxypp->e.lock);
+  ddsrt_avl_insert(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, pm);
+  if (pending)
+  {
+    r = sc->crypto->crypto_key_exchange->set_remote_participant_crypto_tokens(
+          sc->crypto->crypto_key_exchange, pp->sec_attr->crypto_handle,
+          proxypp->sec_attr->crypto_handle, &pending->tokens, &exception);
+    if (r)
+    {
+      pm->tokens_available = true;
+      GVTRACE("set participant tokens src("PGUIDFMT") to dst("PGUIDFMT") (by registering remote)\n", PGUID(proxypp->e.guid), PGUID(pp->e.guid));
+    }
+    else
+    {
+      EXCEPTION_ERROR(sc, &exception, "Failed to set remote participant crypto tokens "PGUIDFMT" --> "PGUIDFMT, PGUID(proxypp->e.guid), PGUID(pp->e.guid));
+    }
+  }
+  ddsrt_mutex_unlock(&proxypp->e.lock);
+
+  if (pending)
+    pending_tokens_free(pending);
+
+  send_participant_crypto_tokens(pp, proxypp, pp->sec_attr->crypto_handle, proxypp->sec_attr->crypto_handle);
+
+register_failed:
+  return;
+}
+
+void q_omg_security_deregister_remote_participant(struct proxy_participant *proxypp)
 {
   DDSRT_UNUSED_ARG(proxypp);
 }
 
-bool
-is_proxy_participant_deletion_allowed(
-  struct q_globals * const gv,
-  const struct ddsi_guid *guid,
-  const ddsi_entityid_t pwr_entityid)
+bool is_proxy_participant_deletion_allowed(struct q_globals * const gv, const struct ddsi_guid *guid, const ddsi_entityid_t pwr_entityid)
 {
   struct proxy_participant *proxypp;
 
@@ -263,97 +1313,69 @@ is_proxy_participant_deletion_allowed(
   return (!q_omg_proxyparticipant_is_authenticated(proxypp));
 }
 
-/* ask to access control security plugin for the remote participant permissions */
-int64_t
-q_omg_security_check_remote_participant_permissions(uint32_t domain_id, struct participant *pp, struct proxy_participant *proxypp)
+bool q_omg_is_similar_participant_security_info(struct participant *pp, struct proxy_participant *proxypp)
 {
-  DDSRT_UNUSED_ARG(domain_id);
   DDSRT_UNUSED_ARG(pp);
   DDSRT_UNUSED_ARG(proxypp);
 
+  return true;
+}
+
+void q_omg_security_set_participant_crypto_tokens(struct participant *pp, struct proxy_participant *proxypp, const nn_dataholderseq_t *tokens)
+{
+  struct q_globals *gv = pp->e.gv;
+  struct secure_context *sc;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+
+  if ((sc = q_omg_security_get_secure_context(pp)) == NULL)
+    return;
+
+  if (proxypp->sec_attr->crypto_handle != DDS_SECURITY_HANDLE_NIL)
+  {
+    struct proxypp_pp_match *pm = NULL;
+    DDS_Security_DatawriterCryptoTokenSeq tseq;
+
+    q_omg_shallow_copyin_DataHolderSeq(&tseq, tokens);
+
+    ddsrt_mutex_lock(&proxypp->e.lock);
+    pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->local_identity_handle);
+    ddsrt_mutex_unlock(&proxypp->e.lock);
+
+    if (pm)
+    {
+      if (sc->crypto->crypto_key_exchange->set_remote_participant_crypto_tokens(sc->crypto->crypto_key_exchange, pp->sec_attr->crypto_handle, proxypp->sec_attr->crypto_handle, &tseq, &exception))
+      {
+        pm->tokens_available = true;
+        GVTRACE("set participant tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(proxypp->e.guid), PGUID(pp->e.guid));
+      }
+      else
+      {
+        EXCEPTION_ERROR(sc, &exception, "Failed to set remote participant crypto tokens "PGUIDFMT" for participant "PGUIDFMT, PGUID(proxypp->e.guid), PGUID(pp->e.guid));
+      }
+    }
+    else
+    {
+      GVTRACE("remember participant tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(proxypp->e.guid), PGUID(pp->e.guid));
+      add_pending_tokens(sc->gv->g_security, &proxypp->e.guid, &pp->e.guid, &tseq);
+    }
+    notify_handshake_recv_token(pp, proxypp);
+    q_omg_shallow_free_DataHolderSeq(&tseq);
+  }
+}
+
+void q_omg_security_participant_send_tokens(struct participant *pp, struct proxy_participant *proxypp)
+{
+  DDSRT_UNUSED_ARG(pp);
+  DDSRT_UNUSED_ARG(proxypp);
+}
+
+int64_t q_omg_security_get_remote_participant_handle(struct proxy_participant *proxypp)
+{
+  DDSRT_UNUSED_ARG(proxypp);
   return 0;
 }
 
-bool
-q_omg_is_similar_participant_security_info(struct participant *pp, struct proxy_participant *proxypp)
-{
-  DDSRT_UNUSED_ARG(pp);
-  DDSRT_UNUSED_ARG(proxypp);
-
-  return true;
-}
-
-bool
-q_omg_security_check_create_participant(struct participant *pp, uint32_t domain_id)
-{
-  DDSRT_UNUSED_ARG(pp);
-  DDSRT_UNUSED_ARG(domain_id);
-  return true;
-}
-
-void
-q_omg_security_participant_send_tokens(struct participant *pp, struct proxy_participant *proxypp)
-{
-  DDSRT_UNUSED_ARG(pp);
-  DDSRT_UNUSED_ARG(proxypp);
-}
-
-bool
-q_omg_security_match_remote_writer_enabled(struct reader *rd, struct proxy_writer *pwr)
-{
-  DDSRT_UNUSED_ARG(rd);
-  DDSRT_UNUSED_ARG(pwr);
-
-  assert(rd);
-  assert(pwr);
-
-  return true;
-}
-
-bool
-q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_reader *prd)
-{
-  DDSRT_UNUSED_ARG(wr);
-  DDSRT_UNUSED_ARG(prd);
-
-  assert(wr);
-  assert(prd);
-
-  return true;
-}
-
-bool
-q_omg_security_check_remote_writer_permissions(const struct proxy_writer *pwr, uint32_t domain_id, struct participant *pp)
-{
-  DDSRT_UNUSED_ARG(pwr);
-  DDSRT_UNUSED_ARG(domain_id);
-  DDSRT_UNUSED_ARG(pp);
-
-  assert(pwr);
-  assert(pp);
-  assert(pwr->c.proxypp);
-
-  return true;
-}
-
-bool
-q_omg_security_check_remote_reader_permissions(const struct proxy_reader *prd, uint32_t domain_id, struct participant *pp)
-{
-  DDSRT_UNUSED_ARG(prd);
-  DDSRT_UNUSED_ARG(domain_id);
-  DDSRT_UNUSED_ARG(pp);
-
-  assert(prd);
-  assert(pp);
-  assert(prd->c.proxypp);
-
-  return true;
-}
-
-bool
-q_omg_security_is_remote_rtps_protected(
-  struct proxy_participant *proxy_pp,
-  ddsi_entityid_t entityid)
+bool q_omg_security_is_remote_rtps_protected(struct proxy_participant *proxy_pp, ddsi_entityid_t entityid)
 {
   /* TODO: Handshake */
   DDSRT_UNUSED_ARG(proxy_pp);
@@ -361,10 +1383,7 @@ q_omg_security_is_remote_rtps_protected(
   return false;
 }
 
-bool
-q_omg_security_is_local_rtps_protected(
-  struct participant *pp,
-  ddsi_entityid_t entityid)
+bool q_omg_security_is_local_rtps_protected(struct participant *pp, ddsi_entityid_t entityid)
 {
   /* TODO: Handshake */
   DDSRT_UNUSED_ARG(pp);
@@ -372,10 +1391,7 @@ q_omg_security_is_local_rtps_protected(
   return false;
 }
 
-void
-set_proxy_participant_security_info(
-  struct proxy_participant *proxypp,
-  const nn_plist_t *plist)
+void set_proxy_participant_security_info(struct proxy_participant *proxypp, const nn_plist_t *plist)
 {
   assert(proxypp);
   assert(plist);
@@ -388,12 +1404,64 @@ set_proxy_participant_security_info(
   }
 }
 
-static void
-q_omg_get_proxy_endpoint_security_info(
-  const struct entity_common *entity,
-  nn_security_info_t *proxypp_sec_info,
-  const nn_plist_t *plist,
-  nn_security_info_t *info)
+bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *pwr, uint32_t domain_id, struct participant *pp)
+{
+  DDSRT_UNUSED_ARG(pwr);
+  DDSRT_UNUSED_ARG(domain_id);
+  DDSRT_UNUSED_ARG(pp);
+
+  assert(pwr);
+  assert(pp);
+  assert(pwr->c.proxypp);
+
+  return true;
+}
+
+bool q_omg_security_match_remote_writer_enabled(struct reader *rd, struct proxy_writer *pwr)
+{
+  DDSRT_UNUSED_ARG(rd);
+  DDSRT_UNUSED_ARG(pwr);
+
+  assert(rd);
+  assert(pwr);
+
+  return true;
+}
+
+void q_omg_security_deregister_remote_writer_match(const struct proxy_writer *pwr, const struct reader *rd, struct rd_pwr_match *match)
+{
+  struct secure_context *sc;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+
+  if ((sc = q_omg_security_get_secure_context(rd->c.pp)) == NULL)
+    return;
+
+  if (!match->tokens_available)
+    remove_pending_tokens(rd->e.gv->g_security, &rd->e.guid, &pwr->e.guid);
+
+  if (match->crypto_handle != 0)
+  {
+    if (!sc->crypto->crypto_key_factory->unregister_datawriter(sc->crypto->crypto_key_factory, match->crypto_handle, &exception))
+    {
+      EXCEPTION_ERROR(sc, &exception, "Failed to unregster remote writer "PGUIDFMT" for reader "PGUIDFMT, PGUID(pwr->e.guid), PGUID(rd->e.guid));
+    }
+  }
+}
+
+bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *prd, uint32_t domain_id, struct participant *pp)
+{
+  DDSRT_UNUSED_ARG(prd);
+  DDSRT_UNUSED_ARG(domain_id);
+  DDSRT_UNUSED_ARG(pp);
+
+  assert(prd);
+  assert(pp);
+  assert(prd->c.proxypp);
+
+  return true;
+}
+
+static void q_omg_get_proxy_endpoint_security_info(const struct entity_common *entity, nn_security_info_t *proxypp_sec_info, const nn_plist_t *plist, nn_security_info_t *info)
 {
   bool proxypp_info_available;
 
@@ -483,10 +1551,12 @@ q_omg_get_proxy_endpoint_security_info(
   }
 }
 
-void
-set_proxy_reader_security_info(
-  struct proxy_reader *prd,
-  const nn_plist_t *plist)
+void q_omg_get_proxy_reader_security_info(struct proxy_reader *prd, const nn_plist_t *plist, nn_security_info_t *info)
+{
+  q_omg_get_proxy_endpoint_security_info(&(prd->e), &(prd->c.proxypp->security_info), plist, info);
+}
+
+void set_proxy_reader_security_info(struct proxy_reader *prd, const nn_plist_t *plist)
 {
   assert(prd);
   q_omg_get_proxy_endpoint_security_info(&(prd->e),
@@ -495,10 +1565,12 @@ set_proxy_reader_security_info(
                                          &(prd->c.security_info));
 }
 
-void
-set_proxy_writer_security_info(
-  struct proxy_writer *pwr,
-  const nn_plist_t *plist)
+void q_omg_get_proxy_writer_security_info(struct proxy_writer *pwr, const nn_plist_t *plist, nn_security_info_t *info)
+{
+  q_omg_get_proxy_endpoint_security_info(&(pwr->e), &(pwr->c.proxypp->security_info), plist, info);
+}
+
+void set_proxy_writer_security_info(struct proxy_writer *pwr, const nn_plist_t *plist)
 {
   assert(pwr);
   q_omg_get_proxy_endpoint_security_info(&(pwr->e),
@@ -507,6 +1579,124 @@ set_proxy_writer_security_info(
                                          &(pwr->c.security_info));
 }
 
+void q_omg_security_deregister_remote_reader_match(const struct proxy_reader *prd, const struct writer *wr, struct wr_prd_match *match)
+{
+  struct secure_context *sc;
+  DDS_Security_SecurityException exception = {0};
+
+  if ((sc = q_omg_security_get_secure_context(wr->c.pp)) == NULL)
+    return;
+
+  if (!match->tokens_available)
+    remove_pending_tokens(wr->e.gv->g_security, &wr->e.guid, &prd->e.guid);
+
+  if (match->crypto_handle != 0)
+  {
+    if (!sc->crypto->crypto_key_factory->unregister_datawriter(sc->crypto->crypto_key_factory, match->crypto_handle, &exception))
+    {
+      EXCEPTION_ERROR(sc, &exception, "Failed to unregster remote reader "PGUIDFMT" for reader "PGUIDFMT, PGUID(prd->e.guid), PGUID(wr->e.guid));
+    }
+  }
+}
+
+bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_reader *prd)
+{
+  DDSRT_UNUSED_ARG(wr);
+  DDSRT_UNUSED_ARG(prd);
+
+  assert(wr);
+  assert(prd);
+
+  return true;
+}
+
+void q_omg_security_set_remote_writer_crypto_tokens(struct reader *rd, const ddsi_guid_t *pwr_guid, const nn_dataholderseq_t *tokens)
+{
+  struct secure_context *sc;
+  struct q_globals *gv = rd->e.gv;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  struct proxy_writer *pwr;
+
+  if ((sc = q_omg_security_get_secure_context(rd->c.pp)) == NULL)
+     return;
+
+  pwr = entidx_lookup_proxy_writer_guid(gv->entity_index, pwr_guid);
+  if (pwr) {
+    DDS_Security_DatawriterCryptoTokenSeq tseq;
+    struct rd_pwr_match *match;
+
+    q_omg_shallow_copyin_DataHolderSeq(&tseq, tokens);
+
+    ddsrt_mutex_lock(&rd->e.lock);
+    match = ddsrt_avl_lookup (&rd_writers_treedef, &rd->writers, pwr_guid);
+    ddsrt_mutex_unlock(&rd->e.lock);
+
+    if (match && match->crypto_handle != 0)
+    {
+      if (sc->crypto->crypto_key_exchange->set_remote_datawriter_crypto_tokens(sc->crypto->crypto_key_exchange, rd->sec_attr->crypto_handle, match->crypto_handle, &tseq, &exception))
+      {
+        GVTRACE("set_remote_writer_crypto_tokens "PGUIDFMT" with reader "PGUIDFMT"\n", PGUID(pwr->e.guid), PGUID(rd->e.guid));
+        match->tokens_available = true;
+        connect_reader_with_proxy_writer_secure(rd, pwr, now_mt ());
+      }
+      else
+      {
+        EXCEPTION_ERROR(sc, &exception, "Failed to set remote writer crypto tokens "PGUIDFMT" for reader "PGUIDFMT, PGUID(pwr->e.guid), PGUID(rd->e.guid));
+      }
+    }
+    else
+    {
+      GVTRACE("remember writer tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(pwr->e.guid), PGUID(rd->e.guid));
+      add_pending_tokens(sc->gv->g_security, pwr_guid, &rd->e.guid, &tseq);
+    }
+    notify_handshake_recv_token(rd->c.pp, pwr->c.proxypp);
+    q_omg_shallow_free_DataHolderSeq(&tseq);
+  }
+}
+
+void q_omg_security_set_remote_reader_crypto_tokens(struct writer *wr, const ddsi_guid_t *prd_guid, const nn_dataholderseq_t *tokens)
+{
+  struct secure_context *sc;
+  struct q_globals *gv = wr->e.gv;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  struct proxy_reader *prd;
+
+  if ((sc = q_omg_security_get_secure_context(wr->c.pp)) == NULL)
+     return;
+
+  prd = entidx_lookup_proxy_reader_guid(gv->entity_index, prd_guid);
+  if (prd) {
+    DDS_Security_DatawriterCryptoTokenSeq tseq;
+    struct wr_prd_match *match;
+
+    q_omg_shallow_copyin_DataHolderSeq(&tseq, tokens);
+
+    ddsrt_mutex_lock(&wr->e.lock);
+    match = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, prd_guid);
+    ddsrt_mutex_unlock(&wr->e.lock);
+
+    if (match && match->crypto_handle != 0)
+    {
+      if (sc->crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens(sc->crypto->crypto_key_exchange, wr->sec_attr->crypto_handle, match->crypto_handle, &tseq, &exception))
+      {
+        GVTRACE("set_remote_reader_crypto_tokens "PGUIDFMT" with writer "PGUIDFMT"\n", PGUID(prd->e.guid), PGUID(wr->e.guid));
+        match->tokens_available = true;
+        connect_writer_with_proxy_reader_secure(wr, prd, now_mt ());
+      }
+      else
+      {
+        EXCEPTION_ERROR(sc, &exception, "Failed to set remote reader crypto tokens "PGUIDFMT" for writer "PGUIDFMT, PGUID(prd->e.guid), PGUID(wr->e.guid));
+      }
+    }
+    else
+    {
+      GVTRACE("remember reader tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(prd->e.guid), PGUID(wr->e.guid));
+      add_pending_tokens(sc->gv->g_security, prd_guid, &wr->e.guid, &tseq);
+    }
+    notify_handshake_recv_token(wr->c.pp, prd->c.proxypp);
+    q_omg_shallow_free_DataHolderSeq(&tseq);
+  }
+}
 
 static bool
 q_omg_security_encode_datareader_submessage(
@@ -835,7 +2025,6 @@ encode_datareader_submsg(
   }
 }
 
-
 void
 encode_datawriter_submsg(
   struct nn_xmsg *msg,
@@ -882,8 +2071,6 @@ encode_datawriter_submsg(
     }
   }
 }
-
-
 
 bool
 validate_msg_decoding(
@@ -1307,22 +2494,21 @@ secure_conn_write(
 
 #include "dds/ddsi/ddsi_security_omg.h"
 
-
 extern inline bool q_omg_participant_is_secure(UNUSED_ARG(const struct participant *pp));
-extern inline bool q_omg_proxy_participant_is_secure(const struct proxy_participant *proxypp);
+extern inline bool q_omg_proxy_participant_is_secure(UNUSED_ARG(const struct proxy_participant *proxypp));
 extern inline bool q_omg_security_enabled(void);
 
-extern inline bool q_omg_participant_is_secure(
-  UNUSED_ARG(const struct participant *pp));
-
-extern inline unsigned determine_subscription_writer(
-  UNUSED_ARG(const struct reader *rd));
+extern inline unsigned determine_subscription_writer(UNUSED_ARG(const struct reader *rd));
 
 extern inline bool q_omg_security_match_remote_writer_enabled(UNUSED_ARG(struct reader *rd), UNUSED_ARG(struct proxy_writer *pwr));
 extern inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct writer *wr), UNUSED_ARG(struct proxy_reader *prd));
 
+extern inline void q_omg_get_proxy_writer_security_info(UNUSED_ARG(struct proxy_writer *pwr), UNUSED_ARG(const nn_plist_t *plist), UNUSED_ARG(nn_security_info_t *info));
 extern inline bool q_omg_security_check_remote_writer_permissions(UNUSED_ARG(const struct proxy_writer *pwr), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp));
+extern inline void q_omg_security_deregister_remote_writer_match(UNUSED_ARG(const struct proxy_writer *pwr), UNUSED_ARG(const struct reader *rd), UNUSED_ARG(struct rd_pwr_match *match));
+extern inline void q_omg_get_proxy_reader_security_info(UNUSED_ARG(struct proxy_reader *prd), UNUSED_ARG(const nn_plist_t *plist), UNUSED_ARG(nn_security_info_t *info));
 extern inline bool q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *par));
+extern inline void q_omg_security_deregister_remote_reader_match(UNUSED_ARG(const struct proxy_reader *prd), UNUSED_ARG(const struct writer *wr), UNUSED_ARG(struct wr_prd_match *match));
 
 extern inline unsigned determine_publication_writer(
   UNUSED_ARG(const struct writer *wr));
@@ -1337,6 +2523,24 @@ extern inline bool q_omg_is_similar_participant_security_info(UNUSED_ARG(struct 
 extern inline bool q_omg_participant_allow_unauthenticated(UNUSED_ARG(struct participant *pp));
 
 extern inline bool q_omg_security_check_create_participant(UNUSED_ARG(struct participant *pp), UNUSED_ARG(uint32_t domain_id));
+
+extern inline void q_omg_security_deregister_participant(UNUSED_ARG(struct participant *pp));
+
+extern inline bool q_omg_security_check_create_topic(UNUSED_ARG(const struct q_globals *gv), UNUSED_ARG(const ddsi_guid_t *pp_guid), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *qos));
+
+extern inline int64_t q_omg_security_get_local_participant_handle(UNUSED_ARG(struct participant *pp));
+
+extern inline bool q_omg_security_check_create_writer(UNUSED_ARG(struct participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *writer_qos));
+
+extern inline void q_omg_security_register_writer(UNUSED_ARG(struct writer *wr));
+
+extern inline void q_omg_security_deregister_writer(UNUSED_ARG(struct writer *wr));
+
+extern inline bool q_omg_security_check_create_reader(UNUSED_ARG(struct participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *reader_qos));
+
+extern inline void q_omg_security_register_reader(UNUSED_ARG(struct reader *rd));
+
+extern inline void q_omg_security_deregister_reader(UNUSED_ARG(struct reader *rd));
 
 /* initialize the proxy participant security attributes */
 extern inline void q_omg_security_init_remote_participant(UNUSED_ARG(struct proxy_participant *proxypp));
@@ -1412,5 +2616,8 @@ extern inline nn_rtps_msg_state_t decode_rtps_message(
   UNUSED_ARG(ssize_t *sz),
   UNUSED_ARG(struct nn_rbufpool *rbpool),
   UNUSED_ARG(bool isstream));
+
+extern inline int64_t q_omg_security_get_remote_participant_handle(UNUSED_ARG(struct proxy_participant *proxypp));
+
 
 #endif /* DDSI_INCLUDE_SECURITY */

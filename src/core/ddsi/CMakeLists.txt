@@ -18,6 +18,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_raweth.c
     ddsi_ipaddr.c
     ddsi_mcgroup.c
+    ddsi_security_util.c
     ddsi_security_omg.c
     ddsi_portmapping.c
     ddsi_handshake.c
@@ -76,6 +77,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_ipaddr.h
     ddsi_mcgroup.h
     ddsi_plist_generic.h
+    ddsi_security_util.h
     ddsi_security_omg.h
     ddsi_portmapping.h
     ddsi_handshake.h    

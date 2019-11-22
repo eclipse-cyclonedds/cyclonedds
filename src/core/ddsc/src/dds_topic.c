@@ -32,6 +32,7 @@
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 #include "dds__serdata_builtintopic.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_topic)
@@ -391,6 +392,12 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
     }
   } while (retry_lookup);
 
+  if (!q_omg_security_check_create_topic (&par->m_entity.m_domain->gv, &par->m_entity.m_guid, sertopic->name, new_qos))
+  {
+    rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+    goto err_sec_not_allowed;
+  }
+
   /* FIXME: make this a function
      Add sertopic to domain -- but note that it may have been created by another thread
      on another participant that is attached to the same domain */
@@ -457,6 +464,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
   return hdl;
 
 err_sertopic_reuse:
+err_sec_not_allowed:
   dds_participant_unlock (par);
 err_lock_participant:
 err_invalid_qos:

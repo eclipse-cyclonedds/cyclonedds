@@ -96,6 +96,10 @@ struct rd_pwr_match {
   nn_locator_t ssm_mc_loc;
   nn_locator_t ssm_src_loc;
 #endif
+#ifdef DDSI_INCLUDE_SECURITY
+  int64_t crypto_handle;
+  bool tokens_available;
+#endif
 };
 
 struct wr_rd_match {
@@ -128,6 +132,10 @@ struct wr_prd_match {
   nn_wctime_t hb_to_ack_latency_tlastlog;
   uint32_t non_responsive_count;
   uint32_t rexmit_requests;
+#ifdef DDSI_INCLUDE_SECURITY
+  int64_t crypto_handle;
+  bool tokens_available;
+#endif
 };
 
 enum pwr_rd_match_syncstate {
@@ -296,6 +304,9 @@ struct writer
   uint32_t rexmit_lost_count; /* cum samples lost but retransmit requested (also counting events) */
   struct xeventq *evq; /* timed event queue to be used by this writer */
   struct local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
+#ifdef DDSI_INCLUDE_SECURITY
+  struct writer_sec_attributes *sec_attr;
+#endif
 };
 
 inline seqno_t writer_read_seq_xmit (const struct writer *wr) {
@@ -332,6 +343,9 @@ struct reader
   ddsrt_avl_tree_t local_writers; /* all matching LOCAL writers, see struct rd_wr_match */
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
+#ifdef DDSI_INCLUDE_SECURITY
+  struct reader_sec_attributes *sec_attr;
+#endif
 };
 
 struct proxy_participant
@@ -432,6 +446,9 @@ struct proxy_writer {
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
   struct lease *lease;
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_security_info_t security_info;
+#endif
 };
 
 
@@ -447,6 +464,9 @@ struct proxy_reader {
 #endif
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
   filter_fn_t filter;
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_security_info_t security_info;
+#endif
 };
 
 extern const ddsrt_avl_treedef_t wr_readers_treedef;

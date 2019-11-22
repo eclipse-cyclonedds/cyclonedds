@@ -104,7 +104,8 @@ enum xeventkind_nt
 {
   XEVK_MSG,
   XEVK_MSG_REXMIT,
-  XEVK_ENTITYID
+  XEVK_ENTITYID,
+  XEVK_NT_CALLBACK
 };
 
 struct untimed_listelem {
@@ -131,6 +132,10 @@ struct xevent_nt
       /* xmsg is self-contained / relies on reference counts */
       struct nn_xmsg *msg;
     } entityid;
+    struct {
+      void (*cb) (void *arg);
+      void *arg;
+    } callback;
   } u;
 };
 
@@ -1308,6 +1313,9 @@ static void handle_individual_xevent_nt (struct xevent_nt *xev, struct nn_xpack 
     case XEVK_ENTITYID:
       handle_xevk_entityid (xp, xev);
       break;
+    case XEVK_NT_CALLBACK:
+      xev->u.callback.cb (xev->u.callback.arg);
+      break;
   }
   ddsrt_free (xev);
 }
@@ -1460,6 +1468,18 @@ void qxev_msg (struct xeventq *evq, struct nn_xmsg *msg)
   ddsrt_mutex_lock (&evq->lock);
   ev = qxev_common_nt (evq, XEVK_MSG);
   ev->u.msg.msg = msg;
+  qxev_insert_nt (ev);
+  ddsrt_mutex_unlock (&evq->lock);
+}
+
+void qxev_nt_callback (struct xeventq *evq, void (*cb) (void *arg), void *arg)
+{
+  struct xevent_nt *ev;
+  assert (evq);
+  ddsrt_mutex_lock (&evq->lock);
+  ev = qxev_common_nt (evq, XEVK_NT_CALLBACK);
+  ev->u.callback.cb = cb;
+  ev->u.callback.arg = arg;
   qxev_insert_nt (ev);
   ddsrt_mutex_unlock (&evq->lock);
 }

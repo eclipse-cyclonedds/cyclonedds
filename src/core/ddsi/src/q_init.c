@@ -57,6 +57,7 @@
 #include "dds/ddsi/ddsi_raweth.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
@@ -1387,6 +1388,10 @@ int rtps_init (struct q_globals *gv)
   gv->user_dqueue = nn_dqueue_new ("user", gv, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
 #endif
 
+#ifdef DDSI_INCLUDE_SECURITY
+  gv->g_security = q_omg_security_globals_new();
+#endif
+
   return 0;
 
 err_mc_conn:
@@ -1760,6 +1765,7 @@ void rtps_fini (struct q_globals *gv)
   free_special_topics (gv);
 
 #ifdef DDSI_INCLUDE_SECURITY
+  q_omg_security_globals_free(gv->g_security);
   nn_xqos_fini (&gv->builtin_stateless_xqos_wr);
   nn_xqos_fini (&gv->builtin_stateless_xqos_rd);
   nn_xqos_fini (&gv->builtin_volatile_xqos_wr);
