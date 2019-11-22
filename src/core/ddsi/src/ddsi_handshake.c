@@ -64,6 +64,7 @@ typedef enum {
     EVENT_RECV_CRYPTO_TOKENS                    = 104
 } handshake_event_t;
 
+
 struct handshake_entities {
   struct participant *pp;
   struct proxy_participant *proxypp;

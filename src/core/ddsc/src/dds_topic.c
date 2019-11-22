@@ -29,9 +29,14 @@
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/ddsi_iid.h"
+<<<<<<< HEAD
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
+=======
+#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/q_globals.h"
+>>>>>>> Register and validate entities w.r.t. security
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds__serdata_builtintopic.h"
 
@@ -320,7 +325,19 @@ dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertop
   if ((rc = ddsi_xqos_valid (&gv->logconfig, new_qos)) != DDS_RETCODE_OK)
     goto error;
 
+<<<<<<< HEAD
   if (!q_omg_security_check_create_topic (&pp->m_entity.m_domain->gv, &pp->m_entity.m_guid, sertopic->name, new_qos))
+=======
+  if (!q_omg_security_check_create_topic (&par->m_entity.m_domain->gv, &par->m_entity.m_guid, sertopic->name, new_qos))
+  {
+    rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+    goto err_sec_not_allowed;
+  }
+
+  /* FIXME: make this a function
+     Add sertopic to domain -- but note that it may have been created by another thread
+     on another participant that is attached to the same domain */
+>>>>>>> Register and validate entities w.r.t. security
   {
     rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
     goto error;
@@ -381,8 +398,16 @@ dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertop
   GVTRACE ("dds_create_topic_arbitrary: new topic %"PRId32"\n", hdl);
   return hdl;
 
+<<<<<<< HEAD
  error:
   dds_entity_unpin (&pp->m_entity);
+=======
+err_sertopic_reuse:
+err_sec_not_allowed:
+  dds_participant_unlock (par);
+err_lock_participant:
+err_invalid_qos:
+>>>>>>> Register and validate entities w.r.t. security
   dds_delete_qos (new_qos);
   return rc;
 }

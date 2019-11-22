@@ -495,6 +495,7 @@ CU_Test(ddsc_security_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
      PARTICIPANT_QOS_ALL_OK to work, the order must match that one */
   unsigned char bvalue[3] = { 0x01, 0x02, 0x03 };
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+
   dds_qset_prop(qos, "dds.sec.auth.library.path", ""MOCKLIB_PATH("dds_security_authentication_all_ok")"");
   dds_qset_prop(qos, "dds.sec.auth.library.init", "init_authentication");
   dds_qset_prop(qos, "dds.sec.auth.library.finalize", "finalize_authentication");
@@ -515,7 +516,6 @@ CU_Test(ddsc_security_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
 
   dds_qset_prop(qos, "test.prop1", "testtext_value1_testtext");
   dds_qset_prop(qos, "test.prop2", "testtext_value2_testtext");
-
   dds_qset_bprop(qos, "test.bprop1", bvalue, 3);
 
   /* Create participant with security config in qos. */

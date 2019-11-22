@@ -55,7 +55,6 @@
 #define EXCEPTION_WARNING(s, e, ...)   EXCEPTION_LOG(s, e, DDS_LC_WARNING, __VA_ARGS__)
 
 
-
 #define SECURITY_ATTR_IS_VALID(attr)                                      \
     ((attr) & NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID)
 
@@ -714,6 +713,7 @@ void q_omg_security_deinit (struct ddsi_domaingv *gv)
   gv->security_garbage = NULL;
 
   ddsrt_mutex_destroy (&gv->security_context->omg_security_lock);
+
   ddsrt_free (gv->security_context);
   gv->security_context = NULL;
 }
@@ -3846,5 +3846,6 @@ extern inline bool q_omg_plist_keyhash_is_protected(UNUSED_ARG(const ddsi_plist_
 extern inline bool q_omg_is_endpoint_protected(UNUSED_ARG(const ddsi_plist_t *plist));
 
 extern inline void q_omg_log_endpoint_protection(UNUSED_ARG(struct ddsi_domaingv * const gv), UNUSED_ARG(const ddsi_plist_t *plist));
+
 
 #endif /* DDSI_INCLUDE_SECURITY */

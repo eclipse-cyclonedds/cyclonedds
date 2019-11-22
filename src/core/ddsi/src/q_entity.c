@@ -1274,6 +1274,9 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
     ddsrt_mutex_destroy (&pp->refc_lock);
     entity_common_fini (&pp->e);
     remove_deleted_participant_guid (pp->e.gv->deleted_participants, &pp->e.guid, DPG_LOCAL);
+#ifdef DDSI_INCLUDE_SECURITY
+    q_omg_security_deregister_participant(pp);
+#endif
     inverse_uint32_set_fini(&pp->avail_entityids.x);
     ddsrt_free (pp);
   }
@@ -1855,6 +1858,9 @@ static void writer_drop_connection (const struct ddsi_guid *wr_guid, const struc
       remove_acked_messages (wr, &whcst, &deferred_free_list);
       wr->num_readers--;
       wr->num_reliable_readers -= m->is_reliable;
+#ifdef DDSI_INCLUDE_SECURITY
+      q_omg_security_deregister_remote_reader_match (prd, wr);
+#endif
     }
 
     ddsrt_mutex_unlock (&wr->e.lock);
@@ -2124,6 +2130,9 @@ static void proxy_writer_drop_connection (const struct ddsi_guid *pwr_guid, stru
         pwr->have_seen_heartbeat = 0;
       local_reader_ary_remove (&pwr->rdary, rd);
     }
+#ifdef DDSI_INCLUDE_SECURITY
+    q_omg_security_deregister_remote_writer_match (pwr, rd);
+#endif
     ddsrt_mutex_unlock (&pwr->e.lock);
     if (m)
     {
@@ -2147,6 +2156,9 @@ static void proxy_reader_drop_connection (const struct ddsi_guid *prd_guid, stru
     {
       ddsrt_avl_delete (&prd_writers_treedef, &prd->writers, m);
     }
+#ifdef DDSI_INCLUDE_SECURITY
+    q_omg_security_deregister_remote_reader_match (prd, wr);
+#endif
     ddsrt_mutex_unlock (&prd->e.lock);
     free_prd_wr_match (m);
   }
@@ -3915,6 +3927,7 @@ static void gc_delete_writer (struct gcreq *gcreq)
 #ifdef DDSI_INCLUDE_SECURITY
   q_omg_security_deregister_writer(wr);
 #endif
+
 #ifdef DDSI_INCLUDE_SSM
   if (wr->ssm_as)
     unref_addrset (wr->ssm_as);

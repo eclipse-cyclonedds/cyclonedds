@@ -47,7 +47,6 @@ struct proxy_participant_sec_attributes;
 struct writer_sec_attributes;
 struct reader_sec_attributes;
 struct dds_security_context;
-struct dds_security_garbage;
 
 typedef struct nn_msg_sec_info {
   unsigned encoded:1;
@@ -519,6 +518,7 @@ void q_omg_security_participant_send_tokens(struct participant *pp, struct proxy
  */
 int64_t q_omg_security_get_remote_participant_handle(int64_t pp_crypto_handle, struct proxy_participant *proxypp);
 
+
 /**
  * @brief Set the crypto tokens used for the encryption and decryption of RTPS messages.
  *
@@ -708,7 +708,7 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
 /**
  * @brief Check it the local writer is allowed to communicate with the remote reader.
  *
- * When a remote reader is allowed by accessstruct dds_security_garbage control it has to be checked if the local
+ * When a remote reader is allowed by access control it has to be checked if the local
  * writer is allowed to communicate with a particular local writer. This function will
  * check if the provided security end-point attributes are compatible, When the security
  * attributes are compatible then the function will register the writer and remote reader

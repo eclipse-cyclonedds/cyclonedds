@@ -21,7 +21,7 @@ extern "C" {
 struct participant;
 struct proxy_participant;
 struct ddsi_handshake;
-struct dssi_hsadmin;
+struct dds_security_hsadmin;
 
 enum ddsi_handshake_state {
     STATE_HANDSHAKE_IN_PROGRESS,
