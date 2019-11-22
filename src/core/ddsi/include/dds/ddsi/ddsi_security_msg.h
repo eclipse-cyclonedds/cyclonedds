@@ -28,8 +28,13 @@ struct writer;
 struct proxy_reader;
 struct ddsi_serdata;
 
-#define GMCLASSID_SECURITY_AUTH_REQUEST       "dds.sec.auth_request"
-#define GMCLASSID_SECURITY_AUTH_HANDSHAKE     "dds.sec.auth"
+#define DDS_SECURITY_AUTH_REQUEST                     "dds.sec.auth_request"
+#define DDS_SECURITY_AUTH_HANDSHAKE                   "dds.sec.auth"
+#define DDS_SECURITY_AUTH_REQUEST_TOKEN_CLASS_ID      "DDS:Auth:PKI-DH:1.0+AuthReq"
+#define DDS_SECURITY_AUTH_HANDSHAKE_REQUEST_TOKEN_ID  "DDS:Auth:PKI-DH:1.0+Req"
+#define DDS_SECURITY_AUTH_HANDSHAKE_REPLY_TOKEN_ID    "DDS:Auth:PKI-DH:1.0+Reply"
+#define DDS_SECURITY_AUTH_HANDSHAKE_FINAL_TOKEN_ID    "DDS:Auth:PKI-DH:1.0+Final"
+
 
 typedef struct nn_message_identity {
   ddsi_guid_t source_guid;
@@ -90,15 +95,6 @@ nn_participant_generic_message_serialize(
    size_t *len);
 
 DDS_EXPORT extern const enum pserop pserop_participant_generic_message[];
-
-DDS_EXPORT int
-write_crypto_exchange_message(
-   const struct participant *pp,
-   const ddsi_guid_t *dst_pguid,
-   const ddsi_guid_t *src_eguid,
-   const ddsi_guid_t *dst_eguid,
-   const char *classid,
-   const nn_dataholderseq_t *tokens);
 
 DDS_EXPORT int
 volatile_secure_data_filter(

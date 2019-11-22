@@ -18,6 +18,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_raweth.c
     ddsi_ipaddr.c
     ddsi_mcgroup.c
+    ddsi_security_util.c
     ddsi_security_omg.c
     ddsi_portmapping.c
     ddsi_handshake.c
@@ -83,6 +84,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_ipaddr.h
     ddsi_mcgroup.h
     ddsi_plist_generic.h
+    ddsi_security_util.h
     ddsi_security_omg.h
     ddsi_portmapping.h
     ddsi_handshake.h    
@@ -148,10 +150,12 @@ target_sources(ddsc
 
 if(ENABLE_SECURITY)
   PREPEND(security_srcs "${CMAKE_CURRENT_LIST_DIR}/src"
-          ddsi_security_msg.c)
+          ddsi_security_msg.c
+          ddsi_security_exchange.c)
 
   PREPEND(security_hdrs "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
-          ddsi_security_msg.h)
+          ddsi_security_msg.h
+	  ddsi_security_exchange.h)
 
   target_sources(ddsc
     PRIVATE ${security_srcs} ${security_hdrs})

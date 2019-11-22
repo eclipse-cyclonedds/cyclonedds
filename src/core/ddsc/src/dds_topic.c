@@ -32,6 +32,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 #include "dds__serdata_builtintopic.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_topic)
@@ -317,10 +318,12 @@ dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertop
    * reliable ... (and keep behaviour unchanged) */
   struct ddsi_domaingv * const gv = &pp->m_entity.m_domain->gv;
   if ((rc = ddsi_xqos_valid (&gv->logconfig, new_qos)) != DDS_RETCODE_OK)
+    goto error;
+
+  if (!q_omg_security_check_create_topic (&pp->m_entity.m_domain->gv, &pp->m_entity.m_guid, sertopic->name, new_qos))
   {
-    dds_delete_qos (new_qos);
-    dds_entity_unpin (&pp->m_entity);
-    return rc;
+    rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+    goto error;
   }
 
   /* See if we're allowed to create the topic; ktp is returned pinned & locked
@@ -333,9 +336,8 @@ dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertop
   if ((rc = lookup_and_check_ktopic (&ktp, pp, sertopic->name, sertopic->type_name, new_qos)) != DDS_RETCODE_OK)
   {
     GVTRACE ("dds_create_topic_arbitrary: failed after compatibility check: %s\n", dds_strretcode (rc));
-    dds_participant_unlock (pp);
-    dds_delete_qos (new_qos);
-    return rc;
+    ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
+    goto error;
   }
 
   /* Create a ktopic if it doesn't exist yet, else reference existing one and delete the
@@ -378,6 +380,11 @@ dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertop
   dds_participant_unlock (pp);
   GVTRACE ("dds_create_topic_arbitrary: new topic %"PRId32"\n", hdl);
   return hdl;
+
+ error:
+  dds_entity_unpin (&pp->m_entity);
+  dds_delete_qos (new_qos);
+  return rc;
 }
 
 dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)

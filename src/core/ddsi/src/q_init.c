@@ -57,6 +57,7 @@
 #include "dds/ddsi/ddsi_raweth.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
@@ -1131,7 +1132,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   add_property_to_xqos(&gv->builtin_volatile_xqos_rd, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureReader");
   add_property_to_xqos(&gv->builtin_volatile_xqos_wr, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureWriter");
 
-  q_omg_security_init( &gv->security_context, &gv->logconfig );
+  q_omg_security_init(gv);
 #endif
 
   ddsrt_mutex_init (&gv->sertopics_lock);
@@ -1482,7 +1483,7 @@ err_unicast_sockets:
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_rd);
 
-  q_omg_security_deinit( &gv->security_context );
+  q_omg_security_deinit (gv);
 #endif
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_rd);
@@ -1838,7 +1839,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_volatile_xqos_rd);
 
-  q_omg_security_deinit( &gv->security_context);
+  q_omg_security_deinit (gv);
 #endif
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_rd);

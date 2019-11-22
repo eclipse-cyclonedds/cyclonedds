@@ -45,6 +45,9 @@
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_pmd.h"
+#ifdef DDSI_INCLUDE_SECURITY
+#include "dds/ddsi/ddsi_security_exchange.h"
+#endif
 
 static int get_locator (const struct ddsi_domaingv *gv, nn_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)
 {
@@ -184,37 +187,13 @@ static int write_mpayload (struct writer *wr, int alive, nn_parameterid_t keypar
   return write_sample_nogc_notk (ts1, NULL, wr, serdata);
 }
 
-int spdp_write (struct participant *pp)
+void get_participant_builtin_topic_data(const struct participant *pp, struct nn_xmsg *mpayload, bool be)
 {
-  struct nn_xmsg *mpayload;
   struct nn_locators_one def_uni_loc_one, def_multi_loc_one, meta_uni_loc_one, meta_multi_loc_one;
   ddsi_plist_t ps;
-  struct writer *wr;
   size_t size;
   char node[64];
   uint64_t qosdiff;
-  int ret;
-
-  if (pp->e.onlylocal) {
-      /* This topic is only locally available. */
-      return 0;
-  }
-
-  ETRACE (pp, "spdp_write("PGUIDFMT")\n", PGUID (pp->e.guid));
-
-  if ((wr = get_builtin_writer (pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)) == NULL)
-  {
-    ETRACE (pp, "spdp_write("PGUIDFMT") - builtin participant writer not found\n", PGUID (pp->e.guid));
-    return 0;
-  }
-
-  /* First create a fake message for the payload: we can add plists to
-     xmsgs easily, but not to serdata.  But it is rather easy to copy
-     the payload of an xmsg over to a serdata ...  Expected size isn't
-     terribly important, the msg will grow as needed, address space is
-     essentially meaningless because we only use the message to
-     construct the payload. */
-  mpayload = nn_xmsg_new (pp->e.gv->xmsgpool, &pp->e.guid, NULL, 0, NN_XMSG_KIND_DATA);
 
   ddsi_plist_init_empty (&ps);
   ps.present |= PP_PARTICIPANT_GUID | PP_BUILTIN_ENDPOINT_SET |
@@ -321,6 +300,210 @@ int spdp_write (struct participant *pp)
     ETRACE (pp, "spdp_write("PGUIDFMT") - internals: %s\n", PGUID (pp->e.guid), ps.prismtech_participant_version_info.internals);
   }
 
+#ifdef DDSI_INCLUDE_SECURITY
+  /* Add Security specific information. */
+  if (q_omg_get_participant_security_info(pp, &(ps.participant_security_info))) {
+    ps.present |= PP_PARTICIPANT_SECURITY_INFO;
+    ps.aliased |= PP_PARTICIPANT_SECURITY_INFO;
+  }
+#endif
+
+  /* Participant QoS's insofar as they are set, different from the default, and mapped to the SPDP data, rather than to the PrismTech-specific CMParticipant endpoint.  Currently, that means just USER_DATA. */
+  qosdiff = ddsi_xqos_delta (&pp->plist->qos, &pp->e.gv->default_plist_pp.qos, QP_USER_DATA);
+  if (pp->e.gv->config.explicitly_publish_qos_set_to_default)
+    qosdiff |= ~QP_UNRECOGNIZED_INCOMPATIBLE_MASK;
+
+  assert (ps.qos.present == 0);
+  ddsi_plist_addtomsg_bo (mpayload, &ps, ~(uint64_t)0, 0, be);
+  ddsi_plist_addtomsg_bo (mpayload, pp->plist, 0, qosdiff, be);
+#ifdef DDSI_INCLUDE_SECURITY
+  if (q_omg_participant_is_secure(pp))
+     ddsi_plist_addtomsg_bo (mpayload, pp->plist, PP_IDENTITY_TOKEN | PP_PERMISSIONS_TOKEN, 0, be);
+#endif
+  nn_xmsg_addpar_sentinel_bo (mpayload, be);
+  ddsi_plist_fini (&ps);
+}
+
+int spdp_write (struct participant *pp)
+{
+  struct nn_xmsg *mpayload;
+  struct writer *wr;
+  int ret;
+
+  if (pp->e.onlylocal) {
+      /* This topic is only locally available. */
+      return 0;
+  }
+
+  ETRACE (pp, "spdp_write("PGUIDFMT")\n", PGUID (pp->e.guid));
+
+  if ((wr = get_builtin_writer (pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)) == NULL)
+  {
+    ETRACE (pp, "spdp_write("PGUIDFMT") - builtin participant writer not found\n", PGUID (pp->e.guid));
+    return 0;
+  }
+
+  /* First create a fake message for the payload: we can add plists to
+     xmsgs easily, but not to serdata.  But it is rather easy to copy
+     the payload of an xmsg over to a serdata ...  Expected size isn't
+     terribly important, the msg will grow as needed, address space is
+     essentially meaningless because we only use the message to
+     construct the payload. */
+  mpayload = nn_xmsg_new (pp->e.gv->xmsgpool, &pp->e.guid, pp, 0, NN_XMSG_KIND_DATA);
+  get_participant_builtin_topic_data(pp, mpayload, false);
+  ret = write_mpayload (wr, 1, PID_PARTICIPANT_GUID, mpayload);
+  nn_xmsg_free (mpayload);
+  return ret;
+}
+
+
+
+#if 0
+int spdp_write (struct participant *pp)
+{
+  struct nn_xmsg *mpayload;
+  struct nn_locators_one def_uni_loc_one, def_multi_loc_one, meta_uni_loc_one, meta_multi_loc_one;
+  ddsi_plist_t ps;
+  struct writer *wr;
+  size_t size;
+  char node[64];
+  uint64_t qosdiff;
+  int ret;
+
+  if (pp->e.onlylocal) {
+      /* This topic is only locally available. */
+      return 0;
+  }
+
+  ETRACE (pp, "spdp_write("PGUIDFMT")\n", PGUID (pp->e.guid));
+
+  if ((wr = get_builtin_writer (pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)) == NULL)
+  {
+    ETRACE (pp, "spdp_write("PGUIDFMT") - builtin participant writer not found\n", PGUID (pp->e.guid));
+    return 0;
+  }
+
+  /* First create a fake message for the payload: we can add plists to
+     xmsgs easily, but not to serdata.  But it is rather easy to copy
+     the payload of an xmsg over to a serdata ...  Expected size isn't
+     terribly important, the msg will grow as needed, address space is
+     essentially meaningless because we only use the message to
+     construct the payload. */
+  mpayload = nn_xmsg_new (pp->e.gv->xmsgpool, &pp->e.guid, pp, 0, NN_XMSG_KIND_DATA);
+
+  ddsi_plist_init_empty (&ps);
+  ps.present |= PP_PARTICIPANT_GUID | PP_BUILTIN_ENDPOINT_SET |
+    PP_PROTOCOL_VERSION | PP_VENDORID | PP_PARTICIPANT_LEASE_DURATION |
+    PP_DOMAIN_ID;
+  ps.participant_guid = pp->e.guid;
+  ps.builtin_endpoint_set = pp->bes;
+  ps.protocol_version.major = RTPS_MAJOR;
+  ps.protocol_version.minor = RTPS_MINOR;
+  ps.vendorid = NN_VENDORID_ECLIPSE;
+  ps.domain_id = pp->e.gv->config.extDomainId.value;
+  /* Be sure not to send a DOMAIN_TAG when it is the default (an empty)
+     string: it is an "incompatible-if-unrecognized" parameter, and so
+     implementations that don't understand the parameter will refuse to
+     discover us, and so sending the default would break backwards
+     compatibility. */
+  if (strcmp (pp->e.gv->config.domainTag, "") != 0)
+  {
+    ps.present |= PP_DOMAIN_TAG;
+    ps.aliased |= PP_DOMAIN_TAG;
+    ps.domain_tag = pp->e.gv->config.domainTag;
+  }
+  ps.default_unicast_locators.n = 1;
+  ps.default_unicast_locators.first =
+    ps.default_unicast_locators.last = &def_uni_loc_one;
+  ps.metatraffic_unicast_locators.n = 1;
+  ps.metatraffic_unicast_locators.first =
+    ps.metatraffic_unicast_locators.last = &meta_uni_loc_one;
+  def_uni_loc_one.next = NULL;
+  meta_uni_loc_one.next = NULL;
+
+  if (pp->e.gv->config.many_sockets_mode == MSM_MANY_UNICAST)
+  {
+    def_uni_loc_one.loc = pp->m_locator;
+    meta_uni_loc_one.loc = pp->m_locator;
+  }
+  else
+  {
+    def_uni_loc_one.loc = pp->e.gv->loc_default_uc;
+    meta_uni_loc_one.loc = pp->e.gv->loc_meta_uc;
+  }
+
+  if (pp->e.gv->config.publish_uc_locators)
+  {
+    ps.present |= PP_DEFAULT_UNICAST_LOCATOR | PP_METATRAFFIC_UNICAST_LOCATOR;
+    ps.aliased |= PP_DEFAULT_UNICAST_LOCATOR | PP_METATRAFFIC_UNICAST_LOCATOR;
+  }
+
+  if (pp->e.gv->config.allowMulticast)
+  {
+    int include = 0;
+#ifdef DDSI_INCLUDE_SSM
+    /* Note that if the default multicast address is an SSM address,
+       we will simply advertise it. The recipients better understand
+       it means the writers will publish to address and the readers
+       favour SSM. */
+    if (ddsi_is_ssm_mcaddr (pp->e.gv, &pp->e.gv->loc_default_mc))
+      include = (pp->e.gv->config.allowMulticast & AMC_SSM) != 0;
+    else
+      include = (pp->e.gv->config.allowMulticast & AMC_ASM) != 0;
+#else
+    if (pp->e.gv->config.allowMulticast & AMC_ASM)
+      include = 1;
+#endif
+    if (include)
+    {
+      ps.present |= PP_DEFAULT_MULTICAST_LOCATOR | PP_METATRAFFIC_MULTICAST_LOCATOR;
+      ps.aliased |= PP_DEFAULT_MULTICAST_LOCATOR | PP_METATRAFFIC_MULTICAST_LOCATOR;
+      ps.default_multicast_locators.n = 1;
+      ps.default_multicast_locators.first =
+      ps.default_multicast_locators.last = &def_multi_loc_one;
+      ps.metatraffic_multicast_locators.n = 1;
+      ps.metatraffic_multicast_locators.first =
+      ps.metatraffic_multicast_locators.last = &meta_multi_loc_one;
+      def_multi_loc_one.next = NULL;
+      def_multi_loc_one.loc = pp->e.gv->loc_default_mc;
+      meta_multi_loc_one.next = NULL;
+      meta_multi_loc_one.loc = pp->e.gv->loc_meta_mc;
+    }
+  }
+  ps.participant_lease_duration = pp->lease_duration;
+
+  /* Add PrismTech specific version information */
+  {
+    ps.present |= PP_PRISMTECH_PARTICIPANT_VERSION_INFO;
+    memset (&ps.prismtech_participant_version_info, 0, sizeof (ps.prismtech_participant_version_info));
+    ps.prismtech_participant_version_info.version = 0;
+    ps.prismtech_participant_version_info.flags =
+      NN_PRISMTECH_FL_DDSI2_PARTICIPANT_FLAG |
+      NN_PRISMTECH_FL_PTBES_FIXED_0 |
+      NN_PRISMTECH_FL_SUPPORTS_STATUSINFOX;
+    if (pp->e.gv->config.besmode == BESMODE_MINIMAL)
+      ps.prismtech_participant_version_info.flags |= NN_PRISMTECH_FL_MINIMAL_BES_MODE;
+    ddsrt_mutex_lock (&pp->e.gv->privileged_pp_lock);
+    if (pp->is_ddsi2_pp)
+      ps.prismtech_participant_version_info.flags |= NN_PRISMTECH_FL_PARTICIPANT_IS_DDSI2;
+    ddsrt_mutex_unlock (&pp->e.gv->privileged_pp_lock);
+
+    if (ddsrt_gethostname(node, sizeof(node)-1) < 0)
+      (void) ddsrt_strlcpy (node, "unknown", sizeof (node));
+    size = strlen(node) + strlen(DDS_VERSION) + strlen(DDS_HOST_NAME) + strlen(DDS_TARGET_NAME) + 4; /* + ///'\0' */
+    ps.prismtech_participant_version_info.internals = ddsrt_malloc(size);
+    (void) snprintf(ps.prismtech_participant_version_info.internals, size, "%s/%s/%s/%s", node, DDS_VERSION, DDS_HOST_NAME, DDS_TARGET_NAME);
+    ETRACE (pp, "spdp_write("PGUIDFMT") - internals: %s\n", PGUID (pp->e.guid), ps.prismtech_participant_version_info.internals);
+  }
+
+#ifdef DDSI_INCLUDE_SECURITY
+  /* Add Security specific information. */
+  if (q_omg_get_participant_security_info(pp, &(ps.participant_security_info))) {
+    ps.present |= PP_PARTICIPANT_SECURITY_INFO;
+    ps.aliased |= PP_PARTICIPANT_SECURITY_INFO;
+  }
+#endif
+
   /* Participant QoS's insofar as they are set, different from the default, and mapped to the SPDP data, rather than to the PrismTech-specific CMParticipant endpoint.  Currently, that means just USER_DATA. */
   qosdiff = ddsi_xqos_delta (&pp->plist->qos, &pp->e.gv->default_plist_pp.qos, QP_USER_DATA);
   if (pp->e.gv->config.explicitly_publish_qos_set_to_default)
@@ -329,6 +512,10 @@ int spdp_write (struct participant *pp)
   assert (ps.qos.present == 0);
   ddsi_plist_addtomsg (mpayload, &ps, ~(uint64_t)0, 0);
   ddsi_plist_addtomsg (mpayload, pp->plist, 0, qosdiff);
+#ifdef DDSI_INCLUDE_SECURITY
+  if (q_omg_participant_is_secure(pp))
+    ddsi_plist_addtomsg (mpayload, pp->plist, PP_IDENTITY_TOKEN | PP_PERMISSIONS_TOKEN, 0);
+#endif
   nn_xmsg_addpar_sentinel (mpayload);
   ddsi_plist_fini (&ps);
 
@@ -336,6 +523,7 @@ int spdp_write (struct participant *pp)
   nn_xmsg_free (mpayload);
   return ret;
 }
+#endif
 
 static int spdp_dispose_unregister_with_wr (struct participant *pp, unsigned entityid)
 {
@@ -352,7 +540,7 @@ static int spdp_dispose_unregister_with_wr (struct participant *pp, unsigned ent
     return 0;
   }
 
-  mpayload = nn_xmsg_new (pp->e.gv->xmsgpool, &pp->e.guid, NULL, 0, NN_XMSG_KIND_DATA);
+  mpayload = nn_xmsg_new (pp->e.gv->xmsgpool, &pp->e.guid, pp, 0, NN_XMSG_KIND_DATA);
   ddsi_plist_init_empty (&ps);
   ps.present |= PP_PARTICIPANT_GUID;
   ps.participant_guid = pp->e.guid;
@@ -1009,7 +1197,7 @@ static int sedp_write_endpoint
      the QoS and other settings. So the header fields aren't really
      important, except that they need to be set to reasonable things
      or it'll crash */
-  mpayload = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, NULL, 0, NN_XMSG_KIND_DATA);
+  mpayload = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_DATA);
   ddsi_plist_addtomsg (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0);
   if (xqos) ddsi_xqos_addtomsg (mpayload, xqos, qosdiff);
   nn_xmsg_addpar_sentinel (mpayload);
@@ -1268,6 +1456,12 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, dd
     E ("******* AARGH - it expects inline QoS ********\n", err);
   }
 
+  q_omg_log_endpoint_protection(gv, datap);
+  if (q_omg_is_endpoint_protected(datap) && !q_omg_proxy_participant_is_secure(pp))
+  {
+    E (" remote endpoint is protected while local federation is not secure\n", err);
+  }
+
   if (is_writer)
   {
     pwr = entidx_lookup_proxy_writer_guid (gv->entity_index, &datap->endpoint_guid);
@@ -1472,7 +1666,7 @@ int sedp_write_topic (struct participant *pp, const struct ddsi_plist *datap)
 
   sedp_wr = get_sedp_writer (pp, NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER);
 
-  mpayload = nn_xmsg_new (sedp_wr->e.gv->xmsgpool, &sedp_wr->e.guid, NULL, 0, NN_XMSG_KIND_DATA);
+  mpayload = nn_xmsg_new (sedp_wr->e.gv->xmsgpool, &sedp_wr->e.guid, pp, 0, NN_XMSG_KIND_DATA);
   delta = ddsi_xqos_delta (&datap->qos, &sedp_wr->e.gv->default_xqos_tp, ~(uint64_t)0);
   if (sedp_wr->e.gv->config.explicitly_publish_qos_set_to_default)
     delta |= ~QP_UNRECOGNIZED_INCOMPATIBLE_MASK;
@@ -1718,10 +1912,10 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
       break;
 #ifdef DDSI_INCLUDE_SECURITY
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
-      /* TODO: Handshake */
+      handle_auth_handshake_message(sampleinfo->rst, srcguid.entityid, timestamp, statusinfo, datap, datasz);
       break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER:
-      /* TODO: Key exchange */
+      handle_crypto_exchange_message(sampleinfo->rst, srcguid.entityid, timestamp, statusinfo, datap, datasz);
       break;
 #endif
     default:

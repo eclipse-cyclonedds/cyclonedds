@@ -165,7 +165,7 @@ typedef struct remote_datawriter_crypto
   master_key_material *reader2writer_key_material;
   master_key_material *writer2reader_key_material[2];
   session_key_material *reader_session; /* reference to the session key used by the reader */
-  DDS_Security_DatareaderCryptoHandle local_reader_handle;
+  struct local_datareader_crypto *local_reader;
   bool is_builtin_participant_volatile_message_secure_writer;
 } remote_datawriter_crypto;
 
@@ -190,7 +190,7 @@ typedef struct remote_datareader_crypto
   master_key_material *writer2reader_key_material_message;
   master_key_material *writer2reader_key_material_payload;
   session_key_material *writer_session; /* reference to the session key used by the writer */
-  DDS_Security_DatawriterCryptoHandle local_writer_handle;
+  local_datawriter_crypto *local_writer;
   bool is_builtin_participant_volatile_message_secure_reader;
 } remote_datareader_crypto;
 
@@ -257,7 +257,7 @@ crypto_remote_datareader_crypto__new(
     const remote_participant_crypto *participant,
     DDS_Security_ProtectionKind metadata_protectionKind,
     DDS_Security_BasicProtectionKind data_protectionKind,
-    DDS_Security_DatawriterCryptoHandle local_writer_handle);
+    local_datawriter_crypto *local_writer);
 
 local_datareader_crypto *
 crypto_local_datareader_crypto__new(
@@ -270,7 +270,7 @@ crypto_remote_datawriter_crypto__new(
     const remote_participant_crypto *participant,
     DDS_Security_ProtectionKind meta_protection,
     DDS_Security_BasicProtectionKind data_protection,
-    DDS_Security_DatareaderCryptoHandle local_reader_handle);
+    local_datareader_crypto *local_reader);
 
 CryptoObject *
 crypto_object_keep(

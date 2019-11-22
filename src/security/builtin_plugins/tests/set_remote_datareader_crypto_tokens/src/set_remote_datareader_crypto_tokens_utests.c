@@ -149,6 +149,7 @@ register_local_datawriter(void)
   memset(&datawriter_security_attributes, 0, sizeof(DDS_Security_EndpointSecurityAttributes));
 
   datawriter_security_attributes.is_discovery_protected = true;
+  datawriter_security_attributes.is_submessage_protected = true;
 
   local_writer_crypto =
       crypto->crypto_key_factory->register_local_datawriter(

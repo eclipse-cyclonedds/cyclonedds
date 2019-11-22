@@ -867,7 +867,7 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, 
   assert((wr->heartbeat_xevent != NULL) == (whcst != NULL));
 
   sz = ddsi_serdata_size (serdata);
-  if (sz > gv->config.fragment_size || !isnew || plist != NULL || prd != NULL)
+  if (sz > gv->config.fragment_size || !isnew || plist != NULL || prd != NULL || q_omg_writer_is_submessage_protected(wr))
   {
     uint32_t nfrags;
     ddsrt_mutex_unlock (&wr->e.lock);

@@ -20,6 +20,7 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
+#include "plugin_mock_common.h"
 //#include "dds/ddsi/ddsi_security_omg.h"
 
 #define FORCE_ENV
@@ -87,7 +88,7 @@ static uint32_t found;
 static void logger(void *ptr, const dds_log_data_t *data) {
   char **expected = (char **) ptr;
   if (print_log) {
-    printf("%s\n", data->message);
+    fputs(data->message, stdout);
   }
   for (uint32_t i = 0; expected[i] != NULL; i++) {
       if (patmatch(expected[i], data->message)) {
@@ -112,9 +113,9 @@ CU_Test(ddssec_security_plugin_loading, all_ok, .init = ddsrt_init, .fini = ddsr
           "<DDSSecurity>"
             "<Authentication>"
               "<Library path=\"dds_security_authentication_all_ok\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
-              "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-              "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-              "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+              "<IdentityCertificate>"TEST_IDENTITY_CERTIFICATE_ALL_OK"</IdentityCertificate>"
+              "<IdentityCA>"TEST_CA_CERTIFICATE_ALL_OK"</IdentityCA>"
+              "<PrivateKey>"TEST_PRIVATE_KEY_ALL_OK"</PrivateKey>"
               "<Password>testtext_Password_testtext</Password>"
               "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
             "</Authentication>"
@@ -469,7 +470,7 @@ CU_Test(ddssec_security_plugin_loading, no_library_in_path, .init = ddsrt_init, 
 #else
   dds_delete(participant);
 #endif
-  
+
   CU_ASSERT_FATAL(found == 0xd || found == 0xe);
 
   dds_delete(participant);
@@ -551,13 +552,13 @@ CU_Test(ddssec_security_plugin_loading, all_ok_with_props, .init = ddsrt_init, .
 
   dds_entity_t participant;
   dds_qos_t * qos;
-  
-  
+
+
   /* Set up the trace sinks to detect the config parsing. */
   dds_set_log_mask(DDS_LC_INFO);
   dds_set_log_sink(&logger, (void*)log_expected);
   dds_set_trace_sink(&logger, (void*)log_expected);
-  
+
   /* Create the qos */
   unsigned char bvalue[3] = { 0x01, 0x02, 0x03 };
   CU_ASSERT_FATAL ((qos = dds_create_qos()) != NULL);
