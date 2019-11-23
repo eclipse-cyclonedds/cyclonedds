@@ -23,7 +23,7 @@ OpenIndiana one or a Solaris 2.6 one) with the following installed on your host:
   * Java JDK, version 8 or later, e.g., [OpenJDK](https://jdk.java.net/);
   * [Apache Maven](https://maven.apache.org/download.cgi), version 3.5 or later.
 
-On Ubuntu ``apt install maven default-jdk`` should do the trick for getting Java and Maven
+On Ubuntu ``apt install maven default-jdk git`` should do the trick for getting Java, Maven and GIT
 installed, and the rest should already be there.  On Windows, installing chocolatey and ``choco
 install git cmake openjdk maven`` should get you a long way.  On macOS, ``brew install maven cmake``
 and downloading and installing the JDK is easiest.
