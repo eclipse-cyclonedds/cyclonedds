@@ -42,6 +42,17 @@ struct reader_sec_attributes;
 bool q_omg_participant_is_secure(const struct participant *pp);
 
 /**
+ * @brief Check if security is enabled for the proxy participant.
+ *
+ * @param[in] proxypp  Proxy participant to check if it is secure.
+ *
+ * @returns bool
+ * @retval true   Proxy participant is secure
+ * @retval false  Proxy participant is not secure
+ */
+bool q_omg_proxy_participant_is_secure(const struct proxy_participant *proxypp);
+
+/**
  * @brief Get security info flags of the given writer.
  *
  * @param[in]  wr    Writer to get the security info from.
@@ -218,6 +229,25 @@ bool q_omg_is_similar_participant_security_info(struct participant *pp, struct p
 bool q_omg_participant_allow_unauthenticated(struct participant *pp);
 
 /**
+ * @brief Register participant with security plugin and check if the
+ *        participant is allowed by security.
+ *
+ * This function will register the participant with the authentication
+ * plugin which will check if the provided security QoS parameters are
+ * correct, e.g. is the provided certificate valid, etc.
+ * When that is successful it is checked with access control if the
+ * participant has the correct permissions and is allowed to be created.
+ *
+ * @param[in] pp        The participant.
+ * @param[in] domain_id The domain id.
+ *
+ * @returns bool
+ * @retval true   The security check on the participant succeeded.
+ * @retval false  The security check on the participant failed.
+ */
+bool q_omg_security_check_create_participant(struct participant *pp, uint32_t domain_id);
+
+/**
  * @brief Initialize the proxy participant security attributes
  *
  * @param[in] proxypp  The proxy participant.
@@ -386,6 +416,13 @@ bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_
 inline bool
 q_omg_participant_is_secure(
   UNUSED_ARG(const struct participant *pp))
+{
+  return false;
+}
+
+inline bool
+q_omg_proxy_participant_is_secure(
+  UNUSED_ARG(const struct proxy_participant *proxypp))
 {
   return false;
 }

@@ -172,16 +172,16 @@ void ddsi_hsadmin_remove_from_fsm(struct ddsi_hsadmin *admin, struct ddsi_handsh
 extern inline void ddsi_handshake_start(UNUSED_ARG(struct ddsi_handshake *hs));
 extern inline struct ddsi_handshake * ddsi_handshake_create(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(nn_wctime_t timestamp), UNUSED_ARG(ddsi_handshake_end_cb_t callback));
 extern inline int64_t ddsi_handshake_get_shared_secret(UNUSED_ARG(const struct ddsi_handshake *handshake));
-inline int64_t ddsi_handshake_get_handle(UNUSED_ARG(const struct ddsi_handshake *handshake));
-inline struct ddsi_hsadmin * ddsi_hsadmin_create(void);
-inline void ddsi_handshake_release(UNUSED_ARG(struct ddsi_handshake *handshake));
-inline void ddsi_hsadmin_clear(UNUSED_ARG(struct ddsi_hsadmin *admin));
-inline void ddsi_hsadmin_delete(UNUSED_ARG(struct ddsi_hsadmin *admin));
-inline void ddsi_hsadmin_lock(UNUSED_ARG(struct ddsi_hsadmin *admin));
-inline void ddsi_hsadmin_unlock(UNUSED_ARG(struct ddsi_hsadmin *admin));
-inline struct ddsi_handshake * ddsi_hsadmin_register_locked(UNUSED_ARG(struct ddsi_hsadmin *admin), UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(nn_wctime_t timestamp), UNUSED_ARG(ddsi_handshake_end_cb_t callback));
-inline struct ddsi_handshake * ddsi_hsadmin_find(UNUSED_ARG(const struct ddsi_hsadmin *admin), UNUSED_ARG(const ddsi_guid_t *lguid));
-inline void ddsi_hsadmin_remove_by_guid(UNUSED_ARG(struct ddsi_hsadmin *admin), UNUSED_ARG(const nn_guid_t *lguid));
-inline void ddsi_hsadmin_remove_from_fsm(UNUSED_ARG(struct ddsi_hsadmin *admin), UNUSED_ARG(struct ddsi_handshake *hs));
+extern inline int64_t ddsi_handshake_get_handle(UNUSED_ARG(const struct ddsi_handshake *handshake));
+extern inline struct ddsi_hsadmin * ddsi_hsadmin_create(void);
+extern inline void ddsi_handshake_release(UNUSED_ARG(struct ddsi_handshake *handshake));
+extern inline void ddsi_hsadmin_clear(UNUSED_ARG(struct ddsi_hsadmin *admin));
+extern inline void ddsi_hsadmin_delete(UNUSED_ARG(struct ddsi_hsadmin *admin));
+extern inline void ddsi_hsadmin_lock(UNUSED_ARG(struct ddsi_hsadmin *admin));
+extern inline void ddsi_hsadmin_unlock(UNUSED_ARG(struct ddsi_hsadmin *admin));
+extern inline struct ddsi_handshake * ddsi_hsadmin_register_locked(UNUSED_ARG(struct ddsi_hsadmin *admin), UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(nn_wctime_t timestamp), UNUSED_ARG(ddsi_handshake_end_cb_t callback));
+extern inline struct ddsi_handshake * ddsi_hsadmin_find(UNUSED_ARG(const struct ddsi_hsadmin *admin), UNUSED_ARG(const ddsi_guid_t *lguid));
+extern inline void ddsi_hsadmin_remove_by_guid(UNUSED_ARG(struct ddsi_hsadmin *admin), UNUSED_ARG(const nn_guid_t *lguid));
+extern inline void ddsi_hsadmin_remove_from_fsm(UNUSED_ARG(struct ddsi_hsadmin *admin), UNUSED_ARG(struct ddsi_handshake *hs));
 
 #endif /* DDSI_INCLUDE_DDS_SECURITY */

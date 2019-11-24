@@ -617,6 +617,15 @@ q_omg_participant_is_secure(
   return false;
 }
 
+bool
+q_omg_proxy_participant_is_secure(
+    const struct proxy_participant *proxypp)
+{
+  /* TODO: Register remote participant */
+  DDSRT_UNUSED_ARG(proxypp);
+  return false;
+}
+
 static bool
 q_omg_writer_is_discovery_protected(
   const struct writer *wr)
@@ -1614,8 +1623,6 @@ allow_proxy_participant_deletion(
   return (!q_omg_proxyparticipant_is_authenticated(proxypp));
 }
 
-
-
 bool
 q_omg_is_similar_participant_security_info(struct participant *pp, struct proxy_participant *proxypp)
 {
@@ -1630,13 +1637,6 @@ q_omg_security_participant_send_tokens(struct participant *pp, struct proxy_part
 {
   DDSRT_UNUSED_ARG(pp);
   DDSRT_UNUSED_ARG(proxypp);
-}
-
-int64_t
-q_omg_security_get_remote_participant_handle(struct proxy_participant *proxypp)
-{
-  DDSRT_UNUSED_ARG(proxypp);
-  return 0;
 }
 
 bool
@@ -1691,12 +1691,19 @@ q_omg_security_check_remote_reader_permissions(const struct proxy_reader *prd, u
   return true;
 }
 
+int64_t
+q_omg_security_get_remote_participant_handle(struct proxy_participant *proxypp)
+{
+  DDSRT_UNUSED_ARG(proxypp);
+  return 0;
+}
 
 #else /* DDSI_INCLUDE_SECURITY */
 
 #include "dds/ddsi/ddsi_security_omg.h"
 
 extern inline bool q_omg_participant_is_secure(UNUSED_ARG(const struct participant *pp));
+extern inline bool q_omg_proxy_participant_is_secure(const struct proxy_participant *proxypp);
 
 extern inline unsigned determine_subscription_writer(UNUSED_ARG(const struct reader *rd));
 extern inline unsigned determine_publication_writer(UNUSED_ARG(const struct writer *wr));
@@ -1759,6 +1766,5 @@ extern inline void q_omg_security_deregister_remote_participant(UNUSED_ARG(struc
 extern inline void q_omg_security_participant_send_tokens(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp));
 
 extern inline int64_t q_omg_security_get_remote_participant_handle(UNUSED_ARG(struct proxy_participant *proxypp));
-
 
 #endif /* DDSI_INCLUDE_SECURITY */

@@ -592,7 +592,7 @@ static void connect_participant_secure(struct q_globals *gv, struct participant 
   struct ddsi_handshake *handshake;
   nn_wctime_t timestamp;
 
-  if (gv->config.omg_security_configuration)
+  if (q_omg_participant_is_secure(pp))
   {
     timestamp = now();
     ephash_enum_proxy_participant_init (&it, gv->guid_hash);
@@ -622,7 +622,7 @@ static void disconnect_participant_secure(struct participant *pp)
 
   gv = pp->e.gv;
 
-  if (gv->config.omg_security_configuration)
+  if (q_omg_participant_is_secure(pp))
   {
     ephash_enum_proxy_participant_init (&it, gv->guid_hash);
     while ((proxypp = ephash_enum_proxy_participant_next (&it)) != NULL)
@@ -726,7 +726,22 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
       if (ret != DDS_RETCODE_OK)
         goto new_pp_err_secprop;
     }
+
+    if (!q_omg_security_check_create_participant (pp, gv->config.domainId))
+    {
+      ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+      goto not_allowed;
+    }
   }
+  else if (nn_xqos_has_prop (&pp->plist->qos, "dds.sec.", true))
+  {
+    if (!q_omg_security_check_create_participant (pp, gv->config.domainId))
+    {
+      ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+      goto not_allowed;
+    }
+  }
+
 #endif
 
   if (gv->logconfig.c.mask & DDS_LC_DISCOVERY)
@@ -925,7 +940,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   }
 
 #ifdef DDSI_INCLUDE_SECURITY
-  if (gv->config.omg_security_configuration)
+  if (q_omg_participant_is_secure(pp))
   {
     connect_participant_secure (gv, pp);
   }
@@ -934,6 +949,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   return ret;
 
 #ifdef DDSI_INCLUDE_SECURITY
+not_allowed:
 new_pp_err_secprop:
   nn_plist_fini (pp->plist);
   ddsrt_free (pp->plist);
@@ -4347,6 +4363,9 @@ void new_proxy_participant
      runs on a single thread, it can't go wrong. FIXME, maybe? The
      same holds for the other functions for creating entities. */
   struct proxy_participant *proxypp;
+#ifdef DDSI_INCLUDE_SECURITY
+  bool secure = false;
+#endif
 
   assert (ppguid->entityid.u == NN_ENTITYID_PARTICIPANT);
   assert (ephash_lookup_proxy_participant_guid (gv->guid_hash, ppguid) == NULL);
@@ -4410,8 +4429,8 @@ void new_proxy_participant
   proxypp->handshake_admin = NULL;
   proxypp->remote_identity_handle = 0;
   proxypp->sec_attr = NULL;
-  proxypp->secure = ((bes & NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0);
-  if (!proxypp->secure)
+  secure = ((bes & NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0);
+  if (!secure)
   {
     /* Make sure we don't create any security builtin endpoint when it's considered unsecure. */
     proxypp->bes &= BES_MASK_NON_SECURITY;
@@ -4445,58 +4464,45 @@ void new_proxy_participant
   ephash_insert_proxy_participant_guid (gv->guid_hash, proxypp);
 
 #ifdef DDSI_INCLUDE_SECURITY
-  if (gv->config.omg_security_configuration)
+  if (secure)
   {
-    if (proxypp->secure)
+    /* Secure participant detected: start handshake. */
+    if ((plist->present & PP_IDENTITY_TOKEN))
     {
-      /* Secure participant detected: start handshake. */
-      if ((plist->present & PP_IDENTITY_TOKEN))
-      {
-        /* initialize the security attributes associated with the proxy participant */
-        q_omg_security_init_remote_participant(proxypp);
-        /* Check if this secure participant is allowed. */
-        if (proxy_participant_check_security_info(gv, proxypp)) {
-          /* Create builtin endpoints, of which a few are used in the handshake. */
-          add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
-          /* Create and start handshake. */
-          proxypp->handshake_admin = ddsi_hsadmin_create();
-          if (!proxypp->handshake_admin || !proxy_participant_create_handshake(gv, proxypp, timestamp)) {
-            DDS_CWARNING(&gv->logconfig, "Failed to start handshake with participant "PGUIDFMT"\n", PGUID (*ppguid));
-            delete_proxy_participant_by_guid(gv, ppguid, timestamp, 0);
-          }
-        } else {
-          DDS_CWARNING(&gv->logconfig, "Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
+      /* initialize the security attributes associated with the proxy participant */
+      q_omg_security_init_remote_participant(proxypp);
+      /* Check if this secure participant is allowed. */
+      if (proxy_participant_check_security_info(gv, proxypp)) {
+        /* Create builtin endpoints, of which a few are used in the handshake. */
+        add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
+        /* Create and start handshake. */
+        proxypp->handshake_admin = ddsi_hsadmin_create();
+        if (!proxypp->handshake_admin || !proxy_participant_create_handshake(gv, proxypp, timestamp)) {
+          DDS_CWARNING(&gv->logconfig, "Failed to start handshake with participant "PGUIDFMT"\n", PGUID (*ppguid));
           delete_proxy_participant_by_guid(gv, ppguid, timestamp, 0);
         }
-      }
-      else
-      {
-        /* Do not communicate with un-secure participants. */
-        DDS_CWARNING(&gv->logconfig, "Don't communicate with secure participant "PGUIDFMT" which does not provide an identity token\n", PGUID (*ppguid));
+      } else {
+        DDS_CWARNING(&gv->logconfig, "Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
         delete_proxy_participant_by_guid(gv, ppguid, timestamp, 0);
       }
     }
     else
     {
-      /* Remote is un-secure. Try the discovery anyway. Maybe there's a local secure
-       * participant that allowed communication with remote non-secure ones */
-      add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
-      DDS_CLOG (DDS_LC_INFO, &gv->logconfig, "Un-secure participant "PGUIDFMT" tries to connect.\n", PGUID (*ppguid));
+      /* Do not communicate with un-secure participants. */
+      DDS_CWARNING(&gv->logconfig, "Don't communicate with secure participant "PGUIDFMT" which does not provide an identity token\n", PGUID (*ppguid));
+      delete_proxy_participant_by_guid(gv, ppguid, timestamp, 0);
     }
   }
   else
   {
-    /* We're not secure. Try to communicate with the remote. */
+    /* Remote is un-secure. Try the discovery anyway. Maybe there's a local secure
+     * participant that allowed communication with remote non-secure ones */
     add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
+    DDS_CLOG (DDS_LC_INFO, &gv->logconfig, "Un-secure participant "PGUIDFMT" tries to connect.\n", PGUID (*ppguid));
   }
 #else
-  /* TODO: Do security checks on the proxy participant. Either add the endpoints or delete the proxy. */
   add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
 #endif
-
-
-
-
 }
 
 int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp)
@@ -4733,7 +4739,6 @@ static void downgrade_to_nonsecure(struct proxy_participant *proxypp)
   /* Cleanup all kinds of related security information. */
   q_omg_security_deregister_remote_participant(proxypp);
   proxypp->bes &= BES_MASK_NON_SECURITY;
-  proxypp->secure = 0;
 
   ddsrt_mutex_unlock (&proxypp->e.lock);
 }
