@@ -1454,13 +1454,22 @@ int rtps_start (struct q_globals *gv)
   if (gv->listener)
   {
     if (create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) listen_thread, gv->listener) != DDS_RETCODE_OK)
-      GVERROR ("rtps_start: can't create listener thread\n");
-    /* FIXME: error handling */
+    {
+      GVERROR ("failed to create TCP listener thread\n");
+      ddsi_listener_free (gv->listener);
+      gv->listener = NULL;
+      rtps_stop (gv);
+      return -1;
+    }
   }
   if (gv->config.monitor_port >= 0)
   {
-    gv->debmon = new_debug_monitor (gv, gv->config.monitor_port);
-    /* FIXME: clean up */
+    if ((gv->debmon = new_debug_monitor (gv, gv->config.monitor_port)) == NULL)
+    {
+      GVERROR ("failed to create debug monitor thread\n");
+      rtps_stop (gv);
+      return -1;
+    }
   }
 
   return 0;

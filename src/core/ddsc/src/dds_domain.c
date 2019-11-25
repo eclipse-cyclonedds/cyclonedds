@@ -167,6 +167,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   return domh;
 
 fail_rtps_start:
+  dds__builtin_fini (domain);
   if (domain->gv.config.liveliness_monitoring && dds_global.threadmon_count == 1)
     ddsi_threadmon_stop (dds_global.threadmon);
 fail_threadmon_start:
