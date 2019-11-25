@@ -43,6 +43,7 @@
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/q_feature_check.h"
+#include "dds/ddsi/ddsi_pmd.h"
 
 static int get_locator (const struct q_globals *gv, nn_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)
 {
@@ -486,10 +487,8 @@ static void make_participants_dependent_on_ddsi2 (struct q_globals *gv, const dd
 {
   struct ephash_enum_proxy_participant it;
   struct proxy_participant *pp, *d2pp;
-  struct lease *d2pp_lease;
   if ((d2pp = ephash_lookup_proxy_participant_guid (gv->guid_hash, ddsi2guid)) == NULL)
     return;
-  d2pp_lease = ddsrt_atomic_ldvoidp (&d2pp->lease);
   ephash_enum_proxy_participant_init (&it, gv->guid_hash);
   while ((pp = ephash_enum_proxy_participant_next (&it)) != NULL)
   {
@@ -499,7 +498,7 @@ static void make_participants_dependent_on_ddsi2 (struct q_globals *gv, const dd
       ddsrt_mutex_lock (&pp->e.lock);
       pp->privileged_pp_guid = *ddsi2guid;
       ddsrt_mutex_unlock (&pp->e.lock);
-      proxy_participant_reassign_lease (pp, d2pp_lease);
+      proxy_participant_reassign_lease (pp, d2pp->lease);
       GVTRACE ("\n");
 
       if (ephash_lookup_proxy_participant_guid (gv->guid_hash, ddsi2guid) == NULL)
@@ -614,9 +613,10 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
       int interesting = 0;
       RSTTRACE ("SPDP ST0 "PGUIDFMT" (known)", PGUID (datap->participant_guid));
       /* SPDP processing is so different from normal processing that we are
-         even skipping the automatic lease renewal.  Therefore do it regardless
-         of gv.config.arrival_of_data_asserts_pp_and_ep_liveliness. */
-      lease_renew (ddsrt_atomic_ldvoidp (&proxypp->lease), now_et ());
+         even skipping the automatic lease renewal. Note that proxy writers
+         that are not alive are not set alive here. This is done only when
+         data is received from a particular pwr (in handle_regular) */
+      lease_renew (ddsrt_atomic_ldvoidp (&proxypp->minl_auto), now_et ());
       ddsrt_mutex_lock (&proxypp->e.lock);
       if (proxypp->implicitly_created || seq > proxypp->seq)
       {
@@ -1247,7 +1247,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, nn
       GVLOGDISC (" "PGUIDFMT" attach-to-DS "PGUIDFMT, PGUID(pp->e.guid), PGUIDPREFIX(*src_guid_prefix), pp->privileged_pp_guid.entityid.u);
       ddsrt_mutex_lock (&pp->e.lock);
       pp->privileged_pp_guid.prefix = *src_guid_prefix;
-      lease_set_expiry(ddsrt_atomic_ldvoidp(&pp->lease), never);
+      lease_set_expiry(pp->lease, never);
       ddsrt_mutex_unlock (&pp->e.lock);
     }
     GVLOGDISC ("\n");
@@ -1357,13 +1357,9 @@ static void handle_SEDP_dead (const struct receiver_state *rst, nn_plist_t *data
   }
   GVLOGDISC (" "PGUIDFMT, PGUID (datap->endpoint_guid));
   if (is_writer_entityid (datap->endpoint_guid.entityid))
-  {
     res = delete_proxy_writer (gv, &datap->endpoint_guid, timestamp, 0);
-  }
   else
-  {
     res = delete_proxy_reader (gv, &datap->endpoint_guid, timestamp, 0);
-  }
   GVLOGDISC (" %s\n", (res < 0) ? " unknown" : " delete");
 }
 
@@ -1768,7 +1764,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
       handle_SEDP (sampleinfo->rst, sampleinfo->seq, timestamp, statusinfo, datap, datasz);
       break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
-      handle_PMD (sampleinfo->rst, timestamp, statusinfo, datap, datasz);
+      handle_pmd_message (sampleinfo->rst, timestamp, statusinfo, datap, datasz);
       break;
     case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER:
       handle_SEDP_CM (sampleinfo->rst, srcguid.entityid, timestamp, statusinfo, datap, datasz);

@@ -194,7 +194,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     nn_xmsg_setencoderid (msg, wr->partition_id);
 #endif
-    add_Heartbeat (msg, wr, whcst, hbansreq, to_entityid (NN_ENTITYID_UNKNOWN), issync);
+    add_Heartbeat (msg, wr, whcst, hbansreq, 0, to_entityid (NN_ENTITYID_UNKNOWN), issync);
   }
   else
   {
@@ -215,7 +215,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
     nn_xmsg_setencoderid (msg, wr->partition_id);
 #endif
-    add_Heartbeat (msg, wr, whcst, hbansreq, prd_guid->entityid, issync);
+    add_Heartbeat (msg, wr, whcst, hbansreq, 0, prd_guid->entityid, issync);
   }
 
   writer_hbcontrol_note_hb (wr, tnow, hbansreq);
@@ -313,7 +313,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
   return msg;
 }
 
-void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, ddsi_entityid_t dst, int issync)
+void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, int hbliveliness, ddsi_entityid_t dst, int issync)
 {
   struct q_globals const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
@@ -324,6 +324,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
 
   assert (wr->reliable);
   assert (hbansreq >= 0);
+  assert (hbliveliness >= 0);
 
   if (gv->config.meas_hb_to_ack_latency)
   {
@@ -337,6 +338,8 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
 
   if (!hbansreq)
     hb->smhdr.flags |= HEARTBEAT_FLAG_FINAL;
+  if (hbliveliness)
+    hb->smhdr.flags |= HEARTBEAT_FLAG_LIVELINESS;
 
   hb->readerId = nn_hton_entityid (dst);
   hb->writerId = nn_hton_entityid (wr->e.guid.entityid);
@@ -664,6 +667,34 @@ static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragn
   hbf->count = ++wr->hbfragcount;
 
   nn_xmsg_submsg_setnext (*pmsg, sm_marker);
+}
+
+dds_return_t write_hb_liveliness (struct q_globals * const gv, struct ddsi_guid *wr_guid, struct nn_xpack *xp)
+{
+  struct nn_xmsg *msg = NULL;
+  struct whc_state whcst;
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+  thread_state_awake (ts1, gv);
+  struct writer *wr = ephash_lookup_writer_guid (gv->guid_hash, wr_guid);
+  if (wr == NULL)
+  {
+    GVTRACE ("write_hb_liveliness("PGUIDFMT") - writer not found\n", PGUID (*wr_guid));
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+  }
+  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  ddsrt_mutex_lock (&wr->e.lock);
+  nn_xmsg_setdstN (msg, wr->as, wr->as_group);
+#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+  nn_xmsg_setencoderid (msg, wr->partition_id);
+#endif
+  whc_get_state (wr->whc, &whcst);
+  add_Heartbeat (msg, wr, &whcst, 0, 1, to_entityid (NN_ENTITYID_UNKNOWN), 1);
+  ddsrt_mutex_unlock (&wr->e.lock);
+  nn_xpack_addmsg (xp, msg, 0);
+  nn_xpack_send (xp, true);
+  thread_state_asleep (ts1);
+  return DDS_RETCODE_OK;
 }
 
 #if 0

@@ -548,7 +548,7 @@ static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *
   }
 
   /* Send a Heartbeat just to this peer */
-  add_Heartbeat (m, wr, whcst, hbansreq, prd->e.guid.entityid, 0);
+  add_Heartbeat (m, wr, whcst, hbansreq, 0, prd->e.guid.entityid, 0);
   ETRACE (wr, "force_heartbeat_to_peer: "PGUIDFMT" -> "PGUIDFMT" - queue for transmit\n",
           PGUID (wr->e.guid), PGUID (prd->e.guid));
   qxev_msg (wr->evq, m);
@@ -668,9 +668,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     return 1;
   }
 
-  /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
-  lease_renew (ddsrt_atomic_ldvoidp (&prd->c.proxypp->lease), tnow);
-
+  lease_renew (ddsrt_atomic_ldvoidp (&prd->c.proxypp->minl_auto), tnow);
   if (!wr->reliable) /* note: reliability can't be changed */
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a reliable writer!)", PGUID (src), PGUID (dst));
@@ -1133,15 +1131,18 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
     RSTTRACE (PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
   }
-
-  /* liveliness is still only implemented partially (with all set to AUTOMATIC,
-     BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
-  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
-
+  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto), tnow);
   RSTTRACE (PGUIDFMT" -> "PGUIDFMT":", PGUID (src), PGUID (dst));
-
   ddsrt_mutex_lock (&pwr->e.lock);
-
+  if (msg->smhdr.flags & HEARTBEAT_FLAG_LIVELINESS &&
+      pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC &&
+      pwr->c.xqos->liveliness.lease_duration != T_NEVER)
+  {
+    struct lease *lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_man);
+    if (lease != NULL)
+      lease_renew (lease, tnow);
+    lease_renew (pwr->lease, tnow);
+  }
   if (pwr->n_reliable_readers == 0)
   {
     RSTTRACE (PGUIDFMT" -> "PGUIDFMT" no-reliable-readers)", PGUID (src), PGUID (dst));
@@ -1271,9 +1272,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
     return 1;
   }
 
-  /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
-  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
-
+  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto), tnow);
   RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"", PGUID (src), PGUID (dst));
   ddsrt_mutex_lock (&pwr->e.lock);
 
@@ -1398,9 +1397,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
     return 1;
   }
 
-  /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
-  lease_renew (ddsrt_atomic_ldvoidp (&prd->c.proxypp->lease), tnow);
-
+  lease_renew (ddsrt_atomic_ldvoidp (&prd->c.proxypp->minl_auto), tnow);
   if (!wr->reliable) /* note: reliability can't be changed */
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a reliable writer)", PGUID (src), PGUID (dst));
@@ -1645,9 +1642,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
     return 1;
   }
 
-  /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
-  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
-
+  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto), tnow);
   ddsrt_mutex_lock (&pwr->e.lock);
   if ((wn = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &dst)) == NULL)
   {
@@ -2098,11 +2093,13 @@ static void clean_defrag (struct proxy_writer *pwr)
   nn_defrag_notegap (pwr->defrag, 1, seq);
 }
 
-static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct nn_rmsg *rmsg, const Data_DataFrag_common_t *msg, const struct nn_rsample_info *sampleinfo, uint32_t fragnum, struct nn_rdata *rdata, struct nn_dqueue **deferred_wakeup)
+static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct nn_rmsg *rmsg, const Data_DataFrag_common_t *msg, const struct nn_rsample_info *sampleinfo,
+    uint32_t fragnum, struct nn_rdata *rdata, struct nn_dqueue **deferred_wakeup, bool renew_manbypp_lease)
 {
   struct proxy_writer *pwr;
   struct nn_rsample *rsample;
   ddsi_guid_t dst;
+  struct lease *lease;
 
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->readerId;
@@ -2117,13 +2114,26 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
     return;
   }
 
-  /* liveliness is still only implemented partially (with all set to
-     AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy
-     participant's lease. */
-  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->lease), tnow);
+  /* Proxy participant's "automatic" lease has to be renewed always, manual-by-participant one only
+     for data published by the application.  If pwr->lease exists, it is in some manual lease mode,
+     so check whether it is actually in manual-by-topic mode before renewing it.  As pwr->lease is
+     set once (during entity creation) we can read it outside the lock, keeping all the lease
+     renewals together. */
+  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto), tnow);
+  if ((lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_man)) != NULL && renew_manbypp_lease)
+    lease_renew (lease, tnow);
+  if (pwr->lease && pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
+    lease_renew (pwr->lease, tnow);
 
   /* Shouldn't lock the full writer, but will do so for now */
   ddsrt_mutex_lock (&pwr->e.lock);
+
+  /* A change in transition from not-alive to alive is relatively complicated
+     and may involve temporarily unlocking the proxy writer during the process
+     (to avoid unnecessarily holding pwr->e.lock while invoking listeners on
+     the reader) */
+  if (!pwr->alive)
+    proxy_writer_set_alive_may_unlock (pwr, true);
 
   /* Don't accept data when reliable readers exist and we haven't yet seen
      a heartbeat telling us what the "current" sequence number of the writer
@@ -2194,7 +2204,10 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
       /* Enqueue or deliver with pwr->e.lock held: to ensure no other
          receive thread's data gets interleaved -- arguably delivery
          needn't be exactly in-order, which would allow us to do this
-         without pwr->e.lock held. */
+         without pwr->e.lock held.
+         Note that PMD is also handled here, but the pwr for PMD does not
+         use no synchronous delivery, so deliver_user_data_synchronously
+         (which asserts pwr is not built-in) is not used for PMD handling. */
       if (pwr->deliver_synchronously)
       {
         /* FIXME: just in case the synchronous delivery runs into a delay caused
@@ -2367,24 +2380,32 @@ static int handle_Data (struct receiver_state *rst, nn_etime_t tnow, struct nn_r
     unsigned submsg_offset, payload_offset;
     submsg_offset = (unsigned) ((unsigned char *) msg - NN_RMSG_PAYLOAD (rmsg));
     if (datap)
-    {
       payload_offset = (unsigned) ((unsigned char *) datap - NN_RMSG_PAYLOAD (rmsg));
-    }
     else
-    {
       payload_offset = submsg_offset + (unsigned) size;
-    }
+
     rdata = nn_rdata_new (rmsg, 0, sampleinfo->size, submsg_offset, payload_offset);
 
-    if (msg->x.writerId.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
-      /* SPDP needs special treatment: there are no proxy writers for it
-         and we accept data from unknown sources */
+    if ((msg->x.writerId.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_BUILTIN)
     {
-      handle_SPDP (sampleinfo, rdata);
+      bool renew_manbypp_lease = true;
+      switch (msg->x.writerId.u)
+      {
+        case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
+          /* SPDP needs special treatment: there are no proxy writers for it and we accept data from unknown sources */
+          handle_SPDP (sampleinfo, rdata);
+          break;
+        case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
+          /* Handle PMD as a regular message, but without renewing the leases on proxypp */
+          renew_manbypp_lease = false;
+        /* fall through */
+        default:
+          handle_regular (rst, tnow, rmsg, &msg->x, sampleinfo, ~0u, rdata, deferred_wakeup, renew_manbypp_lease);
+      }
     }
     else
     {
-      handle_regular (rst, tnow, rmsg, &msg->x, sampleinfo, ~0u, rdata, deferred_wakeup);
+      handle_regular (rst, tnow, rmsg, &msg->x, sampleinfo, ~0u, rdata, deferred_wakeup, true);
     }
   }
   RSTTRACE (")");
@@ -2411,12 +2432,19 @@ static int handle_DataFrag (struct receiver_state *rst, nn_etime_t tnow, struct 
     struct nn_rdata *rdata;
     unsigned submsg_offset, payload_offset;
     uint32_t begin, endp1;
-    if (msg->x.writerId.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
+    bool renew_manbypp_lease = true;
+    if ((msg->x.writerId.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_BUILTIN)
     {
-      DDS_CWARNING (&rst->gv->logconfig, "DATAFRAG("PGUIDFMT" #%"PRId64" -> "PGUIDFMT") - fragmented builtin data not yet supported\n",
-                    PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u, fromSN (msg->x.writerSN),
-                    PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u);
-      return 1;
+      switch (msg->x.writerId.u)
+      {
+        case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
+          DDS_CWARNING (&rst->gv->logconfig, "DATAFRAG("PGUIDFMT" #%"PRId64" -> "PGUIDFMT") - fragmented builtin data not yet supported\n",
+                        PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u, fromSN (msg->x.writerSN),
+                        PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u);
+          return 1;
+        case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
+          renew_manbypp_lease = false;
+      }
     }
 
     submsg_offset = (unsigned) ((unsigned char *) msg - NN_RMSG_PAYLOAD (rmsg));
@@ -2457,7 +2485,7 @@ static int handle_DataFrag (struct receiver_state *rst, nn_etime_t tnow, struct 
        wrong, it'll simply generate a request for retransmitting a
        non-existent fragment.  The other side SHOULD be capable of
        dealing with that. */
-    handle_regular (rst, tnow, rmsg, &msg->x, sampleinfo, msg->fragmentStartingNum + msg->fragmentsInSubmessage - 2, rdata, deferred_wakeup);
+    handle_regular (rst, tnow, rmsg, &msg->x, sampleinfo, msg->fragmentStartingNum + msg->fragmentsInSubmessage - 2, rdata, deferred_wakeup, renew_manbypp_lease);
   }
   RSTTRACE (")");
   return 1;

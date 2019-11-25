@@ -277,7 +277,6 @@ int32_t dds_handle_pin_for_delete (dds_handle_t hdl, bool explicit, struct dds_h
     uint32_t cf, cf1;
     /* Assume success; bail out if the object turns out to be in the process of
        being deleted */
-    rc = DDS_RETCODE_OK;
     do {
       cf = ddsrt_atomic_ld32 (&(*link)->cnt_flags);
 

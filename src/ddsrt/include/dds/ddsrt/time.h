@@ -59,6 +59,9 @@ typedef int64_t dds_duration_t;
 /** @name Infinite timeout for relative time */
 #define DDS_INFINITY ((dds_duration_t) INT64_MAX)
 
+/** @name Invalid duration value */
+#define DDS_DURATION_INVALID ((dds_duration_t) INT64_MIN)
+
 /** @name Macro definition for time conversion to nanoseconds
   @{**/
 #define DDS_SECS(n) ((n) * DDS_NSECS_IN_SEC)

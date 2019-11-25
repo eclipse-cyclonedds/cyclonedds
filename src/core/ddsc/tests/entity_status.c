@@ -360,9 +360,9 @@ CU_Test(ddsc_entity, liveliness_changed, .init=init_entity_status, .fini=fini_en
     ret = dds_get_liveliness_changed_status (rea, &liveliness_changed);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count,           0);
-    CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count_change,    0);
-    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count,       1);
-    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count_change,1);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count_change,   -1);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count,       0);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count_change,0);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.last_publication_handle, writer_i_hdl);
 
     /* Second call should reset the changed count. */
@@ -370,7 +370,7 @@ CU_Test(ddsc_entity, liveliness_changed, .init=init_entity_status, .fini=fini_en
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count,           0);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count_change,    0);
-    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count,       1);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count,       0);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count_change,0);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.last_publication_handle, writer_i_hdl);
 }
