@@ -15,6 +15,7 @@ PREPEND(srcs_security_core "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_security_plugins.c
     shared_secret.c
     dds_security_fsm.c
+    dds_security_timed_cb.c
 )
  
 PREPEND(hdrs_public_security_core "${CMAKE_CURRENT_LIST_DIR}/include/security/core"
@@ -24,6 +25,7 @@ PREPEND(hdrs_public_security_core "${CMAKE_CURRENT_LIST_DIR}/include/security/co
     dds_security_plugins.h
     dds_security_fsm.h
     shared_secret.h
+    dds_security_timed_cb.h
 )
 
 if(NOT WIN32)
@@ -49,10 +51,12 @@ target_include_directories(security_core
 )
 #target_link_libraries(security_core PRIVATE ddsrt security_api)
 
+if(BUILD_TESTING)
+  add_subdirectory(tests)
+  add_subdirectory(tests/plugin_loading)
+endif()
+
 install(
   DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/dds/security/core/"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/dds/security/core/"
   COMPONENT dev)
-
-add_subdirectory(tests)
-add_subdirectory(tests/plugin_loading)
