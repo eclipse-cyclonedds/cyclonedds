@@ -211,7 +211,7 @@ DDS_Security_Serialize_update_len(
 {
     unsigned short len;
 
-    len = (unsigned short)(ser->offset - ser->marker - sizeof(unsigned short));
+    len = (unsigned short)(ser->offset - ser->marker - sizeof(len));
     *(unsigned short *)&(ser->buffer[ser->marker]) = ddsrt_toBE2u(len);
 }
 
@@ -220,11 +220,11 @@ DDS_Security_Serialize_uint16(
      DDS_Security_Serializer ser,
      unsigned short value)
 {
-    serbuffer_align(ser, sizeof(unsigned short));
-    serbuffer_adjust_size(ser, sizeof(unsigned short));
+    serbuffer_align(ser, sizeof(value));
+    serbuffer_adjust_size(ser, sizeof(value));
 
     *(unsigned short *)&(ser->buffer[ser->offset]) = ddsrt_toBE2u(value);
-    ser->offset += sizeof(unsigned short);
+    ser->offset += sizeof(value);
 }
 
 static void
@@ -232,11 +232,11 @@ DDS_Security_Serialize_uint32_t(
      DDS_Security_Serializer ser,
      uint32_t value)
 {
-    serbuffer_align(ser, sizeof(uint32_t));
-    serbuffer_adjust_size(ser, sizeof(uint32_t));
+    serbuffer_align(ser, sizeof(value));
+    serbuffer_adjust_size(ser, sizeof(value));
 
     *(uint32_t *)&(ser->buffer[ser->offset]) = ddsrt_toBE4u(value);
-    ser->offset += sizeof(uint32_t);
+    ser->offset += sizeof(value);
 }
 
 static void
@@ -244,12 +244,10 @@ DDS_Security_Serialize_string(
      DDS_Security_Serializer ser,
      const char *str)
 {
-    size_t len;
-
-    len = strlen(str) + 1;
+    size_t len = strlen(str) + 1;
 
     DDS_Security_Serialize_uint32_t(ser, (uint32_t)len);
-    serbuffer_adjust_size(ser, len );
+    serbuffer_adjust_size(ser, len);
 
     memcpy(&(ser->buffer[ser->offset]), str, len);
     ser->offset += len;
@@ -500,7 +498,7 @@ DDS_Security_Deserialize_uint16(
      DDS_Security_Deserializer dser,
      unsigned short *value)
 {
-    size_t l = sizeof(unsigned short);
+    size_t l = sizeof(*value);
 
     DDS_Security_Deserialize_align(dser, l);
 
@@ -519,7 +517,7 @@ DDS_Security_Deserialize_uint32_t(
      DDS_Security_Deserializer dser,
      uint32_t *value)
 {
-    size_t l = sizeof(uint32_t);
+    size_t l = sizeof(*value);
 
     DDS_Security_Deserialize_align(dser, l);
 
@@ -692,9 +690,7 @@ DDS_Security_Deserialize_BuiltinTopicKey(
      DDS_Security_Deserializer dser,
      DDS_Security_BuiltinTopicKey_t key)
 {
-    int r;
-
-    r = DDS_Security_Deserialize_uint32_t(dser, (uint32_t *)&key[0]) &&
+    int r = DDS_Security_Deserialize_uint32_t(dser, (uint32_t *)&key[0]) &&
         DDS_Security_Deserialize_uint32_t(dser, (uint32_t *)&key[1]) &&
         DDS_Security_Deserialize_uint32_t(dser, (uint32_t *)&key[2]);
 
@@ -710,12 +706,8 @@ DDS_Security_Deserialize_ParticipantSecurityInfo(
     DDS_Security_Deserializer dser,
     DDS_Security_ParticipantSecurityInfo *info)
 {
-    int r;
-
-    r =  DDS_Security_Deserialize_uint32_t(dser, &info->participant_security_attributes) &&
+    return DDS_Security_Deserialize_uint32_t(dser, &info->participant_security_attributes) &&
          DDS_Security_Deserialize_uint32_t(dser, &info->plugin_participant_security_attributes);
-
-    return r;
 }
 
 int

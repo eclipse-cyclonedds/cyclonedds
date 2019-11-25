@@ -25,9 +25,7 @@ bool crypto_object_valid(CryptoObject *obj, CryptoObjectKind_t kind)
 static uint32_t crypto_object_hash(const void *obj)
 {
   const CryptoObject *object = obj;
-#define UINT64_CONST(x, y, z) (((uint64_t)(x)*1000000 + (y)) * 1000000 + (z))
-  const uint64_t c = UINT64_CONST(16292676, 669999, 574021);
-#undef UINT64_CONST
+  const uint64_t c = 0xF6D6E408505;
   const uint32_t x = (uint32_t)object->handle;
   return (uint32_t)((x * c) >> 32);
 }
@@ -129,13 +127,14 @@ void crypto_object_table_free(struct CryptoObjectTable *table)
   if (!table)
     return;
 
+  ddsrt_mutex_lock(&table->lock);
   for (obj = ddsrt_hh_iter_first(table->htab, &it); obj; obj = ddsrt_hh_iter_next(&it))
   {
     ddsrt_hh_remove(table->htab, obj);
     crypto_object_release(obj);
   }
-
   ddsrt_hh_free(table->htab);
+  ddsrt_mutex_unlock(&table->lock);
   ddsrt_mutex_destroy(&table->lock);
   ddsrt_free(table);
 }
@@ -147,18 +146,12 @@ CryptoObject * crypto_object_table_insert(struct CryptoObjectTable *table, Crypt
   assert(table);
   assert(object);
 
-  cur = crypto_object_table_find(table, object->handle);
-  if (!cur)
-  {
-    ddsrt_mutex_lock(&table->lock);
-    cur = crypto_object_keep(object);
-    ddsrt_hh_add(table->htab, cur);
-    ddsrt_mutex_unlock(&table->lock);
-  }
+  ddsrt_mutex_lock(&table->lock);
+  if (!(cur = crypto_object_keep (table->findfnc(table, &object->handle))))
+    ddsrt_hh_add(table->htab, crypto_object_keep(object));
   else
-  {
     crypto_object_release(cur);
-  }
+  ddsrt_mutex_unlock(&table->lock);
 
   return cur;
 }
@@ -179,12 +172,13 @@ CryptoObject * crypto_object_table_remove(struct CryptoObjectTable *table, int64
 {
   CryptoObject *object;
   assert (table);
-  object = crypto_object_table_find (table, handle);
-  if (object)
+  ddsrt_mutex_lock (&table->lock);
+  if ((object = crypto_object_keep (table->findfnc(table, &handle))))
   {
-    crypto_object_table_remove_object (table, object);
+    ddsrt_hh_remove (table->htab, object);
     crypto_object_release (object);
   }
+  ddsrt_mutex_unlock (&table->lock);
 
   return object;
 }
@@ -221,6 +215,7 @@ static void master_key_material__free(CryptoObject *obj)
   {
     CHECK_CRYPTO_OBJECT_KIND(obj, CRYPTO_OBJECT_KIND_KEY_MATERIAL);
     crypto_object_deinit ((CryptoObject *)keymat);
+    memset (keymat, 0, sizeof (*keymat));
     ddsrt_free (keymat);
   }
 }
@@ -255,6 +250,7 @@ static void session_key_material__free(CryptoObject *obj)
     CHECK_CRYPTO_OBJECT_KIND(obj, CRYPTO_OBJECT_KIND_SESSION_KEY_MATERIAL);
     CRYPTO_OBJECT_RELEASE(session->master_key_material);
     crypto_object_deinit((CryptoObject *)session);
+    memset (session, 0, sizeof (*session));
     ddsrt_free(session);
   }
 }

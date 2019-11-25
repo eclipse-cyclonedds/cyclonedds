@@ -115,14 +115,15 @@ calculateKxKeys(
     goto fail_kx_key;
 
   kxKeyMaterial->transformation_kind = CRYPTO_TRANSFORMATION_KIND_AES256_GCM;
-
   memcpy(kxKeyMaterial->master_salt.data, kxMaster_salt, CRYPTO_SALT_SIZE);
   memcpy(kxKeyMaterial->master_sender_key.data, kxMaster_sender_key, CRYPTO_KEY_SIZE);
 
+  memset (kxMaster_sender_key, 0, CRYPTO_KEY_SIZE);
   ddsrt_free(kxMaster_sender_key);
   result = true;
 
 fail_kx_key:
+  memset (kxMaster_salt, 0, CRYPTO_SALT_SIZE);
   ddsrt_free(kxMaster_salt);
 fail_kx_salt:
   ddsrt_free(concatenated_bytes2);

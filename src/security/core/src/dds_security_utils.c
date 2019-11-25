@@ -46,6 +46,7 @@ DDS_Security_BinaryProperty_deinit(
     }
 
     ddsrt_free(p->name);
+    memset (p->value._buffer, 0, p->value._length); /* because key material can be stored in binary property */
     ddsrt_free(p->value._buffer);
 }
 
@@ -906,12 +907,15 @@ DDS_Security_KeyMaterial_AES_GCM_GMAC_deinit(
 {
     if (key_material) {
         if (key_material->master_receiver_specific_key._buffer != NULL) {
+            memset (key_material->master_receiver_specific_key._buffer, 0, key_material->master_receiver_specific_key._length);
             ddsrt_free(key_material->master_receiver_specific_key._buffer);
         }
         if( key_material->master_salt._buffer != NULL){
+            memset (key_material->master_salt._buffer, 0, key_material->master_salt._length);
             ddsrt_free(key_material->master_salt._buffer);
         }
         if( key_material->master_sender_key._buffer != NULL){
+            memset (key_material->master_sender_key._buffer, 0, key_material->master_sender_key._length);
             ddsrt_free(key_material->master_sender_key._buffer);
         }
     }
@@ -920,7 +924,7 @@ DDS_Security_KeyMaterial_AES_GCM_GMAC_deinit(
 
 DDS_Security_CryptoTransformKind_Enum
 DDS_Security_basicprotectionkind2transformationkind(
-     const DDS_Security_PropertySeq *properties, 
+     const DDS_Security_PropertySeq *properties,
      DDS_Security_BasicProtectionKind protection)
 {
     int keysize=256;
