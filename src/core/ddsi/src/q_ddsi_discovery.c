@@ -312,6 +312,14 @@ int spdp_write (struct participant *pp)
     ETRACE (pp, "spdp_write("PGUIDFMT") - internals: %s\n", PGUID (pp->e.guid), ps.prismtech_participant_version_info.internals);
   }
 
+#ifdef DDSI_INCLUDE_SECURITY
+  /* Add Security specific information. */
+  if (q_omg_get_participant_security_info(pp, &(ps.participant_security_info))) {
+    ps.present |= PP_PARTICIPANT_SECURITY_INFO;
+    ps.aliased |= PP_PARTICIPANT_SECURITY_INFO;
+  }
+#endif
+
   /* Participant QoS's insofar as they are set, different from the default, and mapped to the SPDP data, rather than to the PrismTech-specific CMParticipant endpoint.  Currently, that means just USER_DATA. */
   qosdiff = nn_xqos_delta (&pp->plist->qos, &pp->e.gv->default_plist_pp.qos, QP_USER_DATA);
   if (pp->e.gv->config.explicitly_publish_qos_set_to_default)
@@ -320,6 +328,10 @@ int spdp_write (struct participant *pp)
   assert (ps.qos.present == 0);
   nn_plist_addtomsg (mpayload, &ps, ~(uint64_t)0, 0);
   nn_plist_addtomsg (mpayload, pp->plist, 0, qosdiff);
+#ifdef DDSI_INCLUDE_SECURITY
+  if (q_omg_participant_is_secure(pp))
+     nn_plist_addtomsg (mpayload, pp->plist, PP_IDENTITY_TOKEN | PP_PERMISSIONS_TOKEN, 0);
+#endif
   nn_xmsg_addpar_sentinel (mpayload);
   nn_plist_fini (&ps);
 

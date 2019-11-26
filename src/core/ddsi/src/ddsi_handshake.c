@@ -12,13 +12,19 @@
 #ifdef DDSI_INCLUDE_SECURITY
 
 #include "dds/ddsi/ddsi_handshake.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/security/dds_security_api.h"
-#include "dds/ddsrt/hopscotch.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/avl.h"
 
+struct handle_pair {
+  DDS_Security_IdentityHandle local_identity_handle;
+  DDS_Security_IdentityHandle remote_identity_handle;
+};
 
 struct ddsi_handshake
 {
-  //    struct ut_fsm* fsm;
+  ddsrt_avl_node_t avlnode;
   enum ddsi_handshake_state state;
 
   ddsi_guid_t local_pguid;  /* the guid of the local participant */
@@ -32,8 +38,7 @@ struct ddsi_handshake
   bool deleting;
   ddsrt_atomic_uint32_t refc;
 
-  DDS_Security_IdentityHandle local_identity_handle;
-  DDS_Security_IdentityHandle remote_identity_handle;
+  struct handle_pair handles;
   DDS_Security_HandshakeHandle handshake_handle;
 
   DDS_Security_HandshakeMessageToken handshake_message_in_token;
@@ -47,17 +52,24 @@ struct ddsi_handshake
 };
 
 struct ddsi_hsadmin {
-  struct ddsrt_h *hstab;
   ddsrt_mutex_t lock;
+  ddsrt_avl_tree_t handshakes;
 };
 
+static int compare_handle_pair(const void *va, const void *vb);
 
-void ddsi_handshake_start(struct ddsi_handshake *hs)
+const ddsrt_avl_treedef_t handshake_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_handshake, avlnode), offsetof (struct ddsi_handshake, handles), compare_handle_pair, 0);
+
+static int compare_handle_pair(const void *va, const void *vb)
 {
-  DDSRT_UNUSED_ARG(hs);
+  const struct handle_pair *ha = va;
+  const struct handle_pair *hb = vb;
+
+  return ((ha->local_identity_handle == hb->local_identity_handle) && (ha->remote_identity_handle == hb->remote_identity_handle));
 }
 
-struct ddsi_handshake * ddsi_handshake_create(const struct participant *pp, const struct proxy_participant *proxypp, nn_wctime_t timestamp, ddsi_handshake_end_cb_t callback)
+static struct ddsi_handshake * ddsi_handshake_create(const struct participant *pp, const struct proxy_participant *proxypp, nn_wctime_t timestamp, ddsi_handshake_end_cb_t callback)
 {
   struct ddsi_handshake *handshake = NULL;
 
@@ -69,6 +81,16 @@ struct ddsi_handshake * ddsi_handshake_create(const struct participant *pp, cons
   return handshake;
 }
 
+void ddsi_handshake_start(struct ddsi_handshake *hs)
+{
+  DDSRT_UNUSED_ARG(hs);
+}
+
+void ddsi_handshake_release(struct ddsi_handshake *handshake)
+{
+  DDSRT_UNUSED_ARG(handshake);
+}
+
 void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struct participant *pp, const struct proxy_participant *proxypp, const struct nn_participant_generic_message *msg)
 {
   DDSRT_UNUSED_ARG(handshake);
@@ -77,7 +99,7 @@ void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struc
   DDSRT_UNUSED_ARG(msg);
 }
 
-void ddsi_handshake_crypto_tokens_received(const struct ddsi_handshake *handshake)
+void ddsi_handshake_crypto_tokens_received(struct ddsi_handshake *handshake)
 {
   DDSRT_UNUSED_ARG(handshake);
 }
@@ -103,85 +125,119 @@ struct q_globals * ddsi_handshake_get_globals(const struct ddsi_handshake *hands
   return NULL;
 }
 
-struct ddsi_hsadmin * ddsi_hsadmin_create(void)
+struct ddsi_hsadmin * ddsi_handshake_admin_create(void)
 {
-  struct ddsi_hsadmin *admin = NULL;
+  struct ddsi_hsadmin *admin;
+
+  admin = ddsrt_malloc(sizeof(*admin));
+  ddsrt_mutex_init(&admin->lock);
+  ddsrt_avl_init(&handshake_treedef, &admin->handshakes);
 
   return admin;
 }
 
-void ddsi_hsadmin_clear(struct ddsi_hsadmin *admin)
+static void
+release_handshake(void *arg)
 {
-  DDSRT_UNUSED_ARG(admin);
+  ddsi_handshake_release((struct ddsi_handshake *)arg);
 }
 
-void ddsi_hsadmin_delete(struct ddsi_hsadmin *admin)
+void ddsi_handshake_admin_delete(struct ddsi_hsadmin *hsadmin)
 {
-  DDSRT_UNUSED_ARG(admin);
+  if (hsadmin)
+  {
+    ddsrt_mutex_destroy(&hsadmin->lock);
+    ddsrt_avl_free(&handshake_treedef, &hsadmin->handshakes, release_handshake);
+    ddsrt_free(hsadmin);
+  }
 }
 
-struct ddsi_handshake * ddsi_hsadmin_find(const struct ddsi_hsadmin *admin, const ddsi_guid_t *lguid)
+static struct ddsi_handshake *
+ddsi_handshake_find_locked(
+    struct ddsi_hsadmin *hsadmin,
+    const struct participant *pp,
+    const struct proxy_participant *proxypp)
 {
+  struct handle_pair handles;
+
+  handles.local_identity_handle = pp->local_identity_handle;
+  handles.remote_identity_handle = proxypp->remote_identity_handle;
+
+  return ddsrt_avl_lookup(&handshake_treedef, &hsadmin->handshakes, &handles);
+}
+
+void
+ddsi_handshake_remove(const struct participant *pp, const struct proxy_participant *proxypp, struct ddsi_handshake *handshake)
+{
+  struct ddsi_hsadmin *hsadmin;
+
+  if ((hsadmin = q_omg_security_get_handhake_admin(pp)) != NULL)
+  {
+    ddsrt_mutex_lock(&hsadmin->lock);
+    if (handshake == NULL)
+    {
+      handshake = ddsi_handshake_find_locked(hsadmin, pp, proxypp);
+    }
+    if (handshake != NULL)
+    {
+      ddsrt_avl_delete(&handshake_treedef, &hsadmin->handshakes, handshake);
+    }
+    ddsrt_mutex_unlock(&hsadmin->lock);
+  }
+}
+
+struct ddsi_handshake *
+ddsi_handshake_find(const struct participant *pp, const struct proxy_participant *proxypp)
+{
+  struct ddsi_hsadmin *hsadmin;
   struct ddsi_handshake *handshake = NULL;
 
-  DDSRT_UNUSED_ARG(admin);
-  DDSRT_UNUSED_ARG(lguid);
+  if ((hsadmin = q_omg_security_get_handhake_admin(pp)) != NULL)
+  {
+    ddsrt_mutex_lock(&hsadmin->lock);
+    handshake = ddsi_handshake_find_locked(hsadmin, pp, proxypp);
+    ddsrt_mutex_unlock(&hsadmin->lock);
+  }
 
   return handshake;
 }
 
-void ddsi_hsadmin_lock(struct ddsi_hsadmin *admin)
+struct ddsi_handshake *
+ddsi_handshake_register(const struct participant *pp, const struct proxy_participant *proxypp, nn_wctime_t timestamp, ddsi_handshake_end_cb_t callback)
 {
-  DDSRT_UNUSED_ARG(admin);
-}
-
-void ddsi_hsadmin_unlock(struct ddsi_hsadmin *admin)
-{
-  DDSRT_UNUSED_ARG(admin);
-}
-
-struct ddsi_handshake * ddsi_hsadmin_register_locked(struct ddsi_hsadmin *admin, const struct participant *pp, const struct proxy_participant *proxypp, nn_wctime_t timestamp, ddsi_handshake_end_cb_t callback)
-{
+  struct ddsi_hsadmin *hsadmin;
   struct ddsi_handshake *handshake = NULL;
 
-  DDSRT_UNUSED_ARG(admin);
-  DDSRT_UNUSED_ARG(pp);
-  DDSRT_UNUSED_ARG(proxypp);
-  DDSRT_UNUSED_ARG(timestamp);
-  DDSRT_UNUSED_ARG(callback);
+  if ((hsadmin = q_omg_security_get_handhake_admin(pp)) != NULL)
+  {
+    ddsrt_mutex_lock(&hsadmin->lock);
+    handshake = ddsi_handshake_find_locked(hsadmin, pp, proxypp);
+    if (handshake == NULL)
+    {
+      handshake = ddsi_handshake_create(pp, proxypp, timestamp, callback);
+      if (handshake)
+        ddsrt_avl_insert(&handshake_treedef, &hsadmin->handshakes, handshake);
+    }
+    ddsrt_mutex_unlock(&hsadmin->lock);
+  }
 
   return handshake;
 }
 
-void ddsi_hsadmin_remove_by_guid(struct ddsi_hsadmin *admin, const ddsi_guid_t *lguid)
-{
-  DDSRT_UNUSED_ARG(admin);
-  DDSRT_UNUSED_ARG(lguid);
-}
-
-void ddsi_hsadmin_remove_from_fsm(struct ddsi_hsadmin *admin, struct ddsi_handshake *handshake)
-{
-  DDSRT_UNUSED_ARG(admin);
-  DDSRT_UNUSED_ARG(handshake);
-}
 
 #else
 
 #include "dds/ddsi/ddsi_handshake.h"
 
 extern inline void ddsi_handshake_start(UNUSED_ARG(struct ddsi_handshake *hs));
-extern inline struct ddsi_handshake * ddsi_handshake_create(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(nn_wctime_t timestamp), UNUSED_ARG(ddsi_handshake_end_cb_t callback));
+extern inline void ddsi_handshake_release(UNUSED_ARG(struct ddsi_handshake *handshake));
+extern inline void ddsi_handshake_handle_message(UNUSED_ARG(struct ddsi_handshake *handshake), UNUSED_ARG((const struct participant *pp), UNUSED_ARG((const struct proxy_participant *proxypp), UNUSED_ARG((const struct nn_participant_generic_message *msg));
+extern inline void ddsi_handshake_crypto_tokens_received(UNUSED_ARG(struct ddsi_handshake *handshake));
 extern inline int64_t ddsi_handshake_get_shared_secret(UNUSED_ARG(const struct ddsi_handshake *handshake));
 extern inline int64_t ddsi_handshake_get_handle(UNUSED_ARG(const struct ddsi_handshake *handshake));
-extern inline struct ddsi_hsadmin * ddsi_hsadmin_create(void);
-extern inline void ddsi_handshake_release(UNUSED_ARG(struct ddsi_handshake *handshake));
-extern inline void ddsi_hsadmin_clear(UNUSED_ARG(struct ddsi_hsadmin *admin));
-extern inline void ddsi_hsadmin_delete(UNUSED_ARG(struct ddsi_hsadmin *admin));
-extern inline void ddsi_hsadmin_lock(UNUSED_ARG(struct ddsi_hsadmin *admin));
-extern inline void ddsi_hsadmin_unlock(UNUSED_ARG(struct ddsi_hsadmin *admin));
-extern inline struct ddsi_handshake * ddsi_hsadmin_register_locked(UNUSED_ARG(struct ddsi_hsadmin *admin), UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(nn_wctime_t timestamp), UNUSED_ARG(ddsi_handshake_end_cb_t callback));
-extern inline struct ddsi_handshake * ddsi_hsadmin_find(UNUSED_ARG(const struct ddsi_hsadmin *admin), UNUSED_ARG(const ddsi_guid_t *lguid));
-extern inline void ddsi_hsadmin_remove_by_guid(UNUSED_ARG(struct ddsi_hsadmin *admin), UNUSED_ARG(const nn_guid_t *lguid));
-extern inline void ddsi_hsadmin_remove_from_fsm(UNUSED_ARG(struct ddsi_hsadmin *admin), UNUSED_ARG(struct ddsi_handshake *hs));
+extern inline struct q_globals * ddsi_handshake_get_globals(UNUSED_ARG(const struct ddsi_handshake *handshake));
+extern inline struct ddsi_handshake *ddsi_handshake_register(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(nn_wctime_t timestamp), UNUSED_ARG(ddsi_handshake_end_cb_t callback));
+extern inline void ddsi_handshake_remove(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(struct ddsi_handshake *handshake));
+extern inline struct ddsi_handshake * ddsi_handshake_find(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp));
 
 #endif /* DDSI_INCLUDE_DDS_SECURITY */

@@ -599,15 +599,13 @@ static void connect_participant_secure(struct q_globals *gv, struct participant 
     while ((proxypp = ephash_enum_proxy_participant_next (&it)) != NULL)
     {
       /* Do not start handshaking when security info doesn't match. */
-      if ((proxypp->handshake_admin) && (q_omg_is_similar_participant_security_info(pp, proxypp)))
+      if (q_omg_proxy_participant_is_secure(proxypp) && (q_omg_is_similar_participant_security_info(pp, proxypp)))
       {
-        ddsi_hsadmin_lock(proxypp->handshake_admin);
-        handshake = ddsi_hsadmin_register_locked(proxypp->handshake_admin, pp, proxypp, timestamp, handshake_end_cb);
+        handshake = ddsi_handshake_register(pp, proxypp, timestamp, handshake_end_cb);
         assert(handshake);
         if (!handshake) {
           DDS_CWARNING (&gv->logconfig, "Failed to create handshake (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(pp->e.guid), PGUID(proxypp->e.guid));
         }
-        ddsi_hsadmin_unlock(proxypp->handshake_admin);
       }
     }
     ephash_enum_proxy_participant_fini (&it);
@@ -627,9 +625,9 @@ static void disconnect_participant_secure(struct participant *pp)
     ephash_enum_proxy_participant_init (&it, gv->guid_hash);
     while ((proxypp = ephash_enum_proxy_participant_next (&it)) != NULL)
     {
-      if (proxypp->handshake_admin)
+      if (q_omg_proxy_participant_is_secure(proxypp))
       {
-        ddsi_hsadmin_remove_by_guid(proxypp->handshake_admin, &pp->e.guid);
+        ddsi_handshake_remove(pp, proxypp, NULL);
       }
     }
     ephash_enum_proxy_participant_fini (&it);
@@ -4265,7 +4263,7 @@ void handshake_end_cb
       case STATE_HANDSHAKE_OK:
         DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") succeeded\n", PGUID (*lpguid), PGUID (*ppguid));
         update_proxy_participant_endpoint_matching(proxypp, pp);
-        ddsi_hsadmin_remove_from_fsm(proxypp->handshake_admin, handshake);
+        ddsi_handshake_remove(pp, proxypp, handshake);
         break;
 
       case STATE_HANDSHAKE_TIMED_OUT:
@@ -4274,7 +4272,7 @@ void handshake_end_cb
           downgrade_to_nonsecure(proxypp);
           update_proxy_participant_endpoint_matching(proxypp, pp);
         }
-        ddsi_hsadmin_remove_from_fsm(proxypp->handshake_admin, handshake);
+        ddsi_handshake_remove(pp, proxypp, handshake);
         break;
       case STATE_HANDSHAKE_FAILED:
         DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Failed\n", PGUID (*lpguid), PGUID (*ppguid), (int)result);
@@ -4282,11 +4280,11 @@ void handshake_end_cb
           downgrade_to_nonsecure(proxypp);
           update_proxy_participant_endpoint_matching(proxypp, pp);
         }
-        ddsi_hsadmin_remove_from_fsm(proxypp->handshake_admin, handshake);
+        ddsi_handshake_remove(pp, proxypp, handshake);
         break;
       default:
         DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Unknown failure\n", PGUID (*lpguid), PGUID (*ppguid), (int)result);
-        ddsi_hsadmin_remove_from_fsm(proxypp->handshake_admin, handshake);
+        ddsi_handshake_remove(pp, proxypp, handshake);
         break;
       }
     }
@@ -4310,15 +4308,14 @@ static int proxy_participant_check_security_info(struct q_globals *gv, struct pr
   return r;
 }
 
-static int proxy_participant_create_handshake(struct q_globals *gv, struct proxy_participant *proxypp, nn_wctime_t timestamp)
+static int proxy_participant_connect_secure(struct proxy_participant *proxypp, nn_wctime_t timestamp)
 {
   int r = 1;
   struct participant *pp;
   struct ddsi_handshake *handshake;
   struct ephash_enum_participant est;
 
-  ddsi_hsadmin_lock(proxypp->handshake_admin);
-  ephash_enum_participant_init (&est, gv->guid_hash);
+  ephash_enum_participant_init (&est, proxypp->e.gv->guid_hash);
   while (((pp = ephash_enum_participant_next (&est)) != NULL)  && (r == 1)) {
     /* Check if local participant is ready to communicate handshake messages. */
     if (((pp->bes & NN_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_ANNOUNCER) == 0) ||
@@ -4327,7 +4324,7 @@ static int proxy_participant_create_handshake(struct q_globals *gv, struct proxy
        * local participant will start the handshake (see connect_participant_secure()). */
       ELOG (DDS_LC_INFO, pp, "Local participant "PGUIDFMT" will start handshake for "PGUIDFMT"\n", PGUID (pp->e.guid), PGUID(proxypp->e.guid));
     } else {
-      handshake = ddsi_hsadmin_register_locked(proxypp->handshake_admin, pp, proxypp, timestamp, handshake_end_cb);
+      handshake = ddsi_handshake_register(pp, proxypp, timestamp, handshake_end_cb);
       if (!handshake)
       {
         DDS_CWARNING (&pp->e.gv->logconfig, "Failed to create handshake (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(pp->e.guid), PGUID(proxypp->e.guid));
@@ -4335,7 +4332,6 @@ static int proxy_participant_create_handshake(struct q_globals *gv, struct proxy
       }
     }
   }
-  ddsi_hsadmin_unlock(proxypp->handshake_admin);
   ephash_enum_participant_fini(&est);
   return r;
 }
@@ -4476,8 +4472,7 @@ void new_proxy_participant
         /* Create builtin endpoints, of which a few are used in the handshake. */
         add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
         /* Create and start handshake. */
-        proxypp->handshake_admin = ddsi_hsadmin_create();
-        if (!proxypp->handshake_admin || !proxy_participant_create_handshake(gv, proxypp, timestamp)) {
+        if (!proxy_participant_connect_secure(proxypp, timestamp)) {
           DDS_CWARNING(&gv->logconfig, "Failed to start handshake with participant "PGUIDFMT"\n", PGUID (*ppguid));
           delete_proxy_participant_by_guid(gv, ppguid, timestamp, 0);
         }
@@ -4584,11 +4579,6 @@ static void unref_proxy_participant (struct proxy_participant *proxypp, struct p
 
 #ifdef DDSI_INCLUDE_SECURITY
     q_omg_security_deregister_remote_participant(proxypp);
-    if (proxypp->handshake_admin)
-    {
-      ddsi_hsadmin_delete(proxypp->handshake_admin);
-      proxypp->handshake_admin = NULL;
-    }
 #endif
     unref_addrset (proxypp->as_default);
     unref_addrset (proxypp->as_meta);
@@ -4946,6 +4936,10 @@ int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
 
   local_reader_ary_init (&pwr->rdary);
 
+#ifdef DDSI_INCLUDE_SECURITY
+  q_omg_get_proxy_writer_security_info(pwr, plist, &(pwr->security_info));
+#endif
+
   /* locking the entity prevents matching while the built-in topic hasn't been published yet */
   ddsrt_mutex_lock (&pwr->e.lock);
   ephash_insert_proxy_writer_guid (gv->guid_hash, pwr);
@@ -5133,6 +5127,10 @@ int new_proxy_reader (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
   prd->is_fict_trans_reader = 0;
 
   ddsrt_avl_init (&prd_writers_treedef, &prd->writers);
+
+#ifdef DDSI_INCLUDE_SECURITY
+  q_omg_get_proxy_reader_security_info(prd, plist, &(prd->security_info));
+#endif
 
   /* locking the entity prevents matching while the built-in topic hasn't been published yet */
   ddsrt_mutex_lock (&prd->e.lock);
