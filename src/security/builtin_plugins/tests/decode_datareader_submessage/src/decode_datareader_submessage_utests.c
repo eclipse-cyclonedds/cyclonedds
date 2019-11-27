@@ -211,7 +211,7 @@ static void unregister_remote_participant(void)
 
 static void prepare_endpoint_security_attributes_and_properties(DDS_Security_EndpointSecurityAttributes *attributes,
                                                                 DDS_Security_PropertySeq *properties,
-                                                                uint32_t transformation_kind,
+                                                                DDS_Security_CryptoTransformKind_Enum transformation_kind,
                                                                 bool is_origin_authenticated)
 {
   memset(attributes, 0, sizeof(DDS_Security_EndpointSecurityAttributes));
@@ -499,7 +499,7 @@ static struct crypto_footer * get_crypto_footer(unsigned char *data)
 }
 
 static void decode_datareader_submessage_not_signed(
-    uint32_t transformation_kind)
+    DDS_Security_CryptoTransformKind_Enum transformation_kind)
 {
   DDS_Security_boolean result;
   DDS_Security_SecurityException exception = {NULL, 0, 0};
@@ -631,7 +631,7 @@ CU_Test(ddssec_builtin_decode_datareader_submessage, not_encoded_128, .init = su
 }
 
 static void decode_datareader_submessage_signed(
-    uint32_t transformation_kind)
+    DDS_Security_CryptoTransformKind_Enum transformation_kind)
 {
   const uint32_t LIST_SIZE = 4u;
   DDS_Security_boolean result;

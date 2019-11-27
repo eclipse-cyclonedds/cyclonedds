@@ -75,69 +75,72 @@ static bool check_crypto_keymaterial(const DDS_Security_KeyMaterial_AES_GCM_GMAC
 {
   bool status;
 
-  status = (CRYPTO_TRANSFORM_KIND(keymat->transformation_kind) <= CRYPTO_TRANSFORMATION_KIND_AES256_GCM) &&
-           (keymat->master_salt._length == CRYPTO_SALT_SIZE) &&
-           (keymat->master_salt._buffer != NULL) &&
-           (check_not_data_empty(&keymat->master_salt)) &&
-           (keymat->master_sender_key._length == CRYPTO_KEY_SIZE) &&
-           (keymat->master_sender_key._buffer != NULL) &&
-           (check_not_data_empty(&keymat->master_sender_key));
+  uint32_t transform_kind = CRYPTO_TRANSFORM_KIND(keymat->transformation_kind);
+  uint32_t salt_sz = CRYPTO_SALT_SIZE_BYTES(transform_kind);
+  uint32_t key_sz = CRYPTO_KEY_SIZE_BYTES(transform_kind);
 
-  if (status && CRYPTO_TRANSFORM_ID(keymat->receiver_specific_key_id) != 0)
+  status = (transform_kind >= CRYPTO_TRANSFORMATION_KIND_AES128_GMAC && transform_kind <= CRYPTO_TRANSFORMATION_KIND_AES256_GCM &&
+    keymat->master_salt._length == salt_sz && keymat->master_salt._buffer != NULL && check_not_data_empty(&keymat->master_salt) &&
+    keymat->master_sender_key._length == key_sz && keymat->master_sender_key._buffer != NULL && check_not_data_empty(&keymat->master_sender_key));
+
+  if (status && CRYPTO_TRANSFORM_ID(keymat->receiver_specific_key_id))
   {
-    status = (keymat->master_receiver_specific_key._length == CRYPTO_KEY_SIZE) &&
-             (keymat->master_receiver_specific_key._buffer != NULL) &&
-             (check_not_data_empty(&keymat->master_receiver_specific_key));
+    status = (keymat->master_receiver_specific_key._length == key_sz &&
+      keymat->master_receiver_specific_key._buffer != NULL && check_not_data_empty(&keymat->master_receiver_specific_key));
   }
 
   return status;
 }
 
-struct serialized_key_material
-{
-  uint32_t transformation_kind;
-  uint32_t master_salt_len;
-  uint8_t master_salt[CRYPTO_SALT_SIZE];
-  uint32_t sender_key_id;
-  uint32_t master_sender_key_len;
-  uint8_t master_sender_key[CRYPTO_KEY_SIZE];
-  uint32_t receiver_specific_key_id;
-  uint32_t master_receiver_specific_key_len;
-  uint8_t master_receiver_specific_key[CRYPTO_KEY_SIZE];
-};
-
+// serialized_key_material
+// {
+//   uint32_t           transformation_kind
+//   uint32_t           master_salt_len
+//   uint8_t[SALT_SIZE] master_salt
+//   uint32_t           sender_key_id
+//   uint32_t           master_sender_key_len
+//   uint8_t[KEY_SIZE]  master_sender_key
+//   uint32_t           receiver_specific_key_id
+//   uint32_t           master_receiver_specific_key_len
+//   uint8_t[KEY_SIZE]  master_receiver_specific_key
+// }
 static void
 serialize_master_key_material(
     const master_key_material *keymat,
     uint8_t **buffer,
     uint32_t *length)
 {
-  struct serialized_key_material *sd;
+  uint32_t *sd;
+  size_t i = 0;
+  uint32_t salt_bytes = CRYPTO_SALT_SIZE_BYTES(keymat->transformation_kind);
+  uint32_t key_bytes = CRYPTO_KEY_SIZE_BYTES(keymat->transformation_kind);
+  size_t sz = 6 * sizeof (uint32_t) + salt_bytes + key_bytes;
+  if (keymat->receiver_specific_key_id)
+    sz += key_bytes;
+  *buffer = ddsrt_malloc(sz);
+  *length = (uint32_t)sz;
+  sd = (uint32_t *)(*buffer);
 
-  *buffer = ddsrt_malloc(sizeof(struct serialized_key_material));
-  *length = sizeof(struct serialized_key_material);
-  sd = (struct serialized_key_material *)(*buffer);
-
-  sd->transformation_kind = ddsrt_toBE4u(keymat->transformation_kind);
-  sd->master_salt_len = ddsrt_toBE4u(CRYPTO_SALT_SIZE);
-  memcpy(sd->master_salt, keymat->master_salt.data, CRYPTO_SALT_SIZE);
-  sd->sender_key_id = ddsrt_toBE4u(keymat->sender_key_id);
-  sd->master_sender_key_len = ddsrt_toBE4u(CRYPTO_KEY_SIZE);
-  memcpy(sd->master_sender_key, keymat->master_sender_key.data, CRYPTO_KEY_SIZE);
-  sd->receiver_specific_key_id = ddsrt_toBE4u(keymat->receiver_specific_key_id);
+  sd[i++] = ddsrt_toBE4u(keymat->transformation_kind);
+  sd[i++] = ddsrt_toBE4u(salt_bytes);
+  memcpy(&sd[i], keymat->master_salt.data, salt_bytes);
+  i += salt_bytes / sizeof (uint32_t);
+  sd[i++] = ddsrt_toBE4u(keymat->sender_key_id);
+  sd[i++] = ddsrt_toBE4u(key_bytes);
+  memcpy(&sd[i], keymat->master_sender_key.data, key_bytes);
+  i += key_bytes / sizeof (uint32_t);
+  sd[i++] = ddsrt_toBE4u(keymat->receiver_specific_key_id);
   if (keymat->receiver_specific_key_id)
   {
-    sd->receiver_specific_key_id = ddsrt_toBE4u(keymat->receiver_specific_key_id);
-    sd->master_receiver_specific_key_len = ddsrt_toBE4u(CRYPTO_KEY_SIZE);
-    memcpy(sd->master_receiver_specific_key, keymat->master_receiver_specific_key.data, CRYPTO_KEY_SIZE);
+    sd[i++] = ddsrt_toBE4u(key_bytes);
+    memcpy(&sd[i], keymat->master_receiver_specific_key.data, key_bytes);
   }
   else
   {
-    sd->receiver_specific_key_id = 0;
-    sd->master_receiver_specific_key_len = 0;
-    *length -= CRYPTO_KEY_SIZE;
+    sd[i++] = ddsrt_toBE4u(0);
   }
 }
+
 
 /**
  * Function implementations

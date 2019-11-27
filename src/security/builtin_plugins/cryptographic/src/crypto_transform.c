@@ -299,28 +299,28 @@ read_rtps_header(
  * to decode a received message. It will calculate the
  * session key from the received crypto_header.
  *
- * @param[in,out] info        The remote session information which is determined by this function
- * @param[in]     header      The received crypto_header
- * @param[in]     key_size    The size of the key (128 or 256)
- * @param[in]     master_salt The master_salt associated with the remote entity
- * @param[in]     master_key  The master_key associated with the remote entity
- * @param[in,out] ex          Security exception
+ * @param[in,out] info                The remote session information which is determined by this function
+ * @param[in]     header              The received crypto_header
+ * @param[in]     master_salt         The master_salt associated with the remote entity
+ * @param[in]     master_key          The master_key associated with the remote entity
+ * @param[in]     transformation_kind The transformation kind (to determine key and salt size)
+ * @param[in,out] ex                  Security exception
  */
 static bool
 initialize_remote_session_info(
     remote_session_info *info,
     struct crypto_header *header,
-    uint32_t key_size,
     const crypto_salt_t *master_salt,
     const crypto_key_t *master_key,
+    DDS_Security_CryptoTransformKind_Enum transformation_kind,
     DDS_Security_SecurityException *ex)
 {
-  info->key_size = key_size;
+  info->key_size = crypto_get_key_size (transformation_kind);
   info->id = CRYPTO_TRANSFORM_ID(header->session_id);
-  return crypto_calculate_session_key(&info->key, info->id, master_salt, master_key, ex);
+  return crypto_calculate_session_key(&info->key, info->id, master_salt, master_key, transformation_kind, ex);
 }
 
-static bool transform_kind_valid(uint32_t kind)
+static bool transform_kind_valid(DDS_Security_CryptoTransformKind_Enum kind)
 {
   return ((kind == CRYPTO_TRANSFORMATION_KIND_AES128_GMAC) ||
           (kind == CRYPTO_TRANSFORMATION_KIND_AES128_GCM) ||
@@ -623,7 +623,7 @@ static bool
 read_rtps_body(
     struct submsg_header *body,
     struct crypto_contents_ref *contents,
-    uint32_t transformation_kind,
+    DDS_Security_CryptoTransformKind_Enum transformation_kind,
     unsigned char **ptr,
     uint32_t *remain)
 {
@@ -936,7 +936,7 @@ add_reader_specific_mac(
     footer = (struct crypto_footer *)(postfix + 1);
     index = ddsrt_fromBE4u(footer->receiver_specific_macs._length);
 
-    if (!crypto_calculate_receiver_specific_key(&key, session->id, &key_material->master_salt, &key_material->master_receiver_specific_key, ex) ||
+    if (!crypto_calculate_receiver_specific_key(&key, session->id, &key_material->master_salt, &key_material->master_receiver_specific_key, key_material->transformation_kind, ex) ||
         !crypto_cipher_encrypt_data(&key, session->key_size, header->session_id, NULL, 0, footer->common_mac.data, CRYPTO_HMAC_SIZE, NULL, NULL, &hmac, ex))
     {
       result = false;
@@ -1021,7 +1021,7 @@ add_receiver_specific_mac(
     footer = (struct crypto_footer *)(postfix + 1);
     index = ddsrt_fromBE4u(footer->receiver_specific_macs._length);
 
-    if (!crypto_calculate_receiver_specific_key(&key, session->id, &local_p2p_key->master_salt, &local_p2p_key->master_receiver_specific_key, ex) ||
+    if (!crypto_calculate_receiver_specific_key(&key, session->id, &local_p2p_key->master_salt, &local_p2p_key->master_receiver_specific_key, local_p2p_key->transformation_kind, ex) ||
         !crypto_cipher_encrypt_data(&key, session->key_size, header->session_id, NULL, 0, footer->common_mac.data, CRYPTO_HMAC_SIZE, NULL, NULL, &hmac, ex))
     {
       result = false;
@@ -1484,7 +1484,6 @@ check_reader_specific_mac(
   uint32_t session_id;
   crypto_key_t key;
   crypto_hmac_t *href = NULL;
-  uint32_t key_size;
   crypto_hmac_t hmac;
   uint32_t i;
 
@@ -1496,8 +1495,6 @@ check_reader_specific_mac(
   }
 
   session_id = CRYPTO_TRANSFORM_ID(header->session_id);
-  key_size = crypto_get_key_size(key_material->transformation_kind);
-
   for (i = 0; !href && (i < footer->receiver_specific_macs._length); i++)
   {
     uint32_t id = CRYPTO_TRANSFORM_ID(footer->receiver_specific_macs._buffer[i].receiver_mac_key_id);
@@ -1513,14 +1510,14 @@ check_reader_specific_mac(
     return false;
   }
 
-  if (!crypto_calculate_receiver_specific_key(&key, session_id, &key_material->master_salt, &key_material->master_receiver_specific_key, ex))
+  if (!crypto_calculate_receiver_specific_key(&key, session_id, &key_material->master_salt, &key_material->master_receiver_specific_key, key_material->transformation_kind, ex))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_RECEIVER_SIGN_CODE, 0,
         "%s: failed to calculate receiver specific session key", context);
     return false;
   }
 
-  if (!crypto_cipher_encrypt_data(&key, key_size, header->session_id, NULL, 0, footer->common_mac.data, CRYPTO_HMAC_SIZE, NULL, NULL, &hmac, ex))
+  if (!crypto_cipher_encrypt_data(&key, crypto_get_key_size(key_material->transformation_kind), header->session_id, NULL, 0, footer->common_mac.data, CRYPTO_HMAC_SIZE, NULL, NULL, &hmac, ex))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_RECEIVER_SIGN_CODE, 0,
         "%s: failed to calculate receiver specific hmac", context);
@@ -1839,7 +1836,6 @@ decode_rtps_message(dds_security_crypto_transform *instance,
   dds_security_crypto_transform_impl *impl = (dds_security_crypto_transform_impl *)instance;
   dds_security_crypto_key_factory *factory;
   uint32_t transform_kind;
-  uint32_t key_size;
   DDS_Security_ProtectionKind protection_kind;
   remote_session_info remote_session;
   DDS_Security_OctetSeq rtps_header;
@@ -1897,9 +1893,8 @@ decode_rtps_message(dds_security_crypto_transform *instance,
   }
 
   /* calculate the session key */
-  key_size = crypto_get_key_size(remote_key_material->transformation_kind);
   decoded_body = DDS_Security_OctetSeq_allocbuf(contents._length);
-  if (!initialize_remote_session_info(&remote_session, &header, key_size, &remote_key_material->master_salt, &remote_key_material->master_sender_key, ex))
+  if (!initialize_remote_session_info(&remote_session, &header, &remote_key_material->master_salt, &remote_key_material->master_sender_key, remote_key_material->transformation_kind, ex))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
         "decode_rtps_message: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
@@ -2070,7 +2065,6 @@ decode_datawriter_submessage(
   static const char *context = "decode_datawriter_submessage";
   dds_security_crypto_key_factory *factory;
   uint32_t transform_kind, transform_id;
-  uint32_t key_size;
   master_key_material *writer_master_key;
   DDS_Security_ProtectionKind protection_kind;
   remote_session_info remote_session;
@@ -2116,8 +2110,7 @@ decode_datawriter_submessage(
   }
 
   /* calculate the session key */
-  key_size = crypto_get_key_size(writer_master_key->transformation_kind);
-  if (!initialize_remote_session_info(&remote_session, &header, key_size, &writer_master_key->master_salt, &writer_master_key->master_sender_key, ex))
+  if (!initialize_remote_session_info(&remote_session, &header, &writer_master_key->master_salt, &writer_master_key->master_sender_key, writer_master_key->transformation_kind, ex))
     goto fail_decrypt;
 
   if (is_encryption_required(transform_kind))
@@ -2194,7 +2187,6 @@ decode_datareader_submessage(
   static const char *context = "decode_datareader_submessage";
   dds_security_crypto_key_factory *factory;
   uint32_t transform_kind, transform_id;
-  uint32_t key_size;
   master_key_material *reader_master_key;
   DDS_Security_ProtectionKind protection_kind;
   remote_session_info remote_session;
@@ -2240,8 +2232,7 @@ decode_datareader_submessage(
   }
 
   /* calculate the session key */
-  key_size = crypto_get_key_size(reader_master_key->transformation_kind);
-  if (!initialize_remote_session_info(&remote_session, &header, key_size, &reader_master_key->master_salt, &reader_master_key->master_sender_key, ex))
+  if (!initialize_remote_session_info(&remote_session, &header, &reader_master_key->master_salt, &reader_master_key->master_sender_key, reader_master_key->transformation_kind, ex))
     goto fail_decrypt;
 
   if (is_encryption_required(transform_kind))
@@ -2323,7 +2314,6 @@ decode_serialized_payload(
   struct crypto_header header;
   unsigned char *payload_ptr;
   uint32_t payload_len;
-  uint32_t key_size;
   struct crypto_footer *footer = NULL;
 
   DDSRT_UNUSED_ARG(inline_qos);
@@ -2367,8 +2357,7 @@ decode_serialized_payload(
     goto fail_prepare;
 
   /* calculate the session key */
-  key_size = crypto_get_key_size(writer_master_key->transformation_kind);
-  if (!initialize_remote_session_info(&remote_session, &header, key_size, &writer_master_key->master_salt, &writer_master_key->master_sender_key, ex))
+  if (!initialize_remote_session_info(&remote_session, &header, &writer_master_key->master_salt, &writer_master_key->master_sender_key, writer_master_key->transformation_kind, ex))
     goto fail_decrypt;
 
   /*

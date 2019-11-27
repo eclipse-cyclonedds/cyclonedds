@@ -251,20 +251,20 @@ static void create_key_material(DDS_Security_OctetSeq *seq, bool include_specifi
   keymat.transformation_kind[3] = CRYPTO_TRANSFORMATION_KIND_AES256_GCM;
   RAND_bytes(keymat.sender_key_id, 4);
 
-  keymat.master_salt._length = keymat.master_salt._maximum = DDS_SECURITY_MASTER_SALT_SIZE;
-  keymat.master_salt._buffer = DDS_Security_OctetSeq_allocbuf(DDS_SECURITY_MASTER_SALT_SIZE);
-  RAND_bytes(keymat.master_salt._buffer, DDS_SECURITY_MASTER_SALT_SIZE);
+  keymat.master_salt._length = keymat.master_salt._maximum = DDS_SECURITY_MASTER_SALT_SIZE_256;
+  keymat.master_salt._buffer = DDS_Security_OctetSeq_allocbuf(DDS_SECURITY_MASTER_SALT_SIZE_256);
+  RAND_bytes(keymat.master_salt._buffer, DDS_SECURITY_MASTER_SALT_SIZE_256);
 
-  keymat.master_sender_key._length = keymat.master_sender_key._maximum = DDS_SECURITY_MASTER_SENDER_KEY_SIZE;
-  keymat.master_sender_key._buffer = DDS_Security_OctetSeq_allocbuf(DDS_SECURITY_MASTER_SENDER_KEY_SIZE);
-  RAND_bytes(keymat.master_sender_key._buffer, DDS_SECURITY_MASTER_SENDER_KEY_SIZE);
+  keymat.master_sender_key._length = keymat.master_sender_key._maximum = DDS_SECURITY_MASTER_SENDER_KEY_SIZE_256;
+  keymat.master_sender_key._buffer = DDS_Security_OctetSeq_allocbuf(DDS_SECURITY_MASTER_SENDER_KEY_SIZE_256);
+  RAND_bytes(keymat.master_sender_key._buffer, DDS_SECURITY_MASTER_SENDER_KEY_SIZE_256);
 
   if (include_specific_key)
   {
     RAND_bytes(keymat.receiver_specific_key_id, 4);
-    keymat.master_receiver_specific_key._length = keymat.master_receiver_specific_key._maximum = DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE;
-    keymat.master_receiver_specific_key._buffer = DDS_Security_OctetSeq_allocbuf(DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE);
-    RAND_bytes(keymat.master_receiver_specific_key._buffer, DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE);
+    keymat.master_receiver_specific_key._length = keymat.master_receiver_specific_key._maximum = DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE_256;
+    keymat.master_receiver_specific_key._buffer = DDS_Security_OctetSeq_allocbuf(DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE_256);
+    RAND_bytes(keymat.master_receiver_specific_key._buffer, DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE_256);
   }
 
   serializer = DDS_Security_Serializer_new(256, 256);
@@ -285,20 +285,20 @@ static void init_key_material(DDS_Security_KeyMaterial_AES_GCM_GMAC *keymat, boo
   keymat->transformation_kind[3] = CRYPTO_TRANSFORMATION_KIND_AES256_GCM;
   RAND_bytes(keymat->sender_key_id, 4);
 
-  keymat->master_salt._length = keymat->master_salt._maximum = DDS_SECURITY_MASTER_SALT_SIZE;
-  keymat->master_salt._buffer = DDS_Security_OctetSeq_allocbuf(DDS_SECURITY_MASTER_SALT_SIZE);
-  RAND_bytes(keymat->master_salt._buffer, DDS_SECURITY_MASTER_SALT_SIZE);
+  keymat->master_salt._length = keymat->master_salt._maximum = DDS_SECURITY_MASTER_SALT_SIZE_256;
+  keymat->master_salt._buffer = DDS_Security_OctetSeq_allocbuf(DDS_SECURITY_MASTER_SALT_SIZE_256);
+  RAND_bytes(keymat->master_salt._buffer, DDS_SECURITY_MASTER_SALT_SIZE_256);
 
-  keymat->master_sender_key._length = keymat->master_sender_key._maximum = DDS_SECURITY_MASTER_SENDER_KEY_SIZE;
-  keymat->master_sender_key._buffer = DDS_Security_OctetSeq_allocbuf(DDS_SECURITY_MASTER_SENDER_KEY_SIZE);
-  RAND_bytes(keymat->master_sender_key._buffer, DDS_SECURITY_MASTER_SENDER_KEY_SIZE);
+  keymat->master_sender_key._length = keymat->master_sender_key._maximum = DDS_SECURITY_MASTER_SENDER_KEY_SIZE_256;
+  keymat->master_sender_key._buffer = DDS_Security_OctetSeq_allocbuf(DDS_SECURITY_MASTER_SENDER_KEY_SIZE_256);
+  RAND_bytes(keymat->master_sender_key._buffer, DDS_SECURITY_MASTER_SENDER_KEY_SIZE_256);
 
   if (include_specific_key)
   {
     RAND_bytes(keymat->receiver_specific_key_id, 4);
-    keymat->master_receiver_specific_key._length = keymat->master_receiver_specific_key._maximum = DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE;
-    keymat->master_receiver_specific_key._buffer = DDS_Security_OctetSeq_allocbuf(DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE);
-    RAND_bytes(keymat->master_receiver_specific_key._buffer, DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE);
+    keymat->master_receiver_specific_key._length = keymat->master_receiver_specific_key._maximum = DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE_256;
+    keymat->master_receiver_specific_key._buffer = DDS_Security_OctetSeq_allocbuf(DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE_256);
+    RAND_bytes(keymat->master_receiver_specific_key._buffer, DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE_256);
   }
 }
 

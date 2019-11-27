@@ -22,6 +22,9 @@
 #define CRYPTO_TRANSFORM_KIND(k) ddsrt_fromBE4u((*(uint32_t *)&((k)[0])))
 #define CRYPTO_TRANSFORM_ID(k) ddsrt_fromBE4u((*(uint32_t *)&((k)[0])))
 
+#define CRYPTO_KEY_SIZE_BYTES(kind) (crypto_get_key_size(kind) == 128 ? CRYPTO_KEY_SIZE_128 : CRYPTO_KEY_SIZE_256)
+#define CRYPTO_SALT_SIZE_BYTES(kind) (crypto_get_key_size(kind) == 128 ? CRYPTO_SALT_SIZE_128 : CRYPTO_SALT_SIZE_256)
+
 #define ALIGN4(x) (((x) + 3) & (uint32_t)(-4))
 
 struct init_vector_suffix
@@ -39,36 +42,40 @@ struct init_vector_suffix
 char *crypto_openssl_error_message(void);
 
 /**
- * @param[in,out] session_key   Session key
- * @param[in]     session_id    Session Id
- * @param[in]     master_salt   Master salt
- * @param[in]     master_key    Master key
- * @param[in,out] ex            Security exception
+ * @param[in,out] session_key           Session key
+ * @param[in]     session_id            Session Id
+ * @param[in]     master_salt           Master salt
+ * @param[in]     master_key            Master key
+ * @param[in]     transformation_kind   Transformation kind
+ * @param[in,out] ex                    Security exception
  */
-bool crypto_calculate_session_key(
+DDS_EXPORT bool crypto_calculate_session_key(
     crypto_key_t *session_key,
     uint32_t session_id,
     const crypto_salt_t *master_salt,
     const crypto_key_t *master_key,
+    DDS_Security_CryptoTransformKind_Enum transformation_kind,
     DDS_Security_SecurityException *ex);
 
 /**
- * @param[in,out] session_key  Session key
- * @param[in]     session_id   Session Id
- * @param[in]     master_salt  Master salt
- * @param[in]     master_key   Master key
- * @param[in,out] ex           Security exception
+ * @param[in,out] session_key           Session key
+ * @param[in]     session_id            Session Id
+ * @param[in]     master_salt           Master salt
+ * @param[in]     master_key            Master key
+ * @param[in]     transformation_kind   Transformation kind
+ * @param[in,out] ex                    Security exception
  */
-bool crypto_calculate_receiver_specific_key(
+DDS_EXPORT bool crypto_calculate_receiver_specific_key(
     crypto_key_t *session_key,
     uint32_t session_id,
     const crypto_salt_t *master_salt,
     const crypto_key_t *master_key,
+    DDS_Security_CryptoTransformKind_Enum transformation_kind,
     DDS_Security_SecurityException *ex);
 
-uint32_t crypto_get_key_size(DDS_Security_CryptoTransformKind_Enum kind);
-uint32_t crypto_get_random_uint32(void);
-uint64_t crypto_get_random_uint64(void);
+DDS_EXPORT uint32_t crypto_get_key_size(DDS_Security_CryptoTransformKind_Enum kind);
+DDS_EXPORT uint32_t crypto_get_random_uint32(void);
+DDS_EXPORT uint64_t crypto_get_random_uint64(void);
 
 /**
  * @brief Compute a HMAC256 on the provided data.
@@ -79,8 +86,7 @@ uint64_t crypto_get_random_uint64(void);
  * @param[in]     data_size The size of the data
  * @param[in,out] ex        Security exception
  */
-unsigned char *
-crypto_hmac256(
+DDS_EXPORT unsigned char *crypto_hmac256(
     const unsigned char *key,
     uint32_t key_size,
     const unsigned char *data,

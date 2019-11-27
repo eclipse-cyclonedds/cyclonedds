@@ -131,7 +131,7 @@ static void print_octets(const char *msg, const unsigned char *data, uint32_t sz
 
 static void prepare_participant_security_attributes_and_properties(DDS_Security_ParticipantSecurityAttributes *attributes,
                                                                    DDS_Security_PropertySeq *properties,
-                                                                   uint32_t transformation_kind,
+                                                                   DDS_Security_CryptoTransformKind_Enum transformation_kind,
                                                                    bool is_origin_authenticated)
 {
   memset(attributes, 0, sizeof(DDS_Security_EndpointSecurityAttributes));
@@ -443,7 +443,7 @@ static struct crypto_footer * get_crypto_footer(unsigned char *data)
   return (struct crypto_footer *)(submsg + 1);
 }
 
-static void decode_rtps_message_not_authenticated(uint32_t transformation_kind, uint32_t key_size)
+static void decode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKind_Enum transformation_kind, uint32_t key_size)
 {
   DDS_Security_boolean result;
   DDS_Security_SecurityException exception = {NULL, 0, 0};
@@ -566,7 +566,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, not_encrypted_128, .init = suite_dec
   decode_rtps_message_not_authenticated(CRYPTO_TRANSFORMATION_KIND_AES128_GMAC, 128);
 }
 
-static void decode_rtps_message_authenticated(uint32_t transformation_kind, uint32_t key_size, DDS_Security_ProtectionKind protection_kind)
+static void decode_rtps_message_authenticated(DDS_Security_CryptoTransformKind_Enum transformation_kind, uint32_t key_size, DDS_Security_ProtectionKind protection_kind)
 {
   DDS_Security_boolean result;
   DDS_Security_SecurityException exception = {NULL, 0, 0};

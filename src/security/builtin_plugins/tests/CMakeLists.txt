@@ -24,6 +24,7 @@ set(security_auth_test_sources
 )
 
 set(security_crypto_test_sources
+    "common/src/encode_helper.c"
     "create_local_datareader_crypto_tokens/src/create_local_datareader_crypto_tokens_utests.c"
     "create_local_datawriter_crypto_tokens/src/create_local_datawriter_crypto_tokens_utests.c"
     "create_local_participant_crypto_tokens/src/create_local_participant_crypto_tokens_utests.c"
@@ -64,7 +65,7 @@ target_include_directories(
       "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
 )
 
-target_link_libraries(cunit_security_plugins PRIVATE ddsc security_api)
+target_link_libraries(cunit_security_plugins PRIVATE ddsc security_api dds_security_crypto)
 
 set(CUnit_builtin_plugins_tests_dir "${CMAKE_CURRENT_LIST_DIR}")
 

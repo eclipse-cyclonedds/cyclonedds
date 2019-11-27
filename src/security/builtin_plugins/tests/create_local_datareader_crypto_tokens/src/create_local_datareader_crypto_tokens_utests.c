@@ -272,7 +272,7 @@ static bool check_key_material(DDS_Security_OctetSeq *data)
       printf("check_key_material: incorrect sender_key_id\n");
       status = false;
     }
-    else if (key_mat.master_salt._length != DDS_SECURITY_MASTER_SALT_SIZE)
+    else if (key_mat.master_salt._length != DDS_SECURITY_MASTER_SALT_SIZE_256)
     {
       printf("check_key_material: incorrect master_salt\n");
       status = false;
@@ -287,7 +287,7 @@ static bool check_key_material(DDS_Security_OctetSeq *data)
       printf("check_key_material: incorrect master_salt\n");
       status = false;
     }
-    else if (key_mat.master_sender_key._length != DDS_SECURITY_MASTER_SENDER_KEY_SIZE)
+    else if (key_mat.master_sender_key._length != DDS_SECURITY_MASTER_SENDER_KEY_SIZE_256)
     {
       printf("check_key_material: incorrect master_sender_key\n");
       status = false;

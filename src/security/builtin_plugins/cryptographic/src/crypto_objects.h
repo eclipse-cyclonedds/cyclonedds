@@ -73,7 +73,7 @@ struct remote_datareader_crypto;
 typedef struct master_key_material
 {
   CryptoObject _parent;
-  uint32_t transformation_kind;
+  DDS_Security_CryptoTransformKind_Enum transformation_kind;
   crypto_salt_t master_salt;
   uint32_t sender_key_id;
   crypto_key_t master_sender_key;

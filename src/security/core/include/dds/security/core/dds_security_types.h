@@ -50,11 +50,11 @@ typedef enum
 
 typedef struct DDS_Security_KeyMaterial_AES_GCM_GMAC {
   DDS_Security_CryptoTransformKind transformation_kind;
-  DDS_Security_OctetSeq master_salt;         /*size shall be 32*/
+  DDS_Security_OctetSeq master_salt;         /*size shall be 16 or 32*/
   DDS_Security_CryptoTransformKeyId sender_key_id;
-  DDS_Security_OctetSeq master_sender_key;   /*size shall be 32*/
+  DDS_Security_OctetSeq master_sender_key;   /*size shall be 16 or 32*/
   DDS_Security_CryptoTransformKeyId receiver_specific_key_id;
-  DDS_Security_OctetSeq master_receiver_specific_key; /*size shall be 32*/
+  DDS_Security_OctetSeq master_receiver_specific_key; /*size shall be 0, 16 or 32*/
 } DDS_Security_KeyMaterial_AES_GCM_GMAC;
 
 struct CryptoTransformIdentifier {

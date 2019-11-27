@@ -28,7 +28,9 @@
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
+#include "common/src/encode_helper.h"
 #include "crypto_objects.h"
+#include "crypto_utils.h"
 
 #define TEST_SHARED_SECRET_SIZE 32
 
@@ -435,65 +437,15 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   result = read_prefix(&ptr, &remain);
   if (result)
-  {
     result = read_header(header, &ptr, &remain);
-  }
-
   if (result)
-  {
     result = read_body(contents, encrypted, &ptr, &remain);
-  }
-
   if (result)
-  {
     result = read_postfix(&ptr, &remain);
-  }
-
   if (result)
-  {
     result = read_footer(footer, &ptr, &remain);
-  }
 
   return result;
-}
-
-static bool calculate_session_key(uint32_t session_id, master_key_material *key_material, unsigned char *session_key)
-{
-  bool result = true;
-  const char *sk = "SessionKey";
-  unsigned char buffer[10 + DDS_SECURITY_MASTER_SALT_SIZE + 4];
-  uint32_t len = sizeof(buffer);
-  uint32_t id = ddsrt_toBE4u(session_id);
-
-  memcpy(buffer, sk, 10);
-  memcpy(&buffer[10], key_material->master_salt.data, DDS_SECURITY_MASTER_SALT_SIZE);
-  memcpy(&buffer[10 + DDS_SECURITY_MASTER_SALT_SIZE], &id, 4);
-
-  if (HMAC(EVP_sha256(), key_material->master_sender_key.data, DDS_SECURITY_MASTER_SENDER_KEY_SIZE, buffer, len, session_key, NULL) == NULL)
-  {
-    result = false;
-  }
-
-  return result;
-}
-
-static uint32_t get_key_size(DDS_Security_CryptoTransformKind kind)
-{
-  uint32_t size = 256;
-
-  switch (kind[3])
-  {
-  case CRYPTO_TRANSFORMATION_KIND_AES128_GMAC:
-  case CRYPTO_TRANSFORMATION_KIND_AES128_GCM:
-    size = 128;
-    break;
-  case CRYPTO_TRANSFORMATION_KIND_AES256_GMAC:
-  case CRYPTO_TRANSFORMATION_KIND_AES256_GCM:
-    size = 256;
-    break;
-  }
-
-  return size;
 }
 
 static bool cipher_sign_data(const unsigned char *session_key, uint32_t key_size, const unsigned char *iv, const unsigned char *data, uint32_t data_len, unsigned char *tag)
@@ -569,14 +521,12 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
 {
   bool result = true;
   EVP_CIPHER_CTX *ctx;
-  unsigned char session_key[DDS_SECURITY_MASTER_SENDER_KEY_SIZE];
-  uint32_t key_size = get_key_size(transformation_kind);
+  crypto_key_t session_key;
+  uint32_t key_size = crypto_get_key_size(CRYPTO_TRANSFORM_KIND(transformation_kind));
   int len = 0;
 
-  if (!calculate_session_key(session_id, key_material, session_key))
-  {
+  if (!crypto_calculate_session_key_test(&session_key, session_id, &key_material->master_salt, &key_material->master_sender_key, key_material->transformation_kind))
     return false;
-  }
 
   /* create the cipher context */
   ctx = EVP_CIPHER_CTX_new();
@@ -602,7 +552,7 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
 
   if (result)
   {
-    if (!EVP_DecryptInit_ex(ctx, NULL, NULL, session_key, iv))
+    if (!EVP_DecryptInit_ex(ctx, NULL, NULL, session_key.data, iv))
     {
       ERR_print_errors_fp(stderr);
       result = false;
@@ -748,27 +698,6 @@ static void initialize_data_submessage(DDS_Security_OctetSeq *submsg)
   submsg->_buffer = buffer;
 }
 
-static bool calculate_writer_specific_key(unsigned char *session_key, uint32_t session_id, const crypto_salt_t * master_salt, const crypto_key_t *  master_key)
-{
-  const char *prefix = "SessionReceiverKey";
-  unsigned char buffer[18 + CRYPTO_SALT_SIZE + 4];
-  uint32_t len = sizeof(buffer);
-  bool result = true;
-  uint32_t id = ddsrt_toBE4u(session_id);
-
-  memcpy(buffer, prefix, 18);
-  memcpy(&buffer[18], master_salt->data, CRYPTO_SALT_SIZE);
-  memcpy(&buffer[18 + CRYPTO_SALT_SIZE], &id, 4);
-
-  if (HMAC(EVP_sha256(), master_key->data, CRYPTO_KEY_SIZE, buffer, len, session_key, NULL) == NULL)
-  {
-    ERR_print_errors_fp(stderr);
-    result = false;
-  }
-
-  return result;
-}
-
 static bool check_writer_sign(DDS_Security_DatareaderCryptoHandle writer_crypto, uint32_t session_id, uint32_t key_id, uint32_t key_size, unsigned char *init_vector, unsigned char *common_mac, unsigned char *hmac)
 {
   master_key_material *keymat;
@@ -782,7 +711,7 @@ static bool check_writer_sign(DDS_Security_DatareaderCryptoHandle writer_crypto,
     printf("check_writer_sign: key_id does not match\n");
     return false;
   }
-  else if (!calculate_writer_specific_key(key.data, session_id, &keymat->master_salt, &keymat->master_receiver_specific_key))
+  else if (!calculate_receiver_specific_key_test(key.data, session_id, &keymat->master_salt, &keymat->master_receiver_specific_key, keymat->transformation_kind))
   {
     printf("check_writer_sign: calculate key failed\n");
     return false;
@@ -868,14 +797,7 @@ static void encode_datareader_submessage_not_signed(uint32_t transformation_kind
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_datareader_submessage != NULL);
 
-  if (transformation_kind == CRYPTO_TRANSFORMATION_KIND_AES128_GCM || transformation_kind == CRYPTO_TRANSFORMATION_KIND_AES256_GCM)
-  {
-    is_encrypted = true;
-  }
-  else
-  {
-    is_encrypted = false;
-  }
+  is_encrypted = (transformation_kind == CRYPTO_TRANSFORMATION_KIND_AES128_GCM || transformation_kind == CRYPTO_TRANSFORMATION_KIND_AES256_GCM);
 
   prepare_endpoint_security_attributes_and_properties(&datareader_security_attributes, &datareader_properties, transformation_kind, false);
 

@@ -230,16 +230,19 @@ master_key_material * crypto_master_key_material_new(void)
 void crypto_master_key_material_set(master_key_material *dst, const master_key_material *src)
 {
   dst->transformation_kind = src->transformation_kind;
-  dst->sender_key_id = src->sender_key_id;
-  memcpy (dst->master_salt.data, src->master_salt.data, CRYPTO_SALT_SIZE);
-  memcpy (dst->master_sender_key.data, src->master_sender_key.data, CRYPTO_KEY_SIZE);
+  if (src->transformation_kind != CRYPTO_TRANSFORMATION_KIND_NONE)
+  {
+    dst->sender_key_id = src->sender_key_id;
+    memcpy (dst->master_salt.data, src->master_salt.data, CRYPTO_SALT_SIZE_BYTES(src->transformation_kind));
+    memcpy (dst->master_sender_key.data, src->master_sender_key.data, CRYPTO_KEY_SIZE_BYTES(src->transformation_kind));
+  }
 }
 
 static bool generate_session_key(session_key_material *session, DDS_Security_SecurityException *ex)
 {
   session->id++;
   session->block_counter = 0;
-  return crypto_calculate_session_key(&session->key, session->id, &session->master_key_material->master_salt, &session->master_key_material->master_sender_key, ex);
+  return crypto_calculate_session_key(&session->key, session->id, &session->master_key_material->master_salt, &session->master_key_material->master_sender_key, session->master_key_material->transformation_kind, ex);
 }
 
 static void session_key_material__free(CryptoObject *obj)
@@ -260,7 +263,7 @@ session_key_material * crypto_session_key_material_new(master_key_material *mast
   session_key_material *session = ddsrt_malloc(sizeof(*session));
   crypto_object_init((CryptoObject *)session, CRYPTO_OBJECT_KIND_SESSION_KEY_MATERIAL, session_key_material__free);
 
-  memset(session->key.data, 0, CRYPTO_KEY_SIZE);
+  memset(session->key.data, 0, CRYPTO_KEY_SIZE_MAX);
   session->block_size = CRYPTO_CIPHER_BLOCK_SIZE;
   session->key_size = crypto_get_key_size(master_key->transformation_kind);
   session->id = crypto_get_random_uint32();

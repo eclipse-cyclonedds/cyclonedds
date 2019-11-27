@@ -127,7 +127,7 @@ static void reset_exception(DDS_Security_SecurityException *ex)
 
 static int master_salt_not_empty(crypto_salt_t * salt)
 {
-  for (int i = 0; i < CRYPTO_SALT_SIZE; i++)
+  for (int i = 0; i < CRYPTO_SALT_SIZE_256; i++)
   {
     if (salt->data[i])
       return 1;
@@ -137,7 +137,7 @@ static int master_salt_not_empty(crypto_salt_t * salt)
 
 static int master_key_not_empty(crypto_key_t * key)
 {
-  for (int i = 0; i < CRYPTO_KEY_SIZE; i++)
+  for (int i = 0; i < CRYPTO_KEY_SIZE_256; i++)
   {
     if (key->data[i])
       return 1;

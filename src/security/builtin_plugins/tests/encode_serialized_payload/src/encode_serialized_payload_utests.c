@@ -27,7 +27,9 @@
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
+#include "common/src/encode_helper.h"
 #include "crypto_objects.h"
+#include "crypto_utils.h"
 
 #define TEST_SHARED_SECRET_SIZE 32
 
@@ -310,54 +312,15 @@ static bool split_encoded_data(unsigned char *data, uint32_t size, struct crypto
   return true;
 }
 
-static bool calculate_session_key(uint32_t session_id, master_key_material *key_material, unsigned char *session_key)
-{
-  bool result = true;
-  const char *sk = "SessionKey";
-  unsigned char buffer[10 + DDS_SECURITY_MASTER_SALT_SIZE + 4];
-  uint32_t len = sizeof(buffer);
-  uint32_t id = ddsrt_toBE4u(session_id);
-
-  memcpy(buffer, sk, 10);
-  memcpy(&buffer[10], key_material->master_salt.data, DDS_SECURITY_MASTER_SALT_SIZE);
-  memcpy(&buffer[10 + DDS_SECURITY_MASTER_SALT_SIZE], &id, 4);
-
-  if (HMAC(EVP_sha256(), key_material->master_sender_key.data, DDS_SECURITY_MASTER_SENDER_KEY_SIZE, buffer, len, session_key, NULL) == NULL)
-  {
-    result = false;
-  }
-
-  return result;
-}
-
-static uint32_t get_key_size(DDS_Security_CryptoTransformKind kind)
-{
-  uint32_t size = 256;
-
-  switch (kind[3])
-  {
-  case CRYPTO_TRANSFORMATION_KIND_AES128_GMAC:
-  case CRYPTO_TRANSFORMATION_KIND_AES128_GCM:
-    size = 128;
-    break;
-  case CRYPTO_TRANSFORMATION_KIND_AES256_GMAC:
-  case CRYPTO_TRANSFORMATION_KIND_AES256_GCM:
-    size = 256;
-    break;
-  }
-
-  return size;
-}
-
 static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Security_CryptoTransformKind transformation_kind, master_key_material *key_material, DDS_Security_OctetSeq *encrypted, DDS_Security_OctetSeq *decoded, unsigned char *tag)
 {
   bool result = true;
   EVP_CIPHER_CTX *ctx;
-  unsigned char session_key[DDS_SECURITY_MASTER_SENDER_KEY_SIZE];
-  uint32_t key_size = get_key_size(transformation_kind);
+  crypto_key_t session_key;
+  uint32_t key_size = crypto_get_key_size(CRYPTO_TRANSFORM_KIND(transformation_kind));
   int len = 0;
 
-  if (!calculate_session_key(session_id, key_material, session_key))
+  if (!crypto_calculate_session_key_test(&session_key, session_id, &key_material->master_salt, &key_material->master_sender_key, key_material->transformation_kind))
   {
     printf("[ERROR] (%d) crypto_decrypt_data: could not calculate session key!\n", __LINE__);
     return false;
@@ -399,7 +362,7 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
 
   if (result)
   {
-    if (!EVP_DecryptInit_ex(ctx, NULL, NULL, session_key, iv))
+    if (!EVP_DecryptInit_ex(ctx, NULL, NULL, session_key.data, iv))
     {
       printf("[ERROR] (%d) crypto_decrypt_data: could not init Decrypt\n", __LINE__);
       ERR_print_errors_fp(stderr);

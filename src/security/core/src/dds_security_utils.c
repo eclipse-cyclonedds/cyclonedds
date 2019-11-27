@@ -921,40 +921,31 @@ DDS_Security_KeyMaterial_AES_GCM_GMAC_deinit(
     }
 }
 
+static uint32_t DDS_Security_getKeySize (const DDS_Security_PropertySeq *properties)
+{
+    const DDS_Security_Property_t *key_size_property;
+    if (properties != NULL)
+    {
+        key_size_property = DDS_Security_PropertySeq_find_property (properties, "dds.sec.crypto.keysize");
+        if (key_size_property != NULL && !strcmp(key_size_property->value, "128"))
+            return 128;
+    }
+    return 256;
+}
 
 DDS_Security_CryptoTransformKind_Enum
 DDS_Security_basicprotectionkind2transformationkind(
      const DDS_Security_PropertySeq *properties,
      DDS_Security_BasicProtectionKind protection)
 {
-    int keysize=256;
-    const DDS_Security_Property_t *key_size_property = NULL;
-    if( properties != NULL ){
-        key_size_property = DDS_Security_PropertySeq_find_property(
-                    properties, "dds.sec.crypto.keysize");
-
-        if (key_size_property != NULL) {
-            if (strcmp(key_size_property->value, "128") == 0) {
-                keysize = 128;
-            }
-        }
-    }
-
+    uint32_t keysize = DDS_Security_getKeySize (properties);
     switch (protection) {
         case DDS_SECURITY_BASICPROTECTION_KIND_NONE:
             return CRYPTO_TRANSFORMATION_KIND_NONE;
         case DDS_SECURITY_BASICPROTECTION_KIND_SIGN:
-            if( keysize == 128 ){
-                return CRYPTO_TRANSFORMATION_KIND_AES128_GMAC;
-            } else{
-                return CRYPTO_TRANSFORMATION_KIND_AES256_GMAC;
-            }
+            return (keysize == 128) ? CRYPTO_TRANSFORMATION_KIND_AES128_GMAC : CRYPTO_TRANSFORMATION_KIND_AES256_GMAC;
         case DDS_SECURITY_BASICPROTECTION_KIND_ENCRYPT:
-            if( keysize == 128 ){
-                return CRYPTO_TRANSFORMATION_KIND_AES128_GCM;
-            } else{
-                return CRYPTO_TRANSFORMATION_KIND_AES256_GCM;
-            }
+            return (keysize == 128) ? CRYPTO_TRANSFORMATION_KIND_AES128_GCM : CRYPTO_TRANSFORMATION_KIND_AES256_GCM;
         default:
             return CRYPTO_TRANSFORMATION_KIND_INVALID;
     }
@@ -965,41 +956,22 @@ DDS_Security_protectionkind2transformationkind(
      const DDS_Security_PropertySeq *properties,
      DDS_Security_ProtectionKind protection)
 {
-    int keysize=256;
-    const DDS_Security_Property_t *key_size_property = NULL;
-    if( properties != NULL ){
-        key_size_property = DDS_Security_PropertySeq_find_property(
-                        properties, "dds.sec.crypto.keysize");
-        if (key_size_property != NULL) {
-            if (strcmp(key_size_property->value, "128") == 0) {
-                keysize = 128;
-            }
-        }
-    }
-
+    uint32_t keysize = DDS_Security_getKeySize (properties);
     switch (protection) {
         case DDS_SECURITY_PROTECTION_KIND_NONE:
             return CRYPTO_TRANSFORMATION_KIND_NONE;
         case DDS_SECURITY_PROTECTION_KIND_SIGN_WITH_ORIGIN_AUTHENTICATION:
         case DDS_SECURITY_PROTECTION_KIND_SIGN:
-            if( keysize == 128 ){
-                return CRYPTO_TRANSFORMATION_KIND_AES128_GMAC;
-            } else{
-                return CRYPTO_TRANSFORMATION_KIND_AES256_GMAC;
-            }
+            return (keysize == 128) ? CRYPTO_TRANSFORMATION_KIND_AES128_GMAC : CRYPTO_TRANSFORMATION_KIND_AES256_GMAC;
         case DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION:
         case DDS_SECURITY_PROTECTION_KIND_ENCRYPT:
-            if( keysize == 128 ){
-                return CRYPTO_TRANSFORMATION_KIND_AES128_GCM;
-            } else {
-                return CRYPTO_TRANSFORMATION_KIND_AES256_GCM;
-            }
+            return (keysize == 128) ? CRYPTO_TRANSFORMATION_KIND_AES128_GCM : CRYPTO_TRANSFORMATION_KIND_AES256_GCM;
         default:
             return CRYPTO_TRANSFORMATION_KIND_INVALID;
     }
 }
 
-/* for DEBUG purposes */
+#ifndef NDEBUG
 void
 print_binary_debug(
      char* name,
@@ -1025,8 +997,7 @@ print_binary_properties_debug(
     }
 
 }
-
-
+#endif
 
 
 DDS_Security_config_item_prefix_t
