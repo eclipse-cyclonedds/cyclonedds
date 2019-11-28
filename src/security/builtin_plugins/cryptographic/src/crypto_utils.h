@@ -15,6 +15,7 @@
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/types.h"
+#include "dds/security/export.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_types.h"
 #include "crypto_defs.h"
@@ -47,7 +48,7 @@ char *crypto_openssl_error_message(void);
  * @param[in]     transformation_kind   Transformation kind
  * @param[in,out] ex                    Security exception
  */
-DDS_EXPORT bool crypto_calculate_session_key(
+SECURITY_EXPORT bool crypto_calculate_session_key(
     crypto_key_t *session_key,
     uint32_t session_id,
     const unsigned char *master_salt,
@@ -63,7 +64,7 @@ DDS_EXPORT bool crypto_calculate_session_key(
  * @param[in]     transformation_kind   Transformation kind
  * @param[in,out] ex                    Security exception
  */
-DDS_EXPORT bool crypto_calculate_receiver_specific_key(
+SECURITY_EXPORT bool crypto_calculate_receiver_specific_key(
     crypto_key_t *session_key,
     uint32_t session_id,
     const unsigned char *master_salt,
@@ -71,9 +72,9 @@ DDS_EXPORT bool crypto_calculate_receiver_specific_key(
     DDS_Security_CryptoTransformKind_Enum transformation_kind,
     DDS_Security_SecurityException *ex);
 
-DDS_EXPORT uint32_t crypto_get_key_size(DDS_Security_CryptoTransformKind_Enum kind);
-DDS_EXPORT uint32_t crypto_get_random_uint32(void);
-DDS_EXPORT uint64_t crypto_get_random_uint64(void);
+SECURITY_EXPORT uint32_t crypto_get_key_size(DDS_Security_CryptoTransformKind_Enum kind);
+SECURITY_EXPORT uint32_t crypto_get_random_uint32(void);
+SECURITY_EXPORT uint64_t crypto_get_random_uint64(void);
 
 /**
  * @brief Compute a HMAC256 on the provided data.
@@ -84,7 +85,7 @@ DDS_EXPORT uint64_t crypto_get_random_uint64(void);
  * @param[in]     data_size The size of the data
  * @param[in,out] ex        Security exception
  */
-DDS_EXPORT unsigned char *crypto_hmac256(
+SECURITY_EXPORT unsigned char *crypto_hmac256(
     const unsigned char *key,
     uint32_t key_size,
     const unsigned char *data,
