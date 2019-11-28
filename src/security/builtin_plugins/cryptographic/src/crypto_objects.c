@@ -214,35 +214,64 @@ static void master_key_material__free(CryptoObject *obj)
   if (obj)
   {
     CHECK_CRYPTO_OBJECT_KIND(obj, CRYPTO_OBJECT_KIND_KEY_MATERIAL);
+    if (CRYPTO_TRANSFORM_HAS_KEYS(keymat->transformation_kind))
+    {
+      ddsrt_free (keymat->master_salt);
+      ddsrt_free (keymat->master_sender_key);
+      ddsrt_free (keymat->master_receiver_specific_key);
+    }
     crypto_object_deinit ((CryptoObject *)keymat);
     memset (keymat, 0, sizeof (*keymat));
     ddsrt_free (keymat);
   }
 }
 
-master_key_material * crypto_master_key_material_new(void)
+master_key_material * crypto_master_key_material_new(DDS_Security_CryptoTransformKind_Enum transform_kind)
 {
   master_key_material *keymat = ddsrt_calloc (1, sizeof(*keymat));
   crypto_object_init((CryptoObject *)keymat, CRYPTO_OBJECT_KIND_KEY_MATERIAL, master_key_material__free);
+  keymat->transformation_kind = transform_kind;
+  if (CRYPTO_TRANSFORM_HAS_KEYS(transform_kind))
+  {
+    uint32_t key_bytes = CRYPTO_KEY_SIZE_BYTES(keymat->transformation_kind);
+    keymat->master_salt = ddsrt_calloc(1, key_bytes);
+    keymat->master_sender_key = ddsrt_calloc(1, key_bytes);
+    keymat->master_receiver_specific_key = ddsrt_calloc(1, key_bytes);
+  }
   return keymat;
 }
 
 void crypto_master_key_material_set(master_key_material *dst, const master_key_material *src)
 {
-  dst->transformation_kind = src->transformation_kind;
-  if (src->transformation_kind != CRYPTO_TRANSFORMATION_KIND_NONE)
+  if (CRYPTO_TRANSFORM_HAS_KEYS(dst->transformation_kind) && !CRYPTO_TRANSFORM_HAS_KEYS(src->transformation_kind))
   {
-    dst->sender_key_id = src->sender_key_id;
-    memcpy (dst->master_salt.data, src->master_salt.data, CRYPTO_SALT_SIZE_BYTES(src->transformation_kind));
-    memcpy (dst->master_sender_key.data, src->master_sender_key.data, CRYPTO_KEY_SIZE_BYTES(src->transformation_kind));
+    ddsrt_free(dst->master_salt);
+    ddsrt_free(dst->master_sender_key);
+    ddsrt_free(dst->master_receiver_specific_key);
   }
+  else if (CRYPTO_TRANSFORM_HAS_KEYS(src->transformation_kind))
+  {
+    uint32_t key_bytes = CRYPTO_KEY_SIZE_BYTES(src->transformation_kind);
+    if (!CRYPTO_TRANSFORM_HAS_KEYS(dst->transformation_kind))
+    {
+      dst->master_salt = ddsrt_calloc(1, key_bytes);
+      dst->master_sender_key = ddsrt_calloc(1, key_bytes);
+      dst->master_receiver_specific_key = ddsrt_calloc(1, key_bytes);
+    }
+    memcpy (dst->master_salt, src->master_salt, key_bytes);
+    dst->sender_key_id = src->sender_key_id;
+    memcpy (dst->master_sender_key, src->master_sender_key, key_bytes);
+    /* Fixme: set the receiver specific key? */
+    dst->receiver_specific_key_id = 0;
+  }
+  dst->transformation_kind = src->transformation_kind;
 }
 
 static bool generate_session_key(session_key_material *session, DDS_Security_SecurityException *ex)
 {
   session->id++;
   session->block_counter = 0;
-  return crypto_calculate_session_key(&session->key, session->id, &session->master_key_material->master_salt, &session->master_key_material->master_sender_key, session->master_key_material->transformation_kind, ex);
+  return crypto_calculate_session_key(&session->key, session->id, session->master_key_material->master_salt, session->master_key_material->master_sender_key, session->master_key_material->transformation_kind, ex);
 }
 
 static void session_key_material__free(CryptoObject *obj)
@@ -262,8 +291,7 @@ session_key_material * crypto_session_key_material_new(master_key_material *mast
 {
   session_key_material *session = ddsrt_malloc(sizeof(*session));
   crypto_object_init((CryptoObject *)session, CRYPTO_OBJECT_KIND_SESSION_KEY_MATERIAL, session_key_material__free);
-
-  memset(session->key.data, 0, CRYPTO_KEY_SIZE_MAX);
+  memset (session->key.data, 0, CRYPTO_KEY_SIZE_MAX);
   session->block_size = CRYPTO_CIPHER_BLOCK_SIZE;
   session->key_size = crypto_get_key_size(master_key->transformation_kind);
   session->id = crypto_get_random_uint32();
@@ -354,8 +382,8 @@ participant_key_material * crypto_participant_key_material_new(const local_parti
   crypto_object_init((CryptoObject *)keymaterial, CRYPTO_OBJECT_KIND_PARTICIPANT_KEY_MATERIAL, participant_key_material_free);
   keymaterial->pp_local_handle = pplocal->_parent.handle;
   keymaterial->endpoint_relations = crypto_object_table_new(NULL, NULL, NULL);
-  keymaterial->local_P2P_key_material = crypto_master_key_material_new();
-  keymaterial->P2P_kx_key_material = crypto_master_key_material_new();
+  keymaterial->local_P2P_key_material = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_NONE);
+  keymaterial->P2P_kx_key_material = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_AES256_GCM); /* as defined in table 67 of the DDS Security spec v1.1 */
 
   return keymaterial;
 }

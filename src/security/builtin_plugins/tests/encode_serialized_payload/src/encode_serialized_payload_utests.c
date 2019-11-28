@@ -27,7 +27,7 @@
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
-#include "common/src/encode_helper.h"
+#include "common/src/crypto_helper.h"
 #include "crypto_objects.h"
 #include "crypto_utils.h"
 
@@ -320,7 +320,7 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
   uint32_t key_size = crypto_get_key_size(CRYPTO_TRANSFORM_KIND(transformation_kind));
   int len = 0;
 
-  if (!crypto_calculate_session_key_test(&session_key, session_id, &key_material->master_salt, &key_material->master_sender_key, key_material->transformation_kind))
+  if (!crypto_calculate_session_key_test(&session_key, session_id, key_material->master_salt, key_material->master_sender_key, key_material->transformation_kind))
   {
     printf("[ERROR] (%d) crypto_decrypt_data: could not calculate session key!\n", __LINE__);
     return false;

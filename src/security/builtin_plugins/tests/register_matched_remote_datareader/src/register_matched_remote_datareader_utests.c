@@ -25,6 +25,7 @@
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
+#include "common/src/crypto_helper.h"
 #include "crypto_objects.h"
 
 #if OPENSLL_VERSION_NUMBER >= 0x10002000L
@@ -169,26 +170,6 @@ static void reset_exception(DDS_Security_SecurityException *ex)
   ex->message = NULL;
 }
 
-static int master_salt_not_empty(crypto_salt_t * salt)
-{
-  for (int i = 0; i < CRYPTO_SALT_SIZE_256; i++)
-  {
-    if (salt->data[i])
-      return 1;
-  }
-  return 0;
-}
-
-static int master_key_not_empty(crypto_key_t * key)
-{
-  for (int i = 0; i < CRYPTO_KEY_SIZE_256; i++)
-  {
-    if (key->data[i])
-      return 1;
-  }
-  return 0;
-}
-
 CU_Test(ddssec_builtin_register_remote_datareader, happy_day, .init = suite_register_matched_remote_datareader_init, .fini = suite_register_matched_remote_datareader_fini)
 {
   DDS_Security_DatawriterCryptoHandle result;
@@ -226,10 +207,10 @@ CU_Test(ddssec_builtin_register_remote_datareader, happy_day, .init = suite_regi
   reader_crypto = (remote_datareader_crypto *)result;
   CU_ASSERT_FATAL(reader_crypto->writer2reader_key_material_message != NULL);
   CU_ASSERT_FATAL(reader_crypto->writer2reader_key_material_payload != NULL);
-  CU_ASSERT(master_salt_not_empty(&reader_crypto->writer2reader_key_material_message->master_salt));
-  CU_ASSERT(master_key_not_empty(&reader_crypto->writer2reader_key_material_message->master_sender_key));
-  CU_ASSERT(master_salt_not_empty(&reader_crypto->writer2reader_key_material_payload->master_salt));
-  CU_ASSERT(master_key_not_empty(&reader_crypto->writer2reader_key_material_payload->master_sender_key));
+  CU_ASSERT(master_salt_not_empty(reader_crypto->writer2reader_key_material_message));
+  CU_ASSERT(master_key_not_empty(reader_crypto->writer2reader_key_material_message));
+  CU_ASSERT(master_salt_not_empty(reader_crypto->writer2reader_key_material_payload));
+  CU_ASSERT(master_key_not_empty(reader_crypto->writer2reader_key_material_payload));
   CU_ASSERT_FATAL(reader_crypto->metadata_protectionKind == DDS_SECURITY_PROTECTION_KIND_ENCRYPT);
   reset_exception(&exception);
 
@@ -334,10 +315,10 @@ CU_Test(ddssec_builtin_register_remote_datareader, with_origin_authentication, .
   reader_crypto = (remote_datareader_crypto *)result;
   CU_ASSERT_FATAL(reader_crypto->writer2reader_key_material_message != NULL);
   CU_ASSERT_FATAL(reader_crypto->writer2reader_key_material_payload != NULL);
-  CU_ASSERT(master_salt_not_empty(&reader_crypto->writer2reader_key_material_message->master_salt));
-  CU_ASSERT(master_key_not_empty(&reader_crypto->writer2reader_key_material_message->master_sender_key));
-  CU_ASSERT(master_salt_not_empty(&reader_crypto->writer2reader_key_material_payload->master_salt));
-  CU_ASSERT(master_key_not_empty(&reader_crypto->writer2reader_key_material_payload->master_sender_key));
+  CU_ASSERT(master_salt_not_empty(reader_crypto->writer2reader_key_material_message));
+  CU_ASSERT(master_key_not_empty(reader_crypto->writer2reader_key_material_message));
+  CU_ASSERT(master_salt_not_empty(reader_crypto->writer2reader_key_material_payload));
+  CU_ASSERT(master_key_not_empty(reader_crypto->writer2reader_key_material_payload));
   CU_ASSERT_FATAL(reader_crypto->metadata_protectionKind == DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION);
   reset_exception(&exception);
 

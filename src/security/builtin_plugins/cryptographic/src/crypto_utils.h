@@ -21,9 +21,7 @@
 
 #define CRYPTO_TRANSFORM_KIND(k) ddsrt_fromBE4u((*(uint32_t *)&((k)[0])))
 #define CRYPTO_TRANSFORM_ID(k) ddsrt_fromBE4u((*(uint32_t *)&((k)[0])))
-
-#define CRYPTO_KEY_SIZE_BYTES(kind) (crypto_get_key_size(kind) == 128 ? CRYPTO_KEY_SIZE_128 : CRYPTO_KEY_SIZE_256)
-#define CRYPTO_SALT_SIZE_BYTES(kind) (crypto_get_key_size(kind) == 128 ? CRYPTO_SALT_SIZE_128 : CRYPTO_SALT_SIZE_256)
+#define CRYPTO_KEY_SIZE_BYTES(kind) (crypto_get_key_size(kind) >> 3)
 
 #define ALIGN4(x) (((x) + 3) & (uint32_t)(-4))
 
@@ -52,8 +50,8 @@ char *crypto_openssl_error_message(void);
 DDS_EXPORT bool crypto_calculate_session_key(
     crypto_key_t *session_key,
     uint32_t session_id,
-    const crypto_salt_t *master_salt,
-    const crypto_key_t *master_key,
+    const unsigned char *master_salt,
+    const unsigned char *master_key,
     DDS_Security_CryptoTransformKind_Enum transformation_kind,
     DDS_Security_SecurityException *ex);
 
@@ -68,8 +66,8 @@ DDS_EXPORT bool crypto_calculate_session_key(
 DDS_EXPORT bool crypto_calculate_receiver_specific_key(
     crypto_key_t *session_key,
     uint32_t session_id,
-    const crypto_salt_t *master_salt,
-    const crypto_key_t *master_key,
+    const unsigned char *master_salt,
+    const unsigned char *master_key,
     DDS_Security_CryptoTransformKind_Enum transformation_kind,
     DDS_Security_SecurityException *ex);
 

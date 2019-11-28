@@ -76,11 +76,10 @@ static bool check_crypto_keymaterial(const DDS_Security_KeyMaterial_AES_GCM_GMAC
   bool status;
 
   uint32_t transform_kind = CRYPTO_TRANSFORM_KIND(keymat->transformation_kind);
-  uint32_t salt_sz = CRYPTO_SALT_SIZE_BYTES(transform_kind);
   uint32_t key_sz = CRYPTO_KEY_SIZE_BYTES(transform_kind);
 
   status = (transform_kind >= CRYPTO_TRANSFORMATION_KIND_AES128_GMAC && transform_kind <= CRYPTO_TRANSFORMATION_KIND_AES256_GCM &&
-    keymat->master_salt._length == salt_sz && keymat->master_salt._buffer != NULL && check_not_data_empty(&keymat->master_salt) &&
+    keymat->master_salt._length == key_sz && keymat->master_salt._buffer != NULL && check_not_data_empty(&keymat->master_salt) &&
     keymat->master_sender_key._length == key_sz && keymat->master_sender_key._buffer != NULL && check_not_data_empty(&keymat->master_sender_key));
 
   if (status && CRYPTO_TRANSFORM_ID(keymat->receiver_specific_key_id))
@@ -112,9 +111,8 @@ serialize_master_key_material(
 {
   uint32_t *sd;
   size_t i = 0;
-  uint32_t salt_bytes = CRYPTO_SALT_SIZE_BYTES(keymat->transformation_kind);
   uint32_t key_bytes = CRYPTO_KEY_SIZE_BYTES(keymat->transformation_kind);
-  size_t sz = 6 * sizeof (uint32_t) + salt_bytes + key_bytes;
+  size_t sz = 6 * sizeof (uint32_t) + 2 * key_bytes;
   if (keymat->receiver_specific_key_id)
     sz += key_bytes;
   *buffer = ddsrt_malloc(sz);
@@ -122,18 +120,18 @@ serialize_master_key_material(
   sd = (uint32_t *)(*buffer);
 
   sd[i++] = ddsrt_toBE4u(keymat->transformation_kind);
-  sd[i++] = ddsrt_toBE4u(salt_bytes);
-  memcpy(&sd[i], keymat->master_salt.data, salt_bytes);
-  i += salt_bytes / sizeof (uint32_t);
+  sd[i++] = ddsrt_toBE4u(key_bytes);
+  memcpy(&sd[i], keymat->master_salt, key_bytes);
+  i += key_bytes / sizeof (uint32_t);
   sd[i++] = ddsrt_toBE4u(keymat->sender_key_id);
   sd[i++] = ddsrt_toBE4u(key_bytes);
-  memcpy(&sd[i], keymat->master_sender_key.data, key_bytes);
+  memcpy(&sd[i], keymat->master_sender_key, key_bytes);
   i += key_bytes / sizeof (uint32_t);
   sd[i++] = ddsrt_toBE4u(keymat->receiver_specific_key_id);
   if (keymat->receiver_specific_key_id)
   {
     sd[i++] = ddsrt_toBE4u(key_bytes);
-    memcpy(&sd[i], keymat->master_receiver_specific_key.data, key_bytes);
+    memcpy(&sd[i], keymat->master_receiver_specific_key, key_bytes);
   }
   else
   {

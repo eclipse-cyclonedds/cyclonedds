@@ -310,8 +310,8 @@ static bool
 initialize_remote_session_info(
     remote_session_info *info,
     struct crypto_header *header,
-    const crypto_salt_t *master_salt,
-    const crypto_key_t *master_key,
+    const unsigned char *master_salt,
+    const unsigned char *master_key,
     DDS_Security_CryptoTransformKind_Enum transformation_kind,
     DDS_Security_SecurityException *ex)
 {
@@ -936,7 +936,7 @@ add_reader_specific_mac(
     footer = (struct crypto_footer *)(postfix + 1);
     index = ddsrt_fromBE4u(footer->receiver_specific_macs._length);
 
-    if (!crypto_calculate_receiver_specific_key(&key, session->id, &key_material->master_salt, &key_material->master_receiver_specific_key, key_material->transformation_kind, ex) ||
+    if (!crypto_calculate_receiver_specific_key(&key, session->id, key_material->master_salt, key_material->master_receiver_specific_key, key_material->transformation_kind, ex) ||
         !crypto_cipher_encrypt_data(&key, session->key_size, header->session_id, NULL, 0, footer->common_mac.data, CRYPTO_HMAC_SIZE, NULL, NULL, &hmac, ex))
     {
       result = false;
@@ -1021,7 +1021,7 @@ add_receiver_specific_mac(
     footer = (struct crypto_footer *)(postfix + 1);
     index = ddsrt_fromBE4u(footer->receiver_specific_macs._length);
 
-    if (!crypto_calculate_receiver_specific_key(&key, session->id, &local_p2p_key->master_salt, &local_p2p_key->master_receiver_specific_key, local_p2p_key->transformation_kind, ex) ||
+    if (!crypto_calculate_receiver_specific_key(&key, session->id, local_p2p_key->master_salt, local_p2p_key->master_receiver_specific_key, local_p2p_key->transformation_kind, ex) ||
         !crypto_cipher_encrypt_data(&key, session->key_size, header->session_id, NULL, 0, footer->common_mac.data, CRYPTO_HMAC_SIZE, NULL, NULL, &hmac, ex))
     {
       result = false;
@@ -1034,9 +1034,7 @@ add_receiver_specific_mac(
       footer->receiver_specific_macs._length = ddsrt_toBE4u(++index);
     }
   }
-
   CRYPTO_OBJECT_RELEASE(session);
-
   return result;
 }
 
@@ -1510,7 +1508,7 @@ check_reader_specific_mac(
     return false;
   }
 
-  if (!crypto_calculate_receiver_specific_key(&key, session_id, &key_material->master_salt, &key_material->master_receiver_specific_key, key_material->transformation_kind, ex))
+  if (!crypto_calculate_receiver_specific_key(&key, session_id, key_material->master_salt, key_material->master_receiver_specific_key, key_material->transformation_kind, ex))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_RECEIVER_SIGN_CODE, 0,
         "%s: failed to calculate receiver specific session key", context);
@@ -1530,7 +1528,6 @@ check_reader_specific_mac(
         "%s: message does not contain a valid receiver specific mac", context);
     return false;
   }
-
   return true;
 }
 
@@ -1894,7 +1891,7 @@ decode_rtps_message(dds_security_crypto_transform *instance,
 
   /* calculate the session key */
   decoded_body = DDS_Security_OctetSeq_allocbuf(contents._length);
-  if (!initialize_remote_session_info(&remote_session, &header, &remote_key_material->master_salt, &remote_key_material->master_sender_key, remote_key_material->transformation_kind, ex))
+  if (!initialize_remote_session_info(&remote_session, &header, remote_key_material->master_salt, remote_key_material->master_sender_key, remote_key_material->transformation_kind, ex))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
         "decode_rtps_message: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
@@ -2110,7 +2107,7 @@ decode_datawriter_submessage(
   }
 
   /* calculate the session key */
-  if (!initialize_remote_session_info(&remote_session, &header, &writer_master_key->master_salt, &writer_master_key->master_sender_key, writer_master_key->transformation_kind, ex))
+  if (!initialize_remote_session_info(&remote_session, &header, writer_master_key->master_salt, writer_master_key->master_sender_key, writer_master_key->transformation_kind, ex))
     goto fail_decrypt;
 
   if (is_encryption_required(transform_kind))
@@ -2164,6 +2161,7 @@ decode_datawriter_submessage(
   ddsrt_free(footer);
   CRYPTO_OBJECT_RELEASE(writer_master_key);
   return true;
+
 
 fail_decrypt:
   DDS_Security_OctetSeq_deinit(plain_submsg);
@@ -2232,7 +2230,7 @@ decode_datareader_submessage(
   }
 
   /* calculate the session key */
-  if (!initialize_remote_session_info(&remote_session, &header, &reader_master_key->master_salt, &reader_master_key->master_sender_key, reader_master_key->transformation_kind, ex))
+  if (!initialize_remote_session_info(&remote_session, &header, reader_master_key->master_salt, reader_master_key->master_sender_key, reader_master_key->transformation_kind, ex))
     goto fail_decrypt;
 
   if (is_encryption_required(transform_kind))
@@ -2357,7 +2355,7 @@ decode_serialized_payload(
     goto fail_prepare;
 
   /* calculate the session key */
-  if (!initialize_remote_session_info(&remote_session, &header, &writer_master_key->master_salt, &writer_master_key->master_sender_key, writer_master_key->transformation_kind, ex))
+  if (!initialize_remote_session_info(&remote_session, &header, writer_master_key->master_salt, writer_master_key->master_sender_key, writer_master_key->transformation_kind, ex))
     goto fail_decrypt;
 
   /*

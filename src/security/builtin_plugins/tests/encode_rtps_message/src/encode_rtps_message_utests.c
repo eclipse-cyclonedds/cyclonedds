@@ -27,7 +27,7 @@
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
-#include "common/src/encode_helper.h"
+#include "common/src/crypto_helper.h"
 #include "crypto_objects.h"
 #include "crypto_utils.h"
 
@@ -460,7 +460,7 @@ crypto_decrypt_data(
   uint32_t key_size = crypto_get_key_size(CRYPTO_TRANSFORM_KIND(transformation_kind));
   int len = 0;
 
-  if (!crypto_calculate_session_key_test(&session_key, session_id, &key_material->master_salt, &key_material->master_sender_key, key_material->transformation_kind))
+  if (!crypto_calculate_session_key_test(&session_key, session_id, key_material->master_salt, key_material->master_sender_key, key_material->transformation_kind))
     return false;
 
   printf("SessionId: %08x\n", session_id);
@@ -643,13 +643,12 @@ static bool check_sign(DDS_Security_ParticipantCryptoHandle participant_crypto, 
   memset(md, 0, CRYPTO_HMAC_SIZE);
 
   keymat = get_remote_participant_key_material(participant_crypto);
-
   if (key_id != keymat->receiver_specific_key_id)
   {
     printf("check_sign: key_id(%d) does not match key_mat(%d)\n", (int)key_id, (int)keymat->receiver_specific_key_id);
     return false;
   }
-  else if (!calculate_receiver_specific_key_test(key.data, session_id, &keymat->master_salt, &keymat->master_receiver_specific_key, keymat->transformation_kind))
+  else if (!calculate_receiver_specific_key_test(&key, session_id, keymat->master_salt, keymat->master_receiver_specific_key, keymat->transformation_kind))
   {
     printf("check_sign: calculate key failed\n");
     return false;

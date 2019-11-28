@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDS_SECURITY_BUITIN_TEST_ENCODE_HELPER_H
-#define DDS_SECURITY_BUITIN_TEST_ENCODE_HELPER_H
+#ifndef DDS_SECURITY_BUITIN_TEST_CRYPTO_HELPER_H
+#define DDS_SECURITY_BUITIN_TEST_CRYPTO_HELPER_H
 
 #include "dds/ddsrt/types.h"
 #include "dds/security/dds_security_api.h"
@@ -20,15 +20,19 @@ bool
 crypto_calculate_session_key_test(
     crypto_key_t *session_key,
     uint32_t session_id,
-    const crypto_salt_t *master_salt,
-    const crypto_key_t *master_key,
+    const unsigned char *master_salt,
+    const unsigned char *master_key,
     DDS_Security_CryptoTransformKind_Enum transformation_kind);
 
 bool calculate_receiver_specific_key_test(
-    unsigned char *session_key,
+    crypto_key_t *session_key,
     uint32_t session_id,
-    const crypto_salt_t *master_salt,
-    const crypto_key_t *master_key,
+    const unsigned char *master_salt,
+    const unsigned char *master_key,
     DDS_Security_CryptoTransformKind_Enum transformation_kind);
 
-#endif /* DDS_SECURITY_BUITIN_TEST_ENCODE_HELPER_H */
+int master_salt_not_empty(master_key_material *keymat);
+int master_key_not_empty(master_key_material *keymat);
+int master_receiver_specific_key_not_empty(master_key_material *keymat);
+
+#endif /* DDS_SECURITY_BUITIN_TEST_CRYPTO_HELPER_H */

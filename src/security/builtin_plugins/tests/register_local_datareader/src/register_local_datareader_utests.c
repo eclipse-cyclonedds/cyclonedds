@@ -25,6 +25,7 @@
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
+#include "common/src/crypto_helper.h"
 #include "crypto_objects.h"
 
 #if OPENSLL_VERSION_NUMBER >= 0x10002000L
@@ -125,26 +126,6 @@ static void reset_exception(DDS_Security_SecurityException *ex)
   ex->message = NULL;
 }
 
-static int master_salt_not_empty(crypto_salt_t * salt)
-{
-  for (int i = 0; i < CRYPTO_SALT_SIZE_256; i++)
-  {
-    if (salt->data[i])
-      return 1;
-  }
-  return 0;
-}
-
-static int master_key_not_empty(crypto_key_t * key)
-{
-  for (int i = 0; i < CRYPTO_KEY_SIZE_256; i++)
-  {
-    if (key->data[i])
-      return 1;
-  }
-  return 0;
-}
-
 static void prepare_endpoint_security_attributes(DDS_Security_EndpointSecurityAttributes *attributes)
 {
   memset(attributes, 0, sizeof(DDS_Security_EndpointSecurityAttributes));
@@ -192,8 +173,8 @@ CU_Test(ddssec_builtin_register_local_datareader, happy_day, .init = suite_regis
   reader_crypto = (local_datareader_crypto *)result;
 
   CU_ASSERT_FATAL(reader_crypto->reader_key_material != NULL);
-  CU_ASSERT(master_salt_not_empty(&reader_crypto->reader_key_material->master_salt));
-  CU_ASSERT(master_key_not_empty(&reader_crypto->reader_key_material->master_sender_key));
+  CU_ASSERT(master_salt_not_empty(reader_crypto->reader_key_material));
+  CU_ASSERT(master_key_not_empty(reader_crypto->reader_key_material));
   CU_ASSERT(reader_crypto->metadata_protectionKind == DDS_SECURITY_PROTECTION_KIND_ENCRYPT);
 
   reset_exception(&exception);
@@ -243,8 +224,8 @@ CU_Test(ddssec_builtin_register_local_datareader, builtin_endpoint, .init = suit
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   reader_crypto = (local_datareader_crypto *)result;
   CU_ASSERT_FATAL(reader_crypto->reader_key_material != NULL);
-  CU_ASSERT(master_salt_not_empty(&reader_crypto->reader_key_material->master_salt));
-  CU_ASSERT(master_key_not_empty(&reader_crypto->reader_key_material->master_sender_key));
+  CU_ASSERT(master_salt_not_empty(reader_crypto->reader_key_material));
+  CU_ASSERT(master_key_not_empty(reader_crypto->reader_key_material));
   CU_ASSERT(reader_crypto->metadata_protectionKind == DDS_SECURITY_PROTECTION_KIND_ENCRYPT);
   CU_ASSERT(reader_crypto->is_builtin_participant_volatile_message_secure_reader == false);
 

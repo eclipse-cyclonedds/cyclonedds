@@ -36,6 +36,8 @@
 #define CRYPTO_OBJECT_RELEASE(o) crypto_object_release((CryptoObject *)(o))
 #define CRYPTO_OBJECT_VALID(o, k) crypto_object_valid((CryptoObject *)(o), k)
 
+#define CRYPTO_TRANSFORM_HAS_KEYS(k) ((k) != CRYPTO_TRANSFORMATION_KIND_NONE && (k) != CRYPTO_TRANSFORMATION_KIND_INVALID)
+
 typedef DDS_Security_ParticipantCryptoHandle DDS_Security_LocalParticipantCryptoHandle;
 typedef DDS_Security_ParticipantCryptoHandle DDS_Security_RemoteParticipantCryptoHandle;
 
@@ -74,11 +76,11 @@ typedef struct master_key_material
 {
   CryptoObject _parent;
   DDS_Security_CryptoTransformKind_Enum transformation_kind;
-  crypto_salt_t master_salt;
+  unsigned char *master_salt;
   uint32_t sender_key_id;
-  crypto_key_t master_sender_key;
+  unsigned char *master_sender_key;
   uint32_t receiver_specific_key_id;
-  crypto_key_t master_receiver_specific_key;
+  unsigned char *master_receiver_specific_key;
 } master_key_material;
 
 typedef struct session_key_material
@@ -193,7 +195,7 @@ typedef struct remote_datareader_crypto
 } remote_datareader_crypto;
 
 master_key_material *
-crypto_master_key_material_new(void);
+crypto_master_key_material_new(DDS_Security_CryptoTransformKind_Enum transform_kind);
 
 void crypto_master_key_material_set(
     master_key_material *dst,

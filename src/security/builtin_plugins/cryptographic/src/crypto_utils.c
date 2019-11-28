@@ -43,60 +43,58 @@ char *crypto_openssl_error_message(void)
   return msg;
 }
 
-bool
-crypto_calculate_session_key(
+static bool
+crypto_calculate_key_impl(
+    const char *prefix,
     crypto_key_t *session_key,
     uint32_t session_id,
-    const crypto_salt_t *master_salt,
-    const crypto_key_t *master_key,
+    const unsigned char *master_salt,
+    const unsigned char *master_key,
     DDS_Security_CryptoTransformKind_Enum transformation_kind,
     DDS_Security_SecurityException *ex)
 {
-  uint32_t salt_bytes = CRYPTO_SALT_SIZE_BYTES(transformation_kind);
   uint32_t key_bytes = CRYPTO_KEY_SIZE_BYTES(transformation_kind);
   uint32_t id = ddsrt_toBE4u(session_id);
-  char prefix[] = "SessionKey";
-  size_t sz = strlen(prefix) + salt_bytes + sizeof(id);
+  size_t sz = strlen(prefix) + key_bytes + sizeof(id);
   unsigned char *buffer = ddsrt_malloc (sz);
+  unsigned char md[EVP_MAX_MD_SIZE];
+
   memcpy(buffer, prefix, strlen(prefix));
-  memcpy(&buffer[strlen(prefix)], &master_salt->data, salt_bytes);
-  memcpy(&buffer[strlen(prefix) + salt_bytes], &id, sizeof(id));
-  if (HMAC(EVP_sha256(), master_key->data, (int)key_bytes, buffer, sz, session_key->data, NULL) == NULL)
+  memcpy(&buffer[strlen(prefix)], master_salt, key_bytes);
+  memcpy(&buffer[strlen(prefix) + key_bytes], &id, sizeof(id));
+  if (HMAC(EVP_sha256(), master_key, (int)key_bytes, buffer, sz, md, NULL) == NULL)
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CIPHER_ERROR, 0, "HMAC failed: ");
     ddsrt_free (buffer);
     return false;
   }
+  memcpy (session_key->data, md, key_bytes);
   ddsrt_free (buffer);
   return true;
+}
+
+bool
+crypto_calculate_session_key(
+    crypto_key_t *session_key,
+    uint32_t session_id,
+    const unsigned char *master_salt,
+    const unsigned char *master_key,
+    DDS_Security_CryptoTransformKind_Enum transformation_kind,
+    DDS_Security_SecurityException *ex)
+{
+  return crypto_calculate_key_impl("SessionKey", session_key, session_id, master_salt, master_key, transformation_kind, ex);
 }
 
 bool
 crypto_calculate_receiver_specific_key(
     crypto_key_t *session_key,
     uint32_t session_id,
-    const crypto_salt_t *master_salt,
-    const crypto_key_t *master_key,
+    const unsigned char *master_salt,
+    const unsigned char *master_key,
     DDS_Security_CryptoTransformKind_Enum transformation_kind,
     DDS_Security_SecurityException *ex)
 {
-  uint32_t salt_bytes = CRYPTO_SALT_SIZE_BYTES(transformation_kind);
-  uint32_t key_bytes = CRYPTO_KEY_SIZE_BYTES(transformation_kind);
-  uint32_t id = ddsrt_toBE4u(session_id);
-  char prefix[] = "SessionReceiverKey";
-  size_t sz = strlen(prefix) + salt_bytes + sizeof(id);
-  unsigned char *buffer = ddsrt_malloc (sz);
-  memcpy(buffer, prefix, strlen(prefix));
-  memcpy(&buffer[strlen(prefix)], &master_salt->data, salt_bytes);
-  memcpy(&buffer[strlen(prefix) + salt_bytes], &id, sizeof(id));
-  if (HMAC(EVP_sha256(), master_key->data, (int)key_bytes, buffer, sz, session_key->data, NULL) == NULL)
-  {
-    DDS_Security_Exception_set_with_openssl_error(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CIPHER_ERROR, 0, "HMAC failed: ");
-    ddsrt_free (buffer);
-    return false;
-  }
-  ddsrt_free (buffer);
-  return true;
+  return crypto_calculate_key_impl("SessionReceiverKey", session_key, session_id, master_salt, master_key, transformation_kind, ex);
 }
 
 uint32_t

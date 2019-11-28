@@ -24,7 +24,7 @@ set(security_auth_test_sources
 )
 
 set(security_crypto_test_sources
-    "common/src/encode_helper.c"
+    "common/src/crypto_helper.c"
     "create_local_datareader_crypto_tokens/src/create_local_datareader_crypto_tokens_utests.c"
     "create_local_datawriter_crypto_tokens/src/create_local_datawriter_crypto_tokens_utests.c"
     "create_local_participant_crypto_tokens/src/create_local_participant_crypto_tokens_utests.c"

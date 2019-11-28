@@ -52,16 +52,31 @@ crypto_token_copy(
     master_key_material *dst,
     const DDS_Security_KeyMaterial_AES_GCM_GMAC *src)
 {
-  dst->transformation_kind = CRYPTO_TRANSFORM_KIND(src->transformation_kind);
-  uint32_t salt_bytes = CRYPTO_SALT_SIZE_BYTES(dst->transformation_kind);
-  uint32_t key_bytes = CRYPTO_KEY_SIZE_BYTES(dst->transformation_kind);
+  DDS_Security_CryptoTransformKind_Enum src_transform_kind = CRYPTO_TRANSFORM_KIND(src->transformation_kind);
 
-  memcpy(dst->master_salt.data, src->master_salt._buffer, salt_bytes);
-  dst->sender_key_id = CRYPTO_TRANSFORM_ID(src->sender_key_id);
-  memcpy(dst->master_sender_key.data, src->master_sender_key._buffer, key_bytes);
-  dst->receiver_specific_key_id = CRYPTO_TRANSFORM_ID(src->receiver_specific_key_id);
-  if (src->master_receiver_specific_key._length > 0)
-    memcpy(dst->master_receiver_specific_key.data, src->master_receiver_specific_key._buffer, key_bytes);
+  if (CRYPTO_TRANSFORM_HAS_KEYS(dst->transformation_kind) && !CRYPTO_TRANSFORM_HAS_KEYS(src_transform_kind))
+  {
+    ddsrt_free(dst->master_salt);
+    ddsrt_free(dst->master_sender_key);
+    ddsrt_free(dst->master_receiver_specific_key);
+  }
+  else if (CRYPTO_TRANSFORM_HAS_KEYS(src_transform_kind))
+  {
+    uint32_t key_bytes = CRYPTO_KEY_SIZE_BYTES(src_transform_kind);
+    if (!CRYPTO_TRANSFORM_HAS_KEYS(dst->transformation_kind))
+    {
+      dst->master_salt = ddsrt_calloc(1, key_bytes);
+      dst->master_sender_key = ddsrt_calloc(1, key_bytes);
+      dst->master_receiver_specific_key = ddsrt_calloc(1, key_bytes);
+    }
+    memcpy(dst->master_salt, src->master_salt._buffer, key_bytes);
+    dst->sender_key_id = CRYPTO_TRANSFORM_ID(src->sender_key_id);
+    memcpy(dst->master_sender_key, src->master_sender_key._buffer, key_bytes);
+    dst->receiver_specific_key_id = CRYPTO_TRANSFORM_ID(src->receiver_specific_key_id);
+    if (dst->receiver_specific_key_id)
+      memcpy(dst->master_receiver_specific_key, src->master_receiver_specific_key._buffer, key_bytes);
+  }
+  dst->transformation_kind = src_transform_kind;
 };
 
 /* Compute KeyMaterial_AES_GCM_GMAC as described in DDS Security spec v1.1 section 9.5.2.1.2 (table 67 and table 68) */
@@ -113,18 +128,18 @@ calculate_kx_keys(
   if (!(kx_master_sender_key = crypto_hmac256(hash, SHA256_DIGEST_LENGTH, shared_secret_key, (uint32_t) shared_secret_size, ex)))
     goto fail_kx_key;
 
-  kx_key_material->transformation_kind = CRYPTO_TRANSFORMATION_KIND_AES256_GCM; /* as defined in table 67 of the DDS Security spec v1.1 */
-  memcpy(kx_key_material->master_salt.data, kx_master_salt, CRYPTO_SALT_SIZE_256);
+  assert (kx_key_material->transformation_kind == CRYPTO_TRANSFORMATION_KIND_AES256_GCM); /* set in crypto_participant_key_material_new */
+  memcpy(kx_key_material->master_salt, kx_master_salt, CRYPTO_KEY_SIZE_256);
   kx_key_material->sender_key_id = 0;
-  memcpy(kx_key_material->master_sender_key.data, kx_master_sender_key, CRYPTO_SALT_SIZE_256);
+  memcpy(kx_key_material->master_sender_key, kx_master_sender_key, CRYPTO_KEY_SIZE_256);
   kx_key_material->receiver_specific_key_id = 0;
 
-  memset (kx_master_sender_key, 0, CRYPTO_KEY_SIZE_MAX);
+  memset (kx_master_sender_key, 0, CRYPTO_KEY_SIZE_256);
   ddsrt_free(kx_master_sender_key);
   result = true;
 
 fail_kx_key:
-  memset (kx_master_salt, 0, CRYPTO_SALT_SIZE_256);
+  memset (kx_master_salt, 0, CRYPTO_KEY_SIZE_256);
   ddsrt_free(kx_master_salt);
 fail_kx_salt:
   ddsrt_free(concatenated_bytes2);
@@ -140,13 +155,13 @@ generate_key(
     DDS_Security_SecurityException *ex)
 {
   assert (key_material->transformation_kind != CRYPTO_TRANSFORMATION_KIND_NONE);
-  if (RAND_bytes(key_material->master_salt.data, CRYPTO_SALT_SIZE_BYTES(key_material->transformation_kind)) < 0)
+  if (RAND_bytes(key_material->master_salt, (int)CRYPTO_KEY_SIZE_BYTES(key_material->transformation_kind)) < 0)
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_CODE, 0,
         DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_MESSAGE);
     return DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_CODE;
   }
-  if (RAND_bytes(key_material->master_sender_key.data, CRYPTO_KEY_SIZE_BYTES(key_material->transformation_kind)) < 0)
+  if (RAND_bytes(key_material->master_sender_key, (int)CRYPTO_KEY_SIZE_BYTES(key_material->transformation_kind)) < 0)
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_CODE, 0,
         DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_MESSAGE);
@@ -319,11 +334,9 @@ register_local_participant(
 
   /*init objects */
   participant_crypto = crypto_local_participant_crypto__new(participant_identity);
-  participant_crypto->key_material = crypto_master_key_material_new();
-  /* get rtps protection from ParticipantSecurityAttributes */
   participant_crypto->rtps_protection_kind = attribute_to_rtps_protection_kind(participant_security_attributes);
-  participant_crypto->key_material->transformation_kind =
-      DDS_Security_protectionkind2transformationkind(participant_properties, participant_crypto->rtps_protection_kind);
+  participant_crypto->key_material = crypto_master_key_material_new(
+    DDS_Security_protectionkind2transformationkind(participant_properties, participant_crypto->rtps_protection_kind));
 
   /* No need to create session material if there is no protection for RTPS */
   if (participant_crypto->key_material->transformation_kind != CRYPTO_TRANSFORMATION_KIND_NONE)
@@ -451,7 +464,7 @@ register_matched_remote_participant(
     if ((local_participant_crypto_ref->rtps_protection_kind == DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION) ||
         (local_participant_crypto_ref->rtps_protection_kind == DDS_SECURITY_PROTECTION_KIND_SIGN_WITH_ORIGIN_AUTHENTICATION))
     {
-      if (RAND_bytes(key_material->local_P2P_key_material->master_receiver_specific_key.data, CRYPTO_KEY_SIZE_BYTES(key_material->local_P2P_key_material->transformation_kind)) < 0)
+      if (RAND_bytes(key_material->local_P2P_key_material->master_receiver_specific_key, (int)CRYPTO_KEY_SIZE_BYTES(key_material->local_P2P_key_material->transformation_kind)) < 0)
       {
         DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_CODE, 0,
             DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_MESSAGE);
@@ -532,11 +545,8 @@ register_local_datawriter(
   {
     if (writer_crypto->metadata_protectionKind != DDS_SECURITY_PROTECTION_KIND_NONE)
     {
-      DDS_Security_CryptoTransformKind_Enum transform_kind =
-          DDS_Security_protectionkind2transformationkind(datawriter_properties, metadata_protection);
-
-      writer_crypto->writer_key_material_message = crypto_master_key_material_new();
-      writer_crypto->writer_key_material_message->transformation_kind = transform_kind;
+      writer_crypto->writer_key_material_message = crypto_master_key_material_new(
+        DDS_Security_protectionkind2transformationkind(datawriter_properties, metadata_protection));
       if (generate_key(implementation, writer_crypto->writer_key_material_message, ex) != DDS_SECURITY_ERR_OK_CODE)
         goto err_random_generation;
       writer_crypto->writer_session_message = crypto_session_key_material_new(writer_crypto->writer_key_material_message);
@@ -544,11 +554,8 @@ register_local_datawriter(
 
     if (writer_crypto->data_protectionKind != DDS_SECURITY_BASICPROTECTION_KIND_NONE)
     {
-      DDS_Security_CryptoTransformKind_Enum transform_kind =
-          DDS_Security_basicprotectionkind2transformationkind(datawriter_properties, data_protection);
-
-      writer_crypto->writer_key_material_payload = crypto_master_key_material_new();
-      writer_crypto->writer_key_material_payload->transformation_kind = transform_kind;
+      writer_crypto->writer_key_material_payload = crypto_master_key_material_new(
+        DDS_Security_basicprotectionkind2transformationkind(datawriter_properties, data_protection));
       if (generate_key(implementation, writer_crypto->writer_key_material_payload, ex) != DDS_SECURITY_ERR_OK_CODE)
         goto err_random_generation;
       writer_crypto->writer_session_payload = crypto_session_key_material_new(writer_crypto->writer_key_material_payload);
@@ -635,13 +642,13 @@ register_matched_remote_datareader(
   {
     if (local_writer->writer_key_material_message)
     {
-      reader_crypto->writer2reader_key_material_message = crypto_master_key_material_new();
+      reader_crypto->writer2reader_key_material_message = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_NONE);
       crypto_master_key_material_set(reader_crypto->writer2reader_key_material_message, local_writer->writer_key_material_message);
       if ((metadata_protectionKind == DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION) ||
           (metadata_protectionKind == DDS_SECURITY_PROTECTION_KIND_SIGN_WITH_ORIGIN_AUTHENTICATION))
       {
         uint32_t key_bytes = CRYPTO_KEY_SIZE_BYTES(reader_crypto->writer2reader_key_material_message->transformation_kind);
-        if (RAND_bytes(reader_crypto->writer2reader_key_material_message->master_receiver_specific_key.data, (int)key_bytes) < 0)
+        if (RAND_bytes(reader_crypto->writer2reader_key_material_message->master_receiver_specific_key, (int)key_bytes) < 0)
         {
           DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_CODE, 0,
               DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_MESSAGE);
@@ -654,7 +661,7 @@ register_matched_remote_datareader(
 
     if (local_writer->writer_key_material_payload)
     {
-      reader_crypto->writer2reader_key_material_payload = crypto_master_key_material_new();
+      reader_crypto->writer2reader_key_material_payload = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_NONE);
       crypto_master_key_material_set(reader_crypto->writer2reader_key_material_payload, local_writer->writer_key_material_payload);
     }
   }
@@ -687,7 +694,6 @@ register_local_datareader(
   dds_security_crypto_key_factory_impl *implementation = (dds_security_crypto_key_factory_impl *)instance;
   DDS_Security_ProtectionKind metadata_protection;
   DDS_Security_BasicProtectionKind data_protection;
-  DDS_Security_CryptoTransformKind_Enum transform_kind;
 
   if (!instance || (participant_crypto_handle == DDS_SECURITY_HANDLE_NIL))
   {
@@ -722,10 +728,8 @@ register_local_datareader(
   {
     if (reader_crypto->metadata_protectionKind != DDS_SECURITY_PROTECTION_KIND_NONE)
     {
-      /* generate reader key material*/
-      transform_kind = DDS_Security_protectionkind2transformationkind(datareader_properties, metadata_protection);
-      reader_crypto->reader_key_material = crypto_master_key_material_new();
-      reader_crypto->reader_key_material->transformation_kind = transform_kind;
+      reader_crypto->reader_key_material = crypto_master_key_material_new(
+        DDS_Security_protectionkind2transformationkind(datareader_properties, metadata_protection));
       if (generate_key(implementation, reader_crypto->reader_key_material, ex) != DDS_SECURITY_ERR_OK_CODE)
         goto err_random_generation;
       reader_crypto->reader_session = crypto_session_key_material_new(reader_crypto->reader_key_material);
@@ -810,14 +814,14 @@ register_matched_remote_datawriter(
   }
   else if (local_reader->metadata_protectionKind != DDS_SECURITY_PROTECTION_KIND_NONE)
   {
-    writer_crypto->reader2writer_key_material = crypto_master_key_material_new();
+    writer_crypto->reader2writer_key_material = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_NONE);
     crypto_master_key_material_set(writer_crypto->reader2writer_key_material, local_reader->reader_key_material);
 
     if (local_reader->metadata_protectionKind == DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION
         || local_reader->metadata_protectionKind == DDS_SECURITY_PROTECTION_KIND_SIGN_WITH_ORIGIN_AUTHENTICATION)
     {
       uint32_t key_bytes = CRYPTO_KEY_SIZE_BYTES(writer_crypto->reader2writer_key_material->transformation_kind);
-      if (RAND_bytes(writer_crypto->reader2writer_key_material->master_receiver_specific_key.data, (int)key_bytes) < 0)
+      if (RAND_bytes(writer_crypto->reader2writer_key_material->master_receiver_specific_key, (int)key_bytes) < 0)
       {
         DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT,
                                    DDS_SECURITY_ERR_CANNOT_GENERATE_RANDOM_CODE, 0,
@@ -1067,7 +1071,7 @@ crypto_factory_set_participant_crypto_tokens(
   if (key_material)
   {
     if (!key_material->remote_key_material)
-      key_material->remote_key_material = crypto_master_key_material_new();
+      key_material->remote_key_material = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_NONE);
     crypto_token_copy(key_material->remote_key_material, remote_key_mat);
     CRYPTO_OBJECT_RELEASE(key_material);
   }
@@ -1197,7 +1201,7 @@ crypto_factory_set_datawriter_crypto_tokens(
 
   for (i = 0; i < num_key_mat; i++)
   {
-    writer_master_key[i] = crypto_master_key_material_new();
+    writer_master_key[i] = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_NONE);
     crypto_token_copy(writer_master_key[i], &key_mat[i]);
   }
 
@@ -1335,7 +1339,7 @@ crypto_factory_set_datareader_crypto_tokens(
   remove_remote_reader_relation(impl, remote_reader_crypto);
   CRYPTO_OBJECT_RELEASE(remote_reader_crypto->reader2writer_key_material);
 
-  remote_reader_crypto->reader2writer_key_material = crypto_master_key_material_new();
+  remote_reader_crypto->reader2writer_key_material = crypto_master_key_material_new(CRYPTO_TRANSFORMATION_KIND_NONE);
   crypto_token_copy(remote_reader_crypto->reader2writer_key_material, key_mat);
 
   keys = (participant_key_material *)crypto_object_table_find(
@@ -1736,7 +1740,7 @@ crypto_factory_get_remote_reader_sign_key_material(
     DDS_Security_SecurityException *ex)
 {
   dds_security_crypto_key_factory_impl *impl = (dds_security_crypto_key_factory_impl *)factory;
-  remote_datareader_crypto *reader_crypto = NULL;
+  remote_datareader_crypto *reader_crypto;
   bool result = false;
 
   assert(key_material);
