@@ -316,7 +316,7 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
 {
   bool result = true;
   EVP_CIPHER_CTX *ctx;
-  crypto_key_t session_key;
+  crypto_session_key_t session_key;
   uint32_t key_size = crypto_get_key_size(CRYPTO_TRANSFORM_KIND(transformation_kind));
   int len = 0;
 

@@ -991,52 +991,41 @@ crypto_factory_get_participant_crypto_tokens(
     const dds_security_crypto_key_factory *factory,
     DDS_Security_ParticipantCryptoHandle local_id,
     DDS_Security_ParticipantCryptoHandle remote_id,
-    master_key_material **remote_key_mat,
-    master_key_material **local_p2p_key_mat,
-    master_key_material **p2p_key_mat,
+    participant_key_material **pp_key_material,
     DDS_Security_ProtectionKind *protection_kind,
+
     DDS_Security_SecurityException *ex)
 {
+  assert (pp_key_material != NULL);
   dds_security_crypto_key_factory_impl *impl = (dds_security_crypto_key_factory_impl *)factory;
-  remote_participant_crypto *remote_crypto;
-  participant_key_material *key_material;
+  remote_participant_crypto *remote_crypto = (remote_participant_crypto *)crypto_object_table_find(impl->crypto_objects, remote_id);
   bool result = false;
-
-  remote_crypto = (remote_participant_crypto *)crypto_object_table_find(impl->crypto_objects, remote_id);
   if (!remote_crypto)
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE, 0,
         DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);
-    return false;
+    goto err_no_remote;
   }
   else if (!CRYPTO_OBJECT_VALID(remote_crypto, CRYPTO_OBJECT_KIND_REMOTE_CRYPTO))
   {
-    CRYPTO_OBJECT_RELEASE(remote_crypto);
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE, 0,
         DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);
-    return false;
+    goto err_remote;
   }
 
-  key_material = (participant_key_material *)crypto_object_table_find(remote_crypto->key_material, local_id);
-
-  /* printf( "\ncrypto_table_find : %x - %d,KM: %x, P2P %x, Salt: %x\n", remote_crypto->key_material, local_id, key_material, key_material->P2P_kx_key_material, key_material->P2P_kx_key_material->master_salt); */
-
-  if (!key_material)
+  if (!(*pp_key_material = (participant_key_material *)crypto_object_table_find(remote_crypto->key_material, local_id)))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE, 0,
         DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);
+    goto err_remote;
   }
-  else
-  {
-    *p2p_key_mat = key_material->P2P_kx_key_material;
-    *local_p2p_key_mat = key_material->local_P2P_key_material;
-    *remote_key_mat = key_material->remote_key_material;
+  if (protection_kind != NULL)
     *protection_kind = remote_crypto->rtps_protection_kind;
-    result = true;
-  }
+  result = true;
 
+err_remote:
   CRYPTO_OBJECT_RELEASE(remote_crypto);
-  CRYPTO_OBJECT_RELEASE(key_material);
+err_no_remote:
   return result;
 }
 
@@ -1451,7 +1440,7 @@ crypto_factory_get_local_participant_data_key_material(
         DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);
     goto err_no_crypto;
   }
-  else if (!crypto_object_valid(CRYPTO_OBJECT(participant_crypto), CRYPTO_OBJECT_KIND_LOCAL_CRYPTO))
+  else if (!CRYPTO_OBJECT_VALID(participant_crypto, CRYPTO_OBJECT_KIND_LOCAL_CRYPTO))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE, 0,
         DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_MESSAGE);

@@ -49,7 +49,7 @@ char *crypto_openssl_error_message(void);
  * @param[in,out] ex                    Security exception
  */
 SECURITY_EXPORT bool crypto_calculate_session_key(
-    crypto_key_t *session_key,
+    crypto_session_key_t *session_key,
     uint32_t session_id,
     const unsigned char *master_salt,
     const unsigned char *master_key,
@@ -65,7 +65,7 @@ SECURITY_EXPORT bool crypto_calculate_session_key(
  * @param[in,out] ex                    Security exception
  */
 SECURITY_EXPORT bool crypto_calculate_receiver_specific_key(
-    crypto_key_t *session_key,
+    crypto_session_key_t *session_key,
     uint32_t session_id,
     const unsigned char *master_salt,
     const unsigned char *master_key,

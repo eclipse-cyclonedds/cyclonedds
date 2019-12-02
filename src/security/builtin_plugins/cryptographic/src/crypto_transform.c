@@ -922,7 +922,7 @@ add_reader_specific_mac(
   struct submsg_header *prefix;
   struct crypto_header *header;
   struct crypto_footer *footer;
-  crypto_key_t key;
+  crypto_session_key_t key;
   crypto_hmac_t hmac;
 
   if (has_origin_authentication(protection_kind))
@@ -991,20 +991,18 @@ add_receiver_specific_mac(
   struct submsg_header *prefix;
   struct crypto_header *header;
   struct crypto_footer *footer;
-  DDS_Security_ProtectionKind remote_protection_kind;
   DDS_Security_ProtectionKind local_protection_kind;
-  crypto_key_t key;
+  DDS_Security_ProtectionKind remote_protection_kind;
+  crypto_session_key_t key;
   crypto_hmac_t hmac;
-  master_key_material *local_p2p_key;
-  master_key_material *p2p_kx_key;
-  master_key_material *remote_key_mat;
+  participant_key_material *pp_key_material;
 
   /* get local crypto and session*/
   if (!crypto_factory_get_local_participant_data_key_material(factory, sending_participant_crypto, &session, &local_protection_kind, ex))
     return false;
 
   /* get remote crypto tokens */
-  if (!crypto_factory_get_participant_crypto_tokens(factory, sending_participant_crypto, receiving_participant_crypto, &remote_key_mat, &local_p2p_key, &p2p_kx_key, &remote_protection_kind, ex))
+  if (!crypto_factory_get_participant_crypto_tokens(factory, sending_participant_crypto, receiving_participant_crypto, &pp_key_material, &remote_protection_kind, ex))
   {
     CRYPTO_OBJECT_RELEASE(session);
     return false;
@@ -1021,19 +1019,21 @@ add_receiver_specific_mac(
     footer = (struct crypto_footer *)(postfix + 1);
     index = ddsrt_fromBE4u(footer->receiver_specific_macs._length);
 
-    if (!crypto_calculate_receiver_specific_key(&key, session->id, local_p2p_key->master_salt, local_p2p_key->master_receiver_specific_key, local_p2p_key->transformation_kind, ex) ||
+    if (!crypto_calculate_receiver_specific_key(&key, session->id, pp_key_material->local_P2P_key_material->master_salt,
+            pp_key_material->local_P2P_key_material->master_receiver_specific_key, pp_key_material->local_P2P_key_material->transformation_kind, ex) ||
         !crypto_cipher_encrypt_data(&key, session->key_size, header->session_id, NULL, 0, footer->common_mac.data, CRYPTO_HMAC_SIZE, NULL, NULL, &hmac, ex))
     {
       result = false;
     }
     else
     {
-      uint32_t key_id = ddsrt_toBE4u(local_p2p_key->receiver_specific_key_id);
+      uint32_t key_id = ddsrt_toBE4u(pp_key_material->local_P2P_key_material->receiver_specific_key_id);
       memcpy(footer->receiver_specific_macs._buffer[index].receiver_mac.data, hmac.data, CRYPTO_HMAC_SIZE);
       memcpy(footer->receiver_specific_macs._buffer[index].receiver_mac_key_id, &key_id, sizeof(key_id));
       footer->receiver_specific_macs._length = ddsrt_toBE4u(++index);
     }
   }
+  CRYPTO_OBJECT_RELEASE(pp_key_material);
   CRYPTO_OBJECT_RELEASE(session);
   return result;
 }
@@ -1480,7 +1480,7 @@ check_reader_specific_mac(
     DDS_Security_SecurityException *ex)
 {
   uint32_t session_id;
-  crypto_key_t key;
+  crypto_session_key_t key;
   crypto_hmac_t *href = NULL;
   crypto_hmac_t hmac;
   uint32_t i;
@@ -1833,7 +1833,6 @@ decode_rtps_message(dds_security_crypto_transform *instance,
   dds_security_crypto_transform_impl *impl = (dds_security_crypto_transform_impl *)instance;
   dds_security_crypto_key_factory *factory;
   uint32_t transform_kind;
-  DDS_Security_ProtectionKind protection_kind;
   remote_session_info remote_session;
   DDS_Security_OctetSeq rtps_header;
   struct submsg_header prefix;
@@ -1844,10 +1843,10 @@ decode_rtps_message(dds_security_crypto_transform *instance,
   struct crypto_contents_ref contents = {0, NULL};
   unsigned char *decoded_body;
   uint32_t decoded_body_size;
-  master_key_material *local_p2p_key;
-  master_key_material *p2p_key_mat;
-  master_key_material *remote_key_material;
   static const char *context = "decode_rtps_message";
+  participant_key_material *pp_key_material;
+  DDS_Security_ProtectionKind remote_protection_kind;
+  bool result = false;
 
   /* FIXME: when decoding a message the message is split in several parts (header, body, footer, etc) and for this
    * memory is allocated which is probably not necessary. Performance should be improved by removing these allocations
@@ -1877,21 +1876,22 @@ decode_rtps_message(dds_security_crypto_transform *instance,
   transform_kind = CRYPTO_TRANSFORM_KIND(header.transform_identifier.transformation_kind);
 
   /* Retrieve key material from sending_participant_crypto and  receiving_participant_crypto from factory */
-  if (!crypto_factory_get_participant_crypto_tokens(factory, receiving_participant_crypto, sending_participant_crypto, &remote_key_material, &local_p2p_key, &p2p_key_mat, &protection_kind, ex))
+  if (!crypto_factory_get_participant_crypto_tokens(factory, receiving_participant_crypto, sending_participant_crypto, &pp_key_material, &remote_protection_kind, ex))
     goto fail_tokens;
 
-  if (!remote_key_material)
+  if (!pp_key_material->remote_key_material)
     goto fail_remote_keys_not_ready;
 
-  if (has_origin_authentication(protection_kind))
+  if (has_origin_authentication(remote_protection_kind))
   { /* default governance value */
-    if (!check_reader_specific_mac(&header, footer, remote_key_material, context, ex))
+    if (!check_reader_specific_mac(&header, footer, pp_key_material->remote_key_material, context, ex))
       goto fail_reader_mac;
   }
 
   /* calculate the session key */
   decoded_body = DDS_Security_OctetSeq_allocbuf(contents._length);
-  if (!initialize_remote_session_info(&remote_session, &header, remote_key_material->master_salt, remote_key_material->master_sender_key, remote_key_material->transformation_kind, ex))
+  if (!initialize_remote_session_info(&remote_session, &header, pp_key_material->remote_key_material->master_salt,
+        pp_key_material->remote_key_material->master_sender_key, pp_key_material->remote_key_material->transformation_kind, ex))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
         "decode_rtps_message: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
@@ -1900,7 +1900,7 @@ decode_rtps_message(dds_security_crypto_transform *instance,
 
   if (is_encryption_required(transform_kind))
   {
-    if (!is_encryption_expected(protection_kind))
+    if (!is_encryption_expected(remote_protection_kind))
     {
       DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
           "decode_rtps_submessage: message is encrypted, which is unexpected");
@@ -1924,7 +1924,7 @@ decode_rtps_message(dds_security_crypto_transform *instance,
   }
   else if (is_authentication_required(transform_kind))
   {
-    if (!is_authentication_expected(protection_kind))
+    if (!is_authentication_expected(remote_protection_kind))
     {
       DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
           "decode_rtps_message: message is signed, which is unexpected");
@@ -1947,18 +1947,17 @@ decode_rtps_message(dds_security_crypto_transform *instance,
   plain_buffer->_length = plain_buffer->_maximum = decoded_body_size - 4;        /* INFO_SRC removed, "RTPS" prefix added */
   memcpy(plain_buffer->_buffer, "RTPS", 4);                                      /* ADD RTPS */
   memcpy(plain_buffer->_buffer + 4, decoded_body + 8, decoded_body_size - 8);    /* remove INFO_SRC */
-  ddsrt_free(decoded_body);
-  ddsrt_free(footer);
-  return true;
+  result = true;
 
 fail_decrypt:
   ddsrt_free(decoded_body);
 fail_remote_keys_not_ready:
 fail_reader_mac:
+  CRYPTO_OBJECT_RELEASE(pp_key_material);
 fail_tokens:
   ddsrt_free(footer);
 fail_invalid_input:
-  return false;
+  return result;
 }
 
 static DDS_Security_boolean

@@ -19,7 +19,7 @@
 #include "crypto_cipher.h"
 
 bool crypto_cipher_encrypt_data(
-  const crypto_key_t *key,
+  const crypto_session_key_t *session_key,
   uint32_t key_size,
   const unsigned char *iv,
   const unsigned char *data,
@@ -67,7 +67,7 @@ bool crypto_cipher_encrypt_data(
   }
 
   /* Initialise key and IV */
-  if (!EVP_EncryptInit_ex(ctx, NULL, NULL, key->data, iv))
+  if (!EVP_EncryptInit_ex(ctx, NULL, NULL, session_key->data, iv))
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CIPHER_ERROR, 0, "EVP_EncryptInit_ex failed: ");
     goto fail_encrypt;

@@ -153,10 +153,7 @@ create_local_participant_crypto_tokens(
 {
   dds_security_crypto_key_exchange_impl *impl = (dds_security_crypto_key_exchange_impl *)instance;
   dds_security_crypto_key_factory *factory;
-  master_key_material *local_p2p_key_mat;
-  master_key_material *p2p_kx_key_mat;
-  master_key_material *remote_key_mat;
-  DDS_Security_ProtectionKind protection_kind;
+  participant_key_material *pp_key_material;
   uint8_t *buffer;
   uint32_t length;
 
@@ -168,10 +165,10 @@ create_local_participant_crypto_tokens(
   }
 
   factory = cryptography_get_crypto_key_factory(impl->crypto);
-  if (!crypto_factory_get_participant_crypto_tokens(factory, local_id, remote_id, &remote_key_mat, &local_p2p_key_mat, &p2p_kx_key_mat, &protection_kind, ex))
+  if (!crypto_factory_get_participant_crypto_tokens(factory, local_id, remote_id, &pp_key_material, NULL, ex))
     goto fail_invalid_arg;
-
-  serialize_master_key_material(local_p2p_key_mat, &buffer, &length);
+  serialize_master_key_material(pp_key_material->local_P2P_key_material, &buffer, &length);
+  CRYPTO_OBJECT_RELEASE(pp_key_material);
 
   tokens->_buffer = DDS_Security_DataHolderSeq_allocbuf(1);
   tokens->_length = tokens->_maximum = 1;

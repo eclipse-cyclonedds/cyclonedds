@@ -87,7 +87,7 @@ typedef struct session_key_material
 {
   CryptoObject _parent;
   uint32_t id;
-  crypto_key_t key;
+  crypto_session_key_t key;
   uint32_t key_size;
   uint32_t block_size;
   uint64_t block_counter;
@@ -100,7 +100,7 @@ typedef struct remote_session_info
 {
   uint32_t key_size;
   uint32_t id;
-  crypto_key_t key;
+  crypto_session_key_t key;
 } remote_session_info;
 
 typedef struct endpoint_relation

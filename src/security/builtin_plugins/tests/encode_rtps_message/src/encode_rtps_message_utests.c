@@ -456,7 +456,7 @@ crypto_decrypt_data(
 {
   bool result = true;
   EVP_CIPHER_CTX *ctx;
-  crypto_key_t session_key;
+  crypto_session_key_t session_key;
   uint32_t key_size = crypto_get_key_size(CRYPTO_TRANSFORM_KIND(transformation_kind));
   int len = 0;
 
@@ -637,7 +637,7 @@ static void initialize_rtps_message(DDS_Security_OctetSeq *submsg, bool be)
 static bool check_sign(DDS_Security_ParticipantCryptoHandle participant_crypto, uint32_t session_id, uint32_t key_id, uint32_t key_size, unsigned char *init_vector, unsigned char *common_mac, unsigned char *hmac)
 {
   master_key_material *keymat;
-  crypto_key_t key;
+  crypto_session_key_t key;
   unsigned char md[CRYPTO_HMAC_SIZE];
 
   memset(md, 0, CRYPTO_HMAC_SIZE);

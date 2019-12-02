@@ -549,7 +549,7 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
 {
   bool result = true;
   EVP_CIPHER_CTX *ctx;
-  crypto_key_t session_key;
+  crypto_session_key_t session_key;
   uint32_t key_size = crypto_get_key_size(CRYPTO_TRANSFORM_KIND(transformation_kind));
   int len = 0;
 
@@ -698,7 +698,7 @@ static bool check_reader_sign(
     unsigned char *hmac)
 {
   master_key_material *keymat;
-  crypto_key_t key;
+  crypto_session_key_t key;
   unsigned char md[CRYPTO_HMAC_SIZE];
 
   keymat = get_datareader_key_material(reader_crypto);

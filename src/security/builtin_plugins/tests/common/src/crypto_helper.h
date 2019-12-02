@@ -18,14 +18,14 @@
 
 bool
 crypto_calculate_session_key_test(
-    crypto_key_t *session_key,
+    crypto_session_key_t *session_key,
     uint32_t session_id,
     const unsigned char *master_salt,
     const unsigned char *master_key,
     DDS_Security_CryptoTransformKind_Enum transformation_kind);
 
 bool calculate_receiver_specific_key_test(
-    crypto_key_t *session_key,
+    crypto_session_key_t *session_key,
     uint32_t session_id,
     const unsigned char *master_salt,
     const unsigned char *master_key,

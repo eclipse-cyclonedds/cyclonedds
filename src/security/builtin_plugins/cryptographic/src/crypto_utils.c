@@ -46,7 +46,7 @@ char *crypto_openssl_error_message(void)
 static bool
 crypto_calculate_key_impl(
     const char *prefix,
-    crypto_key_t *session_key,
+    crypto_session_key_t *session_key,
     uint32_t session_id,
     const unsigned char *master_salt,
     const unsigned char *master_key,
@@ -75,7 +75,7 @@ crypto_calculate_key_impl(
 
 bool
 crypto_calculate_session_key(
-    crypto_key_t *session_key,
+    crypto_session_key_t *session_key,
     uint32_t session_id,
     const unsigned char *master_salt,
     const unsigned char *master_key,
@@ -87,7 +87,7 @@ crypto_calculate_session_key(
 
 bool
 crypto_calculate_receiver_specific_key(
-    crypto_key_t *session_key,
+    crypto_session_key_t *session_key,
     uint32_t session_id,
     const unsigned char *master_salt,
     const unsigned char *master_key,
@@ -138,20 +138,16 @@ crypto_hmac256(
     uint32_t data_size,
     DDS_Security_SecurityException *ex)
 {
+  unsigned char md[EVP_MAX_MD_SIZE];
   unsigned char *result;
 
-  if (key_size > INT32_MAX)
-  {
-    DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, 0, "Failed to init hashing context: invalid key size");
-    return NULL;
-  }
-
-  result = ddsrt_malloc(key_size);
-  if (HMAC(EVP_sha256(), key, (int) key_size, data, data_size, result, NULL) == NULL)
+  assert (key_size <= INT32_MAX);
+  if (HMAC(EVP_sha256(), key, (int) key_size, data, data_size, md, NULL) == NULL)
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, 0, "Failed to init hashing context: ");
-    ddsrt_free(result);
     return NULL;
   }
+  result = ddsrt_malloc(key_size);
+  memcpy (result, md, key_size);
   return result;
 }

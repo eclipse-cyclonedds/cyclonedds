@@ -33,8 +33,8 @@
  * which the common_mac has to be computed. The encryped parameter is not relevant
  * in this case.
  *
- * @param[in]     key           The session key used to encode the provided data
- * @param[in]     key_size      The size of the key (128 or 256 bit)
+ * @param[in]     session_key   The session key used to encode the provided data
+ * @param[in]     key_size      The size of the session key (128 or 256 bit)
  * @param[in]     iv            The init vector used by the encoding
  * @param[in]     data          The data to be encoded
  * @param[in]     data_len      The size of the data to be encoded
@@ -46,7 +46,7 @@
  * @param[in,out] ex            Security exception (optional)
  */
 bool crypto_cipher_encrypt_data(
-    const crypto_key_t *key,
+    const crypto_session_key_t *session_key,
     uint32_t key_size,
     const unsigned char *iv,
     const unsigned char *data,

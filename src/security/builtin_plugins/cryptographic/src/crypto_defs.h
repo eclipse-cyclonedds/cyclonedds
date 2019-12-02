@@ -35,15 +35,10 @@ typedef enum SecureSubmsgKind_t
   SMID_SRTPS_INFO_SRC_KIND = 0x0c
 } SecureSubmsgKind_t;
 
-typedef struct crypto_key_t
+typedef struct crypto_session_key_t
 {
   unsigned char data[CRYPTO_KEY_SIZE_MAX];
-} crypto_key_t;
-
-typedef struct crypto_salt_t
-{
-  unsigned char data[CRYPTO_KEY_SIZE_MAX];
-} crypto_salt_t;
+} crypto_session_key_t;
 
 typedef struct crypto_hmac_t
 {
