@@ -715,7 +715,7 @@ q_omg_security_check_create_topic(
 
 inline int64_t
 q_omg_security_get_local_participant_handle(
-    UNUSED_ARG(struct participant *pp)
+    UNUSED_ARG(struct participant *pp))
 {
   return 0;
 }
@@ -815,10 +815,6 @@ inline void q_omg_security_deregister_remote_writer_match(UNUSED_ARG(struct prox
 {
 }
 
-inline void q_omg_security_set_remote_writer_crypto_tokens(UNUSED_ARG(struct reader *rd), UNUSED_ARG(const ddsi_guid_t *pwr_guid), UNUSED_ARG(const nn_dataholderseq_t *tokens))
-{
-}
-
 inline void q_omg_get_proxy_reader_security_info(UNUSED_ARG(struct proxy_reader *prd), UNUSED_ARG(const nn_plist_t *plist), UNUSED_ARG(nn_security_info_t *info))
 {
 }
@@ -832,29 +828,6 @@ q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct proxy_rea
 inline void q_omg_security_deregister_remote_reader_match(UNUSED_ARG(struct proxy_reader *prd), UNUSED_ARG(struct writer *wr), UNUSED_ARG(struct wr_prd_match *match))
 {
 }
-
-
-inline void q_omg_security_set_remote_reader_crypto_tokens(UNUSED_ARG(struct writer *wr), UNUSED_ARG(const ddsi_guid_t *prd_guid), UNUSED_ARG(const nn_dataholderseq_t *tokens))
-{
-}
-
-
-
-
-
-
-
-
-inline struct ddsi_handshake * q_omg_security_handshake_find(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp))
-{
-  return NULL;
-}
-
-inline void q_omg_security_handshake_remove(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(struct ddsi_handshake *handshake))
-{
-}
-
-
 
 #endif /* DDSI_INCLUDE_SECURITY */
 

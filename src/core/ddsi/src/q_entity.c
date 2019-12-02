@@ -198,6 +198,9 @@ int is_builtin_endpoint (ddsi_entityid_t id, nn_vendorid_t vendorid)
   return is_builtin_entityid (id, vendorid) && id.u != NN_ENTITYID_PARTICIPANT;
 }
 
+
+#ifdef DDSI_INCLUDE_SECURITY
+
 static int is_builtin_volatile_endpoint (ddsi_entityid_t id)
 {
   int res = 0;
@@ -211,8 +214,6 @@ static int is_builtin_volatile_endpoint (ddsi_entityid_t id)
   }
   return res;
 }
-
-#ifdef DDSI_INCLUDE_SECURITY
 
 static int is_builtin_security_endpoint (ddsi_entityid_t id)
 {
@@ -2821,6 +2822,8 @@ static void match_proxy_reader_with_writers (struct proxy_reader *prd, nn_mtime_
   generic_do_match(&prd->e, tnow);
 }
 
+#ifdef DDSI_INCLUDE_SECURITY
+
 static void match_volatile_secure_endpoints (struct participant *pp, struct proxy_participant *proxypp)
 {
   struct reader *rd;
@@ -2933,6 +2936,7 @@ static void match_proxy_reader_with_participant_writers (struct proxy_reader *pr
   }
 }
 
+
 static void update_proxy_participant_endpoint_matching (struct proxy_participant *proxypp, struct participant *pp)
 {
   struct ephash * const guid_hash = pp->e.gv->guid_hash;
@@ -2957,6 +2961,8 @@ static void update_proxy_participant_endpoint_matching (struct proxy_participant
       match_proxy_reader_with_participant_writers(prd, pp, tnow);
   ephash_enum_proxy_reader_fini (&rst);
 }
+
+#endif
 
 /* ENDPOINT --------------------------------------------------------- */
 

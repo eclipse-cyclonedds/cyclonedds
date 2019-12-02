@@ -12,7 +12,7 @@
 #ifndef DDSI_HANDSHAKE_H
 #define DDSI_HANDSHAKE_H
 
-#include "q_entity.h"
+#include "dds/ddsi/q_entity.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -20,10 +20,6 @@ extern "C" {
 
 struct ddsi_handshake;
 struct ddsi_hsadmin;
-
-#ifdef DDSI_INCLUDE_SECURITY
-
-#include "ddsi_security_msg.h"
 
 enum ddsi_handshake_state {
     STATE_HANDSHAKE_IN_PROGRESS,
@@ -42,6 +38,10 @@ typedef void (*ddsi_handshake_end_cb_t)(
         const ddsi_guid_t *ppguid, /* Proxy participant */
         nn_wctime_t timestamp,
         enum ddsi_handshake_state result);
+
+#ifdef DDSI_INCLUDE_SECURITY
+
+#include "dds/ddsi/ddsi_security_msg.h"
 
 /**
  * @brief Start the authentication handshake.
@@ -92,7 +92,7 @@ void ddsi_handshake_crypto_tokens_received(struct ddsi_handshake *handshake);
 /**
  * @brief Get the shared secret handle.
  *
- * During the handshake a shared secret is established which is used to encrypt
+ * During the handshake a shared secret is established whisrc/core/ddsi/include/dds/ddsi/ddsi_handshake.hch is used to encrypt
  * and decrypt the crypto token exchange messages. This function will return a
  * handle to the shared secret which will be passed to the crypto plugin to
  * determine the session keys used for the echange of the the crypto tokens.
@@ -188,15 +188,13 @@ void ddsi_handshake_admin_delete(struct ddsi_hsadmin *hsadmin);
 
 #else /* DDSI_INCLUDE_SECURITY */
 
+#include "dds/ddsi/q_unused.h"
+
 inline void ddsi_handshake_start(UNUSED_ARG(struct ddsi_handshake *hs))
 {
 }
 
 inline void ddsi_handshake_release(UNUSED_ARG(struct ddsi_handshake *handshake))
-{
-}
-
-inline void ddsi_handshake_handle_message(UNUSED_ARG(struct ddsi_handshake *handshake), UNUSED_ARG((const struct participant *pp), UNUSED_ARG((const struct proxy_participant *proxypp), UNUSED_ARG((const struct nn_participant_generic_message *msg))
 {
 }
 

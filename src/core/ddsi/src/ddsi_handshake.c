@@ -231,7 +231,6 @@ ddsi_handshake_register(const struct participant *pp, const struct proxy_partici
 
 extern inline void ddsi_handshake_start(UNUSED_ARG(struct ddsi_handshake *hs));
 extern inline void ddsi_handshake_release(UNUSED_ARG(struct ddsi_handshake *handshake));
-extern inline void ddsi_handshake_handle_message(UNUSED_ARG(struct ddsi_handshake *handshake), UNUSED_ARG((const struct participant *pp), UNUSED_ARG((const struct proxy_participant *proxypp), UNUSED_ARG((const struct nn_participant_generic_message *msg));
 extern inline void ddsi_handshake_crypto_tokens_received(UNUSED_ARG(struct ddsi_handshake *handshake));
 extern inline int64_t ddsi_handshake_get_shared_secret(UNUSED_ARG(const struct ddsi_handshake *handshake));
 extern inline int64_t ddsi_handshake_get_handle(UNUSED_ARG(const struct ddsi_handshake *handshake));
