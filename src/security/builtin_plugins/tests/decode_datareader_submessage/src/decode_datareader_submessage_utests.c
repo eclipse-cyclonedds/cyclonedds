@@ -1448,7 +1448,7 @@ CU_Test(ddssec_builtin_decode_datareader_submessage, invalid_data, .init = suite
     DDS_Security_OctetSeq_copy(&corrupt_buffer, &encoded_buffer);
 
     footer = get_crypto_footer(corrupt_buffer._buffer);
-    footer->common_mac[0] = 1;
+    footer->common_mac[0]++;
 
     result = crypto->crypto_transform->decode_datareader_submessage(
         crypto->crypto_transform,
