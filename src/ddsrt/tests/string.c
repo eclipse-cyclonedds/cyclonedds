@@ -69,11 +69,11 @@ CU_Theory((const char *s1, const char *s2, size_t n, eq_t e), ddsrt_strncasecmp,
 }
 
 CU_TheoryDataPoints(ddsrt_str_replace, basic) = {
-  CU_DataPoints(const char *,  "",  "a", "aaa",  "aaa",   "aaa", "aaa",   "a", "aa", NULL,  "a",  "a",    "acaca", "aacaacaa", "aaa"),
-  CU_DataPoints(const char *, "a",   "",   "a",    "a",     "a",  "aa", "aaa",  "a",  "a", NULL,  "b",        "a",       "aa",   "a"),
-  CU_DataPoints(const char *, "b",  "b",   "b",   "bb",    "bb",   "b",   "b",  "b",  "b",  "b", NULL,       "bb",        "b",    ""),
-  CU_DataPoints(size_t,         0,    0,     0,      1,       2,     0,     0,   10,    0,    0,    0,          0,          2,     0),
-  CU_DataPoints(const char *,  "", NULL, "bbb", "bbaa", "bbbba",  "ba",   "a", "bb", NULL, NULL, NULL, "bbcbbcbb",   "bcbcaa",    ""),
+  CU_DataPoints(const char *,  "",  "a", "aaa",  "aaa",   "aaa", "aaa",   "a", "aa",    "acaca", "aacaacaa", "aaa"),
+  CU_DataPoints(const char *, "a",   "",   "a",    "a",     "a",  "aa", "aaa",  "a",        "a",       "aa",   "a"),
+  CU_DataPoints(const char *, "b",  "b",   "b",   "bb",    "bb",   "b",   "b",  "b",       "bb",        "b",    ""),
+  CU_DataPoints(size_t,         0,    0,     0,      1,       2,     0,     0,   10,          0,          2,     0),
+  CU_DataPoints(const char *,  "", NULL, "bbb", "bbaa", "bbbba",  "ba",   "a", "bb", "bbcbbcbb",   "bcbcaa",    ""),
 };
 
 CU_Theory((const char *str, const char *srch, const char *subst, size_t max, const char * exp), ddsrt_str_replace, basic)

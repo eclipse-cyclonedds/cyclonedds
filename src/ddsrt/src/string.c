@@ -172,29 +172,33 @@ ddsrt_str_replace(
     const char *subst,
     size_t max)
 {
-  char *r, *cur = (char *)str, *tmp;
-  size_t lstr, lsrch, lsubst, cnt, offset;
+  const size_t lsrch = strlen(srch);
+  if (lsrch == 0) /* empty search string is treated as failure */
+    return NULL;
 
-  if (!str || !srch || !subst || !(lsrch = strlen(srch)))
+  const size_t lsubst = strlen(subst);
+  const size_t lstr = strlen(str);
+  const char *cur = str;
+  char *res;
+  size_t cnt;
+
+  if (max == 0)
+    max = SIZE_MAX;
+  for (cnt = 0; (cur = strstr(cur, srch)) != NULL && cnt < max; cnt++)
+    cur += lsrch;
+  if ((res = ddsrt_malloc(lstr + cnt * (lsubst - lsrch) + 1)) == NULL)
     return NULL;
-  lstr = strlen(str);
-  lsubst = strlen(subst);
-  for (cnt = 0; (cur < str + lstr) && (tmp = strstr(cur, srch)) && (max == 0 || cnt < max); cnt++)
-    cur = tmp + lsrch;
-  if (!(tmp = r = ddsrt_malloc(lstr + cnt * (lsubst - lsrch) + 1)))
-    return NULL;
-  DDSRT_WARNING_MSVC_OFF(4996);
+  char *tmp = res;
+  cur = str;
   while (cnt--)
   {
-    cur = strstr(str, srch);
-    offset = (size_t)(cur - str);
-    strncpy(tmp, str, offset);
-    tmp += offset;
-    strcpy(tmp, subst);
-    tmp += lsubst;
-    str += offset + lsrch;
+    const char *found = strstr(cur, srch);
+    const size_t skip = (size_t)(found - cur);
+    memcpy(tmp, cur, skip);
+    memcpy(tmp + skip, subst, lsubst);
+    tmp += skip + lsubst;
+    cur += skip + lsrch;
   }
-  strcpy(tmp, str);
-  DDSRT_WARNING_MSVC_ON(4996);
-  return r;
+  memcpy(tmp, cur, lstr - (size_t) (cur - str) + 1);
+  return res;
 }
