@@ -1942,6 +1942,7 @@ static void make_sample_info (dds_sample_info_t *si, const struct rhc_instance *
   si->absolute_generation_rank = get_absolute_generation_rank (inst, sample);
   si->valid_data = true;
   si->source_timestamp = sample->sample->timestamp.v;
+  si->seq_no = sample->sample->seq_no;
 }
 
 static void make_sample_info_invsample (dds_sample_info_t *si, const struct rhc_instance *inst)
@@ -1958,6 +1959,7 @@ static void make_sample_info_invsample (dds_sample_info_t *si, const struct rhc_
   si->absolute_generation_rank = 0;
   si->valid_data = false;
   si->source_timestamp = inst->tstamp.v;
+  si->seq_no = 0;  /* sequence number for invalid sample is meaningless; use 0 in this case */
 }
 
 static bool read_sample_update_conditions (struct dds_rhc_default *rhc, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc, struct rhc_instance *inst, dds_querycond_mask_t conds, bool sample_wasread)
