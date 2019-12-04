@@ -41,6 +41,7 @@ struct ddsi_serdata {
   /* these get set by generic code after creating the serdata */
   ddsrt_wctime_t timestamp;
   uint32_t statusinfo;
+  ddsi_seqno_t seq_no;
 
   /* FIXME: can I get rid of this one? */
   ddsrt_mtime_t twrite; /* write time, not source timestamp, set post-throttling */
