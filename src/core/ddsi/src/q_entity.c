@@ -3662,49 +3662,65 @@ static void gc_proxy_participant_lease (struct gcreq *gcreq)
   gcreq_free (gcreq);
 }
 
-void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct lease *newlease)
-{
-  /* Lease renewal is done by the receive thread without locking the
-     proxy participant (and I'd like to keep it that way), but that
-     means we must guarantee that the lease pointer remains valid once
-     loaded.
-
-     By loading/storing the pointer atomically, we ensure we always
-     read a valid (or once valid) value, by delaying the freeing
-     through the garbage collector, we ensure whatever lease update
-     occurs in parallel completes before the memory is released.
-
-     The lease_renew(never) call ensures the lease will never expire
-     while we are messing with it. */
-  ddsrt_mutex_lock (&proxypp->e.lock);
-  if (proxypp->owns_lease)
-  {
-    const nn_etime_t never = { T_NEVER };
-    struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, gc_proxy_participant_lease);
-    struct lease *oldlease = proxypp->lease;
-    lease_renew (oldlease, never);
-    gcreq->arg = oldlease;
-    gcreq_enqueue (gcreq);
-    proxypp->owns_lease = 0;
-  }
-  proxypp->lease = newlease;
-  /* FIXME: replace proxypp lease in leaseheap_auto? */
-  ddsrt_mutex_unlock (&proxypp->e.lock);
-}
-
 static void proxy_participant_replace_minl (struct proxy_participant *proxypp, bool manbypp, struct lease *lnew)
 {
   /* By loading/storing the pointer atomically, we ensure we always
      read a valid (or once valid) lease. By delaying freeing the lease
      through the garbage collector, we ensure whatever lease update
      occurs in parallel completes before the memory is released. */
-  const nn_etime_t never = { T_NEVER };
   struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, gc_proxy_participant_lease);
   struct lease *lease_old = ddsrt_atomic_ldvoidp (manbypp ? &proxypp->minl_man : &proxypp->minl_auto);
-  lease_renew (lease_old, never); /* ensures lease will not expire while it is replaced */
+  lease_unregister (lease_old); /* ensures lease will not expire while it is replaced */
   gcreq->arg = lease_old;
   gcreq_enqueue (gcreq);
   ddsrt_atomic_stvoidp (manbypp ? &proxypp->minl_man : &proxypp->minl_auto, lnew);
+}
+
+void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct lease *newlease)
+{
+  ddsrt_mutex_lock (&proxypp->e.lock);
+  if (proxypp->owns_lease)
+  {
+    struct lease *minl = ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_auto);
+    ddsrt_fibheap_delete (&lease_fhdef_proxypp, &proxypp->leaseheap_auto, proxypp->lease);
+    if (minl == proxypp->lease)
+    {
+      if ((minl = ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_auto)) != NULL)
+      {
+        dds_duration_t trem = minl->tdur - proxypp->lease->tdur;
+        assert (trem >= 0);
+        nn_etime_t texp = add_duration_to_etime (now_et(), trem);
+        struct lease *lnew = lease_new (texp, minl->tdur, minl->entity);
+        proxy_participant_replace_minl (proxypp, false, lnew);
+        lease_register (lnew);
+      }
+      else
+      {
+        proxy_participant_replace_minl (proxypp, false, NULL);
+      }
+    }
+
+    /* Lease renewal is done by the receive thread without locking the
+      proxy participant (and I'd like to keep it that way), but that
+      means we must guarantee that the lease pointer remains valid once
+      loaded.
+
+      By loading/storing the pointer atomically, we ensure we always
+      read a valid (or once valid) value, by delaying the freeing
+      through the garbage collector, we ensure whatever lease update
+      occurs in parallel completes before the memory is released.
+
+      The lease_unregister call ensures the lease will never expire
+      while we are messing with it. */
+    struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, gc_proxy_participant_lease);
+    lease_unregister (proxypp->lease);
+    gcreq->arg = proxypp->lease;
+    gcreq_enqueue (gcreq);
+    proxypp->owns_lease = 0;
+  }
+  proxypp->lease = newlease;
+
+  ddsrt_mutex_unlock (&proxypp->e.lock);
 }
 
 static void proxy_participant_add_pwr_lease_locked (struct proxy_participant * proxypp, const struct proxy_writer * pwr)
@@ -3764,7 +3780,6 @@ static void proxy_participant_remove_pwr_lease_locked (struct proxy_participant 
     }
     else
     {
-      assert (manbypp);
       proxy_participant_replace_minl (proxypp, manbypp, NULL);
     }
   }
@@ -3829,10 +3844,16 @@ void new_proxy_participant
   {
     struct proxy_participant *privpp;
     privpp = ephash_lookup_proxy_participant_guid (gv->guid_hash, &proxypp->privileged_pp_guid);
+
+    ddsrt_fibheap_init (&lease_fhdef_proxypp, &proxypp->leaseheap_auto);
+    ddsrt_fibheap_init (&lease_fhdef_proxypp, &proxypp->leaseheap_man);
+    ddsrt_atomic_stvoidp (&proxypp->minl_man, NULL);
+
     if (privpp != NULL && privpp->is_ddsi2_pp)
     {
       proxypp->lease = privpp->lease;
       proxypp->owns_lease = 0;
+      ddsrt_atomic_stvoidp (&proxypp->minl_auto, NULL);
     }
     else
     {
@@ -3849,10 +3870,6 @@ void new_proxy_participant
       proxypp->lease = lease_new (texp, dur, &proxypp->e);
       proxypp->owns_lease = 1;
 
-      /* Init heap for leases */
-      ddsrt_fibheap_init (&lease_fhdef_proxypp, &proxypp->leaseheap_auto);
-      ddsrt_fibheap_init (&lease_fhdef_proxypp, &proxypp->leaseheap_man);
-
       /* Add the proxypp lease to heap so that monitoring liveliness will include this lease
          and uses the shortest duration for proxypp and all its pwr's (with automatic liveliness) */
       ddsrt_fibheap_insert (&lease_fhdef_proxypp, &proxypp->leaseheap_auto, proxypp->lease);
@@ -3863,7 +3880,6 @@ void new_proxy_participant
          by the lease from the proxy writer in proxy_participant_add_pwr_lease_locked. This old shortest
          lease is freed, so that's why we need a clone and not the proxypp's lease in the heap.  */
       ddsrt_atomic_stvoidp (&proxypp->minl_auto, (void *) lease_clone (proxypp->lease));
-      ddsrt_atomic_stvoidp (&proxypp->minl_man, NULL);
     }
   }
 
@@ -4071,6 +4087,7 @@ static void unref_proxy_participant (struct proxy_participant *proxypp, struct p
       assert (ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_man) == NULL);
       assert (ddsrt_atomic_ldvoidp (&proxypp->minl_man) == NULL);
       assert (!compare_guid (&minl_auto->entity->guid, &proxypp->e.guid));
+      lease_unregister (minl_auto);
       lease_free (minl_auto);
       lease_free (proxypp->lease);
     }
@@ -4556,6 +4573,7 @@ int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_
     GVLOGDISC ("- unknown\n");
     return DDS_RETCODE_BAD_PARAMETER;
   }
+
   /* Set "deleting" flag in particular for Lite, to signal to the receive path it can't
      trust rdary[] anymore, which is because removing the proxy writer from the hash
      table will prevent the readers from looking up the proxy writer, and consequently
@@ -4565,6 +4583,9 @@ int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_
   builtintopic_write (gv->builtin_topic_interface, &pwr->e, timestamp, false);
   ephash_remove_proxy_writer_guid (gv->guid_hash, pwr);
   ddsrt_mutex_unlock (&gv->lock);
+  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER &&
+      pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
+    lease_unregister (pwr->lease);
   if (proxy_writer_set_notalive (pwr, false) != DDS_RETCODE_OK)
     GVLOGDISC ("proxy_writer_set_notalive failed for "PGUIDFMT"\n", PGUID(*guid));
   gcreq_proxy_writer (pwr);

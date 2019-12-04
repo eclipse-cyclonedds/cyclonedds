@@ -121,10 +121,10 @@ void lease_register (struct lease *l) /* FIXME: make lease admin struct */
   force_lease_check (gv->gcreq_queue);
 }
 
-void lease_free (struct lease *l)
+void lease_unregister (struct lease *l)
 {
   struct q_globals * const gv = l->entity->gv;
-  GVTRACE ("lease_free(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
+  GVTRACE ("lease_unregister(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
   ddsrt_mutex_lock (&gv->leaseheap_lock);
   if (l->tsched.v != TSCHED_NOT_ON_HEAP)
   {
@@ -132,10 +132,16 @@ void lease_free (struct lease *l)
     l->tsched.v = TSCHED_NOT_ON_HEAP;
   }
   ddsrt_mutex_unlock (&gv->leaseheap_lock);
-  ddsrt_free (l);
 
   /* see lease_register() */
   force_lease_check (gv->gcreq_queue);
+}
+
+void lease_free (struct lease *l)
+{
+  struct q_globals * const gv = l->entity->gv;
+  GVTRACE ("lease_free(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
+  ddsrt_free (l);
 }
 
 void lease_renew (struct lease *l, nn_etime_t tnowE)
