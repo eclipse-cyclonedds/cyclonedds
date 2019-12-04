@@ -54,21 +54,18 @@ crypto_token_copy(
 {
   DDS_Security_CryptoTransformKind_Enum src_transform_kind = CRYPTO_TRANSFORM_KIND(src->transformation_kind);
 
-  if (CRYPTO_TRANSFORM_HAS_KEYS(dst->transformation_kind) && !CRYPTO_TRANSFORM_HAS_KEYS(src_transform_kind))
+  if (CRYPTO_TRANSFORM_HAS_KEYS(dst->transformation_kind))
   {
     ddsrt_free(dst->master_salt);
     ddsrt_free(dst->master_sender_key);
     ddsrt_free(dst->master_receiver_specific_key);
   }
-  else if (CRYPTO_TRANSFORM_HAS_KEYS(src_transform_kind))
+  if (CRYPTO_TRANSFORM_HAS_KEYS(src_transform_kind))
   {
     uint32_t key_bytes = CRYPTO_KEY_SIZE_BYTES(src_transform_kind);
-    if (!CRYPTO_TRANSFORM_HAS_KEYS(dst->transformation_kind))
-    {
-      dst->master_salt = ddsrt_calloc(1, key_bytes);
-      dst->master_sender_key = ddsrt_calloc(1, key_bytes);
-      dst->master_receiver_specific_key = ddsrt_calloc(1, key_bytes);
-    }
+    dst->master_salt = ddsrt_calloc(1, key_bytes);
+    dst->master_sender_key = ddsrt_calloc(1, key_bytes);
+    dst->master_receiver_specific_key = ddsrt_calloc(1, key_bytes);
     memcpy(dst->master_salt, src->master_salt._buffer, key_bytes);
     dst->sender_key_id = CRYPTO_TRANSFORM_ID(src->sender_key_id);
     memcpy(dst->master_sender_key, src->master_sender_key._buffer, key_bytes);

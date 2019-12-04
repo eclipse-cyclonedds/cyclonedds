@@ -25,7 +25,7 @@ bool crypto_object_valid(CryptoObject *obj, CryptoObjectKind_t kind)
 static uint32_t crypto_object_hash(const void *obj)
 {
   const CryptoObject *object = obj;
-  const uint64_t c = 0xF6D6E408505;
+  const uint64_t c = UINT64_C (16292676669999574021);
   const uint32_t x = (uint32_t)object->handle;
   return (uint32_t)((x * c) >> 32);
 }
