@@ -610,13 +610,15 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
     else if (existing_entity->kind == EK_PROXY_PARTICIPANT)
     {
       struct proxy_participant *proxypp = (struct proxy_participant *) existing_entity;
+      struct lease *lease;
       int interesting = 0;
       RSTTRACE ("SPDP ST0 "PGUIDFMT" (known)", PGUID (datap->participant_guid));
       /* SPDP processing is so different from normal processing that we are
          even skipping the automatic lease renewal. Note that proxy writers
          that are not alive are not set alive here. This is done only when
          data is received from a particular pwr (in handle_regular) */
-      lease_renew (ddsrt_atomic_ldvoidp (&proxypp->minl_auto), now_et ());
+      if ((lease = ddsrt_atomic_ldvoidp (&proxypp->minl_auto)) != NULL)
+        lease_renew (lease, now_et ());
       ddsrt_mutex_lock (&proxypp->e.lock);
       if (proxypp->implicitly_created || seq > proxypp->seq)
       {

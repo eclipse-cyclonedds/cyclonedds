@@ -617,6 +617,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   struct proxy_reader *prd;
   struct wr_prd_match *rn;
   struct writer *wr;
+  struct lease *lease;
   ddsi_guid_t src, dst;
   seqno_t seqbase;
   seqno_t seq_xmit;
@@ -668,7 +669,8 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     return 1;
   }
 
-  lease_renew (ddsrt_atomic_ldvoidp (&prd->c.proxypp->minl_auto), tnow);
+  if ((lease = ddsrt_atomic_ldvoidp (&prd->c.proxypp->minl_auto)) != NULL)
+    lease_renew (lease, tnow);
   if (!wr->reliable) /* note: reliability can't be changed */
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a reliable writer!)", PGUID (src), PGUID (dst));
@@ -1111,6 +1113,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
   const seqno_t lastseq = fromSN (msg->lastSN);
   struct handle_Heartbeat_helper_arg arg;
   struct proxy_writer *pwr;
+  struct lease *lease;
   ddsi_guid_t src, dst;
 
   src.prefix = rst->src_guid_prefix;
@@ -1131,15 +1134,15 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
     RSTTRACE (PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
   }
-  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto), tnow);
+  if ((lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto)) != NULL)
+    lease_renew (lease, tnow);
   RSTTRACE (PGUIDFMT" -> "PGUIDFMT":", PGUID (src), PGUID (dst));
   ddsrt_mutex_lock (&pwr->e.lock);
   if (msg->smhdr.flags & HEARTBEAT_FLAG_LIVELINESS &&
       pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC &&
       pwr->c.xqos->liveliness.lease_duration != T_NEVER)
   {
-    struct lease *lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_man);
-    if (lease != NULL)
+    if ((lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_man)) != NULL)
       lease_renew (lease, tnow);
     lease_renew (pwr->lease, tnow);
   }
@@ -1253,6 +1256,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
   const nn_fragment_number_t fragnum = msg->lastFragmentNum - 1; /* we do 0-based */
   ddsi_guid_t src, dst;
   struct proxy_writer *pwr;
+  struct lease *lease;
 
   src.prefix = rst->src_guid_prefix;
   src.entityid = msg->writerId;
@@ -1272,7 +1276,8 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
     return 1;
   }
 
-  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto), tnow);
+  if ((lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto)) != NULL)
+    lease_renew (lease, tnow);
   RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"", PGUID (src), PGUID (dst));
   ddsrt_mutex_lock (&pwr->e.lock);
 
@@ -1361,6 +1366,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
   struct proxy_reader *prd;
   struct wr_prd_match *rn;
   struct writer *wr;
+  struct lease *lease;
   struct whc_borrowed_sample sample;
   ddsi_guid_t src, dst;
   nn_count_t *countp;
@@ -1397,7 +1403,8 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
     return 1;
   }
 
-  lease_renew (ddsrt_atomic_ldvoidp (&prd->c.proxypp->minl_auto), tnow);
+  if ((lease = ddsrt_atomic_ldvoidp (&prd->c.proxypp->minl_auto)) != NULL)
+    lease_renew (lease, tnow);
   if (!wr->reliable) /* note: reliability can't be changed */
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a reliable writer)", PGUID (src), PGUID (dst));
@@ -1609,6 +1616,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
 
   struct proxy_writer *pwr;
   struct pwr_rd_match *wn;
+  struct lease *lease;
   ddsi_guid_t src, dst;
   seqno_t gapstart, listbase;
   int32_t last_included_rel;
@@ -1642,7 +1650,8 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
     return 1;
   }
 
-  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto), tnow);
+  if ((lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto)) != NULL)
+    lease_renew (lease, tnow);
   ddsrt_mutex_lock (&pwr->e.lock);
   if ((wn = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &dst)) == NULL)
   {
@@ -2119,7 +2128,8 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
      so check whether it is actually in manual-by-topic mode before renewing it.  As pwr->lease is
      set once (during entity creation) we can read it outside the lock, keeping all the lease
      renewals together. */
-  lease_renew (ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto), tnow);
+  if ((lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_auto)) != NULL)
+    lease_renew (lease, tnow);
   if ((lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_man)) != NULL && renew_manbypp_lease)
     lease_renew (lease, tnow);
   if (pwr->lease && pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
