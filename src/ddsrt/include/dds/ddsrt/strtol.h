@@ -22,6 +22,19 @@ extern "C" {
 #endif
 
 /**
+ * @brief Convert a character to an integer value
+ *
+ * Translates the numeric value of the provided character. For characters in range
+ * '0' to '9' the returned integer value is 0-9. For the range 'a' to 'z' and 'A'
+ * to 'Z', the numeric return value is 10-36.
+ *
+ * @param[in] chr   The character
+ *
+ * @returns The integer value for the character, or -1 in case @chr cannot be translated to a numeric value
+ */
+DDS_EXPORT int32_t ddsrt_todigit(const int chr);
+
+/**
  * @brief Convert a string to a long long integer.
  *
  * Translate @str to a long long integer considering base, and sign. If @base
