@@ -1687,7 +1687,7 @@ validate_pdata(
 
     pdata = DDS_Security_ParticipantBuiltinTopicData_alloc();
 
-    if (!DDD_Security_Deserialize_ParticipantBuiltinTopicData(deserializer, pdata, ex)) {
+    if (!DDS_Security_Deserialize_ParticipantBuiltinTopicData(deserializer, pdata, ex)) {
         result = DDS_SECURITY_VALIDATION_FAILED;
         goto err_incorrect_data;
     }
@@ -1696,7 +1696,7 @@ validate_pdata(
     result = get_adjusted_participant_guid(cert, &cguid, &aguid, ex);
     if (result == DDS_SECURITY_VALIDATION_OK) {
         DDS_Security_BuiltinTopicKey_t key;
-        DDD_Security_BuiltinTopicKeyBE(key, pdata->key);
+        DDS_Security_BuiltinTopicKeyBE(key, pdata->key);
         if (memcmp(key, aguid.prefix, 6) != 0) {
             result = DDS_SECURITY_VALIDATION_FAILED;
               DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result,
