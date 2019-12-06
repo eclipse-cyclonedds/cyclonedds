@@ -196,7 +196,7 @@ determine_publication_writer(
 }
 
 bool
-allow_proxy_participant_deletion(
+is_proxy_participant_deletion_allowed(
   struct q_globals * const gv,
   const struct ddsi_guid *guid,
   const ddsi_entityid_t pwr_entityid)
@@ -1063,6 +1063,117 @@ decode_rtps_message(
   return ret;
 }
 
+ssize_t
+secure_conn_write(
+    ddsi_tran_conn_t conn,
+    const nn_locator_t *dst,
+    size_t niov,
+    const ddsrt_iovec_t *iov,
+    uint32_t flags,
+    MsgLen_t *msg_len,
+    bool dst_one,
+    nn_msg_sec_info_t *sec_info,
+    ddsi_tran_write_fn_t conn_write_cb)
+{
+  ssize_t ret = -1;
+
+  unsigned i;
+  Header_t *hdr;
+  ddsi_guid_t guid;
+  unsigned char stbuf[2048];
+  unsigned char *srcbuf;
+  unsigned char *dstbuf = NULL;
+  uint32_t srclen, dstlen;
+  int64_t dst_handle = 0;
+
+  assert(iov);
+  assert(conn);
+  assert(msg_len);
+  assert(sec_info);
+  assert(niov > 0);
+  assert(conn_write_cb);
+
+  if (dst_one)
+  {
+    dst_handle = sec_info->dst_pp_handle;
+    if (dst_handle == 0) {
+      return -1;
+    }
+  }
+
+  hdr = (Header_t *)iov[0].iov_base;
+  guid.prefix = nn_ntoh_guid_prefix(hdr->guid_prefix);
+  guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+
+  /* first determine the size of the message, then select the
+   *  on-stack buffer or allocate one on the heap ...
+   */
+  srclen = 0;
+  for (i = 0; i < (unsigned)niov; i++)
+  {
+    /* Do not copy MsgLen submessage in case of a stream connection */
+    if ((i != 1) || !conn->m_stream)
+      srclen += (uint32_t) iov[i].iov_len;
+  }
+  if (srclen <= sizeof (stbuf))
+  {
+    srcbuf = stbuf;
+  }
+  else
+  {
+    srcbuf = ddsrt_malloc (srclen);
+  }
+
+  /* ... then copy data into buffer */
+  srclen = 0;
+  for (i = 0; i < (unsigned)niov; i++)
+  {
+    if ((i != 1) || !conn->m_stream)
+    {
+      memcpy(srcbuf + srclen, iov[i].iov_base, iov[i].iov_len);
+      srclen += (uint32_t) iov[i].iov_len;
+    }
+  }
+
+  if (q_omg_security_encode_rtps_message(sec_info->src_pp_handle, &guid, srcbuf, srclen, &dstbuf, &dstlen, dst_handle))
+  {
+    ddsrt_iovec_t tmp_iov[3];
+    size_t tmp_niov;
+
+    if (conn->m_stream)
+    {
+      /* Add MsgLen submessage after Header */
+      msg_len->length = dstlen + (uint32_t)sizeof(*msg_len);
+
+      tmp_iov[0].iov_base = dstbuf;
+      tmp_iov[0].iov_len = RTPS_MESSAGE_HEADER_SIZE;
+      tmp_iov[1].iov_base = (void*) msg_len;
+      tmp_iov[1].iov_len = sizeof (*msg_len);
+      tmp_iov[2].iov_base = dstbuf + RTPS_MESSAGE_HEADER_SIZE;
+      tmp_iov[2].iov_len = dstlen - RTPS_MESSAGE_HEADER_SIZE;
+      tmp_niov = 3;
+    }
+    else
+    {
+      msg_len->length = dstlen;
+
+      tmp_iov[0].iov_base = dstbuf;
+      tmp_iov[0].iov_len = dstlen;
+      tmp_niov = 1;
+    }
+    ret = conn_write_cb (conn, dst, tmp_niov, tmp_iov, flags);
+  }
+
+  if (srcbuf != stbuf)
+  {
+    ddsrt_free (srcbuf);
+  }
+
+  ddsrt_free(dstbuf);
+
+  return ret;
+}
+
 #else /* DDSI_INCLUDE_SECURITY */
 
 #include "dds/ddsi/ddsi_security_omg.h"
@@ -1078,7 +1189,7 @@ extern inline unsigned determine_subscription_writer(
 extern inline unsigned determine_publication_writer(
   UNUSED_ARG(const struct writer *wr));
 
-extern inline bool allow_proxy_participant_deletion(
+extern inline bool is_proxy_participant_deletion_allowed(
   UNUSED_ARG(struct q_globals * const gv),
   UNUSED_ARG(const struct ddsi_guid *guid),
   UNUSED_ARG(const ddsi_entityid_t pwr_entityid));

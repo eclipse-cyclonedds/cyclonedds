@@ -1188,91 +1188,16 @@ static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const nn_locator_t *loc)
   /* Only encode when needed. */
   if (xp->sec_info.use_rtps_encoding)
   {
-    unsigned i;
-    Header_t *hdr;
-    ddsi_guid_t guid;
-    unsigned char stbuf[2048];
-    unsigned char *srcbuf;
-    unsigned char *dstbuf = NULL;
-    uint32_t srclen, dstlen;
-    int64_t dst_handle = 0;
-
-    assert(xp->niov > 0);
-
-    hdr = (Header_t *)xp->iov[0].iov_base;
-    guid.prefix = nn_ntoh_guid_prefix(hdr->guid_prefix);
-    guid.entityid.u = NN_ENTITYID_PARTICIPANT;
-
-    /* first determine the size of the message, then select the
-     *  on-stack buffer or allocate one on the heap ...
-     */
-    srclen = 0;
-    for (i = 0; i < (unsigned)xp->niov; i++)
-    {
-      /* Do not copy MsgLen submessage in case of a stream connection */
-      if ((i != 1) || !xp->conn->m_stream)
-        srclen += (uint32_t) xp->iov[i].iov_len;
-    }
-    if (srclen <= sizeof (stbuf))
-    {
-      srcbuf = stbuf;
-    }
-    else
-    {
-      srcbuf = ddsrt_malloc (srclen);
-    }
-
-    /* ... then copy data into buffer */
-    srclen = 0;
-    for (i = 0; i < (unsigned)xp->niov; i++)
-    {
-      if ((i != 1) || !xp->conn->m_stream)
-      {
-        memcpy(srcbuf + srclen,xp->iov[i].iov_base, xp->iov[i].iov_len);
-        srclen += (uint32_t) xp->iov[i].iov_len;
-      }
-    }
-
-    if (xp->dstmode == NN_XMSG_DST_ONE)
-    {
-      dst_handle = xp->sec_info.dst_pp_handle;
-    }
-
-    if (q_omg_security_encode_rtps_message(xp->sec_info.src_pp_handle, &guid, srcbuf, srclen, &dstbuf, &dstlen, dst_handle))
-    {
-      ddsrt_iovec_t iov[3];
-      size_t niov;
-
-      if (xp->conn->m_stream)
-      {
-        /* Add MsgLen submessage after Header */
-        xp->msg_len.length = dstlen + (uint32_t)sizeof(xp->msg_len);
-
-        iov[0].iov_base = dstbuf;
-        iov[0].iov_len = RTPS_MESSAGE_HEADER_SIZE;
-        iov[1].iov_base = (void*) &xp->msg_len;
-        iov[1].iov_len = sizeof (xp->msg_len);
-        iov[2].iov_base = dstbuf + RTPS_MESSAGE_HEADER_SIZE;
-        iov[2].iov_len = dstlen - RTPS_MESSAGE_HEADER_SIZE;
-        niov = 3;
-      }
-      else
-      {
-        xp->msg_len.length = dstlen;
-
-        iov[0].iov_base = dstbuf;
-        iov[0].iov_len = dstlen;
-        niov = 1;
-      }
-      ret = ddsi_conn_write (xp->conn, loc, niov, iov, xp->call_flags);
-    }
-
-    if (srcbuf != stbuf)
-    {
-      ddsrt_free (srcbuf);
-    }
-
-    ddsrt_free(dstbuf);
+    ret = secure_conn_write(
+                      xp->conn,
+                      loc,
+                      xp->niov,
+                      xp->iov,
+                      xp->call_flags,
+                      &(xp->msg_len),
+                      (xp->dstmode == NN_XMSG_DST_ONE),
+                      &(xp->sec_info),
+                      ddsi_conn_write);
   }
   else
 #endif /* DDSI_INCLUDE_SECURITY */

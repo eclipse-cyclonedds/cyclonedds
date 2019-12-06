@@ -437,7 +437,7 @@ static int handle_SPDP_dead (const struct receiver_state *rst, ddsi_entityid_t p
     guid = datap->participant_guid;
     GVLOGDISC (" %"PRIx32":%"PRIx32":%"PRIx32":%"PRIx32, PGUID (guid));
     assert (guid.entityid.u == NN_ENTITYID_PARTICIPANT);
-    if (allow_proxy_participant_deletion(gv, &guid, pwr_entityid))
+    if (is_proxy_participant_deletion_allowed(gv, &guid, pwr_entityid))
     {
       if (delete_proxy_participant_by_guid (gv, &guid, timestamp, 0) < 0)
       {

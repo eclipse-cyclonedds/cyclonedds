@@ -152,7 +152,7 @@ unsigned determine_publication_writer(const struct writer *wr);
  * @retval false  The proxy participant may not be deleted by this writer.
  */
 bool
-allow_proxy_participant_deletion(
+is_proxy_participant_deletion_allowed(
   struct q_globals * const gv,
   const struct ddsi_guid *guid,
   const ddsi_entityid_t pwr_entityid);
@@ -461,6 +461,35 @@ decode_rtps_message(
   struct nn_rbufpool *rbpool,
   bool isstream);
 
+/**
+ * @brief Send the RTPS message securely.
+ *
+ * @param[in]     conn          Connection to use.
+ * @param[in]     dst           Possible destination information.
+ * @param[in]     niov          Number of io vectors.
+ * @param[in]     iov           Array of io vectors.
+ * @param[in]     flags         Connection write flags.
+ * @param[in,out] msg_len       Submessage containing length.
+ * @param[in]     dst_one       Is there only one specific destination?
+ * @param[in]     sec_info      Security information for handles.
+ * @param[in]     conn_write_cb Function to call to do the actual writing.
+ *
+ * @returns ssize_t
+ * @retval negative/zero    Something went wrong.
+ * @retval positive         Secure writing succeeded.
+ */
+ssize_t
+secure_conn_write(
+    ddsi_tran_conn_t conn,
+    const nn_locator_t *dst,
+    size_t niov,
+    const ddsrt_iovec_t *iov,
+    uint32_t flags,
+    MsgLen_t *msg_len,
+    bool dst_one,
+    nn_msg_sec_info_t *sec_info,
+    ddsi_tran_write_fn_t conn_write_cb);
+
 #else /* DDSI_INCLUDE_SECURITY */
 
 #include "dds/ddsi/q_unused.h"
@@ -493,7 +522,7 @@ determine_publication_writer(
 }
 
 inline bool
-allow_proxy_participant_deletion(
+is_proxy_participant_deletion_allowed(
   UNUSED_ARG(struct q_globals * const gv),
   UNUSED_ARG(const struct ddsi_guid *guid),
   UNUSED_ARG(const ddsi_entityid_t pwr_entityid))
