@@ -14,6 +14,7 @@ PREPEND(srcs_security_core "${CMAKE_CURRENT_LIST_DIR}/src"
     dds_security_utils.c
     dds_security_plugins.c
     shared_secret.c
+    dds_security_fsm.c
 )
  
 PREPEND(hdrs_public_security_core "${CMAKE_CURRENT_LIST_DIR}/include/security/core"
@@ -21,6 +22,7 @@ PREPEND(hdrs_public_security_core "${CMAKE_CURRENT_LIST_DIR}/include/security/co
     dds_security_types.h
     dds_security_utils.h
     dds_security_plugins.h
+    dds_security_fsm.h
     shared_secret.h
 )
 
@@ -52,4 +54,4 @@ install(
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/dds/security/core/"
   COMPONENT dev)
 
-add_subdirectory(tests/plugin_loading)
+add_subdirectory(tests)
