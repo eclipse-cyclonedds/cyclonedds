@@ -228,10 +228,9 @@ int volatile_secure_data_filter(struct writer *wr, struct proxy_reader *prd, str
 {
   static const size_t guid_offset = offsetof(nn_participant_generic_message_t, destination_participant_guid);
   ddsrt_iovec_t guid_ref = { .iov_len=0, .iov_base=NULL };
-  ddsi_guid_t zero_guid = { .prefix={ .u={ 0,0,0 } }, .entityid={ .u=0 }};
   ddsi_guid_t *msg_guid;
   ddsi_guid_t pp_guid;
-  int block;
+  int pass;
 
   DDSRT_UNUSED_ARG(wr);
 
@@ -244,14 +243,14 @@ int volatile_secure_data_filter(struct writer *wr, struct proxy_reader *prd, str
   assert(guid_ref.iov_base);
   msg_guid = (ddsi_guid_t*)guid_ref.iov_base;
 
-  block = !guid_eq(msg_guid, &zero_guid);
-  if (block)
+  pass = is_null_guid(msg_guid);
+  if (!pass)
   {
     pp_guid = nn_hton_guid(prd->c.proxypp->e.guid);
-    block = !guid_eq(msg_guid, &pp_guid);
+    pass = guid_eq(msg_guid, &pp_guid);
   }
 
   ddsi_serdata_to_ser_unref(serdata, &guid_ref);
 
-  return !block;
+  return pass;
 }

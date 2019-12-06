@@ -615,6 +615,428 @@ static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *exp_cou
   return 1;
 }
 
+void nn_gap_info_init(struct nn_gap_info *gi)
+{
+  gi->gapstart = -1;
+  gi->gapend = -1;
+  gi->gapnumbits = 0;
+  memset(gi->gapbits, 0, sizeof(gi->gapbits));
+}
+
+void nn_gap_info_update(struct q_globals *gv, struct nn_gap_info *gi, int64_t seqnr)
+{
+  if (gi->gapstart == -1)
+  {
+    GVTRACE (" M%"PRId64, seqnr);
+    gi->gapstart = seqnr;
+    gi->gapend = gi->gapstart + 1;
+  }
+  else if (seqnr == gi->gapend)
+  {
+    GVTRACE (" M%"PRId64, seqnr);
+    gi->gapend = seqnr + 1;
+  }
+  else if (seqnr - gi->gapend < 256)
+  {
+    unsigned idx = (unsigned) (seqnr - gi->gapend);
+    GVTRACE (" M%"PRId64, seqnr);
+    gi->gapnumbits = idx + 1;
+    nn_bitset_set (gi->gapnumbits, gi->gapbits, idx);
+  }
+}
+
+struct nn_xmsg * nn_gap_info_create_gap(struct writer *wr, struct proxy_reader *prd, struct nn_gap_info *gi)
+{
+  struct nn_xmsg *m;
+
+  if (gi->gapstart <= 0)
+    return NULL;
+
+  if (gi->gapnumbits == 0)
+  {
+    /* Avoid sending an invalid bitset */
+    gi->gapnumbits = 1;
+    nn_bitset_set (gi->gapnumbits, gi->gapbits, 0);
+    gi->gapend--;
+  }
+
+  m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid.prefix, 0, NN_XMSG_KIND_CONTROL);
+
+#ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
+  nn_xmsg_setencoderid (m, wr->partition_id);
+#endif
+
+  if (nn_xmsg_setdstPRD (m, prd) < 0)
+  {
+    nn_xmsg_free (m);
+    m = NULL;
+  }
+  else
+  {
+    add_Gap (m, wr, prd, gi->gapstart, gi->gapend, gi->gapnumbits, gi->gapbits);
+    if (nn_xmsg_size(m) == 0)
+    {
+      nn_xmsg_free (m);
+      m = NULL;
+    }
+    else
+    {
+      unsigned i;
+      ETRACE (wr, " FXGAP%"PRId64"..%"PRId64"/%d:", gi->gapstart, gi->gapend, gi->gapnumbits);
+      for (i = 0; i < gi->gapnumbits; i++)
+        ETRACE (wr, "%c", nn_bitset_isset (gi->gapnumbits, gi->gapbits, i) ? '1' : '0');
+    }
+  }
+
+  return m;
+}
+
+static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const AckNack_t *msg, nn_wctime_t timestamp)
+{
+  struct proxy_reader *prd;
+  struct wr_prd_match *rn;
+  struct writer *wr;
+  ddsi_guid_t src, dst;
+  seqno_t seqbase;
+  seqno_t seq_xmit;
+  seqno_t max_seq_available;
+  nn_count_t *countp;
+  struct nn_gap_info gi;
+  int accelerate_rexmit = 0;
+  int is_pure_ack;
+  int is_pure_nonhist_ack;
+  int is_preemptive_ack;
+  int enqueued;
+  unsigned numbits;
+  uint32_t msgs_sent, msgs_lost;
+  seqno_t max_seq_in_reply;
+  struct whc_node *deferred_free_list = NULL;
+  struct whc_state whcst;
+  int hb_sent_in_response = 0;
+  countp = (nn_count_t *) ((char *) msg + offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (msg->readerSNState.numbits));
+  src.prefix = rst->src_guid_prefix;
+  src.entityid = msg->readerId;
+  dst.prefix = rst->dst_guid_prefix;
+  dst.entityid = msg->writerId;
+  RSTTRACE ("ACKNACK(%s#%"PRId32":%"PRId64"/%"PRIu32":", msg->smhdr.flags & ACKNACK_FLAG_FINAL ? "F" : "",
+            *countp, fromSN (msg->readerSNState.bitmap_base), msg->readerSNState.numbits);
+  for (uint32_t i = 0; i < msg->readerSNState.numbits; i++)
+    RSTTRACE ("%c", nn_bitset_isset (msg->readerSNState.numbits, msg->bits, i) ? '1' : '0');
+  seqbase = fromSN (msg->readerSNState.bitmap_base);
+
+  if (!rst->forme)
+  {
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not-for-me)", PGUID (src), PGUID (dst));
+    return 1;
+  }
+
+  if ((wr = ephash_lookup_writer_guid (rst->gv->guid_hash, &dst)) == NULL)
+  {
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"?)", PGUID (src), PGUID (dst));
+    return 1;
+  }
+  /* Always look up the proxy reader -- even though we don't need for
+     the normal pure ack steady state. If (a big "if"!) this shows up
+     as a significant portion of the time, we can always rewrite it to
+     only retrieve it when needed. */
+  if ((prd = ephash_lookup_proxy_reader_guid (rst->gv->guid_hash, &src)) == NULL)
+  {
+    RSTTRACE (" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
+    return 1;
+  }
+
+  /* liveliness is still only implemented partially (with all set to AUTOMATIC, BY_PARTICIPANT, &c.), so we simply renew the proxy participant's lease. */
+  lease_renew (ddsrt_atomic_ldvoidp (&prd->c.proxypp->lease), tnow);
+
+  if (!wr->reliable) /* note: reliability can't be changed */
+  {
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a reliable writer!)", PGUID (src), PGUID (dst));
+    return 1;
+  }
+
+  ddsrt_mutex_lock (&wr->e.lock);
+  if ((rn = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &src)) == NULL)
+  {
+    RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a connection)", PGUID (src), PGUID (dst));
+    goto out;
+  }
+
+  /* is_pure_nonhist ack differs from is_pure_ack in that it doesn't
+     get set when only historical data is being acked, which is
+     relevant to setting "has_replied_to_hb" and "assumed_in_sync". */
+  is_pure_ack = !acknack_is_nack (msg);
+  is_pure_nonhist_ack = is_pure_ack && seqbase - 1 >= rn->seq;
+  is_preemptive_ack = seqbase <= 1 && is_pure_ack;
+
+  wr->num_acks_received++;
+  if (!is_pure_ack)
+  {
+    wr->num_nacks_received++;
+    rn->rexmit_requests++;
+  }
+
+  if (!accept_ack_or_hb_w_timeout (*countp, &rn->next_acknack, tnow, &rn->t_acknack_accepted, is_preemptive_ack))
+  {
+    RSTTRACE (" ["PGUIDFMT" -> "PGUIDFMT"])", PGUID (src), PGUID (dst));
+    goto out;
+  }
+  RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"", PGUID (src), PGUID (dst));
+
+  /* Update latency estimates if we have a timestamp -- won't actually
+     work so well if the timestamp can be a left over from some other
+     submessage -- but then, it is no more than a quick hack at the
+     moment. */
+  if (rst->gv->config.meas_hb_to_ack_latency && timestamp.v)
+  {
+    nn_wctime_t tstamp_now = now ();
+    nn_lat_estim_update (&rn->hb_to_ack_latency, tstamp_now.v - timestamp.v);
+    if ((rst->gv->logconfig.c.mask & DDS_LC_TRACE) && tstamp_now.v > rn->hb_to_ack_latency_tlastlog.v + 10 * T_SECOND)
+    {
+      nn_lat_estim_log (DDS_LC_TRACE, &rst->gv->logconfig, NULL, &rn->hb_to_ack_latency);
+      rn->hb_to_ack_latency_tlastlog = tstamp_now;
+    }
+  }
+
+  /* First, the ACK part: if the AckNack advances the highest sequence
+     number ack'd by the remote reader, update state & try dropping
+     some messages */
+  if (seqbase - 1 > rn->seq)
+  {
+    int64_t n_ack = (seqbase - 1) - rn->seq;
+    unsigned n;
+    rn->seq = seqbase - 1;
+    if (rn->seq > wr->seq) {
+      /* Prevent a reader from ACKing future samples (is only malicious because we require
+         that rn->seq <= wr->seq) */
+      rn->seq = wr->seq;
+    }
+    ddsrt_avl_augment_update (&wr_readers_treedef, rn);
+    n = remove_acked_messages (wr, &whcst, &deferred_free_list);
+    RSTTRACE (" ACK%"PRId64" RM%u", n_ack, n);
+  }
+  else
+  {
+    /* There's actually no guarantee that we need this information */
+    whc_get_state(wr->whc, &whcst);
+  }
+
+  /* If this reader was marked as "non-responsive" in the past, it's now responding again,
+     so update its status */
+  if (rn->seq == MAX_SEQ_NUMBER && prd->c.xqos->reliability.kind == DDS_RELIABILITY_RELIABLE)
+  {
+    seqno_t oldest_seq;
+    oldest_seq = WHCST_ISEMPTY(&whcst) ? wr->seq : whcst.max_seq;
+    rn->has_replied_to_hb = 1; /* was temporarily cleared to ensure heartbeats went out */
+    rn->seq = seqbase - 1;
+    if (oldest_seq > rn->seq) {
+      /* Prevent a malicious reader from lowering the min. sequence number retained in the WHC. */
+      rn->seq = oldest_seq;
+    }
+    if (rn->seq > wr->seq) {
+      /* Prevent a reader from ACKing future samples (is only malicious because we require
+         that rn->seq <= wr->seq) */
+      rn->seq = wr->seq;
+    }
+    ddsrt_avl_augment_update (&wr_readers_treedef, rn);
+    DDS_CLOG (DDS_LC_THROTTLE, &rst->gv->logconfig, "writer "PGUIDFMT" considering reader "PGUIDFMT" responsive again\n", PGUID (wr->e.guid), PGUID (rn->prd_guid));
+  }
+
+  /* Second, the NACK bits (literally, that is). To do so, attempt to
+     classify the AckNack for reverse-engineered compatibility with
+     RTI's invalid acks and sometimes slightly odd behaviour. */
+  numbits = msg->readerSNState.numbits;
+  msgs_sent = 0;
+  msgs_lost = 0;
+  max_seq_in_reply = 0;
+  if (!rn->has_replied_to_hb && seqbase > 1 && is_pure_nonhist_ack)
+  {
+    RSTTRACE (" setting-has-replied-to-hb");
+    rn->has_replied_to_hb = 1;
+    /* walk the whole tree to ensure all proxy readers for this writer
+       have their unack'ed info updated */
+    ddsrt_avl_augment_update (&wr_readers_treedef, rn);
+  }
+  if (is_preemptive_ack)
+  {
+    /* Pre-emptive nack: RTI uses (seqbase = 0, numbits = 0), we use
+       (seqbase = 1, numbits = 1, bits = {0}).  Seqbase <= 1 and not a
+       NACK covers both and is otherwise a useless message.  Sent on
+       reader start-up and we respond with a heartbeat and, if we have
+       data in our WHC, we start sending it regardless of whether the
+       remote reader asked for it */
+    RSTTRACE (" preemptive-nack");
+    if (WHCST_ISEMPTY(&whcst))
+    {
+      RSTTRACE (" whc-empty ");
+      force_heartbeat_to_peer (wr, &whcst, prd, 0);
+      hb_sent_in_response = 1;
+    }
+    else
+    {
+      RSTTRACE (" rebase ");
+      force_heartbeat_to_peer (wr, &whcst, prd, 0);
+      hb_sent_in_response = 1;
+      numbits = rst->gv->config.accelerate_rexmit_block_size;
+      seqbase = whcst.min_seq;
+    }
+  }
+  else if (!rn->assumed_in_sync)
+  {
+    /* We assume a remote reader that hasn't ever sent a pure Ack --
+       an AckNack that doesn't NACK a thing -- is still trying to
+       catch up, so we try to accelerate its attempts at catching up
+       by a configurable amount. FIXME: what about a pulling reader?
+       that doesn't play too nicely with this. */
+    if (is_pure_nonhist_ack)
+    {
+      RSTTRACE (" happy-now");
+      rn->assumed_in_sync = 1;
+    }
+    else if (msg->readerSNState.numbits < rst->gv->config.accelerate_rexmit_block_size)
+    {
+      RSTTRACE (" accelerating");
+      accelerate_rexmit = 1;
+      if (accelerate_rexmit && numbits < rst->gv->config.accelerate_rexmit_block_size)
+        numbits = rst->gv->config.accelerate_rexmit_block_size;
+    }
+    else
+    {
+      RSTTRACE (" complying");
+    }
+  }
+  /* Retransmit requested messages, including whatever we decided to
+     retransmit that the remote reader didn't ask for. While doing so,
+     note any gaps in the sequence: if there are some, we transmit a
+     Gap message as well.
+
+     Note: ignoring retransmit requests for samples beyond the one we
+     last transmitted, even though we may have more available.  If it
+     hasn't been transmitted ever, the initial transmit should solve
+     that issue; if it has, then the timing is terribly unlucky, but
+     a future request'll fix it. */
+  enqueued = 1;
+  seq_xmit = writer_read_seq_xmit (wr);
+  nn_gap_info_init(&gi);
+  const bool gap_for_already_acked = vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE && seqbase <= rn->seq;
+  const seqno_t min_seq_to_rexmit = gap_for_already_acked ? rn->seq + 1 : 0;
+  for (uint32_t i = 0; i < numbits && seqbase + i <= seq_xmit && enqueued; i++)
+  {
+    /* Accelerated schedule may run ahead of sequence number set
+       contained in the acknack, and assumes all messages beyond the
+       set are NACK'd -- don't feel like tracking where exactly we
+       left off ... */
+    if (i >= msg->readerSNState.numbits || nn_bitset_isset (numbits, msg->bits, i))
+    {
+      seqno_t seq = seqbase + i;
+      struct whc_borrowed_sample sample;
+      if (seqbase + i >= min_seq_to_rexmit && whc_borrow_sample (wr->whc, seq, &sample))
+      {
+        if (!wr->retransmitting && sample.unacked)
+          writer_set_retransmitting (wr);
+
+        if (rst->gv->config.retransmit_merging != REXMIT_MERGE_NEVER && rn->assumed_in_sync && !prd->filter)
+        {
+          /* send retransmit to all receivers, but skip if recently done */
+          nn_mtime_t tstamp = now_mt ();
+          if (tstamp.v > sample.last_rexmit_ts.v + rst->gv->config.retransmit_merging_period)
+          {
+            RSTTRACE (" RX%"PRId64, seqbase + i);
+            enqueued = (enqueue_sample_wrlock_held (wr, seq, sample.plist, sample.serdata, NULL, 0) >= 0);
+            if (enqueued)
+            {
+              max_seq_in_reply = seqbase + i;
+              msgs_sent++;
+              sample.last_rexmit_ts = tstamp;
+            }
+          }
+          else
+          {
+            RSTTRACE (" RX%"PRId64" (merged)", seqbase + i);
+          }
+        }
+        else
+        {
+          /* Is this a volatile reader with a filter?
+           * If so, call the filter to see if we should re-arrange the sequence gap when needed. */
+          if (prd->filter && !prd->filter (wr, prd, sample.serdata))
+            nn_gap_info_update (rst->gv, &gi, seqbase + i);
+          else
+          {
+            /* no merging, send directed retransmit */
+            RSTTRACE (" RX%"PRId64"", seqbase + i);
+            enqueued = (enqueue_sample_wrlock_held (wr, seq, sample.plist, sample.serdata, prd, 0) >= 0);
+            if (enqueued)
+            {
+              max_seq_in_reply = seqbase + i;
+              msgs_sent++;
+              sample.rexmit_count++;
+            }
+          }
+        }
+        whc_return_sample(wr->whc, &sample, true);
+      }
+      else
+      {
+        nn_gap_info_update (rst->gv, &gi, seqbase + i);
+        msgs_lost++;
+      }
+    }
+  }
+
+  if (!enqueued)
+    RSTTRACE (" rexmit-limit-hit");
+  /* Generate a Gap message if some of the sequence is missing */
+  if (gi.gapstart > 0)
+  {
+    struct nn_xmsg *gap;
+
+    if (gi.gapend == seqbase + msg->readerSNState.numbits)
+      gi.gapend = grow_gap_to_next_seq (wr, gi.gapend);
+
+    if (gi.gapend-1 + gi.gapnumbits > max_seq_in_reply)
+      max_seq_in_reply = gi.gapend-1 + gi.gapnumbits;
+
+    gap = nn_gap_info_create_gap (wr, prd, &gi);
+    if (gap)
+    {
+      qxev_msg (wr->evq, gap);
+      msgs_sent++;
+    }
+  }
+
+  wr->rexmit_count += msgs_sent;
+  wr->rexmit_lost_count += msgs_lost;
+  /* If rexmits and/or a gap message were sent, and if the last
+     sequence number that we're informing the NACK'ing peer about is
+     less than the last sequence number transmitted by the writer,
+     tell the peer to acknowledge quickly. Not sure if that helps, but
+     it might ... [NB writer->seq is the last msg sent so far] */
+  max_seq_available = (prd->filter ? rn->last_seq : seq_xmit);
+  if (msgs_sent && max_seq_in_reply < max_seq_available)
+  {
+    RSTTRACE (" rexmit#%"PRIu32" maxseq:%"PRId64"<%"PRId64"<=%"PRId64"", msgs_sent, max_seq_in_reply, seq_xmit, wr->seq);
+    force_heartbeat_to_peer (wr, &whcst, prd, 1);
+    hb_sent_in_response = 1;
+
+    /* The primary purpose of hbcontrol_note_asyncwrite is to ensure
+       heartbeats will go out at the "normal" rate again, instead of a
+       gradually lowering rate.  If we just got a request for a
+       retransmit, and there is more to be retransmitted, surely the
+       rate should be kept up for now */
+    writer_hbcontrol_note_asyncwrite (wr, now_mt ());
+  }
+  /* If "final" flag not set, we must respond with a heartbeat. Do it
+     now if we haven't done so already */
+  if (!(msg->smhdr.flags & ACKNACK_FLAG_FINAL) && !hb_sent_in_response)
+    force_heartbeat_to_peer (wr, &whcst, prd, 0);
+  RSTTRACE (")");
+ out:
+  ddsrt_mutex_unlock (&wr->e.lock);
+  whc_free_deferred_free_list (wr->whc, deferred_free_list);
+  return 1;
+}
+
+#if 0
 static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const AckNack_t *msg, nn_wctime_t timestamp)
 {
   struct proxy_reader *prd;
@@ -884,7 +1306,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
         {
           /* Is this a volatile reader with a filter?
            * If so, call the filter to see if we should re-arrange the sequence gap when needed. */
-          if (prd->filter && (prd->filter(wr, prd, sample.serdata) == 0))
+          if (prd->filter && !prd->filter(wr, prd, sample.serdata))
           {
             if (gapstart == -1)
             {
@@ -986,7 +1408,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
      less than the last sequence number transmitted by the writer,
      tell the peer to acknowledge quickly. Not sure if that helps, but
      it might ... [NB writer->seq is the last msg sent so far] */
-  max_seq_available = (prd->filter ? rn->lst_seq : seq_xmit);
+  max_seq_available = (prd->filter ? rn->last_seq : seq_xmit);
   if (msgs_sent && max_seq_in_reply < max_seq_available)
   {
     RSTTRACE (" rexmit#%"PRIu32" maxseq:%"PRId64"<%"PRId64"<=%"PRId64"", msgs_sent, max_seq_in_reply, seq_xmit, wr->seq);
@@ -1010,6 +1432,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
   whc_free_deferred_free_list (wr->whc, deferred_free_list);
   return 1;
 }
+#endif
 
 static void handle_forall_destinations (const ddsi_guid_t *dst, struct proxy_writer *pwr, ddsrt_avl_walk_t fun, void *arg)
 {
@@ -1147,7 +1570,6 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
      a gap [1,a). See also handle_Gap.  */
   const seqno_t firstseq = fromSN (msg->firstSN);
   const seqno_t lastseq = fromSN (msg->lastSN);
-  const ddsi_guid_t zero_guid = { .prefix={ .u={ 0,0,0 } }, .entityid={ .u=0 }};
   struct handle_Heartbeat_helper_arg arg;
   struct proxy_writer *pwr;
   ddsi_guid_t src, dst;
@@ -1231,7 +1653,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
     gap = nn_rdata_newgap (rmsg);
     int filtered = 0;
 
-    if (pwr->uses_filter && !guid_eq(&dst, &zero_guid))
+    if (pwr->filtered && !is_null_guid(&dst))
     {
       for (wn = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers); wn; wn = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, wn))
       {
@@ -2246,7 +2668,6 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
 
   if ((rsample = nn_defrag_rsample (pwr->defrag, rdata, sampleinfo)) != NULL)
   {
-    const ddsi_guid_t zero_guid = { .prefix={ .u={ 0,0,0 } }, .entityid={ .u=0 }};
     int refc_adjust = 0;
     struct nn_rsample_chain sc;
     struct nn_rdata *fragchain = nn_rsample_fragchain (rsample);
@@ -2254,7 +2675,7 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
     struct pwr_rd_match *wn;
     int filtered = 0;
 
-    if (pwr->uses_filter && !guid_eq(&dst, &zero_guid))
+    if (pwr->filtered && !is_null_guid(&dst))
     {
       for (wn = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, wn))
       {

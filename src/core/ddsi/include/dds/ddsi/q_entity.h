@@ -92,7 +92,7 @@ struct wr_prd_match {
   seqno_t min_seq; /* smallest ack'd seq nr in subtree */
   seqno_t max_seq; /* sort-of highest ack'd seq nr in subtree (see augment function) */
   seqno_t seq; /* highest acknowledged seq nr */
-  seqno_t lst_seq; /* highest seq send to this reader used when filter is applied */
+  seqno_t last_seq; /* highest seq send to this reader used when filter is applied */
   int32_t num_reliable_readers_where_seq_equals_max;
   ddsi_guid_t arbitrary_unacked_reader;
   nn_count_t next_acknack; /* next acceptable acknack sequence number */
@@ -123,7 +123,7 @@ struct pwr_rd_match {
   seqno_t last_seq; /* last known sequence number from this writer */
   struct xevent *acknack_xevent; /* entry in xevent queue for sending acknacks */
   enum pwr_rd_match_syncstate in_sync; /* whether in sync with the proxy writer */
-  unsigned filtered;
+  unsigned filtered:1;
   union {
     struct {
       seqno_t end_of_tl_seq; /* when seq >= end_of_tl_seq, it's in sync, =0 when not tl */
@@ -361,7 +361,7 @@ struct proxy_writer {
   unsigned deliver_synchronously: 1; /* iff 1, delivery happens straight from receive thread for non-historical data; else through delivery queue "dqueue" */
   unsigned have_seen_heartbeat: 1; /* iff 1, we have received at least on heartbeat from this proxy writer */
   unsigned local_matching_inprogress: 1; /* iff 1, we are still busy matching local readers; this is so we don't deliver incoming data to some but not all readers initially */
-  unsigned uses_filter: 1; /* iff 1, builtin proxy writer uses content filter, which affects heartbeats and gaps. */
+  unsigned filtered: 1; /* iff 1, builtin proxy writer uses content filter, which affects heartbeats and gaps. */
 #ifdef DDSI_INCLUDE_SSM
   unsigned supports_ssm: 1; /* iff 1, this proxy writer supports SSM */
 #endif
@@ -375,8 +375,7 @@ struct proxy_writer {
 };
 
 
-struct serdata;
-typedef int (*filter_function)(struct writer *wr, struct proxy_reader *prd, struct ddsi_serdata *serdata);
+typedef int (*filter_fn_t)(struct writer *wr, struct proxy_reader *prd, struct ddsi_serdata *serdata);
 
 struct proxy_reader {
   struct entity_common e;
@@ -387,7 +386,7 @@ struct proxy_reader {
   unsigned favours_ssm: 1; /* iff 1, this proxy reader favours SSM when available */
 #endif
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
-  filter_function filter;
+  filter_fn_t filter;
 };
 
 extern const ddsrt_avl_treedef_t wr_readers_treedef;

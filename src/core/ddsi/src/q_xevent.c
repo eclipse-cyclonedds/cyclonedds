@@ -613,7 +613,7 @@ static void send_heartbeat_to_all_readers(struct nn_xpack *xp, struct xevent *ev
 
     for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
     {
-      if (m->seq < m->lst_seq)
+      if (m->seq < m->last_seq)
         count++;
     }
 
@@ -622,7 +622,7 @@ static void send_heartbeat_to_all_readers(struct nn_xpack *xp, struct xevent *ev
       msg = ddsrt_malloc(count * sizeof(struct nn_xmsg *));
       for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
       {
-        if (m->seq < m->lst_seq)
+        if (m->seq < m->last_seq)
         {
           struct proxy_reader *prd;
 
@@ -640,7 +640,7 @@ static void send_heartbeat_to_all_readers(struct nn_xpack *xp, struct xevent *ev
               hbansreq ? "" : " final",
               (double)(t_next.v - tnow.v) / 1e9,
               m->seq,
-              m->lst_seq);
+              m->last_seq);
         }
       }
     }

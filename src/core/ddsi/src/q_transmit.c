@@ -1077,9 +1077,6 @@ int write_sample_p2p_wrlock_held(struct writer *wr, seqno_t seq, struct nn_plist
   struct wr_prd_match *wprd = NULL;
   seqno_t gseq;
   struct nn_xmsg *gap = NULL;
-  seqno_t gapstart = -1, gapend = -1, segstart;
-  unsigned gapbits[256 / 32];
-  unsigned gapnumbits = 0;
 
   tnow = now_mt ();
   serdata->twrite = tnow;
@@ -1093,75 +1090,26 @@ int write_sample_p2p_wrlock_held(struct writer *wr, seqno_t seq, struct nn_plist
       /* determine if gap has to added */
       if (rexmit)
       {
+        struct nn_gap_info gi;
+
         GVLOG (DDS_LC_DISCOVERY, "send filtered "PGUIDFMT" last_seq=%"PRIu64" seq=%"PRIu64"\n", PGUID (wr->e.guid), wprd->seq, seq);
 
-        segstart = wprd->seq + 1;
-        memset (gapbits, 0, sizeof (gapbits));
-        for (gseq = segstart; gseq < seq; gseq++)
+        nn_gap_info_init(&gi);
+        for (gseq = wprd->seq + 1; gseq < seq; gseq++)
         {
           struct whc_borrowed_sample sample;
           if (whc_borrow_sample (wr->whc, seq, &sample))
           {
             if (prd->filter(wr, prd, sample.serdata) == 0)
             {
-              if (gapstart == -1)
-              {
-                GVLOG (DDS_LC_DISCOVERY, " M%"PRId64, gseq);
-                gapstart = gseq;
-                gapend = gapstart + 1;
-              }
-              else if (gseq == gapend)
-              {
-                GVLOG (DDS_LC_DISCOVERY, " M%"PRId64, gseq);
-                gapend = gseq + 1;
-              }
-              else if (gseq - gapend < 256)
-              {
-                unsigned idx = (unsigned) (gseq - gapend);
-                GVLOG (DDS_LC_DISCOVERY, " M%"PRId64, gseq);
-                gapnumbits = idx + 1;
-                nn_bitset_set (gapnumbits, gapbits, idx);
-              }
+              nn_gap_info_update(wr->e.gv, &gi, gseq);
             }
             whc_return_sample (wr->whc, &sample, false);
           }
         }
-
-        if (gapstart > 0)
-        {
-          if (gapnumbits == 0)
-          {
-            /* Avoid sending an invalid bitset */
-            gapnumbits = 1;
-            nn_bitset_set (gapnumbits, gapbits, 0);
-            gapend--;
-          }
-          gap = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (Gap_t), NN_XMSG_KIND_CONTROL);
-
-          if (nn_xmsg_setdstPRD (gap, prd) < 0) {
-               nn_xmsg_free (gap);
-               gap = NULL;
-          }
-          else
-          {
-            add_Gap (gap, wr, prd, gapstart, gapend, gapnumbits, gapbits);
-            if (nn_xmsg_size(gap) == 0)
-            {
-              nn_xmsg_free (gap);
-              gap = NULL;
-            }
-            if (gap)
-            {
-              unsigned i;
-              GVLOG (DDS_LC_DISCOVERY, " FXGAP%"PRId64"..%"PRId64"/%d:", gapstart, gapend, gapnumbits);
-              for (i = 0; i < gapnumbits; i++)
-                GVLOG (DDS_LC_DISCOVERY, "%c", nn_bitset_isset (gapnumbits, gapbits, i) ? '1' : '0');
-              GVLOG (DDS_LC_DISCOVERY, "\n");
-            }
-          }
-        }
+        gap = nn_gap_info_create_gap(wr, prd, &gi);
       }
-      wprd->lst_seq = seq;
+      wprd->last_seq = seq;
     }
   }
 

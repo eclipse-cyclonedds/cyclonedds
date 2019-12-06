@@ -1817,7 +1817,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
     m->seq = MAX_SEQ_NUMBER;
   else
     m->seq = wr->seq;
-  m->lst_seq = m->seq;
+  m->last_seq = m->seq;
   if (ddsrt_avl_lookup_ipath (&wr_readers_treedef, &wr->readers, &prd->e.guid, &path))
   {
     ELOGDISC (wr, "  writer_add_connection(wr "PGUIDFMT" prd "PGUIDFMT") - already connected\n",
@@ -2979,8 +2979,8 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   assert (wr->xqos->present & QP_RELIABILITY);
   wr->reliable = (wr->xqos->reliability.kind != DDS_RELIABILITY_BEST_EFFORT);
   assert (wr->xqos->present & QP_DURABILITY);
-  if (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) ||
-      (wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER))
+  if (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) &&
+      (wr->e.guid.entityid.u != NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER))
   {
     assert (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST);
     assert ((wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL) ||
@@ -3094,8 +3094,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
     wr->whc_low = wr->e.gv->config.whc_lowwater_mark;
     wr->whc_high = wr->e.gv->config.whc_init_highwater_mark.value;
   }
-  assert (!(is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE) &&
-           (wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER))
+  assert (!(wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
           ||
            (wr->whc_low == wr->whc_high && wr->whc_low == INT32_MAX));
 
@@ -3549,6 +3548,13 @@ static dds_return_t new_reader_guid
   assert (rd->xqos->present & QP_RELIABILITY);
   rd->reliable = (rd->xqos->reliability.kind != DDS_RELIABILITY_BEST_EFFORT);
   assert (rd->xqos->present & QP_DURABILITY);
+  /* The builtin volatile secure writer applies a filter which is used to send the secure
+   * crypto token only to the destination reader for which the crypto tokens are applicable.
+   * Thus the builtin volatile secure reader will receive gaps in the sequence numbers of
+   * the messages received. Therefore the out-of-order list of the proxy writer cannot be
+   * used for this reader and reader specific out-of-order list must be used which is
+   * used for handling transient local data.
+   */
   rd->handle_as_transient_local = (rd->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL) ||
                                   (rd->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER);
   rd->topic = ddsi_sertopic_ref (topic);
@@ -4403,7 +4409,7 @@ int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
   pwr->last_fragnum = ~0u;
   pwr->nackfragcount = 0;
   pwr->last_fragnum_reset = 0;
-  pwr->uses_filter = 0;
+  pwr->filtered = 0;
   ddsrt_atomic_st32 (&pwr->next_deliv_seq_lowword, 1);
   if (is_builtin_entityid (pwr->e.guid.entityid, pwr->c.vendor)) {
     /* The DDSI built-in proxy writers always deliver
@@ -4459,7 +4465,7 @@ int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
      * instead.
      */
     nn_reorder_set_next_seq(pwr->reorder, MAX_SEQ_NUMBER);
-    pwr->uses_filter = 1;
+    pwr->filtered = 1;
   }
 
   pwr->dqueue = dqueue;
