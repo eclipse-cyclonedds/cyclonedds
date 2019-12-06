@@ -83,6 +83,13 @@ ddsrt_gettid(void)
   return status.xTaskNumber;
 }
 
+DDS_EXPORT ddsrt_tid_t
+ddsrt_gettid_for_thread( ddsrt_thread_t thread)
+{
+  return (ddsrt_tid_t)thread.task;
+}
+
+
 ddsrt_thread_t
 ddsrt_thread_self(void)
 {

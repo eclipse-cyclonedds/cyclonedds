@@ -173,6 +173,14 @@ ddsrt_gettid(void)
   return GetCurrentThreadId();
 }
 
+
+ddsrt_tid_t
+ddsrt_gettid_for_thread( ddsrt_thread_t thread)
+{
+  return (ddsrt_tid_t) thread.tid;
+
+}
+
 ddsrt_thread_t
 ddsrt_thread_self(
     void)
