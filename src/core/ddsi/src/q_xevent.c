@@ -39,6 +39,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
 
@@ -182,7 +183,7 @@ static void trace_msg (struct xeventq *evq, const char *func, const struct nn_xm
 {
   if (dds_get_log_mask() & DDS_LC_TRACE)
   {
-    nn_guid_t wrguid;
+    ddsi_guid_t wrguid;
     seqno_t wrseq;
     nn_fragment_number_t wrfragid;
     nn_xmsg_guid_seq_fragid (m, &wrguid, &wrseq, &wrfragid);
@@ -805,6 +806,9 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
             base, an->readerSNState.numbits);
     for (uint32_t ui = 0; ui != an->readerSNState.numbits; ui++)
       ETRACE (pwr, "%c", nn_bitset_isset (numbits, an->bits, ui) ? '1' : '0');
+
+    /* Encode the sub-message when needed. */
+    encode_datareader_submsg(msg, sm_marker, pwr, &rwn->rd_guid);
   }
 
   if (nackfrag_numbits > 0)
@@ -835,12 +839,15 @@ static void add_AckNack (struct nn_xmsg *msg, struct proxy_writer *pwr, struct p
       for (uint32_t ui = 0; ui != nf->fragmentNumberState.numbits; ui++)
         ETRACE (pwr, "%c", nn_bitset_isset (nf->fragmentNumberState.numbits, nf->bits, ui) ? '1' : '0');
     }
+
+    /* Encode the sub-message when needed. */
+    encode_datareader_submsg(msg, sm_marker, pwr, &rwn->rd_guid);
   }
 
   ETRACE (pwr, "\n");
 }
 
-static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent *ev, nn_mtime_t tnow)
+static void handle_xevk_acknack (struct nn_xpack *xp, struct xevent *ev, nn_mtime_t tnow)
 {
   /* FIXME: ought to keep track of which NACKs are being generated in
      response to a Heartbeat.  There is no point in having multiple
@@ -872,9 +879,18 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
   if (addrset_any_uc (pwr->c.as, &loc) || addrset_any_mc (pwr->c.as, &loc))
   {
     seqno_t nack_seq;
-    if ((msg = nn_xmsg_new (gv->xmsgpool, &ev->u.acknack.rd_guid.prefix, ACKNACK_SIZE_MAX, NN_XMSG_KIND_CONTROL)) == NULL)
+
+    struct participant *pp = NULL;
+    if (q_omg_security_enabled())
+    {
+      struct reader *rd = ephash_lookup_reader_guid(pwr->e.gv->guid_hash, &ev->u.acknack.rd_guid);
+      if (rd)
+        pp = rd->c.pp;
+    }
+
+    if ((msg = nn_xmsg_new (gv->xmsgpool, &ev->u.acknack.rd_guid, pp, ACKNACK_SIZE_MAX, NN_XMSG_KIND_CONTROL)) == NULL)
       goto outofmem;
-    nn_xmsg_setdst1 (msg, &ev->u.acknack.pwr_guid.prefix, &loc);
+    nn_xmsg_setdst1 (gv, msg, &ev->u.acknack.pwr_guid.prefix, &loc);
     if (gv->config.meas_hb_to_ack_latency && rwn->hb_timestamp.v)
     {
       /* If HB->ACK latency measurement is enabled, and we have a
@@ -886,7 +902,13 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
       rwn->hb_timestamp.v = 0;
     }
     add_AckNack (msg, pwr, rwn, &nack_seq);
-    if (nack_seq)
+    if (nn_xmsg_size(msg) == 0)
+    {
+      /* No AckNack added. */
+      nn_xmsg_free(msg);
+      msg = NULL;
+    }
+    else if (nack_seq)
     {
       rwn->t_last_nack = tnow;
       rwn->seq_last_nack = nack_seq;
@@ -948,7 +970,7 @@ static bool resend_spdp_sample_by_guid_key (struct writer *wr, const ddsi_guid_t
   nn_plist_init_empty (&ps);
   ps.present |= PP_PARTICIPANT_GUID;
   ps.participant_guid = *guid;
-  struct nn_xmsg *mpayload = nn_xmsg_new (gv->xmsgpool, &guid->prefix, 0, NN_XMSG_KIND_DATA);
+  struct nn_xmsg *mpayload = nn_xmsg_new (gv->xmsgpool, guid, wr->c.pp, 0, NN_XMSG_KIND_DATA);
   nn_plist_addtomsg (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0);
   nn_xmsg_addpar_sentinel (mpayload);
   nn_plist_fini (&ps);
@@ -1387,7 +1409,7 @@ void qxev_msg (struct xeventq *evq, struct nn_xmsg *msg)
   ddsrt_mutex_unlock (&evq->lock);
 }
 
-void qxev_prd_entityid (struct proxy_reader *prd, ddsi_guid_prefix_t *id)
+void qxev_prd_entityid (struct proxy_reader *prd, const ddsi_guid_t *guid)
 {
   struct q_globals * const gv = prd->e.gv;
   struct nn_xmsg *msg;
@@ -1397,10 +1419,10 @@ void qxev_prd_entityid (struct proxy_reader *prd, ddsi_guid_prefix_t *id)
 
   if (! gv->xevents->tev_conn->m_connless)
   {
-    msg = nn_xmsg_new (gv->xmsgpool, id, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
+    msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
     if (nn_xmsg_setdstPRD (msg, prd) == 0)
     {
-      GVTRACE ("  qxev_prd_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (*id));
+      GVTRACE ("  qxev_prd_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
       nn_xmsg_add_entityid (msg);
       ddsrt_mutex_lock (&gv->xevents->lock);
       ev = qxev_common_nt (gv->xevents, XEVK_ENTITYID);
@@ -1415,7 +1437,7 @@ void qxev_prd_entityid (struct proxy_reader *prd, ddsi_guid_prefix_t *id)
   }
 }
 
-void qxev_pwr_entityid (struct proxy_writer *pwr, ddsi_guid_prefix_t *id)
+void qxev_pwr_entityid (struct proxy_writer *pwr, const ddsi_guid_t *guid)
 {
   struct q_globals * const gv = pwr->e.gv;
   struct nn_xmsg *msg;
@@ -1425,10 +1447,10 @@ void qxev_pwr_entityid (struct proxy_writer *pwr, ddsi_guid_prefix_t *id)
 
   if (! pwr->evq->tev_conn->m_connless)
   {
-    msg = nn_xmsg_new (gv->xmsgpool, id, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
+    msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
     if (nn_xmsg_setdstPWR (msg, pwr) == 0)
     {
-      GVTRACE ("  qxev_pwr_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (*id));
+      GVTRACE ("  qxev_pwr_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
       nn_xmsg_add_entityid (msg);
       ddsrt_mutex_lock (&pwr->evq->lock);
       ev = qxev_common_nt (pwr->evq, XEVK_ENTITYID);
