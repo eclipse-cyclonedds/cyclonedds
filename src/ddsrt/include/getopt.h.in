@@ -19,6 +19,6 @@ DDS_EXPORT extern int optind;
 DDS_EXPORT extern int optopt;
 DDS_EXPORT extern char *optarg;
 
-DDS_EXPORT int getopt(int argc, char **argv, const char *opts);
+DDS_EXPORT int getopt(int argc, char *const argv[], const char *opts);
 
 #endif /* GETOPT_H */

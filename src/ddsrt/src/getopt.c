@@ -37,7 +37,7 @@ char *optarg;
 int
 getopt(
     int argc,
-    char **argv,
+    char *const argv[],
     const char *opts)
 {
     static int sp = 1;
