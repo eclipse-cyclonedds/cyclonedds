@@ -20,6 +20,7 @@
 #include "dds/version.h"
 #include "dds__entity.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_ephash.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"

@@ -19,6 +19,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/q_ephash.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
 #include "dds__init.h"

@@ -18,6 +18,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/q_ephash.h"
 #include "dds/version.h"
 #include "dds__init.h"
 #include "dds__domain.h"

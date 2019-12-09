@@ -18,6 +18,7 @@
 
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_bswap.h"
