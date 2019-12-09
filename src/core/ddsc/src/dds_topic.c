@@ -25,6 +25,7 @@
 #include "dds__get_status.h"
 #include "dds__qos.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/q_ddsi_discovery.h"

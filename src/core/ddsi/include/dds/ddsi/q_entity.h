@@ -20,7 +20,6 @@
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_lat_estim.h"
-#include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_hbcontrol.h"
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/q_inverse_uint32_set.h"
@@ -47,6 +46,15 @@ struct lease;
 struct proxy_group;
 struct proxy_endpoint_common;
 typedef void (*ddsi2direct_directread_cb_t) (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, void *arg);
+
+enum entity_kind {
+  EK_PARTICIPANT,
+  EK_PROXY_PARTICIPANT,
+  EK_WRITER,
+  EK_PROXY_WRITER,
+  EK_READER,
+  EK_PROXY_READER
+};
 
 /* Liveliness changed is more complicated than just add/remove. Encode the event
    in status_cb_data_t::extra and ignore status_cb_data_t::add */
@@ -157,6 +165,7 @@ struct entity_common {
   ddsrt_mutex_t lock;
   bool onlylocal;
   struct q_globals *gv;
+  ddsrt_avl_node_t all_entities_avlnode;
 
   /* QoS changes always lock the entity itself, and additionally
      (and within the scope of the entity lock) acquire qos_lock
@@ -367,6 +376,11 @@ struct proxy_endpoint_common
   ddsi_guid_t group_guid; /* 0:0:0:0 if not available */
   nn_vendorid_t vendor; /* cached from proxypp->vendor */
   seqno_t seq; /* sequence number of most recent SEDP message */
+};
+
+struct generic_proxy_endpoint {
+  struct entity_common e;
+  struct proxy_endpoint_common c;
 };
 
 struct proxy_writer {
@@ -671,6 +685,8 @@ int proxy_writer_set_notalive (struct proxy_writer *pwr, bool notify);
 void proxy_writer_set_notalive_guid (struct q_globals *gv, const struct ddsi_guid *pwrguid, bool notify);
 
 int new_proxy_group (const struct ddsi_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp);
+
+struct ephash;
 void delete_proxy_group (struct ephash *guid_hash, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
 
 /* Call this to empty all address sets of all writers to stop all outgoing traffic, or to

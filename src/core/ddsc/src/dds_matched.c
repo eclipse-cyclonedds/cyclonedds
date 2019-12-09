@@ -17,6 +17,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds__writer.h"

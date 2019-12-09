@@ -13,35 +13,35 @@
 #define Q_EPHASH_H
 
 #include "dds/ddsrt/hopscotch.h"
+#include "dds/ddsi/q_entity.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
 struct ephash;
-struct participant;
-struct reader;
-struct writer;
-struct proxy_participant;
-struct proxy_reader;
-struct proxy_writer;
 struct ddsi_guid;
 
-  enum entity_kind {
-    EK_PARTICIPANT,
-    EK_PROXY_PARTICIPANT,
-    EK_WRITER,
-    EK_PROXY_WRITER,
-    EK_READER,
-    EK_PROXY_READER
-  };
-#define EK_NKINDS ((int) EK_PROXY_READER + 1)
+struct match_entities_range_key {
+  union {
+    struct writer wr;
+    struct reader rd;
+    struct proxy_writer pwr;
+    struct proxy_reader prd;
+    struct entity_common e;
+    struct generic_proxy_endpoint gpe;
+  } entity;
+  struct dds_qos xqos;
+};
 
 struct ephash_enum
 {
-  struct ddsrt_chh_iter it;
+  struct ephash *gh;
   enum entity_kind kind;
   struct entity_common *cur;
+#ifndef NDEBUG
+  vtime_t vtime;
+#endif
 };
 
 /* Readers & writers are both in a GUID- and in a GID-keyed table. If
@@ -112,6 +112,8 @@ struct ephash_enum_proxy_writer { struct ephash_enum st; };
 struct ephash_enum_proxy_reader { struct ephash_enum st; };
 
 void ephash_enum_init (struct ephash_enum *st, const struct ephash *eh, enum entity_kind kind);
+void ephash_enum_init_topic (struct ephash_enum *st, const struct ephash *gh, enum entity_kind kind, const char *topic, struct match_entities_range_key *max);
+void *ephash_enum_next_max (struct ephash_enum *st, const struct match_entities_range_key *max);
 void *ephash_enum_next (struct ephash_enum *st);
 void ephash_enum_fini (struct ephash_enum *st);
 

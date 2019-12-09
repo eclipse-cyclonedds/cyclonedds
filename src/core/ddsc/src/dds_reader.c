@@ -28,6 +28,7 @@
 #include "dds/ddsi/q_globals.h"
 #include "dds__builtin.h"
 #include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/q_ephash.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
 

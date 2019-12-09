@@ -24,6 +24,7 @@
 #include "dds__serdata_builtintopic.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_ephash.h"
 
 static const uint64_t unihashconsts[] = {
   UINT64_C (16292676669999574021),

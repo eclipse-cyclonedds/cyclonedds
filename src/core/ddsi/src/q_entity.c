@@ -2324,7 +2324,8 @@ static void connect_writer_with_proxy_reader_wrapper (struct entity_common *vwr,
   struct proxy_reader *prd = (struct proxy_reader *) vprd;
   assert (wr->e.kind == EK_WRITER);
   assert (prd->e.kind == EK_PROXY_READER);
-  connect_writer_with_proxy_reader(wr, prd, tnow);
+  assert (is_builtin_endpoint (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) == is_builtin_endpoint (prd->e.guid.entityid, prd->c.vendor));
+  connect_writer_with_proxy_reader (wr, prd, tnow);
 }
 
 static void connect_proxy_writer_with_reader_wrapper (struct entity_common *vpwr, struct entity_common *vrd, nn_mtime_t tnow)
@@ -2333,7 +2334,8 @@ static void connect_proxy_writer_with_reader_wrapper (struct entity_common *vpwr
   struct reader *rd = (struct reader *) vrd;
   assert (pwr->e.kind == EK_PROXY_WRITER);
   assert (rd->e.kind == EK_READER);
-  connect_proxy_writer_with_reader(pwr, rd, tnow);
+  assert (is_builtin_endpoint (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) == is_builtin_endpoint (pwr->e.guid.entityid, pwr->c.vendor));
+  connect_proxy_writer_with_reader (pwr, rd, tnow);
 }
 
 static void connect_writer_with_reader_wrapper (struct entity_common *vwr, struct entity_common *vrd, nn_mtime_t tnow)
@@ -2342,17 +2344,19 @@ static void connect_writer_with_reader_wrapper (struct entity_common *vwr, struc
   struct reader *rd = (struct reader *) vrd;
   assert (wr->e.kind == EK_WRITER);
   assert (rd->e.kind == EK_READER);
-  connect_writer_with_reader(wr, rd, tnow);
+  assert (!is_builtin_endpoint (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) || is_local_orphan_endpoint (&wr->e));
+  assert (!is_builtin_endpoint (rd->e.guid.entityid, NN_VENDORID_ECLIPSE));
+  connect_writer_with_reader (wr, rd, tnow);
 }
 
-static enum entity_kind generic_do_match_mkind (enum entity_kind kind)
+static enum entity_kind generic_do_match_mkind (enum entity_kind kind, bool local)
 {
   switch (kind)
   {
-    case EK_WRITER: return EK_PROXY_READER;
-    case EK_READER: return EK_PROXY_WRITER;
-    case EK_PROXY_WRITER: return EK_READER;
-    case EK_PROXY_READER: return EK_WRITER;
+    case EK_WRITER: return local ? EK_READER : EK_PROXY_READER;
+    case EK_READER: return local ? EK_WRITER : EK_PROXY_WRITER;
+    case EK_PROXY_WRITER: assert (!local); return EK_READER;
+    case EK_PROXY_READER: assert (!local); return EK_WRITER;
     case EK_PARTICIPANT:
     case EK_PROXY_PARTICIPANT:
       assert(0);
@@ -2362,88 +2366,29 @@ static enum entity_kind generic_do_match_mkind (enum entity_kind kind)
   return EK_WRITER;
 }
 
-static enum entity_kind generic_do_local_match_mkind (enum entity_kind kind)
-{
-  switch (kind)
-  {
-    case EK_WRITER: return EK_READER;
-    case EK_READER: return EK_WRITER;
-    case EK_PROXY_WRITER:
-    case EK_PROXY_READER:
-    case EK_PARTICIPANT:
-    case EK_PROXY_PARTICIPANT:
-      assert(0);
-      return EK_WRITER;
-  }
-  assert(0);
-  return EK_WRITER;
-}
-
-static const char *generic_do_match_kindstr_us (enum entity_kind kind)
-{
-  switch (kind)
-  {
-    case EK_WRITER: return "writer";
-    case EK_READER: return "reader";
-    case EK_PROXY_WRITER: return "proxy_writer";
-    case EK_PROXY_READER: return "proxy_reader";
-    case EK_PARTICIPANT: return "participant";
-    case EK_PROXY_PARTICIPANT: return "proxy_participant";
-  }
-  assert(0);
-  return "?";
-}
-
-static const char *generic_do_match_kindstr (enum entity_kind kind)
-{
-  switch (kind)
-  {
-    case EK_WRITER: return "writer";
-    case EK_READER: return "reader";
-    case EK_PROXY_WRITER: return "proxy writer";
-    case EK_PROXY_READER: return "proxy reader";
-    case EK_PARTICIPANT: return "participant";
-    case EK_PROXY_PARTICIPANT: return "proxy participant";
-  }
-  assert(0);
-  return "?";
-}
-
-static const char *generic_do_match_kindabbrev (enum entity_kind kind)
-{
-  switch (kind)
-  {
-    case EK_WRITER: return "wr";
-    case EK_READER: return "rd";
-    case EK_PROXY_WRITER: return "pwr";
-    case EK_PROXY_READER: return "prd";
-    case EK_PARTICIPANT: return "pp";
-    case EK_PROXY_PARTICIPANT: return "proxypp";
-  }
-  assert(0);
-  return "?";
-}
-
-static int generic_do_match_isproxy (const struct entity_common *e)
-{
-  return e->kind == EK_PROXY_WRITER || e->kind == EK_PROXY_READER || e->kind == EK_PROXY_PARTICIPANT;
-}
-
-static void generic_do_match_connect (struct entity_common *e, struct entity_common *em, nn_mtime_t tnow)
+static void generic_do_match_connect (struct entity_common *e, struct entity_common *em, nn_mtime_t tnow, bool local)
 {
   switch (e->kind)
   {
     case EK_WRITER:
-      connect_writer_with_proxy_reader_wrapper(e, em, tnow);
+      if (local)
+        connect_writer_with_reader_wrapper (e, em, tnow);
+      else
+        connect_writer_with_proxy_reader_wrapper (e, em, tnow);
       break;
     case EK_READER:
-      connect_proxy_writer_with_reader_wrapper(em, e, tnow);
+      if (local)
+        connect_writer_with_reader_wrapper (em, e, tnow);
+      else
+        connect_proxy_writer_with_reader_wrapper (em, e, tnow);
       break;
     case EK_PROXY_WRITER:
-      connect_proxy_writer_with_reader_wrapper(e, em, tnow);
+      assert (!local);
+      connect_proxy_writer_with_reader_wrapper (e, em, tnow);
       break;
     case EK_PROXY_READER:
-      connect_writer_with_proxy_reader_wrapper(em, e, tnow);
+      assert (!local);
+      connect_writer_with_proxy_reader_wrapper (em, e, tnow);
       break;
     case EK_PARTICIPANT:
     case EK_PROXY_PARTICIPANT:
@@ -2451,125 +2396,118 @@ static void generic_do_match_connect (struct entity_common *e, struct entity_com
   }
 }
 
-static void generic_do_local_match_connect (struct entity_common *e, struct entity_common *em, nn_mtime_t tnow)
+static const char *entity_topic_name (const struct entity_common *e)
 {
   switch (e->kind)
   {
     case EK_WRITER:
-      connect_writer_with_reader_wrapper(e, em, tnow);
-      break;
+      return ((const struct writer *) e)->xqos->topic_name;
     case EK_READER:
-      connect_writer_with_reader_wrapper(em, e, tnow);
-      break;
+      return ((const struct reader *) e)->xqos->topic_name;
     case EK_PROXY_WRITER:
     case EK_PROXY_READER:
+      return ((const struct generic_proxy_endpoint *) e)->c.xqos->topic_name;
     case EK_PARTICIPANT:
     case EK_PROXY_PARTICIPANT:
-      assert(0);
+      assert (0);
   }
+  return "";
 }
 
-static void generic_do_match (struct entity_common *e, nn_mtime_t tnow)
+static void generic_do_match (struct entity_common *e, nn_mtime_t tnow, bool local)
 {
-  struct ephash * const guid_hash = e->gv->guid_hash;
-  struct ephash_enum est;
+  static const struct { const char *full; const char *full_us; const char *abbrev; } kindstr[] = {
+    [EK_WRITER] = { "writer", "writer", "wr" },
+    [EK_READER] = { "reader", "reader", "rd" },
+    [EK_PROXY_WRITER] = { "proxy writer", "proxy_writer", "pwr" },
+    [EK_PROXY_READER] = { "proxy reader", "proxy_reader", "prd" },
+    [EK_PARTICIPANT] = { "participant", "participant", "pp" },
+    [EK_PROXY_PARTICIPANT] = { "proxy participant", "proxy_participant", "proxypp" }
+  };
+
+  enum entity_kind mkind = generic_do_match_mkind (e->kind, local);
+  struct ephash const * const guid_hash = e->gv->guid_hash;
+  struct ephash_enum it;
   struct entity_common *em;
-  enum entity_kind mkind = generic_do_match_mkind(e->kind);
-  if (!is_builtin_entityid (e->guid.entityid, NN_VENDORID_ECLIPSE))
+
+  if (!is_builtin_entityid (e->guid.entityid, NN_VENDORID_ECLIPSE) || (local && is_local_orphan_endpoint (e)))
   {
-    EELOGDISC (e, "match_%s_with_%ss(%s "PGUIDFMT") scanning all %ss\n",
-               generic_do_match_kindstr_us (e->kind), generic_do_match_kindstr_us (mkind),
-               generic_do_match_kindabbrev (e->kind), PGUID (e->guid),
-               generic_do_match_kindstr(mkind));
+    /* Non-builtins need matching on topics, the local orphan endpoints
+       are a bit weird because they reuse the builtin entityids but
+       otherwise need to be treated as normal readers */
+    struct match_entities_range_key max;
+    const char *tp = entity_topic_name (e);
+    EELOGDISC (e, "match_%s_with_%ss(%s "PGUIDFMT") scanning all %ss%s%s\n",
+               kindstr[e->kind].full_us, kindstr[mkind].full_us,
+               kindstr[e->kind].abbrev, PGUID (e->guid),
+               kindstr[mkind].abbrev,
+               tp ? " of topic " : "", tp ? tp : "");
     /* Note: we visit at least all proxies that existed when we called
-     init (with the -- possible -- exception of ones that were
-     deleted between our calling init and our reaching it while
-     enumerating), but we may visit a single proxy reader multiple
-     times. */
-    ephash_enum_init (&est, guid_hash, mkind);
-    while ((em = ephash_enum_next (&est)) != NULL)
-      generic_do_match_connect(e, em, tnow);
-    ephash_enum_fini (&est);
+       init (with the -- possible -- exception of ones that were
+       deleted between our calling init and our reaching it while
+       enumerating), but we may visit a single proxy reader multiple
+       times. */
+    ephash_enum_init_topic (&it, guid_hash, mkind, tp, &max);
+    while ((em = ephash_enum_next_max (&it, &max)) != NULL)
+      generic_do_match_connect (e, em, tnow, local);
+    ephash_enum_fini (&it);
   }
-  else
+  else if (!local)
   {
-    /* Built-ins have fixed QoS */
-    ddsi_entityid_t tgt_ent = builtin_entityid_match (e->guid.entityid);
-    enum entity_kind pkind = generic_do_match_isproxy (e) ? EK_PARTICIPANT : EK_PROXY_PARTICIPANT;
+    /* Built-ins have fixed QoS and a known entity id to use, so instead of
+       looking for the right topic, just probe the matching GUIDs for all
+       (proxy) participants.  Local matching never needs to look at the
+       discovery endpoints */
+    const ddsi_entityid_t tgt_ent = builtin_entityid_match (e->guid.entityid);
+    const bool isproxy = (e->kind == EK_PROXY_WRITER || e->kind == EK_PROXY_READER || e->kind == EK_PROXY_PARTICIPANT);
+    enum entity_kind pkind = isproxy ? EK_PARTICIPANT : EK_PROXY_PARTICIPANT;
     EELOGDISC (e, "match_%s_with_%ss(%s "PGUIDFMT") scanning %sparticipants tgt=%"PRIx32"\n",
-               generic_do_match_kindstr_us (e->kind), generic_do_match_kindstr_us (mkind),
-               generic_do_match_kindabbrev (e->kind), PGUID (e->guid),
-               generic_do_match_isproxy (e) ? "" : "proxy ",
-               tgt_ent.u);
+               kindstr[e->kind].full_us, kindstr[mkind].full_us,
+               kindstr[e->kind].abbrev, PGUID (e->guid),
+               isproxy ? "" : "proxy ", tgt_ent.u);
     if (tgt_ent.u != NN_ENTITYID_UNKNOWN)
     {
-      struct entity_common *ep;
-      ephash_enum_init (&est, guid_hash, pkind);
-      while ((ep = ephash_enum_next (&est)) != NULL)
+      ephash_enum_init (&it, guid_hash, pkind);
+      while ((em = ephash_enum_next (&it)) != NULL)
       {
-        ddsi_guid_t tgt_guid;
-        tgt_guid.prefix = ep->guid.prefix;
-        tgt_guid.entityid = tgt_ent;
-        if ((em = ephash_lookup_guid (guid_hash, &tgt_guid, mkind)) != NULL)
-          generic_do_match_connect(e, em, tnow);
+        const ddsi_guid_t tgt_guid = { em->guid.prefix, tgt_ent };
+        struct entity_common *ep;
+        if ((ep = ephash_lookup_guid (guid_hash, &tgt_guid, mkind)) != NULL)
+          generic_do_match_connect (e, ep, tnow, local);
       }
-      ephash_enum_fini (&est);
+      ephash_enum_fini (&it);
     }
   }
 }
 
-static void generic_do_local_match (struct entity_common *e, nn_mtime_t tnow)
-{
-  struct ephash_enum est;
-  struct entity_common *em;
-  enum entity_kind mkind;
-  if (is_builtin_entityid (e->guid.entityid, NN_VENDORID_ECLIPSE) && !is_local_orphan_endpoint (e))
-    /* never a need for local matches on discovery endpoints */
-    return;
-  mkind = generic_do_local_match_mkind (e->kind);
-  EELOGDISC (e, "match_%s_with_%ss(%s "PGUIDFMT") scanning all %ss\n",
-             generic_do_match_kindstr_us (e->kind), generic_do_match_kindstr_us (mkind),
-             generic_do_match_kindabbrev (e->kind), PGUID (e->guid),
-             generic_do_match_kindstr(mkind));
-  /* Note: we visit at least all proxies that existed when we called
-     init (with the -- possible -- exception of ones that were
-     deleted between our calling init and our reaching it while
-     enumerating), but we may visit a single proxy reader multiple
-     times. */
-  ephash_enum_init (&est, e->gv->guid_hash, mkind);
-  while ((em = ephash_enum_next (&est)) != NULL)
-    generic_do_local_match_connect (e, em, tnow);
-  ephash_enum_fini (&est);
-}
-
 static void match_writer_with_proxy_readers (struct writer *wr, nn_mtime_t tnow)
 {
-  generic_do_match (&wr->e, tnow);
+  generic_do_match (&wr->e, tnow, false);
 }
 
 static void match_writer_with_local_readers (struct writer *wr, nn_mtime_t tnow)
 {
-  generic_do_local_match (&wr->e, tnow);
+  generic_do_match (&wr->e, tnow, true);
 }
 
 static void match_reader_with_proxy_writers (struct reader *rd, nn_mtime_t tnow)
 {
-  generic_do_match (&rd->e, tnow);
+  generic_do_match (&rd->e, tnow, false);
 }
 
 static void match_reader_with_local_writers (struct reader *rd, nn_mtime_t tnow)
 {
-  generic_do_local_match (&rd->e, tnow);
+  generic_do_match (&rd->e, tnow, true);
 }
 
 static void match_proxy_writer_with_readers (struct proxy_writer *pwr, nn_mtime_t tnow)
 {
-  generic_do_match (&pwr->e, tnow);
+  generic_do_match (&pwr->e, tnow, false);
 }
 
 static void match_proxy_reader_with_writers (struct proxy_reader *prd, nn_mtime_t tnow)
 {
-  generic_do_match(&prd->e, tnow);
+  generic_do_match(&prd->e, tnow, false);
 }
 
 /* ENDPOINT --------------------------------------------------------- */

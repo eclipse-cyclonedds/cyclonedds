@@ -17,6 +17,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_log.h"
