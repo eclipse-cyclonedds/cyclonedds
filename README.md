@@ -126,7 +126,7 @@ to run the program, it is merely to illustrate the process.
 
     $ mkdir roundtrip
     $ cd roundtrip
-    $ cmake <install-location>/share/CycloneDDS/examples/helloworld
+    $ cmake <install-location>/share/CycloneDDS/examples/roundtrip
     $ cmake --build .
     
 On one terminal start the application that will be responding to pings:
