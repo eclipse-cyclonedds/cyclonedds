@@ -581,11 +581,10 @@ static void handle_xevk_entityid (struct nn_xpack *xp, struct xevent_nt *ev)
 #ifdef DDSI_INCLUDE_SECURITY
 static void send_heartbeat_to_all_readers(struct nn_xpack *xp, struct xevent *ev, struct writer *wr, nn_mtime_t tnow)
 {
-  struct nn_xmsg **msg = NULL;
   struct whc_state whcst;
   nn_mtime_t t_next;
   int hbansreq = 0;
-  unsigned count = 0, n = 0, i;
+  unsigned count = 0;
 
   ddsrt_mutex_lock (&wr->e.lock);
 
@@ -594,46 +593,30 @@ static void send_heartbeat_to_all_readers(struct nn_xpack *xp, struct xevent *ev
   if (!writer_must_have_hb_scheduled (wr, &whcst))
   {
     hbansreq = 1; /* just for trace */
-    msg = NULL; /* Need not send it now, and no need to schedule it for the future */
     t_next.v = T_NEVER;
   }
   else if (!writer_hbcontrol_must_send (wr, &whcst, tnow))
   {
     hbansreq = 1; /* just for trace */
-    msg = NULL;
     t_next.v = tnow.v + writer_hbcontrol_intv (wr, &whcst, tnow);
   }
   else
   {
     struct wr_prd_match *m;
-    ddsrt_avl_iter_t it;
+    struct ddsi_guid last_guid = { .prefix = {.u = {0,0,0}}, .entityid = {0} };
 
     hbansreq = writer_hbcontrol_ack_required (wr, &whcst, tnow);
     t_next.v = tnow.v + writer_hbcontrol_intv (wr, &whcst, tnow);
 
-    for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
+    while ((m = ddsrt_avl_lookup_succ (&wr_readers_treedef, &wr->readers, &last_guid)) != NULL)
     {
       if (m->seq < m->last_seq)
-        count++;
-    }
-
-    if (count > 0)
-    {
-      msg = ddsrt_malloc(count * sizeof(struct nn_xmsg *));
-      for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
       {
-        if (m->seq < m->last_seq)
+        struct proxy_reader *prd;
+
+        prd = ephash_lookup_proxy_reader_guid(wr->e.gv->guid_hash, &m->prd_guid);
+        if (prd)
         {
-          struct proxy_reader *prd;
-
-          prd = ephash_lookup_proxy_reader_guid(wr->e.gv->guid_hash, &m->prd_guid);
-          if (prd)
-          {
-            struct nn_xmsg *p2p = writer_hbcontrol_p2p(wr, &whcst, hbansreq, prd);
-            if (p2p)
-              msg[n++] = p2p;
-          }
-
           ETRACE (wr, " heartbeat(wr "PGUIDFMT" rd "PGUIDFMT" %s) send, resched in %g s (min-ack %"PRId64", avail-seq %"PRId64")\n",
               PGUID (wr->e.guid),
               PGUID (m->prd_guid),
@@ -641,8 +624,18 @@ static void send_heartbeat_to_all_readers(struct nn_xpack *xp, struct xevent *ev
               (double)(t_next.v - tnow.v) / 1e9,
               m->seq,
               m->last_seq);
+
+          struct nn_xmsg *msg = writer_hbcontrol_p2p(wr, &whcst, hbansreq, prd);
+          if (msg != NULL)
+          {
+            ddsrt_mutex_unlock (&wr->e.lock);
+            nn_xpack_addmsg (xp, msg, 0);
+            ddsrt_mutex_lock (&wr->e.lock);
+          }
+          count++;
         }
       }
+
     }
   }
 
@@ -662,13 +655,9 @@ static void send_heartbeat_to_all_readers(struct nn_xpack *xp, struct xevent *ev
   }
 
   ddsrt_mutex_unlock (&wr->e.lock);
-
-  for (i = 0; i < n; i++) {
-    nn_xpack_addmsg (xp, msg[i], 0);
-  }
-
-  ddsrt_free(msg);
 }
+
+
 #endif
 
 static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mtime_t tnow /* monotonic */)
