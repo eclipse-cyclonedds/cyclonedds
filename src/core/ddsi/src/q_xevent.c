@@ -610,6 +610,7 @@ static void send_heartbeat_to_all_readers(struct nn_xpack *xp, struct xevent *ev
 
     while ((m = ddsrt_avl_lookup_succ (&wr_readers_treedef, &wr->readers, &last_guid)) != NULL)
     {
+      last_guid = m->prd_guid;
       if (m->seq < m->last_seq)
       {
         struct proxy_reader *prd;
