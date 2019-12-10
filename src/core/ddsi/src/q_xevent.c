@@ -28,7 +28,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_globals.h"
-#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_entity.h"
@@ -589,7 +589,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mt
   int hbansreq = 0;
   struct whc_state whcst;
 
-  if ((wr = ephash_lookup_writer_guid (gv->guid_hash, &ev->u.heartbeat.wr_guid)) == NULL)
+  if ((wr = entidx_lookup_writer_guid (gv->entity_index, &ev->u.heartbeat.wr_guid)) == NULL)
   {
     GVTRACE("heartbeat(wr "PGUIDFMT") writer gone\n", PGUID (ev->u.heartbeat.wr_guid));
     return;
@@ -859,7 +859,7 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
   struct pwr_rd_match *rwn;
   nn_locator_t loc;
 
-  if ((pwr = ephash_lookup_proxy_writer_guid (gv->guid_hash, &ev->u.acknack.pwr_guid)) == NULL)
+  if ((pwr = entidx_lookup_proxy_writer_guid (gv->entity_index, &ev->u.acknack.pwr_guid)) == NULL)
   {
     return;
   }
@@ -986,7 +986,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   struct writer *spdp_wr;
   bool do_write;
 
-  if ((pp = ephash_lookup_participant_guid (gv->guid_hash, &ev->u.spdp.pp_guid)) == NULL)
+  if ((pp = entidx_lookup_participant_guid (gv->entity_index, &ev->u.spdp.pp_guid)) == NULL)
   {
     GVTRACE ("handle_xevk_spdp "PGUIDFMT" - unknown guid\n", PGUID (ev->u.spdp.pp_guid));
     if (ev->u.spdp.directed)
@@ -1014,7 +1014,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     ddsi_guid_t guid;
     guid.prefix = ev->u.spdp.dest_proxypp_guid_prefix;
     guid.entityid.u = NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER;
-    prd = ephash_lookup_proxy_reader_guid (gv->guid_hash, &guid);
+    prd = entidx_lookup_proxy_reader_guid (gv->entity_index, &guid);
     do_write = (prd != NULL);
     if (!do_write)
       GVTRACE ("xmit spdp: no proxy reader "PGUIDFMT"\n", PGUID (guid));
@@ -1099,7 +1099,7 @@ static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_
   dds_duration_t intv;
   nn_mtime_t tnext;
 
-  if ((pp = ephash_lookup_participant_guid (gv->guid_hash, &ev->u.pmd_update.pp_guid)) == NULL)
+  if ((pp = entidx_lookup_participant_guid (gv->entity_index, &ev->u.pmd_update.pp_guid)) == NULL)
   {
     return;
   }

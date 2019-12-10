@@ -16,7 +16,7 @@
 #include "dds__guardcond.h"
 #include "dds__participant.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 
