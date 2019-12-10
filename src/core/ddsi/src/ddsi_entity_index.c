@@ -369,43 +369,43 @@ void entidx_remove_proxy_reader_guid (struct entity_index *ei, struct proxy_read
 
 struct participant *entidx_lookup_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
+  DDSRT_STATIC_ASSERT (offsetof (struct participant, e) == 0);
   assert (guid->entityid.u == NN_ENTITYID_PARTICIPANT);
-  assert (offsetof (struct participant, e) == 0);
   return entidx_lookup_guid_int (ei, guid, EK_PARTICIPANT);
 }
 
 struct proxy_participant *entidx_lookup_proxy_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
+  DDSRT_STATIC_ASSERT (offsetof (struct proxy_participant, e) == 0);
   assert (guid->entityid.u == NN_ENTITYID_PARTICIPANT);
-  assert (offsetof (struct proxy_participant, e) == 0);
   return entidx_lookup_guid_int (ei, guid, EK_PROXY_PARTICIPANT);
 }
 
 struct writer *entidx_lookup_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
+  DDSRT_STATIC_ASSERT (offsetof (struct writer, e) == 0);
   assert (is_writer_entityid (guid->entityid));
-  assert (offsetof (struct writer, e) == 0);
   return entidx_lookup_guid_int (ei, guid, EK_WRITER);
 }
 
 struct reader *entidx_lookup_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
+  DDSRT_STATIC_ASSERT (offsetof (struct reader, e) == 0);
   assert (is_reader_entityid (guid->entityid));
-  assert (offsetof (struct reader, e) == 0);
   return entidx_lookup_guid_int (ei, guid, EK_READER);
 }
 
 struct proxy_writer *entidx_lookup_proxy_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
+  DDSRT_STATIC_ASSERT (offsetof (struct proxy_writer, e) == 0);
   assert (is_writer_entityid (guid->entityid));
-  assert (offsetof (struct proxy_writer, e) == 0);
   return entidx_lookup_guid_int (ei, guid, EK_PROXY_WRITER);
 }
 
 struct proxy_reader *entidx_lookup_proxy_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
+  DDSRT_STATIC_ASSERT (offsetof (struct proxy_reader, e) == 0);
   assert (is_reader_entityid (guid->entityid));
-  assert (offsetof (struct proxy_reader, e) == 0);
   return entidx_lookup_guid_int (ei, guid, EK_PROXY_READER);
 }
 
@@ -507,37 +507,37 @@ void *entidx_enum_next_max (struct entidx_enum *st, const struct match_entities_
 
 struct writer *entidx_enum_writer_next (struct entidx_enum_writer *st)
 {
-  assert (offsetof (struct writer, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct writer, e) == 0);
   return entidx_enum_next (&st->st);
 }
 
 struct reader *entidx_enum_reader_next (struct entidx_enum_reader *st)
 {
-  assert (offsetof (struct reader, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct reader, e) == 0);
   return entidx_enum_next (&st->st);
 }
 
 struct proxy_writer *entidx_enum_proxy_writer_next (struct entidx_enum_proxy_writer *st)
 {
-  assert (offsetof (struct proxy_writer, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct proxy_writer, e) == 0);
   return entidx_enum_next (&st->st);
 }
 
 struct proxy_reader *entidx_enum_proxy_reader_next (struct entidx_enum_proxy_reader *st)
 {
-  assert (offsetof (struct proxy_reader, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct proxy_reader, e) == 0);
   return entidx_enum_next (&st->st);
 }
 
 struct participant *entidx_enum_participant_next (struct entidx_enum_participant *st)
 {
-  assert (offsetof (struct participant, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct participant, e) == 0);
   return entidx_enum_next (&st->st);
 }
 
 struct proxy_participant *entidx_enum_proxy_participant_next (struct entidx_enum_proxy_participant *st)
 {
-  assert (offsetof (struct proxy_participant, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct proxy_participant, e) == 0);
   return entidx_enum_next (&st->st);
 }
 
