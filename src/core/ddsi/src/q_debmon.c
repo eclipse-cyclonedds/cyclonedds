@@ -26,7 +26,7 @@
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_plist.h"
-#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_radmin.h"
@@ -144,22 +144,22 @@ static int print_proxy_endpoint_common (ddsi_tran_conn_t conn, const char *label
 
 static int print_participants (struct thread_state1 * const ts1, struct q_globals *gv, ddsi_tran_conn_t conn)
 {
-  struct ephash_enum_participant e;
+  struct entidx_enum_participant e;
   struct participant *p;
   int x = 0;
   thread_state_awake_fixed_domain (ts1);
-  ephash_enum_participant_init (&e, gv->guid_hash);
-  while ((p = ephash_enum_participant_next (&e)) != NULL)
+  entidx_enum_participant_init (&e, gv->entity_index);
+  while ((p = entidx_enum_participant_next (&e)) != NULL)
   {
     ddsrt_mutex_lock (&p->e.lock);
     x += cpf (conn, "pp "PGUIDFMT" %s%s\n", PGUID (p->e.guid), p->e.name, p->is_ddsi2_pp ? " [ddsi2]" : "");
     ddsrt_mutex_unlock (&p->e.lock);
 
     {
-      struct ephash_enum_reader er;
+      struct entidx_enum_reader er;
       struct reader *r;
-      ephash_enum_reader_init (&er, gv->guid_hash);
-      while ((r = ephash_enum_reader_next (&er)) != NULL)
+      entidx_enum_reader_init (&er, gv->entity_index);
+      while ((r = entidx_enum_reader_next (&er)) != NULL)
       {
         ddsrt_avl_iter_t writ;
         struct rd_pwr_match *m;
@@ -174,14 +174,14 @@ static int print_participants (struct thread_state1 * const ts1, struct q_global
           x += cpf (conn, "    pwr "PGUIDFMT"\n", PGUID (m->pwr_guid));
         ddsrt_mutex_unlock (&r->e.lock);
       }
-      ephash_enum_reader_fini (&er);
+      entidx_enum_reader_fini (&er);
     }
 
     {
-      struct ephash_enum_writer ew;
+      struct entidx_enum_writer ew;
       struct writer *w;
-      ephash_enum_writer_init (&ew, gv->guid_hash);
-      while ((w = ephash_enum_writer_next (&ew)) != NULL)
+      entidx_enum_writer_init (&ew, gv->entity_index);
+      while ((w = entidx_enum_writer_next (&ew)) != NULL)
       {
         ddsrt_avl_iter_t rdit;
         struct wr_prd_match *m;
@@ -219,22 +219,22 @@ static int print_participants (struct thread_state1 * const ts1, struct q_global
         }
         ddsrt_mutex_unlock (&w->e.lock);
       }
-      ephash_enum_writer_fini (&ew);
+      entidx_enum_writer_fini (&ew);
     }
   }
-  ephash_enum_participant_fini (&e);
+  entidx_enum_participant_fini (&e);
   thread_state_asleep (ts1);
   return x;
 }
 
 static int print_proxy_participants (struct thread_state1 * const ts1, struct q_globals *gv, ddsi_tran_conn_t conn)
 {
-  struct ephash_enum_proxy_participant e;
+  struct entidx_enum_proxy_participant e;
   struct proxy_participant *p;
   int x = 0;
   thread_state_awake_fixed_domain (ts1);
-  ephash_enum_proxy_participant_init (&e, gv->guid_hash);
-  while ((p = ephash_enum_proxy_participant_next (&e)) != NULL)
+  entidx_enum_proxy_participant_init (&e, gv->entity_index);
+  while ((p = entidx_enum_proxy_participant_next (&e)) != NULL)
   {
     ddsrt_mutex_lock (&p->e.lock);
     x += cpf (conn, "proxypp "PGUIDFMT"%s\n", PGUID (p->e.guid), p->is_ddsi2_pp ? " [ddsi2]" : "");
@@ -243,10 +243,10 @@ static int print_proxy_participants (struct thread_state1 * const ts1, struct q_
     x += print_addrset (conn, " meta", p->as_default, "\n");
 
     {
-      struct ephash_enum_proxy_reader er;
+      struct entidx_enum_proxy_reader er;
       struct proxy_reader *r;
-      ephash_enum_proxy_reader_init (&er, gv->guid_hash);
-      while ((r = ephash_enum_proxy_reader_next (&er)) != NULL)
+      entidx_enum_proxy_reader_init (&er, gv->entity_index);
+      while ((r = entidx_enum_proxy_reader_next (&er)) != NULL)
       {
         ddsrt_avl_iter_t writ;
         struct prd_wr_match *m;
@@ -258,14 +258,14 @@ static int print_proxy_participants (struct thread_state1 * const ts1, struct q_
           x += cpf (conn, "    wr "PGUIDFMT"\n", PGUID (m->wr_guid));
         ddsrt_mutex_unlock (&r->e.lock);
       }
-      ephash_enum_proxy_reader_fini (&er);
+      entidx_enum_proxy_reader_fini (&er);
     }
 
     {
-      struct ephash_enum_proxy_writer ew;
+      struct entidx_enum_proxy_writer ew;
       struct proxy_writer *w;
-      ephash_enum_proxy_writer_init (&ew, gv->guid_hash);
-      while ((w = ephash_enum_proxy_writer_next (&ew)) != NULL)
+      entidx_enum_proxy_writer_init (&ew, gv->entity_index);
+      while ((w = entidx_enum_proxy_writer_next (&ew)) != NULL)
       {
         ddsrt_avl_iter_t rdit;
         struct pwr_rd_match *m;
@@ -292,10 +292,10 @@ static int print_proxy_participants (struct thread_state1 * const ts1, struct q_
         }
         ddsrt_mutex_unlock (&w->e.lock);
       }
-      ephash_enum_proxy_writer_fini (&ew);
+      entidx_enum_proxy_writer_fini (&ew);
     }
   }
-  ephash_enum_proxy_participant_fini (&e);
+  entidx_enum_proxy_participant_fini (&e);
   thread_state_asleep (ts1);
   return x;
 }

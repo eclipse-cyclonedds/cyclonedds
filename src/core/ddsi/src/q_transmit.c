@@ -18,7 +18,7 @@
 
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_bswap.h"
@@ -200,7 +200,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   else
   {
     struct proxy_reader *prd;
-    if ((prd = ephash_lookup_proxy_reader_guid (gv->guid_hash, prd_guid)) == NULL)
+    if ((prd = entidx_lookup_proxy_reader_guid (gv->entity_index, prd_guid)) == NULL)
     {
       ETRACE (wr, "writer_hbcontrol: wr "PGUIDFMT" unknown prd "PGUIDFMT"\n", PGUID (wr->e.guid), PGUID (*prd_guid));
       nn_xmsg_free (msg);
@@ -676,7 +676,7 @@ dds_return_t write_hb_liveliness (struct q_globals * const gv, struct ddsi_guid 
   struct whc_state whcst;
   struct thread_state1 * const ts1 = lookup_thread_state ();
   thread_state_awake (ts1, gv);
-  struct writer *wr = ephash_lookup_writer_guid (gv->guid_hash, wr_guid);
+  struct writer *wr = entidx_lookup_writer_guid (gv->entity_index, wr_guid);
   if (wr == NULL)
   {
     GVTRACE ("write_hb_liveliness("PGUIDFMT") - writer not found\n", PGUID (*wr_guid));

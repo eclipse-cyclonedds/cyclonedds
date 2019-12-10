@@ -15,7 +15,7 @@
 #include "dds/ddsc/dds_rhc.h"
 #include "dds__entity.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 

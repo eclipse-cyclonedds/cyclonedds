@@ -37,7 +37,7 @@
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/q_entity.h"
@@ -1053,7 +1053,7 @@ int rtps_init (struct q_globals *gv)
   ddsrt_cond_init (&gv->participant_set_cond);
   lease_management_init (gv);
   gv->deleted_participants = deleted_participants_admin_new (&gv->logconfig, gv->config.prune_deleted_ppant.delay);
-  gv->guid_hash = ephash_new (gv);
+  gv->entity_index = entity_index_new (gv);
 
   ddsrt_mutex_init (&gv->privileged_pp_lock);
   gv->privileged_pp = NULL;
@@ -1372,8 +1372,8 @@ err_unicast_sockets:
   ddsrt_mutex_destroy (&gv->spdp_lock);
   ddsrt_mutex_destroy (&gv->lock);
   ddsrt_mutex_destroy (&gv->privileged_pp_lock);
-  ephash_free (gv->guid_hash);
-  gv->guid_hash = NULL;
+  entity_index_free (gv->entity_index);
+  gv->entity_index = NULL;
   deleted_participants_admin_free (gv->deleted_participants);
   lease_management_term (gv);
   ddsrt_cond_destroy (&gv->participant_set_cond);
@@ -1548,26 +1548,26 @@ void rtps_stop (struct q_globals *gv)
   ddsrt_mutex_destroy (&gv->spdp_lock);
 
   {
-    struct ephash_enum_proxy_participant est;
+    struct entidx_enum_proxy_participant est;
     struct proxy_participant *proxypp;
     const nn_wctime_t tnow = now();
     /* Clean up proxy readers, proxy writers and proxy
        participants. Deleting a proxy participants deletes all its
        readers and writers automatically */
     thread_state_awake (ts1, gv);
-    ephash_enum_proxy_participant_init (&est, gv->guid_hash);
-    while ((proxypp = ephash_enum_proxy_participant_next (&est)) != NULL)
+    entidx_enum_proxy_participant_init (&est, gv->entity_index);
+    while ((proxypp = entidx_enum_proxy_participant_next (&est)) != NULL)
     {
       delete_proxy_participant_by_guid (gv, &proxypp->e.guid, tnow, 1);
     }
-    ephash_enum_proxy_participant_fini (&est);
+    entidx_enum_proxy_participant_fini (&est);
     thread_state_asleep (ts1);
   }
 
   {
-    struct ephash_enum_writer est_wr;
-    struct ephash_enum_reader est_rd;
-    struct ephash_enum_participant est_pp;
+    struct entidx_enum_writer est_wr;
+    struct entidx_enum_reader est_rd;
+    struct entidx_enum_participant est_pp;
     struct participant *pp;
     struct writer *wr;
     struct reader *rd;
@@ -1577,28 +1577,28 @@ void rtps_stop (struct q_globals *gv)
        out. FIXME: need to keep xevent thread alive for a while
        longer. */
     thread_state_awake (ts1, gv);
-    ephash_enum_writer_init (&est_wr, gv->guid_hash);
-    while ((wr = ephash_enum_writer_next (&est_wr)) != NULL)
+    entidx_enum_writer_init (&est_wr, gv->entity_index);
+    while ((wr = entidx_enum_writer_next (&est_wr)) != NULL)
     {
       if (!is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE))
         delete_writer_nolinger (gv, &wr->e.guid);
     }
-    ephash_enum_writer_fini (&est_wr);
+    entidx_enum_writer_fini (&est_wr);
     thread_state_awake_to_awake_no_nest (ts1);
-    ephash_enum_reader_init (&est_rd, gv->guid_hash);
-    while ((rd = ephash_enum_reader_next (&est_rd)) != NULL)
+    entidx_enum_reader_init (&est_rd, gv->entity_index);
+    while ((rd = entidx_enum_reader_next (&est_rd)) != NULL)
     {
       if (!is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE))
         delete_reader (gv, &rd->e.guid);
     }
-    ephash_enum_reader_fini (&est_rd);
+    entidx_enum_reader_fini (&est_rd);
     thread_state_awake_to_awake_no_nest (ts1);
-    ephash_enum_participant_init (&est_pp, gv->guid_hash);
-    while ((pp = ephash_enum_participant_next (&est_pp)) != NULL)
+    entidx_enum_participant_init (&est_pp, gv->entity_index);
+    while ((pp = entidx_enum_participant_next (&est_pp)) != NULL)
     {
       delete_participant (gv, &pp->e.guid);
     }
-    ephash_enum_participant_fini (&est_pp);
+    entidx_enum_participant_fini (&est_pp);
     thread_state_asleep (ts1);
   }
 
@@ -1709,8 +1709,8 @@ void rtps_fini (struct q_globals *gv)
 
   ddsi_tkmap_free (gv->m_tkmap);
 
-  ephash_free (gv->guid_hash);
-  gv->guid_hash = NULL;
+  entity_index_free (gv->entity_index);
+  gv->entity_index = NULL;
   deleted_participants_admin_free (gv->deleted_participants);
   lease_management_term (gv);
   ddsrt_mutex_destroy (&gv->participant_set_lock);
