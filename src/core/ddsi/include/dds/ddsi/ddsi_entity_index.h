@@ -21,6 +21,7 @@ extern "C" {
 
 struct entity_index;
 struct ddsi_guid;
+struct q_globals;
 
 struct match_entities_range_key {
   union {
@@ -62,33 +63,32 @@ struct entidx_enum
    at the protocol level slightly before the network reader can use it
    to transmit data. */
 
-struct q_globals;
-struct entity_index *entity_index_new (struct q_globals *gv);
-void entity_index_free (struct entity_index *ei);
+struct entity_index *entity_index_new (struct q_globals *gv) ddsrt_nonnull_all;
+void entity_index_free (struct entity_index *ei) ddsrt_nonnull_all;
 
-void entidx_insert_participant_guid (struct entity_index *ei, struct participant *pp);
-void entidx_insert_proxy_participant_guid (struct entity_index *ei, struct proxy_participant *proxypp);
-void entidx_insert_writer_guid (struct entity_index *ei, struct writer *wr);
-void entidx_insert_reader_guid (struct entity_index *ei, struct reader *rd);
-void entidx_insert_proxy_writer_guid (struct entity_index *ei, struct proxy_writer *pwr);
-void entidx_insert_proxy_reader_guid (struct entity_index *ei, struct proxy_reader *prd);
+void entidx_insert_participant_guid (struct entity_index *ei, struct participant *pp) ddsrt_nonnull_all;
+void entidx_insert_proxy_participant_guid (struct entity_index *ei, struct proxy_participant *proxypp) ddsrt_nonnull_all;
+void entidx_insert_writer_guid (struct entity_index *ei, struct writer *wr) ddsrt_nonnull_all;
+void entidx_insert_reader_guid (struct entity_index *ei, struct reader *rd) ddsrt_nonnull_all;
+void entidx_insert_proxy_writer_guid (struct entity_index *ei, struct proxy_writer *pwr) ddsrt_nonnull_all;
+void entidx_insert_proxy_reader_guid (struct entity_index *ei, struct proxy_reader *prd) ddsrt_nonnull_all;
 
-void entidx_remove_participant_guid (struct entity_index *ei, struct participant *pp);
-void entidx_remove_proxy_participant_guid (struct entity_index *ei, struct proxy_participant *proxypp);
-void entidx_remove_writer_guid (struct entity_index *ei, struct writer *wr);
-void entidx_remove_reader_guid (struct entity_index *ei, struct reader *rd);
-void entidx_remove_proxy_writer_guid (struct entity_index *ei, struct proxy_writer *pwr);
-void entidx_remove_proxy_reader_guid (struct entity_index *ei, struct proxy_reader *prd);
+void entidx_remove_participant_guid (struct entity_index *ei, struct participant *pp) ddsrt_nonnull_all;
+void entidx_remove_proxy_participant_guid (struct entity_index *ei, struct proxy_participant *proxypp) ddsrt_nonnull_all;
+void entidx_remove_writer_guid (struct entity_index *ei, struct writer *wr) ddsrt_nonnull_all;
+void entidx_remove_reader_guid (struct entity_index *ei, struct reader *rd) ddsrt_nonnull_all;
+void entidx_remove_proxy_writer_guid (struct entity_index *ei, struct proxy_writer *pwr) ddsrt_nonnull_all;
+void entidx_remove_proxy_reader_guid (struct entity_index *ei, struct proxy_reader *prd) ddsrt_nonnull_all;
 
-DDS_EXPORT void *entidx_lookup_guid_untyped (const struct entity_index *ei, const struct ddsi_guid *guid);
-DDS_EXPORT void *entidx_lookup_guid (const struct entity_index *ei, const struct ddsi_guid *guid, enum entity_kind kind);
+DDS_EXPORT void *entidx_lookup_guid_untyped (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+DDS_EXPORT void *entidx_lookup_guid (const struct entity_index *ei, const struct ddsi_guid *guid, enum entity_kind kind) ddsrt_nonnull_all;
 
-DDS_EXPORT struct participant *entidx_lookup_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid);
-DDS_EXPORT struct proxy_participant *entidx_lookup_proxy_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid);
-DDS_EXPORT struct writer *entidx_lookup_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid);
-DDS_EXPORT struct reader *entidx_lookup_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid);
-DDS_EXPORT struct proxy_writer *entidx_lookup_proxy_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid);
-DDS_EXPORT struct proxy_reader *entidx_lookup_proxy_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid);
+DDS_EXPORT struct participant *entidx_lookup_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+DDS_EXPORT struct proxy_participant *entidx_lookup_proxy_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+DDS_EXPORT struct writer *entidx_lookup_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+DDS_EXPORT struct reader *entidx_lookup_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+DDS_EXPORT struct proxy_writer *entidx_lookup_proxy_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+DDS_EXPORT struct proxy_reader *entidx_lookup_proxy_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 
 /* Enumeration of entries in the hash table:
 
@@ -110,32 +110,32 @@ struct entidx_enum_proxy_participant { struct entidx_enum st; };
 struct entidx_enum_proxy_writer { struct entidx_enum st; };
 struct entidx_enum_proxy_reader { struct entidx_enum st; };
 
-void entidx_enum_init (struct entidx_enum *st, const struct entity_index *ei, enum entity_kind kind);
-void entidx_enum_init_topic (struct entidx_enum *st, const struct entity_index *gh, enum entity_kind kind, const char *topic, struct match_entities_range_key *max);
-void *entidx_enum_next_max (struct entidx_enum *st, const struct match_entities_range_key *max);
-void *entidx_enum_next (struct entidx_enum *st);
-void entidx_enum_fini (struct entidx_enum *st);
+void entidx_enum_init (struct entidx_enum *st, const struct entity_index *ei, enum entity_kind kind) ddsrt_nonnull_all;
+void entidx_enum_init_topic (struct entidx_enum *st, const struct entity_index *gh, enum entity_kind kind, const char *topic, struct match_entities_range_key *max) ddsrt_nonnull_all;
+void *entidx_enum_next_max (struct entidx_enum *st, const struct match_entities_range_key *max) ddsrt_nonnull_all;
+void *entidx_enum_next (struct entidx_enum *st) ddsrt_nonnull_all;
+void entidx_enum_fini (struct entidx_enum *st) ddsrt_nonnull_all;
 
-void entidx_enum_writer_init (struct entidx_enum_writer *st, const struct entity_index *ei);
-void entidx_enum_reader_init (struct entidx_enum_reader *st, const struct entity_index *ei);
-void entidx_enum_proxy_writer_init (struct entidx_enum_proxy_writer *st, const struct entity_index *ei);
-void entidx_enum_proxy_reader_init (struct entidx_enum_proxy_reader *st, const struct entity_index *ei);
-void entidx_enum_participant_init (struct entidx_enum_participant *st, const struct entity_index *ei);
-void entidx_enum_proxy_participant_init (struct entidx_enum_proxy_participant *st, const struct entity_index *ei);
+void entidx_enum_writer_init (struct entidx_enum_writer *st, const struct entity_index *ei) ddsrt_nonnull_all;
+void entidx_enum_reader_init (struct entidx_enum_reader *st, const struct entity_index *ei) ddsrt_nonnull_all;
+void entidx_enum_proxy_writer_init (struct entidx_enum_proxy_writer *st, const struct entity_index *ei) ddsrt_nonnull_all;
+void entidx_enum_proxy_reader_init (struct entidx_enum_proxy_reader *st, const struct entity_index *ei) ddsrt_nonnull_all;
+void entidx_enum_participant_init (struct entidx_enum_participant *st, const struct entity_index *ei) ddsrt_nonnull_all;
+void entidx_enum_proxy_participant_init (struct entidx_enum_proxy_participant *st, const struct entity_index *ei) ddsrt_nonnull_all;
 
-struct writer *entidx_enum_writer_next (struct entidx_enum_writer *st);
-struct reader *entidx_enum_reader_next (struct entidx_enum_reader *st);
-struct proxy_writer *entidx_enum_proxy_writer_next (struct entidx_enum_proxy_writer *st);
-struct proxy_reader *entidx_enum_proxy_reader_next (struct entidx_enum_proxy_reader *st);
-struct participant *entidx_enum_participant_next (struct entidx_enum_participant *st);
-struct proxy_participant *entidx_enum_proxy_participant_next (struct entidx_enum_proxy_participant *st);
+struct writer *entidx_enum_writer_next (struct entidx_enum_writer *st) ddsrt_nonnull_all;
+struct reader *entidx_enum_reader_next (struct entidx_enum_reader *st) ddsrt_nonnull_all;
+struct proxy_writer *entidx_enum_proxy_writer_next (struct entidx_enum_proxy_writer *st) ddsrt_nonnull_all;
+struct proxy_reader *entidx_enum_proxy_reader_next (struct entidx_enum_proxy_reader *st) ddsrt_nonnull_all;
+struct participant *entidx_enum_participant_next (struct entidx_enum_participant *st) ddsrt_nonnull_all;
+struct proxy_participant *entidx_enum_proxy_participant_next (struct entidx_enum_proxy_participant *st) ddsrt_nonnull_all;
 
-void entidx_enum_writer_fini (struct entidx_enum_writer *st);
-void entidx_enum_reader_fini (struct entidx_enum_reader *st);
-void entidx_enum_proxy_writer_fini (struct entidx_enum_proxy_writer *st);
-void entidx_enum_proxy_reader_fini (struct entidx_enum_proxy_reader *st);
-void entidx_enum_participant_fini (struct entidx_enum_participant *st);
-void entidx_enum_proxy_participant_fini (struct entidx_enum_proxy_participant *st);
+void entidx_enum_writer_fini (struct entidx_enum_writer *st) ddsrt_nonnull_all;
+void entidx_enum_reader_fini (struct entidx_enum_reader *st) ddsrt_nonnull_all;
+void entidx_enum_proxy_writer_fini (struct entidx_enum_proxy_writer *st) ddsrt_nonnull_all;
+void entidx_enum_proxy_reader_fini (struct entidx_enum_proxy_reader *st) ddsrt_nonnull_all;
+void entidx_enum_participant_fini (struct entidx_enum_participant *st) ddsrt_nonnull_all;
+void entidx_enum_proxy_participant_fini (struct entidx_enum_proxy_participant *st) ddsrt_nonnull_all;
 
 #if defined (__cplusplus)
 }
