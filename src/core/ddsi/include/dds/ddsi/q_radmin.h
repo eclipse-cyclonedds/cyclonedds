@@ -102,10 +102,11 @@ struct nn_rmsg {
 #define NN_RMSG_PAYLOADOFF(m, o) (NN_RMSG_PAYLOAD (m) + (o))
 
 struct receiver_state {
-  ddsi_guid_prefix_t src_guid_prefix;       /* 12 */
-  ddsi_guid_prefix_t dst_guid_prefix;       /* 12 */
+  ddsi_guid_prefix_t src_guid_prefix;     /* 12 */
+  ddsi_guid_prefix_t dst_guid_prefix;     /* 12 */
   struct addrset *reply_locators;         /* 4/8 */
-  int forme;                              /* 4 */
+  uint32_t forme:1;                       /* 4 */
+  uint32_t rtps_encoded:1;                /* - */
   nn_vendorid_t vendor;                   /* 2 */
   nn_protocol_version_t protocol_version; /* 2 => 44/48 */
   ddsi_tran_conn_t conn;                  /* Connection for request */

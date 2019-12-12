@@ -13,6 +13,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/string.h"
@@ -91,7 +92,6 @@
 #define PID_ENDPOINT_SECURITY_INFO              0x1004u
 #define PID_PARTICIPANT_SECURITY_INFO           0x1005u
 #define PID_IDENTITY_STATUS_TOKEN               0x1006u
-
 
 struct DDS_Security_Serializer {
     unsigned char *buffer;
@@ -211,7 +211,7 @@ DDS_Security_Serialize_update_len(
 {
     unsigned short len;
 
-    len = (unsigned short)(ser->offset - ser->marker - sizeof(unsigned short));
+    len = (unsigned short)(ser->offset - ser->marker - sizeof(len));
     *(unsigned short *)&(ser->buffer[ser->marker]) = ddsrt_toBE2u(len);
 }
 
@@ -220,11 +220,11 @@ DDS_Security_Serialize_uint16(
      DDS_Security_Serializer ser,
      unsigned short value)
 {
-    serbuffer_align(ser, sizeof(unsigned short));
-    serbuffer_adjust_size(ser, sizeof(unsigned short));
+    serbuffer_align(ser, sizeof(value));
+    serbuffer_adjust_size(ser, sizeof(value));
 
     *(unsigned short *)&(ser->buffer[ser->offset]) = ddsrt_toBE2u(value);
-    ser->offset += sizeof(unsigned short);
+    ser->offset += sizeof(value);
 }
 
 static void
@@ -232,11 +232,11 @@ DDS_Security_Serialize_uint32_t(
      DDS_Security_Serializer ser,
      uint32_t value)
 {
-    serbuffer_align(ser, sizeof(uint32_t));
-    serbuffer_adjust_size(ser, sizeof(uint32_t));
+    serbuffer_align(ser, sizeof(value));
+    serbuffer_adjust_size(ser, sizeof(value));
 
     *(uint32_t *)&(ser->buffer[ser->offset]) = ddsrt_toBE4u(value);
-    ser->offset += sizeof(uint32_t);
+    ser->offset += sizeof(value);
 }
 
 static void
@@ -244,12 +244,10 @@ DDS_Security_Serialize_string(
      DDS_Security_Serializer ser,
      const char *str)
 {
-    size_t len;
-
-    len = strlen(str) + 1;
+    size_t len = strlen(str) + 1;
 
     DDS_Security_Serialize_uint32_t(ser, (uint32_t)len);
-    serbuffer_adjust_size(ser, len );
+    serbuffer_adjust_size(ser, len);
 
     memcpy(&(ser->buffer[ser->offset]), str, len);
     ser->offset += len;
@@ -416,7 +414,7 @@ DDS_Security_Serialize_ParticipantSecurityInfo(
 
 
 void
-DDD_Security_Serialize_ParticipantBuiltinTopicData(
+DDS_Security_Serialize_ParticipantBuiltinTopicData(
      DDS_Security_Serializer ser,
      DDS_Security_ParticipantBuiltinTopicData *pdata)
 {
@@ -432,7 +430,7 @@ DDD_Security_Serialize_ParticipantBuiltinTopicData(
 }
 
 static void
-DDD_Security_Serialize_OctetArray(
+DDS_Security_Serialize_OctetArray(
      DDS_Security_Serializer ser,
      const DDS_Security_octet *data,
      uint32_t length)
@@ -443,15 +441,15 @@ DDD_Security_Serialize_OctetArray(
 }
 
 void
-DDD_Security_Serialize_KeyMaterial_AES_GCM_GMAC(
+DDS_Security_Serialize_KeyMaterial_AES_GCM_GMAC(
      DDS_Security_Serializer ser,
      const DDS_Security_KeyMaterial_AES_GCM_GMAC *data)
 {
-    DDD_Security_Serialize_OctetArray(ser, data->transformation_kind, sizeof(data->transformation_kind));
+    DDS_Security_Serialize_OctetArray(ser, data->transformation_kind, sizeof(data->transformation_kind));
     DDS_Security_Serialize_OctetSeq(ser, &data->master_salt);
-    DDD_Security_Serialize_OctetArray(ser, data->sender_key_id, sizeof(data->sender_key_id));
+    DDS_Security_Serialize_OctetArray(ser, data->sender_key_id, sizeof(data->sender_key_id));
     DDS_Security_Serialize_OctetSeq(ser, &data->master_sender_key);
-    DDD_Security_Serialize_OctetArray(ser, data->receiver_specific_key_id, sizeof(data->receiver_specific_key_id));
+    DDS_Security_Serialize_OctetArray(ser, data->receiver_specific_key_id, sizeof(data->receiver_specific_key_id));
     DDS_Security_Serialize_OctetSeq(ser, &data->master_receiver_specific_key);
 }
 
@@ -500,7 +498,7 @@ DDS_Security_Deserialize_uint16(
      DDS_Security_Deserializer dser,
      unsigned short *value)
 {
-    size_t l = sizeof(unsigned short);
+    size_t l = sizeof(*value);
 
     DDS_Security_Deserialize_align(dser, l);
 
@@ -519,7 +517,7 @@ DDS_Security_Deserialize_uint32_t(
      DDS_Security_Deserializer dser,
      uint32_t *value)
 {
-    size_t l = sizeof(uint32_t);
+    size_t l = sizeof(*value);
 
     DDS_Security_Deserialize_align(dser, l);
 
@@ -692,9 +690,7 @@ DDS_Security_Deserialize_BuiltinTopicKey(
      DDS_Security_Deserializer dser,
      DDS_Security_BuiltinTopicKey_t key)
 {
-    int r;
-
-    r = DDS_Security_Deserialize_uint32_t(dser, (uint32_t *)&key[0]) &&
+    int r = DDS_Security_Deserialize_uint32_t(dser, (uint32_t *)&key[0]) &&
         DDS_Security_Deserialize_uint32_t(dser, (uint32_t *)&key[1]) &&
         DDS_Security_Deserialize_uint32_t(dser, (uint32_t *)&key[2]);
 
@@ -710,16 +706,12 @@ DDS_Security_Deserialize_ParticipantSecurityInfo(
     DDS_Security_Deserializer dser,
     DDS_Security_ParticipantSecurityInfo *info)
 {
-    int r;
-
-    r =  DDS_Security_Deserialize_uint32_t(dser, &info->participant_security_attributes) &&
+    return DDS_Security_Deserialize_uint32_t(dser, &info->participant_security_attributes) &&
          DDS_Security_Deserialize_uint32_t(dser, &info->plugin_participant_security_attributes);
-
-    return r;
 }
 
 int
-DDD_Security_Deserialize_ParticipantBuiltinTopicData(
+DDS_Security_Deserialize_ParticipantBuiltinTopicData(
      DDS_Security_Deserializer dser,
      DDS_Security_ParticipantBuiltinTopicData *pdata,
      DDS_Security_SecurityException *ex)
@@ -786,7 +778,7 @@ DDD_Security_Deserialize_ParticipantBuiltinTopicData(
 }
 
 void
-DDD_Security_BuiltinTopicKeyBE(
+DDS_Security_BuiltinTopicKeyBE(
      DDS_Security_BuiltinTopicKey_t dst,
      const  DDS_Security_BuiltinTopicKey_t src)
 {
@@ -796,18 +788,16 @@ DDD_Security_BuiltinTopicKeyBE(
 }
 
 int
-DDD_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(
+DDS_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(
      DDS_Security_Deserializer dser,
      DDS_Security_KeyMaterial_AES_GCM_GMAC *data)
 {
-    int r = 0;
-
-    r = DDS_Security_Deserialize_OctetArray(dser, data->transformation_kind, sizeof(data->transformation_kind)) &&
+    memset(data, 0, sizeof(*data));
+    return
+        DDS_Security_Deserialize_OctetArray(dser, data->transformation_kind, sizeof(data->transformation_kind)) &&
         DDS_Security_Deserialize_OctetSeq(dser, &data->master_salt) &&
         DDS_Security_Deserialize_OctetArray(dser, data->sender_key_id, sizeof(data->sender_key_id)) &&
         DDS_Security_Deserialize_OctetSeq(dser, &data->master_sender_key) &&
         DDS_Security_Deserialize_OctetArray(dser, data->receiver_specific_key_id, sizeof(data->receiver_specific_key_id)) &&
         DDS_Security_Deserialize_OctetSeq(dser, &data->master_receiver_specific_key);
-
-    return r;
 }

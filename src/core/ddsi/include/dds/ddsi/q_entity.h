@@ -16,6 +16,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_lat_estim.h"
 #include "dds/ddsi/q_ephash.h"
@@ -318,6 +319,9 @@ struct proxy_participant
   unsigned proxypp_have_spdp: 1;
   unsigned proxypp_have_cm: 1;
   unsigned owns_lease: 1;
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_security_info_t security_info;
+#endif
 };
 
 /* Representing proxy subscriber & publishers as "groups": until DDSI2
@@ -345,6 +349,9 @@ struct proxy_endpoint_common
   ddsi_guid_t group_guid; /* 0:0:0:0 if not available */
   nn_vendorid_t vendor; /* cached from proxypp->vendor */
   seqno_t seq; /* sequence number of most recent SEDP message */
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_security_info_t security_info;
+#endif
 };
 
 struct proxy_writer {

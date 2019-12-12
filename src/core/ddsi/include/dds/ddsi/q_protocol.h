@@ -163,6 +163,12 @@ typedef enum SubmessageKind {
   SMID_HEARTBEAT_FRAG = 0x13,
   SMID_DATA = 0x15,
   SMID_DATA_FRAG = 0x16,
+  /* security-specific sub messages */
+  SMID_SEC_BODY = 0x30,
+  SMID_SEC_PREFIX = 0x31,
+  SMID_SEC_POSTFIX = 0x32,
+  SMID_SRTPS_PREFIX = 0x33,
+  SMID_SRTPS_POSTFIX = 0x34,
   /* vendor-specific sub messages (0x80 .. 0xff) */
   SMID_PT_INFO_CONTAINER = 0x80,
   SMID_PT_MSG_LEN = 0x81,

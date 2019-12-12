@@ -65,12 +65,12 @@ DDS_Security_Serialize_DataHolderSeq(
      const DDS_Security_DataHolderSeq *seq);
 
 DDS_EXPORT void
-DDD_Security_Serialize_ParticipantBuiltinTopicData(
+DDS_Security_Serialize_ParticipantBuiltinTopicData(
      DDS_Security_Serializer ser,
      DDS_Security_ParticipantBuiltinTopicData *pdata);
 
 DDS_EXPORT void
-DDD_Security_Serialize_KeyMaterial_AES_GCM_GMAC(
+DDS_Security_Serialize_KeyMaterial_AES_GCM_GMAC(
      DDS_Security_Serializer ser,
      const DDS_Security_KeyMaterial_AES_GCM_GMAC *data);
 
@@ -84,18 +84,18 @@ DDS_Security_Deserializer_free(
      DDS_Security_Deserializer deserializer);
 
 DDS_EXPORT int
-DDD_Security_Deserialize_ParticipantBuiltinTopicData(
+DDS_Security_Deserialize_ParticipantBuiltinTopicData(
      DDS_Security_Deserializer deserializer,
      DDS_Security_ParticipantBuiltinTopicData *pdata,
      DDS_Security_SecurityException *ex);
 
 DDS_EXPORT void
-DDD_Security_BuiltinTopicKeyBE(
+DDS_Security_BuiltinTopicKeyBE(
      DDS_Security_BuiltinTopicKey_t dst,
      const  DDS_Security_BuiltinTopicKey_t src);
 
 DDS_EXPORT int
-DDD_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(
+DDS_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(
      DDS_Security_Deserializer dser,
      DDS_Security_KeyMaterial_AES_GCM_GMAC *data);
 

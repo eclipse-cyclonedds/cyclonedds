@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "CUnit/Theory.h"
+#include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 
 typedef enum { eq, lt, gt } eq_t;
@@ -65,5 +66,28 @@ CU_Theory((const char *s1, const char *s2, size_t n, eq_t e), ddsrt_strncasecmp,
 {
   int r = ddsrt_strncasecmp(s1, s2, n);
   CU_ASSERT((e == eq && r == 0) || (e == lt && r < 0) || (e == gt && r > 0));
+}
+
+CU_TheoryDataPoints(ddsrt_str_replace, basic) = {
+  CU_DataPoints(const char *,  "",  "a", "aaa",  "aaa",   "aaa", "aaa",   "a", "aa",    "acaca", "aacaacaa", "aaa"),
+  CU_DataPoints(const char *, "a",   "",   "a",    "a",     "a",  "aa", "aaa",  "a",        "a",       "aa",   "a"),
+  CU_DataPoints(const char *, "b",  "b",   "b",   "bb",    "bb",   "b",   "b",  "b",       "bb",        "b",    ""),
+  CU_DataPoints(size_t,         0,    0,     0,      1,       2,     0,     0,   10,          0,          2,     0),
+  CU_DataPoints(const char *,  "", NULL, "bbb", "bbaa", "bbbba",  "ba",   "a", "bb", "bbcbbcbb",   "bcbcaa",    ""),
+};
+
+CU_Theory((const char *str, const char *srch, const char *subst, size_t max, const char * exp), ddsrt_str_replace, basic)
+{
+  char * r = ddsrt_str_replace(str, srch, subst, max);
+  if (exp != NULL)
+  {
+    CU_ASSERT_FATAL(r != NULL);
+    CU_ASSERT(strcmp(r, exp) == 0);
+    ddsrt_free(r);
+  }
+  else
+  {
+    CU_ASSERT_FATAL(r == NULL);
+  }
 }
 

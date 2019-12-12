@@ -2150,7 +2150,7 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   ddsrt_avl_insert_ipath (&pwr_readers_treedef, &pwr->readers, m, &path);
   local_reader_ary_insert(&pwr->rdary, rd);
   ddsrt_mutex_unlock (&pwr->e.lock);
-  qxev_pwr_entityid (pwr, &rd->e.guid.prefix);
+  qxev_pwr_entityid (pwr, &rd->e.guid);
 
   ELOGDISC (pwr, "\n");
 
@@ -2197,7 +2197,7 @@ static void proxy_reader_add_connection (struct proxy_reader *prd, struct writer
               PGUID (wr->e.guid), PGUID (prd->e.guid));
     ddsrt_avl_insert_ipath (&prd_writers_treedef, &prd->writers, m, &path);
     ddsrt_mutex_unlock (&prd->e.lock);
-    qxev_prd_entityid (prd, &wr->e.guid.prefix);
+    qxev_prd_entityid (prd, &wr->e.guid);
   }
 }
 
@@ -4039,6 +4039,8 @@ void new_proxy_participant
   nn_xqos_mergein_missing (&proxypp->plist->qos, &gv->default_plist_pp.qos, ~(uint64_t)0);
   ddsrt_avl_init (&proxypp_groups_treedef, &proxypp->groups);
 
+  set_proxy_participant_security_info(proxypp, plist);
+
   if (custom_flags & CF_INC_KERNEL_SEQUENCE_NUMBERS)
     proxypp->kernel_sequence_numbers = 1;
   else
@@ -4354,6 +4356,11 @@ static void proxy_endpoint_common_init (struct entity_common *e, struct proxy_en
   else
     memset (&c->group_guid, 0, sizeof (c->group_guid));
 
+#ifdef DDSI_INCLUDE_SECURITY
+  c->security_info.security_attributes = 0;
+  c->security_info.plugin_security_attributes = 0;
+#endif
+
   ref_proxy_participant (proxypp, c);
 }
 
@@ -4473,6 +4480,8 @@ int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
   pwr->ddsi2direct_cb = 0;
   pwr->ddsi2direct_cbarg = 0;
 
+  set_proxy_writer_security_info(pwr, plist);
+
   local_reader_ary_init (&pwr->rdary);
 
   /* locking the entity prevents matching while the built-in topic hasn't been published yet */
@@ -4516,7 +4525,7 @@ void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset 
         rd = ephash_lookup_reader_guid (pwr->e.gv->guid_hash, &m->rd_guid);
         if (rd)
         {
-          qxev_pwr_entityid (pwr, &rd->e.guid.prefix);
+          qxev_pwr_entityid (pwr, &rd->e.guid);
         }
         m = ddsrt_avl_iter_next (&iter);
       }
@@ -4573,7 +4582,7 @@ void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset 
           ddsrt_mutex_lock (&wr->e.lock);
           rebuild_writer_addrset (wr);
           ddsrt_mutex_unlock (&wr->e.lock);
-          qxev_prd_entityid (prd, &wr->e.guid.prefix);
+          qxev_prd_entityid (prd, &wr->e.guid);
         }
         wrguid = guid_next;
         ddsrt_mutex_lock (&prd->e.lock);
@@ -4660,6 +4669,8 @@ int new_proxy_reader (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
   prd->favours_ssm = (favours_ssm && gv->config.allowMulticast & AMC_SSM) ? 1 : 0;
 #endif
   prd->is_fict_trans_reader = 0;
+
+  set_proxy_reader_security_info(prd, plist);
 
   ddsrt_avl_init (&prd_writers_treedef, &prd->writers);
 
