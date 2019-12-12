@@ -206,6 +206,9 @@ is_proxy_participant_deletion_allowed(
   assert(gv);
   assert(guid);
 
+  /* TODO: Check if the proxy writer guid prefix matches that of the proxy
+   *       participant. Deletion is not allowed when they're not equal. */
+
   /* Always allow deletion from a secure proxy writer. */
   if (pwr_entityid.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER)
     return true;

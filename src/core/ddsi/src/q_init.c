@@ -140,6 +140,29 @@ static void make_builtin_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
   q->durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
 }
 
+#ifdef DDSI_INCLUDE_SECURITY
+static void make_builtin_volatile_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
+{
+  nn_xqos_copy (q, template);
+  q->reliability.kind = DDS_RELIABILITY_RELIABLE;
+  q->reliability.max_blocking_time = 100 * T_MILLISECOND;
+  q->durability.kind = DDS_DURABILITY_VOLATILE;
+  q->history.kind = DDS_HISTORY_KEEP_ALL;
+}
+
+static void add_property_to_xqos(dds_qos_t *q, const char *name, const char *value)
+{
+  assert(!(q->present & QP_PROPERTY_LIST));
+  q->present |= QP_PROPERTY_LIST;
+  q->property.value.n = 1;
+  q->property.value.props = ddsrt_malloc(sizeof(dds_property_t));
+  q->property.binary_value.n = 0;
+  q->property.binary_value.props = NULL;
+  q->property.value.props[0].name = ddsrt_strdup(name);
+  q->property.value.props[0].value = ddsrt_strdup(value);
+}
+#endif
+
 static int set_recvips (struct q_globals *gv)
 {
   gv->recvips = NULL;
@@ -1014,10 +1037,17 @@ int rtps_init (struct q_globals *gv)
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_rd, &gv->default_xqos_rd);
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_wr, &gv->default_xqos_wr);
 #ifdef DDSI_INCLUDE_SECURITY
+  make_builtin_volatile_endpoint_xqos(&gv->builtin_volatile_xqos_rd, &gv->default_xqos_rd);
+  make_builtin_volatile_endpoint_xqos(&gv->builtin_volatile_xqos_wr, &gv->default_xqos_wr);
   nn_xqos_copy (&gv->builtin_stateless_xqos_rd, &gv->default_xqos_rd);
   nn_xqos_copy (&gv->builtin_stateless_xqos_wr, &gv->default_xqos_wr);
   gv->builtin_stateless_xqos_wr.reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
   gv->builtin_stateless_xqos_wr.durability.kind = DDS_DURABILITY_VOLATILE;
+
+  /* Setting these properties allows the CryptoKeyFactory to recognize
+   * the entities (see DDS Security spec chapter 8.8.8.1). */
+  add_property_to_xqos(&gv->builtin_volatile_xqos_rd, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureReader");
+  add_property_to_xqos(&gv->builtin_volatile_xqos_wr, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureWriter");
 #endif
 
   make_special_topics (gv);
@@ -1338,6 +1368,8 @@ err_unicast_sockets:
 #ifdef DDSI_INCLUDE_SECURITY
   nn_xqos_fini (&gv->builtin_stateless_xqos_wr);
   nn_xqos_fini (&gv->builtin_stateless_xqos_rd);
+  nn_xqos_fini (&gv->builtin_volatile_xqos_wr);
+  nn_xqos_fini (&gv->builtin_volatile_xqos_rd);
 #endif
   nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);
@@ -1670,6 +1702,8 @@ void rtps_fini (struct q_globals *gv)
 #ifdef DDSI_INCLUDE_SECURITY
   nn_xqos_fini (&gv->builtin_stateless_xqos_wr);
   nn_xqos_fini (&gv->builtin_stateless_xqos_rd);
+  nn_xqos_fini (&gv->builtin_volatile_xqos_wr);
+  nn_xqos_fini (&gv->builtin_volatile_xqos_rd);
 #endif
   nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);

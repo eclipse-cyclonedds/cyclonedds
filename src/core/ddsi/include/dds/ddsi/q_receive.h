@@ -21,11 +21,25 @@ struct nn_rsample_info;
 struct nn_rdata;
 struct ddsi_tran_listener;
 struct recv_thread_arg;
+struct writer;
+struct proxy_reader;
+
+struct nn_gap_info {
+  int64_t gapstart;
+  int64_t gapend;
+  unsigned gapnumbits;
+  unsigned gapbits[256 / 32];
+};
+
+void nn_gap_info_init(struct nn_gap_info *gi);
+void nn_gap_info_update(struct q_globals *gv, struct nn_gap_info *gi, int64_t seqnr);
+struct nn_xmsg * nn_gap_info_create_gap(struct writer *wr, struct proxy_reader *prd, struct nn_gap_info *gi);
 
 void trigger_recv_threads (const struct q_globals *gv);
 uint32_t recv_thread (void *vrecv_thread_arg);
 uint32_t listen_thread (struct ddsi_tran_listener * listener);
 int user_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);
+int add_Gap (struct nn_xmsg *msg, struct writer *wr, struct proxy_reader *prd, seqno_t start, seqno_t base, uint32_t numbits, const uint32_t *bits);
 
 #if defined (__cplusplus)
 }

@@ -36,6 +36,11 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
 int writer_hbcontrol_must_send (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow);
 struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, int hbansreq, int issync);
 
+#ifdef DDSI_INCLUDE_SECURITY
+struct nn_xmsg *writer_hbcontrol_p2p(struct writer *wr, const struct whc_state *whcst, int hbansreq, struct proxy_reader *prd);
+#endif
+
+
 #if defined (__cplusplus)
 }
 #endif

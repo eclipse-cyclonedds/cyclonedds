@@ -238,6 +238,8 @@ struct q_globals {
   dds_qos_t builtin_endpoint_xqos_rd;
   dds_qos_t builtin_endpoint_xqos_wr;
 #ifdef DDSI_INCLUDE_SECURITY
+  dds_qos_t builtin_volatile_xqos_rd;
+  dds_qos_t builtin_volatile_xqos_wr;
   dds_qos_t builtin_stateless_xqos_rd;
   dds_qos_t builtin_stateless_xqos_wr;
 #endif

@@ -1546,11 +1546,6 @@ static int nn_xpack_mayaddmsg (const struct nn_xpack *xp, const struct nn_xmsg *
   return addressing_info_eq_onesidederr (xp, m);
 }
 
-static int guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_prefix_t *b)
-{
-  return a->u[0] == b->u[0] && a->u[1] == b->u[1] && a->u[2] == b->u[2];
-}
-
 int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flags)
 {
   /* Returns > 0 if pack got sent out before adding m */
