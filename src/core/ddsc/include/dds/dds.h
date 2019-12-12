@@ -1712,12 +1712,28 @@ DDS_EXPORT void
 dds_write_flush(dds_entity_t writer);
 
 /**
- * @brief Write a CDR serialized value of a data instance
+ * @brief Write a serialized value of a data instance
+ *
+ * This call causes the writer to write the serialized value that is provided
+ * in the serdata argument.
  *
  * @param[in]  writer The writer entity.
- * @param[in]  serdata CDR serialized value to be written.
+ * @param[in]  serdata Serialized value to be written.
  *
  * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The writer successfully wrote the serialized value.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval DDS_RETCODE_TIMEOUT
+ *             The writer failed to write the serialized value reliably within the specified max_blocking_time.
  */
 DDS_EXPORT dds_return_t
 dds_writecdr(dds_entity_t writer, struct ddsi_serdata *serdata);
@@ -2669,24 +2685,24 @@ dds_take_mask_wl(
   uint32_t mask);
 
 /**
- * @brief Access the collection of CDR serialized data values (of same type) and
+ * @brief Access the collection of serialized data values (of same type) and
  *        sample info from the data reader, readcondition or querycondition.
  *
- * This call accesses the data in CDR format from the data reader or readcondition
- * and makes it available to the application. CDR is the Common Data Representation
- * format that is used as the default ddsi wire format to exchange data between DDS
- * participants. Once read the data is removed from the reader and cannot be 'read'
- * or 'taken' again.
+ * This call accesses the serialized data from the data reader, readcondition or
+ * querycondition and makes it available to the application. The serialized data
+ * is made available through \ref ddsi_serdata structures. Once read the data is
+ * removed from the reader and cannot be 'read' or 'taken' again.
  *
- * Return value provides information about number of samples read, which will
- * be <= maxs. Based on the count, the buffer will contain data to be read only
- * when valid_data bit in sample info structure is set.
+ * Return value provides information about the number of samples read, which will
+ * be <= maxs. Based on the count, the buffer will contain serialized data to be
+ * read only when valid_data bit in sample info structure is set.
  * The buffer required for data values, could be allocated explicitly or can
  * use the memory from data reader to prevent copy. In the latter case, buffer and
  * sample_info should be returned back, once it is no longer using the data.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples in CDR format into which data is read (pointers can be NULL).
+ * @param[out] buf An array of pointers to \ref ddsi_serdata structures that contain
+ *                 the serialized data. The pointers can be NULL.
  * @param[in]  maxs Maximum number of samples to read.
  * @param[out] si Pointer to an array of \ref dds_sample_info_t returned for each data value.
  * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
@@ -2703,6 +2719,8 @@ dds_take_mask_wl(
  *             The operation is invoked on an inappropriate object.
  * @retval DDS_RETCODE_ALREADY_DELETED
  *             The entity has already been deleted.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             The precondition for this operation is not met.
  */
 DDS_EXPORT dds_return_t
 dds_takecdr(
