@@ -346,10 +346,11 @@ static uint32_t debmon_main (void *vdm)
   return 0;
 }
 
-struct debug_monitor *new_debug_monitor (struct q_globals *gv, int port)
+struct debug_monitor *new_debug_monitor (struct q_globals *gv, int32_t port)
 {
   struct debug_monitor *dm;
 
+  /* negative port number means the feature is disabled */
   if (gv->config.monitor_port < 0)
     return NULL;
 
@@ -362,7 +363,14 @@ struct debug_monitor *new_debug_monitor (struct q_globals *gv, int port)
   dm->plugins = NULL;
   if ((dm->tran_factory = ddsi_factory_find (gv, "tcp")) == NULL)
     dm->tran_factory = ddsi_factory_find (gv, "tcp6");
-  dm->servsock = ddsi_factory_create_listener (dm->tran_factory, port, NULL);
+
+  if (!ddsi_is_valid_port (dm->tran_factory, (uint32_t) port))
+  {
+    GVERROR ("debug monitor port number %"PRId32" is invalid\n", port);
+    goto err_invalid_port;
+  }
+
+  dm->servsock = ddsi_factory_create_listener (dm->tran_factory, (uint32_t) port, NULL);
   if (dm->servsock == NULL)
   {
     GVWARNING ("debmon: can't create socket\n");
@@ -381,7 +389,8 @@ struct debug_monitor *new_debug_monitor (struct q_globals *gv, int port)
   if (ddsi_listener_listen (dm->servsock) < 0)
     goto err_listen;
   dm->stop = 0;
-  create_thread (&dm->servts, gv, "debmon", debmon_main, dm);
+  if (create_thread (&dm->servts, gv, "debmon", debmon_main, dm) != DDS_RETCODE_OK)
+    goto err_listen;
   return dm;
 
 err_listen:
@@ -389,6 +398,7 @@ err_listen:
   ddsrt_mutex_destroy(&dm->lock);
   ddsi_listener_free(dm->servsock);
 err_servsock:
+err_invalid_port:
   ddsrt_free(dm);
   return NULL;
 }

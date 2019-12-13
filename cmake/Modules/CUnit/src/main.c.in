@@ -222,6 +222,7 @@ int main(int argc, char *argv[])
         }
         CU_automated_run_tests();
     } else {
+        CU_set_fail_on_inactive(0);
         CU_basic_set_mode(opts.mode);
         CU_basic_run_tests();
     }

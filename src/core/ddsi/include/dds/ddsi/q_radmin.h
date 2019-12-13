@@ -98,7 +98,8 @@ struct nn_rmsg {
 
   struct nn_rmsg_chunk chunk;
 };
-#define NN_RMSG_PAYLOAD(m) ((unsigned char *) (&(m)->chunk + 1))
+DDSRT_STATIC_ASSERT (sizeof (struct nn_rmsg) == offsetof (struct nn_rmsg, chunk) + sizeof (struct nn_rmsg_chunk));
+#define NN_RMSG_PAYLOAD(m) ((unsigned char *) (m + 1))
 #define NN_RMSG_PAYLOADOFF(m, o) (NN_RMSG_PAYLOAD (m) + (o))
 
 struct receiver_state {

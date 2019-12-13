@@ -1,3 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xml-model href="https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd"
+        schematypens="http://www.w3.org/2001/XMLSchema" ?>
 <!--
   Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
 
@@ -9,10 +12,8 @@
 
   SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 -->
-<CycloneDDS>
-  <Domain>
-    <Id>any</Id>
-  </Domain>
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain Id="any">
   <General>
     <AllowMulticast>true</AllowMulticast>
     <EnableMulticastLoopback>true</EnableMulticastLoopback>
@@ -24,4 +25,5 @@
     <Verbosity>finest</Verbosity>
     <OutputFile>ddsi_${MPT_PROCESS_NAME}.log</OutputFile>
   </Tracing-->
+  </Domain>
 </CycloneDDS>

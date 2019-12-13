@@ -124,11 +124,10 @@ We will show you how to build and run an example program that measures latency. 
 built automatically when you build Cyclone DDS, so you don't need to follow these steps to be able
 to run the program, it is merely to illustrate the process.
 
-    $ cd cyclonedds/examples/roundtrip
-    $ mkdir build
-    $ cd build
-    $ cmake ..
-    $ make
+    $ mkdir roundtrip
+    $ cd roundtrip
+    $ cmake <install-location>/share/CycloneDDS/examples/roundtrip
+    $ cmake --build .
     
 On one terminal start the application that will be responding to pings:
 
@@ -186,12 +185,11 @@ point to it.  E.g. (on Linux):
 
     $ cat cyclonedds.xml
     <?xml version="1.0" encoding="UTF-8" ?>
-    <CycloneDDS xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://github.com/eclipse-cyclonedds/cyclonedds/etc/cyclonedds.xsd">
-    <CycloneDDS>
+    <CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd">
         <Domain id="any">
             <General>
                 <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>
-                <AllowMulticast>auto</AllowMulticast>
+                <AllowMulticast>default</AllowMulticast>
                 <MaxMessageSize>65500B</MaxMessageSize>
                 <FragmentSize>4000B</FragmentSize>
             </General>

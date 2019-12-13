@@ -71,36 +71,30 @@ static void add_peer_addresses (const struct q_globals *gv, struct addrset *as, 
   }
 }
 
-static int make_uc_sockets (struct q_globals *gv, uint32_t * pdisc, uint32_t * pdata, int ppid)
+enum make_uc_sockets_ret {
+  MUSRET_SUCCESS,
+  MUSRET_INVALID_PORTS,
+  MUSRET_NOSOCKET
+};
+
+static enum make_uc_sockets_ret make_uc_sockets (struct q_globals *gv, uint32_t * pdisc, uint32_t * pdata, int ppid)
 {
   if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
   {
     assert (ppid == PARTICIPANT_INDEX_NONE);
-    *pdata = *pdisc = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId);
+    *pdata = *pdisc = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, ppid);
     if (gv->config.allowMulticast)
     {
       /* FIXME: ugly hack - but we'll fix up after creating the multicast sockets */
-      return 0;
+      return MUSRET_SUCCESS;
     }
   }
 
-  if (ppid >= 0)
-  {
-    /* FIXME: verify port numbers are in range instead of truncating them like this */
-    uint32_t base = gv->config.port_base + (gv->config.port_dg * gv->config.domainId) + ((uint32_t) ppid * gv->config.port_pg);
-    *pdisc = base + gv->config.port_d1;
-    *pdata = base + gv->config.port_d3;
-  }
-  else if (ppid == PARTICIPANT_INDEX_NONE)
-  {
-    *pdata = 0;
-    *pdisc = 0;
-  }
-  else
-  {
-    DDS_FATAL ("make_uc_sockets: invalid participant index %d\n", ppid);
-    return -1;
-  }
+  *pdisc = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, ppid);
+  *pdata = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DATA, ppid);
+
+  if (!ddsi_is_valid_port (gv->m_factory, *pdisc) || !ddsi_is_valid_port (gv->m_factory, *pdata))
+    return MUSRET_INVALID_PORTS;
 
   gv->disc_conn_uc = ddsi_factory_create_conn (gv->m_factory, *pdisc, NULL);
   if (gv->disc_conn_uc)
@@ -123,13 +117,12 @@ static int make_uc_sockets (struct q_globals *gv, uint32_t * pdisc, uint32_t * p
     else
     {
       /* Set unicast locators */
-
       ddsi_conn_locator (gv->disc_conn_uc, &gv->loc_meta_uc);
       ddsi_conn_locator (gv->data_conn_uc, &gv->loc_default_uc);
     }
   }
 
-  return gv->data_conn_uc ? 0 : -1;
+  return gv->data_conn_uc ? MUSRET_SUCCESS : MUSRET_NOSOCKET;
 }
 
 static void make_builtin_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
@@ -309,7 +302,7 @@ static int string_to_default_locator (const struct q_globals *gv, nn_locator_t *
 
 static int set_spdp_address (struct q_globals *gv)
 {
-  const uint32_t port = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId + gv->config.port_d0);
+  const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
   int rc = 0;
   /* FIXME: FIXME: FIXME: */
   gv->loc_spdp_mc.kind = NN_LOCATOR_KIND_INVALID;
@@ -341,7 +334,7 @@ static int set_spdp_address (struct q_globals *gv)
 
 static int set_default_mc_address (struct q_globals *gv)
 {
-  const uint32_t port = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId + gv->config.port_d2);
+  const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DATA, 0);
   int rc;
   if (!gv->config.defaultMulticastAddressString)
     gv->loc_default_mc = gv->loc_spdp_mc;
@@ -481,6 +474,33 @@ int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
   unsigned num_channels = 0;
   unsigned num_channel_threads = 0;
 #endif
+
+  /* advertised domain id defaults to the real domain id; clear "isdefault" so the config
+     dump includes the actually used value rather than "default" */
+  if (gv->config.extDomainId.isdefault)
+  {
+    gv->config.extDomainId.value = gv->config.domainId;
+    gv->config.extDomainId.isdefault = 0;
+  }
+
+  {
+    char message[256];
+    int32_t ppidx;
+    if (gv->config.participantIndex >= 0 || gv->config.participantIndex == PARTICIPANT_INDEX_NONE)
+      ppidx = gv->config.participantIndex;
+    else if (gv->config.participantIndex == PARTICIPANT_INDEX_AUTO)
+      ppidx = gv->config.maxAutoParticipantIndex;
+    else
+    {
+      assert (0);
+      ppidx = 0;
+    }
+    if (!ddsi_valid_portmapping (&gv->config, ppidx, message, sizeof (message)))
+    {
+      DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "Invalid port mapping: %s\n", message);
+      goto err_config_late_error;
+    }
+  }
 
   /* retry_on_reject_duration default is dependent on late_ack_mode and responsiveness timeout, so fix up */
   if (gv->config.whc_init_highwater_mark.isdefault)
@@ -669,8 +689,13 @@ int create_multicast_sockets (struct q_globals *gv)
   uint32_t port;
   qos->m_multicast = 1;
 
-  /* FIXME: should check for overflow */
-  port = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId + gv->config.port_d0);
+  port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
+  if (!ddsi_is_valid_port (gv->m_factory, port))
+  {
+    GVERROR ("Failed to create discovery multicast socket for domain %"PRIu32": resulting port number (%"PRIu32") is out of range\n",
+             gv->config.extDomainId.value, port);
+    goto err_disc;
+  }
   if ((disc = ddsi_factory_create_conn (gv->m_factory, port, qos)) == NULL)
     goto err_disc;
   if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
@@ -680,16 +705,24 @@ int create_multicast_sockets (struct q_globals *gv)
   }
   else
   {
-    port = (uint32_t) (gv->config.port_base + gv->config.port_dg * gv->config.domainId + gv->config.port_d2);
+    port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DATA, 0);
+    if (!ddsi_is_valid_port (gv->m_factory, port))
+    {
+      GVERROR ("Failed to create data multicast socket for domain %"PRIu32": resulting port number (%"PRIu32") is out of range\n",
+               gv->config.extDomainId.value, port);
+      goto err_disc;
+    }
     if ((data = ddsi_factory_create_conn (gv->m_factory, port, qos)) == NULL)
+    {
       goto err_data;
+    }
   }
   ddsi_tran_free_qos (qos);
 
   gv->disc_conn_mc = disc;
   gv->data_conn_mc = data;
-  GVTRACE ("Multicast Ports: discovery %"PRIu32" data %"PRIu32" \n",
-           ddsi_conn_port (gv->disc_conn_mc), ddsi_conn_port (gv->data_conn_mc));
+  GVLOG (DDS_LC_CONFIG, "Multicast Ports: discovery %"PRIu32" data %"PRIu32" \n",
+         ddsi_conn_port (gv->disc_conn_mc), ddsi_conn_port (gv->data_conn_mc));
   return 1;
 
 err_data:
@@ -724,7 +757,7 @@ static void wait_for_receive_threads_helper (struct xevent *xev, void *varg, nn_
   if (arg->count++ == arg->gv->config.recv_thread_stop_maxretries)
     abort ();
   trigger_recv_threads (arg->gv);
-  resched_xevent_if_earlier (xev, add_duration_to_mtime (tnow, T_SECOND));
+  (void) resched_xevent_if_earlier (xev, add_duration_to_mtime (tnow, T_SECOND));
 }
 
 static void wait_for_receive_threads (struct q_globals *gv)
@@ -1003,7 +1036,7 @@ int rtps_init (struct q_globals *gv)
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   /* Convert address sets in partition mappings from string to address sets */
   {
-    const uint32_t port = gv->config.port_base + gv->config.port_dg * gv->config.domainId + gv->config.port_d2;
+    const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DATA, 0);
     struct config_networkpartition_listelem *np;
     for (np = gv->config.networkPartitions; np; np = np->next)
     {
@@ -1106,33 +1139,44 @@ int rtps_init (struct q_globals *gv)
   {
     if (gv->config.participantIndex >= 0 || gv->config.participantIndex == PARTICIPANT_INDEX_NONE)
     {
-      if (make_uc_sockets (gv, &port_disc_uc, &port_data_uc, gv->config.participantIndex) < 0)
+      enum make_uc_sockets_ret musret = make_uc_sockets (gv, &port_disc_uc, &port_data_uc, gv->config.participantIndex);
+      switch (musret)
       {
-        GVERROR ("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", gv->config.domainId, gv->config.participantIndex);
-        goto err_unicast_sockets;
+        case MUSRET_SUCCESS:
+          break;
+        case MUSRET_INVALID_PORTS:
+          GVERROR ("Failed to create unicast sockets for domain %"PRIu32" participant index %d: resulting port numbers (%"PRIu32", %"PRIu32") are out of range\n",
+                   gv->config.extDomainId.value, gv->config.participantIndex, port_disc_uc, port_data_uc);
+          goto err_unicast_sockets;
+        case MUSRET_NOSOCKET:
+          GVERROR ("rtps_init: failed to create unicast sockets for domain %"PRId32" participant index %d (ports %"PRIu32", %"PRIu32")\n", gv->config.extDomainId.value, gv->config.participantIndex, port_disc_uc, port_data_uc);
+          goto err_unicast_sockets;
       }
     }
     else if (gv->config.participantIndex == PARTICIPANT_INDEX_AUTO)
     {
       /* try to find a free one, and update gv->config.participantIndex */
+      enum make_uc_sockets_ret musret = MUSRET_NOSOCKET;
       int ppid;
       GVLOG (DDS_LC_CONFIG, "rtps_init: trying to find a free participant index\n");
-      for (ppid = 0; ppid <= gv->config.maxAutoParticipantIndex; ppid++)
+      for (ppid = 0; ppid <= gv->config.maxAutoParticipantIndex && musret == MUSRET_NOSOCKET; ppid++)
       {
-        int r = make_uc_sockets (gv, &port_disc_uc, &port_data_uc, ppid);
-        if (r == 0) /* Success! */
-          break;
-        else if (r == -1) /* Try next one */
-          continue;
-        else /* Oops! */
+        musret = make_uc_sockets (gv, &port_disc_uc, &port_data_uc, ppid);
+        switch (musret)
         {
-          GVERROR ("rtps_init: failed to create unicast sockets for domain %"PRId32" participant %d\n", gv->config.domainId, ppid);
-          goto err_unicast_sockets;
+          case MUSRET_SUCCESS:
+            break;
+          case MUSRET_INVALID_PORTS:
+            GVERROR ("Failed to create unicast sockets for domain %"PRIu32" participant index %d: resulting port numbers (%"PRIu32", %"PRIu32") are out of range\n",
+                     gv->config.extDomainId.value, ppid, port_disc_uc, port_data_uc);
+            goto err_unicast_sockets;
+          case MUSRET_NOSOCKET: /* Try next one */
+            break;
         }
       }
       if (ppid > gv->config.maxAutoParticipantIndex)
       {
-        GVERROR ("rtps_init: failed to find a free participant index for domain %"PRId32"\n", gv->config.domainId);
+        GVERROR ("Failed to find a free participant index for domain %"PRIu32"\n", gv->config.extDomainId.value);
         goto err_unicast_sockets;
       }
       gv->config.participantIndex = ppid;
@@ -1143,7 +1187,7 @@ int rtps_init (struct q_globals *gv)
     }
     GVLOG (DDS_LC_CONFIG, "rtps_init: uc ports: disc %"PRIu32" data %"PRIu32"\n", port_disc_uc, port_data_uc);
   }
-  GVLOG (DDS_LC_CONFIG, "rtps_init: domainid %"PRId32" participantid %d\n", gv->config.domainId, gv->config.participantIndex);
+  GVLOG (DDS_LC_CONFIG, "rtps_init: domainid %"PRIu32" participantid %d\n", gv->config.domainId, gv->config.participantIndex);
 
   if (gv->config.pcap_file && *gv->config.pcap_file)
   {
@@ -1193,9 +1237,15 @@ int rtps_init (struct q_globals *gv)
     /* Must have a data_conn_uc/tev_conn/transmit_conn */
     gv->data_conn_uc = ddsi_factory_create_conn (gv->m_factory, 0, NULL);
 
-    if (gv->config.tcp_port != -1)
+    if (gv->config.tcp_port == -1)
+      ; /* nop */
+    else if (!ddsi_is_valid_port (gv->m_factory, (uint32_t) gv->config.tcp_port))
     {
-      gv->listener = ddsi_factory_create_listener (gv->m_factory, gv->config.tcp_port, NULL);
+      GVERROR ("Listener port %d is out of range for transport %s\n", gv->config.tcp_port, gv->m_factory->m_typename);
+    }
+    else
+    {
+      gv->listener = ddsi_factory_create_listener (gv->m_factory, (uint32_t) gv->config.tcp_port, NULL);
       if (gv->listener == NULL || ddsi_listener_listen (gv->listener) != 0)
       {
         GVERROR ("Failed to create %s listener\n", gv->m_factory->m_typename);
@@ -1445,13 +1495,23 @@ int rtps_start (struct q_globals *gv)
   }
   if (gv->listener)
   {
-    create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) listen_thread, gv->listener);
-    /* FIXME: error handling */
+    if (create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) listen_thread, gv->listener) != DDS_RETCODE_OK)
+    {
+      GVERROR ("failed to create TCP listener thread\n");
+      ddsi_listener_free (gv->listener);
+      gv->listener = NULL;
+      rtps_stop (gv);
+      return -1;
+    }
   }
   if (gv->config.monitor_port >= 0)
   {
-    gv->debmon = new_debug_monitor (gv, gv->config.monitor_port);
-    /* FIXME: clean up */
+    if ((gv->debmon = new_debug_monitor (gv, gv->config.monitor_port)) == NULL)
+    {
+      GVERROR ("failed to create debug monitor thread\n");
+      rtps_stop (gv);
+      return -1;
+    }
   }
 
   return 0;

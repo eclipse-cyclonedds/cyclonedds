@@ -24,6 +24,7 @@ DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_subscriber, DDS_KIND_SUBSCRIBER)
 dds_entity_t
 dds__create_subscriber_l(
   struct dds_participant *participant, /* entity-lock must be held */
+  bool implicit,
   const dds_qos_t *qos,
   const dds_listener_t *listener);
 

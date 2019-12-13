@@ -103,25 +103,22 @@ static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrse
     if (!ddsi_is_mcaddr (gv, &loc))
     {
       assert (gv->config.maxAutoParticipantIndex >= 0);
-      for (uint32_t i = 0; i <= (uint32_t) gv->config.maxAutoParticipantIndex; i++)
+      for (int32_t i = 0; i <= gv->config.maxAutoParticipantIndex; i++)
       {
-        uint32_t port = gv->config.port_base + gv->config.port_dg * gv->config.domainId + i * gv->config.port_pg + gv->config.port_d1;
-        loc.port = (unsigned) port;
+        loc.port = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, i);
         if (i == 0)
           GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
         else
-          GVLOG (DDS_LC_CONFIG, ", :%"PRIu32, port);
+          GVLOG (DDS_LC_CONFIG, ", :%"PRIu32, loc.port);
         add_to_addrset (gv, as, &loc);
       }
     }
     else
     {
-      uint32_t port;
       if (port_mode == -1)
-        port = gv->config.port_base + gv->config.port_dg * gv->config.domainId + gv->config.port_d0;
+        loc.port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
       else
-        port = (uint32_t) port_mode;
-      loc.port = (unsigned) port;
+        loc.port = (uint32_t) port_mode;
       GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
       add_to_addrset (gv, as, &loc);
     }

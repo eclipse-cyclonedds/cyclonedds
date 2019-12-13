@@ -41,7 +41,7 @@ build_script:
   - cd install/share/CycloneDDS/examples/helloworld
   - mkdir build
   - cd build
-  - cmake -DCMAKE_BUILD_TYPE=%CONFIGURATION% -G "%GENERATOR%" ..
+  - cmake -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DCMAKE_PREFIX_PATH=%CD%/../../../../.. -G "%GENERATOR%" ..
   - cmake --build . --config %CONFIGURATION% -- /nologo /verbosity:minimal /maxcpucount /p:CL_MPCount=2
   - cd ../../../../../..
 

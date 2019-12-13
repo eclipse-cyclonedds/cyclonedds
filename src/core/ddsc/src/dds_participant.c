@@ -117,7 +117,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   }
 
   pp = dds_alloc (sizeof (*pp));
-  if ((ret = dds_entity_init (&pp->m_entity, &dom->m_entity, DDS_KIND_PARTICIPANT, new_qos, listener, DDS_PARTICIPANT_STATUS_MASK)) < 0)
+  if ((ret = dds_entity_init (&pp->m_entity, &dom->m_entity, DDS_KIND_PARTICIPANT, false, new_qos, listener, DDS_PARTICIPANT_STATUS_MASK)) < 0)
     goto err_entity_init;
 
   pp->m_entity.m_guid = guid;
@@ -126,14 +126,14 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   pp->m_builtin_subscriber = 0;
 
   /* Add participant to extent */
-  ddsrt_mutex_lock (&dds_global.m_entity.m_mutex);
+  ddsrt_mutex_lock (&dom->m_entity.m_mutex);
   dds_entity_register_child (&dom->m_entity, &pp->m_entity);
-  ddsrt_mutex_unlock (&dds_global.m_entity.m_mutex);
+  ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
 
   dds_entity_init_complete (&pp->m_entity);
   /* drop temporary extra ref to domain, dds_init */
-  dds_delete (dom->m_entity.m_hdllink.hdl);
-  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
+  dds_entity_unpin_and_drop_ref (&dom->m_entity);
+  dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
   return ret;
 
 err_entity_init:
@@ -141,9 +141,9 @@ err_entity_init:
 err_new_participant:
 err_qos_validation:
   dds_delete_qos (new_qos);
-  dds_delete (dom->m_entity.m_hdllink.hdl);
+  dds_entity_unpin_and_drop_ref (&dom->m_entity);
 err_domain_create:
-  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
+  dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
 err_dds_init:
   return ret;
 }
@@ -175,6 +175,6 @@ dds_return_t dds_lookup_participant (dds_domainid_t domain_id, dds_entity_t *par
     }
   }
   ddsrt_mutex_unlock (&dds_global.m_mutex);
-  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
+  dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
   return ret;
 }

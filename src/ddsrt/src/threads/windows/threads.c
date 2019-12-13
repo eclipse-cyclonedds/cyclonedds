@@ -313,7 +313,7 @@ ddsrt_thread_setname(
     }
 #pragma warning(pop)
   }
-  ddsrt_strlcpy (thread_name, name, sizeof (thread_name));
+  (void)ddsrt_strlcpy (thread_name, name, sizeof (thread_name));
 }
 
 dds_return_t

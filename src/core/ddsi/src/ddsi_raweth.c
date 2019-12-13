@@ -42,13 +42,13 @@ static char *ddsi_raweth_to_string (ddsi_tran_factory_t tran, char *dst, size_t 
 {
   (void)tran;
   if (with_port)
-    snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
-             loc->address[10], loc->address[11], loc->address[12],
-             loc->address[13], loc->address[14], loc->address[15], loc->port);
+    (void) snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
+                    loc->address[10], loc->address[11], loc->address[12],
+                    loc->address[13], loc->address[14], loc->address[15], loc->port);
   else
-    snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x]",
-             loc->address[10], loc->address[11], loc->address[12],
-             loc->address[13], loc->address[14], loc->address[15]);
+    (void) snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x]",
+                    loc->address[10], loc->address[11], loc->address[12],
+                    loc->address[13], loc->address[14], loc->address[15]);
   return dst;
 }
 
@@ -94,9 +94,9 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
         )
     {
       char addrbuf[DDSI_LOCSTRLEN];
-      snprintf(addrbuf, sizeof(addrbuf), "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
-               src.sll_addr[0], src.sll_addr[1], src.sll_addr[2],
-               src.sll_addr[3], src.sll_addr[4], src.sll_addr[5], ntohs(src.sll_protocol));
+      (void) snprintf(addrbuf, sizeof(addrbuf), "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
+                      src.sll_addr[0], src.sll_addr[1], src.sll_addr[2],
+                      src.sll_addr[3], src.sll_addr[4], src.sll_addr[5], ntohs(src.sll_protocol));
       DDS_CWARNING(&conn->m_base.gv->logconfig, "%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
     }
   }
@@ -356,6 +356,12 @@ static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t fact, enum tran
   return ddsrt_getifaddrs(ifs, afs);
 }
 
+static int ddsi_raweth_is_valid_port (ddsi_tran_factory_t fact, uint32_t port)
+{
+  (void) fact;
+  return (port >= 1 && port <= 65535);
+}
+
 int ddsi_raweth_init (struct q_globals *gv)
 {
   struct ddsi_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
@@ -377,6 +383,7 @@ int ddsi_raweth_init (struct q_globals *gv)
   fact->m_locator_from_string_fn = ddsi_raweth_address_from_string;
   fact->m_locator_to_string_fn = ddsi_raweth_to_string;
   fact->m_enumerate_interfaces_fn = ddsi_raweth_enumerate_interfaces;
+  fact->m_is_valid_port_fn = ddsi_raweth_is_valid_port;
   ddsi_factory_add (gv, fact);
   GVLOG (DDS_LC_CONFIG, "raweth initialized\n");
   return 0;

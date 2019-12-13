@@ -44,6 +44,7 @@
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/ddsi_security_omg.h"
+#include "dds/ddsi/ddsi_pmd.h"
 
 static int get_locator (const struct q_globals *gv, nn_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)
 {
@@ -217,12 +218,25 @@ int spdp_write (struct participant *pp)
 
   nn_plist_init_empty (&ps);
   ps.present |= PP_PARTICIPANT_GUID | PP_BUILTIN_ENDPOINT_SET |
-    PP_PROTOCOL_VERSION | PP_VENDORID | PP_PARTICIPANT_LEASE_DURATION;
+    PP_PROTOCOL_VERSION | PP_VENDORID | PP_PARTICIPANT_LEASE_DURATION |
+    PP_DOMAIN_ID;
   ps.participant_guid = pp->e.guid;
   ps.builtin_endpoint_set = pp->bes;
   ps.protocol_version.major = RTPS_MAJOR;
   ps.protocol_version.minor = RTPS_MINOR;
   ps.vendorid = NN_VENDORID_ECLIPSE;
+  ps.domain_id = pp->e.gv->config.extDomainId.value;
+  /* Be sure not to send a DOMAIN_TAG when it is the default (an empty)
+     string: it is an "incompatible-if-unrecognized" parameter, and so
+     implementations that don't understand the parameter will refuse to
+     discover us, and so sending the default would break backwards
+     compatibility. */
+  if (strcmp (pp->e.gv->config.domainTag, "") != 0)
+  {
+    ps.present |= PP_DOMAIN_TAG;
+    ps.aliased |= PP_DOMAIN_TAG;
+    ps.domain_tag = pp->e.gv->config.domainTag;
+  }
   if (pp->prismtech_bes)
   {
     ps.present |= PP_PRISMTECH_BUILTIN_ENDPOINT_SET;
@@ -305,7 +319,7 @@ int spdp_write (struct participant *pp)
     ddsrt_mutex_unlock (&pp->e.gv->privileged_pp_lock);
 
     if (ddsrt_gethostname(node, sizeof(node)-1) < 0)
-      ddsrt_strlcpy (node, "unknown", sizeof (node));
+      (void) ddsrt_strlcpy (node, "unknown", sizeof (node));
     size = strlen(node) + strlen(DDS_VERSION) + strlen(DDS_HOST_NAME) + strlen(DDS_TARGET_NAME) + 4; /* + ///'\0' */
     ps.prismtech_participant_version_info.internals = ddsrt_malloc(size);
     (void) snprintf(ps.prismtech_participant_version_info.internals, size, "%s/%s/%s/%s", node, DDS_VERSION, DDS_HOST_NAME, DDS_TARGET_NAME);
@@ -418,7 +432,7 @@ static void respond_to_spdp (const struct q_globals *gv, const ddsi_guid_t *dest
     GVTRACE (" %"PRId64, delay);
     if (!pp->e.gv->config.unicast_response_to_spdp_messages)
       /* pp can't reach gc_delete_participant => can safely reschedule */
-      resched_xevent_if_earlier (pp->spdp_xevent, tsched);
+      (void) resched_xevent_if_earlier (pp->spdp_xevent, tsched);
     else
       qxev_spdp (gv->xevents, tsched, &pp->e.guid, dest_proxypp_guid);
   }
@@ -498,10 +512,8 @@ static void make_participants_dependent_on_ddsi2 (struct q_globals *gv, const dd
 {
   struct ephash_enum_proxy_participant it;
   struct proxy_participant *pp, *d2pp;
-  struct lease *d2pp_lease;
   if ((d2pp = ephash_lookup_proxy_participant_guid (gv->guid_hash, ddsi2guid)) == NULL)
     return;
-  d2pp_lease = ddsrt_atomic_ldvoidp (&d2pp->lease);
   ephash_enum_proxy_participant_init (&it, gv->guid_hash);
   while ((pp = ephash_enum_proxy_participant_next (&it)) != NULL)
   {
@@ -511,7 +523,7 @@ static void make_participants_dependent_on_ddsi2 (struct q_globals *gv, const dd
       ddsrt_mutex_lock (&pp->e.lock);
       pp->privileged_pp_guid = *ddsi2guid;
       ddsrt_mutex_unlock (&pp->e.lock);
-      proxy_participant_reassign_lease (pp, d2pp_lease);
+      proxy_participant_reassign_lease (pp, d2pp->lease);
       GVTRACE ("\n");
 
       if (ephash_lookup_proxy_participant_guid (gv->guid_hash, ddsi2guid) == NULL)
@@ -544,6 +556,18 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
   ddsi_guid_t privileged_pp_guid;
   dds_duration_t lease_duration;
   unsigned custom_flags = 0;
+
+  /* If advertised domain id or domain tag doesn't match, ignore the message.  Do this first to
+     minimize the impact such messages have. */
+  {
+    const uint32_t domain_id = (datap->present & PP_DOMAIN_ID) ? datap->domain_id : gv->config.extDomainId.value;
+    const char *domain_tag = (datap->present & PP_DOMAIN_TAG) ? datap->domain_tag : "";
+    if (domain_id != gv->config.extDomainId.value || strcmp (domain_tag, gv->config.domainTag) != 0)
+    {
+      GVTRACE ("ignore remote participant in mismatching domain %"PRIu32" tag \"%s\"\n", domain_id, domain_tag);
+      return 0;
+    }
+  }
 
   if (!(datap->present & PP_PARTICIPANT_GUID) || !(datap->present & PP_BUILTIN_ENDPOINT_SET))
   {
@@ -611,12 +635,15 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
     else if (existing_entity->kind == EK_PROXY_PARTICIPANT)
     {
       struct proxy_participant *proxypp = (struct proxy_participant *) existing_entity;
+      struct lease *lease;
       int interesting = 0;
       RSTTRACE ("SPDP ST0 "PGUIDFMT" (known)", PGUID (datap->participant_guid));
       /* SPDP processing is so different from normal processing that we are
-         even skipping the automatic lease renewal.  Therefore do it regardless
-         of gv.config.arrival_of_data_asserts_pp_and_ep_liveliness. */
-      lease_renew (ddsrt_atomic_ldvoidp (&proxypp->lease), now_et ());
+         even skipping the automatic lease renewal. Note that proxy writers
+         that are not alive are not set alive here. This is done only when
+         data is received from a particular pwr (in handle_regular) */
+      if ((lease = ddsrt_atomic_ldvoidp (&proxypp->minl_auto)) != NULL)
+        lease_renew (lease, now_et ());
       ddsrt_mutex_lock (&proxypp->e.lock);
       if (proxypp->implicitly_created || seq > proxypp->seq)
       {
@@ -1278,7 +1305,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, nn
       GVLOGDISC (" "PGUIDFMT" attach-to-DS "PGUIDFMT, PGUID(pp->e.guid), PGUIDPREFIX(*src_guid_prefix), pp->privileged_pp_guid.entityid.u);
       ddsrt_mutex_lock (&pp->e.lock);
       pp->privileged_pp_guid.prefix = *src_guid_prefix;
-      lease_set_expiry(ddsrt_atomic_ldvoidp(&pp->lease), never);
+      lease_set_expiry(pp->lease, never);
       ddsrt_mutex_unlock (&pp->e.lock);
     }
     GVLOGDISC ("\n");
@@ -1388,13 +1415,9 @@ static void handle_SEDP_dead (const struct receiver_state *rst, nn_plist_t *data
   }
   GVLOGDISC (" "PGUIDFMT, PGUID (datap->endpoint_guid));
   if (is_writer_entityid (datap->endpoint_guid.entityid))
-  {
     res = delete_proxy_writer (gv, &datap->endpoint_guid, timestamp, 0);
-  }
   else
-  {
     res = delete_proxy_reader (gv, &datap->endpoint_guid, timestamp, 0);
-  }
   GVLOGDISC (" %s\n", (res < 0) ? " unknown" : " delete");
 }
 
@@ -1812,7 +1835,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
       break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
-      handle_PMD (sampleinfo->rst, timestamp, statusinfo, datap, datasz);
+      handle_pmd_message (sampleinfo->rst, timestamp, statusinfo, datap, datasz);
       break;
     case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER:
       handle_SEDP_CM (sampleinfo->rst, srcguid.entityid, timestamp, statusinfo, datap, datasz);

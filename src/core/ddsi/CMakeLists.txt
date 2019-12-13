@@ -19,6 +19,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_ipaddr.c
     ddsi_mcgroup.c
     ddsi_security_omg.c
+    ddsi_portmapping.c
     ddsi_serdata.c
     ddsi_serdata_default.c
     ddsi_sertopic.c
@@ -28,6 +29,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_vendor.c
     ddsi_threadmon.c
     ddsi_rhc.c
+    ddsi_pmd.c
     q_addrset.c
     q_bitset_inlines.c
     q_bswap.c
@@ -71,6 +73,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_mcgroup.h
     ddsi_plist_generic.h
     ddsi_security_omg.h
+    ddsi_portmapping.h
     ddsi_serdata.h
     ddsi_sertopic.h
     ddsi_serdata_default.h
