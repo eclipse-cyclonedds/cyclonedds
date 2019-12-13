@@ -251,7 +251,7 @@ static struct thread_state1 *init_thread_state (const char *tname, const struct 
   ts = &thread_states.ts[cand];
   ddsrt_atomic_stvoidp (&ts->gv, (struct q_globals *) gv);
   assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts->vtime)));
-  ddsrt_strlcpy (ts->name, tname, sizeof (ts->name));
+  (void) ddsrt_strlcpy (ts->name, tname, sizeof (ts->name));
   ts->state = state;
 
   return ts;

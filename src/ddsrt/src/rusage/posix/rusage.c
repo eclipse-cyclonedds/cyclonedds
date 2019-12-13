@@ -109,7 +109,7 @@ ddsrt_getrusage_anythread (
     return DDS_RETCODE_ERROR;
   if ((fp = fopen (file, "r")) == NULL)
     return DDS_RETCODE_NOT_FOUND;
-  enum { ERROR, READ_HEADING, SKIP_TO_EOL, READ_VCSW, READ_IVCSW } state = READ_HEADING;
+  enum { ERROR = 1, READ_HEADING, SKIP_TO_EOL, READ_VCSW, READ_IVCSW } state = READ_HEADING;
   savepos = 0;
   while (state != ERROR && (c = fgetc (fp)) != EOF)
   {

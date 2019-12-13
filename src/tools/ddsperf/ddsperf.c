@@ -53,7 +53,9 @@ enum topicsel {
   KS,   /* KeyedSeq type: seq#, key, sequence-of-octet */
   K32,  /* Keyed32  type: seq#, key, array-of-24-octet (sizeof = 32) */
   K256, /* Keyed256 type: seq#, key, array-of-248-octet (sizeof = 256) */
-  OU    /* OneULong type: seq# */
+  OU,   /* OneULong type: seq# */
+  UK16, /* Unkeyed16, type: seq#, array-of-12-octet (sizeof = 16) */
+  UK1024/* Unkeyed1024, type: seq#, array-of-1020-octet (sizeof = 1024) */
 };
 
 enum submode {
@@ -317,6 +319,8 @@ union data {
   Keyed32 k32;
   Keyed256 k256;
   OneULong ou;
+  Unkeyed16 uk16;
+  Unkeyed1024 uk1024;
 };
 
 static void verrorx (int exitcode, const char *fmt, va_list ap)
@@ -528,6 +532,14 @@ static void *init_sample (union data *data, uint32_t seq)
       break;
     case OU:
       data->ou.seq = seq;
+      break;
+    case UK16:
+      data->uk16.seq = seq;
+      memset (data->uk16.baggage, 0xee, sizeof (data->uk16.baggage));
+      break;
+    case UK1024:
+      data->uk1024.seq = seq;
+      memset (data->uk1024.baggage, 0xee, sizeof (data->uk1024.baggage));
       break;
   }
   return baggage;
@@ -791,10 +803,12 @@ static uint32_t topic_payload_size (enum topicsel tp, uint32_t bgsize)
   uint32_t size = 0;
   switch (tp)
   {
-    case KS:   size = 12 + bgsize; break;
-    case K32:  size = 32; break;
-    case K256: size = 256; break;
-    case OU:   size = 4; break;
+    case KS:     size = 12 + bgsize; break;
+    case K32:    size = 32; break;
+    case K256:   size = 256; break;
+    case OU:     size = 4; break;
+    case UK16:   size = 16; break;
+    case UK1024: size = 1024; break;
   }
   return size;
 }
@@ -814,13 +828,15 @@ static bool process_data (dds_entity_t rd, struct subthread_arg *arg)
       uint32_t seq = 0, keyval = 0, size = 0;
       switch (topicsel)
       {
-        case KS:   {
-          KeyedSeq *d = (KeyedSeq *) mseq[i]; keyval = d->keyval; seq = d->seq; size = topic_payload_size (topicsel, d->baggage._length);
+        case KS: {
+          KeyedSeq *d = mseq[i]; keyval = d->keyval; seq = d->seq; size = topic_payload_size (topicsel, d->baggage._length);
           break;
         }
-        case K32:  { Keyed32 *d  = (Keyed32 *)  mseq[i]; keyval = d->keyval; seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
-        case K256: { Keyed256 *d = (Keyed256 *) mseq[i]; keyval = d->keyval; seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
-        case OU:   { OneULong *d = (OneULong *) mseq[i]; keyval = 0;         seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
+        case K32:    { Keyed32 *d     = mseq[i]; keyval = d->keyval; seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
+        case K256:   { Keyed256 *d    = mseq[i]; keyval = d->keyval; seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
+        case OU:     { OneULong *d    = mseq[i]; keyval = 0;         seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
+        case UK16:   { Unkeyed16 *d   = mseq[i]; keyval = 0;         seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
+        case UK1024: { Unkeyed1024 *d = mseq[i]; keyval = 0;         seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
       }
       (void) check_eseq (&eseq_admin, seq, keyval, size, iseq[i].publication_handle);
       if (iseq[i].source_timestamp & 1)
@@ -1659,7 +1675,7 @@ struct multiplier {
 
 static const struct multiplier frequency_units[] = {
   { "Hz", 1 },
-  { "kHz", 1024 },
+  { "kHz", 1000 },
   { NULL, 0 }
 };
 
@@ -1865,7 +1881,7 @@ int main (int argc, char *argv[])
       case 'd': {
         char *col;
         int pos;
-        ddsrt_strlcpy (netload_if, optarg, sizeof (netload_if));
+        (void) ddsrt_strlcpy (netload_if, optarg, sizeof (netload_if));
         if ((col = strrchr (netload_if, ':')) == NULL || col == netload_if ||
             (sscanf (col+1, "%lf%n", &netload_bw, &pos) != 1 || (col+1)[pos] != 0))
           error3 ("-d%s: expected DEVICE:BANDWIDTH\n", optarg);
@@ -1883,6 +1899,8 @@ int main (int argc, char *argv[])
         else if (strcmp (optarg, "K32") == 0) topicsel = K32;
         else if (strcmp (optarg, "K256") == 0) topicsel = K256;
         else if (strcmp (optarg, "OU") == 0) topicsel = OU;
+        else if (strcmp (optarg, "UK16") == 0) topicsel = UK16;
+        else if (strcmp (optarg, "UK1024") == 0) topicsel = UK1024;
         else error3 ("%s: unknown topic\n", optarg);
         break;
       case 'M': maxwait = atof (optarg); if (maxwait <= 0) maxwait = HUGE_VAL; break;
@@ -1970,10 +1988,12 @@ int main (int argc, char *argv[])
     const dds_topic_descriptor_t *tp_desc = NULL;
     switch (topicsel)
     {
-      case KS:   tp_suf = "KS";   tp_desc = &KeyedSeq_desc; break;
-      case K32:  tp_suf = "K32";  tp_desc = &Keyed32_desc;  break;
-      case K256: tp_suf = "K256"; tp_desc = &Keyed256_desc; break;
-      case OU:   tp_suf = "OU";   tp_desc = &OneULong_desc; break;
+      case KS:     tp_suf = "KS";     tp_desc = &KeyedSeq_desc; break;
+      case K32:    tp_suf = "K32";    tp_desc = &Keyed32_desc;  break;
+      case K256:   tp_suf = "K256";   tp_desc = &Keyed256_desc; break;
+      case OU:     tp_suf = "OU";     tp_desc = &OneULong_desc; break;
+      case UK16:   tp_suf = "UK16";   tp_desc = &Unkeyed16_desc; break;
+      case UK1024: tp_suf = "UK1024"; tp_desc = &Unkeyed1024_desc; break;
     }
     snprintf (tpname_data, sizeof (tpname_data), "DDSPerf%cData%s", reliable ? 'R' : 'U', tp_suf);
     snprintf (tpname_ping, sizeof (tpname_ping), "DDSPerf%cPing%s", reliable ? 'R' : 'U', tp_suf);

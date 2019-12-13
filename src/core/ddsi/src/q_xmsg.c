@@ -1387,7 +1387,7 @@ static uint32_t nn_xpack_sendq_thread (void *vgv)
     struct nn_xpack *xp;
     if ((xp = gv->sendq_head) == NULL)
     {
-      ddsrt_cond_waitfor (&gv->sendq_cond, &gv->sendq_lock, 1000000);
+      (void) ddsrt_cond_waitfor (&gv->sendq_cond, &gv->sendq_lock, 1000000);
     }
     else
     {
@@ -1416,7 +1416,8 @@ void nn_xpack_sendq_init (struct q_globals *gv)
 
 void nn_xpack_sendq_start (struct q_globals *gv)
 {
-  create_thread (&gv->sendq_ts, gv, "sendq", nn_xpack_sendq_thread, NULL);
+  if (create_thread (&gv->sendq_ts, gv, "sendq", nn_xpack_sendq_thread, NULL) != DDS_RETCODE_OK)
+    GVERROR ("nn_xpack_sendq_start: can't create nn_xpack_sendq_thread\n");
 }
 
 void nn_xpack_sendq_stop (struct q_globals *gv)

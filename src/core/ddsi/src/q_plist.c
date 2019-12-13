@@ -1309,6 +1309,8 @@ static const struct piddesc piddesc_omg[] = {
   PP  (IDENTITY_STATUS_TOKEN,               identity_status_token, XS, XQ, XbPROP, XS, XS, XSTOP, XQ, XbPROP, XS, XO, XSTOP),
   PP  (DATA_TAGS,                           data_tags, XQ, XS, XS, XSTOP),
 #endif
+  PP  (DOMAIN_ID,                           domain_id, Xu),
+  PP  (DOMAIN_TAG,                          domain_tag, XS),
   { PID_STATUSINFO, PDF_FUNCTION, PP_STATUSINFO, "STATUSINFO",
     offsetof (struct nn_plist, statusinfo), membersize (struct nn_plist, statusinfo),
     { .f = { .deser = deser_statusinfo, .ser = ser_statusinfo } }, 0 },
@@ -1424,7 +1426,7 @@ struct piddesc_index {
    nn_plist_init_tables.
 
    FIXME: should compute them at build-time */
-#define DEFAULT_PROC_ARRAY_SIZE                19
+#define DEFAULT_PROC_ARRAY_SIZE                20
 #ifdef DDSI_INCLUDE_SSM
 #define DEFAULT_OMG_PIDS_ARRAY_SIZE            (PID_READER_FAVOURS_SSM + 1)
 #else
@@ -2255,13 +2257,7 @@ static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_t
     return return_unrecognized_pid (plist, pid);
   assert (pid_to_index (pid) == pid_to_index (entry->pid));
   if (pid != entry->pid)
-  {
-    DDS_CERROR (logcfg, "error processing parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" mapped to pid %"PRIx16"\n",
-                dd->vendorid.id[0], dd->vendorid.id[1],
-                dd->protocol_version.major, dd->protocol_version.minor,
-                pid, entry->pid);
     return return_unrecognized_pid (plist, pid);
-  }
   assert (pid != PID_PAD);
 
   struct flagset flagset;

@@ -119,9 +119,8 @@ dds_return_t dds_init (void)
     goto fail_handleserver;
   }
 
-  dds_entity_init (&dds_global.m_entity, NULL, DDS_KIND_CYCLONEDDS, NULL, NULL, 0);
+  dds_entity_init (&dds_global.m_entity, NULL, DDS_KIND_CYCLONEDDS, true, NULL, NULL, 0);
   dds_global.m_entity.m_iid = ddsi_iid_gen ();
-  dds_global.m_entity.m_flags = DDS_ENTITY_IMPLICIT;
   dds_handle_repin (&dds_global.m_entity.m_hdllink);
   dds_entity_add_ref_locked (&dds_global.m_entity);
   dds_entity_init_complete (&dds_global.m_entity);

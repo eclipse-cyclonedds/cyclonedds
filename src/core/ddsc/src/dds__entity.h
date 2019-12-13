@@ -24,6 +24,7 @@ dds_entity_init(
   dds_entity * e,
   dds_entity * parent,
   dds_entity_kind_t kind,
+  bool implicit,
   dds_qos_t * qos,
   const dds_listener_t *listener,
   status_mask_t mask);
@@ -37,6 +38,12 @@ dds_entity_register_child (
 
 DDS_EXPORT void
 dds_entity_add_ref_locked(dds_entity *e);
+
+DDS_EXPORT void
+dds_entity_drop_ref(dds_entity *e);
+
+DDS_EXPORT void
+dds_entity_unpin_and_drop_ref (dds_entity *e);
 
 #define DEFINE_ENTITY_LOCK_UNLOCK(qualifier_, type_, kind_) \
   qualifier_ dds_return_t type_##_lock (dds_entity_t hdl, type_ **x) \
@@ -95,6 +102,8 @@ DDS_EXPORT dds_return_t
 dds_entity_pin (
   dds_entity_t hdl,
   dds_entity **eptr);
+
+DDS_EXPORT dds_return_t dds_entity_pin_for_delete (dds_entity_t hdl, bool explicit, dds_entity **eptr);
 
 DDS_EXPORT void dds_entity_unpin (
   dds_entity *e);

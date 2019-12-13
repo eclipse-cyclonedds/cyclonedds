@@ -93,7 +93,7 @@ int main (int argc, char **argv)
   signal (SIGINT, sigint);
   process_samples(reader, maxCycles);
 
-  dds_set_status_mask (reader, 0);
+  (void) dds_set_status_mask (reader, 0);
   HandleMap__free (imap);
   finalize_dds (participant);
   return EXIT_SUCCESS;
@@ -154,7 +154,7 @@ static HandleEntry * retrieve_handle (HandleMap *map, dds_instance_handle_t key)
 static int do_take (dds_entity_t reader)
 {
   int samples_received;
-  dds_sample_info_t info [MAX_SAMPLES];
+  dds_sample_info_t *info = NULL;
   dds_instance_handle_t ph = 0;
   HandleEntry * current = NULL;
 
@@ -165,9 +165,14 @@ static int do_take (dds_entity_t reader)
 
   /* Take samples and iterate through them */
 
+  info = dds_alloc (sizeof(dds_sample_info_t) * MAX_SAMPLES);
+
   samples_received = dds_take (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
   if (samples_received < 0)
+  {
+    dds_free( info );
     DDS_FATAL("dds_take: %s\n", dds_strretcode(-samples_received));
+  }
 
   for (int i = 0; !done && i < samples_received; i++)
   {
@@ -196,13 +201,14 @@ static int do_take (dds_entity_t reader)
       total_samples++;
     }
   }
+  dds_free (info);
   return samples_received;
 }
 
 static void data_available_handler (dds_entity_t reader, void *arg)
 {
   (void)arg;
-  do_take (reader);
+  (void) do_take (reader);
 }
 
 static int parse_args(int argc, char **argv, unsigned long long *maxCycles, char **partitionName)

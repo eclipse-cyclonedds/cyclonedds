@@ -166,7 +166,7 @@ dds_entity_t dds_create_waitset (dds_entity_t owner)
   }
 
   dds_waitset *waitset = dds_alloc (sizeof (*waitset));
-  dds_entity_t hdl = dds_entity_init (&waitset->m_entity, e, DDS_KIND_WAITSET, NULL, NULL, 0);
+  dds_entity_t hdl = dds_entity_init (&waitset->m_entity, e, DDS_KIND_WAITSET, false, NULL, NULL, 0);
   ddsrt_mutex_init (&waitset->wait_lock);
   ddsrt_cond_init (&waitset->wait_cond);
   waitset->m_entity.m_iid = ddsi_iid_gen ();
@@ -176,13 +176,13 @@ dds_entity_t dds_create_waitset (dds_entity_t owner)
   waitset->entities = NULL;
   dds_entity_init_complete (&waitset->m_entity);
   dds_entity_unlock (e);
-  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
+  dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
   return hdl;
 
  err_entity_kind:
   dds_entity_unlock (e);
  err_entity_lock:
-  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
+  dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
   return rc;
 }
 
