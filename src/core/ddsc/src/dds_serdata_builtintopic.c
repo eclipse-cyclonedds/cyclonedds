@@ -295,5 +295,6 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic = {
   .to_ser_unref = serdata_builtin_to_ser_unref,
   .to_topicless = serdata_builtin_to_topicless,
   .topicless_to_sample = serdata_builtin_topicless_to_sample,
-  .print = serdata_builtin_topic_print
+  .print = serdata_builtin_topic_print,
+  .get_keyhash = 0
 };

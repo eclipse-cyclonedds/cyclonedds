@@ -251,6 +251,7 @@ struct writer
   unsigned reliable: 1; /* iff 1, writer is reliable <=> heartbeat_xevent != NULL */
   unsigned handle_as_transient_local: 1; /* controls whether data is retained in WHC */
   unsigned include_keyhash: 1; /* iff 1, this writer includes a keyhash; keyless topics => include_keyhash = 0 */
+  unsigned force_md5_keyhash: 1; /* iff 1, when keyhash has to be hashed, no matter the size */
   unsigned retransmitting: 1; /* iff 1, this writer is currently retransmitting */
 #ifdef DDSI_INCLUDE_SSM
   unsigned supports_ssm: 1;

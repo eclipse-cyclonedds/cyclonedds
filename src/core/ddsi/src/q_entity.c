@@ -3063,6 +3063,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->throttle_tracing = 0;
   wr->rexmit_count = 0;
   wr->rexmit_lost_count = 0;
+  wr->force_md5_keyhash = 0;
 
   wr->status_cb = status_cb;
   wr->status_cb_entity = status_entity;

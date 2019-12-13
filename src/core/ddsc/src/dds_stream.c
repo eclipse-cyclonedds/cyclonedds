@@ -1579,7 +1579,10 @@ void dds_stream_extract_keyhash (dds_istream_t * __restrict is, dds_keyhash_t * 
   const dds_topic_descriptor_t *desc = topic->type;
   kh->m_set = 1;
   if (desc->m_nkeys == 0)
+  {
     kh->m_iskey = 1;
+    kh->m_keysize = 0;
+  }
   else if (desc->m_flagset & DDS_TOPIC_FIXED_KEY)
   {
     dds_ostreamBE_t os;
@@ -1592,12 +1595,14 @@ void dds_stream_extract_keyhash (dds_istream_t * __restrict is, dds_keyhash_t * 
     else
       dds_stream_extract_keyBE_from_data (is, &os, topic);
     assert (os.x.m_index <= 16);
+    kh->m_keysize = (unsigned)os.x.m_index & 0x1f;
   }
   else
   {
     dds_ostreamBE_t os;
     ddsrt_md5_state_t md5st;
     kh->m_iskey = 0;
+    kh->m_keysize = 16;
     dds_ostreamBE_init (&os, 0);
     if (just_key)
       dds_stream_extract_keyBE_from_key (is, &os, topic);
