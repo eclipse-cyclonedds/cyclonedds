@@ -47,3 +47,4 @@ extern inline bool ddsi_serdata_topicless_to_sample (const struct ddsi_sertopic 
 extern inline bool ddsi_serdata_eqkey (const struct ddsi_serdata *a, const struct ddsi_serdata *b);
 extern inline bool ddsi_serdata_print (const struct ddsi_serdata *d, char *buf, size_t size);
 extern inline bool ddsi_serdata_print_topicless (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, char *buf, size_t size);
+extern inline void ddsi_serdata_get_keyhash (const struct ddsi_serdata *d, struct nn_keyhash *buf, bool force_md5);

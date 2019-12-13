@@ -129,7 +129,7 @@ void nn_xmsg_submsg_init (struct nn_xmsg *msg, struct nn_xmsg_marker marker, Sub
 void nn_xmsg_add_timestamp (struct nn_xmsg *m, nn_wctime_t t);
 void nn_xmsg_add_entityid (struct nn_xmsg * m);
 void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len);
-void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serdata);
+void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serdata, bool force_md5);
 void nn_xmsg_addpar_statusinfo (struct nn_xmsg *m, unsigned statusinfo);
 void nn_xmsg_addpar_sentinel (struct nn_xmsg *m);
 int nn_xmsg_addpar_sentinel_ifparam (struct nn_xmsg *m);

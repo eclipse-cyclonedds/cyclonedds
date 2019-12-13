@@ -938,13 +938,12 @@ void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len)
   return p;
 }
 
-void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serdata)
+void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serdata, bool force_md5)
 {
   if (serdata->kind != SDK_EMPTY)
   {
-    const struct ddsi_serdata_default *serdata_def = (const struct ddsi_serdata_default *)serdata;
     char *p = nn_xmsg_addpar (m, PID_KEYHASH, 16);
-    memcpy (p, serdata_def->keyhash.m_hash, 16);
+    ddsi_serdata_get_keyhash(serdata, (struct nn_keyhash*)p, force_md5);
   }
 }
 

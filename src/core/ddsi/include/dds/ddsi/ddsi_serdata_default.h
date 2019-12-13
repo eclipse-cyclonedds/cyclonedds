@@ -47,6 +47,7 @@ typedef struct dds_keyhash {
   unsigned char m_hash [16]; /* Key hash value. Also possibly key. Suitably aligned for accessing as uint32_t's */
   unsigned m_set : 1;        /* has it been initialised? */
   unsigned m_iskey : 1;      /* m_hash is key value */
+  unsigned m_keysize : 5;    /* size of the key within the hash buffer */
 } dds_keyhash_t;
 
 /* Debug builds may want to keep some additional state */
