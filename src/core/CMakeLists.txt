@@ -27,6 +27,11 @@ endif()
 
 add_definitions(-DDDSI_INCLUDE_NETWORK_PARTITIONS -DDDSI_INCLUDE_SSM)
 
+option(ENABLE_LIFESPAN "Enable Lifespan QoS support" ON)
+if(ENABLE_LIFESPAN)
+  add_definitions(-DDDSI_INCLUDE_LIFESPAN)
+endif()
+
 # OpenSSL is huge, raising the RSS by 1MB or so, and moreover find_package(OpenSSL) causes
 # trouble on some older CMake versions that otherwise work fine, so provide an option to avoid
 # all OpenSSL related things.

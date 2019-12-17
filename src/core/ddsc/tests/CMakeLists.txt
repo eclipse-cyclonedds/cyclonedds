@@ -55,6 +55,10 @@ set(ddsc_test_sources
     "write_various_types.c"
     "writer.c")
 
+if(ENABLE_LIFESPAN)
+  list(APPEND ddsc_test_sources "lifespan.c")
+endif()
+
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
 target_include_directories(
   cunit_ddsc PRIVATE

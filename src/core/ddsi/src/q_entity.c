@@ -311,12 +311,21 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e)
   return NN_VENDORID_UNKNOWN;
 }
 
-void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_common *e, const struct dds_qos *xqos)
+void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo)
 {
+#ifndef DDSI_INCLUDE_LIFESPAN
+  DDSRT_UNUSED_ARG (statusinfo);
+#endif
   wrinfo->guid = e->guid;
   wrinfo->ownership_strength = xqos->ownership_strength.value;
   wrinfo->auto_dispose = xqos->writer_data_lifecycle.autodispose_unregistered_instances;
   wrinfo->iid = e->iid;
+#ifdef DDSI_INCLUDE_LIFESPAN
+  if (xqos->lifespan.duration != DDS_INFINITY && (statusinfo & (NN_STATUSINFO_UNREGISTER | NN_STATUSINFO_DISPOSE)) == 0)
+    wrinfo->lifespan_exp = add_duration_to_mtime(now_mt(), xqos->lifespan.duration);
+  else
+    wrinfo->lifespan_exp = NN_MTIME_NEVER;
+#endif
 }
 
 /* DELETED PARTICIPANTS --------------------------------------------- */
@@ -1527,7 +1536,7 @@ static void reader_update_notify_pwr_alive_state (struct reader *rd, const struc
   if (delta < 0 && rd->rhc)
   {
     struct ddsi_writer_info wrinfo;
-    ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos);
+    ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos, NN_STATUSINFO_UNREGISTER);
     ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
   }
 
@@ -1570,7 +1579,7 @@ static void reader_drop_connection (const struct ddsi_guid *rd_guid, const struc
       if (rd->rhc)
       {
         struct ddsi_writer_info wrinfo;
-        ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos);
+        ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos, NN_STATUSINFO_UNREGISTER);
         ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
       }
       if (rd->status_cb)
@@ -1607,7 +1616,7 @@ static void reader_drop_local_connection (const struct ddsi_guid *rd_guid, const
       {
         /* FIXME: */
         struct ddsi_writer_info wrinfo;
-        ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos);
+        ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, NN_STATUSINFO_UNREGISTER);
         ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
       }
       if (rd->status_cb)
@@ -1834,7 +1843,7 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
       struct ddsi_serdata *payload = sample.serdata;
       /* FIXME: whc has tk reference in its index nodes, which is what we really should be iterating over anyway, and so we don't really have to look them up anymore */
       struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (tkmap, payload);
-      ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos);
+      ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, sample.serdata->statusinfo);
       (void) ddsi_rhc_store (rd->rhc, &wrinfo, payload, tk);
       ddsi_tkmap_instance_unref (tkmap, tk);
     }

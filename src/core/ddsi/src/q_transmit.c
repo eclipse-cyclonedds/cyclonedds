@@ -910,10 +910,18 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
 
   if (!do_insert)
     res = 0;
-  else if ((insres = whc_insert (wr->whc, writer_max_drop_seq (wr), seq, plist, serdata, tk)) < 0)
-    res = insres;
   else
-    res = 1;
+  {
+    nn_mtime_t exp = NN_MTIME_NEVER;
+#ifdef DDSI_INCLUDE_LIFESPAN
+    /* Don't set expiry for samples with flags unregister or dispose, because these are required
+     * for sample lifecycle and should always be delivered to the reader so that is can clean up
+     * its history cache. */
+    if (wr->xqos->lifespan.duration != DDS_INFINITY && (serdata->statusinfo & (NN_STATUSINFO_UNREGISTER | NN_STATUSINFO_DISPOSE)) == 0)
+      exp = add_duration_to_mtime(serdata->twrite, wr->xqos->lifespan.duration);
+#endif
+    res = ((insres = whc_insert (wr->whc, writer_max_drop_seq (wr), seq, exp, plist, serdata, tk)) < 0) ? insres : 1;
+  }
 
 #ifndef NDEBUG
   if (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER && !is_local_orphan_endpoint (&wr->e))

@@ -93,7 +93,11 @@ static void setqos (dds_qos_t *q, size_t i, bool isrd, bool create)
   dds_qset_history (q, (dds_history_kind_t) ((i + 1) % 2), (int32_t) (i + 1));
   dds_qset_resource_limits (q, (int32_t) i + 3, (int32_t) i + 2, (int32_t) i + 1);
   dds_qset_presentation (q, (dds_presentation_access_scope_kind_t) ((psi + 1) % 3), 1, 1);
+#ifdef DDSI_INCLUDE_LIFESPAN
   dds_qset_lifespan (q, INT64_C (23456789012345678) + (int32_t) i);
+#else
+  dds_qset_lifespan (q, DDS_INFINITY);
+#endif
   dds_qset_deadline (q, INT64_C (67890123456789012) + (int32_t) i);
   dds_qset_latency_budget (q, INT64_C (45678901234567890) + (int32_t) i);
   dds_qset_ownership (q, (dds_ownership_kind_t) ((i + 1) % 2));

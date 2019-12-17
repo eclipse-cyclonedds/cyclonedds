@@ -1950,7 +1950,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   /* FIXME: should it be 0, local wall clock time or INVALID? */
   const nn_wctime_t tstamp = (sampleinfo->timestamp.v != NN_WCTIME_INVALID.v) ? sampleinfo->timestamp : ((nn_wctime_t) {0});
   struct ddsi_writer_info wrinfo;
-  ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos);
+  ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos, statusinfo);
 
   if (rdguid == NULL)
   {
