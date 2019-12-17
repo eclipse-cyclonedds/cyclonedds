@@ -696,7 +696,7 @@ void rebuild_or_clear_writer_addrsets(struct q_globals *gv, int rebuild);
 void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_ok);
 
 struct ddsi_writer_info;
-DDS_EXPORT void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_common *e, const struct dds_qos *xqos);
+DDS_EXPORT void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo);
 
 #if defined (__cplusplus)
 }

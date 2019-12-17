@@ -143,11 +143,12 @@ static void bwhc_get_state (const struct whc *whc, struct whc_state *st)
   st->unacked_bytes = 0;
 }
 
-static int bwhc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+static int bwhc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   (void)whc;
   (void)max_drop_seq;
   (void)seq;
+  (void)exp;
   (void)serdata;
   (void)tk;
   if (plist)

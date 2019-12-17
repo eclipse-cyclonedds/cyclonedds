@@ -59,6 +59,9 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     q_freelist.c
     sysdeps.c
 )
+if(ENABLE_LIFESPAN)
+  list(APPEND srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/ddsi_lifespan.c")
+endif()
 
 # The includes should reside close to the code. As long as that's not the case,
 # pull them in from this CMakeLists.txt.
@@ -119,6 +122,9 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_xqos.h
     sysdeps.h
 )
+if(ENABLE_LIFESPAN)
+  list(APPEND hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/ddsi_lifespan.h")
+endif()
 
 target_sources(ddsc
   PRIVATE ${srcs_ddsi} ${hdrs_private_ddsi})
