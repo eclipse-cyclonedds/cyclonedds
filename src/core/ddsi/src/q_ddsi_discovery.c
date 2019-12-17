@@ -1245,11 +1245,10 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, nn
     GVLOGDISC (" known%s", vendor_is_cloud (vendorid) ? "-DS" : "");
     if (vendor_is_cloud (vendorid) && pp->implicitly_created && memcmp(&pp->privileged_pp_guid.prefix, src_guid_prefix, sizeof(pp->privileged_pp_guid.prefix)) != 0)
     {
-      nn_etime_t never = { T_NEVER };
       GVLOGDISC (" "PGUIDFMT" attach-to-DS "PGUIDFMT, PGUID(pp->e.guid), PGUIDPREFIX(*src_guid_prefix), pp->privileged_pp_guid.entityid.u);
       ddsrt_mutex_lock (&pp->e.lock);
       pp->privileged_pp_guid.prefix = *src_guid_prefix;
-      lease_set_expiry(pp->lease, never);
+      lease_set_expiry(pp->lease, NN_ETIME_NEVER);
       ddsrt_mutex_unlock (&pp->e.lock);
     }
     GVLOGDISC ("\n");

@@ -12,6 +12,9 @@
 #ifndef NN_XEVENT_H
 #define NN_XEVENT_H
 
+#include "dds/ddsrt/retcode.h"
+#include "dds/ddsi/ddsi_guid.h"
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -30,6 +33,7 @@ struct xevent;
 struct xeventq;
 struct proxy_writer;
 struct proxy_reader;
+struct nn_xmsg;
 
 struct xeventq *xeventq_new
 (
@@ -55,6 +59,7 @@ DDS_EXPORT int qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg 
 
 /* All of the following lock EVQ for the duration of the operation */
 DDS_EXPORT void delete_xevent (struct xevent *ev);
+DDS_EXPORT void delete_xevent_callback (struct xevent *ev);
 DDS_EXPORT int resched_xevent_if_earlier (struct xevent *ev, nn_mtime_t tsched);
 
 DDS_EXPORT struct xevent *qxev_heartbeat (struct xeventq *evq, nn_mtime_t tsched, const ddsi_guid_t *wr_guid);

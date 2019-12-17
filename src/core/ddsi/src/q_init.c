@@ -761,7 +761,7 @@ static void wait_for_receive_threads (struct q_globals *gv)
   }
   if (trigev)
   {
-    delete_xevent (trigev);
+    delete_xevent_callback (trigev);
   }
 }
 
