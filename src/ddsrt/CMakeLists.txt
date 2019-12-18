@@ -101,6 +101,10 @@ set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(source_path "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 list(APPEND headers
+  "${include_path}/dds/ddsrt/avl.h"
+  "${include_path}/dds/ddsrt/fibheap.h"
+  "${include_path}/dds/ddsrt/hopscotch.h"
+  "${include_path}/dds/ddsrt/thread_pool.h"
   "${include_path}/dds/ddsrt/log.h"
   "${include_path}/dds/ddsrt/retcode.h"
   "${include_path}/dds/ddsrt/attributes.h"
@@ -113,7 +117,8 @@ list(APPEND headers
   "${include_path}/dds/ddsrt/strtol.h"
   "${include_path}/dds/ddsrt/types.h"
   "${include_path}/dds/ddsrt/countargs.h"
-  "${include_path}/dds/ddsrt/static_assert.h")
+  "${include_path}/dds/ddsrt/static_assert.h"
+  "${include_path}/dds/ddsrt/circlist.h")
 
 list(APPEND sources
   "${source_path}/bswap.c"
@@ -121,21 +126,14 @@ list(APPEND sources
   "${source_path}/log.c"
   "${source_path}/retcode.c"
   "${source_path}/strtod.c"
-  "${source_path}/strtol.c")
-
-list(APPEND headers
-  "${include_path}/dds/ddsrt/avl.h"
-  "${include_path}/dds/ddsrt/fibheap.h"
-  "${include_path}/dds/ddsrt/hopscotch.h"
-  "${include_path}/dds/ddsrt/thread_pool.h")
-
-list(APPEND sources
+  "${source_path}/strtol.c"
   "${source_path}/avl.c"
   "${source_path}/expand_envvars.c"
   "${source_path}/fibheap.c"
   "${source_path}/hopscotch.c"
   "${source_path}/thread_pool.c"
-  "${source_path}/xmlparser.c")
+  "${source_path}/xmlparser.c"
+  "${source_path}/circlist.c")
 
 # Not every target offers the same set of features. For embedded targets the
 # set of features may even be different between builds. e.g. a FreeRTOS build

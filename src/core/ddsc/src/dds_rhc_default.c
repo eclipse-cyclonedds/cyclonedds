@@ -30,6 +30,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/circlist.h"
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/q_xqos.h"
 #include "dds/ddsi/q_unused.h"
@@ -271,8 +272,7 @@ struct rhc_instance {
   int32_t strength;            /* "current" ownership strength */
   ddsi_guid_t wr_guid;           /* guid of last writer (if wr_iid != 0 then wr_guid is the corresponding guid, else undef) */
   nn_wctime_t tstamp;          /* source time stamp of last update */
-  struct rhc_instance *next;   /* next non-empty instance in arbitrary ordering */
-  struct rhc_instance *prev;
+  struct ddsrt_circlist_elem nonempty_list; /* links non-empty instances in arbitrary ordering */
   struct ddsi_tkmap_instance *tk;   /* backref into TK for unref'ing */
   struct rhc_sample a_sample;  /* pre-allocated storage for 1 sample */
 };
@@ -286,7 +286,7 @@ typedef enum rhc_store_result {
 struct dds_rhc_default {
   struct dds_rhc common;
   struct ddsrt_hh *instances;
-  struct rhc_instance *nonempty_instances; /* circular, points to most recently added one, NULL if none */
+  struct ddsrt_circlist nonempty_instances; /* circular, points to most recently added one, NULL if none */
   struct lwregs registrations;       /* should be a global one (with lock-free lookups) */
 
   /* Instance/Sample maximums from resource limits QoS */
@@ -494,55 +494,31 @@ static int instance_iid_eq (const void *va, const void *vb)
 
 static void add_inst_to_nonempty_list (struct dds_rhc_default *rhc, struct rhc_instance *inst)
 {
-  if (rhc->nonempty_instances == NULL)
-  {
-    inst->next = inst->prev = inst;
-  }
-  else
-  {
-    struct rhc_instance * const hd = rhc->nonempty_instances;
-#ifndef NDEBUG
-    {
-      const struct rhc_instance *x = hd;
-      do { assert (x != inst); x = x->next; } while (x != hd);
-    }
-#endif
-    inst->next = hd->next;
-    inst->prev = hd;
-    hd->next = inst;
-    inst->next->prev = inst;
-  }
-  rhc->nonempty_instances = inst;
+  ddsrt_circlist_append (&rhc->nonempty_instances, &inst->nonempty_list);
   rhc->n_nonempty_instances++;
 }
 
 static void remove_inst_from_nonempty_list (struct dds_rhc_default *rhc, struct rhc_instance *inst)
 {
   assert (inst_is_empty (inst));
-#ifndef NDEBUG
-  {
-    const struct rhc_instance *x = rhc->nonempty_instances;
-    assert (x);
-    do { if (x == inst) break; x = x->next; } while (x != rhc->nonempty_instances);
-    assert (x == inst);
-  }
-#endif
-
-  if (inst->next == inst)
-  {
-    rhc->nonempty_instances = NULL;
-  }
-  else
-  {
-    struct rhc_instance * const inst_prev = inst->prev;
-    struct rhc_instance * const inst_next = inst->next;
-    inst_prev->next = inst_next;
-    inst_next->prev = inst_prev;
-    if (rhc->nonempty_instances == inst)
-      rhc->nonempty_instances = inst_prev;
-  }
+  ddsrt_circlist_remove (&rhc->nonempty_instances, &inst->nonempty_list);
   assert (rhc->n_nonempty_instances > 0);
   rhc->n_nonempty_instances--;
+}
+
+static struct rhc_instance *oldest_nonempty_instance (const struct dds_rhc_default *rhc)
+{
+  return DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, ddsrt_circlist_oldest (&rhc->nonempty_instances));
+}
+
+static struct rhc_instance *latest_nonempty_instance (const struct dds_rhc_default *rhc)
+{
+  return DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, ddsrt_circlist_latest (&rhc->nonempty_instances));
+}
+
+static struct rhc_instance *next_nonempty_instance (const struct rhc_instance *inst)
+{
+  return DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, inst->nonempty_list.next);
 }
 
 #ifdef DDSI_INCLUDE_LIFESPAN
@@ -631,6 +607,7 @@ struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct q_global
   lwregs_init (&rhc->registrations);
   ddsrt_mutex_init (&rhc->lock);
   rhc->instances = ddsrt_hh_new (1, instance_iid_hash, instance_iid_eq);
+  ddsrt_circlist_init (&rhc->nonempty_instances);
   rhc->topic = topic;
   rhc->reader = reader;
   rhc->tkmap = gv->m_tkmap;
@@ -814,7 +791,7 @@ static void dds_rhc_default_free (struct dds_rhc_default *rhc)
   lifespan_fini (&rhc->lifespan);
 #endif
   ddsrt_hh_enum (rhc->instances, free_instance_rhc_free_wrap, rhc);
-  assert (rhc->nonempty_instances == NULL);
+  assert (ddsrt_circlist_isempty (&rhc->nonempty_instances));
   ddsrt_hh_free (rhc->instances);
   lwregs_fini (&rhc->registrations);
   if (rhc->qcond_eval_samplebuf != NULL)
@@ -1966,10 +1943,10 @@ static int dds_rhc_read_w_qminv (struct dds_rhc_default *rhc, bool lock, void **
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples, rhc->n_invsamples,
     rhc->n_vread, rhc->n_invread);
 
-  if (rhc->nonempty_instances)
+  if (!ddsrt_circlist_isempty (&rhc->nonempty_instances))
   {
     const dds_querycond_mask_t qcmask = (cond && cond->m_query.m_filter) ? cond->m_query.m_qcmask : 0;
-    struct rhc_instance * inst = rhc->nonempty_instances->next;
+    struct rhc_instance * inst = oldest_nonempty_instance (rhc);
     struct rhc_instance * const end = inst;
     do
     {
@@ -2055,7 +2032,7 @@ static int dds_rhc_read_w_qminv (struct dds_rhc_default *rhc, bool lock, void **
           break;
         }
       }
-      inst = inst->next;
+      inst = next_nonempty_instance (inst);
     }
     while (inst != end && n < max_samples);
   }
@@ -2083,14 +2060,14 @@ static int dds_rhc_take_w_qminv (struct dds_rhc_default *rhc, bool lock, void **
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples,
     rhc->n_invsamples, rhc->n_vread, rhc->n_invread);
 
-  if (rhc->nonempty_instances)
+  if (!ddsrt_circlist_isempty (&rhc->nonempty_instances))
   {
     const dds_querycond_mask_t qcmask = (cond && cond->m_query.m_filter) ? cond->m_query.m_qcmask : 0;
-    struct rhc_instance *inst = rhc->nonempty_instances->next;
+    struct rhc_instance *inst = oldest_nonempty_instance (rhc);
     unsigned n_insts = rhc->n_nonempty_instances;
     while (n_insts-- > 0 && n < max_samples)
     {
-      struct rhc_instance * const inst1 = inst->next;
+      struct rhc_instance * const inst1 = next_nonempty_instance (inst);
       iid = inst->iid;
       if (handle == DDS_HANDLE_NIL || iid == handle)
       {
@@ -2238,14 +2215,14 @@ static int dds_rhc_takecdr_w_qminv (struct dds_rhc_default *rhc, bool lock, stru
           rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples,
           rhc->n_invsamples, rhc->n_vread, rhc->n_invread);
 
-  if (rhc->nonempty_instances)
+  if (!ddsrt_circlist_isempty (&rhc->nonempty_instances))
   {
     const dds_querycond_mask_t qcmask = (cond && cond->m_query.m_filter) ? cond->m_query.m_qcmask : 0;
-    struct rhc_instance *inst = rhc->nonempty_instances->next;
+    struct rhc_instance *inst = oldest_nonempty_instance (rhc);
     unsigned n_insts = rhc->n_nonempty_instances;
     while (n_insts-- > 0 && n < max_samples)
     {
-      struct rhc_instance * const inst1 = inst->next;
+      struct rhc_instance * const inst1 = next_nonempty_instance (inst);
       iid = inst->iid;
       if (handle == DDS_HANDLE_NIL || iid == handle)
       {
@@ -2454,13 +2431,14 @@ static bool dds_rhc_default_add_readcondition (struct dds_rhc_default *rhc, dds_
   {
     /* Read condition is not cached inside the instances and samples, so it only needs
        to be evaluated on the non-empty instances */
-    if (rhc->nonempty_instances)
+    if (!ddsrt_circlist_isempty (&rhc->nonempty_instances))
     {
-      struct rhc_instance *inst = rhc->nonempty_instances;
+      struct rhc_instance *inst = latest_nonempty_instance (rhc);
+      struct rhc_instance const * const end = inst;
       do {
         trigger += rhc_get_cond_trigger (inst, cond);
-        inst = inst->next;
-      } while (inst != rhc->nonempty_instances);
+        inst = next_nonempty_instance (inst);
+      } while (inst != end);
     }
   }
   else
@@ -2904,26 +2882,25 @@ static int rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_cond
   {
     for (i = 0, rciter = rhc->conds; i < ncheck; i++, rciter = rciter->m_next)
       assert (cond_match_count[i] == ddsrt_atomic_ld32 (&rciter->m_entity.m_status.m_trigger));
-   }
+  }
 
   if (rhc->n_nonempty_instances == 0)
   {
-    assert (rhc->nonempty_instances == NULL);
+    assert (ddsrt_circlist_isempty (&rhc->nonempty_instances));
   }
   else
   {
-    struct rhc_instance *prev, *end;
-    assert (rhc->nonempty_instances != NULL);
-    prev = rhc->nonempty_instances->prev;
-    end = rhc->nonempty_instances;
-    inst = rhc->nonempty_instances;
+    assert (!ddsrt_circlist_isempty (&rhc->nonempty_instances));
+    struct ddsrt_circlist_elem const *prev = rhc->nonempty_instances.latest->prev;
+    inst = latest_nonempty_instance (rhc);
+    struct rhc_instance const * const end = inst;
     n_nonempty_instances = 0;
     do {
       assert (!inst_is_empty (inst));
-      assert (prev->next == inst);
-      assert (inst->prev == prev);
-      prev = inst;
-      inst = inst->next;
+      assert (prev->next == &inst->nonempty_list);
+      assert (inst->nonempty_list.prev == prev);
+      prev = &inst->nonempty_list;
+      inst = next_nonempty_instance (inst);
       n_nonempty_instances++;
     } while (inst != end);
     assert (rhc->n_nonempty_instances == n_nonempty_instances);
