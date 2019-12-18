@@ -107,12 +107,19 @@ static struct ddsi_serdata *mkkeysample (int32_t keyval, unsigned statusinfo)
   return sd;
 }
 
-#ifdef DDSI_INCLUDE_LIFESPAN
+#if defined(DDSI_INCLUDE_LIFESPAN) || defined (DDSI_INCLUDE_DEADLINE_MISSED)
 static nn_mtime_t rand_texp ()
 {
   nn_mtime_t ret = now_mt();
   ret.v -= DDS_MSECS(500) + (int64_t) (ddsrt_prng_random (&prng) % DDS_MSECS(1500));
   return ret;
+}
+#endif
+
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+static dds_duration_t rand_deadline ()
+{
+  return (dds_duration_t) (ddsrt_prng_random (&prng) % DDS_MSECS(500));
 }
 #endif
 
@@ -569,6 +576,9 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
   dds_qos_t *qos = dds_create_qos ();
   dds_qset_history (qos, DDS_HISTORY_KEEP_LAST, MAX_HIST_DEPTH);
   dds_qset_destination_order (qos, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+  dds_qset_deadline (qos, rand_deadline());
+#endif
   /* two identical readers because we need 63 conditions while we can currently only attach 32 a single reader */
   dds_entity_t rd[] = { dds_create_reader (pp, tp, qos, NULL), dds_create_reader (pp, tp, qos, NULL) };
   const size_t nrd = sizeof (rd) / sizeof (rd[0]);
@@ -673,7 +683,8 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     [9] = "tkc",
     [10] = "tkc1",
     [11] = "delwr",
-    [12] = "drpxp"
+    [12] = "drpxp",
+    [13] = "dlmis"
   };
   static const uint32_t opfreqs[] = {
     [0]  = 500, /* write */
@@ -689,9 +700,14 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     [10] = 100, /* take cond, max 1 */
     [11] = 1,   /* unreg writer */
 #ifdef DDSI_INCLUDE_LIFESPAN
-    [12] = 100  /* drop expired sample */
+    [12] = 100, /* drop expired sample */
 #else
-    [12] = 0    /* drop expired sample */
+    [12] = 0,   /* drop expired sample */
+#endif
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+    [13] = 100  /* deadline missed */
+#else
+    [13] = 0    /* drop expired sample */
 #endif
   };
   uint32_t opthres[sizeof (opfreqs) / sizeof (opfreqs[0])];
@@ -828,6 +844,16 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
         /* We can assume that rhc[k] is a dds_rhc_default at this point */
         for (size_t k = 0; k < nrd; k++)
           (void) dds_rhc_default_sample_expired_cb (rhc[k], rand_texp());
+        thread_state_asleep (lookup_thread_state ());
+#endif
+        break;
+      }
+      case 13: {
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+        thread_state_awake_domain_ok (lookup_thread_state ());
+        /* We can assume that rhc[k] is a dds_rhc_default at this point */
+        for (size_t k = 0; k < nrd; k++)
+          (void) dds_rhc_default_deadline_missed_cb (rhc[k], rand_texp());
         thread_state_asleep (lookup_thread_state ());
 #endif
         break;

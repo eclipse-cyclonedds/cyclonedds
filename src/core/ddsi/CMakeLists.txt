@@ -30,6 +30,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_rhc.c
     ddsi_pmd.c
     ddsi_entity_index.c
+    ddsi_deadline.c
     q_addrset.c
     q_bitset_inlines.c
     q_bswap.c
@@ -63,6 +64,10 @@ if(ENABLE_LIFESPAN)
   list(APPEND srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/ddsi_lifespan.c")
 endif()
 
+if(ENABLE_DEADLINE_MISSED)
+  list(APPEND srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/ddsi_deadline.c")
+endif()
+
 # The includes should reside close to the code. As long as that's not the case,
 # pull them in from this CMakeLists.txt.
 PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
@@ -86,6 +91,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_rhc.h
     ddsi_guid.h
     ddsi_entity_index.h
+    ddsi_deadline.h
     q_addrset.h
     q_bitset.h
     q_bswap.h
@@ -124,6 +130,9 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
 )
 if(ENABLE_LIFESPAN)
   list(APPEND hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/ddsi_lifespan.h")
+endif()
+if(ENABLE_DEADLINE_MISSED)
+  list(APPEND hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/ddsi_deadline.h")
 endif()
 
 target_sources(ddsc

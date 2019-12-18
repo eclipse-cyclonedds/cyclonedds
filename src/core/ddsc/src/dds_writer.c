@@ -50,9 +50,9 @@ static dds_return_t dds_writer_status_validate (uint32_t mask)
   then status conditions is not triggered.
 */
 
-static void dds_writer_status_cb (void *ventity, const status_cb_data_t *data)
+void dds_writer_status_cb (void *entity, const struct status_cb_data *data)
 {
-  dds_writer * const wr = ventity;
+  dds_writer * const wr = entity;
 
   /* When data is NULL, it means that the DDSI reader is deleted. */
   if (data == NULL)
@@ -223,7 +223,12 @@ static dds_return_t validate_writer_qos (const dds_qos_t *wqos)
 #ifndef DDSI_INCLUDE_LIFESPAN
   if (wqos != NULL && (wqos->present & QP_LIFESPAN) && wqos->lifespan.duration != DDS_INFINITY)
     return DDS_RETCODE_BAD_PARAMETER;
-#else
+#endif
+#ifndef DDSI_INCLUDE_DEADLINE_MISSED
+  if (wqos != NULL && (wqos->present & QP_DEADLINE) && wqos->deadline.deadline != DDS_INFINITY)
+    return DDS_RETCODE_BAD_PARAMETER;
+#endif
+#if defined(DDSI_INCLUDE_LIFESPAN) && defined(DDSI_INCLUDE_DEADLINE_MISSED)
   DDSRT_UNUSED_ARG (wqos);
 #endif
   return DDS_RETCODE_OK;
@@ -246,30 +251,6 @@ static dds_return_t dds_writer_qos_set (dds_entity *e, const dds_qos_t *qos, boo
   return DDS_RETCODE_OK;
 }
 
-static struct whc *make_whc (struct dds_domain *dom, const dds_qos_t *qos)
-{
-  bool handle_as_transient_local;
-  uint32_t hdepth, tldepth;
-  /* Construct WHC -- if aggressive_keep_last1 is set, the WHC will
-     drop all samples for which a later update is available.  This
-     forces it to maintain a tlidx.  */
-  handle_as_transient_local = (qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
-  if (qos->history.kind == DDS_HISTORY_KEEP_ALL)
-    hdepth = 0;
-  else
-    hdepth = (unsigned) qos->history.depth;
-  if (!handle_as_transient_local)
-    tldepth = 0;
-  else
-  {
-    if (qos->durability_service.history.kind == DDS_HISTORY_KEEP_ALL)
-      tldepth = 0;
-    else
-      tldepth = (unsigned) qos->durability_service.history.depth;
-  }
-  return whc_new (&dom->gv, handle_as_transient_local, hdepth, tldepth);
-}
-
 const struct dds_entity_deriver dds_entity_deriver_writer = {
   .interrupt = dds_writer_interrupt,
   .close = dds_writer_close,
@@ -288,6 +269,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   dds_participant *pp;
   dds_topic *tp;
   dds_entity_t publisher;
+  struct whc_writer_info *wrinfo;
 
   {
     dds_entity *p_or_p;
@@ -348,7 +330,9 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->m_topic = tp;
   dds_entity_add_ref_locked (&tp->m_entity);
   wr->m_xp = nn_xpack_new (conn, get_bandwidth_limit (wqos->transport_priority), pub->m_entity.m_domain->gv.config.xpack_send_async);
-  wr->m_whc = make_whc (pub->m_entity.m_domain, wqos);
+  wrinfo = whc_make_wrinfo (wr, wqos);
+  wr->m_whc = whc_new (&pub->m_entity.m_domain->gv, wrinfo);
+  whc_free_wrinfo (wrinfo);
   wr->whc_batch = pub->m_entity.m_domain->gv.config.whc_batch;
 
   thread_state_awake (lookup_thread_state (), &pub->m_entity.m_domain->gv);

@@ -342,14 +342,20 @@ void delete_xevent_callback (struct xevent *ev)
   struct xeventq *evq = ev->evq;
   assert (ev->kind == XEVK_CALLBACK);
   ddsrt_mutex_lock (&evq->lock);
-  if (ev->tsched.v != T_NEVER)
+  /* wait until neither scheduled nor executing; loop in case the callback reschedules the event */
+  while (ev->tsched.v != T_NEVER || ev->u.callback.executing)
   {
-    assert (ev->tsched.v != TSCHED_DELETE);
-    ddsrt_fibheap_delete (&evq_xevents_fhdef, &evq->xevents, ev);
-    ev->tsched.v = TSCHED_DELETE;
+    if (ev->tsched.v != T_NEVER)
+    {
+      assert (ev->tsched.v != TSCHED_DELETE);
+      ddsrt_fibheap_delete (&evq_xevents_fhdef, &evq->xevents, ev);
+      ev->tsched.v = T_NEVER;
+    }
+    if (ev->u.callback.executing)
+    {
+      ddsrt_cond_wait (&evq->cond, &evq->lock);
+    }
   }
-  while (ev->u.callback.executing)
-    ddsrt_cond_wait (&evq->cond, &evq->lock);
   ddsrt_mutex_unlock (&evq->lock);
   free_xevent (evq, ev);
 }

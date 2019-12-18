@@ -71,9 +71,23 @@ static dds_return_t dds_reader_delete (dds_entity *e)
   return DDS_RETCODE_OK;
 }
 
+static dds_return_t validate_reader_qos (const dds_qos_t *rqos)
+{
+#ifndef DDSI_INCLUDE_DEADLINE_MISSED
+  if (rqos != NULL && (rqos->present & QP_DEADLINE) && rqos->deadline.deadline != DDS_INFINITY)
+    return DDS_RETCODE_BAD_PARAMETER;
+#else
+  DDSRT_UNUSED_ARG (rqos);
+#endif
+  return DDS_RETCODE_OK;
+}
+
 static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
   /* note: e->m_qos is still the old one to allow for failure here */
+  dds_return_t ret;
+  if ((ret = validate_reader_qos(qos)) != DDS_RETCODE_OK)
+    return ret;
   if (enabled)
   {
     struct reader *rd;
@@ -420,7 +434,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     nn_xqos_mergein_missing (rqos, tp->m_entity.m_qos, ~(uint64_t)0);
   nn_xqos_mergein_missing (rqos, &sub->m_entity.m_domain->gv.default_xqos_rd, ~(uint64_t)0);
 
-  if ((ret = nn_xqos_valid (&sub->m_entity.m_domain->gv.logconfig, rqos)) != DDS_RETCODE_OK)
+  if ((ret = nn_xqos_valid (&sub->m_entity.m_domain->gv.logconfig, rqos)) < 0 ||
+      (ret = validate_reader_qos(rqos)) != DDS_RETCODE_OK)
   {
     dds_delete_qos (rqos);
     reader = ret;
