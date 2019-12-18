@@ -22,6 +22,12 @@ module Space {
 	long	long_3;
     };
 #pragma keylist Type2 long_1
+    struct Type3 {
+	long	long_1;
+	long	long_2;
+	long	long_3;
+    };
+#pragma keylist Type3
 
     struct simpletypes {
         long                l;

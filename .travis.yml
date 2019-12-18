@@ -142,33 +142,33 @@ windows_vs2017: &windows_vs2017
 jobs:
   include:
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles", COVERITY_SCAN=true ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Unix Makefiles", COVERITY_SCAN=true ]
       if: type = cron
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=NO, LIFESPAN=NO, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=NO, LIFESPAN=NO, DEADLINE=NO, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
-      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Unix Makefiles" ]
     - <<: *osx_xcode9
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=NO, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=NO, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Unix Makefiles" ]
       if: type = cron
     - <<: *osx_xcode
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=NO, LIFESPAN=YES, GENERATOR="Unix Makefiles", MACOSX_DEPLOYMENT_TARGET=10.12 ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=NO, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Unix Makefiles", MACOSX_DEPLOYMENT_TARGET=10.12 ]
     - <<: *osx_xcode
-      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Unix Makefiles" ]
     - <<: *osx_xcode
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Unix Makefiles" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86, ASAN=none, BUILD_TYPE=Debug, SSL=YES, LIFESPAN=YES, GENERATOR="Visual Studio 15 2017" ]
+      env: [ ARCH=x86, ASAN=none, BUILD_TYPE=Debug, SSL=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Visual Studio 15 2017" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, LIFESPAN=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, LIFESPAN=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, LIFESPAN=YES, DEADLINE=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
 
 before_script:
   - conan profile new default --detect
@@ -200,6 +200,7 @@ script:
           -DUSE_SANITIZER=${ASAN}
           -DENABLE_SSL=${SSL}
           -DENABLE_LIFESPAN=${LIFESPAN}
+          -DENABLE_DEADLINE_MISSED=${DEADLINE}
           -DBUILD_TESTING=on
           -DWERROR=on
           -G "${GENERATOR}" ..

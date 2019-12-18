@@ -98,7 +98,11 @@ static void setqos (dds_qos_t *q, size_t i, bool isrd, bool create)
 #else
   dds_qset_lifespan (q, DDS_INFINITY);
 #endif
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
   dds_qset_deadline (q, INT64_C (67890123456789012) + (int32_t) i);
+#else
+  dds_qset_deadline (q, DDS_INFINITY);
+#endif
   dds_qset_latency_budget (q, INT64_C (45678901234567890) + (int32_t) i);
   dds_qset_ownership (q, (dds_ownership_kind_t) ((i + 1) % 2));
   dds_qset_ownership_strength (q, 0x12345670 + (int32_t) i);

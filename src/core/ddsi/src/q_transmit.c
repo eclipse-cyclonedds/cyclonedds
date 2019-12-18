@@ -879,7 +879,8 @@ int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct nn_
 static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   /* returns: < 0 on error, 0 if no need to insert in whc, > 0 if inserted */
-  int do_insert, insres, res;
+  int insres, res = 0;
+  bool wr_deadline = false;
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
@@ -900,17 +901,15 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
   }
 
   assert (wr->reliable || have_reliable_subs (wr) == 0);
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+  /* If deadline missed duration is not infinite, the sample is inserted in
+     the whc so that the instance is created (or renewed) in the whc and the deadline
+     missed event is registered. The sample is removed immediately after inserting it
+     as we don't want to store it. */
+  wr_deadline = wr->xqos->deadline.deadline != DDS_INFINITY;
+#endif
 
-  if (wr->reliable && have_reliable_subs (wr))
-    do_insert = 1;
-  else if (wr->handle_as_transient_local)
-    do_insert = 1;
-  else
-    do_insert = 0;
-
-  if (!do_insert)
-    res = 0;
-  else
+  if ((wr->reliable && have_reliable_subs (wr)) || wr_deadline || wr->handle_as_transient_local)
   {
     nn_mtime_t exp = NN_MTIME_NEVER;
 #ifdef DDSI_INCLUDE_LIFESPAN
@@ -921,6 +920,20 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
       exp = add_duration_to_mtime(serdata->twrite, wr->xqos->lifespan.duration);
 #endif
     res = ((insres = whc_insert (wr->whc, writer_max_drop_seq (wr), seq, exp, plist, serdata, tk)) < 0) ? insres : 1;
+
+#ifdef DDSI_INCLUDE_DEADLINE_MISSED
+    if (!(wr->reliable && have_reliable_subs (wr)) && !wr->handle_as_transient_local)
+    {
+      /* Sample was inserted only because writer has deadline, so we'll remove the sample from whc */
+      struct whc_node *deferred_free_list = NULL;
+      struct whc_state whcst;
+      uint32_t n = whc_remove_acked_messages (wr->whc, seq, &whcst, &deferred_free_list);
+      (void)n;
+      assert (n <= 1);
+      assert (whcst.min_seq == -1 && whcst.max_seq == -1);
+      whc_free_deferred_free_list (wr->whc, deferred_free_list);
+    }
+#endif
   }
 
 #ifndef NDEBUG

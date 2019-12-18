@@ -486,6 +486,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
 {
   struct participant *pp;
   ddsi_guid_t subguid, group_guid;
+  struct whc_writer_info *wrinfo;
 
   /* no reserved bits may be set */
   assert ((flags & ~(RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS | RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP | RTPS_PF_ONLY_LOCAL)) == 0);
@@ -575,7 +576,9 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     subguid.entityid = to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->spdp_endpoint_xqos, whc_new(gv, 1, 1, 1), NULL, NULL);
+    wrinfo = whc_make_wrinfo (NULL, &gv->spdp_endpoint_xqos);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->spdp_endpoint_xqos, whc_new(gv, wrinfo), NULL, NULL);
+    whc_free_wrinfo (wrinfo);
     /* But we need the as_disc address set for SPDP, because we need to
        send it to everyone regardless of the existence of readers. */
     {
@@ -595,14 +598,15 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   entidx_insert_participant_guid (gv->entity_index, pp);
 
   /* SEDP writers: */
+  wrinfo = whc_make_wrinfo (NULL, &gv->builtin_endpoint_xqos_wr);
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER;
 
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
   }
 
@@ -610,7 +614,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   {
     /* TODO: make this one configurable, we don't want all participants to publish all topics (or even just those that they use themselves) */
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_TOPIC_ANNOUNCER;
   }
 
@@ -618,9 +622,11 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     subguid.entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
   }
+
+  whc_free_wrinfo (wrinfo);
 
   /* SPDP, SEDP, PMD readers: */
   if (!(flags & RTPS_PF_NO_BUILTIN_READERS))
@@ -3020,12 +3026,10 @@ static void gc_delete_writer (struct gcreq *gcreq)
   /* Do last gasp on SEDP and free writer. */
   if (!is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE))
     sedp_dispose_unregister_writer (wr);
-  if (wr->status_cb)
-  {
-    (wr->status_cb) (wr->status_cb_entity, NULL);
-  }
-
   whc_free (wr->whc);
+  if (wr->status_cb)
+    (wr->status_cb) (wr->status_cb_entity, NULL);
+
 #ifdef DDSI_INCLUDE_SSM
   if (wr->ssm_as)
     unref_addrset (wr->ssm_as);
