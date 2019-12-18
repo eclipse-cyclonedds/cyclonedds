@@ -18,6 +18,7 @@ extern "C" {
 
 struct writer;
 struct whc_state;
+struct proxy_reader;
 
 struct hbcontrol {
   nn_mtime_t t_of_last_write;

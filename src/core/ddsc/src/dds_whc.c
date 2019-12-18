@@ -12,24 +12,27 @@
 #include <assert.h>
 #include <stddef.h>
 #include <string.h>
-
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/fibheap.h"
+#include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/ddsi_serdata.h"
+#ifdef DDSI_INCLUDE_LIFESPAN
+#include "dds/ddsi/ddsi_lifespan.h"
+#endif
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_config.h"
-#include "dds__whc.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/q_globals.h"
+#include "dds__whc.h"
 
 #define USE_EHH 0
+
 
 struct whc_node {
   struct whc_node *next_seq; /* next in this interval */
@@ -44,6 +47,9 @@ struct whc_node {
   unsigned borrowed: 1; /* at most one can borrow it at any time */
   nn_mtime_t last_rexmit_ts;
   uint32_t rexmit_count;
+#ifdef DDSI_INCLUDE_LIFESPAN
+  struct lifespan_fhnode lifespan; /* fibheap node for lifespan */
+#endif
   struct ddsi_serdata *serdata;
 };
 
@@ -95,6 +101,9 @@ struct whc_impl {
 #endif
   struct ddsrt_hh *idx_hash;
   ddsrt_avl_tree_t seq;
+#ifdef DDSI_INCLUDE_LIFESPAN
+  struct lifespan_adm lifespan; /* Lifespan administration */
+#endif
 };
 
 struct whc_sample_iter_impl {
@@ -128,7 +137,7 @@ static uint32_t whc_default_remove_acked_messages_full (struct whc_impl *whc, se
 static uint32_t whc_default_remove_acked_messages (struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list);
 static void whc_default_free_deferred_free_list (struct whc *whc, struct whc_node *deferred_free_list);
 static void whc_default_get_state (const struct whc *whc, struct whc_state *st);
-static int whc_default_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
+static int whc_default_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
 static seqno_t whc_default_next_seq (const struct whc *whc, seqno_t seq);
 static bool whc_default_borrow_sample (const struct whc *whc, seqno_t seq, struct whc_borrowed_sample *sample);
 static bool whc_default_borrow_sample_key (const struct whc *whc, const struct ddsi_serdata *serdata_key, struct whc_borrowed_sample *sample);
@@ -349,6 +358,21 @@ static struct whc_node *whc_findkey (const struct whc_impl *whc, const struct dd
   }
 }
 
+#ifdef DDSI_INCLUDE_LIFESPAN
+static nn_mtime_t whc_sample_expired_cb(void *hc, nn_mtime_t tnow)
+{
+  struct whc_impl *whc = hc;
+  void *sample;
+  nn_mtime_t tnext;
+  ddsrt_mutex_lock (&whc->lock);
+  while ((tnext = lifespan_next_expired_locked (&whc->lifespan, tnow, &sample)).v == 0)
+    whc_delete_one (whc, sample);
+  whc->maxseq_node = whc_findmax_procedurally (whc);
+  ddsrt_mutex_unlock (&whc->lock);
+  return tnext;
+}
+#endif
+
 struct whc *whc_new (struct q_globals *gv, int is_transient_local, uint32_t hdepth, uint32_t tldepth)
 {
   size_t sample_overhead = 80; /* INFO_TS, DATA (estimate), inline QoS */
@@ -384,6 +408,10 @@ struct whc *whc_new (struct q_globals *gv, int is_transient_local, uint32_t hdep
   else
     whc->idx_hash = NULL;
 
+#ifdef DDSI_INCLUDE_LIFESPAN
+  lifespan_init (gv, &whc->lifespan, offsetof(struct whc_impl, lifespan), offsetof(struct whc_node, lifespan), whc_sample_expired_cb);
+#endif
+
   /* seq interval tree: always has an "open" node */
   ddsrt_avl_init (&whc_seq_treedef, &whc->seq);
   intv = ddsrt_malloc (sizeof (*intv));
@@ -416,6 +444,11 @@ void whc_default_free (struct whc *whc_generic)
   /* Freeing stuff without regards for maintaining data structures */
   struct whc_impl * const whc = (struct whc_impl *)whc_generic;
   check_whc (whc);
+
+#ifdef DDSI_INCLUDE_LIFESPAN
+  whc_sample_expired_cb (whc, NN_MTIME_NEVER);
+  lifespan_fini (&whc->lifespan);
+#endif
 
   if (whc->idx_hash)
   {
@@ -686,6 +719,10 @@ static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_i
     whcn->unacked = 0;
   }
 
+#ifdef DDSI_INCLUDE_LIFESPAN
+  lifespan_unregister_sample_locked (&whc->lifespan, &whcn->lifespan);
+#endif
+
   /* Take it out of seqhash; deleting it from the list ordered on
    sequence numbers is left to the caller (it has to be done unconditionally,
    but remove_acked_messages defers it until the end or a skipped node). */
@@ -869,6 +906,9 @@ static uint32_t whc_default_remove_acked_messages_noidx (struct whc_impl *whc, s
   whc->unacked_bytes -= (size_t) (whcn->total_bytes - (*deferred_free_list)->total_bytes + (*deferred_free_list)->size);
   for (whcn = *deferred_free_list; whcn; whcn = whcn->next_seq)
   {
+#ifdef DDSI_INCLUDE_LIFESPAN
+    lifespan_unregister_sample_locked (&whc->lifespan, &whcn->lifespan);
+#endif
     remove_whcn_from_hash (whc, whcn);
     assert (whcn->unacked);
   }
@@ -1035,9 +1075,15 @@ static uint32_t whc_default_remove_acked_messages (struct whc *whc_generic, seqn
   return cnt;
 }
 
-static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata)
+static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct nn_plist *plist, struct ddsi_serdata *serdata)
 {
   struct whc_node *newn = NULL;
+
+#ifndef DDSI_INCLUDE_LIFESPAN
+  /* FIXME: the 'exp' arg is used for lifespan, refactor this parameter to a struct 'writer info'
+    that contains both lifespan and deadline info of the writer */
+  DDSRT_UNUSED_ARG (exp);
+#endif
 
   if ((newn = nn_freelist_pop (&whc_node_freelist)) == NULL)
     newn = ddsrt_malloc (sizeof (*newn));
@@ -1061,6 +1107,10 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
   newn->total_bytes = whc->total_bytes;
   if (newn->unacked)
     whc->unacked_bytes += newn->size;
+
+#ifdef DDSI_INCLUDE_LIFESPAN
+  newn->lifespan.t_expire = exp;
+#endif
 
   insert_whcn_in_hash (whc, newn);
 
@@ -1093,10 +1143,13 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
   }
 
   whc->seq_size++;
+#ifdef DDSI_INCLUDE_LIFESPAN
+  lifespan_register_sample_locked (&whc->lifespan, &newn->lifespan);
+#endif
   return newn;
 }
 
-static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   struct whc_impl * const whc = (struct whc_impl *)whc_generic;
   struct whc_node *newn = NULL;
@@ -1106,6 +1159,9 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
     char pad[sizeof (struct whc_idxnode) + sizeof (struct whc_node *)];
   } template;
 
+  /* FIXME: the 'exp' arg is used for lifespan, refactor this parameter to a struct 'writer info'
+    that contains both lifespan als deadline info of the writer */
+
   ddsrt_mutex_lock (&whc->lock);
   check_whc (whc);
 
@@ -1113,8 +1169,8 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
   {
     struct whc_state whcst;
     get_state_locked (whc, &whcst);
-    TRACE ("whc_default_insert(%p max_drop_seq %"PRId64" seq %"PRId64" plist %p serdata %p:%"PRIx32")\n",
-           (void *) whc, max_drop_seq, seq, (void *) plist, (void *) serdata, serdata->hash);
+    TRACE ("whc_default_insert(%p max_drop_seq %"PRId64" seq %"PRId64" exp %"PRId64" plist %p serdata %p:%"PRIx32")\n",
+           (void *) whc, max_drop_seq, seq, exp.v, (void *) plist, (void *) serdata, serdata->hash);
     TRACE ("  whc: [%"PRId64",%"PRId64"] max_drop_seq %"PRId64" h %"PRIu32" tl %"PRIu32"\n",
            whcst.min_seq, whcst.max_seq, whc->max_drop_seq, whc->hdepth, whc->tldepth);
   }
@@ -1128,7 +1184,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
   assert (whc->seq_size == 0 || seq > whc->maxseq_node->seq);
 
   /* Always insert in seq admin */
-  newn = whc_default_insert_seq (whc, max_drop_seq, seq, plist, serdata);
+  newn = whc_default_insert_seq (whc, max_drop_seq, seq, exp, plist, serdata);
 
   TRACE ("  whcn %p:", (void*)newn);
 

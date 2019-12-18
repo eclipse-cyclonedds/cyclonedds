@@ -19,6 +19,7 @@
 
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_bswap.h"
@@ -202,7 +203,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   else
   {
     struct proxy_reader *prd;
-    if ((prd = ephash_lookup_proxy_reader_guid (gv->guid_hash, prd_guid)) == NULL)
+    if ((prd = entidx_lookup_proxy_reader_guid (gv->entity_index, prd_guid)) == NULL)
     {
       ETRACE (wr, "writer_hbcontrol: wr "PGUIDFMT" unknown prd "PGUIDFMT"\n", PGUID (wr->e.guid), PGUID (*prd_guid));
       nn_xmsg_free (msg);
@@ -745,7 +746,7 @@ dds_return_t write_hb_liveliness (struct q_globals * const gv, struct ddsi_guid 
   struct whc_state whcst;
   struct thread_state1 * const ts1 = lookup_thread_state ();
   thread_state_awake (ts1, gv);
-  struct writer *wr = ephash_lookup_writer_guid (gv->guid_hash, wr_guid);
+  struct writer *wr = entidx_lookup_writer_guid (gv->entity_index, wr_guid);
   if (wr == NULL)
   {
     GVTRACE ("write_hb_liveliness("PGUIDFMT") - writer not found\n", PGUID (*wr_guid));
@@ -979,10 +980,18 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct nn_plist
 
   if (!do_insert)
     res = 0;
-  else if ((insres = whc_insert (wr->whc, writer_max_drop_seq (wr), seq, plist, serdata, tk)) < 0)
-    res = insres;
   else
-    res = 1;
+  {
+    nn_mtime_t exp = NN_MTIME_NEVER;
+#ifdef DDSI_INCLUDE_LIFESPAN
+    /* Don't set expiry for samples with flags unregister or dispose, because these are required
+     * for sample lifecycle and should always be delivered to the reader so that is can clean up
+     * its history cache. */
+    if (wr->xqos->lifespan.duration != DDS_INFINITY && (serdata->statusinfo & (NN_STATUSINFO_UNREGISTER | NN_STATUSINFO_DISPOSE)) == 0)
+      exp = add_duration_to_mtime(serdata->twrite, wr->xqos->lifespan.duration);
+#endif
+    res = ((insres = whc_insert (wr->whc, writer_max_drop_seq (wr), seq, exp, plist, serdata, tk)) < 0) ? insres : 1;
+  }
 
 #ifndef NDEBUG
   if (((wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER) ||

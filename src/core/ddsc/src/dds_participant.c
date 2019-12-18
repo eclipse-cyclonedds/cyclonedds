@@ -18,6 +18,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/version.h"
 #include "dds__init.h"
 #include "dds__domain.h"
@@ -55,7 +56,7 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
   {
     struct participant *pp;
     thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
-    if ((pp = ephash_lookup_participant_guid (e->m_domain->gv.guid_hash, &e->m_guid)) != NULL)
+    if ((pp = entidx_lookup_participant_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
     {
       nn_plist_t plist;
       nn_plist_init_empty (&plist);

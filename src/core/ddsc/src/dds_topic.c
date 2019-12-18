@@ -25,6 +25,7 @@
 #include "dds__get_status.h"
 #include "dds__qos.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
@@ -437,7 +438,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
 
   /* Publish Topic */
   thread_state_awake (lookup_thread_state (), &par->m_entity.m_domain->gv);
-  ddsi_pp = ephash_lookup_participant_guid (par->m_entity.m_domain->gv.guid_hash, &par->m_entity.m_guid);
+  ddsi_pp = entidx_lookup_participant_guid (par->m_entity.m_domain->gv.entity_index, &par->m_entity.m_guid);
   assert (ddsi_pp);
   if (sedp_plist)
   {

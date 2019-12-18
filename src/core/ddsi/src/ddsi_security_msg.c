@@ -20,6 +20,7 @@
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_msg.h"
 #include "dds/ddsi/ddsi_plist_generic.h"
 
@@ -183,7 +184,7 @@ write_crypto_exchange_message(
 
   prd_guid.prefix = dst_pguid->prefix;
   prd_guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER;
-  if ((prd = ephash_lookup_proxy_reader_guid (gv->guid_hash, &prd_guid)) == NULL)
+  if ((prd = entidx_lookup_proxy_reader_guid (gv->entity_index, &prd_guid)) == NULL)
   {
     return -1;
   }
