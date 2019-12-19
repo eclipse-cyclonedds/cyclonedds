@@ -150,7 +150,7 @@ jobs:
       env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_gcc8
       env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=NO, SECURITY=YES, LIFESPAN=NO, GENERATOR="Unix Makefiles" ]
-    - <<: *linux_gcc8
+    - <<: *linux_clang
       env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
       env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=NO, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
