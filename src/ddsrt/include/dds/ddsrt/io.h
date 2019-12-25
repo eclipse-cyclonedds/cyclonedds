@@ -25,6 +25,15 @@ extern "C" {
  * @brief Write a formatted string to a newly allocated buffer.
  */
 DDS_EXPORT int
+ddsrt_vasprintf(
+  char **strp,
+  const char *fmt,
+  va_list ap);
+
+/**
+ * @brief Write a formatted string to a newly allocated buffer.
+ */
+DDS_EXPORT int
 ddsrt_asprintf(
   char **strp,
   const char *fmt,

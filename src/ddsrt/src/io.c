@@ -52,6 +52,40 @@ ddsrt_asprintf(
   return ret;
 }
 
+int
+ddsrt_vasprintf(
+  char **strp,
+  const char *fmt,
+  va_list ap)
+{
+  int ret;
+  unsigned int len;
+  char buf[1] = { '\0' };
+  char *str = NULL;
+  va_list ap2;
+
+  assert(strp != NULL);
+  assert(fmt != NULL);
+
+  va_copy(ap2, ap); /* va_list cannot be reused */
+
+  if ((ret = vsnprintf(buf, sizeof(buf), fmt, ap)) >= 0) {
+    len = (unsigned int)ret;
+    if ((str = ddsrt_malloc(len + 1)) == NULL) {
+      ret = -1;
+    } else if ((ret = vsnprintf(str, len + 1, fmt, ap2)) >= 0) {
+      assert(((unsigned int)ret) == len);
+      *strp = str;
+    } else {
+      ddsrt_free(str);
+    }
+  }
+
+  va_end(ap2);
+
+  return ret;
+}
+
 #if defined(_MSC_VER) && (_MSC_VER < 1900)
 int
 snprintf(
