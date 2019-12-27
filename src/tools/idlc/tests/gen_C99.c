@@ -21,7 +21,7 @@
 static bool test_parse_gen_C99(const char *input, const char *str)
 {
   ddsts_type_t *root_type = NULL;
-  if (idl_parse_string(input, &root_type) != DDS_RETCODE_OK) {
+  if (idl_parse(input, &root_type) != DDS_RETCODE_OK) {
     return false;
   }
 
@@ -41,7 +41,7 @@ static bool test_parse_gen_C99(const char *input, const char *str)
 static bool test_parse_gen_C99_descr(const char *input, const char *name, const char *align, const char *flags)
 {
   ddsts_type_t *root_type = NULL;
-  if (idl_parse_string(input, &root_type) != DDS_RETCODE_OK) {
+  if (idl_parse(input, &root_type) != DDS_RETCODE_OK) {
     return false;
   }
 

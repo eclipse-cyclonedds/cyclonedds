@@ -21,7 +21,6 @@
 #include "dds/ddsts/typetree.h"
 #include "tt_create.h"
 
-
 typedef struct array_size array_size_t;
 struct array_size {
   unsigned long long size;
@@ -351,15 +350,26 @@ extern ddsts_context_t* ddsts_create_context(void)
     return NULL;
   }
   context->pragma_args = NULL;
-  context->retcode = DDS_RETCODE_ERROR;
+  context->retcode = DDS_RETCODE_OK;
   context->semantic_error = false;
   return context;
+}
+
+extern void ddsts_context_set_retcode(ddsts_context_t *context, dds_return_t retcode)
+{
+  assert(context != NULL);
+  context->retcode = retcode;
 }
 
 extern dds_return_t ddsts_context_get_retcode(ddsts_context_t* context)
 {
   assert(context != NULL);
-  return context->retcode;
+  if (context->retcode != DDS_RETCODE_OK) {
+    return context->retcode;
+  } else if (context->semantic_error) {
+    return DDS_RETCODE_ERROR;
+  }
+  return DDS_RETCODE_OK;
 }
 
 extern ddsts_type_t* ddsts_context_take_root_type(ddsts_context_t *context)
@@ -537,6 +547,7 @@ extern bool ddsts_add_struct_member(ddsts_context_t *context, ddsts_type_t **ref
   if (DDSTS_IS_TYPE(type, DDSTS_FORWARD_STRUCT)) {
     if (type->forward.definition == NULL) {
       DDS_ERROR("Cannot use forward struct as type for member declaration\n");
+      context->semantic_error = true;
       return false;
     }
     type = type->forward.definition;
