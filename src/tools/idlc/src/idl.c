@@ -1,6 +1,5 @@
 /*
- * Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
- * Copyright(c) 2019 Jeroen Koekkoek
+ * Copyright(c) 2020 Jeroen Koekkoek
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -13,147 +12,151 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 
 #include "idl.h"
 #include "idl.y.h"
-/* Disable inclusion of unistd.h in the flex generated header file, as
+/* disable inclusion of unistd.h in the flex generated header file, as
    %nounistd only disables inclusion in the generated source file. */
 #define YY_NO_UNISTD_H
 #include "idl.l.h"
+#include "tt_create.h"
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsts/typetree.h"
 
-static void log_write_to_file(void *ptr, const dds_log_data_t *data)
-{
-  if (data->priority == DDS_LC_ERROR) {
-    fprintf((FILE *)ptr, "Error at ");
-  }
-  else if (data->priority == DDS_LC_WARNING) {
-    fprintf((FILE *)ptr, "Warning at ");
-  }
-  fprintf((FILE *)ptr, "%*.*s\n", (int)data->size, (int)data->size, data->message);
-  fflush((FILE *)ptr);
-}
-
-static dds_return_t idl_parser_new(idl_parser_t **parserp)
+idl_parser_t *idl_create_parser(void)
 {
   idl_parser_t *parser;
 
-  if ((parser = ddsrt_calloc(1, sizeof(*parser))) == NULL) {
-    return DDS_RETCODE_OUT_OF_RESOURCES;
+  if ((parser = ddsrt_calloc(1, sizeof(*parser))) != NULL &&
+      (parser->context = ddsts_create_context()) != NULL &&
+      (idl_yylex_init(&parser->yylstate)) == 0 &&
+      (parser->yypstate = (void *)idl_yypstate_new()) != NULL)
+  {
+    return parser;
   }
-  idl_yylex_init(&parser->scanner);
-  *parserp = parser;
-  return DDS_RETCODE_OK;
+
+  idl_destroy_parser(parser);
+  return NULL;
 }
 
-static void idl_parser_free(idl_parser_t *parser)
+void idl_destroy_parser(idl_parser_t *parser)
 {
   if (parser != NULL) {
-    idl_file_t *file = parser->files, *next;
-    while (file != NULL) {
+    idl_file_t *file, *next;
+
+    if (parser->yypstate != NULL) {
+      idl_yypstate_delete((idl_yypstate *)parser->yypstate);
+    }
+    if (parser->yylstate != NULL) {
+      idl_yylex_destroy((yyscan_t)parser->yylstate);
+    }
+    if (parser->context != NULL) {
+      ddsts_free_context(parser->context);
+    }
+
+    for (file = parser->files; file != NULL; file = next) {
       next = file->next;
-      if (file->name) {
+      if (file->name != NULL) {
         ddsrt_free(file->name);
       }
       ddsrt_free(file);
-      file = next;
     }
-    if (parser->scanner) {
-      idl_yylex_destroy(parser->scanner);
+
+    if (parser->buffer.data != NULL) {
+      ddsrt_free(parser->buffer.data);
     }
+
     ddsrt_free(parser);
   }
 }
 
-dds_return_t idl_parse_file(const char *file, ddsts_type_t **ref_root_type)
+dds_return_t idl_scan_token(idl_parser_t *parser)
+{
+  dds_return_t ret = 1;
+  YYSTYPE yylval;
+  int tok;
+
+  assert(parser != NULL);
+  memset(&yylval, 0, sizeof(yylval));
+
+  if ((tok = idl_yylex(&yylval, &parser->location, parser, parser->yylstate)) == '\n') {
+    /* ignore whitespace */
+    parser->buffer.lines--;
+  } else {
+    if (tok == 0) {
+      /* 0 (YY_NULL) is returned by flex to indicate it is finished. e.g. on
+         end-of-file and yyterminate */
+      ret = ddsts_context_get_retcode(parser->context);
+      if (ret != DDS_RETCODE_OK) {
+        return ret;
+      }
+    }
+    int yystate = idl_yypush_parse(parser->yypstate, tok, &yylval, &parser->location, parser);
+    if (tok == IDL_T_IDENTIFIER) {
+      ddsrt_free(yylval.identifier);
+    }
+    switch (yystate) {
+    case 0:
+      ret = ddsts_context_get_retcode(parser->context);
+      break;
+    case 1:
+      ret = ddsts_context_get_retcode(parser->context);
+      if (ret == DDS_RETCODE_OK)
+        ret = DDS_RETCODE_BAD_SYNTAX;
+      break;
+    case 2:
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+    default:
+      assert(yystate == YYPUSH_MORE);
+      break;
+    }
+  }
+  return ret;
+}
+
+dds_return_t idl_scan(idl_parser_t *parser)
 {
   dds_return_t rc;
-  idl_parser_t *parser = NULL;
 
-  if (file == NULL || ref_root_type == NULL) {
-    return DDS_RETCODE_BAD_PARAMETER;
-  }
-  if ((rc = idl_parser_new(&parser)) != DDS_RETCODE_OK) {
-    return rc;
-  }
-  if ((parser->files = ddsrt_calloc(1, sizeof(idl_file_t))) == NULL ||
-      (parser->files->name = ddsrt_strdup(file)) == NULL)
-  {
-    idl_parser_free(parser);
-    return DDS_RETCODE_OUT_OF_RESOURCES;
-  }
-
-  *ref_root_type = NULL;
-DDSRT_WARNING_MSVC_OFF(4996);
-  FILE *fh = fopen(file, "rb");
-DDSRT_WARNING_MSVC_ON(4996);
-
-  if (fh == NULL) {
-    DDS_ERROR("Cannot open file\n");
-    return DDS_RETCODE_ERROR;
-  }
-
-  ddsts_context_t *context = ddsts_create_context();
-  if (context == NULL) {
-    return DDS_RETCODE_OUT_OF_RESOURCES;
-  }
-  uint32_t log_mask = dds_get_log_mask();
-  dds_set_log_mask(DDS_LC_FATAL | DDS_LC_ERROR | DDS_LC_WARNING);
-  dds_set_log_sink(log_write_to_file, stderr);
-  idl_yyset_in(fh, parser->scanner);
-  int parse_result = idl_yyparse(parser, context, parser->scanner);
-  rc = parse_result == 2 ? DDS_RETCODE_OUT_OF_RESOURCES : ddsts_context_get_retcode(context);
+  assert(parser != NULL);
+  while ((rc = idl_scan_token(parser)) == 1) { /* scan tokens */ }
   if (rc == DDS_RETCODE_OK) {
-    *ref_root_type = ddsts_context_take_root_type(context);
+    assert(parser->buffer.lines == 0);
   }
-  ddsts_free_context(context);
-  idl_parser_free(parser);
-  dds_set_log_sink(0, NULL);
-  dds_set_log_mask(log_mask);
-  (void)fclose(fh);
 
   return rc;
 }
 
-dds_return_t idl_parse_string(const char *str, ddsts_type_t **ref_root_type)
+dds_return_t idl_parse(const char *str, ddsts_type_t **typeptr)
 {
   dds_return_t rc;
-  idl_parser_t *parser;
+  idl_parser_t *pars;
 
-  if (str == NULL || ref_root_type == NULL) {
-    return DDS_RETCODE_BAD_PARAMETER;
-  }
-  if ((rc = idl_parser_new(&parser)) != DDS_RETCODE_OK) {
-    return rc;
-  }
-  *ref_root_type = NULL;
+  assert(str != NULL);
+  assert(typeptr != NULL);
 
-  ddsts_context_t *context = ddsts_create_context();
-  if (context == NULL) {
+  if ((pars = idl_create_parser()) == NULL) {
     return DDS_RETCODE_OUT_OF_RESOURCES;
   }
-  uint32_t log_mask = dds_get_log_mask();
-  dds_set_log_mask(DDS_LC_FATAL | DDS_LC_ERROR | DDS_LC_WARNING);
-  dds_set_log_sink(log_write_to_file, stderr);
-  idl_yy_scan_string(str, parser->scanner);
-  idl_yyset_lineno(1, parser->scanner);
-  int parse_result = idl_yyparse(parser, context, parser->scanner);
-  rc = parse_result == 2 ? DDS_RETCODE_OUT_OF_RESOURCES : ddsts_context_get_retcode(context);
-  if (rc == DDS_RETCODE_OK) {
-    *ref_root_type = ddsts_context_take_root_type(context);
+
+  if (idl_puts(pars, str, strlen(str)) != -1) {
+    if ((rc = idl_scan(pars)) == DDS_RETCODE_OK) {
+      *typeptr = ddsts_context_take_root_type(pars->context);
+    }
+  } else {
+    rc = ddsts_context_get_retcode(pars->context);
+    assert(rc != DDS_RETCODE_OK);
   }
-  ddsts_free_context(context);
-  idl_parser_free(parser);
-  dds_set_log_sink(0, NULL);
-  dds_set_log_mask(log_mask);
+
+  idl_destroy_parser(pars);
 
   return rc;
 }
-
