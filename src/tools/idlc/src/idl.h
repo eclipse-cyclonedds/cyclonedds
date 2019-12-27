@@ -16,6 +16,7 @@
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsts/typetree.h"
+#include "tt_create.h"
 
 /* yyscan_t is an opaque pointer, a typedef is required here to break a
    circular dependency introduced with bison 2.6 (normally a typedef is
@@ -28,21 +29,61 @@ typedef void *yyscan_t;
 
 typedef struct idl_file idl_file_t;
 
+/** @private */
 struct idl_file {
   idl_file_t *next;
   char *name;
 };
 
-typedef struct idl_parser idl_parser_t;
+typedef struct idl_buffer idl_buffer_t;
 
-struct idl_parser {
-  yyscan_t scanner;
-  idl_file_t *files;
+/** @private */
+struct idl_buffer {
+  char *data;
+  size_t size; /**< Total number of bytes available */
+  size_t used; /**< Number of bytes used */
+  size_t lines; /**< Number of lines left in buffer */
 };
 
-dds_return_t idl_parse_file(const char *file, ddsts_type_t **ref_root_type);
+typedef struct idl_location idl_location_t;
 
-dds_return_t idl_parse_string(const char *str, ddsts_type_t **ref_root_type);
+/** @private */
+struct idl_location {
+  char *first_file;
+  int first_line;
+  int first_column;
+  char *last_file;
+  int last_line;
+  int last_column;
+};
+
+typedef struct idl_parser idl_parser_t;
+
+/** @private */
+struct idl_parser {
+  idl_file_t *files; /**< List of included files */
+  idl_buffer_t buffer; /**< Dynamically sized input buffer */
+  idl_location_t location;
+  ddsts_context_t *context;
+  yyscan_t yylstate; /**< State for Flex generated lexer */
+  void *yypstate; /**< State for Bison generated parser */
+};
+
+idl_parser_t *idl_create_parser(void);
+
+void idl_destroy_parser(idl_parser_t *parser);
+
+/* implemented in idl.l as it requires access to lexer internals */
+int idl_puts(idl_parser_t *parser, const char *str, size_t len)
+  ddsrt_nonnull((1,2));
+
+dds_return_t idl_scan_token(idl_parser_t *parser)
+  ddsrt_nonnull_all;
+
+dds_return_t idl_scan(idl_parser_t *parser)
+  ddsrt_nonnull_all;
+
+dds_return_t idl_parse(const char *str, ddsts_type_t **typeptr)
+  ddsrt_nonnull_all;
 
 #endif /* IDL_H */
-
