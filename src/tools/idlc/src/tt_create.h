@@ -23,6 +23,7 @@ typedef struct ddsts_context ddsts_context_t;
 ddsts_context_t* ddsts_create_context(void);
 void ddsts_context_error(ddsts_context_t *context, int line, int column, const char *msg);
 void ddsts_context_set_error_func(ddsts_context_t *context, void (*error)(int line, int column, const char *msg));
+void ddsts_context_set_retcode(ddsts_context_t *context, dds_return_t retcode);
 dds_return_t ddsts_context_get_retcode(ddsts_context_t* context);
 ddsts_type_t* ddsts_context_take_root_type(ddsts_context_t *context);
 void ddsts_free_context(ddsts_context_t* context);

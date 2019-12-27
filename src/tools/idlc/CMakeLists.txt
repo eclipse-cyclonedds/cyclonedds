@@ -52,8 +52,6 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "GNU" OR
     "${idl_y_c}" PROPERTIES COMPILE_FLAGS "${parser_cflags}")
 endif()
 
-set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}/src")
-
 add_library(idlc-lib STATIC
     "src/idl.c"
     "src/tt_create.c"
@@ -69,5 +67,4 @@ target_link_libraries(idlc-lib PUBLIC ddsc)
 target_link_libraries(idlc-lib PUBLIC ddsts)
 
 add_executable(idlc "src/main.c")
-target_link_libraries(idlc PRIVATE idlc-lib)
-
+target_link_libraries(idlc PRIVATE idlc-lib idlpp)

@@ -34,29 +34,17 @@ _Pragma("GCC diagnostic ignored \"-Wmissing-prototypes\"")
 %code provides {
 #include <stdarg.h>
 
-#define YYSTYPE IDL_YYSTYPE
-#define YYLTYPE IDL_YYLTYPE
-
-typedef struct YYLTYPE {
-  char *first_file;
-  int first_line;
-  int first_column;
-  char *last_file;
-  int last_line;
-  int last_column;
-} YYLTYPE;
-
 #define YY_DECL \
-  int idl_yylex(YYSTYPE *yylval_param, YYLTYPE *yylloc_param, idl_parser_t *parser, ddsts_context_t *context, yyscan_t yyscanner)
+  int idl_yylex(YYSTYPE *yylval_param, YYLTYPE *yylloc_param, idl_parser_t *parser, yyscan_t yyscanner)
 
 extern YY_DECL;
 
 #define yyerror idl_yyerror
-int idl_yyerror(YYLTYPE *yylloc, idl_parser_t *parser, ddsts_context_t *context, yyscan_t, char *fmt, ...);
-
-int idl_yystrtok(const char *str);
-
-int idl_yystritok(const char *str);
+void idl_yyerror(YYLTYPE *yylloc, idl_parser_t *parser, const char *fmt, ...);
+#define yywarning idl_yywarning
+void idl_yywarning(YYLTYPE *yylloc, idl_parser_t *parser, const char *fmt, ...);
+#define yystrtok idl_yystrtok
+int idl_yystrtok(const char *str, bool nc);
 }
 
 %code requires {
@@ -65,8 +53,13 @@ int idl_yystritok(const char *str);
 
 /* Make yytoknum available */
 #define YYPRINT(A,B,C) YYUSE(A)
-/* Use YYLTYPE definition above */
+/* Use YYLTYPE definition below */
 #define IDL_YYLTYPE_IS_DECLARED
+
+#define YYSTYPE IDL_YYSTYPE
+#define YYLTYPE IDL_YYLTYPE
+
+typedef struct idl_location YYLTYPE;
 
 #define YYLLOC_DEFAULT(Cur, Rhs, N) \
   do { \
@@ -100,21 +93,18 @@ int idl_yystritok(const char *str);
   ddsts_literal_t literal;
   ddsts_identifier_t identifier;
   ddsts_scoped_name_t *scoped_name;
-  char *str;
 }
 
 %define api.pure full
 %define api.prefix {idl_yy}
+%define api.push-pull push
 %define parse.trace
 
 %locations
 
 %param { idl_parser_t *parser }
-%param { ddsts_context_t *context }
-%param { yyscan_t scanner }
 %initial-action { YYLLOC_INITIAL(@$, parser->files ? parser->files->name : NULL); }
 
-%destructor { ddsrt_free($$); } <str>
 
 %token-table
 
@@ -163,7 +153,7 @@ int idl_yystritok(const char *str);
 
 %type <scoped_name>
   scoped_name
-  nows_scoped_name
+  at_scoped_name
 
 %destructor { ddsts_free_scoped_name($$); } <scoped_name>
 
@@ -177,14 +167,15 @@ int idl_yystritok(const char *str);
 %type <identifier>
   simple_declarator
   identifier
-  nows_identifier
 
-/* compiler directives */
-%token IDL_T_PRAGMA "#pragma"
-/* #pragma keylist is implemented for compatibility with OpenSplice */
-%token IDL_T_KEYLIST "keylist"
-%token <str> IDL_T_DATA_TYPE
-%token <str> IDL_T_KEY
+/* standardized annotations */
+%token IDL_T_AT "@"
+
+/* scope operators, see idl.l for details */
+%token IDL_T_SCOPE
+%token IDL_T_SCOPE_L
+%token IDL_T_SCOPE_R
+%token IDL_T_SCOPE_LR
 
 /* keywords */
 %token IDL_T_MODULE "module"
@@ -227,8 +218,7 @@ int idl_yystritok(const char *str);
 %token IDL_T_UINT32 "uint32"
 %token IDL_T_UINT64 "uint64"
 
-%token IDL_T_COLON_COLON
-%token IDL_T_NOWS_COLON_COLON
+%token IDL_T_DOUBLE_COLON "::"
 
 %token IDL_T_END 0 "end of file"
 
@@ -239,7 +229,7 @@ int idl_yystritok(const char *str);
 
 specification:
     definitions IDL_T_END
-    { ddsts_accept(context); YYACCEPT; }
+    { ddsts_accept(parser->context); YYACCEPT; }
   ;
 
 definitions:
@@ -250,56 +240,62 @@ definitions:
 definition:
     module_dcl ';'
   | type_dcl ';'
-  | pragma
   ;
 
 module_dcl:
     "module" identifier
       {
-        if (!ddsts_module_open(context, $2)) {
+        if (!ddsts_module_open(parser->context, $2)) {
           YYABORT;
         }
       }
     '{' definitions '}'
-      { ddsts_module_close(context); };
+      { ddsts_module_close(parser->context); };
 
-scoped_name:
+at_scoped_name:
     identifier
       {
-        if (!ddsts_new_scoped_name(context, 0, false, $1, &($$))) {
+        if (!ddsts_new_scoped_name(parser->context, 0, false, $1, &($$))) {
           YYABORT;
         }
       }
-  | IDL_T_COLON_COLON nows_identifier
+  | IDL_T_SCOPE_R identifier
       {
-        if (!ddsts_new_scoped_name(context, 0, true, $2, &($$))) {
+        if (!ddsts_new_scoped_name(parser->context, 0, true, $2, &($$))) {
           YYABORT;
         }
       }
-  | scoped_name IDL_T_NOWS_COLON_COLON nows_identifier
+  | at_scoped_name IDL_T_SCOPE_LR identifier
       {
-        if (!ddsts_new_scoped_name(context, $1, false, $3, &($$))) {
+        if (!ddsts_new_scoped_name(parser->context, $1, false, $3, &($$))) {
           YYABORT;
         }
       }
   ;
 
-nows_scoped_name:
-    nows_identifier
+scope:
+    IDL_T_SCOPE
+  | IDL_T_SCOPE_L
+  | IDL_T_SCOPE_R
+  | IDL_T_SCOPE_LR
+  ;
+
+scoped_name:
+    identifier
       {
-        if (!ddsts_new_scoped_name(context, 0, false, $1, &($$))) {
+        if (!ddsts_new_scoped_name(parser->context, 0, false, $1, &($$))) {
           YYABORT;
         }
       }
-  | IDL_T_COLON_COLON nows_identifier
+  | scope identifier
       {
-        if (!ddsts_new_scoped_name(context, 0, true, $2, &($$))) {
+        if (!ddsts_new_scoped_name(parser->context, 0, true, $2, &($$))) {
           YYABORT;
         }
       }
-  | nows_scoped_name IDL_T_NOWS_COLON_COLON nows_identifier
+  | scoped_name scope identifier
       {
-        if (!ddsts_new_scoped_name(context, $1, false, $3, &($$))) {
+        if (!ddsts_new_scoped_name(parser->context, $1, false, $3, &($$))) {
           YYABORT;
         }
       }
@@ -328,13 +324,13 @@ type_spec:
 simple_type_spec:
     base_type_spec
       {
-        if (!ddsts_new_base_type(context, $1, &($$))) {
+        if (!ddsts_new_base_type(parser->context, $1, &($$))) {
           YYABORT;
         }
       }
   | scoped_name
       {
-        if (!ddsts_get_type_from_scoped_name(context, $1, &($$))) {
+        if (!ddsts_get_type_from_scoped_name(parser->context, $1, &($$))) {
           YYABORT;
         }
       }
@@ -395,13 +391,13 @@ template_type_spec:
 sequence_type:
     "sequence" '<' type_spec ',' positive_int_const '>'
       {
-        if (!ddsts_new_sequence(context, $3, &($5), &($$))) {
+        if (!ddsts_new_sequence(parser->context, $3, &($5), &($$))) {
           YYABORT;
         }
       }
   | "sequence" '<' type_spec '>'
       {
-        if (!ddsts_new_sequence_unbound(context, $3, &($$))) {
+        if (!ddsts_new_sequence_unbound(parser->context, $3, &($$))) {
           YYABORT;
         }
       }
@@ -410,13 +406,13 @@ sequence_type:
 string_type:
     "string" '<' positive_int_const '>'
       {
-        if (!ddsts_new_string(context, &($3), &($$))) {
+        if (!ddsts_new_string(parser->context, &($3), &($$))) {
           YYABORT;
         }
       }
   | "string"
       {
-        if (!ddsts_new_string_unbound(context, &($$))) {
+        if (!ddsts_new_string_unbound(parser->context, &($$))) {
           YYABORT;
         }
       }
@@ -425,13 +421,13 @@ string_type:
 wide_string_type:
     "wstring" '<' positive_int_const '>'
       {
-        if (!ddsts_new_wide_string(context, &($3), &($$))) {
+        if (!ddsts_new_wide_string(parser->context, &($3), &($$))) {
           YYABORT;
         }
       }
   | "wstring"
       {
-        if (!ddsts_new_wide_string_unbound(context, &($$))) {
+        if (!ddsts_new_wide_string_unbound(parser->context, &($$))) {
           YYABORT;
         }
       }
@@ -440,7 +436,7 @@ wide_string_type:
 fixed_pt_type:
     "fixed" '<' positive_int_const ',' positive_int_const '>'
       {
-        if (!ddsts_new_fixed_pt(context, &($3), &($5), &($$))) {
+        if (!ddsts_new_fixed_pt(parser->context, &($3), &($5), &($$))) {
           YYABORT;
         }
       }
@@ -450,12 +446,12 @@ fixed_pt_type:
 struct_type:
     "struct" '{'
       {
-        if (!ddsts_add_struct_open(context, NULL)) {
+        if (!ddsts_add_struct_open(parser->context, NULL)) {
           YYABORT;
         }
       }
     members '}'
-      { ddsts_struct_close(context, &($$)); }
+      { ddsts_struct_close(parser->context, &($$)); }
   ;
 
 constr_type_dcl:
@@ -471,12 +467,12 @@ struct_dcl:
 struct_def:
     "struct" identifier '{'
       {
-        if (!ddsts_add_struct_open(context, $2)) {
+        if (!ddsts_add_struct_open(parser->context, $2)) {
           YYABORT;
         }
       }
     members '}'
-      { ddsts_struct_close(context, &($$)); }
+      { ddsts_struct_close(parser->context, &($$)); }
   ;
 members:
     member members
@@ -486,29 +482,29 @@ members:
 member:
     annotation_appls type_spec
       {
-        if (!ddsts_add_struct_member(context, &($2))) {
+        if (!ddsts_add_struct_member(parser->context, &($2))) {
           YYABORT;
         }
       }
     declarators ';'
-      { ddsts_struct_member_close(context); }
+      { ddsts_struct_member_close(parser->context); }
   | type_spec
       {
-        if (!ddsts_add_struct_member(context, &($1))) {
+        if (!ddsts_add_struct_member(parser->context, &($1))) {
           YYABORT;
         }
       }
     declarators ';'
-      { ddsts_struct_member_close(context); }
+      { ddsts_struct_member_close(parser->context); }
 /* Embedded struct extension: */
-  | struct_def { ddsts_add_struct_member(context, &($1)); }
+  | struct_def { ddsts_add_struct_member(parser->context, &($1)); }
     declarators ';'
   ;
 
 struct_forward_dcl:
     "struct" identifier
       {
-        if (!ddsts_add_struct_forward(context, $2)) {
+        if (!ddsts_add_struct_forward(parser->context, $2)) {
           YYABORT;
         }
       };
@@ -521,18 +517,18 @@ union_dcl:
 union_def:
     "union" identifier
        {
-         if (!ddsts_add_union_open(context, $2)) {
+         if (!ddsts_add_union_open(parser->context, $2)) {
            YYABORT ;
          }
        }
     "switch" '(' switch_type_spec ')'
        {
-         if (!ddsts_union_set_switch_type(context, $6)) {
+         if (!ddsts_union_set_switch_type(parser->context, $6)) {
            YYABORT ;
          }
        }
     '{' switch_body '}'
-       { ddsts_union_close(context); }
+       { ddsts_union_close(parser->context); }
   ;
 switch_type_spec:
     integer_type
@@ -540,7 +536,7 @@ switch_type_spec:
   | boolean_type
   | scoped_name
       {
-        if (!ddsts_get_base_type_from_scoped_name(context, $1, &($$))) {
+        if (!ddsts_get_base_type_from_scoped_name(parser->context, $1, &($$))) {
           YYABORT;
         }
       }
@@ -564,13 +560,13 @@ case_labels:
 case_label:
     "case" const_expr ':'
       {
-        if (!ddsts_union_add_case_label(context, &($2))) {
+        if (!ddsts_union_add_case_label(parser->context, &($2))) {
           YYABORT;
         }
       }
   | "default" ':'
       {
-        if (!ddsts_union_add_case_default(context)) {
+        if (!ddsts_union_add_case_default(parser->context)) {
           YYABORT;
         }
       }
@@ -579,7 +575,7 @@ case_label:
 element_spec:
     type_spec
       {
-        if (!ddsts_union_add_element(context, &($1))) {
+        if (!ddsts_union_add_element(parser->context, &($1))) {
           YYABORT;
         }
       }
@@ -589,7 +585,7 @@ element_spec:
 union_forward_dcl:
     "union" identifier
       {
-        if (!ddsts_add_union_forward(context, $2)) {
+        if (!ddsts_add_union_forward(parser->context, $2)) {
           YYABORT;
         }
       }
@@ -598,7 +594,7 @@ union_forward_dcl:
 array_declarator:
     identifier fixed_array_sizes
       {
-        if (!ddsts_add_declarator(context, $1)) {
+        if (!ddsts_add_declarator(parser->context, $1)) {
           YYABORT;
         }
       }
@@ -612,7 +608,7 @@ fixed_array_sizes:
 fixed_array_size:
     '[' positive_int_const ']'
       {
-        if (!ddsts_add_array_size(context, &($2))) {
+        if (!ddsts_add_array_size(parser->context, &($2))) {
           YYABORT;
         }
       }
@@ -628,7 +624,7 @@ declarators:
 declarator:
     simple_declarator
       {
-        if (!ddsts_add_declarator(context, $1)) {
+        if (!ddsts_add_declarator(parser->context, $1)) {
           YYABORT;
         }
       };
@@ -638,20 +634,20 @@ declarator:
 struct_def:
     "struct" identifier ':' scoped_name '{'
       {
-        if (!ddsts_add_struct_extension_open(context, $2, $4)) {
+        if (!ddsts_add_struct_extension_open(parser->context, $2, $4)) {
           YYABORT;
         }
       }
     members '}'
-      { ddsts_struct_close(context, &($$)); }
+      { ddsts_struct_close(parser->context, &($$)); }
   | "struct" identifier '{'
       {
-        if (!ddsts_add_struct_open(context, $2)) {
+        if (!ddsts_add_struct_open(parser->context, $2)) {
           YYABORT;
         }
       }
     '}'
-      { ddsts_struct_empty_close(context, &($$)); }
+      { ddsts_struct_empty_close(parser->context, &($$)); }
   ;
 
 template_type_spec:
@@ -661,13 +657,13 @@ template_type_spec:
 map_type:
     "map" '<' type_spec ',' type_spec ',' positive_int_const '>'
       {
-        if (!ddsts_new_map(context, $3, $5, &($7), &($$))) {
+        if (!ddsts_new_map(parser->context, $3, $5, &($7), &($$))) {
           YYABORT;
         }
       }
   | "map" '<' type_spec ',' type_spec '>'
       {
-        if (!ddsts_new_map_unbound(context, $3, $5, &($$))) {
+        if (!ddsts_new_map_unbound(parser->context, $3, $5, &($$))) {
           YYABORT;
         }
       }
@@ -709,96 +705,82 @@ annotation_appls:
   ;
 
 annotation_appl:
-    '@' nows_scoped_name
+    "@" at_scoped_name
     {
-      if (!ddsts_add_annotation(context, $2)) {
+      if (!ddsts_add_annotation(parser->context, $2)) {
         YYABORT;
       }
     }
   ;
 
-/* Compatability with OpenSplice. See OpenSplice_IDLPreProcGuide.pdf for
-   grammar specification. */
-
-pragma:
-    "#pragma" "keylist" IDL_T_DATA_TYPE
-    {
-      ddsts_pragma_open(context);
-      if(!ddsts_pragma_add_identifier(context, $3)) {
-        YYABORT;
-      }
-    }
-    keys
-    {
-      ddsts_pragma_close(context);
-    } ;
-
-keys:
-  | keys IDL_T_KEY
-    {
-      if (!ddsts_pragma_add_identifier(context, $2)) {
-        YYABORT;
-      }
-    } ;
-
 identifier:
     IDL_T_IDENTIFIER
       {
-        size_t offset = 0;
+        size_t off = 0;
         if ($1[0] == '_') {
-          offset = 1;
-        } else if (idl_yystritok($1) != -1) {
-          yyerror(&yylloc, parser, context, scanner, "Identifier collides with a keyword");
+          off = 1;
+        } else if (yystrtok($1, 1) != -1) {
+          yyerror(&yylloc, parser, "identifier '%s' collides with a keyword", $1);
           YYABORT;
         }
-        if (!ddsts_context_copy_identifier(context, $1 + offset, &($$))) {
-          YYABORT;
-        }
-      };
-
-nows_identifier:
-    IDL_T_NOWS_IDENTIFIER
-      {
-        size_t offset = 0;
-        if ($1[0] == '_') {
-          offset = 1;
-        } else if (idl_yystritok($1) != -1) {
-          yyerror(&yylloc, parser, context, scanner, "Identifier collides with a keyword");
-          YYABORT;
-        }
-        if (!ddsts_context_copy_identifier(context, $1 + offset, &($$))) {
+        if (!ddsts_context_copy_identifier(parser->context, $1 + off, &($$))) {
           YYABORT;
         }
       };
 
 %%
 
-int idl_yyerror(
-  YYLTYPE *yylloc, idl_parser_t *parser, ddsts_context_t *context, yyscan_t yyscanner, char *fmt, ...)
+void idl_yyerror(
+  YYLTYPE *yylloc, idl_parser_t *parser, const char *fmt, ...)
 {
+  dds_return_t rc;
   va_list ap;
 
   DDSRT_UNUSED_ARG(parser);
-  DDSRT_UNUSED_ARG(context);
-  DDSRT_UNUSED_ARG(yyscanner);
+  rc = ddsts_context_get_retcode(parser->context);
+  if (rc == DDS_RETCODE_OK) {
+    if (strcmp(fmt, "memory exhausted") == 0) {
+      ddsts_context_set_retcode(parser->context, DDS_RETCODE_OUT_OF_RESOURCES);
+    } else {
+      ddsts_context_set_retcode(parser->context, DDS_RETCODE_BAD_SYNTAX);
+    }
+  }
+
   fprintf(stderr, "%s at %d.%d: ", yylloc->first_file, yylloc->first_line, yylloc->first_column);
   va_start(ap, fmt);
   vfprintf(stderr, fmt, ap);
   va_end(ap);
   fprintf(stderr, "\n");
-  return 0;
 }
 
-int idl_yystritok(const char *str)
+void idl_yywarning(
+  YYLTYPE *yylloc, idl_parser_t *parser, const char *fmt, ...)
+{
+  va_list ap;
+
+  assert(yylloc != NULL);
+  (void)parser;
+  assert(fmt != NULL);
+
+  fprintf(stderr, "%s at %d.%d: ", yylloc->first_file, yylloc->first_line, yylloc->first_column);
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  va_end(ap);
+  fprintf(stderr, "\n");
+}
+
+int idl_yystrtok(const char *str, bool nc)
 {
   size_t i, n;
+  int(*cmp)(const char *s1, const char *s2, size_t n);
 
   assert(str != NULL);
 
+  cmp = (nc ? &ddsrt_strncasecmp : strncmp);
   for (i = 0, n = strlen(str); i < YYNTOKENS; i++) {
     if (yytname[i] != 0
         && yytname[i][    0] == '"'
-        && ddsrt_strncasecmp(yytname[i] + 1, str, n) == 0
+        && cmp(yytname[i] + 1, str, n) == 0
         && yytname[i][n + 1] == '"'
         && yytname[i][n + 2] == '\0') {
       return yytoknum[i];
@@ -807,23 +789,3 @@ int idl_yystritok(const char *str)
 
   return -1;
 }
-
-int idl_yystrtok(const char *str)
-{
-  size_t i, n;
-
-  assert(str != NULL);
-
-  for (i = 0, n = strlen(str); i < YYNTOKENS; i++) {
-    if (yytname[i] != 0
-        && yytname[i][    0] == '"'
-        && strncmp(yytname[i] + 1, str, n) == 0
-        && yytname[i][n + 1] == '"'
-        && yytname[i][n + 2] == 0) {
-      return yytoknum[i];
-    }
-  }
-
-  return -1;
-}
-
