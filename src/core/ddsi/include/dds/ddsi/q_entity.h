@@ -21,7 +21,6 @@
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_lat_estim.h"
-#include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_hbcontrol.h"
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/q_inverse_uint32_set.h"
@@ -49,6 +48,15 @@ struct lease;
 struct proxy_group;
 struct proxy_endpoint_common;
 typedef void (*ddsi2direct_directread_cb_t) (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, void *arg);
+
+enum entity_kind {
+  EK_PARTICIPANT,
+  EK_PROXY_PARTICIPANT,
+  EK_WRITER,
+  EK_PROXY_WRITER,
+  EK_READER,
+  EK_PROXY_READER
+};
 
 /* Liveliness changed is more complicated than just add/remove. Encode the event
    in status_cb_data_t::extra and ignore status_cb_data_t::add */
@@ -162,6 +170,7 @@ struct entity_common {
   ddsrt_mutex_t lock;
   bool onlylocal;
   struct q_globals *gv;
+  ddsrt_avl_node_t all_entities_avlnode;
 
   /* QoS changes always lock the entity itself, and additionally
      (and within the scope of the entity lock) acquire qos_lock
@@ -379,6 +388,11 @@ struct proxy_endpoint_common
 #ifdef DDSI_INCLUDE_SECURITY
   nn_security_info_t security_info;
 #endif
+};
+
+struct generic_proxy_endpoint {
+  struct entity_common e;
+  struct proxy_endpoint_common c;
 };
 
 struct proxy_writer {
@@ -688,7 +702,9 @@ int proxy_writer_set_notalive (struct proxy_writer *pwr, bool notify);
 void proxy_writer_set_notalive_guid (struct q_globals *gv, const struct ddsi_guid *pwrguid, bool notify);
 
 int new_proxy_group (const struct ddsi_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp);
-void delete_proxy_group (struct ephash *guid_hash, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
+
+struct entity_index;
+void delete_proxy_group (struct entity_index *entidx, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
 
 /* Call this to empty all address sets of all writers to stop all outgoing traffic, or to
    rebuild them all (which only makes sense after previously having emptied them all). */
@@ -697,7 +713,7 @@ void rebuild_or_clear_writer_addrsets(struct q_globals *gv, int rebuild);
 void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_ok);
 
 struct ddsi_writer_info;
-DDS_EXPORT void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_common *e, const struct dds_qos *xqos);
+DDS_EXPORT void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo);
 
 #if defined (__cplusplus)
 }

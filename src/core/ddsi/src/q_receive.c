@@ -38,7 +38,7 @@
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/q_entity.h"
@@ -282,7 +282,7 @@ static int valid_NackFrag (NackFrag_t *msg, size_t size, int byteswap)
 
 static void set_sampleinfo_proxy_writer (struct nn_rsample_info *sampleinfo, ddsi_guid_t *pwr_guid)
 {
-  struct proxy_writer * pwr = ephash_lookup_proxy_writer_guid (sampleinfo->rst->gv->guid_hash, pwr_guid);
+  struct proxy_writer * pwr = entidx_lookup_proxy_writer_guid (sampleinfo->rst->gv->entity_index, pwr_guid);
   sampleinfo->pwr = pwr;
 }
 
@@ -726,7 +726,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
     return 1;
   }
 
-  if ((wr = ephash_lookup_writer_guid (rst->gv->guid_hash, &dst)) == NULL)
+  if ((wr = entidx_lookup_writer_guid (rst->gv->entity_index, &dst)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"?)", PGUID (src), PGUID (dst));
     return 1;
@@ -735,7 +735,7 @@ static int handle_AckNack (struct receiver_state *rst, nn_etime_t tnow, const Ac
      the normal pure ack steady state. If (a big "if"!) this shows up
      as a significant portion of the time, we can always rewrite it to
      only retrieve it when needed. */
-  if ((prd = ephash_lookup_proxy_reader_guid (rst->gv->guid_hash, &src)) == NULL)
+  if ((prd = entidx_lookup_proxy_reader_guid (rst->gv->entity_index, &src)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -1192,7 +1192,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
     return 1;
   }
 
-  if ((pwr = ephash_lookup_proxy_writer_guid (rst->gv->guid_hash, &src)) == NULL)
+  if ((pwr = entidx_lookup_proxy_writer_guid (rst->gv->entity_index, &src)) == NULL)
   {
     RSTTRACE (PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -1370,7 +1370,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(nn_etime
     return 1;
   }
 
-  if ((pwr = ephash_lookup_proxy_writer_guid (rst->gv->guid_hash, &src)) == NULL)
+  if ((pwr = entidx_lookup_proxy_writer_guid (rst->gv->entity_index, &src)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -1495,7 +1495,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
     return 1;
   }
 
-  if ((wr = ephash_lookup_writer_guid (rst->gv->guid_hash, &dst)) == NULL)
+  if ((wr = entidx_lookup_writer_guid (rst->gv->entity_index, &dst)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"?)", PGUID (src), PGUID (dst));
     return 1;
@@ -1504,7 +1504,7 @@ static int handle_NackFrag (struct receiver_state *rst, nn_etime_t tnow, const N
      the normal pure ack steady state. If (a big "if"!) this shows up
      as a significant portion of the time, we can always rewrite it to
      only retrieve it when needed. */
-  if ((prd = ephash_lookup_proxy_reader_guid (rst->gv->guid_hash, &src)) == NULL)
+  if ((prd = entidx_lookup_proxy_reader_guid (rst->gv->entity_index, &src)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -1612,7 +1612,7 @@ static int handle_InfoDST (struct receiver_state *rst, const InfoDST_t *msg, con
     ddsi_guid_t dst;
     dst.prefix = rst->dst_guid_prefix;
     dst.entityid = to_entityid(NN_ENTITYID_PARTICIPANT);
-    rst->forme = (ephash_lookup_participant_guid (rst->gv->guid_hash, &dst) != NULL ||
+    rst->forme = (entidx_lookup_participant_guid (rst->gv->entity_index, &dst) != NULL ||
                   is_deleted_participant_guid (rst->gv->deleted_participants, &dst, DPG_LOCAL));
   }
   return 1;
@@ -1759,7 +1759,7 @@ static int handle_Gap (struct receiver_state *rst, nn_etime_t tnow, struct nn_rm
     return 1;
   }
 
-  if ((pwr = ephash_lookup_proxy_writer_guid (rst->gv->guid_hash, &src)) == NULL)
+  if ((pwr = entidx_lookup_proxy_writer_guid (rst->gv->entity_index, &src)) == NULL)
   {
     RSTTRACE (""PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -1992,7 +1992,7 @@ static struct reader *proxy_writer_first_in_sync_reader (struct proxy_writer *pw
   struct pwr_rd_match *m;
   struct reader *rd;
   for (m = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, it); m != NULL; m = ddsrt_avl_iter_next (it))
-    if (m->in_sync == PRMSS_SYNC && (rd = ephash_lookup_reader_guid (pwr->e.gv->guid_hash, &m->rd_guid)) != NULL)
+    if (m->in_sync == PRMSS_SYNC && (rd = entidx_lookup_reader_guid (pwr->e.gv->entity_index, &m->rd_guid)) != NULL)
       return rd;
   return NULL;
 }
@@ -2002,7 +2002,7 @@ static struct reader *proxy_writer_next_in_sync_reader (struct proxy_writer *pwr
   struct pwr_rd_match *m;
   struct reader *rd;
   for (m = ddsrt_avl_iter_next (it); m != NULL; m = ddsrt_avl_iter_next (it))
-    if (m->in_sync == PRMSS_SYNC && (rd = ephash_lookup_reader_guid (pwr->e.gv->guid_hash, &m->rd_guid)) != NULL)
+    if (m->in_sync == PRMSS_SYNC && (rd = entidx_lookup_reader_guid (pwr->e.gv->entity_index, &m->rd_guid)) != NULL)
       return rd;
   return NULL;
 }
@@ -2080,7 +2080,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   /* FIXME: should it be 0, local wall clock time or INVALID? */
   const nn_wctime_t tstamp = (sampleinfo->timestamp.v != NN_WCTIME_INVALID.v) ? sampleinfo->timestamp : ((nn_wctime_t) {0});
   struct ddsi_writer_info wrinfo;
-  ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos);
+  ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos, statusinfo);
 
   if (rdguid == NULL)
   {
@@ -2157,7 +2157,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   }
   else
   {
-    struct reader *rd = ephash_lookup_reader_guid (gv->guid_hash, rdguid);
+    struct reader *rd = entidx_lookup_reader_guid (gv->entity_index, rdguid);
     if (rd != NULL)
     {
       struct ddsi_serdata *payload;
@@ -2173,8 +2173,8 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
           if (pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
           dds_sleepfor (DDS_MSECS (1));
           if (pwr_locked) ddsrt_mutex_lock (&pwr->e.lock);
-          if (ephash_lookup_reader_guid (gv->guid_hash, rdguid) == NULL ||
-              ephash_lookup_proxy_writer_guid (gv->guid_hash, &pwr->e.guid) == NULL)
+          if (entidx_lookup_reader_guid (gv->entity_index, rdguid) == NULL ||
+              entidx_lookup_proxy_writer_guid (gv->entity_index, &pwr->e.guid) == NULL)
           {
             /* give up when reader or proxy writer no longer accessible */
             break;
@@ -2860,7 +2860,7 @@ static int handle_submsg_sequence
   /* "forme" is a whether the current submessage is intended for this
      instance of DDSI2 and is roughly equivalent to
        (dst_prefix == 0) ||
-       (ephash_lookup_participant_guid(dst_prefix:1c1) != 0)
+       (entidx_lookup_participant_guid(dst_prefix:1c1) != 0)
      they are only roughly equivalent because the second term can become
      false at any time. That's ok: it's real purpose is to filter out
      discovery data accidentally sent by Cloud */
@@ -3361,7 +3361,7 @@ static void local_participant_set_fini (struct local_participant_set *lps)
 
 static void rebuild_local_participant_set (struct thread_state1 * const ts1, struct q_globals *gv, struct local_participant_set *lps)
 {
-  struct ephash_enum_participant est;
+  struct entidx_enum_participant est;
   struct participant *pp;
   unsigned nps_alloc;
   GVTRACE ("pp set gen changed: local %"PRIu32" global %"PRIu32"\n", lps->gen, ddsrt_atomic_ld32 (&gv->participant_set_generation));
@@ -3375,8 +3375,8 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
   ddsrt_free (lps->ps);
   lps->nps = 0;
   lps->ps = (nps_alloc == 0) ? NULL : ddsrt_malloc (nps_alloc * sizeof (*lps->ps));
-  ephash_enum_participant_init (&est, gv->guid_hash);
-  while ((pp = ephash_enum_participant_next (&est)) != NULL)
+  entidx_enum_participant_init (&est, gv->entity_index);
+  while ((pp = entidx_enum_participant_next (&est)) != NULL)
   {
     if (lps->nps == nps_alloc)
     {
@@ -3384,7 +3384,7 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
          existing ones removed), so we may have to restart if it
          turns out we didn't allocate enough memory [an
          alternative would be to realloc on the fly]. */
-      ephash_enum_participant_fini (&est);
+      entidx_enum_participant_fini (&est);
       GVTRACE ("  need more memory - restarting\n");
       goto restart;
     }
@@ -3396,7 +3396,7 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
       lps->nps++;
     }
   }
-  ephash_enum_participant_fini (&est);
+  entidx_enum_participant_fini (&est);
 
   /* There is a (very small) probability of a participant
      disappearing and new one appearing with the same socket while

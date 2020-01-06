@@ -17,6 +17,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_log.h"
@@ -49,7 +50,7 @@ void write_pmd_message_guid (struct q_globals * const gv, struct ddsi_guid *pp_g
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
   thread_state_awake (ts1, gv);
-  struct participant *pp = ephash_lookup_participant_guid (gv->guid_hash, pp_guid);
+  struct participant *pp = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
   if (pp == NULL)
     GVTRACE ("write_pmd_message("PGUIDFMT") - builtin pmd writer not found\n", PGUID (*pp_guid));
   else
@@ -127,7 +128,7 @@ void handle_pmd_message (const struct receiver_state *rst, nn_wctime_t timestamp
           debug_print_rawdata (rst->gv, "", pmd->value, length);
         ppguid.prefix = p;
         ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
-        if ((proxypp = ephash_lookup_proxy_participant_guid (rst->gv->guid_hash, &ppguid)) == NULL)
+        if ((proxypp = entidx_lookup_proxy_participant_guid (rst->gv->entity_index, &ppguid)) == NULL)
           RSTTRACE (" PPunknown");
         else if (kind == PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE &&
                  (l = ddsrt_atomic_ldvoidp (&proxypp->minl_man)) != NULL)

@@ -28,6 +28,7 @@
 #include "dds/ddsi/q_globals.h"
 #include "dds__builtin.h"
 #include "dds/ddsi/ddsi_sertopic.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_reader)
 
@@ -77,7 +78,7 @@ static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, boo
   {
     struct reader *rd;
     thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
-    if ((rd = ephash_lookup_reader_guid (e->m_domain->gv.guid_hash, &e->m_guid)) != NULL)
+    if ((rd = entidx_lookup_reader_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
       update_reader_qos (rd, qos);
     thread_state_asleep (lookup_thread_state ());
   }
@@ -512,7 +513,7 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
       pwrguid_next.entityid.u = (pwrguid_next.entityid.u & ~(uint32_t)0xff) | NN_ENTITYID_KIND_WRITER_NO_KEY;
     }
     ddsrt_mutex_unlock (&rd->e.lock);
-    if ((pwr = ephash_lookup_proxy_writer_guid (dds_entity->m_domain->gv.guid_hash, &pwrguid)) != NULL)
+    if ((pwr = entidx_lookup_proxy_writer_guid (dds_entity->m_domain->gv.entity_index, &pwrguid)) != NULL)
     {
       ddsrt_mutex_lock (&pwr->e.lock);
       pwr->ddsi2direct_cb = cb;

@@ -17,7 +17,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_globals.h"
 #include "dds/ddsi/ddsi_tkmap.h"
@@ -28,7 +28,7 @@
 struct bwhc {
   struct whc common;
   enum ddsi_sertopic_builtintopic_type type;
-  const struct ephash *guid_hash;
+  const struct entity_index *entidx;
 };
 
 enum bwhc_iter_state {
@@ -42,7 +42,7 @@ struct bwhc_iter {
   struct whc_sample_iter_base c;
   enum bwhc_iter_state st;
   bool have_sample;
-  struct ephash_enum it;
+  struct entidx_enum it;
 };
 
 /* check that our definition of whc_sample_iter fits in the type that callers allocate */
@@ -92,11 +92,11 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
         case DSBT_READER:      kind = EK_READER; break;
       }
       assert (whc->type == DSBT_PARTICIPANT || kind != EK_PARTICIPANT);
-      ephash_enum_init (&it->it, whc->guid_hash, kind);
+      entidx_enum_init (&it->it, whc->entidx, kind);
       it->st = BIS_LOCAL;
       /* FALLS THROUGH */
     case BIS_LOCAL:
-      while ((entity = ephash_enum_next (&it->it)) != NULL)
+      while ((entity = entidx_enum_next (&it->it)) != NULL)
         if (is_visible (entity))
           break;
       if (entity) {
@@ -104,7 +104,7 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
         it->have_sample = true;
         return true;
       } else {
-        ephash_enum_fini (&it->it);
+        entidx_enum_fini (&it->it);
         it->st = BIS_INIT_PROXY;
       }
       /* FALLS THROUGH */
@@ -115,11 +115,11 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
         case DSBT_READER:      kind = EK_PROXY_READER; break;
       }
       assert (kind != EK_PARTICIPANT);
-      ephash_enum_init (&it->it, whc->guid_hash, kind);
+      entidx_enum_init (&it->it, whc->entidx, kind);
       it->st = BIS_PROXY;
       /* FALLS THROUGH */
     case BIS_PROXY:
-      while ((entity = ephash_enum_next (&it->it)) != NULL)
+      while ((entity = entidx_enum_next (&it->it)) != NULL)
         if (is_visible (entity))
           break;
       if (entity) {
@@ -127,7 +127,7 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
         it->have_sample = true;
         return true;
       } else {
-        ephash_enum_fini (&it->it);
+        entidx_enum_fini (&it->it);
         return false;
       }
   }
@@ -143,11 +143,12 @@ static void bwhc_get_state (const struct whc *whc, struct whc_state *st)
   st->unacked_bytes = 0;
 }
 
-static int bwhc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+static int bwhc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   (void)whc;
   (void)max_drop_seq;
   (void)seq;
+  (void)exp;
   (void)serdata;
   (void)tk;
   if (plist)
@@ -192,11 +193,11 @@ static const struct whc_ops bwhc_ops = {
   .free = bwhc_free
 };
 
-struct whc *builtintopic_whc_new (enum ddsi_sertopic_builtintopic_type type, const struct ephash *guid_hash)
+struct whc *builtintopic_whc_new (enum ddsi_sertopic_builtintopic_type type, const struct entity_index *entidx)
 {
   struct bwhc *whc = ddsrt_malloc (sizeof (*whc));
   whc->common.ops = &bwhc_ops;
   whc->type = type;
-  whc->guid_hash = guid_hash;
+  whc->entidx = entidx;
   return (struct whc *) whc;
 }

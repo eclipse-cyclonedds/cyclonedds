@@ -20,6 +20,7 @@
 #include "dds/version.h"
 #include "dds__entity.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
@@ -97,7 +98,7 @@ static seqno_t get_pmd_seqno(dds_entity_t participant)
   struct writer *wr;
   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
   thread_state_awake(lookup_thread_state(), &pp_entity->m_domain->gv);
-  pp = ephash_lookup_participant_guid(pp_entity->m_domain->gv.guid_hash, &pp_entity->m_guid);
+  pp = entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
   wr = get_builtin_writer(pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
   CU_ASSERT_FATAL(wr != NULL);
   assert(wr != NULL); /* for Clang's static analyzer */
@@ -117,7 +118,7 @@ static dds_duration_t get_pmd_interval(dds_entity_t participant)
   struct participant *pp;
   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
   thread_state_awake(lookup_thread_state(), &pp_entity->m_domain->gv);
-  pp = ephash_lookup_participant_guid(pp_entity->m_domain->gv.guid_hash, &pp_entity->m_guid);
+  pp = entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
   intv = pp_get_pmd_interval(pp);
   thread_state_asleep(lookup_thread_state());
   dds_entity_unpin(pp_entity);

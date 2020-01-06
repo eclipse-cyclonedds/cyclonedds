@@ -142,37 +142,35 @@ windows_vs2017: &windows_vs2017
 jobs:
   include:
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles", COVERITY_SCAN=true ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles", COVERITY_SCAN=true ]
       if: type = cron
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=NO, SECURITY=YES, GENERATOR="Unix Makefiles" ]
-    - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=NO, SECURITY=YES, LIFESPAN=NO, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
-      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
-      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=NO, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=NO, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *osx_xcode9
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=NO, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=NO, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
       if: type = cron
     - <<: *osx_xcode
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=NO, SECURITY=YES, GENERATOR="Unix Makefiles", MACOSX_DEPLOYMENT_TARGET=10.12 ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=NO, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles", MACOSX_DEPLOYMENT_TARGET=10.12 ]
     - <<: *osx_xcode
-      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *osx_xcode
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, GENERATOR="Visual Studio 15 2017" ]
+      env: [ ARCH=x86, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Visual Studio 15 2017" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
 
 before_script:
   - conan profile new default --detect
@@ -204,6 +202,7 @@ script:
           -DUSE_SANITIZER=${ASAN}
           -DENABLE_SSL=${SSL}
           -DENABLE_SECURITY=${SECURITY}
+          -DENABLE_LIFESPAN=${LIFESPAN}
           -DBUILD_TESTING=on
           -DWERROR=on
           -G "${GENERATOR}" ..
