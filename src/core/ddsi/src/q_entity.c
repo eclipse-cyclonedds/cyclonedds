@@ -94,10 +94,6 @@ static const unsigned builtin_writers_besmask =
   NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
   NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER |
   NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
-static const unsigned prismtech_builtin_writers_besmask =
-  NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_WRITER |
-  NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER |
-  NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
 
 static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc, status_cb_t status_cb, void *status_cbarg);
 static dds_return_t new_reader_guid (struct reader **rd_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct participant *pp, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct ddsi_rhc *rhc, status_cb_t status_cb, void *status_cbarg);
@@ -570,18 +566,16 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
 
   /* Create built-in endpoints (note: these have no GID, and no group GUID). */
   pp->bes = 0;
-  pp->prismtech_bes = 0;
   subguid.prefix = pp->e.guid.prefix;
   memset (&group_guid, 0, sizeof (group_guid));
-  /* SPDP writer */
-#define LAST_WR_PARAMS NULL, NULL
 
+  /* SPDP writer */
   /* Note: skip SEDP <=> skip SPDP because of the way ddsi_discovery.c does things
      currently.  */
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     subguid.entityid = to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->spdp_endpoint_xqos, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->spdp_endpoint_xqos, whc_new(gv, 1, 1, 1), NULL, NULL);
     /* But we need the as_disc address set for SPDP, because we need to
        send it to everyone regardless of the existence of readers. */
     {
@@ -604,31 +598,19 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER;
 
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
-    pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_WRITER;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
-    pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
-    pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
   }
 
   if (gv->config.do_topic_discovery)
   {
     /* TODO: make this one configurable, we don't want all participants to publish all topics (or even just those that they use themselves) */
     subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
     pp->bes |= NN_DISC_BUILTIN_ENDPOINT_TOPIC_ANNOUNCER;
   }
 
@@ -636,7 +618,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     subguid.entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), LAST_WR_PARAMS);
+    new_writer_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_wr, whc_new(gv, 1, 1, 1), NULL, NULL);
     pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
   }
 
@@ -658,21 +640,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
     subguid.entityid = to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER);
     new_reader_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
     pp->bes |= NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_READER);
-    new_reader_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
-    pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_READER;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_READER);
-    new_reader_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
-    pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_READER;
-
-    subguid.entityid = to_entityid (NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_READER);
-    new_reader_guid (NULL, &subguid, &group_guid, pp, NULL, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
-    pp->prismtech_bes |= NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_READER;
-
   }
-#undef LAST_WR_PARAMS
 
   /* If the participant doesn't have the full set of builtin writers
      it depends on the privileged participant, which must exist, hence
@@ -682,8 +650,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
      Except when the participant is only locally available. */
   if (!(flags & RTPS_PF_ONLY_LOCAL)) {
     ddsrt_mutex_lock (&gv->privileged_pp_lock);
-    if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask ||
-        (pp->prismtech_bes & prismtech_builtin_writers_besmask) != prismtech_builtin_writers_besmask)
+    if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask)
     {
       /* Simply crash when the privileged participant doesn't exist when
          it is needed.  Its existence is a precondition, and this is not
@@ -730,10 +697,6 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
        the participant won't be able to discover or be discovered.  */
     pp->spdp_xevent = qxev_spdp (gv->xevents, add_duration_to_mtime (now_mt (), 100 * T_MILLISECOND), &pp->e.guid, NULL);
   }
-
-  /* Also write the CM data - this one being transient local, we only
-   need to write it once (or when it changes, I suppose) */
-  sedp_write_cm_participant (pp, 1);
 
   {
     nn_mtime_t tsched;
@@ -808,13 +771,6 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
     NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER,
     NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER,
     NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER,
-    /* PrismTech ones: */
-    NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER,
-    NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_READER,
-    NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER,
-    NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_READER,
-    NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER,
-    NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_READER
   };
   ddsi_guid_t stguid;
 
@@ -833,7 +789,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
   ELOGDISC (pp, "unref_participant("PGUIDFMT" @ %p <- "PGUIDFMT" @ %p) user %"PRId32" builtin %"PRId32"\n",
             PGUID (pp->e.guid), (void*)pp, PGUID (stguid), (void*)guid_of_refing_entity, pp->user_refc, pp->builtin_refc);
 
-  if (pp->user_refc == 0 && (pp->bes != 0 || pp->prismtech_bes != 0) && !pp->builtins_deleted)
+  if (pp->user_refc == 0 && pp->bes != 0 && !pp->builtins_deleted)
   {
     int i;
 
@@ -869,9 +825,6 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
        scheduled for deletion when it runs into an empty WHC */
     spdp_dispose_unregister (pp);
 
-    /* We don't care, but other implementations might: */
-    sedp_write_cm_participant (pp, 0);
-
     /* If this happens to be the privileged_pp, clear it */
     ddsrt_mutex_lock (&pp->e.gv->privileged_pp_lock);
     if (pp == pp->e.gv->privileged_pp)
@@ -887,8 +840,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
 
     if (!(pp->e.onlylocal))
     {
-      if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask ||
-          (pp->prismtech_bes & prismtech_builtin_writers_besmask) != prismtech_builtin_writers_besmask)
+      if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask)
       {
         /* Participant doesn't have a full complement of built-in
            writers, therefore, it relies on gv.privileged_pp, and
@@ -963,7 +915,7 @@ dds_return_t delete_participant (struct q_globals *gv, const struct ddsi_guid *p
 struct writer *get_builtin_writer (const struct participant *pp, unsigned entityid)
 {
   ddsi_guid_t bwr_guid;
-  unsigned bes_mask = 0, prismtech_bes_mask = 0;
+  uint32_t bes_mask = 0;
 
   if (pp->e.onlylocal) {
       return NULL;
@@ -986,15 +938,6 @@ struct writer *get_builtin_writer (const struct participant *pp, unsigned entity
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
       bes_mask = NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
       break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER:
-      prismtech_bes_mask = NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_WRITER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER:
-      prismtech_bes_mask = NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER:
-      prismtech_bes_mask = NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
-      break;
     case NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER:
       bes_mask = NN_DISC_BUILTIN_ENDPOINT_TOPIC_ANNOUNCER;
       break;
@@ -1003,7 +946,7 @@ struct writer *get_builtin_writer (const struct participant *pp, unsigned entity
       return NULL;
   }
 
-  if ((pp->bes & bes_mask) || (pp->prismtech_bes & prismtech_bes_mask))
+  if (pp->bes & bes_mask)
   {
     /* Participant has this SEDP writer => use it. */
     bwr_guid.prefix = pp->e.guid.prefix;
@@ -2163,25 +2106,6 @@ static ddsi_entityid_t builtin_entityid_match (ddsi_entityid_t x)
          work at all. No entity with NN_ENTITYID_UNKNOWN exists,
          ever, so this guarantees no connection will be made. */
       res.u = NN_ENTITYID_UNKNOWN;
-      break;
-
-    case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_READER:
-      res.u = NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER:
-      res.u = NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_READER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_READER:
-      res.u = NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER:
-      res.u = NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_READER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_READER:
-      res.u = NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER;
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER:
-      res.u = NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_READER;
       break;
 
     default:
@@ -3732,22 +3656,7 @@ static void proxy_participant_remove_pwr_lease_locked (struct proxy_participant 
   }
 }
 
-void new_proxy_participant
-(
-  struct q_globals *gv,
-  const struct ddsi_guid *ppguid,
-  unsigned bes,
-  unsigned prismtech_bes,
-  const struct ddsi_guid *privileged_pp_guid,
-  struct addrset *as_default,
-  struct addrset *as_meta,
-  const nn_plist_t *plist,
-  dds_duration_t tlease_dur,
-  nn_vendorid_t vendor,
-  unsigned custom_flags,
-  nn_wctime_t timestamp,
-  seqno_t seq
-)
+void new_proxy_participant (struct q_globals *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const nn_plist_t *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, nn_wctime_t timestamp, seqno_t seq)
 {
   /* No locking => iff all participants use unique guids, and sedp
      runs on a single thread, it can't go wrong. FIXME, maybe? The
@@ -3768,7 +3677,6 @@ void new_proxy_participant
   proxypp->deleting = 0;
   proxypp->vendor = vendor;
   proxypp->bes = bes;
-  proxypp->prismtech_bes = prismtech_bes;
   proxypp->seq = seq;
   if (privileged_pp_guid) {
     proxypp->privileged_pp_guid = *privileged_pp_guid;
@@ -3850,14 +3758,6 @@ void new_proxy_participant
     proxypp->proxypp_have_spdp = 0;
   else
     proxypp->proxypp_have_spdp = 1;
-  /* Non-PrismTech doesn't implement the PT extensions and therefore won't generate
-     a CMParticipant; if a PT peer does not implement a CMParticipant writer, then it
-     presumably also is a handicapped implementation (perhaps simply an old one) */
-  if (!vendor_is_eclipse_or_prismtech(proxypp->vendor) ||
-      (proxypp->bes != 0 && !(proxypp->prismtech_bes & NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_WRITER)))
-    proxypp->proxypp_have_cm = 1;
-  else
-    proxypp->proxypp_have_cm = 0;
 
   /* Proxy participant must be in the hash tables for
      new_proxy_{writer,reader} to work */
@@ -3887,13 +3787,7 @@ void new_proxy_participant
       LTE (PARTICIPANT_MESSAGE_DATA_WRITER, P2P, PARTICIPANT_MESSAGE_WRITER),
       LTE (PARTICIPANT_MESSAGE_DATA_READER, P2P, PARTICIPANT_MESSAGE_READER),
       TE (DISC_, TOPIC_ANNOUNCER, SEDP, TOPIC_WRITER),
-      TE (DISC_, TOPIC_DETECTOR, SEDP, TOPIC_READER),
-      PT_TE (DISC_, CM_PARTICIPANT_READER, SEDP, CM_PARTICIPANT_READER),
-      PT_TE (DISC_, CM_PARTICIPANT_WRITER, SEDP, CM_PARTICIPANT_WRITER),
-      PT_TE (DISC_, CM_PUBLISHER_READER, SEDP, CM_PUBLISHER_READER),
-      PT_TE (DISC_, CM_PUBLISHER_WRITER, SEDP, CM_PUBLISHER_WRITER),
-      PT_TE (DISC_, CM_SUBSCRIBER_READER, SEDP, CM_SUBSCRIBER_READER),
-      PT_TE (DISC_, CM_SUBSCRIBER_WRITER, SEDP, CM_SUBSCRIBER_WRITER)
+      TE (DISC_, TOPIC_DETECTOR, SEDP, TOPIC_READER)
     };
 #undef PT_TE
 #undef TE
@@ -3945,39 +3839,31 @@ void new_proxy_participant
   ddsrt_mutex_unlock (&proxypp->e.lock);
 }
 
-int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp)
+int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, nn_wctime_t timestamp)
 {
-  nn_plist_t *new_plist = ddsrt_malloc (sizeof (*new_plist));
-  nn_plist_init_empty (new_plist);
-  nn_plist_mergein_missing (new_plist, datap, PP_PRISMTECH_NODE_NAME | PP_PRISMTECH_EXEC_NAME | PP_PRISMTECH_PROCESS_ID | PP_ENTITY_NAME, QP_USER_DATA);
-  nn_plist_mergein_missing (new_plist, &proxypp->e.gv->default_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
-
   if (seq > proxypp->seq)
+  {
     proxypp->seq = seq;
 
-  switch (source)
-  {
-    case UPD_PROXYPP_SPDP:
-      (void) update_qos_locked (&proxypp->e, &proxypp->plist->qos, &new_plist->qos, timestamp);
-      nn_plist_fini (new_plist);
-      ddsrt_free (new_plist);
-      proxypp->proxypp_have_spdp = 1;
-      break;
-
-    case UPD_PROXYPP_CM:
-      nn_plist_fini (proxypp->plist);
-      ddsrt_free (proxypp->plist);
-      proxypp->plist = new_plist;
-      proxypp->proxypp_have_cm = 1;
-      break;
+    struct q_globals * const gv = proxypp->e.gv;
+    const uint64_t pmask = PP_ENTITY_NAME;
+    const uint64_t qmask = QP_USER_DATA;
+    nn_plist_t *new_plist = ddsrt_malloc (sizeof (*new_plist));
+    nn_plist_init_empty (new_plist);
+    nn_plist_mergein_missing (new_plist, datap, pmask, qmask);
+    nn_plist_mergein_missing (new_plist, &gv->default_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
+    (void) update_qos_locked (&proxypp->e, &proxypp->plist->qos, &new_plist->qos, timestamp);
+    nn_plist_fini (new_plist);
+    ddsrt_free (new_plist);
+    proxypp->proxypp_have_spdp = 1;
   }
   return 0;
 }
 
-int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, enum update_proxy_participant_source source, nn_wctime_t timestamp)
+int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, nn_wctime_t timestamp)
 {
   ddsrt_mutex_lock (&proxypp->e.lock);
-  update_proxy_participant_plist_locked (proxypp, seq, datap, source, timestamp);
+  update_proxy_participant_plist_locked (proxypp, seq, datap, timestamp);
   ddsrt_mutex_unlock (&proxypp->e.lock);
   return 0;
 }

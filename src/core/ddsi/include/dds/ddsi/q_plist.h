@@ -47,20 +47,16 @@ extern "C" {
 #define PP_ORIGINAL_WRITER_INFO                 ((uint64_t)1 << 23)
 #define PP_ENDPOINT_GUID                        ((uint64_t)1 << 24)
 #define PP_PRISMTECH_PARTICIPANT_VERSION_INFO   ((uint64_t)1 << 26)
-#define PP_PRISMTECH_NODE_NAME                  ((uint64_t)1 << 27)
-#define PP_PRISMTECH_EXEC_NAME                  ((uint64_t)1 << 28)
-#define PP_PRISMTECH_PROCESS_ID                 ((uint64_t)1 << 29)
-#define PP_PRISMTECH_BUILTIN_ENDPOINT_SET       ((uint64_t)1 << 33)
-#define PP_PRISMTECH_TYPE_DESCRIPTION           ((uint64_t)1 << 34)
-#define PP_COHERENT_SET                         ((uint64_t)1 << 37)
+#define PP_PRISMTECH_TYPE_DESCRIPTION           ((uint64_t)1 << 27)
+#define PP_COHERENT_SET                         ((uint64_t)1 << 28)
 #ifdef DDSI_INCLUDE_SSM
-#define PP_READER_FAVOURS_SSM                   ((uint64_t)1 << 39)
+#define PP_READER_FAVOURS_SSM                   ((uint64_t)1 << 29)
 #endif
 /* Security extensions. */
-#define PP_IDENTITY_TOKEN                       ((uint64_t)1 << 41)
-#define PP_PERMISSIONS_TOKEN                    ((uint64_t)1 << 42)
-#define PP_DOMAIN_ID                            ((uint64_t)1 << 43)
-#define PP_DOMAIN_TAG                           ((uint64_t)1 << 44)
+#define PP_IDENTITY_TOKEN                       ((uint64_t)1 << 30)
+#define PP_PERMISSIONS_TOKEN                    ((uint64_t)1 << 31)
+#define PP_DOMAIN_ID                            ((uint64_t)1 << 32)
+#define PP_DOMAIN_TAG                           ((uint64_t)1 << 33)
 /* Set for unrecognized parameters that are in the reserved space or
    in our own vendor-specific space that have the
    PID_UNRECOGNIZED_INCOMPATIBLE_FLAG set (see DDSI 2.1 9.6.2.2.1) */
@@ -150,15 +146,11 @@ typedef struct nn_plist {
   nn_entityid_t group_entityid;
 #endif
   uint32_t builtin_endpoint_set;
-  uint32_t prismtech_builtin_endpoint_set;
   /* int type_max_size_serialized; */
   char *entity_name;
   nn_keyhash_t keyhash;
   uint32_t statusinfo;
   nn_prismtech_participant_version_info_t prismtech_participant_version_info;
-  char *node_name;
-  char *exec_name;
-  uint32_t process_id;
   char *type_description;
   nn_sequence_number_t coherent_set_seqno;
 #ifdef DDSI_INCLUDE_SSM

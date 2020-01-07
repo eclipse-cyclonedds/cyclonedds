@@ -23,9 +23,8 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   nn_plist_t p0, p0memcpy;
   char *p0strs[3];
   nn_plist_init_empty (&p0);
-  p0.present = PP_PRISMTECH_PROCESS_ID | PP_ENTITY_NAME;
+  p0.present = PP_ENTITY_NAME;
   p0.aliased = PP_ENTITY_NAME;
-  p0.process_id = 0x12345678;
   p0.entity_name = "nemo";
   p0.qos.present = QP_PARTITION;
   p0.qos.aliased = QP_PARTITION;
@@ -56,7 +55,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT (p1.aliased == 0);
   CU_ASSERT (p1.qos.present == p0.qos.present);
   CU_ASSERT (p1.qos.aliased == 0);
-  CU_ASSERT (p1.process_id == p0.process_id);
   CU_ASSERT (p1.entity_name != p0.entity_name);
   CU_ASSERT_STRING_EQUAL (p1.entity_name, p0.entity_name);
   CU_ASSERT (p1.qos.partition.n == p0.qos.partition.n);
@@ -83,7 +81,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT (p2.aliased == p2memcpy.aliased);
   CU_ASSERT (p2.qos.present == p0.qos.present);
   CU_ASSERT (p2.qos.aliased == p2memcpy.qos.aliased);
-  CU_ASSERT (p2.process_id == p0.process_id);
   CU_ASSERT (p2.entity_name == p2memcpy.entity_name);
   CU_ASSERT_STRING_EQUAL (p2.entity_name, "omen");
   CU_ASSERT (p2.qos.partition.n == p0.qos.partition.n);
@@ -101,7 +98,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT (p0.aliased == 0);
   CU_ASSERT (p0.qos.present == p0memcpy.qos.present);
   CU_ASSERT (p0.qos.aliased == 0);
-  CU_ASSERT (p0.process_id == p0memcpy.process_id);
   CU_ASSERT (p0.entity_name != p0memcpy.entity_name);
   CU_ASSERT_STRING_EQUAL (p0.entity_name, p0memcpy.entity_name);
   CU_ASSERT (p0.qos.partition.n == p0memcpy.qos.partition.n);
@@ -123,7 +119,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT (p3.aliased == 0);
   CU_ASSERT (p3.qos.present == p0.qos.present);
   CU_ASSERT (p3.qos.aliased == 0);
-  CU_ASSERT (p3.process_id == p0.process_id);
   CU_ASSERT (p3.entity_name != p0.entity_name);
   CU_ASSERT_STRING_EQUAL (p3.entity_name, p0.entity_name);
   CU_ASSERT (p3.qos.partition.n == p0.qos.partition.n);
@@ -150,7 +145,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT (p4.aliased == p4memcpy.aliased);
   CU_ASSERT (p4.qos.present == p0.qos.present);
   CU_ASSERT (p4.qos.aliased == p4memcpy.qos.aliased);
-  CU_ASSERT (p4.process_id == p0.process_id);
   CU_ASSERT (p4.entity_name == p4memcpy.entity_name);
   CU_ASSERT_STRING_EQUAL (p4.entity_name, "omen");
   CU_ASSERT (p4.qos.partition.n == p0.qos.partition.n);

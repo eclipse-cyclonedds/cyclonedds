@@ -138,20 +138,9 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   /* Set additional default participant properties */
 
   char progname[50] = "UNKNOWN"; /* FIXME: once retrieving process names is back in */
-  char hostname[64];
-  domain->gv.default_local_plist_pp.process_id = (unsigned) ddsrt_getpid();
-  domain->gv.default_local_plist_pp.present |= PP_PRISMTECH_PROCESS_ID;
-  domain->gv.default_local_plist_pp.exec_name = dds_string_alloc(32);
-  (void) snprintf (domain->gv.default_local_plist_pp.exec_name, 32, "CycloneDDS: %u", domain->gv.default_local_plist_pp.process_id);
-  len = (uint32_t) (13 + strlen (domain->gv.default_local_plist_pp.exec_name));
-  domain->gv.default_local_plist_pp.present |= PP_PRISMTECH_EXEC_NAME;
-  if (ddsrt_gethostname (hostname, sizeof (hostname)) == DDS_RETCODE_OK)
-  {
-    domain->gv.default_local_plist_pp.node_name = dds_string_dup (hostname);
-    domain->gv.default_local_plist_pp.present |= PP_PRISMTECH_NODE_NAME;
-  }
+  len = (uint32_t) (strlen (progname) + 13);
   domain->gv.default_local_plist_pp.entity_name = dds_alloc (len);
-  (void) snprintf (domain->gv.default_local_plist_pp.entity_name, len, "%s<%u>", progname, domain->gv.default_local_plist_pp.process_id);
+  (void) snprintf (domain->gv.default_local_plist_pp.entity_name, len, "%s<%u>", progname, (unsigned) ddsrt_getpid ());
   domain->gv.default_local_plist_pp.present |= PP_ENTITY_NAME;
 
   if (rtps_start (&domain->gv) < 0)

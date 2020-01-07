@@ -1221,11 +1221,7 @@ static const struct piddesc piddesc_eclipse[] = {
   { PID_PAD, PDF_QOS, QP_CYCLONE_IGNORELOCAL, "CYCLONE_IGNORELOCAL",
     offsetof (struct nn_plist, qos.ignorelocal), membersize (struct nn_plist, qos.ignorelocal),
     { .desc = { XE2, XSTOP } }, 0 },
-  PP  (PRISMTECH_BUILTIN_ENDPOINT_SET,      prismtech_builtin_endpoint_set, Xu),
   PP  (PRISMTECH_PARTICIPANT_VERSION_INFO,  prismtech_participant_version_info, Xux5, XS),
-  PP  (PRISMTECH_EXEC_NAME,                 exec_name, XS),
-  PP  (PRISMTECH_PROCESS_ID,                process_id, Xu),
-  PP  (PRISMTECH_NODE_NAME,                 node_name, XS),
   PP  (PRISMTECH_TYPE_DESCRIPTION,          type_description, XS),
   { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
@@ -1237,11 +1233,7 @@ static const struct piddesc piddesc_prismtech[] = {
   QP  (PRISMTECH_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
   QP  (PRISMTECH_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
   QP  (PRISMTECH_SUBSCRIPTION_KEYS,         subscription_keys, XbCOND, XQ, XS, XSTOP),
-  PP  (PRISMTECH_BUILTIN_ENDPOINT_SET,      prismtech_builtin_endpoint_set, Xu),
   PP  (PRISMTECH_PARTICIPANT_VERSION_INFO,  prismtech_participant_version_info, Xux5, XS),
-  PP  (PRISMTECH_EXEC_NAME,                 exec_name, XS),
-  PP  (PRISMTECH_PROCESS_ID,                process_id, Xu),
-  PP  (PRISMTECH_NODE_NAME,                 node_name, XS),
   PP  (PRISMTECH_TYPE_DESCRIPTION,          type_description, XS),
   { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
@@ -1320,8 +1312,8 @@ static const struct piddesc_index piddesc_vendor_index[] = {
 /* List of entries that require unalias, fini processing;
    initialized by nn_plist_init_tables; will assert when
    table too small or too large */
-static const struct piddesc *piddesc_unalias[20];
-static const struct piddesc *piddesc_fini[20];
+static const struct piddesc *piddesc_unalias[18];
+static const struct piddesc *piddesc_fini[18];
 static ddsrt_once_t table_init_control = DDSRT_ONCE_INIT;
 
 static nn_parameterid_t pid_without_flags (nn_parameterid_t pid)
