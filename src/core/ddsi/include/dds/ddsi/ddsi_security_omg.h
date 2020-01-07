@@ -58,6 +58,17 @@ bool q_omg_security_enabled(void);
 bool q_omg_participant_is_secure(const struct participant *pp);
 
 /**
+ * @brief Check if security is enabled for the proxy participant.
+ *
+ * @param[in] proxypp  Proxy participant to check if it is secure.
+ *
+ * @returns bool
+ * @retval true   Proxy participant is secure
+ * @retval false  Proxy participant is not secure
+ */
+bool q_omg_proxy_participant_is_secure(const struct proxy_participant *proxypp);
+
+/**
  * @brief Get the security handle of the given local participant.
  *
  * @param[in] pp  Participant to check if it is secure.
@@ -76,17 +87,6 @@ int64_t q_omg_security_get_local_participant_handle(struct participant *pp);
  * @retval Remote participant security handle
  */
 int64_t q_omg_security_get_remote_participant_handle(struct proxy_participant *proxypp);
-
-/**
- * @brief Check if security is enabled for the proxy participant.
- *
- * @param[in] proxypp  Proxy participant to check if it is secure.
- *
- * @returns bool
- * @retval true   Proxy participant is secure
- * @retval false  Proxy participant is not secure
- */
-bool q_omg_proxy_participant_is_secure(const struct proxy_participant *proxypp);
 
 /**
  * @brief Get security info flags of the given writer.
@@ -690,15 +690,6 @@ bool q_omg_security_match_remote_writer_enabled(struct reader *rd, struct proxy_
  */
 bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_reader *prd);
 
-
-
-
-
-
-
-
-
-
 #else /* DDSI_INCLUDE_SECURITY */
 
 #include "dds/ddsi/q_unused.h"
@@ -746,6 +737,65 @@ is_proxy_participant_deletion_allowed(
   return true;
 }
 
+inline bool q_omg_is_similar_participant_security_info(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
+{
+  return true;
+}
+
+inline bool q_omg_participant_allow_unauthenticated(UNUSED_ARG(struct participant *pp))
+{
+  return true;
+}
+
+inline bool
+q_omg_security_check_create_participant(UNUSED_ARG(struct participant *pp), UNUSED_ARG(uint32_t domain_id))
+{
+  return true;
+}
+
+inline void q_omg_security_init_remote_participant(UNUSED_ARG(struct proxy_participant *proxypp))
+{
+}
+
+inline int64_t q_omg_security_check_remote_participant_permissions(UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
+{
+  return 0LL;
+}
+
+inline void q_omg_security_register_remote_participant(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp), UNUSED_ARG(int64_t shared_secret), UNUSED_ARG(int64_t proxy_permissions))
+{
+}
+
+inline void q_omg_security_deregister_remote_participant(UNUSED_ARG(struct proxy_participant *proxypp))
+{
+}
+
+inline void q_omg_security_participant_send_tokens(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
+{
+}
+
+inline bool q_omg_security_match_remote_writer_enabled(UNUSED_ARG(struct reader *rd), UNUSED_ARG(struct proxy_writer *pwr))
+{
+  return true;
+}
+
+inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct writer *wr), UNUSED_ARG(struct proxy_reader *prd))
+{
+  return true;
+}
+
+inline bool
+q_omg_security_check_remote_writer_permissions(UNUSED_ARG(const struct proxy_writer *pwr), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp))
+{
+  return true;
+}
+
+inline bool
+q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp))
+{
+  return true;
+}
+
 inline void
 set_proxy_participant_security_info(
   UNUSED_ARG(struct proxy_participant *prd),
@@ -766,7 +816,6 @@ set_proxy_writer_security_info(
   UNUSED_ARG(const nn_plist_t *plist))
 {
 }
-
 
 inline bool
 decode_Data(
@@ -807,43 +856,6 @@ encode_datawriter_submsg(
 {
 }
 
-inline bool q_omg_is_similar_participant_security_info(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
-{
-  return true;
-}
-
-inline bool q_omg_participant_allow_unauthenticated(UNUSED_ARG(struct participant *pp))
-{
-  return true;
-}
-
-inline bool
-q_omg_security_check_create_participant(UNUSED_ARG(struct participant *pp), UNUSED_ARG(uint32_t domain_id))
-{
-  return true;
-}
-
-inline void q_omg_security_init_remote_participant(UNUSED_ARG(struct proxy_participant *proxypp))
-{
-}
-
-inline int64_t q_omg_security_check_remote_participant_permissions(UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
-{
-  return 0LL;
-}
-
-inline void q_omg_security_register_remote_participant(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp), UNUSED_ARG(int64_t shared_secret), UNUSED_ARG(int64_t proxy_permissions))
-{
-}
-
-inline void q_omg_security_deregister_remote_participant(UNUSED_ARG(struct proxy_participant *proxypp))
-{
-}
-
-inline void q_omg_security_participant_send_tokens(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
-{
-}
-
 inline bool
 validate_msg_decoding(
   UNUSED_ARG(const struct entity_common *e),
@@ -851,15 +863,6 @@ validate_msg_decoding(
   UNUSED_ARG(struct proxy_participant *proxypp),
   UNUSED_ARG(struct receiver_state *rst),
   UNUSED_ARG(SubmessageKind_t prev_smid))
-{
-}
-
-q_omg_security_match_remote_writer_enabled(UNUSED_ARG(struct reader *rd), UNUSED_ARG(struct proxy_writer *pwr))
-{
-  return true;
-}
-
-inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct writer *wr), UNUSED_ARG(struct proxy_reader *prd))
 {
   return true;
 }
@@ -890,18 +893,6 @@ decode_rtps_message(
   UNUSED_ARG(bool isstream))
 {
   return NN_RTPS_MSG_STATE_PLAIN;
-}
-
-inline bool
-q_omg_security_check_remote_writer_permissions(UNUSED_ARG(const struct proxy_writer *pwr), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp))
-{
-  return true;
-}
-
-inline bool
-q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp))
-{
-  return true;
 }
 
 #endif /* DDSI_INCLUDE_SECURITY */

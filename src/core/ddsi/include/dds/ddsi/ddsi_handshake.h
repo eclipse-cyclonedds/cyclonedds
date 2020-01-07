@@ -12,6 +12,7 @@
 #ifndef DDSI_HANDSHAKE_H
 #define DDSI_HANDSHAKE_H
 
+#include "q_unused.h"
 #include "q_entity.h"
 #include "ddsi_security_msg.h"
 
@@ -23,8 +24,6 @@ struct participant;
 struct proxy_participant;
 struct ddsi_handshake;
 struct dssi_hsadmin;
-
-#ifdef DDSI_INCLUDE_SECURITY
 
 enum ddsi_handshake_state {
     STATE_HANDSHAKE_IN_PROGRESS,
@@ -38,46 +37,132 @@ enum ddsi_handshake_state {
 /* The handshake will not use the related handshake object after this callback
  * was executed. This means that it can be deleted in this callback. */
 typedef void (*ddsi_handshake_end_cb_t)(
-        struct ddsi_handshake *handshake,
-        const ddsi_guid_t *lpguid, /* Local participant */
-        const ddsi_guid_t *ppguid, /* Proxy participant */
-        nn_wctime_t timestamp,
-        enum ddsi_handshake_state result);
+    struct q_globals const * const gv,
+    struct ddsi_handshake *handshake,
+    const ddsi_guid_t *lpguid, /* Local participant */
+    const ddsi_guid_t *ppguid, /* Proxy participant */
+    enum ddsi_handshake_state result);
 
-void ddsi_handshake_start(struct ddsi_handshake *hs);
-void ddsi_handshake_release(struct ddsi_handshake *handshake);
-struct ddsi_handshake* ddsi_handshake_create(const struct participant *pp, const struct proxy_participant *proxypp, nn_wctime_t timestamp, ddsi_handshake_end_cb_t callback);
-void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struct participant *pp, const struct proxy_participant *proxypp, const struct nn_participant_generic_message *msg);
-void ddsi_handshake_crypto_tokens_received(const struct ddsi_handshake *handshake);
-int64_t ddsi_handshake_get_shared_secret(const struct ddsi_handshake *handshake);
-int64_t ddsi_handshake_get_handle(const struct ddsi_handshake *handshake);
-struct q_globals * ddsi_handshake_get_globals(const struct ddsi_handshake *handshake);
+#ifdef DDSI_INCLUDE_SECURITY
 
-/* The handshake admin (hsadmin) is provided to associate a handshake with the guid
- * of a local participant. Note that this hsadmin will typically be used by each
- * proxy participant to store the handshake information associated with each
- * local participant.
+#include "dds/ddsi/ddsi_security_msg.h"
+
+/**
+ * @brief Release the handshake.
+ *
+ * This function will decrement the refcount associated with the handshake
+ * and delete the handshake when the refcount becomes 0.
+ *
+ * @param[in] handshake    The handshake.
  */
+void ddsi_handshake_release(struct ddsi_handshake *handshake);
 
-struct ddsi_hsadmin * ddsi_hsadmin_create(void);
-void ddsi_hsadmin_delete(struct ddsi_hsadmin *admin);
-void ddsi_hsadmin_clear(struct ddsi_hsadmin *admin);
-struct ddsi_handshake * ddsi_hsadmin_register_locked(struct ddsi_hsadmin *admin, const struct participant *pp, const struct proxy_participant *proxypp, nn_wctime_t timestamp, ddsi_handshake_end_cb_t callback);
-struct ddsi_handshake * ddsi_hsadmin_find(const struct ddsi_hsadmin *admin, const ddsi_guid_t *lguid);
-void ddsi_hsadmin_lock(struct ddsi_hsadmin *admin);
-void ddsi_hsadmin_unlock(struct ddsi_hsadmin *admin);
-void ddsi_hsadmin_remove_by_guid(struct ddsi_hsadmin *admin, const ddsi_guid_t *lguid);
-void ddsi_hsadmin_remove_from_fsm(struct ddsi_hsadmin *admin, struct ddsi_handshake *hs);
+/**
+ * @brief Handle an authentication handshake message received from the remote participant.
+ *
+ * During the authentication phase handshake messages are being exchanged between the local and
+ * the remote participant. THis function will handle a handshake message received from a remote
+ * participant.
+ *
+ * @param[in] handshake  The handshake.
+ * @param[in] pp         The local participant.
+ * @param[in] proxypp    The remote participant.
+ * @param[in] msg        The handshake message received.
+ */
+void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struct participant *pp, const struct proxy_participant *proxypp, const struct nn_participant_generic_message *msg);
+
+/**
+ * @brief Notify the handshake that crypto tokens have been received.
+ *
+ * The handshake could be finished at one end while the other side has not yet processed the
+ * final handshake messages. The arrival of crypto tokens signals that the other side has also finished
+ * processing the handshake. This function is used to signal the handshake that crypto tokens have been
+ * received.
+ *
+ * @param[in] handshake     The handshake.
+ */
+void ddsi_handshake_crypto_tokens_received(struct ddsi_handshake *handshake);
+
+/**
+ * @brief Get the shared secret handle.
+ *
+ * During the handshake a shared secret is established which is used to encrypt
+ * and decrypt the crypto token exchange messages. This function will return a
+ * handle to the shared secret which will be passed to the crypto plugin to
+ * determine the session keys used for the echange of the the crypto tokens.
+ *
+ * @param[in] handshake  The handshake.
+ *
+ * @returns handle to the shared sercet.
+ */
+int64_t ddsi_handshake_get_shared_secret(const struct ddsi_handshake *handshake);
+
+/**
+ * @brief Get the handshake handle
+ *
+ * This function returns the handshake handle that was returned by the authentication plugin
+ * when starting the handshake.
+ *
+ * @param[in]  handshake  The handshake.
+ *
+ * @returns The handshake handle.
+ */
+int64_t ddsi_handshake_get_handle(const struct ddsi_handshake *handshake);
+
+/**
+ * @brief Create and start the handshake for the participants
+ *
+ * This function will create a handshake for the specified local
+ * and remote participants when it does not yet exists. It will start the
+ * handshake procedure by calling the corresponding functions of the authentication plugin.
+ * The callback function is called by the handshake when to report events,
+ * for example to indicate that the handshake has finished or has failed.
+ *
+ * @param[in] pp         The local participant.
+ * @param[in] proxypp    The remote participant.
+ * @param[in] callback   The callback function.
+ *
+ */
+void ddsi_handshake_register(const struct participant *pp, const struct proxy_participant *proxypp, ddsi_handshake_end_cb_t callback);
+
+/**
+ * @brief Remove the handshake associated with the specified participants.
+ *
+ * This function will remove the handshake from the handshake administation and release
+ * the handshake. When the handshake argument is not specified the handshake is searched
+ * in the handshake administation.
+ *
+ * @param[in] pp         The local participant.
+ * @param[in] proxypp    The remote participant.
+ * @param[in] handshake  The handshake.
+ *
+ */
+void ddsi_handshake_remove(const struct participant *pp, const struct proxy_participant *proxypp, struct ddsi_handshake *handshake);
+
+/**
+ * @brief Searches for the handshake associated with the specified participants
+ *
+ * This function will search through the handshake administration to find the handshake
+ * corresponding the to specified local and remote participant.
+ *
+ * @param[in] pp         The local participant.
+ * @param[in] proxypp    The remote participant.
+ *
+ * @returns The handshake
+ */
+struct ddsi_handshake * ddsi_handshake_find(const struct participant *pp, const struct proxy_participant *proxypp);
 
 #else /* DDSI_INCLUDE_SECURITY */
 
-inline void ddsi_handshake_start(UNUSED_ARG(struct ddsi_handshake *hs))
+#include "dds/ddsi/q_unused.h"
+
+
+inline void ddsi_handshake_release(UNUSED_ARG(struct ddsi_handshake *handshake))
 {
 }
 
-inline struct ddsi_handshake * ddsi_handshake_create(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(nn_wctime_t timestamp), UNUSED_ARG(ddsi_handshake_end_cb_t callback))
+inline void ddsi_handshake_crypto_tokens_received(UNUSED_ARG(struct ddsi_handshake *handshake))
 {
-  return NULL;
 }
 
 inline int64_t ddsi_handshake_get_shared_secret(UNUSED_ARG(const struct ddsi_handshake *handshake))
@@ -90,47 +175,17 @@ inline int64_t ddsi_handshake_get_handle(UNUSED_ARG(const struct ddsi_handshake 
   return 0;
 }
 
-inline struct ddsi_hsadmin * ddsi_hsadmin_create(void)
+inline void ddsi_handshake_register(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(ddsi_handshake_end_cb_t callback))
+{
+}
+
+inline void ddsi_handshake_remove(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(struct ddsi_handshake *handshake))
+{
+}
+
+inline struct ddsi_handshake * ddsi_handshake_find(UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp))
 {
   return NULL;
-}
-
-inline void ddsi_handshake_release(UNUSED_ARG(struct ddsi_handshake *handshake))
-{
-}
-
-inline void ddsi_hsadmin_clear(UNUSED_ARG(struct ddsi_hsadmin *admin))
-{
-}
-
-inline void ddsi_hsadmin_delete(UNUSED_ARG(struct ddsi_hsadmin *admin))
-{
-}
-
-inline void ddsi_hsadmin_lock(UNUSED_ARG(struct ddsi_hsadmin *admin))
-{
-}
-
-inline void ddsi_hsadmin_unlock(UNUSED_ARG(struct ddsi_hsadmin *admin))
-{
-}
-
-inline struct ddsi_handshake * ddsi_hsadmin_register_locked(UNUSED_ARG(struct ddsi_hsadmin *admin), UNUSED_ARG(const struct participant *pp), UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(nn_wctime_t timestamp), UNUSED_ARG(ddsi_handshake_end_cb_t callback))
-{
-   return NULL;
-}
-
-inline struct ddsi_handshake * ddsi_hsadmin_find(UNUSED_ARG(const struct ddsi_hsadmin *admin), UNUSED_ARG(const ddsi_guid_t *lguid))
-{
-  return NULL;
-}
-
-inline void ddsi_hsadmin_remove_by_guid(UNUSED_ARG(struct ddsi_hsadmin *admin), UNUSED_ARG(const nn_guid_t *lguid))
-{
-}
-
-inline void ddsi_hsadmin_remove_from_fsm(UNUSED_ARG(struct ddsi_hsadmin *admin), UNUSED_ARG(struct ddsi_handshake *hs))
-{
 }
 
 #endif /* DDSI_INCLUDE_SECURITY */

@@ -12,6 +12,8 @@
 #ifndef DDSI_SECURITY_MSG_H
 #define DDSI_SECURITY_MSG_H
 
+#ifdef DDSI_INCLUDE_SECURITY
+
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsrt/retcode.h"
@@ -106,6 +108,8 @@ volatile_secure_data_filter(
 
 #if defined (__cplusplus)
 }
+#endif
+
 #endif
 
 #endif /* DDSI_SECURITY_MSG_H */
