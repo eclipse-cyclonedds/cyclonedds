@@ -1625,6 +1625,11 @@ void nn_plist_fini (nn_plist_t *plist)
   plist_or_xqos_fini (plist, 0, ~(uint64_t)0, ~(uint64_t)0);
 }
 
+void nn_plist_fini_mask (nn_plist_t *plist, uint64_t pmask, uint64_t qmask)
+{
+  plist_or_xqos_fini (plist, 0, pmask, qmask);
+}
+
 void nn_plist_unalias (nn_plist_t *plist)
 {
   plist_or_xqos_unalias (plist, 0);
@@ -1706,6 +1711,45 @@ uint64_t nn_xqos_delta (const dds_qos_t *x, const dds_qos_t *y, uint64_t mask)
     }
   }
   return delta;
+}
+
+void nn_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const nn_plist_t *x, const nn_plist_t *y, uint64_t pmask, uint64_t qmask)
+{
+  if (piddesc_unalias[0] == NULL)
+    nn_plist_init_tables ();
+  *pdelta = (x->present ^ y->present) & pmask;
+  const uint64_t pcheck = (x->present & y->present) & pmask;
+  *qdelta = (x->qos.present ^ y->qos.present) & qmask;
+  const uint64_t qcheck = (x->qos.present & y->qos.present) & qmask;
+  for (size_t k = 0; k < sizeof (piddesc_tables_all) / sizeof (piddesc_tables_all[0]); k++)
+  {
+    struct piddesc const * const table = piddesc_tables_all[k];
+    for (uint32_t i = 0; table[i].pid != PID_SENTINEL; i++)
+    {
+      struct piddesc const * const entry = &table[i];
+      const uint64_t check = (entry->flags & PDF_QOS) ? qcheck : pcheck;
+      uint64_t * const delta = (entry->flags & PDF_QOS) ? qdelta : pdelta;
+      /* QoS come first in the table, but for those we use nn_xqos_delta */
+      if (entry->flags & PDF_QOS)
+        continue;
+      if (check & entry->present_flag)
+      {
+        const size_t srcoff = entry->plist_offset;
+        bool equal;
+        /* Partition is special-cased because it is a set (with a special rules
+           for empty sets and empty strings to boot), and normal string sequence
+           comparison requires the ordering to be the same */
+        if (entry->pid == PID_PARTITION)
+          equal = partitions_equal (&x->qos.partition, &y->qos.partition);
+        else if (!(entry->flags & PDF_FUNCTION))
+          equal = equal_generic (x, y, srcoff, entry->op.desc);
+        else
+          equal = entry->op.f.equal (x, y, srcoff);
+        if (!equal)
+          *delta |= entry->present_flag;
+      }
+    }
+  }
 }
 
 static dds_return_t validate_external_duration (const ddsi_duration_t *d)
