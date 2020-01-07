@@ -236,11 +236,6 @@ int spdp_write (struct participant *pp)
     ps.aliased |= PP_DOMAIN_TAG;
     ps.domain_tag = pp->e.gv->config.domainTag;
   }
-  if (pp->prismtech_bes)
-  {
-    ps.present |= PP_PRISMTECH_BUILTIN_ENDPOINT_SET;
-    ps.prismtech_builtin_endpoint_set = pp->prismtech_bes;
-  }
   ps.default_unicast_locators.n = 1;
   ps.default_unicast_locators.first =
     ps.default_unicast_locators.last = &def_uni_loc_one;
@@ -526,8 +521,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
     NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
     NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
   struct addrset *as_meta, *as_default;
-  unsigned builtin_endpoint_set;
-  unsigned prismtech_builtin_endpoint_set;
+  uint32_t builtin_endpoint_set;
   ddsi_guid_t privileged_pp_guid;
   dds_duration_t lease_duration;
   unsigned custom_flags = 0;
@@ -555,7 +549,6 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
      so it seemed; and yet they are necessary for correct operation,
      so add them. */
   builtin_endpoint_set = datap->builtin_endpoint_set;
-  prismtech_builtin_endpoint_set = (datap->present & PP_PRISMTECH_BUILTIN_ENDPOINT_SET) ? datap->prismtech_builtin_endpoint_set : 0;
   if (vendor_is_rti (rst->vendor) &&
       ((builtin_endpoint_set &
         (NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER |
@@ -569,21 +562,6 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
     builtin_endpoint_set |=
       NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER |
       NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
-  }
-  if ((datap->present & PP_PRISMTECH_PARTICIPANT_VERSION_INFO) &&
-      (datap->present & PP_PRISMTECH_BUILTIN_ENDPOINT_SET) &&
-      !(datap->prismtech_participant_version_info.flags & NN_PRISMTECH_FL_PTBES_FIXED_0))
-  {
-    /* FIXED_0 (bug 0) indicates that this is an updated version that advertises
-       CM readers/writers correctly (without it, we could make a reasonable guess,
-       but it would cause problems with cases where we would be happy with only
-       (say) CM participant. Have to do a backwards-compatible fix because it has
-       already been released with the flags all aliased to bits 0 and 1 ... */
-      GVLOGDISC (" (ptbes_fixed_0 %x)", prismtech_builtin_endpoint_set);
-      if (prismtech_builtin_endpoint_set & NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_READER)
-        prismtech_builtin_endpoint_set |= NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_READER | NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_READER;
-      if (prismtech_builtin_endpoint_set & NN_DISC_BUILTIN_ENDPOINT_CM_PARTICIPANT_WRITER)
-        prismtech_builtin_endpoint_set |= NN_DISC_BUILTIN_ENDPOINT_CM_PUBLISHER_WRITER | NN_DISC_BUILTIN_ENDPOINT_CM_SUBSCRIBER_WRITER;
   }
 
   /* Do we know this GUID already? */
@@ -627,7 +605,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
           GVLOGDISC ("SPDP ST0 "PGUIDFMT, PGUID (datap->participant_guid));
         GVLOGDISC (proxypp->implicitly_created ? " (NEW was-implicitly-created)" : " (update)");
         proxypp->implicitly_created = 0;
-        update_proxy_participant_plist_locked (proxypp, seq, datap, UPD_PROXYPP_SPDP, timestamp);
+        update_proxy_participant_plist_locked (proxypp, seq, datap, timestamp);
       }
       ddsrt_mutex_unlock (&proxypp->e.lock);
       return interesting;
@@ -641,7 +619,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
     }
   }
 
-  GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %x ptbes %x NEW", PGUID (datap->participant_guid), builtin_endpoint_set, prismtech_builtin_endpoint_set);
+  GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %x NEW", PGUID (datap->participant_guid), builtin_endpoint_set);
 
   if (datap->present & PP_PARTICIPANT_LEASE_DURATION)
   {
@@ -770,7 +748,6 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
     gv,
     &datap->participant_guid,
     builtin_endpoint_set,
-    prismtech_builtin_endpoint_set,
     &privileged_pp_guid,
     as_default,
     as_meta,
@@ -1109,7 +1086,7 @@ static struct proxy_participant *implicitly_create_proxypp (struct q_globals *gv
        doing anything about (1).  That means we fall back to the legacy mode of locally generating
        GIDs but leaving the system id unchanged if the remote is OSPL.  */
     actual_vendorid = (datap->present & PP_VENDORID) ?  datap->vendorid : vendorid;
-    new_proxy_participant(gv, ppguid, 0, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, T_NEVER, actual_vendorid, CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
+    new_proxy_participant(gv, ppguid, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, T_NEVER, actual_vendorid, CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
   }
   else if (ppguid->prefix.u[0] == src_guid_prefix->u[0] && vendor_is_eclipse_or_opensplice (vendorid))
   {
@@ -1143,7 +1120,7 @@ static struct proxy_participant *implicitly_create_proxypp (struct q_globals *gv
       ddsrt_mutex_unlock (&privpp->e.lock);
 
       pp_plist.prismtech_participant_version_info.flags &= ~NN_PRISMTECH_FL_PARTICIPANT_IS_DDSI2;
-      new_proxy_participant (gv, ppguid, 0, 0, &privguid, as_default, as_meta, &pp_plist, T_NEVER, vendorid, CF_IMPLICITLY_CREATED_PROXYPP | CF_PROXYPP_NO_SPDP, timestamp, seq);
+      new_proxy_participant (gv, ppguid, 0, &privguid, as_default, as_meta, &pp_plist, T_NEVER, vendorid, CF_IMPLICITLY_CREATED_PROXYPP | CF_PROXYPP_NO_SPDP, timestamp, seq);
     }
   }
 
@@ -1448,104 +1425,6 @@ int sedp_write_topic (struct participant *pp, const struct nn_plist *datap)
 
 
 /******************************************************************************
- ***
- *** PrismTech CM data
- ***
- *****************************************************************************/
-
-int sedp_write_cm_participant (struct participant *pp, int alive)
-{
-  struct writer * sedp_wr;
-  struct nn_xmsg *mpayload;
-  nn_plist_t ps;
-  int ret;
-
-  if (pp->e.onlylocal) {
-      /* This topic is only locally available. */
-      return 0;
-  }
-
-  sedp_wr = get_sedp_writer (pp, NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER);
-
-  /* The message is only a temporary thing, used only for encoding
-   the QoS and other settings. So the header fields aren't really
-   important, except that they need to be set to reasonable things
-   or it'll crash */
-  mpayload = nn_xmsg_new (sedp_wr->e.gv->xmsgpool, &sedp_wr->e.guid.prefix, 0, NN_XMSG_KIND_DATA);
-  nn_plist_init_empty (&ps);
-  ps.present = PP_PARTICIPANT_GUID;
-  ps.participant_guid = pp->e.guid;
-  nn_plist_addtomsg (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0);
-  nn_plist_fini (&ps);
-  if (alive)
-  {
-    nn_plist_addtomsg (mpayload, pp->plist,
-                       PP_PRISMTECH_NODE_NAME | PP_PRISMTECH_EXEC_NAME | PP_PRISMTECH_PROCESS_ID |
-                       PP_ENTITY_NAME,
-                       QP_PRISMTECH_ENTITY_FACTORY);
-  }
-  nn_xmsg_addpar_sentinel (mpayload);
-
-  ETRACE (pp, "sedp: write CMParticipant ST%x for "PGUIDFMT" via "PGUIDFMT"\n",
-          alive ? 0 : NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER, PGUID (pp->e.guid), PGUID (sedp_wr->e.guid));
-  ret = write_mpayload (sedp_wr, alive, PID_PARTICIPANT_GUID, mpayload);
-  nn_xmsg_free (mpayload);
-  return ret;
-}
-
-static void handle_SEDP_CM (const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, nn_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len)
-{
-  struct q_globals * const gv = rst->gv;
-  const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
-  GVLOGDISC ("SEDP_CM ST%x", statusinfo);
-  assert (wr_entity_id.u == NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER);
-  (void) wr_entity_id;
-  if (data == NULL)
-  {
-    GVLOGDISC (" no payload?\n");
-    return;
-  }
-  else
-  {
-    nn_plist_t decoded_data;
-    nn_plist_src_t src;
-    dds_return_t plist_ret;
-    src.protocol_version = rst->protocol_version;
-    src.vendorid = rst->vendor;
-    src.encoding = data->identifier;
-    src.buf = (unsigned char *) data + 4;
-    src.bufsz = len - 4;
-    src.strict = NN_STRICT_P (gv->config);
-    src.factory = gv->m_factory;
-    src.logconfig = &gv->logconfig;
-    if ((plist_ret = nn_plist_init_frommsg (&decoded_data, NULL, ~(uint64_t)0, ~(uint64_t)0, &src)) < 0)
-    {
-      if (plist_ret != DDS_RETCODE_UNSUPPORTED)
-        GVWARNING ("SEDP_CM (vendor %u.%u): invalid qos/parameters\n", src.vendorid.id[0], src.vendorid.id[1]);
-      return;
-    }
-
-    /* ignore: dispose/unregister is tied to deleting the participant, which will take care of the dispose/unregister for us */;
-    if ((statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER)) == 0)
-    {
-      struct proxy_participant *proxypp;
-      if (!(decoded_data.present & PP_PARTICIPANT_GUID))
-        GVWARNING ("SEDP_CM (vendor %u.%u): missing participant GUID\n", src.vendorid.id[0], src.vendorid.id[1]);
-      else
-      {
-        if ((proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, &decoded_data.participant_guid)) == NULL)
-          proxypp = implicitly_create_proxypp (gv, &decoded_data.participant_guid, &decoded_data, &rst->src_guid_prefix, rst->vendor, timestamp, 0);
-        if (proxypp != NULL)
-          update_proxy_participant_plist (proxypp, 0, &decoded_data, UPD_PROXYPP_CM, timestamp);
-      }
-    }
-
-    nn_plist_fini (&decoded_data);
-  }
-  GVLOGDISC ("\n");
-}
-
-/******************************************************************************
  *****************************************************************************/
 
 /* FIXME: defragment is a copy of the one in q_receive.c, but the deserialised should be enhanced to handle fragmented data (and arguably the processing here should be built on proper data readers) */
@@ -1711,12 +1590,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
       switch (srcguid.entityid.u)
       {
         case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
-        case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER:
           pid = PID_PARTICIPANT_GUID;
-          break;
-        case NN_ENTITYID_SEDP_BUILTIN_CM_PUBLISHER_WRITER:
-        case NN_ENTITYID_SEDP_BUILTIN_CM_SUBSCRIBER_WRITER:
-          pid = PID_GROUP_GUID;
           break;
         case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER:
         case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER:
@@ -1766,9 +1640,6 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
       break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
       handle_pmd_message (sampleinfo->rst, timestamp, statusinfo, datap, datasz);
-      break;
-    case NN_ENTITYID_SEDP_BUILTIN_CM_PARTICIPANT_WRITER:
-      handle_SEDP_CM (sampleinfo->rst, srcguid.entityid, timestamp, statusinfo, datap, datasz);
       break;
     default:
       GVLOGDISC ("data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRId64": not handled\n",
