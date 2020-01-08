@@ -482,6 +482,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   st = dds_alloc (sizeof (*st));
 
   ddsi_sertopic_init (&st->c, name, desc->m_typename, &ddsi_sertopic_ops_default, desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey, (desc->m_nkeys == 0));
+  st->gv = &ppent->m_domain->gv;
   st->native_encoding_identifier = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE);
   st->serpool = ppent->m_domain->gv.serpool;
   st->type = (void*) desc;

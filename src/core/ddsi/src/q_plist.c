@@ -109,6 +109,7 @@ struct piddesc {
       dds_return_t (*fini) (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag);
       dds_return_t (*valid) (const void *src, size_t srcoff);
       bool (*equal) (const void *srcx, const void *srcy, size_t srcoff);
+      bool (*print) (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff);
     } f;
   } op;
   dds_return_t (*deser_validate_xform) (void * __restrict dst, const struct dd * __restrict dd);
@@ -116,7 +117,6 @@ struct piddesc {
 
 extern inline bool pserop_seralign_is_1 (enum pserop op);
 
-static void log_octetseq (uint32_t cat, const struct ddsrt_log_cfg *logcfg, uint32_t n, const unsigned char *xs);
 static dds_return_t validate_history_qospolicy (const dds_history_qospolicy_t *q);
 static dds_return_t validate_resource_limits_qospolicy (const dds_resource_limits_qospolicy_t *q);
 static dds_return_t validate_history_and_resource_limits (const dds_history_qospolicy_t *qh, const dds_resource_limits_qospolicy_t *qr);
@@ -124,7 +124,7 @@ static dds_return_t validate_external_duration (const ddsi_duration_t *d);
 static dds_return_t validate_durability_service_qospolicy_acceptzero (const dds_durability_service_qospolicy_t *q, bool acceptzero);
 static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t wanted, uint64_t fl, const struct dd *dd, const struct ddsi_tran_factory *factory);
 static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict);
-static int partitions_equal (const dds_partition_qospolicy_t *a, const dds_partition_qospolicy_t *b);
+static int partitions_equal (const void *srca, const void *srcb, size_t off);
 static dds_return_t nn_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
 
 static size_t align4size (size_t x)
@@ -167,6 +167,34 @@ static dds_return_t deser_uint32 (uint32_t *dst, const struct dd * __restrict dd
   *dst = tmp;
   *off = off1 + 4;
   return 0;
+}
+
+/* Returns true if buffer not yet exhausted, false otherwise */
+static bool prtf (char * __restrict *buf, size_t * __restrict bufsize, const char *fmt, ...)
+{
+  va_list ap;
+  if (*bufsize == 0)
+    return false;
+  va_start (ap, fmt);
+  int n = vsnprintf (*buf, *bufsize, fmt, ap);
+  va_end (ap);
+  if (n < 0)
+  {
+    **buf = 0;
+    return false;
+  }
+  else if ((size_t) n <= *bufsize)
+  {
+    *buf += (size_t) n;
+    *bufsize -= (size_t) n;
+    return (*bufsize > 0);
+  }
+  else
+  {
+    *buf += *bufsize;
+    *bufsize = 0;
+    return false;
+  }
 }
 
 #define alignof(type_) offsetof (struct { char c; type_ d; }, d)
@@ -222,6 +250,12 @@ static bool equal_reliability (const void *srcx, const void *srcy, size_t srcoff
   return x->kind == y->kind && x->max_blocking_time == y->max_blocking_time;
 }
 
+static bool print_reliability (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff)
+{
+  dds_reliability_qospolicy_t const * const x = deser_generic_src (src, &srcoff, alignof (dds_reliability_qospolicy_t));
+  return prtf (buf, bufsize, "%d:%"PRId64, (int) x->kind, x->max_blocking_time);
+}
+
 static dds_return_t deser_statusinfo (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff)
 {
   uint32_t * const x = deser_generic_dst (dst, dstoff, alignof (dds_reliability_qospolicy_t));
@@ -244,6 +278,12 @@ static dds_return_t ser_statusinfo (struct nn_xmsg *xmsg, nn_parameterid_t pid, 
   uint32_t * const p = nn_xmsg_addpar (xmsg, pid, sizeof (uint32_t));
   *p = ddsrt_toBE4u (*x);
   return 0;
+}
+
+static bool print_statusinfo (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff)
+{
+  uint32_t const * const x = deser_generic_src (src, &srcoff, alignof (uint32_t));
+  return prtf (buf, bufsize, "%"PRIx32, *x);
 }
 
 static dds_return_t deser_locator (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff)
@@ -271,8 +311,10 @@ static dds_return_t ser_locator (struct nn_xmsg *xmsg, nn_parameterid_t pid, con
   nn_locators_t const * const x = deser_generic_src (src, &srcoff, alignof (nn_locators_t));
   for (const struct nn_locators_one *l = x->first; l != NULL; l = l->next)
   {
-    char * const p = nn_xmsg_addpar (xmsg, pid, sizeof (nn_locator_t));
-    memcpy (p, &l->loc, sizeof (nn_locator_t));
+    char * const p = nn_xmsg_addpar (xmsg, pid, 24);
+    memcpy (p, &l->loc.kind, 4);
+    memcpy (p + 4, &l->loc.port, 4);
+    memcpy (p + 8, l->loc.address, 16);
   }
   return 0;
 }
@@ -308,6 +350,21 @@ static dds_return_t fini_locator (void * __restrict dst, size_t * __restrict dst
     }
   }
   return 0;
+}
+
+static bool print_locator (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff)
+{
+  nn_locators_t const * const x = deser_generic_src (src, &srcoff, alignof (nn_locators_t));
+  const char *sep = "";
+  prtf (buf, bufsize, "{");
+  for (const struct nn_locators_one *l = x->first; l != NULL; l = l->next)
+  {
+    char tmp[DDSI_LOCATORSTRLEN];
+    ddsi_locator_to_string (tmp, sizeof (tmp), &l->loc);
+    prtf (buf, bufsize, "%s%s", sep, tmp);
+    sep = ",";
+  }
+  return prtf (buf, bufsize, "}");
 }
 
 static size_t ser_generic_srcsize (const enum pserop * __restrict desc)
@@ -1040,6 +1097,186 @@ bool plist_equal_generic (const void *srcx, const void *srcy, const enum pserop 
   return equal_generic (srcx, srcy, 0, desc);
 }
 
+static uint32_t isprint_runlen (uint32_t n, const unsigned char *xs)
+{
+  uint32_t m;
+  for (m = 0; m < n && xs[m] != '"' && isprint (xs[m]) && xs[m] < 127; m++)
+    ;
+  return m;
+}
+
+static bool prtf_octetseq (char * __restrict *buf, size_t * __restrict bufsize, uint32_t n, const unsigned char *xs)
+{
+  uint32_t i = 0;
+  while (i < n)
+  {
+    uint32_t m = isprint_runlen (n - i, xs);
+    if (m >= 4 || (i == 0 && m == n))
+    {
+      if (!prtf (buf, bufsize, "%s\"%*.*s\"", i == 0 ? "" : ",", m, m, xs))
+        return false;
+      xs += m;
+      i += m;
+    }
+    else
+    {
+      if (m == 0)
+        m = 1;
+      while (m--)
+      {
+        if (!prtf (buf, bufsize, "%s%u", i == 0 ? "" : ",", *xs++))
+          return false;
+        i++;
+      }
+    }
+  }
+  return true;
+}
+
+static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff, const enum pserop * __restrict desc, const char *sep)
+{
+  while (true)
+  {
+    switch (*desc)
+    {
+      case XSTOP:
+        return true;
+      case XO: { /* octet sequence */
+        ddsi_octetseq_t const * const x = deser_generic_src (src, &srcoff, alignof (ddsi_octetseq_t));
+        prtf (buf, bufsize, "%s%"PRIu32"<", sep, x->length);
+        (void) prtf_octetseq (buf, bufsize, x->length, x->value);
+        if (!prtf (buf, bufsize, ">"))
+          return false;
+        srcoff += sizeof (*x);
+        break;
+      }
+      case XS: { /* string */
+        char const * const * const x = deser_generic_src (src, &srcoff, alignof (char *));
+        if (!prtf (buf, bufsize, "%s\"%s\"", sep, *x))
+          return false;
+        srcoff += sizeof (*x);
+        break;
+      }
+      case XE1: case XE2: case XE3: { /* enum */
+        unsigned const * const x = deser_generic_src (src, &srcoff, alignof (unsigned));
+        if (!prtf (buf, bufsize, "%s%u", sep, *x))
+          return false;
+        srcoff += sizeof (*x);
+        break;
+      }
+      case Xi: case Xix2: case Xix3: case Xix4: { /* int32_t(s) */
+        int32_t const * const x = deser_generic_src (src, &srcoff, alignof (int32_t));
+        const uint32_t cnt = 1 + (uint32_t) (*desc - Xi);
+        for (uint32_t i = 0; i < cnt; i++)
+        {
+          if (!prtf (buf, bufsize, "%s%"PRId32, sep, x[i]))
+            return false;
+          sep = ":";
+        }
+        srcoff += cnt * sizeof (*x);
+        break;
+      }
+      case Xu: case Xux2: case Xux3: case Xux4: case Xux5:  { /* uint32_t(s) */
+        uint32_t const * const x = deser_generic_src (src, &srcoff, alignof (uint32_t));
+        const uint32_t cnt = 1 + (uint32_t) (*desc - Xu);
+        for (uint32_t i = 0; i < cnt; i++)
+        {
+          if (!prtf (buf, bufsize, "%s%"PRIu32, sep, x[i]))
+            return false;
+          sep = ":";
+        }
+        srcoff += cnt * sizeof (*x);
+        break;
+      }
+      case XD: case XDx2: { /* duration(s): int64_t <=> int32_t.uint32_t (seconds.fraction) */
+        dds_duration_t const * const x = deser_generic_src (src, &srcoff, alignof (dds_duration_t));
+        const uint32_t cnt = 1 + (uint32_t) (*desc - XD);
+        for (uint32_t i = 0; i < cnt; i++)
+        {
+          if (!prtf (buf, bufsize, "%s%"PRId64, sep, x[i]))
+            return false;
+          sep = ":";
+        }
+        srcoff += cnt * sizeof (*x);
+        break;
+      }
+      case Xo: case Xox2: { /* octet(s) */
+        unsigned char const * const x = deser_generic_src (src, &srcoff, alignof (unsigned char));
+        const uint32_t cnt = 1 + (uint32_t) (*desc - Xo);
+        for (uint32_t i = 0; i < cnt; i++)
+        {
+          if (!prtf (buf, bufsize, "%s%d", sep, x[i]))
+            return false;
+          sep = ":";
+        }
+        srcoff += cnt * sizeof (*x);
+        break;
+      }
+      case Xb: case Xbx2: case XbCOND: { /* boolean(s) */
+        unsigned char const * const x = deser_generic_src (src, &srcoff, alignof (unsigned char));
+        const uint32_t cnt = (*desc == Xbx2) ? 2 : 1; /* <<<< beware! */
+        for (uint32_t i = 0; i < cnt; i++)
+        {
+          if (!prtf (buf, bufsize, "%s%d", sep, x[i]))
+            return false;
+          sep = ":";
+        }
+        srcoff += cnt * sizeof (*x);
+        break;
+      }
+      case XbPROP: { /* "propagate" boolean: don't serialize, skip it and everything that follows if false */
+        unsigned char const * const x = deser_generic_src (src, &srcoff, alignof (unsigned char));
+        if (!prtf (buf, bufsize, "%s%d", sep, *x))
+          return false;
+        srcoff++;
+        break;
+      }
+      case XG: { /* GUID */
+        ddsi_guid_t const * const x = deser_generic_src (src, &srcoff, alignof (ddsi_guid_t));
+        if (!prtf (buf, bufsize, "%s"PGUIDFMT, sep, PGUID (*x)))
+          return false;
+        srcoff += sizeof (*x);
+        break;
+      }
+      case XK: { /* keyhash */
+        nn_keyhash_t const * const x = deser_generic_src (src, &srcoff, alignof (nn_keyhash_t));
+        if (!prtf (buf, bufsize, "%s{%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x}", sep,
+                   x->value[0], x->value[1], x->value[2], x->value[3], x->value[4], x->value[5], x->value[6], x->value[7],
+                   x->value[8], x->value[9], x->value[10], x->value[11], x->value[12], x->value[13], x->value[14], x->value[15]))
+          return false;
+        srcoff += sizeof (*x);
+        break;
+      }
+      case XQ: {
+        ddsi_octetseq_t const * const x = deser_generic_src (src, &srcoff, alignof (ddsi_octetseq_t));
+        if (!prtf (buf, bufsize, "%s{", sep))
+          return false;
+        if (x->length > 0)
+        {
+          const size_t elem_size = ser_generic_srcsize (desc + 1);
+          for (uint32_t i = 0; i < x->length; i++)
+            if (!print_generic1 (buf, bufsize, x->value, i * elem_size, desc + 1, (i == 0) ? "" : ","))
+              return false;
+        }
+        if (!prtf (buf, bufsize, "}"))
+          return false;
+        srcoff += sizeof (*x);
+        while (*++desc != XSTOP) { }
+        break;
+      }
+      case Xopt:
+        break;
+    }
+    sep = ":";
+    desc++;
+  }
+}
+
+static bool print_generic (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff, const enum pserop * __restrict desc)
+{
+  return print_generic1 (buf, bufsize, src, srcoff, desc, "");
+}
+
 #define membersize(type, member) sizeof (((type *) 0)->member)
 #define ENTRY(PFX_, NAME_, member_, flag_, validate_, ...)                               \
   { PID_##NAME_, flag_, PFX_##_##NAME_, #NAME_, offsetof (struct nn_plist, member_),     \
@@ -1124,7 +1361,6 @@ static dds_return_t dvx_reader_favours_ssm (void * __restrict dst, const struct 
 }
 #endif
 
-
 /* Standardized parameters -- QoS _MUST_ come first (nn_plist_init_tables verifies this) because
    it allows early-out when processing a dds_qos_t instead of an nn_plist_t */
 static const struct piddesc piddesc_omg[] = {
@@ -1146,7 +1382,7 @@ static const struct piddesc piddesc_omg[] = {
   /* Reliability encoding does not follow the rules (best-effort/reliable map to 1/2 instead of 0/1 */
   { PID_RELIABILITY, PDF_QOS | PDF_FUNCTION, QP_RELIABILITY, "RELIABILITY",
     offsetof (struct nn_plist, qos.reliability), membersize (struct nn_plist, qos.reliability),
-    { .f = { .deser = deser_reliability, .ser = ser_reliability, .valid = valid_reliability, .equal = equal_reliability } }, 0 },
+    { .f = { .deser = deser_reliability, .ser = ser_reliability, .valid = valid_reliability, .equal = equal_reliability, .print = print_reliability } }, 0 },
   QP  (LIFESPAN,                            lifespan, XD),
   QP  (DESTINATION_ORDER,                   destination_order, XE1),
   /* History depth is ignored when kind = KEEP_ALL, and must be >= 1 when KEEP_LAST, so can't use "l" */
@@ -1177,34 +1413,34 @@ static const struct piddesc piddesc_omg[] = {
   PP  (DOMAIN_TAG,                          domain_tag, XS),
   { PID_STATUSINFO, PDF_FUNCTION, PP_STATUSINFO, "STATUSINFO",
     offsetof (struct nn_plist, statusinfo), membersize (struct nn_plist, statusinfo),
-    { .f = { .deser = deser_statusinfo, .ser = ser_statusinfo } }, 0 },
+    { .f = { .deser = deser_statusinfo, .ser = ser_statusinfo, .print = print_statusinfo } }, 0 },
   /* Locators are difficult to deal with because they can occur multi times to represent a set;
      that is manageable for deser, unalias and fini, but it breaks ser because that one only
      generates a single parameter header */
   { PID_UNICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_UNICAST_LOCATOR, "UNICAST_LOCATOR",
     offsetof (struct nn_plist, unicast_locators), membersize (struct nn_plist, unicast_locators),
-    { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator } }, 0 },
+    { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
   { PID_MULTICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_MULTICAST_LOCATOR, "MULTICAST_LOCATOR",
     offsetof (struct nn_plist, multicast_locators), membersize (struct nn_plist, multicast_locators),
-    { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator } }, 0 },
+    { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
   { PID_DEFAULT_UNICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_DEFAULT_UNICAST_LOCATOR, "DEFAULT_UNICAST_LOCATOR",
     offsetof (struct nn_plist, default_unicast_locators), membersize (struct nn_plist, default_unicast_locators),
-    { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator } }, 0 },
+    { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
   { PID_DEFAULT_MULTICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_DEFAULT_MULTICAST_LOCATOR, "DEFAULT_MULTICAST_LOCATOR",
     offsetof (struct nn_plist, default_multicast_locators), membersize (struct nn_plist, default_multicast_locators),
-    { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator } }, 0 },
+    { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
   { PID_METATRAFFIC_UNICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_METATRAFFIC_UNICAST_LOCATOR, "METATRAFFIC_UNICAST_LOCATOR",
     offsetof (struct nn_plist, metatraffic_unicast_locators), membersize (struct nn_plist, metatraffic_unicast_locators),
-    { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator } }, 0 },
+    { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
   { PID_METATRAFFIC_MULTICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_METATRAFFIC_MULTICAST_LOCATOR, "METATRAFFIC_MULTICAST_LOCATOR",
     offsetof (struct nn_plist, metatraffic_multicast_locators), membersize (struct nn_plist, metatraffic_multicast_locators),
-    { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator } }, 0 },
+    { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
   /* PID_..._{IPADDRESS,PORT} is impossible to deal with and are never generated, only accepted.
      The problem is that there one needs additional state (and even then there is no clear
      interpretation) ... So they'll have to be special-cased */
@@ -1675,81 +1911,72 @@ dds_return_t nn_xqos_valid (const struct ddsrt_log_cfg *logcfg, const dds_qos_t 
   return nn_xqos_valid_strictness (logcfg, xqos, true);
 }
 
-uint64_t nn_xqos_delta (const dds_qos_t *x, const dds_qos_t *y, uint64_t mask)
+static void plist_or_xqos_delta (uint64_t *pdelta, uint64_t *qdelta, const void *srcx, const void *srcy, size_t shift, uint64_t pmask, uint64_t qmask)
 {
-  if (piddesc_unalias[0] == NULL)
-    nn_plist_init_tables ();
-  /* Returns QP_... set for settings where x differs from y; if
-     present in x but not in y (or in y but not in x) it counts as a
-     difference. */
-  uint64_t delta = (x->present ^ y->present) & mask;
-  const uint64_t check = (x->present & y->present) & mask;
-  for (size_t k = 0; k < sizeof (piddesc_tables_all) / sizeof (piddesc_tables_all[0]); k++)
-  {
-    struct piddesc const * const table = piddesc_tables_all[k];
-    for (uint32_t i = 0; table[i].pid != PID_SENTINEL; i++)
-    {
-      struct piddesc const * const entry = &table[i];
-      if (!(entry->flags & PDF_QOS))
-        break;
-      if (check & entry->present_flag)
-      {
-        const size_t srcoff = entry->plist_offset - offsetof (nn_plist_t, qos);
-        bool equal;
-        /* Partition is special-cased because it is a set (with a special rules
-           for empty sets and empty strings to boot), and normal string sequence
-           comparison requires the ordering to be the same */
-        if (entry->pid == PID_PARTITION)
-          equal = partitions_equal (&x->partition, &y->partition);
-        else if (!(entry->flags & PDF_FUNCTION))
-          equal = equal_generic (x, y, srcoff, entry->op.desc);
-        else
-          equal = entry->op.f.equal (x, y, srcoff);
-        if (!equal)
-          delta |= entry->present_flag;
-      }
-    }
-  }
-  return delta;
-}
+  uint64_t pcheck, qcheck;
 
-void nn_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const nn_plist_t *x, const nn_plist_t *y, uint64_t pmask, uint64_t qmask)
-{
   if (piddesc_unalias[0] == NULL)
     nn_plist_init_tables ();
-  *pdelta = (x->present ^ y->present) & pmask;
-  const uint64_t pcheck = (x->present & y->present) & pmask;
-  *qdelta = (x->qos.present ^ y->qos.present) & qmask;
-  const uint64_t qcheck = (x->qos.present & y->qos.present) & qmask;
+  if (shift > 0)
+  {
+    const dds_qos_t *x = srcx;
+    const dds_qos_t *y = srcy;
+    *pdelta = 0;
+    pcheck = 0;
+    *qdelta = (x->present ^ y->present) & qmask;
+    qcheck = (x->present & y->present) & qmask;
+  }
+  else
+  {
+    const nn_plist_t *x = srcx;
+    const nn_plist_t *y = srcy;
+    *pdelta = (x->present ^ y->present) & pmask;
+    pcheck = (x->present & y->present) & pmask;
+    *qdelta = (x->qos.present ^ y->qos.present) & qmask;
+    qcheck = (x->qos.present & y->qos.present) & qmask;
+  }
   for (size_t k = 0; k < sizeof (piddesc_tables_all) / sizeof (piddesc_tables_all[0]); k++)
   {
     struct piddesc const * const table = piddesc_tables_all[k];
     for (uint32_t i = 0; table[i].pid != PID_SENTINEL; i++)
     {
       struct piddesc const * const entry = &table[i];
+      if (shift > 0 && !(entry->flags & PDF_QOS))
+        break;
+      assert (entry->plist_offset >= shift);
+      assert (shift == 0 || entry->plist_offset - shift < sizeof (dds_qos_t));
       const uint64_t check = (entry->flags & PDF_QOS) ? qcheck : pcheck;
       uint64_t * const delta = (entry->flags & PDF_QOS) ? qdelta : pdelta;
-      /* QoS come first in the table, but for those we use nn_xqos_delta */
-      if (entry->flags & PDF_QOS)
-        continue;
       if (check & entry->present_flag)
       {
-        const size_t srcoff = entry->plist_offset;
+        const size_t off = entry->plist_offset - shift;
         bool equal;
         /* Partition is special-cased because it is a set (with a special rules
            for empty sets and empty strings to boot), and normal string sequence
            comparison requires the ordering to be the same */
         if (entry->pid == PID_PARTITION)
-          equal = partitions_equal (&x->qos.partition, &y->qos.partition);
+          equal = partitions_equal (srcx, srcy, off);
         else if (!(entry->flags & PDF_FUNCTION))
-          equal = equal_generic (x, y, srcoff, entry->op.desc);
+          equal = equal_generic (srcx, srcy, off, entry->op.desc);
         else
-          equal = entry->op.f.equal (x, y, srcoff);
+          equal = entry->op.f.equal (srcx, srcy, off);
         if (!equal)
           *delta |= entry->present_flag;
       }
     }
   }
+}
+
+uint64_t nn_xqos_delta (const dds_qos_t *x, const dds_qos_t *y, uint64_t mask)
+{
+  uint64_t pdelta, qdelta;
+  plist_or_xqos_delta (&pdelta, &qdelta, x, y, offsetof (nn_plist_t, qos), 0, mask);
+  return qdelta;
+}
+
+void nn_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const nn_plist_t *x, const nn_plist_t *y, uint64_t pmask, uint64_t qmask)
+{
+  plist_or_xqos_delta (pdelta, qdelta, x, y, 0, pmask, qmask);
 }
 
 static dds_return_t validate_external_duration (const ddsi_duration_t *d)
@@ -1908,10 +2135,12 @@ static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t w
 {
   nn_locator_t loc;
 
-  if (dd->bufsz < sizeof (loc))
+  if (dd->bufsz < 24)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  memcpy (&loc, dd->buf, sizeof (loc));
+  memcpy (&loc.kind, dd->buf, 4);
+  memcpy (&loc.port, dd->buf + 4, 4);
+  memcpy (loc.address, dd->buf + 8, 16);
   if (dd->bswap)
   {
     loc.kind = ddsrt_bswap4 (loc.kind);
@@ -1946,19 +2175,22 @@ static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t w
         return DDS_RETCODE_BAD_PARAMETER;
       if (loc.port != 0)
         return DDS_RETCODE_BAD_PARAMETER;
-      /* silently dropped correctly formatted "invalid" locators. */
+      /* silently drop correctly formatted "invalid" locators. */
       return 0;
     case NN_LOCATOR_KIND_RESERVED:
-      /* silently dropped "reserved" locators. */
+      /* silently drop "reserved" locators. */
       return 0;
     default:
       return 0;
   }
+
+  loc.tran = ddsi_factory_supports (factory, loc.kind) ? factory : NULL;
   return add_locator (ls, present, wanted, fl, &loc);
 }
 
 static void locator_from_ipv4address_port (nn_locator_t *loc, const nn_ipv4address_t *a, const nn_port_t *p, ddsi_tran_factory_t factory)
 {
+  loc->tran = factory;
   loc->kind = factory->m_connless ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_TCPv4;
   loc->port = *p;
   memset (loc->address, 0, 12);
@@ -2186,12 +2418,13 @@ static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_t
     ret = entry->deser_validate_xform (dst, dd);
   if (ret < 0)
   {
-    DDS_CWARNING (logcfg, "invalid parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" (%s) invalid, input = ",
+    char tmp[256], *ptmp = tmp;
+    size_t tmpsize = sizeof (tmp);
+    (void) prtf_octetseq (&ptmp, &tmpsize, (uint32_t) dd->bufsz, dd->buf);
+    DDS_CWARNING (logcfg, "invalid parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" (%s) invalid, input = %s\n",
                   dd->vendorid.id[0], dd->vendorid.id[1],
                   dd->protocol_version.major, dd->protocol_version.minor,
-                  pid, entry->name);
-    log_octetseq (DDS_LC_WARNING, logcfg, (uint32_t) dd->bufsz, dd->buf);
-    DDS_CWARNING (logcfg, "\n");
+                  pid, entry->name, tmp);
   }
   return ret;
 }
@@ -2404,9 +2637,10 @@ dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uin
 
     if (src->logconfig->c.mask & DDS_LC_PLIST)
     {
-      DDS_CLOG (DDS_LC_PLIST, src->logconfig, "%4"PRIx32" PID %"PRIx16" len %"PRIu16" ", (uint32_t) (pl - src->buf), pid, length);
-      log_octetseq (DDS_LC_PLIST, src->logconfig, length, (const unsigned char *) (par + 1));
-      DDS_CLOG (DDS_LC_PLIST, src->logconfig, "\n");
+      char tmp[256], *ptmp = tmp;
+      size_t tmpsize = sizeof (tmp);
+      (void) prtf_octetseq (&ptmp, &tmpsize, length, (const unsigned char *) (par + 1));
+      DDS_CLOG (DDS_LC_PLIST, src->logconfig, "%4"PRIx32" PID %"PRIx16" len %"PRIu16" %s\n", (uint32_t) (pl - src->buf), pid, length, tmp);
     }
 
     dd.buf = (const unsigned char *) (par + 1);
@@ -2818,8 +3052,10 @@ static int partitions_equal_nlogn (const dds_partition_qospolicy_t *a, const dds
   return equal;
 }
 
-static int partitions_equal (const dds_partition_qospolicy_t *a, const dds_partition_qospolicy_t *b)
+static int partitions_equal (const void *srca, const void *srcb, size_t off)
 {
+  const dds_partition_qospolicy_t *a = (const dds_partition_qospolicy_t *) ((const char *) srca + off);
+  const dds_partition_qospolicy_t *b = (const dds_partition_qospolicy_t *) ((const char *) srcb + off);
   /* Return true iff (the set a->strs) equals (the set b->strs); that
      is, order doesn't matter. One could argue that "**" and "*" are
      equal, but we're not that precise here. */
@@ -2870,139 +3106,93 @@ void nn_plist_addtomsg (struct nn_xmsg *m, const nn_plist_t *ps, uint64_t pwante
 
 /*************************/
 
-static uint32_t isprint_runlen (uint32_t n, const unsigned char *xs)
+static void plist_or_xqos_print (char * __restrict *buf, size_t * __restrict bufsize, const void * __restrict src, size_t shift, uint64_t pwanted, uint64_t qwanted)
 {
-  uint32_t m;
-  for (m = 0; m < n && xs[m] != '"' && isprint (xs[m]) && xs[m] < 127; m++)
-    ;
-  return m;
-}
-
-
-static void log_octetseq (uint32_t cat, const struct ddsrt_log_cfg *logcfg, uint32_t n, const unsigned char *xs)
-{
-  uint32_t i = 0;
-  while (i < n)
+  /* shift == 0: plist, shift > 0: just qos */
+  const char *sep = "";
+  uint64_t pw, qw;
+  if (shift > 0)
   {
-    uint32_t m = isprint_runlen (n - i, xs);
-    if (m >= 4 || (i == 0 && m == n))
+    const dds_qos_t *qos = src;
+    pw = 0;
+    qw = qos->present & qwanted;
+  }
+  else
+  {
+    const nn_plist_t *plist = src;
+    pw = plist->present & pwanted;
+    qw = plist->qos.present & qwanted;
+  }
+  for (size_t k = 0; k < sizeof (piddesc_tables_output) / sizeof (piddesc_tables_output[0]); k++)
+  {
+    struct piddesc const * const table = piddesc_tables_output[k];
+    for (uint32_t i = 0; table[i].pid != PID_SENTINEL; i++)
     {
-      DDS_CLOG (cat, logcfg, "%s\"%*.*s\"", i == 0 ? "" : ",", m, m, xs);
-      xs += m;
-      i += m;
-    }
-    else
-    {
-      if (m == 0)
-        m = 1;
-      while (m--)
+      struct piddesc const * const entry = &table[i];
+      if (entry->pid == PID_PAD)
+        continue;
+      if (((entry->flags & PDF_QOS) ? qw : pw) & entry->present_flag)
       {
-        DDS_CLOG (cat, logcfg, "%s%u", i == 0 ? "" : ",", *xs++);
-        i++;
+        assert (entry->plist_offset >= shift);
+        assert (shift == 0 || entry->plist_offset - shift < sizeof (dds_qos_t));
+        size_t srcoff = entry->plist_offset - shift;
+        /* convert name to lower case for making the trace easier on the eyes */
+        char lcname[64];
+        const size_t namelen = strlen (entry->name);
+        assert (namelen < sizeof (lcname));
+        for (size_t p = 0; p < namelen; p++)
+          lcname[p] = (char) tolower (entry->name[p]);
+        lcname[namelen] = 0;
+        if (!prtf (buf, bufsize, "%s%s=", sep, lcname))
+          return;
+        sep = ",";
+        bool cont;
+        if (!(entry->flags & PDF_FUNCTION))
+          cont = print_generic (buf, bufsize, src, srcoff, entry->op.desc);
+        else
+          cont = entry->op.f.print (buf, bufsize, src, srcoff);
+        if (!cont)
+          return;
       }
     }
   }
 }
 
-void nn_log_xqos (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos)
+static void plist_or_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const void * __restrict src, size_t shift, uint64_t pwanted, uint64_t qwanted)
 {
-  uint64_t p = xqos->present;
-  const char *prefix = "";
-#define LOGB0(fmt_) DDS_CLOG (cat, logcfg, "%s" fmt_, prefix)
-#define LOGB1(fmt_, ...) DDS_CLOG (cat, logcfg, "%s" fmt_, prefix, __VA_ARGS__)
-#define DO(name_, body_) do { if (p & QP_##name_) { { body_ } prefix = ","; } } while (0)
+  if (logcfg->c.mask & cat)
+  {
+    char tmp[1024], *ptmp = tmp;
+    size_t tmpsize = sizeof (tmp);
+    plist_or_xqos_print (&ptmp, &tmpsize, src, shift, pwanted, qwanted);
+    DDS_CLOG (cat, logcfg, "%s", tmp);
+  }
+}
 
-#define FMT_DUR "%"PRId64".%09"PRId32
-#define PRINTARG_DUR(d) ((int64_t) ((d) / 1000000000)), ((int32_t) ((d) % 1000000000))
+size_t nn_xqos_print (char * __restrict buf, size_t bufsize, const dds_qos_t *xqos)
+{
+  const size_t bufsize_in = bufsize;
+  (void) prtf (&buf, &bufsize, "{");
+  plist_or_xqos_print (&buf, &bufsize, xqos, offsetof (nn_plist_t, qos), 0, ~(uint64_t)0);
+  (void) prtf (&buf, &bufsize, "}");
+  return bufsize_in - bufsize;
+}
 
-  DO (TOPIC_NAME, { LOGB1 ("topic=%s", xqos->topic_name); });
-  DO (TYPE_NAME, { LOGB1 ("type=%s", xqos->type_name); });
-  DO (PRESENTATION, { LOGB1 ("presentation=%d:%u:%u", xqos->presentation.access_scope, xqos->presentation.coherent_access, xqos->presentation.ordered_access); });
-  DO (PARTITION, {
-      LOGB0 ("partition={");
-      for (uint32_t i = 0; i < xqos->partition.n; i++) {
-        DDS_CLOG (cat, logcfg, "%s%s", (i == 0) ? "" : ",", xqos->partition.strs[i]);
-      }
-      DDS_CLOG (cat, logcfg, "}");
-    });
-  DO (GROUP_DATA, {
-    LOGB1 ("group_data=%"PRIu32"<", xqos->group_data.length);
-    log_octetseq (cat, logcfg, xqos->group_data.length, xqos->group_data.value);
-    DDS_CLOG (cat, logcfg, ">");
-  });
-  DO (TOPIC_DATA, {
-    LOGB1 ("topic_data=%"PRIu32"<", xqos->topic_data.length);
-    log_octetseq (cat, logcfg, xqos->topic_data.length, xqos->topic_data.value);
-    DDS_CLOG(cat, logcfg, ">");
-  });
-  DO (DURABILITY, { LOGB1 ("durability=%d", xqos->durability.kind); });
-  DO (DURABILITY_SERVICE, {
-      LOGB0 ("durability_service=");
-      DDS_CLOG(cat, logcfg, FMT_DUR, PRINTARG_DUR (xqos->durability_service.service_cleanup_delay));
-      DDS_CLOG(cat, logcfg, ":{%u:%"PRId32"}", xqos->durability_service.history.kind, xqos->durability_service.history.depth);
-      DDS_CLOG(cat, logcfg, ":{%"PRId32":%"PRId32":%"PRId32"}", xqos->durability_service.resource_limits.max_samples, xqos->durability_service.resource_limits.max_instances, xqos->durability_service.resource_limits.max_samples_per_instance);
-    });
-  DO (DEADLINE, { LOGB1 ("deadline="FMT_DUR, PRINTARG_DUR (xqos->deadline.deadline)); });
-  DO (LATENCY_BUDGET, { LOGB1 ("latency_budget="FMT_DUR, PRINTARG_DUR (xqos->latency_budget.duration)); });
-  DO (LIVELINESS, { LOGB1 ("liveliness=%d:"FMT_DUR, xqos->liveliness.kind, PRINTARG_DUR (xqos->liveliness.lease_duration)); });
-  DO (RELIABILITY, { LOGB1 ("reliability=%d:"FMT_DUR, xqos->reliability.kind, PRINTARG_DUR (xqos->reliability.max_blocking_time)); });
-  DO (DESTINATION_ORDER, { LOGB1 ("destination_order=%d", xqos->destination_order.kind); });
-  DO (HISTORY, { LOGB1 ("history=%d:%"PRId32, xqos->history.kind, xqos->history.depth); });
-  DO (RESOURCE_LIMITS, { LOGB1 ("resource_limits=%"PRId32":%"PRId32":%"PRId32, xqos->resource_limits.max_samples, xqos->resource_limits.max_instances, xqos->resource_limits.max_samples_per_instance); });
-  DO (TRANSPORT_PRIORITY, { LOGB1 ("transport_priority=%"PRId32, xqos->transport_priority.value); });
-  DO (LIFESPAN, { LOGB1 ("lifespan="FMT_DUR, PRINTARG_DUR (xqos->lifespan.duration)); });
-  DO (USER_DATA, {
-    LOGB1 ("user_data=%"PRIu32"<", xqos->user_data.length);
-    log_octetseq (cat, logcfg, xqos->user_data.length, xqos->user_data.value);
-    DDS_CLOG (cat, logcfg, ">");
-  });
-  DO (OWNERSHIP, { LOGB1 ("ownership=%d", xqos->ownership.kind); });
-  DO (OWNERSHIP_STRENGTH, { LOGB1 ("ownership_strength=%"PRId32, xqos->ownership_strength.value); });
-  DO (TIME_BASED_FILTER, { LOGB1 ("time_based_filter="FMT_DUR, PRINTARG_DUR (xqos->time_based_filter.minimum_separation)); });
-  DO (PRISMTECH_READER_DATA_LIFECYCLE, { LOGB1 ("reader_data_lifecycle="FMT_DUR":"FMT_DUR, PRINTARG_DUR (xqos->reader_data_lifecycle.autopurge_nowriter_samples_delay), PRINTARG_DUR (xqos->reader_data_lifecycle.autopurge_disposed_samples_delay)); });
-  DO (PRISMTECH_WRITER_DATA_LIFECYCLE, {
-    LOGB1 ("writer_data_lifecycle={%u}", xqos->writer_data_lifecycle.autodispose_unregistered_instances); });
-  DO (PRISMTECH_READER_LIFESPAN, { LOGB1 ("reader_lifespan={%u,"FMT_DUR"}", xqos->reader_lifespan.use_lifespan, PRINTARG_DUR (xqos->reader_lifespan.duration)); });
-  DO (PRISMTECH_SUBSCRIPTION_KEYS, {
-    LOGB1 ("subscription_keys={%u,{", xqos->subscription_keys.use_key_list);
-    for (uint32_t i = 0; i < xqos->subscription_keys.key_list.n; i++) {
-      DDS_CLOG (cat, logcfg, "%s%s", (i == 0) ? "" : ",", xqos->subscription_keys.key_list.strs[i]);
-    }
-    DDS_CLOG (cat, logcfg, "}}");
-  });
-  DO (PRISMTECH_ENTITY_FACTORY, { LOGB1 ("entity_factory=%u", xqos->entity_factory.autoenable_created_entities); });
-  DO (CYCLONE_IGNORELOCAL, { LOGB1 ("ignorelocal=%u", xqos->ignorelocal.value); });
-  DO (PROPERTY_LIST, {
-    LOGB0 ("property_list={");
-    DDS_CLOG (cat, logcfg, "value={");
-    for (uint32_t i = 0; i < xqos->property.value.n; i++) {
-      DDS_CLOG (cat, logcfg, "%s{%s,%s,%u}",
-                                      (i == 0) ? "" : ",",
-                                      xqos->property.value.props[i].name,
-                                      xqos->property.value.props[i].value,
-                                      xqos->property.value.props[i].propagate);
-    }
-    DDS_CLOG (cat, logcfg, "}");
-    DDS_CLOG (cat, logcfg, "binary_value={");
-    for (uint32_t i = 0; i < xqos->property.binary_value.n; i++) {
-      DDS_CLOG (cat, logcfg, "%s{%s,(%u,%p),%u}",
-                                      (i == 0) ? "" : ",",
-                                      xqos->property.binary_value.props[i].name,
-                                      xqos->property.binary_value.props[i].value.length,
-                                      xqos->property.binary_value.props[i].value.value,
-                                      xqos->property.binary_value.props[i].propagate);
-    }
-    DDS_CLOG (cat, logcfg, "}");
-    DDS_CLOG (cat, logcfg, "}");
-  });
+size_t nn_plist_print (char * __restrict buf, size_t bufsize, const nn_plist_t *plist)
+{
+  const size_t bufsize_in = bufsize;
+  (void) prtf (&buf, &bufsize, "{");
+  plist_or_xqos_print (&buf, &bufsize, plist, 0, ~(uint64_t)0, ~(uint64_t)0);
+  (void) prtf (&buf, &bufsize, "}");
+  return bufsize_in - bufsize;
+}
 
-#undef PRINTARG_DUR
-#undef FMT_DUR
-#undef DO
-#undef LOGB5
-#undef LOGB4
-#undef LOGB3
-#undef LOGB2
-#undef LOGB1
-#undef LOGB0
+void nn_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos)
+{
+  plist_or_xqos_log (cat, logcfg, xqos, offsetof (nn_plist_t, qos), 0, ~(uint64_t)0);
+}
+
+void nn_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const nn_plist_t *plist)
+{
+  plist_or_xqos_log (cat, logcfg, plist, 0, ~(uint64_t)0, ~(uint64_t)0);
 }

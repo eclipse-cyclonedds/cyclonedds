@@ -282,6 +282,7 @@ static int set_spdp_address (struct q_globals *gv)
   const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
   int rc = 0;
   /* FIXME: FIXME: FIXME: */
+  gv->loc_spdp_mc.tran = NULL;
   gv->loc_spdp_mc.kind = NN_LOCATOR_KIND_INVALID;
   if (strcmp (gv->config.spdpMulticastAddressString, "239.255.0.1") != 0)
   {
@@ -342,6 +343,7 @@ static int set_ext_address_and_mask (struct q_globals *gv)
   if (!gv->config.externalMaskString || strcmp (gv->config.externalMaskString, "0.0.0.0") == 0)
   {
     memset(&gv->extmask.address, 0, sizeof(gv->extmask.address));
+    gv->extmask.tran = NULL;
     gv->extmask.kind = NN_LOCATOR_KIND_INVALID;
     gv->extmask.port = NN_LOCATOR_PORT_INVALID;
   }
@@ -765,7 +767,7 @@ static void wait_for_receive_threads (struct q_globals *gv)
   }
 }
 
-static struct ddsi_sertopic *make_special_topic (struct serdatapool *serpool, uint16_t enc_id, const struct ddsi_serdata_ops *ops)
+static struct ddsi_sertopic *make_special_topic (struct q_globals *gv, struct serdatapool *serpool, uint16_t enc_id, const struct ddsi_serdata_ops *ops)
 {
   /* FIXME: two things (at least)
      - it claims there is a key, but the underlying type description is missing
@@ -778,6 +780,7 @@ static struct ddsi_sertopic *make_special_topic (struct serdatapool *serpool, ui
   struct ddsi_sertopic_default *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
   ddsi_sertopic_init_anon (&st->c, &ddsi_sertopic_ops_default, ops, false);
+  st->gv = gv;
   st->native_encoding_identifier = enc_id;
   st->serpool = serpool;
   st->nkeys = 1;
@@ -786,8 +789,8 @@ static struct ddsi_sertopic *make_special_topic (struct serdatapool *serpool, ui
 
 static void make_special_topics (struct q_globals *gv)
 {
-  gv->plist_topic = make_special_topic (gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE, &ddsi_serdata_ops_plist);
-  gv->rawcdr_topic = make_special_topic (gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE, &ddsi_serdata_ops_rawcdr);
+  gv->plist_topic = make_special_topic (gv, gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE, &ddsi_serdata_ops_plist);
+  gv->rawcdr_topic = make_special_topic (gv, gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE, &ddsi_serdata_ops_rawcdr);
 }
 
 static void free_special_topics (struct q_globals *gv)
@@ -1024,12 +1027,12 @@ int rtps_init (struct q_globals *gv)
   {
     char buf[DDSI_LOCSTRLEN];
     /* the "ownip", "extip" labels in the trace have been there for so long, that it seems worthwhile to retain them even though they need not be IP any longer */
-    GVLOG (DDS_LC_CONFIG, "ownip: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->ownloc));
-    GVLOG (DDS_LC_CONFIG, "extip: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->extloc));
-    GVLOG (DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->extmask), gv->m_factory->m_kind != NN_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
+    GVLOG (DDS_LC_CONFIG, "ownip: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->ownloc));
+    GVLOG (DDS_LC_CONFIG, "extip: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extloc));
+    GVLOG (DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extmask), gv->m_factory->m_kind != NN_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
     GVLOG (DDS_LC_CONFIG, "networkid: 0x%lx\n", (unsigned long) gv->myNetworkId);
-    GVLOG (DDS_LC_CONFIG, "SPDP MC: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->loc_spdp_mc));
-    GVLOG (DDS_LC_CONFIG, "default MC: %s\n", ddsi_locator_to_string_no_port (gv, buf, sizeof(buf), &gv->loc_default_mc));
+    GVLOG (DDS_LC_CONFIG, "SPDP MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_spdp_mc));
+    GVLOG (DDS_LC_CONFIG, "default MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_default_mc));
 #ifdef DDSI_INCLUDE_SSM
     GVLOG (DDS_LC_CONFIG, "SSM support included\n");
 #endif
@@ -1342,7 +1345,7 @@ int rtps_init (struct q_globals *gv)
   {
     struct config_peer_listelem peer_local;
     char local_addr[DDSI_LOCSTRLEN];
-    ddsi_locator_to_string_no_port (gv, local_addr, sizeof (local_addr), &gv->interfaces[gv->selected_interface].loc);
+    ddsi_locator_to_string_no_port (local_addr, sizeof (local_addr), &gv->interfaces[gv->selected_interface].loc);
     peer_local.next = NULL;
     peer_local.peer = local_addr;
     add_peer_addresses (gv, gv->as_disc, &peer_local);

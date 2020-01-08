@@ -107,6 +107,7 @@ struct ddsi_sertopic_default {
   struct ddsi_sertopic c;
   uint16_t native_encoding_identifier; /* (PL_)?CDR_(LE|BE) */
   struct serdatapool *serpool;
+  struct q_globals *gv;
 
   struct dds_topic_descriptor * type;
   unsigned nkeys;

@@ -504,9 +504,9 @@ int find_own_ip (struct q_globals *gv, const char *requested_address)
     else
 #endif
     {
-      ddsi_ipaddr_to_loc(&gv->interfaces[gv->n_interfaces].loc, ifa->addr, gv->m_factory->m_kind);
+      ddsi_ipaddr_to_loc(gv->m_factory, &gv->interfaces[gv->n_interfaces].loc, ifa->addr, gv->m_factory->m_kind);
     }
-    ddsi_locator_to_string_no_port(gv, addrbuf, sizeof(addrbuf), &gv->interfaces[gv->n_interfaces].loc);
+    ddsi_locator_to_string_no_port(addrbuf, sizeof(addrbuf), &gv->interfaces[gv->n_interfaces].loc);
     GVLOG (DDS_LC_CONFIG, " %s(", addrbuf);
 
     if (!(ifa->flags & IFF_MULTICAST) && multicast_override (if_name, &gv->config))
@@ -568,7 +568,7 @@ int find_own_ip (struct q_globals *gv, const char *requested_address)
 
     if (ifa->addr->sa_family == AF_INET && ifa->netmask)
     {
-      ddsi_ipaddr_to_loc(&gv->interfaces[gv->n_interfaces].netmask, ifa->netmask, gv->m_factory->m_kind);
+      ddsi_ipaddr_to_loc(gv->m_factory, &gv->interfaces[gv->n_interfaces].netmask, ifa->netmask, gv->m_factory->m_kind);
     }
     else
     {
@@ -593,7 +593,7 @@ int find_own_ip (struct q_globals *gv, const char *requested_address)
       const int idx = maxq_list[0];
       char *names;
       int p;
-      ddsi_locator_to_string_no_port (gv, addrbuf, sizeof(addrbuf), &gv->interfaces[idx].loc);
+      ddsi_locator_to_string_no_port (addrbuf, sizeof(addrbuf), &gv->interfaces[idx].loc);
       names = ddsrt_malloc (maxq_strlen + 1);
       p = 0;
       for (i = 0; i < maxq_count && (size_t) p < maxq_strlen; i++)

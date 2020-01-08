@@ -352,8 +352,10 @@ while(<>) {
     $rwguid{$tid} = $guid; # if $is_cyclone;
     die "$guid $rwguid{$tid}" unless $guid eq $rwguid{$tid};
     my $topic; my $type; my $groupcoh; my $partitions; my $keepall;
-    if ($3 =~ /topic=([^,]+?),type=([^,]+?).*?,presentation=(\d:\d):\d,partition=\{([^}]*?)\}.*?,history=([01]):/) {
-      $topic = $1; $type = $2; $groupcoh = ($3 eq "2:1"); $partitions = $4; $keepall = $5;
+    if ($qos =~ /topic(?:_name)?=([^,]+?),type(?:_name)=([^,]+?).*?,partition=\{([^}]*?)\}/) {
+      $topic = $1; $type = $2; $partitions = $3;
+      die unless $qos =~ /,history=([01]):/; $keepall = $1;
+      die unless $qos =~ /,presentation=(\d:\d):\d/; $groupcoh = ($1 eq "2:1");
       unless (defined $rwguid{$tid} && ($ftrflag{$tid} || (defined $psgid{$tid} && defined $psguid{$tid} && defined $rwgid{$tid})) || 1) { # $is_cyclone
         die;
       }
@@ -623,15 +625,14 @@ while(<>) {
     my $h = ($kind eq "READER") ? \%prd : \%pwr;
     my $hk = ($kind eq "READER") ? "prd" : "pwr";
     my $qos = $3;
-    unless ($3 =~ /topic=([^,]+?),type=([^,]+?),presentation=(\d+):\d+:\d+,partition=\{([^}]*?)\}.*?,durability=(\d+)/) {
+    unless ($3 =~ /topic(?:_name)?=([^,]+?),type(?:_name)?=([^,]+?),(?:.+?,)?partition=\{([^}]*?)\}/) {
       die unless $prwguid =~ /[4c][27]$/;
     }
-    my $topic = $1; my $type = $2; my $access_scope = $3; my $partitions = $4; my $durkind = $5;
+    my $topic = $1; my $type = $2; my $partitions = $3;
     (my $ppguid = $prwguid) =~ s/:[0-9a-f]+$/:1c1/;
     die unless exists $proxypp{$ppguid} && !defined $proxypp{$ppguid}->{tdel};
     my @ps = split ',', $partitions;
     my $stopic = make_stopic($partitions, $topic);
-    #print "$kind $topic\n" if $durkind >= 2 && ($kind eq "READER" || $access_scope >= 2);
     my $prw = { guid => $prwguid, ppguid => $ppguid,
                 topic => $topic, stopic => $stopic, type => $type, partition => \@ps,
                 matches => {}, checklost => 0, suppressbegin => 0, tcreate => $ts, tstamps => {} };

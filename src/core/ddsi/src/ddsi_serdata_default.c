@@ -644,10 +644,27 @@ static size_t serdata_default_print_cdr (const struct ddsi_sertopic *sertopic_co
 
 static size_t serdata_default_print_plist (const struct ddsi_sertopic *sertopic_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
 {
-  /* FIXME: should change q_plist.c to print to a string instead of a log, and then drop the
-     logging of QoS in the rest of code, instead relying on this */
-  (void)sertopic_common; (void)serdata_common;
-  return (size_t) snprintf (buf, size, "(plist)");
+  const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
+  const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)sertopic_common;
+  nn_plist_src_t src;
+  nn_plist_t tmp;
+  src.buf = (const unsigned char *) d->data;
+  src.bufsz = d->pos;
+  src.encoding = d->hdr.identifier;
+  src.factory = tp->gv->m_factory;
+  src.logconfig = &tp->gv->logconfig;
+  src.protocol_version.major = RTPS_MAJOR;
+  src.protocol_version.minor = RTPS_MINOR;
+  src.strict = false;
+  src.vendorid = NN_VENDORID_ECLIPSE;
+  if (nn_plist_init_frommsg (&tmp, NULL, ~(uint64_t)0, ~(uint64_t)0, &src) < 0)
+    return (size_t) snprintf (buf, size, "(unparseable-plist)");
+  else
+  {
+    size_t ret = nn_plist_print (buf, size, &tmp);
+    nn_plist_fini (&tmp);
+    return ret;
+  }
 }
 
 static size_t serdata_default_print_raw (const struct ddsi_sertopic *sertopic_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)

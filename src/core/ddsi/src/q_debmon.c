@@ -88,7 +88,7 @@ static void print_address (const nn_locator_t *n, void *varg)
 {
   struct print_address_arg *arg = varg;
   char buf[DDSI_LOCSTRLEN];
-  arg->count += cpf (arg->conn, " %s", ddsi_locator_to_string (arg->conn->m_base.gv, buf, sizeof(buf), n));
+  arg->count += cpf (arg->conn, " %s", ddsi_locator_to_string (buf, sizeof(buf), n));
 }
 
 static int print_addrset (ddsi_tran_conn_t conn, const char *prefix, struct addrset *as, const char *suffix)
@@ -381,7 +381,7 @@ struct debug_monitor *new_debug_monitor (struct q_globals *gv, int32_t port)
     nn_locator_t loc;
     char buf[DDSI_LOCSTRLEN];
     (void) ddsi_listener_locator(dm->servsock, &loc);
-    GVLOG (DDS_LC_CONFIG, "debmon at %s\n", ddsi_locator_to_string (gv, buf, sizeof(buf), &loc));
+    GVLOG (DDS_LC_CONFIG, "debmon at %s\n", ddsi_locator_to_string (buf, sizeof(buf), &loc));
   }
 
   ddsrt_mutex_init (&dm->lock);

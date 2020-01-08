@@ -136,14 +136,14 @@ static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn,
   int n;
 #ifdef DDSI_INCLUDE_SSM
   if (srcloc) {
-    ddsi_locator_to_string_no_port(conn->m_base.gv, srcstr, sizeof(srcstr), srcloc);
+    ddsi_locator_to_string_no_port(srcstr, sizeof(srcstr), srcloc);
   }
 #else
   DDSRT_UNUSED_ARG (srcloc);
 #endif
-  ddsi_locator_to_string_no_port (conn->m_base.gv, mcstr, sizeof(mcstr), mcloc);
+  ddsi_locator_to_string_no_port (mcstr, sizeof(mcstr), mcloc);
   if (interf)
-    ddsi_locator_to_string_no_port(conn->m_base.gv, interfstr, sizeof(interfstr), &interf->loc);
+    ddsi_locator_to_string_no_port(interfstr, sizeof(interfstr), &interf->loc);
   else
     (void) snprintf (interfstr, sizeof (interfstr), "(default)");
   n = err ? snprintf (buf, bufsz, "error %d in ", err) : 0;

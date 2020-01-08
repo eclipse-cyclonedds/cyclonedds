@@ -1021,7 +1021,7 @@ static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
   if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     char buf[DDSI_LOCSTRLEN];
-    GVTRACE (" %s", ddsi_locator_to_string (gv, buf, sizeof(buf), loc));
+    GVTRACE (" %s", ddsi_locator_to_string (buf, sizeof(buf), loc));
   }
 
   if (gv->config.xmit_lossiness > 0)

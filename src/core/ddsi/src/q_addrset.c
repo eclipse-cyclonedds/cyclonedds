@@ -94,7 +94,7 @@ static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrse
   if (port_mode >= 0)
   {
     loc.port = (unsigned) port_mode;
-    GVLOG (DDS_LC_CONFIG, "%s: add %s", msgtag, ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
+    GVLOG (DDS_LC_CONFIG, "%s: add %s", msgtag, ddsi_locator_to_string(buf, sizeof(buf), &loc));
     add_to_addrset (gv, as, &loc);
   }
   else
@@ -107,7 +107,7 @@ static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrse
       {
         loc.port = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, i);
         if (i == 0)
-          GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
+          GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
         else
           GVLOG (DDS_LC_CONFIG, ", :%"PRIu32, loc.port);
         add_to_addrset (gv, as, &loc);
@@ -119,7 +119,7 @@ static int add_addresses_to_addrset_1 (const struct q_globals *gv, struct addrse
         loc.port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
       else
         loc.port = (uint32_t) port_mode;
-      GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(gv, buf, sizeof(buf), &loc));
+      GVLOG (DDS_LC_CONFIG, "%s", ddsi_locator_to_string(buf, sizeof(buf), &loc));
       add_to_addrset (gv, as, &loc);
     }
   }
@@ -231,6 +231,7 @@ void unref_addrset (struct addrset *as)
 
 void set_unspec_locator (nn_locator_t *loc)
 {
+  loc->tran = NULL;
   loc->kind = NN_LOCATOR_KIND_INVALID;
   loc->port = NN_LOCATOR_PORT_INVALID;
   memset (loc->address, 0, sizeof (loc->address));
@@ -557,7 +558,7 @@ static void log_addrset_helper (const nn_locator_t *n, void *varg)
   const struct q_globals *gv = arg->gv;
   char buf[DDSI_LOCSTRLEN];
   if (gv->logconfig.c.mask & arg->tf)
-    GVLOG (arg->tf, " %s", ddsi_locator_to_string (gv, buf, sizeof(buf), n));
+    GVLOG (arg->tf, " %s", ddsi_locator_to_string (buf, sizeof(buf), n));
 }
 
 void nn_log_addrset (struct q_globals *gv, uint32_t tf, const char *prefix, const struct addrset *as)
