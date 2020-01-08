@@ -3021,7 +3021,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct q_globals *gv, d
       if (gv->logconfig.c.mask & DDS_LC_TRACE)
       {
         char addrstr[DDSI_LOCSTRLEN];
-        ddsi_locator_to_string(gv, addrstr, sizeof(addrstr), &srcloc);
+        ddsi_locator_to_string(addrstr, sizeof(addrstr), &srcloc);
         GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s\n",
                  PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
       }
@@ -3296,7 +3296,7 @@ void trigger_recv_threads (const struct q_globals *gv)
         ddsrt_iovec_t iov;
         iov.iov_base = &dummy;
         iov.iov_len = 1;
-        GVTRACE ("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (gv, buf, sizeof (buf), dst));
+        GVTRACE ("trigger_recv_threads: %d single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
         ddsi_conn_write (gv->data_conn_uc, dst, 1, &iov, 0);
         break;
       }

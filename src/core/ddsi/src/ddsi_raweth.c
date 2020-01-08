@@ -38,9 +38,8 @@ typedef struct ddsi_raweth_conn {
   int m_ifindex;
 } *ddsi_raweth_conn_t;
 
-static char *ddsi_raweth_to_string (ddsi_tran_factory_t tran, char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
+static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const nn_locator_t *loc, int with_port)
 {
-  (void)tran;
   if (with_port)
     (void) snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
                     loc->address[10], loc->address[11], loc->address[12],
@@ -80,6 +79,7 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
   {
     if (srcloc)
     {
+      srcloc->tran = conn->m_factory;
       srcloc->kind = NN_LOCATOR_KIND_RAWETH;
       srcloc->port = ntohs (src.sll_protocol);
       memset(srcloc->address, 0, 10);
@@ -305,9 +305,8 @@ static int ddsi_raweth_is_ssm_mcaddr (const ddsi_tran_factory_t tran, const nn_l
   return 0;
 }
 
-static enum ddsi_nearby_address_result ddsi_raweth_is_nearby_address (ddsi_tran_factory_t tran, const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
+static enum ddsi_nearby_address_result ddsi_raweth_is_nearby_address (const nn_locator_t *loc, const nn_locator_t *ownloc, size_t ninterf, const struct nn_interface interf[])
 {
-  (void) tran;
   (void) loc;
   (void) ownloc;
   (void) ninterf;
@@ -319,6 +318,7 @@ static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (dds
 {
   int i = 0;
   (void)tran;
+  loc->tran = tran;
   loc->kind = NN_LOCATOR_KIND_RAWETH;
   loc->port = NN_LOCATOR_PORT_INVALID;
   memset (loc->address, 0, sizeof (loc->address));

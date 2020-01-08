@@ -442,7 +442,7 @@ static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, cons
           !!(mask & QP_TOPIC_DATA));
 #endif
   EELOGDISC (e, "update_qos_locked "PGUIDFMT" delta=%"PRIu64" QOS={", PGUID(e->guid), mask);
-  nn_log_xqos (DDS_LC_DISCOVERY, &e->gv->logconfig, xqos);
+  nn_xqos_log (DDS_LC_DISCOVERY, &e->gv->logconfig, xqos);
   EELOGDISC (e, "}\n");
 
   if (mask == 0)
@@ -621,7 +621,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   if (gv->logconfig.c.mask & DDS_LC_DISCOVERY)
   {
     GVLOGDISC ("PARTICIPANT "PGUIDFMT" QOS={", PGUID (pp->e.guid));
-    nn_log_xqos (DDS_LC_DISCOVERY, &gv->logconfig, &pp->plist->qos);
+    nn_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, &pp->plist->qos);
     GVLOGDISC ("}\n");
   }
 
@@ -1247,7 +1247,7 @@ static void rebuild_trace_covered(const struct q_globals *gv, int nreaders, int 
   for (i = 0; i < nlocs; i++)
   {
     char buf[DDSI_LOCATORSTRLEN];
-    ddsi_locator_to_string(gv, buf, sizeof(buf), &locs[i]);
+    ddsi_locator_to_string(buf, sizeof(buf), &locs[i]);
     GVLOGDISC ("  loc %2d = %-30s %2d {", i, buf, locs_nrds[i]);
     for (j = 0; j < nreaders; j++)
       if (covered[j * nlocs + i] >= 0)
@@ -1286,7 +1286,7 @@ static void rebuild_add(const struct q_globals *gv, struct addrset *newas, int l
   char str[DDSI_LOCATORSTRLEN];
   if (locs[locidx].kind != NN_LOCATOR_KIND_UDPv4MCGEN)
   {
-    ddsi_locator_to_string(gv, str, sizeof(str), &locs[locidx]);
+    ddsi_locator_to_string(str, sizeof(str), &locs[locidx]);
     GVLOGDISC ("  simple %s\n", str);
     add_to_addrset(gv, newas, &locs[locidx]);
   }
@@ -1305,7 +1305,7 @@ static void rebuild_add(const struct q_globals *gv, struct addrset *newas, int l
         iph |= 1u << covered[i * nlocs + locidx];
     ipn = htonl(iph);
     memcpy(l.address + 12, &ipn, 4);
-    ddsi_locator_to_string(gv, str, sizeof(str), &l);
+    ddsi_locator_to_string(str, sizeof(str), &l);
     GVLOGDISC ("  mcgen %s\n", str);
     add_to_addrset(gv, newas, &l);
   }
@@ -2979,7 +2979,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   set_topic_type_name (wr->xqos, topic);
 
   ELOGDISC (wr, "WRITER "PGUIDFMT" QOS={", PGUID (wr->e.guid));
-  nn_log_xqos (DDS_LC_DISCOVERY, &wr->e.gv->logconfig, wr->xqos);
+  nn_xqos_log (DDS_LC_DISCOVERY, &wr->e.gv->logconfig, wr->xqos);
   ELOGDISC (wr, "}\n");
 
   assert (wr->xqos->present & QP_RELIABILITY);
@@ -3609,7 +3609,7 @@ static dds_return_t new_reader_guid
   if (rd->e.gv->logconfig.c.mask & DDS_LC_DISCOVERY)
   {
     ELOGDISC (rd, "READER "PGUIDFMT" QOS={", PGUID (rd->e.guid));
-    nn_log_xqos (DDS_LC_DISCOVERY, &rd->e.gv->logconfig, rd->xqos);
+    nn_xqos_log (DDS_LC_DISCOVERY, &rd->e.gv->logconfig, rd->xqos);
     ELOGDISC (rd, "}\n");
   }
   assert (rd->xqos->present & QP_RELIABILITY);

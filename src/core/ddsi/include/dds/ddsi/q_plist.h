@@ -233,6 +233,8 @@ DDS_EXPORT void nn_plist_unalias (nn_plist_t *plist);
 DDS_EXPORT void nn_plist_addtomsg (struct nn_xmsg *m, const nn_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
 DDS_EXPORT void nn_plist_init_default_participant (nn_plist_t *plist);
 DDS_EXPORT void nn_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const nn_plist_t *x, const nn_plist_t *y, uint64_t pmask, uint64_t qmask);
+DDS_EXPORT void nn_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const nn_plist_t *plist);
+DDS_EXPORT size_t nn_plist_print (char * __restrict buf, size_t bufsize, const nn_plist_t *plist);
 
 struct nn_rmsg;
 struct nn_rsample_info;

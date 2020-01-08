@@ -117,7 +117,7 @@ static int get_locator (const struct q_globals *gv, nn_locator_t *loc, const nn_
       first_set = 1;
     }
 
-    switch (ddsi_is_nearby_address(gv, &l->loc, &gv->ownloc, (size_t) gv->n_interfaces, gv->interfaces))
+    switch (ddsi_is_nearby_address(&l->loc, &gv->ownloc, (size_t) gv->n_interfaces, gv->interfaces))
     {
       case DNAR_DISTANT:
         break;
@@ -738,7 +738,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
   }
 
   GVLOGDISC (" QOS={");
-  nn_log_xqos (DDS_LC_DISCOVERY, &gv->logconfig, &datap->qos);
+  nn_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, &datap->qos);
   GVLOGDISC ("}\n");
 
   maybe_add_pp_as_meta_to_as_disc (gv, as_meta);
@@ -1270,7 +1270,7 @@ static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, nn
   GVLOGDISC (" ssm=%u", ssm);
 #endif
   GVLOGDISC (") QOS={");
-  nn_log_xqos (DDS_LC_DISCOVERY, &gv->logconfig, xqos);
+  nn_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, xqos);
   GVLOGDISC ("}\n");
 
   if ((datap->endpoint_guid.entityid.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_VENDOR && !vendor_is_eclipse_or_prismtech (vendorid))
