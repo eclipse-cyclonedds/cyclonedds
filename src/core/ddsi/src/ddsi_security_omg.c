@@ -52,34 +52,27 @@
 
 #define SECURITY_EXCEPTION_INIT {NULL, 0, 0}
 
-static dds_security_authentication *authentication_context = NULL;
-static dds_security_cryptography *crypto_context = NULL;
-static dds_security_access_control *access_control_context = NULL;
-static ddsrt_mutex_t omg_security_lock;
 
 
-/* the security components shall be loaded only once
- * If a problem occurs on load; consecutive load attempts shall get the same response without trial
- */
-static bool tried_to_load = false; /*assigned to true on first attempt*/
-static dds_return_t last_load_result = DDS_RETCODE_ERROR; /*assigned to first attempt result */
-static bool omg_security_plugin_loaded = false;
+struct dds_security_context {
+  dds_security_plugin auth_plugin;
+  dds_security_plugin ac_plugin;
+  dds_security_plugin crypto_plugin;
 
+  dds_security_authentication *authentication_context;
+  dds_security_cryptography *crypto_context;
+  dds_security_access_control *access_control_context;
+  ddsrt_mutex_t omg_security_lock;
+  uint32_t next_plugin_id;
+};
 
-static dds_security_plugin auth_plugin;
-static dds_security_plugin ac_plugin;
-static dds_security_plugin crypto_plugin;
-
-/* currently DDS Security only supports single security configuration for all participants
- * Security is initialized during initialization of the first participant and
- * deinitialized during deinitialization of the last participant
- */
-static int32_t participant_reference_count = 0;
+typedef struct dds_security_context dds_security_context;
 
 
 static bool
 q_omg_writer_is_payload_protected(
   const struct writer *wr);
+
 
 
 
@@ -125,77 +118,83 @@ static bool endpoint_is_DCPSParticipantVolatileMessageSecure(const ddsi_guid_t *
 #endif
 }
 
-
-bool q_omg_security_enabled( void )
-{
-  return omg_security_plugin_loaded;
+bool q_omg_is_security_loaded(  dds_security_context *sc ){
+  if( sc->crypto_context == NULL && sc->authentication_context == NULL && sc->access_control_context == NULL){
+    return false;
+  } else {
+    return true;
+  }
 }
 
-
-void q_omg_security_init(void)
+void q_omg_security_init( dds_security_context **sc )
 {
 
-  if( participant_reference_count == 0 ){
-    memset(&auth_plugin, 0, sizeof(dds_security_plugin));
-    memset(&ac_plugin, 0, sizeof(dds_security_plugin));
-    memset(&crypto_plugin, 0, sizeof(dds_security_plugin));
 
-    auth_plugin.name = AUTH_NAME;
-    ac_plugin.name = AC_NAME;
-    crypto_plugin.name = CRYPTO_NAME;
+    *sc = ddsrt_malloc( sizeof( dds_security_context));
+    memset( *sc, 0, sizeof( dds_security_context));
+  //if( participant_reference_count == 0 ){
 
-    (void)ddsrt_mutex_init(&omg_security_lock);
+    (*sc)->auth_plugin.name = AUTH_NAME;
+    (*sc)->ac_plugin.name = AC_NAME;
+    (*sc)->crypto_plugin.name = CRYPTO_NAME;
+
+    (void)ddsrt_mutex_init(&(*sc)->omg_security_lock);
     DDS_LOG(DDS_LC_TRACE,"DDS Security init\n");
 #if HANDSHAKE_IMPLEMENTED
     //remote_participant_crypto_handle_list_init();
 #endif
-  }
+  //}
 
-  participant_reference_count++;
+  //participant_reference_count++;
 }
+
+
 
 /**
  * Releases all plugins
  */
-static void release_plugins(void)
+static void release_plugins( dds_security_context *security_context )
 {
 #if HANDSHAKE_IMPLEMENTED
   q_handshake_terminate();
 #endif
 
 
-  if (dds_security_plugin_release( &auth_plugin, authentication_context )) {
-    DDS_ERROR("Error occured releasing %s plugin", auth_plugin.name);
+  if (dds_security_plugin_release( &security_context->auth_plugin, security_context->authentication_context )) {
+    DDS_ERROR("Error occured releasing %s plugin", security_context->auth_plugin.name);
   }
 
-  if (dds_security_plugin_release( &crypto_plugin, crypto_context )) {
-    DDS_ERROR("Error occured releasing %s plugin", crypto_plugin.name);
+  if (dds_security_plugin_release( &security_context->crypto_plugin, security_context->crypto_context )) {
+    DDS_ERROR("Error occured releasing %s plugin", security_context->crypto_plugin.name);
   }
 
-  if (dds_security_plugin_release( &ac_plugin, access_control_context )) {
-    DDS_ERROR("Error occured releasing %s plugin", ac_plugin.name);
+  if (dds_security_plugin_release( &security_context->ac_plugin, security_context->access_control_context )) {
+    DDS_ERROR("Error occured releasing %s plugin", security_context->ac_plugin.name);
   }
 
+  security_context->authentication_context = NULL;
+  security_context->access_control_context = NULL;
+  security_context->crypto_context = NULL;
 }
 
 
-void q_omg_security_deinit(void) {
+void q_omg_security_deinit( struct dds_security_context **security_context) {
 
-  if( participant_reference_count == 1 ){
+  assert( security_context != NULL );
+  assert( *security_context != NULL );
+
 #if HANDSHAKE_IMPLEMENTED
     //remote_participant_crypto_handle_list_deinit();
 #endif
-    if (last_load_result == DDS_RETCODE_OK && omg_security_plugin_loaded) {
-      release_plugins();
+    if( (*security_context)->authentication_context != NULL && (*security_context)->access_control_context != NULL && (*security_context)->crypto_context != NULL ){
+      release_plugins( *security_context );
     }
 
-    last_load_result = DDS_RETCODE_ERROR;
-    tried_to_load = false;
-    omg_security_plugin_loaded = false;
-    ddsrt_mutex_destroy(&omg_security_lock);
+    ddsrt_mutex_destroy(&(*security_context)->omg_security_lock);
+    ddsrt_free( *security_context );
+    *security_context = NULL;
+
     DDS_LOG(DDS_LC_TRACE,"DDS Security deinit\n");
-  }
-  participant_reference_count--;
 }
 
 
@@ -240,114 +239,89 @@ static void deinit_plugin_suite_config(dds_security_plugin_suite_config *suite_c
 
 }
 
-dds_return_t q_omg_security_load(
+dds_return_t q_omg_security_load( dds_security_context *security_context,
     const dds_qos_t *qos)
 {
   dds_return_t ret = DDS_RETCODE_ERROR;
 
-  ddsrt_mutex_lock(&omg_security_lock);
+  ddsrt_mutex_lock(&security_context->omg_security_lock);
 
-  if (!tried_to_load) {
-    tried_to_load = true;
-    dds_security_plugin_suite_config plugin_suite_config;
+  dds_security_plugin_suite_config plugin_suite_config;
 
-    memset ( &plugin_suite_config, 0, sizeof(dds_security_plugin_suite_config));
-    /* Get plugin information */
+  memset ( &plugin_suite_config, 0, sizeof(dds_security_plugin_suite_config));
+  /* Get plugin information */
 
-    dds_qos_to_security_plugin_configuration( qos, &plugin_suite_config);
+  dds_qos_to_security_plugin_configuration( qos, &plugin_suite_config);
 
-    /* Check configuration content */
-    if( dds_security_check_plugin_configuration( &plugin_suite_config ) == DDS_RETCODE_OK ){
+  /* Check configuration content */
+  if( dds_security_check_plugin_configuration( &plugin_suite_config ) == DDS_RETCODE_OK ){
+
+    if (dds_security_load_security_library(
+        &(plugin_suite_config.authentication), &security_context->auth_plugin,
+        (void**) &security_context->authentication_context) == DDS_RETCODE_OK) {
 
       if (dds_security_load_security_library(
-          &(plugin_suite_config.authentication), &auth_plugin,
-          (void**) &authentication_context) == DDS_RETCODE_OK) {
+          &(plugin_suite_config.access_control), &security_context->ac_plugin,
+          (void**) &security_context->access_control_context)  == DDS_RETCODE_OK ) {
 
         if (dds_security_load_security_library(
-            &(plugin_suite_config.access_control), &ac_plugin,
-            (void**) &access_control_context)  == DDS_RETCODE_OK ) {
+                  &(plugin_suite_config.cryptography), &security_context->crypto_plugin,
+                  (void**) &security_context->crypto_context) == DDS_RETCODE_OK ) {
+          /* now check if all plugin functions are implemented */
+          if( dds_security_verify_plugin_functions(
+              security_context->authentication_context,&security_context->auth_plugin,
+              security_context->crypto_context,&security_context->crypto_plugin,
+              security_context->access_control_context, &security_context->ac_plugin) == DDS_RETCODE_OK){
 
-          if (dds_security_load_security_library(
-                    &(plugin_suite_config.cryptography), &crypto_plugin,
-                    (void**) &crypto_context) == DDS_RETCODE_OK ) {
-            /* now check if all plugin functions are implemented */
-            if( dds_security_verify_plugin_functions(
-                authentication_context,&auth_plugin,
-                crypto_context,&crypto_plugin,
-                access_control_context, &ac_plugin) == DDS_RETCODE_OK){
-
-              /* Add listeners */
+            /* Add listeners */
 #if LISTENERS_IMPLEMENTED
-              if ( access_control_context->set_listener(access_control_context, &listener_ac, &ex)) {
-                if ( authentication_context->set_listener(authentication_context, &listener_auth, &ex)) {
+            if ( access_control_context->set_listener(access_control_context, &listener_ac, &ex)) {
+              if ( authentication_context->set_listener(authentication_context, &listener_auth, &ex)) {
 #if HANDSHAKE_IMPLEMENTED
-                (void)q_handshake_initialize();
+              (void)q_handshake_initialize();
 #endif
-                } else {
-                  DDS_ERROR("Could not set authentication listener: %s\n",
-                            ex.message ? ex.message : "<unknown error>");
-                }
-
               } else {
-                DDS_ERROR("Could not set access_control listener: %s\n",
+                DDS_ERROR("Could not set authentication listener: %s\n",
                           ex.message ? ex.message : "<unknown error>");
               }
+
+            } else {
+              DDS_ERROR("Could not set access_control listener: %s\n",
+                        ex.message ? ex.message : "<unknown error>");
+            }
 #endif //LISTENERS_IMPLEMENTED
 
-              tried_to_load = true;
-              ret = last_load_result = DDS_RETCODE_OK;
-              omg_security_plugin_loaded = true;
-              DDS_INFO( "DDS Security plugins have been loaded\n" );
-            } else {
-              release_plugins();
-            }
-
-          } else{
-            DDS_ERROR("Could not load %s library\n", crypto_plugin.name);
+            //tried_to_load = true;
+            //ret = last_load_result = DDS_RETCODE_OK;
+            ret = DDS_RETCODE_OK;
+            //omg_security_plugin_loaded = true;
+            DDS_INFO( "DDS Security plugins have been loaded\n" );
+          } else {
+            release_plugins( security_context );
           }
-        }else{
-          DDS_ERROR("Could not load %s library\n", ac_plugin.name);
+
+        } else{
+          DDS_ERROR("Could not load %s library\n", security_context->crypto_plugin.name);
         }
-
-      }
-      else{
-        DDS_ERROR("Could not load %s plugin.\n", auth_plugin.name);
-
+      }else{
+        DDS_ERROR("Could not load %s library\n", security_context->ac_plugin.name);
       }
 
     }
+    else{
+      DDS_ERROR("Could not load %s plugin.\n", security_context->auth_plugin.name);
 
-    deinit_plugin_suite_config( &plugin_suite_config );
+    }
 
-  } else /* already tried to load */
-  {
-    ret = last_load_result;
   }
 
+  deinit_plugin_suite_config( &plugin_suite_config );
 
-  ddsrt_mutex_unlock( &omg_security_lock );
+  ddsrt_mutex_unlock( &security_context->omg_security_lock );
+
 
   return ret;
 }
-
-dds_security_authentication*
-q_omg_security_get_authentication_instance()
-{
-  return authentication_context;
-}
-
-dds_security_access_control*
-q_omg_security_get_access_control_instance()
-{
-  return access_control_context;
-}
-
-dds_security_cryptography*
-q_omg_security_get_cryptography_instance()
-{
-  return crypto_context;
-}
-
 
 bool
 q_omg_participant_is_secure(
@@ -938,44 +912,44 @@ encode_datareader_submsg(
   struct proxy_writer *pwr,
   const struct ddsi_guid *rd_guid)
 {
+  struct reader *rd = ephash_lookup_reader_guid(pwr->e.gv->guid_hash, rd_guid);
+  struct participant *pp = NULL;
   /* Only encode when needed. */
-  if (q_omg_security_enabled())
+  if( rd != NULL ){
+    pp = rd->c.pp;
+  }
+  if (!pp && q_omg_participant_is_secure( pp ))
   {
-    struct reader *rd = ephash_lookup_reader_guid(pwr->e.gv->guid_hash, rd_guid);
-    if (rd)
+    if (q_omg_reader_is_submessage_protected(rd))
     {
-      if (q_omg_reader_is_submessage_protected(rd))
+      unsigned char *src_buf;
+      unsigned int   src_len;
+      unsigned char *dst_buf;
+      unsigned int   dst_len;
+
+      /* Make one blob of the current sub-message by appending the serialized payload. */
+      nn_xmsg_submsg_append_refd_payload(msg, sm_marker);
+
+      /* Get the sub-message buffer. */
+      src_buf = (unsigned char*)nn_xmsg_submsg_from_marker(msg, sm_marker);
+      src_len = (unsigned int)nn_xmsg_submsg_size(msg, sm_marker);
+
+      /* Do the actual encryption. */
+      if (q_omg_security_encode_datareader_submessage(rd, &(pwr->e.guid.prefix), src_buf, src_len, &dst_buf, &dst_len))
       {
-        unsigned char *src_buf;
-        unsigned int   src_len;
-        unsigned char *dst_buf;
-        unsigned int   dst_len;
-
-        /* Make one blob of the current sub-message by appending the serialized payload. */
-        nn_xmsg_submsg_append_refd_payload(msg, sm_marker);
-
-        /* Get the sub-message buffer. */
-        src_buf = (unsigned char*)nn_xmsg_submsg_from_marker(msg, sm_marker);
-        src_len = (unsigned int)nn_xmsg_submsg_size(msg, sm_marker);
-
-        /* Do the actual encryption. */
-        if (q_omg_security_encode_datareader_submessage(rd, &(pwr->e.guid.prefix), src_buf, src_len, &dst_buf, &dst_len))
-        {
-          /* Replace the old sub-message with the new encoded one(s). */
-          nn_xmsg_submsg_replace(msg, sm_marker, dst_buf, dst_len);
-          ddsrt_free(dst_buf);
-        }
-        else
-        {
-          /* The sub-message should have been encoded, which failed.
-           * Remove it to prevent it from being send. */
-          nn_xmsg_submsg_remove(msg, sm_marker);
-        }
+        /* Replace the old sub-message with the new encoded one(s). */
+        nn_xmsg_submsg_replace(msg, sm_marker, dst_buf, dst_len);
+        ddsrt_free(dst_buf);
+      }
+      else
+      {
+        /* The sub-message should have been encoded, which failed.
+         * Remove it to prevent it from being send. */
+        nn_xmsg_submsg_remove(msg, sm_marker);
       }
     }
   }
 }
-
 
 void
 encode_datawriter_submsg(
@@ -983,8 +957,9 @@ encode_datawriter_submsg(
   struct nn_xmsg_marker sm_marker,
   struct writer *wr)
 {
+  struct participant *pp = wr->c.pp;
   /* Only encode when needed. */
-  if (q_omg_security_enabled())
+  if (q_omg_participant_is_secure( pp ))
   {
     if (q_omg_writer_is_submessage_protected(wr))
     {

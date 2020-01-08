@@ -979,11 +979,9 @@ static void handle_xevk_acknack (struct nn_xpack *xp, struct xevent *ev, nn_mtim
     seqno_t nack_seq;
 
     struct participant *pp = NULL;
-    if (q_omg_security_enabled())
-    {
-      struct reader *rd = ephash_lookup_reader_guid(pwr->e.gv->guid_hash, &ev->u.acknack.rd_guid);
-      if (rd)
-        pp = rd->c.pp;
+    struct reader *rd = ephash_lookup_reader_guid(pwr->e.gv->guid_hash, &ev->u.acknack.rd_guid);
+    if (rd){
+      pp = rd->c.pp;
     }
 
     if ((msg = nn_xmsg_new (gv->xmsgpool, &ev->u.acknack.rd_guid, pp, ACKNACK_SIZE_MAX, NN_XMSG_KIND_CONTROL)) == NULL)

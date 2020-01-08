@@ -98,28 +98,28 @@ CU_Test (ddsc_config, user_config, .init = ddsrt_init, .fini = ddsrt_fini)
 static uint32_t found;
 static void logger(void *ptr, const dds_log_data_t *data)
 {
-    char **expected = (char**)ptr;
-    for (uint32_t i = 0; expected[i] != NULL; i++) {
-        if (ddsi2_patmatch(expected[i], data->message)) {
-            found |= (uint32_t)(1 << i);
-        }
-    }
+  char **expected = (char**)ptr;
+  for (uint32_t i = 0; expected[i] != NULL; i++) {
+      if (ddsi2_patmatch(expected[i], data->message)) {
+          found |= (uint32_t)(1 << i);
+      }
+  }
 }
 
 CU_Test(ddsc_config, security_non, .init = ddsrt_init, .fini = ddsrt_fini) {
 
-    /* There shouldn't be traces that mention security. */
-    const char *log_expected[] = {
-      "*Security*",
-      NULL
-    };
+  /* There shouldn't be traces that mention security. */
+  const char *log_expected[] = {
+    "*Security*",
+    NULL
+  };
 
-    dds_entity_t participant;
+  dds_entity_t participant;
 
-    /* Set up the trace sinks to detect the config parsing. */
-    dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
-    dds_set_log_sink(&logger, (void*)log_expected);
-    dds_set_trace_sink(&logger, (void*)log_expected);
+  /* Set up the trace sinks to detect the config parsing. */
+  dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
+  dds_set_log_sink(&logger, (void*)log_expected);
+  dds_set_trace_sink(&logger, (void*)log_expected);
 
   /* Create participant with an empty security element. */
   found = 0;
@@ -131,30 +131,30 @@ CU_Test(ddsc_config, security_non, .init = ddsrt_init, .fini = ddsrt_fini) {
   dds_set_log_sink(NULL, NULL);
   dds_set_trace_sink(NULL, NULL);
 
-    /* No security traces should have been provided. */
-    CU_ASSERT_FATAL(found == 0x0);
+  /* No security traces should have been provided. */
+  CU_ASSERT_FATAL(found == 0x0);
 }
 
 CU_Test(ddsc_config, security_empty, .init = ddsrt_init, .fini = ddsrt_fini) {
 
-    /* Expected traces when creating participant with an empty security element. */
-    const char *log_expected[] = {
+  /* Expected traces when creating participant with an empty security element. */
+  const char *log_expected[] = {
 #ifndef DDSI_INCLUDE_SECURITY
-      "config: //CycloneDDS/Domain: DDSSecurity: unknown element*",
+    "config: //CycloneDDS/Domain: DDSSecurity: unknown element*",
 #else
-      "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCertificate/#text: element missing in configuration*",
-      "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCA/#text: element missing in configuration*",
-      "config: //CycloneDDS/Domain/DDSSecurity/Authentication/PrivateKey/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCertificate/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCA/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/PrivateKey/#text: element missing in configuration*",
 #endif
       NULL
-    };
+  };
 
-    dds_entity_t participant;
+  dds_entity_t participant;
 
-    /* Set up the trace sinks to detect the config parsing. */
-    dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
-    dds_set_log_sink(&logger, (void*)log_expected);
-    dds_set_trace_sink(&logger, (void*)log_expected);
+  /* Set up the trace sinks to detect the config parsing. */
+  dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
+  dds_set_log_sink(&logger, (void*)log_expected);
+  dds_set_trace_sink(&logger, (void*)log_expected);
 
   /* Create participant with an empty security element. */
   found = 0;
@@ -165,24 +165,24 @@ CU_Test(ddsc_config, security_empty, .init = ddsrt_init, .fini = ddsrt_fini) {
   dds_set_log_sink(NULL, NULL);
   dds_set_trace_sink(NULL, NULL);
 
-    /* All traces should have been provided. */
+  /* All traces should have been provided. */
 #ifndef DDSI_INCLUDE_SECURITY
-    CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_FATAL(found == 0x1);
 #else
-    CU_ASSERT_FATAL(found == 0x7);
+  CU_ASSERT_FATAL(found == 0x7);
 #endif
 }
 
 CU_Test(ddsc_config, security_missing, .init = ddsrt_init, .fini = ddsrt_fini) {
 
-    /* Expected traces when creating participant with the security elements. */
-    const char *log_expected[] = {
+  /* Expected traces when creating participant with the security elements. */
+  const char *log_expected[] = {
 #ifndef DDSI_INCLUDE_SECURITY
-      "config: //CycloneDDS/Domain: DDSSecurity: unknown element*",
+    "config: //CycloneDDS/Domain: DDSSecurity: unknown element*",
 #else
-      "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCertificate/#text: element missing in configuration*",
-      "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCA/#text: element missing in configuration*",
-      "config: //CycloneDDS/Domain/DDSSecurity/Authentication/PrivateKey/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCertificate/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCA/#text: element missing in configuration*",
+    "config: //CycloneDDS/Domain/DDSSecurity/Authentication/PrivateKey/#text: element missing in configuration*",
 #endif
       NULL
     };
@@ -191,30 +191,30 @@ CU_Test(ddsc_config, security_missing, .init = ddsrt_init, .fini = ddsrt_fini) {
   const char *sec_config =
     "<Tracing><Verbosity>finest</></>"
     "<DDSSecurity>"
-    "<Authentication>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
-    "<IdentityCertificate></IdentityCertificate>"
-    "<PrivateKey></PrivateKey>"
-    "<Password>testtext_Password_testtext</Password>"
-    "</Authentication>"
-    "<Cryptographic>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
-    "</Cryptographic>"
-    "<AccessControl>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
-    "<Governance>file:Governance.p7s</Governance>"
-    "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-    "<Permissions>file:Permissions.p7s</Permissions>"
-    "</AccessControl>"
+      "<Authentication>"
+        "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
+        "<IdentityCertificate></IdentityCertificate>"
+        "<PrivateKey></PrivateKey>"
+        "<Password>testtext_Password_testtext</Password>"
+      "</Authentication>"
+      "<Cryptographic>"
+        "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
+      "</Cryptographic>"
+      "<AccessControl>"
+        "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
+        "<Governance>file:Governance.p7s</Governance>"
+        "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+        "<Permissions>file:Permissions.p7s</Permissions>"
+      "</AccessControl>"
     "</DDSSecurity>";
 
 
-    dds_entity_t participant;
+  dds_entity_t participant;
 
-    /* Set up the trace sinks to detect the config parsing. */
-    dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
-    dds_set_log_sink(&logger, (void*)log_expected);
-    dds_set_trace_sink(&logger, (void*)log_expected);
+  /* Set up the trace sinks to detect the config parsing. */
+  dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
+  dds_set_log_sink(&logger, (void*)log_expected);
+  dds_set_trace_sink(&logger, (void*)log_expected);
 
   /* Create participant with an empty security element. */
   found = 0;
@@ -226,18 +226,18 @@ CU_Test(ddsc_config, security_missing, .init = ddsrt_init, .fini = ddsrt_fini) {
   dds_set_trace_sink(NULL, NULL);
   /* All traces should have been provided. */
 #ifndef DDSI_INCLUDE_SECURITY
-    CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_FATAL(found == 0x1);
 #else
-    CU_ASSERT_FATAL(found == 0x7);
+  CU_ASSERT_FATAL(found == 0x7);
 #endif
 }
 
 CU_Test(ddsc_config, security_all, .init = ddsrt_init, .fini = ddsrt_fini) {
 
-    /* Expected traces when creating participant with the security elements. */
-    const char *log_expected[] = {
+  /* Expected traces when creating participant with the security elements. */
+  const char *log_expected[] = {
 #ifndef DDSI_INCLUDE_SECURITY
-      "config: //CycloneDDS/Domain: DDSSecurity: unknown element*",
+    "config: //CycloneDDS/Domain: DDSSecurity: unknown element*",
 #else
     "config: Domain/DDSSecurity/Authentication/Library/#text: "CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX"*",
     "config: Domain/DDSSecurity/Authentication/Library[@path]: "CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX"*",
@@ -261,50 +261,49 @@ CU_Test(ddsc_config, security_all, .init = ddsrt_init, .fini = ddsrt_fini) {
     "config: Domain/DDSSecurity/Cryptographic/Library[@finalizeFunction]: finalize_crypto*",
     /* The config should have been parsed into the participant QoS. */
     "PARTICIPANT * QOS={*property_list={value={{dds.sec.auth.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX",0},"
-    "{dds.sec.auth.library.init,init_authentication,0},"
-    "{dds.sec.auth.library.finalize,finalize_authentication,0},"
-    "{dds.sec.crypto.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX",0},"
-    "{dds.sec.crypto.library.init,init_crypto,0},"
-    "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
-    "{dds.sec.access.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX",0},"
-    "{dds.sec.access.library.init,init_access_control,0},"
-    "{dds.sec.access.library.finalize,finalize_access_control,0},"
-    "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
-    "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
-    "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
-    "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
-    "{dds.sec.access.governance,file:Governance.p7s,0},"
-    "{dds.sec.access.permissions,file:Permissions.p7s,0},"
-    "{dds.sec.auth.password,testtext_Password_testtext,0},"
-    "{dds.sec.auth.trusted_ca_dir,testtext_Dir_testtext,0}}binary_value={}}*}*",
+      "{dds.sec.auth.library.init,init_authentication,0},"
+      "{dds.sec.auth.library.finalize,finalize_authentication,0},"
+      "{dds.sec.crypto.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX",0},"
+      "{dds.sec.crypto.library.init,init_crypto,0},"
+      "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
+      "{dds.sec.access.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX",0},"
+      "{dds.sec.access.library.init,init_access_control,0},"
+      "{dds.sec.access.library.finalize,finalize_access_control,0},"
+      "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
+      "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
+      "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
+      "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
+      "{dds.sec.access.governance,file:Governance.p7s,0},"
+      "{dds.sec.access.permissions,file:Permissions.p7s,0},"
+      "{dds.sec.auth.password,testtext_Password_testtext,0},"
+      "{dds.sec.auth.trusted_ca_dir,testtext_Dir_testtext,0}}binary_value={}}*}*",
 
 #endif
     NULL
   };
   const char *sec_config =
     "<"DDS_PROJECT_NAME">"
-    "<Domain id=\"any\">"
-    "<Tracing><Verbosity>finest</></>"
-    "<DDSSecurity>"
-    "<Authentication>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
-    "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-    "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-    "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
-    "<Password>testtext_Password_testtext</Password>"
-    "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
-    "</Authentication>"
-    "<Cryptographic>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
-    "</Cryptographic>"
-    "<AccessControl>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control"
-    "\"/>"
-    "<Governance>file:Governance.p7s</Governance>"
-    "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-    "<Permissions>file:Permissions.p7s</Permissions>"
-    "</AccessControl>"
-    "</DDSSecurity>"
+      "<Domain id=\"any\">"
+      "<Tracing><Verbosity>finest</></>"
+      "<DDSSecurity>"
+      "<Authentication>"
+        "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
+        "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
+        "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
+        "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+        "<Password>testtext_Password_testtext</Password>"
+        "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+      "</Authentication>"
+      "<Cryptographic>"
+        "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
+      "</Cryptographic>"
+      "<AccessControl>"
+        "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
+      "<Governance>file:Governance.p7s</Governance>"
+      "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+      "<Permissions>file:Permissions.p7s</Permissions>"
+      "</AccessControl>"
+      "</DDSSecurity>"
     "</Domain>"
     "</"DDS_PROJECT_NAME">";
 
@@ -363,22 +362,22 @@ CU_Test(ddsc_config, security, .init = ddsrt_init, .fini = ddsrt_fini) {
       "config: Domain/DDSSecurity/Cryptographic/Library[@finalizeFunction]: finalize_crypto*",
       /* The config should have been parsed into the participant QoS. */
       "PARTICIPANT * QOS={*property_list={value={{dds.sec.auth.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX",0},"
-      "{dds.sec.auth.library.init,init_authentication,0},"
-      "{dds.sec.auth.library.finalize,finalize_authentication,0},"
-      "{dds.sec.crypto.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX",0},"
-      "{dds.sec.crypto.library.init,init_crypto,0},"
-      "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
-      "{dds.sec.access.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX",0},"
-      "{dds.sec.access.library.init,init_access_control,0},"
-      "{dds.sec.access.library.finalize,finalize_access_control,0},"
-      "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
-      "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
-      "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
-      "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
-      "{dds.sec.access.governance,file:Governance.p7s,0},"
-      "{dds.sec.access.permissions,file:Permissions.p7s,0},"
-      "{dds.sec.auth.password,,0},"
-      "{dds.sec.auth.trusted_ca_dir,,0}}binary_value={}}*}*",
+        "{dds.sec.auth.library.init,init_authentication,0},"
+        "{dds.sec.auth.library.finalize,finalize_authentication,0},"
+        "{dds.sec.crypto.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX",0},"
+        "{dds.sec.crypto.library.init,init_crypto,0},"
+        "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
+        "{dds.sec.access.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX",0},"
+        "{dds.sec.access.library.init,init_access_control,0},"
+        "{dds.sec.access.library.finalize,finalize_access_control,0},"
+        "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
+        "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
+        "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
+        "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
+        "{dds.sec.access.governance,file:Governance.p7s,0},"
+        "{dds.sec.access.permissions,file:Permissions.p7s,0},"
+        "{dds.sec.auth.password,,0},"
+        "{dds.sec.auth.trusted_ca_dir,,0}}binary_value={}}*}*",
 #endif
     NULL
   };
@@ -386,21 +385,21 @@ CU_Test(ddsc_config, security, .init = ddsrt_init, .fini = ddsrt_fini) {
   const char *sec_config =
     "<Tracing><Verbosity>finest</></>"
     "<DDSSecurity>"
-    "<Authentication>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
-    "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-    "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-    "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
-    "</Authentication>"
-    "<Cryptographic>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
-    "</Cryptographic>"
-    "<AccessControl>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
-    "<Governance>file:Governance.p7s</Governance>"
-    "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-    "<Permissions>file:Permissions.p7s</Permissions>"
-    "</AccessControl>"
+      "<Authentication>"
+        "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
+        "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
+        "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
+        "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+      "</Authentication>"
+      "<Cryptographic>"
+        "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
+      "</Cryptographic>"
+      "<AccessControl>"
+        "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
+        "<Governance>file:Governance.p7s</Governance>"
+        "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+        "<Permissions>file:Permissions.p7s</Permissions>"
+      "</AccessControl>"
     "</DDSSecurity>";
 
 
@@ -456,73 +455,103 @@ CU_Test(ddsc_config, security_deprecated, .init = ddsrt_init, .fini = ddsrt_fini
     "config: Domain/DDSSecurity/Cryptographic/Library[@initFunction]: init_crypto*",
     "config: Domain/DDSSecurity/Cryptographic/Library[@finalizeFunction]: finalize_crypto*",
     /* The config should have been parsed into the participant QoS. */
-    "PARTICIPANT * QOS={*property_list={value={{dds.sec.auth.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX",0},{dds.sec.auth.library.init,init_authentication,0},{dds.sec.auth.library.finalize,finalize_authentication,0},{dds.sec.crypto.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX",0},{dds.sec.crypto.library.init,init_crypto,0},{dds.sec.crypto.library.finalize,finalize_crypto,0},{dds.sec.access.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX",0},{dds.sec.access.library.init,init_access_control,0},{dds.sec.access.library.finalize,finalize_access_control,0},{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},{dds.sec.access.governance,file:Governance.p7s,0},{dds.sec.access.permissions,file:Permissions.p7s,0},{dds.sec.auth.password,testtext_Password_testtext,0},{dds.sec.auth.trusted_ca_dir,testtext_Dir_testtext,0}}binary_value={}}*}*",
+    "PARTICIPANT * QOS={*property_list={value={"
+      "{dds.sec.auth.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX",0},"
+      "{dds.sec.auth.library.init,init_authentication,0},"
+      "{dds.sec.auth.library.finalize,finalize_authentication,0},"
+      "{dds.sec.crypto.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX",0},"
+      "{dds.sec.crypto.library.init,init_crypto,0},"
+      "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
+      "{dds.sec.access.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX",0},"
+      "{dds.sec.access.library.init,init_access_control,0},{dds.sec.access.library.finalize,finalize_access_control,0},{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
+      "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
+      "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
+      "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
+      "{dds.sec.access.governance,file:Governance.p7s,0},"
+      "{dds.sec.access.permissions,file:Permissions.p7s,0},"
+      "{dds.sec.auth.password,testtext_Password_testtext,0},"
+      "{dds.sec.auth.trusted_ca_dir,testtext_Dir_testtext,0}}binary_value={}}*}*",
 #endif
     NULL
   };
 
   const char *sec_config =
     "<"DDS_PROJECT_NAME">"
-    "<Domain>"
-    "<Id>any</Id>"
-    "</Domain>"
-    "<DDSI2E>"
-    "<DDSSecurity>"
-    "<Authentication>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
-    "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-    "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-    "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
-    "<Password>testtext_Password_testtext</Password>"
-    "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
-    "</Authentication>"
-    "<Cryptographic>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
-    "</Cryptographic>"
-    "<AccessControl>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
-    "<Governance>file:Governance.p7s</Governance>"
-    "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-    "<Permissions>file:Permissions.p7s</Permissions>"
-    "</AccessControl>"
-    "</DDSSecurity>"
-    "<Tracing><Verbosity>finest</></>"
-    "</DDSI2E>"
+      "<Domain>"
+      "<Id>any</Id>"
+      "</Domain>"
+      "<DDSI2E>"
+        "<DDSSecurity>"
+          "<Authentication>"
+            "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
+            "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
+            "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
+            "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+            "<Password>testtext_Password_testtext</Password>"
+            "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+          "</Authentication>"
+          "<Cryptographic>"
+            "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
+          "</Cryptographic>"
+          "<AccessControl>"
+            "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
+            "<Governance>file:Governance.p7s</Governance>"
+            "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+            "<Permissions>file:Permissions.p7s</Permissions>"
+          "</AccessControl>"
+        "</DDSSecurity>"
+        "<Tracing><Verbosity>finest</></>"
+      "</DDSI2E>"
     "</"DDS_PROJECT_NAME">";
 
+  dds_entity_t participant;
 
+  /* Set up the trace sinks to detect the config parsing. */
+  dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
+  dds_set_log_sink(&logger, (void*)log_expected);
+  dds_set_trace_sink(&logger, (void*)log_expected);
 
-    dds_entity_t participant;
+  /* Create participant with security elements. */
+  found = 0;
+  ddsrt_setenv(URI_VARIABLE, sec_config);
+  participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+  ddsrt_setenv(URI_VARIABLE, "");
+  dds_delete(participant);
+  dds_set_log_sink(NULL, NULL);
+  dds_set_trace_sink(NULL, NULL);
 
-    /* Set up the trace sinks to detect the config parsing. */
-    dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
-    dds_set_log_sink(&logger, (void*)log_expected);
-    dds_set_trace_sink(&logger, (void*)log_expected);
-
-    /* Create participant with security elements. */
-    found = 0;
-    ddsrt_setenv(URI_VARIABLE, sec_config);
-    participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    ddsrt_setenv(URI_VARIABLE, "");
-    dds_delete(participant);
-    dds_set_log_sink(NULL, NULL);
-    dds_set_trace_sink(NULL, NULL);
-
-    /* All traces should have been provided. */
+  /* All traces should have been provided. */
 #ifndef DDSI_INCLUDE_SECURITY
-    CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_FATAL(found == 0x1);
 #else
-    CU_ASSERT_FATAL(found == 0x1fffff);
+  CU_ASSERT_FATAL(found == 0x1fffff);
 #endif
 }
 
 CU_Test(ddsc_config, security_qos, .init = ddsrt_init, .fini = ddsrt_fini)
 {
-    /* Expected traces when creating participant with the security elements. */
-    const char *log_expected[] = {
+  /* Expected traces when creating participant with the security elements. */
+  const char *log_expected[] = {
 #ifdef DDSI_INCLUDE_SECURITY
-    /* The config should have been parsed into the participant QoS. */
-    "PARTICIPANT * QOS={*property_list={value={{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},{dds.sec.access.governance,file:Governance.p7s,0},{dds.sec.access.permissions,file:Permissions.p7s,0},{dds.sec.auth.password,testtext_Password_testtext,0},{dds.sec.auth.trusted_ca_dir,file:/test/dir,0},{dds.sec.auth.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX",0},{dds.sec.auth.library.init,init_authentication,0},{dds.sec.auth.library.finalize,finalize_authentication,0},{dds.sec.crypto.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX",0},{dds.sec.crypto.library.init,init_crypto,0},{dds.sec.crypto.library.finalize,finalize_crypto,0},{dds.sec.access.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX",0},{dds.sec.access.library.init,init_access_control,0},{dds.sec.access.library.finalize,finalize_access_control,0}}binary_value={}}*}*",
+  /* The config should have been parsed into the participant QoS. */
+  "PARTICIPANT * QOS={*property_list={value={"
+    "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
+    "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
+    "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
+    "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
+    "{dds.sec.access.governance,file:Governance.p7s,0},"
+    "{dds.sec.access.permissions,file:Permissions.p7s,0},"
+    "{dds.sec.auth.password,testtext_Password_testtext,0},"
+    "{dds.sec.auth.trusted_ca_dir,file:/test/dir,0},"
+    "{dds.sec.auth.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX",0},"
+    "{dds.sec.auth.library.init,init_authentication,0},"
+    "{dds.sec.auth.library.finalize,finalize_authentication,0},"
+    "{dds.sec.crypto.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX",0},"
+    "{dds.sec.crypto.library.init,init_crypto,0},"
+    "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
+    "{dds.sec.access.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX",0},"
+    "{dds.sec.access.library.init,init_access_control,0},"
+    "{dds.sec.access.library.finalize,finalize_access_control,0}}binary_value={}}*}*",
   #endif
     NULL
   };
@@ -530,10 +559,10 @@ CU_Test(ddsc_config, security_qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_entity_t participant;
   dds_qos_t * qos;
 
-    /* Set up the trace sinks to detect the config parsing. */
-    dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
-    dds_set_log_sink(&logger, (void*)log_expected);
-    dds_set_trace_sink(&logger, (void*)log_expected);
+  /* Set up the trace sinks to detect the config parsing. */
+  dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
+  dds_set_log_sink(&logger, (void*)log_expected);
+  dds_set_trace_sink(&logger, (void*)log_expected);
 
   /* Create the qos */
   CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
@@ -555,21 +584,21 @@ CU_Test(ddsc_config, security_qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_prop(qos, "dds.sec.access.library.init", "init_access_control");
   dds_qset_prop(qos, "dds.sec.access.library.finalize", "finalize_access_control");
 
-    /* Create participant with security config in qos. */
-    found = 0;
-    ddsrt_setenv(URI_VARIABLE, "<Tracing><Verbosity>finest</></>");
-    CU_ASSERT_FATAL ((participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL)) > 0);
-    ddsrt_setenv(URI_VARIABLE, "");
-    dds_delete(participant);
-    dds_delete_qos(qos);
-    dds_set_log_sink(NULL, NULL);
-    dds_set_trace_sink(NULL, NULL);
+  /* Create participant with security config in qos. */
+  found = 0;
+  ddsrt_setenv(URI_VARIABLE, "<Tracing><Verbosity>finest</></>");
+  CU_ASSERT_FATAL ((participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL)) > 0);
+  ddsrt_setenv(URI_VARIABLE, "");
+  dds_delete(participant);
+  dds_delete_qos(qos);
+  dds_set_log_sink(NULL, NULL);
+  dds_set_trace_sink(NULL, NULL);
 
-    /* All traces should have been provided. */
+  /* All traces should have been provided. */
 #ifndef DDSI_INCLUDE_SECURITY
-    CU_ASSERT_FATAL(found == 0);
+  CU_ASSERT_FATAL(found == 0);
 #else
-    CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_FATAL(found == 0x1);
 #endif
 }
 
@@ -654,11 +683,11 @@ CU_Test(ddsc_config, security_qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_delete_qos(qos);
 
 
-    /* All traces should have been provided. */
+  /* All traces should have been provided. */
 #ifndef DDSI_INCLUDE_SECURITY
-    CU_ASSERT_FATAL(found == 0);
+  CU_ASSERT_FATAL(found == 0);
 #else
-    CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_FATAL(found == 0x1);
 #endif
 }
 
@@ -695,15 +724,15 @@ CU_Test(ddsc_config, security_config_qos, .init = ddsrt_init, .fini = ddsrt_fini
   const char *sec_config =
     "<Tracing><Verbosity>finest</></>"
     "<DDSSecurity>"
-    "<Authentication>"
-    "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-    "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-    "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+      "<Authentication>"
+      "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
+      "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
+      "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
     "</Authentication>"
     "<AccessControl>"
-    "<Governance>file:Governance.p7s</Governance>"
-    "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-    "<Permissions>file:Permissions.p7s</Permissions>"
+      "<Governance>file:Governance.p7s</Governance>"
+      "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+      "<Permissions>file:Permissions.p7s</Permissions>"
     "</AccessControl>"
     "</DDSSecurity>";
 
@@ -743,11 +772,11 @@ CU_Test(ddsc_config, security_config_qos, .init = ddsrt_init, .fini = ddsrt_fini
   dds_set_trace_sink(NULL, NULL);
   dds_delete_qos(qos);
 
-    /* All traces should have been provided. */
+  /* All traces should have been provided. */
 #ifndef DDSI_INCLUDE_SECURITY
-    CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_FATAL(found == 0x1);
 #else
-    CU_ASSERT_FATAL(found == 0x3);
+  CU_ASSERT_FATAL(found == 0x3);
 #endif
 }
 
@@ -761,23 +790,23 @@ CU_Test(ddsc_config, security_other_prop, .init = ddsrt_init, .fini = ddsrt_fini
 #else
     /* The security settings from config should have been parsed into the participant QoS. */
     "PARTICIPANT * QOS={*property_list={value={{test.dds.sec.prop1,testtext_value1_testtext,0},"
-    "{dds.sec.auth.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX",0},"
-    "{dds.sec.auth.library.init,init_authentication,0},"
-    "{dds.sec.auth.library.finalize,finalize_authentication,0},"
-    "{dds.sec.crypto.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX",0},"
-    "{dds.sec.crypto.library.init,init_crypto,0},"
-    "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
-    "{dds.sec.access.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX",0},"
-    "{dds.sec.access.library.init,init_access_control,0},"
-    "{dds.sec.access.library.finalize,finalize_access_control,0},"
-    "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
-    "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
-    "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
-    "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
-    "{dds.sec.access.governance,file:Governance.p7s,0},"
-    "{dds.sec.access.permissions,file:Permissions.p7s,0},"
-    "{dds.sec.auth.password,testtext_Password_testtext,0},"
-    "{dds.sec.auth.trusted_ca_dir,testtext_Dir_testtext,0}}binary_value={}}*}*",
+      "{dds.sec.auth.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX",0},"
+      "{dds.sec.auth.library.init,init_authentication,0},"
+      "{dds.sec.auth.library.finalize,finalize_authentication,0},"
+      "{dds.sec.crypto.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX",0},"
+      "{dds.sec.crypto.library.init,init_crypto,0},"
+      "{dds.sec.crypto.library.finalize,finalize_crypto,0},"
+      "{dds.sec.access.library.path,"CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX",0},"
+      "{dds.sec.access.library.init,init_access_control,0},"
+      "{dds.sec.access.library.finalize,finalize_access_control,0},"
+      "{dds.sec.auth.identity_ca,testtext_IdentityCA_testtext,0},"
+      "{dds.sec.auth.private_key,testtext_PrivateKey_testtext,0},"
+      "{dds.sec.auth.identity_certificate,testtext_IdentityCertificate_testtext,0},"
+      "{dds.sec.access.permissions_ca,file:Permissions_CA.pem,0},"
+      "{dds.sec.access.governance,file:Governance.p7s,0},"
+      "{dds.sec.access.permissions,file:Permissions.p7s,0},"
+      "{dds.sec.auth.password,testtext_Password_testtext,0},"
+      "{dds.sec.auth.trusted_ca_dir,testtext_Dir_testtext,0}}binary_value={}}*}*",
   #endif
     NULL
   };
@@ -785,23 +814,23 @@ CU_Test(ddsc_config, security_other_prop, .init = ddsrt_init, .fini = ddsrt_fini
   const char *sec_config =
     "<Tracing><Verbosity>finest</></>"
     "<DDSSecurity>"
-    "<Authentication>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
-    "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-    "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-    "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
-    "<Password>testtext_Password_testtext</Password>"
-    "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
-    "</Authentication>"
-    "<Cryptographic>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
-    "</Cryptographic>"
-    "<AccessControl>"
-    "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
-    "<Governance>file:Governance.p7s</Governance>"
-    "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-    "<Permissions>file:Permissions.p7s</Permissions>"
-    "</AccessControl>"
+      "<Authentication>"
+        "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_authentication_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
+        "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
+        "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
+        "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+        "<Password>testtext_Password_testtext</Password>"
+        "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+      "</Authentication>"
+      "<Cryptographic>"
+        "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_cryptography_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
+      "</Cryptographic>"
+      "<AccessControl>"
+        "<Library path=\""CONFIG_PLUGIN_MOCK_DIR""CONFIG_LIB_SEP""CONFIG_LIB_PREFIX"dds_security_access_control_all_ok"CONFIG_LIB_SUFFIX"\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
+        "<Governance>file:Governance.p7s</Governance>"
+        "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+        "<Permissions>file:Permissions.p7s</Permissions>"
+      "</AccessControl>"
     "</DDSSecurity>";
 
   dds_entity_t participant;
@@ -825,11 +854,11 @@ CU_Test(ddsc_config, security_other_prop, .init = ddsrt_init, .fini = ddsrt_fini
   dds_set_trace_sink(NULL, NULL);
   dds_delete_qos(qos);
 
-    /* All traces should have been provided. */
+  /* All traces should have been provided. */
 #ifndef DDSI_INCLUDE_SECURITY
-    CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_FATAL(found == 0x1);
 #else
-    CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_FATAL(found == 0x1);
 #endif
 }
 
@@ -864,16 +893,16 @@ CU_Test(ddsc_config, security_qos_invalid, .init = ddsrt_init, .fini = ddsrt_fin
   const char *sec_config =
     "<Tracing><Verbosity>finest</></>"
     "<DDSSecurity>"
-    "<Authentication>"
-    "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-    "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-    "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
-    "</Authentication>"
-    "<AccessControl>"
-    "<Governance>file:Governance.p7s</Governance>"
-    "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-    "<Permissions>file:Permissions.p7s</Permissions>"
-    "</AccessControl>"
+      "<Authentication>"
+        "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
+        "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
+        "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+      "</Authentication>"
+      "<AccessControl>"
+        "<Governance>file:Governance.p7s</Governance>"
+        "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+        "<Permissions>file:Permissions.p7s</Permissions>"
+      "</AccessControl>"
     "</DDSSecurity>";
 
   dds_entity_t participant;

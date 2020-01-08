@@ -15,7 +15,7 @@ include (CUnit)
 set(security_plugin_loading_test_sources
     "plugin_loading.c"
   )
-add_definitions(-DDDSI_INCLUDE_SECURITY)
+
 add_cunit_executable(cunit_security_plugin_loading ${security_plugin_loading_test_sources})
 target_include_directories(
   cunit_security_plugin_loading PRIVATE
@@ -117,6 +117,7 @@ endfunction()
 
 #PLUGIN MOCKS
 add_mock( authentication authentication_all_ok )
+add_mock( authentication authentication_all_ok_other )
 add_mock( authentication authentication_missing_function )
 add_mock( authentication authentication_finalize_error )
 add_mock( access_control access_control_all_ok )

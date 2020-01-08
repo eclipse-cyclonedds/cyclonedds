@@ -226,27 +226,27 @@ CU_Test(ddssec_security_plugin_loading, authentication_missing_function, .init =
 
   const char *sec_config =
           "<"DDS_PROJECT_NAME">"
-          "<Domain id=\"any\">"
-          "<Tracing><Verbosity>finest</></>"
-          "<DDSSecurity>"
-          "<Authentication>"
-          "<Library path=\"dds_security_authentication_missing_function\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
-          "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-          "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-          "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
-          "<Password>testtext_Password_testtext</Password>"
-          "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
-          "</Authentication>"
-          "<Cryptographic>"
-          "<Library path=\"dds_security_cryptography_all_ok\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
-          "</Cryptographic>"
-          "<AccessControl>"
-          "<Library path=\"dds_security_access_control_all_ok\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
-          "<Governance>file:Governance.p7s</Governance>"
-          "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-          "<Permissions>file:Permissions.p7s</Permissions>"
-          "</AccessControl>"
-          "</DDSSecurity>"
+            "<Domain id=\"any\">"
+            "<Tracing><Verbosity>finest</></>"
+            "<DDSSecurity>"
+              "<Authentication>"
+                "<Library path=\"dds_security_authentication_missing_function\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
+                "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
+                "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
+                "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+                "<Password>testtext_Password_testtext</Password>"
+                "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+              "</Authentication>"
+              "<Cryptographic>"
+                "<Library path=\"dds_security_cryptography_all_ok\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
+              "</Cryptographic>"
+              "<AccessControl>"
+                "<Library path=\"dds_security_access_control_all_ok\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
+                "<Governance>file:Governance.p7s</Governance>"
+                "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+                "<Permissions>file:Permissions.p7s</Permissions>"
+              "</AccessControl>"
+            "</DDSSecurity>"
           "</Domain>"
           "</"DDS_PROJECT_NAME">";
 
@@ -422,28 +422,28 @@ CU_Test(ddssec_security_plugin_loading, no_library_in_path, .init = ddsrt_init, 
 
   const char *sec_config =
           "<"DDS_PROJECT_NAME">"
-          "<Domain id=\"any\">"
-          "<Tracing><Verbosity>finest</></>"
-          "<DDSSecurity>"
-          "<Authentication>"
-          "<Library path=\"no_library_in_path\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
-          "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-          "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-          "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
-          "<Password>testtext_Password_testtext</Password>"
-          "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
-          "</Authentication>"
-          "<Cryptographic>"
-          "<Library path=\"dds_security_cryptography_all_ok\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
-          "</Cryptographic>"
-          "<AccessControl>"
-          "<Library path=\"dds_security_access_control_all_ok\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
-          "<Governance>file:Governance.p7s</Governance>"
-          "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-          "<Permissions>file:Permissions.p7s</Permissions>"
-          "</AccessControl>"
-          "</DDSSecurity>"
-          "</Domain>"
+            "<Domain id=\"any\">"
+              "<Tracing><Verbosity>finest</></>"
+              "<DDSSecurity>"
+                "<Authentication>"
+                  "<Library path=\"no_library_in_path\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
+                  "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
+                  "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
+                  "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+                  "<Password>testtext_Password_testtext</Password>"
+                  "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+                "</Authentication>"
+                "<Cryptographic>"
+                  "<Library path=\"dds_security_cryptography_all_ok\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
+                "</Cryptographic>"
+                "<AccessControl>"
+                  "<Library path=\"dds_security_access_control_all_ok\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
+                  "<Governance>file:Governance.p7s</Governance>"
+                  "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+                  "<Permissions>file:Permissions.p7s</Permissions>"
+                "</AccessControl>"
+              "</DDSSecurity>"
+            "</Domain>"
           "</"DDS_PROJECT_NAME">";
 
 
@@ -489,28 +489,28 @@ CU_Test(ddssec_security_plugin_loading, init_error, .init = ddsrt_init, .fini = 
 
   const char *sec_config =
           "<"DDS_PROJECT_NAME">"
-          "<Domain id=\"any\">"
-          "<Tracing><Verbosity>finest</></>"
-          "<DDSSecurity>"
-          "<Authentication>"
-          "<Library path=\"dds_security_authentication_init_error\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
-          "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
-          "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
-          "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
-          "<Password>testtext_Password_testtext</Password>"
-          "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
-          "</Authentication>"
-          "<Cryptographic>"
-          "<Library path=\"dds_security_cryptography_all_ok\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
-          "</Cryptographic>"
-          "<AccessControl>"
-          "<Library path=\"dds_security_access_control_all_ok\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
-          "<Governance>file:Governance.p7s</Governance>"
-          "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
-          "<Permissions>file:Permissions.p7s</Permissions>"
-          "</AccessControl>"
-          "</DDSSecurity>"
-          "</Domain>"
+            "<Domain id=\"any\">"
+              "<Tracing><Verbosity>finest</></>"
+              "<DDSSecurity>"
+                "<Authentication>"
+                  "<Library path=\"dds_security_authentication_init_error\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
+                  "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
+                  "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
+                  "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+                  "<Password>testtext_Password_testtext</Password>"
+                  "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+                "</Authentication>"
+                "<Cryptographic>"
+                  "<Library path=\"dds_security_cryptography_all_ok\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
+                "</Cryptographic>"
+                "<AccessControl>"
+                  "<Library path=\"dds_security_access_control_all_ok\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
+                  "<Governance>file:Governance.p7s</Governance>"
+                  "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+                  "<Permissions>file:Permissions.p7s</Permissions>"
+                "</AccessControl>"
+              "</DDSSecurity>"
+            "</Domain>"
           "</"DDS_PROJECT_NAME">";
 
 
@@ -709,7 +709,6 @@ CU_Test(ddssec_security_plugin_loading, empty_plugin_property_with_props, .init 
 
   /* Create participant with security config in qos. */
   found = 0;
-  print_log = true;
   ddsrt_setenv(URI_VARIABLE, "<Tracing><Verbosity>finest</></>");
   participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL);
   dds_set_log_sink(NULL, NULL);
@@ -774,7 +773,6 @@ CU_Test(ddssec_security_plugin_loading, missing_security_property_with_props, .i
 
   /* Create participant with security config in qos. */
   found = 0;
-  print_log = true;
   ddsrt_setenv(URI_VARIABLE, "<Tracing><Verbosity>finest</></>");
   participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL);
   dds_set_log_sink(NULL, NULL);
@@ -788,5 +786,125 @@ CU_Test(ddssec_security_plugin_loading, missing_security_property_with_props, .i
   dds_delete(participant);
 #endif
   CU_ASSERT_FATAL(found == 0x3);
+  dds_delete_qos(qos);
+}
+
+
+
+
+CU_Test(ddssec_security_plugin_loading, multiple_domains_different_config, .init = ddsrt_init, .fini = ddsrt_fini) {
+  /* Expected traces when creating participant with the security elements. */
+  const char *log_expected[] = {
+          "*using security settings from configuration*",
+          "*using security settings from QoS*",
+          "DDS Security plugins have been loaded*",
+          "*security is already loaded for this domain*",
+          NULL
+  };
+
+  const char *sec_config =
+        "<"DDS_PROJECT_NAME">"
+          "<Domain id=\"1\">"
+            "<Tracing><Verbosity>finest</></>"
+            "<DDSSecurity>"
+              "<Authentication>"
+                "<Library path=\"dds_security_authentication_all_ok\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
+                "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
+                "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
+                "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+                "<Password>testtext_Password_testtext</Password>"
+                "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+              "</Authentication>"
+              "<Cryptographic>"
+                "<Library path=\"dds_security_cryptography_all_ok\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
+              "</Cryptographic>"
+              "<AccessControl>"
+                "<Library path=\"dds_security_access_control_all_ok\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
+                "<Governance>file:Governance.p7s</Governance>"
+                "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+                "<Permissions>file:Permissions.p7s</Permissions>"
+              "</AccessControl>"
+            "</DDSSecurity>"
+          "</Domain>"
+          "<Domain id=\"2\">"
+            "<Tracing><Verbosity>finest</></>"
+            "<DDSSecurity>"
+              "<Authentication>"
+                "<Library path=\"dds_security_authentication_invalid\" initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" />"
+                "<IdentityCertificate>testtext_IdentityCertificate_testtext</IdentityCertificate>"
+                "<IdentityCA>testtext_IdentityCA_testtext</IdentityCA>"
+                "<PrivateKey>testtext_PrivateKey_testtext</PrivateKey>"
+                "<Password>testtext_Password_testtext</Password>"
+                "<TrustedCADirectory>testtext_Dir_testtext</TrustedCADirectory>"
+              "</Authentication>"
+              "<Cryptographic>"
+                "<Library path=\"dds_security_cryptography_invalid\" initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\"/>"
+              "</Cryptographic>"
+              "<AccessControl>"
+                "<Library path=\"dds_security_access_control_invalid\" initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\"/>"
+                "<Governance>file:Governance.p7s</Governance>"
+                "<PermissionsCA>file:Permissions_CA.pem</PermissionsCA>"
+                "<Permissions>file:Permissions.p7s</Permissions>"
+              "</AccessControl>"
+            "</DDSSecurity>"
+          "</Domain>"
+        "</"DDS_PROJECT_NAME">";
+
+
+  dds_entity_t participant1, participant2, participant3;
+  dds_qos_t * qos;
+
+  /* Set up the trace sinks to detect the config parsing. */
+  dds_set_log_mask(DDS_LC_INFO|DDS_LC_ERROR);
+  dds_set_log_sink(&logger, (void*)log_expected);
+  dds_set_trace_sink(&logger, (void*)log_expected);
+
+  /* Create the qos */
+  unsigned char bvalue[3] = { 0x01, 0x02, 0x03 };
+  CU_ASSERT_FATAL ((qos = dds_create_qos()) != NULL);
+  dds_qset_prop (qos, "test.prop1", "testtext_value1_testtext");
+  dds_qset_prop (qos, DDS_SEC_PROP_AUTH_IDENTITY_CA, "testtext_IdentityCA_testtext");
+  dds_qset_prop (qos, DDS_SEC_PROP_AUTH_PRIV_KEY, "testtext_PrivateKey_testtext");
+  dds_qset_prop (qos, DDS_SEC_PROP_AUTH_IDENTITY_CERT, "testtext_IdentityCertificate_testtext");
+  dds_qset_prop (qos, DDS_SEC_PROP_ACCESS_PERMISSIONS_CA, "file:Permissions_CA.pem");
+  dds_qset_prop (qos, DDS_SEC_PROP_ACCESS_GOVERNANCE, "file:Governance.p7s");
+  dds_qset_prop (qos, DDS_SEC_PROP_ACCESS_PERMISSIONS, "file:Permissions.p7s");
+  dds_qset_prop (qos, DDS_SEC_PROP_AUTH_PASSWORD, "testtext_Password_testtext");
+  dds_qset_prop (qos, DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR, "file:/test/dir");
+
+  dds_qset_prop (qos, DDS_SEC_PROP_AUTH_LIBRARY_PATH, "dds_security_authentication_all_ok_other");
+  dds_qset_prop (qos, DDS_SEC_PROP_AUTH_LIBRARY_INIT, "init_authentication");
+  dds_qset_prop (qos, DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE, "finalize_authentication");
+  dds_qset_prop (qos, DDS_SEC_PROP_CRYPTO_LIBRARY_PATH, "dds_security_cryptography_all_ok");
+  dds_qset_prop (qos, DDS_SEC_PROP_CRYPTO_LIBRARY_INIT, "init_crypto");
+  dds_qset_prop (qos, DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE, "finalize_crypto");
+  dds_qset_prop (qos, DDS_SEC_PROP_ACCESS_LIBRARY_PATH, "dds_security_access_control_all_ok");
+  dds_qset_prop (qos, DDS_SEC_PROP_ACCESS_LIBRARY_INIT, "init_access_control");
+  dds_qset_prop (qos, DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE, "finalize_access_control");
+
+  dds_qset_prop (qos, "test.prop2", "testtext_value2_testtext");
+  dds_qset_prop (qos, DDS_SEC_PROP_AUTH_IDENTITY_CA, "testtext_IdentityCA_testtext");
+  dds_qset_bprop (qos, "test.bprop1", bvalue, 3);
+
+  /* Create participant with security config in qos. */
+  found = 0;
+  print_log = true;
+  ddsrt_setenv(URI_VARIABLE, sec_config);
+  participant1 = dds_create_participant(1, NULL, NULL);
+  participant2 = dds_create_participant(2, qos, NULL);
+  participant3 = dds_create_participant(2, NULL, NULL);
+  dds_set_log_sink(NULL, NULL);
+  dds_set_trace_sink(NULL, NULL);
+  ddsrt_setenv(URI_VARIABLE, "");
+#ifdef PR304_MERGED
+  /* It is better dds to return DDS_RETCODE_NOT_ALLOWED_BY_SECURITY instead of DDS_RETCODE_ERROR
+    CU_ASSERT_FATAL( participant1 == DDS_RETCODE_NOT_ALLOWED_BY_SECURITY ); */
+    CU_ASSERT_FATAL( participant1 == DDS_RETCODE_ERROR );
+#else
+  dds_delete(participant1);
+  dds_delete(participant2);
+  dds_delete(participant3);
+#endif
+  CU_ASSERT_FATAL(found == 0xf);
   dds_delete_qos(qos);
 }

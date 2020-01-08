@@ -46,6 +46,7 @@ struct ddsi_tran_factory;
 struct ddsrt_thread_pool_s;
 struct debug_monitor;
 struct ddsi_tkmap;
+struct dds_security_context;
 
 typedef struct config_in_addr_node {
    nn_locator_t loc;
@@ -297,6 +298,12 @@ struct q_globals {
   struct ddsi_builtin_topic_interface *builtin_topic_interface;
 
   struct nn_group_membership *mship;
+
+  /* security globals */
+#ifdef DDSI_INCLUDE_SECURITY
+  struct dds_security_context *security_context;
+#endif
+
 };
 
 #if defined (__cplusplus)

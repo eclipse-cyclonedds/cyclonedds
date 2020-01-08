@@ -1084,7 +1084,7 @@ int rtps_init (struct q_globals *gv)
   add_property_to_xqos(&gv->builtin_volatile_xqos_rd, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureReader");
   add_property_to_xqos(&gv->builtin_volatile_xqos_wr, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureWriter");
   
-  q_omg_security_init();
+  q_omg_security_init( &gv->security_context );
 #endif
 
   make_special_topics (gv);
@@ -1425,7 +1425,7 @@ err_unicast_sockets:
   nn_xqos_fini (&gv->builtin_volatile_xqos_wr);
   nn_xqos_fini (&gv->builtin_volatile_xqos_rd);
   
-  q_omg_security_deinit();
+  q_omg_security_deinit( &gv->security_context );
 #endif
   nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);
@@ -1771,7 +1771,7 @@ void rtps_fini (struct q_globals *gv)
   nn_xqos_fini (&gv->builtin_volatile_xqos_wr);
   nn_xqos_fini (&gv->builtin_volatile_xqos_rd);
   
-  q_omg_security_deinit();
+  q_omg_security_deinit( &gv->security_context);
 #endif
   nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);

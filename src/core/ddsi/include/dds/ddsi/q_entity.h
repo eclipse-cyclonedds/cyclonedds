@@ -205,6 +205,9 @@ struct participant
   int32_t builtin_refc; /* number of built-in endpoints in this participant [refc_lock] */
   int builtins_deleted; /* whether deletion of built-in endpoints has been initiated [refc_lock] */
   ddsrt_fibheap_t ldur_auto_wr; /* Heap that contains lease duration for writers with automatic liveliness in this participant */
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_security_info_t security_info;
+#endif
 };
 
 struct endpoint_common {

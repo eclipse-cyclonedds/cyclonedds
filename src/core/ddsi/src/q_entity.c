@@ -676,10 +676,16 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
       ready_to_load_security = true;
     }
 
-    if (ready_to_load_security && q_omg_security_load(&pp->plist->qos) < 0) {
-      GVERROR("Could not load security\n");
-      ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
-      goto new_pp_err_secprop;
+    if( q_omg_is_security_loaded( gv->security_context ) == false ){
+      if (ready_to_load_security && q_omg_security_load(gv->security_context, &pp->plist->qos) < 0) {
+        GVERROR("Could not load security\n");
+        ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
+        goto new_pp_err_secprop;
+      }
+    } else {
+      GVLOGDISC ("new_participant("
+                               PGUIDFMT
+                               "): security is already loaded for this domain\n", PGUID(*ppguid));
     }
   }
 

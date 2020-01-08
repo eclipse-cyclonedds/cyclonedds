@@ -340,6 +340,7 @@ dds_return_t dds_security_load_security_library(
       /* Get init and fini functions . */
       if ( ddsrt_dlsym(security_plugin->lib_handle, plugin_config->library_init, (void **)&security_plugin->func_init) == DDS_RETCODE_OK){
         if ( ddsrt_dlsym(security_plugin->lib_handle, plugin_config->library_finalize, (void **)&security_plugin->func_finalize) == DDS_RETCODE_OK){
+
           /* Initialize plugin. */
           if ( security_plugin->func_init != NULL) {
             lib_ret = security_plugin->func_init(init_parameters, (void **) security_plugin_context);
@@ -352,11 +353,14 @@ dds_return_t dds_security_load_security_library(
               goto library_error;
             }
           }
+
         }
         else {
           DDS_ERROR("Could not find the function: %s\n", plugin_config->library_finalize);
           goto library_error;
         }
+
+
       }
       else{
         DDS_ERROR("Could not find the function: %s\n",plugin_config->library_init);

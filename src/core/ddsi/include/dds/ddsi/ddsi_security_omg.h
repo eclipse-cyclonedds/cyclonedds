@@ -19,6 +19,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/types.h"
+#include "dds/ddsrt/sync.h"
 
 
 #if defined (__cplusplus)
@@ -34,6 +35,7 @@ typedef enum {
 #ifdef DDSI_INCLUDE_SECURITY
 
 #include "dds/security/dds_security_api.h"
+#include "dds/security/core/dds_security_plugins.h"
 
 typedef struct nn_msg_sec_info {
   int64_t src_pp_handle;
@@ -43,15 +45,6 @@ typedef struct nn_msg_sec_info {
 
 
 
-
-/**
- * @brief Check if any participant has security enabled.
- *
- * @returns bool
- * @retval true   Some participant is secure
- * @retval false  No participant is not secure
- */
-bool q_omg_security_enabled(void);
 
 /**
  * @brief Check if security is enabled for the participant.
@@ -511,33 +504,19 @@ secure_conn_write(
  * @retval DDS_RETCODE_OK   All plugins are successfully loaded
  * @retval DDS_RETCODE_ERROR  One or more security plugins are not loaded.
  */
-dds_return_t q_omg_security_load( const dds_qos_t *qos );
+dds_return_t q_omg_security_load( struct dds_security_context *security_context, const dds_qos_t *qos );
 
 
+void q_omg_security_init( struct dds_security_context **sc);
 
-dds_security_authentication*
-q_omg_security_get_authentication_instance( void );
+void q_omg_security_deinit( struct dds_security_context **sc);
 
-dds_security_access_control*
-q_omg_security_get_access_control_instance( void );
-
-dds_security_cryptography*
-q_omg_security_get_cryptography_instance( void );
-
-void q_omg_security_init(void);
-
-void q_omg_security_deinit(void);
+bool q_omg_is_security_loaded(  struct dds_security_context *sc );
     
 
 #else /* DDSI_INCLUDE_SECURITY */
 
 #include "dds/ddsi/q_unused.h"
-
-inline bool
-q_omg_security_enabled(void)
-{
-  return false;
-}
 
 inline bool
 q_omg_participant_is_secure(
@@ -669,16 +648,16 @@ decode_rtps_message(
   return NN_RTPS_MSG_STATE_PLAIN;
 }
 
-inline dds_return_t q_omg_security_load( UNUSED_ARG( const dds_qos_t *property_seq) )
+inline dds_return_t q_omg_security_load( UNUSED_ARG( struct dds_security_context *security_context ), UNUSED_ARG( const dds_qos_t *property_seq) )
 {
   return DDS_RETCODE_ERROR;
 }
 
-inline void q_omg_security_init( void ) {}
+inline void q_omg_security_init( UNUSED_ARG( struct dds_security_context *sc) ) {}
 
-inline void q_omg_security_deinit( void ) {}
+inline void q_omg_security_deinit( UNUSED_ARG( struct dds_security_context *sc) ) {}
 
-
+inline bool q_omg_is_security_loaded(  UNUSED_ARG( struct dds_security_context *sc )) { return false; }
 
 #endif /* DDSI_INCLUDE_SECURITY */
 
