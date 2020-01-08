@@ -762,10 +762,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
                                PGUIDFMT
                                "): security is already loaded for this domain\n", PGUID(*ppguid));
     }
-  }
 
-  if (nn_xqos_has_prop (&pp->plist->qos, "dds.sec.", true))
-  {
     if (!q_omg_security_check_create_participant (pp, gv->config.domainId))
     {
       ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;

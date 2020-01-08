@@ -20,25 +20,18 @@
 #include "dds/ddsrt/process.h"
 
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
-#include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sync.h"
-#include "dds/ddsi/q_ephash.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/core/dds_security_plugins.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_plist.h"
 
 #define AUTH_NAME "Authentication"
@@ -46,8 +39,6 @@
 #define CRYPTO_NAME "Cryptographic"
 
 #define SECURITY_EXCEPTION_INIT {NULL, 0, 0}
-
-
 
 struct dds_security_context {
   dds_security_plugin auth_plugin;
