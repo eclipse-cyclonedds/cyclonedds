@@ -58,6 +58,17 @@ bool q_omg_security_enabled(void);
 bool q_omg_participant_is_secure(const struct participant *pp);
 
 /**
+ * @brief Check if security is enabled for the proxy participant.
+ *
+ * @param[in] proxypp  Proxy participant to check if it is secure.
+ *
+ * @returns bool
+ * @retval true   Proxy participant is secure
+ * @retval false  Proxy participant is not secure
+ */
+bool q_omg_proxy_participant_is_secure(const struct proxy_participant *proxypp);
+
+/**
  * @brief Get the security handle of the given local participant.
  *
  * @param[in] pp  Participant to check if it is secure.
@@ -490,6 +501,195 @@ secure_conn_write(
     nn_msg_sec_info_t *sec_info,
     ddsi_tran_write_fn_t conn_write_cb);
 
+/**
+ * @brief Check if the participant and the proxy participant
+ *        have compatible security info settings.
+ *
+ * Associated with a secure participant is the ParticipantSecurityInfo parameter.
+ * This parameter contains the setting of the security attributes and the associated
+ * plugin security attributes of the secure participant.
+ * This function will check if the received ParticipantSecurityInfo parameter is
+ * compatible with the local ParticipantSecurityInfo parameter.
+ *
+ * @param[in] pp      The participant.
+ * @param[in] proxypp The proxy participant.
+ *
+ * @returns bool
+ * @retval true   The participant and the proxy participant have compatible
+ *                security info settings.
+ * @retval false  Otherwise.
+ */
+bool q_omg_is_similar_participant_security_info(struct participant *pp, struct proxy_participant *proxypp);
+
+/**
+ * @brief Check if the participant allows communication with unauthenticated
+ *        participants
+ *
+ * @param[in] pp  The participant.
+ *
+ * @returns bool
+ * @retval true   The participant allows unauthenticated communication
+ * @retval false  Otherwise.
+ */
+bool q_omg_participant_allow_unauthenticated(struct participant *pp);
+
+/**
+ * @brief Register participant with security plugin and check if the
+ *        participant is allowed by security.
+ *
+ * This function will register the participant with the authentication
+ * plugin which will check if the provided security QoS parameters are
+ * correct, e.g. is the provided certificate valid, etc.
+ * When that is successful it is checked with access control if the
+ * participant has the correct permissions and is allowed to be created.
+ *
+ * @param[in] pp        The participant.
+ * @param[in] domain_id The domain id.
+ *
+ * @returns bool
+ * @retval true   The security check on the participant succeeded.
+ * @retval false  The security check on the participant failed.
+ */
+bool q_omg_security_check_create_participant(struct participant *pp, uint32_t domain_id);
+
+/**
+ * @brief Initialize the proxy participant security attributes
+ *
+ * @param[in] proxypp  The proxy participant.
+ *
+ */
+void q_omg_security_init_remote_participant(struct proxy_participant *proxypp);
+
+/**
+ * @brief Check the if the proxy participant is allowed by checking the security permissions.
+ *
+ * The access control plugin is ask to verify if the proxy participant is allowed to
+ * communicate with the local participant. When the proxy participant is allowed the
+ * function will return a valid permission handle which is provided by the access control plugin.
+ *
+ * @param[in] domain_id The domain id
+ * @param[in] pp        The participant
+ * @param[in] proxypp   The proxy participant
+ *
+ * @returns permission handle
+ * @retval !0    The proxy participant is allowed
+ * @retval 0     The proxy participant is not allowed.
+ */
+int64_t q_omg_security_check_remote_participant_permissions(uint32_t domain_id, struct participant *pp, struct proxy_participant *proxypp);
+
+/**
+ * @brief Registers the matched proxy participant with the crypto plugin
+ *
+ * When the proxy participant is authenticated and allowed by access control then the match between the local and
+ * the remote participant must be registered with the cypto factory provided by the crypto plugin. The
+ * shared secret handle obtained from the authentication phase and the permission handle returned when validating
+ * the proxy participant with access control plugin have to be provided.
+ *
+ *
+ * @param[in] pp                 The participant.
+ * @param[in] proxypp            The proxy participant.
+ * @param[in] shared_secret      The shared_secret handle.
+ * @param[in] proxy_permissions  The permission handle associated with the proxy participant.
+ */
+void q_omg_security_register_remote_participant(struct participant *pp, struct proxy_participant *proxypp, int64_t shared_secret, int64_t proxy_permissions);
+
+/**
+ * @brief Removes a registered proxy participant from administation of the authentication,
+ *        access control and crypto plugins.
+ *
+ * @param[in] proxypp            The proxy participant.
+ */
+void q_omg_security_deregister_remote_participant(struct proxy_participant *proxypp);
+
+/**
+ * @brief Generate and send the crypto tokens needed for encoding RTPS messages.
+ *
+ * When the security settings indicate that RTPS message encoding or signing is
+ * configured for the participant then this function will ask the cypto echange for
+ * the corresponding cypto tokens and send these to the proxy participant.
+ *
+ * @param[in] pp                 The participant.
+ * @param[in] proxypp            The proxy participant.
+ */
+void q_omg_security_participant_send_tokens(struct participant *pp, struct proxy_participant *proxypp);
+
+/**
+ * @brief Check if the remote writer is allowed to communicate with endpoints of the
+ *        local participant.
+ *
+ * This function will check with the access control plugin if the remote writer
+ * is allowed to communicate with this participant.
+ *
+ * @param[in] pwr       The remote writer.
+ * @param[in] domain_id The domain id.
+ * @param[in] pp        The local participant.
+ *
+ * @returns bool
+ * @retval true   The remote writer is allowed to communicate.
+ * @retval false  Otherwise.
+ */
+bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *pwr, uint32_t domain_id, struct participant *pp);
+
+/**
+ * @brief Check if the remote reader is allowed to communicate with endpoints of the
+ *        local participant.
+ *
+ * This function will check with the access control plugin if the remote reader
+ * is allowed to communicate with this participant.
+ *
+ * @param[in] prd       The remote reader.
+ * @param[in] domain_id The domain id.
+ * @param[in] pp        The local participant.
+ *
+ * @returns bool
+ * @retval true   The remote reader is allowed to communicate.
+ * @retval false  Otherwise.
+ */
+bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *prd, uint32_t domain_id, struct participant *pp);
+
+/**
+ * @brief Check it the remote writer is allowed to communicate with the local reader.
+ *
+ * When a remote writer is allowed by access control it has to be checked if the remote
+ * writer is allowed to communicate with a particular local reader. This function will
+ * check if the provided security end-point attributes are compatible, When the security
+ * attributes are compatible then the function will register the reader and remote writer
+ * match with the crypto factory and will also ask the crypto exchange to generate the
+ * crypto tokens associate with the local reader which will be sent to the remote entity.
+ * Note that the reader crypto tokens are used to encrypt the reader specific submessages
+ * when submessage encoding or signing is configured.
+ *
+ * @param[in] rd   The local reader.
+ * @param[in] pwr  The remote writer.
+ *
+ * @returns bool
+ * @retval true   The local reader and remote writer are allowed to communicate.
+ * @retval false  Otherwise.
+ */
+bool q_omg_security_match_remote_writer_enabled(struct reader *rd, struct proxy_writer *pwr);
+
+/**
+ * @brief Check it the local writer is allowed to communicate with the remote reader.
+ *
+ * When a remote reader is allowed by access control it has to be checked if the local
+ * writer is allowed to communicate with a particular local writer. This function will
+ * check if the provided security end-point attributes are compatible, When the security
+ * attributes are compatible then the function will register the writer and remote reader
+ * match with the crypto factory and will also ask the crypto exchange to generate the
+ * crypto tokens associate with the local writer which will be sent to the remote entity.
+ * Note that the writer crypto tokens are used to encrypt the writer specific submessages
+ * when submessage encoding or signing is configured and also the crypto tokens used
+ * for encoding the payload of data or datafrag messages.
+ *
+ * @param[in] wr   The local writer.
+ * @param[in] prd  The remote reader.
+ *
+ * @returns bool
+ * @retval true   The local writer and remote reader are allowed to communicate.
+ * @retval false  Otherwise.
+ */
+bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_reader *prd);
+
 #else /* DDSI_INCLUDE_SECURITY */
 
 #include "dds/ddsi/q_unused.h"
@@ -503,6 +703,13 @@ q_omg_security_enabled(void)
 inline bool
 q_omg_participant_is_secure(
   UNUSED_ARG(const struct participant *pp))
+{
+  return false;
+}
+
+inline bool
+q_omg_proxy_participant_is_secure(
+  UNUSED_ARG(const struct proxy_participant *proxypp))
 {
   return false;
 }
@@ -530,6 +737,65 @@ is_proxy_participant_deletion_allowed(
   return true;
 }
 
+inline bool q_omg_is_similar_participant_security_info(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
+{
+  return true;
+}
+
+inline bool q_omg_participant_allow_unauthenticated(UNUSED_ARG(struct participant *pp))
+{
+  return true;
+}
+
+inline bool
+q_omg_security_check_create_participant(UNUSED_ARG(struct participant *pp), UNUSED_ARG(uint32_t domain_id))
+{
+  return true;
+}
+
+inline void q_omg_security_init_remote_participant(UNUSED_ARG(struct proxy_participant *proxypp))
+{
+}
+
+inline int64_t q_omg_security_check_remote_participant_permissions(UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
+{
+  return 0LL;
+}
+
+inline void q_omg_security_register_remote_participant(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp), UNUSED_ARG(int64_t shared_secret), UNUSED_ARG(int64_t proxy_permissions))
+{
+}
+
+inline void q_omg_security_deregister_remote_participant(UNUSED_ARG(struct proxy_participant *proxypp))
+{
+}
+
+inline void q_omg_security_participant_send_tokens(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
+{
+}
+
+inline bool q_omg_security_match_remote_writer_enabled(UNUSED_ARG(struct reader *rd), UNUSED_ARG(struct proxy_writer *pwr))
+{
+  return true;
+}
+
+inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct writer *wr), UNUSED_ARG(struct proxy_reader *prd))
+{
+  return true;
+}
+
+inline bool
+q_omg_security_check_remote_writer_permissions(UNUSED_ARG(const struct proxy_writer *pwr), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp))
+{
+  return true;
+}
+
+inline bool
+q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp))
+{
+  return true;
+}
+
 inline void
 set_proxy_participant_security_info(
   UNUSED_ARG(struct proxy_participant *prd),
@@ -550,7 +816,6 @@ set_proxy_writer_security_info(
   UNUSED_ARG(const nn_plist_t *plist))
 {
 }
-
 
 inline bool
 decode_Data(

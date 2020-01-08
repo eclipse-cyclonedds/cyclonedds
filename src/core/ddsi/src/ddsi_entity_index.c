@@ -439,6 +439,18 @@ void entidx_enum_init_topic (struct entidx_enum *st, const struct entity_index *
     st->cur = NULL;
 }
 
+void entidx_enum_init_topic_w_prefix (struct entidx_enum *st, const struct entity_index *ei, enum entity_kind kind, const char *topic, const ddsi_guid_prefix_t *prefix, struct match_entities_range_key *max)
+{
+  assert (kind == EK_READER || kind == EK_WRITER || kind == EK_PROXY_READER || kind == EK_PROXY_WRITER);
+  struct match_entities_range_key min;
+  match_endpoint_range (kind, topic, &min, max);
+  min.entity.e.guid.prefix = *prefix;
+  max->entity.e.guid.prefix = *prefix;
+  entidx_enum_init_minmax_int (st, ei, &min);
+  if (st->cur && all_entities_compare (st->cur, &max->entity) > 0)
+    st->cur = NULL;
+}
+
 void entidx_enum_init (struct entidx_enum *st, const struct entity_index *ei, enum entity_kind kind)
 {
   struct match_entities_range_key min;
