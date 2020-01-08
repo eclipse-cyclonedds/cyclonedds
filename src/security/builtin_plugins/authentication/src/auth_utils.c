@@ -79,7 +79,7 @@ get_openssl_error_message(
 
 char *
 get_certificate_subject_name(
-        const X509 *cert,
+        X509 *cert,
         DDS_Security_SecurityException *ex)
 {
     X509_NAME *name;

@@ -62,6 +62,8 @@
 #include "dds__whc.h"
 #include "dds/ddsi/ddsi_iid.h"
 
+#include "dds/ddsi/ddsi_security_omg.h"
+
 static void add_peer_addresses (const struct q_globals *gv, struct addrset *as, const struct config_peer_listelem *list)
 {
   while (list)
@@ -1081,6 +1083,8 @@ int rtps_init (struct q_globals *gv)
    * the entities (see DDS Security spec chapter 8.8.8.1). */
   add_property_to_xqos(&gv->builtin_volatile_xqos_rd, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureReader");
   add_property_to_xqos(&gv->builtin_volatile_xqos_wr, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureWriter");
+  
+  q_omg_security_init( &gv->security_context );
 #endif
 
   make_special_topics (gv);
@@ -1420,6 +1424,8 @@ err_unicast_sockets:
   nn_xqos_fini (&gv->builtin_stateless_xqos_rd);
   nn_xqos_fini (&gv->builtin_volatile_xqos_wr);
   nn_xqos_fini (&gv->builtin_volatile_xqos_rd);
+  
+  q_omg_security_deinit( &gv->security_context );
 #endif
   nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);
@@ -1764,6 +1770,8 @@ void rtps_fini (struct q_globals *gv)
   nn_xqos_fini (&gv->builtin_stateless_xqos_rd);
   nn_xqos_fini (&gv->builtin_volatile_xqos_wr);
   nn_xqos_fini (&gv->builtin_volatile_xqos_rd);
+  
+  q_omg_security_deinit( &gv->security_context);
 #endif
   nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);
