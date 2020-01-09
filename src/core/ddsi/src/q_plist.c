@@ -1075,6 +1075,14 @@ static dds_return_t dvx_resource_limits (void * __restrict dst, const struct dd 
   return validate_resource_limits_qospolicy (dst);
 }
 
+static dds_return_t dvx_liveliness (void * __restrict dst, const struct dd * __restrict dd)
+{
+  dds_liveliness_qospolicy_t *q = dst;
+  if (q->lease_duration == 0 && vendor_is_opensplice(dd->vendorid))
+    q->lease_duration = T_NEVER;
+  return 0;
+}
+
 static dds_return_t dvx_participant_guid (void * __restrict dst, const struct dd * __restrict dd)
 {
   const ddsi_guid_t *g = dst;
@@ -1139,7 +1147,7 @@ static const struct piddesc piddesc_omg[] = {
   QPV (DURABILITY_SERVICE,                  durability_service, XD, XE1, Xix4),
   QP  (DEADLINE,                            deadline, XD),
   QP  (LATENCY_BUDGET,                      latency_budget, XD),
-  QP  (LIVELINESS,                          liveliness, XE2, XD),
+  QPV (LIVELINESS,                          liveliness, XE2, XD),
   /* Property list used to be of type [(String,String]), security changed into ([String,String],Maybe [(String,[Word8])]),
      the "Xopt" here is to allow both forms on input, with an assumed empty second sequence if the old form was received */
   QP  (PROPERTY_LIST,                       property, XQ, XbPROP, XS, XS, XSTOP, Xopt, XQ, XbPROP, XS, XO, XSTOP),
