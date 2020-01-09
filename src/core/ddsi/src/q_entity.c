@@ -4734,7 +4734,7 @@ void new_proxy_participant
      */
     entidx_insert_proxy_participant_guid (gv->entity_index, proxypp);
     add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
-    DDS_CLOG (DDS_LC_INFO, &gv->logconfig, "Un-secure participant "PGUIDFMT" tries to connect.\n", PGUID (*ppguid));
+    ELOGDISC (proxypp, "Un-secure participant "PGUIDFMT" tries to connect.\n", PGUID (*ppguid));
   }
 #else
   /* Proxy participant must be in the hash tables for new_proxy_{writer,reader} to work */
