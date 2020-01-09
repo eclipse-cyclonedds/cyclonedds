@@ -2890,19 +2890,11 @@ bool nn_xqos_has_prop (const dds_qos_t *xqos, const char *pname, bool startswith
   if (!(xqos->present & QP_PROPERTY_LIST))
     return false;
 
-  for (uint32_t i = 0; i < xqos->property.value.n; i++)
-  {
-    if (startswith && (strncmp (xqos->property.value.props[i].name, pname, strlen (pname)) == 0)){
-      if( check_non_empty && strlen(xqos->property.value.props[i].value) != 0)
-        return true;
-      else if (!check_non_empty )
-        return true;
-    }
-    else if (!startswith && (strcmp (xqos->property.value.props[i].name, pname) == 0)){
-      if( check_non_empty && strlen(xqos->property.value.props[i].value) != 0)
-        return true;
-      else if (!check_non_empty )
-        return true;
+  for (uint32_t i = 0; i < xqos->property.value.n; i++) {
+    if (startswith && (strncmp(xqos->property.value.props[i].name, pname, strlen(pname)) == 0)) {
+      return !check_non_empty || strlen(xqos->property.value.props[i].value) != 0;
+    } else if (!startswith && (strcmp(xqos->property.value.props[i].name, pname) == 0)) {
+      return !check_non_empty || strlen(xqos->property.value.props[i].value) != 0;
     }
   }
   return false;
