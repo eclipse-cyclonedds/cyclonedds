@@ -302,7 +302,6 @@ struct q_globals {
 #ifdef DDSI_INCLUDE_SECURITY
   struct dds_security_context *security_context;
 #endif
-
 };
 
 #if defined (__cplusplus)

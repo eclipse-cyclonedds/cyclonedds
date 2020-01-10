@@ -181,7 +181,7 @@ is_proxy_participant_deletion_allowed(
  */
 bool
 q_omg_security_is_remote_rtps_protected(
-  struct proxy_participant *proxy_pp,
+  const struct proxy_participant *proxy_pp,
   ddsi_entityid_t entityid);
 
 /**
@@ -197,7 +197,7 @@ q_omg_security_is_remote_rtps_protected(
  */
 bool
 q_omg_security_is_local_rtps_protected(
-  struct participant *pp,
+  const struct participant *pp,
   ddsi_entityid_t entityid);
 
 /**
@@ -256,10 +256,10 @@ q_omg_security_encode_rtps_message(
   int64_t                 src_handle,
   ddsi_guid_t            *src_guid,
   const unsigned char    *src_buf,
-  const unsigned int      src_len,
-  unsigned char        **dst_buf,
-  unsigned int          *dst_len,
-  int64_t                dst_handle);
+  size_t                  src_len,
+  unsigned char         **dst_buf,
+  size_t                 *dst_len,
+  int64_t                 dst_handle);
 
 /**
  * @brief Encode payload when necessary.
@@ -406,8 +406,8 @@ bool
 validate_msg_decoding(
   const struct entity_common *e,
   const struct proxy_endpoint_common *c,
-  struct proxy_participant *proxypp,
-  struct receiver_state *rst,
+  const struct proxy_participant *proxypp,
+  const struct receiver_state *rst,
   SubmessageKind_t prev_smid);
 
 /**
@@ -426,13 +426,13 @@ validate_msg_decoding(
  * @param[in]     dst_prefix  Prefix of the destination entity.
  * @param[in]     byteswap    Do the bytes need swapping?
  *
- * @returns int
- * @retval >= 0   Decoding succeeded.
- * @retval <  0   Decoding failed.
+ * @returns bool
+ * @retval true   Decoding succeeded.
+ * @retval false  Decoding failed.
  */
-int
+bool
 decode_SecPrefix(
-  struct receiver_state *rst,
+  const struct receiver_state *rst,
   unsigned char *submsg,
   size_t submsg_size,
   unsigned char * const msg_end,
@@ -500,7 +500,7 @@ secure_conn_write(
     bool dst_one,
     nn_msg_sec_info_t *sec_info,
     ddsi_tran_write_fn_t conn_write_cb);
-    
+
 
 /**
  * @brief Loads the security plugins with the given configuration.
@@ -518,12 +518,12 @@ secure_conn_write(
 dds_return_t q_omg_security_load( struct dds_security_context *security_context, const dds_qos_t *qos );
 
 
-void q_omg_security_init( struct dds_security_context **sc);
+void q_omg_security_init( struct dds_security_context **sc, const struct ddsrt_log_cfg *logcfg);
 
 void q_omg_security_deinit( struct dds_security_context **sc);
 
 bool q_omg_is_security_loaded(  struct dds_security_context *sc );
-    
+
 
 /**
  * @brief Check if the participant and the proxy participant

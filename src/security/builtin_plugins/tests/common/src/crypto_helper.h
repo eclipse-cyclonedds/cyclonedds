@@ -36,3 +36,4 @@ int master_key_not_empty(master_key_material *keymat);
 int master_receiver_specific_key_not_empty(master_key_material *keymat);
 
 #endif /* DDS_SECURITY_BUITIN_TEST_CRYPTO_HELPER_H */
+

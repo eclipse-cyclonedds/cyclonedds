@@ -1084,7 +1084,7 @@ int rtps_init (struct q_globals *gv)
   add_property_to_xqos(&gv->builtin_volatile_xqos_rd, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureReader");
   add_property_to_xqos(&gv->builtin_volatile_xqos_wr, "dds.sec.builtin_endpoint_name", "BuiltinParticipantVolatileMessageSecureWriter");
   
-  q_omg_security_init( &gv->security_context );
+  q_omg_security_init( &gv->security_context, &gv->logconfig );
 #endif
 
   make_special_topics (gv);

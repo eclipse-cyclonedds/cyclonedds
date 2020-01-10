@@ -20,6 +20,8 @@
 #include <stdint.h>
 #include "dds/security/dds_security_api.h"
 
+struct ddsrt_log_cfg;
+
 typedef struct dds_security_plugin {
   ddsrt_dynlib_t lib_handle;
   plugin_init func_init;
@@ -50,16 +52,19 @@ DDS_EXPORT dds_return_t dds_security_plugin_release(
         void *context );
 
 DDS_EXPORT dds_return_t dds_security_check_plugin_configuration(
-        const dds_security_plugin_suite_config *security_suite_config );
+        const dds_security_plugin_suite_config *security_suite_config,
+        const struct ddsrt_log_cfg *logcfg);
 
 DDS_EXPORT dds_return_t dds_security_load_security_library(
         const dds_security_plugin_config *plugin_config,
-        dds_security_plugin *security_plugin, void **security_plugin_context);
+        dds_security_plugin *security_plugin, void **security_plugin_context,
+        const struct ddsrt_log_cfg *logcfg);
 
 DDS_EXPORT dds_return_t dds_security_verify_plugin_functions(
         dds_security_authentication *authentication_context, dds_security_plugin *auth_plugin,
         dds_security_cryptography *crypto_context, dds_security_plugin *crypto_plugin,
-        dds_security_access_control *access_control_context, dds_security_plugin *ac_plugin);
+        dds_security_access_control *access_control_context, dds_security_plugin *ac_plugin,
+        const struct ddsrt_log_cfg *logcfg);
 
 #endif /* SECURITY_CORE_PLUGINS_H_ */
 
