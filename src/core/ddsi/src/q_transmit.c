@@ -32,6 +32,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_hbcontrol.h"
+#include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertopic.h"
@@ -675,6 +676,8 @@ dds_return_t write_hb_liveliness (struct q_globals * const gv, struct ddsi_guid 
   struct nn_xmsg *msg = NULL;
   struct whc_state whcst;
   struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct lease *lease;
+
   thread_state_awake (ts1, gv);
   struct writer *wr = entidx_lookup_writer_guid (gv->entity_index, wr_guid);
   if (wr == NULL)
@@ -682,6 +685,12 @@ dds_return_t write_hb_liveliness (struct q_globals * const gv, struct ddsi_guid 
     GVTRACE ("write_hb_liveliness("PGUIDFMT") - writer not found\n", PGUID (*wr_guid));
     return DDS_RETCODE_PRECONDITION_NOT_MET;
   }
+
+  if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT && ((lease = ddsrt_atomic_ldvoidp (&wr->c.pp->minl_man)) != NULL))
+    lease_renew (lease, now_et());
+  else if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC && wr->lease != NULL)
+    lease_renew (wr->lease, now_et());
+
   if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid.prefix, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   ddsrt_mutex_lock (&wr->e.lock);
@@ -1081,6 +1090,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
   int r;
   seqno_t seq;
   nn_mtime_t tnow;
+  struct lease *lease;
 
   /* If GC not allowed, we must be sure to never block when writing.  That is only the case for (true, aggressive) KEEP_LAST writers, and also only if there is no limit to how much unacknowledged data the WHC may contain. */
   assert (gc_allowed || (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST && wr->whc_low == INT32_MAX));
@@ -1102,7 +1112,15 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
     goto drop;
   }
 
+  if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT && ((lease = ddsrt_atomic_ldvoidp (&wr->c.pp->minl_man)) != NULL))
+    lease_renew (lease, now_et());
+  else if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC && wr->lease != NULL)
+    lease_renew (wr->lease, now_et());
+
   ddsrt_mutex_lock (&wr->e.lock);
+
+  if (!wr->alive)
+    writer_set_alive_may_unlock (wr, true);
 
   if (end_of_txn)
   {
