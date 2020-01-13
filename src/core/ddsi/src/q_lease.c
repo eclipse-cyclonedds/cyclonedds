@@ -144,6 +144,22 @@ void lease_free (struct lease *l)
   ddsrt_free (l);
 }
 
+static void trace_lease_renew (const struct lease *l, const char *tag, nn_etime_t tend_new)
+{
+  struct q_globals const * gv = l->entity->gv;
+  if (gv->logconfig.c.mask & DDS_LC_TRACE)
+  {
+    int32_t tsec, tusec;
+    GVTRACE (" L(%s", tag);
+    if (l->entity->guid.entityid.u == NN_ENTITYID_PARTICIPANT)
+      GVTRACE (":%"PRIx32, l->entity->guid.entityid.u);
+    else
+      GVTRACE (""PGUIDFMT"", PGUID (l->entity->guid));
+    etime_to_sec_usec (&tsec, &tusec, tend_new);
+    GVTRACE (" %"PRId32".%06"PRId32")", tsec, tusec);
+  }
+}
+
 void lease_renew (struct lease *l, nn_etime_t tnowE)
 {
   nn_etime_t tend_new = add_duration_to_etime (tnowE, l->tdur);
@@ -160,18 +176,7 @@ void lease_renew (struct lease *l, nn_etime_t tnowE)
    * lease (i.e. the entity still exists). In cases where dereferencing l->entity->gv
    * is not safe (e.g. the deletion of entities), the early out in the loop above
    * will be the case because tend is set to T_NEVER. */
-  struct q_globals const * gv = l->entity->gv;
-  if (gv->logconfig.c.mask & DDS_LC_TRACE)
-  {
-    int32_t tsec, tusec;
-    GVTRACE (" L(");
-    if (l->entity->guid.entityid.u == NN_ENTITYID_PARTICIPANT)
-      GVTRACE (":%"PRIx32, l->entity->guid.entityid.u);
-    else
-      GVTRACE (""PGUIDFMT"", PGUID (l->entity->guid));
-    etime_to_sec_usec (&tsec, &tusec, tend_new);
-    GVTRACE (" %"PRId32".%06"PRId32")", tsec, tusec);
-  }
+  trace_lease_renew (l, "", tend_new);
 }
 
 void lease_set_expiry (struct lease *l, nn_etime_t when)
@@ -189,6 +194,7 @@ void lease_set_expiry (struct lease *l, nn_etime_t when)
        TSCHED_NOT_ON_HEAP == INT64_MIN) */
     l->tsched = when;
     ddsrt_fibheap_decrease_key (&lease_fhdef, &gv->leaseheap, l);
+    trace_lease_renew (l, "earlier ", when);
     trigger = true;
   }
   else if (l->tsched.v == TSCHED_NOT_ON_HEAP && when.v < T_NEVER)
@@ -196,6 +202,7 @@ void lease_set_expiry (struct lease *l, nn_etime_t when)
     /* not currently scheduled, with a finite new expiry time */
     l->tsched = when;
     ddsrt_fibheap_insert (&lease_fhdef, &gv->leaseheap, l);
+    trace_lease_renew (l, "insert ", when);
     trigger = true;
   }
   ddsrt_mutex_unlock (&gv->leaseheap_lock);
@@ -283,9 +290,11 @@ int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnow
       case EK_PROXY_WRITER:
         proxy_writer_set_notalive ((struct proxy_writer *) l->entity, true);
         break;
+      case EK_WRITER:
+        writer_set_notalive ((struct writer *) l->entity, true);
+        break;
       case EK_PARTICIPANT:
       case EK_READER:
-      case EK_WRITER:
       case EK_PROXY_READER:
         assert (false);
         break;

@@ -64,8 +64,7 @@ enum liveliness_changed_data_extra {
   LIVELINESS_CHANGED_REMOVE_NOT_ALIVE,
   LIVELINESS_CHANGED_REMOVE_ALIVE,
   LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE,
-  LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE,
-  LIVELINESS_CHANGED_TWITCH
+  LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE
 };
 
 typedef struct status_cb_data
@@ -102,6 +101,8 @@ struct wr_rd_match {
 struct rd_wr_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t wr_guid;
+  unsigned wr_alive: 1; /* tracks wr's alive state */
+  uint32_t wr_alive_vclock; /* used to ensure progress */
 };
 
 struct wr_prd_match {
@@ -208,6 +209,8 @@ struct participant
   int32_t builtin_refc; /* number of built-in endpoints in this participant [refc_lock] */
   int builtins_deleted; /* whether deletion of built-in endpoints has been initiated [refc_lock] */
   ddsrt_fibheap_t ldur_auto_wr; /* Heap that contains lease duration for writers with automatic liveliness in this participant */
+  ddsrt_atomic_voidp_t minl_man; /* lease object for shortest manual-by-participant liveliness writer's lease */
+  ddsrt_fibheap_t leaseheap_man; /* keeps leases for this participant's writers (with liveliness manual-by-participant) */
 };
 
 struct endpoint_common {
@@ -255,10 +258,12 @@ struct writer
   unsigned handle_as_transient_local: 1; /* controls whether data is retained in WHC */
   unsigned include_keyhash: 1; /* iff 1, this writer includes a keyhash; keyless topics => include_keyhash = 0 */
   unsigned retransmitting: 1; /* iff 1, this writer is currently retransmitting */
+  unsigned alive: 1; /* iff 1, the writer is alive (lease for this writer is not expired); field may be modified only when holding both wr->e.lock and wr->c.pp->e.lock */
 #ifdef DDSI_INCLUDE_SSM
   unsigned supports_ssm: 1;
   struct addrset *ssm_as;
 #endif
+  uint32_t alive_vclock; /* virtual clock counting transitions between alive/not-alive */
   const struct ddsi_sertopic * topic; /* topic, but may be NULL for built-ins */
   struct addrset *as; /* set of addresses to publish to */
   struct addrset *as_group; /* alternate case, used for SPDP, when using Cloud with multiple bootstrap locators */
@@ -282,6 +287,7 @@ struct writer
   uint32_t rexmit_lost_count; /* cum samples lost but retransmit requested (also counting events) */
   struct xeventq *evq; /* timed event queue to be used by this writer */
   struct local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
+  struct lease *lease; /* for liveliness administration (writer can only become inactive when using manual liveliness) */
 };
 
 inline seqno_t writer_read_seq_xmit (const struct writer *wr) {
@@ -619,6 +625,9 @@ struct local_orphan_writer {
 };
 struct local_orphan_writer *new_local_orphan_writer (struct q_globals *gv, ddsi_entityid_t entityid, struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc);
 void delete_local_orphan_writer (struct local_orphan_writer *wr);
+
+void writer_set_alive_may_unlock (struct writer *wr, bool notify);
+int writer_set_notalive (struct writer *wr, bool notify);
 
 /* To create or delete a new proxy participant: "guid" MUST have the
    pre-defined participant entity id. Unlike delete_participant(),

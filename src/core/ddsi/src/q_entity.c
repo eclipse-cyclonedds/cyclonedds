@@ -64,7 +64,7 @@ struct deleted_participants_admin {
   int64_t delay;
 };
 
-struct proxy_writer_alive_state {
+struct alive_state {
   bool alive;
   uint32_t vclock;
 };
@@ -196,6 +196,18 @@ bool is_local_orphan_endpoint (const struct entity_common *e)
   return (e->guid.prefix.u[0] == 0 && e->guid.prefix.u[1] == 0 && e->guid.prefix.u[2] == 0 &&
           is_builtin_endpoint (e->guid.entityid, NN_VENDORID_ECLIPSE));
 }
+
+static int compare_ldur (const void *va, const void *vb)
+{
+  const struct ldur_fhnode *a = va;
+  const struct ldur_fhnode *b = vb;
+  return (a->ldur == b->ldur) ? 0 : (a->ldur < b->ldur) ? -1 : 1;
+}
+
+/* used in participant for keeping writer liveliness renewal */
+const ddsrt_fibheap_def_t ldur_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ldur_fhnode, heapnode), compare_ldur);
+/* used in (proxy)participant for writer liveliness monitoring */
+const ddsrt_fibheap_def_t lease_fhdef_pp = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct lease, pp_heapnode), compare_lease_tdur);
 
 static void entity_common_init (struct entity_common *e, struct q_globals *gv, const struct ddsi_guid *guid, const char *name, enum entity_kind kind, nn_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal)
 {
@@ -413,17 +425,6 @@ static void remove_deleted_participant_guid (struct deleted_participants_admin *
 }
 
 /* PARTICIPANT ------------------------------------------------------ */
-
-static int compare_ldur (const void *va, const void *vb)
-{
-  const struct ldur_fhnode *a = va;
-  const struct ldur_fhnode *b = vb;
-  return (a->ldur == b->ldur) ? 0 : (a->ldur < b->ldur) ? -1 : 1;
-}
-
-/* used in participant for keeping writer liveliness renewal */
-const ddsrt_fibheap_def_t ldur_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ldur_fhnode, heapnode), compare_ldur);
-
 static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, const dds_qos_t *xqos, nn_wctime_t timestamp)
 {
   uint64_t mask;
@@ -480,6 +481,81 @@ static void pp_release_entityid(struct participant *pp, ddsi_entityid_t id)
   ddsrt_mutex_lock (&pp->e.lock);
   inverse_uint32_set_free(&pp->avail_entityids.x, id.u / NN_ENTITYID_ALLOCSTEP);
   ddsrt_mutex_unlock (&pp->e.lock);
+}
+
+static void gc_participant_lease (struct gcreq *gcreq)
+{
+  lease_free (gcreq->arg);
+  gcreq_free (gcreq);
+}
+
+static void participant_replace_minl (struct participant *pp, struct lease *lnew)
+{
+  /* By loading/storing the pointer atomically, we ensure we always
+     read a valid (or once valid) lease. By delaying freeing the lease
+     through the garbage collector, we ensure whatever lease update
+     occurs in parallel completes before the memory is released. */
+  struct gcreq *gcreq = gcreq_new (pp->e.gv->gcreq_queue, gc_participant_lease);
+  struct lease *lease_old = ddsrt_atomic_ldvoidp (&pp->minl_man);
+  assert (lease_old != NULL);
+  lease_unregister (lease_old); /* ensures lease will not expire while it is replaced */
+  gcreq->arg = lease_old;
+  gcreq_enqueue (gcreq);
+  ddsrt_atomic_stvoidp (&pp->minl_man, lnew);
+}
+
+static void participant_add_wr_lease_locked (struct participant * pp, const struct writer * wr)
+{
+  struct lease *minl_prev;
+  struct lease *minl_new;
+
+  assert (wr->lease != NULL);
+  minl_prev = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
+  ddsrt_fibheap_insert (&lease_fhdef_pp, &pp->leaseheap_man, wr->lease);
+  minl_new = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
+  /* if inserted lease is new shortest lease */
+  if (minl_prev != minl_new)
+  {
+    nn_etime_t texp = add_duration_to_etime (now_et (), minl_new->tdur);
+    struct lease *lnew = lease_new (texp, minl_new->tdur, minl_new->entity);
+    if (minl_prev == NULL)
+    {
+      assert (ddsrt_atomic_ldvoidp (&pp->minl_man) == NULL);
+      ddsrt_atomic_stvoidp (&pp->minl_man, lnew);
+    }
+    else
+    {
+      participant_replace_minl (pp, lnew);
+    }
+    lease_register (lnew);
+  }
+}
+
+static void participant_remove_wr_lease_locked (struct participant * pp, struct writer * wr)
+{
+  struct lease *minl;
+
+  assert (wr->lease != NULL);
+  assert (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
+  minl = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
+  ddsrt_fibheap_delete (&lease_fhdef_pp, &pp->leaseheap_man, wr->lease);
+  /* if writer with min lease is removed: update participant lease to use new minimal duration */
+  if (wr->lease == minl)
+  {
+    if ((minl = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man)) != NULL)
+    {
+      dds_duration_t trem = minl->tdur - wr->lease->tdur;
+      assert (trem >= 0);
+      nn_etime_t texp = add_duration_to_etime (now_et(), trem);
+      struct lease *lnew = lease_new (texp, minl->tdur, minl->entity);
+      participant_replace_minl (pp, lnew);
+      lease_register (lnew);
+    }
+    else
+    {
+      participant_replace_minl (pp, NULL);
+    }
+  }
 }
 
 dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *gv, unsigned flags, const nn_plist_t *plist)
@@ -558,6 +634,9 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
   {
     pp->m_conn = NULL;
   }
+
+  ddsrt_fibheap_init (&lease_fhdef_pp, &pp->leaseheap_man);
+  ddsrt_atomic_stvoidp (&pp->minl_man, NULL);
 
   /* Before we create endpoints -- and may call unref_participant if
      things go wrong -- we must initialize all that unref_participant
@@ -1394,13 +1473,26 @@ static void free_wr_rd_match (struct wr_rd_match *m)
   if (m) ddsrt_free (m);
 }
 
-static void proxy_writer_get_alive_state_locked (struct proxy_writer *pwr, struct proxy_writer_alive_state *st)
+static void writer_get_alive_state_locked (struct writer *wr, struct alive_state *st)
+{
+  st->alive = wr->alive;
+  st->vclock = wr->alive_vclock;
+}
+
+static void writer_get_alive_state (struct writer *wr, struct alive_state *st)
+{
+  ddsrt_mutex_lock (&wr->e.lock);
+  writer_get_alive_state_locked (wr, st);
+  ddsrt_mutex_unlock (&wr->e.lock);
+}
+
+static void proxy_writer_get_alive_state_locked (struct proxy_writer *pwr, struct alive_state *st)
 {
   st->alive = pwr->alive;
   st->vclock = pwr->alive_vclock;
 }
 
-static void proxy_writer_get_alive_state (struct proxy_writer *pwr, struct proxy_writer_alive_state *st)
+static void proxy_writer_get_alive_state (struct proxy_writer *pwr, struct alive_state *st)
 {
   ddsrt_mutex_lock (&pwr->e.lock);
   proxy_writer_get_alive_state_locked (pwr, st);
@@ -1464,7 +1556,73 @@ static void writer_drop_local_connection (const struct ddsi_guid *wr_guid, struc
   }
 }
 
-static void reader_update_notify_pwr_alive_state (struct reader *rd, const struct proxy_writer *pwr, const struct proxy_writer_alive_state *alive_state)
+static void reader_update_notify_alive_state_invoke_cb (struct reader *rd, uint64_t iid, bool notify, int delta, const struct alive_state *alive_state)
+{
+  /* Liveliness changed events can race each other and can, potentially, be delivered
+   in a different order. */
+  if (notify && rd->status_cb)
+  {
+    status_cb_data_t data;
+    data.handle = iid;
+    data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
+    if (delta < 0) {
+      data.extra = (uint32_t) LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE;
+      (rd->status_cb) (rd->status_cb_entity, &data);
+    } else if (delta > 0) {
+      data.extra = (uint32_t) LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE;
+      (rd->status_cb) (rd->status_cb_entity, &data);
+    } else {
+      /* Twitch: the resulting (proxy)writer state is unchanged, but there has been
+        a transition to another state and back to the current state. So we'll call
+        the callback twice in this case. */
+      static const enum liveliness_changed_data_extra x[] = {
+        LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE,
+        LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE
+      };
+      data.extra = (uint32_t) x[alive_state->alive];
+      (rd->status_cb) (rd->status_cb_entity, &data);
+      data.extra = (uint32_t) x[!alive_state->alive];
+      (rd->status_cb) (rd->status_cb_entity, &data);
+    }
+  }
+}
+
+static void reader_update_notify_wr_alive_state (struct reader *rd, const struct writer *wr, const struct alive_state *alive_state)
+{
+  struct rd_wr_match *m;
+  bool notify = false;
+  int delta = 0; /* -1: alive -> not_alive; 0: unchanged; 1: not_alive -> alive */
+  ddsrt_mutex_lock (&rd->e.lock);
+  if ((m = ddsrt_avl_lookup (&rd_local_writers_treedef, &rd->local_writers, &wr->e.guid)) != NULL)
+  {
+    if ((int32_t) (alive_state->vclock - m->wr_alive_vclock) > 0)
+    {
+      delta = (int) alive_state->alive - (int) m->wr_alive;
+      notify = true;
+      m->wr_alive = alive_state->alive;
+      m->wr_alive_vclock = alive_state->vclock;
+    }
+  }
+  ddsrt_mutex_unlock (&rd->e.lock);
+
+  if (delta < 0 && rd->rhc)
+  {
+    struct ddsi_writer_info wrinfo;
+    ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, NN_STATUSINFO_UNREGISTER);
+    ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
+  }
+
+  reader_update_notify_alive_state_invoke_cb (rd, wr->e.iid, notify, delta, alive_state);
+}
+
+static void reader_update_notify_wr_alive_state_guid (const struct ddsi_guid *rd_guid, const struct writer *wr, const struct alive_state *alive_state)
+{
+  struct reader *rd;
+  if ((rd = entidx_lookup_reader_guid (wr->e.gv->entity_index, rd_guid)) != NULL)
+    reader_update_notify_wr_alive_state (rd, wr, alive_state);
+}
+
+static void reader_update_notify_pwr_alive_state (struct reader *rd, const struct proxy_writer *pwr, const struct alive_state *alive_state)
 {
   struct rd_pwr_match *m;
   bool notify = false;
@@ -1489,24 +1647,10 @@ static void reader_update_notify_pwr_alive_state (struct reader *rd, const struc
     ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
   }
 
-  /* Liveliness changed events can race each other and can, potentially, be delivered
-   in a different order. */
-  if (notify && rd->status_cb)
-  {
-    status_cb_data_t data;
-    data.handle = pwr->e.iid;
-    if (delta == 0)
-      data.extra = (uint32_t) LIVELINESS_CHANGED_TWITCH;
-    else if (delta < 0)
-      data.extra = (uint32_t) LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE;
-    else
-      data.extra = (uint32_t) LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE;
-    data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
-    (rd->status_cb) (rd->status_cb_entity, &data);
-  }
+  reader_update_notify_alive_state_invoke_cb (rd, pwr->e.iid, notify, delta, alive_state);
 }
 
-static void reader_update_notify_pwr_alive_state_guid (const struct ddsi_guid *rd_guid, const struct proxy_writer *pwr, const struct proxy_writer_alive_state *alive_state)
+static void reader_update_notify_pwr_alive_state_guid (const struct ddsi_guid *rd_guid, const struct proxy_writer *pwr, const struct alive_state *alive_state)
 {
   struct reader *rd;
   if ((rd = entidx_lookup_reader_guid (pwr->e.gv->entity_index, rd_guid)) != NULL)
@@ -1573,7 +1717,7 @@ static void reader_drop_local_connection (const struct ddsi_guid *rd_guid, const
         status_cb_data_t data;
         data.handle = wr->e.iid;
         data.add = false;
-        data.extra = (uint32_t) LIVELINESS_CHANGED_REMOVE_ALIVE;
+        data.extra = (uint32_t) (m->wr_alive ? LIVELINESS_CHANGED_REMOVE_ALIVE : LIVELINESS_CHANGED_REMOVE_NOT_ALIVE);
 
         data.raw_status_id = (int) DDS_LIVELINESS_CHANGED_STATUS_ID;
         (rd->status_cb) (rd->status_cb_entity, &data);
@@ -1812,7 +1956,7 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
   }
 }
 
-static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, nn_count_t *init_count, const struct proxy_writer_alive_state *alive_state)
+static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, nn_count_t *init_count, const struct alive_state *alive_state)
 {
   struct rd_pwr_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
@@ -1886,12 +2030,14 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
   }
 }
 
-static void reader_add_local_connection (struct reader *rd, struct writer *wr)
+static void reader_add_local_connection (struct reader *rd, struct writer *wr, const struct alive_state *alive_state)
 {
   struct rd_wr_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
 
   m->wr_guid = wr->e.guid;
+  m->wr_alive = alive_state->alive;
+  m->wr_alive_vclock = alive_state->vclock;
 
   ddsrt_mutex_lock (&rd->e.lock);
 
@@ -1914,7 +2060,7 @@ static void reader_add_local_connection (struct reader *rd, struct writer *wr)
       status_cb_data_t data;
       data.handle = wr->e.iid;
       data.add = true;
-      data.extra = (uint32_t) LIVELINESS_CHANGED_ADD_ALIVE;
+      data.extra = (uint32_t) (alive_state->alive ? LIVELINESS_CHANGED_ADD_ALIVE : LIVELINESS_CHANGED_ADD_NOT_ALIVE);
 
       data.raw_status_id = (int) DDS_SUBSCRIPTION_MATCHED_STATUS_ID;
       (rd->status_cb) (rd->status_cb_entity, &data);
@@ -2190,7 +2336,7 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
   const int isb1 = (is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
   dds_qos_policy_id_t reason;
   nn_count_t init_count;
-  struct proxy_writer_alive_state alive_state;
+  struct alive_state alive_state;
   if (isb0 != isb1)
     return;
   if (rd->e.onlylocal)
@@ -2242,6 +2388,7 @@ static bool ignore_local_p (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2, 
 static void connect_writer_with_reader (struct writer *wr, struct reader *rd, nn_mtime_t tnow)
 {
   dds_qos_policy_id_t reason;
+  struct alive_state alive_state;
   (void)tnow;
   if (!is_local_orphan_endpoint (&wr->e) && (is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) || is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE)))
     return;
@@ -2253,8 +2400,17 @@ static void connect_writer_with_reader (struct writer *wr, struct reader *rd, nn
     reader_qos_mismatch (rd, reason);
     return;
   }
-  reader_add_local_connection (rd, wr);
+  /* Initialze the reader's tracking information for the writer liveliness state to something
+     sensible, but that may be outdated by the time the reader gets added to the writer's list
+     of matching readers. */
+  writer_get_alive_state (wr, &alive_state);
+  reader_add_local_connection (rd, wr, &alive_state);
   writer_add_local_connection (wr, rd);
+
+  /* Once everything is set up: update with the latest state, any updates to the alive state
+     happening in parallel will cause this to become a no-op. */
+  writer_get_alive_state (wr, &alive_state);
+  reader_update_notify_wr_alive_state (rd, wr, &alive_state);
 }
 
 static void connect_writer_with_proxy_reader_wrapper (struct entity_common *vwr, struct entity_common *vprd, nn_mtime_t tnow)
@@ -2702,6 +2858,91 @@ unsigned remove_acked_messages (struct writer *wr, struct whc_state *whcst, stru
   return n;
 }
 
+static void writer_notify_liveliness_change_may_unlock (struct writer *wr)
+{
+  struct alive_state alive_state;
+  writer_get_alive_state_locked (wr, &alive_state);
+
+  struct ddsi_guid rdguid;
+  struct pwr_rd_match *m;
+  memset (&rdguid, 0, sizeof (rdguid));
+  while (wr->alive_vclock == alive_state.vclock &&
+         (m = ddsrt_avl_lookup_succ (&wr_local_readers_treedef, &wr->local_readers, &rdguid)) != NULL)
+  {
+    rdguid = m->rd_guid;
+    ddsrt_mutex_unlock (&wr->e.lock);
+    /* unlocking pwr means alive state may have changed already; we break out of the loop once we
+       detect this but there for the reader in the current iteration, anything is possible */
+    reader_update_notify_wr_alive_state_guid (&rdguid, wr, &alive_state);
+    ddsrt_mutex_lock (&wr->e.lock);
+  }
+}
+
+void writer_set_alive_may_unlock (struct writer *wr, bool notify)
+{
+  /* Caller has wr->e.lock, so we can safely read wr->alive.  Updating wr->alive requires
+     also taking wr->c.pp->e.lock because wr->alive <=> (wr->lease in pp's lease heap). */
+  assert (!wr->alive);
+
+  /* check that writer still exists (when deleting it is removed from guid hash) */
+  if (entidx_lookup_writer_guid (wr->e.gv->entity_index, &wr->e.guid) == NULL)
+  {
+    ELOGDISC (wr, "writer_set_alive_may_unlock("PGUIDFMT") - not in entity index, wr deleting\n", PGUID (wr->e.guid));
+    return;
+  }
+
+  ddsrt_mutex_lock (&wr->c.pp->e.lock);
+  wr->alive = true;
+  wr->alive_vclock++;
+  if (wr->xqos->liveliness.lease_duration != T_NEVER)
+  {
+    if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT)
+      participant_add_wr_lease_locked (wr->c.pp, wr);
+    else if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
+      lease_set_expiry (wr->lease, add_duration_to_etime (now_et (), wr->lease->tdur));
+  }
+  ddsrt_mutex_unlock (&wr->c.pp->e.lock);
+
+  if (notify)
+    writer_notify_liveliness_change_may_unlock (wr);
+}
+
+static int writer_set_notalive_locked (struct writer *wr, bool notify)
+{
+  if (!wr->alive)
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+
+  /* To update wr->alive, both wr->e.lock and wr->c.pp->e.lock
+     should be taken */
+  ddsrt_mutex_lock (&wr->c.pp->e.lock);
+  wr->alive = false;
+  wr->alive_vclock++;
+  if (wr->xqos->liveliness.lease_duration != T_NEVER && wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT)
+    participant_remove_wr_lease_locked (wr->c.pp, wr);
+  ddsrt_mutex_unlock (&wr->c.pp->e.lock);
+
+  if (notify)
+  {
+    if (wr->status_cb)
+    {
+      status_cb_data_t data;
+      data.handle = wr->e.iid;
+      data.raw_status_id = (int) DDS_LIVELINESS_LOST_STATUS_ID;
+      (wr->status_cb) (wr->status_cb_entity, &data);
+    }
+    writer_notify_liveliness_change_may_unlock (wr);
+  }
+  return DDS_RETCODE_OK;
+}
+
+int writer_set_notalive (struct writer *wr, bool notify)
+{
+  ddsrt_mutex_lock (&wr->e.lock);
+  int ret = writer_set_notalive_locked(wr, notify);
+  ddsrt_mutex_unlock (&wr->e.lock);
+  return ret;
+}
+
 static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc, status_cb_t status_cb, void * status_entity)
 {
   ddsrt_cond_init (&wr->throttle_cond);
@@ -2723,6 +2964,8 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->throttle_tracing = 0;
   wr->rexmit_count = 0;
   wr->rexmit_lost_count = 0;
+  wr->alive = 1;
+  wr->alive_vclock = 0;
 
   wr->status_cb = status_cb;
   wr->status_cb_entity = status_entity;
@@ -2835,7 +3078,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   }
 
   assert (wr->xqos->present & QP_LIVELINESS);
-  if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC && wr->xqos->liveliness.lease_duration != T_NEVER)
+  if (wr->xqos->liveliness.lease_duration != T_NEVER)
   {
     wr->lease_duration = ddsrt_malloc (sizeof(*wr->lease_duration));
     wr->lease_duration->ldur = wr->xqos->liveliness.lease_duration;
@@ -2913,16 +3156,32 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_g
   if (wr->lease_duration != NULL)
   {
     assert (wr->lease_duration->ldur != T_NEVER);
-    assert (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC);
     assert (!is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE));
+    if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
+    {
+      /* Store writer lease duration in participant's heap in case of automatic liveliness */
+      ddsrt_mutex_lock (&pp->e.lock);
+      ddsrt_fibheap_insert (&ldur_fhdef, &pp->ldur_auto_wr, wr->lease_duration);
+      ddsrt_mutex_unlock (&pp->e.lock);
 
-    /* Store writer lease duration in participant's heap in case of automatic liveliness */
-    ddsrt_mutex_lock (&pp->e.lock);
-    ddsrt_fibheap_insert (&ldur_fhdef, &pp->ldur_auto_wr, wr->lease_duration);
-    ddsrt_mutex_unlock (&pp->e.lock);
-
-    /* Trigger pmd update */
-    (void) resched_xevent_if_earlier (pp->pmd_update_xevent, now_mt ());
+      /* Trigger pmd update */
+      (void) resched_xevent_if_earlier (pp->pmd_update_xevent, now_mt ());
+    }
+    else
+    {
+      nn_etime_t texpire = add_duration_to_etime (now_et (), wr->lease_duration->ldur);
+      wr->lease = lease_new (texpire, wr->lease_duration->ldur, &wr->e);
+      if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT)
+      {
+        ddsrt_mutex_lock (&pp->e.lock);
+        participant_add_wr_lease_locked (pp, wr);
+        ddsrt_mutex_unlock (&pp->e.lock);
+      }
+      else
+      {
+        lease_register (wr->lease);
+      }
+    }
   }
 
   return 0;
@@ -3019,6 +3278,8 @@ static void gc_delete_writer (struct gcreq *gcreq)
   {
     assert (wr->lease_duration->ldur == DDS_DURATION_INVALID);
     ddsrt_free (wr->lease_duration);
+    if (wr->xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC)
+      lease_free (wr->lease);
   }
 
   /* Do last gasp on SEDP and free writer. */
@@ -3113,11 +3374,21 @@ dds_return_t delete_writer_nolinger_locked (struct writer *wr)
   entidx_remove_writer_guid (wr->e.gv->entity_index, wr);
   writer_set_state (wr, WRST_DELETING);
   if (wr->lease_duration != NULL) {
-    ddsrt_mutex_lock (&wr->c.pp->e.lock);
-    ddsrt_fibheap_delete (&ldur_fhdef, &wr->c.pp->ldur_auto_wr, wr->lease_duration);
-    ddsrt_mutex_unlock (&wr->c.pp->e.lock);
     wr->lease_duration->ldur = DDS_DURATION_INVALID;
-    resched_xevent_if_earlier (wr->c.pp->pmd_update_xevent, now_mt ());
+    if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
+    {
+      ddsrt_mutex_lock (&wr->c.pp->e.lock);
+      ddsrt_fibheap_delete (&ldur_fhdef, &wr->c.pp->ldur_auto_wr, wr->lease_duration);
+      ddsrt_mutex_unlock (&wr->c.pp->e.lock);
+      resched_xevent_if_earlier (wr->c.pp->pmd_update_xevent, now_mt ());
+    }
+    else
+    {
+      if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
+        lease_unregister (wr->lease);
+      if (writer_set_notalive_locked (wr, false) != DDS_RETCODE_OK)
+        ELOGDISC (wr, "writer_set_notalive failed for "PGUIDFMT"\n", PGUID (wr->e.guid));
+    }
   }
   gcreq_writer (wr);
   return 0;
@@ -3541,21 +3812,13 @@ void update_reader_qos (struct reader *rd, const dds_qos_t *xqos)
 }
 
 /* PROXY-PARTICIPANT ------------------------------------------------ */
-const ddsrt_fibheap_def_t lease_fhdef_proxypp = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct lease, pp_heapnode), compare_lease_tdur);
-
-static void gc_proxy_participant_lease (struct gcreq *gcreq)
-{
-  lease_free (gcreq->arg);
-  gcreq_free (gcreq);
-}
-
 static void proxy_participant_replace_minl (struct proxy_participant *proxypp, bool manbypp, struct lease *lnew)
 {
   /* By loading/storing the pointer atomically, we ensure we always
      read a valid (or once valid) lease. By delaying freeing the lease
      through the garbage collector, we ensure whatever lease update
      occurs in parallel completes before the memory is released. */
-  struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, gc_proxy_participant_lease);
+  struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, gc_participant_lease);
   struct lease *lease_old = ddsrt_atomic_ldvoidp (manbypp ? &proxypp->minl_man : &proxypp->minl_auto);
   lease_unregister (lease_old); /* ensures lease will not expire while it is replaced */
   gcreq->arg = lease_old;
@@ -3568,11 +3831,11 @@ void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct
   ddsrt_mutex_lock (&proxypp->e.lock);
   if (proxypp->owns_lease)
   {
-    struct lease *minl = ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_auto);
-    ddsrt_fibheap_delete (&lease_fhdef_proxypp, &proxypp->leaseheap_auto, proxypp->lease);
+    struct lease *minl = ddsrt_fibheap_min (&lease_fhdef_pp, &proxypp->leaseheap_auto);
+    ddsrt_fibheap_delete (&lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
     if (minl == proxypp->lease)
     {
-      if ((minl = ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_auto)) != NULL)
+      if ((minl = ddsrt_fibheap_min (&lease_fhdef_pp, &proxypp->leaseheap_auto)) != NULL)
       {
         dds_duration_t trem = minl->tdur - proxypp->lease->tdur;
         assert (trem >= 0);
@@ -3599,7 +3862,7 @@ void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct
 
       The lease_unregister call ensures the lease will never expire
       while we are messing with it. */
-    struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, gc_proxy_participant_lease);
+    struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, gc_participant_lease);
     lease_unregister (proxypp->lease);
     gcreq->arg = proxypp->lease;
     gcreq_enqueue (gcreq);
@@ -3620,9 +3883,9 @@ static void proxy_participant_add_pwr_lease_locked (struct proxy_participant * p
   assert (pwr->lease != NULL);
   manbypp = (pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
   lh = manbypp ? &proxypp->leaseheap_man : &proxypp->leaseheap_auto;
-  minl_prev = ddsrt_fibheap_min (&lease_fhdef_proxypp, lh);
-  ddsrt_fibheap_insert (&lease_fhdef_proxypp, lh, pwr->lease);
-  minl_new = ddsrt_fibheap_min (&lease_fhdef_proxypp, lh);
+  minl_prev = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
+  ddsrt_fibheap_insert (&lease_fhdef_pp, lh, pwr->lease);
+  minl_new = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
   /* if inserted lease is new shortest lease */
   if (proxypp->owns_lease && minl_prev != minl_new)
   {
@@ -3651,12 +3914,12 @@ static void proxy_participant_remove_pwr_lease_locked (struct proxy_participant 
   assert (pwr->lease != NULL);
   manbypp = (pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
   lh = manbypp ? &proxypp->leaseheap_man : &proxypp->leaseheap_auto;
-  minl = ddsrt_fibheap_min (&lease_fhdef_proxypp, lh);
-  ddsrt_fibheap_delete (&lease_fhdef_proxypp, lh, pwr->lease);
+  minl = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
+  ddsrt_fibheap_delete (&lease_fhdef_pp, lh, pwr->lease);
   /* if pwr with min lease is removed: update proxypp lease to use new minimal duration */
   if (proxypp->owns_lease && pwr->lease == minl)
   {
-    if ((minl = ddsrt_fibheap_min (&lease_fhdef_proxypp, lh)) != NULL)
+    if ((minl = ddsrt_fibheap_min (&lease_fhdef_pp, lh)) != NULL)
     {
       dds_duration_t trem = minl->tdur - pwr->lease->tdur;
       assert (trem >= 0);
@@ -3716,8 +3979,8 @@ void new_proxy_participant (struct q_globals *gv, const struct ddsi_guid *ppguid
     struct proxy_participant *privpp;
     privpp = entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp->privileged_pp_guid);
 
-    ddsrt_fibheap_init (&lease_fhdef_proxypp, &proxypp->leaseheap_auto);
-    ddsrt_fibheap_init (&lease_fhdef_proxypp, &proxypp->leaseheap_man);
+    ddsrt_fibheap_init (&lease_fhdef_pp, &proxypp->leaseheap_auto);
+    ddsrt_fibheap_init (&lease_fhdef_pp, &proxypp->leaseheap_man);
     ddsrt_atomic_stvoidp (&proxypp->minl_man, NULL);
 
     if (privpp != NULL && privpp->is_ddsi2_pp)
@@ -3743,7 +4006,7 @@ void new_proxy_participant (struct q_globals *gv, const struct ddsi_guid *ppguid
 
       /* Add the proxypp lease to heap so that monitoring liveliness will include this lease
          and uses the shortest duration for proxypp and all its pwr's (with automatic liveliness) */
-      ddsrt_fibheap_insert (&lease_fhdef_proxypp, &proxypp->leaseheap_auto, proxypp->lease);
+      ddsrt_fibheap_insert (&lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
 
       /* Set the shortest lease for auto liveliness: clone proxypp's lease and store the clone in
          proxypp->minl_auto. As there are no pwr's at this point, the proxy pp's lease is the
@@ -3933,9 +4196,9 @@ static void unref_proxy_participant (struct proxy_participant *proxypp, struct p
     if (proxypp->owns_lease)
     {
       struct lease * minl_auto = ddsrt_atomic_ldvoidp (&proxypp->minl_auto);
-      ddsrt_fibheap_delete (&lease_fhdef_proxypp, &proxypp->leaseheap_auto, proxypp->lease);
-      assert (ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_auto) == NULL);
-      assert (ddsrt_fibheap_min (&lease_fhdef_proxypp, &proxypp->leaseheap_man) == NULL);
+      ddsrt_fibheap_delete (&lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
+      assert (ddsrt_fibheap_min (&lease_fhdef_pp, &proxypp->leaseheap_auto) == NULL);
+      assert (ddsrt_fibheap_min (&lease_fhdef_pp, &proxypp->leaseheap_man) == NULL);
       assert (ddsrt_atomic_ldvoidp (&proxypp->minl_man) == NULL);
       assert (!compare_guid (&minl_auto->entity->guid, &proxypp->e.guid));
       lease_unregister (minl_auto);
@@ -4445,7 +4708,7 @@ int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_
 
 static void proxy_writer_notify_liveliness_change_may_unlock (struct proxy_writer *pwr)
 {
-  struct proxy_writer_alive_state alive_state;
+  struct alive_state alive_state;
   proxy_writer_get_alive_state_locked (pwr, &alive_state);
 
   struct ddsi_guid rdguid;

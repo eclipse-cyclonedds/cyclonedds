@@ -1121,7 +1121,8 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->readerId;
 
-  RSTTRACE ("HEARTBEAT(%s#%"PRId32":%"PRId64"..%"PRId64" ", msg->smhdr.flags & HEARTBEAT_FLAG_FINAL ? "F" : "", msg->count, firstseq, lastseq);
+  RSTTRACE ("HEARTBEAT(%s%s#%"PRId32":%"PRId64"..%"PRId64" ", msg->smhdr.flags & HEARTBEAT_FLAG_FINAL ? "F" : "",
+    msg->smhdr.flags & HEARTBEAT_FLAG_LIVELINESS ? "L" : "", msg->count, firstseq, lastseq);
 
   if (!rst->forme)
   {
@@ -1139,7 +1140,7 @@ static int handle_Heartbeat (struct receiver_state *rst, nn_etime_t tnow, struct
   RSTTRACE (PGUIDFMT" -> "PGUIDFMT":", PGUID (src), PGUID (dst));
   ddsrt_mutex_lock (&pwr->e.lock);
   if (msg->smhdr.flags & HEARTBEAT_FLAG_LIVELINESS &&
-      pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC &&
+      pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC &&
       pwr->c.xqos->liveliness.lease_duration != T_NEVER)
   {
     if ((lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_man)) != NULL)

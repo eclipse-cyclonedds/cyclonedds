@@ -254,9 +254,8 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
                            LIVELINESS_CHANGED_REMOVE_NOT_ALIVE < LIVELINESS_CHANGED_REMOVE_ALIVE &&
                            LIVELINESS_CHANGED_REMOVE_ALIVE < LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE &&
                            LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE < LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE &&
-                           LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE < LIVELINESS_CHANGED_TWITCH &&
-                           (uint32_t) LIVELINESS_CHANGED_TWITCH < UINT32_MAX);
-      assert (data->extra <= (uint32_t) LIVELINESS_CHANGED_TWITCH);
+                           (uint32_t) LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE < UINT32_MAX);
+      assert (data->extra <= (uint32_t) LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE);
       switch ((enum liveliness_changed_data_extra) data->extra)
       {
         case LIVELINESS_CHANGED_ADD_ALIVE:
@@ -286,8 +285,6 @@ void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
           st->not_alive_count_change--;
           st->alive_count++;
           st->alive_count_change++;
-          break;
-        case LIVELINESS_CHANGED_TWITCH:
           break;
       }
       st->last_publication_handle = data->handle;

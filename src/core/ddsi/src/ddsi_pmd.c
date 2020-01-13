@@ -49,12 +49,17 @@ static void debug_print_rawdata (const struct q_globals *gv, const char *msg, co
 void write_pmd_message_guid (struct q_globals * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct lease *lease;
   thread_state_awake (ts1, gv);
   struct participant *pp = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
   if (pp == NULL)
     GVTRACE ("write_pmd_message("PGUIDFMT") - builtin pmd writer not found\n", PGUID (*pp_guid));
   else
+  {
+    if ((lease = ddsrt_atomic_ldvoidp (&pp->minl_man)) != NULL)
+      lease_renew (lease, now_et());
     write_pmd_message (ts1, NULL, pp, pmd_kind);
+  }
   thread_state_asleep (ts1);
 }
 
