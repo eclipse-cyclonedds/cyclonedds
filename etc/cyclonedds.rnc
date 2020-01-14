@@ -1609,6 +1609,9 @@ for discovery;</li>
 <li><i>tev</i>: general timed-event handling, retransmits and
 discovery;</li>
 
+<li><i>fsm</i>: finite state machine thread for handling security
+handshake;</li>
+
 <li><i>xmit.CHAN</i>: transmit thread for channel CHAN;</li>
 
 <li><i>dq.CHAN</i>: delivery thread for channel CHAN;</li>

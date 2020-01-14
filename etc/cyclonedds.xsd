@@ -2133,6 +2133,9 @@ for discovery;&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;tev&lt;/i&gt;: general timed-event handling, retransmits and
 discovery;&lt;/li&gt;
 
+&lt;li&gt;&lt;i&gt;fsm&lt;/i&gt;: finite state machine thread for handling security
+handshake;&lt;/li&gt;
+
 &lt;li&gt;&lt;i&gt;xmit.CHAN&lt;/i&gt;: transmit thread for channel CHAN;&lt;/li&gt;
 
 &lt;li&gt;&lt;i&gt;dq.CHAN&lt;/i&gt;: delivery thread for channel CHAN;&lt;/li&gt;

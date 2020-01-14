@@ -14,27 +14,24 @@
 #define DDS_SECURITY_FSM_H
 
 #include "dds/ddsrt/time.h"
-#include "dds/ddsrt/threads.h"
+#include "dds/ddsi/q_globals.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-#define DDS_SECURITY_FSM_EVENT_AUTO    (-1)
-#define DDS_SECURITY_FSM_EVENT_TIMEOUT (-2)
+#define DDS_SECURITY_FSM_EVENT_AUTO            (-1)
+#define DDS_SECURITY_FSM_EVENT_TIMEOUT         (-2)
+#define DDS_SECURITY_FSM_EVENT_DELETE          (-3)
+
+struct dds_security_fsm;
+struct dds_security_fsm_control;
 
 typedef enum {
   DDS_SECURITY_FSM_DEBUG_ACT_DISPATCH,
   DDS_SECURITY_FSM_DEBUG_ACT_DISPATCH_DIRECT,
   DDS_SECURITY_FSM_DEBUG_ACT_HANDLING
 } DDS_SECURITY_FSM_DEBUG_ACT;
-
-struct dds_security_fsm;
-struct dds_security_fsm_context;
-
-typedef ddsrt_thread_t (*dds_security_fsm_thread_create_func)(const char *name, ddsrt_thread_routine_t f, void *arg);
-
-typedef void (*dds_security_fsm_thread_destroy_func)( ddsrt_thread_t tid);
 
 /**
  * Template for user-defined state methods.
@@ -62,8 +59,7 @@ typedef struct dds_security_fsm_state {
  * It is not allowed to call any fsm API functions from within this
  * debug callback.
  */
-typedef void (*dds_security_fsm_debug)(struct dds_security_fsm *fsm, DDS_SECURITY_FSM_DEBUG_ACT act,
-    const dds_security_fsm_state *current, int event_id, void *arg);
+typedef void (*dds_security_fsm_debug)(struct dds_security_fsm *fsm, DDS_SECURITY_FSM_DEBUG_ACT act, const dds_security_fsm_state *current, int event_id, void *arg);
 
 /**
  * Transition definitions
@@ -80,34 +76,6 @@ typedef struct dds_security_fsm_transition {
   const dds_security_fsm_state *end;
 } dds_security_fsm_transition;
 
-/**
- * Create a new fsm context
- * Creates an fsm context. The fsm context manages the global state of the fsm's created within
- * this context. The fsm context uses a number of threads to control the state machined allocated
- * to this context. A thread create callback has to be provided to created the threads in the
- * context of the caller.
- *
- * @param thr_create_func  a callback function used to created the threads used to manage
- *                         the allocated state machines
- *
- * @return              Returns the new fsm context on success. Null on failure.
- */
-DDS_EXPORT struct dds_security_fsm_context *
-dds_security_fsm_context_create( dds_security_fsm_thread_create_func thr_create_func);
-
-/**
- * Destroys a fsm context
- * The function clears the fsm context and stops the associated threads. The thread destroy
- * function is called to allow the caller to free resources associated with the threads and
- * to wait for the threads to exit.
- *
- * @param context           the context to be destroyed
- * @param thr_destroy_func  a callback function used to wait a thread to terminate
- *                          the allocated state machine
- */
-DDS_EXPORT void
-dds_security_fsm_context_destroy(struct dds_security_fsm_context *context,
-    dds_security_fsm_thread_destroy_func thr_destroy_func);
 
 /**
  * Create a new fsm
@@ -121,8 +89,8 @@ dds_security_fsm_context_destroy(struct dds_security_fsm_context *context,
  * @return              Returns the new created state machine on success. Null on failure.
  */
 DDS_EXPORT struct dds_security_fsm *
-dds_security_fsm_create(struct dds_security_fsm_context *context,
-    const dds_security_fsm_transition *transitions, int size, void *arg);
+dds_security_fsm_create(struct dds_security_fsm_control *control, const dds_security_fsm_transition *transitions, uint32_t size, void *arg);
+
 
 /**
  * Start a fsm
@@ -164,20 +132,10 @@ dds_security_fsm_set_debug(struct dds_security_fsm *fsm, dds_security_fsm_debug 
  *
  * @param fsm       The state machine
  * @param event_id  Indicate where to transisition to (outcome of current state)
+ * @param prio      Indicates if the event has to be scheduled with priority.
  */
 DDS_EXPORT void
-dds_security_fsm_dispatch(struct dds_security_fsm *fsm, int32_t event_id);
-
-/**
- * Dispatches the next event with priority
- * Assignment for the state machine to transisiton to the next state.
- * This event will be placed at the top of the event list.
- *
- * @param fsm       The state machine
- * @param event_id  Indicate where to transisition to (outcome of current state)
- */
-DDS_EXPORT void
-dds_security_fsm_dispatch_direct(struct dds_security_fsm *fsm, int32_t event_id);
+dds_security_fsm_dispatch(struct dds_security_fsm *fsm, int32_t event_id, bool prio);
 
 /**
  * Retrieve the current state of a given state machine
@@ -190,17 +148,7 @@ DDS_EXPORT const dds_security_fsm_state*
 dds_security_fsm_current_state(struct dds_security_fsm *fsm);
 
 /**
- * Clean the given state machine
- * Cleaning up the given state machine. This will abort all timeouts for
- * this state machine and remove all events from the internals.
- *
- * @param fsm   The state machine to clean.
- */
-DDS_EXPORT void
-dds_security_fsm_cleanup(struct dds_security_fsm *fsm);
-
-/**
- * Freeing the state machine.
+ * Free the state machine.
  * Stops all running timeouts and events and cleaning all memory
  * related to this machine.
  *
@@ -212,10 +160,50 @@ dds_security_fsm_cleanup(struct dds_security_fsm *fsm);
  * not block. It will garbage collect when the event has been
  * handled.
  *
- * @param fsm   The state machine to free
+ * @param fsm   The state machine to be removed
  */
-DDS_EXPORT void /* Implicit cleanup. */
+DDS_EXPORT void
 dds_security_fsm_free(struct dds_security_fsm *fsm);
+
+/**
+ * Create a new fsm control context,
+ * The fsm control context manages the global state of the fsm's created within
+ * this context. The fsm control a thread to control the state machined allocated
+ * to this control.
+ *
+ * @param gv  The global settings.
+ *
+ * @return Returns the new fsm control on success. Null on failure.
+ */
+DDS_EXPORT struct dds_security_fsm_control *
+dds_security_fsm_control_create (struct q_globals *gv);
+
+/**
+ * Frees the fsm control and the allocated fsm's.
+ * A precondition is that the fsm control is stopped.
+ *
+ * @param control The fsm control to be freed.
+ */
+DDS_EXPORT void
+dds_security_fsm_control_free(struct dds_security_fsm_control *control);
+
+/**
+ * Starts the thread that handles the events and timeouts associated
+ * with the fsm that are managed by this fsm control.
+ *
+ * @param control The fsm control to be started.
+ */
+DDS_EXPORT dds_return_t
+dds_security_fsm_control_start (struct dds_security_fsm_control *control, const char *name);
+
+/**
+ * Stops the thread that handles the events and timeouts.
+ *
+ * @param control The fsm control to be started.
+ */
+DDS_EXPORT void
+dds_security_fsm_control_stop(struct dds_security_fsm_control *control);
+
 
 #if defined (__cplusplus)
 }

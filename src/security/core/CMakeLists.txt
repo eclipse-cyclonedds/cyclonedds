@@ -55,3 +55,4 @@ install(
   COMPONENT dev)
 
 add_subdirectory(tests)
+add_subdirectory(tests/plugin_loading)

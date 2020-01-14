@@ -1994,6 +1994,8 @@ threads exist:
 
 * tev: general timed-event handling, retransmits and discovery;
 
+* fsm: finite state machine thread for handling security handshake;
+
 * xmit.CHAN: transmit thread for channel CHAN;
 
 * dq.CHAN: delivery thread for channel CHAN;
