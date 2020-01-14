@@ -9,91 +9,87 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-
 #include <string.h>
 #include <assert.h>
-#include "dds/security/core/dds_security_fsm.h"
-#include "dds/ddsrt/threads.h"
+#include <stdbool.h>
+
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/timeconv.h"
-#include <stdbool.h>
+#include "dds/ddsrt/fibheap.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/security/core/dds_security_fsm.h"
 
-typedef struct dds_security_fsm {
-  const dds_security_fsm_transition *transitions;
-  int size;
-  void *arg;
-  const dds_security_fsm_state *current;
-  dds_time_t current_state_endtime;
-  ddsrt_atomic_uint32_t ref_cnt;
-  dds_security_fsm_debug debug_func;
-  struct dds_security_fsm_context *context;
 
-  struct dds_security_fsm *next;
-  struct dds_security_fsm *prev;
-} dds_security_fsm;
-
-typedef struct fsm_event {
+struct fsm_event
+{
   struct dds_security_fsm *fsm;
   int event_id;
   struct fsm_event *next;
   struct fsm_event *prev;
-} fsm_event;
+};
 
-typedef struct fsm_state_timeout {
+typedef enum fsm_timeout_kind {
+  FSM_TIMEOUT_STATE,
+  FSM_TIMEOUT_OVERALL
+} fsm_timeout_kind_t;
+
+struct fsm_timer_event
+{
+  ddsrt_fibheap_node_t heapnode;
   struct dds_security_fsm *fsm;
+  fsm_timeout_kind_t kind;
   dds_time_t endtime;
-} fsm_state_timeout;
+};
 
-typedef struct fsm_overall_timeout {
-  struct dds_security_fsm *fsm;
-  dds_time_t endtime;
-  dds_security_fsm_action func;
-  struct fsm_overall_timeout *next;
-  struct fsm_overall_timeout *prev;
-} fsm_overall_timeout;
+struct dds_security_fsm
+{
+  struct dds_security_fsm *next_fsm;
+  struct dds_security_fsm *prev_fsm;
+  bool active;
+  struct dds_security_fsm_control *control;
+  const dds_security_fsm_transition *transitions;
+  uint32_t size;
+  void *arg;
+  const dds_security_fsm_state *current;
+  struct fsm_timer_event state_timeout_event;
+  struct fsm_timer_event overall_timeout_event;
+  dds_security_fsm_action overall_timeout_action;
+  dds_security_fsm_debug debug_func;
+};
 
-typedef struct dds_security_fsm_context {
-  ddsrt_thread_t fsm_tid;
-  ddsrt_thread_t fsm_timeout_tid;
-  bool fsm_teardown;
-  fsm_event *fsm_queue;
-  fsm_overall_timeout *fsm_overall_timeouts;
-  ddsrt_mutex_t fsm_fsms_mutex;
-  dds_security_fsm *fsm_fsms;
-  fsm_state_timeout *fsm_next_state_timeout;
-  ddsrt_mutex_t fsm_state_timeout_mutex;
-  ddsrt_cond_t fsm_event_cond;
-  ddsrt_mutex_t fsm_event_cond_mutex;
+struct dds_security_fsm_control
+{
+  ddsrt_mutex_t lock;
+  ddsrt_cond_t cond;
+  struct thread_state1 *ts;
+  struct q_globals *gv;
+  struct dds_security_fsm *first_fsm;
+  struct dds_security_fsm *last_fsm;
+  struct fsm_event *event_queue;
+  ddsrt_fibheap_t timers;
+  bool running;
+};
 
-  // Overall timeout guard
-  ddsrt_cond_t fsm_overall_timeout_cond;
-  ddsrt_mutex_t fsm_overall_timeout_cond_mutex;
-} dds_security_fsm_context;
+static int compare_timer_event (const void *va, const void *vb);
+static void fsm_delete (struct dds_security_fsm_control *control, struct dds_security_fsm *fsm);
 
-static dds_security_fsm_context *fsm_context = NULL;
+const ddsrt_fibheap_def_t timer_events_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct fsm_timer_event, heapnode), compare_timer_event);
 
-// Thread safe initialization of the Generic State Machine Utility
-bool dds_security_fsm_initialized = false;
-static ddsrt_atomic_uint32_t _fsmInitCount = DDSRT_ATOMIC_UINT32_INIT(0);
+static int compare_timer_event (const void *va, const void *vb)
+{
+  const struct fsm_timer_event *a = va;
+  const struct fsm_timer_event *b = vb;
+  return (a->endtime == b->endtime) ? 0 : (a->endtime < b->endtime) ? -1 : 1;
+}
 
-static void fsm_dispatch(struct dds_security_fsm *fsm, int event_id, int lifo) {
-  fsm_event *event;
-  dds_security_fsm_context *context;
-
-  assert(fsm);
-
-  if (fsm->size < 0) {
-    /* This fsm is cleaned up (but probably not freed yet).
-     * So, ignore the new event. */
-    return;
-  }
-
-  context = fsm->context;
-  assert(context);
+static void fsm_dispatch (struct dds_security_fsm *fsm, int event_id, bool lifo)
+{
+  struct dds_security_fsm_control *control = fsm->control;
+  struct fsm_event *event;
 
   if (fsm->debug_func) {
     fsm->debug_func(fsm,
@@ -101,7 +97,7 @@ static void fsm_dispatch(struct dds_security_fsm *fsm, int event_id, int lifo) {
         fsm->current, event_id, fsm->arg);
   }
 
-  event = ddsrt_malloc(sizeof(fsm_event));
+  event = ddsrt_malloc (sizeof(struct fsm_event));
   event->fsm = fsm;
   event->event_id = event_id;
   event->next = NULL;
@@ -109,641 +105,422 @@ static void fsm_dispatch(struct dds_security_fsm *fsm, int event_id, int lifo) {
 
   if (lifo) {
     /* Insert event at the top of the event list */
-    if (context->fsm_queue) {
-      context->fsm_queue->prev = event;
+    if (control->event_queue) {
+       control->event_queue->prev = event;
     }
-    event->next = context->fsm_queue;
-    context->fsm_queue = event;
+    event->next = control->event_queue;
+    control->event_queue = event;
   } else {
     /* Insert FIFO event */
-    if (context->fsm_queue) {
-      fsm_event *last = context->fsm_queue;
+    if (control->event_queue) {
+      struct fsm_event *last = control->event_queue;
       while (last->next != NULL ) {
         last = last->next;
       }
       last->next = event;
       event->prev = last;
     } else {
-      context->fsm_queue = event;
+      control->event_queue = event;
     }
   }
 }
 
-static void fsm_set_next_state_timeout(dds_security_fsm_context *context,
-    dds_security_fsm *ignore) {
-  dds_security_fsm *fsm;
+static void set_state_timer (struct dds_security_fsm *fsm)
+{
+  struct dds_security_fsm_control *control = fsm->control;
 
-  ddsrt_mutex_lock(&context->fsm_event_cond_mutex);
-
-  // reset the current time
-  context->fsm_next_state_timeout->endtime = DDS_NEVER;
-  context->fsm_next_state_timeout->fsm = NULL;
-
-  fsm = context->fsm_fsms;
-  while (fsm) {
-    if ((fsm->current) && (fsm->current->timeout) && (fsm != ignore)) {
-      // first set the endtime of this state (if not set)
-      if (fsm->current_state_endtime == 0) {
-        fsm->current_state_endtime = ddsrt_time_add_duration(dds_time(),
-            fsm->current->timeout);
-      }
-      // Initialize the current endtime
-      if (context->fsm_next_state_timeout->fsm == NULL) {
-        context->fsm_next_state_timeout->endtime = fsm->current_state_endtime;
-        context->fsm_next_state_timeout->fsm = fsm;
-      } else if (fsm->current_state_endtime
-          < context->fsm_next_state_timeout->endtime) {
-        context->fsm_next_state_timeout->endtime = fsm->current_state_endtime;
-        context->fsm_next_state_timeout->fsm = fsm;
-      }
-    }
-    fsm = fsm->next;
+  if (fsm->current && fsm->current->timeout > 0 && fsm->current->timeout != DDS_NEVER)
+  {
+    fsm->state_timeout_event.endtime = ddsrt_time_add_duration (dds_time(), fsm->current->timeout);
+    ddsrt_fibheap_insert (&timer_events_fhdef, &control->timers, &fsm->state_timeout_event);
   }
-
-  ddsrt_mutex_unlock(&context->fsm_event_cond_mutex);
+  else
+    fsm->state_timeout_event.endtime = DDS_NEVER;
 }
 
-static void fsm_state_change(fsm_event *event) {
-  dds_security_fsm *fsm = event->fsm;
-  dds_security_fsm_context *context = fsm->context;
+static void clear_state_timer (struct dds_security_fsm *fsm)
+{
+  struct dds_security_fsm_control *control = fsm->control;
+
+  if (fsm->current && fsm->state_timeout_event.endtime != DDS_NEVER)
+    ddsrt_fibheap_delete (&timer_events_fhdef, &control->timers, &fsm->state_timeout_event);
+}
+
+static void clear_overall_timer (struct dds_security_fsm *fsm)
+{
+  struct dds_security_fsm_control *control = fsm->control;
+
+  if (fsm->current && fsm->overall_timeout_event.endtime != DDS_NEVER)
+    ddsrt_fibheap_delete (&timer_events_fhdef, &control->timers, &fsm->overall_timeout_event);
+}
+
+static dds_time_t first_timeout (struct dds_security_fsm_control *control)
+{
+  struct fsm_timer_event *min;
+  if ((min = ddsrt_fibheap_min (&timer_events_fhdef, &control->timers)) != NULL)
+    return min->endtime;
+  return DDS_NEVER;
+}
+
+static void fsm_check_auto_state_change (struct dds_security_fsm *fsm)
+{
+  if (fsm->current)
+  {
+    uint32_t i;
+
+    for (i = 0; i < fsm->size; i++)
+    {
+      if (fsm->transitions[i].begin == fsm->current && fsm->transitions[i].event_id == DDS_SECURITY_FSM_EVENT_AUTO)
+      {
+        fsm_dispatch (fsm, DDS_SECURITY_FSM_EVENT_AUTO, true);
+        break;
+      }
+    }
+  }
+}
+
+static void fsm_state_change (struct dds_security_fsm_control *control, struct fsm_event *event)
+{
+  struct dds_security_fsm *fsm = event->fsm;
   int event_id = event->event_id;
-  int i, j;
+  uint32_t i;
 
-  if (fsm->debug_func) {
-    fsm->debug_func(fsm, DDS_SECURITY_FSM_DEBUG_ACT_HANDLING, fsm->current, event_id,
-        fsm->arg);
-  }
+  if (fsm->active)
+  {
+    if (fsm->debug_func)
+      fsm->debug_func (fsm, DDS_SECURITY_FSM_DEBUG_ACT_HANDLING, fsm->current, event_id, fsm->arg);
 
-  for (i = 0; !context->fsm_teardown && i < fsm->size; i++) {
-    if ((fsm->transitions[i].begin == fsm->current)
-        && (fsm->transitions[i].event_id == event_id)) {
-      /* Transition. */
-      if (fsm->transitions[i].func) {
-        fsm->transitions[i].func(fsm, fsm->arg);
-      }
-      /* New state. */
-      fsm->current = fsm->transitions[i].end;
-      if (fsm->current) {
-        if (fsm->current->func) {
-          fsm->current->func(fsm, fsm->arg);
-        }
-        /* Reset timeout. */
-        fsm->current_state_endtime = ddsrt_time_add_duration(dds_time(),
-            fsm->current->timeout);
-        /* Check if an auto transition is to be dispatched */
-        for (j = 0; j < fsm->size; j++) {
-          if ((fsm->transitions[j].begin == fsm->current)
-              && (fsm->transitions[j].event_id == DDS_SECURITY_FSM_EVENT_AUTO)) {
-            dds_security_fsm_dispatch_direct(fsm, DDS_SECURITY_FSM_EVENT_AUTO);
-          }
-        }
+    for (i = 0; i < fsm->size; i++)
+    {
+      if ((fsm->transitions[i].begin == fsm->current) && (fsm->transitions[i].event_id == event_id))
+      {
+        clear_state_timer (fsm);
+        fsm->current = fsm->transitions[i].end;
+        set_state_timer (fsm);
+
+        ddsrt_mutex_unlock (&control->lock);
+        if (fsm->transitions[i].func)
+          fsm->transitions[i].func (fsm, fsm->arg);
+        if (fsm->current && fsm->current->func)
+          fsm->current->func (fsm, fsm->arg);
+        ddsrt_mutex_lock (&control->lock);
+        fsm_check_auto_state_change (fsm);
+        break;
       }
     }
   }
+  else if (event_id == DDS_SECURITY_FSM_EVENT_DELETE)
+    fsm_delete (control, fsm);
+
 }
 
-static uint32_t
-fsm_thread(void *a) {
-  dds_security_fsm_context *context = a;
-  dds_duration_t dur_to_wait;
-  dds_time_t now = DDS_TIME_INVALID;
-  fsm_event *event;
+static void fsm_handle_timeout (struct dds_security_fsm_control *control, struct fsm_timer_event *timer_event)
+{
+  struct dds_security_fsm *fsm = timer_event->fsm;
 
-  while (!context->fsm_teardown) {
-    event = NULL;
-
-    ddsrt_mutex_lock(&context->fsm_event_cond_mutex);
-    if (!context->fsm_queue) {
-      if (context->fsm_next_state_timeout->endtime == DDS_NEVER) {
-        dur_to_wait = DDS_NEVER;
-      } else {
-        now = dds_time();
-        dur_to_wait = context->fsm_next_state_timeout->endtime - now;
-      }
-      if (dur_to_wait > 0) {
-        if (ddsrt_cond_waitfor(&context->fsm_event_cond,
-            &context->fsm_event_cond_mutex, dur_to_wait) == false) {
-          if (context->fsm_next_state_timeout->fsm) {
-            /* Next timeout could have changed. */
-            if (context->fsm_next_state_timeout->endtime != DDS_NEVER
-                && (context->fsm_next_state_timeout->endtime - now <= 0)) {
-              fsm_dispatch(context->fsm_next_state_timeout->fsm,
-                  DDS_SECURITY_FSM_EVENT_TIMEOUT, 1);
-            }
-          }
-        }
-      } else {
-        if (context->fsm_next_state_timeout->fsm) {
-          fsm_dispatch(context->fsm_next_state_timeout->fsm,
-              DDS_SECURITY_FSM_EVENT_TIMEOUT, 1);
-        }
-      }
-    } else {
-      event = context->fsm_queue;
-      context->fsm_queue = context->fsm_queue->next;
-      if (context->fsm_queue) {
-        context->fsm_queue->prev = NULL;
-      }
-      ddsrt_atomic_inc32(&(event->fsm->ref_cnt));
+  if (fsm->active)
+  {
+    switch (timer_event->kind)
+    {
+    case FSM_TIMEOUT_STATE:
+      fsm_dispatch (fsm, DDS_SECURITY_FSM_EVENT_TIMEOUT, true);
+      break;
+    case FSM_TIMEOUT_OVERALL:
+      ddsrt_mutex_unlock (&control->lock);
+      if (fsm->overall_timeout_action)
+        fsm->overall_timeout_action (fsm, fsm->arg);
+      ddsrt_mutex_lock (&control->lock);
+      break;
     }
-    ddsrt_mutex_unlock(&context->fsm_event_cond_mutex);
-
-    if (event) {
-      fsm_state_change(event);
-      if (ddsrt_atomic_dec32_nv(&(event->fsm->ref_cnt)) == 0) {
-        ddsrt_free(event->fsm);
-      }
-      ddsrt_free(event);
-    }
-    fsm_set_next_state_timeout(context, NULL);
   }
+
+  /* mark timer event as being processed */
+  timer_event->endtime = DDS_NEVER;
+}
+
+static uint32_t handle_events (struct dds_security_fsm_control *control)
+{
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+
+  ddsrt_mutex_lock (&control->lock);
+  thread_state_awake (ts1, control->gv);
+  while (control->running)
+  {
+    if (control->event_queue)
+    {
+      struct fsm_event *event = control->event_queue;
+
+      control->event_queue = event->next;
+      if (control->event_queue)
+        control->event_queue->prev = NULL;
+      fsm_state_change (control, event);
+      ddsrt_free (event);
+    }
+    else
+    {
+      dds_time_t timeout = first_timeout (control);
+
+      if (timeout > dds_time ())
+      {
+        thread_state_asleep (ts1);
+        (void)ddsrt_cond_waituntil( &control->cond, &control->lock, timeout);
+        thread_state_awake (ts1, control->gv);
+      }
+      else
+      {
+        struct fsm_timer_event *timer_event = ddsrt_fibheap_extract_min (&timer_events_fhdef, &control->timers);
+        fsm_handle_timeout (control, timer_event);
+      }
+    }
+  }
+  thread_state_asleep (ts1);
+  ddsrt_mutex_unlock (&control->lock);
+
   return 0;
 }
 
-static fsm_overall_timeout *
-fsm_get_first_overall_timeout(dds_security_fsm_context *context) {
-  fsm_overall_timeout *timeout;
-  fsm_overall_timeout *first_timeout;
-  dds_time_t first_time = DDS_NEVER;
+void dds_security_fsm_set_timeout (struct dds_security_fsm *fsm, dds_security_fsm_action action, dds_duration_t timeout)
+{
+  assert(fsm);
+  assert(fsm->control);
+  assert(timeout > 0);
 
-  timeout = context->fsm_overall_timeouts;
-  first_timeout = context->fsm_overall_timeouts;
-  while (timeout) {
-    if (timeout->endtime < first_time) {
-      first_time = timeout->endtime;
-      first_timeout = timeout;
+  ddsrt_mutex_lock (&fsm->control->lock);
+  if (fsm->active)
+  {
+    if (timeout != DDS_NEVER)
+    {
+      clear_overall_timer(fsm);
+      fsm->overall_timeout_action = action;
+      fsm->overall_timeout_event.endtime = ddsrt_time_add_duration(dds_time(), timeout);
+      ddsrt_fibheap_insert (&timer_events_fhdef, &fsm->control->timers, &fsm->overall_timeout_event);
+      if (fsm->overall_timeout_event.endtime < first_timeout(fsm->control))
+        ddsrt_cond_signal (&fsm->control->cond);
     }
-    timeout = timeout->next;
+    else
+      clear_overall_timer (fsm);
   }
-
-  return first_timeout;
+  ddsrt_mutex_unlock (&fsm->control->lock);
 }
 
-static void fsm_remove_overall_timeout_from_list(dds_security_fsm_context *context,
-    fsm_overall_timeout *timeout) {
-  fsm_overall_timeout *tmp_next_timeout;
-  fsm_overall_timeout *tmp_prev_timeout;
+void dds_security_fsm_dispatch (struct dds_security_fsm *fsm, int32_t event_id, bool prio)
+{
+  assert(fsm);
+  assert(fsm->control);
 
-  if (timeout) {
-
-    tmp_next_timeout = timeout->next;
-    tmp_prev_timeout = timeout->prev;
-    if (tmp_prev_timeout) {
-      tmp_prev_timeout->next = tmp_next_timeout;
-    }
-    if (tmp_next_timeout) {
-      tmp_next_timeout->prev = tmp_prev_timeout;
-    }
-
-    if (timeout == context->fsm_overall_timeouts) {
-      context->fsm_overall_timeouts = tmp_next_timeout;
-    }
-
-    ddsrt_free(timeout);
-    timeout = NULL;
+  ddsrt_mutex_lock (&fsm->control->lock);
+  if (fsm->active)
+  {
+    fsm_dispatch (fsm, event_id, prio);
+    ddsrt_cond_signal (&fsm->control->cond);
   }
+  ddsrt_mutex_unlock (&fsm->control->lock);
 }
 
-static uint32_t
-fsm_run_timeout(void *arg) {
-  dds_security_fsm_context *context = arg;
-  dds_return_t result;
-  fsm_overall_timeout *to;
-  dds_time_t time_to_wait;
-  dds_time_t now;
+const dds_security_fsm_state * dds_security_fsm_current_state (struct dds_security_fsm *fsm)
+{
+  const dds_security_fsm_state *state;
 
-  while (!context->fsm_teardown) {
-    ddsrt_mutex_lock(&context->fsm_overall_timeout_cond_mutex);
-    to = fsm_get_first_overall_timeout(context);
-    if (to) {
-      struct dds_security_fsm *fsm = to->fsm;
-      ddsrt_atomic_inc32(&(fsm->ref_cnt));
+  assert(fsm);
+  assert(fsm->active);
 
-      result = DDS_RETCODE_TIMEOUT;
-      now = dds_time();
-      if (to->endtime > now) {
-        time_to_wait = to->endtime - now;
-        result = ddsrt_cond_waitfor(&context->fsm_overall_timeout_cond,
-            &context->fsm_overall_timeout_cond_mutex, time_to_wait);
-      }
+  ddsrt_mutex_lock (&fsm->control->lock);
+  state = fsm->current;
+  ddsrt_mutex_unlock (&fsm->control->lock);
 
-      if (result == DDS_RETCODE_TIMEOUT) {
-        /* Prevent calling timeout when the fsm has been cleaned. */
-        dds_security_fsm_action func = to->func;
-        fsm_remove_overall_timeout_from_list(context, to);
-        if (fsm->size > 0) {
-          ddsrt_mutex_unlock(&context->fsm_overall_timeout_cond_mutex);
-          func(fsm, fsm->arg);
-          ddsrt_mutex_lock(&context->fsm_overall_timeout_cond_mutex);
-        }
-      }
-
-      if (ddsrt_atomic_dec32_nv(&(fsm->ref_cnt)) == 0) {
-        ddsrt_free(fsm);
-      }
-    } else {
-      ddsrt_cond_wait(&context->fsm_overall_timeout_cond,
-          &context->fsm_overall_timeout_cond_mutex);
-    }
-    ddsrt_mutex_unlock(&context->fsm_overall_timeout_cond_mutex);
-  }
-  return 0;
+  return state;
 }
 
-static void fsm_remove_fsm_list(dds_security_fsm *fsm) {
-  dds_security_fsm_context *context;
-  dds_security_fsm *tmp_next_fsm;
-  dds_security_fsm *tmp_prev_fsm;
+void dds_security_fsm_set_debug (struct dds_security_fsm *fsm, dds_security_fsm_debug func)
+{
+  assert(fsm);
 
-  if (fsm) {
-    context = fsm->context;
-
-    ddsrt_mutex_lock(&context->fsm_fsms_mutex);
-    tmp_next_fsm = fsm->next;
-    tmp_prev_fsm = fsm->prev;
-    if (tmp_prev_fsm) {
-      tmp_prev_fsm->next = tmp_next_fsm;
-    }
-    if (tmp_next_fsm) {
-      tmp_next_fsm->prev = tmp_prev_fsm;
-    }
-    if (fsm == context->fsm_fsms) {
-      context->fsm_fsms = tmp_next_fsm;
-    }
-    ddsrt_mutex_unlock(&context->fsm_fsms_mutex);
-
-    ddsrt_mutex_lock(&context->fsm_overall_timeout_cond_mutex);
-    ddsrt_cond_signal(&context->fsm_overall_timeout_cond);
-    ddsrt_mutex_unlock(&context->fsm_overall_timeout_cond_mutex);
-  }
+  ddsrt_mutex_lock (&fsm->control->lock);
+  fsm->debug_func = func;
+  ddsrt_mutex_unlock (&fsm->control->lock);
 }
 
-static ddsrt_thread_t fsm_thread_create( const char *name,
-    ddsrt_thread_routine_t f, void *arg) {
-  ddsrt_thread_t tid;
-  ddsrt_threadattr_t threadAttr;
+static bool fsm_validate (const dds_security_fsm_transition *transitions, uint32_t size)
+{
+  uint32_t i;
 
-  ddsrt_threadattr_init(&threadAttr);
-  if (ddsrt_thread_create(&tid, name, &threadAttr, f, arg) != DDS_RETCODE_OK) {
-    memset(&tid, 0, sizeof(ddsrt_thread_t));
-  }
-  return tid;
-}
-#ifdef  AT_PROC_EXIT_IMPLEMENTED
-static void fsm_thread_destroy( ddsrt_thread_t tid) {
-  uint32_t thread_result;
-
-  (void) ddsrt_thread_join( tid, &thread_result);
-}
-#endif
-
-struct dds_security_fsm_context *
-dds_security_fsm_context_create( dds_security_fsm_thread_create_func thr_create_func) {
-  struct dds_security_fsm_context *context;
-
-  context = ddsrt_malloc(sizeof(*context));
-
-  context->fsm_next_state_timeout = ddsrt_malloc(sizeof(fsm_state_timeout));
-  context->fsm_next_state_timeout->endtime = DDS_NEVER;
-  context->fsm_next_state_timeout->fsm = NULL;
-
-  context->fsm_teardown = false;
-  context->fsm_queue = NULL;
-  context->fsm_overall_timeouts = NULL;
-  context->fsm_fsms = NULL;
-
-  (void) ddsrt_mutex_init( &context->fsm_fsms_mutex );
-
-  // Overall timeout guard
-  (void) ddsrt_mutex_init( &context->fsm_overall_timeout_cond_mutex );
-  (void) ddsrt_cond_init( &context->fsm_overall_timeout_cond );
-
-  // State timeouts
-  (void) ddsrt_mutex_init(&context->fsm_state_timeout_mutex );
-
-  // Events
-  (void) ddsrt_mutex_init(&context->fsm_event_cond_mutex );
-  (void) ddsrt_cond_init(&context->fsm_event_cond );
-
-  context->fsm_tid = thr_create_func( "dds_security_fsm", fsm_thread, context);
-  context->fsm_timeout_tid = thr_create_func( "dds_security_fsm_timeout",
-      fsm_run_timeout, context);
-
-  return context;
-}
-
-void dds_security_fsm_context_destroy(dds_security_fsm_context *context,
-    dds_security_fsm_thread_destroy_func thr_destroy_func) {
-  if (context) {
-    context->fsm_teardown = true;
-
-    ddsrt_mutex_lock( &context->fsm_overall_timeout_cond_mutex);
-    ddsrt_cond_signal( &context->fsm_overall_timeout_cond);
-    ddsrt_mutex_unlock( &context->fsm_overall_timeout_cond_mutex);
-
-    ddsrt_mutex_lock(&context->fsm_event_cond_mutex);
-    ddsrt_cond_signal(&context->fsm_event_cond);
-    ddsrt_mutex_unlock(&context->fsm_event_cond_mutex);
-
-    thr_destroy_func( context->fsm_tid);
-    ddsrt_mutex_destroy(&context->fsm_event_cond_mutex);
-    ddsrt_cond_destroy(&context->fsm_event_cond);
-
-    thr_destroy_func( context->fsm_timeout_tid);
-    ddsrt_mutex_destroy(&context->fsm_fsms_mutex);
-    ddsrt_mutex_destroy(&context->fsm_overall_timeout_cond_mutex);
-    ddsrt_cond_destroy(&context->fsm_overall_timeout_cond);
-
-    ddsrt_free(context->fsm_next_state_timeout);
-  }
-}
-#ifdef  AT_PROC_EXIT_IMPLEMENTED
-static void fsm_fini(void) {
-  dds_security_fsm_context_destroy(fsm_context, NULL, fsm_thread_destroy);
-
-  /* os_osExit(); ???? */
-}
-
-#endif
-static bool fsm_init_once(void) {
-  bool ret = true;
-  uint32_t initCount;
-
-  initCount = ddsrt_atomic_inc32_nv(&_fsmInitCount);
-
-  if (initCount == 1) {
-    assert( dds_security_fsm_initialized == false );
-
-    /* ddsrt_osInit(); ??? */
-
-    fsm_context = dds_security_fsm_context_create( fsm_thread_create);
-
-    if (fsm_context) {
-      /* os_procAtExit( fsm_fini ); ??? */
-      dds_security_fsm_initialized = true;
-    } else {
-      ret = false;
-    }
-  } else {
-    if (dds_security_fsm_initialized == false) {
-      /* Another thread is currently initializing the fsm. Since
-       * both results (osr_fsm and osr_timeout) should be ddsrt_resultSuccess
-       * a sleep is performed, to ensure that (if succeeded) successive
-       * init calls will also actually pass.
-       */
-      dds_sleepfor( DDS_MSECS( 100 ));
-    }
-    if (dds_security_fsm_initialized == false) {
-      /* Initialization did not succeed, undo increment and return error */
-      initCount = ddsrt_atomic_dec32_nv(&_fsmInitCount);
-      ret = false;
-    }
-  }
-  return ret;
-}
-
-static int /* 1 = ok, other = error */
-fsm_validate(const dds_security_fsm_transition *transitions, int size) {
-  int i;
-
-  for (i = 0; i < size; i++) {
+  for (i = 0; i < size; i++)
+  {
     /* It needs to have a start. */
-    if ((transitions[i].begin == NULL )
-        && (transitions[i].event_id == DDS_SECURITY_FSM_EVENT_AUTO)) {
-      return 1;
-    }
+    if (transitions[i].begin && transitions[i].event_id == DDS_SECURITY_FSM_EVENT_AUTO)
+      return true;
   }
-
-  return 0;
+  return true;
 }
 
-struct dds_security_fsm *
-dds_security_fsm_create(struct dds_security_fsm_context *context,
-    const dds_security_fsm_transition *transitions, int size, void *arg) {
-  struct dds_security_fsm* fsm = NULL;
-  struct dds_security_fsm_context *ctx = NULL;
-
-  assert(transitions);
-  assert(size > 0);
-
-  if (context == NULL) {
-    if (fsm_init_once()) {
-      ctx = fsm_context;
-    }
-  } else {
-    ctx = context;
+static void add_fsm_to_list (struct dds_security_fsm_control *control, struct dds_security_fsm *fsm)
+{
+  fsm->next_fsm = NULL;
+  fsm->prev_fsm = control->last_fsm;
+  if (control->last_fsm)
+  {
+    assert(control->first_fsm != NULL);
+    control->last_fsm->next_fsm = fsm;
   }
+  else
+  {
+    assert(control->first_fsm == NULL);
+    control->first_fsm = fsm;
+  }
+  control->last_fsm = fsm;
+}
 
-  if (ctx) {
-    if (fsm_validate(transitions, size) == 1) {
-      fsm = ddsrt_malloc(sizeof(struct dds_security_fsm));
-      fsm->transitions = transitions;
-      fsm->size = size;
-      fsm->arg = arg;
-      fsm->current = NULL;
-      fsm->debug_func = NULL;
-      fsm->next = NULL;
-      fsm->prev = NULL;
-      fsm->context = ctx;
-      ddsrt_atomic_st32( &fsm->ref_cnt, 1 );
-      fsm->current_state_endtime = 0;
+static void remove_fsm_from_list (struct dds_security_fsm_control *control, struct dds_security_fsm *fsm)
+{
+  if (fsm->prev_fsm)
+    fsm->prev_fsm->next_fsm = fsm->next_fsm;
+  else
+    control->first_fsm = fsm->next_fsm;
 
-      ddsrt_mutex_lock(&fsm->context->fsm_fsms_mutex);
-      if (fsm->context->fsm_fsms) {
-        dds_security_fsm *last = fsm->context->fsm_fsms;
-        while (last->next != NULL ) {
-          last = last->next;
-        }
-        last->next = fsm;
-        fsm->prev = last;
-      } else {
-        fsm->context->fsm_fsms = fsm;
-      }
-      ddsrt_mutex_unlock(&fsm->context->fsm_fsms_mutex);
-    }
+  if (fsm->next_fsm)
+    fsm->next_fsm->prev_fsm = fsm->prev_fsm;
+  else
+    control->last_fsm = fsm->prev_fsm;
+}
+
+struct dds_security_fsm * dds_security_fsm_create (struct dds_security_fsm_control *control, const dds_security_fsm_transition *transitions, uint32_t size, void *arg)
+{
+  struct dds_security_fsm *fsm = NULL;
+
+  assert(control);
+  assert(transitions);
+
+  if (fsm_validate (transitions, size))
+  {
+    fsm = ddsrt_malloc (sizeof(struct dds_security_fsm));
+    fsm->transitions = transitions;
+    fsm->size = size;
+    fsm->arg = arg;
+    fsm->current = NULL;
+    fsm->debug_func = NULL;
+    fsm->overall_timeout_action = NULL;
+    fsm->state_timeout_event.kind = FSM_TIMEOUT_STATE;
+    fsm->state_timeout_event.endtime = DDS_NEVER;
+    fsm->state_timeout_event.fsm = fsm;
+    fsm->overall_timeout_event.kind = FSM_TIMEOUT_OVERALL;
+    fsm->overall_timeout_event.endtime = DDS_NEVER;
+    fsm->overall_timeout_event.fsm = fsm;
+    fsm->active = true;
+    fsm->next_fsm = NULL;
+    fsm->prev_fsm = NULL;
+    fsm->control = control;
+
+    ddsrt_mutex_lock (&control->lock);
+    add_fsm_to_list (control, fsm);
+    ddsrt_mutex_unlock (&control->lock);
   }
   return fsm;
 }
 
-void dds_security_fsm_start(struct dds_security_fsm *fsm) {
-  assert(fsm);
-  dds_security_fsm_dispatch(fsm, DDS_SECURITY_FSM_EVENT_AUTO);
+void
+dds_security_fsm_start (struct dds_security_fsm *fsm)
+{
+  dds_security_fsm_dispatch(fsm, DDS_SECURITY_FSM_EVENT_AUTO, false);
 }
 
-void dds_security_fsm_set_timeout(struct dds_security_fsm *fsm, dds_security_fsm_action func,
-    dds_time_t timeout) {
-  fsm_overall_timeout *to;
-  dds_security_fsm_context *context;
-
-  assert(fsm);
-
-  context = fsm->context;
-  assert(context);
-
-  to = ddsrt_malloc(sizeof(fsm_overall_timeout));
-  to->fsm = fsm;
-  to->func = func;
-  to->endtime = ddsrt_time_add_duration( dds_time(), timeout);
-  to->next = NULL;
-  to->prev = NULL;
-
-  ddsrt_mutex_lock(&context->fsm_overall_timeout_cond_mutex);
-  if (context->fsm_overall_timeouts) {
-    fsm_overall_timeout *last = context->fsm_overall_timeouts;
-    while (last->next != NULL ) {
-      last = last->next;
-    }
-    last->next = to;
-    to->prev = last;
-  } else {
-    context->fsm_overall_timeouts = to;
+static void fsm_deactivate (struct dds_security_fsm *fsm, bool gen_del_event)
+{
+  if (fsm->active)
+  {
+    fsm->active = false;
+    clear_state_timer (fsm);
+    clear_overall_timer (fsm);
+    fsm->current = NULL;
+    if (gen_del_event)
+      fsm_dispatch (fsm, DDS_SECURITY_FSM_EVENT_DELETE, false);
   }
-  ddsrt_cond_signal(&context->fsm_overall_timeout_cond);
-  ddsrt_mutex_unlock(&context->fsm_overall_timeout_cond_mutex);
 }
 
-void dds_security_fsm_set_debug(struct dds_security_fsm *fsm, dds_security_fsm_debug func) {
-  dds_security_fsm_context *context;
+void dds_security_fsm_free (struct dds_security_fsm *fsm)
+{
+  struct dds_security_fsm_control *control;
 
   assert(fsm);
+  assert(fsm->control);
 
-  context = fsm->context;
-  assert(context);
-
-  ddsrt_mutex_lock(&context->fsm_overall_timeout_cond_mutex);
-  fsm->debug_func = func;
-  ddsrt_mutex_unlock(&context->fsm_overall_timeout_cond_mutex);
+  control = fsm->control;
+  ddsrt_mutex_lock (&control->lock);
+  fsm_deactivate (fsm, true);
+  ddsrt_mutex_unlock (&control->lock);
 }
 
-void dds_security_fsm_dispatch(struct dds_security_fsm *fsm, int32_t event_id) {
-  dds_security_fsm_context *context;
-
-  assert(fsm);
-
-  context = fsm->context;
-  assert(context);
-
-  ddsrt_mutex_lock(&context->fsm_event_cond_mutex);
-  fsm_dispatch(fsm, event_id, 0);
-  ddsrt_cond_signal(&context->fsm_event_cond);
-  ddsrt_mutex_unlock(&context->fsm_event_cond_mutex);
+static void fsm_delete (struct dds_security_fsm_control *control, struct dds_security_fsm *fsm)
+{
+  fsm_deactivate (fsm, false);
+  remove_fsm_from_list (control, fsm);
+  ddsrt_free(fsm);
 }
 
-void dds_security_fsm_dispatch_direct(struct dds_security_fsm *fsm, int32_t event_id) {
-  dds_security_fsm_context *context;
+struct dds_security_fsm_control * dds_security_fsm_control_create (struct q_globals *gv)
+{
+  struct dds_security_fsm_control *control;
 
-  assert(fsm);
+  control = ddsrt_malloc (sizeof(*control));
+  control->running = false;
+  control->event_queue = NULL;
+  control->first_fsm = NULL;
+  control->last_fsm = NULL;
+  control->gv = gv;
+  ddsrt_mutex_init (&control->lock);
+  ddsrt_cond_init (&control->cond);
+  ddsrt_fibheap_init (&timer_events_fhdef, &control->timers);
 
-  context = fsm->context;
-  assert(context);
-
-  ddsrt_mutex_lock(&context->fsm_event_cond_mutex);
-  fsm_dispatch(fsm, event_id, 1);
-  ddsrt_cond_signal(&context->fsm_event_cond);
-  ddsrt_mutex_unlock(&context->fsm_event_cond_mutex);
+  return control;
 }
 
-const dds_security_fsm_state*
-dds_security_fsm_current_state(struct dds_security_fsm *fsm) {
-  assert(fsm);
-  return fsm->current;
-}
+void dds_security_fsm_control_free (struct dds_security_fsm_control *control)
+{
+  struct dds_security_fsm *fsm;
+  struct fsm_event *event;
 
-void dds_security_fsm_cleanup(struct dds_security_fsm *fsm) {
-  dds_security_fsm_context *context;
-  fsm_event *event;
-  fsm_event *tmp_prev_event;
-  fsm_event *tmp_next_event;
-  fsm_overall_timeout *timeout;
+  assert(control);
+  assert(!control->running);
 
-  assert(fsm);
-
-  context = fsm->context;
-  assert(context);
-
-  // Signal the timeout thread.
-  // First hold to lock to the overall timeout list
-  // so that the next timeout can't be determined until
-  // we've done removing the overall timeout of this fsm
-
-  // Signal the thread so that it's not using timeout structs
-  ddsrt_mutex_lock(&context->fsm_overall_timeout_cond_mutex);
-  ddsrt_cond_signal(&context->fsm_overall_timeout_cond);
-
-  timeout = context->fsm_overall_timeouts;
-
-  // Search the overall timeout of this fsm
-  while (timeout) {
-    if (timeout->fsm == fsm) {
-      break;
-    }
-    timeout = timeout->next;
+  while ((fsm = control->first_fsm) != NULL)
+  {
+    control->first_fsm = fsm->next_fsm;
+    fsm_deactivate (fsm, false);
+    ddsrt_free (fsm);
   }
-  fsm_remove_overall_timeout_from_list(context, timeout);
-  ddsrt_mutex_unlock(&context->fsm_overall_timeout_cond_mutex);
-
-  /* The current fsm could be the one that would trigger a possible timeout.
-   * Reset the state timeout and make sure it's not the current fsm. */
-  fsm_set_next_state_timeout(context, fsm);
-
-  /* Now, remove all possible events from the queue related to the fsm. */
-  ddsrt_mutex_lock(&context->fsm_event_cond_mutex);
-  event = context->fsm_queue;
-  while (event) {
-    if (event->fsm == fsm) {
-      tmp_next_event = event->next;
-      tmp_prev_event = event->prev;
-      if (tmp_prev_event) {
-        tmp_prev_event->next = tmp_next_event;
-      }
-      if (tmp_next_event) {
-        tmp_next_event->prev = tmp_prev_event;
-      }
-      if (event == context->fsm_queue) {
-        context->fsm_queue = tmp_next_event;
-      }
-      ddsrt_free(event);
-      event = tmp_next_event;
-    } else {
-      event = event->next;
-    }
+  while ((event = control->event_queue) != NULL)
+  {
+    control->event_queue = event->next;
+    ddsrt_free (event);
   }
-  ddsrt_cond_signal(&context->fsm_event_cond);
-  ddsrt_mutex_unlock(&context->fsm_event_cond_mutex);
+
+  ddsrt_cond_destroy (&control->cond);
+  ddsrt_mutex_destroy (&control->lock);
+  ddsrt_free (control);
 }
 
-void dds_security_fsm_free(struct dds_security_fsm *fsm) {
-  ddsrt_tid_t self = ddsrt_gettid_for_thread( ddsrt_thread_self() );
-  dds_security_fsm_context *context;
+dds_return_t dds_security_fsm_control_start (struct dds_security_fsm_control *control, const char *name)
+{
+  dds_return_t rc;
+  const char *fsm_name = name ? name : "fsm";
 
-  assert(fsm);
+  assert(control);
 
-  context = fsm->context;
-  assert(context);
+  control->running = true;
+  rc = create_thread (&control->ts, control->gv, fsm_name, (uint32_t (*) (void *)) handle_events, control);
 
-  /* Indicate termination. */
-  fsm->size = -1;
+  return rc;
+}
 
-  /* Cleanup stuff. */
-  dds_security_fsm_cleanup(fsm);
-  fsm_remove_fsm_list(fsm);
+void dds_security_fsm_control_stop (struct dds_security_fsm_control *control)
+{
+  assert(control);
+  assert(control->running);
 
-  /* Is this being freed from the FSM context? */
-  if ((self ==  ddsrt_gettid_for_thread( context->fsm_tid ) )
-      || (self ==  ddsrt_gettid_for_thread( context->fsm_timeout_tid ) ) ) {
-    /* Yes.
-     * Just reduce the reference count and let the garbage collection be
-     * done by the FSM context after event handling. */
-    ddsrt_atomic_dec32(&(fsm->ref_cnt));
-  } else {
-    /* No.
-     * Block the outside thread until a possible concurrent event
-     * has being handled. */
-    while (ddsrt_atomic_ld32( &(fsm->ref_cnt)) > 1) {
-      /* Currently, an event is still being handled for this FSM. */
-      dds_sleepfor( 10 * DDS_NSECS_IN_MSEC );
-    }
-    /* We have the only reference, so it's safe to free the FSM. */
-    ddsrt_free(fsm);
-  }
+  ddsrt_mutex_lock (&control->lock);
+  control->running = false;
+  ddsrt_cond_signal (&control->cond);
+  ddsrt_mutex_unlock (&control->lock);
+
+  join_thread (control->ts);
+  control->ts = NULL;
 }

@@ -397,10 +397,10 @@ static int known_channel_p (const struct q_globals *gv, const char *name)
 static int check_thread_properties (const struct q_globals *gv)
 {
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-  static const char *fixed[] = { "recv", "tev", "gc", "lease", "dq.builtins", "debmon", NULL };
+  static const char *fixed[] = { "recv", "tev", "gc", "lease", "dq.builtins", "debmon", "fsm", NULL };
   static const char *chanprefix[] = { "xmit.", "tev.","dq.",NULL };
 #else
-  static const char *fixed[] = { "recv", "tev", "gc", "lease", "dq.builtins", "xmit.user", "dq.user", "debmon", NULL };
+  static const char *fixed[] = { "recv", "tev", "gc", "lease", "dq.builtins", "xmit.user", "dq.user", "debmon", "fsm", NULL };
 #endif
   const struct config_thread_properties_listelem *e;
   int ok = 1, i;
