@@ -379,6 +379,16 @@ dds_entity_t dds_get_publisher (dds_entity_t writer)
   }
 }
 
+dds_return_t dds__writer_wait_for_acks (struct dds_writer *wr, dds_time_t abstimeout)
+{
+  /* during lifetime of the writer m_wr is constant, it is only during deletion that it
+     gets erased at some point */
+  if (wr->m_wr == NULL)
+    return DDS_RETCODE_OK;
+  else
+    return writer_wait_for_acks (wr->m_wr, abstimeout);
+}
+
 DDS_GET_STATUS(writer, publication_matched, PUBLICATION_MATCHED, total_count_change, current_count_change)
 DDS_GET_STATUS(writer, liveliness_lost, LIVELINESS_LOST, total_count_change)
 DDS_GET_STATUS(writer, offered_deadline_missed, OFFERED_DEADLINE_MISSED, total_count_change)

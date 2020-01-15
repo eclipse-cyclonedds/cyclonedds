@@ -2690,10 +2690,8 @@ unsigned remove_acked_messages (struct writer *wr, struct whc_state *whcst, stru
   assert (wr->e.guid.entityid.u != NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
   ASSERT_MUTEX_HELD (&wr->e.lock);
   n = whc_remove_acked_messages (wr->whc, writer_max_drop_seq (wr), whcst, deferred_free_list);
-  /* when transitioning from >= low-water to < low-water, signal
-     anyone waiting in throttle_writer() */
-  if (wr->throttling && whcst->unacked_bytes <= wr->whc_low)
-    ddsrt_cond_broadcast (&wr->throttle_cond);
+  /* trigger anyone waiting in throttle_writer() or wait_for_acks() */
+  ddsrt_cond_broadcast (&wr->throttle_cond);
   if (wr->retransmitting && whcst->unacked_bytes == 0)
     writer_clear_retransmitting (wr);
   if (wr->state == WRST_LINGERING && whcst->unacked_bytes == 0)
@@ -3090,6 +3088,20 @@ dds_return_t unblock_throttled_writer (struct q_globals *gv, const struct ddsi_g
   writer_set_state (wr, WRST_INTERRUPT);
   ddsrt_mutex_unlock (&wr->e.lock);
   return 0;
+}
+
+dds_return_t writer_wait_for_acks (struct writer *wr, dds_time_t abstimeout)
+{
+  dds_return_t rc;
+  seqno_t ref_seq;
+  ddsrt_mutex_lock (&wr->e.lock);
+  ref_seq = wr->seq;
+  while (wr->state == WRST_OPERATIONAL && ref_seq > writer_max_drop_seq (wr))
+    if (!ddsrt_cond_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
+      break;
+  rc = (ref_seq <= writer_max_drop_seq (wr)) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
+  ddsrt_mutex_unlock (&wr->e.lock);
+  return rc;
 }
 
 dds_return_t delete_writer_nolinger_locked (struct writer *wr)
