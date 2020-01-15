@@ -281,7 +281,7 @@ int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnow
         delete_proxy_participant_by_guid (gv, &g, now(), 1);
         break;
       case EK_PROXY_WRITER:
-        proxy_writer_set_notalive_guid (gv, &g, true);
+        proxy_writer_set_notalive ((struct proxy_writer *) l->entity, true);
         break;
       case EK_PARTICIPANT:
       case EK_READER:
