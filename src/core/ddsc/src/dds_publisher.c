@@ -15,6 +15,7 @@
 #include "dds__listener.h"
 #include "dds__participant.h"
 #include "dds__publisher.h"
+#include "dds__writer.h"
 #include "dds__qos.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/q_entity.h"
@@ -94,10 +95,33 @@ dds_return_t dds_resume (dds_entity_t publisher)
 
 dds_return_t dds_wait_for_acks (dds_entity_t publisher_or_writer, dds_duration_t timeout)
 {
+  dds_return_t ret;
+  dds_entity *p_or_w_ent;
+
   if (timeout < 0)
     return DDS_RETCODE_BAD_PARAMETER;
-  static const dds_entity_kind_t kinds[] = { DDS_KIND_WRITER, DDS_KIND_PUBLISHER };
-  return dds_generic_unimplemented_operation_manykinds (publisher_or_writer, sizeof (kinds) / sizeof (kinds[0]), kinds);
+
+  if ((ret = dds_entity_pin (publisher_or_writer, &p_or_w_ent)) < 0)
+    return ret;
+
+  const dds_time_t tnow = dds_time ();
+  const dds_time_t abstimeout = (DDS_INFINITY - timeout <= tnow) ? DDS_NEVER : (tnow + timeout);
+  switch (dds_entity_kind (p_or_w_ent))
+  {
+    case DDS_KIND_PUBLISHER:
+      /* FIXME: wait_for_acks on all writers of the same publisher */
+      dds_entity_unpin (p_or_w_ent);
+      return DDS_RETCODE_UNSUPPORTED;
+
+    case DDS_KIND_WRITER:
+      ret = dds__writer_wait_for_acks ((struct dds_writer *) p_or_w_ent, abstimeout);
+      dds_entity_unpin (p_or_w_ent);
+      return ret;
+
+    default:
+      dds_entity_unpin (p_or_w_ent);
+      return DDS_RETCODE_ILLEGAL_OPERATION;
+  }
 }
 
 dds_return_t dds_publisher_begin_coherent (dds_entity_t publisher)

@@ -240,7 +240,7 @@ struct writer
   struct endpoint_common c;
   status_cb_t status_cb;
   void * status_cb_entity;
-  ddsrt_cond_t throttle_cond; /* used to trigger a transmit thread blocked in throttle_writer() */
+  ddsrt_cond_t throttle_cond; /* used to trigger a transmit thread blocked in throttle_writer() or wait_for_acks() */
   seqno_t seq; /* last sequence number (transmitted seqs are 1 ... seq) */
   seqno_t cs_seq; /* 1st seq in coherent set (or 0) */
   seq_xmit_t seq_xmit; /* last sequence number actually transmitted */
@@ -605,6 +605,7 @@ seqno_t writer_max_drop_seq (const struct writer *wr);
 int writer_must_have_hb_scheduled (const struct writer *wr, const struct whc_state *whcst);
 void writer_set_retransmitting (struct writer *wr);
 void writer_clear_retransmitting (struct writer *wr);
+dds_return_t writer_wait_for_acks (struct writer *wr, dds_time_t abstimeout);
 
 dds_return_t unblock_throttled_writer (struct q_globals *gv, const struct ddsi_guid *guid);
 dds_return_t delete_writer (struct q_globals *gv, const struct ddsi_guid *guid);
