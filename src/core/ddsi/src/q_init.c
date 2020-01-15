@@ -957,7 +957,7 @@ int rtps_init (struct q_globals *gv)
   {
     if (!gv->interfaces[gv->selected_interface].mc_capable)
     {
-      GVWARNING ("selected interface is not multicast-capable: disabling multicast\n");
+      GVWARNING ("selected interface \"%s\" is not multicast-capable: disabling multicast\n", gv->interfaces[gv->selected_interface].name);
       gv->config.allowMulticast = AMC_FALSE;
       /* ensure discovery can work: firstly, that the process will be reachable on a "well-known" port
          number, and secondly, that the local interface's IP address gets added to the discovery
