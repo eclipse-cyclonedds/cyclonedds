@@ -4510,20 +4510,6 @@ int proxy_writer_set_notalive (struct proxy_writer *pwr, bool notify)
   return DDS_RETCODE_OK;
 }
 
-void proxy_writer_set_notalive_guid (struct q_globals *gv, const struct ddsi_guid *pwrguid, bool notify)
-{
-  struct proxy_writer *pwr;
-  if ((pwr = entidx_lookup_proxy_writer_guid (gv->entity_index, pwrguid)) == NULL)
-    GVLOGDISC (" "PGUIDFMT"?\n", PGUID (*pwrguid));
-  else
-  {
-    GVLOGDISC ("proxy_writer_set_notalive_guid ("PGUIDFMT")", PGUID (*pwrguid));
-    if (proxy_writer_set_notalive (pwr, notify) == DDS_RETCODE_PRECONDITION_NOT_MET)
-      GVLOGDISC (" pwr was not alive");
-    GVLOGDISC ("\n");
-  }
-}
-
 /* PROXY-READER ----------------------------------------------------- */
 
 int new_proxy_reader (struct q_globals *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const nn_plist_t *plist, nn_wctime_t timestamp, seqno_t seq

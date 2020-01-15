@@ -676,7 +676,6 @@ void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset 
 
 void proxy_writer_set_alive_may_unlock (struct proxy_writer *pwr, bool notify);
 int proxy_writer_set_notalive (struct proxy_writer *pwr, bool notify);
-void proxy_writer_set_notalive_guid (struct q_globals *gv, const struct ddsi_guid *pwrguid, bool notify);
 
 int new_proxy_group (const struct ddsi_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp);
 
