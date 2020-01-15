@@ -4478,8 +4478,13 @@ void proxy_writer_set_alive_may_unlock (struct proxy_writer *pwr, bool notify)
   ddsrt_mutex_lock (&pwr->c.proxypp->e.lock);
   pwr->alive = true;
   pwr->alive_vclock++;
-  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
-    proxy_participant_add_pwr_lease_locked (pwr->c.proxypp, pwr);
+  if (pwr->c.xqos->liveliness.lease_duration != T_NEVER)
+  {
+    if (pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
+      proxy_participant_add_pwr_lease_locked (pwr->c.proxypp, pwr);
+    else
+      lease_set_expiry (pwr->lease, add_duration_to_etime (now_et (), pwr->lease->tdur));
+  }
   ddsrt_mutex_unlock (&pwr->c.proxypp->e.lock);
 
   if (notify)
