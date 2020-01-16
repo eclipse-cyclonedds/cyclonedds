@@ -17,5 +17,9 @@
 #define TEST_LIB_SEP    "@test_lib_sep@"
 #define TEST_LIB_SUFFIX "@CMAKE_SHARED_LIBRARY_SUFFIX@"
 #define TEST_LIB_PREFIX "@CMAKE_SHARED_LIBRARY_PREFIX@"
+#define CONFIG_PLUGIN_MOCK_DIR          "@test_lib_dir@"
+#define CONFIG_LIB_SUFFIX "@CMAKE_SHARED_LIBRARY_SUFFIX@"
+#define CONFIG_LIB_PREFIX "@CMAKE_SHARED_LIBRARY_PREFIX@"
+#define CONFIG_LIB_SEP    "@test_lib_sep@"
 
 #endif /* CONFIG_ENV_H */

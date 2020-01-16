@@ -14,9 +14,5 @@
 
 #define CONFIG_ENV_SIMPLE_UDP           "@CUnit_ddsc_config_simple_udp_uri@"
 #define CONFIG_ENV_MAX_PARTICIPANTS     "@CUnit_ddsc_config_simple_udp_max_participants@"
-#define CONFIG_PLUGIN_MOCK_DIR          "@test_lib_dir@"
-#define CONFIG_LIB_SUFFIX "@CMAKE_SHARED_LIBRARY_SUFFIX@"
-#define CONFIG_LIB_PREFIX "@CMAKE_SHARED_LIBRARY_PREFIX@"
-#define CONFIG_LIB_SEP    "@test_lib_sep@"
 
 #endif /* CONFIG_ENV_H */
