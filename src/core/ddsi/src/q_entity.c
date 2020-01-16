@@ -3845,13 +3845,15 @@ void new_proxy_participant (struct q_globals *gv, const struct ddsi_guid *ppguid
     nn_plist_fini (&plist_rd);
   }
 
+  /* write DCPSParticipant topic before the lease can expire */
+  builtintopic_write (gv->builtin_topic_interface, &proxypp->e, timestamp, true);
+
   /* Register lease for auto liveliness, but be careful not to accidentally re-register
      DDSI2's lease, as we may have become dependent on DDSI2 any time after
      entidx_insert_proxy_participant_guid even if privileged_pp_guid was NULL originally */
   ddsrt_mutex_lock (&proxypp->e.lock);
   if (proxypp->owns_lease)
     lease_register (ddsrt_atomic_ldvoidp (&proxypp->minl_auto));
-  builtintopic_write (gv->builtin_topic_interface, &proxypp->e, timestamp, true);
   ddsrt_mutex_unlock (&proxypp->e.lock);
 }
 
