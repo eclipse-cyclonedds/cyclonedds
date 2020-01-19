@@ -11,6 +11,7 @@
  */
 #include "CUnit/Test.h"
 #include "dds/dds.h"
+#include <assert.h>
 
 /****************************************************************************
  * Convenience global policies
@@ -746,6 +747,7 @@ CU_Test(ddsc_qos, bproperty, .init=qos_init, .fini=qos_fini)
     CU_ASSERT_FATAL(dds_qget_bprop (g_qos, c_bproperty_names[0], &bvalue, &size));
     CU_ASSERT_FATAL (bvalue != NULL);
     CU_ASSERT_EQUAL_FATAL (size, 3);
+    assert (c_bproperty_values[0] != NULL); /* for Clang static analyzer */
     CU_ASSERT_EQUAL_FATAL (memcmp (bvalue, c_bproperty_values[0], size), 0);
     dds_free (bvalue);
 
@@ -754,6 +756,7 @@ CU_Test(ddsc_qos, bproperty, .init=qos_init, .fini=qos_fini)
     CU_ASSERT_FATAL (dds_qget_bprop (g_qos, c_bproperty_names[0], &bvalue, &size));
     CU_ASSERT_FATAL (bvalue != NULL);
     CU_ASSERT_EQUAL_FATAL (size, 3);
+    assert (c_bproperty_values[1] != NULL); /* for Clang static analyzer */
     CU_ASSERT_EQUAL_FATAL (memcmp (bvalue, c_bproperty_values[1], size), 0);
     dds_free (bvalue);
     dds_qset_bprop (g_qos, c_bproperty_names[0], &c_bproperty_values[0], 3);
@@ -782,11 +785,13 @@ CU_Test(ddsc_qos, bproperty, .init=qos_init, .fini=qos_fini)
     CU_ASSERT_FATAL (dds_qget_bprop (g_qos, c_bproperty_names[0], &bvalue, &size));
     CU_ASSERT_FATAL (bvalue != NULL);
     CU_ASSERT_EQUAL_FATAL (size, 3);
+    assert (c_bproperty_values[0] != NULL); /* for Clang static analyzer */
     CU_ASSERT_EQUAL_FATAL (memcmp (bvalue, c_bproperty_values[0], size), 0);
     dds_free (bvalue);
     CU_ASSERT_FATAL (dds_qget_bprop (g_qos, c_bproperty_names[2], &bvalue, &size));
     CU_ASSERT_FATAL (bvalue != NULL);
     CU_ASSERT_EQUAL_FATAL (size, 3);
+    assert (c_bproperty_values[2] != NULL); /* for Clang static analyzer */
     CU_ASSERT_EQUAL_FATAL (memcmp (bvalue, c_bproperty_values[2], size), 0);
     dds_free (bvalue);
     dds_qunset_bprop (g_qos, c_bproperty_names[0]);
@@ -809,6 +814,7 @@ CU_Test(ddsc_qos, property_mixed, .init=qos_init, .fini=qos_fini)
     CU_ASSERT_FATAL (dds_qget_bprop (g_qos, c_property_names[0], &bvalue, &size));
     CU_ASSERT_FATAL (bvalue != NULL);
     CU_ASSERT_EQUAL_FATAL (size, 3);
+    assert (c_bproperty_values[0] != NULL); /* for Clang static analyzer */
     CU_ASSERT_EQUAL_FATAL (memcmp (bvalue, c_bproperty_values[0], size), 0);
     dds_free (bvalue);
     CU_ASSERT_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value));

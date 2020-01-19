@@ -584,7 +584,6 @@ static void send_heartbeat_to_all_readers(struct nn_xpack *xp, struct xevent *ev
 {
   struct whc_state whcst;
   nn_mtime_t t_next;
-  int hbansreq = 0;
   unsigned count = 0;
 
   ddsrt_mutex_lock (&wr->e.lock);
@@ -592,21 +591,14 @@ static void send_heartbeat_to_all_readers(struct nn_xpack *xp, struct xevent *ev
   whc_get_state(wr->whc, &whcst);
 
   if (!writer_must_have_hb_scheduled (wr, &whcst))
-  {
-    hbansreq = 1; /* just for trace */
     t_next.v = T_NEVER;
-  }
   else if (!writer_hbcontrol_must_send (wr, &whcst, tnow))
-  {
-    hbansreq = 1; /* just for trace */
     t_next.v = tnow.v + writer_hbcontrol_intv (wr, &whcst, tnow);
-  }
   else
   {
     struct wr_prd_match *m;
     struct ddsi_guid last_guid = { .prefix = {.u = {0,0,0}}, .entityid = {0} };
-
-    hbansreq = writer_hbcontrol_ack_required (wr, &whcst, tnow);
+    const int hbansreq = writer_hbcontrol_ack_required (wr, &whcst, tnow);
     t_next.v = tnow.v + writer_hbcontrol_intv (wr, &whcst, tnow);
 
     while ((m = ddsrt_avl_lookup_succ (&wr_readers_treedef, &wr->readers, &last_guid)) != NULL)

@@ -403,6 +403,7 @@ void dds_qset_prop (dds_qos_t * __restrict qos, const char * name, const char * 
   dds_qprop_init (qos);
   if (dds_qprop_get_index (qos, name, &i))
   {
+    assert (&qos->property.value.props[i] != NULL); /* for Clang static analyzer */
     dds_free (qos->property.value.props[i].value);
     qos->property.value.props[i].value = dds_string_dup (value);
   }
@@ -426,6 +427,7 @@ void dds_qset_bprop (dds_qos_t * __restrict qos, const char * name, const void *
   dds_qprop_init (qos);
   if (dds_qbprop_get_index (qos, name, &i))
   {
+    assert (&qos->property.binary_value.props[i].value != NULL); /* for Clang static analyzer */
     dds_qos_data_copy_in (&qos->property.binary_value.props[i].value, value, sz, true);
   }
   else

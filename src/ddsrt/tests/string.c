@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <string.h>
+#include <assert.h>
 
 #include "CUnit/Theory.h"
 #include "dds/ddsrt/heap.h"
@@ -82,6 +83,7 @@ CU_Theory((const char *str, const char *srch, const char *subst, size_t max, con
   if (exp != NULL)
   {
     CU_ASSERT_FATAL(r != NULL);
+    assert(r != NULL); /* for Clang static analyzer */
     CU_ASSERT(strcmp(r, exp) == 0);
     ddsrt_free(r);
   }

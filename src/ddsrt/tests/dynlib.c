@@ -87,7 +87,7 @@ CU_Test(ddsrt_library, dlopen_unknown)
   ddsrt_dynlib_t l;
 
   r = ddsrt_dlopen("UnknownLib", false, &l);
-
+  CU_ASSERT_NOT_EQUAL(r, DDS_RETCODE_OK);
   CU_ASSERT_PTR_NULL_FATAL(l);
 
   r = ddsrt_dlerror(buffer, sizeof(buffer));
@@ -123,6 +123,7 @@ CU_Test(ddsrt_library, dlsym_unknown)
   void* f;
 
   r = ddsrt_dlopen(TEST_LIB_NAME, true, &l);
+  CU_ASSERT_EQUAL(r, DDS_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(l);
   TEST_ABORT_IF_NULL(l,"ddsrt_dlopen() failed. Is the proper library path set?");
 
@@ -150,17 +151,21 @@ CU_Test(ddsrt_library, call)
   ddsrt_dynlib_t l;
 
   r = ddsrt_dlopen(TEST_LIB_NAME, true, &l);
+  CU_ASSERT_EQUAL(r, DDS_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(l);
   TEST_ABORT_IF_NULL(l, "ddsrt_dlopen() failed. Is the proper library path set?");
 
   r = ddsrt_dlsym(l, "get_int", (void **)&f_get);
+  CU_ASSERT_EQUAL(r, DDS_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(f_get);
   TEST_ABORT_IF_NULL(f_get, "ddsrt_dlsym(l, \"get_int\") failed.");
 
   r = ddsrt_dlsym(l, "set_int", (void **)&f_set);
+  CU_ASSERT_EQUAL(r, DDS_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(f_set);
   TEST_ABORT_IF_NULL(f_set, "ddsrt_dlsym(l, \"set_int\") failed.");
 
+  assert(f_set != 0 && f_get != 0); /* for Clang static analyzer */
   f_set(set_int);
   get_int = f_get();
   CU_ASSERT_EQUAL(set_int, get_int);
@@ -175,6 +180,7 @@ CU_Test(ddsrt_library, dlclose_error)
     ddsrt_dynlib_t l;
 
     r = ddsrt_dlopen(TEST_LIB_NAME, true, &l);
+    CU_ASSERT_EQUAL(r, DDS_RETCODE_OK);
     CU_ASSERT_PTR_NOT_NULL(l);
     TEST_ABORT_IF_NULL(l, "ddsrt_dlopen() failed. Is the proper library path set?");
 
