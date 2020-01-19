@@ -15,6 +15,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_security_msg.h"
 #include "mem_ser.h"
+#include <assert.h>
 
 static nn_participant_generic_message_t test_msg_in =
 {
@@ -302,6 +303,7 @@ CU_Test (ddsi_security_msg, serializer)
 
   /* Check serialization result. */
   size_t cmpsize = (len < sizeof(test_msg_ser)) ? len : sizeof(test_msg_ser);
+  assert(data != NULL); /* for Clang static analyzer */
   if (memcmp (data, test_msg_ser, cmpsize) != 0)
   {
     printf ("memcmp(%d)\n", (int)cmpsize);
