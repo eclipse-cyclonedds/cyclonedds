@@ -626,7 +626,7 @@ sub read_config {
       # skip reference to internal name (either ABSOFF(field),
       # RELOFF(field,field) or <int>,<int> (the latter being used by
       # "verbosity")
-      $rest =~ s/(ABSOFF *\( *[A-Za-z_0-9.]+ *\)|RELOFF *\( *[A-Za-z_0-9.]+ *, *[A-Za-z_0-9]+ *\)|[0-9]+ *, *[0-9]+) *, *//;
+      $rest =~ s/(ABSOFF *\( *[A-Za-z_0-9.]+ *\)|RELOFF *\( *[A-Za-z_0-9.]+ *, *[A-Za-z_0-9. ]+\)|[0-9]+ *, *[0-9]+) *, *//;
       # skip init function
       $rest =~ s/([A-Za-z_0-9]+|0) *, *//;
       # type hint from conversion function

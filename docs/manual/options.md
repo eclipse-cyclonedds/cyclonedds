@@ -117,8 +117,7 @@ specification.
 
 
 ##### //CycloneDDS/Domain/DDSSecurity/AccessControl/Governance
-
-RELOFF (cfg.access_control_properties.governance), pf_string, BLURB("
+Text
 
 URI to the shared Governance Document signed by the Permissions CA in
 S/MIME format
@@ -168,38 +167,39 @@ MIIDuAYJKoZIhv ...al5s=
 
 ------F9A8A198D6F08E1285A292ADF14DD04F-]]</Governance>
 
+The default value is: "".
+
 
 ##### //CycloneDDS/Domain/DDSSecurity/AccessControl/Library
-Children: [finalizeFunction](#cycloneddsdomainddssecurityaccesscontrollibraryfinalizefunction), [initFunction](#cycloneddsdomainddssecurityaccesscontrollibraryinitfunction), [path](#cycloneddsdomainddssecurityaccesscontrollibrarypath)
+Attributes: [finalizeFunction](#cycloneddsdomainddssecurityaccesscontrollibraryfinalizefunction), [initFunction](#cycloneddsdomainddssecurityaccesscontrollibraryinitfunction), [path](#cycloneddsdomainddssecurityaccesscontrollibrarypath)
 
-
-RELOFF (cfg.access_control_plugin), pf_string, BLURB("
 
 This element specifies the library to be loaded as the DDS Security
 Access Control plugin.
 
 
-###### //CycloneDDS/Domain/DDSSecurity/AccessControl/Library/finalizeFunction
-
-RELOFF (cfg.access_control_plugin.library_finalize), pf_string, BLURB("
+##### //CycloneDDS/Domain/DDSSecurity/AccessControl/Library[@finalizeFunction]
+Text
 
 This element names the finalization function of Access Control plugin.
 This function is called to let the plugin release its resources.
 
+The default value is: "finalize_access_control".
 
-###### //CycloneDDS/Domain/DDSSecurity/AccessControl/Library/initFunction
 
-RELOFF (cfg.access_control_plugin.library_init), pf_string, BLURB("
+##### //CycloneDDS/Domain/DDSSecurity/AccessControl/Library[@initFunction]
+Text
 
 This element names the initialization function of Access Control plugin.
 This function is called after loading the plugin library for
 instantiation purposes. Init function must return an object that
 implements DDS Security Access Control interface.
 
+The default value is: "init_access_control".
 
-###### //CycloneDDS/Domain/DDSSecurity/AccessControl/Library/path
 
-RELOFF (cfg.access_control_plugin.library_path), pf_string, BLURB("
+##### //CycloneDDS/Domain/DDSSecurity/AccessControl/Library[@path]
+Text
 
 This element points to the path of Access Control plugin library.
 
@@ -211,10 +211,11 @@ If single file is supplied, the library located by way of the current
 working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
 Windows systems.
 
+The default value is: "dds_security_ac".
+
 
 ##### //CycloneDDS/Domain/DDSSecurity/AccessControl/Permissions
-
-RELOFF (cfg.access_control_properties.permissions), pf_string, BLURB("
+Text
 
 URI to the DomainParticipant permissions document signed by the
 Permissions CA in S/MIME format
@@ -232,10 +233,11 @@ Example data URI:
 
 <Permissions><![CDATA[data:,.........]]</Permissions>
 
+The default value is: "".
+
 
 ##### //CycloneDDS/Domain/DDSSecurity/AccessControl/PermissionsCA
-
-RELOFF (cfg.access_control_properties.permissions_ca), pf_string, BLURB("
+Text
 
 URI to a X509 certificate for the PermissionsCA in PEM format.
 
@@ -256,6 +258,8 @@ MIIC3DCCAcQCCQCWE5x+Z ... PhovK0mp2ohhRLYI0ZiyYQ==
 
 -----END CERTIFICATE-----</PermissionsCA>
 
+The default value is: "".
+
 
 #### //CycloneDDS/Domain/DDSSecurity/Authentication
 Children: [IdentityCA](#cycloneddsdomainddssecurityauthenticationidentityca), [IdentityCertificate](#cycloneddsdomainddssecurityauthenticationidentitycertificate), [Library](#cycloneddsdomainddssecurityauthenticationlibrary), [Password](#cycloneddsdomainddssecurityauthenticationpassword), [PrivateKey](#cycloneddsdomainddssecurityauthenticationprivatekey), [TrustedCADirectory](#cycloneddsdomainddssecurityauthenticationtrustedcadirectory)
@@ -266,8 +270,7 @@ specification.
 
 
 ##### //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCA
-
-RELOFF (cfg.authentication_properties.identity_ca), pf_string, BLURB("
+Text
 
 URI to the X509 certificate [39] of the Identity CA that is the signer of
 Identity Certificate.
@@ -289,9 +292,7 @@ MIIC3DCCAcQCCQCWE5x+Z...PhovK0mp2ohhRLYI0ZiyYQ==<br>
 
 
 ##### //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCertificate
-
-RELOFF (cfg.authentication_properties.identity_certificate), pf_string,
-BLURB("
+Text
 
 Identity certificate that will be used for identifying all participants
 in the OSPL instance.<br>The content is URI to a X509 certificate signed
@@ -311,36 +312,35 @@ MIIDjjCCAnYCCQDCEu9...6rmT87dhTo=<br>
 
 
 ##### //CycloneDDS/Domain/DDSSecurity/Authentication/Library
-Children: [finalizeFunction](#cycloneddsdomainddssecurityauthenticationlibraryfinalizefunction), [initFunction](#cycloneddsdomainddssecurityauthenticationlibraryinitfunction), [path](#cycloneddsdomainddssecurityauthenticationlibrarypath)
+Attributes: [finalizeFunction](#cycloneddsdomainddssecurityauthenticationlibraryfinalizefunction), [initFunction](#cycloneddsdomainddssecurityauthenticationlibraryinitfunction), [path](#cycloneddsdomainddssecurityauthenticationlibrarypath)
 
-
-RELOFF (cfg.authentication_plugin), pf_string, BLURB("
 
 This element specifies the library to be loaded as the DDS Security
 Access Control plugin.
 
 
-###### //CycloneDDS/Domain/DDSSecurity/Authentication/Library/finalizeFunction
-
-RELOFF (cfg.authentication_plugin.library_finalize), pf_string, BLURB("
+##### //CycloneDDS/Domain/DDSSecurity/Authentication/Library[@finalizeFunction]
+Text
 
 This element names the finalization function of Authentication plugin.
 This function is called to let the plugin release its resources.
 
+The default value is: "finalize_authentication".
 
-###### //CycloneDDS/Domain/DDSSecurity/Authentication/Library/initFunction
 
-RELOFF (cfg.authentication_plugin.library_init), pf_string, BLURB("
+##### //CycloneDDS/Domain/DDSSecurity/Authentication/Library[@initFunction]
+Text
 
 This element names the initialization function of Authentication plugin.
 This function is called after loading the plugin library for
 instantiation purposes. Init function must return an object that
 implements DDS Security Authentication interface.
 
+The default value is: "init_authentication".
 
-###### //CycloneDDS/Domain/DDSSecurity/Authentication/Library/path
 
-RELOFF (cfg.authentication_plugin.library_path), pf_string, BLURB("
+##### //CycloneDDS/Domain/DDSSecurity/Authentication/Library[@path]
+Text
 
 This element points to the path of Authentication plugin library.
 
@@ -352,10 +352,11 @@ If single file is supplied, the library located by way of the current
 working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
 Windows systems.
 
+The default value is: "dds_security_auth".
+
 
 ##### //CycloneDDS/Domain/DDSSecurity/Authentication/Password
-
-RELOFF (cfg.authentication_properties.password), pf_string, BLURB("
+Text
 
 A password used to decrypt the private_key.
 
@@ -366,10 +367,11 @@ using AES128-CBC.
 If the password property is not present, then the value supplied in the
 private_key property must contain the unencrypted private key.
 
+The default value is: "".
+
 
 ##### //CycloneDDS/Domain/DDSSecurity/Authentication/PrivateKey
-
-RELOFF (cfg.authentication_properties.private_key), pf_string, BLURB("
+Text
 
 URI to access the private Private Key for all of the participants in the
 OSPL federation.
@@ -388,11 +390,12 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 
 
 ##### //CycloneDDS/Domain/DDSSecurity/Authentication/TrustedCADirectory
-
-RELOFF (cfg.authentication_properties.trusted_ca_dir), pf_string, BLURB("
+Text
 
 Trusted CA Directory which contains trusted CA certificates as separated
 files.
+
+The default value is: "".
 
 
 #### //CycloneDDS/Domain/DDSSecurity/Cryptographic
@@ -404,36 +407,35 @@ specification.
 
 
 ##### //CycloneDDS/Domain/DDSSecurity/Cryptographic/Library
-Children: [finalizeFunction](#cycloneddsdomainddssecuritycryptographiclibraryfinalizefunction), [initFunction](#cycloneddsdomainddssecuritycryptographiclibraryinitfunction), [path](#cycloneddsdomainddssecuritycryptographiclibrarypath)
+Attributes: [finalizeFunction](#cycloneddsdomainddssecuritycryptographiclibraryfinalizefunction), [initFunction](#cycloneddsdomainddssecuritycryptographiclibraryinitfunction), [path](#cycloneddsdomainddssecuritycryptographiclibrarypath)
 
-
-RELOFF (cfg.cryptography_plugin), pf_string, BLURB("
 
 This element specifies the library to be loaded as the DDS Security
 Cryptographic plugin.
 
 
-###### //CycloneDDS/Domain/DDSSecurity/Cryptographic/Library/finalizeFunction
-
-RELOFF (cfg.cryptography_plugin.library_finalize), pf_string, BLURB("
+##### //CycloneDDS/Domain/DDSSecurity/Cryptographic/Library[@finalizeFunction]
+Text
 
 This element names the finalization function of Cryptographic plugin.
 This function is called to let the plugin release its resources.
 
+The default value is: "finalize_crypto".
 
-###### //CycloneDDS/Domain/DDSSecurity/Cryptographic/Library/initFunction
 
-RELOFF (cfg.cryptography_plugin.library_init), pf_string, BLURB("
+##### //CycloneDDS/Domain/DDSSecurity/Cryptographic/Library[@initFunction]
+Text
 
 This element names the initialization function of Cryptographic plugin.
 This function is called after loading the plugin library for
 instantiation purposes. Init function must return an object that
 implements DDS Security Cryptographic interface.
 
+The default value is: "init_crypto".
 
-###### //CycloneDDS/Domain/DDSSecurity/Cryptographic/Library/path
 
-RELOFF (cfg.cryptography_plugin.library_path), pf_string, BLURB("
+##### //CycloneDDS/Domain/DDSSecurity/Cryptographic/Library[@path]
+Text
 
 This element points to the path of Cryptographic plugin library.
 
@@ -444,6 +446,8 @@ dds_security_crypto ).
 If single file is supplied, the library located by way of the current
 working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
 Windows systems.
+
+The default value is: "dds_security_crypto".
 
 
 ### //CycloneDDS/Domain/Discovery
