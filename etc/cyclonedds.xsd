@@ -173,39 +173,33 @@ specification.&lt;/p&gt;</xs:documentation>
         <xs:element minOccurs="0" name="Library">
           <xs:annotation>
             <xs:documentation>
-RELOFF (cfg.access_control_plugin), pf_string, BLURB("&lt;p&gt;This element
-specifies the library to be loaded as the DDS Security Access Control
-plugin.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;This element specifies the library to be loaded as the DDS Security
+Access Control plugin.&lt;/p&gt;</xs:documentation>
           </xs:annotation>
           <xs:complexType>
-            <xs:all>
-              <xs:element minOccurs="0" name="finalizeFunction">
-                <xs:annotation>
-                  <xs:documentation>
-RELOFF (cfg.access_control_plugin.library_finalize), pf_string,
-BLURB("&lt;p&gt;This element names the finalization function of Access Control
-plugin. This function is called to let the plugin release its
-resources.&lt;/p&gt;</xs:documentation>
-                </xs:annotation>
-                <xs:complexType/>
-              </xs:element>
-              <xs:element minOccurs="0" name="initFunction">
-                <xs:annotation>
-                  <xs:documentation>
-RELOFF (cfg.access_control_plugin.library_init), pf_string,
-BLURB("&lt;p&gt;This element names the initialization function of Access
-Control plugin. This function is called after loading the plugin library
-for instantiation purposes. Init function must return an object that
-implements DDS Security Access Control interface.&lt;/p&gt;</xs:documentation>
-                </xs:annotation>
-                <xs:complexType/>
-              </xs:element>
-              <xs:element minOccurs="0" name="path">
-                <xs:annotation>
-                  <xs:documentation>
-RELOFF (cfg.access_control_plugin.library_path), pf_string,
-BLURB("&lt;p&gt;This element points to the path of Access Control plugin
-library.&lt;/p&gt;
+            <xs:attribute name="finalizeFunction">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element names the finalization function of Access Control plugin.
+This function is called to let the plugin release its
+resources.&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;finalize_access_control&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="initFunction">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element names the initialization function of Access Control
+plugin. This function is called after loading the plugin library for
+instantiation purposes. Init function must return an object that
+implements DDS Security Access Control interface.&lt;/p&gt;&lt;p&gt;The default value
+is: &amp;quot;init_access_control&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="path">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element points to the path of Access Control plugin library.&lt;/p&gt;
 
 &lt;p&gt;It can be either absolute path excluding file extension (
 /usr/lib/dds_security_ac ) or single file without extension (
@@ -213,11 +207,10 @@ dds_security_ac ).&lt;/p&gt;
 
 &lt;p&gt;If single file is supplied, the library located by way of the current
 working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
-Windows systems.&lt;/p&gt;</xs:documentation>
-                </xs:annotation>
-                <xs:complexType/>
-              </xs:element>
-            </xs:all>
+Windows systems.&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;dds_security_ac&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
           </xs:complexType>
         </xs:element>
         <xs:element minOccurs="0" ref="config:Permissions"/>
@@ -225,12 +218,11 @@ Windows systems.&lt;/p&gt;</xs:documentation>
       </xs:all>
     </xs:complexType>
   </xs:element>
-  <xs:element name="Governance">
+  <xs:element name="Governance" type="xs:string">
     <xs:annotation>
       <xs:documentation>
-RELOFF (cfg.access_control_properties.governance), pf_string,
-BLURB("&lt;p&gt;URI to the shared Governance Document signed by the Permissions
-CA in S/MIME format&lt;/p&gt;
+&lt;p&gt;URI to the shared Governance Document signed by the Permissions CA in
+S/MIME format&lt;/p&gt;
 
 &lt;p&gt;URI schemes: file, data&lt;/p&gt;&lt;br&gt;
 
@@ -276,15 +268,14 @@ boundary="----F9A8A198D6F08E1285A292ADF14DD04F"&lt;/p&gt;
 
 &lt;p&gt;MIIDuAYJKoZIhv ...al5s=&lt;/p&gt;
 
-&lt;p&gt;------F9A8A198D6F08E1285A292ADF14DD04F-]]&lt;/Governance&gt;&lt;/p&gt;</xs:documentation>
+&lt;p&gt;------F9A8A198D6F08E1285A292ADF14DD04F-]]&lt;/Governance&gt;&lt;/p&gt;&lt;p&gt;The
+default value is: &amp;quot;&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
-    <xs:complexType/>
   </xs:element>
-  <xs:element name="Permissions">
+  <xs:element name="Permissions" type="xs:string">
     <xs:annotation>
       <xs:documentation>
-RELOFF (cfg.access_control_properties.permissions), pf_string,
-BLURB("&lt;p&gt;URI to the DomainParticipant permissions document signed by the
+&lt;p&gt;URI to the DomainParticipant permissions document signed by the
 Permissions CA in S/MIME format&lt;/p&gt;
 
 &lt;p&gt;The permissions document specifies the permissions to be applied to a
@@ -298,16 +289,14 @@ domain.&lt;/p&gt;&lt;br&gt;
 
 &lt;p&gt;Example data URI:&lt;/p&gt;
 
-&lt;p&gt;&lt;Permissions&gt;&lt;![CDATA[data:,.........]]&lt;/Permissions&gt;&lt;/p&gt;</xs:documentation>
+&lt;p&gt;&lt;Permissions&gt;&lt;![CDATA[data:,.........]]&lt;/Permissions&gt;&lt;/p&gt;&lt;p&gt;The
+default value is: &amp;quot;&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
-    <xs:complexType/>
   </xs:element>
-  <xs:element name="PermissionsCA">
+  <xs:element name="PermissionsCA" type="xs:string">
     <xs:annotation>
       <xs:documentation>
-RELOFF (cfg.access_control_properties.permissions_ca), pf_string,
-BLURB("&lt;p&gt;URI to a X509 certificate for the PermissionsCA in PEM
-format.&lt;/p&gt;
+&lt;p&gt;URI to a X509 certificate for the PermissionsCA in PEM format.&lt;/p&gt;
 
 &lt;p&gt;Supported URI schemes: file, data&lt;/p&gt;
 
@@ -324,9 +313,9 @@ X.509 v3 ITU-T Recommendation X.509 (2005) [39]) in PEM format.&lt;/p&gt;&lt;br&
 
 &lt;p&gt;MIIC3DCCAcQCCQCWE5x+Z ... PhovK0mp2ohhRLYI0ZiyYQ==&lt;/p&gt;
 
-&lt;p&gt;-----END CERTIFICATE-----&lt;/PermissionsCA&gt;&lt;/p&gt;</xs:documentation>
+&lt;p&gt;-----END CERTIFICATE-----&lt;/PermissionsCA&gt;&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
-    <xs:complexType/>
   </xs:element>
   <xs:element name="Authentication">
     <xs:annotation>
@@ -336,44 +325,38 @@ specification.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:IdentityCA"/>
-        <xs:element minOccurs="0" ref="config:IdentityCertificate"/>
+        <xs:element ref="config:IdentityCA"/>
+        <xs:element ref="config:IdentityCertificate"/>
         <xs:element minOccurs="0" name="Library">
           <xs:annotation>
             <xs:documentation>
-RELOFF (cfg.authentication_plugin), pf_string, BLURB("&lt;p&gt;This element
-specifies the library to be loaded as the DDS Security Access Control
-plugin.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;This element specifies the library to be loaded as the DDS Security
+Access Control plugin.&lt;/p&gt;</xs:documentation>
           </xs:annotation>
           <xs:complexType>
-            <xs:all>
-              <xs:element minOccurs="0" name="finalizeFunction">
-                <xs:annotation>
-                  <xs:documentation>
-RELOFF (cfg.authentication_plugin.library_finalize), pf_string,
-BLURB("&lt;p&gt;This element names the finalization function of Authentication
-plugin. This function is called to let the plugin release its
-resources.&lt;/p&gt;</xs:documentation>
-                </xs:annotation>
-                <xs:complexType/>
-              </xs:element>
-              <xs:element minOccurs="0" name="initFunction">
-                <xs:annotation>
-                  <xs:documentation>
-RELOFF (cfg.authentication_plugin.library_init), pf_string,
-BLURB("&lt;p&gt;This element names the initialization function of
-Authentication plugin. This function is called after loading the plugin
-library for instantiation purposes. Init function must return an object
-that implements DDS Security Authentication interface.&lt;/p&gt;</xs:documentation>
-                </xs:annotation>
-                <xs:complexType/>
-              </xs:element>
-              <xs:element minOccurs="0" name="path">
-                <xs:annotation>
-                  <xs:documentation>
-RELOFF (cfg.authentication_plugin.library_path), pf_string,
-BLURB("&lt;p&gt;This element points to the path of Authentication plugin
-library.&lt;/p&gt;
+            <xs:attribute name="finalizeFunction">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element names the finalization function of Authentication plugin.
+This function is called to let the plugin release its
+resources.&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;finalize_authentication&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="initFunction">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element names the initialization function of Authentication
+plugin. This function is called after loading the plugin library for
+instantiation purposes. Init function must return an object that
+implements DDS Security Authentication interface.&lt;/p&gt;&lt;p&gt;The default value
+is: &amp;quot;init_authentication&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="path">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element points to the path of Authentication plugin library.&lt;/p&gt;
 
 &lt;p&gt;It can be either absolute path excluding file extension (
 /usr/lib/dds_security_auth ) or single file without extension (
@@ -381,25 +364,23 @@ dds_security_auth ).&lt;/p&gt;
 
 &lt;p&gt;If single file is supplied, the library located by way of the current
 working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
-Windows systems.&lt;/p&gt;</xs:documentation>
-                </xs:annotation>
-                <xs:complexType/>
-              </xs:element>
-            </xs:all>
+Windows systems.&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;dds_security_auth&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
           </xs:complexType>
         </xs:element>
         <xs:element minOccurs="0" ref="config:Password"/>
-        <xs:element minOccurs="0" ref="config:PrivateKey"/>
+        <xs:element ref="config:PrivateKey"/>
         <xs:element minOccurs="0" ref="config:TrustedCADirectory"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
-  <xs:element name="IdentityCA">
+  <xs:element name="IdentityCA" type="xs:string">
     <xs:annotation>
       <xs:documentation>
-RELOFF (cfg.authentication_properties.identity_ca), pf_string,
-BLURB("&lt;p&gt;URI to the X509 certificate [39] of the Identity CA that is the
-signer of Identity Certificate.&lt;/p&gt;
+&lt;p&gt;URI to the X509 certificate [39] of the Identity CA that is the signer
+of Identity Certificate.&lt;/p&gt;
 
 &lt;p&gt;Supported URI schemes: file, data&lt;/p&gt;
 
@@ -416,13 +397,11 @@ MIIC3DCCAcQCCQCWE5x+Z...PhovK0mp2ohhRLYI0ZiyYQ==&lt;br&gt;
 
 -----END CERTIFICATE-----&lt;/IdentityCA&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
-    <xs:complexType/>
   </xs:element>
-  <xs:element name="IdentityCertificate">
+  <xs:element name="IdentityCertificate" type="xs:string">
     <xs:annotation>
       <xs:documentation>
-RELOFF (cfg.authentication_properties.identity_certificate), pf_string,
-BLURB("&lt;p&gt;Identity certificate that will be used for identifying all
+&lt;p&gt;Identity certificate that will be used for identifying all
 participants in the OSPL instance.&lt;br&gt;The content is URI to a X509
 certificate signed by the IdentityCA in PEM format containing the signed
 public key.&lt;/p&gt;
@@ -439,29 +418,26 @@ MIIDjjCCAnYCCQDCEu9...6rmT87dhTo=&lt;br&gt;
 
 -----END CERTIFICATE-----&lt;/IdentityCertificate&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
-    <xs:complexType/>
   </xs:element>
-  <xs:element name="Password">
+  <xs:element name="Password" type="xs:string">
     <xs:annotation>
       <xs:documentation>
-RELOFF (cfg.authentication_properties.password), pf_string, BLURB("&lt;p&gt;A
-password used to decrypt the private_key.&lt;/p&gt;
+&lt;p&gt;A password used to decrypt the private_key.&lt;/p&gt;
 
 The value of the password property shall be interpreted as the Base64
 encoding of the AES-128 key that shall be used to decrypt the private_key
 using AES128-CBC.&lt;/p&gt;
 
 If the password property is not present, then the value supplied in the
-private_key property must contain the unencrypted private key. &lt;/p&gt;</xs:documentation>
+private_key property must contain the unencrypted private key. &lt;/p&gt;&lt;p&gt;The
+default value is: &amp;quot;&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
-    <xs:complexType/>
   </xs:element>
-  <xs:element name="PrivateKey">
+  <xs:element name="PrivateKey" type="xs:string">
     <xs:annotation>
       <xs:documentation>
-RELOFF (cfg.authentication_properties.private_key), pf_string,
-BLURB("&lt;p&gt;URI to access the private Private Key for all of the
-participants in the OSPL federation.&lt;/p&gt;
+&lt;p&gt;URI to access the private Private Key for all of the participants in
+the OSPL federation.&lt;/p&gt;
 
 &lt;p&gt;Supported URI schemes: file, data&lt;/p&gt;
 
@@ -475,16 +451,13 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
 
 -----END RSA PRIVATE KEY-----&lt;/PrivateKey&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
-    <xs:complexType/>
   </xs:element>
-  <xs:element name="TrustedCADirectory">
+  <xs:element name="TrustedCADirectory" type="xs:string">
     <xs:annotation>
       <xs:documentation>
-RELOFF (cfg.authentication_properties.trusted_ca_dir), pf_string,
-BLURB("&lt;p&gt;Trusted CA Directory which contains trusted CA certificates as
-separated files.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;Trusted CA Directory which contains trusted CA certificates as
+separated files.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
-    <xs:complexType/>
   </xs:element>
   <xs:element name="Cryptographic">
     <xs:annotation>
@@ -497,38 +470,32 @@ specification.&lt;/p&gt;</xs:documentation>
         <xs:element minOccurs="0" name="Library">
           <xs:annotation>
             <xs:documentation>
-RELOFF (cfg.cryptography_plugin), pf_string, BLURB("&lt;p&gt;This element
-specifies the library to be loaded as the DDS Security Cryptographic
-plugin.&lt;/p&gt;</xs:documentation>
+&lt;p&gt;This element specifies the library to be loaded as the DDS Security
+Cryptographic plugin.&lt;/p&gt;</xs:documentation>
           </xs:annotation>
           <xs:complexType>
-            <xs:all>
-              <xs:element minOccurs="0" name="finalizeFunction">
-                <xs:annotation>
-                  <xs:documentation>
-RELOFF (cfg.cryptography_plugin.library_finalize), pf_string,
-BLURB("&lt;p&gt;This element names the finalization function of Cryptographic
-plugin. This function is called to let the plugin release its
-resources.&lt;/p&gt;</xs:documentation>
-                </xs:annotation>
-                <xs:complexType/>
-              </xs:element>
-              <xs:element minOccurs="0" name="initFunction">
-                <xs:annotation>
-                  <xs:documentation>
-RELOFF (cfg.cryptography_plugin.library_init), pf_string, BLURB("&lt;p&gt;This
-element names the initialization function of Cryptographic plugin. This
-function is called after loading the plugin library for instantiation
-purposes. Init function must return an object that implements DDS
-Security Cryptographic interface.&lt;/p&gt;</xs:documentation>
-                </xs:annotation>
-                <xs:complexType/>
-              </xs:element>
-              <xs:element minOccurs="0" name="path">
-                <xs:annotation>
-                  <xs:documentation>
-RELOFF (cfg.cryptography_plugin.library_path), pf_string, BLURB("&lt;p&gt;This
-element points to the path of Cryptographic plugin library.&lt;/p&gt;
+            <xs:attribute name="finalizeFunction">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element names the finalization function of Cryptographic plugin.
+This function is called to let the plugin release its
+resources.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;finalize_crypto&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="initFunction">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element names the initialization function of Cryptographic
+plugin. This function is called after loading the plugin library for
+instantiation purposes. Init function must return an object that
+implements DDS Security Cryptographic interface.&lt;/p&gt;&lt;p&gt;The default value
+is: &amp;quot;init_crypto&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="path">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element points to the path of Cryptographic plugin library.&lt;/p&gt;
 
 &lt;p&gt;It can be either absolute path excluding file extension (
 /usr/lib/dds_security_crypto ) or single file without extension (
@@ -536,11 +503,10 @@ dds_security_crypto ).&lt;/p&gt;
 
 &lt;p&gt;If single file is supplied, the library located by way of the current
 working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
-Windows systems.&lt;/p&gt;</xs:documentation>
-                </xs:annotation>
-                <xs:complexType/>
-              </xs:element>
-            </xs:all>
+Windows systems.&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;dds_security_crypto&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
           </xs:complexType>
         </xs:element>
       </xs:sequence>
