@@ -119,7 +119,7 @@ extern inline int ddsrt_atomic_cas64 (volatile ddsrt_atomic_uint64_t *x, uint64_
 #endif
 extern inline int ddsrt_atomic_casptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t exp, uintptr_t des);
 extern inline int ddsrt_atomic_casvoidp (volatile ddsrt_atomic_voidp_t *x, void *exp, void *des);
-#if DDSRT_ATOMIC_LIFO_SUPPORT
+#if DDSRT_HAVE_ATOMIC_LIFO
 extern inline int ddsrt_atomic_casvoidp2 (volatile ddsrt_atomic_uintptr2_t *x, uintptr_t a0, uintptr_t b0, uintptr_t a1, uintptr_t b1);
 #endif
 /* FENCES */
@@ -129,7 +129,7 @@ extern inline void ddsrt_atomic_fence_stst (void);
 extern inline void ddsrt_atomic_fence_acq (void);
 extern inline void ddsrt_atomic_fence_rel (void);
 
-#if DDSRT_ATOMIC_LIFO_SUPPORT
+#if DDSRT_HAVE_ATOMIC_LIFO
 void ddsrt_atomic_lifo_init (ddsrt_atomic_lifo_t *head)
 {
   head->aba_head.s.a = head->aba_head.s.b = 0;
