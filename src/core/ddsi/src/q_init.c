@@ -796,8 +796,36 @@ static void free_special_topics (struct q_globals *gv)
   ddsi_sertopic_unref (gv->rawcdr_topic);
 }
 
+static bool use_multiple_receive_threads (const struct config *cfg)
+{
+  /* Under some unknown circumstances Windows (at least Windows 10) exhibits
+     the interesting behaviour of losing its ability to let us send packets
+     to our own sockets. When that happens, dedicated receive threads can no
+     longer be stopped and Cyclone hangs in shutdown.  So until someone
+     figures out why this happens, it is probably best have a different
+     default on Windows. */
+#if _WIN32
+  const bool def = false;
+#else
+  const bool def = true;
+#endif
+  switch (cfg->multiple_recv_threads)
+  {
+    case BOOLDEF_FALSE:
+      return false;
+    case BOOLDEF_TRUE:
+      return true;
+    case BOOLDEF_DEFAULT:
+      return def;
+  }
+  assert (0);
+  return false;
+}
+
 static int setup_and_start_recv_threads (struct q_globals *gv)
 {
+  const bool multi_recv_thr = use_multiple_receive_threads (&gv->config);
+
   for (uint32_t i = 0; i < MAX_RECV_THREADS; i++)
   {
     gv->recv_threads[i].ts = NULL;
@@ -812,7 +840,7 @@ static int setup_and_start_recv_threads (struct q_globals *gv)
   gv->n_recv_threads = 1;
   gv->recv_threads[0].name = "recv";
   gv->recv_threads[0].arg.mode = RTM_MANY;
-  if (gv->m_factory->m_connless && gv->config.many_sockets_mode != MSM_NO_UNICAST && gv->config.multiple_recv_threads)
+  if (gv->m_factory->m_connless && gv->config.many_sockets_mode != MSM_NO_UNICAST && multi_recv_thr)
   {
     if (ddsi_is_mcaddr (gv, &gv->loc_default_mc) && !ddsi_is_ssm_mcaddr (gv, &gv->loc_default_mc) && (gv->config.allowMulticast & AMC_ASM))
     {
