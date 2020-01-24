@@ -1,0 +1,98 @@
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----51AB97062CF028E6EBDDAA31699954BC"
+
+This is an S/MIME signed message
+
+------51AB97062CF028E6EBDDAA31699954BC
+Content-Type: text/plain
+
+<?xml version="1.0" encoding="utf-8"?>
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_permissions.xsd">
+    <permissions>
+        <grant name="OpenSplicePermissions">
+            <subject_name>/C=NL/ST=OV/L=Locality Name/OU=Organizational Unit Name/O=Example Organization/CN=Alice Example/emailAddress=alice@exampleltd.com</subject_name>
+            <validity>
+                <!-- Format is CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm] in GMT -->
+                <not_before>2015-09-15T01:00:00</not_before>
+                <not_after>2115-09-15T01:00:00</not_after>
+            </validity>
+            <allow_rule>
+                <domains>
+                  <id_range>
+                    <min>0</min>
+                    <max>230</max>
+                  </id_range>
+                </domains>
+                <publish>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                    <partitions>
+                        <partition>*</partition>
+                    </partitions>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                    <partitions>
+                        <partition>*</partition>
+                    </partitions>
+                    
+                </subscribe>
+            </allow_rule>
+            <default>DENY</default>
+        </grant>
+    </permissions>
+</dds>
+
+------51AB97062CF028E6EBDDAA31699954BC
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+
+MIIHiwYJKoZIhvcNAQcCoIIHfDCCB3gCAQExDzANBglghkgBZQMEAgEFADALBgkq
+hkiG9w0BBwGgggRnMIIEYzCCA0ugAwIBAgIJAM3yAtULcaEIMA0GCSqGSIb3DQEB
+CwUAMIHHMQswCQYDVQQGEwJOTDELMAkGA1UECAwCT1YxFjAUBgNVBAcMDUxvY2Fs
+aXR5IE5hbWUxITAfBgNVBAsMGE9yZ2FuaXphdGlvbmFsIFVuaXQgTmFtZTEgMB4G
+A1UECgwXRXhhbXBsZSBDQSBPcmdhbml6YXRpb24xHzAdBgNVBAMMFkV4YW1wbGUg
+UGVybWlzc2lvbnMgQ0ExLTArBgkqhkiG9w0BCQEWHmF1dGhvcml0eUBwZXJtaXNz
+aW9uc2NhbHRkLm9yZzAeFw0xOTAyMTIxMzUyMzJaFw0yOTAyMDkxMzUyMzJaMIHH
+MQswCQYDVQQGEwJOTDELMAkGA1UECAwCT1YxFjAUBgNVBAcMDUxvY2FsaXR5IE5h
+bWUxITAfBgNVBAsMGE9yZ2FuaXphdGlvbmFsIFVuaXQgTmFtZTEgMB4GA1UECgwX
+RXhhbXBsZSBDQSBPcmdhbml6YXRpb24xHzAdBgNVBAMMFkV4YW1wbGUgUGVybWlz
+c2lvbnMgQ0ExLTArBgkqhkiG9w0BCQEWHmF1dGhvcml0eUBwZXJtaXNzaW9uc2Nh
+bHRkLm9yZzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKD6nYCszMha
+h3xGfJy8f3lowPHIj6zcldVYs5Krg7zXxZn+20lAMHUfgQcWZAauKbCnokYfTvXV
+v0j9HCpQ3mRynNTyjLjc7HxAe6kfaJ75PoIoOMMQMEGvPOqRUq0tomVVJvcgzZZk
+pwE30E6xvZrlQcrkQY/aOQ0sbje+RN8RKQ9vf6O45Np/0m2K5ohZPlBqg4F539v2
+iXGZczCr9AqAszc/7rOPX1aqZmmRDou0T+Zhx3ZZSAwZYQtr7uvvlUeGmDhNh+8p
+LC+1FQPtkKmcVXO8oZWm5N8piOvH3M+v3qhyPtLv30cpl0bDiFl+PN7nZ6InOOtd
+ZJVMa2rYCk8CAwEAAaNQME4wHQYDVR0OBBYEFA/CtiP8Z5Fk4aWDIb2j3FPwh9pg
+MB8GA1UdIwQYMBaAFA/CtiP8Z5Fk4aWDIb2j3FPwh9pgMAwGA1UdEwQFMAMBAf8w
+DQYJKoZIhvcNAQELBQADggEBACBupRddIR9zYBFLGFTzeiW+H1tRRKz+B3SWnCJH
+89ijEdMYlKKLYT0R18lCV0vHnl29bU1CPlkLn+GQkvdfIjKguWEQKTP+GLzoa9TV
+zOKAJ8NttCyW3YqriUOUGKqra1Fdt8nvrAyZUF+v/k8pTInmCvwu3l5HrVhkKHER
+IbCIohKi/2mk1JZS9reWvZhqLoUIw5IDFlqtBDYOfMaqm8XF01YjEDBM6OuyQzYN
+gDFVUZx0At4zzRjGTvqpLTkDYL1A3v4QYXZcwZiKeEVbFuNkauXgD+8pEZMB8yL4
+h1feIH+aucsAKBz1Ne5fTiTCannlKvLl8xWz5IdzP7gF0LIxggLoMIIC5AIBATCB
+1TCBxzELMAkGA1UEBhMCTkwxCzAJBgNVBAgMAk9WMRYwFAYDVQQHDA1Mb2NhbGl0
+eSBOYW1lMSEwHwYDVQQLDBhPcmdhbml6YXRpb25hbCBVbml0IE5hbWUxIDAeBgNV
+BAoMF0V4YW1wbGUgQ0EgT3JnYW5pemF0aW9uMR8wHQYDVQQDDBZFeGFtcGxlIFBl
+cm1pc3Npb25zIENBMS0wKwYJKoZIhvcNAQkBFh5hdXRob3JpdHlAcGVybWlzc2lv
+bnNjYWx0ZC5vcmcCCQDN8gLVC3GhCDANBglghkgBZQMEAgEFAKCB5DAYBgkqhkiG
+9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0xOTEyMDcxNjAxMjZa
+MC8GCSqGSIb3DQEJBDEiBCAX5wSM0Og83gWKRmru9iCOm8h85e9oZ7rBebmSbLVN
+1TB5BgkqhkiG9w0BCQ8xbDBqMAsGCWCGSAFlAwQBKjALBglghkgBZQMEARYwCwYJ
+YIZIAWUDBAECMAoGCCqGSIb3DQMHMA4GCCqGSIb3DQMCAgIAgDANBggqhkiG9w0D
+AgIBQDAHBgUrDgMCBzANBggqhkiG9w0DAgIBKDANBgkqhkiG9w0BAQEFAASCAQAT
+QZbljrtQs/FcBUJBYoenquAQ5++twy5LE6A06dASaHFDxSxPsAe0KBl9EWJzE59X
+4k73u+4bJZiuLHUPztuXIUt3gEKM72DDT+ET/13dWdM2vtITW6HZ27nvkngE35cc
+kdUqkLyeM5dzsSDpr3Ba8epulThlwl7bw9dUd2FUOBCc266da+q1lcChjwfC5GBu
+GB7oWODhSAk6L9dici8w5q9ybygBkFJHXTZVtsXQWuNmDtXWB2ury++WQlvtNK0s
+aF+dtQlyEx2vvi5tV195vncAt514uHJ9optdEbaIyMo51G53QD0Cq62QhuFusug0
+nz2pgcEZ35JCd4gESMkL
+
+------51AB97062CF028E6EBDDAA31699954BC--
+

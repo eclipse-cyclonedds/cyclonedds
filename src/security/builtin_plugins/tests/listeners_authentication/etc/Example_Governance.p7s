@@ -1,0 +1,120 @@
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----8F2D5CA80FE8B4509AF031712E008F0E"
+
+This is an S/MIME signed message
+
+------8F2D5CA80FE8B4509AF031712E008F0E
+Content-Type: text/plain
+
+<?xml version="1.0" encoding="utf-8"?>
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_governance.xsd">
+    <domain_access_rules>
+        <domain_rule>
+            <domains>
+                <!-- All domains -->
+                <id_range>
+                    <min>0</min>
+                    <max>230</max>
+                </id_range>
+            </domains>
+
+            <!-- DomainParticipant that cann not authenticate or fail the authentication should be
+                 allowed to join the domain and see any any discovery data that are configured as "unprotected"
+                 and topics that are configured as "unprotected" -->
+            <allow_unauthenticated_participants>true</allow_unauthenticated_participants>
+
+            <!--  Only and any authenticated DomainParticipant should be allowed to join the domain and
+                  see the discovery data without checking access control  -->
+            <enable_join_access_control>true</enable_join_access_control>
+
+            <!-- Discovery information should be protected with encryption followed by MAC (Message Authentication Codes) -->
+            <discovery_protection_kind>ENCRYPT</discovery_protection_kind>
+
+            <!--  Liveliness messages are also encrypted -->
+            <liveliness_protection_kind>ENCRYPT</liveliness_protection_kind>
+
+            <!-- Whole RTPS message is not protected -->
+            <rtps_protection_kind>ENCRYPT</rtps_protection_kind>
+
+            <topic_access_rules>
+                <topic_rule>
+                    <!-- All (non-builtin) topics -->
+                    <topic_expression>*</topic_expression>
+
+                    <!-- Liveliness QoS data is protected -->
+                    <enable_liveliness_protection>true</enable_liveliness_protection>
+
+                    <!-- The discovery information on specific Topics should be sent
+                         using the secure (protected) discovery writers -->
+                    <enable_discovery_protection>true</enable_discovery_protection>
+
+                    <!-- The read access to all topics should be open to all. -->
+                    <enable_read_access_control>true</enable_read_access_control>
+
+                    <!-- The write access to all topics should be open to all. -->
+                    <enable_write_access_control>true</enable_write_access_control>
+
+                    <!-- Whole RTPS sub-message is protected. This includes metadata information
+                         like sequence numbers, heartbeats, key hashes, gaps,
+                         acknowledgment messages, etc. It also includes th possible payload. -->
+                    <metadata_protection_kind>ENCRYPT</metadata_protection_kind>
+
+                    <!-- The payload data sent on the Topic (serialized application level data) should be
+                         protected with Encrypt then MAC. -->
+                    <data_protection_kind>ENCRYPT</data_protection_kind>
+                </topic_rule>
+            </topic_access_rules>
+        </domain_rule>
+    </domain_access_rules>
+</dds>
+
+------8F2D5CA80FE8B4509AF031712E008F0E
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+
+MIIHiwYJKoZIhvcNAQcCoIIHfDCCB3gCAQExDzANBglghkgBZQMEAgEFADALBgkq
+hkiG9w0BBwGgggRnMIIEYzCCA0ugAwIBAgIJAM3yAtULcaEIMA0GCSqGSIb3DQEB
+CwUAMIHHMQswCQYDVQQGEwJOTDELMAkGA1UECAwCT1YxFjAUBgNVBAcMDUxvY2Fs
+aXR5IE5hbWUxITAfBgNVBAsMGE9yZ2FuaXphdGlvbmFsIFVuaXQgTmFtZTEgMB4G
+A1UECgwXRXhhbXBsZSBDQSBPcmdhbml6YXRpb24xHzAdBgNVBAMMFkV4YW1wbGUg
+UGVybWlzc2lvbnMgQ0ExLTArBgkqhkiG9w0BCQEWHmF1dGhvcml0eUBwZXJtaXNz
+aW9uc2NhbHRkLm9yZzAeFw0xOTAyMTIxMzUyMzJaFw0yOTAyMDkxMzUyMzJaMIHH
+MQswCQYDVQQGEwJOTDELMAkGA1UECAwCT1YxFjAUBgNVBAcMDUxvY2FsaXR5IE5h
+bWUxITAfBgNVBAsMGE9yZ2FuaXphdGlvbmFsIFVuaXQgTmFtZTEgMB4GA1UECgwX
+RXhhbXBsZSBDQSBPcmdhbml6YXRpb24xHzAdBgNVBAMMFkV4YW1wbGUgUGVybWlz
+c2lvbnMgQ0ExLTArBgkqhkiG9w0BCQEWHmF1dGhvcml0eUBwZXJtaXNzaW9uc2Nh
+bHRkLm9yZzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKD6nYCszMha
+h3xGfJy8f3lowPHIj6zcldVYs5Krg7zXxZn+20lAMHUfgQcWZAauKbCnokYfTvXV
+v0j9HCpQ3mRynNTyjLjc7HxAe6kfaJ75PoIoOMMQMEGvPOqRUq0tomVVJvcgzZZk
+pwE30E6xvZrlQcrkQY/aOQ0sbje+RN8RKQ9vf6O45Np/0m2K5ohZPlBqg4F539v2
+iXGZczCr9AqAszc/7rOPX1aqZmmRDou0T+Zhx3ZZSAwZYQtr7uvvlUeGmDhNh+8p
+LC+1FQPtkKmcVXO8oZWm5N8piOvH3M+v3qhyPtLv30cpl0bDiFl+PN7nZ6InOOtd
+ZJVMa2rYCk8CAwEAAaNQME4wHQYDVR0OBBYEFA/CtiP8Z5Fk4aWDIb2j3FPwh9pg
+MB8GA1UdIwQYMBaAFA/CtiP8Z5Fk4aWDIb2j3FPwh9pgMAwGA1UdEwQFMAMBAf8w
+DQYJKoZIhvcNAQELBQADggEBACBupRddIR9zYBFLGFTzeiW+H1tRRKz+B3SWnCJH
+89ijEdMYlKKLYT0R18lCV0vHnl29bU1CPlkLn+GQkvdfIjKguWEQKTP+GLzoa9TV
+zOKAJ8NttCyW3YqriUOUGKqra1Fdt8nvrAyZUF+v/k8pTInmCvwu3l5HrVhkKHER
+IbCIohKi/2mk1JZS9reWvZhqLoUIw5IDFlqtBDYOfMaqm8XF01YjEDBM6OuyQzYN
+gDFVUZx0At4zzRjGTvqpLTkDYL1A3v4QYXZcwZiKeEVbFuNkauXgD+8pEZMB8yL4
+h1feIH+aucsAKBz1Ne5fTiTCannlKvLl8xWz5IdzP7gF0LIxggLoMIIC5AIBATCB
+1TCBxzELMAkGA1UEBhMCTkwxCzAJBgNVBAgMAk9WMRYwFAYDVQQHDA1Mb2NhbGl0
+eSBOYW1lMSEwHwYDVQQLDBhPcmdhbml6YXRpb25hbCBVbml0IE5hbWUxIDAeBgNV
+BAoMF0V4YW1wbGUgQ0EgT3JnYW5pemF0aW9uMR8wHQYDVQQDDBZFeGFtcGxlIFBl
+cm1pc3Npb25zIENBMS0wKwYJKoZIhvcNAQkBFh5hdXRob3JpdHlAcGVybWlzc2lv
+bnNjYWx0ZC5vcmcCCQDN8gLVC3GhCDANBglghkgBZQMEAgEFAKCB5DAYBgkqhkiG
+9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0xOTEyMDcxNjAxMjZa
+MC8GCSqGSIb3DQEJBDEiBCCAw/IHksMBWVnBQEtBoPLvJ1B+9IvOrQ4OkihJ6q0v
+ijB5BgkqhkiG9w0BCQ8xbDBqMAsGCWCGSAFlAwQBKjALBglghkgBZQMEARYwCwYJ
+YIZIAWUDBAECMAoGCCqGSIb3DQMHMA4GCCqGSIb3DQMCAgIAgDANBggqhkiG9w0D
+AgIBQDAHBgUrDgMCBzANBggqhkiG9w0DAgIBKDANBgkqhkiG9w0BAQEFAASCAQAd
+j3vO63v4bBbNhE0wZ8gWPHFfJsZO4JUu+ZzJ08hO1fku07Q13medyyp1+6jeZWoV
+rCqQbG37xL1dx023wsRu+mYPSgEtIx2zBGW8ADk2qEIGAVPUPGUiVXl6+7esAmnP
+AFDrt3Qp6nEZIr7iQ6i+4WW3kWM3o9C1ghSz4tVBjP9El5/yrux2mo5DTSeB8QMR
+npMNgwgatwAxTwUrBpQj0FE5NUDm21OT1VwlUAGTHz6m5npw92p6qvQxFYufRzWj
+XoADdJW0qgfbL00Gvoimi2K21cSUqiYcKU06eQeCkrLXyjif2JlFdKXvODwlydOy
+dtwcKpPKVKgBI01+5Imf
+
+------8F2D5CA80FE8B4509AF031712E008F0E--
+

@@ -1291,3 +1291,4 @@ DDS_Security_parse_xml_date(
 
   return DDS_TIME_INVALID;
 }
+
