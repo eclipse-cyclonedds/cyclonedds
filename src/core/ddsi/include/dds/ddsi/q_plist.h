@@ -56,13 +56,15 @@ extern "C" {
 #ifdef DDSI_INCLUDE_SSM
 #define PP_READER_FAVOURS_SSM                   ((uint64_t)1 << 39)
 #endif
+#define PP_DOMAIN_ID                            ((uint64_t)1 << 40)
+#define PP_DOMAIN_TAG                           ((uint64_t)1 << 41)
 /* Security extensions. */
-#define PP_IDENTITY_TOKEN                       ((uint64_t)1 << 41)
-#define PP_PERMISSIONS_TOKEN                    ((uint64_t)1 << 42)
-#define PP_ENDPOINT_SECURITY_INFO               ((uint64_t)1 << 43)
-#define PP_PARTICIPANT_SECURITY_INFO            ((uint64_t)1 << 44)
-#define PP_IDENTITY_STATUS_TOKEN                ((uint64_t)1 << 45)
-#define PP_DATA_TAGS                            ((uint64_t)1 << 46)
+#define PP_IDENTITY_TOKEN                       ((uint64_t)1 << 42)
+#define PP_PERMISSIONS_TOKEN                    ((uint64_t)1 << 43)
+#define PP_ENDPOINT_SECURITY_INFO               ((uint64_t)1 << 44)
+#define PP_PARTICIPANT_SECURITY_INFO            ((uint64_t)1 << 45)
+#define PP_IDENTITY_STATUS_TOKEN                ((uint64_t)1 << 46)
+#define PP_DATA_TAGS                            ((uint64_t)1 << 47)
 /* Set for unrecognized parameters that are in the reserved space or
    in our own vendor-specific space that have the
    PID_UNRECOGNIZED_INCOMPATIBLE_FLAG set (see DDSI 2.1 9.6.2.2.1) */
@@ -241,6 +243,8 @@ typedef struct nn_plist {
 #ifdef DDSI_INCLUDE_SSM
   nn_reader_favours_ssm_t reader_favours_ssm;
 #endif
+  uint32_t domain_id;
+  char *domain_tag;
 } nn_plist_t;
 
 

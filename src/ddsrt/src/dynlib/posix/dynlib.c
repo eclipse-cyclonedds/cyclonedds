@@ -44,6 +44,7 @@ dds_return_t ddsrt_dlopen(const char *name, bool translate,
     *handle = dlopen(name, RTLD_GLOBAL | RTLD_NOW);
   }
 
+
   if (*handle != NULL) {
     retcode = DDS_RETCODE_OK;
   } else {

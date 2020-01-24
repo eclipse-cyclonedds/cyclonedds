@@ -1,3 +1,4 @@
+default namespace = "https://cdds.io/config"
 namespace a = "http://relaxng.org/ns/compatibility/annotations/1.0"
 grammar {
   start =
@@ -79,7 +80,308 @@ though there is no good reason not to.</li></ul>
         element StandardsConformance {
           "lax"|"strict"|"pedantic"
         }?
-      }?
+      }*
+      & [ a:documentation [ xml:lang="en" """
+<p>This element is used to configure Cyclone DDS with the DDS Security
+specification plugins and settings.</p>""" ] ]
+      element DDSSecurity {
+        [ a:documentation [ xml:lang="en" """
+<p>This element configures the Access Control plugin of the DDS Security
+specification.</p>""" ] ]
+        element AccessControl {
+          [ a:documentation [ xml:lang="en" """
+<p>URI to the shared Governance Document signed by the Permissions CA in
+S/MIME format</p>
+
+<p>URI schemes: file, data</p><br>
+
+<p>Examples file URIs:</p>
+
+<p><Governance>file:governance.smime</Governance></p>
+
+<p><Governance>file:/home/myuser/governance.smime</Governance></p><br>
+
+<p><Governance><![CDATA[data:,MIME-Version: 1.0</p>
+
+<p>Content-Type: multipart/signed;
+protocol="application/x-pkcs7-signature"; micalg="sha-256";
+boundary="----F9A8A198D6F08E1285A292ADF14DD04F"</p>
+
+<p>This is an S/MIME signed message </p>
+
+<p>------F9A8A198D6F08E1285A292ADF14DD04F</p>
+
+<p><?xml version="1.0" encoding="UTF-8"?></p>
+
+<p><dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"</p>
+
+<p>xsi:noNamespaceSchemaLocation="omg_shared_ca_governance.xsd"></p>
+
+<p><domain_access_rules></p>
+
+<p> . . . </p>
+
+<p></domain_access_rules></p>
+
+<p></dds></p>
+
+<p>...</p>
+
+<p>------F9A8A198D6F08E1285A292ADF14DD04F</p>
+
+<p>Content-Type: application/x-pkcs7-signature; name="smime.p7s"</p>
+
+<p>Content-Transfer-Encoding: base64</p>
+
+<p>Content-Disposition: attachment; filename="smime.p7s"</p>
+
+<p>MIIDuAYJKoZIhv ...al5s=</p>
+
+<p>------F9A8A198D6F08E1285A292ADF14DD04F-]]</Governance></p><p>The
+default value is: &quot;&quot;.</p>""" ] ]
+          element Governance {
+            text
+          }?
+          & [ a:documentation [ xml:lang="en" """
+<p>This element specifies the library to be loaded as the DDS Security
+Access Control plugin.</p>""" ] ]
+          element Library {
+            [ a:documentation [ xml:lang="en" """
+<p>This element names the finalization function of Access Control plugin.
+This function is called to let the plugin release its
+resources.</p><p>The default value is:
+&quot;finalize_access_control&quot;.</p>""" ] ]
+            attribute finalizeFunction {
+              text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>This element names the initialization function of Access Control
+plugin. This function is called after loading the plugin library for
+instantiation purposes. Init function must return an object that
+implements DDS Security Access Control interface.</p><p>The default value
+is: &quot;init_access_control&quot;.</p>""" ] ]
+            attribute initFunction {
+              text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>This element points to the path of Access Control plugin library.</p>
+
+<p>It can be either absolute path excluding file extension (
+/usr/lib/dds_security_ac ) or single file without extension (
+dds_security_ac ).</p>
+
+<p>If single file is supplied, the library located by way of the current
+working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
+Windows systems.</p><p>The default value is:
+&quot;dds_security_ac&quot;.</p>""" ] ]
+            attribute path {
+              text
+            }?
+          }?
+          & [ a:documentation [ xml:lang="en" """
+<p>URI to the DomainParticipant permissions document signed by the
+Permissions CA in S/MIME format</p>
+
+<p>The permissions document specifies the permissions to be applied to a
+domain.</p><br>
+
+<p>Example file URIs:</p>
+
+<p><Permissions>file:permissions_document.p7s</Permissions></p>
+
+<p><Permissions>file:/path_to/permissions_document.p7s</Permissions></p>
+
+<p>Example data URI:</p>
+
+<p><Permissions><![CDATA[data:,.........]]</Permissions></p><p>The
+default value is: &quot;&quot;.</p>""" ] ]
+          element Permissions {
+            text
+          }?
+          & [ a:documentation [ xml:lang="en" """
+<p>URI to a X509 certificate for the PermissionsCA in PEM format.</p>
+
+<p>Supported URI schemes: file, data</p>
+
+<p>The file and data schemas shall refer to a X.509 v3 certificate (see
+X.509 v3 ITU-T Recommendation X.509 (2005) [39]) in PEM format.</p><br>
+
+<p>Examples:</p><br>
+
+<p><PermissionsCA>file:permissions_ca.pem</PermissionsCA></p>
+
+<p><PermissionsCA>file:/home/myuser/permissions_ca.pem</PermissionsCA></p><br>
+
+<p><PermissionsCA>data:<strong>,</strong>-----BEGIN CERTIFICATE-----</p>
+
+<p>MIIC3DCCAcQCCQCWE5x+Z ... PhovK0mp2ohhRLYI0ZiyYQ==</p>
+
+<p>-----END CERTIFICATE-----</PermissionsCA></p><p>The default value is:
+&quot;&quot;.</p>""" ] ]
+          element PermissionsCA {
+            text
+          }?
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>This element configures the Authentication plugin of the DDS Security
+specification.</p>""" ] ]
+        element Authentication {
+          [ a:documentation [ xml:lang="en" """
+<p>URI to the X509 certificate [39] of the Identity CA that is the signer
+of Identity Certificate.</p>
+
+<p>Supported URI schemes: file, data</p>
+
+<p>The file and data schemas shall refer to a X.509 v3 certificate (see
+X.509 v3 ITU-T Recommendation X.509 (2005) [39]) in PEM format.</p>
+
+<p>Examples:</p>
+
+<p><IdentityCA>file:identity_ca.pem</IdentityCA></p>
+
+<p><IdentityCA>data:,-----BEGIN CERTIFICATE-----<br>
+
+MIIC3DCCAcQCCQCWE5x+Z...PhovK0mp2ohhRLYI0ZiyYQ==<br>
+
+-----END CERTIFICATE-----</IdentityCA></p>""" ] ]
+          element IdentityCA {
+            text
+          }
+          & [ a:documentation [ xml:lang="en" """
+<p>Identity certificate that will be used for identifying all
+participants in the OSPL instance.<br>The content is URI to a X509
+certificate signed by the IdentityCA in PEM format containing the signed
+public key.</p>
+
+<p>Supported URI schemes: file, data</p>
+
+<p>Examples:</p>
+
+<p><IdentityCertificate>file:participant1_identity_cert.pem</IdentityCertificate></p>
+
+<p><IdentityCertificate>data:,-----BEGIN CERTIFICATE-----<br>
+
+MIIDjjCCAnYCCQDCEu9...6rmT87dhTo=<br>
+
+-----END CERTIFICATE-----</IdentityCertificate></p>""" ] ]
+          element IdentityCertificate {
+            text
+          }
+          & [ a:documentation [ xml:lang="en" """
+<p>This element specifies the library to be loaded as the DDS Security
+Access Control plugin.</p>""" ] ]
+          element Library {
+            [ a:documentation [ xml:lang="en" """
+<p>This element names the finalization function of Authentication plugin.
+This function is called to let the plugin release its
+resources.</p><p>The default value is:
+&quot;finalize_authentication&quot;.</p>""" ] ]
+            attribute finalizeFunction {
+              text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>This element names the initialization function of Authentication
+plugin. This function is called after loading the plugin library for
+instantiation purposes. Init function must return an object that
+implements DDS Security Authentication interface.</p><p>The default value
+is: &quot;init_authentication&quot;.</p>""" ] ]
+            attribute initFunction {
+              text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>This element points to the path of Authentication plugin library.</p>
+
+<p>It can be either absolute path excluding file extension (
+/usr/lib/dds_security_auth ) or single file without extension (
+dds_security_auth ).</p>
+
+<p>If single file is supplied, the library located by way of the current
+working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
+Windows systems.</p><p>The default value is:
+&quot;dds_security_auth&quot;.</p>""" ] ]
+            attribute path {
+              text
+            }?
+          }?
+          & [ a:documentation [ xml:lang="en" """
+<p>A password used to decrypt the private_key.</p>
+
+The value of the password property shall be interpreted as the Base64
+encoding of the AES-128 key that shall be used to decrypt the private_key
+using AES128-CBC.</p>
+
+If the password property is not present, then the value supplied in the
+private_key property must contain the unencrypted private key. </p><p>The
+default value is: &quot;&quot;.</p>""" ] ]
+          element Password {
+            text
+          }?
+          & [ a:documentation [ xml:lang="en" """
+<p>URI to access the private Private Key for all of the participants in
+the OSPL federation.</p>
+
+<p>Supported URI schemes: file, data</p>
+
+<p>Examples:</p>
+
+<p><PrivateKey>file:identity_ca_private_key.pem</PrivateKey></p>
+
+<p><PrivateKey>data:,-----BEGIN RSA PRIVATE KEY-----<br>
+
+MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
+
+-----END RSA PRIVATE KEY-----</PrivateKey></p>""" ] ]
+          element PrivateKey {
+            text
+          }
+          & [ a:documentation [ xml:lang="en" """
+<p>Trusted CA Directory which contains trusted CA certificates as
+separated files.</p><p>The default value is: &quot;&quot;.</p>""" ] ]
+          element TrustedCADirectory {
+            text
+          }?
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>This element configures the Cryptographic plugin of the DDS Security
+specification.</p>""" ] ]
+        element Cryptographic {
+          [ a:documentation [ xml:lang="en" """
+<p>This element specifies the library to be loaded as the DDS Security
+Cryptographic plugin.</p>""" ] ]
+          element Library {
+            [ a:documentation [ xml:lang="en" """
+<p>This element names the finalization function of Cryptographic plugin.
+This function is called to let the plugin release its
+resources.</p><p>The default value is: &quot;finalize_crypto&quot;.</p>""" ] ]
+            attribute finalizeFunction {
+              text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>This element names the initialization function of Cryptographic
+plugin. This function is called after loading the plugin library for
+instantiation purposes. Init function must return an object that
+implements DDS Security Cryptographic interface.</p><p>The default value
+is: &quot;init_crypto&quot;.</p>""" ] ]
+            attribute initFunction {
+              text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>This element points to the path of Cryptographic plugin library.</p>
+
+<p>It can be either absolute path excluding file extension (
+/usr/lib/dds_security_crypto ) or single file without extension (
+dds_security_crypto ).</p>
+
+<p>If single file is supplied, the library located by way of the current
+working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
+Windows systems.</p><p>The default value is:
+&quot;dds_security_crypto&quot;.</p>""" ] ]
+            attribute path {
+              text
+            }?
+          }?
+        }?
+      }*
       & [ a:documentation [ xml:lang="en" """
 <p>The Discovery element allows specifying various parameters related to
 the discovery of peers.</p>""" ] ]
@@ -108,6 +410,15 @@ Discovery/SPDPMulticastAddress.</p><p>The default value is:
 <p>Do not use.</p><p>The default value is: &quot;true&quot;.</p>""" ] ]
         element EnableTopicDiscovery {
           xsd:boolean
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>An override for the domain id, to be used in discovery and for
+determining the port number mapping. This allows creating multiple
+domains in a single process while making them appear as a single domain
+on the network. The value "default" disables the override.</p><p>The
+default value is: &quot;default&quot;.</p>""" ] ]
+        element ExternalDomainId {
+          text
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This element specifies the maximum DDSI participant index selected by
@@ -202,7 +513,7 @@ constant DG).</p><p>The default value is: &quot;250&quot;.</p>""" ] ]
             xsd:integer
           }?
           & [ a:documentation [ xml:lang="en" """
-<p>This element specifies the port number for multicast meta traffic
+<p>This element specifies the port number for multicast data traffic
 (refer to the DDSI 2.1 specification, section 9.6.1, constant
 d2).</p><p>The default value is: &quot;1&quot;.</p>""" ] ]
           element MulticastDataOffset {
@@ -224,7 +535,7 @@ section 9.6.1, constant PG).</p><p>The default value is:
             xsd:integer
           }?
           & [ a:documentation [ xml:lang="en" """
-<p>This element specifies the port number for unicast meta traffic (refer
+<p>This element specifies the port number for unicast data traffic (refer
 to the DDSI 2.1 specification, section 9.6.1, constant d3).</p><p>The
 default value is: &quot;11&quot;.</p>""" ] ]
           element UnicastDataOffset {
@@ -256,7 +567,13 @@ address.</p><p>The default value is: &quot;239.255.0.1&quot;.</p>""" ] ]
         element SPDPMulticastAddress {
           text
         }?
-      }?
+        & [ a:documentation [ xml:lang="en" """
+<p>String extension for domain id that remote participants must match to
+be discovered.</p><p>The default value is: &quot;&quot;.</p>""" ] ]
+        element Tag {
+          text
+        }?
+      }*
       & [ a:documentation [ xml:lang="en" """
 <p>The General element specifies overall Cyclone DDS service
 settings.</p>""" ] ]
@@ -558,7 +875,37 @@ heartbeats and the bounds within it can vary.</p>
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
 day.</p><p>The default value is: &quot;100 ms&quot;.</p>""" ] ]
         element HeartbeatInterval {
-          duration_inf
+          [ a:documentation [ xml:lang="en" """
+<p>This attribute sets the maximum interval for periodic heartbeats.</p>
+
+<p>Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
+day.</p><p>The default value is: &quot;8 s&quot;.</p>""" ] ]
+          attribute max {
+            duration_inf
+          }?
+          & [ a:documentation [ xml:lang="en" """
+<p>This attribute sets the minimum interval that must have passed since
+the most recent heartbeat from a writer, before another asynchronous (not
+directly related to writing) will be sent.</p>
+
+<p>Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
+day.</p><p>The default value is: &quot;5 ms&quot;.</p>""" ] ]
+          attribute min {
+            duration_inf
+          }?
+          & [ a:documentation [ xml:lang="en" """
+<p>This attribute sets the minimum interval for periodic heartbeats.
+Other events may still cause heartbeats to go out.</p>
+
+<p>Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
+day.</p><p>The default value is: &quot;20 ms&quot;.</p>""" ] ]
+          attribute minsched {
+            duration_inf
+          }?
+          & duration_inf
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>Ack a sample only when it has been delivered, instead of when
@@ -582,7 +929,23 @@ traces can be dumped automatically when some thread appears to have
 stopped making progress.</p><p>The default value is:
 &quot;false&quot;.</p>""" ] ]
         element LivelinessMonitoring {
-          xsd:boolean
+          [ a:documentation [ xml:lang="en" """
+<p>This element controls the interval at which to check whether threads
+have been making progress.</p>
+
+<p>The unit must be specified explicitly. Recognised units: ns, us, ms,
+s, min, hr, day.</p><p>The default value is: &quot;1s&quot;.</p>""" ] ]
+          attribute Interval {
+            duration
+          }?
+          & [ a:documentation [ xml:lang="en" """
+<p>This element controls whether or not to write stack traces to the
+Cyclone DDS trace when a thread fails to make progress (on select
+platforms only).</p><p>The default value is: &quot;true&quot;.</p>""" ] ]
+          attribute StackTraces {
+            xsd:boolean
+          }?
+          & xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This elements configures the maximum number of DCPS domain
@@ -678,7 +1041,17 @@ latency. Currently multiple receive threads are only used for
 connectionless transport (e.g., UDP) and ManySocketsMode not set to
 single (the default).</p><p>The default value is: &quot;true&quot;.</p>""" ] ]
         element MultipleReceiveThreads {
-          xsd:boolean
+          [ a:documentation [ xml:lang="en" """
+<p>Receive threads dedicated to a single socket can only be triggered for
+termination by sending a packet. Reception of any packet will do, so
+termination failure due to packet loss is exceedingly unlikely, but to
+eliminate all risks, it will retry as many times as specified by this
+attribute before aborting.</p><p>The default value is:
+&quot;4294967295&quot;.</p>""" ] ]
+          attribute maxretries {
+            xsd:integer
+          }?
+          & xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This setting controls the delay between receipt of a HEARTBEAT
@@ -734,7 +1107,17 @@ is therefore recommended to set it to at least several seconds.</p>
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
 day.</p><p>The default value is: &quot;10s&quot;.</p>""" ] ]
         element RediscoveryBlacklistDuration {
-          duration_inf
+          [ a:documentation [ xml:lang="en" """
+<p>This attribute controls whether the configured time during which
+recently deleted participants will not be rediscovered (i.e., "black
+listed") is enforced and following complete removal of the participant in
+Cyclone DDS, or whether it can be rediscovered earlier provided all
+traces of that participant have been removed already.</p><p>The default
+value is: &quot;false&quot;.</p>""" ] ]
+          attribute enforce {
+            xsd:boolean
+          }?
+          & duration_inf
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This elements controls the addressing and timing of retransmits.
@@ -939,7 +1322,7 @@ s, min, hr, day.</p><p>The default value is: &quot;1 s&quot;.</p>""" ] ]
         element WriterLingerDuration {
           duration
         }?
-      }?
+      }*
       & [ a:documentation [ xml:lang="en" """
 <p>The Partitioning element specifies Cyclone DDS network partitions and
 how DCPS partition/topic combinations are mapped onto the network
@@ -1029,7 +1412,7 @@ DCPSPartitionTopic attribute within this PartitionMapping element.</p>""" ] ]
             }
           }*
         }*
-      }?
+      }*
       & [ a:documentation [ xml:lang="en" """
 <p>The SSL element allows specifying various parameters related to using
 SSL/TLS for DDSI over TCP.</p>""" ] ]
@@ -1089,7 +1472,7 @@ connecting client.</p><p>The default value is: &quot;true&quot;.</p>""" ] ]
         element VerifyClient {
           xsd:boolean
         }?
-      }?
+      }*
       & [ a:documentation [ xml:lang="en" """
 <p>The Sizing element specifies a variety of configuration settings
 dealing with expected system sizes, buffer sizes, &c.</p>""" ] ]
@@ -1120,7 +1503,7 @@ MiB&quot;.</p>""" ] ]
         element ReceiveBufferSize {
           memsize
         }?
-      }?
+      }*
       & [ a:documentation [ xml:lang="en" """
 <p>The TCP element allows specifying various parameters related to
 running DDSI over TCP.</p>""" ] ]
@@ -1177,7 +1560,7 @@ s, min, hr, day.</p><p>The default value is: &quot;2 s&quot;.</p>""" ] ]
         element WriteTimeout {
           duration
         }?
-      }?
+      }*
       & [ a:documentation [ xml:lang="en" """
 <p>The ThreadPool element allows specifying various parameters related to
 using a thread pool to send DDSI messages to multiple unicast addresses
@@ -1201,7 +1584,7 @@ pool.</p><p>The default value is: &quot;4&quot;.</p>""" ] ]
         element Threads {
           xsd:integer
         }?
-      }?
+      }*
       & [ a:documentation [ xml:lang="en" """
 <p>This element is used to set thread properties.</p>""" ] ]
       element Threads {
@@ -1225,6 +1608,9 @@ for discovery;</li>
 
 <li><i>tev</i>: general timed-event handling, retransmits and
 discovery;</li>
+
+<li><i>fsm</i>: finite state machine thread for handling security
+handshake;</li>
 
 <li><i>xmit.CHAN</i>: transmit thread for channel CHAN;</li>
 
@@ -1270,7 +1656,7 @@ default.</p>
             memsize
           }?
         }*
-      }?
+      }*
       & [ a:documentation [ xml:lang="en" """
 <p>The Tracing element controls the amount and type of information that
 is written into the tracing log by the DDSI service. This is useful to
@@ -1387,8 +1773,8 @@ verbosity levels are <i>config</i>, <i>fine</i> and
         element Verbosity {
           "finest"|"finer"|"fine"|"config"|"info"|"warning"|"severe"|"none"
         }?
-      }?
-    }?
+      }*
+    }*
   }
   bandwidth = xsd:token { pattern = "0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?[Bb][p/]s" }
   duration = xsd:token { pattern = "0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)" }

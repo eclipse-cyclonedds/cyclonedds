@@ -98,7 +98,8 @@ typedef struct {
 #define NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_SECURE_DETECTOR (1u<<21)
 #define NN_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_ANNOUNCER (1u<<22)
 #define NN_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_DETECTOR (1u<<23)
-/* TODO: ENDPOINT_PARTICIPANT_VOLATILE */
+#define NN_BUILTIN_ENDPOINT_PARTICIPANT_VOLATILE_SECURE_ANNOUNCER (1u<<24)
+#define NN_BUILTIN_ENDPOINT_PARTICIPANT_VOLATILE_SECURE_DETECTOR (1u<<25)
 #define NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER (1u << 26)
 #define NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_DETECTOR (1u << 27)
 
@@ -162,6 +163,12 @@ typedef enum SubmessageKind {
   SMID_HEARTBEAT_FRAG = 0x13,
   SMID_DATA = 0x15,
   SMID_DATA_FRAG = 0x16,
+  /* security-specific sub messages */
+  SMID_SEC_BODY = 0x30,
+  SMID_SEC_PREFIX = 0x31,
+  SMID_SEC_POSTFIX = 0x32,
+  SMID_SRTPS_PREFIX = 0x33,
+  SMID_SRTPS_POSTFIX = 0x34,
   /* vendor-specific sub messages (0x80 .. 0xff) */
   SMID_PT_INFO_CONTAINER = 0x80,
   SMID_PT_MSG_LEN = 0x81,
@@ -343,6 +350,8 @@ DDSRT_WARNING_MSVC_ON(4200)
 
 #define PID_PAD                                 0x0u
 #define PID_SENTINEL                            0x1u
+#define PID_DOMAIN_ID                           0xfu
+#define PID_DOMAIN_TAG                          (0x14u | PID_UNRECOGNIZED_INCOMPATIBLE_FLAG)
 #define PID_USER_DATA                           0x2cu
 #define PID_TOPIC_NAME                          0x5u
 #define PID_TYPE_NAME                           0x7u

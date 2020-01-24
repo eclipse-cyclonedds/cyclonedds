@@ -177,7 +177,7 @@ CU_Test(ddsc_topic_create, desc_null, .init=ddsc_topic_init, .fini=ddsc_topic_fi
 
 
 CU_TheoryDataPoints(ddsc_topic_create, invalid_names) = {
-        CU_DataPoints(char *, NULL, "", "mi-dle", "-start", "end-", "1st", "Thus$", "pl+s", "t(4)"),
+        CU_DataPoints(char *, NULL, "", "mi-dle", "-start", "end-", "1st", "Thus$", "pl+s", "t(4)", "DCPSmytopic"),
 };
 CU_Theory((char *name), ddsc_topic_create, invalid_names, .init=ddsc_topic_init, .fini=ddsc_topic_fini)
 {

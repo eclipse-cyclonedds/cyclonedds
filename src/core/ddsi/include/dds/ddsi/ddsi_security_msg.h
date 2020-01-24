@@ -12,6 +12,8 @@
 #ifndef DDSI_SECURITY_MSG_H
 #define DDSI_SECURITY_MSG_H
 
+#ifdef DDSI_INCLUDE_SECURITY
+
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsrt/retcode.h"
@@ -20,6 +22,11 @@
 #if defined (__cplusplus)
 extern "C" {
 #endif
+
+struct participant;
+struct writer;
+struct proxy_reader;
+struct ddsi_serdata;
 
 #define GMCLASSID_SECURITY_AUTH_REQUEST       "dds.sec.auth_request"
 #define GMCLASSID_SECURITY_AUTH_HANDSHAKE     "dds.sec.auth"
@@ -32,7 +39,7 @@ typedef struct nn_message_identity {
 typedef struct nn_participant_generic_message {
   nn_message_identity_t message_identity;
   nn_message_identity_t related_message_identity;
-  ddsi_guid_t destinaton_participant_guid;
+  ddsi_guid_t destination_participant_guid;
   ddsi_guid_t destination_endpoint_guid;
   ddsi_guid_t source_endpoint_guid;
   const char *message_class_id;
@@ -84,8 +91,25 @@ nn_participant_generic_message_serialize(
 
 DDS_EXPORT extern const enum pserop pserop_participant_generic_message[];
 
+DDS_EXPORT int
+write_crypto_exchange_message(
+   const struct participant *pp,
+   const ddsi_guid_t *dst_pguid,
+   const ddsi_guid_t *src_eguid,
+   const ddsi_guid_t *dst_eguid,
+   const char *classid,
+   const nn_dataholderseq_t *tokens);
+
+DDS_EXPORT int
+volatile_secure_data_filter(
+   struct writer *wr,
+   struct proxy_reader *prd,
+   struct ddsi_serdata *serdata);
+
 #if defined (__cplusplus)
 }
+#endif
+
 #endif
 
 #endif /* DDSI_SECURITY_MSG_H */

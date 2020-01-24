@@ -13,10 +13,12 @@
 #ifndef DSCMN_SECURITY_UTILS_H_
 #define DSCMN_SECURITY_UTILS_H_
 
-#include "dds/export.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "dds/export.h"
+#include "dds/ddsrt/strtol.h"
+#include "dds/ddsrt/time.h"
 #include "dds/security/core/dds_security_types.h"
 #include "dds/security/dds_security_api.h"
 
@@ -339,41 +341,45 @@ ddssec_strchrs (
         const char *chrs,
         bool inc);
 
+DDS_EXPORT dds_time_t
+DDS_Security_parse_xml_date(
+        char *buf);
+
 
 #define DDS_Security_ParticipantCryptoTokenSeq_alloc() \
-                    (DDS_Security_ParticipantCryptoTokenSeq *)DDS_Security_DataHolderSeq_alloc())
+                    DDS_Security_DataHolderSeq_alloc())
 #define DDS_Security_ParticipantCryptoTokenSeq_freebuf(s) \
-                    DDS_Security_DataHolderSeq_freebuf((DDS_Security_DataHolderSeq *)(s))
+                    DDS_Security_DataHolderSeq_freebuf(s)
 #define DDS_Security_ParticipantCryptoTokenSeq_free(s) \
-                    DDS_Security_DataHolderSeq_free((DDS_Security_DataHolderSeq *)(s))
+                    DDS_Security_DataHolderSeq_free(s)
 #define DDS_Security_ParticipantCryptoTokenSeq_deinit(s) \
-                    DDS_Security_DataHolderSeq_deinit((DDS_Security_DataHolderSeq *)(s))
+                    DDS_Security_DataHolderSeq_deinit(s)
 #define DDS_Security_ParticipantCryptoTokenSeq_copy(d,s) \
-                    DDS_Security_DataHolderSeq_copy((DDS_Security_DataHolderSeq *)(d), (const DDS_Security_DataHolderSeq *)(s))
+                    DDS_Security_DataHolderSeq_copy((d), (s))
 
 
-#define DDS_Security_ParticipantCryptoHandleSeq_alloc()     (DDS_Security_ParticipantCryptoHandleSeq*)DDS_Security_HandleSeq_alloc()
+#define DDS_Security_ParticipantCryptoHandleSeq_alloc()     DDS_Security_HandleSeq_alloc()
 #define DDS_Security_ParticipantCryptoHandleSeq_allocbuf(l) DDS_Security_HandleSeq_allocbuf(l)
-#define DDS_Security_ParticipantCryptoHandleSeq_freebuf(s)  DDS_Security_HandleSeq_freebuf((DDS_Security_HandleSeq*)s)
-#define DDS_Security_ParticipantCryptoHandleSeq_free(s)     DDS_Security_HandleSeq_free((DDS_Security_HandleSeq*)s)
-#define DDS_Security_ParticipantCryptoHandleSeq_deinit(s)   DDS_Security_HandleSeq_deinit((DDS_Security_HandleSeq*)s)
+#define DDS_Security_ParticipantCryptoHandleSeq_freebuf(s)  DDS_Security_HandleSeq_freebuf(s)
+#define DDS_Security_ParticipantCryptoHandleSeq_free(s)     DDS_Security_HandleSeq_free(s)
+#define DDS_Security_ParticipantCryptoHandleSeq_deinit(s)   DDS_Security_HandleSeq_deinit(s)
 
-#define DDS_Security_DatawriterCryptoHandleSeq_alloc()      (DDS_Security_DatawriterCryptoHandleSeq*)DDS_Security_HandleSeq_alloc()
+#define DDS_Security_DatawriterCryptoHandleSeq_alloc()      DDS_Security_HandleSeq_alloc()
 #define DDS_Security_DatawriterCryptoHandleSeq_allocbuf(l)  DDS_Security_HandleSeq_allocbuf(l)
-#define DDS_Security_DatawriterCryptoHandleSeq_freebuf(s)   DDS_Security_HandleSeq_freebuf((DDS_Security_HandleSeq*)s)
-#define DDS_Security_DatawriterCryptoHandleSeq_free(s)      DDS_Security_HandleSeq_free((DDS_Security_HandleSeq*)s)
-#define DDS_Security_DatawriterCryptoHandleSeq_deinit(s)    DDS_Security_HandleSeq_deinit((DDS_Security_HandleSeq*)s)
+#define DDS_Security_DatawriterCryptoHandleSeq_freebuf(s)   DDS_Security_HandleSeq_freebuf(s)
+#define DDS_Security_DatawriterCryptoHandleSeq_free(s)      DDS_Security_HandleSeq_free(s)
+#define DDS_Security_DatawriterCryptoHandleSeq_deinit(s)    DDS_Security_HandleSeq_deinit(s)
 
-#define DDS_Security_DatareaderCryptoHandleSeq_alloc()      (DDS_Security_DatareaderCryptoHandleSeq*)DDS_Security_HandleSeq_alloc()
+#define DDS_Security_DatareaderCryptoHandleSeq_alloc()      DDS_Security_HandleSeq_alloc()
 #define DDS_Security_DatareaderCryptoHandleSeq_allocbuf(l)  DDS_Security_HandleSeq_allocbuf(l)
-#define DDS_Security_DatareaderCryptoHandleSeq_freebuf(s)   DDS_Security_HandleSeq_freebuf((DDS_Security_HandleSeq*)s)
-#define DDS_Security_DatareaderCryptoHandleSeq_free(s)      DDS_Security_HandleSeq_free((DDS_Security_HandleSeq*)s)
-#define DDS_Security_DatareaderCryptoHandleSeq_deinit(s)    DDS_Security_HandleSeq_deinit((DDS_Security_HandleSeq*)s)
+#define DDS_Security_DatareaderCryptoHandleSeq_freebuf(s)   DDS_Security_HandleSeq_freebuf(s)
+#define DDS_Security_DatareaderCryptoHandleSeq_free(s)      DDS_Security_HandleSeq_free(s)
+#define DDS_Security_DatareaderCryptoHandleSeq_deinit(s)    DDS_Security_HandleSeq_deinit(s)
 
-#define DDS_Security_CryptoTokenSeq_alloc()     (DDS_Security_CryptoTokenSeq*)DDS_Security_DataHolderSeq_alloc()
+#define DDS_Security_CryptoTokenSeq_alloc()     DDS_Security_DataHolderSeq_alloc()
 #define DDS_Security_CryptoTokenSeq_allocbuf(l) DDS_Security_DataHolderSeq_allocbuf(l)
-#define DDS_Security_CryptoTokenSeq_freebuf(s)  DDS_Security_DataHolderSeq_freebuf((DDS_Security_CryptoTokenSeq*)s)
-#define DDS_Security_CryptoTokenSeq_free(s)     DDS_Security_DataHolderSeq_free((DDS_Security_CryptoTokenSeq*)s)
+#define DDS_Security_CryptoTokenSeq_freebuf(s)  DDS_Security_DataHolderSeq_freebuf(s)
+#define DDS_Security_CryptoTokenSeq_free(s)     DDS_Security_DataHolderSeq_free(s)
 
 
 /* for DEBUG purposes */

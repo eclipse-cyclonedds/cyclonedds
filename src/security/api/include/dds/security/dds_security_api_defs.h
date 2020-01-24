@@ -37,7 +37,8 @@ typedef enum {
 
 #define DDS_SECURITY_HANDLE_NIL (0)
 
-
+#define DDS_SECURITY_SUCCESS (0)
+#define DDS_SECURITY_FAILED (-1)
 
 
 /**************************************************************************
@@ -45,30 +46,30 @@ typedef enum {
  * Attribute flags.                                                       *
  *                                                                        *
  **************************************************************************/
-#define DDS_SECURITY_PARTICIPANT_ATTRIBUTES_FLAG_IS_RTPS_PROTECTED                      (0x00000001      )
-#define DDS_SECURITY_PARTICIPANT_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED                 (0x00000001 <<  1)
-#define DDS_SECURITY_PARTICIPANT_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED                (0x00000001 <<  2)
-#define DDS_SECURITY_PARTICIPANT_ATTRIBUTES_FLAG_IS_VALID                               (0x00000001 << 31)
+#define DDS_SECURITY_PARTICIPANT_ATTRIBUTES_FLAG_IS_RTPS_PROTECTED                      (1u      )
+#define DDS_SECURITY_PARTICIPANT_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED                 (1u <<  1)
+#define DDS_SECURITY_PARTICIPANT_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED                (1u <<  2)
+#define DDS_SECURITY_PARTICIPANT_ATTRIBUTES_FLAG_IS_VALID                               (1u << 31)
 
-#define DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_RTPS_ENCRYPTED               (0x00000001      )
-#define DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_DISCOVERY_ENCRYPTED          (0x00000001 <<  1)
-#define DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_LIVELINESS_ENCRYPTED         (0x00000001 <<  2)
-#define DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_RTPS_AUTHENTICATED           (0x00000001 <<  3)
-#define DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_DISCOVERY_AUTHENTICATED      (0x00000001 <<  4)
-#define DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_LIVELINESS_AUTHENTICATED     (0x00000001 <<  5)
+#define DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_RTPS_ENCRYPTED               (1u      )
+#define DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_DISCOVERY_ENCRYPTED          (1u <<  1)
+#define DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_LIVELINESS_ENCRYPTED         (1u <<  2)
+#define DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_RTPS_AUTHENTICATED           (1u <<  3)
+#define DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_DISCOVERY_AUTHENTICATED      (1u <<  4)
+#define DDS_SECURITY_PLUGIN_PARTICIPANT_ATTRIBUTES_FLAG_IS_LIVELINESS_AUTHENTICATED     (1u <<  5)
 
-#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_READ_PROTECTED                         (0x00000001      )
-#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_WRITE_PROTECTED                        (0x00000001 <<  1)
-#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED                    (0x00000001 <<  2)
-#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED                   (0x00000001 <<  3)
-#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_PAYLOAD_PROTECTED                      (0x00000001 <<  4)
-#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_KEY_PROTECTED                          (0x00000001 <<  5)
-#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED                   (0x00000001 <<  6)
-#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_VALID                                  (0x00000001 << 31)
+#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_READ_PROTECTED                         (1u      )
+#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_WRITE_PROTECTED                        (1u <<  1)
+#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED                    (1u <<  2)
+#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED                   (1u <<  3)
+#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_PAYLOAD_PROTECTED                      (1u <<  4)
+#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_KEY_PROTECTED                          (1u <<  5)
+#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED                   (1u <<  6)
+#define DDS_SECURITY_ENDPOINT_ATTRIBUTES_FLAG_IS_VALID                                  (1u << 31)
 
-#define DDS_SECURITY_PLUGIN_ENDPOINT_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED            (0x00000001      )
-#define DDS_SECURITY_PLUGIN_ENDPOINT_ATTRIBUTES_FLAG_IS_PAYLOAD_ENCRYPTED               (0x00000001 <<  1)
-#define DDS_SECURITY_PLUGIN_ENDPOINT_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ORIGIN_AUTHENTICATED (0x00000001 <<  2)
+#define DDS_SECURITY_PLUGIN_ENDPOINT_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED            (1u      )
+#define DDS_SECURITY_PLUGIN_ENDPOINT_ATTRIBUTES_FLAG_IS_PAYLOAD_ENCRYPTED               (1u <<  1)
+#define DDS_SECURITY_PLUGIN_ENDPOINT_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ORIGIN_AUTHENTICATED (1u <<  2)
 
 
 
@@ -175,10 +176,36 @@ typedef enum {
  **************************************************************************/
 #define DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE 32
 
-#define DDS_SECURITY_MASTER_SALT_SIZE 32
-#define DDS_SECURITY_MASTER_SENDER_KEY_SIZE 32
-#define DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE 32
+#define DDS_SECURITY_MASTER_SALT_SIZE_128 16
+#define DDS_SECURITY_MASTER_SALT_SIZE_256 32
+#define DDS_SECURITY_MASTER_SENDER_KEY_SIZE_128 16
+#define DDS_SECURITY_MASTER_SENDER_KEY_SIZE_256 32
+#define DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE_128 16
+#define DDS_SECURITY_MASTER_RECEIVER_SPECIFIC_KEY_SIZE_256 32
 
+/**************************************************************************
+ *                                                                        *
+ * Security Property Key Names                                                     *
+ *                                                                        *
+ *************************************************************************/
+#define DDS_SEC_PROP_AUTH_LIBRARY_PATH "dds.sec.auth.library.path"
+#define DDS_SEC_PROP_AUTH_LIBRARY_INIT "dds.sec.auth.library.init"
+#define DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE "dds.sec.auth.library.finalize"
+#define DDS_SEC_PROP_CRYPTO_LIBRARY_PATH "dds.sec.crypto.library.path"
+#define DDS_SEC_PROP_CRYPTO_LIBRARY_INIT "dds.sec.crypto.library.init"
+#define DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE "dds.sec.crypto.library.finalize"
+#define DDS_SEC_PROP_ACCESS_LIBRARY_PATH "dds.sec.access.library.path"
+#define DDS_SEC_PROP_ACCESS_LIBRARY_INIT "dds.sec.access.library.init"
+#define DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE "dds.sec.access.library.finalize"
+
+#define DDS_SEC_PROP_AUTH_IDENTITY_CA "dds.sec.auth.identity_ca"
+#define DDS_SEC_PROP_AUTH_PRIV_KEY "dds.sec.auth.private_key"
+#define DDS_SEC_PROP_AUTH_IDENTITY_CERT "dds.sec.auth.identity_certificate"
+#define DDS_SEC_PROP_AUTH_PASSWORD "dds.sec.auth.password"
+#define DDS_SEC_PROP_ACCESS_PERMISSIONS_CA "dds.sec.access.permissions_ca"
+#define DDS_SEC_PROP_ACCESS_GOVERNANCE "dds.sec.access.governance"
+#define DDS_SEC_PROP_ACCESS_PERMISSIONS "dds.sec.access.permissions"
+#define DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "dds.sec.auth.trusted_ca_dir"
 
 
 #if defined (__cplusplus)

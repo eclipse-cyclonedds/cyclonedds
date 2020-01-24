@@ -8,7 +8,7 @@ CycloneDDS configuration
 ## //CycloneDDS/Domain
 Attributes: [Id](#cycloneddsdomainid)
 
-Children: [Compatibility](#cycloneddsdomaincompatibility), [Discovery](#cycloneddsdomaindiscovery), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [ThreadPool](#cycloneddsdomainthreadpool), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
+Children: [Compatibility](#cycloneddsdomaincompatibility), [DDSSecurity](#cycloneddsdomainddssecurity), [Discovery](#cycloneddsdomaindiscovery), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [ThreadPool](#cycloneddsdomainthreadpool), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
 
 
 The General element specifying Domain related settings.
@@ -100,8 +100,358 @@ The default setting is "lax".
 The default value is: "lax".
 
 
+### //CycloneDDS/Domain/DDSSecurity
+Children: [AccessControl](#cycloneddsdomainddssecurityaccesscontrol), [Authentication](#cycloneddsdomainddssecurityauthentication), [Cryptographic](#cycloneddsdomainddssecuritycryptographic)
+
+
+This element is used to configure Cyclone DDS with the DDS Security
+specification plugins and settings.
+
+
+#### //CycloneDDS/Domain/DDSSecurity/AccessControl
+Children: [Governance](#cycloneddsdomainddssecurityaccesscontrolgovernance), [Library](#cycloneddsdomainddssecurityaccesscontrollibrary), [Permissions](#cycloneddsdomainddssecurityaccesscontrolpermissions), [PermissionsCA](#cycloneddsdomainddssecurityaccesscontrolpermissionsca)
+
+
+This element configures the Access Control plugin of the DDS Security
+specification.
+
+
+##### //CycloneDDS/Domain/DDSSecurity/AccessControl/Governance
+Text
+
+URI to the shared Governance Document signed by the Permissions CA in
+S/MIME format
+
+URI schemes: file, data<br>
+
+Examples file URIs:
+
+<Governance>file:governance.smime</Governance>
+
+<Governance>file:/home/myuser/governance.smime</Governance><br>
+
+<Governance><![CDATA[data:,MIME-Version: 1.0
+
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature";
+micalg="sha-256"; boundary="----F9A8A198D6F08E1285A292ADF14DD04F"
+
+This is an S/MIME signed message
+
+------F9A8A198D6F08E1285A292ADF14DD04F
+
+<?xml version="1.0" encoding="UTF-8"?>
+
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+
+xsi:noNamespaceSchemaLocation="omg_shared_ca_governance.xsd">
+
+<domain_access_rules>
+
+. . .
+
+</domain_access_rules>
+
+</dds>
+
+...
+
+------F9A8A198D6F08E1285A292ADF14DD04F
+
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+
+Content-Transfer-Encoding: base64
+
+Content-Disposition: attachment; filename="smime.p7s"
+
+MIIDuAYJKoZIhv ...al5s=
+
+------F9A8A198D6F08E1285A292ADF14DD04F-]]</Governance>
+
+The default value is: "".
+
+
+##### //CycloneDDS/Domain/DDSSecurity/AccessControl/Library
+Attributes: [finalizeFunction](#cycloneddsdomainddssecurityaccesscontrollibraryfinalizefunction), [initFunction](#cycloneddsdomainddssecurityaccesscontrollibraryinitfunction), [path](#cycloneddsdomainddssecurityaccesscontrollibrarypath)
+
+
+This element specifies the library to be loaded as the DDS Security
+Access Control plugin.
+
+
+##### //CycloneDDS/Domain/DDSSecurity/AccessControl/Library[@finalizeFunction]
+Text
+
+This element names the finalization function of Access Control plugin.
+This function is called to let the plugin release its resources.
+
+The default value is: "finalize_access_control".
+
+
+##### //CycloneDDS/Domain/DDSSecurity/AccessControl/Library[@initFunction]
+Text
+
+This element names the initialization function of Access Control plugin.
+This function is called after loading the plugin library for
+instantiation purposes. Init function must return an object that
+implements DDS Security Access Control interface.
+
+The default value is: "init_access_control".
+
+
+##### //CycloneDDS/Domain/DDSSecurity/AccessControl/Library[@path]
+Text
+
+This element points to the path of Access Control plugin library.
+
+It can be either absolute path excluding file extension (
+/usr/lib/dds_security_ac ) or single file without extension (
+dds_security_ac ).
+
+If single file is supplied, the library located by way of the current
+working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
+Windows systems.
+
+The default value is: "dds_security_ac".
+
+
+##### //CycloneDDS/Domain/DDSSecurity/AccessControl/Permissions
+Text
+
+URI to the DomainParticipant permissions document signed by the
+Permissions CA in S/MIME format
+
+The permissions document specifies the permissions to be applied to a
+domain.<br>
+
+Example file URIs:
+
+<Permissions>file:permissions_document.p7s</Permissions>
+
+<Permissions>file:/path_to/permissions_document.p7s</Permissions>
+
+Example data URI:
+
+<Permissions><![CDATA[data:,.........]]</Permissions>
+
+The default value is: "".
+
+
+##### //CycloneDDS/Domain/DDSSecurity/AccessControl/PermissionsCA
+Text
+
+URI to a X509 certificate for the PermissionsCA in PEM format.
+
+Supported URI schemes: file, data
+
+The file and data schemas shall refer to a X.509 v3 certificate (see
+X.509 v3 ITU-T Recommendation X.509 (2005) [39]) in PEM format.<br>
+
+Examples:<br>
+
+<PermissionsCA>file:permissions_ca.pem</PermissionsCA>
+
+<PermissionsCA>file:/home/myuser/permissions_ca.pem</PermissionsCA><br>
+
+<PermissionsCA>data:<strong>,</strong>-----BEGIN CERTIFICATE-----
+
+MIIC3DCCAcQCCQCWE5x+Z ... PhovK0mp2ohhRLYI0ZiyYQ==
+
+-----END CERTIFICATE-----</PermissionsCA>
+
+The default value is: "".
+
+
+#### //CycloneDDS/Domain/DDSSecurity/Authentication
+Children: [IdentityCA](#cycloneddsdomainddssecurityauthenticationidentityca), [IdentityCertificate](#cycloneddsdomainddssecurityauthenticationidentitycertificate), [Library](#cycloneddsdomainddssecurityauthenticationlibrary), [Password](#cycloneddsdomainddssecurityauthenticationpassword), [PrivateKey](#cycloneddsdomainddssecurityauthenticationprivatekey), [TrustedCADirectory](#cycloneddsdomainddssecurityauthenticationtrustedcadirectory)
+
+
+This element configures the Authentication plugin of the DDS Security
+specification.
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCA
+Text
+
+URI to the X509 certificate [39] of the Identity CA that is the signer of
+Identity Certificate.
+
+Supported URI schemes: file, data
+
+The file and data schemas shall refer to a X.509 v3 certificate (see
+X.509 v3 ITU-T Recommendation X.509 (2005) [39]) in PEM format.
+
+Examples:
+
+<IdentityCA>file:identity_ca.pem</IdentityCA>
+
+<IdentityCA>data:,-----BEGIN CERTIFICATE-----<br>
+
+MIIC3DCCAcQCCQCWE5x+Z...PhovK0mp2ohhRLYI0ZiyYQ==<br>
+
+-----END CERTIFICATE-----</IdentityCA>
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Authentication/IdentityCertificate
+Text
+
+Identity certificate that will be used for identifying all participants
+in the OSPL instance.<br>The content is URI to a X509 certificate signed
+by the IdentityCA in PEM format containing the signed public key.
+
+Supported URI schemes: file, data
+
+Examples:
+
+<IdentityCertificate>file:participant1_identity_cert.pem</IdentityCertificate>
+
+<IdentityCertificate>data:,-----BEGIN CERTIFICATE-----<br>
+
+MIIDjjCCAnYCCQDCEu9...6rmT87dhTo=<br>
+
+-----END CERTIFICATE-----</IdentityCertificate>
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Authentication/Library
+Attributes: [finalizeFunction](#cycloneddsdomainddssecurityauthenticationlibraryfinalizefunction), [initFunction](#cycloneddsdomainddssecurityauthenticationlibraryinitfunction), [path](#cycloneddsdomainddssecurityauthenticationlibrarypath)
+
+
+This element specifies the library to be loaded as the DDS Security
+Access Control plugin.
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Authentication/Library[@finalizeFunction]
+Text
+
+This element names the finalization function of Authentication plugin.
+This function is called to let the plugin release its resources.
+
+The default value is: "finalize_authentication".
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Authentication/Library[@initFunction]
+Text
+
+This element names the initialization function of Authentication plugin.
+This function is called after loading the plugin library for
+instantiation purposes. Init function must return an object that
+implements DDS Security Authentication interface.
+
+The default value is: "init_authentication".
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Authentication/Library[@path]
+Text
+
+This element points to the path of Authentication plugin library.
+
+It can be either absolute path excluding file extension (
+/usr/lib/dds_security_auth ) or single file without extension (
+dds_security_auth ).
+
+If single file is supplied, the library located by way of the current
+working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
+Windows systems.
+
+The default value is: "dds_security_auth".
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Authentication/Password
+Text
+
+A password used to decrypt the private_key.
+
+The value of the password property shall be interpreted as the Base64
+encoding of the AES-128 key that shall be used to decrypt the private_key
+using AES128-CBC.
+
+If the password property is not present, then the value supplied in the
+private_key property must contain the unencrypted private key.
+
+The default value is: "".
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Authentication/PrivateKey
+Text
+
+URI to access the private Private Key for all of the participants in the
+OSPL federation.
+
+Supported URI schemes: file, data
+
+Examples:
+
+<PrivateKey>file:identity_ca_private_key.pem</PrivateKey>
+
+<PrivateKey>data:,-----BEGIN RSA PRIVATE KEY-----<br>
+
+MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
+
+-----END RSA PRIVATE KEY-----</PrivateKey>
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Authentication/TrustedCADirectory
+Text
+
+Trusted CA Directory which contains trusted CA certificates as separated
+files.
+
+The default value is: "".
+
+
+#### //CycloneDDS/Domain/DDSSecurity/Cryptographic
+Children: [Library](#cycloneddsdomainddssecuritycryptographiclibrary)
+
+
+This element configures the Cryptographic plugin of the DDS Security
+specification.
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Cryptographic/Library
+Attributes: [finalizeFunction](#cycloneddsdomainddssecuritycryptographiclibraryfinalizefunction), [initFunction](#cycloneddsdomainddssecuritycryptographiclibraryinitfunction), [path](#cycloneddsdomainddssecuritycryptographiclibrarypath)
+
+
+This element specifies the library to be loaded as the DDS Security
+Cryptographic plugin.
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Cryptographic/Library[@finalizeFunction]
+Text
+
+This element names the finalization function of Cryptographic plugin.
+This function is called to let the plugin release its resources.
+
+The default value is: "finalize_crypto".
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Cryptographic/Library[@initFunction]
+Text
+
+This element names the initialization function of Cryptographic plugin.
+This function is called after loading the plugin library for
+instantiation purposes. Init function must return an object that
+implements DDS Security Cryptographic interface.
+
+The default value is: "init_crypto".
+
+
+##### //CycloneDDS/Domain/DDSSecurity/Cryptographic/Library[@path]
+Text
+
+This element points to the path of Cryptographic plugin library.
+
+It can be either absolute path excluding file extension (
+/usr/lib/dds_security_crypto ) or single file without extension (
+dds_security_crypto ).
+
+If single file is supplied, the library located by way of the current
+working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
+Windows systems.
+
+The default value is: "dds_security_crypto".
+
+
 ### //CycloneDDS/Domain/Discovery
-Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [EnableTopicDiscovery](#cycloneddsdomaindiscoveryenabletopicdiscovery), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress)
+Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [EnableTopicDiscovery](#cycloneddsdomaindiscoveryenabletopicdiscovery), [ExternalDomainId](#cycloneddsdomaindiscoveryexternaldomainid), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress), [Tag](#cycloneddsdomaindiscoverytag)
 
 
 The Discovery element allows specifying various parameters related to the
@@ -138,6 +488,17 @@ Boolean
 Do not use.
 
 The default value is: "true".
+
+
+#### //CycloneDDS/Domain/Discovery/ExternalDomainId
+Text
+
+An override for the domain id, to be used in discovery and for
+determining the port number mapping. This allows creating multiple
+domains in a single process while making them appear as a single domain
+on the network. The value "default" disables the override.
+
+The default value is: "default".
 
 
 #### //CycloneDDS/Domain/Discovery/MaxAutoParticipantIndex
@@ -261,7 +622,7 @@ The default value is: "250".
 ##### //CycloneDDS/Domain/Discovery/Ports/MulticastDataOffset
 Integer
 
-This element specifies the port number for multicast meta traffic (refer
+This element specifies the port number for multicast data traffic (refer
 to the DDSI 2.1 specification, section 9.6.1, constant d2).
 
 The default value is: "1".
@@ -289,7 +650,7 @@ The default value is: "2".
 ##### //CycloneDDS/Domain/Discovery/Ports/UnicastDataOffset
 Integer
 
-This element specifies the port number for unicast meta traffic (refer to
+This element specifies the port number for unicast data traffic (refer to
 the DDSI 2.1 specification, section 9.6.1, constant d3).
 
 The default value is: "11".
@@ -326,6 +687,15 @@ ff02::ffff:239.255.0.1, which is a non-standardised link-local multicast
 address.
 
 The default value is: "239.255.0.1".
+
+
+#### //CycloneDDS/Domain/Discovery/Tag
+Text
+
+String extension for domain id that remote participants must match to be
+discovered.
+
+The default value is: "".
 
 
 ### //CycloneDDS/Domain/General
@@ -672,6 +1042,8 @@ The default value is: "false".
 
 
 #### //CycloneDDS/Domain/Internal/HeartbeatInterval
+Attributes: [max](#cycloneddsdomaininternalheartbeatintervalmax), [min](#cycloneddsdomaininternalheartbeatintervalmin), [minsched](#cycloneddsdomaininternalheartbeatintervalminsched)
+
 Number-with-unit
 
 This elemnents allows configuring the base interval for sending writer
@@ -681,6 +1053,42 @@ Valid values are finite durations with an explicit unit or the keyword
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
 
 The default value is: "100 ms".
+
+
+#### //CycloneDDS/Domain/Internal/HeartbeatInterval[@max]
+Number-with-unit
+
+This attribute sets the maximum interval for periodic heartbeats.
+
+Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+
+The default value is: "8 s".
+
+
+#### //CycloneDDS/Domain/Internal/HeartbeatInterval[@min]
+Number-with-unit
+
+This attribute sets the minimum interval that must have passed since the
+most recent heartbeat from a writer, before another asynchronous (not
+directly related to writing) will be sent.
+
+Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+
+The default value is: "5 ms".
+
+
+#### //CycloneDDS/Domain/Internal/HeartbeatInterval[@minsched]
+Number-with-unit
+
+This attribute sets the minimum interval for periodic heartbeats. Other
+events may still cause heartbeats to go out.
+
+Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+
+The default value is: "20 ms".
 
 
 #### //CycloneDDS/Domain/Internal/LateAckMode
@@ -704,6 +1112,8 @@ The default value is: "10 s".
 
 
 #### //CycloneDDS/Domain/Internal/LivelinessMonitoring
+Attributes: [Interval](#cycloneddsdomaininternallivelinessmonitoringinterval), [StackTraces](#cycloneddsdomaininternallivelinessmonitoringstacktraces)
+
 Boolean
 
 This element controls whether or not implementation should internally
@@ -712,6 +1122,28 @@ traces can be dumped automatically when some thread appears to have
 stopped making progress.
 
 The default value is: "false".
+
+
+#### //CycloneDDS/Domain/Internal/LivelinessMonitoring[@Interval]
+Number-with-unit
+
+This element controls the interval at which to check whether threads have
+been making progress.
+
+The unit must be specified explicitly. Recognised units: ns, us, ms, s,
+min, hr, day.
+
+The default value is: "1s".
+
+
+#### //CycloneDDS/Domain/Internal/LivelinessMonitoring[@StackTraces]
+Boolean
+
+This element controls whether or not to write stack traces to the Cyclone
+DDS trace when a thread fails to make progress (on select platforms
+only).
+
+The default value is: "true".
 
 
 #### //CycloneDDS/Domain/Internal/MaxParticipants
@@ -819,6 +1251,8 @@ The default value is: "-1".
 
 
 #### //CycloneDDS/Domain/Internal/MultipleReceiveThreads
+Attributes: [maxretries](#cycloneddsdomaininternalmultiplereceivethreadsmaxretries)
+
 Boolean
 
 This element controls whether all traffic is handled by a single receive
@@ -828,6 +1262,18 @@ connectionless transport (e.g., UDP) and ManySocketsMode not set to
 single (the default).
 
 The default value is: "true".
+
+
+#### //CycloneDDS/Domain/Internal/MultipleReceiveThreads[@maxretries]
+Integer
+
+Receive threads dedicated to a single socket can only be triggered for
+termination by sending a packet. Reception of any packet will do, so
+termination failure due to packet loss is exceedingly unlikely, but to
+eliminate all risks, it will retry as many times as specified by this
+attribute before aborting.
+
+The default value is: "4294967295".
 
 
 #### //CycloneDDS/Domain/Internal/NackDelay
@@ -880,6 +1326,8 @@ The default value is: "true".
 
 
 #### //CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration
+Attributes: [enforce](#cycloneddsdomaininternalrediscoveryblacklistdurationenforce)
+
 Number-with-unit
 
 This element controls for how long a remote participant that was
@@ -896,6 +1344,18 @@ Valid values are finite durations with an explicit unit or the keyword
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
 
 The default value is: "10s".
+
+
+#### //CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration[@enforce]
+Boolean
+
+This attribute controls whether the configured time during which recently
+deleted participants will not be rediscovered (i.e., "black listed") is
+enforced and following complete removal of the participant in Cyclone
+DDS, or whether it can be rediscovered earlier provided all traces of
+that participant have been removed already.
+
+The default value is: "false".
 
 
 #### //CycloneDDS/Domain/Internal/RetransmitMerging
@@ -1533,6 +1993,8 @@ threads exist:
 * lease: DDSI liveliness monitoring;
 
 * tev: general timed-event handling, retransmits and discovery;
+
+* fsm: finite state machine thread for handling security handshake;
 
 * xmit.CHAN: transmit thread for channel CHAN;
 

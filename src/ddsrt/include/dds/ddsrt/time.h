@@ -62,6 +62,9 @@ typedef int64_t dds_duration_t;
 /** @name Invalid time value for assigning to time output when something goes wrong */
 #define DDS_TIME_INVALID ((dds_time_t) INT64_MIN)
 
+/** @name Invalid duration value */
+#define DDS_DURATION_INVALID ((dds_duration_t) INT64_MIN)
+
 /** @name Macro definition for time conversion to nanoseconds
   @{**/
 #define DDS_SECS(n) ((n) * DDS_NSECS_IN_SEC)

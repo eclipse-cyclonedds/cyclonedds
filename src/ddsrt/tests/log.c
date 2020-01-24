@@ -435,13 +435,13 @@ static void abort_handler (int sig)
 static void abort_log (void *arg, const dds_log_data_t *info)
 {
   (void) arg;
-  ddsrt_strlcpy (abort_message, info->message, sizeof (abort_message));
+  (void) ddsrt_strlcpy (abort_message, info->message, sizeof (abort_message));
 }
 
 static void abort_trace (void *arg, const dds_log_data_t *info)
 {
   (void) arg;
-  ddsrt_strlcpy (abort_message_trace, info->message, sizeof (abort_message_trace));
+  (void) ddsrt_strlcpy (abort_message_trace, info->message, sizeof (abort_message_trace));
 }
 
 CU_TheoryDataPoints(dds_log, fatal_aborts) = {
@@ -462,6 +462,7 @@ CU_Theory((bool local, int mode, bool expect_in_trace), dds_log, fatal_aborts)
 #if TEST_DDS_LC_FATAL
   struct sigaction action, oldaction;
   action.sa_flags = 0;
+  sigemptyset (&action.sa_mask);
   action.sa_handler = abort_handler;
 
   if (sigsetjmp (abort_jmpbuf, 0) != 0)

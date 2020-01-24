@@ -24,6 +24,7 @@
 #include "dds__serdata_builtintopic.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 
 static const uint64_t unihashconsts[] = {
   UINT64_C (16292676669999574021),
@@ -131,7 +132,7 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_keyhash (const struct ddsi
   /* FIXME: not quite elegant to manage the creation of a serdata for a built-in topic via this function, but I also find it quite unelegant to let from_sample read straight from the underlying internal entity, and to_sample convert to the external format ... I could claim the internal entity is the "serialised form", but that forces wrapping it in a fragchain in one way or another, which, though possible, is also a bit lacking in elegance. */
   const struct ddsi_sertopic_builtintopic *tp = (const struct ddsi_sertopic_builtintopic *)tpcmn;
   /* keyhash must in host format (which the GUIDs always are internally) */
-  struct entity_common *entity = ephash_lookup_guid_untyped (tp->gv->guid_hash, (const ddsi_guid_t *) keyhash->value);
+  struct entity_common *entity = entidx_lookup_guid_untyped (tp->gv->entity_index, (const ddsi_guid_t *) keyhash->value);
   struct ddsi_serdata_builtintopic *d = serdata_builtin_new(tp, entity ? SDK_DATA : SDK_KEY);
   memcpy (&d->key, keyhash->value, sizeof (d->key));
   if (entity)
@@ -295,5 +296,6 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic = {
   .to_ser_unref = serdata_builtin_to_ser_unref,
   .to_topicless = serdata_builtin_to_topicless,
   .topicless_to_sample = serdata_builtin_topicless_to_sample,
-  .print = serdata_builtin_topic_print
+  .print = serdata_builtin_topic_print,
+  .get_keyhash = 0
 };

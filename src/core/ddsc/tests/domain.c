@@ -140,3 +140,150 @@ CU_Test(ddsc_domain, delete_cyclonedds)
   rc = dds_get_domainid (pp[0], &did);
   CU_ASSERT_FATAL (rc == DDS_RETCODE_PRECONDITION_NOT_MET);
 }
+
+CU_Test(ddsc_domain_create, valid)
+{
+  dds_return_t ret;
+  dds_domainid_t did;
+  dds_entity_t domain;
+
+  domain = dds_create_domain(1, "<"DDS_PROJECT_NAME"><Domain><Id>1</Id></Domain></"DDS_PROJECT_NAME">");
+  CU_ASSERT_FATAL(domain > 0);
+
+  ret = dds_get_domainid (domain, &did);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL(did == 1);
+
+  ret = dds_delete(domain);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+  ret = dds_delete(domain);
+  CU_ASSERT_FATAL(ret != DDS_RETCODE_OK);
+}
+
+CU_Test(ddsc_domain_create, mismatch)
+{
+  dds_return_t ret;
+  dds_domainid_t did;
+  dds_entity_t domain;
+
+  /* The config should have been ignored. */
+  domain = dds_create_domain(2, "<"DDS_PROJECT_NAME"><Domain><Id>3</Id></Domain></"DDS_PROJECT_NAME">");
+  CU_ASSERT_FATAL(domain > 0);
+
+  ret = dds_get_domainid (domain, &did);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL(did == 2);
+
+  ret = dds_delete(domain);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+}
+
+CU_Test(ddsc_domain_create, empty)
+{
+  dds_return_t ret;
+  dds_domainid_t did;
+  dds_entity_t domain;
+
+  /* This should create a domain with default settings. */
+  domain = dds_create_domain(3, "");
+  CU_ASSERT_FATAL(domain > 0);
+
+  ret = dds_get_domainid (domain, &did);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL(did == 3);
+
+  ret = dds_delete(domain);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+}
+
+CU_Test(ddsc_domain_create, null)
+{
+  dds_return_t ret;
+  dds_domainid_t did;
+  dds_entity_t domain;
+
+  /* This should start create a domain with default settings. */
+  domain = dds_create_domain(5, NULL);
+  CU_ASSERT_FATAL(domain > 0);
+
+  ret = dds_get_domainid (domain, &did);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL(did == 5);
+
+  ret = dds_delete(domain);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+}
+
+CU_Test(ddsc_domain_create, after_domain)
+{
+  dds_entity_t domain1;
+  dds_entity_t domain2;
+
+  domain1 = dds_create_domain(4, "<"DDS_PROJECT_NAME"><Domain><Id>any</Id></Domain></"DDS_PROJECT_NAME">");
+  CU_ASSERT_FATAL(domain1 > 0);
+
+  domain2 = dds_create_domain(4, "<"DDS_PROJECT_NAME"><Domain><Id>any</Id></Domain></"DDS_PROJECT_NAME">");
+  CU_ASSERT_FATAL(domain2 == DDS_RETCODE_PRECONDITION_NOT_MET);
+
+  dds_delete(domain1);
+}
+
+CU_Test(ddsc_domain_create, after_participant)
+{
+  dds_entity_t domain;
+  dds_entity_t participant;
+
+  participant = dds_create_participant (5, NULL, NULL);
+  CU_ASSERT_FATAL(participant > 0);
+
+  domain = dds_create_domain(5, "<"DDS_PROJECT_NAME"><Domain><Id>any</Id></Domain></"DDS_PROJECT_NAME">");
+  CU_ASSERT_FATAL(domain == DDS_RETCODE_PRECONDITION_NOT_MET);
+
+  dds_delete(participant);
+}
+
+CU_Test(ddsc_domain_create, diff)
+{
+  dds_return_t ret;
+  dds_domainid_t did;
+  dds_entity_t domain1;
+  dds_entity_t domain2;
+
+  domain1 = dds_create_domain(1, "<"DDS_PROJECT_NAME"><Domain><Id>any</Id></Domain></"DDS_PROJECT_NAME">");
+  CU_ASSERT_FATAL(domain1 > 0);
+
+  domain2 = dds_create_domain(2, "<"DDS_PROJECT_NAME"><Domain><Id>any</Id></Domain></"DDS_PROJECT_NAME">");
+  CU_ASSERT_FATAL(domain2 > 0);
+
+  ret = dds_get_domainid (domain1, &did);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL(did == 1);
+
+  ret = dds_get_domainid (domain2, &did);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL(did == 2);
+
+  ret = dds_delete(domain1);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+  ret = dds_delete(domain2);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+
+  ret = dds_delete(domain1);
+  CU_ASSERT_FATAL(ret != DDS_RETCODE_OK);
+  ret = dds_delete(domain2);
+  CU_ASSERT_FATAL(ret != DDS_RETCODE_OK);
+}
+
+CU_Test(ddsc_domain_create, domain_default)
+{
+  dds_entity_t domain;
+  domain = dds_create_domain(DDS_DOMAIN_DEFAULT, "<"DDS_PROJECT_NAME"><Domain><Id>any</Id></Domain></"DDS_PROJECT_NAME">");
+  CU_ASSERT_FATAL(domain == DDS_RETCODE_BAD_PARAMETER);
+}
+
+CU_Test(ddsc_domain_create, invalid_xml)
+{
+  dds_entity_t domain;
+  domain = dds_create_domain(1, "<CycloneDDS incorrect XML");
+  CU_ASSERT_FATAL(domain == DDS_RETCODE_ERROR);
+}

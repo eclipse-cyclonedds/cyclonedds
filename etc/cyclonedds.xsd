@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" targetNamespace="https://cdds.io/config" xmlns:config="https://cdds.io/config">
   <xs:element name="CycloneDDS">
     <xs:annotation>
       <xs:documentation>
@@ -7,7 +7,7 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" ref="Domain"/>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:Domain"/>
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -17,29 +17,30 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The General element specifying Domain related settings.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
-      <xs:all>
-        <xs:element minOccurs="0" ref="Compatibility"/>
-        <xs:element minOccurs="0" ref="Discovery"/>
-        <xs:element minOccurs="0" ref="General"/>
-        <xs:element minOccurs="0" ref="Internal"/>
-        <xs:element minOccurs="0" ref="Partitioning"/>
-        <xs:element minOccurs="0" ref="SSL"/>
-        <xs:element minOccurs="0" ref="Sizing"/>
-        <xs:element minOccurs="0" ref="TCP"/>
-        <xs:element minOccurs="0" ref="ThreadPool"/>
-        <xs:element minOccurs="0" name="Threads">
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="config:Compatibility"/>
+        <xs:element ref="config:DDSSecurity"/>
+        <xs:element ref="config:Discovery"/>
+        <xs:element ref="config:General"/>
+        <xs:element ref="config:Internal"/>
+        <xs:element ref="config:Partitioning"/>
+        <xs:element ref="config:SSL"/>
+        <xs:element ref="config:Sizing"/>
+        <xs:element ref="config:TCP"/>
+        <xs:element ref="config:ThreadPool"/>
+        <xs:element name="Threads">
           <xs:annotation>
             <xs:documentation>
 &lt;p&gt;This element is used to set thread properties.&lt;/p&gt;</xs:documentation>
           </xs:annotation>
           <xs:complexType>
             <xs:sequence>
-              <xs:element minOccurs="0" maxOccurs="unbounded" ref="Thread"/>
+              <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:Thread"/>
             </xs:sequence>
           </xs:complexType>
         </xs:element>
-        <xs:element minOccurs="0" ref="Tracing"/>
-      </xs:all>
+        <xs:element ref="config:Tracing"/>
+      </xs:choice>
       <xs:attribute name="Id">
         <xs:annotation>
           <xs:documentation>
@@ -57,10 +58,10 @@ to compatability with standards and with other DDSI implementations.&lt;/p&gt;</
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="AssumeRtiHasPmdEndpoints"/>
-        <xs:element minOccurs="0" ref="ExplicitlyPublishQosSetToDefault"/>
-        <xs:element minOccurs="0" ref="ManySocketsMode"/>
-        <xs:element minOccurs="0" ref="StandardsConformance"/>
+        <xs:element minOccurs="0" ref="config:AssumeRtiHasPmdEndpoints"/>
+        <xs:element minOccurs="0" ref="config:ExplicitlyPublishQosSetToDefault"/>
+        <xs:element minOccurs="0" ref="config:ManySocketsMode"/>
+        <xs:element minOccurs="0" ref="config:StandardsConformance"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -146,6 +147,371 @@ though there is no good reason not to.&lt;/li&gt;&lt;/ul&gt;
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
+  <xs:element name="DDSSecurity">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element is used to configure Cyclone DDS with the DDS Security
+specification plugins and settings.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:all>
+        <xs:element minOccurs="0" ref="config:AccessControl"/>
+        <xs:element minOccurs="0" ref="config:Authentication"/>
+        <xs:element minOccurs="0" ref="config:Cryptographic"/>
+      </xs:all>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="AccessControl">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element configures the Access Control plugin of the DDS Security
+specification.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:all>
+        <xs:element minOccurs="0" ref="config:Governance"/>
+        <xs:element minOccurs="0" name="Library">
+          <xs:annotation>
+            <xs:documentation>
+&lt;p&gt;This element specifies the library to be loaded as the DDS Security
+Access Control plugin.&lt;/p&gt;</xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:attribute name="finalizeFunction">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element names the finalization function of Access Control plugin.
+This function is called to let the plugin release its
+resources.&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;finalize_access_control&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="initFunction">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element names the initialization function of Access Control
+plugin. This function is called after loading the plugin library for
+instantiation purposes. Init function must return an object that
+implements DDS Security Access Control interface.&lt;/p&gt;&lt;p&gt;The default value
+is: &amp;quot;init_access_control&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="path">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element points to the path of Access Control plugin library.&lt;/p&gt;
+
+&lt;p&gt;It can be either absolute path excluding file extension (
+/usr/lib/dds_security_ac ) or single file without extension (
+dds_security_ac ).&lt;/p&gt;
+
+&lt;p&gt;If single file is supplied, the library located by way of the current
+working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
+Windows systems.&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;dds_security_ac&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+          </xs:complexType>
+        </xs:element>
+        <xs:element minOccurs="0" ref="config:Permissions"/>
+        <xs:element minOccurs="0" ref="config:PermissionsCA"/>
+      </xs:all>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Governance" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;URI to the shared Governance Document signed by the Permissions CA in
+S/MIME format&lt;/p&gt;
+
+&lt;p&gt;URI schemes: file, data&lt;/p&gt;&lt;br&gt;
+
+&lt;p&gt;Examples file URIs:&lt;/p&gt;
+
+&lt;p&gt;&lt;Governance&gt;file:governance.smime&lt;/Governance&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;Governance&gt;file:/home/myuser/governance.smime&lt;/Governance&gt;&lt;/p&gt;&lt;br&gt;
+
+&lt;p&gt;&lt;Governance&gt;&lt;![CDATA[data:,MIME-Version: 1.0&lt;/p&gt;
+
+&lt;p&gt;Content-Type: multipart/signed;
+protocol="application/x-pkcs7-signature"; micalg="sha-256";
+boundary="----F9A8A198D6F08E1285A292ADF14DD04F"&lt;/p&gt;
+
+&lt;p&gt;This is an S/MIME signed message &lt;/p&gt;
+
+&lt;p&gt;------F9A8A198D6F08E1285A292ADF14DD04F&lt;/p&gt;
+
+&lt;p&gt;&lt;?xml version="1.0" encoding="UTF-8"?&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"&lt;/p&gt;
+
+&lt;p&gt;xsi:noNamespaceSchemaLocation="omg_shared_ca_governance.xsd"&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;domain_access_rules&gt;&lt;/p&gt;
+
+&lt;p&gt; . . . &lt;/p&gt;
+
+&lt;p&gt;&lt;/domain_access_rules&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;/dds&gt;&lt;/p&gt;
+
+&lt;p&gt;...&lt;/p&gt;
+
+&lt;p&gt;------F9A8A198D6F08E1285A292ADF14DD04F&lt;/p&gt;
+
+&lt;p&gt;Content-Type: application/x-pkcs7-signature; name="smime.p7s"&lt;/p&gt;
+
+&lt;p&gt;Content-Transfer-Encoding: base64&lt;/p&gt;
+
+&lt;p&gt;Content-Disposition: attachment; filename="smime.p7s"&lt;/p&gt;
+
+&lt;p&gt;MIIDuAYJKoZIhv ...al5s=&lt;/p&gt;
+
+&lt;p&gt;------F9A8A198D6F08E1285A292ADF14DD04F-]]&lt;/Governance&gt;&lt;/p&gt;&lt;p&gt;The
+default value is: &amp;quot;&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="Permissions" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;URI to the DomainParticipant permissions document signed by the
+Permissions CA in S/MIME format&lt;/p&gt;
+
+&lt;p&gt;The permissions document specifies the permissions to be applied to a
+domain.&lt;/p&gt;&lt;br&gt;
+
+&lt;p&gt;Example file URIs:&lt;/p&gt;
+
+&lt;p&gt;&lt;Permissions&gt;file:permissions_document.p7s&lt;/Permissions&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;Permissions&gt;file:/path_to/permissions_document.p7s&lt;/Permissions&gt;&lt;/p&gt;
+
+&lt;p&gt;Example data URI:&lt;/p&gt;
+
+&lt;p&gt;&lt;Permissions&gt;&lt;![CDATA[data:,.........]]&lt;/Permissions&gt;&lt;/p&gt;&lt;p&gt;The
+default value is: &amp;quot;&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="PermissionsCA" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;URI to a X509 certificate for the PermissionsCA in PEM format.&lt;/p&gt;
+
+&lt;p&gt;Supported URI schemes: file, data&lt;/p&gt;
+
+&lt;p&gt;The file and data schemas shall refer to a X.509 v3 certificate (see
+X.509 v3 ITU-T Recommendation X.509 (2005) [39]) in PEM format.&lt;/p&gt;&lt;br&gt;
+
+&lt;p&gt;Examples:&lt;/p&gt;&lt;br&gt;
+
+&lt;p&gt;&lt;PermissionsCA&gt;file:permissions_ca.pem&lt;/PermissionsCA&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;PermissionsCA&gt;file:/home/myuser/permissions_ca.pem&lt;/PermissionsCA&gt;&lt;/p&gt;&lt;br&gt;
+
+&lt;p&gt;&lt;PermissionsCA&gt;data:&lt;strong&gt;,&lt;/strong&gt;-----BEGIN CERTIFICATE-----&lt;/p&gt;
+
+&lt;p&gt;MIIC3DCCAcQCCQCWE5x+Z ... PhovK0mp2ohhRLYI0ZiyYQ==&lt;/p&gt;
+
+&lt;p&gt;-----END CERTIFICATE-----&lt;/PermissionsCA&gt;&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="Authentication">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element configures the Authentication plugin of the DDS Security
+specification.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:all>
+        <xs:element ref="config:IdentityCA"/>
+        <xs:element ref="config:IdentityCertificate"/>
+        <xs:element minOccurs="0" name="Library">
+          <xs:annotation>
+            <xs:documentation>
+&lt;p&gt;This element specifies the library to be loaded as the DDS Security
+Access Control plugin.&lt;/p&gt;</xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:attribute name="finalizeFunction">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element names the finalization function of Authentication plugin.
+This function is called to let the plugin release its
+resources.&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;finalize_authentication&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="initFunction">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element names the initialization function of Authentication
+plugin. This function is called after loading the plugin library for
+instantiation purposes. Init function must return an object that
+implements DDS Security Authentication interface.&lt;/p&gt;&lt;p&gt;The default value
+is: &amp;quot;init_authentication&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="path">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element points to the path of Authentication plugin library.&lt;/p&gt;
+
+&lt;p&gt;It can be either absolute path excluding file extension (
+/usr/lib/dds_security_auth ) or single file without extension (
+dds_security_auth ).&lt;/p&gt;
+
+&lt;p&gt;If single file is supplied, the library located by way of the current
+working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
+Windows systems.&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;dds_security_auth&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+          </xs:complexType>
+        </xs:element>
+        <xs:element minOccurs="0" ref="config:Password"/>
+        <xs:element ref="config:PrivateKey"/>
+        <xs:element minOccurs="0" ref="config:TrustedCADirectory"/>
+      </xs:all>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="IdentityCA" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;URI to the X509 certificate [39] of the Identity CA that is the signer
+of Identity Certificate.&lt;/p&gt;
+
+&lt;p&gt;Supported URI schemes: file, data&lt;/p&gt;
+
+&lt;p&gt;The file and data schemas shall refer to a X.509 v3 certificate (see
+X.509 v3 ITU-T Recommendation X.509 (2005) [39]) in PEM format.&lt;/p&gt;
+
+&lt;p&gt;Examples:&lt;/p&gt;
+
+&lt;p&gt;&lt;IdentityCA&gt;file:identity_ca.pem&lt;/IdentityCA&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;IdentityCA&gt;data:,-----BEGIN CERTIFICATE-----&lt;br&gt;
+
+MIIC3DCCAcQCCQCWE5x+Z...PhovK0mp2ohhRLYI0ZiyYQ==&lt;br&gt;
+
+-----END CERTIFICATE-----&lt;/IdentityCA&gt;&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="IdentityCertificate" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;Identity certificate that will be used for identifying all
+participants in the OSPL instance.&lt;br&gt;The content is URI to a X509
+certificate signed by the IdentityCA in PEM format containing the signed
+public key.&lt;/p&gt;
+
+&lt;p&gt;Supported URI schemes: file, data&lt;/p&gt;
+
+&lt;p&gt;Examples:&lt;/p&gt;
+
+&lt;p&gt;&lt;IdentityCertificate&gt;file:participant1_identity_cert.pem&lt;/IdentityCertificate&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;IdentityCertificate&gt;data:,-----BEGIN CERTIFICATE-----&lt;br&gt;
+
+MIIDjjCCAnYCCQDCEu9...6rmT87dhTo=&lt;br&gt;
+
+-----END CERTIFICATE-----&lt;/IdentityCertificate&gt;&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="Password" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;A password used to decrypt the private_key.&lt;/p&gt;
+
+The value of the password property shall be interpreted as the Base64
+encoding of the AES-128 key that shall be used to decrypt the private_key
+using AES128-CBC.&lt;/p&gt;
+
+If the password property is not present, then the value supplied in the
+private_key property must contain the unencrypted private key. &lt;/p&gt;&lt;p&gt;The
+default value is: &amp;quot;&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="PrivateKey" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;URI to access the private Private Key for all of the participants in
+the OSPL federation.&lt;/p&gt;
+
+&lt;p&gt;Supported URI schemes: file, data&lt;/p&gt;
+
+&lt;p&gt;Examples:&lt;/p&gt;
+
+&lt;p&gt;&lt;PrivateKey&gt;file:identity_ca_private_key.pem&lt;/PrivateKey&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;PrivateKey&gt;data:,-----BEGIN RSA PRIVATE KEY-----&lt;br&gt;
+
+MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
+
+-----END RSA PRIVATE KEY-----&lt;/PrivateKey&gt;&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="TrustedCADirectory" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;Trusted CA Directory which contains trusted CA certificates as
+separated files.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="Cryptographic">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element configures the Cryptographic plugin of the DDS Security
+specification.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element minOccurs="0" name="Library">
+          <xs:annotation>
+            <xs:documentation>
+&lt;p&gt;This element specifies the library to be loaded as the DDS Security
+Cryptographic plugin.&lt;/p&gt;</xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:attribute name="finalizeFunction">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element names the finalization function of Cryptographic plugin.
+This function is called to let the plugin release its
+resources.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;finalize_crypto&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="initFunction">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element names the initialization function of Cryptographic
+plugin. This function is called after loading the plugin library for
+instantiation purposes. Init function must return an object that
+implements DDS Security Cryptographic interface.&lt;/p&gt;&lt;p&gt;The default value
+is: &amp;quot;init_crypto&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="path">
+              <xs:annotation>
+                <xs:documentation>
+&lt;p&gt;This element points to the path of Cryptographic plugin library.&lt;/p&gt;
+
+&lt;p&gt;It can be either absolute path excluding file extension (
+/usr/lib/dds_security_crypto ) or single file without extension (
+dds_security_crypto ).&lt;/p&gt;
+
+&lt;p&gt;If single file is supplied, the library located by way of the current
+working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for
+Windows systems.&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;dds_security_crypto&amp;quot;.&lt;/p&gt;</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
   <xs:element name="Discovery">
     <xs:annotation>
       <xs:documentation>
@@ -154,19 +520,21 @@ the discovery of peers.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="DSGracePeriod"/>
-        <xs:element minOccurs="0" ref="DefaultMulticastAddress"/>
-        <xs:element minOccurs="0" ref="EnableTopicDiscovery"/>
-        <xs:element minOccurs="0" ref="MaxAutoParticipantIndex"/>
-        <xs:element minOccurs="0" ref="ParticipantIndex"/>
-        <xs:element minOccurs="0" ref="Peers"/>
-        <xs:element minOccurs="0" ref="Ports"/>
-        <xs:element minOccurs="0" ref="SPDPInterval"/>
-        <xs:element minOccurs="0" ref="SPDPMulticastAddress"/>
+        <xs:element minOccurs="0" ref="config:DSGracePeriod"/>
+        <xs:element minOccurs="0" ref="config:DefaultMulticastAddress"/>
+        <xs:element minOccurs="0" ref="config:EnableTopicDiscovery"/>
+        <xs:element minOccurs="0" ref="config:ExternalDomainId"/>
+        <xs:element minOccurs="0" ref="config:MaxAutoParticipantIndex"/>
+        <xs:element minOccurs="0" ref="config:ParticipantIndex"/>
+        <xs:element minOccurs="0" ref="config:Peers"/>
+        <xs:element minOccurs="0" ref="config:Ports"/>
+        <xs:element minOccurs="0" ref="config:SPDPInterval"/>
+        <xs:element minOccurs="0" ref="config:SPDPMulticastAddress"/>
+        <xs:element minOccurs="0" ref="config:Tag"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
-  <xs:element name="DSGracePeriod" type="duration_inf">
+  <xs:element name="DSGracePeriod" type="config:duration_inf">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This setting controls for how long endpoints discovered via a Cloud
@@ -192,6 +560,16 @@ Discovery/SPDPMulticastAddress.&lt;/p&gt;&lt;p&gt;The default value is:
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;Do not use.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;true&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="ExternalDomainId" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;An override for the domain id, to be used in discovery and for
+determining the port number mapping. This allows creating multiple
+domains in a single process while making them appear as a single domain
+on the network. The value "default" disables the override.&lt;/p&gt;&lt;p&gt;The
+default value is: &amp;quot;default&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="MaxAutoParticipantIndex" type="xs:integer">
@@ -238,8 +616,8 @@ second be option be used.&lt;/p&gt;&lt;p&gt;The default value is:
     </xs:annotation>
     <xs:complexType>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
-        <xs:element ref="Group"/>
-        <xs:element ref="Peer"/>
+        <xs:element ref="config:Group"/>
+        <xs:element ref="config:Peer"/>
       </xs:choice>
     </xs:complexType>
   </xs:element>
@@ -252,7 +630,7 @@ succeeds.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" maxOccurs="unbounded" ref="Peer"/>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:Peer"/>
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -284,13 +662,13 @@ by the DDSI 2.1 specification and rarely need to be changed.&lt;/p&gt;</xs:docum
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="Base"/>
-        <xs:element minOccurs="0" ref="DomainGain"/>
-        <xs:element minOccurs="0" ref="MulticastDataOffset"/>
-        <xs:element minOccurs="0" ref="MulticastMetaOffset"/>
-        <xs:element minOccurs="0" ref="ParticipantGain"/>
-        <xs:element minOccurs="0" ref="UnicastDataOffset"/>
-        <xs:element minOccurs="0" ref="UnicastMetaOffset"/>
+        <xs:element minOccurs="0" ref="config:Base"/>
+        <xs:element minOccurs="0" ref="config:DomainGain"/>
+        <xs:element minOccurs="0" ref="config:MulticastDataOffset"/>
+        <xs:element minOccurs="0" ref="config:MulticastMetaOffset"/>
+        <xs:element minOccurs="0" ref="config:ParticipantGain"/>
+        <xs:element minOccurs="0" ref="config:UnicastDataOffset"/>
+        <xs:element minOccurs="0" ref="config:UnicastMetaOffset"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -313,7 +691,7 @@ constant DG).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;250&amp;quot;.&l
   <xs:element name="MulticastDataOffset" type="xs:integer">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;This element specifies the port number for multicast meta traffic
+&lt;p&gt;This element specifies the port number for multicast data traffic
 (refer to the DDSI 2.1 specification, section 9.6.1, constant
 d2).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;1&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
@@ -338,7 +716,7 @@ section 9.6.1, constant PG).&lt;/p&gt;&lt;p&gt;The default value is:
   <xs:element name="UnicastDataOffset" type="xs:integer">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;This element specifies the port number for unicast meta traffic (refer
+&lt;p&gt;This element specifies the port number for unicast data traffic (refer
 to the DDSI 2.1 specification, section 9.6.1, constant d3).&lt;/p&gt;&lt;p&gt;The
 default value is: &amp;quot;11&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
@@ -351,7 +729,7 @@ to the DDSI 2.1 specification, section 9.6.1, constant d1).&lt;/p&gt;&lt;p&gt;Th
 default value is: &amp;quot;10&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="SPDPInterval" type="duration">
+  <xs:element name="SPDPInterval" type="config:duration">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element specifies the interval between spontaneous transmissions
@@ -371,6 +749,13 @@ ff02::ffff:239.255.0.1, which is a non-standardised link-local multicast
 address.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;239.255.0.1&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
+  <xs:element name="Tag" type="xs:string">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;String extension for domain id that remote participants must match to
+be discovered.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;&amp;quot;.&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
   <xs:element name="General">
     <xs:annotation>
       <xs:documentation>
@@ -379,19 +764,19 @@ settings.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="AllowMulticast"/>
-        <xs:element minOccurs="0" ref="DontRoute"/>
-        <xs:element minOccurs="0" ref="EnableMulticastLoopback"/>
-        <xs:element minOccurs="0" ref="ExternalNetworkAddress"/>
-        <xs:element minOccurs="0" ref="ExternalNetworkMask"/>
-        <xs:element minOccurs="0" ref="FragmentSize"/>
-        <xs:element minOccurs="0" ref="MaxMessageSize"/>
-        <xs:element minOccurs="0" ref="MulticastRecvNetworkInterfaceAddresses"/>
-        <xs:element minOccurs="0" ref="MulticastTimeToLive"/>
-        <xs:element minOccurs="0" ref="NetworkInterfaceAddress"/>
-        <xs:element minOccurs="0" ref="PreferMulticast"/>
-        <xs:element minOccurs="0" ref="Transport"/>
-        <xs:element minOccurs="0" ref="UseIPv6"/>
+        <xs:element minOccurs="0" ref="config:AllowMulticast"/>
+        <xs:element minOccurs="0" ref="config:DontRoute"/>
+        <xs:element minOccurs="0" ref="config:EnableMulticastLoopback"/>
+        <xs:element minOccurs="0" ref="config:ExternalNetworkAddress"/>
+        <xs:element minOccurs="0" ref="config:ExternalNetworkMask"/>
+        <xs:element minOccurs="0" ref="config:FragmentSize"/>
+        <xs:element minOccurs="0" ref="config:MaxMessageSize"/>
+        <xs:element minOccurs="0" ref="config:MulticastRecvNetworkInterfaceAddresses"/>
+        <xs:element minOccurs="0" ref="config:MulticastTimeToLive"/>
+        <xs:element minOccurs="0" ref="config:NetworkInterfaceAddress"/>
+        <xs:element minOccurs="0" ref="config:PreferMulticast"/>
+        <xs:element minOccurs="0" ref="config:Transport"/>
+        <xs:element minOccurs="0" ref="config:UseIPv6"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -477,7 +862,7 @@ address. This option is IPv4-only.&lt;/p&gt;&lt;p&gt;The default value is:
 &amp;quot;0.0.0.0&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="FragmentSize" type="memsize">
+  <xs:element name="FragmentSize" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element specifies the size of DDSI sample fragments generated by
@@ -493,7 +878,7 @@ of which the size is at least the minimum of 1025 and FragmentSize.&lt;/p&gt;
 B&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="MaxMessageSize" type="memsize">
+  <xs:element name="MaxMessageSize" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element specifies the maximum size of the UDP payload that
@@ -616,51 +1001,51 @@ reserved. This includes renaming or moving options.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="AccelerateRexmitBlockSize"/>
-        <xs:element minOccurs="0" ref="AssumeMulticastCapable"/>
-        <xs:element minOccurs="0" ref="AutoReschedNackDelay"/>
-        <xs:element minOccurs="0" ref="BuiltinEndpointSet"/>
-        <xs:element minOccurs="0" ref="ControlTopic"/>
-        <xs:element minOccurs="0" ref="DDSI2DirectMaxThreads"/>
-        <xs:element minOccurs="0" ref="DefragReliableMaxSamples"/>
-        <xs:element minOccurs="0" ref="DefragUnreliableMaxSamples"/>
-        <xs:element minOccurs="0" ref="DeliveryQueueMaxSamples"/>
-        <xs:element minOccurs="0" ref="EnableExpensiveChecks"/>
-        <xs:element minOccurs="0" ref="GenerateKeyhash"/>
-        <xs:element minOccurs="0" ref="HeartbeatInterval"/>
-        <xs:element minOccurs="0" ref="LateAckMode"/>
-        <xs:element minOccurs="0" ref="LeaseDuration"/>
-        <xs:element minOccurs="0" ref="LivelinessMonitoring"/>
-        <xs:element minOccurs="0" ref="MaxParticipants"/>
-        <xs:element minOccurs="0" ref="MaxQueuedRexmitBytes"/>
-        <xs:element minOccurs="0" ref="MaxQueuedRexmitMessages"/>
-        <xs:element minOccurs="0" ref="MaxSampleSize"/>
-        <xs:element minOccurs="0" ref="MeasureHbToAckLatency"/>
-        <xs:element minOccurs="0" ref="MinimumSocketReceiveBufferSize"/>
-        <xs:element minOccurs="0" ref="MinimumSocketSendBufferSize"/>
-        <xs:element minOccurs="0" ref="MonitorPort"/>
-        <xs:element minOccurs="0" ref="MultipleReceiveThreads"/>
-        <xs:element minOccurs="0" ref="NackDelay"/>
-        <xs:element minOccurs="0" ref="PreEmptiveAckDelay"/>
-        <xs:element minOccurs="0" ref="PrimaryReorderMaxSamples"/>
-        <xs:element minOccurs="0" ref="PrioritizeRetransmit"/>
-        <xs:element minOccurs="0" ref="RediscoveryBlacklistDuration"/>
-        <xs:element minOccurs="0" ref="RetransmitMerging"/>
-        <xs:element minOccurs="0" ref="RetransmitMergingPeriod"/>
-        <xs:element minOccurs="0" ref="RetryOnRejectBestEffort"/>
-        <xs:element minOccurs="0" ref="SPDPResponseMaxDelay"/>
-        <xs:element minOccurs="0" ref="ScheduleTimeRounding"/>
-        <xs:element minOccurs="0" ref="SecondaryReorderMaxSamples"/>
-        <xs:element minOccurs="0" ref="SendAsync"/>
-        <xs:element minOccurs="0" ref="SquashParticipants"/>
-        <xs:element minOccurs="0" ref="SynchronousDeliveryLatencyBound"/>
-        <xs:element minOccurs="0" ref="SynchronousDeliveryPriorityThreshold"/>
-        <xs:element minOccurs="0" ref="Test"/>
-        <xs:element minOccurs="0" ref="UnicastResponseToSPDPMessages"/>
-        <xs:element minOccurs="0" ref="UseMulticastIfMreqn"/>
-        <xs:element minOccurs="0" ref="Watermarks"/>
-        <xs:element minOccurs="0" ref="WriteBatch"/>
-        <xs:element minOccurs="0" ref="WriterLingerDuration"/>
+        <xs:element minOccurs="0" ref="config:AccelerateRexmitBlockSize"/>
+        <xs:element minOccurs="0" ref="config:AssumeMulticastCapable"/>
+        <xs:element minOccurs="0" ref="config:AutoReschedNackDelay"/>
+        <xs:element minOccurs="0" ref="config:BuiltinEndpointSet"/>
+        <xs:element minOccurs="0" ref="config:ControlTopic"/>
+        <xs:element minOccurs="0" ref="config:DDSI2DirectMaxThreads"/>
+        <xs:element minOccurs="0" ref="config:DefragReliableMaxSamples"/>
+        <xs:element minOccurs="0" ref="config:DefragUnreliableMaxSamples"/>
+        <xs:element minOccurs="0" ref="config:DeliveryQueueMaxSamples"/>
+        <xs:element minOccurs="0" ref="config:EnableExpensiveChecks"/>
+        <xs:element minOccurs="0" ref="config:GenerateKeyhash"/>
+        <xs:element minOccurs="0" ref="config:HeartbeatInterval"/>
+        <xs:element minOccurs="0" ref="config:LateAckMode"/>
+        <xs:element minOccurs="0" ref="config:LeaseDuration"/>
+        <xs:element minOccurs="0" ref="config:LivelinessMonitoring"/>
+        <xs:element minOccurs="0" ref="config:MaxParticipants"/>
+        <xs:element minOccurs="0" ref="config:MaxQueuedRexmitBytes"/>
+        <xs:element minOccurs="0" ref="config:MaxQueuedRexmitMessages"/>
+        <xs:element minOccurs="0" ref="config:MaxSampleSize"/>
+        <xs:element minOccurs="0" ref="config:MeasureHbToAckLatency"/>
+        <xs:element minOccurs="0" ref="config:MinimumSocketReceiveBufferSize"/>
+        <xs:element minOccurs="0" ref="config:MinimumSocketSendBufferSize"/>
+        <xs:element minOccurs="0" ref="config:MonitorPort"/>
+        <xs:element minOccurs="0" ref="config:MultipleReceiveThreads"/>
+        <xs:element minOccurs="0" ref="config:NackDelay"/>
+        <xs:element minOccurs="0" ref="config:PreEmptiveAckDelay"/>
+        <xs:element minOccurs="0" ref="config:PrimaryReorderMaxSamples"/>
+        <xs:element minOccurs="0" ref="config:PrioritizeRetransmit"/>
+        <xs:element minOccurs="0" ref="config:RediscoveryBlacklistDuration"/>
+        <xs:element minOccurs="0" ref="config:RetransmitMerging"/>
+        <xs:element minOccurs="0" ref="config:RetransmitMergingPeriod"/>
+        <xs:element minOccurs="0" ref="config:RetryOnRejectBestEffort"/>
+        <xs:element minOccurs="0" ref="config:SPDPResponseMaxDelay"/>
+        <xs:element minOccurs="0" ref="config:ScheduleTimeRounding"/>
+        <xs:element minOccurs="0" ref="config:SecondaryReorderMaxSamples"/>
+        <xs:element minOccurs="0" ref="config:SendAsync"/>
+        <xs:element minOccurs="0" ref="config:SquashParticipants"/>
+        <xs:element minOccurs="0" ref="config:SynchronousDeliveryLatencyBound"/>
+        <xs:element minOccurs="0" ref="config:SynchronousDeliveryPriorityThreshold"/>
+        <xs:element minOccurs="0" ref="config:Test"/>
+        <xs:element minOccurs="0" ref="config:UnicastResponseToSPDPMessages"/>
+        <xs:element minOccurs="0" ref="config:UseMulticastIfMreqn"/>
+        <xs:element minOccurs="0" ref="config:Watermarks"/>
+        <xs:element minOccurs="0" ref="config:WriteBatch"/>
+        <xs:element minOccurs="0" ref="config:WriterLingerDuration"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -684,7 +1069,7 @@ wildcards) against which the interface names are matched.&lt;/p&gt;&lt;p&gt;The
 default value is: &amp;quot;&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="AutoReschedNackDelay" type="duration_inf">
+  <xs:element name="AutoReschedNackDelay" type="config:duration_inf">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This setting controls the interval with which a reader will continue
@@ -794,7 +1179,7 @@ checks.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;&amp;quot;.&lt;/p&gt;<
 keys.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="HeartbeatInterval" type="duration_inf">
+  <xs:element name="HeartbeatInterval">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This elemnents allows configuring the base interval for sending writer
@@ -804,6 +1189,45 @@ heartbeats and the bounds within it can vary.&lt;/p&gt;
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
 day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;100 ms&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="config:duration_inf">
+          <xs:attribute name="max" type="config:duration_inf">
+            <xs:annotation>
+              <xs:documentation>
+&lt;p&gt;This attribute sets the maximum interval for periodic heartbeats.&lt;/p&gt;
+
+&lt;p&gt;Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
+day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;8 s&amp;quot;.&lt;/p&gt;</xs:documentation>
+            </xs:annotation>
+          </xs:attribute>
+          <xs:attribute name="min" type="config:duration_inf">
+            <xs:annotation>
+              <xs:documentation>
+&lt;p&gt;This attribute sets the minimum interval that must have passed since
+the most recent heartbeat from a writer, before another asynchronous (not
+directly related to writing) will be sent.&lt;/p&gt;
+
+&lt;p&gt;Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
+day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;5 ms&amp;quot;.&lt;/p&gt;</xs:documentation>
+            </xs:annotation>
+          </xs:attribute>
+          <xs:attribute name="minsched" type="config:duration_inf">
+            <xs:annotation>
+              <xs:documentation>
+&lt;p&gt;This attribute sets the minimum interval for periodic heartbeats.
+Other events may still cause heartbeats to go out.&lt;/p&gt;
+
+&lt;p&gt;Valid values are finite durations with an explicit unit or the keyword
+'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
+day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;20 ms&amp;quot;.&lt;/p&gt;</xs:documentation>
+            </xs:annotation>
+          </xs:attribute>
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
   </xs:element>
   <xs:element name="LateAckMode" type="xs:boolean">
     <xs:annotation>
@@ -813,7 +1237,7 @@ committed to delivering it.&lt;/p&gt;&lt;p&gt;The default value is:
 &amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="LeaseDuration" type="duration">
+  <xs:element name="LeaseDuration" type="config:duration">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This setting controls the default participant lease duration. &lt;p&gt;
@@ -822,7 +1246,7 @@ committed to delivering it.&lt;/p&gt;&lt;p&gt;The default value is:
 s, min, hr, day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;10 s&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="LivelinessMonitoring" type="xs:boolean">
+  <xs:element name="LivelinessMonitoring">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element controls whether or not implementation should internally
@@ -831,6 +1255,30 @@ traces can be dumped automatically when some thread appears to have
 stopped making progress.&lt;/p&gt;&lt;p&gt;The default value is:
 &amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="xs:boolean">
+          <xs:attribute name="Interval" type="config:duration">
+            <xs:annotation>
+              <xs:documentation>
+&lt;p&gt;This element controls the interval at which to check whether threads
+have been making progress.&lt;/p&gt;
+
+&lt;p&gt;The unit must be specified explicitly. Recognised units: ns, us, ms,
+s, min, hr, day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;1s&amp;quot;.&lt;/p&gt;</xs:documentation>
+            </xs:annotation>
+          </xs:attribute>
+          <xs:attribute name="StackTraces" type="xs:boolean">
+            <xs:annotation>
+              <xs:documentation>
+&lt;p&gt;This element controls whether or not to write stack traces to the
+Cyclone DDS trace when a thread fails to make progress (on select
+platforms only).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;true&amp;quot;.&lt;/p&gt;</xs:documentation>
+            </xs:annotation>
+          </xs:attribute>
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
   </xs:element>
   <xs:element name="MaxParticipants" type="xs:integer">
     <xs:annotation>
@@ -840,7 +1288,7 @@ participants this Cyclone DDS instance is willing to service. 0 is
 unlimited.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;0&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="MaxQueuedRexmitBytes" type="memsize">
+  <xs:element name="MaxQueuedRexmitBytes" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This setting limits the maximum number of bytes queued for
@@ -862,7 +1310,7 @@ kB&amp;quot;.&lt;/p&gt;</xs:documentation>
 retransmission.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;200&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="MaxSampleSize" type="memsize">
+  <xs:element name="MaxSampleSize" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This setting controls the maximum (CDR) serialised size of samples
@@ -885,7 +1333,7 @@ measured latencies are quite noisy and are currently not used
 anywhere.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="MinimumSocketReceiveBufferSize" type="memsize">
+  <xs:element name="MinimumSocketReceiveBufferSize" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This setting controls the minimum size of socket receive buffers. The
@@ -904,7 +1352,7 @@ a smaller buffer should that attempt fail.&lt;/p&gt;
 &amp;quot;default&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="MinimumSocketSendBufferSize" type="memsize">
+  <xs:element name="MinimumSocketSendBufferSize" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This setting controls the minimum size of socket send buffers. This
@@ -927,7 +1375,7 @@ positive number is used as the TCP port number.&lt;/p&gt;&lt;p&gt;The default va
 is: &amp;quot;-1&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="MultipleReceiveThreads" type="xs:boolean">
+  <xs:element name="MultipleReceiveThreads">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element controls whether all traffic is handled by a single
@@ -936,8 +1384,25 @@ latency. Currently multiple receive threads are only used for
 connectionless transport (e.g., UDP) and ManySocketsMode not set to
 single (the default).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;true&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="xs:boolean">
+          <xs:attribute name="maxretries" type="xs:integer">
+            <xs:annotation>
+              <xs:documentation>
+&lt;p&gt;Receive threads dedicated to a single socket can only be triggered for
+termination by sending a packet. Reception of any packet will do, so
+termination failure due to packet loss is exceedingly unlikely, but to
+eliminate all risks, it will retry as many times as specified by this
+attribute before aborting.&lt;/p&gt;&lt;p&gt;The default value is:
+&amp;quot;4294967295&amp;quot;.&lt;/p&gt;</xs:documentation>
+            </xs:annotation>
+          </xs:attribute>
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
   </xs:element>
-  <xs:element name="NackDelay" type="duration">
+  <xs:element name="NackDelay" type="config:duration">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This setting controls the delay between receipt of a HEARTBEAT
@@ -950,7 +1415,7 @@ that NACK will incorporate the latest information.&lt;/p&gt;
 s, min, hr, day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;10 ms&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="PreEmptiveAckDelay" type="duration">
+  <xs:element name="PreEmptiveAckDelay" type="config:duration">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This setting controls the delay between the discovering a remote
@@ -980,7 +1445,7 @@ data, speeding up recovery.&lt;/p&gt;&lt;p&gt;The default value is:
 &amp;quot;true&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="RediscoveryBlacklistDuration" type="duration_inf">
+  <xs:element name="RediscoveryBlacklistDuration">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element controls for how long a remote participant that was
@@ -997,6 +1462,23 @@ is therefore recommended to set it to at least several seconds.&lt;/p&gt;
 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr,
 day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;10s&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="config:duration_inf">
+          <xs:attribute name="enforce" type="xs:boolean">
+            <xs:annotation>
+              <xs:documentation>
+&lt;p&gt;This attribute controls whether the configured time during which
+recently deleted participants will not be rediscovered (i.e., "black
+listed") is enforced and following complete removal of the participant in
+Cyclone DDS, or whether it can be rediscovered earlier provided all
+traces of that participant have been removed already.&lt;/p&gt;&lt;p&gt;The default
+value is: &amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
+            </xs:annotation>
+          </xs:attribute>
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
   </xs:element>
   <xs:element name="RetransmitMerging">
     <xs:annotation>
@@ -1025,7 +1507,7 @@ Internal/RetransmitMergingPeriod.&lt;/p&gt;&lt;p&gt;The default value is:
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
-  <xs:element name="RetransmitMergingPeriod" type="duration">
+  <xs:element name="RetransmitMergingPeriod" type="config:duration">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This setting determines the size of the time window in which a NACK of
@@ -1047,7 +1529,7 @@ into the reader caches when resource limits are reached.&lt;/p&gt;&lt;p&gt;The
 default value is: &amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="SPDPResponseMaxDelay" type="duration">
+  <xs:element name="SPDPResponseMaxDelay" type="config:duration">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;Maximum pseudo-random delay in milliseconds between discovering a
@@ -1057,7 +1539,7 @@ remote participant and responding to it.&lt;/p&gt;
 s, min, hr, day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;0 ms&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="ScheduleTimeRounding" type="duration">
+  <xs:element name="ScheduleTimeRounding" type="config:duration">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This setting allows the timing of scheduled events to be rounded up so
@@ -1099,7 +1581,7 @@ by setting Internal/BuiltinEndpointSet to "minimal" but with less loss of
 information).&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="SynchronousDeliveryLatencyBound" type="duration_inf">
+  <xs:element name="SynchronousDeliveryLatencyBound" type="config:duration_inf">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element controls whether samples sent by a writer with QoS
@@ -1133,7 +1615,7 @@ the expense of aggregate bandwidth.&lt;/p&gt;&lt;p&gt;The default value is:
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" ref="XmitLossiness"/>
+        <xs:element minOccurs="0" ref="config:XmitLossiness"/>
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -1167,10 +1649,10 @@ to &lt;i&gt;false&lt;/i&gt;.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;t
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="WhcAdaptive"/>
-        <xs:element minOccurs="0" ref="WhcHigh"/>
-        <xs:element minOccurs="0" ref="WhcHighInit"/>
-        <xs:element minOccurs="0" ref="WhcLow"/>
+        <xs:element minOccurs="0" ref="config:WhcAdaptive"/>
+        <xs:element minOccurs="0" ref="config:WhcHigh"/>
+        <xs:element minOccurs="0" ref="config:WhcHighInit"/>
+        <xs:element minOccurs="0" ref="config:WhcLow"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1182,7 +1664,7 @@ mark to current traffic conditions, based on retransmit requests and
 transmit pressure.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;true&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="WhcHigh" type="memsize">
+  <xs:element name="WhcHigh" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element sets the maximum allowed high-water mark for the Cyclone
@@ -1195,7 +1677,7 @@ this size.&lt;/p&gt;
 kB&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="WhcHighInit" type="memsize">
+  <xs:element name="WhcHighInit" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element sets the initial level of the high-water mark for the
@@ -1207,7 +1689,7 @@ Cyclone DDS WHCs, expressed in bytes.&lt;/p&gt;
 kB&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="WhcLow" type="memsize">
+  <xs:element name="WhcLow" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element sets the low-water mark for the Cyclone DDS WHCs,
@@ -1233,7 +1715,7 @@ dds_write_flush function to ensure thta all samples are
 written.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="WriterLingerDuration" type="duration">
+  <xs:element name="WriterLingerDuration" type="config:duration">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This setting controls the maximum duration for which actual deletion
@@ -1253,9 +1735,9 @@ partitions.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
-        <xs:element ref="IgnoredPartitions"/>
-        <xs:element ref="NetworkPartitions"/>
-        <xs:element ref="PartitionMappings"/>
+        <xs:element ref="config:IgnoredPartitions"/>
+        <xs:element ref="config:NetworkPartitions"/>
+        <xs:element ref="config:PartitionMappings"/>
       </xs:choice>
     </xs:complexType>
   </xs:element>
@@ -1267,7 +1749,7 @@ combinations that are not distributed over the network.&lt;/p&gt;</xs:documentat
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" maxOccurs="unbounded" ref="IgnoredPartition"/>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:IgnoredPartition"/>
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -1302,7 +1784,7 @@ partitions.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" maxOccurs="unbounded" ref="NetworkPartition"/>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:NetworkPartition"/>
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -1347,7 +1829,7 @@ partition/topic combinations to Cyclone DDS network partitions.&lt;/p&gt;</xs:do
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" maxOccurs="unbounded" ref="PartitionMapping"/>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:PartitionMapping"/>
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -1390,8 +1872,8 @@ SSL/TLS for DDSI over TCP.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="CertificateVerification"/>
-        <xs:element minOccurs="0" ref="Ciphers"/>
+        <xs:element minOccurs="0" ref="config:CertificateVerification"/>
+        <xs:element minOccurs="0" ref="config:Ciphers"/>
         <xs:element minOccurs="0" name="Enable" type="xs:boolean">
           <xs:annotation>
             <xs:documentation>
@@ -1399,12 +1881,12 @@ SSL/TLS for DDSI over TCP.&lt;/p&gt;</xs:documentation>
 &amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
           </xs:annotation>
         </xs:element>
-        <xs:element minOccurs="0" ref="EntropyFile"/>
-        <xs:element minOccurs="0" ref="KeyPassphrase"/>
-        <xs:element minOccurs="0" ref="KeystoreFile"/>
-        <xs:element minOccurs="0" ref="MinimumTLSVersion"/>
-        <xs:element minOccurs="0" ref="SelfSignedCertificates"/>
-        <xs:element minOccurs="0" ref="VerifyClient"/>
+        <xs:element minOccurs="0" ref="config:EntropyFile"/>
+        <xs:element minOccurs="0" ref="config:KeyPassphrase"/>
+        <xs:element minOccurs="0" ref="config:KeystoreFile"/>
+        <xs:element minOccurs="0" ref="config:MinimumTLSVersion"/>
+        <xs:element minOccurs="0" ref="config:SelfSignedCertificates"/>
+        <xs:element minOccurs="0" ref="config:VerifyClient"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1473,12 +1955,12 @@ dealing with expected system sizes, buffer sizes, &amp;c.&lt;/p&gt;</xs:document
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="ReceiveBufferChunkSize"/>
-        <xs:element minOccurs="0" ref="ReceiveBufferSize"/>
+        <xs:element minOccurs="0" ref="config:ReceiveBufferChunkSize"/>
+        <xs:element minOccurs="0" ref="config:ReceiveBufferSize"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
-  <xs:element name="ReceiveBufferChunkSize" type="memsize">
+  <xs:element name="ReceiveBufferChunkSize" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element specifies the size of one allocation unit in the receive
@@ -1492,7 +1974,7 @@ after processing a message, or freed straightaway.&lt;/p&gt;
 KiB&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="ReceiveBufferSize" type="memsize">
+  <xs:element name="ReceiveBufferSize" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element sets the size of a single receive buffer. Many receive
@@ -1514,7 +1996,7 @@ running DDSI over TCP.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="AlwaysUsePeeraddrForUnicast"/>
+        <xs:element minOccurs="0" ref="config:AlwaysUsePeeraddrForUnicast"/>
         <xs:element minOccurs="0" name="Enable">
           <xs:annotation>
             <xs:documentation>
@@ -1530,10 +2012,10 @@ General/Transport instead.&lt;/p&gt;&lt;p&gt;The default value is:
             </xs:restriction>
           </xs:simpleType>
         </xs:element>
-        <xs:element minOccurs="0" ref="NoDelay"/>
-        <xs:element minOccurs="0" ref="Port"/>
-        <xs:element minOccurs="0" ref="ReadTimeout"/>
-        <xs:element minOccurs="0" ref="WriteTimeout"/>
+        <xs:element minOccurs="0" ref="config:NoDelay"/>
+        <xs:element minOccurs="0" ref="config:Port"/>
+        <xs:element minOccurs="0" ref="config:ReadTimeout"/>
+        <xs:element minOccurs="0" ref="config:WriteTimeout"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1567,7 +2049,7 @@ by establishing connections to other services.&lt;/p&gt;&lt;p&gt;The default val
 is: &amp;quot;-1&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="ReadTimeout" type="duration">
+  <xs:element name="ReadTimeout" type="config:duration">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element specifies the timeout for blocking TCP read operations.
@@ -1577,7 +2059,7 @@ If this timeout expires then the connection is closed.&lt;/p&gt;
 s, min, hr, day.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;2 s&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="WriteTimeout" type="duration">
+  <xs:element name="WriteTimeout" type="config:duration">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element specifies the timeout for blocking TCP write operations.
@@ -1603,7 +2085,7 @@ using a thread pool to send DDSI messages to multiple unicast addresses
 is: &amp;quot;false&amp;quot;.&lt;/p&gt;</xs:documentation>
           </xs:annotation>
         </xs:element>
-        <xs:element minOccurs="0" ref="ThreadMax"/>
+        <xs:element minOccurs="0" ref="config:ThreadMax"/>
         <xs:element minOccurs="0" name="Threads" type="xs:integer">
           <xs:annotation>
             <xs:documentation>
@@ -1628,8 +2110,8 @@ pool.&lt;/p&gt;&lt;p&gt;The default value is: &amp;quot;8&amp;quot;.&lt;/p&gt;</
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="Scheduling"/>
-        <xs:element minOccurs="0" ref="StackSize"/>
+        <xs:element minOccurs="0" ref="config:Scheduling"/>
+        <xs:element minOccurs="0" ref="config:StackSize"/>
       </xs:all>
       <xs:attribute name="Name" use="required">
         <xs:annotation>
@@ -1651,6 +2133,9 @@ for discovery;&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;tev&lt;/i&gt;: general timed-event handling, retransmits and
 discovery;&lt;/li&gt;
 
+&lt;li&gt;&lt;i&gt;fsm&lt;/i&gt;: finite state machine thread for handling security
+handshake;&lt;/li&gt;
+
 &lt;li&gt;&lt;i&gt;xmit.CHAN&lt;/i&gt;: transmit thread for channel CHAN;&lt;/li&gt;
 
 &lt;li&gt;&lt;i&gt;dq.CHAN&lt;/i&gt;: delivery thread for channel CHAN;&lt;/li&gt;
@@ -1667,8 +2152,8 @@ discovery;&lt;/li&gt;
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="Class"/>
-        <xs:element minOccurs="0" ref="Priority"/>
+        <xs:element minOccurs="0" ref="config:Class"/>
+        <xs:element minOccurs="0" ref="config:Priority"/>
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1700,7 +2185,7 @@ assign some of the privileged priorities.&lt;/p&gt;&lt;p&gt;The default value is
 &amp;quot;default&amp;quot;.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="StackSize" type="memsize">
+  <xs:element name="StackSize" type="config:memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element configures the stack size for this thread. The default
@@ -1722,11 +2207,11 @@ track the DDSI service during application development.&lt;/p&gt;</xs:documentati
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="AppendToFile"/>
-        <xs:element minOccurs="0" ref="Category"/>
-        <xs:element minOccurs="0" ref="OutputFile"/>
-        <xs:element minOccurs="0" ref="PacketCaptureFile"/>
-        <xs:element minOccurs="0" ref="Verbosity"/>
+        <xs:element minOccurs="0" ref="config:AppendToFile"/>
+        <xs:element minOccurs="0" ref="config:Category"/>
+        <xs:element minOccurs="0" ref="config:OutputFile"/>
+        <xs:element minOccurs="0" ref="config:PacketCaptureFile"/>
+        <xs:element minOccurs="0" ref="config:Verbosity"/>
       </xs:all>
     </xs:complexType>
   </xs:element>

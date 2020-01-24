@@ -1196,9 +1196,9 @@ CU_Test(ddsc_listener, liveliness_changed, .init=init_triggering_test, .fini=fin
     CU_ASSERT_EQUAL_FATAL(triggered & DDS_LIVELINESS_CHANGED_STATUS,  DDS_LIVELINESS_CHANGED_STATUS);
     CU_ASSERT_EQUAL_FATAL(cb_reader, g_reader);
     CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.alive_count, 0);
-    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.alive_count_change, 0);
-    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.not_alive_count, 1);
-    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.not_alive_count_change, 1);
+    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.alive_count_change, -1);
+    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.not_alive_count, 0);
+    CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.not_alive_count_change, 0);
     CU_ASSERT_EQUAL_FATAL(cb_liveliness_changed_status.last_publication_handle, writer_hdl);
 
     /* The listener should have reset the count_change. */
@@ -1206,7 +1206,7 @@ CU_Test(ddsc_listener, liveliness_changed, .init=init_triggering_test, .fini=fin
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count, 0);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.alive_count_change, 0);
-    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count, 1);
+    CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count, 0);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.not_alive_count_change, 0);
     CU_ASSERT_EQUAL_FATAL(liveliness_changed.last_publication_handle, writer_hdl);
 }

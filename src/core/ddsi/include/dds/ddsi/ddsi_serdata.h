@@ -132,6 +132,11 @@ typedef bool (*ddsi_serdata_eqkey_t) (const struct ddsi_serdata *a, const struct
      returning bufsize-1) if it had to truncate) */
 typedef size_t (*ddsi_serdata_print_t) (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, char *buf, size_t size);
 
+/* Add keyhash (from serdata) to buffer (forcing md5 when necessary).
+   - key needs to be set within serdata (can already be md5)
+   - buf needs to be at least 16 bytes large */
+typedef void (*ddsi_serdata_get_keyhash_t) (const struct ddsi_serdata *d, struct nn_keyhash *buf, bool force_md5);
+
 struct ddsi_serdata_ops {
   ddsi_serdata_eqkey_t eqkey;
   ddsi_serdata_size_t get_size;
@@ -146,9 +151,11 @@ struct ddsi_serdata_ops {
   ddsi_serdata_topicless_to_sample_t topicless_to_sample;
   ddsi_serdata_free_t free;
   ddsi_serdata_print_t print;
+  ddsi_serdata_get_keyhash_t get_keyhash;
 };
 
 #define DDSI_SERDATA_HAS_PRINT 1
+#define DDSI_SERDATA_HAS_ADD_KEYHASH 1
 
 DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertopic *tp, enum ddsi_serdata_kind kind);
 
@@ -219,6 +226,10 @@ DDS_EXPORT inline bool ddsi_serdata_print_topicless (const struct ddsi_sertopic 
     buf[0] = 0;
     return 0;
   }
+}
+
+DDS_EXPORT inline void ddsi_serdata_get_keyhash (const struct ddsi_serdata *d, struct nn_keyhash *buf, bool force_md5) {
+  d->ops->get_keyhash (d, buf, force_md5);
 }
 
 #if defined (__cplusplus)

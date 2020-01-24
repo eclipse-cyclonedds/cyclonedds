@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds__stream.h"
 #include "dds/ddsi/q_transmit.h"
-#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_radmin.h"
@@ -99,7 +99,7 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
     {
       dds_duration_t max_block_ms = wr->xqos->reliability.max_blocking_time;
       struct ddsi_writer_info pwr_info;
-      ddsi_make_writer_info (&pwr_info, &wr->e, wr->xqos);
+      ddsi_make_writer_info (&pwr_info, &wr->e, wr->xqos, payload->statusinfo);
       for (uint32_t i = 0; rdary[i]; i++) {
         DDS_CTRACE (&wr->e.gv->logconfig, "reader "PGUIDFMT"\n", PGUID (rdary[i]->e.guid));
         if ((ret = try_store (rdary[i]->rhc, &pwr_info, payload, tk, &max_block_ms)) != DDS_RETCODE_OK)
@@ -121,15 +121,15 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
     ddsrt_avl_iter_t it;
     struct pwr_rd_match *m;
     struct ddsi_writer_info wrinfo;
-    const struct ephash *gh = wr->e.gv->guid_hash;
+    const struct entity_index *gh = wr->e.gv->entity_index;
     dds_duration_t max_block_ms = wr->xqos->reliability.max_blocking_time;
     ddsrt_mutex_unlock (&wr->rdary.rdary_lock);
-    ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos);
+    ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, payload->statusinfo);
     ddsrt_mutex_lock (&wr->e.lock);
     for (m = ddsrt_avl_iter_first (&wr_local_readers_treedef, &wr->local_readers, &it); m != NULL; m = ddsrt_avl_iter_next (&it))
     {
       struct reader *rd;
-      if ((rd = ephash_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
+      if ((rd = entidx_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
       {
         DDS_CTRACE (&wr->e.gv->logconfig, "reader-via-guid "PGUIDFMT"\n", PGUID (rd->e.guid));
         /* Copied the return value ignore from DDSI deliver_user_data () function. */

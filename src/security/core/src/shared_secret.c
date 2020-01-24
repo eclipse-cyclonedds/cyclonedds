@@ -13,31 +13,29 @@
 #include "dds/security/core/shared_secret.h"
 
 const DDS_Security_octet*
-get_challenge1_from_secret_handle(DDS_Security_SharedSecretHandle handle)
+get_challenge1_from_secret_handle (DDS_Security_SharedSecretHandle handle)
 {
-
-    DDS_Security_SharedSecretHandleImpl *secret = (DDS_Security_SharedSecretHandleImpl *)(uintptr_t)handle;
-    return secret->challenge1;
+  DDS_Security_SharedSecretHandleImpl *secret = (DDS_Security_SharedSecretHandleImpl *)(uintptr_t)handle;
+  return secret->challenge1;
 }
 
 const DDS_Security_octet*
-get_challenge2_from_secret_handle(DDS_Security_SharedSecretHandle handle)
+get_challenge2_from_secret_handle (DDS_Security_SharedSecretHandle handle)
 {
-    DDS_Security_SharedSecretHandleImpl *secret = (DDS_Security_SharedSecretHandleImpl *)(uintptr_t)handle;
-    return secret->challenge2;
+  DDS_Security_SharedSecretHandleImpl *secret = (DDS_Security_SharedSecretHandleImpl *)(uintptr_t)handle;
+  return secret->challenge2;
 }
 
 const DDS_Security_octet*
-get_secret_from_secret_handle(DDS_Security_SharedSecretHandle handle)
+get_secret_from_secret_handle (DDS_Security_SharedSecretHandle handle)
 {
-    DDS_Security_SharedSecretHandleImpl *secret = (DDS_Security_SharedSecretHandleImpl *)(uintptr_t)handle;
-    return secret->shared_secret;
+  DDS_Security_SharedSecretHandleImpl *secret = (DDS_Security_SharedSecretHandleImpl *)(uintptr_t)handle;
+  return secret->shared_secret;
 }
 
-
-int32_t
-get_secret_size_from_secret_handle( DDS_Security_SharedSecretHandle handle ){
-    DDS_Security_SharedSecretHandleImpl *secret = (DDS_Security_SharedSecretHandleImpl *)(uintptr_t)handle;
-    return secret->shared_secret_size;
-
+size_t
+get_secret_size_from_secret_handle (DDS_Security_SharedSecretHandle handle)
+{
+  DDS_Security_SharedSecretHandleImpl *secret = (DDS_Security_SharedSecretHandleImpl *)(uintptr_t)handle;
+  return (size_t) secret->shared_secret_size;
 }

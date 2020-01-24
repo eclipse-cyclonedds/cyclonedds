@@ -156,7 +156,8 @@ my %tables;
 my @root = read_config ($input);
 
 {
-  open my $fh, ">", "$output_rnc" or die "can't open $output_rnc";
+  open my $fh, ">:unix", "$output_rnc" or die "can't open $output_rnc";
+  print $fh "default namespace = \"https://cdds.io/config\"\n";
   print $fh "namespace a = \"http://relaxng.org/ns/compatibility/annotations/1.0\"\n";
   print $fh "grammar {\n";
   print $fh "  start =\n";
@@ -170,7 +171,7 @@ my @root = read_config ($input);
 }
 
 {
-  open my $fh, ">", "$output_md" or die "can't open $output_md";
+  open my $fh, ">:unix", "$output_md" or die "can't open $output_md";
   my $sep_blurb = "";
   conv_table($fh, \&conv_to_md, \@root, "/", "  ", "", \$sep_blurb);
   close $fh;
@@ -315,12 +316,14 @@ sub conv_to_rnc {
   print_description_rnc ($fh, $fs->{description}, $indent);
   printf $fh "${indent}%s %s {\n", ($fs->{kind} eq "ATTR" ? "attribute" : "element"), $name;
 
+  my $sub_isfirst = 1;
+  conv_table($fh, \&conv_to_rnc, $fs->{subtables}, $fqname, "${indent}  ", $prefix, \$sub_isfirst);
+  my $sep = $sub_isfirst ? "" : "& ";
+
   if ($fs->{kind} eq "GROUP" || $fs->{kind} eq "MGROUP") {
-    my $sub_isfirst = 1;
-    conv_table($fh, \&conv_to_rnc, $fs->{subtables}, $fqname, "${indent}  ", $prefix, \$sub_isfirst);
-    printf $fh "${indent}  empty\n" if $sub_isfirst;
+    printf $fh "${indent}  ${sep}empty\n" if $sub_isfirst;
   } elsif ($fs->{kstr} eq "Boolean") {
-    printf $fh "${indent}  xsd:boolean\n";
+    printf $fh "${indent}  ${sep}xsd:boolean\n";
   } elsif ($fs->{kstr} eq "Comma") {
     die unless exists $comma_values{$fs->{typehint}};
     my $pat = "";
@@ -337,13 +340,13 @@ sub conv_to_rnc {
       }
     }
     $pat .= "|" if $allowempty;
-    printf $fh "${indent}  xsd:token { pattern = \"%s\" }\n", $pat;
+    printf $fh "${indent}  ${sep}xsd:token { pattern = \"%s\" }\n", $pat;
   } elsif ($fs->{kstr} eq "Enum") {
     die unless exists $enum_values{$fs->{typehint}};
     my @vs = split /;/, $enum_values{$fs->{typehint}};
-    printf $fh "${indent}  %s\n", (join '|', map { "\"$_\"" } @vs);
+    printf $fh "${indent}  ${sep}%s\n", (join '|', map { "\"$_\"" } @vs);
   } elsif ($fs->{kstr} eq "Int") {
-    printf $fh "${indent}  xsd:integer\n";
+    printf $fh "${indent}  ${sep}xsd:integer\n";
     #if (exists $range{$lctn} || exists $range{$fs->{typehint}}) {
     #  # integer with range
     #  my $rr = exists $range{$lctn} ? $range{$lctn} : $range{$fs->{typehint}};
@@ -351,9 +354,9 @@ sub conv_to_rnc {
     #}
   } elsif ($typehint2unit{$fs->{typehint}}) {
     # number with unit
-    printf $fh "${indent}  $typehint2unit{$fs->{typehint}}\n";
+    printf $fh "${indent}  ${sep}$typehint2unit{$fs->{typehint}}\n";
   } elsif ($typehint2xmltype{$fs->{typehint}} =~ /String$/) {
-    printf $fh "${indent}  text\n";
+    printf $fh "${indent}  ${sep}text\n";
   } else {
     die;
   }
@@ -393,7 +396,7 @@ sub conv_to_md {
 
   # Describe type (boolean, integer, &c.); for a group list its attributes and children as
   # links to their descriptions
-  if ($fs->{kind} eq "GROUP" || $fs->{kind} eq "MGROUP") {
+  {
     my %children = ("attributes" => [], "elements" => []);
     conv_table($fh, \&list_children_md, $fs->{subtables}, "", "${indent}  ", $prefix, \%children);
     if (@{$children{attributes}} > 0) {
@@ -406,6 +409,10 @@ sub conv_to_md {
       my @ys = map { my $lt = lc "$fqname\[\@$_]"; $lt =~ s/[^a-z0-9]//g; "[$_](#$lt)" } @xs;
       printf $fh "Children: %s\n\n", (join ', ', @ys);
     }
+  }
+
+  if ($fs->{kind} eq "GROUP" || $fs->{kind} eq "MGROUP") {
+    # nothing to see here
   } elsif ($fs->{kstr} eq "Boolean") {
     printf $fh "Boolean\n";
   } elsif ($fs->{kstr} eq "Comma") {
@@ -451,9 +458,7 @@ sub conv_to_md {
   print_description_md ($fh, $fs->{description}, $indent);
 
   # Generate attributes & children
-  if ($fs->{kind} eq "GROUP" || $fs->{kind} eq "MGROUP") {
-    conv_table($fh, \&conv_to_md, $fs->{subtables}, $fqname, "${indent}  ", $prefix, $separator_blurb_ref);
-  }
+  conv_table($fh, \&conv_to_md, $fs->{subtables}, $fqname, "${indent}  ", $prefix, $separator_blurb_ref);
 }
 
 sub conv_table {
@@ -481,6 +486,7 @@ sub read_config {
               'DDSI_INCLUDE_SSL' => 1,
               'DDSI_INCLUDE_NETWORK_PARTITIONS' => 1,
               'DDSI_INCLUDE_SSM' => 1,
+              'DDSI_INCLUDE_SECURITY' => 1,
               # excluded options
               'DDSI_INCLUDE_NETWORK_CHANNELS' => 0,
               'DDSI_INCLUDE_BANDWIDTH_LIMITING' => 0);
@@ -490,7 +496,7 @@ sub read_config {
   my @stk = (); # stack of conditional nesting, for each: copy/discard/ignore
   open FH, "<", $input or die "can't open $input\n";
   while (<FH>) {
-    chomp;
+    s/[\r\n]+$//s;
 
     # ignore parts guarded by #if/#ifdef/#if!/#ifndef if $incl says so
     if (/^\s*\#\s*if(n?def|\s*!)?\s*([A-Za-z_][A-Za-z_0-9]*)\s*(?:\/(?:\/.*|\*.*?\*\/)\s*)?$/) {
@@ -620,7 +626,7 @@ sub read_config {
       # skip reference to internal name (either ABSOFF(field),
       # RELOFF(field,field) or <int>,<int> (the latter being used by
       # "verbosity")
-      $rest =~ s/(ABSOFF *\( *[A-Za-z_0-9.]+ *\)|RELOFF *\( *[A-Za-z_0-9.]+ *, *[A-Za-z_0-9]+ *\)|[0-9]+ *, *[0-9]+) *, *//;
+      $rest =~ s/(ABSOFF *\( *[A-Za-z_0-9.]+ *\)|RELOFF *\( *[A-Za-z_0-9.]+ *, *[A-Za-z_0-9. ]+\)|[0-9]+ *, *[0-9]+) *, *//;
       # skip init function
       $rest =~ s/([A-Za-z_0-9]+|0) *, *//;
       # type hint from conversion function

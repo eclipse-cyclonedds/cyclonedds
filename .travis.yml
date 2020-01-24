@@ -68,9 +68,9 @@ linux_clang: &linux_clang
   install:
     - pip install conan --upgrade --user
 
-osx_xcode10_3: &osx_xcode10_3
+osx_xcode: &osx_xcode
   os: osx
-  osx_image: xcode10.3
+  osx_image: xcode11.1
   compiler: clang
   addons:
     homebrew:
@@ -84,12 +84,8 @@ osx_xcode10_3: &osx_xcode10_3
     - python3 -m pip install conan --upgrade --user
 
 osx_xcode9: &osx_xcode9
-  <<: *osx_xcode10_3
+  <<: *osx_xcode
   osx_image: xcode9
-  cache:
-    directories:
-      - $HOME/Library/Caches/Homebrew
-      - /usr/local/Homebrew
   addons:
     homebrew:
       packages: [ python3 ]
@@ -99,11 +95,6 @@ osx_xcode9: &osx_xcode9
       # used to ensure Homebrew is kept up-to-date and build times are kept to
       # a minimum.
       update: true
-  before_cache:
-    - brew cleanup
-    - find /usr/local/Homebrew -type d -name .git |
-      xargs -I {} dirname {} |
-      xargs -I {} git --git-dir={}/.git --work-tree={} clean -f -d -x
 
 windows_vs2017: &windows_vs2017
   os: windows
@@ -151,34 +142,35 @@ windows_vs2017: &windows_vs2017
 jobs:
   include:
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles", COVERITY_SCAN=true ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles", COVERITY_SCAN=true ]
       if: type = cron
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=NO, SECURITY=YES, GENERATOR="Unix Makefiles" ]
-    - <<: *linux_gcc8
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=NO, SECURITY=YES, LIFESPAN=NO, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
-      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
-      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=NO, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=NO, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *linux_clang
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *osx_xcode9
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=NO, SECURITY=YES, GENERATOR="Unix Makefiles" ]
-    - <<: *osx_xcode10_3
-      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
-    - <<: *osx_xcode10_3
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, GENERATOR="Unix Makefiles" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=NO, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
+      if: type = cron
+    - <<: *osx_xcode
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=NO, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles", MACOSX_DEPLOYMENT_TARGET=10.12 ]
+    - <<: *osx_xcode
+      env: [ ARCH=x86_64, ASAN=address, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
+    - <<: *osx_xcode
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Unix Makefiles" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, GENERATOR="Visual Studio 15 2017" ]
+      env: [ ARCH=x86, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Visual Studio 15 2017" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Debug, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
     - <<: *windows_vs2017
-      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
+      env: [ ARCH=x86_64, ASAN=none, BUILD_TYPE=Release, SSL=YES, SECURITY=YES, LIFESPAN=YES, GENERATOR="Visual Studio 15 2017 Win64" ]
 
 before_script:
   - conan profile new default --detect
@@ -201,14 +193,16 @@ before_script:
 #     code has been vetted, the test has been run a great many times (with the odd
 #     failure), and so we now simply skip the test to avoid the spurious failures.
 script:
+  - INSTALLPREFIX="$(pwd)/install"
   - mkdir build
   - cd build
   - conan install -b missing -s arch=${ARCH} -s build_type=${BUILD_TYPE} ..
   - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
-          -DCMAKE_INSTALL_PREFIX=$(pwd)/install
+          -DCMAKE_INSTALL_PREFIX=${INSTALLPREFIX}
           -DUSE_SANITIZER=${ASAN}
           -DENABLE_SSL=${SSL}
           -DENABLE_SECURITY=${SECURITY}
+          -DENABLE_LIFESPAN=${LIFESPAN}
           -DBUILD_TESTING=on
           -DWERROR=on
           -G "${GENERATOR}" ..
@@ -228,12 +222,15 @@ script:
       CMAKE_LINKER_FLAGS="-DCMAKE_LINKER_FLAGS=-fsanitize=${USE_SANITIZER}";
       CMAKE_C_FLAGS="-DCMAKE_C_FLAGS=-fsanitize=${USE_SANITIZER}";
     fi
-  - mkdir install/share/CycloneDDS/examples/helloworld/build
-  - cd install/share/CycloneDDS/examples/helloworld/build
-  - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+  - cd ..
+  - mkdir helloworld_build
+  - cd helloworld_build
+  - cmake -DCMAKE_PREFIX_PATH=${INSTALLPREFIX}
+          -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
           ${CMAKE_C_FLAGS}
           ${CMAKE_LINKER_FLAGS}
-          -G "${GENERATOR}" ..
+          -G "${GENERATOR}"
+          ${INSTALLPREFIX}/share/CycloneDDS/examples/helloworld
   - cmake --build . --config ${BUILD_TYPE}
   - cd "${TRAVIS_BUILD_DIR}/build"
 

@@ -18,20 +18,13 @@ include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
 set(PACKAGING_MODULE_DIR "${PROJECT_SOURCE_DIR}/cmake/Modules/Packaging")
-set(CMAKE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}")
+set(CMAKE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
 
 # Generates <Package>Config.cmake.
-if(BUILD_IDLC)
-  configure_package_config_file(
-    "${PACKAGING_MODULE_DIR}/PackageConfig.cmake.in"
-    "${PROJECT_NAME}Config.cmake"
-    INSTALL_DESTINATION "${CMAKE_INSTALL_CMAKEDIR}")
-else()
-  configure_package_config_file(
-    "${PACKAGING_MODULE_DIR}/PackageConfigNoIdlc.cmake.in"
-    "${PROJECT_NAME}Config.cmake"
-    INSTALL_DESTINATION "${CMAKE_INSTALL_CMAKEDIR}")
-endif()
+configure_package_config_file(
+  "${PACKAGING_MODULE_DIR}/PackageConfig.cmake.in"
+  "${PROJECT_NAME}Config.cmake"
+  INSTALL_DESTINATION "${CMAKE_INSTALL_CMAKEDIR}")
 
 # Generates <Package>Version.cmake.
 write_basic_package_version_file(
@@ -83,11 +76,13 @@ set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_BINARY_DIR}/license.txt")
 #       Although that does not make sense from a technical point-of-view, it
 #       does help to clearify which settings are required for a platform.
 
-set(CPACK_COMPONENTS_ALL dev lib)
+set(CPACK_COMPONENTS_ALL dev lib idlc)
 set(CPACK_COMPONENT_LIB_DISPLAY_NAME "${PROJECT_NAME_FULL} library")
 set(CPACK_COMPONENT_LIB_DESCRIPTION  "Library used to run programs with ${PROJECT_NAME_FULL}")
 set(CPACK_COMPONENT_DEV_DISPLAY_NAME "${PROJECT_NAME_FULL} development")
 set(CPACK_COMPONENT_DEV_DESCRIPTION  "Development files for use with ${PROJECT_NAME_FULL}")
+set(CPACK_COMPONENT_IDLC_DISPLAY_NAME "${PROJECT_NAME_FULL} IDL Compiler")
+set(CPACK_COMPONENT_IDLC_DESCRIPTION  "Utility for turning IDL files into C++ source for ${PROJECT_NAME_FULL}")
 
 if(WIN32 AND NOT UNIX)
   if(CMAKE_SIZEOF_VOID_P EQUAL 8)

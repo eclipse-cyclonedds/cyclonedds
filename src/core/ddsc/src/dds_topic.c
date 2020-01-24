@@ -25,12 +25,14 @@
 #include "dds__get_status.h"
 #include "dds__qos.h"
 #include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_globals.h"
+#include "dds__serdata_builtintopic.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_topic)
 
@@ -135,12 +137,16 @@ static bool dds_find_topic_check_and_add_ref (dds_entity_t participant, dds_enti
     ret = false;
   else
   {
-    /* FIXME: calling addref is wrong because the Cyclone library has no
-       knowledge of the reference and hence simply deleting the participant
-       won't make the ref count drop to 0.  On the other hand, the DDS spec
-       says find_topic (and a second call to create_topic) return a new
-       proxy that must separately be deleted.  */
-    dds_entity_add_ref_locked (&tp->m_entity);
+    /* Simply return the same topic, though that is different to the spirit
+       of the DDS specification, which gives you a unique copy.  Giving that
+       unique copy means there potentially many versions of exactly the same
+       topic around, and that two entities can be dealing with the same data
+       even though they have different topics objects (though with the same
+       name).  That I find a confusing model.
+
+       As far as I can tell, the only benefit is the ability to set different
+       listeners on the various copies of the topic.  And that seems to be a
+       really small benefit. */
     ret = true;
   }
   dds_topic_unlock (tp);
@@ -259,12 +265,7 @@ static dds_return_t create_topic_topic_arbitrary_check_sertopic (dds_entity_t pa
     ret = DDS_RETCODE_INCONSISTENT_POLICY;
   else
   {
-    /* FIXME: calling addref is wrong because the Cyclone library has no
-       knowledge of the reference and hence simply deleting the participant
-       won't make the ref count drop to 0.  On the other hand, the DDS spec
-       says find_topic (and a second call to create_topic) return a new
-       proxy that must separately be deleted.  */
-    dds_entity_add_ref_locked (&tp->m_entity);
+    /* See dds_find_topic_check_and_add_ref */
     ret = DDS_RETCODE_OK;
   }
   dds_topic_unlock (tp);
@@ -279,7 +280,7 @@ const struct dds_entity_deriver dds_entity_deriver_topic = {
   .validate_status = dds_topic_status_validate
 };
 
-dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const nn_plist_t *sedp_plist)
+dds_entity_t dds_create_topic_impl (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const nn_plist_t *sedp_plist)
 {
   dds_return_t rc;
   dds_participant *par;
@@ -429,14 +430,15 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
 
   /* Create topic */
   top = dds_alloc (sizeof (*top));
-  hdl = dds_entity_init (&top->m_entity, &par->m_entity, DDS_KIND_TOPIC, new_qos, listener, DDS_TOPIC_STATUS_MASK);
+  /* FIXME: setting "implicit" based on sertopic->ops is a hack */
+  hdl = dds_entity_init (&top->m_entity, &par->m_entity, DDS_KIND_TOPIC, (sertopic->ops == &ddsi_sertopic_ops_builtintopic), new_qos, listener, DDS_TOPIC_STATUS_MASK);
   top->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (&par->m_entity, &top->m_entity);
   top->m_stopic = sertopic;
 
   /* Publish Topic */
   thread_state_awake (lookup_thread_state (), &par->m_entity.m_domain->gv);
-  ddsi_pp = ephash_lookup_participant_guid (par->m_entity.m_domain->gv.guid_hash, &par->m_entity.m_guid);
+  ddsi_pp = entidx_lookup_participant_guid (par->m_entity.m_domain->gv.entity_index, &par->m_entity.m_guid);
   assert (ddsi_pp);
   if (sedp_plist)
   {
@@ -461,6 +463,15 @@ err_invalid_qos:
   dds_delete_qos (new_qos);
   dds_entity_unpin (par_ent);
   return rc;
+}
+
+dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const nn_plist_t *sedp_plist)
+{
+  assert(sertopic);
+  assert(sertopic->name);
+  if (!strncmp(sertopic->name, "DCPS", 4))
+    return DDS_RETCODE_BAD_PARAMETER;
+  return dds_create_topic_impl (participant, sertopic, qos, listener, sedp_plist);
 }
 
 dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descriptor_t *desc, const char *name, const dds_qos_t *qos, const dds_listener_t *listener)

@@ -40,6 +40,7 @@
 #include "dds/ddsi/q_misc.h" /* for vendor_is_... */
 
 #include "dds/ddsi/ddsi_plist_generic.h"
+#include "dds/ddsi/ddsi_security_omg.h"
 
 /* I am tempted to change LENGTH_UNLIMITED to 0 in the API (with -1
    supported for backwards compatibility) ... on the wire however
@@ -1309,6 +1310,8 @@ static const struct piddesc piddesc_omg[] = {
   PP  (IDENTITY_STATUS_TOKEN,               identity_status_token, XS, XQ, XbPROP, XS, XS, XSTOP, XQ, XbPROP, XS, XO, XSTOP),
   PP  (DATA_TAGS,                           data_tags, XQ, XS, XS, XSTOP),
 #endif
+  PP  (DOMAIN_ID,                           domain_id, Xu),
+  PP  (DOMAIN_TAG,                          domain_tag, XS),
   { PID_STATUSINFO, PDF_FUNCTION, PP_STATUSINFO, "STATUSINFO",
     offsetof (struct nn_plist, statusinfo), membersize (struct nn_plist, statusinfo),
     { .f = { .deser = deser_statusinfo, .ser = ser_statusinfo } }, 0 },
@@ -1424,7 +1427,7 @@ struct piddesc_index {
    nn_plist_init_tables.
 
    FIXME: should compute them at build-time */
-#define DEFAULT_PROC_ARRAY_SIZE                19
+#define DEFAULT_PROC_ARRAY_SIZE                20
 #ifdef DDSI_INCLUDE_SSM
 #define DEFAULT_OMG_PIDS_ARRAY_SIZE            (PID_READER_FAVOURS_SSM + 1)
 #else
@@ -2255,13 +2258,7 @@ static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_t
     return return_unrecognized_pid (plist, pid);
   assert (pid_to_index (pid) == pid_to_index (entry->pid));
   if (pid != entry->pid)
-  {
-    DDS_CERROR (logcfg, "error processing parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" mapped to pid %"PRIx16"\n",
-                dd->vendorid.id[0], dd->vendorid.id[1],
-                dd->protocol_version.major, dd->protocol_version.minor,
-                pid, entry->pid);
     return return_unrecognized_pid (plist, pid);
-  }
   assert (pid != PID_PAD);
 
   struct flagset flagset;
@@ -2888,17 +2885,17 @@ dds_qos_t * nn_xqos_dup (const dds_qos_t *src)
   return dst;
 }
 
-bool nn_xqos_has_prop (const dds_qos_t *xqos, const char *pname, bool startswith)
+bool nn_xqos_has_prop (const dds_qos_t *xqos, const char *pname, bool startswith, bool check_non_empty)
 {
   if (!(xqos->present & QP_PROPERTY_LIST))
     return false;
 
-  for (uint32_t i = 0; i < xqos->property.value.n; i++)
-  {
-    if (startswith && (strncmp (xqos->property.value.props[i].name, pname, strlen (pname)) == 0))
-      return true;
-    else if (!startswith && (strcmp (xqos->property.value.props[i].name, pname) == 0))
-      return true;
+  for (uint32_t i = 0; i < xqos->property.value.n; i++) {
+    if (startswith && (strncmp(xqos->property.value.props[i].name, pname, strlen(pname)) == 0)) {
+      return !check_non_empty || strlen(xqos->property.value.props[i].value) != 0;
+    } else if (!startswith && (strcmp(xqos->property.value.props[i].name, pname) == 0)) {
+      return !check_non_empty || strlen(xqos->property.value.props[i].value) != 0;
+    }
   }
   return false;
 }
@@ -2916,7 +2913,7 @@ static void fill_property(dds_property_t *prop, const char *name, const char *va
  * plugins to get their proper settings. If security properties are already present in
  * the QoS, the settings from configuration are ignored.
  */
-bool nn_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security_configuration_type *cfg)
+void nn_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security_configuration_type *cfg)
 {
   assert(cfg != NULL);
 
@@ -2929,24 +2926,29 @@ bool nn_xqos_mergein_security_config (dds_qos_t *xqos, const struct omg_security
     xqos->present |= QP_PROPERTY_LIST;
   }
 
-  /* check for existing security properties (name starts with dds.sec. conform DDS Security spec 7.2.4.1)
-   * and return if any is found */
-  if (nn_xqos_has_prop (xqos, "dds.sec.", true))
-    return false;
+  /* assume that no security properties exist in qos: fill QoS properties with values from configuration */
+  xqos->property.value.props = ddsrt_realloc (xqos->property.value.props, xqos->property.value.n + 18 /* max */ * sizeof (dds_property_t));
 
-  /* no security properties exist in qos: fill QoS properties with values from configuration */
-  xqos->property.value.props = ddsrt_realloc (xqos->property.value.props, xqos->property.value.n + 8 /* max */ * sizeof (dds_property_t));
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_LIBRARY_PATH, cfg->authentication_plugin.library_path);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_LIBRARY_INIT, cfg->authentication_plugin.library_init);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE, cfg->authentication_plugin.library_finalize);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_CRYPTO_LIBRARY_PATH, cfg->cryptography_plugin.library_path);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_CRYPTO_LIBRARY_INIT, cfg->cryptography_plugin.library_init);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE, cfg->cryptography_plugin.library_finalize);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_LIBRARY_PATH, cfg->access_control_plugin.library_path);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_LIBRARY_INIT, cfg->access_control_plugin.library_init);
+  fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE, cfg->access_control_plugin.library_finalize);
+
   fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_IDENTITY_CA, cfg->authentication_properties.identity_ca);
   fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_PRIV_KEY, cfg->authentication_properties.private_key);
   fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_IDENTITY_CERT, cfg->authentication_properties.identity_certificate);
   fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_PERMISSIONS_CA, cfg->access_control_properties.permissions_ca);
   fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_GOVERNANCE, cfg->access_control_properties.governance);
   fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_PERMISSIONS, cfg->access_control_properties.permissions);
-  if (cfg->authentication_properties.password && (strlen(cfg->authentication_properties.password) != 0))
+  if (cfg->authentication_properties.password )
     fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_AUTH_PASSWORD, cfg->authentication_properties.password);
-  if (cfg->authentication_properties.trusted_ca_dir && (strlen(cfg->authentication_properties.trusted_ca_dir) != 0))
+  if (cfg->authentication_properties.trusted_ca_dir )
     fill_property(&(xqos->property.value.props[xqos->property.value.n++]), DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR, cfg->authentication_properties.trusted_ca_dir);
-  return true;
 }
 #endif /* DDSI_INCLUDE_SECURITY */
 

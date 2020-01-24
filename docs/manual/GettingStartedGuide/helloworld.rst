@@ -46,110 +46,13 @@ used for building your own applications.
 
 
 Build Files
-===========
 
-Three files are available *Hello World!* root directory to support
-building the example. Both
-:ref:`Windows native <WindowsNativeBuild>` (HelloWorld.sln) and
-:ref:`Linux native <LinuxNativeBuild>` (Makefile) build files
-will only be available for this *Hello World!* example. All the
-other examples make use of the :ref:`CMake <CMakeIntro>` build
-system and thus only have the CMakeLists.txt build related file.
-
-.. _`LinuxNativeBuild`:
-
-Linux Native Build
-==================
-
-A Linux native :code:`Makefile` is provided in the
-:code:`examples/helloworld` directory within the destination location
-entered in the
-:ref:`vdds_install_examples script <CopyLinuxExamplesToUserFriendlyLocation>`.
-In a terminal, go to that directory and type
-::
-
-    make
-
-The build process should have access to the include files and
-the ddsc library. The Makefile expects them to be present at
-system default locations so that it can find them automatically.
-If this isn't the case on your machine, then please
-update the commented out :code:`CFLAGS` and :code:`LDFLAGS` within the
-:code:`Makefile` to point to the proper locations.
-
-This will build the HelloworldSubscriber and HelloworldPublisher
-executables in the helloworld source directory (not the bin
-directory that contains the pre-build binaries).
-
-The *Hello World!* example can now be executed,
-like described in :ref:`Test your installation <TestYourInstallation>`,
-using the binaries that were just build. Be sure to use the right directories.
-
-
-.. _`WindowsNativeBuild`:
-
-Windows Native Build
-====================
-
-For the Windows Native Build, a Visual Studio solution file is
-available in the :code:`examples/helloworld` directory. Use a
-file explorer to navigate to that directory and double click on
-the :code:`HelloWorld.sln` file. Visual Studio should now start
-with the HelloWorld solution that contains three projects.
-
-+----------------------+-------------------------------------------------+
-| Project              | Description                                     |
-+======================+=================================================+
-| HelloWorldPublisher  | Information to build the example publisher.     |
-+----------------------+-------------------------------------------------+
-| HelloWorldSubscriber | Information to build the example subcriber.     |
-+----------------------+-------------------------------------------------+
-| HelloWorldType       | Information to (re)generate                     |
-|                      | :ref:`HelloWorldData_Msg <HelloWorldDataFiles>` |
-|                      | data type.                                      |
-+----------------------+-------------------------------------------------+
-
-Creating the *Hello World!* example executables is as simple as
-selecting the required configuration and building the solution.
-
-:code:`helloworld\vs\directories.props` contains the location of where
-the Eclipse Cyclone DDS header files and libraries are be placed. These locations
-are based on the default installation directory structure. When Eclipse Cyclone DDS
-is installed in a different directory, the following paths in
-:code:`helloworld\vs\directories.props` should be changed, like:
-
-.. code-block:: xml
-
-  <CycloneDDS_lib_dir>C:/Path/To/CycloneDDS/Installation/lib</CycloneDDS_lib_dir>
-  <CycloneDDS_inc_dir>C:/Path/To/CycloneDDS/Installation/include</CycloneDDS_inc_dir>
-  <CycloneDDS_idlc_dir>C:/Path/To/CycloneDDS/Installation/share/CycloneDDS/idlc</CycloneDDS_idlc_dir>
-
-To run the example, Visual Studio should run both the publisher
-and subscriber simultaneously. It is capable of doing so, but
-it's not its default setting. To change it, open the HelloWorld
-solution property page by right clicking the solution and
-selecting :code:`Properties`. Then go to :code:`Common Properties`
--> :code:`Startup Project`, select :code:`Multiple startup project`
-and set :code:`Action "Start"` for HelloWorldPublisher and
-HelloWorldSubscriber. Finish the change by selecting :code:`OK`.
-
-Visual Studio is now ready to actually run the *Hello World!*
-example, which can be done by selecting :code:`Debug` ->
-:code:`Start without debugging`.
-Both the HelloworldSubscriber and the HelloworldPublisher will be
-started and the HelloworldPublisher will write a message that is
-received by the HelloworldSubscriber.
 
 .. _`BuildingWithCMake`:
 
 *******************
 Building With CMake
 *******************
-
-In the earlier chapters, building the *Hello World!* example is done
-natively. However, the *Hello World!* example can also be build using the
-`CMake tool <http://cmake.org>`_. This is what is recommended. In fact,
-all the other examples don't provide native makefiles, only CMake files.
 
 
 .. _`CMakeIntro`:
@@ -190,10 +93,8 @@ scope of this document.
 Hello World! CMake (CycloneDDS Package)
 =======================================
 
-After the CMake digression, we're back with the *Hello World!*
-example. Apart from the native build files, CMake build files
-are provided as well. See
-:code:`examples/helloworld/CMakeLists.txt`
+Specifying how to build the *Hello World!* example requires only a few
+lines of configuration in :code:`examples/helloworld/CMakeLists.txt`
 
 .. literalinclude:: ../../../examples/helloworld/CMakeLists.export
     :linenos:
@@ -206,13 +107,12 @@ look in the default locations for the code:`CycloneDDS` package.
 
 .. _`IdlcGenerate`:
 
-The :code:`CycloneDDS` package provides the :code:`ddsc` library
-that contains the DDS API that the application needs. But apart
-from that, it also contains helper functionality
-(:code:`idlc_generate`) to generate library targets from IDL
-files. These library targets can be easily used when compiling
-an application that depends on a data type described
-in an IDL file.
+The :code:`CycloneDDS` package provides the :code:`ddsc` library that
+contains the DDS API that the application needs. It also provides a
+component "idlc" that provides helper functionality for generating
+library targets from IDL files (:code:`idlc_generate`). These library
+targets can be easily used when compiling an application that depends on
+a data type described in an IDL file.
 
 Two applications will be created, :code:`HelloworldPublisher`
 and :code:`HelloworldSubscriber`. Both consist only out of one
@@ -241,7 +141,7 @@ Here, we can let CMake configure the build environment for
 us by typing:
 ::
 
-    cmake ../
+    cmake ..
 
 .. note::
     CMake does a pretty good job at guessing which generator to use, but some

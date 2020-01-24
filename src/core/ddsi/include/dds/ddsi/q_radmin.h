@@ -98,14 +98,16 @@ struct nn_rmsg {
 
   struct nn_rmsg_chunk chunk;
 };
-#define NN_RMSG_PAYLOAD(m) ((unsigned char *) (&(m)->chunk + 1))
+DDSRT_STATIC_ASSERT (sizeof (struct nn_rmsg) == offsetof (struct nn_rmsg, chunk) + sizeof (struct nn_rmsg_chunk));
+#define NN_RMSG_PAYLOAD(m) ((unsigned char *) (m + 1))
 #define NN_RMSG_PAYLOADOFF(m, o) (NN_RMSG_PAYLOAD (m) + (o))
 
 struct receiver_state {
-  ddsi_guid_prefix_t src_guid_prefix;       /* 12 */
-  ddsi_guid_prefix_t dst_guid_prefix;       /* 12 */
+  ddsi_guid_prefix_t src_guid_prefix;     /* 12 */
+  ddsi_guid_prefix_t dst_guid_prefix;     /* 12 */
   struct addrset *reply_locators;         /* 4/8 */
-  int forme;                              /* 4 */
+  uint32_t forme:1;                       /* 4 */
+  uint32_t rtps_encoded:1;                /* - */
   nn_vendorid_t vendor;                   /* 2 */
   nn_protocol_version_t protocol_version; /* 2 => 44/48 */
   ddsi_tran_conn_t conn;                  /* Connection for request */
@@ -218,6 +220,7 @@ void nn_defrag_free (struct nn_defrag *defrag);
 struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo);
 void nn_defrag_notegap (struct nn_defrag *defrag, seqno_t min, seqno_t maxp1);
 int nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct nn_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz);
+void nn_defrag_prune (struct nn_defrag *defrag, ddsi_guid_prefix_t *dst, seqno_t min);
 
 struct nn_reorder *nn_reorder_new (const struct ddsrt_log_cfg *logcfg, enum nn_reorder_mode mode, uint32_t max_samples, bool late_ack_mode);
 void nn_reorder_free (struct nn_reorder *r);
@@ -228,6 +231,7 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
 int nn_reorder_wantsample (struct nn_reorder *reorder, seqno_t seq);
 unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct nn_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail);
 seqno_t nn_reorder_next_seq (const struct nn_reorder *reorder);
+void nn_reorder_set_next_seq (struct nn_reorder *reorder, seqno_t seq);
 
 struct nn_dqueue *nn_dqueue_new (const char *name, const struct q_globals *gv, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg);
 void nn_dqueue_free (struct nn_dqueue *q);

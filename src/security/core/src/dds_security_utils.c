@@ -46,6 +46,7 @@ DDS_Security_BinaryProperty_deinit(
     }
 
     ddsrt_free(p->name);
+    memset (p->value._buffer, 0, p->value._length); /* because key material can be stored in binary property */
     ddsrt_free(p->value._buffer);
 }
 
@@ -806,47 +807,34 @@ DDS_Security_Exception_set(
 #if DDSI_INCLUDE_SSL
 DDS_EXPORT void
 DDS_Security_Exception_set_with_openssl_error(
-         DDS_Security_SecurityException *ex,
-         const char *context,
-         int code,
-         int minor_code,
-         const char *error_area
-        )
+    DDS_Security_SecurityException *ex,
+    const char *context,
+    int code,
+    int minor_code,
+    const char *error_area)
 {
+    BIO *bio;
+    assert(context);
+    assert(error_area);
+    assert(ex);
+    DDSRT_UNUSED_ARG(context);
 
-  BIO *bio;
-  char *buf = NULL;
-  char *str;
-  size_t len; /*BIO_get_mem_data requires long int */
-  assert(context);
-  assert(error_area);
-  assert(ex);
-  DDSRT_UNUSED_ARG( context );
-
-  bio = BIO_new(BIO_s_mem());
-
-  if (bio) {
-      size_t exception_msg_len;
-      ERR_print_errors(bio);
-      len = (size_t)BIO_get_mem_data (bio, &buf);
-      exception_msg_len = len + strlen(error_area) + 1;
-      str = ddsrt_malloc(  exception_msg_len );
-
-      ddsrt_strlcpy(str, error_area, exception_msg_len);
-      memcpy(str + strlen(error_area), buf, len );
-      str [ exception_msg_len -1 ] = '\0';
-      //snprintf( str, exception_msg_len, "%s%s", error_area, buf );
-
-      ex->message = str;
-      ex->code = code;
-      ex->minor_code = minor_code;
-
-      BIO_free(bio);
-
-  } else {
-      DDS_Security_Exception_set(ex, context, code,  minor_code, "BIO_new failed");
-  }
-
+    if ((bio = BIO_new(BIO_s_mem()))) {
+        ERR_print_errors(bio);
+        char *buf = NULL;
+        size_t len = (size_t)BIO_get_mem_data(bio, &buf);
+        size_t exception_msg_len = len + strlen(error_area) + 1;
+        char *str = ddsrt_malloc(exception_msg_len);
+        ddsrt_strlcpy(str, error_area, exception_msg_len);
+        memcpy(str + strlen(error_area), buf, len);
+        str[exception_msg_len - 1] = '\0';
+        ex->message = str;
+        ex->code = code;
+        ex->minor_code = minor_code;
+        BIO_free(bio);
+    } else {
+        DDS_Security_Exception_set(ex, context, code, minor_code, "BIO_new failed");
+    }
 }
 #endif
 
@@ -906,51 +894,45 @@ DDS_Security_KeyMaterial_AES_GCM_GMAC_deinit(
 {
     if (key_material) {
         if (key_material->master_receiver_specific_key._buffer != NULL) {
+            memset (key_material->master_receiver_specific_key._buffer, 0, key_material->master_receiver_specific_key._length);
             ddsrt_free(key_material->master_receiver_specific_key._buffer);
         }
         if( key_material->master_salt._buffer != NULL){
+            memset (key_material->master_salt._buffer, 0, key_material->master_salt._length);
             ddsrt_free(key_material->master_salt._buffer);
         }
         if( key_material->master_sender_key._buffer != NULL){
+            memset (key_material->master_sender_key._buffer, 0, key_material->master_sender_key._length);
             ddsrt_free(key_material->master_sender_key._buffer);
         }
     }
 }
 
+static uint32_t DDS_Security_getKeySize (const DDS_Security_PropertySeq *properties)
+{
+    const DDS_Security_Property_t *key_size_property;
+    if (properties != NULL)
+    {
+        key_size_property = DDS_Security_PropertySeq_find_property (properties, "dds.sec.crypto.keysize");
+        if (key_size_property != NULL && !strcmp(key_size_property->value, "128"))
+            return 128;
+    }
+    return 256;
+}
 
 DDS_Security_CryptoTransformKind_Enum
 DDS_Security_basicprotectionkind2transformationkind(
-     const DDS_Security_PropertySeq *properties, 
+     const DDS_Security_PropertySeq *properties,
      DDS_Security_BasicProtectionKind protection)
 {
-    int keysize=256;
-    const DDS_Security_Property_t *key_size_property = NULL;
-    if( properties != NULL ){
-        key_size_property = DDS_Security_PropertySeq_find_property(
-                    properties, "dds.sec.crypto.keysize");
-
-        if (key_size_property != NULL) {
-            if (strcmp(key_size_property->value, "128") == 0) {
-                keysize = 128;
-            }
-        }
-    }
-
+    uint32_t keysize = DDS_Security_getKeySize (properties);
     switch (protection) {
         case DDS_SECURITY_BASICPROTECTION_KIND_NONE:
             return CRYPTO_TRANSFORMATION_KIND_NONE;
         case DDS_SECURITY_BASICPROTECTION_KIND_SIGN:
-            if( keysize == 128 ){
-                return CRYPTO_TRANSFORMATION_KIND_AES128_GMAC;
-            } else{
-                return CRYPTO_TRANSFORMATION_KIND_AES256_GMAC;
-            }
+            return (keysize == 128) ? CRYPTO_TRANSFORMATION_KIND_AES128_GMAC : CRYPTO_TRANSFORMATION_KIND_AES256_GMAC;
         case DDS_SECURITY_BASICPROTECTION_KIND_ENCRYPT:
-            if( keysize == 128 ){
-                return CRYPTO_TRANSFORMATION_KIND_AES128_GCM;
-            } else{
-                return CRYPTO_TRANSFORMATION_KIND_AES256_GCM;
-            }
+            return (keysize == 128) ? CRYPTO_TRANSFORMATION_KIND_AES128_GCM : CRYPTO_TRANSFORMATION_KIND_AES256_GCM;
         default:
             return CRYPTO_TRANSFORMATION_KIND_INVALID;
     }
@@ -961,41 +943,22 @@ DDS_Security_protectionkind2transformationkind(
      const DDS_Security_PropertySeq *properties,
      DDS_Security_ProtectionKind protection)
 {
-    int keysize=256;
-    const DDS_Security_Property_t *key_size_property = NULL;
-    if( properties != NULL ){
-        key_size_property = DDS_Security_PropertySeq_find_property(
-                        properties, "dds.sec.crypto.keysize");
-        if (key_size_property != NULL) {
-            if (strcmp(key_size_property->value, "128") == 0) {
-                keysize = 128;
-            }
-        }
-    }
-
+    uint32_t keysize = DDS_Security_getKeySize (properties);
     switch (protection) {
         case DDS_SECURITY_PROTECTION_KIND_NONE:
             return CRYPTO_TRANSFORMATION_KIND_NONE;
         case DDS_SECURITY_PROTECTION_KIND_SIGN_WITH_ORIGIN_AUTHENTICATION:
         case DDS_SECURITY_PROTECTION_KIND_SIGN:
-            if( keysize == 128 ){
-                return CRYPTO_TRANSFORMATION_KIND_AES128_GMAC;
-            } else{
-                return CRYPTO_TRANSFORMATION_KIND_AES256_GMAC;
-            }
+            return (keysize == 128) ? CRYPTO_TRANSFORMATION_KIND_AES128_GMAC : CRYPTO_TRANSFORMATION_KIND_AES256_GMAC;
         case DDS_SECURITY_PROTECTION_KIND_ENCRYPT_WITH_ORIGIN_AUTHENTICATION:
         case DDS_SECURITY_PROTECTION_KIND_ENCRYPT:
-            if( keysize == 128 ){
-                return CRYPTO_TRANSFORMATION_KIND_AES128_GCM;
-            } else {
-                return CRYPTO_TRANSFORMATION_KIND_AES256_GCM;
-            }
+            return (keysize == 128) ? CRYPTO_TRANSFORMATION_KIND_AES128_GCM : CRYPTO_TRANSFORMATION_KIND_AES256_GCM;
         default:
             return CRYPTO_TRANSFORMATION_KIND_INVALID;
     }
 }
 
-/* for DEBUG purposes */
+#ifndef NDEBUG
 void
 print_binary_debug(
      char* name,
@@ -1021,8 +984,7 @@ print_binary_properties_debug(
     }
 
 }
-
-
+#endif
 
 
 DDS_Security_config_item_prefix_t
@@ -1129,6 +1091,203 @@ DDS_Security_normalize_file(
     }
 #undef __FILESEPCHAR
     return norm;
-
 }
 
+/**
+ * Parses an XML date string and returns this as a dds_time_t value. As leap seconds are not permitted
+ * in the XML date format (as stated in the XML Schema specification), this parser function does not
+ * accept leap seconds in its input string. This complies with the dds_time_t representation on posix,
+ * which is a unix timestamp (that also ignores leap seconds).
+ *
+ * As a dds_time_t is expressed as nanoseconds, the fractional seconds part of the input string will
+ * be rounded in case the fractional part has more than 9 digits.
+ */
+dds_time_t
+DDS_Security_parse_xml_date(
+    char *buf)
+{
+  int32_t year = -1;
+  int32_t month = -1;
+  int32_t day = -1;
+  int32_t hour = -1;
+  int32_t minute = -1;
+  int32_t second = -1;
+  int32_t hour_offset = -1;
+  int32_t minute_offset = -1;
+
+  int64_t frac_ns = 0;
+
+  size_t cnt = 0;
+  size_t cnt_frac_sec = 0;
+
+  assert(buf != NULL);
+
+  /* Make an integrity check of the string before the conversion*/
+  while (buf[cnt] != '\0')
+  {
+    if (cnt == 4 || cnt == 7)
+    {
+      if (buf[cnt] != '-')
+        return DDS_TIME_INVALID;
+    }
+    else if (cnt == 10)
+    {
+      if (buf[cnt] != 'T')
+        return DDS_TIME_INVALID;
+    }
+    else if (cnt == 13 || cnt == 16)
+    {
+      if (buf[cnt] != ':')
+        return DDS_TIME_INVALID;
+    }
+    else if (cnt == 19)
+    {
+      if (buf[cnt] != 'Z' && buf[cnt] != '+' && buf[cnt] != '-' && buf[cnt] != '.')
+        return DDS_TIME_INVALID;
+
+      /* If a dot is found then a variable number of fractional seconds is present.
+               A second integrity loop to account for the variability is used */
+      if (buf[cnt] == '.' && !cnt_frac_sec)
+      {
+        cnt_frac_sec = 1;
+        while (buf[cnt + 1] != '\0' && buf[cnt + 1] >= '0' && buf[cnt + 1] <= '9')
+        {
+          cnt_frac_sec++;
+          cnt++;
+        }
+      }
+    }
+    else if (cnt == 19 + cnt_frac_sec)
+    {
+      if (buf[cnt] != 'Z' && buf[cnt] != '+' && buf[cnt] != '-')
+        return DDS_TIME_INVALID;
+    }
+    else if (cnt == 22 + cnt_frac_sec)
+    {
+      if (buf[cnt] != ':')
+        return DDS_TIME_INVALID;
+    }
+    else
+    {
+      if (buf[cnt] < '0' || buf[cnt] > '9')
+        return DDS_TIME_INVALID;
+    }
+    cnt++;
+  }
+
+  /* Do not allow more than 12 (13 including the dot) and less than 1 fractional second digits if they are used */
+  if (cnt_frac_sec && (cnt_frac_sec < 2 || cnt_frac_sec > 13))
+    return DDS_TIME_INVALID;
+
+  /* Valid string length value at this stage are 19, 20 and 25 plus the fractional seconds part */
+  if (cnt != 19 + cnt_frac_sec && cnt != 20 + cnt_frac_sec && cnt != 25 + cnt_frac_sec)
+    return DDS_TIME_INVALID;
+
+  year = ddsrt_todigit(buf[0]) * 1000 + ddsrt_todigit(buf[1]) * 100 + ddsrt_todigit(buf[2]) * 10 + ddsrt_todigit(buf[3]);
+  month = ddsrt_todigit(buf[5]) * 10 + ddsrt_todigit(buf[6]);
+  day = ddsrt_todigit(buf[8]) * 10 + ddsrt_todigit(buf[9]);
+
+  hour = ddsrt_todigit(buf[11]) * 10 + ddsrt_todigit(buf[12]);
+  minute = ddsrt_todigit(buf[14]) * 10 + ddsrt_todigit(buf[15]);
+  second = ddsrt_todigit(buf[17]) * 10 + ddsrt_todigit(buf[18]);
+
+  {
+    int64_t frac_ns_pow = DDS_NSECS_IN_SEC / 10;
+    size_t n = 0;
+    for (n = 0; cnt_frac_sec && n < cnt_frac_sec - 1; n++)
+    {
+      /* Maximum granularity is nanosecond so round to maximum 9 digits */
+      if (n == 9)
+      {
+        if (ddsrt_todigit(buf[20 + n]) >= 5)
+          frac_ns++;
+        break;
+      }
+      frac_ns += ddsrt_todigit(buf[20 + n]) * frac_ns_pow;
+      frac_ns_pow = frac_ns_pow / 10;
+    }
+  }
+
+  /* If the length is 20 the last character must be a Z representing UTC time zone */
+  if (cnt == 19 + cnt_frac_sec || (cnt == 20 + cnt_frac_sec && buf[19 + cnt_frac_sec] == 'Z'))
+  {
+    hour_offset = 0;
+    minute_offset = 0;
+  }
+  else if (cnt == 25 + cnt_frac_sec)
+  {
+    hour_offset = ddsrt_todigit(buf[20 + cnt_frac_sec]) * 10 + ddsrt_todigit(buf[21 + cnt_frac_sec]);
+    minute_offset = ddsrt_todigit(buf[23 + cnt_frac_sec]) * 10 + ddsrt_todigit(buf[24 + cnt_frac_sec]);
+  }
+  else
+    return DDS_TIME_INVALID;
+
+  /* Make a limit check to make sure that all the numbers are within absolute boundaries.
+     Note that leap seconds are not allowed in XML dates and therefore not supported. */
+  if (year < 1970 || year > 2262 || month < 1 || month > 12 || day < 1 || day > 31 ||
+      hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59 ||
+      ((hour_offset < 0 || hour_offset > 11 || minute_offset < 0 || minute_offset > 59) && (hour_offset != 12 || minute_offset != 0)))
+  {
+    return DDS_TIME_INVALID;
+  }
+
+  /*  Boundary check including consideration for month and leap years */
+  if (!(((month == 4 || month == 6 || month == 9 || month == 11) && (day >= 1 && day <= 30)) ||
+      ((month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12) && (day >= 1 && day <= 31)) ||
+      (month == 2 && ((year % 100 != 0 && year % 4 == 0) || (year % 400 == 0)) && (day >= 1 && day <= 29)) ||
+      (month == 2 && (day >= 1 && day <= 28))))
+  {
+    return DDS_TIME_INVALID;
+  }
+
+  /* Convert the year-month-day to total number of days */
+  int32_t total_leap_years = (year - 1970 + 1) / 4;
+  /* Leap year count decreased by the number of xx00 years before current year because these are not leap years,
+     except for 2000. The year 2400 is not in the valid year range so we don't take that into account. */
+  if (year > 2100)
+    total_leap_years -= year / 100 - 20;
+  if (year == 2200)
+    total_leap_years++;
+
+  int32_t total_reg_years = year - 1970 - total_leap_years;
+  int32_t total_num_days = total_leap_years * 366 + total_reg_years * 365;
+  int32_t month_cnt;
+
+  for (month_cnt = 1; month_cnt < month; month_cnt++)
+  {
+    if (month_cnt == 4 || month_cnt == 6 || month_cnt == 9 || month_cnt == 11)
+      total_num_days += 30;
+    else if (month_cnt == 2)
+    {
+      if (year % 400 == 0 || (year % 100 != 0 && year % 4 == 0))
+        total_num_days += 29;
+      else
+        total_num_days += 28;
+    }
+    else
+      total_num_days += 31;
+  }
+  total_num_days += day - 1;
+
+  /* Correct the offset sign if negative */
+  if (buf[19 + cnt_frac_sec] == '-')
+  {
+    hour_offset = -hour_offset;
+    minute_offset = -minute_offset;
+  }
+  /* Convert the total number of days to seconds */
+  int64_t ts_days = (int64_t)total_num_days * 24 * 60 * 60;
+  int64_t ts_hms = hour * 60 * 60 + minute * 60 + second;
+  if (ts_days + ts_hms > INT64_MAX / DDS_NSECS_IN_SEC)
+    return DDS_TIME_INVALID;
+  int64_t ts = DDS_SECS(ts_days + ts_hms);
+
+  /* Apply the hour and minute offset */
+  int64_t ts_offset = DDS_SECS((int64_t)hour_offset * 60 * 60 + minute_offset * 60);
+
+  /* Prevent the offset from making the timestamp negative or overflow it */
+  if ((ts_offset <= 0 || (ts_offset > 0 && ts_offset < ts)) && INT64_MAX - ts - frac_ns >= -ts_offset)
+    return ts - ts_offset + frac_ns;
+
+  return DDS_TIME_INVALID;
+}

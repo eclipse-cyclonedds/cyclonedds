@@ -184,6 +184,19 @@ foreach(feature atomics cdtors environ heap ifaddrs random rusage
       endif()
       set(system_exists FALSE)
 
+      # Headers that must remain private but are required by other runtime
+      # source files must be located in src/<feature>/dds/ddsrt.
+      if(IS_DIRECTORY "${source_path}/${feature}/include")
+        file(GLOB_RECURSE
+               files
+             CONFIGURE_DEPENDS
+               "${source_path}/${feature}/include/*.h")
+        list(APPEND headers ${files})
+        target_include_directories(
+          ddsrt INTERFACE
+            "$<BUILD_INTERFACE:${source_path}/${feature}/include/>")
+      endif()
+
       # Allow custom implementations for a feature. e.g. lwip as opposed to
       # windows or posix.
       set(_system_name "${system_name}")
@@ -192,18 +205,6 @@ foreach(feature atomics cdtors environ heap ifaddrs random rusage
       endif()
 
       foreach(system ${_system_name} posix)
-        # Headers that must remain private but are required by other runtime
-        # source files must be located in src/<feature>/dds/ddsrt.
-        if(IS_DIRECTORY "${source_path}/${feature}/include")
-          file(GLOB_RECURSE
-                 files
-               CONFIGURE_DEPENDS
-                 "${source_path}/${feature}/include/*.h")
-          list(APPEND headers ${files})
-          target_include_directories(
-            ddsrt INTERFACE
-              "$<BUILD_INTERFACE:${source_path}/${feature}/include/>")
-        endif()
         if(IS_DIRECTORY "${source_path}/${feature}/${system}")
           file(GLOB_RECURSE
                  files

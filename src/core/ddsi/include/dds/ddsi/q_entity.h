@@ -12,16 +12,21 @@
 #ifndef Q_ENTITY_H
 #define Q_ENTITY_H
 
+#include "dds/export.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/fibheap.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/q_lat_estim.h"
-#include "dds/ddsi/q_ephash.h"
 #include "dds/ddsi/q_hbcontrol.h"
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/q_inverse_uint32_set.h"
+#include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_handshake.h"
 
 #include "dds/ddsi/ddsi_tran.h"
 
@@ -46,14 +51,34 @@ struct proxy_group;
 struct proxy_endpoint_common;
 typedef void (*ddsi2direct_directread_cb_t) (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, void *arg);
 
+enum entity_kind {
+  EK_PARTICIPANT,
+  EK_PROXY_PARTICIPANT,
+  EK_WRITER,
+  EK_PROXY_WRITER,
+  EK_READER,
+  EK_PROXY_READER
+};
+
+/* Liveliness changed is more complicated than just add/remove. Encode the event
+   in status_cb_data_t::extra and ignore status_cb_data_t::add */
+enum liveliness_changed_data_extra {
+  LIVELINESS_CHANGED_ADD_ALIVE,
+  LIVELINESS_CHANGED_ADD_NOT_ALIVE,
+  LIVELINESS_CHANGED_REMOVE_NOT_ALIVE,
+  LIVELINESS_CHANGED_REMOVE_ALIVE,
+  LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE,
+  LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE,
+  LIVELINESS_CHANGED_TWITCH
+};
+
 typedef struct status_cb_data
 {
   int raw_status_id;
   uint32_t extra;
   uint64_t handle;
   bool add;
-}
-status_cb_data_t;
+} status_cb_data_t;
 
 typedef void (*status_cb_t) (void *entity, const status_cb_data_t *data);
 
@@ -65,6 +90,8 @@ struct prd_wr_match {
 struct rd_pwr_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t pwr_guid;
+  unsigned pwr_alive: 1; /* tracks pwr's alive state */
+  uint32_t pwr_alive_vclock; /* used to ensure progress */
 #ifdef DDSI_INCLUDE_SSM
   nn_locator_t ssm_mc_loc;
   nn_locator_t ssm_src_loc;
@@ -91,6 +118,7 @@ struct wr_prd_match {
   seqno_t min_seq; /* smallest ack'd seq nr in subtree */
   seqno_t max_seq; /* sort-of highest ack'd seq nr in subtree (see augment function) */
   seqno_t seq; /* highest acknowledged seq nr */
+  seqno_t last_seq; /* highest seq send to this reader used when filter is applied */
   int32_t num_reliable_readers_where_seq_equals_max;
   ddsi_guid_t arbitrary_unacked_reader;
   nn_count_t next_acknack; /* next acceptable acknack sequence number */
@@ -118,8 +146,10 @@ struct pwr_rd_match {
   nn_etime_t t_heartbeat_accepted; /* (local) time a heartbeat was last accepted */
   nn_mtime_t t_last_nack; /* (local) time we last sent a NACK */  /* FIXME: probably elapsed time is better */
   seqno_t seq_last_nack; /* last seq for which we requested a retransmit */
+  seqno_t last_seq; /* last known sequence number from this writer */
   struct xevent *acknack_xevent; /* entry in xevent queue for sending acknacks */
   enum pwr_rd_match_syncstate in_sync; /* whether in sync with the proxy writer */
+  unsigned filtered:1;
   union {
     struct {
       seqno_t end_of_tl_seq; /* when seq >= end_of_tl_seq, it's in sync, =0 when not tl */
@@ -142,6 +172,7 @@ struct entity_common {
   ddsrt_mutex_t lock;
   bool onlylocal;
   struct q_globals *gv;
+  ddsrt_avl_node_t all_entities_avlnode;
 
   /* QoS changes always lock the entity itself, and additionally
      (and within the scope of the entity lock) acquire qos_lock
@@ -184,6 +215,13 @@ struct participant
   int32_t user_refc; /* number of non-built-in endpoints in this participant [refc_lock] */
   int32_t builtin_refc; /* number of built-in endpoints in this participant [refc_lock] */
   int builtins_deleted; /* whether deletion of built-in endpoints has been initiated [refc_lock] */
+  ddsrt_fibheap_t ldur_auto_wr; /* Heap that contains lease duration for writers with automatic liveliness in this participant */
+#ifdef DDSI_INCLUDE_SECURITY
+  int64_t local_identity_handle;   /* OMG DDS Security related member */
+  int64_t permissions_handle; /* OMG DDS Security related member */
+  struct participant_sec_attributes *sec_attr;
+  nn_security_info_t security_info;
+#endif
 };
 
 struct endpoint_common {
@@ -205,6 +243,11 @@ enum writer_state {
 
 typedef ddsrt_atomic_uint64_t seq_xmit_t;
 
+struct ldur_fhnode {
+  ddsrt_fibheap_node_t heapnode;
+  dds_duration_t ldur;
+};
+
 struct writer
 {
   struct entity_common e;
@@ -225,6 +268,7 @@ struct writer
   unsigned reliable: 1; /* iff 1, writer is reliable <=> heartbeat_xevent != NULL */
   unsigned handle_as_transient_local: 1; /* controls whether data is retained in WHC */
   unsigned include_keyhash: 1; /* iff 1, this writer includes a keyhash; keyless topics => include_keyhash = 0 */
+  unsigned force_md5_keyhash: 1; /* iff 1, when keyhash has to be hashed, no matter the size */
   unsigned retransmitting: 1; /* iff 1, this writer is currently retransmitting */
 #ifdef DDSI_INCLUDE_SSM
   unsigned supports_ssm: 1;
@@ -234,7 +278,7 @@ struct writer
   struct addrset *as; /* set of addresses to publish to */
   struct addrset *as_group; /* alternate case, used for SPDP, when using Cloud with multiple bootstrap locators */
   struct xevent *heartbeat_xevent; /* timed event for "periodically" publishing heartbeats when unack'd data present, NULL <=> unreliable */
-  dds_duration_t lease_duration;
+  struct ldur_fhnode *lease_duration; /* fibheap node to keep lease duration for this writer, NULL in case of automatic liveliness with inifite duration  */
   struct whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
   nn_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
@@ -300,7 +344,11 @@ struct proxy_participant
   unsigned prismtech_bes; /* prismtech-specific extension of built-in endpoints set */
   ddsi_guid_t privileged_pp_guid; /* if this PP depends on another PP for its SEDP writing */
   struct nn_plist *plist; /* settings/QoS for this participant */
-  ddsrt_atomic_voidp_t lease; /* lease object for this participant, for automatic leases */
+  ddsrt_atomic_voidp_t minl_auto; /* lease object for shortest automatic liveliness pwr's lease (includes this proxypp's lease) */
+  ddsrt_fibheap_t leaseheap_auto; /* keeps leases for this proxypp and leases for pwrs (with liveliness automatic) */
+  ddsrt_atomic_voidp_t minl_man; /* lease object for shortest manual-by-participant liveliness pwr's lease */
+  ddsrt_fibheap_t leaseheap_man; /* keeps leases for this proxypp and leases for pwrs (with liveliness manual-by-participant) */
+  struct lease *lease; /* lease for this proxypp */
   struct addrset *as_default; /* default address set to use for user data traffic */
   struct addrset *as_meta; /* default address set to use for discovery traffic */
   struct proxy_endpoint_common *endpoints; /* all proxy endpoints can be reached from here */
@@ -311,9 +359,15 @@ struct proxy_participant
   unsigned is_ddsi2_pp: 1; /* if this is the federation-leader on the remote node */
   unsigned minimal_bes_mode: 1;
   unsigned lease_expired: 1;
+  unsigned deleting: 1;
   unsigned proxypp_have_spdp: 1;
   unsigned proxypp_have_cm: 1;
   unsigned owns_lease: 1;
+#ifdef DDSI_INCLUDE_SECURITY
+  int64_t remote_identity_handle;   /* OMG DDS Security related member */
+  nn_security_info_t security_info;
+  struct proxy_participant_sec_attributes *sec_attr;
+#endif
 };
 
 /* Representing proxy subscriber & publishers as "groups": until DDSI2
@@ -341,6 +395,14 @@ struct proxy_endpoint_common
   ddsi_guid_t group_guid; /* 0:0:0:0 if not available */
   nn_vendorid_t vendor; /* cached from proxypp->vendor */
   seqno_t seq; /* sequence number of most recent SEDP message */
+#ifdef DDSI_INCLUDE_SECURITY
+  nn_security_info_t security_info;
+#endif
+};
+
+struct generic_proxy_endpoint {
+  struct entity_common e;
+  struct proxy_endpoint_common c;
 };
 
 struct proxy_writer {
@@ -357,9 +419,12 @@ struct proxy_writer {
   unsigned deliver_synchronously: 1; /* iff 1, delivery happens straight from receive thread for non-historical data; else through delivery queue "dqueue" */
   unsigned have_seen_heartbeat: 1; /* iff 1, we have received at least on heartbeat from this proxy writer */
   unsigned local_matching_inprogress: 1; /* iff 1, we are still busy matching local readers; this is so we don't deliver incoming data to some but not all readers initially */
+  unsigned alive: 1; /* iff 1, the proxy writer is alive (lease for this proxy writer is not expired); field may be modified only when holding both pwr->e.lock and pwr->c.proxypp->e.lock */
+  unsigned filtered: 1; /* iff 1, builtin proxy writer uses content filter, which affects heartbeats and gaps. */
 #ifdef DDSI_INCLUDE_SSM
   unsigned supports_ssm: 1; /* iff 1, this proxy writer supports SSM */
 #endif
+  uint32_t alive_vclock; /* virtual clock counting transitions between alive/not-alive */
   struct nn_defrag *defrag; /* defragmenter for this proxy writer; FIXME: perhaps shouldn't be for historical data */
   struct nn_reorder *reorder; /* message reordering for this proxy writer, out-of-sync readers can have their own, see pwr_rd_match */
   struct nn_dqueue *dqueue; /* delivery queue for asynchronous delivery (historical data is always delivered asynchronously) */
@@ -367,7 +432,11 @@ struct proxy_writer {
   struct local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
+  struct lease *lease;
 };
+
+
+typedef int (*filter_fn_t)(struct writer *wr, struct proxy_reader *prd, struct ddsi_serdata *serdata);
 
 struct proxy_reader {
   struct entity_common e;
@@ -378,6 +447,7 @@ struct proxy_reader {
   unsigned favours_ssm: 1; /* iff 1, this proxy reader favours SSM when available */
 #endif
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
+  filter_fn_t filter;
 };
 
 extern const ddsrt_avl_treedef_t wr_readers_treedef;
@@ -537,10 +607,14 @@ dds_return_t delete_participant (struct q_globals *gv, const struct ddsi_guid *p
 void update_participant_plist (struct participant *pp, const struct nn_plist *plist);
 uint64_t get_entity_instance_id (const struct q_globals *gv, const struct ddsi_guid *guid);
 
+/* Gets the interval for PMD messages, which is the minimal lease duration for writers
+   with auto liveliness in this participant, or the participants lease duration if shorter */
+DDS_EXPORT dds_duration_t pp_get_pmd_interval(struct participant *pp);
+
 /* To obtain the builtin writer to be used for publishing SPDP, SEDP,
    PMD stuff for PP and its endpoints, given the entityid.  If PP has
    its own writer, use it; else use the privileged participant. */
-struct writer *get_builtin_writer (const struct participant *pp, unsigned entityid);
+DDS_EXPORT struct writer *get_builtin_writer (const struct participant *pp, unsigned entityid);
 
 /* To create a new DDSI writer or reader belonging to participant with
    GUID "ppguid". May return NULL if participant unknown or
@@ -612,6 +686,7 @@ void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct
 
 void purge_proxy_participants (struct q_globals *gv, const nn_locator_t *loc, bool delete_from_as_disc);
 
+
 /* To create a new proxy writer or reader; the proxy participant is
    determined from the GUID and must exist. */
   int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct nn_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, nn_wctime_t timestamp, seqno_t seq);
@@ -632,8 +707,14 @@ int delete_proxy_reader (struct q_globals *gv, const struct ddsi_guid *guid, nn_
 void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
 void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
 
+void proxy_writer_set_alive_may_unlock (struct proxy_writer *pwr, bool notify);
+int proxy_writer_set_notalive (struct proxy_writer *pwr, bool notify);
+void proxy_writer_set_notalive_guid (struct q_globals *gv, const struct ddsi_guid *pwrguid, bool notify);
+
 int new_proxy_group (const struct ddsi_guid *guid, const char *name, const struct dds_qos *xqos, nn_wctime_t timestamp);
-void delete_proxy_group (struct ephash *guid_hash, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
+
+struct entity_index;
+void delete_proxy_group (struct entity_index *entidx, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
 
 /* Call this to empty all address sets of all writers to stop all outgoing traffic, or to
    rebuild them all (which only makes sense after previously having emptied them all). */
@@ -641,8 +722,12 @@ void rebuild_or_clear_writer_addrsets(struct q_globals *gv, int rebuild);
 
 void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_ok);
 
+void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_reader *prd, nn_mtime_t tnow);
+void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, nn_mtime_t tnow);
+
+
 struct ddsi_writer_info;
-DDS_EXPORT void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_common *e, const struct dds_qos *xqos);
+DDS_EXPORT void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo);
 
 #if defined (__cplusplus)
 }

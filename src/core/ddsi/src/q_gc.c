@@ -21,13 +21,11 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_globals.h" /* for mattr, cattr */
 #include "dds/ddsi/q_receive.h" /* for trigger_receive_threads */
-
-#include "dds/ddsi/q_rtps.h" /* for guid_hash */
 
 struct gcreq_queue {
   struct gcreq *first;
@@ -133,7 +131,7 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
         } else {
           to = delay;
         }
-        ddsrt_cond_waitfor (&q->cond, &q->lock, to);
+        (void) ddsrt_cond_waitfor (&q->cond, &q->lock, to);
       }
       if (q->first)
       {

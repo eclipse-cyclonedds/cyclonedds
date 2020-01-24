@@ -203,8 +203,8 @@ ddsrt_proc_create(
     if (write(exec_fds[1], &exec_err, sizeof(int)) < (ssize_t)sizeof(int)) {
       DDS_ERROR("Could not write proc error pipe.\n");
     }
-    close(exec_fds[1]);
-    close(exec_fds[0]);
+    (void) close(exec_fds[1]);
+    (void) close(exec_fds[0]);
     ddsrt_free(exec_argv);
     _exit(1);
   }
@@ -214,7 +214,7 @@ ddsrt_proc_create(
 
     /* Get execv result. */
     rv = DDS_RETCODE_ERROR;
-    close(exec_fds[1]);
+    (void) close(exec_fds[1]);
     nr = read(exec_fds[0], &exec_err, sizeof(int));
     if (nr == 0) {
       /* Pipe closed by successful execv. */
@@ -228,14 +228,14 @@ ddsrt_proc_create(
         rv = DDS_RETCODE_NOT_ALLOWED;
       }
     }
-    close(exec_fds[0]);
+    (void) close(exec_fds[0]);
 
     if (rv == DDS_RETCODE_OK) {
       /* Remember child pid. */
       *pid = spawn;
     } else {
       /* Remove the failed fork pid from the system list. */
-      waitpid(spawn, NULL, 0);
+      (void) waitpid(spawn, NULL, 0);
     }
   }
 
@@ -244,8 +244,8 @@ ddsrt_proc_create(
 
 fail_fork:
 fail_fctl:
-  close(exec_fds[0]);
-  close(exec_fds[1]);
+  (void) close(exec_fds[0]);
+  (void) close(exec_fds[1]);
 fail_pipe:
   ddsrt_free(exec_argv);
   return rv;

@@ -48,16 +48,14 @@ static int dds_domain_compare (const void *va, const void *vb)
 static const ddsrt_avl_treedef_t dds_domaintree_def = DDSRT_AVL_TREEDEF_INITIALIZER (
   offsetof (dds_domain, m_node), offsetof (dds_domain, m_id), dds_domain_compare, 0);
 
-static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_id, const char *config)
+static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_id, const char *config, bool implicit)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
+  dds_entity_t domh;
   uint32_t len;
-  dds_entity_t domain_handle;
 
-  if ((domain_handle = dds_entity_init (&domain->m_entity, &dds_global.m_entity, DDS_KIND_DOMAIN, NULL, NULL, 0)) < 0)
-    return domain_handle;
+  if ((domh = dds_entity_init (&domain->m_entity, &dds_global.m_entity, DDS_KIND_DOMAIN, implicit, NULL, NULL, 0)) < 0)
+    return domh;
   domain->m_entity.m_domain = domain;
-  domain->m_entity.m_flags |= DDS_ENTITY_IMPLICIT;
   domain->m_entity.m_iid = ddsi_iid_gen ();
 
   domain->gv.tstart = now ();
@@ -90,7 +88,7 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   if (domain->cfgst == NULL)
   {
     DDS_ILOG (DDS_LC_CONFIG, domain_id, "Failed to parse configuration\n");
-    ret = DDS_RETCODE_ERROR;
+    domh = DDS_RETCODE_ERROR;
     goto fail_config;
   }
 
@@ -100,14 +98,14 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   if (rtps_config_prep (&domain->gv, domain->cfgst) != 0)
   {
     DDS_ILOG (DDS_LC_CONFIG, domain->m_id, "Failed to configure RTPS\n");
-    ret = DDS_RETCODE_ERROR;
+    domh = DDS_RETCODE_ERROR;
     goto fail_rtps_config;
   }
 
   if (rtps_init (&domain->gv) < 0)
   {
     DDS_ILOG (DDS_LC_CONFIG, domain->m_id, "Failed to initialize RTPS\n");
-    ret = DDS_RETCODE_ERROR;
+    domh = DDS_RETCODE_ERROR;
     goto fail_rtps_init;
   }
 
@@ -122,14 +120,14 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
       if (dds_global.threadmon == NULL)
       {
         DDS_ILOG (DDS_LC_CONFIG, domain->m_id, "Failed to create a thread liveliness monitor\n");
-        ret = DDS_RETCODE_OUT_OF_RESOURCES;
+        domh = DDS_RETCODE_OUT_OF_RESOURCES;
         goto fail_threadmon_new;
       }
       /* FIXME: thread properties */
       if (ddsi_threadmon_start (dds_global.threadmon, "threadmon") < 0)
       {
         DDS_ILOG (DDS_LC_ERROR, domain->m_id, "Failed to start the thread liveliness monitor\n");
-        ret = DDS_RETCODE_ERROR;
+        domh = DDS_RETCODE_ERROR;
         goto fail_threadmon_start;
       }
     }
@@ -159,16 +157,17 @@ static dds_return_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   if (rtps_start (&domain->gv) < 0)
   {
     DDS_ILOG (DDS_LC_CONFIG, domain->m_id, "Failed to start RTPS\n");
-    ret = DDS_RETCODE_ERROR;
+    domh = DDS_RETCODE_ERROR;
     goto fail_rtps_start;
   }
 
   if (domain->gv.config.liveliness_monitoring)
     ddsi_threadmon_register_domain (dds_global.threadmon, &domain->gv);
   dds_entity_init_complete (&domain->m_entity);
-  return DDS_RETCODE_OK;
+  return domh;
 
 fail_rtps_start:
+  dds__builtin_fini (domain);
   if (domain->gv.config.liveliness_monitoring && dds_global.threadmon_count == 1)
     ddsi_threadmon_stop (dds_global.threadmon);
 fail_threadmon_start:
@@ -184,7 +183,7 @@ fail_rtps_config:
   config_fini (domain->cfgst);
 fail_config:
   dds_handle_delete (&domain->m_entity.m_hdllink);
-  return ret;
+  return domh;
 }
 
 dds_domain *dds_domain_find_locked (dds_domainid_t id)
@@ -192,37 +191,25 @@ dds_domain *dds_domain_find_locked (dds_domainid_t id)
   return ddsrt_avl_lookup (&dds_domaintree_def, &dds_global.m_domains, &id);
 }
 
-dds_return_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t id, bool use_existing, const char *config)
+dds_entity_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t id, bool implicit, const char *config)
 {
   struct dds_domain *dom;
-  dds_return_t ret;
+  dds_entity_t domh = DDS_RETCODE_ERROR;
 
   /* FIXME: should perhaps lock parent object just like everywhere */
   ddsrt_mutex_lock (&dds_global.m_mutex);
  retry:
   if (id != DDS_DOMAIN_DEFAULT)
-  {
-    if ((dom = dds_domain_find_locked (id)) == NULL)
-      ret = DDS_RETCODE_NOT_FOUND;
-    else
-      ret = DDS_RETCODE_OK;
-  }
+    dom = dds_domain_find_locked (id);
   else
-  {
-    if ((dom = ddsrt_avl_find_min (&dds_domaintree_def, &dds_global.m_domains)) != NULL)
-      ret = DDS_RETCODE_OK;
-    else
-      ret = DDS_RETCODE_NOT_FOUND;
-  }
+    dom = ddsrt_avl_find_min (&dds_domaintree_def, &dds_global.m_domains);
 
-  switch (ret)
+  if (dom)
   {
-    case DDS_RETCODE_OK:
-      if (!use_existing)
-      {
-        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-        break;
-      }
+    if (!implicit)
+      domh = DDS_RETCODE_PRECONDITION_NOT_MET;
+    else
+    {
       ddsrt_mutex_lock (&dom->m_entity.m_mutex);
       if (dds_handle_is_closed (&dom->m_entity.m_hdllink))
       {
@@ -230,52 +217,54 @@ dds_return_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t
         ddsrt_cond_wait (&dds_global.m_cond, &dds_global.m_mutex);
         goto retry;
       }
-      else
+      dds_entity_add_ref_locked (&dom->m_entity);
+      dds_handle_repin (&dom->m_entity.m_hdllink);
+      domh = dom->m_entity.m_hdllink.hdl;
+      ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
+      *domain_out = dom;
+    }
+  }
+  else
+  {
+    dom = dds_alloc (sizeof (*dom));
+    if ((domh = dds_domain_init (dom, id, config, implicit)) < 0)
+      dds_free (dom);
+    else
+    {
+      ddsrt_mutex_lock (&dom->m_entity.m_mutex);
+      ddsrt_avl_insert (&dds_domaintree_def, &dds_global.m_domains, dom);
+      dds_entity_register_child (&dds_global.m_entity, &dom->m_entity);
+      if (implicit)
       {
         dds_entity_add_ref_locked (&dom->m_entity);
-        ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
-        *domain_out = dom;
+        dds_handle_repin (&dom->m_entity.m_hdllink);
       }
-      break;
-    case DDS_RETCODE_NOT_FOUND:
-      dom = dds_alloc (sizeof (*dom));
-      if ((ret = dds_domain_init (dom, id, config)) < 0)
-        dds_free (dom);
-      else
-      {
-        ddsrt_mutex_lock (&dom->m_entity.m_mutex);
-        ddsrt_avl_insert (&dds_domaintree_def, &dds_global.m_domains, dom);
-        dds_entity_register_child (&dds_global.m_entity, &dom->m_entity);
-        dds_entity_add_ref_locked (&dom->m_entity);
-        ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
-        *domain_out = dom;
-      }
-      break;
+      domh = dom->m_entity.m_hdllink.hdl;
+      ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
+      *domain_out = dom;
+    }
   }
   ddsrt_mutex_unlock (&dds_global.m_mutex);
-  return ret;
+  return domh;
 }
 
-dds_return_t dds_create_domain(const dds_domainid_t domain, const char *config)
+dds_entity_t dds_create_domain (const dds_domainid_t domain, const char *config)
 {
   dds_domain *dom;
   dds_entity_t ret;
 
-  if (domain == DDS_DOMAIN_DEFAULT || config == NULL)
+  if (domain == DDS_DOMAIN_DEFAULT)
     return DDS_RETCODE_BAD_PARAMETER;
+
+  if (config == NULL)
+    config = "";
 
   /* Make sure DDS instance is initialized. */
   if ((ret = dds_init ()) < 0)
-    goto err_dds_init;
+    return ret;
 
-  if ((ret = dds_domain_create_internal (&dom, domain, false, config)) < 0)
-    goto err_domain_create;
-
-  return DDS_RETCODE_OK;
-
-err_domain_create:
-  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
-err_dds_init:
+  ret = dds_domain_create_internal (&dom, domain, false, config);
+  dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
   return ret;
 }
 
@@ -368,5 +357,5 @@ void dds_write_set_batch (bool enable)
     }
   }
   ddsrt_mutex_unlock (&dds_global.m_mutex);
-  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
+  dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
 }

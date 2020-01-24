@@ -76,7 +76,7 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
   }
 
   dds_qos_t *qos = dds__create_builtin_qos ();
-  tp = dds_create_topic_arbitrary (par->m_entity.m_hdllink.hdl, sertopic, qos, NULL, NULL);
+  tp = dds_create_topic_impl (par->m_entity.m_hdllink.hdl, sertopic, qos, NULL, NULL);
   dds_delete_qos (qos);
   dds_entity_unpin (e);
   return tp;
@@ -131,7 +131,7 @@ bool dds__validate_builtin_reader_qos (const dds_domain *dom, dds_entity_t topic
 static dds_entity_t dds__create_builtin_subscriber (dds_participant *participant)
 {
   dds_qos_t *qos = dds__create_builtin_qos ();
-  dds_entity_t sub = dds__create_subscriber_l (participant, qos, NULL);
+  dds_entity_t sub = dds__create_subscriber_l (participant, false, qos, NULL);
   dds_delete_qos (qos);
   return sub;
 }
@@ -257,10 +257,12 @@ void dds__builtin_init (struct dds_domain *dom)
   dom->builtin_reader_topic = new_sertopic_builtintopic (DSBT_READER, "DCPSSubscription", "org::eclipse::cyclonedds::builtin::DCPSSubscription", &dom->gv);
   dom->builtin_writer_topic = new_sertopic_builtintopic (DSBT_WRITER, "DCPSPublication", "org::eclipse::cyclonedds::builtin::DCPSPublication", &dom->gv);
 
-  const struct ephash *gh = dom->gv.guid_hash;
+  thread_state_awake (lookup_thread_state (), &dom->gv);
+  const struct entity_index *gh = dom->gv.entity_index;
   dom->builtintopic_writer_participant = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER), dom->builtin_participant_topic, qos, builtintopic_whc_new (DSBT_PARTICIPANT, gh));
   dom->builtintopic_writer_publications = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER), dom->builtin_writer_topic, qos, builtintopic_whc_new (DSBT_WRITER, gh));
   dom->builtintopic_writer_subscriptions = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER), dom->builtin_reader_topic, qos, builtintopic_whc_new (DSBT_READER, gh));
+  thread_state_asleep (lookup_thread_state ());
 
   dds_delete_qos (qos);
 }

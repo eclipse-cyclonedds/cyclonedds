@@ -16,7 +16,7 @@
 #include "dds__guardcond.h"
 #include "dds__participant.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_ephash.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 
@@ -57,18 +57,18 @@ dds_entity_t dds_create_guardcondition (dds_entity_t owner)
   }
 
   dds_guardcond *gcond = dds_alloc (sizeof (*gcond));
-  dds_entity_t hdl = dds_entity_init (&gcond->m_entity, e, DDS_KIND_COND_GUARD, NULL, NULL, 0);
+  dds_entity_t hdl = dds_entity_init (&gcond->m_entity, e, DDS_KIND_COND_GUARD, false, NULL, NULL, 0);
   gcond->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (e, &gcond->m_entity);
   dds_entity_init_complete (&gcond->m_entity);
   dds_entity_unlock (e);
-  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
+  dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
   return hdl;
 
  err_entity_kind:
   dds_entity_unlock (e);
  err_entity_lock:
-  dds_delete_impl_pinned (&dds_global.m_entity, DIS_EXPLICIT);
+  dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
   return rc;
 }
 

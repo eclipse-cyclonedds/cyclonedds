@@ -18,6 +18,7 @@ extern "C" {
 
 struct writer;
 struct whc_state;
+struct proxy_reader;
 
 struct hbcontrol {
   nn_mtime_t t_of_last_write;
@@ -35,6 +36,11 @@ int writer_hbcontrol_ack_required (const struct writer *wr, const struct whc_sta
 struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, uint32_t packetid, int *hbansreq);
 int writer_hbcontrol_must_send (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow);
 struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, int hbansreq, int issync);
+
+#ifdef DDSI_INCLUDE_SECURITY
+struct nn_xmsg *writer_hbcontrol_p2p(struct writer *wr, const struct whc_state *whcst, int hbansreq, struct proxy_reader *prd);
+#endif
+
 
 #if defined (__cplusplus)
 }

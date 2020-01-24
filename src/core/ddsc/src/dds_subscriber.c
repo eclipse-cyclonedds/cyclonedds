@@ -45,7 +45,7 @@ const struct dds_entity_deriver dds_entity_deriver_subscriber = {
   .validate_status = dds_subscriber_status_validate
 };
 
-dds_entity_t dds__create_subscriber_l (dds_participant *participant, const dds_qos_t *qos, const dds_listener_t *listener)
+dds_entity_t dds__create_subscriber_l (dds_participant *participant, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   /* participant entity lock must be held */
   dds_subscriber *sub;
@@ -64,7 +64,7 @@ dds_entity_t dds__create_subscriber_l (dds_participant *participant, const dds_q
   }
 
   sub = dds_alloc (sizeof (*sub));
-  subscriber = dds_entity_init (&sub->m_entity, &participant->m_entity, DDS_KIND_SUBSCRIBER, new_qos, listener, DDS_SUBSCRIBER_STATUS_MASK);
+  subscriber = dds_entity_init (&sub->m_entity, &participant->m_entity, DDS_KIND_SUBSCRIBER, implicit, new_qos, listener, DDS_SUBSCRIBER_STATUS_MASK);
   sub->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (&participant->m_entity, &sub->m_entity);
   dds_entity_init_complete (&sub->m_entity);
@@ -78,7 +78,7 @@ dds_entity_t dds_create_subscriber (dds_entity_t participant, const dds_qos_t *q
   dds_return_t ret;
   if ((ret = dds_participant_lock (participant, &par)) != DDS_RETCODE_OK)
     return ret;
-  hdl = dds__create_subscriber_l (par, qos, listener);
+  hdl = dds__create_subscriber_l (par, false, qos, listener);
   dds_participant_unlock (par);
   return hdl;
 }

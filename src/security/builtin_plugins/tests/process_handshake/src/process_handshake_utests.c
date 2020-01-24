@@ -11,9 +11,9 @@
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/dds_security_api.h"
+#include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsrt/endian.h"
 #include <stdio.h>
 #include <string.h>
 #include "dds/ddsrt/environ.h"
@@ -33,19 +33,6 @@
 #include "dds/security/core/dds_security_utils.h"
 
 #define HANDSHAKE_SIGNATURE_SIZE 6
-
-#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-static  unsigned bswap4u (unsigned x)
-{
-  return (x >> 24) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | (x << 24);
-}
-#define toBE4u(x) bswap4u (x)
-#define fromBE4u(x) bswap4u (x)
-#else
-#define toBE4u(x) (x)
-#define fromBE4u(x) (x)
-#endif
-
 
 static const char * AUTH_PROTOCOL_CLASS_ID          = "DDS:Auth:PKI-DH:1.0";
 static const char * PERM_ACCESS_CLASS_ID            = "DDS:Access:Permissions:1.0";
@@ -574,9 +561,9 @@ validate_local_identity(const char* trusted_ca_dir)
     local_participant_data = DDS_Security_ParticipantBuiltinTopicData_alloc();
     memcpy(&local_participant_data->key[0], &local_participant_guid, 12);
     /* convert from big-endian format to native format */
-    local_participant_data->key[0] = fromBE4u(local_participant_data->key[0]);
-    local_participant_data->key[1] = fromBE4u(local_participant_data->key[1]);
-    local_participant_data->key[2] = fromBE4u(local_participant_data->key[2]);
+    local_participant_data->key[0] = ddsrt_fromBE4u(local_participant_data->key[0]);
+    local_participant_data->key[1] = ddsrt_fromBE4u(local_participant_data->key[1]);
+    local_participant_data->key[2] = ddsrt_fromBE4u(local_participant_data->key[2]);
 
     initialize_identity_token(&local_participant_data->identity_token, RSA_2048_ALGORITHM_NAME, RSA_2048_ALGORITHM_NAME);
     initialize_permissions_token(&local_participant_data->permissions_token, RSA_2048_ALGORITHM_NAME);
@@ -947,9 +934,9 @@ validate_remote_identities (const char *remote_id_certificate)
 
     remote_participant_data1 = DDS_Security_ParticipantBuiltinTopicData_alloc();
     memcpy(&remote_participant_data1->key[0], &remote_participant_guid1, 12);
-    remote_participant_data1->key[0] = fromBE4u(remote_participant_data1->key[0]);
-    remote_participant_data1->key[1] = fromBE4u(remote_participant_data1->key[1]);
-    remote_participant_data1->key[2] = fromBE4u(remote_participant_data1->key[2]);
+    remote_participant_data1->key[0] = ddsrt_fromBE4u(remote_participant_data1->key[0]);
+    remote_participant_data1->key[1] = ddsrt_fromBE4u(remote_participant_data1->key[1]);
+    remote_participant_data1->key[2] = ddsrt_fromBE4u(remote_participant_data1->key[2]);
 
     initialize_identity_token(&remote_participant_data1->identity_token, RSA_2048_ALGORITHM_NAME, RSA_2048_ALGORITHM_NAME);
     initialize_permissions_token(&remote_participant_data1->permissions_token, RSA_2048_ALGORITHM_NAME);
@@ -959,9 +946,9 @@ validate_remote_identities (const char *remote_id_certificate)
 
     remote_participant_data2 = DDS_Security_ParticipantBuiltinTopicData_alloc();
     memcpy(&remote_participant_data2->key[0], &remote_participant_guid2, 12);
-    remote_participant_data2->key[0] = fromBE4u(remote_participant_data2->key[0]);
-    remote_participant_data2->key[1] = fromBE4u(remote_participant_data2->key[1]);
-    remote_participant_data2->key[2] = fromBE4u(remote_participant_data2->key[2]);
+    remote_participant_data2->key[0] = ddsrt_fromBE4u(remote_participant_data2->key[0]);
+    remote_participant_data2->key[1] = ddsrt_fromBE4u(remote_participant_data2->key[1]);
+    remote_participant_data2->key[2] = ddsrt_fromBE4u(remote_participant_data2->key[2]);
 
     initialize_identity_token(&remote_participant_data2->identity_token, RSA_2048_ALGORITHM_NAME, RSA_2048_ALGORITHM_NAME);
     initialize_permissions_token(&remote_participant_data2->permissions_token, RSA_2048_ALGORITHM_NAME);
@@ -1095,7 +1082,7 @@ serializer_participant_data(
     DDS_Security_Serializer serializer;
     serializer = DDS_Security_Serializer_new(1024, 1024);
 
-    DDD_Security_Serialize_ParticipantBuiltinTopicData(serializer, pdata);
+    DDS_Security_Serialize_ParticipantBuiltinTopicData(serializer, pdata);
     DDS_Security_Serializer_buffer(serializer, buffer, size);
     DDS_Security_Serializer_free(serializer);
 }

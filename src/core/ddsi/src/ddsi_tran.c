@@ -23,8 +23,9 @@
 
 extern inline uint32_t ddsi_conn_type (ddsi_tran_conn_t conn);
 extern inline uint32_t ddsi_conn_port (ddsi_tran_conn_t conn);
-extern inline ddsi_tran_listener_t ddsi_factory_create_listener (ddsi_tran_factory_t factory, int port, ddsi_tran_qos_t qos);
+extern inline ddsi_tran_listener_t ddsi_factory_create_listener (ddsi_tran_factory_t factory, uint32_t port, ddsi_tran_qos_t qos);
 extern inline bool ddsi_factory_supports (const struct ddsi_tran_factory *factory, int32_t kind);
+extern inline int ddsi_is_valid_port (ddsi_tran_factory_t factory, uint32_t port);
 extern inline ddsrt_socket_t ddsi_conn_handle (ddsi_tran_conn_t conn);
 extern inline int ddsi_conn_locator (ddsi_tran_conn_t conn, nn_locator_t * loc);
 extern inline ddsrt_socket_t ddsi_tran_handle (ddsi_tran_base_t base);
@@ -285,7 +286,7 @@ char *ddsi_locator_to_string (const struct q_globals *gv, char *dst, size_t size
     if (0 < pos && (size_t)pos < sizeof_dst)
       (void) tran->m_locator_to_string_fn (tran, dst + (size_t)pos, sizeof_dst - (size_t)pos, loc, 1);
   } else {
-    snprintf (dst, sizeof_dst, "invalid/0:0");
+    (void) snprintf (dst, sizeof_dst, "invalid/0:0");
   }
   return dst;
 }
@@ -298,7 +299,7 @@ char *ddsi_locator_to_string_no_port (const struct q_globals *gv, char *dst, siz
     if (0 < pos && (size_t)pos < sizeof_dst)
       (void) tran->m_locator_to_string_fn (tran, dst + (size_t)pos, sizeof_dst - (size_t)pos, loc, 0);
   } else {
-    snprintf (dst, sizeof_dst, "invalid/0");
+    (void) snprintf (dst, sizeof_dst, "invalid/0");
   }
   return dst;
 }

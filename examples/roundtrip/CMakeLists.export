@@ -11,11 +11,9 @@
 #
 cmake_minimum_required(VERSION 3.5)
 
-if (NOT TARGET CycloneDDS::ddsc)
-    # Find the CycloneDDS package. If it is not in a default location, try
-    # finding it relative to the example where it most likely resides.
-    find_package(CycloneDDS REQUIRED PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../../")
-endif()
+# Find the CycloneDDS package. If it is not in a default location, try
+# finding it relative to the example where it most likely resides.
+find_package(CycloneDDS REQUIRED COMPONENTS idlc PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../../../..")
 
 # This is a convenience function, provided by the CycloneDDS package,
 # that will supply a library target related the the given idl file.
