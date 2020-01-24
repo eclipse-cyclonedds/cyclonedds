@@ -220,7 +220,7 @@ static const char *unrelated_identity =
         "B7DMeaVlLClGQaKZZ7aexEx9se+IyLn2\n"
         "-----END CERTIFICATE-----\n";
 
-#ifdef TRUSTED_CA_DIR_IMPLEMENTED
+
 static const char *remote_identity_trusted =
                 "-----BEGIN CERTIFICATE-----\n"
                 "MIIDcDCCAligAwIBAgIBBTANBgkqhkiG9w0BAQsFADByMQswCQYDVQQGEwJOTDEL\n"
@@ -297,7 +297,6 @@ static const char *remote_identity_trusted_expired =
                 "O3gAjPUL0jzRztp5Yj3dYPV8YyJHLEKr75IXNedV9YKhT4f6kTS3UEjMTqYbYsix\n"
                 "MtqgY283RjsExzjNvw==\n"
                 "-----END CERTIFICATE-----\n";
-#endif
 
 static struct plugins_hdl *plugins = NULL;
 static dds_security_authentication *auth = NULL;
@@ -1968,10 +1967,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,return_handle,  .init = in
 
 }
 
-/*TODO: test is waiting for Trusted CA parsing function */
-
-#if(0)
-CU _ Test(validate_begin_handshake_reply,extended_certificate_check )
+CU_Test(validate_begin_handshake_reply,extended_certificate_check,  .init = init_testcase, .fini = fini_testcase )
 {
     DDS_Security_ValidationResult_t result;
     DDS_Security_HandshakeHandle handshake_handle;
@@ -2107,4 +2103,3 @@ CU _ Test(validate_begin_handshake_reply,extended_certificate_check )
     handshake_message_deinit(&handshake_token_out);
     reset_exception(&exception);
 }
-#endif

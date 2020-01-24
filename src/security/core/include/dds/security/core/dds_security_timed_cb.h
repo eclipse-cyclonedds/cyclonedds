@@ -25,7 +25,11 @@ extern "C" {
  */
 struct dds_security_timed_dispatcher_t;
 
-struct dds_security_timed_cb_data_t;
+/**
+ * The timed callback structure holds a list of dispatchers and manages
+ * the thread that calls the dispatchers callbacks.
+ */
+struct dds_security_timed_cb_data;
 
 /**
  * The callback is triggered by two causes:

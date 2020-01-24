@@ -2017,10 +2017,8 @@ CU_Test(ddssec_builtin_validate_local_identity,no_file)
 
 }
 
-/* TODO: Should be enabled after implementing trusted ca dir parsing*/
-#if(0)
-CU _ Test(validate_local_identity,with_extended_certificate_check)
-{
+CU_Test(ddssec_builtin_validate_local_identity,with_extended_certificate_check)
+{ 
     DDS_Security_ValidationResult_t result;
     DDS_Security_IdentityHandle local_identity_handle = DDS_SECURITY_HANDLE_NIL;
     DDS_Security_GUID_t adjusted_participant_guid;
@@ -2042,7 +2040,7 @@ CU _ Test(validate_local_identity,with_extended_certificate_check)
 
     fill_participant_qos(&participant_qos, false, identity_certificate,
                                            false, identity_ca,
-                                           false, private_key,
+                                           false, private_key_pem,
                                            NULL,
                                            "trusted_ca_dir");
     /* Now call the function. */
@@ -2106,4 +2104,3 @@ CU _ Test(validate_local_identity,with_extended_certificate_check)
 
 
 }
-#endif

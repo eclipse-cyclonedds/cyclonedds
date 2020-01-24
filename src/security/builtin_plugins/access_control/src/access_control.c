@@ -26,6 +26,7 @@
 #include "access_control_utils.h"
 #include "access_control_objects.h"
 #include "access_control_parser.h"
+#include "dds/security/core/dds_security_timed_cb.h"
 
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10100000L
 #define REMOVE_THREAD_STATE() ERR_remove_thread_state(NULL);
@@ -78,9 +79,10 @@ typedef struct dds_security_access_control_impl
   struct AccessControlTable *local_permissions;
 #endif
   struct AccessControlTable *remote_permissions;
-#if TIMED_CALLBACK_IMPLEMENTED
-  struct ut_timed_dispatcher_t *timed_callbacks;
-#endif
+
+  struct dds_security_timed_cb_data *timed_callbacks;
+  struct dds_security_timed_dispatcher_t *dispatcher;
+
 } dds_security_access_control_impl;
 
 static bool get_sec_attributes(dds_security_access_control_impl *ac, const DDS_Security_PermissionsHandle permissions_handle, const char *topic_name,
@@ -105,9 +107,7 @@ static struct topic_rule *find_topic_from_domain_rule(struct domain_rule *domain
 static DDS_Security_boolean domainid_within_sets(struct domain_id_set *domain, int domain_id);
 static DDS_Security_boolean compare_class_id_plugin_classname(DDS_Security_string class_id_1, DDS_Security_string class_id_2);
 static DDS_Security_boolean compare_class_id_major_ver(DDS_Security_string class_id_1, DDS_Security_string class_id_2);
-#if TIMED_CALLBACK_IMPLEMENTED
-  static void add_validity_end_trigger(dds_security_access_control_impl *ac, const DDS_Security_PermissionsHandle permissions_handle, dds_time_t end);
-#endif
+static void add_validity_end_trigger(dds_security_access_control_impl *ac, const DDS_Security_PermissionsHandle permissions_handle, dds_time_t end);
 static DDS_Security_boolean is_allowed_by_permissions(struct permissions_parser *permissions, int domain_id, const char *topic_name, const DDS_Security_PartitionQosPolicy *partitions,
     const char *identity_subject_name, permission_criteria_type criteria_type, DDS_Security_SecurityException *ex);
 static void sanity_check_local_access_rights(local_participant_access_rights *rights);
@@ -168,10 +168,8 @@ validate_local_permissions(
   {
     assert (rights->permissions_expiry != DDS_TIME_INVALID);
 
-#if TIMED_CALLBACK_IMPLEMENTED
     if (rights->permissions_expiry != 0)
       add_validity_end_trigger(ac, permissions_handle, rights->permissions_expiry);
-#endif
   }
 
   return permissions_handle;
@@ -232,10 +230,8 @@ validate_remote_permissions(
 
   permissions_handle = ACCESS_CONTROL_OBJECT_HANDLE(remote_rights);
 
-#if TIMED_CALLBACK_IMPLEMENTED
   if (permissions_handle != DDS_SECURITY_HANDLE_NIL)
     add_validity_end_trigger(ac, permissions_handle, remote_rights->permissions_expiry);
-#endif
 
   if (remote_rights)
     access_control_table_insert(ac->remote_permissions, (AccessControlObject *)remote_rights);
@@ -926,16 +922,12 @@ set_listener(dds_security_access_control *instance,
              DDS_Security_SecurityException *ex)
 {
   DDSRT_UNUSED_ARG(ex);
-#if TIMED_CALLBACK_IMPLEMENTED
+
   dds_security_access_control_impl *ac = (dds_security_access_control_impl *)instance;
   if (listener)
-    ut_timed_dispatcher_enable(ac->timed_callbacks, (void *)listener);
+    dds_security_timed_dispatcher_enable(ac->timed_callbacks, ac->dispatcher, (void *)listener);
   else
-    ut_timed_dispatcher_disable(ac->timed_callbacks);
-#else
-  DDSRT_UNUSED_ARG(instance);
-  DDSRT_UNUSED_ARG(listener);
-#endif
+    dds_security_timed_dispatcher_disable(ac->timed_callbacks, ac->dispatcher);
 
   return true;
 }
@@ -1490,9 +1482,9 @@ int init_access_control(const char *argument, void **context)
   dds_security_access_control_impl *access_control = ddsrt_malloc(sizeof(*access_control));
   memset(access_control, 0, sizeof(*access_control));
 
-#if TIMED_CALLBACK_IMPLEMENTED
-  access_control->timed_callbacks = ut_timed_dispatcher_new();
-#endif
+
+  access_control->timed_callbacks = dds_security_timed_cb_new();
+  access_control->dispatcher = dds_security_timed_dispatcher_new(access_control->timed_callbacks);
   access_control->base.validate_local_permissions = &validate_local_permissions;
   access_control->base.validate_remote_permissions = &validate_remote_permissions;
   access_control->base.check_create_participant = &check_create_participant;
@@ -1875,7 +1867,6 @@ find_remote_permissions_by_permissions_handle(
   return (remote_participant_access_rights *)args.object;
 }
 
-#if TIMED_CALLBACK_IMPLEMENTED
 
 typedef struct
 {
@@ -1884,15 +1875,17 @@ typedef struct
 } validity_cb_info;
 
 static void
-validity_callback(struct ut_timed_dispatcher_t *d,
-                  ut_timed_cb_kind kind,
+validity_callback(struct dds_security_timed_dispatcher_t *d,
+                  dds_security_timed_cb_kind kind,
                   void *listener,
                   void *arg)
 {
   validity_cb_info *info = arg;
+
+  DDSRT_UNUSED_ARG(d);
   assert(d);
   assert(arg);
-  if (kind == UT_TIMED_CB_KIND_TIMEOUT)
+  if (kind == DDS_SECURITY_TIMED_CB_KIND_TIMEOUT)
   {
     assert(listener);
     if (1 /* TODO: Check if hdl is still valid or if it has been already returned. */)
@@ -1913,9 +1906,8 @@ add_validity_end_trigger(dds_security_access_control_impl *ac,
   validity_cb_info *arg = ddsrt_malloc(sizeof(validity_cb_info));
   arg->ac = ac;
   arg->hdl = permissions_handle;
-  ut_timed_dispatcher_add(ac->timed_callbacks, validity_callback, end, (void *)arg);
+  dds_security_timed_dispatcher_add(ac->timed_callbacks, ac->dispatcher, validity_callback, end, (void *)arg);
 }
-#endif
 
 static DDS_Security_boolean
 is_allowed_by_permissions(struct permissions_parser *permissions,
@@ -2465,9 +2457,10 @@ int finalize_access_control(void *context)
   dds_security_access_control_impl *access_control = context;
   if (access_control)
   {
-#if TIMED_CALLBACK_IMPLEMENTED
-    ut_timed_dispatcher_free(access_control->timed_callbacks);
-#endif
+
+    dds_security_timed_dispatcher_free(access_control->timed_callbacks, access_control->dispatcher);
+    dds_security_timed_cb_free(access_control->timed_callbacks);
+
     access_control_table_free(access_control->remote_permissions);
 #ifdef ACCESS_CONTROL_USE_ONE_PERMISSION
     if (access_control->local_access_rights)

@@ -13,5 +13,6 @@
 #define CONFIG_ENV_H
 
 #define CONFIG_ENV_TESTS_DIR           "@CUnit_builtin_plugins_tests_dir@"
+#define CONFIG_ENV_BUILD_DIR           "@CUnit_build_dir@"
 
 #endif /* CONFIG_ENV_H */
