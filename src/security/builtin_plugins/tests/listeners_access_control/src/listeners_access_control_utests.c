@@ -215,6 +215,7 @@ static DDS_Security_PermissionsHandle local_permissions_handle = DDS_SECURITY_HA
 static DDS_Security_PermissionsHandle remote_permissions_handle = DDS_SECURITY_HANDLE_NIL;
 static DDS_Security_GUID_t local_participant_guid;
 static char *g_path_to_etc_dir = NULL;
+static char *g_path_build_dir = NULL;
 static DDS_Security_PermissionsHandle permission_handle_for_callback1 = DDS_SECURITY_HANDLE_NIL;
 static DDS_Security_PermissionsHandle permission_handle_for_callback2 = DDS_SECURITY_HANDLE_NIL;
 static dds_time_t local_expiry_date;
@@ -251,14 +252,16 @@ static void reset_exception(DDS_Security_SecurityException *ex)
 static void get_future_xsdate(char *str, size_t len, int32_t delta)
 {
   time_t rawtime;
-  struct tm *future;
+  struct tm *future = ddsrt_malloc(sizeof(struct tm));
 
   /* Get future time. */
   rawtime = time(NULL) + delta;
-  future = gmtime(&rawtime);
+  OPENSSL_gmtime(&rawtime, future);
 
   /* Put the future time in a xsDate format. */
   strftime(str, len, "%Y-%m-%dT%H:%M:%S", future);
+
+  ddsrt_free(future);
 }
 
 static int smime_sign(const char *certificate_file, const char *key_file, const char *data, const char *out_file)
@@ -345,7 +348,7 @@ static void fill_participant_qos(DDS_Security_Qos *qos, int32_t permission_expir
 
   ddsrt_asprintf(&permissions_ca_cert_file, "%s%s", g_path_to_etc_dir, PERMISSIONS_CA_CERT_FILE);
   ddsrt_asprintf(&permissions_ca_key_file, "%s%s", g_path_to_etc_dir, PERMISSIONS_CA_KEY_FILE);
-  ddsrt_asprintf(&permissions_file, "%s%s", g_path_to_etc_dir, PERMISSIONS_FILE);
+  ddsrt_asprintf(&permissions_file, "%s%s", g_path_build_dir, PERMISSIONS_FILE);
 
   smime_sign(permissions_ca_cert_file, permissions_ca_key_file, permissions_xml_with_expiry, permissions_file);
 
@@ -407,9 +410,9 @@ static int fill_peer_credential_token(DDS_Security_AuthenticatedPeerCredentialTo
   remote_expiry_date = DDS_Security_parse_xml_date(permission_expiry_date_str);
   permissions_xml_with_expiry = ddsrt_str_replace(PERMISSIONS_DOCUMENT, "PERMISSION_EXPIRY_DATE", permission_expiry_date_str, 1);
 
-  ddsrt_asprintf(permissions_ca_cert_file, "%s%s", g_path_to_etc_dir, PERMISSIONS_CA_CERT_FILE);
-  ddsrt_asprintf(permissions_ca_key_file, "%s%s", g_path_to_etc_dir, PERMISSIONS_CA_KEY_FILE);
-  ddsrt_asprintf(permissions_file, "%s%s", g_path_to_etc_dir, PERMISSIONS_FILE);
+  ddsrt_asprintf(&permissions_ca_cert_file, "%s%s", g_path_to_etc_dir, PERMISSIONS_CA_CERT_FILE);
+  ddsrt_asprintf(&permissions_ca_key_file, "%s%s", g_path_to_etc_dir, PERMISSIONS_CA_KEY_FILE);
+  ddsrt_asprintf(&permissions_file, "%s%s", g_path_build_dir, PERMISSIONS_FILE);
 
   smime_sign(permissions_ca_cert_file, permissions_ca_key_file, permissions_xml_with_expiry, permissions_file);
 
@@ -531,17 +534,29 @@ static void set_path_to_etc_dir(void)
 {
   ddsrt_asprintf(&g_path_to_etc_dir, "%s%s", CONFIG_ENV_TESTS_DIR, RELATIVE_PATH_TO_ETC_DIR);
 }
-
-static void suite_listeners_access_control_init(void)
+static void set_path_build_dir(void)
 {
-  plugins = load_plugins(&access_control, &auth, NULL /* Cryptograpy */);
-  CU_ASSERT_FATAL(plugins != NULL);
-  set_path_to_etc_dir();
-  OpenSSL_add_all_algorithms();
-  ERR_load_crypto_strings();
+  ddsrt_asprintf(&g_path_build_dir, "%s/", CONFIG_ENV_BUILD_DIR);
 }
 
-static void suite_listeners_access_control_fini(void)
+CU_Init(ddssec_builtin_listeners_access_control)
+{
+  int res = 0;
+
+  plugins = load_plugins(&access_control, &auth, NULL /* Cryptograpy */);
+  if (!plugins) {
+    res = -1;
+  } else {
+    set_path_to_etc_dir();
+    set_path_build_dir();
+    OpenSSL_add_all_algorithms();
+    ERR_load_crypto_strings();
+  }
+
+  return res;
+}
+
+CU_Clean(ddssec_builtin_listeners_access_control)
 {
   unload_plugins(plugins);
   ddsrt_free(g_path_to_etc_dir);
@@ -549,6 +564,8 @@ static void suite_listeners_access_control_fini(void)
   CRYPTO_cleanup_all_ex_data();
   REMOVE_THREAD_STATE();
   ERR_free_strings();
+
+  return 0;
 }
 
 static DDS_Security_boolean on_revoke_permissions_cb(dds_security_access_control_listener *instance, const dds_security_access_control *plugin, const DDS_Security_PermissionsHandle handle)
@@ -559,11 +576,11 @@ static DDS_Security_boolean on_revoke_permissions_cb(dds_security_access_control
     permission_handle_for_callback1 = handle;
   else if (permission_handle_for_callback2 == DDS_SECURITY_HANDLE_NIL)
     permission_handle_for_callback2 = handle;
-  printf("Listener called for handle: %lld  Local:%ld Remote:%ld\n", (long long)handle, local_permissions_handle, remote_permissions_handle);
+  printf("Listener called for handle: %lld  Local:%lld Remote:%lld\n", (long long)handle, (long long)local_permissions_handle, (long long)remote_permissions_handle);
   return true;
 }
 
-CU_Test(ddssec_builtin_listeners_access_control, local_2secs, .init = suite_listeners_access_control_init, .fini = suite_listeners_access_control_fini)
+CU_Test(ddssec_builtin_listeners_access_control, local_2secs)
 {
   DDS_Security_PermissionsHandle result;
   DDS_Security_PermissionsToken permissions_token;

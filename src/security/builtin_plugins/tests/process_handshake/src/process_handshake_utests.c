@@ -523,7 +523,7 @@ validate_local_identity(const char* trusted_ca_dir)
         char trusted_ca_dir_path[1024];
         dds_security_property_init(&participant_qos.property.value, 4);
 #ifdef WIN32
-    snprintf(trusted_ca_dir_path, 1024, "%s\\testsuite\\dbt\\security_plugin\\tests\\validate_begin_handshake_reply\\etc\\%s", CONFIG_ENV_TESTS_DIR,trusted_ca_dir);
+    snprintf(trusted_ca_dir_path, 1024, "%s\\validate_begin_handshake_reply\\etc\\%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
 #else
     snprintf(trusted_ca_dir_path, 1024, "%s/validate_begin_handshake_reply/etc/%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
 #endif

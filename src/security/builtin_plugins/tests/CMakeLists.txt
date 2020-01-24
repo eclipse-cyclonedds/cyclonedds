@@ -21,6 +21,8 @@ set(security_auth_test_sources
     "validate_begin_handshake_request/src/validate_begin_handshake_request_utests.c"
     "validate_local_identity/src/validate_local_identity_utests.c"
     "validate_remote_identity/src/validate_remote_identity_utests.c"
+    "listeners_authentication/src/listeners_authentication_utests.c"
+    "listeners_access_control/src/listeners_access_control_utests.c"
 )
 
 set(security_ac_test_sources
@@ -74,6 +76,7 @@ if(OPENSSL_FOUND)
 target_link_libraries(cunit_security_plugins PRIVATE ddsc dds_security_ac)
 target_link_libraries(cunit_security_plugins PRIVATE ddsc dds_security_crypto)
   target_link_libraries(cunit_security_plugins PRIVATE OpenSSL::SSL)
+
 else()
   message(FATAL_ERROR "To build with openssl support, set ENABLE_OPENSSL to ON")
 endif()
@@ -92,5 +95,8 @@ target_include_directories(
 
 
 set(CUnit_builtin_plugins_tests_dir "${CMAKE_CURRENT_LIST_DIR}")
+set(CUnit_build_dir "${CMAKE_CURRENT_BINARY_DIR}")
 
 configure_file("config_env.h.in" "config_env.h")
+
+
