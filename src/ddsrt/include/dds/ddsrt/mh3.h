@@ -9,20 +9,26 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_PPANT_H_
-#define _DDS_PPANT_H_
+#ifndef DDSRT_MH3_H
+#define DDSRT_MH3_H
 
-#include "dds__entity.h"
+#include <stdint.h>
+#include <stddef.h>
 
-#if defined (__cplusplus)
+#include "dds/export.h"
+
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
-DEFINE_ENTITY_LOCK_UNLOCK(inline, dds_participant, DDS_KIND_PARTICIPANT)
+DDS_EXPORT uint32_t
+ddsrt_mh3(
+  const void *key,
+  size_t len,
+  uint32_t seed);
 
-extern const ddsrt_avl_treedef_t participant_ktopics_treedef;
-
-#if defined (__cplusplus)
+#if defined(__cplusplus)
 }
 #endif
-#endif
+
+#endif /* DDSRT_MH3_H */

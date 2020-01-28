@@ -13,6 +13,7 @@
 
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/hopscotch.h"
 #include "dds__init.h"
 #include "dds/ddsc/dds_rhc.h"
 #include "dds__domain.h"
@@ -59,7 +60,6 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   domain->m_entity.m_iid = ddsi_iid_gen ();
 
   domain->gv.tstart = now ();
-  ddsrt_avl_init (&dds_topictree_def, &domain->m_topics);
 
   /* | domain_id | domain id in config | result
      +-----------+---------------------+----------

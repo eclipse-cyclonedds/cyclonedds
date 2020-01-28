@@ -15,12 +15,32 @@
 #include <string.h>
 
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
+
+static bool sertopic_default_equal (const struct ddsi_sertopic *acmn, const struct ddsi_sertopic *bcmn)
+{
+  const struct ddsi_sertopic_default *a = (struct ddsi_sertopic_default *) acmn;
+  const struct ddsi_sertopic_default *b = (struct ddsi_sertopic_default *) bcmn;
+  return a->type == b->type;
+}
+
+static uint32_t sertopic_default_hash (const struct ddsi_sertopic *tpcmn)
+{
+  const struct ddsi_sertopic_default *tp = (struct ddsi_sertopic_default *) tpcmn;
+  if (tp->type == NULL)
+    return 0;
+  else
+  {
+    return ddsrt_mh3 (tp->type->m_keys, tp->type->m_nkeys * sizeof (*tp->type->m_keys),
+                      ddsrt_mh3 (tp->type->m_ops, tp->type->m_nops * sizeof (*tp->type->m_ops), 0));
+  }
+}
 
 static void sertopic_default_free (struct ddsi_sertopic *tp)
 {
@@ -76,6 +96,8 @@ static void sertopic_default_free_samples (const struct ddsi_sertopic *sertopic_
 }
 
 const struct ddsi_sertopic_ops ddsi_sertopic_ops_default = {
+  .equal = sertopic_default_equal,
+  .hash = sertopic_default_hash,
   .free = sertopic_default_free,
   .zero_samples = sertopic_default_zero_samples,
   .realloc_samples = sertopic_default_realloc_samples,

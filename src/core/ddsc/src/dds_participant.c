@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <string.h>
 
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
@@ -30,6 +31,13 @@ DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_participant)
 
 #define DDS_PARTICIPANT_STATUS_MASK    (0u)
 
+static int cmp_ktopic_name (const void *a, const void *b)
+{
+  return strcmp (a, b);
+}
+
+const ddsrt_avl_treedef_t participant_ktopics_treedef = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY(offsetof (struct dds_ktopic, pp_ktopics_avlnode), offsetof (struct dds_ktopic, name), cmp_ktopic_name, 0);
+
 static dds_return_t dds_participant_status_validate (uint32_t mask)
 {
   return (mask & ~DDS_PARTICIPANT_STATUS_MASK) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
@@ -41,6 +49,9 @@ static dds_return_t dds_participant_delete (dds_entity *e)
 {
   dds_return_t ret;
   assert (dds_entity_kind (e) == DDS_KIND_PARTICIPANT);
+
+  /* ktopics & topics are children and therefore must all have been deleted by the time we get here */
+  assert (ddsrt_avl_is_empty (&((struct dds_participant *) e)->m_ktopics));
 
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   if ((ret = delete_participant (&e->m_domain->gv, &e->m_guid)) < 0)
@@ -125,6 +136,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   pp->m_entity.m_iid = get_entity_instance_id (&dom->gv, &guid);
   pp->m_entity.m_domain = dom;
   pp->m_builtin_subscriber = 0;
+  ddsrt_avl_init (&participant_ktopics_treedef, &pp->m_ktopics);
 
   /* Add participant to extent */
   ddsrt_mutex_lock (&dom->m_entity.m_mutex);

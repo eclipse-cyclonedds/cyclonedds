@@ -290,6 +290,9 @@ struct q_globals {
   struct ddsi_builtin_topic_interface *builtin_topic_interface;
 
   struct nn_group_membership *mship;
+
+  ddsrt_mutex_t sertopics_lock;
+  struct ddsrt_hh *sertopics;
 };
 
 #if defined (__cplusplus)

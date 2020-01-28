@@ -921,10 +921,10 @@ int main (int argc, char **argv)
   mainthread = lookup_thread_state ();
   assert (ddsrt_atomic_ldvoidp (&mainthread->gv) != NULL);
   {
-    struct dds_entity *x;
-    if (dds_entity_lock(tp, DDS_KIND_TOPIC, &x) < 0) abort();
-    mdtopic = dds_topic_lookup(x->m_domain, "RhcTypes_T");
-    dds_entity_unlock(x);
+    struct dds_topic *x;
+    if (dds_topic_pin (tp, &x) < 0) abort();
+    mdtopic = ddsi_sertopic_ref (x->m_stopic);
+    dds_topic_unpin (x);
   }
 
   if (0 >= first)

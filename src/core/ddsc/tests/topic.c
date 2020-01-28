@@ -130,8 +130,12 @@ CU_Test(ddsc_topic_create, duplicate, .init=ddsc_topic_init, .fini=ddsc_topic_fi
     /* Creating the same topic should succeed.  */
     topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, g_topicRtmDataTypeName, NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
+    CU_ASSERT_FATAL(topic != g_topicRtmDataType);
     ret = dds_delete(topic);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    /* Old topic entity should remain in existence */
+    ret = dds_get_parent(g_topicRtmDataType);
+    CU_ASSERT(ret > 0);
 }
 /*************************************************************************************************/
 
@@ -201,7 +205,7 @@ CU_Test(ddsc_topic_find, valid, .init=ddsc_topic_init, .fini=ddsc_topic_fini)
     dds_return_t ret;
 
     topic = dds_find_topic(g_participant, g_topicRtmDataTypeName);
-    CU_ASSERT_EQUAL_FATAL(topic, g_topicRtmDataType);
+    CU_ASSERT_NOT_EQUAL_FATAL(topic, g_topicRtmDataType);
 
     ret = dds_delete(topic);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
