@@ -218,9 +218,9 @@ static void test_pmd_count(dds_liveliness_kind_t kind, uint32_t ldur, double mul
   /* End-start should be mult - 1 under ideal circumstances, but consider the test successful
 	   when at least 50% of the expected PMD's was sent. This checks that the frequency for sending
 	   PMDs was increased when the writer was added. */
-  CU_ASSERT(end_seqno - start_seqno >= (kind == DDS_LIVELINESS_AUTOMATIC ? (50 * (mult - 1)) / 100 : 0))
+  CU_ASSERT_FATAL(end_seqno - start_seqno >= (kind == DDS_LIVELINESS_AUTOMATIC ? (50 * (mult - 1)) / 100 : 0))
   if (kind != DDS_LIVELINESS_AUTOMATIC)
-    CU_ASSERT(get_pmd_seqno(g_pub_participant) - start_seqno < mult)
+    CU_ASSERT_FATAL(get_pmd_seqno(g_pub_participant) - start_seqno < mult)
 
   /* cleanup */
   if (remote_reader)
@@ -1097,14 +1097,18 @@ static void lease_duration_zero_or_one_impl (dds_duration_t sleep, dds_livelines
   CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
 
   /* verify the reader received all samples */
+  void *raw[] = { &sample };
+  dds_sample_info_t si;
+  uint32_t cnt = 0;
+  do
   {
-    void *raw[] = { &sample };
-    dds_sample_info_t si;
-    uint32_t cnt = 0;
-    while (dds_take(reader, raw, &si, 1, 1) == 1)
+    rc = dds_waitset_wait(waitset, NULL, 0, DDS_SECS(5));
+    CU_ASSERT_FATAL(rc >= 1);
+    while (dds_take(reader, raw, &si, 1, 1) == 1 && si.valid_data)
       cnt++;
-    CU_ASSERT(cnt == nsamples + 1);
   }
+  while (cnt < nsamples + 1);
+  CU_ASSERT_FATAL(cnt == nsamples + 1);
 
   /* transition to not alive is not necessarily immediate */
   {
@@ -1115,8 +1119,8 @@ static void lease_duration_zero_or_one_impl (dds_duration_t sleep, dds_livelines
 
     ddsrt_mutex_lock (&listener_state.lock);
     printf("early w0 %"PRIx64" alive %"PRId32" not-alive %"PRId32"\n", listener_state.w0_handle, listener_state.w0_alive, listener_state.w0_not_alive);
-    CU_ASSERT(!listener_state.weirdness);
-    CU_ASSERT(listener_state.w0_handle != 0);
+    CU_ASSERT_FATAL(!listener_state.weirdness);
+    CU_ASSERT_FATAL(listener_state.w0_handle != 0);
     while (listener_state.w0_not_alive < listener_state.w0_alive && retries-- > 0)
     {
       ddsrt_mutex_unlock(&listener_state.lock);
@@ -1128,7 +1132,7 @@ static void lease_duration_zero_or_one_impl (dds_duration_t sleep, dds_livelines
 
     printf("late liveliness changed status: alive %"PRId32" not-alive %"PRId32"\n", lstatus.alive_count, lstatus.not_alive_count);
     printf("final w0 %"PRIx64" alive %"PRId32" not-alive %"PRId32"\n", listener_state.w0_handle, listener_state.w0_alive, listener_state.w0_not_alive);
-    CU_ASSERT(listener_state.w0_alive == listener_state.w0_not_alive);
+    CU_ASSERT_FATAL(listener_state.w0_alive == listener_state.w0_not_alive);
     uint32_t exp_alive;
     if (sleep == 0)
       exp_alive = 1; /* if not sleeping, it's ok if the transition happens only once */
@@ -1137,7 +1141,7 @@ static void lease_duration_zero_or_one_impl (dds_duration_t sleep, dds_livelines
     else
       exp_alive = nsamples - nsamples / 5; /* if sleeping, expect the vast majority (80%) of the writes to toggle liveliness */
     printf("check w0_alive %d >= %d\n", listener_state.w0_alive, exp_alive);
-    CU_ASSERT(listener_state.w0_alive >= exp_alive);
+    CU_ASSERT_FATAL(listener_state.w0_alive >= exp_alive);
     ddsrt_mutex_unlock(&listener_state.lock);
   }
 
