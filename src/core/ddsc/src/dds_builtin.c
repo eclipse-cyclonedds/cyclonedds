@@ -242,6 +242,13 @@ static void dds__builtin_write (const struct entity_common *e, nn_wctime_t times
   }
 }
 
+static void unref_builtin_topics (struct dds_domain *dom)
+{
+  ddsi_sertopic_unref (dom->builtin_participant_topic);
+  ddsi_sertopic_unref (dom->builtin_reader_topic);
+  ddsi_sertopic_unref (dom->builtin_writer_topic);
+}
+
 void dds__builtin_init (struct dds_domain *dom)
 {
   dds_qos_t *qos = dds__create_builtin_qos ();
@@ -253,9 +260,15 @@ void dds__builtin_init (struct dds_domain *dom)
   dom->btif.builtintopic_write = dds__builtin_write;
   dom->gv.builtin_topic_interface = &dom->btif;
 
-  dom->builtin_participant_topic = new_sertopic_builtintopic (DSBT_PARTICIPANT, "DCPSParticipant", "org::eclipse::cyclonedds::builtin::DCPSParticipant", &dom->gv);
-  dom->builtin_reader_topic = new_sertopic_builtintopic (DSBT_READER, "DCPSSubscription", "org::eclipse::cyclonedds::builtin::DCPSSubscription", &dom->gv);
-  dom->builtin_writer_topic = new_sertopic_builtintopic (DSBT_WRITER, "DCPSPublication", "org::eclipse::cyclonedds::builtin::DCPSPublication", &dom->gv);
+  dom->builtin_participant_topic = new_sertopic_builtintopic (DSBT_PARTICIPANT, "DCPSParticipant", "org::eclipse::cyclonedds::builtin::DCPSParticipant");
+  dom->builtin_reader_topic = new_sertopic_builtintopic (DSBT_READER, "DCPSSubscription", "org::eclipse::cyclonedds::builtin::DCPSSubscription");
+  dom->builtin_writer_topic = new_sertopic_builtintopic (DSBT_WRITER, "DCPSPublication", "org::eclipse::cyclonedds::builtin::DCPSPublication");
+
+  ddsrt_mutex_lock (&dom->gv.sertopics_lock);
+  ddsi_sertopic_register_locked (&dom->gv, dom->builtin_participant_topic);
+  ddsi_sertopic_register_locked (&dom->gv, dom->builtin_reader_topic);
+  ddsi_sertopic_register_locked (&dom->gv, dom->builtin_writer_topic);
+  ddsrt_mutex_unlock (&dom->gv.sertopics_lock);
 
   thread_state_awake (lookup_thread_state (), &dom->gv);
   const struct entity_index *gh = dom->gv.entity_index;
@@ -265,6 +278,11 @@ void dds__builtin_init (struct dds_domain *dom)
   thread_state_asleep (lookup_thread_state ());
 
   dds_delete_qos (qos);
+
+  /* ddsi_sertopic_init initializes the refcount to 1 and dds_sertopic_register_locked increments
+     it.  All "real" references (such as readers and writers) are also accounted for in the
+     reference count, so we have an excess reference here. */
+  unref_builtin_topics (dom);
 }
 
 void dds__builtin_fini (struct dds_domain *dom)
@@ -275,8 +293,5 @@ void dds__builtin_fini (struct dds_domain *dom)
   delete_local_orphan_writer (dom->builtintopic_writer_publications);
   delete_local_orphan_writer (dom->builtintopic_writer_subscriptions);
   thread_state_asleep (lookup_thread_state ());
-
-  ddsi_sertopic_unref (dom->builtin_participant_topic);
-  ddsi_sertopic_unref (dom->builtin_reader_topic);
-  ddsi_sertopic_unref (dom->builtin_writer_topic);
+  unref_builtin_topics (dom);
 }

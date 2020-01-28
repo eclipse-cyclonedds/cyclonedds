@@ -767,7 +767,7 @@ static void wait_for_receive_threads (struct q_globals *gv)
   }
 }
 
-static struct ddsi_sertopic *make_special_topic (struct q_globals *gv, struct serdatapool *serpool, uint16_t enc_id, const struct ddsi_serdata_ops *ops)
+static struct ddsi_sertopic *make_special_topic (const char *name, struct serdatapool *serpool, uint16_t enc_id, const struct ddsi_serdata_ops *ops)
 {
   /* FIXME: two things (at least)
      - it claims there is a key, but the underlying type description is missing
@@ -779,24 +779,32 @@ static struct ddsi_sertopic *make_special_topic (struct q_globals *gv, struct se
        (kinda natural if they stop being "default" ones) */
   struct ddsi_sertopic_default *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
-  ddsi_sertopic_init_anon (&st->c, &ddsi_sertopic_ops_default, ops, false);
-  st->gv = gv;
+  ddsi_sertopic_init (&st->c, name, name, &ddsi_sertopic_ops_default, ops, false);
   st->native_encoding_identifier = enc_id;
   st->serpool = serpool;
   st->nkeys = 1;
   return (struct ddsi_sertopic *) st;
 }
 
-static void make_special_topics (struct q_globals *gv)
-{
-  gv->plist_topic = make_special_topic (gv, gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE, &ddsi_serdata_ops_plist);
-  gv->rawcdr_topic = make_special_topic (gv, gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE, &ddsi_serdata_ops_rawcdr);
-}
-
 static void free_special_topics (struct q_globals *gv)
 {
   ddsi_sertopic_unref (gv->plist_topic);
   ddsi_sertopic_unref (gv->rawcdr_topic);
+}
+
+static void make_special_topics (struct q_globals *gv)
+{
+  gv->plist_topic = make_special_topic ("plist", gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE, &ddsi_serdata_ops_plist);
+  gv->rawcdr_topic = make_special_topic ("rawcdr", gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE, &ddsi_serdata_ops_rawcdr);
+
+  ddsrt_mutex_lock (&gv->sertopics_lock);
+  ddsi_sertopic_register_locked (gv, gv->plist_topic);
+  ddsi_sertopic_register_locked (gv, gv->rawcdr_topic);
+  ddsrt_mutex_unlock (&gv->sertopics_lock);
+
+  /* register increments refcount (which is reasonable), but at some point
+     one needs to get rid of that reference */
+  free_special_topics (gv);
 }
 
 static bool use_multiple_receive_threads (const struct config *cfg)
@@ -907,6 +915,16 @@ fail:
       nn_rbufpool_free (gv->recv_threads[i].arg.rbpool);
   }
   return -1;
+}
+
+static int ddsi_sertopic_equal_wrap (const void *a, const void *b)
+{
+  return ddsi_sertopic_equal (a, b);
+}
+
+static uint32_t ddsi_sertopic_hash_wrap (const void *tp)
+{
+  return ddsi_sertopic_hash (tp);
 }
 
 int rtps_init (struct q_globals *gv)
@@ -1078,6 +1096,8 @@ int rtps_init (struct q_globals *gv)
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_rd, &gv->default_xqos_rd);
   make_builtin_endpoint_xqos (&gv->builtin_endpoint_xqos_wr, &gv->default_xqos_wr);
 
+  ddsrt_mutex_init (&gv->sertopics_lock);
+  gv->sertopics = ddsrt_hh_new (1, ddsi_sertopic_hash_wrap, ddsi_sertopic_equal_wrap);
   make_special_topics (gv);
 
   ddsrt_mutex_init (&gv->participant_set_lock);
@@ -1410,6 +1430,14 @@ err_unicast_sockets:
   ddsrt_cond_destroy (&gv->participant_set_cond);
   ddsrt_mutex_destroy (&gv->participant_set_lock);
   free_special_topics (gv);
+#ifndef NDEBUG
+  {
+    struct ddsrt_hh_iter it;
+    assert (ddsrt_hh_iter_first (gv->sertopics, &it) == NULL);
+  }
+#endif
+  ddsrt_hh_free (gv->sertopics);
+  ddsrt_mutex_destroy (&gv->sertopics_lock);
   nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);
   nn_xqos_fini (&gv->spdp_endpoint_xqos);
@@ -1747,6 +1775,15 @@ void rtps_fini (struct q_globals *gv)
   ddsrt_mutex_destroy (&gv->participant_set_lock);
   ddsrt_cond_destroy (&gv->participant_set_cond);
   free_special_topics (gv);
+
+#ifndef NDEBUG
+  {
+    struct ddsrt_hh_iter it;
+    assert (ddsrt_hh_iter_first (gv->sertopics, &it) == NULL);
+  }
+#endif
+  ddsrt_hh_free (gv->sertopics);
+  ddsrt_mutex_destroy (&gv->sertopics_lock);
 
   nn_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   nn_xqos_fini (&gv->builtin_endpoint_xqos_rd);

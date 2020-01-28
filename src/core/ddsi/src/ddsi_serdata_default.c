@@ -17,6 +17,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/mh3.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
@@ -117,59 +118,10 @@ static void serdata_default_append_blob (struct ddsi_serdata_default **d, size_t
   memcpy (p, data, sz);
 }
 
-/* Fixed seed and length */
-
-#define DDS_MH3_LEN 16
-#define DDS_MH3_SEED 0
-
-#define DDS_MH3_ROTL32(x,r) (((x) << (r)) | ((x) >> (32 - (r))))
-
-/* Really
- http://code.google.com/p/smhasher/source/browse/trunk/MurmurHash3.cpp,
- MurmurHash3_x86_32
- */
-
-static uint32_t dds_mh3 (const void * key)
-{
-  const uint8_t *data = (const uint8_t *) key;
-  const intptr_t nblocks = (intptr_t) (DDS_MH3_LEN / 4);
-  const uint32_t c1 = 0xcc9e2d51;
-  const uint32_t c2 = 0x1b873593;
-
-  uint32_t h1 = DDS_MH3_SEED;
-
-  const uint32_t *blocks = (const uint32_t *) (data + nblocks * 4);
-  register intptr_t i;
-
-  for (i = -nblocks; i; i++)
-  {
-    uint32_t k1 = blocks[i];
-
-    k1 *= c1;
-    k1 = DDS_MH3_ROTL32 (k1, 15);
-    k1 *= c2;
-
-    h1 ^= k1;
-    h1 = DDS_MH3_ROTL32 (h1, 13);
-    h1 = h1 * 5+0xe6546b64;
-  }
-
-  /* finalization */
-
-  h1 ^= DDS_MH3_LEN;
-  h1 ^= h1 >> 16;
-  h1 *= 0x85ebca6b;
-  h1 ^= h1 >> 13;
-  h1 *= 0xc2b2ae35;
-  h1 ^= h1 >> 16;
-
-  return h1;
-}
-
 static struct ddsi_serdata *fix_serdata_default(struct ddsi_serdata_default *d, uint32_t basehash)
 {
   if (d->keyhash.m_iskey)
-    d->c.hash = dds_mh3 (d->keyhash.m_hash) ^ basehash;
+    d->c.hash = ddsrt_mh3 (d->keyhash.m_hash, 16, 0) ^ basehash;
   else
     d->c.hash = *((uint32_t *)d->keyhash.m_hash) ^ basehash;
   return &d->c;
@@ -651,8 +603,8 @@ static size_t serdata_default_print_plist (const struct ddsi_sertopic *sertopic_
   src.buf = (const unsigned char *) d->data;
   src.bufsz = d->pos;
   src.encoding = d->hdr.identifier;
-  src.factory = tp->gv->m_factory;
-  src.logconfig = &tp->gv->logconfig;
+  src.factory = tp->c.gv->m_factory;
+  src.logconfig = &tp->c.gv->logconfig;
   src.protocol_version.major = RTPS_MAJOR;
   src.protocol_version.minor = RTPS_MINOR;
   src.strict = false;

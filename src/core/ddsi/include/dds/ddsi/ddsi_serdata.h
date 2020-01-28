@@ -132,6 +132,8 @@ typedef bool (*ddsi_serdata_eqkey_t) (const struct ddsi_serdata *a, const struct
      returning bufsize-1) if it had to truncate) */
 typedef size_t (*ddsi_serdata_print_t) (const struct ddsi_sertopic *topic, const struct ddsi_serdata *d, char *buf, size_t size);
 
+#define DDSI_SERDATA_HAS_FROM_SER_IOV 1
+
 struct ddsi_serdata_ops {
   ddsi_serdata_eqkey_t eqkey;
   ddsi_serdata_size_t get_size;
