@@ -30,6 +30,7 @@ set(ddsc_test_sources
     "instance_get_key.c"
     "listener.c"
     "liveliness.c"
+    "multi_sertopic.c"
     "participant.c"
     "publisher.c"
     "qos.c"

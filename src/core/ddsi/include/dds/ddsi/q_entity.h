@@ -185,7 +185,7 @@ struct local_reader_ary {
   unsigned valid: 1; /* always true until (proxy-)writer is being deleted; !valid => !fastpath_ok */
   unsigned fastpath_ok: 1; /* if not ok, fall back to using GUIDs (gives access to the reader-writer match data for handling readers that bumped into resource limits, hence can flip-flop, unlike "valid") */
   uint32_t n_readers;
-  struct reader **rdary; /* for efficient delivery, null-pointer terminated */
+  struct reader **rdary; /* for efficient delivery, null-pointer terminated, grouped by topic */
 };
 
 struct avail_entityid_set {
@@ -427,12 +427,12 @@ struct proxy_reader {
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
 };
 
-extern const ddsrt_avl_treedef_t wr_readers_treedef;
-extern const ddsrt_avl_treedef_t wr_local_readers_treedef;
-extern const ddsrt_avl_treedef_t rd_writers_treedef;
-extern const ddsrt_avl_treedef_t rd_local_writers_treedef;
-extern const ddsrt_avl_treedef_t pwr_readers_treedef;
-extern const ddsrt_avl_treedef_t prd_writers_treedef;
+DDS_EXPORT extern const ddsrt_avl_treedef_t wr_readers_treedef;
+DDS_EXPORT extern const ddsrt_avl_treedef_t wr_local_readers_treedef;
+DDS_EXPORT extern const ddsrt_avl_treedef_t rd_writers_treedef;
+DDS_EXPORT extern const ddsrt_avl_treedef_t rd_local_writers_treedef;
+DDS_EXPORT extern const ddsrt_avl_treedef_t pwr_readers_treedef;
+DDS_EXPORT extern const ddsrt_avl_treedef_t prd_writers_treedef;
 extern const ddsrt_avl_treedef_t deleted_participants_treedef;
 
 #define DPG_LOCAL 1

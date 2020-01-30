@@ -259,10 +259,28 @@ static void local_reader_ary_fini (struct local_reader_ary *x)
 static void local_reader_ary_insert (struct local_reader_ary *x, struct reader *rd)
 {
   ddsrt_mutex_lock (&x->rdary_lock);
+  x->rdary = ddsrt_realloc (x->rdary, (x->n_readers + 2) * sizeof (*x->rdary));
+  if (x->n_readers <= 1 || rd->topic == x->rdary[x->n_readers - 1]->topic)
+  {
+    /* if the first or second reader, or if the topic is the same as that of
+       the last one in the list simply appending the new will maintain order */
+    x->rdary[x->n_readers] = rd;
+  }
+  else
+  {
+    uint32_t i;
+    for (i = 0; i < x->n_readers; i++)
+      if (x->rdary[i]->topic == rd->topic)
+        break;
+    if (i < x->n_readers)
+    {
+      /* shift any with the same topic plus whichever follow to make room */
+      memmove (&x->rdary[i + 1], &x->rdary[i], (x->n_readers - i) * sizeof (x->rdary[i]));
+    }
+    x->rdary[i] = rd;
+  }
+  x->rdary[x->n_readers + 1] = NULL;
   x->n_readers++;
-  x->rdary = ddsrt_realloc (x->rdary, (x->n_readers + 1) * sizeof (*x->rdary));
-  x->rdary[x->n_readers - 1] = rd;
-  x->rdary[x->n_readers] = NULL;
   ddsrt_mutex_unlock (&x->rdary_lock);
 }
 
@@ -271,13 +289,20 @@ static void local_reader_ary_remove (struct local_reader_ary *x, struct reader *
   uint32_t i;
   ddsrt_mutex_lock (&x->rdary_lock);
   for (i = 0; i < x->n_readers; i++)
-  {
     if (x->rdary[i] == rd)
       break;
-  }
   assert (i < x->n_readers);
-  /* if i == N-1 copy is a no-op */
-  x->rdary[i] = x->rdary[x->n_readers-1];
+  if (i + 1 < x->n_readers)
+  {
+    /* dropping the final one never requires any fixups; dropping one that has
+       the same topic as the last is as simple as moving the last one in the
+       removed one's location; else shift all following readers to keep it
+       grouped by topic */
+    if (rd->topic == x->rdary[x->n_readers - 1]->topic)
+      x->rdary[i] = x->rdary[x->n_readers - 1];
+    else
+      memmove (&x->rdary[i], &x->rdary[i + 1], (x->n_readers - i - 1) * sizeof (x->rdary[i]));
+  }
   x->n_readers--;
   x->rdary[x->n_readers] = NULL;
   x->rdary = ddsrt_realloc (x->rdary, (x->n_readers + 1) * sizeof (*x->rdary));
@@ -4537,7 +4562,6 @@ int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
   pwr->evq = evq;
   pwr->ddsi2direct_cb = 0;
   pwr->ddsi2direct_cbarg = 0;
-
   local_reader_ary_init (&pwr->rdary);
 
   /* locking the entity prevents matching while the built-in topic hasn't been published yet */

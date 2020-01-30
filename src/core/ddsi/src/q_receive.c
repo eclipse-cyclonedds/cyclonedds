@@ -45,6 +45,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/ddsi_rhc.h"
+#include "dds/ddsi/ddsi_deliver_locally.h"
 
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_globals.h"
@@ -1733,12 +1734,30 @@ static struct ddsi_serdata *get_serdata (struct ddsi_sertopic const * const topi
   return sd;
 }
 
-static struct ddsi_serdata *new_sample_from_data (struct ddsi_tkmap_instance **tk1, struct q_globals *gv, const struct nn_rsample_info *sampleinfo, unsigned char data_smhdr_flags, const nn_plist_t *qos, const struct nn_rdata *fragchain, unsigned statusinfo, nn_wctime_t tstamp, struct ddsi_sertopic const * const topic)
+struct remote_sourceinfo {
+  const struct nn_rsample_info *sampleinfo;
+  unsigned char data_smhdr_flags;
+  const nn_plist_t *qos;
+  const struct nn_rdata *fragchain;
+  unsigned statusinfo;
+  nn_wctime_t tstamp;
+};
+
+static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk, struct q_globals *gv, struct ddsi_sertopic const * const topic, void *vsourceinfo)
 {
+  /* hopefully the compiler figures out that these are just aliases and doesn't reload them
+     unnecessarily from memory */
+  const struct remote_sourceinfo * __restrict si = vsourceinfo;
+  const struct nn_rsample_info * __restrict sampleinfo = si->sampleinfo;
+  const struct nn_rdata * __restrict fragchain = si->fragchain;
+  const uint32_t statusinfo = si->statusinfo;
+  const unsigned char data_smhdr_flags = si->data_smhdr_flags;
+  const nn_wctime_t tstamp = si->tstamp;
+  const nn_plist_t * __restrict qos = si->qos;
   const char *failmsg = NULL;
   struct ddsi_serdata *sample = NULL;
 
-  if (statusinfo == 0)
+  if (si->statusinfo == 0)
   {
     /* normal write */
     if (!(data_smhdr_flags & DATA_FLAG_DATAFLAG) || sampleinfo->size == 0)
@@ -1752,7 +1771,7 @@ static struct ddsi_serdata *new_sample_from_data (struct ddsi_tkmap_instance **t
                   "data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": write without proper payload (data_smhdr_flags 0x%x size %"PRIu32")\n",
                   sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
                   PGUID (guid), sampleinfo->seq,
-                  data_smhdr_flags, sampleinfo->size);
+                  si->data_smhdr_flags, sampleinfo->size);
       return NULL;
     }
     sample = get_serdata (topic, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
@@ -1807,7 +1826,7 @@ static struct ddsi_serdata *new_sample_from_data (struct ddsi_tkmap_instance **t
   }
   else
   {
-    if ((*tk1 = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, sample)) == NULL)
+    if ((*tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, sample)) == NULL)
     {
       ddsi_serdata_unref (sample);
       sample = NULL;
@@ -1831,12 +1850,6 @@ static struct ddsi_serdata *new_sample_from_data (struct ddsi_tkmap_instance **t
   return sample;
 }
 
-static void free_sample_after_store (struct q_globals *gv, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk)
-{
-  ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
-  ddsi_serdata_unref (sample);
-}
-
 unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr)
 {
   switch ((SubmessageKind_t) smhdr->submessageId)
@@ -1858,28 +1871,51 @@ unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr)
   }
 }
 
-static struct reader *proxy_writer_first_in_sync_reader (struct proxy_writer *pwr, ddsrt_avl_iter_t *it)
+static struct reader *proxy_writer_first_in_sync_reader (struct entity_index *entity_index, struct entity_common *pwrcmn, ddsrt_avl_iter_t *it)
 {
+  assert (pwrcmn->kind == EK_PROXY_WRITER);
+  struct proxy_writer *pwr = (struct proxy_writer *) pwrcmn;
   struct pwr_rd_match *m;
   struct reader *rd;
   for (m = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, it); m != NULL; m = ddsrt_avl_iter_next (it))
-    if (m->in_sync == PRMSS_SYNC && (rd = entidx_lookup_reader_guid (pwr->e.gv->entity_index, &m->rd_guid)) != NULL)
+    if (m->in_sync == PRMSS_SYNC && (rd = entidx_lookup_reader_guid (entity_index, &m->rd_guid)) != NULL)
       return rd;
   return NULL;
 }
 
-static struct reader *proxy_writer_next_in_sync_reader (struct proxy_writer *pwr, ddsrt_avl_iter_t *it)
+static struct reader *proxy_writer_next_in_sync_reader (struct entity_index *entity_index, ddsrt_avl_iter_t *it)
 {
   struct pwr_rd_match *m;
   struct reader *rd;
   for (m = ddsrt_avl_iter_next (it); m != NULL; m = ddsrt_avl_iter_next (it))
-    if (m->in_sync == PRMSS_SYNC && (rd = entidx_lookup_reader_guid (pwr->e.gv->entity_index, &m->rd_guid)) != NULL)
+    if (m->in_sync == PRMSS_SYNC && (rd = entidx_lookup_reader_guid (entity_index, &m->rd_guid)) != NULL)
       return rd;
   return NULL;
 }
 
+static dds_return_t remote_on_delivery_failure_fastpath (struct entity_common *source_entity, bool source_entity_locked, struct local_reader_ary *fastpath_rdary, void *vsourceinfo)
+{
+  (void) vsourceinfo;
+  ddsrt_mutex_unlock (&fastpath_rdary->rdary_lock);
+  if (source_entity_locked)
+    ddsrt_mutex_unlock (&source_entity->lock);
+
+  dds_sleepfor (DDS_MSECS (10));
+
+  if (source_entity_locked)
+    ddsrt_mutex_lock (&source_entity->lock);
+  ddsrt_mutex_lock (&fastpath_rdary->rdary_lock);
+  return DDS_RETCODE_TRY_AGAIN;
+}
+
 static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, int pwr_locked)
 {
+  static const struct deliver_locally_ops deliver_locally_ops = {
+    .makesample = remote_make_sample,
+    .first_reader = proxy_writer_first_in_sync_reader,
+    .next_reader = proxy_writer_next_in_sync_reader,
+    .on_failure_fastpath = remote_on_delivery_failure_fastpath
+  };
   struct receiver_state const * const rst = sampleinfo->rst;
   struct q_globals * const gv = rst->gv;
   struct proxy_writer * const pwr = sampleinfo->pwr;
@@ -1953,108 +1989,22 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   struct ddsi_writer_info wrinfo;
   ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos, statusinfo);
 
-  if (rdguid == NULL)
-  {
-    /* FIXME: Retry loop, for re-delivery of rejected reliable samples. Is a
-       temporary hack till throttling back of writer is implemented (with late
-       acknowledgement of sample and nack). */
-  retry:
-    ddsrt_mutex_lock (&pwr->rdary.rdary_lock);
-    if (pwr->rdary.fastpath_ok)
-    {
-      struct reader ** const rdary = pwr->rdary.rdary;
-      if (rdary[0])
-      {
-        struct ddsi_serdata *payload;
-        struct ddsi_tkmap_instance *tk;
-        if ((payload = new_sample_from_data (&tk, gv, sampleinfo, data_smhdr_flags, &qos, fragchain, statusinfo, tstamp, rdary[0]->topic)) != NULL)
-        {
-          ETRACE (pwr, " => EVERYONE\n");
-          uint32_t i = 0;
-          do {
-            if (!ddsi_rhc_store (rdary[i]->rhc, &wrinfo, payload, tk))
-            {
-              if (pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
-              ddsrt_mutex_unlock (&pwr->rdary.rdary_lock);
-              /* It is painful to drop the sample, but there is no guarantee that the readers
-                 will still be there after unlocking; indeed, it is even possible that the
-                 topic definition got replaced in the meantime.  Fortunately, this is in
-                 the midst of a FIXME for many other reasons. */
-              free_sample_after_store (gv, payload, tk);
-              dds_sleepfor (DDS_MSECS (10));
-              if (pwr_locked) ddsrt_mutex_lock (&pwr->e.lock);
-              goto retry;
-            }
-          } while (rdary[++i]);
-          free_sample_after_store (gv, payload, tk);
-        }
-      }
-      ddsrt_mutex_unlock (&pwr->rdary.rdary_lock);
-    }
-    else
-    {
-      /* When deleting, pwr is no longer accessible via the hash
-         tables, and consequently, a reader may be deleted without
-         it being possible to remove it from rdary. The primary
-         reason rdary exists is to avoid locking the proxy writer
-         but this is less of an issue when we are deleting it, so
-         we fall back to using the GUIDs so that we can deliver all
-         samples we received from it. As writer being deleted any
-         reliable samples that are rejected are simply discarded. */
-      ddsrt_avl_iter_t it;
-      struct reader *rd;
-      ddsrt_mutex_unlock (&pwr->rdary.rdary_lock);
-      if (!pwr_locked) ddsrt_mutex_lock (&pwr->e.lock);
-      if ((rd = proxy_writer_first_in_sync_reader (pwr, &it)) != NULL)
-      {
-        struct ddsi_serdata *payload;
-        struct ddsi_tkmap_instance *tk;
-        if ((payload = new_sample_from_data (&tk, gv, sampleinfo, data_smhdr_flags, &qos, fragchain, statusinfo, tstamp, rd->topic)) != NULL)
-        {
-          ETRACE (pwr, " =>");
-          do {
-            ETRACE (pwr, " "PGUIDFMT, PGUID (rd->e.guid));
-            (void) ddsi_rhc_store (rd->rhc, &wrinfo, payload, tk);
-            rd = proxy_writer_next_in_sync_reader (pwr, &it);
-          } while (rd != NULL);
-          free_sample_after_store (gv, payload, tk);
-          ETRACE (pwr, "\n");
-        }
-      }
-      if (!pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
-    }
-
-    ddsrt_atomic_st32 (&pwr->next_deliv_seq_lowword, (uint32_t) (sampleinfo->seq + 1));
-  }
+  struct remote_sourceinfo sourceinfo = {
+    .sampleinfo = sampleinfo,
+    .data_smhdr_flags = data_smhdr_flags,
+    .qos = &qos,
+    .fragchain = fragchain,
+    .statusinfo = statusinfo,
+    .tstamp = tstamp
+  };
+  if (rdguid)
+    (void) deliver_locally_one (gv, &pwr->e, pwr_locked != 0, rdguid, &wrinfo, &deliver_locally_ops, &sourceinfo);
   else
   {
-    struct reader *rd = entidx_lookup_reader_guid (gv->entity_index, rdguid);
-    if (rd != NULL)
-    {
-      struct ddsi_serdata *payload;
-      struct ddsi_tkmap_instance *tk;
-      if ((payload = new_sample_from_data (&tk, gv, sampleinfo, data_smhdr_flags, &qos, fragchain, statusinfo, tstamp, rd->topic)) != NULL)
-      {
-        ETRACE (pwr, " =>"PGUIDFMT"\n", PGUID (*rdguid));
-        /* FIXME: why look up rd,pwr again? Their states remains valid while the thread stays
-           "awake" (although a delete can be initiated), and blocking like this is a stopgap
-           anyway -- quite possibly to abort once either is deleted */
-        while (!ddsi_rhc_store (rd->rhc, &wrinfo, payload, tk))
-        {
-          if (pwr_locked) ddsrt_mutex_unlock (&pwr->e.lock);
-          dds_sleepfor (DDS_MSECS (1));
-          if (pwr_locked) ddsrt_mutex_lock (&pwr->e.lock);
-          if (entidx_lookup_reader_guid (gv->entity_index, rdguid) == NULL ||
-              entidx_lookup_proxy_writer_guid (gv->entity_index, &pwr->e.guid) == NULL)
-          {
-            /* give up when reader or proxy writer no longer accessible */
-            break;
-          }
-        }
-        free_sample_after_store (gv, payload, tk);
-      }
-    }
+    (void) deliver_locally_allinsync (gv, &pwr->e, pwr_locked != 0, &pwr->rdary, &wrinfo, &deliver_locally_ops, &sourceinfo);
+    ddsrt_atomic_st32 (&pwr->next_deliv_seq_lowword, (uint32_t) (sampleinfo->seq + 1));
   }
+
   nn_plist_fini (&qos);
   return 0;
 }

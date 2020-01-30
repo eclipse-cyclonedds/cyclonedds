@@ -31,6 +31,7 @@ PREPEND(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src"
     ddsi_pmd.c
     ddsi_entity_index.c
     ddsi_deadline.c
+    ddsi_deliver_locally.c
     q_addrset.c
     q_bitset_inlines.c
     q_bswap.c
@@ -92,6 +93,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_guid.h
     ddsi_entity_index.h
     ddsi_deadline.h
+    ddsi_deliver_locally.h
     q_addrset.h
     q_bitset.h
     q_bswap.h
