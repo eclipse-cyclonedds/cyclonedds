@@ -509,14 +509,14 @@ void q_omg_security_participant_send_tokens(struct participant *pp, struct proxy
  * the proxy participant and the crypto plugin. This handle is created
  * when the proxy participant is registered with the crypto plugin.
  *
- * @param[in] lidh               The participant identity handle.
+ * @param[in] pp_crypto_handle   The participant crypto handle.
  * @param[in] proxypp            The proxy participant.
  *
  * @returns handle
  * @retval !0  Valid cypto handle associated with the proxy participant.
  * @retval 0   Otherwise.
  */
-int64_t q_omg_security_get_remote_participant_handle(int64_t lidh, struct proxy_participant *proxypp);
+int64_t q_omg_security_get_remote_participant_handle(int64_t pp_crypto_handle, struct proxy_participant *proxypp);
 
 /**
  * @brief Set the crypto tokens used for the encryption and decryption of RTPS messages.
@@ -770,8 +770,9 @@ void q_omg_security_set_remote_reader_crypto_tokens(struct writer *wr, const dds
  */
 bool
 q_omg_security_encode_rtps_message(
+  const struct ddsi_domaingv *gv,
   int64_t                 src_handle,
-  ddsi_guid_t            *src_guid,
+  const ddsi_guid_t      *src_guid,
   const unsigned char    *src_buf,
   size_t                  src_len,
   unsigned char         **dst_buf,
@@ -974,6 +975,7 @@ nn_rtps_msg_state_t decode_rtps_message(struct thread_state1 * const ts1, struct
  */
 ssize_t
 secure_conn_write(
+    const struct ddsi_domaingv *gv,
     ddsi_tran_conn_t conn,
     const nn_locator_t *dst,
     size_t niov,

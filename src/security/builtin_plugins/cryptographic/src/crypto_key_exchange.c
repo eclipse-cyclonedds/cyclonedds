@@ -179,6 +179,7 @@ create_local_participant_crypto_tokens(
   tokens->_buffer[0].binary_properties._buffer[0].value._length =
       tokens->_buffer[0].binary_properties._buffer[0].value._maximum = length;
   tokens->_buffer[0].binary_properties._buffer[0].value._buffer = buffer;
+  tokens->_buffer[0].binary_properties._buffer[0].propagate = true;
   return true;
 
 fail_invalid_arg:
@@ -290,6 +291,7 @@ create_local_datawriter_crypto_tokens(
     tokens->_buffer[i].binary_properties._buffer[0].value._length =
         tokens->_buffer[i].binary_properties._buffer[0].value._maximum = length;
     tokens->_buffer[i].binary_properties._buffer[0].value._buffer = buffer;
+    tokens->_buffer[i].binary_properties._buffer[0].propagate = true;
     CRYPTO_OBJECT_RELEASE(key_mat[i]);
   }
 
@@ -409,6 +411,7 @@ create_local_datareader_crypto_tokens(
     tokens->_buffer[0].binary_properties._buffer[0].value._length =
         tokens->_buffer[0].binary_properties._buffer[0].value._maximum = length;
     tokens->_buffer[0].binary_properties._buffer[0].value._buffer = buffer;
+    tokens->_buffer[0].binary_properties._buffer[0].propagate = true;
 
     CRYPTO_OBJECT_RELEASE(key_mat);
   }

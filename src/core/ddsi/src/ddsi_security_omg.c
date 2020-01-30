@@ -23,6 +23,7 @@
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_msg.h"
 #include "dds/ddsi/ddsi_security_omg.h"
@@ -41,6 +42,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/ddsi_plist.h"
+#include "dds/ddsi/sysdeps.h"
 
 #define AUTH_NAME "Authentication"
 #define AC_NAME "Access Control"
@@ -185,11 +187,11 @@ struct dds_security_match_index {
 struct proxypp_pp_match {
   ddsrt_avl_node_t avlnode;
   struct participant *pp;
-  DDS_Security_IdentityHandle remote_identity_handle;
+  DDS_Security_IdentityHandle proxypp_identity_handle;
+  DDS_Security_ParticipantCryptoHandle pp_crypto_handle;
+  DDS_Security_ParticipantCryptoHandle proxypp_crypto_handle;
   DDS_Security_PermissionsHandle permissions_handle;
-  DDS_Security_ParticipantCryptoHandle crypto_handle;
   DDS_Security_SharedSecretHandle shared_secret;
-  bool tokens_available;
 };
 
 struct participant_sec_attributes {
@@ -216,17 +218,20 @@ struct reader_sec_attributes {
 };
 
 
-static int compare_identity_handle (const void *va, const void *vb);
+static int compare_crypto_handle (const void *va, const void *vb);
 static int compare_guid_pair(const void *va, const void *vb);
 
 const ddsrt_avl_treedef_t proxypp_pp_treedef =
-  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct proxypp_pp_match, avlnode), offsetof (struct proxypp_pp_match, pp), compare_identity_handle, 0);
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct proxypp_pp_match, avlnode), offsetof (struct proxypp_pp_match, pp_crypto_handle), compare_crypto_handle, 0);
 const ddsrt_avl_treedef_t entity_match_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct security_entity_match, avlnode), offsetof (struct security_entity_match, guids), compare_guid_pair, 0);
 
-static int compare_identity_handle (const void *va, const void *vb)
+static int compare_crypto_handle (const void *va, const void *vb)
 {
-  return ((va > vb) ? 1 : (va < vb) ?  -1 : 0);
+  const DDS_Security_ParticipantCryptoHandle *ha = va;
+  const DDS_Security_ParticipantCryptoHandle *hb = vb;
+
+  return ((*ha > *hb) ? 1 : (*ha < *hb) ?  -1 : 0);
 }
 
 static int guid_compare (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2)
@@ -266,6 +271,13 @@ struct dds_security_authentication *q_omg_participant_get_authentication(const s
 {
   if (pp && pp->e.gv->security_context && q_omg_is_security_loaded(pp->e.gv->security_context))
     return pp->e.gv->security_context->authentication_context;
+  return NULL;
+}
+
+static struct dds_security_context * q_omg_security_get_secure_context_from_proxypp(const struct proxy_participant *proxypp)
+{
+  if (proxypp && proxypp->e.gv->security_context && q_omg_is_security_loaded(proxypp->e.gv->security_context))
+    return proxypp->e.gv->security_context;
   return NULL;
 }
 
@@ -379,14 +391,15 @@ static void security_match_index_free(struct dds_security_match_index *list)
   }
 }
 
-static struct proxypp_pp_match * proxypp_pp_match_new(struct participant *pp, DDS_Security_IdentityHandle identity_handle, DDS_Security_ParticipantCryptoHandle crypt_handle, DDS_Security_PermissionsHandle permissions_hdl, DDS_Security_SharedSecretHandle shared_secret)
+static struct proxypp_pp_match * proxypp_pp_match_new(struct participant *pp, DDS_Security_IdentityHandle identity_handle, DDS_Security_ParticipantCryptoHandle proxypp_crypto_handle, DDS_Security_PermissionsHandle permissions_hdl, DDS_Security_SharedSecretHandle shared_secret)
 {
   struct proxypp_pp_match *pm;
 
   pm = ddsrt_malloc(sizeof(*pm));
   pm->pp = pp;
-  pm->remote_identity_handle = identity_handle;
-  pm->crypto_handle = crypt_handle;
+  pm->proxypp_identity_handle = identity_handle;
+  pm->pp_crypto_handle = pp->sec_attr->crypto_handle;
+  pm->proxypp_crypto_handle = proxypp_crypto_handle;
   pm->permissions_handle = permissions_hdl;
   pm->shared_secret = shared_secret;
 
@@ -398,9 +411,9 @@ static void proxypp_pp_match_free(struct proxypp_pp_match *pm)
   struct dds_security_context *sc = q_omg_security_get_secure_context(pm->pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
-  if (pm->crypto_handle != DDS_SECURITY_HANDLE_NIL)
+  if (pm->proxypp_crypto_handle != DDS_SECURITY_HANDLE_NIL)
   {
-    if (!sc->crypto_context->crypto_key_factory->unregister_participant(sc->crypto_context->crypto_key_factory, pm->crypto_handle, &exception))
+    if (!sc->crypto_context->crypto_key_factory->unregister_participant(sc->crypto_context->crypto_key_factory, pm->proxypp_crypto_handle, &exception))
       EXCEPTION_ERROR(sc, &exception, "Failed to return permissions handle");
   }
   if (pm->permissions_handle != DDS_SECURITY_HANDLE_NIL)
@@ -408,9 +421,9 @@ static void proxypp_pp_match_free(struct proxypp_pp_match *pm)
     if (!sc->access_control_context->return_permissions_handle(sc->access_control_context, pm->permissions_handle, &exception))
       EXCEPTION_ERROR(sc, &exception, "Failed to return permissions handle");
   }
-  if (pm->remote_identity_handle != DDS_SECURITY_HANDLE_NIL)
+  if (pm->proxypp_identity_handle != DDS_SECURITY_HANDLE_NIL)
   {
-    if (!sc->authentication_context->return_identity_handle(sc->authentication_context, pm->remote_identity_handle, &exception))
+    if (!sc->authentication_context->return_identity_handle(sc->authentication_context, pm->proxypp_identity_handle, &exception))
       EXCEPTION_ERROR(sc, &exception, "Failed to return remote identity handle");
   }
 
@@ -426,17 +439,20 @@ static void proxypp_pp_match_free_wrapper(void *arg)
 
 static void q_omg_proxypp_pp_unrelate(struct proxy_participant *proxypp, struct participant *pp)
 {
-  if (proxypp->sec_attr)
+  if (proxypp->sec_attr && pp->sec_attr)
   {
     struct proxypp_pp_match *pm;
     struct security_entity_match *match;
 
     match = remove_entity_match(pp->e.gv->security_matches, &proxypp->e.guid, &pp->e.guid);
-    entity_match_free(match);
-    ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-    if ((pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->local_identity_handle)) != NULL)
-      proxypp_pp_match_free(pm);
-    ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
+    if (match)
+    {
+      entity_match_free(match);
+      ddsrt_mutex_lock(&proxypp->sec_attr->lock);
+      if ((pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->sec_attr->crypto_handle)) != NULL)
+        proxypp_pp_match_free(pm);
+      ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
+    }
   }
 }
 
@@ -715,10 +731,15 @@ static const char * get_builtin_topic_name(ddsi_entityid_t id)
   return NULL;
 }
 
-static void notify_handshake_recv_token(const struct participant *pp, const struct proxy_participant *proxypp)
+static void notify_handshake_recv_token(struct participant *pp, struct proxy_participant *proxypp)
 {
-  DDSRT_UNUSED_ARG(pp);
-  DDSRT_UNUSED_ARG(proxypp);
+  struct ddsi_handshake *handshake;
+
+  handshake = ddsi_handshake_find(pp, proxypp);
+  if (handshake) {
+    ddsi_handshake_crypto_tokens_received(handshake);
+    ddsi_handshake_release(handshake);
+  }
 }
 
 static const char * get_reader_topic_name(struct reader *rd)
@@ -1477,7 +1498,7 @@ static int64_t get_permissions_handle(struct participant *pp, struct proxy_parti
   struct proxypp_pp_match *pm;
 
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->local_identity_handle);
+  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->sec_attr->crypto_handle);
   if (pm)
     hdl = pm->permissions_handle;
   ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
@@ -1507,7 +1528,7 @@ static bool proxypp_is_authenticated(const struct proxy_participant *proxypp)
 
 bool q_omg_security_register_remote_participant(struct participant *pp, struct proxy_participant *proxypp, int64_t remote_identity_handle, int64_t shared_secret)
 {
-  bool ret = false;
+  bool ret = true;
   struct ddsi_domaingv *gv = pp->e.gv;
   struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
@@ -1528,13 +1549,19 @@ bool q_omg_security_register_remote_participant(struct participant *pp, struct p
   if (crypto_handle == DDS_SECURITY_HANDLE_NIL)
   {
     EXCEPTION_ERROR(sc, &exception, "Failed to register matched remote participant "PGUIDFMT" with participant "PGUIDFMT, PGUID(proxypp->e.guid), PGUID(pp->e.guid));
+    ret = false;
     goto register_failed;
   }
 
   m = find_or_create_entity_match(gv->security_matches, &proxypp->e.guid, &pp->e.guid);
   m->crypto_handle = crypto_handle;
 
+  GVTRACE("match pp->crypto=%"PRId64" proxypp->crypto=%"PRId64"\n", pp->sec_attr->crypto_handle, crypto_handle);
+
   pm = proxypp_pp_match_new(pp, remote_identity_handle, crypto_handle, permissions_handle, shared_secret);
+
+  GVTRACE("create proxypp-pp match pp="PGUIDFMT" proxypp="PGUIDFMT" lidh=%"PRId64, PGUID(pp->e.guid), PGUID(proxypp->e.guid), pp->local_identity_handle);
+
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
   ddsrt_avl_insert(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, pm);
   if (m->tokens)
@@ -1550,11 +1577,14 @@ bool q_omg_security_register_remote_participant(struct participant *pp, struct p
     else
     {
       EXCEPTION_ERROR(sc, &exception, "Failed to set remote participant crypto tokens "PGUIDFMT" --> "PGUIDFMT, PGUID(proxypp->e.guid), PGUID(pp->e.guid));
+      ret = false;
     }
   }
   ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
 
+#if 0
   send_participant_crypto_tokens(pp, proxypp, pp->sec_attr->crypto_handle, crypto_handle);
+#endif
 
 register_failed:
   return ret;
@@ -1646,17 +1676,17 @@ void q_omg_security_set_participant_crypto_tokens(struct participant *pp, struct
   q_omg_copyin_DataHolderSeq(tseq, tokens);
 
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  if ((pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->local_identity_handle)) == NULL)
+  if ((pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->sec_attr->crypto_handle)) == NULL)
   {
-    ddsrt_mutex_unlock(&proxypp->e.lock);
+    ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
     GVTRACE("remember participant tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(proxypp->e.guid), PGUID(pp->e.guid));
     m->tokens = tseq;
     notify_handshake_recv_token(pp, proxypp);
   }
-  else if (sc->crypto_context->crypto_key_exchange->set_remote_participant_crypto_tokens(sc->crypto_context->crypto_key_exchange, pp->sec_attr->crypto_handle, pm->crypto_handle, tseq, &exception))
+  else if (sc->crypto_context->crypto_key_exchange->set_remote_participant_crypto_tokens(sc->crypto_context->crypto_key_exchange, pp->sec_attr->crypto_handle, pm->proxypp_crypto_handle, tseq, &exception))
   {
     m->matched= true;
-    ddsrt_mutex_unlock(&proxypp->e.lock);
+    ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
     GVTRACE("set participant tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(proxypp->e.guid), PGUID(pp->e.guid));
     notify_handshake_recv_token(pp, proxypp);
     DDS_Security_DataHolderSeq_free(tseq);
@@ -1670,18 +1700,28 @@ void q_omg_security_set_participant_crypto_tokens(struct participant *pp, struct
 
 void q_omg_security_participant_send_tokens(struct participant *pp, struct proxy_participant *proxypp)
 {
-  DDSRT_UNUSED_ARG(pp);
-  DDSRT_UNUSED_ARG(proxypp);
+  struct proxypp_pp_match *pm;
+  int64_t crypto_handle = 0;
+
+  ddsrt_mutex_lock(&proxypp->sec_attr->lock);
+  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->sec_attr->crypto_handle);
+  if (pm)
+    crypto_handle = pm->proxypp_crypto_handle;
+  ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
+
+  if (crypto_handle != 0)
+    send_participant_crypto_tokens(pp, proxypp, pp->sec_attr->crypto_handle, crypto_handle);
 }
 
-int64_t q_omg_security_get_remote_participant_handle(int64_t lidh, struct proxy_participant *proxypp)
+int64_t q_omg_security_get_remote_participant_handle(int64_t pp_crypto_handle, struct proxy_participant *proxypp)
 {
   struct proxypp_pp_match *pm;
   int64_t handle = 0;
 
+  DDS_CTRACE(&proxypp->e.gv->logconfig, "get_remote_handle proxypp="PGUIDFMT" lidh=%"PRId64, PGUID(proxypp->e.guid), pp_crypto_handle);
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  if ((pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &lidh)) == NULL)
-    handle = pm->crypto_handle;
+  if ((pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp_crypto_handle)) != NULL)
+    handle = pm->proxypp_crypto_handle;
   ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
 
   return handle;
@@ -1817,7 +1857,7 @@ static bool q_omg_security_register_remote_writer_match(struct proxy_writer *pwr
   }
 
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->local_identity_handle);
+  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->sec_attr->crypto_handle);
   ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
 
   if (!pm)
@@ -1825,13 +1865,15 @@ static bool q_omg_security_register_remote_writer_match(struct proxy_writer *pwr
 
   /* Generate writer crypto info. */
   match->crypto_handle = sc->crypto_context->crypto_key_factory->register_matched_remote_datawriter(
-      sc->crypto_context->crypto_key_factory, rd->sec_attr->crypto_handle, pm->crypto_handle, pm->shared_secret, &exception);
+      sc->crypto_context->crypto_key_factory, rd->sec_attr->crypto_handle, pm->proxypp_crypto_handle, pm->shared_secret, &exception);
 
   if (match->crypto_handle == 0)
   {
     EXCEPTION_ERROR(sc, &exception, "Failed to register remote writer "PGUIDFMT" with reader "PGUIDFMT, PGUID(pwr->e.guid), PGUID(rd->e.guid));
     return false;
   }
+
+  *crypto_handle = match->crypto_handle;
 
   if (match->tokens)
   {
@@ -1852,14 +1894,13 @@ static bool q_omg_security_register_remote_writer_match(struct proxy_writer *pwr
     /* The builtin ParticipantVolatileSecure endpoints do not exchange tokens.
      * Simulate that we already got them. */
     match->matched = true;
+    GVTRACE(" volatile secure reader: proxypp_crypto=%"PRId64" rd_crypto=%"PRId64" pwr_crypto=%"PRId64"\n", pm->proxypp_crypto_handle, rd->sec_attr->crypto_handle, match->crypto_handle);
   }
   else
   {
     /* For 'normal' endpoints, start exchanging tokens. */
     (void)send_reader_crypto_tokens(rd, pwr, rd->sec_attr->crypto_handle, match->crypto_handle);
   }
-
-  *crypto_handle = match->crypto_handle;
 
   return match->matched;
 }
@@ -2165,14 +2206,14 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
    }
 
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
-  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->local_identity_handle);
+  pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &pp->sec_attr->crypto_handle);
   ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
   if (!pm)
     return false;
 
   /* Generate writer crypto info. */
   match->crypto_handle = sc->crypto_context->crypto_key_factory->register_matched_remote_datareader(
-      sc->crypto_context->crypto_key_factory, wr->sec_attr->crypto_handle, pm->crypto_handle, pm->shared_secret, false, &exception);
+      sc->crypto_context->crypto_key_factory, wr->sec_attr->crypto_handle, pm->proxypp_crypto_handle, pm->shared_secret, false, &exception);
 
   if (match->crypto_handle == 0)
   {
@@ -2180,9 +2221,11 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
     return false;
   }
 
-  if (!match->tokens)
+  *crypto_handle = match->crypto_handle;
+
+  if (match->tokens)
   {
-    if (sc->crypto_context->crypto_key_exchange->set_remote_datawriter_crypto_tokens(
+    if (sc->crypto_context->crypto_key_exchange->set_remote_datareader_crypto_tokens(
         sc->crypto_context->crypto_key_exchange, wr->sec_attr->crypto_handle, match->crypto_handle, match->tokens, &exception))
     {
       match->matched = true;
@@ -2194,20 +2237,18 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
       EXCEPTION_ERROR(sc, &exception, "Failed to set remote reader crypto tokens "PGUIDFMT" --> "PGUIDFMT, PGUID(prd->e.guid), PGUID(wr->e.guid));
   }
 
-
-  if (wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER)
+  if (wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
   {
     /* The builtin ParticipantVolatileSecure endpoints do not exchange tokens.
      * Simulate that we already got them. */
     match->matched = true;
+    GVTRACE(" volatile secure writer: proxypp_crypto=%"PRId64" wr_crypto=%"PRId64" prd_crypto=%"PRId64"\n", pm->proxypp_crypto_handle, wr->sec_attr->crypto_handle, match->crypto_handle);
   }
   else
   {
     /* For 'normal' endpoints, start exchanging tokens. */
     (void)send_writer_crypto_tokens(wr, prd, wr->sec_attr->crypto_handle, match->crypto_handle);
   }
-
-  *crypto_handle = match->crypto_handle;
 
   return match->matched;
 }
@@ -2371,84 +2412,562 @@ bool q_omg_reader_is_discovery_protected(const struct reader *rd)
 
 static bool q_omg_security_encode_datareader_submessage(struct reader *rd, const ddsi_guid_prefix_t *dst_prefix, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
 {
-  /* TODO: Use proper keys to actually encode (need key-exchange). */
-  DDSRT_UNUSED_ARG (rd);
-  DDSRT_UNUSED_ARG (dst_prefix);
-  DDSRT_UNUSED_ARG (src_buf);
-  DDSRT_UNUSED_ARG (src_len);
-  DDSRT_UNUSED_ARG (dst_buf);
-  DDSRT_UNUSED_ARG (dst_len);
-  return false;
+  DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
+  struct rd_pwr_match *m;
+  ddsrt_avl_iter_t it;
+  DDS_Security_DatareaderCryptoHandleSeq hdls = { 0, 0, NULL };
+  DDS_Security_OctetSeq encoded_buffer;
+  DDS_Security_OctetSeq plain_buffer;
+  bool result = false;
+  int32_t idx = 0;
+
+  assert (rd);
+  assert (src_len <= UINT32_MAX);
+  assert (src_buf);
+  assert (dst_len);
+  assert (dst_buf);
+  assert (rd->sec_attr);
+  assert (q_omg_reader_is_submessage_protected (rd));
+
+  const struct ddsi_domaingv *gv = rd->e.gv;
+  const struct dds_security_context *sc = q_omg_security_get_secure_context (rd->c.pp);
+  assert (sc);
+
+  GVTRACE (" encode_datareader_submessage "PGUIDFMT" %s/%s", PGUID (rd->e.guid), get_reader_topic_name (rd), rd->topic ? rd->topic->type_name : "(null)");
+  // FIXME: print_buf(src_buf, src_len, "q_omg_security_encode_datareader_submessage(SOURCE)");
+
+  ddsrt_mutex_lock (&rd->e.lock);
+  hdls._buffer = DDS_Security_DatawriterCryptoHandleSeq_allocbuf (rd->num_writers);
+  hdls._maximum = rd->num_writers;
+  for (m = ddsrt_avl_iter_first (&rd_writers_treedef, &rd->writers, &it); m; m = ddsrt_avl_iter_next (&it))
+  {
+    if (m->crypto_handle && (!dst_prefix || guid_prefix_eq (&m->pwr_guid.prefix, dst_prefix)))
+      hdls._buffer[idx++] = m->crypto_handle;
+  }
+  ddsrt_mutex_unlock (&rd->e.lock);
+
+  if ((hdls._length = (DDS_Security_unsigned_long) idx) == 0)
+  {
+    GVTRACE ("Submsg encoding failed for datareader "PGUIDFMT" %s/%s: no matching writers\n", PGUID (rd->e.guid),
+        get_reader_topic_name (rd), rd->topic ? rd->topic->type_name : "(null)");
+    goto err_enc_drd_subm;
+  }
+
+  memset (&encoded_buffer, 0, sizeof (encoded_buffer));
+  plain_buffer._buffer = (DDS_Security_octet*) src_buf;
+  plain_buffer._length = (uint32_t) src_len;
+  plain_buffer._maximum = (uint32_t) src_len;
+
+  if (!(result = sc->crypto_context->crypto_transform->encode_datareader_submessage (
+      sc->crypto_context->crypto_transform, &encoded_buffer, &plain_buffer, rd->sec_attr->crypto_handle, &hdls, &ex)))
+  {
+    GVWARNING ("Submsg encoding failed for datareader "PGUIDFMT" %s/%s: %s", PGUID (rd->e.guid), get_reader_topic_name (rd),
+        rd->topic ? rd->topic->type_name : "(null)", ex.message ? ex.message : "Unknown error");
+    GVTRACE ("\n");
+    DDS_Security_Exception_reset (&ex);
+    goto err_enc_drd_subm;
+  }
+  assert (encoded_buffer._buffer);
+  *dst_buf = encoded_buffer._buffer;
+  *dst_len = encoded_buffer._length;
+  // FIXME: print_buf (*dst_buf, *dst_len, "q_omg_security_encode_datareader_submessage(DEST)");
+  goto end_enc_drd_subm;
+
+err_enc_drd_subm:
+  *dst_buf = NULL;
+  *dst_len = 0;
+
+end_enc_drd_subm:
+  DDS_Security_DatawriterCryptoHandleSeq_freebuf (&hdls);
+  return result;
 }
 
 static bool q_omg_security_encode_datawriter_submessage (struct writer *wr, const ddsi_guid_prefix_t *dst_prefix, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
 {
-  /* TODO: Use proper keys to actually encode (need key-exchange). */
-  DDSRT_UNUSED_ARG (wr);
-  DDSRT_UNUSED_ARG (dst_prefix);
-  DDSRT_UNUSED_ARG (src_buf);
-  DDSRT_UNUSED_ARG (src_len);
-  DDSRT_UNUSED_ARG (dst_buf);
-  DDSRT_UNUSED_ARG (dst_len);
-  return false;
+  DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
+  struct wr_prd_match *m;
+  ddsrt_avl_iter_t it;
+  DDS_Security_DatareaderCryptoHandleSeq hdls = { 0, 0, NULL };
+  DDS_Security_OctetSeq encoded_buffer;
+  DDS_Security_OctetSeq plain_buffer;
+  bool result = false;
+  int32_t idx = 0;
+
+  assert (wr);
+  assert (src_len <= UINT32_MAX);
+  assert (src_buf);
+  assert (dst_len);
+  assert (dst_buf);
+  assert (wr->sec_attr);
+  assert (q_omg_writer_is_submessage_protected (wr));
+  ASSERT_MUTEX_HELD (wr->e.lock);
+
+  const struct ddsi_domaingv *gv = wr->e.gv;
+  const struct dds_security_context *sc = q_omg_security_get_secure_context (wr->c.pp);
+  assert (sc);
+
+  GVTRACE (" encode_datawriter_submessage "PGUIDFMT" %s/%s", PGUID (wr->e.guid), get_writer_topic_name (wr), wr->topic ? wr->topic->type_name : "(null)");
+
+  // FIXME: print_buf(src_buf, src_len, "q_omg_security_encode_datawriter_submessage(SOURCE)");
+
+  hdls._buffer = DDS_Security_DatareaderCryptoHandleSeq_allocbuf (wr->num_readers);
+  hdls._maximum = wr->num_readers;
+  for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
+  {
+    if (m->crypto_handle && (!dst_prefix || guid_prefix_eq (&m->prd_guid.prefix, dst_prefix)))
+      hdls._buffer[idx++] = m->crypto_handle;
+  }
+
+  if ((hdls._length = (DDS_Security_unsigned_long) idx) == 0)
+  {
+    GVTRACE ("Submsg encoding failed for datawriter "PGUIDFMT" %s/%s: no matching readers\n", PGUID (wr->e.guid),
+        get_writer_topic_name (wr), wr->topic ? wr->topic->type_name : "(null)");
+    goto err_enc_dwr_subm;
+  }
+
+  memset (&encoded_buffer, 0, sizeof (encoded_buffer));
+  plain_buffer._buffer = (DDS_Security_octet*) src_buf;
+  plain_buffer._length = (uint32_t) src_len;
+  plain_buffer._maximum = (uint32_t) src_len;
+  result = true;
+  idx = 0;
+  while (result && idx < (int32_t)hdls._length)
+  {
+    /* If the plugin thinks a new call is unnecessary, the index will be set to the size of the hdls sequence. */
+    result = sc->crypto_context->crypto_transform->encode_datawriter_submessage (sc->crypto_context->crypto_transform,
+        &encoded_buffer, &plain_buffer, wr->sec_attr->crypto_handle, &hdls, &idx, &ex);
+
+    /* With a possible second call to encode, the plain buffer should be NULL. */
+    plain_buffer._buffer = NULL;
+    plain_buffer._length = 0;
+    plain_buffer._maximum = 0;
+  }
+
+  if (!result)
+  {
+    GVWARNING ("Submsg encoding failed for datawriter "PGUIDFMT" %s/%s: %s", PGUID (wr->e.guid), get_writer_topic_name (wr),
+        wr->topic ? wr->topic->type_name : "(null)", ex.message ? ex.message : "Unknown error");
+    GVTRACE ("\n");
+    DDS_Security_Exception_reset (&ex);
+    goto err_enc_dwr_subm;
+  }
+
+  assert (encoded_buffer._buffer);
+  *dst_buf = encoded_buffer._buffer;
+  *dst_len = encoded_buffer._length;
+  // FIXME: print_buf (*dst_buf, *dst_len, "q_omg_security_encode_datawriter_submessage(DEST)");
+  goto end_enc_dwr_subm;
+
+err_enc_dwr_subm:
+  *dst_buf = NULL;
+  *dst_len = 0;
+
+end_enc_dwr_subm:
+  DDS_Security_DatareaderCryptoHandleSeq_freebuf (&hdls);
+  return result;
 }
 
-static bool q_omg_security_decode_submessage (const ddsi_guid_prefix_t * const src_prefix, const ddsi_guid_prefix_t * const dst_prefix, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
+static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, const ddsi_guid_prefix_t * const src_prefix, const ddsi_guid_prefix_t * const dst_prefix, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
 {
-  /* TODO: Use proper keys to actually decode (need key-exchange). */
-  DDSRT_UNUSED_ARG (src_prefix);
-  DDSRT_UNUSED_ARG (dst_prefix);
-  DDSRT_UNUSED_ARG (src_buf);
-  DDSRT_UNUSED_ARG (src_len);
-  DDSRT_UNUSED_ARG (dst_buf);
-  DDSRT_UNUSED_ARG (dst_len);
-  return false;
+  DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
+  struct dds_security_context *sc = NULL;
+  DDS_Security_SecureSubmessageCategory_t cat = 0;
+  DDS_Security_DatawriterCryptoHandle proxypp_crypto_hdl = DDS_SECURITY_HANDLE_NIL;
+  DDS_Security_DatawriterCryptoHandle send_crypto_hdl = DDS_SECURITY_HANDLE_NIL;
+  DDS_Security_DatareaderCryptoHandle recv_crypto_hdl = DDS_SECURITY_HANDLE_NIL;
+  DDS_Security_OctetSeq encoded_buffer;
+  DDS_Security_OctetSeq plain_buffer;
+  struct proxypp_pp_match *m;
+  ddsrt_avl_iter_t it;
+  struct participant *pp = NULL;
+  struct proxy_participant *proxypp;
+  struct ddsi_guid proxypp_guid, pp_guid;
+  bool result;
+
+  assert (src_len <= UINT32_MAX);
+  assert (src_buf);
+  assert (dst_len);
+  assert (dst_buf);
+
+  // FIXME: print_buf(src_buf, src_len, "q_omg_security_decode_submessage(SOURCE)");
+
+  proxypp_guid.prefix = *src_prefix;
+  proxypp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+  if (!(proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp_guid)))
+  {
+    GVTRACE ("Unknown remote participant "PGUIDFMT" for decoding submsg\n", PGUID (proxypp_guid));
+    return false;
+  }
+  if (!proxypp->sec_attr)
+  {
+    GVTRACE ("Remote participant "PGUIDFMT" not secure for decoding submsg\n", PGUID (proxypp_guid));
+    return false;
+  }
+  ddsrt_mutex_lock (&proxypp->sec_attr->lock);
+  for (m = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &it); m; m = ddsrt_avl_iter_next (&it))
+  {
+    assert (m->proxypp_crypto_handle);
+    if (!dst_prefix || guid_prefix_zero (dst_prefix))
+    {
+      /* In case no destination prefix is provided (multicast), we use the first match
+         to get the proxypp's handle. This might be wrong in case of a specific configuration
+         per participant, which is not supported yet */
+      proxypp_crypto_hdl = m->proxypp_crypto_handle;
+      memset(&pp_guid, 0, sizeof(pp_guid));
+      sc = q_omg_security_get_secure_context_from_proxypp (proxypp);
+      assert (sc);
+      break;
+    }
+    if (guid_prefix_eq (&m->pp->e.guid.prefix, dst_prefix))
+    {
+      assert (m->pp);
+      pp_guid.prefix = *dst_prefix;
+      pp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+      if (!(pp = entidx_lookup_participant_guid (gv->entity_index, &pp_guid)))
+      {
+        GVWARNING ("Unknown local participant "PGUIDFMT" for decoding submsg\n", PGUID (pp_guid));
+        ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
+        return false;
+      }
+      proxypp_crypto_hdl = m->proxypp_crypto_handle;
+      pp = m->pp;
+      sc = q_omg_security_get_secure_context (pp);
+      assert (sc);
+      break;
+    }
+  }
+  ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
+  if (proxypp_crypto_hdl == DDS_SECURITY_HANDLE_NIL)
+  {
+    GVTRACE ("Remote participant "PGUIDFMT" not matched yet for decoding submsg\n", PGUID (proxypp_guid));
+    return false;
+  }
+
+  GVTRACE("decode: pp_crypto=%"PRId64" proxypp_crypto=%"PRId64"\n", pp ? pp->sec_attr->crypto_handle:0, proxypp_crypto_hdl);
+
+
+  /* Prepare buffers. */
+  memset (&plain_buffer, 0, sizeof (plain_buffer));
+  encoded_buffer._buffer = (DDS_Security_octet*) src_buf;
+  encoded_buffer._length = (uint32_t) src_len;
+  encoded_buffer._maximum = (uint32_t) src_len;
+
+  /* Determine how the RTPS sub-message was encoded. */
+  assert (sc);
+  result = sc->crypto_context->crypto_transform->preprocess_secure_submsg (sc->crypto_context->crypto_transform, &recv_crypto_hdl, &send_crypto_hdl,
+      &cat, &encoded_buffer, pp ? pp->sec_attr->crypto_handle : 0, proxypp_crypto_hdl, &ex);
+  GVTRACE ("decode_submessage: pp("PGUIDFMT") proxypp("PGUIDFMT"), cat(%d)", PGUID (pp_guid), PGUID (proxypp_guid), (int) cat);
+  if (!result)
+  {
+    GVTRACE ("Pre-process submsg failed: %s\n", ex.message ? ex.message : "Unknown error");
+    DDS_Security_Exception_reset (&ex);
+    return false;
+  }
+
+  if (cat == DDS_SECURITY_INFO_SUBMESSAGE)
+  {
+    /* FIXME: Is DDS_SECURITY_INFO_SUBMESSAGE even possible when there's a SMID_SEC_PREFIX?
+      * This function is only called when there is a prefix. If it is possible, then we might
+      * have a problem because the further parsing expects a new buffer (without the security
+      * sub-messages). For now, consider this an error. */
+    GVWARNING ("Pre-process submsg returned DDS_SECURITY_INFO_SUBMESSAGE, which is unexpected with SMID_SEC_PREFIX\n");
+    *dst_buf = NULL;
+    *dst_len = 0;
+    return false;
+  }
+  if (cat != DDS_SECURITY_DATAREADER_SUBMESSAGE && cat != DDS_SECURITY_DATAWRITER_SUBMESSAGE)
+  {
+    GVWARNING ("Pre-process submsg failed from datawriter: returned unknown cat %d\n", (int) cat);
+    return false;
+  }
+
+  switch (cat)
+  {
+  case DDS_SECURITY_DATAWRITER_SUBMESSAGE:
+    result = sc->crypto_context->crypto_transform->decode_datawriter_submessage(sc->crypto_context->crypto_transform, &plain_buffer, &encoded_buffer, send_crypto_hdl, recv_crypto_hdl, &ex);
+    break;
+  case DDS_SECURITY_DATAREADER_SUBMESSAGE:
+    result = sc->crypto_context->crypto_transform->decode_datareader_submessage(sc->crypto_context->crypto_transform, &plain_buffer, &encoded_buffer, recv_crypto_hdl, send_crypto_hdl, &ex);
+    break;
+  case DDS_SECURITY_INFO_SUBMESSAGE:
+    /* No decoding needed.
+     * TODO: Is DDS_SECURITY_INFO_SUBMESSAGE even possible when there's a SMID_SEC_PREFIX?
+     *
+     * This function is only called when there is a prefix. If it is possible,
+     * then I might have a problem because the further parsing expects a new
+     * buffer (without the security sub-messages).
+     *
+     */
+    result = true;
+    break;
+  default:
+    result = false;
+    break;
+  }
+
+  if (!result)
+  {
+    GVWARNING ("Submsg decoding failed: %s\n", ex.message ? ex.message : "Unknown error");
+    DDS_Security_Exception_reset (&ex);
+    *dst_buf = NULL;
+    *dst_len = 0;
+    return false;
+  }
+
+  assert (plain_buffer._buffer);
+  *dst_buf = plain_buffer._buffer;
+  *dst_len = plain_buffer._length;
+  // FIXME: print_buf(*dst_buf, *dst_len, "q_omg_security_decode_submessage(DEST-DATAWRITER)");
+  return true;
 }
 
 static bool q_omg_security_encode_serialized_payload (const struct writer *wr, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
 {
-  /* TODO: Use proper keys to actually encode (need key-exchange). */
-  DDSRT_UNUSED_ARG (wr);
-  DDSRT_UNUSED_ARG (src_buf);
-  DDSRT_UNUSED_ARG (src_len);
-  DDSRT_UNUSED_ARG (dst_buf);
-  DDSRT_UNUSED_ARG (dst_len);
-  return false;
+  DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
+  DDS_Security_OctetSeq extra_inline_qos;
+  DDS_Security_OctetSeq encoded_buffer;
+  DDS_Security_OctetSeq plain_buffer;
+
+  assert (wr);
+  assert (src_buf);
+  assert (src_len <= UINT32_MAX);
+  assert (dst_buf);
+  assert (dst_len);
+  assert (wr->sec_attr);
+  assert (q_omg_writer_is_payload_protected (wr));
+
+  const struct ddsi_domaingv *gv = wr->e.gv;
+  const struct dds_security_context *sc = q_omg_security_get_secure_context (wr->c.pp);
+  assert (sc);
+
+  // FIXME: print_buf(src_buf, src_len, "q_omg_security_encode_serialized_payload(SOURCE)");
+
+  GVTRACE (" encode_payload "PGUIDFMT" %s/%s\n", PGUID (wr->e.guid), wr->topic ? wr->topic->name : "(null)", wr->topic ? wr->topic->type_name : "(null)");
+
+  memset (&extra_inline_qos, 0, sizeof (extra_inline_qos));
+  memset (&encoded_buffer, 0, sizeof (encoded_buffer));
+  plain_buffer._buffer = (DDS_Security_octet *) src_buf;
+  plain_buffer._length = (uint32_t) src_len;
+  plain_buffer._maximum = (uint32_t) src_len;
+
+  if (!sc->crypto_context->crypto_transform->encode_serialized_payload (sc->crypto_context->crypto_transform,
+      &encoded_buffer, &extra_inline_qos, &plain_buffer, wr->sec_attr->crypto_handle, &ex))
+  {
+    GVERROR ("Payload encoding failed for datawriter "PGUIDFMT": %s\n", PGUID (wr->e.guid), ex.message ? ex.message : "Unknown error");
+    DDS_Security_Exception_reset (&ex);
+    *dst_buf = NULL;
+    *dst_len = 0;
+    return false;
+  }
+
+  *dst_buf = encoded_buffer._buffer;
+  *dst_len = encoded_buffer._length;
+  // FIXME: print_buf(*dst_buf, *dst_len, "q_omg_security_encode_serialized_payload(DEST)");
+
+  return true;
 }
 
 static bool q_omg_security_decode_serialized_payload (struct proxy_writer *pwr, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
 {
-  /* TODO: Use proper keys to actually decode (need key-exchange). */
-  DDSRT_UNUSED_ARG (pwr);
-  DDSRT_UNUSED_ARG (src_buf);
-  DDSRT_UNUSED_ARG (src_len);
-  DDSRT_UNUSED_ARG (dst_buf);
-  DDSRT_UNUSED_ARG (dst_len);
-  return false;
+  DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
+  DDS_Security_OctetSeq extra_inline_qos;
+  DDS_Security_OctetSeq encoded_buffer;
+  DDS_Security_OctetSeq plain_buffer;
+  struct pwr_rd_match *pwr_rd_match;
+  struct reader *rd;
+  ddsrt_avl_iter_t it;
+
+  assert (pwr);
+  assert (src_buf);
+  assert (src_len <= UINT32_MAX);
+  assert (dst_buf);
+  assert (dst_len);
+
+  const struct ddsi_domaingv *gv = pwr->e.gv;
+  const struct dds_security_context *sc = q_omg_security_get_secure_context_from_proxypp (pwr->c.proxypp);
+  assert (sc);
+
+  // FIXME: print_buf(src_buf, src_len, "q_omg_security_decode_serialized_payload(SOURCE)");
+
+  *dst_buf = NULL;
+  *dst_len = 0;
+  GVTRACE ("decode_payload "PGUIDFMT"", PGUID (pwr->e.guid));
+
+  /* Only one reader is enough to decrypt the data, so use only the first match. */
+  ddsrt_mutex_lock (&pwr->e.lock);
+  pwr_rd_match = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, &it);
+  ddsrt_mutex_unlock (&pwr->e.lock);
+  if (!pwr_rd_match)
+  {
+    GVWARNING ("Payload decoding failed for from remote datawriter "PGUIDFMT": no local reader\n", PGUID (pwr->e.guid));
+    return false;
+  }
+  if (!pwr_rd_match->crypto_handle)
+  {
+    GVWARNING ("Payload decoding from datawriter "PGUIDFMT": no crypto handle\n", PGUID (pwr->e.guid));
+    return false;
+  }
+  if (!(rd = entidx_lookup_reader_guid (gv->entity_index, &pwr_rd_match->rd_guid)))
+  {
+    GVWARNING ("No datareader "PGUIDFMT" for decoding data from datawriter "PGUIDFMT"", PGUID (pwr_rd_match->rd_guid), PGUID (pwr->e.guid));
+    return false;
+  }
+
+  memset (&extra_inline_qos, 0, sizeof (extra_inline_qos));
+  memset (&plain_buffer, 0, sizeof (plain_buffer));
+  encoded_buffer._buffer  = (DDS_Security_octet *) src_buf;
+  encoded_buffer._length  = (uint32_t) src_len;
+  encoded_buffer._maximum = (uint32_t) src_len;
+  if (!sc->crypto_context->crypto_transform->decode_serialized_payload (sc->crypto_context->crypto_transform,
+      &plain_buffer, &encoded_buffer, &extra_inline_qos, rd->sec_attr->crypto_handle, pwr_rd_match->crypto_handle, &ex))
+  {
+    GVWARNING ("Payload decoding failed for datareader "PGUIDFMT" from datawriter "PGUIDFMT": %s\n", PGUID (pwr_rd_match->rd_guid), PGUID (pwr->e.guid), ex.message ? ex.message : "Unknown error");
+    DDS_Security_Exception_reset (&ex);
+    return false;
+  }
+  *dst_buf = plain_buffer._buffer;
+  *dst_len = plain_buffer._length;
+  // FIXME: print_buf(*dst_buf, *dst_len, "q_omg_security_decode_serialized_payload(DEST)");
+  return true;
 }
 
-bool q_omg_security_encode_rtps_message (int64_t src_handle, ddsi_guid_t *src_guid, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len, int64_t dst_handle)
+bool q_omg_security_encode_rtps_message (const struct ddsi_domaingv *gv, int64_t src_handle, const ddsi_guid_t *src_guid, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len, int64_t dst_handle)
 {
-  /* TODO: Use proper keys to actually encode (need key-exchange). */
-  DDSRT_UNUSED_ARG (src_handle);
-  DDSRT_UNUSED_ARG (src_guid);
-  DDSRT_UNUSED_ARG (src_buf);
-  DDSRT_UNUSED_ARG (src_len);
-  DDSRT_UNUSED_ARG (dst_buf);
-  DDSRT_UNUSED_ARG (dst_len);
-  DDSRT_UNUSED_ARG (dst_handle);
-  return false;
+  DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
+  DDS_Security_ParticipantCryptoHandleSeq hdls = { 0, 0, NULL };
+  DDS_Security_OctetSeq encoded_buffer;
+  DDS_Security_OctetSeq plain_buffer;
+  struct participant *pp;
+  bool result = false;
+  int32_t idx = 0;
+
+  assert (src_buf);
+  assert (src_len <= UINT32_MAX);
+  assert (dst_buf);
+  assert (dst_len);
+
+  if (!(pp = entidx_lookup_participant_guid (gv->entity_index, src_guid)))
+  {
+    GVWARNING ("Unknown local participant "PGUIDFMT" for encoding rtps message\n", PGUID (*src_guid));
+    return false;
+  }
+
+  const struct dds_security_context *sc = q_omg_security_get_secure_context (pp);
+  assert (sc);
+
+  GVTRACE (" ] encode_rtps_message ["PGUIDFMT, PGUID (*src_guid));
+
+  /* When not send to a particular remote participant the message will be send to all known remote participants. */
+  if (dst_handle == DDS_SECURITY_HANDLE_NIL)
+  {
+    /* FIXME:
+    os_rwlockRead(&q_omg_remote_par_crypto_hdls.rwlock);
+    hdls._length = q_omg_remote_par_crypto_hdls.num_handles;
+    hdls._maximum = q_omg_remote_par_crypto_hdls.max_handles;
+    hdls._buffer = (DDS_Security_long_long *)q_omg_remote_par_crypto_hdls.handles;
+    */
+  }
+  else
+  {
+    hdls._buffer = (DDS_Security_long_long *) &dst_handle;
+    hdls._length = hdls._maximum = 1;
+  }
+
+  if (hdls._length > 0)
+  {
+    memset (&encoded_buffer, 0, sizeof (encoded_buffer));
+    plain_buffer._buffer = (DDS_Security_octet *) src_buf;
+    plain_buffer._length = (uint32_t) src_len;
+    plain_buffer._maximum = (uint32_t) src_len;
+
+    result = true;
+    idx = 0;
+    while (result && idx < (int32_t) hdls._length)
+    {
+      /* If the plugin thinks a new call is unnecessary, the index will be set to the size of the hdls sequence. */
+      result = sc->crypto_context->crypto_transform->encode_rtps_message (sc->crypto_context->crypto_transform,
+          &encoded_buffer, &plain_buffer, src_handle, &hdls, &idx, &ex);
+
+      /* With a possible second call to encode, the plain buffer should be NULL. */
+      plain_buffer._buffer = NULL;
+      plain_buffer._length = 0;
+      plain_buffer._maximum = 0;
+    }
+
+    if (!result)
+    {
+      GVTRACE ("]\n");
+      GVERROR ("encoding rtps message for participant "PGUIDFMT" failed: %s", PGUID (*src_guid), ex.message ? ex.message : "Unknown error");
+      GVTRACE ("[");
+      DDS_Security_Exception_reset (&ex);
+      *dst_buf = NULL;
+      *dst_len = 0;
+    }
+    else
+    {
+      assert (encoded_buffer._buffer);
+      *dst_buf = encoded_buffer._buffer;
+      *dst_len = encoded_buffer._length;
+    }
+  }
+
+  if (dst_handle == DDS_SECURITY_HANDLE_NIL)
+  {
+    // FIXME os_rwlockUnlock(&q_omg_remote_par_crypto_hdls.rwlock);
+  }
+
+  return result;
 }
 
 static bool q_omg_security_decode_rtps_message (struct proxy_participant *proxypp, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
 {
-  /* TODO: Use proper keys to actually decode (need key-exchange). */
-  DDSRT_UNUSED_ARG (proxypp);
-  DDSRT_UNUSED_ARG (src_buf);
-  DDSRT_UNUSED_ARG (src_len);
-  DDSRT_UNUSED_ARG (dst_buf);
-  DDSRT_UNUSED_ARG (dst_len);
-  return false;
+  DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
+  struct dds_security_context *sc;
+  DDS_Security_OctetSeq encoded_buffer;
+  DDS_Security_OctetSeq plain_buffer = {0, 0, NULL};
+  ddsrt_avl_iter_t it;
+
+  assert (proxypp);
+  assert (src_buf);
+  assert (src_len <= UINT32_MAX);
+  assert (dst_buf);
+  assert (dst_len);
+
+  const struct ddsi_domaingv *gv = proxypp->e.gv;
+  GVTRACE ("decode_rtps_message from "PGUIDFMT"\n", PGUID (proxypp->e.guid));
+
+  *dst_buf = NULL;
+  *dst_len = 0;
+  encoded_buffer._buffer = (DDS_Security_octet *) src_buf;
+  encoded_buffer._length = (uint32_t) src_len;
+  encoded_buffer._maximum = (uint32_t) src_len;
+
+  ddsrt_mutex_lock (&proxypp->sec_attr->lock);
+  for (struct proxypp_pp_match *pm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->local_participants, &it); pm; pm = ddsrt_avl_iter_next (&it))
+  {
+    sc = q_omg_security_get_secure_context (pm->pp);
+    assert (sc);
+    if (!sc->crypto_context->crypto_transform->decode_rtps_message (sc->crypto_context->crypto_transform,
+        &plain_buffer, &encoded_buffer, pm->pp_crypto_handle, pm->proxypp_crypto_handle, &ex))
+    {
+      if (ex.code == DDS_SECURITY_ERR_INVALID_CRYPTO_RECEIVER_SIGN_CODE)
+        continue; /* Could be caused by 'with_origin_authentication' being used, so try next match */
+      GVWARNING ("decoding rtps message from remote participant "PGUIDFMT" failed: %s\n", PGUID (proxypp->e.guid), ex.message ? ex.message : "Unknown error");
+      DDS_Security_Exception_reset (&ex);
+      ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
+      return false;
+    }
+    *dst_buf = plain_buffer._buffer;
+    *dst_len = plain_buffer._length;
+  }
+  ddsrt_mutex_unlock (&proxypp->sec_attr->lock);
+  if (*dst_buf == NULL)
+  {
+    GVTRACE ("No match found for remote participant "PGUIDFMT" for decoding rtps message\n", PGUID (proxypp->e.guid));
+    return false;
+  }
+
+  return true;
 }
 
 bool q_omg_reader_is_submessage_protected(const struct reader *rd)
@@ -2713,7 +3232,7 @@ static bool decode_SecPrefix_patched_hdr_flags (const struct receiver_state *rst
   /* Decode all three submessages. */
   unsigned char *dst_buf;
   size_t dst_len;
-  const bool decoded = q_omg_security_decode_submessage (src_prefix, dst_prefix, submsg, totalsize, &dst_buf, &dst_len);
+  const bool decoded = q_omg_security_decode_submessage (rst->gv, src_prefix, dst_prefix, submsg, totalsize, &dst_buf, &dst_len);
   if (decoded && dst_buf)
   {
     /*
@@ -2886,6 +3405,7 @@ decode_rtps_message (
 
 ssize_t
 secure_conn_write(
+    const struct ddsi_domaingv *gv,
     ddsi_tran_conn_t conn,
     const nn_locator_t *dst,
     size_t niov,
@@ -2950,7 +3470,7 @@ secure_conn_write(
   }
 
   ssize_t ret = -1;
-  if (!q_omg_security_encode_rtps_message (sec_info->src_pp_handle, &guid, srcbuf, srclen, &dstbuf, &dstlen, dst_handle))
+  if (!q_omg_security_encode_rtps_message (gv, sec_info->src_pp_handle, &guid, srcbuf, srclen, &dstbuf, &dstlen, dst_handle))
     ret = -1;
   else
   {

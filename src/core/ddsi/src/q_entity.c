@@ -1266,14 +1266,14 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
          while longer for it to wakeup. */
       ddsi_conn_free (pp->m_conn);
     }
+#ifdef DDSI_INCLUDE_SECURITY
+    q_omg_security_deregister_participant(pp);
+#endif
     ddsi_plist_fini (pp->plist);
     ddsrt_free (pp->plist);
     ddsrt_mutex_destroy (&pp->refc_lock);
     entity_common_fini (&pp->e);
     remove_deleted_participant_guid (pp->e.gv->deleted_participants, &pp->e.guid, DPG_LOCAL);
-#ifdef DDSI_INCLUDE_SECURITY
-    q_omg_security_deregister_participant(pp);
-#endif
     inverse_uint32_set_fini(&pp->avail_entityids.x);
     ddsrt_free (pp);
   }
@@ -1841,6 +1841,7 @@ static void writer_drop_connection (const struct ddsi_guid *wr_guid, const struc
       ddsrt_avl_delete (&wr_readers_treedef, &wr->readers, m);
       rebuild_writer_addrset (wr);
       remove_acked_messages (wr, &whcst, &deferred_free_list);
+      wr->num_readers--;
       wr->num_reliable_readers -= m->is_reliable;
 #ifdef DDSI_INCLUDE_SECURITY
       q_omg_security_deregister_remote_reader_match (prd, wr);
@@ -1999,6 +2000,7 @@ static void reader_drop_connection (const struct ddsi_guid *rd_guid, const struc
     if ((m = ddsrt_avl_lookup (&rd_writers_treedef, &rd->writers, &pwr->e.guid)) != NULL)
     {
       ddsrt_avl_delete (&rd_writers_treedef, &rd->writers, m);
+      rd->num_writers--;
 #ifdef DDSI_INCLUDE_SECURITY
       q_omg_security_deregister_remote_writer_match (pwr, rd);
 #endif
@@ -2150,7 +2152,7 @@ static void proxy_reader_drop_connection (const struct ddsi_guid *prd_guid, stru
   }
 }
 
-static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
+static void writer_add_connection (struct writer *wr, struct proxy_reader *prd, int64_t crypto_handle)
 {
   struct wr_prd_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
@@ -2162,6 +2164,11 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
   m->all_have_replied_to_hb = 0;
   m->non_responsive_count = 0;
   m->rexmit_requests = 0;
+#ifdef DDSI_INCLUDE_SECURITY
+  m->crypto_handle = crypto_handle;
+#else
+  DDSRT_UNUSED_ARG(crypto_handle);
+#endif
   /* m->demoted: see below */
   ddsrt_mutex_lock (&prd->e.lock);
   if (prd->deleting)
@@ -2207,6 +2214,7 @@ static void writer_add_connection (struct writer *wr, struct proxy_reader *prd)
               PGUID (wr->e.guid), PGUID (prd->e.guid), m->seq);
     ddsrt_avl_insert_ipath (&wr_readers_treedef, &wr->readers, m, &path);
     rebuild_writer_addrset (wr);
+    wr->num_readers++;
     wr->num_reliable_readers += m->is_reliable;
     ddsrt_mutex_unlock (&wr->e.lock);
 
@@ -2303,7 +2311,7 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
   }
 }
 
-static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, nn_count_t *init_count, const struct alive_state *alive_state)
+static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, nn_count_t *init_count, const struct alive_state *alive_state, int64_t crypto_handle)
 {
   struct rd_pwr_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
@@ -2311,6 +2319,11 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
   m->pwr_guid = pwr->e.guid;
   m->pwr_alive = alive_state->alive;
   m->pwr_alive_vclock = alive_state->vclock;
+#ifdef DDSI_INCLUDE_SECURITY
+  m->crypto_handle = crypto_handle;
+#else
+  DDSRT_UNUSED_ARG(crypto_handle);
+#endif
 
   ddsrt_mutex_lock (&rd->e.lock);
 
@@ -2337,6 +2350,7 @@ static void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, 
               PGUID (pwr->e.guid), PGUID (rd->e.guid));
 
     ddsrt_avl_insert_ipath (&rd_writers_treedef, &rd->writers, m, &path);
+    rd->num_writers++;
     ddsrt_mutex_unlock (&rd->e.lock);
 
 #ifdef DDSI_INCLUDE_SSM
@@ -2726,7 +2740,7 @@ void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_rea
 {
   DDSRT_UNUSED_ARG(tnow);
   proxy_reader_add_connection (prd, wr, crypto_handle);
-  writer_add_connection (wr, prd);
+  writer_add_connection (wr, prd, crypto_handle);
 }
 
 void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, nn_mtime_t tnow, int64_t crypto_handle)
@@ -2738,7 +2752,7 @@ void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_wri
      sensible, but that may be outdated by the time the reader gets added to the writer's list
      of matching readers. */
   proxy_writer_get_alive_state (pwr, &alive_state);
-  reader_add_connection (rd, pwr, &init_count,  &alive_state);
+  reader_add_connection (rd, pwr, &init_count,  &alive_state, crypto_handle);
   proxy_writer_add_connection (pwr, rd, tnow, init_count, crypto_handle);
 
   /* Once everything is set up: update with the latest state, any updates to the alive state
@@ -2778,7 +2792,7 @@ static void connect_writer_with_proxy_reader (struct writer *wr, struct proxy_re
   else
   {
     proxy_reader_add_connection (prd, wr, crypto_handle);
-    writer_add_connection (wr, prd);
+    writer_add_connection (wr, prd, crypto_handle);
   }
 }
 
@@ -2817,7 +2831,7 @@ static void connect_proxy_writer_with_reader (struct proxy_writer *pwr, struct r
        sensible, but that may be outdated by the time the reader gets added to the writer's list
        of matching readers. */
     proxy_writer_get_alive_state (pwr, &alive_state);
-    reader_add_connection (rd, pwr, &init_count, &alive_state);
+    reader_add_connection (rd, pwr, &init_count, &alive_state, crypto_handle);
     proxy_writer_add_connection (pwr, rd, tnow, init_count, crypto_handle);
 
     /* Once everything is set up: update with the latest state, any updates to the alive state
@@ -3544,6 +3558,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   wr->retransmitting = 0;
   wr->t_rexmit_end.v = 0;
   wr->t_whc_high_upd.v = 0;
+  wr->num_readers = 0;
   wr->num_reliable_readers = 0;
   wr->num_acks_received = 0;
   wr->num_nacks_received = 0;
@@ -4239,6 +4254,7 @@ static dds_return_t new_reader_guid
   rd->ddsi2direct_cb = 0;
   rd->ddsi2direct_cbarg = 0;
   rd->init_acknack_count = 0;
+  rd->num_writers = 0;
 #ifdef DDSI_INCLUDE_SSM
   rd->favours_ssm = 0;
 #endif

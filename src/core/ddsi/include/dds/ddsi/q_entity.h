@@ -101,6 +101,9 @@ struct rd_pwr_match {
   nn_locator_t ssm_mc_loc;
   nn_locator_t ssm_src_loc;
 #endif
+#ifdef DDSI_INCLUDE_SECURITY
+  int64_t crypto_handle;
+#endif
 };
 
 struct wr_rd_match {
@@ -135,6 +138,9 @@ struct wr_prd_match {
   nn_wctime_t hb_to_ack_latency_tlastlog;
   uint32_t non_responsive_count;
   uint32_t rexmit_requests;
+#ifdef DDSI_INCLUDE_SECURITY
+  int64_t crypto_handle;
+#endif
 };
 
 enum pwr_rd_match_syncstate {
@@ -296,6 +302,7 @@ struct writer
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
   nn_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
   nn_etime_t t_whc_high_upd; /* time "whc_high" was last updated for controlled ramp-up of throughput */
+  uint32_t num_readers; /* total number of matching PROXY readers */
   int32_t num_reliable_readers; /* number of matching reliable PROXY readers */
   ddsrt_avl_tree_t readers; /* all matching PROXY readers, see struct wr_prd_match */
   ddsrt_avl_tree_t local_readers; /* all matching LOCAL readers, see struct wr_rd_match */
@@ -346,6 +353,7 @@ struct reader
   struct addrset *as;
 #endif
   const struct ddsi_sertopic * topic; /* topic is NULL for built-in readers */
+  uint32_t num_writers; /* total number of matching PROXY writers */
   ddsrt_avl_tree_t writers; /* all matching PROXY writers, see struct rd_pwr_match */
   ddsrt_avl_tree_t local_writers; /* all matching LOCAL writers, see struct rd_wr_match */
   ddsi2direct_directread_cb_t ddsi2direct_cb;

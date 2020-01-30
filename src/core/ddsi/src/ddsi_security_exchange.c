@@ -298,13 +298,13 @@ static bool write_crypto_exchange_message(const struct participant *pp, const dd
   };
   serdata = ddsi_serdata_from_sample (gv->rawcdr_topic, SDK_DATA, &raw);
   tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
+  ddsrt_mutex_unlock (&wr->e.lock);
+
   r = write_sample_p2p_wrlock_held(wr, seq, NULL, serdata, tk, prd);
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
   ddsi_serdata_unref (serdata);
 
   nn_participant_generic_message_deinit(&pmg);
-
-  ddsrt_mutex_unlock (&wr->e.lock);
 
   return (r < 0 ? false : true);
 }
@@ -351,7 +351,7 @@ void handle_crypto_exchange_message(const struct receiver_state *rst, ddsi_entit
   pwr_guid.prefix = rst->src_guid_prefix;
   pwr_guid.entityid = wr_entity_id;
 
-  GVTRACE (" recv crypto tokens("PGUIDFMT" --> "PGUIDFMT") ST%x", PGUID (pwr_guid), PGUID (rd_guid), statusinfo);
+  GVTRACE ("recv crypto tokens ("PGUIDFMT" --> "PGUIDFMT") ST%x", PGUID (pwr_guid), PGUID (rd_guid), statusinfo);
 
   memset(&msg, 0, sizeof(msg));
   if (nn_participant_generic_message_deseralize(&msg, data, size, bswap) < 0)

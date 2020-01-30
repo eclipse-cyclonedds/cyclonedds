@@ -123,7 +123,7 @@ static bool validate_handshake(struct ddsi_handshake *handshake)
 
   if ((pp = entidx_lookup_participant_guid(handshake->gv->entity_index, &handshake->lguid)) == NULL)
   {
-    HSERROR("Handshake invalid: oarticipant "PGUIDFMT" not found", PGUID (handshake->lguid));
+    HSERROR("Handshake invalid: participant "PGUIDFMT" not found", PGUID (handshake->lguid));
     ddsi_handshake_remove(handshake->participants.pp, handshake->participants.proxypp, handshake);
     return false;
   }
@@ -773,14 +773,15 @@ static void func_process_handshake(struct dds_security_fsm *fsm, void *arg)
     }
     handshake->end_cb(handshake, handshake->participants.pp, handshake->participants.proxypp, STATE_HANDSHAKE_PROCESSED);
   }
-  else  if (ret == DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE)
-  {
-    if (!send_handshake_message(handshake, handshake->handshake_message_out, handshake->participants.proxypp, 0))
-    {
-      ret = DDS_SECURITY_VALIDATION_FAILED;
-      goto handshake_failed;
-    }
-  }
+
+  if (ret == DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE)
+   {
+     if (!send_handshake_message(handshake, handshake->handshake_message_out, handshake->participants.proxypp, 0))
+     {
+       ret = DDS_SECURITY_VALIDATION_FAILED;
+       goto handshake_failed;
+     }
+   }
 
   dds_security_fsm_dispatch(fsm, (int32_t)ret, true);
   return;

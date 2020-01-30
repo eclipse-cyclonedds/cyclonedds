@@ -3024,7 +3024,7 @@ static int handle_submsg_sequence
       case SMID_SEC_PREFIX:
         state = "parse:sec_prefix";
         {
-          GVTRACE ("SEC_PREFIX");
+          GVTRACE ("SEC_PREFIX ");
           if (!decode_SecPrefix(rst, submsg, submsg_size, end, &rst->src_guid_prefix, &rst->dst_guid_prefix, byteswap))
             goto malformed;
         }
