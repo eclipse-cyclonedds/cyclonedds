@@ -1274,9 +1274,6 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
     ddsrt_mutex_destroy (&pp->refc_lock);
     entity_common_fini (&pp->e);
     remove_deleted_participant_guid (pp->e.gv->deleted_participants, &pp->e.guid, DPG_LOCAL);
-#ifdef DDSI_INCLUDE_SECURITY
-    q_omg_security_deregister_participant(pp);
-#endif
     inverse_uint32_set_fini(&pp->avail_entityids.x);
     ddsrt_free (pp);
   }

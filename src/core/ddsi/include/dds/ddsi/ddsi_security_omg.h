@@ -518,7 +518,6 @@ void q_omg_security_participant_send_tokens(struct participant *pp, struct proxy
  */
 int64_t q_omg_security_get_remote_participant_handle(int64_t pp_crypto_handle, struct proxy_participant *proxypp);
 
-
 /**
  * @brief Set the crypto tokens used for the encryption and decryption of RTPS messages.
  *

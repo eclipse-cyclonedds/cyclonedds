@@ -499,7 +499,7 @@ static void pp_proxypp_unrelate(struct dds_security_context *sc, struct particip
 
 static void proxypp_pp_unrelate(struct dds_security_context *sc, struct proxy_participant *proxypp, const ddsi_guid_t *pp_guid, int64_t pp_crypto_handle)
 {
-  if (proxypp->sec_attr)
+  if (proxypp->sec_attr && pp->sec_attr)
   {
     struct proxypp_pp_match *pm;
     struct security_entity_match *match;
@@ -2817,7 +2817,6 @@ static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, co
   }
 
   GVTRACE(" decode: pp_crypto=%"PRId64" proxypp_crypto=%"PRId64"\n", pp ? pp->sec_attr->crypto_handle:0, proxypp_crypto_hdl);
-
   /* Prepare buffers. */
   memset (&plain_buffer, 0, sizeof (plain_buffer));
   encoded_buffer._buffer = (DDS_Security_octet*) src_buf;
