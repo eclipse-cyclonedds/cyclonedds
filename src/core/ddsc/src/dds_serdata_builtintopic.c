@@ -288,6 +288,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic = {
   .eqkey = serdata_builtin_eqkey,
   .free = serdata_builtin_free,
   .from_ser = 0,
+  .from_ser_iov = 0,
   .from_keyhash = ddsi_serdata_builtin_from_keyhash,
   .from_sample = 0,
   .to_ser = serdata_builtin_to_ser,

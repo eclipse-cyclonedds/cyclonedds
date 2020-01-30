@@ -268,6 +268,51 @@ static struct ddsi_serdata_default *serdata_default_from_ser_common (const struc
   }
 }
 
+static struct ddsi_serdata_default *serdata_default_from_ser_iov_common (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
+{
+  const struct ddsi_sertopic_default *tp = (const struct ddsi_sertopic_default *)tpcmn;
+
+  /* FIXME: check whether this really is the correct maximum: offsets are relative
+     to the CDR header, but there are also some places that use a serdata as-if it
+     were a stream, and those use offsets (m_index) relative to the start of the
+     serdata */
+  if (size > UINT32_MAX - offsetof (struct ddsi_serdata_default, hdr))
+    return NULL;
+  assert (niov >= 1);
+  if (iov[0].iov_len < 4) /* CDR header */
+    return NULL;
+  struct ddsi_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size);
+  if (d == NULL)
+    return NULL;
+
+  memcpy (&d->hdr, iov[0].iov_base, sizeof (d->hdr));
+  assert (d->hdr.identifier == CDR_LE || d->hdr.identifier == CDR_BE);
+  serdata_default_append_blob (&d, 1, iov[0].iov_len - 4, (const char *) iov[0].iov_base + 4);
+  for (ddsrt_msg_iovlen_t i = 1; i < niov; i++)
+    serdata_default_append_blob (&d, 1, iov[i].iov_len, iov[i].iov_base);
+
+  const bool needs_bswap = (d->hdr.identifier != NATIVE_ENCODING);
+  d->hdr.identifier = NATIVE_ENCODING;
+  const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & 2;
+  if (d->pos < pad)
+  {
+    ddsi_serdata_unref (&d->c);
+    return NULL;
+  }
+  else if (!dds_stream_normalize (d->data, d->pos - pad, needs_bswap, tp, kind == SDK_KEY))
+  {
+    ddsi_serdata_unref (&d->c);
+    return NULL;
+  }
+  else
+  {
+    dds_istream_t is;
+    dds_istream_from_serdata_default (&is, d);
+    dds_stream_extract_keyhash (&is, &d->keyhash, tp, kind == SDK_KEY);
+    return d;
+  }
+}
+
 static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
 {
   struct ddsi_serdata_default *d;
@@ -276,10 +321,26 @@ static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertopic
   return fix_serdata_default (d, tpcmn->serdata_basehash);
 }
 
+static struct ddsi_serdata *serdata_default_from_ser_iov (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
+{
+  struct ddsi_serdata_default *d;
+  if ((d = serdata_default_from_ser_iov_common (tpcmn, kind, niov, iov, size)) == NULL)
+    return NULL;
+  return fix_serdata_default (d, tpcmn->serdata_basehash);
+}
+
 static struct ddsi_serdata *serdata_default_from_ser_nokey (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
 {
   struct ddsi_serdata_default *d;
   if ((d = serdata_default_from_ser_common (tpcmn, kind, fragchain, size)) == NULL)
+    return NULL;
+  return fix_serdata_default_nokey (d, tpcmn->serdata_basehash);
+}
+
+static struct ddsi_serdata *serdata_default_from_ser_iov_nokey (const struct ddsi_sertopic *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
+{
+  struct ddsi_serdata_default *d;
+  if ((d = serdata_default_from_ser_iov_common (tpcmn, kind, niov, iov, size)) == NULL)
     return NULL;
   return fix_serdata_default_nokey (d, tpcmn->serdata_basehash);
 }
@@ -630,6 +691,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
   .eqkey = serdata_default_eqkey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser,
+  .from_ser_iov = serdata_default_from_ser_iov,
   .from_keyhash = ddsi_serdata_from_keyhash_cdr,
   .from_sample = serdata_default_from_sample_cdr,
   .to_ser = serdata_default_to_ser,
@@ -646,6 +708,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey = {
   .eqkey = serdata_default_eqkey_nokey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser_nokey,
+  .from_ser_iov = serdata_default_from_ser_iov_nokey,
   .from_keyhash = ddsi_serdata_from_keyhash_cdr_nokey,
   .from_sample = serdata_default_from_sample_cdr_nokey,
   .to_ser = serdata_default_to_ser,
@@ -662,6 +725,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_plist = {
   .eqkey = serdata_default_eqkey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser,
+  .from_ser_iov = serdata_default_from_ser_iov,
   .from_keyhash = 0,
   .from_sample = serdata_default_from_sample_plist,
   .to_ser = serdata_default_to_ser,
@@ -678,6 +742,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_rawcdr = {
   .eqkey = serdata_default_eqkey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser,
+  .from_ser_iov = serdata_default_from_ser_iov,
   .from_keyhash = 0,
   .from_sample = serdata_default_from_sample_rawcdr,
   .to_ser = serdata_default_to_ser,

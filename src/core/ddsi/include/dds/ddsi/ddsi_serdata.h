@@ -61,6 +61,9 @@ typedef void (*ddsi_serdata_free_t) (struct ddsi_serdata *d);
    - FIXME: get the encoding header out of the serialised data */
 typedef struct ddsi_serdata * (*ddsi_serdata_from_ser_t) (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size);
 
+/* Exactly like ddsi_serdata_from_ser_t, but with the data in an iovec and guaranteed absence of overlap */
+typedef struct ddsi_serdata * (*ddsi_serdata_from_ser_iov_t) (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size);
+
 /* Construct a serdata from a keyhash (an SDK_KEY by definition) */
 typedef struct ddsi_serdata * (*ddsi_serdata_from_keyhash_t) (const struct ddsi_sertopic *topic, const struct nn_keyhash *keyhash);
 
@@ -138,6 +141,7 @@ struct ddsi_serdata_ops {
   ddsi_serdata_eqkey_t eqkey;
   ddsi_serdata_size_t get_size;
   ddsi_serdata_from_ser_t from_ser;
+  ddsi_serdata_from_ser_iov_t from_ser_iov;
   ddsi_serdata_from_keyhash_t from_keyhash;
   ddsi_serdata_from_sample_t from_sample;
   ddsi_serdata_to_ser_t to_ser;
@@ -171,6 +175,10 @@ DDS_EXPORT inline uint32_t ddsi_serdata_size (const struct ddsi_serdata *d) {
 
 DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_ser (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size) {
   return topic->serdata_ops->from_ser (topic, kind, fragchain, size);
+}
+
+DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_ser_iov (const struct ddsi_sertopic *topic, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size) {
+  return topic->serdata_ops->from_ser_iov (topic, kind, niov, iov, size);
 }
 
 DDS_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_keyhash (const struct ddsi_sertopic *topic, const struct nn_keyhash *keyhash) {
