@@ -966,6 +966,7 @@ bool q_omg_security_check_create_participant(struct participant *pp, uint32_t do
   ETRACE (pp, "adjusted_guid: "PGUIDFMT" ", PGUID (pp->e.guid));
 
   DDS_Security_Exception_reset(&exception);
+
   /* Get the identity token and add this to the plist of the participant */
   if (!sc->authentication_context->get_identity_token(sc->authentication_context, &identity_token, identity_handle, &exception))
   {

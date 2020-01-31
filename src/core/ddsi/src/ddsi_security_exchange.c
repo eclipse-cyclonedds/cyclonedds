@@ -150,6 +150,8 @@ bool write_auth_handshake_message(const struct participant *pp, const struct pro
   ddsi_serdata_unref (serdata);
   dds_free(blob);
 
+
+
   ddsrt_mutex_unlock (&wr->e.lock);
   nn_participant_generic_message_deinit(&pmg);
 

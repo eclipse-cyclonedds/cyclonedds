@@ -27,6 +27,8 @@ struct ddsi_plist;
 
 void get_participant_builtin_topic_data(const struct participant *pp, struct nn_xmsg *mpayload, bool be);
 
+void get_participant_builtin_topic_data(const struct participant *pp, struct nn_xmsg *mpayload, bool be);
+
 int spdp_write (struct participant *pp);
 int spdp_dispose_unregister (struct participant *pp);
 

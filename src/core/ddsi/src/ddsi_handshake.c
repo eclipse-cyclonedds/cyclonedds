@@ -784,13 +784,13 @@ static void func_process_handshake(struct dds_security_fsm *fsm, void *arg)
   }
 
   if (ret == DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE)
-   {
-     if (!send_handshake_message(handshake, handshake->handshake_message_out, handshake->participants.proxypp, 0))
-     {
-       ret = DDS_SECURITY_VALIDATION_FAILED;
-       goto handshake_failed;
-     }
-   }
+  {
+    if (!send_handshake_message(handshake, handshake->handshake_message_out, handshake->participants.proxypp, 0))
+    {
+      ret = DDS_SECURITY_VALIDATION_FAILED;
+      goto handshake_failed;
+    }
+  }
 
   dds_security_fsm_dispatch(fsm, (int32_t)ret, true);
   return;
