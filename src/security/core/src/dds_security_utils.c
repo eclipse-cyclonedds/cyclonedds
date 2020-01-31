@@ -124,6 +124,7 @@ DDS_Security_BinaryProperty_set_by_value(
     bp->name = ddsrt_strdup(name);
     bp->value._length = length;
     bp->value._maximum = length;
+    bp->propagate = true;
     if (length) {
         bp->value._buffer = ddsrt_malloc(length);
         memcpy(bp->value._buffer, data, length);
@@ -164,6 +165,7 @@ DDS_Security_BinaryProperty_set_by_ref(
     bp->value._length = length;
     bp->value._maximum = length;
     bp->value._buffer = data;
+    bp->propagate = true;
 }
 
 DDS_Security_BinaryPropertySeq *

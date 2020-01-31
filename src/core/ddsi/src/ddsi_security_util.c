@@ -118,7 +118,8 @@ q_omg_shallow_copyout_PropertySeq(
     {
       dst->props[i].name      = src->_buffer[i].name;
       dst->props[i].value     = src->_buffer[i].value;
-      dst->props[i].propagate = src->_buffer[i].propagate;
+//      dst->props[i].propagate = src->_buffer[i].propagate;
+      dst->props[i].propagate = true;
     }
   }
 }
@@ -165,7 +166,8 @@ q_omg_shallow_copyin_BinaryPropertySeq(
       dst->_buffer[i].value._length  = src->props[i].value.length;
       dst->_buffer[i].value._maximum = src->props[i].value.length;
       dst->_buffer[i].value._buffer  = src->props[i].value.value;
-      dst->_buffer[i].propagate      = src->props[i].propagate;
+//      dst->_buffer[i].propagate      = src->props[i].propagate;
+      dst->_buffer[i].propagate      = true;
     }
   }
 }
@@ -312,7 +314,7 @@ q_omg_security_dataholder_copyout(
     holder->properties._buffer[i].propagate = props->propagate;
   }
   holder->binary_properties._length = holder->binary_properties._maximum = dh->binary_properties.n;
-  holder->binary_properties._buffer = dh->binary_properties.n ? DDS_Security_BinaryPropertySeq_allocbuf(dh->properties.n) : NULL;
+  holder->binary_properties._buffer = dh->binary_properties.n ? DDS_Security_BinaryPropertySeq_allocbuf(dh->binary_properties.n) : NULL;
   for (i = 0; i < dh->binary_properties.n; i++)
   {
     dds_binaryproperty_t *props = &(dh->binary_properties.props[i]);
@@ -412,6 +414,8 @@ q_omg_copyin_DataHolderSeq(
     }
   }
 }
+
+
 
 void
 q_omg_shallow_copyout_DataHolderSeq(

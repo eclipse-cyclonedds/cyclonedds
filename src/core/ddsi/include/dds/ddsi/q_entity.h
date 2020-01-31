@@ -554,8 +554,8 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e);
 /**
  * @brief Create a new participant with a given GUID in the domain.
  *
- * @param[in]  ppguid
- *               The GUID of the new participant.
+ * @param[in,out]  ppguid
+ *               The GUID of the new participant, may be adjusted by security.
  * @param[in]  flags
  *               Zero or more of:
  *               - RTPS_PF_NO_BUILTIN_READERS   do not create discovery readers in new ppant
@@ -576,7 +576,7 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e);
  * @retval DDS_RETCODE_OUT_OF_RESOURCES
  *               The configured maximum number of participants has been reached.
  */
-dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
+dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
 
 /**
  * @brief Create a new participant in the domain.  See also new_participant_guid.

@@ -21,7 +21,7 @@ extern "C" {
 struct participant;
 struct proxy_participant;
 struct ddsi_handshake;
-struct dds_security_hsadmin;
+struct dssi_hsadmin;
 
 enum ddsi_handshake_state {
     STATE_HANDSHAKE_IN_PROGRESS,
@@ -35,10 +35,9 @@ enum ddsi_handshake_state {
 /* The handshake will not use the related handshake object after this callback
  * was executed. This means that it can be deleted in this callback. */
 typedef void (*ddsi_handshake_end_cb_t)(
-    struct ddsi_domaingv const * const gv,
     struct ddsi_handshake *handshake,
-    const ddsi_guid_t *lpguid, /* Local participant */
-    const ddsi_guid_t *ppguid, /* Proxy participant */
+    struct participant *pp,
+    struct proxy_participant *proxypp,
     enum ddsi_handshake_state result);
 
 #ifdef DDSI_INCLUDE_SECURITY

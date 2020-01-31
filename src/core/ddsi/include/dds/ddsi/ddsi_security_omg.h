@@ -46,6 +46,7 @@ struct participant_sec_attributes;
 struct proxy_participant_sec_attributes;
 struct writer_sec_attributes;
 struct reader_sec_attributes;
+struct dds_security_context;
 
 typedef struct nn_msg_sec_info {
   unsigned encoded:1;
@@ -54,6 +55,9 @@ typedef struct nn_msg_sec_info {
   int64_t dst_pp_handle;
 } nn_msg_sec_info_t;
 
+struct dds_security_authentication *q_omg_participant_get_authentication(const struct participant *pp);
+
+void q_omg_log_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, ...);
 
 /**
  * @brief Check if access control is enabled for the participant.

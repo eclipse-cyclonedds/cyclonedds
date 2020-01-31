@@ -21,6 +21,7 @@
 #include "dds/ddsi/ddsi_security_exchange.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_security_omg.h"
+#include "dds/ddsi/ddsi_handshake.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_xmsg.h"
@@ -28,8 +29,9 @@
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_bswap.h"
 
-#ifdef HANDSHAKE_IMPLEMENTED
+//#define SECURITY_LOG_MESSAGE_DATA
 
+#ifdef SECURITY_LOG_MESSAGE_DATA
 static void nn_property_seq_log(struct ddsi_domaingv *gv, const dds_propertyseq_t *seq)
 {
   uint32_t i;
@@ -70,6 +72,7 @@ static void nn_dataholder_seq_log(struct ddsi_domaingv *gv, const char *prefix, 
   }
   GVTRACE("}");
 }
+#endif
 
 static void nn_participant_generic_message_log(struct ddsi_domaingv *gv, const struct nn_participant_generic_message *msg, int conv)
 {
@@ -79,27 +82,22 @@ static void nn_participant_generic_message_log(struct ddsi_domaingv *gv, const s
   ddsi_guid_t deguid = conv ? nn_ntoh_guid(msg->destination_endpoint_guid) : msg->destination_endpoint_guid;
   ddsi_guid_t seguid = conv ? nn_ntoh_guid(msg->source_endpoint_guid) : msg->source_endpoint_guid;
 
-  GVTRACE("mi=" PGUIDFMT "#%" PRIdSIZE ",", PGUID(spguid), msg->message_identity.sequence_number);
-  GVTRACE("rmi=" PGUIDFMT "#%" PRIdSIZE ",", PGUID(rmguid), msg->related_message_identity.sequence_number);
+  GVTRACE (" msg=");
+  GVTRACE("mi=" PGUIDFMT "#%" PRId64 ",", PGUID(spguid), msg->message_identity.sequence_number);
+  GVTRACE("rmi=" PGUIDFMT "#%" PRId64 ",", PGUID(rmguid), msg->related_message_identity.sequence_number);
   GVTRACE("dpg=" PGUIDFMT ",", PGUID(dpguid));
   GVTRACE("deg=" PGUIDFMT ",", PGUID(deguid));
   GVTRACE("seg=" PGUIDFMT ",", PGUID(seguid));
-  GVTRACE("cid=%s,", msg->message_class_id);
-  nn_dataholder_seq_log(gv, "mdata", &msg->message_data);
-}
+  GVTRACE("cid=%s", msg->message_class_id);
+#ifdef SECURITY_LOG_MESSAGE_DATA
+  nn_dataholder_seq_log(gv, ",mdata", &msg->message_data);
 #endif
+  GVTRACE ("\n");
+}
 
-bool write_auth_handshake_message(const struct participant *pp, const struct proxy_participant *proxypp, const nn_dataholder_t *hmsg, bool request, const nn_message_identity_t *related_message_id)
+bool write_auth_handshake_message(const struct participant *pp, const struct proxy_participant *proxypp, nn_dataholderseq_t *mdata, bool request, const nn_message_identity_t *related_message_id)
 {
-  DDSRT_UNUSED_ARG(pp);
-  DDSRT_UNUSED_ARG(proxypp);
-  DDSRT_UNUSED_ARG(hmsg);
-  DDSRT_UNUSED_ARG(request);
-  DDSRT_UNUSED_ARG(related_message_id);
-
-#ifdef HANDSHAKE_IMPLEMENTED
   struct ddsi_domaingv *gv = pp->e.gv;
-  const nn_dataholderseq_t mdata = {1, (nn_dataholder_t *)hmsg};
   struct nn_participant_generic_message pmg;
   struct ddsi_serdata *serdata;
   unsigned char *blob;
@@ -126,9 +124,9 @@ bool write_auth_handshake_message(const struct participant *pp, const struct pro
   seq = ++wr->seq;
 
   if (request) {
-    nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, &proxypp->e.guid, NULL, NULL, GMCLASSID_SECURITY_AUTH_HANDSHAKE, &mdata, NULL);
+    nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, &proxypp->e.guid, NULL, NULL, DDS_SECURITY_AUTH_REQUEST, mdata, NULL);
   } else {
-    nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, &proxypp->e.guid, NULL, NULL, GMCLASSID_SECURITY_AUTH_HANDSHAKE, &mdata, related_message_id);
+    nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, &proxypp->e.guid, NULL, NULL, DDS_SECURITY_AUTH_HANDSHAKE, mdata, related_message_id);
   }
 
   if (nn_participant_generic_message_serialize(&pmg, &blob, &len) == DDS_RETCODE_OK)
@@ -152,48 +150,33 @@ bool write_auth_handshake_message(const struct participant *pp, const struct pro
   else
     GVERROR("Failed to serialize handshake message");
 
+
+
   ddsrt_mutex_unlock (&wr->e.lock);
   nn_participant_generic_message_deinit(&pmg);
 
   return result;
-#else
-  return true;
-#endif
-
 }
 
 void auth_get_serialized_participant_data(struct participant *pp, ddsi_octetseq_t *seq)
 {
-  DDSRT_UNUSED_ARG(pp);
-  DDSRT_UNUSED_ARG(seq);
-
-#ifdef HANDSHAKE_IMPLEMENTED
   struct nn_xmsg *mpayload;
   size_t sz;
   char *payload;
 
   mpayload = nn_xmsg_new (pp->e.gv->xmsgpool, &pp->e.guid, pp, 0, NN_XMSG_KIND_DATA);
 
-  get_participant_builtin_topic_data(pp, mpayload);
+  get_participant_builtin_topic_data(pp, mpayload, true);
   payload = nn_xmsg_payload (&sz, mpayload);
 
   seq->length = (uint32_t)sz;
   seq->value = ddsrt_malloc(sz);
   memcpy(seq->value, payload, sz);
   nn_xmsg_free (mpayload);
-#endif
 }
 
 void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, size_t len)
 {
-  DDSRT_UNUSED_ARG(rst);
-  DDSRT_UNUSED_ARG(wr_entity_id);
-  DDSRT_UNUSED_ARG(timestamp);
-  DDSRT_UNUSED_ARG(statusinfo);
-  DDSRT_UNUSED_ARG(vdata);
-  DDSRT_UNUSED_ARG(len);
-
-#ifdef HANDSHAKE_IMPLEMENTED
   const struct CDRHeader *hdr = vdata; /* built-ins not deserialized (yet) */
   const bool bswap = (hdr->identifier == CDR_LE) ^ DDSRT_LITTLE_ENDIAN;
   const void *data = (void *) (hdr + 1);
@@ -218,13 +201,11 @@ void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entity
 
   if (nn_participant_generic_message_deseralize(&msg, data, size, bswap) < 0)
   {
-    RSTTRACE (" deserialize failed\n");
+    RSTTRACE ("deserialize failed\n");
     goto err_deser;
   }
 
-  RSTTRACE ("msg=");
   nn_participant_generic_message_log(rst->gv, &msg, 0);
-  RSTTRACE ("\n");
 
   if (msg.message_identity.source_guid.entityid.u == NN_ENTITYID_PARTICIPANT)
   {
@@ -238,25 +219,25 @@ void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entity
   }
   else
   {
-    RSTTRACE (" invalid source entity id\n");
+    RSTTRACE ("invalid source entity id\n");
     goto invalid_source;
   }
 
   if ((pp = entidx_lookup_participant_guid(rst->gv->entity_index, &msg.destination_participant_guid)) == NULL)
   {
-    RSTTRACE (" destination participant ("PGUIDFMT") not found\n", PGUID(msg.destination_participant_guid));
+    RSTTRACE ("destination participant ("PGUIDFMT") not found\n", PGUID(msg.destination_participant_guid));
   }
   else if ((pwr = entidx_lookup_proxy_writer_guid(rst->gv->entity_index, pwr_guid)) == NULL)
   {
-    RSTTRACE (" proxy writer ("PGUIDFMT") not found\n", PGUID(*pwr_guid));
+    RSTTRACE ("proxy writer ("PGUIDFMT") not found\n", PGUID(*pwr_guid));
   }
   else if ((handshake = ddsi_handshake_find(pp, pwr->c.proxypp)) == NULL)
   {
-    RSTTRACE (" handshake not found ("PGUIDFMT" --> "PGUIDFMT")\n", PGUID (pwr->c.proxypp->e.guid), PGUID(pp->e.guid));
+    RSTTRACE ("handshake not found ("PGUIDFMT" --> "PGUIDFMT")\n", PGUID (pwr->c.proxypp->e.guid), PGUID(pp->e.guid));
   }
   else
   {
-    RSTTRACE (" ("PGUIDFMT" --> "PGUIDFMT")\n", PGUID (pwr->c.proxypp->e.guid), PGUID (pp->e.guid));
+//    RSTTRACE (" ("PGUIDFMT" --> "PGUIDFMT")\n", PGUID (pwr->c.proxypp->e.guid), PGUID (pp->e.guid));
     ddsi_handshake_handle_message(handshake, pp, pwr->c.proxypp, &msg);
     ddsi_handshake_release(handshake);
   }
@@ -265,19 +246,10 @@ invalid_source:
   nn_participant_generic_message_deinit(&msg);
 err_deser:
   return;
-#endif
 }
 
 static bool write_crypto_exchange_message(const struct participant *pp, const ddsi_guid_t *dst_pguid, const ddsi_guid_t *src_eguid, const ddsi_guid_t *dst_eguid, const char *classid, const nn_dataholderseq_t *tokens)
 {
-  DDSRT_UNUSED_ARG(pp);
-  DDSRT_UNUSED_ARG(dst_pguid);
-  DDSRT_UNUSED_ARG(src_eguid);
-  DDSRT_UNUSED_ARG(dst_eguid);
-  DDSRT_UNUSED_ARG(classid);
-  DDSRT_UNUSED_ARG(tokens);
-
-#ifdef HANDSHAKE_IMPLEMENTED
   struct ddsi_domaingv * const gv = pp->e.gv;
   struct nn_participant_generic_message pmg;
   struct ddsi_tkmap_instance *tk;
@@ -335,9 +307,6 @@ static bool write_crypto_exchange_message(const struct participant *pp, const dd
   ddsrt_mutex_unlock (&wr->e.lock);
 
   return (r < 0 ? false : true);
-#else
-  return true;
-#endif
 }
 
 bool write_crypto_participant_tokens(const struct participant *pp, const struct proxy_participant *proxypp, const nn_dataholderseq_t *tokens)
@@ -363,14 +332,6 @@ bool write_crypto_reader_tokens(const struct reader *rd, const struct proxy_writ
 
 void handle_crypto_exchange_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, unsigned len)
 {
-  DDSRT_UNUSED_ARG(rst);
-  DDSRT_UNUSED_ARG(wr_entity_id);
-  DDSRT_UNUSED_ARG(timestamp);
-  DDSRT_UNUSED_ARG(statusinfo);
-  DDSRT_UNUSED_ARG(vdata);
-  DDSRT_UNUSED_ARG(len);
-
-#ifdef HANDSHAKE_IMPLEMENTED
   struct ddsi_domaingv *gv = rst->gv;
   const struct CDRHeader *hdr = vdata; /* built-ins not deserialized (yet) */
   const int bswap = (hdr->identifier == CDR_LE) ^ DDSRT_LITTLE_ENDIAN;
@@ -396,9 +357,7 @@ void handle_crypto_exchange_message(const struct receiver_state *rst, ddsi_entit
   if (nn_participant_generic_message_deseralize(&msg, data, size, bswap) < 0)
     goto deser_msg_failed;
 
-  GVTRACE (" msg=");
   nn_participant_generic_message_log(gv, &msg, 0);
-  GVTRACE ("\n");
 
   if (!msg.message_class_id)
   {
@@ -464,7 +423,6 @@ invalid_msg:
   nn_participant_generic_message_deinit(&msg);
 deser_msg_failed:
   return;
-#endif
 }
 
 

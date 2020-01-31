@@ -28,6 +28,7 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_security_util.h"
 #include "dds/ddsi/ddsi_security_exchange.h"
+#include "dds/ddsi/ddsi_handshake.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
@@ -45,13 +46,13 @@
 #define AC_NAME "Access Control"
 #define CRYPTO_NAME "Cryptographic"
 
-
-
 #define EXCEPTION_LOG(sc,e,cat, ...) \
-  log_exception(sc, cat, e, __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__)
+  q_omg_log_exception(sc->logcfg, cat, e, __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__)
 
 #define EXCEPTION_ERROR(s, e, ...)     EXCEPTION_LOG(s, e, DDS_LC_ERROR, __VA_ARGS__)
 #define EXCEPTION_WARNING(s, e, ...)   EXCEPTION_LOG(s, e, DDS_LC_WARNING, __VA_ARGS__)
+
+
 
 #define SECURITY_ATTR_IS_VALID(attr)                                      \
     ((attr) & NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID)
@@ -261,7 +262,14 @@ static struct dds_security_context * q_omg_security_get_secure_context(const str
   return NULL;
 }
 
-static void log_exception(dds_security_context *sc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, ...)
+struct dds_security_authentication *q_omg_participant_get_authentication(const struct participant *pp)
+{
+  if (pp && pp->e.gv->security_context && q_omg_is_security_loaded(pp->e.gv->security_context))
+    return pp->e.gv->security_context->authentication_context;
+  return NULL;
+}
+
+void q_omg_log_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, ...)
 {
   char logbuffer[512];
   va_list ap;
@@ -274,7 +282,7 @@ static void log_exception(dds_security_context *sc, uint32_t cat, DDS_Security_S
   {
     logbuffer[sizeof(logbuffer)-1] = '\0';
   }
-  dds_log_cfg(sc->logcfg, cat, file, line, func, "%s: %s(code: %d)\n", logbuffer, exception->message ? exception->message : "",  exception->code);
+  dds_log_cfg(lc, cat, file, line, func, "%s: %s(code: %d)\n", logbuffer, exception->message ? exception->message : "",  exception->code);
   security_exception_clear(exception);
 }
 
@@ -784,16 +792,27 @@ bool q_omg_security_check_create_participant(struct participant *pp, uint32_t do
 
   ETRACE (pp, "adjusted_guid: "PGUIDFMT" ", PGUID (pp->e.guid));
 
+  security_exception_clear(&exception);
   /* Get the identity token and add this to the plist of the participant */
   if (!sc->authentication_context->get_identity_token(sc->authentication_context, &identity_token, identity_handle, &exception))
   {
     EXCEPTION_ERROR(sc, &exception, "Error occurred while retrieving the identity token");
     goto validation_failed;
   }
+  assert(exception.code == 0);
 
   q_omg_security_dataholder_copyin(&pp->plist->identity_token, &identity_token);
   DDS_Security_DataHolder_deinit(&identity_token);
   pp->plist->present |= PP_IDENTITY_TOKEN;
+
+  pp->permissions_handle = sc->access_control_context->validate_local_permissions(
+       sc->access_control_context, sc->authentication_context, identity_handle,
+       (DDS_Security_DomainId)domain_id, &par_qos, &exception);
+  if (pp->permissions_handle == DDS_SECURITY_HANDLE_NIL)
+  {
+    EXCEPTION_ERROR(sc, &exception, "Error occured while validating local permissions");
+    goto not_allowed;
+  }
 
   /* ask to access control security plugin for create participant permissions related to this identity*/
   allowed = sc->access_control_context->check_create_participant(sc->access_control_context, pp->permissions_handle, (DDS_Security_DomainId) domain_id, &par_qos, &exception);
@@ -998,7 +1017,7 @@ bool q_omg_get_participant_security_info(const struct participant *pp, nn_securi
   assert(info);
 
   if (q_omg_participant_is_secure(pp)) {
-    DDS_Security_ParticipantSecurityAttributes *attr = &(pp->sec_attr->attr);
+    const DDS_Security_ParticipantSecurityAttributes *attr = &(pp->sec_attr->attr);
 
     info->security_attributes = NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
     info->plugin_security_attributes = attr->plugin_participant_attributes;
@@ -1605,6 +1624,7 @@ bool q_omg_is_similar_participant_security_info(struct participant *pp, struct p
       proxypp->security_info.plugin_security_attributes = pp_security_info.plugin_security_attributes;
     }
   }
+  assert(matching);
   return matching;
 }
 

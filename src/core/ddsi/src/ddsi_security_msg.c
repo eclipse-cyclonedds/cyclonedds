@@ -58,6 +58,8 @@ alias_simple_sequence(ddsi_octetseq_t *dst, const ddsi_octetseq_t *src, size_t e
     /* Even when aliased, sequence buffers are not shared. */
     dst->value = ddsrt_memdup(src->value, src->length * elem_size);
   }
+  else
+    dst->value = NULL;
 }
 
 static void
@@ -85,6 +87,8 @@ alias_dataholderseq(nn_dataholderseq_t *dst, const nn_dataholderseq_t *src)
       alias_dataholder(&(dst->tags[i]), &(src->tags[i]));
     }
   }
+  else
+    dst->tags = NULL;
 }
 
 void

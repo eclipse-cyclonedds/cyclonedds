@@ -1287,6 +1287,8 @@ fill_auth_request_token(
     token->binary_properties._buffer->value._length = len;
     token->binary_properties._buffer->value._buffer = ddsrt_malloc(len);
     memcpy(token->binary_properties._buffer->value._buffer, challenge->value, len);
+    token->binary_properties._buffer->propagate = true;
+
 }
 
 DDS_Security_ValidationResult_t

@@ -28,8 +28,13 @@ struct writer;
 struct proxy_reader;
 struct ddsi_serdata;
 
-#define GMCLASSID_SECURITY_AUTH_REQUEST       "dds.sec.auth_request"
-#define GMCLASSID_SECURITY_AUTH_HANDSHAKE     "dds.sec.auth"
+#define DDS_SECURITY_AUTH_REQUEST                     "dds.sec.auth_request"
+#define DDS_SECURITY_AUTH_HANDSHAKE                   "dds.sec.auth"
+#define DDS_SECURITY_AUTH_REQUEST_TOKEN_CLASS_ID      "DDS:Auth:PKI-DH:1.0+AuthReq"
+#define DDS_SECURITY_AUTH_HANDSHAKE_REQUEST_TOKEN_ID  "DDS:Auth:PKI-DH:1.0+Req"
+#define DDS_SECURITY_AUTH_HANDSHAKE_REPLY_TOKEN_ID    "DDS:Auth:PKI-DH:1.0+Reply"
+#define DDS_SECURITY_AUTH_HANDSHAKE_FINAL_TOKEN_ID    "DDS:Auth:PKI-DH:1.0+Final"
+
 
 typedef struct nn_message_identity {
   ddsi_guid_t source_guid;

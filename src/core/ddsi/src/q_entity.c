@@ -109,7 +109,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
 static struct entity_common *entity_common_from_proxy_endpoint_common (const struct proxy_endpoint_common *c);
 
 #ifdef DDSI_INCLUDE_SECURITY
-static void handshake_end_cb(struct ddsi_domaingv const * const gv, struct ddsi_handshake *handshake, const struct ddsi_guid *lpguid, const struct ddsi_guid *ppguid, enum ddsi_handshake_state result);
+static void handshake_end_cb(struct ddsi_handshake *handshake, struct participant *pp, struct proxy_participant *proxypp, enum ddsi_handshake_state result);
 static void downgrade_to_nonsecure(struct proxy_participant *proxypp);
 #endif
 
@@ -215,6 +215,13 @@ static int is_builtin_volatile_endpoint (ddsi_entityid_t id)
   default:
     break;
   }
+  return 0;
+}
+#else
+
+static int is_builtin_volatile_endpoint (ddsi_entityid_t id)
+{
+  DDSRT_UNUSED_ARG(id);
   return 0;
 }
 
@@ -743,7 +750,7 @@ static void participant_remove_wr_lease_locked (struct participant * pp, struct 
   }
 }
 
-dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
+dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
 {
   struct participant *pp;
   ddsi_guid_t subguid, group_guid;
@@ -877,6 +884,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domain
       ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
       goto not_allowed;
     }
+    *ppguid = pp->e.guid;
   }
 #endif
 
@@ -3687,8 +3695,7 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
     wr->whc_low = wr->e.gv->config.whc_lowwater_mark;
     wr->whc_high = wr->e.gv->config.whc_init_highwater_mark.value;
   }
-  assert (!(wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
-          ||
+  assert (!(is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE) && !is_builtin_volatile_endpoint(wr->e.guid.entityid)) ||
            (wr->whc_low == wr->whc_high && wr->whc_low == INT32_MAX));
 
   /* Connection admin */
@@ -4718,57 +4725,36 @@ static void proxy_participant_remove_pwr_lease_locked (struct proxy_participant 
 
 #ifdef DDSI_INCLUDE_SECURITY
 
-void handshake_end_cb
-(
-  struct ddsi_domaingv const * const gv,
-  struct ddsi_handshake *handshake,
-  const struct ddsi_guid *lpguid,
-  const struct ddsi_guid *ppguid,
-  enum ddsi_handshake_state result)
+void handshake_end_cb(struct ddsi_handshake *handshake, struct participant *pp, struct proxy_participant *proxypp, enum ddsi_handshake_state result)
 {
-  struct proxy_participant *proxypp;
-  struct participant *pp;
-  int64_t shared_secret;
+  const struct ddsi_domaingv * const gv = pp->e.gv;
   int64_t remote_identity_handle;
-
-  assert(handshake);
-  assert(lpguid);
-  assert(ppguid);
-
-  assert(gv);
-
-  proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid);
-  if (!proxypp)
-    return;
-
-  pp = entidx_lookup_participant_guid (gv->entity_index, lpguid);
-  if (!pp)
-    return;
+  int64_t shared_secret;
 
   switch(result)
   {
   case STATE_HANDSHAKE_PROCESSED:
     shared_secret = ddsi_handshake_get_shared_secret(handshake);
     remote_identity_handle = ddsi_handshake_get_remote_identity_handle(handshake);
-    DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") processed\n", PGUID (*lpguid), PGUID (*ppguid));
+    DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") processed\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
     if (q_omg_security_register_remote_participant(pp, proxypp, remote_identity_handle, shared_secret)) {
       match_volatile_secure_endpoints(pp, proxypp);
     }
     break;
 
   case STATE_HANDSHAKE_SEND_TOKENS:
-    DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") send tokens\n", PGUID (*lpguid), PGUID (*ppguid));
+    DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") send tokens\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
     q_omg_security_participant_send_tokens(pp, proxypp);
     break;
 
   case STATE_HANDSHAKE_OK:
-    DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") succeeded\n", PGUID (*lpguid), PGUID (*ppguid));
+    DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") succeeded\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
     update_proxy_participant_endpoint_matching(proxypp, pp);
     ddsi_handshake_remove(pp, proxypp, handshake);
     break;
 
   case STATE_HANDSHAKE_TIMED_OUT:
-    DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Timed out\n", PGUID (*lpguid), PGUID (*ppguid), (int)result);
+    DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Timed out\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), (int)result);
     if (q_omg_participant_allow_unauthenticated(pp)) {
       downgrade_to_nonsecure(proxypp);
       update_proxy_participant_endpoint_matching(proxypp, pp);
@@ -4776,7 +4762,7 @@ void handshake_end_cb
     ddsi_handshake_remove(pp, proxypp, handshake);
     break;
   case STATE_HANDSHAKE_FAILED:
-    DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Failed\n", PGUID (*lpguid), PGUID (*ppguid), (int)result);
+    DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Failed\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), (int)result);
     if (q_omg_participant_allow_unauthenticated(pp)) {
       downgrade_to_nonsecure(proxypp);
       update_proxy_participant_endpoint_matching(proxypp, pp);
@@ -4784,7 +4770,7 @@ void handshake_end_cb
     ddsi_handshake_remove(pp, proxypp, handshake);
     break;
   default:
-    DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Unknown failure\n", PGUID (*lpguid), PGUID (*ppguid), (int)result);
+    DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Unknown failure\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), (int)result);
     ddsi_handshake_remove(pp, proxypp, handshake);
     break;
   }
