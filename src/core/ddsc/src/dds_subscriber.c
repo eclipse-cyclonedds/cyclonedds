@@ -16,7 +16,7 @@
 #include "dds__qos.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/version.h"
 

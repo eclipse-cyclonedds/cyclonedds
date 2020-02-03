@@ -21,7 +21,7 @@ extern "C" {
 
 struct entity_index;
 struct ddsi_guid;
-struct q_globals;
+struct ddsi_domaingv;
 
 struct match_entities_range_key {
   union {
@@ -63,7 +63,7 @@ struct entidx_enum
    at the protocol level slightly before the network reader can use it
    to transmit data. */
 
-struct entity_index *entity_index_new (struct q_globals *gv) ddsrt_nonnull_all;
+struct entity_index *entity_index_new (struct ddsi_domaingv *gv) ddsrt_nonnull_all;
 void entity_index_free (struct entity_index *ei) ddsrt_nonnull_all;
 
 void entidx_insert_participant_guid (struct entity_index *ei, struct participant *pp) ddsrt_nonnull_all;

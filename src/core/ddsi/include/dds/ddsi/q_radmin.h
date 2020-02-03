@@ -111,7 +111,7 @@ struct receiver_state {
   nn_protocol_version_t protocol_version; /* 2 => 44/48 */
   ddsi_tran_conn_t conn;                  /* Connection for request */
   nn_locator_t srcloc;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
 };
 
 struct nn_rsample_info {
@@ -230,7 +230,7 @@ int nn_reorder_wantsample (struct nn_reorder *reorder, seqno_t seq);
 unsigned nn_reorder_nackmap (struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct nn_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail);
 seqno_t nn_reorder_next_seq (const struct nn_reorder *reorder);
 
-struct nn_dqueue *nn_dqueue_new (const char *name, const struct q_globals *gv, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg);
+struct nn_dqueue *nn_dqueue_new (const char *name, const struct ddsi_domaingv *gv, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg);
 void nn_dqueue_free (struct nn_dqueue *q);
 bool nn_dqueue_enqueue_deferred_wakeup (struct nn_dqueue *q, struct nn_rsample_chain *sc, nn_reorder_result_t rres);
 void dd_dqueue_enqueue_trigger (struct nn_dqueue *q);

@@ -19,7 +19,7 @@
 #include "dds__qos.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/version.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_publisher)

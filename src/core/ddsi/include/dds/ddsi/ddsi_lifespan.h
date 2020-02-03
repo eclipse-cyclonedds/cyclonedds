@@ -14,7 +14,7 @@
 
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsi/q_time.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -35,7 +35,7 @@ struct lifespan_fhnode {
   nn_mtime_t t_expire;
 };
 
-DDS_EXPORT void lifespan_init (const struct q_globals *gv, struct lifespan_adm *lifespan_adm, size_t fh_offset, size_t fh_node_offset, sample_expired_cb_t sample_expired_cb);
+DDS_EXPORT void lifespan_init (const struct ddsi_domaingv *gv, struct lifespan_adm *lifespan_adm, size_t fh_offset, size_t fh_node_offset, sample_expired_cb_t sample_expired_cb);
 DDS_EXPORT void lifespan_fini (const struct lifespan_adm *lifespan_adm);
 DDS_EXPORT nn_mtime_t lifespan_next_expired_locked (const struct lifespan_adm *lifespan_adm, nn_mtime_t tnow, void **sample);
 DDS_EXPORT void lifespan_register_sample_real (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);

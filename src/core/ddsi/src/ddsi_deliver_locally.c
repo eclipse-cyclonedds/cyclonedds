@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_entity.h"
 
 #define TOPIC_SAMPLE_CACHE_SIZE 4
@@ -59,7 +59,7 @@ static int cmp_topic_ptrs (const void *va, const void *vb)
 
 static const ddsrt_avl_treedef_t tsc_large_td = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct topic_sample_cache_large_entry, avlnode), offsetof (struct topic_sample_cache_large_entry, topic), cmp_topic_ptrs, 0);
 
-static void free_sample_after_store (struct q_globals *gv, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk)
+static void free_sample_after_store (struct ddsi_domaingv *gv, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk)
 {
   if (sample)
   {
@@ -77,12 +77,12 @@ static void topic_sample_cache_init (struct topic_sample_cache * __restrict tsc)
 static void free_large_entry (void *vnode, void *varg)
 {
   struct topic_sample_cache_large_entry *e = vnode;
-  struct q_globals *gv = varg;
+  struct ddsi_domaingv *gv = varg;
   free_sample_after_store (gv, e->sample, e->tk);
   ddsrt_free (e);
 }
 
-static void topic_sample_cache_fini (struct topic_sample_cache * __restrict tsc, struct q_globals *gv)
+static void topic_sample_cache_fini (struct topic_sample_cache * __restrict tsc, struct ddsi_domaingv *gv)
 {
   for (uint32_t i = 0; i < tsc->n && i < TOPIC_SAMPLE_CACHE_SIZE; i++)
     if (tsc->topics[i] && tsc->samples[i].tk)
@@ -133,7 +133,7 @@ static void topic_sample_cache_store (struct topic_sample_cache * __restrict tsc
   tsc->n++;
 }
 
-dds_return_t deliver_locally_one (struct q_globals *gv, struct entity_common *source_entity, bool source_entity_locked, const ddsi_guid_t *rdguid, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo)
+dds_return_t deliver_locally_one (struct ddsi_domaingv *gv, struct entity_common *source_entity, bool source_entity_locked, const ddsi_guid_t *rdguid, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo)
 {
   struct reader *rd = entidx_lookup_reader_guid (gv->entity_index, rdguid);
   if (rd == NULL)
@@ -166,7 +166,7 @@ dds_return_t deliver_locally_one (struct q_globals *gv, struct entity_common *so
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t deliver_locally_slowpath (struct q_globals *gv, struct entity_common *source_entity, bool source_entity_locked, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo)
+static dds_return_t deliver_locally_slowpath (struct ddsi_domaingv *gv, struct entity_common *source_entity, bool source_entity_locked, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo)
 {
   /* When deleting, pwr is no longer accessible via the hash
      tables, and consequently, a reader may be deleted without
@@ -209,7 +209,7 @@ static dds_return_t deliver_locally_slowpath (struct q_globals *gv, struct entit
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t deliver_locally_fastpath (struct q_globals *gv, struct entity_common *source_entity, bool source_entity_locked, struct local_reader_ary *fastpath_rdary, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo)
+static dds_return_t deliver_locally_fastpath (struct ddsi_domaingv *gv, struct entity_common *source_entity, bool source_entity_locked, struct local_reader_ary *fastpath_rdary, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo)
 {
   struct reader ** const rdary = fastpath_rdary->rdary;
   uint32_t i = 0;
@@ -243,7 +243,7 @@ static dds_return_t deliver_locally_fastpath (struct q_globals *gv, struct entit
   return DDS_RETCODE_OK;
 }
 
-dds_return_t deliver_locally_allinsync (struct q_globals *gv, struct entity_common *source_entity, bool source_entity_locked, struct local_reader_ary *fastpath_rdary, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo)
+dds_return_t deliver_locally_allinsync (struct ddsi_domaingv *gv, struct entity_common *source_entity, bool source_entity_locked, struct local_reader_ary *fastpath_rdary, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo)
 {
   dds_return_t rc;
   /* FIXME: Retry loop for re-delivery of rejected reliable samples is a bad hack

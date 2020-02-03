@@ -24,7 +24,7 @@
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_nwif.h"
 
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_misc.h"
@@ -214,7 +214,7 @@ static int set_reuse_options (const struct ddsrt_log_cfg *logcfg, ddsrt_socket_t
   return 0;
 }
 
-static int bind_socket (ddsrt_socket_t socket, unsigned short port, const struct q_globals *gv)
+static int bind_socket (ddsrt_socket_t socket, unsigned short port, const struct ddsi_domaingv *gv)
 {
   dds_return_t rc = DDS_RETCODE_ERROR;
 
@@ -249,7 +249,7 @@ static int bind_socket (ddsrt_socket_t socket, unsigned short port, const struct
 }
 
 #if DDSRT_HAVE_IPV6
-static int set_mc_options_transmit_ipv6 (ddsrt_socket_t socket, const struct q_globals *gv)
+static int set_mc_options_transmit_ipv6 (ddsrt_socket_t socket, const struct ddsi_domaingv *gv)
 {
   unsigned interfaceNo = gv->interfaceNo;
   unsigned ttl = (unsigned) gv->config.multicast_ttl;
@@ -274,7 +274,7 @@ static int set_mc_options_transmit_ipv6 (ddsrt_socket_t socket, const struct q_g
 }
 #endif
 
-static int set_mc_options_transmit_ipv4 (ddsrt_socket_t socket, const struct q_globals *gv)
+static int set_mc_options_transmit_ipv4 (ddsrt_socket_t socket, const struct ddsi_domaingv *gv)
 {
   unsigned char ttl = (unsigned char) gv->config.multicast_ttl;
   unsigned char loop;
@@ -319,7 +319,7 @@ static int set_mc_options_transmit_ipv4 (ddsrt_socket_t socket, const struct q_g
   return 0;
 }
 
-static int set_mc_options_transmit (ddsrt_socket_t socket, const struct q_globals *gv)
+static int set_mc_options_transmit (ddsrt_socket_t socket, const struct ddsi_domaingv *gv)
 {
 #if DDSRT_HAVE_IPV6
   if (gv->config.transport_selector == TRANS_TCP6 || gv->config.transport_selector == TRANS_UDP6)
@@ -338,7 +338,7 @@ static int set_mc_options_transmit (ddsrt_socket_t socket, const struct q_global
   }
 }
 
-int make_socket (ddsrt_socket_t *sock, uint16_t port, bool stream, bool reuse, const struct q_globals *gv)
+int make_socket (ddsrt_socket_t *sock, uint16_t port, bool stream, bool reuse, const struct ddsi_domaingv *gv)
 {
   /* FIXME: this stuff has to move to the transports */
   int rc = -2;
@@ -433,7 +433,7 @@ static int multicast_override(const char *ifname, const struct config *config)
 #include <linux/if_packet.h>
 #endif
 
-int find_own_ip (struct q_globals *gv, const char *requested_address)
+int find_own_ip (struct ddsi_domaingv *gv, const char *requested_address)
 {
   const char *sep = " ";
   char last_if_name[80] = "";

@@ -21,7 +21,7 @@ extern "C" {
 
 struct gcreq;
 struct gcreq_queue;
-struct q_globals;
+struct ddsi_domaingv;
 
 struct writer;
 struct reader;
@@ -44,7 +44,7 @@ struct gcreq {
   struct idx_vtime vtimes[];
 };
 
-DDS_EXPORT struct gcreq_queue *gcreq_queue_new (struct q_globals *gv);
+DDS_EXPORT struct gcreq_queue *gcreq_queue_new (struct ddsi_domaingv *gv);
 DDS_EXPORT void gcreq_queue_drain (struct gcreq_queue *q);
 DDS_EXPORT void gcreq_queue_free (struct gcreq_queue *q);
 

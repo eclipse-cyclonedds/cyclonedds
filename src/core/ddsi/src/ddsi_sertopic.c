@@ -25,7 +25,7 @@
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 
 bool ddsi_sertopic_equal (const struct ddsi_sertopic *a, const struct ddsi_sertopic *b)
 {
@@ -58,7 +58,7 @@ struct ddsi_sertopic *ddsi_sertopic_ref (const struct ddsi_sertopic *sertopic_co
   return sertopic;
 }
 
-struct ddsi_sertopic *ddsi_sertopic_lookup_locked (struct q_globals *gv, const struct ddsi_sertopic *sertopic_template)
+struct ddsi_sertopic *ddsi_sertopic_lookup_locked (struct ddsi_domaingv *gv, const struct ddsi_sertopic *sertopic_template)
 {
   struct ddsi_sertopic *sertopic = ddsrt_hh_lookup (gv->sertopics, sertopic_template);
 #ifndef NDEBUG
@@ -71,7 +71,7 @@ struct ddsi_sertopic *ddsi_sertopic_lookup_locked (struct q_globals *gv, const s
   return ddsi_sertopic_ref (sertopic);
 }
 
-void ddsi_sertopic_register_locked (struct q_globals *gv, struct ddsi_sertopic *sertopic)
+void ddsi_sertopic_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertopic *sertopic)
 {
   assert (sertopic->gv == NULL);
   assert (sertopic->iid == 0);

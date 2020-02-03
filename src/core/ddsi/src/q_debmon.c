@@ -27,7 +27,7 @@
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_plist.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
@@ -52,7 +52,7 @@ struct debug_monitor {
   ddsi_tran_listener_t servsock;
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   struct plugin *plugins;
   int stop;
 };
@@ -142,7 +142,7 @@ static int print_proxy_endpoint_common (ddsi_tran_conn_t conn, const char *label
 }
 
 
-static int print_participants (struct thread_state1 * const ts1, struct q_globals *gv, ddsi_tran_conn_t conn)
+static int print_participants (struct thread_state1 * const ts1, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn)
 {
   struct entidx_enum_participant e;
   struct participant *p;
@@ -227,7 +227,7 @@ static int print_participants (struct thread_state1 * const ts1, struct q_global
   return x;
 }
 
-static int print_proxy_participants (struct thread_state1 * const ts1, struct q_globals *gv, ddsi_tran_conn_t conn)
+static int print_proxy_participants (struct thread_state1 * const ts1, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn)
 {
   struct entidx_enum_proxy_participant e;
   struct proxy_participant *p;
@@ -346,7 +346,7 @@ static uint32_t debmon_main (void *vdm)
   return 0;
 }
 
-struct debug_monitor *new_debug_monitor (struct q_globals *gv, int32_t port)
+struct debug_monitor *new_debug_monitor (struct ddsi_domaingv *gv, int32_t port)
 {
   struct debug_monitor *dm;
 

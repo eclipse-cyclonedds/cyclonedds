@@ -27,7 +27,7 @@
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_unused.h"
@@ -79,7 +79,7 @@ static void writer_hbcontrol_note_hb (struct writer *wr, nn_mtime_t tnow, int an
 
 int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *whcst, UNUSED_ARG (nn_mtime_t tnow))
 {
-  struct q_globals const * const gv = wr->e.gv;
+  struct ddsi_domaingv const * const gv = wr->e.gv;
   struct hbcontrol const * const hbc = &wr->hbcontrol;
   int64_t ret = gv->config.const_hb_intv_sched;
   size_t n_unacked;
@@ -105,7 +105,7 @@ int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *
 
 void writer_hbcontrol_note_asyncwrite (struct writer *wr, nn_mtime_t tnow)
 {
-  struct q_globals const * const gv = wr->e.gv;
+  struct ddsi_domaingv const * const gv = wr->e.gv;
   struct hbcontrol * const hbc = &wr->hbcontrol;
   nn_mtime_t tnext;
 
@@ -134,7 +134,7 @@ int writer_hbcontrol_must_send (const struct writer *wr, const struct whc_state 
 
 struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const struct whc_state *whcst, nn_mtime_t tnow, int hbansreq, int issync)
 {
-  struct q_globals const * const gv = wr->e.gv;
+  struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg *msg;
   const ddsi_guid_t *prd_guid;
 
@@ -226,7 +226,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
 
 static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const struct whc_state *whcst, nn_mtime_t tlast, nn_mtime_t tnow, int piggyback)
 {
-  struct q_globals const * const gv = wr->e.gv;
+  struct ddsi_domaingv const * const gv = wr->e.gv;
   struct hbcontrol const * const hbc = &wr->hbcontrol;
   const int64_t hb_intv_ack = gv->config.const_hb_intv_sched;
   assert(wr->heartbeat_xevent != NULL && whcst != NULL);
@@ -317,7 +317,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
 
 void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, int hbliveliness, ddsi_entityid_t dst, int issync)
 {
-  struct q_globals const * const gv = wr->e.gv;
+  struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
   Heartbeat_t * hb;
   seqno_t max = 0, min = 1;
@@ -392,7 +392,7 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
   /* actual expected_inline_qos_size is typically 0, but always claiming 32 bytes won't make
      a difference, so no point in being precise */
   const size_t expected_inline_qos_size = /* statusinfo */ 8 + /* keyhash */ 20 + /* sentinel */ 4;
-  struct q_globals const * const gv = wr->e.gv;
+  struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
   unsigned char contentflag = 0;
   Data_t *data;
@@ -477,7 +477,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
      actual expected_inline_qos_size is typically 0, but always claiming 32 bytes won't make
      a difference, so no point in being precise */
   const size_t expected_inline_qos_size = /* statusinfo */ 8 + /* keyhash */ 20 + /* sentinel */ 4;
-  struct q_globals const * const gv = wr->e.gv;
+  struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
   void *sm;
   Data_DataFrag_common_t *ddcmn;
@@ -636,7 +636,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
 
 static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragnum, struct proxy_reader *prd, struct nn_xmsg **pmsg)
 {
-  struct q_globals const * const gv = wr->e.gv;
+  struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
   HeartbeatFrag_t *hbf;
   ASSERT_MUTEX_HELD (&wr->e.lock);
@@ -671,7 +671,7 @@ static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragn
   nn_xmsg_submsg_setnext (*pmsg, sm_marker);
 }
 
-dds_return_t write_hb_liveliness (struct q_globals * const gv, struct ddsi_guid *wr_guid, struct nn_xpack *xp)
+dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_guid *wr_guid, struct nn_xpack *xp)
 {
   struct nn_xmsg *msg = NULL;
   struct whc_state whcst;
@@ -790,7 +790,7 @@ static void transmit_sample_lgmsg_unlocked (struct nn_xpack *xp, struct writer *
 static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
 {
   /* on entry: &wr->e.lock held; on exit: lock no longer held */
-  struct q_globals const * const gv = wr->e.gv;
+  struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg *fmsg;
   uint32_t sz;
   assert(xp);
@@ -832,7 +832,7 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, 
 
 int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct nn_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
 {
-  struct q_globals const * const gv = wr->e.gv;
+  struct ddsi_domaingv const * const gv = wr->e.gv;
   uint32_t i, sz, nfrags;
   int enqueued = 1;
 
@@ -997,7 +997,7 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
      resent to them, until a ACKNACK is received from that
      reader. This implicitly clears the whc and unblocks the
      writer. */
-  struct q_globals const * const gv = wr->e.gv;
+  struct ddsi_domaingv const * const gv = wr->e.gv;
   dds_return_t result = DDS_RETCODE_OK;
   nn_mtime_t tnow = now_mt ();
   const nn_mtime_t abstimeout = add_duration_to_mtime (tnow, wr->xqos->reliability.max_blocking_time);
@@ -1068,7 +1068,7 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
 
 static int maybe_grow_whc (struct writer *wr)
 {
-  struct q_globals const * const gv = wr->e.gv;
+  struct ddsi_domaingv const * const gv = wr->e.gv;
   if (!wr->retransmitting && gv->config.whc_adaptive && wr->whc_high < gv->config.whc_highwater_mark)
   {
     nn_etime_t tnow = now_et();
@@ -1086,7 +1086,7 @@ static int maybe_grow_whc (struct writer *wr)
 
 static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
 {
-  struct q_globals const * const gv = wr->e.gv;
+  struct ddsi_domaingv const * const gv = wr->e.gv;
   int r;
   seqno_t seq;
   nn_mtime_t tnow;

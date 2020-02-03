@@ -17,7 +17,7 @@
 #include "dds/dds.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds__handles.h"
@@ -227,7 +227,7 @@ typedef struct dds_domain {
   struct local_orphan_writer *builtintopic_writer_subscriptions;
 
   struct ddsi_builtin_topic_interface btif;
-  struct q_globals gv;
+  struct ddsi_domaingv gv;
 } dds_domain;
 
 typedef struct dds_subscriber {

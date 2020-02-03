@@ -24,7 +24,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 
 dds_return_t dds_write (dds_entity_t writer, const void *data)
@@ -93,7 +93,7 @@ struct local_sourceinfo {
   nn_mtime_t timeout;
 };
 
-static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, struct q_globals *gv, struct ddsi_sertopic const * const topic, void *vsourceinfo)
+static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertopic const * const topic, void *vsourceinfo)
 {
   struct local_sourceinfo *si = vsourceinfo;
   if (topic == si->src_topic)

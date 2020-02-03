@@ -94,6 +94,7 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     ddsi_entity_index.h
     ddsi_deadline.h
     ddsi_deliver_locally.h
+    ddsi_domaingv.h
     q_addrset.h
     q_bitset.h
     q_bswap.h
@@ -104,7 +105,6 @@ PREPEND(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi"
     q_feature_check.h
     q_freelist.h
     q_gc.h
-    q_globals.h
     q_hbcontrol.h
     q_lat_estim.h
     q_lease.h

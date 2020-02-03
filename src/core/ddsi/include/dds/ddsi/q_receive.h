@@ -22,7 +22,7 @@ struct nn_rdata;
 struct ddsi_tran_listener;
 struct recv_thread_arg;
 
-void trigger_recv_threads (const struct q_globals *gv);
+void trigger_recv_threads (const struct ddsi_domaingv *gv);
 uint32_t recv_thread (void *vrecv_thread_arg);
 uint32_t listen_thread (struct ddsi_tran_listener * listener);
 int user_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);

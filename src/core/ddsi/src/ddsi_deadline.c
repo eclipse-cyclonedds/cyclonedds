@@ -47,7 +47,7 @@ nn_mtime_t deadline_next_missed_locked (struct deadline_adm *deadline_adm, nn_mt
   return (elem != NULL) ? elem->t_deadline : NN_MTIME_NEVER;
 }
 
-void deadline_init (const struct q_globals *gv, struct deadline_adm *deadline_adm, size_t list_offset, size_t elem_offset, deadline_missed_cb_t deadline_missed_cb)
+void deadline_init (const struct ddsi_domaingv *gv, struct deadline_adm *deadline_adm, size_t list_offset, size_t elem_offset, deadline_missed_cb_t deadline_missed_cb)
 {
   ddsrt_circlist_init (&deadline_adm->list);
   deadline_adm->evt = qxev_callback (gv->xevents, NN_MTIME_NEVER, instance_deadline_missed_cb, deadline_adm);

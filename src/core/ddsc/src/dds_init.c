@@ -30,7 +30,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_gc.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/version.h"
 
 static void dds_close (struct dds_entity *e);

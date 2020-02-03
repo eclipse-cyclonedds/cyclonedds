@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__stream.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN

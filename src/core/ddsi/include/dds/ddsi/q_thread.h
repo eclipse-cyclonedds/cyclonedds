@@ -54,7 +54,7 @@ enum thread_state {
   THREAD_STATE_ALIVE /* known to be alive - for Cyclone internal threads */
 };
 
-struct q_globals;
+struct ddsi_domaingv;
 struct config;
 struct ddsrt_log_cfg;
 
@@ -103,10 +103,10 @@ DDS_EXPORT bool thread_states_fini (void);
 
 DDS_EXPORT const struct config_thread_properties_listelem *lookup_thread_properties (const struct config *config, const char *name);
 DDS_EXPORT dds_return_t create_thread_with_properties (struct thread_state1 **ts1, struct config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg);
-DDS_EXPORT dds_return_t create_thread (struct thread_state1 **ts, const struct q_globals *gv, const char *name, uint32_t (*f) (void *arg), void *arg);
+DDS_EXPORT dds_return_t create_thread (struct thread_state1 **ts, const struct ddsi_domaingv *gv, const char *name, uint32_t (*f) (void *arg), void *arg);
 DDS_EXPORT struct thread_state1 *lookup_thread_state_real (void);
 DDS_EXPORT dds_return_t join_thread (struct thread_state1 *ts1);
-DDS_EXPORT void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct q_globals *gv);
+DDS_EXPORT void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct ddsi_domaingv *gv);
 DDS_EXPORT void reset_thread_state (struct thread_state1 *ts1);
 DDS_EXPORT int thread_exists (const char *name);
 
@@ -161,13 +161,13 @@ DDS_EXPORT inline void thread_state_asleep (struct thread_state1 *ts1)
   ddsrt_atomic_st32 (&ts1->vtime, vt);
 }
 
-DDS_EXPORT inline void thread_state_awake (struct thread_state1 *ts1, const struct q_globals *gv)
+DDS_EXPORT inline void thread_state_awake (struct thread_state1 *ts1, const struct ddsi_domaingv *gv)
 {
   vtime_t vt = ddsrt_atomic_ld32 (&ts1->vtime);
   assert ((vt & VTIME_NEST_MASK) < VTIME_NEST_MASK);
   assert (gv != NULL);
   assert (ts1->state != THREAD_STATE_ALIVE || gv == ddsrt_atomic_ldvoidp (&ts1->gv));
-  ddsrt_atomic_stvoidp (&ts1->gv, (struct q_globals *) gv);
+  ddsrt_atomic_stvoidp (&ts1->gv, (struct ddsi_domaingv *) gv);
   ddsrt_atomic_fence_stst ();
   ddsrt_atomic_st32 (&ts1->vtime, vt + 1u);
   /* nested calls a rare and an extra fence doesn't break things */

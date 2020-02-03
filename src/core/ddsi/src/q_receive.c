@@ -48,7 +48,7 @@
 #include "dds/ddsi/ddsi_deliver_locally.h"
 
 #include "dds/ddsi/q_transmit.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_init.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
@@ -1743,7 +1743,7 @@ struct remote_sourceinfo {
   nn_wctime_t tstamp;
 };
 
-static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk, struct q_globals *gv, struct ddsi_sertopic const * const topic, void *vsourceinfo)
+static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertopic const * const topic, void *vsourceinfo)
 {
   /* hopefully the compiler figures out that these are just aliases and doesn't reload them
      unnecessarily from memory */
@@ -1917,7 +1917,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     .on_failure_fastpath = remote_on_delivery_failure_fastpath
   };
   struct receiver_state const * const rst = sampleinfo->rst;
-  struct q_globals * const gv = rst->gv;
+  struct ddsi_domaingv * const gv = rst->gv;
   struct proxy_writer * const pwr = sampleinfo->pwr;
   unsigned statusinfo;
   Data_DataFrag_common_t *msg;
@@ -2257,7 +2257,7 @@ static void handle_regular (struct receiver_state *rst, nn_etime_t tnow, struct 
 
 static int handle_SPDP (const struct nn_rsample_info *sampleinfo, struct nn_rdata *rdata)
 {
-  struct q_globals * const gv = sampleinfo->rst->gv;
+  struct ddsi_domaingv * const gv = sampleinfo->rst->gv;
   struct nn_rsample *rsample;
   struct nn_rsample_chain sc;
   struct nn_rdata *fragchain;
@@ -2452,7 +2452,7 @@ static int handle_DataFrag (struct receiver_state *rst, nn_etime_t tnow, struct 
   return 1;
 }
 
-static void malformed_packet_received_nosubmsg (const struct q_globals *gv, const unsigned char * msg, ssize_t len, const char *state, nn_vendorid_t vendorid
+static void malformed_packet_received_nosubmsg (const struct ddsi_domaingv *gv, const unsigned char * msg, ssize_t len, const char *state, nn_vendorid_t vendorid
 )
 {
   char tmp[1024];
@@ -2469,7 +2469,7 @@ static void malformed_packet_received_nosubmsg (const struct q_globals *gv, cons
   GVWARNING ("%s\n", tmp);
 }
 
-static void malformed_packet_received (const struct q_globals *gv, const unsigned char *msg, const unsigned char *submsg, size_t len, const char *state, SubmessageKind_t smkind, nn_vendorid_t vendorid)
+static void malformed_packet_received (const struct ddsi_domaingv *gv, const unsigned char *msg, const unsigned char *submsg, size_t len, const char *state, SubmessageKind_t smkind, nn_vendorid_t vendorid)
 {
   char tmp[1024];
   size_t i, pos, smsize;
@@ -2584,7 +2584,7 @@ static struct receiver_state *rst_cow_if_needed (int *rst_live, struct nn_rmsg *
 static int handle_submsg_sequence
 (
   struct thread_state1 * const ts1,
-  struct q_globals *gv,
+  struct ddsi_domaingv *gv,
   ddsi_tran_conn_t conn,
   const nn_locator_t *srcloc,
   nn_wctime_t tnowWC,
@@ -2864,7 +2864,7 @@ malformed_asleep:
   return -1;
 }
 
-static bool do_packet (struct thread_state1 * const ts1, struct q_globals *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool)
+static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool)
 {
   /* UDP max packet size is 64kB */
 
@@ -3041,7 +3041,7 @@ static void local_participant_set_fini (struct local_participant_set *lps)
   ddsrt_free (lps->ps);
 }
 
-static void rebuild_local_participant_set (struct thread_state1 * const ts1, struct q_globals *gv, struct local_participant_set *lps)
+static void rebuild_local_participant_set (struct thread_state1 * const ts1, struct ddsi_domaingv *gv, struct local_participant_set *lps)
 {
   struct entidx_enum_participant est;
   struct participant *pp;
@@ -3109,7 +3109,7 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
 
 uint32_t listen_thread (struct ddsi_tran_listener *listener)
 {
-  struct q_globals *gv = listener->m_base.gv;
+  struct ddsi_domaingv *gv = listener->m_base.gv;
   ddsi_tran_conn_t conn;
 
   while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing))
@@ -3132,7 +3132,7 @@ static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t con
     return 0;
   else
   {
-    struct q_globals *gv = conn->m_base.gv;
+    struct ddsi_domaingv *gv = conn->m_base.gv;
     for (uint32_t i = 0; i < gv->n_recv_threads; i++)
       if (gv->recv_threads[i].arg.mode == RTM_SINGLE && gv->recv_threads[i].arg.u.single.conn == conn)
         return 0;
@@ -3151,7 +3151,7 @@ struct local_deaf_state {
   nn_mtime_t tnext;
 };
 
-static int check_and_handle_deafness_recover (struct q_globals *gv, struct local_deaf_state *st, unsigned num_fixed_uc)
+static int check_and_handle_deafness_recover (struct ddsi_domaingv *gv, struct local_deaf_state *st, unsigned num_fixed_uc)
 {
   int rebuildws = 0;
   if (now_mt().v < st->tnext.v)
@@ -3206,7 +3206,7 @@ error:
   return rebuildws;
 }
 
-static int check_and_handle_deafness (struct q_globals *gv, struct local_deaf_state *st, unsigned num_fixed_uc)
+static int check_and_handle_deafness (struct ddsi_domaingv *gv, struct local_deaf_state *st, unsigned num_fixed_uc)
 {
   const int gv_deaf = gv->deaf;
   assert (gv_deaf == 0 || gv_deaf == 1);
@@ -3231,7 +3231,7 @@ static int check_and_handle_deafness (struct q_globals *gv, struct local_deaf_st
   }
 }
 
-void trigger_recv_threads (const struct q_globals *gv)
+void trigger_recv_threads (const struct ddsi_domaingv *gv)
 {
   for (uint32_t i = 0; i < gv->n_recv_threads; i++)
   {
@@ -3263,7 +3263,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
   struct recv_thread_arg *recv_thread_arg = vrecv_thread_arg;
-  struct q_globals * const gv = recv_thread_arg->gv;
+  struct ddsi_domaingv * const gv = recv_thread_arg->gv;
   struct nn_rbufpool *rbpool = recv_thread_arg->rbpool;
   os_sockWaitset waitset = recv_thread_arg->mode == RTM_MANY ? recv_thread_arg->u.many.ws : NULL;
   nn_mtime_t next_thread_cputime = { 0 };

@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsrt/avl.h"
 
 struct nn_group_membership_node {
@@ -177,7 +177,7 @@ static int interface_in_recvips_p (const struct config_in_addr_node *recvips, co
   return 0;
 }
 
-static int joinleave_mcgroups (const struct q_globals *gv, ddsi_tran_conn_t conn, int join, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
+static int joinleave_mcgroups (const struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, int join, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
 {
   int rc;
   switch (gv->recvips_mode)
@@ -223,7 +223,7 @@ static int joinleave_mcgroups (const struct q_globals *gv, ddsi_tran_conn_t conn
   return 0;
 }
 
-int ddsi_join_mc (const struct q_globals *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
+int ddsi_join_mc (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
 {
   /* FIXME: gv to be reduced; perhaps mship, recvips, interfaces, ownloc should be combined into a single struct */
   int ret;
@@ -242,7 +242,7 @@ int ddsi_join_mc (const struct q_globals *gv, struct nn_group_membership *mship,
   return ret;
 }
 
-int ddsi_leave_mc (const struct q_globals *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
+int ddsi_leave_mc (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcloc, const nn_locator_t *mcloc)
 {
   int ret;
   ddsrt_mutex_lock (&mship->lock);
@@ -282,7 +282,7 @@ void ddsi_transfer_group_membership (struct nn_group_membership *mship, ddsi_tra
   ddsrt_mutex_unlock (&mship->lock);
 }
 
-int ddsi_rejoin_transferred_mcgroups (const struct q_globals *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn)
+int ddsi_rejoin_transferred_mcgroups (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn)
 {
   /* FIXME: see gv should be reduced; perhaps recvips, ownloc, mship, interfaces should be a single struct */
   struct nn_group_membership_node *n, min, max;

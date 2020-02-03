@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 
 extern inline uint32_t ddsi_conn_type (ddsi_tran_conn_t conn);
 extern inline uint32_t ddsi_conn_port (ddsi_tran_conn_t conn);
@@ -37,13 +37,13 @@ extern inline ddsi_tran_conn_t ddsi_listener_accept (ddsi_tran_listener_t listen
 extern inline ssize_t ddsi_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, nn_locator_t *srcloc);
 extern inline ssize_t ddsi_conn_write (ddsi_tran_conn_t conn, const nn_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags);
 
-void ddsi_factory_add (struct q_globals *gv, ddsi_tran_factory_t factory)
+void ddsi_factory_add (struct ddsi_domaingv *gv, ddsi_tran_factory_t factory)
 {
   factory->m_factory = gv->ddsi_tran_factories;
   gv->ddsi_tran_factories = factory;
 }
 
-ddsi_tran_factory_t ddsi_factory_find (const struct q_globals *gv, const char *type)
+ddsi_tran_factory_t ddsi_factory_find (const struct ddsi_domaingv *gv, const char *type)
 {
   /* FIXME: should speed up */
   ddsi_tran_factory_t factory = gv->ddsi_tran_factories;
@@ -60,7 +60,7 @@ ddsi_tran_factory_t ddsi_factory_find (const struct q_globals *gv, const char *t
   return factory;
 }
 
-void ddsi_tran_factories_fini (struct q_globals *gv)
+void ddsi_tran_factories_fini (struct ddsi_domaingv *gv)
 {
   ddsi_tran_factory_t factory;
   while ((factory = gv->ddsi_tran_factories) != NULL)
@@ -73,7 +73,7 @@ void ddsi_tran_factories_fini (struct q_globals *gv)
   }
 }
 
-static ddsi_tran_factory_t ddsi_factory_find_with_len (const struct q_globals *gv, const char *type, size_t len)
+static ddsi_tran_factory_t ddsi_factory_find_with_len (const struct ddsi_domaingv *gv, const char *type, size_t len)
 {
   /* FIXME: should speed up */
   ddsi_tran_factory_t factory = gv->ddsi_tran_factories;
@@ -91,7 +91,7 @@ static ddsi_tran_factory_t ddsi_factory_find_with_len (const struct q_globals *g
 }
 
 ddsrt_attribute_no_sanitize (("thread"))
-ddsi_tran_factory_t ddsi_factory_find_supported_kind (const struct q_globals *gv, int32_t kind)
+ddsi_tran_factory_t ddsi_factory_find_supported_kind (const struct ddsi_domaingv *gv, int32_t kind)
 {
   /* FIXME: MUST speed up */
   ddsi_tran_factory_t factory;
@@ -237,13 +237,13 @@ void ddsi_listener_free (ddsi_tran_listener_t listener)
   }
 }
 
-int ddsi_is_mcaddr (const struct q_globals *gv, const nn_locator_t *loc)
+int ddsi_is_mcaddr (const struct ddsi_domaingv *gv, const nn_locator_t *loc)
 {
   ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind (gv, loc->kind);
   return tran ? tran->m_is_mcaddr_fn (tran, loc) : 0;
 }
 
-int ddsi_is_ssm_mcaddr (const struct q_globals *gv, const nn_locator_t *loc)
+int ddsi_is_ssm_mcaddr (const struct ddsi_domaingv *gv, const nn_locator_t *loc)
 {
   ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind(gv, loc->kind);
   if (tran && tran->m_is_ssm_mcaddr_fn != 0)
@@ -259,7 +259,7 @@ enum ddsi_nearby_address_result ddsi_is_nearby_address (const nn_locator_t *loc,
     return ownloc->tran->m_is_nearby_address_fn (loc, ownloc, ninterf, interf);
 }
 
-enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct q_globals *gv, nn_locator_t *loc, const char *str, ddsi_tran_factory_t default_factory)
+enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, nn_locator_t *loc, const char *str, ddsi_tran_factory_t default_factory)
 {
   const char *sep = strchr(str, '/');
   ddsi_tran_factory_t tran;
