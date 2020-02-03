@@ -37,7 +37,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
@@ -202,7 +202,7 @@ struct nn_xpack
   size_t niov;
   ddsrt_iovec_t *iov;
   enum nn_xmsg_dstmode dstmode;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
 
   union
   {
@@ -644,7 +644,7 @@ static int readerId_compatible (const struct nn_xmsg *m, const struct nn_xmsg *m
   return e.u == NN_ENTITYID_UNKNOWN || e.u == eadd.u;
 }
 
-int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct q_globals *gv, struct nn_xmsg *m, const struct nn_xmsg *madd)
+int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, struct nn_xmsg *m, const struct nn_xmsg *madd)
 {
   assert (m->kindspecific.data.wrseq >= 1);
   assert (m->kindspecific.data.wrguid.prefix.u[0] != 0);
@@ -829,7 +829,7 @@ int nn_xmsg_addpar_sentinel_ifparam (struct nn_xmsg * m)
    pointer we compute the address of the xmsg from the address of the
    chain element, &c. */
 
-static void nn_xmsg_chain_release (struct q_globals *gv, struct nn_xmsg_chain *chain)
+static void nn_xmsg_chain_release (struct ddsi_domaingv *gv, struct nn_xmsg_chain *chain)
 {
   ddsi_guid_t wrguid;
   memset (&wrguid, 0, sizeof (wrguid));
@@ -887,7 +887,7 @@ static void nn_xmsg_chain_add (struct nn_xmsg_chain *chain, struct nn_xmsg *m)
 
 #define NN_BW_LIMIT_MAX_BUFFER (-30 * T_MILLISECOND)
 #define NN_BW_LIMIT_MIN_SLEEP (2 * T_MILLISECOND)
-static void nn_bw_limit_sleep_if_needed (struct q_globals const * const gv, struct nn_bw_limiter *this, ssize_t size)
+static void nn_bw_limit_sleep_if_needed (struct ddsi_domaingv const * const gv, struct nn_bw_limiter *this, ssize_t size)
 {
   if ( this->bandwidth > 0 ) {
     nn_mtime_t tnow = now_mt();
@@ -1015,7 +1015,7 @@ void nn_xpack_free (struct nn_xpack *xp)
 static ssize_t nn_xpack_send1 (const nn_locator_t *loc, void * varg)
 {
   struct nn_xpack *xp = varg;
-  struct q_globals const * const gv = xp->gv;
+  struct ddsi_domaingv const * const gv = xp->gv;
   ssize_t nbytes = 0;
 
   if (gv->logconfig.c.mask & DDS_LC_TRACE)
@@ -1101,7 +1101,7 @@ static void nn_xpack_send1_threaded (const nn_locator_t *loc, void * varg)
 
 static void nn_xpack_send_real (struct nn_xpack *xp)
 {
-  struct q_globals const * const gv = xp->gv;
+  struct ddsi_domaingv const * const gv = xp->gv;
   size_t calls;
 
   assert (xp->niov <= NN_XMSG_MAX_MESSAGE_IOVECS);
@@ -1181,7 +1181,7 @@ static void nn_xpack_send_real (struct nn_xpack *xp)
 
 static uint32_t nn_xpack_sendq_thread (void *vgv)
 {
-  struct q_globals *gv = vgv;
+  struct ddsi_domaingv *gv = vgv;
   ddsrt_mutex_lock (&gv->sendq_lock);
   while (!(gv->sendq_stop && gv->sendq_head == NULL))
   {
@@ -1205,7 +1205,7 @@ static uint32_t nn_xpack_sendq_thread (void *vgv)
   return 0;
 }
 
-void nn_xpack_sendq_init (struct q_globals *gv)
+void nn_xpack_sendq_init (struct ddsi_domaingv *gv)
 {
   gv->sendq_stop = 0;
   gv->sendq_head = NULL;
@@ -1215,13 +1215,13 @@ void nn_xpack_sendq_init (struct q_globals *gv)
   ddsrt_cond_init (&gv->sendq_cond);
 }
 
-void nn_xpack_sendq_start (struct q_globals *gv)
+void nn_xpack_sendq_start (struct ddsi_domaingv *gv)
 {
   if (create_thread (&gv->sendq_ts, gv, "sendq", nn_xpack_sendq_thread, NULL) != DDS_RETCODE_OK)
     GVERROR ("nn_xpack_sendq_start: can't create nn_xpack_sendq_thread\n");
 }
 
-void nn_xpack_sendq_stop (struct q_globals *gv)
+void nn_xpack_sendq_stop (struct ddsi_domaingv *gv)
 {
   ddsrt_mutex_lock (&gv->sendq_lock);
   gv->sendq_stop = 1;
@@ -1229,7 +1229,7 @@ void nn_xpack_sendq_stop (struct q_globals *gv)
   ddsrt_mutex_unlock (&gv->sendq_lock);
 }
 
-void nn_xpack_sendq_fini (struct q_globals *gv)
+void nn_xpack_sendq_fini (struct ddsi_domaingv *gv)
 {
   assert (gv->sendq_head == NULL);
   join_thread (gv->sendq_ts);
@@ -1245,7 +1245,7 @@ void nn_xpack_send (struct nn_xpack *xp, bool immediately)
   }
   else
   {
-    struct q_globals * const gv = xp->gv;
+    struct ddsi_domaingv * const gv = xp->gv;
     struct nn_xpack *xp1 = ddsrt_malloc (sizeof (*xp));
     memcpy (xp1, xp, sizeof (*xp1));
     nn_xpack_reinit (xp);
@@ -1350,7 +1350,7 @@ static int guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_prefix_t
 int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flags)
 {
   /* Returns > 0 if pack got sent out before adding m */
-  struct q_globals const * const gv = xp->gv;
+  struct ddsi_domaingv const * const gv = xp->gv;
   static InfoDST_t static_zero_dst = {
     { SMID_INFO_DST, (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0), sizeof (ddsi_guid_prefix_t) },
     { { 0,0,0,0, 0,0,0,0, 0,0,0,0 } }

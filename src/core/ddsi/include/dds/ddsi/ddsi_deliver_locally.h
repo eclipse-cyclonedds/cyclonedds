@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-struct q_globals;
+struct ddsi_domaingv;
 struct ddsi_tkmap_instance;
 struct ddsi_sertopic;
 struct ddsi_serdata;
@@ -34,7 +34,7 @@ struct entity_common;
 struct ddsi_writer_info;
 struct local_reader_ary;
 
-typedef struct ddsi_serdata * (*deliver_locally_makesample_t) (struct ddsi_tkmap_instance **tk, struct q_globals *gv, struct ddsi_sertopic const * const topic, void *vsourceinfo);
+typedef struct ddsi_serdata * (*deliver_locally_makesample_t) (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertopic const * const topic, void *vsourceinfo);
 typedef struct reader * (*deliver_locally_first_reader_t) (struct entity_index *entity_index, struct entity_common *source_entity, ddsrt_avl_iter_t *it);
 typedef struct reader * (*deliver_locally_next_reader_t) (struct entity_index *entity_index, ddsrt_avl_iter_t *it);
 
@@ -51,9 +51,9 @@ struct deliver_locally_ops {
   deliver_locally_on_failure_fastpath_t on_failure_fastpath;
 };
 
-dds_return_t deliver_locally_one (struct q_globals *gv, struct entity_common *source_entity, bool source_entity_locked, const ddsi_guid_t *rdguid, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo);
+dds_return_t deliver_locally_one (struct ddsi_domaingv *gv, struct entity_common *source_entity, bool source_entity_locked, const ddsi_guid_t *rdguid, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo);
 
-dds_return_t deliver_locally_allinsync (struct q_globals *gv, struct entity_common *source_entity, bool source_entity_locked, struct local_reader_ary *fastpath_rdary, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo);
+dds_return_t deliver_locally_allinsync (struct ddsi_domaingv *gv, struct entity_common *source_entity, bool source_entity_locked, struct local_reader_ary *fastpath_rdary, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo);
 
 #if defined (__cplusplus)
 }

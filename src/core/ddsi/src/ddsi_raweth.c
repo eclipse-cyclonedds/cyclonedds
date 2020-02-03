@@ -17,7 +17,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_pcap.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
@@ -362,7 +362,7 @@ static int ddsi_raweth_is_valid_port (ddsi_tran_factory_t fact, uint32_t port)
   return (port >= 1 && port <= 65535);
 }
 
-int ddsi_raweth_init (struct q_globals *gv)
+int ddsi_raweth_init (struct ddsi_domaingv *gv)
 {
   struct ddsi_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
   memset (fact, 0, sizeof (*fact));
@@ -391,6 +391,6 @@ int ddsi_raweth_init (struct q_globals *gv)
 
 #else
 
-int ddsi_raweth_init (struct q_globals *gv) { (void) gv; return 0; }
+int ddsi_raweth_init (struct ddsi_domaingv *gv) { (void) gv; return 0; }
 
 #endif /* defined __linux */

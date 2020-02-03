@@ -42,7 +42,7 @@
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_nwif.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/q_pcap.h"
@@ -62,7 +62,7 @@
 #include "dds__whc.h"
 #include "dds/ddsi/ddsi_iid.h"
 
-static void add_peer_addresses (const struct q_globals *gv, struct addrset *as, const struct config_peer_listelem *list)
+static void add_peer_addresses (const struct ddsi_domaingv *gv, struct addrset *as, const struct config_peer_listelem *list)
 {
   while (list)
   {
@@ -77,7 +77,7 @@ enum make_uc_sockets_ret {
   MUSRET_NOSOCKET
 };
 
-static enum make_uc_sockets_ret make_uc_sockets (struct q_globals *gv, uint32_t * pdisc, uint32_t * pdata, int ppid)
+static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint32_t * pdisc, uint32_t * pdata, int ppid)
 {
   if (gv->config.many_sockets_mode == MSM_NO_UNICAST)
   {
@@ -133,7 +133,7 @@ static void make_builtin_endpoint_xqos (dds_qos_t *q, const dds_qos_t *template)
   q->durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
 }
 
-static int set_recvips (struct q_globals *gv)
+static int set_recvips (struct ddsi_domaingv *gv)
 {
   gv->recvips = NULL;
 
@@ -238,7 +238,7 @@ static int set_recvips (struct q_globals *gv)
  *   return -1 : ddsi is unicast, but 'mc' indicates it expects multicast
  *   return  0 : ddsi is multicast, but 'mc' indicates it expects unicast
  * The return 0 means that the possible changes in 'loc' can be ignored. */
-static int string_to_default_locator (const struct q_globals *gv, nn_locator_t *loc, const char *string, uint32_t port, int mc, const char *tag)
+static int string_to_default_locator (const struct ddsi_domaingv *gv, nn_locator_t *loc, const char *string, uint32_t port, int mc, const char *tag)
 {
   if (strspn (string, " \t") == strlen (string))
   {
@@ -277,7 +277,7 @@ static int string_to_default_locator (const struct q_globals *gv, nn_locator_t *
   return 1;
 }
 
-static int set_spdp_address (struct q_globals *gv)
+static int set_spdp_address (struct ddsi_domaingv *gv)
 {
   const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
   int rc = 0;
@@ -310,7 +310,7 @@ static int set_spdp_address (struct q_globals *gv)
   return 0;
 }
 
-static int set_default_mc_address (struct q_globals *gv)
+static int set_default_mc_address (struct ddsi_domaingv *gv)
 {
   const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DATA, 0);
   int rc;
@@ -324,7 +324,7 @@ static int set_default_mc_address (struct q_globals *gv)
   return 0;
 }
 
-static int set_ext_address_and_mask (struct q_globals *gv)
+static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
 {
   nn_locator_t loc;
   int rc;
@@ -361,7 +361,7 @@ static int set_ext_address_and_mask (struct q_globals *gv)
 }
 
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
-static int known_channel_p (const struct q_globals *gv, const char *name)
+static int known_channel_p (const struct ddsi_domaingv *gv, const char *name)
 {
   const struct config_channel_listelem *c;
   for (c = gv->config.channels; c; c = c->next)
@@ -371,7 +371,7 @@ static int known_channel_p (const struct q_globals *gv, const char *name)
 }
 #endif
 
-static int check_thread_properties (const struct q_globals *gv)
+static int check_thread_properties (const struct ddsi_domaingv *gv)
 {
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   static const char *fixed[] = { "recv", "tev", "gc", "lease", "dq.builtins", "debmon", NULL };
@@ -411,7 +411,7 @@ static int check_thread_properties (const struct q_globals *gv)
   return ok;
 }
 
-int rtps_config_open_trace (struct q_globals *gv)
+int rtps_config_open_trace (struct ddsi_domaingv *gv)
 {
   DDSRT_WARNING_MSVC_OFF(4996);
   int status;
@@ -447,7 +447,7 @@ int rtps_config_open_trace (struct q_globals *gv)
   DDSRT_WARNING_MSVC_ON(4996);
 }
 
-int rtps_config_prep (struct q_globals *gv, struct cfgst *cfgst)
+int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
 {
 #ifdef DDSI_INCLUDE_NETWORK_CHANNELS
   unsigned num_channels = 0;
@@ -613,7 +613,7 @@ err_config_late_error:
 }
 
 struct joinleave_spdp_defmcip_helper_arg {
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   int errcount;
   int dojoin;
 };
@@ -639,7 +639,7 @@ static void joinleave_spdp_defmcip_helper (const nn_locator_t *loc, void *varg)
   }
 }
 
-int joinleave_spdp_defmcip (struct q_globals *gv, int dojoin)
+int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
 {
   /* Addrset provides an easy way to filter out duplicates */
   struct joinleave_spdp_defmcip_helper_arg arg;
@@ -661,7 +661,7 @@ int joinleave_spdp_defmcip (struct q_globals *gv, int dojoin)
   return 0;
 }
 
-int create_multicast_sockets (struct q_globals *gv)
+int create_multicast_sockets (struct ddsi_domaingv *gv)
 {
   ddsi_tran_qos_t qos = ddsi_tran_create_qos ();
   ddsi_tran_conn_t disc, data;
@@ -711,7 +711,7 @@ err_disc:
   return 0;
 }
 
-static void rtps_term_prep (struct q_globals *gv)
+static void rtps_term_prep (struct ddsi_domaingv *gv)
 {
   /* Stop all I/O */
   ddsrt_mutex_lock (&gv->lock);
@@ -726,7 +726,7 @@ static void rtps_term_prep (struct q_globals *gv)
 }
 
 struct wait_for_receive_threads_helper_arg {
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   unsigned count;
 };
 
@@ -739,7 +739,7 @@ static void wait_for_receive_threads_helper (struct xevent *xev, void *varg, nn_
   (void) resched_xevent_if_earlier (xev, add_duration_to_mtime (tnow, T_SECOND));
 }
 
-static void wait_for_receive_threads (struct q_globals *gv)
+static void wait_for_receive_threads (struct ddsi_domaingv *gv)
 {
   struct xevent *trigev;
   struct wait_for_receive_threads_helper_arg cbarg;
@@ -786,13 +786,13 @@ static struct ddsi_sertopic *make_special_topic (const char *name, struct serdat
   return (struct ddsi_sertopic *) st;
 }
 
-static void free_special_topics (struct q_globals *gv)
+static void free_special_topics (struct ddsi_domaingv *gv)
 {
   ddsi_sertopic_unref (gv->plist_topic);
   ddsi_sertopic_unref (gv->rawcdr_topic);
 }
 
-static void make_special_topics (struct q_globals *gv)
+static void make_special_topics (struct ddsi_domaingv *gv)
 {
   gv->plist_topic = make_special_topic ("plist", gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? PL_CDR_LE : PL_CDR_BE, &ddsi_serdata_ops_plist);
   gv->rawcdr_topic = make_special_topic ("rawcdr", gv->serpool, DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? CDR_LE : CDR_BE, &ddsi_serdata_ops_rawcdr);
@@ -833,7 +833,7 @@ static bool use_multiple_receive_threads (const struct config *cfg)
   return false;
 }
 
-static int setup_and_start_recv_threads (struct q_globals *gv)
+static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
 {
   const bool multi_recv_thr = use_multiple_receive_threads (&gv->config);
 
@@ -927,7 +927,7 @@ static uint32_t ddsi_sertopic_hash_wrap (const void *tp)
   return ddsi_sertopic_hash (tp);
 }
 
-int rtps_init (struct q_globals *gv)
+int rtps_init (struct ddsi_domaingv *gv)
 {
   uint32_t port_disc_uc = 0;
   uint32_t port_data_uc = 0;
@@ -1048,7 +1048,6 @@ int rtps_init (struct q_globals *gv)
     GVLOG (DDS_LC_CONFIG, "ownip: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->ownloc));
     GVLOG (DDS_LC_CONFIG, "extip: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extloc));
     GVLOG (DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extmask), gv->m_factory->m_kind != NN_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
-    GVLOG (DDS_LC_CONFIG, "networkid: 0x%lx\n", (unsigned long) gv->myNetworkId);
     GVLOG (DDS_LC_CONFIG, "SPDP MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_spdp_mc));
     GVLOG (DDS_LC_CONFIG, "default MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_default_mc));
 #ifdef DDSI_INCLUDE_SSM
@@ -1483,7 +1482,7 @@ static void stop_all_xeventq_upto (struct config_channel_listelem *chptr)
 }
 #endif
 
-int rtps_start (struct q_globals *gv)
+int rtps_start (struct ddsi_domaingv *gv)
 {
   if (xeventq_start (gv->xevents, NULL) < 0)
     return -1;
@@ -1549,7 +1548,7 @@ static void builtins_dqueue_ready_cb (void *varg)
   ddsrt_mutex_unlock (&arg->lock);
 }
 
-void rtps_stop (struct q_globals *gv)
+void rtps_stop (struct ddsi_domaingv *gv)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
 
@@ -1680,7 +1679,7 @@ void rtps_stop (struct q_globals *gv)
   ddsrt_mutex_destroy (&gv->privileged_pp_lock);
 }
 
-void rtps_fini (struct q_globals *gv)
+void rtps_fini (struct ddsi_domaingv *gv)
 {
   /* Shut down the GC system -- no new requests will be added */
   gcreq_queue_free (gv->gcreq_queue);

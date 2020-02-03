@@ -33,7 +33,7 @@ enum ddsi_sertopic_builtintopic_type {
   DSBT_WRITER
 };
 
-struct q_globals;
+struct ddsi_domaingv;
 struct ddsi_sertopic_builtintopic {
   struct ddsi_sertopic c;
   enum ddsi_sertopic_builtintopic_type type;

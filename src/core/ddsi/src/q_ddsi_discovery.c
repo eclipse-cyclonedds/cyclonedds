@@ -36,7 +36,7 @@
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_transmit.h"
@@ -45,7 +45,7 @@
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/ddsi_pmd.h"
 
-static int get_locator (const struct q_globals *gv, nn_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)
+static int get_locator (const struct ddsi_domaingv *gv, nn_locator_t *loc, const nn_locators_t *locs, int uc_same_subnet)
 {
   struct nn_locators_one *l;
   nn_locator_t first, samenet;
@@ -159,7 +159,7 @@ static int get_locator (const struct q_globals *gv, nn_locator_t *loc, const nn_
  ***
  *****************************************************************************/
 
-static void maybe_add_pp_as_meta_to_as_disc (struct q_globals *gv, const struct addrset *as_meta)
+static void maybe_add_pp_as_meta_to_as_disc (struct ddsi_domaingv *gv, const struct addrset *as_meta)
 {
   if (addrset_empty_mc (as_meta) || !(gv->config.allowMulticast & AMC_SPDP))
   {
@@ -391,7 +391,7 @@ static unsigned pseudo_random_delay (const ddsi_guid_t *x, const ddsi_guid_t *y,
   return (unsigned) (m >> 32);
 }
 
-static void respond_to_spdp (const struct q_globals *gv, const ddsi_guid_t *dest_proxypp_guid)
+static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *dest_proxypp_guid)
 {
   struct entidx_enum_participant est;
   struct participant *pp;
@@ -418,7 +418,7 @@ static void respond_to_spdp (const struct q_globals *gv, const ddsi_guid_t *dest
 
 static int handle_SPDP_dead (const struct receiver_state *rst, nn_wctime_t timestamp, const nn_plist_t *datap, unsigned statusinfo)
 {
-  struct q_globals * const gv = rst->gv;
+  struct ddsi_domaingv * const gv = rst->gv;
   ddsi_guid_t guid;
 
   GVLOGDISC ("SPDP ST%x", statusinfo);
@@ -444,7 +444,7 @@ static int handle_SPDP_dead (const struct receiver_state *rst, nn_wctime_t times
   return 1;
 }
 
-static void allowmulticast_aware_add_to_addrset (const struct q_globals *gv, uint32_t allow_multicast, struct addrset *as, const nn_locator_t *loc)
+static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv, uint32_t allow_multicast, struct addrset *as, const nn_locator_t *loc)
 {
 #if DDSI_INCLUDE_SSM
   if (ddsi_is_ssm_mcaddr (gv, loc))
@@ -478,7 +478,7 @@ static struct proxy_participant *find_ddsi2_proxy_participant (const struct enti
   return pp;
 }
 
-static void make_participants_dependent_on_ddsi2 (struct q_globals *gv, const ddsi_guid_t *ddsi2guid, nn_wctime_t timestamp)
+static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, const ddsi_guid_t *ddsi2guid, nn_wctime_t timestamp)
 {
   struct entidx_enum_proxy_participant it;
   struct proxy_participant *pp, *d2pp;
@@ -516,7 +516,7 @@ static void make_participants_dependent_on_ddsi2 (struct q_globals *gv, const dd
 
 static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_wctime_t timestamp, const nn_plist_t *datap)
 {
-  struct q_globals * const gv = rst->gv;
+  struct ddsi_domaingv * const gv = rst->gv;
   const unsigned bes_sedp_announcer_mask =
     NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
     NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
@@ -799,7 +799,7 @@ static int handle_SPDP_alive (const struct receiver_state *rst, seqno_t seq, nn_
 
 static void handle_SPDP (const struct receiver_state *rst, seqno_t seq, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
 {
-  struct q_globals * const gv = rst->gv;
+  struct ddsi_domaingv * const gv = rst->gv;
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
   if (data == NULL)
   {
@@ -846,7 +846,7 @@ static void handle_SPDP (const struct receiver_state *rst, seqno_t seq, nn_wctim
 }
 
 struct add_locator_to_ps_arg {
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   nn_plist_t *ps;
 };
 
@@ -894,7 +894,7 @@ static int sedp_write_endpoint
    const struct entity_common *common, const struct endpoint_common *epcommon,
    const dds_qos_t *xqos, struct addrset *as)
 {
-  struct q_globals * const gv = wr->e.gv;
+  struct ddsi_domaingv * const gv = wr->e.gv;
   const dds_qos_t *defqos = is_writer_entityid (epguid->entityid) ? &gv->default_xqos_wr : &gv->default_xqos_rd;
   struct nn_xmsg *mpayload;
   uint64_t qosdiff;
@@ -1049,7 +1049,7 @@ static const char *durability_to_string (dds_durability_kind_t k)
   return "undefined-durability";
 }
 
-static struct proxy_participant *implicitly_create_proxypp (struct q_globals *gv, const ddsi_guid_t *ppguid, nn_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp, seqno_t seq)
+static struct proxy_participant *implicitly_create_proxypp (struct ddsi_domaingv *gv, const ddsi_guid_t *ppguid, nn_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp, seqno_t seq)
 {
   ddsi_guid_t privguid;
   nn_plist_t pp_plist;
@@ -1132,7 +1132,7 @@ static struct proxy_participant *implicitly_create_proxypp (struct q_globals *gv
 static void handle_SEDP_alive (const struct receiver_state *rst, seqno_t seq, nn_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, nn_wctime_t timestamp)
 {
 #define E(msg, lbl) do { GVLOGDISC (msg); goto lbl; } while (0)
-  struct q_globals * const gv = rst->gv;
+  struct ddsi_domaingv * const gv = rst->gv;
   struct proxy_participant *pp;
   struct proxy_writer * pwr = NULL;
   struct proxy_reader * prd = NULL;
@@ -1326,7 +1326,7 @@ err:
 
 static void handle_SEDP_dead (const struct receiver_state *rst, nn_plist_t *datap, nn_wctime_t timestamp)
 {
-  struct q_globals * const gv = rst->gv;
+  struct ddsi_domaingv * const gv = rst->gv;
   int res;
   if (!(datap->present & PP_ENDPOINT_GUID))
   {
@@ -1343,7 +1343,7 @@ static void handle_SEDP_dead (const struct receiver_state *rst, nn_plist_t *data
 
 static void handle_SEDP (const struct receiver_state *rst, seqno_t seq, nn_wctime_t timestamp, unsigned statusinfo, const void *vdata, uint32_t len)
 {
-  struct q_globals * const gv = rst->gv;
+  struct ddsi_domaingv * const gv = rst->gv;
   const struct CDRHeader *data = vdata; /* built-ins not deserialized (yet) */
   GVLOGDISC ("SEDP ST%x", statusinfo);
   if (data == NULL)
@@ -1460,7 +1460,7 @@ static int defragment (unsigned char **datap, const struct nn_rdata *fragchain, 
 
 int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, UNUSED_ARG (const ddsi_guid_t *rdguid), UNUSED_ARG (void *qarg))
 {
-  struct q_globals * const gv = sampleinfo->rst->gv;
+  struct ddsi_domaingv * const gv = sampleinfo->rst->gv;
   struct proxy_writer *pwr;
   struct {
     struct CDRHeader cdr;

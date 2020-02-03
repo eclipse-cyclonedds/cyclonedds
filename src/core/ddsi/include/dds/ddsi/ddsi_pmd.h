@@ -18,14 +18,14 @@
 extern "C" {
 #endif
 
-struct q_globals;
+struct ddsi_domaingv;
 struct thread_state1;
 struct ddsi_guid;
 struct nn_xpack;
 struct participant;
 struct receiver_state;
 
-void write_pmd_message_guid (struct q_globals * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind);
+void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind);
 void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, struct participant *pp, unsigned pmd_kind);
 void handle_pmd_message (const struct receiver_state *rst, nn_wctime_t timestamp, uint32_t statusinfo, const void *vdata, uint32_t len);
 

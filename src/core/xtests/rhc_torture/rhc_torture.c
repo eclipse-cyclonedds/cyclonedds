@@ -24,7 +24,7 @@
 #include "dds__entity.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_gc.h"
@@ -167,7 +167,7 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct pro
   return iid;
 }
 
-static struct proxy_writer *mkwr (const struct q_globals *gv, bool auto_dispose)
+static struct proxy_writer *mkwr (const struct ddsi_domaingv *gv, bool auto_dispose)
 {
   struct proxy_writer *pwr;
   struct dds_qos *xqos;
@@ -191,7 +191,7 @@ static void fwr (struct proxy_writer *wr)
   free (wr);
 }
 
-static struct dds_rhc *mkrhc (struct q_globals *gv, dds_reader *rd, dds_history_kind_t hk, int32_t hdepth, dds_destination_order_kind_t dok)
+static struct dds_rhc *mkrhc (struct ddsi_domaingv *gv, dds_reader *rd, dds_history_kind_t hk, int32_t hdepth, dds_destination_order_kind_t dok)
 {
   struct dds_rhc *rhc;
   dds_qos_t rqos;
@@ -560,9 +560,9 @@ static dds_entity_t readcond_wrapper (dds_entity_t reader, uint32_t mask, dds_qu
   return dds_create_readcondition (reader, mask);
 }
 
-static struct q_globals *get_gv (dds_entity_t e)
+static struct ddsi_domaingv *get_gv (dds_entity_t e)
 {
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   dds_entity *x;
   if (dds_entity_pin (e, &x) < 0)
     abort ();
@@ -594,7 +594,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     dds_entity_unlock (x);
   }
 
-  const struct q_globals *gv = get_gv (pp);
+  const struct ddsi_domaingv *gv = get_gv (pp);
   struct ddsi_tkmap *tkmap = gv->m_tkmap;
   struct proxy_writer *wr[] = { mkwr (gv, 0), mkwr (gv, 1), mkwr (gv, 1) };
 
@@ -929,7 +929,7 @@ int main (int argc, char **argv)
 
   if (0 >= first)
   {
-    struct q_globals *gv = get_gv (pp);
+    struct ddsi_domaingv *gv = get_gv (pp);
     struct ddsi_tkmap *tkmap = gv->m_tkmap;
     if (print)
       printf ("************* 0 *************\n");
@@ -980,7 +980,7 @@ int main (int argc, char **argv)
 
   if (1 >= first)
   {
-    struct q_globals *gv = get_gv (pp);
+    struct ddsi_domaingv *gv = get_gv (pp);
     struct ddsi_tkmap *tkmap = gv->m_tkmap;
     if (print)
       printf ("************* 1 *************\n");

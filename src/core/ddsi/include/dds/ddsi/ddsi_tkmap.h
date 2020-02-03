@@ -22,7 +22,7 @@ extern "C" {
 struct ddsi_tkmap;
 struct ddsi_serdata;
 struct dds_topic;
-struct q_globals;
+struct ddsi_domaingv;
 
 struct ddsi_tkmap_instance
 {
@@ -31,7 +31,7 @@ struct ddsi_tkmap_instance
   ddsrt_atomic_uint32_t m_refc;
 };
 
-DDS_EXPORT struct ddsi_tkmap *ddsi_tkmap_new (struct q_globals *gv);
+DDS_EXPORT struct ddsi_tkmap *ddsi_tkmap_new (struct ddsi_domaingv *gv);
 DDS_EXPORT void ddsi_tkmap_free (struct ddsi_tkmap *tkmap);
 DDS_EXPORT void ddsi_tkmap_instance_ref (struct ddsi_tkmap_instance *tk);
 DDS_EXPORT uint64_t ddsi_tkmap_lookup (struct ddsi_tkmap *tkmap, const struct ddsi_serdata *serdata);

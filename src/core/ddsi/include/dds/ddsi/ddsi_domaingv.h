@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef Q_GLOBALS_H
-#define Q_GLOBALS_H
+#ifndef DDSI_DOMAINGV_H
+#define DDSI_DOMAINGV_H
 
 #include <stdio.h>
 
@@ -68,7 +68,7 @@ enum recv_thread_mode {
 struct recv_thread_arg {
   enum recv_thread_mode mode;
   struct nn_rbufpool *rbpool;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   union {
     struct {
       const nn_locator_t *loc;
@@ -82,7 +82,7 @@ struct recv_thread_arg {
 
 struct deleted_participants_admin;
 
-struct q_globals {
+struct ddsi_domaingv {
   volatile int terminate;
   volatile int deaf;
   volatile int mute;
@@ -270,11 +270,6 @@ struct q_globals {
   struct ddsi_sertopic *plist_topic; /* used for all discovery data */
   struct ddsi_sertopic *rawcdr_topic; /* used for participant message data */
 
-  /* Network ID needed by v_groupWrite -- FIXME: might as well pass it
-     to the receive thread instead of making it global (and that would
-     remove the need to include kernelModule.h) */
-  uint32_t myNetworkId;
-
   ddsrt_mutex_t sendq_lock;
   ddsrt_cond_t sendq_cond;
   unsigned sendq_length;
@@ -299,4 +294,4 @@ struct q_globals {
 }
 #endif
 
-#endif /* Q_GLOBALS_H */
+#endif /* DDSI_DOMAINGV_H */

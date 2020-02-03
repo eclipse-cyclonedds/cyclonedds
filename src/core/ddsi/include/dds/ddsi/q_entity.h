@@ -165,7 +165,7 @@ struct entity_common {
   struct ddsi_tkmap_instance *tk;
   ddsrt_mutex_t lock;
   bool onlylocal;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   ddsrt_avl_node_t all_entities_avlnode;
 
   /* QoS changes always lock the entity itself, and additionally
@@ -530,7 +530,7 @@ nn_vendorid_t get_entity_vendorid (const struct entity_common *e);
  * @retval DDS_RETCODE_OUT_OF_RESOURCES
  *               The configured maximum number of participants has been reached.
  */
-dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *gv, unsigned flags, const struct nn_plist *plist);
+dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct nn_plist *plist);
 
 /**
  * @brief Create a new participant in the domain.  See also new_participant_guid.
@@ -554,7 +554,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct q_globals *
  * @retval DDS_RETCODE_OUT_OF_RESOURCES
  *               The configured maximum number of participants has been reached.
 */
-dds_return_t new_participant (struct ddsi_guid *ppguid, struct q_globals *gv, unsigned flags, const struct nn_plist *plist);
+dds_return_t new_participant (struct ddsi_guid *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct nn_plist *plist);
 
 /**
  * @brief Initiate the deletion of the participant:
@@ -580,9 +580,9 @@ dds_return_t new_participant (struct ddsi_guid *ppguid, struct q_globals *gv, un
  * @retval DDS_RETCODE_BAD_PARAMETER
  *               ppguid lookup failed.
 */
-dds_return_t delete_participant (struct q_globals *gv, const struct ddsi_guid *ppguid);
+dds_return_t delete_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid);
 void update_participant_plist (struct participant *pp, const struct nn_plist *plist);
-uint64_t get_entity_instance_id (const struct q_globals *gv, const struct ddsi_guid *guid);
+uint64_t get_entity_instance_id (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
 
 /* Gets the interval for PMD messages, which is the minimal lease duration for writers
    with auto liveliness in this participant, or the participants lease duration if shorter */
@@ -597,9 +597,9 @@ DDS_EXPORT struct writer *get_builtin_writer (const struct participant *pp, unsi
    GUID "ppguid". May return NULL if participant unknown or
    writer/reader already known. */
 
-dds_return_t new_writer (struct writer **wr_out, struct q_globals *gv, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, const struct ddsi_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg);
+dds_return_t new_writer (struct writer **wr_out, struct ddsi_domaingv *gv, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, const struct ddsi_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc * whc, status_cb_t status_cb, void *status_cb_arg);
 
-dds_return_t new_reader (struct reader **rd_out, struct q_globals *gv, struct ddsi_guid *rdguid, const struct ddsi_guid *group_guid, const struct ddsi_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct ddsi_rhc * rhc, status_cb_t status_cb, void *status_cb_arg);
+dds_return_t new_reader (struct reader **rd_out, struct ddsi_domaingv *gv, struct ddsi_guid *rdguid, const struct ddsi_guid *group_guid, const struct ddsi_guid *ppguid, const struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct ddsi_rhc * rhc, status_cb_t status_cb, void *status_cb_arg);
 
 void update_reader_qos (struct reader *rd, const struct dds_qos *xqos);
 void update_writer_qos (struct writer *wr, const struct dds_qos *xqos);
@@ -613,17 +613,17 @@ void writer_set_retransmitting (struct writer *wr);
 void writer_clear_retransmitting (struct writer *wr);
 dds_return_t writer_wait_for_acks (struct writer *wr, dds_time_t abstimeout);
 
-dds_return_t unblock_throttled_writer (struct q_globals *gv, const struct ddsi_guid *guid);
-dds_return_t delete_writer (struct q_globals *gv, const struct ddsi_guid *guid);
-dds_return_t delete_writer_nolinger (struct q_globals *gv, const struct ddsi_guid *guid);
+dds_return_t unblock_throttled_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
+dds_return_t delete_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
+dds_return_t delete_writer_nolinger (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
 dds_return_t delete_writer_nolinger_locked (struct writer *wr);
 
-dds_return_t delete_reader (struct q_globals *gv, const struct ddsi_guid *guid);
+dds_return_t delete_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
 
 struct local_orphan_writer {
   struct writer wr;
 };
-struct local_orphan_writer *new_local_orphan_writer (struct q_globals *gv, ddsi_entityid_t entityid, struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc);
+struct local_orphan_writer *new_local_orphan_writer (struct ddsi_domaingv *gv, ddsi_entityid_t entityid, struct ddsi_sertopic *topic, const struct dds_qos *xqos, struct whc *whc);
 void delete_local_orphan_writer (struct local_orphan_writer *wr);
 
 void writer_set_alive_may_unlock (struct writer *wr, bool notify);
@@ -653,20 +653,20 @@ int writer_set_notalive (struct writer *wr, bool notify);
 /* Set when this proxy participant is not to be announced on the built-in topics yet */
 #define CF_PROXYPP_NO_SPDP                     (1 << 3)
 
-void new_proxy_participant (struct q_globals *gv, const struct ddsi_guid *guid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct nn_plist *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, nn_wctime_t timestamp, seqno_t seq);
-int delete_proxy_participant_by_guid (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
+void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct nn_plist *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, nn_wctime_t timestamp, seqno_t seq);
+int delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
 
 int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, nn_wctime_t timestamp);
 int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, nn_wctime_t timestamp);
 void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct lease *newlease);
 
-void purge_proxy_participants (struct q_globals *gv, const nn_locator_t *loc, bool delete_from_as_disc);
+void purge_proxy_participants (struct ddsi_domaingv *gv, const nn_locator_t *loc, bool delete_from_as_disc);
 
 
 /* To create a new proxy writer or reader; the proxy participant is
    determined from the GUID and must exist. */
-  int new_proxy_writer (struct q_globals *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct nn_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, nn_wctime_t timestamp, seqno_t seq);
-int new_proxy_reader (struct q_globals *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct nn_plist *plist, nn_wctime_t timestamp, seqno_t seq
+  int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct nn_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, nn_wctime_t timestamp, seqno_t seq);
+int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct nn_plist *plist, nn_wctime_t timestamp, seqno_t seq
 #ifdef DDSI_INCLUDE_SSM
                       , int favours_ssm
 #endif
@@ -677,8 +677,8 @@ int new_proxy_reader (struct q_globals *gv, const struct ddsi_guid *ppguid, cons
    reader or writer. Actual deletion is scheduled in the future, when
    no outstanding references may still exist (determined by checking
    thread progress, &c.). */
-int delete_proxy_writer (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
-int delete_proxy_reader (struct q_globals *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
+int delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
+int delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, nn_wctime_t timestamp, int isimplicit);
 
 void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
 void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, nn_wctime_t timestamp);
@@ -693,7 +693,7 @@ void delete_proxy_group (struct entity_index *entidx, const struct ddsi_guid *gu
 
 /* Call this to empty all address sets of all writers to stop all outgoing traffic, or to
    rebuild them all (which only makes sense after previously having emptied them all). */
-void rebuild_or_clear_writer_addrsets(struct q_globals *gv, int rebuild);
+void rebuild_or_clear_writer_addrsets(struct ddsi_domaingv *gv, int rebuild);
 
 void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_ok);
 

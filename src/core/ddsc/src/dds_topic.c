@@ -31,7 +31,7 @@
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/q_plist.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds__serdata_builtintopic.h"
 
 DECL_ENTITY_LOCK_UNLOCK (extern inline, dds_topic)
@@ -222,7 +222,7 @@ const struct dds_entity_deriver dds_entity_deriver_topic = {
 */
 static dds_return_t lookup_and_check_ktopic (struct dds_ktopic **ktp_out, dds_participant *pp, const char *name, const char *type_name, const dds_qos_t *new_qos)
 {
-  struct q_globals * const gv = &pp->m_entity.m_domain->gv;
+  struct ddsi_domaingv * const gv = &pp->m_entity.m_domain->gv;
   struct dds_ktopic *ktp;
   if ((ktp = *ktp_out = ddsrt_avl_lookup (&participant_ktopics_treedef, &pp->m_ktopics, name)) == NULL)
   {
@@ -315,7 +315,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
    * Leaving the topic QoS sparse means a default-default topic QoS of
    * best-effort will do "the right thing" and let a writer still default to
    * reliable ... (and keep behaviour unchanged) */
-  struct q_globals * const gv = &pp->m_entity.m_domain->gv;
+  struct ddsi_domaingv * const gv = &pp->m_entity.m_domain->gv;
   if ((rc = nn_xqos_valid (&gv->logconfig, new_qos)) != DDS_RETCODE_OK)
   {
     dds_delete_qos (new_qos);

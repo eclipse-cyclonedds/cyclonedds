@@ -25,7 +25,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_pcap.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 
 typedef struct ddsi_udp_conn {
   struct ddsi_tran_conn m_base;
@@ -472,7 +472,7 @@ static int ddsi_udp_is_valid_port (ddsi_tran_factory_t fact, uint32_t port)
   return (port <= 65535);
 }
 
-int ddsi_udp_init (struct q_globals *gv)
+int ddsi_udp_init (struct ddsi_domaingv *gv)
 {
   struct ddsi_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
   memset (fact, 0, sizeof (*fact));

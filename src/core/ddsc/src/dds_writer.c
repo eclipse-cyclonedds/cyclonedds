@@ -15,7 +15,7 @@
 #include "dds/version.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_xmsg.h"
@@ -181,7 +181,7 @@ static void dds_writer_interrupt (dds_entity *e) ddsrt_nonnull_all;
 
 static void dds_writer_interrupt (dds_entity *e)
 {
-  struct q_globals * const gv = &e->m_domain->gv;
+  struct ddsi_domaingv * const gv = &e->m_domain->gv;
   thread_state_awake (lookup_thread_state (), gv);
   unblock_throttled_writer (gv, &e->m_guid);
   thread_state_asleep (lookup_thread_state ());
@@ -192,7 +192,7 @@ static void dds_writer_close (dds_entity *e) ddsrt_nonnull_all;
 static void dds_writer_close (dds_entity *e)
 {
   struct dds_writer * const wr = (struct dds_writer *) e;
-  struct q_globals * const gv = &e->m_domain->gv;
+  struct ddsi_domaingv * const gv = &e->m_domain->gv;
   struct thread_state1 * const ts1 = lookup_thread_state ();
   thread_state_awake (ts1, gv);
   nn_xpack_send (wr->m_xp, false);

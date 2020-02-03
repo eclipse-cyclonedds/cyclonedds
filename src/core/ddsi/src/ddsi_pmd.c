@@ -18,7 +18,7 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_misc.h"
@@ -31,7 +31,7 @@
 
 #include "dds/ddsi/sysdeps.h"
 
-static void debug_print_rawdata (const struct q_globals *gv, const char *msg, const void *data, size_t len)
+static void debug_print_rawdata (const struct ddsi_domaingv *gv, const char *msg, const void *data, size_t len)
 {
   const unsigned char *c = data;
   size_t i;
@@ -46,7 +46,7 @@ static void debug_print_rawdata (const struct q_globals *gv, const char *msg, co
   GVTRACE (">");
 }
 
-void write_pmd_message_guid (struct q_globals * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind)
+void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind)
 {
   struct thread_state1 * const ts1 = lookup_thread_state ();
   struct lease *lease;
@@ -66,7 +66,7 @@ void write_pmd_message_guid (struct q_globals * const gv, struct ddsi_guid *pp_g
 void write_pmd_message (struct thread_state1 * const ts1, struct nn_xpack *xp, struct participant *pp, unsigned pmd_kind)
 {
 #define PMD_DATA_LENGTH 1
-  struct q_globals * const gv = pp->e.gv;
+  struct ddsi_domaingv * const gv = pp->e.gv;
   struct writer *wr;
   union {
     ParticipantMessageData_t pmd;

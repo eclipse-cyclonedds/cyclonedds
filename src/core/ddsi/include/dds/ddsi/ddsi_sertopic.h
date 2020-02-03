@@ -23,7 +23,7 @@ extern "C" {
 struct ddsi_serdata;
 struct ddsi_serdata_ops;
 struct ddsi_sertopic_ops;
-struct q_globals;
+struct ddsi_domaingv;
 
 struct ddsi_sertopic {
   const struct ddsi_sertopic_ops *ops;
@@ -33,7 +33,7 @@ struct ddsi_sertopic {
   char *name;
   char *type_name;
   uint64_t iid;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   ddsrt_atomic_uint32_t refc; /* counts refs from entities (topic, reader, writer), not from data */
 };
 
@@ -92,8 +92,8 @@ struct ddsi_sertopic_ops {
   ddsi_sertopic_hash_t hash;
 };
 
-struct ddsi_sertopic *ddsi_sertopic_lookup_locked (struct q_globals *gv, const struct ddsi_sertopic *sertopic_template);
-void ddsi_sertopic_register_locked (struct q_globals *gv, struct ddsi_sertopic *sertopic);
+struct ddsi_sertopic *ddsi_sertopic_lookup_locked (struct ddsi_domaingv *gv, const struct ddsi_sertopic *sertopic_template);
+void ddsi_sertopic_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertopic *sertopic);
 
 DDS_EXPORT void ddsi_sertopic_init (struct ddsi_sertopic *tp, const char *name, const char *type_name, const struct ddsi_sertopic_ops *sertopic_ops, const struct ddsi_serdata_ops *serdata_ops, bool topickind_no_key);
 DDS_EXPORT void ddsi_sertopic_fini (struct ddsi_sertopic *tp);

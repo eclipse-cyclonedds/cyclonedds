@@ -22,10 +22,10 @@ struct nn_group_membership;
 
 struct nn_group_membership *new_group_membership (void);
 void free_group_membership (struct nn_group_membership *mship);
-int ddsi_join_mc (const struct q_globals *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcip, const nn_locator_t *mcip);
-int ddsi_leave_mc (const struct q_globals *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcip, const nn_locator_t *mcip);
+int ddsi_join_mc (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcip, const nn_locator_t *mcip);
+int ddsi_leave_mc (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const nn_locator_t *srcip, const nn_locator_t *mcip);
 void ddsi_transfer_group_membership (struct nn_group_membership *mship, ddsi_tran_conn_t conn, ddsi_tran_conn_t newconn);
-int ddsi_rejoin_transferred_mcgroups (const struct q_globals *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn);
+int ddsi_rejoin_transferred_mcgroups (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn);
 
 #if defined (__cplusplus)
 }

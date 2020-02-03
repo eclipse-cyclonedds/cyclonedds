@@ -14,7 +14,7 @@
 
 #include "dds/ddsrt/circlist.h"
 #include "dds/ddsi/q_time.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xevent.h"
 
 #if defined (__cplusplus)
@@ -37,7 +37,7 @@ struct deadline_elem {
   nn_mtime_t t_deadline;
 };
 
-DDS_EXPORT void deadline_init (const struct q_globals *gv, struct deadline_adm *deadline_adm, size_t list_offset, size_t elem_offset, deadline_missed_cb_t deadline_missed_cb);
+DDS_EXPORT void deadline_init (const struct ddsi_domaingv *gv, struct deadline_adm *deadline_adm, size_t list_offset, size_t elem_offset, deadline_missed_cb_t deadline_missed_cb);
 DDS_EXPORT void deadline_stop (const struct deadline_adm *deadline_adm);
 DDS_EXPORT void deadline_clear (struct deadline_adm *deadline_adm);
 DDS_EXPORT void deadline_fini (const struct deadline_adm *deadline_adm);

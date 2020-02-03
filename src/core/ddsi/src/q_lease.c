@@ -32,7 +32,7 @@
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_transmit.h"
@@ -64,13 +64,13 @@ int compare_lease_tdur (const void *va, const void *vb)
   return (a->tdur == b->tdur) ? 0 : (a->tdur < b->tdur) ? -1 : 1;
 }
 
-void lease_management_init (struct q_globals *gv)
+void lease_management_init (struct ddsi_domaingv *gv)
 {
   ddsrt_mutex_init (&gv->leaseheap_lock);
   ddsrt_fibheap_init (&lease_fhdef, &gv->leaseheap);
 }
 
-void lease_management_term (struct q_globals *gv)
+void lease_management_term (struct ddsi_domaingv *gv)
 {
   assert (ddsrt_fibheap_min (&lease_fhdef, &gv->leaseheap) == NULL);
   ddsrt_mutex_destroy (&gv->leaseheap_lock);
@@ -105,7 +105,7 @@ struct lease *lease_clone (const struct lease *l)
 
 void lease_register (struct lease *l) /* FIXME: make lease admin struct */
 {
-  struct q_globals * const gv = l->entity->gv;
+  struct ddsi_domaingv * const gv = l->entity->gv;
   GVTRACE ("lease_register(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
   ddsrt_mutex_lock (&gv->leaseheap_lock);
   assert (l->tsched.v == TSCHED_NOT_ON_HEAP);
@@ -123,7 +123,7 @@ void lease_register (struct lease *l) /* FIXME: make lease admin struct */
 
 void lease_unregister (struct lease *l)
 {
-  struct q_globals * const gv = l->entity->gv;
+  struct ddsi_domaingv * const gv = l->entity->gv;
   GVTRACE ("lease_unregister(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
   ddsrt_mutex_lock (&gv->leaseheap_lock);
   if (l->tsched.v != TSCHED_NOT_ON_HEAP)
@@ -139,14 +139,14 @@ void lease_unregister (struct lease *l)
 
 void lease_free (struct lease *l)
 {
-  struct q_globals * const gv = l->entity->gv;
+  struct ddsi_domaingv * const gv = l->entity->gv;
   GVTRACE ("lease_free(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
   ddsrt_free (l);
 }
 
 static void trace_lease_renew (const struct lease *l, const char *tag, nn_etime_t tend_new)
 {
-  struct q_globals const * gv = l->entity->gv;
+  struct ddsi_domaingv const * gv = l->entity->gv;
   if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     int32_t tsec, tusec;
@@ -181,7 +181,7 @@ void lease_renew (struct lease *l, nn_etime_t tnowE)
 
 void lease_set_expiry (struct lease *l, nn_etime_t when)
 {
-  struct q_globals * const gv = l->entity->gv;
+  struct ddsi_domaingv * const gv = l->entity->gv;
   bool trigger = false;
   assert (when.v >= 0);
   ddsrt_mutex_lock (&gv->leaseheap_lock);
@@ -212,7 +212,7 @@ void lease_set_expiry (struct lease *l, nn_etime_t when)
     force_lease_check (gv->gcreq_queue);
 }
 
-int64_t check_and_handle_lease_expiration (struct q_globals *gv, nn_etime_t tnowE)
+int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, nn_etime_t tnowE)
 {
   struct lease *l;
   int64_t delay;

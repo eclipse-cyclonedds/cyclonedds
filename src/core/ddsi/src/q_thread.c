@@ -25,7 +25,7 @@
 #include "dds/ddsi/ddsi_threadmon.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/sysdeps.h"
 
 struct thread_states thread_states;
@@ -39,12 +39,12 @@ extern inline struct thread_state1 *lookup_thread_state (void);
 extern inline bool thread_is_asleep (void);
 extern inline bool thread_is_awake (void);
 extern inline void thread_state_asleep (struct thread_state1 *ts1);
-extern inline void thread_state_awake (struct thread_state1 *ts1, const struct q_globals *gv);
+extern inline void thread_state_awake (struct thread_state1 *ts1, const struct ddsi_domaingv *gv);
 extern inline void thread_state_awake_domain_ok (struct thread_state1 *ts1);
 extern inline void thread_state_awake_fixed_domain (struct thread_state1 *ts1);
 extern inline void thread_state_awake_to_awake_no_nest (struct thread_state1 *ts1);
 
-static struct thread_state1 *init_thread_state (const char *tname, const struct q_globals *gv, enum thread_state state);
+static struct thread_state1 *init_thread_state (const char *tname, const struct ddsi_domaingv *gv, enum thread_state state);
 static void reap_thread_state (struct thread_state1 *ts1);
 
 static void *ddsrt_malloc_aligned_cacheline (size_t size)
@@ -213,7 +213,7 @@ static uint32_t create_thread_wrapper (void *ptr)
 {
   uint32_t ret;
   struct thread_context *ctx = ptr;
-  struct q_globals const * const gv = ddsrt_atomic_ldvoidp (&ctx->self->gv);
+  struct ddsi_domaingv const * const gv = ddsrt_atomic_ldvoidp (&ctx->self->gv);
   if (gv)
     GVTRACE ("started new thread %"PRIdTID": %s\n", ddsrt_gettid (), ctx->self->name);
   ctx->self->tid = ddsrt_thread_self ();
@@ -240,7 +240,7 @@ const struct config_thread_properties_listelem *lookup_thread_properties (const 
   return e;
 }
 
-static struct thread_state1 *init_thread_state (const char *tname, const struct q_globals *gv, enum thread_state state)
+static struct thread_state1 *init_thread_state (const char *tname, const struct ddsi_domaingv *gv, enum thread_state state)
 {
   int cand;
   struct thread_state1 *ts;
@@ -249,7 +249,7 @@ static struct thread_state1 *init_thread_state (const char *tname, const struct 
     return NULL;
 
   ts = &thread_states.ts[cand];
-  ddsrt_atomic_stvoidp (&ts->gv, (struct q_globals *) gv);
+  ddsrt_atomic_stvoidp (&ts->gv, (struct ddsi_domaingv *) gv);
   assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts->vtime)));
   (void) ddsrt_strlcpy (ts->name, tname, sizeof (ts->name));
   ts->state = state;
@@ -257,7 +257,7 @@ static struct thread_state1 *init_thread_state (const char *tname, const struct 
   return ts;
 }
 
-static dds_return_t create_thread_int (struct thread_state1 **ts1, const struct q_globals *gv, struct config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg)
+static dds_return_t create_thread_int (struct thread_state1 **ts1, const struct ddsi_domaingv *gv, struct config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg)
 {
   ddsrt_threadattr_t tattr;
   ddsrt_thread_t tid;
@@ -308,7 +308,7 @@ dds_return_t create_thread_with_properties (struct thread_state1 **ts1, struct c
   return create_thread_int (ts1, NULL, tprops, name, f, arg);
 }
 
-dds_return_t create_thread (struct thread_state1 **ts1, const struct q_globals *gv, const char *name, uint32_t (*f) (void *arg), void *arg)
+dds_return_t create_thread (struct thread_state1 **ts1, const struct ddsi_domaingv *gv, const char *name, uint32_t (*f) (void *arg), void *arg)
 {
   struct config_thread_properties_listelem const * const tprops = lookup_thread_properties (&gv->config, name);
   return create_thread_int (ts1, gv, tprops, name, f, arg);
@@ -337,7 +337,7 @@ void reset_thread_state (struct thread_state1 *ts1)
     reap_thread_state (ts1);
 }
 
-void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct q_globals *gv)
+void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct ddsi_domaingv *gv)
 {
   for (uint32_t i = 0; i < thread_states.nthreads; i++)
   {

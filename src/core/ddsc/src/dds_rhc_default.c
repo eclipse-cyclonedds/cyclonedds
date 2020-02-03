@@ -35,7 +35,7 @@
 #include "dds/ddsi/q_xqos.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_radmin.h" /* sampleinfo */
 #include "dds/ddsi/q_entity.h" /* proxy_writer_info */
 #include "dds/ddsi/ddsi_serdata.h"
@@ -273,13 +273,13 @@ struct rhc_instance {
   uint32_t disposed_gen;       /* bloody generation counters - worst invention of mankind */
   uint32_t no_writers_gen;     /* __/ */
   int32_t strength;            /* "current" ownership strength */
-  ddsi_guid_t wr_guid;           /* guid of last writer (if wr_iid != 0 then wr_guid is the corresponding guid, else undef) */
+  ddsi_guid_t wr_guid;         /* guid of last writer (if wr_iid != 0 then wr_guid is the corresponding guid, else undef) */
   nn_wctime_t tstamp;          /* source time stamp of last update */
   struct ddsrt_circlist_elem nonempty_list; /* links non-empty instances in arbitrary ordering */
 #ifdef DDSI_INCLUDE_DEADLINE_MISSED
   struct deadline_elem deadline; /* element in deadline missed administration */
 #endif
-  struct ddsi_tkmap_instance *tk;   /* backref into TK for unref'ing */
+  struct ddsi_tkmap_instance *tk;/* backref into TK for unref'ing */
   struct rhc_sample a_sample;  /* pre-allocated storage for 1 sample */
 };
 
@@ -318,7 +318,7 @@ struct dds_rhc_default {
 
   dds_reader *reader;                /* reader -- may be NULL (used by rhc_torture) */
   struct ddsi_tkmap *tkmap;          /* back pointer to tkmap */
-  struct q_globals *gv;              /* globals -- so far only for log config */
+  struct ddsi_domaingv *gv;          /* globals -- so far only for log config */
   const struct ddsi_sertopic *topic; /* topic description */
   uint32_t history_depth;            /* depth, 1 for KEEP_LAST_1, 2**32-1 for KEEP_ALL */
 
@@ -637,7 +637,7 @@ nn_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, nn_mtime_t tnow)
 }
 #endif /* DDSI_INCLUDE_DEADLINE_MISSED */
 
-struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct q_globals *gv, const struct ddsi_sertopic *topic, bool xchecks)
+struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_domaingv *gv, const struct ddsi_sertopic *topic, bool xchecks)
 {
   struct dds_rhc_default *rhc = ddsrt_malloc (sizeof (*rhc));
   memset (rhc, 0, sizeof (*rhc));

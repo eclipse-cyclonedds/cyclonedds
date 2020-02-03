@@ -27,7 +27,7 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_bswap.h"
@@ -144,7 +144,7 @@ struct xeventq {
   size_t max_queued_rexmit_msgs;
   int terminate;
   struct thread_state1 *ts;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
   ddsi_tran_conn_t tev_conn;
@@ -586,7 +586,7 @@ static void handle_xevk_entityid (struct nn_xpack *xp, struct xevent_nt *ev)
 
 static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, nn_mtime_t tnow /* monotonic */)
 {
-  struct q_globals const * const gv = ev->evq->gv;
+  struct ddsi_domaingv const * const gv = ev->evq->gv;
   struct nn_xmsg *msg;
   struct writer *wr;
   nn_mtime_t t_next;
@@ -857,7 +857,7 @@ static void handle_xevk_acknack (UNUSED_ARG (struct nn_xpack *xp), struct xevent
      A little snag is that the defragmenter can throw out partial samples in
      favour of others, so MUST ensure that the defragmenter won't start
      threshing and fail to make progress! */
-  struct q_globals *gv = ev->evq->gv;
+  struct ddsi_domaingv *gv = ev->evq->gv;
   struct proxy_writer *pwr;
   struct nn_xmsg *msg;
   struct pwr_rd_match *rwn;
@@ -948,7 +948,7 @@ static bool resend_spdp_sample_by_guid_key (struct writer *wr, const ddsi_guid_t
   /* Look up data in (transient-local) WHC by key value -- FIXME: clearly
    a slightly more efficient and elegant way of looking up the key value
    is to be preferred */
-  struct q_globals *gv = wr->e.gv;
+  struct ddsi_domaingv *gv = wr->e.gv;
   bool sample_found;
   nn_plist_t ps;
   nn_plist_init_empty (&ps);
@@ -984,7 +984,7 @@ static bool resend_spdp_sample_by_guid_key (struct writer *wr, const ddsi_guid_t
 static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *ev, nn_mtime_t tnow)
 {
   /* Like the writer pointer in the heartbeat event, the participant pointer in the spdp event is assumed valid. */
-  struct q_globals *gv = ev->evq->gv;
+  struct ddsi_domaingv *gv = ev->evq->gv;
   struct participant *pp;
   struct proxy_reader *prd;
   struct writer *spdp_wr;
@@ -1098,7 +1098,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
 
 static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_xpack *xp, struct xevent *ev, nn_mtime_t tnow)
 {
-  struct q_globals * const gv = ev->evq->gv;
+  struct ddsi_domaingv * const gv = ev->evq->gv;
   struct participant *pp;
   dds_duration_t intv;
   nn_mtime_t tnext;
@@ -1133,7 +1133,7 @@ static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_
 static void handle_xevk_delete_writer (UNUSED_ARG (struct nn_xpack *xp), struct xevent *ev, UNUSED_ARG (nn_mtime_t tnow))
 {
   /* don't worry if the writer is already gone by the time we get here. */
-  struct q_globals * const gv = ev->evq->gv;
+  struct ddsi_domaingv * const gv = ev->evq->gv;
   GVTRACE ("handle_xevk_delete_writer: "PGUIDFMT"\n", PGUID (ev->u.delete_writer.guid));
   delete_writer_nolinger (gv, &ev->u.delete_writer.guid);
   delete_xevent (ev);
@@ -1354,7 +1354,7 @@ void qxev_msg (struct xeventq *evq, struct nn_xmsg *msg)
 
 void qxev_prd_entityid (struct proxy_reader *prd, ddsi_guid_prefix_t *id)
 {
-  struct q_globals * const gv = prd->e.gv;
+  struct ddsi_domaingv * const gv = prd->e.gv;
   struct nn_xmsg *msg;
   struct xevent_nt *ev;
 
@@ -1382,7 +1382,7 @@ void qxev_prd_entityid (struct proxy_reader *prd, ddsi_guid_prefix_t *id)
 
 void qxev_pwr_entityid (struct proxy_writer *pwr, ddsi_guid_prefix_t *id)
 {
-  struct q_globals * const gv = pwr->e.gv;
+  struct ddsi_domaingv * const gv = pwr->e.gv;
   struct nn_xmsg *msg;
   struct xevent_nt *ev;
 
@@ -1410,7 +1410,7 @@ void qxev_pwr_entityid (struct proxy_writer *pwr, ddsi_guid_prefix_t *id)
 
 int qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int force)
 {
-  struct q_globals * const gv = evq->gv;
+  struct ddsi_domaingv * const gv = evq->gv;
   size_t msg_size = nn_xmsg_size (msg);
   struct xevent_nt *ev;
 

@@ -27,7 +27,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_gc.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 
 static dds_return_t dds_domain_free (dds_entity *vdomain);
 

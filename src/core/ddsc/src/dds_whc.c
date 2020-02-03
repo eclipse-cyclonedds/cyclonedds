@@ -31,7 +31,7 @@
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds__whc.h"
 #include "dds__entity.h"
@@ -103,7 +103,7 @@ struct whc_impl {
   uint32_t fragment_size;
   uint64_t total_bytes; /* total number of bytes pushed in */
   unsigned xchecks: 1;
-  struct q_globals *gv;
+  struct ddsi_domaingv *gv;
   struct ddsi_tkmap *tkmap;
   struct whc_writer_info wrinfo;
   seqno_t max_drop_seq; /* samples in whc with seq <= max_drop_seq => transient-local */
@@ -439,7 +439,7 @@ void whc_free_wrinfo (struct whc_writer_info *wrinfo)
   ddsrt_free (wrinfo);
 }
 
-struct whc *whc_new (struct q_globals *gv, const struct whc_writer_info *wrinfo)
+struct whc *whc_new (struct ddsi_domaingv *gv, const struct whc_writer_info *wrinfo)
 {
   size_t sample_overhead = 80; /* INFO_TS, DATA (estimate), inline QoS */
   struct whc_impl *whc;

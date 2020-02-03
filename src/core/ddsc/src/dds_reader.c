@@ -26,7 +26,7 @@
 #include "dds__qos.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds__builtin.h"
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/ddsi_entity_index.h"

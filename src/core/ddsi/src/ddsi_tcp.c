@@ -25,7 +25,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_entity.h"
-#include "dds/ddsi/q_globals.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 
 #define INVALID_PORT (~0u)
 
@@ -165,7 +165,7 @@ static void ddsi_tcp_sock_free (const struct ddsrt_log_cfg *logcfg, ddsrt_socket
   }
 }
 
-static void ddsi_tcp_sock_new (ddsrt_socket_t *sock, unsigned short port, const struct q_globals *gv)
+static void ddsi_tcp_sock_new (ddsrt_socket_t *sock, unsigned short port, const struct ddsi_domaingv *gv)
 {
   if (make_socket (sock, port, true, true, gv) != 0)
   {
@@ -1057,7 +1057,7 @@ static int ddsi_tcp_is_valid_port (ddsi_tran_factory_t fact, uint32_t port)
   return (port <= 65535);
 }
 
-int ddsi_tcp_init (struct q_globals *gv)
+int ddsi_tcp_init (struct ddsi_domaingv *gv)
 {
   struct ddsi_tran_factory_tcp *fact = ddsrt_malloc (sizeof (*fact));
 
