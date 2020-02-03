@@ -30,7 +30,7 @@
 #include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds__serdata_builtintopic.h"
 
@@ -246,7 +246,7 @@ static dds_return_t lookup_and_check_ktopic (struct dds_ktopic **ktp_out, dds_pa
   }
 }
 
-static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct dds_ktopic *ktp, bool implicit, struct ddsi_sertopic *sertopic_registered, const dds_listener_t *listener, const nn_plist_t *sedp_plist)
+static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct dds_ktopic *ktp, bool implicit, struct ddsi_sertopic *sertopic_registered, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
 {
   dds_entity_t hdl;
   dds_topic *tp = dds_alloc (sizeof (*tp));
@@ -260,17 +260,17 @@ static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct d
   if (sedp_plist)
   {
     struct participant *ddsi_pp;
-    nn_plist_t plist;
+    ddsi_plist_t plist;
 
     thread_state_awake (lookup_thread_state (), &pp->m_entity.m_domain->gv);
     ddsi_pp = entidx_lookup_participant_guid (pp->m_entity.m_domain->gv.entity_index, &pp->m_entity.m_guid);
     assert (ddsi_pp);
 
-    nn_plist_init_empty (&plist);
-    nn_plist_mergein_missing (&plist, sedp_plist, ~(uint64_t)0, ~(uint64_t)0);
-    nn_xqos_mergein_missing (&plist.qos, ktp->qos, ~(uint64_t)0);
+    ddsi_plist_init_empty (&plist);
+    ddsi_plist_mergein_missing (&plist, sedp_plist, ~(uint64_t)0, ~(uint64_t)0);
+    ddsi_xqos_mergein_missing (&plist.qos, ktp->qos, ~(uint64_t)0);
     sedp_write_topic (ddsi_pp, &plist);
-    nn_plist_fini (&plist);
+    ddsi_plist_fini (&plist);
     thread_state_asleep (lookup_thread_state ());
   }
 
@@ -278,7 +278,7 @@ static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct d
   return hdl;
 }
 
-dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const nn_plist_t *sedp_plist)
+dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
 {
   dds_return_t rc;
   dds_participant *pp;
@@ -303,10 +303,10 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
 
   new_qos = dds_create_qos ();
   if (qos)
-    nn_xqos_mergein_missing (new_qos, qos, DDS_TOPIC_QOS_MASK);
+    ddsi_xqos_mergein_missing (new_qos, qos, DDS_TOPIC_QOS_MASK);
   /* One would expect this:
    *
-   *   nn_xqos_mergein_missing (new_qos, &gv.default_xqos_tp, ~(uint64_t)0);
+   *   ddsi_xqos_mergein_missing (new_qos, &gv.default_xqos_tp, ~(uint64_t)0);
    *
    * but the crazy defaults of the DDS specification has a default setting
    * for reliability that is dependent on the entity type: readers and
@@ -316,7 +316,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
    * best-effort will do "the right thing" and let a writer still default to
    * reliable ... (and keep behaviour unchanged) */
   struct ddsi_domaingv * const gv = &pp->m_entity.m_domain->gv;
-  if ((rc = nn_xqos_valid (&gv->logconfig, new_qos)) != DDS_RETCODE_OK)
+  if ((rc = ddsi_xqos_valid (&gv->logconfig, new_qos)) != DDS_RETCODE_OK)
   {
     dds_delete_qos (new_qos);
     dds_entity_unpin (&pp->m_entity);
@@ -383,7 +383,7 @@ dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_s
 dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descriptor_t *desc, const char *name, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   struct ddsi_sertopic_default *st;
-  nn_plist_t plist;
+  ddsi_plist_t plist;
   dds_entity_t hdl;
   struct dds_entity *ppent;
   dds_return_t ret;
@@ -409,7 +409,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
     DDS_CTRACE (&ppent->m_domain->gv.logconfig, "Marshalling for type: %s is %soptimised\n", desc->m_typename, st->opt_size ? "" : "not ");
   }
 
-  nn_plist_init_empty (&plist);
+  ddsi_plist_init_empty (&plist);
   /* Set Topic meta data (for SEDP publication) */
   plist.qos.topic_name = ddsrt_strdup (st->c.name);
   plist.qos.type_name = ddsrt_strdup (st->c.type_name);
@@ -432,7 +432,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   hdl = dds_create_topic_arbitrary (participant, &st->c, qos, listener, &plist);
   ddsi_sertopic_unref (&st->c);
   dds_entity_unpin (ppent);
-  nn_plist_fini (&plist);
+  ddsi_plist_fini (&plist);
   return hdl;
 }
 

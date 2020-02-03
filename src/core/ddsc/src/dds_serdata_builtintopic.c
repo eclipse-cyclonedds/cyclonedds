@@ -19,7 +19,7 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds__stream.h"
 #include "dds__serdata_builtintopic.h"
 #include "dds/ddsi/ddsi_tkmap.h"
@@ -60,7 +60,7 @@ static void serdata_builtin_free(struct ddsi_serdata *dcmn)
 {
   struct ddsi_serdata_builtintopic *d = (struct ddsi_serdata_builtintopic *)dcmn;
   if (d->c.kind == SDK_DATA)
-    nn_xqos_fini (&d->xqos);
+    ddsi_xqos_fini (&d->xqos);
   ddsrt_free (d);
 }
 
@@ -73,13 +73,13 @@ static struct ddsi_serdata_builtintopic *serdata_builtin_new(const struct ddsi_s
 
 static void from_entity_pp (struct ddsi_serdata_builtintopic *d, const struct participant *pp)
 {
-  nn_xqos_copy(&d->xqos, &pp->plist->qos);
+  ddsi_xqos_copy(&d->xqos, &pp->plist->qos);
   d->pphandle = pp->e.iid;
 }
 
 static void from_entity_proxypp (struct ddsi_serdata_builtintopic *d, const struct proxy_participant *proxypp)
 {
-  nn_xqos_copy(&d->xqos, &proxypp->plist->qos);
+  ddsi_xqos_copy(&d->xqos, &proxypp->plist->qos);
   d->pphandle = proxypp->e.iid;
 }
 
@@ -100,14 +100,14 @@ static void set_topic_type_from_sertopic (struct ddsi_serdata_builtintopic *d, c
 static void from_entity_rd (struct ddsi_serdata_builtintopic *d, const struct reader *rd)
 {
   d->pphandle = rd->c.pp->e.iid;
-  nn_xqos_copy(&d->xqos, rd->xqos);
+  ddsi_xqos_copy(&d->xqos, rd->xqos);
   set_topic_type_from_sertopic(d, rd->topic);
 }
 
 static void from_entity_prd (struct ddsi_serdata_builtintopic *d, const struct proxy_reader *prd)
 {
   d->pphandle = prd->c.proxypp->e.iid;
-  nn_xqos_copy(&d->xqos, prd->c.xqos);
+  ddsi_xqos_copy(&d->xqos, prd->c.xqos);
   assert (d->xqos.present & QP_TOPIC_NAME);
   assert (d->xqos.present & QP_TYPE_NAME);
 }
@@ -115,14 +115,14 @@ static void from_entity_prd (struct ddsi_serdata_builtintopic *d, const struct p
 static void from_entity_wr (struct ddsi_serdata_builtintopic *d, const struct writer *wr)
 {
   d->pphandle = wr->c.pp->e.iid;
-  nn_xqos_copy(&d->xqos, wr->xqos);
+  ddsi_xqos_copy(&d->xqos, wr->xqos);
   set_topic_type_from_sertopic(d, wr->topic);
 }
 
 static void from_entity_pwr (struct ddsi_serdata_builtintopic *d, const struct proxy_writer *pwr)
 {
   d->pphandle = pwr->c.proxypp->e.iid;
-  nn_xqos_copy(&d->xqos, pwr->c.xqos);
+  ddsi_xqos_copy(&d->xqos, pwr->c.xqos);
   assert (d->xqos.present & QP_TOPIC_NAME);
   assert (d->xqos.present & QP_TYPE_NAME);
 }
@@ -196,10 +196,10 @@ static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const dds_qos_t *src)
     old = ddsrt_malloc (sizeof (*old));
   else
   {
-    nn_xqos_fini (old);
+    ddsi_xqos_fini (old);
   }
-  nn_xqos_init_empty (old);
-  nn_xqos_mergein_missing (old, src, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
+  ddsi_xqos_init_empty (old);
+  ddsi_xqos_mergein_missing (old, src, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
   return old;
 }
 

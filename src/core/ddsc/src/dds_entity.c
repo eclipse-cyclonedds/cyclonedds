@@ -23,7 +23,7 @@
 #include "dds__topic.h"
 #include "dds/version.h"
 #include "dds/ddsi/ddsi_pmd.h"
-#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_transmit.h"
 
 extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
@@ -670,7 +670,7 @@ dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
     }
 
     dds_reset_qos (qos);
-    nn_xqos_mergein_missing (qos, entity_qos, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
+    ddsi_xqos_mergein_missing (qos, entity_qos, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
     ret = DDS_RETCODE_OK;
   }
   dds_entity_unlock(e);
@@ -685,9 +685,9 @@ static dds_return_t dds_set_qos_locked_raw (dds_entity *e, dds_qos_t **e_qos_ptr
      but a single QoS for a topic in a participant while there can be multiple definitions of it,
      and hence, multiple sertopics.  Those are needed for multi-language support. */
   dds_qos_t *newqos = dds_create_qos ();
-  nn_xqos_mergein_missing (newqos, qos, mask);
-  nn_xqos_mergein_missing (newqos, *e_qos_ptr, ~(uint64_t)0);
-  if ((ret = nn_xqos_valid (logcfg, newqos)) != DDS_RETCODE_OK)
+  ddsi_xqos_mergein_missing (newqos, qos, mask);
+  ddsi_xqos_mergein_missing (newqos, *e_qos_ptr, ~(uint64_t)0);
+  if ((ret = ddsi_xqos_valid (logcfg, newqos)) != DDS_RETCODE_OK)
   {
     /* invalid or inconsistent QoS settings */
     goto error_or_nochange;
@@ -698,7 +698,7 @@ static dds_return_t dds_set_qos_locked_raw (dds_entity *e, dds_qos_t **e_qos_ptr
   }
   else
   {
-    const uint64_t delta = nn_xqos_delta (*e_qos_ptr, newqos, ~(uint64_t)0);
+    const uint64_t delta = ddsi_xqos_delta (*e_qos_ptr, newqos, ~(uint64_t)0);
     if (delta == 0)
     {
       /* new settings are identical to the old */

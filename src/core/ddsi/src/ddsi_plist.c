@@ -24,7 +24,7 @@
 
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_time.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_vendor.h"
@@ -33,7 +33,7 @@
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_protocol.h" /* for NN_STATUSINFO_... */
-#include "dds/ddsi/q_radmin.h" /* for nn_plist_quickscan */
+#include "dds/ddsi/q_radmin.h" /* for ddsi_plist_quickscan */
 
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_misc.h" /* for vendor_is_... */
@@ -48,7 +48,7 @@ DDSRT_STATIC_ASSERT(DDS_LENGTH_UNLIMITED == -1);
 /* These are internal to the parameter list processing. We never
    generate them, and we never want to do see them anywhere outside
    the actual parsing of an incoming parameter list. (There are
-   entries in nn_plist, but they are never to be inspected and
+   entries in ddsi_plist, but they are never to be inspected and
    the bits corresponding to them must be 0 except while processing an
    incoming parameter list.) */
 #define PPTMP_MULTICAST_IPADDRESS               (1 << 0)
@@ -95,7 +95,7 @@ struct piddesc {
   uint16_t flags;        /* see PDF_xxx flags */
   uint64_t present_flag; /* flag in plist.present / plist.qos.present */
   const char *name;      /* name for reporting invalid input */
-  size_t plist_offset;   /* offset from start of nn_plist_t */
+  size_t plist_offset;   /* offset from start of ddsi_plist_t */
   size_t size;           /* in-memory size for copying */
   union {
     /* descriptor for generic code: 12 is enough for the current set of
@@ -125,7 +125,7 @@ static dds_return_t validate_durability_service_qospolicy_acceptzero (const dds_
 static dds_return_t do_locator (nn_locators_t *ls, uint64_t *present, uint64_t wanted, uint64_t fl, const struct dd *dd, const struct ddsi_tran_factory *factory);
 static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict);
 static int partitions_equal (const void *srca, const void *srcb, size_t off);
-static dds_return_t nn_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
+static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
 
 static size_t align4size (size_t x)
 {
@@ -1278,9 +1278,9 @@ static bool print_generic (char * __restrict *buf, size_t * __restrict bufsize, 
 }
 
 #define membersize(type, member) sizeof (((type *) 0)->member)
-#define ENTRY(PFX_, NAME_, member_, flag_, validate_, ...)                               \
-  { PID_##NAME_, flag_, PFX_##_##NAME_, #NAME_, offsetof (struct nn_plist, member_),     \
-    membersize (struct nn_plist, member_), { .desc = { __VA_ARGS__, XSTOP } }, validate_ \
+#define ENTRY(PFX_, NAME_, member_, flag_, validate_, ...)                                 \
+  { PID_##NAME_, flag_, PFX_##_##NAME_, #NAME_, offsetof (struct ddsi_plist, member_),     \
+    membersize (struct ddsi_plist, member_), { .desc = { __VA_ARGS__, XSTOP } }, validate_ \
   }
 #define QPV(NAME_, name_, ...) ENTRY(QP, NAME_, qos.name_, PDF_QOS, dvx_##name_, __VA_ARGS__)
 #define PPV(NAME_, name_, ...) ENTRY(PP, NAME_, name_, 0, dvx_##name_, __VA_ARGS__)
@@ -1361,8 +1361,8 @@ static dds_return_t dvx_reader_favours_ssm (void * __restrict dst, const struct 
 }
 #endif
 
-/* Standardized parameters -- QoS _MUST_ come first (nn_plist_init_tables verifies this) because
-   it allows early-out when processing a dds_qos_t instead of an nn_plist_t */
+/* Standardized parameters -- QoS _MUST_ come first (ddsi_plist_init_tables verifies this) because
+   it allows early-out when processing a dds_qos_t instead of an ddsi_plist_t */
 static const struct piddesc piddesc_omg[] = {
   QP  (USER_DATA,                           user_data, XO),
   QP  (TOPIC_NAME,                          topic_name, XS),
@@ -1381,7 +1381,7 @@ static const struct piddesc piddesc_omg[] = {
   QP  (PROPERTY_LIST,                       property, XQ, XbPROP, XS, XS, XSTOP, Xopt, XQ, XbPROP, XS, XO, XSTOP),
   /* Reliability encoding does not follow the rules (best-effort/reliable map to 1/2 instead of 0/1 */
   { PID_RELIABILITY, PDF_QOS | PDF_FUNCTION, QP_RELIABILITY, "RELIABILITY",
-    offsetof (struct nn_plist, qos.reliability), membersize (struct nn_plist, qos.reliability),
+    offsetof (struct ddsi_plist, qos.reliability), membersize (struct ddsi_plist, qos.reliability),
     { .f = { .deser = deser_reliability, .ser = ser_reliability, .valid = valid_reliability, .equal = equal_reliability, .print = print_reliability } }, 0 },
   QP  (LIFESPAN,                            lifespan, XD),
   QP  (DESTINATION_ORDER,                   destination_order, XE1),
@@ -1412,34 +1412,34 @@ static const struct piddesc piddesc_omg[] = {
   PP  (DOMAIN_ID,                           domain_id, Xu),
   PP  (DOMAIN_TAG,                          domain_tag, XS),
   { PID_STATUSINFO, PDF_FUNCTION, PP_STATUSINFO, "STATUSINFO",
-    offsetof (struct nn_plist, statusinfo), membersize (struct nn_plist, statusinfo),
+    offsetof (struct ddsi_plist, statusinfo), membersize (struct ddsi_plist, statusinfo),
     { .f = { .deser = deser_statusinfo, .ser = ser_statusinfo, .print = print_statusinfo } }, 0 },
   /* Locators are difficult to deal with because they can occur multi times to represent a set;
      that is manageable for deser, unalias and fini, but it breaks ser because that one only
      generates a single parameter header */
   { PID_UNICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_UNICAST_LOCATOR, "UNICAST_LOCATOR",
-    offsetof (struct nn_plist, unicast_locators), membersize (struct nn_plist, unicast_locators),
+    offsetof (struct ddsi_plist, unicast_locators), membersize (struct ddsi_plist, unicast_locators),
     { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
   { PID_MULTICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_MULTICAST_LOCATOR, "MULTICAST_LOCATOR",
-    offsetof (struct nn_plist, multicast_locators), membersize (struct nn_plist, multicast_locators),
+    offsetof (struct ddsi_plist, multicast_locators), membersize (struct ddsi_plist, multicast_locators),
     { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
   { PID_DEFAULT_UNICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_DEFAULT_UNICAST_LOCATOR, "DEFAULT_UNICAST_LOCATOR",
-    offsetof (struct nn_plist, default_unicast_locators), membersize (struct nn_plist, default_unicast_locators),
+    offsetof (struct ddsi_plist, default_unicast_locators), membersize (struct ddsi_plist, default_unicast_locators),
     { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
   { PID_DEFAULT_MULTICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_DEFAULT_MULTICAST_LOCATOR, "DEFAULT_MULTICAST_LOCATOR",
-    offsetof (struct nn_plist, default_multicast_locators), membersize (struct nn_plist, default_multicast_locators),
+    offsetof (struct ddsi_plist, default_multicast_locators), membersize (struct ddsi_plist, default_multicast_locators),
     { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
   { PID_METATRAFFIC_UNICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_METATRAFFIC_UNICAST_LOCATOR, "METATRAFFIC_UNICAST_LOCATOR",
-    offsetof (struct nn_plist, metatraffic_unicast_locators), membersize (struct nn_plist, metatraffic_unicast_locators),
+    offsetof (struct ddsi_plist, metatraffic_unicast_locators), membersize (struct ddsi_plist, metatraffic_unicast_locators),
     { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
   { PID_METATRAFFIC_MULTICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_METATRAFFIC_MULTICAST_LOCATOR, "METATRAFFIC_MULTICAST_LOCATOR",
-    offsetof (struct nn_plist, metatraffic_multicast_locators), membersize (struct nn_plist, metatraffic_multicast_locators),
+    offsetof (struct ddsi_plist, metatraffic_multicast_locators), membersize (struct ddsi_plist, metatraffic_multicast_locators),
     { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
   /* PID_..._{IPADDRESS,PORT} is impossible to deal with and are never generated, only accepted.
      The problem is that there one needs additional state (and even then there is no clear
@@ -1455,7 +1455,7 @@ static const struct piddesc piddesc_eclipse[] = {
   QP  (PRISMTECH_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
   QP  (PRISMTECH_SUBSCRIPTION_KEYS,         subscription_keys, XbCOND, XQ, XS, XSTOP),
   { PID_PAD, PDF_QOS, QP_CYCLONE_IGNORELOCAL, "CYCLONE_IGNORELOCAL",
-    offsetof (struct nn_plist, qos.ignorelocal), membersize (struct nn_plist, qos.ignorelocal),
+    offsetof (struct ddsi_plist, qos.ignorelocal), membersize (struct ddsi_plist, qos.ignorelocal),
     { .desc = { XE2, XSTOP } }, 0 },
   PP  (PRISMTECH_PARTICIPANT_VERSION_INFO,  prismtech_participant_version_info, Xux5, XS),
   PP  (PRISMTECH_TYPE_DESCRIPTION,          type_description, XS),
@@ -1515,7 +1515,7 @@ struct piddesc_index {
 
    Sizes are such that the highest PID (without flags) in
    table are the last entry in the array.  Checked by
-   nn_plist_init_tables.
+   ddsi_plist_init_tables.
 
    FIXME: should compute them at build-time */
 #ifdef DDSI_INCLUDE_SSM
@@ -1546,7 +1546,7 @@ static const struct piddesc_index piddesc_vendor_index[] = {
 #undef INDEX_ANY
 
 /* List of entries that require unalias, fini processing;
-   initialized by nn_plist_init_tables; will assert when
+   initialized by ddsi_plist_init_tables; will assert when
    table too small or too large */
 static const struct piddesc *piddesc_unalias[18];
 static const struct piddesc *piddesc_fini[18];
@@ -1568,7 +1568,7 @@ static int piddesc_cmp_qos_addr (const void *va, const void *vb)
     return ((uintptr_t) *a == (uintptr_t) *b) ? 0 : ((uintptr_t) *a < (uintptr_t) *b) ? -1 : 1;
 }
 
-static void nn_plist_init_tables_real (void)
+static void ddsi_plist_init_tables_real (void)
 {
   /* make index of pid -> entry */
   for (size_t i = 0; i < sizeof (piddesc_vendor_index) / sizeof (piddesc_vendor_index[0]); i++)
@@ -1659,9 +1659,9 @@ static void nn_plist_init_tables_real (void)
 #endif
 }
 
-void nn_plist_init_tables (void)
+void ddsi_plist_init_tables (void)
 {
-  ddsrt_once (&table_init_control, nn_plist_init_tables_real);
+  ddsrt_once (&table_init_control, ddsi_plist_init_tables_real);
 }
 
 static void plist_or_xqos_fini (void * __restrict dst, size_t shift, uint64_t pmask, uint64_t qmask)
@@ -1671,7 +1671,7 @@ static void plist_or_xqos_fini (void * __restrict dst, size_t shift, uint64_t pm
   /* DDS manipulation can be done without creating a participant, so we may
      have to initialize tables just-in-time */
   if (piddesc_fini[0] == NULL)
-    nn_plist_init_tables ();
+    ddsi_plist_init_tables ();
   if (shift > 0)
   {
     dds_qos_t *qos = dst;
@@ -1680,7 +1680,7 @@ static void plist_or_xqos_fini (void * __restrict dst, size_t shift, uint64_t pm
   }
   else
   {
-    nn_plist_t *plist = dst;
+    ddsi_plist_t *plist = dst;
     pfs = (struct flagset) { .present = &plist->present, .aliased = &plist->aliased };
     qfs = (struct flagset) { .present = &plist->qos.present, .aliased = &plist->qos.aliased };
   }
@@ -1713,7 +1713,7 @@ static void plist_or_xqos_unalias (void * __restrict dst, size_t shift)
   /* DDS manipulation can be done without creating a participant, so we may
      have to initialize tables just-in-time */
   if (piddesc_unalias[0] == NULL)
-    nn_plist_init_tables ();
+    ddsi_plist_init_tables ();
   if (shift > 0)
   {
     dds_qos_t *qos = dst;
@@ -1722,7 +1722,7 @@ static void plist_or_xqos_unalias (void * __restrict dst, size_t shift)
   }
   else
   {
-    nn_plist_t *plist = dst;
+    ddsi_plist_t *plist = dst;
     pfs = (struct flagset) { .present = &plist->present, .aliased = &plist->aliased };
     qfs = (struct flagset) { .present = &plist->qos.present, .aliased = &plist->qos.aliased };
   }
@@ -1754,8 +1754,8 @@ static void plist_or_xqos_mergein_missing (void * __restrict dst, const void * _
   struct flagset pfs_src, qfs_src;
   struct flagset pfs_dst, qfs_dst;
 #ifndef NDEBUG
-  const uint64_t aliased_dst_inp = (shift == 0) ? ((nn_plist_t *) dst)->aliased : 0;
-  const uint64_t aliased_dst_inq = (shift == 0) ? ((nn_plist_t *) dst)->qos.aliased : ((dds_qos_t *) dst)->aliased;
+  const uint64_t aliased_dst_inp = (shift == 0) ? ((ddsi_plist_t *) dst)->aliased : 0;
+  const uint64_t aliased_dst_inq = (shift == 0) ? ((ddsi_plist_t *) dst)->qos.aliased : ((dds_qos_t *) dst)->aliased;
 #endif
   if (shift > 0)
   {
@@ -1768,8 +1768,8 @@ static void plist_or_xqos_mergein_missing (void * __restrict dst, const void * _
   }
   else
   {
-    nn_plist_t *plist_dst = dst;
-    const nn_plist_t *plist_src = src;
+    ddsi_plist_t *plist_dst = dst;
+    const ddsi_plist_t *plist_src = src;
     pfs_dst = (struct flagset) { .present = &plist_dst->present, .aliased = &plist_dst->aliased };
     qfs_dst = (struct flagset) { .present = &plist_dst->qos.present, .aliased = &plist_dst->qos.aliased };
     pfs_src = (struct flagset) { .present = (uint64_t *) &plist_src->present, .aliased = (uint64_t *) &plist_src->aliased };
@@ -1830,7 +1830,7 @@ static void plist_or_xqos_addtomsg (struct nn_xmsg *xmsg, const void * __restric
   }
   else
   {
-    const nn_plist_t *plist = src;
+    const ddsi_plist_t *plist = src;
     pw = plist->present & pwanted;
     qw = plist->qos.present & qwanted;
   }
@@ -1856,26 +1856,26 @@ static void plist_or_xqos_addtomsg (struct nn_xmsg *xmsg, const void * __restric
   }
 }
 
-void nn_plist_fini (nn_plist_t *plist)
+void ddsi_plist_fini (ddsi_plist_t *plist)
 {
   plist_or_xqos_fini (plist, 0, ~(uint64_t)0, ~(uint64_t)0);
 }
 
-void nn_plist_fini_mask (nn_plist_t *plist, uint64_t pmask, uint64_t qmask)
+void ddsi_plist_fini_mask (ddsi_plist_t *plist, uint64_t pmask, uint64_t qmask)
 {
   plist_or_xqos_fini (plist, 0, pmask, qmask);
 }
 
-void nn_plist_unalias (nn_plist_t *plist)
+void ddsi_plist_unalias (ddsi_plist_t *plist)
 {
   plist_or_xqos_unalias (plist, 0);
 }
 
-static dds_return_t nn_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict)
+static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict)
 {
   dds_return_t ret;
   if (piddesc_unalias[0] == NULL)
-    nn_plist_init_tables ();
+    ddsi_plist_init_tables ();
   for (size_t k = 0; k < sizeof (piddesc_tables_all) / sizeof (piddesc_tables_all[0]); k++)
   {
     struct piddesc const * const table = piddesc_tables_all[k];
@@ -1886,14 +1886,14 @@ static dds_return_t nn_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg
         break;
       if (xqos->present & entry->present_flag)
       {
-        const size_t srcoff = entry->plist_offset - offsetof (nn_plist_t, qos);
+        const size_t srcoff = entry->plist_offset - offsetof (ddsi_plist_t, qos);
         if (!(entry->flags & PDF_FUNCTION))
           ret = valid_generic (xqos, srcoff, entry->op.desc);
         else
           ret = entry->op.f.valid (xqos, srcoff);
         if (ret < 0)
         {
-          DDS_CLOG (DDS_LC_PLIST, logcfg, "nn_xqos_valid: %s invalid\n", entry->name);
+          DDS_CLOG (DDS_LC_PLIST, logcfg, "ddsi_xqos_valid: %s invalid\n", entry->name);
           return ret;
         }
       }
@@ -1901,14 +1901,14 @@ static dds_return_t nn_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg
   }
   if ((ret = final_validation_qos (xqos, (nn_protocol_version_t) { RTPS_MAJOR, RTPS_MINOR }, NN_VENDORID_ECLIPSE, NULL, strict)) < 0)
   {
-    DDS_CLOG (DDS_LC_PLIST, logcfg, "nn_xqos_valid: final validation failed\n");
+    DDS_CLOG (DDS_LC_PLIST, logcfg, "ddsi_xqos_valid: final validation failed\n");
   }
   return ret;
 }
 
-dds_return_t nn_xqos_valid (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos)
+dds_return_t ddsi_xqos_valid (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos)
 {
-  return nn_xqos_valid_strictness (logcfg, xqos, true);
+  return ddsi_xqos_valid_strictness (logcfg, xqos, true);
 }
 
 static void plist_or_xqos_delta (uint64_t *pdelta, uint64_t *qdelta, const void *srcx, const void *srcy, size_t shift, uint64_t pmask, uint64_t qmask)
@@ -1916,7 +1916,7 @@ static void plist_or_xqos_delta (uint64_t *pdelta, uint64_t *qdelta, const void 
   uint64_t pcheck, qcheck;
 
   if (piddesc_unalias[0] == NULL)
-    nn_plist_init_tables ();
+    ddsi_plist_init_tables ();
   if (shift > 0)
   {
     const dds_qos_t *x = srcx;
@@ -1928,8 +1928,8 @@ static void plist_or_xqos_delta (uint64_t *pdelta, uint64_t *qdelta, const void 
   }
   else
   {
-    const nn_plist_t *x = srcx;
-    const nn_plist_t *y = srcy;
+    const ddsi_plist_t *x = srcx;
+    const ddsi_plist_t *y = srcy;
     *pdelta = (x->present ^ y->present) & pmask;
     pcheck = (x->present & y->present) & pmask;
     *qdelta = (x->qos.present ^ y->qos.present) & qmask;
@@ -1967,14 +1967,14 @@ static void plist_or_xqos_delta (uint64_t *pdelta, uint64_t *qdelta, const void 
   }
 }
 
-uint64_t nn_xqos_delta (const dds_qos_t *x, const dds_qos_t *y, uint64_t mask)
+uint64_t ddsi_xqos_delta (const dds_qos_t *x, const dds_qos_t *y, uint64_t mask)
 {
   uint64_t pdelta, qdelta;
-  plist_or_xqos_delta (&pdelta, &qdelta, x, y, offsetof (nn_plist_t, qos), 0, mask);
+  plist_or_xqos_delta (&pdelta, &qdelta, x, y, offsetof (ddsi_plist_t, qos), 0, mask);
   return qdelta;
 }
 
-void nn_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const nn_plist_t *x, const nn_plist_t *y, uint64_t pmask, uint64_t qmask)
+void ddsi_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const ddsi_plist_t *x, const ddsi_plist_t *y, uint64_t pmask, uint64_t qmask)
 {
   plist_or_xqos_delta (pdelta, qdelta, x, y, 0, pmask, qmask);
 }
@@ -2197,7 +2197,7 @@ static void locator_from_ipv4address_port (nn_locator_t *loc, const nn_ipv4addre
   memcpy (loc->address + 12, a, 4);
 }
 
-static dds_return_t do_ipv4address (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd, ddsi_tran_factory_t factory)
+static dds_return_t do_ipv4address (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd, ddsi_tran_factory_t factory)
 {
   nn_ipv4address_t *a;
   nn_port_t *p;
@@ -2264,7 +2264,7 @@ static dds_return_t do_ipv4address (nn_plist_t *dest, nn_ipaddress_params_tmp_t 
   }
 }
 
-static dds_return_t do_port (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd, ddsi_tran_factory_t factory)
+static dds_return_t do_port (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd, ddsi_tran_factory_t factory)
 {
   nn_ipv4address_t *a;
   nn_port_t *p;
@@ -2321,7 +2321,7 @@ static dds_return_t do_port (nn_plist_t *dest, nn_ipaddress_params_tmp_t *dest_t
   }
 }
 
-static dds_return_t return_unrecognized_pid (nn_plist_t *plist, nn_parameterid_t pid)
+static dds_return_t return_unrecognized_pid (ddsi_plist_t *plist, nn_parameterid_t pid)
 {
   if (!(pid & PID_UNRECOGNIZED_INCOMPATIBLE_FLAG))
     return 0;
@@ -2332,7 +2332,7 @@ static dds_return_t return_unrecognized_pid (nn_plist_t *plist, nn_parameterid_t
   }
 }
 
-static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t pwanted, uint64_t qwanted, uint16_t pid, const struct dd *dd, ddsi_tran_factory_t factory, const ddsrt_log_cfg_t *logcfg)
+static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t pwanted, uint64_t qwanted, uint16_t pid, const struct dd *dd, ddsi_tran_factory_t factory, const ddsrt_log_cfg_t *logcfg)
 {
   /* special-cased ipv4address and port, because they have state beyond that what gets
      passed into the generic code */
@@ -2429,38 +2429,38 @@ static dds_return_t init_one_parameter (nn_plist_t *plist, nn_ipaddress_params_t
   return ret;
 }
 
-void nn_plist_mergein_missing (nn_plist_t *a, const nn_plist_t *b, uint64_t pmask, uint64_t qmask)
+void ddsi_plist_mergein_missing (ddsi_plist_t *a, const ddsi_plist_t *b, uint64_t pmask, uint64_t qmask)
 {
   plist_or_xqos_mergein_missing (a, b, 0, pmask, qmask);
 }
 
-void nn_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask)
+void ddsi_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask)
 {
-  plist_or_xqos_mergein_missing (a, b, offsetof (nn_plist_t, qos), 0, mask);
+  plist_or_xqos_mergein_missing (a, b, offsetof (ddsi_plist_t, qos), 0, mask);
 }
 
-void nn_plist_copy (nn_plist_t *dst, const nn_plist_t *src)
+void ddsi_plist_copy (ddsi_plist_t *dst, const ddsi_plist_t *src)
 {
-  nn_plist_init_empty (dst);
-  nn_plist_mergein_missing (dst, src, ~(uint64_t)0, ~(uint64_t)0);
+  ddsi_plist_init_empty (dst);
+  ddsi_plist_mergein_missing (dst, src, ~(uint64_t)0, ~(uint64_t)0);
 }
 
-nn_plist_t *nn_plist_dup (const nn_plist_t *src)
+ddsi_plist_t *ddsi_plist_dup (const ddsi_plist_t *src)
 {
-  nn_plist_t *dst;
+  ddsi_plist_t *dst;
   dst = ddsrt_malloc (sizeof (*dst));
-  nn_plist_copy (dst, src);
+  ddsi_plist_copy (dst, src);
   assert (dst->aliased == 0);
   return dst;
 }
 
-void nn_plist_init_empty (nn_plist_t *dest)
+void ddsi_plist_init_empty (ddsi_plist_t *dest)
 {
 #ifndef NDEBUG
   memset (dest, 0, sizeof (*dest));
 #endif
   dest->present = dest->aliased = 0;
-  nn_xqos_init_empty (&dest->qos);
+  ddsi_xqos_init_empty (&dest->qos);
 }
 
 static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict)
@@ -2540,12 +2540,12 @@ static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_ver
   return 0;
 }
 
-static dds_return_t final_validation (nn_plist_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict)
+static dds_return_t final_validation (ddsi_plist_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict)
 {
   return final_validation_qos (&dest->qos, protocol_version, vendorid, dursvc_accepted_allzero, strict);
 }
 
-dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const nn_plist_src_t *src)
+dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src)
 {
   const unsigned char *pl;
   struct dd dd;
@@ -2581,10 +2581,10 @@ dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uin
                     src->vendorid.id[0], src->vendorid.id[1], src->encoding);
       return DDS_RETCODE_BAD_PARAMETER;
   }
-  nn_plist_init_empty (dest);
+  ddsi_plist_init_empty (dest);
   dest_tmp.present = 0;
 
-  DDS_CLOG (DDS_LC_PLIST, src->logconfig, "NN_PLIST_INIT (bswap %d)\n", dd.bswap);
+  DDS_CLOG (DDS_LC_PLIST, src->logconfig, "DDSI_PLIST_INIT (bswap %d)\n", dd.bswap);
 
   pl = src->buf;
   while (pl + sizeof (nn_parameter_t) <= src->buf + src->bufsz)
@@ -2605,7 +2605,7 @@ dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uin
       DDS_CLOG (DDS_LC_PLIST, src->logconfig, "%4"PRIx32" PID %"PRIx16"\n", (uint32_t) (pl - src->buf), pid);
       if ((res = final_validation (dest, src->protocol_version, src->vendorid, &dursvc_accepted_allzero, src->strict)) < 0)
       {
-        nn_plist_fini (dest);
+        ddsi_plist_fini (dest);
         return res;
       }
       else
@@ -2624,14 +2624,14 @@ dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uin
     {
       DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): parameter length %"PRIu16" out of bounds\n",
                     src->vendorid.id[0], src->vendorid.id[1], length);
-      nn_plist_fini (dest);
+      ddsi_plist_fini (dest);
       return DDS_RETCODE_BAD_PARAMETER;
     }
     if ((length % 4) != 0) /* DDSI 9.4.2.11 */
     {
       DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): parameter length %"PRIu16" mod 4 != 0\n",
                     src->vendorid.id[0], src->vendorid.id[1], length);
-      nn_plist_fini (dest);
+      ddsi_plist_fini (dest);
       return DDS_RETCODE_BAD_PARAMETER;
     }
 
@@ -2649,7 +2649,7 @@ dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uin
     {
       /* make sure we print a trace message on error */
       DDS_CTRACE (src->logconfig, "plist(vendor %u.%u): failed at pid=%"PRIx16"\n", src->vendorid.id[0], src->vendorid.id[1], pid);
-      nn_plist_fini (dest);
+      ddsi_plist_fini (dest);
       return res;
     }
     pl += sizeof (*par) + length;
@@ -2658,11 +2658,11 @@ dds_return_t nn_plist_init_frommsg (nn_plist_t *dest, char **nextafterplist, uin
      without encountering a sentinel. That is an error */
   DDS_CWARNING (src->logconfig, "plist(vendor %u.%u): invalid parameter list: sentinel missing\n",
                 src->vendorid.id[0], src->vendorid.id[1]);
-  nn_plist_fini (dest);
+  ddsi_plist_fini (dest);
   return DDS_RETCODE_BAD_PARAMETER;
 }
 
-const unsigned char *nn_plist_findparam_native_unchecked (const void *src, nn_parameterid_t pid)
+const unsigned char *ddsi_plist_findparam_native_unchecked (const void *src, nn_parameterid_t pid)
 {
   /* Scans the parameter list starting at src looking just for pid, returning NULL if not found;
      no further checking is done and the input is assumed to valid and in native format.  Clearly
@@ -2678,11 +2678,11 @@ const unsigned char *nn_plist_findparam_native_unchecked (const void *src, nn_pa
   return (unsigned char *) (par + 1);
 }
 
-unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const nn_plist_src_t *src)
+unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const struct nn_rmsg *rmsg, const ddsi_plist_src_t *src)
 {
   /* Sets a few fields in dest, returns address of first byte
      following parameter list, or NULL on error.  Most errors will go
-     undetected, unlike nn_plist_init_frommsg(). */
+     undetected, unlike ddsi_plist_init_frommsg(). */
   const unsigned char *pl;
   (void)rmsg;
   dest->statusinfo = 0;
@@ -2709,7 +2709,7 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
                     src->vendorid.id[0], src->vendorid.id[1], src->encoding);
       return NULL;
   }
-  DDS_CLOG (DDS_LC_PLIST, src->logconfig, "NN_PLIST_QUICKSCAN (bswap %d)\n", dest->bswap);
+  DDS_CLOG (DDS_LC_PLIST, src->logconfig, "DDSI_PLIST_QUICKSCAN (bswap %d)\n", dest->bswap);
   pl = src->buf;
   while (pl + sizeof (nn_parameter_t) <= src->buf + src->bufsz)
   {
@@ -2770,7 +2770,7 @@ unsigned char *nn_plist_quickscan (struct nn_rsample_info *dest, const struct nn
   return NULL;
 }
 
-void nn_xqos_init_empty (dds_qos_t *dest)
+void ddsi_xqos_init_empty (dds_qos_t *dest)
 {
 #ifndef NDEBUG
   memset (dest, 0, sizeof (*dest));
@@ -2778,9 +2778,9 @@ void nn_xqos_init_empty (dds_qos_t *dest)
   dest->present = dest->aliased = 0;
 }
 
-void nn_plist_init_default_participant (nn_plist_t *plist)
+void ddsi_plist_init_default_participant (ddsi_plist_t *plist)
 {
-  nn_plist_init_empty (plist);
+  ddsi_plist_init_empty (plist);
 
   plist->qos.present |= QP_PRISMTECH_ENTITY_FACTORY;
   plist->qos.entity_factory.autoenable_created_entities = 0;
@@ -2792,7 +2792,7 @@ void nn_plist_init_default_participant (nn_plist_t *plist)
 
 static void xqos_init_default_common (dds_qos_t *xqos)
 {
-  nn_xqos_init_empty (xqos);
+  ddsi_xqos_init_empty (xqos);
 
   xqos->present |= QP_PRESENTATION;
   xqos->presentation.access_scope = DDS_PRESENTATION_INSTANCE;
@@ -2834,7 +2834,7 @@ static void xqos_init_default_common (dds_qos_t *xqos)
   xqos->ignorelocal.value = DDS_IGNORELOCAL_NONE;
 }
 
-static void nn_xqos_init_default_endpoint (dds_qos_t *xqos)
+static void ddsi_xqos_init_default_endpoint (dds_qos_t *xqos)
 {
   xqos_init_default_common (xqos);
 
@@ -2855,9 +2855,9 @@ static void nn_xqos_init_default_endpoint (dds_qos_t *xqos)
   xqos->partition.strs = NULL;
 }
 
-void nn_xqos_init_default_reader (dds_qos_t *xqos)
+void ddsi_xqos_init_default_reader (dds_qos_t *xqos)
 {
-  nn_xqos_init_default_endpoint (xqos);
+  ddsi_xqos_init_default_endpoint (xqos);
 
   xqos->present |= QP_RELIABILITY;
   xqos->reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
@@ -2879,9 +2879,9 @@ void nn_xqos_init_default_reader (dds_qos_t *xqos)
   xqos->subscription_keys.key_list.strs = NULL;
 }
 
-void nn_xqos_init_default_writer (dds_qos_t *xqos)
+void ddsi_xqos_init_default_writer (dds_qos_t *xqos)
 {
-  nn_xqos_init_default_endpoint (xqos);
+  ddsi_xqos_init_default_endpoint (xqos);
 
   xqos->present |= QP_DURABILITY_SERVICE;
   xqos->durability_service.service_cleanup_delay = 0;
@@ -2908,13 +2908,13 @@ void nn_xqos_init_default_writer (dds_qos_t *xqos)
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = 1;
 }
 
-void nn_xqos_init_default_writer_noautodispose (dds_qos_t *xqos)
+void ddsi_xqos_init_default_writer_noautodispose (dds_qos_t *xqos)
 {
-  nn_xqos_init_default_writer (xqos);
+  ddsi_xqos_init_default_writer (xqos);
   xqos->writer_data_lifecycle.autodispose_unregistered_instances = 0;
 }
 
-void nn_xqos_init_default_topic (dds_qos_t *xqos)
+void ddsi_xqos_init_default_topic (dds_qos_t *xqos)
 {
   xqos_init_default_common (xqos);
 
@@ -2942,9 +2942,9 @@ void nn_xqos_init_default_topic (dds_qos_t *xqos)
   xqos->subscription_keys.key_list.strs = NULL;
 }
 
-static void nn_xqos_init_default_publisher_subscriber (dds_qos_t *xqos)
+static void ddsi_xqos_init_default_publisher_subscriber (dds_qos_t *xqos)
 {
-  nn_xqos_init_empty (xqos);
+  ddsi_xqos_init_empty (xqos);
 
   xqos->present |= QP_GROUP_DATA;
   xqos->group_data.length = 0;
@@ -2958,41 +2958,41 @@ static void nn_xqos_init_default_publisher_subscriber (dds_qos_t *xqos)
   xqos->partition.strs = NULL;
 }
 
-void nn_xqos_init_default_subscriber (dds_qos_t *xqos)
+void ddsi_xqos_init_default_subscriber (dds_qos_t *xqos)
 {
-  nn_xqos_init_default_publisher_subscriber (xqos);
+  ddsi_xqos_init_default_publisher_subscriber (xqos);
 }
 
-void nn_xqos_init_default_publisher (dds_qos_t *xqos)
+void ddsi_xqos_init_default_publisher (dds_qos_t *xqos)
 {
-  nn_xqos_init_default_publisher_subscriber (xqos);
+  ddsi_xqos_init_default_publisher_subscriber (xqos);
 }
 
-void nn_xqos_copy (dds_qos_t *dst, const dds_qos_t *src)
+void ddsi_xqos_copy (dds_qos_t *dst, const dds_qos_t *src)
 {
-  nn_xqos_init_empty (dst);
-  nn_xqos_mergein_missing (dst, src, ~(uint64_t)0);
+  ddsi_xqos_init_empty (dst);
+  ddsi_xqos_mergein_missing (dst, src, ~(uint64_t)0);
 }
 
-void nn_xqos_fini (dds_qos_t *xqos)
+void ddsi_xqos_fini (dds_qos_t *xqos)
 {
-  plist_or_xqos_fini (xqos, offsetof (nn_plist_t, qos), ~(uint64_t)0, ~(uint64_t)0);
+  plist_or_xqos_fini (xqos, offsetof (ddsi_plist_t, qos), ~(uint64_t)0, ~(uint64_t)0);
 }
 
-void nn_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask)
+void ddsi_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask)
 {
-  plist_or_xqos_fini (xqos, offsetof (nn_plist_t, qos), ~(uint64_t)0, mask);
+  plist_or_xqos_fini (xqos, offsetof (ddsi_plist_t, qos), ~(uint64_t)0, mask);
 }
 
-void nn_xqos_unalias (dds_qos_t *xqos)
+void ddsi_xqos_unalias (dds_qos_t *xqos)
 {
-  plist_or_xqos_unalias (xqos, offsetof (nn_plist_t, qos));
+  plist_or_xqos_unalias (xqos, offsetof (ddsi_plist_t, qos));
 }
 
-dds_qos_t * nn_xqos_dup (const dds_qos_t *src)
+dds_qos_t * ddsi_xqos_dup (const dds_qos_t *src)
 {
   dds_qos_t *dst = ddsrt_malloc (sizeof (*dst));
-  nn_xqos_copy (dst, src);
+  ddsi_xqos_copy (dst, src);
   assert (dst->aliased == 0);
   return dst;
 }
@@ -3094,12 +3094,12 @@ static int partitions_equal (const void *srca, const void *srcb, size_t off)
 
 /*************************/
 
-void nn_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, uint64_t wanted)
+void ddsi_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, uint64_t wanted)
 {
-  plist_or_xqos_addtomsg (m, xqos, offsetof (struct nn_plist, qos), 0, wanted);
+  plist_or_xqos_addtomsg (m, xqos, offsetof (struct ddsi_plist, qos), 0, wanted);
 }
 
-void nn_plist_addtomsg (struct nn_xmsg *m, const nn_plist_t *ps, uint64_t pwanted, uint64_t qwanted)
+void ddsi_plist_addtomsg (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted)
 {
   plist_or_xqos_addtomsg (m, ps, 0, pwanted, qwanted);
 }
@@ -3119,7 +3119,7 @@ static void plist_or_xqos_print (char * __restrict *buf, size_t * __restrict buf
   }
   else
   {
-    const nn_plist_t *plist = src;
+    const ddsi_plist_t *plist = src;
     pw = plist->present & pwanted;
     qw = plist->qos.present & qwanted;
   }
@@ -3169,16 +3169,16 @@ static void plist_or_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg,
   }
 }
 
-size_t nn_xqos_print (char * __restrict buf, size_t bufsize, const dds_qos_t *xqos)
+size_t ddsi_xqos_print (char * __restrict buf, size_t bufsize, const dds_qos_t *xqos)
 {
   const size_t bufsize_in = bufsize;
   (void) prtf (&buf, &bufsize, "{");
-  plist_or_xqos_print (&buf, &bufsize, xqos, offsetof (nn_plist_t, qos), 0, ~(uint64_t)0);
+  plist_or_xqos_print (&buf, &bufsize, xqos, offsetof (ddsi_plist_t, qos), 0, ~(uint64_t)0);
   (void) prtf (&buf, &bufsize, "}");
   return bufsize_in - bufsize;
 }
 
-size_t nn_plist_print (char * __restrict buf, size_t bufsize, const nn_plist_t *plist)
+size_t ddsi_plist_print (char * __restrict buf, size_t bufsize, const ddsi_plist_t *plist)
 {
   const size_t bufsize_in = bufsize;
   (void) prtf (&buf, &bufsize, "{");
@@ -3187,12 +3187,12 @@ size_t nn_plist_print (char * __restrict buf, size_t bufsize, const nn_plist_t *
   return bufsize_in - bufsize;
 }
 
-void nn_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos)
+void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos)
 {
-  plist_or_xqos_log (cat, logcfg, xqos, offsetof (nn_plist_t, qos), 0, ~(uint64_t)0);
+  plist_or_xqos_log (cat, logcfg, xqos, offsetof (ddsi_plist_t, qos), 0, ~(uint64_t)0);
 }
 
-void nn_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const nn_plist_t *plist)
+void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const ddsi_plist_t *plist)
 {
   plist_or_xqos_log (cat, logcfg, plist, 0, ~(uint64_t)0, ~(uint64_t)0);
 }

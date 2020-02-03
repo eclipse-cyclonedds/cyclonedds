@@ -27,7 +27,7 @@
 #include "dds/ddsrt/thread_pool.h"
 
 #include "dds/ddsi/q_protocol.h"
-#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_addrset.h"

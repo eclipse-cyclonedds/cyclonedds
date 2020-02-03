@@ -28,7 +28,7 @@
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_config.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_lat_estim.h"
@@ -334,7 +334,7 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
   ptr = (unsigned char *) msg + offsetof (Data_DataFrag_common_t, octetsToInlineQos) + sizeof (msg->x.octetsToInlineQos) + msg->x.octetsToInlineQos;
   if (msg->x.smhdr.flags & DATA_FLAG_INLINE_QOS)
   {
-    nn_plist_src_t src;
+    ddsi_plist_src_t src;
     src.protocol_version = rst->protocol_version;
     src.vendorid = rst->vendor;
     src.encoding = (msg->x.smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
@@ -343,7 +343,7 @@ static int valid_Data (const struct receiver_state *rst, struct nn_rmsg *rmsg, D
     src.factory = NULL;
     src.logconfig = &rst->gv->logconfig;
     /* just a quick scan, gathering only what we _really_ need */
-    if ((ptr = nn_plist_quickscan (sampleinfo, rmsg, &src)) == NULL)
+    if ((ptr = ddsi_plist_quickscan (sampleinfo, rmsg, &src)) == NULL)
       return 0;
   }
   else
@@ -456,7 +456,7 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
   ptr = (unsigned char *) msg + offsetof (Data_DataFrag_common_t, octetsToInlineQos) + sizeof (msg->x.octetsToInlineQos) + msg->x.octetsToInlineQos;
   if (msg->x.smhdr.flags & DATAFRAG_FLAG_INLINE_QOS)
   {
-    nn_plist_src_t src;
+    ddsi_plist_src_t src;
     src.protocol_version = rst->protocol_version;
     src.vendorid = rst->vendor;
     src.encoding = (msg->x.smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
@@ -465,7 +465,7 @@ static int valid_DataFrag (const struct receiver_state *rst, struct nn_rmsg *rms
     src.factory = NULL;
     src.logconfig = &rst->gv->logconfig;
     /* just a quick scan, gathering only what we _really_ need */
-    if ((ptr = nn_plist_quickscan (sampleinfo, rmsg, &src)) == NULL)
+    if ((ptr = ddsi_plist_quickscan (sampleinfo, rmsg, &src)) == NULL)
       return 0;
   }
   else
@@ -1737,7 +1737,7 @@ static struct ddsi_serdata *get_serdata (struct ddsi_sertopic const * const topi
 struct remote_sourceinfo {
   const struct nn_rsample_info *sampleinfo;
   unsigned char data_smhdr_flags;
-  const nn_plist_t *qos;
+  const ddsi_plist_t *qos;
   const struct nn_rdata *fragchain;
   unsigned statusinfo;
   nn_wctime_t tstamp;
@@ -1753,7 +1753,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   const uint32_t statusinfo = si->statusinfo;
   const unsigned char data_smhdr_flags = si->data_smhdr_flags;
   const nn_wctime_t tstamp = si->tstamp;
-  const nn_plist_t * __restrict qos = si->qos;
+  const ddsi_plist_t * __restrict qos = si->qos;
   const char *failmsg = NULL;
   struct ddsi_serdata *sample = NULL;
 
@@ -1922,7 +1922,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   unsigned statusinfo;
   Data_DataFrag_common_t *msg;
   unsigned char data_smhdr_flags;
-  nn_plist_t qos;
+  ddsi_plist_t qos;
   int need_keyhash;
 
   if (pwr->ddsi2direct_cb)
@@ -1958,12 +1958,12 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   need_keyhash = (sampleinfo->size == 0 || (data_smhdr_flags & (DATA_FLAG_KEYFLAG | DATA_FLAG_DATAFLAG)) == 0);
   if (!(sampleinfo->complex_qos || need_keyhash) || !(data_smhdr_flags & DATA_FLAG_INLINE_QOS))
   {
-    nn_plist_init_empty (&qos);
+    ddsi_plist_init_empty (&qos);
     statusinfo = sampleinfo->statusinfo;
   }
   else
   {
-    nn_plist_src_t src;
+    ddsi_plist_src_t src;
     size_t qos_offset = NN_RDATA_SUBMSG_OFF (fragchain) + offsetof (Data_DataFrag_common_t, octetsToInlineQos) + sizeof (msg->octetsToInlineQos) + msg->octetsToInlineQos;
     dds_return_t plist_ret;
     src.protocol_version = rst->protocol_version;
@@ -1974,7 +1974,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     src.strict = NN_STRICT_P (gv->config);
     src.factory = gv->m_factory;
     src.logconfig = &gv->logconfig;
-    if ((plist_ret = nn_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET, 0, &src)) < 0)
+    if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH | PP_COHERENT_SET, 0, &src)) < 0)
     {
       if (plist_ret != DDS_RETCODE_UNSUPPORTED)
         GVWARNING ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRId64": invalid inline qos\n",
@@ -2005,7 +2005,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     ddsrt_atomic_st32 (&pwr->next_deliv_seq_lowword, (uint32_t) (sampleinfo->seq + 1));
   }
 
-  nn_plist_fini (&qos);
+  ddsi_plist_fini (&qos);
   return 0;
 }
 

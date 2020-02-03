@@ -48,7 +48,7 @@ struct whc_node {
   seqno_t seq;
   uint64_t total_bytes; /* cumulative number of bytes up to and including this node */
   size_t size;
-  struct nn_plist *plist; /* 0 if nothing special */
+  struct ddsi_plist *plist; /* 0 if nothing special */
   unsigned unacked: 1; /* counted in whc::unacked_bytes iff 1 */
   unsigned borrowed: 1; /* at most one can borrow it at any time */
   nn_mtime_t last_rexmit_ts;
@@ -155,7 +155,7 @@ static uint32_t whc_default_remove_acked_messages_full (struct whc_impl *whc, se
 static uint32_t whc_default_remove_acked_messages (struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list);
 static void whc_default_free_deferred_free_list (struct whc *whc, struct whc_node *deferred_free_list);
 static void whc_default_get_state (const struct whc *whc, struct whc_state *st);
-static int whc_default_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
+static int whc_default_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
 static seqno_t whc_default_next_seq (const struct whc *whc, seqno_t seq);
 static bool whc_default_borrow_sample (const struct whc *whc, seqno_t seq, struct whc_borrowed_sample *sample);
 static bool whc_default_borrow_sample_key (const struct whc *whc, const struct ddsi_serdata *serdata_key, struct whc_borrowed_sample *sample);
@@ -498,7 +498,7 @@ static void free_whc_node_contents (struct whc_node *whcn)
 {
   ddsi_serdata_unref (whcn->serdata);
   if (whcn->plist) {
-    nn_plist_fini (whcn->plist);
+    ddsi_plist_fini (whcn->plist);
     ddsrt_free (whcn->plist);
   }
 }
@@ -1156,7 +1156,7 @@ static uint32_t whc_default_remove_acked_messages (struct whc *whc_generic, seqn
   return cnt;
 }
 
-static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct nn_plist *plist, struct ddsi_serdata *serdata)
+static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata)
 {
   struct whc_node *newn = NULL;
 
@@ -1228,7 +1228,7 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
   return newn;
 }
 
-static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct nn_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t seq, nn_mtime_t exp, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   struct whc_impl * const whc = (struct whc_impl *)whc_generic;
   struct whc_node *newn = NULL;
@@ -1439,7 +1439,7 @@ static void return_sample_locked (struct whc_impl *whc, struct whc_borrowed_samp
     ddsi_serdata_unref (sample->serdata);
     if (sample->plist)
     {
-      nn_plist_fini (sample->plist);
+      ddsi_plist_fini (sample->plist);
       ddsrt_free (sample->plist);
     }
   }

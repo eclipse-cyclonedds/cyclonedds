@@ -432,14 +432,14 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
      argument, but that isn't the case here */
   rqos = dds_create_qos ();
   if (qos)
-    nn_xqos_mergein_missing (rqos, qos, DDS_READER_QOS_MASK);
+    ddsi_xqos_mergein_missing (rqos, qos, DDS_READER_QOS_MASK);
   if (sub->m_entity.m_qos)
-    nn_xqos_mergein_missing (rqos, sub->m_entity.m_qos, ~(uint64_t)0);
+    ddsi_xqos_mergein_missing (rqos, sub->m_entity.m_qos, ~(uint64_t)0);
   if (tp->m_ktopic->qos)
-    nn_xqos_mergein_missing (rqos, tp->m_ktopic->qos, ~(uint64_t)0);
-  nn_xqos_mergein_missing (rqos, &sub->m_entity.m_domain->gv.default_xqos_rd, ~(uint64_t)0);
+    ddsi_xqos_mergein_missing (rqos, tp->m_ktopic->qos, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (rqos, &sub->m_entity.m_domain->gv.default_xqos_rd, ~(uint64_t)0);
 
-  if ((rc = nn_xqos_valid (&sub->m_entity.m_domain->gv.logconfig, rqos)) < 0 ||
+  if ((rc = ddsi_xqos_valid (&sub->m_entity.m_domain->gv.logconfig, rqos)) < 0 ||
       (rc = validate_reader_qos(rqos)) != DDS_RETCODE_OK)
   {
     dds_delete_qos (rqos);

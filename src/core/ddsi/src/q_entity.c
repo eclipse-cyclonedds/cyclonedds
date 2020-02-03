@@ -27,7 +27,7 @@
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_qosmatch.h"
 #include "dds/ddsi/ddsi_entity_index.h"
@@ -454,7 +454,7 @@ static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, cons
 {
   uint64_t mask;
 
-  mask = nn_xqos_delta (ent_qos, xqos, QP_CHANGEABLE_MASK & ~(QP_RXO_MASK | QP_PARTITION)) & xqos->present;
+  mask = ddsi_xqos_delta (ent_qos, xqos, QP_CHANGEABLE_MASK & ~(QP_RXO_MASK | QP_PARTITION)) & xqos->present;
 #if 0
   int a = (ent_qos->present & QP_TOPIC_DATA) ? (int) ent_qos->topic_data.length : 6;
   int b = (xqos->present & QP_TOPIC_DATA) ? (int) xqos->topic_data.length : 6;
@@ -467,7 +467,7 @@ static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, cons
           !!(mask & QP_TOPIC_DATA));
 #endif
   EELOGDISC (e, "update_qos_locked "PGUIDFMT" delta=%"PRIu64" QOS={", PGUID(e->guid), mask);
-  nn_xqos_log (DDS_LC_DISCOVERY, &e->gv->logconfig, xqos);
+  ddsi_xqos_log (DDS_LC_DISCOVERY, &e->gv->logconfig, xqos);
   EELOGDISC (e, "}\n");
 
   if (mask == 0)
@@ -475,8 +475,8 @@ static bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, cons
     return false;
 
   ddsrt_mutex_lock (&e->qos_lock);
-  nn_xqos_fini_mask (ent_qos, mask);
-  nn_xqos_mergein_missing (ent_qos, xqos, mask);
+  ddsi_xqos_fini_mask (ent_qos, mask);
+  ddsi_xqos_mergein_missing (ent_qos, xqos, mask);
   ddsrt_mutex_unlock (&e->qos_lock);
   builtintopic_write (e->gv->builtin_topic_interface, e, timestamp, true);
   return true;
@@ -583,7 +583,7 @@ static void participant_remove_wr_lease_locked (struct participant * pp, struct 
   }
 }
 
-dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const nn_plist_t *plist)
+dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
 {
   struct participant *pp;
   ddsi_guid_t subguid, group_guid;
@@ -640,13 +640,13 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domain
   pp->lease_duration = gv->config.lease_duration;
   ddsrt_fibheap_init (&ldur_fhdef, &pp->ldur_auto_wr);
   pp->plist = ddsrt_malloc (sizeof (*pp->plist));
-  nn_plist_copy (pp->plist, plist);
-  nn_plist_mergein_missing (pp->plist, &gv->default_local_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
+  ddsi_plist_copy (pp->plist, plist);
+  ddsi_plist_mergein_missing (pp->plist, &gv->default_local_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
 
   if (gv->logconfig.c.mask & DDS_LC_DISCOVERY)
   {
     GVLOGDISC ("PARTICIPANT "PGUIDFMT" QOS={", PGUID (pp->e.guid));
-    nn_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, &pp->plist->qos);
+    ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, &pp->plist->qos);
     GVLOGDISC ("}\n");
   }
 
@@ -816,7 +816,7 @@ dds_return_t new_participant_guid (const ddsi_guid_t *ppguid, struct ddsi_domain
   return 0;
 }
 
-dds_return_t new_participant (ddsi_guid_t *p_ppguid, struct ddsi_domaingv *gv, unsigned flags, const nn_plist_t *plist)
+dds_return_t new_participant (ddsi_guid_t *p_ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
 {
   union { uint64_t u64; uint32_t u32[2]; } u;
   u.u32[0] = gv->ppguid_base.prefix.u[1];
@@ -829,7 +829,7 @@ dds_return_t new_participant (ddsi_guid_t *p_ppguid, struct ddsi_domaingv *gv, u
   return new_participant_guid (p_ppguid, gv, flags, plist);
 }
 
-void update_participant_plist (struct participant *pp, const nn_plist_t *plist)
+void update_participant_plist (struct participant *pp, const ddsi_plist_t *plist)
 {
   ddsrt_mutex_lock (&pp->e.lock);
   if (update_qos_locked (&pp->e, &pp->plist->qos, &plist->qos, now ()))
@@ -987,7 +987,7 @@ static void unref_participant (struct participant *pp, const struct ddsi_guid *g
          while longer for it to wakeup. */
       ddsi_conn_free (pp->m_conn);
     }
-    nn_plist_fini (pp->plist);
+    ddsi_plist_fini (pp->plist);
     ddsrt_free (pp->plist);
     ddsrt_mutex_destroy (&pp->refc_lock);
     entity_common_fini (&pp->e);
@@ -2998,13 +2998,13 @@ static void new_writer_guid_common_init (struct writer *wr, const struct ddsi_se
   /* Copy QoS, merging in defaults */
 
   wr->xqos = ddsrt_malloc (sizeof (*wr->xqos));
-  nn_xqos_copy (wr->xqos, xqos);
-  nn_xqos_mergein_missing (wr->xqos, &wr->e.gv->default_xqos_wr, ~(uint64_t)0);
+  ddsi_xqos_copy (wr->xqos, xqos);
+  ddsi_xqos_mergein_missing (wr->xqos, &wr->e.gv->default_xqos_wr, ~(uint64_t)0);
   assert (wr->xqos->aliased == 0);
   set_topic_type_name (wr->xqos, topic);
 
   ELOGDISC (wr, "WRITER "PGUIDFMT" QOS={", PGUID (wr->e.guid));
-  nn_xqos_log (DDS_LC_DISCOVERY, &wr->e.gv->logconfig, wr->xqos);
+  ddsi_xqos_log (DDS_LC_DISCOVERY, &wr->e.gv->logconfig, wr->xqos);
   ELOGDISC (wr, "}\n");
 
   assert (wr->xqos->present & QP_RELIABILITY);
@@ -3319,7 +3319,7 @@ static void gc_delete_writer (struct gcreq *gcreq)
     unref_addrset (wr->ssm_as);
 #endif
   unref_addrset (wr->as); /* must remain until readers gone (rebuilding of addrset) */
-  nn_xqos_fini (wr->xqos);
+  ddsi_xqos_fini (wr->xqos);
   ddsrt_free (wr->xqos);
   local_reader_ary_fini (&wr->rdary);
   ddsrt_cond_destroy (&wr->throttle_cond);
@@ -3626,15 +3626,15 @@ static dds_return_t new_reader_guid
 
   /* Copy QoS, merging in defaults */
   rd->xqos = ddsrt_malloc (sizeof (*rd->xqos));
-  nn_xqos_copy (rd->xqos, xqos);
-  nn_xqos_mergein_missing (rd->xqos, &pp->e.gv->default_xqos_rd, ~(uint64_t)0);
+  ddsi_xqos_copy (rd->xqos, xqos);
+  ddsi_xqos_mergein_missing (rd->xqos, &pp->e.gv->default_xqos_rd, ~(uint64_t)0);
   assert (rd->xqos->aliased == 0);
   set_topic_type_name (rd->xqos, topic);
 
   if (rd->e.gv->logconfig.c.mask & DDS_LC_DISCOVERY)
   {
     ELOGDISC (rd, "READER "PGUIDFMT" QOS={", PGUID (rd->e.guid));
-    nn_xqos_log (DDS_LC_DISCOVERY, &rd->e.gv->logconfig, rd->xqos);
+    ddsi_xqos_log (DDS_LC_DISCOVERY, &rd->e.gv->logconfig, rd->xqos);
     ELOGDISC (rd, "}\n");
   }
   assert (rd->xqos->present & QP_RELIABILITY);
@@ -3802,7 +3802,7 @@ static void gc_delete_reader (struct gcreq *gcreq)
   }
   ddsi_sertopic_unref ((struct ddsi_sertopic *) rd->topic);
 
-  nn_xqos_fini (rd->xqos);
+  ddsi_xqos_fini (rd->xqos);
   ddsrt_free (rd->xqos);
 #ifdef DDSI_INCLUDE_NETWORK_PARTITIONS
   unref_addrset (rd->as);
@@ -3960,7 +3960,7 @@ static void proxy_participant_remove_pwr_lease_locked (struct proxy_participant 
   }
 }
 
-void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const nn_plist_t *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, nn_wctime_t timestamp, seqno_t seq)
+void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, nn_wctime_t timestamp, seqno_t seq)
 {
   /* No locking => iff all participants use unique guids, and sedp
      runs on a single thread, it can't go wrong. FIXME, maybe? The
@@ -4045,8 +4045,8 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
   proxypp->as_default = as_default;
   proxypp->as_meta = as_meta;
   proxypp->endpoints = NULL;
-  proxypp->plist = nn_plist_dup (plist);
-  nn_xqos_mergein_missing (&proxypp->plist->qos, &gv->default_plist_pp.qos, ~(uint64_t)0);
+  proxypp->plist = ddsi_plist_dup (plist);
+  ddsi_xqos_mergein_missing (&proxypp->plist->qos, &gv->default_plist_pp.qos, ~(uint64_t)0);
   ddsrt_avl_init (&proxypp_groups_treedef, &proxypp->groups);
 
   if (custom_flags & CF_INC_KERNEL_SEQUENCE_NUMBERS)
@@ -4096,15 +4096,15 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
 #undef PT_TE
 #undef TE
 #undef LTE
-    nn_plist_t plist_rd, plist_wr;
+    ddsi_plist_t plist_rd, plist_wr;
     int i;
     /* Note: no entity name or group GUID supplied, but that shouldn't
        matter, as these are internal to DDSI and don't use group
        coherency */
-    nn_plist_init_empty (&plist_wr);
-    nn_plist_init_empty (&plist_rd);
-    nn_xqos_copy (&plist_wr.qos, &gv->builtin_endpoint_xqos_wr);
-    nn_xqos_copy (&plist_rd.qos, &gv->builtin_endpoint_xqos_rd);
+    ddsi_plist_init_empty (&plist_wr);
+    ddsi_plist_init_empty (&plist_rd);
+    ddsi_xqos_copy (&plist_wr.qos, &gv->builtin_endpoint_xqos_wr);
+    ddsi_xqos_copy (&plist_rd.qos, &gv->builtin_endpoint_xqos_rd);
     for (i = 0; i < (int) (sizeof (bestab) / sizeof (*bestab)); i++)
     {
       const struct bestab *te = &bestab[i];
@@ -4129,8 +4129,8 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
         }
       }
     }
-    nn_plist_fini (&plist_wr);
-    nn_plist_fini (&plist_rd);
+    ddsi_plist_fini (&plist_wr);
+    ddsi_plist_fini (&plist_rd);
   }
 
   /* write DCPSParticipant topic before the lease can expire */
@@ -4145,7 +4145,7 @@ void new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
   ddsrt_mutex_unlock (&proxypp->e.lock);
 }
 
-int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, nn_wctime_t timestamp)
+int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, nn_wctime_t timestamp)
 {
   if (seq > proxypp->seq)
   {
@@ -4154,19 +4154,19 @@ int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, se
     struct ddsi_domaingv * const gv = proxypp->e.gv;
     const uint64_t pmask = PP_ENTITY_NAME;
     const uint64_t qmask = QP_USER_DATA;
-    nn_plist_t *new_plist = ddsrt_malloc (sizeof (*new_plist));
-    nn_plist_init_empty (new_plist);
-    nn_plist_mergein_missing (new_plist, datap, pmask, qmask);
-    nn_plist_mergein_missing (new_plist, &gv->default_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
+    ddsi_plist_t *new_plist = ddsrt_malloc (sizeof (*new_plist));
+    ddsi_plist_init_empty (new_plist);
+    ddsi_plist_mergein_missing (new_plist, datap, pmask, qmask);
+    ddsi_plist_mergein_missing (new_plist, &gv->default_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
     (void) update_qos_locked (&proxypp->e, &proxypp->plist->qos, &new_plist->qos, timestamp);
-    nn_plist_fini (new_plist);
+    ddsi_plist_fini (new_plist);
     ddsrt_free (new_plist);
     proxypp->proxypp_have_spdp = 1;
   }
   return 0;
 }
 
-int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct nn_plist *datap, nn_wctime_t timestamp)
+int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, nn_wctime_t timestamp)
 {
   ddsrt_mutex_lock (&proxypp->e.lock);
   update_proxy_participant_plist_locked (proxypp, seq, datap, timestamp);
@@ -4234,7 +4234,7 @@ static void unref_proxy_participant (struct proxy_participant *proxypp, struct p
     ELOGDISC (proxypp, "unref_proxy_participant("PGUIDFMT"): refc=0, freeing\n", PGUID (proxypp->e.guid));
     unref_addrset (proxypp->as_default);
     unref_addrset (proxypp->as_meta);
-    nn_plist_fini (proxypp->plist);
+    ddsi_plist_fini (proxypp->plist);
     ddsrt_free (proxypp->plist);
     entity_common_fini (&proxypp->e);
     remove_deleted_participant_guid (proxypp->e.gv->deleted_participants, &proxypp->e.guid, DPG_LOCAL | DPG_REMOTE);
@@ -4427,7 +4427,7 @@ uint64_t get_entity_instance_id (const struct ddsi_domaingv *gv, const struct dd
 
 /* PROXY-ENDPOINT --------------------------------------------------- */
 
-static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_endpoint_common *c, enum entity_kind kind, const struct ddsi_guid *guid, nn_wctime_t tcreate, seqno_t seq, struct proxy_participant *proxypp, struct addrset *as, const nn_plist_t *plist)
+static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_endpoint_common *c, enum entity_kind kind, const struct ddsi_guid *guid, nn_wctime_t tcreate, seqno_t seq, struct proxy_participant *proxypp, struct addrset *as, const ddsi_plist_t *plist)
 {
   const char *name;
   int ret;
@@ -4439,7 +4439,7 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
 
   name = (plist->present & PP_ENTITY_NAME) ? plist->entity_name : "";
   entity_common_init (e, proxypp->e.gv, guid, name, kind, tcreate, proxypp->vendor, false);
-  c->xqos = nn_xqos_dup (&plist->qos);
+  c->xqos = ddsi_xqos_dup (&plist->qos);
   c->as = ref_addrset (as);
   c->vendor = proxypp->vendor;
   c->seq = seq;
@@ -4451,7 +4451,7 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
 
   if ((ret = ref_proxy_participant (proxypp, c)) != DDS_RETCODE_OK)
   {
-    nn_xqos_fini (c->xqos);
+    ddsi_xqos_fini (c->xqos);
     ddsrt_free (c->xqos);
     unref_addrset (c->as);
     entity_common_fini (e);
@@ -4464,7 +4464,7 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
 static void proxy_endpoint_common_fini (struct entity_common *e, struct proxy_endpoint_common *c)
 {
   unref_proxy_participant (c->proxypp, c);
-  nn_xqos_fini (c->xqos);
+  ddsi_xqos_fini (c->xqos);
   ddsrt_free (c->xqos);
   unref_addrset (c->as);
   entity_common_fini (e);
@@ -4472,7 +4472,7 @@ static void proxy_endpoint_common_fini (struct entity_common *e, struct proxy_en
 
 /* PROXY-WRITER ----------------------------------------------------- */
 
-int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const nn_plist_t *plist, struct nn_dqueue *dqueue, struct xeventq *evq, nn_wctime_t timestamp, seqno_t seq)
+int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const ddsi_plist_t *plist, struct nn_dqueue *dqueue, struct xeventq *evq, nn_wctime_t timestamp, seqno_t seq)
 {
   struct proxy_participant *proxypp;
   struct proxy_writer *pwr;
@@ -4806,7 +4806,7 @@ int proxy_writer_set_notalive (struct proxy_writer *pwr, bool notify)
 
 /* PROXY-READER ----------------------------------------------------- */
 
-int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const nn_plist_t *plist, nn_wctime_t timestamp, seqno_t seq
+int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const ddsi_plist_t *plist, nn_wctime_t timestamp, seqno_t seq
 #ifdef DDSI_INCLUDE_SSM
                       , int favours_ssm
 #endif

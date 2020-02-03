@@ -20,7 +20,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/fibheap.h"
 
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_nwif.h"
 #include "dds/ddsi/q_sockwaitset.h"
@@ -225,8 +225,8 @@ struct ddsi_domaingv {
      supplying values for missing QoS settings in incoming discovery
      packets); plus the actual QoSs needed for the builtin
      endpoints. */
-  nn_plist_t default_plist_pp;
-  nn_plist_t default_local_plist_pp;
+  ddsi_plist_t default_plist_pp;
+  ddsi_plist_t default_local_plist_pp;
   dds_qos_t default_xqos_rd;
   dds_qos_t default_xqos_wr;
   dds_qos_t default_xqos_wr_nad;

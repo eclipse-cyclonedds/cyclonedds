@@ -17,7 +17,7 @@
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_config.h"
-#include "dds/ddsi/q_plist.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/version.h"
@@ -69,8 +69,8 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
     thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
     if ((pp = entidx_lookup_participant_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
     {
-      nn_plist_t plist;
-      nn_plist_init_empty (&plist);
+      ddsi_plist_t plist;
+      ddsi_plist_init_empty (&plist);
       plist.qos.present = plist.qos.aliased = qos->present;
       plist.qos = *qos;
       update_participant_plist (pp, &plist);
@@ -94,7 +94,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   dds_entity_t ret;
   ddsi_guid_t guid;
   dds_participant * pp;
-  nn_plist_t plist;
+  ddsi_plist_t plist;
   dds_qos_t *new_qos = NULL;
   char *config = "";
 
@@ -109,19 +109,19 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
 
   new_qos = dds_create_qos ();
   if (qos != NULL)
-    nn_xqos_mergein_missing (new_qos, qos, DDS_PARTICIPANT_QOS_MASK);
-  nn_xqos_mergein_missing (new_qos, &dom->gv.default_local_plist_pp.qos, ~(uint64_t)0);
-  if ((ret = nn_xqos_valid (&dom->gv.logconfig, new_qos)) < 0)
+    ddsi_xqos_mergein_missing (new_qos, qos, DDS_PARTICIPANT_QOS_MASK);
+  ddsi_xqos_mergein_missing (new_qos, &dom->gv.default_local_plist_pp.qos, ~(uint64_t)0);
+  if ((ret = ddsi_xqos_valid (&dom->gv.logconfig, new_qos)) < 0)
     goto err_qos_validation;
 
   /* Translate qos */
-  nn_plist_init_empty (&plist);
+  ddsi_plist_init_empty (&plist);
   dds_merge_qos (&plist.qos, new_qos);
 
   thread_state_awake (lookup_thread_state (), &dom->gv);
   ret = new_participant (&guid, &dom->gv, 0, &plist);
   thread_state_asleep (lookup_thread_state ());
-  nn_plist_fini (&plist);
+  ddsi_plist_fini (&plist);
   if (ret < 0)
   {
     ret = DDS_RETCODE_ERROR;

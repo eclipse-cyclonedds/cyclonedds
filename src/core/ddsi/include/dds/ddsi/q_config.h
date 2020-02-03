@@ -14,7 +14,7 @@
 
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_xqos.h"
+#include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/ddsi_portmapping.h"
 
